@@ -33,6 +33,14 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Local pipeline (disc images, extracted files, generated Nintendo assets)
+tools/.cache/
+tools/config.local.json
+external/
+assets/generated/**
+!assets/generated/.gitkeep
+!assets/generated/**/.gitkeep
+
 # Never commit original game dumps or the decomp
 orig/
 ac-decomp/

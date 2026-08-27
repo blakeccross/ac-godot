@@ -28,4 +28,6 @@ Export presets can wait until a playable slice exists. Enabling them does not re
 
 ## Placeholder art
 
-Use Godot primitives, solid colors, and simple lights until a system is playable. Do not convert original textures, models, or audio into this repo.
+Use Godot primitives, solid colors, and simple lights until a system is playable.
+
+Converted disc assets (GLB/PNG) are produced by `python3 tools/build_assets.py` into `assets/generated/` and are **not committed**. Import 2D textures with nearest filtering. Do not upscale or sharpen source art. See [asset_pipeline.md](asset_pipeline.md).

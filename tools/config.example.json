@@ -1,0 +1,8 @@
+{
+  "game_files": "/absolute/path/to/Animal Crossing (USA)",
+  "work_root": "/absolute/path/to/ac-assets-work",
+  "godot_generated": "assets/generated",
+  "dtk_path": "tools/.cache/dtk",
+  "scale": 0.001,
+  "test_set_only": true
+}

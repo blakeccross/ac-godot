@@ -32,4 +32,4 @@ When a later phase needs one of these, add a short justification in the relevant
 
 ## Content policy
 
-No Nintendo assets, names, music, or decomp source in this repository. Original names and placeholder art only.
+No Nintendo assets, names, music, or decomp source in **git**. A local disc may be converted into `assets/generated/` (gitignored) via the pipeline in [asset_pipeline.md](asset_pipeline.md). Hand-authored recreation art lives in `assets/custom/`.

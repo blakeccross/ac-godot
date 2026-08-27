@@ -26,3 +26,5 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | `m_island`, GBA, Famicom, e-Reader | Specialized extras | Out of scope until earned ([scope.md](scope.md)) |
 
 If a decomp symbol has no row, default to **omit** unless a current milestone needs the behavior.
+
+Asset formats and extraction: [asset_pipeline.md](asset_pipeline.md), [asset_pipeline_research.md](asset_pipeline_research.md).
