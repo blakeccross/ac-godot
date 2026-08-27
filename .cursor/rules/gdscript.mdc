@@ -1,0 +1,25 @@
+---
+description: GDScript style — typed Godot conventions for this project
+globs: "**/*.gd"
+alwaysApply: false
+---
+
+# GDScript
+
+Follow the official Godot GDScript style guide.
+
+- Files and folders: `snake_case`. Nodes and `class_name`: `PascalCase`.
+- Functions and variables: `snake_case`. Constants: `CONSTANT_CASE`.
+- Private members: `_prefix`. Type every signature and member.
+- Indent with tabs. `class_name` before `extends`. Doc comments with `##`.
+- Resource scripts live in `scripts/data/` with `class_name`. Do not put game logic in `.tres` files.
+- Scene scripts stay thin: wire nodes and call systems. No giant scene scripts.
+- Do not use the `void` operator for floating promises.
+
+```gdscript
+class_name ItemData
+extends Resource
+
+@export var id: StringName = &""
+@export var display_name: String = ""
+```

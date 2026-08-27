@@ -1,0 +1,17 @@
+---
+description: Architecture — decomp as reference, composition, placeholders, no scope creep
+alwaysApply: true
+---
+
+# Architecture
+
+Study [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp) for **behavior**. Reimplement with Godot systems. Never copy C structure, `Common_Get` blobs, or mechanical GDScript translations of decomp files.
+
+- **Data:** `Resource` classes under `scripts/data/`, instances as `.tres` under `data/`.
+- **Presentation:** scenes under `scenes/`.
+- **Behavior:** systems under `scripts/systems/` (autoloads only when a system exists and is shared).
+- Prefer composition over inheritance. Keep systems independently testable.
+- Use placeholders until the system works. Do not import original game assets.
+- Do not add a feature because the decomp has it. See `docs/scope.md`.
+- Build vertical slices that stay playable. No months of infrastructure before an in-game test.
+- Full notes: `docs/architecture.md`, `docs/decomp-mapping.md`.

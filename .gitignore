@@ -1,0 +1,47 @@
+# Godot 4+ cache
+.godot/
+.nomedia
+
+# Godot 3 leftover
+.import/
+
+# Export
+export.cfg
+export/
+export_credentials.cfg
+
+# GdUnit4 reports
+reports/
+*.tmp
+
+# Imported translations (generated from CSV)
+*.translation
+
+# Mono / C# (not used, ignore if created accidentally)
+.mono/
+data_*/
+mono_crash.*.json
+
+# OS
+.DS_Store
+Thumbs.db
+*~
+
+# Editor / tooling
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Never commit original game dumps or the decomp
+orig/
+ac-decomp/
+*.iso
+*.gcm
+*.rvz
+*.wia
+*.wbfs
+*.ciso
+*.gcz
+*.nkit.iso
+*.nkit.gcz
