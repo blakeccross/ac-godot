@@ -149,6 +149,115 @@ def structure_palette_names(prefix: str) -> list[str]:
     return names
 
 
+# Runtime gSPSegment banks (`anime_1_txt`…`anime_6_txt`). DLs store dummy
+# SEGMENT_ADDR values; the actor binds a real pal/tex before draw.
+ANIME_TXT_SEGMENTS = frozenset(range(0x08, 0x10))
+
+_SYMBOL_STOPWORDS = frozenset(
+    {
+        "obj",
+        "s",
+        "w",
+        "f",
+        "e",
+        "c",
+        "r",
+        "model",
+        "gfx",
+        "mat",
+        "txt",
+        "tex",
+        "pal",
+        "pic",
+        "i4",
+        "i8",
+        "ia4",
+        "ia8",
+        "ta",
+        "dl",
+        "mode",
+        "v",
+        "ckf",
+        "bs",
+        "ba",
+        "je",
+        "tbl",
+    }
+)
+_PLANT_PARTS = frozenset({"leaf", "trunk", "cedar", "palm", "flower", "tree"})
+_GENERIC_LEAF_PARTS = frozenset({"leaf", "trunk"})
+
+
+def symbol_tokens(name: str) -> set[str]:
+    """Distinctive tokens from a REL symbol or Gfx name (drop obj/season/tex/model)."""
+    split = re.sub(r"([a-z])([A-Z])", r"\1_\2", name)
+    split = re.sub(r"([A-Za-z])(\d)", r"\1_\2", split)
+    split = re.sub(r"(\d)([A-Za-z])", r"\1_\2", split)
+    out: set[str] = set()
+    for part in re.split(r"[^a-zA-Z0-9]+", split.lower()):
+        if not part or part in _SYMBOL_STOPWORDS or part.isdigit() or len(part) < 2:
+            continue
+        if re.fullmatch(r"t\d+", part):
+            continue
+        out.add(part)
+    return out
+
+
+def season_of_prefix(prefix: str) -> str:
+    m = re.match(r"^obj_([swf])_", prefix)
+    return m.group(1) if m else ""
+
+
+def gfx_part_tokens(prefix: str, gfx: str) -> set[str]:
+    """Tokens after the object prefix: `obj_s_shrine_leaf_model` → {leaf}."""
+    gl, pl = gfx.lower(), prefix.lower()
+    if pl and gl.startswith(pl):
+        rest = gfx[len(prefix) :].lstrip("_")
+    else:
+        rest = gfx
+    rest = re.sub(r"(_gfx)?_model$", "", rest, flags=re.IGNORECASE)
+    return symbol_tokens(rest)
+
+
+def dummy_name_score(symbol_name: str, part: set[str], prefix_toks: set[str]) -> int:
+    """Rank a REL tex/pal as a stand-in for an unbound anime segment."""
+    name_toks = symbol_tokens(symbol_name)
+    part_hits = name_toks & part
+    if part and not part_hits:
+        return 0
+    prefix_hits = name_toks & prefix_toks
+    if not part_hits and not prefix_hits:
+        return 0
+    score = 0
+    if part_hits:
+        score += 10 * len(part_hits)
+        if part and part <= name_toks:
+            score += 5
+    score += len(prefix_hits)
+    return score
+
+
+def dummy_palette_score(symbol_name: str, part: set[str], prefix_toks: set[str]) -> int:
+    """Like dummy_name_score, but the pal must belong to the same object family.
+
+    Generic part words (`front`, `door`, `light`, `leaf`) hit furniture and UI
+    pals across the REL. Using those as `anime_1_txt` overwrites the structure
+    TLUT and recolors the whole house/shop.
+    """
+    if prefix_toks and not (symbol_tokens(symbol_name) & prefix_toks):
+        return 0
+    return dummy_name_score(symbol_name, part, prefix_toks)
+
+
+def is_image_symbol(name: str) -> bool:
+    if name.startswith("cKF_") or name.startswith("."):
+        return False
+    lower = name.lower()
+    if lower.endswith(("_pal", "_model", "_v")):
+        return False
+    return "_tex" in lower or lower.endswith("_txt") or "_pic_" in lower
+
+
 def decode_gbi_texture(
     data: bytes,
     width: int,
@@ -211,10 +320,15 @@ class TextureBank:
             if symbol.name.endswith("_pal") and symbol.size >= 32:
                 self._pal_symbols.append(symbol)
         self._pal_symbols.sort(key=lambda s: s.address)
+        self._image_symbols: list[MapSymbol] = [
+            s for s in symbols if is_image_symbol(s.name) and s.size > 0
+        ]
         self.segment_images: dict[int, SegmentTex] = {}
         self.segment_palettes: dict[int, bytes] = {}
         self._segment_offset_names: dict[int, dict[int, str]] = {}
         self._png_cache: dict[tuple, bytes] = {}
+        self.current_prefix = ""
+        self.current_gfx = ""
         self._tree_pal: bytes | None = None
         for symbol in symbols:
             if symbol.name == "obj_tree_pal":
@@ -339,6 +453,7 @@ class TextureBank:
 
     def bind_static_segments(self, prefix: str) -> None:
         """Bind runtime segment banks needed by static grd_/rom_ display lists."""
+        self.current_prefix = prefix
         if (
             prefix.startswith("grd_")
             or prefix.startswith("rom_")
@@ -370,7 +485,10 @@ class TextureBank:
         - `{prefix}_pal`, `{prefix}_eye1_TA_tex_txt`, `{prefix}_mouth1_TA_tex_txt`, `{prefix}_tmem_txt`
         - archive `face_{species}.bin` / `tex_{species}.bin` / `pallet_{species}.bin` when present
           (player eyes/mouth/shirt live there; species is prefix without trailing `_N`)
+        Dummy `anime_N_txt` SETTIMG/LOADTLUT (house mark, shrine leaf, …) resolve
+        later from REL symbols — see `_resolve_dummy_image` / `_resolve_dummy_palette`.
         """
+        self.current_prefix = prefix
         pal = self._symbol_bytes(f"{prefix}_pal")
         if pal is None:
             pal = self._structure_palette(prefix)
@@ -434,11 +552,132 @@ class TextureBank:
                 return self.rel.slice_at(symbol.address, symbol.size)
         return None
 
+    def _size_fits(self, symbol_size: int, needed: int) -> bool:
+        if symbol_size < needed:
+            return False
+        # 32-byte GX align padding is normal; a whole extra tile is not.
+        return symbol_size - needed < 32
+
+    def _resolve_dummy_palette(self, seg: int) -> None:
+        """Fill anime_N palettes from the current Gfx part, FG plant TLUTs, or structure pal."""
+        blob, kind = self._pick_dummy_palette()
+        if blob is None:
+            return
+        if kind == 2:
+            self.segment_palettes[seg] = blob
+        elif seg not in self.segment_palettes:
+            self.segment_palettes[seg] = blob
+
+    def _pick_dummy_palette(self) -> tuple[bytes | None, int]:
+        """Return (palette bytes, specificity). 2 = Gfx-part symbol, 1 = FG plant, 0 = structure."""
+        part = gfx_part_tokens(self.current_prefix, self.current_gfx)
+        prefix_toks = symbol_tokens(self.current_prefix)
+        best: MapSymbol | None = None
+        best_score = 0
+        for pal in self._pal_symbols:
+            score = dummy_palette_score(pal.name, part, prefix_toks)
+            if score > best_score:
+                best_score = score
+                best = pal
+        if best is not None and best_score >= 10:
+            return self.rel.slice_at(best.address, min(best.size, 512)), 2
+        if part & _PLANT_PARTS:
+            if "palm" in part and self._palm_pal:
+                return self._palm_pal, 1
+            if "flower" in part and self._flower_pal:
+                return self._flower_pal, 1
+            fg = self._cedar_pal or self._tree_fg_pal
+            if fg:
+                return fg, 1
+        struct_pal = self._structure_palette(self.current_prefix) or self._symbol_bytes(
+            f"{self.current_prefix}_pal"
+        )
+        if struct_pal:
+            return struct_pal, 0
+        return None, 0
+
+    def _resolve_dummy_image(self, state: TextureState) -> None:
+        """Bind an unbound anime_N SETTIMG from a same-size REL texture.
+
+        Actor draw (`gSPSegment`) supplies the real pointer. We pick a stand-in by
+        matching SETTIMG byte size plus Gfx-part tokens (`leaf`, `mark`, …) so
+        shrine leaves get `obj_*_tree*_leaf_tex` and house marks get
+        `obj_myhome_mark_tex_txt` without a per-object map.
+        """
+        addr = state.img_addr
+        seg = addr >> 24
+        if seg not in ANIME_TXT_SEGMENTS or (addr & 0xFFFFFF):
+            return
+        if seg in self.segment_images:
+            return
+        if state.width <= 0 or state.height <= 0:
+            return
+        needed = image_byte_size(state.width, state.height, state.siz)
+        data, name = self._pick_dummy_image(needed)
+        if data is None:
+            return
+        pal = self.segment_palettes.get(seg)
+        self.segment_images[seg] = SegmentTex(
+            data, state.width, state.height, state.fmt, state.siz, pal
+        )
+        self._segment_offset_names.setdefault(seg, {})[0] = name
+
+    def _pick_dummy_image(self, needed: int) -> tuple[bytes | None, str]:
+        part = gfx_part_tokens(self.current_prefix, self.current_gfx)
+        prefix_toks = symbol_tokens(self.current_prefix)
+        season = season_of_prefix(self.current_prefix)
+        # Prefix-only matches glue random same-size tiles onto dummy banks
+        # (and can overwrite a palette segment). Require a Gfx part token.
+        if not part:
+            return None, ""
+
+        def usable(sym: MapSymbol) -> bool:
+            if not self._size_fits(sym.size, needed):
+                return False
+            name_toks = symbol_tokens(sym.name)
+            if part:
+                return bool(name_toks & part)
+            return bool(name_toks & prefix_toks)
+
+        cands = [s for s in self._image_symbols if usable(s)]
+        if not cands:
+            return None, ""
+
+        def rank(sym: MapSymbol) -> int:
+            score = dummy_name_score(sym.name, part, prefix_toks)
+            name_toks = symbol_tokens(sym.name)
+            if season and f"obj_{season}_" in sym.name:
+                score += 2
+            if "gold" in name_toks and "gold" not in prefix_toks and "gold" not in part:
+                score -= 4
+            # Unqualified leaf/trunk DLs share hardwood FG art, not cedar/palm.
+            if part <= _GENERIC_LEAF_PARTS and part:
+                if "tree" in name_toks:
+                    score += 3
+                if name_toks & {"cedar", "palm", "flower"}:
+                    score -= 2
+            if sym.size != needed:
+                score -= 1
+            return score
+
+        best = max(cands, key=rank)
+        if rank(best) <= 0:
+            return None, ""
+        try:
+            return self.rel.slice_at(best.address, needed), best.name
+        except ValueError:
+            return None, ""
+
     def load_palette(self, addr: int, count: int) -> bytes | None:
         nbytes = max(32, count * 2)
         if addr >> 24:
             seg = addr >> 24
             off = addr & 0xFFFFFF
+            if seg in ANIME_TXT_SEGMENTS and off == 0:
+                self._resolve_dummy_palette(seg)
+                blob = self.segment_palettes.get(seg)
+                if blob:
+                    return blob[:nbytes] if len(blob) >= 32 else blob
             # Field BG bank stores pals at offsets inside segment 0x80.
             seg_img = self.segment_images.get(seg)
             if seg_img is not None and off < len(seg_img.data):
@@ -458,6 +697,8 @@ class TextureBank:
     def decode_current(self, state: TextureState) -> tuple[bytes | None, str]:
         if state.width <= 0 or state.height <= 0 or state.img_addr == 0:
             return None, ""
+        if state.img_addr >> 24:
+            self._resolve_dummy_image(state)
         pal = self._palette_for(state)
         name = self._name_for(state.img_addr)
         key = (state.img_addr, state.width, state.height, state.fmt, state.siz, pal or b"", state.prim)
@@ -498,6 +739,8 @@ class TextureBank:
     def _image_bytes(self, state: TextureState) -> bytes | None:
         addr = state.img_addr
         if addr >> 24:
+            if (addr >> 24) not in self.segment_images:
+                self._resolve_dummy_image(state)
             seg = self.segment_images.get(addr >> 24)
             if seg is None:
                 return None

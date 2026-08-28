@@ -451,6 +451,8 @@ def convert_static_gfx(
     by_name = {s.name: s for s in symbols}
     tex_state = TextureState()
     for name in gfx_names:
+        if bank is not None:
+            bank.current_gfx = name
         mat_name = _mat_model_name(name, by_name)
         if bank is not None and mat_name is not None:
             mat = by_name[mat_name]

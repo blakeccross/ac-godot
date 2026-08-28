@@ -311,6 +311,8 @@ def parse_gfx(
     tex_state = state if state is not None else TextureState()
     current_key: tuple | None = None
     current_mtx = -1
+    if bank is not None and name:
+        bank.current_gfx = name
 
     def tex_key() -> tuple:
         # Include palette bytes, not just slot index — LOADTLUT reuses slot 15.
