@@ -48,9 +48,13 @@ def gbi_to_gx(fmt: int, siz: int) -> int:
         return I4
     if fmt == G_IM_FMT_I and siz == G_IM_SIZ_8b:
         return I8
+    # Dolphin/N64 IA sizes are bits-per-texel; GX names differ by one step:
+    # G_IM_SIZ_8b IA (I4+A4) → GX IA4; G_IM_SIZ_16b IA (I8+A8) → GX IA8.
     if fmt == G_IM_FMT_IA and siz == G_IM_SIZ_4b:
         return IA4
     if fmt == G_IM_FMT_IA and siz == G_IM_SIZ_8b:
+        return IA4
+    if fmt == G_IM_FMT_IA and siz == G_IM_SIZ_16b:
         return IA8
     if fmt == G_IM_FMT_RGBA and siz == G_IM_SIZ_16b:
         return RGB5A3

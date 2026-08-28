@@ -89,7 +89,7 @@ assets/
 │   │   ├── player/faces|shirts/
 │   │   ├── rooms/floor|wall/
 │   │   └── rel/            # named REL CI dumps
-│   └── ui/                 # BTI → PNG
+│   └── ui/                 # BTI → PNG; inventory/ chrome from REL
 └── custom/                 # hand-authored; never overwritten by the pipeline
 
 tools/
@@ -140,13 +140,21 @@ Acre collision only (no mesh reconvert):
 python3 tools/build_assets.py --step convert --kind collision
 ```
 
+Writes `assets/generated/environment/acres/grd_*.col.json` from `data_bgd` in `foresta.rel` (paired with each acre mesh). Do not copy `bg_data.c` into this repo.
+
 FG acre templates (trees/flowers from `fgdata.bin`; needs decomp headers for `data_combi`):
 
 ```sh
 python3 tools/build_assets.py --step convert --kind fg
 ```
 
-Writes `assets/generated/environment/acres/grd_*.col.json` from `data_bgd` in `foresta.rel` (paired with each acre mesh). Do not copy `bg_data.c` into this repo.
+Inventory window chrome (`inv_mwin_*` from `foresta.rel` → gitignored PNGs, Nintendo IP, reference only):
+
+```sh
+python3 tools/build_assets.py --step convert --kind inventory-ui
+```
+
+Writes `assets/generated/ui/inventory/`.
 
 Or set `"test_set_only": false` in `config.local.json`. `--step all` still extract + scan + convert + validate; add `--full` to convert everything.
 

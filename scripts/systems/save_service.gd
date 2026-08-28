@@ -36,8 +36,8 @@ func load_game(path: String = DEFAULT_PATH) -> Error:
 		return ERR_INVALID_DATA
 	var data: Dictionary = parsed
 	Clock.apply_snapshot(data.get("clock", {}))
-	var bags: Variant = data.get("inventory", [])
-	if typeof(bags) == TYPE_ARRAY:
+	var bags: Variant = data.get("inventory", {})
+	if typeof(bags) == TYPE_DICTIONARY or typeof(bags) == TYPE_ARRAY:
 		Game.inventory.from_save(bags)
 	if data.has("world") and typeof(data["world"]) == TYPE_DICTIONARY:
 		Game.apply_snapshot(data["world"] as Dictionary)

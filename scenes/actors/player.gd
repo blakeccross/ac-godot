@@ -62,13 +62,14 @@ func _physics_process(delta: float) -> void:
 
 	var wish := Vector3.ZERO
 	var stick := 0.0
-	if not _busy:
+	var menu_open: bool = _inventory_open()
+	if not _busy and not menu_open:
 		var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 		stick = clampf(input_dir.length(), 0.0, 1.0)
 		wish = _camera_wish(input_dir)
 
 	var planar: Vector3 = _motor.tick(
-		delta, wish, stick, Input.is_action_pressed("sprint"), _busy
+		delta, wish, stick, Input.is_action_pressed("sprint") and not menu_open, _busy or menu_open
 	)
 	velocity.x = planar.x
 	velocity.z = planar.z
@@ -112,8 +113,15 @@ func _snap_to_bg() -> bool:
 	return true
 
 
+func _inventory_open() -> bool:
+	if get_tree() == null:
+		return false
+	var ui: Node = get_tree().get_first_node_in_group("inventory_ui")
+	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
+
+
 func _unhandled_input(event: InputEvent) -> void:
-	if _busy:
+	if _busy or _inventory_open():
 		return
 	if event.is_action_pressed("interact"):
 		_try_interact()

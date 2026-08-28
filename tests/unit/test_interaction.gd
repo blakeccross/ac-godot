@@ -137,11 +137,12 @@ func test_item_pickup_refuses_when_pockets_full() -> void:
 	var pickup: Node = auto_free(load("res://scenes/world/item_pickup.tscn").instantiate())
 	var ctx := InteractionContext.new()
 	ctx.inventory = Inventory.new()
-	var apple: ItemData = load("res://data/items/apple.tres")
-	assert_int(ctx.inventory.add(apple, Inventory.POCKET_SLOTS)).is_equal(0)
+	var axe: ItemData = load("res://data/items/axe.tres")
+	assert_int(ctx.inventory.add(axe, Inventory.POCKET_SLOTS)).is_equal(0)
 	var action: Interaction = Interaction.primary(pickup.get_interactions(ctx))
 	assert_bool(pickup.interact(action, ctx)).is_false()
-	assert_int(ctx.inventory.count_of(&"apple")).is_equal(Inventory.POCKET_SLOTS)
+	assert_int(ctx.inventory.count_of(&"axe")).is_equal(Inventory.POCKET_SLOTS)
+	assert_int(ctx.inventory.count_of(&"apple")).is_equal(0)
 	assert_bool(Game.is_interactable_removed(&"ground_apple")).is_false()
 
 

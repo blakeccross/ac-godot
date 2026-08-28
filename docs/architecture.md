@@ -146,7 +146,7 @@ Each phase should be playable or testable in-engine. Later phases are not starte
 8. **Phase 7** — time and calendar: `Clock` is the source of truth; other systems subscribe.
 9. **Phase 8** — world from data (current): `WorldData` + deterministic generator + hand-authored test town; world `.tscn` is a shell.
 10. **One interactable** — one tree (grow, shake, fruit) with correct feel, not every plant type. Growth on `field_renewed`.
-11. **Inventory** — pick up, hold, drop; `Inventory` already exists for tests, wire drop/equip next.
+11. **Inventory** — `ItemData` / `InventoryItem` / `InventorySlot` / `Inventory`; 5×3 pocket UI; pick up, drop, stack, use, equip, save.
 12. **One villager** — schedule, greeting, one dialogue tree.
 13. **One shop + economy** — buy/sell a few items.
 14. **Town deltas** — persist more than one pickup and the current acre FG.

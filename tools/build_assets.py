@@ -21,6 +21,7 @@ from asset_pipeline.convert import (  # noqa: E402
 )
 from asset_pipeline.fgdata import convert_fgdata  # noqa: E402
 from asset_pipeline.extract import extract_archives, extract_disc  # noqa: E402
+from asset_pipeline.inventory_ui import extract_inventory_ui  # noqa: E402
 from asset_pipeline.scan import scan  # noqa: E402
 from asset_pipeline.validate import validate  # noqa: E402
 
@@ -40,9 +41,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--kind",
-        choices=["all", "static", "buildings", "plants", "collision", "fg"],
+        choices=["all", "static", "buildings", "plants", "collision", "fg", "inventory-ui"],
         default="all",
-        help="all (default), static Gfx, outdoor buildings, palm/cedar, acre collision, or FG templates",
+        help="all (default), static Gfx, outdoor buildings, palm/cedar, acre collision, FG templates, or inventory UI chrome",
     )
     args = parser.parse_args()
     cfg = load_config(ROOT, args.config)
@@ -71,6 +72,17 @@ def main() -> int:
                 f"{fg['combis']} combis, {fg['combis_with_trees']} with trees)"
             )
             return 0
+        if args.kind == "inventory-ui":
+            report = extract_inventory_ui(cfg)
+            if report.get("error"):
+                print(f"inventory-ui: {report['error']}")
+                return 1
+            converted = report["converted"]
+            errors = [r for r in report["results"] if r["status"] == "error"]
+            print(f"wrote {converted} inventory UI textures -> {report['output']}")
+            for err in errors[:40]:
+                print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+            return 1 if errors else 0
         if args.kind == "static":
             cfg.test_set_only = False
             report = convert_static_only(cfg)

@@ -152,6 +152,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if phase != Phase.PLAYING:
 		return
 	if event.is_action_pressed("pause_menu"):
+		var ui: Node = get_tree().get_first_node_in_group("inventory_ui") if get_tree() != null else null
+		if ui != null and ui.has_method("is_open") and bool(ui.call("is_open")):
+			return
 		return_to_title()
 		get_viewport().set_input_as_handled()
 

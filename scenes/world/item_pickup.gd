@@ -31,7 +31,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.PICK_UP or item == null or ctx == null:
 		return false
-	if ctx.inventory == null or not ctx.inventory.has_space(1):
+	if ctx.inventory == null or not ctx.inventory.has_space_for(item, 1):
 		Game.post_notice("Pockets full")
 		return false
 	if ctx.inventory.add(item, 1) != 0:
