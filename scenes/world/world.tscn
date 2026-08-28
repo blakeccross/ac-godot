@@ -94,7 +94,7 @@ occupant_id = &"player_house"
 [node name="Navigation" type="NavigationRegion3D" parent="."]
 
 [node name="FollowCamera" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 12, 12)
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 21.92, 21.92)
 current = true
 fov = 20.0
 script = ExtResource("9")

@@ -35,7 +35,7 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | World, Tree, Furniture, ItemPickup, House, Shop | `scenes/world/` |
 | Title, Clock HUD | `scenes/ui/` |
 
-Fishing, shops, and full dialogue are **not** systems yet. The world scene owns a `WorldGrid` (cells, occupancy, terrain) and the Phase 3 play loop.
+Fishing, shops, and full dialogue are **not** systems yet. The world scene owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists.
 
 ## Autoloads
 
@@ -52,7 +52,7 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
-`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload.
+`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload.
 
 ## World scene
 
@@ -74,6 +74,7 @@ World
 | Concern | Godot approach |
 | --- | --- |
 | Game time | `Clock` autoload + unit tests, not `_process` sprinkled everywhere |
+| Player | `scenes/actors/player.tscn` + `PlayerLocomotion`; generated `boy_1.glb` if present |
 | Items | `ItemData` resources + `Inventory` on `Game` |
 | Town layout | `AcreData` + `WorldGrid` + `scenes/world/world.tscn` |
 | Villagers | `VillagerData` + `ScheduleData` + villager scene (AI later) |
@@ -90,12 +91,13 @@ Each phase should be playable or testable in-engine. Later phases are not starte
 2. **Phase 1** — architectural foundation + clock, empty acre, walk.
 3. **Phase 2** — decomp research notes (`docs/decomp_notes/`).
 4. **Phase 3** — title → world → spawn → walk → pick up → save on return to title.
-5. **Phase 4** — world hierarchy + logical cell grid (current).
-6. **One interactable** — one tree (grow, shake, fruit) with correct feel, not every plant type.
-7. **Inventory** — pick up, hold, drop; `Inventory` already exists for tests, wire drop/equip next.
-8. **One villager** — schedule, greeting, one dialogue tree.
-9. **One shop + economy** — buy/sell a few items.
-10. **Town deltas** — persist more than one pickup and the current acre FG.
+5. **Phase 4** — world hierarchy + logical cell grid.
+6. **Phase 5** — player controller (current): `CharacterBody3D`, GC walk feel, generated `boy_1` visual when present.
+7. **One interactable** — one tree (grow, shake, fruit) with correct feel, not every plant type.
+8. **Inventory** — pick up, hold, drop; `Inventory` already exists for tests, wire drop/equip next.
+9. **One villager** — schedule, greeting, one dialogue tree.
+10. **One shop + economy** — buy/sell a few items.
+11. **Town deltas** — persist more than one pickup and the current acre FG.
 
 Content quantity is not a milestone. One good instance of a system is.
 

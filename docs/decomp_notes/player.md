@@ -77,7 +77,7 @@ Appearance (cloth, face) and inventory live in `Private_c`, not the actor. Equip
 - Collapse the 100+ indices into a small Godot state machine: idle, move, interact, tool, talk, menu, scene-transition.
 - One tool animation set per tool, not air/reflect/broken variants for every item.
 - Ignore dash-turn, tumble, umbrella, fan, snowball as first-slice locomotion.
-- Meter-scale speeds (Phase 1 already uses ~1.8 / 2.8) instead of 4.875 / 7.5 world units.
+- Meter-scale speeds from the 4.875 / 7.5 per-frame values: one 40-unit tile is one 2 m cell, so walk is 7.31 m/s and run 11.25 m/s relative to the acre.
 
 ## Ignore
 

@@ -42,7 +42,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _refresh() -> void:
-	_label.text = "%s\nWASD move  E interact  Esc title  T +1h  Y +1d" % Clock.format_clock()
+	_label.text = "%s\nWASD walk  Shift run  E interact  Esc title  T +1h  Y +1d" % Clock.format_clock()
 	var pockets: int = Game.inventory.count_of_occupied()
 	_label.text += "\nPockets %d/%d" % [pockets, Inventory.POCKET_SLOTS]
 

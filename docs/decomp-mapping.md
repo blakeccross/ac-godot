@@ -12,7 +12,8 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | `m_kankyo` (`klight_chg_tim`, `l_mEnv_kcolor_fine_data`) | 8 lighting windows; outdoor ambient/sun/sky | `Clock.outdoor_light()` + world `WorldEnvironment` |
 | `m_calendar` | Played-day / event flags | Later; not a Phase 1 system |
 | `m_kankyo` weather tables | Rain/snow/sakura by term | Later (`WeatherSystem` when earned) |
-| `m_player`, `m_player_lib`, `m_player_main_walk` | Player actor; analog walk 4.875 / run 7.5 | Player scene; speeds are a meter-scale stand-in |
+| `m_player`, `m_player_lib`, `m_player_main_walk` | Player actor; analog walk 4.875 / run 7.5 per frame; B/L/R dash | `PlayerLocomotion` + player scene; tile-relative m/s (40 units → 2 m) |
+| `m_camera2` (`Init_Camera2`) | 20° FOV, ~45° 3/4, focus distance 620 | `FollowCamera` (31 m at 45°) |
 | `m_actor` | Generic actors | Composed scenes, not a C actor overlay table |
 | `m_npc`, `m_npc_schedule` | Looks-based daily tables (sleep / in_house / field + end seconds) | `VillagerData` + `ScheduleData` |
 | `m_field_make`, `m_field_info` | Town / acre generation and queries | `AcreData` + `WorldGrid` + `scenes/world/world.tscn` |
@@ -26,7 +27,6 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | `m_event`, `m_quest` | Scripted events / errands | Event/quest data + a small runner system |
 | `m_common_data`, `m_private` | Giant global save/state | Split save via `SaveService` |
 | `m_scene`, `m_start_data_init` | Boot: new town vs load; scene changes | `Game` phase + `scenes/ui/title.tscn` → world |
-| `m_camera2` (`Init_Camera2`) | 20° FOV, ~45° 3/4, focus distance 620 | `FollowCamera` on the world |
 | `m_island`, GBA, Famicom, e-Reader | Specialized extras | Out of scope until earned ([scope.md](scope.md)) |
 
 Clone the decomp **outside** this repo. Phase 1 clock/inventory/schedule/lighting were checked against those files. Do not copy `Common_Get` blobs or translate C into GDScript.
