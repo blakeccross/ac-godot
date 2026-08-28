@@ -36,7 +36,7 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | InteractVolume | `scenes/world/interact_volume.gd` (sensor only; host implements verbs) |
 | Title, Clock HUD | `scenes/ui/` |
 
-Fishing, shops, and full dialogue are **not** systems yet. Shop, door, furniture, tree, and sign scenes exist as verb stubs. The world scene owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists. Field interact uses `InteractionQuery` (`RefCounted`, not an autoload); objects expose verbs instead of the player switching on type.
+Fishing, shops, and full dialogue are **not** systems yet. Shop, door, furniture, tree, and sign scenes exist as verb stubs. Shop hours and villager sleep come from `Clock`. The world scene owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists. Field interact uses `InteractionQuery` (`RefCounted`, not an autoload); objects expose verbs instead of the player switching on type.
 
 ## Autoloads
 
@@ -46,14 +46,30 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 
 | Name | Script | Responsibility |
 | --- | --- | --- |
-| `Clock` | `scripts/systems/clock.gd` (`ClockService`) | Game date/time, day/night, season |
+| `Clock` | `scripts/systems/clock.gd` (`ClockService`) | Time system: calendar, day/night, 06:00 renew |
 | `SaveService` | `scripts/systems/save_service.gd` | Load/save JSON to `user://` |
 | `Audio` | `scripts/systems/audio.gd` | Music / SFX buses |
 | `Game` | `scripts/systems/game.gd` | Session phase, scene changes; owns `Inventory` |
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
-`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, and `InteractionQuery` are `RefCounted` helpers, not autoloads.
+`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, and `InteractionQuery` are `RefCounted` helpers, not autoloads. Do not autoload weather, fishing, or events; those systems subscribe to `Clock` when they exist.
+
+### Time system
+
+`Clock` is the only calendar. Fields: year, month, day, weekday, hour, minute, season (plus term and time-of-day). Other systems **subscribe** (`time_changed`, `hour_changed`, `day_changed`, `season_changed`, `term_changed`, `time_of_day_changed`, `field_renewed`) or **query** (`calendar()`, `now_sec()`, `in_hour_window()`, `is_listed_now()`). They must not call `Time.get_datetime_dict_from_system()` or recompute season/weekday.
+
+| Subscriber (now or next slice) | Signal / query |
+| --- | --- |
+| Day/night lighting | `time_changed` → `outdoor_light()` |
+| Villager schedules | `time_changed` + `activity_now()` |
+| Shops | `in_hour_window(9, 22)`; restock on `field_renewed` |
+| Weather | `field_renewed` (not implemented yet) |
+| Plant growth | `field_renewed` (days crossed) |
+| Fish / bugs | `is_listed_now(months, hour_start, hour_end)` |
+| Events | `weekday()` + date (not implemented yet) |
+
+Daily simulation ticks at **06:00**, not midnight (`field_renewed`). Save/load restores the clock without replaying missed renews.
 
 ### Interaction
 
@@ -87,7 +103,7 @@ World
 
 | Concern | Godot approach |
 | --- | --- |
-| Game time | `Clock` autoload + unit tests, not `_process` sprinkled everywhere |
+| Game time | `Clock` autoload; subscribers, not OS `Time` in each system |
 | Player | `scenes/actors/player.tscn` + `PlayerLocomotion`; generated `boy_1.glb` if present |
 | Field A-button | `InteractionQuery` + host `get_interactions` / `interact`; `InteractVolume` sensors |
 | Items | `ItemData` resources + `Inventory` on `Game` |
@@ -108,12 +124,13 @@ Each phase should be playable or testable in-engine. Later phases are not starte
 4. **Phase 3** — title → world → spawn → walk → pick up → save on return to title.
 5. **Phase 4** — world hierarchy + logical cell grid.
 6. **Phase 5** — player controller: `CharacterBody3D`, GC walk feel, generated `boy_1` visual when present.
-7. **Phase 6** — interaction framework (current): objects expose verbs; player uses `InteractionQuery`.
-8. **One interactable** — one tree (grow, shake, fruit) with correct feel, not every plant type.
-9. **Inventory** — pick up, hold, drop; `Inventory` already exists for tests, wire drop/equip next.
-10. **One villager** — schedule, greeting, one dialogue tree.
-11. **One shop + economy** — buy/sell a few items.
-12. **Town deltas** — persist more than one pickup and the current acre FG.
+7. **Phase 6** — interaction framework: objects expose verbs; player uses `InteractionQuery`.
+8. **Phase 7** — time and calendar (current): `Clock` is the source of truth; other systems subscribe.
+9. **One interactable** — one tree (grow, shake, fruit) with correct feel, not every plant type. Growth on `field_renewed`.
+10. **Inventory** — pick up, hold, drop; `Inventory` already exists for tests, wire drop/equip next.
+11. **One villager** — schedule, greeting, one dialogue tree.
+12. **One shop + economy** — buy/sell a few items.
+13. **Town deltas** — persist more than one pickup and the current acre FG.
 
 Content quantity is not a milestone. One good instance of a system is.
 

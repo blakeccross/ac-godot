@@ -28,10 +28,14 @@ class _FakeWorld extends Node:
 
 func before_test() -> void:
 	Game.reset_session()
+	Clock.reset_to_default()
+	Clock.paused = true
 
 
 func after_test() -> void:
 	Game.reset_session()
+	Clock.reset_to_default()
+	Clock.paused = false
 
 
 func test_primary_picks_highest_priority() -> void:
@@ -175,6 +179,29 @@ func test_world_scene_wires_interactables() -> void:
 	assert_that(world.get_node_or_null("Objects/Chair")).is_not_null()
 	assert_that(world.get_node_or_null("Buildings/Shop")).is_not_null()
 	assert_that(world.get_node_or_null("Buildings/House")).is_not_null()
+
+
+func test_shop_hours_follow_clock() -> void:
+	var shop: Node = auto_free(load("res://scenes/world/shop.tscn").instantiate())
+	var ctx := InteractionContext.new()
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 12, "minute": 0 })
+	var open_action: Interaction = Interaction.primary(shop.get_interactions(ctx))
+	assert_str(open_action.prompt).is_equal("Shop")
+	assert_bool(shop.interact(open_action, ctx)).is_true()
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 23, "minute": 0 })
+	var closed_action: Interaction = Interaction.primary(shop.get_interactions(ctx))
+	assert_str(closed_action.prompt).is_equal("Shop (closed)")
+	assert_bool(shop.interact(closed_action, ctx)).is_false()
+
+
+func test_villager_offers_no_talk_while_sleeping() -> void:
+	var villager: Node = auto_free(load("res://scenes/actors/villager.tscn").instantiate())
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 7, "minute": 0 })
+	assert_str(String(villager.current_activity())).is_equal("sleep")
+	assert_int(villager.get_interactions(InteractionContext.new()).size()).is_equal(0)
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
+	assert_str(String(villager.current_activity())).is_equal("field")
+	assert_int(villager.get_interactions(InteractionContext.new()).size()).is_equal(1)
 
 
 func _assert_verb(scene_path: String, verb: StringName, ctx: InteractionContext) -> void:

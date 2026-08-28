@@ -2,6 +2,8 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only.
 
+**Godot:** `Clock` (`ClockService`) is the time system. Year, month, day, weekday, hour, minute, season, term, and time-of-day live there. Other systems subscribe (`field_renewed` at 06:00, `time_changed`, …) or call `in_hour_window` / `is_listed_now`. Do not read the OS clock from shops, villagers, plants, or catchables.
+
 **Read before implementing:** `Clock` (`scripts/systems/clock.gd`), weather, shop hours, villager schedules, plant renewal.
 
 Phase 1 already matches the numbers below. This note is the citation and the leftover original behavior.

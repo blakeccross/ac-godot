@@ -1,8 +1,10 @@
 class_name ClockService
 extends Node
 
-## Game calendar and clock. Behavior from ac-decomp `m_time` / `lb_rtc` / `m_kankyo`.
-## Real-time clock unless debug skip (`rtc_override`). Years clamp to 2001–2030.
+## Time system (autoload `Clock`). Source of truth for calendar, day/night, and
+## the 06:00 daily renew. Other systems subscribe to signals; they must not call
+## `Time.get_datetime_dict_from_system()` or derive season/weekday themselves.
+## Behavior from ac-decomp `m_time` / `lb_rtc` / `m_kankyo`.
 
 enum Season { SPRING, SUMMER, AUTUMN, WINTER }
 enum TimeOfDay { NIGHT, DAWN, DAY, DUSK }
@@ -16,7 +18,7 @@ const DEFAULT_DAY := 1
 const DEFAULT_HOUR := 12
 const DEFAULT_MINUTE := 0
 const DEFAULT_SECOND := 0
-## Daily field reset hour (`mTM_FIELD_RENEW_HOUR`).
+## Daily field reset hour (`mTM_FIELD_RENEW_HOUR`). Growth, shops, weather, schedules.
 const FIELD_RENEW_HOUR := 6
 
 const WEEKDAYS := [
@@ -25,6 +27,8 @@ const WEEKDAYS := [
 const MONTH_DAYS := [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 const SEASON_NAMES := ["Spring", "Summer", "Autumn", "Winter"]
 const TIME_OF_DAY_NAMES := ["Night", "Dawn", "Day", "Dusk"]
+## Sakamoto weekday offsets; 0 = Sunday.
+const _SAKAMOTO := [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4]
 
 ## Inclusive end of each of 18 calendar terms (`mTM_calender` in m_time.c).
 const _TERM_MONTH := [2, 2, 2, 3, 4, 5, 7, 8, 9, 9, 10, 10, 11, 11, 12, 12, 12, 12]
@@ -44,6 +48,10 @@ signal time_changed
 signal hour_changed(hour: int)
 signal day_changed
 signal season_changed(season: Season)
+signal term_changed(term: int)
+signal time_of_day_changed(tod: TimeOfDay)
+## Days of 06:00 renew that were crossed. Plants, shops, weather subscribe here.
+signal field_renewed(days: int)
 
 var year: int = DEFAULT_YEAR
 var month: int = DEFAULT_MONTH
@@ -58,8 +66,15 @@ var paused: bool = false
 var rtc_override: bool = false
 
 var _accum: float = 0.0
-var _last_term: int = -1
 var _last_stamp: String = ""
+var _seeded: bool = false
+var _os_follow_seeded: bool = false
+var _prev_hour: int = DEFAULT_HOUR
+var _prev_renew: int = 0
+var _prev_day_key: String = ""
+var _prev_term: int = 0
+var _prev_season: Season = Season.WINTER
+var _prev_tod: TimeOfDay = TimeOfDay.DAY
 
 
 func _ready() -> void:
@@ -89,7 +104,8 @@ func reset_to_default() -> void:
 	second = DEFAULT_SECOND
 	_accum = 0.0
 	rtc_override = true
-	_emit_time()
+	_os_follow_seeded = false
+	_emit_time(false)
 
 
 func sync_from_os() -> void:
@@ -100,14 +116,17 @@ func sync_from_os() -> void:
 	hour = int(dt["hour"])
 	minute = int(dt["minute"])
 	second = int(dt["second"])
-	var stamp := "%04d-%02d-%02d-%02d:%02d" % [year, month, day, hour, minute]
-	if stamp != _last_stamp:
-		_last_stamp = stamp
-		_emit_time()
+	var stamp := _minute_stamp()
+	if stamp == _last_stamp and _seeded:
+		return
+	var track: bool = _os_follow_seeded
+	_os_follow_seeded = true
+	_emit_time(track)
 
 
 func advance_minutes(amount: int) -> void:
 	rtc_override = true
+	_os_follow_seeded = false
 	advance_seconds(amount * 60)
 
 
@@ -115,6 +134,7 @@ func advance_seconds(amount: int) -> void:
 	if amount == 0:
 		return
 	rtc_override = true
+	_os_follow_seeded = false
 	var remaining: int = amount
 	while remaining > 0:
 		var step: int = mini(remaining, 60 - second)
@@ -126,7 +146,7 @@ func advance_seconds(amount: int) -> void:
 			if minute >= 60:
 				minute = 0
 				_advance_hour()
-	_emit_time()
+	_emit_time(true)
 
 
 func now_sec() -> int:
@@ -182,8 +202,14 @@ func outdoor_light() -> Dictionary:
 
 
 func weekday() -> int:
-	var unix: int = Time.get_unix_time_from_datetime_dict(_datetime_dict())
-	return int(Time.get_date_dict_from_unix_time(unix)["weekday"])
+	var y: int = year
+	var m: int = month
+	if m < 3:
+		y -= 1
+	return posmod(
+		y + int(y / 4.0) - int(y / 100.0) + int(y / 400.0) + int(_SAKAMOTO[m - 1]) + day,
+		7
+	)
 
 
 func weekday_name() -> String:
@@ -202,6 +228,50 @@ func format_clock() -> String:
 	return "%s %04d-%02d-%02d  %02d:%02d  %s  %s" % [
 		weekday_name(), year, month, day, hour, minute, season_name(), time_of_day_name()
 	]
+
+
+## Snapshot other systems should read instead of storing their own clock.
+func calendar() -> Dictionary:
+	return {
+		"year": year,
+		"month": month,
+		"day": day,
+		"weekday": weekday(),
+		"hour": hour,
+		"minute": minute,
+		"second": second,
+		"season": season(),
+		"term": term_idx(),
+		"time_of_day": time_of_day(),
+		"now_sec": now_sec(),
+	}
+
+
+## `[start_hour, end_hour)` in 24h. `end_hour` 24 means midnight. Start > end wraps past midnight.
+static func hour_in_window(p_hour: int, start_hour: int, end_hour: int) -> bool:
+	var h: int = posmod(p_hour, 24)
+	if end_hour >= 24:
+		return h >= posmod(start_hour, 24)
+	if start_hour == end_hour:
+		return true
+	if start_hour < end_hour:
+		return h >= start_hour and h < end_hour
+	return h >= start_hour or h < end_hour
+
+
+func in_hour_window(start_hour: int, end_hour: int) -> bool:
+	return hour_in_window(hour, start_hour, end_hour)
+
+
+func in_months(months: PackedInt32Array) -> bool:
+	if months.is_empty():
+		return true
+	return month in months
+
+
+## Fish / bug spawn tables ask the clock; they do not read the OS.
+func is_listed_now(months: PackedInt32Array, hour_start: int, hour_end: int) -> bool:
+	return in_months(months) and in_hour_window(hour_start, hour_end)
 
 
 func to_dict() -> Dictionary:
@@ -224,7 +294,8 @@ func apply_snapshot(data: Dictionary) -> void:
 	second = int(data.get("second", DEFAULT_SECOND))
 	_accum = 0.0
 	rtc_override = true
-	_emit_time()
+	_os_follow_seeded = false
+	_emit_time(false)
 
 
 func _advance_hour() -> void:
@@ -232,7 +303,6 @@ func _advance_hour() -> void:
 	if hour >= 24:
 		hour = 0
 		_advance_day()
-	hour_changed.emit(hour)
 
 
 func _advance_day() -> void:
@@ -245,7 +315,6 @@ func _advance_day() -> void:
 			month = 1
 			year += 1
 			year = clampi(year, MIN_YEAR, MAX_YEAR)
-	day_changed.emit()
 
 
 func _days_in_month(y: int, m: int) -> int:
@@ -258,21 +327,53 @@ func _is_leap(y: int) -> bool:
 	return y % 4 == 0 and (y % 100 != 0 or y % 400 == 0)
 
 
-func _datetime_dict() -> Dictionary:
-	return {
-		"year": year,
-		"month": month,
-		"day": day,
-		"hour": hour,
-		"minute": minute,
-		"second": second,
-	}
+func _day_number(y: int, m: int, d: int) -> int:
+	var n: int = 0
+	for yy: int in range(MIN_YEAR, y):
+		n += 366 if _is_leap(yy) else 365
+	for mm: int in range(1, m):
+		n += _days_in_month(y, mm)
+	return n + d
 
 
-func _emit_time() -> void:
-	_last_stamp = "%04d-%02d-%02d-%02d:%02d" % [year, month, day, hour, minute]
-	var term: int = term_idx()
-	if _last_term != -1 and int(_TERM_SEASON[term]) != int(_TERM_SEASON[_last_term]):
-		season_changed.emit(season())
-	_last_term = term
+func _renew_id(y: int, m: int, d: int, h: int, _mi: int, _s: int) -> int:
+	var day_n: int = _day_number(y, m, d)
+	if h < FIELD_RENEW_HOUR:
+		return day_n - 1
+	return day_n
+
+
+func _minute_stamp() -> String:
+	return "%04d-%02d-%02d-%02d:%02d" % [year, month, day, hour, minute]
+
+
+func _emit_time(track_crossings: bool) -> void:
+	var new_tod: TimeOfDay = time_of_day()
+	var new_term: int = term_idx()
+	var new_season: Season = season()
+	var new_renew: int = _renew_id(year, month, day, hour, minute, second)
+	var new_day_key: String = "%04d-%02d-%02d" % [year, month, day]
+	_last_stamp = _minute_stamp()
+
+	if _seeded and track_crossings:
+		if new_renew > _prev_renew:
+			field_renewed.emit(new_renew - _prev_renew)
+		if hour != _prev_hour:
+			hour_changed.emit(hour)
+		if new_day_key != _prev_day_key:
+			day_changed.emit()
+		if new_term != _prev_term:
+			term_changed.emit(new_term)
+		if int(new_season) != int(_prev_season):
+			season_changed.emit(new_season)
+		if int(new_tod) != int(_prev_tod):
+			time_of_day_changed.emit(new_tod)
+
+	_seeded = true
+	_prev_hour = hour
+	_prev_renew = new_renew
+	_prev_day_key = new_day_key
+	_prev_term = new_term
+	_prev_season = new_season
+	_prev_tod = new_tod
 	time_changed.emit()

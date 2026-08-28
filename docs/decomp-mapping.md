@@ -8,9 +8,9 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 
 | Original (indicative) | Role in the GC game | Godot analog |
 | --- | --- | --- |
-| `m_time`, `lb_rtc` | RTC clock, 18 calendar terms, years 2001–2030, daily renew at 6:00 | `Clock` (`scripts/systems/clock.gd`) |
+| `m_time`, `lb_rtc` | RTC clock, 18 calendar terms, years 2001–2030, daily renew at 6:00 | `Clock` (`scripts/systems/clock.gd`); `field_renewed` at 06:00 |
 | `m_kankyo` (`klight_chg_tim`, `l_mEnv_kcolor_fine_data`) | 8 lighting windows; outdoor ambient/sun/sky | `Clock.outdoor_light()` + world `WorldEnvironment` |
-| `m_calendar` | Played-day / event flags | Later; not a Phase 1 system |
+| `m_calendar` | Played-day / event flags | `Clock.weekday()` / date; event flags later |
 | `m_kankyo` weather tables | Rain/snow/sakura by term | Later (`WeatherSystem` when earned) |
 | `m_player`, `m_player_lib`, `m_player_main_walk` | Player actor; analog walk 4.875 / run 7.5 per frame; B/L/R dash | `PlayerLocomotion` + player scene; tile-relative m/s (40 units → 2 m) |
 | Field A (`PICKUP`, `TALK`, `SHAKE_TREE`, sit, door) | Nearby actor/item + equipment pick a player mode | `Interaction` + `InteractionQuery`; hosts implement `get_interactions` / `interact` |

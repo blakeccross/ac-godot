@@ -10,6 +10,10 @@ func activity_at(hour: int) -> StringName:
 	return activity_at_seconds(posmod(hour, 24) * 3600)
 
 
+func activity_now() -> StringName:
+	return activity_at_seconds(Clock.now_sec())
+
+
 func activity_at_seconds(now_sec: int) -> StringName:
 	if slots.is_empty():
 		return &"sleep"

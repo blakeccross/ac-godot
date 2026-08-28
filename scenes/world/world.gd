@@ -27,6 +27,7 @@ func _ready() -> void:
 	_build_water_visuals()
 	_build_navigation()
 	Clock.time_changed.connect(_apply_time_of_day)
+	Clock.field_renewed.connect(_on_field_renewed)
 	_apply_time_of_day()
 	_spawn_player()
 
@@ -146,3 +147,8 @@ func _apply_time_of_day() -> void:
 	var env: Environment = _world_env.environment
 	env.ambient_light_color = pal["ambient"] as Color
 	env.ambient_light_energy = float(pal["energy"]) * 0.45 + 0.15
+
+
+func _on_field_renewed(_days: int) -> void:
+	## Plant growth, shop restock, and weather roll subscribe here when those slices exist.
+	pass

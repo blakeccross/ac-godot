@@ -79,3 +79,91 @@ func test_snapshot_round_trip() -> void:
 	Clock.apply_snapshot(snap)
 	assert_int(Clock.hour).is_equal(13)
 	assert_int(Clock.minute).is_equal(30)
+
+
+func test_weekday_from_calendar_not_os() -> void:
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 12, "minute": 0 })
+	assert_int(Clock.weekday()).is_equal(1)
+	assert_str(Clock.weekday_name()).is_equal("Monday")
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 7, "hour": 12, "minute": 0 })
+	assert_int(Clock.weekday()).is_equal(0)
+	assert_str(Clock.weekday_name()).is_equal("Sunday")
+
+
+func test_calendar_snapshot_has_fields() -> void:
+	Clock.apply_snapshot({ "year": 2001, "month": 6, "day": 15, "hour": 14, "minute": 30 })
+	var cal: Dictionary = Clock.calendar()
+	assert_int(cal["year"]).is_equal(2001)
+	assert_int(cal["month"]).is_equal(6)
+	assert_int(cal["day"]).is_equal(15)
+	assert_int(cal["hour"]).is_equal(14)
+	assert_int(cal["minute"]).is_equal(30)
+	assert_that(cal["season"]).is_equal(ClockService.Season.SUMMER)
+	assert_int(cal["now_sec"]).is_equal(14 * 3600 + 30 * 60)
+
+
+func test_hour_window_wraps_midnight() -> void:
+	assert_bool(ClockService.hour_in_window(16, 16, 9)).is_true()
+	assert_bool(ClockService.hour_in_window(8, 16, 9)).is_true()
+	assert_bool(ClockService.hour_in_window(9, 16, 9)).is_false()
+	assert_bool(ClockService.hour_in_window(15, 16, 9)).is_false()
+	assert_bool(ClockService.hour_in_window(12, 0, 24)).is_true()
+	assert_bool(ClockService.hour_in_window(9, 9, 22)).is_true()
+	assert_bool(ClockService.hour_in_window(22, 9, 22)).is_false()
+
+
+func test_field_renew_fires_when_crossing_six() -> void:
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 5, "minute": 0 })
+	var box: Array = [0]
+	var cb := func(days: int) -> void:
+		box[0] = int(box[0]) + days
+	Clock.field_renewed.connect(cb)
+	Clock.advance_minutes(60)
+	assert_int(Clock.hour).is_equal(6)
+	assert_int(int(box[0])).is_equal(1)
+	Clock.field_renewed.disconnect(cb)
+
+
+func test_field_renew_counts_skipped_days() -> void:
+	var box: Array = [0]
+	var cb := func(days: int) -> void:
+		box[0] = int(box[0]) + days
+	Clock.field_renewed.connect(cb)
+	Clock.advance_minutes(60 * 48)
+	assert_int(int(box[0])).is_equal(2)
+	Clock.field_renewed.disconnect(cb)
+
+
+func test_apply_snapshot_does_not_renew() -> void:
+	var box: Array = [0]
+	var cb := func(days: int) -> void:
+		box[0] = int(box[0]) + days
+	Clock.field_renewed.connect(cb)
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 2, "hour": 7, "minute": 0 })
+	assert_int(int(box[0])).is_equal(0)
+	Clock.field_renewed.disconnect(cb)
+
+
+func test_time_of_day_changed_on_dawn() -> void:
+	Clock.apply_snapshot({ "year": 2001, "month": 3, "day": 20, "hour": 5, "minute": 0 })
+	var seen: Array = []
+	var cb := func(tod: ClockService.TimeOfDay) -> void:
+		seen.append(tod)
+	Clock.time_of_day_changed.connect(cb)
+	Clock.advance_minutes(90)
+	assert_that(Clock.time_of_day()).is_equal(ClockService.TimeOfDay.DAWN)
+	assert_int(seen.size()).is_equal(1)
+	assert_that(seen[0]).is_equal(ClockService.TimeOfDay.DAWN)
+	Clock.time_of_day_changed.disconnect(cb)
+
+
+func test_season_changed_signal_on_advance() -> void:
+	Clock.apply_snapshot({ "year": 2001, "month": 2, "day": 24, "hour": 12, "minute": 0 })
+	var seen: Array = []
+	var cb := func(season: ClockService.Season) -> void:
+		seen.append(season)
+	Clock.season_changed.connect(cb)
+	Clock.advance_minutes(60 * 24)
+	assert_that(Clock.season()).is_equal(ClockService.Season.SPRING)
+	assert_int(seen.size()).is_equal(1)
+	Clock.season_changed.disconnect(cb)

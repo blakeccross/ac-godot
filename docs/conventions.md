@@ -25,7 +25,7 @@ Do not recreate the original game's single global save blob. Split state by conc
 
 ## Autoloads
 
-Autoloads currently: `Clock`, `SaveService`, `Audio`, `Game`. Do not add more until a system exists and must be globally reachable. Inventory, dialogue, weather, fishing, economy, `WorldGrid`, `PlayerLocomotion`, and `InteractionQuery` are not autoloads. See [architecture.md](architecture.md).
+Autoloads currently: `Clock`, `SaveService`, `Audio`, `Game`. Do not add more until a system exists and must be globally reachable. Inventory, dialogue, weather, fishing, economy, `WorldGrid`, `PlayerLocomotion`, and `InteractionQuery` are not autoloads. Weather, plants, fish, bugs, shops, and events read `Clock` instead of tracking time themselves. See [architecture.md](architecture.md).
 
 ## Placeholders
 
