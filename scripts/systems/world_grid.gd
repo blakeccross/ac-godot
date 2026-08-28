@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Logical cell grid for one outdoor plot. Godot-native; not a port of m_field_info.
 
-enum Terrain { GRASS, SOIL, WATER, BLOCKED, SAND, CLIFF, PATH }
+enum Terrain { GRASS, SOIL, WATER, BLOCKED, SAND, CLIFF, PATH, STONE }
 enum Facing { SOUTH, EAST, NORTH, WEST }
 enum PlaceKind { ITEM, PLANT, BUILDING, FURNITURE }
 
@@ -206,7 +206,13 @@ func is_walkable(cell: Vector2i) -> bool:
 	if not is_in_bounds(cell):
 		return false
 	var t: Terrain = terrain_at(cell)
-	return t == Terrain.GRASS or t == Terrain.SOIL or t == Terrain.SAND or t == Terrain.PATH
+	return (
+		t == Terrain.GRASS
+		or t == Terrain.SOIL
+		or t == Terrain.SAND
+		or t == Terrain.PATH
+		or t == Terrain.STONE
+	)
 
 
 func occupant_at(cell: Vector2i) -> StringName:
@@ -288,7 +294,7 @@ func _terrain_allows(terrain: Terrain, kind: PlaceKind) -> bool:
 			return false
 		Terrain.SAND:
 			return kind == PlaceKind.ITEM or kind == PlaceKind.PLANT
-		Terrain.PATH:
+		Terrain.PATH, Terrain.STONE:
 			return kind == PlaceKind.ITEM
 		Terrain.SOIL:
 			return kind != PlaceKind.BUILDING

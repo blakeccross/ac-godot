@@ -94,10 +94,14 @@ static func _pick_acre_visuals(blocks: PackedByteArray, seed_value: int) -> Pack
 	visuals.resize(TownFieldGenerator.BLOCK_TOTAL)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = (seed_value as int) ^ 0xC0FFEE
+	## `mRF_SelectBlock` / `l_use_data`: prefer a combi this town has not used yet.
+	var used := PackedStringArray()
 	for i: int in TownFieldGenerator.BLOCK_TOTAL:
 		var type: int = int(blocks[i])
-		var pick: StringName = FieldCatalog.acre_for_block_type(type, int(rng.randi()))
+		var pick: StringName = FieldCatalog.acre_for_block_type(type, int(rng.randi()), used)
 		visuals[i] = String(pick)
+		if not String(pick).is_empty():
+			used.append(String(pick))
 	return visuals
 
 
@@ -144,7 +148,7 @@ static func _paint_acre(
 	if TownFieldGenerator.is_riverish(type):
 		_paint_river_corridor(data, origin, type)
 		if TownFieldGenerator.is_river_bridge(type):
-			_paint_bridge_deck(data, origin)
+			_paint_bridge_deck(data, origin, visual)
 	if TownFieldGenerator.is_cliffish(type):
 		_paint_cliff_acre(data, origin, type, elev)
 	if type == TownFieldGenerator.T_TRACKS_STATION or type == TownFieldGenerator.T_TRACKS_DUMP \
@@ -169,7 +173,9 @@ static func _paint_from_catalog(data: WorldData, origin: Vector2i, elev: int, vi
 			if FieldCatalog.is_water_attr(attr):
 				data.set_terrain_cell(cell, WorldGrid.Terrain.WATER)
 				data.set_elevation_cell(cell, elev)
-			elif FieldCatalog.is_bridge_attr(attr):
+			elif FieldCatalog.is_stone_bridge_attr(attr):
+				data.set_terrain_cell(cell, WorldGrid.Terrain.STONE)
+			elif FieldCatalog.is_wood_bridge_attr(attr):
 				data.set_terrain_cell(cell, WorldGrid.Terrain.PATH)
 			elif FieldCatalog.is_hole_attr(attr):
 				data.set_terrain_cell(cell, WorldGrid.Terrain.CLIFF)
@@ -237,13 +243,17 @@ static func _paint_river_corridor(data: WorldData, origin: Vector2i, type: int) 
 				data.set_terrain_cell(Vector2i(origin.x + ux, z0 + dz), WorldGrid.Terrain.WATER)
 
 
-static func _paint_bridge_deck(data: WorldData, origin: Vector2i) -> void:
-	## Geometric stand-in: a 2-unit deck across the river strip (catalog acres use wood/stone attrs).
+static func _paint_bridge_deck(data: WorldData, origin: Vector2i, visual: StringName = &"") -> void:
+	## Geometric stand-in when `grd_*` collision is missing. Wood vs stone follows
+	## the combi BG (`bridge_2_tex` / `bridge_1_tex`), same as `mCoBG_ATTRIBUTE_*`.
+	var deck: WorldGrid.Terrain = (
+		WorldGrid.Terrain.STONE if FieldCatalog.is_stone_bridge_visual(visual) else WorldGrid.Terrain.PATH
+	)
 	for uz: int in range(5, 7):
 		for ux: int in range(5, 11):
 			var cell := Vector2i(origin.x + ux, origin.y + uz)
 			if data.terrain_at(cell) == WorldGrid.Terrain.WATER:
-				data.set_terrain_cell(cell, WorldGrid.Terrain.PATH)
+				data.set_terrain_cell(cell, deck)
 
 
 static func _paint_cliff_acre(data: WorldData, origin: Vector2i, type: int, elev: int) -> void:

@@ -330,24 +330,39 @@ def _output_folder_for_static(prefix: str) -> str:
     return "environment"
 
 
-def _name_under_prefix(name: str, prefix: str) -> bool:
-    """True if name belongs to prefix (grd_s_f_1 must not match grd_s_f_10_*)."""
+def _name_under_prefix(name: str, prefix: str, all_prefixes: set[str] | None = None) -> bool:
+    """True if name belongs to prefix (grd_s_f_1 must not match grd_s_f_10_*).
+
+    `{prefix}T_gfx_model` is the overlay spelling (`obj_s_palm5_cocoT_*` has no
+    extra underscore before T). A longer vtx prefix owns the symbol: `obj_s_palm5`
+    must not swallow `obj_s_palm5_cocoT_gfx_model`.
+    """
+    owned = False
     if name == prefix:
-        return True
-    if not name.startswith(prefix + "_"):
+        owned = True
+    elif name.startswith(prefix + "T_") or name == prefix + "T":
+        owned = True
+    elif name.startswith(prefix + "_"):
+        rest = name[len(prefix) + 1 :]
+        if not (prefix[-1:].isdigit() and rest[:1].isdigit()):
+            owned = True
+    if not owned:
         return False
-    rest = name[len(prefix) + 1 :]
-    if prefix[-1:].isdigit() and rest[:1].isdigit():
-        return False
+    if all_prefixes:
+        for other in all_prefixes:
+            if other == prefix or len(other) <= len(prefix) or not other.startswith(prefix):
+                continue
+            if name == other or name.startswith(other + "_") or name.startswith(other + "T"):
+                return False
     return True
 
 
-def _static_model_names(prefix: str, symbols: list) -> list[str]:
+def _static_model_names(prefix: str, symbols: list, all_prefixes: set[str] | None = None) -> list[str]:
     """Display lists for a static vtx blob: prefer *_gfx_model, else *_model."""
     gfx = [
         s.name
         for s in symbols
-        if s.name.endswith("_gfx_model") and _name_under_prefix(s.name, prefix)
+        if s.name.endswith("_gfx_model") and _name_under_prefix(s.name, prefix, all_prefixes)
     ]
     if gfx:
         return sorted(gfx)
@@ -358,13 +373,18 @@ def _static_model_names(prefix: str, symbols: list) -> list[str]:
         and not s.name.endswith("_modelT")
         and not s.name.endswith("_mat_model")
         and not s.name.endswith("_gfx_model")
-        and _name_under_prefix(s.name, prefix)
+        and _name_under_prefix(s.name, prefix, all_prefixes)
     ]
     return sorted(models)
 
 
 def _static_jobs(symbols: list) -> list[dict[str, Any]]:
     skel_prefixes = {s.name.replace("cKF_bs_r_", "") for s in symbols if s.name.startswith("cKF_bs_r_")}
+    all_prefixes = {
+        s.name[:-2]
+        for s in symbols
+        if s.name.endswith("_v") and not s.name.startswith("cKF_") and s.name[:-2] not in skel_prefixes
+    }
     jobs: list[dict[str, Any]] = []
     seen_vtx: set[str] = set()
     for symbol in symbols:
@@ -373,7 +393,7 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
         prefix = symbol.name[:-2]
         if prefix in skel_prefixes:
             continue
-        model_names = _static_model_names(prefix, symbols)
+        model_names = _static_model_names(prefix, symbols, all_prefixes)
         if not model_names:
             continue
         if symbol.name in seen_vtx:

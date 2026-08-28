@@ -26,6 +26,19 @@ const COUNTS_TO_METERS := 10.0 * GX_TO_METERS
 const HEIGHT_MAX := 31
 const UNIT_STRIDE := 7
 const UNITS_PER_ACRE := 256
+## Acre DLs that sample `bridge_1_tex` (stone). `bridge_2_tex` is wood planks.
+const _STONE_BRIDGE_BG: PackedStringArray = [
+	"grd_s_r1_b_1",
+	"grd_s_r2_b_1",
+	"grd_s_r3_b_1",
+	"grd_s_r3_b_3",
+	"grd_s_r4_b_1",
+	"grd_s_r5_b_1",
+	"grd_s_r6_b_1",
+	"grd_s_r7_b_1",
+	"grd_s_m_r1_b_1",
+	"grd_s_m_r1_b_3",
+]
 
 const GENERATED_ROOT := "res://assets/generated/"
 
@@ -125,7 +138,21 @@ static func is_water_attr(attr: int) -> bool:
 
 static func is_bridge_attr(attr: int) -> bool:
 	## Wood 27–31 and stone 32–35 (`mCoBG_ATTRIBUTE_*`). Walkable deck, not water.
-	return attr >= 27 and attr <= 35
+	return is_wood_bridge_attr(attr) or is_stone_bridge_attr(attr)
+
+
+static func is_wood_bridge_attr(attr: int) -> bool:
+	return attr >= 27 and attr <= 31
+
+
+static func is_stone_bridge_attr(attr: int) -> bool:
+	return attr >= 32 and attr <= 35
+
+
+static func is_stone_bridge_visual(visual_id: StringName) -> bool:
+	## `bridge_1_tex` acres (`data_combi` / acre DLs). `_b_1` is stone except
+	## `grd_s_r3_b_3` and beach `grd_s_m_r1_b_3`, which also use that tex.
+	return _STONE_BRIDGE_BG.has(String(visual_id))
 
 
 static func is_hole_attr(attr: int) -> bool:
@@ -219,27 +246,35 @@ static func _is_height_max_filler(packed: PackedByteArray) -> bool:
 	return n_max > UNITS_PER_ACRE / 2
 
 
-## Pick a concrete `grd_*` for an `mFM_BLOCK_TYPE_*` (decomp combi table → BG name).
-static func acre_for_block_type(block_type: int, variant: int = 0) -> StringName:
+## Pick a concrete `grd_*` for an `mFM_BLOCK_TYPE_*` (`mRF_SelectBlock` / `data_combi`).
+## `used` is already-chosen BG names this town (`l_use_data`); prefer an unused row.
+static func acre_for_block_type(
+	block_type: int, variant: int = 0, used: PackedStringArray = PackedStringArray()
+) -> StringName:
 	var candidates: PackedStringArray = _acre_candidates(block_type)
 	if candidates.is_empty():
 		candidates = PackedStringArray(["grd_s_f_1", "grd_s_f_2", "grd_s_f_3"])
-	var existing: PackedStringArray = PackedStringArray()
+	var pool: PackedStringArray = PackedStringArray()
 	for name: String in candidates:
-		if ResourceLoader.exists(GENERATED_ROOT + "environment/acres/%s.glb" % name):
-			existing.append(name)
-	if existing.is_empty():
-		return &""
-	var playable: PackedStringArray = PackedStringArray()
-	for name: String in existing:
 		var col_path := GENERATED_ROOT + "environment/acres/%s.col.json" % name
 		if FileAccess.file_exists(col_path) and not has_acre_collision(StringName(name)):
 			continue
-		playable.append(name)
-	if playable.is_empty():
-		playable = existing
-	var idx: int = posmod(variant, playable.size())
-	return StringName(playable[idx])
+		pool.append(name)
+	if pool.is_empty():
+		pool = candidates
+	var with_mesh := PackedStringArray()
+	for name: String in pool:
+		if ResourceLoader.exists(GENERATED_ROOT + "environment/acres/%s.glb" % name):
+			with_mesh.append(name)
+	if not with_mesh.is_empty():
+		pool = with_mesh
+	var unused: PackedStringArray = PackedStringArray()
+	for name: String in pool:
+		if not used.has(name):
+			unused.append(name)
+	var pick_from: PackedStringArray = unused if not unused.is_empty() else pool
+	var idx: int = posmod(variant, pick_from.size())
+	return StringName(pick_from[idx])
 
 
 static func _acre_candidates(block_type: int) -> PackedStringArray:
@@ -274,7 +309,23 @@ static func _acre_candidates(block_type: int) -> PackedStringArray:
 		TownFieldGenerator.T_BEACH_RIVER:
 			return _names("grd_s_m_r1_", 1, 5)
 		TownFieldGenerator.T_BEACH_RIVER_BRIDGE:
+			## `data_combi`: `_1`/`_3` stone (`bridge_1`), `_2` wood (`bridge_2`).
 			return _names("grd_s_m_r1_b_", 1, 3)
+		TownFieldGenerator.T_RIVER_S_BRIDGE:
+			return _names("grd_s_r1_b_", 1, 3)
+		TownFieldGenerator.T_RIVER_E_BRIDGE:
+			return _names("grd_s_r2_b_", 1, 3)
+		TownFieldGenerator.T_RIVER_W_BRIDGE:
+			## `_3` is stone here (`grd_s_r3_b_3` / `bridge_1_tex`).
+			return _names("grd_s_r3_b_", 1, 3)
+		TownFieldGenerator.T_RIVER_SE_BRIDGE:
+			return _names("grd_s_r4_b_", 1, 2)
+		TownFieldGenerator.T_RIVER_ES_BRIDGE:
+			return _names("grd_s_r5_b_", 1, 2)
+		TownFieldGenerator.T_RIVER_SW_BRIDGE:
+			return _names("grd_s_r6_b_", 1, 2)
+		TownFieldGenerator.T_RIVER_WS_BRIDGE:
+			return _names("grd_s_r7_b_", 1, 2)
 		TownFieldGenerator.T_NEEDLEWORK:
 			return _names("grd_s_m_ta_", 1, 3)
 		TownFieldGenerator.T_PORT:
@@ -340,13 +391,6 @@ static func _acre_candidates(block_type: int) -> PackedStringArray:
 		TownFieldGenerator.T_WF_W_BL:
 			return _names("grd_s_c7_r3_", 1, 2)
 		_:
-			if (
-				block_type >= TownFieldGenerator.T_RIVER_S_BRIDGE
-				and block_type <= TownFieldGenerator.T_RIVER_S_BRIDGE + 6
-			):
-				var riv: int = block_type - TownFieldGenerator.T_RIVER_S_BRIDGE + 1
-				var hi: int = 3 if riv <= 3 else 2
-				return _names("grd_s_r%d_b_" % riv, 1, hi)
 			if block_type >= TownFieldGenerator.T_SLOPE_H and block_type <= TownFieldGenerator.T_SLOPE_H + 6:
 				var cliff_i: int = block_type - TownFieldGenerator.T_SLOPE_H + 1
 				return _names("grd_s_c%d_s_" % cliff_i, 1, 3)

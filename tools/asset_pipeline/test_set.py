@@ -112,6 +112,13 @@ TEST_STATIC = [
         "confident_name": True,
     },
     {
+        "asset_id": "obj_s_tree5_apple",
+        "vtx": "obj_s_tree5_apple_v",
+        "gfx": ["obj_s_tree5_apple_appleT_gfx_model"],
+        "output": "environment/trees/obj_s_tree5_apple.glb",
+        "confident_name": True,
+    },
+    {
         "asset_id": "obj_flower_a",
         "vtx": "obj_flower_a_v",
         "gfx": ["obj_flower_aT_gfx_model"],

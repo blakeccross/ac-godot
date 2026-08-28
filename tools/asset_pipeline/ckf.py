@@ -402,6 +402,20 @@ def convert_ckf_model(
     )
 
 
+def _overlay_mat_name(gfx_name: str, by_name: dict[str, MapSymbol]) -> str | None:
+    """Fruit overlays are geometry-only; bg_item draws an item material first.
+
+    `tree4_ap_list` uses `apple_DL_mode` then `obj_s_tree5_apple_appleT_gfx_model`.
+    `palm5_coco_list` uses `obj_item_cocoT_mat_model` then `obj_*_palm5_cocoT_gfx_model`.
+    Orange/peach/pear/nuts/bag share the apple overlay verts and swap `*_DL_mode`.
+    """
+    if "tree5_apple" in gfx_name and "apple_DL_mode" in by_name:
+        return "apple_DL_mode"
+    if "palm5_coco" in gfx_name and "obj_item_cocoT_mat_model" in by_name:
+        return "obj_item_cocoT_mat_model"
+    return None
+
+
 def _mat_model_name(gfx_name: str, by_name: dict[str, MapSymbol]) -> str | None:
     """Resolve `*_gfx_model` → material DL. Some summer trees only ship a gold mat."""
     candidates: list[str] = []
@@ -420,7 +434,7 @@ def _mat_model_name(gfx_name: str, by_name: dict[str, MapSymbol]) -> str | None:
     for name in candidates:
         if name in by_name:
             return name
-    return None
+    return _overlay_mat_name(gfx_name, by_name)
 
 
 def convert_static_gfx(

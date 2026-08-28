@@ -76,7 +76,7 @@ Numbers from `m_field_info.h`, `m_field_make.h`, `m_collision_bg.h`, `m_random_f
 | Grid / tile | Each acre is **16×16 units** (`UT_X_NUM`). One unit is **40** original world units (`mFI_UNIT_BASE_SIZE`). Acre = 640×640 original. |
 | Terrain types | Per-unit collision **attribute**: grass, soil, stone, bush, hole, wave, water, waterfall, river direction, sand, wood, sea, bridges, banks (`mCoBG_ATTRIBUTE_*`). |
 | Elevation | Acre combination stores **2-bit height** (0–3). Collision height max 31 (`mCoBG_HEIGHT_MAX`). Towns are 2- or 3-step (`mRF_FIELD_STEP*`). |
-| Rivers | Generated first as a **path of river acres** from the north border, through the tracks, across the 5×6, ending at the **beach**. Must cross the town center-line; cannot end in F-1 or F-5. **Bridges** are a later pass: convert a river acre to `*_BRIDGE` (`grd_s_r*_b_*` baked into the acre mesh + wood/stone collision attrs). |
+| Rivers | Generated first as a **path of river acres** from the north border, through the tracks, across the 5×6, ending at the **beach**. Must cross the town center-line; cannot end in F-1 or F-5. **Bridges** are a later pass: convert a river acre to `*_BRIDGE`, then pick a `grd_s_r*_b_*` combo (`bridge_1` stone / `bridge_2` wood baked into the acre mesh + collision attrs 32–35 / 27–31). |
 | Cliffs | Horizontal/vertical/corner cliff acres plus **slopes**. River+cliff acres become waterfall variants. Height table is applied after landform. |
 | Beaches | South FG row is **beach / ocean** (`mRF_SetMarinBlock`). River mouth uses `BEACH_RIVER` (water through sand). |
 | House locations | **Player house** is its own acre type (`PLAYER_HOUSE`), not a unit FG item. Villager houses sit on **flat** acres (no river/cliff) as FG + NPC room field ids. |

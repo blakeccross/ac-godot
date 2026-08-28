@@ -209,8 +209,56 @@ func test_generated_town_has_river_bridge() -> void:
 			n += 1
 			vis = String(data.acre_visuals[i])
 	assert_int(n).is_greater(0)
-	if not vis.is_empty():
-		assert_bool(vis.contains("_b_")).is_true()
+	assert_str(vis).contains("_b_")
+
+
+func test_generated_towns_include_stone_bridge_combis() -> void:
+	## `mRF_SelectBlock` rolls a `data_combi` row of the bridge type. `_b_1` (and
+	## some `_b_3`) are stone. Empty visuals used to paint every deck as wood PATH.
+	var saw_stone := false
+	var saw_wood := false
+	for seed: int in 24:
+		var data: WorldData = WorldGenerator.generate(2000 + seed)
+		for i: int in data.acre_types.size():
+			if not TownFieldGenerator.is_river_bridge(int(data.acre_types[i])):
+				continue
+			var vis := StringName(data.acre_visuals[i])
+			assert_str(String(vis)).contains("_b_")
+			if FieldCatalog.is_stone_bridge_visual(vis):
+				saw_stone = true
+			else:
+				saw_wood = true
+	assert_bool(saw_stone).is_true()
+	assert_bool(saw_wood).is_true()
+
+
+func test_stone_bridge_deck_is_stone_terrain() -> void:
+	## Geometric decks and catalog attrs 32–35 both use `Terrain.STONE`, not brown PATH.
+	var found := false
+	for seed: int in 40:
+		var data: WorldData = WorldGenerator.generate(3000 + seed)
+		for i: int in data.acre_types.size():
+			if not TownFieldGenerator.is_river_bridge(int(data.acre_types[i])):
+				continue
+			var vis := StringName(data.acre_visuals[i])
+			if not FieldCatalog.is_stone_bridge_visual(vis):
+				continue
+			var bz: int = i / TownFieldGenerator.BLOCK_X
+			var bx: int = i % TownFieldGenerator.BLOCK_X
+			if bx < 1 or bx > 5 or bz < 1 or bz > 6:
+				continue
+			var origin := Vector2i((bx - 1) * 16, (bz - 1) * 16)
+			var n_stone := 0
+			for uz: int in 16:
+				for ux: int in 16:
+					if data.terrain_at(origin + Vector2i(ux, uz)) == WorldGrid.Terrain.STONE:
+						n_stone += 1
+			assert_int(n_stone).is_greater(0)
+			found = true
+			break
+		if found:
+			break
+	assert_bool(found).is_true()
 
 
 func test_town_field_generator_is_deterministic() -> void:

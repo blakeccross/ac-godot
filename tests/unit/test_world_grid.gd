@@ -99,9 +99,11 @@ func test_building_footprint_blocks_all_cells() -> void:
 func test_sand_and_path_are_walkable_cliff_is_not() -> void:
 	_grid.set_terrain(Vector2i(4, 4), WorldGrid.Terrain.SAND)
 	_grid.set_terrain(Vector2i(5, 5), WorldGrid.Terrain.PATH)
+	_grid.set_terrain(Vector2i(7, 7), WorldGrid.Terrain.STONE)
 	_grid.set_terrain(Vector2i(6, 6), WorldGrid.Terrain.CLIFF)
 	assert_bool(_grid.is_walkable(Vector2i(4, 4))).is_true()
 	assert_bool(_grid.is_walkable(Vector2i(5, 5))).is_true()
+	assert_bool(_grid.is_walkable(Vector2i(7, 7))).is_true()
 	assert_bool(_grid.is_walkable(Vector2i(6, 6))).is_false()
 	assert_bool(
 		_grid.can_place(Vector2i(6, 6), Vector2i.ONE, WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT)

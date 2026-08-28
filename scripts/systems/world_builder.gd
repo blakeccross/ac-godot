@@ -38,22 +38,35 @@ func _parent_for(
 func _paint_terrain(root: Node3D, data: WorldData, grid: WorldGrid) -> void:
 	if root == null:
 		return
-	var has_grd: bool = _attach_acres(root, data, grid)
+	var meshed: Array = []
+	var has_grd: bool = _attach_acres(root, data, grid, meshed)
 	FieldCollision.add_to(root, data, grid)
 	_add_map_bounds(root, data, grid)
 	_disable_placeholder_ground(root)
-	if has_grd:
+	if has_grd and meshed.is_empty():
 		return
+	_paint_placeholder_tiles(root, data, grid, meshed)
+
+
+func _paint_placeholder_tiles(root: Node3D, data: WorldData, grid: WorldGrid, meshed: Array) -> void:
 	var water_mat := _mat(Color(0.28, 0.52, 0.78, 1))
 	var sand_mat := _mat(Color(0.82, 0.74, 0.52, 1))
 	var path_mat := _mat(Color(0.55, 0.42, 0.28, 1))
+	var stone_mat := _mat(Color(0.62, 0.61, 0.56, 1))
 	var cliff_mat := _mat(Color(0.45, 0.4, 0.35, 1))
 	var mesh := BoxMesh.new()
 	mesh.size = Vector3(grid.cell_size * 0.96, 0.06, grid.cell_size * 0.96)
 	var cliff_mesh := BoxMesh.new()
 	cliff_mesh.size = Vector3(grid.cell_size * 0.96, 0.9, grid.cell_size * 0.96)
+	var skip_meshed: bool = meshed.size() == TownFieldGenerator.BLOCK_TOTAL
 	for x: int in data.columns:
 		for z: int in data.rows:
+			if skip_meshed:
+				var bx: int = x / WorldGenerator.UT + 1
+				var bz: int = z / WorldGenerator.UT + 1
+				var bnum: int = bz * TownFieldGenerator.BLOCK_X + bx
+				if bnum >= 0 and bnum < meshed.size() and int(meshed[bnum]) != 0:
+					continue
 			var cell := Vector2i(x, z)
 			var t: WorldGrid.Terrain = data.terrain_at(cell)
 			var pos: Vector3 = grid.cell_to_world(cell)
@@ -68,11 +81,13 @@ func _paint_terrain(root: Node3D, data: WorldData, grid: WorldGrid) -> void:
 					root.add_child(_tile(mesh, sand_mat, pos + Vector3(0, 0.02, 0)))
 				WorldGrid.Terrain.PATH:
 					root.add_child(_tile(mesh, path_mat, pos + Vector3(0, 0.02, 0)))
+				WorldGrid.Terrain.STONE:
+					root.add_child(_tile(mesh, stone_mat, pos + Vector3(0, 0.02, 0)))
 				WorldGrid.Terrain.CLIFF:
 					root.add_child(_tile(cliff_mesh, cliff_mat, pos + Vector3(0, 0.45, 0)))
 
 
-func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid) -> bool:
+func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid, meshed: Array) -> bool:
 	if (
 		data.acre_visuals.size() == TownFieldGenerator.BLOCK_TOTAL
 		and data.acre_types.size() == TownFieldGenerator.BLOCK_TOTAL
@@ -80,6 +95,8 @@ func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid) -> bool:
 		var acres_root := Node3D.new()
 		acres_root.name = "Acres"
 		root.add_child(acres_root)
+		meshed.resize(TownFieldGenerator.BLOCK_TOTAL)
+		meshed.fill(0)
 		var placed_mesh := false
 		for bz: int in range(1, 7):
 			for bx: int in range(1, 6):
@@ -98,6 +115,7 @@ func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid) -> bool:
 					host.free()
 					continue
 				acres_root.add_child(host)
+				meshed[bnum] = 1
 				placed_mesh = true
 		return placed_mesh
 	if data.acre_visual != &"":

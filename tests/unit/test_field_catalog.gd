@@ -85,6 +85,9 @@ func test_height_counts_match_gx() -> void:
 	assert_bool(FieldCatalog.is_water_attr(44)).is_false()
 	assert_bool(FieldCatalog.is_water_attr(32)).is_false()
 	assert_bool(FieldCatalog.is_bridge_attr(32)).is_true()
+	assert_bool(FieldCatalog.is_stone_bridge_attr(32)).is_true()
+	assert_bool(FieldCatalog.is_wood_bridge_attr(32)).is_false()
+	assert_bool(FieldCatalog.is_wood_bridge_attr(27)).is_true()
 	assert_bool(FieldCatalog.is_bridge_attr(18)).is_false()
 	assert_bool(FieldCatalog.is_plantable_attr(0)).is_true()
 	assert_bool(FieldCatalog.is_plantable_attr(6)).is_true()
@@ -140,3 +143,22 @@ func test_height_max_filler_tables_are_skipped() -> void:
 					if int(FieldCatalog.unit_at(visual, ux, uz)["c"]) >= FieldCatalog.HEIGHT_MAX:
 						n_max += 1
 			assert_int(n_max).is_less_equal(128)
+
+
+func test_bridge_block_types_pick_data_combi_bgs() -> void:
+	## Same `*_BRIDGE` type; stone vs wood is the BG row (`bridge_1` vs `bridge_2`).
+	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_RIVER_S_BRIDGE, 0))).is_equal(
+		"grd_s_r1_b_1"
+	)
+	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_BEACH_RIVER_BRIDGE, 0))).is_equal(
+		"grd_s_m_r1_b_1"
+	)
+	assert_bool(FieldCatalog.is_stone_bridge_visual(&"grd_s_r1_b_1")).is_true()
+	assert_bool(FieldCatalog.is_stone_bridge_visual(&"grd_s_r1_b_2")).is_false()
+	assert_bool(FieldCatalog.is_stone_bridge_visual(&"grd_s_r1_b_3")).is_false()
+	assert_bool(FieldCatalog.is_stone_bridge_visual(&"grd_s_r3_b_3")).is_true()
+	assert_bool(FieldCatalog.is_stone_bridge_visual(&"grd_s_m_r1_b_3")).is_true()
+	var used := PackedStringArray(["grd_s_r1_b_1"])
+	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_RIVER_S_BRIDGE, 0, used))).is_equal(
+		"grd_s_r1_b_2"
+	)
