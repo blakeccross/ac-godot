@@ -106,6 +106,49 @@ def alpha_mode_for_png(png: bytes | None) -> str:
     return "BLEND"
 
 
+# Decomp `structure_pal.c`: Japanese mesh prefixes vs English palette symbols.
+_STRUCTURE_PALETTE_ALIASES = {
+    "yubinkyoku": "post_office",
+    "kouban": "police_box",
+}
+
+
+def structure_palette_names(prefix: str) -> list[str]:
+    """Candidate `structure_pal` symbols for a cKF/static structure prefix.
+
+    Shop keeps its stage digit (`obj_shop1_pal`). Player house drops it
+    (`obj_s_myhome1` → `obj_s_myhome_a_pal`). Post office is an alias
+    (`obj_s_yubinkyoku` → `obj_s_post_office_pal` / winter `*_winter_pal`).
+    """
+    names: list[str] = []
+
+    def add(*cands: str) -> None:
+        for name in cands:
+            if name and name not in names:
+                names.append(name)
+
+    add(f"{prefix}_a_pal", f"{prefix}_pal")
+    m = re.match(r"^obj_([swf])_(.+)$", prefix)
+    if not m:
+        return names
+    season, rest = m.group(1), m.group(2)
+    add(f"obj_{rest}_pal", f"obj_{rest}_a_pal")
+    destaged = re.sub(r"\d+$", "", rest)
+    if destaged and destaged != rest:
+        add(
+            f"obj_{season}_{destaged}_a_pal",
+            f"obj_{season}_{destaged}_pal",
+            f"obj_{destaged}_pal",
+            f"obj_{destaged}_a_pal",
+        )
+    alias = _STRUCTURE_PALETTE_ALIASES.get(rest) or _STRUCTURE_PALETTE_ALIASES.get(destaged)
+    if alias:
+        add(f"obj_{season}_{alias}_pal", f"obj_{season}_{alias}_a_pal", f"obj_s_{alias}_pal", f"obj_{alias}_pal")
+        if season == "w":
+            add(f"obj_s_{alias}_winter_pal", f"obj_{alias}_winter_pal")
+    return names
+
+
 def decode_gbi_texture(
     data: bytes,
     width: int,
@@ -375,14 +418,10 @@ class TextureBank:
     def _structure_palette(self, prefix: str) -> bytes | None:
         """Houses/shops load CI palettes from `anime_1_txt` (segment 0x08), not `{prefix}_pal`.
 
-        Decomp: `structure_pal_adrs_nowinter` — `obj_s_house1_a_pal`, `obj_shop1_pal`, …
+        Decomp: `structure_pal_adrs_nowinter` — `obj_s_house1_a_pal`, `obj_shop1_pal`,
+        `obj_s_myhome_a_pal` (stage digit stripped), `obj_s_post_office_pal` (yubinkyoku alias).
         """
-        names = [f"{prefix}_a_pal", f"{prefix}_pal"]
-        m = re.match(r"^(obj)_[swf]_(.+)$", prefix)
-        if m:
-            base = f"{m.group(1)}_{m.group(2)}"
-            names.extend([f"{base}_pal", f"{base}_a_pal"])
-        for name in names:
+        for name in structure_palette_names(prefix):
             blob = self._symbol_bytes(name)
             if blob:
                 return blob

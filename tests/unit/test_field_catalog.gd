@@ -31,6 +31,19 @@ func test_summer_tree_paths_when_assets_exist() -> void:
 		return
 	assert_str(paths[0]).contains("obj_s_tree5")
 	assert_str(FieldCatalog.mesh_paths(&"obj_s_house1")[0]).contains("obj_s_house1")
+	for id: StringName in [
+		&"obj_s_myhome1",
+		&"obj_s_museum",
+		&"obj_s_tailor",
+		&"obj_s_yubinkyoku",
+		&"obj_s_kouban",
+		&"obj_s_shrine",
+		&"obj_s_station1",
+	]:
+		var structure: PackedStringArray = FieldCatalog.mesh_paths(id)
+		if structure.is_empty():
+			continue
+		assert_str(structure[0]).contains(String(id))
 	assert_str(FieldCatalog.mesh_paths(&"grd_s_f_1")[0]).contains("grd_s_f_1")
 	assert_str(FieldCatalog.villager_path(&"squirrel")).contains("squ_1")
 	assert_str(FieldCatalog.item_albedo(&"apple")).contains("obj_item_apple_tex")

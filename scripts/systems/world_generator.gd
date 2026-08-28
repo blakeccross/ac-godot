@@ -7,13 +7,18 @@ const DEFAULT_SEED := 12345
 const UT := 16
 const FG_X := 5
 const FG_Z := 6
-## FG_TYPE_GRD_S_F_MH_* / FG_TYPE_0069 place HOUSE0 at unit (3, 3). Actor ct adds
-## +20 GX X/Z (`aMHS_posX_table[0]`), the center of a 2×2 whose NW is that unit.
+## FG_TYPE_GRD_S_F_MH_* / FG_TYPE_0069: four player plots on B-3 (`mHS_HOUSE0`–`3`).
+## Actor ct: west +20 X, east −20 X; both +20 Z (`aMHS_posX_table`).
 const HOUSE0_UT := Vector2i(3, 3)
+const HOUSE1_UT := Vector2i(12, 3)
+const HOUSE2_UT := Vector2i(3, 10)
+const HOUSE3_UT := Vector2i(12, 10)
 ## SHOP0 is (10, 9) on `grd_s_t_sh_1` and (10, 10) on `_2`/`_3`. Actor ct adds
 ## −20 X, +20 Z, so the 2×2 NW is (SHOP0.x − 1, SHOP0.z).
 const SHOP0_UT := Vector2i(10, 10)
 const SHOP0_UT_SH1 := Vector2i(10, 9)
+## TRAIN_STATION is (8, 5) on every `FG_TYPE_GRD_S_T_ST1_*`. `aSTA_actor_ct` is −20 X only.
+const STATION_UT := Vector2i(8, 5)
 
 const _APPLE := preload("res://data/items/apple.tres")
 const _APPLE_TREE := preload("res://data/plants/apple_tree.tres")
@@ -38,7 +43,7 @@ static func authored_test_town() -> WorldData:
 		Vector2i(12, 3), Vector2i(13, 3), Vector2i(12, 4), Vector2i(13, 4)
 	]
 	data.buildings = [
-		_building(&"player_house", &"house", Vector2i(7, 1), Vector2i(2, 2), true, &"obj_s_house1"),
+		_building(&"player_house", &"house", Vector2i(7, 1), Vector2i(2, 2), true, &"obj_s_myhome1"),
 		_building(&"acre_shop", &"shop", Vector2i(12, 1), Vector2i(2, 2), false, &"obj_s_shop1"),
 	]
 	data.objects = [
@@ -50,6 +55,7 @@ static func authored_test_town() -> WorldData:
 		_object(&"yard_chair", &"furniture", Vector2i(9, 3), _CHAIR, &"int_sum_chair01"),
 		_object(&"pansy_1", &"flower", Vector2i(6, 10), null, &"FLOWER_PANSIES0"),
 		_object(&"rock_1", &"rock", Vector2i(3, 8), null, &"ROCK_A"),
+		_door(&"house_door", Vector2i(7, 3), "House"),
 		_villager(&"pip", Vector2i(10, 9), _PIP),
 	]
 	data.spawn_points = [_spawn(&"player", Vector2i(8, 11), 0.0)]
@@ -242,45 +248,36 @@ static func _paint_cliff_acre(data: WorldData, origin: Vector2i, type: int, elev
 
 
 static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray) -> void:
-	## B3 player HOUSE0 (bx=3,bz=2), shop on tracks. FG unit + structure actor offset.
+	## Acre-type fallbacks use the same actor_ct offsets as FG templates (`FgCatalog`).
 	var house_origin: Vector2i = _fg_origin(3, 2)
-	var house_cell := house_origin + HOUSE0_UT
-	data.buildings.append(
-		_building(&"player_house", &"house", house_cell, Vector2i(2, 2), true, &"obj_s_house1")
-	)
+	_place_structure_item(data, house_origin, HOUSE0_UT, FgCatalog.ITEM_HOUSE0)
+	_place_structure_item(data, house_origin, HOUSE1_UT, FgCatalog.ITEM_HOUSE1)
+	_place_structure_item(data, house_origin, HOUSE2_UT, FgCatalog.ITEM_HOUSE2)
+	_place_structure_item(data, house_origin, HOUSE3_UT, FgCatalog.ITEM_HOUSE3)
+	var house_cell: Vector2i = _building_cell(data, &"player_house")
 	data.spawn_points = [_spawn(&"player", Vector2i(house_cell.x + 1, house_cell.y + 4), 0.0)]
+	var unique_ut := Vector2i(7, 7)
 	for bz: int in range(1, 7):
 		for bx: int in range(1, 6):
 			var type: int = _block(blocks, bx, bz)
 			var origin: Vector2i = _fg_origin(bx, bz)
-			var center := Vector2i(origin.x + 7, origin.y + 7)
 			match type:
 				TownFieldGenerator.T_TRACKS_SHOP:
-					var shop0: Vector2i = _shop0_unit(data, bx, bz)
-					data.buildings.append(
-						_building(
-							&"acre_shop",
-							&"shop",
-							origin + Vector2i(shop0.x - 1, shop0.y),
-							Vector2i(2, 2),
-							false,
-							&"obj_s_shop1"
-						)
-					)
+					_place_structure_item(data, origin, _shop0_unit(data, bx, bz), FgCatalog.ITEM_SHOP0)
 				TownFieldGenerator.T_TRACKS_STATION:
-					data.objects.append(_sign(&"station_sign", center, "Train Station"))
+					_place_structure_item(data, origin, STATION_UT, FgCatalog.ITEM_TRAIN_STATION)
 				TownFieldGenerator.T_TRACKS_POST:
-					data.objects.append(_sign(&"post_sign", center, "Post Office"))
+					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_POST_OFFICE)
 				TownFieldGenerator.T_MUSEUM:
-					data.objects.append(_sign(&"museum_sign", center, "Museum"))
+					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_MUSEUM)
 				TownFieldGenerator.T_POLICE:
-					data.objects.append(_sign(&"police_sign", center, "Police Station"))
+					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_POLICE_STATION)
 				TownFieldGenerator.T_SHRINE:
-					data.objects.append(_sign(&"well_sign", center, "Wishing Well"))
+					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_WISHING_WELL)
 				TownFieldGenerator.T_NEEDLEWORK:
-					data.objects.append(_sign(&"able_sign", center, "Able Sisters"))
+					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_NEEDLEWORK_SHOP)
 				TownFieldGenerator.T_PORT:
-					data.objects.append(_sign(&"dock_sign", center, "Dock"))
+					data.objects.append(_sign(&"dock_sign", origin + unique_ut, "Dock"))
 
 
 static func _shop0_unit(data: WorldData, bx: int, bz: int) -> Vector2i:
@@ -292,12 +289,22 @@ static func _shop0_unit(data: WorldData, bx: int, bz: int) -> Vector2i:
 	return SHOP0_UT
 
 
+static func _place_structure_item(
+	data: WorldData, origin: Vector2i, ut: Vector2i, item_id: int
+) -> void:
+	var place: Dictionary = FgCatalog.placement_for_item(item_id)
+	if place.is_empty():
+		return
+	_apply_fg_structure(data, origin + ut, place)
+
+
 static func _place_fg_props(data: WorldData, blocks: PackedByteArray, seed_value: int) -> void:
 	## Prefer disc FG templates (`mFM_InitFgCombiSaveData`); scatter only as fallback.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = (seed_value as int) ^ 0x9E3779B9
+	var reserves: Array[Vector2i] = []
 	if FgCatalog.has_catalog():
-		_place_from_fg_templates(data, blocks, rng)
+		reserves = _place_from_fg_templates(data, blocks, rng)
 		_change_tree_to_fruit(data, rng)
 		_change_tree_to_cedar(data, rng)
 		## Most outdoor FG templates are tree-heavy; a few flats still get flower beds.
@@ -308,14 +315,14 @@ static func _place_fg_props(data: WorldData, blocks: PackedByteArray, seed_value
 	var apple_cell := _first_open_near_spawn(data, 5)
 	if apple_cell != Vector2i(-1, -1):
 		data.objects.append(_item(&"ground_apple", apple_cell, _APPLE))
-	var villager_cell := _first_open_near_spawn(data, 8)
-	if villager_cell != Vector2i(-1, -1):
-		data.objects.append(_villager(&"pip", villager_cell, _PIP))
+	_place_villager_homes(data, reserves, rng)
 
 
 static func _place_from_fg_templates(
 	data: WorldData, blocks: PackedByteArray, rng: RandomNumberGenerator
-) -> void:
+) -> Array[Vector2i]:
+	## Returns SIGN reserve cells (`mNT_IS_RESERVE`) for villager house assignment.
+	var reserves: Array[Vector2i] = []
 	var tree_n := 0
 	var flower_n := 0
 	var rock_n := 0
@@ -337,27 +344,180 @@ static func _place_from_fg_templates(
 					if place.is_empty():
 						continue
 					var cell := origin + Vector2i(ux, uz)
-					if _occupied(data, cell):
-						continue
 					var kind: StringName = place["kind"]
-					var vis: StringName = place["visual"]
 					match kind:
+						&"reserve":
+							reserves.append(cell)
+						&"structure":
+							_apply_fg_structure(data, cell, place)
 						&"tree":
+							if _occupied(data, cell):
+								continue
 							var payload: Resource = _tree_payload(String(place.get("tree", "hardwood")))
 							data.objects.append(
-								_object(StringName("tree_%d" % tree_n), &"tree", cell, payload, vis)
+								_object(
+									StringName("tree_%d" % tree_n),
+									&"tree",
+									cell,
+									payload,
+									place["visual"]
+								)
 							)
 							tree_n += 1
 						&"flower":
+							if _occupied(data, cell):
+								continue
 							data.objects.append(
-								_object(StringName("flower_%d" % flower_n), &"flower", cell, null, vis)
+								_object(
+									StringName("flower_%d" % flower_n),
+									&"flower",
+									cell,
+									null,
+									place["visual"]
+								)
 							)
 							flower_n += 1
 						&"rock":
+							if _occupied(data, cell):
+								continue
 							data.objects.append(
-								_object(StringName("rock_%d" % rock_n), &"rock", cell, null, vis)
+								_object(
+									StringName("rock_%d" % rock_n), &"rock", cell, null, place["visual"]
+								)
 							)
 							rock_n += 1
+	return reserves
+
+
+static func _apply_fg_structure(data: WorldData, cell: Vector2i, place: Dictionary) -> void:
+	## Refine acre-type buildings to FG unit + actor NW offset when the template has them.
+	var bkind: StringName = place.get("building", &"building")
+	var label: String = String(place.get("label", ""))
+	var vis: StringName = place.get("visual", &"")
+	var foot: Vector2i = place.get("foot", Vector2i(2, 2))
+	var nw: Vector2i = place.get("nw_off", Vector2i.ZERO)
+	var door_verb: StringName = place.get("door_verb", &"enter")
+	var facing: WorldGrid.Facing = place.get("facing", WorldGrid.Facing.SOUTH) as WorldGrid.Facing
+	var mesh_facing: WorldGrid.Facing = place.get("mesh_facing", facing) as WorldGrid.Facing
+	var actor_shift: Vector2 = place.get("actor_shift", Vector2.ZERO)
+	var occupy: bool = bool(place.get("occupy", true))
+	var anchor: Vector2i = cell + nw
+	var id: StringName = &""
+	if place.has("id"):
+		id = place["id"] as StringName
+	if id == &"":
+		match label:
+			"Museum":
+				id = &"museum"
+			"Able Sisters":
+				id = &"able_sisters"
+			"Post Office":
+				id = &"post_office"
+			"Police Station":
+				id = &"police"
+			"Wishing Well":
+				id = &"wishing_well"
+			"Shop":
+				id = &"acre_shop"
+			"House":
+				id = &"player_house"
+			"Train Station":
+				id = &"station"
+			_:
+				id = StringName("structure_%d_%d" % [cell.x, cell.y])
+	## Replace matching acre-type placeholder when present.
+	for i: int in data.buildings.size():
+		var b: BuildingPlacement = data.buildings[i]
+		if b != null and b.id == id:
+			b.cell = anchor
+			b.footprint = foot
+			b.kind = bkind
+			b.visual_id = vis
+			b.label = label
+			b.door_verb = door_verb
+			b.facing = facing
+			b.mesh_facing = mesh_facing
+			b.actor_shift = actor_shift
+			b.occupy_grid = occupy
+			return
+	data.buildings.append(
+		_labeled_building(
+			id, bkind, anchor, foot, occupy, vis, label, door_verb, facing, actor_shift, mesh_facing
+		)
+	)
+
+
+static func _place_villager_homes(
+	data: WorldData, reserves: Array[Vector2i], rng: RandomNumberGenerator
+) -> void:
+	## Decomp: shuffle SIGN reserves, assign starter villagers (`mNpc_SetNpcHome`).
+	## Door / actor stand tile is reserve uz + 1 (`home_info.ut_z`).
+	var plots: Array[Vector2i] = reserves.duplicate()
+	if plots.is_empty():
+		plots = _synthetic_house_plots(data, rng)
+	## Fisher–Yates
+	for i: int in range(plots.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var tmp: Vector2i = plots[i]
+		plots[i] = plots[j]
+		plots[j] = tmp
+	var count: int = mini(1, plots.size()) ## One villager (Pip) for this slice.
+	for i: int in count:
+		var reserve: Vector2i = plots[i]
+		## House FG item sits on the SIGN unit; actor has no extra offset (`ac_house`).
+		## RSV occupies the 3×3 around that unit (`mNpc_BuildHouseBeforeFieldct`).
+		var house_cell := Vector2i(reserve.x - 1, reserve.y - 1)
+		if not data.is_in_bounds(house_cell):
+			house_cell = reserve
+		var door_cell := Vector2i(reserve.x, reserve.y + 1)
+		if not data.is_in_bounds(door_cell):
+			door_cell = reserve
+		data.buildings.append(
+			_labeled_building(
+				StringName("npc_house_%d" % i),
+				&"house",
+				house_cell,
+				Vector2i(3, 3) if house_cell != reserve else Vector2i(2, 2),
+				true,
+				&"obj_s_house1",
+				"House"
+			)
+		)
+		## Signboard at (ux−1, uz+1) in decomp; skip for now.
+		data.objects.append(_villager(&"pip", door_cell, _PIP))
+
+
+static func _synthetic_house_plots(data: WorldData, rng: RandomNumberGenerator) -> Array[Vector2i]:
+	## Fallback when FG catalog has no SIGN* items: open grass on flat acres away from B3.
+	var out: Array[Vector2i] = []
+	for _i: int in 40:
+		var cell := Vector2i(rng.randi_range(4, data.columns - 5), rng.randi_range(20, data.rows - 8))
+		if _near_player_house(data, cell, 12):
+			continue
+		if not _is_open_grass(data, cell):
+			continue
+		if not _is_open_grass(data, Vector2i(cell.x, cell.y + 1)):
+			continue
+		out.append(cell)
+		if out.size() >= 6:
+			break
+	return out
+
+
+static func _building_cell(data: WorldData, id: StringName) -> Vector2i:
+	for b: BuildingPlacement in data.buildings:
+		if b != null and b.id == id:
+			return b.cell
+	return Vector2i(35, 19)
+
+
+static func _near_player_house(data: WorldData, cell: Vector2i, radius: int) -> bool:
+	for b: BuildingPlacement in data.buildings:
+		if b == null or not String(b.id).begins_with("player_house"):
+			continue
+		if absi(cell.x - b.cell.x) + absi(cell.y - b.cell.y) < radius:
+			return true
+	return false
 
 
 static func _scatter_backup_flowers(
@@ -717,7 +877,31 @@ static func _first_open_near_spawn(data: WorldData, radius: int) -> Vector2i:
 
 
 static func _building(
-	id: StringName, kind: StringName, cell: Vector2i, footprint: Vector2i, occupy: bool, visual_id: StringName = &""
+	id: StringName,
+	kind: StringName,
+	cell: Vector2i,
+	footprint: Vector2i,
+	occupy: bool,
+	visual_id: StringName = &"",
+	mesh_facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH
+) -> BuildingPlacement:
+	return _labeled_building(
+		id, kind, cell, footprint, occupy, visual_id, "", &"enter", WorldGrid.Facing.SOUTH, Vector2.ZERO, mesh_facing
+	)
+
+
+static func _labeled_building(
+	id: StringName,
+	kind: StringName,
+	cell: Vector2i,
+	footprint: Vector2i,
+	occupy: bool,
+	visual_id: StringName,
+	label: String,
+	door_verb: StringName = &"enter",
+	facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH,
+	actor_shift: Vector2 = Vector2.ZERO,
+	mesh_facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH
 ) -> BuildingPlacement:
 	var b := BuildingPlacement.new()
 	b.id = id
@@ -726,6 +910,11 @@ static func _building(
 	b.footprint = footprint
 	b.occupy_grid = occupy
 	b.visual_id = visual_id if visual_id != &"" else FieldCatalog.default_visual(kind)
+	b.label = label
+	b.door_verb = door_verb
+	b.facing = facing
+	b.actor_shift = actor_shift
+	b.mesh_facing = mesh_facing
 	return b
 
 
@@ -755,6 +944,13 @@ static func _sign(id: StringName, cell: Vector2i, message: String) -> ObjectPlac
 
 static func _villager(id: StringName, cell: Vector2i, villager: VillagerData) -> ObjectPlacement:
 	var o := _object(id, &"villager", cell, villager)
+	o.occupy_grid = false
+	return o
+
+
+static func _door(id: StringName, cell: Vector2i, label: String) -> ObjectPlacement:
+	var o := _object(id, &"door", cell, null)
+	o.message = label
 	o.occupy_grid = false
 	return o
 

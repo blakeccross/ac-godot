@@ -9,6 +9,18 @@ enum PlaceKind { ITEM, PLANT, BUILDING, FURNITURE }
 
 const FACING_COUNT := 4
 
+
+static func yaw_for_facing(facing: Facing) -> float:
+	match facing:
+		Facing.EAST:
+			return -PI * 0.5
+		Facing.NORTH:
+			return PI
+		Facing.WEST:
+			return PI * 0.5
+		_:
+			return 0.0
+
 signal occupancy_changed(cell: Vector2i, occupant: StringName)
 
 var columns: int = 16

@@ -10,6 +10,7 @@ const ENTER := &"enter"
 const SIT := &"sit"
 const READ := &"read"
 const SHOP := &"shop"
+const DIG := &"dig"
 
 var id: StringName = &""
 var prompt: String = ""

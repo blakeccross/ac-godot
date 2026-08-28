@@ -154,6 +154,23 @@ func test_scene_hosts_offer_expected_verbs() -> void:
 	_assert_verb("res://scenes/world/house.tscn", Interaction.ENTER, ctx)
 	_assert_verb("res://scenes/world/shop.tscn", Interaction.SHOP, ctx)
 	_assert_verb("res://scenes/world/sign.tscn", Interaction.READ, ctx)
+	_assert_verb("res://scenes/world/rock.tscn", Interaction.DIG, ctx)
+	_assert_verb("res://scenes/world/flower.tscn", Interaction.PICK_UP, ctx)
+	_assert_verb("res://scenes/world/door.tscn", Interaction.ENTER, ctx)
+
+
+func test_building_exposes_verbs_on_child_door() -> void:
+	## Generic buildings compose a Door; the player still never switches on type.
+	var building: Node = auto_free(load("res://scenes/world/building.tscn").instantiate())
+	add_child(building)
+	var door: Node = building.get_node("Door")
+	assert_bool(InteractionQuery.is_host(door)).is_true()
+	assert_bool(InteractionQuery.is_host(building)).is_false()
+	var vol: Node = door.get_node("InteractVolume")
+	assert_object(InteractionQuery.host_from(vol)).is_same(door)
+	var action: Interaction = Interaction.primary(door.get_interactions(InteractionContext.new()))
+	assert_str(String(action.id)).is_equal(String(Interaction.ENTER))
+	assert_bool(door.interact(action, InteractionContext.new())).is_true()
 
 
 func test_context_forwards_release_occupant() -> void:

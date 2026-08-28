@@ -1,6 +1,7 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/flower.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="2"]
 
 [sub_resource type="SphereMesh" id="BloomMesh"]
 radius = 0.12
@@ -9,6 +10,9 @@ height = 0.24
 [sub_resource type="StandardMaterial3D" id="BloomMat"]
 albedo_color = Color(0.92, 0.55, 0.72, 1)
 
+[sub_resource type="BoxShape3D" id="InteractShape"]
+size = Vector3(0.9, 0.8, 0.9)
+
 [node name="Flower" type="Node3D"]
 script = ExtResource("1")
 
@@ -16,3 +20,14 @@ script = ExtResource("1")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.18, 0)
 mesh = SubResource("BloomMesh")
 surface_material_override/0 = SubResource("BloomMat")
+
+[node name="InteractVolume" type="Area3D" parent="."]
+collision_layer = 8
+collision_mask = 0
+monitoring = false
+monitorable = true
+script = ExtResource("2")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractVolume"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
+shape = SubResource("InteractShape")

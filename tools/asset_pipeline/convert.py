@@ -21,7 +21,7 @@ from .texbank import G_IM_FMT_CI, G_IM_SIZ_4b, TextureBank, decode_gbi_texture, 
 
 TRANSFORMS = {
     "scale": "vertex * config.scale (default 0.001). Not actor 0.01 or acre 0.0625 draw scale — Godot FieldCatalog applies those.",
-    "z_axis": "cKF: wait bind already stands on +Y; else +90° about Z unless GX verts already sit on +Y (houses/shops bake door-clip joint-0 yaw: house −90°, shop −135°). Static Gfx keep GX Z (no flip).",
+    "z_axis": "cKF: wait bind already stands on +Y; else +90° about Z unless GX verts already sit on +Y (houses/shops/myhome/station bake door-clip joint-0 yaw: house −90°, shop/myhome −135°, station 0°). Static Gfx keep GX Z (no flip).",
     "rest_pose": "wait frame 1 when available; Y-up structures use door-clip frame 1; else identity + ckf_basis",
     "animations": "cKF_ba_r_* sampled at 30 fps into skinned glTF clips",
     "textures": "GX CI4/CI8 + pal; I/IA * G_SETPRIMCOLOR; villager tmem on 0x0A/0x0B",

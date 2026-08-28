@@ -196,11 +196,14 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | Left side of shirt (or other tiled body art) looks stuck/wrong | Shirt UVs go past 1.0 with `wrapS=REPEAT` but `wrapT=CLAMP`; Godot’s one `texture_repeat` flag often clamps both. Bake REPEAT/MIRROR into the PNG and normalize UVs to 0–1 |
 | Villager/body textures are grayscale | CI4 missing `{prefix}_pal` (NPC DLs skip LOADTLUT) or I4/IA without `G_SETPRIMCOLOR` tint |
 | House/shop is grayscale | CI4 loads `anime_1_txt` (segment 0x08). Bind `obj_s_house1_a_pal` / `obj_shop1_pal` from `structure_pal`, not `{prefix}_pal` |
+| Player house / post office is grayscale | Same `anime_1_txt` bank. `obj_s_myhome1` maps to `obj_s_myhome_a_pal` (strip the stage digit); `obj_s_yubinkyoku` aliases to `obj_s_post_office_pal` (winter: `obj_s_post_office_winter_pal`) |
 | Palm/cedar is black-and-white | CI4 leaf/trunk (`obj_s_palm_*_tex`, `obj_s_cedar_*_tex`) never LOADTLUT. Runtime uses `mFM_obj_palm_01_pal` / `mFM_obj_tree_01_pal_dol` (`mFM_SetFGPal`). Fallback used to require `"tree"` in the symbol name. Reconvert with `--step convert --kind plants` |
 | Tree leaves are pastel pink/teal | Hardwood fallback used map symbol `mFM_obj_tree_01_pal`, whose REL blob does not CI-decode leaf art. Use `mFM_obj_tree_01_pal_dol` / `obj_tree_pal`. Reconvert trees |
 | Summer `obj_s_tree3` leaf is untextured | Disc has only `obj_s_gold_tree3_leafT_mat_model` (no non-gold leaf mat). Converter falls back to the gold mat for SETTIMG |
 | Boy torso is a hollow flame X / see-through chest | `G_SETTILESIZE` 128×32 overwrote the shirt’s 32×32 `SETTIMG` size; decode zero-padded with transparent CI0 → MASK holes. Keep tile size separate from image size; UVs still divide by the 32×32 image so REPEAT can bake. Reconvert `boy_1` |
-| House/shop lies on its back | GX verts already sit on +Y; do not apply `ckf_basis` (+90° Z). Bake door-clip frame 1 (joint-0 yaw: house −90°, shop −135°) |
+| House/shop lies on its back | GX verts already sit on +Y; do not apply `ckf_basis` (+90° Z). Bake door-clip frame 1 (joint-0 yaw: house −90°, shop/myhome −135°) |
+| Player tent is on its side | Weather-vane verts fail the Y-up heuristic. Treat `obj_*_myhome*` as a Y-up structure and bake `cKF_ba_r_obj_s_myhome1` (not `_out`, not `ckf_basis`) |
+| Station lies on its side | Same heuristic miss (clock-hand verts). Treat `obj_*_station*` as Y-up and bake `cKF_ba_r_obj_s_station1` (joint-0 identity; skip `ckf_basis`) |
 | Shop looks face-on / door due south | Missing anim bind — shop joint-0 Y is **−135°**, not −90° |
 | Acre/room meshes have no textures | DLs use runtime segment banks (`0x80` field BG, `0x08–0x0C` house floor/wall). Convert binds those before walking the Gfx |
 | Boy cheek/skin is shirt-yellow | Pending tris were flushed after the next shirt `G_LOADTLUT`; flush before TLUT |

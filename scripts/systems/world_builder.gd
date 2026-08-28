@@ -1,22 +1,13 @@
 class_name WorldBuilder
 extends RefCounted
 
-## Turns WorldData into Godot nodes. Does not decide what exists.
-
-const TREE_SCENE := "res://scenes/world/tree.tscn"
-const HOUSE_SCENE := "res://scenes/world/house.tscn"
-const SHOP_SCENE := "res://scenes/world/shop.tscn"
-const ITEM_SCENE := "res://scenes/world/item_pickup.tscn"
-const SIGN_SCENE := "res://scenes/world/sign.tscn"
-const FURNITURE_SCENE := "res://scenes/world/furniture.tscn"
-const VILLAGER_SCENE := "res://scenes/actors/villager.tscn"
-const FLOWER_SCENE := "res://scenes/world/flower.tscn"
-const ROCK_SCENE := "res://scenes/world/rock.tscn"
+## Turns WorldData into Godot nodes. Kind → scene comes from WorldObjectRegistry.
 
 
 func build(world: Node3D, data: WorldData, grid: WorldGrid) -> void:
 	if world == null or data == null or grid == null:
 		return
+	WorldObjectRegistry.ensure()
 	data.bake()
 	grid.configure_from_world(data)
 	var terrain_root: Node3D = world.get_node_or_null("Terrain") as Node3D
@@ -27,9 +18,21 @@ func build(world: Node3D, data: WorldData, grid: WorldGrid) -> void:
 	for b: BuildingPlacement in data.buildings:
 		_add_building(buildings_root, b, data, grid)
 	for o: ObjectPlacement in data.objects:
-		var parent: Node3D = characters_root if o != null and o.kind == &"villager" else objects_root
+		var parent: Node3D = _parent_for(o.kind, objects_root, buildings_root, characters_root)
 		_add_object(parent, o, data, grid)
 	_add_player_spawn(characters_root, data, grid)
+
+
+func _parent_for(
+	kind: StringName, objects_root: Node3D, buildings_root: Node3D, characters_root: Node3D
+) -> Node3D:
+	match WorldObjectRegistry.group(kind):
+		WorldObjectRegistry.GROUP_BUILDINGS:
+			return buildings_root
+		WorldObjectRegistry.GROUP_CHARACTERS:
+			return characters_root
+		_:
+			return objects_root
 
 
 func _paint_terrain(root: Node3D, data: WorldData, grid: WorldGrid) -> void:
@@ -70,7 +73,6 @@ func _paint_terrain(root: Node3D, data: WorldData, grid: WorldGrid) -> void:
 
 
 func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid) -> bool:
-	## Multi-acre: one `grd_*` per FG block. Collision is `FieldCollision`, not these meshes.
 	if (
 		data.acre_visuals.size() == TownFieldGenerator.BLOCK_TOTAL
 		and data.acre_types.size() == TownFieldGenerator.BLOCK_TOTAL
@@ -98,7 +100,6 @@ func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid) -> bool:
 				acres_root.add_child(host)
 				placed_mesh = true
 		return placed_mesh
-	## Single-acre test town: model origin is the acre min-corner.
 	if data.acre_visual != &"":
 		var host := Node3D.new()
 		host.name = "Acre"
@@ -113,7 +114,6 @@ func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid) -> bool:
 
 
 func _add_map_bounds(root: Node3D, data: WorldData, grid: WorldGrid) -> void:
-	## Outer acres are border cliffs / ocean (`mCoBG` returns impassable off-map).
 	var min_c: Vector3 = grid.cell_corner(Vector2i(0, 0))
 	var size_x: float = float(data.columns) * grid.cell_size
 	var size_z: float = float(data.rows) * grid.cell_size
@@ -161,10 +161,20 @@ func _add_building(root: Node3D, placement: BuildingPlacement, data: WorldData, 
 	if node == null:
 		return
 	_apply_common(node, placement.id, placement.footprint, placement.facing, placement.occupy_grid, placement.visual_id)
-	_place_node(root, node, placement.cell, placement.footprint, placement.facing, data, grid)
+	if "label" in node and placement.label != "":
+		node.set("label", placement.label)
+	if "door_verb" in node and placement.door_verb != &"":
+		node.set("door_verb", placement.door_verb)
+	_place_node(
+		root, node, placement.cell, placement.footprint, placement.facing, data, grid, placement.actor_shift, placement.mesh_facing
+	)
 	if placement.occupy_grid:
 		grid.place(
-			placement.id, placement.cell, placement.footprint, placement.facing, WorldGrid.PlaceKind.BUILDING
+			placement.id,
+			placement.cell,
+			placement.footprint,
+			placement.facing,
+			WorldObjectRegistry.place_kind(placement.kind)
 		)
 
 
@@ -182,16 +192,19 @@ func _add_object(root: Node3D, placement: ObjectPlacement, data: WorldData, grid
 		node.set("persist_id", persist)
 	if "message" in node and placement.message != "":
 		node.set("message", placement.message)
+	if "label" in node and placement.message != "":
+		node.set("label", placement.message)
 	_apply_payload(node, placement)
 	_place_node(root, node, placement.cell, placement.footprint, placement.facing, data, grid)
 	if not placement.occupy_grid:
 		return
-	var kind: WorldGrid.PlaceKind = WorldGrid.PlaceKind.PLANT
-	if placement.kind == &"item":
-		kind = WorldGrid.PlaceKind.ITEM
-	elif placement.kind == &"furniture" or placement.kind == &"sign":
-		kind = WorldGrid.PlaceKind.FURNITURE
-	grid.place(placement.id, placement.cell, placement.footprint, placement.facing, kind)
+	grid.place(
+		placement.id,
+		placement.cell,
+		placement.footprint,
+		placement.facing,
+		WorldObjectRegistry.place_kind(placement.kind)
+	)
 
 
 func _add_player_spawn(root: Node3D, data: WorldData, grid: WorldGrid) -> void:
@@ -219,15 +232,18 @@ func _place_node(
 	footprint: Vector2i,
 	facing: WorldGrid.Facing,
 	data: WorldData,
-	grid: WorldGrid
+	grid: WorldGrid,
+	actor_shift: Vector2 = Vector2.ZERO,
+	mesh_facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH
 ) -> void:
 	var pos: Vector3 = grid.footprint_center(cell, footprint, facing)
+	pos += Vector3(actor_shift.x, 0.0, actor_shift.y) * grid.cell_size
 	if data != null:
 		pos.y = FieldCollision.ground_y(data, cell)
 	node.position = pos
 	root.add_child(node)
 	if node.has_method("apply_grid_yaw"):
-		node.call("apply_grid_yaw", facing)
+		node.call("apply_grid_yaw", mesh_facing)
 
 
 func _apply_common(
@@ -266,7 +282,7 @@ func _apply_payload(node: Node, placement: ObjectPlacement) -> void:
 
 
 func _instance(kind: StringName) -> Node3D:
-	var path: String = _scene_path(kind)
+	var path: String = WorldObjectRegistry.scene_path(kind)
 	if path.is_empty():
 		return null
 	var packed: PackedScene = load(path) as PackedScene
@@ -277,30 +293,6 @@ func _instance(kind: StringName) -> Node3D:
 		return node as Node3D
 	node.queue_free()
 	return null
-
-
-func _scene_path(kind: StringName) -> String:
-	match kind:
-		&"tree":
-			return TREE_SCENE
-		&"house":
-			return HOUSE_SCENE
-		&"shop":
-			return SHOP_SCENE
-		&"item":
-			return ITEM_SCENE
-		&"sign":
-			return SIGN_SCENE
-		&"furniture":
-			return FURNITURE_SCENE
-		&"villager":
-			return VILLAGER_SCENE
-		&"flower":
-			return FLOWER_SCENE
-		&"rock":
-			return ROCK_SCENE
-		_:
-			return ""
 
 
 func _tile(mesh: Mesh, mat: Material, pos: Vector3) -> MeshInstance3D:

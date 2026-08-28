@@ -52,24 +52,29 @@ Seeded `RandomNumberGenerator`. Same seed → same acre grid → same `WorldData
 
 Still deferred vs decomp: bit-exact `data_combi_table` row pick for BG+FG together (we pick BG by type family, then an FG that matches that BG), acre streaming. The FG catalog stays gitignored like other disc output.
 
-**Structure spawn.** FG items sit on a unit. `mFI_BkandUtNum2CenterWpos` puts the actor at the **unit center**, then house/shop `actor_ct` adds a half-unit offset:
+**Structure spawn.** FG items sit on a unit. `mFI_BkandUtNum2CenterWpos` puts the actor at the **unit center**, then `actor_ct` adds a half-unit offset. Occupancy NW is that unit plus `nw_off`. Offsets that are not a 2×2 center (station: −20 X only) stay on the FG unit with `actor_shift`.
 
-| Actor | FG unit (house/shop acre) | Offset from unit center |
-| --- | --- | --- |
-| `HOUSE0` (`ac_my_house.c`) | `(3, 3)` in `FG_TYPE_0069` / `GRD_S_F_MH_2` / `_3` | `+20` X, `+20` Z (2×2 NW = HOUSE0) |
-| `SHOP0` (`ac_shop.c`) | `(10, 9)` on `grd_s_t_sh_1`; `(10, 10)` on `_2`/`_3` | `−20` X, `+20` Z (2×2 NW = SHOP0 − (1, 0)) |
+| Actor | FG unit | `actor_ct` from unit center | Occupancy NW | Mesh yaw |
+| --- | --- | --- | --- | --- |
+| `HOUSE0`–`HOUSE3` (`ac_my_house.c`) | `(3,3)` `(12,3)` `(3,10)` `(12,10)` on `FG_TYPE_0069` / `GRD_S_F_MH_*` | west `+20` X, east `−20` X; both `+20` Z | 2×2 NW = FG (west) or FG+(−1,0) (east). Mesh yaw: west `WEST` (AC `angle_table` **+90°**), east 0. All four are `obj_s_myhome1` on new game (`mHm_HOMESIZE_SMALL`). |
+| `SHOP0` (`ac_shop.c`) | `(10, 9)` on `grd_s_t_sh_1`; `(10, 10)` on `_2`/`_3` | `−20` X, `+20` Z | SHOP0 + `(−1, 0)` |
+| Post / Able Sisters | FG item | `−20` X, `+20` Z | FG + `(−1, 0)` |
+| Station (`ac_station.c`) | `(8, 5)` on `FG_TYPE_GRD_S_T_ST1_*` | `−20` X only | FG unit + `actor_shift (−0.5, 0)` |
+| Shrine | FG `WISHING_WELL` | `+20` X, `−19` Z | FG + `(0, −1)` |
+| Museum / police | FG item | none | Police 3×3 centered; museum 2×2 on the FG unit |
+| Villager house | SIGN reserve (`mNpc_SetNpcHome`) | none | 3×3 RSV around SIGN; villager at `uz + 1` |
 
-The house acre template also has HOUSE1–3 in the other quadrants; we only spawn the first player’s HOUSE0. Door faces south. `mFI_PullTanukiPathTrees` then clears trees on **C-3** (`Save_Get(fg[2][2])`), not B-3: ut indices `0x07, 0x08, 0x17, 0x18, 0x27, 0x28`.
+The house acre always has HOUSE0–3 (top-left, top-right, bottom-left, bottom-right). New game inits all four to tent size; only player 0’s private data is filled. Mailboxes (`ACTOR_PROP_MAILBOX0`–`3`) sit two units toward the acre center on the house row; haniwa two units south of each house. Those props are not spawned yet. Door of the west pair uses AC **+90°** Y (`WorldGrid.Facing.WEST` here — `EAST` is −90°). `mFI_PullTanukiPathTrees` then clears trees on **C-3** (`Save_Get(fg[2][2])`), not B-3: ut indices `0x07, 0x08, 0x17, 0x18, 0x27, 0x28`.
 
 ## Builder
 
-Maps `kind` → packed scene (`tree`, `house`, `shop`, `item`, `sign`, `furniture`, `villager`, `flower`, `rock`). Instantiates under `Terrain` / `Objects` / `Buildings` / `Characters`. The world `.tscn` is a shell, not a catalog of every tree.
+Maps `kind` → packed scene via **`WorldObjectRegistry`** (register once; do not grow a match ladder in the builder). Instantiates under `Terrain` / `Objects` / `Buildings` / `Characters`. The world `.tscn` is a shell, not a catalog of every tree. See [world_objects.md](world_objects.md).
 
 Generated towns instance one `grd_*` GLB per FG acre under `Terrain/Acres` (5×6). Placement matches `ac_field_draw`: min-corner (`mFI_BkNum2WposXZ`), Y = `mFI_BkNum2BaseHeight` (height × 3 cells = 6 m). Draw-list verts are 16×; the original undoes that with `Matrix_scale(0.0625)` while actors use `Matrix_scale(0.01)`. The pipeline writes both at `0.001`; `FieldCatalog` applies the two draw scales into the same 40 GX = 2 m grid so acres, trees, and the player share one GX factor. The player does **not** stand on those triangles. Each `grd_*` combo ships gfx **and** a 16×16 `mCoBG` table (`data_bgd`); the pipeline writes that as `grd_*.col.json` next to the GLB. `FieldCollision` bilinear-samples those corners (`GetBgY_AngleS_FromWpos`) — **including water** — and puts **trapezoid segments** on unit edges where neighbor heights differ (`mCoBG_SearchWallFlag`), plus 45° walls on slate units (`GetUnitVecInf_SlatingWall`). Thickness sits on the low side of each segment so the high terrace has no lip. Those are oriented boxes (uniform height) or explicit prism triangles (trapezoid ends) — not convex hulls. Mixed slate/grass cardinals are shortened to the half-edge that had a real height jump before `UtInf2NormalSlateWallVector` flatten, so a full N–S box does not sit in the SE notch in front of the 45° face. Not AABB cell boxes and not the `grd_*` triangles. `revise_xz` pushes the actor back (`CarryOutReverse`) so thin physics walls cannot drop them into a river or off a terrace. Authored ponds and geometric cliff faces (no sidecar) stay holes. Snapping to the unit *center* buried the capsule in the ramp mesh and blocked downhill travel. Off-map is impassable (`MapBound`). Test town places a single `grd_s_f_1` the same way and keeps its authored pond. Colored paint tiles are only used when those meshes are missing.
 
 `visual_id` on each placement is an original identifier (`TREE_APPLE_FRUIT`, `obj_s_house1`, `ROCK_A`, …). `FieldCatalog` resolves that to a gitignored GLB from `assets/generated/` when the local disc pipeline has been run; otherwise the scene keeps its placeholder mesh.
 
-Static Gfx keep GX +Z. cKF characters stand up with wait bind or +90° about Z. Houses and shops already sit on +Y in GX, so they skip that stand-up (it laid them on their backs) and bake the door-clip rest pose: joint-0 Y is **−90°** (house) or **−135°** (shop). Structure actors spawn at yaw 0; the diagonal shop door is that skeleton yaw, matching the 135° enter angle in `ac_shop_move`. Structure CI palettes come from `anime_1_txt` (`obj_s_house1_a_pal`, `obj_shop1_pal`).
+Static Gfx keep GX +Z. cKF characters stand up with wait bind or +90° about Z. Houses and shops already sit on +Y in GX, so they skip that stand-up (it laid them on their backs) and bake the door-clip rest pose: joint-0 Y is **−90°** (house) or **−135°** (shop/myhome). Station clock-hand verts fail the same Y-up heuristic; treat it as Y-up and bake identity joint-0 (no `ckf_basis`). Structure actors spawn at yaw 0 except **west player houses** (`HOUSE0`/`HOUSE2`): AC `angle_table` +90° Y maps to Godot `+PI/2` (`Facing.WEST`). `obj_s_myhome1` already bakes joint-0 **−135°** (same as the shop). The diagonal shop door is skeleton yaw, matching the 135° enter angle in `ac_shop_move`. Structure CI palettes come from `anime_1_txt` (`obj_s_house1_a_pal`, `obj_shop1_pal`, `obj_s_myhome_a_pal`, `obj_s_post_office_pal`).
 
 ## Original object → mesh
 
@@ -84,8 +89,15 @@ From `m_name_table.h` / `m_bg_type.h` / `ac_sign`. Summer prefix `obj_s_`; winte
 | `TREE_PALM_FRUIT` | Palm + coconut | `obj_s_palm5` + `obj_s_palm5_coco` |
 | `FLOWER_PANSIES0/1/2` | Pansies | `obj_flower_a/b/c.glb` |
 | `ROCK_A`–`ROCK_E` | Rocks | `obj_s_stoneA`–`E.glb` |
-| Player house stage 1 | `obj_s_house1` | `obj_s_house1.glb` |
+| Player house stage 1 | `obj_s_myhome1` (`ac_my_house`) | `obj_s_myhome1.glb` |
+| Villager house | `obj_s_house1` (`ac_house`) | `obj_s_house1.glb` |
 | Nook shop stage 1 | `obj_s_shop1` | `obj_s_shop1.glb` |
+| Museum | `obj_s_museum` | `obj_s_museum.glb` |
+| Able Sisters | `obj_s_tailor` | `obj_s_tailor.glb` |
+| Post office | `obj_s_yubinkyoku` | `obj_s_yubinkyoku.glb` |
+| Police box | `obj_s_kouban` | `obj_s_kouban.glb` |
+| Wishing well | `obj_s_shrine` | `obj_s_shrine.glb` |
+| Train station | `obj_s_station1` | `obj_s_station1.glb` |
 | `SIGNBOARD` / `ac_sign` | Field sign (`obj_s_kanban`) | `obj_shop_kanban.glb` until `obj_s_kanban` is converted |
 | `ITM_FOOD_APPLE` | Dropped apple | `obj_item_apple_tex.png` on the pickup |
 | `int_sum_chair01` | Wood chair | `int_sum_chair01.glb` |

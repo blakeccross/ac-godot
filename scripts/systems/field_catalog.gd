@@ -63,10 +63,6 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 			var palm := _existing([_seasonal_env("obj_%s_palm5")])
 			palm.append_array(_existing([_seasonal_env("obj_%s_palm5_coco")]))
 			return palm
-		&"obj_s_house1":
-			return _existing(["environment/obj_s_house1.glb"])
-		&"obj_s_shop1":
-			return _existing(["environment/obj_s_shop1.glb"])
 		&"obj_s_kanban", &"SIGNBOARD":
 			## Field sign is `obj_s_kanban` (`ac_sign`). Pipeline currently exports shop kanban.
 			return _existing(["environment/obj_s_kanban.glb", "environment/obj_shop_kanban.glb"])
@@ -89,6 +85,9 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		&"int_sum_chair01":
 			return _existing(["furniture/int_sum_chair01.glb"])
 		_:
+			## Outdoor structures (`obj_s_myhome1`, `obj_s_museum`, `obj_s_tailor`, …).
+			if id.begins_with("obj_"):
+				return _structure_paths(id)
 			return PackedStringArray()
 
 
@@ -378,7 +377,10 @@ static func default_visual(kind: StringName) -> StringName:
 		&"tree":
 			return &"TREE_APPLE_FRUIT"
 		&"house":
+			## Villager home (`ac_house`). Player house sets `obj_s_myhome1` explicitly.
 			return &"obj_s_house1"
+		&"building":
+			return &""
 		&"shop":
 			return &"obj_s_shop1"
 		&"sign":
@@ -411,6 +413,17 @@ static func _species_code(species: StringName) -> String:
 			return "brd"
 		_:
 			return String(species)
+
+
+static func _structure_paths(id: String) -> PackedStringArray:
+	## Summer `obj_s_*` → winter `obj_w_*` when that GLB exists (`structure_pal` seasons).
+	var seasonal := id
+	if id.begins_with("obj_s_") or id.begins_with("obj_w_") or id.begins_with("obj_f_"):
+		seasonal = "obj_%s_%s" % [season_letter(), id.substr(6)]
+	var paths: PackedStringArray = _existing(["environment/%s.glb" % seasonal])
+	if paths.is_empty() and seasonal != id:
+		paths = _existing(["environment/%s.glb" % id])
+	return paths
 
 
 static func _seasonal_tree(pattern: String) -> String:

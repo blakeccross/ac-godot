@@ -34,7 +34,7 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | Scene | Path |
 | --- | --- |
 | Player, Villager | `scenes/actors/` |
-| World, Tree, Furniture, ItemPickup, House, Shop, Sign | `scenes/world/` |
+| World, Tree, Rock, Flower, Furniture, ItemPickup, House, Shop, Building, Door, Sign | `scenes/world/` |
 | InteractVolume | `scenes/world/interact_volume.gd` (sensor only; host implements verbs) |
 | Title, Clock HUD | `scenes/ui/` |
 
@@ -55,7 +55,7 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
-`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `FieldCatalog`, `FieldCollision`, and `GeneratedVisual` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, and `InteractionQuery` are `RefCounted` helpers, not autoloads. Do not autoload weather, fishing, or events; those systems subscribe to `Clock` when they exist.
+`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, and `GeneratedVisual` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, and `InteractionQuery` are `RefCounted` helpers, not autoloads. Do not autoload weather, fishing, or events; those systems subscribe to `Clock` when they exist.
 
 ### Time system
 
@@ -84,7 +84,7 @@ Hosts duck-type two methods. There is no shared `Interactable` base: a tree is a
 | `InteractionQuery` | Walk ancestors for a host; pick the closest overlapping `InteractVolume` |
 | Host scene | `get_interactions(ctx) -> Array[Interaction]` and `interact(action, ctx)` |
 
-The player facing probe (physics layer `interact`) never does `if target is Tree`. It plays `action.player_anim` if set, then calls `host.interact`. Stub verbs: shake, talk, sit, enter, shop, read. Item pickup is the one path with real pocket logic.
+The player facing probe (physics layer `interact`) never does `if target is Tree`. It plays `action.player_anim` if set, then calls `host.interact`. Stub verbs: shake, talk, sit, enter, shop, read, dig. Item pickup (ground items and flowers) is the one path with real pocket logic. Outdoor hosts register through `WorldObjectRegistry` so `WorldBuilder` does not switch on type.
 
 ## World scene
 
@@ -125,7 +125,7 @@ Pipeline details: [decomp_notes/world_generation.md](decomp_notes/world_generati
 | Player | `scenes/actors/player.tscn` + `PlayerLocomotion`; generated `boy_1.glb` if present |
 | Field A-button | `InteractionQuery` + host `get_interactions` / `interact`; `InteractVolume` sensors |
 | Items | `ItemData` resources + `Inventory` on `Game` |
-| Town layout | `WorldData` + `WorldGenerator` / `WorldBuilder` + `WorldGrid` + `FieldCollision`; world `.tscn` is a shell |
+| Town layout | `WorldData` + `WorldGenerator` / `WorldBuilder` / `WorldObjectRegistry` + `WorldGrid` + `FieldCollision`; world `.tscn` is a shell |
 | Villagers | `VillagerData` + `ScheduleData` + villager scene (AI later) |
 | Dialogue | `DialogueData` + a UI scene when that slice is earned |
 | Save | JSON IDs and counts to `user://`, not `.tres` with embedded scripts |
@@ -144,12 +144,13 @@ Each phase should be playable or testable in-engine. Later phases are not starte
 6. **Phase 5** — player controller: `CharacterBody3D`, GC walk feel, generated `boy_1` visual when present.
 7. **Phase 6** — interaction framework: objects expose verbs; player uses `InteractionQuery`.
 8. **Phase 7** — time and calendar: `Clock` is the source of truth; other systems subscribe.
-9. **Phase 8** — world from data (current): `WorldData` + deterministic generator + hand-authored test town; world `.tscn` is a shell.
-10. **One interactable** — one tree (grow, shake, fruit) with correct feel, not every plant type. Growth on `field_renewed`.
-11. **Inventory** — `ItemData` / `InventoryItem` / `InventorySlot` / `Inventory`; 5×3 pocket UI; pick up, drop, stack, use, equip, save.
-12. **One villager** — schedule, greeting, one dialogue tree.
-13. **One shop + economy** — buy/sell a few items.
-14. **Town deltas** — persist more than one pickup and the current acre FG.
+9. **Phase 8** — world from data: `WorldData` + deterministic generator + hand-authored test town; world `.tscn` is a shell.
+10. **Phase 9** — world-object framework (`WorldObjectRegistry`): tree, rock, flower, ground item, building, door; all use interaction verbs. New-game placement for house / shop / museum / Able Sisters / villager plots follows decomp acre rules ([world_objects.md](decomp_notes/world_objects.md)).
+11. **One deep interactable** — one tree (grow, shake, fruit) with correct feel. Growth on `field_renewed`.
+12. **Inventory** — `ItemData` / `InventoryItem` / `InventorySlot` / `Inventory`; 5×3 pocket UI; pick up, drop, stack, use, equip, save.
+13. **One villager** — schedule, greeting, one dialogue tree.
+14. **One shop + economy** — buy/sell a few items.
+15. **Town deltas** — persist more than one pickup and the current acre FG.
 
 Content quantity is not a milestone. One good instance of a system is.
 

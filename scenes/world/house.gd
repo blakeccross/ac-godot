@@ -1,6 +1,7 @@
 extends StaticBody3D
 
-## Placeholder house shell. Door offers enter; indoor scenes come later.
+## Outdoor house shell. Villager homes use `obj_s_house1` (`ac_house`);
+## the player house placement sets `obj_s_myhome1` (`ac_my_house`).
 
 @export var occupant_id: StringName = &""
 @export var footprint: Vector2i = Vector2i(2, 2)
@@ -13,6 +14,10 @@ extends StaticBody3D
 func _ready() -> void:
 	add_to_group("interactable")
 	GeneratedVisual.attach(self, visual_id)
+
+
+func apply_grid_yaw(facing: WorldGrid.Facing) -> void:
+	rotation.y = WorldGrid.yaw_for_facing(facing)
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:

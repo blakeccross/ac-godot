@@ -94,10 +94,22 @@ def main() -> int:
                 [
                     "obj_s_house1",
                     "obj_s_shop1",
+                    "obj_s_myhome1",
+                    "obj_s_tailor",
+                    "obj_s_yubinkyoku",
+                    "obj_s_station1",
                     "obj_w_house1",
                     "obj_w_shop1",
+                    "obj_w_myhome1",
+                    "obj_w_tailor",
+                    "obj_w_yubinkyoku",
+                    "obj_w_station1",
                 ],
             )
+            static_report = convert_static_prefixes(
+                cfg, ["obj_s_museum", "obj_w_museum", "obj_s_kouban", "obj_w_kouban", "obj_s_shrine", "obj_w_shrine"]
+            )
+            report["results"].extend(static_report.get("results", []))
             label = "building assets"
         elif args.kind == "plants":
             cfg.test_set_only = False

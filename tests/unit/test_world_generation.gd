@@ -32,8 +32,12 @@ func test_authored_test_town_has_fixed_layout() -> void:
 	assert_that(_object_at(data, &"pip")).is_equal(Vector2i(10, 9))
 	assert_that(_object_at(data, &"pansy_1")).is_equal(Vector2i(6, 10))
 	assert_that(_object_at(data, &"rock_1")).is_equal(Vector2i(3, 8))
+	assert_that(_object_at(data, &"house_door")).is_equal(Vector2i(7, 3))
 	assert_that(_object_visual(data, &"tree_1")).is_equal(&"TREE_APPLE_FRUIT")
 	assert_that(_object_visual(data, &"tree_3")).is_equal(&"TREE")
+	assert_that(_building_visual(data, &"player_house")).is_equal(&"obj_s_myhome1")
+	assert_that(_building_mesh_facing(data, &"player_house")).is_equal(WorldGrid.Facing.SOUTH)
+	assert_that(_building_visual(data, &"acre_shop")).is_equal(&"obj_s_shop1")
 	assert_that(data.acre_visual).is_equal(&"grd_s_f_1")
 	assert_that(data.player_spawn().cell).is_equal(Vector2i(8, 11))
 
@@ -67,8 +71,15 @@ func test_generated_town_has_ac_structure() -> void:
 	else:
 		assert_bool(_has_terrain(data, WorldGrid.Terrain.CLIFF)).is_true()
 	assert_bool(_has_elevation(data)).is_true()
-	## B3 house acre (bx=3,bz=2) → unit origin (32, 16); HOUSE0 at + (3, 3).
+	## B3 house acre (bx=3,bz=2) → unit origin (32, 16). Four plots (`mHS_HOUSE0`–`3`).
 	assert_that(_building_at(data, &"player_house")).is_equal(Vector2i(35, 19))
+	assert_that(_building_at(data, &"player_house_1")).is_equal(Vector2i(43, 19))
+	assert_that(_building_at(data, &"player_house_2")).is_equal(Vector2i(35, 26))
+	assert_that(_building_at(data, &"player_house_3")).is_equal(Vector2i(43, 26))
+	assert_that(_building_mesh_facing(data, &"player_house")).is_equal(WorldGrid.Facing.WEST)
+	assert_that(_building_mesh_facing(data, &"player_house_1")).is_equal(WorldGrid.Facing.SOUTH)
+	assert_that(_building_mesh_facing(data, &"player_house_2")).is_equal(WorldGrid.Facing.WEST)
+	assert_that(_building_mesh_facing(data, &"player_house_3")).is_equal(WorldGrid.Facing.SOUTH)
 	assert_that(_building_at(data, &"acre_shop")).is_not_equal(Vector2i(-1, -1))
 	## Shop is on tracks row A (bz=1 → unit y 0..15), not next to the house.
 	var shop: Vector2i = _building_at(data, &"acre_shop")
@@ -80,6 +91,46 @@ func test_generated_town_has_ac_structure() -> void:
 	assert_int(_kind_count(data, &"tree")).is_greater(0)
 	assert_int(_kind_count(data, &"flower")).is_greater(0)
 	assert_that(_object_at(data, &"pip")).is_not_equal(Vector2i(-1, -1))
+	## Landmark acres become real buildings (not only signs).
+	assert_that(_building_at(data, &"museum")).is_not_equal(Vector2i(-1, -1))
+	assert_that(_building_at(data, &"able_sisters")).is_not_equal(Vector2i(-1, -1))
+	assert_that(_building_label(data, &"museum")).is_equal("Museum")
+	assert_that(_building_label(data, &"able_sisters")).is_equal("Able Sisters")
+	assert_that(_building_visual(data, &"player_house")).is_equal(&"obj_s_myhome1")
+	assert_that(_building_visual(data, &"player_house_3")).is_equal(&"obj_s_myhome1")
+	assert_that(_building_visual(data, &"acre_shop")).is_equal(&"obj_s_shop1")
+	assert_that(_building_visual(data, &"museum")).is_equal(&"obj_s_museum")
+	assert_that(_building_visual(data, &"able_sisters")).is_equal(&"obj_s_tailor")
+	assert_that(_building_visual(data, &"npc_house_0")).is_equal(&"obj_s_house1")
+	assert_that(_building_at(data, &"station")).is_not_equal(Vector2i(-1, -1))
+	assert_that(_building_visual(data, &"station")).is_equal(&"obj_s_station1")
+	var station: BuildingPlacement = _building(data, &"station")
+	assert_that(station.footprint).is_equal(Vector2i(1, 1))
+	assert_that(station.actor_shift).is_equal(Vector2(-0.5, 0.0))
+	## TRAIN_STATION is unit (8, 5) on every station acre; A-3 origin is (32, 0).
+	assert_int(station.cell.x % 16).is_equal(8)
+	assert_int(station.cell.y % 16).is_equal(5)
+	## Museum acre is a unique flat below the cliff (`mRF_FlatBlock2Unique` / T_MUSEUM).
+	var museum: Vector2i = _building_at(data, &"museum")
+	var mus_bx: int = museum.x / 16 + 1
+	var mus_bz: int = museum.y / 16 + 1
+	assert_int(int(data.acre_types[mus_bz * 7 + mus_bx])).is_equal(TownFieldGenerator.T_MUSEUM)
+	## Able Sisters on beach row F (bz=6 → units y 80..95).
+	var able: Vector2i = _building_at(data, &"able_sisters")
+	assert_int(able.y).is_greater_equal(80)
+	assert_int(able.y).is_less(96)
+	assert_int(int(data.acre_types[6 * 7 + (able.x / 16 + 1)])).is_equal(
+		TownFieldGenerator.T_NEEDLEWORK
+	)
+	assert_that(_building_at(data, &"npc_house_0")).is_not_equal(Vector2i(-1, -1))
+	## Villager house is the 3×3 RSV around the SIGN (`mNpc_BuildHouseBeforeFieldct`);
+	## villager stands at SIGN uz + 1 (`home_info.ut_z`).
+	var npc_house: Vector2i = _building_at(data, &"npc_house_0")
+	var pip_cell: Vector2i = _object_at(data, &"pip")
+	var sign_from_nw := Vector2i(npc_house.x + 1, npc_house.y + 1)
+	var door_from_3x3 := Vector2i(sign_from_nw.x, sign_from_nw.y + 1)
+	var door_from_sign := Vector2i(npc_house.x, npc_house.y + 1)
+	assert_bool(pip_cell == door_from_3x3 or pip_cell == door_from_sign).is_true()
 	var spawn: Vector2i = data.player_spawn().cell
 	assert_bool(data.is_in_bounds(spawn)).is_true()
 	assert_that(data.terrain_at(spawn)).is_not_equal(WorldGrid.Terrain.WATER)
@@ -184,6 +235,7 @@ func test_builder_instances_test_town_scenes() -> void:
 	assert_that(spawn_marker.position).is_equal(on_ground)
 	assert_that(world.get_node_or_null("Objects/pansy_1")).is_not_null()
 	assert_that(world.get_node_or_null("Objects/rock_1")).is_not_null()
+	assert_that(world.get_node_or_null("Objects/house_door")).is_not_null()
 	assert_that(grid.occupant_at(Vector2i(7, 1))).is_equal(&"player_house")
 	assert_that(grid.occupant_at(Vector2i(4, 6))).is_equal(&"tree_1")
 
@@ -203,6 +255,10 @@ func test_builder_places_generated_acre_meshes() -> void:
 	var house_acre: Node = acres.get_node_or_null("acre_3_2")
 	assert_that(house_acre).is_not_null()
 	assert_that(house_acre.get_node_or_null("GeneratedVisual")).is_not_null()
+	assert_that(world.get_node_or_null("Buildings/player_house")).is_not_null()
+	assert_that(world.get_node_or_null("Buildings/player_house_1")).is_not_null()
+	assert_that(world.get_node_or_null("Buildings/player_house_2")).is_not_null()
+	assert_that(world.get_node_or_null("Buildings/player_house_3")).is_not_null()
 	var a11: Node3D = acres.get_node_or_null("acre_1_1") as Node3D
 	assert_that(a11).is_not_null()
 	var expected := grid.cell_corner(Vector2i(0, 0))
@@ -269,10 +325,50 @@ func _shell() -> Node3D:
 
 
 func _building_at(data: WorldData, id: StringName) -> Vector2i:
+	var b: BuildingPlacement = _building(data, id)
+	return b.cell if b != null else Vector2i(-1, -1)
+
+
+func _building(data: WorldData, id: StringName) -> BuildingPlacement:
 	for b: BuildingPlacement in data.buildings:
 		if b != null and b.id == id:
-			return b.cell
-	return Vector2i(-1, -1)
+			return b
+	return null
+
+
+func _building_label(data: WorldData, id: StringName) -> String:
+	for b: BuildingPlacement in data.buildings:
+		if b != null and b.id == id:
+			return b.label
+	return ""
+
+
+func _building_visual(data: WorldData, id: StringName) -> StringName:
+	for b: BuildingPlacement in data.buildings:
+		if b != null and b.id == id:
+			return b.visual_id
+	return &""
+
+
+func _building_mesh_facing(data: WorldData, id: StringName) -> WorldGrid.Facing:
+	for b: BuildingPlacement in data.buildings:
+		if b != null and b.id == id:
+			return b.mesh_facing
+	return WorldGrid.Facing.SOUTH
+
+
+func test_world_object_registry_lists_phase_kinds() -> void:
+	## Adding a kind is one registry line + a scene; builder does not hardcode types.
+	WorldObjectRegistry.ensure()
+	for kind: StringName in [
+		&"tree", &"rock", &"flower", &"item", &"door", &"building", &"house", &"shop"
+	]:
+		assert_bool(WorldObjectRegistry.has_kind(kind)).is_true()
+		assert_str(WorldObjectRegistry.scene_path(kind)).is_not_empty()
+	var builder_src := FileAccess.get_file_as_string("res://scripts/systems/world_builder.gd")
+	assert_str(builder_src).contains("WorldObjectRegistry")
+	assert_bool("res://scenes/world/tree.tscn" in builder_src).is_false()
+	assert_bool("res://scenes/world/building.tscn" in builder_src).is_false()
 
 
 func _object_at(data: WorldData, id: StringName) -> Vector2i:

@@ -27,6 +27,20 @@ const ITEM_ROCK_E := 0x0067
 const ITEM_EMPTY := 0x0000
 const ITEM_NONE := 0xFFFF
 const FG_TYPE_EMPTY := 0x00CB
+## Structure FG ids (`m_name_table.h` STRUCTURE_START = 0x5800).
+const ITEM_HOUSE0 := 0x5800
+const ITEM_HOUSE1 := 0x5801
+const ITEM_HOUSE2 := 0x5802
+const ITEM_HOUSE3 := 0x5803
+const ITEM_SHOP0 := 0x5804
+const ITEM_POST_OFFICE := 0x5808
+const ITEM_TRAIN_STATION := 0x5809
+const ITEM_POLICE_STATION := 0x580C
+const ITEM_SIGN00 := 0x5810
+const ITEM_SIGN20 := 0x5824
+const ITEM_WISHING_WELL := 0x5825
+const ITEM_MUSEUM := 0x584A
+const ITEM_NEEDLEWORK_SHOP := 0x584D
 
 static var _loaded := false
 static var _templates: Dictionary = {} ## int fg_id → PackedInt32Array(256)
@@ -112,7 +126,101 @@ static func placement_for_item(item_id: int) -> Dictionary:
 			&"ROCK_A", &"ROCK_B", &"ROCK_C", &"ROCK_D", &"ROCK_E"
 		]
 		return {"kind": &"rock", "visual": rock_visuals[item_id - ITEM_ROCK_A]}
+	## Villager house plot reserves (`mNT_IS_RESERVE` / SIGN00–SIGN20).
+	if item_id >= ITEM_SIGN00 and item_id <= ITEM_SIGN20:
+		return {"kind": &"reserve", "visual": &"SIGNBOARD"}
+	if item_id >= ITEM_HOUSE0 and item_id <= ITEM_HOUSE3:
+		return _player_house_place(item_id - ITEM_HOUSE0)
+	match item_id:
+		ITEM_SHOP0:
+			return {
+				"kind": &"structure",
+				"building": &"shop",
+				"visual": &"obj_s_shop1",
+				"label": "Shop",
+				"foot": Vector2i(2, 2),
+				"nw_off": Vector2i(-1, 0),
+				"occupy": false,
+			}
+		ITEM_POST_OFFICE:
+			return {
+				"kind": &"structure",
+				"building": &"building",
+				"visual": &"obj_s_yubinkyoku",
+				"label": "Post Office",
+				"foot": Vector2i(2, 2),
+				"nw_off": Vector2i(-1, 0),
+			}
+		ITEM_TRAIN_STATION:
+			return {
+				"kind": &"structure",
+				"building": &"building",
+				"visual": &"obj_s_station1",
+				"label": "Train Station",
+				"foot": Vector2i(1, 1),
+				"nw_off": Vector2i(0, 0),
+				"occupy": false,
+				## `aSTA_actor_ct`: unit center + −20 GX X (`mFI_UT_WORLDSIZE_HALF_X_F`).
+				"actor_shift": Vector2(-0.5, 0.0),
+			}
+		ITEM_POLICE_STATION:
+			return {
+				"kind": &"structure",
+				"building": &"building",
+				"visual": &"obj_s_kouban",
+				"label": "Police Station",
+				"foot": Vector2i(3, 3),
+				"nw_off": Vector2i(-1, -1),
+			}
+		ITEM_WISHING_WELL:
+			return {
+				"kind": &"structure",
+				"building": &"building",
+				"visual": &"obj_s_shrine",
+				"label": "Wishing Well",
+				"foot": Vector2i(2, 2),
+				"nw_off": Vector2i(0, -1),
+			}
+		ITEM_MUSEUM:
+			return {
+				"kind": &"structure",
+				"building": &"building",
+				"visual": &"obj_s_museum",
+				"label": "Museum",
+				"foot": Vector2i(2, 2),
+				"nw_off": Vector2i(0, 0),
+			}
+		ITEM_NEEDLEWORK_SHOP:
+			return {
+				"kind": &"structure",
+				"building": &"building",
+				"visual": &"obj_s_tailor",
+				"label": "Able Sisters",
+				"foot": Vector2i(2, 2),
+				"nw_off": Vector2i(-1, 0),
+				"door_verb": &"shop",
+			}
 	return {}
+
+
+static func _player_house_place(house_idx: int) -> Dictionary:
+	## FG_TYPE_0069 / GRD_S_F_MH_*: HOUSE0 (3,3), HOUSE1 (12,3), HOUSE2 (3,10), HOUSE3 (12,10).
+	## `aMHS_posX_table`: west plots +20 X, east plots −20 X; both +20 Z. `angle_table` is
+	## +90° Y on west plots — Godot `WEST` (`+PI/2`), not `EAST` (`−PI/2`).
+	var west: bool = (house_idx & 1) == 0
+	var id: StringName = &"player_house"
+	if house_idx != 0:
+		id = StringName("player_house_%d" % house_idx)
+	return {
+		"kind": &"structure",
+		"building": &"house",
+		"visual": &"obj_s_myhome1",
+		"label": "House",
+		"id": id,
+		"foot": Vector2i(2, 2),
+		"nw_off": Vector2i(0, 0) if west else Vector2i(-1, 0),
+		"mesh_facing": WorldGrid.Facing.WEST if west else WorldGrid.Facing.SOUTH,
+	}
 
 
 static func _placeable_count(fg_id: int) -> int:
