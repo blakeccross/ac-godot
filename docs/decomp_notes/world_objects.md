@@ -45,7 +45,7 @@ The player never switches on type. Verbs live on the host.
 | Player houses | Always **B-3**; HOUSE0–3 at (3,3) / (12,3) / (3,10) / (12,10); west +20 X, east −20 X, both +20 Z; mesh `obj_s_myhome1`; west yaw +90° |
 | Nook shop | Tracks row **A**; dump→shop; SHOP0 unit + NW (−1,0); mesh `obj_s_shop1` |
 | Museum | Unique **flat** acre below cliff (`T_MUSEUM`) → `obj_s_museum` |
-| Able Sisters | Beach row **bz=6** (`T_NEEDLEWORK`) → `obj_s_tailor`, door verb shop, NW (−1,0) |
+| Able Sisters | Beach row **bz=6** (`T_NEEDLEWORK` / `grd_s_m_ta_*`). FG `NEEDLEWORK_SHOP` is **(9, 4)** on `_1`/`_2` and **(9, 5)** on `_3`. Door verb shop, NW (−1,0), `aNW_actor_ct` −20 X +20 Z |
 | Post / police / well / station | `obj_s_yubinkyoku` (−1,0) / `obj_s_kouban` (3×3 centered) / `obj_s_shrine` (0,−1) / `obj_s_station1` at TRAIN_STATION **(8, 5)** + −20 X |
 | Villager homes | FG **SIGN00–SIGN20** reserves shuffled; 3×3 house around reserve (`obj_s_house1`), villager at **uz+1** (door). Fallback synthetic plots on flats if catalog has no SIGNs |
 | Trees / rocks / flowers | FG template copy (`FgCatalog`), then fruit/cedar / border pull |

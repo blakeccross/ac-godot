@@ -115,10 +115,13 @@ func test_generated_town_has_ac_structure() -> void:
 	var mus_bx: int = museum.x / 16 + 1
 	var mus_bz: int = museum.y / 16 + 1
 	assert_int(int(data.acre_types[mus_bz * 7 + mus_bx])).is_equal(TownFieldGenerator.T_MUSEUM)
-	## Able Sisters on beach row F (bz=6 → units y 80..95).
+	## Able Sisters on beach row F (bz=6). FG item is (9, 4) on ta_1/ta_2 and
+	## (9, 5) on ta_3; occupancy NW is (−1, 0) like the shop.
 	var able: Vector2i = _building_at(data, &"able_sisters")
 	assert_int(able.y).is_greater_equal(80)
 	assert_int(able.y).is_less(96)
+	assert_int(able.x % 16).is_equal(8)
+	assert_bool(able.y % 16 == 4 or able.y % 16 == 5).is_true()
 	assert_int(int(data.acre_types[6 * 7 + (able.x / 16 + 1)])).is_equal(
 		TownFieldGenerator.T_NEEDLEWORK
 	)

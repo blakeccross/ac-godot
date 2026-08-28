@@ -59,7 +59,7 @@ Still deferred vs decomp: bit-exact `data_combi_table` row pick for BG+FG togeth
 | --- | --- | --- | --- | --- |
 | `HOUSE0`–`HOUSE3` (`ac_my_house.c`) | `(3,3)` `(12,3)` `(3,10)` `(12,10)` on `FG_TYPE_0069` / `GRD_S_F_MH_*` | west `+20` X, east `−20` X; both `+20` Z | 2×2 NW = FG (west) or FG+(−1,0) (east). Mesh yaw: west `WEST` (AC `angle_table` **+90°**), east 0. All four are `obj_s_myhome1` on new game (`mHm_HOMESIZE_SMALL`). |
 | `SHOP0` (`ac_shop.c`) | `(10, 9)` on `grd_s_t_sh_1`; `(10, 10)` on `_2`/`_3` | `−20` X, `+20` Z | SHOP0 + `(−1, 0)` |
-| Post / Able Sisters | FG item | `−20` X, `+20` Z | FG + `(−1, 0)` |
+| Post / Able Sisters | FG item (Able: `(9, 4)` / `(9, 5)` on `grd_s_m_ta_*`) | `−20` X, `+20` Z | FG + `(−1, 0)` |
 | Station (`ac_station.c`) | `(8, 5)` on `FG_TYPE_GRD_S_T_ST1_*` | `−20` X only | FG unit + `actor_shift (−0.5, 0)` |
 | Shrine | FG `WISHING_WELL` | `+20` X, `−19` Z | FG + `(0, −1)` |
 | Museum / police | FG item | none | Police 3×3 centered; museum 2×2 on the FG unit |

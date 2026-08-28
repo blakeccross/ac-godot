@@ -329,7 +329,8 @@ static func _acre_candidates(block_type: int) -> PackedStringArray:
 		TownFieldGenerator.T_NEEDLEWORK:
 			return _names("grd_s_m_ta_", 1, 3)
 		TownFieldGenerator.T_PORT:
-			return _names("grd_s_m_ta_", 1, 3)
+			## `data_combi`: PORT is the wharf (`grd_s_m_wf_*`), not the tailor lot.
+			return _names("grd_s_m_wf_", 1, 3)
 		TownFieldGenerator.T_TRACKS_DUMP:
 			return _names("grd_s_t_", 1, 10)
 		TownFieldGenerator.T_TRACKS_STATION:

@@ -65,6 +65,10 @@ func test_acre_block_types_map_to_grd_families() -> void:
 			String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_BEACH_RIVER_BRIDGE, 0))
 		).is_equal("grd_s_m_r1_b_1")
 	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_BEACH, 0))).is_equal("grd_s_m_1")
+	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_NEEDLEWORK, 0))).is_equal(
+		"grd_s_m_ta_1"
+	)
+	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_PORT, 0))).is_equal("grd_s_m_wf_1")
 	if not FieldCatalog.mesh_paths(&"grd_s_c7_r1_1").is_empty():
 		assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_RIV_CLIFF_BL, 0))).starts_with("grd_s_c7_r1_")
 	if not FieldCatalog.mesh_paths(&"grd_s_c7_r3_1").is_empty():

@@ -19,6 +19,10 @@ const SHOP0_UT := Vector2i(10, 10)
 const SHOP0_UT_SH1 := Vector2i(10, 9)
 ## TRAIN_STATION is (8, 5) on every `FG_TYPE_GRD_S_T_ST1_*`. `aSTA_actor_ct` is −20 X only.
 const STATION_UT := Vector2i(8, 5)
+## NEEDLEWORK_SHOP is (9, 4) on `grd_s_m_ta_1`/`_2` and (9, 5) on `_3`.
+## `aNW_actor_ct` is −20 X, +20 Z — same 2×2 as the shop (`nw_off` (−1, 0)).
+const NEEDLEWORK_UT := Vector2i(9, 4)
+const NEEDLEWORK_UT_TA3 := Vector2i(9, 5)
 
 const _APPLE := preload("res://data/items/apple.tres")
 const _APPLE_TREE := preload("res://data/plants/apple_tree.tres")
@@ -308,7 +312,9 @@ static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray)
 				TownFieldGenerator.T_SHRINE:
 					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_WISHING_WELL)
 				TownFieldGenerator.T_NEEDLEWORK:
-					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_NEEDLEWORK_SHOP)
+					_place_structure_item(
+						data, origin, _needlework_unit(data, bx, bz), FgCatalog.ITEM_NEEDLEWORK_SHOP
+					)
 				TownFieldGenerator.T_PORT:
 					data.objects.append(_sign(&"dock_sign", origin + unique_ut, "Dock"))
 
@@ -320,6 +326,15 @@ static func _shop0_unit(data: WorldData, bx: int, bz: int) -> Vector2i:
 	if visual.ends_with("sh_1"):
 		return SHOP0_UT_SH1
 	return SHOP0_UT
+
+
+static func _needlework_unit(data: WorldData, bx: int, bz: int) -> Vector2i:
+	if data.acre_visuals.size() != TownFieldGenerator.BLOCK_TOTAL:
+		return NEEDLEWORK_UT
+	var visual := String(data.acre_visuals[bz * TownFieldGenerator.BLOCK_X + bx])
+	if visual.ends_with("ta_3"):
+		return NEEDLEWORK_UT_TA3
+	return NEEDLEWORK_UT
 
 
 static func _place_structure_item(
