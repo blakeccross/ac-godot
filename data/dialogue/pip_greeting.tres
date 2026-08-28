@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="DialogueData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/dialogue_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"pip_greeting"
+speaker_id = &"pip"
+lines = PackedStringArray("Morning!", "Nice plot you've got.")

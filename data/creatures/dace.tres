@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="FishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/fish_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"dace"
+display_name = "Dace"
+description = "A common river fish."
+category = 3
+sell_price = 200
+max_stack = 1
+months = PackedInt32Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+hour_start = 16
+hour_end = 9
+shadow_size = 2

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="FurnitureData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/furniture_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"wood_chair"
+display_name = "Wood Chair"
+description = "A simple chair."
+category = 1
+sell_price = 80
+max_stack = 1
+footprint = Vector2i(1, 1)
+indoor = true

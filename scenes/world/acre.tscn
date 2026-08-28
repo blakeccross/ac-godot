@@ -1,0 +1,88 @@
+[gd_scene load_steps=15 format=3]
+
+[ext_resource type="Script" path="res://scenes/world/acre.gd" id="1"]
+[ext_resource type="Resource" path="res://data/acres/plot_a.tres" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/actors/player.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/actors/villager.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/world/tree.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/world/house.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/world/item_pickup.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://scenes/ui/clock_hud.tscn" id="8"]
+[ext_resource type="Script" path="res://scenes/world/follow_camera.gd" id="9"]
+
+[sub_resource type="PlaneMesh" id="GroundMesh"]
+size = Vector2(32, 32)
+
+[sub_resource type="StandardMaterial3D" id="GroundMat"]
+albedo_color = Color(0.45, 0.7, 0.38, 1)
+
+[sub_resource type="WorldBoundaryShape3D" id="GroundShape"]
+
+[sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
+sky_top_color = Color(0.35, 0.58, 0.88, 1)
+sky_horizon_color = Color(0.72, 0.82, 0.92, 1)
+ground_bottom_color = Color(0.22, 0.38, 0.22, 1)
+ground_horizon_color = Color(0.55, 0.68, 0.5, 1)
+
+[sub_resource type="Sky" id="Sky"]
+sky_material = SubResource("SkyMat")
+
+[sub_resource type="Environment" id="Env"]
+background_mode = 2
+sky = SubResource("Sky")
+ambient_light_source = 2
+ambient_light_color = Color(0.65, 0.7, 0.75, 1)
+ambient_light_energy = 0.4
+
+[node name="Acre" type="Node3D"]
+script = ExtResource("1")
+data = ExtResource("2")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 12, 0)
+light_energy = 1.0
+shadow_enabled = true
+
+[node name="Ground" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("GroundMesh")
+surface_material_override/0 = SubResource("GroundMat")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
+shape = SubResource("GroundShape")
+
+[node name="Player" parent="." instance=ExtResource("3")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 6)
+
+[node name="Villager" parent="." instance=ExtResource("4")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 2)
+
+[node name="House" parent="." instance=ExtResource("6")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -12)
+
+[node name="Tree1" parent="." instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, -4)
+
+[node name="Tree2" parent="." instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, -6)
+
+[node name="Tree3" parent="." instance=ExtResource("5")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, 8)
+
+[node name="ItemPickup" parent="." instance=ExtResource("7")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0, 5)
+
+[node name="FollowCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 12, 12)
+current = true
+fov = 20.0
+script = ExtResource("9")
+target_path = NodePath("../Player")
+
+[node name="ClockHud" parent="." instance=ExtResource("8")]

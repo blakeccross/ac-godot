@@ -41,7 +41,7 @@ horizontal_alignment = 1
 [node name="Subtitle" type="Label" parent="Center/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
-text = "Phase 0 — scaffolding"
+text = "Phase 0 — scaffolding (not the main scene)"
 horizontal_alignment = 1
 
 [node name="Version" type="Label" parent="Center/VBox"]
