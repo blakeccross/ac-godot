@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/actors/player.gd" id="1"]
 
@@ -13,9 +13,12 @@ height = 1.6
 [sub_resource type="StandardMaterial3D" id="PlayerMat"]
 albedo_color = Color(0.91, 0.74, 0.55, 1)
 
+[sub_resource type="BoxShape3D" id="ProbeShape"]
+size = Vector3(0.7, 1.2, 0.85)
+
 [node name="Player" type="CharacterBody3D"]
 collision_layer = 2
-collision_mask = 1
+collision_mask = 5
 floor_snap_length = 0.2
 script = ExtResource("1")
 
@@ -29,3 +32,12 @@ shape = SubResource("CapsuleShape")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 mesh = SubResource("CapsuleMesh")
 surface_material_override/0 = SubResource("PlayerMat")
+
+[node name="InteractProbe" type="Area3D" parent="MeshPivot"]
+collision_layer = 0
+collision_mask = 8
+monitorable = false
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="MeshPivot/InteractProbe"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0.55)
+shape = SubResource("ProbeShape")

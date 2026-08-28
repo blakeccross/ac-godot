@@ -1,4 +1,4 @@
-extends Node3D
+extends StaticBody3D
 
 ## Placeholder tree. Growth rules belong in a plant system, not this scene.
 

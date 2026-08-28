@@ -66,6 +66,10 @@ func count_of(item_id: StringName) -> int:
 	return total
 
 
+func has_space(count: int = 1) -> bool:
+	return count_of_occupied() + count <= POCKET_SLOTS
+
+
 func is_empty() -> bool:
 	return count_of_occupied() == 0
 

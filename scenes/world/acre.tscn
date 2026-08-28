@@ -1,8 +1,7 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/acre.gd" id="1"]
 [ext_resource type="Resource" path="res://data/acres/plot_a.tres" id="2"]
-[ext_resource type="PackedScene" path="res://scenes/actors/player.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/actors/villager.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/world/tree.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/world/house.tscn" id="6"]
@@ -57,7 +56,7 @@ surface_material_override/0 = SubResource("GroundMat")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Ground"]
 shape = SubResource("GroundShape")
 
-[node name="Player" parent="." instance=ExtResource("3")]
+[node name="PlayerSpawn" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 6)
 
 [node name="Villager" parent="." instance=ExtResource("4")]
@@ -83,6 +82,5 @@ transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 
 current = true
 fov = 20.0
 script = ExtResource("9")
-target_path = NodePath("../Player")
 
 [node name="ClockHud" parent="." instance=ExtResource("8")]

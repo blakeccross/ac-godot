@@ -33,9 +33,9 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | --- | --- |
 | Player, Villager | `scenes/actors/` |
 | Tree, Furniture, ItemPickup, House, Shop, Acre | `scenes/world/` |
-| Clock HUD | `scenes/ui/` |
+| Title, Clock HUD | `scenes/ui/` |
 
-Fishing, shops, and full dialogue are **not** systems yet. The scenes and resources exist so later slices have a place to land.
+Fishing, shops, and full dialogue are **not** systems yet. Title, acre, player spawn, one pickup, and save-on-title are the Phase 3 loop.
 
 ## Autoloads
 
@@ -48,7 +48,7 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 | `Clock` | `scripts/systems/clock.gd` (`ClockService`) | Game date/time, day/night, season |
 | `SaveService` | `scripts/systems/save_service.gd` | Load/save JSON to `user://` |
 | `Audio` | `scripts/systems/audio.gd` | Music / SFX buses |
-| `Game` | `scripts/systems/game.gd` | Composition root; owns `Inventory` |
+| `Game` | `scripts/systems/game.gd` | Session phase, scene changes; owns `Inventory` |
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
@@ -72,12 +72,14 @@ Do not port `m_common_data` as one Resource. Split player, town, inventory, and 
 Each phase should be playable or testable in-engine. Later phases are not started until earlier ones are.
 
 1. **Phase 0** — project scaffold.
-2. **Phase 1** — architectural foundation + **clock, empty acre, walk** (current).
-3. **One interactable** — one tree (or pickup) with correct feel, not every plant type.
-4. **Inventory** — pick up, hold, drop; `Inventory` already exists for tests, wire it to the world.
-5. **One villager** — schedule, greeting, one dialogue tree.
-6. **One shop + economy** — buy/sell a few items.
-7. **Save/load** — clock already round-trips; persist town deltas too.
+2. **Phase 1** — architectural foundation + clock, empty acre, walk.
+3. **Phase 2** — decomp research notes (`docs/decomp_notes/`).
+4. **Phase 3** — title → world → spawn → walk → pick up → save on return to title (current).
+5. **One interactable** — one tree (grow, shake, fruit) with correct feel, not every plant type.
+6. **Inventory** — pick up, hold, drop; `Inventory` already exists for tests, wire drop/equip next.
+7. **One villager** — schedule, greeting, one dialogue tree.
+8. **One shop + economy** — buy/sell a few items.
+9. **Town deltas** — persist more than one pickup and the current acre FG.
 
 Content quantity is not a milestone. One good instance of a system is.
 

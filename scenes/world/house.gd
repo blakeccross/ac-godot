@@ -1,3 +1,3 @@
-extends Node3D
+extends StaticBody3D
 
 ## Placeholder house shell.

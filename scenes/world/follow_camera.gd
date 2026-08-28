@@ -14,6 +14,11 @@ func _ready() -> void:
 	_follow(true)
 
 
+func set_target(node: Node3D) -> void:
+	_target = node
+	_follow(true)
+
+
 func _process(delta: float) -> void:
 	_follow(false, delta)
 

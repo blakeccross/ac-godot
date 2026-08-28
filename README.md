@@ -15,7 +15,7 @@ This project is original work. It is **not affiliated with, endorsed by, or conn
 ## Run
 
 1. Open this folder in Godot 4.6+.
-2. Press Play. You should walk a placeholder acre: WASD to move, Shift to sprint, **T** +1 hour, **Y** +1 day, **U** save, **I** load.
+2. Press Play. Title → **New Game**. WASD to move, Shift to sprint, **E** to pick up the apple, **Esc** to save and return to title. **Continue** reloads that save. Debug: **T** +1 hour, **Y** +1 day, **U** save.
 
 From a terminal, if the Godot binary is on your `PATH`:
 

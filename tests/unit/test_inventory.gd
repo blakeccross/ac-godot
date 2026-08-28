@@ -27,6 +27,14 @@ func test_remove() -> void:
 	assert_int(inv.count_of(&"apple")).is_equal(0)
 
 
+func test_has_space() -> void:
+	var inv := Inventory.new()
+	var apple: ItemData = load("res://data/items/apple.tres")
+	assert_bool(inv.has_space(1)).is_true()
+	assert_int(inv.add(apple, Inventory.POCKET_SLOTS)).is_equal(0)
+	assert_bool(inv.has_space(1)).is_false()
+
+
 func test_save_round_trip() -> void:
 	var inv := Inventory.new()
 	var apple: ItemData = load("res://data/items/apple.tres")

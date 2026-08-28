@@ -11,10 +11,12 @@ func has_save(path: String = DEFAULT_PATH) -> bool:
 
 
 func save_game(path: String = DEFAULT_PATH) -> Error:
+	Game.capture_player_from_tree()
 	var payload: Dictionary = {
 		"version": SAVE_VERSION,
 		"clock": Clock.to_dict(),
 		"inventory": Game.inventory.to_save(),
+		"world": Game.to_save(),
 	}
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
@@ -37,6 +39,8 @@ func load_game(path: String = DEFAULT_PATH) -> Error:
 	var bags: Variant = data.get("inventory", [])
 	if typeof(bags) == TYPE_ARRAY:
 		Game.inventory.from_save(bags)
+	if data.has("world") and typeof(data["world"]) == TYPE_DICTIONARY:
+		Game.apply_snapshot(data["world"] as Dictionary)
 	return OK
 
 

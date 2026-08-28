@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/house.gd" id="1"]
 
@@ -14,7 +14,12 @@ size = Vector3(4.4, 0.35, 4.4)
 [sub_resource type="StandardMaterial3D" id="RoofMat"]
 albedo_color = Color(0.7, 0.32, 0.28, 1)
 
-[node name="House" type="Node3D"]
+[sub_resource type="BoxShape3D" id="HouseShape"]
+size = Vector3(4, 3, 4)
+
+[node name="House" type="StaticBody3D"]
+collision_layer = 1
+collision_mask = 0
 script = ExtResource("1")
 
 [node name="Body" type="MeshInstance3D" parent="."]
@@ -26,3 +31,7 @@ surface_material_override/0 = SubResource("HouseMat")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.15, 0)
 mesh = SubResource("RoofMesh")
 surface_material_override/0 = SubResource("RoofMat")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("HouseShape")

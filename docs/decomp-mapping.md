@@ -24,7 +24,7 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | `m_msg`, `m_choice`, `m_string` | Dialogue and prompts | `DialogueData` + UI scene later |
 | `m_event`, `m_quest` | Scripted events / errands | Event/quest data + a small runner system |
 | `m_common_data`, `m_private` | Giant global save/state | Split save via `SaveService` |
-| `m_scene`, `m_submenu` | Scene graph and pause menus | Godot scenes and Control UI |
+| `m_scene`, `m_start_data_init` | Boot: new town vs load; scene changes | `Game` phase + `scenes/ui/title.tscn` → acre |
 | `m_camera2` (`Init_Camera2`) | 20° FOV, ~45° 3/4, focus distance 620 | `FollowCamera` on the acre |
 | `m_collision_bg` | World collision | Godot physics / collision shapes |
 | `m_island`, GBA, Famicom, e-Reader | Specialized extras | Out of scope until earned ([scope.md](scope.md)) |
