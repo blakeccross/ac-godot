@@ -1,6 +1,6 @@
 # Architecture
 
-This project reimplements *Animal Crossing* (GameCube) **behavior** in Godot-native systems. The decomp is a reference, not a blueprint.
+This project reimplements *Animal Crossing* (GameCube) **behavior** in Godot-native systems. The decomp is a reference, not a blueprint. Per-system research (states, I/O, reproduce / simplify / ignore) lives in [docs/decomp_notes/](decomp_notes/). Read the relevant note before writing implementation code.
 
 ## Layers
 

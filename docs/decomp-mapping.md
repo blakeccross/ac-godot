@@ -2,6 +2,8 @@
 
 [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp) documents original behavior. Clone it **outside** this repo. This table is a lookup, not an implementation checklist.
 
+**Before implementing a system**, read the matching note in [decomp_notes/](decomp_notes/): [world](decomp_notes/world.md), [player](decomp_notes/player.md), [interaction](decomp_notes/interaction.md), [inventory](decomp_notes/inventory.md), [time](decomp_notes/time.md), [villagers](decomp_notes/villagers.md), [dialogue](decomp_notes/dialogue.md), [furniture](decomp_notes/furniture.md), [fishing](decomp_notes/fishing.md), [bugs](decomp_notes/bugs.md), [plants](decomp_notes/plants.md), [shops](decomp_notes/shops.md), [save](decomp_notes/save.md). Those notes list files/functions and what to reproduce vs simplify vs ignore.
+
 Study the named headers/sources to learn **what should happen**. Implement that with the Godot analog. Never copy files or mechanically translate C.
 
 | Original (indicative) | Role in the GC game | Godot analog |

@@ -8,6 +8,7 @@ Read these before changing gameplay or adding features:
 - [docs/conventions.md](docs/conventions.md)
 - [docs/scope.md](docs/scope.md)
 - [docs/decomp-mapping.md](docs/decomp-mapping.md)
+- [docs/decomp_notes/](docs/decomp_notes/) — per-system decomp research before implementing that system
 
 ## Non-negotiables
 
