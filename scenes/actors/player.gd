@@ -12,7 +12,6 @@ const ANIM_WAIT := "ply_1_wait1"
 const ANIM_WALK := "ply_1_walk1"
 const ANIM_RUN := "ply_1_run1"
 const ANIM_DASH := "ply_1_dash1"
-const ANIM_PICKUP := "ply_1_pickup1"
 
 @onready var _mesh: Node3D = $MeshPivot
 @onready var _placeholder: MeshInstance3D = $MeshPivot/PlaceholderMesh
@@ -159,48 +158,57 @@ func _resolve_clip(suffix: String) -> String:
 
 
 func _update_focus() -> void:
-	var next: Node = _nearest_interactable()
+	var hit: InteractionQuery = _query_focus()
+	var next: Node = hit.host if hit else null
 	if next == _focus:
+		if hit != null:
+			Game.set_interact_prompt(hit.action.prompt)
 		return
 	_focus = next
-	if _focus != null and _focus.has_method("interact_prompt"):
-		Game.set_interact_prompt(str(_focus.call("interact_prompt")))
+	if hit != null:
+		Game.set_interact_prompt(hit.action.prompt)
 	else:
 		Game.set_interact_prompt("")
 
 
-func _nearest_interactable() -> Node:
+func _query_focus() -> InteractionQuery:
 	if _probe == null:
 		return null
-	var face_pt: Vector3 = _motor.facing_point(global_position, INTERACT_REACH)
-	var best: Node = null
-	var best_score := INF
-	for area: Area3D in _probe.get_overlapping_areas():
-		var host: Node = area.get_parent()
-		if host == null or not host.has_method("try_interact") or not (host is Node3D):
-			continue
-		var d: float = face_pt.distance_squared_to((host as Node3D).global_position)
-		if d < best_score:
-			best_score = d
-			best = host
-	return best
+	return InteractionQuery.best_in_areas(
+		_probe.get_overlapping_areas(),
+		_motor.facing_point(global_position, INTERACT_REACH),
+		_make_context()
+	)
+
+
+func _make_context() -> InteractionContext:
+	var ctx := InteractionContext.new()
+	ctx.actor = self
+	ctx.inventory = Game.inventory
+	var tree := get_tree()
+	if tree != null:
+		ctx.world = tree.get_first_node_in_group("world")
+	return ctx
 
 
 func _try_interact() -> void:
-	_update_focus()
-	if _focus == null or not _focus.has_method("try_interact"):
+	var hit: InteractionQuery = _query_focus()
+	if hit == null or hit.host == null or hit.action == null:
 		return
-	_busy = true
-	await _play_pickup()
-	if is_instance_valid(_focus) and _focus.has_method("try_interact"):
-		_focus.call("try_interact")
+	_focus = hit.host
+	_busy = hit.action.locks_player
+	await _play_action(hit.action.player_anim)
+	if is_instance_valid(hit.host):
+		hit.host.interact(hit.action, _make_context())
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()
 
 
-func _play_pickup() -> void:
-	var clip := _resolve_clip(ANIM_PICKUP)
+func _play_action(clip_name: StringName) -> void:
+	if clip_name == &"":
+		return
+	var clip := _resolve_clip(String(clip_name))
 	if _anim == null or clip.is_empty():
 		await get_tree().create_timer(0.12).timeout
 		return

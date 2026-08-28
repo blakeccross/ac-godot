@@ -2,6 +2,8 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only.
 
+**Godot:** Field A is `InteractionQuery` against `InteractVolume` sensors. Hosts expose `get_interactions` / `interact`. Do not add `if target is Tree` in the player.
+
 **Read before implementing:** A-button targeting, pickup/drop, tool use on a tile, talk start.
 
 ## Decomp sources

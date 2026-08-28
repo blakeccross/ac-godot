@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/world.gd" id="1"]
 [ext_resource type="Resource" path="res://data/acres/plot_a.tres" id="2"]
@@ -8,6 +8,9 @@
 [ext_resource type="PackedScene" path="res://scenes/world/item_pickup.tscn" id="7"]
 [ext_resource type="PackedScene" path="res://scenes/ui/clock_hud.tscn" id="8"]
 [ext_resource type="Script" path="res://scenes/world/follow_camera.gd" id="9"]
+[ext_resource type="PackedScene" path="res://scenes/world/sign.tscn" id="10"]
+[ext_resource type="PackedScene" path="res://scenes/world/furniture.tscn" id="11"]
+[ext_resource type="PackedScene" path="res://scenes/world/shop.tscn" id="12"]
 
 [sub_resource type="PlaneMesh" id="GroundMesh"]
 size = Vector2(32, 32)
@@ -75,6 +78,15 @@ occupant_id = &"tree_3"
 [node name="ItemPickup" parent="Objects" instance=ExtResource("7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0, 5)
 
+[node name="Sign" parent="Objects" instance=ExtResource("10")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 0, 6)
+occupant_id = &"acre_sign"
+message = "Welcome to the acre."
+
+[node name="Chair" parent="Objects" instance=ExtResource("11")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, -10)
+occupant_id = &"yard_chair"
+
 [node name="Characters" type="Node3D" parent="."]
 
 [node name="PlayerSpawn" type="Marker3D" parent="Characters"]
@@ -88,6 +100,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 2)
 [node name="House" parent="Buildings" instance=ExtResource("6")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -12)
 occupant_id = &"player_house"
+
+[node name="Shop" parent="Buildings" instance=ExtResource("12")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, -12)
+occupant_id = &"acre_shop"
 
 [node name="Effects" type="Node3D" parent="."]
 

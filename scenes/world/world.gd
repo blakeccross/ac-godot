@@ -87,8 +87,6 @@ func _kind_for(node: Node) -> WorldGrid.PlaceKind:
 		return kind_val as WorldGrid.PlaceKind
 	if node is StaticBody3D and node.get_parent() == _buildings:
 		return WorldGrid.PlaceKind.BUILDING
-	if node.has_method("interact_prompt"):
-		return WorldGrid.PlaceKind.ITEM
 	return WorldGrid.PlaceKind.PLANT
 
 

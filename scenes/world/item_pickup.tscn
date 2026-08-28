@@ -1,7 +1,8 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/item_pickup.gd" id="1"]
 [ext_resource type="Resource" path="res://data/items/apple.tres" id="2"]
+[ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="3"]
 
 [sub_resource type="SphereMesh" id="AppleMesh"]
 radius = 0.18
@@ -23,11 +24,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
 mesh = SubResource("AppleMesh")
 surface_material_override/0 = SubResource("AppleMat")
 
-[node name="InteractArea" type="Area3D" parent="."]
+[node name="InteractVolume" type="Area3D" parent="."]
 collision_layer = 8
 collision_mask = 0
 monitoring = false
+monitorable = true
+script = ExtResource("3")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractArea"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractVolume"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
 shape = SubResource("AppleShape")

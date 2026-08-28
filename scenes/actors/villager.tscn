@@ -1,7 +1,8 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scenes/actors/villager.gd" id="1"]
 [ext_resource type="Resource" path="res://data/villagers/pip.tres" id="2"]
+[ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="3"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape"]
 radius = 0.35
@@ -13,6 +14,10 @@ height = 1.5
 
 [sub_resource type="StandardMaterial3D" id="VillagerMat"]
 albedo_color = Color(0.85, 0.55, 0.4, 1)
+
+[sub_resource type="CapsuleShape3D" id="InteractShape"]
+radius = 0.55
+height = 1.6
 
 [node name="Villager" type="CharacterBody3D"]
 collision_layer = 4
@@ -28,3 +33,14 @@ shape = SubResource("CapsuleShape")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
 mesh = SubResource("CapsuleMesh")
 surface_material_override/0 = SubResource("VillagerMat")
+
+[node name="InteractVolume" type="Area3D" parent="."]
+collision_layer = 8
+collision_mask = 0
+monitoring = false
+monitorable = true
+script = ExtResource("3")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractVolume"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+shape = SubResource("InteractShape")

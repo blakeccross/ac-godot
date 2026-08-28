@@ -32,10 +32,11 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | Scene | Path |
 | --- | --- |
 | Player, Villager | `scenes/actors/` |
-| World, Tree, Furniture, ItemPickup, House, Shop | `scenes/world/` |
+| World, Tree, Furniture, ItemPickup, House, Shop, Sign | `scenes/world/` |
+| InteractVolume | `scenes/world/interact_volume.gd` (sensor only; host implements verbs) |
 | Title, Clock HUD | `scenes/ui/` |
 
-Fishing, shops, and full dialogue are **not** systems yet. The world scene owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists.
+Fishing, shops, and full dialogue are **not** systems yet. Shop, door, furniture, tree, and sign scenes exist as verb stubs. The world scene owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists. Field interact uses `InteractionQuery` (`RefCounted`, not an autoload); objects expose verbs instead of the player switching on type.
 
 ## Autoloads
 
@@ -52,7 +53,20 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
-`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload.
+`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, and `InteractionQuery` are `RefCounted` helpers, not autoloads.
+
+### Interaction
+
+Hosts duck-type two methods. There is no shared `Interactable` base: a tree is a `StaticBody3D`, a villager is a `CharacterBody3D`.
+
+| Piece | Role |
+| --- | --- |
+| `Interaction` | Verb payload (`id`, `prompt`, `priority`, `locks_player`, `player_anim`) |
+| `InteractionContext` | `actor`, `inventory`, `world`; `release_occupant()` |
+| `InteractionQuery` | Walk ancestors for a host; pick the closest overlapping `InteractVolume` |
+| Host scene | `get_interactions(ctx) -> Array[Interaction]` and `interact(action, ctx)` |
+
+The player facing probe (physics layer `interact`) never does `if target is Tree`. It plays `action.player_anim` if set, then calls `host.interact`. Stub verbs: shake, talk, sit, enter, shop, read. Item pickup is the one path with real pocket logic.
 
 ## World scene
 
@@ -75,6 +89,7 @@ World
 | --- | --- |
 | Game time | `Clock` autoload + unit tests, not `_process` sprinkled everywhere |
 | Player | `scenes/actors/player.tscn` + `PlayerLocomotion`; generated `boy_1.glb` if present |
+| Field A-button | `InteractionQuery` + host `get_interactions` / `interact`; `InteractVolume` sensors |
 | Items | `ItemData` resources + `Inventory` on `Game` |
 | Town layout | `AcreData` + `WorldGrid` + `scenes/world/world.tscn` |
 | Villagers | `VillagerData` + `ScheduleData` + villager scene (AI later) |
@@ -92,12 +107,13 @@ Each phase should be playable or testable in-engine. Later phases are not starte
 3. **Phase 2** — decomp research notes (`docs/decomp_notes/`).
 4. **Phase 3** — title → world → spawn → walk → pick up → save on return to title.
 5. **Phase 4** — world hierarchy + logical cell grid.
-6. **Phase 5** — player controller (current): `CharacterBody3D`, GC walk feel, generated `boy_1` visual when present.
-7. **One interactable** — one tree (grow, shake, fruit) with correct feel, not every plant type.
-8. **Inventory** — pick up, hold, drop; `Inventory` already exists for tests, wire drop/equip next.
-9. **One villager** — schedule, greeting, one dialogue tree.
-10. **One shop + economy** — buy/sell a few items.
-11. **Town deltas** — persist more than one pickup and the current acre FG.
+6. **Phase 5** — player controller: `CharacterBody3D`, GC walk feel, generated `boy_1` visual when present.
+7. **Phase 6** — interaction framework (current): objects expose verbs; player uses `InteractionQuery`.
+8. **One interactable** — one tree (grow, shake, fruit) with correct feel, not every plant type.
+9. **Inventory** — pick up, hold, drop; `Inventory` already exists for tests, wire drop/equip next.
+10. **One villager** — schedule, greeting, one dialogue tree.
+11. **One shop + economy** — buy/sell a few items.
+12. **Town deltas** — persist more than one pickup and the current acre FG.
 
 Content quantity is not a milestone. One good instance of a system is.
 

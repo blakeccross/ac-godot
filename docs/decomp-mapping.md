@@ -13,6 +13,7 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | `m_calendar` | Played-day / event flags | Later; not a Phase 1 system |
 | `m_kankyo` weather tables | Rain/snow/sakura by term | Later (`WeatherSystem` when earned) |
 | `m_player`, `m_player_lib`, `m_player_main_walk` | Player actor; analog walk 4.875 / run 7.5 per frame; B/L/R dash | `PlayerLocomotion` + player scene; tile-relative m/s (40 units → 2 m) |
+| Field A (`PICKUP`, `TALK`, `SHAKE_TREE`, sit, door) | Nearby actor/item + equipment pick a player mode | `Interaction` + `InteractionQuery`; hosts implement `get_interactions` / `interact` |
 | `m_camera2` (`Init_Camera2`) | 20° FOV, ~45° 3/4, focus distance 620 | `FollowCamera` (31 m at 45°) |
 | `m_actor` | Generic actors | Composed scenes, not a C actor overlay table |
 | `m_npc`, `m_npc_schedule` | Looks-based daily tables (sleep / in_house / field + end seconds) | `VillagerData` + `ScheduleData` |

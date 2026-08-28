@@ -24,3 +24,12 @@ func test_player_scene_is_character_body() -> void:
 	assert_bool(player is CharacterBody3D).is_true()
 	assert_bool(player.has_method("facing_yaw")).is_true()
 	assert_bool(player.has_method("camera_look_position")).is_true()
+	assert_bool(player.has_method("try_interact")).is_false()
+
+
+func test_world_scene_loads() -> void:
+	var packed: PackedScene = load("res://scenes/world/world.tscn")
+	assert_that(packed).is_not_null()
+	var world: Node = auto_free(packed.instantiate())
+	assert_that(world.get_node_or_null("Objects/Sign")).is_not_null()
+	assert_that(world.get_node_or_null("Buildings/Shop")).is_not_null()
