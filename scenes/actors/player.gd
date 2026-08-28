@@ -320,6 +320,9 @@ func _apply_preview_materials(node: Node) -> void:
 				var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
 				std.vertex_color_use_as_albedo = false
 				std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+				## Pipeline bakes REPEAT/MIRROR into the PNG and remaps UVs to 0–1;
+				## keep clamp so U never sticks to the shirt texture's right edge.
+				std.texture_repeat = false
 				std.cull_mode = BaseMaterial3D.CULL_DISABLED
 				std.roughness = 1.0
 				std.metallic = 0.0

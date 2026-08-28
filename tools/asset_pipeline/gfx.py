@@ -237,6 +237,9 @@ def _apply_settimg(w0: int, w1: int, bank: TextureBank, state: TextureState) -> 
     state.fmt = fmt
     state.siz = siz
     state.img_addr = addr
+    ## New image: drop prior tile size so UVs follow this SETTIMG until SETTILESIZE.
+    state.tile_w = 0
+    state.tile_h = 0
     if width:
         state.width = width
     if height:
@@ -270,8 +273,13 @@ def _apply_settile(w0: int, w1: int, state: TextureState) -> None:
 
 def _apply_settilesize(w0: int, w1: int, state: TextureState) -> None:
     width, height = parse_settilesize(w0, w1)
-    state.width = width
-    state.height = height
+    state.tile_w = width
+    state.tile_h = height
+    ## Classic SETTIMG often omits height; then the tile size is the image size.
+    if state.width <= 0:
+        state.width = width
+    if state.height <= 0:
+        state.height = height
 
 
 def _follow_dl(addr: int, bank: TextureBank, state: TextureState) -> None:
@@ -323,9 +331,12 @@ def parse_gfx(
 
     def uv_for(src: Vertex) -> tuple[float, float]:
         # Match GC T directly. Flipping V put the nose above the eyes.
-        if tex_state.width > 0 and tex_state.height > 0:
-            return src.s / tex_state.width, src.t / tex_state.height
-        return src.s / 16.0, src.t / 16.0
+        # Divide by SETTIMG image size (not SETTILESIZE). Boy shirts have S up to
+        # ~80 on a 32×32 image (U≈2.5) with wrapS=REPEAT; the 128-wide tile size
+        # is only for HW wrap bounds and must not shrink U into [0,1].
+        tw = tex_state.width or 16
+        th = tex_state.height or 16
+        return src.s / tw, src.t / th
 
     def flush() -> None:
         nonlocal triangles, unique, index_of, current_key
@@ -478,7 +489,7 @@ def parse_gfx(
                 _apply_settile(w0, w1, tex_state)
             elif cmd == G_SETTILESIZE and bank is not None:
                 width, height = parse_settilesize(w0, w1)
-                if triangles and (width != tex_state.width or height != tex_state.height):
+                if triangles and (width != tex_state.tile_w or height != tex_state.tile_h):
                     flush()
                     current_key = None
                 _apply_settilesize(w0, w1, tex_state)

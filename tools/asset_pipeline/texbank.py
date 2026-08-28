@@ -134,8 +134,14 @@ class TextureState:
     img_addr: int = 0
     fmt: int = G_IM_FMT_CI
     siz: int = G_IM_SIZ_4b
+    ## Texel image size from G_SETTIMG (what we decode).
     width: int = 0
     height: int = 0
+    ## Tile size from G_SETTILESIZE (HW wrap bounds). Kept separate from width so
+    ## boy shirts (32×32 image, 128×32 tile) decode without zero-pad MASK holes.
+    ## UVs still divide by the SETTIMG image size; REPEAT is baked in glb.py.
+    tile_w: int = 0
+    tile_h: int = 0
     pal_slot: int = 15
     wrap_s: int = GX_CLAMP
     wrap_t: int = GX_CLAMP

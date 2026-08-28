@@ -110,6 +110,7 @@ static func _apply_materials(node: Node) -> void:
 				var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
 				std.vertex_color_use_as_albedo = false
 				std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+				std.texture_repeat = false
 				std.cull_mode = BaseMaterial3D.CULL_DISABLED
 				std.roughness = 1.0
 				std.metallic = 0.0
