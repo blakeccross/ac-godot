@@ -5,7 +5,7 @@ extends Node
 enum Phase { TITLE, PLAYING }
 
 const TITLE_SCENE := "res://scenes/ui/title.tscn"
-const WORLD_SCENE := "res://scenes/world/acre.tscn"
+const WORLD_SCENE := "res://scenes/world/world.tscn"
 const DEFAULT_SPAWN := Vector3(0.0, 0.1, 6.0)
 
 signal phase_changed(phase: Phase)

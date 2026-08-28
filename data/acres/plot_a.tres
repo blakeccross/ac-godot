@@ -7,3 +7,6 @@ script = ExtResource("1")
 id = &"plot_a"
 display_name = "Plot A"
 size = Vector2(32, 32)
+columns = 16
+rows = 16
+water_cells = Array[Vector2i]([Vector2i(12, 3), Vector2i(13, 3), Vector2i(12, 4), Vector2i(13, 4)])

@@ -36,7 +36,7 @@ On Windows, use `addons/gdUnit4/runtest.cmd` with `--godot_binary` pointing at t
 
 ## What to test
 
-- **Do:** Resource defaults, clock advancement, inventory stacking, shop prices, schedule lookups, save round-trips.
+- **Do:** Resource defaults, clock advancement, inventory stacking, shop prices, schedule lookups, save round-trips, grid cell math.
 - **Don't:** Screenshot-test placeholder art, or require the boot scene for logic tests.
 
-Suites live in `tests/unit/`: `test_clock.gd`, `test_inventory.gd`, `test_save_service.gd`, `test_game.gd`, `test_resources.gd`.
+Suites live in `tests/unit/`: `test_clock.gd`, `test_inventory.gd`, `test_save_service.gd`, `test_game.gd`, `test_world_grid.gd`, `test_resources.gd`.

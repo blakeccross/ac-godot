@@ -25,17 +25,17 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | `VillagerData` | Villager definition |
 | `DialogueData` | Conversation lines |
 | `ScheduleData` / `ScheduleSlot` | Daily routine |
-| `AcreData` | Outdoor plot description |
+| `AcreData` | Outdoor plot + cell grid (size, water/soil/blocked) |
 
 ### Runtime objects (scenes)
 
 | Scene | Path |
 | --- | --- |
 | Player, Villager | `scenes/actors/` |
-| Tree, Furniture, ItemPickup, House, Shop, Acre | `scenes/world/` |
+| World, Tree, Furniture, ItemPickup, House, Shop | `scenes/world/` |
 | Title, Clock HUD | `scenes/ui/` |
 
-Fishing, shops, and full dialogue are **not** systems yet. Title, acre, player spawn, one pickup, and save-on-title are the Phase 3 loop.
+Fishing, shops, and full dialogue are **not** systems yet. The world scene owns a `WorldGrid` (cells, occupancy, terrain) and the Phase 3 play loop.
 
 ## Autoloads
 
@@ -52,7 +52,22 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
-`Inventory` is a `RefCounted` owned by `Game`, not an autoload.
+`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload.
+
+## World scene
+
+`scenes/world/world.tscn` is one outdoor plot (16×16 cells, 2 m each). Hierarchy:
+
+```
+World
+├── Terrain
+├── Objects
+├── Characters
+├── Buildings
+├── Effects
+├── Navigation
+└── WorldEnvironment
+```
 
 ## Godot mapping (not C mapping)
 
@@ -60,7 +75,7 @@ Prefer signals on the owning system over a global event bus unless many unrelate
 | --- | --- |
 | Game time | `Clock` autoload + unit tests, not `_process` sprinkled everywhere |
 | Items | `ItemData` resources + `Inventory` on `Game` |
-| Town layout | `AcreData` + `scenes/world/acre.tscn` |
+| Town layout | `AcreData` + `WorldGrid` + `scenes/world/world.tscn` |
 | Villagers | `VillagerData` + `ScheduleData` + villager scene (AI later) |
 | Dialogue | `DialogueData` + a UI scene when that slice is earned |
 | Save | JSON IDs and counts to `user://`, not `.tres` with embedded scripts |
@@ -74,12 +89,13 @@ Each phase should be playable or testable in-engine. Later phases are not starte
 1. **Phase 0** — project scaffold.
 2. **Phase 1** — architectural foundation + clock, empty acre, walk.
 3. **Phase 2** — decomp research notes (`docs/decomp_notes/`).
-4. **Phase 3** — title → world → spawn → walk → pick up → save on return to title (current).
-5. **One interactable** — one tree (grow, shake, fruit) with correct feel, not every plant type.
-6. **Inventory** — pick up, hold, drop; `Inventory` already exists for tests, wire drop/equip next.
-7. **One villager** — schedule, greeting, one dialogue tree.
-8. **One shop + economy** — buy/sell a few items.
-9. **Town deltas** — persist more than one pickup and the current acre FG.
+4. **Phase 3** — title → world → spawn → walk → pick up → save on return to title.
+5. **Phase 4** — world hierarchy + logical cell grid (current).
+6. **One interactable** — one tree (grow, shake, fruit) with correct feel, not every plant type.
+7. **Inventory** — pick up, hold, drop; `Inventory` already exists for tests, wire drop/equip next.
+8. **One villager** — schedule, greeting, one dialogue tree.
+9. **One shop + economy** — buy/sell a few items.
+10. **Town deltas** — persist more than one pickup and the current acre FG.
 
 Content quantity is not a milestone. One good instance of a system is.
 

@@ -4,6 +4,11 @@ extends Node3D
 
 @export var item: ItemData
 @export var persist_id: StringName = &"ground_apple"
+@export var occupant_id: StringName = &""
+@export var footprint: Vector2i = Vector2i(1, 1)
+@export var grid_facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH
+@export var occupy_grid: bool = true
+@export var place_kind: WorldGrid.PlaceKind = WorldGrid.PlaceKind.ITEM
 
 
 func _ready() -> void:
@@ -27,5 +32,9 @@ func try_interact() -> void:
 		Game.post_notice("Pockets full")
 		return
 	Game.mark_interactable_removed(persist_id)
+	var world := get_tree().get_first_node_in_group("world")
+	if world != null and world.has_method("release_occupant"):
+		var id: StringName = persist_id if persist_id != &"" else occupant_id
+		world.call("release_occupant", id)
 	Game.post_notice("Picked up %s" % item.display_name)
 	queue_free()

@@ -28,6 +28,13 @@ func test_boy_looks_schedule() -> void:
 	assert_that(schedule.activity_at(22)).is_equal(&"sleep")
 
 
+func test_acre_grid_defaults() -> void:
+	var acre: AcreData = load("res://data/acres/plot_a.tres")
+	assert_int(acre.columns).is_equal(16)
+	assert_int(acre.rows).is_equal(16)
+	assert_int(acre.water_cells.size()).is_equal(4)
+
+
 func test_villager_points_at_schedule() -> void:
 	var pip: VillagerData = load("res://data/villagers/pip.tres")
 	assert_that(pip.display_name).is_equal("Pip")
