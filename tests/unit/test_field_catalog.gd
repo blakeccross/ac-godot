@@ -56,6 +56,14 @@ func test_acre_block_types_map_to_grd_families() -> void:
 	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_PLAYER_HOUSE, 0))).is_equal("grd_s_f_mh_1")
 	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_TRACKS_SHOP, 0))).is_equal("grd_s_t_sh_1")
 	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_RIVER_S, 0))).is_equal("grd_s_r1_1")
+	if not FieldCatalog.mesh_paths(&"grd_s_r1_b_1").is_empty():
+		assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_RIVER_S_BRIDGE, 0))).is_equal(
+			"grd_s_r1_b_1"
+		)
+	if not FieldCatalog.mesh_paths(&"grd_s_m_r1_b_1").is_empty():
+		assert_str(
+			String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_BEACH_RIVER_BRIDGE, 0))
+		).is_equal("grd_s_m_r1_b_1")
 	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_BEACH, 0))).is_equal("grd_s_m_1")
 	if not FieldCatalog.mesh_paths(&"grd_s_c7_r1_1").is_empty():
 		assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_RIV_CLIFF_BL, 0))).starts_with("grd_s_c7_r1_")
@@ -75,6 +83,9 @@ func test_height_counts_match_gx() -> void:
 	assert_bool(FieldCatalog.is_water_attr(18)).is_true()
 	assert_bool(FieldCatalog.is_water_attr(0)).is_false()
 	assert_bool(FieldCatalog.is_water_attr(44)).is_false()
+	assert_bool(FieldCatalog.is_water_attr(32)).is_false()
+	assert_bool(FieldCatalog.is_bridge_attr(32)).is_true()
+	assert_bool(FieldCatalog.is_bridge_attr(18)).is_false()
 	assert_bool(FieldCatalog.is_plantable_attr(0)).is_true()
 	assert_bool(FieldCatalog.is_plantable_attr(6)).is_true()
 	assert_bool(FieldCatalog.is_plantable_attr(7)).is_false()

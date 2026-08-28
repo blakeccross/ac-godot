@@ -77,6 +77,12 @@ const T_RIVER_ES := 44
 const T_RIVER_SW := 45
 const T_RIVER_WS := 46
 const T_RIVER_S_BRIDGE := 47
+const T_RIVER_E_BRIDGE := 48
+const T_RIVER_W_BRIDGE := 49
+const T_RIVER_SE_BRIDGE := 50
+const T_RIVER_ES_BRIDGE := 51
+const T_RIVER_SW_BRIDGE := 52
+const T_RIVER_WS_BRIDGE := 53
 const T_SLOPE_H := 54
 const T_BORDER_CLIFF_LEFT_TRANSITION := 61
 const T_BORDER_CLIFF_RIGHT_TRANSITION := 62
@@ -90,7 +96,13 @@ const T_BORDER_CLIFF_OCEAN_LEFT := 76
 const T_BORDER_CLIFF_OCEAN_RIGHT := 77
 const T_MUSEUM := 80
 const T_NEEDLEWORK := 81
+## `mFM_BLOCK_TYPE_BEACH_RIVER_BRIDGE` (decomp 82). Compacted ids keep museum/port as-is.
+const T_BEACH_RIVER_BRIDGE := 82
 const T_PORT := 86
+const BIT_BRIDGE_UPPER := 1
+const BIT_BRIDGE_LOWER := 2
+## River → bridge acre (`RIVER_SOUTH_BRIDGE - RIVER_SOUTH`).
+const RIVER_BRIDGE_DELTA := 7
 const T_NONE := 255
 
 const CLIFF_NEXT_DIRECT: Array[int] = [
@@ -119,11 +131,13 @@ func generate(seed_value: int) -> Dictionary:
 		_make_landform_step2(blocks)
 	_make_flat_info(blocks)
 	_set_beach(blocks)
+	var bridge_flags: int = _set_bridge_block(blocks, not stepmode_three)
 	_set_slopes_simple(blocks)
 	_set_needlework_and_port(blocks)
 	_set_unique_flat(blocks)
 	_set_unique_rail(blocks)
 	_set_pool(blocks)
+	bridge_flags |= _set_sea_bridge_if_needed(blocks, bridge_flags)
 	_make_heights(heights, blocks)
 	return {
 		"blocks": blocks,
@@ -589,6 +603,57 @@ func _set_pool(blocks: PackedByteArray) -> void:
 	blocks[i] = int(blocks[i]) + POOL_DELTA
 
 
+func _river_cross_cliff_bz(blocks: PackedByteArray) -> int:
+	## First waterfall acre in the scanned prefix (`mRF_GetRiverCrossCliffInfo`).
+	var crosses: Array[int] = [
+		T_WF_H, T_WF_BR, T_WF_TL, T_WF_E_BR, T_WF_E_VR, T_WF_W_VL, T_WF_W_BL
+	]
+	for i: int in (BLOCK_Z - 2) * BLOCK_X:
+		var t: int = int(blocks[i])
+		if crosses.has(t):
+			return i / BLOCK_X
+	return 4
+
+
+func _set_bridge_block(blocks: PackedByteArray, two_step: bool) -> int:
+	## `mRF_SetBridgeBlock`: one river acre north of the waterfall always becomes a
+	## bridge type (+7). 2-step towns also get a 50% south span. Meshes are `grd_s_r*_b_*`.
+	var cross_bz: int = _river_cross_cliff_bz(blocks)
+	var flags := 0
+	var before: Array[int] = []
+	var after: Array[int] = []
+	for bz: int in range(BLOCK_Z - 2):
+		for bx: int in BLOCK_X:
+			var bnum: int = _idx(bx, bz)
+			if not _in_group(int(blocks[bnum]), GROUP_RIVER):
+				continue
+			if bz < cross_bz:
+				before.append(bnum)
+			elif bz > cross_bz:
+				after.append(bnum)
+	if not before.is_empty():
+		var pick: int = before[_rand(before.size())]
+		blocks[pick] = int(blocks[pick]) + RIVER_BRIDGE_DELTA
+		flags |= BIT_BRIDGE_UPPER
+	if not after.is_empty() and two_step and (_rand(10) & 1) != 0:
+		var pick: int = after[_rand(after.size())]
+		blocks[pick] = int(blocks[pick]) + RIVER_BRIDGE_DELTA
+		flags |= BIT_BRIDGE_LOWER
+	return flags
+
+
+func _set_sea_bridge_if_needed(blocks: PackedByteArray, flags: int) -> int:
+	## `mRF_SetSeaBlockWithBridgeRiver`: if there is no lower span, the beach mouth
+	## (`BEACH_RIVER`) becomes `BEACH_RIVER_BRIDGE` (`grd_s_m_r1_b_*`).
+	if (flags & BIT_BRIDGE_LOWER) != 0:
+		return 0
+	for i: int in (BLOCK_Z - 2) * BLOCK_X:
+		if int(blocks[i]) == T_BEACH_RIVER:
+			blocks[i] = T_BEACH_RIVER_BRIDGE
+			return BIT_BRIDGE_LOWER
+	return 0
+
+
 func _set_slopes_simple(blocks: PackedByteArray) -> void:
 	## Convert one pure cliff acre per river side into a slope so height is climbable.
 	var left_done := false
@@ -675,10 +740,27 @@ func _in_range(bx: int, bz: int, bx_min: int, bx_max: int, bz_min: int, bz_max: 
 static func is_riverish(type: int) -> bool:
 	return (
 		(type >= T_RIVER_S and type <= T_RIVER_WS)
+		or is_river_bridge(type)
 		or type == T_TRACKS_RIVER
 		or type == T_BEACH_RIVER
 		or type == T_BORDER_CLIFF_RIVER
 		or (type >= T_WF_H and type <= T_WF_W_BL)
+	)
+
+
+static func is_river_bridge(type: int) -> bool:
+	return (
+		(type >= T_RIVER_S_BRIDGE and type <= T_RIVER_WS_BRIDGE) or type == T_BEACH_RIVER_BRIDGE
+	)
+
+
+static func is_beach(type: int) -> bool:
+	return (
+		type == T_BEACH
+		or type == T_BEACH_RIVER
+		or type == T_BEACH_RIVER_BRIDGE
+		or type == T_NEEDLEWORK
+		or type == T_PORT
 	)
 
 
@@ -688,10 +770,6 @@ static func is_cliffish(type: int) -> bool:
 		or (type >= T_SLOPE_H and type <= T_SLOPE_H + 6)
 		or (type >= T_WF_H and type <= T_WF_W_BL)
 	)
-
-
-static func is_beach(type: int) -> bool:
-	return type == T_BEACH or type == T_BEACH_RIVER or type == T_NEEDLEWORK or type == T_PORT
 
 
 static func is_slope(type: int) -> bool:

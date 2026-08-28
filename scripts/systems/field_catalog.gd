@@ -123,6 +123,11 @@ static func is_water_attr(attr: int) -> bool:
 	)
 
 
+static func is_bridge_attr(attr: int) -> bool:
+	## Wood 27–31 and stone 32–35 (`mCoBG_ATTRIBUTE_*`). Walkable deck, not water.
+	return attr >= 27 and attr <= 35
+
+
 static func is_hole_attr(attr: int) -> bool:
 	return attr == 10
 
@@ -268,6 +273,8 @@ static func _acre_candidates(block_type: int) -> PackedStringArray:
 			return _names("grd_s_m_", 1, 10)
 		TownFieldGenerator.T_BEACH_RIVER:
 			return _names("grd_s_m_r1_", 1, 5)
+		TownFieldGenerator.T_BEACH_RIVER_BRIDGE:
+			return _names("grd_s_m_r1_b_", 1, 3)
 		TownFieldGenerator.T_NEEDLEWORK:
 			return _names("grd_s_m_ta_", 1, 3)
 		TownFieldGenerator.T_PORT:

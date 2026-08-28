@@ -194,6 +194,23 @@ func test_height_steps_only_on_terrace_faces() -> void:
 	assert_bool(TownFieldGenerator.raises_height(TownFieldGenerator.T_RIV_CLIFF_BL)).is_false()
 	assert_bool(TownFieldGenerator.raises_height(TownFieldGenerator.T_WF_BR)).is_false()
 	assert_bool(TownFieldGenerator.raises_height(TownFieldGenerator.T_RIVER_S)).is_false()
+	assert_int(TownFieldGenerator.T_RIVER_S + TownFieldGenerator.RIVER_BRIDGE_DELTA).is_equal(
+		TownFieldGenerator.T_RIVER_S_BRIDGE
+	)
+
+
+func test_generated_town_has_river_bridge() -> void:
+	## `mRF_SetBridgeBlock` / sea-mouth fallback always leaves at least one `*_BRIDGE` acre.
+	var data: WorldData = WorldGenerator.generate(12345)
+	var n := 0
+	var vis := ""
+	for i: int in data.acre_types.size():
+		if TownFieldGenerator.is_river_bridge(int(data.acre_types[i])):
+			n += 1
+			vis = String(data.acre_visuals[i])
+	assert_int(n).is_greater(0)
+	if not vis.is_empty():
+		assert_bool(vis.contains("_b_")).is_true()
 
 
 func test_town_field_generator_is_deterministic() -> void:

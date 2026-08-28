@@ -143,6 +143,8 @@ static func _paint_acre(
 				data.set_terrain_cell(Vector2i(origin.x + ux, origin.y + uz), WorldGrid.Terrain.SAND)
 	if TownFieldGenerator.is_riverish(type):
 		_paint_river_corridor(data, origin, type)
+		if TownFieldGenerator.is_river_bridge(type):
+			_paint_bridge_deck(data, origin)
 	if TownFieldGenerator.is_cliffish(type):
 		_paint_cliff_acre(data, origin, type, elev)
 	if type == TownFieldGenerator.T_TRACKS_STATION or type == TownFieldGenerator.T_TRACKS_DUMP \
@@ -167,6 +169,8 @@ static func _paint_from_catalog(data: WorldData, origin: Vector2i, elev: int, vi
 			if FieldCatalog.is_water_attr(attr):
 				data.set_terrain_cell(cell, WorldGrid.Terrain.WATER)
 				data.set_elevation_cell(cell, elev)
+			elif FieldCatalog.is_bridge_attr(attr):
+				data.set_terrain_cell(cell, WorldGrid.Terrain.PATH)
 			elif FieldCatalog.is_hole_attr(attr):
 				data.set_terrain_cell(cell, WorldGrid.Terrain.CLIFF)
 			elif FieldCatalog.is_sand_attr(attr):
@@ -191,7 +195,11 @@ static func _paint_river_corridor(data: WorldData, origin: Vector2i, type: int) 
 		type == TownFieldGenerator.T_RIVER_S
 		or type == TownFieldGenerator.T_RIVER_SE
 		or type == TownFieldGenerator.T_RIVER_SW
+		or type == TownFieldGenerator.T_RIVER_S_BRIDGE
+		or type == TownFieldGenerator.T_RIVER_SE_BRIDGE
+		or type == TownFieldGenerator.T_RIVER_SW_BRIDGE
 		or type == TownFieldGenerator.T_BEACH_RIVER
+		or type == TownFieldGenerator.T_BEACH_RIVER_BRIDGE
 		or type == TownFieldGenerator.T_TRACKS_RIVER
 		or type == TownFieldGenerator.T_BORDER_CLIFF_RIVER
 		or (type >= TownFieldGenerator.T_WF_H and type <= TownFieldGenerator.T_WF_W_BL)
@@ -200,11 +208,17 @@ static func _paint_river_corridor(data: WorldData, origin: Vector2i, type: int) 
 		type == TownFieldGenerator.T_RIVER_E
 		or type == TownFieldGenerator.T_RIVER_ES
 		or type == TownFieldGenerator.T_RIVER_SE
+		or type == TownFieldGenerator.T_RIVER_E_BRIDGE
+		or type == TownFieldGenerator.T_RIVER_ES_BRIDGE
+		or type == TownFieldGenerator.T_RIVER_SE_BRIDGE
 	)
 	var westish: bool = (
 		type == TownFieldGenerator.T_RIVER_W
 		or type == TownFieldGenerator.T_RIVER_WS
 		or type == TownFieldGenerator.T_RIVER_SW
+		or type == TownFieldGenerator.T_RIVER_W_BRIDGE
+		or type == TownFieldGenerator.T_RIVER_WS_BRIDGE
+		or type == TownFieldGenerator.T_RIVER_SW_BRIDGE
 	)
 	if southish or (not eastish and not westish):
 		var x0: int = origin.x + 6
@@ -221,6 +235,15 @@ static func _paint_river_corridor(data: WorldData, origin: Vector2i, type: int) 
 		for ux: int in UT:
 			for dz: int in 4:
 				data.set_terrain_cell(Vector2i(origin.x + ux, z0 + dz), WorldGrid.Terrain.WATER)
+
+
+static func _paint_bridge_deck(data: WorldData, origin: Vector2i) -> void:
+	## Geometric stand-in: a 2-unit deck across the river strip (catalog acres use wood/stone attrs).
+	for uz: int in range(5, 7):
+		for ux: int in range(5, 11):
+			var cell := Vector2i(origin.x + ux, origin.y + uz)
+			if data.terrain_at(cell) == WorldGrid.Terrain.WATER:
+				data.set_terrain_cell(cell, WorldGrid.Terrain.PATH)
 
 
 static func _paint_cliff_acre(data: WorldData, origin: Vector2i, type: int, elev: int) -> void:
