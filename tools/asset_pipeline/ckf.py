@@ -204,6 +204,15 @@ def _assign_part_joints(part: MeshPart, owner: int, mtx_joints: list[int]) -> No
             vertex.joint_index = owner
 
 
+def _sits_on_y(vertices: list) -> bool:
+    """True when GX verts already stand on +Y (houses/shops), unlike the +X cKF chain."""
+    if not vertices:
+        return False
+    min_y = min(v.y for v in vertices)
+    max_y = max(v.y for v in vertices)
+    return min_y >= -0.05 and (max_y - min_y) >= 0.5
+
+
 def convert_ckf_model(
     rel: RelData,
     symbols: list[MapSymbol],
@@ -288,22 +297,35 @@ def convert_ckf_model(
     anim_names = list(animation_names or [])
     anim_names.sort(key=lambda n: (0 if n.endswith("wait1") else 1, n))
     identity_rot = [(0, 0, 0)] * num_joints
-    # Player wait clips already put ~90° on joint 0 (stand the +X chain on +Y).
+    sits_y = _sits_on_y(vertices)
+    # Player wait clips put ~90° on joint 0 (stand the +X chain on +Y).
     # Furniture/tools have no wait — identity bind stays +X-forward and needs ckf_basis.
+    # Houses/shops already sit on +Y; door clips store rest yaw on joint 0
+    # (house −90°, shop −135° as degrees×10). Bake that pose — do not invent yaw.
+    use_anim_bind = False
     use_wait_bind = False
     root_t = (0.0, 0.0, 0.0)
     bind_rots = identity_rot
-    if anim_names and anim_names[0].endswith("wait1"):
+    bind_anim: str | None = None
+    if anim_names:
+        if anim_names[0].endswith("wait1"):
+            bind_anim = anim_names[0]
+        elif sits_y:
+            bind_anim = anim_names[0]
+    if bind_anim is not None:
         try:
-            root_raw, bind_rots = evaluate_pose(rel, symbols, anim_names[0], num_joints, 1.0)
+            root_raw, bind_rots = evaluate_pose(rel, symbols, bind_anim, num_joints, 1.0)
             root_t = (root_raw[0] * scale, root_raw[1] * scale, root_raw[2] * scale)
-            use_wait_bind = True
+            use_anim_bind = True
+            use_wait_bind = bind_anim.endswith("wait1")
         except (KeyError, StopIteration, struct.error, ValueError, IndexError):
             bind_rots = identity_rot
             root_t = (0.0, 0.0, 0.0)
     bind_local, bind_world = _world_matrices(joints, root_t, bind_rots)
-    # Apply +90° Z only when wait did not already stand the model.
-    basis = Mat4.identity() if use_wait_bind else ckf_basis()
+    if use_anim_bind or sits_y:
+        basis = Mat4.identity()
+    else:
+        basis = ckf_basis()
     bind_world = [basis.mul(w) for w in bind_world]
     bind_local_g: list[Mat4] = []
     for joint in joints:
@@ -339,6 +361,15 @@ def convert_ckf_model(
         except (KeyError, StopIteration, struct.error, ValueError, IndexError):
             continue
 
+    if use_wait_bind:
+        z_axis = "wait_bind"
+    elif sits_y and use_anim_bind:
+        z_axis = "gx_y_up anim_bind (joint-0 yaw from door clip)"
+    elif sits_y:
+        z_axis = "gx_y_up"
+    else:
+        z_axis = "ckf_bind_to_godot (+90° about Z)"
+
     return ConvertedModel(
         parts=parts,
         joints=joints,
@@ -348,10 +379,32 @@ def convert_ckf_model(
         extras={
             "source_skeleton": skeleton_name,
             "scale": scale,
-            "z_axis": "wait_bind" if use_wait_bind else "ckf_bind_to_godot (+90° about Z)",
+            "z_axis": z_axis,
             "use_wait_bind": use_wait_bind,
+            "use_anim_bind": use_anim_bind,
         },
     )
+
+
+def _mat_model_name(gfx_name: str, by_name: dict[str, MapSymbol]) -> str | None:
+    """Resolve `*_gfx_model` → material DL. Some summer trees only ship a gold mat."""
+    candidates: list[str] = []
+    if "_gfx_model" in gfx_name:
+        candidates.append(gfx_name.replace("_gfx_model", "_mat_model"))
+    elif gfx_name.endswith("_model"):
+        candidates.append(gfx_name[: -len("_model")] + "_mat_model")
+    # obj_s_tree3_leafT has only obj_s_gold_tree3_leafT_mat_model on the US disc.
+    for name in list(candidates):
+        if "_gold_" in name:
+            continue
+        # obj_s_tree3_leafT_mat_model → obj_s_gold_tree3_leafT_mat_model
+        parts = name.split("_", 2)
+        if len(parts) >= 3 and parts[0] == "obj" and parts[1] in ("s", "w", "f"):
+            candidates.append(f"obj_{parts[1]}_gold_{parts[2]}")
+    for name in candidates:
+        if name in by_name:
+            return name
+    return None
 
 
 def convert_static_gfx(
@@ -363,15 +416,13 @@ def convert_static_gfx(
     bank: TextureBank | None = None,
 ) -> list[MeshPart]:
     vtx_sym = find_symbol(symbols, vtx_name)
-    vertices = parse_vtx_blob(rel.slice_at(vtx_sym.address, vtx_sym.size), scale, flip_z=True)
+    vertices = parse_vtx_blob(rel.slice_at(vtx_sym.address, vtx_sym.size), scale, flip_z=False)
     parts: list[MeshPart] = []
     by_name = {s.name: s for s in symbols}
     tex_state = TextureState()
     for name in gfx_names:
-        mat_name = name.replace("_gfx_model", "_mat_model")
-        if mat_name == name and name.endswith("_model"):
-            mat_name = name[: -len("_model")] + "_mat_model"
-        if bank is not None and mat_name in by_name:
+        mat_name = _mat_model_name(name, by_name)
+        if bank is not None and mat_name is not None:
             mat = by_name[mat_name]
             apply_texture_commands(rel.slice_at(mat.address, mat.size), bank, tex_state)
         model = find_symbol(symbols, name)

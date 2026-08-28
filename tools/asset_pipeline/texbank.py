@@ -167,6 +167,14 @@ class TextureBank:
             if symbol.name == "obj_tree_pal":
                 self._tree_pal = rel.slice_at(symbol.address, min(symbol.size, 32))
                 break
+        # Runtime FG TLUTs (`mFM_SetFGPal`). Static DLs set pal_slot 6/7 but never LOADTLUT.
+        # 14 seasonal rows × 16 RGB5A3; row 4 is a mid-year green (`tree_pal_idx_table`).
+        # The map's `mFM_obj_tree_01_pal` blob does not CI-decode leaf/trunk art (pastel
+        # garbage). `mFM_obj_tree_01_pal_dol` and museum `obj_tree_pal` do — use those.
+        self._tree_fg_pal = self._fg_pal_row("mFM_obj_tree_01_pal_dol") or self._tree_pal
+        self._cedar_pal = self._fg_pal_row("mFM_obj_tree_01_pal_dol") or self._tree_fg_pal
+        self._palm_pal = self._fg_pal_row("mFM_obj_palm_01_pal")
+        self._flower_pal = self._fg_pal_row("mFM_obj_a_01_flower_pal")
 
     def bind_field_bg(self, season: str = "s", variant: int = 0) -> None:
         """Map acre/field segment 0x80 from l_bg_tex_segment_rom_start_* tables.
@@ -311,6 +319,8 @@ class TextureBank:
           (player eyes/mouth/shirt live there; species is prefix without trailing `_N`)
         """
         pal = self._symbol_bytes(f"{prefix}_pal")
+        if pal is None:
+            pal = self._structure_palette(prefix)
         eye1 = self._symbol_bytes(f"{prefix}_eye1_TA_tex_txt")
         mouth1 = self._symbol_bytes(f"{prefix}_mouth1_TA_tex_txt")
         tmem = self._symbol_bytes(f"{prefix}_tmem_txt")
@@ -351,6 +361,23 @@ class TextureBank:
             shirt_pal = pal_blob[idx * 0x20 : (idx + 1) * 0x20]
             self.segment_palettes[0x0B] = shirt_pal
             self.segment_images[0x0A] = SegmentTex(shirt, 32, 32, palette=shirt_pal)
+
+    def _structure_palette(self, prefix: str) -> bytes | None:
+        """Houses/shops load CI palettes from `anime_1_txt` (segment 0x08), not `{prefix}_pal`.
+
+        Decomp: `structure_pal_adrs_nowinter` — `obj_s_house1_a_pal`, `obj_shop1_pal`, …
+        """
+        names = [f"{prefix}_a_pal", f"{prefix}_pal"]
+        m = re.match(r"^(obj)_[swf]_(.+)$", prefix)
+        if m:
+            base = f"{m.group(1)}_{m.group(2)}"
+            names.extend([f"{base}_pal", f"{base}_a_pal"])
+        for name in names:
+            blob = self._symbol_bytes(name)
+            if blob:
+                return blob
+        return None
+
 
     def _symbol_bytes(self, name: str) -> bytes | None:
         for symbol in self.symbols:
@@ -455,12 +482,29 @@ class TextureBank:
         symbol = self.addr_to_sym.get(addr)
         return symbol.name if symbol else f"tex_{addr:08X}"
 
+    def _fg_pal_row(self, name: str, row: int = 4) -> bytes | None:
+        symbol = self._find_symbol(name)
+        if symbol is None or symbol.size < 32:
+            return None
+        blob = self.rel.slice_at(symbol.address, min(symbol.size, 0x1C0))
+        off = row * 32
+        if off + 32 <= len(blob):
+            return blob[off : off + 32]
+        return blob[:32]
+
     def _fallback_palette(self, img_addr: int) -> bytes | None:
         if img_addr >> 24:
             return self.segment_palettes.get(img_addr >> 24)
         symbol = self.addr_to_sym.get(img_addr)
-        if symbol and "tree" in symbol.name and self._tree_pal:
-            return self._tree_pal
+        name = symbol.name.lower() if symbol else ""
+        if "palm" in name and self._palm_pal:
+            return self._palm_pal
+        if "cedar" in name and self._cedar_pal:
+            return self._cedar_pal
+        if "flower" in name and self._flower_pal:
+            return self._flower_pal
+        if "tree" in name:
+            return self._tree_fg_pal or self._tree_pal
         best: MapSymbol | None = None
         for pal in self._pal_symbols:
             if pal.address >= img_addr:
@@ -469,8 +513,6 @@ class TextureBank:
                 best = pal
         if best is not None:
             return self.rel.slice_at(best.address, min(best.size, 512))
-        if self._tree_pal and symbol and "tree" in symbol.name:
-            return self._tree_pal
         return None
 
 

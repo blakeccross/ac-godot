@@ -1,7 +1,7 @@
 class_name AcreData
 extends Resource
 
-## Static description of an outdoor plot. The world scene instances it.
+## Legacy plot description used by WorldGrid tests. Playable layout is WorldData.
 
 @export var id: StringName = &""
 @export var display_name: String = ""

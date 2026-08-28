@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import struct
 from dataclasses import dataclass, field, replace
 from typing import Optional
@@ -33,6 +34,19 @@ MTX_STRIDE = 0x40
 SEG_MTX = 0x0D
 
 
+def _s8_unit(byte: int) -> float:
+    """Signed GX normal component (s8) → roughly [-1, 1]."""
+    signed = byte if byte < 128 else byte - 256
+    return signed / 127.0
+
+
+def unit_normal(nx: float, ny: float, nz: float) -> tuple[float, float, float]:
+    length = math.sqrt(nx * nx + ny * ny + nz * nz)
+    if length < 1e-8:
+        return 0.0, 1.0, 0.0
+    return nx / length, ny / length, nz / length
+
+
 @dataclass
 class Vertex:
     x: float
@@ -46,6 +60,10 @@ class Vertex:
     a: float
     u: float = 0.0
     v: float = 0.0
+    ## Vtx.cn[] under G_LIGHTING — authored lighting normal, not albedo.
+    nx: float = 0.0
+    ny: float = 1.0
+    nz: float = 0.0
     mtx_index: int = -1
     joint_index: int = -1
     # Stable index into the source Vtx blob. Used as a dict key instead of id(),
@@ -68,13 +86,21 @@ class MeshPart:
     alpha_mode: str = "OPAQUE"
 
 
-def parse_vtx_blob(blob: bytes, scale: float, flip_z: bool = True) -> list[Vertex]:
+def parse_vtx_blob(blob: bytes, scale: float, flip_z: bool = False) -> list[Vertex]:
+    """Decode a GX Vtx blob. Keep GX Z by default so static Gfx match cKF (+Z south).
+
+    `scale` is the pipeline multiplier (default 0.001), not the draw matrix:
+    actors are `Matrix_scale(0.01)`, acres `Matrix_scale(0.0625)`.
+    """
     if len(blob) % 16 != 0:
         raise ValueError("Vtx blob is not a multiple of 16 bytes")
     vertices: list[Vertex] = []
     for i in range(0, len(blob), 16):
         x, y, z, _flag, u_raw, v_raw, r, g, b, a = struct.unpack_from(">hhhHhhBBBB", blob, i)
         z_out = -z * scale if flip_z else z * scale
+        nx, ny, nz = unit_normal(_s8_unit(r), _s8_unit(g), _s8_unit(b))
+        if flip_z:
+            nz = -nz
         s = u_raw / 32.0
         t = v_raw / 32.0
         vertices.append(
@@ -90,6 +116,9 @@ def parse_vtx_blob(blob: bytes, scale: float, flip_z: bool = True) -> list[Verte
                 a=a / 255.0,
                 u=s / 16.0,
                 v=t / 16.0,
+                nx=nx,
+                ny=ny,
+                nz=nz,
             )
         )
     return vertices
@@ -361,6 +390,9 @@ def parse_gfx(
                         a=src.a,
                         u=u,
                         v=v,
+                        nx=src.nx,
+                        ny=src.ny,
+                        nz=src.nz,
                         mtx_index=src.mtx_index,
                         src_index=src.src_index,
                     )

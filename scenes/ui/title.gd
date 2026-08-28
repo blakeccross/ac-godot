@@ -16,7 +16,14 @@ func _ready() -> void:
 
 
 func _on_new_game_pressed() -> void:
-	Game.start_new_game()
+	## Decomp new town: mSDI → mRF with live RNG (not the fixed test acre).
+	var seed_value: int = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
+	Game.start_new_game(WorldData.Mode.GENERATED, seed_value)
+
+
+func _on_generated_town_pressed() -> void:
+	## Deterministic seed for debugging / tests.
+	Game.start_new_game(WorldData.Mode.GENERATED, WorldGenerator.DEFAULT_SEED)
 
 
 func _on_continue_pressed() -> void:

@@ -2,7 +2,7 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — do not copy C structs, `Common_Get` blobs, or overlay tables into Godot.
 
-**Read before implementing:** `AcreData`, outdoor acre scene, collision, indoor rooms.
+**Read before implementing:** [world_generation.md](world_generation.md), `WorldData`, `WorldGenerator`, `WorldBuilder`, `WorldGrid`.
 
 ## Decomp sources
 
@@ -66,20 +66,60 @@ Only **four acres** nearest the player are considered visible (`mFM_VISIBLE_BLOC
 - **Shops** — shop room field ids (`mFI_FIELD_ROOM_SHOP0` … `SHOP3_2`).
 - **Save** — `fg`, `combi_table`, `land_info` inside `Save_s`.
 
+## Original town anatomy (4.1)
+
+Numbers from `m_field_info.h`, `m_field_make.h`, `m_collision_bg.h`, `m_random_field.h`. Behavioral reference only.
+
+| Topic | Original |
+| --- | --- |
+| Map dimensions | Whole map **7×10 acres** (`BLOCK_X_NUM` × `BLOCK_Z_NUM`). Playable outdoor FG is the inner **5×6** (`FG_BLOCK_*`). Rest is border cliff, railroad, ocean. |
+| Grid / tile | Each acre is **16×16 units** (`UT_X_NUM`). One unit is **40** original world units (`mFI_UNIT_BASE_SIZE`). Acre = 640×640 original. |
+| Terrain types | Per-unit collision **attribute**: grass, soil, stone, bush, hole, wave, water, waterfall, river direction, sand, wood, sea, bridges, banks (`mCoBG_ATTRIBUTE_*`). |
+| Elevation | Acre combination stores **2-bit height** (0–3). Collision height max 31 (`mCoBG_HEIGHT_MAX`). Towns are 2- or 3-step (`mRF_FIELD_STEP*`). |
+| Rivers | Generated first as a **path of river acres** from the north border, through the tracks, across the 5×6, ending at the **beach**. Must cross the town center-line; cannot end in F-1 or F-5. Bridges are a later pass. |
+| Cliffs | Horizontal/vertical/corner cliff acres plus **slopes**. River+cliff acres become waterfall variants. Height table is applied after landform. |
+| Beaches | South FG row is **beach / ocean** (`mRF_SetMarinBlock`). River mouth uses `BEACH_RIVER` (water through sand). |
+| House locations | **Player house** is its own acre type (`PLAYER_HOUSE`), not a unit FG item. Villager houses sit on **flat** acres (no river/cliff) as FG + NPC room field ids. |
+| Shop locations | Nook is a **railroad-row** unique (`TRACKS_SHOP`), not a random FG tile. Post office, dump, station share that row. Museum / police / wishing well are unique **flat** acres below the cliff. |
+| Player spawn | New town: player house acre. Continue: saved world position. Acre wade at edges (`mFI_WADE_*`). |
+| Object placement | Every unit holds one **FG item id** (`mFM_fg_c items[16][16]` per FG acre). Trees, flowers, buried items, dropped furniture share that slot. |
+| Trees / flowers | FG ids on grass/soil with a **plant-growth cap** (`mCoBG_PLANT0`–`PLANT4`, `KILL_PLANT`). Daily renew grows them; generator places initial ids. |
+| Paths / roads | Not a separate layer. Dirt/stone/bridge are collision attributes on units (and the railroad acres). |
+| Collision | Per-unit heightfield + attribute + plant cap + furniture footprint type. Out of map = blocked. |
+| Map boundaries | Outer acres are **border cliffs / ocean**. You do not walk off the 7×10. Island is a separate field. |
+
+### What makes a town feel like Animal Crossing
+
+Not “any 16×16 grass.” The playable pattern is:
+
+```
+North border cliff
+Railroad (station, shop, post office, dump)
+Playable 5×6
+  ├── River (north → south, must cross center, mouth at beach)
+  ├── Cliff band + slopes (2- or 3-step elevation)
+  ├── Flat acres: player house, villager houses, museum / police / well
+  └── South beach / ocean
+```
+
+Generation order in `mRF_MakeRandomField_ovl`: landform (cliffs + river) → flats → beach → bridges/slopes → unique public buildings → unique rail buildings → pond → height table → pick concrete acre combos.
+
+We do **not** port that acre-combination solver. We keep the *rules* (river through town, south beach, house and shop on walkable land, objects on tiles) and express them as `WorldData`.
+
 ## Reproduce
 
 - Discrete **acres** made of a unit grid, not a free-form open world.
 - One acre on screen at first; later, load neighbors.
 - Outdoor **3/4 camera**, ~20° FOV, follow the player.
-- Collision that distinguishes **walkable grass**, **water** (wade / fish), and **blocked**.
+- Collision that distinguishes **walkable grass**, **water**, and **blocked**. Player Y comes from the **paired acre collision table** (center + four corners × 10 GX) at the current XZ, including water units — original `GetBgY` never returns “no floor” for a river. Banks and terraces are **segment walls** (`SearchWallFlag` trapezoids + 45° slate + `CarryOutReverse`), not gravity holes and not a grid of AABB boxes. This slice still keeps the player off water tiles. Off-map is impassable. Acre-edge **wade** is streaming, not a fence.
 - Indoor vs outdoor as separate scenes, not one giant mesh.
 - Dropped / grown items occupy **tiles**, not arbitrary floats.
 
 ## Simplify
 
-- One authored acre instead of generating a 5×6 town from combination tables.
+- One 16×16 plot (authored test town **and** a seeded generator), not the 5×6 acre combination solver.
 - No 4-acre visibility window or GameCube overlay streaming.
-- No full river/cliff/bridge combination solver (`m_random_field`).
+- No full river/cliff/bridge combination solver (`m_random_field`). Keep the *rules* (river, beach, cliff, house, shop) as `WorldData`.
 - Scale 40-unit tiles to Godot meters; keep *relative* acre size, not the integer 40.
 - One indoor room type to start (player house), not museum wings / lighthouse / tent.
 

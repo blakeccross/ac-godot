@@ -12,7 +12,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 from asset_pipeline.config import load_config  # noqa: E402
-from asset_pipeline.convert import convert_assets  # noqa: E402
+from asset_pipeline.convert import (  # noqa: E402
+    convert_acre_collision,
+    convert_assets,
+    convert_ckf_prefixes,
+    convert_static_only,
+    convert_static_prefixes,
+)
+from asset_pipeline.fgdata import convert_fgdata  # noqa: E402
 from asset_pipeline.extract import extract_archives, extract_disc  # noqa: E402
 from asset_pipeline.scan import scan  # noqa: E402
 from asset_pipeline.validate import validate  # noqa: E402
@@ -31,6 +38,12 @@ def main() -> int:
         action="store_true",
         help="Convert every discovered asset (overrides config test_set_only)",
     )
+    parser.add_argument(
+        "--kind",
+        choices=["all", "static", "buildings", "plants", "collision", "fg"],
+        default="all",
+        help="all (default), static Gfx, outdoor buildings, palm/cedar, acre collision, or FG templates",
+    )
     args = parser.parse_args()
     cfg = load_config(ROOT, args.config)
     if args.full:
@@ -44,10 +57,45 @@ def main() -> int:
         manifest = scan(cfg)
         print(f"scanned {manifest['asset_count']} assets")
     if args.step in ("all", "convert"):
-        report = convert_assets(cfg)
+        if args.kind == "collision":
+            col = convert_acre_collision(cfg)
+            print(f"wrote {col['converted']} acre collision sidecars")
+            return 0
+        if args.kind == "fg":
+            fg = convert_fgdata(cfg)
+            if fg.get("error"):
+                print(f"fgdata: {fg['error']}")
+                return 1
+            print(
+                f"wrote FG catalog ({fg['templates']} templates, "
+                f"{fg['combis']} combis, {fg['combis_with_trees']} with trees)"
+            )
+            return 0
+        if args.kind == "static":
+            cfg.test_set_only = False
+            report = convert_static_only(cfg)
+            label = "static assets"
+        elif args.kind == "buildings":
+            cfg.test_set_only = False
+            report = convert_ckf_prefixes(
+                cfg,
+                [
+                    "obj_s_house1",
+                    "obj_s_shop1",
+                    "obj_w_house1",
+                    "obj_w_shop1",
+                ],
+            )
+            label = "building assets"
+        elif args.kind == "plants":
+            cfg.test_set_only = False
+            report = convert_static_prefixes(cfg, ["palm", "cedar"])
+            label = "plant assets"
+        else:
+            report = convert_assets(cfg)
+            label = "test assets" if cfg.test_set_only else "assets"
         converted = sum(1 for r in report["results"] if r["status"] == "converted")
         errors = [r for r in report["results"] if r["status"] == "error"]
-        label = "test assets" if cfg.test_set_only else "assets"
         print(f"converted {converted}/{len(report['results'])} {label}")
         for err in errors[:40]:
             print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")

@@ -25,7 +25,9 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | `VillagerData` | Villager definition |
 | `DialogueData` | Conversation lines |
 | `ScheduleData` / `ScheduleSlot` | Daily routine |
-| `AcreData` | Outdoor plot + cell grid (size, water/soil/blocked) |
+| `AcreData` | Legacy plot grid used by `WorldGrid` tests |
+| `WorldData` | Town layout: terrain, elevation, buildings, objects, spawns |
+| `BuildingPlacement` / `ObjectPlacement` / `SpawnPoint` | Entries inside `WorldData` |
 
 ### Runtime objects (scenes)
 
@@ -36,7 +38,7 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | InteractVolume | `scenes/world/interact_volume.gd` (sensor only; host implements verbs) |
 | Title, Clock HUD | `scenes/ui/` |
 
-Fishing, shops, and full dialogue are **not** systems yet. Shop, door, furniture, tree, and sign scenes exist as verb stubs. Shop hours and villager sleep come from `Clock`. The world scene owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists. Field interact uses `InteractionQuery` (`RefCounted`, not an autoload); objects expose verbs instead of the player switching on type.
+Fishing, shops, and full dialogue are **not** systems yet. Shop, door, furniture, tree, and sign scenes exist as verb stubs. Shop hours and villager sleep come from `Clock`. Town layout is `WorldData` produced by `WorldGenerator` and instanced by `WorldBuilder`. `FieldCatalog` maps original FG/BG ids to generated GLBs when present, and loads each acre's paired `mCoBG` table from a gitignored `.col.json` sidecar. `FieldCollision` uses that heightfield (and geometric bands only when the sidecar is missing). The world scene is a shell that owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists. Field interact uses `InteractionQuery` (`RefCounted`, not an autoload); objects expose verbs instead of the player switching on type.
 
 ## Autoloads
 
@@ -53,7 +55,7 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
-`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, and `InteractionQuery` are `RefCounted` helpers, not autoloads. Do not autoload weather, fishing, or events; those systems subscribe to `Clock` when they exist.
+`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `FieldCatalog`, `FieldCollision`, and `GeneratedVisual` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, and `InteractionQuery` are `RefCounted` helpers, not autoloads. Do not autoload weather, fishing, or events; those systems subscribe to `Clock` when they exist.
 
 ### Time system
 
@@ -86,11 +88,25 @@ The player facing probe (physics layer `interact`) never does `if target is Tree
 
 ## World scene
 
-`scenes/world/world.tscn` is one outdoor plot (16×16 cells, 2 m each). Hierarchy:
+`scenes/world/world.tscn` is a **shell**: empty group nodes, ground, camera, HUD. Trees, buildings, and pickups are not stored in the `.tscn`. On `_ready`, `Game.resolve_world_data()` picks a layout and `WorldBuilder` instances scenes into the groups.
+
+```
+WorldGenerator  →  WorldData  →  WorldBuilder  →  Godot nodes
+ (what exists)      (resource)     (how it looks)
+```
+
+| Mode (`Game.world_mode`) | Source |
+| --- | --- |
+| `TEST` | Hand-authored single acre (`WorldGenerator.authored_test_town()`) |
+| `GENERATED` | `TownFieldGenerator` (mRF acres) → rasterize 5×6 FG → `WorldData` (New Game; live seed. Title “Town Seed 12345” uses fixed seed) |
+| `REFERENCE` | Reserved for a known GameCube layout later |
+
+Generated towns are the playable **5×6 FG acres** (80×96 cells, 2 m each). Test town stays one 16×16 acre. Hierarchy:
 
 ```
 World
 ├── Terrain
+│   └── Acres          # generated: one grd_* host per FG acre
 ├── Objects
 ├── Characters
 ├── Buildings
@@ -98,6 +114,8 @@ World
 ├── Navigation
 └── WorldEnvironment
 ```
+
+Pipeline details: [decomp_notes/world_generation.md](decomp_notes/world_generation.md).
 
 ## Godot mapping (not C mapping)
 
@@ -107,7 +125,7 @@ World
 | Player | `scenes/actors/player.tscn` + `PlayerLocomotion`; generated `boy_1.glb` if present |
 | Field A-button | `InteractionQuery` + host `get_interactions` / `interact`; `InteractVolume` sensors |
 | Items | `ItemData` resources + `Inventory` on `Game` |
-| Town layout | `AcreData` + `WorldGrid` + `scenes/world/world.tscn` |
+| Town layout | `WorldData` + `WorldGenerator` / `WorldBuilder` + `WorldGrid` + `FieldCollision`; world `.tscn` is a shell |
 | Villagers | `VillagerData` + `ScheduleData` + villager scene (AI later) |
 | Dialogue | `DialogueData` + a UI scene when that slice is earned |
 | Save | JSON IDs and counts to `user://`, not `.tres` with embedded scripts |
@@ -125,12 +143,13 @@ Each phase should be playable or testable in-engine. Later phases are not starte
 5. **Phase 4** — world hierarchy + logical cell grid.
 6. **Phase 5** — player controller: `CharacterBody3D`, GC walk feel, generated `boy_1` visual when present.
 7. **Phase 6** — interaction framework: objects expose verbs; player uses `InteractionQuery`.
-8. **Phase 7** — time and calendar (current): `Clock` is the source of truth; other systems subscribe.
-9. **One interactable** — one tree (grow, shake, fruit) with correct feel, not every plant type. Growth on `field_renewed`.
-10. **Inventory** — pick up, hold, drop; `Inventory` already exists for tests, wire drop/equip next.
-11. **One villager** — schedule, greeting, one dialogue tree.
-12. **One shop + economy** — buy/sell a few items.
-13. **Town deltas** — persist more than one pickup and the current acre FG.
+8. **Phase 7** — time and calendar: `Clock` is the source of truth; other systems subscribe.
+9. **Phase 8** — world from data (current): `WorldData` + deterministic generator + hand-authored test town; world `.tscn` is a shell.
+10. **One interactable** — one tree (grow, shake, fruit) with correct feel, not every plant type. Growth on `field_renewed`.
+11. **Inventory** — pick up, hold, drop; `Inventory` already exists for tests, wire drop/equip next.
+12. **One villager** — schedule, greeting, one dialogue tree.
+13. **One shop + economy** — buy/sell a few items.
+14. **Town deltas** — persist more than one pickup and the current acre FG.
 
 Content quantity is not a milestone. One good instance of a system is.
 

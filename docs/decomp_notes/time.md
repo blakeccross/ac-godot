@@ -39,7 +39,9 @@ The year is split into **18 terms** (`mTM_calender`). Each term has an inclusive
 
 At **06:00** a “renew” fires (`mTM_RENEW_TIME_DAILY` / weather). That is when shops restock logic, FG growth (`mAGrw_RenewalFgItem`), mushroom hour checks, and many NPC daily flags run — not at midnight.
 
-Outdoor light interpolates across eight windows. Weather is a separate enum: clear, rain, snow, sakura, falling leaves, plus intensity. NPC house lights off at 05:00 and on at 18:00 (`mEnv_NPC_LIGHTS_*`). Rainbow window is 09:00–15:00.
+Outdoor light interpolates across eight windows (`Clock.outdoor_light` → `World._apply_time_of_day`): ambient / sun / moon / fog / background from `l_mEnv_kcolor_fine_data`, blend via `get_percent`, sun+moon dirs from `mEnv_ChangeDiffuseVctlSet`. Weather is a separate enum: clear, rain, snow, sakura, falling leaves, plus intensity (deferred). NPC house lights off at 05:00 and on at 18:00 (`mEnv_NPC_LIGHTS_*`). Rainbow window is 09:00–15:00.
+
+**How actors are lit (original):** every `Actor_draw` builds one `LightsN` from global ambient + sun/moon (`Global_light_read` / `LightsN_list_check` / `LightsN_disp`). There is no per-character lighting hack. Meshes use authored per-vertex lighting normals in Vtx `cn[]` under `G_LIGHTING`. Godot matches that with world sun/moon/ambient plus those normals exported into the GLB — same path for player, villagers, and props.
 
 `m_calendar` records which days the player existed in town and which event days they witnessed (Mother’s Day, town day, meteor shower, …). `m_event` is a large scheduler for holidays and tours.
 

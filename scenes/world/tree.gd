@@ -8,10 +8,12 @@ extends StaticBody3D
 @export var grid_facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH
 @export var occupy_grid: bool = true
 @export var place_kind: WorldGrid.PlaceKind = WorldGrid.PlaceKind.PLANT
+@export var visual_id: StringName = &"TREE_APPLE_FRUIT"
 
 
 func _ready() -> void:
 	add_to_group("interactable")
+	GeneratedVisual.attach(self, visual_id)
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:

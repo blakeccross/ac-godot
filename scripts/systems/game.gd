@@ -18,17 +18,29 @@ var player_position: Vector3 = DEFAULT_SPAWN
 var player_yaw: float = 0.0
 var removed_interactables: Array[String] = []
 var interact_prompt: String = ""
+var world_mode: WorldData.Mode = WorldData.Mode.TEST
+var world_seed: int = WorldGenerator.DEFAULT_SEED
 
 
 func has_continue() -> bool:
 	return SaveService.has_save()
 
 
-func start_new_game() -> void:
+func start_new_game(
+	mode: WorldData.Mode = WorldData.Mode.TEST, seed_value: int = WorldGenerator.DEFAULT_SEED
+) -> void:
 	reset_session()
+	world_mode = mode
+	world_seed = seed_value
 	Clock.rtc_override = false
 	Clock.sync_from_os()
 	_change_scene(WORLD_SCENE)
+
+
+func resolve_world_data() -> WorldData:
+	if world_mode == WorldData.Mode.GENERATED:
+		return WorldGenerator.generate(world_seed)
+	return WorldGenerator.authored_test_town()
 
 
 func continue_game() -> void:
@@ -59,6 +71,8 @@ func reset_session() -> void:
 	player_position = DEFAULT_SPAWN
 	player_yaw = 0.0
 	removed_interactables.clear()
+	world_mode = WorldData.Mode.TEST
+	world_seed = WorldGenerator.DEFAULT_SEED
 	set_interact_prompt("")
 
 
@@ -107,6 +121,8 @@ func to_save() -> Dictionary:
 			"yaw": player_yaw,
 		},
 		"removed_interactables": removed_interactables.duplicate(),
+		"world_mode": int(world_mode),
+		"world_seed": world_seed,
 	}
 
 
@@ -128,6 +144,8 @@ func apply_snapshot(data: Dictionary) -> void:
 	if typeof(removed) == TYPE_ARRAY:
 		for entry: Variant in removed:
 			removed_interactables.append(str(entry))
+	world_mode = int(data.get("world_mode", WorldData.Mode.TEST)) as WorldData.Mode
+	world_seed = int(data.get("world_seed", WorldGenerator.DEFAULT_SEED))
 
 
 func _unhandled_input(event: InputEvent) -> void:

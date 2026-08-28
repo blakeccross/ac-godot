@@ -187,18 +187,128 @@ func time_of_day() -> TimeOfDay:
 
 
 func outdoor_light() -> Dictionary:
-	## Fine-weather kcolor (`l_mEnv_kcolor_fine_data`): ambient, sun, background.
-	var palettes: Array[Dictionary] = [
-		{ "ambient": Color8(20, 10, 120), "sun": Color8(0, 0, 0), "bg": Color8(28, 32, 92), "energy": 0.08 },
-		{ "ambient": Color8(0, 10, 120), "sun": Color8(0, 20, 40), "bg": Color8(44, 52, 112), "energy": 0.15 },
-		{ "ambient": Color8(60, 60, 120), "sun": Color8(255, 255, 200), "bg": Color8(60, 76, 120), "energy": 0.55 },
-		{ "ambient": Color8(80, 80, 150), "sun": Color8(180, 220, 220), "bg": Color8(56, 72, 140), "energy": 0.85 },
-		{ "ambient": Color8(80, 80, 150), "sun": Color8(200, 240, 240), "bg": Color8(52, 78, 144), "energy": 1.0 },
-		{ "ambient": Color8(80, 80, 150), "sun": Color8(200, 240, 240), "bg": Color8(48, 72, 140), "energy": 0.95 },
-		{ "ambient": Color8(60, 60, 150), "sun": Color8(200, 120, 0), "bg": Color8(32, 32, 92), "energy": 0.4 },
-		{ "ambient": Color8(30, 30, 120), "sun": Color8(60, 60, 0), "bg": Color8(28, 28, 92), "energy": 0.12 },
-	]
-	return palettes[light_term()]
+	## Fine-weather `l_mEnv_kcolor_fine_data`, blended toward the next window (`mEnv_SetBaseLight`).
+	var a: Dictionary = _FINE_LIGHT[light_term()]
+	var b: Dictionary = _FINE_LIGHT[(light_term() + 1) % _FINE_LIGHT.size()]
+	var t: float = _light_blend()
+	var sun: Color = (a["sun"] as Color).lerp(b["sun"] as Color, t)
+	var moon: Color = (a["moon"] as Color).lerp(b["moon"] as Color, t)
+	var dirs: Dictionary = _celestial_dirs()
+	return {
+		"ambient": (a["ambient"] as Color).lerp(b["ambient"] as Color, t),
+		"sun": sun,
+		"moon": moon,
+		"bg": (a["bg"] as Color).lerp(b["bg"] as Color, t),
+		"fog": (a["fog"] as Color).lerp(b["fog"] as Color, t),
+		"fog_begin": lerpf(float(a["fog_begin"]), float(b["fog_begin"]), t),
+		"fog_end": lerpf(float(a["fog_end"]), float(b["fog_end"]), t),
+		"sun_dir": dirs["sun"],
+		"moon_dir": dirs["moon"],
+		## N64 LightsN uses RGB as intensity; map luminance so black sun is dark.
+		"sun_energy": maxf(sun.get_luminance() * 1.35, 0.02),
+		"moon_energy": maxf(moon.get_luminance() * 0.9, 0.0),
+	}
+
+
+func _light_blend() -> float:
+	## `get_percent` between `klight_chg_tim[term]` and the next.
+	var term: int = light_term()
+	var t0: int = int(LIGHT_TERM_HOURS[term]) * 3600
+	var t1: int = int(LIGHT_TERM_HOURS[term + 1]) * 3600
+	if t1 <= t0:
+		return 0.0
+	return clampf(float(now_sec() - t0) / float(t1 - t0), 0.0, 1.0)
+
+
+func _celestial_dirs() -> Dictionary:
+	## `mEnv_ChangeDiffuseVctlSet` outdoor default (noon-centered half-day angle).
+	var halfday: float = 12.0 * 3600.0
+	var radial: float = (float(now_sec()) - halfday) / halfday * PI
+	var dir_x: float = sin(radial) * 60.0
+	var dir_y: float = cos(radial) * 60.0
+	var dir_z: float = cos(radial) * 60.0
+	return {
+		"sun": Vector3(-dir_x, dir_y + 30.0, dir_z + 20.0),
+		"moon": Vector3(dir_x, 30.0 - dir_y, 20.0 - dir_z),
+	}
+
+
+## Fine-weather snap points (`l_mEnv_kcolor_fine_data`). Fog begin/end are Godot meters
+## approximated from the N64 near/far pair (clamped in `mEnv_SetFog`).
+const _FINE_LIGHT: Array[Dictionary] = [
+	{
+		"ambient": Color8(20, 10, 120),
+		"sun": Color8(0, 0, 0),
+		"moon": Color8(120, 180, 80),
+		"fog": Color8(20, 20, 80),
+		"bg": Color8(28, 32, 92),
+		"fog_begin": 55.0,
+		"fog_end": 140.0,
+	},
+	{
+		"ambient": Color8(0, 10, 120),
+		"sun": Color8(0, 20, 40),
+		"moon": Color8(150, 200, 100),
+		"fog": Color8(80, 100, 120),
+		"bg": Color8(44, 52, 112),
+		"fog_begin": 50.0,
+		"fog_end": 145.0,
+	},
+	{
+		"ambient": Color8(60, 60, 120),
+		"sun": Color8(255, 255, 200),
+		"moon": Color8(10, 40, 60),
+		"fog": Color8(120, 150, 150),
+		"bg": Color8(60, 76, 120),
+		"fog_begin": 45.0,
+		"fog_end": 160.0,
+	},
+	{
+		"ambient": Color8(80, 80, 150),
+		"sun": Color8(180, 220, 220),
+		"moon": Color8(0, 10, 20),
+		"fog": Color8(80, 120, 150),
+		"bg": Color8(56, 72, 140),
+		"fog_begin": 50.0,
+		"fog_end": 170.0,
+	},
+	{
+		"ambient": Color8(80, 80, 150),
+		"sun": Color8(200, 240, 240),
+		"moon": Color8(0, 0, 0),
+		"fog": Color8(80, 120, 150),
+		"bg": Color8(52, 78, 144),
+		"fog_begin": 50.0,
+		"fog_end": 170.0,
+	},
+	{
+		"ambient": Color8(80, 80, 150),
+		"sun": Color8(200, 240, 240),
+		"moon": Color8(10, 0, 30),
+		"fog": Color8(80, 120, 150),
+		"bg": Color8(48, 72, 140),
+		"fog_begin": 50.0,
+		"fog_end": 165.0,
+	},
+	{
+		"ambient": Color8(60, 60, 150),
+		"sun": Color8(200, 120, 0),
+		"moon": Color8(20, 0, 80),
+		"fog": Color8(20, 20, 80),
+		"bg": Color8(32, 32, 92),
+		"fog_begin": 50.0,
+		"fog_end": 145.0,
+	},
+	{
+		"ambient": Color8(30, 30, 120),
+		"sun": Color8(60, 60, 0),
+		"moon": Color8(120, 180, 80),
+		"fog": Color8(20, 20, 80),
+		"bg": Color8(28, 28, 92),
+		"fog_begin": 55.0,
+		"fog_end": 140.0,
+	},
+]
 
 
 func weekday() -> int:

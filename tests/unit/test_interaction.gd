@@ -175,10 +175,11 @@ func test_player_has_no_object_type_switch() -> void:
 
 func test_world_scene_wires_interactables() -> void:
 	var world: Node = auto_free(load("res://scenes/world/world.tscn").instantiate())
-	assert_that(world.get_node_or_null("Objects/Sign")).is_not_null()
-	assert_that(world.get_node_or_null("Objects/Chair")).is_not_null()
-	assert_that(world.get_node_or_null("Buildings/Shop")).is_not_null()
-	assert_that(world.get_node_or_null("Buildings/House")).is_not_null()
+	add_child(world)
+	assert_that(world.get_node_or_null("Objects/acre_sign")).is_not_null()
+	assert_that(world.get_node_or_null("Objects/yard_chair")).is_not_null()
+	assert_that(world.get_node_or_null("Buildings/acre_shop")).is_not_null()
+	assert_that(world.get_node_or_null("Buildings/player_house")).is_not_null()
 
 
 func test_shop_hours_follow_clock() -> void:

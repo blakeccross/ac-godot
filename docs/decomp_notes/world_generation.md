@@ -1,0 +1,92 @@
+# World generation
+
+How a playable town is produced. Behavioral reference: [world.md](world.md), `m_random_field`, `m_field_make`. Do not copy C combo tables or overlay DMA.
+
+**Godot pipeline**
+
+```
+WorldGenerator  →  WorldData  →  WorldBuilder  →  Godot nodes
+   (what exists)     (resource)     (how it looks)
+```
+
+Modes on `Game.world_mode` / `WorldData.Mode`:
+
+| Mode | Source |
+| --- | --- |
+| `TEST` | Hand-authored single acre (`WorldGenerator.authored_test_town()`) |
+| `GENERATED` | `TownFieldGenerator` (mRF-style 7×10 acres) → rasterize FG 5×6 → `WorldData` |
+| `REFERENCE` | Reserved for a known GameCube layout later |
+
+**New Game** on the title screen uses `GENERATED` with a live seed (decomp: `mSDI_StartInitNew` → `mRF_MakeRandomField`). **Town Seed 12345** keeps a fixed seed for debugging.
+
+## Representation (`WorldData`)
+
+Not `mFM_combination_c` / `mFM_fg_c`. One resource:
+
+- `terrain` / `elevation` packed grids (cell = 2 m, 16×16 for this slice)
+- `buildings[]` (`BuildingPlacement`)
+- `objects[]` (`ObjectPlacement`)
+- `spawn_points[]` (`SpawnPoint`)
+- `acre_visual` (`grd_s_f_1` / `BG_TYPE_GRD_S_F_1`) for the single-acre test town
+- `acre_types` / `acre_heights` / `acre_visuals` (70 entries, parallel `mFM_BLOCK_TYPE_*` + `grd_*` ids) for generated towns
+- `mode`, `seed_value`, size metadata
+
+Sparse cell lists (`water_cells`, `sand_cells`, …) exist so a test map can be authored without pasting 256 bytes. `bake()` writes them into the packed grids.
+
+`WorldGrid` remains the runtime occupancy + walkability board. The builder copies terrain into it, then `place()`s buildings and objects. `FieldCollision` is a height query plus walls: catalog corners for Y (including river units), thin trapezoid segments on terrace/bank edges (plus 45° slate diagonals), and `revise_xz` (`CarryOutReverse`) so the player cannot step onto water or off a cliff.
+
+## Generator steps (`TownFieldGenerator` ≈ `mRF_MakeRandomField_ovl`)
+
+Seeded `RandomNumberGenerator`. Same seed → same acre grid → same `WorldData`.
+
+1. **Step mode** — ~15% pick a canned 3-step layout; else 2-step cliff+river search
+2. **Base template** — station A3, player house B3, track dumps, borders
+3. **Cliff trace** left→right; **river trace** north→beach (cross column 3; mouth not F1/F5)
+4. **Waterfall merges** where river meets cliff
+5. **Beach** F-row; Able Sisters + dock when possible
+6. **Uniques** — wishing well / police / museum on flats below cliff; shop+post on A-row dumps
+7. **Heights** — bump when crossing a terrace step going north (`CLIFF_HORIZONTAL` / `TOP_RIGHT` / `TOP_LEFT` bits, same as `mRF_GetBlockBase`). Vertical and bottom-corner river-cliffs stay on the current terrace.
+8. **Rasterize** FG acres (bx 1–5, bz 1–6) to an 80×96 unit `WorldData`. When `grd_*.col.json` exists, water / sand / slate / holes come from that table; otherwise geometric river strips and cliff bands.
+9. **Acre meshes** — `FieldCatalog.acre_for_block_type` picks a `grd_*` from the matching BG family (flat `grd_s_f_*`, river `grd_s_r1_*`, house `grd_s_f_mh_*`, …) among files present in `assets/generated/environment/acres/`. Variants whose sidecar is a HEIGHT_MAX filler (dummy TRACKS rows that reused the mesh) are skipped so they cannot box the acre in walls.
+10. **FG props** — when `assets/generated/environment/fg/catalog.json` exists (from disc `fgdata.bin` + `data_combi`), each FG acre picks a matching `fg_id` and copies trees/flowers/rocks/palms from the 16×16 template (`mFM_InitFgCombiSaveData`). Then `mAGrw_ChangeTree2FruitTree` / `ChangeTree2Cedar`, `mSDI_PullTree` (left/right border columns), and `mFI_PullTanukiPathTrees` (C-3 ux 7–8, uz 0–2). Without the catalog, a sparse acre-type scatter remains as fallback.
+
+Still deferred vs decomp: bit-exact `data_combi_table` row pick for BG+FG together (we pick BG by type family, then an FG that matches that BG), acre streaming. The FG catalog stays gitignored like other disc output.
+
+**Structure spawn.** FG items sit on a unit. `mFI_BkandUtNum2CenterWpos` puts the actor at the **unit center**, then house/shop `actor_ct` adds a half-unit offset:
+
+| Actor | FG unit (house/shop acre) | Offset from unit center |
+| --- | --- | --- |
+| `HOUSE0` (`ac_my_house.c`) | `(3, 3)` in `FG_TYPE_0069` / `GRD_S_F_MH_2` / `_3` | `+20` X, `+20` Z (2×2 NW = HOUSE0) |
+| `SHOP0` (`ac_shop.c`) | `(10, 9)` on `grd_s_t_sh_1`; `(10, 10)` on `_2`/`_3` | `−20` X, `+20` Z (2×2 NW = SHOP0 − (1, 0)) |
+
+The house acre template also has HOUSE1–3 in the other quadrants; we only spawn the first player’s HOUSE0. Door faces south. `mFI_PullTanukiPathTrees` then clears trees on **C-3** (`Save_Get(fg[2][2])`), not B-3: ut indices `0x07, 0x08, 0x17, 0x18, 0x27, 0x28`.
+
+## Builder
+
+Maps `kind` → packed scene (`tree`, `house`, `shop`, `item`, `sign`, `furniture`, `villager`, `flower`, `rock`). Instantiates under `Terrain` / `Objects` / `Buildings` / `Characters`. The world `.tscn` is a shell, not a catalog of every tree.
+
+Generated towns instance one `grd_*` GLB per FG acre under `Terrain/Acres` (5×6). Placement matches `ac_field_draw`: min-corner (`mFI_BkNum2WposXZ`), Y = `mFI_BkNum2BaseHeight` (height × 3 cells = 6 m). Draw-list verts are 16×; the original undoes that with `Matrix_scale(0.0625)` while actors use `Matrix_scale(0.01)`. The pipeline writes both at `0.001`; `FieldCatalog` applies the two draw scales into the same 40 GX = 2 m grid so acres, trees, and the player share one GX factor. The player does **not** stand on those triangles. Each `grd_*` combo ships gfx **and** a 16×16 `mCoBG` table (`data_bgd`); the pipeline writes that as `grd_*.col.json` next to the GLB. `FieldCollision` bilinear-samples those corners (`GetBgY_AngleS_FromWpos`) — **including water** — and puts **trapezoid segments** on unit edges where neighbor heights differ (`mCoBG_SearchWallFlag`), plus 45° walls on slate units (`GetUnitVecInf_SlatingWall`). Thickness sits on the low side of each segment so the high terrace has no lip. Those are oriented boxes (uniform height) or explicit prism triangles (trapezoid ends) — not convex hulls. Mixed slate/grass cardinals are shortened to the half-edge that had a real height jump before `UtInf2NormalSlateWallVector` flatten, so a full N–S box does not sit in the SE notch in front of the 45° face. Not AABB cell boxes and not the `grd_*` triangles. `revise_xz` pushes the actor back (`CarryOutReverse`) so thin physics walls cannot drop them into a river or off a terrace. Authored ponds and geometric cliff faces (no sidecar) stay holes. Snapping to the unit *center* buried the capsule in the ramp mesh and blocked downhill travel. Off-map is impassable (`MapBound`). Test town places a single `grd_s_f_1` the same way and keeps its authored pond. Colored paint tiles are only used when those meshes are missing.
+
+`visual_id` on each placement is an original identifier (`TREE_APPLE_FRUIT`, `obj_s_house1`, `ROCK_A`, …). `FieldCatalog` resolves that to a gitignored GLB from `assets/generated/` when the local disc pipeline has been run; otherwise the scene keeps its placeholder mesh.
+
+Static Gfx keep GX +Z. cKF characters stand up with wait bind or +90° about Z. Houses and shops already sit on +Y in GX, so they skip that stand-up (it laid them on their backs) and bake the door-clip rest pose: joint-0 Y is **−90°** (house) or **−135°** (shop). Structure actors spawn at yaw 0; the diagonal shop door is that skeleton yaw, matching the 135° enter angle in `ac_shop_move`. Structure CI palettes come from `anime_1_txt` (`obj_s_house1_a_pal`, `obj_shop1_pal`).
+
+## Original object → mesh
+
+From `m_name_table.h` / `m_bg_type.h` / `ac_sign`. Summer prefix `obj_s_`; winter `obj_w_`; autumn hardwood `obj_f_`.
+
+| Decomp id | Role | Generated mesh |
+| --- | --- | --- |
+| `BG_TYPE_GRD_S_F_1` | Flat acre terrain | `grd_s_f_1.glb` |
+| `TREE` | Full hardwood | `obj_s_tree5.glb` |
+| `TREE_APPLE_FRUIT` | Apple tree + fruit overlay | `obj_s_tree5` + `obj_s_tree5_apple` |
+| `CEDAR_TREE` | Full cedar | `obj_s_cedar5.glb` |
+| `TREE_PALM_FRUIT` | Palm + coconut | `obj_s_palm5` + `obj_s_palm5_coco` |
+| `FLOWER_PANSIES0/1/2` | Pansies | `obj_flower_a/b/c.glb` |
+| `ROCK_A`–`ROCK_E` | Rocks | `obj_s_stoneA`–`E.glb` |
+| Player house stage 1 | `obj_s_house1` | `obj_s_house1.glb` |
+| Nook shop stage 1 | `obj_s_shop1` | `obj_s_shop1.glb` |
+| `SIGNBOARD` / `ac_sign` | Field sign (`obj_s_kanban`) | `obj_shop_kanban.glb` until `obj_s_kanban` is converted |
+| `ITM_FOOD_APPLE` | Dropped apple | `obj_item_apple_tex.png` on the pickup |
+| `int_sum_chair01` | Wood chair | `int_sum_chair01.glb` |
+| Squirrel villager | Species skeleton | `squ_1.glb` |

@@ -9,7 +9,7 @@ from pathlib import Path
 from PIL import Image
 
 from .ckf import ConvertedModel
-from .gfx import MeshPart
+from .gfx import MeshPart, unit_normal
 from .texbank import GX_CLAMP, GX_MIRROR, GX_REPEAT, wrap_to_gltf
 
 
@@ -180,12 +180,14 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
     for group in groups:
         _bake_wrap_group(group)
         positions: list[float] = []
+        normals: list[float] = []
         uvs: list[float] = []
         indices: list[int] = []
         vertex_offset = 0
         for part in group["parts"]:
             for vertex in part.vertices:
                 positions.extend((vertex.x, vertex.y, vertex.z))
+                normals.extend(unit_normal(vertex.nx, vertex.ny, vertex.nz))
                 uvs.extend((vertex.u, vertex.v))
             for tri in part.triangles:
                 indices.extend((tri[0] + vertex_offset, tri[1] + vertex_offset, tri[2] + vertex_offset))
@@ -193,6 +195,7 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
             vertex_offset += len(part.vertices)
 
         pos_bytes = struct.pack("<" + "f" * len(positions), *positions)
+        nrm_bytes = struct.pack("<" + "f" * len(normals), *normals)
         uv_bytes = struct.pack("<" + "f" * len(uvs), *uvs)
         idx_bytes = struct.pack("<" + "I" * len(indices), *indices)
         nverts = len(positions) // 3
@@ -204,6 +207,7 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
             "VEC3",
             {"min": [min(xs), min(ys), min(zs)], "max": [max(xs), max(ys), max(zs)]},
         )
+        a_nrm = add_acc(add_view(nrm_bytes, 34962), 5126, nverts, "VEC3")
         a_uv = add_acc(add_view(uv_bytes, 34962), 5126, nverts, "VEC2")
         a_idx = add_acc(add_view(idx_bytes, 34963), 5125, len(indices), "SCALAR")
 
@@ -227,7 +231,7 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
         materials.append(_material(group["name"], tex_index, alpha_mode=_group_alpha_mode(group)))
         primitives.append(
             {
-                "attributes": {"POSITION": a_pos, "TEXCOORD_0": a_uv},
+                "attributes": {"POSITION": a_pos, "NORMAL": a_nrm, "TEXCOORD_0": a_uv},
                 "indices": a_idx,
                 "mode": 4,
                 "material": len(materials) - 1,
@@ -360,6 +364,7 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
     for group in groups:
         _bake_wrap_group(group)
         positions: list[float] = []
+        normals: list[float] = []
         uvs: list[float] = []
         joints_attr: list[int] = []
         weights_attr: list[float] = []
@@ -370,7 +375,9 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
                 ji = vertex.joint_index if vertex.joint_index >= 0 else part.joint_index
                 world = bind_world_g[ji]
                 gx, gy, gz = world.transform_point(vertex.x, vertex.y, vertex.z)
+                nx, ny, nz = world.transform_vector(vertex.nx, vertex.ny, vertex.nz)
                 positions.extend((gx, gy, gz))
+                normals.extend(unit_normal(nx, ny, nz))
                 uvs.extend((vertex.u, vertex.v))
                 joints_attr.extend((ji, 0, 0, 0))
                 weights_attr.extend((1.0, 0.0, 0.0, 0.0))
@@ -388,6 +395,12 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
             nverts,
             "VEC3",
             {"min": [min(xs), min(ys), min(zs)], "max": [max(xs), max(ys), max(zs)]},
+        )
+        a_nrm = add_acc(
+            add_view(struct.pack("<" + "f" * len(normals), *normals), 34962),
+            5126,
+            nverts,
+            "VEC3",
         )
         a_uv = add_acc(add_view(struct.pack("<" + "f" * len(uvs), *uvs), 34962), 5126, nverts, "VEC2")
         a_joints = add_acc(
@@ -415,6 +428,7 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
             {
                 "attributes": {
                     "POSITION": a_pos,
+                    "NORMAL": a_nrm,
                     "TEXCOORD_0": a_uv,
                     "JOINTS_0": a_joints,
                     "WEIGHTS_0": a_weights,

@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Logical cell grid for one outdoor plot. Godot-native; not a port of m_field_info.
 
-enum Terrain { GRASS, SOIL, WATER, BLOCKED }
+enum Terrain { GRASS, SOIL, WATER, BLOCKED, SAND, CLIFF, PATH }
 enum Facing { SOUTH, EAST, NORTH, WEST }
 enum PlaceKind { ITEM, PLANT, BUILDING, FURNITURE }
 
@@ -18,6 +18,7 @@ var cell_size: float = 2.0
 var origin: Vector3 = Vector3(-16.0, 0.0, -16.0)
 
 var _terrain: PackedByteArray = PackedByteArray()
+var _elevation: PackedByteArray = PackedByteArray()
 var _occupant: Dictionary = {}
 var _cells_of: Dictionary = {}
 
@@ -47,11 +48,27 @@ func configure_from_acre(data: AcreData) -> void:
 		set_terrain(cell, Terrain.BLOCKED)
 
 
+func configure_from_world(data: WorldData) -> void:
+	if data == null:
+		configure(16, 16, 2.0, Vector3(-16, 0, -16))
+		return
+	data.bake()
+	var org: Vector3 = data.origin()
+	configure(data.columns, data.rows, data.cell_size, org)
+	for x: int in columns:
+		for z: int in rows:
+			var cell := Vector2i(x, z)
+			set_terrain(cell, data.terrain_at(cell))
+			set_elevation(cell, data.elevation_at(cell))
+
+
 func clear() -> void:
 	_occupant.clear()
 	_cells_of.clear()
 	_terrain.resize(columns * rows)
 	_terrain.fill(Terrain.GRASS)
+	_elevation.resize(columns * rows)
+	_elevation.fill(0)
 
 
 func is_in_bounds(cell: Vector2i) -> bool:
@@ -161,11 +178,23 @@ func set_terrain(cell: Vector2i, terrain: Terrain) -> void:
 	_terrain[_index(cell)] = terrain
 
 
+func elevation_at(cell: Vector2i) -> int:
+	if not is_in_bounds(cell):
+		return 0
+	return int(_elevation[_index(cell)])
+
+
+func set_elevation(cell: Vector2i, value: int) -> void:
+	if not is_in_bounds(cell):
+		return
+	_elevation[_index(cell)] = clampi(value, 0, 3)
+
+
 func is_walkable(cell: Vector2i) -> bool:
 	if not is_in_bounds(cell):
 		return false
 	var t: Terrain = terrain_at(cell)
-	return t == Terrain.GRASS or t == Terrain.SOIL
+	return t == Terrain.GRASS or t == Terrain.SOIL or t == Terrain.SAND or t == Terrain.PATH
 
 
 func occupant_at(cell: Vector2i) -> StringName:
@@ -243,10 +272,12 @@ func remove(occupant_id: StringName) -> void:
 
 func _terrain_allows(terrain: Terrain, kind: PlaceKind) -> bool:
 	match terrain:
-		Terrain.BLOCKED:
+		Terrain.BLOCKED, Terrain.CLIFF, Terrain.WATER:
 			return false
-		Terrain.WATER:
-			return false
+		Terrain.SAND:
+			return kind == PlaceKind.ITEM or kind == PlaceKind.PLANT
+		Terrain.PATH:
+			return kind == PlaceKind.ITEM
 		Terrain.SOIL:
 			return kind != PlaceKind.BUILDING
 		_:

@@ -56,6 +56,30 @@ func test_season_terms_from_m_time() -> void:
 	assert_that(Clock.season()).is_equal(ClockService.Season.WINTER)
 
 
+func test_outdoor_light_lerps_between_windows() -> void:
+	## Dawn window 06–08: mid-blend is between the 06:00 and 08:00 snap points.
+	Clock.reset_to_default()
+	Clock.hour = 6
+	Clock.minute = 0
+	Clock.second = 0
+	var a: Dictionary = Clock.outdoor_light()
+	Clock.hour = 7
+	Clock.minute = 0
+	var mid: Dictionary = Clock.outdoor_light()
+	Clock.hour = 8
+	Clock.minute = 0
+	var b: Dictionary = Clock.outdoor_light()
+	assert_that(mid.has("fog")).is_true()
+	assert_that(mid.has("moon")).is_true()
+	assert_that(mid.has("sun_dir")).is_true()
+	var ar: float = (a["sun"] as Color).r
+	var br: float = (b["sun"] as Color).r
+	var mr: float = (mid["sun"] as Color).r
+	assert_float(mr).is_greater(mini(ar, br) - 0.001)
+	assert_float(mr).is_less(maxi(ar, br) + 0.001)
+	assert_float(mr).is_not_equal(ar)
+
+
 func test_light_terms_from_m_kankyo() -> void:
 	Clock.apply_snapshot({ "year": 2001, "month": 3, "day": 20, "hour": 22, "minute": 0 })
 	assert_int(Clock.light_term()).is_equal(7)

@@ -48,6 +48,15 @@ class Mat4:
             m[2][0] * x + m[2][1] * y + m[2][2] * z + m[2][3],
         )
 
+    def transform_vector(self, x: float, y: float, z: float) -> tuple[float, float, float]:
+        """Rotate/scale a direction (no translation). Rigid binds: fine for normals."""
+        m = self.m
+        return (
+            m[0][0] * x + m[0][1] * y + m[0][2] * z,
+            m[1][0] * x + m[1][1] * y + m[1][2] * z,
+            m[2][0] * x + m[2][1] * y + m[2][2] * z,
+        )
+
     def inverse_affine(self) -> Mat4:
         r = [self.m[i][:3] for i in range(3)]
         det = (

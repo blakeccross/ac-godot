@@ -15,6 +15,9 @@ class PipelineConfig:
     work_root: Path
     godot_generated: Path
     dtk_path: Path
+    # Same Vtx multiplier for every mesh. Not the in-game draw scale: actors use
+    # 0.01 (m_actor.c), acre DLs use 0.0625 (ac_field_draw.c). Godot maps both
+    # into meters with FieldCatalog (40 GX = 2 m).
     scale: float = 0.001
     test_set_only: bool = True
 

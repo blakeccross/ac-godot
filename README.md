@@ -15,7 +15,7 @@ This project is original work. It is **not affiliated with, endorsed by, or conn
 ## Run
 
 1. Open this folder in Godot 4.6+.
-2. Press Play. Title → **New Game**. WASD to walk, Shift to run, **E** to interact (pick up, talk, shake, sit, read, …), **Esc** to save and return to title. **Continue** reloads that save. Debug: **T** +1 hour, **Y** +1 day (crosses the 06:00 daily renew), **U** save. Shop is open 9:00–22:00. Pip is off the acre while asleep.
+2. Press Play. Title → **New Game** (fixed test town) or **Generated Town** (seed `12345`). WASD to walk, Shift to run, **E** to interact (pick up, talk, shake, sit, read, …), **Esc** to save and return to title. **Continue** reloads that save. Debug: **T** +1 hour, **Y** +1 day (crosses the 06:00 daily renew), **U** save. Shop is open 9:00–22:00. Pip is off the acre while asleep.
 
 From a terminal, if the Godot binary is on your `PATH`:
 

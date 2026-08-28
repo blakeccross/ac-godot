@@ -36,7 +36,7 @@ On Windows, use `addons/gdUnit4/runtest.cmd` with `--godot_binary` pointing at t
 
 ## What to test
 
-- **Do:** Resource defaults, clock advancement, 06:00 renew, shop hours, catchable windows, inventory stacking, shop prices, schedule lookups, save round-trips, grid cell math, locomotion accel/turn, interaction verb priority and host duck-typing.
+- **Do:** Resource defaults, clock advancement, 06:00 renew, shop hours, catchable windows, inventory stacking, shop prices, schedule lookups, save round-trips, grid cell math, locomotion accel/turn, interaction verb priority and host duck-typing, generator determinism (`seed` → same `WorldData.fingerprint()`), unit heightfield (`FieldCollision`) and catalog water units when `grd_*.col.json` is present.
 - **Don't:** Screenshot-test placeholder art, or require the boot scene for logic tests.
 
-Suites live in `tests/unit/`: `test_clock.gd`, `test_inventory.gd`, `test_save_service.gd`, `test_game.gd`, `test_world_grid.gd`, `test_player_locomotion.gd`, `test_interaction.gd`, `test_resources.gd`.
+Suites live in `tests/unit/`: `test_clock.gd`, `test_inventory.gd`, `test_save_service.gd`, `test_game.gd`, `test_world_grid.gd`, `test_world_generation.gd`, `test_field_catalog.gd`, `test_field_collision.gd`, `test_player_locomotion.gd`, `test_interaction.gd`, `test_resources.gd`.

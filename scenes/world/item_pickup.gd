@@ -15,6 +15,9 @@ func _ready() -> void:
 	add_to_group("interactable")
 	if Game.is_interactable_removed(persist_id):
 		queue_free()
+		return
+	if item != null:
+		GeneratedVisual.apply_item_albedo(self, item.id)
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:

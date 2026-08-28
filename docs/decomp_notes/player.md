@@ -41,7 +41,8 @@ Appearance (cloth, face) and inventory live in `Private_c`, not the actor. Equip
 ## Inputs
 
 - Controller stick + face buttons (A interact, B cancel/put away, Y/Start inventory).
-- Collision heightfield and water attributes.
+- Collision heightfield and water attributes (`mCoBG_GetBgY_*`). Off-map units are blocked. Acre wade (`mFI_WADE_*`) loads the next BG acre; it is not a world-edge wall.
+- New-scene spawn: XZ at the unit center (`mFI_BkandUtNum2CenterWpos`), Y = `mCoBG_GetBgY_OnlyCenter_FromWpos2(pos, 0)` (feet on the unit-center height, no extra lift). Each frame `mCoBG_BgCheckControll` (`attr_wall` on for the player): **WallCheck** (cardinal unit-edge segments where neighbor corners differ, plus 45° slate walls, plus attribute walls) then **GroundCheck** (`GetBgY` at the current XZ — water is a heightfield, not a pit) then **CarryOutReverse** (push XZ back). Godot physics uses thin oriented boxes / prism triangles offset onto the **low** side of each segment (not convex hulls that fill the gap between a diagonal and a cardinal wall, not a grid of AABB boxes, and not a capsule that can sit on a wall lid). The player collider is a **cylinder** (original is a circle in XZ). Feet stay on the heightfield; gravity never runs over a river. Snap uses the current XZ, not the unit center — that buried the capsule in slate ramps. This slice still refuses walking onto water (no fishing/wade).
 - Requests from NPC, submenu, shop, fishing bobber, insect catch.
 - Scene transitions (door, outdoor, invade other house).
 
@@ -71,6 +72,7 @@ Appearance (cloth, face) and inventory live in `Private_c`, not the actor. Equip
 - Put-away / cancel for tools.
 - Door enter/exit as a short locked anim, then scene change.
 - Outdoor camera follow; tighter camera when talking.
+- Actor origin on the unit heightfield (`GetBgY` / `BgCheck`), not a guessed offset above a physics mesh.
 
 ## Simplify
 
@@ -78,6 +80,7 @@ Appearance (cloth, face) and inventory live in `Private_c`, not the actor. Equip
 - One tool animation set per tool, not air/reflect/broken variants for every item.
 - Ignore dash-turn, tumble, umbrella, fan, snowball as first-slice locomotion.
 - Meter-scale speeds from the 4.875 / 7.5 per-frame values: one 40-unit tile is one 2 m cell, so walk is 7.31 m/s and run 11.25 m/s relative to the acre.
+- Player / NPC meshes use actor draw scale `0.01` (`m_actor.c`), not AABB-fit to an invented height. `FieldCatalog.actor_uniform_scale()` maps pipeline `0.001` GLBs into that same 2 m cell.
 
 ## Ignore
 

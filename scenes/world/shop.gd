@@ -9,10 +9,12 @@ extends Node3D
 @export var place_kind: WorldGrid.PlaceKind = WorldGrid.PlaceKind.BUILDING
 @export var open_hour: int = 9
 @export var close_hour: int = 22
+@export var visual_id: StringName = &"obj_s_shop1"
 
 
 func _ready() -> void:
 	add_to_group("interactable")
+	GeneratedVisual.attach(self, visual_id)
 
 
 func is_open() -> bool:

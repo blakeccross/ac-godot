@@ -1,10 +1,11 @@
 extends CharacterBody3D
 
 ## CharacterBody3D player. Locomotion feel from `m_player_main_walk`; visual from
-## generated `boy_1.glb` when the local pipeline has been run.
+## generated `boy_1.glb` when the local pipeline has been run. Collision is a
+## cylinder (original actor is a circle in XZ, radius ~18 GX) so the bottom
+## hemisphere of a capsule cannot catch on wall lids.
 
 const GENERATED_PLAYER := "res://assets/generated/characters/player/boy_1.glb"
-const TARGET_HEIGHT := 1.35
 const LOOK_HEIGHT := 0.85
 const INTERACT_REACH := 1.1
 
@@ -45,10 +46,16 @@ func apply_spawn(pos: Vector3, yaw: float) -> void:
 	global_position = pos
 	_motor.reset(yaw)
 	_mesh.rotation.y = yaw
+	_snap_to_bg()
 
 
 func _physics_process(delta: float) -> void:
-	if not is_on_floor():
+	var bg: Array = _bg()
+	var on_bg: bool = _snap_to_bg()
+	if on_bg:
+		velocity.y = 0.0
+		motion_mode = MOTION_MODE_FLOATING
+	elif not is_on_floor():
 		velocity.y -= _gravity * delta
 	else:
 		velocity.y = 0.0
@@ -66,9 +73,43 @@ func _physics_process(delta: float) -> void:
 	velocity.x = planar.x
 	velocity.z = planar.z
 	_mesh.rotation.y = _motor.facing
+	var before: Vector3 = global_position
 	move_and_slide()
+	if bg.size() == 2:
+		global_position = FieldCollision.revise_xz(
+			bg[0] as WorldData, bg[1] as WorldGrid, before, global_position
+		)
+	elif on_bg:
+		_snap_to_bg()
 	_update_animation(delta)
 	_update_focus()
+
+
+func _bg() -> Array:
+	if get_tree() == null:
+		return []
+	var world: Node = get_tree().get_first_node_in_group("world")
+	if world == null:
+		return []
+	var data: Variant = world.get("layout")
+	var grid: Variant = world.get("grid")
+	if not (data is WorldData) or not (grid is WorldGrid):
+		return []
+	return [data, grid]
+
+
+func _snap_to_bg() -> bool:
+	## `mCoBG_BgCheckControll` / `GetBgY_AngleS_FromWpos`: feet on the heightfield at this XZ.
+	var bg: Array = _bg()
+	if bg.is_empty():
+		return false
+	var y: float = FieldCollision.ground_y_at(bg[0] as WorldData, bg[1] as WorldGrid, global_position)
+	if not FieldCollision.has_floor(y):
+		return false
+	floor_snap_length = 0.0
+	floor_block_on_wall = false
+	global_position.y = y
+	return true
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -230,7 +271,7 @@ func _try_load_generated_visual() -> void:
 	var body := visual as Node3D
 	_placeholder.visible = false
 	_mesh.add_child(body)
-	_scale_visual_to_height(body)
+	_scale_visual(body)
 	_apply_preview_materials(body)
 	_anim = _find_animation_player(body)
 	if _anim != null:
@@ -240,14 +281,13 @@ func _try_load_generated_visual() -> void:
 			_anim.play(wait_clip)
 
 
-func _scale_visual_to_height(body: Node3D) -> void:
+func _scale_visual(body: Node3D) -> void:
+	var s: float = FieldCatalog.actor_uniform_scale()
+	body.scale = Vector3.ONE * s
 	var aabb := _mesh_aabb(body)
 	if aabb.size.y <= 0.001:
-		body.scale = Vector3.ONE * 0.3
 		return
-	var factor: float = TARGET_HEIGHT / aabb.size.y
-	body.scale = Vector3.ONE * factor
-	body.position.y = -aabb.position.y * factor
+	body.position.y = -aabb.position.y * s
 
 
 func _ensure_loop(clip: String) -> void:
@@ -271,16 +311,19 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 func _apply_preview_materials(node: Node) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
-		var mat := mesh_instance.get_active_material(0)
-		if mat == null:
-			mat = StandardMaterial3D.new()
-			mesh_instance.set_surface_override_material(0, mat)
-		if mat is StandardMaterial3D:
-			var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
-			std.vertex_color_use_as_albedo = false
-			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-			std.cull_mode = BaseMaterial3D.CULL_DISABLED
-			mesh_instance.set_surface_override_material(0, std)
+		var surface_count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 1
+		for i: int in surface_count:
+			var mat: Material = mesh_instance.get_active_material(i)
+			if mat == null:
+				mat = StandardMaterial3D.new()
+			if mat is StandardMaterial3D:
+				var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+				std.vertex_color_use_as_albedo = false
+				std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+				std.cull_mode = BaseMaterial3D.CULL_DISABLED
+				std.roughness = 1.0
+				std.metallic = 0.0
+				mesh_instance.set_surface_override_material(i, std)
 	for child in node.get_children():
 		_apply_preview_materials(child)
 

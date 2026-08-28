@@ -8,12 +8,14 @@ extends Node3D
 @export var grid_facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH
 @export var occupy_grid: bool = true
 @export var place_kind: WorldGrid.PlaceKind = WorldGrid.PlaceKind.FURNITURE
+@export var visual_id: StringName = &"int_sum_chair01"
 
 
 func _ready() -> void:
 	add_to_group("interactable")
 	if data != null and data.footprint != Vector2i.ZERO:
 		footprint = data.footprint
+	GeneratedVisual.attach(self, visual_id)
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:

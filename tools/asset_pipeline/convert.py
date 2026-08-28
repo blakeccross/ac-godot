@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from .bg_collision import extract_and_write
 from .bti import bti_to_png
 from .ckf import convert_ckf_model, convert_static_gfx
 from .config import PipelineConfig
@@ -19,9 +20,9 @@ from .test_set import TEST_BTI, TEST_SKELETONS, TEST_STATIC
 from .texbank import G_IM_FMT_CI, G_IM_SIZ_4b, TextureBank, decode_gbi_texture, image_png_bytes
 
 TRANSFORMS = {
-    "scale": "vertex * config.scale (default 0.001)",
-    "z_axis": "wait bind already stands on +Y; else +90° about Z: (x,y,z) -> (-y,x,z)",
-    "rest_pose": "wait frame 1 when available, else identity + ckf_basis",
+    "scale": "vertex * config.scale (default 0.001). Not actor 0.01 or acre 0.0625 draw scale — Godot FieldCatalog applies those.",
+    "z_axis": "cKF: wait bind already stands on +Y; else +90° about Z unless GX verts already sit on +Y (houses/shops bake door-clip joint-0 yaw: house −90°, shop −135°). Static Gfx keep GX Z (no flip).",
+    "rest_pose": "wait frame 1 when available; Y-up structures use door-clip frame 1; else identity + ckf_basis",
     "animations": "cKF_ba_r_* sampled at 30 fps into skinned glTF clips",
     "textures": "GX CI4/CI8 + pal; I/IA * G_SETPRIMCOLOR; villager tmem on 0x0A/0x0B",
     "skin": "G_MTX 0x0D slots map to Gfx-bearing joints; seam verts stay on the parent",
@@ -53,6 +54,69 @@ def convert_assets(cfg: PipelineConfig) -> dict[str, Any]:
     if cfg.test_set_only:
         return convert_test_set(cfg)
     return convert_all(cfg)
+
+
+def convert_acre_collision(cfg: PipelineConfig) -> dict[str, Any]:
+    """Write `grd_*.col.json` sidecars from `data_bgd` without reconverting meshes."""
+    rel = RelData(cfg.extracted_disc / "files" / "foresta.rel")
+    symbols = parse_map(cfg.extracted_disc / "files" / "foresta.map")
+    col = _write_acre_collision(cfg, rel, symbols)
+    return {"results": [], "converted": col["written"], "acre_collision": col}
+
+
+def convert_static_only(cfg: PipelineConfig) -> dict[str, Any]:
+    """Reconvert static Gfx without wiping cKF / BTI output."""
+    results: list[dict[str, Any]] = []
+    rel = RelData(cfg.extracted_disc / "files" / "foresta.rel")
+    symbols = parse_map(cfg.extracted_disc / "files" / "foresta.map")
+    bank = TextureBank(rel, symbols, cfg.extracted_archives)
+    static_jobs = _static_jobs(symbols)
+    for i, item in enumerate(static_jobs, 1):
+        record = _convert_static(cfg, rel, symbols, item, bank)
+        results.append(record)
+        if i % 50 == 0 or i == len(static_jobs):
+            print(f"  static {i}/{len(static_jobs)}")
+    col = _write_acre_collision(cfg, rel, symbols)
+    converted = sum(1 for r in results if r["status"] == "converted")
+    return {"results": results, "converted": converted, "acre_collision": col}
+
+
+def convert_ckf_prefixes(cfg: PipelineConfig, prefixes: list[str]) -> dict[str, Any]:
+    """Reconvert named cKF skeletons without wiping other generated output."""
+    results: list[dict[str, Any]] = []
+    rel = RelData(cfg.extracted_disc / "files" / "foresta.rel")
+    symbols = parse_map(cfg.extracted_disc / "files" / "foresta.map")
+    bank = TextureBank(rel, symbols, cfg.extracted_archives)
+    names = {s.name for s in symbols}
+    anims_by_prefix = _index_anims(symbols)
+    wanted = {f"cKF_bs_r_{p}" if not p.startswith("cKF_bs_r_") else p for p in prefixes}
+    skels = [s for s in symbols if s.name in wanted]
+    for i, skel in enumerate(skels, 1):
+        item = _skeleton_job(skel.name, names, anims_by_prefix)
+        record = _convert_ckf(cfg, rel, symbols, item, bank)
+        results.append(record)
+        print(f"  ckf {i}/{len(skels)} {skel.name} {record['status']}")
+    return {"results": results, "converted": sum(1 for r in results if r["status"] == "converted")}
+
+
+def convert_static_prefixes(cfg: PipelineConfig, needles: list[str]) -> dict[str, Any]:
+    """Reconvert static Gfx whose asset_id contains any needle (e.g. palm, cedar)."""
+    results: list[dict[str, Any]] = []
+    rel = RelData(cfg.extracted_disc / "files" / "foresta.rel")
+    symbols = parse_map(cfg.extracted_disc / "files" / "foresta.map")
+    bank = TextureBank(rel, symbols, cfg.extracted_archives)
+    lowered = [n.lower() for n in needles]
+    jobs = [
+        item
+        for item in _static_jobs(symbols)
+        if any(n in item["asset_id"].lower() for n in lowered)
+    ]
+    for i, item in enumerate(jobs, 1):
+        record = _convert_static(cfg, rel, symbols, item, bank)
+        results.append(record)
+        print(f"  static {i}/{len(jobs)} {item['asset_id']} {record['status']}")
+    converted = sum(1 for r in results if r["status"] == "converted")
+    return {"results": results, "converted": converted}
 
 
 def convert_test_set(cfg: PipelineConfig) -> dict[str, Any]:
@@ -89,6 +153,7 @@ def convert_test_set(cfg: PipelineConfig) -> dict[str, Any]:
             "confident_name": True,
         }
 
+    _write_acre_collision(cfg, rel, symbols)
     return _write_report(cfg, results, id_map)
 
 
@@ -132,6 +197,7 @@ def convert_all(cfg: PipelineConfig) -> dict[str, Any]:
     results.extend(_convert_room_bins(cfg))
     print("  dumping REL textures...")
     results.extend(_convert_rel_textures(cfg, rel, symbols, bank))
+    _write_acre_collision(cfg, rel, symbols)
 
     for rec in results:
         src = rec.get("skeleton") or rec.get("source") or rec.get("vtx") or rec.get("asset_id")
@@ -663,6 +729,12 @@ def _png_record(
         record["status"] = "error"
         record["error"] = f"{type(exc).__name__}: {exc}"
     return record
+
+
+def _write_acre_collision(cfg: PipelineConfig, rel: RelData, symbols: list) -> dict[str, Any]:
+    col = extract_and_write(rel, symbols, cfg.godot_generated)
+    print(f"  acre collision {col['written']} sidecars")
+    return col
 
 
 def _write_report(cfg: PipelineConfig, results: list[dict[str, Any]], id_map: dict[str, Any]) -> dict[str, Any]:
