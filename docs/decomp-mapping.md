@@ -25,6 +25,7 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | Field A + equipped scoop/axe/net/rod/can | Tool-ready player modes | `ToolUse` + host verbs; not a `Tool` class tree |
 | `Player_actor_Item_draw` / `mPlayer_JOINT_HAND` | Tool Gfx/cKF on the right hand | `HeldTool` + `ToolData.visual_id` |
 | `bg_item` tree cut / shake, `EffectBG` shake & cut | Multi-hit chop, fruit drop, stump, shake/fall | `TreeUse` + tree scene tweens |
+| `mAGrw_RenewalFgItem` / `m_all_grow` | Daily FG grow at 06:00; sapling → tree, flower stages, fruit | `PlantGrowth` + `Game.plant_states` (`planted_renew`) |
 | `DIG_SCOOP` / `FILL_SCOOP`, `HOLE00`–`HOLE24` | Empty-tile dig writes a hole FG item; shovel on a hole fills | `HoleUse` + `hole.tscn`; saved on `Game.hole_interactables` |
 | `m_private` (`mPr_POCKETS_SLOT_COUNT` 15, `pockets[]`) | One item per pocket; wallet is separate | `Inventory` on `Game` |
 | `m_shop` | Shops | One shop scene + economy system later |

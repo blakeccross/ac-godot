@@ -321,6 +321,37 @@ def convert_ckf_model(
         for part in parts_by_name[joint.model_name]:
             _assign_part_joints(part, joint.index, mtx_joints)
             parts.append(part)
+    assigned = {p.name.split(":")[0] for p in parts}
+    # Villager house1 keeps `*_windowL/R_model` off the skeleton (joint 7 is NULL) and
+    # emits them on SHADOW_DISP with that joint's matrix (`ac_house_draw`).
+    window_host = next((j for j in reversed(joints) if j.model_name is None and j.index > 0), None)
+    if window_host is not None:
+        for suffix in ("window_model", "windowL_model", "windowR_model"):
+            name = f"{prefix}_{suffix}"
+            if name in assigned or name not in by_name:
+                continue
+            mesh_parts = parts_by_name.get(name)
+            if not mesh_parts:
+                tex_state.img_addr = 0
+                tex_state.width = 0
+                tex_state.height = 0
+                tex_state.prim = (255, 255, 255, 255)
+                model = by_name[name]
+                mesh_parts = [
+                    p
+                    for p in parse_gfx(
+                        model.name,
+                        rel.slice_at(model.address, model.size),
+                        vertices,
+                        bank=bank,
+                        state=tex_state,
+                        vtx_base_addr=vtx_sym.address,
+                    )
+                    if p.triangles
+                ]
+            for part in mesh_parts:
+                _assign_part_joints(part, window_host.index, mtx_joints)
+                parts.append(part)
     if not parts:
         raise ValueError(f"No mesh parts decoded for {skeleton_name}")
 

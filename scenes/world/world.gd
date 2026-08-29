@@ -23,6 +23,7 @@ func _ready() -> void:
 	print(WorldGenerator.map_text(layout))
 	WorldBuilder.new().build(self, layout, grid)
 	HoleUse.restore(self, grid)
+	PlantGrowth.restore(self, grid)
 	_build_navigation()
 	Clock.time_changed.connect(_apply_time_of_day)
 	Clock.field_renewed.connect(_on_field_renewed)
@@ -85,6 +86,7 @@ func _apply_time_of_day() -> void:
 	var bg: Color = pal["bg"] as Color
 	env.background_color = bg
 	env.background_mode = Environment.BG_SKY
+	GeneratedVisual.refresh_window_lights(self)
 	## Soft sky from `background_color` so dawn/dusk match the kankyo clear fill.
 	var sky_mat: ProceduralSkyMaterial = env.sky.sky_material as ProceduralSkyMaterial
 	if sky_mat != null:
@@ -109,5 +111,4 @@ func _aim_directional(light: DirectionalLight3D, dir: Vector3) -> void:
 
 
 func _on_field_renewed(_days: int) -> void:
-	## Plant growth, shop restock, and weather roll subscribe here when those slices exist.
-	pass
+	PlantGrowth.refresh_world(self)

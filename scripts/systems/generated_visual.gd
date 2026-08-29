@@ -4,6 +4,14 @@ extends RefCounted
 ## Loads a pipeline GLB onto a host and hides placeholder meshes.
 ## Missing files are expected until `python3 tools/build_assets.py` has been run.
 
+## Facade window panes (`*_light_model`): opaque prim/env fill, black off / yellow on.
+const _WINDOW_PANE_ON := Color(1.0, 1.0, 150.0 / 255.0, 1.0)
+const _WINDOW_PANE_OFF := Color(0.0, 0.0, 0.0, 1.0)
+## Ground spill: prim RGB, I4 × PRIM_LOD_FRAC (120/255) as alpha (`ac_house_draw` / `ac_shop_draw`).
+const _WINDOW_SPILL_ON := Color(1.0, 1.0, 150.0 / 255.0, 120.0 / 255.0)
+const _WINDOW_SPILL_OFF := Color(1.0, 1.0, 150.0 / 255.0, 0.0)
+const _WINDOW_SPILL_SHADER := preload("res://shaders/window_ground_spill.gdshader")
+
 
 static func detach(host: Node3D) -> void:
 	if host == null:
@@ -75,6 +83,11 @@ static func apply_preview_materials(node: Node) -> void:
 	_apply_materials(node)
 
 
+static func refresh_window_lights(root: Node) -> void:
+	## `mEnv_NPC_LIGHTS_*`: panes and ground spill 18:00–05:00.
+	_set_window_lights(root, _window_lights_on())
+
+
 static func attach_villager(_host: Node3D, _species: StringName) -> Node3D:
 	## Disc species skeletons (`squ_1`, …) stay off the field. Use the host
 	## placeholder until custom villager art exists.
@@ -134,6 +147,12 @@ static func _hide_placeholder_meshes(host: Node) -> void:
 		_hide_placeholder_meshes(child)
 
 
+static func _window_lights_on() -> bool:
+	if Clock == null:
+		return false
+	return Clock.in_hour_window(18, 5)
+
+
 static func _apply_materials(node: Node, as_decal: bool = false) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
@@ -143,6 +162,7 @@ static func _apply_materials(node: Node, as_decal: bool = false) -> void:
 			if mat == null:
 				mat = StandardMaterial3D.new()
 			if mat is StandardMaterial3D:
+				var src := mat
 				var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
 				std.vertex_color_use_as_albedo = false
 				std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -150,15 +170,112 @@ static func _apply_materials(node: Node, as_decal: bool = false) -> void:
 				std.cull_mode = BaseMaterial3D.CULL_DISABLED
 				std.roughness = 1.0
 				std.metallic = 0.0
-				if as_decal:
+				if _is_window_spill_surface(mesh_instance, i, src):
+					mesh_instance.set_surface_override_material(i, _make_window_spill_material(std))
+				elif _is_window_pane_surface(mesh_instance, i, src):
+					_apply_window_pane_material(std)
+					mesh_instance.set_surface_override_material(i, std)
+				elif as_decal:
 					std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 					std.render_priority = 1
-				mesh_instance.set_surface_override_material(i, std)
+					mesh_instance.set_surface_override_material(i, std)
+				else:
+					mesh_instance.set_surface_override_material(i, std)
 		if as_decal:
 			mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mesh_instance.sorting_offset = 1.0
 	for child in node.get_children():
 		_apply_materials(child, as_decal)
+
+
+static func _surface_label(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> String:
+	var bits: PackedStringArray = PackedStringArray()
+	bits.append(_resource_label(mat))
+	if mat is StandardMaterial3D:
+		bits.append(_resource_label((mat as StandardMaterial3D).albedo_texture))
+	if mesh_instance.mesh is ArrayMesh:
+		bits.append((mesh_instance.mesh as ArrayMesh).surface_get_name(surface).to_lower())
+	bits.append(String(mesh_instance.name).to_lower())
+	return " ".join(bits)
+
+
+static func _resource_label(res: Resource) -> String:
+	if res == null:
+		return ""
+	return "%s %s" % [String(res.resource_name), res.resource_path.get_file()]
+
+
+static func _is_window_spill_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
+	## Ground fan (`*_window_model`, `*_window_tex`). Not facade panes (`*_light_model`).
+	var n := _surface_label(mesh_instance, surface, mat).to_lower()
+	if n.contains("light"):
+		return false
+	return n.contains("window")
+
+
+static func _is_window_pane_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
+	## Opaque fill in the wall TEX_EDGE holes (`*_light_model`, museum `*_lightT_model`).
+	var n := _surface_label(mesh_instance, surface, mat).to_lower()
+	return n.contains("light_model") or n.contains("lightt_model")
+
+
+static func _make_window_spill_material(std: StandardMaterial3D) -> ShaderMaterial:
+	## Original: `G_RM_AA_ZB_XLU_DECAL2` on SHADOW_DISP. Lift 1 GX so it is not the grass plane.
+	var sh := ShaderMaterial.new()
+	sh.shader = _WINDOW_SPILL_SHADER
+	sh.render_priority = 1
+	var tex: Texture2D = std.albedo_texture
+	if tex != null:
+		var img: Image = tex.get_image()
+		if img != null and img.detect_alpha() == Image.ALPHA_NONE:
+			tex = _i4_as_alpha(tex)
+	sh.set_shader_parameter("albedo_texture", tex)
+	sh.set_shader_parameter("albedo", _WINDOW_SPILL_ON if _window_lights_on() else _WINDOW_SPILL_OFF)
+	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS)
+	sh.set_meta("window_spill", true)
+	return sh
+
+
+static func _i4_as_alpha(tex: Texture2D) -> Texture2D:
+	if tex == null:
+		return null
+	var img: Image = tex.get_image()
+	if img == null:
+		return tex
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGBA8)
+	for y: int in img.get_height():
+		for x: int in img.get_width():
+			var c: Color = img.get_pixel(x, y)
+			img.set_pixel(x, y, Color(1.0, 1.0, 1.0, c.r))
+	return ImageTexture.create_from_image(img)
+
+
+static func _apply_window_pane_material(std: StandardMaterial3D) -> void:
+	## Original: combiner ignores the wall SETTIMG; RGB is PRIMITIVE/ENVIRONMENT, `G_RM_AA_ZB_OPA_SURF2`.
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+	std.albedo_texture = null
+	std.set_meta("window_pane", true)
+	std.albedo_color = _WINDOW_PANE_ON if _window_lights_on() else _WINDOW_PANE_OFF
+
+
+static func _set_window_lights(node: Node, on: bool) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		var surface_count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 1
+		for i: int in surface_count:
+			var mat: Material = mesh_instance.get_surface_override_material(i)
+			if mat is ShaderMaterial and (mat as ShaderMaterial).has_meta("window_spill"):
+				(mat as ShaderMaterial).set_shader_parameter(
+					"albedo", _WINDOW_SPILL_ON if on else _WINDOW_SPILL_OFF
+				)
+			elif mat is StandardMaterial3D and (mat as StandardMaterial3D).has_meta("window_pane"):
+				(mat as StandardMaterial3D).albedo_color = _WINDOW_PANE_ON if on else _WINDOW_PANE_OFF
+	for child in node.get_children():
+		_set_window_lights(child, on)
 
 
 static func _paint_albedo(node: Node, tex: Texture2D) -> void:

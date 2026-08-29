@@ -64,6 +64,12 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 	if id.begins_with("tol_"):
 		return _existing(["items/%s.glb" % id])
 	match visual_id:
+		&"obj_s_tree1", &"TREE_S0":
+			return _tree_size_paths(1)
+		&"obj_s_tree2", &"TREE_S1":
+			return _tree_size_paths(2)
+		&"obj_s_tree4", &"TREE_S2":
+			return _tree_size_paths(4)
 		&"obj_s_tree5", &"TREE":
 			return _existing([_seasonal_tree("obj_%s_tree5")])
 		&"obj_s_stump5", &"TREE_STUMP004":
@@ -82,8 +88,20 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 			var paths := _existing([_seasonal_tree("obj_%s_tree5")])
 			paths.append_array(_existing(["environment/trees/obj_s_tree5_apple.glb"]))
 			return paths
+		&"obj_s_cedar1", &"CEDAR_S0":
+			return _cedar_size_paths(1)
+		&"obj_s_cedar2", &"CEDAR_S1":
+			return _cedar_size_paths(2)
+		&"obj_s_cedar4", &"CEDAR_S2":
+			return _cedar_size_paths(4)
 		&"obj_s_cedar5", &"CEDAR_TREE":
 			return _existing([_seasonal_env("obj_%s_cedar5")])
+		&"obj_s_palm2", &"PALM_S0":
+			return _palm_size_paths(2)
+		&"obj_s_palm3", &"PALM_S1":
+			return _palm_size_paths(3)
+		&"obj_s_palm4", &"PALM_S2":
+			return _palm_size_paths(4)
 		&"obj_s_palm5", &"TREE_PALM":
 			return _existing([_seasonal_env("obj_%s_palm5")])
 		&"obj_s_palm5_coco", &"TREE_PALM_FRUIT":
@@ -123,7 +141,9 @@ static func is_acre(visual_id: StringName) -> bool:
 
 
 static func is_ground_decal(visual_id: StringName) -> bool:
-	## Hole fans (`HOLE00`–`HOLE24` / `obj_hole*`) are authored on the acre plane.
+	## Coplanar FG fans only. `obj_hole0` has zero Y extent; flowers/rocks/weeds/items
+	## have height and stay `_fit_actor`. Shine spots / pitfall holes reuse this path
+	## when those visuals exist. Do not treat all `bg_item` −1 GX placements as decals.
 	var id := String(visual_id)
 	return id.begins_with("HOLE") or id.begins_with("obj_hole")
 
@@ -502,6 +522,31 @@ static func _structure_paths(id: String) -> PackedStringArray:
 
 static func _seasonal_tree(pattern: String) -> String:
 	return "environment/trees/" + (pattern % season_letter()) + ".glb"
+
+
+static func _tree_size_paths(size: int) -> PackedStringArray:
+	var paths: PackedStringArray = _existing([_seasonal_tree("obj_%%s_tree%d" % size)])
+	if paths.is_empty():
+		paths = _existing([_seasonal_tree("obj_%s_tree5")])
+	return paths
+
+
+static func _cedar_size_paths(size: int) -> PackedStringArray:
+	var paths: PackedStringArray = _existing([_seasonal_tree("obj_%%s_cedar%d" % size)])
+	if paths.is_empty():
+		paths = _existing([_seasonal_env("obj_%%s_cedar%d" % size)])
+	if paths.is_empty():
+		paths = _existing([_seasonal_env("obj_%s_cedar5")])
+	return paths
+
+
+static func _palm_size_paths(size: int) -> PackedStringArray:
+	var paths: PackedStringArray = _existing([_seasonal_tree("obj_%%s_palm%d" % size)])
+	if paths.is_empty():
+		paths = _existing([_seasonal_env("obj_%%s_palm%d" % size)])
+	if paths.is_empty():
+		paths = _existing([_seasonal_env("obj_%s_palm5")])
+	return paths
 
 
 static func _seasonal_env(pattern: String) -> String:

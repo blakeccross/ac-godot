@@ -49,6 +49,9 @@ func test_summer_tree_paths_when_assets_exist() -> void:
 	if paths.is_empty():
 		return
 	assert_str(paths[0]).contains("obj_s_tree5")
+	var sapling: PackedStringArray = FieldCatalog.mesh_paths(&"TREE_S0")
+	if not sapling.is_empty():
+		assert_str(sapling[0]).contains("obj_s_tree1")
 	var stump: PackedStringArray = FieldCatalog.mesh_paths(&"TREE_STUMP004")
 	if not stump.is_empty():
 		assert_str(stump[0]).contains("obj_s_stump5")
