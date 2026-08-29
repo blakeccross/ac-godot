@@ -249,14 +249,22 @@ func _apply_event(event: Dictionary) -> void:
 				var key := str(event.get("name", ""))
 				context.set_var(key, int(context.get_var(key, 0)) + int(event.get("amount", 1)))
 		"add_friendship":
-			if _state != null:
-				_state.add_friendship(int(event.get("amount", 1)))
+			if _state != null and _state.relationship != null:
+				_state.relationship.add_friendship(int(event.get("amount", 1)))
+				if context != null:
+					_sync_bond_context(_state.relationship)
 			elif context != null:
 				context.friendship = clampi(
 					context.friendship + int(event.get("amount", 1)),
-					VillagerState.FRIENDSHIP_MIN,
-					VillagerState.FRIENDSHIP_MAX
+					Relationship.FRIENDSHIP_MIN,
+					Relationship.FRIENDSHIP_MAX
 				)
+		"record_gift":
+			if _state != null and _state.relationship != null and context != null:
+				var item_id := StringName(str(event.get("item", "")))
+				var day_key := "%04d-%02d-%02d" % [context.year, context.month, context.day]
+				_state.relationship.record_gift(item_id, day_key)
+				_sync_bond_context(_state.relationship)
 		"give_item":
 			if context != null and context.inventory != null:
 				var data: ItemData = ItemCatalog.get_item(StringName(str(event.get("item", ""))))
@@ -274,6 +282,20 @@ func _apply_event(event: Dictionary) -> void:
 				context.mood = _mood_from(str(event.get("mood", "normal")))
 		"notice":
 			Game.post_notice(str(event.get("text", "")))
+
+
+func _sync_bond_context(bond: Relationship) -> void:
+	if context == null or bond == null:
+		return
+	context.friendship = bond.friendship
+	context.talk_count = bond.talk_count
+	context.gift_count = bond.gift_count
+	context.milestones = bond.milestones.duplicate()
+	context.gifted_items.clear()
+	for entry: Dictionary in bond.gifts:
+		var item_id := StringName(str(entry.get("item", "")))
+		if item_id != &"" and item_id not in context.gifted_items:
+			context.gifted_items.append(item_id)
 
 
 func _mood_from(name: String) -> VillagerState.Mood:

@@ -44,6 +44,14 @@ static func _dict(when: Dictionary, ctx: DialogueContext) -> bool:
 		return false
 	if when.has("friendship_lt") and ctx.friendship >= int(when["friendship_lt"]):
 		return false
+	if when.has("talk_count_gte") and ctx.talk_count < int(when["talk_count_gte"]):
+		return false
+	if when.has("gift_count_gte") and ctx.gift_count < int(when["gift_count_gte"]):
+		return false
+	if when.has("milestone") and not ctx.has_milestone(StringName(str(when["milestone"]))):
+		return false
+	if when.has("gifted") and not ctx.has_gifted(StringName(str(when["gifted"]))):
+		return false
 	if when.has("mood") and ctx.mood_name() != str(when["mood"]).to_lower():
 		return false
 	if when.has("time_of_day") and ctx.time_of_day_name() != str(when["time_of_day"]).to_lower():

@@ -164,18 +164,54 @@ func test_catalog_cliff_keeps_face_walkable() -> void:
 	assert_int(int(FieldCatalog.unit_at(&"grd_s_c1_1", 8, 11)["c"])).is_equal(16)
 
 
+func test_slate_face_keeps_high_side_flat() -> void:
+	## Bilinear across SE=4 / NW=16 drops Y into the cliff mesh. Slate uses flat side heights.
+	if not FieldCatalog.has_acre_collision(&"grd_s_c1_1"):
+		return
+	var data := WorldData.new()
+	data.columns = 16
+	data.rows = 16
+	data.cell_size = 2.0
+	data.acre_visual = &"grd_s_c1_1"
+	data.bake()
+	var grid := WorldGrid.new()
+	grid.configure_from_world(data)
+	var slate := Vector2i(8, 12)
+	var unit: Dictionary = FieldCatalog.unit_at(&"grd_s_c1_1", slate.x, slate.y)
+	assert_int(int(unit["s"])).is_equal(1)
+	assert_int(int(unit["se"])).is_less(int(unit["nw"]))
+	var c0: Vector3 = grid.cell_corner(slate)
+	var cs: float = grid.cell_size
+	## NW of the SW–NE diagonal (high side).
+	var high_pos := Vector3(c0.x + cs * 0.25, 0.0, c0.z + cs * 0.25)
+	var high_y: float = FieldCollision.ground_y_at(data, grid, high_pos)
+	var expect_high: float = FieldCatalog.counts_to_y(int(unit["nw"]), 0)
+	assert_float(high_y).is_equal_approx(expect_high, 0.001)
+	## SE of the diagonal (low side).
+	var low_pos := Vector3(c0.x + cs * 0.75, 0.0, c0.z + cs * 0.75)
+	var low_y: float = FieldCollision.ground_y_at(data, grid, low_pos)
+	var expect_low: float = FieldCatalog.counts_to_y(int(unit["se"]), 0)
+	assert_float(low_y).is_equal_approx(expect_low, 0.001)
+
+
+func test_actor_radius_matches_original_bgcheck() -> void:
+	assert_float(FieldCollision.ACTOR_RADIUS).is_equal_approx(0.9, 0.001)
+
+
 func test_revise_xz_rejects_authored_pond() -> void:
-	## `CarryOutReverse`: do not step onto a hole. Authored pond is not catalog water.
+	## Circle vs bank: do not enter a hole. Authored pond is not catalog water.
 	var data: WorldData = WorldGenerator.authored_test_town()
 	var grid := WorldGrid.new()
 	grid.configure_from_world(data)
-	var land: Vector3 = grid.cell_to_world(Vector2i(8, 11))
+	var land_cell := Vector2i(11, 3)
+	var water_cell := Vector2i(12, 3)
+	var land: Vector3 = grid.cell_to_world(land_cell)
 	land.y = FieldCollision.ground_y_at(data, grid, land)
-	var water: Vector3 = grid.cell_to_world(Vector2i(12, 3))
+	var water: Vector3 = grid.cell_to_world(water_cell)
 	water.y = land.y
 	var revised: Vector3 = FieldCollision.revise_xz(data, grid, land, water)
-	assert_float(revised.x).is_equal(land.x)
-	assert_float(revised.z).is_equal(land.z)
+	assert_that(grid.world_to_cell(revised)).is_equal(land_cell)
+	assert_that(data.terrain_at(grid.world_to_cell(revised))).is_not_equal(WorldGrid.Terrain.WATER)
 	assert_float(revised.y).is_equal(land.y)
 
 
@@ -208,8 +244,10 @@ func test_catalog_water_is_heightfield_not_pit() -> void:
 				if not FieldCollision.has_floor(from.y):
 					continue
 				var revised: Vector3 = FieldCollision.revise_xz(data, grid, from, pos)
-				assert_float(revised.x).is_equal(from.x)
-				assert_float(revised.z).is_equal(from.z)
+				assert_that(data.terrain_at(grid.world_to_cell(revised))).is_not_equal(
+					WorldGrid.Terrain.WATER
+				)
+				assert_that(grid.world_to_cell(revised)).is_equal(land_cell)
 				blocked = true
 				break
 			if blocked:
@@ -247,8 +285,8 @@ func test_revise_xz_rejects_cliff_edge() -> void:
 				var to: Vector3 = grid.cell_to_world(b)
 				to.y = hb
 				var revised: Vector3 = FieldCollision.revise_xz(data, grid, from, to)
-				assert_float(revised.x).is_equal(from.x)
-				assert_float(revised.z).is_equal(from.z)
+				assert_that(grid.world_to_cell(revised)).is_equal(a)
+				assert_float(Vector2(revised.x - to.x, revised.z - to.z).length()).is_greater(0.5)
 				found = true
 				break
 			if found:
@@ -260,47 +298,54 @@ func test_revise_xz_rejects_cliff_edge() -> void:
 	assert_bool(found).is_true()
 
 
-func test_catalog_walls_are_segments_not_boxes() -> void:
-	## Cardinal + 45° walls. Oriented boxes / prism meshes, not convex hulls that fill the gap.
-	if not FieldCatalog.has_acre_collision(&"grd_s_c1_1"):
-		return
+func test_revise_xz_slides_along_wall() -> void:
+	## Diagonal move into a terrace: keep the tangent, do not restore both X and Z.
 	var data: WorldData = WorldGenerator.generate(12345)
 	var grid := WorldGrid.new()
 	grid.configure_from_world(data)
-	var root: Node3D = auto_free(Node3D.new()) as Node3D
-	FieldCollision.add_to(root, data, grid)
-	var body: Node = root.get_node_or_null("Heightfield")
-	assert_that(body).is_not_null()
-	var wall_boxes := 0
-	var diagonals := 0
-	var prisms := 0
-	var hulls := 0
-	for child: Node in body.get_children():
-		var col: CollisionShape3D = child as CollisionShape3D
-		if col == null or col.shape == null:
-			continue
-		if col.shape is ConvexPolygonShape3D:
-			hulls += 1
-		elif col.shape is ConcavePolygonShape3D:
-			prisms += 1
-		elif col.shape is BoxShape3D:
-			var size: Vector3 = (col.shape as BoxShape3D).size
-			var thin: float = minf(size.x, size.z)
-			var long_xz: float = maxf(size.x, size.z)
-			if thin < 0.75 and long_xz > 1.0:
-				wall_boxes += 1
-				var xx: float = absf(col.transform.basis.x.x)
-				var xz: float = absf(col.transform.basis.x.z)
-				if xx > 0.3 and xz > 0.3:
-					diagonals += 1
-	assert_int(hulls).is_equal(0)
-	assert_int(wall_boxes + prisms).is_greater(0)
-	assert_int(diagonals).is_greater(0)
+	var found := false
+	for z: int in data.rows:
+		for x: int in data.columns:
+			var a := Vector2i(x, z)
+			var unit: Dictionary = FieldCatalog.unit_at(
+				_visual_at(data, a), posmod(a.x, WorldGenerator.UT), posmod(a.y, WorldGenerator.UT)
+			)
+			if not unit.is_empty() and int(unit["s"]) != 0:
+				continue
+			var ha: float = FieldCollision.height_at(data, a)
+			if not FieldCollision.has_floor(ha):
+				continue
+			var b := Vector2i(a.x + 1, a.y)
+			if not data.is_in_bounds(b):
+				continue
+			var hb: float = FieldCollision.height_at(data, b)
+			if not FieldCollision.has_floor(hb) or absf(ha - hb) < 2.0:
+				continue
+			var south := Vector2i(a.x, a.y + 1)
+			if data.is_in_bounds(south):
+				var hs: float = FieldCollision.height_at(data, south)
+				if FieldCollision.has_floor(hs) and absf(ha - hs) >= 2.0:
+					continue
+			var c0: Vector3 = grid.cell_corner(a)
+			var cs: float = grid.cell_size
+			## Stand 1.5 m west of the east wall so radius 0.9 m still allows travel + slide.
+			var from := Vector3(c0.x + cs - 1.5, ha, c0.z + cs * 0.5)
+			var to: Vector3 = from + Vector3(2.0, 0.0, 1.0)
+			var revised: Vector3 = FieldCollision.revise_xz(data, grid, from, to)
+			assert_float(absf(revised.z - from.z)).is_greater(0.5)
+			assert_float(revised.x).is_less(c0.x + cs)
+			found = true
+			break
+		if found:
+			break
+	if not FieldCatalog.has_acre_collision(&"grd_s_c1_1") and not found:
+		return
+	assert_bool(found).is_true()
 
 
 func test_slate_corner_cardinal_is_half_edge() -> void:
-	## SE-notch slate + low east neighbor: full N–S wall jets out in front of the 45° face.
-	## Keep only the north half (the pre-flatten height jump).
+	## SE-notch slate + low east neighbor: a full N–S wall would sit in front of the 45° face.
+	## Keep only the north half so the south-east notch is reachable from the east.
 	if not FieldCatalog.has_acre_collision(&"grd_s_c2_1"):
 		return
 	var data := WorldData.new()
@@ -311,10 +356,6 @@ func test_slate_corner_cardinal_is_half_edge() -> void:
 	data.bake()
 	var grid := WorldGrid.new()
 	grid.configure_from_world(data)
-	var root: Node3D = auto_free(Node3D.new()) as Node3D
-	FieldCollision.add_to(root, data, grid)
-	var body: Node = root.get_node_or_null("Heightfield")
-	assert_that(body).is_not_null()
 	var slate := Vector2i(9, 8)
 	var unit: Dictionary = FieldCatalog.unit_at(&"grd_s_c2_1", slate.x, slate.y)
 	assert_bool(FieldCatalog.is_slate_unit(int(unit["s"]), int(unit["a"]))).is_true()
@@ -322,66 +363,20 @@ func test_slate_corner_cardinal_is_half_edge() -> void:
 	var c0: Vector3 = grid.cell_corner(slate)
 	var cs: float = grid.cell_size
 	var east_x: float = c0.x + cs
-	var full_len := 0
-	var half_len := 0
-	for child: Node in body.get_children():
-		var col: CollisionShape3D = child as CollisionShape3D
-		if col == null or not (col.shape is BoxShape3D):
-			continue
-		var size: Vector3 = (col.shape as BoxShape3D).size
-		if minf(size.x, size.z) >= 0.75:
-			continue
-		var mid: Vector3 = col.global_position if col.is_inside_tree() else col.position
-		## Oriented box mid sits on the low side of the edge (east + thickness/2).
-		if absf(mid.x - (east_x + FieldCollision.WALL_THICK * 0.5)) > 0.05:
-			continue
-		if mid.z < c0.z - 0.05 or mid.z > c0.z + cs + 0.05:
-			continue
-		var along: float = maxf(size.x, size.z)
-		if along > cs * 0.75:
-			full_len += 1
-		elif along > cs * 0.35:
-			half_len += 1
-	assert_int(full_len).is_equal(0)
-	assert_int(half_len).is_greater(0)
+	var from := Vector3(east_x + 1.0, 0.0, c0.z + cs * 0.85)
+	from.y = FieldCollision.ground_y_at(data, grid, from)
+	var to := Vector3(east_x - 0.8, from.y, from.z)
+	var revised: Vector3 = FieldCollision.revise_xz(data, grid, from, to)
+	assert_float(revised.x).is_less(east_x)
 
 
 func test_walls_do_not_cover_walkable_cell_centers() -> void:
-	## Thickness sits on the low side; a cylinder at the unit center must not be inside a wall.
+	## A circle at the unit center must stay put. Slate diagonals run through the center.
 	if not FieldCatalog.has_acre_collision(&"grd_s_c1_1"):
 		return
 	var data: WorldData = WorldGenerator.generate(12345)
 	var grid := WorldGrid.new()
 	grid.configure_from_world(data)
-	var root: Node3D = auto_free(Node3D.new()) as Node3D
-	FieldCollision.add_to(root, data, grid)
-	var body: Node = root.get_node_or_null("Heightfield")
-	assert_that(body).is_not_null()
-	var hulls: Array[AABB] = []
-	for child: Node in body.get_children():
-		var col: CollisionShape3D = child as CollisionShape3D
-		if col == null or col.shape == null:
-			continue
-		if col.shape is ConcavePolygonShape3D:
-			var faces: PackedVector3Array = (col.shape as ConcavePolygonShape3D).get_faces()
-			if faces.is_empty():
-				continue
-			var aabb := AABB(faces[0], Vector3.ZERO)
-			for p: Vector3 in faces:
-				aabb = aabb.expand(p)
-			hulls.append(aabb)
-		elif col.shape is BoxShape3D:
-			var size: Vector3 = (col.shape as BoxShape3D).size
-			if minf(size.x, size.z) >= 0.75:
-				continue
-			var xf: Transform3D = col.transform
-			var half: Vector3 = size * 0.5
-			var box_aabb := AABB(xf * Vector3(-half.x, -half.y, -half.z), Vector3.ZERO)
-			for sx: int in [-1, 1]:
-				for sy: int in [-1, 1]:
-					for sz: int in [-1, 1]:
-						box_aabb = box_aabb.expand(xf * Vector3(half.x * float(sx), half.y * float(sy), half.z * float(sz)))
-			hulls.append(box_aabb)
 	var hit := 0
 	for z: int in data.rows:
 		for x: int in data.columns:
@@ -399,12 +394,48 @@ func test_walls_do_not_cover_walkable_cell_centers() -> void:
 			if not FieldCollision.has_floor(y):
 				continue
 			var pos: Vector3 = grid.cell_to_world(cell)
-			pos.y = y + 0.3
-			for aabb: AABB in hulls:
-				if aabb.has_point(pos):
-					hit += 1
-					break
+			pos.y = y
+			var revised: Vector3 = FieldCollision.revise_xz(data, grid, pos, pos)
+			if Vector2(revised.x - pos.x, revised.z - pos.z).length() > 0.05:
+				hit += 1
 	assert_int(hit).is_equal(0)
+
+
+func test_corner_does_not_trap_circle() -> void:
+	## Two walls at a terrace corner: the circle slides out instead of freezing.
+	var data: WorldData = WorldGenerator.generate(12345)
+	var grid := WorldGrid.new()
+	grid.configure_from_world(data)
+	var found := false
+	for z: int in range(1, data.rows - 1):
+		for x: int in range(1, data.columns - 1):
+			var cell := Vector2i(x, z)
+			var h: float = FieldCollision.height_at(data, cell)
+			if not FieldCollision.has_floor(h):
+				continue
+			var east := Vector2i(x + 1, z)
+			var south := Vector2i(x, z + 1)
+			var he: float = FieldCollision.height_at(data, east)
+			var hs: float = FieldCollision.height_at(data, south)
+			if not FieldCollision.has_floor(he) or not FieldCollision.has_floor(hs):
+				continue
+			if absf(h - he) < 2.0 or absf(h - hs) < 2.0:
+				continue
+			var from: Vector3 = grid.cell_to_world(cell)
+			from.y = h
+			var to: Vector3 = from + Vector3(2.0, 0.0, 2.0)
+			var revised: Vector3 = FieldCollision.revise_xz(data, grid, from, to)
+			var moved: float = Vector2(revised.x - from.x, revised.z - from.z).length()
+			## Radius 0.9 m leaves ~0.1 m of travel from a cell center before both walls.
+			assert_float(moved).is_greater(0.05)
+			assert_that(grid.world_to_cell(revised)).is_equal(cell)
+			found = true
+			break
+		if found:
+			break
+	if not FieldCatalog.has_acre_collision(&"grd_s_c1_1") and not found:
+		return
+	assert_bool(found).is_true()
 
 
 func _visual_at(data: WorldData, cell: Vector2i) -> StringName:

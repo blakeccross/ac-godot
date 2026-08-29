@@ -3,8 +3,8 @@ extends CharacterBody3D
 ## CharacterBody3D player. Locomotion feel from `m_player_main_walk`; visual from
 ## generated `boy_1.glb` when the local pipeline has been run. Equipped tools
 ## parent to HAND (`HeldTool`). Collision is a cylinder (original actor is a
-## circle in XZ, radius ~18 GX) so the bottom hemisphere of a capsule cannot
-## catch on wall lids.
+## circle in XZ) so remaining physics (trees, buildings) cannot catch a capsule
+## lid. Cliffs and water are kinematic segments, not physics shapes.
 
 const GENERATED_PLAYER := "res://assets/generated/characters/player/boy_1.glb"
 const LOOK_HEIGHT := 0.85

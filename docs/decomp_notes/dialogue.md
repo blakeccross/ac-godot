@@ -47,8 +47,8 @@ Talk is wrapped in `m_demo`: player `mPlib_request_main_talk_type1`, camera `CAM
 - Branching **choices** (yes/no and 2–6 options).
 - Substitutions: `{player}`, `{speaker}`, `{catchphrase}`, `{town}`, `{item0}`, clock fields.
 - Movement locked until the window hides (`dialogue_ui` group, same idea as pockets). The speaker holds a talk action until the overlay emits `closed`.
-- Conditions on branches and choices: friendship, time of day / hour window, weekday, season, **weather** (`Game.weather` hook), inventory / held item, dialogue variables.
-- Events on a line or choice: `set_var`, `add_var`, `add_friendship`, `give_item`, `take_item`, `set_mood`, `notice`.
+- Conditions on branches and choices: friendship, talk/gift counts, milestones, time of day / hour window, weekday, season, **weather** (`Game.weather` hook), inventory / held item, dialogue variables.
+- Events on a line or choice: `set_var`, `add_var`, `add_friendship`, `record_gift`, `give_item`, `take_item`, `set_mood`, `notice`. Friendship and gifts go through `Relationship`.
 
 ## Simplify
 

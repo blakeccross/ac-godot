@@ -18,6 +18,8 @@ var time_of_day: ClockService.TimeOfDay = ClockService.TimeOfDay.DAY
 var season: ClockService.Season = ClockService.Season.WINTER
 var weather: StringName = &"clear"
 var friendship: int = 0
+var talk_count: int = 0
+var gift_count: int = 0
 var already_talked: bool = false
 var mood: VillagerState.Mood = VillagerState.Mood.NORMAL
 var held_item: StringName = &""
@@ -31,6 +33,8 @@ var rng: RandomNumberGenerator
 var item0: String = ""
 var island: String = ""
 var frees: PackedStringArray = PackedStringArray()
+var milestones: Array[StringName] = []
+var gifted_items: Array[StringName] = []
 
 
 static func from_game(villager: VillagerData = null, state: VillagerState = null) -> DialogueContext:
@@ -58,12 +62,19 @@ static func from_game(villager: VillagerData = null, state: VillagerState = null
 		if villager.personality != null:
 			ctx.personality = villager.personality.id
 	if state != null:
-		ctx.friendship = state.friendship
-		ctx.already_talked = state.talked_on(
+		var bond: Relationship = state.relationship
+		if bond == null:
+			bond = Relationship.new()
+		ctx.friendship = bond.friendship
+		ctx.talk_count = bond.talk_count
+		ctx.gift_count = bond.gift_count
+		ctx.milestones = bond.milestones.duplicate()
+		ctx.gifted_items = _gifted_ids(bond)
+		ctx.already_talked = bond.talked_on(
 			"%04d-%02d-%02d" % [Clock.year, Clock.month, Clock.day]
 		)
 		ctx.mood = state.mood
-		ctx.days_since_talk = _days_since(state.last_spoke_day, ctx.year, ctx.month, ctx.day)
+		ctx.days_since_talk = _days_since(bond.last_spoke_day, ctx.year, ctx.month, ctx.day)
 	return ctx
 
 
@@ -115,6 +126,14 @@ func get_var(key: String, default_value: Variant = 0) -> Variant:
 
 func has_var(key: String) -> bool:
 	return vars.has(key)
+
+
+func has_milestone(milestone: StringName) -> bool:
+	return milestone in milestones
+
+
+func has_gifted(item_id: StringName) -> bool:
+	return item_id != &"" and item_id in gifted_items
 
 
 func set_var(key: String, value: Variant) -> void:
@@ -172,3 +191,14 @@ static func _days_since(last: String, year: int, month: int, day: int) -> int:
 		Time.get_unix_time_from_datetime_dict({"year": year, "month": month, "day": day, "hour": 12})
 	)
 	return int((now_unix - then_unix) / 86400.0)
+
+
+static func _gifted_ids(bond: Relationship) -> Array[StringName]:
+	var out: Array[StringName] = []
+	if bond == null:
+		return out
+	for entry: Dictionary in bond.gifts:
+		var item_id := StringName(str(entry.get("item", "")))
+		if item_id != &"" and item_id not in out:
+			out.append(item_id)
+	return out

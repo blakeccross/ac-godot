@@ -292,8 +292,11 @@ static func can_step(
 	if grid == null:
 		return true
 	var revised: Vector3 = FieldCollision.revise_xz(data, grid, from, step)
-	var moved := Vector2(revised.x - from.x, revised.z - from.z)
-	return moved.length() > 0.15
+	var want := Vector2(step.x - from.x, step.z - from.z)
+	var got := Vector2(revised.x - from.x, revised.z - from.z)
+	if want.length_squared() < 0.0001:
+		return true
+	return got.dot(want.normalized()) > 0.15
 
 
 static func step_toward(data: WorldData, from: Vector3, dest: Vector3) -> Vector3:

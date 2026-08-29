@@ -54,11 +54,11 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 | `Clock` | `scripts/systems/clock.gd` (`ClockService`) | Time system: calendar, day/night, 06:00 renew |
 | `SaveService` | `scripts/systems/save_service.gd` | Load/save JSON to `user://` |
 | `Audio` | `scripts/systems/audio.gd` | Music / SFX buses |
-| `Game` | `scripts/systems/game.gd` | Session phase, scene changes; owns `Inventory` and `VillagerRoster` |
+| `Game` | `scripts/systems/game.gd` | Session phase, scene changes; owns `Inventory`, `VillagerRoster`, and `RelationshipBook` |
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
-`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `VillagerRoster` is a `RefCounted` owned by `Game` (id → `VillagerState`). `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `GeneratedVisual`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `TreeUse`, `HoleUse`, and `PlantGrowth` are `RefCounted` helpers, not autoloads. `VillagerCatalog`, `VillagerAI`, `VillagerPlan`, `VillagerAction`, and `VillagerWalk` are `RefCounted` helpers, not autoloads. `DialogueCatalog`, `DialogueRunner`, `DialogueContext`, and `DialogueGreeting` are `RefCounted` helpers, not autoloads. Do not autoload fishing or events; those systems subscribe to `Clock` when they exist. `Game.weather` is a `StringName` hook (`clear`, `rain`, `snow`, `sakura`, `leaves`) for dialogue until weather is a system.
+`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `VillagerRoster` is a `RefCounted` owned by `Game` (id → `VillagerState`). `RelationshipBook` is a `RefCounted` owned by `Game` (id → `Relationship`). `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `GeneratedVisual`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `TreeUse`, `HoleUse`, and `PlantGrowth` are `RefCounted` helpers, not autoloads. `VillagerCatalog`, `VillagerAI`, `VillagerPlan`, `VillagerAction`, and `VillagerWalk` are `RefCounted` helpers, not autoloads. `DialogueCatalog`, `DialogueRunner`, `DialogueContext`, and `DialogueGreeting` are `RefCounted` helpers, not autoloads. Do not autoload fishing or events; those systems subscribe to `Clock` when they exist. `Game.weather` is a `StringName` hook (`clear`, `rain`, `snow`, `sakura`, `leaves`) for dialogue until weather is a system.
 
 ### Time system
 
@@ -133,7 +133,7 @@ Pipeline details: [decomp_notes/world_generation.md](decomp_notes/world_generati
 | Field A-button | `InteractionQuery` + host `get_interactions` / `interact`; `InteractVolume` sensors; `ToolUse` field verbs |
 | Items | `ItemData` / `ToolData` resources + `Inventory` on `Game` |
 | Town layout | `WorldData` + `WorldGenerator` / `WorldBuilder` / `WorldObjectRegistry` + `WorldGrid` + `FieldCollision`; world `.tscn` is a shell |
-| Villagers | `VillagerData` + `VillagerPersonality` + `ScheduleData` + `Villager` scene; runtime `VillagerSchedule` / `VillagerState` / `VillagerMotor` / `VillagerAI` / `VillagerWalk`; species GLB via `GeneratedVisual.attach_villager` when present. Catalog is all 236 GC animals; towns still pick six starters. Talk interrupts the current AI step until the overlay closes. |
+| Villagers | `VillagerData` + `VillagerPersonality` + `ScheduleData` + `Villager` scene; runtime `VillagerSchedule` / `VillagerState` / `VillagerMotor` / `VillagerAI` / `VillagerWalk`; species GLB via `GeneratedVisual.attach_villager` when present. Catalog is all 236 GC animals; towns still pick six starters. Talk interrupts the current AI step until the overlay closes. Player ↔ villager memory is `Relationship` (`Game.relationships`). |
 | Dialogue | `DialogueData` JSON graphs + `DialogueRunner` + overlay; `DialogueGreeting` picks a starting imported `msg_no`; disc banks via `--kind dialogue` |
 | Save | JSON IDs and counts to `user://`, not `.tres` with embedded scripts |
 

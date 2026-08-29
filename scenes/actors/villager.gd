@@ -320,6 +320,8 @@ func _blocked_this_frame(before: Vector3, planar: Vector3) -> bool:
 		progress = moved.dot(to_aim.normalized())
 	if get_slide_collision_count() > 0 and progress < STUCK_MOVE:
 		return true
+	if planar.length() > IDLE_SPEED and progress < STUCK_MOVE:
+		return true
 	return moved.length() < STUCK_MOVE
 
 

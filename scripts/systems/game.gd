@@ -21,6 +21,7 @@ const DEFAULT_TOWN_NAME := "Town"
 
 var inventory: Inventory = Inventory.new()
 var villagers: VillagerRoster = VillagerRoster.new()
+var relationships: RelationshipBook = RelationshipBook.new()
 var player_name: String = DEFAULT_PLAYER_NAME
 var town_name: String = DEFAULT_TOWN_NAME
 ## Hook for dialogue / later weather (`mEnv_WEATHER_*`). Not a weather system.
@@ -36,6 +37,10 @@ var plant_states: Dictionary = {}
 var interact_prompt: String = ""
 var world_mode: WorldData.Mode = WorldData.Mode.TEST
 var world_seed: int = WorldGenerator.DEFAULT_SEED
+
+
+func _init() -> void:
+	villagers.book = relationships
 
 
 func has_continue() -> bool:
@@ -88,7 +93,9 @@ func notify_title_ready() -> void:
 
 func reset_session() -> void:
 	inventory.clear()
+	relationships.clear()
 	villagers.clear()
+	villagers.book = relationships
 	VillagerWalk.reset()
 	player_position = DEFAULT_SPAWN
 	player_yaw = 0.0
@@ -213,6 +220,7 @@ func to_save() -> Dictionary:
 		"world_mode": int(world_mode),
 		"world_seed": world_seed,
 		"villagers": villagers.to_save(),
+		"relationships": relationships.to_save(),
 		"player_name": player_name,
 		"town_name": town_name,
 		"weather": String(weather),
@@ -259,6 +267,8 @@ func apply_snapshot(data: Dictionary) -> void:
 				plant_states[str(key)] = (rec as Dictionary).duplicate()
 	world_mode = int(data.get("world_mode", WorldData.Mode.TEST)) as WorldData.Mode
 	world_seed = int(data.get("world_seed", WorldGenerator.DEFAULT_SEED))
+	relationships.apply_snapshot(data.get("relationships", {}))
+	villagers.book = relationships
 	villagers.apply_snapshot(data.get("villagers", {}))
 	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
 	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))

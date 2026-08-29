@@ -356,7 +356,7 @@ func test_builder_instances_test_town_scenes() -> void:
 	assert_that(world.get_node_or_null("Objects/ground_apple")).is_not_null()
 	assert_that(world.get_node_or_null("Characters/filbert")).is_not_null()
 	assert_that(world.get_node_or_null("Characters/PlayerSpawn")).is_not_null()
-	assert_that(world.get_node_or_null("Terrain/Heightfield")).is_not_null()
+	assert_that(world.get_node_or_null("Terrain/MapBound")).is_not_null()
 	var spawn_marker: Marker3D = world.get_node("Characters/PlayerSpawn") as Marker3D
 	var spawn_cell: Vector2i = data.player_spawn().cell
 	var on_ground: Vector3 = grid.cell_to_world(spawn_cell)
@@ -399,7 +399,7 @@ func test_builder_places_generated_acre_meshes() -> void:
 	var expected := grid.cell_corner(Vector2i(0, 0))
 	expected.y += float(data.acre_heights[1 * 7 + 1]) * FieldCatalog.ACRE_STEP_METERS
 	assert_that(a11.position).is_equal(expected)
-	assert_that(world.get_node_or_null("Terrain/Heightfield")).is_not_null()
+	assert_that(world.get_node_or_null("Terrain/Heightfield")).is_null()
 	assert_that(world.get_node_or_null("Terrain/WalkFloor")).is_null()
 	var spawn_marker: Marker3D = world.get_node("Characters/PlayerSpawn") as Marker3D
 	var spawn_cell: Vector2i = data.player_spawn().cell

@@ -3,6 +3,7 @@ extends RefCounted
 
 ## Town animals[] analog: id → VillagerState. Owned by Game, not an autoload.
 
+var book: RelationshipBook
 var _states: Dictionary = {}
 
 
@@ -18,6 +19,7 @@ func get_or_create(villager_id: StringName) -> VillagerState:
 		return _states[villager_id] as VillagerState
 	var state := VillagerState.new()
 	state.villager_id = villager_id
+	state.relationship = _bond_for(villager_id)
 	_states[villager_id] = state
 	return state
 
@@ -49,4 +51,22 @@ func apply_snapshot(data: Variant) -> void:
 		state.apply_snapshot(entry as Dictionary)
 		if state.villager_id == &"":
 			state.villager_id = StringName(str(key))
+		state.relationship = _adopt_bond(state)
 		_states[state.villager_id] = state
+
+
+func _bond_for(villager_id: StringName) -> Relationship:
+	if book != null:
+		return book.get_or_create(villager_id)
+	var bond := Relationship.new()
+	bond.villager_id = villager_id
+	return bond
+
+
+func _adopt_bond(state: VillagerState) -> Relationship:
+	var bond: Relationship = state.relationship if state.relationship != null else Relationship.new()
+	bond.villager_id = state.villager_id
+	if book != null:
+		book.put(state.villager_id, bond)
+		return book.get_or_create(state.villager_id)
+	return bond

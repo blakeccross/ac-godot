@@ -40,6 +40,7 @@ func _paint_terrain(root: Node3D, data: WorldData, grid: WorldGrid) -> void:
 		return
 	var meshed: Array = []
 	var has_grd: bool = _attach_acres(root, data, grid, meshed)
+	## Terrain walls are kinematic circles vs segments (`revise_xz`), not physics shapes.
 	FieldCollision.add_to(root, data, grid)
 	_add_map_bounds(root, data, grid)
 	_disable_placeholder_ground(root)
