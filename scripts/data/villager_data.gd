@@ -11,6 +11,8 @@ extends Resource
 ## Optional override. Empty → personality looks table (`mNPS_schedule[looks]`).
 @export var schedule: ScheduleData
 @export var dialogue: DialogueData
+## New-town eligible (`mNpc_GROW_STARTER`). Move-in-only animals stay out of the starter pick.
+@export var starter: bool = true
 
 
 func schedule_table() -> ScheduleData:
@@ -31,6 +33,12 @@ func wander_radius() -> float:
 	if personality != null:
 		return personality.wander_radius
 	return 6.0
+
+
+func field_activity_ids() -> Array[StringName]:
+	if personality != null:
+		return personality.field_activity_ids()
+	return [ActivityKind.WANDER]
 
 
 func placeholder_color() -> Color:

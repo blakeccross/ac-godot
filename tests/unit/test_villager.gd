@@ -170,3 +170,142 @@ func test_motor_stops_when_not_wandering() -> void:
 	motor.set_target(Vector3(3, 0, 0))
 	var walk: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(3, 0, 0), true)
 	assert_float(walk.length()).is_greater(0.1)
+
+
+func test_field_plan_is_reusable_actions() -> void:
+	var plan: Array[VillagerAction] = VillagerPlan.build(
+		VillagerActivity.FIELD,
+		VillagerActivity.IN_HOUSE,
+		{
+			"home": Vector3.ZERO,
+			"outdoors": false,
+			"field_actions": [ActivityKind.WANDER],
+			"shop": Vector3.INF,
+			"water": Vector3.INF,
+		}
+	)
+	var kinds: Array[StringName] = []
+	for action: VillagerAction in plan:
+		kinds.append(action.kind)
+	assert_that(kinds[0]).is_equal(ActivityKind.LEAVE_HOME)
+	assert_that(kinds[kinds.size() - 2]).is_equal(ActivityKind.TALK)
+	assert_that(kinds[kinds.size() - 1]).is_equal(ActivityKind.WANDER)
+
+
+func test_sleep_plan_is_just_sleep_when_already_home() -> void:
+	var plan: Array[VillagerAction] = VillagerPlan.build(
+		VillagerActivity.SLEEP, &"", {"home": Vector3.ZERO, "outdoors": false}
+	)
+	assert_int(plan.size()).is_equal(1)
+	assert_that(plan[0].kind).is_equal(ActivityKind.SLEEP)
+	assert_bool(plan[0].is_present()).is_false()
+	assert_bool(plan[0].is_talkable()).is_false()
+
+
+func test_wake_then_leave_home_then_sleep() -> void:
+	var indoors: Array[VillagerAction] = VillagerPlan.build(
+		VillagerActivity.IN_HOUSE, VillagerActivity.SLEEP, {"home": Vector3.ZERO, "outdoors": false}
+	)
+	assert_that(indoors[0].kind).is_equal(ActivityKind.WAKE)
+	var field: Array[VillagerAction] = VillagerPlan.build(
+		VillagerActivity.FIELD,
+		VillagerActivity.IN_HOUSE,
+		{"home": Vector3.ZERO, "outdoors": false, "field_actions": [ActivityKind.WANDER]}
+	)
+	assert_that(field[0].kind).is_equal(ActivityKind.LEAVE_HOME)
+	var going: Array[VillagerAction] = VillagerPlan.build(
+		VillagerActivity.IN_HOUSE,
+		VillagerActivity.FIELD,
+		{"home": Vector3.ZERO, "outdoors": true},
+	)
+	assert_that(going[0].kind).is_equal(ActivityKind.GO_HOME)
+
+
+func test_shop_and_fish_are_picked_from_field_actions() -> void:
+	var shop: VillagerAction = VillagerPlan.pick_perform(
+		{
+			"home": Vector3.ZERO,
+			"shop": Vector3(10, 0, 4),
+			"water": Vector3(2, 0, 8),
+			"shop_open": true,
+			"field_actions": [ActivityKind.SHOP, ActivityKind.WANDER],
+		}
+	)
+	assert_that(shop.kind).is_equal(ActivityKind.SHOP)
+	var fish: VillagerAction = VillagerPlan.pick_perform(
+		{
+			"home": Vector3.ZERO,
+			"shop": Vector3.INF,
+			"water": Vector3(2, 0, 8),
+			"shop_open": false,
+			"field_actions": [ActivityKind.FISH, ActivityKind.WANDER],
+		}
+	)
+	assert_that(fish.kind).is_equal(ActivityKind.FISH)
+
+
+func test_walk_to_finishes_on_arrive() -> void:
+	var action: VillagerAction = VillagerAction.make(ActivityKind.WALK_TO, Vector3(4, 0, 0))
+	action.consider_arrive(Vector3.ZERO)
+	assert_bool(action.is_finished()).is_false()
+	action.consider_arrive(Vector3(4, 0, 0.1))
+	assert_bool(action.is_finished()).is_true()
+	var sit: VillagerAction = VillagerAction.make(ActivityKind.SIT, Vector3.ZERO, 2.0)
+	sit.tick_time(1.0)
+	assert_bool(sit.is_finished()).is_false()
+	sit.tick_time(1.5)
+	assert_bool(sit.is_finished()).is_true()
+
+
+func test_ai_advances_when_action_finishes() -> void:
+	var ai := VillagerAI.new()
+	ai.sync(
+		VillagerActivity.FIELD,
+		{
+			"home": Vector3.ZERO,
+			"outdoors": true,
+			"field_actions": [ActivityKind.SIT],
+			"sit": Vector3(1, 0, 0),
+			"shop": Vector3.INF,
+			"water": Vector3.INF,
+		}
+	)
+	assert_that(ai.kind()).is_equal(ActivityKind.WALK_TO)
+	ai.consider_arrive(Vector3(1, 0, 0))
+	ai.step(0.0)
+	assert_that(ai.kind()).is_equal(ActivityKind.SIT)
+	ai.step(ActivityKind.SIT_SECONDS + 0.1)
+	assert_that(ai.kind()).is_equal(ActivityKind.TALK)
+
+
+func test_starter_pick_is_one_of_each_looks() -> void:
+	VillagerCatalog.reload()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 12345
+	var picked: Array[VillagerData] = VillagerCatalog.pick_starters(rng, 6)
+	assert_int(picked.size()).is_equal(6)
+	var looks: Dictionary = {}
+	for villager: VillagerData in picked:
+		assert_bool(villager.starter).is_true()
+		assert_that(villager.personality).is_not_null()
+		looks[int(villager.personality.looks)] = true
+	assert_int(looks.size()).is_equal(6)
+
+
+func test_starter_pick_is_seeded() -> void:
+	VillagerCatalog.reload()
+	var a := RandomNumberGenerator.new()
+	var b := RandomNumberGenerator.new()
+	a.seed = 99
+	b.seed = 99
+	var first: Array[VillagerData] = VillagerCatalog.pick_starters(a, 6)
+	var second: Array[VillagerData] = VillagerCatalog.pick_starters(b, 6)
+	assert_int(first.size()).is_equal(6)
+	for i: int in first.size():
+		assert_that(first[i].id).is_equal(second[i].id)
+
+
+func test_catalog_includes_pip_and_other_starters() -> void:
+	VillagerCatalog.reload()
+	assert_that(VillagerCatalog.get_villager(&"pip")).is_not_null()
+	assert_int(VillagerCatalog.starters().size()).is_greater_equal(12)

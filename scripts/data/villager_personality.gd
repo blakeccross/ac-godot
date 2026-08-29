@@ -14,7 +14,33 @@ enum Looks { NORMAL, PEPPY, LAZY, JOCK, CRANKY, SNOOTY }
 ## Yard walk speed in m/s. Not a C actor overlay speed.
 @export var walk_speed: float = 1.6
 @export var wander_radius: float = 6.0
+## Field action ids (`ActivityKind`). Empty → looks defaults.
+@export var field_actions: PackedStringArray = PackedStringArray()
 
 
 func schedule_table() -> ScheduleData:
 	return schedule
+
+
+func field_activity_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for entry: String in field_actions:
+		if entry != "":
+			out.append(StringName(entry))
+	if not out.is_empty():
+		return out
+	match looks:
+		Looks.NORMAL:
+			return [ActivityKind.SHOP, ActivityKind.SIT, ActivityKind.WANDER]
+		Looks.PEPPY:
+			return [ActivityKind.SHOP, ActivityKind.WANDER]
+		Looks.LAZY:
+			return [ActivityKind.WANDER, ActivityKind.SIT, ActivityKind.FISH]
+		Looks.JOCK:
+			return [ActivityKind.FISH, ActivityKind.WANDER]
+		Looks.CRANKY:
+			return [ActivityKind.SIT, ActivityKind.WANDER]
+		Looks.SNOOTY:
+			return [ActivityKind.SHOP, ActivityKind.SIT]
+		_:
+			return [ActivityKind.WANDER]

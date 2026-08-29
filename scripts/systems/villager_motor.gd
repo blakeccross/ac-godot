@@ -53,8 +53,8 @@ func random_offset() -> Vector3:
 	return Vector3(sin(angle) * radius, 0.0, cos(angle) * radius)
 
 
-func tick(delta: float, from: Vector3, next: Vector3, wandering: bool) -> Vector3:
-	if not wandering:
+func tick(delta: float, from: Vector3, next: Vector3, moving: bool) -> Vector3:
+	if not moving:
 		has_target = false
 		return Vector3.ZERO
 	if wait_left > 0.0:

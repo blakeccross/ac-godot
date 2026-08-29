@@ -25,6 +25,7 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | `PlantData` | Growing plants (not pocket items) |
 | `VillagerData` | Villager definition (species, personality, dialogue) |
 | `VillagerPersonality` | Looks group; selects the daily table |
+| `ActivityKind` | Reusable action ids (walk, sit, fish, shop, sleep, …) |
 | `DialogueData` | Conversation lines |
 | `ScheduleData` / `ScheduleSlot` | Daily `{activity, end_hour}` table (`mNPS` looks tables) |
 | `AcreData` | Legacy plot grid used by `WorldGrid` tests |
@@ -57,7 +58,7 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
-`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `VillagerRoster` is a `RefCounted` owned by `Game` (id → `VillagerState`). `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `GeneratedVisual`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `TreeUse`, `HoleUse`, and `PlantGrowth` are `RefCounted` helpers, not autoloads. Do not autoload weather, fishing, or events; those systems subscribe to `Clock` when they exist.
+`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `VillagerRoster` is a `RefCounted` owned by `Game` (id → `VillagerState`). `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `GeneratedVisual`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `TreeUse`, `HoleUse`, and `PlantGrowth` are `RefCounted` helpers, not autoloads. `VillagerCatalog`, `VillagerAI`, `VillagerPlan`, and `VillagerAction` are `RefCounted` helpers, not autoloads. Do not autoload weather, fishing, or events; those systems subscribe to `Clock` when they exist.
 
 ### Time system
 
@@ -132,7 +133,7 @@ Pipeline details: [decomp_notes/world_generation.md](decomp_notes/world_generati
 | Field A-button | `InteractionQuery` + host `get_interactions` / `interact`; `InteractVolume` sensors; `ToolUse` field verbs |
 | Items | `ItemData` / `ToolData` resources + `Inventory` on `Game` |
 | Town layout | `WorldData` + `WorldGenerator` / `WorldBuilder` / `WorldObjectRegistry` + `WorldGrid` + `FieldCollision`; world `.tscn` is a shell |
-| Villagers | `VillagerData` + `VillagerPersonality` + `ScheduleData` + `Villager` scene; runtime `VillagerSchedule` / `VillagerState` / `VillagerMotor` |
+| Villagers | `VillagerData` + `VillagerPersonality` + `ScheduleData` + `Villager` scene; runtime `VillagerSchedule` / `VillagerState` / `VillagerMotor` / `VillagerAI` |
 | Dialogue | `DialogueData` + a UI scene when that slice is earned |
 | Save | JSON IDs and counts to `user://`, not `.tres` with embedded scripts |
 

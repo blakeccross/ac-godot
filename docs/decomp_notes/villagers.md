@@ -2,26 +2,28 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — do not copy `Animal_c` or looks tables into GDScript.
 
-**Read before implementing:** `VillagerData`, `VillagerPersonality`, `VillagerState`, `VillagerSchedule`, `ScheduleData`, villager scene, one greeting.
+**Read before implementing:** `VillagerData`, `VillagerPersonality`, `VillagerState`, `VillagerSchedule`, `ScheduleData`, `ActivityKind`, `VillagerAI`, villager scene, one greeting.
 
 ## Decomp sources
 
 | File | Role |
 | --- | --- |
-| `include/m_npc.h`, `src/game/m_npc.c` | Town roster, memories, mood, move-in/out |
+| `include/m_npc.h`, `src/game/m_npc.c` | Town roster, memories, mood, move-in/out, **new-town pick** |
 | `include/m_npc_schedule.h`, `include/m_npc_schedule_h.h`, `src/game/m_npc_schedule.c` | Daily looks tables |
-| `include/ac_npc.h` | Runtime NPC actor |
-| `include/m_npc_walk.h` | Pathing / wandering |
+| `include/ac_npc.h`, `src/actor/npc/ac_npc_schedule*.c_inc` | Runtime NPC actor + field / in-house / sleep steps |
+| `include/m_npc_walk.h`, `src/game/m_npc_walk.c` | Goal acres while in the field (shrine / home / alone) |
 | `include/m_quest.h` | Deliveries and errands tied to villagers |
 | `include/m_event.h` | Special NPC event states |
 
-Key functions: `mNPS_schedule_manager`, `mNPS_get_schedule_area`, `mNpc_AddFriendship`, `mNpc_GetAnimalNum`, `mNpc_CheckRemoveExp`.
+Key functions: `mNPS_schedule_manager`, `mNPS_get_schedule_area`, `mNpc_AddFriendship`, `mNpc_GetAnimalNum`, `mNpc_CheckRemoveExp`, `mNpc_InitNpcAllInfo`, `mNpc_DecideLivingNpcMax`, `mNpc_MakeRandTable`, `mNpc_SetNpcHome`.
 
 Constants: `ANIMAL_NUM_MIN` **5**, `ANIMAL_NUM_MAX` **15**, `ANIMAL_MEMORY_NUM` **7** player memories per villager.
 
 ## What does the original system do?
 
 Up to 15 villagers live in town (`animals[]` in save). Each has a species/personality id, home acre/unit, catchphrase, cloth, and **per-player memory** (last speak time, friendship `s8`, saved letter).
+
+**New town** (`mNpc_InitNpcAllInfo`): `now_npc_max = mNpc_LOOKS_NUM` (**6**). `mNpc_DecideLivingNpcMax` shuffles the full NPC id table (`mNpc_MakeRandTable`), then walks it and keeps animals whose grow permission is `mNpc_GROW_STARTER` until **one of each looks** is filled. Homes are a second shuffle of SIGN reserves (`mNpc_SetNpcHome`).
 
 A global **schedule manager** ticks all animals. Looks (personality/species group) select a table of `{type, end_time}` slots. Types:
 
@@ -30,6 +32,8 @@ A global **schedule manager** ticks all animals. Looks (personality/species grou
 - `mNPS_SCHED_FIELD` (home acre)
 - `STAND` / `WANDER` / `WALK_WANDER`
 - `SPECIAL` (unique actor scripts)
+
+The field type is a **step machine**, not a single wander loop: leave house → wander (and later in-block / pitfall). In-house is go home → into house → hide. Sleep hides when `is_home`. While in the field, `m_npc_walk` picks a goal acre from looks-based `{shrine, home, alone, my_home}` tables.
 
 The table can be **forced** for a timer (events, talking). `is_home` on `Animal_c` tracks whether they are inside.
 
@@ -75,18 +79,21 @@ Move-out: `removing`, `remove_animal_idx` on save, minimum days before force rem
 ## Reproduce
 
 - **One villager** with a daily table: sleep, indoors, outdoors, with hour boundaries. Looks (personality) selects the table; the actor is shared.
+- New game fills **six** outdoor villagers: shuffle the starter pool, keep one of each looks, assign to the six NPC houses.
+- Field day is a reusable action queue: wake / leave home / walk / sit|fish|shop / talk / wander / go home / sleep.
 - Talk updates last-spoke and a simple friendship number.
-- Not on the acre when sleeping or indoors (or visibly in bed later).
+- Not on the acre when sleeping or indoors (or visibly in bed later). Walking home/out is still visible.
 - Greeting differs by time of day / whether you’ve already talked (can be a flag, not full memory struct).
-- Yard wander while the schedule type is field (NavigationAgent3D; stay near home).
+- Yard wander while the current action is wander (NavigationAgent3D; stay near home).
 
 ## Simplify
 
-- Looks tables for all six personalities as data; Pip uses the lazy (boy) table. No per-villager AI scripts.
-- No wander-the-whole-town pathing; stay on one acre or teleport between house and yard.
+- Looks tables for all six personalities as data. Pip uses the lazy (boy) table.
+- Shared activity runner (`VillagerAI` + reusable `ActivityKind` steps). Not per-villager AI scripts and not `aNPC_think_*` overlays.
+- Field goals collapse to shop / water / furniture / yard (`mNpcW_GOAL_*` kinds, not acre waypoint graphs).
 - Friendship as an int 0–255 (or 0–100) without letter scoring.
 - Skip villager–villager relation matrix.
-- Skip move-out lottery and “return visitor” (`Anmret_c`) until the town has more than one animal.
+- Skip move-out lottery and “return visitor” (`Anmret_c`). New towns stay at six starters (one looks each).
 
 ## Ignore
 
