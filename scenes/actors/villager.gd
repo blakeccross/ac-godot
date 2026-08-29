@@ -26,6 +26,7 @@ var _clip: String = ""
 var _goal_stand: Vector3 = Vector3.ZERO
 var _goal_block: Vector2i = Vector2i.ZERO
 var _goal_kind: StringName = VillagerWalk.GOAL_MY_HOME
+var _stay_elapsed: float = 0.0
 
 @onready var _model: Node3D = $Model
 @onready var _placeholder: MeshInstance3D = $Model/PlaceholderMesh
@@ -116,6 +117,8 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= _gravity * delta
 	else:
 		velocity.y = 0.0
+	if ai.is_wandering():
+		_tick_walk_slot(delta)
 	_steer_ai()
 	var next: Vector3 = _next_point()
 	var planar: Vector3 = _motor.tick(delta, global_position, next, ai.wants_move())
@@ -154,9 +157,12 @@ func _sync_from_clock() -> void:
 
 
 func _on_action_changed(kind: StringName) -> void:
-	if kind == ActivityKind.LEAVE_HOME:
+	if kind == ActivityKind.LEAVE_HOME and not visible:
 		global_position = _motor.home
 		_motor.reset(_motor.home, _motor.facing)
+	if kind == ActivityKind.WANDER:
+		_motor.arrive()
+		_stay_elapsed = 0.0
 	if (
 		kind == ActivityKind.GO_HOME
 		or kind == ActivityKind.SLEEP
@@ -180,6 +186,9 @@ func _apply_presence(present: bool) -> void:
 
 func _steer_ai() -> void:
 	if ai.is_wandering():
+		if not _in_goal_block():
+			_steer_to(_goal_stand)
+			return
 		_steer_wander(true)
 		return
 	if ai.wants_move():
@@ -195,8 +204,17 @@ func _steer_wander(wandering: bool) -> void:
 		return
 	if not _motor.needs_new_target():
 		return
+	var act: StringName = VillagerWalk.pick_act(_looks())
+	if act == VillagerWalk.ACT_WAIT:
+		_motor.wait_in_place()
+		return
 	var dest: Vector3 = _walkable_near(_roam_point())
-	_motor.set_target(dest)
+	var delta: Vector3 = dest - global_position
+	delta.y = 0.0
+	if delta.length() < VillagerWalk.MIN_STEP:
+		_motor.wait_in_place()
+		return
+	_motor.set_target(dest, act)
 	if _agent != null and _nav_ready():
 		_agent.target_position = dest
 
@@ -250,10 +268,7 @@ func _walkable_near(world_pos: Vector3) -> Vector3:
 func _roam_point() -> Vector3:
 	var bg: Array = _bg()
 	if bg.size() == 2:
-		var data_now: WorldData = bg[0] as WorldData
-		var stand: Vector3 = VillagerWalk.stand_in_block(data_now, _goal_block)
-		if stand != Vector3.ZERO or _goal_block != Vector2i.ZERO:
-			return stand
+		return VillagerWalk.wander_in_block(bg[0] as WorldData, _goal_block, global_position)
 	if _goal_stand != Vector3.INF and _goal_stand != Vector3.ZERO:
 		return _goal_stand + _motor.random_offset()
 	return _motor.home + _motor.random_offset()
@@ -289,7 +304,7 @@ func _update_animation(delta: float, planar: Vector3) -> void:
 	if clip == _clip and _body_anim.is_playing():
 		if moving:
 			_body_anim.speed_scale = clampf(
-				planar.length() / maxf(_motor.walk_speed, 0.4), 0.75, 1.2
+				planar.length() / maxf(_motor.speed_now(), 0.4), 0.75, 1.2
 			)
 		else:
 			_body_anim.speed_scale = 1.0
@@ -299,6 +314,8 @@ func _update_animation(delta: float, planar: Vector3) -> void:
 
 func _clip_for(_kind: StringName, moving: bool) -> String:
 	if moving:
+		if _motor.gait == VillagerWalk.ACT_RUN:
+			return ANIM_RUN
 		return ANIM_WALK
 	match _kind:
 		ActivityKind.SIT:
@@ -372,10 +389,32 @@ func _hints() -> Dictionary:
 	}
 
 
-func _refresh_goal() -> void:
-	var looks: VillagerPersonality.Looks = VillagerPersonality.Looks.LAZY
+func _tick_walk_slot(delta: float) -> void:
+	if not _in_goal_block():
+		_stay_elapsed = 0.0
+		return
+	_stay_elapsed += delta
+	if _stay_elapsed < ActivityKind.STAY_SECONDS:
+		return
+	_stay_elapsed = 0.0
+	_refresh_goal()
+
+
+func _in_goal_block() -> bool:
+	var bg: Array = _bg()
+	if bg.size() != 2:
+		return true
+	return VillagerWalk.is_in_block(bg[0] as WorldData, _goal_block, global_position)
+
+
+func _looks() -> VillagerPersonality.Looks:
 	if data != null and data.personality != null:
-		looks = data.personality.looks
+		return data.personality.looks
+	return VillagerPersonality.Looks.LAZY
+
+
+func _refresh_goal() -> void:
+	var looks: VillagerPersonality.Looks = _looks()
 	var now: int = Clock.now_sec()
 	var want_town: bool = VillagerWalk.can_town_walk(looks, now)
 	var who: StringName = data.id if data else &""

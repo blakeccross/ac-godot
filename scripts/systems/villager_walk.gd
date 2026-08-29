@@ -3,11 +3,16 @@ extends RefCounted
 
 ## Field roam goals from looks + time (`mNpcW` kinds), not waypoint graphs.
 ## Concurrent off-home walkers match `mNpcW_GET_WALK_NUM` (max `mNpcW_MAX`).
+## In-acre wait/walk/run follows `aNPC_think_wander_decide_next`.
 
 const GOAL_SHRINE := &"shrine"
 const GOAL_HOME := &"home"
 const GOAL_ALONE := &"alone"
 const GOAL_MY_HOME := &"my_home"
+
+const ACT_WAIT := &"wait"
+const ACT_WALK := &"walk"
+const ACT_RUN := &"run"
 
 ## `mNpcW_MAX` = `ANIMAL_NUM_MAX / 3`.
 const MAX_WALKERS := 5
@@ -19,6 +24,12 @@ const FG_X0 := 1
 const FG_X1 := 5
 const FG_Z0 := 1
 const FG_Z1 := 6
+## `movement.range_radius` 280 GX → meters (40 GX = 2 m).
+const RANGE_RADIUS := 14.0
+## Skip wander picks that land on the current cell.
+const MIN_STEP := 1.6
+## One wait clip, then `decide_next` again.
+const WAIT_SECONDS := 2.0
 
 static var _walkers: Dictionary = {}
 
@@ -154,10 +165,69 @@ static func stand_in_block(
 		return Vector3.ZERO
 	var cells: Array[Vector2i] = _walkable_cells(data, block)
 	if cells.is_empty():
-		var origin: Vector2i = _origin_cell(data, block)
-		return data.cell_to_world(origin + Vector2i(8, 8))
+		return block_center(data, block)
 	var cell: Vector2i = cells[_rand_i(rng, cells.size())]
 	return data.cell_to_world(cell)
+
+
+static func block_center(data: WorldData, block: Vector2i) -> Vector3:
+	if data == null:
+		return Vector3.ZERO
+	if has_town_acres(data) and is_fg_block(block):
+		return data.cell_to_world(_origin_cell(data, block) + Vector2i(8, 8))
+	return data.cell_to_world(Vector2i(data.columns / 2, data.rows / 2))
+
+
+static func is_in_block(data: WorldData, block: Vector2i, world_pos: Vector3) -> bool:
+	if data == null:
+		return true
+	var cell := Vector2i(
+		int(floor((world_pos.x - data.origin().x) / data.cell_size)),
+		int(floor((world_pos.z - data.origin().z) / data.cell_size))
+	)
+	return block_from_cell(cell) == block
+
+
+static func wander_in_block(
+	data: WorldData,
+	block: Vector2i,
+	from: Vector3,
+	rng: RandomNumberGenerator = null
+) -> Vector3:
+	if data == null:
+		return from
+	var center: Vector3 = block_center(data, block)
+	for _attempt: int in 5:
+		var angle: float = _rand_f(rng) * TAU
+		var raw: Vector3 = center + Vector3(sin(angle), 0.0, cos(angle)) * RANGE_RADIUS
+		var stand: Vector3 = _snap_walkable(data, raw)
+		if not is_in_block(data, block, stand) and has_town_acres(data) and is_fg_block(block):
+			continue
+		var delta: Vector3 = stand - from
+		delta.y = 0.0
+		if delta.length() >= MIN_STEP:
+			return stand
+	var cells: Array[Vector2i] = _walkable_cells(data, block)
+	for cell: Vector2i in cells:
+		var stand: Vector3 = data.cell_to_world(cell)
+		var delta: Vector3 = stand - from
+		delta.y = 0.0
+		if delta.length() >= MIN_STEP:
+			return stand
+	return stand_in_block(data, block, rng)
+
+
+static func pick_act(
+	looks: VillagerPersonality.Looks, rng: RandomNumberGenerator = null
+) -> StringName:
+	## `RANDOM(10)` vs looks boarders: wait / walk / run.
+	var roll: int = _rand_i(rng, 10)
+	var boarder: Array[int] = _act_boarder(looks)
+	if roll <= boarder[0]:
+		return ACT_WAIT
+	if roll <= boarder[1]:
+		return ACT_WALK
+	return ACT_RUN
 
 
 static func _table_for(looks: VillagerPersonality.Looks) -> Array:
@@ -350,6 +420,49 @@ static func _walkable_terrain(terrain: WorldGrid.Terrain) -> bool:
 		or terrain == WorldGrid.Terrain.PATH
 		or terrain == WorldGrid.Terrain.STONE
 	)
+
+
+static func _act_boarder(looks: VillagerPersonality.Looks) -> Array[int]:
+	match looks:
+		VillagerPersonality.Looks.NORMAL:
+			return [3, 6]
+		VillagerPersonality.Looks.PEPPY:
+			return [6, 8]
+		VillagerPersonality.Looks.LAZY:
+			return [5, 7]
+		VillagerPersonality.Looks.JOCK:
+			return [2, 4]
+		VillagerPersonality.Looks.CRANKY:
+			return [3, 6]
+		VillagerPersonality.Looks.SNOOTY:
+			return [4, 8]
+		_:
+			return [5, 7]
+
+
+static func _snap_walkable(data: WorldData, world_pos: Vector3) -> Vector3:
+	var org: Vector3 = data.origin()
+	var cell := Vector2i(
+		int(floor((world_pos.x - org.x) / data.cell_size)),
+		int(floor((world_pos.z - org.z) / data.cell_size))
+	)
+	if data.is_in_bounds(cell) and _walkable_terrain(data.terrain_at(cell)):
+		return data.cell_to_world(cell)
+	for radius: int in range(1, 8):
+		for dz: int in range(-radius, radius + 1):
+			for dx: int in range(-radius, radius + 1):
+				if maxi(absi(dx), absi(dz)) != radius:
+					continue
+				var n := Vector2i(cell.x + dx, cell.y + dz)
+				if data.is_in_bounds(n) and _walkable_terrain(data.terrain_at(n)):
+					return data.cell_to_world(n)
+	return world_pos
+
+
+static func _rand_f(rng: RandomNumberGenerator) -> float:
+	if rng != null:
+		return rng.randf()
+	return randf()
 
 
 static func _rand_i(rng: RandomNumberGenerator, n: int) -> int:

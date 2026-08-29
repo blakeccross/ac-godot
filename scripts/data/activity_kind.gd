@@ -22,7 +22,8 @@ const SIT_SECONDS := 8.0
 const FISH_SECONDS := 12.0
 const SHOP_SECONDS := 10.0
 const TALK_SECONDS := 6.0
-## Linger in the goal acre (`mNpcW_INFO_STATUS_STAY_IN_BLOCK`), then pick a new goal.
+## Linger in the goal acre, then pick a new walk goal. Not wander duration —
+## `aNPC_THINK_WANDER` keeps running for the whole FIELD window.
 const STAY_SECONDS := 28.0
 const YARD_OFFSET := Vector3(0.0, 0.0, 2.2)
 
@@ -44,4 +45,4 @@ static func wants_move(kind: StringName) -> bool:
 
 
 static func loops(kind: StringName) -> bool:
-	return kind == SLEEP or kind == WAKE
+	return kind == SLEEP or kind == WAKE or kind == WANDER

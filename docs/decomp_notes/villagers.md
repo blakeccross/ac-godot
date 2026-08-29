@@ -33,7 +33,7 @@ A global **schedule manager** ticks all animals. Looks (personality/species grou
 - `STAND` / `WANDER` / `WALK_WANDER`
 - `SPECIAL` (unique actor scripts)
 
-The field type is a **step machine**, not a single wander loop: leave house → wander (and later in-block / pitfall). In-house is go home → into house → hide. Sleep hides when `is_home`. While in the field, `m_npc_walk` picks a goal acre from looks-based `{shrine, home, alone, my_home}` tables.
+The field type is a **step machine**, not a single wander loop: leave house (hidden) → wander. If they are already outside (`is_home == FALSE`), skip leave and wander immediately. Wander think **does not end** until the schedule type changes (or a pitfall interrupt). Each wander step rolls wait / walk / run from looks weights and walks to a random point on a circle around the **acre center** (`range_radius` 280 GX). In-house is go home → into house → hide. Sleep hides when `is_home`. While in the field, `m_npc_walk` picks a goal acre from looks-based `{shrine, home, alone, my_home}` tables. Assigned walkers (cap `n/3`) walk toward that acre; everyone else keeps wandering their current acre.
 
 The table can be **forced** for a timer (events, talking). `is_home` on `Animal_c` tracks whether they are inside.
 
@@ -80,8 +80,8 @@ Move-out: `removing`, `remove_animal_idx` on save, minimum days before force rem
 
 - **One villager** with a daily table: sleep, indoors, outdoors, with hour boundaries. Looks (personality) selects the table; the actor is shared.
 - New game fills **six** outdoor villagers: shuffle the starter pool, keep one of each looks, assign to the six NPC houses.
-- Field day is a reusable action queue: wake / leave home / walk / sit|fish|shop / talk / wander / go home / sleep.
-- While in the field, pick a goal acre from looks+time (`shrine` / other `home` / `alone` / `my_home`). Walk there, linger in-acre, then pick a new goal. Concurrent town-walkers cap at `n/3` (max 5). Empty goal-table windows stay on the home acre.
+- Field day is a reusable action queue: wake / leave home / walk to goal acre / wander / go home / sleep. Wander **loops** for the whole FIELD window (wait / walk / run around the acre). Sit / fish / shop are not the FIELD default.
+- While in the field, pick a goal acre from looks+time (`shrine` / other `home` / `alone` / `my_home`). Walkers go there, linger in-acre, then pick a new goal. Concurrent town-walkers cap at `n/3` (max 5). Empty goal-table windows stay on the home acre. Non-walkers still wander their home acre; they do not stand at the door.
 - Species GLB + shared `npc_1` wait/walk (and sit/fish if present) when `assets/generated/characters/villagers/` exists.
 - Talk updates last-spoke and a simple friendship number.
 - Not on the acre when sleeping or indoors (or visibly in bed later). Walking home/out is still visible.
@@ -90,8 +90,8 @@ Move-out: `removing`, `remove_animal_idx` on save, minimum days before force rem
 ## Simplify
 
 - Looks tables for all six personalities as data. Pip uses the lazy (boy) table.
-- Shared activity runner (`VillagerAI` + reusable `ActivityKind` steps). Not per-villager AI scripts and not `aNPC_think_*` overlays.
-- Field goals use `mNpcW_GOAL_*` kinds and acre picks. Full-town navmesh walks the route; no acre-edge appear/streaming and no gate waypoint graphs.
+- Shared activity runner (`VillagerAI` + reusable `ActivityKind` steps). Not per-villager AI scripts and not `aNPC_think_*` overlays. Wander wait/walk/run weights and acre-center radius come from that think, encoded as data on `VillagerWalk`.
+- Field goals use `mNpcW_GOAL_*` kinds and acre picks. Full-town walks the route; no acre-edge appear/streaming and no gate waypoint graphs. Stay-in-acre then new goal is ~28s, not the original 30-minute arrive counter.
 - Friendship as an int 0–255 (or 0–100) without letter scoring.
 - Skip villager–villager relation matrix.
 - Skip move-out lottery and “return visitor” (`Anmret_c`). New towns stay at six starters (one looks each).

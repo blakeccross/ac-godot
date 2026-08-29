@@ -193,7 +193,7 @@ func test_field_plan_is_reusable_actions() -> void:
 		kinds.append(action.kind)
 	assert_that(kinds[0]).is_equal(ActivityKind.LEAVE_HOME)
 	assert_that(kinds[kinds.size() - 1]).is_equal(ActivityKind.WANDER)
-	assert_float(plan[kinds.size() - 1].duration).is_equal(ActivityKind.STAY_SECONDS)
+	assert_bool(ActivityKind.loops(ActivityKind.WANDER)).is_true()
 
 
 func test_field_plan_walks_to_goal_acre() -> void:
@@ -214,6 +214,9 @@ func test_field_plan_walks_to_goal_acre() -> void:
 	assert_vector(plan[0].target).is_equal(goal)
 	assert_that(plan[1].kind).is_equal(ActivityKind.WANDER)
 	assert_vector(plan[1].target).is_equal(goal)
+	assert_bool(plan[1].is_finished()).is_false()
+	plan[1].tick_time(ActivityKind.STAY_SECONDS + 1.0)
+	assert_bool(plan[1].is_finished()).is_false()
 
 
 func test_sleep_plan_is_just_sleep_when_already_home() -> void:
@@ -224,6 +227,16 @@ func test_sleep_plan_is_just_sleep_when_already_home() -> void:
 	assert_that(plan[0].kind).is_equal(ActivityKind.SLEEP)
 	assert_bool(plan[0].is_present()).is_false()
 	assert_bool(plan[0].is_talkable()).is_false()
+
+
+func test_already_outdoors_skips_leave_house() -> void:
+	var plan: Array[VillagerAction] = VillagerPlan.build(
+		VillagerActivity.FIELD,
+		&"",
+		{"home": Vector3.ZERO, "outdoors": true, "field_actions": [ActivityKind.WANDER]}
+	)
+	assert_that(plan[0].kind).is_equal(ActivityKind.WANDER)
+	assert_int(plan.size()).is_equal(1)
 
 
 func test_wake_then_leave_home_then_sleep() -> void:
@@ -279,12 +292,10 @@ func test_walk_to_finishes_on_arrive() -> void:
 	assert_bool(sit.is_finished()).is_false()
 	sit.tick_time(1.5)
 	assert_bool(sit.is_finished()).is_true()
-	var wander: VillagerAction = VillagerAction.make(
-		ActivityKind.WANDER, Vector3.ZERO, ActivityKind.STAY_SECONDS
-	)
+	var wander: VillagerAction = VillagerAction.make(ActivityKind.WANDER, Vector3.ZERO)
 	assert_bool(wander.is_finished()).is_false()
 	wander.tick_time(ActivityKind.STAY_SECONDS + 0.1)
-	assert_bool(wander.is_finished()).is_true()
+	assert_bool(wander.is_finished()).is_false()
 
 
 func test_ai_advances_when_action_finishes() -> void:
@@ -293,9 +304,9 @@ func test_ai_advances_when_action_finishes() -> void:
 		VillagerActivity.FIELD,
 		{
 			"home": Vector3.ZERO,
-			"outdoors": true,
-			"field_actions": [ActivityKind.SIT],
-			"sit": Vector3(1, 0, 0),
+			"outdoors": false,
+			"goal": Vector3(8, 0, 0),
+			"field_actions": [ActivityKind.WANDER],
 			"shop": Vector3.INF,
 			"water": Vector3.INF,
 		}
@@ -304,11 +315,11 @@ func test_ai_advances_when_action_finishes() -> void:
 	ai.consider_arrive(ActivityKind.YARD_OFFSET)
 	ai.step(0.0)
 	assert_that(ai.kind()).is_equal(ActivityKind.WALK_TO)
-	ai.consider_arrive(Vector3(1, 0, 0))
+	ai.consider_arrive(Vector3(8, 0, 0))
 	ai.step(0.0)
-	assert_that(ai.kind()).is_equal(ActivityKind.SIT)
-	ai.step(ActivityKind.SIT_SECONDS + 0.1)
-	assert_that(ai.kind()).is_equal(ActivityKind.TALK)
+	assert_that(ai.kind()).is_equal(ActivityKind.WANDER)
+	ai.step(ActivityKind.STAY_SECONDS + 0.1)
+	assert_that(ai.kind()).is_equal(ActivityKind.WANDER)
 
 
 func test_starter_pick_is_one_of_each_looks() -> void:
@@ -434,3 +445,59 @@ func test_attach_villager_is_noop_without_mesh() -> void:
 	else:
 		assert_that(vis).is_not_null()
 		assert_that(host.get_node_or_null("GeneratedVisual")).is_not_null()
+
+
+func test_lazy_wait_walk_run_weights() -> void:
+	var waits := 0
+	var walks := 0
+	var runs := 0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	for _i: int in 200:
+		var act: StringName = VillagerWalk.pick_act(VillagerPersonality.Looks.LAZY, rng)
+		if act == VillagerWalk.ACT_WAIT:
+			waits += 1
+		elif act == VillagerWalk.ACT_WALK:
+			walks += 1
+		else:
+			runs += 1
+	## boy boarders 5,7 → 60% wait, 20% walk, 20% run
+	assert_int(waits).is_greater(90)
+	assert_int(walks).is_greater(20)
+	assert_int(runs).is_greater(20)
+	var jock_runs := 0
+	rng.seed = 3
+	for _j: int in 200:
+		if VillagerWalk.pick_act(VillagerPersonality.Looks.JOCK, rng) == VillagerWalk.ACT_RUN:
+			jock_runs += 1
+	assert_int(jock_runs).is_greater(70)
+
+
+func test_wander_point_is_away_from_feet() -> void:
+	var data := WorldData.new()
+	data.columns = 16
+	data.rows = 16
+	data.cell_size = 2.0
+	data.bake()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var from: Vector3 = data.cell_to_world(Vector2i(8, 8))
+	var stand: Vector3 = VillagerWalk.wander_in_block(data, Vector2i(1, 1), from, rng)
+	var delta: Vector3 = stand - from
+	delta.y = 0.0
+	assert_float(delta.length()).is_greater_equal(VillagerWalk.MIN_STEP)
+
+
+func test_motor_wait_then_walk() -> void:
+	var motor := VillagerMotor.new()
+	motor.reset(Vector3.ZERO)
+	motor.wait_in_place(0.2)
+	var paused: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(4, 0, 0), true)
+	assert_vector(paused).is_equal(Vector3.ZERO)
+	assert_bool(motor.needs_new_target()).is_false()
+	motor.tick(0.2, Vector3.ZERO, Vector3(4, 0, 0), true)
+	assert_bool(motor.needs_new_target()).is_true()
+	motor.set_target(Vector3(4, 0, 0), VillagerWalk.ACT_RUN)
+	assert_float(motor.speed_now()).is_greater(motor.walk_speed)
+	motor.arrive()
+	assert_bool(motor.needs_new_target()).is_true()
