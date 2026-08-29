@@ -23,9 +23,10 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | `FurnitureData` | Placeable item (`extends ItemData`) |
 | `FishData` / `BugData` | Catchables (`extends ItemData`) |
 | `PlantData` | Growing plants (not pocket items) |
-| `VillagerData` | Villager definition |
+| `VillagerData` | Villager definition (species, personality, dialogue) |
+| `VillagerPersonality` | Looks group; selects the daily table |
 | `DialogueData` | Conversation lines |
-| `ScheduleData` / `ScheduleSlot` | Daily routine |
+| `ScheduleData` / `ScheduleSlot` | Daily `{activity, end_hour}` table (`mNPS` looks tables) |
 | `AcreData` | Legacy plot grid used by `WorldGrid` tests |
 | `WorldData` | Town layout: terrain, elevation, buildings, objects, spawns |
 | `BuildingPlacement` / `ObjectPlacement` / `SpawnPoint` | Entries inside `WorldData` |
@@ -39,7 +40,7 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | InteractVolume | `scenes/world/interact_volume.gd` (sensor only; host implements verbs) |
 | Title, Clock HUD | `scenes/ui/` |
 
-Fishing, shops, and full dialogue are **not** systems yet. Tools exist as `ToolData` + `ToolUse` (shovel, rod, net, axe, watering can) wired through interaction verbs; rod/net notices are not the fishing or bug loops. Trees use `TreeUse` (shake, multi-hit chop, stump, fruit drop). Plant growth is `PlantGrowth`: stored `planted_renew` (and water/fruit overlays) on `Game.plant_states`, visual stage derived at 06:00. Shovel empty-ground dig writes a hole (`HoleUse`); shovel on a hole fills it. Shop, door, furniture, and sign scenes exist as verb stubs. Shop hours and villager sleep come from `Clock`. Town layout is `WorldData` produced by `WorldGenerator` and instanced by `WorldBuilder`. `FieldCatalog` maps original FG/BG ids to generated GLBs when present, and loads each acre's paired `mCoBG` table from a gitignored `.col.json` sidecar. `FieldCollision` uses that heightfield (and geometric bands only when the sidecar is missing). The world scene is a shell that owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists. Equipped tools parent to HAND through `HeldTool`. Field interact uses `InteractionQuery` (`RefCounted`, not an autoload); objects expose verbs instead of the player switching on type.
+Fishing, shops, and full dialogue are **not** systems yet. Tools exist as `ToolData` + `ToolUse` (shovel, rod, net, axe, watering can) wired through interaction verbs; rod/net notices are not the fishing or bug loops. Trees use `TreeUse` (shake, multi-hit chop, stump, fruit drop). Plant growth is `PlantGrowth`: stored `planted_renew` (and water/fruit overlays) on `Game.plant_states`, visual stage derived at 06:00. Shovel empty-ground dig writes a hole (`HoleUse`); shovel on a hole fills it. Shop, door, furniture, and sign scenes exist as verb stubs. Shop hours and villager sleep / in-house come from `Clock`. Town layout is `WorldData` produced by `WorldGenerator` and instanced by `WorldBuilder`. `FieldCatalog` maps original FG/BG ids to generated GLBs when present, and loads each acre's paired `mCoBG` table from a gitignored `.col.json` sidecar. `FieldCollision` uses that heightfield (and geometric bands only when the sidecar is missing). The world scene is a shell that owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists. Equipped tools parent to HAND through `HeldTool`. Field interact uses `InteractionQuery` (`RefCounted`, not an autoload); objects expose verbs instead of the player switching on type.
 
 ## Autoloads
 
@@ -52,11 +53,11 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 | `Clock` | `scripts/systems/clock.gd` (`ClockService`) | Time system: calendar, day/night, 06:00 renew |
 | `SaveService` | `scripts/systems/save_service.gd` | Load/save JSON to `user://` |
 | `Audio` | `scripts/systems/audio.gd` | Music / SFX buses |
-| `Game` | `scripts/systems/game.gd` | Session phase, scene changes; owns `Inventory` |
+| `Game` | `scripts/systems/game.gd` | Session phase, scene changes; owns `Inventory` and `VillagerRoster` |
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
-`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `GeneratedVisual`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `TreeUse`, `HoleUse`, and `PlantGrowth` are `RefCounted` helpers, not autoloads. Do not autoload weather, fishing, or events; those systems subscribe to `Clock` when they exist.
+`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `VillagerRoster` is a `RefCounted` owned by `Game` (id → `VillagerState`). `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `GeneratedVisual`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `TreeUse`, `HoleUse`, and `PlantGrowth` are `RefCounted` helpers, not autoloads. Do not autoload weather, fishing, or events; those systems subscribe to `Clock` when they exist.
 
 ### Time system
 
@@ -65,7 +66,7 @@ Prefer signals on the owning system over a global event bus unless many unrelate
 | Subscriber (now or next slice) | Signal / query |
 | --- | --- |
 | Day/night lighting | `time_changed` → `outdoor_light()` |
-| Villager schedules | `time_changed` + `activity_now()` |
+| Villager schedules | `time_changed` + `VillagerSchedule.tick` / `activity_now()` |
 | Shops | `in_hour_window(9, 22)`; restock on `field_renewed` |
 | Weather | `field_renewed` (not implemented yet) |
 | Plant growth | `field_renewed` → `PlantGrowth.refresh_world`; stage from `Clock.renew_index()` |
@@ -131,7 +132,7 @@ Pipeline details: [decomp_notes/world_generation.md](decomp_notes/world_generati
 | Field A-button | `InteractionQuery` + host `get_interactions` / `interact`; `InteractVolume` sensors; `ToolUse` field verbs |
 | Items | `ItemData` / `ToolData` resources + `Inventory` on `Game` |
 | Town layout | `WorldData` + `WorldGenerator` / `WorldBuilder` / `WorldObjectRegistry` + `WorldGrid` + `FieldCollision`; world `.tscn` is a shell |
-| Villagers | `VillagerData` + `ScheduleData` + villager scene (AI later) |
+| Villagers | `VillagerData` + `VillagerPersonality` + `ScheduleData` + `Villager` scene; runtime `VillagerSchedule` / `VillagerState` / `VillagerMotor` |
 | Dialogue | `DialogueData` + a UI scene when that slice is earned |
 | Save | JSON IDs and counts to `user://`, not `.tres` with embedded scripts |
 
@@ -154,7 +155,7 @@ Each phase should be playable or testable in-engine. Later phases are not starte
 11. **Phase 10** — tools: `ToolData` + `ToolUse`; shovel, fishing rod, net, axe, watering can as interaction verbs (not full fishing / bug / plant systems).
 12. **One deep interactable** — one tree (grow, shake, fruit, plant) with correct feel. Growth derived from planting date on `field_renewed`.
 13. **Inventory** — `ItemData` / `InventoryItem` / `InventorySlot` / `Inventory`; 5×3 pocket UI; pick up, drop, stack, use, equip, save.
-14. **One villager** — schedule, greeting, one dialogue tree.
+14. **One villager** — shared `Villager` actor + looks data; schedule, greeting, friendship. Dialogue UI later.
 15. **One shop + economy** — buy/sell a few items.
 16. **Town deltas** — persist more than one pickup and the current acre FG.
 

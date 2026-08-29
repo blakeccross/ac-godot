@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="VillagerPersonality" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/villager_personality.gd" id="1"]
+[ext_resource type="Resource" path="res://data/schedules/cranky.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"cranky"
+display_name = "Cranky"
+looks = 4
+schedule = ExtResource("2")
+placeholder_color = Color(0.55, 0.42, 0.38, 1)
+walk_speed = 1.6
+wander_radius = 5.0

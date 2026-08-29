@@ -2,10 +2,10 @@ class_name ScheduleSlot
 extends Resource
 
 ## One window that lasts until `end_hour` (24h, 19.5 = 19:30).
-## Activities match `mNPS_SCHED_*`: sleep, in_house, field.
+## Activities are `VillagerActivity` names (`mNPS_SCHED_*`).
 
 @export var end_hour: float = 24.0
-@export var activity: StringName = &"sleep"
+@export var activity: StringName = VillagerActivity.SLEEP
 
 
 func end_seconds() -> int:

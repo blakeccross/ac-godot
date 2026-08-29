@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="ScheduleData" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/schedule_data.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/schedule_slot.gd" id="2"]
+
+[sub_resource type="Resource" id="house_late"]
+script = ExtResource("2")
+end_hour = 1.0
+activity = &"in_house"
+
+[sub_resource type="Resource" id="sleep_am"]
+script = ExtResource("2")
+end_hour = 5.5
+activity = &"sleep"
+
+[sub_resource type="Resource" id="house_am"]
+script = ExtResource("2")
+end_hour = 6.5
+activity = &"in_house"
+
+[sub_resource type="Resource" id="field_am"]
+script = ExtResource("2")
+end_hour = 12.0
+activity = &"field"
+
+[sub_resource type="Resource" id="house_noon"]
+script = ExtResource("2")
+end_hour = 12.5
+activity = &"in_house"
+
+[sub_resource type="Resource" id="field_pm"]
+script = ExtResource("2")
+end_hour = 23.0
+activity = &"field"
+
+[sub_resource type="Resource" id="house_eve"]
+script = ExtResource("2")
+end_hour = 24.0
+activity = &"in_house"
+
+[resource]
+script = ExtResource("1")
+slots = [SubResource("house_late"), SubResource("sleep_am"), SubResource("house_am"), SubResource("field_am"), SubResource("house_noon"), SubResource("field_pm"), SubResource("house_eve")]

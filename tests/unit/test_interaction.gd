@@ -149,6 +149,7 @@ func test_item_pickup_refuses_when_pockets_full() -> void:
 func test_scene_hosts_offer_expected_verbs() -> void:
 	var ctx := InteractionContext.new()
 	_assert_verb("res://scenes/world/tree.tscn", Interaction.SHAKE, ctx)
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
 	_assert_verb("res://scenes/actors/villager.tscn", Interaction.TALK, ctx)
 	_assert_verb("res://scenes/world/furniture.tscn", Interaction.SIT, ctx)
 	_assert_verb("res://scenes/world/house.tscn", Interaction.ENTER, ctx)
@@ -303,6 +304,7 @@ func test_world_scene_wires_interactables() -> void:
 	assert_that(world.get_node_or_null("Objects/yard_chair")).is_not_null()
 	assert_that(world.get_node_or_null("Buildings/acre_shop")).is_not_null()
 	assert_that(world.get_node_or_null("Buildings/player_house")).is_not_null()
+	assert_that(world.get_node_or_null("Characters/pip")).is_not_null()
 
 
 func test_shop_hours_follow_clock() -> void:
@@ -322,6 +324,9 @@ func test_villager_offers_no_talk_while_sleeping() -> void:
 	var villager: Node = auto_free(load("res://scenes/actors/villager.tscn").instantiate())
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 7, "minute": 0 })
 	assert_str(String(villager.current_activity())).is_equal("sleep")
+	assert_int(villager.get_interactions(InteractionContext.new()).size()).is_equal(0)
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 12, "minute": 0 })
+	assert_str(String(villager.current_activity())).is_equal("in_house")
 	assert_int(villager.get_interactions(InteractionContext.new()).size()).is_equal(0)
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
 	assert_str(String(villager.current_activity())).is_equal("field")
