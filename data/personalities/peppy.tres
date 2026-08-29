@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="VillagerPersonality" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/villager_personality.gd" id="1"]
+[ext_resource type="Resource" path="res://data/schedules/peppy.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"peppy"
+display_name = "Peppy"
+looks = 1
+schedule = ExtResource("2")
+placeholder_color = Color(0.95, 0.55, 0.7, 1)
+walk_speed = 2.0
+wander_radius = 6.5

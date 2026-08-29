@@ -2,6 +2,8 @@
 
 [ext_resource type="Script" path="res://scripts/data/villager_data.gd" id="1"]
 [ext_resource type="Resource" path="res://data/schedules/pip_weekday.tres" id="2"]
+[ext_resource type="Resource" path="res://data/personalities/lazy.tres" id="3"]
+[ext_resource type="Resource" path="res://data/dialogue/pip_greeting.tres" id="4"]
 
 [resource]
 script = ExtResource("1")
@@ -9,4 +11,6 @@ id = &"pip"
 display_name = "Pip"
 species = &"squirrel"
 catchphrase = "nuts"
+personality = ExtResource("3")
 schedule = ExtResource("2")
+dialogue = ExtResource("4")
