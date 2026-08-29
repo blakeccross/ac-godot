@@ -2,7 +2,7 @@
 
 [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp) documents original behavior. Clone it **outside** this repo. This table is a lookup, not an implementation checklist.
 
-**Before implementing a system**, read the matching note in [decomp_notes/](decomp_notes/): [world](decomp_notes/world.md), [world generation](decomp_notes/world_generation.md), [world objects](decomp_notes/world_objects.md), [player](decomp_notes/player.md), [interaction](decomp_notes/interaction.md), [inventory](decomp_notes/inventory.md), [time](decomp_notes/time.md), [villagers](decomp_notes/villagers.md), [dialogue](decomp_notes/dialogue.md), [furniture](decomp_notes/furniture.md), [fishing](decomp_notes/fishing.md), [bugs](decomp_notes/bugs.md), [plants](decomp_notes/plants.md), [shops](decomp_notes/shops.md), [save](decomp_notes/save.md). Those notes list files/functions and what to reproduce vs simplify vs ignore.
+**Before implementing a system**, read the matching note in [decomp_notes/](decomp_notes/): [world](decomp_notes/world.md), [world generation](decomp_notes/world_generation.md), [world objects](decomp_notes/world_objects.md), [player](decomp_notes/player.md), [interaction](decomp_notes/interaction.md), [inventory](decomp_notes/inventory.md), [tools](decomp_notes/tools.md), [time](decomp_notes/time.md), [villagers](decomp_notes/villagers.md), [dialogue](decomp_notes/dialogue.md), [furniture](decomp_notes/furniture.md), [fishing](decomp_notes/fishing.md), [bugs](decomp_notes/bugs.md), [plants](decomp_notes/plants.md), [shops](decomp_notes/shops.md), [save](decomp_notes/save.md). Those notes list files/functions and what to reproduce vs simplify vs ignore.
 
 Study the named headers/sources to learn **what should happen**. Implement that with the Godot analog. Never copy files or mechanically translate C.
 
@@ -21,7 +21,11 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | FG items (`TREE`, `ROCK_*`, `FLOWER_*`, `HOUSE0`, `SHOP0`, `MUSEUM`, `NEEDLEWORK_SHOP`, `SIGN00`–`SIGN20`) | Outdoor hosts + structure slots + villager plot reserves | `WorldObjectRegistry` + host scenes; `FgCatalog.placement_for_item` |
 | `m_bg`, `m_bg_item` | Terrain and placed items | `WorldData` cells + occupancy on `WorldGrid` |
 | `m_collision_bg` | Heightfield, plant caps, FTR footprints | `FieldCatalog` acre `.col.json` + `FieldCollision`; `WorldGrid` occupancy |
-| `m_item`, name tables | Item definitions | `ItemData` resources under `data/items/` |
+| `m_item`, name tables | Item definitions | `ItemData` / `ToolData` resources under `data/items/` |
+| Field A + equipped scoop/axe/net/rod/can | Tool-ready player modes | `ToolUse` + host verbs; not a `Tool` class tree |
+| `Player_actor_Item_draw` / `mPlayer_JOINT_HAND` | Tool Gfx/cKF on the right hand | `HeldTool` + `ToolData.visual_id` |
+| `bg_item` tree cut / shake, `EffectBG` shake & cut | Multi-hit chop, fruit drop, stump, shake/fall | `TreeUse` + tree scene tweens |
+| `DIG_SCOOP` / `FILL_SCOOP`, `HOLE00`–`HOLE24` | Empty-tile dig writes a hole FG item; shovel on a hole fills | `HoleUse` + `hole.tscn`; saved on `Game.hole_interactables` |
 | `m_private` (`mPr_POCKETS_SLOT_COUNT` 15, `pockets[]`) | One item per pocket; wallet is separate | `Inventory` on `Game` |
 | `m_shop` | Shops | One shop scene + economy system later |
 | `m_home`, room types | Player house interiors | Interior scene + furniture as data |

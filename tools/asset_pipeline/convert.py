@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -37,8 +38,15 @@ PLAYER_CORE_ANIMS = [
     "cKF_ba_r_ply_1_wait1",
     "cKF_ba_r_ply_1_walk1",
     "cKF_ba_r_ply_1_run1",
+    "cKF_ba_r_ply_1_dash1",
     "cKF_ba_r_ply_1_axe1",
+    "cKF_ba_r_ply_1_axe_swing1",
     "cKF_ba_r_ply_1_pickup1",
+    "cKF_ba_r_ply_1_dig1",
+    "cKF_ba_r_ply_1_shake1",
+    "cKF_ba_r_ply_1_net_swing1",
+    "cKF_ba_r_ply_1_sao_swing1",
+    "cKF_ba_r_ply_1_kamae_wait_m1",
 ]
 
 # Prefer these first in the GLB; every cKF_ba_r_npc_1_* clip is still included.
@@ -304,6 +312,13 @@ def _owning_vtx_prefix(name: str, prefixes: set[str]) -> str | None:
             variants.append(cand[:-1])
         for variant in variants:
             if variant in prefixes and _name_under_prefix(name, variant):
+                return variant
+    # Hardwood stumps: vtx `obj_s_stump5`, Gfx `obj_stump5T_gfx_model` (season infix dropped).
+    dropped = re.match(r"^obj_(stump\d+)T_", name)
+    if dropped:
+        for season in ("s", "w", "f"):
+            variant = f"obj_{season}_{dropped.group(1)}"
+            if variant in prefixes:
                 return variant
     return None
 

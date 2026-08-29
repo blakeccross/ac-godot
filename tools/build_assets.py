@@ -42,7 +42,7 @@ def main() -> int:
         "--kind",
         choices=["all", "static", "buildings", "plants", "collision", "fg", "inventory-ui"],
         default="all",
-        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit overlays, acre collision, FG templates, or inventory UI chrome",
+        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, acre collision, FG templates, or inventory UI chrome",
     )
     args = parser.parse_args()
     cfg = load_config(ROOT, args.config)
@@ -117,7 +117,22 @@ def main() -> int:
                 label = "building assets"
             elif args.kind == "plants":
                 cfg.test_set_only = False
-                report = convert_static_prefixes(cfg, ["palm", "cedar", "tree5_apple"])
+                report = convert_static_prefixes(
+                    cfg,
+                    [
+                        "palm",
+                        "cedar",
+                        "tree5_apple",
+                        "obj_s_stone",
+                        "obj_w_stone",
+                        "obj_s_stump",
+                        "obj_s_cstump",
+                        "obj_s_pstump",
+                        "obj_w_cstump",
+                        "obj_w_pstump",
+                        "obj_hole",
+                    ],
+                )
                 label = "plant assets"
             else:
                 report = convert_assets(cfg)

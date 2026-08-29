@@ -191,7 +191,7 @@ _SYMBOL_STOPWORDS = frozenset(
         "tbl",
     }
 )
-_PLANT_PARTS = frozenset({"leaf", "trunk", "cedar", "palm", "flower", "tree"})
+_PLANT_PARTS = frozenset({"leaf", "trunk", "cedar", "palm", "flower", "tree", "stump"})
 _GENERIC_LEAF_PARTS = frozenset({"leaf", "trunk"})
 
 
@@ -350,6 +350,10 @@ class TextureBank:
         self._cedar_pal = self._fg_pal_row("mFM_obj_tree_01_pal_dol") or self._tree_fg_pal
         self._palm_pal = self._fg_pal_row("mFM_obj_palm_01_pal")
         self._flower_pal = self._fg_pal_row("mFM_obj_a_01_flower_pal")
+        ## Hole DLs SETTILE pal_slot 4/5 and never LOADTLUT. `bg_item` binds
+        ## `obj_g_hole_pal` / `obj_b_hole_pal` (`bIT_PAL_HOLE_G` / `_S`).
+        self._hole_g_pal = self._symbol_bytes("obj_g_hole_pal")
+        self._hole_s_pal = self._symbol_bytes("obj_b_hole_pal")
 
     def bind_field_bg(self, season: str = "s", variant: int = 0) -> None:
         """Map acre/field segment 0x80 from l_bg_tex_segment_rom_start_* tables.
@@ -586,6 +590,8 @@ class TextureBank:
                 best = pal
         if best is not None and best_score >= 10:
             return self.rel.slice_at(best.address, min(best.size, 512)), 2
+        if "hole" in prefix_toks and self._hole_g_pal:
+            return self._hole_g_pal, 1
         if part & _PLANT_PARTS:
             if "palm" in part and self._palm_pal:
                 return self._palm_pal, 1
@@ -801,6 +807,8 @@ class TextureBank:
             return self._cedar_pal
         if "flower" in name and self._flower_pal:
             return self._flower_pal
+        if "obj_hole" in name:
+            return self._hole_g_pal
         if "tree" in name:
             return self._tree_fg_pal or self._tree_pal
         best: MapSymbol | None = None

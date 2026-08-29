@@ -27,6 +27,7 @@ func test_authored_test_town_has_fixed_layout() -> void:
 	assert_that(_building_at(data, &"acre_shop")).is_equal(Vector2i(12, 1))
 	assert_that(_object_at(data, &"tree_1")).is_equal(Vector2i(4, 6))
 	assert_that(_object_at(data, &"ground_apple")).is_equal(Vector2i(8, 10))
+	assert_that(_object_at(data, &"ground_shovel")).is_equal(Vector2i(2, 11))
 	assert_that(_object_at(data, &"acre_sign")).is_equal(Vector2i(9, 11))
 	assert_that(_object_at(data, &"yard_chair")).is_equal(Vector2i(9, 3))
 	assert_that(_object_at(data, &"pip")).is_equal(Vector2i(10, 9))
@@ -478,7 +479,7 @@ func test_world_object_registry_lists_phase_kinds() -> void:
 	## Adding a kind is one registry line + a scene; builder does not hardcode types.
 	WorldObjectRegistry.ensure()
 	for kind: StringName in [
-		&"tree", &"rock", &"flower", &"item", &"door", &"building", &"house", &"shop"
+		&"tree", &"rock", &"flower", &"hole", &"item", &"door", &"building", &"house", &"shop"
 	]:
 		assert_bool(WorldObjectRegistry.has_kind(kind)).is_true()
 		assert_str(WorldObjectRegistry.scene_path(kind)).is_not_empty()

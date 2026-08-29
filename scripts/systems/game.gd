@@ -7,6 +7,9 @@ enum Phase { TITLE, PLAYING }
 const TITLE_SCENE := "res://scenes/ui/title.tscn"
 const WORLD_SCENE := "res://scenes/world/world.tscn"
 const DEFAULT_SPAWN := Vector3(0.0, 0.1, 6.0)
+const TEST_TOOL_IDS: Array[StringName] = [
+	&"shovel", &"axe", &"net", &"fishing_rod", &"watering_can"
+]
 
 signal phase_changed(phase: Phase)
 signal prompt_changed(text: String)
@@ -17,6 +20,8 @@ var phase: Phase = Phase.TITLE
 var player_position: Vector3 = DEFAULT_SPAWN
 var player_yaw: float = 0.0
 var removed_interactables: Array[String] = []
+var stump_interactables: Array[String] = []
+var hole_interactables: Array[String] = []
 var interact_prompt: String = ""
 var world_mode: WorldData.Mode = WorldData.Mode.TEST
 var world_seed: int = WorldGenerator.DEFAULT_SEED
@@ -34,6 +39,8 @@ func start_new_game(
 	world_seed = seed_value
 	Clock.rtc_override = false
 	Clock.sync_from_os()
+	if world_mode == WorldData.Mode.TEST:
+		give_test_tools()
 	_change_scene(WORLD_SCENE)
 
 
@@ -58,6 +65,8 @@ func return_to_title() -> void:
 
 
 func notify_world_ready() -> void:
+	if world_mode == WorldData.Mode.TEST:
+		give_test_tools()
 	_set_phase(Phase.PLAYING)
 
 
@@ -71,9 +80,20 @@ func reset_session() -> void:
 	player_position = DEFAULT_SPAWN
 	player_yaw = 0.0
 	removed_interactables.clear()
+	stump_interactables.clear()
+	hole_interactables.clear()
 	world_mode = WorldData.Mode.TEST
 	world_seed = WorldGenerator.DEFAULT_SEED
 	set_interact_prompt("")
+
+
+func give_test_tools() -> void:
+	for item_id: StringName in TEST_TOOL_IDS:
+		if inventory.count_of(item_id) > 0:
+			continue
+		var data: ItemData = ItemCatalog.get_item(item_id)
+		if data != null:
+			inventory.add(data, 1)
 
 
 func capture_player_from_tree() -> void:
@@ -99,6 +119,47 @@ func mark_interactable_removed(persist_id: StringName) -> void:
 	var key := String(persist_id)
 	if not removed_interactables.has(key):
 		removed_interactables.append(key)
+	clear_stump(persist_id)
+
+
+func is_stump(persist_id: StringName) -> bool:
+	if persist_id == &"":
+		return false
+	return stump_interactables.has(String(persist_id))
+
+
+func mark_stump(persist_id: StringName) -> void:
+	if persist_id == &"" or is_interactable_removed(persist_id):
+		return
+	var key := String(persist_id)
+	if not stump_interactables.has(key):
+		stump_interactables.append(key)
+
+
+func clear_stump(persist_id: StringName) -> void:
+	if persist_id == &"":
+		return
+	stump_interactables.erase(String(persist_id))
+
+
+func is_hole(persist_id: StringName) -> bool:
+	if persist_id == &"":
+		return false
+	return hole_interactables.has(String(persist_id))
+
+
+func mark_hole(persist_id: StringName) -> void:
+	if persist_id == &"":
+		return
+	var key := String(persist_id)
+	if not hole_interactables.has(key):
+		hole_interactables.append(key)
+
+
+func clear_hole(persist_id: StringName) -> void:
+	if persist_id == &"":
+		return
+	hole_interactables.erase(String(persist_id))
 
 
 func set_interact_prompt(text: String) -> void:
@@ -121,6 +182,8 @@ func to_save() -> Dictionary:
 			"yaw": player_yaw,
 		},
 		"removed_interactables": removed_interactables.duplicate(),
+		"stump_interactables": stump_interactables.duplicate(),
+		"hole_interactables": hole_interactables.duplicate(),
 		"world_mode": int(world_mode),
 		"world_seed": world_seed,
 	}
@@ -144,6 +207,18 @@ func apply_snapshot(data: Dictionary) -> void:
 	if typeof(removed) == TYPE_ARRAY:
 		for entry: Variant in removed:
 			removed_interactables.append(str(entry))
+	stump_interactables.clear()
+	var stumps: Variant = data.get("stump_interactables", [])
+	if typeof(stumps) == TYPE_ARRAY:
+		for entry: Variant in stumps:
+			var key := str(entry)
+			if not removed_interactables.has(key):
+				stump_interactables.append(key)
+	hole_interactables.clear()
+	var holes: Variant = data.get("hole_interactables", [])
+	if typeof(holes) == TYPE_ARRAY:
+		for entry: Variant in holes:
+			hole_interactables.append(str(entry))
 	world_mode = int(data.get("world_mode", WorldData.Mode.TEST)) as WorldData.Mode
 	world_seed = int(data.get("world_seed", WorldGenerator.DEFAULT_SEED))
 

@@ -2,6 +2,8 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only.
 
+**Godot:** `PlantData` + one tree scene. Chop / shake / stump rules are `TreeUse` (`RefCounted`, not an autoload). Daily grow is not this slice.
+
 **Read before implementing:** `PlantData`, one tree scene, daily grow at 06:00.
 
 ## Decomp sources
@@ -48,7 +50,7 @@ Buried items share the FG slot (hole vs item). Flowers breed in the original; th
 
 - Updated FG ids (visible tree/flower stage).
 - Dropped fruit / wood / furniture / bee nest on shake.
-- Stump or empty tile after chop.
+- Stump or empty tile after chop. Digging the stump writes a hole FG item.
 - New sapling occupying a unit.
 - Insect spawn opportunities on flowers/trees.
 
@@ -64,18 +66,20 @@ Buried items share the FG slot (hole vs item). Flowers breed in the original; th
 
 ## Reproduce
 
-- **One tree**: plant sapling → grow across days → shake for fruit → chop down.
-- Growth happens on the **daily reset**, not in real-time minutes.
+- **One tree**: shake for fruit → chop down to a stump → shovel the stump.
+- Full trees take **3** axe hits (`tree_cut_tbl` S2/full). Fruit drops on the **first** shake or chop that still has fruit (3 apples, 2 coconuts), then the tree is bare.
+- The last hit leaves a **stump**, not an empty tile. Cut progress is session-only; the stump itself is saved (`Game.stump_interactables`).
 - Occupies a tile; cannot plant on occupied/blocked tiles.
-- Shake is a locked player anim that may emit an item.
+- Shake is a locked player anim that may emit an item. Chop plays `ply_1_axe_swing1` (`mPlayer_ANIM_AXE_SWING1`); the tree wobbles, then falls away from the player.
 
 ## Simplify
 
-- One species, 3–4 growth stages, one fruit item.
+- One species, 3–4 growth stages, one fruit item. Growth across days still waits for the plant-growth slice.
 - No flower breeding, gold trees, palm, cedar swap, 10k/30k bell trees.
 - No watering can until plants exist without it.
-- Mushrooms and dumped furniture-from-trees can wait.
-- Stump as optional; empty tile is enough for v1.
+- Mushrooms, bees, dumped furniture-from-trees, and axe durability wait.
+- Shake / fall are Godot tweens on the live mesh, not converted `ef_s_tree5_*` EffectBG clips.
+- Digging a stump leaves a hole on that tile (`DIG_SCOOP` after the stump flies). Fill with the shovel (`FILL_SCOOP`).
 
 ## Ignore
 

@@ -28,7 +28,8 @@ A-button in the field is **not** one function. The player actor, collision unit,
 
 - Empty hands + item on tile → pickup (or pickup-jump, furniture pickup).
 - Empty hands + NPC in range and addressable → `request_main_talk` + demo/camera + `m_msg`.
-- Empty hands + tree → shake (`SHAKE_TREE`).
+- Empty hands + tree → shake (`SHAKE_TREE`). Fruit may fall; later shakes only rustle.
+- Axe + tree → chop (`SWING_AXE`). Three hits fell a full tree to a stump; the first hit also drops fruit if any.
 - Axe / net / rod / scoop equipped → tool mode for that item.
 - Furniture contact while indoors → push/pull/rotate or sit depending on profile flags.
 
@@ -82,7 +83,7 @@ A-button in the field is **not** one function. The player actor, collision unit,
 - Pick up goes to the first free pocket; refuse if full (`REFUSE_PICKUP`).
 - Drop / place onto the facing tile if empty.
 - Talk turns the player, locks movement, opens dialogue.
-- Tool use is tile- or volume-based (axe/shake on tree; net in front; rod at water).
+- Tool use is tile- or volume-based (axe/shake on tree; shovel digs a hole or fills one; net in front; rod at water).
 
 ## Simplify
 

@@ -16,12 +16,24 @@ func _ready() -> void:
 	GeneratedVisual.attach(self, visual_id)
 
 
-func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
-	return [Interaction.of(Interaction.PICK_UP, "Pick flower", 10)]
+func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
+	var actions: Array[Interaction] = [
+		Interaction.of(Interaction.PICK_UP, "Pick flower", 10)
+	]
+	if ToolUse.has(ctx, ToolData.Kind.WATERING_CAN):
+		actions.append(Interaction.of(Interaction.WATER, "Water flower", 16, &"ply_1_water1"))
+	return actions
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if action == null or action.id != Interaction.PICK_UP:
+	if action == null:
+		return false
+	if action.id == Interaction.WATER:
+		if not ToolUse.has(ctx, ToolData.Kind.WATERING_CAN):
+			return false
+		Game.post_notice("You water the flower.")
+		return true
+	if action.id != Interaction.PICK_UP:
 		return false
 	var item: ItemData = ItemCatalog.get_item(&"flower")
 	if item != null and Game.inventory != null:

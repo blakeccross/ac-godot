@@ -16,7 +16,7 @@ func test_item_catalog() -> void:
 	var apple: ItemData = load("res://data/items/apple.tres")
 	assert_that(apple).is_not_null()
 	assert_that(apple.id).is_equal(&"apple")
-	assert_int(apple.max_stack).is_equal(1)
+	assert_int(apple.max_stack).is_equal(9)
 	assert_that(apple.category).is_equal(ItemData.Category.FRUIT)
 
 

@@ -21,6 +21,7 @@ func test_default_visuals_use_decomp_names() -> void:
 	assert_that(FieldCatalog.default_visual(&"sign")).is_equal(&"SIGNBOARD")
 	assert_that(FieldCatalog.default_visual(&"flower")).is_equal(&"FLOWER_PANSIES0")
 	assert_that(FieldCatalog.default_visual(&"rock")).is_equal(&"ROCK_A")
+	assert_that(FieldCatalog.default_visual(&"hole")).is_equal(&"HOLE00")
 
 
 func test_fg_item_trees_and_sign_reserves() -> void:
@@ -45,6 +46,9 @@ func test_summer_tree_paths_when_assets_exist() -> void:
 	if paths.is_empty():
 		return
 	assert_str(paths[0]).contains("obj_s_tree5")
+	var stump: PackedStringArray = FieldCatalog.mesh_paths(&"TREE_STUMP004")
+	if not stump.is_empty():
+		assert_str(stump[0]).contains("obj_s_stump5")
 	assert_str(FieldCatalog.mesh_paths(&"obj_s_house1")[0]).contains("obj_s_house1")
 	for id: StringName in [
 		&"obj_s_myhome1",
@@ -62,6 +66,16 @@ func test_summer_tree_paths_when_assets_exist() -> void:
 	assert_str(FieldCatalog.mesh_paths(&"grd_s_f_1")[0]).contains("grd_s_f_1")
 	assert_str(FieldCatalog.villager_path(&"squirrel")).contains("squ_1")
 	assert_str(FieldCatalog.item_albedo(&"apple")).contains("obj_item_apple_tex")
+
+
+func test_tool_mesh_paths_when_assets_exist() -> void:
+	var axe: PackedStringArray = FieldCatalog.mesh_paths(&"tol_axe_1")
+	if axe.is_empty():
+		return
+	assert_str(axe[0]).contains("tol_axe_1")
+	assert_str(FieldCatalog.mesh_paths(&"tol_scoop_1")[0]).contains("tol_scoop_1")
+	assert_str(FieldCatalog.mesh_paths(&"tol_net_1")[0]).contains("tol_net_1")
+	assert_str(FieldCatalog.mesh_paths(&"tol_sao_1")[0]).contains("tol_sao_1")
 
 
 func test_acre_block_types_map_to_grd_families() -> void:

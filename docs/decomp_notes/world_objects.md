@@ -30,9 +30,10 @@ The player never switches on type. Verbs live on the host.
 
 | Kind | Verb | Scene |
 | --- | --- | --- |
-| `tree` | Shake | `tree.tscn` |
+| `tree` | Shake; chop (axe); dig stump (shovel) | `tree.tscn` |
 | `rock` | Dig (stub) | `rock.tscn` |
 | `flower` | Pick up | `flower.tscn` |
+| `hole` | Fill (shovel) | `hole.tscn` |
 | `item` | Pick up (inventory) | `item_pickup.tscn` |
 | `building` | Enter via child `Door` | `building.tscn` |
 | `door` | Enter / Shop | `door.tscn` |
@@ -56,5 +57,5 @@ Structure FG ids (`HOUSE0`, `SHOP0`, `MUSEUM`, `NEEDLEWORK_SHOP`, …) refine ce
 
 - Indoor room scenes (ENTER stays “locked” / shop hours stub).
 - Outdoor NPC actors and schedules on generated towns (test town still has Pip). House shells spawn; villagers do not.
-- Money-rock / dig loot tables.
+- Money-rock / dig loot tables. Pitfall kits, buried items, and walking into a hole (fall).
 - House upgrade stages (`obj_s_myhome2`–`4`, `obj_s_house2`–`5`) until upgrades exist.

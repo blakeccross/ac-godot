@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="ItemData" format=3]
+[gd_resource type="Resource" script_class="ToolData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/data/tool_data.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
@@ -15,3 +15,11 @@ usable = false
 equippable = true
 use_verb = "Use"
 icon_color = Color(0.45, 0.45, 0.5, 1)
+kind = 1
+field_verb = &"dig"
+field_prompt = "Dig"
+field_anim = &"ply_1_dig1"
+visual_id = &"tol_scoop_1"
+field_priority = 6
+field_require = 2
+field_notice = "You dig a hole."

@@ -27,6 +27,11 @@ const NEEDLEWORK_UT_TA3 := Vector2i(9, 5)
 const STARTER_NPC_HOUSES := 6
 
 const _APPLE := preload("res://data/items/apple.tres")
+const _SHOVEL := preload("res://data/items/shovel.tres")
+const _AXE := preload("res://data/items/axe.tres")
+const _NET := preload("res://data/items/net.tres")
+const _ROD := preload("res://data/items/fishing_rod.tres")
+const _CAN := preload("res://data/items/watering_can.tres")
 const _APPLE_TREE := preload("res://data/plants/apple_tree.tres")
 const _HARDWOOD := preload("res://data/plants/hardwood_tree.tres")
 const _CEDAR := preload("res://data/plants/cedar_tree.tres")
@@ -57,6 +62,11 @@ static func authored_test_town() -> WorldData:
 		_object(&"tree_2", &"tree", Vector2i(12, 5), _APPLE_TREE, &"TREE_APPLE_FRUIT"),
 		_object(&"tree_3", &"tree", Vector2i(5, 12), _HARDWOOD, &"TREE"),
 		_item(&"ground_apple", Vector2i(8, 10), _APPLE),
+		_item(&"ground_shovel", Vector2i(2, 11), _SHOVEL),
+		_item(&"ground_axe", Vector2i(2, 12), _AXE),
+		_item(&"ground_net", Vector2i(1, 11), _NET),
+		_item(&"ground_rod", Vector2i(1, 12), _ROD),
+		_item(&"ground_can", Vector2i(3, 11), _CAN),
 		_sign(&"acre_sign", Vector2i(9, 11), "Welcome to the acre."),
 		_object(&"yard_chair", &"furniture", Vector2i(9, 3), _CHAIR, &"int_sum_chair01"),
 		_object(&"pansy_1", &"flower", Vector2i(6, 10), null, &"FLOWER_PANSIES0"),

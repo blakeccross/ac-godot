@@ -21,6 +21,7 @@ static func ensure() -> void:
 	register(&"tree", "res://scenes/world/tree.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS)
 	register(&"rock", "res://scenes/world/rock.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS)
 	register(&"flower", "res://scenes/world/flower.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS)
+	register(&"hole", "res://scenes/world/hole.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS)
 	register(&"item", "res://scenes/world/item_pickup.tscn", WorldGrid.PlaceKind.ITEM, GROUP_OBJECTS)
 	register(&"sign", "res://scenes/world/sign.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS)
 	register(&"furniture", "res://scenes/world/furniture.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS)

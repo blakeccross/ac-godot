@@ -1,9 +1,10 @@
 extends CharacterBody3D
 
 ## CharacterBody3D player. Locomotion feel from `m_player_main_walk`; visual from
-## generated `boy_1.glb` when the local pipeline has been run. Collision is a
-## cylinder (original actor is a circle in XZ, radius ~18 GX) so the bottom
-## hemisphere of a capsule cannot catch on wall lids.
+## generated `boy_1.glb` when the local pipeline has been run. Equipped tools
+## parent to HAND (`HeldTool`). Collision is a cylinder (original actor is a
+## circle in XZ, radius ~18 GX) so the bottom hemisphere of a capsule cannot
+## catch on wall lids.
 
 const GENERATED_PLAYER := "res://assets/generated/characters/player/boy_1.glb"
 const LOOK_HEIGHT := 0.85
@@ -26,12 +27,22 @@ var _focus: Node = null
 var _anim: AnimationPlayer
 var _gait: PlayerLocomotion.Gait = PlayerLocomotion.Gait.WAIT
 var _placeholder_bob: float = 0.0
+var _hold_anim: StringName = &""
+var _tool_hold_anim: StringName = &""
+var _tool_use_anim: StringName = &""
 
 
 func _ready() -> void:
 	add_to_group("player")
 	_look.position = Vector3(0.0, LOOK_HEIGHT, 0.0)
 	_try_load_generated_visual()
+	Game.inventory.equipment_changed.connect(_on_equipment_changed)
+	_on_equipment_changed(Game.inventory.equipment_id)
+
+
+func _exit_tree() -> void:
+	if Game.inventory.equipment_changed.is_connected(_on_equipment_changed):
+		Game.inventory.equipment_changed.disconnect(_on_equipment_changed)
 
 
 func facing_yaw() -> float:
@@ -190,6 +201,8 @@ func _clip_for(gait: PlayerLocomotion.Gait) -> String:
 		PlayerLocomotion.Gait.DASH:
 			return ANIM_DASH
 		_:
+			if _hold_anim != &"" and not _resolve_clip(String(_hold_anim)).is_empty():
+				return String(_hold_anim)
 			return ANIM_WAIT
 
 
@@ -207,17 +220,16 @@ func _resolve_clip(suffix: String) -> String:
 
 
 func _update_focus() -> void:
-	var hit: InteractionQuery = _query_focus()
+	var hit: InteractionQuery = _resolve_interact()
 	var next: Node = hit.host if hit else null
+	var prompt := ""
+	if hit != null and hit.action != null:
+		prompt = hit.action.prompt
 	if next == _focus:
-		if hit != null:
-			Game.set_interact_prompt(hit.action.prompt)
+		Game.set_interact_prompt(prompt)
 		return
 	_focus = next
-	if hit != null:
-		Game.set_interact_prompt(hit.action.prompt)
-	else:
-		Game.set_interact_prompt("")
+	Game.set_interact_prompt(prompt)
 
 
 func _query_focus() -> InteractionQuery:
@@ -228,6 +240,10 @@ func _query_focus() -> InteractionQuery:
 		_motor.facing_point(global_position, INTERACT_REACH),
 		_make_context()
 	)
+
+
+func _resolve_interact() -> InteractionQuery:
+	return ToolUse.resolve(_query_focus(), _make_context())
 
 
 func _make_context() -> InteractionContext:
@@ -241,14 +257,17 @@ func _make_context() -> InteractionContext:
 
 
 func _try_interact() -> void:
-	var hit: InteractionQuery = _query_focus()
-	if hit == null or hit.host == null or hit.action == null:
+	var hit: InteractionQuery = _resolve_interact()
+	if hit == null or hit.action == null:
 		return
 	_focus = hit.host
 	_busy = hit.action.locks_player
 	await _play_action(hit.action.player_anim)
-	if is_instance_valid(hit.host):
-		hit.host.interact(hit.action, _make_context())
+	var ctx: InteractionContext = _make_context()
+	if hit.host != null and is_instance_valid(hit.host):
+		hit.host.interact(hit.action, ctx)
+	else:
+		ToolUse.apply_field(hit.action, ctx)
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()
@@ -262,8 +281,10 @@ func _play_action(clip_name: StringName) -> void:
 		await get_tree().create_timer(0.12).timeout
 		return
 	_anim.speed_scale = 1.0
+	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_use_anim, false)
 	_anim.play(clip, 0.08)
 	await _anim.animation_finished
+	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)
 
 
 func _try_load_generated_visual() -> void:
@@ -287,6 +308,42 @@ func _try_load_generated_visual() -> void:
 		if not wait_clip.is_empty():
 			_ensure_loop(wait_clip)
 			_anim.play(wait_clip)
+
+
+func _on_equipment_changed(_item_id: StringName) -> void:
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	HeldTool.unbind(skeleton)
+	_hold_anim = &""
+	_tool_hold_anim = &""
+	_tool_use_anim = &""
+	var tool: ToolData = _equipped_tool()
+	if tool != null and tool.visual_id != &"":
+		HeldTool.bind(skeleton, tool.visual_id)
+		_hold_anim = tool.hold_anim
+		_tool_hold_anim = tool.visual_hold_anim
+		_tool_use_anim = tool.visual_use_anim
+		HeldTool.play(skeleton, _tool_hold_anim, true)
+	if not _busy:
+		_replay_gait_clip()
+
+
+func _equipped_tool() -> ToolData:
+	if Game.inventory == null or Game.inventory.equipment_id == &"":
+		return null
+	return ItemCatalog.get_item(Game.inventory.equipment_id) as ToolData
+
+
+func _replay_gait_clip() -> void:
+	if _anim == null:
+		return
+	var gait: PlayerLocomotion.Gait = _motor.gait()
+	_gait = gait
+	var clip := _resolve_clip(_clip_for(gait))
+	if clip.is_empty():
+		return
+	_ensure_loop(clip)
+	_anim.speed_scale = _anim_speed(gait)
+	_anim.play(clip, 0.12)
 
 
 func _scale_visual(body: Node3D) -> void:

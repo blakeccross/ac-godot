@@ -5,6 +5,19 @@ extends RefCounted
 ## Missing files are expected until `python3 tools/build_assets.py` has been run.
 
 
+static func detach(host: Node3D) -> void:
+	if host == null:
+		return
+	var vis: Node = host.get_node_or_null("GeneratedVisual")
+	if vis == null:
+		for child in host.get_children():
+			vis = child.get_node_or_null("GeneratedVisual")
+			if vis != null:
+				break
+	if vis != null:
+		vis.queue_free()
+
+
 static func attach(host: Node3D, visual_id: StringName) -> Node3D:
 	if host == null or visual_id == &"":
 		return null
@@ -30,6 +43,36 @@ static func attach(host: Node3D, visual_id: StringName) -> Node3D:
 	_apply_materials(pivot)
 	_fit(pivot, visual_id)
 	return pivot
+
+
+## Load a pipeline GLB with preview materials, but no host, ground-fit, or extra scale.
+## Held tools inherit actor GX scale from the player visual they parent under.
+static func instantiate_raw(visual_id: StringName) -> Node3D:
+	if visual_id == &"":
+		return null
+	var paths: PackedStringArray = FieldCatalog.mesh_paths(visual_id)
+	if paths.is_empty():
+		return null
+	var pivot := Node3D.new()
+	pivot.name = "HeldToolMesh"
+	for path: String in paths:
+		var packed: PackedScene = load(path) as PackedScene
+		if packed == null:
+			continue
+		var inst: Node = packed.instantiate()
+		if inst is Node3D:
+			pivot.add_child(inst)
+		else:
+			inst.queue_free()
+	if pivot.get_child_count() == 0:
+		pivot.free()
+		return null
+	_apply_materials(pivot)
+	return pivot
+
+
+static func apply_preview_materials(node: Node) -> void:
+	_apply_materials(node)
 
 
 static func attach_villager(_host: Node3D, _species: StringName) -> Node3D:
@@ -76,7 +119,7 @@ static func _hide_placeholder_meshes(host: Node) -> void:
 	if host is MeshInstance3D:
 		(host as MeshInstance3D).visible = false
 	for child in host.get_children():
-		if child.name == "GeneratedVisual":
+		if child.name == "GeneratedVisual" or child.name == "Stump":
 			continue
 		if child is CollisionShape3D or child is Area3D:
 			continue

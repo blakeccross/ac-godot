@@ -418,16 +418,29 @@ def convert_ckf_model(
 
 
 def _overlay_mat_name(gfx_name: str, by_name: dict[str, MapSymbol]) -> str | None:
-    """Fruit overlays are geometry-only; bg_item draws an item material first.
+    """Geometry-only Gfx that bg_item textures with a shared material first.
 
     `tree4_ap_list` uses `apple_DL_mode` then `obj_s_tree5_apple_appleT_gfx_model`.
     `palm5_coco_list` uses `obj_item_cocoT_mat_model` then `obj_*_palm5_cocoT_gfx_model`.
     Orange/peach/pear/nuts/bag share the apple overlay verts and swap `*_DL_mode`.
+    ROCK_B–E share ROCK_A's CI4: `stone_a_list` displays `stone_DL_table[0]`
+    (`obj_*_stoneA_mat_model`) then `table[1 + sub_idx]` (B=1 … E=4).
+    Holes: `hole00_g_list` displays `obj_hole0T_g_mat_model` then
+    `obj_hole{N}T_gfx_model`. There is no `obj_hole0T_mat_model`.
     """
     if "tree5_apple" in gfx_name and "apple_DL_mode" in by_name:
         return "apple_DL_mode"
     if "palm5_coco" in gfx_name and "obj_item_cocoT_mat_model" in by_name:
         return "obj_item_cocoT_mat_model"
+    m = re.match(r"^(obj_[swf]_stone)[B-E]_gfx_model$", gfx_name)
+    if m:
+        cand = f"{m.group(1)}A_mat_model"
+        if cand in by_name:
+            return cand
+    if re.match(r"^obj_hole\d+T_gfx_model$", gfx_name):
+        for cand in ("obj_hole0T_g_mat_model", "obj_hole0T_s_mat_model"):
+            if cand in by_name:
+                return cand
     return None
 
 

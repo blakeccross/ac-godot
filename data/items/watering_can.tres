@@ -4,16 +4,15 @@
 
 [resource]
 script = ExtResource("1")
-id = &"axe"
-display_name = "Axe"
-description = "For chopping wood."
+id = &"watering_can"
+display_name = "Watering Can"
+description = "For watering flowers."
 category = 0
-sell_price = 400
+sell_price = 500
 max_stack = 1
 droppable = true
 usable = false
 equippable = true
 use_verb = "Use"
-icon_color = Color(0.55, 0.4, 0.25, 1)
-kind = 4
-visual_id = &"tol_axe_1"
+icon_color = Color(0.55, 0.6, 0.7, 1)
+kind = 5

@@ -154,9 +154,96 @@ func test_scene_hosts_offer_expected_verbs() -> void:
 	_assert_verb("res://scenes/world/house.tscn", Interaction.ENTER, ctx)
 	_assert_verb("res://scenes/world/shop.tscn", Interaction.SHOP, ctx)
 	_assert_verb("res://scenes/world/sign.tscn", Interaction.READ, ctx)
-	_assert_verb("res://scenes/world/rock.tscn", Interaction.DIG, ctx)
 	_assert_verb("res://scenes/world/flower.tscn", Interaction.PICK_UP, ctx)
 	_assert_verb("res://scenes/world/door.tscn", Interaction.ENTER, ctx)
+
+
+func test_rock_dig_requires_shovel() -> void:
+	ItemCatalog.reload()
+	var rock: Node = auto_free(load("res://scenes/world/rock.tscn").instantiate())
+	var empty := InteractionContext.new()
+	empty.inventory = Inventory.new()
+	assert_int(rock.get_interactions(empty).size()).is_equal(0)
+	var ctx := _ctx_with_tool(&"shovel")
+	var action: Interaction = Interaction.primary(rock.get_interactions(ctx))
+	assert_that(action).is_not_null()
+	assert_str(String(action.id)).is_equal(String(Interaction.DIG))
+	assert_bool(rock.interact(action, ctx)).is_true()
+	assert_bool(rock.interact(action, empty)).is_false()
+
+
+func test_tree_chops_when_axe_equipped() -> void:
+	ItemCatalog.reload()
+	var tree: Node = auto_free(load("res://scenes/world/tree.tscn").instantiate())
+	var empty := InteractionContext.new()
+	empty.inventory = Inventory.new()
+	assert_str(String(Interaction.primary(tree.get_interactions(empty)).id)).is_equal(
+		String(Interaction.SHAKE)
+	)
+	var ctx := _ctx_with_tool(&"axe")
+	ctx.world = auto_free(_FakeWorld.new())
+	tree.set("occupant_id", &"tree_1")
+	tree.set("persist_id", &"tree_1")
+	var action: Interaction = Interaction.primary(tree.get_interactions(ctx))
+	assert_str(String(action.id)).is_equal(String(Interaction.CHOP))
+	assert_str(String(action.player_anim)).is_equal("ply_1_axe_swing1")
+	assert_bool(tree.interact(action, ctx)).is_true()
+	assert_bool(tree.is_queued_for_deletion()).is_false()
+	assert_bool(Game.is_interactable_removed(&"tree_1")).is_false()
+	assert_str(String((ctx.world as _FakeWorld).released)).is_equal("")
+	assert_bool(tree.interact(action, ctx)).is_true()
+	assert_bool(tree.interact(action, ctx)).is_true()
+	assert_bool(tree.is_queued_for_deletion()).is_false()
+	assert_bool(Game.is_stump(&"tree_1")).is_true()
+	assert_int(tree.get_interactions(empty).size()).is_equal(0)
+	var dig_ctx := _ctx_with_tool(&"shovel")
+	dig_ctx.world = ctx.world
+	var dig: Interaction = Interaction.primary(tree.get_interactions(dig_ctx))
+	assert_str(String(dig.id)).is_equal(String(Interaction.DIG))
+	assert_bool(tree.interact(dig, dig_ctx)).is_true()
+	assert_bool(tree.is_queued_for_deletion()).is_true()
+	assert_bool(Game.is_interactable_removed(&"tree_1")).is_true()
+	assert_bool(Game.is_stump(&"tree_1")).is_false()
+	assert_str(String((ctx.world as _FakeWorld).released)).is_equal("tree_1")
+
+
+func test_hole_fill_requires_shovel() -> void:
+	ItemCatalog.reload()
+	Game.mark_hole(&"hole_4_5")
+	var hole: Node = auto_free(load("res://scenes/world/hole.tscn").instantiate())
+	hole.set("persist_id", &"hole_4_5")
+	var empty := InteractionContext.new()
+	empty.inventory = Inventory.new()
+	assert_int(hole.get_interactions(empty).size()).is_equal(0)
+	var ctx := _ctx_with_tool(&"shovel")
+	var action: Interaction = Interaction.primary(hole.get_interactions(ctx))
+	assert_that(action).is_not_null()
+	assert_str(String(action.id)).is_equal(String(Interaction.FILL))
+	assert_str(action.player_anim).is_equal("ply_1_fill_up1")
+	assert_bool(hole.interact(action, ctx)).is_true()
+	assert_bool(hole.is_queued_for_deletion()).is_true()
+	assert_bool(Game.is_hole(&"hole_4_5")).is_false()
+
+
+func test_saved_stump_offers_dig() -> void:
+	ItemCatalog.reload()
+	Game.mark_stump(&"tree_1")
+	var tree: Node = auto_free(load("res://scenes/world/tree.tscn").instantiate())
+	tree.set("persist_id", &"tree_1")
+	assert_int(tree.get_interactions(InteractionContext.new()).size()).is_equal(0)
+	var ctx := _ctx_with_tool(&"shovel")
+	var action: Interaction = Interaction.primary(tree.get_interactions(ctx))
+	assert_str(String(action.id)).is_equal(String(Interaction.DIG))
+
+
+func test_flower_waters_when_can_equipped() -> void:
+	ItemCatalog.reload()
+	var flower: Node = auto_free(load("res://scenes/world/flower.tscn").instantiate())
+	var ctx := _ctx_with_tool(&"watering_can")
+	var action: Interaction = Interaction.primary(flower.get_interactions(ctx))
+	assert_str(String(action.id)).is_equal(String(Interaction.WATER))
+	assert_bool(flower.interact(action, ctx)).is_true()
+	assert_bool(flower.is_queued_for_deletion()).is_false()
 
 
 func test_building_exposes_verbs_on_child_door() -> void:
@@ -184,9 +271,11 @@ func test_context_forwards_release_occupant() -> void:
 func test_player_has_no_object_type_switch() -> void:
 	var src := FileAccess.get_file_as_string("res://scenes/actors/player.gd")
 	assert_str(src).contains("InteractionQuery.best_in_areas")
+	assert_str(src).contains("ToolUse.resolve")
 	assert_bool("is Tree" in src).is_false()
 	assert_bool("is Villager" in src).is_false()
 	assert_bool("is Furniture" in src).is_false()
+	assert_bool("ToolData.Kind" in src).is_false()
 	assert_bool("has_method(\"try_interact\")" in src).is_false()
 	assert_bool("has_method(\"interact_prompt\")" in src).is_false()
 
@@ -230,3 +319,13 @@ func _assert_verb(scene_path: String, verb: StringName, ctx: InteractionContext)
 	assert_that(action).is_not_null()
 	assert_str(String(action.id)).is_equal(String(verb))
 	assert_bool(host.interact(action, ctx)).is_true()
+
+
+func _ctx_with_tool(item_id: StringName) -> InteractionContext:
+	var ctx := InteractionContext.new()
+	ctx.inventory = Inventory.new()
+	var data: ItemData = ItemCatalog.get_item(item_id)
+	assert_that(data).is_not_null()
+	assert_int(ctx.inventory.add(data, 1)).is_equal(0)
+	assert_bool(ctx.inventory.equip_slot(0)).is_true()
+	return ctx

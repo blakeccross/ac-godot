@@ -61,9 +61,23 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 	var id := String(visual_id)
 	if id.begins_with("grd_"):
 		return _existing(["environment/acres/%s.glb" % id])
+	if id.begins_with("tol_"):
+		return _existing(["items/%s.glb" % id])
 	match visual_id:
 		&"obj_s_tree5", &"TREE":
 			return _existing([_seasonal_tree("obj_%s_tree5")])
+		&"obj_s_stump5", &"TREE_STUMP004":
+			var stump := _existing([_seasonal_tree("obj_%s_stump5")])
+			if stump.is_empty():
+				stump = _existing(["environment/trees/obj_s_stump5.glb"])
+			return stump
+		&"obj_hole0", &"HOLE00":
+			## Flat grass hole (`HOLE00` / `obj_hole0`). Slope variants HOLE01–24 wait.
+			## Prefer the paletted convert; do not also instance the old untextured GLB.
+			var hole: PackedStringArray = _existing(["environment/holes/obj_hole0.glb"])
+			if hole.is_empty():
+				hole = _existing(["environment/obj_hole0.glb"])
+			return hole
 		&"obj_s_tree5_apple", &"TREE_APPLE_FRUIT":
 			var paths := _existing([_seasonal_tree("obj_%s_tree5")])
 			paths.append_array(_existing(["environment/trees/obj_s_tree5_apple.glb"]))
@@ -443,6 +457,8 @@ static func default_visual(kind: StringName) -> StringName:
 			return &"FLOWER_PANSIES0"
 		&"rock":
 			return &"ROCK_A"
+		&"hole":
+			return &"HOLE00"
 		_:
 			return &""
 

@@ -33,7 +33,7 @@ Appearance (cloth, face) and inventory live in `Private_c`, not the actor. Equip
 - Requested next index (pending `request_main_*`).
 - World position / facing; forced position flags for cutscenes.
 - **Addressable** (can be talked to).
-- Held / equipped item; tool-specific substates (rod ready/cast/vib, net ready/swing).
+- **Held / equipped item**; tool-specific substates (rod ready/cast/vib, net ready/swing). Equipped Gfx/cKF follow `mPlayer_JOINT_HAND` (joint 20) via `HeldTool`.
 - Indoor furniture contact (push, pull, rotate, sit, lie on bed).
 - Demo lock (`DEMO_WAIT`, train, boat).
 - Tired / stung / pitfall (interrupt locomotion).

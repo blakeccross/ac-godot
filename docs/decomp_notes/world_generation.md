@@ -86,6 +86,7 @@ From `m_name_table.h` / `m_bg_type.h` / `ac_sign`. Summer prefix `obj_s_`; winte
 | `BG_TYPE_GRD_S_F_1` | Flat acre terrain | `grd_s_f_1.glb` |
 | `TREE` | Full hardwood | `obj_s_tree5.glb` |
 | `TREE_APPLE_FRUIT` | Apple tree + fruit overlay | `obj_s_tree5` + `obj_s_tree5_apple` |
+| `TREE_STUMP004` | Full-size stump after the last chop | `obj_s_stump5.glb` |
 | `CEDAR_TREE` | Full cedar | `obj_s_cedar5.glb` |
 | `TREE_PALM_FRUIT` | Palm + coconut | `obj_s_palm5` + `obj_s_palm5_coco` |
 | `FLOWER_PANSIES0/1/2` | Pansies | `obj_flower_a/b/c.glb` |

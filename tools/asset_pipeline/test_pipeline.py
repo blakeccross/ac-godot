@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from asset_pipeline.ckf import _mat_model_name
 from asset_pipeline.convert import _name_under_prefix, _owning_vtx_prefix, _static_jobs
 from asset_pipeline.glb import _bake_wrap_group
 from asset_pipeline.layout import (
@@ -27,7 +28,11 @@ class LayoutTests(unittest.TestCase):
         self.assertEqual(output_for_prefix("cat_1"), "characters/villagers/cat_1.glb")
         self.assertEqual(output_for_prefix("boy_1"), "characters/player/boy_1.glb")
         self.assertEqual(output_for_prefix("int_kon_redclock"), "furniture/int_kon_redclock.glb")
+        self.assertEqual(output_for_prefix("tol_net_1"), "items/tol_net_1.glb")
         self.assertEqual(output_folder_for_static("grd_s_f_1"), "environment/acres")
+        self.assertEqual(output_folder_for_static("obj_s_stump5"), "environment/trees")
+        self.assertEqual(output_folder_for_static("obj_hole0"), "environment/holes")
+        self.assertEqual(output_folder_for_static("tol_axe_1"), "items")
 
     def test_bti_keeps_archive_subdir(self) -> None:
         self.assertEqual(bti_output_path("forest_2nd/data/boy1.bti"), "ui/forest_2nd/data/boy1.png")
@@ -53,11 +58,20 @@ class PrefixOwnershipTests(unittest.TestCase):
             "obj_s_palm5",
         )
 
+    def test_hardwood_stump_drops_season_infix(self) -> None:
+        prefixes = {"obj_s_stump5", "obj_s_tree5"}
+        self.assertEqual(
+            _owning_vtx_prefix("obj_stump5T_gfx_model", prefixes),
+            "obj_s_stump5",
+        )
+
     def test_static_jobs_prefer_gfx_and_test_set_override(self) -> None:
         symbols = [
             _sym("obj_s_tree5_v"),
             _sym("obj_s_tree5_leafT_gfx_model"),
             _sym("obj_s_tree5_trunkT_gfx_model"),
+            _sym("obj_s_stump5_v"),
+            _sym("obj_stump5T_gfx_model"),
             _sym("grd_s_f_1_v", 1),
             _sym("grd_s_f_10_v", 2),
             _sym("grd_s_f_1_gfx_model", 3),
@@ -71,6 +85,30 @@ class PrefixOwnershipTests(unittest.TestCase):
         self.assertEqual(jobs["grd_s_f_1"]["gfx"], ["grd_s_f_1_gfx_model"])
         self.assertEqual(jobs["grd_s_f_10"]["gfx"], ["grd_s_f_10_gfx_model"])
         self.assertEqual(jobs["obj_s_tree5"]["output"], "environment/trees/obj_s_tree5.glb")
+        self.assertEqual(jobs["obj_s_stump5"]["gfx"], ["obj_stump5T_gfx_model"])
+        self.assertEqual(jobs["obj_s_stump5"]["output"], "environment/trees/obj_s_stump5.glb")
+
+
+class OverlayMatTests(unittest.TestCase):
+    def test_stone_b_e_share_stone_a_mat(self) -> None:
+        by_name = {
+            "obj_s_stoneA_mat_model": _sym("obj_s_stoneA_mat_model"),
+            "obj_w_stoneA_mat_model": _sym("obj_w_stoneA_mat_model"),
+        }
+        self.assertEqual(_mat_model_name("obj_s_stoneA_gfx_model", by_name), "obj_s_stoneA_mat_model")
+        self.assertEqual(_mat_model_name("obj_s_stoneB_gfx_model", by_name), "obj_s_stoneA_mat_model")
+        self.assertEqual(_mat_model_name("obj_s_stoneE_gfx_model", by_name), "obj_s_stoneA_mat_model")
+        self.assertEqual(_mat_model_name("obj_w_stoneB_gfx_model", by_name), "obj_w_stoneA_mat_model")
+        self.assertIsNone(_mat_model_name("obj_s_stoneB_gfx_model", {}))
+
+    def test_hole_gfx_shares_hole0_g_mat(self) -> None:
+        by_name = {
+            "obj_hole0T_g_mat_model": _sym("obj_hole0T_g_mat_model"),
+            "obj_hole0T_s_mat_model": _sym("obj_hole0T_s_mat_model"),
+        }
+        self.assertEqual(_mat_model_name("obj_hole0T_gfx_model", by_name), "obj_hole0T_g_mat_model")
+        self.assertEqual(_mat_model_name("obj_hole12T_gfx_model", by_name), "obj_hole0T_g_mat_model")
+        self.assertIsNone(_mat_model_name("obj_hole0T_gfx_model", {}))
 
 
 class MapIndexTests(unittest.TestCase):

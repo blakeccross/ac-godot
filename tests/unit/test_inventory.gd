@@ -123,3 +123,6 @@ func test_item_catalog() -> void:
 	var apple: ItemData = ItemCatalog.get_item(&"apple")
 	assert_object(apple).is_not_null()
 	assert_str(apple.display_name).is_equal("Apple")
+	var net: ToolData = ItemCatalog.get_item(&"net") as ToolData
+	assert_object(net).is_not_null()
+	assert_that(net.kind).is_equal(ToolData.Kind.NET)
