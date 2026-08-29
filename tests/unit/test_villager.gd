@@ -170,6 +170,10 @@ func test_motor_stops_when_not_wandering() -> void:
 	motor.set_target(Vector3(3, 0, 0))
 	var walk: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(3, 0, 0), true)
 	assert_float(walk.length()).is_greater(0.1)
+	motor.set_target(Vector3(10, 0, 0))
+	var underfoot: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3.ZERO, true)
+	assert_float(underfoot.length()).is_greater(0.1)
+	assert_float(underfoot.x).is_greater(0.0)
 
 
 func test_field_plan_is_reusable_actions() -> void:

@@ -210,9 +210,9 @@ func _steer_to(world_pos: Vector3) -> void:
 
 
 func _next_point() -> Vector3:
-	if _agent != null and _nav_ready() and _motor.has_target:
-		if not _agent.is_navigation_finished():
-			return _agent.get_next_path_position()
+	## Town navmesh is a flat y=0.05 quad. Heightfield actors sit well above it, so
+	## `get_next_path_position` is underfoot and the motor would "arrive" in place.
+	## Walk the destination in XZ; `FieldCollision.revise_xz` keeps them on land.
 	return _motor.target
 
 
@@ -244,7 +244,7 @@ func _walkable_near(world_pos: Vector3) -> Vector3:
 				var pos: Vector3 = grid.cell_to_world(n)
 				pos.y = world_pos.y
 				return pos
-	return _motor.home
+	return world_pos
 
 
 func _roam_point() -> Vector3:
@@ -297,15 +297,10 @@ func _update_animation(delta: float, planar: Vector3) -> void:
 	_play_clip(want, true)
 
 
-func _clip_for(kind: StringName, moving: bool) -> String:
-	if (
-		moving
-		or kind == ActivityKind.WALK_TO
-		or kind == ActivityKind.GO_HOME
-		or kind == ActivityKind.LEAVE_HOME
-	):
+func _clip_for(_kind: StringName, moving: bool) -> String:
+	if moving:
 		return ANIM_WALK
-	match kind:
+	match _kind:
 		ActivityKind.SIT:
 			return ANIM_SIT
 		ActivityKind.FISH:

@@ -62,7 +62,15 @@ func tick(delta: float, from: Vector3, next: Vector3, moving: bool) -> Vector3:
 		return Vector3.ZERO
 	if not has_target:
 		return Vector3.ZERO
-	var to: Vector3 = next - from
+	var aim: Vector3 = next
+	var to_next: Vector3 = next - from
+	to_next.y = 0.0
+	var to_target: Vector3 = target - from
+	to_target.y = 0.0
+	## Nav next-point can sit under the actor (flat mesh at y=0.05 vs heightfield).
+	if to_next.length() <= ARRIVE and to_target.length() > ARRIVE:
+		aim = target
+	var to: Vector3 = aim - from
 	to.y = 0.0
 	if to.length() <= ARRIVE:
 		arrive()
