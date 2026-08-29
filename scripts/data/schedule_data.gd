@@ -16,7 +16,7 @@ func activity_now() -> StringName:
 
 func activity_at_seconds(now_sec: int) -> StringName:
 	if slots.is_empty():
-		return &"sleep"
+		return VillagerActivity.SLEEP
 	var wrapped: int = posmod(now_sec, 86400)
 	for slot: ScheduleSlot in slots:
 		if slot.end_seconds() > wrapped:

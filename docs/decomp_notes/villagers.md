@@ -2,7 +2,7 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — do not copy `Animal_c` or looks tables into GDScript.
 
-**Read before implementing:** `VillagerData`, `ScheduleData`, villager scene, one greeting.
+**Read before implementing:** `VillagerData`, `VillagerPersonality`, `VillagerState`, `VillagerSchedule`, `ScheduleData`, villager scene, one greeting.
 
 ## Decomp sources
 
@@ -74,14 +74,15 @@ Move-out: `removing`, `remove_animal_idx` on save, minimum days before force rem
 
 ## Reproduce
 
-- **One villager** with a daily table: sleep, indoors, outdoors, with hour boundaries.
+- **One villager** with a daily table: sleep, indoors, outdoors, with hour boundaries. Looks (personality) selects the table; the actor is shared.
 - Talk updates last-spoke and a simple friendship number.
-- Not on the acre when sleeping (or visibly in bed later).
+- Not on the acre when sleeping or indoors (or visibly in bed later).
 - Greeting differs by time of day / whether you’ve already talked (can be a flag, not full memory struct).
+- Yard wander while the schedule type is field (NavigationAgent3D; stay near home).
 
 ## Simplify
 
-- One looks table (Phase 1 already uses a boy-style sleep / in_house / field table for Pip).
+- Looks tables for all six personalities as data; Pip uses the lazy (boy) table. No per-villager AI scripts.
 - No wander-the-whole-town pathing; stay on one acre or teleport between house and yard.
 - Friendship as an int 0–255 (or 0–100) without letter scoring.
 - Skip villager–villager relation matrix.

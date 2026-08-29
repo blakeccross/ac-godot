@@ -51,7 +51,9 @@ func test_villager_points_at_schedule() -> void:
 	var pip: VillagerData = load("res://data/villagers/pip.tres")
 	assert_that(pip.display_name).is_equal("Pip")
 	assert_that(pip.schedule).is_not_null()
+	assert_that(pip.personality).is_not_null()
 	assert_that(pip.schedule.activity_at(9)).is_equal(&"field")
+	assert_that(pip.schedule_table().activity_at(9)).is_equal(&"field")
 
 
 func test_dace_uses_clock_windows() -> void:
