@@ -498,7 +498,7 @@ static func default_visual(kind: StringName) -> StringName:
 
 
 static func _species_code(species: StringName) -> String:
-	## Disc `cKF_bs_r_*_1` prefixes. Invented species map to the closest skeleton.
+	## Disc `cKF_bs_r_*_1` prefixes. Species labels match those skeletons.
 	match species:
 		&"squirrel":
 			return "squ"
@@ -522,13 +522,13 @@ static func _species_code(species: StringName) -> String:
 			return "goa"
 		&"wolf":
 			return "wol"
-		&"fox":
+		&"fox", &"raccoon":
 			return "rcc"
-		&"hedgehog":
+		&"mouse", &"hedgehog":
 			return "mos"
-		&"eagle":
+		&"ostrich", &"eagle":
 			return "ost"
-		&"peacock":
+		&"penguin", &"peacock":
 			return "pgn"
 		_:
 			return String(species)

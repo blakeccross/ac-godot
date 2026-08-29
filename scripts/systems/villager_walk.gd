@@ -28,8 +28,10 @@ const FG_Z1 := 6
 const RANGE_RADIUS := 14.0
 ## Skip wander picks that land on the current cell.
 const MIN_STEP := 1.6
-## `arrival_area_radius` 72 GX. Tight 0.4 m lets runners orbit the point.
-const WANDER_ARRIVE := 3.6
+## `aNPC_check_arrive_destination` compares dist² to 72 GX → √72 GX ≈ 0.42 m.
+const WANDER_ARRIVE := 0.45
+## `aNPC_think_wander_move_next` retries a rim dest this many times.
+const WANDER_TRIES := 5
 ## One wait clip, then `decide_next` again.
 const WAIT_SECONDS := 2.0
 const _BLOCK_STAND: Array[StringName] = [&"tree", &"rock", &"house", &"shop", &"building"]
@@ -205,10 +207,28 @@ static func wander_in_block(
 	from: Vector3,
 	rng: RandomNumberGenerator = null
 ) -> Vector3:
+	## Rim dest around the acre center (`center + sin/cos * range_radius`), then
+	## snap off HOUSE/TREE. Keep that dest until arrival — not a new cell each step.
 	if data == null:
 		return from
 	var center: Vector3 = block_center(data, block)
-	var pool: Array[Vector3] = []
+	for _try: int in WANDER_TRIES:
+		var angle: float = _rand_f(rng) * TAU
+		var raw := Vector3(
+			center.x + sin(angle) * RANGE_RADIUS,
+			center.y,
+			center.z + cos(angle) * RANGE_RADIUS
+		)
+		var stand: Vector3 = snap_standable(data, raw)
+		if not is_in_block(data, block, stand):
+			continue
+		if not is_standable(data, _world_to_cell(data, stand)):
+			continue
+		var from_delta: Vector3 = stand - from
+		from_delta.y = 0.0
+		if from_delta.length() < MIN_STEP:
+			continue
+		return stand
 	var far: Array[Vector3] = []
 	for cell: Vector2i in _walkable_cells(data, block):
 		var stand: Vector3 = data.cell_to_world(cell)
@@ -217,12 +237,6 @@ static func wander_in_block(
 		if from_delta.length() < MIN_STEP:
 			continue
 		far.append(stand)
-		var to_center: Vector3 = stand - center
-		to_center.y = 0.0
-		if to_center.length() <= RANGE_RADIUS:
-			pool.append(stand)
-	if not pool.is_empty():
-		return pool[_rand_i(rng, pool.size())]
 	if not far.is_empty():
 		return far[_rand_i(rng, far.size())]
 	return stand_in_block(data, block, rng)

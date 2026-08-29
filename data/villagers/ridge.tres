@@ -7,7 +7,7 @@
 script = ExtResource("1")
 id = &"ridge"
 display_name = "Ridge"
-species = &"eagle"
+species = &"ostrich"
 catchphrase = "wings"
 personality = ExtResource("2")
 starter = true

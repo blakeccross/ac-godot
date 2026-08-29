@@ -488,6 +488,34 @@ func test_wander_point_is_away_from_feet() -> void:
 	assert_float(delta.length()).is_greater_equal(VillagerWalk.MIN_STEP)
 
 
+func test_wander_dest_is_on_acre_circle() -> void:
+	var data := WorldData.new()
+	data.columns = 16
+	data.rows = 16
+	data.cell_size = 2.0
+	data.bake()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 19
+	var center: Vector3 = data.cell_to_world(Vector2i(8, 8))
+	for _i: int in 12:
+		var stand: Vector3 = VillagerWalk.wander_in_block(data, Vector2i(1, 1), center, rng)
+		var to_center: Vector3 = stand - center
+		to_center.y = 0.0
+		assert_float(to_center.length()).is_greater(VillagerWalk.RANGE_RADIUS * 0.5)
+		assert_float(to_center.length()).is_less_equal(VillagerWalk.RANGE_RADIUS + data.cell_size)
+
+
+func test_starters_use_names_and_disc_species() -> void:
+	var known: Array[String] = [
+		"squ", "cat", "brd", "rcc", "wol", "flg", "mos", "goa", "dog", "ost", "pgn", "rbt"
+	]
+	for villager: VillagerData in VillagerCatalog.starters():
+		assert_str(villager.display_name).is_not_empty()
+		assert_that(villager.display_name).is_not_equal("Villager")
+		var code: String = FieldCatalog.species_code(villager.species)
+		assert_bool(known.has(code)).is_true()
+
+
 func test_motor_wait_then_walk() -> void:
 	var motor := VillagerMotor.new()
 	motor.reset(Vector3.ZERO)
@@ -542,13 +570,28 @@ func test_step_toward_skips_house_cells() -> void:
 	assert_that(cell).is_not_equal(Vector2i(7, 7))
 
 
-func test_wander_arrive_stops_before_orbit() -> void:
+func test_wander_keeps_dest_past_the_next_cell() -> void:
 	var motor := VillagerMotor.new()
 	motor.reset(Vector3.ZERO)
-	motor.set_target(Vector3(3, 0, 0), VillagerWalk.ACT_RUN, VillagerWalk.WANDER_ARRIVE)
-	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(3, 0, 0), true)
-	assert_vector(step).is_equal(Vector3.ZERO)
+	motor.set_target(Vector3(10, 0, 0), VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE)
+	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(2, 0, 0), true)
+	assert_float(step.length()).is_greater(0.1)
+	assert_bool(motor.has_target).is_true()
+	var near_cell: Vector3 = motor.tick(0.1, Vector3(1.97, 0, 0), Vector3(2, 0, 0), true)
+	assert_float(near_cell.length()).is_greater(0.1)
+	assert_bool(motor.has_target).is_true()
+
+
+func test_wander_arrive_is_tight() -> void:
+	var motor := VillagerMotor.new()
+	motor.reset(Vector3.ZERO)
+	motor.set_target(Vector3(0.2, 0, 0), VillagerWalk.ACT_RUN, VillagerWalk.WANDER_ARRIVE)
+	var arrived: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(0.2, 0, 0), true)
+	assert_vector(arrived).is_equal(Vector3.ZERO)
 	assert_bool(motor.has_target).is_false()
+	motor.set_target(Vector3(8, 0, 0), VillagerWalk.ACT_RUN, VillagerWalk.WANDER_ARRIVE)
+	var run: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(8, 0, 0), true)
+	assert_float(run.length()).is_greater(motor.walk_speed)
 
 
 func test_motor_turns_in_place_when_dest_is_behind() -> void:

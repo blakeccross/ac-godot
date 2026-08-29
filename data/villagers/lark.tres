@@ -7,7 +7,7 @@
 script = ExtResource("1")
 id = &"lark"
 display_name = "Lark"
-species = &"peacock"
+species = &"penguin"
 catchphrase = "indeed"
 personality = ExtResource("2")
 starter = true

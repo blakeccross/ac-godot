@@ -95,8 +95,9 @@ func tick(delta: float, from: Vector3, next: Vector3, moving: bool) -> Vector3:
 		return Vector3.ZERO
 	var to: Vector3 = next - from
 	to.y = 0.0
-	## Next is the current cell: boxed in. Do not charge the dest through a house.
-	if to.length() <= 0.05:
+	## Boxed: no open step. Do not abort just because the next cell center is close —
+	## that ended a walk after one unit. Keep the dest until `arrive_radius`.
+	if to.length() <= 0.001:
 		arrive()
 		return Vector3.ZERO
 	var yaw: float = atan2(to.x, to.z)
@@ -104,4 +105,5 @@ func tick(delta: float, from: Vector3, next: Vector3, moving: bool) -> Vector3:
 	facing = lerp_angle(facing, yaw, clampf(TURN_SPEED * delta, 0.0, 1.0))
 	if diff > TURN_ONLY:
 		return Vector3.ZERO
-	return Vector3(sin(facing), 0.0, cos(facing)) * speed_now()
+	## Move toward the open step, not along facing, so a run gait cannot orbit.
+	return to.normalized() * speed_now()

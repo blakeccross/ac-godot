@@ -7,7 +7,7 @@
 script = ExtResource("1")
 id = &"moss"
 display_name = "Moss"
-species = &"hedgehog"
+species = &"mouse"
 catchphrase = "needles"
 personality = ExtResource("2")
 starter = true
