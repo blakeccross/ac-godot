@@ -96,7 +96,7 @@ def decode_gx_image(data: bytes, width: int, height: int, fmt: int, palette: lis
                     elif fmt == CI4:
                         byte = data[src + (py * bw + px) // 2]
                         v = (byte >> 4) if px % 2 == 0 else (byte & 0xF)
-                        color = palette[v] if palette else (v * 17, v * 17, v * 17, 255)
+                        color = palette[v] if palette and v < len(palette) else (255, 0, 255, 255)
                     elif fmt == IA4:
                         byte = data[src + py * bw + px]
                         intensity = (byte >> 4) * 17
@@ -107,7 +107,7 @@ def decode_gx_image(data: bytes, width: int, height: int, fmt: int, palette: lis
                         color = (v, v, v, 255)
                     elif fmt == CI8:
                         v = data[src + py * bw + px]
-                        color = palette[v] if palette else (v, v, v, 255)
+                        color = palette[v] if palette and v < len(palette) else (v, v, v, 255)
                     elif fmt == IA8:
                         off = (py * bw + px) * 2
                         i8, a8 = data[src + off], data[src + off + 1]

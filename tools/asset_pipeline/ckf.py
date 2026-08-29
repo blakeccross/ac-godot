@@ -5,7 +5,7 @@ import struct
 from dataclasses import dataclass, field
 
 from .gfx import MeshPart, apply_texture_commands, parse_gfx, parse_vtx_blob
-from .mapfile import MapSymbol, find_symbol
+from .mapfile import MapSymbol, find_symbol, index_by_name
 from .math3d import Mat4, ckf_basis, local_softcv3
 from .rel import RelData
 from .texbank import TextureBank, TextureState
@@ -58,7 +58,7 @@ def _key_calc(start_idx: int, n_frames: int, data: list[int], frame: float) -> i
         return key_at(last)[1]
     now = start_idx
     nxt = start_idx + 1
-    while True:
+    while nxt <= last:
         nf, nv, nt = key_at(nxt)
         if nf > frame:
             cf, cv, ct = key_at(now)
@@ -76,6 +76,7 @@ def _key_calc(start_idx: int, n_frames: int, data: list[int], frame: float) -> i
             return int(calc + 0.5)
         now += 1
         nxt += 1
+    return key_at(last)[1]
 
 
 def _deg10_to_binangle(value: int) -> int:
@@ -87,6 +88,13 @@ def _deg10_to_binangle(value: int) -> int:
 
 
 _ANIM_TABLES: dict[tuple[int, str], tuple[bytes, list[int], list[int], list[int], int]] = {}
+_POSE_CACHE: dict[tuple, tuple[tuple[int, int, int], list[tuple[int, int, int]]]] = {}
+
+
+def clear_caches() -> None:
+    """Drop per-REL animation caches. Call when constructing a new RelData."""
+    _ANIM_TABLES.clear()
+    _POSE_CACHE.clear()
 
 
 def _anim_tables(
@@ -122,6 +130,10 @@ def evaluate_pose(
     num_joints: int,
     frame: float,
 ) -> tuple[tuple[int, int, int], list[tuple[int, int, int]]]:
+    pose_key = (id(rel), anim_name, num_joints, frame)
+    cached_pose = _POSE_CACHE.get(pose_key)
+    if cached_pose is not None:
+        return cached_pose
     flags, key, data, fix, _frames = _anim_tables(rel, symbols, anim_name, num_joints)
 
     ki = 0
@@ -154,7 +166,9 @@ def evaluate_pose(
             xyz[component] = _deg10_to_binangle(raw)
             joint_flag >>= 1
         rots.append((xyz[0], xyz[1], xyz[2]))
-    return (trans[0], trans[1], trans[2]), rots
+    result = (trans[0], trans[1], trans[2]), rots
+    _POSE_CACHE[pose_key] = result
+    return result
 
 
 def _parents_from_children(child_counts: list[int]) -> list[int]:
@@ -236,7 +250,8 @@ def convert_ckf_model(
     animation_names: list[str] | None = None,
     bank: TextureBank | None = None,
 ) -> ConvertedModel:
-    skeleton = find_symbol(symbols, skeleton_name)
+    by_name = index_by_name(symbols)
+    skeleton = find_symbol(symbols, skeleton_name, by_name)
     sk_blob = rel.slice_at(skeleton.address, skeleton.size)
     num_joints = sk_blob[0]
     prefix = skeleton_name.replace("cKF_bs_r_", "")
@@ -244,8 +259,8 @@ def convert_ckf_model(
         bank.segment_images.clear()
         bank.segment_palettes.clear()
         bank.bind_model_segments(prefix)
-    joints_sym = find_symbol(symbols, f"cKF_je_r_{prefix}_tbl")
-    vtx_sym = find_symbol(symbols, f"{prefix}_v")
+    joints_sym = find_symbol(symbols, f"cKF_je_r_{prefix}_tbl", by_name)
+    vtx_sym = find_symbol(symbols, f"{prefix}_v", by_name)
     vertices = parse_vtx_blob(rel.slice_at(vtx_sym.address, vtx_sym.size), scale, flip_z=False)
 
     addr_to_sym = {s.address: s for s in symbols}
@@ -445,10 +460,10 @@ def convert_static_gfx(
     scale: float,
     bank: TextureBank | None = None,
 ) -> list[MeshPart]:
-    vtx_sym = find_symbol(symbols, vtx_name)
+    by_name = index_by_name(symbols)
+    vtx_sym = find_symbol(symbols, vtx_name, by_name)
     vertices = parse_vtx_blob(rel.slice_at(vtx_sym.address, vtx_sym.size), scale, flip_z=False)
     parts: list[MeshPart] = []
-    by_name = {s.name: s for s in symbols}
     tex_state = TextureState()
     for name in gfx_names:
         if bank is not None:
@@ -457,7 +472,7 @@ def convert_static_gfx(
         if bank is not None and mat_name is not None:
             mat = by_name[mat_name]
             apply_texture_commands(rel.slice_at(mat.address, mat.size), bank, tex_state)
-        model = find_symbol(symbols, name)
+        model = find_symbol(symbols, name, by_name)
         blob = rel.slice_at(model.address, model.size)
         decoded = parse_gfx(
             model.name,

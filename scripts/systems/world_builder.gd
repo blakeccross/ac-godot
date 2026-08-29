@@ -257,7 +257,11 @@ func _place_node(
 	var pos: Vector3 = grid.footprint_center(cell, footprint, facing)
 	pos += Vector3(actor_shift.x, 0.0, actor_shift.y) * grid.cell_size
 	if data != null:
-		pos.y = FieldCollision.ground_y(data, cell)
+		## Height at the actor stand unit (`mCoBG_GetBgY_OnlyCenter_FromWpos2`), not the NW cell.
+		var stand: Vector2i = grid.world_to_cell(pos)
+		if not data.is_in_bounds(stand):
+			stand = cell
+		pos.y = FieldCollision.ground_y(data, stand)
 	node.position = pos
 	root.add_child(node)
 	if node.has_method("apply_grid_yaw"):

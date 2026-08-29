@@ -27,7 +27,9 @@ def convert_fgdata(cfg: PipelineConfig, decomp_root: Path | None = None) -> dict
     src = _find_fgdata(cfg)
     if src is None:
         return {"converted": 0, "error": "fgdata.bin not found under work_root"}
-    decomp = decomp_root or _guess_decomp(cfg)
+    decomp = decomp_root or cfg.decomp_root or _guess_decomp(cfg)
+    if decomp is not None and not (decomp / "include" / "m_fg_type.h").is_file():
+        decomp = _guess_decomp(cfg)
     templates = _parse_templates(src)
     combis = _parse_combis(decomp) if decomp is not None else []
     out_dir = cfg.godot_generated / "environment" / "fg"

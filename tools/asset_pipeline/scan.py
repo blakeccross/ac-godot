@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from .config import PipelineConfig
+from .extract import extract_inputs_id, extract_is_current
+from .layout import bti_output_path, output_folder_for_static, output_for_prefix
 from .mapfile import dataobject_symbols, parse_map
 
 MAGIC = {
@@ -58,7 +60,13 @@ def _format_of(path: Path) -> str:
     return MAGIC.get(magic, "BIN")
 
 
-def _sha1(path: Path) -> str:
+SHA1_MAX_BYTES = 256 * 1024
+SKIP_SHA1_SUFFIX = {".img", ".rel", ".arc", ".szs", ".thp"}
+
+
+def _sha1(path: Path) -> str | None:
+    if path.suffix.lower() in SKIP_SHA1_SUFFIX or path.stat().st_size > SHA1_MAX_BYTES:
+        return None
     h = hashlib.sha1()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1 << 16), b""):
@@ -67,6 +75,14 @@ def _sha1(path: Path) -> str:
 
 
 def scan(cfg: PipelineConfig) -> dict[str, Any]:
+    cfg.manifests.mkdir(parents=True, exist_ok=True)
+    out = cfg.manifests / "assets.json"
+    stamp_path = cfg.manifests / ".scan_stamp"
+    extract_id = extract_inputs_id(cfg) if extract_is_current(cfg) else ""
+    if extract_id and stamp_path.is_file() and out.is_file() and stamp_path.read_text() == extract_id:
+        print("scan: manifest already up to date")
+        return json.loads(out.read_text())
+
     assets: list[dict[str, Any]] = []
 
     for folder, source_kind in (
@@ -83,7 +99,7 @@ def scan(cfg: PipelineConfig) -> dict[str, Any]:
             converter = _converter_for(fmt, rel)
             output_path = None
             if fmt == "BTI":
-                output_path = f"ui/{path.stem}.png"
+                output_path = bti_output_path(rel)
             assets.append(
                 {
                     "asset_id": rel.replace("/", "_").replace(".", "_").lower(),
@@ -114,20 +130,13 @@ def scan(cfg: PipelineConfig) -> dict[str, Any]:
             if symbol.name.startswith("cKF_bs_r_"):
                 converter = "ckf_glb"
                 stem = symbol.name.replace("cKF_bs_r_", "")
-                output_path = f"unknown/{stem}.glb"
-                if cat == "character":
-                    output_path = f"characters/{stem}.glb"
-                elif cat == "furniture":
-                    output_path = f"furniture/{stem}.glb"
-                elif cat == "items":
-                    output_path = f"items/{stem}.glb"
-                elif cat == "environment":
-                    output_path = f"environment/{stem}.glb"
+                output_path = output_for_prefix(stem)
             elif symbol.name.endswith("_tex_txt"):
                 converter = "n64_texture_pending"
             elif symbol.name.endswith("_v") and not symbol.name.startswith("cKF_"):
                 converter = "static_gfx_glb"
-                output_path = f"unknown/{symbol.name}.glb"
+                prefix = symbol.name[:-2]
+                output_path = f"{output_folder_for_static(prefix)}/{prefix}.glb"
             assets.append(
                 {
                     "asset_id": symbol.name.lower(),
@@ -154,8 +163,8 @@ def scan(cfg: PipelineConfig) -> dict[str, Any]:
         "assets": assets,
     }
     cfg.manifests.mkdir(parents=True, exist_ok=True)
-    out = cfg.manifests / "assets.json"
     out.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    stamp_path.write_text(extract_id)
     return manifest
 
 

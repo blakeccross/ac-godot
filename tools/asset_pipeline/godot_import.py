@@ -23,16 +23,16 @@ PNG_PARAMS = {
 }
 
 
-def write_import_sidecar(asset: Path) -> None:
+def write_import_sidecar(asset: Path, project_root: Path | None = None) -> None:
     """Write or patch a Godot .import file so pixel-art GLB/PNG stays lossless."""
     suffix = asset.suffix.lower()
     if suffix == ".glb":
-        _upsert_import(asset, "scene", "PackedScene", GLB_PARAMS, extra_remap="importer_version=1\n")
+        _upsert_import(asset, "scene", "PackedScene", GLB_PARAMS, extra_remap="importer_version=1\n", project_root=project_root)
     elif suffix == ".png":
-        _upsert_import(asset, "texture", "CompressedTexture2D", PNG_PARAMS)
+        _upsert_import(asset, "texture", "CompressedTexture2D", PNG_PARAMS, project_root=project_root)
 
 
-def apply_import_settings(folder: Path) -> dict[str, int]:
+def apply_import_settings(folder: Path, project_root: Path | None = None) -> dict[str, int]:
     """Patch every generated GLB/PNG import and drop Godot-extracted GLB sidecars."""
     counts = {"glb": 0, "png": 0, "removed_extracts": 0}
     extract_re = re.compile(r"^(.+)_(\d+)$")
@@ -46,10 +46,10 @@ def apply_import_settings(folder: Path) -> dict[str, int]:
             Path(str(png) + ".import").unlink(missing_ok=True)
             counts["removed_extracts"] += 1
     for glb in folder.rglob("*.glb"):
-        write_import_sidecar(glb)
+        write_import_sidecar(glb, project_root)
         counts["glb"] += 1
     for png in folder.rglob("*.png"):
-        write_import_sidecar(png)
+        write_import_sidecar(png, project_root)
         counts["png"] += 1
     return counts
 
@@ -60,9 +60,10 @@ def _upsert_import(
     remap_type: str,
     params: dict[str, str],
     extra_remap: str = "",
+    project_root: Path | None = None,
 ) -> None:
     import_path = Path(str(asset) + ".import")
-    res_path = _res_path(asset)
+    res_path = _res_path(asset, project_root)
     if import_path.is_file():
         text = import_path.read_text()
         for key, value in params.items():
@@ -98,8 +99,15 @@ def _upsert_import(
     import_path.write_text("\n".join(line for line in lines if line != "") + "\n")
 
 
-def _res_path(asset: Path) -> str:
-    text = asset.as_posix()
+def _res_path(asset: Path, project_root: Path | None = None) -> str:
+    resolved = asset.resolve()
+    if project_root is not None:
+        try:
+            rel = resolved.relative_to(project_root.resolve())
+            return "res://" + rel.as_posix()
+        except ValueError:
+            pass
+    text = resolved.as_posix()
     marker = "/assets/"
     idx = text.rfind(marker)
     if idx >= 0:

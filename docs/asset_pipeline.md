@@ -105,7 +105,7 @@ tools/
 python3 tools/build_assets.py --step extract
 ```
 
-Copies/extracts the disc into `work_root/extracted/disc`, decompresses `foresta.rel.szs`, unpacks `*.arc` with `dtk vfs cp`.
+Copies/extracts the disc into `work_root/extracted/disc`, decompresses `foresta.rel.szs`, unpacks `*.arc` with `dtk vfs cp`. Re-running extract skips the copy/unpack when the disc inputs and stamp match.
 
 ## 6. Conversion
 
@@ -156,9 +156,11 @@ python3 tools/build_assets.py --step convert --kind inventory-ui
 
 Writes `assets/generated/ui/inventory/`.
 
-Or set `"test_set_only": false` in `config.local.json`. `--step all` still extract + scan + convert + validate; add `--full` to convert everything.
+Or set `"test_set_only": false` in `config.local.json`. Optional `"decomp_root"` points at an `ac-decomp` checkout for FG combis. `--step all` still extract + scan + convert + validate; add `--full` to convert everything.
 
-Per-asset failures are recorded and skipped; the run does not stop.
+Test-set convert **overwrites** the files it writes and does not delete `assets/generated/` (so a later test run will not wipe a `--full` library, FG catalog, or inventory UI). `--full` clears work-root `converted/` staging only.
+
+Per-asset failures are recorded and skipped; the run does not stop. The process exits **1** if any convert error occurred or validate is not ok.
 
 ## 7. Building the asset manifest
 
@@ -207,6 +209,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | Station lies on its side | Same heuristic miss (clock-hand verts). Treat `obj_*_station*` as Y-up and bake `cKF_ba_r_obj_s_station1` (joint-0 identity; skip `ckf_basis`) |
 | Shop looks face-on / door due south | Missing anim bind — shop joint-0 Y is **−135°**, not −90° |
 | Acre/room meshes have no textures | DLs use runtime segment banks (`0x80` field BG, `0x08–0x0C` house floor/wall). Convert binds those before walking the Gfx |
+| Acre grass/earth is a stretched edge colour | REPEAT UVs span the 16×16 cell grid. Wrap must be baked into the PNG (`GeneratedVisual` clamps). Reconvert `--step convert --kind static` |
 | Object part is solid white (`seg_08` / `seg_09` / `seg_0A`) | Gfx samples `anime_N_txt` (dummy `gSPSegment` slots). Actor draw binds the real pal/tex at runtime (shrine leaf → tree leaf + FG pal; house mark → `obj_myhome_mark_*`). Convert resolves unbound anime SETTIMG from REL textures of the same byte size whose name shares the Gfx part (`leaf`, `mark`). Dummy LOADTLUT pals must also share the object family (`myhome`+`mark`) — a generic `front`/`door`/`leaf` hit must not replace the structure TLUT (that recolored shops/houses). Reconvert with `--kind buildings`. Save-data slots (statue faces, some flags) stay white if the REL has no stand-in |
 | Boy cheek/skin is shirt-yellow | Pending tris were flushed after the next shirt `G_LOADTLUT`; flush before TLUT |
 | Leaves/cutouts show a black/gray box | Texture has alpha but GLB material was `OPAQUE`; use `MASK`/`BLEND` from PNG alpha |
@@ -234,7 +237,7 @@ Preview (after convert):
 ## 11. Known limitations
 
 - Player `boy_1.glb` is a **skinned** GLB: wait-frame-1 bind (already stands on +Y), IBMs, and every `cKF_ba_r_ply_1_*` clip. The US disc has **no** `cKF_bs_r_girl_1` / `girl_1_v` — only `boy_1` plus UI portraits (`girl1.bti`…). Girl clothing/face selection is runtime data on that shared player mesh, not a second skeleton. Models without wait use identity bind + +90° Z. Materials are `doubleSided`. Shirt and hat both sample segment `0x0A` (same 32×32 CI4); wrap/UVs differ, so they stay separate materials. Out-of-range REPEAT/MIRROR UVs are baked into a tiled PNG with UVs remapped to 0–1 (Godot cannot express per-axis wrap). Limb/chest DLs switch `G_MTX` mid-list (segment `0x0D`); seam vertices are weighted to the parent joint, not the DL owner.
-- Villager species (`cat_1`, `bev_1`, …) bake the full shared `cKF_ba_r_npc_1_*` bank (~244 clips), matching the game.
+- Villager species (`cat_1`, `bev_1`, …) embed the shared `cKF_ba_r_npc_1_*` bank. Pose evaluation is cached across species (same clip tables); rest translations still differ so each GLB has its own tracks. Test-set convert bakes wait/walk/run only.
 - Static meshes include `*_gfx_model` and plain `*_model` DLs. Room shells (`rom_*` → `environment/interiors/`) and outdoor acre tiles (`grd_*` → `environment/acres/`) come from that path. Acre DLs sample dummy segment `0x80` (grass/earth/cliff/bush); convert materializes the summer bank from `l_bg_tex_segment_rom_start_s_0` + palettes. Player-house floor/wall DLs sample segments `0x08–0x0C` from `player_room_floor.bin` / `player_room_wall.bin` (style 0). A few interiors (`rom_uranai`, `room01`) use classic N64 `G_SETTILE` / `G_SETTILESIZE` instead of `G_SETTILE_DOLPHIN`.
 - Model textures are GX CI4/CI8 with RGB5A3 palettes. Pending tris flush before `G_LOADTLUT` / prim / tile changes so the palette active at draw time is the one baked into the PNG. Segment banks use one path for every cKF prefix: REL `{prefix}_pal` / `eye1` / `mouth1` / `tmem_txt` when present, else archive `face_{species}.bin` + `tex_{species}.bin` + `pallet_{species}.bin` (shirt index 0). Unbound `anime_N_txt` SETTIMG/LOADTLUT (segments `0x08–0x0F`) resolve from same-size REL textures whose name shares the Gfx part (`leaf` → hardwood leaf tex + FG pal; `mark` → `obj_myhome_mark_*`). I4/IA are modulated by `G_SETPRIMCOLOR`.
 - `scale` 0.001 is a shared Vtx multiplier. Godot then applies actor `0.01` vs acre `0.0625` so meshes share 40 GX = 2 m. Do not AABB-fit pipeline meshes to invented meters.
@@ -245,6 +248,6 @@ Preview (after convert):
 - BTI: CI14X2 incomplete; IA4 added but less common on this disc.
 - Shadow blobs (`*_shadow_v`) often have no triangles in the listed DLs; they are recorded as errors and skipped.
 - Famicom `*.bti.szs` on this dump are already uncompressed BTI (not Yaz0); the converter reads them directly.
-- Standalone REL texture PNGs under `textures/rel/` infer CI4 dimensions from symbol size; a nearby `_pal` is used when one exists. Garbage palettes are possible for textures never referenced by a display list.
+- Standalone REL texture PNGs under `textures/rel/` infer CI4 dimensions from symbol size; a nearby `_pal` is required (skipped otherwise). Garbage palettes are still possible for textures never referenced by a display list.
 
 See [asset_pipeline_research.md](asset_pipeline_research.md) for format and tool decisions.

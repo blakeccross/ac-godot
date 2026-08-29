@@ -23,6 +23,8 @@ const STATION_UT := Vector2i(8, 5)
 ## `aNW_actor_ct` is −20 X, +20 Z — same 2×2 as the shop (`nw_off` (−1, 0)).
 const NEEDLEWORK_UT := Vector2i(9, 4)
 const NEEDLEWORK_UT_TA3 := Vector2i(9, 5)
+## New-game villagers: one per personality (`mNpc_LOOKS_NUM` / `mNpc_InitNpcAllInfo`).
+const STARTER_NPC_HOUSES := 6
 
 const _APPLE := preload("res://data/items/apple.tres")
 const _APPLE_TREE := preload("res://data/plants/apple_tree.tres")
@@ -87,10 +89,44 @@ static func generate(seed_value: int = DEFAULT_SEED) -> WorldData:
 	_rasterize_acres(data, blocks, heights)
 	_place_structure_buildings(data, blocks)
 	_place_fg_props(data, blocks, seed_value)
-	_pull_border_trees(data)
-	_clear_house_path(data)
 	data.bake()
 	return data
+
+
+static func map_text(data: WorldData) -> String:
+	## ASCII 7×10 acre map (`mFM` block grid). Rows A–F are the playable field.
+	if data == null:
+		return ""
+	if data.acre_types.size() != TownFieldGenerator.BLOCK_TOTAL:
+		return "%s (%dx%d)" % [data.display_name, data.columns, data.rows]
+	var lines: PackedStringArray = PackedStringArray()
+	lines.append(
+		"=== %s  seed=%d ===" % [data.display_name, data.seed_value]
+	)
+	lines.append("     0     1     2     3     4     5     6")
+	for bz: int in TownFieldGenerator.BLOCK_Z:
+		var row_id: String = char(64 + bz) if bz >= 1 and bz <= 6 else str(bz)
+		var cells: PackedStringArray = PackedStringArray()
+		for bx: int in TownFieldGenerator.BLOCK_X:
+			var i: int = bz * TownFieldGenerator.BLOCK_X + bx
+			var abbrev: String = TownFieldGenerator.acre_abbrev(int(data.acre_types[i]))
+			var h: int = 0
+			if data.acre_heights.size() == TownFieldGenerator.BLOCK_TOTAL:
+				h = int(data.acre_heights[i])
+			cells.append("%s:%d" % [abbrev, h])
+		lines.append("%2s  %s" % [row_id, "  ".join(cells)])
+	var extras: PackedStringArray = PackedStringArray()
+	for b: BuildingPlacement in data.buildings:
+		if b == null:
+			continue
+		var bx: int = b.cell.x / UT + 1
+		var bz: int = b.cell.y / UT + 1
+		if bz >= 1 and bz <= 6 and bx >= 1 and bx <= 5:
+			extras.append("  %s-%d  %s" % [char(64 + bz), bx, b.id])
+	if not extras.is_empty():
+		lines.append("Structures:")
+		lines.append_array(extras)
+	return "\n".join(lines)
 
 
 static func _pick_acre_visuals(blocks: PackedByteArray, seed_value: int) -> PackedStringArray:
@@ -353,17 +389,22 @@ static func _place_fg_props(data: WorldData, blocks: PackedByteArray, seed_value
 	var reserves: Array[Vector2i] = []
 	if FgCatalog.has_catalog():
 		reserves = _place_from_fg_templates(data, blocks, rng)
+	else:
+		_place_fg_props_scatter(data, blocks, rng)
+	## `mSDI_PullTree` / `mFI_PullTanukiPathTrees` before fruit/cedar (`mSDI_StartInitNew`).
+	_pull_border_trees(data)
+	_clear_house_path(data)
+	if FgCatalog.has_catalog():
 		_change_tree_to_fruit(data, rng)
 		_change_tree_to_cedar(data, rng)
 		## Most outdoor FG templates are tree-heavy; a few flats still get flower beds.
 		if _kind_count(data, &"flower") == 0:
 			_scatter_backup_flowers(data, blocks, rng)
-	else:
-		_place_fg_props_scatter(data, blocks, rng)
 	var apple_cell := _first_open_near_spawn(data, 5)
 	if apple_cell != Vector2i(-1, -1):
 		data.objects.append(_item(&"ground_apple", apple_cell, _APPLE))
 	_place_villager_homes(data, reserves, rng)
+	_remove_objects_under_buildings(data)
 
 
 static func _place_from_fg_templates(
@@ -399,8 +440,8 @@ static func _place_from_fg_templates(
 						&"structure":
 							_apply_fg_structure(data, cell, place)
 						&"tree":
-							if _occupied(data, cell):
-								continue
+							## Copy the template cell even if an acre-type building still sits on
+							## a placeholder unit; houses later overwrite the SIGN 3×3.
 							var payload: Resource = _tree_payload(String(place.get("tree", "hardwood")))
 							data.objects.append(
 								_object(
@@ -413,8 +454,6 @@ static func _place_from_fg_templates(
 							)
 							tree_n += 1
 						&"flower":
-							if _occupied(data, cell):
-								continue
 							data.objects.append(
 								_object(
 									StringName("flower_%d" % flower_n),
@@ -426,8 +465,6 @@ static func _place_from_fg_templates(
 							)
 							flower_n += 1
 						&"rock":
-							if _occupied(data, cell):
-								continue
 							data.objects.append(
 								_object(
 									StringName("rock_%d" % rock_n), &"rock", cell, null, place["visual"]
@@ -498,41 +535,99 @@ static func _apply_fg_structure(data: WorldData, cell: Vector2i, place: Dictiona
 static func _place_villager_homes(
 	data: WorldData, reserves: Array[Vector2i], rng: RandomNumberGenerator
 ) -> void:
-	## Decomp: shuffle SIGN reserves, assign starter villagers (`mNpc_SetNpcHome`).
-	## Door / actor stand tile is reserve uz + 1 (`home_info.ut_z`).
-	var plots: Array[Vector2i] = reserves.duplicate()
+	## Decomp: shuffle SIGN reserves, assign `mNpc_LOOKS_NUM` starter homes
+	## (`mNpc_SetNpcHome` / `mNpc_BuildHouseBeforeFieldct`). No outdoor NPC actor —
+	## those come from `npclist` later; Pip stays on the authored test town.
+	var plots: Array[Vector2i] = []
+	for r: Vector2i in reserves:
+		if _sign_fits_house(r):
+			plots.append(r)
 	if plots.is_empty():
 		plots = _synthetic_house_plots(data, rng)
-	## Fisher–Yates
+	## Fisher–Yates (`mNpc_MakeRandTable` is a different shuffle; same “pick N plots”).
 	for i: int in range(plots.size() - 1, 0, -1):
 		var j: int = rng.randi_range(0, i)
 		var tmp: Vector2i = plots[i]
 		plots[i] = plots[j]
 		plots[j] = tmp
-	var count: int = mini(1, plots.size()) ## One villager (Pip) for this slice.
-	for i: int in count:
-		var reserve: Vector2i = plots[i]
-		## House FG item sits on the SIGN unit; actor has no extra offset (`ac_house`).
+	var placed := 0
+	for reserve: Vector2i in plots:
+		if placed >= STARTER_NPC_HOUSES:
+			break
+		if not _sign_fits_house(reserve):
+			continue
+		if _house_plot_blocked(data, reserve):
+			continue
+		## House FG item sits on the SIGN unit; `aHUS_actor_ct` has no extra offset.
 		## RSV occupies the 3×3 around that unit (`mNpc_BuildHouseBeforeFieldct`).
 		var house_cell := Vector2i(reserve.x - 1, reserve.y - 1)
-		if not data.is_in_bounds(house_cell):
-			house_cell = reserve
-		var door_cell := Vector2i(reserve.x, reserve.y + 1)
-		if not data.is_in_bounds(door_cell):
-			door_cell = reserve
+		## Overwrite template trees/rocks/flowers in the 3×3, same as `set_fg[]`.
+		_remove_objects_in_house_plot(data, reserve)
 		data.buildings.append(
 			_labeled_building(
-				StringName("npc_house_%d" % i),
+				StringName("npc_house_%d" % placed),
 				&"house",
 				house_cell,
-				Vector2i(3, 3) if house_cell != reserve else Vector2i(2, 2),
+				Vector2i(3, 3),
 				true,
 				&"obj_s_house1",
 				"House"
 			)
 		)
-		## Signboard at (ux−1, uz+1) in decomp; skip for now.
-		data.objects.append(_villager(&"pip", door_cell, _PIP))
+		placed += 1
+
+
+static func _sign_fits_house(reserve: Vector2i) -> bool:
+	## `mNpc_BuildHouseBeforeFieldct`: SIGN ut must be 1..14 so the 3×3 stays in-acre.
+	var ux: int = posmod(reserve.x, UT)
+	var uz: int = posmod(reserve.y, UT)
+	return ux > 0 and ux < UT - 1 and uz > 0 and uz < UT - 1
+
+
+static func _house_plot_blocked(data: WorldData, sign: Vector2i) -> bool:
+	## Skip a SIGN whose 3×3 would sit on an existing occupied building.
+	for dz: int in range(-1, 2):
+		for dx: int in range(-1, 2):
+			var cell: Vector2i = sign + Vector2i(dx, dz)
+			for b: BuildingPlacement in data.buildings:
+				if b == null or not b.occupy_grid:
+					continue
+				if _in_footprint(cell, b.cell, b.footprint):
+					return true
+	return false
+
+
+static func _remove_objects_in_house_plot(data: WorldData, sign: Vector2i) -> void:
+	var blocked: Dictionary = {}
+	for dz: int in range(-1, 2):
+		for dx: int in range(-1, 2):
+			blocked[sign + Vector2i(dx, dz)] = true
+	var keep: Array[ObjectPlacement] = []
+	for o: ObjectPlacement in data.objects:
+		if o != null and blocked.has(o.cell):
+			continue
+		if o != null:
+			keep.append(o)
+	data.objects = keep
+
+
+static func _remove_objects_under_buildings(data: WorldData) -> void:
+	## FG copy can land a tree on an acre-type placeholder unit; drop it after
+	## structures settle (`mNpc_BuildHouseBeforeFieldct` `mPB_keep_item`).
+	var keep: Array[ObjectPlacement] = []
+	for o: ObjectPlacement in data.objects:
+		if o == null:
+			continue
+		var under := false
+		for b: BuildingPlacement in data.buildings:
+			if b == null or not b.occupy_grid:
+				continue
+			if _in_footprint(o.cell, b.cell, b.footprint):
+				under = true
+				break
+		if not under:
+			keep.append(o)
+	data.objects = keep
 
 
 static func _synthetic_house_plots(data: WorldData, rng: RandomNumberGenerator) -> Array[Vector2i]:
@@ -540,6 +635,8 @@ static func _synthetic_house_plots(data: WorldData, rng: RandomNumberGenerator) 
 	var out: Array[Vector2i] = []
 	for _i: int in 40:
 		var cell := Vector2i(rng.randi_range(4, data.columns - 5), rng.randi_range(20, data.rows - 8))
+		if not _sign_fits_house(cell):
+			continue
 		if _near_player_house(data, cell, 12):
 			continue
 		if not _is_open_grass(data, cell):

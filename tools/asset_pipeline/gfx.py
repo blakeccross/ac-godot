@@ -8,7 +8,6 @@ from typing import Optional
 from .texbank import (
     TextureBank,
     TextureState,
-    alpha_mode_for_png,
     parse_loadtlut,
     parse_settile,
     parse_settile_dolphin,
@@ -195,8 +194,10 @@ def count_loaded_vertices(blob: bytes) -> int:
     return used
 
 
-def apply_texture_commands(blob: bytes, bank: TextureBank, state: TextureState) -> None:
+def apply_texture_commands(blob: bytes, bank: TextureBank, state: TextureState, depth: int = 0) -> None:
     """Walk a DL for SETTIMG / LOADTLUT / SETTILE_DOLPHIN only (material DLs)."""
+    if depth > 8:
+        return
     i = 0
     extra = 0
     while i + 8 <= len(blob):
@@ -228,7 +229,7 @@ def apply_texture_commands(blob: bytes, bank: TextureBank, state: TextureState) 
         elif cmd == G_SETPRIMCOLOR:
             state.prim = ((w1 >> 24) & 0xFF, (w1 >> 16) & 0xFF, (w1 >> 8) & 0xFF, w1 & 0xFF)
         elif cmd == G_DL:
-            _follow_dl(w1, bank, state)
+            _follow_dl(w1, bank, state, depth + 1)
         i += 8
 
 
@@ -282,7 +283,9 @@ def _apply_settilesize(w0: int, w1: int, state: TextureState) -> None:
         state.height = height
 
 
-def _follow_dl(addr: int, bank: TextureBank, state: TextureState) -> None:
+def _follow_dl(addr: int, bank: TextureBank, state: TextureState, depth: int) -> None:
+    if depth > 8:
+        return
     symbol = bank.addr_to_sym.get(addr)
     if symbol is None or symbol.size <= 0:
         return
@@ -290,7 +293,7 @@ def _follow_dl(addr: int, bank: TextureBank, state: TextureState) -> None:
         nested = bank.rel.slice_at(symbol.address, symbol.size)
     except ValueError:
         return
-    apply_texture_commands(nested, bank, state)
+    apply_texture_commands(nested, bank, state, depth)
 
 
 def parse_gfx(
@@ -348,8 +351,9 @@ def parse_gfx(
             return
         png = None
         tex_name = ""
+        alpha_mode = "OPAQUE"
         if bank is not None:
-            png, tex_name = bank.decode_current(tex_state)
+            png, tex_name, alpha_mode = bank.decode_current(tex_state)
         parts.append(
             MeshPart(
                 name=name if not tex_name else f"{name}:{tex_name}",
@@ -361,7 +365,7 @@ def parse_gfx(
                 tex_height=tex_state.height,
                 wrap_s=tex_state.wrap_s,
                 wrap_t=tex_state.wrap_t,
-                alpha_mode=alpha_mode_for_png(png),
+                alpha_mode=alpha_mode,
             )
         )
         triangles = []

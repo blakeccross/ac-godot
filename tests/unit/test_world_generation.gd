@@ -90,7 +90,7 @@ func test_generated_town_has_ac_structure() -> void:
 	assert_int(int(data.acre_types[2 * 7 + 3])).is_equal(TownFieldGenerator.T_PLAYER_HOUSE)
 	assert_int(_kind_count(data, &"tree")).is_greater(0)
 	assert_int(_kind_count(data, &"flower")).is_greater(0)
-	assert_that(_object_at(data, &"pip")).is_not_equal(Vector2i(-1, -1))
+	assert_int(_kind_count(data, &"villager")).is_equal(0)
 	## Landmark acres become real buildings (not only signs).
 	assert_that(_building_at(data, &"museum")).is_not_equal(Vector2i(-1, -1))
 	assert_that(_building_at(data, &"able_sisters")).is_not_equal(Vector2i(-1, -1))
@@ -125,15 +125,22 @@ func test_generated_town_has_ac_structure() -> void:
 	assert_int(int(data.acre_types[6 * 7 + (able.x / 16 + 1)])).is_equal(
 		TownFieldGenerator.T_NEEDLEWORK
 	)
-	assert_that(_building_at(data, &"npc_house_0")).is_not_equal(Vector2i(-1, -1))
-	## Villager house is the 3×3 RSV around the SIGN (`mNpc_BuildHouseBeforeFieldct`);
-	## villager stands at SIGN uz + 1 (`home_info.ut_z`).
-	var npc_house: Vector2i = _building_at(data, &"npc_house_0")
-	var pip_cell: Vector2i = _object_at(data, &"pip")
-	var sign_from_nw := Vector2i(npc_house.x + 1, npc_house.y + 1)
-	var door_from_3x3 := Vector2i(sign_from_nw.x, sign_from_nw.y + 1)
-	var door_from_sign := Vector2i(npc_house.x, npc_house.y + 1)
-	assert_bool(pip_cell == door_from_3x3 or pip_cell == door_from_sign).is_true()
+	## `mNpc_LOOKS_NUM` starter homes on shuffled SIGN plots. No outdoor NPC.
+	assert_int(_npc_house_count(data)).is_equal(WorldGenerator.STARTER_NPC_HOUSES)
+	for i: int in WorldGenerator.STARTER_NPC_HOUSES:
+		var house_id := StringName("npc_house_%d" % i)
+		var npc_house: Vector2i = _building_at(data, house_id)
+		assert_that(npc_house).is_not_equal(Vector2i(-1, -1))
+		var npc_b: BuildingPlacement = _building(data, house_id)
+		assert_that(npc_b.footprint).is_equal(Vector2i(3, 3))
+		var sign_cell := Vector2i(npc_house.x + 1, npc_house.y + 1)
+		assert_int(sign_cell.x % 16).is_greater(0)
+		assert_int(sign_cell.x % 16).is_less(15)
+		assert_int(sign_cell.y % 16).is_greater(0)
+		assert_int(sign_cell.y % 16).is_less(15)
+		for dz: int in range(-1, 2):
+			for dx: int in range(-1, 2):
+				assert_bool(_tree_at(data, sign_cell + Vector2i(dx, dz))).is_false()
 	var spawn: Vector2i = data.player_spawn().cell
 	assert_bool(data.is_in_bounds(spawn)).is_true()
 	assert_that(data.terrain_at(spawn)).is_not_equal(WorldGrid.Terrain.WATER)
@@ -200,6 +207,18 @@ func test_height_steps_only_on_terrace_faces() -> void:
 	assert_int(TownFieldGenerator.T_RIVER_S + TownFieldGenerator.RIVER_BRIDGE_DELTA).is_equal(
 		TownFieldGenerator.T_RIVER_S_BRIDGE
 	)
+
+
+func test_generated_town_map_text_shows_acres() -> void:
+	## Console dump: 7×10 block grid, A–F playable, A-3 station / B-3 house.
+	var data: WorldData = WorldGenerator.generate(12345)
+	var text: String = WorldGenerator.map_text(data)
+	assert_str(text).contains("seed=12345")
+	assert_str(text).contains("STAT")
+	assert_str(text).contains("HOME")
+	assert_str(text).contains(" B  ")
+	assert_str(text).contains("A-3")
+	assert_str(text).contains("player_house")
 
 
 func test_generated_town_has_river_bridge() -> void:
@@ -327,6 +346,8 @@ func test_builder_places_generated_acre_meshes() -> void:
 	assert_that(world.get_node_or_null("Buildings/player_house_1")).is_not_null()
 	assert_that(world.get_node_or_null("Buildings/player_house_2")).is_not_null()
 	assert_that(world.get_node_or_null("Buildings/player_house_3")).is_not_null()
+	assert_that(world.get_node_or_null("Buildings/npc_house_0")).is_not_null()
+	assert_that(world.get_node_or_null("Characters/pip")).is_null()
 	var a11: Node3D = acres.get_node_or_null("acre_1_1") as Node3D
 	assert_that(a11).is_not_null()
 	var expected := grid.cell_corner(Vector2i(0, 0))
@@ -457,6 +478,14 @@ func _kind_count(data: WorldData, kind: StringName) -> int:
 	var n: int = 0
 	for o: ObjectPlacement in data.objects:
 		if o != null and o.kind == kind:
+			n += 1
+	return n
+
+
+func _npc_house_count(data: WorldData) -> int:
+	var n: int = 0
+	for b: BuildingPlacement in data.buildings:
+		if b != null and String(b.id).begins_with("npc_house_"):
 			n += 1
 	return n
 

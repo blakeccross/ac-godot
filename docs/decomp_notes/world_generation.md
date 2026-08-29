@@ -49,7 +49,7 @@ Seeded `RandomNumberGenerator`. Same seed → same acre grid → same `WorldData
 8. **Heights** — bump when crossing a terrace step going north (`CLIFF_HORIZONTAL` / `TOP_RIGHT` / `TOP_LEFT` bits, same as `mRF_GetBlockBase`). Vertical and bottom-corner river-cliffs stay on the current terrace.
 9. **Rasterize** FG acres (bx 1–5, bz 1–6) to an 80×96 unit `WorldData`. When `grd_*.col.json` exists, water / sand / slate / holes come from that table; otherwise geometric river strips and cliff bands.
 10. **Acre meshes** — `FieldCatalog.acre_for_block_type` picks a `grd_*` from the matching `data_combi` family (flat `grd_s_f_*`, river `grd_s_r1_*`, house `grd_s_f_mh_*`, bridge `grd_s_r*_b_*`, …), preferring a BG this town has not used yet (`mRF_SelectBlock` / `l_use_data`). Names are assigned even when the GLB is missing so fallback decks can still be wood vs stone. Variants whose sidecar is a HEIGHT_MAX filler (dummy TRACKS rows that reused the mesh) are skipped so they cannot box the acre in walls.
-11. **FG props** — when `assets/generated/environment/fg/catalog.json` exists (from disc `fgdata.bin` + `data_combi`), each FG acre picks a matching `fg_id` and copies trees/flowers/rocks/palms from the 16×16 template (`mFM_InitFgCombiSaveData`). Then `mAGrw_ChangeTree2FruitTree` / `ChangeTree2Cedar`, `mSDI_PullTree` (left/right border columns), and `mFI_PullTanukiPathTrees` (C-3 ux 7–8, uz 0–2). Without the catalog, a sparse acre-type scatter remains as fallback.
+11. **FG props** — when `assets/generated/environment/fg/catalog.json` exists (from disc `fgdata.bin` + `data_combi`), each FG acre picks a matching `fg_id` and copies trees/flowers/rocks/palms from the 16×16 template (`mFM_InitFgCombiSaveData`). Then `mSDI_PullTree` (left/right border columns), `mFI_PullTanukiPathTrees` (C-3 ux 7–8, uz 0–2), then `mAGrw_ChangeTree2FruitTree` / `ChangeTree2Cedar`. Without the catalog, a sparse acre-type scatter remains as fallback.
 
 Still deferred vs decomp: bit-exact `data_combi_table` row pick for BG+FG together (we pick BG by type family, then an FG that matches that BG), acre streaming. The FG catalog stays gitignored like other disc output.
 
@@ -63,7 +63,7 @@ Still deferred vs decomp: bit-exact `data_combi_table` row pick for BG+FG togeth
 | Station (`ac_station.c`) | `(8, 5)` on `FG_TYPE_GRD_S_T_ST1_*` | `−20` X only | FG unit + `actor_shift (−0.5, 0)` |
 | Shrine | FG `WISHING_WELL` | `+20` X, `−19` Z | FG + `(0, −1)` |
 | Museum / police | FG item | none | Police 3×3 centered; museum 2×2 on the FG unit |
-| Villager house | SIGN reserve (`mNpc_SetNpcHome`) | none | 3×3 RSV around SIGN; villager at `uz + 1` |
+| Villager house | SIGN reserve (`mNpc_SetNpcHome`); SIGN ut 1..14; **6** homes (`mNpc_LOOKS_NUM`) | none (`ac_house`) | 3×3 RSV around SIGN overwrites FG trees. Outdoor NPC actors are not spawned on generated towns |
 
 The house acre always has HOUSE0–3 (top-left, top-right, bottom-left, bottom-right). New game inits all four to tent size; only player 0’s private data is filled. Mailboxes (`ACTOR_PROP_MAILBOX0`–`3`) sit two units toward the acre center on the house row; haniwa two units south of each house. Those props are not spawned yet. Door of the west pair uses AC **+90°** Y (`WorldGrid.Facing.WEST` here — `EAST` is −90°). `mFI_PullTanukiPathTrees` then clears trees on **C-3** (`Save_Get(fg[2][2])`), not B-3: ut indices `0x07, 0x08, 0x17, 0x18, 0x27, 0x28`.
 
@@ -102,4 +102,4 @@ From `m_name_table.h` / `m_bg_type.h` / `ac_sign`. Summer prefix `obj_s_`; winte
 | `SIGNBOARD` / `ac_sign` | Field sign (`obj_s_kanban`) | `obj_shop_kanban.glb` until `obj_s_kanban` is converted |
 | `ITM_FOOD_APPLE` | Dropped apple | `obj_item_apple_tex.png` on the pickup |
 | `int_sum_chair01` | Wood chair | `int_sum_chair01.glb` |
-| Squirrel villager | Species skeleton | `squ_1.glb` |
+| Villager (test town Pip) | Placeholder capsule | Disc species GLBs are not attached |

@@ -10,8 +10,6 @@ extends CharacterBody3D
 func _ready() -> void:
 	add_to_group("interactable")
 	Clock.time_changed.connect(_sync_from_clock)
-	var species: StringName = data.species if data else &""
-	GeneratedVisual.attach_villager(self, species)
 	_sync_from_clock()
 
 

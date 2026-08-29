@@ -98,8 +98,9 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
     stage_dir.mkdir(parents=True, exist_ok=True)
 
     results: list[dict[str, Any]] = []
+    project_root = cfg.project_root
     for spec in CHROME:
-        record = _extract_one(rel, by_name, spec, stage_dir, out_dir)
+        record = _extract_one(rel, by_name, spec, stage_dir, out_dir, project_root)
         results.append(record)
         if record["status"] == "converted" and spec.env_preview is not None:
             preview = _extract_one(
@@ -116,6 +117,7 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
                 ),
                 stage_dir,
                 out_dir,
+                project_root,
                 force_env=True,
             )
             results.append(preview)
@@ -133,6 +135,7 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
                 ),
                 stage_dir,
                 out_dir,
+                project_root,
                 force_env=True,
             )
             results.append(red)
@@ -161,6 +164,7 @@ def _extract_one(
     spec: TexSpec,
     stage_dir: Path,
     out_dir: Path,
+    project_root: Path,
     *,
     force_env: bool = False,
 ) -> dict[str, Any]:
@@ -189,7 +193,7 @@ def _extract_one(
         for folder in (stage_dir, out_dir):
             path = folder / f"{out_stem}.png"
             path.write_bytes(png)
-        write_import_sidecar(out_dir / f"{out_stem}.png")
+        write_import_sidecar(out_dir / f"{out_stem}.png", project_root)
         record["status"] = "converted"
         record["meta"] = {
             "width": spec.width,
@@ -242,7 +246,7 @@ def _copy_default_paper(cfg: PipelineConfig, stage_dir: Path, out_dir: Path) -> 
     data = src.read_bytes()
     for folder in (stage_dir, out_dir):
         (folder / dest_name).write_bytes(data)
-    write_import_sidecar(out_dir / dest_name)
+    write_import_sidecar(out_dir / dest_name, cfg.project_root)
     return {
         "asset_id": "paper_cloth226",
         "source": str(src),

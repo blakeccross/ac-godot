@@ -20,6 +20,7 @@ class PipelineConfig:
     # into meters with FieldCatalog (40 GX = 2 m).
     scale: float = 0.001
     test_set_only: bool = True
+    decomp_root: Optional[Path] = None
 
     @property
     def extracted_disc(self) -> Path:
@@ -60,6 +61,7 @@ def load_config(project_root: Optional[Path] = None, config_path: Optional[Path]
     if not path.exists():
         path = example
     data: dict[str, Any] = json.loads(path.read_text())
+    decomp_raw = data.get("decomp_root") or ""
     return PipelineConfig(
         project_root=root,
         game_files=_resolve(root, data["game_files"]),
@@ -68,4 +70,5 @@ def load_config(project_root: Optional[Path] = None, config_path: Optional[Path]
         dtk_path=_resolve(root, data.get("dtk_path", "tools/.cache/dtk")),
         scale=float(data.get("scale", 0.001)),
         test_set_only=bool(data.get("test_set_only", True)),
+        decomp_root=_resolve(root, decomp_raw) if str(decomp_raw).strip() else None,
     )

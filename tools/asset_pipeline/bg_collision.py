@@ -77,7 +77,10 @@ def write_sidecars(table: dict[str, list[dict[str, int]]], dest_root: Path) -> i
     return n
 
 
-def extract_and_write(rel: RelData, symbols: list[MapSymbol], dest_root: Path) -> dict[str, Any]:
+def extract_and_write(rel: RelData, symbols: list[MapSymbol], dest_roots: Path | list[Path]) -> dict[str, Any]:
     table = extract_table(rel, symbols)
-    written = write_sidecars(table, dest_root)
+    roots = dest_roots if isinstance(dest_roots, list) else [dest_roots]
+    written = 0
+    for dest in roots:
+        written = write_sidecars(table, dest)
     return {"acres": len(table), "written": written}

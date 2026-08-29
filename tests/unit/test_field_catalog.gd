@@ -23,6 +23,21 @@ func test_default_visuals_use_decomp_names() -> void:
 	assert_that(FieldCatalog.default_visual(&"rock")).is_equal(&"ROCK_A")
 
 
+func test_fg_item_trees_and_sign_reserves() -> void:
+	## `m_name_table.h` tree families + SIGN00–SIGN20.
+	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_TREE)["visual"]).is_equal(&"TREE")
+	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_TREE_SAPLING)["visual"]).is_equal(&"TREE")
+	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_TREE_APPLE_FRUIT)["visual"]).is_equal(
+		&"TREE_APPLE_FRUIT"
+	)
+	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_CEDAR_TREE)["visual"]).is_equal(&"CEDAR_TREE")
+	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_TREE_PALM_FRUIT)["visual"]).is_equal(
+		&"TREE_PALM_FRUIT"
+	)
+	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_SIGN00)["kind"]).is_equal(&"reserve")
+	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_SIGN20)["kind"]).is_equal(&"reserve")
+
+
 func test_summer_tree_paths_when_assets_exist() -> void:
 	Clock.apply_snapshot({ "year": 2001, "month": 7, "day": 1, "hour": 12, "minute": 0 })
 	assert_str(FieldCatalog.season_letter()).is_equal("s")

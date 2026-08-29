@@ -4,5 +4,6 @@
   "godot_generated": "assets/generated",
   "dtk_path": "tools/.cache/dtk",
   "scale": 0.001,
-  "test_set_only": true
+  "test_set_only": true,
+  "decomp_root": ""
 }

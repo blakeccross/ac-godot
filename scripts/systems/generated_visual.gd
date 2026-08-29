@@ -32,25 +32,10 @@ static func attach(host: Node3D, visual_id: StringName) -> Node3D:
 	return pivot
 
 
-static func attach_villager(host: Node3D, species: StringName) -> Node3D:
-	var path: String = FieldCatalog.villager_path(species)
-	if path.is_empty() or host == null:
-		return null
-	var packed: PackedScene = load(path) as PackedScene
-	if packed == null:
-		return null
-	var inst: Node = packed.instantiate()
-	if not (inst is Node3D):
-		inst.queue_free()
-		return null
-	_hide_placeholder_meshes(host)
-	var pivot := Node3D.new()
-	pivot.name = "GeneratedVisual"
-	pivot.add_child(inst)
-	host.add_child(pivot)
-	_apply_materials(pivot)
-	_fit_actor(pivot)
-	return pivot
+static func attach_villager(_host: Node3D, _species: StringName) -> Node3D:
+	## Disc species skeletons (`squ_1`, …) stay off the field. Use the host
+	## placeholder until custom villager art exists.
+	return null
 
 
 static func apply_item_albedo(host: Node, item_id: StringName) -> void:

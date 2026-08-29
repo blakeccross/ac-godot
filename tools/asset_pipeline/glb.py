@@ -12,6 +12,12 @@ from .ckf import ConvertedModel
 from .gfx import MeshPart, unit_normal
 from .texbank import GX_CLAMP, GX_MIRROR, GX_REPEAT, wrap_to_gltf
 
+# Field acres tile a 16×16 cell grid. Skipping REPEAT bake leaves UVs > 1, and
+# GeneratedVisual forces texture_repeat off, so grass/earth clamp to the edge.
+# Cap on output pixels only (a 16×128px atlas is 2048px — well under this).
+MAX_WRAP_PIXELS = 8192
+_EPS = 1e-5
+
 
 def _pad4(n: int) -> int:
     return (4 - (n % 4)) % 4
@@ -81,6 +87,11 @@ def _bake_wrap_group(group: dict) -> None:
 
     base = Image.open(io.BytesIO(png)).convert("RGBA")
     tw, th = base.size
+    if tw * tiles_u > MAX_WRAP_PIXELS or th * tiles_v > MAX_WRAP_PIXELS:
+        print(
+            f"  wrap bake large for {group.get('name')}: "
+            f"{tiles_u}×{tiles_v} tiles at {tw}×{th} (still baking; Godot clamps REPEAT)"
+        )
     out = Image.new("RGBA", (tw * tiles_u, th * tiles_v))
     for tj in range(tiles_v):
         for ti in range(tiles_u):
@@ -141,6 +152,21 @@ def _material(
     if texture_index is not None:
         mat["pbrMetallicRoughness"]["baseColorTexture"] = {"index": texture_index}
     return mat
+
+
+def _vec_close(a: tuple, b: tuple, eps: float = _EPS) -> bool:
+    return all(abs(x - y) <= eps for x, y in zip(a, b))
+
+
+def _quat_close(a: tuple, b: tuple, eps: float = _EPS) -> bool:
+    return _vec_close(a, b, eps) or _vec_close(a, tuple(-x for x in b), eps)
+
+
+def _series_matches(values: list, rest: tuple, *, quat: bool = False) -> bool:
+    if not values:
+        return True
+    cmp = _quat_close if quat else _vec_close
+    return all(cmp(v, rest) for v in values)
 
 
 def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> None:
@@ -447,33 +473,37 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
     for anim_name, channels in model.animations.items():
         if not channels or not channels[0].times:
             continue
+        times = channels[0].times
+        a_time = add_acc(
+            add_view(struct.pack("<" + "f" * len(times), *times)),
+            5126,
+            len(times),
+            "SCALAR",
+            {"min": [times[0]], "max": [times[-1]]},
+        )
         samplers_anim: list[dict] = []
         channels_anim: list[dict] = []
         for ji, channel in enumerate(channels):
             if not channel.times:
                 continue
-            times = channel.times
-            a_time = add_acc(
-                add_view(struct.pack("<" + "f" * len(times), *times)),
-                5126,
-                len(times),
-                "SCALAR",
-                {"min": [times[0]], "max": [times[-1]]},
-            )
-            flat_t: list[float] = []
-            for tr in channel.translations:
-                flat_t.extend(tr)
-            a_tr = add_acc(add_view(struct.pack("<" + "f" * len(flat_t), *flat_t)), 5126, len(times), "VEC3")
-            flat_r: list[float] = []
-            for rot in channel.rotations:
-                flat_r.extend(rot)
-            a_rot = add_acc(add_view(struct.pack("<" + "f" * len(flat_r), *flat_r)), 5126, len(times), "VEC4")
-            s_tr = len(samplers_anim)
-            samplers_anim.append({"input": a_time, "output": a_tr, "interpolation": "LINEAR"})
-            channels_anim.append({"sampler": s_tr, "target": {"node": ji, "path": "translation"}})
-            s_rot = len(samplers_anim)
-            samplers_anim.append({"input": a_time, "output": a_rot, "interpolation": "LINEAR"})
-            channels_anim.append({"sampler": s_rot, "target": {"node": ji, "path": "rotation"}})
+            bind_t = bind_local_g[ji].translation()
+            bind_r = bind_local_g[ji].rotation_quat()
+            if not _series_matches(channel.translations, bind_t):
+                flat_t: list[float] = []
+                for tr in channel.translations:
+                    flat_t.extend(tr)
+                a_tr = add_acc(add_view(struct.pack("<" + "f" * len(flat_t), *flat_t)), 5126, len(times), "VEC3")
+                s_tr = len(samplers_anim)
+                samplers_anim.append({"input": a_time, "output": a_tr, "interpolation": "LINEAR"})
+                channels_anim.append({"sampler": s_tr, "target": {"node": ji, "path": "translation"}})
+            if not _series_matches(channel.rotations, bind_r, quat=True):
+                flat_r: list[float] = []
+                for rot in channel.rotations:
+                    flat_r.extend(rot)
+                a_rot = add_acc(add_view(struct.pack("<" + "f" * len(flat_r), *flat_r)), 5126, len(times), "VEC4")
+                s_rot = len(samplers_anim)
+                samplers_anim.append({"input": a_time, "output": a_rot, "interpolation": "LINEAR"})
+                channels_anim.append({"sampler": s_rot, "target": {"node": ji, "path": "rotation"}})
         if channels_anim:
             animations_out.append({"name": anim_name, "samplers": samplers_anim, "channels": channels_anim})
             baked_names.append(anim_name)

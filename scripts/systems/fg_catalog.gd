@@ -9,10 +9,19 @@ const UT := 16
 const ITEMS_PER_ACRE := UT * UT
 
 ## `m_name_table.h` environmental / rock ids we place in this slice.
+const ITEM_TREE_SAPLING := 0x0800
 const ITEM_TREE := 0x0804
+const ITEM_TREE_APPLE_SAPLING := 0x0805
 const ITEM_TREE_APPLE_FRUIT := 0x080C
-const ITEM_CEDAR_TREE := 0x0861
+const ITEM_TREE_30000BELLS := 0x083B
+const ITEM_TREE_100BELLS_SAPLING := 0x084F
+const ITEM_TREE_100BELLS := 0x0853
+const ITEM_TREE_PALM_SAPLING := 0x0854
 const ITEM_TREE_PALM_FRUIT := 0x085B
+const ITEM_CEDAR_TREE_SAPLING := 0x085D
+const ITEM_CEDAR_TREE := 0x0861
+const ITEM_GOLD_TREE_SAPLING := 0x0863
+const ITEM_GOLD_TREE := 0x0868
 const ITEM_FLOWER_PANSIES0 := 0x0845
 const ITEM_FLOWER_PANSIES1 := 0x0846
 const ITEM_FLOWER_PANSIES2 := 0x0847
@@ -97,14 +106,9 @@ static func placement_for_item(item_id: int) -> Dictionary:
 	## kind + visual_id for WorldGenerator / WorldBuilder. Empty = skip.
 	if item_id == ITEM_EMPTY or item_id == ITEM_NONE or item_id == 0xFFFE:
 		return {}
-	if item_id == ITEM_TREE:
-		return {"kind": &"tree", "visual": &"TREE", "tree": &"hardwood"}
-	if item_id == ITEM_CEDAR_TREE:
-		return {"kind": &"tree", "visual": &"CEDAR_TREE", "tree": &"cedar"}
-	if item_id == ITEM_TREE_APPLE_FRUIT:
-		return {"kind": &"tree", "visual": &"TREE_APPLE_FRUIT", "tree": &"apple"}
-	if item_id == ITEM_TREE_PALM_FRUIT or (item_id >= 0x0854 and item_id <= 0x085B):
-		return {"kind": &"tree", "visual": &"TREE_PALM_FRUIT", "tree": &"palm"}
+	var tree: Dictionary = _tree_place(item_id)
+	if not tree.is_empty():
+		return tree
 	if item_id >= ITEM_FLOWER_PANSIES0 and item_id <= ITEM_FLOWER_TULIP2:
 		var flower_visuals: Array[StringName] = [
 			&"FLOWER_PANSIES0",
@@ -200,6 +204,24 @@ static func placement_for_item(item_id: int) -> Dictionary:
 				"nw_off": Vector2i(-1, 0),
 				"door_verb": &"shop",
 			}
+	return {}
+
+
+static func _tree_place(item_id: int) -> Dictionary:
+	## `IS_ITEM_TREE` families. Fruit/cedar passes still convert only visual `TREE`.
+	if item_id >= ITEM_CEDAR_TREE_SAPLING and item_id <= ITEM_CEDAR_TREE:
+		return {"kind": &"tree", "visual": &"CEDAR_TREE", "tree": &"cedar"}
+	if item_id >= ITEM_TREE_PALM_SAPLING and item_id <= ITEM_TREE_PALM_FRUIT:
+		return {"kind": &"tree", "visual": &"TREE_PALM_FRUIT", "tree": &"palm"}
+	if item_id >= ITEM_TREE_APPLE_SAPLING and item_id <= ITEM_TREE_APPLE_FRUIT:
+		return {"kind": &"tree", "visual": &"TREE_APPLE_FRUIT", "tree": &"apple"}
+	if (
+		(item_id >= ITEM_TREE_SAPLING and item_id <= ITEM_TREE)
+		or (item_id > ITEM_TREE_APPLE_FRUIT and item_id <= ITEM_TREE_30000BELLS)
+		or (item_id >= ITEM_TREE_100BELLS_SAPLING and item_id <= ITEM_TREE_100BELLS)
+		or (item_id >= ITEM_GOLD_TREE_SAPLING and item_id <= ITEM_GOLD_TREE)
+	):
+		return {"kind": &"tree", "visual": &"TREE", "tree": &"hardwood"}
 	return {}
 
 

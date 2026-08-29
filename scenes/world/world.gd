@@ -20,6 +20,7 @@ func _ready() -> void:
 	add_to_group("world")
 	Game.notify_world_ready()
 	layout = Game.resolve_world_data()
+	print(WorldGenerator.map_text(layout))
 	WorldBuilder.new().build(self, layout, grid)
 	_build_navigation()
 	Clock.time_changed.connect(_apply_time_of_day)

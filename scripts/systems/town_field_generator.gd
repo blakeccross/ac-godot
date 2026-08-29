@@ -799,3 +799,147 @@ static func cliff_shape(type: int) -> int:
 			return 6
 		_:
 			return -1
+
+
+static func acre_abbrev(type: int) -> String:
+	## Fixed 4-char console label for the 7×10 acre map.
+	match type:
+		T_BORDER_CLIFF_TOP:
+			return "clN "
+		T_BORDER_CLIFF_RIVER:
+			return "clNR"
+		T_BORDER_CLIFF_LEFT:
+			return "clL "
+		T_BORDER_CLIFF_RIGHT:
+			return "clR "
+		T_BORDER_CLIFF_CORNER_TOP_LEFT:
+			return "clTL"
+		T_BORDER_CLIFF_CORNER_TOP_RIGHT:
+			return "clTR"
+		T_BORDER_CLIFF_LEFT_TUNNEL:
+			return "tnL "
+		T_BORDER_CLIFF_RIGHT_TUNNEL:
+			return "tnR "
+		T_TRACKS_STATION:
+			return "STAT"
+		T_TRACKS_DUMP:
+			return "RAIL"
+		T_TRACKS_RIVER:
+			return "tRiv"
+		T_PLAYER_HOUSE:
+			return "HOME"
+		T_CLIFF_H:
+			return "ClfH"
+		T_CLIFF_BR:
+			return "ClBR"
+		T_CLIFF_VR:
+			return "ClVR"
+		T_CLIFF_TR:
+			return "ClTR"
+		T_CLIFF_TL:
+			return "ClTL"
+		T_CLIFF_VL:
+			return "ClVL"
+		T_CLIFF_BL:
+			return "ClBL"
+		T_WF_H:
+			return "WfH "
+		T_WF_BR:
+			return "WfBR"
+		T_RIV_CLIFF_VR:
+			return "RcVR"
+		T_RIV_CLIFF_TR:
+			return "RcTR"
+		T_WF_TL:
+			return "WfTL"
+		T_RIV_CLIFF_VL:
+			return "RcVL"
+		T_RIV_CLIFF_BL:
+			return "RcBL"
+		T_RIV_CLIFF_H:
+			return "RcH "
+		T_WF_E_BR:
+			return "WfEB"
+		T_WF_E_VR:
+			return "WfEV"
+		T_RIV_E_TR:
+			return "ReTR"
+		T_RIV_E_TL:
+			return "ReTL"
+		T_RIV_W_H:
+			return "RwH "
+		T_RIV_W_TR:
+			return "RwTR"
+		T_RIV_W_TL:
+			return "RwTL"
+		T_WF_W_VL:
+			return "WfWV"
+		T_WF_W_BL:
+			return "WfWB"
+		T_FLAT:
+			return "...."
+		T_RIVER_S:
+			return "RivS"
+		T_RIVER_E:
+			return "RivE"
+		T_RIVER_W:
+			return "RivW"
+		T_RIVER_SE:
+			return "RvSE"
+		T_RIVER_ES:
+			return "RvES"
+		T_RIVER_SW:
+			return "RvSW"
+		T_RIVER_WS:
+			return "RvWS"
+		T_RIVER_S_BRIDGE:
+			return "BrgS"
+		T_RIVER_E_BRIDGE:
+			return "BrgE"
+		T_RIVER_W_BRIDGE:
+			return "BrgW"
+		T_RIVER_SE_BRIDGE:
+			return "BgSE"
+		T_RIVER_ES_BRIDGE:
+			return "BgES"
+		T_RIVER_SW_BRIDGE:
+			return "BgSW"
+		T_RIVER_WS_BRIDGE:
+			return "BgWS"
+		T_BEACH:
+			return "sand"
+		T_BEACH_RIVER:
+			return "sRiv"
+		T_TRACKS_SHOP:
+			return "SHOP"
+		T_SHRINE:
+			return "WELL"
+		T_TRACKS_POST:
+			return "POST"
+		T_POLICE:
+			return "COPS"
+		T_BORDER_CLIFF_LEFT_TRANSITION:
+			return "clLT"
+		T_BORDER_CLIFF_RIGHT_TRANSITION:
+			return "clRT"
+		T_BORDER_CLIFF_OCEAN_LEFT:
+			return "ocL "
+		T_BORDER_CLIFF_OCEAN_RIGHT:
+			return "ocR "
+		T_MUSEUM:
+			return "MUSE"
+		T_NEEDLEWORK:
+			return "ABLE"
+		T_BEACH_RIVER_BRIDGE:
+			return "sBrg"
+		T_PORT:
+			return "DOCK"
+		T_NONE:
+			return "    "
+		_:
+			if type >= T_SLOPE_H and type <= T_SLOPE_H + 6:
+				var slope: PackedStringArray = ["SlpH", "SlBR", "SlVR", "SlTR", "SlTL", "SlVL", "SlBL"]
+				return slope[type - T_SLOPE_H]
+			if type >= 69 and type <= 75:
+				return "POOL"
+			return "T%03d" % type

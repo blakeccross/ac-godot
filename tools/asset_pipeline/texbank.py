@@ -9,7 +9,7 @@ from pathlib import Path
 from PIL import Image
 
 from .bti import CI4, CI8, I4, I8, IA4, IA8, RGB5A3, RGBA8, _rgb5a3, decode_gx_image
-from .mapfile import MapSymbol
+from .mapfile import MapSymbol, index_by_name
 from .rel import RelData
 
 # GBI
@@ -94,16 +94,23 @@ def image_png_bytes(image: Image.Image) -> bytes:
     return buf.getvalue()
 
 
+def alpha_mode_for_image(image: Image.Image) -> str:
+    """glTF alphaMode from a decoded RGBA image: cutout CI leaves → MASK, soft IA → BLEND."""
+    alpha = image.convert("RGBA").getchannel("A")
+    hist = alpha.histogram()
+    total = image.size[0] * image.size[1]
+    if hist[255] >= total:
+        return "OPAQUE"
+    if hist[0] + hist[255] >= total:
+        return "MASK"
+    return "BLEND"
+
+
 def alpha_mode_for_png(png: bytes | None) -> str:
     """glTF alphaMode from PNG: cutout CI leaves → MASK, soft IA → BLEND."""
     if not png:
         return "OPAQUE"
-    alphas = {px[3] for px in Image.open(io.BytesIO(png)).convert("RGBA").getdata()}
-    if all(a == 255 for a in alphas):
-        return "OPAQUE"
-    if alphas <= {0, 255}:
-        return "MASK"
-    return "BLEND"
+    return alpha_mode_for_image(Image.open(io.BytesIO(png)))
 
 
 # Decomp `structure_pal.c`: Japanese mesh prefixes vs English palette symbols.
@@ -311,6 +318,7 @@ class TextureBank:
         self.rel = rel
         self.symbols = symbols
         self.archives = archives
+        self.by_name = index_by_name(symbols)
         self.addr_to_sym: dict[int, MapSymbol] = {}
         self._pal_symbols: list[MapSymbol] = []
         for symbol in symbols:
@@ -326,7 +334,7 @@ class TextureBank:
         self.segment_images: dict[int, SegmentTex] = {}
         self.segment_palettes: dict[int, bytes] = {}
         self._segment_offset_names: dict[int, dict[int, str]] = {}
-        self._png_cache: dict[tuple, bytes] = {}
+        self._png_cache: dict[tuple, tuple[bytes, str]] = {}
         self.current_prefix = ""
         self.current_gfx = ""
         self._tree_pal: bytes | None = None
@@ -473,10 +481,7 @@ class TextureBank:
             )
 
     def _find_symbol(self, name: str) -> MapSymbol | None:
-        for symbol in self.symbols:
-            if symbol.name == name:
-                return symbol
-        return None
+        return self.by_name.get(name)
 
     def bind_model_segments(self, prefix: str, shirt_index: int = 0) -> None:
         """Bind segment banks for any cKF prefix from REL symbols and optional archive bins.
@@ -547,10 +552,10 @@ class TextureBank:
 
 
     def _symbol_bytes(self, name: str) -> bytes | None:
-        for symbol in self.symbols:
-            if symbol.name == name and symbol.size > 0:
-                return self.rel.slice_at(symbol.address, symbol.size)
-        return None
+        symbol = self.by_name.get(name)
+        if symbol is None or symbol.size <= 0:
+            return None
+        return self.rel.slice_at(symbol.address, symbol.size)
 
     def _size_fits(self, symbol_size: int, needed: int) -> bool:
         if symbol_size < needed:
@@ -694,9 +699,9 @@ class TextureBank:
         except ValueError:
             return None
 
-    def decode_current(self, state: TextureState) -> tuple[bytes | None, str]:
+    def decode_current(self, state: TextureState) -> tuple[bytes | None, str, str]:
         if state.width <= 0 or state.height <= 0 or state.img_addr == 0:
-            return None, ""
+            return None, "", "OPAQUE"
         if state.img_addr >> 24:
             self._resolve_dummy_image(state)
         pal = self._palette_for(state)
@@ -704,18 +709,19 @@ class TextureBank:
         key = (state.img_addr, state.width, state.height, state.fmt, state.siz, pal or b"", state.prim)
         cached = self._png_cache.get(key)
         if cached is not None:
-            return cached, name
+            return cached[0], name, cached[1]
         data = self._image_bytes(state)
         if data is None:
-            return None, name
+            return None, name, "OPAQUE"
         try:
             image = decode_gbi_texture(data, state.width, state.height, state.fmt, state.siz, pal)
             image = apply_prim(image, state.prim)
         except (KeyError, ValueError, IndexError):
-            return None, name
+            return None, name, "OPAQUE"
+        mode = alpha_mode_for_image(image)
         png = image_png_bytes(image)
-        self._png_cache[key] = png
-        return png, name
+        self._png_cache[key] = (png, mode)
+        return png, name, mode
 
     def _palette_for(self, state: TextureState) -> bytes | None:
         pal = state.palettes.get(state.pal_slot)
