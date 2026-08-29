@@ -10,4 +10,4 @@ display_name = "Sprocket"
 species = &"ostrich"
 catchphrase = "zort"
 personality = ExtResource("2")
-starter = true
+starter = false

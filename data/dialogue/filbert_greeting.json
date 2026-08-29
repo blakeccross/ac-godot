@@ -1,0 +1,37 @@
+{
+  "id": "filbert_greeting",
+  "speaker_id": "filbert",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        { "if": { "already_talked": true }, "goto": "repeat" },
+        { "if": { "time_of_day": "night" }, "goto": "night" },
+        { "if": { "time_of_day": "dawn" }, "goto": "dawn" },
+        { "if": { "time_of_day": "dusk" }, "goto": "dusk" },
+        { "goto": "day" }
+      ]
+    },
+    "repeat": {
+      "type": "line",
+      "text": "Still hanging around, huh?"
+    },
+    "night": {
+      "type": "line",
+      "text": "You're up late."
+    },
+    "dawn": {
+      "type": "line",
+      "text": "Morning!"
+    },
+    "day": {
+      "type": "line",
+      "text": "Nice plot you've got."
+    },
+    "dusk": {
+      "type": "line",
+      "text": "Evening already?"
+    }
+  }
+}

@@ -29,6 +29,7 @@ var _goal_block: Vector2i = Vector2i.ZERO
 var _goal_kind: StringName = VillagerWalk.GOAL_MY_HOME
 var _stay_elapsed: float = 0.0
 var _stuck_elapsed: float = 0.0
+var _talk_look: Vector3 = Vector3.ZERO
 
 @onready var _model: Node3D = $Model
 @onready var _placeholder: MeshInstance3D = $Model/PlaceholderMesh
@@ -60,6 +61,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if data != null:
 		VillagerWalk.release(data.id)
+	_unbind_talk()
 	if Clock.time_changed.is_connected(_sync_from_clock):
 		Clock.time_changed.disconnect(_sync_from_clock)
 	if ai.action_changed.is_connected(_on_action_changed):
@@ -93,12 +95,24 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		return false
 	_ensure_bound()
 	if ctx != null and ctx.actor != null:
-		_face_towards(ctx.actor.global_position)
-	var line: String = VillagerTalk.greeting(data, state)
+		_talk_look = ctx.actor.global_position
+	else:
+		_talk_look = global_position
+	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
+	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
+	if ui != null and ui.has_method("play"):
+		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
+			ui.call("close")
+		ai.begin_talk()
+		_bind_talk_end(ui)
+		ui.call("play", VillagerTalk.conversation(data, state), talk_ctx, state)
+	else:
+		_face_towards(_talk_look)
+		var line: String = VillagerTalk.greeting(data, state)
+		var who: String = data.display_name if data else "Villager"
+		Game.post_notice("%s: %s" % [who, line])
 	if state != null:
 		state.record_talk(VillagerTalk.day_key())
-	var who: String = data.display_name if data else "Villager"
-	Game.post_notice("%s: %s" % [who, line])
 	return true
 
 
@@ -110,6 +124,9 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		ai.step(delta)
 		_update_animation(delta, Vector3.ZERO)
+		return
+	if ai.is_talking():
+		_hold_talk(delta)
 		return
 	var on_bg: bool = _snap_to_bg()
 	if on_bg:
@@ -163,6 +180,8 @@ func _on_action_changed(kind: StringName) -> void:
 	if kind == ActivityKind.LEAVE_HOME and not visible:
 		global_position = _motor.home
 		_motor.reset(_motor.home, _motor.facing)
+	if kind == ActivityKind.TALK:
+		_motor.arrive()
 	if kind == ActivityKind.WANDER:
 		_motor.arrive()
 		_stay_elapsed = 0.0
@@ -334,6 +353,59 @@ func _roam_point() -> Vector3:
 	if _goal_stand != Vector3.INF and _goal_stand != Vector3.ZERO:
 		return _goal_stand + _motor.random_offset()
 	return _motor.home + _motor.random_offset()
+
+
+func _hold_talk(delta: float) -> void:
+	var on_bg: bool = _snap_to_bg()
+	if on_bg:
+		velocity.y = 0.0
+		motion_mode = MOTION_MODE_FLOATING
+	elif not is_on_floor():
+		velocity.y -= _gravity * delta
+	else:
+		velocity.y = 0.0
+	velocity.x = 0.0
+	velocity.z = 0.0
+	_refresh_talk_look()
+	_motor.turn_toward(delta, global_position, _talk_look)
+	if _model != null:
+		_model.rotation.y = _motor.facing
+	if _agent != null and _nav_ready():
+		_agent.target_position = global_position
+	move_and_slide()
+	if on_bg:
+		_snap_to_bg()
+	_update_animation(delta, Vector3.ZERO)
+	ai.step(delta)
+
+
+func _bind_talk_end(ui: Node) -> void:
+	if ui == null or not ui.has_signal("closed"):
+		return
+	if ui.closed.is_connected(_on_talk_closed):
+		ui.closed.disconnect(_on_talk_closed)
+	ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
+
+
+func _unbind_talk() -> void:
+	if get_tree() != null:
+		var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
+		if ui != null and ui.has_signal("closed") and ui.closed.is_connected(_on_talk_closed):
+			ui.closed.disconnect(_on_talk_closed)
+	if ai.is_talking():
+		ai.end_talk()
+
+
+func _on_talk_closed() -> void:
+	ai.end_talk()
+
+
+func _refresh_talk_look() -> void:
+	if get_tree() == null:
+		return
+	var player: Node = get_tree().get_first_node_in_group("player")
+	if player is Node3D:
+		_talk_look = (player as Node3D).global_position
 
 
 func _face_towards(world_pos: Vector3) -> void:

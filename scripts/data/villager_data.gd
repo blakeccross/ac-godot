@@ -13,6 +13,8 @@ extends Resource
 @export var dialogue: DialogueData
 ## New-town eligible (`mNpc_GROW_STARTER`). Move-in-only animals stay out of the starter pick.
 @export var starter: bool = true
+## Island-only animal (`mNpc_GROW_ISLANDER`). Greeting uses the island hello table.
+@export var islander: bool = false
 
 
 func schedule_table() -> ScheduleData:

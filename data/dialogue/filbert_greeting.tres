@@ -6,6 +6,7 @@
 script = ExtResource("1")
 id = &"filbert_greeting"
 speaker_id = &"filbert"
+json_path = "res://data/dialogue/filbert_greeting.json"
 lines = PackedStringArray("Morning!", "Nice plot you've got.")
 already_talked = "Still hanging around, huh?"
 night = "You're up late."

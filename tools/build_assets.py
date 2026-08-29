@@ -19,6 +19,8 @@ from asset_pipeline.convert import (  # noqa: E402
     convert_static_prefixes,
 )
 from asset_pipeline.fgdata import convert_fgdata  # noqa: E402
+from asset_pipeline.dialogue import convert_dialogue  # noqa: E402
+from asset_pipeline.villagers import generate_villagers  # noqa: E402
 from asset_pipeline.extract import extract_archives, extract_disc  # noqa: E402
 from asset_pipeline.inventory_ui import extract_inventory_ui  # noqa: E402
 from asset_pipeline.scan import scan  # noqa: E402
@@ -40,9 +42,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--kind",
-        choices=["all", "static", "buildings", "plants", "collision", "fg", "inventory-ui"],
+        choices=["all", "static", "buildings", "plants", "collision", "fg", "inventory-ui", "dialogue", "villagers"],
         default="all",
-        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, acre collision, FG templates, or inventory UI chrome",
+        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, acre collision, FG templates, inventory UI chrome, dialogue banks, or villager roster from decomp tables",
     )
     args = parser.parse_args()
     cfg = load_config(ROOT, args.config)
@@ -86,6 +88,27 @@ def main() -> int:
                     print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
                 if errors:
                     failed = True
+        elif args.kind == "villagers":
+            report = generate_villagers(cfg)
+            if report.get("error"):
+                print(f"villagers: {report['error']}")
+                failed = True
+            else:
+                print(
+                    f"wrote {report['written']} villagers "
+                    f"({report['starters']} starters) -> data/villagers/"
+                )
+        elif args.kind == "dialogue":
+            report = convert_dialogue(cfg)
+            if report.get("error"):
+                print(f"dialogue: {report['error']}")
+                failed = True
+            else:
+                print(
+                    f"wrote {report['converted']} messages -> {report['output']} "
+                    f"({report['files']} files, {report['select_count']} choices, "
+                    f"{report['string_count']} strings)"
+                )
         else:
             if args.kind == "static":
                 cfg.test_set_only = False

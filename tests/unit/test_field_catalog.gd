@@ -83,9 +83,12 @@ func test_species_codes_map_to_disc_prefixes() -> void:
 	assert_str(FieldCatalog.species_code(&"wolf")).is_equal("wol")
 	assert_str(FieldCatalog.species_code(&"fox")).is_equal("rcc")
 	assert_str(FieldCatalog.species_code(&"raccoon")).is_equal("rcc")
-	assert_str(FieldCatalog.species_code(&"mouse")).is_equal("mos")
+	assert_str(FieldCatalog.species_code(&"mouse")).is_equal("mus")
+	assert_str(FieldCatalog.species_code(&"hedgehog")).is_equal("mos")
 	assert_str(FieldCatalog.species_code(&"ostrich")).is_equal("ost")
+	assert_str(FieldCatalog.species_code(&"eagle")).is_equal("pbr")
 	assert_str(FieldCatalog.species_code(&"penguin")).is_equal("pgn")
+	assert_str(FieldCatalog.species_code(&"octopus")).is_equal("oct")
 
 
 func test_tool_mesh_paths_when_assets_exist() -> void:

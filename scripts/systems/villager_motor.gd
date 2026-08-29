@@ -117,6 +117,15 @@ func speed_now() -> float:
 	return walk_speed
 
 
+func turn_toward(delta: float, from: Vector3, look_at: Vector3) -> void:
+	var to: Vector3 = look_at - from
+	to.y = 0.0
+	if to.length_squared() < 0.0001:
+		return
+	var yaw: float = atan2(to.x, to.z)
+	facing = lerp_angle(facing, yaw, clampf(TURN_SPEED * delta, 0.0, 1.0))
+
+
 func tick(delta: float, from: Vector3, next: Vector3, moving: bool) -> Vector3:
 	if not moving:
 		has_target = false

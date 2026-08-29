@@ -89,7 +89,8 @@ assets/
 │   │   ├── player/faces|shirts/
 │   │   ├── rooms/floor|wall/
 │   │   └── rel/            # named REL CI dumps
-│   └── ui/                 # BTI → PNG; inventory/ chrome from REL
+│   ├── ui/                 # BTI → PNG; inventory/ chrome from REL
+│   └── dialogue/           # message_data.bin → JSON graphs (gitignored Nintendo text)
 └── custom/                 # hand-authored; never overwritten by the pipeline
 
 tools/
@@ -155,6 +156,22 @@ python3 tools/build_assets.py --step convert --kind inventory-ui
 ```
 
 Writes `assets/generated/ui/inventory/`.
+
+Dialogue banks (`message_data.bin` → JSON graphs, Nintendo IP, gitignored):
+
+```sh
+python3 tools/build_assets.py --step convert --kind dialogue
+```
+
+Writes `assets/generated/dialogue/`. Hand-authored trees stay in `data/dialogue/`. See [decomp_notes/dialogue.md](decomp_notes/dialogue.md).
+
+Villager roster (names / looks / species / starter flag from decomp tables, not disc art):
+
+```sh
+python3 tools/build_assets.py --kind villagers --step convert
+```
+
+Writes `data/villagers/*.tres` (236 animals). Needs a local `ac-decomp` checkout (`decomp_root` or the usual Documents path).
 
 Or set `"test_set_only": false` in `config.local.json`. Optional `"decomp_root"` points at an `ac-decomp` checkout for FG combis. `--step all` still extract + scan + convert + validate; add `--full` to convert everything.
 

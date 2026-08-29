@@ -14,9 +14,18 @@ const TEST_TOOL_IDS: Array[StringName] = [
 signal phase_changed(phase: Phase)
 signal prompt_changed(text: String)
 signal notice_posted(text: String)
+signal weather_changed(weather: StringName)
+
+const DEFAULT_PLAYER_NAME := "Player"
+const DEFAULT_TOWN_NAME := "Town"
 
 var inventory: Inventory = Inventory.new()
 var villagers: VillagerRoster = VillagerRoster.new()
+var player_name: String = DEFAULT_PLAYER_NAME
+var town_name: String = DEFAULT_TOWN_NAME
+## Hook for dialogue / later weather (`mEnv_WEATHER_*`). Not a weather system.
+var weather: StringName = &"clear"
+var dialogue_vars: Dictionary = {}
 var phase: Phase = Phase.TITLE
 var player_position: Vector3 = DEFAULT_SPAWN
 var player_yaw: float = 0.0
@@ -87,9 +96,20 @@ func reset_session() -> void:
 	stump_interactables.clear()
 	hole_interactables.clear()
 	plant_states.clear()
+	player_name = DEFAULT_PLAYER_NAME
+	town_name = DEFAULT_TOWN_NAME
+	weather = &"clear"
+	dialogue_vars.clear()
 	world_mode = WorldData.Mode.TEST
 	world_seed = WorldGenerator.DEFAULT_SEED
 	set_interact_prompt("")
+
+
+func set_weather(next: StringName) -> void:
+	if weather == next:
+		return
+	weather = next
+	weather_changed.emit(weather)
 
 
 func give_test_tools() -> void:
@@ -193,6 +213,10 @@ func to_save() -> Dictionary:
 		"world_mode": int(world_mode),
 		"world_seed": world_seed,
 		"villagers": villagers.to_save(),
+		"player_name": player_name,
+		"town_name": town_name,
+		"weather": String(weather),
+		"dialogue_vars": dialogue_vars.duplicate(true),
 	}
 
 
@@ -236,14 +260,20 @@ func apply_snapshot(data: Dictionary) -> void:
 	world_mode = int(data.get("world_mode", WorldData.Mode.TEST)) as WorldData.Mode
 	world_seed = int(data.get("world_seed", WorldGenerator.DEFAULT_SEED))
 	villagers.apply_snapshot(data.get("villagers", {}))
+	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
+	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))
+	weather = StringName(str(data.get("weather", "clear")))
+	dialogue_vars.clear()
+	var vars_raw: Variant = data.get("dialogue_vars", {})
+	if typeof(vars_raw) == TYPE_DICTIONARY:
+		dialogue_vars = (vars_raw as Dictionary).duplicate(true)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if phase != Phase.PLAYING:
 		return
 	if event.is_action_pressed("pause_menu"):
-		var ui: Node = get_tree().get_first_node_in_group("inventory_ui") if get_tree() != null else null
-		if ui != null and ui.has_method("is_open") and bool(ui.call("is_open")):
+		if _group_is_open("inventory_ui") or _group_is_open("dialogue_ui"):
 			return
 		return_to_title()
 		get_viewport().set_input_as_handled()
@@ -254,6 +284,13 @@ func _set_phase(next: Phase) -> void:
 		return
 	phase = next
 	phase_changed.emit(phase)
+
+
+func _group_is_open(group: String) -> bool:
+	if get_tree() == null:
+		return false
+	var ui: Node = get_tree().get_first_node_in_group(group)
+	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
 
 
 func _change_scene(path: String) -> void:

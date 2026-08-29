@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="VillagerData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/villager_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/personalities/snooty.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"maelle"
+display_name = "Maelle"
+species = &"duck"
+personality = ExtResource("2")
+islander = true
+starter = false

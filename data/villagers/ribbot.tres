@@ -10,4 +10,4 @@ display_name = "Ribbot"
 species = &"frog"
 catchphrase = "zzrrbbitt"
 personality = ExtResource("2")
-starter = true
+starter = false

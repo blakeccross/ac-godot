@@ -45,4 +45,4 @@ static func wants_move(kind: StringName) -> bool:
 
 
 static func loops(kind: StringName) -> bool:
-	return kind == SLEEP or kind == WAKE or kind == WANDER
+	return kind == SLEEP or kind == WAKE or kind == WANDER or kind == TALK

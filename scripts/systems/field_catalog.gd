@@ -524,12 +524,50 @@ static func _species_code(species: StringName) -> String:
 			return "wol"
 		&"fox", &"raccoon":
 			return "rcc"
-		&"mouse", &"hedgehog":
+		&"mouse":
+			return "mus"
+		&"hedgehog", &"mole":
 			return "mos"
-		&"ostrich", &"eagle":
+		&"ostrich":
 			return "ost"
+		&"eagle":
+			return "pbr"
 		&"penguin", &"peacock":
 			return "pgn"
+		&"anteater":
+			return "ant"
+		&"bull":
+			return "bul"
+		&"chicken":
+			return "chn"
+		&"cow":
+			return "cow"
+		&"alligator", &"crocodile":
+			return "crd"
+		&"elephant":
+			return "elp"
+		&"gorilla":
+			return "gor"
+		&"hippo":
+			return "hip"
+		&"horse":
+			return "hrs"
+		&"koala":
+			return "kal"
+		&"kangaroo":
+			return "kgr"
+		&"lion":
+			return "lon"
+		&"octopus":
+			return "oct"
+		&"pig":
+			return "pig"
+		&"rhino":
+			return "rhn"
+		&"sheep":
+			return "shp"
+		&"tiger":
+			return "tig"
 		_:
 			return String(species)
 

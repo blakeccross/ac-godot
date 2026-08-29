@@ -1,0 +1,101 @@
+{
+  "id": "looks_greeting",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        { "if": { "already_talked": true }, "goto": "repeat" },
+        { "if": { "time_of_day": "night" }, "goto": "night" },
+        { "if": { "time_of_day": "dawn" }, "goto": "dawn" },
+        { "if": { "time_of_day": "dusk" }, "goto": "dusk" },
+        { "goto": "day" }
+      ]
+    },
+    "repeat": {
+      "type": "branch",
+      "when": [
+        { "if": { "personality": "peppy" }, "goto": "peppy_repeat" },
+        { "if": { "personality": "jock" }, "goto": "jock_repeat" },
+        { "if": { "personality": "cranky" }, "goto": "cranky_repeat" },
+        { "if": { "personality": "snooty" }, "goto": "snooty_repeat" },
+        { "if": { "personality": "normal" }, "goto": "normal_repeat" },
+        { "goto": "lazy_repeat" }
+      ]
+    },
+    "night": {
+      "type": "branch",
+      "when": [
+        { "if": { "personality": "peppy" }, "goto": "peppy_night" },
+        { "if": { "personality": "jock" }, "goto": "jock_night" },
+        { "if": { "personality": "cranky" }, "goto": "cranky_night" },
+        { "if": { "personality": "snooty" }, "goto": "snooty_night" },
+        { "if": { "personality": "normal" }, "goto": "normal_night" },
+        { "goto": "lazy_night" }
+      ]
+    },
+    "dawn": {
+      "type": "branch",
+      "when": [
+        { "if": { "personality": "peppy" }, "goto": "peppy_dawn" },
+        { "if": { "personality": "jock" }, "goto": "jock_dawn" },
+        { "if": { "personality": "cranky" }, "goto": "cranky_dawn" },
+        { "if": { "personality": "snooty" }, "goto": "snooty_dawn" },
+        { "if": { "personality": "normal" }, "goto": "normal_dawn" },
+        { "goto": "lazy_dawn" }
+      ]
+    },
+    "dusk": {
+      "type": "branch",
+      "when": [
+        { "if": { "personality": "peppy" }, "goto": "peppy_dusk" },
+        { "if": { "personality": "jock" }, "goto": "jock_dusk" },
+        { "if": { "personality": "cranky" }, "goto": "cranky_dusk" },
+        { "if": { "personality": "snooty" }, "goto": "snooty_dusk" },
+        { "if": { "personality": "normal" }, "goto": "normal_dusk" },
+        { "goto": "lazy_dusk" }
+      ]
+    },
+    "day": {
+      "type": "branch",
+      "when": [
+        { "if": { "personality": "peppy" }, "goto": "peppy_day" },
+        { "if": { "personality": "jock" }, "goto": "jock_day" },
+        { "if": { "personality": "cranky" }, "goto": "cranky_day" },
+        { "if": { "personality": "snooty" }, "goto": "snooty_day" },
+        { "if": { "personality": "normal" }, "goto": "normal_day" },
+        { "goto": "lazy_day" }
+      ]
+    },
+    "lazy_repeat": { "type": "line", "text": "Still hanging around, huh?" },
+    "lazy_night": { "type": "line", "text": "You're up late." },
+    "lazy_dawn": { "type": "line", "text": "Morning." },
+    "lazy_day": { "type": "line", "text": "Hey {player}." },
+    "lazy_dusk": { "type": "line", "text": "Evening already?" },
+    "peppy_repeat": { "type": "line", "text": "You again! Hi!" },
+    "peppy_night": { "type": "line", "text": "Night owl!" },
+    "peppy_dawn": { "type": "line", "text": "Morning, {player}!" },
+    "peppy_day": { "type": "line", "text": "Hi hi!" },
+    "peppy_dusk": { "type": "line", "text": "What a day!" },
+    "jock_repeat": { "type": "line", "text": "Back for more?" },
+    "jock_night": { "type": "line", "text": "Late workout?" },
+    "jock_dawn": { "type": "line", "text": "Rise and grind!" },
+    "jock_day": { "type": "line", "text": "Let's go, {player}!" },
+    "jock_dusk": { "type": "line", "text": "Cooling down?" },
+    "cranky_repeat": { "type": "line", "text": "You again." },
+    "cranky_night": { "type": "line", "text": "Go to bed." },
+    "cranky_dawn": { "type": "line", "text": "Too early." },
+    "cranky_day": { "type": "line", "text": "Hmph." },
+    "cranky_dusk": { "type": "line", "text": "Day's about done." },
+    "snooty_repeat": { "type": "line", "text": "Still here, I see." },
+    "snooty_night": { "type": "line", "text": "A bit late, darling." },
+    "snooty_dawn": { "type": "line", "text": "Good morning." },
+    "snooty_day": { "type": "line", "text": "Hello, {player}." },
+    "snooty_dusk": { "type": "line", "text": "Evening." },
+    "normal_repeat": { "type": "line", "text": "Oh, it's you again." },
+    "normal_night": { "type": "line", "text": "Up late?" },
+    "normal_dawn": { "type": "line", "text": "Good morning." },
+    "normal_day": { "type": "line", "text": "Hi, {player}." },
+    "normal_dusk": { "type": "line", "text": "Nice evening." }
+  }
+}

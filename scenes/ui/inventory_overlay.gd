@@ -83,6 +83,10 @@ func _build_slots() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("inventory"):
+		var talk: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
+		if talk != null and talk.has_method("is_open") and bool(talk.call("is_open")):
+			get_viewport().set_input_as_handled()
+			return
 		toggle()
 		get_viewport().set_input_as_handled()
 		return
