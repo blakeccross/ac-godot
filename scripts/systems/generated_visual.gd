@@ -88,9 +88,39 @@ static func refresh_window_lights(root: Node) -> void:
 	_set_window_lights(root, _window_lights_on())
 
 
-static func attach_villager(_host: Node3D, _species: StringName) -> Node3D:
-	## Disc species skeletons (`squ_1`, …) stay off the field. Use the host
-	## placeholder until custom villager art exists.
+static func attach_villager(host: Node3D, species: StringName) -> Node3D:
+	## Species GLB (`squ_1`, `cat_1`, …) when the local pipeline has been run.
+	if host == null or species == &"":
+		return null
+	var path: String = FieldCatalog.villager_path(species)
+	if path.is_empty():
+		return null
+	var packed: PackedScene = load(path) as PackedScene
+	if packed == null:
+		return null
+	var inst: Node = packed.instantiate()
+	if not (inst is Node3D):
+		inst.queue_free()
+		return null
+	var pivot := Node3D.new()
+	pivot.name = "GeneratedVisual"
+	pivot.add_child(inst)
+	_hide_placeholder_meshes(host)
+	host.add_child(pivot)
+	_apply_materials(pivot)
+	_fit_actor(pivot)
+	return pivot
+
+
+static func find_animation_player(node: Node) -> AnimationPlayer:
+	if node == null:
+		return null
+	if node is AnimationPlayer:
+		return node as AnimationPlayer
+	for child in node.get_children():
+		var found: AnimationPlayer = find_animation_player(child)
+		if found != null:
+			return found
 	return null
 
 

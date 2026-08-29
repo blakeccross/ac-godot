@@ -16,7 +16,7 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | Field A (`PICKUP`, `TALK`, `SHAKE_TREE`, sit, door) | Nearby actor/item + equipment pick a player mode | `Interaction` + `InteractionQuery`; hosts implement `get_interactions` / `interact` |
 | `m_camera2` (`Init_Camera2`) | 20° FOV, ~45° 3/4, focus distance 620 | `FollowCamera` (31 m at 45°) |
 | `m_actor` | Generic actors | Composed scenes, not a C actor overlay table |
-| `m_npc`, `m_npc_schedule` | Looks-based daily tables (sleep / in_house / field + end seconds); one NPC actor configured by animal data | `VillagerData` + `VillagerPersonality` + `ScheduleData` + `Villager` scene; `VillagerSchedule` / `VillagerState` |
+| `m_npc`, `m_npc_schedule`, `m_npc_walk` | Looks-based daily tables; one NPC actor; new town picks `mNpc_LOOKS_NUM` starters (one personality each) from a shuffled starter pool; field roam picks shrine / other-home / alone / my-home acres | `VillagerData` + `VillagerPersonality` + `ScheduleData` + `Villager` scene; `VillagerSchedule` / `VillagerAI` / `VillagerWalk` (goal acres + walker cap) / `VillagerCatalog.pick_starters`; species GLB via `GeneratedVisual.attach_villager` |
 | `m_field_make`, `m_field_info`, `m_random_field` | Town / acre generation and queries | `WorldData` + `WorldGenerator` + `WorldBuilder`; `WorldGrid` occupancy; world `.tscn` is a shell |
 | FG items (`TREE`, `ROCK_*`, `FLOWER_*`, `HOUSE0`, `SHOP0`, `MUSEUM`, `NEEDLEWORK_SHOP`, `SIGN00`–`SIGN20`) | Outdoor hosts + structure slots + villager plot reserves | `WorldObjectRegistry` + host scenes; `FgCatalog.placement_for_item` |
 | `m_bg`, `m_bg_item` | Terrain and placed items | `WorldData` cells + occupancy on `WorldGrid` |

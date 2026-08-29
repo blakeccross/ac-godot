@@ -450,10 +450,18 @@ static func _names(prefix: String, lo: int, hi: int) -> PackedStringArray:
 
 
 static func villager_path(species: StringName) -> String:
-	var code := _species_code(species)
+	var code := species_code(species)
 	if code.is_empty():
 		return ""
-	return _first_existing(["characters/villagers/%s_1.glb" % code])
+	var rels: Array = ["characters/villagers/%s_1.glb" % code]
+	var raw := String(species)
+	if raw != code and not raw.is_empty():
+		rels.append("characters/villagers/%s_1.glb" % raw)
+	return _first_existing(rels)
+
+
+static func species_code(species: StringName) -> String:
+	return _species_code(species)
 
 
 static func item_albedo(item_id: StringName) -> String:
@@ -490,6 +498,7 @@ static func default_visual(kind: StringName) -> StringName:
 
 
 static func _species_code(species: StringName) -> String:
+	## Disc `cKF_bs_r_*_1` prefixes. Species labels match those skeletons.
 	match species:
 		&"squirrel":
 			return "squ"
@@ -505,6 +514,22 @@ static func _species_code(species: StringName) -> String:
 			return "duk"
 		&"bird":
 			return "brd"
+		&"rabbit":
+			return "rbt"
+		&"frog":
+			return "flg"
+		&"goat":
+			return "goa"
+		&"wolf":
+			return "wol"
+		&"fox", &"raccoon":
+			return "rcc"
+		&"mouse", &"hedgehog":
+			return "mos"
+		&"ostrich", &"eagle":
+			return "ost"
+		&"penguin", &"peacock":
+			return "pgn"
 		_:
 			return String(species)
 

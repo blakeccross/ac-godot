@@ -104,7 +104,7 @@ func test_dummy_hosts_talk_and_pick_up_without_type_checks() -> void:
 	ctx.inventory = Inventory.new()
 	var villager := auto_free(_StubHost.new()) as _StubHost
 	villager.verb = Interaction.TALK
-	villager.prompt = "Talk to Pip"
+	villager.prompt = "Talk to Filbert"
 	villager.priority = 20
 	var ground := auto_free(_StubHost.new()) as _StubHost
 	ground.verb = Interaction.PICK_UP
@@ -304,7 +304,7 @@ func test_world_scene_wires_interactables() -> void:
 	assert_that(world.get_node_or_null("Objects/yard_chair")).is_not_null()
 	assert_that(world.get_node_or_null("Buildings/acre_shop")).is_not_null()
 	assert_that(world.get_node_or_null("Buildings/player_house")).is_not_null()
-	assert_that(world.get_node_or_null("Characters/pip")).is_not_null()
+	assert_that(world.get_node_or_null("Characters/filbert")).is_not_null()
 
 
 func test_shop_hours_follow_clock() -> void:

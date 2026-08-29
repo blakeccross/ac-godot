@@ -10,5 +10,5 @@ display_name = "Cranky"
 looks = 4
 schedule = ExtResource("2")
 placeholder_color = Color(0.55, 0.42, 0.38, 1)
-walk_speed = 1.6
+walk_speed = 1.5
 wander_radius = 5.0

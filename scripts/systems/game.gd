@@ -80,6 +80,7 @@ func notify_title_ready() -> void:
 func reset_session() -> void:
 	inventory.clear()
 	villagers.clear()
+	VillagerWalk.reset()
 	player_position = DEFAULT_SPAWN
 	player_yaw = 0.0
 	removed_interactables.clear()

@@ -19,7 +19,7 @@ func after_test() -> void:
 func test_reset_session_clears_pockets_and_world_deltas() -> void:
 	var apple: ItemData = load("res://data/items/apple.tres")
 	Game.inventory.add(apple, 1)
-	Game.villagers.get_or_create(&"pip").friendship = 8
+	Game.villagers.get_or_create(&"filbert").friendship = 8
 	Game.plant_states["plant_4_6"] = {"plant": "apple_tree", "planted_renew": 10}
 	Game.player_position = Vector3(3, 0.1, -2)
 	Game.player_yaw = 1.2
@@ -28,7 +28,7 @@ func test_reset_session_clears_pockets_and_world_deltas() -> void:
 	Game.mark_hole(&"hole_8_9")
 	Game.reset_session()
 	assert_int(Game.inventory.count_of_occupied()).is_equal(0)
-	assert_bool(Game.villagers.has_id(&"pip")).is_false()
+	assert_bool(Game.villagers.has_id(&"filbert")).is_false()
 	assert_vector(Game.player_position).is_equal(Game.DEFAULT_SPAWN)
 	assert_float(Game.player_yaw).is_equal(0.0)
 	assert_bool(Game.is_interactable_removed(&"ground_apple")).is_false()
@@ -79,14 +79,14 @@ func test_world_snapshot_round_trip() -> void:
 
 
 func test_villager_roster_survives_world_snapshot() -> void:
-	var pip: VillagerState = Game.villagers.get_or_create(&"pip")
-	pip.friendship = 20
-	pip.last_spoke_day = "2001-06-01"
+	var filbert: VillagerState = Game.villagers.get_or_create(&"filbert")
+	filbert.friendship = 20
+	filbert.last_spoke_day = "2001-06-01"
 	var snap: Dictionary = Game.to_save()
 	Game.reset_session()
 	Game.apply_snapshot(snap)
-	assert_int(Game.villagers.get_or_create(&"pip").friendship).is_equal(20)
-	assert_str(Game.villagers.get_or_create(&"pip").last_spoke_day).is_equal("2001-06-01")
+	assert_int(Game.villagers.get_or_create(&"filbert").friendship).is_equal(20)
+	assert_str(Game.villagers.get_or_create(&"filbert").last_spoke_day).is_equal("2001-06-01")
 
 
 func test_empty_persist_id_is_never_removed() -> void:

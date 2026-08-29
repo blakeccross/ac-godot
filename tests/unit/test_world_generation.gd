@@ -30,7 +30,7 @@ func test_authored_test_town_has_fixed_layout() -> void:
 	assert_that(_object_at(data, &"ground_shovel")).is_equal(Vector2i(2, 11))
 	assert_that(_object_at(data, &"acre_sign")).is_equal(Vector2i(9, 11))
 	assert_that(_object_at(data, &"yard_chair")).is_equal(Vector2i(9, 3))
-	assert_that(_object_at(data, &"pip")).is_equal(Vector2i(10, 9))
+	assert_that(_object_at(data, &"filbert")).is_equal(Vector2i(10, 9))
 	assert_that(_object_at(data, &"pansy_1")).is_equal(Vector2i(6, 10))
 	assert_that(_object_at(data, &"ground_sapling")).is_equal(Vector2i(3, 12))
 	assert_that(_object_at(data, &"rock_1")).is_equal(Vector2i(3, 8))
@@ -92,7 +92,7 @@ func test_generated_town_has_ac_structure() -> void:
 	assert_int(int(data.acre_types[2 * 7 + 3])).is_equal(TownFieldGenerator.T_PLAYER_HOUSE)
 	assert_int(_kind_count(data, &"tree")).is_greater(0)
 	assert_int(_kind_count(data, &"flower")).is_greater(0)
-	assert_int(_kind_count(data, &"villager")).is_equal(0)
+	assert_int(_kind_count(data, &"villager")).is_equal(WorldGenerator.STARTER_NPC_HOUSES)
 	## Landmark acres become real buildings (not only signs).
 	assert_that(_building_at(data, &"museum")).is_not_equal(Vector2i(-1, -1))
 	assert_that(_building_at(data, &"able_sisters")).is_not_equal(Vector2i(-1, -1))
@@ -127,8 +127,20 @@ func test_generated_town_has_ac_structure() -> void:
 	assert_int(int(data.acre_types[6 * 7 + (able.x / 16 + 1)])).is_equal(
 		TownFieldGenerator.T_NEEDLEWORK
 	)
-	## `mNpc_LOOKS_NUM` starter homes on shuffled SIGN plots. No outdoor NPC.
+	## `mNpc_LOOKS_NUM` starter homes on shuffled SIGN plots, plus one outdoor NPC each.
 	assert_int(_npc_house_count(data)).is_equal(WorldGenerator.STARTER_NPC_HOUSES)
+	var resident_ids: Dictionary = {}
+	var resident_looks: Dictionary = {}
+	for o: ObjectPlacement in data.objects:
+		if o == null or o.kind != &"villager":
+			continue
+		var resident: VillagerData = o.payload as VillagerData
+		assert_that(resident).is_not_null()
+		assert_bool(resident_ids.has(resident.id)).is_false()
+		resident_ids[resident.id] = true
+		resident_looks[int(resident.personality.looks)] = true
+	assert_int(resident_ids.size()).is_equal(WorldGenerator.STARTER_NPC_HOUSES)
+	assert_int(resident_looks.size()).is_equal(WorldGenerator.STARTER_NPC_HOUSES)
 	for i: int in WorldGenerator.STARTER_NPC_HOUSES:
 		var house_id := StringName("npc_house_%d" % i)
 		var npc_house: Vector2i = _building_at(data, house_id)
@@ -342,7 +354,7 @@ func test_builder_instances_test_town_scenes() -> void:
 	assert_that(world.get_node_or_null("Objects/yard_chair")).is_not_null()
 	assert_that(world.get_node_or_null("Objects/tree_1")).is_not_null()
 	assert_that(world.get_node_or_null("Objects/ground_apple")).is_not_null()
-	assert_that(world.get_node_or_null("Characters/pip")).is_not_null()
+	assert_that(world.get_node_or_null("Characters/filbert")).is_not_null()
 	assert_that(world.get_node_or_null("Characters/PlayerSpawn")).is_not_null()
 	assert_that(world.get_node_or_null("Terrain/Heightfield")).is_not_null()
 	var spawn_marker: Marker3D = world.get_node("Characters/PlayerSpawn") as Marker3D
@@ -377,7 +389,11 @@ func test_builder_places_generated_acre_meshes() -> void:
 	assert_that(world.get_node_or_null("Buildings/player_house_2")).is_not_null()
 	assert_that(world.get_node_or_null("Buildings/player_house_3")).is_not_null()
 	assert_that(world.get_node_or_null("Buildings/npc_house_0")).is_not_null()
-	assert_that(world.get_node_or_null("Characters/pip")).is_null()
+	var spawned := 0
+	for child: Node in world.get_node("Characters").get_children():
+		if child is Villager:
+			spawned += 1
+	assert_int(spawned).is_equal(WorldGenerator.STARTER_NPC_HOUSES)
 	var a11: Node3D = acres.get_node_or_null("acre_1_1") as Node3D
 	assert_that(a11).is_not_null()
 	var expected := grid.cell_corner(Vector2i(0, 0))

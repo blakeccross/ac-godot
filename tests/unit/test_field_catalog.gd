@@ -74,6 +74,20 @@ func test_summer_tree_paths_when_assets_exist() -> void:
 	assert_str(FieldCatalog.item_albedo(&"apple")).contains("obj_item_apple_tex")
 
 
+func test_species_codes_map_to_disc_prefixes() -> void:
+	assert_str(FieldCatalog.species_code(&"squirrel")).is_equal("squ")
+	assert_str(FieldCatalog.species_code(&"cat")).is_equal("cat")
+	assert_str(FieldCatalog.species_code(&"rabbit")).is_equal("rbt")
+	assert_str(FieldCatalog.species_code(&"frog")).is_equal("flg")
+	assert_str(FieldCatalog.species_code(&"goat")).is_equal("goa")
+	assert_str(FieldCatalog.species_code(&"wolf")).is_equal("wol")
+	assert_str(FieldCatalog.species_code(&"fox")).is_equal("rcc")
+	assert_str(FieldCatalog.species_code(&"raccoon")).is_equal("rcc")
+	assert_str(FieldCatalog.species_code(&"mouse")).is_equal("mos")
+	assert_str(FieldCatalog.species_code(&"ostrich")).is_equal("ost")
+	assert_str(FieldCatalog.species_code(&"penguin")).is_equal("pgn")
+
+
 func test_tool_mesh_paths_when_assets_exist() -> void:
 	var axe: PackedStringArray = FieldCatalog.mesh_paths(&"tol_axe_1")
 	if axe.is_empty():

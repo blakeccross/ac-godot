@@ -31,6 +31,6 @@ static func is_talkable(activity: StringName) -> bool:
 	return is_present(activity)
 
 
-## Walk around the home acre. STAND stays put; SPECIAL is ignored.
+## Outdoor actor is on the field. FIELD / WANDER / WALK_WANDER roam goal acres.
 static func is_wandering(activity: StringName) -> bool:
 	return activity == FIELD or activity == WANDER or activity == WALK_WANDER

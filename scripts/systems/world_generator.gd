@@ -38,7 +38,7 @@ const _CEDAR := preload("res://data/plants/cedar_tree.tres")
 const _PALM := preload("res://data/plants/palm_tree.tres")
 const _PANSY := preload("res://data/plants/pansy.tres")
 const _SAPLING := preload("res://data/items/apple_sapling.tres")
-const _PIP := preload("res://data/villagers/pip.tres")
+const _FILBERT := preload("res://data/villagers/filbert.tres")
 const _CHAIR := preload("res://data/furniture/wood_chair.tres")
 
 
@@ -75,7 +75,7 @@ static func authored_test_town() -> WorldData:
 		_object(&"pansy_1", &"flower", Vector2i(6, 10), _PANSY, &"FLOWER_PANSIES0"),
 		_object(&"rock_1", &"rock", Vector2i(3, 8), null, &"ROCK_A"),
 		_door(&"house_door", Vector2i(7, 3), "House"),
-		_villager(&"pip", Vector2i(10, 9), _PIP),
+		_villager(&"filbert", Vector2i(10, 9), _FILBERT),
 	]
 	data.spawn_points = [_spawn(&"player", Vector2i(8, 11), 0.0)]
 	data.bake()
@@ -417,6 +417,7 @@ static func _place_fg_props(data: WorldData, blocks: PackedByteArray, seed_value
 	if apple_cell != Vector2i(-1, -1):
 		data.objects.append(_item(&"ground_apple", apple_cell, _APPLE))
 	_place_villager_homes(data, reserves, rng)
+	_place_starter_villagers(data, rng)
 	_remove_objects_under_buildings(data)
 
 
@@ -549,8 +550,8 @@ static func _place_villager_homes(
 	data: WorldData, reserves: Array[Vector2i], rng: RandomNumberGenerator
 ) -> void:
 	## Decomp: shuffle SIGN reserves, assign `mNpc_LOOKS_NUM` starter homes
-	## (`mNpc_SetNpcHome` / `mNpc_BuildHouseBeforeFieldct`). No outdoor NPC actor —
-	## those come from `npclist` later; Pip stays on the authored test town.
+	## (`mNpc_SetNpcHome` / `mNpc_BuildHouseBeforeFieldct`). Starter animals
+	## spawn in the yard (`_place_starter_villagers`).
 	var plots: Array[Vector2i] = []
 	for r: Vector2i in reserves:
 		if _sign_fits_house(r):
@@ -588,6 +589,42 @@ static func _place_villager_homes(
 			)
 		)
 		placed += 1
+
+
+static func _place_starter_villagers(data: WorldData, rng: RandomNumberGenerator) -> void:
+	## `mNpc_InitNpcAllInfo` / `mNpc_DecideLivingNpcMax`: `now_npc_max = mNpc_LOOKS_NUM`,
+	## one starter per looks from a shuffled pool. Homes were already shuffled.
+	var houses: Array[BuildingPlacement] = []
+	for b: BuildingPlacement in data.buildings:
+		if b != null and String(b.id).begins_with("npc_house_"):
+			houses.append(b)
+	houses.sort_custom(
+		func(a: BuildingPlacement, b: BuildingPlacement) -> bool: return String(a.id) < String(b.id)
+	)
+	var picked: Array[VillagerData] = VillagerCatalog.pick_starters(rng, STARTER_NPC_HOUSES)
+	var n: int = mini(houses.size(), picked.size())
+	for i: int in n:
+		var house: BuildingPlacement = houses[i]
+		var cell: Vector2i = _yard_cell(data, house.cell, house.footprint)
+		data.objects.append(_villager(picked[i].id, cell, picked[i]))
+
+
+static func _yard_cell(data: WorldData, house_nw: Vector2i, footprint: Vector2i) -> Vector2i:
+	var candidates: Array[Vector2i] = [
+		Vector2i(house_nw.x + footprint.x / 2, house_nw.y + footprint.y),
+		Vector2i(house_nw.x + footprint.x, house_nw.y + footprint.y / 2),
+		Vector2i(house_nw.x - 1, house_nw.y + footprint.y / 2),
+		Vector2i(house_nw.x + footprint.x / 2, house_nw.y - 1),
+	]
+	for cell: Vector2i in candidates:
+		if not data.is_in_bounds(cell):
+			continue
+		if data.terrain_at(cell) == WorldGrid.Terrain.WATER:
+			continue
+		if data.terrain_at(cell) == WorldGrid.Terrain.CLIFF:
+			continue
+		return cell
+	return Vector2i(house_nw.x + 1, house_nw.y + 1)
 
 
 static func _sign_fits_house(reserve: Vector2i) -> bool:
