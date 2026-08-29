@@ -7,7 +7,6 @@ extends CharacterBody3D
 
 const IDLE_SPEED := 0.08
 const STUCK_MOVE := 0.03
-const STUCK_SECONDS := 0.4
 const ANIM_WAIT := "npc_1_wait1"
 const ANIM_WALK := "npc_1_walk1"
 const ANIM_RUN := "npc_1_run1"
@@ -212,7 +211,7 @@ func _steer_wander(wandering: bool) -> void:
 	if act == VillagerWalk.ACT_WAIT:
 		_motor.wait_in_place()
 		return
-	var dest: Vector3 = _walkable_near(_roam_point())
+	var dest: Vector3 = _roam_point()
 	var delta: Vector3 = dest - global_position
 	delta.y = 0.0
 	if delta.length() < VillagerWalk.MIN_STEP:
@@ -227,20 +226,24 @@ func _steer_to(world_pos: Vector3) -> void:
 	if _motor.wait_left > 0.0:
 		return
 	var dest: Vector3 = _walkable_near(world_pos)
-	if not _motor.has_target or _motor.target.distance_to(dest) > 0.35:
-		_motor.set_target(dest)
+	if _motor.has_target:
+		var to_goal: float = _motor.target.distance_to(dest)
+		var to_here: Vector3 = _motor.target - global_position
+		to_here.y = 0.0
+		if to_goal > 0.35 and to_here.length() > VillagerWalk.WANDER_ARRIVE:
+			return
+	_motor.set_target(dest)
 	if _agent != null and _nav_ready():
 		_agent.target_position = dest
 
 
 func _next_point() -> Vector3:
-	## Town navmesh is a flat y=0.05 quad. Heightfield actors sit well above it, so
-	## `get_next_path_position` is underfoot and the motor would "arrive" in place.
-	## Step one open cell at a time so a house footprint is not a straight-line dest.
-	var bg: Array = _bg()
-	if bg.size() == 2:
-		return VillagerWalk.step_toward(bg[0] as WorldData, global_position, _motor.target)
-	return _motor.target
+	## Walk toward the dest (`aNPC_act_to_point_move`). Town navmesh is a flat
+	## y=0.05 quad, so `get_next_path_position` is underfoot. Cell-center steps
+	## ended a walk after one unit and aimed at points behind walls.
+	if _motor.has_target:
+		return _motor.target
+	return global_position
 
 
 func _nav_ready() -> bool:
@@ -260,21 +263,55 @@ func _walkable_near(world_pos: Vector3) -> Vector3:
 
 
 func _give_up_if_stuck(delta: float, before: Vector3, planar: Vector3) -> void:
-	## `aNPC_avoid_wall`: a collision with no progress is a wait, then a new dest.
+	## `aNPC_avoid_wall`: a front collision steers 2 units off, it does not grind.
 	if planar.length() <= IDLE_SPEED or not _motor.has_target:
 		_stuck_elapsed = 0.0
 		return
-	var moved: Vector3 = global_position - before
-	moved.y = 0.0
-	if moved.length() >= STUCK_MOVE:
+	if not _blocked_this_frame(before, planar):
 		_stuck_elapsed = 0.0
 		return
 	_stuck_elapsed += delta
-	var hit: bool = get_slide_collision_count() > 0
-	if _stuck_elapsed < STUCK_SECONDS and not (hit and _stuck_elapsed >= 0.15):
+	if _stuck_elapsed < 0.08:
 		return
 	_stuck_elapsed = 0.0
-	_motor.wait_in_place()
+	_steer_around_wall()
+
+
+func _blocked_this_frame(before: Vector3, planar: Vector3) -> bool:
+	var moved: Vector3 = global_position - before
+	moved.y = 0.0
+	var to_dest: Vector3 = _motor.target - before
+	to_dest.y = 0.0
+	var progress: float = 0.0
+	if to_dest.length() > 0.01:
+		progress = moved.dot(to_dest.normalized())
+	if get_slide_collision_count() > 0 and progress < STUCK_MOVE:
+		return true
+	return moved.length() < STUCK_MOVE
+
+
+func _steer_around_wall() -> void:
+	var bg: Array = _bg()
+	if bg.size() != 2:
+		_motor.wait_in_place()
+		return
+	var data: WorldData = bg[0] as WorldData
+	var grid: WorldGrid = bg[1] as WorldGrid
+	var here: Vector2i = VillagerWalk.block_from_cell(grid.world_to_cell(global_position))
+	if not VillagerWalk.is_fg_block(here):
+		here = _goal_block
+	var around: Vector3 = VillagerWalk.avoid_around(
+		data, global_position, _motor.facing, here, grid
+	)
+	var delta: Vector3 = around - global_position
+	delta.y = 0.0
+	if delta.length() < VillagerWalk.MIN_STEP:
+		_motor.wait_in_place()
+		return
+	var gait: StringName = _motor.gait
+	if gait == VillagerWalk.ACT_WAIT:
+		gait = VillagerWalk.ACT_WALK
+	_motor.set_target(around, gait, VillagerWalk.WANDER_ARRIVE)
 
 
 func _roam_point() -> Vector3:

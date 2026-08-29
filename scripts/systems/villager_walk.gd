@@ -32,6 +32,8 @@ const MIN_STEP := 1.6
 const WANDER_ARRIVE := 0.45
 ## `aNPC_think_wander_move_next` retries a rim dest this many times.
 const WANDER_TRIES := 5
+## `aNPC_avoid_wall` looks 2 units ahead (`2 * mFI_UT_WORLDSIZE`).
+const AVOID_METERS := 4.0
 ## One wait clip, then `decide_next` again.
 const WAIT_SECONDS := 2.0
 const _BLOCK_STAND: Array[StringName] = [&"tree", &"rock", &"house", &"shop", &"building"]
@@ -207,34 +209,26 @@ static func wander_in_block(
 	from: Vector3,
 	rng: RandomNumberGenerator = null
 ) -> Vector3:
-	## Rim dest around the acre center (`center + sin/cos * range_radius`), then
-	## snap off HOUSE/TREE. Keep that dest until arrival — not a new cell each step.
+	## Rim dest around the acre center (`center + sin/cos * range_radius`).
+	## Keep the world point — do not snap to a cell center. Decomp stores the
+	## float dest and only checks the unit under it (EMPTY/ITEM1/FTR + CheckNpc).
 	if data == null:
 		return from
 	var center: Vector3 = block_center(data, block)
 	for _try: int in WANDER_TRIES:
 		var angle: float = _rand_f(rng) * TAU
-		var raw := Vector3(
+		var stand := Vector3(
 			center.x + sin(angle) * RANGE_RADIUS,
 			center.y,
 			center.z + cos(angle) * RANGE_RADIUS
 		)
-		var stand: Vector3 = snap_standable(data, raw)
-		if not is_in_block(data, block, stand):
-			continue
-		if not is_standable(data, _world_to_cell(data, stand)):
-			continue
-		var from_delta: Vector3 = stand - from
-		from_delta.y = 0.0
-		if from_delta.length() < MIN_STEP:
+		if not _dest_ok(data, block, from, stand):
 			continue
 		return stand
 	var far: Array[Vector3] = []
 	for cell: Vector2i in _walkable_cells(data, block):
 		var stand: Vector3 = data.cell_to_world(cell)
-		var from_delta: Vector3 = stand - from
-		from_delta.y = 0.0
-		if from_delta.length() < MIN_STEP:
+		if not _dest_ok(data, block, from, stand):
 			continue
 		far.append(stand)
 	if not far.is_empty():
@@ -246,6 +240,60 @@ static func snap_standable(data: WorldData, world_pos: Vector3) -> Vector3:
 	if data == null:
 		return world_pos
 	return _snap_walkable(data, world_pos)
+
+
+static func avoid_around(
+	data: WorldData,
+	from: Vector3,
+	facing: float,
+	block: Vector2i,
+	grid: WorldGrid = null
+) -> Vector3:
+	## `aNPC_avoid_wall`: try 2 units at 22.5° / 45° / 90°, then 180°.
+	var offsets: Array[float] = [
+		deg_to_rad(22.5),
+		deg_to_rad(-22.5),
+		deg_to_rad(45.0),
+		deg_to_rad(-45.0),
+		deg_to_rad(90.0),
+		deg_to_rad(-90.0),
+		PI,
+	]
+	for offset: float in offsets:
+		var yaw: float = facing + offset
+		var stand := Vector3(
+			from.x + sin(yaw) * AVOID_METERS,
+			from.y,
+			from.z + cos(yaw) * AVOID_METERS
+		)
+		if not _dest_ok(data, block, from, stand):
+			continue
+		if not can_step(data, from, stand, grid):
+			continue
+		return stand
+	return from
+
+
+static func can_step(
+	data: WorldData, from: Vector3, dest: Vector3, grid: WorldGrid = null
+) -> bool:
+	if data == null:
+		return true
+	if not is_standable(data, _world_to_cell(data, dest)):
+		return false
+	var dir: Vector3 = dest - from
+	dir.y = 0.0
+	var dist: float = dir.length()
+	if dist <= 0.05:
+		return true
+	var step: Vector3 = from + dir.normalized() * minf(dist, data.cell_size)
+	if not is_standable(data, _world_to_cell(data, step)):
+		return false
+	if grid == null:
+		return true
+	var revised: Vector3 = FieldCollision.revise_xz(data, grid, from, step)
+	var moved := Vector2(revised.x - from.x, revised.z - from.z)
+	return moved.length() > 0.15
 
 
 static func step_toward(data: WorldData, from: Vector3, dest: Vector3) -> Vector3:
@@ -514,6 +562,16 @@ static func _world_to_cell(data: WorldData, world_pos: Vector3) -> Vector2i:
 		int(floor((world_pos.x - org.x) / data.cell_size)),
 		int(floor((world_pos.z - org.z) / data.cell_size))
 	)
+
+
+static func _dest_ok(data: WorldData, block: Vector2i, from: Vector3, stand: Vector3) -> bool:
+	if not is_in_block(data, block, stand):
+		return false
+	if not is_standable(data, _world_to_cell(data, stand)):
+		return false
+	var from_delta: Vector3 = stand - from
+	from_delta.y = 0.0
+	return from_delta.length() >= MIN_STEP
 
 
 static func _is_blocked_cell(data: WorldData, cell: Vector2i) -> bool:

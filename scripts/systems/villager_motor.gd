@@ -37,6 +37,8 @@ func configure(personality: VillagerPersonality) -> void:
 		return
 	walk_speed = personality.walk_speed
 	wander_radius = personality.wander_radius
+	if wander_radius < VillagerWalk.RANGE_RADIUS * 0.5:
+		wander_radius = VillagerWalk.RANGE_RADIUS
 
 
 func needs_new_target() -> bool:
@@ -95,15 +97,14 @@ func tick(delta: float, from: Vector3, next: Vector3, moving: bool) -> Vector3:
 		return Vector3.ZERO
 	var to: Vector3 = next - from
 	to.y = 0.0
-	## Boxed: no open step. Do not abort just because the next cell center is close —
-	## that ended a walk after one unit. Keep the dest until `arrive_radius`.
+	## No open step this frame. Keep the dest — `aNPC_avoid_wall` steers; do not
+	## end the walk because the next cell center is underfoot.
 	if to.length() <= 0.001:
-		arrive()
 		return Vector3.ZERO
 	var yaw: float = atan2(to.x, to.z)
 	var diff: float = absf(angle_difference(facing, yaw))
 	facing = lerp_angle(facing, yaw, clampf(TURN_SPEED * delta, 0.0, 1.0))
 	if diff > TURN_ONLY:
 		return Vector3.ZERO
-	## Move toward the open step, not along facing, so a run gait cannot orbit.
+	## Move toward the dest (or the open step), not along facing, so a run gait cannot orbit.
 	return to.normalized() * speed_now()

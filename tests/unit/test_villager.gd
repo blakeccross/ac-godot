@@ -173,7 +173,7 @@ func test_motor_stops_when_not_wandering() -> void:
 	motor.set_target(Vector3(10, 0, 0))
 	var boxed: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3.ZERO, true)
 	assert_vector(boxed).is_equal(Vector3.ZERO)
-	assert_bool(motor.has_target).is_false()
+	assert_bool(motor.has_target).is_true()
 
 
 func test_field_plan_is_reusable_actions() -> void:
@@ -501,8 +501,7 @@ func test_wander_dest_is_on_acre_circle() -> void:
 		var stand: Vector3 = VillagerWalk.wander_in_block(data, Vector2i(1, 1), center, rng)
 		var to_center: Vector3 = stand - center
 		to_center.y = 0.0
-		assert_float(to_center.length()).is_greater(VillagerWalk.RANGE_RADIUS * 0.5)
-		assert_float(to_center.length()).is_less_equal(VillagerWalk.RANGE_RADIUS + data.cell_size)
+		assert_float(to_center.length()).is_equal_approx(VillagerWalk.RANGE_RADIUS, 0.05)
 
 
 func test_starters_use_names_and_disc_species() -> void:
@@ -585,6 +584,31 @@ func test_step_toward_skips_house_cells() -> void:
 	assert_bool(VillagerWalk.is_standable(data, cell)).is_true()
 	assert_that(cell).is_not_equal(Vector2i(6, 7))
 	assert_that(cell).is_not_equal(Vector2i(7, 7))
+
+
+func test_avoid_around_skips_house() -> void:
+	var data := _plot_with_house()
+	var from: Vector3 = data.cell_to_world(Vector2i(5, 7))
+	var around: Vector3 = VillagerWalk.avoid_around(data, from, deg_to_rad(90.0), Vector2i(1, 1))
+	var cell := Vector2i(
+		int(floor((around.x - data.origin().x) / data.cell_size)),
+		int(floor((around.z - data.origin().z) / data.cell_size))
+	)
+	assert_bool(VillagerWalk.is_standable(data, cell)).is_true()
+	assert_that(cell).is_not_equal(Vector2i(6, 7))
+	assert_that(cell).is_not_equal(Vector2i(7, 7))
+	var delta: Vector3 = around - from
+	delta.y = 0.0
+	assert_float(delta.length()).is_greater_equal(VillagerWalk.MIN_STEP)
+
+
+func test_can_step_rejects_house_cell() -> void:
+	var data := _plot_with_house()
+	var from: Vector3 = data.cell_to_world(Vector2i(5, 7))
+	var house: Vector3 = data.cell_to_world(Vector2i(7, 7))
+	assert_bool(VillagerWalk.can_step(data, from, house)).is_false()
+	var open: Vector3 = data.cell_to_world(Vector2i(5, 8))
+	assert_bool(VillagerWalk.can_step(data, from, open)).is_true()
 
 
 func test_wander_keeps_dest_past_the_next_cell() -> void:
