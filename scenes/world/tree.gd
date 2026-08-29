@@ -24,17 +24,17 @@ var _felling: bool = false
 
 func _ready() -> void:
 	add_to_group("interactable")
+	add_to_group("plant")
 	if Game.is_interactable_removed(_persist()):
 		queue_free()
 		return
-	_ensure_use()
-	if _use.stage == TreeUse.Stage.STUMP:
+	if Game.is_stump(_persist()):
+		_ensure_use()
 		_present_stump()
 		return
-	var vis: Node3D = GeneratedVisual.attach(self, visual_id)
-	var pivot := get_node_or_null("VisualPivot") as Node3D
-	if vis != null and pivot != null:
-		vis.reparent(pivot)
+	if _persist() != &"" and plant != null:
+		PlantGrowth.ensure(_persist(), plant, visual_id, _cell())
+	apply_growth()
 
 
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
@@ -73,7 +73,8 @@ func _on_shake(use: TreeUse, ctx: InteractionContext) -> bool:
 		return false
 	_drop_fruit(out.dropped_fruit, ctx)
 	if out.dropped_fruit > 0:
-		_hide_fruit()
+		PlantGrowth.take_fruit(_persist())
+		apply_growth()
 	else:
 		Game.post_notice("The tree rustles.")
 	_play_shake(false)
@@ -88,8 +89,11 @@ func _on_chop(use: TreeUse, ctx: InteractionContext) -> bool:
 		return false
 	_drop_fruit(out.dropped_fruit, ctx)
 	if out.dropped_fruit > 0:
-		_hide_fruit()
+		PlantGrowth.take_fruit(_persist())
+		if not out.felled:
+			apply_growth()
 	if out.felled:
+		PlantGrowth.clear(_persist())
 		Game.mark_stump(_persist())
 		_play_fall(ctx)
 	else:
@@ -104,6 +108,7 @@ func _on_dig_stump(use: TreeUse, ctx: InteractionContext) -> bool:
 		return false
 	Game.post_notice("You dig up the stump.")
 	var pid: StringName = _persist()
+	PlantGrowth.clear(pid)
 	Game.clear_stump(pid)
 	if pid != &"":
 		Game.mark_interactable_removed(pid)
@@ -118,16 +123,64 @@ func _on_dig_stump(use: TreeUse, ctx: InteractionContext) -> bool:
 	return true
 
 
+func apply_growth() -> void:
+	if plant == null or Game.is_stump(_persist()) or _felling:
+		return
+	var rec: Dictionary = PlantGrowth.record(_persist())
+	if not rec.is_empty():
+		var pipe: PlantGrowth.Pipeline = PlantGrowth.pipeline(rec, plant)
+		visual_id = PlantGrowth.visual_id(rec, plant)
+		var pivot := get_node_or_null("VisualPivot") as Node3D
+		if pivot != null:
+			pivot.scale = Vector3.ONE
+		if _use == null:
+			_ensure_use()
+		else:
+			_use.sync_growth(
+				plant, visual_id, PlantGrowth.tree_size(pipe), PlantGrowth.fruit_ready(rec, plant)
+			)
+	_present_live_visual()
+	if _use == null:
+		_ensure_use()
+
+
+func _present_live_visual() -> void:
+	GeneratedVisual.detach(self)
+	var vis: Node3D = GeneratedVisual.attach(self, visual_id)
+	var pivot := get_node_or_null("VisualPivot") as Node3D
+	if vis != null and pivot != null and is_inside_tree():
+		vis.reparent(pivot)
+
+
 func _ensure_use() -> TreeUse:
 	if _use != null:
 		return _use
 	_use = TreeUse.new()
-	_use.configure(plant, visual_id, Game.is_stump(_persist()))
+	var rec: Dictionary = PlantGrowth.record(_persist())
+	var as_stump: bool = Game.is_stump(_persist())
+	if rec.is_empty():
+		_use.configure(plant, visual_id, as_stump)
+		return _use
+	var pipe: PlantGrowth.Pipeline = PlantGrowth.pipeline(rec, plant)
+	_use.configure(
+		plant,
+		visual_id,
+		as_stump,
+		PlantGrowth.tree_size(pipe),
+		PlantGrowth.fruit_ready(rec, plant)
+	)
 	return _use
 
 
 func _persist() -> StringName:
 	return persist_id if persist_id != &"" else occupant_id
+
+
+func _cell() -> Vector2i:
+	var world: Node = get_tree().get_first_node_in_group("world") if get_tree() != null else null
+	if world != null and "grid" in world and world.grid != null:
+		return world.grid.world_to_cell(global_position)
+	return Vector2i.ZERO
 
 
 func _drop_fruit(count: int, ctx: InteractionContext) -> void:
@@ -165,24 +218,6 @@ func _grid(ctx: InteractionContext) -> WorldGrid:
 	if "grid" in ctx.world:
 		return ctx.world.grid as WorldGrid
 	return null
-
-
-func _hide_fruit() -> void:
-	var vis: Node3D = _generated_visual()
-	if vis == null or vis.get_child_count() < 2:
-		return
-	var overlay: Node = vis.get_child(1)
-	if overlay is Node3D:
-		(overlay as Node3D).visible = false
-
-
-func _generated_visual() -> Node3D:
-	var pivot := get_node_or_null("VisualPivot")
-	if pivot != null:
-		var nested: Node = pivot.get_node_or_null("GeneratedVisual")
-		if nested is Node3D:
-			return nested as Node3D
-	return get_node_or_null("GeneratedVisual") as Node3D
 
 
 func _play_shake(strong: bool) -> void:
@@ -231,6 +266,7 @@ func _present_stump() -> void:
 	var pivot := get_node_or_null("VisualPivot") as Node3D
 	if pivot != null:
 		pivot.rotation = Vector3.ZERO
+		pivot.scale = Vector3.ONE
 		pivot.visible = false
 	GeneratedVisual.detach(self)
 	var stump_vis: Node3D = GeneratedVisual.attach(self, STUMP_VISUAL)

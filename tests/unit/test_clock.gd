@@ -134,6 +134,11 @@ func test_hour_window_wraps_midnight() -> void:
 	assert_bool(ClockService.hour_in_window(12, 0, 24)).is_true()
 	assert_bool(ClockService.hour_in_window(9, 9, 22)).is_true()
 	assert_bool(ClockService.hour_in_window(22, 9, 22)).is_false()
+	## `mEnv_NPC_LIGHTS_*`: facade window panes 18:00–05:00.
+	assert_bool(ClockService.hour_in_window(18, 18, 5)).is_true()
+	assert_bool(ClockService.hour_in_window(4, 18, 5)).is_true()
+	assert_bool(ClockService.hour_in_window(12, 18, 5)).is_false()
+	assert_bool(ClockService.hour_in_window(5, 18, 5)).is_false()
 
 
 func test_field_renew_fires_when_crossing_six() -> void:

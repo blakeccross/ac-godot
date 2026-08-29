@@ -47,5 +47,23 @@ func test_save_and_load_player_pose_and_removed_pickup() -> void:
 	assert_bool(Game.is_hole(&"hole_8_9")).is_true()
 
 
+func test_save_and_load_plant_states() -> void:
+	Game.plant_states["plant_4_6"] = {
+		"plant": "apple_tree",
+		"planted_renew": 12,
+		"last_watered_renew": 12,
+		"fruit_taken_renew": -1,
+		"cell_x": 4,
+		"cell_z": 6,
+	}
+	assert_int(SaveService.save_game(PATH)).is_equal(OK)
+	Game.reset_session()
+	assert_int(SaveService.load_game(PATH)).is_equal(OK)
+	var rec: Variant = Game.plant_states.get("plant_4_6", {})
+	assert_that(typeof(rec)).is_equal(TYPE_DICTIONARY)
+	assert_str(str((rec as Dictionary).get("plant", ""))).is_equal("apple_tree")
+	assert_int(int((rec as Dictionary).get("planted_renew", -1))).is_equal(12)
+
+
 func test_missing_save_is_not_found() -> void:
 	assert_int(SaveService.load_game(PATH)).is_equal(ERR_FILE_NOT_FOUND)

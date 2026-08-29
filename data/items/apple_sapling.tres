@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"apple_sapling"
+display_name = "Apple Sapling"
+description = "Plant on grass. Grows into an apple tree."
+category = 5
+sell_price = 60
+max_stack = 1
+droppable = true
+usable = true
+equippable = false
+use_verb = "Plant"
+icon_color = Color(0.45, 0.7, 0.35, 1)
+plant_id = &"apple_tree"

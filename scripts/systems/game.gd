@@ -8,7 +8,7 @@ const TITLE_SCENE := "res://scenes/ui/title.tscn"
 const WORLD_SCENE := "res://scenes/world/world.tscn"
 const DEFAULT_SPAWN := Vector3(0.0, 0.1, 6.0)
 const TEST_TOOL_IDS: Array[StringName] = [
-	&"shovel", &"axe", &"net", &"fishing_rod", &"watering_can"
+	&"shovel", &"axe", &"net", &"fishing_rod", &"watering_can", &"apple_sapling"
 ]
 
 signal phase_changed(phase: Phase)
@@ -22,6 +22,7 @@ var player_yaw: float = 0.0
 var removed_interactables: Array[String] = []
 var stump_interactables: Array[String] = []
 var hole_interactables: Array[String] = []
+var plant_states: Dictionary = {}
 var interact_prompt: String = ""
 var world_mode: WorldData.Mode = WorldData.Mode.TEST
 var world_seed: int = WorldGenerator.DEFAULT_SEED
@@ -82,6 +83,7 @@ func reset_session() -> void:
 	removed_interactables.clear()
 	stump_interactables.clear()
 	hole_interactables.clear()
+	plant_states.clear()
 	world_mode = WorldData.Mode.TEST
 	world_seed = WorldGenerator.DEFAULT_SEED
 	set_interact_prompt("")
@@ -184,6 +186,7 @@ func to_save() -> Dictionary:
 		"removed_interactables": removed_interactables.duplicate(),
 		"stump_interactables": stump_interactables.duplicate(),
 		"hole_interactables": hole_interactables.duplicate(),
+		"plants": plant_states.duplicate(true),
 		"world_mode": int(world_mode),
 		"world_seed": world_seed,
 	}
@@ -219,6 +222,13 @@ func apply_snapshot(data: Dictionary) -> void:
 	if typeof(holes) == TYPE_ARRAY:
 		for entry: Variant in holes:
 			hole_interactables.append(str(entry))
+	plant_states.clear()
+	var plants: Variant = data.get("plants", {})
+	if typeof(plants) == TYPE_DICTIONARY:
+		for key: Variant in (plants as Dictionary).keys():
+			var rec: Variant = plants[key]
+			if typeof(rec) == TYPE_DICTIONARY:
+				plant_states[str(key)] = (rec as Dictionary).duplicate()
 	world_mode = int(data.get("world_mode", WorldData.Mode.TEST)) as WorldData.Mode
 	world_seed = int(data.get("world_seed", WorldGenerator.DEFAULT_SEED))
 

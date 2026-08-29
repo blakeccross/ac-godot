@@ -356,6 +356,9 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
         prefix = symbol.name[:-2]
         if prefix in skel_prefixes:
             continue
+        if prefix.endswith("_shadow"):
+            # Blob shadows (`*_shadow_v`). Godot uses the sun; DLs are often empty.
+            continue
         model_names = sorted(gfx_by_prefix.get(prefix) or model_by_prefix.get(prefix) or [])
         if not model_names:
             continue

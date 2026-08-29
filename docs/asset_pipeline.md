@@ -204,6 +204,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | ROCK_B–E (`obj_s_stoneB` …) is solid white | Geometry-only Gfx. `bg_item` draws `obj_s_stoneA_mat_model` once (`stone_DL_table[0]`), then `obj_s_stoneB_gfx_model` as `table[1 + sub_idx]`. Converter used to look for a missing `obj_s_stoneB_mat_model`. Reconvert with `--kind plants` |
 | Hole (`obj_hole0`) is solid white | Geometry-only Gfx. `hole00_g_list` draws `obj_hole0T_g_mat_model` then `obj_hole0T_gfx_model`. Palette is `obj_g_hole_pal` (no LOADTLUT). Reconvert with `--kind plants` |
 | Hole flickers / z-fights the acre | The fan is coplanar with grass. `GeneratedVisual` treats `HOLE*` as a ground decal (no AABB snap, no depth write); `HoleUse` places at `GetBgY(..., -1 GX)` |
+| House/shop window blob z-fights the grass | `*_window_model` is an XLU ground decal (`G_RM_AA_ZB_XLU_DECAL2`). Convert keeps it as a BLEND I4-alpha surface. `GeneratedVisual` draws it 1 GX above the acre (not coplanar). Facade glow is a separate opaque `*_light_model` pane |
 | Tree leaves are pastel pink/teal | Hardwood fallback used map symbol `mFM_obj_tree_01_pal`, whose REL blob does not CI-decode leaf art. Use `mFM_obj_tree_01_pal_dol` / `obj_tree_pal`. Reconvert trees |
 | Summer `obj_s_tree3` leaf is untextured | Disc has only `obj_s_gold_tree3_leafT_mat_model` (no non-gold leaf mat). Converter falls back to the gold mat for SETTIMG |
 | Boy torso is a hollow flame X / see-through chest | `G_SETTILESIZE` 128×32 overwrote the shirt’s 32×32 `SETTIMG` size; decode zero-padded with transparent CI0 → MASK holes. Keep tile size separate from image size; UVs still divide by the 32×32 image so REPEAT can bake. Reconvert `boy_1` |
@@ -249,7 +250,7 @@ Preview (after convert):
 - Effects: document appearance, then recreate with `GPUParticles3D`. Do not port JPA.
 - REL `.data` offset is hardcoded for `GAFE01_00`.
 - BTI: CI14X2 incomplete; IA4 added but less common on this disc.
-- Shadow blobs (`*_shadow_v`) often have no triangles in the listed DLs; they are recorded as errors and skipped.
+- Shadow blobs (`*_shadow_v`) are skipped; Godot uses the sun.
 - Famicom `*.bti.szs` on this dump are already uncompressed BTI (not Yaz0); the converter reads them directly.
 - Standalone REL texture PNGs under `textures/rel/` infer CI4 dimensions from symbol size; a nearby `_pal` is required (skipped otherwise). Garbage palettes are still possible for textures never referenced by a display list.
 

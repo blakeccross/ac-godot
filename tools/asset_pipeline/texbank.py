@@ -94,6 +94,14 @@ def image_png_bytes(image: Image.Image) -> bytes:
     return buf.getvalue()
 
 
+def i4_png_as_alpha(png: bytes) -> bytes:
+    """I4 is baked as grayscale RGB with opaque A. Window spill uses I × LOD as alpha."""
+    image = Image.open(io.BytesIO(png)).convert("RGBA")
+    r, _g, _b, _a = image.split()
+    white = Image.new("L", image.size, 255)
+    return image_png_bytes(Image.merge("RGBA", (white, white, white, r)))
+
+
 def alpha_mode_for_image(image: Image.Image) -> str:
     """glTF alphaMode from a decoded RGBA image: cutout CI leaves → MASK, soft IA → BLEND."""
     alpha = image.convert("RGBA").getchannel("A")

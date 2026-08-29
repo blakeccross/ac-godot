@@ -39,7 +39,7 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | InteractVolume | `scenes/world/interact_volume.gd` (sensor only; host implements verbs) |
 | Title, Clock HUD | `scenes/ui/` |
 
-Fishing, shops, and full dialogue are **not** systems yet. Tools exist as `ToolData` + `ToolUse` (shovel, rod, net, axe, watering can) wired through interaction verbs; rod/net notices are not the fishing or bug loops. Trees use `TreeUse` (shake, multi-hit chop, stump, fruit drop). Shovel empty-ground dig writes a hole (`HoleUse`); shovel on a hole fills it. Shop, door, furniture, and sign scenes exist as verb stubs. Shop hours and villager sleep come from `Clock`. Town layout is `WorldData` produced by `WorldGenerator` and instanced by `WorldBuilder`. `FieldCatalog` maps original FG/BG ids to generated GLBs when present, and loads each acre's paired `mCoBG` table from a gitignored `.col.json` sidecar. `FieldCollision` uses that heightfield (and geometric bands only when the sidecar is missing). The world scene is a shell that owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists. Equipped tools parent to HAND through `HeldTool`. Field interact uses `InteractionQuery` (`RefCounted`, not an autoload); objects expose verbs instead of the player switching on type.
+Fishing, shops, and full dialogue are **not** systems yet. Tools exist as `ToolData` + `ToolUse` (shovel, rod, net, axe, watering can) wired through interaction verbs; rod/net notices are not the fishing or bug loops. Trees use `TreeUse` (shake, multi-hit chop, stump, fruit drop). Plant growth is `PlantGrowth`: stored `planted_renew` (and water/fruit overlays) on `Game.plant_states`, visual stage derived at 06:00. Shovel empty-ground dig writes a hole (`HoleUse`); shovel on a hole fills it. Shop, door, furniture, and sign scenes exist as verb stubs. Shop hours and villager sleep come from `Clock`. Town layout is `WorldData` produced by `WorldGenerator` and instanced by `WorldBuilder`. `FieldCatalog` maps original FG/BG ids to generated GLBs when present, and loads each acre's paired `mCoBG` table from a gitignored `.col.json` sidecar. `FieldCollision` uses that heightfield (and geometric bands only when the sidecar is missing). The world scene is a shell that owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists. Equipped tools parent to HAND through `HeldTool`. Field interact uses `InteractionQuery` (`RefCounted`, not an autoload); objects expose verbs instead of the player switching on type.
 
 ## Autoloads
 
@@ -56,7 +56,7 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
-`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `GeneratedVisual`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `TreeUse`, and `HoleUse` are `RefCounted` helpers, not autoloads. Do not autoload weather, fishing, or events; those systems subscribe to `Clock` when they exist.
+`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `GeneratedVisual`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `TreeUse`, `HoleUse`, and `PlantGrowth` are `RefCounted` helpers, not autoloads. Do not autoload weather, fishing, or events; those systems subscribe to `Clock` when they exist.
 
 ### Time system
 
@@ -68,7 +68,7 @@ Prefer signals on the owning system over a global event bus unless many unrelate
 | Villager schedules | `time_changed` + `activity_now()` |
 | Shops | `in_hour_window(9, 22)`; restock on `field_renewed` |
 | Weather | `field_renewed` (not implemented yet) |
-| Plant growth | `field_renewed` (days crossed) |
+| Plant growth | `field_renewed` → `PlantGrowth.refresh_world`; stage from `Clock.renew_index()` |
 | Fish / bugs | `is_listed_now(months, hour_start, hour_end)` |
 | Events | `weekday()` + date (not implemented yet) |
 
@@ -85,6 +85,7 @@ Hosts duck-type two methods. There is no shared `Interactable` base: a tree is a
 | `InteractionQuery` | Walk ancestors for a host; pick the closest overlapping `InteractVolume` |
 | `ToolUse` | Equipped `ToolData` → kind, field verb, apply empty-tile use |
 | `TreeUse` | Shake / multi-hit chop / stump / fruit-drop counts |
+| `PlantGrowth` | Seed → Growing → Mature → Harvestable from `planted_renew`; persist ids `plant_x_y` |
 | `HoleUse` | Dig / fill hole FG; persist ids `hole_x_y` |
 | Host scene | `get_interactions(ctx) -> Array[Interaction]` and `interact(action, ctx)` |
 
@@ -92,7 +93,7 @@ The player facing probe (physics layer `interact`) never does `if target is Tree
 
 ## World scene
 
-`scenes/world/world.tscn` is a **shell**: empty group nodes, ground, camera, HUD. Trees, buildings, and pickups are not stored in the `.tscn`. On `_ready`, `Game.resolve_world_data()` picks a layout and `WorldBuilder` instances scenes into the groups.
+`scenes/world/world.tscn` is a **shell**: empty group nodes, ground, camera, HUD. Trees, buildings, and pickups are not stored in the `.tscn`. On `_ready`, `Game.resolve_world_data()` picks a layout and `WorldBuilder` instances scenes into the groups. `HoleUse.restore` and `PlantGrowth.restore` then re-instance saved holes and player-planted hosts.
 
 ```
 WorldGenerator  →  WorldData  →  WorldBuilder  →  Godot nodes
@@ -151,7 +152,7 @@ Each phase should be playable or testable in-engine. Later phases are not starte
 9. **Phase 8** — world from data: `WorldData` + deterministic generator + hand-authored test town; world `.tscn` is a shell.
 10. **Phase 9** — world-object framework (`WorldObjectRegistry`): tree, rock, flower, ground item, building, door; all use interaction verbs. New-game placement for house / shop / museum / Able Sisters / villager plots follows decomp acre rules ([world_objects.md](decomp_notes/world_objects.md)).
 11. **Phase 10** — tools: `ToolData` + `ToolUse`; shovel, fishing rod, net, axe, watering can as interaction verbs (not full fishing / bug / plant systems).
-12. **One deep interactable** — one tree (grow, shake, fruit) with correct feel. Growth on `field_renewed`.
+12. **One deep interactable** — one tree (grow, shake, fruit, plant) with correct feel. Growth derived from planting date on `field_renewed`.
 13. **Inventory** — `ItemData` / `InventoryItem` / `InventorySlot` / `Inventory`; 5×3 pocket UI; pick up, drop, stack, use, equip, save.
 14. **One villager** — schedule, greeting, one dialogue tree.
 15. **One shop + economy** — buy/sell a few items.

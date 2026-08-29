@@ -153,15 +153,22 @@ func now_sec() -> int:
 	return hour * 3600 + minute * 60 + second
 
 
+## 06:00 crossings since 2001-01-01. Plants derive stage from this, not a stored enum.
+func renew_index() -> int:
+	return _renew_id(year, month, day, hour, minute, second)
+
+
 func term_idx() -> int:
-	for i: int in _TERM_MONTH.size():
-		if month < int(_TERM_MONTH[i]) or (month == int(_TERM_MONTH[i]) and day <= int(_TERM_DAY[i])):
-			return i
-	return _TERM_MONTH.size() - 1
+	return _term_idx_at(month, day)
 
 
 func season() -> Season:
 	return int(_TERM_SEASON[term_idx()]) as Season
+
+
+func season_on_renew(renew: int) -> Season:
+	var ymd: Vector3i = _ymd_from_day_number(maxi(renew, 1))
+	return int(_TERM_SEASON[_term_idx_at(ymd.y, ymd.z)]) as Season
 
 
 func light_term() -> int:
@@ -444,6 +451,32 @@ func _day_number(y: int, m: int, d: int) -> int:
 	for mm: int in range(1, m):
 		n += _days_in_month(y, mm)
 	return n + d
+
+
+func _term_idx_at(m: int, d: int) -> int:
+	for i: int in _TERM_MONTH.size():
+		if m < int(_TERM_MONTH[i]) or (m == int(_TERM_MONTH[i]) and d <= int(_TERM_DAY[i])):
+			return i
+	return _TERM_MONTH.size() - 1
+
+
+func _ymd_from_day_number(n: int) -> Vector3i:
+	var y: int = MIN_YEAR
+	var left: int = maxi(n, 1)
+	while y < MAX_YEAR:
+		var ydays: int = 366 if _is_leap(y) else 365
+		if left <= ydays:
+			break
+		left -= ydays
+		y += 1
+	var m: int = 1
+	while m <= 12:
+		var md: int = _days_in_month(y, m)
+		if left <= md:
+			return Vector3i(y, m, left)
+		left -= md
+		m += 1
+	return Vector3i(y, 12, 31)
 
 
 func _renew_id(y: int, m: int, d: int, h: int, _mi: int, _s: int) -> int:

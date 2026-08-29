@@ -9,7 +9,7 @@ from pathlib import Path
 from PIL import Image
 
 from .ckf import ConvertedModel
-from .gfx import MeshPart, unit_normal
+from .gfx import MeshPart, is_window_pane_dl, is_window_spill_dl, unit_normal
 from .texbank import GX_CLAMP, GX_MIRROR, GX_REPEAT, wrap_to_gltf
 
 # Field acres tile a 16×16 cell grid. Skipping REPEAT bake leaves UVs > 1, and
@@ -25,20 +25,34 @@ def _pad4(n: int) -> int:
 
 def _group_parts(parts: list[MeshPart]) -> list[dict]:
     groups: list[dict] = []
-    index: dict[tuple[bytes, int, int], int] = {}
+    index: dict[tuple[bytes, int, int, bool, bool], int] = {}
     for part in parts:
         if not part.triangles:
             continue
+        unlit = bool(part.unlit_fill) or is_window_pane_dl(part.name)
+        spill = bool(part.ground_spill) or is_window_spill_dl(part.name)
+        if unlit:
+            part.unlit_fill = True
+            part.texture_png = None
+            part.texture_name = ""
+            part.alpha_mode = "OPAQUE"
+        if spill:
+            part.ground_spill = True
+            part.alpha_mode = "BLEND"
         # Shirt (REPEAT) and hat (CLAMP) share segment 0x0A PNG bytes — keep them apart.
-        key = (part.texture_png or b"", part.wrap_s, part.wrap_t)
+        # Window panes share the wall SETTIMG but ignore it (prim/env fill).
+        key = (part.texture_png or b"", part.wrap_s, part.wrap_t, unlit, spill)
         if key not in index:
             index[key] = len(groups)
+            named = part.name.split(":")[0] if (unlit or spill) else (part.texture_name or "vertex_color")
             groups.append(
                 {
                     "png": part.texture_png,
-                    "name": part.texture_name or "vertex_color",
+                    "name": named,
                     "wrap_s": part.wrap_s,
                     "wrap_t": part.wrap_t,
+                    "unlit_fill": unlit,
+                    "ground_spill": spill,
                     "parts": [],
                 }
             )
@@ -120,6 +134,10 @@ def _bake_wrap_group(group: dict) -> None:
 
 
 def _group_alpha_mode(group: dict) -> str:
+    if group.get("unlit_fill"):
+        return "OPAQUE"
+    if group.get("ground_spill"):
+        return "BLEND"
     modes = {part.alpha_mode for part in group["parts"]}
     if "BLEND" in modes:
         return "BLEND"
@@ -133,6 +151,8 @@ def _material(
     texture_index: int | None,
     extras: dict | None = None,
     alpha_mode: str = "OPAQUE",
+    unlit_fill: bool = False,
+    ground_spill: bool = False,
 ) -> dict:
     mat: dict = {
         "name": name or "vertex_color",
@@ -140,13 +160,20 @@ def _material(
         "doubleSided": True,
         "alphaMode": alpha_mode,
         "pbrMetallicRoughness": {
-            "baseColorFactor": [1, 1, 1, 1],
+            "baseColorFactor": [0, 0, 0, 1] if unlit_fill else [1, 1, 1, 1],
             "metallicFactor": 0,
             "roughnessFactor": 1,
         },
     }
     if alpha_mode == "MASK":
         mat["alphaCutoff"] = 0.5
+    if unlit_fill:
+        extras = dict(extras or {})
+        extras["unlit_fill"] = True
+        texture_index = None
+    if ground_spill:
+        extras = dict(extras or {})
+        extras["ground_spill"] = True
     if extras:
         mat["extras"] = extras
     if texture_index is not None:
@@ -254,7 +281,15 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
             )
             textures.append({"source": len(images) - 1, "sampler": len(samplers) - 1})
             tex_index = len(textures) - 1
-        materials.append(_material(group["name"], tex_index, alpha_mode=_group_alpha_mode(group)))
+        materials.append(
+            _material(
+                group["name"],
+                tex_index,
+                alpha_mode=_group_alpha_mode(group),
+                unlit_fill=bool(group.get("unlit_fill")),
+                ground_spill=bool(group.get("ground_spill")),
+            )
+        )
         primitives.append(
             {
                 "attributes": {"POSITION": a_pos, "NORMAL": a_nrm, "TEXCOORD_0": a_uv},
@@ -448,7 +483,13 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
             "SCALAR",
         )
         materials.append(
-            _material(group["name"], tex_index_for(group), alpha_mode=_group_alpha_mode(group))
+            _material(
+                group["name"],
+                tex_index_for(group),
+                alpha_mode=_group_alpha_mode(group),
+                unlit_fill=bool(group.get("unlit_fill")),
+                ground_spill=bool(group.get("ground_spill")),
+            )
         )
         primitives.append(
             {

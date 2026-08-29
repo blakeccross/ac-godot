@@ -31,6 +31,7 @@ func test_reset_session_clears_pockets_and_world_deltas() -> void:
 	assert_bool(Game.is_interactable_removed(&"ground_apple")).is_false()
 	assert_bool(Game.is_stump(&"tree_1")).is_false()
 	assert_bool(Game.is_hole(&"hole_8_9")).is_false()
+	assert_int(Game.plant_states.size()).is_equal(0)
 	assert_that(Game.world_mode).is_equal(WorldData.Mode.TEST)
 
 
@@ -43,6 +44,7 @@ func test_test_world_gets_starter_tools() -> void:
 	assert_int(Game.inventory.count_of(&"net")).is_equal(1)
 	assert_int(Game.inventory.count_of(&"fishing_rod")).is_equal(1)
 	assert_int(Game.inventory.count_of(&"watering_can")).is_equal(1)
+	assert_int(Game.inventory.count_of(&"apple_sapling")).is_equal(1)
 	Game.notify_world_ready()
 	assert_int(Game.inventory.count_of(&"axe")).is_equal(1)
 	Game.reset_session()
@@ -57,6 +59,7 @@ func test_world_snapshot_round_trip() -> void:
 	Game.mark_interactable_removed(&"ground_apple")
 	Game.mark_stump(&"tree_1")
 	Game.mark_hole(&"hole_8_9")
+	Game.plant_states["plant_4_6"] = {"plant": "apple_tree", "planted_renew": 10}
 	Game.world_mode = WorldData.Mode.GENERATED
 	Game.world_seed = 12345
 	var snap: Dictionary = Game.to_save()
@@ -67,6 +70,7 @@ func test_world_snapshot_round_trip() -> void:
 	assert_bool(Game.is_interactable_removed(&"ground_apple")).is_true()
 	assert_bool(Game.is_stump(&"tree_1")).is_true()
 	assert_bool(Game.is_hole(&"hole_8_9")).is_true()
+	assert_str(str(Game.plant_states.get("plant_4_6", {}).get("plant", ""))).is_equal("apple_tree")
 	assert_that(Game.world_mode).is_equal(WorldData.Mode.GENERATED)
 	assert_int(Game.world_seed).is_equal(12345)
 
