@@ -2,7 +2,7 @@ class_name VillagerPlan
 extends RefCounted
 
 ## Builds a queue of reusable actions from the looks schedule type.
-## Field destinations follow `mNpcW` goal *kinds* (shop / water / home), not waypoint graphs.
+## Field roam uses `mNpcW` goal acres (shrine / home / alone / my_home), not waypoint graphs.
 
 
 static func build(
@@ -34,7 +34,7 @@ static func pick_perform(hints: Dictionary) -> VillagerAction:
 		return VillagerAction.make(ActivityKind.FISH, water, ActivityKind.FISH_SECONDS)
 	if ActivityKind.SIT in wanted:
 		return VillagerAction.make(ActivityKind.SIT, sit_at, ActivityKind.SIT_SECONDS)
-	return VillagerAction.make(ActivityKind.WANDER, home)
+	return _wander_at(hints, home)
 
 
 static func nearest_water_stand(data: WorldData, from: Vector2i, radius: int = 18) -> Vector2i:
@@ -69,16 +69,36 @@ static func _field_plan(
 	previous: StringName, outdoors: bool, hints: Dictionary
 ) -> Array[VillagerAction]:
 	var home: Vector3 = hints.get("home", Vector3.ZERO) as Vector3
+	var goal: Vector3 = _goal_of(hints, home)
+	var leaving: bool = (
+		not outdoors
+		or previous == &""
+		or previous == VillagerActivity.SLEEP
+		or previous == VillagerActivity.IN_HOUSE
+	)
 	var out: Array[VillagerAction] = []
-	if not outdoors or previous == VillagerActivity.SLEEP or previous == VillagerActivity.IN_HOUSE:
+	if leaving:
 		out.append(VillagerAction.make(ActivityKind.LEAVE_HOME, home + ActivityKind.YARD_OFFSET))
-	var perform: VillagerAction = pick_perform(hints)
-	if perform.kind != ActivityKind.WANDER:
-		out.append(VillagerAction.make(ActivityKind.WALK_TO, perform.target))
-		out.append(perform)
-	out.append(VillagerAction.make(ActivityKind.TALK, perform.target, ActivityKind.TALK_SECONDS))
-	out.append(VillagerAction.make(ActivityKind.WANDER, home))
+		var perform: VillagerAction = pick_perform(hints)
+		if perform.kind != ActivityKind.WANDER:
+			out.append(VillagerAction.make(ActivityKind.WALK_TO, perform.target))
+			out.append(perform)
+			out.append(VillagerAction.make(ActivityKind.TALK, perform.target, ActivityKind.TALK_SECONDS))
+	if goal.distance_to(home) > 0.75:
+		out.append(VillagerAction.make(ActivityKind.WALK_TO, goal))
+	out.append(VillagerAction.make(ActivityKind.WANDER, goal, ActivityKind.STAY_SECONDS))
 	return out
+
+
+static func _wander_at(hints: Dictionary, home: Vector3) -> VillagerAction:
+	return VillagerAction.make(ActivityKind.WANDER, _goal_of(hints, home), ActivityKind.STAY_SECONDS)
+
+
+static func _goal_of(hints: Dictionary, home: Vector3) -> Vector3:
+	var goal: Vector3 = hints.get("goal", home) as Vector3
+	if goal == Vector3.INF:
+		return home
+	return goal
 
 
 static func _sleep_plan(

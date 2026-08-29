@@ -188,8 +188,28 @@ func test_field_plan_is_reusable_actions() -> void:
 	for action: VillagerAction in plan:
 		kinds.append(action.kind)
 	assert_that(kinds[0]).is_equal(ActivityKind.LEAVE_HOME)
-	assert_that(kinds[kinds.size() - 2]).is_equal(ActivityKind.TALK)
 	assert_that(kinds[kinds.size() - 1]).is_equal(ActivityKind.WANDER)
+	assert_float(plan[kinds.size() - 1].duration).is_equal(ActivityKind.STAY_SECONDS)
+
+
+func test_field_plan_walks_to_goal_acre() -> void:
+	var goal := Vector3(24, 0, 16)
+	var plan: Array[VillagerAction] = VillagerPlan.build(
+		VillagerActivity.FIELD,
+		VillagerActivity.FIELD,
+		{
+			"home": Vector3.ZERO,
+			"goal": goal,
+			"outdoors": true,
+			"field_actions": [ActivityKind.WANDER],
+			"shop": Vector3.INF,
+			"water": Vector3.INF,
+		}
+	)
+	assert_that(plan[0].kind).is_equal(ActivityKind.WALK_TO)
+	assert_vector(plan[0].target).is_equal(goal)
+	assert_that(plan[1].kind).is_equal(ActivityKind.WANDER)
+	assert_vector(plan[1].target).is_equal(goal)
 
 
 func test_sleep_plan_is_just_sleep_when_already_home() -> void:
@@ -255,6 +275,12 @@ func test_walk_to_finishes_on_arrive() -> void:
 	assert_bool(sit.is_finished()).is_false()
 	sit.tick_time(1.5)
 	assert_bool(sit.is_finished()).is_true()
+	var wander: VillagerAction = VillagerAction.make(
+		ActivityKind.WANDER, Vector3.ZERO, ActivityKind.STAY_SECONDS
+	)
+	assert_bool(wander.is_finished()).is_false()
+	wander.tick_time(ActivityKind.STAY_SECONDS + 0.1)
+	assert_bool(wander.is_finished()).is_true()
 
 
 func test_ai_advances_when_action_finishes() -> void:
@@ -270,6 +296,9 @@ func test_ai_advances_when_action_finishes() -> void:
 			"water": Vector3.INF,
 		}
 	)
+	assert_that(ai.kind()).is_equal(ActivityKind.LEAVE_HOME)
+	ai.consider_arrive(ActivityKind.YARD_OFFSET)
+	ai.step(0.0)
 	assert_that(ai.kind()).is_equal(ActivityKind.WALK_TO)
 	ai.consider_arrive(Vector3(1, 0, 0))
 	ai.step(0.0)
@@ -309,3 +338,95 @@ func test_catalog_includes_pip_and_other_starters() -> void:
 	VillagerCatalog.reload()
 	assert_that(VillagerCatalog.get_villager(&"pip")).is_not_null()
 	assert_int(VillagerCatalog.starters().size()).is_greater_equal(12)
+
+
+func test_lazy_walk_goals_match_boy_table() -> void:
+	var morning: Array[StringName] = VillagerWalk.goal_kinds(VillagerPersonality.Looks.LAZY, 10 * 3600)
+	assert_int(morning.size()).is_equal(1)
+	assert_that(morning[0]).is_equal(VillagerWalk.GOAL_ALONE)
+	assert_that(VillagerWalk.pick_kind(VillagerPersonality.Looks.LAZY, 10 * 3600)).is_equal(
+		VillagerWalk.GOAL_ALONE
+	)
+	var noon: Array[StringName] = VillagerWalk.goal_kinds(VillagerPersonality.Looks.LAZY, 13 * 3600)
+	assert_int(noon.size()).is_equal(0)
+	assert_bool(VillagerWalk.can_town_walk(VillagerPersonality.Looks.LAZY, 13 * 3600)).is_false()
+	assert_that(VillagerWalk.pick_kind(VillagerPersonality.Looks.LAZY, 13 * 3600)).is_equal(
+		VillagerWalk.GOAL_MY_HOME
+	)
+	var afternoon: Array[StringName] = VillagerWalk.goal_kinds(VillagerPersonality.Looks.LAZY, 15 * 3600)
+	assert_int(afternoon.size()).is_equal(2)
+	assert_bool(afternoon.has(VillagerWalk.GOAL_SHRINE)).is_true()
+	assert_bool(afternoon.has(VillagerWalk.GOAL_HOME)).is_true()
+
+
+func test_peppy_walks_all_day_and_cranky_prefers_alone() -> void:
+	var peppy: Array[StringName] = VillagerWalk.goal_kinds(VillagerPersonality.Looks.PEPPY, 3 * 3600)
+	assert_bool(peppy.has(VillagerWalk.GOAL_SHRINE)).is_true()
+	assert_bool(peppy.has(VillagerWalk.GOAL_HOME)).is_true()
+	var cranky: Array[StringName] = VillagerWalk.goal_kinds(VillagerPersonality.Looks.CRANKY, 8 * 3600)
+	var alone_n := 0
+	var shrine_n := 0
+	for kind: StringName in cranky:
+		if kind == VillagerWalk.GOAL_ALONE:
+			alone_n += 1
+		elif kind == VillagerWalk.GOAL_SHRINE:
+			shrine_n += 1
+	assert_int(alone_n).is_equal(7)
+	assert_int(shrine_n).is_equal(3)
+
+
+func test_walk_slots_match_decomp_cap() -> void:
+	VillagerWalk.reset()
+	assert_int(VillagerWalk.walker_cap(6)).is_equal(2)
+	assert_int(VillagerWalk.walker_cap(15)).is_equal(5)
+	assert_int(VillagerWalk.walker_cap(1)).is_equal(1)
+	assert_bool(VillagerWalk.claim(&"a", true, 6)).is_true()
+	assert_bool(VillagerWalk.claim(&"b", true, 6)).is_true()
+	assert_bool(VillagerWalk.claim(&"c", true, 6)).is_false()
+	VillagerWalk.release(&"a")
+	assert_bool(VillagerWalk.claim(&"c", true, 6)).is_true()
+	assert_bool(VillagerWalk.claim(&"b", false, 6)).is_false()
+	assert_bool(VillagerWalk.is_claimed(&"b")).is_false()
+
+
+func test_alone_acre_skips_occupied_and_defaults_to_d3() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	var occupied: Array[Vector2i] = []
+	for bz: int in range(1, 7):
+		for bx: int in range(1, 6):
+			occupied.append(Vector2i(bx, bz))
+	var full: Vector2i = VillagerWalk.resolve_block(
+		VillagerWalk.GOAL_ALONE, Vector2i(2, 2), Vector2i(4, 2), [], occupied, rng
+	)
+	assert_that(full).is_equal(VillagerWalk.ALONE_DEFAULT)
+	var shrine: Vector2i = VillagerWalk.resolve_block(
+		VillagerWalk.GOAL_SHRINE, Vector2i(2, 3), Vector2i(3, 2), [], [], rng
+	)
+	assert_that(shrine).is_equal(Vector2i(3, 2))
+	var mine: Vector2i = VillagerWalk.resolve_block(
+		VillagerWalk.GOAL_MY_HOME, Vector2i(5, 6), Vector2i(3, 2), [], [], rng
+	)
+	assert_that(mine).is_equal(Vector2i(5, 6))
+
+
+func test_other_home_goal_picks_a_different_house_acre() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4
+	var homes: Array[Vector2i] = [Vector2i(1, 2), Vector2i(4, 5)]
+	var block: Vector2i = VillagerWalk.resolve_block(
+		VillagerWalk.GOAL_HOME, Vector2i(1, 2), Vector2i(3, 2), homes, [], rng
+	)
+	assert_that(block).is_equal(Vector2i(4, 5))
+
+
+func test_attach_villager_is_noop_without_mesh() -> void:
+	var host := Node3D.new()
+	auto_free(host)
+	var vis: Node3D = GeneratedVisual.attach_villager(host, &"squirrel")
+	if FieldCatalog.villager_path(&"squirrel").is_empty():
+		assert_that(vis).is_null()
+		assert_int(host.get_child_count()).is_equal(0)
+	else:
+		assert_that(vis).is_not_null()
+		assert_that(host.get_node_or_null("GeneratedVisual")).is_not_null()

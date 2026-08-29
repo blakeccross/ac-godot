@@ -81,16 +81,17 @@ Move-out: `removing`, `remove_animal_idx` on save, minimum days before force rem
 - **One villager** with a daily table: sleep, indoors, outdoors, with hour boundaries. Looks (personality) selects the table; the actor is shared.
 - New game fills **six** outdoor villagers: shuffle the starter pool, keep one of each looks, assign to the six NPC houses.
 - Field day is a reusable action queue: wake / leave home / walk / sit|fish|shop / talk / wander / go home / sleep.
+- While in the field, pick a goal acre from looks+time (`shrine` / other `home` / `alone` / `my_home`). Walk there, linger in-acre, then pick a new goal. Concurrent town-walkers cap at `n/3` (max 5). Empty goal-table windows stay on the home acre.
+- Species GLB + shared `npc_1` wait/walk (and sit/fish if present) when `assets/generated/characters/villagers/` exists.
 - Talk updates last-spoke and a simple friendship number.
 - Not on the acre when sleeping or indoors (or visibly in bed later). Walking home/out is still visible.
 - Greeting differs by time of day / whether you’ve already talked (can be a flag, not full memory struct).
-- Yard wander while the current action is wander (NavigationAgent3D; stay near home).
 
 ## Simplify
 
 - Looks tables for all six personalities as data. Pip uses the lazy (boy) table.
 - Shared activity runner (`VillagerAI` + reusable `ActivityKind` steps). Not per-villager AI scripts and not `aNPC_think_*` overlays.
-- Field goals collapse to shop / water / furniture / yard (`mNpcW_GOAL_*` kinds, not acre waypoint graphs).
+- Field goals use `mNpcW_GOAL_*` kinds and acre picks. Full-town navmesh walks the route; no acre-edge appear/streaming and no gate waypoint graphs.
 - Friendship as an int 0–255 (or 0–100) without letter scoring.
 - Skip villager–villager relation matrix.
 - Skip move-out lottery and “return visitor” (`Anmret_c`). New towns stay at six starters (one looks each).

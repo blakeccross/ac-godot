@@ -103,4 +103,4 @@ From `m_name_table.h` / `m_bg_type.h` / `ac_sign`. Summer prefix `obj_s_`; winte
 | `SIGNBOARD` / `ac_sign` | Field sign (`obj_s_kanban`) | `obj_shop_kanban.glb` until `obj_s_kanban` is converted |
 | `ITM_FOOD_APPLE` | Dropped apple | `obj_item_apple_tex.png` on the pickup |
 | `int_sum_chair01` | Wood chair | `int_sum_chair01.glb` |
-| Villager (test town Pip) | Placeholder capsule | Disc species GLBs are not attached |
+| Villager | Species GLB (`squ_1`, `cat_1`, …) + shared `npc_1` clips when converted; placeholder capsule otherwise | `GeneratedVisual.attach_villager` / `FieldCatalog.villager_path` |

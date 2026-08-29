@@ -3,9 +3,14 @@ extends CharacterBody3D
 
 ## One shared villager actor. Looks, schedule, and lines come from VillagerData.
 ## Spatial: Model, Collision, NavigationAgent3D, InteractionArea, Animation.
-## Behavior: VillagerSchedule + VillagerAI (reusable actions) + VillagerMotor.
+## Behavior: VillagerSchedule + VillagerAI + VillagerWalk (goal acres) + VillagerMotor.
 
 const IDLE_SPEED := 0.08
+const ANIM_WAIT := "npc_1_wait1"
+const ANIM_WALK := "npc_1_walk1"
+const ANIM_RUN := "npc_1_run1"
+const ANIM_SIT := "npc_1_sit1"
+const ANIM_FISH := "npc_1_fish1"
 
 @export var data: VillagerData
 
@@ -16,6 +21,11 @@ var _motor: VillagerMotor = VillagerMotor.new()
 var _placeholder_bob: float = 0.0
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _layer_present: int = 4
+var _body_anim: AnimationPlayer
+var _clip: String = ""
+var _goal_stand: Vector3 = Vector3.ZERO
+var _goal_block: Vector2i = Vector2i.ZERO
+var _goal_kind: StringName = VillagerWalk.GOAL_MY_HOME
 
 @onready var _model: Node3D = $Model
 @onready var _placeholder: MeshInstance3D = $Model/PlaceholderMesh
@@ -37,11 +47,16 @@ func _ready() -> void:
 	var table: ScheduleData = data.schedule_table() if data != null else null
 	var first: StringName = table.activity_now() if table != null else VillagerActivity.FIELD
 	_apply_presence(VillagerActivity.is_present(first))
+	var vis: Node3D = GeneratedVisual.attach_villager(_model, data.species if data else &"")
+	if vis != null:
+		_body_anim = GeneratedVisual.find_animation_player(vis)
+		_play_clip(ANIM_WAIT, true)
 	_sync_from_clock()
-	GeneratedVisual.attach_villager(self, data.species if data else &"")
 
 
 func _exit_tree() -> void:
+	if data != null:
+		VillagerWalk.release(data.id)
 	if Clock.time_changed.is_connected(_sync_from_clock):
 		Clock.time_changed.disconnect(_sync_from_clock)
 	if ai.action_changed.is_connected(_on_action_changed):
@@ -91,6 +106,7 @@ func _physics_process(delta: float) -> void:
 	if not present:
 		velocity = Vector3.ZERO
 		ai.step(delta)
+		_update_animation(delta, Vector3.ZERO)
 		return
 	var on_bg: bool = _snap_to_bg()
 	if on_bg:
@@ -117,7 +133,7 @@ func _physics_process(delta: float) -> void:
 		)
 	elif on_bg:
 		_snap_to_bg()
-	_update_placeholder_anim(delta, planar)
+	_update_animation(delta, planar)
 	ai.step(delta)
 
 
@@ -141,6 +157,12 @@ func _on_action_changed(kind: StringName) -> void:
 	if kind == ActivityKind.LEAVE_HOME:
 		global_position = _motor.home
 		_motor.reset(_motor.home, _motor.facing)
+	if (
+		kind == ActivityKind.GO_HOME
+		or kind == ActivityKind.SLEEP
+		or kind == ActivityKind.WAKE
+	) and data != null:
+		VillagerWalk.release(data.id)
 
 
 func _apply_presence(present: bool) -> void:
@@ -152,6 +174,8 @@ func _apply_presence(present: bool) -> void:
 		_volume.monitorable = present
 	if _agent != null:
 		_agent.avoidance_enabled = false
+	if not present and data != null:
+		VillagerWalk.release(data.id)
 
 
 func _steer_ai() -> void:
@@ -171,7 +195,7 @@ func _steer_wander(wandering: bool) -> void:
 		return
 	if not _motor.needs_new_target():
 		return
-	var dest: Vector3 = _walkable_near(_motor.home + _motor.random_offset())
+	var dest: Vector3 = _walkable_near(_roam_point())
 	_motor.set_target(dest)
 	if _agent != null and _nav_ready():
 		_agent.target_position = dest
@@ -209,7 +233,30 @@ func _walkable_near(world_pos: Vector3) -> Vector3:
 		var pos: Vector3 = grid.cell_to_world(cell)
 		pos.y = world_pos.y
 		return pos
+	for radius: int in range(1, 8):
+		for dz: int in range(-radius, radius + 1):
+			for dx: int in range(-radius, radius + 1):
+				if maxi(absi(dx), absi(dz)) != radius:
+					continue
+				var n := Vector2i(cell.x + dx, cell.y + dz)
+				if not grid.is_walkable(n):
+					continue
+				var pos: Vector3 = grid.cell_to_world(n)
+				pos.y = world_pos.y
+				return pos
 	return _motor.home
+
+
+func _roam_point() -> Vector3:
+	var bg: Array = _bg()
+	if bg.size() == 2:
+		var data_now: WorldData = bg[0] as WorldData
+		var stand: Vector3 = VillagerWalk.stand_in_block(data_now, _goal_block)
+		if stand != Vector3.ZERO or _goal_block != Vector2i.ZERO:
+			return stand
+	if _goal_stand != Vector3.INF and _goal_stand != Vector3.ZERO:
+		return _goal_stand + _motor.random_offset()
+	return _motor.home + _motor.random_offset()
 
 
 func _face_towards(world_pos: Vector3) -> void:
@@ -230,6 +277,77 @@ func _tint_placeholder() -> void:
 	_placeholder.material_override = mat
 
 
+func _update_animation(delta: float, planar: Vector3) -> void:
+	if _body_anim == null:
+		_update_placeholder_anim(delta, planar)
+		return
+	var moving: bool = planar.length() > IDLE_SPEED
+	var want: String = _clip_for(ai.kind(), moving)
+	var clip := _resolve_clip(want)
+	if clip.is_empty():
+		return
+	if clip == _clip and _body_anim.is_playing():
+		if moving:
+			_body_anim.speed_scale = clampf(
+				planar.length() / maxf(_motor.walk_speed, 0.4), 0.75, 1.2
+			)
+		else:
+			_body_anim.speed_scale = 1.0
+		return
+	_play_clip(want, true)
+
+
+func _clip_for(kind: StringName, moving: bool) -> String:
+	if (
+		moving
+		or kind == ActivityKind.WALK_TO
+		or kind == ActivityKind.GO_HOME
+		or kind == ActivityKind.LEAVE_HOME
+	):
+		return ANIM_WALK
+	match kind:
+		ActivityKind.SIT:
+			return ANIM_SIT
+		ActivityKind.FISH:
+			return ANIM_FISH
+		_:
+			return ANIM_WAIT
+
+
+func _play_clip(suffix: String, loop: bool) -> void:
+	var clip := _resolve_clip(suffix)
+	if clip.is_empty() or _body_anim == null:
+		return
+	_clip = clip
+	_ensure_loop(clip, loop)
+	_body_anim.speed_scale = 1.0
+	_body_anim.play(clip, 0.12)
+
+
+func _resolve_clip(suffix: String) -> String:
+	var player: AnimationPlayer = _body_anim
+	if player == null:
+		player = _anim
+	if player == null or suffix.is_empty():
+		return ""
+	if player.has_animation(suffix):
+		return suffix
+	for anim_name: String in player.get_animation_list():
+		if anim_name.ends_with(suffix) or suffix in anim_name:
+			return anim_name
+	if suffix == ANIM_SIT or suffix == ANIM_FISH or suffix == ANIM_RUN:
+		return _resolve_clip(ANIM_WAIT) if suffix != ANIM_WAIT else ""
+	return ""
+
+
+func _ensure_loop(clip: String, loop: bool) -> void:
+	if _body_anim == null or not _body_anim.has_animation(clip):
+		return
+	var animation: Animation = _body_anim.get_animation(clip)
+	if animation != null:
+		animation.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
+
+
 func _update_placeholder_anim(delta: float, planar: Vector3) -> void:
 	if _anim != null and _anim.get_animation_list().size() > 0:
 		return
@@ -242,11 +360,14 @@ func _update_placeholder_anim(delta: float, planar: Vector3) -> void:
 
 
 func _hints() -> Dictionary:
+	if ai.current == null:
+		_refresh_goal()
 	var field_actions: Array[StringName] = []
 	if data != null:
 		field_actions = data.field_activity_ids()
 	return {
 		"home": _motor.home,
+		"goal": _goal_stand,
 		"shop": _building_stand(&"acre_shop"),
 		"water": _water_stand(),
 		"sit": _furniture_stand(),
@@ -254,6 +375,70 @@ func _hints() -> Dictionary:
 		"field_actions": field_actions,
 		"outdoors": visible and not ActivityKind.hides_actor(ai.kind()),
 	}
+
+
+func _refresh_goal() -> void:
+	var looks: VillagerPersonality.Looks = VillagerPersonality.Looks.LAZY
+	if data != null and data.personality != null:
+		looks = data.personality.looks
+	var now: int = Clock.now_sec()
+	var want_town: bool = VillagerWalk.can_town_walk(looks, now)
+	var who: StringName = data.id if data else &""
+	var claimed: bool = VillagerWalk.claim(who, want_town, _field_count())
+	if not claimed:
+		_goal_kind = VillagerWalk.GOAL_MY_HOME
+	else:
+		_goal_kind = VillagerWalk.pick_kind(looks, now)
+	var bg: Array = _bg()
+	var world_data: WorldData = bg[0] as WorldData if bg.size() == 2 else null
+	var home_block: Vector2i = VillagerWalk.block_from_cell(_home_cell())
+	var shrine: Vector2i = VillagerWalk.shrine_block(world_data)
+	var homes: Array[Vector2i] = VillagerWalk.house_blocks(world_data)
+	var occupied: Array[Vector2i] = _occupied_blocks()
+	_goal_block = VillagerWalk.resolve_block(
+		_goal_kind, home_block, shrine, homes, occupied
+	)
+	if world_data != null:
+		_goal_stand = VillagerWalk.stand_in_block(world_data, _goal_block)
+	else:
+		_goal_stand = _motor.home
+
+
+func _home_cell() -> Vector2i:
+	var bg: Array = _bg()
+	if bg.size() != 2:
+		return Vector2i.ZERO
+	return (bg[1] as WorldGrid).world_to_cell(_motor.home)
+
+
+func _occupied_blocks() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	if get_tree() == null:
+		return out
+	for node: Node in get_tree().get_nodes_in_group("villagers"):
+		if not (node is Node3D) or not (node as Node3D).visible:
+			continue
+		var block: Vector2i = VillagerWalk.block_from_cell(_home_cell_of(node as Node3D))
+		if not out.has(block):
+			out.append(block)
+	return out
+
+
+func _home_cell_of(node: Node3D) -> Vector2i:
+	var bg: Array = _bg()
+	if bg.size() != 2:
+		return Vector2i.ZERO
+	return (bg[1] as WorldGrid).world_to_cell(node.global_position)
+
+
+func _field_count() -> int:
+	if get_tree() == null:
+		return 1
+	var n: int = 0
+	for node: Node in get_tree().get_nodes_in_group("villagers"):
+		if node is Villager and (node as Villager).visible:
+			n += 1
+	return maxi(n, 1)
 
 
 func _building_stand(building_id: StringName) -> Vector3:

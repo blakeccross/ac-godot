@@ -1,7 +1,7 @@
 class_name VillagerMotor
 extends RefCounted
 
-## Home-acre wander. Not `m_npc_walk` waypoints. STAND waits; FIELD walks a yard loop.
+## Walk / linger motor. FIELD roam targets a goal acre; local waits are between cells.
 
 const ARRIVE := 0.4
 const TURN_SPEED := 4.0
