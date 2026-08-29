@@ -132,7 +132,7 @@ func generate(seed_value: int) -> Dictionary:
 	_make_flat_info(blocks)
 	_set_beach(blocks)
 	var bridge_flags: int = _set_bridge_block(blocks, not stepmode_three)
-	_set_slopes_simple(blocks)
+	_set_slope_block(blocks)
 	_set_needlework_and_port(blocks)
 	_set_unique_flat(blocks)
 	_set_unique_rail(blocks)
@@ -654,22 +654,54 @@ func _set_sea_bridge_if_needed(blocks: PackedByteArray, flags: int) -> int:
 	return 0
 
 
-func _set_slopes_simple(blocks: PackedByteArray) -> void:
-	## Convert one pure cliff acre per river side into a slope so height is climbable.
-	var left_done := false
-	var right_done := false
-	for bz: int in range(2, 6):
-		for bx: int in range(1, 6):
-			var bnum: int = _idx(bx, bz)
-			var t: int = int(blocks[bnum])
-			if t < T_CLIFF_H or t > T_CLIFF_BL:
-				continue
-			if not left_done and _river_side[bnum] == RIVER_SIDE_LEFT:
-				blocks[bnum] = T_SLOPE_H + (t - T_CLIFF_H)
-				left_done = true
-			elif not right_done and _river_side[bnum] == RIVER_SIDE_RIGHT:
-				blocks[bnum] = T_SLOPE_H + (t - T_CLIFF_H)
-				right_done = true
+func _set_slope_block(blocks: PackedByteArray) -> void:
+	## `mRF_SetSlopeBlock`: each west `LEFT_TRANSITION` is a cliff band. Walk the
+	## cliff (`l_cliff_next_direct`) and turn one pure cliff on each river side into
+	## a slope. 2-step towns have two bands; one pair of slopes left the beach
+	## unreachable.
+	for bz: int in range(BLOCK_Z - 2):
+		if int(blocks[_idx(0, bz)]) != T_BORDER_CLIFF_LEFT_TRANSITION:
+			continue
+		_place_slope_on_half(blocks, bz, RIVER_SIDE_LEFT)
+		_place_slope_on_half(blocks, bz, RIVER_SIDE_RIGHT)
+
+
+func _place_slope_on_half(blocks: PackedByteArray, start_bz: int, half: int) -> void:
+	var sites: Array[int] = _slope_sites_on_half(blocks, start_bz, half)
+	if sites.is_empty():
+		return
+	var bnum: int = sites[_rand(sites.size())]
+	var t: int = int(blocks[bnum])
+	var idx: int = cliff_shape(t)
+	if idx < 0:
+		return
+	blocks[bnum] = T_SLOPE_H + idx
+
+
+func _slope_sites_on_half(blocks: PackedByteArray, start_bz: int, half: int) -> Array[int]:
+	## `mRF_CountDirectedInfoCliff` / `SetSlopeDirectedInfoCliff`.
+	var sites: Array[int] = []
+	var bx: int = 1
+	var bz: int = start_bz
+	var side: int = RIVER_SIDE_LEFT
+	for _i: int in BLOCK_TOTAL:
+		if not _in_range(bx, bz, 0, BLOCK_X - 1, 0, BLOCK_Z - 1):
+			break
+		var bnum: int = _idx(bx, bz)
+		var t: int = int(blocks[bnum])
+		if t == T_BORDER_CLIFF_RIGHT_TRANSITION:
+			break
+		var idx: int = cliff_shape(t)
+		if _in_group(t, GROUP_RIVER_CLIFF_ANY):
+			side = RIVER_SIDE_RIGHT
+		elif side == half and idx >= 0 and _in_group(t, GROUP_CLIFF):
+			sites.append(bnum)
+		if idx < 0:
+			break
+		var step: Vector2i = _direct_offset(CLIFF_NEXT_DIRECT[idx])
+		bx += step.x
+		bz += step.y
+	return sites
 
 
 func _make_heights(heights: PackedByteArray, blocks: PackedByteArray) -> void:

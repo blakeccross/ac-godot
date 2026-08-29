@@ -209,6 +209,34 @@ func test_height_steps_only_on_terrace_faces() -> void:
 	)
 
 
+func test_each_cliff_band_gets_slopes() -> void:
+	## `mRF_SetSlopeBlock` places a slope on each river side of every cliff band
+	## (each west `LEFT_TRANSITION`). One pair for the whole town trapped the
+	## player above a 2-step drop to the beach.
+	for seed: int in [12345, 1786784979, 42, 99999]:
+		var data: WorldData = WorldGenerator.generate(seed)
+		var bands := 0
+		var slopes := 0
+		for bz: int in range(TownFieldGenerator.BLOCK_Z - 2):
+			if int(data.acre_types[bz * TownFieldGenerator.BLOCK_X]) == (
+				TownFieldGenerator.T_BORDER_CLIFF_LEFT_TRANSITION
+			):
+				bands += 1
+		for i: int in data.acre_types.size():
+			if TownFieldGenerator.is_slope(int(data.acre_types[i])):
+				slopes += 1
+		assert_int(bands).is_greater(0)
+		assert_int(slopes).is_greater_equal(bands)
+	var trapped: WorldData = WorldGenerator.generate(1786784979)
+	var lower_slope := false
+	for bz: int in range(4, 7):
+		for bx: int in range(1, 6):
+			var t: int = int(trapped.acre_types[bz * TownFieldGenerator.BLOCK_X + bx])
+			if TownFieldGenerator.is_slope(t):
+				lower_slope = true
+	assert_bool(lower_slope).is_true()
+
+
 func test_generated_town_map_text_shows_acres() -> void:
 	## Console dump: 7×10 block grid, A–F playable, A-3 station / B-3 house.
 	var data: WorldData = WorldGenerator.generate(12345)
