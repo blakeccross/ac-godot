@@ -22,25 +22,38 @@ height = 1.6
 [node name="Villager" type="CharacterBody3D"]
 collision_layer = 4
 collision_mask = 1
+floor_snap_length = 0.2
+safe_margin = 0.02
 script = ExtResource("1")
 data = ExtResource("2")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
-shape = SubResource("CapsuleShape")
+[node name="Model" type="Node3D" parent="."]
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+[node name="PlaceholderMesh" type="MeshInstance3D" parent="Model"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
 mesh = SubResource("CapsuleMesh")
 surface_material_override/0 = SubResource("VillagerMat")
 
-[node name="InteractVolume" type="Area3D" parent="."]
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+shape = SubResource("CapsuleShape")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.4
+target_desired_distance = 0.45
+radius = 0.35
+height = 1.5
+avoidance_enabled = false
+
+[node name="InteractionArea" type="Area3D" parent="."]
 collision_layer = 8
 collision_mask = 0
 monitoring = false
 monitorable = true
 script = ExtResource("3")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractVolume"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractionArea"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
 shape = SubResource("InteractShape")
+
+[node name="Animation" type="AnimationPlayer" parent="."]

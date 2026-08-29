@@ -47,5 +47,16 @@ func test_save_and_load_player_pose_and_removed_pickup() -> void:
 	assert_bool(Game.is_hole(&"hole_8_9")).is_true()
 
 
+func test_save_and_load_villager_friendship() -> void:
+	var pip: VillagerState = Game.villagers.get_or_create(&"pip")
+	pip.friendship = 7
+	pip.last_spoke_day = "2001-01-02"
+	assert_int(SaveService.save_game(PATH)).is_equal(OK)
+	Game.reset_session()
+	assert_int(SaveService.load_game(PATH)).is_equal(OK)
+	assert_int(Game.villagers.get_or_create(&"pip").friendship).is_equal(7)
+	assert_str(Game.villagers.get_or_create(&"pip").last_spoke_day).is_equal("2001-01-02")
+
+
 func test_missing_save_is_not_found() -> void:
 	assert_int(SaveService.load_game(PATH)).is_equal(ERR_FILE_NOT_FOUND)

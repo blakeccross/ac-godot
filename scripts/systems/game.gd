@@ -16,6 +16,7 @@ signal prompt_changed(text: String)
 signal notice_posted(text: String)
 
 var inventory: Inventory = Inventory.new()
+var villagers: VillagerRoster = VillagerRoster.new()
 var phase: Phase = Phase.TITLE
 var player_position: Vector3 = DEFAULT_SPAWN
 var player_yaw: float = 0.0
@@ -77,6 +78,7 @@ func notify_title_ready() -> void:
 
 func reset_session() -> void:
 	inventory.clear()
+	villagers.clear()
 	player_position = DEFAULT_SPAWN
 	player_yaw = 0.0
 	removed_interactables.clear()
@@ -186,6 +188,7 @@ func to_save() -> Dictionary:
 		"hole_interactables": hole_interactables.duplicate(),
 		"world_mode": int(world_mode),
 		"world_seed": world_seed,
+		"villagers": villagers.to_save(),
 	}
 
 
@@ -221,6 +224,7 @@ func apply_snapshot(data: Dictionary) -> void:
 			hole_interactables.append(str(entry))
 	world_mode = int(data.get("world_mode", WorldData.Mode.TEST)) as WorldData.Mode
 	world_seed = int(data.get("world_seed", WorldGenerator.DEFAULT_SEED))
+	villagers.apply_snapshot(data.get("villagers", {}))
 
 
 func _unhandled_input(event: InputEvent) -> void:
