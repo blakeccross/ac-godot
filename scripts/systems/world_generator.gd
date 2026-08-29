@@ -36,6 +36,8 @@ const _APPLE_TREE := preload("res://data/plants/apple_tree.tres")
 const _HARDWOOD := preload("res://data/plants/hardwood_tree.tres")
 const _CEDAR := preload("res://data/plants/cedar_tree.tres")
 const _PALM := preload("res://data/plants/palm_tree.tres")
+const _PANSY := preload("res://data/plants/pansy.tres")
+const _SAPLING := preload("res://data/items/apple_sapling.tres")
 const _PIP := preload("res://data/villagers/pip.tres")
 const _CHAIR := preload("res://data/furniture/wood_chair.tres")
 
@@ -67,9 +69,10 @@ static func authored_test_town() -> WorldData:
 		_item(&"ground_net", Vector2i(1, 11), _NET),
 		_item(&"ground_rod", Vector2i(1, 12), _ROD),
 		_item(&"ground_can", Vector2i(3, 11), _CAN),
+		_item(&"ground_sapling", Vector2i(3, 12), _SAPLING),
 		_sign(&"acre_sign", Vector2i(9, 11), "Welcome to the acre."),
 		_object(&"yard_chair", &"furniture", Vector2i(9, 3), _CHAIR, &"int_sum_chair01"),
-		_object(&"pansy_1", &"flower", Vector2i(6, 10), null, &"FLOWER_PANSIES0"),
+		_object(&"pansy_1", &"flower", Vector2i(6, 10), _PANSY, &"FLOWER_PANSIES0"),
 		_object(&"rock_1", &"rock", Vector2i(3, 8), null, &"ROCK_A"),
 		_door(&"house_door", Vector2i(7, 3), "House"),
 		_villager(&"pip", Vector2i(10, 9), _PIP),
@@ -469,7 +472,7 @@ static func _place_from_fg_templates(
 									StringName("flower_%d" % flower_n),
 									&"flower",
 									cell,
-									null,
+									_PANSY,
 									place["visual"]
 								)
 							)
@@ -897,7 +900,7 @@ static func _scatter_flowers(
 				StringName("flower_%d" % (id_base + placed)),
 				&"flower",
 				cell,
-				null,
+				_PANSY,
 				flowers[placed % flowers.size()]
 			)
 		)

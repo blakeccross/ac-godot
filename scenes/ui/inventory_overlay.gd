@@ -183,6 +183,10 @@ func _run_tag(tag: String) -> void:
 				slot.item.condition = InventoryItem.Condition.NORMAL
 				inv.changed.emit()
 				Game.post_notice("Opened present")
+		"Plant":
+			var msg: String = PlantGrowth.plant_from_slot(_field_context(), idx)
+			if msg != "":
+				Game.post_notice(msg)
 		_:
 			var msg: String = inv.use_slot(idx)
 			if msg != "":
@@ -237,6 +241,16 @@ func _spawn_pickup(item: ItemData) -> bool:
 	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
 	pickup.global_position = player.global_position + forward * 1.1 + Vector3(0.0, 0.05, 0.0)
 	return true
+
+
+func _field_context() -> InteractionContext:
+	var ctx := InteractionContext.new()
+	ctx.inventory = Game.inventory
+	var tree := get_tree()
+	if tree != null:
+		ctx.actor = tree.get_first_node_in_group("player") as Node3D
+		ctx.world = tree.get_first_node_in_group("world")
+	return ctx
 
 
 func _refresh() -> void:

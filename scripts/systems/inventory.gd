@@ -343,6 +343,8 @@ func tags_for_slot(index: int) -> PackedStringArray:
 		return tags
 	if data.equippable:
 		tags.append("Equip")
+	if data.plant_id != &"":
+		tags.append("Plant")
 	elif data.usable:
 		tags.append(data.use_verb if data.use_verb != "" else "Use")
 	if data.droppable:

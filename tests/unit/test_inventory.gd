@@ -118,6 +118,21 @@ func test_legacy_array_save() -> void:
 	assert_int(inv.count_of(&"axe")).is_equal(1)
 
 
+func test_plant_tag_for_sapling() -> void:
+	ItemCatalog.reload()
+	var inv := Inventory.new()
+	var sapling: ItemData = ItemCatalog.get_item(&"apple_sapling")
+	inv.add(sapling, 1)
+	var tags: PackedStringArray = inv.tags_for_slot(0)
+	assert_bool("Plant" in tags).is_true()
+	assert_bool("Eat" in tags).is_false()
+	var apple: ItemData = ItemCatalog.get_item(&"apple")
+	inv.add(apple, 1)
+	var eat_tags: PackedStringArray = inv.tags_for_slot(1)
+	assert_bool("Eat" in eat_tags).is_true()
+	assert_bool("Plant" in eat_tags).is_false()
+
+
 func test_item_catalog() -> void:
 	ItemCatalog.reload()
 	var apple: ItemData = ItemCatalog.get_item(&"apple")

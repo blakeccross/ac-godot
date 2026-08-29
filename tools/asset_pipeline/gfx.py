@@ -8,6 +8,7 @@ from typing import Optional
 from .texbank import (
     TextureBank,
     TextureState,
+    i4_png_as_alpha,
     parse_loadtlut,
     parse_settile,
     parse_settile_dolphin,
@@ -70,6 +71,20 @@ class Vertex:
     src_index: int = -1
 
 
+def is_window_spill_dl(name: str) -> bool:
+    """Ground XLU decal (`*_window_model`), not facade glass (`*_light_model`)."""
+    n = name.lower()
+    if "light" in n:
+        return False
+    return "window" in n
+
+
+def is_window_pane_dl(name: str) -> bool:
+    """Opaque prim/env fill that sits in the wall's TEX_EDGE window holes."""
+    n = name.lower()
+    return "light_model" in n or "lightt_model" in n
+
+
 @dataclass
 class MeshPart:
     name: str
@@ -83,6 +98,10 @@ class MeshPart:
     wrap_s: int = 0
     wrap_t: int = 0
     alpha_mode: str = "OPAQUE"
+    ## Facade window panes (`*_light_model`): combiner is prim/env, not the SETTIMG.
+    unlit_fill: bool = False
+    ## Ground XLU fan (`*_window_model`): I4 × prim on the shadow pass.
+    ground_spill: bool = False
 
 
 def parse_vtx_blob(blob: bytes, scale: float, flip_z: bool = False) -> list[Vertex]:
@@ -352,8 +371,13 @@ def parse_gfx(
         png = None
         tex_name = ""
         alpha_mode = "OPAQUE"
-        if bank is not None:
+        unlit = is_window_pane_dl(name)
+        spill = is_window_spill_dl(name)
+        if bank is not None and not unlit:
             png, tex_name, alpha_mode = bank.decode_current(tex_state)
+        if spill and png:
+            png = i4_png_as_alpha(png)
+            alpha_mode = "BLEND"
         parts.append(
             MeshPart(
                 name=name if not tex_name else f"{name}:{tex_name}",
@@ -365,7 +389,9 @@ def parse_gfx(
                 tex_height=tex_state.height,
                 wrap_s=tex_state.wrap_s,
                 wrap_t=tex_state.wrap_t,
-                alpha_mode=alpha_mode,
+                alpha_mode="OPAQUE" if unlit else alpha_mode,
+                unlit_fill=unlit,
+                ground_spill=spill,
             )
         )
         triangles = []

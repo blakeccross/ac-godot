@@ -68,6 +68,7 @@ Island climate **freezes** term index to summer-ish term 7 (`mTM_get_termIdx`).
 - Season and term changes (palette, insects, fish).
 - Daily renew at 06:00.
 - Lighting colors for `WorldEnvironment`.
+- Window panes and ground spill (`*_light_model` / `*_window_model`) 18:00–05:00 via `GeneratedVisual.refresh_window_lights`.
 - Weather particles.
 - Shop open/close (shop module reads hour).
 - Villager schedule lookups (seconds since midnight).

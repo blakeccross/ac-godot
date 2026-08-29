@@ -247,6 +247,22 @@ func test_flower_waters_when_can_equipped() -> void:
 	assert_bool(flower.is_queued_for_deletion()).is_false()
 
 
+func test_seed_flower_cannot_pick() -> void:
+	ItemCatalog.reload()
+	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 1, "hour": 12, "minute": 0})
+	var flower: Node = auto_free(load("res://scenes/world/flower.tscn").instantiate())
+	flower.set("persist_id", &"pansy_1")
+	flower.set("plant", load("res://data/plants/pansy.tres"))
+	flower.set("visual_id", &"FLOWER_PANSIES0")
+	add_child(flower)
+	var empty := InteractionContext.new()
+	empty.inventory = Inventory.new()
+	assert_int(flower.get_interactions(empty).size()).is_equal(0)
+	var ctx := _ctx_with_tool(&"watering_can")
+	var action: Interaction = Interaction.primary(flower.get_interactions(ctx))
+	assert_str(String(action.id)).is_equal(String(Interaction.WATER))
+
+
 func test_building_exposes_verbs_on_child_door() -> void:
 	## Generic buildings compose a Door; the player still never switches on type.
 	var building: Node = auto_free(load("res://scenes/world/building.tscn").instantiate())

@@ -42,10 +42,16 @@ static func fruit_count_for(visual_id: StringName, plant: PlantData) -> int:
 	return 3
 
 
-func configure(plant: PlantData, visual_id: StringName, as_stump: bool) -> void:
-	size = size_for(visual_id)
+func configure(
+	plant: PlantData,
+	visual_id: StringName,
+	as_stump: bool,
+	p_size: Size = Size.FULL,
+	fruit_ready: bool = true
+) -> void:
+	size = p_size
 	hits_left = hits_for(size)
-	fruit_count = fruit_count_for(visual_id, plant)
+	fruit_count = fruit_count_for(visual_id, plant) if fruit_ready else 0
 	if as_stump:
 		stage = Stage.STUMP
 		hits_left = 0
@@ -53,6 +59,19 @@ func configure(plant: PlantData, visual_id: StringName, as_stump: bool) -> void:
 		stage = Stage.FRUITING
 	else:
 		stage = Stage.BARE
+
+
+func sync_growth(
+	plant: PlantData, visual_id: StringName, p_size: Size, fruit_ready: bool
+) -> void:
+	if stage == Stage.STUMP:
+		return
+	var size_changed: bool = size != p_size
+	size = p_size
+	if size_changed:
+		hits_left = hits_for(size)
+	fruit_count = fruit_count_for(visual_id, plant) if fruit_ready else 0
+	stage = Stage.FRUITING if fruit_count > 0 else Stage.BARE
 
 
 func shake() -> Outcome:

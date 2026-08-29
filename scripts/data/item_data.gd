@@ -19,6 +19,8 @@ enum Category { TOOL, FURNITURE, FRUIT, FISH, BUG, OTHER }
 ## Verb shown in the tag strip (`m_tag_ovl`), e.g. Eat / Use.
 @export var use_verb: String = "Use"
 @export var icon_color: Color = Color(0.75, 0.75, 0.75)
+## Non-empty → inventory **Plant** tag (`PlantData.id`).
+@export var plant_id: StringName = &""
 
 
 func can_stack_with(other: ItemData) -> bool:

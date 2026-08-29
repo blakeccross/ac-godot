@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="PlantData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/plant_data.gd" id="1"]
+[ext_resource type="Resource" path="res://data/items/flower.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+id = &"pansy"
+display_name = "Pansy"
+kind = 1
+fruit = ExtResource("2")
+stage_days = PackedInt32Array(1, 2, 3, 4)
+needs_water = true
+winter_pauses = true
+visual_seed = &"FLOWER_PANSIES0"
+visual_growing = &"FLOWER_PANSIES0"
+visual_mature = &"FLOWER_PANSIES1"
+visual_harvestable = &"FLOWER_PANSIES2"

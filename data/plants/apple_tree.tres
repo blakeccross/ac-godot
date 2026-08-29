@@ -9,3 +9,7 @@ id = &"apple_tree"
 display_name = "Apple Tree"
 fruit = ExtResource("2")
 stage_days = PackedInt32Array(1, 3, 5, 7)
+visual_seed = &"TREE_S0"
+visual_growing = &"TREE_S1"
+visual_mature = &"TREE"
+visual_harvestable = &"TREE_APPLE_FRUIT"

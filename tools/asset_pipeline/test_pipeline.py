@@ -76,8 +76,11 @@ class PrefixOwnershipTests(unittest.TestCase):
             _sym("grd_s_f_10_v", 2),
             _sym("grd_s_f_1_gfx_model", 3),
             _sym("grd_s_f_10_gfx_model", 4),
+            _sym("obj_s_kouban_shadow_v", 5),
+            _sym("obj_s_kouban_shadow_model", 6),
         ]
         jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
+        self.assertNotIn("obj_s_kouban_shadow", jobs)
         self.assertEqual(
             jobs["obj_s_tree5"]["gfx"],
             ["obj_s_tree5_leafT_gfx_model", "obj_s_tree5_trunkT_gfx_model"],
@@ -154,6 +157,36 @@ class WrapBakeTests(unittest.TestCase):
         self.assertEqual(group["wrap_s"], GX_CLAMP)
         self.assertAlmostEqual(_Part.vertices[1].u, 1.0)
         self.assertAlmostEqual(_Part.vertices[1].v, 1.0)
+
+
+class WindowDlTests(unittest.TestCase):
+    def test_spill_vs_pane_names(self) -> None:
+        from asset_pipeline.gfx import is_window_pane_dl, is_window_spill_dl
+
+        self.assertTrue(is_window_spill_dl("obj_s_shop1_window_model"))
+        self.assertTrue(is_window_spill_dl("obj_s_house1_windowL_model"))
+        self.assertTrue(is_window_spill_dl("obj_s_museum_windowT_model"))
+        self.assertTrue(is_window_spill_dl("obj_s_tailor_window_model"))
+        self.assertFalse(is_window_spill_dl("obj_s_shop1_light_model"))
+        self.assertFalse(is_window_spill_dl("obj_s_museum_lightT_model"))
+        self.assertTrue(is_window_pane_dl("obj_s_shop1_light_model"))
+        self.assertTrue(is_window_pane_dl("obj_s_museum_lightT_model"))
+        self.assertFalse(is_window_pane_dl("obj_s_shop1_window_model"))
+
+    def test_i4_png_becomes_alpha(self) -> None:
+        from io import BytesIO
+
+        from PIL import Image
+
+        from asset_pipeline.texbank import i4_png_as_alpha
+
+        src = Image.new("RGB", (2, 1), (0, 0, 0))
+        src.putpixel((1, 0), (128, 128, 128))
+        buf = BytesIO()
+        src.save(buf, format="PNG")
+        out = Image.open(BytesIO(i4_png_as_alpha(buf.getvalue()))).convert("RGBA")
+        self.assertEqual(out.getpixel((0, 0))[3], 0)
+        self.assertEqual(out.getpixel((1, 0))[3], 128)
 
 
 if __name__ == "__main__":

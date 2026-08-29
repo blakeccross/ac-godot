@@ -32,6 +32,7 @@ func test_authored_test_town_has_fixed_layout() -> void:
 	assert_that(_object_at(data, &"yard_chair")).is_equal(Vector2i(9, 3))
 	assert_that(_object_at(data, &"pip")).is_equal(Vector2i(10, 9))
 	assert_that(_object_at(data, &"pansy_1")).is_equal(Vector2i(6, 10))
+	assert_that(_object_at(data, &"ground_sapling")).is_equal(Vector2i(3, 12))
 	assert_that(_object_at(data, &"rock_1")).is_equal(Vector2i(3, 8))
 	assert_that(_object_at(data, &"house_door")).is_equal(Vector2i(7, 3))
 	assert_that(_object_visual(data, &"tree_1")).is_equal(&"TREE_APPLE_FRUIT")

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"flower"
+display_name = "Flower"
+description = "A picked bloom. Plant it on grass."
+category = 5
+sell_price = 40
+max_stack = 9
+droppable = true
+usable = true
+equippable = false
+use_verb = "Plant"
+icon_color = Color(0.92, 0.55, 0.72, 1)
+plant_id = &"pansy"
