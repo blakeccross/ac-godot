@@ -33,7 +33,7 @@ The player never switches on type. Verbs live on the host.
 | `tree` | Shake; chop (axe); dig stump (shovel) | `tree.tscn` |
 | `rock` | Dig (stub) | `rock.tscn` |
 | `flower` | Pick up | `flower.tscn` |
-| `hole` | Fill (shovel) | `hole.tscn` |
+| `hole` | Fill (shovel) | `hole.tscn` (ground decal: 1 GX above unit, no depth write) |
 | `item` | Pick up (inventory) | `item_pickup.tscn` |
 | `building` | Enter via child `Door` | `building.tscn` |
 | `door` | Enter / Shop | `door.tscn` |

@@ -57,7 +57,7 @@ static func add_to(root: Node3D, data: WorldData, grid: WorldGrid) -> void:
 
 
 static func ground_y(data: WorldData, cell: Vector2i, ground_dist: float = 0.0) -> float:
-	## Placement helper: unit-center height. Holes sit at terrace elevation so signs still spawn.
+	## Placement helper: unit-center height (`GetBgY_OnlyCenter_FromWpos2`). `ground_dist` is meters subtracted from that height (original passes GX; holes use −1 GX). Terrace fallback so signs still spawn.
 	var y: float = height_at(data, cell)
 	if not has_floor(y):
 		y = float(data.elevation_at(cell)) * FieldCatalog.ACRE_STEP_METERS

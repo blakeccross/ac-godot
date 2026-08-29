@@ -22,6 +22,9 @@ func test_default_visuals_use_decomp_names() -> void:
 	assert_that(FieldCatalog.default_visual(&"flower")).is_equal(&"FLOWER_PANSIES0")
 	assert_that(FieldCatalog.default_visual(&"rock")).is_equal(&"ROCK_A")
 	assert_that(FieldCatalog.default_visual(&"hole")).is_equal(&"HOLE00")
+	assert_bool(FieldCatalog.is_ground_decal(&"HOLE00")).is_true()
+	assert_bool(FieldCatalog.is_ground_decal(&"obj_hole0")).is_true()
+	assert_bool(FieldCatalog.is_ground_decal(&"TREE")).is_false()
 
 
 func test_fg_item_trees_and_sign_reserves() -> void:

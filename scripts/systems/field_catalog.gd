@@ -122,6 +122,12 @@ static func is_acre(visual_id: StringName) -> bool:
 	return String(visual_id).begins_with("grd_")
 
 
+static func is_ground_decal(visual_id: StringName) -> bool:
+	## Hole fans (`HOLE00`–`HOLE24` / `obj_hole*`) are authored on the acre plane.
+	var id := String(visual_id)
+	return id.begins_with("HOLE") or id.begins_with("obj_hole")
+
+
 ## Godot scale for pipeline GLBs so 1 GX matches `GX_TO_METERS`.
 static func actor_uniform_scale() -> float:
 	return ACTOR_DRAW_SCALE / PIPELINE_SCALE * GX_TO_METERS

@@ -37,7 +37,7 @@ Equipping a tool puts the player into a **tool-ready** main index. A then uses t
 - Data + `ToolUse`, not a `Tool` / `Shovel` / `Axe` class tree.
 - No golden / broken / silver variants. One of each kind.
 - No fishing bite loop, insect AI, flower breeding, or axe durability in this slice — those stay in [fishing.md](fishing.md), [bugs.md](bugs.md), [plants.md](plants.md).
-- One hole visual (`HOLE00`). No buried items, pitfalls, shine spots, or falling-in.
+- One hole visual (`HOLE00`), treated as a ground decal (`GetBgY(..., -1 GX)` plus no depth write) so it does not z-fight the acre. No buried items, pitfalls, shine spots, or falling-in.
 - Field uses that have no world effect yet post a notice.
 - No takeout / putaway clips. Watering can stays unequipped-looking (no disc model to attach).
 

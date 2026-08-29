@@ -6,6 +6,8 @@ extends RefCounted
 
 const VISUAL := &"HOLE00"
 const SCENE := "res://scenes/world/hole.tscn"
+## `mCoBG_GetBgY_OnlyCenter_FromWpos2(*pos, -1.0f)` — 1 GX above the unit so the fan is not coplanar with the acre.
+const GROUND_DIST := -FieldCatalog.GX_TO_METERS
 
 
 static func persist_id(cell: Vector2i) -> StringName:
@@ -97,7 +99,7 @@ static func _instance(world: Node, grid: WorldGrid, cell: Vector2i, pid: StringN
 	objects.add_child(hole)
 	var pos: Vector3 = grid.cell_to_world(cell)
 	if "layout" in world and world.layout != null:
-		pos.y = FieldCollision.ground_y(world.layout as WorldData, cell)
+		pos.y = FieldCollision.ground_y(world.layout as WorldData, cell, GROUND_DIST)
 	if hole.is_inside_tree():
 		hole.global_position = pos
 	else:

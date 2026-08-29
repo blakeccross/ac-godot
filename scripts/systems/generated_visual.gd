@@ -40,7 +40,7 @@ static func attach(host: Node3D, visual_id: StringName) -> Node3D:
 		return null
 	_hide_placeholder_meshes(host)
 	host.add_child(pivot)
-	_apply_materials(pivot)
+	_apply_materials(pivot, FieldCatalog.is_ground_decal(visual_id))
 	_fit(pivot, visual_id)
 	return pivot
 
@@ -95,6 +95,9 @@ static func _fit(pivot: Node3D, visual_id: StringName) -> void:
 	if FieldCatalog.is_acre(visual_id):
 		_fit_acre(pivot)
 		return
+	if FieldCatalog.is_ground_decal(visual_id):
+		_fit_ground_decal(pivot)
+		return
 	_fit_actor(pivot)
 
 
@@ -115,6 +118,11 @@ static func _fit_actor(pivot: Node3D) -> void:
 	pivot.position.y = -aabb.position.y * s
 
 
+static func _fit_ground_decal(pivot: Node3D) -> void:
+	## Keep authored Y. AABB-snapping a coplanar fan onto the acre z-fights with grass.
+	pivot.scale = Vector3.ONE * FieldCatalog.actor_uniform_scale()
+
+
 static func _hide_placeholder_meshes(host: Node) -> void:
 	if host is MeshInstance3D:
 		(host as MeshInstance3D).visible = false
@@ -126,7 +134,7 @@ static func _hide_placeholder_meshes(host: Node) -> void:
 		_hide_placeholder_meshes(child)
 
 
-static func _apply_materials(node: Node) -> void:
+static func _apply_materials(node: Node, as_decal: bool = false) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
 		var surface_count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 1
@@ -142,9 +150,15 @@ static func _apply_materials(node: Node) -> void:
 				std.cull_mode = BaseMaterial3D.CULL_DISABLED
 				std.roughness = 1.0
 				std.metallic = 0.0
+				if as_decal:
+					std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+					std.render_priority = 1
 				mesh_instance.set_surface_override_material(i, std)
+		if as_decal:
+			mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mesh_instance.sorting_offset = 1.0
 	for child in node.get_children():
-		_apply_materials(child)
+		_apply_materials(child, as_decal)
 
 
 static func _paint_albedo(node: Node, tex: Texture2D) -> void:
