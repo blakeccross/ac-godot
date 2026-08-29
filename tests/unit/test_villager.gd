@@ -83,50 +83,50 @@ func test_runtime_schedule_force_override() -> void:
 
 
 func test_talk_updates_friendship_and_repeat_greeting() -> void:
-	var pip: VillagerData = load("res://data/villagers/pip.tres")
-	assert_that(pip.personality).is_not_null()
-	assert_that(pip.dialogue).is_not_null()
+	var filbert: VillagerData = load("res://data/villagers/filbert.tres")
+	assert_that(filbert.personality).is_not_null()
+	assert_that(filbert.dialogue).is_not_null()
 	var state := VillagerState.new()
-	state.villager_id = &"pip"
+	state.villager_id = &"filbert"
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
-	var first: String = VillagerTalk.greeting(pip, state)
+	var first: String = VillagerTalk.greeting(filbert, state)
 	assert_str(first).is_equal("Nice plot you've got.")
 	assert_int(state.record_talk(VillagerTalk.day_key())).is_equal(VillagerState.TALK_FIRST)
 	assert_int(state.friendship).is_equal(VillagerState.TALK_FIRST)
 	assert_bool(state.talked_on(VillagerTalk.day_key())).is_true()
-	var again: String = VillagerTalk.greeting(pip, state)
+	var again: String = VillagerTalk.greeting(filbert, state)
 	assert_str(again).is_equal("Still hanging around, huh?")
 	assert_int(state.record_talk(VillagerTalk.day_key())).is_equal(VillagerState.TALK_REPEAT)
 	assert_int(state.friendship).is_equal(VillagerState.TALK_FIRST + VillagerState.TALK_REPEAT)
 
 
 func test_greeting_follows_time_of_day() -> void:
-	var pip: VillagerData = load("res://data/villagers/pip.tres")
+	var filbert: VillagerData = load("res://data/villagers/filbert.tres")
 	var state := VillagerState.new()
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 2, "minute": 0 })
-	assert_str(VillagerTalk.greeting(pip, state)).is_equal("You're up late.")
+	assert_str(VillagerTalk.greeting(filbert, state)).is_equal("You're up late.")
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 7, "minute": 0 })
-	assert_str(VillagerTalk.greeting(pip, state)).is_equal("Morning!")
+	assert_str(VillagerTalk.greeting(filbert, state)).is_equal("Morning!")
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 19, "minute": 0 })
-	assert_str(VillagerTalk.greeting(pip, state)).is_equal("Evening already?")
+	assert_str(VillagerTalk.greeting(filbert, state)).is_equal("Evening already?")
 
 
 func test_catchphrase_substitution() -> void:
-	var pip: VillagerData = load("res://data/villagers/pip.tres")
-	assert_str(VillagerTalk.substitute("Hey {name}, {catchphrase}!", pip)).is_equal("Hey Pip, nuts!")
+	var filbert: VillagerData = load("res://data/villagers/filbert.tres")
+	assert_str(VillagerTalk.substitute("Hey {name}, {catchphrase}!", filbert)).is_equal("Hey Filbert, bucko!")
 
 
 func test_roster_save_round_trip() -> void:
-	var state: VillagerState = Game.villagers.get_or_create(&"pip")
+	var state: VillagerState = Game.villagers.get_or_create(&"filbert")
 	state.friendship = 12
 	state.last_spoke_day = "2001-01-01"
 	state.mood = VillagerState.Mood.HAPPY
 	var snap: Dictionary = Game.to_save()
 	Game.reset_session()
-	assert_bool(Game.villagers.has_id(&"pip")).is_false()
+	assert_bool(Game.villagers.has_id(&"filbert")).is_false()
 	Game.apply_snapshot(snap)
-	assert_bool(Game.villagers.has_id(&"pip")).is_true()
-	var loaded: VillagerState = Game.villagers.get_or_create(&"pip")
+	assert_bool(Game.villagers.has_id(&"filbert")).is_true()
+	var loaded: VillagerState = Game.villagers.get_or_create(&"filbert")
 	assert_int(loaded.friendship).is_equal(12)
 	assert_str(loaded.last_spoke_day).is_equal("2001-01-01")
 	assert_that(loaded.mood).is_equal(VillagerState.Mood.HAPPY)
@@ -142,13 +142,13 @@ func test_scene_composition() -> void:
 	assert_bool(villager is CharacterBody3D).is_true()
 
 
-func test_pip_data_is_lazy_squirrel() -> void:
-	var pip: VillagerData = load("res://data/villagers/pip.tres")
-	assert_that(pip.display_name).is_equal("Pip")
-	assert_that(pip.species).is_equal(&"squirrel")
-	assert_that(pip.personality.id).is_equal(&"lazy")
-	assert_that(pip.schedule_table().activity_at(9)).is_equal(VillagerActivity.FIELD)
-	assert_that(pip.dialogue.speaker_id).is_equal(&"pip")
+func test_filbert_data_is_lazy_squirrel() -> void:
+	var filbert: VillagerData = load("res://data/villagers/filbert.tres")
+	assert_that(filbert.display_name).is_equal("Filbert")
+	assert_that(filbert.species).is_equal(&"squirrel")
+	assert_that(filbert.personality.id).is_equal(&"lazy")
+	assert_that(filbert.schedule_table().activity_at(9)).is_equal(VillagerActivity.FIELD)
+	assert_that(filbert.dialogue.speaker_id).is_equal(&"filbert")
 
 
 func test_scene_talks_when_in_field() -> void:
@@ -158,7 +158,7 @@ func test_scene_talks_when_in_field() -> void:
 	var actions: Array[Interaction] = villager.get_interactions(InteractionContext.new())
 	assert_int(actions.size()).is_equal(1)
 	assert_bool(villager.interact(actions[0], InteractionContext.new())).is_true()
-	assert_int(Game.villagers.get_or_create(&"pip").friendship).is_equal(VillagerState.TALK_FIRST)
+	assert_int(Game.villagers.get_or_create(&"filbert").friendship).is_equal(VillagerState.TALK_FIRST)
 
 
 func test_motor_stops_when_not_wandering() -> void:
@@ -349,9 +349,9 @@ func test_starter_pick_is_seeded() -> void:
 		assert_that(first[i].id).is_equal(second[i].id)
 
 
-func test_catalog_includes_pip_and_other_starters() -> void:
+func test_catalog_includes_filbert_and_other_starters() -> void:
 	VillagerCatalog.reload()
-	assert_that(VillagerCatalog.get_villager(&"pip")).is_not_null()
+	assert_that(VillagerCatalog.get_villager(&"filbert")).is_not_null()
 	assert_int(VillagerCatalog.starters().size()).is_greater_equal(12)
 
 
@@ -506,11 +506,28 @@ func test_wander_dest_is_on_acre_circle() -> void:
 
 
 func test_starters_use_names_and_disc_species() -> void:
+	var expected := {
+		&"filbert": "Filbert",
+		&"rosie": "Rosie",
+		&"bunnie": "Bunnie",
+		&"biskit": "Biskit",
+		&"midge": "Midge",
+		&"ribbot": "Ribbot",
+		&"dora": "Dora",
+		&"gruff": "Gruff",
+		&"lobo": "Lobo",
+		&"sprocket": "Sprocket",
+		&"friga": "Friga",
+		&"olivia": "Olivia",
+	}
 	var known: Array[String] = [
-		"squ", "cat", "brd", "rcc", "wol", "flg", "mos", "goa", "dog", "ost", "pgn", "rbt"
+		"squ", "cat", "brd", "wol", "flg", "mos", "goa", "dog", "ost", "pgn", "rbt"
 	]
+	VillagerCatalog.reload()
+	assert_int(VillagerCatalog.starters().size()).is_equal(expected.size())
 	for villager: VillagerData in VillagerCatalog.starters():
-		assert_str(villager.display_name).is_not_empty()
+		assert_that(expected.has(villager.id)).is_true()
+		assert_str(villager.display_name).is_equal(str(expected[villager.id]))
 		assert_that(villager.display_name).is_not_equal("Villager")
 		var code: String = FieldCatalog.species_code(villager.species)
 		assert_bool(known.has(code)).is_true()

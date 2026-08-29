@@ -48,14 +48,14 @@ func test_save_and_load_player_pose_and_removed_pickup() -> void:
 
 
 func test_save_and_load_villager_friendship() -> void:
-	var pip: VillagerState = Game.villagers.get_or_create(&"pip")
-	pip.friendship = 7
-	pip.last_spoke_day = "2001-01-02"
+	var filbert: VillagerState = Game.villagers.get_or_create(&"filbert")
+	filbert.friendship = 7
+	filbert.last_spoke_day = "2001-01-02"
 	assert_int(SaveService.save_game(PATH)).is_equal(OK)
 	Game.reset_session()
 	assert_int(SaveService.load_game(PATH)).is_equal(OK)
-	assert_int(Game.villagers.get_or_create(&"pip").friendship).is_equal(7)
-	assert_str(Game.villagers.get_or_create(&"pip").last_spoke_day).is_equal("2001-01-02")
+	assert_int(Game.villagers.get_or_create(&"filbert").friendship).is_equal(7)
+	assert_str(Game.villagers.get_or_create(&"filbert").last_spoke_day).is_equal("2001-01-02")
 
 
 func test_save_and_load_plant_states() -> void:

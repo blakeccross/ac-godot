@@ -5,9 +5,9 @@
 
 [resource]
 script = ExtResource("1")
-id = &"mica"
-display_name = "Mica"
-species = &"raccoon"
-catchphrase = "darling"
+id = &"olivia"
+display_name = "Olivia"
+species = &"cat"
+catchphrase = "purrr"
 personality = ExtResource("2")
 starter = true

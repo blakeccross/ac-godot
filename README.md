@@ -4,7 +4,7 @@ A Godot 4 recreation inspired by the GameCube version of *Animal Crossing*.
 
 This is **not** a 1:1 port. The goal is to rebuild the core gameplay systems, feel, visual style, and simulation philosophy using Godot-native architecture. Many of the original game's specialized systems are intentionally omitted.
 
-This project is original work. It is **not affiliated with, endorsed by, or connected to Nintendo**. Do not add Nintendo assets, character names, music, trademarks, or source from the original game.
+This project is original work. It is **not affiliated with, endorsed by, or connected to Nintendo**. Do not add Nintendo assets, music, trademarks, or source from the original game. Villager names in data (Filbert, Rosie, …) are fine.
 
 ## Requirements
 
@@ -15,7 +15,7 @@ This project is original work. It is **not affiliated with, endorsed by, or conn
 ## Run
 
 1. Open this folder in Godot 4.6+.
-2. Press Play. Title → **New Game** (fixed test town) or **Generated Town** (seed `12345`). WASD to walk, Shift to run, **E** to interact (pick up, talk, shake, sit, read, …), **Esc** to save and return to title. **Continue** reloads that save. Debug: **T** +1 hour, **Y** +1 day (crosses the 06:00 daily renew), **U** save. Shop is open 9:00–22:00. Pip is off the acre while asleep or indoors.
+2. Press Play. Title → **New Game** (fixed test town) or **Generated Town** (seed `12345`). WASD to walk, Shift to run, **E** to interact (pick up, talk, shake, sit, read, …), **Esc** to save and return to title. **Continue** reloads that save. Debug: **T** +1 hour, **Y** +1 day (crosses the 06:00 daily renew), **U** save. Shop is open 9:00–22:00. Filbert is off the acre while asleep or indoors.
 
 From a terminal, if the Godot binary is on your `PATH`:
 

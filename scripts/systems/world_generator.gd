@@ -38,7 +38,7 @@ const _CEDAR := preload("res://data/plants/cedar_tree.tres")
 const _PALM := preload("res://data/plants/palm_tree.tres")
 const _PANSY := preload("res://data/plants/pansy.tres")
 const _SAPLING := preload("res://data/items/apple_sapling.tres")
-const _PIP := preload("res://data/villagers/pip.tres")
+const _FILBERT := preload("res://data/villagers/filbert.tres")
 const _CHAIR := preload("res://data/furniture/wood_chair.tres")
 
 
@@ -75,7 +75,7 @@ static func authored_test_town() -> WorldData:
 		_object(&"pansy_1", &"flower", Vector2i(6, 10), _PANSY, &"FLOWER_PANSIES0"),
 		_object(&"rock_1", &"rock", Vector2i(3, 8), null, &"ROCK_A"),
 		_door(&"house_door", Vector2i(7, 3), "House"),
-		_villager(&"pip", Vector2i(10, 9), _PIP),
+		_villager(&"filbert", Vector2i(10, 9), _FILBERT),
 	]
 	data.spawn_points = [_spawn(&"player", Vector2i(8, 11), 0.0)]
 	data.bake()

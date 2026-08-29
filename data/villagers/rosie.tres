@@ -1,13 +1,13 @@
 [gd_resource type="Resource" script_class="VillagerData" format=3]
 
 [ext_resource type="Script" path="res://scripts/data/villager_data.gd" id="1"]
-[ext_resource type="Resource" path="res://data/personalities/snooty.tres" id="2"]
+[ext_resource type="Resource" path="res://data/personalities/peppy.tres" id="2"]
 
 [resource]
 script = ExtResource("1")
-id = &"lark"
-display_name = "Lark"
-species = &"penguin"
-catchphrase = "indeed"
+id = &"rosie"
+display_name = "Rosie"
+species = &"cat"
+catchphrase = "silly"
 personality = ExtResource("2")
 starter = true

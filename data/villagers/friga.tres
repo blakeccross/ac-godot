@@ -1,13 +1,13 @@
 [gd_resource type="Resource" script_class="VillagerData" format=3]
 
 [ext_resource type="Script" path="res://scripts/data/villager_data.gd" id="1"]
-[ext_resource type="Resource" path="res://data/personalities/jock.tres" id="2"]
+[ext_resource type="Resource" path="res://data/personalities/snooty.tres" id="2"]
 
 [resource]
 script = ExtResource("1")
-id = &"brisk"
-display_name = "Brisk"
-species = &"frog"
-catchphrase = "ribbit"
+id = &"friga"
+display_name = "Friga"
+species = &"penguin"
+catchphrase = "brr"
 personality = ExtResource("2")
 starter = true

@@ -30,7 +30,7 @@ func test_authored_test_town_has_fixed_layout() -> void:
 	assert_that(_object_at(data, &"ground_shovel")).is_equal(Vector2i(2, 11))
 	assert_that(_object_at(data, &"acre_sign")).is_equal(Vector2i(9, 11))
 	assert_that(_object_at(data, &"yard_chair")).is_equal(Vector2i(9, 3))
-	assert_that(_object_at(data, &"pip")).is_equal(Vector2i(10, 9))
+	assert_that(_object_at(data, &"filbert")).is_equal(Vector2i(10, 9))
 	assert_that(_object_at(data, &"pansy_1")).is_equal(Vector2i(6, 10))
 	assert_that(_object_at(data, &"ground_sapling")).is_equal(Vector2i(3, 12))
 	assert_that(_object_at(data, &"rock_1")).is_equal(Vector2i(3, 8))
@@ -354,7 +354,7 @@ func test_builder_instances_test_town_scenes() -> void:
 	assert_that(world.get_node_or_null("Objects/yard_chair")).is_not_null()
 	assert_that(world.get_node_or_null("Objects/tree_1")).is_not_null()
 	assert_that(world.get_node_or_null("Objects/ground_apple")).is_not_null()
-	assert_that(world.get_node_or_null("Characters/pip")).is_not_null()
+	assert_that(world.get_node_or_null("Characters/filbert")).is_not_null()
 	assert_that(world.get_node_or_null("Characters/PlayerSpawn")).is_not_null()
 	assert_that(world.get_node_or_null("Terrain/Heightfield")).is_not_null()
 	var spawn_marker: Marker3D = world.get_node("Characters/PlayerSpawn") as Marker3D

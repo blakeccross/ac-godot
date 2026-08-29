@@ -82,16 +82,16 @@ Move-out: `removing`, `remove_animal_idx` on save, minimum days before force rem
 - New game fills **six** outdoor villagers: shuffle the starter pool, keep one of each looks, assign to the six NPC houses.
 - Field day is a reusable action queue: wake / leave home / walk to goal acre / wander / go home / sleep. Wander **loops** for the whole FIELD window (wait / walk / run around the acre). Sit / fish / shop are not the FIELD default.
 - While in the field, pick a goal acre from looks+time (`shrine` / other `home` / `alone` / `my_home`). Walkers go there, linger in-acre, then pick a new goal. Concurrent town-walkers cap at `n/3` (max 5). Empty goal-table windows stay on the home acre. Non-walkers still wander their home acre; they do not stand at the door.
-- Species GLB (`squ_1`, `cat_1`, …) + shared `npc_1` wait/walk when `assets/generated/characters/villagers/` exists. Display names are original-inspired.
+- Species GLB (`squ_1`, `cat_1`, …) + shared `npc_1` wait/walk when `assets/generated/characters/villagers/` exists. Display names use the original villager names.
 - Talk updates last-spoke and a simple friendship number.
 - Not on the acre when sleeping or indoors (or visibly in bed later). Walking home/out is still visible.
 - Greeting differs by time of day / whether you’ve already talked (can be a flag, not full memory struct).
 
 ## Simplify
 
-- Looks tables for all six personalities as data. Pip uses the lazy (boy) table.
+- Looks tables for all six personalities as data. Filbert uses the lazy (boy) table (`data/schedules/pip_weekday.tres`).
 - Shared activity runner (`VillagerAI` + reusable `ActivityKind` steps). Not per-villager AI scripts and not `aNPC_think_*` overlays. Wander wait/walk/run weights and acre-center radius come from that think, encoded as data on `VillagerWalk`.
-- Field goals use `mNpcW_GOAL_*` kinds and acre picks. Full-town walks the route; no acre-edge appear/streaming and no gate waypoint graphs. Stay-in-acre then new goal is ~28s, not the original 30-minute arrive counter. Wander dests sit on the 280 GX acre circle (snapped off house/tree). Arrive uses √72 GX so a walk covers the rim, not one cell. Display names are original-inspired; meshes are disc species GLBs (`squ_1`, `cat_1`, …) when converted.
+- Field goals use `mNpcW_GOAL_*` kinds and acre picks. Full-town walks the route; no acre-edge appear/streaming and no gate waypoint graphs. Stay-in-acre then new goal is ~28s, not the original 30-minute arrive counter. Wander dests sit on the 280 GX acre circle (snapped off house/tree). Arrive uses √72 GX so a walk covers the rim, not one cell. Display names use the original villager names; meshes are disc species GLBs (`squ_1`, `cat_1`, …) when converted.
 - Friendship as an int 0–255 (or 0–100) without letter scoring.
 - Skip villager–villager relation matrix.
 - Skip move-out lottery and “return visitor” (`Anmret_c`). New towns stay at six starters (one looks each).

@@ -1,7 +1,7 @@
 [gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scenes/actors/villager.gd" id="1"]
-[ext_resource type="Resource" path="res://data/villagers/pip.tres" id="2"]
+[ext_resource type="Resource" path="res://data/villagers/filbert.tres" id="2"]
 [ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="3"]
 
 [sub_resource type="CylinderShape3D" id="CapsuleShape"]
