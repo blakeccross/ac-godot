@@ -654,6 +654,40 @@ func test_wander_keeps_dest_past_the_next_cell() -> void:
 	assert_bool(motor.has_target).is_true()
 
 
+func test_avoid_keeps_rim_dest() -> void:
+	## `aNPC_set_avoid_pos` must not replace `dst_pos`. Near avoid resumes the rim.
+	var motor := VillagerMotor.new()
+	motor.reset(Vector3.ZERO)
+	var rim := Vector3(14, 0, 0)
+	motor.set_target(rim, VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE)
+	motor.set_avoid(Vector3(2, 0, 2))
+	assert_bool(motor.is_avoiding()).is_true()
+	assert_vector(motor.target).is_equal(rim)
+	var at_avoid: Vector3 = motor.tick(0.1, Vector3(2, 0, 2), Vector3(2, 0, 2), true)
+	assert_vector(at_avoid).is_equal(Vector3.ZERO)
+	assert_bool(motor.has_target).is_true()
+	assert_bool(motor.is_avoiding()).is_false()
+	assert_vector(motor.steer).is_equal(rim)
+	var resume: Vector3 = motor.tick(0.1, Vector3(2, 0, 2), Vector3(4, 0, 2), true)
+	assert_float(resume.length()).is_greater(0.1)
+	assert_vector(motor.target).is_equal(rim)
+
+
+func test_pause_keeps_dest() -> void:
+	var motor := VillagerMotor.new()
+	motor.reset(Vector3.ZERO)
+	motor.set_target(Vector3(10, 0, 0), VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE)
+	motor.pause(0.2)
+	assert_bool(motor.has_target).is_true()
+	assert_bool(motor.needs_new_target()).is_false()
+	var paused: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(10, 0, 0), true)
+	assert_vector(paused).is_equal(Vector3.ZERO)
+	motor.tick(0.2, Vector3.ZERO, Vector3(10, 0, 0), true)
+	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(10, 0, 0), true)
+	assert_float(step.length()).is_greater(0.1)
+	assert_bool(motor.has_target).is_true()
+
+
 func test_wander_arrive_is_tight() -> void:
 	var motor := VillagerMotor.new()
 	motor.reset(Vector3.ZERO)

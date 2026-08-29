@@ -3,6 +3,7 @@ extends RefCounted
 
 ## Walk / linger motor. FIELD roam targets a goal acre; local wait/walk/run
 ## matches `aNPC_think_wander_decide_next`.
+## Dest vs avoid mirrors `dst_pos` / `avoid_pos`: a wall hop must not end the walk.
 
 const ARRIVE := 0.4
 const TURN_SPEED := 4.0
@@ -18,7 +19,10 @@ var wander_radius: float = 14.0
 var home: Vector3 = Vector3.ZERO
 var facing: float = 0.0
 var wait_left: float = 0.0
+## Rim / walk goal (`dst_pos`). Arrive ends the wander step only here.
 var target: Vector3 = Vector3.ZERO
+## Current steer point (`avoid_pos`). Wall avoid updates this; dest stays.
+var steer: Vector3 = Vector3.ZERO
 var has_target: bool = false
 var gait: StringName = VillagerWalk.ACT_WAIT
 var arrive_radius: float = ARRIVE
@@ -28,6 +32,7 @@ func reset(p_home: Vector3, yaw: float = 0.0) -> void:
 	home = p_home
 	facing = yaw
 	target = p_home
+	steer = p_home
 	has_target = false
 	wait_left = 0.0
 	gait = VillagerWalk.ACT_WAIT
@@ -53,23 +58,51 @@ func set_target(
 	next_gait: StringName = VillagerWalk.ACT_WALK,
 	p_arrive: float = ARRIVE
 ) -> void:
+	## `aNPC_set_dst_pos` also resets avoid to the same point.
 	target = world_pos
+	steer = world_pos
 	has_target = true
 	wait_left = 0.0
 	gait = next_gait
 	arrive_radius = p_arrive
 
 
+func set_avoid(world_pos: Vector3) -> void:
+	## `aNPC_set_avoid_pos` — keep `dst_pos`, steer around the wall.
+	if not has_target:
+		set_target(world_pos)
+		return
+	steer = world_pos
+	wait_left = 0.0
+	if gait == VillagerWalk.ACT_WAIT:
+		gait = VillagerWalk.ACT_WALK
+
+
 func wait_in_place(seconds: float = VillagerWalk.WAIT_SECONDS) -> void:
 	has_target = false
+	steer = target
 	gait = VillagerWalk.ACT_WAIT
+	wait_left = seconds
+
+
+func pause(seconds: float = VillagerWalk.WAIT_SECONDS) -> void:
+	## Brief stop without abandoning the rim dest (avoid failed / turn).
 	wait_left = seconds
 
 
 func arrive() -> void:
 	has_target = false
+	steer = target
 	wait_left = 0.0
 	gait = VillagerWalk.ACT_WAIT
+
+
+func is_avoiding() -> bool:
+	if not has_target:
+		return false
+	var delta: Vector3 = steer - target
+	delta.y = 0.0
+	return delta.length() > arrive_radius
 
 
 func random_offset() -> Vector3:
@@ -93,11 +126,14 @@ func tick(delta: float, from: Vector3, next: Vector3, moving: bool) -> Vector3:
 		return Vector3.ZERO
 	if not has_target:
 		return Vector3.ZERO
-	var to_target: Vector3 = target - from
-	to_target.y = 0.0
-	if to_target.length() <= arrive_radius:
-		arrive()
-		return Vector3.ZERO
+	## `aNPC_check_arrive_destination`: near avoid_pos. If avoid ≠ dst, resume dst.
+	var to_steer: Vector3 = steer - from
+	to_steer.y = 0.0
+	if to_steer.length() <= arrive_radius:
+		if not is_avoiding():
+			arrive()
+			return Vector3.ZERO
+		steer = target
 	var to: Vector3 = next - from
 	to.y = 0.0
 	## No open step this frame. Keep the dest — `aNPC_avoid_wall` steers; do not
@@ -109,5 +145,5 @@ func tick(delta: float, from: Vector3, next: Vector3, moving: bool) -> Vector3:
 	facing = lerp_angle(facing, yaw, clampf(TURN_SPEED * delta, 0.0, 1.0))
 	if diff > TURN_ONLY:
 		return Vector3.ZERO
-	## Move toward the dest (or the open step), not along facing, so a run gait cannot orbit.
+	## Move toward the open step / steer point, not along facing.
 	return to.normalized() * speed_now()

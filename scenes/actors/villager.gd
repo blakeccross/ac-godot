@@ -138,7 +138,7 @@ func _physics_process(delta: float) -> void:
 		)
 	elif on_bg:
 		_snap_to_bg()
-	_give_up_if_stuck(delta, before, planar)
+	_give_up_if_stuck(delta, before, planar, next)
 	_update_animation(delta, planar)
 	ai.step(delta)
 
@@ -238,12 +238,19 @@ func _steer_to(world_pos: Vector3) -> void:
 
 
 func _next_point() -> Vector3:
-	## Walk toward the dest (`aNPC_act_to_point_move`). Town navmesh is a flat
-	## y=0.05 quad, so `get_next_path_position` is underfoot. Cell-center steps
-	## ended a walk after one unit and aimed at points behind walls.
-	if _motor.has_target:
-		return _motor.target
-	return global_position
+	## Aim at avoid/steer (`avoid_pos`), not only the rim dest. Step around house
+	## cells so a far rim point does not charge the yard StaticBody. The motor
+	## keeps `target` as `dst_pos` until the rim arrive — cell steps do not end
+	## the walk (old bug).
+	if not _motor.has_target:
+		return global_position
+	var aim: Vector3 = _motor.steer
+	var bg: Array = _bg()
+	if bg.size() != 2:
+		return aim
+	var next: Vector3 = VillagerWalk.step_toward(bg[0] as WorldData, global_position, aim)
+	next.y = global_position.y
+	return next
 
 
 func _nav_ready() -> bool:
@@ -262,12 +269,19 @@ func _walkable_near(world_pos: Vector3) -> Vector3:
 	return pos
 
 
-func _give_up_if_stuck(delta: float, before: Vector3, planar: Vector3) -> void:
+func _give_up_if_stuck(delta: float, before: Vector3, planar: Vector3, next: Vector3) -> void:
 	## `aNPC_avoid_wall`: a front collision steers 2 units off, it does not grind.
-	if planar.length() <= IDLE_SPEED or not _motor.has_target:
+	## Keep the rim dest — avoid only updates `steer` (`avoid_pos`).
+	if not _motor.has_target:
 		_stuck_elapsed = 0.0
 		return
-	if not _blocked_this_frame(before, planar):
+	var to_next: Vector3 = next - before
+	to_next.y = 0.0
+	var boxed: bool = to_next.length() <= 0.001
+	if not boxed and planar.length() <= IDLE_SPEED:
+		_stuck_elapsed = 0.0
+		return
+	if not boxed and not _blocked_this_frame(before, planar):
 		_stuck_elapsed = 0.0
 		return
 	_stuck_elapsed += delta
@@ -280,11 +294,11 @@ func _give_up_if_stuck(delta: float, before: Vector3, planar: Vector3) -> void:
 func _blocked_this_frame(before: Vector3, planar: Vector3) -> bool:
 	var moved: Vector3 = global_position - before
 	moved.y = 0.0
-	var to_dest: Vector3 = _motor.target - before
-	to_dest.y = 0.0
+	var to_aim: Vector3 = _motor.steer - before
+	to_aim.y = 0.0
 	var progress: float = 0.0
-	if to_dest.length() > 0.01:
-		progress = moved.dot(to_dest.normalized())
+	if to_aim.length() > 0.01:
+		progress = moved.dot(to_aim.normalized())
 	if get_slide_collision_count() > 0 and progress < STUCK_MOVE:
 		return true
 	return moved.length() < STUCK_MOVE
@@ -293,7 +307,7 @@ func _blocked_this_frame(before: Vector3, planar: Vector3) -> bool:
 func _steer_around_wall() -> void:
 	var bg: Array = _bg()
 	if bg.size() != 2:
-		_motor.wait_in_place()
+		_motor.pause()
 		return
 	var data: WorldData = bg[0] as WorldData
 	var grid: WorldGrid = bg[1] as WorldGrid
@@ -306,12 +320,11 @@ func _steer_around_wall() -> void:
 	var delta: Vector3 = around - global_position
 	delta.y = 0.0
 	if delta.length() < VillagerWalk.MIN_STEP:
-		_motor.wait_in_place()
+		## Decomp turns 180° when every probe fails — do not drop `dst_pos`.
+		_motor.facing = wrapf(_motor.facing + PI, -PI, PI)
+		_motor.pause()
 		return
-	var gait: StringName = _motor.gait
-	if gait == VillagerWalk.ACT_WAIT:
-		gait = VillagerWalk.ACT_WALK
-	_motor.set_target(around, gait, VillagerWalk.WANDER_ARRIVE)
+	_motor.set_avoid(around)
 
 
 func _roam_point() -> Vector3:
