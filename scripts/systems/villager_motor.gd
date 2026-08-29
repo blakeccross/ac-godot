@@ -8,10 +8,12 @@ const ARRIVE := 0.4
 const TURN_SPEED := 4.0
 ## Dest more than 90° behind → turn in place (`aNPC_think_wander_check_ones_way`).
 const TURN_ONLY := 1.5708
-## NPC run is 4.0 GX/frame vs walk 1.0.
-const RUN_SCALE := 4.0
+## Field NPC `aNPC_spd_data`: walk 1.0 GX/frame, run 3.0. Shop/special NPCs
+## override to 4.0 GX; villagers do not. 40 GX = 2 m at 30 Hz → 1.5 / 4.5 m/s.
+const RUN_SCALE := 3.0
+const WALK_SPEED := 1.5
 
-var walk_speed: float = 1.5
+var walk_speed: float = WALK_SPEED
 var wander_radius: float = 14.0
 var home: Vector3 = Vector3.ZERO
 var facing: float = 0.0
@@ -35,7 +37,8 @@ func reset(p_home: Vector3, yaw: float = 0.0) -> void:
 func configure(personality: VillagerPersonality) -> void:
 	if personality == null:
 		return
-	walk_speed = personality.walk_speed
+	## Looks change wait/walk/run *odds*, not max speed (`aNPC_spd_data` is shared).
+	walk_speed = personality.walk_speed if personality.walk_speed > 0.0 else WALK_SPEED
 	wander_radius = personality.wander_radius
 	if wander_radius < VillagerWalk.RANGE_RADIUS * 0.5:
 		wander_radius = VillagerWalk.RANGE_RADIUS

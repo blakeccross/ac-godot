@@ -10,5 +10,5 @@ display_name = "Jock"
 looks = 3
 schedule = ExtResource("2")
 placeholder_color = Color(0.45, 0.72, 0.42, 1)
-walk_speed = 2.3
+walk_speed = 1.5
 wander_radius = 7.0

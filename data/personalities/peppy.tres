@@ -10,5 +10,5 @@ display_name = "Peppy"
 looks = 1
 schedule = ExtResource("2")
 placeholder_color = Color(0.95, 0.55, 0.7, 1)
-walk_speed = 2.0
+walk_speed = 1.5
 wander_radius = 6.5

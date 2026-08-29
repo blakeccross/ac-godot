@@ -26,7 +26,7 @@ func schedule_table() -> ScheduleData:
 func walk_speed() -> float:
 	if personality != null:
 		return personality.walk_speed
-	return 1.6
+	return 1.5
 
 
 func wander_radius() -> float:

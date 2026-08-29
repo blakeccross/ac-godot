@@ -542,9 +542,40 @@ func test_motor_wait_then_walk() -> void:
 	motor.tick(0.2, Vector3.ZERO, Vector3(4, 0, 0), true)
 	assert_bool(motor.needs_new_target()).is_true()
 	motor.set_target(Vector3(4, 0, 0), VillagerWalk.ACT_RUN)
-	assert_float(motor.speed_now()).is_greater(motor.walk_speed)
+	assert_float(motor.speed_now()).is_equal_approx(motor.walk_speed * VillagerMotor.RUN_SCALE, 0.01)
 	motor.arrive()
 	assert_bool(motor.needs_new_target()).is_true()
+
+
+func test_field_run_is_three_times_walk() -> void:
+	## `aNPC_spd_data` walk 1.0 / run 3.0 GX/frame, same for every looks.
+	var motor := VillagerMotor.new()
+	motor.reset(Vector3.ZERO)
+	assert_float(motor.walk_speed).is_equal_approx(VillagerMotor.WALK_SPEED, 0.01)
+	motor.set_target(Vector3(8, 0, 0), VillagerWalk.ACT_WALK)
+	assert_float(motor.speed_now()).is_equal_approx(1.5, 0.01)
+	motor.set_target(Vector3(8, 0, 0), VillagerWalk.ACT_RUN)
+	assert_float(motor.speed_now()).is_equal_approx(4.5, 0.01)
+	assert_float(VillagerMotor.RUN_SCALE).is_equal_approx(3.0, 0.01)
+	var jock: VillagerPersonality = load("res://data/personalities/jock.tres")
+	motor.configure(jock)
+	assert_float(motor.walk_speed).is_equal_approx(1.5, 0.01)
+	assert_float(motor.speed_now()).is_equal_approx(4.5, 0.01)
+
+
+func test_looks_share_field_walk_speed() -> void:
+	var paths: Array[String] = [
+		"res://data/personalities/normal.tres",
+		"res://data/personalities/peppy.tres",
+		"res://data/personalities/lazy.tres",
+		"res://data/personalities/jock.tres",
+		"res://data/personalities/cranky.tres",
+		"res://data/personalities/snooty.tres",
+	]
+	for path: String in paths:
+		var personality: VillagerPersonality = load(path)
+		assert_that(personality).is_not_null()
+		assert_float(personality.walk_speed).is_equal_approx(1.5, 0.01)
 
 
 func test_house_cells_are_not_standable() -> void:
@@ -632,7 +663,7 @@ func test_wander_arrive_is_tight() -> void:
 	assert_bool(motor.has_target).is_false()
 	motor.set_target(Vector3(8, 0, 0), VillagerWalk.ACT_RUN, VillagerWalk.WANDER_ARRIVE)
 	var run: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(8, 0, 0), true)
-	assert_float(run.length()).is_greater(motor.walk_speed)
+	assert_float(run.length()).is_equal_approx(motor.walk_speed * VillagerMotor.RUN_SCALE, 0.01)
 
 
 func test_motor_turns_in_place_when_dest_is_behind() -> void:

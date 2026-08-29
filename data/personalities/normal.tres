@@ -10,5 +10,5 @@ display_name = "Normal"
 looks = 0
 schedule = ExtResource("2")
 placeholder_color = Color(0.92, 0.72, 0.62, 1)
-walk_speed = 1.7
+walk_speed = 1.5
 wander_radius = 6.0
