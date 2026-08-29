@@ -171,9 +171,9 @@ func test_motor_stops_when_not_wandering() -> void:
 	var walk: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(3, 0, 0), true)
 	assert_float(walk.length()).is_greater(0.1)
 	motor.set_target(Vector3(10, 0, 0))
-	var underfoot: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3.ZERO, true)
-	assert_float(underfoot.length()).is_greater(0.1)
-	assert_float(underfoot.x).is_greater(0.0)
+	var boxed: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3.ZERO, true)
+	assert_vector(boxed).is_equal(Vector3.ZERO)
+	assert_bool(motor.has_target).is_false()
 
 
 func test_field_plan_is_reusable_actions() -> void:
@@ -501,3 +501,76 @@ func test_motor_wait_then_walk() -> void:
 	assert_float(motor.speed_now()).is_greater(motor.walk_speed)
 	motor.arrive()
 	assert_bool(motor.needs_new_target()).is_true()
+
+
+func test_house_cells_are_not_standable() -> void:
+	var data := _plot_with_house()
+	assert_bool(VillagerWalk.is_standable(data, Vector2i(7, 7))).is_false()
+	assert_bool(VillagerWalk.is_standable(data, Vector2i(2, 2))).is_true()
+	var flower := ObjectPlacement.new()
+	flower.kind = &"flower"
+	flower.cell = Vector2i(3, 2)
+	flower.occupy_grid = true
+	data.objects.append(flower)
+	assert_bool(VillagerWalk.is_standable(data, Vector2i(3, 2))).is_true()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 21
+	var from: Vector3 = data.cell_to_world(Vector2i(2, 2))
+	for _i: int in 40:
+		var stand: Vector3 = VillagerWalk.wander_in_block(data, Vector2i(1, 1), from, rng)
+		var cell := Vector2i(
+			int(floor((stand.x - data.origin().x) / data.cell_size)),
+			int(floor((stand.z - data.origin().z) / data.cell_size))
+		)
+		assert_bool(VillagerWalk.is_standable(data, cell)).is_true()
+		assert_that(cell).is_not_equal(Vector2i(6, 6))
+		assert_that(cell).is_not_equal(Vector2i(7, 7))
+		assert_that(cell).is_not_equal(Vector2i(8, 8))
+
+
+func test_step_toward_skips_house_cells() -> void:
+	var data := _plot_with_house()
+	var from: Vector3 = data.cell_to_world(Vector2i(5, 7))
+	var dest: Vector3 = data.cell_to_world(Vector2i(10, 7))
+	var next: Vector3 = VillagerWalk.step_toward(data, from, dest)
+	var cell := Vector2i(
+		int(floor((next.x - data.origin().x) / data.cell_size)),
+		int(floor((next.z - data.origin().z) / data.cell_size))
+	)
+	assert_bool(VillagerWalk.is_standable(data, cell)).is_true()
+	assert_that(cell).is_not_equal(Vector2i(6, 7))
+	assert_that(cell).is_not_equal(Vector2i(7, 7))
+
+
+func test_wander_arrive_stops_before_orbit() -> void:
+	var motor := VillagerMotor.new()
+	motor.reset(Vector3.ZERO)
+	motor.set_target(Vector3(3, 0, 0), VillagerWalk.ACT_RUN, VillagerWalk.WANDER_ARRIVE)
+	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(3, 0, 0), true)
+	assert_vector(step).is_equal(Vector3.ZERO)
+	assert_bool(motor.has_target).is_false()
+
+
+func test_motor_turns_in_place_when_dest_is_behind() -> void:
+	var motor := VillagerMotor.new()
+	motor.reset(Vector3.ZERO, 0.0)
+	motor.set_target(Vector3(0, 0, -5), VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE)
+	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(0, 0, -5), true)
+	assert_vector(step).is_equal(Vector3.ZERO)
+	assert_bool(motor.has_target).is_true()
+
+
+func _plot_with_house() -> WorldData:
+	var data := WorldData.new()
+	data.columns = 16
+	data.rows = 16
+	data.cell_size = 2.0
+	data.bake()
+	var house := BuildingPlacement.new()
+	house.id = &"npc_house_0"
+	house.kind = &"house"
+	house.cell = Vector2i(6, 6)
+	house.footprint = Vector2i(3, 3)
+	house.occupy_grid = true
+	data.buildings.append(house)
+	return data

@@ -6,6 +6,8 @@ extends CharacterBody3D
 ## Behavior: VillagerSchedule + VillagerAI + VillagerWalk (goal acres) + VillagerMotor.
 
 const IDLE_SPEED := 0.08
+const STUCK_MOVE := 0.03
+const STUCK_SECONDS := 0.4
 const ANIM_WAIT := "npc_1_wait1"
 const ANIM_WALK := "npc_1_walk1"
 const ANIM_RUN := "npc_1_run1"
@@ -27,6 +29,7 @@ var _goal_stand: Vector3 = Vector3.ZERO
 var _goal_block: Vector2i = Vector2i.ZERO
 var _goal_kind: StringName = VillagerWalk.GOAL_MY_HOME
 var _stay_elapsed: float = 0.0
+var _stuck_elapsed: float = 0.0
 
 @onready var _model: Node3D = $Model
 @onready var _placeholder: MeshInstance3D = $Model/PlaceholderMesh
@@ -136,6 +139,7 @@ func _physics_process(delta: float) -> void:
 		)
 	elif on_bg:
 		_snap_to_bg()
+	_give_up_if_stuck(delta, before, planar)
 	_update_animation(delta, planar)
 	ai.step(delta)
 
@@ -214,12 +218,14 @@ func _steer_wander(wandering: bool) -> void:
 	if delta.length() < VillagerWalk.MIN_STEP:
 		_motor.wait_in_place()
 		return
-	_motor.set_target(dest, act)
+	_motor.set_target(dest, act, VillagerWalk.WANDER_ARRIVE)
 	if _agent != null and _nav_ready():
 		_agent.target_position = dest
 
 
 func _steer_to(world_pos: Vector3) -> void:
+	if _motor.wait_left > 0.0:
+		return
 	var dest: Vector3 = _walkable_near(world_pos)
 	if not _motor.has_target or _motor.target.distance_to(dest) > 0.35:
 		_motor.set_target(dest)
@@ -230,7 +236,10 @@ func _steer_to(world_pos: Vector3) -> void:
 func _next_point() -> Vector3:
 	## Town navmesh is a flat y=0.05 quad. Heightfield actors sit well above it, so
 	## `get_next_path_position` is underfoot and the motor would "arrive" in place.
-	## Walk the destination in XZ; `FieldCollision.revise_xz` keeps them on land.
+	## Step one open cell at a time so a house footprint is not a straight-line dest.
+	var bg: Array = _bg()
+	if bg.size() == 2:
+		return VillagerWalk.step_toward(bg[0] as WorldData, global_position, _motor.target)
 	return _motor.target
 
 
@@ -245,24 +254,27 @@ func _walkable_near(world_pos: Vector3) -> Vector3:
 	var bg: Array = _bg()
 	if bg.size() != 2:
 		return world_pos
-	var grid: WorldGrid = bg[1] as WorldGrid
-	var cell: Vector2i = grid.world_to_cell(world_pos)
-	if grid.is_walkable(cell):
-		var pos: Vector3 = grid.cell_to_world(cell)
-		pos.y = world_pos.y
-		return pos
-	for radius: int in range(1, 8):
-		for dz: int in range(-radius, radius + 1):
-			for dx: int in range(-radius, radius + 1):
-				if maxi(absi(dx), absi(dz)) != radius:
-					continue
-				var n := Vector2i(cell.x + dx, cell.y + dz)
-				if not grid.is_walkable(n):
-					continue
-				var pos: Vector3 = grid.cell_to_world(n)
-				pos.y = world_pos.y
-				return pos
-	return world_pos
+	var pos: Vector3 = VillagerWalk.snap_standable(bg[0] as WorldData, world_pos)
+	pos.y = world_pos.y
+	return pos
+
+
+func _give_up_if_stuck(delta: float, before: Vector3, planar: Vector3) -> void:
+	## `aNPC_avoid_wall`: a collision with no progress is a wait, then a new dest.
+	if planar.length() <= IDLE_SPEED or not _motor.has_target:
+		_stuck_elapsed = 0.0
+		return
+	var moved: Vector3 = global_position - before
+	moved.y = 0.0
+	if moved.length() >= STUCK_MOVE:
+		_stuck_elapsed = 0.0
+		return
+	_stuck_elapsed += delta
+	var hit: bool = get_slide_collision_count() > 0
+	if _stuck_elapsed < STUCK_SECONDS and not (hit and _stuck_elapsed >= 0.15):
+		return
+	_stuck_elapsed = 0.0
+	_motor.wait_in_place()
 
 
 func _roam_point() -> Vector3:

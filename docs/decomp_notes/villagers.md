@@ -33,7 +33,7 @@ A global **schedule manager** ticks all animals. Looks (personality/species grou
 - `STAND` / `WANDER` / `WALK_WANDER`
 - `SPECIAL` (unique actor scripts)
 
-The field type is a **step machine**, not a single wander loop: leave house (hidden) → wander. If they are already outside (`is_home == FALSE`), skip leave and wander immediately. Wander think **does not end** until the schedule type changes (or a pitfall interrupt). Each wander step rolls wait / walk / run from looks weights and walks to a random point on a circle around the **acre center** (`range_radius` 280 GX). In-house is go home → into house → hide. Sleep hides when `is_home`. While in the field, `m_npc_walk` picks a goal acre from looks-based `{shrine, home, alone, my_home}` tables. Assigned walkers (cap `n/3`) walk toward that acre; everyone else keeps wandering their current acre.
+The field type is a **step machine**, not a single wander loop: leave house (hidden) → wander. If they are already outside (`is_home == FALSE`), skip leave and wander immediately. Wander think **does not end** until the schedule type changes (or a pitfall interrupt). Each wander step rolls wait / walk / run from looks weights and walks to a random **standable** unit in the acre (empty / ITEM1 / FTR; not HOUSE or TREE), within `range_radius` 280 GX of the acre center. Arrival is **72 GX** (~3.6 m); a dest more than 90° behind is a turn in place, not a reverse walk. Hitting a wall is avoid / turn / wait, then a new point — they do not grind a collider. In-house is go home → into house → hide. Sleep hides when `is_home`. While in the field, `m_npc_walk` picks a goal acre from looks-based `{shrine, home, alone, my_home}` tables. Assigned walkers (cap `n/3`) walk toward that acre; everyone else keeps wandering their current acre.
 
 The table can be **forced** for a timer (events, talking). `is_home` on `Animal_c` tracks whether they are inside.
 
@@ -91,7 +91,7 @@ Move-out: `removing`, `remove_animal_idx` on save, minimum days before force rem
 
 - Looks tables for all six personalities as data. Pip uses the lazy (boy) table.
 - Shared activity runner (`VillagerAI` + reusable `ActivityKind` steps). Not per-villager AI scripts and not `aNPC_think_*` overlays. Wander wait/walk/run weights and acre-center radius come from that think, encoded as data on `VillagerWalk`.
-- Field goals use `mNpcW_GOAL_*` kinds and acre picks. Full-town walks the route; no acre-edge appear/streaming and no gate waypoint graphs. Stay-in-acre then new goal is ~28s, not the original 30-minute arrive counter.
+- Field goals use `mNpcW_GOAL_*` kinds and acre picks. Full-town walks the route; no acre-edge appear/streaming and no gate waypoint graphs. Stay-in-acre then new goal is ~28s, not the original 30-minute arrive counter. Wander dests skip house/tree footprints; arrive uses the 72 GX radius so a run gait cannot orbit the point.
 - Friendship as an int 0–255 (or 0–100) without letter scoring.
 - Skip villager–villager relation matrix.
 - Skip move-out lottery and “return visitor” (`Anmret_c`). New towns stay at six starters (one looks each).

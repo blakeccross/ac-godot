@@ -6,6 +6,8 @@ extends RefCounted
 
 const ARRIVE := 0.4
 const TURN_SPEED := 4.0
+## Dest more than 90° behind → turn in place (`aNPC_think_wander_check_ones_way`).
+const TURN_ONLY := 1.5708
 ## NPC run is 4.0 GX/frame vs walk 1.0.
 const RUN_SCALE := 4.0
 
@@ -17,6 +19,7 @@ var wait_left: float = 0.0
 var target: Vector3 = Vector3.ZERO
 var has_target: bool = false
 var gait: StringName = VillagerWalk.ACT_WAIT
+var arrive_radius: float = ARRIVE
 
 
 func reset(p_home: Vector3, yaw: float = 0.0) -> void:
@@ -26,6 +29,7 @@ func reset(p_home: Vector3, yaw: float = 0.0) -> void:
 	has_target = false
 	wait_left = 0.0
 	gait = VillagerWalk.ACT_WAIT
+	arrive_radius = ARRIVE
 
 
 func configure(personality: VillagerPersonality) -> void:
@@ -39,11 +43,16 @@ func needs_new_target() -> bool:
 	return not has_target and wait_left <= 0.0
 
 
-func set_target(world_pos: Vector3, next_gait: StringName = VillagerWalk.ACT_WALK) -> void:
+func set_target(
+	world_pos: Vector3,
+	next_gait: StringName = VillagerWalk.ACT_WALK,
+	p_arrive: float = ARRIVE
+) -> void:
 	target = world_pos
 	has_target = true
 	wait_left = 0.0
 	gait = next_gait
+	arrive_radius = p_arrive
 
 
 func wait_in_place(seconds: float = VillagerWalk.WAIT_SECONDS) -> void:
@@ -79,19 +88,20 @@ func tick(delta: float, from: Vector3, next: Vector3, moving: bool) -> Vector3:
 		return Vector3.ZERO
 	if not has_target:
 		return Vector3.ZERO
-	var aim: Vector3 = next
-	var to_next: Vector3 = next - from
-	to_next.y = 0.0
 	var to_target: Vector3 = target - from
 	to_target.y = 0.0
-	## Nav next-point can sit under the actor (flat mesh at y=0.05 vs heightfield).
-	if to_next.length() <= ARRIVE and to_target.length() > ARRIVE:
-		aim = target
-	var to: Vector3 = aim - from
+	if to_target.length() <= arrive_radius:
+		arrive()
+		return Vector3.ZERO
+	var to: Vector3 = next - from
 	to.y = 0.0
-	if to.length() <= ARRIVE:
+	## Next is the current cell: boxed in. Do not charge the dest through a house.
+	if to.length() <= 0.05:
 		arrive()
 		return Vector3.ZERO
 	var yaw: float = atan2(to.x, to.z)
+	var diff: float = absf(angle_difference(facing, yaw))
 	facing = lerp_angle(facing, yaw, clampf(TURN_SPEED * delta, 0.0, 1.0))
+	if diff > TURN_ONLY:
+		return Vector3.ZERO
 	return Vector3(sin(facing), 0.0, cos(facing)) * speed_now()

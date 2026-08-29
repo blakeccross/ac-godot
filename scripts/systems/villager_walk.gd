@@ -28,8 +28,11 @@ const FG_Z1 := 6
 const RANGE_RADIUS := 14.0
 ## Skip wander picks that land on the current cell.
 const MIN_STEP := 1.6
+## `arrival_area_radius` 72 GX. Tight 0.4 m lets runners orbit the point.
+const WANDER_ARRIVE := 3.6
 ## One wait clip, then `decide_next` again.
 const WAIT_SECONDS := 2.0
+const _BLOCK_STAND: Array[StringName] = [&"tree", &"rock", &"house", &"shop", &"building"]
 
 static var _walkers: Dictionary = {}
 
@@ -188,6 +191,14 @@ static func is_in_block(data: WorldData, block: Vector2i, world_pos: Vector3) ->
 	return block_from_cell(cell) == block
 
 
+static func is_standable(data: WorldData, cell: Vector2i) -> bool:
+	if data == null or not data.is_in_bounds(cell):
+		return false
+	if not _walkable_terrain(data.terrain_at(cell)):
+		return false
+	return not _is_blocked_cell(data, cell)
+
+
 static func wander_in_block(
 	data: WorldData,
 	block: Vector2i,
@@ -197,24 +208,81 @@ static func wander_in_block(
 	if data == null:
 		return from
 	var center: Vector3 = block_center(data, block)
-	for _attempt: int in 5:
-		var angle: float = _rand_f(rng) * TAU
-		var raw: Vector3 = center + Vector3(sin(angle), 0.0, cos(angle)) * RANGE_RADIUS
-		var stand: Vector3 = _snap_walkable(data, raw)
-		if not is_in_block(data, block, stand) and has_town_acres(data) and is_fg_block(block):
-			continue
-		var delta: Vector3 = stand - from
-		delta.y = 0.0
-		if delta.length() >= MIN_STEP:
-			return stand
-	var cells: Array[Vector2i] = _walkable_cells(data, block)
-	for cell: Vector2i in cells:
+	var pool: Array[Vector3] = []
+	var far: Array[Vector3] = []
+	for cell: Vector2i in _walkable_cells(data, block):
 		var stand: Vector3 = data.cell_to_world(cell)
-		var delta: Vector3 = stand - from
-		delta.y = 0.0
-		if delta.length() >= MIN_STEP:
-			return stand
+		var from_delta: Vector3 = stand - from
+		from_delta.y = 0.0
+		if from_delta.length() < MIN_STEP:
+			continue
+		far.append(stand)
+		var to_center: Vector3 = stand - center
+		to_center.y = 0.0
+		if to_center.length() <= RANGE_RADIUS:
+			pool.append(stand)
+	if not pool.is_empty():
+		return pool[_rand_i(rng, pool.size())]
+	if not far.is_empty():
+		return far[_rand_i(rng, far.size())]
 	return stand_in_block(data, block, rng)
+
+
+static func snap_standable(data: WorldData, world_pos: Vector3) -> Vector3:
+	if data == null:
+		return world_pos
+	return _snap_walkable(data, world_pos)
+
+
+static func step_toward(data: WorldData, from: Vector3, dest: Vector3) -> Vector3:
+	## Next open cell toward dest. Analog of walking a unit, not through a house.
+	if data == null:
+		return dest
+	var from_cell: Vector2i = _world_to_cell(data, from)
+	var dest_cell: Vector2i = _world_to_cell(data, dest)
+	if from_cell == dest_cell:
+		return dest
+	var dx: int = signi(dest_cell.x - from_cell.x)
+	var dz: int = signi(dest_cell.y - from_cell.y)
+	var tried: Dictionary = {}
+	var tries: Array[Vector2i] = []
+	if dx != 0:
+		tries.append(Vector2i(dx, 0))
+	if dz != 0:
+		tries.append(Vector2i(0, dz))
+	if dx != 0 and dz != 0:
+		tries.append(Vector2i(dx, dz))
+	if dx != 0:
+		tries.append(Vector2i(dx, 1))
+		tries.append(Vector2i(dx, -1))
+	if dz != 0:
+		tries.append(Vector2i(1, dz))
+		tries.append(Vector2i(-1, dz))
+	for off: Vector2i in tries:
+		var n: Vector2i = from_cell + off
+		tried[n] = true
+		if is_standable(data, n):
+			return data.cell_to_world(n)
+	var around: Array[Vector2i] = []
+	for z: int in range(-1, 2):
+		for x: int in range(-1, 2):
+			if x == 0 and z == 0:
+				continue
+			var n := Vector2i(from_cell.x + x, from_cell.y + z)
+			if tried.has(n):
+				continue
+			if is_standable(data, n):
+				around.append(n)
+	if around.is_empty():
+		return from
+	var best: Vector2i = around[0]
+	var best_d: int = _cell_manhattan(best, dest_cell)
+	for n: Vector2i in around:
+		var d: int = _cell_manhattan(n, dest_cell)
+		if d < best_d:
+			best = n
+			best_d = d
+	return data.cell_to_world(best)
 
 
 static func pick_act(
@@ -401,7 +469,7 @@ static func _walkable_cells(data: WorldData, block: Vector2i) -> Array[Vector2i]
 			var cell := Vector2i(x, z)
 			if not data.is_in_bounds(cell):
 				continue
-			if _walkable_terrain(data.terrain_at(cell)):
+			if is_standable(data, cell):
 				out.append(cell)
 	return out
 
@@ -420,6 +488,58 @@ static func _walkable_terrain(terrain: WorldGrid.Terrain) -> bool:
 		or terrain == WorldGrid.Terrain.PATH
 		or terrain == WorldGrid.Terrain.STONE
 	)
+
+
+static func _cell_manhattan(a: Vector2i, b: Vector2i) -> int:
+	return absi(a.x - b.x) + absi(a.y - b.y)
+
+
+static func _world_to_cell(data: WorldData, world_pos: Vector3) -> Vector2i:
+	var org: Vector3 = data.origin()
+	return Vector2i(
+		int(floor((world_pos.x - org.x) / data.cell_size)),
+		int(floor((world_pos.z - org.z) / data.cell_size))
+	)
+
+
+static func _is_blocked_cell(data: WorldData, cell: Vector2i) -> bool:
+	for b: BuildingPlacement in data.buildings:
+		if b == null or not b.occupy_grid:
+			continue
+		if _covers(b.cell, b.footprint, b.facing, cell):
+			return true
+	for o: ObjectPlacement in data.objects:
+		if o == null or not o.occupy_grid:
+			continue
+		if not _BLOCK_STAND.has(o.kind):
+			continue
+		if _covers(o.cell, o.footprint, o.facing, cell):
+			return true
+	return false
+
+
+static func _covers(
+	anchor: Vector2i, size: Vector2i, facing: WorldGrid.Facing, cell: Vector2i
+) -> bool:
+	var w: int = maxi(size.x, 1)
+	var d: int = maxi(size.y, 1)
+	for x: int in w:
+		for z: int in d:
+			if anchor + _rotate_offset(Vector2i(x, z), facing) == cell:
+				return true
+	return false
+
+
+static func _rotate_offset(offset: Vector2i, facing: WorldGrid.Facing) -> Vector2i:
+	match facing:
+		WorldGrid.Facing.EAST:
+			return Vector2i(offset.y, -offset.x)
+		WorldGrid.Facing.NORTH:
+			return Vector2i(-offset.x, -offset.y)
+		WorldGrid.Facing.WEST:
+			return Vector2i(-offset.y, offset.x)
+		_:
+			return offset
 
 
 static func _act_boarder(looks: VillagerPersonality.Looks) -> Array[int]:
@@ -446,7 +566,7 @@ static func _snap_walkable(data: WorldData, world_pos: Vector3) -> Vector3:
 		int(floor((world_pos.x - org.x) / data.cell_size)),
 		int(floor((world_pos.z - org.z) / data.cell_size))
 	)
-	if data.is_in_bounds(cell) and _walkable_terrain(data.terrain_at(cell)):
+	if data.is_in_bounds(cell) and is_standable(data, cell):
 		return data.cell_to_world(cell)
 	for radius: int in range(1, 8):
 		for dz: int in range(-radius, radius + 1):
@@ -454,7 +574,7 @@ static func _snap_walkable(data: WorldData, world_pos: Vector3) -> Vector3:
 				if maxi(absi(dx), absi(dz)) != radius:
 					continue
 				var n := Vector2i(cell.x + dx, cell.y + dz)
-				if data.is_in_bounds(n) and _walkable_terrain(data.terrain_at(n)):
+				if data.is_in_bounds(n) and is_standable(data, n):
 					return data.cell_to_world(n)
 	return world_pos
 
