@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 from asset_pipeline.ckf import _mat_model_name, select_bind_anim
-from asset_pipeline.convert import _name_under_prefix, _owning_vtx_prefix, _static_jobs
+from asset_pipeline.convert import WATER_STATIC_NEEDLES, _name_under_prefix, _owning_vtx_prefix, _static_jobs
 from asset_pipeline.glb import _bake_wrap_group
 from asset_pipeline.layout import (
     bti_output_path,
@@ -82,6 +82,9 @@ class PrefixOwnershipTests(unittest.TestCase):
             _sym("grd_s_f_10_gfx_model", 4),
             _sym("obj_s_kouban_shadow_v", 5),
             _sym("obj_s_kouban_shadow_model", 6),
+            _sym("grd_s_r1_1_v", 7),
+            _sym("grd_s_r1_1_model", 8),
+            _sym("grd_s_r1_1_modelT", 9),
         ]
         jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
         self.assertNotIn("obj_s_kouban_shadow", jobs)
@@ -94,6 +97,16 @@ class PrefixOwnershipTests(unittest.TestCase):
         self.assertEqual(jobs["obj_s_tree5"]["output"], "environment/trees/obj_s_tree5.glb")
         self.assertEqual(jobs["obj_s_stump5"]["gfx"], ["obj_stump5T_gfx_model"])
         self.assertEqual(jobs["obj_s_stump5"]["output"], "environment/trees/obj_s_stump5.glb")
+        self.assertEqual(
+            jobs["grd_s_r1_1"]["gfx"],
+            ["grd_s_r1_1_model", "grd_s_r1_1_modelT"],
+        )
+
+    def test_water_needles_skip_rail_and_museum(self) -> None:
+        self.assertTrue(any(n in "grd_s_r1_1" for n in WATER_STATIC_NEEDLES))
+        self.assertTrue(any(n in "grd_s_m_1" for n in WATER_STATIC_NEEDLES))
+        self.assertFalse(any(n in "grd_s_rail_1" for n in WATER_STATIC_NEEDLES))
+        self.assertFalse(any(n in "grd_s_mh_1" for n in WATER_STATIC_NEEDLES))
 
 
 class OverlayMatTests(unittest.TestCase):
@@ -162,6 +175,38 @@ class WrapBakeTests(unittest.TestCase):
         self.assertAlmostEqual(_Part.vertices[1].u, 1.0)
         self.assertAlmostEqual(_Part.vertices[1].v, 1.0)
 
+    def test_water_repeat_is_not_baked(self) -> None:
+        from io import BytesIO
+
+        from PIL import Image
+
+        buf = BytesIO()
+        Image.new("RGBA", (8, 8), (0, 100, 200, 128)).save(buf, format="PNG")
+        png = buf.getvalue()
+
+        class _V:
+            def __init__(self, u: float, v: float) -> None:
+                self.u = u
+                self.v = v
+
+        class _Part:
+            wrap_s = GX_REPEAT
+            wrap_t = GX_REPEAT
+            texture_png = png
+            vertices = [_V(0.0, 0.0), _V(16.0, 16.0)]
+
+        group = {
+            "png": png,
+            "name": "river_mFM_grd_water1_tex",
+            "wrap_s": GX_REPEAT,
+            "wrap_t": GX_REPEAT,
+            "water_kind": "river",
+            "parts": [_Part()],
+        }
+        _bake_wrap_group(group)
+        self.assertEqual(group["wrap_s"], GX_REPEAT)
+        self.assertAlmostEqual(_Part.vertices[1].u, 16.0)
+
 
 class WindowDlTests(unittest.TestCase):
     def test_spill_vs_pane_names(self) -> None:
@@ -204,6 +249,19 @@ class WindowDlTests(unittest.TestCase):
         out = Image.open(BytesIO(i4_png_as_alpha(buf.getvalue()))).convert("RGBA")
         self.assertEqual(out.getpixel((0, 0))[3], 0)
         self.assertEqual(out.getpixel((1, 0))[3], 128)
+
+
+class WaterNameTests(unittest.TestCase):
+    def test_river_ocean_beach_kinds(self) -> None:
+        from asset_pipeline.gfx import beach_wet_kind, water_surface_kind
+
+        self.assertEqual(water_surface_kind("mFM_grd_water1_tex", "mFM_grd_water2_tex"), "river")
+        self.assertEqual(water_surface_kind("mFM_grd_wave1_tex", "mFM_grd_wave2_tex"), "ocean")
+        self.assertEqual(water_surface_kind("mFM_grd_sprashC_tex", "mFM_grd_sprashA_tex"), "splash")
+        self.assertEqual(water_surface_kind("obj_stump5T_gfx_model"), "")
+        self.assertEqual(beach_wet_kind("mFM_grd_beachB_tex"), "beach_wet")
+        self.assertEqual(beach_wet_kind("mFM_grd_beachA_tex"), "beach_wet")
+        self.assertEqual(beach_wet_kind("mFM_grd_s_beach_tex"), "")
 
 
 class BindAnimTests(unittest.TestCase):

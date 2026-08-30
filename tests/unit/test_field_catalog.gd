@@ -242,3 +242,12 @@ func test_gyroid_mesh_paths_when_converted() -> void:
 	if paths.is_empty():
 		return
 	assert_str(paths[0]).contains("int_hnw001")
+
+
+func test_water_wave_cos_matches_decomp() -> void:
+	## `aFD_MakeMarinScrollInfo`: 300-frame cosine; tile1_scroll = 32*(1-cos).
+	assert_float(GeneratedVisual.water_wave_cos(0.0)).is_equal_approx(1.0, 0.0001)
+	assert_float(GeneratedVisual.water_wave_cos(150.0)).is_equal_approx(-1.0, 0.0001)
+	assert_float(GeneratedVisual.water_wave_cos(300.0)).is_equal_approx(1.0, 0.0001)
+	assert_float(32.0 * (1.0 - GeneratedVisual.water_wave_cos(0.0))).is_equal_approx(0.0, 0.0001)
+	assert_float(32.0 * (1.0 - GeneratedVisual.water_wave_cos(150.0))).is_equal_approx(64.0, 0.0001)

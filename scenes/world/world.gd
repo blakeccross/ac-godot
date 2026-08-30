@@ -27,7 +27,10 @@ func _ready() -> void:
 	_build_navigation()
 	Clock.time_changed.connect(_apply_time_of_day)
 	Clock.field_renewed.connect(_on_field_renewed)
+	Clock.hour_changed.connect(_on_hour_changed)
+	Game.weather_changed.connect(_on_weather_changed)
 	_apply_time_of_day()
+	_play_outdoor_bgm()
 	_spawn_player()
 
 
@@ -49,6 +52,25 @@ func _build_navigation() -> void:
 	nav.add_polygon(PackedInt32Array([0, 1, 2]))
 	nav.add_polygon(PackedInt32Array([0, 2, 3]))
 	_navigation.navigation_mesh = nav
+
+
+func _exit_tree() -> void:
+	if Clock.hour_changed.is_connected(_on_hour_changed):
+		Clock.hour_changed.disconnect(_on_hour_changed)
+	if Game.weather_changed.is_connected(_on_weather_changed):
+		Game.weather_changed.disconnect(_on_weather_changed)
+
+
+func _on_hour_changed(_hour: int) -> void:
+	_play_outdoor_bgm()
+
+
+func _on_weather_changed(_weather: StringName) -> void:
+	_play_outdoor_bgm()
+
+
+func _play_outdoor_bgm() -> void:
+	Audio.play_bgm(BgmCatalog.outdoor_id(Clock.hour, Game.weather))
 
 
 func _spawn_player() -> void:

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"shirt_000"
+display_name = "Flame Shirt"
+description = "A shirt from the Able Sisters."
+category = 8
+sell_price = 360
+buy_price = 360
+cloth_index = 0
+max_stack = 1
+droppable = true
+usable = false
+icon_color = Color(0.82, 0.28, 0.22, 1)

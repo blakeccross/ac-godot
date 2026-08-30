@@ -14,6 +14,7 @@ extends StaticBody3D
 func _ready() -> void:
 	add_to_group("interactable")
 	GeneratedVisual.attach(self, visual_id)
+	HostCollision.apply_box(self, footprint, HostCollision.CELL, 1.4)
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:

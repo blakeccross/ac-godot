@@ -178,5 +178,5 @@ def _converter_for(fmt: str, rel: str) -> str:
     if "foresta.rel" in rel:
         return "rel_symbols"
     if rel.endswith("audiorom.img"):
-        return "audio_pending"
+        return "audio_ogg"
     return "none"

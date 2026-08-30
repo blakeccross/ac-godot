@@ -353,6 +353,10 @@ func test_builder_instances_test_town_scenes() -> void:
 	var grid := WorldGrid.new()
 	WorldBuilder.new().build(world, data, grid)
 	assert_that(world.get_node_or_null("Buildings/player_house")).is_not_null()
+	var player_house: Node3D = world.get_node("Buildings/player_house") as Node3D
+	var house_stand: Vector2i = grid.world_to_cell(player_house.position)
+	assert_float(player_house.position.y).is_equal_approx(FieldCollision.ground_y(data, house_stand), 0.001)
+	assert_float(player_house.position.y).is_less(FieldCollision.height_at(data, house_stand) - 2.0)
 	assert_that(world.get_node_or_null("Buildings/acre_shop")).is_not_null()
 	assert_that(world.get_node_or_null("Buildings/npc_house_0")).is_not_null()
 	assert_that(world.get_node_or_null("Buildings/npc_house_0").get("occupant_id")).is_equal(&"filbert")

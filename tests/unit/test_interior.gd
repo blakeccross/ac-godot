@@ -62,8 +62,22 @@ func test_catalog_covers_every_gc_interior() -> void:
 	assert_bool(filbert.wall_id != rosie.wall_id or filbert.floor_id != rosie.floor_id).is_true()
 	assert_bool(filbert.shell_ids.has("rom_myhome2_floor")).is_true()
 	assert_bool(filbert.shell_ids.has("rom_myhome2_wall")).is_true()
-	assert_bool(InteriorCatalog.room_template(&"player_main").shell_ids.has("rom_myhome1_floor")).is_true()
+	var player_main: Room = InteriorCatalog.room_template(&"player_main")
+	assert_bool(player_main.shell_ids.has("rom_myhome1_floor")).is_true()
+	assert_that(player_main.inner_origin).is_equal(InteriorCatalog.PLAYER_INNER_ORIGIN)
+	assert_that(player_main.inner_size).is_equal(InteriorCatalog.PLAYER_INNER_SIZE)
+	assert_that(player_main.wall_id).is_equal(InteriorCatalog.wall_style_id(InteriorCatalog.PLAYER_START_WALL))
+	assert_that(player_main.floor_id).is_equal(InteriorCatalog.floor_style_id(InteriorCatalog.PLAYER_START_FLOOR))
+	assert_int(player_main.placements.size()).is_equal(2)
+	var starter_ids: PackedStringArray = PackedStringArray()
+	for entry: FurniturePlacement in player_main.placements:
+		starter_ids.append(String(entry.furniture_id))
+	assert_bool(starter_ids.has("int_nog_mikanbox")).is_true()
+	assert_bool(starter_ids.has("int_sum_casse01")).is_true()
 	assert_bool(InteriorCatalog.room_template(&"shop0").shell_ids.has("rom_shop1f")).is_true()
+	assert_int(InteriorCatalog.room_template(&"shop0").placements.size()).is_equal(2)
+	assert_bool(InteriorCatalog.room_template(&"needlework").shell_ids.has("rom_tailor")).is_true()
+	assert_int(InteriorCatalog.room_template(&"needlework").placements.size()).is_equal(1)
 
 
 func test_npc_room_uses_fg_furniture() -> void:
@@ -98,6 +112,15 @@ func test_npc_room_uses_fg_furniture() -> void:
 	assert_float(framed.z).is_equal_approx(framed.y, 0.001)
 	var tighter: Vector3 = cam.call("offset_for_ground_span", 12.0)
 	assert_float(framed.y).is_greater(tighter.y)
+	var small: Vector3 = cam.call("offset_to_frame_span", 8.0)
+	var floor: Vector3 = cam.call("offset_to_frame_span", 1.0)
+	assert_float(small.y).is_equal_approx(floor.y, 0.01)
+	assert_float(small.y).is_greater(cam.call("offset_for_ground_span", 8.0).y)
+	assert_float(framed.y).is_greater(small.y)
+	var InteriorWorld := load("res://scenes/world/interior.gd")
+	assert_bool(InteriorWorld.pins_follow_camera(filbert)).is_true()
+	assert_bool(InteriorWorld.pins_follow_camera(InteriorCatalog.room_template(&"player_main"))).is_true()
+	assert_bool(InteriorWorld.pins_follow_camera(InteriorCatalog.room_template(&"shop0"))).is_false()
 
 
 func test_alli_mannequins_carry_cloth_index() -> void:
@@ -250,6 +273,13 @@ func test_style_page_from_wall_floor_labels() -> void:
 	assert_int(GeneratedVisual._style_page("wall_15.png")).is_equal(0)
 
 
+func test_room_trim_is_not_wallpaper() -> void:
+	assert_that(GeneratedVisual._classify_room_surface("rom_myhome1_wall rom_myhome_window_tex")).is_equal(&"")
+	assert_that(GeneratedVisual._classify_room_surface("rom_myhome2_wall rom_myhome_enter_tex")).is_equal(&"")
+	assert_that(GeneratedVisual._classify_room_surface("rom_myhome1_wall player_room_wall_03_0")).is_equal(&"wall")
+	assert_that(GeneratedVisual._classify_room_surface("rom_myhome1_floor player_room_floor_38_0")).is_equal(&"floor")
+
+
 func test_floor_atlas_retile_mirrors_odd_cells() -> void:
 	## GX_MIRROR corner tile: odd cells flip so 2×2 becomes one medallion, not 4 copies.
 	var img := Image.create(2, 2, false, Image.FORMAT_RGBA8)
@@ -273,12 +303,14 @@ func test_indoor_grid_uses_world_grid() -> void:
 	var room: Room = Game.interiors.room(&"player_main")
 	var interior := Interior.new()
 	interior.bind(room)
+	var open: Vector2i = room.inner_origin + Vector2i(1, 1)
 	assert_int(interior.grid.columns).is_equal(16)
 	assert_int(interior.grid.rows).is_equal(16)
 	assert_float(interior.grid.cell_size).is_equal(2.0)
-	assert_that(interior.grid.terrain_at(Vector2i(6, 7))).is_equal(WorldGrid.Terrain.STONE)
+	assert_that(interior.grid.terrain_at(open)).is_equal(WorldGrid.Terrain.STONE)
 	assert_that(interior.grid.terrain_at(Vector2i(0, 0))).is_equal(WorldGrid.Terrain.BLOCKED)
-	assert_that(interior.grid.occupant_at(Vector2i(6, 7))).is_equal(&"ftr_1")
+	assert_that(interior.grid.occupant_at(open)).is_equal(&"")
+	assert_that(interior.grid.occupant_at(room.inner_origin)).is_not_equal(&"")
 
 
 func test_place_rotate_footprint_and_collision() -> void:
@@ -287,18 +319,19 @@ func test_place_rotate_footprint_and_collision() -> void:
 	interior.bind(room)
 	var table: FurnitureData = ItemCatalog.get_item(&"wood_table") as FurnitureData
 	assert_that(table.footprint).is_equal(Vector2i(2, 1))
-	var south: FurniturePlacement = interior.place(table, Vector2i(8, 6), WorldGrid.Facing.SOUTH)
+	var anchor: Vector2i = room.inner_origin + Vector2i(1, 1)
+	var south: FurniturePlacement = interior.place(table, anchor, WorldGrid.Facing.SOUTH)
 	assert_that(south).is_not_null()
-	assert_that(interior.grid.occupant_at(Vector2i(8, 6))).is_equal(south.id)
-	assert_that(interior.grid.occupant_at(Vector2i(9, 6))).is_equal(south.id)
-	assert_bool(interior.can_place(table, Vector2i(8, 6), WorldGrid.Facing.EAST, south.id)).is_true()
+	assert_that(interior.grid.occupant_at(anchor)).is_equal(south.id)
+	assert_that(interior.grid.occupant_at(anchor + Vector2i(1, 0))).is_equal(south.id)
+	assert_bool(interior.can_place(table, anchor, WorldGrid.Facing.EAST, south.id)).is_true()
 	assert_bool(interior.rotate(south.id, 1)).is_true()
 	assert_that(south.facing).is_equal(WorldGrid.Facing.EAST)
-	assert_that(interior.grid.occupant_at(Vector2i(8, 6))).is_equal(south.id)
-	assert_that(interior.grid.occupant_at(Vector2i(8, 5))).is_equal(south.id)
-	assert_that(interior.grid.occupant_at(Vector2i(9, 6))).is_equal(&"")
+	assert_that(interior.grid.occupant_at(anchor)).is_equal(south.id)
+	assert_that(interior.grid.occupant_at(anchor + Vector2i(0, -1))).is_equal(south.id)
+	assert_that(interior.grid.occupant_at(anchor + Vector2i(1, 0))).is_equal(&"")
 	var chair: FurnitureData = ItemCatalog.get_item(&"wood_chair") as FurnitureData
-	assert_bool(interior.can_place(chair, Vector2i(8, 6), WorldGrid.Facing.SOUTH)).is_false()
+	assert_bool(interior.can_place(chair, anchor, WorldGrid.Facing.SOUTH)).is_false()
 	assert_bool(interior.can_place(chair, Vector2i(room.door_cell.x, room.door_cell.y), WorldGrid.Facing.SOUTH)).is_false()
 	assert_bool(interior.can_place(chair, Vector2i(0, 0), WorldGrid.Facing.SOUTH)).is_false()
 
@@ -309,9 +342,11 @@ func test_pick_up_and_decorate() -> void:
 	interior.bind(room)
 	Game.current_room_id = &"player_main"
 	Game.bind_interior(interior)
-	var chair_id: StringName = room.placements[0].id
-	assert_that(interior.pick_up(chair_id)).is_equal(&"wood_chair")
-	assert_int(room.placements.size()).is_equal(0)
+	var chair: FurnitureData = ItemCatalog.get_item(&"wood_chair") as FurnitureData
+	var placed: FurniturePlacement = interior.place(chair, room.inner_origin + Vector2i(1, 1), WorldGrid.Facing.SOUTH)
+	assert_that(placed).is_not_null()
+	assert_that(interior.pick_up(placed.id)).is_equal(&"wood_chair")
+	assert_int(room.placements.size()).is_equal(2)
 	assert_bool(interior.decorate_wall(InteriorCatalog.WALL_BLUE)).is_true()
 	assert_that(room.wall_id).is_equal(InteriorCatalog.WALL_BLUE)
 	assert_bool(interior.decorate_floor(InteriorCatalog.FLOOR_TILE)).is_true()
@@ -356,7 +391,8 @@ func test_save_round_trip_placements_and_decoration() -> void:
 	interior.bind(room)
 	interior.decorate_wall(InteriorCatalog.WALL_BLUE)
 	var table: FurnitureData = ItemCatalog.get_item(&"wood_table") as FurnitureData
-	var placed: FurniturePlacement = interior.place(table, Vector2i(8, 6), WorldGrid.Facing.EAST)
+	var table_cell: Vector2i = room.inner_origin + Vector2i(1, 1)
+	var placed: FurniturePlacement = interior.place(table, table_cell, WorldGrid.Facing.EAST)
 	assert_that(placed).is_not_null()
 	Game.current_room_id = &"player_main"
 	Game.outdoor_return = Vector3(1.0, 0.1, 2.0)
@@ -368,14 +404,47 @@ func test_save_round_trip_placements_and_decoration() -> void:
 	assert_vector(Game.outdoor_return).is_equal(Vector3(1.0, 0.1, 2.0))
 	var loaded: Room = Game.interiors.room(&"player_main")
 	assert_that(loaded.wall_id).is_equal(InteriorCatalog.WALL_BLUE)
-	assert_int(loaded.placements.size()).is_equal(2)
+	assert_int(loaded.placements.size()).is_equal(3)
 	var found := false
 	for entry: FurniturePlacement in loaded.placements:
 		if entry.furniture_id == &"wood_table":
 			found = true
-			assert_that(entry.cell).is_equal(Vector2i(8, 6))
+			assert_that(entry.cell).is_equal(table_cell)
 			assert_that(entry.facing).is_equal(WorldGrid.Facing.EAST)
 	assert_bool(found).is_true()
+
+
+func test_player_main_collision_matches_small_shell() -> void:
+	var room: Room = InteriorCatalog.room_template(&"player_main")
+	var session := Interior.new()
+	session.bind(room)
+	var shell: AABB = InteriorBuilder.new()._shell_bounds(room, session.grid)
+	assert_float(shell.size.x).is_equal_approx(8.0, 0.001)
+	assert_float(shell.size.z).is_equal_approx(8.0, 0.001)
+
+
+func test_player_old_6x6_placements_shift_into_small_room() -> void:
+	var room: Room = Game.interiors.room(&"player_main")
+	var crate := FurniturePlacement.new()
+	crate.id = &"ftr_1"
+	crate.furniture_id = &"int_nog_mikanbox"
+	crate.cell = Vector2i(5, 5)
+	var tape := FurniturePlacement.new()
+	tape.id = &"ftr_2"
+	tape.furniture_id = &"int_sum_casse01"
+	tape.cell = Vector2i(8, 5)
+	room.placements = [crate, tape]
+	var snap: Dictionary = Game.to_save()
+	Game.reset_session()
+	Game.apply_snapshot(snap)
+	var loaded: Room = Game.interiors.room(&"player_main")
+	var cells := {}
+	for entry: FurniturePlacement in loaded.placements:
+		cells[String(entry.furniture_id)] = entry.cell
+	assert_that(cells.get("int_nog_mikanbox")).is_equal(InteriorCatalog.PLAYER_INNER_ORIGIN)
+	assert_that(cells.get("int_sum_casse01")).is_equal(
+		InteriorCatalog.PLAYER_INNER_ORIGIN + Vector2i(3, 0)
+	)
 
 
 func test_museum_wings_link_back_to_entrance() -> void:
@@ -436,9 +505,34 @@ func _count_mesh_instances(node: Node) -> int:
 	return n
 
 
+func test_player_placeholder_save_upgrades_to_banks() -> void:
+	var room: Room = Game.interiors.room(&"player_main")
+	room.wall_id = InteriorCatalog.WALL_CREAM
+	room.floor_id = InteriorCatalog.FLOOR_WOOD
+	var chair := FurniturePlacement.new()
+	chair.id = &"ftr_1"
+	chair.furniture_id = &"wood_chair"
+	chair.cell = Vector2i(6, 7)
+	room.placements = [chair]
+	var snap: Dictionary = Game.to_save()
+	Game.reset_session()
+	Game.apply_snapshot(snap)
+	var loaded: Room = Game.interiors.room(&"player_main")
+	assert_that(loaded.wall_id).is_equal(InteriorCatalog.wall_style_id(InteriorCatalog.PLAYER_START_WALL))
+	assert_that(loaded.floor_id).is_equal(InteriorCatalog.floor_style_id(InteriorCatalog.PLAYER_START_FLOOR))
+	assert_int(loaded.placements.size()).is_equal(2)
+	var ids: PackedStringArray = PackedStringArray()
+	for entry: FurniturePlacement in loaded.placements:
+		ids.append(String(entry.furniture_id))
+	assert_bool(ids.has("wood_chair")).is_false()
+	assert_bool(ids.has("int_nog_mikanbox")).is_true()
+
+
 func test_reset_clears_interior_book() -> void:
 	Game.interiors.room(&"player_main").wall_id = InteriorCatalog.WALL_BLUE
 	Game.current_room_id = &"player_main"
 	Game.reset_session()
 	assert_that(Game.current_room_id).is_equal(&"")
-	assert_that(Game.interiors.room(&"player_main").wall_id).is_equal(InteriorCatalog.WALL_CREAM)
+	assert_that(Game.interiors.room(&"player_main").wall_id).is_equal(
+		InteriorCatalog.wall_style_id(InteriorCatalog.PLAYER_START_WALL)
+	)

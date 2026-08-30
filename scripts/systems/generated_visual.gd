@@ -11,6 +11,15 @@ const _WINDOW_PANE_OFF := Color(0.0, 0.0, 0.0, 1.0)
 const _WINDOW_SPILL_ON := Color(1.0, 1.0, 150.0 / 255.0, 120.0 / 255.0)
 const _WINDOW_SPILL_OFF := Color(1.0, 1.0, 150.0 / 255.0, 0.0)
 const _WINDOW_SPILL_SHADER := preload("res://shaders/window_ground_spill.gdshader")
+const _RIVER_WATER_SHADER := preload("res://shaders/river_water.gdshader")
+const _OCEAN_WATER_SHADER := preload("res://shaders/ocean_water.gdshader")
+const _SPLASH_WATER_SHADER := preload("res://shaders/splash_water.gdshader")
+const _BEACH_WET_SHADER := preload("res://shaders/beach_wet.gdshader")
+const _BEACH_WET_PRIM_DARK := Color(32.0 / 255.0, 48.0 / 255.0, 144.0 / 255.0, 1.0)
+const _BEACH_WET_PRIM_LIGHT := Color(206.0 / 255.0, 189.0 / 255.0, 148.0 / 255.0, 1.0)
+## Inland river env (0,100,255); mouth acres use (0,60,255) when sprash is present.
+const _RIVER_ENV_INLAND := Color(0.0, 100.0 / 255.0, 1.0, 1.0)
+const _RIVER_ENV_MOUTH := Color(0.0, 60.0 / 255.0, 1.0, 1.0)
 
 
 static func detach(host: Node3D) -> void:
@@ -87,6 +96,12 @@ static func apply_preview_materials(node: Node) -> void:
 static func refresh_window_lights(root: Node) -> void:
 	## `mEnv_NPC_LIGHTS_*`: panes and ground spill 18:00–05:00.
 	_set_window_lights(root, _window_lights_on())
+
+
+static func water_wave_cos(game_frame: float) -> float:
+	## `aFD_MakeMarinScrollInfo`: cos((game_frame % 300) / 300 * 2π).
+	var frame: float = fmod(game_frame, 300.0)
+	return cos(frame / 300.0 * TAU)
 
 
 static func attach_villager(host: Node3D, species: StringName) -> Node3D:
@@ -265,7 +280,14 @@ static func _paint_room_surfaces(node: Node, wall_id: StringName, floor_id: Stri
 		var surface_count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 1
 		for i: int in surface_count:
 			var src: Material = mesh_instance.get_active_material(i)
-			if _is_window_spill_surface(mesh_instance, i, src) or _is_window_pane_surface(mesh_instance, i, src):
+			if (
+				_is_window_spill_surface(mesh_instance, i, src)
+				or _is_window_pane_surface(mesh_instance, i, src)
+				or _is_river_water_surface(mesh_instance, i, src)
+				or _is_ocean_water_surface(mesh_instance, i, src)
+				or _is_splash_water_surface(mesh_instance, i, src)
+				or _is_beach_wet_surface(mesh_instance, i, src)
+			):
 				continue
 			var kind := _room_surface_kind(mesh_instance, i)
 			if kind == &"":
@@ -415,10 +437,26 @@ static func _tile_to_atlas(
 
 static func _room_surface_kind(mesh_instance: MeshInstance3D, surface: int) -> StringName:
 	## Empty → leave the baked shell texture (window, exit trim, props).
-	var label := _surface_label(mesh_instance, surface, mesh_instance.get_active_material(surface)).to_lower()
-	if label.contains("floor") or label.contains("carpet"):
+	## Prefer the GLB material; runtime overrides drop the `rom_myhome_window_tex` name.
+	var baked: Material = null
+	if mesh_instance.mesh != null:
+		baked = mesh_instance.mesh.surface_get_material(surface)
+	var mat: Material = baked if baked != null else mesh_instance.get_active_material(surface)
+	return _classify_room_surface(_surface_label(mesh_instance, surface, mat))
+
+
+static func _classify_room_surface(label: String) -> StringName:
+	## Parent mesh is `rom_myhome1_wall`; window/enter prims must not pick up that "wall".
+	var lower := label.to_lower()
+	if lower.contains("window") or lower.contains("enter"):
+		return &""
+	if lower.contains("player_room_floor") or lower.contains("carpet"):
 		return &"floor"
-	if label.contains("wall"):
+	if lower.contains("player_room_wall"):
+		return &"wall"
+	if lower.contains("floor"):
+		return &"floor"
+	if lower.contains("wall"):
 		return &"wall"
 	return &""
 
@@ -441,6 +479,10 @@ static func _window_lights_on() -> bool:
 
 
 static func _apply_materials(node: Node, as_decal: bool = false) -> void:
+	_apply_materials_inner(node, as_decal, _tree_has_splash_water(node))
+
+
+static func _apply_materials_inner(node: Node, as_decal: bool, mouth_river: bool) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
 		var surface_count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 1
@@ -462,6 +504,18 @@ static func _apply_materials(node: Node, as_decal: bool = false) -> void:
 				elif _is_window_pane_surface(mesh_instance, i, src):
 					_apply_window_pane_material(std)
 					mesh_instance.set_surface_override_material(i, std)
+				elif _is_splash_water_surface(mesh_instance, i, src):
+					mesh_instance.set_surface_override_material(i, _make_splash_water_material(std))
+				elif _is_river_water_surface(mesh_instance, i, src):
+					mesh_instance.set_surface_override_material(
+						i, _make_river_water_material(std, mouth_river)
+					)
+				elif _is_ocean_water_surface(mesh_instance, i, src):
+					mesh_instance.set_surface_override_material(i, _make_ocean_water_material(std))
+				elif _is_beach_wet_surface(mesh_instance, i, src):
+					mesh_instance.set_surface_override_material(
+						i, _make_beach_wet_material(std, mesh_instance, i, src)
+					)
 				elif as_decal:
 					std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 					std.render_priority = 1
@@ -472,7 +526,7 @@ static func _apply_materials(node: Node, as_decal: bool = false) -> void:
 			mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mesh_instance.sorting_offset = 1.0
 	for child in node.get_children():
-		_apply_materials(child, as_decal)
+		_apply_materials_inner(child, as_decal, mouth_river)
 
 
 static func _surface_label(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> String:
@@ -519,6 +573,161 @@ static func _is_window_pane_surface(mesh_instance: MeshInstance3D, surface: int,
 	## Opaque fill in the wall TEX_EDGE holes (`*_light_model`, museum `*_lightT_model`).
 	var n := _surface_label(mesh_instance, surface, mat).to_lower()
 	return n.contains("light_model") or n.contains("lightt_model")
+
+
+static func _water_kind(mat: Material) -> String:
+	if mat != null and mat.has_meta("extras"):
+		var extras: Variant = mat.get_meta("extras")
+		if extras is Dictionary:
+			return str((extras as Dictionary).get("water_kind", ""))
+	return ""
+
+
+static func _is_river_water_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
+	## Prefer glTF extras; fall back to XLU name `river_mFM_grd_water1_tex` (not OPA `…river_tex`).
+	if _water_kind(mat) == "river":
+		return true
+	var n := _surface_label(mesh_instance, surface, mat).to_lower()
+	return n.contains("river_mfm_grd_water") or n.contains("grd_water1")
+
+
+static func _is_ocean_water_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
+	if _water_kind(mat) == "ocean":
+		return true
+	var n := _surface_label(mesh_instance, surface, mat).to_lower()
+	return n.contains("ocean_") or (n.contains("wave") and not n.contains("waterfall"))
+
+
+static func _is_splash_water_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
+	## River-mouth connector: `mFM_grd_sprashC` + `sprashA` (decomp spelling).
+	if _water_kind(mat) == "splash":
+		return true
+	var n := _surface_label(mesh_instance, surface, mat).to_lower()
+	return n.contains("sprash") or n.contains("splash")
+
+
+static func _tree_has_splash_water(node: Node) -> bool:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		var surface_count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 1
+		for i: int in surface_count:
+			var mat: Material = mesh_instance.get_active_material(i)
+			if mat != null and _is_splash_water_surface(mesh_instance, i, mat):
+				return true
+	for child in node.get_children():
+		if _tree_has_splash_water(child):
+			return true
+	return false
+
+
+static func _is_beach_wet_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
+	if _water_kind(mat) == "beach_wet":
+		return true
+	var n := _surface_label(mesh_instance, surface, mat).to_lower()
+	return (
+		n.contains("beach_wet")
+		or n.contains("beacha")
+		or n.contains("beachb")
+		or n.contains("beach1")
+		or n.contains("beach2")
+	)
+
+
+static func _layer1_texture(std: StandardMaterial3D) -> Texture2D:
+	if std.ao_texture != null:
+		return std.ao_texture
+	if std.emission_texture != null:
+		return std.emission_texture
+	return std.albedo_texture
+
+
+static func _make_river_water_material(std: StandardMaterial3D, mouth: bool = false) -> ShaderMaterial:
+	## Decomp grd_*_modelT: prim (255,255,255,50) lod=50; env inland (0,100,255) / mouth (0,60,255).
+	var sh := ShaderMaterial.new()
+	sh.shader = _RIVER_WATER_SHADER
+	sh.render_priority = 1
+	var water1: Texture2D = std.albedo_texture
+	var water2: Texture2D = _layer1_texture(std)
+	if water2 == null or water2 == water1:
+		push_warning("GeneratedVisual: river water2 missing; dual scroll will look wrong")
+	sh.set_shader_parameter("water1", water1)
+	sh.set_shader_parameter("water2", water2)
+	sh.set_shader_parameter("env_color", _RIVER_ENV_MOUTH if mouth else _RIVER_ENV_INLAND)
+	sh.set_shader_parameter("prim_color", Color(1.0, 1.0, 1.0, 50.0 / 255.0))
+	sh.set_shader_parameter("game_fps", 60.0)
+	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.5)
+	sh.set_meta("river_water", true)
+	return sh
+
+
+static func _make_splash_water_material(std: StandardMaterial3D) -> ShaderMaterial:
+	## Decomp mouth sprash: prim (100,140,255,200); seg 0x09 scroll {0,-6}/{0,0}.
+	var sh := ShaderMaterial.new()
+	sh.shader = _SPLASH_WATER_SHADER
+	sh.render_priority = 2
+	var sprash_c: Texture2D = std.albedo_texture
+	var sprash_a: Texture2D = _layer1_texture(std)
+	if sprash_a == null or sprash_a == sprash_c:
+		push_warning("GeneratedVisual: sprashA missing; mouth splash will look wrong")
+	sh.set_shader_parameter("sprash_c", sprash_c)
+	sh.set_shader_parameter("sprash_a", sprash_a)
+	sh.set_shader_parameter("prim_color", Color(100.0 / 255.0, 140.0 / 255.0, 1.0, 200.0 / 255.0))
+	sh.set_shader_parameter("game_fps", 60.0)
+	## Slightly above river/ocean XLU so the mouth foam composites cleanly.
+	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.75)
+	sh.set_meta("splash_water", true)
+	return sh
+
+
+static func _make_ocean_water_material(std: StandardMaterial3D) -> ShaderMaterial:
+	## Decomp/emu64 RGB; α floors to body_alpha so sand underdraw does not read as “tan ocean”.
+	var sh := ShaderMaterial.new()
+	sh.shader = _OCEAN_WATER_SHADER
+	sh.render_priority = 1
+	var wave1: Texture2D = std.albedo_texture
+	var wave2: Texture2D = _layer1_texture(std)
+	if wave2 == null or wave2 == wave1:
+		push_warning("GeneratedVisual: ocean wave2/3 missing; dual-tile look will be wrong")
+	sh.set_shader_parameter("wave1", wave1)
+	sh.set_shader_parameter("wave2", wave2)
+	sh.set_shader_parameter("prim_color", Color(60.0 / 255.0, 120.0 / 255.0, 1.0, 1.0))
+	sh.set_shader_parameter("game_fps", 60.0)
+	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.5)
+	sh.set_shader_parameter("body_alpha", 0.88)
+	var scale := Vector2(1.0, 0.5)
+	var clamp_v := 0.0
+	if wave1 != null and wave2 != null:
+		var s0: Vector2 = wave1.get_size()
+		var s1: Vector2 = wave2.get_size()
+		if s1.x > 0.5 and s1.y > 0.5:
+			scale = Vector2(s0.x / s1.x, s0.y / s1.y)
+		if s1.y > s0.y + 0.5:
+			clamp_v = 1.0
+	sh.set_shader_parameter("layer1_uv_scale", scale)
+	sh.set_shader_parameter("wave2_clamp_v", clamp_v)
+	sh.set_meta("ocean_water", true)
+	sh.set_meta("ocean_shore_wave", clamp_v > 0.5)
+	return sh
+
+
+static func _make_beach_wet_material(
+	std: StandardMaterial3D, mesh_instance: MeshInstance3D, surface: int, src: Material
+) -> ShaderMaterial:
+	## Decomp beachA prim (206,189,148); beachB/beach2 under ocean (32,48,144); env cosine −1.2.
+	var sh := ShaderMaterial.new()
+	sh.shader = _BEACH_WET_SHADER
+	sh.set_shader_parameter("albedo_texture", std.albedo_texture)
+	var n := _surface_label(mesh_instance, surface, src).to_lower()
+	var prim: Color = _BEACH_WET_PRIM_LIGHT
+	if n.contains("beachb") or n.contains("beach2"):
+		prim = _BEACH_WET_PRIM_DARK
+	sh.set_shader_parameter("prim_color", prim)
+	sh.set_shader_parameter("game_fps", 60.0)
+	sh.set_meta("beach_wet", true)
+	## Open-ocean OPA bed must draw under XLU waves.
+	if prim == _BEACH_WET_PRIM_DARK:
+		sh.render_priority = -1
+	return sh
 
 
 static func _make_window_spill_material(std: StandardMaterial3D) -> ShaderMaterial:

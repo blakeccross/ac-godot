@@ -4,7 +4,7 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 
 **Do not commit Nintendo music.** Convert a disc you own into gitignored `assets/generated/audio/`, same as dialogue banks and GLBs. Hand-authored tracks live in `assets/custom/`.
 
-**Godot (planned):** expand the existing `Audio` autoload to play converted streams. A `BgmCatalog` (`RefCounted`, not an autoload) maps BGM ids → generated `.ogg`. Do **not** port Neos / `Nas_*` / JAM into GDScript.
+**Godot:** expand the existing `Audio` autoload (`play_bgm` / `stop_bgm`). `BgmCatalog` (`RefCounted`, not an autoload) maps BGM ids → generated `.ogg`. Do **not** port Neos / `Nas_*` / JAM into GDScript. `--kind audio` unpacks `audiorom.img`, decodes bank samples, and renders the test-set sequences to looping OGG. Missing files are silence.
 
 **Read before implementing:** this note, [asset_pipeline.md](../asset_pipeline.md), `scripts/systems/audio.gd`, `Clock.hour_changed`.
 
@@ -77,6 +77,7 @@ K.K. / minidisks are ordinary sequences (`BGM_MD0`–`BGM_MD54`). Gyroids are a 
 - Do not port Neos, DSP ADPCM, or sequence bytecode into GDScript.
 - Ignore fanfares, festival overrides, bee chase, train, staff roll, K.K. live mouth-sync, gyroids, furniture stereos, animalese.
 - Ignore snow/sakura **subtrack mutes** until a second render pass (or accept the “fine” mix).
+- Ignore DSP filters / reverb and random velocity-gate (non-deterministic).
 - Ignore the 24 s hourly silence and town-tune chime until a later slice (editor stays out of scope).
 - Talk volume-duck can wait; pause can mute the Music bus.
 
@@ -173,17 +174,15 @@ Priority for v1: last `play_bgm` wins (title vs world vs interior). The original
 
 ## Tests
 
-- Python: unpack offsets, ADPCM round-trip on a synthetic buffer, catalog JSON shape. Skip render tests when `audiorom.img` is absent.
+- Python: unpack offsets, VADPCM on a synthetic buffer, audiomap bank lists, injected-sample sequence mix. Skip disc-backed extract when `audiorom.img` is absent.
 - GdUnit: `BgmCatalog` returns null without generated files; `Audio.play_bgm` does not crash; hour `14` requests `field_14`. Do not assert waveform identity.
 
 ## Phased work
 
-Do not start phase 4 until phase 3 produces at least the test-set OGGs on a local disc.
-
-1. **Unpack + catalog stub** — `--kind audio` writes manifest + empty catalog; scan converter `audio_pending` → `audio_ogg`.
-2. **Wave decode** — hearable WAVs in work root.
-3. **Sequence render** — test-set OGGs in `assets/generated/audio/`.
-4. **Playback** — title + outdoor hour + one indoor + rain.
+1. **Unpack + catalog stub** — done. `--kind audio` writes region blobs, test-set seq slices, and `catalog.json`.
+2. **Wave decode** — done. CTL banks relocate against `audiowave.bin`; VADPCM uses the N64 8-sample matrix predictor (not a 2-tap IIR). Debug WAVs go under the work root `converted/audio/waves/`.
+3. **Sequence render** — test-set mixer follows Neos note path: bank envelopes, ADSR decay/release, vibrato, portamento, freq scale / pitch bend, squared volume. Filters, reverb, and random gate/velocity are still skipped (DSP / non-deterministic).
+4. **Playback** — done. Title, outdoor hour, rain swap, shop interior; silence when files are missing.
 5. **Later (earned)** — remaining BGM ids, talk duck, hourly silence, default-melody chime, SFX one-shots, town-tune arranger.
 
 ## Interacts with

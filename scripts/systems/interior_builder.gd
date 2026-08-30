@@ -6,6 +6,8 @@ extends RefCounted
 const WALL_HEIGHT := 3.0
 const FURNITURE_SCENE := preload("res://scenes/world/furniture.tscn")
 const DOOR_SCENE := preload("res://scenes/world/door.tscn")
+const COUNTER_SCENE := preload("res://scenes/world/shop_counter.tscn")
+const STOCK_SCENE := preload("res://scenes/world/shop_stock.tscn")
 
 
 func build(root: Node3D, interior: Interior) -> void:
@@ -31,6 +33,7 @@ func build(root: Node3D, interior: Interior) -> void:
 	_paint_shell(terrain, room, grid)
 	for entry: FurniturePlacement in room.placements:
 		add_furniture(furniture_root, interior, entry)
+	add_shop_set(furniture_root, interior)
 	_add_exit_door(doors_root, grid, room)
 	_add_linked_doors(doors_root, grid, room)
 
@@ -221,7 +224,7 @@ func add_furniture(root: Node3D, interior: Interior, entry: FurniturePlacement) 
 	if data.visual_id != &"":
 		node.set("visual_id", data.visual_id)
 	var pos: Vector3 = interior.grid.furniture_world(entry.cell, footprint, entry.facing)
-	pos.y = 0.0
+	pos.y = 0.8 if entry.layer > 0 else 0.0
 	node.position = pos
 	root.add_child(node)
 	if entry.cloth_index >= 0:
@@ -230,6 +233,58 @@ func add_furniture(root: Node3D, interior: Interior, entry: FurniturePlacement) 
 		node.call("apply_grid_yaw", entry.facing)
 	if node.has_method("apply_footprint"):
 		node.call("apply_footprint", interior.grid.cell_size)
+
+
+func add_shop_set(root: Node3D, interior: Interior) -> void:
+	if root == null or interior == null or interior.room == null or Game == null:
+		return
+	var room: Room = interior.room
+	var shop_id: StringName = Game.shops.shop_id_for_room(room)
+	if shop_id == &"":
+		return
+	Game.shops.ensure_today(shop_id)
+	var counter: Node3D = COUNTER_SCENE.instantiate() as Node3D
+	counter.name = "ShopCounter"
+	counter.set("shop_id", shop_id)
+	counter.position = interior.grid.cell_to_world(_counter_cell(room))
+	root.add_child(counter)
+	var cells: Array[Vector2i] = _shop_stock_cells(room, interior)
+	var listed: Array[StringName] = Game.shops.goods(shop_id)
+	for i: int in mini(listed.size(), cells.size()):
+		var item_id: StringName = listed[i]
+		var node: Node3D = STOCK_SCENE.instantiate() as Node3D
+		node.name = "ShopStock_%d" % i
+		node.set("shop_id", shop_id)
+		node.set("item_id", item_id)
+		node.set("occupant_id", StringName("shop_stock_%d" % i))
+		node.position = interior.grid.cell_to_world(cells[i])
+		root.add_child(node)
+
+
+func _counter_cell(room: Room) -> Vector2i:
+	return Vector2i(room.door_cell.x - 1, room.spawn_cell.y - 1)
+
+
+func _shop_stock_cells(room: Room, interior: Interior) -> Array[Vector2i]:
+	var skip: Dictionary = {}
+	skip[room.door_cell] = true
+	skip[room.spawn_cell] = true
+	skip[_counter_cell(room)] = true
+	for entry: FurniturePlacement in room.placements:
+		var data: FurnitureData = interior.furniture_of(entry.furniture_id)
+		var foot: Vector2i = entry.resolved_footprint(data)
+		for cell: Vector2i in interior.grid.footprint_cells(entry.cell, foot, entry.facing):
+			skip[cell] = true
+	var out: Array[Vector2i] = []
+	var origin: Vector2i = room.inner_origin
+	var inner: Vector2i = room.inner_size
+	for z: int in range(origin.y, origin.y + inner.y):
+		for x: int in range(origin.x, origin.x + inner.x):
+			var cell := Vector2i(x, z)
+			if bool(skip.get(cell, false)):
+				continue
+			out.append(cell)
+	return out
 
 
 func _add_exit_door(root: Node3D, grid: WorldGrid, room: Room) -> void:

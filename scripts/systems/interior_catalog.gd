@@ -14,6 +14,12 @@ const NPC_ROOMS_PATH := "res://assets/generated/environment/fg/npc_rooms.json"
 ## Disc NPC rooms occupy the NW 8×8 of the 16×16 FG grid (`fgnpcdata.bin`).
 const NPC_INNER_ORIGIN := Vector2i(1, 1)
 const NPC_INNER_SIZE := Vector2i(6, 6)
+## Small player main (`l_proom_s_tmp`, `rom_myhome1_*`): 4×4 walkable, same NW origin.
+const PLAYER_INNER_ORIGIN := Vector2i(1, 1)
+const PLAYER_INNER_SIZE := Vector2i(4, 4)
+## `l_mHm_player_room_default_data[0]`: stone wall & old flooring.
+const PLAYER_START_WALL := 3
+const PLAYER_START_FLOOR := 38
 
 const WALL_DEFAULT := &"wall_default"
 const WALL_BLUE := &"wall_blue"
@@ -164,6 +170,14 @@ static func has_floor(floor_id: StringName) -> bool:
 	return floor_color(floor_id) != Color(0, 0, 0, 0)
 
 
+static func wall_style_id(index: int) -> StringName:
+	return StringName("wall_%02d" % clampi(index, 0, WALL_BANK_COUNT - 1))
+
+
+static func floor_style_id(index: int) -> StringName:
+	return StringName("floor_%02d" % clampi(index, 0, FLOOR_BANK_COUNT - 1))
+
+
 static func style_index(style_id: StringName, prefix: String) -> int:
 	var raw := String(style_id)
 	if not raw.begins_with(prefix):
@@ -252,16 +266,16 @@ static func _register_player() -> void:
 		&"player_main",
 		Room.Kind.PLAYER,
 		"Living Room",
-		Vector2i(5, 5),
-		Vector2i(6, 6),
+		PLAYER_INNER_ORIGIN,
+		PLAYER_INNER_SIZE,
 		{
 			"decorate": true,
-			"wall": WALL_CREAM,
-			"floor": FLOOR_WOOD,
+			"wall": wall_style_id(PLAYER_START_WALL),
+			"floor": floor_style_id(PLAYER_START_FLOOR),
 			"shells": PackedStringArray(["rom_myhome1_floor", "rom_myhome1_wall"]),
 		}
 	)
-	_add_ftr(main, &"wood_chair", Vector2i(6, 7), WorldGrid.Facing.SOUTH)
+	_fill_player_starter(main)
 	_put_room(main)
 	_put_room(
 		_make(
@@ -270,8 +284,13 @@ static func _register_player() -> void:
 			"Upstairs",
 			Vector2i(5, 5),
 			Vector2i(6, 6),
-			{"decorate": true, "wall": WALL_CREAM, "floor": FLOOR_WOOD, "parent": &"player_main",
-				"shells": PackedStringArray(["rom_myhome2_floor", "rom_myhome2_wall"])}
+			{
+				"decorate": true,
+				"wall": wall_style_id(PLAYER_START_WALL),
+				"floor": floor_style_id(PLAYER_START_FLOOR),
+				"parent": &"player_main",
+				"shells": PackedStringArray(["rom_myhome2_floor", "rom_myhome2_wall"]),
+			}
 		)
 	)
 	_put_room(
@@ -417,6 +436,7 @@ static func _register_shops() -> void:
 	)
 	shop0.shell_ids = PackedStringArray(["rom_shop1f", "rom_shop1w"])
 	_add_ftr(shop0, &"wood_table", Vector2i(7, 6), WorldGrid.Facing.SOUTH)
+	_add_ftr(shop0, &"wood_dresser", Vector2i(5, 8), WorldGrid.Facing.EAST)
 	_put_room(shop0)
 	var shop1 := _public(&"shop1", Room.Kind.SHOP, "Nook 'n' Go", Vector2i(3, 3), Vector2i(10, 10), 7, 23)
 	shop1.shell_ids = PackedStringArray(["rom_shop2f", "rom_shop2w"])
@@ -465,6 +485,7 @@ static func _register_public() -> void:
 	)
 	needle.wall_id = WALL_ROSE
 	needle.shell_ids = PackedStringArray(["rom_tailor"])
+	_add_ftr(needle, &"wood_table", Vector2i(6, 7), WorldGrid.Facing.SOUTH)
 	_put_room(needle)
 	_put_room(
 		_make(&"lighthouse", Room.Kind.LIGHTHOUSE, "Lighthouse", Vector2i(6, 6), Vector2i(4, 4), {"floor": FLOOR_STONE})
@@ -581,6 +602,19 @@ static func _make(
 	if opts.has("parent"):
 		room.parent_room_id = opts["parent"] as StringName
 	return room
+
+
+static func _fill_player_starter(room: Room) -> void:
+	## `mHm_SetDefaultPlayerRoomData`: orange crate at (1,1), cassette at (4,1).
+	if room == null or not room.placements.is_empty():
+		return
+	var origin: Vector2i = room.inner_origin
+	var crate: FurnitureData = ItemCatalog.furniture_for_visual(&"int_nog_mikanbox")
+	if crate != null:
+		_add_ftr(room, crate.id, origin, WorldGrid.Facing.SOUTH)
+	var tape: FurnitureData = ItemCatalog.furniture_for_visual(&"int_sum_casse01")
+	if tape != null:
+		_add_ftr(room, tape.id, origin + Vector2i(3, 0), WorldGrid.Facing.SOUTH)
 
 
 static func _add_ftr(

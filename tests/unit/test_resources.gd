@@ -26,10 +26,13 @@ func test_furniture_extends_item() -> void:
 	assert_that(chair.indoor).is_true()
 	assert_that(chair.footprint).is_equal(Vector2i(1, 1))
 	assert_bool(chair.can_sit).is_true()
+	assert_that(chair.kind).is_equal(FurnitureData.Kind.CHAIR)
+	assert_that(chair.contact).is_equal(FurnitureData.Contact.CHAIR_FRONT)
 	var table: FurnitureData = load("res://data/furniture/wood_table.tres")
 	assert_that(table.footprint).is_equal(Vector2i(2, 1))
 	assert_bool(table.can_sit).is_false()
 	assert_bool(table.blocks_walk).is_true()
+	assert_that(table.placement).is_equal(FurnitureData.Placement.TABLE)
 
 
 func test_boy_looks_schedule() -> void:

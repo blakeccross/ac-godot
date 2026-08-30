@@ -99,6 +99,26 @@ def is_room_outdoor_view_dl(name: str) -> bool:
     return "room_out" in n
 
 
+def water_surface_kind(*names: str) -> str:
+    """Acre XLU water: river I4, ocean IA waves, or river-mouth sprash I4 pair."""
+    blob = " ".join(names).lower()
+    if "sprash" in blob or "splash" in blob:
+        return "splash"
+    if "wave" in blob:
+        return "ocean"
+    if "water" in blob and "waterfall" not in blob:
+        return "river"
+    return ""
+
+
+def beach_wet_kind(*names: str) -> str:
+    """OPA wet-sand band: prim/env mix on `mFM_grd_beachA/B` (not generic `*_beach_tex`)."""
+    blob = " ".join(names).lower()
+    if "beacha" in blob or "beachb" in blob or "beach1" in blob or "beach2" in blob:
+        return "beach_wet"
+    return ""
+
+
 @dataclass
 class MeshPart:
     name: str
@@ -118,6 +138,11 @@ class MeshPart:
     unlit_rgba: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0)
     ## Ground XLU fan (`*_window_model`): I4 × prim on the shadow pass.
     ground_spill: bool = False
+    ## Second GX tile (river water2 / ocean wave2 or wave3). Packed as glTF occlusionTexture.
+    layer1_png: bytes | None = None
+    layer1_name: str = ""
+    ## `river` / `ocean` (acre XLU) or `beach_wet` (OPA env pulse). Empty for land.
+    water_kind: str = ""
 
 
 def parse_vtx_blob(blob: bytes, scale: float, flip_z: bool = False) -> list[Vertex]:
@@ -257,10 +282,7 @@ def apply_texture_commands(blob: bytes, bank: TextureBank, state: TextureState, 
         elif cmd == G_SETTILESIZE:
             _apply_settilesize(w0, w1, state)
         elif cmd == G_SETTILE_DOLPHIN:
-            _tile, pal_slot, wrap_s, wrap_t = parse_settile_dolphin(w0)
-            state.pal_slot = pal_slot
-            state.wrap_s = wrap_s
-            state.wrap_t = wrap_t
+            _apply_settile_dolphin(w0, state)
         elif cmd == G_SETPRIMCOLOR:
             state.prim = ((w1 >> 24) & 0xFF, (w1 >> 16) & 0xFF, (w1 >> 8) & 0xFF, w1 & 0xFF)
         elif cmd == G_DL:
@@ -314,6 +336,44 @@ def _apply_settile(w0: int, w1: int, state: TextureState) -> None:
     state.tmem = tmem
     state.wrap_s = wrap_s
     state.wrap_t = wrap_t
+
+
+def _apply_settile_dolphin(w0: int, state: TextureState) -> None:
+    """Bind wrap and snapshot the current SETTIMG onto Dolphin tile 0 or 1."""
+    tile, pal_slot, wrap_s, wrap_t = parse_settile_dolphin(w0)
+    state.pal_slot = pal_slot
+    state.wrap_s = wrap_s
+    state.wrap_t = wrap_t
+    snap = {
+        "img_addr": state.img_addr,
+        "width": state.width,
+        "height": state.height,
+        "fmt": state.fmt,
+        "siz": state.siz,
+        "wrap_s": wrap_s,
+        "wrap_t": wrap_t,
+    }
+    if tile == 0:
+        state.tile0 = snap
+    elif tile == 1:
+        state.tile1 = snap
+
+
+def _decode_snap(
+    bank: TextureBank, state: TextureState, snap: dict, *, skip_prim: bool
+) -> tuple[bytes | None, str, str]:
+    tmp = replace(
+        state,
+        img_addr=int(snap["img_addr"]),
+        width=int(snap["width"] or 0),
+        height=int(snap["height"] or 0),
+        fmt=int(snap["fmt"]),
+        siz=int(snap["siz"]),
+        wrap_s=int(snap["wrap_s"]),
+        wrap_t=int(snap["wrap_t"]),
+        prim=(255, 255, 255, 255) if skip_prim else state.prim,
+    )
+    return bank.decode_current(tmp)
 
 
 def _apply_settilesize(w0: int, w1: int, state: TextureState) -> None:
@@ -379,15 +439,25 @@ def parse_gfx(
             tex_state.siz,
             pal,
             tex_state.prim,
+            (tex_state.tile0 or {}).get("img_addr", 0),
+            (tex_state.tile1 or {}).get("img_addr", 0),
         )
+
+    def uv_dims() -> tuple[int, int]:
+        tw = tex_state.width or 16
+        th = tex_state.height or 16
+        if tex_state.tile0 and tex_state.tile0.get("width"):
+            tw = int(tex_state.tile0["width"]) or tw
+            th = int(tex_state.tile0["height"]) or th
+        return tw, th
 
     def uv_for(src: Vertex) -> tuple[float, float]:
         # Match GC T directly. Flipping V put the nose above the eyes.
         # Divide by SETTIMG image size (not SETTILESIZE). Boy shirts have S up to
         # ~80 on a 32×32 image (U≈2.5) with wrapS=REPEAT; the 128-wide tile size
         # is only for HW wrap bounds and must not shrink U into [0,1].
-        tw = tex_state.width or 16
-        th = tex_state.height or 16
+        # Dual-tile water: keep UVs in tile0 space (wave2 is often 32×64).
+        tw, th = uv_dims()
         return src.s / tw, src.t / th
 
     def flush() -> None:
@@ -403,8 +473,32 @@ def parse_gfx(
         outdoor = is_room_outdoor_view_dl(part_name)
         unlit = is_window_pane_dl(part_name) or outdoor
         spill = is_window_spill_dl(part_name)
+        layer1_png = None
+        layer1_name = ""
+        water_kind = ""
+        wrap_s = tex_state.wrap_s
+        wrap_t = tex_state.wrap_t
         if bank is not None and not unlit:
-            png, tex_name, alpha_mode = bank.decode_current(tex_state)
+            name0 = bank._name_for(int((tex_state.tile0 or {}).get("img_addr") or tex_state.img_addr))
+            name1 = bank._name_for(int((tex_state.tile1 or {}).get("img_addr") or 0)) if tex_state.tile1 else ""
+            water_kind = water_surface_kind(name0, name1, part_name)
+            if not water_kind:
+                water_kind = beach_wet_kind(name0, name1, part_name)
+            skip_prim = bool(water_kind)
+            if water_kind in ("river", "ocean", "splash") and tex_state.tile0 and tex_state.tile1:
+                png, tex_name, _alpha = _decode_snap(bank, tex_state, tex_state.tile0, skip_prim=True)
+                layer1_png, layer1_name, _a1 = _decode_snap(bank, tex_state, tex_state.tile1, skip_prim=True)
+                alpha_mode = "BLEND"
+                wrap_s = int(tex_state.tile0["wrap_s"])
+                wrap_t = int(tex_state.tile0["wrap_t"])
+            else:
+                saved_prim = tex_state.prim
+                if skip_prim:
+                    tex_state.prim = (255, 255, 255, 255)
+                png, tex_name, alpha_mode = bank.decode_current(tex_state)
+                tex_state.prim = saved_prim
+                if water_kind == "beach_wet":
+                    alpha_mode = "OPAQUE"
         if spill and png:
             png = i4_png_as_alpha(png)
             alpha_mode = "BLEND"
@@ -421,14 +515,17 @@ def parse_gfx(
                 triangles=triangles,
                 texture_name=tex_name,
                 texture_png=png,
-                tex_width=tex_state.width,
-                tex_height=tex_state.height,
-                wrap_s=tex_state.wrap_s,
-                wrap_t=tex_state.wrap_t,
+                tex_width=int((tex_state.tile0 or {}).get("width") or tex_state.width),
+                tex_height=int((tex_state.tile0 or {}).get("height") or tex_state.height),
+                wrap_s=wrap_s,
+                wrap_t=wrap_t,
                 alpha_mode="OPAQUE" if unlit else alpha_mode,
                 unlit_fill=unlit,
                 unlit_rgba=unlit_rgba,
                 ground_spill=spill,
+                layer1_png=layer1_png,
+                layer1_name=layer1_name,
+                water_kind=water_kind,
             )
         )
         triangles = []
@@ -447,8 +544,7 @@ def parse_gfx(
             flush()
             current_key = key
         keys = []
-        tw = tex_state.width or 16
-        th = tex_state.height or 16
+        tw, th = uv_dims()
         for idx in (i0, i1, i2):
             src = cache[idx]
             assert src is not None
@@ -586,9 +682,7 @@ def parse_gfx(
                 ):
                     flush()
                     current_key = None
-                tex_state.pal_slot = pal_slot
-                tex_state.wrap_s = wrap_s
-                tex_state.wrap_t = wrap_t
+                _apply_settile_dolphin(w0, tex_state)
             elif cmd == G_SETPRIMCOLOR and bank is not None:
                 if triangles:
                     flush()

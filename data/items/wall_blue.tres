@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"wall_blue"
+display_name = "Blue Wall"
+description = "Wallpaper for your house."
+category = 6
+sell_price = 80
+buy_price = 320
+max_stack = 1
+droppable = true
+usable = false
+icon_color = Color(0.35, 0.5, 0.85, 1)

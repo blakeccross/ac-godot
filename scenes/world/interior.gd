@@ -26,6 +26,7 @@ func _ready() -> void:
 	InteriorBuilder.new().build(self, session)
 	_apply_indoor_light(room)
 	_spawn_player()
+	Audio.play_bgm(BgmCatalog.room_id(room.kind))
 
 
 func _exit_tree() -> void:
@@ -59,6 +60,20 @@ func refresh_placement(placement_id: StringName) -> void:
 	spawn_placement(entry)
 
 
+func refresh_shop_set() -> void:
+	var root: Node3D = get_node_or_null("Furniture") as Node3D
+	if root == null or session == null:
+		return
+	var stale: Array[Node] = []
+	for child: Node in root.get_children():
+		if child.is_in_group("shop_set"):
+			stale.append(child)
+	for node: Node in stale:
+		root.remove_child(node)
+		node.free()
+	InteriorBuilder.new().add_shop_set(root, session)
+
+
 func _apply_indoor_light(room: Room) -> void:
 	var env: Environment = _world_env.environment
 	env.background_mode = Environment.BG_COLOR
@@ -70,12 +85,19 @@ func _apply_indoor_light(room: Room) -> void:
 	if _camera != null and "offset" in _camera:
 		var bounds: AABB = InteriorBuilder.new()._shell_bounds(room, grid)
 		var span: float = maxf(bounds.size.x, bounds.size.z)
-		if _camera.has_method("offset_for_ground_span"):
+		if _camera.has_method("offset_to_frame_span"):
+			_camera.set("offset", _camera.call("offset_to_frame_span", span))
+		elif _camera.has_method("offset_for_ground_span"):
 			_camera.set("offset", _camera.call("offset_for_ground_span", span))
 		else:
 			_camera.set("offset", Vector3(0.0, span, span))
-	if room != null and room.kind == Room.Kind.NPC and _camera.has_method("lock_at"):
+	if pins_follow_camera(room) and _camera.has_method("lock_at"):
 		_camera.call("lock_at", _inner_look_point(room))
+
+
+## Player and villager homes pin the 3/4 camera to the room (`Camera2` border invert).
+static func pins_follow_camera(room: Room) -> bool:
+	return room != null and (room.kind == Room.Kind.NPC or room.kind == Room.Kind.PLAYER)
 
 
 func _inner_look_point(room: Room) -> Vector3:
@@ -103,7 +125,7 @@ func _spawn_player() -> void:
 	elif not Game.player_position.is_equal_approx(Game.DEFAULT_SPAWN):
 		pos = Game.player_position
 	player.apply_spawn(pos, yaw)
-	if session != null and session.room != null and session.room.kind == Room.Kind.NPC:
+	if pins_follow_camera(session.room if session != null else null):
 		return
 	if _camera.has_method("set_target"):
 		_camera.call("set_target", player)

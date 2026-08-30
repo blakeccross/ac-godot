@@ -11,7 +11,7 @@ Build **one good version** of each, then stop until the game needs more:
 - Player move, talk, pick up, use a tool
 - One tree (grow, shake, fruit, plant) rather than every tree
 - One villager with a daily schedule rather than every personality
-- One shop with buy/sell rather than every original store
+- One shop with buy/sell rather than every original store (Nook + Able Sisters are the two in town)
 - Inventory, a small item catalog, and a simple economy
 - Save/load of the systems above
 

@@ -14,6 +14,7 @@ extends StaticBody3D
 func _ready() -> void:
 	add_to_group("interactable")
 	GeneratedVisual.attach(self, visual_id)
+	HostCollision.apply_house(self, visual_id, footprint, HostCollision.CELL)
 
 
 func apply_grid_yaw(facing: WorldGrid.Facing) -> void:

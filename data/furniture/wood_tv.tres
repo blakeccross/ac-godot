@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="FurnitureData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/furniture_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"wood_tv"
+display_name = "Wood TV"
+description = "A set with an off switch."
+category = 1
+sell_price = 200
+buy_price = 800
+max_stack = 1
+icon_color = Color(0.25, 0.25, 0.28, 1)
+footprint = Vector2i(1, 1)
+shape = 0
+can_rotate = true
+indoor = true
+placement = 0
+kind = 7
+contact = 0
+can_sit = false
+can_store = false
+blocks_walk = true
+visual_id = &"int_sum_tv01"
+storage_slots = 0
+starts_off = true

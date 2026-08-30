@@ -13,6 +13,7 @@ extends StaticBody3D
 func _ready() -> void:
 	add_to_group("interactable")
 	GeneratedVisual.attach(self, visual_id)
+	HostCollision.apply_rock(self, footprint, HostCollision.CELL)
 
 
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:

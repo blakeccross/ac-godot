@@ -17,6 +17,7 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 | `include/m_camera2.h` | Follow camera (`CAMERA2_PROCESS_NORMAL`, talk/door/wade variants) |
 | `include/m_random_field.h` | Town generation / acre combination |
 | `include/m_land.h` | Town name and land id |
+| `src/actor/ac_field_draw.c`, `src/evw_anime.c` | Acre OPA + XLU draw; river dual-scroll; ocean wave cosine; wet-sand env |
 
 Key functions: `mFM_FieldInit`, `mFM_InitFgCombiSaveData`, `mFI_Wpos2BkandUtNuminBlock`, `mFI_Wpos2UtNum`, `mFI_GetFieldId`, `mFI_CheckShop`, `mBI_change_bg_item`.
 
@@ -30,7 +31,7 @@ Every unit can hold a **foreground item** (tree, flower, buried item, dropped fu
 
 Field ids encode type + index (`mFI_TO_FIELD_ID`): outdoor FG, public rooms (shop, post office, museum wings), NPC houses, demos, and four player houses.
 
-Only **four acres** nearest the player are considered visible (`mFM_VISIBLE_BLOCK_NUM`). Collision is a heightfield plus attributes (grass, soil, water, river direction, sand, hole, bush).
+Only **four acres** nearest the player are considered visible (`mFM_VISIBLE_BLOCK_NUM`). Collision is a heightfield plus attributes (grass, soil, water, river direction, sand, hole, bush). Acre land is OPA `grd_*_model`; water/waves are XLU `grd_*_modelT` with `Evw_Anime` UV scroll (not a water shader in the original).
 
 ## Important states
 
@@ -85,7 +86,7 @@ Numbers from `m_field_info.h`, `m_field_make.h`, `m_collision_bg.h`, `m_random_f
 | Object placement | Every unit holds one **FG item id** (`mFM_fg_c items[16][16]` per FG acre). Trees, flowers, buried items, dropped furniture share that slot. |
 | Trees / flowers | FG ids on grass/soil with a **plant-growth cap** (`mCoBG_PLANT0`–`PLANT4`, `KILL_PLANT`). Daily renew grows them; generator places initial ids. |
 | Paths / roads | Not a separate layer. Dirt/stone/bridge are collision attributes on units (and the railroad acres). |
-| Collision | Per-unit heightfield + attribute + plant cap + furniture footprint type. Out of map = blocked. |
+| Collision | Per-unit heightfield + attribute + plant cap + furniture footprint type. **Structures are not physics AABBs** — they rewrite 5-point unit heights (`mCoBG_SetPluss5PointOffset`) so `SearchWallFlag` / `revise_xz` treat the house as terrace walls. Out of map = blocked. |
 | Map boundaries | Outer acres are **border cliffs / ocean**. You do not walk off the 7×10. Island is a separate field. |
 
 ### What makes a town feel like Animal Crossing
@@ -110,8 +111,26 @@ We do **not** port that acre-combination solver. We keep the *rules* (river thro
 
 - Discrete **acres** made of a unit grid, not a free-form open world.
 - One acre on screen at first; later, load neighbors.
-- Outdoor **3/4 camera**, ~20° FOV, follow the player. Villager homes lock that camera to the room center.
-- Collision that distinguishes **walkable grass**, **water**, and **blocked**. Player Y comes from the **paired acre collision table** (center + four corners × 10 GX) at the current XZ, including water units — original `GetBgY` never returns “no floor” for a river. Banks and terraces are **thin XZ segments** (`SearchWallFlag` + 45° slate + water edges) resolved as a circle (`revise_xz`), not gravity holes, not AABB cell boxes, and not 3D physics walls. This slice still keeps the player off water tiles. Off-map is impassable. Acre-edge **wade** is streaming, not a fence.
+- Outdoor **3/4 camera**, ~20° FOV, follow the player. Player and villager homes lock that camera to the room center.
+- Acre **XLU water** (decomp + [ACGC-PC-Port](https://github.com/flyngmt/ACGC-PC-Port) emu64 TEV — **no custom water shader** on PC). Full write-up of the faithful path is below under **Water rendering (emu64)**.
+
+### Water rendering (emu64)
+
+PC port path: game DLs → `emu64` (DL→GX TEV) → `pc_gx` / `default.frag`. Ocean/river/sprash are ordinary combiner cases in `emu64::combine_manual`, not a special shader.
+
+| Layer | Combiner (RGB / A) | Prim / env | Scroll |
+| --- | --- | --- | --- |
+| Ocean shore+open | `t0×(t1+1)` → `PRIM×SHADE+…` / `t0.a×t1.a` | PRIM `(60,120,255)` | seg `0x0B` wave2 32×64 CLAMP; `0x0D` wave3 REPEAT. `ΔT = scroll/4` after double `<<1` (`two_tex_scroll_dolphin` + marin `<<1`). `tile0=⌊F×−0.42666667⌋−7`, `tile1=⌊32(1−cos(2π(F%300)/300))⌋` |
+| River | `(PRIM−ENV)×t0+ENV` → `×SHADE+t0` / `(t0+t1)×LOD+PRIM` | PRIM white α/lod 50; ENV inland `(0,100,255)` / mouth `(0,60,255)` | seg `0x08` Evw `{+1,-1}/{−1,-2}` → dolphin texels `x/8` |
+| Sprash (mouth) | `PRIM+t0` → `×SHADE+t1` / `t1×PRIM.a` | PRIM `(100,140,255,200)` | seg `0x09` Evw `{0,-6}/{0,0}`; tile1 `shift_t=1` |
+| Wet sand OPA | prim/env × I4 | beach env from marin cosine phase −1.2 | seg `0x0C` |
+
+**UV scroll (emu64 `texture_matrix` / `texture_gen`):** with `G_TA_DOLPHIN`, `bilerp_adjust=0`; UV uses **subtract** `sl/16` then ÷ tex size. Sign matches Godot `UV - texels/size`.
+
+**Why water looks solid blue:** not coverage inventing a fill, and not a fake `body_alpha` in the XLU shader. Open-ocean acres draw **OPA dark-blue beach** first (`beach2`/`beachB`, PRIM `(32,48,144)` in `grd_s_o_*_model`). XLU waves then blend with **`α = t0.a×t1.a`** (often low — wave1.a is tiny) so foam/hex rides on that underdraw + fog (`G_RM_FOG_SHADE_A` → GX perspective fog). Nearshore beach acres show **sand through** the XLU sheet; foam is high-I wave2 crest (`t0×(t1+1)` add on PRIM blue).
+
+**Godot:** RGB matches the combiners above. Ocean α is `max(t0.a×t1.a, body_alpha)` — hardware α alone is ~0.03 (tiny wave1.a) so beach-acre sand underdraw read as “tan ocean”; the floor stands in for GC coverage. Open-ocean OPA `beachB` is tagged `beach_wet` with prim `(32,48,144)`. Outdoor fog stays in `world.gd`.
+- Collision that distinguishes **walkable grass**, **water**, and **blocked**. Player Y comes from the **paired acre collision table** (center + four corners × 10 GX) at the current XZ, including water units — original `GetBgY` never returns “no floor” for a river. Banks and terraces are **thin XZ segments** (`SearchWallFlag` + 45° slate + water edges) resolved as a circle (`revise_xz`), not gravity holes, not AABB cell boxes, and not 3D physics walls. This slice still keeps the player off water tiles. Off-map is impassable. Acre-edge **wade** is streaming, not a fence. Trees, rocks, and shops use occupancy-sized physics hulls (`HostCollision`). Houses rewrite the heightfield (`StructureOffset`).
 - Indoor vs outdoor as separate scenes, not one giant mesh.
 - Dropped / grown items occupy **tiles**, not arbitrary floats.
 
@@ -130,3 +149,4 @@ We do **not** port that acre-combination solver. We keep the *rules* (river thro
 - Demo fields (`mFI_FIELD_DEMO_*`), title-screen towns.
 - Copy-protect land id behavior beyond “town has a name”.
 - Perfect acre-edge wade camera (`CAMERA2_PROCESS_WADE`).
+- Waterfall FG actors (`obj_fallS` dual-scroll) until a waterfall slice.

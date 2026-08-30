@@ -324,6 +324,10 @@ class TextureState:
     wrap_s: int = GX_CLAMP
     wrap_t: int = GX_CLAMP
     prim: tuple[int, int, int, int] = (255, 255, 255, 255)
+    ## Dual-tile water (river water1+water2, ocean wave1+wave2/3): snapshot on
+    ## G_SETTILE_DOLPHIN tile 0 / tile 1 before the next SETTIMG overwrites img_addr.
+    tile0: dict | None = None
+    tile1: dict | None = None
 
 
 class TextureBank:

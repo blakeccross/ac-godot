@@ -15,6 +15,7 @@ extends StaticBody3D
 
 func _ready() -> void:
 	GeneratedVisual.attach(self, visual_id)
+	HostCollision.apply_box(self, footprint, HostCollision.CELL)
 	var door: Node = get_node_or_null("Door")
 	if door != null:
 		if "label" in door:

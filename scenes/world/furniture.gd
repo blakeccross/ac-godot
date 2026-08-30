@@ -1,6 +1,6 @@
 extends StaticBody3D
 
-## Placed furniture. Sit, or pick up / rotate when the room allows decorating.
+## Placed furniture. Verbs come from `FurnitureData` via `FurnitureUse`.
 
 @export var data: FurnitureData
 @export var occupant_id: StringName = &""
@@ -34,37 +34,20 @@ func apply_grid_yaw(facing: WorldGrid.Facing) -> void:
 func apply_footprint(cell_size: float) -> void:
 	var w: float = maxf(float(maxi(footprint.x, 1)) * cell_size * 0.85, 0.4)
 	var d: float = maxf(float(maxi(footprint.y, 1)) * cell_size * 0.85, 0.4)
+	var blocks: bool = data == null or data.blocks_walk
 	if _collision != null and _collision.shape is BoxShape3D:
 		(_collision.shape as BoxShape3D).size = Vector3(w, 0.8, d)
 		_collision.position.y = 0.4
-		_collision.disabled = data != null and not data.blocks_walk
+		_collision.disabled = not blocks
 	if _mesh != null and _mesh.mesh is BoxMesh:
 		(_mesh.mesh as BoxMesh).size = Vector3(w * 0.7, 0.7, d * 0.7)
 		_mesh.position.y = 0.35
-	collision_layer = 1 if data == null or data.blocks_walk else 0
+	collision_layer = 1 if blocks else 0
 
 
-func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
-	var actions: Array[Interaction] = []
-	var label: String = data.display_name if data else "Furniture"
-	var sittable: bool = data == null or data.can_sit
-	if sittable:
-		actions.append(Interaction.of(Interaction.SIT, "Sit on %s" % label, 8))
-	if Game.is_decorating():
-		if data == null or not data.can_sit:
-			actions.append(Interaction.of(Interaction.PICK_UP, "Pick up %s" % label, 8))
-		actions.append(Interaction.of(Interaction.ROTATE, "Rotate %s" % label, 6))
-	return actions
+func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
+	return FurnitureUse.actions(self, ctx)
 
 
-func interact(action: Interaction, _ctx: InteractionContext) -> bool:
-	if action == null:
-		return false
-	if action.id == Interaction.SIT:
-		Game.post_notice("You sit down.")
-		return true
-	if action.id == Interaction.PICK_UP:
-		return Game.pick_up_furniture(occupant_id)
-	if action.id == Interaction.ROTATE:
-		return Game.rotate_furniture(occupant_id)
-	return false
+func interact(action: Interaction, ctx: InteractionContext) -> bool:
+	return FurnitureUse.apply(action, self, ctx)

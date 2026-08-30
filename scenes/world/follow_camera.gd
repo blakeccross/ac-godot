@@ -7,8 +7,9 @@ const ORIG_DISTANCE := 620.0
 const FOLLOW_DISTANCE := ORIG_DISTANCE * PlayerLocomotion.UNIT_METERS
 const ISO := 0.70710678
 const DEFAULT_OFFSET := Vector3(0.0, FOLLOW_DISTANCE * ISO, FOLLOW_DISTANCE * ISO)
-## Extra distance so walls sit inside the 20° frustum, not on the edge.
-const FRAME_PADDING := 1.2
+## Extra distance so the near wall stays inside the 20° frustum. 1.2 left that
+## edge under the look-at (the 45° camera sits closer to +Z than to the far wall).
+const FRAME_PADDING := 1.6
 
 @export var target_path: NodePath
 @export var offset := DEFAULT_OFFSET
@@ -46,6 +47,15 @@ func offset_for_ground_span(span: float) -> Vector3:
 	var dist: float = maxf(span, 1.0) * ISO / (2.0 * tan(half_fov))
 	var axis: float = dist * FRAME_PADDING * ISO
 	return Vector3(0.0, axis, axis)
+
+
+## Indoor houses never sit closer than Camera2 620 (31 m). Small rooms would
+## otherwise zoom in until the door wall clips off the bottom of the screen.
+func offset_to_frame_span(span: float) -> Vector3:
+	var framed: Vector3 = offset_for_ground_span(span)
+	if framed.y < DEFAULT_OFFSET.y:
+		return DEFAULT_OFFSET
+	return framed
 
 
 func _process(delta: float) -> void:

@@ -60,12 +60,16 @@ static func furniture_for_visual(visual_id: StringName) -> FurnitureData:
 	data.display_name = _display_from_visual(visual_id)
 	data.visual_id = visual_id
 	data.footprint = Vector2i(1, 1)
-	data.indoor = true
-	data.blocks_walk = true
-	var raw := String(visual_id).to_lower()
-	data.can_sit = raw.contains("chair") or raw.contains("sofa") or raw.contains("isu")
+	data.infer_from_visual()
 	_by_id[visual_id] = data
 	return data
+
+
+static func remember(data: ItemData) -> void:
+	ensure_loaded()
+	if data == null or data.id == &"":
+		return
+	_by_id[data.id] = data
 
 
 static func _display_from_visual(visual_id: StringName) -> String:

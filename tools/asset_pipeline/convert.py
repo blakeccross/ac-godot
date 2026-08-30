@@ -61,6 +61,45 @@ NPC_CORE_ANIMS = [
 TEST_SKEL_BY_NAME = {item["skeleton"]: item for item in TEST_SKELETONS}
 TEST_STATIC_BY_VTX = {item["vtx"]: item for item in TEST_STATIC}
 
+# River / marine / cliff-river acres. Avoid `grd_s_r` (hits `grd_s_rail`) and `grd_s_m` (hits museum `grd_s_mh`).
+WATER_STATIC_NEEDLES = [
+    "grd_s_r1",
+    "grd_s_r2",
+    "grd_s_r3",
+    "grd_s_r4",
+    "grd_s_r5",
+    "grd_s_r6",
+    "grd_s_r7",
+    "grd_w_r1",
+    "grd_w_r2",
+    "grd_w_r3",
+    "grd_w_r4",
+    "grd_w_r5",
+    "grd_w_r6",
+    "grd_w_r7",
+    "grd_s_m_",
+    "grd_w_m_",
+    ## Open-ocean border acres: OPA dark-blue beachB under XLU waves.
+    "grd_s_o_",
+    "grd_w_o_",
+    "grd_s_t_r",
+    "grd_w_t_r",
+    "grd_s_c1_r",
+    "grd_s_c2_r",
+    "grd_s_c3_r",
+    "grd_s_c4_r",
+    "grd_s_c5_r",
+    "grd_s_c6_r",
+    "grd_s_c7_r",
+    "grd_w_c1_r",
+    "grd_w_c2_r",
+    "grd_w_c3_r",
+    "grd_w_c4_r",
+    "grd_w_c5_r",
+    "grd_w_c6_r",
+    "grd_w_c7_r",
+]
+
 
 def convert_assets(cfg: PipelineConfig) -> dict[str, Any]:
     if cfg.test_set_only:
@@ -373,6 +412,7 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
 
     jobs: list[dict[str, Any]] = []
     seen_vtx: set[str] = set()
+    names = {s.name for s in symbols}
     for symbol in symbols:
         if not symbol.name.endswith("_v") or symbol.name.startswith("cKF_"):
             continue
@@ -383,6 +423,11 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
             # Blob shadows (`*_shadow_v`). Godot uses the sun; DLs are often empty.
             continue
         model_names = sorted(gfx_by_prefix.get(prefix) or model_by_prefix.get(prefix) or [])
+        # Acre OPA is `*_model`; XLU water/waves live on `*_modelT` (not plant `obj_*T_gfx`).
+        if prefix.startswith("grd_"):
+            model_t = f"{prefix}_modelT"
+            if model_t in names and model_t not in model_names:
+                model_names.append(model_t)
         if not model_names:
             continue
         if symbol.name in seen_vtx:

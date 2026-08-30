@@ -446,6 +446,74 @@ func test_corner_does_not_trap_circle() -> void:
 	assert_bool(found).is_true()
 
 
+func test_player_house_plus_offset_leaves_porch() -> void:
+	FieldCollision.clear_caches()
+	var data: WorldData = _house_data()
+	var b := BuildingPlacement.new()
+	b.id = &"player_house"
+	b.kind = &"house"
+	b.cell = Vector2i(7, 1)
+	b.footprint = Vector2i(2, 2)
+	b.visual_id = &"obj_s_myhome1"
+	b.mesh_facing = WorldGrid.Facing.SOUTH
+	data.buildings.append(b)
+	StructureOffset.apply(data)
+	assert_that(StructureOffset.player_home_cell(b)).is_equal(Vector2i(8, 1))
+	var porch: Vector2i = Vector2i(7, 3)
+	var body: Vector2i = Vector2i(7, 2)
+	var hp: float = FieldCollision.height_at(data, porch)
+	var hb: float = FieldCollision.height_at(data, body)
+	assert_float(hb).is_greater(hp + 2.0)
+	assert_float(FieldCollision.ground_y(data, body)).is_equal_approx(FieldCollision.ground_y(data, porch), 0.01)
+
+
+func test_west_player_house_porch_is_south_east() -> void:
+	FieldCollision.clear_caches()
+	var data: WorldData = _house_data()
+	var b := BuildingPlacement.new()
+	b.id = &"player_house"
+	b.kind = &"house"
+	b.cell = Vector2i(3, 3)
+	b.footprint = Vector2i(2, 2)
+	b.visual_id = &"obj_s_myhome1"
+	b.mesh_facing = WorldGrid.Facing.WEST
+	data.buildings.append(b)
+	StructureOffset.apply(data)
+	var home: Vector2i = StructureOffset.player_home_cell(b)
+	assert_that(home).is_equal(Vector2i(3, 3))
+	var porch: Vector2i = home + Vector2i(1, 2)
+	var body: Vector2i = home + Vector2i(1, 1)
+	assert_float(FieldCollision.height_at(data, body)).is_greater(FieldCollision.height_at(data, porch) + 2.0)
+
+
+func test_npc_house_south_center_is_the_door() -> void:
+	FieldCollision.clear_caches()
+	var data: WorldData = _house_data()
+	var b := BuildingPlacement.new()
+	b.id = &"npc_house_0"
+	b.kind = &"house"
+	b.cell = Vector2i(4, 4)
+	b.footprint = Vector2i(3, 3)
+	b.visual_id = &"obj_s_house1"
+	data.buildings.append(b)
+	StructureOffset.apply(data)
+	var home: Vector2i = StructureOffset.npc_home_cell(b)
+	assert_that(home).is_equal(Vector2i(5, 5))
+	var porch: Vector2i = home + Vector2i(0, 1)
+	var body: Vector2i = home
+	assert_float(FieldCollision.height_at(data, body)).is_greater(FieldCollision.height_at(data, porch) + 1.0)
+
+
+func _house_data() -> WorldData:
+	var data := WorldData.new()
+	data.columns = 16
+	data.rows = 16
+	data.cell_size = 2.0
+	data.acre_visual = &""
+	data.bake()
+	return data
+
+
 func _visual_at(data: WorldData, cell: Vector2i) -> StringName:
 	if data.acre_visuals.size() == TownFieldGenerator.BLOCK_TOTAL:
 		var bx: int = int(cell.x / WorldGenerator.UT) + 1
