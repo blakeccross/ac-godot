@@ -10,3 +10,7 @@ display_name = "Chief"
 species = &"wolf"
 personality = ExtResource("2")
 starter = true
+wall_index = 56
+floor_index = 42
+house_type = 0
+house_palette = 4

@@ -2,7 +2,7 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — do not copy `FTR_ACTOR` or per-item `aFTR_PROFILE` tables.
 
-**Read before implementing:** `FurnitureData`, interior scene, place/pick/rotate.
+**Read before implementing:** `FurnitureData`, `FurnitureUse`, `House`, `Room`, `FurniturePlacement`, interior scene, place/pick/rotate.
 
 ## Decomp sources
 
@@ -69,20 +69,21 @@ NPC houses are a different field type with a pre-arranged FTR set from villager 
 
 ## Reproduce
 
-- Indoor **tile grid**; furniture occupies 1×1 first (then 1×2 / 2×2 if needed).
-- Place from inventory onto an empty footprint; pick up back to a free pocket.
-- **Rotate** in 90° steps.
-- Push/pull along the grid (or skip pull and only rotate+place for a first slice).
-- One **sittable** object.
-- Wall and floor as room fields, even if only one wallpaper/flooring item exists.
+- Indoor **tile grid** (`WorldGrid`); furniture occupies 1×1 / TYPEB 2×1 (`TYPEB_0` extra +X, facing rotates occupancy) / TYPEC 2×2 always SE of the stored cell (`mRmTp_size_l_data`; facing rotates the mesh only, `aMR_angle_table`). cKF storage stays closed at rest (`cKF_SkeletonInfo_R_init_standard_stop` speed 0). Draw scale follows `aFTR_PROFILE.scale` (modern chair 0.1). Mannequins use `obj_shop_manekin` plus a player shirt, not a unique `int_fmanekin` skeleton.
+- Place from inventory onto an empty footprint (or onto a table for small items, or against a wall for wall pieces); pick up back to a free pocket (player house). A picks up in a decorate-able room (ahead of sit/open). The picked item is selected so A places it on the facing cell. Contents of storage / displays return to pockets first.
+- **Rotate** in 90° steps when `can_rotate`.
+- Sit / lie / open storage / toggle / put-or-take a display from `FurnitureData` via `FurnitureUse`.
+- Wall and floor as room fields (`Room.wall_id` / `floor_id`); wallpaper and carpet items apply those ids from the pocket menu.
+- Enter/exit and every indoor field id: [interiors.md](interiors.md).
 
 ## Simplify
 
-- One room, one house size; no basement/upper/statue progression until Nook loans exist.
-- One furniture actor script with data-driven size and “can_sit / can_store”.
-- No per-item overlay profiles (`iam_*`).
-- Storage: a few slots on one dresser, not every drawer type.
-- No place-birth / pick-death tweens required for v1.
+- One furniture actor script. `FurnitureData` carries model, icon, footprint/shape, rotation, placement (floor / table / small / wall), and kind. `FurnitureUse` reads those fields.
+- Player house starts as one small main room; upper/basement/statue wait for Nook loans.
+- No per-item overlay profiles (`iam_*`) as C tables. Disc FTR indexes map to `int_*` visual ids; `ItemCatalog.furniture_for_visual` infers kind when no `.tres` exists. Shared `iam_hnw_common` still picks `int_hnw001`–`int_hnw127` from `FTR_HNW_COMMON000` (`ac_hnw_common.c`).
+- Storage: `KEEP_SLOTS` (3) on dressers / stereos, not a nested submenu.
+- Toggle is on/off state + a notice (no TV video / gyroid song).
+- No place-birth / pick-death tweens; no push/pull contact state machine (rotate from the A-button instead).
 
 ## Ignore
 

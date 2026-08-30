@@ -9,6 +9,7 @@ display_name = "Apple Sapling"
 description = "Plant on grass. Grows into an apple tree."
 category = 5
 sell_price = 60
+buy_price = 60
 max_stack = 1
 droppable = true
 usable = true

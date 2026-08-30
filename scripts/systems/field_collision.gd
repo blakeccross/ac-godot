@@ -33,19 +33,49 @@ const _AREA_E := 1
 const _AREA_S := 2
 const _AREA_W := 3
 
+## Per-cell wall segments for the active WorldData. Cleared when the layout instance changes.
+static var _seg_data_id: int = 0
+static var _cell_segs: Dictionary = {}
+static var _nearby_segs: Dictionary = {}
+## `mCoBG_SetPluss5PointOffset` overlay (cell → corner offsets + slate).
+static var _plus: Dictionary = {}
+
+
+static func clear_caches() -> void:
+	_seg_data_id = 0
+	_cell_segs.clear()
+	_nearby_segs.clear()
+	_plus.clear()
+
+
+static func clear_plus() -> void:
+	_plus.clear()
+	invalidate_segments()
+
+
+static func invalidate_segments() -> void:
+	_seg_data_id = 0
+	_cell_segs.clear()
+	_nearby_segs.clear()
+
+
+static func set_plus(cell: Vector2i, ofs: Dictionary) -> void:
+	_plus[cell] = ofs
+
+
+static func add_to(_root: Node3D, _data: WorldData, _grid: WorldGrid) -> void:
+	## Terrain walls are kinematic (`revise_xz`). Trees, buildings, and map bounds stay physics.
+	## Houses rewrite the heightfield (`StructureOffset`); they are not StaticBody hulls.
+	pass
+
 
 static func has_floor(y: float) -> bool:
 	return y > NO_FLOOR
 
 
-static func add_to(_root: Node3D, _data: WorldData, _grid: WorldGrid) -> void:
-	## Terrain walls are kinematic (`revise_xz`). Trees, buildings, and map bounds stay physics.
-	pass
-
-
 static func ground_y(data: WorldData, cell: Vector2i, ground_dist: float = 0.0) -> float:
-	## Placement helper: unit-center height (`GetBgY_OnlyCenter_FromWpos2`). `ground_dist` is meters subtracted from that height (original passes GX; holes use −1 GX). Terrace fallback so signs still spawn.
-	var y: float = height_at(data, cell)
+	## Actor/mesh Y is acre `keep_h` (`GetBgY` before `SetPluss5PointOffset`). Structure plus-offsets are walk walls, not a raised spawn plane. `ground_dist` is meters subtracted (original passes GX; holes use −1 GX). Terrace fallback so signs still spawn.
+	var y: float = height_at(data, cell, false)
 	if not has_floor(y):
 		y = float(data.elevation_at(cell)) * FieldCatalog.ACRE_STEP_METERS
 	return y - ground_dist
@@ -105,11 +135,11 @@ static func revise_xz(
 	return Vector3(pos.x, y, pos.y)
 
 
-static func height_at(data: WorldData, cell: Vector2i) -> float:
+static func height_at(data: WorldData, cell: Vector2i, with_plus: bool = true) -> float:
 	if data == null or not data.is_in_bounds(cell):
 		return NO_FLOOR
 	var t: WorldGrid.Terrain = data.terrain_at(cell)
-	var unit: Dictionary = _catalog_unit(data, cell)
+	var unit: Dictionary = _catalog_unit(data, cell, with_plus)
 	if t == WorldGrid.Terrain.BLOCKED:
 		return NO_FLOOR
 	if t == WorldGrid.Terrain.WATER:
@@ -327,17 +357,49 @@ static func _visual_at(data: WorldData, cell: Vector2i) -> StringName:
 	return data.acre_visual
 
 
-static func _catalog_unit(data: WorldData, cell: Vector2i) -> Dictionary:
+static func _catalog_unit(data: WorldData, cell: Vector2i, with_plus: bool = true) -> Dictionary:
 	if data == null or not data.is_in_bounds(cell):
 		return {}
-	return FieldCatalog.unit_at(
+	var base: Dictionary = FieldCatalog.unit_at(
 		_visual_at(data, cell), posmod(cell.x, WorldGenerator.UT), posmod(cell.y, WorldGenerator.UT)
 	)
+	if not with_plus or not _plus.has(cell):
+		return base
+	if base.is_empty():
+		var k: int = FieldCatalog.LAND_COUNTS
+		base = {"c": k, "nw": k, "sw": k, "se": k, "ne": k, "s": 0, "a": 0}
+	var keep: int = int(base["c"])
+	var ofs: Dictionary = _plus[cell]
+	var out: Dictionary = base.duplicate()
+	out["c"] = clampi(keep + int(ofs.get("c", 0)), 0, FieldCatalog.HEIGHT_MAX)
+	out["nw"] = clampi(keep + int(ofs.get("nw", 0)), 0, FieldCatalog.HEIGHT_MAX)
+	out["sw"] = clampi(keep + int(ofs.get("sw", 0)), 0, FieldCatalog.HEIGHT_MAX)
+	out["se"] = clampi(keep + int(ofs.get("se", 0)), 0, FieldCatalog.HEIGHT_MAX)
+	out["ne"] = clampi(keep + int(ofs.get("ne", 0)), 0, FieldCatalog.HEIGHT_MAX)
+	out["s"] = int(ofs.get("s", 0))
+	return out
+
+
+static func _ensure_seg_cache(data: WorldData) -> void:
+	var data_id: int = data.get_instance_id()
+	if data_id == _seg_data_id:
+		return
+	_seg_data_id = data_id
+	_cell_segs.clear()
+	_nearby_segs.clear()
 
 
 static func _nearby_segments(
 	data: WorldData, grid: WorldGrid, from: Vector3, to: Vector3
 ) -> Array[Vector4]:
+	_ensure_seg_cache(data)
+	var fa: Vector2i = grid.world_to_cell(from)
+	var ta: Vector2i = grid.world_to_cell(to)
+	var key := Vector4i(fa.x, fa.y, ta.x, ta.y)
+	if _nearby_segs.has(key):
+		return _nearby_segs[key]
+	if _nearby_segs.size() > 4096:
+		_nearby_segs.clear()
 	var seen: Dictionary = {}
 	var segs: Array[Vector4] = []
 	for p: Vector3 in [from, to]:
@@ -348,7 +410,17 @@ static func _nearby_segments(
 				if seen.has(cell) or not data.is_in_bounds(cell):
 					continue
 				seen[cell] = true
-				_append_cell_segments(segs, data, grid, cell)
+				segs.append_array(_segments_for_cell(data, grid, cell))
+	_nearby_segs[key] = segs
+	return segs
+
+
+static func _segments_for_cell(data: WorldData, grid: WorldGrid, cell: Vector2i) -> Array[Vector4]:
+	if _cell_segs.has(cell):
+		return _cell_segs[cell]
+	var segs: Array[Vector4] = []
+	_append_cell_segments(segs, data, grid, cell)
+	_cell_segs[cell] = segs
 	return segs
 
 

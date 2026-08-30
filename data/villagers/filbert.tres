@@ -11,3 +11,7 @@ species = &"squirrel"
 catchphrase = "bucko"
 personality = ExtResource("2")
 starter = true
+wall_index = 15
+floor_index = 12
+house_type = 0
+house_palette = 1

@@ -10,3 +10,7 @@ display_name = "Pompom"
 species = &"duck"
 personality = ExtResource("2")
 starter = true
+wall_index = 33
+floor_index = 62
+house_type = 0
+house_palette = 4

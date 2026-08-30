@@ -11,3 +11,7 @@ species = &"ostrich"
 catchphrase = "zort"
 personality = ExtResource("2")
 starter = false
+wall_index = 56
+floor_index = 56
+house_type = 0
+house_palette = 3

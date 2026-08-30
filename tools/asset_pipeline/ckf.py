@@ -228,6 +228,24 @@ def _sits_on_y(vertices: list) -> bool:
     return min_y >= -0.05 and (max_y - min_y) >= 0.5
 
 
+def select_bind_anim(prefix: str, anim_names: list[str]) -> str | None:
+    """Pose used as the GLB rest. Wait clips already stand on +Y.
+
+    Furniture/clock clips store rest yaw as constants (locker −90°, chest +90°)
+    and the closed frame. Identity + `ckf_basis` double-rotates those and leaves
+    drawers on the last key if Godot autoplays.
+    """
+    if not anim_names:
+        return None
+    wait = next((n for n in anim_names if n.endswith("wait1")), None)
+    if wait:
+        return wait
+    if prefix.startswith("int_") or prefix.startswith("clk_"):
+        exact = f"cKF_ba_r_{prefix}"
+        return exact if exact in anim_names else anim_names[0]
+    return None
+
+
 def _is_y_up_structure(prefix: str) -> bool:
     """Outdoor buildings whose GX verts already sit on +Y.
 
@@ -360,20 +378,17 @@ def convert_ckf_model(
     identity_rot = [(0, 0, 0)] * num_joints
     sits_y = _sits_on_y(vertices) or _is_y_up_structure(prefix)
     # Player wait clips put ~90° on joint 0 (stand the +X chain on +Y).
-    # Furniture/tools have no wait — identity bind stays +X-forward and needs ckf_basis.
-    # Houses/shops already sit on +Y; door clips store rest yaw on joint 0
-    # (house −90°, shop/myhome −135° as degrees×10). Bake that pose — do not invent yaw.
+    # Furniture clips already include rest yaw (degrees×10 constants) — bake frame 1
+    # (closed). Do not add ckf_basis on top. Houses/shops sit on +Y; door clips
+    # store rest yaw on joint 0 (house −90°, shop/myhome −135°).
     use_anim_bind = False
     use_wait_bind = False
     root_t = (0.0, 0.0, 0.0)
     bind_rots = identity_rot
-    bind_anim: str | None = None
-    if anim_names:
-        if anim_names[0].endswith("wait1"):
-            bind_anim = anim_names[0]
-        elif sits_y:
-            exact = f"cKF_ba_r_{prefix}"
-            bind_anim = exact if exact in anim_names else anim_names[0]
+    bind_anim = select_bind_anim(prefix, anim_names)
+    if bind_anim is None and sits_y and anim_names:
+        exact = f"cKF_ba_r_{prefix}"
+        bind_anim = exact if exact in anim_names else anim_names[0]
     if bind_anim is not None:
         try:
             root_raw, bind_rots = evaluate_pose(rel, symbols, bind_anim, num_joints, 1.0)

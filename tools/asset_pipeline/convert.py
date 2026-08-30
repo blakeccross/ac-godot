@@ -28,7 +28,7 @@ from .texbank import G_IM_FMT_CI, G_IM_SIZ_4b, TextureBank, decode_gbi_texture, 
 TRANSFORMS = {
     "scale": "vertex * config.scale (default 0.001). Not actor 0.01 or acre 0.0625 draw scale — Godot FieldCatalog applies those.",
     "z_axis": "cKF: wait bind already stands on +Y; else +90° about Z unless GX verts already sit on +Y (houses/shops/myhome/station bake door-clip joint-0 yaw: house −90°, shop/myhome −135°, station 0°). Static Gfx keep GX Z (no flip).",
-    "rest_pose": "wait frame 1 when available; Y-up structures use door-clip frame 1; else identity + ckf_basis",
+    "rest_pose": "wait frame 1 when available; furniture/clocks bake own clip frame 1 (closed); Y-up structures use door-clip frame 1; else identity + ckf_basis",
     "animations": "cKF_ba_r_* sampled at 30 fps into skinned glTF clips",
     "textures": "GX CI4/CI8 + pal; I/IA * G_SETPRIMCOLOR; villager tmem on 0x0A/0x0B",
     "skin": "G_MTX 0x0D slots map to Gfx-bearing joints; seam verts stay on the parent",
@@ -60,6 +60,45 @@ NPC_CORE_ANIMS = [
 
 TEST_SKEL_BY_NAME = {item["skeleton"]: item for item in TEST_SKELETONS}
 TEST_STATIC_BY_VTX = {item["vtx"]: item for item in TEST_STATIC}
+
+# River / marine / cliff-river acres. Avoid `grd_s_r` (hits `grd_s_rail`) and `grd_s_m` (hits museum `grd_s_mh`).
+WATER_STATIC_NEEDLES = [
+    "grd_s_r1",
+    "grd_s_r2",
+    "grd_s_r3",
+    "grd_s_r4",
+    "grd_s_r5",
+    "grd_s_r6",
+    "grd_s_r7",
+    "grd_w_r1",
+    "grd_w_r2",
+    "grd_w_r3",
+    "grd_w_r4",
+    "grd_w_r5",
+    "grd_w_r6",
+    "grd_w_r7",
+    "grd_s_m_",
+    "grd_w_m_",
+    ## Open-ocean border acres: OPA dark-blue beachB under XLU waves.
+    "grd_s_o_",
+    "grd_w_o_",
+    "grd_s_t_r",
+    "grd_w_t_r",
+    "grd_s_c1_r",
+    "grd_s_c2_r",
+    "grd_s_c3_r",
+    "grd_s_c4_r",
+    "grd_s_c5_r",
+    "grd_s_c6_r",
+    "grd_s_c7_r",
+    "grd_w_c1_r",
+    "grd_w_c2_r",
+    "grd_w_c3_r",
+    "grd_w_c4_r",
+    "grd_w_c5_r",
+    "grd_w_c6_r",
+    "grd_w_c7_r",
+]
 
 
 def convert_assets(cfg: PipelineConfig) -> dict[str, Any]:
@@ -110,6 +149,19 @@ def convert_ckf_prefixes(cfg: PipelineConfig, prefixes: list[str]) -> dict[str, 
         results.append(record)
         print(f"  ckf {i}/{len(skels)} {skel.name} {record['status']}")
     return {"results": results, "converted": sum(1 for r in results if r["status"] == "converted")}
+
+
+def convert_ckf_starting_with(cfg: PipelineConfig, *prefixes: str) -> dict[str, Any]:
+    """Reconvert every cKF skeleton whose prefix starts with one of `prefixes`."""
+    rel, symbols = _rel_and_map(cfg)
+    wanted: list[str] = []
+    for symbol in symbols:
+        if not symbol.name.startswith("cKF_bs_r_"):
+            continue
+        stem = symbol.name.replace("cKF_bs_r_", "")
+        if any(stem.startswith(p) for p in prefixes):
+            wanted.append(stem)
+    return convert_ckf_prefixes(cfg, wanted)
 
 
 def convert_static_prefixes(cfg: PipelineConfig, needles: list[str]) -> dict[str, Any]:
@@ -288,9 +340,18 @@ def _name_under_prefix(name: str, prefix: str, all_prefixes: set[str] | None = N
     elif name.startswith(prefix + "T_") or name == prefix + "T":
         owned = True
     elif name.startswith(prefix + "_"):
-        rest = name[len(prefix) + 1 :]
-        if not (prefix[-1:].isdigit() and rest[:1].isdigit()):
-            owned = True
+        # `grd_s_f_10_*` does not start with `grd_s_f_1_`, so the digit-boundary
+        # case does not reach here. Furniture parts (`int_ari_isu01_00T_model`,
+        # `int_ari_reizou01_01_model`) must still belong to the vtx prefix.
+        owned = True
+    elif (
+        prefix[-1:].isalpha()
+        and len(name) > len(prefix)
+        and name.startswith(prefix)
+        and name[len(prefix)].isdigit()
+    ):
+        # `int_ike_art_fel_v` owns `int_ike_art_fel01_on_model`.
+        owned = True
     if not owned:
         return False
     if all_prefixes:
@@ -311,8 +372,9 @@ def _owning_vtx_prefix(name: str, prefixes: set[str]) -> str | None:
         if cand.endswith("T"):
             variants.append(cand[:-1])
         for variant in variants:
-            if variant in prefixes and _name_under_prefix(name, variant):
-                return variant
+            for owner in (variant, variant.rstrip("0123456789")):
+                if owner and owner in prefixes and _name_under_prefix(name, owner):
+                    return owner
     # Hardwood stumps: vtx `obj_s_stump5`, Gfx `obj_stump5T_gfx_model` (season infix dropped).
     dropped = re.match(r"^obj_(stump\d+)T_", name)
     if dropped:
@@ -350,6 +412,7 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
 
     jobs: list[dict[str, Any]] = []
     seen_vtx: set[str] = set()
+    names = {s.name for s in symbols}
     for symbol in symbols:
         if not symbol.name.endswith("_v") or symbol.name.startswith("cKF_"):
             continue
@@ -360,6 +423,11 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
             # Blob shadows (`*_shadow_v`). Godot uses the sun; DLs are often empty.
             continue
         model_names = sorted(gfx_by_prefix.get(prefix) or model_by_prefix.get(prefix) or [])
+        # Acre OPA is `*_model`; XLU water/waves live on `*_modelT` (not plant `obj_*T_gfx`).
+        if prefix.startswith("grd_"):
+            model_t = f"{prefix}_modelT"
+            if model_t in names and model_t not in model_names:
+                model_names.append(model_t)
         if not model_names:
             continue
         if symbol.name in seen_vtx:

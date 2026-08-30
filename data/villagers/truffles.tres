@@ -10,3 +10,7 @@ display_name = "Truffles"
 species = &"pig"
 personality = ExtResource("2")
 starter = true
+wall_index = 12
+floor_index = 7
+house_type = 0
+house_palette = 3

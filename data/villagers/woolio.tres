@@ -10,3 +10,7 @@ display_name = "Woolio"
 species = &"sheep"
 personality = ExtResource("2")
 starter = false
+wall_index = 61
+floor_index = 42
+house_type = 0
+house_palette = 4

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"floor_tile"
+display_name = "Tile Floor"
+description = "A tiled carpet."
+category = 7
+sell_price = 80
+buy_price = 320
+max_stack = 1
+droppable = true
+usable = false
+icon_color = Color(0.7, 0.68, 0.62, 1)

@@ -25,12 +25,13 @@ def _pad4(n: int) -> int:
 
 def _group_parts(parts: list[MeshPart]) -> list[dict]:
     groups: list[dict] = []
-    index: dict[tuple[bytes, int, int, bool, bool], int] = {}
+    index: dict[tuple, int] = {}
     for part in parts:
         if not part.triangles:
             continue
         unlit = bool(part.unlit_fill) or is_window_pane_dl(part.name)
         spill = bool(part.ground_spill) or is_window_spill_dl(part.name)
+        water_kind = part.water_kind or ""
         if unlit:
             part.unlit_fill = True
             part.texture_png = None
@@ -41,10 +42,23 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
             part.alpha_mode = "BLEND"
         # Shirt (REPEAT) and hat (CLAMP) share segment 0x0A PNG bytes — keep them apart.
         # Window panes share the wall SETTIMG but ignore it (prim/env fill).
-        key = (part.texture_png or b"", part.wrap_s, part.wrap_t, unlit, spill)
+        # Indoor outdoor-view (white) must not merge with facade panes (black).
+        # River/ocean dual tiles must not merge with a single-layer copy of water1.
+        key = (
+            part.texture_png or b"",
+            part.wrap_s,
+            part.wrap_t,
+            unlit,
+            spill,
+            part.unlit_rgba,
+            water_kind,
+            part.layer1_png or b"",
+        )
         if key not in index:
             index[key] = len(groups)
             named = part.name.split(":")[0] if (unlit or spill) else (part.texture_name or "vertex_color")
+            if water_kind:
+                named = f"{water_kind}_{named}"
             groups.append(
                 {
                     "png": part.texture_png,
@@ -52,7 +66,10 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
                     "wrap_s": part.wrap_s,
                     "wrap_t": part.wrap_t,
                     "unlit_fill": unlit,
+                    "unlit_rgba": part.unlit_rgba,
                     "ground_spill": spill,
+                    "water_kind": water_kind,
+                    "layer1_png": part.layer1_png,
                     "parts": [],
                 }
             )
@@ -69,6 +86,9 @@ def _bake_wrap_group(group: dict) -> None:
     """
     png = group.get("png")
     if not png:
+        return
+    # Scrolling water needs live REPEAT/MIRROR UVs; baking would freeze the tiles.
+    if group.get("water_kind") in ("river", "ocean", "splash"):
         return
     wrap_s = group["wrap_s"]
     wrap_t = group["wrap_t"]
@@ -138,6 +158,8 @@ def _group_alpha_mode(group: dict) -> str:
         return "OPAQUE"
     if group.get("ground_spill"):
         return "BLEND"
+    if group.get("water_kind") in ("river", "ocean", "splash"):
+        return "BLEND"
     modes = {part.alpha_mode for part in group["parts"]}
     if "BLEND" in modes:
         return "BLEND"
@@ -152,7 +174,10 @@ def _material(
     extras: dict | None = None,
     alpha_mode: str = "OPAQUE",
     unlit_fill: bool = False,
+    unlit_rgba: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0),
     ground_spill: bool = False,
+    water_kind: str = "",
+    layer1_texture_index: int | None = None,
 ) -> dict:
     mat: dict = {
         "name": name or "vertex_color",
@@ -160,7 +185,7 @@ def _material(
         "doubleSided": True,
         "alphaMode": alpha_mode,
         "pbrMetallicRoughness": {
-            "baseColorFactor": [0, 0, 0, 1] if unlit_fill else [1, 1, 1, 1],
+            "baseColorFactor": list(unlit_rgba) if unlit_fill else [1, 1, 1, 1],
             "metallicFactor": 0,
             "roughnessFactor": 1,
         },
@@ -174,10 +199,16 @@ def _material(
     if ground_spill:
         extras = dict(extras or {})
         extras["ground_spill"] = True
+    if water_kind:
+        extras = dict(extras or {})
+        extras["water_kind"] = water_kind
     if extras:
         mat["extras"] = extras
     if texture_index is not None:
         mat["pbrMetallicRoughness"]["baseColorTexture"] = {"index": texture_index}
+    if layer1_texture_index is not None:
+        # Godot maps occlusionTexture → StandardMaterial3D.ao_texture (layer1 for water).
+        mat["occlusionTexture"] = {"index": layer1_texture_index}
     return mat
 
 
@@ -281,13 +312,33 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
             )
             textures.append({"source": len(images) - 1, "sampler": len(samplers) - 1})
             tex_index = len(textures) - 1
+        layer1_index = None
+        layer1 = group.get("layer1_png")
+        if layer1:
+            padded = layer1 + b"\x00" * _pad4(len(layer1))
+            view = add_view(padded)
+            buffer_views[view]["byteLength"] = len(layer1)
+            images.append({"bufferView": view, "mimeType": "image/png"})
+            samplers.append(
+                {
+                    "magFilter": 9728,
+                    "minFilter": 9728,
+                    "wrapS": wrap_to_gltf(GX_REPEAT),
+                    "wrapT": wrap_to_gltf(GX_REPEAT),
+                }
+            )
+            textures.append({"source": len(images) - 1, "sampler": len(samplers) - 1})
+            layer1_index = len(textures) - 1
         materials.append(
             _material(
                 group["name"],
                 tex_index,
                 alpha_mode=_group_alpha_mode(group),
                 unlit_fill=bool(group.get("unlit_fill")),
+                unlit_rgba=tuple(group.get("unlit_rgba") or (0.0, 0.0, 0.0, 1.0)),
                 ground_spill=bool(group.get("ground_spill")),
+                water_kind=str(group.get("water_kind") or ""),
+                layer1_texture_index=layer1_index,
             )
         )
         primitives.append(
@@ -488,7 +539,9 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
                 tex_index_for(group),
                 alpha_mode=_group_alpha_mode(group),
                 unlit_fill=bool(group.get("unlit_fill")),
+                unlit_rgba=tuple(group.get("unlit_rgba") or (0.0, 0.0, 0.0, 1.0)),
                 ground_spill=bool(group.get("ground_spill")),
+                water_kind=str(group.get("water_kind") or ""),
             )
         )
         primitives.append(

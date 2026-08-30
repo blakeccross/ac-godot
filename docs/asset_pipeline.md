@@ -10,6 +10,7 @@ Generated Nintendo assets stay **outside git**. The Godot repo only contains con
 - Pillow (`pip3 install -r tools/requirements.txt`)
 - [decomp-toolkit](https://github.com/encounter/decomp-toolkit) `dtk` — downloaded automatically to `tools/.cache/dtk` on first run
 - Optional: Godot 4.6+ on `PATH` or at `/Applications/Godot.app` (import validation)
+- Optional: `ffmpeg` on `PATH` (OGG encode for `--kind audio`; WAV is the fallback)
 - A disc image or Dolphin-extracted folder you already own (`GAFE01`)
 
 ## 2. Installation
@@ -143,6 +144,14 @@ python3 tools/build_assets.py --step convert --kind collision
 
 Writes `assets/generated/environment/acres/grd_*.col.json` from `data_bgd` in `foresta.rel` (paired with each acre mesh). Do not copy `bg_data.c` into this repo.
 
+River/ocean water surfaces (acre XLU `*_modelT` plus dual water/wave textures):
+
+```sh
+python3 tools/build_assets.py --step convert --kind water
+```
+
+Reconverts river, marine, open-ocean (`grd_*_o_*`), and cliff-river acres so `grd_*_modelT` is in the GLB and OPA beachB under open ocean is tagged for the wet-sand shader. Grass still wrap-bakes; water keeps REPEAT for UV scroll. Waterfalls (`obj_fallS`) are FG actors, not this step.
+
 FG acre templates (trees/flowers from `fgdata.bin`; needs decomp headers for `data_combi`):
 
 ```sh
@@ -172,6 +181,14 @@ python3 tools/build_assets.py --kind villagers --step convert
 ```
 
 Writes `data/villagers/*.tres` (236 animals). Needs a local `ac-decomp` checkout (`decomp_root` or the usual Documents path).
+
+BGM catalog (`audiorom.img` → gitignored `catalog.json`; Nintendo music, do not commit):
+
+```sh
+python3 tools/build_assets.py --kind audio --step convert
+```
+
+Writes `assets/generated/audio/catalog.json` and looping `bgm/*.ogg` (gitignored). Needs `audiorom.img`, decomp headers for `BGM_*` → sequence mapping, and `ffmpeg` (vorbis encode; `libvorbis` or native `-strict -2`). Falls back to WAV if encode fails. See [decomp_notes/audio.md](decomp_notes/audio.md).
 
 Or set `"test_set_only": false` in `config.local.json`. Optional `"decomp_root"` points at an `ac-decomp` checkout for FG combis. `--step all` still extract + scan + convert + validate; add `--full` to convert everything.
 
@@ -231,6 +248,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | Shop looks face-on / door due south | Missing anim bind — shop joint-0 Y is **−135°**, not −90° |
 | Acre/room meshes have no textures | DLs use runtime segment banks (`0x80` field BG, `0x08–0x0C` house floor/wall). Convert binds those before walking the Gfx |
 | Acre grass/earth is a stretched edge colour | REPEAT UVs span the 16×16 cell grid. Wrap must be baked into the PNG (`GeneratedVisual` clamps). Reconvert `--step convert --kind static` |
+| Rivers/ocean look like missing holes or still water | Acre XLU (`grd_*_modelT`) used to be skipped. Convert keeps dual `mFM_grd_water*` / `wave*` tiles (layer1 as glTF occlusionTexture). `GeneratedVisual` applies `shaders/river_water.gdshader` / `ocean_water.gdshader`. Reconvert `--kind water`. Still water after that means the GLB was not reimported. |
 | Object part is solid white (`seg_08` / `seg_09` / `seg_0A`) | Gfx samples `anime_N_txt` (dummy `gSPSegment` slots). Actor draw binds the real pal/tex at runtime (shrine leaf → tree leaf + FG pal; house mark → `obj_myhome_mark_*`). Convert resolves unbound anime SETTIMG from REL textures of the same byte size whose name shares the Gfx part (`leaf`, `mark`). Dummy LOADTLUT pals must also share the object family (`myhome`+`mark`) — a generic `front`/`door`/`leaf` hit must not replace the structure TLUT (that recolored shops/houses). Reconvert with `--kind buildings`. Save-data slots (statue faces, some flags) stay white if the REL has no stand-in |
 | Boy cheek/skin is shirt-yellow | Pending tris were flushed after the next shirt `G_LOADTLUT`; flush before TLUT |
 | Leaves/cutouts show a black/gray box | Texture has alpha but GLB material was `OPAQUE`; use `MASK`/`BLEND` from PNG alpha |
@@ -243,7 +261,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 
 - **2D:** project default canvas texture filter is **Nearest**.
 - **3D textures:** generated GLBs use `gltf/embedded_image_handling = Embed as Uncompressed` so Godot does not extract them and VRAM-compress (S3TC) 16×16 CI art. PNG imports use lossless, no mipmaps. Materials use nearest filtering. Do not upscale, sharpen, or AI-enhance.
-- **GLB meshes:** import with LODs off and vertex compression off. Tiny N64 meshes look destroyed if Godot generates LODs. cKF models bake **identity-rotation bind pose** (joint translations only) then rotate +90° about Z so the rest chain along +X stands on +Y — except meshes that already sit on +Y (houses, shops): those skip the stand-up and bake **door-clip frame 1**, whose joint-0 Y constant is the rest yaw (house **−90°**, shop **−135°**, degrees×10 in the cKF tables). Actors still spawn at yaw 0; the angle is in the skeleton pose, not `WorldBuilder`. That matches an assembled Blender `BOY.dae` skeleton for characters. Do not use Cuyler `(-x,z,y)` on the assembled mesh. Static (non-cKF) meshes keep GX Z. Reconvert static Gfx after a Z-axis change with `--step convert --kind static` (does not wipe cKF). Reconvert house/shop with `--step convert --kind buildings`. Reconvert palms/cedars/fruit overlays, ROCK_B–E, hardwood stumps, and holes with `--step convert --kind plants`.
+- **GLB meshes:** import with LODs off and vertex compression off. Tiny N64 meshes look destroyed if Godot generates LODs. cKF models bake **identity-rotation bind pose** (joint translations only) then rotate +90° about Z so the rest chain along +X stands on +Y — except meshes that already sit on +Y (houses, shops): those skip the stand-up and bake **door-clip frame 1**, whose joint-0 Y constant is the rest yaw (house **−90°**, shop **−135°**, degrees×10 in the cKF tables). Actors still spawn at yaw 0; the angle is in the skeleton pose, not `WorldBuilder`. That matches an assembled Blender `BOY.dae` skeleton for characters. Do not use Cuyler `(-x,z,y)` on the assembled mesh. Static (non-cKF) meshes keep GX Z. Reconvert static Gfx after a Z-axis change with `--step convert --kind static` (does not wipe cKF). Reconvert house/shop with `--step convert --kind buildings`. Reconvert palms/cedars/fruit overlays, ROCK_B–E, hardwood stumps, and holes with `--step convert --kind plants`. Reconvert river/ocean acres (`grd_*_modelT`) with `--step convert --kind water`.
 - **GLB:** N64 Vtx `cn[]` values are **lighting normals** (signed bytes under `G_LIGHTING`), not albedo. Export them as glTF `NORMAL` so Godot’s sun/moon/ambient match the original LightsN path. Do not treat them as vertex colors. Embedded textures use nearest filtering; do not upscale.
 - **Scale:** vertices are multiplied by `0.001` so s16 GX values fit in a glTF. That is **not** the in-game draw scale. Actors use `Matrix_scale(0.01)` (`m_actor.c`); acre DLs store verts 16× and undo with `Matrix_scale(0.0625)` (`ac_field_draw.c`). `FieldCatalog` applies `draw_scale / 0.001 * 0.05` so 40 GX = one 2 m cell. Display-list `G_VTX` loads from addresses in `{prefix}_v` (same as [Cuyler36's model editor](https://github.com/Cuyler36/Animal-Crossing-Model-Editor)). UVs are `s/width`, `t/height` (no V flip — a flip put the player nose above the eyes).
 - **Acre collision:** each `mFM_bg_data_c` holds gfx plus `collision[16][16]`. Sidecars use our JSON (`c,nw,sw,se,ne,s,a`), not a dump of the C struct. Heights are ×10 GX; land datum is count 4. Some later rows reuse an outdoor mesh with a HEIGHT_MAX / FLOOR table (`GRD_S_C1_3_1` on TRACKS8). Key by mesh name but **keep the field table**, not the dummy.
@@ -262,7 +280,7 @@ Preview (after convert):
 - Static meshes include `*_gfx_model` and plain `*_model` DLs. Room shells (`rom_*` → `environment/interiors/`) and outdoor acre tiles (`grd_*` → `environment/acres/`) come from that path. Acre DLs sample dummy segment `0x80` (grass/earth/cliff/bush); convert materializes the summer bank from `l_bg_tex_segment_rom_start_s_0` + palettes. Player-house floor/wall DLs sample segments `0x08–0x0C` from `player_room_floor.bin` / `player_room_wall.bin` (style 0). A few interiors (`rom_uranai`, `room01`) use classic N64 `G_SETTILE` / `G_SETTILESIZE` instead of `G_SETTILE_DOLPHIN`.
 - Model textures are GX CI4/CI8 with RGB5A3 palettes. Pending tris flush before `G_LOADTLUT` / prim / tile changes so the palette active at draw time is the one baked into the PNG. Segment banks use one path for every cKF prefix: REL `{prefix}_pal` / `eye1` / `mouth1` / `tmem_txt` when present, else archive `face_{species}.bin` + `tex_{species}.bin` + `pallet_{species}.bin` (shirt index 0). Unbound `anime_N_txt` SETTIMG/LOADTLUT (segments `0x08–0x0F`) resolve from same-size REL textures whose name shares the Gfx part (`leaf` → hardwood leaf tex + FG pal; `mark` → `obj_myhome_mark_*`). I4/IA are modulated by `G_SETPRIMCOLOR`.
 - `scale` 0.001 is a shared Vtx multiplier. Godot then applies actor `0.01` vs acre `0.0625` so meshes share 40 GX = 2 m. Do not AABB-fit pipeline meshes to invented meters.
-- Audio (`audiorom.img`) is not converted.
+- Audio (`audiorom.img`) converts via `--kind audio` to gitignored `catalog.json` + looping OGG. The mixer follows original envelopes, vibrato, and portamento; it still skips DSP filters/reverb and weather subtrack mutes. Do not commit Nintendo music.
 - Terrain grass is textures + generated collision in the original game, not one mesh. Water should be a Godot shader/particles, not a GX port.
 - Effects: document appearance, then recreate with `GPUParticles3D`. Do not port JPA.
 - REL `.data` offset is hardcoded for `GAFE01_00`.

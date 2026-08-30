@@ -10,3 +10,7 @@ display_name = "Sydney"
 species = &"koala"
 personality = ExtResource("2")
 starter = true
+wall_index = 13
+floor_index = 19
+house_type = 1
+house_palette = 4

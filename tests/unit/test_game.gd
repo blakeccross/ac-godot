@@ -36,6 +36,7 @@ func test_reset_session_clears_pockets_and_world_deltas() -> void:
 	assert_bool(Game.is_hole(&"hole_8_9")).is_false()
 	assert_int(Game.plant_states.size()).is_equal(0)
 	assert_that(Game.world_mode).is_equal(WorldData.Mode.TEST)
+	assert_int(Game.shops.to_save().size()).is_equal(0)
 
 
 func test_test_world_gets_starter_tools() -> void:
@@ -48,6 +49,13 @@ func test_test_world_gets_starter_tools() -> void:
 	assert_int(Game.inventory.count_of(&"fishing_rod")).is_equal(1)
 	assert_int(Game.inventory.count_of(&"watering_can")).is_equal(1)
 	assert_int(Game.inventory.count_of(&"apple_sapling")).is_equal(1)
+	assert_int(Game.inventory.count_of(&"wood_chair")).is_equal(1)
+	assert_int(Game.inventory.count_of(&"wood_table")).is_equal(1)
+	assert_int(Game.inventory.count_of(&"wood_dresser")).is_equal(1)
+	assert_int(Game.inventory.count_of(&"wood_tv")).is_equal(1)
+	assert_int(Game.inventory.count_of(&"wall_blue")).is_equal(1)
+	assert_int(Game.inventory.count_of(&"floor_tile")).is_equal(1)
+	assert_int(Game.inventory.wallet).is_equal(Game.TEST_BELLS)
 	Game.notify_world_ready()
 	assert_int(Game.inventory.count_of(&"axe")).is_equal(1)
 	Game.reset_session()
@@ -65,6 +73,8 @@ func test_world_snapshot_round_trip() -> void:
 	Game.plant_states["plant_4_6"] = {"plant": "apple_tree", "planted_renew": 10}
 	Game.world_mode = WorldData.Mode.GENERATED
 	Game.world_seed = 12345
+	Game.shops.ensure_today(ShopBook.NOOK_ID)
+	var shop_left: int = Game.shops.goods(ShopBook.NOOK_ID).size()
 	var snap: Dictionary = Game.to_save()
 	Game.reset_session()
 	Game.apply_snapshot(snap)
@@ -76,6 +86,7 @@ func test_world_snapshot_round_trip() -> void:
 	assert_str(str(Game.plant_states.get("plant_4_6", {}).get("plant", ""))).is_equal("apple_tree")
 	assert_that(Game.world_mode).is_equal(WorldData.Mode.GENERATED)
 	assert_int(Game.world_seed).is_equal(12345)
+	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(shop_left)
 
 
 func test_villager_roster_survives_world_snapshot() -> void:

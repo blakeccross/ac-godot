@@ -9,6 +9,7 @@ display_name = "Flower"
 description = "A picked bloom. Plant it on grass."
 category = 5
 sell_price = 40
+buy_price = 160
 max_stack = 9
 droppable = true
 usable = true

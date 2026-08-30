@@ -11,3 +11,7 @@ species = &"cat"
 personality = ExtResource("2")
 islander = true
 starter = false
+wall_index = 44
+floor_index = 44
+house_type = 1
+house_palette = 2

@@ -10,3 +10,7 @@ display_name = "Chico"
 species = &"mouse"
 personality = ExtResource("2")
 starter = true
+wall_index = 45
+floor_index = 34
+house_type = 4
+house_palette = 2

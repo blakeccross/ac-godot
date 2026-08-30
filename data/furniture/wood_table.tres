@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="FurnitureData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/furniture_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"wood_table"
+display_name = "Wood Table"
+description = "A low table."
+category = 1
+sell_price = 120
+buy_price = 480
+max_stack = 1
+icon_color = Color(0.55, 0.38, 0.2, 1)
+footprint = Vector2i(2, 1)
+shape = 1
+can_rotate = true
+indoor = true
+placement = 1
+kind = 4
+contact = 0
+can_sit = false
+can_store = false
+blocks_walk = true
+visual_id = &"int_sum_table01"
+storage_slots = 0

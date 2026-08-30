@@ -8,9 +8,15 @@ from asset_pipeline.texbank import (
     dummy_name_score,
     dummy_palette_score,
     gfx_part_tokens,
+    is_dolphin_loadtlut,
     is_image_symbol,
+    parse_loadtlut,
+    parse_settile,
+    parse_settilesize,
+    parse_settimg,
     season_of_prefix,
     symbol_tokens,
+    tmem_palette_slot,
 )
 
 
@@ -61,6 +67,48 @@ class SymbolTokenTests(unittest.TestCase):
         self.assertTrue(is_image_symbol("obj_s_tree3_leaf_tex"))
         self.assertFalse(is_image_symbol("obj_s_shrine_pal"))
         self.assertFalse(is_image_symbol("obj_s_shrine_leaf_model"))
+
+
+class ClassicGbiTests(unittest.TestCase):
+    def test_classic_settimg_has_no_pixel_height(self) -> None:
+        ## gsDPSetTextureImage(CI, 4b, width=1, timg) — dimensions come from SETTILESIZE.
+        w0 = (0xFD << 24) | (2 << 21) | (0 << 19) | 0  # width-1 = 0
+        _fmt, _siz, width, height, _addr = parse_settimg(w0, 0x80400000)
+        self.assertEqual(height, 0)
+        self.assertEqual(width, 1)
+
+    def test_settilesize_64x64(self) -> None:
+        ## uls=ult=0, lrs=lrt=(64-1)<<2 = 252 → width/height 64.
+        w0 = (0 << 12) | 0
+        w1 = (252 << 12) | 252
+        self.assertEqual(parse_settilesize(w0, w1), (64, 64))
+
+    def test_classic_loadtlut_uses_sentinel_slot(self) -> None:
+        ## gsDPLoadTLUTCmd(G_TX_LOADTILE, 15) → w0=0xF0000000, w1=0x0703C000.
+        self.assertFalse(is_dolphin_loadtlut(0xF0000000))
+        slot, count, addr = parse_loadtlut(0xF0000000, 0x0703C000)
+        self.assertEqual(slot, -1)
+        self.assertEqual(count, 16)
+        self.assertEqual(addr, 0)
+
+    def test_dolphin_loadtlut_keeps_packed_slot(self) -> None:
+        ## G_TLUT_DOLPHIN in bits 22–23, slot 15, count 16, dram in w1.
+        w0 = 0xF0000000 | (2 << 22) | (15 << 16) | 16
+        self.assertTrue(is_dolphin_loadtlut(w0))
+        slot, count, addr = parse_loadtlut(w0, 0x80123456)
+        self.assertEqual(slot, 15)
+        self.assertEqual(count, 16)
+        self.assertEqual(addr, 0x80123456)
+
+    def test_settile_tmem_palette_slot(self) -> None:
+        ## gsDPSetTile(..., tmem=256+15*16=496, ...)
+        tmem = 256 + 15 * 16
+        w0 = (0xF5 << 24) | tmem
+        w1 = 15 << 20
+        _fmt, _siz, pal_slot, _ws, _wt, parsed_tmem = parse_settile(w0, w1)
+        self.assertEqual(parsed_tmem, tmem)
+        self.assertEqual(pal_slot, 15)
+        self.assertEqual(tmem_palette_slot(tmem), 15)
 
 
 if __name__ == "__main__":

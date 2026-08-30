@@ -10,3 +10,7 @@ display_name = "Pinky"
 species = &"bear"
 personality = ExtResource("2")
 starter = true
+wall_index = 45
+floor_index = 32
+house_type = 2
+house_palette = 3

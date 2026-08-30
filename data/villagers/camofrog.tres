@@ -10,3 +10,7 @@ display_name = "Camofrog"
 species = &"frog"
 personality = ExtResource("2")
 starter = true
+wall_index = 42
+floor_index = 43
+house_type = 1
+house_palette = 3

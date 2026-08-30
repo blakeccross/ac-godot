@@ -10,3 +10,7 @@ display_name = "Kiki"
 species = &"cat"
 personality = ExtResource("2")
 starter = true
+wall_index = 39
+floor_index = 27
+house_type = 3
+house_palette = 0

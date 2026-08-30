@@ -10,3 +10,7 @@ display_name = "Nosegay"
 species = &"anteater"
 personality = ExtResource("2")
 starter = false
+wall_index = 5
+floor_index = 3
+house_type = 1
+house_palette = 2

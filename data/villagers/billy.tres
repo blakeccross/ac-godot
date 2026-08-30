@@ -10,3 +10,7 @@ display_name = "Billy"
 species = &"goat"
 personality = ExtResource("2")
 starter = true
+wall_index = 8
+floor_index = 50
+house_type = 2
+house_palette = 4

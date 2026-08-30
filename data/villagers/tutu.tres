@@ -10,3 +10,7 @@ display_name = "Tutu"
 species = &"bear"
 personality = ExtResource("2")
 starter = true
+wall_index = 39
+floor_index = 11
+house_type = 2
+house_palette = 0

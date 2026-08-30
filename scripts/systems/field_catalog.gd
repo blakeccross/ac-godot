@@ -41,6 +41,8 @@ const _STONE_BRIDGE_BG: PackedStringArray = [
 ]
 
 const GENERATED_ROOT := "res://assets/generated/"
+## `FTR_START(FTR_FMANEKIN000)`. Shirt index is `(item - FTR_CLOTH_START) >> 2`.
+const FTR_CLOTH_START := 0x17AC
 
 static var _units_cache: Dictionary = {}
 
@@ -63,6 +65,21 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		return _existing(["environment/acres/%s.glb" % id])
 	if id.begins_with("tol_"):
 		return _existing(["items/%s.glb" % id])
+	if (
+		id.begins_with("rom_")
+		or id.begins_with("mCL_rom_")
+		or id == "room01"
+		or id == "police_indoor"
+	):
+		return _existing(["environment/interiors/%s.glb" % id])
+	if id == "int_fmanekin" or id == "int_myfmanekin":
+		## `iam_fmanekin` draws `obj_shop_manekin_model` (`ac_fmanekin.c`), not `int_fmanekin`.
+		return _existing(["environment/obj_shop_manekin.glb"])
+	if id.begins_with("int_") or id.begins_with("clk_"):
+		var paths: PackedStringArray = _existing(["furniture/%s.glb" % id])
+		if paths.is_empty() and id.begins_with("int_"):
+			paths = _existing(["furniture/%sB.glb" % id])
+		return paths
 	match visual_id:
 		&"obj_s_tree1", &"TREE_S0":
 			return _tree_size_paths(1)
@@ -127,8 +144,6 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 			return _existing([_seasonal_rock("D")])
 		&"obj_s_stoneE", &"ROCK_E":
 			return _existing([_seasonal_rock("E")])
-		&"int_sum_chair01":
-			return _existing(["furniture/int_sum_chair01.glb"])
 		_:
 			## Outdoor structures (`obj_s_myhome1`, `obj_s_museum`, `obj_s_tailor`, …).
 			if id.begins_with("obj_"):
@@ -150,7 +165,18 @@ static func is_ground_decal(visual_id: StringName) -> bool:
 
 ## Godot scale for pipeline GLBs so 1 GX matches `GX_TO_METERS`.
 static func actor_uniform_scale() -> float:
-	return ACTOR_DRAW_SCALE / PIPELINE_SCALE * GX_TO_METERS
+	return actor_uniform_scale_for(&"")
+
+
+static func actor_draw_scale(visual_id: StringName) -> float:
+	## `aFTR_PROFILE.scale`. Almost every FTR is 0.01; modern chair is 0.1.
+	if visual_id == &"int_ari_isu01":
+		return 0.1
+	return ACTOR_DRAW_SCALE
+
+
+static func actor_uniform_scale_for(visual_id: StringName) -> float:
+	return actor_draw_scale(visual_id) / PIPELINE_SCALE * GX_TO_METERS
 
 
 static func acre_uniform_scale() -> float:
@@ -159,6 +185,25 @@ static func acre_uniform_scale() -> float:
 
 static func acre_ground_y_offset() -> float:
 	return -ACRE_MODEL_GROUND_Y * acre_uniform_scale()
+
+
+static func interior_uses_acre_verts(visual_id: StringName) -> bool:
+	## `rom_*` / `mCL_rom_*` store 16× verts like acres. `room01` and
+	## `police_indoor` are classic N64 tiles in raw GX (`docs/asset_pipeline.md`).
+	var id := String(visual_id)
+	return id.begins_with("rom_") or id.begins_with("mCL_rom_")
+
+
+static func interior_uniform_scale(visual_id: StringName) -> float:
+	if interior_uses_acre_verts(visual_id):
+		return acre_uniform_scale()
+	return GX_TO_METERS / PIPELINE_SCALE
+
+
+static func interior_ground_y_offset(visual_id: StringName) -> float:
+	if interior_uses_acre_verts(visual_id):
+		return acre_ground_y_offset()
+	return 0.0
 
 
 static func counts_to_y(count: int, acre_elev: int) -> float:
@@ -470,6 +515,18 @@ static func item_albedo(item_id: StringName) -> String:
 			return _first_existing(["textures/rel/obj_item_apple_tex.png"])
 		_:
 			return ""
+
+
+static func cloth_albedo(cloth_index: int) -> String:
+	if cloth_index < 0:
+		return ""
+	return _first_existing(["textures/player/shirts/shirt_%03d.png" % cloth_index])
+
+
+static func cloth_index_from_item(item: int) -> int:
+	if item < FTR_CLOTH_START:
+		return -1
+	return (item - FTR_CLOTH_START) >> 2
 
 
 static func default_visual(kind: StringName) -> StringName:

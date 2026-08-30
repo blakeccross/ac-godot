@@ -10,3 +10,7 @@ display_name = "Buzz"
 species = &"eagle"
 personality = ExtResource("2")
 starter = true
+wall_index = 38
+floor_index = 38
+house_type = 2
+house_palette = 1

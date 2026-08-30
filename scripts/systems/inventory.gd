@@ -347,6 +347,12 @@ func tags_for_slot(index: int) -> PackedStringArray:
 		tags.append("Plant")
 	elif data.usable:
 		tags.append(data.use_verb if data.use_verb != "" else "Use")
+	if data is FurnitureData and Game.is_decorating():
+		tags.append("Place")
+	if data.category == ItemData.Category.WALL and Game.is_decorating():
+		tags.append("Hang")
+	if data.category == ItemData.Category.FLOOR and Game.is_decorating():
+		tags.append("Lay")
 	if data.droppable:
 		tags.append("Drop")
 	tags.append("Move")

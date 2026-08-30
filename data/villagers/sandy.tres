@@ -10,3 +10,7 @@ display_name = "Sandy"
 species = &"ostrich"
 personality = ExtResource("2")
 starter = false
+wall_index = 57
+floor_index = 57
+house_type = 2
+house_palette = 3

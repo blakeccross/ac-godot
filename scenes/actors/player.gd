@@ -125,7 +125,7 @@ func _snap_to_bg() -> bool:
 
 
 func _menu_open() -> bool:
-	return _group_open("inventory_ui") or _group_open("dialogue_ui")
+	return _group_open("inventory_ui") or _group_open("dialogue_ui") or _group_open("shop_ui")
 
 
 func _group_open(group: String) -> bool:
@@ -230,9 +230,13 @@ func _update_focus() -> void:
 	if hit != null and hit.action != null:
 		prompt = hit.action.prompt
 	if next == _focus:
+		if prompt == "" and Game.is_decorating() and Game.held_furniture() != null:
+			prompt = "Place %s" % Game.held_furniture().display_name
 		Game.set_interact_prompt(prompt)
 		return
 	_focus = next
+	if prompt == "" and Game.is_decorating() and Game.held_furniture() != null:
+		prompt = "Place %s" % Game.held_furniture().display_name
 	Game.set_interact_prompt(prompt)
 
 
@@ -261,8 +265,12 @@ func _make_context() -> InteractionContext:
 
 
 func _try_interact() -> void:
+	if Game.held_furniture() != null and Game.try_place_furniture(self):
+		return
 	var hit: InteractionQuery = _resolve_interact()
 	if hit == null or hit.action == null:
+		if Game.try_place_furniture(self):
+			return
 		return
 	_focus = hit.host
 	_busy = hit.action.locks_player

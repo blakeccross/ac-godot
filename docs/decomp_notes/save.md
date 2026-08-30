@@ -57,7 +57,7 @@ Every system that has durable state: **time, world FG, inventory, villagers, sho
 
 ## Reproduce
 
-- **Save/load** of: clock, player position/scene, pockets + wallet, town name, FG deltas (trees/items, including stumps), villager friendship / relationships, shop stock if present.
+- **Save/load** of: clock, player position/scene, pockets + wallet, town name, FG deltas (trees/items, including stumps), villager friendship / relationships, interior furniture/wall/floor, shop stock if present.
 - New game initializes defaults; load restores them.
 - Fail gracefully if JSON is missing or invalid (do not crash).
 - Single player slot is enough for now.

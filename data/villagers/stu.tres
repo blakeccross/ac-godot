@@ -10,3 +10,7 @@ display_name = "Stu"
 species = &"bull"
 personality = ExtResource("2")
 starter = true
+wall_index = 13
+floor_index = 45
+house_type = 1
+house_palette = 4

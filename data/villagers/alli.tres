@@ -10,3 +10,7 @@ display_name = "Alli"
 species = &"alligator"
 personality = ExtResource("2")
 starter = true
+wall_index = 24
+floor_index = 24
+house_type = 4
+house_palette = 4

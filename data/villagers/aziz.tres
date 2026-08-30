@@ -10,3 +10,7 @@ display_name = "Aziz"
 species = &"lion"
 personality = ExtResource("2")
 starter = true
+wall_index = 36
+floor_index = 9
+house_type = 2
+house_palette = 2

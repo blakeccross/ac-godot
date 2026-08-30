@@ -9,11 +9,13 @@ from .texbank import (
     TextureBank,
     TextureState,
     i4_png_as_alpha,
+    is_dolphin_loadtlut,
     parse_loadtlut,
     parse_settile,
     parse_settile_dolphin,
     parse_settilesize,
     parse_settimg,
+    tmem_palette_slot,
 )
 
 G_VTX = 0x01
@@ -72,17 +74,49 @@ class Vertex:
 
 
 def is_window_spill_dl(name: str) -> bool:
-    """Ground XLU decal (`*_window_model`), not facade glass (`*_light_model`)."""
+    """Outdoor ground XLU decal (`*_window_model` / `windowL_model`).
+
+    Indoor trim (`room_window`, `rom_myhome_window_tex`) is wall TEX_EDGE, not a spill.
+    Do not match `room01_model:room_window` (parent `*_model` + window texture name).
+    """
     n = name.lower()
     if "light" in n:
         return False
-    return "window" in n
+    return any(
+        tag in n for tag in ("window_model", "windowl_model", "windowr_model", "windowt_model")
+    )
 
 
 def is_window_pane_dl(name: str) -> bool:
     """Opaque prim/env fill that sits in the wall's TEX_EDGE window holes."""
     n = name.lower()
     return "light_model" in n or "lightt_model" in n
+
+
+def is_room_outdoor_view_dl(name: str) -> bool:
+    """Primitive fill behind indoor window TEX_EDGE (`room01_grp_room_out01`)."""
+    n = name.lower()
+    return "room_out" in n
+
+
+def water_surface_kind(*names: str) -> str:
+    """Acre XLU water: river I4, ocean IA waves, or river-mouth sprash I4 pair."""
+    blob = " ".join(names).lower()
+    if "sprash" in blob or "splash" in blob:
+        return "splash"
+    if "wave" in blob:
+        return "ocean"
+    if "water" in blob and "waterfall" not in blob:
+        return "river"
+    return ""
+
+
+def beach_wet_kind(*names: str) -> str:
+    """OPA wet-sand band: prim/env mix on `mFM_grd_beachA/B` (not generic `*_beach_tex`)."""
+    blob = " ".join(names).lower()
+    if "beacha" in blob or "beachb" in blob or "beach1" in blob or "beach2" in blob:
+        return "beach_wet"
+    return ""
 
 
 @dataclass
@@ -100,8 +134,15 @@ class MeshPart:
     alpha_mode: str = "OPAQUE"
     ## Facade window panes (`*_light_model`): combiner is prim/env, not the SETTIMG.
     unlit_fill: bool = False
+    ## RGBA for unlit fills. Panes default black; indoor outdoor-view uses prim/white.
+    unlit_rgba: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0)
     ## Ground XLU fan (`*_window_model`): I4 × prim on the shadow pass.
     ground_spill: bool = False
+    ## Second GX tile (river water2 / ocean wave2 or wave3). Packed as glTF occlusionTexture.
+    layer1_png: bytes | None = None
+    layer1_name: str = ""
+    ## `river` / `ocean` (acre XLU) or `beach_wet` (OPA env pulse). Empty for land.
+    water_kind: str = ""
 
 
 def parse_vtx_blob(blob: bytes, scale: float, flip_z: bool = False) -> list[Vertex]:
@@ -241,10 +282,7 @@ def apply_texture_commands(blob: bytes, bank: TextureBank, state: TextureState, 
         elif cmd == G_SETTILESIZE:
             _apply_settilesize(w0, w1, state)
         elif cmd == G_SETTILE_DOLPHIN:
-            _tile, pal_slot, wrap_s, wrap_t = parse_settile_dolphin(w0)
-            state.pal_slot = pal_slot
-            state.wrap_s = wrap_s
-            state.wrap_t = wrap_t
+            _apply_settile_dolphin(w0, state)
         elif cmd == G_SETPRIMCOLOR:
             state.prim = ((w1 >> 24) & 0xFF, (w1 >> 16) & 0xFF, (w1 >> 8) & 0xFF, w1 & 0xFF)
         elif cmd == G_DL:
@@ -260,35 +298,82 @@ def _apply_settimg(w0: int, w1: int, bank: TextureBank, state: TextureState) -> 
     ## New image: drop prior tile size so UVs follow this SETTIMG until SETTILESIZE.
     state.tile_w = 0
     state.tile_h = 0
-    if width:
-        state.width = width
     if height:
+        ## Dolphin SETTIMG carries real pixel width/height.
+        state.width = width
         state.height = height
     elif addr >> 24 and (addr >> 24) in bank.segment_images:
         seg = bank.segment_images[addr >> 24]
         if seg.width and seg.height:
             state.width = seg.width
             state.height = seg.height
+    else:
+        ## Classic `gsDPLoadTextureBlock*` uses SETTIMG width=1; wait for SETTILESIZE.
+        state.width = 0
+        state.height = 0
 
 
 def _apply_loadtlut(w0: int, w1: int, bank: TextureBank, state: TextureState) -> None:
     slot, count, addr = parse_loadtlut(w0, w1)
-    pal = bank.load_palette(addr, count)
-    # Classic GBI LOADTLUT w1 is a TMEM dest; the palette is the last SETTIMG.
-    if pal is None and state.img_addr:
+    if not is_dolphin_loadtlut(w0):
+        ## Classic `gsDPLoadTLUT_pal16`: DRAM was the previous SETTIMG; slot is TMEM.
+        addr = state.img_addr
+        mapped = tmem_palette_slot(state.tmem)
+        slot = mapped if mapped is not None else state.pal_slot
+    pal = bank.load_palette(addr, count or 16)
+    if pal is None and state.img_addr and addr != state.img_addr:
         pal = bank.load_palette(state.img_addr, count or 16)
-    if pal:
+    if pal and slot >= 0:
         state.palettes[slot] = pal
         state.pal_slot = slot
 
 
 def _apply_settile(w0: int, w1: int, state: TextureState) -> None:
-    fmt, siz, pal_slot, wrap_s, wrap_t = parse_settile(w0, w1)
+    fmt, siz, pal_slot, wrap_s, wrap_t, tmem = parse_settile(w0, w1)
     state.fmt = fmt
     state.siz = siz
     state.pal_slot = pal_slot
+    state.tmem = tmem
     state.wrap_s = wrap_s
     state.wrap_t = wrap_t
+
+
+def _apply_settile_dolphin(w0: int, state: TextureState) -> None:
+    """Bind wrap and snapshot the current SETTIMG onto Dolphin tile 0 or 1."""
+    tile, pal_slot, wrap_s, wrap_t = parse_settile_dolphin(w0)
+    state.pal_slot = pal_slot
+    state.wrap_s = wrap_s
+    state.wrap_t = wrap_t
+    snap = {
+        "img_addr": state.img_addr,
+        "width": state.width,
+        "height": state.height,
+        "fmt": state.fmt,
+        "siz": state.siz,
+        "wrap_s": wrap_s,
+        "wrap_t": wrap_t,
+    }
+    if tile == 0:
+        state.tile0 = snap
+    elif tile == 1:
+        state.tile1 = snap
+
+
+def _decode_snap(
+    bank: TextureBank, state: TextureState, snap: dict, *, skip_prim: bool
+) -> tuple[bytes | None, str, str]:
+    tmp = replace(
+        state,
+        img_addr=int(snap["img_addr"]),
+        width=int(snap["width"] or 0),
+        height=int(snap["height"] or 0),
+        fmt=int(snap["fmt"]),
+        siz=int(snap["siz"]),
+        wrap_s=int(snap["wrap_s"]),
+        wrap_t=int(snap["wrap_t"]),
+        prim=(255, 255, 255, 255) if skip_prim else state.prim,
+    )
+    return bank.decode_current(tmp)
 
 
 def _apply_settilesize(w0: int, w1: int, state: TextureState) -> None:
@@ -333,6 +418,9 @@ def parse_gfx(
     tex_state = state if state is not None else TextureState()
     current_key: tuple | None = None
     current_mtx = -1
+    ## Nested `gsSPDisplayList` keeps its own symbol name so indoor edge/out
+    ## groups are not labeled with the parent `room01_model`.
+    current_dl_name = name
     if bank is not None and name:
         bank.current_gfx = name
 
@@ -351,15 +439,25 @@ def parse_gfx(
             tex_state.siz,
             pal,
             tex_state.prim,
+            (tex_state.tile0 or {}).get("img_addr", 0),
+            (tex_state.tile1 or {}).get("img_addr", 0),
         )
+
+    def uv_dims() -> tuple[int, int]:
+        tw = tex_state.width or 16
+        th = tex_state.height or 16
+        if tex_state.tile0 and tex_state.tile0.get("width"):
+            tw = int(tex_state.tile0["width"]) or tw
+            th = int(tex_state.tile0["height"]) or th
+        return tw, th
 
     def uv_for(src: Vertex) -> tuple[float, float]:
         # Match GC T directly. Flipping V put the nose above the eyes.
         # Divide by SETTIMG image size (not SETTILESIZE). Boy shirts have S up to
         # ~80 on a 32×32 image (U≈2.5) with wrapS=REPEAT; the 128-wide tile size
         # is only for HW wrap bounds and must not shrink U into [0,1].
-        tw = tex_state.width or 16
-        th = tex_state.height or 16
+        # Dual-tile water: keep UVs in tile0 space (wave2 is often 32×64).
+        tw, th = uv_dims()
         return src.s / tw, src.t / th
 
     def flush() -> None:
@@ -371,27 +469,63 @@ def parse_gfx(
         png = None
         tex_name = ""
         alpha_mode = "OPAQUE"
-        unlit = is_window_pane_dl(name)
-        spill = is_window_spill_dl(name)
+        part_name = current_dl_name or name
+        outdoor = is_room_outdoor_view_dl(part_name)
+        unlit = is_window_pane_dl(part_name) or outdoor
+        spill = is_window_spill_dl(part_name)
+        layer1_png = None
+        layer1_name = ""
+        water_kind = ""
+        wrap_s = tex_state.wrap_s
+        wrap_t = tex_state.wrap_t
         if bank is not None and not unlit:
-            png, tex_name, alpha_mode = bank.decode_current(tex_state)
+            name0 = bank._name_for(int((tex_state.tile0 or {}).get("img_addr") or tex_state.img_addr))
+            name1 = bank._name_for(int((tex_state.tile1 or {}).get("img_addr") or 0)) if tex_state.tile1 else ""
+            water_kind = water_surface_kind(name0, name1, part_name)
+            if not water_kind:
+                water_kind = beach_wet_kind(name0, name1, part_name)
+            skip_prim = bool(water_kind)
+            if water_kind in ("river", "ocean", "splash") and tex_state.tile0 and tex_state.tile1:
+                png, tex_name, _alpha = _decode_snap(bank, tex_state, tex_state.tile0, skip_prim=True)
+                layer1_png, layer1_name, _a1 = _decode_snap(bank, tex_state, tex_state.tile1, skip_prim=True)
+                alpha_mode = "BLEND"
+                wrap_s = int(tex_state.tile0["wrap_s"])
+                wrap_t = int(tex_state.tile0["wrap_t"])
+            else:
+                saved_prim = tex_state.prim
+                if skip_prim:
+                    tex_state.prim = (255, 255, 255, 255)
+                png, tex_name, alpha_mode = bank.decode_current(tex_state)
+                tex_state.prim = saved_prim
+                if water_kind == "beach_wet":
+                    alpha_mode = "OPAQUE"
         if spill and png:
             png = i4_png_as_alpha(png)
             alpha_mode = "BLEND"
+        # Indoor outdoor-view uses G_CC_PRIMITIVE (sky/fill). Default prim is white.
+        if outdoor:
+            pr, pg, pb, pa = tex_state.prim
+            unlit_rgba = (pr / 255.0, pg / 255.0, pb / 255.0, pa / 255.0)
+        else:
+            unlit_rgba = (0.0, 0.0, 0.0, 1.0)
         parts.append(
             MeshPart(
-                name=name if not tex_name else f"{name}:{tex_name}",
+                name=part_name if not tex_name else f"{part_name}:{tex_name}",
                 vertices=unique,
                 triangles=triangles,
                 texture_name=tex_name,
                 texture_png=png,
-                tex_width=tex_state.width,
-                tex_height=tex_state.height,
-                wrap_s=tex_state.wrap_s,
-                wrap_t=tex_state.wrap_t,
+                tex_width=int((tex_state.tile0 or {}).get("width") or tex_state.width),
+                tex_height=int((tex_state.tile0 or {}).get("height") or tex_state.height),
+                wrap_s=wrap_s,
+                wrap_t=wrap_t,
                 alpha_mode="OPAQUE" if unlit else alpha_mode,
                 unlit_fill=unlit,
+                unlit_rgba=unlit_rgba,
                 ground_spill=spill,
+                layer1_png=layer1_png,
+                layer1_name=layer1_name,
+                water_kind=water_kind,
             )
         )
         triangles = []
@@ -410,8 +544,7 @@ def parse_gfx(
             flush()
             current_key = key
         keys = []
-        tw = tex_state.width or 16
-        th = tex_state.height or 16
+        tw, th = uv_dims()
         for idx in (i0, i1, i2):
             src = cache[idx]
             assert src is not None
@@ -443,10 +576,25 @@ def parse_gfx(
             keys.append(index_of[vert_key])
         triangles.append((keys[0], keys[1], keys[2]))
 
-    def walk(dl: bytes, depth: int = 0) -> None:
-        nonlocal vtx_cursor, current_mtx, current_key
+    def walk(dl: bytes, depth: int = 0, dl_name: str | None = None) -> None:
+        nonlocal vtx_cursor, current_mtx, current_key, current_dl_name
         if depth > 8:
             return
+        prev_name = current_dl_name
+        if dl_name:
+            current_dl_name = dl_name
+            if bank is not None:
+                bank.current_gfx = dl_name
+            ## Indoor outdoor-view is G_CC_PRIMITIVE — drop inherited floor/wall SETTIMG.
+            if is_room_outdoor_view_dl(dl_name):
+                if triangles:
+                    flush()
+                    current_key = None
+                tex_state.img_addr = 0
+                tex_state.width = 0
+                tex_state.height = 0
+                tex_state.tile_w = 0
+                tex_state.tile_h = 0
         i = 0
         remaining_extra = 0
         while i + 8 <= len(dl):
@@ -508,7 +656,7 @@ def parse_gfx(
                     current_key = None
                 _apply_loadtlut(w0, w1, bank, tex_state)
             elif cmd == G_SETTILE and bank is not None:
-                fmt, siz, pal_slot, wrap_s, wrap_t = parse_settile(w0, w1)
+                fmt, siz, pal_slot, wrap_s, wrap_t, _tmem = parse_settile(w0, w1)
                 if triangles and (
                     pal_slot != tex_state.pal_slot
                     or wrap_s != tex_state.wrap_s
@@ -534,9 +682,7 @@ def parse_gfx(
                 ):
                     flush()
                     current_key = None
-                tex_state.pal_slot = pal_slot
-                tex_state.wrap_s = wrap_s
-                tex_state.wrap_t = wrap_t
+                _apply_settile_dolphin(w0, tex_state)
             elif cmd == G_SETPRIMCOLOR and bank is not None:
                 if triangles:
                     flush()
@@ -550,8 +696,18 @@ def parse_gfx(
                     except ValueError:
                         nested = b""
                     if nested:
-                        walk(nested, depth + 1)
+                        ## Finish the current group before switching DL names.
+                        if triangles:
+                            flush()
+                            current_key = None
+                        walk(nested, depth + 1, symbol.name)
             i += 8
+        if dl_name is not None and triangles:
+            flush()
+            current_key = None
+        current_dl_name = prev_name
+        if bank is not None and prev_name:
+            bank.current_gfx = prev_name
 
     walk(blob)
     flush()

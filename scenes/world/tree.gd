@@ -35,6 +35,7 @@ func _ready() -> void:
 	if _persist() != &"" and plant != null:
 		PlantGrowth.ensure(_persist(), plant, visual_id, _cell())
 	apply_growth()
+	HostCollision.apply_cylinder(self, footprint, HostCollision.CELL)
 
 
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:

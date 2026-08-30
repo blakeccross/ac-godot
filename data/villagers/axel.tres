@@ -10,3 +10,7 @@ display_name = "Axel"
 species = &"elephant"
 personality = ExtResource("2")
 starter = true
+wall_index = 38
+floor_index = 48
+house_type = 1
+house_palette = 0

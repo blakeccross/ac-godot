@@ -10,3 +10,7 @@ display_name = "Kabuki"
 species = &"cat"
 personality = ExtResource("2")
 starter = false
+wall_index = 10
+floor_index = 10
+house_type = 2
+house_palette = 4

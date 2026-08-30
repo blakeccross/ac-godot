@@ -10,3 +10,7 @@ display_name = "Hornsby"
 species = &"rhino"
 personality = ExtResource("2")
 starter = true
+wall_index = 24
+floor_index = 32
+house_type = 0
+house_palette = 2

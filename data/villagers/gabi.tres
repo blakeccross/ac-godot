@@ -10,3 +10,7 @@ display_name = "Gabi"
 species = &"rabbit"
 personality = ExtResource("2")
 starter = true
+wall_index = 19
+floor_index = 5
+house_type = 0
+house_palette = 2

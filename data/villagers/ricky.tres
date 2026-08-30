@@ -10,3 +10,7 @@ display_name = "Ricky"
 species = &"squirrel"
 personality = ExtResource("2")
 starter = true
+wall_index = 37
+floor_index = 3
+house_type = 1
+house_palette = 2

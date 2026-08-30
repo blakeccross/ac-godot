@@ -1,6 +1,6 @@
-extends Node3D
+extends StaticBody3D
 
-## Placeholder shop. Hours come from `Clock` (Cranny 9–22). Economy stays later.
+## Nook shop. Hours come from `Clock` (Cranny 9–22). Enter loads `shop0`.
 
 @export var occupant_id: StringName = &""
 @export var footprint: Vector2i = Vector2i(2, 2)
@@ -15,6 +15,7 @@ extends Node3D
 func _ready() -> void:
 	add_to_group("interactable")
 	GeneratedVisual.attach(self, visual_id)
+	HostCollision.apply_box(self, footprint, HostCollision.CELL)
 
 
 func is_open() -> bool:
@@ -33,5 +34,7 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if not is_open():
 		Game.post_notice("The shop is closed.")
 		return false
+	if occupant_id != &"" and Game.try_enter_interior(occupant_id):
+		return true
 	Game.post_notice("The shop is open.")
 	return true

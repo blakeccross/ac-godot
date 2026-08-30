@@ -10,3 +10,7 @@ display_name = "Gwen"
 species = &"penguin"
 personality = ExtResource("2")
 starter = true
+wall_index = 28
+floor_index = 28
+house_type = 3
+house_palette = 4

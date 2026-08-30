@@ -8,6 +8,7 @@ extends Control
 
 func _ready() -> void:
 	Game.notify_title_ready()
+	Audio.play_bgm(&"title")
 	_continue.disabled = not Game.has_continue()
 	if _continue.disabled:
 		_new_game.grab_focus()

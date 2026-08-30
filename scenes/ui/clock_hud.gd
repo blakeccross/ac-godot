@@ -29,6 +29,11 @@ func dialogue_is_open() -> bool:
 	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
 
 
+func shop_is_open() -> bool:
+	var ui: Node = get_tree().get_first_node_in_group("shop_ui") if get_tree() != null else null
+	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
+
+
 func _process(delta: float) -> void:
 	if _notice_left <= 0.0:
 		return
@@ -38,7 +43,7 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if inventory_is_open() or dialogue_is_open():
+	if inventory_is_open() or dialogue_is_open() or shop_is_open():
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode:

@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="FurnitureData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/furniture_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"wood_dresser"
+display_name = "Wood Dresser"
+description = "A chest of drawers."
+category = 1
+sell_price = 160
+buy_price = 640
+max_stack = 1
+icon_color = Color(0.5, 0.32, 0.16, 1)
+footprint = Vector2i(1, 1)
+shape = 0
+can_rotate = true
+indoor = true
+placement = 0
+kind = 5
+contact = 0
+can_sit = false
+can_store = true
+blocks_walk = true
+visual_id = &"int_sum_classicchest01"
+storage_slots = 3

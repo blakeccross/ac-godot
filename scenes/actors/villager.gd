@@ -7,6 +7,8 @@ extends CharacterBody3D
 
 const IDLE_SPEED := 0.08
 const STUCK_MOVE := 0.03
+## After this many wall hits on one rim dest, drop it — do not grind the cliff.
+const AVOID_GIVE_UP := 3
 const ANIM_WAIT := "npc_1_wait1"
 const ANIM_WALK := "npc_1_walk1"
 const ANIM_RUN := "npc_1_run1"
@@ -29,6 +31,7 @@ var _goal_block: Vector2i = Vector2i.ZERO
 var _goal_kind: StringName = VillagerWalk.GOAL_MY_HOME
 var _stay_elapsed: float = 0.0
 var _stuck_elapsed: float = 0.0
+var _avoid_hits: int = 0
 var _talk_look: Vector3 = Vector3.ZERO
 
 @onready var _model: Node3D = $Model
@@ -236,6 +239,7 @@ func _steer_wander(wandering: bool) -> void:
 	if delta.length() < VillagerWalk.MIN_STEP:
 		_motor.wait_in_place()
 		return
+	_avoid_hits = 0
 	_motor.set_target(dest, act, VillagerWalk.WANDER_ARRIVE)
 	if _agent != null and _nav_ready():
 		_agent.target_position = dest
@@ -251,6 +255,7 @@ func _steer_to(world_pos: Vector3) -> void:
 		to_here.y = 0.0
 		if to_goal > 0.35 and to_here.length() > VillagerWalk.WANDER_ARRIVE:
 			return
+	_avoid_hits = 0
 	_motor.set_target(dest)
 	if _agent != null and _nav_ready():
 		_agent.target_position = dest
@@ -267,7 +272,9 @@ func _next_point() -> Vector3:
 	var bg: Array = _bg()
 	if bg.size() != 2:
 		return aim
-	var next: Vector3 = VillagerWalk.step_toward(bg[0] as WorldData, global_position, aim)
+	var next: Vector3 = VillagerWalk.step_toward(
+		bg[0] as WorldData, global_position, aim, bg[1] as WorldGrid
+	)
 	next.y = global_position.y
 	return next
 
@@ -332,6 +339,12 @@ func _steer_around_wall() -> void:
 		return
 	var data: WorldData = bg[0] as WorldData
 	var grid: WorldGrid = bg[1] as WorldGrid
+	_avoid_hits += 1
+	if _avoid_hits >= AVOID_GIVE_UP:
+		## Rim dest is across a wall; end the step instead of charging again.
+		_avoid_hits = 0
+		_motor.wait_in_place()
+		return
 	var here: Vector2i = VillagerWalk.block_from_cell(grid.world_to_cell(global_position))
 	if not VillagerWalk.is_fg_block(here):
 		here = _goal_block
@@ -341,9 +354,10 @@ func _steer_around_wall() -> void:
 	var delta: Vector3 = around - global_position
 	delta.y = 0.0
 	if delta.length() < VillagerWalk.MIN_STEP:
-		## Decomp turns 180° when every probe fails — do not drop `dst_pos`.
+		## No side hop — turn and drop the unreachable rim dest.
 		_motor.facing = wrapf(_motor.facing + PI, -PI, PI)
-		_motor.pause()
+		_avoid_hits = 0
+		_motor.wait_in_place()
 		return
 	_motor.set_avoid(around)
 
@@ -351,7 +365,9 @@ func _steer_around_wall() -> void:
 func _roam_point() -> Vector3:
 	var bg: Array = _bg()
 	if bg.size() == 2:
-		return VillagerWalk.wander_in_block(bg[0] as WorldData, _goal_block, global_position)
+		return VillagerWalk.wander_in_block(
+			bg[0] as WorldData, _goal_block, global_position, null, bg[1] as WorldGrid
+		)
 	if _goal_stand != Vector3.INF and _goal_stand != Vector3.ZERO:
 		return _goal_stand + _motor.random_offset()
 	return _motor.home + _motor.random_offset()

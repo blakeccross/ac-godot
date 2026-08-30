@@ -58,6 +58,7 @@ static func authored_test_town() -> WorldData:
 	data.buildings = [
 		_building(&"player_house", &"house", Vector2i(7, 1), Vector2i(2, 2), true, &"obj_s_myhome1"),
 		_building(&"acre_shop", &"shop", Vector2i(12, 1), Vector2i(2, 2), false, &"obj_s_shop1"),
+		_filbert_house(),
 	]
 	data.objects = [
 		_object(&"tree_1", &"tree", Vector2i(4, 6), _APPLE_TREE, &"TREE_APPLE_FRUIT"),
@@ -605,8 +606,12 @@ static func _place_starter_villagers(data: WorldData, rng: RandomNumberGenerator
 	var n: int = mini(houses.size(), picked.size())
 	for i: int in n:
 		var house: BuildingPlacement = houses[i]
+		var villager: VillagerData = picked[i]
+		house.resident_id = villager.id
+		if villager.display_name != "":
+			house.label = "%s's House" % villager.display_name
 		var cell: Vector2i = _yard_cell(data, house.cell, house.footprint)
-		data.objects.append(_villager(picked[i].id, cell, picked[i]))
+		data.objects.append(_villager(villager.id, cell, villager))
 
 
 static func _yard_cell(data: WorldData, house_nw: Vector2i, footprint: Vector2i) -> Vector2i:
@@ -1111,6 +1116,15 @@ static func _labeled_building(
 	b.actor_shift = actor_shift
 	b.mesh_facing = mesh_facing
 	return b
+
+
+static func _filbert_house() -> BuildingPlacement:
+	var house: BuildingPlacement = _building(
+		&"npc_house_0", &"house", Vector2i(1, 1), Vector2i(2, 2), true, &"obj_s_house1"
+	)
+	house.resident_id = &"filbert"
+	house.label = "Filbert's House"
+	return house
 
 
 static func _object(

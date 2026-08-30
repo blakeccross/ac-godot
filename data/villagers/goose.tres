@@ -10,3 +10,7 @@ display_name = "Goose"
 species = &"chicken"
 personality = ExtResource("2")
 starter = true
+wall_index = 59
+floor_index = 26
+house_type = 1
+house_palette = 0

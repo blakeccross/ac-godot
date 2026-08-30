@@ -15,7 +15,8 @@ WorldObjectRegistry  →  WorldBuilder  →  scene host
 | --- | --- |
 | `WorldObjectRegistry` | One-line `register(kind, scene, place_kind, group)` |
 | `ObjectPlacement` / `BuildingPlacement` | Layout entries inside `WorldData` |
-| Host scene | Thin: `GeneratedVisual` + `InteractVolume` + `get_interactions` / `interact` |
+| Host scene | Thin: `GeneratedVisual` + `InteractVolume` + `get_interactions` / `interact`. Solid hosts size physics from the occupancy footprint (`HostCollision`), not the GLB. |
+| `HostCollision` | Box / cylinder hulls from occupancy for trees, rocks, shops. Houses disable the StaticBody; walk walls come from `StructureOffset` plus-offsets on `FieldCollision`. Door sensors stay on the host. |
 | `Door` | Composable ENTER/SHOP sensor (child of `building`, or own placement) |
 
 **Add a new object**
@@ -43,7 +44,7 @@ The player never switches on type. Verbs live on the host.
 
 | Object | Rule |
 | --- | --- |
-| Player houses | Always **B-3**; HOUSE0–3 at (3,3) / (12,3) / (3,10) / (12,10); west +20 X, east −20 X, both +20 Z; mesh `obj_s_myhome1`; west yaw +90° |
+| Player houses | Always **B-3**; HOUSE0–3 at (3,3) / (12,3) / (3,10) / (12,10); west +20 X, east −20 X, both +20 Z; mesh `obj_s_myhome1`; west yaw +90°. Walk collision is a 4×4 heightfield rewrite with a porch gap (see below), not an AABB. Door stand `±48` GX. FG occupancy stays 2×2. |
 | Nook shop | Tracks row **A**; dump→shop; SHOP0 unit + NW (−1,0); mesh `obj_s_shop1` |
 | Museum | Unique **flat** acre below cliff (`T_MUSEUM`) → `obj_s_museum` |
 | Able Sisters | Beach row **bz=6** (`T_NEEDLEWORK` / `grd_s_m_ta_*`). FG `NEEDLEWORK_SHOP` is **(9, 4)** on `_1`/`_2` and **(9, 5)** on `_3`. Door verb shop, NW (−1,0), `aNW_actor_ct` −20 X +20 Z |
@@ -52,6 +53,30 @@ The player never switches on type. Verbs live on the host.
 | Trees / rocks / flowers | FG template copy (`FgCatalog`) at **unit center** (`bg_item` `pos_table` 20+40n GX), then border pull / tanuki path, then fruit/cedar. House build clears the SIGN 3×3 |
 
 Structure FG ids (`HOUSE0`, `SHOP0`, `MUSEUM`, `NEEDLEWORK_SHOP`, …) refine cell offsets when the disc FG catalog is present.
+
+## Player-house walk collision (decomp)
+
+Not a mesh, not a 3D box. `aMHS_actor_ct` calls `aMHS_set_bgOffset`, which **rewrites the acre heightfield** on a 4×4 of units around `actor.home` (the FG unit center, **before** the +20 X / +20 Z mesh shift). Same path as cliffs: `mCoBG_SetPluss5PointOffset` adds counts to the unit’s five corners (`keep_h` + offset, cap 31) and may set `slate_flag`. `revise_xz` then builds thin walls on those height jumps. Zero offsets restore `keep_h` (the porch).
+
+`height_tbl` uses **11 as a sentinel** meaning “house body” — replaced by size: small **11**, medium **14**, large **15**, upper **14** (`height_dt`). Count × 10 GX = raise (11 → 5.5 m). `shape` 1 is a 45° slate face.
+
+Offsets are `s8` (`216` → **−40** GX). `addZ` `{90, 40, 0, 216}` is south→north; `90` still `Wpos2UtNum`s into the unit two south of home (center would be +80). West plots (`HOUSE0`/`HOUSE2`, `side_idx=0`) use X `{−40, 0, 40, 80}` (biased **east** toward the acre). East plots use `{−80, −40, 0, 40}`. The source labels the two `height_tbl` halves East/West **backwards** relative to `side_idx`.
+
+West 4×4 (south row at the top; `H` = body, `.` = porch / keep_h, `4` = low skirt):
+
+```
+        x-40   x0    x+40   x+80
+z+90     4     4s1    .      .
+z+40     Hs1   H     Hs1    .
+z0       Hs1   H      H     4s1
+z-40     4     Hs1   Hs1    4
+```
+
+East is the mirror. The **porch is the SE (west plot) or SW (east plot) cells**, matching the door stand at actor + `(±48.29, +48.29)` GX and demo dirs `NORTH_EAST` / `NORTH_WEST`. FG occupancy stays **2×2**.
+
+Villager homes (`aHUS_set_bgOffset`) are a **3×3** around the SIGN unit: south-center cell is all-zero (door), the other eight are offset **7**. Same mechanism, simpler footprint.
+
+Godot: `StructureOffset.apply` writes those 4×4 / 3×3 tables into `FieldCollision` plus-offsets (`keep_h` + count, same as `SetPluss5PointOffset`). `revise_xz` builds the walls. Actor/mesh Y stays acre `keep_h` (`ground_y` ignores plus). House scenes disable their StaticBody; ENTER stays on `InteractVolume`.
 
 ## Ground decals
 
@@ -65,6 +90,6 @@ When shine spots or pitfall holes exist, they reuse the same hole fan and should
 
 ## Simplify / ignore
 
-- Indoor room scenes (ENTER stays “locked” / shop hours stub).
+- Indoor room scenes live: ENTER on a mapped building loads `interior.tscn` (`InteriorCatalog` / `InteriorBook`). Shop hours still gate Nook / Able Sisters.
 - Money-rock / dig loot tables. Pitfall kits, buried items, and walking into a hole (fall).
 - House upgrade stages (`obj_s_myhome2`–`4`, `obj_s_house2`–`5`) until upgrades exist.

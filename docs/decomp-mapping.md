@@ -2,7 +2,7 @@
 
 [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp) documents original behavior. Clone it **outside** this repo. This table is a lookup, not an implementation checklist.
 
-**Before implementing a system**, read the matching note in [decomp_notes/](decomp_notes/): [world](decomp_notes/world.md), [world generation](decomp_notes/world_generation.md), [world objects](decomp_notes/world_objects.md), [player](decomp_notes/player.md), [interaction](decomp_notes/interaction.md), [inventory](decomp_notes/inventory.md), [tools](decomp_notes/tools.md), [time](decomp_notes/time.md), [villagers](decomp_notes/villagers.md), [relationships](decomp_notes/relationships.md), [dialogue](decomp_notes/dialogue.md), [furniture](decomp_notes/furniture.md), [fishing](decomp_notes/fishing.md), [bugs](decomp_notes/bugs.md), [plants](decomp_notes/plants.md), [shops](decomp_notes/shops.md), [save](decomp_notes/save.md). Those notes list files/functions and what to reproduce vs simplify vs ignore.
+**Before implementing a system**, read the matching note in [decomp_notes/](decomp_notes/): [world](decomp_notes/world.md), [world generation](decomp_notes/world_generation.md), [world objects](decomp_notes/world_objects.md), [player](decomp_notes/player.md), [interaction](decomp_notes/interaction.md), [inventory](decomp_notes/inventory.md), [tools](decomp_notes/tools.md), [time](decomp_notes/time.md), [villagers](decomp_notes/villagers.md), [relationships](decomp_notes/relationships.md), [dialogue](decomp_notes/dialogue.md), [furniture](decomp_notes/furniture.md), [fishing](decomp_notes/fishing.md), [bugs](decomp_notes/bugs.md), [plants](decomp_notes/plants.md), [shops](decomp_notes/shops.md), [save](decomp_notes/save.md), [audio](decomp_notes/audio.md). Those notes list files/functions and what to reproduce vs simplify vs ignore.
 
 Study the named headers/sources to learn **what should happen**. Implement that with the Godot analog. Never copy files or mechanically translate C.
 
@@ -18,10 +18,10 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | `m_actor` | Generic actors | Composed scenes, not a C actor overlay table |
 | `m_npc`, `m_npc_schedule`, `m_npc_walk` | Looks-based daily tables; one NPC actor; new town picks `mNpc_LOOKS_NUM` starters (one personality each) from a shuffled starter pool; field roam picks shrine / other-home / alone / my-home acres | `VillagerData` + `VillagerPersonality` + `ScheduleData` + `Villager` scene; `VillagerSchedule` / `VillagerAI` / `VillagerWalk` (goal acres + walker cap) / `VillagerCatalog.pick_starters`; species GLB via `GeneratedVisual.attach_villager`. Catalog generated from NPC tables (`--kind villagers`). |
 | `m_npc` memories (`Anmmem_c`), `mNpc_AddFriendship` | Per-player friendship, last speak, letter; best friend at 80 | `Relationship` + `RelationshipBook` on `Game`; dialogue queries a snapshot |
-| `m_field_make`, `m_field_info`, `m_random_field` | Town / acre generation and queries | `WorldData` + `WorldGenerator` + `WorldBuilder`; `WorldGrid` occupancy; world `.tscn` is a shell |
+| `ac_field_draw` / `evw_anime` | Acre OPA land + XLU water; river dual UV scroll; ocean 300-frame wave cosine; wet-sand env | `GeneratedVisual` water shaders on converted `grd_*_modelT`; `--kind water` |
 | FG items (`TREE`, `ROCK_*`, `FLOWER_*`, `HOUSE0`, `SHOP0`, `MUSEUM`, `NEEDLEWORK_SHOP`, `SIGN00`–`SIGN20`) | Outdoor hosts + structure slots + villager plot reserves | `WorldObjectRegistry` + host scenes; `FgCatalog.placement_for_item` |
 | `m_bg`, `m_bg_item` | Terrain and placed items | `WorldData` cells + occupancy on `WorldGrid` |
-| `m_collision_bg` | Heightfield, plant caps, FTR footprints | `FieldCatalog` acre `.col.json` + `FieldCollision`; `WorldGrid` occupancy |
+| `m_collision_bg` | Heightfield, plant caps, FTR footprints | `FieldCatalog` acre `.col.json` + `FieldCollision`; structure plus-offsets (`StructureOffset`); `WorldGrid` occupancy; outdoor hosts `HostCollision` |
 | `m_item`, name tables | Item definitions | `ItemData` / `ToolData` resources under `data/items/` |
 | Field A + equipped scoop/axe/net/rod/can | Tool-ready player modes | `ToolUse` + host verbs; not a `Tool` class tree |
 | `Player_actor_Item_draw` / `mPlayer_JOINT_HAND` | Tool Gfx/cKF on the right hand | `HeldTool` + `ToolData.visual_id` |
@@ -29,9 +29,10 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | `mAGrw_RenewalFgItem` / `m_all_grow` | Daily FG grow at 06:00; sapling → tree, flower stages, fruit | `PlantGrowth` + `Game.plant_states` (`planted_renew`) |
 | `DIG_SCOOP` / `FILL_SCOOP`, `HOLE00`–`HOLE24` | Empty-tile dig writes a hole FG item; shovel on a hole fills | `HoleUse` + `hole.tscn`; saved on `Game.hole_interactables` |
 | `m_private` (`mPr_POCKETS_SLOT_COUNT` 15, `pockets[]`) | One item per pocket; wallet is separate | `Inventory` on `Game` |
-| `m_shop` | Shops | One shop scene + economy system later |
+| `m_shop` | Shops | `ShopBook` + shop interiors (`shop0`, `needlework`); hours on `InteriorCatalog` |
 | `m_home`, room types | Player house interiors | Interior scene + furniture as data |
 | `m_msg`, `m_choice`, `m_string` | Dialogue and prompts | `DialogueData` JSON + `DialogueRunner` + overlay; `DialogueGreeting` picks starting `msg_no`; disc banks via `--kind dialogue` |
+| `jaudio_NES` / `m_bgm` / `audiorom.img` | Sequenced BGM (24 hourly field tracks, rooms, rain swap); town tune is 16 notes into seq 248 | `Audio.play_bgm` + `BgmCatalog`; `--kind audio` renders gitignored OGG from `audiorom.img` ([audio](decomp_notes/audio.md)). Not a Nas port |
 | `m_event`, `m_quest` | Scripted events / errands | Event/quest data + a small runner system |
 | `m_common_data`, `m_private` | Giant global save/state | Split save via `SaveService` |
 | `m_scene`, `m_start_data_init` | Boot: new town vs load; scene changes | `Game` phase + `scenes/ui/title.tscn` → world |

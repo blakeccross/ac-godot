@@ -10,3 +10,7 @@ display_name = "Nibbles"
 species = &"squirrel"
 personality = ExtResource("2")
 starter = true
+wall_index = 33
+floor_index = 12
+house_type = 0
+house_palette = 3

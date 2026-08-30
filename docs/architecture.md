@@ -1,6 +1,6 @@
 # Architecture
 
-This project reimplements *Animal Crossing* (GameCube) **behavior** in Godot-native systems. The decomp is a reference, not a blueprint. Per-system research (states, I/O, reproduce / simplify / ignore) lives in [docs/decomp_notes/](decomp_notes/). Read the relevant note before writing implementation code.
+This project reimplements *Animal Crossing* (GameCube) **behavior** in Godot-native systems. The decomp is a reference, not a blueprint. Per-system research (states, I/O, reproduce / simplify / ignore) lives in [docs/decomp_notes/](decomp_notes/) (including [audio](decomp_notes/audio.md)). Read the relevant note before writing implementation code.
 
 ## Layers
 
@@ -37,11 +37,11 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | Scene | Path |
 | --- | --- |
 | Player, Villager | `scenes/actors/` |
-| World, Tree, Rock, Flower, Hole, Furniture, ItemPickup, House, Shop, Building, Door, Sign | `scenes/world/` |
+| World, Tree, Rock, Flower, Hole, Furniture, ItemPickup, House, Shop, ShopCounter, ShopStock, Building, Door, Sign | `scenes/world/` |
 | InteractVolume | `scenes/world/interact_volume.gd` (sensor only; host implements verbs) |
-| Title, Clock HUD, Dialogue overlay | `scenes/ui/` |
+| Title, Clock HUD, Dialogue overlay, Shop overlay | `scenes/ui/` |
 
-Fishing, shops, and full fishing / bug loops are **not** systems yet. Dialogue is `DialogueData` + `DialogueRunner` + `DialogueCatalog` + `DialogueGreeting` (not an autoload) and `scenes/ui/dialogue_overlay.tscn`. Tools exist as `ToolData` + `ToolUse` (shovel, rod, net, axe, watering can) wired through interaction verbs; rod/net notices are not the fishing or bug loops. Trees use `TreeUse` (shake, multi-hit chop, stump, fruit drop). Plant growth is `PlantGrowth`: stored `planted_renew` (and water/fruit overlays) on `Game.plant_states`, visual stage derived at 06:00. Shovel empty-ground dig writes a hole (`HoleUse`); shovel on a hole fills it. Shop, door, furniture, and sign scenes exist as verb stubs. Shop hours and villager sleep / in-house come from `Clock`. Town layout is `WorldData` produced by `WorldGenerator` and instanced by `WorldBuilder`. `FieldCatalog` maps original FG/BG ids to generated GLBs when present, and loads each acre's paired `mCoBG` table from a gitignored `.col.json` sidecar. `FieldCollision` uses that heightfield (and geometric bands only when the sidecar is missing). The world scene is a shell that owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists. Villagers instance a species GLB the same way (`GeneratedVisual.attach_villager`) and roam goal acres through `VillagerWalk`. Equipped tools parent to HAND through `HeldTool`. Field interact uses `InteractionQuery` (`RefCounted`, not an autoload); objects expose verbs instead of the player switching on type.
+Fishing and full fishing / bug loops are **not** systems yet. Shops are `ShopBook` (owned by `Game`) plus indoor counters in Nook's Cranny and Able Sisters. Dialogue is `DialogueData` + `DialogueRunner` + `DialogueCatalog` + `DialogueGreeting` (not an autoload) and `scenes/ui/dialogue_overlay.tscn`. Tools exist as `ToolData` + `ToolUse` (shovel, rod, net, axe, watering can) wired through interaction verbs; rod/net notices are not the fishing or bug loops. Trees use `TreeUse` (shake, multi-hit chop, stump, fruit drop). Plant growth is `PlantGrowth`: stored `planted_renew` (and water/fruit overlays) on `Game.plant_states`, visual stage derived at 06:00. Shovel empty-ground dig writes a hole (`HoleUse`); shovel on a hole fills it. Shop, door, and sign scenes exist as verb stubs. Furniture is `FurnitureData` + `FurnitureUse` (place, pick, rotate, sit/lie, storage, toggle, display, wall/floor). Shop hours and villager sleep / in-house come from `Clock`. Town layout is `WorldData` produced by `WorldGenerator` and instanced by `WorldBuilder`. `FieldCatalog` maps original FG/BG ids to generated GLBs when present, and loads each acre's paired `mCoBG` table from a gitignored `.col.json` sidecar. `FieldCollision` uses that heightfield (and geometric bands only when the sidecar is missing). Acre XLU water (river dual-scroll, ocean waves, wet sand) is converted into those GLBs and shaded by `GeneratedVisual`. The world scene is a shell that owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists. Villagers instance a species GLB the same way (`GeneratedVisual.attach_villager`) and roam goal acres through `VillagerWalk`. Equipped tools parent to HAND through `HeldTool`. Field interact uses `InteractionQuery` (`RefCounted`, not an autoload); objects expose verbs instead of the player switching on type.
 
 ## Autoloads
 
@@ -53,12 +53,12 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 | --- | --- | --- |
 | `Clock` | `scripts/systems/clock.gd` (`ClockService`) | Time system: calendar, day/night, 06:00 renew |
 | `SaveService` | `scripts/systems/save_service.gd` | Load/save JSON to `user://` |
-| `Audio` | `scripts/systems/audio.gd` | Music / SFX buses |
-| `Game` | `scripts/systems/game.gd` | Session phase, scene changes; owns `Inventory`, `VillagerRoster`, and `RelationshipBook` |
+| `Audio` | `scripts/systems/audio.gd` | Music / SFX buses; `play_bgm` from generated OGG via `BgmCatalog` ([audio](decomp_notes/audio.md)) |
+| `Game` | `scripts/systems/game.gd` | Session phase, scene changes; owns `Inventory`, `VillagerRoster`, `RelationshipBook`, `InteriorBook`, and `ShopBook` |
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
-`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `VillagerRoster` is a `RefCounted` owned by `Game` (id → `VillagerState`). `RelationshipBook` is a `RefCounted` owned by `Game` (id → `Relationship`). `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `GeneratedVisual`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `TreeUse`, `HoleUse`, and `PlantGrowth` are `RefCounted` helpers, not autoloads. `VillagerCatalog`, `VillagerAI`, `VillagerPlan`, `VillagerAction`, and `VillagerWalk` are `RefCounted` helpers, not autoloads. `DialogueCatalog`, `DialogueRunner`, `DialogueContext`, and `DialogueGreeting` are `RefCounted` helpers, not autoloads. Do not autoload fishing or events; those systems subscribe to `Clock` when they exist. `Game.weather` is a `StringName` hook (`clear`, `rain`, `snow`, `sakura`, `leaves`) for dialogue until weather is a system.
+`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `VillagerRoster` is a `RefCounted` owned by `Game` (id → `VillagerState`). `RelationshipBook` is a `RefCounted` owned by `Game` (id → `Relationship`). `InteriorBook` and `ShopBook` are `RefCounted` owned by `Game`. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `StructureOffset`, `HostCollision`, `GeneratedVisual`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `FurnitureUse`, `ShopUse`, `TreeUse`, `HoleUse`, and `PlantGrowth` are `RefCounted` helpers, not autoloads. `VillagerCatalog`, `VillagerAI`, `VillagerPlan`, `VillagerAction`, and `VillagerWalk` are `RefCounted` helpers, not autoloads. `DialogueCatalog`, `DialogueRunner`, `DialogueContext`, and `DialogueGreeting` are `RefCounted` helpers, not autoloads. `BgmCatalog` is a `RefCounted` helper, not an autoload. Do not autoload fishing or events; those systems subscribe to `Clock` when they exist. `Game.weather` is a `StringName` hook (`clear`, `rain`, `snow`, `sakura`, `leaves`) for dialogue until weather is a system.
 
 ### Time system
 
@@ -71,6 +71,7 @@ Prefer signals on the owning system over a global event bus unless many unrelate
 | Shops | `in_hour_window(9, 22)`; restock on `field_renewed` |
 | Weather | `field_renewed` (not implemented yet) |
 | Plant growth | `field_renewed` → `PlantGrowth.refresh_world`; stage from `Clock.renew_index()` |
+| Outdoor BGM | `hour_changed` + `Game.weather` → `BgmCatalog.outdoor_id` |
 | Fish / bugs | `is_listed_now(months, hour_start, hour_end)` |
 | Events | `weekday()` + date (not implemented yet) |
 
@@ -86,6 +87,8 @@ Hosts duck-type two methods. There is no shared `Interactable` base: a tree is a
 | `InteractionContext` | `actor`, `inventory`, `world`; `release_occupant()` |
 | `InteractionQuery` | Walk ancestors for a host; pick the closest overlapping `InteractVolume` |
 | `ToolUse` | Equipped `ToolData` → kind, field verb, apply empty-tile use |
+| `FurnitureUse` | `FurnitureData` → sit / lie / open / toggle / display / pick / rotate |
+| `ShopUse` | Counter → buy overlay; Nook also sells |
 | `TreeUse` | Shake / multi-hit chop / stump / fruit-drop counts |
 | `PlantGrowth` | Seed → Growing → Mature → Harvestable from `planted_renew`; persist ids `plant_x_y` |
 | `HoleUse` | Dig / fill hole FG; persist ids `hole_x_y` |
@@ -157,7 +160,7 @@ Each phase should be playable or testable in-engine. Later phases are not starte
 12. **One deep interactable** — one tree (grow, shake, fruit, plant) with correct feel. Growth derived from planting date on `field_renewed`.
 13. **Inventory** — `ItemData` / `InventoryItem` / `InventorySlot` / `Inventory`; 5×3 pocket UI; pick up, drop, stack, use, equip, save.
 14. **Villagers** — shared `Villager` actor + looks data; full GC catalog; six starters in town. Talk opens the overlay via `DialogueGreeting`.
-15. **One shop + economy** — buy/sell a few items.
+15. **Town shops + economy** — Nook buy/sell and Able Sisters buy; daily stock at 06:00.
 16. **Town deltas** — persist more than one pickup and the current acre FG.
 
 Content quantity is not a milestone. One good instance of a system is.

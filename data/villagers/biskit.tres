@@ -11,3 +11,7 @@ species = &"dog"
 catchphrase = "dawg"
 personality = ExtResource("2")
 starter = true
+wall_index = 41
+floor_index = 24
+house_type = 0
+house_palette = 2

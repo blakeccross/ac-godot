@@ -10,3 +10,7 @@ display_name = "Spike"
 species = &"rhino"
 personality = ExtResource("2")
 starter = true
+wall_index = 14
+floor_index = 14
+house_type = 2
+house_palette = 4

@@ -10,3 +10,7 @@ display_name = "Huggy"
 species = &"koala"
 personality = ExtResource("2")
 starter = true
+wall_index = 24
+floor_index = 8
+house_type = 3
+house_palette = 2

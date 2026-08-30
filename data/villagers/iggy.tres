@@ -10,3 +10,7 @@ display_name = "Iggy"
 species = &"goat"
 personality = ExtResource("2")
 starter = true
+wall_index = 37
+floor_index = 10
+house_type = 2
+house_palette = 0

@@ -10,3 +10,7 @@ display_name = "Deena"
 species = &"duck"
 personality = ExtResource("2")
 starter = true
+wall_index = 42
+floor_index = 56
+house_type = 1
+house_palette = 4

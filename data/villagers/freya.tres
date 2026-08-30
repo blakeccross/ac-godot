@@ -10,3 +10,7 @@ display_name = "Freya"
 species = &"wolf"
 personality = ExtResource("2")
 starter = true
+wall_index = 35
+floor_index = 59
+house_type = 4
+house_palette = 4

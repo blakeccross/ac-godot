@@ -10,3 +10,7 @@ display_name = "Cobb"
 species = &"pig"
 personality = ExtResource("2")
 starter = true
+wall_index = 58
+floor_index = 2
+house_type = 3
+house_palette = 4

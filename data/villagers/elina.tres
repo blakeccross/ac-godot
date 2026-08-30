@@ -11,3 +11,7 @@ species = &"elephant"
 personality = ExtResource("2")
 islander = true
 starter = false
+wall_index = 29
+floor_index = 40
+house_type = 4
+house_palette = 2

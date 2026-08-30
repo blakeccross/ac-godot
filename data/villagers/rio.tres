@@ -10,3 +10,7 @@ display_name = "Rio"
 species = &"ostrich"
 personality = ExtResource("2")
 starter = false
+wall_index = 41
+floor_index = 24
+house_type = 3
+house_palette = 4

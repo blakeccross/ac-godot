@@ -1,6 +1,8 @@
 # Shops (Nook, hours, stock, economy)
 
-Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — one shop is in scope, not every store.
+Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — not every store is in scope.
+
+**Godot:** `ShopBook` (`RefCounted` on `Game`, not an autoload). Nook (`shop0`) buy and sell; Able Sisters (`needlework`) buy-only. Listed price is `ItemData.buy_price` (or `sell_price` if buy is 0). Nook pays fruit/fish/bugs at authored `sell_price`; everything else is listed / 4 (`SELL_BUY_RATIO`). Cranny stock is a tiny authored pool (tools, furniture, wallpaper, carpet, sapling, plants). Able stock is four shirts. Lineup rerolls at 06:00 (`Clock.field_renewed`). Wallet is `Inventory.wallet`. Indoor counters and shelf goods are presentation (`shop_counter`, `shop_stock`); they call `ShopBook`. Hours stay on `InteriorCatalog.is_open_now`.
 
 **Read before implementing:** shop scene, buy/sell, wallet.
 
@@ -71,18 +73,18 @@ Other buildings (Able Sisters, auction, island shack, museum shop) are different
 
 ## Reproduce
 
-- **One shop** with open hours, a short stock list, buy and sell.
+- **Nook's Cranny and Able Sisters** with open hours, a short stock list, and buy (Nook also sells).
 - Prices on `ItemData`; wallet must cover buy.
 - Closed outside hours.
 - Stock can refresh daily at 06:00 (even if the table is tiny).
 
 ## Simplify
 
-- No four-building upgrade chain; keep one interior.
-- No lottery, catalog, turnips, Crazy Redd, Able Sisters.
+- No four-building upgrade chain; keep the Cranny interior.
+- No lottery, catalog mail-order, turnips, Crazy Redd.
 - No sales-sum tool unlocks unless we want a single “net appears in stock” flag.
 - Fixed prices; skip ABC rarity percentages (`mSP_GetGoodsPercent`).
-- Sell at a single ratio (e.g. 25% or 50%) instead of per-category original formulas.
+- Sell at a single ratio (catalog / 4) except fruit/fish/bugs, which keep authored `sell_price`.
 
 ## Ignore
 

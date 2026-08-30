@@ -4,13 +4,17 @@ extends Resource
 ## Catalog entry for something that can sit in pockets or the world.
 ## Behavior comes from these fields + `Inventory` / UI tags — not per-item scripts.
 
-enum Category { TOOL, FURNITURE, FRUIT, FISH, BUG, OTHER }
+enum Category { TOOL, FURNITURE, FRUIT, FISH, BUG, OTHER, WALL, FLOOR, CLOTH }
 
 @export var id: StringName = &""
 @export var display_name: String = ""
 @export var description: String = ""
 @export var category: Category = Category.OTHER
 @export var sell_price: int = 0
+## What the shop charges. 0 → `sell_price` (catalog listed price).
+@export var buy_price: int = 0
+## Shirt index for Able Sisters / mannequins (`FieldCatalog.cloth_albedo`). -1 = none.
+@export var cloth_index: int = -1
 ## Data-driven stacking. GC tools stay at 1; fruit/etc may be >1.
 @export var max_stack: int = 1
 @export var droppable: bool = true
@@ -19,6 +23,8 @@ enum Category { TOOL, FURNITURE, FRUIT, FISH, BUG, OTHER }
 ## Verb shown in the tag strip (`m_tag_ovl`), e.g. Eat / Use.
 @export var use_verb: String = "Use"
 @export var icon_color: Color = Color(0.75, 0.75, 0.75)
+## Pocket picture. Empty → tinted color block in the tag strip.
+@export var icon: Texture2D
 ## Non-empty → inventory **Plant** tag (`PlantData.id`).
 @export var plant_id: StringName = &""
 

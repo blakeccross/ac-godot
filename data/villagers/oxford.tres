@@ -10,3 +10,7 @@ display_name = "Oxford"
 species = &"bull"
 personality = ExtResource("2")
 starter = true
+wall_index = 18
+floor_index = 18
+house_type = 2
+house_palette = 2

@@ -10,3 +10,7 @@ display_name = "Monique"
 species = &"cat"
 personality = ExtResource("2")
 starter = true
+wall_index = 63
+floor_index = 39
+house_type = 4
+house_palette = 1

@@ -10,3 +10,7 @@ display_name = "Pecan"
 species = &"squirrel"
 personality = ExtResource("2")
 starter = true
+wall_index = 35
+floor_index = 35
+house_type = 0
+house_palette = 2

@@ -11,3 +11,7 @@ species = &"penguin"
 catchphrase = "brr"
 personality = ExtResource("2")
 starter = true
+wall_index = 51
+floor_index = 1
+house_type = 1
+house_palette = 3

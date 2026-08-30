@@ -10,3 +10,7 @@ display_name = "Peaches"
 species = &"horse"
 personality = ExtResource("2")
 starter = true
+wall_index = 54
+floor_index = 61
+house_type = 0
+house_palette = 4

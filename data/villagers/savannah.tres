@@ -10,3 +10,7 @@ display_name = "Savannah"
 species = &"horse"
 personality = ExtResource("2")
 starter = true
+wall_index = 28
+floor_index = 4
+house_type = 4
+house_palette = 3

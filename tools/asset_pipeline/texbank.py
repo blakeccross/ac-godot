@@ -299,6 +299,10 @@ class SegmentTex:
     palette: bytes | None = None
 
 
+## Dolphin `gsDPLoadTLUT_Dolphin` sets bits 22–23 to this (`G_TLUT_DOLPHIN`).
+G_TLUT_DOLPHIN = 2
+
+
 @dataclass
 class TextureState:
     palettes: dict[int, bytes] = field(default_factory=dict)
@@ -314,9 +318,16 @@ class TextureState:
     tile_w: int = 0
     tile_h: int = 0
     pal_slot: int = 15
+    ## Classic G_SETTILE TMEM word. `gsDPLoadTLUT_pal16` stores the slot as
+    ## `256 + pal * 16` here; the following G_LOADTLUT command does not.
+    tmem: int = 0
     wrap_s: int = GX_CLAMP
     wrap_t: int = GX_CLAMP
     prim: tuple[int, int, int, int] = (255, 255, 255, 255)
+    ## Dual-tile water (river water1+water2, ocean wave1+wave2/3): snapshot on
+    ## G_SETTILE_DOLPHIN tile 0 / tile 1 before the next SETTIMG overwrites img_addr.
+    tile0: dict | None = None
+    tile1: dict | None = None
 
 
 class TextureBank:
@@ -844,10 +855,24 @@ def parse_settimg(w0: int, w1: int) -> tuple[int, int, int, int, int]:
     return fmt, siz, width, height, w1
 
 
+def is_dolphin_loadtlut(w0: int) -> bool:
+    return ((w0 >> 22) & 3) == G_TLUT_DOLPHIN
+
+
 def parse_loadtlut(w0: int, w1: int) -> tuple[int, int, int]:
-    slot = (w0 >> 16) & 0xF
-    count = w0 & 0x3FFF
-    return slot, count, w1
+    """Return slot, color_count, dram_addr.
+
+    Dolphin packs slot/count/addr on the command. Classic `gsDPLoadTLUTCmd` has
+    no slot or DRAM — callers use the prior SETTIMG + SETTILE TMEM instead and
+    pass `slot=-1` / `addr=0` as sentinels.
+    """
+    if is_dolphin_loadtlut(w0):
+        slot = (w0 >> 16) & 0xF
+        count = w0 & 0x3FFF
+        return slot, count, w1
+    ## Classic: w1 = tile<<24 | count<<14; count is last index (15 → 16 colors).
+    count = ((w1 >> 14) & 0x3FF) + 1
+    return -1, count, 0
 
 
 def parse_settile_dolphin(w0: int) -> tuple[int, int, int, int]:
@@ -867,14 +892,25 @@ def _n64_wrap_to_gx(mode: int) -> int:
     return GX_REPEAT
 
 
-def parse_settile(w0: int, w1: int) -> tuple[int, int, int, int, int]:
-    """Classic G_SETTILE: fmt, siz, pal_slot, wrap_s, wrap_t."""
+def parse_settile(w0: int, w1: int) -> tuple[int, int, int, int, int, int]:
+    """Classic G_SETTILE: fmt, siz, pal_slot, wrap_s, wrap_t, tmem."""
     fmt = (w0 >> 21) & 7
     siz = (w0 >> 19) & 3
+    tmem = w0 & 0x1FF
     pal_slot = (w1 >> 20) & 0xF
     wrap_s = _n64_wrap_to_gx((w1 >> 8) & 3)
     wrap_t = _n64_wrap_to_gx((w1 >> 18) & 3)
-    return fmt, siz, pal_slot, wrap_s, wrap_t
+    return fmt, siz, pal_slot, wrap_s, wrap_t, tmem
+
+
+def tmem_palette_slot(tmem: int) -> int | None:
+    """Palette index for a TLUT load into TMEM (`256 + pal * 16`)."""
+    if tmem < 256:
+        return None
+    slot = (tmem - 256) // 16
+    if slot < 0 or slot > 15:
+        return None
+    return slot
 
 
 def parse_settilesize(w0: int, w1: int) -> tuple[int, int]:

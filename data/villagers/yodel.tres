@@ -11,3 +11,7 @@ species = &"gorilla"
 personality = ExtResource("2")
 islander = true
 starter = false
+wall_index = 11
+floor_index = 31
+house_type = 3
+house_palette = 1

@@ -10,3 +10,7 @@ display_name = "Betty"
 species = &"chicken"
 personality = ExtResource("2")
 starter = true
+wall_index = 26
+floor_index = 39
+house_type = 1
+house_palette = 1

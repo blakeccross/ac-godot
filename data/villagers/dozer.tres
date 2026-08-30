@@ -10,3 +10,7 @@ display_name = "Dozer"
 species = &"bear"
 personality = ExtResource("2")
 starter = true
+wall_index = 37
+floor_index = 37
+house_type = 3
+house_palette = 3

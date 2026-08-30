@@ -10,3 +10,7 @@ display_name = "Egbert"
 species = &"chicken"
 personality = ExtResource("2")
 starter = true
+wall_index = 23
+floor_index = 20
+house_type = 4
+house_palette = 1

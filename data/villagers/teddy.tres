@@ -10,3 +10,7 @@ display_name = "Teddy"
 species = &"bear"
 personality = ExtResource("2")
 starter = true
+wall_index = 0
+floor_index = 0
+house_type = 0
+house_palette = 0

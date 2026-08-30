@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"shirt_002"
+display_name = "Leaf Shirt"
+description = "A shirt from the Able Sisters."
+category = 8
+sell_price = 320
+buy_price = 320
+cloth_index = 2
+max_stack = 1
+droppable = true
+usable = false
+icon_color = Color(0.35, 0.62, 0.32, 1)

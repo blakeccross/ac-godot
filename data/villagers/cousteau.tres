@@ -10,3 +10,7 @@ display_name = "Cousteau"
 species = &"frog"
 personality = ExtResource("2")
 starter = true
+wall_index = 8
+floor_index = 8
+house_type = 0
+house_palette = 4

@@ -10,6 +10,8 @@ func build(world: Node3D, data: WorldData, grid: WorldGrid) -> void:
 	WorldObjectRegistry.ensure()
 	data.bake()
 	grid.configure_from_world(data)
+	FieldCollision.clear_caches()
+	StructureOffset.apply(data)
 	var terrain_root: Node3D = world.get_node_or_null("Terrain") as Node3D
 	var objects_root: Node3D = world.get_node_or_null("Objects") as Node3D
 	var buildings_root: Node3D = world.get_node_or_null("Buildings") as Node3D
@@ -71,7 +73,7 @@ func _paint_placeholder_tiles(root: Node3D, data: WorldData, grid: WorldGrid, me
 			var cell := Vector2i(x, z)
 			var t: WorldGrid.Terrain = data.terrain_at(cell)
 			var pos: Vector3 = grid.cell_to_world(cell)
-			var elev_y: float = FieldCollision.height_at(data, cell)
+			var elev_y: float = FieldCollision.height_at(data, cell, false)
 			if not FieldCollision.has_floor(elev_y):
 				elev_y = float(data.elevation_at(cell)) * FieldCatalog.ACRE_STEP_METERS
 			pos.y += elev_y
@@ -180,6 +182,8 @@ func _add_building(root: Node3D, placement: BuildingPlacement, data: WorldData, 
 	if node == null:
 		return
 	_apply_common(node, placement.id, placement.footprint, placement.facing, placement.occupy_grid, placement.visual_id)
+	if "occupant_id" in node and placement.resident_id != &"":
+		node.set("occupant_id", placement.resident_id)
 	if "label" in node and placement.label != "":
 		node.set("label", placement.label)
 	if "door_verb" in node and placement.door_verb != &"":

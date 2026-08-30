@@ -10,3 +10,7 @@ display_name = "Grizzly"
 species = &"bear"
 personality = ExtResource("2")
 starter = true
+wall_index = 13
+floor_index = 18
+house_type = 2
+house_palette = 1

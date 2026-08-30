@@ -11,3 +11,7 @@ species = &"squirrel"
 personality = ExtResource("2")
 islander = true
 starter = false
+wall_index = 24
+floor_index = 24
+house_type = 1
+house_palette = 0

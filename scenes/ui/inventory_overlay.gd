@@ -87,6 +87,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if talk != null and talk.has_method("is_open") and bool(talk.call("is_open")):
 			get_viewport().set_input_as_handled()
 			return
+		var shop: Node = get_tree().get_first_node_in_group("shop_ui") if get_tree() != null else null
+		if shop != null and shop.has_method("is_open") and bool(shop.call("is_open")):
+			get_viewport().set_input_as_handled()
+			return
 		toggle()
 		get_viewport().set_input_as_handled()
 		return
@@ -172,6 +176,16 @@ func _run_tag(tag: String) -> void:
 	var inv: Inventory = Game.inventory
 	var idx: int = inv.selected_index
 	match tag:
+		"Place":
+			var player := get_tree().get_first_node_in_group("player") as Node3D
+			if player != null:
+				Game.try_place_furniture(player)
+			close()
+		"Hang", "Lay":
+			var slot: InventorySlot = inv.slot_at(idx)
+			if slot != null and not slot.is_empty():
+				Game.try_apply_cover(ItemCatalog.get_item(slot.item.item_id))
+			close()
 		"Drop":
 			_drop_selected()
 		"Equip":
@@ -269,6 +283,7 @@ func _refresh() -> void:
 		var in_hand: bool = i == inv.hand_index
 		if slot == null or slot.is_empty():
 			btn.text = ""
+			btn.icon = null
 			btn.modulate = Color(1, 1, 1, 0.55 if selected else 0.35)
 		else:
 			var data: ItemData = ItemCatalog.get_item(slot.item.item_id)
@@ -278,6 +293,11 @@ func _refresh() -> void:
 			elif label.length() > 8:
 				label = label.substr(0, 8)
 			btn.text = label
+			if data != null and data.icon != null:
+				btn.icon = data.icon
+				btn.expand_icon = true
+			else:
+				btn.icon = null
 			var tint: Color = data.icon_color if data != null else Color.WHITE
 			if selected:
 				btn.modulate = tint.lightened(0.15)

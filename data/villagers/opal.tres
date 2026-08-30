@@ -10,3 +10,7 @@ display_name = "Opal"
 species = &"elephant"
 personality = ExtResource("2")
 starter = true
+wall_index = 50
+floor_index = 28
+house_type = 4
+house_palette = 4
