@@ -10,3 +10,7 @@ display_name = "Cookie"
 species = &"dog"
 personality = ExtResource("2")
 starter = true
+wall_index = 22
+floor_index = 22
+house_type = 1
+house_palette = 4

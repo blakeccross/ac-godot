@@ -10,3 +10,7 @@ display_name = "Aurora"
 species = &"penguin"
 personality = ExtResource("2")
 starter = true
+wall_index = 15
+floor_index = 29
+house_type = 4
+house_palette = 0

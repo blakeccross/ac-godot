@@ -10,3 +10,7 @@ display_name = "Winnie"
 species = &"horse"
 personality = ExtResource("2")
 starter = true
+wall_index = 7
+floor_index = 7
+house_type = 0
+house_palette = 0

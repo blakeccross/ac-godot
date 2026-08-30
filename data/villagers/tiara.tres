@@ -10,3 +10,7 @@ display_name = "Tiara"
 species = &"rhino"
 personality = ExtResource("2")
 starter = false
+wall_index = 1
+floor_index = 2
+house_type = 3
+house_palette = 3

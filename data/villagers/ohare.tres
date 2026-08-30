@@ -11,3 +11,7 @@ species = &"rabbit"
 personality = ExtResource("2")
 islander = true
 starter = false
+wall_index = 58
+floor_index = 58
+house_type = 0
+house_palette = 1

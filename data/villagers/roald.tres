@@ -10,3 +10,7 @@ display_name = "Roald"
 species = &"penguin"
 personality = ExtResource("2")
 starter = true
+wall_index = 61
+floor_index = 54
+house_type = 0
+house_palette = 2

@@ -65,6 +65,6 @@ When shine spots or pitfall holes exist, they reuse the same hole fan and should
 
 ## Simplify / ignore
 
-- Indoor room scenes (ENTER stays “locked” / shop hours stub).
+- Indoor room scenes live: ENTER on a mapped building loads `interior.tscn` (`InteriorCatalog` / `InteriorBook`). Shop hours still gate Nook / Able Sisters.
 - Money-rock / dig loot tables. Pitfall kits, buried items, and walking into a hole (fall).
 - House upgrade stages (`obj_s_myhome2`–`4`, `obj_s_house2`–`5`) until upgrades exist.

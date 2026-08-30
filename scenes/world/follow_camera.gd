@@ -5,13 +5,18 @@ extends Camera3D
 
 const ORIG_DISTANCE := 620.0
 const FOLLOW_DISTANCE := ORIG_DISTANCE * PlayerLocomotion.UNIT_METERS
-const DEFAULT_OFFSET := Vector3(0.0, FOLLOW_DISTANCE * 0.70710678, FOLLOW_DISTANCE * 0.70710678)
+const ISO := 0.70710678
+const DEFAULT_OFFSET := Vector3(0.0, FOLLOW_DISTANCE * ISO, FOLLOW_DISTANCE * ISO)
+## Extra distance so walls sit inside the 20° frustum, not on the edge.
+const FRAME_PADDING := 1.2
 
 @export var target_path: NodePath
 @export var offset := DEFAULT_OFFSET
 @export var follow_rate := 6.0
 
 var _target: Node3D
+var _locked: bool = false
+var _lock_point := Vector3.ZERO
 
 
 func _ready() -> void:
@@ -22,8 +27,25 @@ func _ready() -> void:
 
 
 func set_target(node: Node3D) -> void:
+	_locked = false
 	_target = node
 	_follow(true)
+
+
+func lock_at(point: Vector3) -> void:
+	## Small indoor fields pin the look-at to the room (`Camera2` border invert).
+	_locked = true
+	_target = null
+	_lock_point = point
+	_follow(true)
+
+
+## 45° 3/4 offset that fits a square of `span` meters on the floor at this FOV.
+func offset_for_ground_span(span: float) -> Vector3:
+	var half_fov: float = deg_to_rad(fov * 0.5)
+	var dist: float = maxf(span, 1.0) * ISO / (2.0 * tan(half_fov))
+	var axis: float = dist * FRAME_PADDING * ISO
+	return Vector3(0.0, axis, axis)
 
 
 func _process(delta: float) -> void:
@@ -31,6 +53,14 @@ func _process(delta: float) -> void:
 
 
 func _follow(snap: bool, delta: float = 0.0) -> void:
+	if _locked:
+		var destination := _lock_point + offset
+		if snap:
+			global_position = destination
+		else:
+			global_position = global_position.lerp(destination, clampf(follow_rate * delta, 0.0, 1.0))
+		look_at(_lock_point + Vector3(0.0, 0.85, 0.0), Vector3.UP)
+		return
 	if _target == null:
 		return
 	var look_at_point := _look_point()

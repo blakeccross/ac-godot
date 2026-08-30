@@ -10,3 +10,7 @@ display_name = "Dizzy"
 species = &"elephant"
 personality = ExtResource("2")
 starter = true
+wall_index = 41
+floor_index = 26
+house_type = 1
+house_palette = 1

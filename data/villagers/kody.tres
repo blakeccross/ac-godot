@@ -10,3 +10,7 @@ display_name = "Kody"
 species = &"cub"
 personality = ExtResource("2")
 starter = true
+wall_index = 44
+floor_index = 8
+house_type = 1
+house_palette = 0

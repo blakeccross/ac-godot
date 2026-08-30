@@ -2,7 +2,7 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — do not copy `FTR_ACTOR` or per-item `aFTR_PROFILE` tables.
 
-**Read before implementing:** `FurnitureData`, interior scene, place/pick/rotate.
+**Read before implementing:** `FurnitureData`, `House`, `Room`, `FurniturePlacement`, interior scene, place/pick/rotate.
 
 ## Decomp sources
 
@@ -69,18 +69,18 @@ NPC houses are a different field type with a pre-arranged FTR set from villager 
 
 ## Reproduce
 
-- Indoor **tile grid**; furniture occupies 1×1 first (then 1×2 / 2×2 if needed).
-- Place from inventory onto an empty footprint; pick up back to a free pocket.
+- Indoor **tile grid** (`WorldGrid`); furniture occupies 1×1 / TYPEB 2×1 (`TYPEB_0` extra +X, facing rotates occupancy) / TYPEC 2×2 always SE of the stored cell (`mRmTp_size_l_data`; facing rotates the mesh only, `aMR_angle_table`). cKF storage stays closed at rest (`cKF_SkeletonInfo_R_init_standard_stop` speed 0). Draw scale follows `aFTR_PROFILE.scale` (modern chair 0.1). Mannequins use `obj_shop_manekin` plus a player shirt, not a unique `int_fmanekin` skeleton.
+- Place from inventory onto an empty footprint; pick up back to a free pocket (player house).
 - **Rotate** in 90° steps.
-- Push/pull along the grid (or skip pull and only rotate+place for a first slice).
-- One **sittable** object.
-- Wall and floor as room fields, even if only one wallpaper/flooring item exists.
+- One **sittable** object (`FurnitureData.can_sit`).
+- Wall and floor as room fields (`Room.wall_id` / `floor_id`).
+- Enter/exit and every indoor field id: [interiors.md](interiors.md).
 
 ## Simplify
 
-- One room, one house size; no basement/upper/statue progression until Nook loans exist.
-- One furniture actor script with data-driven size and “can_sit / can_store”.
-- No per-item overlay profiles (`iam_*`).
+- One furniture actor script with data-driven size and “can_sit / can_store / blocks_walk”.
+- Player house starts as one small main room; upper/basement/statue wait for Nook loans.
+- No per-item overlay profiles (`iam_*`) as C tables. Disc FTR indexes map to `int_*` visual ids for meshes. Shared `iam_hnw_common` still picks `int_hnw001`–`int_hnw127` from `FTR_HNW_COMMON000` (`ac_hnw_common.c`).
 - Storage: a few slots on one dresser, not every drawer type.
 - No place-birth / pick-death tweens required for v1.
 

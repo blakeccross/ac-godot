@@ -10,3 +10,7 @@ display_name = "Marcy"
 species = &"kangaroo"
 personality = ExtResource("2")
 starter = false
+wall_index = 8
+floor_index = 60
+house_type = 1
+house_palette = 2

@@ -4,6 +4,14 @@ extends GdUnitTestSuite
 ## Unit heightfield analog of `mCoBG` (terraces + slate ramps), not `grd_*` triangles.
 
 
+func before_test() -> void:
+	FieldCollision.clear_caches()
+
+
+func after_test() -> void:
+	FieldCollision.clear_caches()
+
+
 func test_horizontal_cliff_is_high_north() -> void:
 	assert_float(FieldCollision.unit_rel_at(0, false, 8.0, 2.0)).is_equal(1.0)
 	assert_float(FieldCollision.unit_rel_at(0, false, 8.0, 14.0)).is_equal(0.0)

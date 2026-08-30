@@ -180,6 +180,8 @@ func _add_building(root: Node3D, placement: BuildingPlacement, data: WorldData, 
 	if node == null:
 		return
 	_apply_common(node, placement.id, placement.footprint, placement.facing, placement.occupy_grid, placement.visual_id)
+	if "occupant_id" in node and placement.resident_id != &"":
+		node.set("occupant_id", placement.resident_id)
 	if "label" in node and placement.label != "":
 		node.set("label", placement.label)
 	if "door_verb" in node and placement.door_verb != &"":

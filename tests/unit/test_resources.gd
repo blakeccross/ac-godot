@@ -25,6 +25,11 @@ func test_furniture_extends_item() -> void:
 	assert_that(chair).is_not_null()
 	assert_that(chair.indoor).is_true()
 	assert_that(chair.footprint).is_equal(Vector2i(1, 1))
+	assert_bool(chair.can_sit).is_true()
+	var table: FurnitureData = load("res://data/furniture/wood_table.tres")
+	assert_that(table.footprint).is_equal(Vector2i(2, 1))
+	assert_bool(table.can_sit).is_false()
+	assert_bool(table.blocks_walk).is_true()
 
 
 func test_boy_looks_schedule() -> void:
@@ -50,9 +55,8 @@ func test_acre_grid_defaults() -> void:
 func test_villager_points_at_schedule() -> void:
 	var filbert: VillagerData = load("res://data/villagers/filbert.tres")
 	assert_that(filbert.display_name).is_equal("Filbert")
-	assert_that(filbert.schedule).is_not_null()
 	assert_that(filbert.personality).is_not_null()
-	assert_that(filbert.schedule.activity_at(9)).is_equal(&"field")
+	assert_that(filbert.schedule_table()).is_not_null()
 	assert_that(filbert.schedule_table().activity_at(9)).is_equal(&"field")
 
 

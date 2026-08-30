@@ -10,3 +10,7 @@ display_name = "Hopper"
 species = &"penguin"
 personality = ExtResource("2")
 starter = true
+wall_index = 13
+floor_index = 41
+house_type = 1
+house_palette = 0

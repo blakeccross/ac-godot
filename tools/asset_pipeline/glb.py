@@ -25,7 +25,7 @@ def _pad4(n: int) -> int:
 
 def _group_parts(parts: list[MeshPart]) -> list[dict]:
     groups: list[dict] = []
-    index: dict[tuple[bytes, int, int, bool, bool], int] = {}
+    index: dict[tuple, int] = {}
     for part in parts:
         if not part.triangles:
             continue
@@ -41,7 +41,8 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
             part.alpha_mode = "BLEND"
         # Shirt (REPEAT) and hat (CLAMP) share segment 0x0A PNG bytes — keep them apart.
         # Window panes share the wall SETTIMG but ignore it (prim/env fill).
-        key = (part.texture_png or b"", part.wrap_s, part.wrap_t, unlit, spill)
+        # Indoor outdoor-view (white) must not merge with facade panes (black).
+        key = (part.texture_png or b"", part.wrap_s, part.wrap_t, unlit, spill, part.unlit_rgba)
         if key not in index:
             index[key] = len(groups)
             named = part.name.split(":")[0] if (unlit or spill) else (part.texture_name or "vertex_color")
@@ -52,6 +53,7 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
                     "wrap_s": part.wrap_s,
                     "wrap_t": part.wrap_t,
                     "unlit_fill": unlit,
+                    "unlit_rgba": part.unlit_rgba,
                     "ground_spill": spill,
                     "parts": [],
                 }
@@ -152,6 +154,7 @@ def _material(
     extras: dict | None = None,
     alpha_mode: str = "OPAQUE",
     unlit_fill: bool = False,
+    unlit_rgba: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0),
     ground_spill: bool = False,
 ) -> dict:
     mat: dict = {
@@ -160,7 +163,7 @@ def _material(
         "doubleSided": True,
         "alphaMode": alpha_mode,
         "pbrMetallicRoughness": {
-            "baseColorFactor": [0, 0, 0, 1] if unlit_fill else [1, 1, 1, 1],
+            "baseColorFactor": list(unlit_rgba) if unlit_fill else [1, 1, 1, 1],
             "metallicFactor": 0,
             "roughnessFactor": 1,
         },
@@ -287,6 +290,7 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
                 tex_index,
                 alpha_mode=_group_alpha_mode(group),
                 unlit_fill=bool(group.get("unlit_fill")),
+                unlit_rgba=tuple(group.get("unlit_rgba") or (0.0, 0.0, 0.0, 1.0)),
                 ground_spill=bool(group.get("ground_spill")),
             )
         )
@@ -488,6 +492,7 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
                 tex_index_for(group),
                 alpha_mode=_group_alpha_mode(group),
                 unlit_fill=bool(group.get("unlit_fill")),
+                unlit_rgba=tuple(group.get("unlit_rgba") or (0.0, 0.0, 0.0, 1.0)),
                 ground_spill=bool(group.get("ground_spill")),
             )
         )

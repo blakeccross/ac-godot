@@ -10,3 +10,7 @@ display_name = "Cupcake"
 species = &"cub"
 personality = ExtResource("2")
 starter = true
+wall_index = 29
+floor_index = 30
+house_type = 1
+house_palette = 3

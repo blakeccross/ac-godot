@@ -1,14 +1,22 @@
 extends Node
 
-## Composition root. Owns session phase, scene changes, and world deltas that are not autoloads.
+## Composition root. Owns session phase, scene changes, interiors, and world deltas that are not autoloads.
 
 enum Phase { TITLE, PLAYING }
 
 const TITLE_SCENE := "res://scenes/ui/title.tscn"
 const WORLD_SCENE := "res://scenes/world/world.tscn"
+const INTERIOR_SCENE := "res://scenes/world/interior.tscn"
 const DEFAULT_SPAWN := Vector3(0.0, 0.1, 6.0)
 const TEST_TOOL_IDS: Array[StringName] = [
-	&"shovel", &"axe", &"net", &"fishing_rod", &"watering_can", &"apple_sapling"
+	&"shovel",
+	&"axe",
+	&"net",
+	&"fishing_rod",
+	&"watering_can",
+	&"apple_sapling",
+	&"wood_chair",
+	&"wood_table",
 ]
 
 signal phase_changed(phase: Phase)
@@ -22,6 +30,12 @@ const DEFAULT_TOWN_NAME := "Town"
 var inventory: Inventory = Inventory.new()
 var villagers: VillagerRoster = VillagerRoster.new()
 var relationships: RelationshipBook = RelationshipBook.new()
+var interiors: InteriorBook = InteriorBook.new()
+var current_room_id: StringName = &""
+var outdoor_return: Vector3 = DEFAULT_SPAWN
+var outdoor_return_yaw: float = 0.0
+var spawn_at_room_door: bool = false
+var interior_session: Interior
 var player_name: String = DEFAULT_PLAYER_NAME
 var town_name: String = DEFAULT_TOWN_NAME
 ## Hook for dialogue / later weather (`mEnv_WEATHER_*`). Not a weather system.
@@ -70,7 +84,10 @@ func continue_game() -> void:
 	if SaveService.load_game() != OK:
 		start_new_game()
 		return
-	_change_scene(WORLD_SCENE)
+	if current_room_id != &"":
+		_change_scene(INTERIOR_SCENE)
+	else:
+		_change_scene(WORLD_SCENE)
 
 
 func return_to_title() -> void:
@@ -94,6 +111,12 @@ func notify_title_ready() -> void:
 func reset_session() -> void:
 	inventory.clear()
 	relationships.clear()
+	interiors.clear()
+	interior_session = null
+	current_room_id = &""
+	outdoor_return = DEFAULT_SPAWN
+	outdoor_return_yaw = 0.0
+	spawn_at_room_door = false
 	villagers.clear()
 	villagers.book = relationships
 	VillagerWalk.reset()
@@ -221,6 +244,14 @@ func to_save() -> Dictionary:
 		"world_seed": world_seed,
 		"villagers": villagers.to_save(),
 		"relationships": relationships.to_save(),
+		"interiors": interiors.to_save(),
+		"current_room_id": String(current_room_id),
+		"outdoor_return": {
+			"x": outdoor_return.x,
+			"y": outdoor_return.y,
+			"z": outdoor_return.z,
+			"yaw": outdoor_return_yaw,
+		},
 		"player_name": player_name,
 		"town_name": town_name,
 		"weather": String(weather),
@@ -268,6 +299,20 @@ func apply_snapshot(data: Dictionary) -> void:
 	world_mode = int(data.get("world_mode", WorldData.Mode.TEST)) as WorldData.Mode
 	world_seed = int(data.get("world_seed", WorldGenerator.DEFAULT_SEED))
 	relationships.apply_snapshot(data.get("relationships", {}))
+	interiors.apply_snapshot(data.get("interiors", {}))
+	current_room_id = StringName(str(data.get("current_room_id", "")))
+	var outdoor: Variant = data.get("outdoor_return", {})
+	if typeof(outdoor) == TYPE_DICTIONARY:
+		var o: Dictionary = outdoor
+		outdoor_return = Vector3(
+			float(o.get("x", DEFAULT_SPAWN.x)),
+			float(o.get("y", DEFAULT_SPAWN.y)),
+			float(o.get("z", DEFAULT_SPAWN.z))
+		)
+		outdoor_return_yaw = float(o.get("yaw", 0.0))
+	else:
+		outdoor_return = DEFAULT_SPAWN
+		outdoor_return_yaw = 0.0
 	villagers.book = relationships
 	villagers.apply_snapshot(data.get("villagers", {}))
 	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
@@ -277,6 +322,120 @@ func apply_snapshot(data: Dictionary) -> void:
 	var vars_raw: Variant = data.get("dialogue_vars", {})
 	if typeof(vars_raw) == TYPE_DICTIONARY:
 		dialogue_vars = (vars_raw as Dictionary).duplicate(true)
+
+
+func is_indoors() -> bool:
+	return current_room_id != &""
+
+
+func is_decorating() -> bool:
+	if not is_indoors():
+		return false
+	var room: Room = interiors.room(current_room_id)
+	return room != null and room.can_decorate
+
+
+func try_enter_interior(target: StringName) -> bool:
+	var room_id: StringName = InteriorCatalog.resolve_entry(target)
+	if room_id == &"":
+		return false
+	var room: Room = interiors.room(room_id)
+	if room == null:
+		return false
+	if not InteriorCatalog.is_open_now(room):
+		post_notice(InteriorCatalog.closed_notice(room))
+		return false
+	if not is_indoors():
+		capture_player_from_tree()
+		outdoor_return = player_position
+		outdoor_return_yaw = player_yaw
+	current_room_id = room_id
+	spawn_at_room_door = true
+	_change_scene(INTERIOR_SCENE)
+	return true
+
+
+func exit_interior() -> bool:
+	if not is_indoors():
+		return false
+	var room: Room = interiors.room(current_room_id)
+	if room != null and room.parent_room_id != &"":
+		return try_enter_interior(room.parent_room_id)
+	current_room_id = &""
+	interior_session = null
+	spawn_at_room_door = false
+	player_position = outdoor_return
+	player_yaw = outdoor_return_yaw
+	_change_scene(WORLD_SCENE)
+	return true
+
+
+func bind_interior(session: Interior) -> void:
+	interior_session = session
+
+
+func try_place_furniture(actor: Node3D) -> bool:
+	if actor == null or interior_session == null or not is_decorating():
+		return false
+	var data: FurnitureData = _selected_furniture()
+	if data == null:
+		return false
+	var facing: WorldGrid.Facing = WorldGrid.facing_from_yaw(
+		float(actor.call("facing_yaw")) if actor.has_method("facing_yaw") else actor.rotation.y
+	)
+	var cell: Vector2i = interior_session.grid.world_to_cell(actor.global_position)
+	cell = interior_session.grid.step(cell, facing)
+	var entry: FurniturePlacement = interior_session.place(data, cell, facing)
+	if entry == null:
+		return false
+	inventory.remove(data.id, 1)
+	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() else null
+	if host != null and host.has_method("spawn_placement"):
+		host.call("spawn_placement", entry)
+	post_notice("Placed %s." % data.display_name)
+	return true
+
+
+func pick_up_furniture(placement_id: StringName) -> bool:
+	if interior_session == null or not is_decorating():
+		return false
+	var entry: FurniturePlacement = interior_session.room.placement_by_id(placement_id)
+	if entry == null:
+		return false
+	var data: ItemData = ItemCatalog.get_item(entry.furniture_id)
+	if data == null or not inventory.has_space_for(data, 1):
+		return false
+	var furniture_id: StringName = interior_session.pick_up(placement_id)
+	if furniture_id == &"":
+		return false
+	inventory.add(data, 1)
+	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() else null
+	if host != null and host.has_method("despawn_placement"):
+		host.call("despawn_placement", placement_id)
+	post_notice("Picked up %s." % data.display_name)
+	return true
+
+
+func rotate_furniture(placement_id: StringName) -> bool:
+	if interior_session == null or not is_decorating():
+		return false
+	if not interior_session.rotate(placement_id, 1):
+		return false
+	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() else null
+	if host != null and host.has_method("refresh_placement"):
+		host.call("refresh_placement", placement_id)
+	return true
+
+
+func held_furniture() -> FurnitureData:
+	var slot: InventorySlot = inventory.selected_slot()
+	if slot == null or slot.is_empty():
+		return null
+	return ItemCatalog.get_item(slot.item.item_id) as FurnitureData
+
+
+func _selected_furniture() -> FurnitureData:
+	return held_furniture()
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -10,3 +10,7 @@ display_name = "Rasher"
 species = &"pig"
 personality = ExtResource("2")
 starter = true
+wall_index = 55
+floor_index = 34
+house_type = 1
+house_palette = 2

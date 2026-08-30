@@ -11,3 +11,7 @@ species = &"goat"
 catchphrase = "blehhee"
 personality = ExtResource("2")
 starter = true
+wall_index = 3
+floor_index = 23
+house_type = 4
+house_palette = 4

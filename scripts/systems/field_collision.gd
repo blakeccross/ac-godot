@@ -33,6 +33,17 @@ const _AREA_E := 1
 const _AREA_S := 2
 const _AREA_W := 3
 
+## Per-cell wall segments for the active WorldData. Cleared when the layout instance changes.
+static var _seg_data_id: int = 0
+static var _cell_segs: Dictionary = {}
+static var _nearby_segs: Dictionary = {}
+
+
+static func clear_caches() -> void:
+	_seg_data_id = 0
+	_cell_segs.clear()
+	_nearby_segs.clear()
+
 
 static func has_floor(y: float) -> bool:
 	return y > NO_FLOOR
@@ -335,9 +346,26 @@ static func _catalog_unit(data: WorldData, cell: Vector2i) -> Dictionary:
 	)
 
 
+static func _ensure_seg_cache(data: WorldData) -> void:
+	var data_id: int = data.get_instance_id()
+	if data_id == _seg_data_id:
+		return
+	_seg_data_id = data_id
+	_cell_segs.clear()
+	_nearby_segs.clear()
+
+
 static func _nearby_segments(
 	data: WorldData, grid: WorldGrid, from: Vector3, to: Vector3
 ) -> Array[Vector4]:
+	_ensure_seg_cache(data)
+	var fa: Vector2i = grid.world_to_cell(from)
+	var ta: Vector2i = grid.world_to_cell(to)
+	var key := Vector4i(fa.x, fa.y, ta.x, ta.y)
+	if _nearby_segs.has(key):
+		return _nearby_segs[key]
+	if _nearby_segs.size() > 4096:
+		_nearby_segs.clear()
 	var seen: Dictionary = {}
 	var segs: Array[Vector4] = []
 	for p: Vector3 in [from, to]:
@@ -348,7 +376,17 @@ static func _nearby_segments(
 				if seen.has(cell) or not data.is_in_bounds(cell):
 					continue
 				seen[cell] = true
-				_append_cell_segments(segs, data, grid, cell)
+				segs.append_array(_segments_for_cell(data, grid, cell))
+	_nearby_segs[key] = segs
+	return segs
+
+
+static func _segments_for_cell(data: WorldData, grid: WorldGrid, cell: Vector2i) -> Array[Vector4]:
+	if _cell_segs.has(cell):
+		return _cell_segs[cell]
+	var segs: Array[Vector4] = []
+	_append_cell_segments(segs, data, grid, cell)
+	_cell_segs[cell] = segs
 	return segs
 
 

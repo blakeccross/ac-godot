@@ -39,7 +39,7 @@ REL `.data` for `GAFE01_00` starts at file offset `0x2DD340` (`dtk rel info`). A
 | Gfx DLs `*_model` | `foresta.rel` | Dolphin-GBI (`G_VTX=0x01`, `G_TRIN_INDEPEND=0x0A`, `G_SETTILE_DOLPHIN=0xD2`) | GLB triangles |
 | N64 CI textures `*_tex_txt` | `foresta.rel` | Embedded paletted textures on models | PNG (custom work remaining) |
 | Room floor/wall `.bin` | `forest_2nd.arc` | CI4 tiles (`ac-decomp` `texture_tool.py`) | PNG later |
-| `audiorom.img` | disc `files/` | Custom packed sequences/waveforms | WAV/OGG later |
+| `audiorom.img` | disc `files/` | N64 sequences + banks + ADPCM (`Audioseq` `0x0` size `0xCF700`, `Audiobank` `0xCF700` size `0x67C80`, `Audiowave` `0x137380` size `0x6B33E0`) | Gitignored OGG via `--kind audio` ([decomp_notes/audio.md](decomp_notes/audio.md)) |
 | JPA/JPC | **not** the primary effect path here | Effects are Gfx/cKF (`ef_*`) plus game code | Recreate in GPUParticles3D; do not port the particle engine |
 | BMD/BDL/BCK/BTK/BRK/BTP | Essentially unused on this disc | J3D | Do not use |
 

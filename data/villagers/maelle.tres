@@ -11,3 +11,7 @@ species = &"duck"
 personality = ExtResource("2")
 islander = true
 starter = false
+wall_index = 39
+floor_index = 39
+house_type = 0
+house_palette = 4

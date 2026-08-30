@@ -10,3 +10,7 @@ display_name = "Peanut"
 species = &"squirrel"
 personality = ExtResource("2")
 starter = true
+wall_index = 12
+floor_index = 33
+house_type = 3
+house_palette = 1

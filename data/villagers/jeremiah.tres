@@ -10,3 +10,7 @@ display_name = "Jeremiah"
 species = &"frog"
 personality = ExtResource("2")
 starter = true
+wall_index = 32
+floor_index = 4
+house_type = 0
+house_palette = 2

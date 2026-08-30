@@ -10,3 +10,7 @@ display_name = "Gaston"
 species = &"rabbit"
 personality = ExtResource("2")
 starter = true
+wall_index = 52
+floor_index = 52
+house_type = 2
+house_palette = 4

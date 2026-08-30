@@ -9,11 +9,13 @@ from .texbank import (
     TextureBank,
     TextureState,
     i4_png_as_alpha,
+    is_dolphin_loadtlut,
     parse_loadtlut,
     parse_settile,
     parse_settile_dolphin,
     parse_settilesize,
     parse_settimg,
+    tmem_palette_slot,
 )
 
 G_VTX = 0x01
@@ -72,17 +74,29 @@ class Vertex:
 
 
 def is_window_spill_dl(name: str) -> bool:
-    """Ground XLU decal (`*_window_model`), not facade glass (`*_light_model`)."""
+    """Outdoor ground XLU decal (`*_window_model` / `windowL_model`).
+
+    Indoor trim (`room_window`, `rom_myhome_window_tex`) is wall TEX_EDGE, not a spill.
+    Do not match `room01_model:room_window` (parent `*_model` + window texture name).
+    """
     n = name.lower()
     if "light" in n:
         return False
-    return "window" in n
+    return any(
+        tag in n for tag in ("window_model", "windowl_model", "windowr_model", "windowt_model")
+    )
 
 
 def is_window_pane_dl(name: str) -> bool:
     """Opaque prim/env fill that sits in the wall's TEX_EDGE window holes."""
     n = name.lower()
     return "light_model" in n or "lightt_model" in n
+
+
+def is_room_outdoor_view_dl(name: str) -> bool:
+    """Primitive fill behind indoor window TEX_EDGE (`room01_grp_room_out01`)."""
+    n = name.lower()
+    return "room_out" in n
 
 
 @dataclass
@@ -100,6 +114,8 @@ class MeshPart:
     alpha_mode: str = "OPAQUE"
     ## Facade window panes (`*_light_model`): combiner is prim/env, not the SETTIMG.
     unlit_fill: bool = False
+    ## RGBA for unlit fills. Panes default black; indoor outdoor-view uses prim/white.
+    unlit_rgba: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0)
     ## Ground XLU fan (`*_window_model`): I4 × prim on the shadow pass.
     ground_spill: bool = False
 
@@ -260,33 +276,42 @@ def _apply_settimg(w0: int, w1: int, bank: TextureBank, state: TextureState) -> 
     ## New image: drop prior tile size so UVs follow this SETTIMG until SETTILESIZE.
     state.tile_w = 0
     state.tile_h = 0
-    if width:
-        state.width = width
     if height:
+        ## Dolphin SETTIMG carries real pixel width/height.
+        state.width = width
         state.height = height
     elif addr >> 24 and (addr >> 24) in bank.segment_images:
         seg = bank.segment_images[addr >> 24]
         if seg.width and seg.height:
             state.width = seg.width
             state.height = seg.height
+    else:
+        ## Classic `gsDPLoadTextureBlock*` uses SETTIMG width=1; wait for SETTILESIZE.
+        state.width = 0
+        state.height = 0
 
 
 def _apply_loadtlut(w0: int, w1: int, bank: TextureBank, state: TextureState) -> None:
     slot, count, addr = parse_loadtlut(w0, w1)
-    pal = bank.load_palette(addr, count)
-    # Classic GBI LOADTLUT w1 is a TMEM dest; the palette is the last SETTIMG.
-    if pal is None and state.img_addr:
+    if not is_dolphin_loadtlut(w0):
+        ## Classic `gsDPLoadTLUT_pal16`: DRAM was the previous SETTIMG; slot is TMEM.
+        addr = state.img_addr
+        mapped = tmem_palette_slot(state.tmem)
+        slot = mapped if mapped is not None else state.pal_slot
+    pal = bank.load_palette(addr, count or 16)
+    if pal is None and state.img_addr and addr != state.img_addr:
         pal = bank.load_palette(state.img_addr, count or 16)
-    if pal:
+    if pal and slot >= 0:
         state.palettes[slot] = pal
         state.pal_slot = slot
 
 
 def _apply_settile(w0: int, w1: int, state: TextureState) -> None:
-    fmt, siz, pal_slot, wrap_s, wrap_t = parse_settile(w0, w1)
+    fmt, siz, pal_slot, wrap_s, wrap_t, tmem = parse_settile(w0, w1)
     state.fmt = fmt
     state.siz = siz
     state.pal_slot = pal_slot
+    state.tmem = tmem
     state.wrap_s = wrap_s
     state.wrap_t = wrap_t
 
@@ -333,6 +358,9 @@ def parse_gfx(
     tex_state = state if state is not None else TextureState()
     current_key: tuple | None = None
     current_mtx = -1
+    ## Nested `gsSPDisplayList` keeps its own symbol name so indoor edge/out
+    ## groups are not labeled with the parent `room01_model`.
+    current_dl_name = name
     if bank is not None and name:
         bank.current_gfx = name
 
@@ -371,16 +399,24 @@ def parse_gfx(
         png = None
         tex_name = ""
         alpha_mode = "OPAQUE"
-        unlit = is_window_pane_dl(name)
-        spill = is_window_spill_dl(name)
+        part_name = current_dl_name or name
+        outdoor = is_room_outdoor_view_dl(part_name)
+        unlit = is_window_pane_dl(part_name) or outdoor
+        spill = is_window_spill_dl(part_name)
         if bank is not None and not unlit:
             png, tex_name, alpha_mode = bank.decode_current(tex_state)
         if spill and png:
             png = i4_png_as_alpha(png)
             alpha_mode = "BLEND"
+        # Indoor outdoor-view uses G_CC_PRIMITIVE (sky/fill). Default prim is white.
+        if outdoor:
+            pr, pg, pb, pa = tex_state.prim
+            unlit_rgba = (pr / 255.0, pg / 255.0, pb / 255.0, pa / 255.0)
+        else:
+            unlit_rgba = (0.0, 0.0, 0.0, 1.0)
         parts.append(
             MeshPart(
-                name=name if not tex_name else f"{name}:{tex_name}",
+                name=part_name if not tex_name else f"{part_name}:{tex_name}",
                 vertices=unique,
                 triangles=triangles,
                 texture_name=tex_name,
@@ -391,6 +427,7 @@ def parse_gfx(
                 wrap_t=tex_state.wrap_t,
                 alpha_mode="OPAQUE" if unlit else alpha_mode,
                 unlit_fill=unlit,
+                unlit_rgba=unlit_rgba,
                 ground_spill=spill,
             )
         )
@@ -443,10 +480,25 @@ def parse_gfx(
             keys.append(index_of[vert_key])
         triangles.append((keys[0], keys[1], keys[2]))
 
-    def walk(dl: bytes, depth: int = 0) -> None:
-        nonlocal vtx_cursor, current_mtx, current_key
+    def walk(dl: bytes, depth: int = 0, dl_name: str | None = None) -> None:
+        nonlocal vtx_cursor, current_mtx, current_key, current_dl_name
         if depth > 8:
             return
+        prev_name = current_dl_name
+        if dl_name:
+            current_dl_name = dl_name
+            if bank is not None:
+                bank.current_gfx = dl_name
+            ## Indoor outdoor-view is G_CC_PRIMITIVE — drop inherited floor/wall SETTIMG.
+            if is_room_outdoor_view_dl(dl_name):
+                if triangles:
+                    flush()
+                    current_key = None
+                tex_state.img_addr = 0
+                tex_state.width = 0
+                tex_state.height = 0
+                tex_state.tile_w = 0
+                tex_state.tile_h = 0
         i = 0
         remaining_extra = 0
         while i + 8 <= len(dl):
@@ -508,7 +560,7 @@ def parse_gfx(
                     current_key = None
                 _apply_loadtlut(w0, w1, bank, tex_state)
             elif cmd == G_SETTILE and bank is not None:
-                fmt, siz, pal_slot, wrap_s, wrap_t = parse_settile(w0, w1)
+                fmt, siz, pal_slot, wrap_s, wrap_t, _tmem = parse_settile(w0, w1)
                 if triangles and (
                     pal_slot != tex_state.pal_slot
                     or wrap_s != tex_state.wrap_s
@@ -550,8 +602,18 @@ def parse_gfx(
                     except ValueError:
                         nested = b""
                     if nested:
-                        walk(nested, depth + 1)
+                        ## Finish the current group before switching DL names.
+                        if triangles:
+                            flush()
+                            current_key = None
+                        walk(nested, depth + 1, symbol.name)
             i += 8
+        if dl_name is not None and triangles:
+            flush()
+            current_key = None
+        current_dl_name = prev_name
+        if bank is not None and prev_name:
+            bank.current_gfx = prev_name
 
     walk(blob)
     flush()

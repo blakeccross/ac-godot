@@ -10,3 +10,7 @@ display_name = "Peewee"
 species = &"gorilla"
 personality = ExtResource("2")
 starter = true
+wall_index = 42
+floor_index = 56
+house_type = 3
+house_palette = 1

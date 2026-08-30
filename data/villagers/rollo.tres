@@ -10,3 +10,7 @@ display_name = "Rollo"
 species = &"hippo"
 personality = ExtResource("2")
 starter = true
+wall_index = 34
+floor_index = 55
+house_type = 2
+house_palette = 4

@@ -10,3 +10,7 @@ display_name = "Claude"
 species = &"rabbit"
 personality = ExtResource("2")
 starter = true
+wall_index = 15
+floor_index = 57
+house_type = 2
+house_palette = 0

@@ -16,6 +16,8 @@ const CHOP := &"chop"
 const WATER := &"water"
 const SWING_NET := &"swing_net"
 const CAST := &"cast"
+const PLACE := &"place"
+const ROTATE := &"rotate"
 
 var id: StringName = &""
 var prompt: String = ""

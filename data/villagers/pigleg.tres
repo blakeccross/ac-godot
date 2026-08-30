@@ -11,3 +11,7 @@ species = &"pig"
 personality = ExtResource("2")
 islander = true
 starter = false
+wall_index = 60
+floor_index = 60
+house_type = 0
+house_palette = 1

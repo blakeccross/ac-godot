@@ -10,3 +10,7 @@ display_name = "Freckles"
 species = &"duck"
 personality = ExtResource("2")
 starter = true
+wall_index = 19
+floor_index = 32
+house_type = 1
+house_palette = 1

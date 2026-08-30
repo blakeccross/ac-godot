@@ -10,3 +10,7 @@ display_name = "Groucho"
 species = &"bear"
 personality = ExtResource("2")
 starter = true
+wall_index = 55
+floor_index = 3
+house_type = 4
+house_palette = 2

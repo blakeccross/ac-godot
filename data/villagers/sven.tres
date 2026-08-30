@@ -10,3 +10,7 @@ display_name = "Sven"
 species = &"goat"
 personality = ExtResource("2")
 starter = true
+wall_index = 48
+floor_index = 46
+house_type = 2
+house_palette = 4

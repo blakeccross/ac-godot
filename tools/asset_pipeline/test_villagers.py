@@ -20,6 +20,9 @@ class VillagerRosterTests(unittest.TestCase):
         self.assertEqual(filbert["species"], "squirrel")
         self.assertEqual(filbert["personality"], "lazy")
         self.assertTrue(filbert["starter"])
+        self.assertIsInstance(filbert["wall_index"], int)
+        self.assertIsInstance(filbert["floor_index"], int)
+        self.assertGreaterEqual(filbert["wall_index"], 0)
         dora = next(e for e in roster if e["id"] == "dora")
         self.assertEqual(dora["species"], "mouse")
         amelia = next(e for e in roster if e["id"] == "amelia")
@@ -30,6 +33,8 @@ class VillagerRosterTests(unittest.TestCase):
         self.assertGreaterEqual(sum(1 for e in roster if e["starter"]), 12)
         looks = {e["looks"] for e in roster if e["starter"]}
         self.assertEqual(looks, {0, 1, 2, 3, 4, 5})
+        houses = {(e["wall_index"], e["floor_index"]) for e in roster}
+        self.assertGreater(len(houses), 40)
 
 
 if __name__ == "__main__":

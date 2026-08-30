@@ -104,6 +104,7 @@ def parse_roster(decomp: Path) -> list[dict[str, Any]]:
     looks = _parse_looks(decomp / "src" / "game" / "m_name_table.c")
     grow = _parse_grow(decomp / "src" / "data" / "npc" / "grow_list.c")
     prefixes = _parse_draw_prefixes(decomp / "src" / "data" / "npc" / "npc_draw_data.c")
+    houses = _parse_house_list(decomp / "src" / "data" / "npc" / "house_list.c")
     if len(names) != NPC_NUM:
         raise ValueError(f"expected {NPC_NUM} NPCs, got {len(names)}")
     roster: list[dict[str, Any]] = []
@@ -113,6 +114,7 @@ def parse_roster(decomp: Path) -> list[dict[str, Any]]:
         grow_kind = grow[i] if i < len(grow) else "starter"
         prefix = prefixes[i] if i < len(prefixes) else ""
         species = PREFIX_SPECIES.get(prefix, prefix if prefix else "unknown")
+        house = houses[i] if i < len(houses) else {}
         roster.append(
             {
                 "npc_idx": i,
@@ -125,6 +127,10 @@ def parse_roster(decomp: Path) -> list[dict[str, Any]]:
                 "starter": grow_kind == "starter",
                 "islander": grow_kind == "islander",
                 "catchphrase": CATCHPHRASES.get(vid, ""),
+                "wall_index": int(house.get("wall", 0)),
+                "floor_index": int(house.get("floor", 0)),
+                "house_type": int(house.get("type", 0)),
+                "house_palette": int(house.get("palette", 0)),
             }
         )
     return roster
@@ -182,6 +188,33 @@ def _parse_grow(path: Path) -> list[str]:
     return out[:NPC_NUM]
 
 
+def _parse_house_list(path: Path) -> list[dict[str, int]]:
+    """`npc_house_list`: type, palette, ITM_WALL*, ITM_CARPET* (u8 index = item low byte)."""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    start = text.find("npc_house_list[]")
+    if start < 0:
+        raise ValueError("npc_house_list not found")
+    block = text[start : text.find("};", start)]
+    out: list[dict[str, int]] = []
+    row = re.compile(
+        r"\{\s*(\d+)\s*,\s*(\d+)\s*,\s*ITM_WALL(\d+)\s*,\s*ITM_CARPET(\d+)\s*,"
+    )
+    for match in row.finditer(block):
+        out.append(
+            {
+                "type": int(match.group(1)),
+                "palette": int(match.group(2)),
+                "wall": int(match.group(3)),
+                "floor": int(match.group(4)),
+            }
+        )
+        if len(out) >= NPC_NUM:
+            break
+    if len(out) < NPC_NUM:
+        raise ValueError(f"house list too short: {len(out)}")
+    return out[:NPC_NUM]
+
+
 def _parse_draw_prefixes(path: Path) -> list[str]:
     text = path.read_text(encoding="utf-8", errors="replace")
     start = text.find("npc_draw_data_tbl[]")
@@ -227,6 +260,10 @@ def _write_tres(path: Path, entry: dict[str, Any]) -> None:
     if entry["islander"]:
         lines.append("islander = true")
     lines.append(f"starter = {'true' if entry['starter'] else 'false'}")
+    lines.append(f"wall_index = {int(entry.get('wall_index', 0))}")
+    lines.append(f"floor_index = {int(entry.get('floor_index', 0))}")
+    lines.append(f"house_type = {int(entry.get('house_type', 0))}")
+    lines.append(f"house_palette = {int(entry.get('house_palette', 0))}")
     lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")
 

@@ -64,6 +64,62 @@ func test_rotate_facing_wraps() -> void:
 	assert_that(_grid.rotate_facing(WorldGrid.Facing.SOUTH, -1)).is_equal(WorldGrid.Facing.WEST)
 
 
+func test_facing_from_yaw() -> void:
+	assert_that(WorldGrid.facing_from_yaw(0.0)).is_equal(WorldGrid.Facing.SOUTH)
+	assert_that(WorldGrid.facing_from_yaw(PI)).is_equal(WorldGrid.Facing.NORTH)
+	assert_that(WorldGrid.facing_from_yaw(WorldGrid.yaw_for_facing(WorldGrid.Facing.EAST))).is_equal(
+		WorldGrid.Facing.EAST
+	)
+	assert_that(_grid.step(Vector2i(4, 4), WorldGrid.Facing.NORTH)).is_equal(Vector2i(4, 3))
+
+
+func test_furniture_yaw_matches_amr_table() -> void:
+	assert_float(WorldGrid.yaw_for_furniture(WorldGrid.Facing.SOUTH)).is_equal_approx(0.0, 0.0001)
+	assert_float(WorldGrid.yaw_for_furniture(WorldGrid.Facing.EAST)).is_equal_approx(PI * 0.5, 0.0001)
+	assert_float(WorldGrid.yaw_for_furniture(WorldGrid.Facing.NORTH)).is_equal_approx(PI, 0.0001)
+	assert_float(WorldGrid.yaw_for_furniture(WorldGrid.Facing.WEST)).is_equal_approx(PI * 1.5, 0.0001)
+
+
+func test_furniture_world_keeps_1x2_on_anchor() -> void:
+	var one: Vector3 = _grid.cell_to_world(Vector2i(3, 4))
+	assert_that(_grid.furniture_world(Vector2i(3, 4), Vector2i.ONE, WorldGrid.Facing.EAST)).is_equal(one)
+	assert_that(_grid.furniture_world(Vector2i(3, 4), Vector2i(2, 1), WorldGrid.Facing.SOUTH)).is_equal(one)
+	var two: Vector3 = one + Vector3(_grid.cell_size * 0.5, 0.0, _grid.cell_size * 0.5)
+	assert_that(_grid.furniture_world(Vector2i(3, 4), Vector2i(2, 2), WorldGrid.Facing.SOUTH)).is_equal(two)
+
+
+func test_typeb_footprint_matches_l_typeb0_table() -> void:
+	var anchor := Vector2i(5, 5)
+	var size := Vector2i(2, 1)
+	assert_that(_grid.footprint_cells(anchor, size, WorldGrid.Facing.SOUTH)).is_equal(
+		[Vector2i(5, 5), Vector2i(6, 5)]
+	)
+	assert_that(_grid.footprint_cells(anchor, size, WorldGrid.Facing.EAST)).is_equal(
+		[Vector2i(5, 5), Vector2i(5, 4)]
+	)
+	assert_that(_grid.footprint_cells(anchor, size, WorldGrid.Facing.NORTH)).is_equal(
+		[Vector2i(5, 5), Vector2i(4, 5)]
+	)
+	assert_that(_grid.footprint_cells(anchor, size, WorldGrid.Facing.WEST)).is_equal(
+		[Vector2i(5, 5), Vector2i(5, 6)]
+	)
+
+
+func test_typec_footprint_ignores_facing() -> void:
+	## `mRmTp_size_l_data` / `aMR_SetInfoFurnitureTable` TYPEC: always +X/+Z.
+	var anchor := Vector2i(4, 4)
+	var size := Vector2i(2, 2)
+	var south: Array[Vector2i] = _grid.footprint_cells(anchor, size, WorldGrid.Facing.SOUTH)
+	var north: Array[Vector2i] = _grid.footprint_cells(anchor, size, WorldGrid.Facing.NORTH)
+	assert_that(south).is_equal(
+		[Vector2i(4, 4), Vector2i(4, 5), Vector2i(5, 4), Vector2i(5, 5)]
+	)
+	assert_that(north).is_equal(south)
+	assert_that(
+		_grid.furniture_world(anchor, size, WorldGrid.Facing.NORTH)
+	).is_equal(_grid.cell_to_world(anchor) + Vector3(1.0, 0.0, 1.0))
+
+
 func test_place_and_occupancy() -> void:
 	assert_bool(
 		_grid.place(&"tree", Vector2i(3, 3), Vector2i.ONE, WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT)
@@ -110,6 +166,10 @@ func test_sand_and_path_are_walkable_cliff_is_not() -> void:
 	).is_false()
 	assert_bool(
 		_grid.can_place(Vector2i(4, 4), Vector2i.ONE, WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM)
+	).is_true()
+	assert_bool(_grid.can_place(Vector2i(5, 5), Vector2i.ONE, WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM)).is_true()
+	assert_bool(
+		_grid.can_place(Vector2i(7, 7), Vector2i.ONE, WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.FURNITURE)
 	).is_true()
 	assert_bool(
 		_grid.can_place(Vector2i(4, 4), Vector2i.ONE, WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT)

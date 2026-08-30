@@ -10,3 +10,7 @@ display_name = "Limberg"
 species = &"mouse"
 personality = ExtResource("2")
 starter = true
+wall_index = 9
+floor_index = 16
+house_type = 2
+house_palette = 1

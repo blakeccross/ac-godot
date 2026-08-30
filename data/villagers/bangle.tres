@@ -10,3 +10,7 @@ display_name = "Bangle"
 species = &"tiger"
 personality = ExtResource("2")
 starter = true
+wall_index = 62
+floor_index = 12
+house_type = 3
+house_palette = 1

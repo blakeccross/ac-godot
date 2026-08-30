@@ -11,3 +11,7 @@ species = &"wolf"
 personality = ExtResource("2")
 islander = true
 starter = false
+wall_index = 16
+floor_index = 9
+house_type = 0
+house_palette = 4

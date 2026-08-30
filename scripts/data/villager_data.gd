@@ -15,6 +15,20 @@ extends Resource
 @export var starter: bool = true
 ## Island-only animal (`mNpc_GROW_ISLANDER`). Greeting uses the island hello table.
 @export var islander: bool = false
+## Interior wallpaper / carpet index (`npc_house_list` / `mRmTp_CopyWallData`).
+@export var wall_index: int = 0
+@export var floor_index: int = 0
+## Outdoor house shape / palette (`ac_house`). Not applied yet.
+@export var house_type: int = 0
+@export var house_palette: int = 0
+
+
+func wall_style_id() -> StringName:
+	return StringName("wall_%02d" % clampi(wall_index, 0, 70))
+
+
+func floor_style_id() -> StringName:
+	return StringName("floor_%02d" % clampi(floor_index, 0, 70))
 
 
 func schedule_table() -> ScheduleData:

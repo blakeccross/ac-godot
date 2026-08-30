@@ -10,3 +10,7 @@ display_name = "Joey"
 species = &"duck"
 personality = ExtResource("2")
 starter = true
+wall_index = 14
+floor_index = 48
+house_type = 1
+house_palette = 3

@@ -10,3 +10,7 @@ display_name = "Lily"
 species = &"frog"
 personality = ExtResource("2")
 starter = true
+wall_index = 39
+floor_index = 39
+house_type = 0
+house_palette = 1

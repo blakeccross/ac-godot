@@ -10,3 +10,7 @@ display_name = "Rhoda"
 species = &"chicken"
 personality = ExtResource("2")
 starter = true
+wall_index = 62
+floor_index = 35
+house_type = 4
+house_palette = 3

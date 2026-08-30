@@ -10,3 +10,7 @@ display_name = "Baabara"
 species = &"sheep"
 personality = ExtResource("2")
 starter = true
+wall_index = 51
+floor_index = 51
+house_type = 4
+house_palette = 0

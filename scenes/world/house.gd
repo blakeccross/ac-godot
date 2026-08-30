@@ -27,5 +27,10 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.ENTER:
 		return false
+	if occupant_id != &"":
+		if Game.try_enter_interior(occupant_id):
+			return true
+		if InteriorCatalog.resolve_entry(occupant_id) != &"":
+			return false
 	Game.post_notice("The door is locked.")
 	return true

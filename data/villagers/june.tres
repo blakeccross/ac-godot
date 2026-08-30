@@ -11,3 +11,7 @@ species = &"cub"
 personality = ExtResource("2")
 islander = true
 starter = false
+wall_index = 24
+floor_index = 5
+house_type = 2
+house_palette = 0

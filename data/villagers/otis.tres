@@ -10,3 +10,7 @@ display_name = "Otis"
 species = &"bird"
 personality = ExtResource("2")
 starter = true
+wall_index = 10
+floor_index = 9
+house_type = 2
+house_palette = 3

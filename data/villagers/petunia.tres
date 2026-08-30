@@ -10,3 +10,7 @@ display_name = "Petunia"
 species = &"cow"
 personality = ExtResource("2")
 starter = true
+wall_index = 5
+floor_index = 41
+house_type = 4
+house_palette = 2

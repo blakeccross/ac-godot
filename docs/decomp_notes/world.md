@@ -110,7 +110,7 @@ We do **not** port that acre-combination solver. We keep the *rules* (river thro
 
 - Discrete **acres** made of a unit grid, not a free-form open world.
 - One acre on screen at first; later, load neighbors.
-- Outdoor **3/4 camera**, ~20° FOV, follow the player.
+- Outdoor **3/4 camera**, ~20° FOV, follow the player. Villager homes lock that camera to the room center.
 - Collision that distinguishes **walkable grass**, **water**, and **blocked**. Player Y comes from the **paired acre collision table** (center + four corners × 10 GX) at the current XZ, including water units — original `GetBgY` never returns “no floor” for a river. Banks and terraces are **thin XZ segments** (`SearchWallFlag` + 45° slate + water edges) resolved as a circle (`revise_xz`), not gravity holes, not AABB cell boxes, and not 3D physics walls. This slice still keeps the player off water tiles. Off-map is impassable. Acre-edge **wade** is streaming, not a fence.
 - Indoor vs outdoor as separate scenes, not one giant mesh.
 - Dropped / grown items occupy **tiles**, not arbitrary floats.
@@ -121,7 +121,7 @@ We do **not** port that acre-combination solver. We keep the *rules* (river thro
 - No 4-acre visibility window or GameCube overlay streaming.
 - No full river/cliff/bridge combination solver (`m_random_field`). Keep the *rules* (river, beach, cliff, house, shop) as `WorldData`.
 - Scale 40-unit tiles to Godot meters; keep *relative* acre size, not the integer 40.
-- One indoor room type to start (player house), not museum wings / lighthouse / tent.
+- One indoor **system** that can represent every GC interior as data; the player house starts as one small room ([interiors.md](interiors.md)).
 
 ## Ignore
 

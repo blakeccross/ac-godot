@@ -10,3 +10,7 @@ display_name = "Snake"
 species = &"rabbit"
 personality = ExtResource("2")
 starter = false
+wall_index = 9
+floor_index = 9
+house_type = 2
+house_palette = 3

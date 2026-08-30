@@ -8,10 +8,14 @@ func before_test() -> void:
 	Clock.reset_to_default()
 	Clock.paused = true
 	Game.reset_session()
+	VillagerWalk.reset()
+	FieldCollision.clear_caches()
 
 
 func after_test() -> void:
 	Game.reset_session()
+	VillagerWalk.reset()
+	FieldCollision.clear_caches()
 	Clock.reset_to_default()
 	Clock.paused = false
 
@@ -149,6 +153,11 @@ func test_filbert_data_is_lazy_squirrel() -> void:
 	assert_that(filbert.species).is_equal(&"squirrel")
 	assert_that(filbert.personality.id).is_equal(&"lazy")
 	assert_that(filbert.schedule_table().activity_at(9)).is_equal(VillagerActivity.FIELD)
+	var rosie: VillagerData = load("res://data/villagers/rosie.tres")
+	assert_that(rosie).is_not_null()
+	assert_bool(
+		filbert.wall_style_id() != rosie.wall_style_id() or filbert.floor_style_id() != rosie.floor_style_id()
+	).is_true()
 
 
 func test_scene_talks_when_in_field() -> void:
@@ -706,6 +715,104 @@ func test_can_step_rejects_house_cell() -> void:
 	assert_bool(VillagerWalk.can_step(data, from, house)).is_false()
 	var open: Vector3 = data.cell_to_world(Vector2i(5, 8))
 	assert_bool(VillagerWalk.can_step(data, from, open)).is_true()
+
+
+func test_step_toward_respects_cliff_wall() -> void:
+	## Without a grid, standable cells across a terrace are fine. With FieldCollision,
+	## the next step must not cross the height wall.
+	if not FieldCatalog.has_acre_collision(&"grd_s_c1_1"):
+		return
+	var data: WorldData = WorldGenerator.generate(12345)
+	var grid := WorldGrid.new()
+	grid.configure_from_world(data)
+	var found := false
+	for z: int in data.rows:
+		for x: int in data.columns:
+			var a := Vector2i(x, z)
+			var ha: float = FieldCollision.height_at(data, a)
+			if not FieldCollision.has_floor(ha) or not VillagerWalk.is_standable(data, a):
+				continue
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1)]:
+				var b: Vector2i = a + d
+				if not data.is_in_bounds(b) or not VillagerWalk.is_standable(data, b):
+					continue
+				var hb: float = FieldCollision.height_at(data, b)
+				if not FieldCollision.has_floor(hb) or absf(ha - hb) < 2.0:
+					continue
+				var from: Vector3 = data.cell_to_world(a)
+				var dest: Vector3 = data.cell_to_world(b)
+				var next: Vector3 = VillagerWalk.step_toward(data, from, dest, grid)
+				var next_cell := Vector2i(
+					int(floor((next.x - data.origin().x) / data.cell_size)),
+					int(floor((next.z - data.origin().z) / data.cell_size))
+				)
+				assert_that(next_cell).is_not_equal(b)
+				found = true
+				break
+			if found:
+				break
+		if found:
+			break
+	assert_bool(found).is_true()
+
+
+func test_path_clear_rejects_cliff() -> void:
+	## Adjacent standable cells across a terrace wall — greedy walk cannot cross.
+	if not FieldCatalog.has_acre_collision(&"grd_s_c1_1"):
+		return
+	var data: WorldData = WorldGenerator.generate(12345)
+	var grid := WorldGrid.new()
+	grid.configure_from_world(data)
+	var found := false
+	for z: int in data.rows:
+		for x: int in data.columns:
+			var a := Vector2i(x, z)
+			var ha: float = FieldCollision.height_at(data, a)
+			if not FieldCollision.has_floor(ha) or not VillagerWalk.is_standable(data, a):
+				continue
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(0, 1)]:
+				var b: Vector2i = a + d
+				if not data.is_in_bounds(b) or not VillagerWalk.is_standable(data, b):
+					continue
+				var hb: float = FieldCollision.height_at(data, b)
+				if not FieldCollision.has_floor(hb) or absf(ha - hb) < 2.0:
+					continue
+				var from: Vector3 = data.cell_to_world(a)
+				var dest: Vector3 = data.cell_to_world(b)
+				assert_bool(VillagerWalk.can_step(data, from, dest, grid)).is_false()
+				## path_clear may still be true if a slope connects the terraces.
+				found = true
+				break
+			if found:
+				break
+		if found:
+			break
+	assert_bool(found).is_true()
+	## Isolated high/low with no slope between: greedy walk cannot bridge the wall.
+	var blocked := false
+	for z: int in data.rows:
+		for x: int in data.columns:
+			var a := Vector2i(x, z)
+			if not VillagerWalk.is_standable(data, a):
+				continue
+			var ha: float = FieldCollision.height_at(data, a)
+			if not FieldCollision.has_floor(ha):
+				continue
+			var b := Vector2i(a.x, a.y + 1)
+			if not data.is_in_bounds(b) or not VillagerWalk.is_standable(data, b):
+				continue
+			var hb: float = FieldCollision.height_at(data, b)
+			if not FieldCollision.has_floor(hb) or absf(ha - hb) < 2.0:
+				continue
+			if VillagerWalk.path_clear(
+				data, data.cell_to_world(a), data.cell_to_world(b), grid, 8
+			):
+				continue
+			blocked = true
+			break
+		if blocked:
+			break
+	assert_bool(blocked).is_true()
 
 
 func test_wander_keeps_dest_past_the_next_cell() -> void:

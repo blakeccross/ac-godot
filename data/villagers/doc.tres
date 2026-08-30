@@ -10,3 +10,7 @@ display_name = "Doc"
 species = &"rabbit"
 personality = ExtResource("2")
 starter = true
+wall_index = 6
+floor_index = 6
+house_type = 3
+house_palette = 2

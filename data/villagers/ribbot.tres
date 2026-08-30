@@ -11,3 +11,7 @@ species = &"frog"
 catchphrase = "zzrrbbitt"
 personality = ExtResource("2")
 starter = false
+wall_index = 15
+floor_index = 15
+house_type = 3
+house_palette = 1

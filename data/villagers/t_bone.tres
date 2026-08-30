@@ -10,3 +10,7 @@ display_name = "T-Bone"
 species = &"bull"
 personality = ExtResource("2")
 starter = true
+wall_index = 32
+floor_index = 32
+house_type = 3
+house_palette = 1

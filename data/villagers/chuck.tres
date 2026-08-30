@@ -10,3 +10,7 @@ display_name = "Chuck"
 species = &"bull"
 personality = ExtResource("2")
 starter = true
+wall_index = 19
+floor_index = 19
+house_type = 3
+house_palette = 2

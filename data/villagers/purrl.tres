@@ -10,3 +10,7 @@ display_name = "Purrl"
 species = &"cat"
 personality = ExtResource("2")
 starter = true
+wall_index = 42
+floor_index = 2
+house_type = 3
+house_palette = 2

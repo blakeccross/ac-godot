@@ -10,3 +10,7 @@ display_name = "Snooty"
 species = &"anteater"
 personality = ExtResource("2")
 starter = false
+wall_index = 31
+floor_index = 36
+house_type = 2
+house_palette = 0

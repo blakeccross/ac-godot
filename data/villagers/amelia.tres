@@ -10,3 +10,7 @@ display_name = "Amelia"
 species = &"eagle"
 personality = ExtResource("2")
 starter = true
+wall_index = 57
+floor_index = 13
+house_type = 1
+house_palette = 3

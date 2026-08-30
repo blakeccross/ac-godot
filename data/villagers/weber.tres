@@ -10,3 +10,7 @@ display_name = "Weber"
 species = &"duck"
 personality = ExtResource("2")
 starter = true
+wall_index = 20
+floor_index = 61
+house_type = 3
+house_palette = 4

@@ -33,5 +33,7 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if not is_open():
 		Game.post_notice("The shop is closed.")
 		return false
+	if occupant_id != &"" and Game.try_enter_interior(occupant_id):
+		return true
 	Game.post_notice("The shop is open.")
 	return true

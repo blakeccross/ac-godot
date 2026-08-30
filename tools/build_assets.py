@@ -15,10 +15,12 @@ from asset_pipeline.convert import (  # noqa: E402
     convert_acre_collision,
     convert_assets,
     convert_ckf_prefixes,
+    convert_ckf_starting_with,
     convert_static_only,
     convert_static_prefixes,
 )
 from asset_pipeline.fgdata import convert_fgdata  # noqa: E402
+from asset_pipeline.npc_rooms import convert_npc_rooms  # noqa: E402
 from asset_pipeline.dialogue import convert_dialogue  # noqa: E402
 from asset_pipeline.villagers import generate_villagers  # noqa: E402
 from asset_pipeline.extract import extract_archives, extract_disc  # noqa: E402
@@ -42,9 +44,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--kind",
-        choices=["all", "static", "buildings", "plants", "collision", "fg", "inventory-ui", "dialogue", "villagers"],
+        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "dialogue", "villagers"],
         default="all",
-        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, acre collision, FG templates, inventory UI chrome, dialogue banks, or villager roster from decomp tables",
+        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory UI chrome, dialogue banks, or villager roster from decomp tables",
     )
     args = parser.parse_args()
     cfg = load_config(ROOT, args.config)
@@ -74,6 +76,15 @@ def main() -> int:
                 print(
                     f"wrote FG catalog ({fg['templates']} templates, "
                     f"{fg['combis']} combis, {fg['combis_with_trees']} with trees)"
+                )
+            npc = convert_npc_rooms(cfg)
+            if npc.get("error"):
+                print(f"npc_rooms: {npc['error']}")
+                failed = True
+            else:
+                print(
+                    f"wrote NPC room layouts ({npc['villagers']} villagers, "
+                    f"{npc['placements']} furniture) -> {npc.get('path', '')}"
                 )
         elif args.kind == "inventory-ui":
             report = extract_inventory_ui(cfg)
@@ -138,6 +149,10 @@ def main() -> int:
                 )
                 report["results"].extend(static_report.get("results", []))
                 label = "building assets"
+            elif args.kind == "furniture":
+                cfg.test_set_only = False
+                report = convert_ckf_starting_with(cfg, "int_", "clk_")
+                label = "furniture cKF assets"
             elif args.kind == "plants":
                 cfg.test_set_only = False
                 report = convert_static_prefixes(

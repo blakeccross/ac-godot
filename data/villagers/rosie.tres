@@ -11,3 +11,7 @@ species = &"cat"
 catchphrase = "silly"
 personality = ExtResource("2")
 starter = true
+wall_index = 39
+floor_index = 41
+house_type = 1
+house_palette = 2

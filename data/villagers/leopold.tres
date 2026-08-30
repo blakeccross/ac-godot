@@ -10,3 +10,7 @@ display_name = "Leopold"
 species = &"lion"
 personality = ExtResource("2")
 starter = true
+wall_index = 1
+floor_index = 1
+house_type = 4
+house_palette = 1

@@ -72,6 +72,16 @@ func test_summer_tree_paths_when_assets_exist() -> void:
 	assert_str(FieldCatalog.mesh_paths(&"grd_s_f_1")[0]).contains("grd_s_f_1")
 	assert_str(FieldCatalog.villager_path(&"squirrel")).contains("squ_1")
 	assert_str(FieldCatalog.item_albedo(&"apple")).contains("obj_item_apple_tex")
+	var manekin: PackedStringArray = FieldCatalog.mesh_paths(&"int_fmanekin")
+	if not manekin.is_empty():
+		assert_str(manekin[0]).contains("obj_shop_manekin")
+	assert_int(FieldCatalog.cloth_index_from_item(6720)).is_equal(165)
+	var room01: PackedStringArray = FieldCatalog.mesh_paths(&"room01")
+	if not room01.is_empty():
+		assert_str(room01[0]).contains("room01")
+	var myhome: PackedStringArray = FieldCatalog.mesh_paths(&"rom_myhome1_floor")
+	if not myhome.is_empty():
+		assert_str(myhome[0]).contains("rom_myhome1_floor")
 
 
 func test_species_codes_map_to_disc_prefixes() -> void:
@@ -126,8 +136,15 @@ func test_acre_block_types_map_to_grd_families() -> void:
 	if not FieldCatalog.mesh_paths(&"grd_s_c7_r3_1").is_empty():
 		assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_WF_W_BL, 0))).starts_with("grd_s_c7_r3_")
 	assert_float(FieldCatalog.actor_uniform_scale()).is_equal_approx(0.5, 0.0001)
+	assert_float(FieldCatalog.actor_uniform_scale_for(&"int_ari_isu01")).is_equal_approx(5.0, 0.0001)
+	assert_float(FieldCatalog.actor_draw_scale(&"int_ari_isu01")).is_equal_approx(0.1, 0.0001)
 	assert_float(FieldCatalog.acre_uniform_scale()).is_equal_approx(3.125, 0.0001)
 	assert_float(FieldCatalog.acre_uniform_scale() / FieldCatalog.actor_uniform_scale()).is_equal_approx(6.25, 0.0001)
+	assert_float(FieldCatalog.interior_uniform_scale(&"room01")).is_equal_approx(50.0, 0.0001)
+	assert_float(FieldCatalog.interior_uniform_scale(&"rom_myhome1_floor")).is_equal_approx(3.125, 0.0001)
+	assert_float(FieldCatalog.interior_ground_y_offset(&"room01")).is_equal_approx(0.0, 0.0001)
+	assert_bool(FieldCatalog.interior_uses_acre_verts(&"rom_shop1f")).is_true()
+	assert_bool(FieldCatalog.interior_uses_acre_verts(&"room01")).is_false()
 	assert_float(FieldCatalog.ACRE_STEP_METERS).is_equal(6.0)
 
 
@@ -218,3 +235,10 @@ func test_bridge_block_types_pick_data_combi_bgs() -> void:
 	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_RIVER_S_BRIDGE, 0, used))).is_equal(
 		"grd_s_r1_b_2"
 	)
+
+
+func test_gyroid_mesh_paths_when_converted() -> void:
+	var paths: PackedStringArray = FieldCatalog.mesh_paths(&"int_hnw001")
+	if paths.is_empty():
+		return
+	assert_str(paths[0]).contains("int_hnw001")

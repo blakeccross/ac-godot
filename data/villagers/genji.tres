@@ -10,3 +10,7 @@ display_name = "Genji"
 species = &"rabbit"
 personality = ExtResource("2")
 starter = false
+wall_index = 16
+floor_index = 16
+house_type = 2
+house_palette = 1

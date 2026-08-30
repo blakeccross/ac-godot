@@ -39,10 +39,21 @@ const WAIT_SECONDS := 2.0
 const _BLOCK_STAND: Array[StringName] = [&"tree", &"rock", &"house", &"shop", &"building"]
 
 static var _walkers: Dictionary = {}
+## Cells that block standing (houses, trees, rocks). Rebuilt when layout changes.
+static var _blocked_data_id: int = 0
+static var _blocked_sig: int = 0
+static var _blocked_cells: Dictionary = {}
 
 
 static func reset() -> void:
 	_walkers.clear()
+	_clear_blocked_cache()
+
+
+static func _clear_blocked_cache() -> void:
+	_blocked_data_id = 0
+	_blocked_sig = 0
+	_blocked_cells.clear()
 
 
 static func walker_cap(field_count: int) -> int:
@@ -207,11 +218,13 @@ static func wander_in_block(
 	data: WorldData,
 	block: Vector2i,
 	from: Vector3,
-	rng: RandomNumberGenerator = null
+	rng: RandomNumberGenerator = null,
+	grid: WorldGrid = null
 ) -> Vector3:
 	## Rim dest around the acre center (`center + sin/cos * range_radius`).
 	## Keep the world point — do not snap to a cell center. Decomp stores the
 	## float dest and only checks the unit under it (EMPTY/ITEM1/FTR + CheckNpc).
+	## With a grid, skip rim points across a cliff/water wall so they do not charge it.
 	if data == null:
 		return from
 	var center: Vector3 = block_center(data, block)
@@ -222,13 +235,13 @@ static func wander_in_block(
 			center.y,
 			center.z + cos(angle) * RANGE_RADIUS
 		)
-		if not _dest_ok(data, block, from, stand):
+		if not _dest_ok(data, block, from, stand, grid):
 			continue
 		return stand
 	var far: Array[Vector3] = []
 	for cell: Vector2i in _walkable_cells(data, block):
 		var stand: Vector3 = data.cell_to_world(cell)
-		if not _dest_ok(data, block, from, stand):
+		if not _dest_ok(data, block, from, stand, grid):
 			continue
 		far.append(stand)
 	if not far.is_empty():
@@ -266,7 +279,7 @@ static func avoid_around(
 			from.y,
 			from.z + cos(yaw) * AVOID_METERS
 		)
-		if not _dest_ok(data, block, from, stand):
+		if not _dest_ok(data, block, from, stand, grid):
 			continue
 		if not can_step(data, from, stand, grid):
 			continue
@@ -281,32 +294,44 @@ static func can_step(
 		return true
 	if not is_standable(data, _world_to_cell(data, dest)):
 		return false
-	var dir: Vector3 = dest - from
-	dir.y = 0.0
-	var dist: float = dir.length()
-	if dist <= 0.05:
-		return true
-	var step: Vector3 = from + dir.normalized() * minf(dist, data.cell_size)
-	if not is_standable(data, _world_to_cell(data, step)):
-		return false
-	if grid == null:
-		return true
-	var revised: Vector3 = FieldCollision.revise_xz(data, grid, from, step)
-	var want := Vector2(step.x - from.x, step.z - from.z)
-	var got := Vector2(revised.x - from.x, revised.z - from.z)
-	if want.length_squared() < 0.0001:
-		return true
-	return got.dot(want.normalized()) > 0.15
+	return _motion_ok(data, from, dest, grid)
 
 
-static func step_toward(data: WorldData, from: Vector3, dest: Vector3) -> Vector3:
+static func path_clear(
+	data: WorldData, from: Vector3, dest: Vector3, grid: WorldGrid, max_steps: int = 24
+) -> bool:
+	## Greedy cell walk; false when a cliff/water wall or house blocks every step.
+	if data == null or grid == null:
+		return true
+	var pos: Vector3 = from
+	for _i: int in max_steps:
+		var to_dest: Vector3 = dest - pos
+		to_dest.y = 0.0
+		if to_dest.length() <= WANDER_ARRIVE:
+			return true
+		var next: Vector3 = step_toward(data, pos, dest, grid)
+		var delta: Vector3 = next - pos
+		delta.y = 0.0
+		if delta.length() < 0.1:
+			return false
+		pos = next
+		pos.y = from.y
+	return false
+
+
+static func step_toward(
+	data: WorldData, from: Vector3, dest: Vector3, grid: WorldGrid = null
+) -> Vector3:
 	## Next open cell toward dest. Analog of walking a unit, not through a house.
+	## With a grid, also refuse steps that `revise_xz` blocks (cliff / water banks).
 	if data == null:
 		return dest
 	var from_cell: Vector2i = _world_to_cell(data, from)
 	var dest_cell: Vector2i = _world_to_cell(data, dest)
 	if from_cell == dest_cell:
-		return dest
+		if grid == null or can_step(data, from, dest, grid):
+			return dest
+		return from
 	var dx: int = signi(dest_cell.x - from_cell.x)
 	var dz: int = signi(dest_cell.y - from_cell.y)
 	var tried: Dictionary = {}
@@ -326,7 +351,7 @@ static func step_toward(data: WorldData, from: Vector3, dest: Vector3) -> Vector
 	for off: Vector2i in tries:
 		var n: Vector2i = from_cell + off
 		tried[n] = true
-		if is_standable(data, n):
+		if _step_cell_ok(data, from, n, grid):
 			return data.cell_to_world(n)
 	var around: Array[Vector2i] = []
 	for z: int in range(-1, 2):
@@ -336,7 +361,7 @@ static func step_toward(data: WorldData, from: Vector3, dest: Vector3) -> Vector
 			var n := Vector2i(from_cell.x + x, from_cell.y + z)
 			if tried.has(n):
 				continue
-			if is_standable(data, n):
+			if _step_cell_ok(data, from, n, grid):
 				around.append(n)
 	if around.is_empty():
 		return from
@@ -348,6 +373,35 @@ static func step_toward(data: WorldData, from: Vector3, dest: Vector3) -> Vector
 			best = n
 			best_d = d
 	return data.cell_to_world(best)
+
+
+static func _step_cell_ok(
+	data: WorldData, from: Vector3, cell: Vector2i, grid: WorldGrid
+) -> bool:
+	if not is_standable(data, cell):
+		return false
+	return _motion_ok(data, from, data.cell_to_world(cell), grid)
+
+
+static func _motion_ok(
+	data: WorldData, from: Vector3, dest: Vector3, grid: WorldGrid
+) -> bool:
+	var dir: Vector3 = dest - from
+	dir.y = 0.0
+	var dist: float = dir.length()
+	if dist <= 0.05:
+		return true
+	var step: Vector3 = from + dir.normalized() * minf(dist, data.cell_size)
+	if not is_standable(data, _world_to_cell(data, step)):
+		return false
+	if grid == null:
+		return true
+	var revised: Vector3 = FieldCollision.revise_xz(data, grid, from, step)
+	var want := Vector2(step.x - from.x, step.z - from.z)
+	var got := Vector2(revised.x - from.x, revised.z - from.z)
+	if want.length_squared() < 0.0001:
+		return true
+	return got.dot(want.normalized()) > 0.15
 
 
 static func pick_act(
@@ -567,30 +621,77 @@ static func _world_to_cell(data: WorldData, world_pos: Vector3) -> Vector2i:
 	)
 
 
-static func _dest_ok(data: WorldData, block: Vector2i, from: Vector3, stand: Vector3) -> bool:
+static func _dest_ok(
+	data: WorldData,
+	block: Vector2i,
+	from: Vector3,
+	stand: Vector3,
+	grid: WorldGrid = null
+) -> bool:
 	if not is_in_block(data, block, stand):
 		return false
 	if not is_standable(data, _world_to_cell(data, stand)):
 		return false
 	var from_delta: Vector3 = stand - from
 	from_delta.y = 0.0
-	return from_delta.length() >= MIN_STEP
+	if from_delta.length() < MIN_STEP:
+		return false
+	if grid != null and not path_clear(data, from, stand, grid):
+		return false
+	return true
 
 
 static func _is_blocked_cell(data: WorldData, cell: Vector2i) -> bool:
+	_ensure_blocked_cache(data)
+	return _blocked_cells.has(cell)
+
+
+static func _ensure_blocked_cache(data: WorldData) -> void:
+	var data_id: int = data.get_instance_id()
+	var sig: int = _layout_sig(data)
+	if data_id == _blocked_data_id and sig == _blocked_sig:
+		return
+	_blocked_data_id = data_id
+	_blocked_sig = sig
+	_blocked_cells.clear()
 	for b: BuildingPlacement in data.buildings:
 		if b == null or not b.occupy_grid:
 			continue
-		if _covers(b.cell, b.footprint, b.facing, cell):
-			return true
+		_mark_blocked(b.cell, b.footprint, b.facing)
 	for o: ObjectPlacement in data.objects:
 		if o == null or not o.occupy_grid:
 			continue
 		if not _BLOCK_STAND.has(o.kind):
 			continue
-		if _covers(o.cell, o.footprint, o.facing, cell):
-			return true
-	return false
+		_mark_blocked(o.cell, o.footprint, o.facing)
+
+
+static func _layout_sig(data: WorldData) -> int:
+	## Cheap invalidation when trees are chopped or buildings change.
+	var sig: int = data.buildings.size() + data.objects.size() * 7919
+	if not data.buildings.is_empty():
+		var first: BuildingPlacement = data.buildings[0]
+		var last: BuildingPlacement = data.buildings[data.buildings.size() - 1]
+		if first != null:
+			sig = sig * 31 + first.cell.x + first.cell.y * 1024
+		if last != null:
+			sig = sig * 31 + last.cell.x + last.cell.y * 2048
+	if not data.objects.is_empty():
+		var o0: ObjectPlacement = data.objects[0]
+		var o1: ObjectPlacement = data.objects[data.objects.size() - 1]
+		if o0 != null:
+			sig = sig * 31 + o0.cell.x + o0.cell.y * 4096 + hash(o0.kind)
+		if o1 != null:
+			sig = sig * 31 + o1.cell.x + o1.cell.y * 8192 + hash(o1.kind)
+	return sig
+
+
+static func _mark_blocked(anchor: Vector2i, size: Vector2i, facing: WorldGrid.Facing) -> void:
+	var w: int = maxi(size.x, 1)
+	var d: int = maxi(size.y, 1)
+	for x: int in w:
+		for z: int in d:
+			_blocked_cells[anchor + _rotate_offset(Vector2i(x, z), facing)] = true
 
 
 static func _covers(

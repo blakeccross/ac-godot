@@ -11,3 +11,7 @@ species = &"rabbit"
 catchphrase = "teehee"
 personality = ExtResource("2")
 starter = true
+wall_index = 41
+floor_index = 51
+house_type = 1
+house_palette = 2

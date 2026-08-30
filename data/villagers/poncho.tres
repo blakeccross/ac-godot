@@ -10,3 +10,7 @@ display_name = "Poncho"
 species = &"cub"
 personality = ExtResource("2")
 starter = true
+wall_index = 27
+floor_index = 42
+house_type = 1
+house_palette = 2

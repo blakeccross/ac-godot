@@ -48,6 +48,8 @@ func test_test_world_gets_starter_tools() -> void:
 	assert_int(Game.inventory.count_of(&"fishing_rod")).is_equal(1)
 	assert_int(Game.inventory.count_of(&"watering_can")).is_equal(1)
 	assert_int(Game.inventory.count_of(&"apple_sapling")).is_equal(1)
+	assert_int(Game.inventory.count_of(&"wood_chair")).is_equal(1)
+	assert_int(Game.inventory.count_of(&"wood_table")).is_equal(1)
 	Game.notify_world_ready()
 	assert_int(Game.inventory.count_of(&"axe")).is_equal(1)
 	Game.reset_session()

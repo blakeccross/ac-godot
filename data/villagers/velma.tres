@@ -10,3 +10,7 @@ display_name = "Velma"
 species = &"goat"
 personality = ExtResource("2")
 starter = false
+wall_index = 58
+floor_index = 2
+house_type = 4
+house_palette = 1

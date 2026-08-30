@@ -11,3 +11,7 @@ species = &"wolf"
 catchphrase = "ah-rooooo"
 personality = ExtResource("2")
 starter = true
+wall_index = 3
+floor_index = 41
+house_type = 1
+house_palette = 4

@@ -11,3 +11,7 @@ species = &"frog"
 personality = ExtResource("2")
 islander = true
 starter = false
+wall_index = 46
+floor_index = 46
+house_type = 4
+house_palette = 4

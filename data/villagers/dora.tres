@@ -11,3 +11,7 @@ species = &"mouse"
 catchphrase = "squeaky"
 personality = ExtResource("2")
 starter = true
+wall_index = 11
+floor_index = 10
+house_type = 2
+house_palette = 0

@@ -10,3 +10,7 @@ display_name = "Jane"
 species = &"gorilla"
 personality = ExtResource("2")
 starter = true
+wall_index = 62
+floor_index = 62
+house_type = 1
+house_palette = 4

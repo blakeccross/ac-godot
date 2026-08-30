@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from asset_pipeline.ckf import _mat_model_name
+from asset_pipeline.ckf import _mat_model_name, select_bind_anim
 from asset_pipeline.convert import _name_under_prefix, _owning_vtx_prefix, _static_jobs
 from asset_pipeline.glb import _bake_wrap_group
 from asset_pipeline.layout import (
@@ -46,6 +46,10 @@ class PrefixOwnershipTests(unittest.TestCase):
     def test_digit_boundary(self) -> None:
         self.assertTrue(_name_under_prefix("grd_s_f_1_gfx_model", "grd_s_f_1"))
         self.assertFalse(_name_under_prefix("grd_s_f_10_gfx_model", "grd_s_f_1"))
+        self.assertTrue(_name_under_prefix("int_ari_isu01_00T_model", "int_ari_isu01"))
+        self.assertTrue(_name_under_prefix("int_ari_reizou01_01_model", "int_ari_reizou01"))
+        self.assertTrue(_name_under_prefix("int_sum_chair01_on_model", "int_sum_chair01"))
+        self.assertTrue(_name_under_prefix("int_ike_art_fel01_on_model", "int_ike_art_fel"))
 
     def test_t_overlay_longest_prefix(self) -> None:
         prefixes = {"obj_s_palm5", "obj_s_palm5_coco"}
@@ -54,8 +58,8 @@ class PrefixOwnershipTests(unittest.TestCase):
             "obj_s_palm5_coco",
         )
         self.assertEqual(
-            _owning_vtx_prefix("obj_s_palm5_leafT_gfx_model", prefixes),
-            "obj_s_palm5",
+            _owning_vtx_prefix("int_ike_art_fel01_onT_model", {"int_ike_art_fel"}),
+            "int_ike_art_fel",
         )
 
     def test_hardwood_stump_drops_season_infix(self) -> None:
@@ -172,6 +176,19 @@ class WindowDlTests(unittest.TestCase):
         self.assertTrue(is_window_pane_dl("obj_s_shop1_light_model"))
         self.assertTrue(is_window_pane_dl("obj_s_museum_lightT_model"))
         self.assertFalse(is_window_pane_dl("obj_s_shop1_window_model"))
+        self.assertFalse(is_window_spill_dl("room01_grp_room01__edge"))
+        self.assertFalse(is_window_spill_dl("room_window"))
+        self.assertFalse(is_window_spill_dl("rom_myhome_window_tex"))
+        ## Parent `*_model` + window tex must not become outdoor I4 spill.
+        self.assertFalse(is_window_spill_dl("room01_model:room_window"))
+        self.assertFalse(is_window_spill_dl("room01_model"))
+
+    def test_room_outdoor_view_names(self) -> None:
+        from asset_pipeline.gfx import is_room_outdoor_view_dl
+
+        self.assertTrue(is_room_outdoor_view_dl("room01_grp_room_out01"))
+        self.assertFalse(is_room_outdoor_view_dl("room01_grp_room01__edge"))
+        self.assertFalse(is_room_outdoor_view_dl("room_window"))
 
     def test_i4_png_becomes_alpha(self) -> None:
         from io import BytesIO
@@ -187,6 +204,20 @@ class WindowDlTests(unittest.TestCase):
         out = Image.open(BytesIO(i4_png_as_alpha(buf.getvalue()))).convert("RGBA")
         self.assertEqual(out.getpixel((0, 0))[3], 0)
         self.assertEqual(out.getpixel((1, 0))[3], 128)
+
+
+class BindAnimTests(unittest.TestCase):
+    def test_furniture_bakes_own_closed_clip(self) -> None:
+        self.assertEqual(
+            select_bind_anim("int_sum_log_chest01", ["cKF_ba_r_int_sum_log_chest01"]),
+            "cKF_ba_r_int_sum_log_chest01",
+        )
+        self.assertEqual(
+            select_bind_anim("boy_1", ["cKF_ba_r_ply_1_walk1", "cKF_ba_r_ply_1_wait1"]),
+            "cKF_ba_r_ply_1_wait1",
+        )
+        self.assertIsNone(select_bind_anim("tol_net_1", ["cKF_ba_r_tol_net_1_swing"]))
+        self.assertIsNone(select_bind_anim("cat_1", []))
 
 
 if __name__ == "__main__":

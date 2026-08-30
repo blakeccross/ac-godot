@@ -10,3 +10,7 @@ display_name = "Tybalt"
 species = &"tiger"
 personality = ExtResource("2")
 starter = true
+wall_index = 49
+floor_index = 49
+house_type = 2
+house_palette = 3

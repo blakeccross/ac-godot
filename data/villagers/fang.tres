@@ -10,3 +10,7 @@ display_name = "Fang"
 species = &"wolf"
 personality = ExtResource("2")
 starter = true
+wall_index = 31
+floor_index = 4
+house_type = 4
+house_palette = 0

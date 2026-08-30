@@ -10,3 +10,7 @@ display_name = "Cleo"
 species = &"horse"
 personality = ExtResource("2")
 starter = true
+wall_index = 50
+floor_index = 50
+house_type = 3
+house_palette = 4

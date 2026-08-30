@@ -19,3 +19,5 @@ extends Resource
 @export var label: String = ""
 ## Verb the door offers: `enter` or `shop`.
 @export var door_verb: StringName = &"enter"
+## Villager who lives here. Empty on player / public buildings.
+@export var resident_id: StringName = &""

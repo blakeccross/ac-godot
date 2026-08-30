@@ -10,3 +10,7 @@ display_name = "Cesar"
 species = &"gorilla"
 personality = ExtResource("2")
 starter = true
+wall_index = 28
+floor_index = 21
+house_type = 1
+house_palette = 3

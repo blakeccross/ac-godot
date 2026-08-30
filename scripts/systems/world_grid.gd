@@ -1,7 +1,7 @@
 class_name WorldGrid
 extends RefCounted
 
-## Logical cell grid for one outdoor plot. Godot-native; not a port of m_field_info.
+## Logical cell grid for one field (outdoor plot or indoor room). Same unit math.
 
 enum Terrain { GRASS, SOIL, WATER, BLOCKED, SAND, CLIFF, PATH, STONE }
 enum Facing { SOUTH, EAST, NORTH, WEST }
@@ -20,6 +20,36 @@ static func yaw_for_facing(facing: Facing) -> float:
 			return PI * 0.5
 		_:
 			return 0.0
+
+
+## `aMR_angle_table`: SOUTH 0°, EAST 90°, NORTH 180°, WEST 270°.
+static func yaw_for_furniture(facing: Facing) -> float:
+	return deg_to_rad(float(int(facing)) * 90.0)
+
+
+static func facing_from_yaw(yaw: float) -> Facing:
+	var best: Facing = Facing.SOUTH
+	var best_delta: float = INF
+	for i: int in FACING_COUNT:
+		var facing: Facing = i as Facing
+		var delta: float = absf(angle_difference(yaw, yaw_for_facing(facing)))
+		if delta < best_delta:
+			best_delta = delta
+			best = facing
+	return best
+
+
+func step(cell: Vector2i, facing: Facing) -> Vector2i:
+	match facing:
+		Facing.EAST:
+			return cell + Vector2i(1, 0)
+		Facing.NORTH:
+			return cell + Vector2i(0, -1)
+		Facing.WEST:
+			return cell + Vector2i(-1, 0)
+		_:
+			return cell + Vector2i(0, 1)
+
 
 signal occupancy_changed(cell: Vector2i, occupant: StringName)
 
@@ -126,6 +156,13 @@ func footprint_cells(anchor: Vector2i, size: Vector2i, facing: Facing = Facing.S
 	var cells: Array[Vector2i] = []
 	var w: int = maxi(size.x, 1)
 	var d: int = maxi(size.y, 1)
+	## TYPEC 2×2 always occupies the SE block from the stored cell (`mRmTp_size_l_data`).
+	## Facing rotates the mesh only — not the footprint (`aMR_SetInfoFurnitureTable`).
+	if w == 2 and d == 2:
+		for x: int in 2:
+			for z: int in 2:
+				cells.append(anchor + Vector2i(x, z))
+		return cells
 	for x: int in w:
 		for z: int in d:
 			cells.append(anchor + rotate_offset(Vector2i(x, z), facing))
@@ -140,6 +177,15 @@ func footprint_center(anchor: Vector2i, size: Vector2i, facing: Facing = Facing.
 	for cell: Vector2i in cells:
 		acc += cell_to_world(cell)
 	return acc / float(cells.size())
+
+
+## `aMR_UnitNumber2Position`: 1×1 / TYPEB sit on the stored unit; TYPEC is that unit plus half.
+func furniture_world(anchor: Vector2i, size: Vector2i, _facing: Facing = Facing.SOUTH) -> Vector3:
+	var w: int = maxi(size.x, 1)
+	var d: int = maxi(size.y, 1)
+	if w == 2 and d == 2:
+		return cell_to_world(anchor) + Vector3(cell_size * 0.5, 0.0, cell_size * 0.5)
+	return cell_to_world(anchor)
 
 
 func anchor_from_world_center(world_pos: Vector3, size: Vector2i, facing: Facing = Facing.SOUTH) -> Vector2i:
@@ -295,7 +341,7 @@ func _terrain_allows(terrain: Terrain, kind: PlaceKind) -> bool:
 		Terrain.SAND:
 			return kind == PlaceKind.ITEM or kind == PlaceKind.PLANT
 		Terrain.PATH, Terrain.STONE:
-			return kind == PlaceKind.ITEM
+			return kind == PlaceKind.ITEM or kind == PlaceKind.FURNITURE
 		Terrain.SOIL:
 			return kind != PlaceKind.BUILDING
 		_:

@@ -10,3 +10,7 @@ display_name = "Punchy"
 species = &"cat"
 personality = ExtResource("2")
 starter = true
+wall_index = 39
+floor_index = 20
+house_type = 2
+house_palette = 1
