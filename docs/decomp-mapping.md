@@ -2,7 +2,7 @@
 
 [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp) documents original behavior. Clone it **outside** this repo. This table is a lookup, not an implementation checklist.
 
-**Before implementing a system**, read the matching note in [decomp_notes/](decomp_notes/): [world](decomp_notes/world.md), [world generation](decomp_notes/world_generation.md), [world objects](decomp_notes/world_objects.md), [player](decomp_notes/player.md), [interaction](decomp_notes/interaction.md), [inventory](decomp_notes/inventory.md), [tools](decomp_notes/tools.md), [time](decomp_notes/time.md), [villagers](decomp_notes/villagers.md), [relationships](decomp_notes/relationships.md), [dialogue](decomp_notes/dialogue.md), [furniture](decomp_notes/furniture.md), [fishing](decomp_notes/fishing.md), [bugs](decomp_notes/bugs.md), [plants](decomp_notes/plants.md), [shops](decomp_notes/shops.md), [save](decomp_notes/save.md). Those notes list files/functions and what to reproduce vs simplify vs ignore.
+**Before implementing a system**, read the matching note in [decomp_notes/](decomp_notes/): [world](decomp_notes/world.md), [world generation](decomp_notes/world_generation.md), [world objects](decomp_notes/world_objects.md), [player](decomp_notes/player.md), [interaction](decomp_notes/interaction.md), [inventory](decomp_notes/inventory.md), [tools](decomp_notes/tools.md), [time](decomp_notes/time.md), [villagers](decomp_notes/villagers.md), [relationships](decomp_notes/relationships.md), [dialogue](decomp_notes/dialogue.md), [furniture](decomp_notes/furniture.md), [fishing](decomp_notes/fishing.md), [bugs](decomp_notes/bugs.md), [plants](decomp_notes/plants.md), [shops](decomp_notes/shops.md), [save](decomp_notes/save.md), [audio](decomp_notes/audio.md). Those notes list files/functions and what to reproduce vs simplify vs ignore.
 
 Study the named headers/sources to learn **what should happen**. Implement that with the Godot analog. Never copy files or mechanically translate C.
 
@@ -32,6 +32,7 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | `m_shop` | Shops | One shop scene + economy system later |
 | `m_home`, room types | Player house interiors | Interior scene + furniture as data |
 | `m_msg`, `m_choice`, `m_string` | Dialogue and prompts | `DialogueData` JSON + `DialogueRunner` + overlay; `DialogueGreeting` picks starting `msg_no`; disc banks via `--kind dialogue` |
+| `jaudio_NES` / `m_bgm` / `audiorom.img` | Sequenced BGM (24 hourly field tracks, rooms, rain swap); town tune is 16 notes into seq 248 | Planned: `Audio` + `BgmCatalog`; `--kind audio` renders OGG into gitignored `assets/generated/audio/` ([audio](decomp_notes/audio.md)). Not a Nas port |
 | `m_event`, `m_quest` | Scripted events / errands | Event/quest data + a small runner system |
 | `m_common_data`, `m_private` | Giant global save/state | Split save via `SaveService` |
 | `m_scene`, `m_start_data_init` | Boot: new town vs load; scene changes | `Game` phase + `scenes/ui/title.tscn` → world |

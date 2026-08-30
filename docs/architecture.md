@@ -1,6 +1,6 @@
 # Architecture
 
-This project reimplements *Animal Crossing* (GameCube) **behavior** in Godot-native systems. The decomp is a reference, not a blueprint. Per-system research (states, I/O, reproduce / simplify / ignore) lives in [docs/decomp_notes/](decomp_notes/). Read the relevant note before writing implementation code.
+This project reimplements *Animal Crossing* (GameCube) **behavior** in Godot-native systems. The decomp is a reference, not a blueprint. Per-system research (states, I/O, reproduce / simplify / ignore) lives in [docs/decomp_notes/](decomp_notes/) (including [audio](decomp_notes/audio.md)). Read the relevant note before writing implementation code.
 
 ## Layers
 
@@ -53,7 +53,7 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 | --- | --- | --- |
 | `Clock` | `scripts/systems/clock.gd` (`ClockService`) | Time system: calendar, day/night, 06:00 renew |
 | `SaveService` | `scripts/systems/save_service.gd` | Load/save JSON to `user://` |
-| `Audio` | `scripts/systems/audio.gd` | Music / SFX buses |
+| `Audio` | `scripts/systems/audio.gd` | Music / SFX buses; planned BGM playback from generated OGG ([audio](decomp_notes/audio.md)) |
 | `Game` | `scripts/systems/game.gd` | Session phase, scene changes; owns `Inventory`, `VillagerRoster`, and `RelationshipBook` |
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
