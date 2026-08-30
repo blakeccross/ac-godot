@@ -224,6 +224,8 @@ func add_furniture(root: Node3D, interior: Interior, entry: FurniturePlacement) 
 	pos.y = 0.0
 	node.position = pos
 	root.add_child(node)
+	if entry.cloth_index >= 0:
+		GeneratedVisual.apply_cloth(node, entry.cloth_index)
 	if node.has_method("apply_grid_yaw"):
 		node.call("apply_grid_yaw", entry.facing)
 	if node.has_method("apply_footprint"):

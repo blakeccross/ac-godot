@@ -607,10 +607,16 @@ static func _paint_cloth(node: Node, tex: Texture2D) -> void:
 				std = (src as StandardMaterial3D).duplicate() as StandardMaterial3D
 			else:
 				std = StandardMaterial3D.new()
-			std.albedo_texture = tex
+			var span: Vector2 = _surface_uv_max(mesh_instance.mesh, i)
+			var tiles_u: int = _repeat_tiles(span.x)
+			var tiles_v: int = _repeat_tiles(span.y)
+			std.albedo_texture = _tiled_albedo(tex, tiles_u, tiles_v)
 			std.albedo_color = Color.WHITE
+			std.uv1_scale = Vector3(1.0 / float(tiles_u), 1.0 / float(tiles_v), 1.0)
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-			std.texture_repeat = true
+			## Shirt DLs are wrapS=REPEAT / wrapT=CLAMP with U up to 2. Tile the PNG
+			## and keep clamp — Godot has one texture_repeat flag for both axes.
+			std.texture_repeat = false
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
 			std.roughness = 1.0
 			std.metallic = 0.0
@@ -621,7 +627,53 @@ static func _paint_cloth(node: Node, tex: Texture2D) -> void:
 
 static func _is_cloth_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
 	var label := _surface_label(mesh_instance, surface, mat)
-	return label.contains("seg_08") or label.contains("anime_1")
+	if label.contains("seg_08") or label.contains("anime_1"):
+		return true
+	## Unbound shirt has no baked albedo; stand CI textures do.
+	if not label.contains("manekin"):
+		return false
+	return mat is StandardMaterial3D and (mat as StandardMaterial3D).albedo_texture == null
+
+
+static func _surface_uv_max(mesh: Mesh, surface: int) -> Vector2:
+	if mesh == null:
+		return Vector2.ONE
+	var arrays: Array = mesh.surface_get_arrays(surface)
+	if arrays.is_empty() or arrays[Mesh.ARRAY_TEX_UV] == null:
+		return Vector2.ONE
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var span := Vector2.ZERO
+	for uv: Vector2 in uvs:
+		span.x = maxf(span.x, uv.x)
+		span.y = maxf(span.y, uv.y)
+	if span.x <= 0.0:
+		span.x = 1.0
+	if span.y <= 0.0:
+		span.y = 1.0
+	return span
+
+
+static func _repeat_tiles(span: float) -> int:
+	return maxi(ceili(span - 0.001), 1)
+
+
+static func _tiled_albedo(tex: Texture2D, tiles_u: int, tiles_v: int) -> Texture2D:
+	if tex == null or (tiles_u <= 1 and tiles_v <= 1):
+		return tex
+	var img: Image = tex.get_image()
+	if img == null:
+		return tex
+	if img.is_compressed():
+		img.decompress()
+	if img.get_format() != Image.FORMAT_RGBA8:
+		img.convert(Image.FORMAT_RGBA8)
+	var w: int = img.get_width()
+	var h: int = img.get_height()
+	var out := Image.create(w * tiles_u, h * tiles_v, false, Image.FORMAT_RGBA8)
+	for ty: int in tiles_v:
+		for tx: int in tiles_u:
+			out.blit_rect(img, Rect2i(0, 0, w, h), Vector2i(tx * w, ty * h))
+	return ImageTexture.create_from_image(out)
 
 
 static func _local_aabb(node: Node) -> AABB:

@@ -129,7 +129,7 @@ func test_apply_cloth_paints_seg08_only() -> void:
 	var painted: StandardMaterial3D = host.get_surface_override_material(0) as StandardMaterial3D
 	assert_that(painted).is_not_null()
 	assert_that(painted.albedo_texture).is_not_null()
-	assert_bool(painted.texture_repeat).is_true()
+	assert_bool(painted.texture_repeat).is_false()
 
 
 func test_mannequin_glb_shirt_gets_cloth_albedo() -> void:
@@ -147,6 +147,7 @@ func test_mannequin_glb_shirt_gets_cloth_albedo() -> void:
 	GeneratedVisual.apply_cloth(inst, 0)
 	assert_str(" | ".join(labels)).contains("seg_08")
 	assert_bool(_any_cloth_albedo(inst)).is_true()
+	assert_bool(_cloth_uv_scale_is_half(inst)).is_true()
 
 
 func _collect_surface_labels(node: Node, out: PackedStringArray) -> void:
@@ -172,6 +173,47 @@ func _any_cloth_albedo(node: Node) -> bool:
 		if _any_cloth_albedo(child):
 			return true
 	return false
+
+
+func _cloth_uv_scale_is_half(node: Node) -> bool:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		var n: int = mi.mesh.get_surface_count() if mi.mesh != null else 1
+		for i: int in n:
+			var mat: Material = mi.get_active_material(i)
+			if mat is StandardMaterial3D and GeneratedVisual._is_cloth_surface(mi, i, mat):
+				var std := mat as StandardMaterial3D
+				if std.albedo_texture != null and is_equal_approx(std.uv1_scale.x, 0.5):
+					return true
+	for child in node.get_children():
+		if _cloth_uv_scale_is_half(child):
+			return true
+	return false
+
+
+func test_save_restores_alli_mannequin_cloth() -> void:
+	if not FileAccess.file_exists(InteriorCatalog.NPC_ROOMS_PATH):
+		return
+	var room: Room = Game.interiors.room(&"npc_alli")
+	assert_that(room).is_not_null()
+	var bags: Array = []
+	for entry: FurniturePlacement in room.placements:
+		var bag: Dictionary = entry.to_save()
+		bag.erase("cl")
+		bags.append(bag)
+	Game.interiors.apply_snapshot({"rooms": {"npc_alli": {"placements": bags}}})
+	var loaded: Room = Game.interiors.room(&"npc_alli")
+	var mannequins := 0
+	for entry: FurniturePlacement in loaded.placements:
+		if String(entry.furniture_id) != "int_fmanekin":
+			continue
+		mannequins += 1
+		assert_int(entry.cloth_index).is_greater_equal(0)
+	assert_int(mannequins).is_greater(1)
+	var template: Room = InteriorCatalog.room_template(&"npc_alli")
+	for entry: FurniturePlacement in template.placements:
+		if String(entry.furniture_id) == "int_fmanekin":
+			assert_int(entry.cloth_index).is_greater_equal(0)
 
 
 func test_huggy_piano_occupies_se_typec_block() -> void:

@@ -21,6 +21,7 @@ func room(room_id: StringName) -> Room:
 	if template == null:
 		return null
 	var copy: Room = template.duplicate(true) as Room
+	copy.placements = _dup_placements(template.placements)
 	_rooms[room_id] = copy
 	return copy
 
@@ -63,9 +64,14 @@ func apply_snapshot(data: Variant) -> void:
 	if typeof(rooms_raw) == TYPE_DICTIONARY:
 		for key: Variant in (rooms_raw as Dictionary).keys():
 			var room_id := StringName(str(key))
+			var template: Room = InteriorCatalog.room_template(room_id)
+			var cloth_by_id: Dictionary = _cloth_by_id(template)
+			var cloth_by_slot: Dictionary = _cloth_by_slot(template)
 			var copy: Room = room(room_id)
-			if copy != null:
-				copy.apply_runtime((rooms_raw as Dictionary)[key])
+			if copy == null:
+				continue
+			copy.apply_runtime((rooms_raw as Dictionary)[key])
+			_restore_missing_cloth(copy, cloth_by_id, cloth_by_slot)
 	var houses_raw: Variant = bag.get("houses", {})
 	if typeof(houses_raw) != TYPE_DICTIONARY:
 		return
@@ -74,3 +80,48 @@ func apply_snapshot(data: Variant) -> void:
 		var copy: House = house(house_id)
 		if copy != null:
 			copy.apply_snapshot((houses_raw as Dictionary)[key])
+
+
+func _dup_placements(src: Array[FurniturePlacement]) -> Array[FurniturePlacement]:
+	var out: Array[FurniturePlacement] = []
+	for entry: FurniturePlacement in src:
+		if entry == null:
+			continue
+		out.append(entry.duplicate(true) as FurniturePlacement)
+	return out
+
+
+func _cloth_by_id(room: Room) -> Dictionary:
+	var bag := {}
+	if room == null:
+		return bag
+	for entry: FurniturePlacement in room.placements:
+		if entry != null and entry.id != &"" and entry.cloth_index >= 0:
+			bag[entry.id] = entry.cloth_index
+	return bag
+
+
+func _cloth_by_slot(room: Room) -> Dictionary:
+	var bag := {}
+	if room == null:
+		return bag
+	for entry: FurniturePlacement in room.placements:
+		if entry != null and entry.cloth_index >= 0:
+			bag[_cloth_slot(entry)] = entry.cloth_index
+	return bag
+
+
+func _restore_missing_cloth(room: Room, by_id: Dictionary, by_slot: Dictionary) -> void:
+	if room == null:
+		return
+	for entry: FurniturePlacement in room.placements:
+		if entry == null or entry.cloth_index >= 0:
+			continue
+		if by_id.has(entry.id):
+			entry.cloth_index = int(by_id[entry.id])
+		elif by_slot.has(_cloth_slot(entry)):
+			entry.cloth_index = int(by_slot[_cloth_slot(entry)])
+
+
+func _cloth_slot(entry: FurniturePlacement) -> String:
+	return "%s:%d:%d" % [String(entry.furniture_id), entry.cell.x, entry.cell.y]
