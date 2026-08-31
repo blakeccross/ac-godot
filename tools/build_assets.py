@@ -25,6 +25,7 @@ from asset_pipeline.npc_rooms import convert_npc_rooms  # noqa: E402
 from asset_pipeline.audio import convert_audio  # noqa: E402
 from asset_pipeline.dialogue import convert_dialogue  # noqa: E402
 from asset_pipeline.villagers import generate_villagers  # noqa: E402
+from asset_pipeline.seasons import export_seasonal_textures  # noqa: E402
 from asset_pipeline.extract import extract_archives, extract_disc  # noqa: E402
 from asset_pipeline.inventory_ui import extract_inventory_ui  # noqa: E402
 from asset_pipeline.scan import scan  # noqa: E402
@@ -46,9 +47,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--kind",
-        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "dialogue", "villagers", "audio", "water"],
+        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "dialogue", "villagers", "audio", "water", "seasons"],
         default="all",
-        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory UI chrome, dialogue banks, villager roster from decomp tables, audiorom BGM catalog, or river/ocean acre XLU",
+        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory UI chrome, dialogue banks, villager roster from decomp tables, audiorom BGM catalog, river/ocean acre XLU, or seasonal field/tree albedo packs",
     )
     args = parser.parse_args()
     cfg = load_config(ROOT, args.config)
@@ -194,18 +195,32 @@ def main() -> int:
                 cfg.test_set_only = False
                 report = convert_static_prefixes(cfg, WATER_STATIC_NEEDLES)
                 label = "river/ocean acre assets"
+            elif args.kind == "seasons":
+                season_report = export_seasonal_textures(cfg)
+                if not season_report.get("ok"):
+                    print(f"seasons: {season_report.get('error', 'no textures written')}")
+                    failed = True
+                else:
+                    print(
+                        f"wrote {season_report['written']} seasonal textures "
+                        f"-> {season_report.get('out', '')}"
+                    )
+                    if season_report.get("missing"):
+                        print(f"  missing: {', '.join(season_report['missing'][:20])}")
+                report = None
             else:
                 report = convert_assets(cfg)
                 label = "test assets" if cfg.test_set_only else "assets"
-            converted = sum(1 for r in report["results"] if r["status"] == "converted")
-            errors = [r for r in report["results"] if r["status"] == "error"]
-            print(f"converted {converted}/{len(report['results'])} {label}")
-            for err in errors[:40]:
-                print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
-            if len(errors) > 40:
-                print(f"  ... {len(errors) - 40} more errors")
-            if errors:
-                failed = True
+            if report is not None:
+                converted = sum(1 for r in report["results"] if r["status"] == "converted")
+                errors = [r for r in report["results"] if r["status"] == "error"]
+                print(f"converted {converted}/{len(report['results'])} {label}")
+                for err in errors[:40]:
+                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+                if len(errors) > 40:
+                    print(f"  ... {len(errors) - 40} more errors")
+                if errors:
+                    failed = True
     if args.step in ("all", "validate"):
         summary = validate(cfg)
         print(f"validate {summary['passed']}/{summary['count']} ok={summary['ok']}")

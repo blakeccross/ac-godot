@@ -120,6 +120,29 @@ func test_seasonal_acre_and_tree_letters() -> void:
 		).is_true()
 
 
+func test_season_role_for_label_matches_field_and_tree() -> void:
+	assert_str(FieldCatalog.season_role_for_label("grass_tex_dummy")).is_equal("grass")
+	assert_str(FieldCatalog.season_role_for_label("Earth_Tex")).is_equal("earth")
+	assert_str(FieldCatalog.season_role_for_label("bush_a_tex_dummy")).is_equal("bush_a")
+	assert_str(FieldCatalog.season_role_for_label("obj_s_tree_leaf_tex")).is_equal("tree_leaf")
+	assert_str(FieldCatalog.season_role_for_label("obj_w_tree_trunk_tex")).is_equal("tree_trunk")
+	assert_str(FieldCatalog.season_role_for_label("river_water")).is_equal("")
+
+
+func test_season_texture_path_falls_back_to_summer_pack() -> void:
+	## Without a seasons pack on disk, paths are empty. With only summer pack, autumn falls back.
+	Clock.apply_snapshot({ "year": 2001, "month": 7, "day": 1, "hour": 12, "minute": 0 })
+	var summer := FieldCatalog.season_texture_path("grass")
+	Clock.apply_snapshot({ "year": 2001, "month": 10, "day": 1, "hour": 12, "minute": 0 })
+	var autumn := FieldCatalog.season_texture_path("grass")
+	if summer.is_empty():
+		assert_str(autumn).is_equal("")
+		return
+	assert_str(summer).contains("/seasons/s/grass.png")
+	## Autumn pack or summer fallback.
+	assert_bool(autumn.contains("/seasons/f/grass.png") or autumn.contains("/seasons/s/grass.png")).is_true()
+
+
 func test_species_codes_map_to_disc_prefixes() -> void:
 	assert_str(FieldCatalog.species_code(&"squirrel")).is_equal("squ")
 	assert_str(FieldCatalog.species_code(&"cat")).is_equal("cat")

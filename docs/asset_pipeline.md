@@ -152,6 +152,14 @@ python3 tools/build_assets.py --step convert --kind water
 
 Reconverts river, marine, open-ocean (`grd_*_o_*`), cliff-edge ocean/marine (`grd_s_e2_o_*` / `e3_m_*`), and cliff-river acres so `grd_*_modelT` is in the GLB and OPA beachB under open ocean is tagged for the wet-sand shader (decomp dark-blue underdraw). Every acre **keeps** its XLU ocean waves alongside OPA shore wet sand (`beachA`) and the dark-blue ocean-floor underdraw (`beachB`). Marine acres draw two wave bands (shore `wave2` 32×64 CLAMP T, open `wave3` 32×32 REPEAT); open-ocean border acres draw the open band only. Grass still wrap-bakes; water keeps REPEAT for UV scroll. Waterfalls (`obj_fallS`) are FG actors, not this step.
 
+Seasonal field/tree albedo packs (runtime material swaps; press **U** in-game to advance season):
+
+```sh
+python3 tools/build_assets.py --step convert --kind seasons
+```
+
+Writes `assets/generated/environment/seasons/{s,f,w}/` PNGs (`grass`, `earth`, `cliff`, `bush_a`, `bush_b`, `rail`, `stone`, `sand`, `tree_leaf`, `tree_trunk`). Summer and autumn acres share the summer CI bank with different monthly palettes; winter uses the winter bank. Trees use summer CI + season FG palettes, or winter tree art (`obj_w_tree*`) for snow. `GeneratedVisual.apply_season_textures` swaps albedo on attach (re-tiling wrap-baked acre atlases). Mesh remap (`grd_w_*` / `obj_f_*` / `obj_w_*`) still runs when those GLBs exist. Rebuild this pack after disc extract so grass and snow update even if only summer meshes are present.
+
 FG acre templates (trees/flowers from `fgdata.bin`; needs decomp headers for `data_combi`):
 
 ```sh
@@ -248,6 +256,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | Shop looks face-on / door due south | Missing anim bind — shop joint-0 Y is **−135°**, not −90° |
 | Acre/room meshes have no textures | DLs use runtime segment banks (`0x80` field BG, `0x08–0x0C` house floor/wall). Convert binds those before walking the Gfx |
 | Acre grass/earth is a stretched edge colour | REPEAT UVs span the 16×16 cell grid. Wrap must be baked into the PNG (`GeneratedVisual` clamps). Reconvert `--step convert --kind static` |
+| Grass colour / tree snow ignore season (U key) | GLBs bake one season into albedo. Build the seasons pack (`--kind seasons`) then press **U**. Runtime swaps grass/earth/leaf/trunk albedos from `environment/seasons/{s,f,w}/`. Autumn recolors summer CI; winter needs the winter field bank + `obj_w_tree*` leaf art in that pack. Mesh remap alone is not enough when only summer GLBs exist. |
 | Rivers/ocean look like missing holes or still water | Acre XLU (`grd_*_modelT`) used to be skipped. Convert keeps dual `mFM_grd_water*` / `wave*` tiles (layer1 as glTF occlusionTexture). River acres use `shaders/river_water.gdshader`; ocean acres use `shaders/ocean_water.gdshader`. Reconvert `--kind water`. Still water after that means the GLB was not reimported. |
 | Open-ocean bed is solid white / shore wet sand is black | `beach_wet` I4 must be baked as `(PRIM−ENV)×I+ENV` in RGB with I in alpha (not `baseColorFactor×I4`). Skip wrap-bake for `beach_wet`. Runtime `beach_wet.gdshader` mixes ENV/PRIM from alpha I (do not add env onto baked RGB). Reconvert `--kind water` if the GLB bake is wrong. |
 | Ocean is near-invisible white cracks over a dark bed | GX `IA4` packs **AAAAIIII** (alpha high nibble, intensity low). Decoding it as `IIIIAAAA` leaves wave maps bright with ~18% peak alpha, so `PRIM×SHADE` never tints the `beachB` underdraw and only the cell outlines show. Correct decode gives dark I / ~50% A and deep-water ≈ `(41,74,174)`. Affects every `G_IM_FMT_IA, G_IM_SIZ_8b` texture, not just waves — reconvert broadly, not just `--kind water` |
