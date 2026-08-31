@@ -521,35 +521,6 @@ def _convert_ckf(cfg: PipelineConfig, rel: RelData, symbols: list, item: dict[st
     return record
 
 
-def _is_beach_marine_asset(asset_id: str) -> bool:
-    ## Nearshore beach / marine (`grd_*_m_*`, cliff `e2_m` / `e3_m`). Not open ocean (`*_o_*`).
-    s = asset_id.lower()
-    if not s.startswith("grd_"):
-        return False
-    if "e2_m" in s or "e3_m" in s:
-        return True
-    ## `grd_s_m_1` — not museum `grd_s_mh_*`.
-    return "_m_" in s
-
-
-def _strip_beach_water_parts(parts: list, asset_id: str) -> list:
-    """Drop XLU ocean waves from beach/marine GLBs; keep wet sand and the ocean bed.
-
-    beachA/beach1 is the wet-sand band (runtime env pulse). beachB/beach2 is the
-    dark-blue OPA floor under the water. Open-ocean border acres keep waves + bed.
-    Splash / river stay on mouths.
-    """
-    if not _is_beach_marine_asset(asset_id):
-        return parts
-    kept = []
-    for part in parts:
-        kind = getattr(part, "water_kind", "")
-        if kind == "ocean":
-            continue
-        kept.append(part)
-    return kept
-
-
 def _convert_static(
     cfg: PipelineConfig, rel: RelData, symbols: list, item: dict[str, Any], bank: TextureBank
 ) -> dict[str, Any]:
@@ -572,7 +543,6 @@ def _convert_static(
         bank._segment_offset_names.clear()
         bank.bind_static_segments(item["asset_id"])
         parts = convert_static_gfx(rel, symbols, item["vtx"], item["gfx"], cfg.scale, bank=bank)
-        parts = _strip_beach_water_parts(parts, item["asset_id"])
         dest = cfg.converted / item["output"]
         write_glb(
             dest,

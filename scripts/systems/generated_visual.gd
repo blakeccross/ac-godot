@@ -13,6 +13,7 @@ const _WINDOW_SPILL_OFF := Color(1.0, 1.0, 150.0 / 255.0, 0.0)
 const _WINDOW_SPILL_SHADER := preload("res://shaders/window_ground_spill.gdshader")
 const _RIVER_WATER_SHADER := preload("res://shaders/river_water.gdshader")
 const _SPLASH_WATER_SHADER := preload("res://shaders/splash_water.gdshader")
+const _OCEAN_WATER_SHADER := preload("res://shaders/ocean_water.gdshader")
 const _BEACH_WET_SHADER := preload("res://shaders/beach_wet.gdshader")
 ## DL prims: wet-sand beachA (206,189,148); ocean-bed beachB (32,48,144).
 const _BEACH_PRIM_SAND := Color(206.0 / 255.0, 189.0 / 255.0, 148.0 / 255.0)
@@ -510,11 +511,9 @@ static func _apply_materials_inner(
 				mat = StandardMaterial3D.new()
 			if mat is StandardMaterial3D:
 				var src := mat
-				if _is_ocean_water_surface(mesh_instance, i, src):
-					## Ocean XLU stays on the imported GLB material (FileSystem preview).
-					continue
 				if keep_imported and not (
 					_is_river_water_surface(mesh_instance, i, src)
+					or _is_ocean_water_surface(mesh_instance, i, src)
 					or _is_splash_water_surface(mesh_instance, i, src)
 					or _is_beach_wet_surface(mesh_instance, i, src)
 				):
@@ -537,6 +536,10 @@ static func _apply_materials_inner(
 				elif _is_river_water_surface(mesh_instance, i, src):
 					mesh_instance.set_surface_override_material(
 						i, _make_river_water_material(std, mouth_river)
+					)
+				elif _is_ocean_water_surface(mesh_instance, i, src):
+					mesh_instance.set_surface_override_material(
+						i, _make_ocean_water_material(std, src)
 					)
 				elif _is_beach_wet_surface(mesh_instance, i, src):
 					mesh_instance.set_surface_override_material(
@@ -707,6 +710,29 @@ static func _make_river_water_material(std: StandardMaterial3D, mouth: bool = fa
 	sh.set_shader_parameter("game_fps", 60.0)
 	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.5)
 	sh.set_meta("river_water", true)
+	return sh
+
+
+static func _make_ocean_water_material(std: StandardMaterial3D, src: Material) -> ShaderMaterial:
+	## Decomp grd_*_modelT XLU: prim (60,120,255); wave1 × wave2/wave3 IA8 pair.
+	var sh := ShaderMaterial.new()
+	sh.shader = _OCEAN_WATER_SHADER
+	## Above the opaque beachB bed, below the river-mouth sprash.
+	sh.render_priority = 1
+	var wave1: Texture2D = std.albedo_texture
+	var wave2: Texture2D = _layer1_texture(std)
+	if wave2 == null or wave2 == wave1:
+		push_warning("GeneratedVisual: ocean tile1 missing; wave crests will look wrong")
+	sh.set_shader_parameter("wave1", wave1)
+	sh.set_shader_parameter("wave2", wave2)
+	sh.set_shader_parameter("prim_color", Color(60.0 / 255.0, 120.0 / 255.0, 1.0, 1.0))
+	sh.set_shader_parameter("game_fps", 60.0)
+	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.5)
+	## Shore band tile1 is wave2 with GX_CLAMP T; open water is wave3 REPEAT.
+	sh.set_shader_parameter(
+		"wave2_clamp_v", 1.0 if bool(_gltf_extras(src).get("wave2_clamp_t", false)) else 0.0
+	)
+	sh.set_meta("ocean_water", true)
 	return sh
 
 

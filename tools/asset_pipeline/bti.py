@@ -98,9 +98,10 @@ def decode_gx_image(data: bytes, width: int, height: int, fmt: int, palette: lis
                         v = (byte >> 4) if px % 2 == 0 else (byte & 0xF)
                         color = palette[v] if palette and v < len(palette) else (255, 0, 255, 255)
                     elif fmt == IA4:
+                        ## GX IA4 packs AAAAIIII — alpha high, intensity low.
                         byte = data[src + py * bw + px]
-                        intensity = (byte >> 4) * 17
-                        alpha = (byte & 0xF) * 17
+                        alpha = (byte >> 4) * 17
+                        intensity = (byte & 0xF) * 17
                         color = (intensity, intensity, intensity, alpha)
                     elif fmt == I8:
                         v = data[src + py * bw + px]

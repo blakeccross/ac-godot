@@ -110,42 +110,31 @@ class PrefixOwnershipTests(unittest.TestCase):
         self.assertFalse(any(n in "grd_s_rail_1" for n in WATER_STATIC_NEEDLES))
         self.assertFalse(any(n in "grd_s_mh_1" for n in WATER_STATIC_NEEDLES))
 
-    def test_beach_marine_strips_ocean_keeps_wet_sand(self) -> None:
-        from asset_pipeline.convert import _is_beach_marine_asset, _strip_beach_water_parts
-        from asset_pipeline.gfx import MeshPart, Vertex
+    def test_ocean_material_carries_tile1_and_shore_clamp(self) -> None:
+        ## Shore acres draw wave1+wave2 (CLAMP T); open water draws wave1+wave3 (REPEAT).
+        ## The runtime shader picks its T wrap off `wave2_clamp_t`.
+        from asset_pipeline.glb import _material
+        from asset_pipeline.texbank import GX_CLAMP, GX_REPEAT
 
-        self.assertTrue(_is_beach_marine_asset("grd_s_m_1"))
-        self.assertTrue(_is_beach_marine_asset("grd_s_m_r1_b_3"))
-        self.assertTrue(_is_beach_marine_asset("grd_s_e3_m_1"))
-        self.assertFalse(_is_beach_marine_asset("grd_s_o_2"))
-        self.assertFalse(_is_beach_marine_asset("grd_s_e2_o_1"))
-        self.assertFalse(_is_beach_marine_asset("grd_s_mh_1"))
-        vert = Vertex(0, 0, 0, 0, 0, 255, 255, 255, 255)
-        sand = MeshPart(name="sand", vertices=[vert], triangles=[(0, 0, 0)], water_kind="")
-        wet = MeshPart(
-            name="wet:mFM_grd_beachA_tex",
-            vertices=[vert],
-            triangles=[(0, 0, 0)],
-            texture_name="mFM_grd_beachA_tex",
-            water_kind="beach_wet",
-            beach_prim=(206, 189, 148),
+        shore = _material(
+            "ocean_mFM_grd_wave1_tex",
+            0,
+            water_kind="ocean",
+            layer1_texture_index=1,
+            layer1_wrap_t=GX_CLAMP,
         )
-        bed = MeshPart(
-            name="bed:mFM_grd_beachB_tex",
-            vertices=[vert],
-            triangles=[(0, 0, 0)],
-            texture_name="mFM_grd_beachB_tex",
-            water_kind="beach_wet",
-            beach_prim=(32, 48, 144),
+        self.assertEqual(shore["extras"]["water_kind"], "ocean")
+        self.assertTrue(shore["extras"]["wave2_clamp_t"])
+        self.assertEqual(shore["occlusionTexture"]["index"], 1)
+
+        open_sea = _material(
+            "ocean_mFM_grd_wave1_tex",
+            0,
+            water_kind="ocean",
+            layer1_texture_index=1,
+            layer1_wrap_t=GX_REPEAT,
         )
-        ocean = MeshPart(name="ocean", vertices=[vert], triangles=[(0, 0, 0)], water_kind="ocean")
-        splash = MeshPart(name="splash", vertices=[vert], triangles=[(0, 0, 0)], water_kind="splash")
-        kept = _strip_beach_water_parts([sand, wet, bed, ocean, splash], "grd_s_m_1")
-        self.assertEqual([p.name.split(":")[0] for p in kept], ["sand", "wet", "bed", "splash"])
-        open_kept = _strip_beach_water_parts([sand, wet, bed, ocean], "grd_s_o_2")
-        self.assertEqual(
-            [p.name.split(":")[0] for p in open_kept], ["sand", "wet", "bed", "ocean"]
-        )
+        self.assertFalse(open_sea["extras"]["wave2_clamp_t"])
 
 
 class OverlayMatTests(unittest.TestCase):
@@ -350,6 +339,16 @@ class WaterNameTests(unittest.TestCase):
         self.assertEqual(_REL_IA_WAVE_DIMS["mFM_grd_wave1_tex"], (32, 32))
         self.assertEqual(_REL_IA_WAVE_DIMS["mFM_grd_wave2_tex"], (32, 64))
         self.assertEqual(_REL_IA_WAVE_DIMS["mFM_grd_wave3_tex"], (32, 32))
+
+    def test_ia4_alpha_is_high_nibble(self) -> None:
+        ## GX IA4 is AAAAIIII. Reading it as IIIIAAAA made the wave maps bright and
+        ## near-transparent instead of dark and half-opaque, so the XLU ocean washed
+        ## out to thin white cracks over the bed instead of tinting it blue.
+        from asset_pipeline.bti import IA4, decode_gx_image
+
+        img = decode_gx_image(bytes([0xF0, 0x0F] + [0x00] * 30), 8, 4, IA4)
+        self.assertEqual(img.getpixel((0, 0)), (0, 0, 0, 255))
+        self.assertEqual(img.getpixel((1, 0)), (255, 255, 255, 0))
 
     def test_ocean_layer1_keeps_tile1_clamp_t(self) -> None:
         ## Decomp wave2: GX_REPEAT S / GX_CLAMP T. Convert used to force REPEAT/REPEAT.
