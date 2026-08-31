@@ -70,6 +70,63 @@ static func acre_season_letter() -> String:
 	return "s"
 
 
+## Sidecar pack from `python3 tools/build_assets.py --kind seasons`.
+const SEASON_TEX_ROOT := "res://assets/generated/environment/seasons/"
+## Material/texture name needles → pack file stem (see tools/asset_pipeline/seasons.py).
+const SEASON_FIELD_ROLES: Dictionary = {
+	"grass": "grass",
+	"earth": "earth",
+	"cliff": "cliff",
+	"busha": "bush_a",
+	"bush_a": "bush_a",
+	"bushb": "bush_b",
+	"bush_b": "bush_b",
+	"rail": "rail",
+	"stone": "stone",
+	"sand": "sand",
+}
+const SEASON_TREE_ROLES: Dictionary = {
+	"leaf": "tree_leaf",
+	"trunk": "tree_trunk",
+}
+
+
+static func season_tex_letter() -> String:
+	## Pack folder: spring/summer `s`, autumn `f`, winter `w`.
+	return season_letter()
+
+
+static func season_texture_path(role: String) -> String:
+	## `environment/seasons/{s|f|w}/{role}.png` when the seasons pack has been built.
+	if role.is_empty():
+		return ""
+	var letter := season_tex_letter()
+	var rel := "environment/seasons/%s/%s.png" % [letter, role]
+	var found: PackedStringArray = _existing([rel])
+	if not found.is_empty():
+		return found[0]
+	if letter != "s":
+		found = _existing(["environment/seasons/s/%s.png" % role])
+		if not found.is_empty():
+			return found[0]
+	return ""
+
+
+static func season_role_for_label(label: String) -> String:
+	## Map a material/texture/surface label to a seasons-pack role stem.
+	var compact := label.to_lower().replace(" ", "").replace("-", "").replace("_", "")
+	if compact.contains("leaf"):
+		return String(SEASON_TREE_ROLES.get("leaf", "tree_leaf"))
+	if compact.contains("trunk"):
+		return String(SEASON_TREE_ROLES.get("trunk", "tree_trunk"))
+	## Longer field needles first so busha wins over bush.
+	for needle: Variant in ["busha", "bush_a", "bushb", "bush_b", "grass", "earth", "cliff", "rail", "stone", "sand"]:
+		var key := String(needle).replace("_", "")
+		if compact.contains(key):
+			return String(SEASON_FIELD_ROLES.get(String(needle), SEASON_FIELD_ROLES.get(key, "")))
+	return ""
+
+
 static func seasonal_acre_id(visual_id: StringName) -> String:
 	## `grd_s_f_1` ↔ `grd_w_f_1` from the current season. Non-acre ids pass through.
 	var id := String(visual_id)

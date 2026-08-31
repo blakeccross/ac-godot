@@ -66,6 +66,8 @@ static func attach(host: Node3D, visual_id: StringName) -> Node3D:
 		FieldCatalog.is_ocean_acre_visual(visual_id)
 	)
 	_fit(pivot, visual_id)
+	## Swap field/tree albedos from the seasons pack (autumn grass, winter snow).
+	apply_season_textures(pivot)
 	return pivot
 
 
@@ -97,6 +99,51 @@ static func instantiate_raw(visual_id: StringName) -> Node3D:
 
 static func apply_preview_materials(node: Node) -> void:
 	_apply_materials(node, false, _tree_is_ocean_acre(node))
+
+
+static func apply_season_textures(node: Node) -> void:
+	## Replace grass/earth/leaf/trunk albedos from `environment/seasons/{s,f,w}/`.
+	## Acre GLBs bake wrap into the PNG; re-tile the season tile to the current atlas size.
+	if node == null:
+		return
+	_apply_season_textures_inner(node)
+
+
+static func _apply_season_textures_inner(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		var surface_count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 1
+		for i: int in surface_count:
+			var mat: Material = mesh_instance.get_active_material(i)
+			if mat == null:
+				continue
+			if mat is ShaderMaterial:
+				## River/ocean/beach shaders keep their own samplers.
+				continue
+			var role := FieldCatalog.season_role_for_label(_surface_label(mesh_instance, i, mat))
+			if role.is_empty():
+				continue
+			var path := FieldCatalog.season_texture_path(role)
+			if path.is_empty():
+				continue
+			var season_tex: Texture2D = load(path) as Texture2D
+			if season_tex == null:
+				continue
+			var std: StandardMaterial3D
+			if mat is StandardMaterial3D:
+				std = (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			else:
+				std = StandardMaterial3D.new()
+			var target: Vector2i = _albedo_size(std)
+			std.albedo_texture = (
+				_tile_to_atlas(season_tex, target, false, false) if target != Vector2i.ZERO else season_tex
+			)
+			std.albedo_color = Color.WHITE
+			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			std.texture_repeat = false
+			mesh_instance.set_surface_override_material(i, std)
+	for child in node.get_children():
+		_apply_season_textures_inner(child)
 
 
 static func refresh_window_lights(root: Node) -> void:
