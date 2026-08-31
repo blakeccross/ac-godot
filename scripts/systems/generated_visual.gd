@@ -126,7 +126,9 @@ static func _apply_season_textures_inner(node: Node) -> void:
 			if mat == null:
 				continue
 			if mat is ShaderMaterial:
-				## River/ocean/beach shaders keep their own samplers.
+				if _apply_season_beach_wet(mesh_instance, i, mat as ShaderMaterial):
+					continue
+				## River/ocean/splash shaders keep their own scrolling samplers.
 				continue
 			var role := FieldCatalog.season_role_for_surface(mesh_instance, i, mat)
 			if role.is_empty():
@@ -158,6 +160,35 @@ static func _apply_season_textures_inner(node: Node) -> void:
 			mesh_instance.set_surface_override_material(i, std)
 	for child in node.get_children():
 		_apply_season_textures_inner(child)
+
+
+static func _apply_season_beach_wet(
+	mesh_instance: MeshInstance3D, surface: int, mat: ShaderMaterial
+) -> bool:
+	## Shore wet-sand band (`beach1` I4). Ocean-bed `beachB` stays on the blue underdraw.
+	if not mat.has_meta("beach_wet"):
+		return false
+	var role := FieldCatalog.season_role_for_surface(mesh_instance, surface, mat)
+	if role != "beach_wet":
+		return false
+	var path := FieldCatalog.season_texture_path(role)
+	if path.is_empty():
+		return false
+	var season_tex: Texture2D = load(path) as Texture2D
+	if season_tex == null:
+		return false
+	var sh := mat.duplicate() as ShaderMaterial
+	var current: Variant = sh.get_shader_parameter("albedo_texture")
+	var target := Vector2i.ZERO
+	if current is Texture2D:
+		var cur_tex := current as Texture2D
+		target = Vector2i(cur_tex.get_width(), cur_tex.get_height())
+	var tiled: Texture2D = (
+		_tile_to_atlas(season_tex, target, false, true) if target != Vector2i.ZERO else season_tex
+	)
+	sh.set_shader_parameter("albedo_texture", tiled)
+	mesh_instance.set_surface_override_material(surface, sh)
+	return true
 
 
 static func refresh_window_lights(root: Node) -> void:

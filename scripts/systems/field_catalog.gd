@@ -84,6 +84,7 @@ const SEASON_FIELD_ROLES: Dictionary = {
 	"rail": "rail",
 	"stone": "stone",
 	"sand": "sand",
+	"beach_wet": "beach_wet",
 }
 const SEASON_TREE_ROLES: Dictionary = {
 	"leaf": "tree_leaf",
@@ -164,6 +165,10 @@ static func season_role_for_label(label: String) -> String:
 		return String(SEASON_TREE_ROLES.get("leaf", "tree_leaf"))
 	if compact.contains("trunk"):
 		return String(SEASON_TREE_ROLES.get("trunk", "tree_trunk"))
+	if compact.contains("beachb") or compact.contains("beach2"):
+		return ""
+	if compact.contains("beach1") or compact.contains("beacha"):
+		return String(SEASON_FIELD_ROLES.get("beach_wet", "beach_wet"))
 	## Longer field needles first so busha wins over bush.
 	for needle: Variant in ["busha", "bush_a", "bushb", "bush_b", "grass", "earth", "cliff", "rail", "stone", "sand"]:
 		var key := String(needle).replace("_", "")
