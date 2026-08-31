@@ -18,6 +18,8 @@ const ACRE_METERS := 32.0
 const ACRE_MODEL_GROUND_Y := 0.64
 ## `mFI_BkNum2BaseHeight` = height × 3 × 40 GX.
 const ACRE_STEP_METERS := 6.0
+## `mCoBG_ATTRIBUTE_SAND`.
+const SAND_ATTR := 22
 ## Typical grass `center` in `mCoBG_CollisionData_c` (40 GX = one cell).
 const LAND_COUNTS := 4
 ## Each height count is ×10 GX (`mCoBG`).
@@ -264,13 +266,18 @@ static func is_hole_attr(attr: int) -> bool:
 
 
 static func is_sand_attr(attr: int) -> bool:
-	return attr == 22
+	return attr == SAND_ATTR
 
 
 static func is_wave_attr(attr: int) -> bool:
 	## `mCoBG_CheckWaveAttr` (WAVE, 25, 26, 36) plus 37/38. Original `Wpos2Attribute`
 	## remaps those shoreline units to sand / wave / sea; this slice keeps them walkable.
 	return attr == 11 or attr == 25 or attr == 26 or (attr >= 36 and attr <= 38)
+
+
+static func is_grass_attr(attr: int) -> bool:
+	## `mCoBG_ATTRIBUTE_GRASS0`–`GRASS3`.
+	return attr >= 0 and attr <= 3
 
 
 static func is_plantable_attr(attr: int) -> bool:

@@ -30,6 +30,8 @@ var _placeholder_bob: float = 0.0
 var _hold_anim: StringName = &""
 var _tool_hold_anim: StringName = &""
 var _tool_use_anim: StringName = &""
+var _step_time: float = 0.0
+var _right_foot: bool = true
 
 
 func _ready() -> void:
@@ -94,6 +96,7 @@ func _physics_process(delta: float) -> void:
 	elif on_bg:
 		_snap_to_bg()
 	_update_animation(delta)
+	_update_footprints(delta, bg)
 	_update_focus()
 
 
@@ -184,6 +187,69 @@ func _update_animation(delta: float) -> void:
 	_ensure_loop(clip)
 	_anim.speed_scale = _anim_speed(next)
 	_anim.play(clip, 0.12)
+
+
+func _update_footprints(delta: float, bg: Array) -> void:
+	## `Player_actor_Set_FootMark_MarkOnly`: one print per foot, alternating, on the gait
+	## clip's foot-down frames. Our generated clips carry no frame tags, so the cadence
+	## comes from the clip rate instead — same time between steps, so tracks still spread
+	## out as the gait speeds up.
+	var gait: PlayerLocomotion.Gait = _motor.gait()
+	if bg.size() != 2 or _busy or gait == PlayerLocomotion.Gait.WAIT:
+		_step_time = 0.0
+		return
+	var marks: Node = get_tree().get_first_node_in_group("footprints")
+	if marks == null or not marks.has_method("spawn"):
+		return
+	_step_time += delta
+	var period: float = FootprintMarks.step_period(_anim_speed(gait))
+	if _step_time < period:
+		return
+	_step_time -= period
+	_right_foot = not _right_foot
+	var data := bg[0] as WorldData
+	var grid := bg[1] as WorldGrid
+	var season: Clock.Season = Clock.season()
+	var attr: int = FieldCollision.unit_attr_at(data, grid, global_position)
+	var snow: bool
+	if attr >= 0:
+		if not FootprintMarks.marks_attr(attr, season):
+			return
+		snow = FootprintMarks.is_snow_mark(attr)
+	else:
+		var terrain: WorldGrid.Terrain = data.terrain_at(grid.world_to_cell(global_position))
+		if not FootprintMarks.marks_terrain(terrain, season):
+			return
+		snow = terrain != WorldGrid.Terrain.SAND
+	var foot: Vector3
+	var yaw: float
+	var anchor: Transform3D = _foot_anchor(_right_foot)
+	if anchor.basis.determinant() != 0.0:
+		foot = anchor.origin
+		yaw = anchor.basis.get_euler().y
+	else:
+		yaw = _motor.facing
+		foot = FootprintMarks.foot_position(global_position, yaw, _right_foot)
+	var xform: Transform3D = FootprintMarks.mark_transform(data, grid, foot, yaw)
+	if xform.basis.determinant() == 0.0:
+		return
+	marks.call("spawn", xform, snow)
+
+
+func _foot_anchor(right_foot: bool) -> Transform3D:
+	## `Player_actor_draw_After_Lfoot3` / `_Rfoot3` call `Matrix_Position_Zero` on the
+	## `LFOOT3` / `RFOOT3` joint, so the mark sits at the foot joint's own origin and takes
+	## that joint's yaw — no lateral offset and no body facing involved. Tracks therefore
+	## follow the animated feet, and each print is turned the way the foot is.
+	## A zero basis means the visual has no rig; the caller falls back to a fixed stance.
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	if skeleton == null:
+		return Transform3D(Basis.from_scale(Vector3.ZERO), Vector3.ZERO)
+	var want: String = "rfoot3" if right_foot else "lfoot3"
+	for i: int in skeleton.get_bone_count():
+		if skeleton.get_bone_name(i).to_lower().begins_with(want):
+			return skeleton.global_transform * skeleton.get_bone_global_pose(i)
+	return Transform3D(Basis.from_scale(Vector3.ZERO), Vector3.ZERO)
 
 
 func _anim_speed(gait: PlayerLocomotion.Gait) -> float:

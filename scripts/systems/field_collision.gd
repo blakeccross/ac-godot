@@ -108,6 +108,18 @@ static func ground_y_at(
 	return lerpf(north, south, fz) - ground_dist
 
 
+static func unit_attr_at(data: WorldData, grid: WorldGrid, world_pos: Vector3) -> int:
+	## `bg_collision_check.result.unit_attribute` at an actor's XZ. −1 when the acre ships
+	## no `.col.json` (placeholder tiles) — callers fall back to the coarse terrain enum.
+	if data == null or grid == null:
+		return -1
+	var cell: Vector2i = grid.world_to_cell(world_pos)
+	var unit: Dictionary = _catalog_unit(data, cell)
+	if unit.is_empty():
+		return -1
+	return int(unit["a"])
+
+
 static func revise_xz(
 	data: WorldData,
 	grid: WorldGrid,
