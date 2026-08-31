@@ -435,6 +435,8 @@ class SeasonRoleTests(unittest.TestCase):
         self.assertEqual(_role_for_name("grass_tex_dummy", FIELD_ROLE_NEEDLES), "grass")
         self.assertEqual(_role_for_name("earth_pal_dummy", FIELD_ROLE_NEEDLES), "earth")
         self.assertEqual(_role_for_name("bush_a_tex", FIELD_ROLE_NEEDLES), "bush_a")
+        self.assertEqual(_role_for_name("bush_a_tex_dummy", FIELD_ROLE_NEEDLES), "bush_a")
+        self.assertEqual(_role_for_name("bush_b_tex_dummy", FIELD_ROLE_NEEDLES), "bush_b")
         self.assertEqual(_role_for_name("obj_s_tree_leaf_tex", TREE_ROLE_NEEDLES), "tree_leaf")
         self.assertEqual(_role_for_name("obj_w_tree_trunk_tex", TREE_ROLE_NEEDLES), "tree_trunk")
         self.assertEqual(_role_for_name("grd_water1_tex", FIELD_ROLE_NEEDLES), "")
@@ -443,6 +445,7 @@ class SeasonRoleTests(unittest.TestCase):
         from asset_pipeline.glb import _field_role_for_material_name, _material
 
         self.assertEqual(_field_role_for_material_name("grass_tex_dummy"), "grass")
+        self.assertEqual(_field_role_for_material_name("bush_a_tex_dummy"), "bush_a")
         self.assertEqual(_field_role_for_material_name("river_mFM_grd_water1_tex", "river"), "")
         mat = _material("grass_tex_dummy", None)
         self.assertEqual(mat.get("extras", {}).get("field_role"), "grass")

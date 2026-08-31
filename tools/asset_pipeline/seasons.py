@@ -20,7 +20,12 @@ from .rel import RelData
 from .texbank import (
 	_FIELD_PAL_ROW_BY_SEASON,
 	_TREE_PAL_ROW_BY_SEASON,
+	G_IM_FMT_CI,
+	G_IM_SIZ_4b,
 	TextureBank,
+	apply_prim,
+	decode_gbi_texture,
+	image_png_bytes,
 )
 
 
@@ -39,6 +44,18 @@ FIELD_ROLE_NEEDLES: dict[str, tuple[str, ...]] = {
 TREE_ROLE_NEEDLES: dict[str, tuple[str, ...]] = {
 	"tree_leaf": ("leaf",),
 	"tree_trunk": ("trunk",),
+}
+
+## `m_bg_tex.c` dummy sizes (CI4). Pal tables are 16× RGB5A3 in segment 0x80.
+_FIELD_TEX_SPECS: dict[str, tuple[int, int, str]] = {
+	"grass_tex_dummy": (32, 32, "earth_pal"),
+	"earth_tex_dummy": (64, 64, "earth_pal"),
+	"cliff_tex_dummy": (64, 64, "earth_pal"),
+	"bush_a_tex_dummy": (64, 64, "bush_pal"),
+	"bush_b_tex_dummy": (64, 32, "bush_pal"),
+	"rail_tex_dummy": (64, 64, "earth_pal"),
+	"stone_tex_dummy": (64, 64, "earth_pal"),
+	"sand_tex_dummy": (64, 32, "earth_pal"),
 }
 
 
@@ -84,6 +101,97 @@ def _pick_acre_job(jobs: dict[str, dict[str, Any]], season: str) -> dict[str, An
 		if asset_id.startswith("grd_s_f_"):
 			return item
 	return None
+
+
+def _pick_cliff_acre_job(jobs: dict[str, dict[str, Any]], season: str) -> dict[str, Any] | None:
+	"""Cliff acres draw bush_a/b fringe; flat `grd_s_f_*` jobs often omit them."""
+	candidates: list[str] = []
+	if season == "w":
+		candidates.extend(sorted(k for k in jobs if k.startswith("grd_w_c1_")))
+	candidates.extend(sorted(k for k in jobs if k.startswith("grd_s_c1_")))
+	for asset_id in candidates:
+		return jobs[asset_id]
+	return None
+
+
+def _spec_for_tex_name(name: str) -> tuple[int, int, str] | None:
+	lower = name.lower()
+	for key, spec in _FIELD_TEX_SPECS.items():
+		if key in lower:
+			return spec
+	return None
+
+
+def _pal_offset(names: dict[int, str], needle: str) -> int | None:
+	for off, label in names.items():
+		if needle in label.lower():
+			return off
+	return None
+
+
+def _collect_roles_from_field_bank(bank: TextureBank) -> dict[str, bytes]:
+	"""Decode grass/earth/cliff/bush CI tiles bound into segment 0x80."""
+	out: dict[str, bytes] = {}
+	seg = bank.segment_images.get(0x80)
+	names = bank._segment_offset_names.get(0x80, {})
+	if seg is None or not names:
+		return out
+	data = bytes(seg.data)
+	pals: dict[str, bytes | None] = {
+		"earth_pal": None,
+		"bush_pal": None,
+	}
+	earth_off = _pal_offset(names, "earth_pal")
+	if earth_off is not None and earth_off + 32 <= len(data):
+		pals["earth_pal"] = data[earth_off : earth_off + 32]
+	bush_off = _pal_offset(names, "bush_pal")
+	if bush_off is not None and bush_off + 32 <= len(data):
+		pals["bush_pal"] = data[bush_off : bush_off + 32]
+	for off, name in sorted(names.items()):
+		if "pal" in name.lower():
+			continue
+		role = _role_for_name(name, FIELD_ROLE_NEEDLES)
+		if not role or role in out:
+			continue
+		spec = _spec_for_tex_name(name)
+		if spec is None:
+			continue
+		width, height, pal_key = spec
+		pal = pals.get(pal_key)
+		if not pal:
+			continue
+		needed = width * height // 2
+		if off + needed > len(data):
+			continue
+		try:
+			image = decode_gbi_texture(
+				data[off : off + needed], width, height, G_IM_FMT_CI, G_IM_SIZ_4b, pal
+			)
+			image = apply_prim(image, (255, 255, 255, 255))
+			out[role] = image_png_bytes(image)
+		except (KeyError, ValueError, IndexError):
+			continue
+	return out
+
+
+def _merge_gfx_roles(
+	bank: TextureBank,
+	rel: RelData,
+	symbols: list,
+	job: dict[str, Any] | None,
+	scale: float,
+	needles: dict[str, tuple[str, ...]],
+	into: dict[str, bytes],
+) -> None:
+	if job is None:
+		return
+	bank.current_prefix = job["asset_id"]
+	try:
+		parts = convert_static_gfx(rel, symbols, job["vtx"], job["gfx"], scale, bank=bank)
+	except Exception:  # noqa: BLE001
+		return
+	for role, png in _collect_roles(parts, needles).items():
+		into.setdefault(role, png)
 
 
 def _pick_tree_job(jobs: dict[str, dict[str, Any]], season: str) -> dict[str, Any] | None:
@@ -153,6 +261,11 @@ def _export_field_season(
 	except Exception as exc:  # noqa: BLE001
 		return written, [f"field:{season}:{type(exc).__name__}:{exc}"]
 	by_role = _collect_roles(parts, FIELD_ROLE_NEEDLES)
+	for role, png in _collect_roles_from_field_bank(bank).items():
+		by_role.setdefault(role, png)
+	_merge_gfx_roles(
+		bank, rel, symbols, _pick_cliff_acre_job(jobs, season), cfg.scale, FIELD_ROLE_NEEDLES, by_role
+	)
 	for role in FIELD_ROLE_NEEDLES:
 		dest = out_dir / f"{role}.png"
 		png = by_role.get(role)

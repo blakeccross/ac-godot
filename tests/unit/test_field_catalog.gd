@@ -125,6 +125,7 @@ func test_season_role_for_label_matches_field_and_tree() -> void:
 	assert_str(FieldCatalog.season_role_for_label("Earth_Tex")).is_equal("earth")
 	assert_str(FieldCatalog.season_role_for_label("bush_a_tex_dummy")).is_equal("bush_a")
 	assert_str(FieldCatalog.season_role_for_label("obj_s_tree_leaf_tex")).is_equal("tree_leaf")
+	assert_str(FieldCatalog.season_role_for_label("bush_a_tex_dummy")).is_equal("bush_a")
 	assert_str(FieldCatalog.season_role_for_label("obj_w_tree_trunk_tex")).is_equal("tree_trunk")
 	assert_str(FieldCatalog.season_role_for_label("river_water")).is_equal("")
 	## Acre host node names alone do not identify grass — baked material names must.
