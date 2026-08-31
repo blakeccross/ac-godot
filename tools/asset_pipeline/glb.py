@@ -19,6 +19,15 @@ MAX_WRAP_PIXELS = 8192
 _EPS = 1e-5
 
 
+def _field_role_for_material_name(name: str, water_kind: str = "") -> str:
+    """Map a glTF material / texture name to a seasons-pack role stem."""
+    if water_kind:
+        return ""
+    from .seasons import FIELD_ROLE_NEEDLES, _role_for_name
+
+    return _role_for_name(name, FIELD_ROLE_NEEDLES)
+
+
 def _pad4(n: int) -> int:
     return (4 - (n % 4)) % 4
 
@@ -226,6 +235,10 @@ def _material(
     if beach_prim is not None:
         extras = dict(extras or {})
         extras["beach_prim"] = [int(beach_prim[0]), int(beach_prim[1]), int(beach_prim[2]), int(beach_prim[3])]
+    field_role = _field_role_for_material_name(name or "", water_kind)
+    if field_role:
+        extras = dict(extras or {})
+        extras["field_role"] = field_role
     if extras:
         mat["extras"] = extras
     if texture_index is not None:

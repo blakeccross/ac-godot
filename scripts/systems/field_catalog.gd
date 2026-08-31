@@ -112,6 +112,51 @@ static func season_texture_path(role: String) -> String:
 	return ""
 
 
+static func season_role_from_extras(mat: Material) -> String:
+	if mat == null:
+		return ""
+	for key: String in ["extras", "gltf_extras"]:
+		if mat.has_meta(key):
+			var extras: Variant = mat.get_meta(key)
+			if extras is Dictionary:
+				var role: Variant = (extras as Dictionary).get("field_role", "")
+				if String(role) != "":
+					return String(role)
+	return ""
+
+
+static func season_role_for_surface(
+	mesh_instance: MeshInstance3D, surface: int, active_mat: Material = null
+) -> String:
+	## Trees often match via child node names (`leaf` / `trunk`). Acre GLBs keep the
+	## glTF material name on the baked mesh surface, not always on runtime overrides.
+	if active_mat == null:
+		active_mat = mesh_instance.get_active_material(surface)
+	if active_mat != null and active_mat.has_meta("field_role"):
+		var stamped: Variant = active_mat.get_meta("field_role")
+		if String(stamped) != "":
+			return String(stamped)
+	var bits: PackedStringArray = PackedStringArray()
+	if mesh_instance.mesh is ArrayMesh:
+		var baked: Material = (mesh_instance.mesh as ArrayMesh).surface_get_material(surface)
+		if baked != null:
+			bits.append(_material_resource_label(baked))
+			var baked_extras := season_role_from_extras(baked)
+			if not baked_extras.is_empty():
+				return baked_extras
+	if active_mat != null:
+		bits.append(_material_resource_label(active_mat))
+		if active_mat is StandardMaterial3D:
+			bits.append(_material_resource_label((active_mat as StandardMaterial3D).albedo_texture))
+		var active_extras := season_role_from_extras(active_mat)
+		if not active_extras.is_empty():
+			return active_extras
+	if mesh_instance.mesh is ArrayMesh:
+		bits.append((mesh_instance.mesh as ArrayMesh).surface_get_name(surface).to_lower())
+	bits.append(String(mesh_instance.name).to_lower())
+	return season_role_for_label(" ".join(bits))
+
+
 static func season_role_for_label(label: String) -> String:
 	## Map a material/texture/surface label to a seasons-pack role stem.
 	var compact := label.to_lower().replace(" ", "").replace("-", "").replace("_", "")
@@ -125,6 +170,12 @@ static func season_role_for_label(label: String) -> String:
 		if compact.contains(key):
 			return String(SEASON_FIELD_ROLES.get(String(needle), SEASON_FIELD_ROLES.get(key, "")))
 	return ""
+
+
+static func _material_resource_label(res: Resource) -> String:
+	if res == null:
+		return ""
+	return "%s %s" % [String(res.resource_name), res.resource_path.get_file()]
 
 
 static func seasonal_acre_id(visual_id: StringName) -> String:

@@ -439,6 +439,14 @@ class SeasonRoleTests(unittest.TestCase):
         self.assertEqual(_role_for_name("obj_w_tree_trunk_tex", TREE_ROLE_NEEDLES), "tree_trunk")
         self.assertEqual(_role_for_name("grd_water1_tex", FIELD_ROLE_NEEDLES), "")
 
+    def test_glb_material_field_role_extras(self) -> None:
+        from asset_pipeline.glb import _field_role_for_material_name, _material
+
+        self.assertEqual(_field_role_for_material_name("grass_tex_dummy"), "grass")
+        self.assertEqual(_field_role_for_material_name("river_mFM_grd_water1_tex", "river"), "")
+        mat = _material("grass_tex_dummy", None)
+        self.assertEqual(mat.get("extras", {}).get("field_role"), "grass")
+
 
 if __name__ == "__main__":
     unittest.main()
