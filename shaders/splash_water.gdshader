@@ -10,6 +10,23 @@ uniform vec4 prim_color : source_color = vec4(0.39215687, 0.54901963, 1.0, 0.784
 uniform float game_fps = 60.0;
 uniform float ground_lift = 0.03;
 
+// Godot uploads Color uniforms already linearized. The combiner works on 8-bit
+// gamma values and TEXEL0/1 arrive raw, so PRIM goes back to sRGB for the cycles
+// and the result converts once.
+vec3 srgb_to_linear(vec3 c) {
+	bvec3 cutoff = lessThanEqual(c, vec3(0.04045));
+	vec3 lo = c / 12.92;
+	vec3 hi = pow((c + vec3(0.055)) / 1.055, vec3(2.4));
+	return mix(hi, lo, vec3(cutoff));
+}
+
+vec3 linear_to_srgb(vec3 c) {
+	bvec3 cutoff = lessThanEqual(c, vec3(0.0031308));
+	vec3 lo = c * 12.92;
+	vec3 hi = 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055;
+	return mix(hi, lo, vec3(cutoff));
+}
+
 float mirror_fract(float u) {
 	float x = fract(u * 0.5) * 2.0;
 	return x > 1.0 ? 2.0 - x : x;
@@ -32,8 +49,12 @@ void fragment() {
 
 	vec3 n = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	float shade = mix(0.5, 1.0, clamp(dot(n, normalize(vec3(0.35, 0.9, 0.2))), 0.0, 1.0));
-	vec3 combined = prim_color.rgb + vec3(t0);
+	vec3 prim_srgb = linear_to_srgb(prim_color.rgb);
+	vec3 combined = prim_srgb + vec3(t0);
 	// Tint the TEXEL1 add with prim so the mouth stays blue-foam, not a white slab.
-	ALBEDO = clamp(combined * shade + mix(prim_color.rgb, vec3(1.0), 0.45) * t1, vec3(0.0), vec3(1.0));
+	vec3 out_srgb = clamp(
+		combined * shade + mix(prim_srgb, vec3(1.0), 0.45) * t1, vec3(0.0), vec3(1.0)
+	);
+	ALBEDO = srgb_to_linear(out_srgb);
 	ALPHA = clamp(t1 * prim_color.a, 0.0, 1.0);
 }

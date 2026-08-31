@@ -154,9 +154,20 @@ func test_height_counts_match_gx() -> void:
 	assert_float(FieldCatalog.counts_to_y(16, 0)).is_equal(6.0)
 	assert_float(FieldCatalog.counts_to_y(0, 0)).is_equal(-2.0)
 	assert_bool(FieldCatalog.is_water_attr(18)).is_true()
+	assert_bool(FieldCatalog.is_water_attr(24)).is_true()
 	assert_bool(FieldCatalog.is_water_attr(0)).is_false()
+	assert_bool(FieldCatalog.is_water_attr(11)).is_false()
+	assert_bool(FieldCatalog.is_water_attr(36)).is_false()
 	assert_bool(FieldCatalog.is_water_attr(44)).is_false()
 	assert_bool(FieldCatalog.is_water_attr(32)).is_false()
+	assert_bool(FieldCatalog.is_wave_attr(11)).is_true()
+	assert_bool(FieldCatalog.is_wave_attr(25)).is_true()
+	assert_bool(FieldCatalog.is_wave_attr(36)).is_true()
+	assert_bool(FieldCatalog.is_wave_attr(38)).is_true()
+	assert_bool(FieldCatalog.is_wave_attr(22)).is_false()
+	assert_bool(FieldCatalog.is_wave_attr(24)).is_false()
+	assert_bool(FieldCatalog.is_sand_attr(22)).is_true()
+	assert_bool(FieldCatalog.is_sand_attr(11)).is_false()
 	assert_bool(FieldCatalog.is_bridge_attr(32)).is_true()
 	assert_bool(FieldCatalog.is_stone_bridge_attr(32)).is_true()
 	assert_bool(FieldCatalog.is_wood_bridge_attr(32)).is_false()
@@ -188,9 +199,14 @@ func test_generated_water_matches_catalog_attrs() -> void:
 			for uz: int in 16:
 				for ux: int in 16:
 					var unit: Dictionary = FieldCatalog.unit_at(visual, ux, uz)
-					var want_water: bool = FieldCatalog.is_water_attr(int(unit["a"]))
+					var attr: int = int(unit["a"])
 					var cell: Vector2i = origin + Vector2i(ux, uz)
-					assert_that(data.terrain_at(cell) == WorldGrid.Terrain.WATER).is_equal(want_water)
+					var terrain: WorldGrid.Terrain = data.terrain_at(cell)
+					assert_that(terrain == WorldGrid.Terrain.WATER).is_equal(
+						FieldCatalog.is_water_attr(attr)
+					)
+					if FieldCatalog.is_wave_attr(attr):
+						assert_that(terrain).is_equal(WorldGrid.Terrain.SAND)
 					checked += 1
 	if checked == 0:
 		return
@@ -244,10 +260,78 @@ func test_gyroid_mesh_paths_when_converted() -> void:
 	assert_str(paths[0]).contains("int_hnw001")
 
 
+func test_beach_marine_visual_ids() -> void:
+	assert_bool(FieldCatalog.is_beach_marine_visual(&"grd_s_m_1")).is_true()
+	assert_bool(FieldCatalog.is_beach_marine_visual(&"grd_s_m_r1_b_3")).is_true()
+	assert_bool(FieldCatalog.is_beach_marine_visual(&"grd_s_e2_m_1")).is_true()
+	assert_bool(FieldCatalog.is_beach_marine_visual(&"grd_s_o_2")).is_false()
+	assert_bool(FieldCatalog.is_beach_marine_visual(&"grd_s_e2_o_1")).is_false()
+	assert_bool(FieldCatalog.is_beach_marine_visual(&"grd_s_mh_1")).is_false()
+	assert_bool(FieldCatalog.is_beach_marine_visual(&"grd_s_r1_1")).is_false()
+	assert_bool(FieldCatalog.is_open_ocean_visual(&"grd_s_o_2")).is_true()
+	assert_bool(FieldCatalog.is_open_ocean_visual(&"grd_s_e2_o_1")).is_true()
+	assert_bool(FieldCatalog.is_open_ocean_visual(&"grd_s_m_1")).is_false()
+	assert_bool(FieldCatalog.is_open_ocean_visual(&"grd_s_r1_1")).is_false()
+	assert_bool(FieldCatalog.is_ocean_acre_visual(&"grd_s_m_1")).is_true()
+	assert_bool(FieldCatalog.is_ocean_acre_visual(&"grd_s_o_2")).is_true()
+	assert_bool(FieldCatalog.is_ocean_acre_visual(&"grd_s_r1_1")).is_false()
+
+
 func test_water_wave_cos_matches_decomp() -> void:
 	## `aFD_MakeMarinScrollInfo`: 300-frame cosine; tile1_scroll = 32*(1-cos).
+	## After marin<<1 + two_tex_scroll_dolphin<<1, ΔT texels = tile1_scroll (0..64).
 	assert_float(GeneratedVisual.water_wave_cos(0.0)).is_equal_approx(1.0, 0.0001)
 	assert_float(GeneratedVisual.water_wave_cos(150.0)).is_equal_approx(-1.0, 0.0001)
 	assert_float(GeneratedVisual.water_wave_cos(300.0)).is_equal_approx(1.0, 0.0001)
 	assert_float(32.0 * (1.0 - GeneratedVisual.water_wave_cos(0.0))).is_equal_approx(0.0, 0.0001)
 	assert_float(32.0 * (1.0 - GeneratedVisual.water_wave_cos(150.0))).is_equal_approx(64.0, 0.0001)
+	## Phase −1.2: ENV is (144,128,96) when beach_cos = 1, not at frame 0.
+	var dark_frame: float = 1.2 / TAU * 300.0
+	var dark: Color = GeneratedVisual.beach_env_srgb(dark_frame)
+	assert_float(dark.r).is_equal_approx(144.0 / 255.0, 0.002)
+	assert_float(dark.g).is_equal_approx(128.0 / 255.0, 0.002)
+	assert_float(dark.b).is_equal_approx(96.0 / 255.0, 0.002)
+	var light: Color = GeneratedVisual.beach_env_srgb(dark_frame + 150.0)
+	assert_float(light.r).is_equal_approx(186.0 / 255.0, 0.002)
+	assert_float(light.g).is_equal_approx(164.0 / 255.0, 0.002)
+	assert_float(light.b).is_equal_approx(124.0 / 255.0, 0.002)
+	## Frame 0 is ocean-cos=1; beach lags 1.2 rad so it is not the dark ENV.
+	var at_zero: Color = GeneratedVisual.beach_env_srgb(0.0)
+	var beach_cos0: float = cos(-1.2)
+	assert_float(at_zero.r).is_equal_approx((165.0 - 21.0 * beach_cos0) / 255.0, 0.002)
+	assert_float(at_zero.r).is_not_equal(144.0 / 255.0)
+
+
+func test_marine_acre_applies_beach_wet_shader() -> void:
+	if FieldCatalog.mesh_paths(&"grd_s_m_1").is_empty():
+		return
+	var host := Node3D.new()
+	auto_free(host)
+	add_child(host)
+	var vis: Node3D = GeneratedVisual.attach(host, &"grd_s_m_1")
+	assert_that(vis).is_not_null()
+	var hits: Dictionary = _beach_wet_hits(vis)
+	assert_bool(hits["found"]).is_true()
+	assert_bool(hits["sand_prim"]).is_true()
+
+
+func _beach_wet_hits(node: Node) -> Dictionary:
+	var found := false
+	var sand_prim := false
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		var n: int = mi.mesh.get_surface_count() if mi.mesh != null else 1
+		for i: int in n:
+			var mat: Material = mi.get_surface_override_material(i)
+			if mat is ShaderMaterial and (mat as ShaderMaterial).has_meta("beach_wet"):
+				found = true
+				var prim: Variant = (mat as ShaderMaterial).get_shader_parameter("prim_color")
+				if prim is Color:
+					var c: Color = prim
+					if is_equal_approx(c.r, 206.0 / 255.0) and is_equal_approx(c.g, 189.0 / 255.0):
+						sand_prim = true
+	for child in node.get_children():
+		var sub: Dictionary = _beach_wet_hits(child)
+		found = found or bool(sub["found"])
+		sand_prim = sand_prim or bool(sub["sand_prim"])
+	return {"found": found, "sand_prim": sand_prim}

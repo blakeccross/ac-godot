@@ -1,28 +1,23 @@
-[gd_resource type="Resource" script_class="ToolData" format=3]
+[gd_resource type="Resource" script_class="ToolData" format=3 uid="uid://c81aw0cm3pxed"]
 
-[ext_resource type="Script" path="res://scripts/data/tool_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://0ptunytwyd4b" path="res://scripts/data/tool_data.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
-id = &"net"
-display_name = "Net"
-description = "For catching bugs."
-category = 0
-sell_price = 500
-max_stack = 1
-droppable = true
-usable = false
-equippable = true
-use_verb = "Use"
-icon_color = Color(0.4, 0.65, 0.35, 1)
 kind = 3
 field_verb = &"swing_net"
 field_prompt = "Swing net"
 field_anim = &"ply_1_net_swing1"
 field_priority = 12
-field_require = 0
 field_notice = "You swing the net."
 visual_id = &"tol_net_1"
 hold_anim = &"ply_1_kamae_wait_m1"
 visual_hold_anim = &"kamae_main_m1"
 visual_use_anim = &"net_swing1"
+id = &"net"
+display_name = "Net"
+description = "For catching bugs."
+category = 0
+sell_price = 500
+equippable = true
+icon_color = Color(0.4, 0.65, 0.35, 1)

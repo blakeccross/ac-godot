@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="VillagerData" format=3]
+[gd_resource type="Resource" script_class="VillagerData" format=3 uid="uid://c4yuvhc5fu0d1"]
 
-[ext_resource type="Script" path="res://scripts/data/villager_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://bakkmq4s7wxo8" path="res://scripts/data/villager_data.gd" id="1"]
 [ext_resource type="Resource" path="res://data/personalities/lazy.tres" id="2"]
 
 [resource]
@@ -10,8 +10,6 @@ display_name = "Filbert"
 species = &"squirrel"
 catchphrase = "bucko"
 personality = ExtResource("2")
-starter = true
 wall_index = 15
 floor_index = 12
-house_type = 0
 house_palette = 1

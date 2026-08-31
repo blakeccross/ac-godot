@@ -233,7 +233,7 @@ static func _paint_from_catalog(data: WorldData, origin: Vector2i, elev: int, vi
 				data.set_terrain_cell(cell, WorldGrid.Terrain.PATH)
 			elif FieldCatalog.is_hole_attr(attr):
 				data.set_terrain_cell(cell, WorldGrid.Terrain.CLIFF)
-			elif FieldCatalog.is_sand_attr(attr):
+			elif FieldCatalog.is_sand_attr(attr) or FieldCatalog.is_wave_attr(attr):
 				data.set_terrain_cell(cell, WorldGrid.Terrain.SAND)
 			elif FieldCatalog.is_slate_unit(int(unit.get("s", 0)), attr) or _uneven_corners(unit):
 				data.set_terrain_cell(cell, WorldGrid.Terrain.PATH)

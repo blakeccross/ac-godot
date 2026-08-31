@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="PlantData" format=3]
+[gd_resource type="Resource" script_class="PlantData" format=3 uid="uid://wpam2g576j1d"]
 
-[ext_resource type="Script" path="res://scripts/data/plant_data.gd" id="1"]
-[ext_resource type="Resource" path="res://data/items/flower.tres" id="2"]
+[ext_resource type="Script" uid="uid://dxcrl6i2puoka" path="res://scripts/data/plant_data.gd" id="1"]
+[ext_resource type="Resource" uid="uid://bpogd4xwipr6f" path="res://data/items/flower.tres" id="2"]
 
 [resource]
 script = ExtResource("1")
@@ -12,6 +12,7 @@ fruit = ExtResource("2")
 stage_days = PackedInt32Array(1, 2, 3, 4)
 needs_water = true
 winter_pauses = true
+terrains = null
 visual_seed = &"FLOWER_PANSIES0"
 visual_growing = &"FLOWER_PANSIES0"
 visual_mature = &"FLOWER_PANSIES1"

@@ -105,8 +105,47 @@ class PrefixOwnershipTests(unittest.TestCase):
     def test_water_needles_skip_rail_and_museum(self) -> None:
         self.assertTrue(any(n in "grd_s_r1_1" for n in WATER_STATIC_NEEDLES))
         self.assertTrue(any(n in "grd_s_m_1" for n in WATER_STATIC_NEEDLES))
+        self.assertTrue(any(n in "grd_s_e2_o_1" for n in WATER_STATIC_NEEDLES))
+        self.assertTrue(any(n in "grd_s_e3_m_1" for n in WATER_STATIC_NEEDLES))
         self.assertFalse(any(n in "grd_s_rail_1" for n in WATER_STATIC_NEEDLES))
         self.assertFalse(any(n in "grd_s_mh_1" for n in WATER_STATIC_NEEDLES))
+
+    def test_beach_marine_strips_ocean_keeps_wet_sand(self) -> None:
+        from asset_pipeline.convert import _is_beach_marine_asset, _strip_beach_water_parts
+        from asset_pipeline.gfx import MeshPart, Vertex
+
+        self.assertTrue(_is_beach_marine_asset("grd_s_m_1"))
+        self.assertTrue(_is_beach_marine_asset("grd_s_m_r1_b_3"))
+        self.assertTrue(_is_beach_marine_asset("grd_s_e3_m_1"))
+        self.assertFalse(_is_beach_marine_asset("grd_s_o_2"))
+        self.assertFalse(_is_beach_marine_asset("grd_s_e2_o_1"))
+        self.assertFalse(_is_beach_marine_asset("grd_s_mh_1"))
+        vert = Vertex(0, 0, 0, 0, 0, 255, 255, 255, 255)
+        sand = MeshPart(name="sand", vertices=[vert], triangles=[(0, 0, 0)], water_kind="")
+        wet = MeshPart(
+            name="wet:mFM_grd_beachA_tex",
+            vertices=[vert],
+            triangles=[(0, 0, 0)],
+            texture_name="mFM_grd_beachA_tex",
+            water_kind="beach_wet",
+            beach_prim=(206, 189, 148),
+        )
+        bed = MeshPart(
+            name="bed:mFM_grd_beachB_tex",
+            vertices=[vert],
+            triangles=[(0, 0, 0)],
+            texture_name="mFM_grd_beachB_tex",
+            water_kind="beach_wet",
+            beach_prim=(32, 48, 144),
+        )
+        ocean = MeshPart(name="ocean", vertices=[vert], triangles=[(0, 0, 0)], water_kind="ocean")
+        splash = MeshPart(name="splash", vertices=[vert], triangles=[(0, 0, 0)], water_kind="splash")
+        kept = _strip_beach_water_parts([sand, wet, bed, ocean, splash], "grd_s_m_1")
+        self.assertEqual([p.name.split(":")[0] for p in kept], ["sand", "wet", "bed", "splash"])
+        open_kept = _strip_beach_water_parts([sand, wet, bed, ocean], "grd_s_o_2")
+        self.assertEqual(
+            [p.name.split(":")[0] for p in open_kept], ["sand", "wet", "bed", "ocean"]
+        )
 
 
 class OverlayMatTests(unittest.TestCase):
@@ -250,10 +289,27 @@ class WindowDlTests(unittest.TestCase):
         self.assertEqual(out.getpixel((0, 0))[3], 0)
         self.assertEqual(out.getpixel((1, 0))[3], 128)
 
+    def test_beach_wet_bake_keeps_i_in_alpha(self) -> None:
+        from io import BytesIO
+
+        from PIL import Image
+
+        from asset_pipeline.texbank import bake_beach_wet_png
+
+        src = Image.new("RGB", (2, 1), (0, 0, 0))
+        src.putpixel((1, 0), (255, 255, 255))
+        buf = BytesIO()
+        src.save(buf, format="PNG")
+        out = Image.open(
+            BytesIO(bake_beach_wet_png(buf.getvalue(), (206, 189, 148, 255), (144, 128, 96)))
+        ).convert("RGBA")
+        self.assertEqual(out.getpixel((0, 0)), (144, 128, 96, 0))
+        self.assertEqual(out.getpixel((1, 0)), (206, 189, 148, 255))
+
 
 class WaterNameTests(unittest.TestCase):
     def test_river_ocean_beach_kinds(self) -> None:
-        from asset_pipeline.gfx import beach_wet_kind, water_surface_kind
+        from asset_pipeline.gfx import beach_wet_kind, is_ocean_bed_part, water_surface_kind
 
         self.assertEqual(water_surface_kind("mFM_grd_water1_tex", "mFM_grd_water2_tex"), "river")
         self.assertEqual(water_surface_kind("mFM_grd_wave1_tex", "mFM_grd_wave2_tex"), "ocean")
@@ -262,6 +318,101 @@ class WaterNameTests(unittest.TestCase):
         self.assertEqual(beach_wet_kind("mFM_grd_beachB_tex"), "beach_wet")
         self.assertEqual(beach_wet_kind("mFM_grd_beachA_tex"), "beach_wet")
         self.assertEqual(beach_wet_kind("mFM_grd_s_beach_tex"), "")
+        from asset_pipeline.gfx import MeshPart, Vertex
+
+        vert = Vertex(0, 0, 0, 0, 0, 255, 255, 255, 255)
+        self.assertTrue(
+            is_ocean_bed_part(
+                MeshPart(
+                    name="bed",
+                    vertices=[vert],
+                    triangles=[(0, 0, 0)],
+                    texture_name="mFM_grd_beachB_tex",
+                    water_kind="beach_wet",
+                )
+            )
+        )
+        self.assertFalse(
+            is_ocean_bed_part(
+                MeshPart(
+                    name="wet",
+                    vertices=[vert],
+                    triangles=[(0, 0, 0)],
+                    texture_name="mFM_grd_beachA_tex",
+                    water_kind="beach_wet",
+                )
+            )
+        )
+
+    def test_rel_ia_wave_dims(self) -> None:
+        from asset_pipeline.convert import _REL_IA_WAVE_DIMS
+
+        self.assertEqual(_REL_IA_WAVE_DIMS["mFM_grd_wave1_tex"], (32, 32))
+        self.assertEqual(_REL_IA_WAVE_DIMS["mFM_grd_wave2_tex"], (32, 64))
+        self.assertEqual(_REL_IA_WAVE_DIMS["mFM_grd_wave3_tex"], (32, 32))
+
+    def test_ocean_layer1_keeps_tile1_clamp_t(self) -> None:
+        ## Decomp wave2: GX_REPEAT S / GX_CLAMP T. Convert used to force REPEAT/REPEAT.
+        from asset_pipeline.glb import _group_parts, _material
+        from asset_pipeline.gfx import MeshPart, Vertex
+        from asset_pipeline.texbank import GX_CLAMP, GX_REPEAT, GLTF_CLAMP, wrap_to_gltf
+
+        part = MeshPart(
+            name="grd_s_m_1_modelT:mFM_grd_wave1_tex",
+            vertices=[Vertex(0, 0, 0, 0, 0, 255, 255, 255, 255)],
+            triangles=[(0, 0, 0)],
+            texture_name="mFM_grd_wave1_tex",
+            texture_png=b"wave1",
+            wrap_s=GX_REPEAT,
+            wrap_t=GX_REPEAT,
+            alpha_mode="BLEND",
+            layer1_png=b"wave2",
+            layer1_name="mFM_grd_wave2_tex",
+            layer1_wrap_s=GX_REPEAT,
+            layer1_wrap_t=GX_CLAMP,
+            water_kind="ocean",
+        )
+        groups = _group_parts([part])
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]["layer1_wrap_s"], GX_REPEAT)
+        self.assertEqual(groups[0]["layer1_wrap_t"], GX_CLAMP)
+        mat = _material(
+            groups[0]["name"],
+            0,
+            water_kind="ocean",
+            layer1_texture_index=1,
+            layer1_wrap_t=GX_CLAMP,
+        )
+        self.assertTrue(mat["extras"]["wave2_clamp_t"])
+        open_mat = _material(
+            "ocean_open",
+            0,
+            water_kind="ocean",
+            layer1_texture_index=1,
+            layer1_wrap_t=GX_REPEAT,
+        )
+        self.assertFalse(open_mat["extras"]["wave2_clamp_t"])
+        self.assertEqual(wrap_to_gltf(GX_CLAMP), GLTF_CLAMP)
+
+    def test_beach_wet_group_is_opaque(self) -> None:
+        from asset_pipeline.glb import _group_alpha_mode, _group_parts
+        from asset_pipeline.gfx import MeshPart, Vertex
+        from asset_pipeline.texbank import GX_CLAMP, GX_REPEAT
+
+        part = MeshPart(
+            name="wet:mFM_grd_beachA_tex",
+            vertices=[Vertex(0, 0, 0, 0, 0, 255, 255, 255, 255)],
+            triangles=[(0, 0, 0)],
+            texture_name="mFM_grd_beachA_tex",
+            texture_png=b"wet",
+            wrap_s=GX_REPEAT,
+            wrap_t=GX_CLAMP,
+            alpha_mode="BLEND",
+            water_kind="beach_wet",
+            beach_prim=(206, 189, 148, 255),
+        )
+        groups = _group_parts([part])
+        self.assertEqual(_group_alpha_mode(groups[0]), "OPAQUE")
 
 
 class BindAnimTests(unittest.TestCase):

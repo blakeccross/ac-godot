@@ -151,6 +151,30 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 			return PackedStringArray()
 
 
+static func is_beach_marine_visual(visual_id: StringName) -> bool:
+	## Nearshore beach / marine acres (`grd_*_m_*`, cliff `e2_m` / `e3_m`). Not open ocean (`*_o_*`).
+	var s := String(visual_id).to_lower()
+	if not s.begins_with("grd_"):
+		return false
+	if s.contains("e2_m") or s.contains("e3_m"):
+		return true
+	## `grd_s_m_1`, `grd_s_m_r1_b_3`, `grd_w_m_*` — underscore-m-underscore, not museum `grd_s_mh_*`.
+	return s.contains("_m_")
+
+
+static func is_open_ocean_visual(visual_id: StringName) -> bool:
+	## Open-ocean border acres (`grd_*_o_*`, cliff `e2_o` / `e3_o`).
+	var s := String(visual_id).to_lower()
+	if not s.begins_with("grd_"):
+		return false
+	return s.contains("e2_o") or s.contains("e3_o") or s.contains("_o_")
+
+
+static func is_ocean_acre_visual(visual_id: StringName) -> bool:
+	## Beach/marine + open ocean. Land/ocean stay imported; river/splash still get shaders.
+	return is_beach_marine_visual(visual_id) or is_open_ocean_visual(visual_id)
+
+
 static func is_acre(visual_id: StringName) -> bool:
 	return String(visual_id).begins_with("grd_")
 
@@ -211,14 +235,9 @@ static func counts_to_y(count: int, acre_elev: int) -> float:
 
 
 static func is_water_attr(attr: int) -> bool:
-	## Wave / water / waterfall / river / sea (`mCoBG_ATTRIBUTE_*`). Banks stay walkable.
-	return (
-		(attr >= 11 and attr <= 21)
-		or attr == 24
-		or attr == 25
-		or attr == 26
-		or (attr >= 36 and attr <= 38)
-	)
+	## `mCoBG_CheckWaterAttribute`: water / waterfall / river / sea. WAVE and shoreline
+	## wave units (25–26, 36–38) are walkable wet sand, not a bank wall.
+	return (attr >= 12 and attr <= 21) or attr == 24
 
 
 static func is_bridge_attr(attr: int) -> bool:
@@ -246,6 +265,12 @@ static func is_hole_attr(attr: int) -> bool:
 
 static func is_sand_attr(attr: int) -> bool:
 	return attr == 22
+
+
+static func is_wave_attr(attr: int) -> bool:
+	## `mCoBG_CheckWaveAttr` (WAVE, 25, 26, 36) plus 37/38. Original `Wpos2Attribute`
+	## remaps those shoreline units to sand / wave / sea; this slice keeps them walkable.
+	return attr == 11 or attr == 25 or attr == 26 or (attr >= 36 and attr <= 38)
 
 
 static func is_plantable_attr(attr: int) -> bool:

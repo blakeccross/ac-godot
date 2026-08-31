@@ -6,8 +6,10 @@ from dataclasses import dataclass, field, replace
 from typing import Optional
 
 from .texbank import (
+    GX_REPEAT,
     TextureBank,
     TextureState,
+    bake_beach_wet_png,
     i4_png_as_alpha,
     is_dolphin_loadtlut,
     parse_loadtlut,
@@ -141,8 +143,32 @@ class MeshPart:
     ## Second GX tile (river water2 / ocean wave2 or wave3). Packed as glTF occlusionTexture.
     layer1_png: bytes | None = None
     layer1_name: str = ""
+    ## Tile1 wrap (wave2 is REPEAT S / CLAMP T). Not tile0 — that stays on wrap_s/wrap_t.
+    layer1_wrap_s: int = GX_REPEAT
+    layer1_wrap_t: int = GX_REPEAT
     ## `river` / `ocean` (acre XLU) or `beach_wet` (OPA env pulse). Empty for land.
     water_kind: str = ""
+    ## glTF baseColorFactor (usually white). beach_wet bakes prim/env into the PNG.
+    base_color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0)
+    ## DL prim RGBA 0–255 for beach_wet extras (runtime shader env pulse).
+    beach_prim: tuple[int, int, int, int] | None = None
+
+
+## Decomp OPA beach2 / beachB under ocean (dark-blue floor), not shore wet sand.
+_OCEAN_BED_PRIM = (32, 48, 144)
+
+
+def is_ocean_bed_part(part: MeshPart) -> bool:
+    """True for dark-blue beachB/beach2 underdraw (ocean floor)."""
+    blob = f"{part.texture_name} {part.name}".lower()
+    if "beachb" in blob or "beach2" in blob:
+        return True
+    if "beacha" in blob or "beach1" in blob:
+        return False
+    prim = part.beach_prim
+    if prim is not None and len(prim) >= 3:
+        return (int(prim[0]), int(prim[1]), int(prim[2])) == _OCEAN_BED_PRIM
+    return False
 
 
 def parse_vtx_blob(blob: bytes, scale: float, flip_z: bool = False) -> list[Vertex]:
@@ -475,7 +501,11 @@ def parse_gfx(
         spill = is_window_spill_dl(part_name)
         layer1_png = None
         layer1_name = ""
+        layer1_wrap_s = GX_REPEAT
+        layer1_wrap_t = GX_REPEAT
         water_kind = ""
+        base_color = (1.0, 1.0, 1.0, 1.0)
+        beach_prim: tuple[int, int, int, int] | None = None
         wrap_s = tex_state.wrap_s
         wrap_t = tex_state.wrap_t
         if bank is not None and not unlit:
@@ -491,14 +521,20 @@ def parse_gfx(
                 alpha_mode = "BLEND"
                 wrap_s = int(tex_state.tile0["wrap_s"])
                 wrap_t = int(tex_state.tile0["wrap_t"])
+                ## wave2 shore is REPEAT S / CLAMP T; wave3 open is REPEAT/REPEAT.
+                layer1_wrap_s = int(tex_state.tile1["wrap_s"])
+                layer1_wrap_t = int(tex_state.tile1["wrap_t"])
             else:
                 saved_prim = tex_state.prim
                 if skip_prim:
                     tex_state.prim = (255, 255, 255, 255)
                 png, tex_name, alpha_mode = bank.decode_current(tex_state)
                 tex_state.prim = saved_prim
-                if water_kind == "beach_wet":
+                if water_kind == "beach_wet" and png:
                     alpha_mode = "OPAQUE"
+                    beach_prim = saved_prim
+                    ## RGB ≈ (PRIM-ENV)*I+ENV; alpha = I for runtime env pulse.
+                    png = bake_beach_wet_png(png, saved_prim)
         if spill and png:
             png = i4_png_as_alpha(png)
             alpha_mode = "BLEND"
@@ -525,7 +561,11 @@ def parse_gfx(
                 ground_spill=spill,
                 layer1_png=layer1_png,
                 layer1_name=layer1_name,
+                layer1_wrap_s=layer1_wrap_s,
+                layer1_wrap_t=layer1_wrap_t,
                 water_kind=water_kind,
+                base_color=base_color,
+                beach_prim=beach_prim,
             )
         )
         triangles = []

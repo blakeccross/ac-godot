@@ -102,6 +102,36 @@ def i4_png_as_alpha(png: bytes) -> bytes:
     return image_png_bytes(Image.merge("RGBA", (white, white, white, r)))
 
 
+def bake_beach_wet_png(
+    png: bytes,
+    prim: tuple[int, int, int, int],
+    env: tuple[int, int, int] = (144, 128, 96),
+) -> bytes:
+    """Bake `(PRIM-ENV)*I+ENV` into RGB; keep I in alpha for the runtime env pulse.
+
+    Open-ocean beachB clamps V onto a solid-white I row (→ PRIM blue). Wet-sand
+    beachA is mostly black I (→ ENV brown). Multiplying DL prim by I4 in
+    baseColorFactor made that wet strip jet black — wrong vs decomp.
+    """
+    image = Image.open(io.BytesIO(png)).convert("RGBA")
+    pr, pg, pb, _pa = prim
+    er, eg, eb = env
+    out = Image.new("RGBA", image.size)
+    px_in = image.load()
+    px_out = out.load()
+    for y in range(image.size[1]):
+        for x in range(image.size[0]):
+            intensity = int(px_in[x, y][0])
+            t = intensity / 255.0
+            px_out[x, y] = (
+                int(round(er + (pr - er) * t)),
+                int(round(eg + (pg - eg) * t)),
+                int(round(eb + (pb - eb) * t)),
+                intensity,
+            )
+    return image_png_bytes(out)
+
+
 def alpha_mode_for_image(image: Image.Image) -> str:
     """glTF alphaMode from a decoded RGBA image: cutout CI leaves → MASK, soft IA → BLEND."""
     alpha = image.convert("RGBA").getchannel("A")

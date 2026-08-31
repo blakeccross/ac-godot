@@ -32,6 +32,8 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
         unlit = bool(part.unlit_fill) or is_window_pane_dl(part.name)
         spill = bool(part.ground_spill) or is_window_spill_dl(part.name)
         water_kind = part.water_kind or ""
+        base_color = tuple(part.base_color or (1.0, 1.0, 1.0, 1.0))
+        beach_prim = part.beach_prim
         if unlit:
             part.unlit_fill = True
             part.texture_png = None
@@ -44,6 +46,8 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
         # Window panes share the wall SETTIMG but ignore it (prim/env fill).
         # Indoor outdoor-view (white) must not merge with facade panes (black).
         # River/ocean dual tiles must not merge with a single-layer copy of water1.
+        # beach_wet prim (base_color) must not merge beachA sand with beachB ocean bed.
+        # wave2 (CLAMP T) must not merge with wave3 (REPEAT T) if PNG bytes ever collide.
         key = (
             part.texture_png or b"",
             part.wrap_s,
@@ -53,6 +57,9 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
             part.unlit_rgba,
             water_kind,
             part.layer1_png or b"",
+            part.layer1_wrap_s,
+            part.layer1_wrap_t,
+            base_color,
         )
         if key not in index:
             index[key] = len(groups)
@@ -70,6 +77,10 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
                     "ground_spill": spill,
                     "water_kind": water_kind,
                     "layer1_png": part.layer1_png,
+                    "layer1_wrap_s": part.layer1_wrap_s,
+                    "layer1_wrap_t": part.layer1_wrap_t,
+                    "base_color": base_color,
+                    "beach_prim": beach_prim,
                     "parts": [],
                 }
             )
@@ -87,8 +98,9 @@ def _bake_wrap_group(group: dict) -> None:
     png = group.get("png")
     if not png:
         return
-    # Scrolling water needs live REPEAT/MIRROR UVs; baking would freeze the tiles.
-    if group.get("water_kind") in ("river", "ocean", "splash"):
+    # Scrolling water / wet-sand need live wrap; baking freezes tiles and (for beachB)
+    # leaves CLAMP V UVs outside 0–1 stuck on the solid-white I4 edge row.
+    if group.get("water_kind") in ("river", "ocean", "splash", "beach_wet"):
         return
     wrap_s = group["wrap_s"]
     wrap_t = group["wrap_t"]
@@ -158,6 +170,9 @@ def _group_alpha_mode(group: dict) -> str:
         return "OPAQUE"
     if group.get("ground_spill"):
         return "BLEND"
+    ## OPA I4 band; alpha carries intensity for the runtime env pulse, not coverage.
+    if group.get("water_kind") == "beach_wet":
+        return "OPAQUE"
     if group.get("water_kind") in ("river", "ocean", "splash"):
         return "BLEND"
     modes = {part.alpha_mode for part in group["parts"]}
@@ -178,6 +193,9 @@ def _material(
     ground_spill: bool = False,
     water_kind: str = "",
     layer1_texture_index: int | None = None,
+    layer1_wrap_t: int = GX_REPEAT,
+    base_color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
+    beach_prim: tuple[int, int, int, int] | None = None,
 ) -> dict:
     mat: dict = {
         "name": name or "vertex_color",
@@ -185,7 +203,7 @@ def _material(
         "doubleSided": True,
         "alphaMode": alpha_mode,
         "pbrMetallicRoughness": {
-            "baseColorFactor": list(unlit_rgba) if unlit_fill else [1, 1, 1, 1],
+            "baseColorFactor": list(unlit_rgba) if unlit_fill else list(base_color),
             "metallicFactor": 0,
             "roughnessFactor": 1,
         },
@@ -202,6 +220,12 @@ def _material(
     if water_kind:
         extras = dict(extras or {})
         extras["water_kind"] = water_kind
+        ## Shore wave2: GX_CLAMP T. Runtime shader masks the curvy crash with this.
+        if water_kind == "ocean":
+            extras["wave2_clamp_t"] = bool(layer1_wrap_t == GX_CLAMP)
+    if beach_prim is not None:
+        extras = dict(extras or {})
+        extras["beach_prim"] = [int(beach_prim[0]), int(beach_prim[1]), int(beach_prim[2]), int(beach_prim[3])]
     if extras:
         mat["extras"] = extras
     if texture_index is not None:
@@ -314,17 +338,20 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
             tex_index = len(textures) - 1
         layer1_index = None
         layer1 = group.get("layer1_png")
+        layer1_wrap_s = int(group.get("layer1_wrap_s", GX_REPEAT))
+        layer1_wrap_t = int(group.get("layer1_wrap_t", GX_REPEAT))
         if layer1:
             padded = layer1 + b"\x00" * _pad4(len(layer1))
             view = add_view(padded)
             buffer_views[view]["byteLength"] = len(layer1)
             images.append({"bufferView": view, "mimeType": "image/png"})
+            ## Decomp wave2: GX_REPEAT S / GX_CLAMP T. Do not force REPEAT/REPEAT.
             samplers.append(
                 {
                     "magFilter": 9728,
                     "minFilter": 9728,
-                    "wrapS": wrap_to_gltf(GX_REPEAT),
-                    "wrapT": wrap_to_gltf(GX_REPEAT),
+                    "wrapS": wrap_to_gltf(layer1_wrap_s),
+                    "wrapT": wrap_to_gltf(layer1_wrap_t),
                 }
             )
             textures.append({"source": len(images) - 1, "sampler": len(samplers) - 1})
@@ -339,6 +366,9 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
                 ground_spill=bool(group.get("ground_spill")),
                 water_kind=str(group.get("water_kind") or ""),
                 layer1_texture_index=layer1_index,
+                layer1_wrap_t=layer1_wrap_t,
+                base_color=tuple(group.get("base_color") or (1.0, 1.0, 1.0, 1.0)),
+                beach_prim=group.get("beach_prim"),
             )
         )
         primitives.append(
@@ -542,6 +572,8 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
                 unlit_rgba=tuple(group.get("unlit_rgba") or (0.0, 0.0, 0.0, 1.0)),
                 ground_spill=bool(group.get("ground_spill")),
                 water_kind=str(group.get("water_kind") or ""),
+                base_color=tuple(group.get("base_color") or (1.0, 1.0, 1.0, 1.0)),
+                beach_prim=group.get("beach_prim"),
             )
         )
         primitives.append(

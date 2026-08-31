@@ -23,7 +23,22 @@ from .layout import (
 from .mapfile import parse_map
 from .rel import RelData
 from .test_set import TEST_BTI, TEST_SKELETONS, TEST_STATIC
-from .texbank import G_IM_FMT_CI, G_IM_SIZ_4b, TextureBank, decode_gbi_texture, image_png_bytes
+from .texbank import (
+    G_IM_FMT_CI,
+    G_IM_FMT_IA,
+    G_IM_SIZ_4b,
+    G_IM_SIZ_8b,
+    TextureBank,
+    decode_gbi_texture,
+    image_png_bytes,
+)
+
+## Shared field-bank IA waves (DL: G_IM_FMT_IA / G_IM_SIZ_8b). Not CI4 — wrong size + opaque A.
+_REL_IA_WAVE_DIMS: dict[str, tuple[int, int]] = {
+    "mFM_grd_wave1_tex": (32, 32),
+    "mFM_grd_wave2_tex": (32, 64),
+    "mFM_grd_wave3_tex": (32, 32),
+}
 
 TRANSFORMS = {
     "scale": "vertex * config.scale (default 0.001). Not actor 0.01 or acre 0.0625 draw scale — Godot FieldCatalog applies those.",
@@ -82,6 +97,15 @@ WATER_STATIC_NEEDLES = [
     ## Open-ocean border acres: OPA dark-blue beachB under XLU waves.
     "grd_s_o_",
     "grd_w_o_",
+    ## Cliff-edge ocean / marine (`grd_s_e2_o_*` does not match `grd_s_o_`).
+    "grd_s_e2_o",
+    "grd_s_e3_o",
+    "grd_s_e2_m",
+    "grd_s_e3_m",
+    "grd_w_e2_o",
+    "grd_w_e3_o",
+    "grd_w_e2_m",
+    "grd_w_e3_m",
     "grd_s_t_r",
     "grd_w_t_r",
     "grd_s_c1_r",
@@ -497,6 +521,35 @@ def _convert_ckf(cfg: PipelineConfig, rel: RelData, symbols: list, item: dict[st
     return record
 
 
+def _is_beach_marine_asset(asset_id: str) -> bool:
+    ## Nearshore beach / marine (`grd_*_m_*`, cliff `e2_m` / `e3_m`). Not open ocean (`*_o_*`).
+    s = asset_id.lower()
+    if not s.startswith("grd_"):
+        return False
+    if "e2_m" in s or "e3_m" in s:
+        return True
+    ## `grd_s_m_1` — not museum `grd_s_mh_*`.
+    return "_m_" in s
+
+
+def _strip_beach_water_parts(parts: list, asset_id: str) -> list:
+    """Drop XLU ocean waves from beach/marine GLBs; keep wet sand and the ocean bed.
+
+    beachA/beach1 is the wet-sand band (runtime env pulse). beachB/beach2 is the
+    dark-blue OPA floor under the water. Open-ocean border acres keep waves + bed.
+    Splash / river stay on mouths.
+    """
+    if not _is_beach_marine_asset(asset_id):
+        return parts
+    kept = []
+    for part in parts:
+        kind = getattr(part, "water_kind", "")
+        if kind == "ocean":
+            continue
+        kept.append(part)
+    return kept
+
+
 def _convert_static(
     cfg: PipelineConfig, rel: RelData, symbols: list, item: dict[str, Any], bank: TextureBank
 ) -> dict[str, Any]:
@@ -519,6 +572,7 @@ def _convert_static(
         bank._segment_offset_names.clear()
         bank.bind_static_segments(item["asset_id"])
         parts = convert_static_gfx(rel, symbols, item["vtx"], item["gfx"], cfg.scale, bank=bank)
+        parts = _strip_beach_water_parts(parts, item["asset_id"])
         dest = cfg.converted / item["output"]
         write_glb(
             dest,
@@ -718,7 +772,7 @@ def _infer_ci4_size(nbytes: int) -> tuple[int, int] | None:
 
 
 def _convert_rel_textures(cfg: PipelineConfig, rel: RelData, symbols: list, bank: TextureBank) -> list[dict[str, Any]]:
-    """Decode every named REL CI texture using map sizes + a nearby palette when present."""
+    """Decode named REL textures: CI4 with nearby palettes, plus known IA field waves."""
     results: list[dict[str, Any]] = []
     pals = [s for s in symbols if s.name.endswith("_pal") and s.size >= 32]
     pals.sort(key=lambda s: s.address)
@@ -727,6 +781,35 @@ def _convert_rel_textures(cfg: PipelineConfig, rel: RelData, symbols: list, bank
         if not (symbol.name.endswith("_tex_txt") or (symbol.name.endswith("_tex") and not symbol.name.endswith("_tex_txt"))):
             continue
         if symbol.size <= 0:
+            continue
+        dest_rel = f"textures/rel/{symbol.name}.png"
+        ia_dims = _REL_IA_WAVE_DIMS.get(symbol.name)
+        if ia_dims is not None:
+            try:
+                data = rel.slice_at(symbol.address, symbol.size)
+                results.append(
+                    _png_record(
+                        cfg,
+                        dest_rel,
+                        symbol.name,
+                        data,
+                        ia_dims[0],
+                        ia_dims[1],
+                        b"",
+                        fmt=G_IM_FMT_IA,
+                        siz=G_IM_SIZ_8b,
+                    )
+                )
+            except Exception as exc:  # noqa: BLE001
+                results.append(
+                    {
+                        "asset_id": symbol.name,
+                        "source": symbol.name,
+                        "output_path": dest_rel,
+                        "status": "error",
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                )
             continue
         dims = _infer_ci4_size(symbol.size)
         if dims is None:
@@ -741,7 +824,6 @@ def _convert_rel_textures(cfg: PipelineConfig, rel: RelData, symbols: list, bank
             pal_blob = bank._tree_pal
         if not pal_blob:
             continue
-        dest_rel = f"textures/rel/{symbol.name}.png"
         try:
             data = rel.slice_at(symbol.address, symbol.size)
             results.append(_png_record(cfg, dest_rel, symbol.name, data, dims[0], dims[1], pal_blob or b""))
@@ -766,6 +848,8 @@ def _png_record(
     width: int,
     height: int,
     pal: bytes,
+    fmt: int = G_IM_FMT_CI,
+    siz: int = G_IM_SIZ_4b,
 ) -> dict[str, Any]:
     record: dict[str, Any] = {
         "asset_id": Path(dest_rel).stem,
@@ -775,12 +859,12 @@ def _png_record(
         "error": None,
     }
     try:
-        image = decode_gbi_texture(data, width, height, G_IM_FMT_CI, G_IM_SIZ_4b, pal)
+        image = decode_gbi_texture(data, width, height, fmt, siz, pal if fmt == G_IM_FMT_CI else None)
         dest = cfg.converted / dest_rel
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(image_png_bytes(image))
         record["status"] = "converted"
-        record["meta"] = {"width": width, "height": height}
+        record["meta"] = {"width": width, "height": height, "fmt": fmt, "siz": siz}
         _copy_generated(cfg, dest, dest_rel)
     except Exception as exc:  # noqa: BLE001
         record["status"] = "error"
@@ -820,3 +904,11 @@ def _copy_generated(cfg: PipelineConfig, src: Path, rel: str) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dest)
     write_import_sidecar(dest, cfg.project_root)
+    ## Godot "Extract" leaves `name_0.png` siblings that ignore GLB samplers (wave2 CLAMP T)
+    ## and can stick around after a bad reimport. Drop them whenever we refresh a GLB.
+    if dest.suffix.lower() == ".glb":
+        stem = dest.stem
+        for sibling in dest.parent.glob(f"{stem}_*.png"):
+            if sibling.stem[len(stem) + 1 :].isdigit():
+                sibling.unlink(missing_ok=True)
+                Path(str(sibling) + ".import").unlink(missing_ok=True)

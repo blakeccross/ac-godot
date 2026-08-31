@@ -268,6 +268,90 @@ func test_catalog_water_is_heightfield_not_pit() -> void:
 	assert_bool(blocked).is_true()
 
 
+func test_revise_xz_allows_beach_wave_not_sea() -> void:
+	## Original `CheckWaveAttr` / `Wpos2Attribute`: wet-sand wave units are walkable.
+	## SEA stays a water wall. Shared sand/wave corners match, so this is attr not height.
+	if not FieldCatalog.has_acre_collision(&"grd_s_m_1"):
+		return
+	var data: WorldData = WorldGenerator.generate(12345)
+	var grid := WorldGrid.new()
+	grid.configure_from_world(data)
+	var entered_wave := false
+	var blocked_sea := false
+	for z: int in data.rows:
+		for x: int in data.columns:
+			var cell := Vector2i(x, z)
+			var attr: int = _catalog_attr(data, cell)
+			if FieldCatalog.is_wave_attr(attr) and not entered_wave:
+				entered_wave = _revise_enters_from_sand(data, grid, cell)
+			elif FieldCatalog.is_water_attr(attr) and attr == 24 and not blocked_sea:
+				blocked_sea = _revise_stays_off_water(data, grid, cell)
+			if entered_wave and blocked_sea:
+				break
+		if entered_wave and blocked_sea:
+			break
+	assert_bool(entered_wave).is_true()
+	assert_bool(blocked_sea).is_true()
+
+
+func _catalog_attr(data: WorldData, cell: Vector2i) -> int:
+	if data.acre_visuals.size() != TownFieldGenerator.BLOCK_TOTAL:
+		return -1
+	var bx: int = int(cell.x / WorldGenerator.UT) + 1
+	var bz: int = int(cell.y / WorldGenerator.UT) + 1
+	if bx < 1 or bx > 5 or bz < 1 or bz > 6:
+		return -1
+	var visual := StringName(data.acre_visuals[bz * TownFieldGenerator.BLOCK_X + bx])
+	var unit: Dictionary = FieldCatalog.unit_at(
+		visual, posmod(cell.x, WorldGenerator.UT), posmod(cell.y, WorldGenerator.UT)
+	)
+	if unit.is_empty():
+		return -1
+	return int(unit["a"])
+
+
+func _revise_enters_from_sand(data: WorldData, grid: WorldGrid, wave: Vector2i) -> bool:
+	assert_that(data.terrain_at(wave)).is_equal(WorldGrid.Terrain.SAND)
+	for d: Vector2i in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
+		var land: Vector2i = wave + d
+		if not data.is_in_bounds(land):
+			continue
+		if data.terrain_at(land) != WorldGrid.Terrain.SAND:
+			continue
+		if FieldCatalog.is_wave_attr(_catalog_attr(data, land)):
+			continue
+		var from: Vector3 = grid.cell_to_world(land)
+		from.y = FieldCollision.ground_y_at(data, grid, from)
+		if not FieldCollision.has_floor(from.y):
+			continue
+		var to: Vector3 = grid.cell_to_world(wave)
+		to.y = from.y
+		var revised: Vector3 = FieldCollision.revise_xz(data, grid, from, to)
+		if grid.world_to_cell(revised) == wave:
+			return true
+	return false
+
+
+func _revise_stays_off_water(data: WorldData, grid: WorldGrid, water: Vector2i) -> bool:
+	assert_that(data.terrain_at(water)).is_equal(WorldGrid.Terrain.WATER)
+	for d: Vector2i in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
+		var land: Vector2i = water + d
+		if not data.is_in_bounds(land):
+			continue
+		if data.terrain_at(land) == WorldGrid.Terrain.WATER:
+			continue
+		var from: Vector3 = grid.cell_to_world(land)
+		from.y = FieldCollision.ground_y_at(data, grid, from)
+		if not FieldCollision.has_floor(from.y):
+			continue
+		var to: Vector3 = grid.cell_to_world(water)
+		to.y = from.y
+		var revised: Vector3 = FieldCollision.revise_xz(data, grid, from, to)
+		if data.terrain_at(grid.world_to_cell(revised)) != WorldGrid.Terrain.WATER:
+			return true
+	return false
+
+
 func test_revise_xz_rejects_cliff_edge() -> void:
 	var data: WorldData = WorldGenerator.generate(12345)
 	var grid := WorldGrid.new()

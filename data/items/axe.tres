@@ -1,19 +1,15 @@
-[gd_resource type="Resource" script_class="ToolData" format=3]
+[gd_resource type="Resource" script_class="ToolData" format=3 uid="uid://ciaojebunaieb"]
 
-[ext_resource type="Script" path="res://scripts/data/tool_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://0ptunytwyd4b" path="res://scripts/data/tool_data.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
+kind = 4
+visual_id = &"tol_axe_1"
 id = &"axe"
 display_name = "Axe"
 description = "For chopping wood."
 category = 0
 sell_price = 400
-max_stack = 1
-droppable = true
-usable = false
 equippable = true
-use_verb = "Use"
 icon_color = Color(0.55, 0.4, 0.25, 1)
-kind = 4
-visual_id = &"tol_axe_1"
