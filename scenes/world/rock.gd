@@ -16,6 +16,10 @@ func _ready() -> void:
 	HostCollision.apply_rock(self, footprint, HostCollision.CELL)
 
 
+func refresh_seasonal_visual() -> void:
+	GeneratedVisual.refresh(self, visual_id)
+
+
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 	if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):
 		return []

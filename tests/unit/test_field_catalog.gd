@@ -153,6 +153,30 @@ func test_season_texture_path_falls_back_to_summer_pack() -> void:
 	assert_bool(autumn.contains("/seasons/f/grass.png") or autumn.contains("/seasons/s/grass.png")).is_true()
 
 
+func test_is_seasonal_env_visual() -> void:
+	assert_bool(FieldCatalog.is_seasonal_env_visual(&"obj_s_house1")).is_true()
+	assert_bool(FieldCatalog.is_seasonal_env_visual(&"ROCK_A")).is_true()
+	assert_bool(FieldCatalog.is_seasonal_env_visual(&"grd_s_f_1")).is_true()
+	assert_bool(FieldCatalog.is_seasonal_env_visual(&"int_sum_chair01")).is_false()
+	assert_bool(FieldCatalog.is_seasonal_env_visual(&"tol_axe_1")).is_false()
+	assert_bool(FieldCatalog.is_seasonal_env_visual(&"room01")).is_false()
+
+
+func test_winter_structure_and_rock_mesh_remap() -> void:
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 15, "hour": 12, "minute": 0 })
+	assert_str(FieldCatalog.season_letter()).is_equal("w")
+	for id: StringName in [&"obj_s_house1", &"obj_s_myhome1", &"obj_s_shop1", &"ROCK_A"]:
+		var paths: PackedStringArray = FieldCatalog.mesh_paths(id)
+		if paths.is_empty():
+			continue
+		var path := paths[0]
+		if id == &"ROCK_A":
+			assert_bool(path.contains("obj_w_stoneA") or path.contains("obj_s_stoneA")).is_true()
+		else:
+			var stem := String(id).substr(6)
+			assert_bool(path.contains("obj_w_%s" % stem) or path.contains(String(id))).is_true()
+
+
 func test_species_codes_map_to_disc_prefixes() -> void:
 	assert_str(FieldCatalog.species_code(&"squirrel")).is_equal("squ")
 	assert_str(FieldCatalog.species_code(&"cat")).is_equal("cat")

@@ -23,6 +23,10 @@ func _ready() -> void:
 	apply_growth()
 
 
+func refresh_seasonal_visual() -> void:
+	apply_growth()
+
+
 func apply_growth() -> void:
 	if plant != null and persist_id != &"":
 		var rec: Dictionary = PlantGrowth.record(persist_id)

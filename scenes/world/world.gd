@@ -159,10 +159,27 @@ func _refresh_seasonal_visuals() -> void:
 			node.call("refresh_seasonal_visual")
 		elif node.has_method("apply_growth"):
 			node.call("apply_growth")
+	for root_name: String in ["Buildings", "Objects"]:
+		var root: Node = get_node_or_null(root_name)
+		if root == null:
+			continue
+		for child in root.get_children():
+			if child.is_in_group("plant"):
+				continue
+			_refresh_env_visual(child)
+
+
+func _refresh_env_visual(node: Node) -> void:
+	if node.has_method("refresh_seasonal_visual"):
+		node.call("refresh_seasonal_visual")
+		return
+	if not (node is Node3D) or not ("visual_id" in node):
+		return
+	var visual_id: StringName = node.get("visual_id") as StringName
+	if not FieldCatalog.is_seasonal_env_visual(visual_id):
+		return
+	GeneratedVisual.refresh(node as Node3D, visual_id)
 
 
 func _reattach_visual(host: Node3D, visual_id: StringName) -> void:
-	if host == null or visual_id == &"":
-		return
-	GeneratedVisual.detach(host)
-	GeneratedVisual.attach(host, visual_id)
+	GeneratedVisual.refresh(host, visual_id)

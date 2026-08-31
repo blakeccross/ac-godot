@@ -28,3 +28,7 @@ func _ready() -> void:
 
 func apply_grid_yaw(facing: WorldGrid.Facing) -> void:
 	rotation.y = WorldGrid.yaw_for_facing(facing)
+
+
+func refresh_seasonal_visual() -> void:
+	GeneratedVisual.refresh(self, visual_id)

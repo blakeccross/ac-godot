@@ -23,6 +23,14 @@ const _RIVER_ENV_INLAND := Color(0.0, 100.0 / 255.0, 1.0, 1.0)
 const _RIVER_ENV_MOUTH := Color(0.0, 60.0 / 255.0, 1.0, 1.0)
 
 
+static func refresh(host: Node3D, visual_id: StringName) -> Node3D:
+	## Detach and re-attach so mesh remaps and season albedo swaps run again.
+	if host == null or visual_id == &"":
+		return null
+	detach(host)
+	return attach(host, visual_id)
+
+
 static func detach(host: Node3D) -> void:
 	if host == null:
 		return
