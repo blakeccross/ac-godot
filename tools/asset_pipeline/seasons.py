@@ -40,6 +40,7 @@ FIELD_ROLE_NEEDLES: dict[str, tuple[str, ...]] = {
 	"stone": ("stone",),
 	"sand": ("sand",),
 	"beach_wet": ("beach1", "beacha"),
+	"river_edge": ("river_tex",),
 }
 
 TREE_ROLE_NEEDLES: dict[str, tuple[str, ...]] = {
@@ -57,6 +58,7 @@ _FIELD_TEX_SPECS: dict[str, tuple[int, int, str]] = {
 	"rail_tex_dummy": (64, 64, "earth_pal"),
 	"stone_tex_dummy": (64, 64, "earth_pal"),
 	"sand_tex_dummy": (64, 32, "beach_pal"),
+	"river_tex_dummy": (64, 32, "cliff_pal"),
 }
 
 
@@ -167,6 +169,7 @@ def _collect_roles_from_field_bank(bank: TextureBank) -> dict[str, bytes]:
 		"earth_pal": None,
 		"bush_pal": None,
 		"beach_pal": None,
+		"cliff_pal": None,
 	}
 	earth_off = _pal_offset(names, "earth_pal")
 	if earth_off is not None and earth_off + 32 <= len(data):
@@ -177,6 +180,9 @@ def _collect_roles_from_field_bank(bank: TextureBank) -> dict[str, bytes]:
 	beach_off = _pal_offset(names, "beach_pal")
 	if beach_off is not None and beach_off + 32 <= len(data):
 		pals["beach_pal"] = data[beach_off : beach_off + 32]
+	cliff_off = _pal_offset(names, "cliff_pal")
+	if cliff_off is not None and cliff_off + 32 <= len(data):
+		pals["cliff_pal"] = data[cliff_off : cliff_off + 32]
 	for off, name in sorted(names.items()):
 		if "pal" in name.lower():
 			continue

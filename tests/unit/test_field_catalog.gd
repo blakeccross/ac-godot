@@ -129,6 +129,8 @@ func test_season_role_for_label_matches_field_and_tree() -> void:
 	assert_str(FieldCatalog.season_role_for_label("sand_tex_dummy")).is_equal("sand")
 	assert_str(FieldCatalog.season_role_for_label("beach1_tex_dummy2")).is_equal("beach_wet")
 	assert_str(FieldCatalog.season_role_for_label("beach2_tex_dummy2")).is_equal("")
+	assert_str(FieldCatalog.season_role_for_label("river_tex_dummy")).is_equal("river_edge")
+	assert_str(FieldCatalog.season_role_for_label("river_mFM_grd_water1_tex")).is_equal("")
 	assert_str(FieldCatalog.season_role_for_label("stone_tex_dummy")).is_equal("stone")
 	assert_str(FieldCatalog.season_role_for_label("obj_s_tree_leaf_tex")).is_equal("tree_leaf")
 	assert_str(FieldCatalog.season_role_for_label("obj_w_tree_trunk_tex")).is_equal("tree_trunk")
