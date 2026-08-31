@@ -147,6 +147,21 @@ func test_season_role_from_extras() -> void:
 	assert_str(FieldCatalog.season_role_from_extras(mat)).is_equal("")
 
 
+func test_grass_pattern_texture_path_prefers_variant() -> void:
+	FieldCatalog.set_grass_pattern(WorldData.GrassPattern.CIRCLE)
+	var path := FieldCatalog.season_texture_path("grass")
+	if path.is_empty():
+		return
+	assert_str(path.get_file()).is_equal("grass_2.png")
+	FieldCatalog.set_grass_pattern(WorldData.GrassPattern.TRIANGLE)
+
+
+func test_grass_pattern_labels() -> void:
+	assert_str(WorldData.grass_pattern_label(WorldData.GrassPattern.TRIANGLE)).is_equal("triangle")
+	assert_str(WorldData.grass_pattern_label(WorldData.GrassPattern.SQUARE)).is_equal("square")
+	assert_str(WorldData.grass_pattern_label(WorldData.GrassPattern.CIRCLE)).is_equal("circle")
+
+
 func test_season_texture_path_falls_back_to_summer_pack() -> void:
 	## Without a seasons pack on disk, paths are empty. With only summer pack, autumn falls back.
 	Clock.apply_snapshot({ "year": 2001, "month": 7, "day": 1, "hour": 12, "minute": 0 })

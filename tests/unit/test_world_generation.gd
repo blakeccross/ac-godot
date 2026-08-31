@@ -53,6 +53,18 @@ func test_same_seed_same_fingerprint() -> void:
 	assert_that(a.mode).is_equal(WorldData.Mode.GENERATED)
 	assert_int(a.seed_value).is_equal(12345)
 	assert_that(a.acre_visuals).is_equal(b.acre_visuals)
+	assert_int(a.grass_pattern).is_equal(b.grass_pattern)
+
+
+func test_grass_pattern_from_seed_is_stable() -> void:
+	var a: int = WorldGenerator.decide_grass_pattern(12345)
+	var b: int = WorldGenerator.decide_grass_pattern(12345)
+	assert_int(a).is_equal(b)
+	assert_int(a).is_greater_equal(0)
+	assert_int(a).is_less(WorldData.GRASS_PATTERN_COUNT)
+	var other: int = WorldGenerator.decide_grass_pattern(99999)
+	## Not guaranteed different, but these seeds differ in practice.
+	assert_int(other).is_greater_equal(0)
 
 
 func test_different_seed_different_fingerprint() -> void:
