@@ -7,6 +7,9 @@ const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
 
 var grid: WorldGrid = WorldGrid.new()
 var layout: WorldData
+## Live fish shadows for this field. Owned here like `grid`, read by `Fishing` through
+## `InteractionContext.world` and ticked by the `FishShadows` effects node.
+var fish: FishSchool = FishSchool.new()
 
 @onready var _sun: DirectionalLight3D = $Sun
 @onready var _moon: DirectionalLight3D = $Moon
@@ -24,6 +27,7 @@ func _ready() -> void:
 	WorldBuilder.new().build(self, layout, grid)
 	HoleUse.restore(self, grid)
 	PlantGrowth.restore(self, grid)
+	fish.configure(grid, WorldBuilder.water_surface_y())
 	_build_navigation()
 	Clock.time_changed.connect(_apply_time_of_day)
 	Clock.field_renewed.connect(_on_field_renewed)

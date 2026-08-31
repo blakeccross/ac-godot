@@ -54,6 +54,25 @@ func play(data: DialogueData, ctx: DialogueContext, state: VillagerState = null)
 		close()
 
 
+## One line of text with no conversation behind it, dismissed the same way as any other. The
+## original's catch report is a plain `mMsg` window with `LockContinue` held until the player
+## advances it, which is what `notice_rod` waits on before putting the rod away.
+func say(text: String, speaker: String = "") -> void:
+	if text.is_empty():
+		return
+	if _open:
+		close()
+	if _runner != null:
+		_disconnect_runner()
+		_runner = null
+	_open = true
+	_root.visible = true
+	_name.text = speaker
+	_name.visible = speaker != ""
+	_clear_choices()
+	_on_line(text)
+
+
 func close() -> void:
 	if not _open:
 		return
@@ -79,7 +98,7 @@ func _disconnect_runner() -> void:
 
 
 func _process(delta: float) -> void:
-	if not _open or _runner == null or _runner.waiting_choice:
+	if not _open or (_runner != null and _runner.waiting_choice):
 		return
 	if _cursor >= _shown.length():
 		return
@@ -93,12 +112,12 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not _open or _runner == null:
+	if not _open:
 		return
 	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause_menu"):
 		get_viewport().set_input_as_handled()
 		return
-	if _runner.waiting_choice:
+	if _runner != null and _runner.waiting_choice:
 		_choice_input(event)
 		return
 	if event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
@@ -107,6 +126,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cursor = _shown.length()
 			_body.text = _shown
 			_hint.text = "E continue"
+			return
+		if _runner == null:
+			## A `say` line has nothing to advance to, so dismissing it closes the window.
+			close()
 			return
 		_runner.advance()
 		if _runner != null and _runner.done:

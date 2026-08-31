@@ -132,6 +132,7 @@ func reset_session() -> void:
 	villagers.clear()
 	villagers.book = relationships
 	VillagerWalk.reset()
+	Fishing.reset()
 	player_position = DEFAULT_SPAWN
 	player_yaw = 0.0
 	removed_interactables.clear()
@@ -596,6 +597,7 @@ func _group_is_open(group: String) -> bool:
 
 
 func _change_scene(path: String) -> void:
+	Fishing.reset()
 	var tree := get_tree()
 	if tree == null:
 		return

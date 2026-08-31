@@ -10,6 +10,12 @@ const GENERATED_PLAYER := "res://assets/generated/characters/player/boy_1.glb"
 const LOOK_HEIGHT := 0.85
 const INTERACT_REACH := 1.1
 
+## The pipeline samples every `cKF_ba_r_*` clip at 30 fps, so decomp frame numbers convert to
+## clip time at this rate.
+const ANIM_FPS := 30.0
+## `notice_rod` chains message 0x1348 onto the catch report when the catch cannot be kept.
+const POCKETS_FULL_MSG_ID := &"msg_4936"
+
 const ANIM_WAIT := "ply_1_wait1"
 const ANIM_WALK := "ply_1_walk1"
 const ANIM_RUN := "ply_1_run1"
@@ -49,6 +55,11 @@ func _exit_tree() -> void:
 
 func facing_yaw() -> float:
 	return _motor.facing
+
+
+## `mPlayer_INDEX_DASH`: fish bolt from a dashing player but ignore a walking one.
+func is_dashing() -> bool:
+	return _motor.gait() == PlayerLocomotion.Gait.DASH
 
 
 func camera_look_position() -> Vector3:
@@ -340,18 +351,190 @@ func _try_interact() -> void:
 		return
 	_focus = hit.host
 	_busy = hit.action.locks_player
-	await _play_action(hit.action.player_anim)
+	var tail: float = await _play_action(hit.action.player_anim, hit.action.effect_frame)
 	var ctx: InteractionContext = _make_context()
 	if hit.host != null and is_instance_valid(hit.host):
 		hit.host.interact(hit.action, ctx)
 	else:
 		ToolUse.apply_field(hit.action, ctx)
+	await _finish_action(tail)
+	await _play_reel()
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()
 
 
-func _play_action(clip_name: StringName) -> void:
+## Plays the action clip and returns when the effect should land, along with however much of
+## the clip is still to run. An `effect_frame` of -1 waits for the whole clip, which is what
+## every verb but the cast wants; the cast lets go of the bobber a third of the way in, so the
+## swing has to keep playing around it instead of gating it.
+func _play_action(clip_name: StringName, effect_frame: float = -1.0) -> float:
+	if clip_name == &"":
+		return 0.0
+	var clip := _resolve_clip(String(clip_name))
+	if _anim == null or clip.is_empty():
+		await get_tree().create_timer(0.12).timeout
+		return 0.0
+	_anim.speed_scale = 1.0
+	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_use_anim, false)
+	_anim.play(clip, 0.08)
+	if effect_frame < 0.0:
+		await _anim.animation_finished
+		HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)
+		return 0.0
+	## The pipeline samples `cKF_ba_r_*` at 30 fps, so a decomp frame number is that frame
+	## over 30 in clip time. Timed rather than signalled: the tail has to be waited out after
+	## the effect has already been applied, and there is no second `animation_finished`.
+	var res: Animation = _anim.get_animation(clip)
+	var length: float = res.length if res != null else 0.0
+	var mark: float = minf(effect_frame / ANIM_FPS, length)
+	if mark > 0.0:
+		await get_tree().create_timer(mark).timeout
+	return maxf(0.0, length - mark)
+
+
+## Lets the rest of a split action clip play out before the reel takes over.
+func _finish_action(tail: float) -> void:
+	if tail <= 0.0:
+		return
+	await get_tree().create_timer(tail).timeout
+	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)
+
+
+## The rod's reel-in runs after the action, not through `player_anim`: the hook has to
+## resolve on the button frame or the bite window is spent animating. `Fishing` picks the
+## beats from what came up on the line.
+func _play_reel() -> void:
+	for beat: Fishing.ReelBeat in Fishing.take_reel_beats():
+		if beat.face_camera or beat.hold > 0.0:
+			await _play_show(beat)
+		else:
+			await _play_clip(beat.player_anim, beat.tool_anim)
+
+
+## `m_player_main_notice_rod`: hold the catch up and turn square-on to the camera, then put
+## the catch report on screen and keep the pose until the player dismisses it. The facing is
+## restored afterwards because the original threads it through `notice_rod` into
+## `putaway_rod`, which turns the player back the way they were fishing.
+func _play_show(beat: Fishing.ReelBeat) -> void:
+	if beat.player_anim == &"":
+		return
+	var entry_yaw: float = _motor.facing
+	var clip := _resolve_clip(String(beat.player_anim))
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	HeldTool.play(skeleton, beat.tool_anim, false)
+	HeldCatch.bind(skeleton, beat.fish)
+	var length: float = 0.0
+	if _anim != null and not clip.is_empty():
+		_anim.speed_scale = 1.0
+		_anim.play(clip, 0.08)
+		var res: Animation = _anim.get_animation(clip)
+		if res != null:
+			length = res.length
+	## `main_notice->timer` counts independently of the animation, so the report opens on
+	## frame 42 whether or not the clip has finished — `GET_T2` is longer than that and plays
+	## on underneath the text.
+	var held: float = 0.0
+	var turn_debt: float = 0.0
+	var step: float = 1.0 / Fishing.SHOW_TURN_HZ
+	while held < beat.hold:
+		await get_tree().process_frame
+		var delta: float = get_process_delta_time()
+		held += delta
+		if not beat.face_camera:
+			continue
+		## `Player_actor_Movement_Notice_rod` turns once per mover frame, so the step is
+		## accumulated on a fixed tick rather than scaled by the frame we happen to get.
+		turn_debt += delta
+		while turn_debt >= step:
+			turn_debt -= step
+			_motor.facing = MLib.short_angle2(
+				_motor.facing,
+				Fishing.SHOW_YAW,
+				Fishing.SHOW_TURN_FRACTION,
+				Fishing.SHOW_TURN_MAX_STEP,
+				Fishing.SHOW_TURN_MIN_STEP
+			)
+	if beat.catch_msg == 0:
+		## Nothing to hold for, so the pose still has to outlast its own clip: dropping
+		## `_busy` early would let the idle animation cut it off mid-hold.
+		if held < length:
+			await get_tree().create_timer(length - held).timeout
+	else:
+		await _report_catch(beat.catch_msg, beat.pockets_full)
+	_motor.facing = entry_yaw
+	await _play_putaway(skeleton)
+
+
+## `Player_actor_request_proc_index_fromNotice_rod` hands the dismissed report to
+## `putaway_rod`, which plays `PUTAWAY_T1` with a `GASAGOSO` rustle and then falls back to the
+## wait. The catch is in the pocket well before this: `setup_main_Notice_rod` banks it with
+## `Player_actor_putin_item` before the text ever opens, so this is the visible half of a move
+## already made — which is also why a full pocket takes the other branch and throws it back.
+func _play_putaway(skeleton: Skeleton3D) -> void:
+	## The rod has no putaway clip of its own — `tol_sao_1` carries six and none is one — so it
+	## holds the wait pose while the player's hands do the work.
+	HeldTool.play(skeleton, _tool_hold_anim, true)
+	var clip := _resolve_clip(String(Fishing.PUTAWAY))
+	if _anim == null or clip.is_empty():
+		HeldCatch.unbind(skeleton)
+		return
+	_anim.speed_scale = 1.0
+	_anim.play(clip, 0.08)
+	## Timed off the clip rather than waited on `animation_finished`, which never arrives if
+	## anything else drives the player in the meantime — and then the catch is never released.
+	var res: Animation = _anim.get_animation(clip)
+	if res != null and res.length > 0.0:
+		await get_tree().create_timer(res.length).timeout
+	## Released at the end, not the start: the fish rides the hand down and goes as the pose
+	## closes, rather than blinking out from under a hand still holding it up.
+	HeldCatch.unbind(skeleton)
+
+
+## `Player_actor_MessageControl_Notice_rod` opens the catch report once its 42 frames are up
+## and holds `LockContinue` until the player advances it, so the pose stays on screen for as
+## long as the text does. `_update_animation` bails while `_busy`, which is what keeps the
+## last frame of `GET_T2` up rather than falling back to the idle.
+## The text is the game's own: `Player_actor_Get_sakana_msg_num` gives a message number per
+## species and the extracted bank has the line, pun and all. The rare three (stringfish,
+## coelacanth, arapaima) run to two pages, which is why this plays a conversation through the
+## runner instead of pushing a single string.
+func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
+	if catch_msg == 0:
+		return
+	var ui: Node = null
+	if get_tree() != null:
+		ui = get_tree().get_first_node_in_group("dialogue_ui")
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % catch_msg))
+	if ui == null or not ui.has_signal("closed"):
+		## No window to hold the pose for — a headless run, or the overlay is not in the
+		## scene. Fall back to the transient notice so the catch is still reported.
+		Game.post_notice(FishCatalog.catch_text(catch_msg))
+		return
+	if data != null and ui.has_method("play"):
+		ui.call("play", data, null)
+	elif ui.has_method("say"):
+		ui.call("say", FishCatalog.catch_text(catch_msg))
+	else:
+		Game.post_notice(FishCatalog.catch_text(catch_msg))
+		return
+	await ui.closed
+	if not pockets_full:
+		return
+	## `mMsg_Set_continue_msg_num(win, 0x1348)` chains the pockets-full line onto the report.
+	## Its swap-or-discard choice is not modelled, so only the line is shown.
+	var full: DialogueData = DialogueCatalog.conversation(POCKETS_FULL_MSG_ID)
+	var text: String = FishCatalog.first_line(full)
+	if text.is_empty():
+		return
+	if ui.has_method("say"):
+		ui.call("say", text)
+		await ui.closed
+	else:
+		Game.post_notice(text)
+
+
+func _play_clip(clip_name: StringName, tool_clip: StringName) -> void:
 	if clip_name == &"":
 		return
 	var clip := _resolve_clip(String(clip_name))
@@ -359,7 +542,7 @@ func _play_action(clip_name: StringName) -> void:
 		await get_tree().create_timer(0.12).timeout
 		return
 	_anim.speed_scale = 1.0
-	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_use_anim, false)
+	HeldTool.play(HeldTool.find_skeleton(_mesh), tool_clip, false)
 	_anim.play(clip, 0.08)
 	await _anim.animation_finished
 	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)

@@ -23,6 +23,7 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	Fishing.reset()
 	Game.reset_session()
 	Clock.reset_to_default()
 	Clock.paused = false
@@ -96,17 +97,28 @@ func test_watering_can_has_no_field_verb() -> void:
 func test_rod_casts_only_at_water() -> void:
 	var world := auto_free(_GridWorld.new()) as _GridWorld
 	world.grid.configure(16, 16, 2.0, Vector3(-16, 0, -16))
-	world.grid.set_terrain(Vector2i(8, 9), WorldGrid.Terrain.WATER)
 	var actor := auto_free(_FacingActor.new()) as _FacingActor
 	add_child(actor)
 	actor.global_position = world.grid.cell_to_world(Vector2i(8, 8))
 	var ctx := _equipped(&"fishing_rod")
 	ctx.actor = actor
 	ctx.world = world
+
+	## Water at the player's feet is not enough: the rod reaches `Fishing.CAST_METERS`, so
+	## what matters is the water under the landing spot, not the cell being stood next to.
+	world.grid.set_terrain(Vector2i(8, 9), WorldGrid.Terrain.WATER)
+	assert_object(ToolUse.field_action(ctx)).is_null()
+
+	for z: int in range(9, 13):
+		world.grid.set_terrain(Vector2i(8, z), WorldGrid.Terrain.WATER)
+	var landing: Vector2i = world.grid.world_to_cell(ToolUse.cast_point(ctx))
+	assert_int(landing.y).is_greater(9)
 	var action: Interaction = ToolUse.field_action(ctx)
 	assert_that(action).is_not_null()
 	assert_str(String(action.id)).is_equal(String(Interaction.CAST))
 	assert_bool(ToolUse.apply_field(action, ctx)).is_true()
+	## The cast opens a `Fishing` session; the hook verb replaces it until the line is in.
+	Fishing.cancel()
 	actor.yaw = -PI * 0.5
 	assert_object(ToolUse.field_action(ctx)).is_null()
 

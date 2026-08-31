@@ -152,6 +152,18 @@ python3 tools/build_assets.py --step convert --kind water
 
 Reconverts river, marine, open-ocean (`grd_*_o_*`), cliff-edge ocean/marine (`grd_s_e2_o_*` / `e3_m_*`), and cliff-river acres so `grd_*_modelT` is in the GLB and OPA beachB under open ocean is tagged for the wet-sand shader (decomp dark-blue underdraw). Every acre **keeps** its XLU ocean waves alongside OPA shore wet sand (`beachA`) and the dark-blue ocean-floor underdraw (`beachB`). Marine acres draw two wave bands (shore `wave2` 32×64 CLAMP T, open `wave3` 32×32 REPEAT); open-ocean border acres draw the open band only. Grass still wrap-bakes; water keeps REPEAT for UV scroll. Waterfalls (`obj_fallS`) are FG actors, not this step.
 
+The player's clips are named one by one in `PLAYER_CORE_ANIMS`, so a new pose needs adding there and a reconvert (`--step convert`) before the game can play it — `ply_1_putaway_t1`, the catch-report exit, arrived that way.
+
+Held-up catches (one model per fish species):
+
+```sh
+python3 tools/build_assets.py --step convert --kind fish
+```
+
+Writes `assets/generated/creatures/fish/act_fNN_<romaji>_{a,b}.glb`, two per `aGYO_TYPE_*` up to `aGYO_TYPE_NUM`. Each species has three display lists in `dataobject.obj`, but only two are reachable: `aGYO_anime_frame` returns 0, 1 or 2 and `aGYO_actor_draw_fish` indexes with `(int)(frame * 0.5)`, folding 0 and 1 onto `dl_a` and 2 onto `dl_b`, so `dl_c` is dead art. The needles are the exact `act_fNN_<romaji>_{a,b}` asset ids, which keeps the `_c` jobs out since `"..._a"` is not a substring of `"..._c"`.
+
+Two gotchas. `aGYO_displayList` in `ac_gyoei_model.c_inc` is the only mapping from an `aGYO_TYPE_*` index to a romaji symbol, so add species through it rather than guessing names. And take the Gfx symbol from that table rather than appending the pose letter to the prefix — the names are not always regular, and the coelacanth's `b` pose is `act_f32_kasekiT_model` with no letter (its vertices are still `act_f32_kaseki_b_v`).
+
 FG acre templates (trees/flowers from `fgdata.bin`; needs decomp headers for `data_combi`):
 
 ```sh
@@ -213,6 +225,9 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
    - cKF: `TEST_SKELETONS` with `cKF_bs_r_*` and `{prefix}_v`
    - Static Gfx: `TEST_STATIC` with `*_v` + `*_gfx_model`
    - BTI: `TEST_BTI`
+   A `TEST_STATIC` row wins over the prefix inference, so it is the way in for a display
+   list whose name no rule will ever pair with its vertex array (the bobber's
+   `tol_uki_1_v` is drawn by `tol_uki1_model`, with no underscore).
 3. Re-run `--step convert`.
 4. If a new type is unreliable, **stop** and fix the decoder before expanding the test set. `--full` already converts every cKF / static Gfx / BTI the scanner knows.
 
@@ -223,7 +238,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | `game_files must be a disc image or ... files/` | Wrong `game_files` path |
 | `REL slice out of range` | Not `GAFE01_00`, or REL not decompressed |
 | `KeyError: ..._v` | Prefix does not match `{skeleton without cKF_bs_r_}_v` |
-| `No mesh parts decoded` | GBI walker missed triangles, or listed DLs are material-only |
+| `No mesh parts decoded` | GBI walker missed triangles, listed DLs are material-only, or the `*_v` name is duplicated in `foresta.map` and the by-name lookup picked the copy the display list does not point at (`_vtx_sym_for_gfx` now follows `G_VTX`) |
 | Player looks like stacked parts along +X | Bind bake missing the +90° Z stand-up (`ckf_bind_to_godot`) |
 | Player is exploded shards / rainbow | Old GPU-skin export mixed joints and used lighting normals as vertex colors |
 | Limbs attached to the wrong bones | G_VTX w1 is an address into `{prefix}_v`, not sequential consumption in DL file order |

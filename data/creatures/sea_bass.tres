@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="FishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/fish_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"sea_bass"
+display_name = "Sea Bass"
+description = "A big, dependable ocean fish. Always something on the pier."
+category = 3
+sell_price = 500
+max_stack = 1
+months = PackedInt32Array()
+time_slots = PackedInt32Array()
+waters = PackedInt32Array(2)
+needs_rain = false
+size_class = 4
+rarity_weight = 20
+search_area = 3
+bite_time = 2
+catch_msg = 12237
+model_base = "res://assets/generated/creatures/fish/act_f38_suzuki"
+model_flap = 2
+model_lift = 0.0

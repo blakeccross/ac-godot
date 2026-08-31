@@ -109,6 +109,8 @@ func test_tool_mesh_paths_when_assets_exist() -> void:
 	assert_str(FieldCatalog.mesh_paths(&"tol_scoop_1")[0]).contains("tol_scoop_1")
 	assert_str(FieldCatalog.mesh_paths(&"tol_net_1")[0]).contains("tol_net_1")
 	assert_str(FieldCatalog.mesh_paths(&"tol_sao_1")[0]).contains("tol_sao_1")
+	## The bobber is a `tol_` item even though it is a world actor, not a held tool.
+	assert_str(FieldCatalog.mesh_paths(&"tol_uki_1")[0]).contains("tol_uki_1")
 
 
 func test_acre_block_types_map_to_grd_families() -> void:

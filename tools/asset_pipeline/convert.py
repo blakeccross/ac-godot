@@ -62,6 +62,21 @@ PLAYER_CORE_ANIMS = [
     "cKF_ba_r_ply_1_net_swing1",
     "cKF_ba_r_ply_1_sao_swing1",
     "cKF_ba_r_ply_1_kamae_wait_m1",
+    # Rod chain (`m_player_main_*_rod.c_inc`): hold, pull, land the fish, reel in empty,
+    # cast onto land. Without these the fishing loop has no reel.
+    "cKF_ba_r_ply_1_sao1",
+    "cKF_ba_r_ply_1_turi_wait1",
+    "cKF_ba_r_ply_1_turi_hiki1",
+    "cKF_ba_r_ply_1_get_t1",
+    # `notice_rod`: hold the catch up and turn to the camera. `get_t1` lifts it out of the
+    # water, `get_t2` is the pose you read the fish's name over.
+    "cKF_ba_r_ply_1_get_t2",
+    "cKF_ba_r_ply_1_not_get_t1",
+    "cKF_ba_r_ply_1_not_sao_swing1",
+    # `putaway_rod`, which `notice_rod` requests once the catch report closes: the rod and the
+    # fish go into the pocket. The rod itself has no putaway clip -- `tol_sao_1` carries only
+    # six -- so it holds its wait pose through this one.
+    "cKF_ba_r_ply_1_putaway_t1",
 ]
 
 # Prefer these first in the GLB; every cKF_ba_r_npc_1_* clip is still included.
@@ -75,6 +90,12 @@ NPC_CORE_ANIMS = [
 
 TEST_SKEL_BY_NAME = {item["skeleton"]: item for item in TEST_SKELETONS}
 TEST_STATIC_BY_VTX = {item["vtx"]: item for item in TEST_STATIC}
+
+# The held-up catch models. Naming each `_a` job exactly keeps the `_b` / `_c` swim poses
+# out, since `"act_f01_funa_a"` is not a substring of `"act_f01_funa_b"`.
+FISH_STATIC_NEEDLES = [
+    item["asset_id"] for item in TEST_STATIC if item["asset_id"].startswith("act_f")
+]
 
 # River / marine / cliff-river acres. Avoid `grd_s_r` (hits `grd_s_rail`) and `grd_s_m` (hits museum `grd_s_mh`).
 WATER_STATIC_NEEDLES = [
@@ -441,6 +462,15 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
         if not symbol.name.endswith("_v") or symbol.name.startswith("cKF_"):
             continue
         prefix = symbol.name[:-2]
+        # An explicit entry names its own Gfx symbols, so it must not be gated on the
+        # prefix inference below. `tol_uki_1_v` is drawn by `tol_uki1_model`, which no
+        # amount of prefix matching will pair with it.
+        if symbol.name in TEST_STATIC_BY_VTX:
+            if symbol.name in seen_vtx:
+                continue
+            seen_vtx.add(symbol.name)
+            jobs.append(dict(TEST_STATIC_BY_VTX[symbol.name]))
+            continue
         if prefix in skel_prefixes:
             continue
         if prefix.endswith("_shadow"):
@@ -457,9 +487,6 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
         if symbol.name in seen_vtx:
             continue
         seen_vtx.add(symbol.name)
-        if symbol.name in TEST_STATIC_BY_VTX:
-            jobs.append(dict(TEST_STATIC_BY_VTX[symbol.name]))
-            continue
         folder = output_folder_for_static(prefix)
         jobs.append(
             {

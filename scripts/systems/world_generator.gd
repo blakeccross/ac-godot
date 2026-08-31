@@ -52,9 +52,7 @@ static func authored_test_town() -> WorldData:
 	data.rows = 16
 	data.cell_size = 2.0
 	data.acre_visual = &"grd_s_f_1"
-	data.water_cells = [
-		Vector2i(12, 3), Vector2i(13, 3), Vector2i(12, 4), Vector2i(13, 4)
-	]
+	data.water_cells = _test_river()
 	data.buildings = [
 		_building(&"player_house", &"house", Vector2i(7, 1), Vector2i(2, 2), true, &"obj_s_myhome1"),
 		_building(&"acre_shop", &"shop", Vector2i(12, 1), Vector2i(2, 2), false, &"obj_s_shop1"),
@@ -62,7 +60,7 @@ static func authored_test_town() -> WorldData:
 	]
 	data.objects = [
 		_object(&"tree_1", &"tree", Vector2i(4, 6), _APPLE_TREE, &"TREE_APPLE_FRUIT"),
-		_object(&"tree_2", &"tree", Vector2i(12, 5), _APPLE_TREE, &"TREE_APPLE_FRUIT"),
+		_object(&"tree_2", &"tree", Vector2i(10, 6), _APPLE_TREE, &"TREE_APPLE_FRUIT"),
 		_object(&"tree_3", &"tree", Vector2i(5, 12), _HARDWOOD, &"TREE"),
 		_item(&"ground_apple", Vector2i(8, 10), _APPLE),
 		_item(&"ground_shovel", Vector2i(2, 11), _SHOVEL),
@@ -1116,6 +1114,22 @@ static func _labeled_building(
 	b.actor_shift = actor_shift
 	b.mesh_facing = mesh_facing
 	return b
+
+
+## Test-town river: a two-cell channel at x = 12–13 running from the shop plot to the south
+## edge, so there is a long west bank to cast from a few steps east of the player spawn.
+## `revise_xz` treats authored water as a wall, so the strip east of it is reached along
+## rows 0–2. Column 11 stays dry: `test_revise_xz_rejects_authored_pond` pushes off (11, 3).
+## Four cells wide, like `_paint_river_corridor` paints for a real acre. The rod casts
+## `Fishing.CAST_METERS` — two and a half cells — so a narrower channel would put the bobber
+## on the far bank and never offer the cast at all. Kept a cell clear of the acre edge so
+## `WaterBodies` still reads it as a river rather than the sea.
+static func _test_river() -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for z: int in range(3, 15):
+		for dx: int in 4:
+			cells.append(Vector2i(11 + dx, z))
+	return cells
 
 
 static func _filbert_house() -> BuildingPlacement:

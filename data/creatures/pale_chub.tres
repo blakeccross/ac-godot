@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="FishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/fish_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"pale_chub"
+display_name = "Pale Chub"
+description = "A small, bright-sided fish that shoals in daylight."
+category = 3
+sell_price = 200
+max_stack = 1
+months = PackedInt32Array()
+time_slots = PackedInt32Array(2)
+waters = PackedInt32Array(1)
+needs_rain = false
+size_class = 1
+rarity_weight = 10
+search_area = 3
+bite_time = 3
+catch_msg = 4916
+model_base = "res://assets/generated/creatures/fish/act_f14_oikawa"
+model_flap = 1
+model_lift = 0.0

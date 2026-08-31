@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="FishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/fish_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"barred_knifejaw"
+display_name = "Barred Knifejaw"
+description = "A striped reef fish with a snatching, impatient bite."
+category = 3
+sell_price = 1000
+max_stack = 1
+months = PackedInt32Array(3, 4, 5, 6, 7, 8, 9, 10, 11)
+time_slots = PackedInt32Array()
+waters = PackedInt32Array(2)
+needs_rain = false
+size_class = 4
+rarity_weight = 7
+search_area = 2
+bite_time = 0
+catch_msg = 12239
+model_base = "res://assets/generated/creatures/fish/act_f40_isidai"
+model_flap = 2
+model_lift = 0.0

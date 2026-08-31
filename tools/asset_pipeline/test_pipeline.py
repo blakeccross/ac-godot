@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import struct
 import unittest
 
-from asset_pipeline.ckf import _mat_model_name, select_bind_anim
-from asset_pipeline.convert import WATER_STATIC_NEEDLES, _name_under_prefix, _owning_vtx_prefix, _static_jobs
+from asset_pipeline.ckf import _mat_model_name, _vtx_sym_for_gfx, select_bind_anim
+from asset_pipeline.convert import FISH_STATIC_NEEDLES, WATER_STATIC_NEEDLES, _name_under_prefix, _owning_vtx_prefix, _static_jobs
 from asset_pipeline.glb import _bake_wrap_group
 from asset_pipeline.layout import (
     bti_output_path,
@@ -102,6 +103,27 @@ class PrefixOwnershipTests(unittest.TestCase):
             ["grd_s_r1_1_model", "grd_s_r1_1_modelT"],
         )
 
+    def test_explicit_entry_survives_unmatchable_gfx_name(self) -> None:
+        # The bobber's display list is `tol_uki1_model`, which no prefix rule will pair
+        # with `tol_uki_1_v`. The explicit TEST_STATIC row has to win over the inference,
+        # or the asset is dropped before anyone looks at it.
+        symbols = [_sym("tol_uki_1_v", 0x601B40, 384), _sym("tol_uki1_model", 0x601CC0, 136)]
+        jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
+        self.assertIn("tol_uki_1", jobs)
+        self.assertEqual(jobs["tol_uki_1"]["gfx"], ["tol_uki1_model"])
+        self.assertEqual(jobs["tol_uki_1"]["output"], "items/tol_uki_1.glb")
+
+    def test_duplicate_vtx_name_yields_one_job(self) -> None:
+        # `dataobject.obj` ships `tol_uki_1_v` twice (inventory icon and in-world model).
+        symbols = [
+            _sym("tol_uki_1_v", 0x4441F0, 384),
+            _sym("inv_uki_model", 0x444370, 288),
+            _sym("tol_uki_1_v", 0x601B40, 384),
+            _sym("tol_uki1_model", 0x601CC0, 136),
+        ]
+        jobs = [item for item in _static_jobs(symbols) if item["asset_id"] == "tol_uki_1"]
+        self.assertEqual(len(jobs), 1)
+
     def test_water_needles_skip_rail_and_museum(self) -> None:
         self.assertTrue(any(n in "grd_s_r1_1" for n in WATER_STATIC_NEEDLES))
         self.assertTrue(any(n in "grd_s_m_1" for n in WATER_STATIC_NEEDLES))
@@ -109,6 +131,24 @@ class PrefixOwnershipTests(unittest.TestCase):
         self.assertTrue(any(n in "grd_s_e3_m_1" for n in WATER_STATIC_NEEDLES))
         self.assertFalse(any(n in "grd_s_rail_1" for n in WATER_STATIC_NEEDLES))
         self.assertFalse(any(n in "grd_s_mh_1" for n in WATER_STATIC_NEEDLES))
+
+    def test_fish_needles_cover_every_species_and_only_the_a_pose(self) -> None:
+        ## Two poses per `aGYO_TYPE_*` up to `aGYO_TYPE_NUM`. `dl_c` is unreachable, because
+        ## `aGYO_actor_draw_fish` halves `aGYO_anime_frame`'s 0/1/2 into just `a` and `b`.
+        self.assertEqual(len(FISH_STATIC_NEEDLES), 80)
+        for asset_id in ("act_f01_funa_a", "act_f01_funa_b", "act_f34_piraluku_a"):
+            self.assertTrue(any(n in asset_id for n in FISH_STATIC_NEEDLES), asset_id)
+        self.assertFalse(any(n in "act_f01_funa_c" for n in FISH_STATIC_NEEDLES))
+
+    def test_fish_gfx_names_come_from_the_display_list_table(self) -> None:
+        ## `aGYO_displayList` is not regular: the coelacanth's `b` pose display list has no
+        ## pose letter, though its vertex array does. Appending `_bT_model` would KeyError.
+        from asset_pipeline.test_set import TEST_STATIC
+
+        kaseki = {i["asset_id"]: i for i in TEST_STATIC if "kaseki" in i["asset_id"]}
+        self.assertEqual(kaseki["act_f32_kaseki_b"]["gfx"], ["act_f32_kasekiT_model"])
+        self.assertEqual(kaseki["act_f32_kaseki_b"]["vtx"], "act_f32_kaseki_b_v")
+        self.assertEqual(kaseki["act_f32_kaseki_a"]["gfx"], ["act_f32_kaseki_aT_model"])
 
     def test_ocean_material_carries_tile1_and_shore_clamp(self) -> None:
         ## Shore acres draw wave1+wave2 (CLAMP T); open water draws wave1+wave3 (REPEAT).
@@ -166,6 +206,25 @@ class MapIndexTests(unittest.TestCase):
         self.assertEqual(find_symbol(symbols, "b", by_name).address, 2)
         with self.assertRaises(KeyError):
             find_symbol(symbols, "missing", by_name)
+
+    def test_duplicate_vtx_resolves_via_display_list(self) -> None:
+        # Two `tol_uki_1_v` copies; only the second is the one `tol_uki1_model` draws.
+        # By-name lookup returns the first, which decodes zero triangles.
+        inventory = _sym("tol_uki_1_v", 0x4441F0, 384)
+        in_world = _sym("tol_uki_1_v", 0x601B40, 384)
+        model = _sym("tol_uki1_model", 0x601CC0, 16)
+        symbols = [inventory, _sym("inv_uki_model", 0x444370, 288), in_world, model]
+        by_name = index_by_name(symbols)
+        self.assertEqual(find_symbol(symbols, "tol_uki_1_v", by_name).address, inventory.address)
+
+        class _Rel:
+            def slice_at(self, addr: int, size: int) -> bytes:
+                assert addr == model.address
+                # G_VTX (0x01) pointing at the in-world copy, then G_ENDDL.
+                return struct.pack(">IIII", 0x01018030, in_world.address, 0xDF000000, 0)
+
+        chosen = _vtx_sym_for_gfx(_Rel(), symbols, by_name, "tol_uki_1_v", ["tol_uki1_model"])
+        self.assertEqual(chosen.address, in_world.address)
 
 
 class WrapBakeTests(unittest.TestCase):

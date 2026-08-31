@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="FishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/fish_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"stringfish"
+display_name = "Stringfish"
+description = "A huge winter char, pale and rare. A trophy fish."
+category = 3
+sell_price = 3000
+max_stack = 1
+months = PackedInt32Array(1, 2, 12)
+time_slots = PackedInt32Array(0, 1, 3)
+waters = PackedInt32Array(1)
+needs_rain = false
+size_class = 5
+rarity_weight = 1
+search_area = 1
+bite_time = 1
+catch_msg = 4924
+model_base = "res://assets/generated/creatures/fish/act_f22_ito"
+model_flap = 2
+model_lift = 2.2

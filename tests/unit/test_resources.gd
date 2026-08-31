@@ -63,7 +63,8 @@ func test_villager_points_at_schedule() -> void:
 	assert_that(filbert.schedule_table().activity_at(9)).is_equal(&"field")
 
 
-func test_dace_uses_clock_windows() -> void:
+## Dace holds NIGHT, MORNING and EVENING but not DAY, so it is out from 9am to 4pm.
+func test_dace_uses_time_slots() -> void:
 	var dace: FishData = load("res://data/creatures/dace.tres")
 	assert_bool(dace.is_available(1, 16)).is_true()
 	assert_bool(dace.is_available(1, 8)).is_true()

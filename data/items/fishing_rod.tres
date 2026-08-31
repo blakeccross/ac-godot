@@ -12,6 +12,7 @@ field_priority = 12
 field_require = 1
 field_notice = "You cast into the water."
 visual_id = &"tol_sao_1"
+hold_anim = &"ply_1_sao1"
 visual_hold_anim = &"sao_wait1"
 visual_use_anim = &"sao_swing1"
 id = &"fishing_rod"

@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="FishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/fish_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"jellyfish"
+display_name = "Jellyfish"
+description = "A drifting August swarm. Barely worth reeling in."
+category = 3
+sell_price = 300
+max_stack = 1
+months = PackedInt32Array(8)
+time_slots = PackedInt32Array()
+waters = PackedInt32Array(2)
+needs_rain = false
+size_class = 3
+rarity_weight = 87
+search_area = 2
+bite_time = 4
+catch_msg = 12236
+model_base = "res://assets/generated/creatures/fish/act_f37_kurage"
+model_flap = 2
+model_lift = 0.0

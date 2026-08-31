@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="FishData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/fish_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"piranha"
+display_name = "Piranha"
+description = "A toothed tropical fish that bites in fits, day and deep night."
+category = 3
+sell_price = 390
+max_stack = 1
+months = PackedInt32Array(6, 7, 8, 9)
+time_slots = PackedInt32Array(0, 2)
+waters = PackedInt32Array(1)
+needs_rain = false
+size_class = 1
+rarity_weight = 1
+search_area = 4
+bite_time = 3
+catch_msg = 4927
+model_base = "res://assets/generated/creatures/fish/act_f25_pirania"
+model_flap = 1
+model_lift = 0.0

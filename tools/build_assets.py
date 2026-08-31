@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 from asset_pipeline.config import load_config  # noqa: E402
 from asset_pipeline.convert import (  # noqa: E402
+    FISH_STATIC_NEEDLES,
     WATER_STATIC_NEEDLES,
     convert_acre_collision,
     convert_assets,
@@ -46,7 +47,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--kind",
-        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "dialogue", "villagers", "audio", "water"],
+        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "dialogue", "villagers", "audio", "water", "fish"],
         default="all",
         help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory UI chrome, dialogue banks, villager roster from decomp tables, audiorom BGM catalog, or river/ocean acre XLU",
     )
@@ -189,6 +190,10 @@ def main() -> int:
                 cfg.test_set_only = False
                 report = convert_static_prefixes(cfg, WATER_STATIC_NEEDLES)
                 label = "river/ocean acre assets"
+            elif args.kind == "fish":
+                cfg.test_set_only = False
+                report = convert_static_prefixes(cfg, FISH_STATIC_NEEDLES)
+                label = "fish assets"
             else:
                 report = convert_assets(cfg)
                 label = "test assets" if cfg.test_set_only else "assets"

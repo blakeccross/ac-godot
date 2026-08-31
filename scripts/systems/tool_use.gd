@@ -26,12 +26,21 @@ static func field_action(ctx: InteractionContext) -> Interaction:
 	var tool: ToolData = equipped(ctx)
 	if tool == null or tool.field_verb == &"":
 		return null
+	## A line already out replaces the cast verb, and survives the player turning away.
+	if tool.field_verb == Interaction.CAST and Fishing.is_active():
+		return Fishing.field_action()
 	if not _field_ok(tool, ctx):
 		return null
 	var prompt: String = tool.field_prompt
 	if prompt.is_empty():
 		prompt = tool.display_name
-	return Interaction.of(tool.field_verb, prompt, tool.field_priority, tool.field_anim)
+	## The cast is the one field verb whose effect lands mid-swing rather than after it.
+	var effect_frame: float = -1.0
+	if tool.field_verb == Interaction.CAST:
+		effect_frame = Fishing.CAST_RELEASE_FRAME
+	return Interaction.of(
+		tool.field_verb, prompt, tool.field_priority, tool.field_anim, effect_frame
+	)
 
 
 ## Prefer a higher-priority field verb (net swing, rod cast) over a weaker host.
@@ -51,6 +60,8 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 	var tool: ToolData = equipped(ctx)
 	if tool == null or action == null:
 		return false
+	if tool.field_verb == Interaction.CAST:
+		return _apply_rod(tool, action, ctx)
 	if action.id != tool.field_verb:
 		return false
 	if not _field_ok(tool, ctx):
@@ -58,6 +69,30 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 	if tool.field_require == ToolData.FieldRequire.EMPTY_GROUND:
 		if not HoleUse.dig(ctx, facing_cell(ctx)):
 			return false
+	if tool.field_notice != "":
+		Game.post_notice(tool.field_notice)
+	_scare_fish(ctx)
+	return true
+
+
+## `mPlib_Check_HitAxe` / `_StopNet` / `_HitScoop`: a swung tool sends nearby fish off. The
+## rod returns early above, so casting never scares the fish you are casting at.
+static func _scare_fish(ctx: InteractionContext) -> void:
+	var school: FishSchool = Fishing.school_of(ctx)
+	if school != null:
+		school.notify_tool_swing()
+
+
+static func _apply_rod(tool: ToolData, action: Interaction, ctx: InteractionContext) -> bool:
+	if Fishing.is_active():
+		if action.id != Interaction.HOOK:
+			return false
+		Fishing.hook(ctx, Fishing.school_of(ctx))
+		return true
+	if action.id != tool.field_verb or not _field_ok(tool, ctx):
+		return false
+	if not Fishing.cast(ctx, cast_point(ctx)):
+		return false
 	if tool.field_notice != "":
 		Game.post_notice(tool.field_notice)
 	return true
@@ -70,21 +105,45 @@ static func facing_cell(ctx: InteractionContext) -> Vector2i:
 	return grid.world_to_cell(_facing_point(ctx, grid.cell_size))
 
 
+## `m_player_main_ready_rod`: the landing spot is a fixed `Fishing.CAST_METERS` along the
+## player's facing. Not the cell in front of them — the rod outreaches a cell by a long way.
+static func cast_point(ctx: InteractionContext) -> Vector3:
+	if ctx == null or ctx.actor == null:
+		return Vector3.ZERO
+	return _facing_point(ctx, Fishing.CAST_METERS)
+
+
 static func _field_ok(tool: ToolData, ctx: InteractionContext) -> bool:
 	match tool.field_require:
 		ToolData.FieldRequire.WATER:
-			return _facing_water(ctx)
+			return _cast_water_ok(ctx)
 		ToolData.FieldRequire.EMPTY_GROUND:
 			return _facing_empty_ground(ctx)
 		_:
 			return true
 
 
-static func _facing_water(ctx: InteractionContext) -> bool:
+## `Player_actor_request_proc_index_fromReady_rod` probes the landing spot plus four corners
+## at ±10 GX and needs every one to be water, so you cannot drop the bobber onto a spit of
+## land or straddle the far bank. `FieldRequire.WATER` is the rod's alone; a tool that wants
+## water in the cell it is standing next to should ask for its own requirement.
+static func _cast_water_ok(ctx: InteractionContext) -> bool:
 	var grid: WorldGrid = _grid(ctx)
-	if grid == null:
+	if grid == null or ctx == null or ctx.actor == null:
 		return false
-	return grid.terrain_at(facing_cell(ctx)) == WorldGrid.Terrain.WATER
+	var centre: Vector3 = cast_point(ctx)
+	var d: float = Fishing.CAST_PROBE_METERS
+	var probes: Array[Vector3] = [
+		Vector3.ZERO,
+		Vector3(-d, 0.0, d),
+		Vector3(d, 0.0, d),
+		Vector3(-d, 0.0, -d),
+		Vector3(d, 0.0, -d),
+	]
+	for offset: Vector3 in probes:
+		if grid.terrain_at(grid.world_to_cell(centre + offset)) != WorldGrid.Terrain.WATER:
+			return false
+	return true
 
 
 static func _facing_empty_ground(ctx: InteractionContext) -> bool:

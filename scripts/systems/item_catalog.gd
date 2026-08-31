@@ -1,10 +1,12 @@
 class_name ItemCatalog
 extends RefCounted
 
-## Loads `res://data/items/*.tres` and `res://data/furniture/*.tres`.
+## Loads `res://data/items/*.tres`, `res://data/furniture/*.tres`, and
+## `res://data/creatures/*.tres` so a catch resolves by id in pockets and at the shop.
 
 const ITEMS_DIR := "res://data/items"
 const FURNITURE_DIR := "res://data/furniture"
+const CREATURES_DIR := "res://data/creatures"
 
 static var _by_id: Dictionary = {}
 static var _loaded: bool = false
@@ -16,6 +18,7 @@ static func ensure_loaded() -> void:
 	_by_id.clear()
 	_load_dir(ITEMS_DIR)
 	_load_dir(FURNITURE_DIR)
+	_load_dir(CREATURES_DIR)
 	_loaded = true
 
 

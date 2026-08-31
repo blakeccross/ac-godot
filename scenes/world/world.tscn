@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/clock_hud.tscn" id="8"]
 [ext_resource type="Script" uid="uid://cv8yyhwgkgtii" path="res://scenes/world/follow_camera.gd" id="9"]
 [ext_resource type="Script" uid="uid://brs63kf8888di" path="res://scenes/world/footprints.gd" id="10"]
+[ext_resource type="Script" path="res://scenes/world/fish_shadows.gd" id="11"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color(0.35, 0.58, 0.88, 1)
@@ -74,6 +75,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 6)
 
 [node name="Footprints" type="MultiMeshInstance3D" parent="Effects"]
 script = ExtResource("10")
+
+[node name="FishShadows" type="Node3D" parent="Effects"]
+script = ExtResource("11")
 
 [node name="Navigation" type="NavigationRegion3D" parent="." unique_id=577136201]
 

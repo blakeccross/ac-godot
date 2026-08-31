@@ -4,7 +4,7 @@ import re
 import struct
 from dataclasses import dataclass, field
 
-from .gfx import MeshPart, apply_texture_commands, parse_gfx, parse_vtx_blob
+from .gfx import G_VTX, MeshPart, apply_texture_commands, parse_gfx, parse_vtx_blob
 from .mapfile import MapSymbol, find_symbol, index_by_name
 from .math3d import Mat4, ckf_basis, local_softcv3
 from .rel import RelData
@@ -511,6 +511,36 @@ def _mat_model_name(gfx_name: str, by_name: dict[str, MapSymbol]) -> str | None:
     return _overlay_mat_name(gfx_name, by_name)
 
 
+def _vtx_sym_for_gfx(
+    rel: RelData,
+    symbols: list[MapSymbol],
+    by_name: dict[str, MapSymbol],
+    vtx_name: str,
+    gfx_names: list[str],
+) -> MapSymbol:
+    """Pick the copy of `vtx_name` that the display lists actually point at.
+
+    `dataobject.obj` ships the same static array under one name more than once — the
+    inventory icon and the in-world model each get their own `tol_uki_1_v` — and a
+    by-name lookup silently returns the wrong one, decoding zero triangles.
+    """
+    candidates = [s for s in symbols if s.name == vtx_name]
+    if len(candidates) < 2:
+        return find_symbol(symbols, vtx_name, by_name)
+    targets: set[int] = set()
+    for name in gfx_names:
+        model = find_symbol(symbols, name, by_name)
+        blob = rel.slice_at(model.address, model.size)
+        for off in range(0, len(blob) - 7, 8):
+            w0, w1 = struct.unpack_from(">II", blob, off)
+            if w0 >> 24 == G_VTX:
+                targets.add(w1)
+    for sym in candidates:
+        if any(sym.address <= addr < sym.address + sym.size for addr in targets):
+            return sym
+    return find_symbol(symbols, vtx_name, by_name)
+
+
 def convert_static_gfx(
     rel: RelData,
     symbols: list[MapSymbol],
@@ -520,7 +550,7 @@ def convert_static_gfx(
     bank: TextureBank | None = None,
 ) -> list[MeshPart]:
     by_name = index_by_name(symbols)
-    vtx_sym = find_symbol(symbols, vtx_name, by_name)
+    vtx_sym = _vtx_sym_for_gfx(rel, symbols, by_name, vtx_name, gfx_names)
     vertices = parse_vtx_blob(rel.slice_at(vtx_sym.address, vtx_sym.size), scale, flip_z=False)
     parts: list[MeshPart] = []
     tex_state = TextureState()

@@ -3,6 +3,16 @@ extends RefCounted
 
 ## Turns WorldData into Godot nodes. Kind → scene comes from WorldObjectRegistry.
 
+## Placeholder terrain tiles are thin boxes; water is lifted so it reads above the ground.
+const PLACEHOLDER_TILE_THICKNESS := 0.06
+const WATER_TILE_LIFT := 0.03
+
+
+## Where the water plane sits on a placeholder acre. One height per field: catalog water is
+## a heightfield and generated acres vary, so this is only right while acres stay flat.
+static func water_surface_y() -> float:
+	return WATER_TILE_LIFT + PLACEHOLDER_TILE_THICKNESS * 0.5
+
 
 func build(world: Node3D, data: WorldData, grid: WorldGrid) -> void:
 	if world == null or data == null or grid == null:
@@ -58,7 +68,7 @@ func _paint_placeholder_tiles(root: Node3D, data: WorldData, grid: WorldGrid, me
 	var stone_mat := _mat(Color(0.62, 0.61, 0.56, 1))
 	var cliff_mat := _mat(Color(0.45, 0.4, 0.35, 1))
 	var mesh := BoxMesh.new()
-	mesh.size = Vector3(grid.cell_size * 0.96, 0.06, grid.cell_size * 0.96)
+	mesh.size = Vector3(grid.cell_size * 0.96, PLACEHOLDER_TILE_THICKNESS, grid.cell_size * 0.96)
 	var cliff_mesh := BoxMesh.new()
 	cliff_mesh.size = Vector3(grid.cell_size * 0.96, 0.9, grid.cell_size * 0.96)
 	var skip_meshed: bool = meshed.size() == TownFieldGenerator.BLOCK_TOTAL
@@ -79,7 +89,7 @@ func _paint_placeholder_tiles(root: Node3D, data: WorldData, grid: WorldGrid, me
 			pos.y += elev_y
 			match t:
 				WorldGrid.Terrain.WATER:
-					root.add_child(_tile(mesh, water_mat, pos + Vector3(0, 0.03, 0)))
+					root.add_child(_tile(mesh, water_mat, pos + Vector3(0, WATER_TILE_LIFT, 0)))
 				WorldGrid.Terrain.SAND:
 					root.add_child(_tile(mesh, sand_mat, pos + Vector3(0, 0.02, 0)))
 				WorldGrid.Terrain.PATH:
