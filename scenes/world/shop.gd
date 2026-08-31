@@ -28,6 +28,10 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 	return [Interaction.of(Interaction.SHOP, "Shop (closed)", 12)]
 
 
+func refresh_seasonal_visual() -> void:
+	GeneratedVisual.refresh(self, visual_id)
+
+
 func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.SHOP:
 		return false

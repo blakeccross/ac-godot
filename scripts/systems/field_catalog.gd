@@ -317,6 +317,45 @@ static func is_acre(visual_id: StringName) -> bool:
 	return String(visual_id).begins_with("grd_")
 
 
+static func is_seasonal_env_visual(visual_id: StringName) -> bool:
+	## Outdoor meshes that remap or albedo-swap with the clock season.
+	var id := String(visual_id)
+	if id.is_empty():
+		return false
+	if id.begins_with("int_") or id.begins_with("tol_") or id.begins_with("rom_") or id.begins_with("mCL_rom_"):
+		return false
+	if id.begins_with("grd_") or id.begins_with("obj_") or id.begins_with("HOLE") or id.begins_with("obj_hole"):
+		return true
+	const ALIASES: Array[StringName] = [
+		&"TREE",
+		&"TREE_S0",
+		&"TREE_S1",
+		&"TREE_S2",
+		&"TREE_APPLE_FRUIT",
+		&"TREE_STUMP004",
+		&"CEDAR_S0",
+		&"CEDAR_S1",
+		&"CEDAR_S2",
+		&"CEDAR_TREE",
+		&"PALM_S0",
+		&"PALM_S1",
+		&"PALM_S2",
+		&"TREE_PALM",
+		&"TREE_PALM_FRUIT",
+		&"ROCK_A",
+		&"ROCK_B",
+		&"ROCK_C",
+		&"ROCK_D",
+		&"ROCK_E",
+		&"SIGNBOARD",
+		&"FLOWER_PANSIES0",
+		&"FLOWER_PANSIES1",
+		&"FLOWER_PANSIES2",
+		&"HOLE00",
+	]
+	return ALIASES.has(visual_id)
+
+
 static func is_ground_decal(visual_id: StringName) -> bool:
 	## Coplanar FG fans only. `obj_hole0` has zero Y extent; flowers/rocks/weeds/items
 	## have height and stay `_fit_actor`. Shine spots / pitfall holes reuse this path

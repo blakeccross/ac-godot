@@ -19,6 +19,14 @@ func _ready() -> void:
 		placeholder.visible = vis == null
 
 
+func refresh_seasonal_visual() -> void:
+	GeneratedVisual.refresh(self, visual_id)
+	var vis := get_node_or_null("GeneratedVisual")
+	var placeholder := get_node_or_null("MeshInstance3D") as MeshInstance3D
+	if placeholder != null:
+		placeholder.visible = vis == null
+
+
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 	if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):
 		return []
