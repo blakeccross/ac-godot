@@ -149,6 +149,12 @@ static func _apply_season_textures_inner(node: Node) -> void:
 			std.albedo_color = Color.WHITE
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			std.texture_repeat = false
+			if mat is StandardMaterial3D:
+				var src_std := mat as StandardMaterial3D
+				std.transparency = src_std.transparency
+				std.alpha_scissor_threshold = src_std.alpha_scissor_threshold
+				std.alpha_antialiasing_mode = src_std.alpha_antialiasing_mode
+				std.cull_mode = src_std.cull_mode
 			mesh_instance.set_surface_override_material(i, std)
 	for child in node.get_children():
 		_apply_season_textures_inner(child)
