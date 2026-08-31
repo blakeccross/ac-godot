@@ -12,8 +12,11 @@ render_mode unshaded, blend_mix, depth_draw_opaque, cull_disabled, shadows_disab
 // Scroll: {+1,-1}/{−1,-2} → evw flips T → dolphin (x,y)=(frame,frame)/(-frame,2frame).
 // emu64 UV: (s - sl/16)/w with sl = x<<1 → texel scroll = x/8 per game_frame @ 60 Hz.
 // Subtracting that offset matches SetTileSize (PC port uses the same emu64 path).
-uniform sampler2D water1 : filter_nearest, repeat_enable;
-uniform sampler2D water2 : filter_nearest, repeat_enable;
+// Sampling is linear, not nearest like the rest of the project: m_rcp sets
+// G_TF_BILERP globally, and these 32px cell maps are stretched down a whole acre,
+// so point sampling turns the soft cells into a hard pixel grid.
+uniform sampler2D water1 : filter_linear, repeat_enable;
+uniform sampler2D water2 : filter_linear, repeat_enable;
 uniform vec4 prim_color : source_color = vec4(1.0, 1.0, 1.0, 0.19607843);
 uniform vec4 env_color : source_color = vec4(0.0, 0.39215687, 1.0, 1.0);
 uniform float game_fps = 60.0;

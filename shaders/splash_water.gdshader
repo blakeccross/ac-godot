@@ -4,8 +4,10 @@ render_mode unshaded, blend_mix, depth_draw_opaque, cull_disabled, shadows_disab
 // River-mouth sprash — decomp combiner with softer add so Godot does not chalk.
 // RGB: (PRIM+t0)*SHADE + t1; A: t1*PRIM.a. Prim (100,140,255,200).
 // Seg 0x09 Evw {0,-6}/{0,0} → ΔT = 6*frame/8. Tile1 shift_t=1.
-uniform sampler2D sprash_c : filter_nearest, repeat_enable;
-uniform sampler2D sprash_a : filter_nearest, repeat_enable;
+// Linear like the river/ocean tiles — m_rcp sets G_TF_BILERP globally and these
+// are 32px maps stretched across the mouth.
+uniform sampler2D sprash_c : filter_linear, repeat_enable;
+uniform sampler2D sprash_a : filter_linear, repeat_enable;
 uniform vec4 prim_color : source_color = vec4(0.39215687, 0.54901963, 1.0, 0.78431374);
 uniform float game_fps = 60.0;
 uniform float ground_lift = 0.03;
@@ -32,6 +34,14 @@ float mirror_fract(float u) {
 	return x > 1.0 ? 2.0 - x : x;
 }
 
+float mirror_uv(float u, float texels) {
+	// GX_MIRROR folds on the edge texel, sampling it twice. The sampler repeats, so
+	// a linear tap at the fold would blend across to the opposite edge and leave a
+	// dark seam down the middle of the mouth. Stop a half texel short instead.
+	float half_texel = 0.5 / texels;
+	return clamp(mirror_fract(u), half_texel, 1.0 - half_texel);
+}
+
 void vertex() {
 	vec4 world = MODEL_MATRIX * vec4(VERTEX, 1.0);
 	world.y += ground_lift;
@@ -42,8 +52,9 @@ void fragment() {
 	float frame = TIME * game_fps;
 	float texels = 6.0 * frame / 8.0;
 	vec2 s0 = max(vec2(textureSize(sprash_c, 0)), vec2(1.0));
-	vec2 uv0 = vec2(mirror_fract(UV.x), fract(UV.y - texels / s0.y));
-	vec2 uv1 = vec2(mirror_fract(UV.x), fract(UV.y * 0.5));
+	vec2 s1 = max(vec2(textureSize(sprash_a, 0)), vec2(1.0));
+	vec2 uv0 = vec2(mirror_uv(UV.x, s0.x), fract(UV.y - texels / s0.y));
+	vec2 uv1 = vec2(mirror_uv(UV.x, s1.x), fract(UV.y * 0.5));
 	float t0 = texture(sprash_c, uv0).r;
 	float t1 = texture(sprash_a, uv1).r;
 
