@@ -456,6 +456,11 @@ class SeasonRoleTests(unittest.TestCase):
         mat = _material("grass_tex_dummy", None)
         self.assertEqual(mat.get("extras", {}).get("field_role"), "grass")
 
+    def test_grass_pattern_export_count(self) -> None:
+        from asset_pipeline.seasons import GRASS_PATTERN_COUNT
+
+        self.assertEqual(GRASS_PATTERN_COUNT, 3)
+
 
 if __name__ == "__main__":
     unittest.main()

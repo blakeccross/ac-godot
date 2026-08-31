@@ -73,6 +73,7 @@ func test_world_snapshot_round_trip() -> void:
 	Game.plant_states["plant_4_6"] = {"plant": "apple_tree", "planted_renew": 10}
 	Game.world_mode = WorldData.Mode.GENERATED
 	Game.world_seed = 12345
+	Game.grass_pattern = WorldData.GrassPattern.SQUARE
 	Game.shops.ensure_today(ShopBook.NOOK_ID)
 	var shop_left: int = Game.shops.goods(ShopBook.NOOK_ID).size()
 	var snap: Dictionary = Game.to_save()
@@ -86,6 +87,7 @@ func test_world_snapshot_round_trip() -> void:
 	assert_str(str(Game.plant_states.get("plant_4_6", {}).get("plant", ""))).is_equal("apple_tree")
 	assert_that(Game.world_mode).is_equal(WorldData.Mode.GENERATED)
 	assert_int(Game.world_seed).is_equal(12345)
+	assert_int(Game.grass_pattern).is_equal(WorldData.GrassPattern.SQUARE)
 	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(shop_left)
 
 

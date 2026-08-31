@@ -42,12 +42,20 @@ const _FILBERT := preload("res://data/villagers/filbert.tres")
 const _CHAIR := preload("res://data/furniture/wood_chair.tres")
 
 
+static func decide_grass_pattern(seed_value: int) -> int:
+	## `mFM_DecideBgTexIdx`: one of three grass CI4 banks for the whole town.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = (seed_value as int) ^ 0x6D4D1C35
+	return rng.randi() % WorldData.GRASS_PATTERN_COUNT
+
+
 static func authored_test_town() -> WorldData:
 	var data := WorldData.new()
 	data.id = &"test_town"
 	data.display_name = "Test Town"
 	data.mode = WorldData.Mode.TEST
 	data.seed_value = 0
+	data.grass_pattern = WorldData.GrassPattern.TRANGLE
 	data.columns = 16
 	data.rows = 16
 	data.cell_size = 2.0
@@ -92,6 +100,7 @@ static func generate(seed_value: int = DEFAULT_SEED) -> WorldData:
 	data.display_name = "Town %d" % seed_value
 	data.mode = WorldData.Mode.GENERATED
 	data.seed_value = seed_value
+	data.grass_pattern = decide_grass_pattern(seed_value)
 	data.columns = FG_X * UT
 	data.rows = FG_Z * UT
 	data.cell_size = 2.0

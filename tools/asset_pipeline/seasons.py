@@ -30,6 +30,8 @@ from .texbank import (
 
 
 # Role stem → substrings matched against decoded texture / material names.
+GRASS_PATTERN_COUNT = 3
+
 FIELD_ROLE_NEEDLES: dict[str, tuple[str, ...]] = {
 	"grass": ("grass",),
 	"earth": ("earth",),
@@ -210,6 +212,43 @@ def _collect_roles_from_field_bank(bank: TextureBank) -> dict[str, bytes]:
 	return out
 
 
+def _export_grass_patterns(
+	cfg: PipelineConfig,
+	bank: TextureBank,
+	season: str,
+	out_dir: Path,
+	*,
+	force: bool,
+) -> tuple[list[str], list[str]]:
+	"""Write ``grass_0..2.png`` from ``l_bg_tex_segment_rom_start_{s|w}_{variant}``."""
+	written: list[str] = []
+	missing: list[str] = []
+	bg_season = "w" if season == "w" else "s"
+	for variant in range(GRASS_PATTERN_COUNT):
+		_clear_bank(bank)
+		bank.bind_field_bg(
+			season=bg_season,
+			variant=variant,
+			pal_row=_FIELD_PAL_ROW_BY_SEASON[season],
+		)
+		by_role = _collect_roles_from_field_bank(bank)
+		png = by_role.get("grass")
+		dest = out_dir / f"grass_{variant}.png"
+		if png is None:
+			missing.append(f"{season}/grass_{variant}")
+			continue
+		if dest.is_file() and not force:
+			continue
+		_write_png(dest, png, cfg.project_root)
+		written.append(str(dest))
+		if variant == 0:
+			legacy = out_dir / "grass.png"
+			if force or not legacy.is_file():
+				_write_png(legacy, png, cfg.project_root)
+				written.append(str(legacy))
+	return written, missing
+
+
 def _merge_gfx_roles(
 	bank: TextureBank,
 	rel: RelData,
@@ -313,7 +352,12 @@ def _export_field_season(
 		_merge_gfx_roles(
 			bank, rel, symbols, extra_job, cfg.scale, FIELD_ROLE_NEEDLES, by_role
 		)
+	w, m = _export_grass_patterns(cfg, bank, season, out_dir, force=force)
+	written.extend(w)
+	missing.extend(m)
 	for role in FIELD_ROLE_NEEDLES:
+		if role == "grass":
+			continue
 		dest = out_dir / f"{role}.png"
 		png = by_role.get(role)
 		if png is None:

@@ -43,6 +43,8 @@ const _STONE_BRIDGE_BG: PackedStringArray = [
 ]
 
 const GENERATED_ROOT := "res://assets/generated/"
+## Active town grass motif (`WorldData.grass_pattern` / `bg_tex_idx`). Set when the world loads.
+static var _grass_pattern_idx: int = WorldData.GrassPattern.TRIANGLE
 ## `FTR_START(FTR_FMANEKIN000)`. Shirt index is `(item - FTR_CLOTH_START) >> 2`.
 const FTR_CLOTH_START := 0x17AC
 
@@ -93,6 +95,14 @@ const SEASON_TREE_ROLES: Dictionary = {
 }
 
 
+static func set_grass_pattern(idx: int) -> void:
+	_grass_pattern_idx = WorldData.clamp_grass_pattern(idx)
+
+
+static func grass_pattern_idx() -> int:
+	return _grass_pattern_idx
+
+
 static func season_tex_letter() -> String:
 	## Pack folder: spring/summer `s`, autumn `f`, winter `w`.
 	return season_letter()
@@ -103,12 +113,23 @@ static func season_texture_path(role: String) -> String:
 	if role.is_empty():
 		return ""
 	var letter := season_tex_letter()
-	var rel := "environment/seasons/%s/%s.png" % [letter, role]
-	var found: PackedStringArray = _existing([rel])
+	var rels: PackedStringArray = PackedStringArray()
+	if role == "grass":
+		rels.append("environment/seasons/%s/grass_%d.png" % [letter, _grass_pattern_idx])
+		rels.append("environment/seasons/%s/grass.png" % letter)
+	else:
+		rels.append("environment/seasons/%s/%s.png" % [letter, role])
+	var found: PackedStringArray = _existing(rels)
 	if not found.is_empty():
 		return found[0]
 	if letter != "s":
-		found = _existing(["environment/seasons/s/%s.png" % role])
+		if role == "grass":
+			found = _existing([
+				"environment/seasons/s/grass_%d.png" % _grass_pattern_idx,
+				"environment/seasons/s/grass.png",
+			])
+		else:
+			found = _existing(["environment/seasons/s/%s.png" % role])
 		if not found.is_empty():
 			return found[0]
 	return ""
