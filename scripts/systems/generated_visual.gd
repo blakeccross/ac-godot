@@ -145,8 +145,9 @@ static func _apply_season_textures_inner(node: Node) -> void:
 			else:
 				std = StandardMaterial3D.new()
 			var target: Vector2i = _albedo_size(std)
+			var clamp_v := _season_tile_clamp_v(role)
 			std.albedo_texture = (
-				_tile_to_atlas(season_tex, target, false, false) if target != Vector2i.ZERO else season_tex
+				_tile_to_atlas(season_tex, target, false, clamp_v) if target != Vector2i.ZERO else season_tex
 			)
 			std.albedo_color = Color.WHITE
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -189,6 +190,11 @@ static func _apply_season_beach_wet(
 	sh.set_shader_parameter("albedo_texture", tiled)
 	mesh_instance.set_surface_override_material(surface, sh)
 	return true
+
+
+static func _season_tile_clamp_v(role: String) -> bool:
+	## River banks and cliff fringes sample GX_CLAMP T; grass stays REPEAT/REPEAT.
+	return role in ["earth", "river_edge", "bush_a", "bush_b", "sand", "stone", "cliff", "rail"]
 
 
 static func refresh_window_lights(root: Node) -> void:
