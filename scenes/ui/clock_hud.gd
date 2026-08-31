@@ -1,6 +1,6 @@
 extends CanvasLayer
 
-## Play HUD. T +1 hour, Y +1 day, U save. Esc returns to title (and saves).
+## Play HUD. T +1 hour, Y +1 day, U next season. Esc returns to title (and saves).
 ## X opens pockets (`m_inventory_ovl` 5×3).
 
 @onready var _label: Label = %ClockLabel
@@ -54,13 +54,16 @@ func _unhandled_input(event: InputEvent) -> void:
 				Clock.advance_minutes(60 * 24)
 				get_viewport().set_input_as_handled()
 			KEY_U:
-				SaveService.save_game()
-				Game.post_notice("Saved")
+				Clock.advance_season()
+				Game.post_notice(Clock.season_name())
 				get_viewport().set_input_as_handled()
 
 
 func _refresh() -> void:
-	_label.text = "%s\nWASD walk  Shift run  E interact  X pockets  Esc title  T +1h  Y +1d" % Clock.format_clock()
+	_label.text = (
+		"%s\nWASD walk  Shift run  E interact  X pockets  Esc title  T +1h  Y +1d  U season"
+		% Clock.format_clock()
+	)
 	var pockets: int = Game.inventory.count_of_occupied()
 	var bells: int = Game.inventory.wallet
 	_label.text += "\nPockets %d/%d  %d Bells" % [pockets, Inventory.POCKET_SLOTS, bells]

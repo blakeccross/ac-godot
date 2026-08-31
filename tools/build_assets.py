@@ -171,12 +171,17 @@ def main() -> int:
                 report = convert_static_prefixes(
                     cfg,
                     [
+                        "obj_s_tree",
+                        "obj_w_tree",
+                        "obj_f_tree",
+                        "obj_s_stump",
+                        "obj_w_stump",
+                        "obj_f_stump",
                         "palm",
                         "cedar",
                         "tree5_apple",
                         "obj_s_stone",
                         "obj_w_stone",
-                        "obj_s_stump",
                         "obj_s_cstump",
                         "obj_s_pstump",
                         "obj_w_cstump",

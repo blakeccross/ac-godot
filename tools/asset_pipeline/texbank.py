@@ -249,8 +249,14 @@ def symbol_tokens(name: str) -> set[str]:
 
 
 def season_of_prefix(prefix: str) -> str:
-    m = re.match(r"^obj_([swf])_", prefix)
+    m = re.match(r"^(?:obj|grd)_([swf])_", prefix)
     return m.group(1) if m else ""
+
+
+## Representative `tree_pal_idx_table` / field rows for baked seasonal converts.
+## Mid-season picks: summer term~7 → 3, autumn term~12 → 7, winter term~0 → 10.
+_TREE_PAL_ROW_BY_SEASON = {"s": 3, "f": 7, "w": 10}
+_FIELD_PAL_ROW_BY_SEASON = {"s": 2, "f": 6, "w": 9}
 
 
 def gfx_part_tokens(prefix: str, gfx: str) -> set[str]:
@@ -404,11 +410,22 @@ class TextureBank:
         self._hole_g_pal = self._symbol_bytes("obj_g_hole_pal")
         self._hole_s_pal = self._symbol_bytes("obj_b_hole_pal")
 
-    def bind_field_bg(self, season: str = "s", variant: int = 0) -> None:
+    def _apply_seasonal_fg_pals(self, prefix: str) -> None:
+        """Pick term-representative FG palette rows for the mesh season infix."""
+        season = season_of_prefix(prefix) or "s"
+        row = _TREE_PAL_ROW_BY_SEASON.get(season, 4)
+        self._tree_fg_pal = self._fg_pal_row("mFM_obj_tree_01_pal_dol", row) or self._tree_pal
+        self._cedar_pal = self._fg_pal_row("mFM_obj_tree_01_pal_dol", row) or self._tree_fg_pal
+        self._palm_pal = self._fg_pal_row("mFM_obj_palm_01_pal", row)
+        flower_row = {"s": 1, "f": 5, "w": 8}.get(season, 1)
+        self._flower_pal = self._fg_pal_row("mFM_obj_a_01_flower_pal", flower_row)
+
+    def bind_field_bg(self, season: str = "s", variant: int = 0, *, pal_row: int | None = None) -> None:
         """Map acre/field segment 0x80 from l_bg_tex_segment_rom_start_* tables.
 
         Display lists address grass/earth/cliff/… as 0x80xxxxxx dummies; the game
         DMA's the seasonal bank there at runtime. We materialize that bank in-memory.
+        Winter uses `l_bg_tex_segment_rom_start_w_*` (`mFM_LoadBGCommonTex`).
         """
         table = f"l_bg_tex_segment_rom_start_{season}_{variant}"
         common_sym = self._find_symbol("l_bg_tex_common_dummy")
@@ -446,6 +463,8 @@ class TextureBank:
             pc = self.rel.slice_at(pal_common.address, pal_common.size)
             pr = self.rel.slice_at(pal_rom.address, pal_rom.size)
             pn = min(len(pc) // 8, len(pr) // 4)
+            ## `mFM_LoadBGCommonMonthlyPal` indexes earth/cliff/bush/rail/beach by term.
+            row = _FIELD_PAL_ROW_BY_SEASON.get(season, 0) if pal_row is None else pal_row
             for i in range(pn):
                 seg_addr, entry_size = struct.unpack_from(">II", pc, i * 8)
                 ptr = struct.unpack_from(">I", pr, i * 4)[0]
@@ -455,11 +474,16 @@ class TextureBank:
                 src = self.addr_to_sym.get(ptr)
                 if src is None:
                     continue
-                nbytes = min(src.size, entry_size or 32, 32)
+                pal_size = min(entry_size or 32, 32)
+                ## Each field pal table is 12 rows × 16 RGB5A3 (`mFM_FIELD_PAL_NUM`).
+                src_off = row * pal_size
                 try:
-                    data = self.rel.slice_at(src.address, nbytes)
+                    data = self.rel.slice_at(src.address + src_off, pal_size)
                 except ValueError:
-                    continue
+                    try:
+                        data = self.rel.slice_at(src.address, pal_size)
+                    except ValueError:
+                        continue
                 end = off + len(data)
                 if end > len(mem):
                     mem.extend(bytes(end - len(mem)))
@@ -515,12 +539,17 @@ class TextureBank:
     def bind_static_segments(self, prefix: str) -> None:
         """Bind runtime segment banks needed by static grd_/rom_ display lists."""
         self.current_prefix = prefix
+        self._apply_seasonal_fg_pals(prefix)
         if (
             prefix.startswith("grd_")
             or prefix.startswith("rom_")
             or prefix.startswith("mCL_rom_")
         ):
-            self.bind_field_bg()
+            season = season_of_prefix(prefix) or "s"
+            ## Acre DLs only sample summer/winter CI banks (`mFM_LoadBGCommonTex`).
+            if season == "f":
+                season = "s"
+            self.bind_field_bg(season=season)
         if (
             prefix.startswith("rom_")
             or prefix.startswith("mCL_rom_")
@@ -547,6 +576,7 @@ class TextureBank:
         later from REL symbols — see `_resolve_dummy_image` / `_resolve_dummy_palette`.
         """
         self.current_prefix = prefix
+        self._apply_seasonal_fg_pals(prefix)
         pal = self._symbol_bytes(f"{prefix}_pal")
         if pal is None:
             pal = self._structure_palette(prefix)
