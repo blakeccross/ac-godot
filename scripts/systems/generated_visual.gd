@@ -120,7 +120,7 @@ static func _apply_season_textures_inner(node: Node) -> void:
 			if mat is ShaderMaterial:
 				## River/ocean/beach shaders keep their own samplers.
 				continue
-			var role := FieldCatalog.season_role_for_label(_surface_label(mesh_instance, i, mat))
+			var role := FieldCatalog.season_role_for_surface(mesh_instance, i, mat)
 			if role.is_empty():
 				continue
 			var path := FieldCatalog.season_texture_path(role)
@@ -598,6 +598,9 @@ static func _apply_materials_inner(
 					std.render_priority = 1
 					mesh_instance.set_surface_override_material(i, std)
 				else:
+					var field_role := FieldCatalog.season_role_for_surface(mesh_instance, i, src)
+					if not field_role.is_empty():
+						std.set_meta("field_role", field_role)
 					mesh_instance.set_surface_override_material(i, std)
 		if as_decal:
 			mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

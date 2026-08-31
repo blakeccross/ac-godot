@@ -127,6 +127,16 @@ func test_season_role_for_label_matches_field_and_tree() -> void:
 	assert_str(FieldCatalog.season_role_for_label("obj_s_tree_leaf_tex")).is_equal("tree_leaf")
 	assert_str(FieldCatalog.season_role_for_label("obj_w_tree_trunk_tex")).is_equal("tree_trunk")
 	assert_str(FieldCatalog.season_role_for_label("river_water")).is_equal("")
+	## Acre host node names alone do not identify grass — baked material names must.
+	assert_str(FieldCatalog.season_role_for_label("grd_s_f_1")).is_equal("")
+
+
+func test_season_role_from_extras() -> void:
+	var mat := StandardMaterial3D.new()
+	mat.set_meta("gltf_extras", { "field_role": "grass" })
+	assert_str(FieldCatalog.season_role_from_extras(mat)).is_equal("grass")
+	mat.set_meta("gltf_extras", { "water_kind": "river" })
+	assert_str(FieldCatalog.season_role_from_extras(mat)).is_equal("")
 
 
 func test_season_texture_path_falls_back_to_summer_pack() -> void:
