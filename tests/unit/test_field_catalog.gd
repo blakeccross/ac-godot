@@ -45,6 +45,7 @@ func test_fg_item_trees_and_sign_reserves() -> void:
 func test_summer_tree_paths_when_assets_exist() -> void:
 	Clock.apply_snapshot({ "year": 2001, "month": 7, "day": 1, "hour": 12, "minute": 0 })
 	assert_str(FieldCatalog.season_letter()).is_equal("s")
+	assert_str(FieldCatalog.acre_season_letter()).is_equal("s")
 	var paths: PackedStringArray = FieldCatalog.mesh_paths(&"TREE_APPLE_FRUIT")
 	if paths.is_empty():
 		return
@@ -82,6 +83,41 @@ func test_summer_tree_paths_when_assets_exist() -> void:
 	var myhome: PackedStringArray = FieldCatalog.mesh_paths(&"rom_myhome1_floor")
 	if not myhome.is_empty():
 		assert_str(myhome[0]).contains("rom_myhome1_floor")
+
+
+func test_seasonal_acre_and_tree_letters() -> void:
+	## Acres only swap summer↔winter; trees also use autumn `f`.
+	Clock.apply_snapshot({ "year": 2001, "month": 7, "day": 1, "hour": 12, "minute": 0 })
+	assert_str(FieldCatalog.season_letter()).is_equal("s")
+	assert_str(FieldCatalog.acre_season_letter()).is_equal("s")
+	assert_str(FieldCatalog.seasonal_acre_id(&"grd_s_f_1")).is_equal("grd_s_f_1")
+	assert_str(FieldCatalog.seasonal_acre_id(&"grd_w_r1_1")).is_equal("grd_s_r1_1")
+
+	Clock.apply_snapshot({ "year": 2001, "month": 10, "day": 1, "hour": 12, "minute": 0 })
+	assert_that(Clock.season()).is_equal(Clock.Season.AUTUMN)
+	assert_str(FieldCatalog.season_letter()).is_equal("f")
+	assert_str(FieldCatalog.acre_season_letter()).is_equal("s")
+	assert_str(FieldCatalog.seasonal_acre_id(&"grd_s_f_1")).is_equal("grd_s_f_1")
+
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 15, "hour": 12, "minute": 0 })
+	assert_that(Clock.season()).is_equal(Clock.Season.WINTER)
+	assert_str(FieldCatalog.season_letter()).is_equal("w")
+	assert_str(FieldCatalog.acre_season_letter()).is_equal("w")
+	assert_str(FieldCatalog.seasonal_acre_id(&"grd_s_f_1")).is_equal("grd_w_f_1")
+	assert_str(FieldCatalog.seasonal_acre_id(&"grd_s_c1_1")).is_equal("grd_w_c1_1")
+
+	var winter_paths: PackedStringArray = FieldCatalog.mesh_paths(&"grd_s_f_1")
+	if not winter_paths.is_empty():
+		## Prefer winter GLB when present; otherwise summer fallback.
+		assert_bool(
+			winter_paths[0].contains("grd_w_f_1") or winter_paths[0].contains("grd_s_f_1")
+		).is_true()
+
+	var tree_paths: PackedStringArray = FieldCatalog.mesh_paths(&"TREE")
+	if not tree_paths.is_empty():
+		assert_bool(
+			tree_paths[0].contains("obj_w_tree5") or tree_paths[0].contains("obj_s_tree5")
+		).is_true()
 
 
 func test_species_codes_map_to_disc_prefixes() -> void:

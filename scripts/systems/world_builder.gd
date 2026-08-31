@@ -113,6 +113,7 @@ func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid, meshed: Array
 					continue
 				var host := Node3D.new()
 				host.name = "acre_%d_%d" % [bx, bz]
+				host.set_meta("visual_id", visual)
 				host.position = pos
 				if GeneratedVisual.attach(host, visual) == null:
 					host.free()
@@ -124,6 +125,7 @@ func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid, meshed: Array
 	if data.acre_visual != &"":
 		var host := Node3D.new()
 		host.name = "Acre"
+		host.set_meta("visual_id", data.acre_visual)
 		host.position = grid.cell_corner(Vector2i(0, 0))
 		root.add_child(host)
 		if GeneratedVisual.attach(host, data.acre_visual) == null:

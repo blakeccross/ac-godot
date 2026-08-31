@@ -33,7 +33,8 @@ static func detach(host: Node3D) -> void:
 			if vis != null:
 				break
 	if vis != null:
-		vis.queue_free()
+		## Immediate free so a same-frame re-attach (season swap) does not stack two pivots.
+		vis.free()
 
 
 static func attach(host: Node3D, visual_id: StringName) -> Node3D:

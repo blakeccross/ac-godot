@@ -145,6 +145,16 @@ func apply_growth() -> void:
 		_ensure_use()
 
 
+func refresh_seasonal_visual() -> void:
+	## Season mesh infix (`obj_s/f/w_*`) without replaying growth math.
+	if _felling:
+		return
+	if Game.is_stump(_persist()):
+		_present_stump()
+		return
+	apply_growth()
+
+
 func _present_live_visual() -> void:
 	GeneratedVisual.detach(self)
 	var vis: Node3D = GeneratedVisual.attach(self, visual_id)

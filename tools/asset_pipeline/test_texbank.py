@@ -64,6 +64,9 @@ class SymbolTokenTests(unittest.TestCase):
 
     def test_season_and_image_filter(self) -> None:
         self.assertEqual(season_of_prefix("obj_w_shrine"), "w")
+        self.assertEqual(season_of_prefix("grd_w_f_1"), "w")
+        self.assertEqual(season_of_prefix("grd_s_r1_1"), "s")
+        self.assertEqual(season_of_prefix("obj_f_tree5"), "f")
         self.assertTrue(is_image_symbol("obj_s_tree3_leaf_tex"))
         self.assertFalse(is_image_symbol("obj_s_shrine_pal"))
         self.assertFalse(is_image_symbol("obj_s_shrine_leaf_model"))

@@ -40,6 +40,9 @@ const _TERM_SEASON := [
 	2, 2, 2, 2, 2, 2,
 	3, 3, 3,
 ]
+## First calendar day of each season (Spring / Summer / Autumn / Winter).
+const _SEASON_START_MONTH := [2, 5, 9, 12]
+const _SEASON_START_DAY := [25, 26, 16, 10]
 
 ## Lighting windows (`klight_chg_tim` in m_kankyo.c), hours.
 const LIGHT_TERM_HOURS := [0, 4, 6, 8, 12, 16, 18, 20, 24]
@@ -128,6 +131,26 @@ func advance_minutes(amount: int) -> void:
 	rtc_override = true
 	_os_follow_seeded = false
 	advance_seconds(amount * 60)
+
+
+## Debug: jump to noon on the first day of the next season (`mTM` boundaries).
+func advance_season() -> void:
+	rtc_override = true
+	_os_follow_seeded = false
+	var next_s: int = (int(season()) + 1) % 4
+	var tm: int = int(_SEASON_START_MONTH[next_s])
+	var td: int = int(_SEASON_START_DAY[next_s])
+	var ty: int = year
+	if tm < month or (tm == month and td <= day):
+		ty = mini(ty + 1, MAX_YEAR)
+	year = ty
+	month = tm
+	day = td
+	hour = 12
+	minute = 0
+	second = 0
+	_accum = 0.0
+	_emit_time(true)
 
 
 func advance_seconds(amount: int) -> void:

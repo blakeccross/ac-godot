@@ -50,6 +50,7 @@ static var _units_cache: Dictionary = {}
 
 
 static func season_letter() -> String:
+	## Tree / rock / structure mesh infix: summer+spring `s`, autumn `f`, winter `w`.
 	if Clock == null:
 		return "s"
 	match Clock.season():
@@ -61,10 +62,37 @@ static func season_letter() -> String:
 			return "s"
 
 
+static func acre_season_letter() -> String:
+	## Acre BG banks are summer (`grd_s_*`) or winter (`grd_w_*`) only.
+	## Spring/autumn keep summer CI textures and recolor via term palettes in the original.
+	if Clock != null and Clock.season() == ClockService.Season.WINTER:
+		return "w"
+	return "s"
+
+
+static func seasonal_acre_id(visual_id: StringName) -> String:
+	## `grd_s_f_1` ↔ `grd_w_f_1` from the current season. Non-acre ids pass through.
+	var id := String(visual_id)
+	if not id.begins_with("grd_"):
+		return id
+	var parts: PackedStringArray = id.split("_")
+	if parts.size() < 3:
+		return id
+	## `grd` / season / …
+	if parts[1] != "s" and parts[1] != "w" and parts[1] != "f":
+		return id
+	parts[1] = acre_season_letter()
+	return "_".join(parts)
+
+
 static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 	var id := String(visual_id)
 	if id.begins_with("grd_"):
-		return _existing(["environment/acres/%s.glb" % id])
+		var seasonal := seasonal_acre_id(StringName(id))
+		var paths: PackedStringArray = _existing(["environment/acres/%s.glb" % seasonal])
+		if paths.is_empty() and seasonal != id:
+			paths = _existing(["environment/acres/%s.glb" % id])
+		return paths
 	if id.begins_with("tol_"):
 		return _existing(["items/%s.glb" % id])
 	if (
@@ -90,9 +118,9 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		&"obj_s_tree4", &"TREE_S2":
 			return _tree_size_paths(4)
 		&"obj_s_tree5", &"TREE":
-			return _existing([_seasonal_tree("obj_%s_tree5")])
+			return _seasonal_tree_existing("obj_%s_tree5")
 		&"obj_s_stump5", &"TREE_STUMP004":
-			var stump := _existing([_seasonal_tree("obj_%s_stump5")])
+			var stump := _seasonal_tree_existing("obj_%s_stump5")
 			if stump.is_empty():
 				stump = _existing(["environment/trees/obj_s_stump5.glb"])
 			return stump
@@ -104,7 +132,7 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 				hole = _existing(["environment/obj_hole0.glb"])
 			return hole
 		&"obj_s_tree5_apple", &"TREE_APPLE_FRUIT":
-			var paths := _existing([_seasonal_tree("obj_%s_tree5")])
+			var paths := _seasonal_tree_existing("obj_%s_tree5")
 			paths.append_array(_existing(["environment/trees/obj_s_tree5_apple.glb"]))
 			return paths
 		&"obj_s_cedar1", &"CEDAR_S0":
@@ -114,7 +142,7 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		&"obj_s_cedar4", &"CEDAR_S2":
 			return _cedar_size_paths(4)
 		&"obj_s_cedar5", &"CEDAR_TREE":
-			return _existing([_seasonal_env("obj_%s_cedar5")])
+			return _seasonal_env_existing("obj_%s_cedar5")
 		&"obj_s_palm2", &"PALM_S0":
 			return _palm_size_paths(2)
 		&"obj_s_palm3", &"PALM_S1":
@@ -122,10 +150,10 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		&"obj_s_palm4", &"PALM_S2":
 			return _palm_size_paths(4)
 		&"obj_s_palm5", &"TREE_PALM":
-			return _existing([_seasonal_env("obj_%s_palm5")])
+			return _seasonal_env_existing("obj_%s_palm5")
 		&"obj_s_palm5_coco", &"TREE_PALM_FRUIT":
-			var palm := _existing([_seasonal_env("obj_%s_palm5")])
-			palm.append_array(_existing([_seasonal_env("obj_%s_palm5_coco")]))
+			var palm := _seasonal_env_existing("obj_%s_palm5")
+			palm.append_array(_seasonal_env_existing("obj_%s_palm5_coco"))
 			return palm
 		&"obj_s_kanban", &"SIGNBOARD":
 			## Field sign is `obj_s_kanban` (`ac_sign`). Pipeline currently exports shop kanban.
@@ -676,33 +704,48 @@ static func _seasonal_tree(pattern: String) -> String:
 	return "environment/trees/" + (pattern % season_letter()) + ".glb"
 
 
+static func _seasonal_tree_existing(pattern: String) -> PackedStringArray:
+	## Prefer current season; fall back to summer when autumn/winter GLBs are missing.
+	var paths: PackedStringArray = _existing([_seasonal_tree(pattern)])
+	if paths.is_empty() and season_letter() != "s":
+		paths = _existing(["environment/trees/" + (pattern % "s") + ".glb"])
+	return paths
+
+
 static func _tree_size_paths(size: int) -> PackedStringArray:
-	var paths: PackedStringArray = _existing([_seasonal_tree("obj_%%s_tree%d" % size)])
+	var paths: PackedStringArray = _seasonal_tree_existing("obj_%%s_tree%d" % size)
 	if paths.is_empty():
-		paths = _existing([_seasonal_tree("obj_%s_tree5")])
+		paths = _seasonal_tree_existing("obj_%s_tree5")
 	return paths
 
 
 static func _cedar_size_paths(size: int) -> PackedStringArray:
-	var paths: PackedStringArray = _existing([_seasonal_tree("obj_%%s_cedar%d" % size)])
+	var paths: PackedStringArray = _seasonal_tree_existing("obj_%%s_cedar%d" % size)
 	if paths.is_empty():
-		paths = _existing([_seasonal_env("obj_%%s_cedar%d" % size)])
+		paths = _seasonal_env_existing("obj_%%s_cedar%d" % size)
 	if paths.is_empty():
-		paths = _existing([_seasonal_env("obj_%s_cedar5")])
+		paths = _seasonal_env_existing("obj_%s_cedar5")
 	return paths
 
 
 static func _palm_size_paths(size: int) -> PackedStringArray:
-	var paths: PackedStringArray = _existing([_seasonal_tree("obj_%%s_palm%d" % size)])
+	var paths: PackedStringArray = _seasonal_tree_existing("obj_%%s_palm%d" % size)
 	if paths.is_empty():
-		paths = _existing([_seasonal_env("obj_%%s_palm%d" % size)])
+		paths = _seasonal_env_existing("obj_%%s_palm%d" % size)
 	if paths.is_empty():
-		paths = _existing([_seasonal_env("obj_%s_palm5")])
+		paths = _seasonal_env_existing("obj_%s_palm5")
 	return paths
 
 
 static func _seasonal_env(pattern: String) -> String:
 	return "environment/" + (pattern % season_letter()) + ".glb"
+
+
+static func _seasonal_env_existing(pattern: String) -> PackedStringArray:
+	var paths: PackedStringArray = _existing([_seasonal_env(pattern)])
+	if paths.is_empty() and season_letter() != "s":
+		paths = _existing(["environment/" + (pattern % "s") + ".glb"])
+	return paths
 
 
 static func _seasonal_rock(letter: String) -> String:
