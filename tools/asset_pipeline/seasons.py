@@ -39,6 +39,7 @@ FIELD_ROLE_NEEDLES: dict[str, tuple[str, ...]] = {
 	"rail": ("rail",),
 	"stone": ("stone",),
 	"sand": ("sand",),
+	"beach_wet": ("beach1", "beacha"),
 }
 
 TREE_ROLE_NEEDLES: dict[str, tuple[str, ...]] = {
@@ -55,7 +56,7 @@ _FIELD_TEX_SPECS: dict[str, tuple[int, int, str]] = {
 	"bush_b_tex_dummy": (64, 32, "bush_pal"),
 	"rail_tex_dummy": (64, 64, "earth_pal"),
 	"stone_tex_dummy": (64, 64, "earth_pal"),
-	"sand_tex_dummy": (64, 32, "earth_pal"),
+	"sand_tex_dummy": (64, 32, "beach_pal"),
 }
 
 
@@ -114,6 +115,31 @@ def _pick_cliff_acre_job(jobs: dict[str, dict[str, Any]], season: str) -> dict[s
 	return None
 
 
+def _pick_river_acre_job(jobs: dict[str, dict[str, Any]], season: str) -> dict[str, Any] | None:
+	"""River banks use earth_tex strips beside grass."""
+	if season == "w":
+		job = _pick_job(jobs, "grd_w_r1_1", "grd_w_r1_2")
+		if job is not None:
+			return job
+	return _pick_job(jobs, "grd_s_r1_1", "grd_s_r1_2", "grd_s_r1_3")
+
+
+def _pick_beach_acre_job(jobs: dict[str, dict[str, Any]], _season: str) -> dict[str, Any] | None:
+	"""Beach sand, earth transitions, and wet-shore I4 (`beach1`)."""
+	for asset_id in sorted(jobs):
+		if not asset_id.startswith("grd_s_m_"):
+			continue
+		if "_mh_" in asset_id or "_ta_" in asset_id or "_wf_" in asset_id:
+			continue
+		return jobs[asset_id]
+	return _pick_job(jobs, "grd_s_m_1", "grd_s_m_2")
+
+
+def _pick_shrine_acre_job(jobs: dict[str, dict[str, Any]], _season: str) -> dict[str, Any] | None:
+	"""Wishing-well lot (`grd_s_f_ko_*`): bush_b fringe, stone path, earth."""
+	return _pick_job(jobs, "grd_s_f_ko_1", "grd_s_f_ko_2", "grd_s_f_ko_3")
+
+
 def _spec_for_tex_name(name: str) -> tuple[int, int, str] | None:
 	lower = name.lower()
 	for key, spec in _FIELD_TEX_SPECS.items():
@@ -140,6 +166,7 @@ def _collect_roles_from_field_bank(bank: TextureBank) -> dict[str, bytes]:
 	pals: dict[str, bytes | None] = {
 		"earth_pal": None,
 		"bush_pal": None,
+		"beach_pal": None,
 	}
 	earth_off = _pal_offset(names, "earth_pal")
 	if earth_off is not None and earth_off + 32 <= len(data):
@@ -147,6 +174,9 @@ def _collect_roles_from_field_bank(bank: TextureBank) -> dict[str, bytes]:
 	bush_off = _pal_offset(names, "bush_pal")
 	if bush_off is not None and bush_off + 32 <= len(data):
 		pals["bush_pal"] = data[bush_off : bush_off + 32]
+	beach_off = _pal_offset(names, "beach_pal")
+	if beach_off is not None and beach_off + 32 <= len(data):
+		pals["beach_pal"] = data[beach_off : beach_off + 32]
 	for off, name in sorted(names.items()):
 		if "pal" in name.lower():
 			continue
@@ -224,7 +254,12 @@ def _collect_roles(
 		name = getattr(part, "texture_name", "") or getattr(part, "name", "")
 		if not png or not name:
 			continue
-		role = _role_for_name(str(name), needles)
+		name_s = str(name)
+		if getattr(part, "water_kind", "") == "beach_wet":
+			compact = name_s.lower().replace("_", "")
+			if "beachb" not in compact and "beach2" not in compact:
+				out.setdefault("beach_wet", png)
+		role = _role_for_name(name_s, needles)
 		if role and role not in out:
 			out[role] = png
 	return out
@@ -263,9 +298,15 @@ def _export_field_season(
 	by_role = _collect_roles(parts, FIELD_ROLE_NEEDLES)
 	for role, png in _collect_roles_from_field_bank(bank).items():
 		by_role.setdefault(role, png)
-	_merge_gfx_roles(
-		bank, rel, symbols, _pick_cliff_acre_job(jobs, season), cfg.scale, FIELD_ROLE_NEEDLES, by_role
-	)
+	for extra_job in [
+		_pick_cliff_acre_job(jobs, season),
+		_pick_river_acre_job(jobs, season),
+		_pick_beach_acre_job(jobs, season),
+		_pick_shrine_acre_job(jobs, season),
+	]:
+		_merge_gfx_roles(
+			bank, rel, symbols, extra_job, cfg.scale, FIELD_ROLE_NEEDLES, by_role
+		)
 	for role in FIELD_ROLE_NEEDLES:
 		dest = out_dir / f"{role}.png"
 		png = by_role.get(role)

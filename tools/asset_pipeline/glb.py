@@ -239,6 +239,11 @@ def _material(
     if field_role:
         extras = dict(extras or {})
         extras["field_role"] = field_role
+    elif water_kind == "beach_wet":
+        compact = (name or "").lower().replace("_", "")
+        if "beachb" not in compact and "beach2" not in compact:
+            extras = dict(extras or {})
+            extras["field_role"] = "beach_wet"
     if extras:
         mat["extras"] = extras
     if texture_index is not None:
