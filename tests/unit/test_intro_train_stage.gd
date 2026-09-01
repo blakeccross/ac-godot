@@ -1,0 +1,61 @@
+class_name TestIntroTrainStage
+extends GdUnitTestSuite
+
+## GX landmarks + stage cues for the Rover train demo.
+
+
+func test_gx_to_meters_matches_field_catalog() -> void:
+	var p: Vector3 = IntroTrainStage.gx_to_meters(Vector3(100.0, 80.0, 400.0))
+	assert_float(p.x).is_equal_approx(100.0 * FieldCatalog.GX_TO_METERS, 0.0001)
+	assert_float(p.y).is_equal_approx(80.0 * FieldCatalog.GX_TO_METERS, 0.0001)
+	assert_float(p.z).is_equal_approx(400.0 * FieldCatalog.GX_TO_METERS, 0.0001)
+
+
+func test_required_assets_list_train_set() -> void:
+	var paths: PackedStringArray = IntroTrainStage.required_asset_paths()
+	assert_int(paths.size()).is_equal(5)
+	assert_str(paths[0]).contains("rom_train_in")
+	assert_str(paths[2]).contains("obj_romtrain_door")
+	assert_str(paths[3]).contains("cat_1")
+	assert_str(paths[4]).contains("tol_keitai_1")
+
+
+func test_bind_starts_enter_and_emits_talk_without_mesh() -> void:
+	var stage := IntroTrainStage.new()
+	var rover := Node3D.new()
+	var door := Node3D.new()
+	var keitai := Node3D.new()
+	var cam := Camera3D.new()
+	add_child(rover)
+	add_child(door)
+	add_child(keitai)
+	add_child(cam)
+	var talked := [false]
+	stage.ready_for_talk.connect(func() -> void: talked[0] = true)
+	stage.bind(rover, null, door, null, keitai, cam)
+	assert_that(stage.action).is_equal(IntroTrainStage.Action.ENTER)
+	## No AnimationPlayer → enter finishes immediately; walk 160 GX @ 1 GX/tick.
+	for _i: int in 220:
+		stage.tick(1.0 / 30.0)
+		if talked[0]:
+			break
+	assert_that(talked[0]).is_true()
+	assert_that(stage.action).is_equal(IntroTrainStage.Action.TALK)
+	rover.queue_free()
+	door.queue_free()
+	keitai.queue_free()
+	cam.queue_free()
+
+
+func test_cue_sit_moves_to_sit_gx() -> void:
+	var stage := IntroTrainStage.new()
+	var rover := Node3D.new()
+	add_child(rover)
+	stage.bind(rover, null, null, null, null, null)
+	stage.cue_sit()
+	stage.tick(0.0)
+	assert_vector(rover.global_position).is_equal_approx(
+		IntroTrainStage.gx_to_meters(IntroTrainStage.ROVER_SIT_GX),
+		Vector3(0.001, 0.001, 0.001)
+	)
+	rover.queue_free()

@@ -38,6 +38,14 @@ TEST_SKELETONS = [
         "confident_name": True,
     },
     {
+        ## Train door (`ac_train_door`). Clip opens when Rover enters / exits.
+        "asset_id": "obj_romtrain_door",
+        "skeleton": "cKF_bs_r_obj_romtrain_door",
+        "output": "environment/obj_romtrain_door.glb",
+        "animations": ["cKF_ba_r_obj_romtrain_door"],
+        "confident_name": True,
+    },
+    {
         "asset_id": "item_tol_net_1",
         "skeleton": "cKF_bs_r_tol_net_1",
         "output": "items/tol_net_1.glb",
@@ -111,6 +119,28 @@ TEST_SKELETONS = [
 
 # Static Gfx models (no cKF skeleton). Paths keep original identifiers.
 TEST_STATIC = [
+    {
+        ## Train car interior (`rom_train_in`). OPA + XLU glass/lights.
+        "asset_id": "rom_train_in",
+        "vtx": "rom_train_in_v",
+        "gfx": ["rom_train_in_model", "rom_train_in_modelT"],
+        "output": "environment/interiors/rom_train_in.glb",
+        "confident_name": True,
+    },
+    {
+        ## Window scenery beyond the glass (`ac_train_window` / `rom_train_out`).
+        "asset_id": "rom_train_out",
+        "vtx": "rom_train_out_v",
+        "gfx": [
+            "rom_train_out_tunnel_model",
+            "rom_train_out_bgsky_model",
+            "rom_train_out_bgcloud_modelT",
+            "rom_train_out_bgtree_modelT",
+            "rom_train_out_shineglass_modelT",
+        ],
+        "output": "environment/interiors/rom_train_out.glb",
+        "confident_name": True,
+    },
     {
         "asset_id": "obj_s_tree5",
         "vtx": "obj_s_tree5_v",
