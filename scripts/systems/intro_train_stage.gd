@@ -41,9 +41,6 @@ const ANIM_KEITAI_TALK2 := "npc_1_keitai_talk2"
 const ANIM_KEITAI_OFF := "npc_1_keitai_off1"
 const ANIM_OPEN_D2 := "npc_1_open_d2"
 
-## `SP_NPC_SLEEP_OBABA` spawn (`start_demo1_actable` ut 4,4 + birth offset).
-const SLEEP_OBABA_GX := Vector3(174.0, 0.0, 146.0)
-
 ## `aNGD` GX landmarks.
 const ROVER_AISLE_X_GX := 140.0
 const ROVER_START_GX := Vector3(140.0, 0.0, 130.0)
@@ -77,11 +74,14 @@ const DOOR_OPEN_D2_FRAME := 22.0
 const KEITAI_ON_ANIM_SPEED := 0.5
 const OPEN_D2_YAW := PI
 const OPEN_D2_YAW_CHASE := deg_to_rad(0.703125)
+const PLAYER_GX := Vector3(120.0, 0.0, 340.0)
+const BODY_YAW_CHASE := 0x400 / 65536.0 * TAU ## ~22.5°/frame @ 30 Hz
 
 var action: Action = Action.ENTER
 var lock_camera: bool = false
 var camera_morph: int = 40
 var obj_look_talk: bool = false
+var camera_eyes: bool = false
 
 var _rover: Node3D
 var _rover_anim: AnimationPlayer
@@ -109,6 +109,7 @@ var _camera_tilt_goal: float = 0.0
 var _camera_tilt_chase: float = CAMERA_TILT_CHASE
 var _obj_look_y_gx: float = OBJ_LOOK_Y_NORMAL_GX
 var _obj_look_y_target_gx: float = OBJ_LOOK_Y_NORMAL_GX
+var _rover_look: IntroTrainRoverLook
 
 
 static func gx_to_meters(gx: Vector3) -> Vector3:
@@ -142,7 +143,8 @@ func bind(
 	door: Node3D,
 	door_anim: AnimationPlayer,
 	keitai: Node3D,
-	camera: Camera3D
+	camera: Camera3D,
+	rover_look: IntroTrainRoverLook = null
 ) -> void:
 	_rover = rover
 	_rover_anim = rover_anim
@@ -150,6 +152,7 @@ func bind(
 	_door_anim = door_anim
 	_keitai = keitai
 	_camera = camera
+	_rover_look = rover_look
 	_pos_gx = ROVER_START_GX
 	_yaw = 0.0
 	_apply_rover_pose()
@@ -202,12 +205,20 @@ func _set_action(next: Action) -> void:
 		Action.ENTER:
 			_speed_gx = WALK_SPEED_GX
 			_door_opened = false
+			camera_eyes = true
+			_set_rover_eyes(true)
 			_play_rover(ANIM_OPEN_D1, false)
 		Action.APPROACH:
 			_speed_gx = WALK_SPEED_GX
 			_target_gx = ROVER_TALK_GX
+			camera_eyes = true
+			_set_rover_eyes(true)
 			_play_rover(ANIM_WALK, true)
 		Action.TALK:
+			camera_eyes = false
+			_set_rover_eyes(false)
+			_yaw = IntroTrainRoverLook.talk_yaw_toward_player(_pos_gx)
+			_apply_rover_pose()
 			_play_rover(ANIM_WAIT, true)
 			obj_look_talk = true
 			camera_morph = 40
@@ -224,7 +235,7 @@ func _set_action(next: Action) -> void:
 			_yaw = 0.0
 			_apply_rover_pose()
 			_disconnect_anim_finished()
-			_play_rover(ANIM_SITDOWN, false, 1.0, 0.15)
+			_play_rover(ANIM_SITDOWN, false)
 			_await_then(Action.SEATED, ANIM_SITDOWN)
 		Action.SEATED:
 			_play_rover(ANIM_SIT_WAIT, true)
@@ -232,6 +243,8 @@ func _set_action(next: Action) -> void:
 			obj_look_talk = false
 			lock_camera = false
 			_obj_look_y_target_gx = OBJ_LOOK_Y_NORMAL_GX
+			camera_eyes = false
+			_set_rover_eyes(false)
 			_play_rover(ANIM_STANDUP, false)
 			_await_then(Action.MOVE_AISLE, ANIM_STANDUP)
 		Action.MOVE_AISLE:
@@ -277,6 +290,8 @@ func _set_action(next: Action) -> void:
 			_pos_gx = ROVER_RETURN_START_GX
 			_yaw = 0.0
 			_apply_rover_pose()
+			camera_eyes = true
+			_set_rover_eyes(true)
 			_play_rover(ANIM_WALK, true)
 			obj_look_talk = true
 			camera_morph = 40
@@ -422,14 +437,25 @@ func _open_door() -> void:
 	_door_anim.speed_scale = 0.5
 
 
-func _play_rover(
-	suffix: String, loop: bool, speed_scale: float = 1.0, blend: float = 0.0
-) -> bool:
+func _set_rover_eyes(active: bool) -> void:
+	if _rover_look != null:
+		_rover_look.set_camera_eyes(active)
+
+
+func _play_rover(suffix: String, loop: bool, speed_scale: float = 1.0) -> bool:
 	if _rover_anim == null:
 		return false
 	var clip: String = resolve_rover_clip(_rover_anim, suffix)
 	if clip.is_empty():
 		return false
+	if _clip == clip and _rover_anim.is_playing():
+		var anim_check: Animation = _rover_anim.get_animation(clip)
+		if anim_check != null:
+			var want_loop: int = (
+				Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
+			)
+			if anim_check.loop_mode == want_loop:
+				return true
 	_clip = clip
 	var anim: Animation = _rover_anim.get_animation(clip)
 	if anim != null:
@@ -437,7 +463,7 @@ func _play_rover(
 			Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
 		)
 	_rover_anim.speed_scale = speed_scale
-	_rover_anim.play(clip, blend)
+	_rover_anim.play(clip, 0.0)
 	return true
 
 

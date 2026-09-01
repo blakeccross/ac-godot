@@ -61,6 +61,7 @@ const TRAIN_OPA_EMISSION_TINT := Color(0.48, 0.38, 0.26)
 var _intro: IntroSequence = IntroSequence.new()
 var _stage: IntroTrainStage = IntroTrainStage.new()
 var _sleep_npc: IntroTrainSleepNpc = IntroTrainSleepNpc.new()
+var _rover_look: IntroTrainRoverLook = IntroTrainRoverLook.new()
 var _ctx: DialogueContext
 var _finishing: bool = false
 var _dialogue_started: bool = false
@@ -87,6 +88,8 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_stage.tick(delta)
 	_sleep_npc.tick(delta)
+	## After child AnimationPlayer updates, apply head look-at override.
+	_rover_look.tick(delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -113,7 +116,8 @@ func _bootstrap_stage() -> void:
 	var rover_anim: AnimationPlayer = GeneratedVisual.find_animation_player(_rover_host)
 	var sleep_anim: AnimationPlayer = GeneratedVisual.find_animation_player(_sleep_host)
 	var door_anim: AnimationPlayer = GeneratedVisual.find_animation_player(_door_host)
-	_stage.bind(_rover_host, rover_anim, _door_host, door_anim, _keitai_host, _camera)
+	_rover_look.bind(_rover_host)
+	_stage.bind(_rover_host, rover_anim, _door_host, door_anim, _keitai_host, _camera, _rover_look)
 	_sleep_npc.bind(_sleep_host, sleep_anim)
 	## No Rover mesh → skip walk-up so the title menu item stays testable.
 	if not ResourceLoader.exists(ROVER_GLB):

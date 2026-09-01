@@ -5,8 +5,10 @@ extends RefCounted
 
 const ANIM_KOKKURI_D1 := "npc_1_kokkuri_d1"
 const ANIM_KOKKURI_D2 := "npc_1_kokkuri_d2"
-## `start_demo1_actable` FG unit (4, 4) + birth offset (−6, −24) GX.
-const SPAWN_GX := Vector3(174.0, 0.0, 146.0)
+## Window-side rear bench (`start_demo1` ut 4,4 → aisle spawn, −40 GX to window column).
+const SPAWN_GX := Vector3(100.0, 0.0, 166.0)
+## Seated passengers face down the car (+Z).
+const SPAWN_YAW := 0.0
 
 var _host: Node3D
 var _anim: AnimationPlayer
@@ -20,7 +22,7 @@ func bind(host: Node3D, anim: AnimationPlayer) -> void:
 	_anim = anim
 	if _host != null:
 		_host.global_position = IntroTrainStage.gx_to_meters(SPAWN_GX)
-		_host.rotation.y = 0.0
+		_host.rotation.y = SPAWN_YAW
 	_start_sleep()
 
 
@@ -41,6 +43,8 @@ func _play(suffix: String, loop: bool) -> void:
 		return
 	var clip: String = IntroTrainStage.resolve_rover_clip(_anim, suffix)
 	if clip.is_empty():
+		return
+	if _clip == clip and _anim.is_playing():
 		return
 	_clip = clip
 	var animation: Animation = _anim.get_animation(clip)
