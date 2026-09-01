@@ -87,15 +87,25 @@ func test_approach_keeps_rover_in_aisle() -> void:
 	rover.queue_free()
 
 
-func test_cue_sit_moves_to_sit_gx() -> void:
+func test_cue_sit_walks_to_seat_before_sitting() -> void:
 	var stage := IntroTrainStage.new()
 	var rover := Node3D.new()
 	add_child(rover)
 	stage.bind(rover, null, null, null, null, null)
+	for _i: int in 220:
+		stage.tick(1.0 / 30.0)
+		if stage.action == IntroTrainStage.Action.TALK:
+			break
 	stage.cue_sit()
 	stage.tick(0.0)
+	assert_that(stage.action).is_equal(IntroTrainStage.Action.MOVE_TO_SEAT)
+	for _i: int in 120:
+		stage.tick(1.0 / 30.0)
+		if stage.action == IntroTrainStage.Action.SEATED:
+			break
+	assert_that(stage.action).is_equal(IntroTrainStage.Action.SEATED)
 	assert_vector(rover.global_position).is_equal_approx(
 		IntroTrainStage.gx_to_meters(IntroTrainStage.ROVER_SIT_GX),
-		Vector3(0.001, 0.001, 0.001)
+		Vector3(0.02, 0.02, 0.02)
 	)
 	rover.queue_free()

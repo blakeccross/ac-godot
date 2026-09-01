@@ -5,26 +5,31 @@
   "nodes": {
     "greet": {
       "type": "line",
-      "text": "Mind if I grab this seat? Traveling alone gets old fast.",
+      "text": "Hrmm… Uh… Excuse me… Do you have a second? Could you help me out?",
+      "next": "greet_sit"
+    },
+    "greet_sit": {
+      "type": "line",
+      "text": "Mind if I sit here? I promise I won't fall asleep, tumble onto you, and start drooling on your shirt!",
       "next": "greet_choice"
     },
     "greet_choice": {
       "type": "choice",
       "options": [
-        { "text": "Sure, sit down.", "goto": "clock_ask", "events": [{ "op": "or_var", "name": "answer_flags", "mask": 8 }] },
-        { "text": "I'd rather not.", "goto": "clock_ask" }
+        { "text": "Please!", "goto": "clock_ask" },
+        { "text": "No way!", "goto": "clock_ask" }
       ]
     },
     "clock_ask": {
       "type": "line",
-      "text": "Thanks. Before we roll on — is the clock right? I show {month}/{day}/{year}, {hour}:{minute}.",
+      "text": "Is it… Let's see now… {hour}:{minute} on {weekday}, {month}/{day}/{year}?",
       "next": "clock_choice"
     },
     "clock_choice": {
       "type": "choice",
       "options": [
-        { "text": "That looks right.", "goto": "sit_stage" },
-        { "text": "Needs a tweak.", "goto": "clock_prompt" }
+        { "text": "That's right!", "goto": "sit_stage" },
+        { "text": "Nope!", "goto": "clock_prompt" }
       ]
     },
     "clock_prompt": {
@@ -34,14 +39,14 @@
     },
     "clock_confirm": {
       "type": "line",
-      "text": "Alright — {month}/{day}/{year}, {hour}:{minute}. That good?",
+      "text": "Is it… Let's see now… {hour}:{minute} on {weekday}, {month}/{day}/{year}?",
       "next": "clock_confirm_choice"
     },
     "clock_confirm_choice": {
       "type": "choice",
       "options": [
-        { "text": "Yes.", "goto": "sit_stage" },
-        { "text": "Change it again.", "goto": "clock_prompt" }
+        { "text": "That's right!", "goto": "sit_stage" },
+        { "text": "Nope!", "goto": "clock_prompt" }
       ]
     },
     "sit_stage": {
@@ -51,7 +56,7 @@
     },
     "sit_ok": {
       "type": "line",
-      "text": "Great. So… what should I call you?",
+      "text": "So what's your name?",
       "next": "name_prompt"
     },
     "name_prompt": {
@@ -69,7 +74,7 @@
       "options": [
         { "text": "Cool, yeah.", "goto": "gender_confirm_boy" },
         { "text": "It's cute, actually.", "goto": "gender_confirm_girl" },
-        { "text": "That's not my name.", "goto": "name_again" }
+        { "text": "That's not right.", "goto": "name_again" }
       ]
     },
     "name_again": {
@@ -134,51 +139,51 @@
     },
     "town_confirm": {
       "type": "line",
-      "text": "{town}… nice ring to it. That the place?",
+      "text": "You're going to {town}?",
       "next": "town_confirm_choice"
     },
     "town_confirm_choice": {
       "type": "choice",
       "options": [
-        { "text": "That's the one.", "goto": "q2" },
+        { "text": "That's right!", "goto": "q2" },
         { "text": "Wrong town.", "goto": "town_prompt" }
       ]
     },
     "q2": {
       "type": "line",
-      "text": "So what brings you to {town}?",
+      "text": "So, tell me, why are you going to {town}?",
       "next": "q2_choice"
     },
     "q2_choice": {
       "type": "choice",
       "options": [
         {
-          "text": "I'm moving there.",
+          "text": "I'm moving.",
           "goto": "q3",
-          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 4 }]
+          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 8 }]
         },
-        { "text": "What's it to you?", "goto": "q3" }
+        { "text": "What's it to ya?", "goto": "q3" }
       ]
     },
     "q3": {
       "type": "line",
-      "text": "And where's your new place going to be?",
+      "text": "So where are you going to be living?",
       "next": "q3_choice"
     },
     "q3_choice": {
       "type": "choice",
       "options": [
         {
-          "text": "Not sure yet.",
+          "text": "Don't know yet.",
           "goto": "q4",
-          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 2 }]
+          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 4 }]
         },
-        { "text": "Leave me alone.", "goto": "q4" }
+        { "text": "Leave me alone!", "goto": "q4" }
       ]
     },
     "q4": {
       "type": "line",
-      "text": "You packed some money for the move, right?",
+      "text": "You have money, right?",
       "next": "q4_choice"
     },
     "q4_choice": {
@@ -199,7 +204,7 @@
     },
     "phone_lead": {
       "type": "line",
-      "text": "Hang on — I know a shopkeeper in {town}. Let me give him a buzz.",
+      "text": "Well, we obviously need to find you a place to live!!! …Oh, I know! This buddy of mine runs a shop in {town}… I'll give him a call. It'll only take two seconds, OK?",
       "next": "phone_call"
     },
     "phone_call": {
@@ -224,7 +229,7 @@
     },
     "farewell": {
       "type": "line",
-      "text": "Next stop: {town}. Take care, {player}!",
+      "text": "Well, good-bye! Maybe we'll run into each other again sometime. Next stop: {town}!",
       "next": "finish"
     },
     "finish": {

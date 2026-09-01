@@ -50,8 +50,10 @@ func test_stage_cues_follow_decomp_action_order() -> void:
 		if stage.action == IntroTrainStage.Action.TALK:
 			break
 	stage.cue_sit()
-	for _i: int in 5:
-		stage.tick(0.0)
+	for _i: int in 120:
+		stage.tick(1.0 / 30.0)
+		if stage.action == IntroTrainStage.Action.SEATED:
+			break
 	assert_that(stage.action).is_equal(IntroTrainStage.Action.SEATED)
 	stage.cue_phone()
 	for _i: int in 5:
@@ -75,7 +77,8 @@ func test_stage_cues_follow_decomp_action_order() -> void:
 			IntroTrainStage.Action.KEITAI_OFF,
 			IntroTrainStage.Action.OPEN_DOOR,
 			IntroTrainStage.Action.RETURN_APPROACH,
-			IntroTrainStage.Action.LAST_SIT,
+			IntroTrainStage.Action.MOVE_TO_SEAT,
+			IntroTrainStage.Action.SITDOWN,
 			IntroTrainStage.Action.SEATED,
 		]
 	)

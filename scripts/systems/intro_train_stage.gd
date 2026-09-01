@@ -12,6 +12,7 @@ enum Action {
 	ENTER,
 	APPROACH,
 	TALK,
+	MOVE_TO_SEAT,
 	SITDOWN,
 	SEATED,
 	STANDUP,
@@ -166,11 +167,15 @@ static func _hermit_morph(t: float) -> float:
 	return x * x * (3.0 - 2.0 * x)
 
 
-## Dialogue cue: Rover sits across from the player.
+## Dialogue cue: Rover walks to the seat and sits across from the player.
 func cue_sit() -> void:
-	if action == Action.SEATED or action == Action.SITDOWN:
+	if (
+		action == Action.SEATED
+		or action == Action.SITDOWN
+		or action == Action.MOVE_TO_SEAT
+	):
 		return
-	_set_action(Action.SITDOWN)
+	_set_action(Action.MOVE_TO_SEAT)
 
 
 ## Dialogue cue: phone call to Nook — standup, aisle, deck, keitai.
@@ -210,8 +215,10 @@ func _set_action(next: Action) -> void:
 			if not _talk_emitted:
 				_talk_emitted = true
 				ready_for_talk.emit()
+		Action.MOVE_TO_SEAT:
+			_speed_gx = WALK_SPEED_GX
+			_play_rover(ANIM_WALK, true)
 		Action.SITDOWN:
-			_pos_gx = ROVER_SIT_GX
 			_yaw = 0.0
 			_apply_rover_pose()
 			_play_rover(ANIM_SITDOWN, false)
@@ -273,11 +280,7 @@ func _set_action(next: Action) -> void:
 			lock_camera = false
 			_obj_look_y_target_gx = OBJ_LOOK_Y_TALK_GX
 		Action.LAST_SIT:
-			_pos_gx = ROVER_SIT_GX
-			_yaw = 0.0
-			_apply_rover_pose()
-			_play_rover(ANIM_SITDOWN, false)
-			_await_then(Action.SEATED)
+			_set_action(Action.MOVE_TO_SEAT)
 		_:
 			pass
 
@@ -315,7 +318,24 @@ func _tick_move_door(delta: float) -> void:
 
 func _tick_return_approach(delta: float) -> void:
 	## `aNGD_return_approach`: x=140 fixed, walk back toward the player.
-	_tick_move_axis_z(delta, ROVER_TALK_GX.z, Action.LAST_SIT, ROVER_AISLE_X_GX, 1.0)
+	_tick_move_axis_z(delta, ROVER_TALK_GX.z, Action.MOVE_TO_SEAT, ROVER_AISLE_X_GX, 1.0)
+
+
+func _tick_move_to_seat(delta: float) -> void:
+	## Walk from the aisle talk spot to the facing seat before `npc_1_sitdown_d1`.
+	_face_toward_gx(ROVER_SIT_GX)
+	var step: float = _speed_gx * 30.0 * delta
+	var to_seat: Vector3 = ROVER_SIT_GX - _pos_gx
+	to_seat.y = 0.0
+	var dist: float = to_seat.length()
+	if dist <= maxf(step, 0.001):
+		_pos_gx = ROVER_SIT_GX
+		_yaw = 0.0
+		_apply_rover_pose()
+		_set_action(Action.SITDOWN)
+		return
+	_pos_gx += to_seat.normalized() * step
+	_apply_rover_pose()
 
 
 func _tick_move_deck(_delta: float) -> void:
@@ -470,6 +490,8 @@ func tick(delta: float) -> void:
 			_tick_move_door(delta)
 		Action.RETURN_APPROACH:
 			_tick_return_approach(delta)
+		Action.MOVE_TO_SEAT:
+			_tick_move_to_seat(delta)
 		Action.MOVE_DECK:
 			_tick_move_deck(delta)
 		Action.OPEN_DOOR:
@@ -537,6 +559,8 @@ func _action_name(act: Action) -> StringName:
 			return &"approach"
 		Action.TALK:
 			return &"talk"
+		Action.MOVE_TO_SEAT:
+			return &"move_to_seat"
 		Action.SITDOWN:
 			return &"sitdown"
 		Action.SEATED:
