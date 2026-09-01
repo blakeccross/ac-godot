@@ -36,6 +36,7 @@ Starting a **new town** drops the player into a train demo. Rover walks up, conf
 - `IntroTrainStage` plays decomp clips and GX camera / walk path; dialogue cues `rover_sit` / `rover_phone` / `rover_phone_done` / `rover_return`.
 - Clock confirm → snap to seat + `npc_1_sitdown_d1` (no pre-walk; anim carries motion). Daylight when sitdown finishes.
 - Background sleep NPC at FG ut (4,4) loops `npc_1_kokkuri_d1` / `d2`.
+- Rover head tracks camera `(100, 52, 400)` during enter/approach (`camera_eyes_flag`); body turns toward player at talk.
 - Clock confirm / edit → name → gender → town → face questions → phone → farewell.
 - Face selection matching the decomp bit table (and random when the money answer clears bit 0).
 - Persist `player_name`, `town_name`, `player_gender`, `player_face` into the session and start a generated new game.

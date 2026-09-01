@@ -74,8 +74,6 @@ const DOOR_OPEN_D2_FRAME := 22.0
 const KEITAI_ON_ANIM_SPEED := 0.5
 const OPEN_D2_YAW := PI
 const OPEN_D2_YAW_CHASE := deg_to_rad(0.703125)
-const PLAYER_GX := Vector3(120.0, 0.0, 340.0)
-const BODY_YAW_CHASE := 0x400 / 65536.0 * TAU ## ~22.5°/frame @ 30 Hz
 
 var action: Action = Action.ENTER
 var lock_camera: bool = false

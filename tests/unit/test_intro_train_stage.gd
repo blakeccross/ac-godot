@@ -104,6 +104,12 @@ func test_resolve_rover_clip_prefers_exact_sitdown() -> void:
 	anim.queue_free()
 
 
+func test_talk_yaw_faces_player_at_aisle() -> void:
+	var yaw: float = IntroTrainRoverLook.talk_yaw_toward_player(IntroTrainStage.ROVER_TALK_GX)
+	assert_float(yaw).is_less(0.0)
+	assert_float(yaw).is_greater(-1.0)
+
+
 func test_cue_sit_snaps_to_seat_and_sits() -> void:
 	var stage := IntroTrainStage.new()
 	var rover := Node3D.new()
