@@ -51,6 +51,34 @@ func test_approach_steps_toward_building() -> void:
 	var target: Vector3 = StructureDoor.approach_position(root)
 	assert_float(target.z).is_less(sensor.global_position.z)
 	assert_float(StructureDoor.enter_yaw(root, sensor.global_position)).is_equal_approx(PI, 0.01)
+	assert_float(StructureDoor.leave_yaw(root, sensor.global_position)).is_equal_approx(0.0, 0.01)
+
+
+func test_find_near_picks_closest_house() -> void:
+	var tree_root := Node3D.new()
+	auto_free(tree_root)
+	add_child(tree_root)
+	var near: Node3D = _fake_house(tree_root, "Near", Vector3(1.0, 0.0, 0.0), &"obj_s_house1")
+	_fake_house(tree_root, "Far", Vector3(20.0, 0.0, 0.0), &"obj_s_house1")
+	var found: Node3D = StructureDoor.find_near(tree_root, Vector3(0.0, 0.0, 0.0))
+	assert_object(found).is_same(near)
+
+
+func _fake_house(parent: Node, node_name: String, pos: Vector3, visual_id: StringName) -> Node3D:
+	var host := Node3D.new()
+	var script := GDScript.new()
+	script.source_code = "extends Node3D\nvar visual_id: StringName = &\"\"\n"
+	script.reload()
+	host.set_script(script)
+	host.name = node_name
+	host.position = pos
+	host.set("visual_id", visual_id)
+	parent.add_child(host)
+	host.add_to_group("interactable")
+	var gv := Node3D.new()
+	gv.name = "GeneratedVisual"
+	host.add_child(gv)
+	return host
 
 
 func _player_with(names: PackedStringArray) -> AnimationPlayer:

@@ -6,6 +6,7 @@ const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
 
 var grid: WorldGrid
 var session: Interior
+var _exiting: bool = false
 
 @onready var _camera: Camera3D = $FollowCamera
 @onready var _spawn: Marker3D = $Characters/PlayerSpawn
@@ -27,6 +28,36 @@ func _ready() -> void:
 	_apply_indoor_light(room)
 	_spawn_player()
 	Audio.play_bgm(BgmCatalog.room_id(room.kind))
+
+
+func _physics_process(_delta: float) -> void:
+	## `EXIT_DOOR` warp: stepping onto the door unit leaves (`Player_actor_check_nextgoto`).
+	if _exiting or session == null or grid == null or session.room == null:
+		return
+	var player: Node = get_tree().get_first_node_in_group("player")
+	if player == null or not (player is Node3D):
+		return
+	if bool(player.get("_busy")) or bool(player.get("_door_entering")):
+		return
+	var cell: Vector2i = grid.world_to_cell((player as Node3D).global_position)
+	if cell != session.room.door_cell:
+		return
+	_exiting = true
+	await _play_indoor_exit(player as Node3D)
+	Game.exit_interior()
+
+
+func _play_indoor_exit(player: Node3D) -> void:
+	## Face south and walk into the exit (`mPlayer_INDEX_DOOR` / INTO_S1).
+	if player == null or not is_instance_valid(player):
+		return
+	if not player.has_method("run_indoor_exit"):
+		return
+	var door_pos: Vector3 = grid.cell_to_world(session.room.door_cell)
+	var south_yaw: float = WorldGrid.yaw_for_facing(WorldGrid.Facing.SOUTH)
+	var target: Vector3 = door_pos + Vector3(0.0, 0.0, StructureDoor.INTO_GX * FieldCatalog.GX_TO_METERS)
+	target.y = player.global_position.y
+	await player.call("run_indoor_exit", target, south_yaw)
 
 
 func _exit_tree() -> void:

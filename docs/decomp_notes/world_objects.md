@@ -38,7 +38,7 @@ The player never switches on type. Verbs live on the host.
 | `item` | Pick up (inventory) | `item_pickup.tscn` |
 | `building` | Enter via child `Door` | `building.tscn` |
 | `door` | Enter / Shop | `door.tscn` |
-| `house` / `shop` | Enter / Shop (door cKF + player `OPEN1` via `StructureDoor`) | existing shells |
+| `house` / `shop` | Enter / Shop (door cKF + player `OPEN1` via `StructureDoor`); leave emerge uses leave cKF + `GO_OUT` | existing shells |
 
 ## New-game placement (decomp)
 

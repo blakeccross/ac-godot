@@ -102,6 +102,18 @@ func _spawn_player() -> void:
 	player.apply_spawn(pos, Game.player_yaw)
 	if _camera.has_method("set_target"):
 		_camera.call("set_target", player)
+	if Game.emerge_from_door:
+		Game.emerge_from_door = false
+		call_deferred("_play_door_emerge", player)
+
+
+func _play_door_emerge(player: Node) -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	var host: Node3D = StructureDoor.find_near(self, player.global_position)
+	if host == null:
+		return
+	await StructureDoor.play_emerge(host)
 
 
 func _apply_time_of_day() -> void:

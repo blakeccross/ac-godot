@@ -509,28 +509,41 @@ static func _register_public() -> void:
 
 
 static func _register_museum() -> void:
+	## Pipeline shells keep baked TEX_EDGE textures — no wallpaper/carpet bank.
+	## Inner sizes match floor prims at acre scale (`rom_museum*_floor*`).
 	var entrance := _public(
 		&"museum_entrance", Room.Kind.MUSEUM, "Museum", Vector2i(3, 3), Vector2i(10, 10), 9, 17
 	)
 	entrance.linked_rooms = [
 		&"museum_painting", &"museum_fossil", &"museum_insect", &"museum_fish"
 	]
-	entrance.wall_id = WALL_CREAM
-	entrance.floor_id = FLOOR_TILE
+	entrance.wall_id = &""
+	entrance.floor_id = &""
 	entrance.shell_ids = PackedStringArray(["rom_museum1"])
 	_put_room(entrance)
+	var wing_sizes := {
+		&"museum_painting": Vector2i(14, 12),
+		&"museum_fossil": Vector2i(14, 12),
+		&"museum_insect": Vector2i(12, 14),
+		&"museum_fish": Vector2i(10, 14),
+	}
 	var wing_shells := {
 		&"museum_painting": PackedStringArray(["rom_museum2"]),
 		&"museum_fossil": PackedStringArray(["rom_museum3"]),
-		&"museum_insect": PackedStringArray(["rom_museum4", "rom_museum4_wall"]),
+		&"museum_insect": PackedStringArray(["rom_museum4", "rom_museum4_wall", "rom_museum4_ue"]),
 		&"museum_fish": PackedStringArray(["rom_museum5", "rom_museum5_wall"]),
 	}
 	for wing: StringName in entrance.linked_rooms:
 		var label := String(wing).replace("museum_", "").capitalize()
-		var room := _public(wing, Room.Kind.MUSEUM, "%s Wing" % label, Vector2i(3, 3), Vector2i(10, 10), 9, 17)
+		var inner: Vector2i = wing_sizes.get(wing, Vector2i(10, 10)) as Vector2i
+		var origin := Vector2i(
+			maxi(0, int((16 - inner.x) / 2)),
+			maxi(0, int((16 - inner.y) / 2))
+		)
+		var room := _public(wing, Room.Kind.MUSEUM, "%s Wing" % label, origin, inner, 9, 17)
 		room.parent_room_id = &"museum_entrance"
-		room.wall_id = WALL_BLUE
-		room.floor_id = FLOOR_TILE
+		room.wall_id = &""
+		room.floor_id = &""
 		if wing_shells.has(wing):
 			room.shell_ids = wing_shells[wing]
 		_put_room(room)

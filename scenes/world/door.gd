@@ -20,10 +20,11 @@ func _ready() -> void:
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
-	if Game.is_indoors() and (exits_interior or linked_room_id != &""):
-		if linked_room_id != &"":
-			return [Interaction.of(Interaction.ENTER, "Enter %s" % label, 12)]
-		return [Interaction.of(Interaction.ENTER, "Leave", 12)]
+	## Outdoor exit is a walk-on warp (`EXIT_DOOR`); no A prompt.
+	if Game.is_indoors() and exits_interior:
+		return []
+	if Game.is_indoors() and linked_room_id != &"":
+		return [Interaction.of(Interaction.ENTER, "Enter %s" % label, 12)]
 	var prompt: String = "Enter %s" % label if verb == Interaction.ENTER else String(verb).capitalize()
 	if verb == Interaction.SHOP:
 		prompt = "Shop"
@@ -33,12 +34,15 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if action == null:
 		return false
-	if Game.is_indoors() and (exits_interior or linked_room_id != &""):
+	if Game.is_indoors() and exits_interior:
+		## Walk-exit is the normal path; keep A as a fallback.
 		if action.id != Interaction.ENTER:
 			return false
-		if linked_room_id != &"":
-			return Game.try_enter_interior(linked_room_id)
 		return Game.exit_interior()
+	if Game.is_indoors() and linked_room_id != &"":
+		if action.id != Interaction.ENTER:
+			return false
+		return Game.try_enter_interior(linked_room_id)
 	if action.id != verb:
 		return false
 	if verb == Interaction.SHOP:

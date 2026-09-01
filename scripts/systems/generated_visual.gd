@@ -561,6 +561,8 @@ static func _room_surface_kind(mesh_instance: MeshInstance3D, surface: int) -> S
 
 
 static func _classify_room_surface(label: String) -> StringName:
+	## Only bank placeholders (`player_room_*` / carpet). Baked shells
+	## (`rom_museum*_floor*`, `rom_tailor_wall*`, `room_floor`, …) keep their textures.
 	## Parent mesh is `rom_myhome1_wall`; window/enter prims must not pick up that "wall".
 	var lower := label.to_lower()
 	if lower.contains("window") or lower.contains("enter"):
@@ -568,10 +570,6 @@ static func _classify_room_surface(label: String) -> StringName:
 	if lower.contains("player_room_floor") or lower.contains("carpet"):
 		return &"floor"
 	if lower.contains("player_room_wall"):
-		return &"wall"
-	if lower.contains("floor"):
-		return &"floor"
-	if lower.contains("wall"):
 		return &"wall"
 	return &""
 
@@ -1107,8 +1105,9 @@ static func _local_aabb(node: Node) -> AABB:
 
 
 static func _local_aabb_named(node: Node, needle: String) -> AABB:
-	## Empty needle → every mesh. Otherwise only meshes under a matching name
-	## (`rom_myhome2_floor`, …).
+	## Empty needle → every mesh. Otherwise meshes under a matching name
+	## (`rom_myhome2_floor`, …) or surfaces whose material contains the needle
+	## (combined shells like `rom_museum1` with `*_floorA_tex`).
 	return _local_aabb_named_inner(node, needle.to_lower(), needle.is_empty())
 
 
@@ -1116,11 +1115,17 @@ static func _local_aabb_named_inner(node: Node, needle: String, under_match: boo
 	var match := under_match or String(node.name).to_lower().contains(needle)
 	var merged := AABB()
 	var started := false
-	if match and node is MeshInstance3D:
+	if node is MeshInstance3D:
 		var mi := node as MeshInstance3D
 		if mi.mesh != null:
-			merged = mi.transform * mi.mesh.get_aabb()
-			started = true
+			var mesh_aabb := AABB()
+			if match:
+				mesh_aabb = mi.mesh.get_aabb()
+			elif not needle.is_empty():
+				mesh_aabb = _mesh_surface_aabb_named(mi.mesh, needle)
+			if mesh_aabb.size != Vector3.ZERO:
+				merged = mi.transform * mesh_aabb
+				started = true
 	for child in node.get_children():
 		var child_aabb := _local_aabb_named_inner(child, needle, match)
 		if child_aabb.size == Vector3.ZERO:
@@ -1131,5 +1136,36 @@ static func _local_aabb_named_inner(node: Node, needle: String, under_match: boo
 			merged = merged.merge(child_aabb)
 		else:
 			merged = child_aabb
+			started = true
+	return merged
+
+
+static func _mesh_surface_aabb_named(mesh: Mesh, needle: String) -> AABB:
+	## Surfaces whose baked material / albedo name contains `needle`.
+	var merged := AABB()
+	var started := false
+	for i: int in mesh.get_surface_count():
+		var mat: Material = mesh.surface_get_material(i)
+		var label := _resource_label(mat).to_lower()
+		if mat is StandardMaterial3D:
+			label += " " + _resource_label((mat as StandardMaterial3D).albedo_texture).to_lower()
+		if not label.contains(needle):
+			continue
+		var arrays: Array = mesh.surface_get_arrays(i)
+		if arrays.is_empty():
+			continue
+		var verts: Variant = arrays[Mesh.ARRAY_VERTEX]
+		if typeof(verts) != TYPE_PACKED_VECTOR3_ARRAY:
+			continue
+		var points: PackedVector3Array = verts
+		if points.is_empty():
+			continue
+		var surface_aabb := AABB(points[0], Vector3.ZERO)
+		for p: Vector3 in points:
+			surface_aabb = surface_aabb.expand(p)
+		if started:
+			merged = merged.merge(surface_aabb)
+		else:
+			merged = surface_aabb
 			started = true
 	return merged

@@ -2,8 +2,9 @@ class_name StructureDoor
 extends RefCounted
 
 ## Outdoor structure door clips (`ac_house` / `ac_my_house` / `ac_shop`) plus the
-## player OPEN1 step-in (`mPlayer_INDEX_DOOR`). Enter starts both together; the
-## field swap waits on the structure clip (original scene change).
+## player OPEN1 step-in (`mPlayer_INDEX_DOOR`) and GO_OUT emerge
+## (`mPlayer_INDEX_OUTDOOR`). Enter starts door + OPEN1 together; the field swap
+## waits on the structure clip. Exit warps outdoors then plays leave + GO_OUT.
 
 ## cKF plays these at speed 0.5 on a 60 Hz move tick (= 30 anim fps). Pipeline
 ## samples at 30 fps, so Godot speed 1.0 matches the original duration (~1.67 s).
@@ -12,6 +13,14 @@ extends RefCounted
 const APPROACH_SEC := 9.0 / 30.0
 ## Demo `size_adj` floor when house_info.size is 0 (`aMHS_set_demo_info`).
 const APPROACH_GX := 20.0
+## `cKF_ba_r_ply_1_go_out_s1` frame count (demo outdoor start).
+const LEAVE_SEC := 31.0 / 30.0
+## How far past the door stand the emerge walk finishes.
+const LEAVE_GX := 40.0
+## `cKF_ba_r_ply_1_into_s1` frame count (indoor door / exit walk).
+const INTO_SEC := 49.0 / 30.0
+## Indoor exit walks this far south past the door cell center.
+const INTO_GX := 30.0
 
 
 static func play_enter(host: Node) -> void:
@@ -26,8 +35,45 @@ static func play_enter(host: Node) -> void:
 		player.call("end_door_enter")
 
 
+static func play_emerge(host: Node) -> void:
+	## Outdoor start after indoor leave: structure leave clip + player GO_OUT.
+	var root: Node3D = _structure_root(host)
+	var player: Node = _find_player(host)
+	if root != null and player != null and player.has_method("begin_door_leave"):
+		var stand: Vector3 = approach_position(root)
+		var out_yaw: float = leave_yaw(root, stand)
+		var out_dir := Vector3(sin(out_yaw), 0.0, cos(out_yaw))
+		var target: Vector3 = stand + out_dir * (LEAVE_GX * FieldCatalog.GX_TO_METERS)
+		target.y = stand.y
+		player.call("begin_door_leave", stand, target, out_yaw)
+	await _play(host, false)
+	if player != null and is_instance_valid(player) and player.has_method("end_door_leave"):
+		player.call("end_door_leave")
+
+
 static func play_leave(host: Node) -> void:
 	await _play(host, false)
+
+
+static func find_near(from: Node, pos: Vector3, max_dist: float = 8.0) -> Node3D:
+	## Closest outdoor house/shop with a GeneratedVisual (door cKF host).
+	if from == null or from.get_tree() == null:
+		return null
+	var best: Node3D = null
+	var best_d: float = max_dist * max_dist
+	for n: Node in from.get_tree().get_nodes_in_group("interactable"):
+		if not (n is Node3D):
+			continue
+		var root: Node3D = _structure_root(n)
+		if root == null or root.get_node_or_null("GeneratedVisual") == null:
+			continue
+		if not _is_door_structure(root):
+			continue
+		var d: float = pos.distance_squared_to(root.global_position)
+		if d < best_d:
+			best_d = d
+			best = root
+	return best
 
 
 static func approach_position(root: Node3D) -> Vector3:
@@ -61,6 +107,11 @@ static func enter_yaw(root: Node3D, from: Vector3) -> float:
 	if to.length_squared() < 0.0001:
 		return 0.0
 	return atan2(to.x, to.z)
+
+
+static func leave_yaw(root: Node3D, from: Vector3) -> float:
+	## Face out of the doorway (away from the structure).
+	return fposmod(enter_yaw(root, from) + PI, TAU)
 
 
 static func _play(host: Node, entering: bool) -> void:
@@ -124,6 +175,13 @@ static func _structure_root(host: Node) -> Node3D:
 	if parent is Node3D and parent.get_node_or_null("GeneratedVisual") != null:
 		return parent as Node3D
 	return host as Node3D
+
+
+static func _is_door_structure(root: Node) -> bool:
+	var vid: String = String(_visual_id(root))
+	if vid.is_empty():
+		return false
+	return vid.contains("house") or vid.contains("myhome") or vid.contains("shop")
 
 
 static func _find_player(host: Node) -> Node:

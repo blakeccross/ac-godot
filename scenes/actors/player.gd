@@ -24,6 +24,12 @@ const ANIM_RUN := "ply_1_run1"
 const ANIM_DASH := "ply_1_dash1"
 ## `mPlayer_ANIM_OPEN1` — door enter demo (`mPlayer_INDEX_DOOR`, type 0).
 const ANIM_OPEN1 := "ply_1_open1"
+## `mPlayer_ANIM_INTO_S1` — indoor door / exit walk (`mPlayer_INDEX_DOOR`, type ≠ 0).
+const ANIM_INTO_S1 := "ply_1_into_s1"
+## `mPlayer_ANIM_GO_OUT_S1` — outdoor emerge demo (`mPlayer_INDEX_OUTDOOR`, is_start_demo).
+const ANIM_GO_OUT_S1 := "ply_1_go_out_s1"
+## `mPlayer_ANIM_GO_OUT_O1` — non-demo outdoor emerge fallback.
+const ANIM_GO_OUT_O1 := "ply_1_go_out_o1"
 
 @onready var _mesh: Node3D = $MeshPivot
 @onready var _placeholder: MeshInstance3D = $MeshPivot/PlaceholderMesh
@@ -47,6 +53,8 @@ var _door_from: Vector3 = Vector3.ZERO
 var _door_to: Vector3 = Vector3.ZERO
 var _door_yaw: float = 0.0
 var _door_move_elapsed: float = 0.0
+var _door_move_duration: float = StructureDoor.APPROACH_SEC
+var _door_clear_busy: bool = false
 
 
 func _ready() -> void:
@@ -127,10 +135,12 @@ func _physics_process(delta: float) -> void:
 ## `mPlayer_INDEX_DOOR`: OPEN1 while AnimationMove blends XZ/yaw to the door stand.
 func begin_door_enter(target: Vector3, face_yaw: float) -> void:
 	_door_entering = true
+	_door_clear_busy = false
 	_door_from = global_position
 	_door_to = Vector3(target.x, global_position.y, target.z)
 	_door_yaw = face_yaw
 	_door_move_elapsed = 0.0
+	_door_move_duration = StructureDoor.APPROACH_SEC
 	_motor.reset(face_yaw)
 	_mesh.rotation.y = face_yaw
 	velocity = Vector3.ZERO
@@ -145,9 +155,63 @@ func end_door_enter() -> void:
 	_door_entering = false
 
 
+## `mPlayer_INDEX_OUTDOOR`: GO_OUT while walking out of the doorway.
+func begin_door_leave(stand: Vector3, target: Vector3, face_yaw: float) -> void:
+	_busy = true
+	_door_entering = true
+	_door_clear_busy = true
+	global_position = Vector3(stand.x, global_position.y, stand.z)
+	_door_from = global_position
+	_door_to = Vector3(target.x, global_position.y, target.z)
+	_door_yaw = face_yaw
+	_door_move_elapsed = 0.0
+	_door_move_duration = StructureDoor.LEAVE_SEC
+	_motor.reset(face_yaw)
+	_mesh.rotation.y = face_yaw
+	velocity = Vector3.ZERO
+	var clip := _resolve_clip(ANIM_GO_OUT_S1)
+	if clip.is_empty():
+		clip = _resolve_clip(ANIM_GO_OUT_O1)
+	if _anim == null or clip.is_empty():
+		return
+	_anim.speed_scale = 1.0
+	_anim.play(clip, 0.08)
+
+
+func end_door_leave() -> void:
+	_door_entering = false
+	if _door_clear_busy:
+		_busy = false
+	_door_clear_busy = false
+
+
+## Indoor `EXIT_DOOR`: INTO_S1 while walking south through the exit cell.
+func run_indoor_exit(target: Vector3, face_yaw: float) -> void:
+	_busy = true
+	_door_entering = true
+	_door_clear_busy = true
+	_door_from = global_position
+	_door_to = Vector3(target.x, global_position.y, target.z)
+	_door_yaw = face_yaw
+	_door_move_elapsed = 0.0
+	_door_move_duration = StructureDoor.INTO_SEC
+	_motor.reset(face_yaw)
+	_mesh.rotation.y = face_yaw
+	velocity = Vector3.ZERO
+	var clip := _resolve_clip(ANIM_INTO_S1)
+	if _anim != null and not clip.is_empty():
+		_anim.speed_scale = 1.0
+		_anim.play(clip, 0.08)
+		await _anim.animation_finished
+	else:
+		await get_tree().create_timer(_door_move_duration).timeout
+	end_door_leave()
+
+
 func _tick_door_enter(delta: float) -> void:
 	_door_move_elapsed += delta
-	var t: float = clampf(_door_move_elapsed / StructureDoor.APPROACH_SEC, 0.0, 1.0)
+	var dur: float = maxf(_door_move_duration, 0.001)
+	var t: float = clampf(_door_move_elapsed / dur, 0.0, 1.0)
 	## Ease-out toward the door stand (`AnimationMove` decays the correction each tick).
 	var w: float = 1.0 - (1.0 - t) * (1.0 - t)
 	var next: Vector3 = _door_from.lerp(_door_to, w)

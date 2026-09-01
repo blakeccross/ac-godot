@@ -78,8 +78,15 @@ PLAYER_CORE_ANIMS = [
     # six -- so it holds its wait pose through this one.
     "cKF_ba_r_ply_1_putaway_t1",
     # Door enter (`mPlayer_INDEX_DOOR` / type 0 → OPEN1). Walks into the doorway while the
-    # structure door cKF plays. Exit outdoor uses GO_OUT_O1 / GO_OUT_S1 (later).
+    # structure door cKF plays.
     "cKF_ba_r_ply_1_open1",
+    # Indoor exit / non-outdoor door (`mPlayer_INDEX_DOOR` type ≠ 0 → INTO_S1). Walks south
+    # into the room exit before the outdoor emerge.
+    "cKF_ba_r_ply_1_into_s1",
+    # Outdoor emerge after indoor leave (`mPlayer_INDEX_OUTDOOR`). Demo exit uses GO_OUT_S1;
+    # non-demo uses GO_OUT_O1 (often from mid-clip).
+    "cKF_ba_r_ply_1_go_out_s1",
+    "cKF_ba_r_ply_1_go_out_o1",
 ]
 
 # Prefer these first in the GLB; every cKF_ba_r_npc_1_* clip is still included.

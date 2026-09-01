@@ -41,6 +41,8 @@ var current_room_id: StringName = &""
 var outdoor_return: Vector3 = DEFAULT_SPAWN
 var outdoor_return_yaw: float = 0.0
 var spawn_at_room_door: bool = false
+## After indoor leave, world plays structure leave + player GO_OUT (`mPlayer_INDEX_OUTDOOR`).
+var emerge_from_door: bool = false
 var interior_session: Interior
 var player_name: String = DEFAULT_PLAYER_NAME
 var town_name: String = DEFAULT_TOWN_NAME
@@ -143,6 +145,7 @@ func reset_session() -> void:
 	outdoor_return = DEFAULT_SPAWN
 	outdoor_return_yaw = 0.0
 	spawn_at_room_door = false
+	emerge_from_door = false
 	villagers.clear()
 	villagers.book = relationships
 	VillagerWalk.reset()
@@ -475,6 +478,7 @@ func exit_interior() -> bool:
 	spawn_at_room_door = false
 	player_position = outdoor_return
 	player_yaw = outdoor_return_yaw
+	emerge_from_door = true
 	_change_scene(WORLD_SCENE)
 	return true
 

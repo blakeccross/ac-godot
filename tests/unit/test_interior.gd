@@ -278,6 +278,32 @@ func test_room_trim_is_not_wallpaper() -> void:
 	assert_that(GeneratedVisual._classify_room_surface("rom_myhome2_wall rom_myhome_enter_tex")).is_equal(&"")
 	assert_that(GeneratedVisual._classify_room_surface("rom_myhome1_wall player_room_wall_03_0")).is_equal(&"wall")
 	assert_that(GeneratedVisual._classify_room_surface("rom_myhome1_floor player_room_floor_38_0")).is_equal(&"floor")
+	## Museum / tailor shells bake wall and floor — do not treat as bank slots.
+	assert_that(GeneratedVisual._classify_room_surface("rom_museum1 rom_museum1_floorA_tex")).is_equal(&"")
+	assert_that(GeneratedVisual._classify_room_surface("rom_museum2 rom_museum2_wallA_tex")).is_equal(&"")
+	assert_that(GeneratedVisual._classify_room_surface("rom_tailor rom_tailor_floorA_tex")).is_equal(&"")
+
+
+func test_museum_uses_pipeline_shells() -> void:
+	var entrance: Room = InteriorCatalog.room_template(&"museum_entrance")
+	assert_bool(entrance.shell_ids.has("rom_museum1")).is_true()
+	assert_that(entrance.wall_id).is_equal(&"")
+	assert_that(entrance.floor_id).is_equal(&"")
+	assert_that(entrance.inner_size).is_equal(Vector2i(10, 10))
+	var painting: Room = InteriorCatalog.room_template(&"museum_painting")
+	assert_bool(painting.shell_ids.has("rom_museum2")).is_true()
+	assert_that(painting.inner_size).is_equal(Vector2i(14, 12))
+	var fossil: Room = InteriorCatalog.room_template(&"museum_fossil")
+	assert_bool(fossil.shell_ids.has("rom_museum3")).is_true()
+	var insect: Room = InteriorCatalog.room_template(&"museum_insect")
+	assert_bool(insect.shell_ids.has("rom_museum4")).is_true()
+	assert_bool(insect.shell_ids.has("rom_museum4_wall")).is_true()
+	assert_bool(insect.shell_ids.has("rom_museum4_ue")).is_true()
+	assert_that(insect.inner_size).is_equal(Vector2i(12, 14))
+	var fish: Room = InteriorCatalog.room_template(&"museum_fish")
+	assert_bool(fish.shell_ids.has("rom_museum5")).is_true()
+	assert_bool(fish.shell_ids.has("rom_museum5_wall")).is_true()
+	assert_that(fish.inner_size).is_equal(Vector2i(10, 14))
 
 
 func test_floor_atlas_retile_mirrors_odd_cells() -> void:
@@ -383,6 +409,35 @@ func test_enter_exit_restores_outdoor_pose() -> void:
 	Game.player_yaw = Game.outdoor_return_yaw
 	assert_vector(Game.player_position).is_equal(Vector3(4.0, 0.1, -2.0))
 	assert_float(Game.player_yaw).is_equal(0.5)
+
+
+func test_indoor_exit_door_is_walk_warp_not_a_prompt() -> void:
+	## `EXIT_DOOR` leaves on step; no Leave verb on the exit sensor.
+	Game.current_room_id = &"player_main"
+	var door: Node = auto_free(load("res://scenes/world/door.tscn").instantiate())
+	door.set("exits_interior", true)
+	assert_int(door.get_interactions(InteractionContext.new()).size()).is_equal(0)
+	Game.current_room_id = &""
+	assert_str(String(Interaction.primary(door.get_interactions(InteractionContext.new())).id)).is_equal(
+		String(Interaction.ENTER)
+	)
+
+
+func test_door_cell_is_south_of_spawn() -> void:
+	## Spawn sits one cell inside so walking onto the door does not fire on enter.
+	var room: Room = InteriorCatalog.room_template(&"player_main")
+	assert_that(room).is_not_null()
+	assert_int(room.door_cell.x).is_equal(room.spawn_cell.x)
+	assert_int(room.door_cell.y).is_equal(room.spawn_cell.y + 1)
+
+
+func test_indoor_exit_walks_further_south() -> void:
+	## INTO_S1 target is south of the door cell (+Z), facing SOUTH yaw 0.
+	assert_float(StructureDoor.INTO_GX).is_greater(0.0)
+	assert_float(WorldGrid.yaw_for_facing(WorldGrid.Facing.SOUTH)).is_equal_approx(0.0, 0.01)
+	var door_pos := Vector3(4.0, 0.1, 8.0)
+	var target: Vector3 = door_pos + Vector3(0.0, 0.0, StructureDoor.INTO_GX * FieldCatalog.GX_TO_METERS)
+	assert_float(target.z).is_greater(door_pos.z)
 
 
 func test_save_round_trip_placements_and_decoration() -> void:
