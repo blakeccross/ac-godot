@@ -5,9 +5,9 @@ extends RefCounted
 
 const ANIM_KOKKURI_D1 := "npc_1_kokkuri_d1"
 const ANIM_KOKKURI_D2 := "npc_1_kokkuri_d2"
-## Window-side rear bench (`start_demo1` ut 4,4 → aisle spawn, −40 GX to window column).
-const SPAWN_GX := Vector3(100.0, 0.0, 166.0)
-## Seated passengers face down the car (+Z).
+## `start_demo1` ut (4,4) center + `aNSO_actor_ct` birth offset (−6 GX, −24 GX).
+const SPAWN_GX := Vector3(174.0, 0.0, 156.0)
+## Actor birth rotation (0, 0, 0) — faces down the car (+Z).
 const SPAWN_YAW := 0.0
 
 var _host: Node3D
@@ -50,7 +50,7 @@ func _play(suffix: String, loop: bool) -> void:
 	var animation: Animation = _anim.get_animation(clip)
 	if animation != null:
 		animation.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
-	_anim.play(clip, 0.0)
+	_anim.play(clip, IntroTrainStage.ANIM_MORPH_BLEND)
 	if _anim.animation_finished.is_connected(_on_anim_finished):
 		_anim.animation_finished.disconnect(_on_anim_finished)
 	if not loop:

@@ -35,7 +35,7 @@ func set_camera_eyes(active: bool) -> void:
 func tick(delta: float) -> void:
 	if not _active or _skeleton == null or _head_idx < 0:
 		return
-	var target_m: Vector3 = IntroTrainStage.gx_to_meters(CAM_EYES_GX)
+	var target_m: Vector3 = CAM_EYES_GX * FieldCatalog.GX_TO_METERS
 	var head_global: Transform3D = _skeleton.global_transform * _skeleton.get_bone_global_pose(_head_idx)
 	var to_cam: Vector3 = target_m - head_global.origin
 	to_cam.y = 0.0

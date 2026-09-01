@@ -82,14 +82,19 @@ func _ready() -> void:
 	_intro.cancelled.connect(_on_intro_cancelled)
 	_stage.ready_for_talk.connect(_on_ready_for_talk)
 	_stage.stage_changed.connect(_on_stage_changed)
+	if not get_tree().process_frame.is_connected(_apply_rover_look):
+		get_tree().process_frame.connect(_apply_rover_look)
 	_bootstrap_stage()
 
 
 func _process(delta: float) -> void:
 	_stage.tick(delta)
 	_sleep_npc.tick(delta)
-	## After child AnimationPlayer updates, apply head look-at override.
-	_rover_look.tick(delta)
+
+
+func _apply_rover_look() -> void:
+	## After AnimationPlayer updates — same frame slot as decomp draw-time head override.
+	_rover_look.tick(get_process_delta_time())
 
 
 func _unhandled_input(event: InputEvent) -> void:

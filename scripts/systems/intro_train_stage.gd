@@ -72,6 +72,8 @@ const DOOR_OPEN_FRAME := 20.0
 const DOOR_DECK_OPEN_FRAME := 9.0
 const DOOR_OPEN_D2_FRAME := 22.0
 const KEITAI_ON_ANIM_SPEED := 0.5
+## Decomp `morph_counter = -5` → ~10 frames of blend at 30 Hz when switching clips.
+const ANIM_MORPH_BLEND := 10.0 / 30.0
 const OPEN_D2_YAW := PI
 const OPEN_D2_YAW_CHASE := deg_to_rad(0.703125)
 
@@ -107,7 +109,7 @@ var _camera_tilt_goal: float = 0.0
 var _camera_tilt_chase: float = CAMERA_TILT_CHASE
 var _obj_look_y_gx: float = OBJ_LOOK_Y_NORMAL_GX
 var _obj_look_y_target_gx: float = OBJ_LOOK_Y_NORMAL_GX
-var _rover_look: IntroTrainRoverLook
+var _rover_look: RefCounted
 
 
 static func gx_to_meters(gx: Vector3) -> Vector3:
@@ -142,7 +144,7 @@ func bind(
 	door_anim: AnimationPlayer,
 	keitai: Node3D,
 	camera: Camera3D,
-	rover_look: IntroTrainRoverLook = null
+	rover_look: RefCounted = null
 ) -> void:
 	_rover = rover
 	_rover_anim = rover_anim
@@ -203,8 +205,8 @@ func _set_action(next: Action) -> void:
 		Action.ENTER:
 			_speed_gx = WALK_SPEED_GX
 			_door_opened = false
-			camera_eyes = true
-			_set_rover_eyes(true)
+			camera_eyes = false
+			_set_rover_eyes(false)
 			_play_rover(ANIM_OPEN_D1, false)
 		Action.APPROACH:
 			_speed_gx = WALK_SPEED_GX
@@ -215,7 +217,7 @@ func _set_action(next: Action) -> void:
 		Action.TALK:
 			camera_eyes = false
 			_set_rover_eyes(false)
-			_yaw = IntroTrainRoverLook.talk_yaw_toward_player(_pos_gx)
+			_yaw = _talk_yaw_toward_player(_pos_gx)
 			_apply_rover_pose()
 			_play_rover(ANIM_WAIT, true)
 			obj_look_talk = true
@@ -436,8 +438,16 @@ func _open_door() -> void:
 
 
 func _set_rover_eyes(active: bool) -> void:
-	if _rover_look != null:
+	if _rover_look != null and _rover_look.has_method("set_camera_eyes"):
 		_rover_look.set_camera_eyes(active)
+
+
+static func _talk_yaw_toward_player(from_gx: Vector3) -> float:
+	var to: Vector3 = Vector3(120.0, 0.0, 340.0) - from_gx
+	to.y = 0.0
+	if to.length_squared() < 0.001:
+		return 0.0
+	return atan2(to.x, to.z)
 
 
 func _play_rover(suffix: String, loop: bool, speed_scale: float = 1.0) -> bool:
@@ -461,8 +471,18 @@ func _play_rover(suffix: String, loop: bool, speed_scale: float = 1.0) -> bool:
 			Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
 		)
 	_rover_anim.speed_scale = speed_scale
-	_rover_anim.play(clip, 0.0)
+	var blend: float = _rover_anim_blend(suffix)
+	_rover_anim.play(clip, blend)
 	return true
+
+
+static func _rover_anim_blend(suffix: String) -> float:
+	## Only `open_d1` and `sitdown_d1` use instant cuts in the decomp clip table.
+	match suffix:
+		ANIM_OPEN_D1, ANIM_SITDOWN:
+			return 0.0
+		_:
+			return ANIM_MORPH_BLEND
 
 
 static func resolve_rover_clip(anim: AnimationPlayer, suffix: String) -> String:

@@ -105,9 +105,25 @@ func test_resolve_rover_clip_prefers_exact_sitdown() -> void:
 
 
 func test_talk_yaw_faces_player_at_aisle() -> void:
-	var yaw: float = IntroTrainRoverLook.talk_yaw_toward_player(IntroTrainStage.ROVER_TALK_GX)
+	var yaw: float = IntroTrainStage._talk_yaw_toward_player(IntroTrainStage.ROVER_TALK_GX)
 	assert_float(yaw).is_less(0.0)
 	assert_float(yaw).is_greater(-1.0)
+
+
+func test_rover_anim_blend_matches_decomp_morph() -> void:
+	assert_float(IntroTrainStage._rover_anim_blend(IntroTrainStage.ANIM_OPEN_D1)).is_equal(0.0)
+	assert_float(IntroTrainStage._rover_anim_blend(IntroTrainStage.ANIM_SITDOWN)).is_equal(0.0)
+	assert_float(IntroTrainStage._rover_anim_blend(IntroTrainStage.ANIM_WALK)).is_equal_approx(
+		IntroTrainStage.ANIM_MORPH_BLEND, 0.0001
+	)
+
+
+func test_sleep_npc_spawn_matches_decomp() -> void:
+	var spawn: Vector3 = Vector3(174.0, 0.0, 156.0)
+	assert_vector(IntroTrainStage.gx_to_meters(spawn)).is_equal_approx(
+		IntroTrainStage.gx_to_meters(Vector3(174.0, 0.0, 156.0)),
+		Vector3(0.001, 0.001, 0.001)
+	)
 
 
 func test_cue_sit_snaps_to_seat_and_sits() -> void:
