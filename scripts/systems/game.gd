@@ -2,9 +2,10 @@ extends Node
 
 ## Composition root. Owns session phase, scene changes, interiors, shops, and world deltas that are not autoloads.
 
-enum Phase { TITLE, PLAYING }
+enum Phase { TITLE, INTRO, PLAYING }
 
 const TITLE_SCENE := "res://scenes/ui/title.tscn"
+const INTRO_SCENE := "res://scenes/ui/intro_train.tscn"
 const WORLD_SCENE := "res://scenes/world/world.tscn"
 const INTERIOR_SCENE := "res://scenes/world/interior.tscn"
 const DEFAULT_SPAWN := Vector3(0.0, 0.1, 6.0)
@@ -31,6 +32,7 @@ signal weather_changed(weather: StringName)
 
 const DEFAULT_PLAYER_NAME := "Player"
 const DEFAULT_TOWN_NAME := "Town"
+const DEFAULT_PLAYER_GENDER := &"male"
 
 var inventory: Inventory = Inventory.new()
 var villagers: VillagerRoster = VillagerRoster.new()
@@ -44,6 +46,8 @@ var spawn_at_room_door: bool = false
 var interior_session: Interior
 var player_name: String = DEFAULT_PLAYER_NAME
 var town_name: String = DEFAULT_TOWN_NAME
+var player_gender: StringName = DEFAULT_PLAYER_GENDER
+var player_face: int = 0
 ## Session weather (`mEnv_WEATHER_*`). Rolled by `Weather` on `field_renewed`.
 var weather: StringName = &"clear"
 ## `mEnv_WEATHER_INTENSITY_*` (none/light/normal/heavy).
@@ -77,21 +81,65 @@ func has_continue() -> bool:
 
 
 func start_new_game(
-	mode: WorldData.Mode = WorldData.Mode.TEST, seed_value: int = WorldGenerator.DEFAULT_SEED
+	mode: WorldData.Mode = WorldData.Mode.TEST,
+	seed_value: int = WorldGenerator.DEFAULT_SEED,
+	identity: Dictionary = {}
 ) -> void:
 	reset_session()
+	_apply_identity(identity)
 	world_mode = mode
 	world_seed = seed_value
 	if world_mode == WorldData.Mode.GENERATED:
 		grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
 	else:
 		grass_pattern = WorldData.GrassPattern.TRIANGLE
-	Clock.rtc_override = false
-	Clock.sync_from_os()
+	if identity.is_empty() or not Clock.rtc_override:
+		Clock.rtc_override = false
+		Clock.sync_from_os()
 	apply_weather_roll(Weather.roll())
 	if world_mode == WorldData.Mode.TEST:
 		give_test_tools()
 	_change_scene(WORLD_SCENE)
+
+
+func start_intro_sequence() -> void:
+	reset_session()
+	Clock.rtc_override = false
+	Clock.sync_from_os()
+	_set_phase(Phase.INTRO)
+	_change_scene(INTRO_SCENE)
+
+
+func notify_intro_ready() -> void:
+	_set_phase(Phase.INTRO)
+	set_interact_prompt("")
+
+
+func finish_intro_sequence(identity: Dictionary) -> void:
+	var seed_value: int = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
+	start_new_game(WorldData.Mode.GENERATED, seed_value, identity)
+
+
+func abort_intro_sequence() -> void:
+	_set_phase(Phase.TITLE)
+	_change_scene(TITLE_SCENE)
+
+
+func _apply_identity(identity: Dictionary) -> void:
+	if identity.is_empty():
+		return
+	player_name = str(identity.get("player_name", DEFAULT_PLAYER_NAME))
+	if player_name.strip_edges().is_empty():
+		player_name = DEFAULT_PLAYER_NAME
+	town_name = str(identity.get("town_name", DEFAULT_TOWN_NAME))
+	if town_name.strip_edges().is_empty():
+		town_name = DEFAULT_TOWN_NAME
+	player_gender = IntroSequence.normalize_gender(
+		identity.get("player_gender", DEFAULT_PLAYER_GENDER)
+	)
+	player_face = clampi(
+		int(identity.get("player_face", 0)), 0, IntroSequence.FACE_TYPE_NUM - 1
+	)
 
 
 func resolve_world_data() -> WorldData:
@@ -155,6 +203,8 @@ func reset_session() -> void:
 	plant_states.clear()
 	player_name = DEFAULT_PLAYER_NAME
 	town_name = DEFAULT_TOWN_NAME
+	player_gender = DEFAULT_PLAYER_GENDER
+	player_face = 0
 	weather = &"clear"
 	weather_intensity = int(Weather.Intensity.NONE)
 	dialogue_vars.clear()
@@ -306,6 +356,8 @@ func to_save() -> Dictionary:
 		},
 		"player_name": player_name,
 		"town_name": town_name,
+		"player_gender": String(player_gender),
+		"player_face": player_face,
 		"weather": String(weather),
 		"weather_intensity": weather_intensity,
 		"dialogue_vars": dialogue_vars.duplicate(true),
@@ -377,6 +429,8 @@ func apply_snapshot(data: Dictionary) -> void:
 	villagers.apply_snapshot(data.get("villagers", {}))
 	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
 	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))
+	player_gender = IntroSequence.normalize_gender(data.get("player_gender", DEFAULT_PLAYER_GENDER))
+	player_face = clampi(int(data.get("player_face", 0)), 0, IntroSequence.FACE_TYPE_NUM - 1)
 	weather = StringName(str(data.get("weather", "clear")))
 	if data.has("weather_intensity"):
 		weather_intensity = int(data["weather_intensity"])

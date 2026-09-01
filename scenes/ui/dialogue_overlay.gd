@@ -32,6 +32,10 @@ func is_open() -> bool:
 	return _open
 
 
+func runner() -> DialogueRunner:
+	return _runner
+
+
 func play(data: DialogueData, ctx: DialogueContext, state: VillagerState = null) -> void:
 	if data == null:
 		return
@@ -113,6 +117,9 @@ func _process(delta: float) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _open:
+		return
+	if _runner != null and _runner.waiting_prompt:
+		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause_menu"):
 		get_viewport().set_input_as_handled()
