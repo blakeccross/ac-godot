@@ -13,11 +13,12 @@ func test_gx_to_meters_matches_field_catalog() -> void:
 
 func test_required_assets_list_train_set() -> void:
 	var paths: PackedStringArray = IntroTrainStage.required_asset_paths()
-	assert_int(paths.size()).is_equal(5)
+	assert_int(paths.size()).is_equal(6)
 	assert_str(paths[0]).contains("rom_train_in")
 	assert_str(paths[2]).contains("obj_romtrain_door")
-	assert_str(paths[3]).contains("cat_1")
-	assert_str(paths[4]).contains("tol_keitai_1")
+	assert_str(paths[3]).contains("xct_1")
+	assert_str(paths[4]).contains("kab_1")
+	assert_str(paths[5]).contains("tol_keitai_1")
 
 
 func test_bind_starts_enter_and_emits_talk_without_mesh() -> void:
@@ -103,7 +104,7 @@ func test_resolve_rover_clip_prefers_exact_sitdown() -> void:
 	anim.queue_free()
 
 
-func test_cue_sit_walks_to_seat_before_sitting() -> void:
+func test_cue_sit_snaps_to_seat_and_sits() -> void:
 	var stage := IntroTrainStage.new()
 	var rover := Node3D.new()
 	add_child(rover)
@@ -113,9 +114,8 @@ func test_cue_sit_walks_to_seat_before_sitting() -> void:
 		if stage.action == IntroTrainStage.Action.TALK:
 			break
 	stage.cue_sit()
-	stage.tick(0.0)
-	assert_that(stage.action).is_equal(IntroTrainStage.Action.MOVE_TO_SEAT)
-	for _i: int in 120:
+	assert_that(stage.action).is_equal(IntroTrainStage.Action.SITDOWN)
+	for _i: int in 8:
 		stage.tick(1.0 / 30.0)
 		if stage.action == IntroTrainStage.Action.SEATED:
 			break

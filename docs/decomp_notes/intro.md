@@ -9,6 +9,7 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 | File | Role |
 | --- | --- |
 | `src/actor/npc/ac_npc_guide.c` / `ac_npc_guide_move.c_inc` | New-town Rover on the train (`SP_NPC_GUIDE`) |
+| `src/actor/npc/ac_npc_sleep_obaba.c` | Sleeping passenger behind Rover (`SP_NPC_SLEEP_OBABA`) |
 | `src/actor/npc/ac_npc_guide_animation.c_inc` | Action → `aNPC_ANIM_*` clip table |
 | `src/actor/ac_train_door.c` / `ac_train_window.c` | Door open flag + window scroll (`rom_train_out`) |
 | `src/actor/ac_intro_demo*.c*` | Post-arrival station → Porter → Nook house pick |
@@ -31,8 +32,10 @@ Starting a **new town** drops the player into a train demo. Rover walks up, conf
 ## Reproduce (this milestone)
 
 - Title menu entry that runs the **train act only**.
-- 3D stage with pipeline GLBs: `rom_train_in`, `rom_train_out`, `obj_romtrain_door`, Rover=`cat_1`, phone=`tol_keitai_1`.
+- 3D stage with pipeline GLBs: `rom_train_in`, `rom_train_out`, `obj_romtrain_door`, Rover=`xct_1`, sleep passenger=`kab_1`, phone=`tol_keitai_1`.
 - `IntroTrainStage` plays decomp clips and GX camera / walk path; dialogue cues `rover_sit` / `rover_phone` / `rover_phone_done` / `rover_return`.
+- Clock confirm → snap to seat + `npc_1_sitdown_d1` (no pre-walk; anim carries motion). Daylight when sitdown finishes.
+- Background sleep NPC at FG ut (4,4) loops `npc_1_kokkuri_d1` / `d2`.
 - Clock confirm / edit → name → gender → town → face questions → phone → farewell.
 - Face selection matching the decomp bit table (and random when the money answer clears bit 0).
 - Persist `player_name`, `town_name`, `player_gender`, `player_face` into the session and start a generated new game.

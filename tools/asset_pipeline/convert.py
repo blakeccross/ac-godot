@@ -86,7 +86,7 @@ NPC_CORE_ANIMS = [
     "cKF_ba_r_npc_1_run1",
 ]
 
-## `ac_npc_guide` train intro clips baked into `cat_1.glb` for the test set.
+## `ac_npc_guide` train intro clips baked into `xct_1.glb` for the test set.
 INTRO_ROVER_NPC_ANIMS = [
     "cKF_ba_r_npc_1_open_d1",
     "cKF_ba_r_npc_1_walk1",
@@ -100,6 +100,12 @@ INTRO_ROVER_NPC_ANIMS = [
     "cKF_ba_r_npc_1_keitai_talk2",
     "cKF_ba_r_npc_1_keitai_off1",
     "cKF_ba_r_npc_1_open_d2",
+]
+
+## `ac_npc_sleep_obaba` nod/twitch clips baked into `kab_1.glb`.
+INTRO_SLEEP_NPC_ANIMS = [
+    "cKF_ba_r_npc_1_kokkuri_d1",
+    "cKF_ba_r_npc_1_kokkuri_d2",
 ]
 
 # Species skeletons (cat_1, bev_1, …) share the 26-joint npc_1 bank. Not clocks/logos/effects.
@@ -376,6 +382,10 @@ def _intro_rover_anims(names: set[str]) -> list[str]:
     return [n for n in INTRO_ROVER_NPC_ANIMS if n in names]
 
 
+def _intro_sleep_npc_anims(names: set[str]) -> list[str]:
+    return [n for n in INTRO_SLEEP_NPC_ANIMS if n in names]
+
+
 def _anims_for_prefix(prefix: str, names: set[str], *, core_only: bool = False) -> list[str]:
     known = TEST_SKEL_BY_NAME.get(f"cKF_bs_r_{prefix}")
     hits = [
@@ -396,10 +406,14 @@ def _anims_for_prefix(prefix: str, names: set[str], *, core_only: bool = False) 
         # Pose evaluation is cached across species; rest translations still differ
         # so each GLB embeds its own tracks. core_only is the test-set path.
         if core_only:
-            if prefix == "cat_1":
+            if prefix == "xct_1":
                 intro = _intro_rover_anims(names)
                 if intro:
                     return intro
+            if prefix == "kab_1":
+                sleep = _intro_sleep_npc_anims(names)
+                if sleep:
+                    return sleep
             return _core_anims(NPC_CORE_ANIMS, names)
         return _all_npc_anims(names)
     if known and not hits:

@@ -6,7 +6,7 @@ import struct
 import unittest
 
 from asset_pipeline.ckf import _mat_model_name, _vtx_sym_for_gfx, select_bind_anim
-from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, INTRO_ROVER_NPC_ANIMS, WATER_STATIC_NEEDLES, _intro_rover_anims, _name_under_prefix, _owning_vtx_prefix, _static_jobs
+from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, INTRO_ROVER_NPC_ANIMS, INTRO_SLEEP_NPC_ANIMS, WATER_STATIC_NEEDLES, _intro_rover_anims, _intro_sleep_npc_anims, _name_under_prefix, _owning_vtx_prefix, _static_jobs
 from asset_pipeline.glb import _bake_wrap_group
 from asset_pipeline.layout import (
     bti_output_path,
@@ -23,16 +23,25 @@ def _sym(name: str, addr: int = 0, size: int = 4) -> MapSymbol:
 
 
 class LayoutTests(unittest.TestCase):
-    def test_cat_1_test_set_includes_intro_rover_clips(self) -> None:
+    def test_xct_1_test_set_includes_intro_rover_clips(self) -> None:
         names = set(INTRO_ROVER_NPC_ANIMS) | {"cKF_ba_r_npc_1_run1"}
         intro = _intro_rover_anims(names)
         self.assertEqual(intro, INTRO_ROVER_NPC_ANIMS)
         self.assertIn("cKF_ba_r_npc_1_sitdown_d1", intro)
 
+    def test_kab_1_test_set_includes_sleep_clips(self) -> None:
+        names = set(INTRO_SLEEP_NPC_ANIMS) | {"cKF_ba_r_npc_1_wait1"}
+        sleep = _intro_sleep_npc_anims(names)
+        self.assertEqual(sleep, INTRO_SLEEP_NPC_ANIMS)
+
     def test_species_paths(self) -> None:
         self.assertTrue(uses_shared_npc_anims("cat_1"))
+        self.assertTrue(uses_shared_npc_anims("xct_1"))
+        self.assertTrue(uses_shared_npc_anims("kab_1"))
         self.assertFalse(uses_shared_npc_anims("boy_1"))
         self.assertEqual(output_for_prefix("cat_1"), "characters/villagers/cat_1.glb")
+        self.assertEqual(output_for_prefix("xct_1"), "characters/villagers/xct_1.glb")
+        self.assertEqual(output_for_prefix("kab_1"), "characters/villagers/kab_1.glb")
         self.assertEqual(output_for_prefix("boy_1"), "characters/player/boy_1.glb")
         self.assertEqual(output_for_prefix("int_kon_redclock"), "furniture/int_kon_redclock.glb")
         self.assertEqual(output_for_prefix("tol_net_1"), "items/tol_net_1.glb")

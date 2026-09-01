@@ -31,6 +31,20 @@ TEST_SKELETONS = [
         "confident_name": True,
     },
     {
+        "asset_id": "villager_xct_1",
+        "skeleton": "cKF_bs_r_xct_1",
+        "output": "characters/villagers/xct_1.glb",
+        "animations": [],
+        "confident_name": True,
+    },
+    {
+        "asset_id": "villager_kab_1",
+        "skeleton": "cKF_bs_r_kab_1",
+        "output": "characters/villagers/kab_1.glb",
+        "animations": [],
+        "confident_name": True,
+    },
+    {
         "asset_id": "villager_bea_1",
         "skeleton": "cKF_bs_r_bea_1",
         "output": "characters/villagers/bea_1.glb",

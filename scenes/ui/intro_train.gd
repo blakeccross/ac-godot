@@ -1,10 +1,11 @@
 extends Node3D
 
-## Train intro presentation. Loads pipeline GLBs (`rom_train_in`, door, Rover/`cat_1`,
-## `tol_keitai_1`) and drives `IntroTrainStage` + dialogue for a 1:1 Rover act.
+## Train intro presentation. Loads pipeline GLBs (`rom_train_in`, door, Rover/`xct_1`,
+## sleep passenger/`kab_1`, `tol_keitai_1`) and drives `IntroTrainStage` + dialogue.
 
 const DIALOGUE_ID := &"rover_intro"
-const ROVER_GLB := "res://assets/generated/characters/villagers/cat_1.glb"
+const ROVER_GLB := "res://assets/generated/characters/villagers/xct_1.glb"
+const SLEEP_NPC_GLB := "res://assets/generated/characters/villagers/kab_1.glb"
 ## Decomp ceiling lamp tint (~255, 255, 150).
 const LAMP_COLOR := Color(1.0, 1.0, 0.59)
 ## Ceiling omni positions along the aisle (`rom_train_in` GX).
@@ -40,6 +41,7 @@ const TRAIN_OPA_EMISSION_TINT := Color(0.48, 0.38, 0.26)
 @onready var _ceiling_lights: Node3D = %CeilingLights
 @onready var _door_host: Node3D = %TrainDoor
 @onready var _rover_host: Node3D = %Rover
+@onready var _sleep_host: Node3D = %SleepPassenger
 @onready var _keitai_host: Node3D = %Keitai
 @onready var _camera: Camera3D = %IntroCamera
 @onready var _missing_banner: Label = %MissingBanner
@@ -58,6 +60,7 @@ const TRAIN_OPA_EMISSION_TINT := Color(0.48, 0.38, 0.26)
 
 var _intro: IntroSequence = IntroSequence.new()
 var _stage: IntroTrainStage = IntroTrainStage.new()
+var _sleep_npc: IntroTrainSleepNpc = IntroTrainSleepNpc.new()
 var _ctx: DialogueContext
 var _finishing: bool = false
 var _dialogue_started: bool = false
@@ -83,6 +86,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_stage.tick(delta)
+	_sleep_npc.tick(delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -102,13 +106,15 @@ func _bootstrap_stage() -> void:
 		_missing_banner.text = (
 			"Missing generated train assets — run:\n"
 			+ "python3 tools/build_assets.py --step convert\n"
-			+ "(need rom_train_in, rom_train_out, obj_romtrain_door, cat_1, tol_keitai_1)"
+			+ "(need rom_train_in, rom_train_out, obj_romtrain_door, xct_1, kab_1, tol_keitai_1)"
 		)
 	_attach_visuals()
 	_apply_tunnel_lighting()
 	var rover_anim: AnimationPlayer = GeneratedVisual.find_animation_player(_rover_host)
+	var sleep_anim: AnimationPlayer = GeneratedVisual.find_animation_player(_sleep_host)
 	var door_anim: AnimationPlayer = GeneratedVisual.find_animation_player(_door_host)
 	_stage.bind(_rover_host, rover_anim, _door_host, door_anim, _keitai_host, _camera)
+	_sleep_npc.bind(_sleep_host, sleep_anim)
 	## No Rover mesh → skip walk-up so the title menu item stays testable.
 	if not ResourceLoader.exists(ROVER_GLB):
 		_on_ready_for_talk()
@@ -131,7 +137,8 @@ func _attach_visuals() -> void:
 		_apply_car_opa_surfaces(car)
 	_place_train_lights()
 	GeneratedVisual.attach(_door_host, &"obj_romtrain_door")
-	GeneratedVisual.attach_villager(_rover_host, &"cat")
+	GeneratedVisual.attach_villager(_rover_host, &"xct")
+	GeneratedVisual.attach_villager(_sleep_host, &"kab")
 	GeneratedVisual.attach(_keitai_host, &"tol_keitai_1")
 	_keitai_host.visible = false
 	_door_host.global_position = IntroTrainStage.gx_to_meters(Vector3(140.0, 0.0, 120.0))
@@ -452,7 +459,8 @@ func _set_ceiling_light_energies(primary: float, secondary: float) -> void:
 
 
 func _on_stage_changed(action: StringName) -> void:
-	if action == &"sitdown":
+	## Decomp sets `sunlight_flag` when sitdown finishes, not at start.
+	if action == &"seated":
 		_apply_daylight()
 
 

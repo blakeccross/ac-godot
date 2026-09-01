@@ -87,6 +87,9 @@ unique_name_in_owner = true
 [node name="Rover" type="Node3D" parent="."]
 unique_name_in_owner = true
 
+[node name="SleepPassenger" type="Node3D" parent="."]
+unique_name_in_owner = true
+
 [node name="Keitai" type="Node3D" parent="."]
 unique_name_in_owner = true
 visible = false

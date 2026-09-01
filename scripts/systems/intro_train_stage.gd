@@ -41,6 +41,9 @@ const ANIM_KEITAI_TALK2 := "npc_1_keitai_talk2"
 const ANIM_KEITAI_OFF := "npc_1_keitai_off1"
 const ANIM_OPEN_D2 := "npc_1_open_d2"
 
+## `SP_NPC_SLEEP_OBABA` spawn (`start_demo1_actable` ut 4,4 + birth offset).
+const SLEEP_OBABA_GX := Vector3(174.0, 0.0, 146.0)
+
 ## `aNGD` GX landmarks.
 const ROVER_AISLE_X_GX := 140.0
 const ROVER_START_GX := Vector3(140.0, 0.0, 130.0)
@@ -118,7 +121,8 @@ static func required_asset_paths() -> PackedStringArray:
 			"res://assets/generated/environment/interiors/rom_train_in.glb",
 			"res://assets/generated/environment/interiors/rom_train_out.glb",
 			"res://assets/generated/environment/obj_romtrain_door.glb",
-			"res://assets/generated/characters/villagers/cat_1.glb",
+			"res://assets/generated/characters/villagers/xct_1.glb",
+			"res://assets/generated/characters/villagers/kab_1.glb",
 			"res://assets/generated/items/tol_keitai_1.glb",
 		]
 	)
@@ -168,15 +172,11 @@ static func _hermit_morph(t: float) -> float:
 	return x * x * (3.0 - 2.0 * x)
 
 
-## Dialogue cue: Rover walks to the seat and sits across from the player.
+## Dialogue cue: snap to the seat and play `npc_1_sitdown_d1` (decomp `aNGD_ACTION_SITDOWN`).
 func cue_sit() -> void:
-	if (
-		action == Action.SEATED
-		or action == Action.SITDOWN
-		or action == Action.MOVE_TO_SEAT
-	):
+	if action == Action.SEATED or action == Action.SITDOWN:
 		return
-	_set_action(Action.MOVE_TO_SEAT)
+	_set_action(Action.SITDOWN)
 
 
 ## Dialogue cue: phone call to Nook — standup, aisle, deck, keitai.
@@ -217,14 +217,14 @@ func _set_action(next: Action) -> void:
 				_talk_emitted = true
 				ready_for_talk.emit()
 		Action.MOVE_TO_SEAT:
-			_speed_gx = WALK_SPEED_GX
-			_play_rover(ANIM_WALK, true)
+			_set_action(Action.SITDOWN)
 		Action.SITDOWN:
+			_pos_gx = ROVER_SIT_GX
 			_speed_gx = 0.0
 			_yaw = 0.0
 			_apply_rover_pose()
 			_disconnect_anim_finished()
-			_play_rover(ANIM_SITDOWN, false)
+			_play_rover(ANIM_SITDOWN, false, 1.0, 0.15)
 			_await_then(Action.SEATED, ANIM_SITDOWN)
 		Action.SEATED:
 			_play_rover(ANIM_SIT_WAIT, true)
@@ -283,7 +283,7 @@ func _set_action(next: Action) -> void:
 			lock_camera = false
 			_obj_look_y_target_gx = OBJ_LOOK_Y_TALK_GX
 		Action.LAST_SIT:
-			_set_action(Action.MOVE_TO_SEAT)
+			_set_action(Action.SITDOWN)
 		_:
 			pass
 
@@ -321,7 +321,7 @@ func _tick_move_door(delta: float) -> void:
 
 func _tick_return_approach(delta: float) -> void:
 	## `aNGD_return_approach`: x=140 fixed, walk back toward the player.
-	_tick_move_axis_z(delta, ROVER_TALK_GX.z, Action.MOVE_TO_SEAT, ROVER_AISLE_X_GX, 1.0)
+	_tick_move_axis_z(delta, ROVER_TALK_GX.z, Action.SITDOWN, ROVER_AISLE_X_GX, 1.0)
 
 
 func _tick_move_to_seat(delta: float) -> void:
@@ -422,7 +422,9 @@ func _open_door() -> void:
 	_door_anim.speed_scale = 0.5
 
 
-func _play_rover(suffix: String, loop: bool, speed_scale: float = 1.0) -> bool:
+func _play_rover(
+	suffix: String, loop: bool, speed_scale: float = 1.0, blend: float = 0.0
+) -> bool:
 	if _rover_anim == null:
 		return false
 	var clip: String = resolve_rover_clip(_rover_anim, suffix)
@@ -435,7 +437,7 @@ func _play_rover(suffix: String, loop: bool, speed_scale: float = 1.0) -> bool:
 			Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
 		)
 	_rover_anim.speed_scale = speed_scale
-	_rover_anim.play(clip, 0.0)
+	_rover_anim.play(clip, blend)
 	return true
 
 
