@@ -14,11 +14,14 @@ var node_id: StringName = &""
 var line: String = ""
 var choices: Array[Dictionary] = []
 var waiting_choice: bool = false
+## Intro modals (`prompt_name` / `prompt_town` / `prompt_clock`) pause here.
+var waiting_prompt: bool = false
 var done: bool = false
 var last_choice_index: int = -1
 var events_this_step: Array[Dictionary] = []
 
 var _state: VillagerState
+var _prompt_next: StringName = &""
 
 
 func start(
@@ -29,6 +32,8 @@ func start(
 	_state = villager_state
 	done = false
 	waiting_choice = false
+	waiting_prompt = false
+	_prompt_next = &""
 	last_choice_index = -1
 	line = ""
 	choices.clear()
@@ -41,10 +46,22 @@ func start(
 
 
 func advance() -> void:
-	if done or waiting_choice:
+	if done or waiting_choice or waiting_prompt:
 		return
 	var rec: Dictionary = _current()
 	var next_id := StringName(str(rec.get("next", "")))
+	if next_id == &"":
+		_finish()
+		return
+	_goto(next_id)
+
+
+func resume_after_prompt() -> void:
+	if done or not waiting_prompt:
+		return
+	waiting_prompt = false
+	var next_id: StringName = _prompt_next
+	_prompt_next = &""
 	if next_id == &"":
 		_finish()
 		return
@@ -132,6 +149,9 @@ func _settle() -> void:
 			DialogueData.KIND_EVENT:
 				_fire_list(rec.get("events", []))
 				var next_id := StringName(str(rec.get("next", "")))
+				if waiting_prompt:
+					_prompt_next = next_id
+					return
 				if next_id == &"":
 					_finish()
 					return
@@ -153,6 +173,9 @@ func _enter_line(rec: Dictionary) -> void:
 	waiting_choice = false
 	choices.clear()
 	_fire_list(rec.get("events", []))
+	if waiting_prompt:
+		_prompt_next = StringName(str(rec.get("next", "")))
+		return
 	line = context.substitute(str(rec.get("text", ""))) if context != null else str(rec.get("text", ""))
 	line_shown.emit(line)
 
@@ -248,6 +271,13 @@ func _apply_event(event: Dictionary) -> void:
 			if context != null:
 				var key := str(event.get("name", ""))
 				context.set_var(key, int(context.get_var(key, 0)) + int(event.get("amount", 1)))
+		"or_var":
+			if context != null:
+				var or_key := str(event.get("name", ""))
+				var prior: int = int(context.get_var(or_key, 0))
+				context.set_var(or_key, prior | int(event.get("mask", event.get("value", 0))))
+		"prompt_name", "prompt_town", "prompt_clock":
+			waiting_prompt = true
 		"add_friendship":
 			if _state != null and _state.relationship != null:
 				_state.relationship.add_friendship(int(event.get("amount", 1)))
@@ -325,6 +355,8 @@ func _finish() -> void:
 		return
 	done = true
 	waiting_choice = false
+	waiting_prompt = false
+	_prompt_next = &""
 	finished.emit()
 
 

@@ -1,0 +1,226 @@
+{
+  "id": "rover_intro",
+  "speaker_id": "rover",
+  "start": "greet",
+  "nodes": {
+    "greet": {
+      "type": "line",
+      "text": "Mind if I grab this seat? Traveling alone gets old fast.",
+      "next": "greet_choice"
+    },
+    "greet_choice": {
+      "type": "choice",
+      "options": [
+        { "text": "Sure, sit down.", "goto": "clock_ask", "events": [{ "op": "or_var", "name": "answer_flags", "mask": 8 }] },
+        { "text": "I'd rather not.", "goto": "clock_ask" }
+      ]
+    },
+    "clock_ask": {
+      "type": "line",
+      "text": "Thanks. Before we roll on — is the clock right? I show {month}/{day}/{year}, {hour}:{minute}.",
+      "next": "clock_choice"
+    },
+    "clock_choice": {
+      "type": "choice",
+      "options": [
+        { "text": "That looks right.", "goto": "sit_ok" },
+        { "text": "Needs a tweak.", "goto": "clock_prompt" }
+      ]
+    },
+    "clock_prompt": {
+      "type": "event",
+      "events": [{ "op": "prompt_clock" }],
+      "next": "clock_confirm"
+    },
+    "clock_confirm": {
+      "type": "line",
+      "text": "Alright — {month}/{day}/{year}, {hour}:{minute}. That good?",
+      "next": "clock_confirm_choice"
+    },
+    "clock_confirm_choice": {
+      "type": "choice",
+      "options": [
+        { "text": "Yes.", "goto": "sit_ok" },
+        { "text": "Change it again.", "goto": "clock_prompt" }
+      ]
+    },
+    "sit_ok": {
+      "type": "line",
+      "text": "Great. So… what should I call you?",
+      "next": "name_prompt"
+    },
+    "name_prompt": {
+      "type": "event",
+      "events": [{ "op": "prompt_name" }],
+      "next": "name_react"
+    },
+    "name_react": {
+      "type": "line",
+      "text": "{player}, huh? That's a cool name!",
+      "next": "gender_ask"
+    },
+    "gender_ask": {
+      "type": "choice",
+      "options": [
+        { "text": "Cool, yeah.", "goto": "gender_confirm_boy" },
+        { "text": "It's cute, actually.", "goto": "gender_confirm_girl" },
+        { "text": "That's not my name.", "goto": "name_again" }
+      ]
+    },
+    "name_again": {
+      "type": "line",
+      "text": "Whoops — let's try that again. What's your name?",
+      "next": "name_prompt"
+    },
+    "gender_confirm_boy": {
+      "type": "line",
+      "text": "So you're a boy, then?",
+      "next": "gender_boy_choice"
+    },
+    "gender_boy_choice": {
+      "type": "choice",
+      "options": [
+        {
+          "text": "That's right.",
+          "goto": "town_ask",
+          "events": [{ "op": "set_var", "name": "gender", "value": "male" }]
+        },
+        {
+          "text": "I'm not a boy.",
+          "goto": "town_ask",
+          "events": [{ "op": "set_var", "name": "gender", "value": "female" }]
+        }
+      ]
+    },
+    "gender_confirm_girl": {
+      "type": "line",
+      "text": "So you're a girl, then?",
+      "next": "gender_girl_choice"
+    },
+    "gender_girl_choice": {
+      "type": "choice",
+      "options": [
+        {
+          "text": "That's right.",
+          "goto": "town_ask",
+          "events": [{ "op": "set_var", "name": "gender", "value": "female" }]
+        },
+        {
+          "text": "I'm not a girl.",
+          "goto": "gender_oops",
+          "events": [{ "op": "set_var", "name": "gender", "value": "male" }]
+        }
+      ]
+    },
+    "gender_oops": {
+      "type": "line",
+      "text": "Ha — got it. Boy it is. Moving on!",
+      "next": "town_ask"
+    },
+    "town_ask": {
+      "type": "line",
+      "text": "Where are you headed, {player}?",
+      "next": "town_prompt"
+    },
+    "town_prompt": {
+      "type": "event",
+      "events": [{ "op": "prompt_town" }],
+      "next": "town_confirm"
+    },
+    "town_confirm": {
+      "type": "line",
+      "text": "{town}… nice ring to it. That the place?",
+      "next": "town_confirm_choice"
+    },
+    "town_confirm_choice": {
+      "type": "choice",
+      "options": [
+        { "text": "That's the one.", "goto": "q2" },
+        { "text": "Wrong town.", "goto": "town_prompt" }
+      ]
+    },
+    "q2": {
+      "type": "line",
+      "text": "So what brings you to {town}?",
+      "next": "q2_choice"
+    },
+    "q2_choice": {
+      "type": "choice",
+      "options": [
+        {
+          "text": "I'm moving there.",
+          "goto": "q3",
+          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 4 }]
+        },
+        { "text": "What's it to you?", "goto": "q3" }
+      ]
+    },
+    "q3": {
+      "type": "line",
+      "text": "And where's your new place going to be?",
+      "next": "q3_choice"
+    },
+    "q3_choice": {
+      "type": "choice",
+      "options": [
+        {
+          "text": "Not sure yet.",
+          "goto": "q4",
+          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 2 }]
+        },
+        { "text": "Leave me alone.", "goto": "q4" }
+      ]
+    },
+    "q4": {
+      "type": "line",
+      "text": "You packed some money for the move, right?",
+      "next": "q4_choice"
+    },
+    "q4_choice": {
+      "type": "choice",
+      "options": [
+        { "text": "Oh, yeah!", "goto": "phone_lead" },
+        {
+          "text": "Just a little…",
+          "goto": "phone_lead",
+          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 1 }]
+        }
+      ]
+    },
+    "phone_lead": {
+      "type": "line",
+      "text": "Hang on — I know a shopkeeper in {town}. Let me give him a buzz.",
+      "next": "resolve_face"
+    },
+    "resolve_face": {
+      "type": "event",
+      "events": [{ "op": "resolve_face" }],
+      "next": "phone_call"
+    },
+    "phone_call": {
+      "type": "line",
+      "text": "…Hey, it's me. Got a new neighbor for you — {player}, heading to {town}. Got a spare house?",
+      "next": "phone_call2"
+    },
+    "phone_call2": {
+      "type": "line",
+      "text": "…He'll meet you at the station. Don't leave him hanging.",
+      "next": "phone_done"
+    },
+    "phone_done": {
+      "type": "line",
+      "text": "All set. When we stop, look for the raccoon in the apron — he'll sort you out.",
+      "next": "farewell"
+    },
+    "farewell": {
+      "type": "line",
+      "text": "Next stop: {town}. Take care, {player}!",
+      "next": "finish"
+    },
+    "finish": {
+      "type": "event",
+      "events": [{ "op": "finish_intro" }],
+      "next": ""
+    }
+  }
+}
