@@ -47,6 +47,26 @@ func test_bind_starts_enter_and_emits_talk_without_mesh() -> void:
 	cam.queue_free()
 
 
+func test_bind_places_camera_near_decomp_eye() -> void:
+	var stage := IntroTrainStage.new()
+	var cam := Camera3D.new()
+	add_child(cam)
+	stage.bind(null, null, null, null, null, cam)
+	var expected: Vector3 = IntroTrainStage.gx_to_meters(IntroTrainStage.CAM_EYE_GX)
+	## Sway adds ~0.1 GX on the first frame; allow that slack.
+	assert_vector(cam.global_position).is_equal_approx(
+		expected, Vector3(0.01, 0.01, 0.01)
+	)
+	assert_float(cam.fov).is_equal_approx(IntroTrainStage.CAM_FOV, 0.001)
+	assert_float(cam.near).is_equal_approx(
+		IntroTrainStage.CAM_NEAR_GX * FieldCatalog.GX_TO_METERS, 0.0001
+	)
+	assert_float(cam.far).is_equal_approx(
+		IntroTrainStage.CAM_FAR_GX * FieldCatalog.GX_TO_METERS, 0.0001
+	)
+	cam.queue_free()
+
+
 func test_cue_sit_moves_to_sit_gx() -> void:
 	var stage := IntroTrainStage.new()
 	var rover := Node3D.new()
