@@ -23,6 +23,13 @@ const LIGHT_RAY_DAYLIGHT_ALPHA := 0.38
 const TUNNEL_AMBIENT := Color(0.78, 0.64, 0.46)
 const TUNNEL_BG := Color(0.10, 0.07, 0.05)
 const DAYLIGHT_AMBIENT := Color(0.78, 0.72, 0.62)
+## `rom_train_in` OPA uses baked CI — scene ambient/lights barely move it vs villagers.
+## Brightness is applied on the material (albedo scale + texture emission), not global ambient.
+const TRAIN_OPA_ALBEDO_TUNNEL := 2.05
+const TRAIN_OPA_ALBEDO_DAYLIGHT := 1.65
+const TRAIN_OPA_EMISSION_TUNNEL := 0.95
+const TRAIN_OPA_EMISSION_DAYLIGHT := 0.50
+const TRAIN_OPA_EMISSION_TINT := Color(0.75, 0.60, 0.42)
 
 @onready var _train_host: Node3D = %TrainCar
 @onready var _window_host: Node3D = %WindowScenery
@@ -122,7 +129,7 @@ func _attach_visuals() -> void:
 		_train_car = car
 		GeneratedVisual.fit_train_car_shell(car)
 		_apply_car_materials(car)
-		_apply_car_opa_wood(car)
+		_apply_car_opa_surfaces(car)
 	_place_train_lights()
 	GeneratedVisual.attach(_door_host, &"obj_romtrain_door")
 	GeneratedVisual.attach_villager(_rover_host, &"cat")
@@ -149,32 +156,55 @@ func _place_train_lights() -> void:
 		light.global_position = IntroTrainStage.gx_to_meters(CEILING_LIGHT_GX[i])
 
 
-func _apply_car_opa_wood(root: Node3D) -> void:
-	## Polished wood highlights on seats/walls (`rom_train_in_model` OPA).
-	_apply_car_opa_wood_inner(root)
+func _apply_car_opa_surfaces(root: Node3D, daylight: bool = _daylight) -> void:
+	## Lit OPA seats/walls (`rom_train_in_model`). GX baked CI ignores Godot lights unless
+	## we lift albedo and add a warm emission pass keyed to the albedo texture.
+	_apply_car_opa_surfaces_inner(root, daylight)
 
 
-func _apply_car_opa_wood_inner(node: Node) -> void:
+func _apply_car_opa_surfaces_inner(node: Node, daylight: bool) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
 		if mesh_instance.mesh == null:
 			return
 		if String(mesh_instance.name).to_lower().contains("modelt"):
 			return
+		var albedo_scale: float = (
+			TRAIN_OPA_ALBEDO_DAYLIGHT if daylight else TRAIN_OPA_ALBEDO_TUNNEL
+		)
+		var emission_energy: float = (
+			TRAIN_OPA_EMISSION_DAYLIGHT if daylight else TRAIN_OPA_EMISSION_TUNNEL
+		)
 		for i: int in mesh_instance.mesh.get_surface_count():
 			var mat: Material = mesh_instance.get_active_material(i)
-			if not mat is StandardMaterial3D:
-				continue
-			var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			var std: StandardMaterial3D
+			if mat is StandardMaterial3D:
+				std = (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			else:
+				std = StandardMaterial3D.new()
+			std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+			std.disable_ambient_light = false
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
-			std.roughness = 0.70
+			std.roughness = 0.68
 			std.metallic = 0.0
 			std.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
-			std.albedo_color = std.albedo_color * Color(1.14, 1.10, 1.02)
+			std.albedo_color = (
+				std.albedo_color
+				* Color(albedo_scale, albedo_scale * 0.98, albedo_scale * 0.90)
+			)
+			if std.albedo_texture != null:
+				std.emission_enabled = true
+				std.emission_texture = std.albedo_texture
+				std.emission = TRAIN_OPA_EMISSION_TINT
+				std.emission_energy_multiplier = emission_energy
+			else:
+				std.emission_enabled = true
+				std.emission = std.albedo_color * TRAIN_OPA_EMISSION_TINT
+				std.emission_energy_multiplier = emission_energy * 0.65
 			mesh_instance.set_surface_override_material(i, std)
 	for child: Node in node.get_children():
-		_apply_car_opa_wood_inner(child)
+		_apply_car_opa_surfaces_inner(child, daylight)
 
 
 func _apply_car_materials(root: Node3D, daylight: bool = _daylight) -> void:
@@ -361,6 +391,7 @@ func _set_omni_group_energy(group: Node3D, energy: float) -> void:
 
 func _refresh_train_materials() -> void:
 	if _train_car != null:
+		_apply_car_opa_surfaces(_train_car, _daylight)
 		_apply_car_materials(_train_car, _daylight)
 	if _window_scenery != null:
 		_apply_scenery_materials(_window_scenery, _daylight)
@@ -370,24 +401,24 @@ func _apply_tunnel_lighting() -> void:
 	_daylight = false
 	_tunnel_fill.visible = true
 	_tunnel_fill.light_color = Color(1.0, 0.9, 0.68)
-	_tunnel_fill.light_energy = 0.72
+	_tunnel_fill.light_energy = 0.55
 	_window_sun.visible = false
 	_seat_fill.light_color = Color(1.0, 0.94, 0.76)
-	_seat_fill.light_energy = 2.1
+	_seat_fill.light_energy = 1.45
 	_seat_fill.omni_range = 34.0
 	_eye_fill.light_color = Color(1.0, 0.92, 0.74)
-	_eye_fill.light_energy = 1.35
-	_set_ceiling_light_energies(2.2, 1.05)
+	_eye_fill.light_energy = 0.85
+	_set_ceiling_light_energies(1.75, 0.85)
 	_refresh_train_materials()
 	var env: Environment = _world_env.environment
 	if env != null:
 		env.ambient_light_color = TUNNEL_AMBIENT
-		env.ambient_light_energy = 1.55
+		env.ambient_light_energy = 1.02
 		env.background_color = TUNNEL_BG
-		env.tonemap_exposure = 1.48
+		env.tonemap_exposure = 1.28
 		env.glow_enabled = true
-		env.glow_intensity = 0.55
-		env.glow_bloom = 0.14
+		env.glow_intensity = 0.48
+		env.glow_bloom = 0.12
 
 
 func _apply_daylight() -> void:
