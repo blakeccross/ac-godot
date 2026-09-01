@@ -35,6 +35,19 @@ class LayoutTests(unittest.TestCase):
         self.assertIn("cKF_ba_r_npc_1_wait_nemu1", sleep)
         self.assertIn("cKF_ba_r_npc_1_kokkuri_d1", sleep)
 
+    def test_face_frame_offsets_cover_eyes_then_mouths(self) -> None:
+        from asset_pipeline.faces import MOUTH_BASE, frame_offsets
+
+        frames = frame_offsets()
+        self.assertEqual(len(frames), 14)
+        self.assertEqual(frames[0], ("eye0", 0x000))
+        self.assertEqual(frames[7], ("eye7", 0x700))
+        # `face_*.bin` face 0 puts the six mouths straight after the eight eyes.
+        self.assertEqual(frames[8], ("mouth0", MOUTH_BASE))
+        self.assertEqual(frames[13], ("mouth5", MOUTH_BASE + 5 * 0x100))
+        offsets = [off for _name, off in frames]
+        self.assertEqual(len(set(offsets)), len(offsets))
+
     def test_species_paths(self) -> None:
         self.assertTrue(uses_shared_npc_anims("cat_1"))
         self.assertTrue(uses_shared_npc_anims("xct_1"))

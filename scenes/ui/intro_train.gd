@@ -54,6 +54,7 @@ var _intro: IntroSequence = IntroSequence.new()
 var _stage: IntroTrainStage = IntroTrainStage.new()
 var _sleep_npc: IntroTrainSleepNpc = IntroTrainSleepNpc.new()
 var _rover_look: IntroTrainRoverLook = IntroTrainRoverLook.new()
+var _rover_face: NpcFace = NpcFace.new()
 var _ctx: DialogueContext
 var _finishing: bool = false
 var _dialogue_started: bool = false
@@ -82,7 +83,13 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_stage.tick(delta)
 	_sleep_npc.tick(delta)
+	_rover_face.tick(delta, _dialogue_uttering())
 	_poll_dialogue_stage_wait()
+
+
+func _dialogue_uttering() -> bool:
+	## `mMsg_Check_NowUtter`: Rover's mouth only moves while the window is laying text in.
+	return _dialogue.has_method("is_uttering") and _dialogue.is_uttering()
 
 
 func _poll_dialogue_stage_wait() -> void:
@@ -151,7 +158,9 @@ func _attach_visuals() -> void:
 		_apply_car_opa_surfaces(car)
 	_place_train_lights()
 	GeneratedVisual.attach(_door_host, &"obj_romtrain_door")
-	GeneratedVisual.attach_villager(_rover_host, &"xct")
+	var rover_visual: Node3D = GeneratedVisual.attach_villager(_rover_host, &"xct")
+	## Blink and mouth flap (`aNPC_tex_anm_ctrl`). No-ops until `--kind faces` has run.
+	_rover_face.bind(rover_visual, &"xct")
 	## Sleep pose sets its own recline — skip standing foot snap; bench align runs in bind().
 	GeneratedVisual.attach_villager(_sleep_host, &"kab", false)
 	GeneratedVisual.attach(_keitai_host, &"tol_keitai_1")
