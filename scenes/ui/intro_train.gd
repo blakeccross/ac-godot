@@ -149,11 +149,15 @@ func _boost_emissive_surfaces(node: Node) -> void:
 			if mesh_instance.mesh is ArrayMesh:
 				label = (mesh_instance.mesh as ArrayMesh).surface_get_name(i).to_lower()
 			var src := mat as StandardMaterial3D
-			if not ("light" in label or src.emission_enabled or src.emission_energy > 0.01):
+			if not (
+				"light" in label
+				or src.emission_enabled
+				or src.emission_energy_multiplier > 0.01
+			):
 				continue
 			var std := src.duplicate() as StandardMaterial3D
 			std.emission_enabled = true
-			std.emission_energy = maxf(std.emission_energy, 2.8)
+			std.emission_energy_multiplier = maxf(std.emission_energy_multiplier, 2.8)
 			mesh_instance.set_surface_override_material(i, std)
 	for child: Node in node.get_children():
 		_boost_emissive_surfaces(child)
