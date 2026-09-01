@@ -6,7 +6,7 @@ import struct
 import unittest
 
 from asset_pipeline.ckf import _mat_model_name, _vtx_sym_for_gfx, select_bind_anim
-from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, WATER_STATIC_NEEDLES, _name_under_prefix, _owning_vtx_prefix, _static_jobs
+from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, INTRO_ROVER_NPC_ANIMS, WATER_STATIC_NEEDLES, _intro_rover_anims, _name_under_prefix, _owning_vtx_prefix, _static_jobs
 from asset_pipeline.glb import _bake_wrap_group
 from asset_pipeline.layout import (
     bti_output_path,
@@ -23,6 +23,12 @@ def _sym(name: str, addr: int = 0, size: int = 4) -> MapSymbol:
 
 
 class LayoutTests(unittest.TestCase):
+    def test_cat_1_test_set_includes_intro_rover_clips(self) -> None:
+        names = set(INTRO_ROVER_NPC_ANIMS) | {"cKF_ba_r_npc_1_run1"}
+        intro = _intro_rover_anims(names)
+        self.assertEqual(intro, INTRO_ROVER_NPC_ANIMS)
+        self.assertIn("cKF_ba_r_npc_1_sitdown_d1", intro)
+
     def test_species_paths(self) -> None:
         self.assertTrue(uses_shared_npc_anims("cat_1"))
         self.assertFalse(uses_shared_npc_anims("boy_1"))

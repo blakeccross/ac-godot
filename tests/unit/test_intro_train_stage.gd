@@ -87,6 +87,22 @@ func test_approach_keeps_rover_in_aisle() -> void:
 	rover.queue_free()
 
 
+func test_resolve_rover_clip_prefers_exact_sitdown() -> void:
+	var anim := AnimationPlayer.new()
+	add_child(anim)
+	anim.add_animation_library(
+		"",
+		AnimationLibrary.new()
+	)
+	var library: AnimationLibrary = anim.get_animation_library("")
+	library.add_animation(&"npc_1_sitdown_wait_d1", Animation.new())
+	library.add_animation(&"npc_1_sitdown_d1", Animation.new())
+	assert_str(IntroTrainStage.resolve_rover_clip(anim, "npc_1_sitdown_d1")).is_equal(
+		"npc_1_sitdown_d1"
+	)
+	anim.queue_free()
+
+
 func test_cue_sit_walks_to_seat_before_sitting() -> void:
 	var stage := IntroTrainStage.new()
 	var rover := Node3D.new()

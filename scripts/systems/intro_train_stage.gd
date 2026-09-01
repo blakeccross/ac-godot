@@ -93,6 +93,7 @@ var _yaw: float = 0.0
 var _talk_emitted: bool = false
 var _door_opened: bool = false
 var _clip: String = ""
+var _pending_clip: String = ""
 var _pending_next: Action = Action.DONE
 var _pending_ready: bool = false
 var _camera_move: int = 0
@@ -219,10 +220,12 @@ func _set_action(next: Action) -> void:
 			_speed_gx = WALK_SPEED_GX
 			_play_rover(ANIM_WALK, true)
 		Action.SITDOWN:
+			_speed_gx = 0.0
 			_yaw = 0.0
 			_apply_rover_pose()
+			_disconnect_anim_finished()
 			_play_rover(ANIM_SITDOWN, false)
-			_await_then(Action.SEATED)
+			_await_then(Action.SEATED, ANIM_SITDOWN)
 		Action.SEATED:
 			_play_rover(ANIM_SIT_WAIT, true)
 		Action.STANDUP:
@@ -230,7 +233,7 @@ func _set_action(next: Action) -> void:
 			lock_camera = false
 			_obj_look_y_target_gx = OBJ_LOOK_Y_NORMAL_GX
 			_play_rover(ANIM_STANDUP, false)
-			_await_then(Action.MOVE_AISLE)
+			_await_then(Action.MOVE_AISLE, ANIM_STANDUP)
 		Action.MOVE_AISLE:
 			_pos_gx = ROVER_STAND_GX
 			_apply_rover_pose()
@@ -249,17 +252,17 @@ func _set_action(next: Action) -> void:
 			_apply_rover_pose()
 			_door_opened = false
 			_play_rover(ANIM_TO_DECK, false)
-			_await_then(Action.KEITAI_ON)
+			_await_then(Action.KEITAI_ON, ANIM_TO_DECK)
 		Action.KEITAI_ON:
 			if _keitai != null:
 				_keitai.visible = true
 			_play_rover(ANIM_KEITAI_ON, false, KEITAI_ON_ANIM_SPEED)
-			_await_then(Action.KEITAI_TALK)
+			_await_then(Action.KEITAI_TALK, ANIM_KEITAI_ON)
 		Action.KEITAI_TALK:
 			_play_rover(ANIM_KEITAI_TALK, true)
 		Action.KEITAI_OFF:
 			_play_rover(ANIM_KEITAI_OFF, false)
-			_await_then(Action.OPEN_DOOR)
+			_await_then(Action.OPEN_DOOR, ANIM_KEITAI_OFF)
 		Action.OPEN_DOOR:
 			if _keitai != null:
 				_keitai.visible = false
@@ -268,7 +271,7 @@ func _set_action(next: Action) -> void:
 			if _pos_gx.z < 140.0:
 				_camera_tilt_goal = 0.0
 				_camera_tilt_chase = CAMERA_TILT_RESET_CHASE
-			_await_then(Action.RETURN_APPROACH)
+			_await_then(Action.RETURN_APPROACH, ANIM_OPEN_D2)
 		Action.RETURN_APPROACH:
 			_speed_gx = WALK_SPEED2_GX
 			_pos_gx = ROVER_RETURN_START_GX
@@ -419,12 +422,12 @@ func _open_door() -> void:
 	_door_anim.speed_scale = 0.5
 
 
-func _play_rover(suffix: String, loop: bool, speed_scale: float = 1.0) -> void:
+func _play_rover(suffix: String, loop: bool, speed_scale: float = 1.0) -> bool:
 	if _rover_anim == null:
-		return
-	var clip: String = _resolve_clip(suffix)
+		return false
+	var clip: String = resolve_rover_clip(_rover_anim, suffix)
 	if clip.is_empty():
-		return
+		return false
 	_clip = clip
 	var anim: Animation = _rover_anim.get_animation(clip)
 	if anim != null:
@@ -433,17 +436,25 @@ func _play_rover(suffix: String, loop: bool, speed_scale: float = 1.0) -> void:
 		)
 	_rover_anim.speed_scale = speed_scale
 	_rover_anim.play(clip, 0.0)
+	return true
+
+
+static func resolve_rover_clip(anim: AnimationPlayer, suffix: String) -> String:
+	if anim == null:
+		return ""
+	if anim.has_animation(suffix):
+		return suffix
+	var best: String = ""
+	for anim_name: String in anim.get_animation_list():
+		if not anim_name.ends_with(suffix):
+			continue
+		if best.is_empty() or anim_name.length() < best.length():
+			best = anim_name
+	return best
 
 
 func _resolve_clip(suffix: String) -> String:
-	if _rover_anim == null:
-		return ""
-	if _rover_anim.has_animation(suffix):
-		return suffix
-	for anim_name: String in _rover_anim.get_animation_list():
-		if anim_name.ends_with(suffix) or suffix in anim_name:
-			return anim_name
-	return ""
+	return resolve_rover_clip(_rover_anim, suffix)
 
 
 func _anim_playing() -> bool:
@@ -452,27 +463,41 @@ func _anim_playing() -> bool:
 	return _rover_anim.is_playing()
 
 
-func _await_then(next: Action) -> void:
+func _await_then(next: Action, wait_suffix: String = "") -> void:
 	_pending_next = next
+	_pending_clip = ""
+	if wait_suffix != "" and _rover_anim != null:
+		_pending_clip = resolve_rover_clip(_rover_anim, wait_suffix)
 	if _rover_anim != null and _anim_playing():
-		if not _rover_anim.animation_finished.is_connected(_on_anim_finished):
-			_rover_anim.animation_finished.connect(_on_anim_finished)
+		if _rover_anim.animation_finished.is_connected(_on_anim_finished):
+			_rover_anim.animation_finished.disconnect(_on_anim_finished)
+		_rover_anim.animation_finished.connect(_on_anim_finished)
 		return
 	## No clip / already stopped — advance on next tick (RefCounted has no call_deferred).
 	_pending_ready = true
 
 
+func _disconnect_anim_finished() -> void:
+	if _rover_anim != null and _rover_anim.animation_finished.is_connected(_on_anim_finished):
+		_rover_anim.animation_finished.disconnect(_on_anim_finished)
+
+
 func _flush_pending() -> void:
 	if _pending_next == Action.DONE:
 		_pending_ready = false
+		_pending_clip = ""
 		return
 	var next: Action = _pending_next
 	_pending_next = Action.DONE
 	_pending_ready = false
+	_pending_clip = ""
 	_set_action(next)
 
 
-func _on_anim_finished(_anim_name: StringName) -> void:
+func _on_anim_finished(anim_name: StringName) -> void:
+	if _pending_clip != "" and String(anim_name) != _pending_clip:
+		return
+	_disconnect_anim_finished()
 	_flush_pending()
 
 
