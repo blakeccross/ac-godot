@@ -45,6 +45,7 @@ func test_fg_item_trees_and_sign_reserves() -> void:
 func test_summer_tree_paths_when_assets_exist() -> void:
 	Clock.apply_snapshot({ "year": 2001, "month": 7, "day": 1, "hour": 12, "minute": 0 })
 	assert_str(FieldCatalog.season_letter()).is_equal("s")
+	assert_str(FieldCatalog.acre_season_letter()).is_equal("s")
 	var paths: PackedStringArray = FieldCatalog.mesh_paths(&"TREE_APPLE_FRUIT")
 	if paths.is_empty():
 		return
@@ -82,6 +83,121 @@ func test_summer_tree_paths_when_assets_exist() -> void:
 	var myhome: PackedStringArray = FieldCatalog.mesh_paths(&"rom_myhome1_floor")
 	if not myhome.is_empty():
 		assert_str(myhome[0]).contains("rom_myhome1_floor")
+
+
+func test_seasonal_acre_and_tree_letters() -> void:
+	## Acres only swap summer↔winter; trees also use autumn `f`.
+	Clock.apply_snapshot({ "year": 2001, "month": 7, "day": 1, "hour": 12, "minute": 0 })
+	assert_str(FieldCatalog.season_letter()).is_equal("s")
+	assert_str(FieldCatalog.acre_season_letter()).is_equal("s")
+	assert_str(FieldCatalog.seasonal_acre_id(&"grd_s_f_1")).is_equal("grd_s_f_1")
+	assert_str(FieldCatalog.seasonal_acre_id(&"grd_w_r1_1")).is_equal("grd_s_r1_1")
+
+	Clock.apply_snapshot({ "year": 2001, "month": 10, "day": 1, "hour": 12, "minute": 0 })
+	assert_that(Clock.season()).is_equal(Clock.Season.AUTUMN)
+	assert_str(FieldCatalog.season_letter()).is_equal("f")
+	assert_str(FieldCatalog.acre_season_letter()).is_equal("s")
+	assert_str(FieldCatalog.seasonal_acre_id(&"grd_s_f_1")).is_equal("grd_s_f_1")
+
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 15, "hour": 12, "minute": 0 })
+	assert_that(Clock.season()).is_equal(Clock.Season.WINTER)
+	assert_str(FieldCatalog.season_letter()).is_equal("w")
+	assert_str(FieldCatalog.acre_season_letter()).is_equal("w")
+	assert_str(FieldCatalog.seasonal_acre_id(&"grd_s_f_1")).is_equal("grd_w_f_1")
+	assert_str(FieldCatalog.seasonal_acre_id(&"grd_s_c1_1")).is_equal("grd_w_c1_1")
+
+	var winter_paths: PackedStringArray = FieldCatalog.mesh_paths(&"grd_s_f_1")
+	if not winter_paths.is_empty():
+		## Prefer winter GLB when present; otherwise summer fallback.
+		assert_bool(
+			winter_paths[0].contains("grd_w_f_1") or winter_paths[0].contains("grd_s_f_1")
+		).is_true()
+
+	var tree_paths: PackedStringArray = FieldCatalog.mesh_paths(&"TREE")
+	if not tree_paths.is_empty():
+		assert_bool(
+			tree_paths[0].contains("obj_w_tree5") or tree_paths[0].contains("obj_s_tree5")
+		).is_true()
+
+
+func test_season_role_for_label_matches_field_and_tree() -> void:
+	assert_str(FieldCatalog.season_role_for_label("grass_tex_dummy")).is_equal("grass")
+	assert_str(FieldCatalog.season_role_for_label("Earth_Tex")).is_equal("earth")
+	assert_str(FieldCatalog.season_role_for_label("bush_a_tex_dummy")).is_equal("bush_a")
+	assert_str(FieldCatalog.season_role_for_label("bush_b_tex_dummy")).is_equal("bush_b")
+	assert_str(FieldCatalog.season_role_for_label("earth_tex_dummy")).is_equal("earth")
+	assert_str(FieldCatalog.season_role_for_label("sand_tex_dummy")).is_equal("sand")
+	assert_str(FieldCatalog.season_role_for_label("beach1_tex_dummy2")).is_equal("beach_wet")
+	assert_str(FieldCatalog.season_role_for_label("beach2_tex_dummy2")).is_equal("")
+	assert_str(FieldCatalog.season_role_for_label("river_tex_dummy")).is_equal("river_edge")
+	assert_str(FieldCatalog.season_role_for_label("river_mFM_grd_water1_tex")).is_equal("")
+	assert_str(FieldCatalog.season_role_for_label("stone_tex_dummy")).is_equal("stone")
+	assert_str(FieldCatalog.season_role_for_label("obj_s_tree_leaf_tex")).is_equal("tree_leaf")
+	assert_str(FieldCatalog.season_role_for_label("obj_w_tree_trunk_tex")).is_equal("tree_trunk")
+	assert_str(FieldCatalog.season_role_for_label("river_water")).is_equal("")
+	## Acre host node names alone do not identify grass — baked material names must.
+	assert_str(FieldCatalog.season_role_for_label("grd_s_f_1")).is_equal("")
+
+
+func test_season_role_from_extras() -> void:
+	var mat := StandardMaterial3D.new()
+	mat.set_meta("gltf_extras", { "field_role": "grass" })
+	assert_str(FieldCatalog.season_role_from_extras(mat)).is_equal("grass")
+	mat.set_meta("gltf_extras", { "water_kind": "river" })
+	assert_str(FieldCatalog.season_role_from_extras(mat)).is_equal("")
+
+
+func test_grass_pattern_texture_path_prefers_variant() -> void:
+	FieldCatalog.set_grass_pattern(WorldData.GrassPattern.CIRCLE)
+	var path := FieldCatalog.season_texture_path("grass")
+	if path.is_empty():
+		return
+	assert_str(path.get_file()).is_equal("grass_2.png")
+	FieldCatalog.set_grass_pattern(WorldData.GrassPattern.TRIANGLE)
+
+
+func test_grass_pattern_labels() -> void:
+	assert_str(WorldData.grass_pattern_label(WorldData.GrassPattern.TRIANGLE)).is_equal("triangle")
+	assert_str(WorldData.grass_pattern_label(WorldData.GrassPattern.SQUARE)).is_equal("square")
+	assert_str(WorldData.grass_pattern_label(WorldData.GrassPattern.CIRCLE)).is_equal("circle")
+
+
+func test_season_texture_path_falls_back_to_summer_pack() -> void:
+	## Without a seasons pack on disk, paths are empty. With only summer pack, autumn falls back.
+	Clock.apply_snapshot({ "year": 2001, "month": 7, "day": 1, "hour": 12, "minute": 0 })
+	var summer := FieldCatalog.season_texture_path("grass")
+	Clock.apply_snapshot({ "year": 2001, "month": 10, "day": 1, "hour": 12, "minute": 0 })
+	var autumn := FieldCatalog.season_texture_path("grass")
+	if summer.is_empty():
+		assert_str(autumn).is_equal("")
+		return
+	assert_str(summer).contains("/seasons/s/grass.png")
+	## Autumn pack or summer fallback.
+	assert_bool(autumn.contains("/seasons/f/grass.png") or autumn.contains("/seasons/s/grass.png")).is_true()
+
+
+func test_is_seasonal_env_visual() -> void:
+	assert_bool(FieldCatalog.is_seasonal_env_visual(&"obj_s_house1")).is_true()
+	assert_bool(FieldCatalog.is_seasonal_env_visual(&"ROCK_A")).is_true()
+	assert_bool(FieldCatalog.is_seasonal_env_visual(&"grd_s_f_1")).is_true()
+	assert_bool(FieldCatalog.is_seasonal_env_visual(&"int_sum_chair01")).is_false()
+	assert_bool(FieldCatalog.is_seasonal_env_visual(&"tol_axe_1")).is_false()
+	assert_bool(FieldCatalog.is_seasonal_env_visual(&"room01")).is_false()
+
+
+func test_winter_structure_and_rock_mesh_remap() -> void:
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 15, "hour": 12, "minute": 0 })
+	assert_str(FieldCatalog.season_letter()).is_equal("w")
+	for id: StringName in [&"obj_s_house1", &"obj_s_myhome1", &"obj_s_shop1", &"ROCK_A"]:
+		var paths: PackedStringArray = FieldCatalog.mesh_paths(id)
+		if paths.is_empty():
+			continue
+		var path := paths[0]
+		if id == &"ROCK_A":
+			assert_bool(path.contains("obj_w_stoneA") or path.contains("obj_s_stoneA")).is_true()
+		else:
+			var stem := String(id).substr(6)
+			assert_bool(path.contains("obj_w_%s" % stem) or path.contains(String(id))).is_true()
 
 
 func test_species_codes_map_to_disc_prefixes() -> void:

@@ -196,3 +196,32 @@ func test_season_changed_signal_on_advance() -> void:
 	assert_that(Clock.season()).is_equal(ClockService.Season.SPRING)
 	assert_int(seen.size()).is_equal(1)
 	Clock.season_changed.disconnect(cb)
+
+
+func test_advance_season_jumps_to_next_boundary() -> void:
+	## Debug U: noon on the first day of the next season.
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 15, "hour": 8, "minute": 0 })
+	assert_that(Clock.season()).is_equal(ClockService.Season.WINTER)
+	var seen: Array = []
+	var cb := func(season: ClockService.Season) -> void:
+		seen.append(season)
+	Clock.season_changed.connect(cb)
+	Clock.advance_season()
+	assert_that(Clock.season()).is_equal(ClockService.Season.SPRING)
+	assert_int(Clock.month).is_equal(2)
+	assert_int(Clock.day).is_equal(25)
+	assert_int(Clock.hour).is_equal(12)
+	assert_int(seen.size()).is_equal(1)
+	Clock.advance_season()
+	assert_that(Clock.season()).is_equal(ClockService.Season.SUMMER)
+	assert_int(Clock.month).is_equal(5)
+	assert_int(Clock.day).is_equal(26)
+	Clock.advance_season()
+	assert_that(Clock.season()).is_equal(ClockService.Season.AUTUMN)
+	assert_int(Clock.month).is_equal(9)
+	assert_int(Clock.day).is_equal(16)
+	Clock.advance_season()
+	assert_that(Clock.season()).is_equal(ClockService.Season.WINTER)
+	assert_int(Clock.month).is_equal(12)
+	assert_int(Clock.day).is_equal(10)
+	Clock.season_changed.disconnect(cb)

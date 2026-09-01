@@ -57,6 +57,8 @@ var plant_states: Dictionary = {}
 var interact_prompt: String = ""
 var world_mode: WorldData.Mode = WorldData.Mode.TEST
 var world_seed: int = WorldGenerator.DEFAULT_SEED
+## Town grass motif (`bg_tex_idx`): 0 triangle, 1 square, 2 circle.
+var grass_pattern: int = WorldData.GrassPattern.TRIANGLE
 
 
 func _init() -> void:
@@ -78,6 +80,10 @@ func start_new_game(
 	reset_session()
 	world_mode = mode
 	world_seed = seed_value
+	if world_mode == WorldData.Mode.GENERATED:
+		grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
+	else:
+		grass_pattern = WorldData.GrassPattern.TRIANGLE
 	Clock.rtc_override = false
 	Clock.sync_from_os()
 	if world_mode == WorldData.Mode.TEST:
@@ -86,9 +92,14 @@ func start_new_game(
 
 
 func resolve_world_data() -> WorldData:
+	var data: WorldData
 	if world_mode == WorldData.Mode.GENERATED:
-		return WorldGenerator.generate(world_seed)
-	return WorldGenerator.authored_test_town()
+		data = WorldGenerator.generate(world_seed)
+	else:
+		data = WorldGenerator.authored_test_town()
+	data.grass_pattern = grass_pattern
+	FieldCatalog.set_grass_pattern(grass_pattern)
+	return data
 
 
 func continue_game() -> void:
@@ -145,6 +156,7 @@ func reset_session() -> void:
 	dialogue_vars.clear()
 	world_mode = WorldData.Mode.TEST
 	world_seed = WorldGenerator.DEFAULT_SEED
+	grass_pattern = WorldData.GrassPattern.TRIANGLE
 	set_interact_prompt("")
 
 
@@ -257,6 +269,7 @@ func to_save() -> Dictionary:
 		"plants": plant_states.duplicate(true),
 		"world_mode": int(world_mode),
 		"world_seed": world_seed,
+		"grass_pattern": grass_pattern,
 		"villagers": villagers.to_save(),
 		"relationships": relationships.to_save(),
 		"interiors": interiors.to_save(),
@@ -314,6 +327,12 @@ func apply_snapshot(data: Dictionary) -> void:
 				plant_states[str(key)] = (rec as Dictionary).duplicate()
 	world_mode = int(data.get("world_mode", WorldData.Mode.TEST)) as WorldData.Mode
 	world_seed = int(data.get("world_seed", WorldGenerator.DEFAULT_SEED))
+	if data.has("grass_pattern"):
+		grass_pattern = WorldData.clamp_grass_pattern(int(data["grass_pattern"]))
+	elif world_mode == WorldData.Mode.GENERATED:
+		grass_pattern = WorldGenerator.decide_grass_pattern(world_seed)
+	else:
+		grass_pattern = WorldData.GrassPattern.TRIANGLE
 	relationships.apply_snapshot(data.get("relationships", {}))
 	interiors.apply_snapshot(data.get("interiors", {}))
 	shops.apply_snapshot(data.get("shops", {}))

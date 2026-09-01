@@ -43,6 +43,8 @@ const _STONE_BRIDGE_BG: PackedStringArray = [
 ]
 
 const GENERATED_ROOT := "res://assets/generated/"
+## Active town grass motif (`WorldData.grass_pattern` / `bg_tex_idx`). Set when the world loads.
+static var _grass_pattern_idx: int = WorldData.GrassPattern.TRIANGLE
 ## `FTR_START(FTR_FMANEKIN000)`. Shirt index is `(item - FTR_CLOTH_START) >> 2`.
 const FTR_CLOTH_START := 0x17AC
 
@@ -50,6 +52,7 @@ static var _units_cache: Dictionary = {}
 
 
 static func season_letter() -> String:
+	## Tree / rock / structure mesh infix: summer+spring `s`, autumn `f`, winter `w`.
 	if Clock == null:
 		return "s"
 	match Clock.season():
@@ -61,10 +64,198 @@ static func season_letter() -> String:
 			return "s"
 
 
+static func acre_season_letter() -> String:
+	## Acre BG banks are summer (`grd_s_*`) or winter (`grd_w_*`) only.
+	## Spring/autumn keep summer CI textures and recolor via term palettes in the original.
+	if Clock != null and Clock.season() == ClockService.Season.WINTER:
+		return "w"
+	return "s"
+
+
+## Sidecar pack from `python3 tools/build_assets.py --kind seasons`.
+const SEASON_TEX_ROOT := "res://assets/generated/environment/seasons/"
+## Material/texture name needles → pack file stem (see tools/asset_pipeline/seasons.py).
+const SEASON_FIELD_ROLES: Dictionary = {
+	"grass": "grass",
+	"earth": "earth",
+	"cliff": "cliff",
+	"busha": "bush_a",
+	"bush_a": "bush_a",
+	"bushb": "bush_b",
+	"bush_b": "bush_b",
+	"rail": "rail",
+	"stone": "stone",
+	"sand": "sand",
+	"beach_wet": "beach_wet",
+	"river_edge": "river_edge",
+}
+const SEASON_TREE_ROLES: Dictionary = {
+	"leaf": "tree_leaf",
+	"trunk": "tree_trunk",
+}
+
+
+static func set_grass_pattern(idx: int) -> void:
+	_grass_pattern_idx = WorldData.clamp_grass_pattern(idx)
+
+
+static func grass_pattern_idx() -> int:
+	return _grass_pattern_idx
+
+
+static func grass_season_texture_path() -> String:
+	return season_texture_path("grass")
+
+
+static func grass_pattern_pack_ready() -> bool:
+	## True when ``grass_{pattern}.png`` exists for the active town motif.
+	var letter := season_tex_letter()
+	var rel := "environment/seasons/%s/grass_%d.png" % [letter, _grass_pattern_idx]
+	if not _existing([rel]).is_empty():
+		return true
+	if letter != "s":
+		return not _existing(["environment/seasons/s/grass_%d.png" % _grass_pattern_idx]).is_empty()
+	return false
+
+
+static func warn_grass_pattern_pack_missing() -> void:
+	if grass_pattern_pack_ready():
+		return
+	var label := WorldData.grass_pattern_label(_grass_pattern_idx)
+	push_warning(
+		"Grass pattern is %s but seasons pack is missing grass_%d.png — "
+		% [label, _grass_pattern_idx]
+		+ "run: python3 tools/build_assets.py --step convert --kind seasons"
+	)
+
+
+static func season_tex_letter() -> String:
+	## Pack folder: spring/summer `s`, autumn `f`, winter `w`.
+	return season_letter()
+
+
+static func season_texture_path(role: String) -> String:
+	## `environment/seasons/{s|f|w}/{role}.png` when the seasons pack has been built.
+	if role.is_empty():
+		return ""
+	var letter := season_tex_letter()
+	var rels: PackedStringArray = PackedStringArray()
+	if role == "grass":
+		rels.append("environment/seasons/%s/grass_%d.png" % [letter, _grass_pattern_idx])
+		rels.append("environment/seasons/%s/grass.png" % letter)
+	else:
+		rels.append("environment/seasons/%s/%s.png" % [letter, role])
+	var found: PackedStringArray = _existing(rels)
+	if not found.is_empty():
+		return found[0]
+	if letter != "s":
+		if role == "grass":
+			found = _existing([
+				"environment/seasons/s/grass_%d.png" % _grass_pattern_idx,
+				"environment/seasons/s/grass.png",
+			])
+		else:
+			found = _existing(["environment/seasons/s/%s.png" % role])
+		if not found.is_empty():
+			return found[0]
+	return ""
+
+
+static func season_role_from_extras(mat: Material) -> String:
+	if mat == null:
+		return ""
+	for key: String in ["extras", "gltf_extras"]:
+		if mat.has_meta(key):
+			var extras: Variant = mat.get_meta(key)
+			if extras is Dictionary:
+				var role: Variant = (extras as Dictionary).get("field_role", "")
+				if String(role) != "":
+					return String(role)
+	return ""
+
+
+static func season_role_for_surface(
+	mesh_instance: MeshInstance3D, surface: int, active_mat: Material = null
+) -> String:
+	## Trees often match via child node names (`leaf` / `trunk`). Acre GLBs keep the
+	## glTF material name on the baked mesh surface, not always on runtime overrides.
+	if active_mat == null:
+		active_mat = mesh_instance.get_active_material(surface)
+	if active_mat != null and active_mat.has_meta("field_role"):
+		var stamped: Variant = active_mat.get_meta("field_role")
+		if String(stamped) != "":
+			return String(stamped)
+	var bits: PackedStringArray = PackedStringArray()
+	if mesh_instance.mesh is ArrayMesh:
+		var baked: Material = (mesh_instance.mesh as ArrayMesh).surface_get_material(surface)
+		if baked != null:
+			bits.append(_material_resource_label(baked))
+			var baked_extras := season_role_from_extras(baked)
+			if not baked_extras.is_empty():
+				return baked_extras
+	if active_mat != null:
+		bits.append(_material_resource_label(active_mat))
+		if active_mat is StandardMaterial3D:
+			bits.append(_material_resource_label((active_mat as StandardMaterial3D).albedo_texture))
+		var active_extras := season_role_from_extras(active_mat)
+		if not active_extras.is_empty():
+			return active_extras
+	if mesh_instance.mesh is ArrayMesh:
+		bits.append((mesh_instance.mesh as ArrayMesh).surface_get_name(surface).to_lower())
+	bits.append(String(mesh_instance.name).to_lower())
+	return season_role_for_label(" ".join(bits))
+
+
+static func season_role_for_label(label: String) -> String:
+	## Map a material/texture/surface label to a seasons-pack role stem.
+	var compact := label.to_lower().replace(" ", "").replace("-", "").replace("_", "")
+	if compact.contains("leaf"):
+		return String(SEASON_TREE_ROLES.get("leaf", "tree_leaf"))
+	if compact.contains("trunk"):
+		return String(SEASON_TREE_ROLES.get("trunk", "tree_trunk"))
+	if compact.contains("beachb") or compact.contains("beach2"):
+		return ""
+	if compact.contains("beach1") or compact.contains("beacha"):
+		return String(SEASON_FIELD_ROLES.get("beach_wet", "beach_wet"))
+	if compact.contains("rivertex"):
+		return String(SEASON_FIELD_ROLES.get("river_edge", "river_edge"))
+	## Longer field needles first so busha wins over bush.
+	for needle: Variant in ["busha", "bush_a", "bushb", "bush_b", "grass", "earth", "cliff", "rail", "stone", "sand"]:
+		var key := String(needle).replace("_", "")
+		if compact.contains(key):
+			return String(SEASON_FIELD_ROLES.get(String(needle), SEASON_FIELD_ROLES.get(key, "")))
+	return ""
+
+
+static func _material_resource_label(res: Resource) -> String:
+	if res == null:
+		return ""
+	return "%s %s" % [String(res.resource_name), res.resource_path.get_file()]
+
+
+static func seasonal_acre_id(visual_id: StringName) -> String:
+	## `grd_s_f_1` ↔ `grd_w_f_1` from the current season. Non-acre ids pass through.
+	var id := String(visual_id)
+	if not id.begins_with("grd_"):
+		return id
+	var parts: PackedStringArray = id.split("_")
+	if parts.size() < 3:
+		return id
+	## `grd` / season / …
+	if parts[1] != "s" and parts[1] != "w" and parts[1] != "f":
+		return id
+	parts[1] = acre_season_letter()
+	return "_".join(parts)
+
+
 static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 	var id := String(visual_id)
 	if id.begins_with("grd_"):
-		return _existing(["environment/acres/%s.glb" % id])
+		var seasonal := seasonal_acre_id(StringName(id))
+		var paths: PackedStringArray = _existing(["environment/acres/%s.glb" % seasonal])
+		if paths.is_empty() and seasonal != id:
+			paths = _existing(["environment/acres/%s.glb" % id])
+		return paths
 	if id.begins_with("tol_"):
 		return _existing(["items/%s.glb" % id])
 	if (
@@ -90,9 +281,9 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		&"obj_s_tree4", &"TREE_S2":
 			return _tree_size_paths(4)
 		&"obj_s_tree5", &"TREE":
-			return _existing([_seasonal_tree("obj_%s_tree5")])
+			return _seasonal_tree_existing("obj_%s_tree5")
 		&"obj_s_stump5", &"TREE_STUMP004":
-			var stump := _existing([_seasonal_tree("obj_%s_stump5")])
+			var stump := _seasonal_tree_existing("obj_%s_stump5")
 			if stump.is_empty():
 				stump = _existing(["environment/trees/obj_s_stump5.glb"])
 			return stump
@@ -104,7 +295,7 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 				hole = _existing(["environment/obj_hole0.glb"])
 			return hole
 		&"obj_s_tree5_apple", &"TREE_APPLE_FRUIT":
-			var paths := _existing([_seasonal_tree("obj_%s_tree5")])
+			var paths := _seasonal_tree_existing("obj_%s_tree5")
 			paths.append_array(_existing(["environment/trees/obj_s_tree5_apple.glb"]))
 			return paths
 		&"obj_s_cedar1", &"CEDAR_S0":
@@ -114,7 +305,7 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		&"obj_s_cedar4", &"CEDAR_S2":
 			return _cedar_size_paths(4)
 		&"obj_s_cedar5", &"CEDAR_TREE":
-			return _existing([_seasonal_env("obj_%s_cedar5")])
+			return _seasonal_env_existing("obj_%s_cedar5")
 		&"obj_s_palm2", &"PALM_S0":
 			return _palm_size_paths(2)
 		&"obj_s_palm3", &"PALM_S1":
@@ -122,10 +313,10 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		&"obj_s_palm4", &"PALM_S2":
 			return _palm_size_paths(4)
 		&"obj_s_palm5", &"TREE_PALM":
-			return _existing([_seasonal_env("obj_%s_palm5")])
+			return _seasonal_env_existing("obj_%s_palm5")
 		&"obj_s_palm5_coco", &"TREE_PALM_FRUIT":
-			var palm := _existing([_seasonal_env("obj_%s_palm5")])
-			palm.append_array(_existing([_seasonal_env("obj_%s_palm5_coco")]))
+			var palm := _seasonal_env_existing("obj_%s_palm5")
+			palm.append_array(_seasonal_env_existing("obj_%s_palm5_coco"))
 			return palm
 		&"obj_s_kanban", &"SIGNBOARD":
 			## Field sign is `obj_s_kanban` (`ac_sign`). Pipeline currently exports shop kanban.
@@ -179,6 +370,45 @@ static func is_ocean_acre_visual(visual_id: StringName) -> bool:
 
 static func is_acre(visual_id: StringName) -> bool:
 	return String(visual_id).begins_with("grd_")
+
+
+static func is_seasonal_env_visual(visual_id: StringName) -> bool:
+	## Outdoor meshes that remap or albedo-swap with the clock season.
+	var id := String(visual_id)
+	if id.is_empty():
+		return false
+	if id.begins_with("int_") or id.begins_with("tol_") or id.begins_with("rom_") or id.begins_with("mCL_rom_"):
+		return false
+	if id.begins_with("grd_") or id.begins_with("obj_") or id.begins_with("HOLE") or id.begins_with("obj_hole"):
+		return true
+	const ALIASES: Array[StringName] = [
+		&"TREE",
+		&"TREE_S0",
+		&"TREE_S1",
+		&"TREE_S2",
+		&"TREE_APPLE_FRUIT",
+		&"TREE_STUMP004",
+		&"CEDAR_S0",
+		&"CEDAR_S1",
+		&"CEDAR_S2",
+		&"CEDAR_TREE",
+		&"PALM_S0",
+		&"PALM_S1",
+		&"PALM_S2",
+		&"TREE_PALM",
+		&"TREE_PALM_FRUIT",
+		&"ROCK_A",
+		&"ROCK_B",
+		&"ROCK_C",
+		&"ROCK_D",
+		&"ROCK_E",
+		&"SIGNBOARD",
+		&"FLOWER_PANSIES0",
+		&"FLOWER_PANSIES1",
+		&"FLOWER_PANSIES2",
+		&"HOLE00",
+	]
+	return ALIASES.has(visual_id)
 
 
 static func is_ground_decal(visual_id: StringName) -> bool:
@@ -676,33 +906,48 @@ static func _seasonal_tree(pattern: String) -> String:
 	return "environment/trees/" + (pattern % season_letter()) + ".glb"
 
 
+static func _seasonal_tree_existing(pattern: String) -> PackedStringArray:
+	## Prefer current season; fall back to summer when autumn/winter GLBs are missing.
+	var paths: PackedStringArray = _existing([_seasonal_tree(pattern)])
+	if paths.is_empty() and season_letter() != "s":
+		paths = _existing(["environment/trees/" + (pattern % "s") + ".glb"])
+	return paths
+
+
 static func _tree_size_paths(size: int) -> PackedStringArray:
-	var paths: PackedStringArray = _existing([_seasonal_tree("obj_%%s_tree%d" % size)])
+	var paths: PackedStringArray = _seasonal_tree_existing("obj_%%s_tree%d" % size)
 	if paths.is_empty():
-		paths = _existing([_seasonal_tree("obj_%s_tree5")])
+		paths = _seasonal_tree_existing("obj_%s_tree5")
 	return paths
 
 
 static func _cedar_size_paths(size: int) -> PackedStringArray:
-	var paths: PackedStringArray = _existing([_seasonal_tree("obj_%%s_cedar%d" % size)])
+	var paths: PackedStringArray = _seasonal_tree_existing("obj_%%s_cedar%d" % size)
 	if paths.is_empty():
-		paths = _existing([_seasonal_env("obj_%%s_cedar%d" % size)])
+		paths = _seasonal_env_existing("obj_%%s_cedar%d" % size)
 	if paths.is_empty():
-		paths = _existing([_seasonal_env("obj_%s_cedar5")])
+		paths = _seasonal_env_existing("obj_%s_cedar5")
 	return paths
 
 
 static func _palm_size_paths(size: int) -> PackedStringArray:
-	var paths: PackedStringArray = _existing([_seasonal_tree("obj_%%s_palm%d" % size)])
+	var paths: PackedStringArray = _seasonal_tree_existing("obj_%%s_palm%d" % size)
 	if paths.is_empty():
-		paths = _existing([_seasonal_env("obj_%%s_palm%d" % size)])
+		paths = _seasonal_env_existing("obj_%%s_palm%d" % size)
 	if paths.is_empty():
-		paths = _existing([_seasonal_env("obj_%s_palm5")])
+		paths = _seasonal_env_existing("obj_%s_palm5")
 	return paths
 
 
 static func _seasonal_env(pattern: String) -> String:
 	return "environment/" + (pattern % season_letter()) + ".glb"
+
+
+static func _seasonal_env_existing(pattern: String) -> PackedStringArray:
+	var paths: PackedStringArray = _existing([_seasonal_env(pattern)])
+	if paths.is_empty() and season_letter() != "s":
+		paths = _existing(["environment/" + (pattern % "s") + ".glb"])
+	return paths
 
 
 static func _seasonal_rock(letter: String) -> String:

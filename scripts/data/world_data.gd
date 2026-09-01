@@ -6,10 +6,17 @@ extends Resource
 
 enum Mode { TEST, GENERATED, REFERENCE }
 
+## Town-wide grass tile motif (`Save.bg_tex_idx` / `mFM_BG_TEX_*`). Fixed for the save.
+enum GrassPattern { TRIANGLE = 0, SQUARE = 1, CIRCLE = 2 }
+
+const GRASS_PATTERN_COUNT := 3
+
 @export var id: StringName = &""
 @export var display_name: String = ""
 @export var mode: Mode = Mode.TEST
 @export var seed_value: int = 0
+## 0 triangle, 1 square, 2 circle — which `grass_tex_dummy` bank the town uses.
+@export var grass_pattern: int = GrassPattern.TRIANGLE
 @export var columns: int = 16
 @export var rows: int = 16
 @export var cell_size: float = 2.0
@@ -29,6 +36,20 @@ enum Mode { TEST, GENERATED, REFERENCE }
 @export var acre_heights: PackedByteArray = PackedByteArray()
 ## Per-block `grd_*` visual ids (70 entries, parallel to acre_types). Empty string = no mesh.
 @export var acre_visuals: PackedStringArray = PackedStringArray()
+
+
+static func clamp_grass_pattern(value: int) -> int:
+	return clampi(value, 0, GRASS_PATTERN_COUNT - 1)
+
+
+static func grass_pattern_label(value: int) -> String:
+	match clamp_grass_pattern(value):
+		GrassPattern.SQUARE:
+			return "square"
+		GrassPattern.CIRCLE:
+			return "circle"
+		_:
+			return "triangle"
 
 
 func origin() -> Vector3:

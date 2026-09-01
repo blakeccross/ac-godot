@@ -23,6 +23,12 @@ func _ready() -> void:
 	add_to_group("world")
 	Game.notify_world_ready()
 	layout = Game.resolve_world_data()
+	FieldCatalog.warn_grass_pattern_pack_missing()
+	print(
+		"Grass pattern: %s (%d)" % [
+			WorldData.grass_pattern_label(layout.grass_pattern), layout.grass_pattern
+		]
+	)
 	print(WorldGenerator.map_text(layout))
 	WorldBuilder.new().build(self, layout, grid)
 	HoleUse.restore(self, grid)
@@ -32,6 +38,7 @@ func _ready() -> void:
 	Clock.time_changed.connect(_apply_time_of_day)
 	Clock.field_renewed.connect(_on_field_renewed)
 	Clock.hour_changed.connect(_on_hour_changed)
+	Clock.season_changed.connect(_on_season_changed)
 	Game.weather_changed.connect(_on_weather_changed)
 	_apply_time_of_day()
 	_play_outdoor_bgm()
@@ -61,6 +68,8 @@ func _build_navigation() -> void:
 func _exit_tree() -> void:
 	if Clock.hour_changed.is_connected(_on_hour_changed):
 		Clock.hour_changed.disconnect(_on_hour_changed)
+	if Clock.season_changed.is_connected(_on_season_changed):
+		Clock.season_changed.disconnect(_on_season_changed)
 	if Game.weather_changed.is_connected(_on_weather_changed):
 		Game.weather_changed.disconnect(_on_weather_changed)
 
@@ -138,3 +147,49 @@ func _aim_directional(light: DirectionalLight3D, dir: Vector3) -> void:
 
 func _on_field_renewed(_days: int) -> void:
 	PlantGrowth.refresh_world(self)
+
+
+func _on_season_changed(_season: Clock.Season) -> void:
+	## Acre CI banks (`grd_s_*` / `grd_w_*`) and seasonal tree meshes (`obj_s/f/w_*`).
+	_refresh_seasonal_visuals()
+
+
+func _refresh_seasonal_visuals() -> void:
+	var acres: Node = get_node_or_null("Terrain/Acres")
+	if acres == null:
+		var single: Node = get_node_or_null("Terrain/Acre")
+		if single is Node3D and single.has_meta("visual_id"):
+			_reattach_visual(single as Node3D, single.get_meta("visual_id") as StringName)
+	else:
+		for child in acres.get_children():
+			if child is Node3D and child.has_meta("visual_id"):
+				_reattach_visual(child as Node3D, child.get_meta("visual_id") as StringName)
+	for node in get_tree().get_nodes_in_group("plant"):
+		if node.has_method("refresh_seasonal_visual"):
+			node.call("refresh_seasonal_visual")
+		elif node.has_method("apply_growth"):
+			node.call("apply_growth")
+	for root_name: String in ["Buildings", "Objects"]:
+		var root: Node = get_node_or_null(root_name)
+		if root == null:
+			continue
+		for child in root.get_children():
+			if child.is_in_group("plant"):
+				continue
+			_refresh_env_visual(child)
+
+
+func _refresh_env_visual(node: Node) -> void:
+	if node.has_method("refresh_seasonal_visual"):
+		node.call("refresh_seasonal_visual")
+		return
+	if not (node is Node3D) or not ("visual_id" in node):
+		return
+	var visual_id: StringName = node.get("visual_id") as StringName
+	if not FieldCatalog.is_seasonal_env_visual(visual_id):
+		return
+	GeneratedVisual.refresh(node as Node3D, visual_id)
+
+
+func _reattach_visual(host: Node3D, visual_id: StringName) -> void:
+	GeneratedVisual.refresh(host, visual_id)

@@ -487,5 +487,45 @@ class BindAnimTests(unittest.TestCase):
         self.assertIsNone(select_bind_anim("cat_1", []))
 
 
+class SeasonRoleTests(unittest.TestCase):
+    def test_field_and_tree_role_needles(self) -> None:
+        from asset_pipeline.seasons import FIELD_ROLE_NEEDLES, TREE_ROLE_NEEDLES, _role_for_name
+
+        self.assertEqual(_role_for_name("grass_tex_dummy", FIELD_ROLE_NEEDLES), "grass")
+        self.assertEqual(_role_for_name("earth_pal_dummy", FIELD_ROLE_NEEDLES), "earth")
+        self.assertEqual(_role_for_name("bush_a_tex", FIELD_ROLE_NEEDLES), "bush_a")
+        self.assertEqual(_role_for_name("bush_a_tex_dummy", FIELD_ROLE_NEEDLES), "bush_a")
+        self.assertEqual(_role_for_name("bush_b_tex_dummy", FIELD_ROLE_NEEDLES), "bush_b")
+        self.assertEqual(_role_for_name("earth_tex_dummy", FIELD_ROLE_NEEDLES), "earth")
+        self.assertEqual(_role_for_name("sand_tex_dummy", FIELD_ROLE_NEEDLES), "sand")
+        self.assertEqual(_role_for_name("beach1_tex_dummy2", FIELD_ROLE_NEEDLES), "beach_wet")
+        self.assertEqual(_role_for_name("river_tex_dummy", FIELD_ROLE_NEEDLES), "river_edge")
+        self.assertEqual(_role_for_name("river_mFM_grd_water1_tex", FIELD_ROLE_NEEDLES), "")
+        self.assertEqual(_role_for_name("obj_s_tree_leaf_tex", TREE_ROLE_NEEDLES), "tree_leaf")
+        self.assertEqual(_role_for_name("obj_w_tree_trunk_tex", TREE_ROLE_NEEDLES), "tree_trunk")
+        self.assertEqual(_role_for_name("grd_water1_tex", FIELD_ROLE_NEEDLES), "")
+
+    def test_glb_material_field_role_extras(self) -> None:
+        from asset_pipeline.glb import _field_role_for_material_name, _material
+
+        self.assertEqual(_field_role_for_material_name("grass_tex_dummy"), "grass")
+        self.assertEqual(_field_role_for_material_name("bush_a_tex_dummy"), "bush_a")
+        self.assertEqual(_field_role_for_material_name("river_tex_dummy"), "river_edge")
+        self.assertEqual(_field_role_for_material_name("river_mFM_grd_water1_tex", "river"), "")
+        mat = _material("grass_tex_dummy", None)
+        self.assertEqual(mat.get("extras", {}).get("field_role"), "grass")
+
+    def test_grass_pattern_export_count(self) -> None:
+        from asset_pipeline.seasons import GRASS_PATTERN_COUNT
+
+        self.assertEqual(GRASS_PATTERN_COUNT, 3)
+
+    def test_grass_pattern_symbol_order(self) -> None:
+        from asset_pipeline.seasons import _GRASS_TEX_SYMBOLS
+
+        self.assertIn("mFM_grd_s_grass_3_tex", _GRASS_TEX_SYMBOLS["s"][1])
+        self.assertIn("mFM_grd_s_grass_2_tex", _GRASS_TEX_SYMBOLS["s"][2])
+
+
 if __name__ == "__main__":
     unittest.main()

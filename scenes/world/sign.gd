@@ -17,6 +17,10 @@ func _ready() -> void:
 	HostCollision.apply_box(self, footprint, HostCollision.CELL, 1.4)
 
 
+func refresh_seasonal_visual() -> void:
+	GeneratedVisual.refresh(self, visual_id)
+
+
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 	return [Interaction.of(Interaction.READ, "Read sign", 6)]
 
