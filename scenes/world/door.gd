@@ -47,6 +47,7 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 			return false
 		var shop_target: StringName = _enter_target()
 		if shop_target != &"":
+			await StructureDoor.play_enter(self)
 			if Game.try_enter_interior(shop_target):
 				return true
 			if InteriorCatalog.resolve_entry(shop_target) != &"":
@@ -55,6 +56,10 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 		return true
 	var target: StringName = _enter_target()
 	if target != &"":
+		if InteriorCatalog.resolve_entry(target) == &"":
+			Game.post_notice(closed_notice)
+			return true
+		await StructureDoor.play_enter(self)
 		if Game.try_enter_interior(target):
 			return true
 		if InteriorCatalog.resolve_entry(target) != &"":

@@ -22,6 +22,8 @@ const ANIM_WAIT := "ply_1_wait1"
 const ANIM_WALK := "ply_1_walk1"
 const ANIM_RUN := "ply_1_run1"
 const ANIM_DASH := "ply_1_dash1"
+## `mPlayer_ANIM_OPEN1` — door enter demo (`mPlayer_INDEX_DOOR`, type 0).
+const ANIM_OPEN1 := "ply_1_open1"
 
 @onready var _mesh: Node3D = $MeshPivot
 @onready var _placeholder: MeshInstance3D = $MeshPivot/PlaceholderMesh
@@ -40,6 +42,11 @@ var _tool_hold_anim: StringName = &""
 var _tool_use_anim: StringName = &""
 var _step_time: float = 0.0
 var _right_foot: bool = true
+var _door_entering: bool = false
+var _door_from: Vector3 = Vector3.ZERO
+var _door_to: Vector3 = Vector3.ZERO
+var _door_yaw: float = 0.0
+var _door_move_elapsed: float = 0.0
 
 
 func _ready() -> void:
@@ -76,6 +83,10 @@ func apply_spawn(pos: Vector3, yaw: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _door_entering:
+		_tick_door_enter(delta)
+		return
+
 	var bg: Array = _bg()
 	var on_bg: bool = _snap_to_bg()
 	if on_bg:
@@ -111,6 +122,40 @@ func _physics_process(delta: float) -> void:
 	_update_animation(delta)
 	_update_footprints(delta, bg)
 	_update_focus()
+
+
+## `mPlayer_INDEX_DOOR`: OPEN1 while AnimationMove blends XZ/yaw to the door stand.
+func begin_door_enter(target: Vector3, face_yaw: float) -> void:
+	_door_entering = true
+	_door_from = global_position
+	_door_to = Vector3(target.x, global_position.y, target.z)
+	_door_yaw = face_yaw
+	_door_move_elapsed = 0.0
+	_motor.reset(face_yaw)
+	_mesh.rotation.y = face_yaw
+	velocity = Vector3.ZERO
+	var clip := _resolve_clip(ANIM_OPEN1)
+	if _anim == null or clip.is_empty():
+		return
+	_anim.speed_scale = 1.0
+	_anim.play(clip, 0.08)
+
+
+func end_door_enter() -> void:
+	_door_entering = false
+
+
+func _tick_door_enter(delta: float) -> void:
+	_door_move_elapsed += delta
+	var t: float = clampf(_door_move_elapsed / StructureDoor.APPROACH_SEC, 0.0, 1.0)
+	## Ease-out toward the door stand (`AnimationMove` decays the correction each tick).
+	var w: float = 1.0 - (1.0 - t) * (1.0 - t)
+	var next: Vector3 = _door_from.lerp(_door_to, w)
+	global_position = Vector3(next.x, global_position.y, next.z)
+	_motor.reset(_door_yaw)
+	_mesh.rotation.y = _door_yaw
+	velocity = Vector3.ZERO
+	_snap_to_bg()
 
 
 func _bg() -> Array:
@@ -356,7 +401,8 @@ func _try_interact() -> void:
 	var tail: float = await _play_action(hit.action.player_anim, hit.action.effect_frame)
 	var ctx: InteractionContext = _make_context()
 	if hit.host != null and is_instance_valid(hit.host):
-		hit.host.interact(hit.action, ctx)
+		## Door enter awaits the structure open clip before changing scene.
+		await hit.host.interact(hit.action, ctx)
 	else:
 		ToolUse.apply_field(hit.action, ctx)
 	await _finish_action(tail)

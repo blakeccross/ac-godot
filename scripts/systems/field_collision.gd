@@ -281,26 +281,32 @@ static func _keep_y(data: WorldData, grid: WorldGrid, pos: Vector3) -> float:
 
 
 static func _forbids_enter(data: WorldData, cell: Vector2i) -> bool:
-	if not data.is_in_bounds(cell):
+	if data.is_in_bounds(cell):
+		var t: WorldGrid.Terrain = data.terrain_at(cell)
+		if t == WorldGrid.Terrain.WATER or t == WorldGrid.Terrain.BLOCKED:
+			return true
+		if t == WorldGrid.Terrain.CLIFF and _catalog_unit(data, cell).is_empty():
+			return true
+		return false
+	## Border acre just outside the FG rect: solid cliff / water forbids; tunnel floor does not.
+	var unit: Dictionary = _catalog_unit(data, cell)
+	if unit.is_empty():
 		return true
-	var t: WorldGrid.Terrain = data.terrain_at(cell)
-	if t == WorldGrid.Terrain.WATER or t == WorldGrid.Terrain.BLOCKED:
+	if FieldCatalog.is_water_attr(int(unit.get("a", 0))):
 		return true
-	if t == WorldGrid.Terrain.CLIFF and _catalog_unit(data, cell).is_empty():
-		return true
-	return false
+	return int(unit.get("c", 0)) >= FieldCatalog.HEIGHT_MAX
 
 
 static func _edge_is_wall(data: WorldData, a: Vector2i, b: Vector2i) -> bool:
 	## `mCoBG_SearchWallFlag`: shared-edge corner heights differ.
-	if not data.is_in_bounds(a) or not data.is_in_bounds(b):
-		return true
 	if absi(a.x - b.x) + absi(a.y - b.y) != 1:
 		return false
 	var ua: Dictionary = _catalog_unit(data, a)
 	var ub: Dictionary = _catalog_unit(data, b)
 	if not ua.is_empty() and not ub.is_empty():
 		return _catalog_edge_delta(data, a, b, ua, ub) >= EDGE_EPS
+	if not data.is_in_bounds(a) or not data.is_in_bounds(b):
+		return true
 	var ha: float = height_at(data, a)
 	var hb: float = height_at(data, b)
 	if not has_floor(ha) or not has_floor(hb):
@@ -343,39 +349,50 @@ static func _shape_at(data: WorldData, cell: Vector2i) -> int:
 static func _type_at(data: WorldData, cell: Vector2i) -> int:
 	if data.acre_types.size() != TownFieldGenerator.BLOCK_TOTAL:
 		return -1
-	var bx: int = int(cell.x / WorldGenerator.UT) + 1
-	var bz: int = int(cell.y / WorldGenerator.UT) + 1
-	if bx < 1 or bx > 5 or bz < 1 or bz > 6:
+	var bx: int = int(floor(float(cell.x) / float(WorldGenerator.UT))) + 1
+	var bz: int = int(floor(float(cell.y) / float(WorldGenerator.UT))) + 1
+	if bx < 0 or bx >= TownFieldGenerator.BLOCK_X or bz < 0 or bz >= TownFieldGenerator.BLOCK_Z:
 		return -1
 	return int(data.acre_types[bz * TownFieldGenerator.BLOCK_X + bx])
 
 
 static func _acre_elev(data: WorldData, cell: Vector2i) -> float:
 	if data.acre_heights.size() != TownFieldGenerator.BLOCK_TOTAL:
-		return float(data.elevation_at(cell))
-	var bx: int = int(cell.x / WorldGenerator.UT) + 1
-	var bz: int = int(cell.y / WorldGenerator.UT) + 1
-	if bx < 1 or bx > 5 or bz < 1 or bz > 6:
-		return float(data.elevation_at(cell))
+		return float(data.elevation_at(cell)) if data.is_in_bounds(cell) else 0.0
+	var bx: int = int(floor(float(cell.x) / float(WorldGenerator.UT))) + 1
+	var bz: int = int(floor(float(cell.y) / float(WorldGenerator.UT))) + 1
+	if bx < 0 or bx >= TownFieldGenerator.BLOCK_X or bz < 0 or bz >= TownFieldGenerator.BLOCK_Z:
+		return float(data.elevation_at(cell)) if data.is_in_bounds(cell) else 0.0
 	return float(data.acre_heights[bz * TownFieldGenerator.BLOCK_X + bx])
 
 
 static func _visual_at(data: WorldData, cell: Vector2i) -> StringName:
 	if data.acre_visuals.size() == TownFieldGenerator.BLOCK_TOTAL:
-		var bx: int = int(cell.x / WorldGenerator.UT) + 1
-		var bz: int = int(cell.y / WorldGenerator.UT) + 1
-		if bx >= 1 and bx <= 5 and bz >= 1 and bz <= 6:
+		## Include border acres (bx 0/6, bz 0/7–9) so track tunnels / cliffs wall the FG rim.
+		var bx: int = int(floor(float(cell.x) / float(WorldGenerator.UT))) + 1
+		var bz: int = int(floor(float(cell.y) / float(WorldGenerator.UT))) + 1
+		if bx >= 0 and bx < TownFieldGenerator.BLOCK_X and bz >= 0 and bz < TownFieldGenerator.BLOCK_Z:
 			return StringName(data.acre_visuals[bz * TownFieldGenerator.BLOCK_X + bx])
 	return data.acre_visual
 
 
 static func _catalog_unit(data: WorldData, cell: Vector2i, with_plus: bool = true) -> Dictionary:
-	if data == null or not data.is_in_bounds(cell):
+	if data == null:
 		return {}
-	var base: Dictionary = FieldCatalog.unit_at(
-		_visual_at(data, cell), posmod(cell.x, WorldGenerator.UT), posmod(cell.y, WorldGenerator.UT)
-	)
-	if not with_plus or not _plus.has(cell):
+	var visual: StringName = _visual_at(data, cell)
+	## Border acres sit just outside the FG grid; still sample their `mCoBG` table so
+	## tunnel / cliff faces wall against the playable rim.
+	if (
+		not data.is_in_bounds(cell)
+		and (visual == &"" or not FieldCatalog.is_border_edge_acre(String(visual)))
+	):
+		return {}
+	var base: Dictionary = {}
+	if visual != &"":
+		base = FieldCatalog.unit_at(
+			visual, posmod(cell.x, WorldGenerator.UT), posmod(cell.y, WorldGenerator.UT)
+		)
+	if not with_plus or not data.is_in_bounds(cell) or not _plus.has(cell):
 		return base
 	if base.is_empty():
 		var k: int = FieldCatalog.LAND_COUNTS
@@ -440,11 +457,18 @@ static func _append_cell_segments(
 	segs: Array[Vector4], data: WorldData, grid: WorldGrid, cell: Vector2i
 ) -> void:
 	var east := Vector2i(cell.x + 1, cell.y)
-	if data.is_in_bounds(east):
+	if data.is_in_bounds(east) or not _catalog_unit(data, east).is_empty():
 		_append_cardinal(segs, data, grid, cell, east, true)
 	var south := Vector2i(cell.x, cell.y + 1)
-	if data.is_in_bounds(south):
+	if data.is_in_bounds(south) or not _catalog_unit(data, south).is_empty():
 		_append_cardinal(segs, data, grid, cell, south, false)
+	## West / north rims: neighbor is outside FG but may be a border cliff / track tunnel.
+	var west := Vector2i(cell.x - 1, cell.y)
+	if not data.is_in_bounds(west) and not _catalog_unit(data, west).is_empty():
+		_append_cardinal(segs, data, grid, west, cell, true)
+	var north := Vector2i(cell.x, cell.y - 1)
+	if not data.is_in_bounds(north) and not _catalog_unit(data, north).is_empty():
+		_append_cardinal(segs, data, grid, north, cell, false)
 	_append_slate(segs, data, grid, cell)
 
 

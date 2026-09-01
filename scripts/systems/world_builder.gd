@@ -111,8 +111,11 @@ func _attach_acres(root: Node3D, data: WorldData, grid: WorldGrid, meshed: Array
 		meshed.resize(TownFieldGenerator.BLOCK_TOTAL)
 		meshed.fill(0)
 		var placed_mesh := false
-		for bz: int in range(1, 7):
-			for bx: int in range(1, 6):
+		## Full 7×10: FG (bx 1–5, bz 1–6), side cliffs (`grd_s_e2/e3_*`), north border
+		## (`e1/e4/e5`), and south ocean / island rows (`grd_s_o_*`, `il`/`ir`).
+		## Placement still uses FG-relative min-corners (`mFI_BkNum2WposXZ`).
+		for bz: int in TownFieldGenerator.BLOCK_Z:
+			for bx: int in TownFieldGenerator.BLOCK_X:
 				var bnum: int = bz * TownFieldGenerator.BLOCK_X + bx
 				var origin_cell := Vector2i((bx - 1) * WorldGenerator.UT, (bz - 1) * WorldGenerator.UT)
 				var pos: Vector3 = grid.cell_corner(origin_cell)

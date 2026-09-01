@@ -192,6 +192,20 @@ func test_generated_town_has_ac_structure() -> void:
 						if int(FieldCatalog.unit_at(StringName(visual), ux, uz)["c"]) >= FieldCatalog.HEIGHT_MAX:
 							n_max += 1
 				assert_int(n_max).is_less_equal(128)
+	if not FieldCatalog.mesh_paths(&"grd_s_e2_1").is_empty():
+		for bz: int in range(1, 7):
+			assert_str(data.acre_visuals[bz * 7 + 0]).starts_with("grd_s_e")
+			assert_str(data.acre_visuals[bz * 7 + 6]).starts_with("grd_s_e")
+		assert_str(data.acre_visuals[0 * 7 + 1]).starts_with("grd_s_e1")
+		assert_str(data.acre_visuals[0 * 7 + 0]).is_equal("grd_s_e4_1")
+		assert_str(data.acre_visuals[0 * 7 + 6]).is_equal("grd_s_e5_1")
+	if not FieldCatalog.mesh_paths(&"grd_s_o_1").is_empty():
+		## Beach row → exceptional sea under it (`m` → `o`).
+		for bx: int in range(0, 7):
+			var beach: String = data.acre_visuals[6 * 7 + bx]
+			var sea: String = data.acre_visuals[7 * 7 + bx]
+			assert_str(sea).is_equal(String(FieldCatalog.ocean_visual_for_beach(StringName(beach))))
+			assert_str(sea).contains("_o_")
 
 
 func test_fg_templates_place_authored_trees() -> void:
@@ -433,6 +447,23 @@ func test_builder_places_generated_acre_meshes() -> void:
 	var acres: Node = world.get_node_or_null("Terrain/Acres")
 	assert_that(acres).is_not_null()
 	assert_int(acres.get_child_count()).is_greater(20)
+	var left_border: Node = acres.get_node_or_null("acre_0_2")
+	var right_border: Node = acres.get_node_or_null("acre_6_2")
+	if not FieldCatalog.mesh_paths(&"grd_s_e2_1").is_empty():
+		assert_that(left_border).is_not_null()
+		assert_that(right_border).is_not_null()
+		assert_str(String(left_border.get_meta("visual_id"))).starts_with("grd_s_e")
+		assert_str(String(right_border.get_meta("visual_id"))).starts_with("grd_s_e")
+		var left_pos: Vector3 = (left_border as Node3D).position
+		var right_pos: Vector3 = (right_border as Node3D).position
+		assert_float(right_pos.x - left_pos.x).is_equal_approx(FieldCatalog.ACRE_METERS * 6.0, 0.01)
+		var north: Node = acres.get_node_or_null("acre_3_0")
+		assert_that(north).is_not_null()
+		assert_str(String(north.get_meta("visual_id"))).starts_with("grd_s_e1")
+	if not FieldCatalog.mesh_paths(&"grd_s_o_1").is_empty():
+		var south: Node = acres.get_node_or_null("acre_3_7")
+		assert_that(south).is_not_null()
+		assert_str(String(south.get_meta("visual_id"))).contains("_o_")
 	var house_acre: Node = acres.get_node_or_null("acre_3_2")
 	assert_that(house_acre).is_not_null()
 	assert_that(house_acre.get_node_or_null("GeneratedVisual")).is_not_null()

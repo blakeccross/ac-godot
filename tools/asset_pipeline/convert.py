@@ -77,6 +77,9 @@ PLAYER_CORE_ANIMS = [
     # fish go into the pocket. The rod itself has no putaway clip -- `tol_sao_1` carries only
     # six -- so it holds its wait pose through this one.
     "cKF_ba_r_ply_1_putaway_t1",
+    # Door enter (`mPlayer_INDEX_DOOR` / type 0 → OPEN1). Walks into the doorway while the
+    # structure door cKF plays. Exit outdoor uses GO_OUT_O1 / GO_OUT_S1 (later).
+    "cKF_ba_r_ply_1_open1",
 ]
 
 # Prefer these first in the GLB; every cKF_ba_r_npc_1_* clip is still included.

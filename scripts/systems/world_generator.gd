@@ -163,7 +163,15 @@ static func _pick_acre_visuals(blocks: PackedByteArray, seed_value: int) -> Pack
 	var used := PackedStringArray()
 	for i: int in TownFieldGenerator.BLOCK_TOTAL:
 		var type: int = int(blocks[i])
-		var pick: StringName = FieldCatalog.acre_for_block_type(type, int(rng.randi()), used)
+		var pick: StringName = &""
+		## `SEA_EXCEPTIONAL` copies the beach BG above as its open-ocean pair.
+		if type == TownFieldGenerator.T_SEA_EXCEPTIONAL and i >= TownFieldGenerator.BLOCK_X:
+			var north := StringName(visuals[i - TownFieldGenerator.BLOCK_X])
+			pick = FieldCatalog.ocean_visual_for_beach(north)
+			if FieldCatalog.mesh_paths(pick).is_empty():
+				pick = FieldCatalog.acre_for_block_type(type, int(rng.randi()), used)
+		else:
+			pick = FieldCatalog.acre_for_block_type(type, int(rng.randi()), used)
 		visuals[i] = String(pick)
 		if not String(pick).is_empty():
 			used.append(String(pick))

@@ -32,10 +32,16 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.ENTER:
 		return false
-	if occupant_id != &"":
-		if Game.try_enter_interior(occupant_id):
-			return true
-		if InteriorCatalog.resolve_entry(occupant_id) != &"":
-			return false
-	Game.post_notice("The door is locked.")
-	return true
+	if occupant_id == &"":
+		Game.post_notice("The door is locked.")
+		return true
+	var room_id: StringName = InteriorCatalog.resolve_entry(occupant_id)
+	if room_id == &"":
+		Game.post_notice("The door is locked.")
+		return true
+	var room: Room = Game.interiors.room(room_id)
+	## Closed hours: notice only, no door swing.
+	if room != null and not InteriorCatalog.is_open_now(room):
+		return Game.try_enter_interior(occupant_id)
+	await StructureDoor.play_enter(self)
+	return Game.try_enter_interior(occupant_id)

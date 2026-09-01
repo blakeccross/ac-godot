@@ -249,6 +249,32 @@ func test_acre_block_types_map_to_grd_families() -> void:
 		"grd_s_m_ta_1"
 	)
 	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_PORT, 0))).is_equal("grd_s_m_wf_1")
+	if not FieldCatalog.mesh_paths(&"grd_s_e2_1").is_empty():
+		assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_BORDER_CLIFF_LEFT, 0))).is_equal(
+			"grd_s_e2_1"
+		)
+		assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_BORDER_CLIFF_RIGHT, 0))).is_equal(
+			"grd_s_e3_1"
+		)
+		assert_str(
+			String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_BORDER_CLIFF_LEFT_TRANSITION, 0))
+		).is_equal("grd_s_e2_c1_1")
+		assert_str(
+			String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_BORDER_CLIFF_OCEAN_LEFT, 0))
+		).is_equal("grd_s_e2_m_1")
+		assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_BORDER_CLIFF_TOP, 0))).is_equal(
+			"grd_s_e1_1"
+		)
+	if not FieldCatalog.mesh_paths(&"grd_s_o_1").is_empty():
+		assert_str(String(FieldCatalog.ocean_visual_for_beach(&"grd_s_m_3"))).is_equal("grd_s_o_3")
+		assert_str(String(FieldCatalog.ocean_visual_for_beach(&"grd_s_e2_m_1"))).is_equal("grd_s_e2_o_1")
+		assert_str(String(FieldCatalog.ocean_visual_for_beach(&"grd_s_m_r1_2"))).is_equal("grd_s_o_r1_2")
+		assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_OCEAN_6, 0))).is_equal(
+			"grd_s_o_i_1"
+		)
+		assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_ISLAND_LEFT, 0))).starts_with(
+			"grd_s_il_"
+		)
 	if not FieldCatalog.mesh_paths(&"grd_s_c7_r1_1").is_empty():
 		assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_RIV_CLIFF_BL, 0))).starts_with("grd_s_c7_r1_")
 	if not FieldCatalog.mesh_paths(&"grd_s_c7_r3_1").is_empty():
@@ -350,6 +376,24 @@ func test_height_max_filler_tables_are_skipped() -> void:
 					if int(FieldCatalog.unit_at(visual, ux, uz)["c"]) >= FieldCatalog.HEIGHT_MAX:
 						n_max += 1
 			assert_int(n_max).is_less_equal(128)
+
+
+func test_border_edge_and_track_tunnel_keep_collision() -> void:
+	## Border cliffs / track tunnels are authored with many HEIGHT_MAX cells; they are
+	## not TRACKS dummy fillers and must still load for rim walls.
+	if FieldCatalog.mesh_paths(&"grd_s_e2_t_1").is_empty():
+		return
+	assert_bool(FieldCatalog.has_acre_collision(&"grd_s_e2_t_1")).is_true()
+	assert_bool(FieldCatalog.has_acre_collision(&"grd_s_e3_t_1")).is_true()
+	assert_bool(FieldCatalog.has_acre_collision(&"grd_s_e2_1")).is_true()
+	assert_bool(FieldCatalog.is_border_edge_acre("grd_s_e2_t_1")).is_true()
+	## Tunnel corridor stays below HEIGHT_MAX.
+	var walk := 0
+	for uz: int in 16:
+		for ux: int in 16:
+			if int(FieldCatalog.unit_at(&"grd_s_e2_t_1", ux, uz)["c"]) < FieldCatalog.HEIGHT_MAX:
+				walk += 1
+	assert_int(walk).is_greater(0)
 
 
 func test_bridge_block_types_pick_data_combi_bgs() -> void:

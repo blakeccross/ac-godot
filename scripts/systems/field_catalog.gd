@@ -577,20 +577,29 @@ static func _load_acre_units(id: String) -> PackedByteArray:
 		packed[i + 5] = clampi(int(d.get("s", 0)), 0, 1)
 		packed[i + 6] = clampi(int(d.get("a", 0)), 0, 63)
 		i += UNIT_STRIDE
-	if _is_height_max_filler(packed):
+	if _is_height_max_filler(id, packed):
 		return PackedByteArray()
 	return packed
 
 
-static func _is_height_max_filler(packed: PackedByteArray) -> bool:
-	## Dummy `GRD_*_1` TRACKS rows reuse an acre mesh with HEIGHT_MAX floors.
+static func _is_height_max_filler(id: String, packed: PackedByteArray) -> bool:
+	## Dummy TRACKS `data_bgd` rows reuse a field mesh (`grd_s_c1_3`, …) with an
+	## all-HEIGHT_MAX floor. Border cliffs (`grd_*_e*`) are authored as solid walls
+	## (and tunnels keep a walkable strip) — those are real tables, not fillers.
 	if packed.size() != UNITS_PER_ACRE * UNIT_STRIDE:
+		return false
+	if is_border_edge_acre(id):
 		return false
 	var n_max := 0
 	for u: int in UNITS_PER_ACRE:
 		if packed[u * UNIT_STRIDE] >= HEIGHT_MAX:
 			n_max += 1
 	return n_max > UNITS_PER_ACRE / 2
+
+
+static func is_border_edge_acre(id: String) -> bool:
+	## `grd_s_e2_1`, `grd_s_e2_t_1`, `grd_w_e3_c1_1`, …
+	return id.begins_with("grd_s_e") or id.begins_with("grd_w_e")
 
 
 ## Pick a concrete `grd_*` for an `mFM_BLOCK_TYPE_*` (`mRF_SelectBlock` / `data_combi`).
@@ -688,6 +697,52 @@ static func _acre_candidates(block_type: int) -> PackedStringArray:
 			return _names("grd_s_t_po_", 1, 3)
 		TownFieldGenerator.T_TRACKS_RIVER:
 			return _names("grd_s_t_r1_", 1, 5)
+		TownFieldGenerator.T_BORDER_CLIFF_TOP:
+			return _names("grd_s_e1_", 1, 1)
+		TownFieldGenerator.T_BORDER_CLIFF_RIVER:
+			return _names("grd_s_e1_r1_", 1, 1)
+		TownFieldGenerator.T_BORDER_CLIFF_LEFT:
+			return _names("grd_s_e2_", 1, 1)
+		TownFieldGenerator.T_BORDER_CLIFF_LEFT_TRANSITION:
+			return _names("grd_s_e2_c1_", 1, 1)
+		TownFieldGenerator.T_BORDER_CLIFF_LEFT_TUNNEL:
+			return _names("grd_s_e2_t_", 1, 1)
+		TownFieldGenerator.T_BORDER_CLIFF_OCEAN_LEFT:
+			return _names("grd_s_e2_m_", 1, 1)
+		TownFieldGenerator.T_BORDER_CLIFF_RIGHT:
+			return _names("grd_s_e3_", 1, 1)
+		TownFieldGenerator.T_BORDER_CLIFF_RIGHT_TRANSITION:
+			return _names("grd_s_e3_c1_", 1, 1)
+		TownFieldGenerator.T_BORDER_CLIFF_RIGHT_TUNNEL:
+			return _names("grd_s_e3_t_", 1, 1)
+		TownFieldGenerator.T_BORDER_CLIFF_OCEAN_RIGHT:
+			return _names("grd_s_e3_m_", 1, 1)
+		TownFieldGenerator.T_BORDER_CLIFF_CORNER_TOP_LEFT:
+			return _names("grd_s_e4_", 1, 1)
+		TownFieldGenerator.T_BORDER_CLIFF_CORNER_TOP_RIGHT:
+			return _names("grd_s_e5_", 1, 1)
+		TownFieldGenerator.T_OCEAN, TownFieldGenerator.T_OCEAN_8:
+			## `data_combi` stubs OCEAN at `rom_shop2`; draw open-ocean acres instead.
+			return _names("grd_s_o_", 1, 10)
+		TownFieldGenerator.T_OCEAN_2:
+			return _names("grd_s_o_", 1, 1)
+		TownFieldGenerator.T_OCEAN_3:
+			return _names("grd_s_o_", 2, 2)
+		TownFieldGenerator.T_OCEAN_4:
+			return _names("grd_s_o_", 3, 3)
+		TownFieldGenerator.T_OCEAN_5:
+			return _names("grd_s_o_", 4, 4)
+		TownFieldGenerator.T_OCEAN_6:
+			return _names("grd_s_o_i_", 1, 1)
+		TownFieldGenerator.T_OCEAN_7:
+			return _names("grd_s_o_i_", 2, 2)
+		TownFieldGenerator.T_SEA_EXCEPTIONAL:
+			## Remapped from the beach acre above in `WorldGenerator._pick_acre_visuals`.
+			return _names("grd_s_o_", 1, 10)
+		TownFieldGenerator.T_ISLAND_LEFT:
+			return _names("grd_s_il_", 1, 4)
+		TownFieldGenerator.T_ISLAND_RIGHT:
+			return _names("grd_s_ir_", 1, 4)
 		TownFieldGenerator.T_CLIFF_H:
 			return _names("grd_s_c1_", 1, 5)
 		TownFieldGenerator.T_CLIFF_BR:
@@ -754,6 +809,20 @@ static func _names(prefix: String, lo: int, hi: int) -> PackedStringArray:
 	for i: int in range(lo, hi + 1):
 		out.append("%s%d" % [prefix, i])
 	return out
+
+
+## Beach → open-ocean BG (`mRF_GetExceptionalSeaBgDownBgName`): `m` → `o`.
+static func ocean_visual_for_beach(beach_visual: StringName) -> StringName:
+	var s := String(beach_visual)
+	if s.is_empty():
+		return &""
+	if s.contains("e2_m") or s.contains("e3_m"):
+		return StringName(s.replace("_m_", "_o_"))
+	if s.begins_with("grd_s_m_"):
+		return StringName("grd_s_o_" + s.substr(8))
+	if s.begins_with("grd_w_m_"):
+		return StringName("grd_w_o_" + s.substr(8))
+	return beach_visual
 
 
 static func villager_path(species: StringName) -> String:

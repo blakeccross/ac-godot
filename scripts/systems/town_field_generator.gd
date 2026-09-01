@@ -92,13 +92,27 @@ const T_TRACKS_SHOP := 65
 const T_SHRINE := 66
 const T_TRACKS_POST := 67
 const T_POLICE := 68
+## Beach-side ocean cliffs. Layouts write these via `_set_beach` (not decomp 80/81 —
+## those collide with compacted museum/needlework ids below).
 const T_BORDER_CLIFF_OCEAN_LEFT := 76
 const T_BORDER_CLIFF_OCEAN_RIGHT := 77
 const T_MUSEUM := 80
 const T_NEEDLEWORK := 81
 ## `mFM_BLOCK_TYPE_BEACH_RIVER_BRIDGE` (decomp 82). Compacted ids keep museum/port as-is.
 const T_BEACH_RIVER_BRIDGE := 82
+## Deep-ocean / island rows keep decomp ids (`TownFieldLayouts` BASE / STEP3 tails).
+const T_OCEAN := 83
 const T_PORT := 86
+const T_OCEAN_2 := 94
+const T_OCEAN_3 := 95
+const T_OCEAN_4 := 96
+const T_OCEAN_5 := 97
+const T_ISLAND_LEFT := 98
+const T_ISLAND_RIGHT := 99
+const T_SEA_EXCEPTIONAL := 101
+const T_OCEAN_6 := 102
+const T_OCEAN_7 := 103
+const T_OCEAN_8 := 104
 const BIT_BRIDGE_UPPER := 1
 const BIT_BRIDGE_LOWER := 2
 ## River → bridge acre (`RIVER_SOUTH_BRIDGE - RIVER_SOUTH`).
@@ -962,6 +976,20 @@ static func acre_abbrev(type: int) -> String:
 			return "ocL "
 		T_BORDER_CLIFF_OCEAN_RIGHT:
 			return "ocR "
+		T_OCEAN:
+			return "sea "
+		T_SEA_EXCEPTIONAL:
+			return "seaX"
+		T_OCEAN_6:
+			return "sea6"
+		T_OCEAN_7:
+			return "sea7"
+		T_OCEAN_8:
+			return "sea8"
+		T_ISLAND_LEFT:
+			return "islL"
+		T_ISLAND_RIGHT:
+			return "islR"
 		T_MUSEUM:
 			return "MUSE"
 		T_NEEDLEWORK:

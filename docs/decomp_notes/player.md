@@ -154,7 +154,7 @@ effect pass after the field's own XLU water.
 - One **locked action** at a time (cannot walk-and-fish; talk freezes locomotion).
 - Interact from a facing tile, not a 360° magnet.
 - Put-away / cancel for tools.
-- Door enter/exit as a short locked anim, then scene change.
+- Door enter/exit as a short locked anim, then scene change. Outdoor enter locks the player on `ply_1_open1` (`OPEN1`) while stepping to the door stand (`StructureDoor` + house/shop cKF). Door camera / triforce wipe wait.
 - Outdoor camera follow; tighter camera when talking.
 - Actor origin on the unit heightfield (`GetBgY` / `BgCheck`), not a guessed offset above a physics mesh.
 
