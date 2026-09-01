@@ -16,12 +16,18 @@ var choices: Array[Dictionary] = []
 var waiting_choice: bool = false
 ## Intro modals (`prompt_name` / `prompt_town` / `prompt_clock`) pause here.
 var waiting_prompt: bool = false
+## Intro train: hold until `IntroTrainStage` reports `stage_wait_met`.
+var waiting_stage: bool = false
 var done: bool = false
 var last_choice_index: int = -1
 var events_this_step: Array[Dictionary] = []
+## Optional `(from_node, to_node) -> bool` gate; return false to block Continue.
+var advance_gate: Callable
 
 var _state: VillagerState
 var _prompt_next: StringName = &""
+var _stage_wait_key: String = ""
+var _stage_wait_next: StringName = &""
 
 
 func start(
@@ -33,7 +39,11 @@ func start(
 	done = false
 	waiting_choice = false
 	waiting_prompt = false
+	waiting_stage = false
+	_stage_wait_key = ""
+	_stage_wait_next = &""
 	_prompt_next = &""
+	advance_gate = Callable()
 	last_choice_index = -1
 	line = ""
 	choices.clear()
@@ -46,14 +56,52 @@ func start(
 
 
 func advance() -> void:
-	if done or waiting_choice or waiting_prompt:
+	if done or waiting_choice or waiting_prompt or waiting_stage:
 		return
 	var rec: Dictionary = _current()
 	var next_id := StringName(str(rec.get("next", "")))
 	if next_id == &"":
 		_finish()
 		return
+	if not _advance_allowed(node_id, next_id):
+		if not waiting_stage:
+			waiting_stage = true
+			_stage_wait_key = "advance_gate"
+			_stage_wait_next = next_id
+		return
 	_goto(next_id)
+
+
+func release_stage_wait() -> void:
+	if not waiting_stage:
+		return
+	waiting_stage = false
+	_stage_wait_key = ""
+	var next_id: StringName = _stage_wait_next
+	_stage_wait_next = &""
+	if next_id == &"":
+		_finish()
+		return
+	_goto(next_id)
+
+
+func is_continue_blocked() -> bool:
+	return waiting_stage or not _advance_allowed(node_id, _peek_next_node())
+
+
+func _peek_next_node() -> StringName:
+	if done or waiting_choice or waiting_prompt or waiting_stage:
+		return &""
+	var rec: Dictionary = _current()
+	return StringName(str(rec.get("next", "")))
+
+
+func _advance_allowed(from_node: StringName, to_node: StringName) -> bool:
+	if to_node == &"":
+		return true
+	if advance_gate.is_valid():
+		return bool(advance_gate.call(from_node, to_node))
+	return true
 
 
 func resume_after_prompt() -> void:
@@ -152,8 +200,19 @@ func _settle() -> void:
 				if waiting_prompt:
 					_prompt_next = next_id
 					return
+				var wait_key := str(rec.get("wait_stage", ""))
+				if wait_key != "":
+					waiting_stage = true
+					_stage_wait_key = wait_key
+					_stage_wait_next = next_id
+					return
 				if next_id == &"":
 					_finish()
+					return
+				if not _advance_allowed(node_id, next_id):
+					waiting_stage = true
+					_stage_wait_key = "advance_gate"
+					_stage_wait_next = next_id
 					return
 				if conversation.has_node(next_id):
 					node_id = next_id

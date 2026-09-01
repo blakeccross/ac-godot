@@ -52,6 +52,7 @@
     "sit_stage": {
       "type": "event",
       "events": [{ "op": "rover_sit" }],
+      "wait_stage": "seated",
       "next": "sit_ok"
     },
     "sit_ok": {
@@ -220,6 +221,7 @@
     "phone_done_stage": {
       "type": "event",
       "events": [{ "op": "rover_phone_done" }, { "op": "rover_return" }],
+      "wait_stage": "return_approach",
       "next": "phone_done"
     },
     "phone_done": {

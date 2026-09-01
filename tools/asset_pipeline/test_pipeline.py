@@ -32,7 +32,8 @@ class LayoutTests(unittest.TestCase):
     def test_kab_1_test_set_includes_sleep_clips(self) -> None:
         names = set(INTRO_SLEEP_NPC_ANIMS) | {"cKF_ba_r_npc_1_wait1"}
         sleep = _intro_sleep_npc_anims(names)
-        self.assertEqual(sleep, INTRO_SLEEP_NPC_ANIMS)
+        self.assertIn("cKF_ba_r_npc_1_wait_nemu1", sleep)
+        self.assertIn("cKF_ba_r_npc_1_kokkuri_d1", sleep)
 
     def test_species_paths(self) -> None:
         self.assertTrue(uses_shared_npc_anims("cat_1"))

@@ -124,7 +124,7 @@ func test_sleep_npc_spawn_matches_decomp() -> void:
 		IntroTrainStage.gx_to_meters(Vector3(174.0, 0.0, 156.0)),
 		Vector3(0.001, 0.001, 0.001)
 	)
-	assert_float(IntroTrainSleepNpc.SPAWN_YAW).is_equal_approx(PI, 0.001)
+	assert_float(IntroTrainSleepNpc.SPAWN_YAW).is_equal(0.0)
 
 
 func test_return_flow_reaches_aisle_talk_after_phone_done() -> void:
@@ -175,6 +175,38 @@ func test_cue_return_does_not_skip_to_open_door_mid_walk() -> void:
 		stage.tick(1.0 / 30.0)
 	stage.end_phone_talk()
 	assert_that(stage.action).is_not_equal(IntroTrainStage.Action.OPEN_DOOR)
+	rover.queue_free()
+
+
+func test_dialogue_gate_blocks_phone_until_keitai_talk() -> void:
+	var stage := IntroTrainStage.new()
+	var rover := Node3D.new()
+	add_child(rover)
+	stage.bind(rover, null, null, null, null, null)
+	stage.cue_phone()
+	for _i: int in 20:
+		stage.tick(1.0 / 30.0)
+	assert_that(stage.can_advance_dialogue(&"phone_lead", &"phone_call")).is_false()
+	for _i: int in 400:
+		stage.tick(1.0 / 30.0)
+		if stage.action == IntroTrainStage.Action.KEITAI_TALK:
+			break
+	assert_that(stage.can_advance_dialogue(&"phone_lead", &"phone_call")).is_true()
+	rover.queue_free()
+
+
+func test_stage_wait_seated_after_sit() -> void:
+	var stage := IntroTrainStage.new()
+	var rover := Node3D.new()
+	add_child(rover)
+	stage.bind(rover, null, null, null, null, null)
+	stage.cue_sit()
+	assert_that(stage.stage_wait_met("seated")).is_false()
+	for _i: int in 30:
+		stage.tick(1.0 / 30.0)
+		if stage.action == IntroTrainStage.Action.SEATED:
+			break
+	assert_that(stage.stage_wait_met("seated")).is_true()
 	rover.queue_free()
 
 

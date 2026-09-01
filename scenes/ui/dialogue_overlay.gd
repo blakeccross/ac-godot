@@ -113,6 +113,8 @@ func _process(delta: float) -> void:
 	_body.text = _shown.substr(0, _cursor)
 	if _cursor >= _shown.length():
 		_hint.text = "E continue"
+		if _runner != null and _runner.is_continue_blocked():
+			_hint.text = ""
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -126,6 +128,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _runner != null and _runner.waiting_choice:
 		_choice_input(event)
+		return
+	if _runner != null and _runner.is_continue_blocked():
+		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
 		get_viewport().set_input_as_handled()

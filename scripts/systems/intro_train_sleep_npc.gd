@@ -1,14 +1,17 @@
 class_name IntroTrainSleepNpc
 extends RefCounted
 
-## Background passenger (`SP_NPC_SLEEP_OBABA`) — loops kokkuri nod/twitch anims.
+## Background passenger (`SP_NPC_SLEEP_OBABA`) — `wait_nemu1` base + kokkuri nod/twitch.
 
+const ANIM_WAIT_NEMU := "npc_1_wait_nemu1"
 const ANIM_KOKKURI_D1 := "npc_1_kokkuri_d1"
 const ANIM_KOKKURI_D2 := "npc_1_kokkuri_d2"
 ## `start_demo1` ut (4,4) center + `aNSO_actor_ct` birth offset (−6 GX, −24 GX).
 const SPAWN_GX := Vector3(174.0, 0.0, 156.0)
-## `aNPC_think_in_block_init_proc` with `appear_rotation` 0 → 180° (faces the window wall).
-const SPAWN_YAW := PI
+## Window bench faces the aisle (+Z); `appear_rotation` 0 → 180° is into the glass.
+const SPAWN_YAW := 0.0
+## Bench cushion height GX (`rom_train_in` seat surface).
+const SEAT_CUSHION_Y_GX := 40.0
 
 var _host: Node3D
 var _anim: AnimationPlayer
@@ -32,8 +35,19 @@ func tick(_delta: float) -> void:
 
 
 func _start_sleep() -> void:
+	_play(ANIM_WAIT_NEMU, true, true)
+	_align_to_seat()
 	_loops_left = 2 + randi() % 3
-	_play(ANIM_KOKKURI_D1, false, true)
+	_play(ANIM_KOKKURI_D1, false, false)
+
+
+func _align_to_seat() -> void:
+	if _host == null:
+		return
+	var vis: Node3D = _host.get_node_or_null("GeneratedVisual") as Node3D
+	if vis == null:
+		return
+	GeneratedVisual.align_actor_to_height_gx(vis, SEAT_CUSHION_Y_GX)
 
 
 func _play(suffix: String, loop: bool, snap: bool = false) -> void:
@@ -54,6 +68,7 @@ func _play(suffix: String, loop: bool, snap: bool = false) -> void:
 	_anim.play(clip, blend)
 	if snap:
 		_anim.advance(0.0)
+		_align_to_seat()
 	if _anim.animation_finished.is_connected(_on_anim_finished):
 		_anim.animation_finished.disconnect(_on_anim_finished)
 	if not loop:

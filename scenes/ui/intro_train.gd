@@ -90,6 +90,19 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_stage.tick(delta)
 	_sleep_npc.tick(delta)
+	_poll_dialogue_stage_wait()
+
+
+func _poll_dialogue_stage_wait() -> void:
+	if not _dialogue_started or not _dialogue.has_method("runner"):
+		return
+	var runner: DialogueRunner = _dialogue.runner()
+	if runner == null or not runner.waiting_stage:
+		return
+	if runner._stage_wait_key == "advance_gate":
+		_stage.set_dialogue_wait_to(runner._stage_wait_next)
+	if _stage.stage_wait_met(runner._stage_wait_key):
+		runner.release_stage_wait()
 
 
 func _apply_rover_look() -> void:
@@ -490,8 +503,15 @@ func _start_dialogue() -> void:
 	if _dialogue.has_method("play"):
 		_dialogue.play(data, _ctx)
 	var runner: DialogueRunner = _dialogue.runner() if _dialogue.has_method("runner") else null
-	if runner != null and not runner.event_fired.is_connected(_on_dialogue_event):
-		runner.event_fired.connect(_on_dialogue_event)
+	if runner != null:
+		runner.advance_gate = _dialogue_advance_gate
+		if not runner.event_fired.is_connected(_on_dialogue_event):
+			runner.event_fired.connect(_on_dialogue_event)
+
+
+func _dialogue_advance_gate(from_node: StringName, to_node: StringName) -> bool:
+	_stage.set_dialogue_wait_to(to_node)
+	return _stage.can_advance_dialogue(from_node, to_node)
 
 
 func _on_dialogue_event(event: Dictionary) -> void:

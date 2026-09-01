@@ -102,8 +102,9 @@ INTRO_ROVER_NPC_ANIMS = [
     "cKF_ba_r_npc_1_open_d2",
 ]
 
-## `ac_npc_sleep_obaba` nod/twitch clips baked into `kab_1.glb`.
+## `ac_npc_sleep_obaba` sleep wait + nod/twitch clips baked into `kab_1.glb`.
 INTRO_SLEEP_NPC_ANIMS = [
+    "cKF_ba_r_npc_1_wait_nemu1",
     "cKF_ba_r_npc_1_kokkuri_d1",
     "cKF_ba_r_npc_1_kokkuri_d2",
 ]

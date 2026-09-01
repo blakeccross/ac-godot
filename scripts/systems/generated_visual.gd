@@ -325,6 +325,21 @@ static func _fit_acre(pivot: Node3D) -> void:
 	pivot.position = Vector3(0.0, FieldCatalog.acre_ground_y_offset(), 0.0)
 
 
+static func align_actor_to_height_gx(pivot: Node3D, height_gx: float) -> void:
+	## Place the model's lowest vertex on a GX height (seated bench, etc.).
+	if pivot == null:
+		return
+	var aabb: AABB = local_aabb(pivot)
+	if aabb.size == Vector3.ZERO:
+		return
+	var s: float = pivot.scale.y
+	pivot.position.y = height_gx * FieldCatalog.GX_TO_METERS - aabb.position.y * s
+
+
+static func local_aabb(node: Node) -> AABB:
+	return _local_aabb(node)
+
+
 static func _fit_actor(pivot: Node3D, visual_id: StringName = &"") -> void:
 	## Same GX→meter factor as acres. Authored origin is actor world pos
 	## (`m_actor.c` / `aMR_UnitNumber2Position`). Only micro-ground when feet

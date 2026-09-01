@@ -208,6 +208,47 @@ func cue_return_sit() -> void:
 	end_phone_talk()
 
 
+## Decomp `mMsg` LockContinue / demo gating — block Continue until stage catches up.
+func can_advance_dialogue(_from_node: StringName, to_node: StringName) -> bool:
+	match action:
+		Action.SITDOWN, Action.STANDUP, Action.KEITAI_ON, Action.KEITAI_OFF, Action.OPEN_DOOR, Action.MOVE_DECK:
+			return false
+	match to_node:
+		&"sit_ok", &"name_prompt":
+			return action >= Action.SEATED
+		&"phone_call", &"phone_call2":
+			return action >= Action.KEITAI_TALK
+		&"phone_done_stage":
+			return action >= Action.KEITAI_TALK
+		&"phone_done", &"farewell":
+			return action >= Action.RETURN_APPROACH
+		_:
+			return true
+
+
+func stage_wait_met(key: String) -> bool:
+	match key:
+		"seated":
+			return action >= Action.SEATED
+		"return_approach":
+			return action >= Action.RETURN_APPROACH
+		"advance_gate":
+			return can_advance_dialogue(&"", _dialogue_wait_to)
+		_:
+			return true
+
+
+var _dialogue_wait_to: StringName = &""
+
+
+func set_dialogue_wait_to(node: StringName) -> void:
+	_dialogue_wait_to = node
+
+
+func _dialogue_wait_to_node() -> StringName:
+	return _dialogue_wait_to
+
+
 func _set_action(next: Action) -> void:
 	action = next
 	stage_changed.emit(_action_name(next))
