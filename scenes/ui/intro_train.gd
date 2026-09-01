@@ -1,0 +1,612 @@
+extends Node3D
+
+## Train intro presentation. Loads pipeline GLBs (`rom_train_in`, door, Rover/`xct_1`,
+## sleep passenger/`kab_1`, `tol_keitai_1`) and drives `IntroTrainStage` + dialogue.
+
+const DIALOGUE_ID := &"rover_intro"
+const ROVER_GLB := "res://assets/generated/characters/villagers/xct_1.glb"
+const SLEEP_NPC_GLB := "res://assets/generated/characters/villagers/kab_1.glb"
+## `mEnv_GetNowRoomPointLightInfo`, `FIELD_DRAW_TYPE_TRAIN`: the car has exactly one point
+## light — GX (80, 120, 510), colour (255, 255, 160), power 1200 — and `sun_percent` is
+## pinned to 0, so the electric lamp is always full. There is no ceiling array and no sun.
+const CAR_LAMP_GX := Vector3(80.0, 120.0, 510.0)
+const CAR_LAMP_COLOR := Color(1.0, 1.0, 160.0 / 255.0)
+const CAR_LAMP_POWER_GX := 1200.0
+## Ceiling fixture tint for the lamp geometry itself (~255, 255, 150).
+const LAMP_COLOR := Color(1.0, 1.0, 0.59)
+## `rom_train_out_shineglass_modelT` — soft XLU god-rays through the glass.
+const LIGHT_RAY_TUNNEL_ALPHA := 0.12
+const LIGHT_RAY_DAYLIGHT_ALPHA := 0.38
+## Base interior ambient, fitted to the GC frame (warm wood at roughly 140/92/58).
+const CAR_AMBIENT := Color(0.74, 0.71, 0.65)
+const CAR_AMBIENT_ENERGY := 0.62
+## `mEnv_CalcSetLight_train`: in the tunnel (`sun_percent` < 1) the ambient is lifted by
+## (35, 30, 40) — a cool lift, and it fades out as the train reaches daylight.
+const TUNNEL_AMBIENT_LIFT := Color(35.0 / 255.0, 30.0 / 255.0, 40.0 / 255.0)
+const DAYLIGHT_AMBIENT_ENERGY := 0.78
+const TUNNEL_BG := Color(0.05, 0.04, 0.04)
+const DAYLIGHT_BG := Color(0.45, 0.58, 0.72)
+
+@onready var _train_host: Node3D = %TrainCar
+@onready var _window_host: Node3D = %WindowScenery
+@onready var _world_env: WorldEnvironment = $WorldEnvironment
+@onready var _car_lamp: OmniLight3D = %CarLamp
+@onready var _door_host: Node3D = %TrainDoor
+@onready var _rover_host: Node3D = %Rover
+@onready var _sleep_host: Node3D = %SleepPassenger
+@onready var _keitai_host: Node3D = %Keitai
+@onready var _camera: Camera3D = %IntroCamera
+@onready var _missing_banner: Label = %MissingBanner
+@onready var _dialogue: CanvasLayer = %DialogueOverlay
+@onready var _clock_label: Label = %ClockLabel
+@onready var _name_modal: Control = %NameModal
+@onready var _town_modal: Control = %TownModal
+@onready var _clock_modal: Control = %ClockModal
+@onready var _name_edit: LineEdit = %NameEdit
+@onready var _town_edit: LineEdit = %TownEdit
+@onready var _year: SpinBox = %YearSpin
+@onready var _month: SpinBox = %MonthSpin
+@onready var _day: SpinBox = %DaySpin
+@onready var _hour: SpinBox = %HourSpin
+@onready var _minute: SpinBox = %MinuteSpin
+
+var _intro: IntroSequence = IntroSequence.new()
+var _stage: IntroTrainStage = IntroTrainStage.new()
+var _sleep_npc: IntroTrainSleepNpc = IntroTrainSleepNpc.new()
+var _rover_look: IntroTrainRoverLook = IntroTrainRoverLook.new()
+var _rover_face: NpcFace = NpcFace.new()
+var _ctx: DialogueContext
+var _finishing: bool = false
+var _dialogue_started: bool = false
+var _window_scenery: Node3D
+var _train_car: Node3D
+var _daylight: bool = false
+
+
+func _ready() -> void:
+	Game.notify_intro_ready()
+	Audio.play_bgm(&"title")
+	_name_modal.visible = false
+	_town_modal.visible = false
+	_clock_modal.visible = false
+	_refresh_clock_label()
+	_intro.prompt_requested.connect(_on_prompt)
+	_intro.finished.connect(_on_intro_finished)
+	_intro.cancelled.connect(_on_intro_cancelled)
+	_stage.ready_for_talk.connect(_on_ready_for_talk)
+	_stage.stage_changed.connect(_on_stage_changed)
+	if not get_tree().process_frame.is_connected(_apply_rover_look):
+		get_tree().process_frame.connect(_apply_rover_look)
+	_bootstrap_stage()
+
+
+func _process(delta: float) -> void:
+	_stage.tick(delta)
+	_sleep_npc.tick(delta)
+	_rover_face.tick(delta, _dialogue_uttering())
+	_poll_dialogue_stage_wait()
+
+
+func _dialogue_uttering() -> bool:
+	## `mMsg_Check_NowUtter`: Rover's mouth only moves while the window is laying text in.
+	return _dialogue.has_method("is_uttering") and _dialogue.is_uttering()
+
+
+func _poll_dialogue_stage_wait() -> void:
+	if not _dialogue_started or not _dialogue.has_method("runner"):
+		return
+	var runner: DialogueRunner = _dialogue.runner()
+	if runner == null or not runner.waiting_stage:
+		return
+	if runner._stage_wait_key == "advance_gate":
+		_stage.set_dialogue_wait_to(runner._stage_wait_next)
+	if _stage.stage_wait_met(runner._stage_wait_key):
+		runner.release_stage_wait()
+
+
+func _apply_rover_look() -> void:
+	## After AnimationPlayer updates — same frame slot as decomp draw-time head override.
+	_rover_look.tick(get_process_delta_time())
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _finishing:
+		return
+	if _modal_open():
+		return
+	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause_menu"):
+		get_viewport().set_input_as_handled()
+		_intro.cancel()
+
+
+func _bootstrap_stage() -> void:
+	var missing: PackedStringArray = IntroTrainStage.missing_assets()
+	_missing_banner.visible = not missing.is_empty()
+	if not missing.is_empty():
+		_missing_banner.text = (
+			"Missing generated train assets — run:\n"
+			+ "python3 tools/build_assets.py --step convert\n"
+			+ "(need rom_train_in, rom_train_out, obj_romtrain_door, xct_1, kab_1, tol_keitai_1)"
+		)
+	_attach_visuals()
+	_apply_tunnel_lighting()
+	var rover_anim: AnimationPlayer = GeneratedVisual.find_animation_player(_rover_host)
+	var sleep_anim: AnimationPlayer = GeneratedVisual.find_animation_player(_sleep_host)
+	var door_anim: AnimationPlayer = GeneratedVisual.find_animation_player(_door_host)
+	_rover_look.bind(_rover_host)
+	_stage.bind(_rover_host, rover_anim, _door_host, door_anim, _keitai_host, _camera, _rover_look)
+	_sleep_npc.bind(_sleep_host, sleep_anim)
+	## No Rover mesh → skip walk-up so the title menu item stays testable.
+	if not ResourceLoader.exists(ROVER_GLB):
+		_on_ready_for_talk()
+
+
+func _attach_visuals() -> void:
+	if _window_host.get_parent() != _train_host:
+		_window_host.reparent(_train_host, false)
+	## Scenery first so OPA seats/walls in `rom_train_in` depth-occlude window quads.
+	var scenery: Node3D = GeneratedVisual.attach(_window_host, &"rom_train_out")
+	if scenery != null:
+		_window_scenery = scenery
+		GeneratedVisual.fit_train_window_shell(scenery)
+		_apply_scenery_materials(scenery)
+	var car: Node3D = GeneratedVisual.attach(_train_host, &"rom_train_in")
+	if car != null:
+		_train_car = car
+		GeneratedVisual.fit_train_car_shell(car)
+		_apply_car_materials(car)
+		_apply_car_opa_surfaces(car)
+	_place_train_lights()
+	GeneratedVisual.attach(_door_host, &"obj_romtrain_door")
+	var rover_visual: Node3D = GeneratedVisual.attach_villager(_rover_host, &"xct")
+	## Blink and mouth flap (`aNPC_tex_anm_ctrl`). No-ops until `--kind faces` has run.
+	_rover_face.bind(rover_visual, &"xct")
+	## Sleep pose sets its own recline — skip standing foot snap; bench align runs in bind().
+	GeneratedVisual.attach_villager(_sleep_host, &"kab", false)
+	GeneratedVisual.attach(_keitai_host, &"tol_keitai_1")
+	_keitai_host.visible = false
+	_door_host.global_position = IntroTrainStage.gx_to_meters(Vector3(140.0, 0.0, 120.0))
+	## Phone rides with Rover (hand-joint bind comes later).
+	if _keitai_host.get_parent() != _rover_host:
+		_keitai_host.reparent(_rover_host, false)
+	_keitai_host.position = Vector3(0.15, 0.55, 0.1)
+	_keitai_host.rotation = Vector3.ZERO
+
+
+func _place_train_lights() -> void:
+	_car_lamp.global_position = IntroTrainStage.gx_to_meters(CAR_LAMP_GX)
+	_car_lamp.omni_range = CAR_LAMP_POWER_GX * FieldCatalog.GX_TO_METERS
+	_car_lamp.light_color = CAR_LAMP_COLOR
+
+
+func _apply_car_opa_surfaces(root: Node3D) -> void:
+	## OPA seats/walls (`rom_train_in_model`). GC BG display lists modulate the baked CI
+	## texture by vertex shade and nothing else: no specular term, no emissive pass, no
+	## albedo lift. Adding those washed the CI palette out and put a plastic sheen on the
+	## wood, which is what made the interior read wrong against the GC frame.
+	_apply_car_opa_surfaces_inner(root)
+
+
+func _apply_car_opa_surfaces_inner(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh == null:
+			return
+		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if String(mesh_instance.name).to_lower().contains("modelt"):
+			return
+		for i: int in mesh_instance.mesh.get_surface_count():
+			var mat: Material = mesh_instance.get_active_material(i)
+			var std: StandardMaterial3D
+			if mat is StandardMaterial3D:
+				std = (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			else:
+				std = StandardMaterial3D.new()
+			std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+			std.disable_ambient_light = false
+			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			std.cull_mode = BaseMaterial3D.CULL_DISABLED
+			std.roughness = 1.0
+			std.metallic = 0.0
+			std.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+			std.emission_enabled = false
+			mesh_instance.set_surface_override_material(i, std)
+	for child: Node in node.get_children():
+		_apply_car_opa_surfaces_inner(child)
+
+
+func _apply_car_materials(root: Node3D, daylight: bool = _daylight) -> void:
+	## Only touch the XLU pass (`*_modelT`); leave OPA seat/wall textures imported.
+	_apply_car_materials_inner(root, daylight)
+
+
+func _apply_scenery_materials(root: Node3D, daylight: bool = false) -> void:
+	_apply_scenery_materials_inner(root, daylight)
+
+
+func _apply_car_materials_inner(node: Node, daylight: bool) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh == null:
+			return
+		var node_label := String(mesh_instance.name).to_lower()
+		if not node_label.contains("modelt"):
+			return
+		for i: int in mesh_instance.mesh.get_surface_count():
+			var mat: Material = mesh_instance.get_active_material(i)
+			if not mat is StandardMaterial3D:
+				continue
+			var label := _surface_label(mesh_instance, i, mat)
+			var src := mat as StandardMaterial3D
+			var std := src.duplicate() as StandardMaterial3D
+			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			std.cull_mode = BaseMaterial3D.CULL_DISABLED
+			if _is_light_ray_surface(label):
+				_apply_light_ray_surface(std, daylight)
+				mesh_instance.set_surface_override_material(i, std)
+			elif _is_lamp_cone_surface(label, std):
+				_apply_lamp_cone_surface(std)
+				mesh_instance.set_surface_override_material(i, std)
+			elif _is_train_lamp_surface(label, std):
+				_apply_lamp_surface(std)
+				mesh_instance.set_surface_override_material(i, std)
+			elif _is_train_glass_surface(label, std):
+				_apply_glass_surface(std)
+				mesh_instance.set_surface_override_material(i, std)
+	for child: Node in node.get_children():
+		_apply_car_materials_inner(child, daylight)
+
+
+func _apply_scenery_materials_inner(node: Node, daylight: bool) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mesh_instance.sorting_offset = -1.0
+		if mesh_instance.mesh == null:
+			return
+		var node_label := String(mesh_instance.name).to_lower()
+		if not node_label.contains("modelt"):
+			return
+		for i: int in mesh_instance.mesh.get_surface_count():
+			var mat: Material = mesh_instance.get_active_material(i)
+			if not mat is StandardMaterial3D:
+				continue
+			var label := _surface_label(mesh_instance, i, mat)
+			var src := mat as StandardMaterial3D
+			var std := src.duplicate() as StandardMaterial3D
+			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			std.cull_mode = BaseMaterial3D.CULL_DISABLED
+			if _is_light_ray_surface(label):
+				_apply_light_ray_surface(std, daylight)
+				mesh_instance.set_surface_override_material(i, std)
+			else:
+				_apply_xlu_scenery_surface(std)
+				mesh_instance.set_surface_override_material(i, std)
+	for child: Node in node.get_children():
+		_apply_scenery_materials_inner(child, daylight)
+
+
+func _surface_label(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> String:
+	var bits: PackedStringArray = PackedStringArray()
+	if mat != null:
+		bits.append(String(mat.resource_name).to_lower())
+		if mat is StandardMaterial3D:
+			var std := mat as StandardMaterial3D
+			if std.albedo_texture != null:
+				bits.append(std.albedo_texture.resource_path.get_file().to_lower())
+	if mesh_instance.mesh is ArrayMesh:
+		bits.append((mesh_instance.mesh as ArrayMesh).surface_get_name(surface).to_lower())
+	bits.append(String(mesh_instance.name).to_lower())
+	return " ".join(bits)
+
+
+func _is_light_ray_surface(label: String) -> bool:
+	return (
+		"shineglass" in label
+		or "shine_glass" in label
+		or "lightray" in label
+		or "light_ray" in label
+	)
+
+
+func _is_lamp_cone_surface(label: String, std: StandardMaterial3D) -> bool:
+	if _is_light_ray_surface(label):
+		return false
+	return (
+		"modelt" in label
+		and std.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED
+		and ("light" in label or "lamp" in label)
+	)
+
+
+func _is_train_lamp_surface(label: String, std: StandardMaterial3D) -> bool:
+	if _is_light_ray_surface(label):
+		return false
+	if "light_model" in label or "lightt_model" in label or "lamp" in label:
+		return true
+	if "light" in label and "highlight" not in label and "flight" not in label:
+		return true
+	return std.emission_enabled or std.emission_energy_multiplier > 0.05
+
+
+func _is_train_glass_surface(label: String, std: StandardMaterial3D) -> bool:
+	if "glass" in label:
+		return true
+	return std.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED and "modelt" in label
+
+
+func _apply_light_ray_surface(std: StandardMaterial3D, daylight: bool) -> void:
+	## Window shine (`rom_train_out_shineglass_modelT`): soft haze, geometry shows through.
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+	std.cull_mode = BaseMaterial3D.CULL_DISABLED
+	std.render_priority = 1
+	var alpha: float = LIGHT_RAY_DAYLIGHT_ALPHA if daylight else LIGHT_RAY_TUNNEL_ALPHA
+	std.albedo_color = Color(1.0, 0.96, 0.82, alpha)
+	if std.albedo_texture == null:
+		std.emission_enabled = true
+		std.emission = Color(1.0, 0.94, 0.76)
+		std.emission_energy_multiplier = 0.35 if daylight else 0.18
+
+
+func _apply_lamp_cone_surface(std: StandardMaterial3D) -> void:
+	## Downward cone under the ceiling fixture.
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+	std.render_priority = 1
+	std.albedo_color = Color(LAMP_COLOR, 0.32)
+	std.emission_enabled = true
+	std.emission = LAMP_COLOR
+	std.emission_energy_multiplier = 0.65
+
+
+func _apply_xlu_scenery_surface(std: StandardMaterial3D) -> void:
+	## Clouds / trees beyond the glass — keep baked CI textures, alpha blend.
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+	std.render_priority = -1
+	if std.albedo_color.a <= 0.01:
+		std.albedo_color.a = 0.95
+
+
+func _apply_lamp_surface(std: StandardMaterial3D) -> void:
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+	std.albedo_color = LAMP_COLOR
+	std.emission_enabled = true
+	std.emission = LAMP_COLOR
+	std.emission_energy_multiplier = 2.4
+
+
+func _apply_glass_surface(std: StandardMaterial3D) -> void:
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+	std.render_priority = 1
+	std.albedo_color.a = minf(maxf(std.albedo_color.a, 0.2), 0.35)
+	std.roughness = 0.05
+	std.metallic = 0.0
+
+
+func _refresh_train_materials() -> void:
+	if _train_car != null:
+		_apply_car_materials(_train_car, _daylight)
+	if _window_scenery != null:
+		_apply_scenery_materials(_window_scenery, _daylight)
+
+
+func _apply_tunnel_lighting() -> void:
+	_daylight = false
+	_apply_car_lighting()
+
+
+func _apply_daylight() -> void:
+	## `aNGD_sitdown` sets `sunlight_flag` TRUE — the train leaves the tunnel. In the decomp
+	## that drops the tunnel ambient lift and repaints the window palette; the car lamp and
+	## the interior materials are untouched.
+	_daylight = true
+	_apply_car_lighting()
+
+
+func _apply_car_lighting() -> void:
+	_refresh_train_materials()
+	var env: Environment = _world_env.environment
+	if env == null:
+		return
+	var ambient := CAR_AMBIENT
+	if not _daylight:
+		ambient = Color(
+			minf(ambient.r + TUNNEL_AMBIENT_LIFT.r, 1.0),
+			minf(ambient.g + TUNNEL_AMBIENT_LIFT.g, 1.0),
+			minf(ambient.b + TUNNEL_AMBIENT_LIFT.b, 1.0)
+		)
+	env.ambient_light_color = ambient
+	env.ambient_light_energy = DAYLIGHT_AMBIENT_ENERGY if _daylight else CAR_AMBIENT_ENERGY
+	env.background_color = DAYLIGHT_BG if _daylight else TUNNEL_BG
+	## GC has no bloom or filmic curve here; anything else drifts off the CI palette.
+	env.tonemap_exposure = 1.0
+	env.glow_enabled = false
+
+
+func _on_stage_changed(action: StringName) -> void:
+	## Decomp sets `sunlight_flag` when sitdown finishes, not at start.
+	if action == &"seated":
+		_apply_daylight()
+
+
+func _on_ready_for_talk() -> void:
+	if _dialogue_started:
+		return
+	_dialogue_started = true
+	_start_dialogue()
+
+
+func _start_dialogue() -> void:
+	DialogueCatalog.reset()
+	var data: DialogueData = DialogueCatalog.conversation(DIALOGUE_ID)
+	_ctx = DialogueContext.from_game()
+	_ctx.speaker_name = "Rover"
+	_ctx.vars = {}
+	_ctx.vars["answer_flags"] = 0
+	if _dialogue.has_method("play"):
+		_dialogue.play(data, _ctx)
+	var runner: DialogueRunner = _dialogue.runner() if _dialogue.has_method("runner") else null
+	if runner != null:
+		runner.advance_gate = _dialogue_advance_gate
+		if not runner.event_fired.is_connected(_on_dialogue_event):
+			runner.event_fired.connect(_on_dialogue_event)
+
+
+func _dialogue_advance_gate(from_node: StringName, to_node: StringName) -> bool:
+	_stage.set_dialogue_wait_to(to_node)
+	return _stage.can_advance_dialogue(from_node, to_node)
+
+
+func _on_dialogue_event(event: Dictionary) -> void:
+	_intro.handle_event(event)
+	var op := String(event.get("op", event.get("type", "")))
+	match op:
+		"rover_sit":
+			_stage.cue_sit()
+		"rover_phone":
+			_stage.cue_phone()
+		"rover_phone_done":
+			_stage.end_phone_talk()
+		"rover_return":
+			_stage.cue_return_sit()
+
+
+func _on_prompt(kind: StringName) -> void:
+	match kind:
+		&"clock":
+			_open_clock()
+		&"name":
+			_open_name()
+		&"town":
+			_open_town()
+
+
+func _modal_open() -> bool:
+	return _name_modal.visible or _town_modal.visible or _clock_modal.visible
+
+
+func _hide_dialogue_box() -> void:
+	if _dialogue.has_method("is_open") and _dialogue.is_open():
+		var root: Control = _dialogue.get_node_or_null("%Root") as Control
+		if root != null:
+			root.visible = false
+
+
+func _show_dialogue_box() -> void:
+	var root: Control = _dialogue.get_node_or_null("%Root") as Control
+	if root != null:
+		root.visible = true
+
+
+func _open_name() -> void:
+	_hide_dialogue_box()
+	_name_edit.text = _intro.player_name
+	_name_modal.visible = true
+	_name_edit.grab_focus()
+	_name_edit.caret_column = _name_edit.text.length()
+
+
+func _open_town() -> void:
+	_hide_dialogue_box()
+	_town_edit.text = _intro.town_name
+	_town_modal.visible = true
+	_town_edit.grab_focus()
+	_town_edit.caret_column = _town_edit.text.length()
+
+
+func _open_clock() -> void:
+	_hide_dialogue_box()
+	_year.value = Clock.year
+	_month.value = Clock.month
+	_day.value = Clock.day
+	_hour.value = Clock.hour
+	_minute.value = Clock.minute
+	_clock_modal.visible = true
+	_year.grab_focus()
+
+
+func _on_name_submit() -> void:
+	if not _intro.set_player_name(_name_edit.text):
+		_name_edit.placeholder_text = "Enter a name"
+		return
+	_ctx.player_name = _intro.player_name
+	_ctx.set_var("player_name", _intro.player_name)
+	_name_modal.visible = false
+	_resume_prompt()
+
+
+func _on_town_submit() -> void:
+	if not _intro.set_town_name(_town_edit.text):
+		_town_edit.placeholder_text = "Enter a town"
+		return
+	_ctx.town_name = _intro.town_name
+	_ctx.set_var("town_name", _intro.town_name)
+	_town_modal.visible = false
+	_resume_prompt()
+
+
+func _on_clock_submit() -> void:
+	Clock.apply_snapshot(
+		{
+			"year": int(_year.value),
+			"month": int(_month.value),
+			"day": int(_day.value),
+			"hour": int(_hour.value),
+			"minute": int(_minute.value),
+			"second": 0,
+		}
+	)
+	_ctx.year = Clock.year
+	_ctx.month = Clock.month
+	_ctx.day = Clock.day
+	_ctx.hour = Clock.hour
+	_ctx.minute = Clock.minute
+	_ctx.weekday = Clock.weekday()
+	_refresh_clock_label()
+	_clock_modal.visible = false
+	_resume_prompt()
+
+
+func _resume_prompt() -> void:
+	_show_dialogue_box()
+	var runner: DialogueRunner = _dialogue.runner() if _dialogue.has_method("runner") else null
+	if runner != null:
+		runner.resume_after_prompt()
+
+
+func _refresh_clock_label() -> void:
+	_clock_label.text = "Train · %s" % Clock.format_clock()
+
+
+func _on_intro_finished(identity: Dictionary) -> void:
+	if _finishing:
+		return
+	_finishing = true
+	if _dialogue.has_method("close"):
+		_dialogue.close()
+	call_deferred("_finish_deferred", identity)
+
+
+func _finish_deferred(identity: Dictionary) -> void:
+	Game.finish_intro_sequence(identity)
+
+
+func _on_intro_cancelled() -> void:
+	if _finishing:
+		return
+	_finishing = true
+	if _dialogue.has_method("close"):
+		_dialogue.close()
+	call_deferred("_abort_deferred")
+
+
+func _abort_deferred() -> void:
+	Game.abort_intro_sequence()

@@ -1,6 +1,6 @@
 extends CanvasLayer
 
-## Modal talk window (`m_msg` appear/normal/cursor). Placeholder chrome.
+## Modal talk window (`m_msg` appear/normal/cursor) drawn by `MessageWindowChrome`.
 
 signal closed
 
@@ -8,9 +8,7 @@ const CHARS_PER_SEC := 42.0
 const FAST_SCALE := 8.0
 
 @onready var _root: Control = %Root
-@onready var _name: Label = %NameLabel
-@onready var _body: Label = %BodyLabel
-@onready var _hint: Label = %HintLabel
+@onready var _chrome: MessageWindowChrome = %MessageChrome
 @onready var _choices: VBoxContainer = %ChoiceList
 
 var _runner: DialogueRunner
@@ -32,6 +30,15 @@ func is_open() -> bool:
 	return _open
 
 
+## `mMsg_Check_NowUtter`: text is still being laid in. Drives NPC mouth flap.
+func is_uttering() -> bool:
+	return _open and _cursor < _shown.length()
+
+
+func runner() -> DialogueRunner:
+	return _runner
+
+
 func play(data: DialogueData, ctx: DialogueContext, state: VillagerState = null) -> void:
 	if data == null:
 		return
@@ -45,18 +52,14 @@ func play(data: DialogueData, ctx: DialogueContext, state: VillagerState = null)
 	_runner.finished.connect(_on_finished)
 	_open = true
 	_root.visible = true
-	_name.text = ctx.speaker_name if ctx != null else ""
-	_name.visible = _name.text != ""
-	_hint.text = ""
+	_chrome.set_speaker(ctx.speaker_name if ctx != null else "")
+	_chrome.set_continue_visible(false)
 	_clear_choices()
 	_runner.start(data, ctx, state)
 	if _runner != null and _runner.done:
 		close()
 
 
-## One line of text with no conversation behind it, dismissed the same way as any other. The
-## original's catch report is a plain `mMsg` window with `LockContinue` held until the player
-## advances it, which is what `notice_rod` waits on before putting the rod away.
 func say(text: String, speaker: String = "") -> void:
 	if text.is_empty():
 		return
@@ -67,8 +70,7 @@ func say(text: String, speaker: String = "") -> void:
 		_runner = null
 	_open = true
 	_root.visible = true
-	_name.text = speaker
-	_name.visible = speaker != ""
+	_chrome.set_speaker(speaker)
 	_clear_choices()
 	_on_line(text)
 
@@ -80,6 +82,7 @@ func close() -> void:
 	_root.visible = false
 	_shown = ""
 	_cursor = 0
+	_chrome.set_continue_visible(false)
 	_disconnect_runner()
 	_runner = null
 	_clear_choices()
@@ -106,13 +109,21 @@ func _process(delta: float) -> void:
 	if Input.is_action_pressed("interact") or Input.is_action_pressed("ui_accept"):
 		rate *= FAST_SCALE
 	_cursor = mini(_shown.length(), _cursor + int(ceil(rate * delta)))
-	_body.text = _shown.substr(0, _cursor)
+	_chrome.set_body(_shown.substr(0, _cursor))
 	if _cursor >= _shown.length():
-		_hint.text = "E continue"
+		_show_continue()
+
+
+func _show_continue() -> void:
+	var blocked: bool = _runner != null and _runner.is_continue_blocked()
+	_chrome.set_continue_visible(not blocked)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _open:
+		return
+	if _runner != null and _runner.waiting_prompt:
+		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause_menu"):
 		get_viewport().set_input_as_handled()
@@ -120,15 +131,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _runner != null and _runner.waiting_choice:
 		_choice_input(event)
 		return
+	if _runner != null and _runner.is_continue_blocked():
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
 		get_viewport().set_input_as_handled()
 		if _cursor < _shown.length():
 			_cursor = _shown.length()
-			_body.text = _shown
-			_hint.text = "E continue"
+			_chrome.set_body(_shown)
+			_show_continue()
 			return
 		if _runner == null:
-			## A `say` line has nothing to advance to, so dismissing it closes the window.
 			close()
 			return
 		_runner.advance()
@@ -153,16 +166,16 @@ func _choice_input(event: InputEvent) -> void:
 func _on_line(text: String) -> void:
 	_shown = text
 	_cursor = 0
-	_body.text = ""
-	_hint.text = ""
+	_chrome.set_body("")
+	_chrome.set_continue_visible(false)
 	_clear_choices()
 
 
 func _on_choices(options: Array) -> void:
 	_shown = _runner.line
 	_cursor = _shown.length()
-	_body.text = _shown
-	_hint.text = "E choose"
+	_chrome.set_body(_shown)
+	_chrome.set_continue_visible(false)
 	_clear_choices()
 	_choice_index = 0
 	for i: int in options.size():
@@ -190,7 +203,7 @@ func _pick(index: int) -> void:
 
 func _highlight() -> void:
 	for i: int in _buttons.size():
-		_buttons[i].modulate = Color(1, 0.95, 0.55) if i == _choice_index else Color.WHITE
+		_chrome.style_choice(_buttons[i], i == _choice_index)
 
 
 func _clear_choices() -> void:

@@ -31,6 +31,8 @@ from asset_pipeline.villagers import generate_villagers  # noqa: E402
 from asset_pipeline.seasons import export_seasonal_textures  # noqa: E402
 from asset_pipeline.extract import extract_archives, extract_disc  # noqa: E402
 from asset_pipeline.inventory_ui import extract_inventory_ui  # noqa: E402
+from asset_pipeline.faces import extract_faces  # noqa: E402
+from asset_pipeline.message_ui import extract_message_ui  # noqa: E402
 from asset_pipeline.scan import scan  # noqa: E402
 from asset_pipeline.validate import validate  # noqa: E402
 
@@ -50,9 +52,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--kind",
-        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "dialogue", "villagers", "audio", "water", "fish", "bugs", "seasons"],
+        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "message-ui", "dialogue", "villagers", "faces", "audio", "water", "fish", "bugs", "seasons"],
         default="all",
-        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory UI chrome, dialogue banks, villager roster from decomp tables, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
+        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory UI chrome, dialogue banks, villager roster from decomp tables, NPC eye/mouth face frames, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
     )
     args = parser.parse_args()
     cfg = load_config(ROOT, args.config)
@@ -92,6 +94,32 @@ def main() -> int:
                     f"wrote NPC room layouts ({npc['villagers']} villagers, "
                     f"{npc['placements']} furniture) -> {npc.get('path', '')}"
                 )
+        elif args.kind == "message-ui":
+            report = extract_message_ui(cfg)
+            if report.get("error"):
+                print(f"message-ui: {report['error']}")
+                failed = True
+            else:
+                converted = report["converted"]
+                errors = [r for r in report["results"] if r["status"] == "error"]
+                print(f"wrote {converted} message UI textures -> {report['output']}")
+                for err in errors[:40]:
+                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+                if errors:
+                    failed = True
+        elif args.kind == "faces":
+            report = extract_faces(cfg)
+            if report.get("error"):
+                print(f"faces: {report['error']}")
+                failed = True
+            else:
+                converted = report["converted"]
+                errors = [r for r in report["results"] if r["status"] == "error"]
+                print(f"wrote {converted} NPC face frames -> {report['output']}")
+                for err in errors[:40]:
+                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+                if errors:
+                    failed = True
         elif args.kind == "inventory-ui":
             report = extract_inventory_ui(cfg)
             if report.get("error"):
