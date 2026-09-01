@@ -23,7 +23,7 @@
     "clock_choice": {
       "type": "choice",
       "options": [
-        { "text": "That looks right.", "goto": "sit_ok" },
+        { "text": "That looks right.", "goto": "sit_stage" },
         { "text": "Needs a tweak.", "goto": "clock_prompt" }
       ]
     },
@@ -40,9 +40,14 @@
     "clock_confirm_choice": {
       "type": "choice",
       "options": [
-        { "text": "Yes.", "goto": "sit_ok" },
+        { "text": "Yes.", "goto": "sit_stage" },
         { "text": "Change it again.", "goto": "clock_prompt" }
       ]
+    },
+    "sit_stage": {
+      "type": "event",
+      "events": [{ "op": "rover_sit" }],
+      "next": "sit_ok"
     },
     "sit_ok": {
       "type": "line",
@@ -179,22 +184,22 @@
     "q4_choice": {
       "type": "choice",
       "options": [
-        { "text": "Oh, yeah!", "goto": "phone_lead" },
+        { "text": "Oh, yeah!", "goto": "phone_stage" },
         {
           "text": "Just a little…",
-          "goto": "phone_lead",
+          "goto": "phone_stage",
           "events": [{ "op": "or_var", "name": "answer_flags", "mask": 1 }]
         }
       ]
     },
+    "phone_stage": {
+      "type": "event",
+      "events": [{ "op": "rover_phone" }, { "op": "resolve_face" }],
+      "next": "phone_lead"
+    },
     "phone_lead": {
       "type": "line",
       "text": "Hang on — I know a shopkeeper in {town}. Let me give him a buzz.",
-      "next": "resolve_face"
-    },
-    "resolve_face": {
-      "type": "event",
-      "events": [{ "op": "resolve_face" }],
       "next": "phone_call"
     },
     "phone_call": {
@@ -205,6 +210,11 @@
     "phone_call2": {
       "type": "line",
       "text": "…He'll meet you at the station. Don't leave him hanging.",
+      "next": "phone_done_stage"
+    },
+    "phone_done_stage": {
+      "type": "event",
+      "events": [{ "op": "rover_phone_done" }, { "op": "rover_return" }],
       "next": "phone_done"
     },
     "phone_done": {

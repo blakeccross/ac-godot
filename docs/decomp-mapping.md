@@ -68,7 +68,7 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | `m_event`, `m_quest` | Scripted events / errands | Event/quest data + a small runner system |
 | `m_common_data`, `m_private` | Giant global save/state | Split save via `SaveService` |
 | `m_scene`, `m_start_data_init` | Boot: new town vs load; scene changes | `Game` phase + `scenes/ui/title.tscn` → world |
-| `ac_npc_guide` (Rover train) | New-town character creation on the train | `IntroSequence` + `scenes/ui/intro_train.tscn`; title **Intro Sequence** ([intro](decomp_notes/intro.md)) |
+| `ac_npc_guide` (Rover train) | New-town character creation on the train | `IntroSequence` + `IntroTrainStage` + `scenes/ui/intro_train.tscn` (GLBs + `npc_1_*` clips); title **Intro Sequence** ([intro](decomp_notes/intro.md)) |
 | `ac_intro_demo` / `ac_npc_rcn_guide` | Station arrival → Nook house pick | Deferred; train act only for now |
 | `m_island`, GBA, Famicom, e-Reader | Specialized extras | Out of scope until earned ([scope.md](scope.md)) |
 

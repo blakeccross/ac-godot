@@ -2,14 +2,15 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — do not commit Nintendo message banks or train meshes.
 
-**Read before implementing:** `IntroSequence`, train intro scene, title → intro hook.
+**Read before implementing:** `IntroSequence`, `IntroTrainStage`, train intro scene, title → intro hook.
 
 ## Decomp sources
 
 | File | Role |
 | --- | --- |
 | `src/actor/npc/ac_npc_guide.c` / `ac_npc_guide_move.c_inc` | New-town Rover on the train (`SP_NPC_GUIDE`) |
-| `src/actor/npc/ac_npc_mask_cat2*.c*` | Returning / visitor Rover path (not this slice) |
+| `src/actor/npc/ac_npc_guide_animation.c_inc` | Action → `aNPC_ANIM_*` clip table |
+| `src/actor/ac_train_door.c` / `ac_train_window.c` | Door open flag + window scroll (`rom_train_out`) |
 | `src/actor/ac_intro_demo*.c*` | Post-arrival station → Porter → Nook house pick |
 | `src/actor/npc/ac_npc_rcn_guide*.c*` | Tom Nook guide after the train |
 | `include/m_private.h` / `m_player_lib` | `gender`, `face` (`mPr_FACE_TYPE_NUM` = 8) |
@@ -17,25 +18,41 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 
 Key Rover actions (`aNGD_ACTION_*`): enter → approach → talk → clock check → sit → player name → sex select → town name → standup → aisle/door/deck → phone (`keitai`) to Nook → return → last talk → scene change.
 
+Clips (`aNGD_set_animation`): `OPEN_D1`, `WALK1`, `WAIT1`, `SITDOWN_D1`, `SITDOWN_WAIT_D1`, `STANDUP_D1`, `TO_DECK_D1`, `KEITAI_ON1` / `TALK1` / `OFF1`, `OPEN_D2`. Pipeline short names: `npc_1_*`.
+
+GX landmarks: Rover start z≈130 (x≈140 at door); talk/sit (100, 280–290); camera eye ~(100,80,400), look ~(90,80,280); FOV 40°; near/far 60/800.
+
 Face bits (`aNGD_check_talk_msg_no` / `aNGD_set_pl_face_type`): messages `0x2AC9` / `0x2ACD` / `0x2ACF` / `0x2AD3` OR bits 3..0 into `answer_flags`. If bit 0 is clear (money = “plenty”), face is random; else `face_type_table[gender][answer_flags >> 1]`.
 
 ## What does the original system do?
 
-Starting a **new town** drops the player into a train demo. Rover walks up, confirms the system clock, sits, asks for a name, infers gender from “cool / cute” (with a confirmation), asks for a town name, then asks four attitude questions that secretly pick one of eight faces. He steps into the aisle, phones Nook about a house, comes back for a farewell, then the game wipes into the outdoor intro (`ac_intro_demo`).
+Starting a **new town** drops the player into a train demo. Rover walks up, confirms the system clock, sits, asks for a name, infers gender from “cool / cute” (with a confirmation), asks for a town name, then asks attitude questions that secretly pick one of eight faces. He steps into the aisle, phones Nook about a house, comes back for a farewell, then the game wipes into the outdoor intro (`ac_intro_demo`).
 
 ## Reproduce (this milestone)
 
 - Title menu entry that runs the **train act only**.
-- Clock confirm / edit → name → gender → town → four face questions → phone call (text) → farewell.
+- 3D stage with pipeline GLBs: `rom_train_in`, `rom_train_out`, `obj_romtrain_door`, Rover=`cat_1`, phone=`tol_keitai_1`.
+- `IntroTrainStage` plays decomp clips and GX camera / walk path; dialogue cues `rover_sit` / `rover_phone` / `rover_phone_done` / `rover_return`.
+- Clock confirm / edit → name → gender → town → face questions → phone → farewell.
 - Face selection matching the decomp bit table (and random when the money answer clears bit 0).
 - Persist `player_name`, `town_name`, `player_gender`, `player_face` into the session and start a generated new game.
-- Placeholder train car + Rover; paraphrased dialogue JSON (no bank text).
+- Paraphrased dialogue JSON (no bank text).
+
+## Assets
+
+Generated meshes are gitignored. Locally:
+
+```bash
+python3 tools/build_assets.py --step convert
+```
+
+Without GLBs the scene shows a banner and still runs dialogue so the title entry stays testable.
 
 ## Simplify
 
-- No train door / walk / sit animations; no echo SFX; no faithful camera morph.
 - Name and clock are small intro modals, not `m_ledit` / `m_timeIn` ports.
-- Phone call is dialogue only (no keitai prop).
+- Keitai is offset-parented to Rover (not true hand-joint bind).
+- Window UV scroll (`ac_train_window`) not implemented yet.
 - Skip returning-player / mask-cat Blanca path.
 
 ## Ignore (later slices)
