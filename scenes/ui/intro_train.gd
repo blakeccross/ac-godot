@@ -5,18 +5,23 @@ extends Node3D
 
 const DIALOGUE_ID := &"rover_intro"
 const ROVER_GLB := "res://assets/generated/characters/villagers/cat_1.glb"
+## Decomp ceiling lamp tint (~255, 255, 150).
+const LAMP_COLOR := Color(1.0, 1.0, 0.59)
 ## Ceiling omni positions along the aisle (`rom_train_in` GX).
 const CEILING_LIGHT_GX: Array[Vector3] = [
+	Vector3(100.0, 96.0, 280.0),
 	Vector3(100.0, 96.0, 320.0),
 	Vector3(100.0, 96.0, 360.0),
 	Vector3(100.0, 96.0, 395.0),
 ]
+const SEAT_FILL_GX := Vector3(100.0, 50.0, 375.0)
 
 @onready var _train_host: Node3D = %TrainCar
 @onready var _window_host: Node3D = %WindowScenery
 @onready var _world_env: WorldEnvironment = $WorldEnvironment
 @onready var _tunnel_fill: DirectionalLight3D = %TunnelFill
 @onready var _window_sun: DirectionalLight3D = %WindowSun
+@onready var _seat_fill: OmniLight3D = %SeatFill
 @onready var _ceiling_lights: Node3D = %CeilingLights
 @onready var _door_host: Node3D = %TrainDoor
 @onready var _rover_host: Node3D = %Rover
@@ -41,6 +46,7 @@ var _stage: IntroTrainStage = IntroTrainStage.new()
 var _ctx: DialogueContext
 var _finishing: bool = false
 var _dialogue_started: bool = false
+var _window_scenery: Node3D
 
 
 func _ready() -> void:
@@ -97,11 +103,13 @@ func _attach_visuals() -> void:
 	var car: Node3D = GeneratedVisual.attach(_train_host, &"rom_train_in")
 	if car != null:
 		_fit_train_interior(car, &"rom_train_in")
-		_boost_train_lamp_emission(car)
+		_apply_train_materials(car)
 	var scenery: Node3D = GeneratedVisual.attach(_window_host, &"rom_train_out")
 	if scenery != null:
+		_window_scenery = scenery
 		_fit_train_interior(scenery, &"rom_train_out")
-	_place_ceiling_lights()
+		_apply_train_materials(scenery, true)
+	_place_train_lights()
 	GeneratedVisual.attach(_door_host, &"obj_romtrain_door")
 	GeneratedVisual.attach_villager(_rover_host, &"cat")
 	GeneratedVisual.attach(_keitai_host, &"tol_keitai_1")
@@ -121,7 +129,8 @@ func _fit_train_interior(pivot: Node3D, visual_id: StringName) -> void:
 	pivot.position = Vector3(0.0, FieldCatalog.interior_ground_y_offset(visual_id), 0.0)
 
 
-func _place_ceiling_lights() -> void:
+func _place_train_lights() -> void:
+	_seat_fill.global_position = IntroTrainStage.gx_to_meters(SEAT_FILL_GX)
 	var lights: Array[Node] = _ceiling_lights.get_children()
 	for i: int in lights.size():
 		if i >= CEILING_LIGHT_GX.size():
@@ -132,11 +141,11 @@ func _place_ceiling_lights() -> void:
 		light.global_position = IntroTrainStage.gx_to_meters(CEILING_LIGHT_GX[i])
 
 
-func _boost_train_lamp_emission(root: Node3D) -> void:
-	_boost_emissive_surfaces(root)
+func _apply_train_materials(root: Node3D, outdoor_scenery: bool = false) -> void:
+	_apply_train_materials_inner(root, outdoor_scenery)
 
 
-func _boost_emissive_surfaces(node: Node) -> void:
+func _apply_train_materials_inner(node: Node, outdoor_scenery: bool) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
 		if mesh_instance.mesh == null:
@@ -145,44 +154,144 @@ func _boost_emissive_surfaces(node: Node) -> void:
 			var mat: Material = mesh_instance.get_active_material(i)
 			if not mat is StandardMaterial3D:
 				continue
-			var label := ""
-			if mesh_instance.mesh is ArrayMesh:
-				label = (mesh_instance.mesh as ArrayMesh).surface_get_name(i).to_lower()
+			var label := _surface_label(mesh_instance, i, mat)
 			var src := mat as StandardMaterial3D
-			if not (
-				"light" in label
-				or src.emission_enabled
-				or src.emission_energy_multiplier > 0.01
-			):
-				continue
 			var std := src.duplicate() as StandardMaterial3D
-			std.emission_enabled = true
-			std.emission_energy_multiplier = maxf(std.emission_energy_multiplier, 2.8)
-			mesh_instance.set_surface_override_material(i, std)
+			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			std.cull_mode = BaseMaterial3D.CULL_DISABLED
+			std.roughness = 1.0
+			std.metallic = 0.0
+			if _material_extras(src).get("unlit_fill", false):
+				_apply_unlit_fill(std, outdoor_scenery)
+				mesh_instance.set_surface_override_material(i, std)
+				continue
+			if _is_train_lamp_surface(label, std):
+				_apply_lamp_surface(std)
+				mesh_instance.set_surface_override_material(i, std)
+				continue
+			if _is_train_glass_surface(label, std):
+				_apply_glass_surface(std)
+				mesh_instance.set_surface_override_material(i, std)
+				continue
+			if outdoor_scenery and _is_outdoor_view_surface(label):
+				_apply_unlit_fill(std, true)
+				mesh_instance.set_surface_override_material(i, std)
 	for child: Node in node.get_children():
-		_boost_emissive_surfaces(child)
+		_apply_train_materials_inner(child, outdoor_scenery)
+
+
+func _surface_label(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> String:
+	var bits: PackedStringArray = PackedStringArray()
+	if mat != null:
+		bits.append(String(mat.resource_name).to_lower())
+		if mat is StandardMaterial3D:
+			var std := mat as StandardMaterial3D
+			if std.albedo_texture != null:
+				bits.append(std.albedo_texture.resource_path.get_file().to_lower())
+	if mesh_instance.mesh is ArrayMesh:
+		bits.append((mesh_instance.mesh as ArrayMesh).surface_get_name(surface).to_lower())
+	bits.append(String(mesh_instance.name).to_lower())
+	return " ".join(bits)
+
+
+func _material_extras(mat: Material) -> Dictionary:
+	if mat == null:
+		return {}
+	for key: String in ["extras", "gltf_extras"]:
+		if mat.has_meta(key):
+			var extras: Variant = mat.get_meta(key)
+			if extras is Dictionary:
+				return extras as Dictionary
+	return {}
+
+
+func _apply_unlit_fill(std: StandardMaterial3D, bright: bool) -> void:
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+	std.albedo_texture = null
+	if bright:
+		if std.albedo_color.get_luminance() < 0.08:
+			std.albedo_color = Color(0.55, 0.62, 0.72)
+	else:
+		if std.albedo_color.get_luminance() > 0.2:
+			std.albedo_color = std.albedo_color.darkened(0.55)
+		else:
+			std.albedo_color = Color(0.04, 0.04, 0.05)
+
+
+func _is_train_lamp_surface(label: String, std: StandardMaterial3D) -> bool:
+	if "light_model" in label or "lightt_model" in label or "lamp" in label:
+		return true
+	if "shine" in label and "glass" not in label:
+		return true
+	if "light" in label and "highlight" not in label and "flight" not in label:
+		return true
+	return std.emission_enabled or std.emission_energy_multiplier > 0.05
+
+
+func _is_train_glass_surface(label: String, std: StandardMaterial3D) -> bool:
+	if "glass" in label or "window" in label:
+		return true
+	return std.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED and "modelt" in label
+
+
+func _is_outdoor_view_surface(label: String) -> bool:
+	return "room_out" in label or "bgsky" in label or "bgcloud" in label or "bgtree" in label
+
+
+func _apply_lamp_surface(std: StandardMaterial3D) -> void:
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.albedo_color = Color(LAMP_COLOR, 0.95)
+	std.emission_enabled = true
+	std.emission = LAMP_COLOR
+	std.emission_energy_multiplier = 5.0
+
+
+func _apply_glass_surface(std: StandardMaterial3D) -> void:
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.albedo_color.a = minf(std.albedo_color.a, 0.35)
+	std.roughness = 0.05
+	std.metallic = 0.0
+
+
+func _set_omni_group_energy(group: Node3D, energy: float) -> void:
+	for child: Node in group.get_children():
+		if child is OmniLight3D:
+			(child as OmniLight3D).light_energy = energy
 
 
 func _apply_tunnel_lighting() -> void:
 	_tunnel_fill.visible = true
-	_tunnel_fill.light_energy = 0.12
+	_tunnel_fill.light_energy = 0.28
 	_window_sun.visible = false
+	_seat_fill.light_energy = 1.1
+	_set_omni_group_energy(_ceiling_lights, 1.35)
+	if _window_scenery != null:
+		_apply_train_materials(_window_scenery, false)
 	var env: Environment = _world_env.environment
 	if env != null:
-		env.ambient_light_color = Color(0.42, 0.4, 0.36)
-		env.ambient_light_energy = 0.42
-		env.background_color = Color(0.035, 0.035, 0.05)
+		env.ambient_light_color = Color(0.72, 0.68, 0.6)
+		env.ambient_light_energy = 0.85
+		env.background_color = Color(0.05, 0.05, 0.07)
+		env.tonemap_exposure = 1.1
 
 
 func _apply_daylight() -> void:
 	## `aNGD_sitdown` sets `sunlight_flag` TRUE — train leaves the tunnel.
 	_window_sun.visible = true
-	_tunnel_fill.light_energy = 0.05
+	_tunnel_fill.light_energy = 0.12
+	_seat_fill.light_energy = 0.85
+	_set_omni_group_energy(_ceiling_lights, 1.0)
+	if _window_scenery != null:
+		_apply_train_materials(_window_scenery, true)
 	var env: Environment = _world_env.environment
 	if env != null:
-		env.ambient_light_color = Color(0.55, 0.58, 0.62)
-		env.ambient_light_energy = 0.55
-		env.background_color = Color(0.48, 0.58, 0.68)
+		env.ambient_light_color = Color(0.78, 0.8, 0.84)
+		env.ambient_light_energy = 1.0
+		env.background_color = Color(0.52, 0.62, 0.72)
+		env.tonemap_exposure = 1.15
 
 
 func _on_stage_changed(action: StringName) -> void:
