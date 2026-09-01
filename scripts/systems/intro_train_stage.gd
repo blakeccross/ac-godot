@@ -110,6 +110,7 @@ var _camera_tilt_chase: float = CAMERA_TILT_CHASE
 var _obj_look_y_gx: float = OBJ_LOOK_Y_NORMAL_GX
 var _obj_look_y_target_gx: float = OBJ_LOOK_Y_NORMAL_GX
 var _rover_look: RefCounted
+var _phone_dialogue_done: bool = false
 
 
 static func gx_to_meters(gx: Vector3) -> Vector3:
@@ -165,6 +166,7 @@ func bind(
 	_camera_move = 0
 	_camera_tilt = 0.0
 	_camera_tilt_goal = 0.0
+	_phone_dialogue_done = false
 	_set_action(Action.ENTER)
 	_update_camera(0.0)
 
@@ -187,15 +189,23 @@ func cue_phone() -> void:
 	_set_action(Action.STANDUP)
 
 
-## Dialogue cue: after phone — open door and walk back if not already returning.
-func cue_return_sit() -> void:
+## Dialogue cue: after phone lines finish — begin keitai-off / return (decomp `mDemo` speak end).
+func end_phone_talk() -> void:
+	_phone_dialogue_done = true
 	match action:
 		Action.KEITAI_TALK:
 			_set_action(Action.KEITAI_OFF)
-		Action.KEITAI_OFF, Action.OPEN_DOOR, Action.RETURN_APPROACH, Action.LAST_SIT, Action.SEATED:
+		Action.KEITAI_ON, Action.MOVE_DECK, Action.MOVE_DOOR, Action.MOVE_AISLE, Action.STANDUP:
+			pass
+		Action.KEITAI_OFF, Action.OPEN_DOOR, Action.RETURN_APPROACH, Action.TALK, Action.LAST_SIT, Action.SEATED:
 			pass
 		_:
-			_set_action(Action.OPEN_DOOR)
+			pass
+
+
+## Legacy dialogue cue — same as `end_phone_talk` when the stage has not started returning yet.
+func cue_return_sit() -> void:
+	end_phone_talk()
 
 
 func _set_action(next: Action) -> void:
@@ -240,8 +250,9 @@ func _set_action(next: Action) -> void:
 		Action.SEATED:
 			_play_rover(ANIM_SIT_WAIT, true)
 		Action.STANDUP:
-			obj_look_talk = false
+			obj_look_talk = true
 			lock_camera = false
+			camera_morph = 40
 			_obj_look_y_target_gx = OBJ_LOOK_Y_NORMAL_GX
 			camera_eyes = false
 			_set_rover_eyes(false)
@@ -273,6 +284,8 @@ func _set_action(next: Action) -> void:
 			_await_then(Action.KEITAI_TALK, ANIM_KEITAI_ON)
 		Action.KEITAI_TALK:
 			_play_rover(ANIM_KEITAI_TALK, true)
+			if _phone_dialogue_done:
+				_set_action(Action.KEITAI_OFF)
 		Action.KEITAI_OFF:
 			_play_rover(ANIM_KEITAI_OFF, false)
 			_await_then(Action.OPEN_DOOR, ANIM_KEITAI_OFF)
@@ -303,12 +316,6 @@ func _set_action(next: Action) -> void:
 			pass
 
 
-func end_phone_talk() -> void:
-	## Called when phone dialogue pages finish.
-	if action == Action.KEITAI_TALK:
-		_set_action(Action.KEITAI_OFF)
-
-
 func _tick_enter(_delta: float) -> void:
 	## Frame 20 of OPEN_D1 also pulses the door (decomp). Then approach.
 	if not _door_opened and _rover_anim != null and _rover_anim.current_animation_position >= (DOOR_OPEN_FRAME / 30.0):
@@ -336,7 +343,7 @@ func _tick_move_door(delta: float) -> void:
 
 func _tick_return_approach(delta: float) -> void:
 	## `aNGD_return_approach`: x=140 fixed, walk back toward the player.
-	_tick_move_axis_z(delta, ROVER_TALK_GX.z, Action.SITDOWN, ROVER_AISLE_X_GX, 1.0)
+	_tick_move_axis_z(delta, ROVER_TALK_GX.z, Action.TALK, ROVER_AISLE_X_GX, 1.0)
 
 
 func _tick_move_to_seat(delta: float) -> void:
@@ -514,7 +521,13 @@ func _await_then(next: Action, wait_suffix: String = "") -> void:
 	_pending_clip = ""
 	if wait_suffix != "" and _rover_anim != null:
 		_pending_clip = resolve_rover_clip(_rover_anim, wait_suffix)
+	if wait_suffix != "" and _pending_clip.is_empty():
+		_pending_ready = true
+		return
 	if _rover_anim != null and _anim_playing():
+		if _pending_clip != "" and String(_rover_anim.current_animation) != _pending_clip:
+			_pending_ready = true
+			return
 		if _rover_anim.animation_finished.is_connected(_on_anim_finished):
 			_rover_anim.animation_finished.disconnect(_on_anim_finished)
 		_rover_anim.animation_finished.connect(_on_anim_finished)
@@ -613,13 +626,19 @@ func _update_camera(delta: float) -> void:
 		center_gx.y = (_obj_look_y_gx - CAM_LOOK_GX.y) * inter + CAM_LOOK_GX.y
 		center_gx.z = (ground_gx.z - CAM_LOOK_GX.z) * inter + CAM_LOOK_GX.z
 		if camera_morph <= 0:
-			lock_camera = true
+			if _should_lock_camera_after_morph():
+				lock_camera = true
 	center_gx.x += move_x_gx
 	center_gx.y += move_y_gx
 	var eye: Vector3 = gx_to_meters(eye_gx)
 	var look: Vector3 = gx_to_meters(center_gx)
 	_camera.global_position = eye
 	_camera.look_at(look, Vector3.UP)
+
+
+func _should_lock_camera_after_morph() -> bool:
+	## Seated / aisle talk locks on Rover; phone walk and return stay unlocked.
+	return action in [Action.TALK, Action.SEATED, Action.LAST_SIT] and not camera_eyes
 
 
 func _action_name(act: Action) -> StringName:

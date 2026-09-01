@@ -70,16 +70,16 @@ func test_stage_cues_follow_decomp_action_order() -> void:
 	)
 	stage.end_phone_talk()
 	stage.cue_return_sit()
-	for _i: int in 5:
-		stage.tick(0.0)
+	for _i: int in 400:
+		stage.tick(1.0 / 30.0)
+		if stage.action == IntroTrainStage.Action.TALK:
+			break
 	assert_that(stage.action).is_in(
 		[
+			IntroTrainStage.Action.TALK,
 			IntroTrainStage.Action.KEITAI_OFF,
 			IntroTrainStage.Action.OPEN_DOOR,
 			IntroTrainStage.Action.RETURN_APPROACH,
-			IntroTrainStage.Action.MOVE_TO_SEAT,
-			IntroTrainStage.Action.SITDOWN,
-			IntroTrainStage.Action.SEATED,
 		]
 	)
 	rover.queue_free()

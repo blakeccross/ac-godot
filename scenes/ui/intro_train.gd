@@ -147,7 +147,7 @@ func _attach_visuals() -> void:
 	_place_train_lights()
 	GeneratedVisual.attach(_door_host, &"obj_romtrain_door")
 	GeneratedVisual.attach_villager(_rover_host, &"xct")
-	GeneratedVisual.attach_villager(_sleep_host, &"kab", false)
+	GeneratedVisual.attach_villager(_sleep_host, &"kab")
 	GeneratedVisual.attach(_keitai_host, &"tol_keitai_1")
 	_keitai_host.visible = false
 	_door_host.global_position = IntroTrainStage.gx_to_meters(Vector3(140.0, 0.0, 120.0))
