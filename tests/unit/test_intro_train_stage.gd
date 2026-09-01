@@ -59,7 +59,7 @@ func test_bind_places_camera_near_decomp_eye() -> void:
 	)
 	assert_float(cam.fov).is_equal_approx(IntroTrainStage.CAM_FOV, 0.001)
 	assert_float(cam.near).is_equal_approx(
-		IntroTrainStage.CAM_NEAR_GX * FieldCatalog.GX_TO_METERS, 0.0001
+		IntroTrainStage.CAM_NEAR_METERS, 0.0001
 	)
 	assert_float(cam.far).is_equal_approx(
 		IntroTrainStage.CAM_FAR_GX * FieldCatalog.GX_TO_METERS, 0.0001

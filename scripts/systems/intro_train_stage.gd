@@ -54,6 +54,9 @@ const CAM_LOOK_GX := Vector3(90.0, 80.0, 280.0)
 const CAM_FOV := 40.0
 const CAM_NEAR_GX := 60.0
 const CAM_FAR_GX := 800.0
+## Decomp passes near=60 in GX world units. Converted literally (×0.05 → 3 m) the clip
+## plane eats the foreground seat; keep ~1 GX for Godot.
+const CAM_NEAR_METERS := 2.0 * FieldCatalog.GX_TO_METERS
 const OBJ_LOOK_Y_TALK_GX := 30.0
 const OBJ_LOOK_Y_NORMAL_GX := 20.0
 const CAMERA_SWAY_STEP := 0xE20
@@ -146,7 +149,7 @@ func bind(
 		_keitai.visible = false
 	if _camera != null:
 		_camera.fov = CAM_FOV
-		_camera.near = CAM_NEAR_GX * FieldCatalog.GX_TO_METERS
+		_camera.near = CAM_NEAR_METERS
 		_camera.far = CAM_FAR_GX * FieldCatalog.GX_TO_METERS
 	_camera_move = 0
 	_camera_tilt = 0.0
