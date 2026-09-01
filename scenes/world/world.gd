@@ -10,6 +10,9 @@ var layout: WorldData
 ## Live fish shadows for this field. Owned here like `grid`, read by `Fishing` through
 ## `InteractionContext.world` and ticked by the `FishShadows` effects node.
 var fish: FishSchool = FishSchool.new()
+## Live insects for this field. Read by `Netting` and ticked by `BugActors`.
+var bugs: BugField = BugField.new()
+var _lightning_flash: bool = false
 
 @onready var _sun: DirectionalLight3D = $Sun
 @onready var _moon: DirectionalLight3D = $Moon
@@ -34,6 +37,9 @@ func _ready() -> void:
 	HoleUse.restore(self, grid)
 	PlantGrowth.restore(self, grid)
 	fish.configure(grid, WorldBuilder.water_surface_y())
+	bugs.configure(grid, layout)
+	if layout.mode == WorldData.Mode.TEST:
+		bugs.seed_trees()
 	_build_navigation()
 	Clock.time_changed.connect(_apply_time_of_day)
 	Clock.field_renewed.connect(_on_field_renewed)
@@ -79,6 +85,7 @@ func _on_hour_changed(_hour: int) -> void:
 
 
 func _on_weather_changed(_weather: StringName) -> void:
+	_apply_time_of_day()
 	_play_outdoor_bgm()
 
 
@@ -98,8 +105,12 @@ func _spawn_player() -> void:
 
 
 func _apply_time_of_day() -> void:
-	## `Global_kankyo_set` / `mEnv_SetBaseLight`: blended fine-weather colors + fog + dual lights.
-	var pal: Dictionary = Clock.outdoor_light()
+	## `Global_kankyo_set` / `mEnv_SetBaseLight`: fine or rain palette + fog + dual lights.
+	var pal: Dictionary = Weather.outdoor_light_for(Game.weather)
+	if _lightning_flash:
+		pal = pal.duplicate()
+		pal["ambient"] = Color8(70, 70, 160)
+		pal["sun_energy"] = maxf(float(pal["sun_energy"]), 0.85)
 	_aim_directional(_sun, pal["sun_dir"] as Vector3)
 	_sun.light_color = pal["sun"] as Color
 	_sun.light_energy = float(pal["sun_energy"])
@@ -129,6 +140,11 @@ func _apply_time_of_day() -> void:
 		sky_mat.sky_horizon_color = bg.lerp(Color(0.75, 0.82, 0.9), 0.35)
 		sky_mat.ground_horizon_color = bg.darkened(0.1)
 		sky_mat.ground_bottom_color = bg.darkened(0.35)
+
+
+func set_lightning_flash(on: bool) -> void:
+	_lightning_flash = on
+	_apply_time_of_day()
 
 
 func _aim_directional(light: DirectionalLight3D, dir: Vector3) -> void:

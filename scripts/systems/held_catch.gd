@@ -1,7 +1,7 @@
 class_name HeldCatch
 extends RefCounted
 
-## Attaches the caught fish to the player's left hand for the show-off pose.
+## Attaches the caught fish or bug to the player's left hand for the show-off pose.
 ##
 ## Faithful, not a flourish: `aGTT_comeback` copies the hooked fish onto `uki->uki_pos`
 ## every frame, and `aUKI_catch` / `aUKI_get` set `uki_pos = uki->left_hand_pos` while the
@@ -24,6 +24,14 @@ const RARM2_INDEX := 19
 const RHAND_INDEX := 20
 
 
+static func bind_creature(skeleton: Skeleton3D, item: ItemData) -> Node3D:
+	if item is FishData:
+		return bind(skeleton, item as FishData)
+	if item is BugData:
+		return bind_bug(skeleton, item as BugData)
+	return null
+
+
 static func bind(skeleton: Skeleton3D, fish: FishData) -> Node3D:
 	unbind(skeleton)
 	if skeleton == null or fish == null:
@@ -34,6 +42,23 @@ static func bind(skeleton: Skeleton3D, fish: FishData) -> Node3D:
 	var visual: HeldFish = HeldFish.create(fish)
 	if visual == null:
 		return null
+	return _attach(skeleton, bone, visual)
+
+
+static func bind_bug(skeleton: Skeleton3D, bug: BugData) -> Node3D:
+	unbind(skeleton)
+	if skeleton == null or bug == null:
+		return null
+	var bone := _arm_bone_name(skeleton)
+	if bone.is_empty():
+		return null
+	var visual: HeldBug = HeldBug.create(bug)
+	if visual == null:
+		return null
+	return _attach(skeleton, bone, visual)
+
+
+static func _attach(skeleton: Skeleton3D, bone: String, visual: Node3D) -> Node3D:
 	var attach := BoneAttachment3D.new()
 	attach.name = ATTACH_NAME
 	skeleton.add_child(attach)
@@ -48,6 +73,20 @@ static func bind(skeleton: Skeleton3D, fish: FishData) -> Node3D:
 	attach.add_child(hand)
 	hand.add_child(visual)
 	return attach
+
+
+static func held_creature(skeleton: Skeleton3D) -> Node3D:
+	if skeleton == null:
+		return null
+	var attach: Node = skeleton.get_node_or_null(ATTACH_NAME)
+	if attach == null:
+		return null
+	for child in attach.get_children():
+		if child.name == HAND_NAME:
+			for visual in child.get_children():
+				if visual is HeldFish or visual is HeldBug:
+					return visual as Node3D
+	return null
 
 
 ## The missing hand joint, in Larm2's own space: one hand segment further along the arm.

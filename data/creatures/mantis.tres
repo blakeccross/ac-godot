@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="BugData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/bug_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"mantis"
+display_name = "Mantis"
+description = "Praying posture on a petal."
+category = 4
+sell_price = 1720
+max_stack = 1
+type_index = 26
+months = PackedInt32Array(8, 9, 10)
+time_terms = PackedInt32Array(2, 3)
+habitats = PackedInt32Array(0)
+needs_rain = false
+rarity_weight = 14
+catch_msg = 2630
+model_base = "res://assets/generated/creatures/bug/act_m_kamakiri"
+model_flap = 1
+model_lift = 0.0
+program = 12

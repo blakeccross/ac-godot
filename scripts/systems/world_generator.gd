@@ -110,7 +110,10 @@ static func generate(seed_value: int = DEFAULT_SEED) -> WorldData:
 	data.bake()
 	_rasterize_acres(data, blocks, heights)
 	_place_structure_buildings(data, blocks)
+	## Waterfall FG units come from disc templates (`0x580D`–`0x580F`); geometric
+	## fallback only fills waterfall acres that still lack one.
 	_place_fg_props(data, blocks, seed_value)
+	_place_waterfall(data, blocks)
 	data.bake()
 	return data
 
@@ -377,6 +380,94 @@ static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray)
 					data.objects.append(_sign(&"dock_sign", origin + unique_ut, "Dock"))
 
 
+static func _place_waterfall(data: WorldData, blocks: PackedByteArray) -> void:
+	## Each river×cliff acre needs `obj_fallS` / `obj_fallSE` on the FG unit from its
+	## `data_combi` template — not the river-corridor midpoint (that floats mid-acre).
+	if (
+		FieldCatalog.mesh_paths(&"obj_fallS").is_empty()
+		and FieldCatalog.mesh_paths(&"obj_fallSE").is_empty()
+	):
+		return
+	for bz: int in range(1, 7):
+		for bx: int in range(1, 6):
+			var type: int = _block(blocks, bx, bz)
+			if not TownFieldGenerator.is_waterfall_block(type):
+				continue
+			var origin: Vector2i = _fg_origin(bx, bz)
+			if _waterfall_in_acre(data, origin):
+				continue
+			var acre_vis: StringName = _acre_visual(data, bx, bz)
+			var from_fg: Dictionary = _waterfall_placement_from_fg(acre_vis, type)
+			var visual: StringName = from_fg.get("visual", _waterfall_visual(type)) as StringName
+			if FieldCatalog.mesh_paths(visual).is_empty():
+				continue
+			var ut: Vector2i = from_fg.get("ut", _waterfall_cell(type)) as Vector2i
+			var o := _object(
+				StringName("waterfall_%d_%d" % [bx, bz]),
+				&"waterfall",
+				origin + ut,
+				null,
+				visual
+			)
+			o.occupy_grid = false
+			data.objects.append(o)
+
+
+static func _waterfall_in_acre(data: WorldData, origin: Vector2i) -> bool:
+	for o: ObjectPlacement in data.objects:
+		if o == null or o.kind != &"waterfall":
+			continue
+		if (
+			o.cell.x >= origin.x
+			and o.cell.x < origin.x + UT
+			and o.cell.y >= origin.y
+			and o.cell.y < origin.y + UT
+		):
+			return true
+	return false
+
+
+static func _waterfall_placement_from_fg(acre_visual: StringName, type: int) -> Dictionary:
+	## Same `0x580D`–`0x580F` unit `_place_from_fg_templates` would use for this BG.
+	if not FgCatalog.has_catalog():
+		return {}
+	var fg_id: int = FgCatalog.pick_fg_id(acre_visual, type, 0)
+	if fg_id < 0:
+		return {}
+	var items: PackedInt32Array = FgCatalog.items(fg_id)
+	if items.size() != FgCatalog.ITEMS_PER_ACRE:
+		return {}
+	for uz: int in UT:
+		for ux: int in UT:
+			var place: Dictionary = FgCatalog.placement_for_item(items[uz * UT + ux])
+			if place.get("kind", &"") == &"waterfall":
+				return {"ut": Vector2i(ux, uz), "visual": place["visual"]}
+	return {}
+
+
+static func _waterfall_visual(type: int) -> StringName:
+	## South-span falls use `obj_fallS`; east/west variants use `obj_fallSE`.
+	match type:
+		TownFieldGenerator.T_WF_E_BR, TownFieldGenerator.T_WF_E_VR:
+			return &"obj_fallSE"
+		TownFieldGenerator.T_WF_W_VL, TownFieldGenerator.T_WF_W_BL:
+			return &"obj_fallSE"
+		_:
+			return &"obj_fallS"
+
+
+static func _waterfall_cell(type: int) -> Vector2i:
+	## Last-resort unit when FG catalog is missing. Prefer cliff-face river cells
+	## over corridor midpoints (disc templates cluster around these).
+	match type:
+		TownFieldGenerator.T_WF_E_BR, TownFieldGenerator.T_WF_E_VR:
+			return Vector2i(7, 6)
+		TownFieldGenerator.T_WF_W_VL, TownFieldGenerator.T_WF_W_BL:
+			return Vector2i(12, 7)
+		_:
+			return Vector2i(6, 6)
+
+
 static func _shop0_unit(data: WorldData, bx: int, bz: int) -> Vector2i:
 	if data.acre_visuals.size() != TownFieldGenerator.BLOCK_TOTAL:
 		return SHOP0_UT
@@ -494,6 +585,16 @@ static func _place_from_fg_templates(
 								)
 							)
 							rock_n += 1
+						&"waterfall":
+							var fall := _object(
+								StringName("waterfall_fg_%d_%d" % [cell.x, cell.y]),
+								&"waterfall",
+								cell,
+								null,
+								place["visual"]
+							)
+							fall.occupy_grid = false
+							data.objects.append(fall)
 	return reserves
 
 
@@ -677,9 +778,13 @@ static func _remove_objects_in_house_plot(data: WorldData, sign: Vector2i) -> vo
 static func _remove_objects_under_buildings(data: WorldData) -> void:
 	## FG copy can land a tree on an acre-type placeholder unit; drop it after
 	## structures settle (`mNpc_BuildHouseBeforeFieldct` `mPB_keep_item`).
+	## Non-occupying actors (waterfalls, doors, villagers) stay put.
 	var keep: Array[ObjectPlacement] = []
 	for o: ObjectPlacement in data.objects:
 		if o == null:
+			continue
+		if not o.occupy_grid:
+			keep.append(o)
 			continue
 		var under := false
 		for b: BuildingPlacement in data.buildings:

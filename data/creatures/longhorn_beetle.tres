@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="BugData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/bug_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"longhorn_beetle"
+display_name = "Longhorn Beetle"
+description = "Antennae longer than its body."
+category = 4
+sell_price = 800
+max_stack = 1
+type_index = 23
+months = PackedInt32Array(6, 7, 8)
+time_terms = PackedInt32Array(2, 3)
+habitats = PackedInt32Array(1)
+needs_rain = false
+rarity_weight = 5
+catch_msg = 2627
+model_base = "res://assets/generated/creatures/bug/act_m_gomadara"
+model_flap = 0
+model_lift = 0.0
+program = 6

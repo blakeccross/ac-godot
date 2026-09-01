@@ -14,6 +14,7 @@ const _WINDOW_SPILL_SHADER := preload("res://shaders/window_ground_spill.gdshade
 const _RIVER_WATER_SHADER := preload("res://shaders/river_water.gdshader")
 const _SPLASH_WATER_SHADER := preload("res://shaders/splash_water.gdshader")
 const _OCEAN_WATER_SHADER := preload("res://shaders/ocean_water.gdshader")
+const _WATERFALL_WATER_SHADER := preload("res://shaders/waterfall_water.gdshader")
 const _BEACH_WET_SHADER := preload("res://shaders/beach_wet.gdshader")
 ## DL prims: wet-sand beachA (206,189,148); ocean-bed beachB (32,48,144).
 const _BEACH_PRIM_SAND := Color(206.0 / 255.0, 189.0 / 255.0, 148.0 / 255.0)
@@ -614,6 +615,7 @@ static func _apply_materials_inner(
 					_is_river_water_surface(mesh_instance, i, src)
 					or _is_ocean_water_surface(mesh_instance, i, src)
 					or _is_splash_water_surface(mesh_instance, i, src)
+					or _is_waterfall_water_surface(mesh_instance, i, src)
 					or _is_beach_wet_surface(mesh_instance, i, src)
 				):
 					## Ocean-acre land stays imported; river/splash/wet-sand still get shaders.
@@ -639,6 +641,10 @@ static func _apply_materials_inner(
 				elif _is_ocean_water_surface(mesh_instance, i, src):
 					mesh_instance.set_surface_override_material(
 						i, _make_ocean_water_material(std, src)
+					)
+				elif _is_waterfall_water_surface(mesh_instance, i, src):
+					mesh_instance.set_surface_override_material(
+						i, _make_waterfall_water_material(std, src, mesh_instance, i)
 					)
 				elif _is_beach_wet_surface(mesh_instance, i, src):
 					mesh_instance.set_surface_override_material(
@@ -744,6 +750,13 @@ static func _is_splash_water_surface(mesh_instance: MeshInstance3D, surface: int
 	return n.contains("sprash") or n.contains("splash")
 
 
+static func _is_waterfall_water_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
+	if _water_kind(mat) == "waterfall":
+		return true
+	var n := _surface_label(mesh_instance, surface, mat).to_lower()
+	return n.contains("waterfall_") or (n.contains("fall") and n.contains("grp"))
+
+
 static func _tree_has_splash_water(node: Node) -> bool:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
@@ -835,6 +848,59 @@ static func _make_ocean_water_material(std: StandardMaterial3D, src: Material) -
 		"wave2_clamp_v", 1.0 if bool(_gltf_extras(src).get("wave2_clamp_t", false)) else 0.0
 	)
 	sh.set_meta("ocean_water", true)
+	return sh
+
+
+static func _waterfall_layer_index(
+	mat: Material, mesh_instance: MeshInstance3D, surface: int
+) -> int:
+	var layer := str(_gltf_extras(mat).get("waterfall_layer", "")).to_lower()
+	match layer:
+		"at":
+			return 0
+		"bt":
+			return 1
+		"ct":
+			return 2
+		"dt":
+			return 3
+	## GLBs converted before `waterfall_layer` extras: grpAT..DT match primitive order.
+	var label := _surface_label(mesh_instance, surface, mat).to_lower()
+	if label.contains("grpat"):
+		return 0
+	if label.contains("grpct"):
+		return 2
+	if label.contains("grpdt"):
+		return 3
+	if label.contains("grpbt"):
+		return 1
+	if mesh_instance.mesh is ArrayMesh and surface >= 0 and surface <= 3:
+		return surface
+	return 1
+
+
+static func _make_waterfall_water_material(
+	std: StandardMaterial3D, src: Material, mesh_instance: MeshInstance3D, surface: int
+) -> ShaderMaterial:
+	## Decomp obj_fallS grpAT/BT/CT/DT — dual-scroll EVW_ANIME SCROLL2.
+	var sh := ShaderMaterial.new()
+	sh.shader = _WATERFALL_WATER_SHADER
+	sh.render_priority = 2
+	var tile0: Texture2D = std.albedo_texture
+	var tile1: Texture2D = _layer1_texture(std)
+	if tile1 == null or tile1 == tile0:
+		push_warning("GeneratedVisual: waterfall tile1 missing; dual scroll will look wrong")
+	sh.set_shader_parameter("tile0", tile0)
+	sh.set_shader_parameter("tile1", tile1)
+	sh.set_shader_parameter("waterfall_layer", _waterfall_layer_index(src, mesh_instance, surface))
+	sh.set_shader_parameter("game_fps", 60.0)
+	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.5)
+	var extras := _gltf_extras(src)
+	sh.set_shader_parameter("tile0_mirror_s", 1.0 if bool(extras.get("tile0_mirror_s", false)) else 0.0)
+	sh.set_shader_parameter("tile0_clamp_v", 1.0 if bool(extras.get("tile0_clamp_v", false)) else 0.0)
+	sh.set_shader_parameter("tile1_mirror_s", 1.0 if bool(extras.get("tile1_mirror_s", false)) else 0.0)
+	sh.set_shader_parameter("tile1_clamp_v", 1.0 if bool(extras.get("tile1_clamp_v", false)) else 0.0)
+	sh.set_meta("waterfall_water", true)
 	return sh
 
 

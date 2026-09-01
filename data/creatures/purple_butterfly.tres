@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="BugData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/bug_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"purple_butterfly"
+display_name = "Purple Butterfly"
+description = "Deep violet wings in the treetops."
+category = 4
+sell_price = 8000
+max_stack = 1
+type_index = 3
+months = PackedInt32Array(6, 7, 8)
+time_terms = PackedInt32Array(2, 3)
+habitats = PackedInt32Array(1)
+needs_rain = false
+rarity_weight = 2
+catch_msg = 2607
+model_base = "res://assets/generated/creatures/bug/act_m_ohmurasaki"
+model_flap = 1
+model_lift = 0.0
+program = 0

@@ -47,11 +47,11 @@ static func get_fish(fish_id: StringName) -> FishData:
 
 
 ## `water` is a `WaterBodies.Kind`, or -1 for "anywhere" when there is no body in hand.
-static func available(month: int, hour: int, water: int = -1) -> Array[FishData]:
+static func available(month: int, hour: int, water: int = -1, raining: bool = false) -> Array[FishData]:
 	ensure_loaded()
 	var out: Array[FishData] = []
 	for fish: FishData in _fish:
-		if not fish.is_available(month, hour):
+		if not fish.is_available(month, hour, raining):
 			continue
 		if water >= 0 and not fish.in_water(water):
 			continue
@@ -60,7 +60,7 @@ static func available(month: int, hour: int, water: int = -1) -> Array[FishData]
 
 
 static func available_now(water: int = -1) -> Array[FishData]:
-	return available(Clock.month, Clock.hour, water)
+	return available(Clock.month, Clock.hour, water, Weather.is_raining())
 
 
 ## Weighted pick. Rare fish stay rare, so the loop is never a single guaranteed catch.

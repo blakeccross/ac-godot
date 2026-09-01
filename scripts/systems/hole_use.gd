@@ -49,6 +49,7 @@ static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 		Game.clear_hole(pid)
 		return false
 	_instance(ctx.world if ctx != null else null, grid, cell, pid)
+	_notify_bugs(ctx, cell)
 	return true
 
 
@@ -122,3 +123,11 @@ static func _grid(ctx: InteractionContext) -> WorldGrid:
 		return null
 	var value: Variant = ctx.world.get("grid")
 	return value as WorldGrid
+
+
+static func _notify_bugs(ctx: InteractionContext, cell: Vector2i) -> void:
+	if ctx == null or ctx.world == null:
+		return
+	var field: BugField = ctx.world.get("bugs") as BugField
+	if field != null:
+		field.notify_player_action(cell)

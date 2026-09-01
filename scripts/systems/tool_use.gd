@@ -38,6 +38,8 @@ static func field_action(ctx: InteractionContext) -> Interaction:
 	var effect_frame: float = -1.0
 	if tool.field_verb == Interaction.CAST:
 		effect_frame = Fishing.CAST_RELEASE_FRAME
+	elif tool.field_verb == Interaction.SWING_NET:
+		effect_frame = Netting.SWING_CATCH_FRAME
 	return Interaction.of(
 		tool.field_verb, prompt, tool.field_priority, tool.field_anim, effect_frame
 	)
@@ -62,6 +64,8 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 		return false
 	if tool.field_verb == Interaction.CAST:
 		return _apply_rod(tool, action, ctx)
+	if tool.field_verb == Interaction.SWING_NET:
+		return _apply_net(tool, action, ctx)
 	if action.id != tool.field_verb:
 		return false
 	if not _field_ok(tool, ctx):
@@ -69,9 +73,10 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 	if tool.field_require == ToolData.FieldRequire.EMPTY_GROUND:
 		if not HoleUse.dig(ctx, facing_cell(ctx)):
 			return false
-	if tool.field_notice != "":
+	if tool.field_notice != "" and tool.field_verb != Interaction.SWING_NET:
 		Game.post_notice(tool.field_notice)
 	_scare_fish(ctx)
+	_stress_bugs(ctx)
 	return true
 
 
@@ -81,6 +86,30 @@ static func _scare_fish(ctx: InteractionContext) -> void:
 	var school: FishSchool = Fishing.school_of(ctx)
 	if school != null:
 		school.notify_tool_swing()
+
+
+static func _stress_bugs(ctx: InteractionContext) -> void:
+	var field: BugField = Netting.field_of(ctx)
+	if field != null:
+		field.notify_tool_swing()
+
+
+static func _apply_net(tool: ToolData, action: Interaction, ctx: InteractionContext) -> bool:
+	if action.id != tool.field_verb or not _field_ok(tool, ctx):
+		return false
+	_scare_fish(ctx)
+	_stress_bugs(ctx)
+	var origin: Vector3 = ctx.actor.global_position if ctx != null and ctx.actor != null else Vector3.ZERO
+	var yaw: float = 0.0
+	if ctx != null and ctx.actor != null and ctx.actor.has_method("facing_yaw"):
+		yaw = float(ctx.actor.call("facing_yaw"))
+	var direction := Vector3(sin(yaw), 0.0, cos(yaw))
+	var out: Netting.Outcome = Netting.swing(ctx, origin, direction)
+	if out.missed:
+		Game.post_notice("You swung the net, but didn't catch anything!")
+	elif out.pockets_full:
+		Game.post_notice("Your pockets are full!")
+	return true
 
 
 static func _apply_rod(tool: ToolData, action: Interaction, ctx: InteractionContext) -> bool:

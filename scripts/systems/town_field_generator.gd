@@ -769,6 +769,10 @@ func _in_range(bx: int, bz: int, bx_min: int, bx_max: int, bz_min: int, bz_max: 
 	return bx >= bx_min and bx <= bx_max and bz >= bz_min and bz <= bz_max
 
 
+static func is_waterfall_block(type: int) -> bool:
+	return type >= T_WF_H and type <= T_WF_W_BL
+
+
 static func is_riverish(type: int) -> bool:
 	return (
 		(type >= T_RIVER_S and type <= T_RIVER_WS)

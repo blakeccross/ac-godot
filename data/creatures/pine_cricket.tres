@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="BugData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/bug_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"pine_cricket"
+display_name = "Pine Cricket"
+description = "Hides among fallen needles."
+category = 4
+sell_price = 400
+max_stack = 1
+type_index = 18
+months = PackedInt32Array(9, 10)
+time_terms = PackedInt32Array(0, 1, 4, 5)
+habitats = PackedInt32Array(5)
+needs_rain = false
+rarity_weight = 28
+catch_msg = 2622
+model_base = "res://assets/generated/creatures/bug/act_m_matumushi"
+model_flap = 0
+model_lift = 0.0
+program = 1

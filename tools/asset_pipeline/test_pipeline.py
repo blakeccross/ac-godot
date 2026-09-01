@@ -6,7 +6,7 @@ import struct
 import unittest
 
 from asset_pipeline.ckf import _mat_model_name, _vtx_sym_for_gfx, select_bind_anim
-from asset_pipeline.convert import FISH_STATIC_NEEDLES, WATER_STATIC_NEEDLES, _name_under_prefix, _owning_vtx_prefix, _static_jobs
+from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, WATER_STATIC_NEEDLES, _name_under_prefix, _owning_vtx_prefix, _static_jobs
 from asset_pipeline.glb import _bake_wrap_group
 from asset_pipeline.layout import (
     bti_output_path,
@@ -150,6 +150,34 @@ class PrefixOwnershipTests(unittest.TestCase):
         self.assertEqual(kaseki["act_f32_kaseki_b"]["vtx"], "act_f32_kaseki_b_v")
         self.assertEqual(kaseki["act_f32_kaseki_a"]["gfx"], ["act_f32_kaseki_aT_model"])
 
+    def test_bug_gfx_names_use_shared_vtx_and_numbered_display_lists(self) -> None:
+        from asset_pipeline.test_set import TEST_STATIC
+
+        bugs = {i["asset_id"]: i for i in TEST_STATIC if i["asset_id"].startswith("act_m_")}
+        self.assertEqual(len(BUG_STATIC_NEEDLES), 80)
+        self.assertEqual(bugs["act_m_hirata_a"]["vtx"], "act_m_hirata_v")
+        self.assertEqual(bugs["act_m_hirata_a"]["gfx"], ["act_m_hirata1T_model"])
+        self.assertEqual(bugs["act_m_hirata_b"]["vtx"], "act_m_hirata_v")
+        self.assertEqual(bugs["act_m_hirata_b"]["gfx"], ["act_m_hirata2T_model"])
+        ## `aINS_actor_draw` submits both DL slots each pose (`pose<<1` and +1).
+        self.assertEqual(
+            bugs["act_m_minmin_a"]["gfx"],
+            ["act_m_minmin1_1T_model", "act_m_minmin1_2T_model"],
+        )
+        self.assertEqual(
+            bugs["act_m_minmin_b"]["gfx"],
+            ["act_m_minmin1_1T_model", "act_m_minmin2_2T_model"],
+        )
+        self.assertEqual(bugs["act_m_genji_a"]["vtx"], "act_m_genji2_v")
+        self.assertEqual(
+            bugs["act_m_genji_a"]["gfx"],
+            ["act_m_genji2_a_model", "act_m_genji2_b_model"],
+        )
+        self.assertEqual(
+            bugs["act_m_genji_b"]["gfx"],
+            ["act_m_genji2_c_model", "act_m_genji2_d_model"],
+        )
+
     def test_ocean_material_carries_tile1_and_shore_clamp(self) -> None:
         ## Shore acres draw wave1+wave2 (CLAMP T); open water draws wave1+wave3 (REPEAT).
         ## The runtime shader picks its T wrap off `wave2_clamp_t`.
@@ -175,6 +203,39 @@ class PrefixOwnershipTests(unittest.TestCase):
             layer1_wrap_t=GX_REPEAT,
         )
         self.assertFalse(open_sea["extras"]["wave2_clamp_t"])
+
+    def test_waterfall_material_carries_layer_and_wrap(self) -> None:
+        from asset_pipeline.glb import _material
+        from asset_pipeline.texbank import GX_CLAMP, GX_MIRROR, GX_REPEAT
+
+        bt = _material(
+            "waterfall_obj_fallCA1_tex",
+            0,
+            water_kind="waterfall",
+            waterfall_layer="bt",
+            wrap_s=GX_MIRROR,
+            wrap_t=GX_REPEAT,
+            layer1_texture_index=1,
+            layer1_wrap_s=GX_MIRROR,
+            layer1_wrap_t=GX_REPEAT,
+        )
+        self.assertEqual(bt["extras"]["water_kind"], "waterfall")
+        self.assertEqual(bt["extras"]["waterfall_layer"], "bt")
+        self.assertTrue(bt["extras"]["tile0_mirror_s"])
+        self.assertFalse(bt["extras"]["tile0_clamp_v"])
+
+        at = _material(
+            "waterfall_obj_fallA2_tex",
+            0,
+            water_kind="waterfall",
+            waterfall_layer="at",
+            wrap_s=GX_REPEAT,
+            wrap_t=GX_CLAMP,
+            layer1_texture_index=1,
+            layer1_wrap_s=GX_REPEAT,
+            layer1_wrap_t=GX_REPEAT,
+        )
+        self.assertTrue(at["extras"]["tile0_clamp_v"])
 
 
 class OverlayMatTests(unittest.TestCase):
@@ -357,12 +418,26 @@ class WindowDlTests(unittest.TestCase):
 
 class WaterNameTests(unittest.TestCase):
     def test_river_ocean_beach_kinds(self) -> None:
-        from asset_pipeline.gfx import beach_wet_kind, is_ocean_bed_part, water_surface_kind
+        from asset_pipeline.gfx import (
+            beach_wet_kind,
+            is_ocean_bed_part,
+            waterfall_layer_from_part,
+            waterfall_surface_kind,
+            water_surface_kind,
+        )
 
         self.assertEqual(water_surface_kind("mFM_grd_water1_tex", "mFM_grd_water2_tex"), "river")
         self.assertEqual(water_surface_kind("mFM_grd_wave1_tex", "mFM_grd_wave2_tex"), "ocean")
         self.assertEqual(water_surface_kind("mFM_grd_sprashC_tex", "mFM_grd_sprashA_tex"), "splash")
         self.assertEqual(water_surface_kind("obj_stump5T_gfx_model"), "")
+        self.assertEqual(
+            waterfall_surface_kind("obj_fallA2_tex_rgb_i4", "obj_fallC3_tex_rgb_i4"),
+            "waterfall",
+        )
+        self.assertEqual(waterfall_surface_kind("obj_fallCA1_tex_rgb_ia8", "obj_fallCA1_tex_rgb_ia8"), "waterfall")
+        self.assertEqual(waterfall_surface_kind("mFM_grd_water1_tex", "mFM_grd_water2_tex"), "")
+        self.assertEqual(waterfall_layer_from_part("obj_fallS_grpBT_model"), "bt")
+        self.assertEqual(waterfall_layer_from_part("obj_fallSE_grpCT_model"), "ct")
         self.assertEqual(beach_wet_kind("mFM_grd_beachB_tex"), "beach_wet")
         self.assertEqual(beach_wet_kind("mFM_grd_beachA_tex"), "beach_wet")
         self.assertEqual(beach_wet_kind("mFM_grd_s_beach_tex"), "")

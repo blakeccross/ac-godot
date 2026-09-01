@@ -738,6 +738,168 @@ TEST_STATIC = [
     },
 ]
 
+# Field / held insect models (`act_m_*`). Pose `a`/`b` map to `aINS_*_dl` slots
+# `(pose<<1)` / `+1` on shared `{base}_v` (not fish-style `{base}_a_v`). Each
+# pose GLB includes both DLs drawn that frame. Firefly uses `act_m_genji2_*`.
+_BUG_MODEL_BASES = [
+    "act_m_monshiro",
+    "act_m_monki",
+    "act_m_kiageha",
+    "act_m_ohmurasaki",
+    "act_m_minmin",
+    "act_m_tukutuku",
+    "act_m_higurashi",
+    "act_m_abura",
+    "act_m_hachi",
+    "act_m_shiokara",
+    "act_m_akiakane",
+    "act_m_ginyanma",
+    "act_m_oniyanma",
+    "act_m_syouryou",
+    "act_m_tonosama",
+    "act_m_koorogi",
+    "act_m_kirigirisu",
+    "act_m_suzumushi",
+    "act_m_matumushi",
+    "act_m_kanabun",
+    "act_m_kabuto",
+    "act_m_hirata",
+    "act_m_tamamushi",
+    "act_m_gomadara",
+    "act_m_tentou",
+    "act_m_nanahoshi",
+    "act_m_kamakiri",
+    "act_m_genji",
+    "act_m_danna",
+    "act_m_nokogiri",
+    "act_m_miyama",
+    "act_m_okuwa",
+    "act_m_maimai",
+    "act_m_kera",
+    "act_m_amenbo",
+    "act_m_mino",
+    "act_m_dango",
+    "act_m_kumo",
+    "act_m_ari",
+    "act_m_ka",
+]
+
+# `aINS_*_dl` pose pairs from `ac_insect_data.c_inc`. Draw submits indices
+# `(pose<<1)` and `(pose<<1)+1` every frame, so each Godot pose GLB must include
+# both display lists (deduped). Missing bases use `{base}1T` / `{base}2T`.
+_BUG_POSE_GFX: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "act_m_minmin": (
+        ("act_m_minmin1_1T_model", "act_m_minmin1_2T_model"),
+        ("act_m_minmin1_1T_model", "act_m_minmin2_2T_model"),
+    ),
+    "act_m_tukutuku": (
+        ("act_m_tukutuku1_1T_model", "act_m_tukutuku1_2T_model"),
+        ("act_m_tukutuku1_1T_model", "act_m_tukutuku2_2T_model"),
+    ),
+    "act_m_higurashi": (
+        ("act_m_higurashi1_1T_model", "act_m_higurashi1_2T_model"),
+        ("act_m_higurashi1_1T_model", "act_m_higurashi2_2T_model"),
+    ),
+    "act_m_abura": (
+        ("act_m_abura1_1T_model", "act_m_abura1_2T_model"),
+        ("act_m_abura1_1T_model", "act_m_abura2_2T_model"),
+    ),
+    "act_m_hachi": (
+        ("act_m_hachi1_1T_model", "act_m_hachi1_2T_model"),
+        ("act_m_hachi1_1T_model", "act_m_hachi2_2T_model"),
+    ),
+    "act_m_shiokara": (
+        ("act_m_shiokara1_1T_model", "act_m_shiokara1_2T_model"),
+        ("act_m_shiokara1_1T_model", "act_m_shiokara2_2T_model"),
+    ),
+    "act_m_akiakane": (
+        ("act_m_akiakane1_1T_model", "act_m_akiakane1_2T_model"),
+        ("act_m_akiakane1_1T_model", "act_m_akiakane2_2T_model"),
+    ),
+    "act_m_ginyanma": (
+        ("act_m_ginyanma1_1T_model", "act_m_ginyanma1_2T_model"),
+        ("act_m_ginyanma1_1T_model", "act_m_ginyanma2_2T_model"),
+    ),
+    "act_m_oniyanma": (
+        ("act_m_oniyanma1_1T_model", "act_m_oniyanma1_2T_model"),
+        ("act_m_oniyanma1_1T_model", "act_m_oniyanma2_2T_model"),
+    ),
+    "act_m_syouryou": (
+        ("act_m_syouryou1T_model",),
+        ("act_m_syouryou1T_model", "act_m_syouryou2_2T_model"),
+    ),
+    "act_m_tonosama": (
+        ("act_m_tonosama1T_model",),
+        ("act_m_tonosama1T_model", "act_m_tonosama2_2T_model"),
+    ),
+    "act_m_koorogi": (("act_m_koorogi1T_model",), ("act_m_koorogi1T_model",)),
+    "act_m_kirigirisu": (
+        ("act_m_kirigirisu1T_model",),
+        ("act_m_kirigirisu1T_model", "act_m_kirigirisu2_2T_model"),
+    ),
+    "act_m_suzumushi": (
+        ("act_m_suzumushi1T_model",),
+        ("act_m_suzumushi1T_model", "act_m_suzumushi2_2T_model"),
+    ),
+    "act_m_matumushi": (("act_m_matumushi1T_model",), ("act_m_matumushi1T_model",)),
+    "act_m_kamakiri": (
+        ("act_m_kamakiri1T_model",),
+        ("act_m_kamakiri1T_model", "act_m_kamakiri2_2T_model"),
+    ),
+    "act_m_genji": (
+        ("act_m_genji2_a_model", "act_m_genji2_b_model"),
+        ("act_m_genji2_c_model", "act_m_genji2_d_model"),
+    ),
+    "act_m_maimai": (("act_m_maimaiT_model",), ("act_m_maimaiT_model",)),
+    "act_m_kera": (("act_m_keraT_model",), ("act_m_keraT_model",)),
+    "act_m_mino": (
+        ("act_m_mino1_1T_model",),
+        ("act_m_mino1_1T_model", "act_m_mino2T_model"),
+    ),
+    "act_m_kumo": (
+        ("act_m_kumo1_2T_model",),
+        ("act_m_kumo1_1T_model", "act_m_kumo2T_model"),
+    ),
+    "act_m_ari": (("act_m_ariT_model",), ("act_m_ariT_model",)),
+    "act_m_ka": (
+        ("act_m_ka1T_model", "act_m_ka2_2T_model"),
+        ("act_m_ka1T_model", "act_m_ka2_1T_model"),
+    ),
+    "act_m_amenbo": (
+        ("act_m_amenbo1T_model",),
+        ("act_m_amenbo1T_model", "act_m_amenbo2T_model"),
+    ),
+    "act_m_dango": (("act_m_dango2T_model",), ("act_m_dango1T_model",)),
+}
+
+
+def _bug_vtx(base: str) -> str:
+    if base == "act_m_genji":
+        return "act_m_genji2_v"
+    return f"{base}_v"
+
+
+def _bug_pose_gfx(base: str) -> tuple[list[str], list[str]]:
+    if base in _BUG_POSE_GFX:
+        a_gfx, b_gfx = _BUG_POSE_GFX[base]
+        return (list(a_gfx), list(b_gfx))
+    return ([f"{base}1T_model"], [f"{base}2T_model"])
+
+
+for _base in _BUG_MODEL_BASES:
+    _a_gfx, _b_gfx = _bug_pose_gfx(_base)
+    _vtx = _bug_vtx(_base)
+    for _pose, _gfx in (("a", _a_gfx), ("b", _b_gfx)):
+        TEST_STATIC.append(
+            {
+                "asset_id": f"{_base}_{_pose}",
+                "vtx": _vtx,
+                "gfx": _gfx,
+                "output": f"creatures/bug/{_base}_{_pose}.glb",
+                "confident_name": True,
+            }
+        )
+
 # Standalone BTI files from forest_2nd. Keep original filenames; do not invent roles.
 TEST_BTI = [
     ("forest_2nd/data/boy1.bti", "ui/boy1.png"),

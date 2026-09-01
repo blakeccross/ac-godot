@@ -222,6 +222,36 @@ func test_fg_templates_place_authored_trees() -> void:
 			assert_bool(_tree_at(data, Vector2i(79, bz * 16 + uz))).is_false()
 
 
+func test_generated_town_places_waterfall_when_mesh_exists() -> void:
+	if FieldCatalog.mesh_paths(&"obj_fallS").is_empty():
+		return
+	for seed: int in [12345, 1786784979, 42, 99999]:
+		var data: WorldData = WorldGenerator.generate(seed)
+		var wf_acres := 0
+		for bz: int in range(1, 7):
+			for bx: int in range(1, 6):
+				var type: int = int(data.acre_types[bz * TownFieldGenerator.BLOCK_X + bx])
+				if TownFieldGenerator.is_waterfall_block(type):
+					wf_acres += 1
+		assert_int(wf_acres).is_greater(0)
+		assert_int(_kind_count(data, &"waterfall")).is_equal(wf_acres)
+		for o: ObjectPlacement in data.objects:
+			if o == null or o.kind != &"waterfall":
+				continue
+			assert_bool(
+				o.visual_id == &"obj_fallS" or o.visual_id == &"obj_fallSE"
+			).is_true()
+			assert_bool(o.occupy_grid).is_false()
+			var bx: int = int(o.cell.x / 16) + 1
+			var bz: int = int(o.cell.y / 16) + 1
+			var type: int = int(data.acre_types[bz * TownFieldGenerator.BLOCK_X + bx])
+			assert_bool(TownFieldGenerator.is_waterfall_block(type)).is_true()
+			## Disc templates pin the actor to the cliff sheet — never the old river
+			## corridor midpoint (ux 7, uz 8) that floated mid-acre.
+			var ut := Vector2i(o.cell.x % 16, o.cell.y % 16)
+			assert_bool(ut != Vector2i(7, 8)).is_true()
+
+
 func test_height_steps_only_on_terrace_faces() -> void:
 	## Vertical / bottom-corner river-cliffs must not bump the column (`mRF_GetBlockBase`).
 	assert_bool(TownFieldGenerator.raises_height(TownFieldGenerator.T_CLIFF_H)).is_true()
@@ -518,7 +548,7 @@ func test_world_object_registry_lists_phase_kinds() -> void:
 	## Adding a kind is one registry line + a scene; builder does not hardcode types.
 	WorldObjectRegistry.ensure()
 	for kind: StringName in [
-		&"tree", &"rock", &"flower", &"hole", &"item", &"door", &"building", &"house", &"shop"
+		&"tree", &"rock", &"flower", &"hole", &"item", &"door", &"building", &"house", &"shop", &"waterfall"
 	]:
 		assert_bool(WorldObjectRegistry.has_kind(kind)).is_true()
 		assert_str(WorldObjectRegistry.scene_path(kind)).is_not_empty()
@@ -548,6 +578,13 @@ func _kind_count(data: WorldData, kind: StringName) -> int:
 		if o != null and o.kind == kind:
 			n += 1
 	return n
+
+
+func _object_by_kind(data: WorldData, kind: StringName) -> ObjectPlacement:
+	for o: ObjectPlacement in data.objects:
+		if o != null and o.kind == kind:
+			return o
+	return null
 
 
 func _npc_house_count(data: WorldData) -> int:

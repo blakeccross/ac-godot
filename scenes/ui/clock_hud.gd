@@ -1,6 +1,6 @@
 extends CanvasLayer
 
-## Play HUD. T +1 hour, Y +1 day, U next season. Esc returns to title (and saves).
+## Play HUD. T +1 hour, Y +1 day, U next season, I cycle weather. Esc returns to title (and saves).
 ## X opens pockets (`m_inventory_ovl` 5×3).
 
 @onready var _label: Label = %ClockLabel
@@ -15,6 +15,7 @@ func _ready() -> void:
 	Clock.time_changed.connect(_refresh)
 	Game.prompt_changed.connect(_on_prompt)
 	Game.notice_posted.connect(_on_notice)
+	Game.weather_changed.connect(_on_weather)
 	Game.inventory.changed.connect(_refresh)
 	_on_prompt(Game.interact_prompt)
 	_refresh()
@@ -57,16 +58,22 @@ func _unhandled_input(event: InputEvent) -> void:
 				Clock.advance_season()
 				Game.post_notice(Clock.season_name())
 				get_viewport().set_input_as_handled()
+			KEY_I:
+				Game.cycle_weather_debug()
+				Game.post_notice("Weather: %s" % String(Game.weather))
+				get_viewport().set_input_as_handled()
 
 
 func _refresh() -> void:
 	_label.text = (
-		"%s\nWASD walk  Shift run  E interact  X pockets  Esc title  T +1h  Y +1d  U season"
+		"%s\nWASD walk  Shift run  E interact  X pockets  Esc title  T +1h  Y +1d  U season  I weather"
 		% Clock.format_clock()
 	)
 	var pockets: int = Game.inventory.count_of_occupied()
 	var bells: int = Game.inventory.wallet
-	_label.text += "\nPockets %d/%d  %d Bells" % [pockets, Inventory.POCKET_SLOTS, bells]
+	_label.text += "\nPockets %d/%d  %d Bells  %s" % [
+		pockets, Inventory.POCKET_SLOTS, bells, String(Game.weather).capitalize()
+	]
 
 
 func _on_prompt(text: String) -> void:
@@ -79,4 +86,8 @@ func _on_prompt(text: String) -> void:
 func _on_notice(text: String) -> void:
 	_notice.text = text
 	_notice_left = 2.5
+	_refresh()
+
+
+func _on_weather(_weather: StringName) -> void:
 	_refresh()

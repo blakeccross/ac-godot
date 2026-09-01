@@ -13,8 +13,10 @@ const INTERACT_REACH := 1.1
 ## The pipeline samples every `cKF_ba_r_*` clip at 30 fps, so decomp frame numbers convert to
 ## clip time at this rate.
 const ANIM_FPS := 30.0
-## `notice_rod` chains message 0x1348 onto the catch report when the catch cannot be kept.
+## `notice_rod` chains message 0x1348 onto the fish catch report when pockets are full.
 const POCKETS_FULL_MSG_ID := &"msg_4936"
+## `mMsg_Set_continue_msg_num(win, 0xA4F)` for insect catches.
+const POCKETS_FULL_BUG_MSG_ID := &"msg_2639"
 
 const ANIM_WAIT := "ply_1_wait1"
 const ANIM_WALK := "ply_1_walk1"
@@ -359,6 +361,7 @@ func _try_interact() -> void:
 		ToolUse.apply_field(hit.action, ctx)
 	await _finish_action(tail)
 	await _play_reel()
+	await _play_catch()
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()
@@ -408,6 +411,14 @@ func _play_reel() -> void:
 	for beat: Fishing.ReelBeat in Fishing.take_reel_beats():
 		if beat.face_camera or beat.hold > 0.0:
 			await _play_show(beat)
+		else:
+			await _play_clip(beat.player_anim, beat.tool_anim)
+
+
+func _play_catch() -> void:
+	for beat: Netting.CatchBeat in Netting.take_catch_beats():
+		if beat.face_camera or beat.hold > 0.0:
+			await _play_bug_show(beat)
 		else:
 			await _play_clip(beat.player_anim, beat.tool_anim)
 
@@ -491,6 +502,63 @@ func _play_putaway(skeleton: Skeleton3D) -> void:
 	HeldCatch.unbind(skeleton)
 
 
+func _play_bug_show(beat: Netting.CatchBeat) -> void:
+	if beat.player_anim == &"":
+		return
+	var entry_yaw: float = _motor.facing
+	var clip := _resolve_clip(String(beat.player_anim))
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	HeldTool.play(skeleton, beat.tool_anim, false)
+	HeldCatch.bind_bug(skeleton, beat.bug)
+	var length: float = 0.0
+	if _anim != null and not clip.is_empty():
+		_anim.speed_scale = 1.0
+		_anim.play(clip, 0.08)
+		var res: Animation = _anim.get_animation(clip)
+		if res != null:
+			length = res.length
+	var held: float = 0.0
+	var turn_debt: float = 0.0
+	var step: float = 1.0 / Netting.SHOW_TURN_HZ
+	while held < beat.hold:
+		await get_tree().process_frame
+		var delta: float = get_process_delta_time()
+		held += delta
+		if not beat.face_camera:
+			continue
+		turn_debt += delta
+		while turn_debt >= step:
+			turn_debt -= step
+			_motor.facing = MLib.short_angle2(
+				_motor.facing,
+				Netting.SHOW_YAW,
+				Netting.SHOW_TURN_FRACTION,
+				Netting.SHOW_TURN_MAX_STEP,
+				Netting.SHOW_TURN_MIN_STEP
+			)
+	if beat.catch_msg == 0:
+		if held < length:
+			await get_tree().create_timer(length - held).timeout
+	else:
+		await _report_catch(beat.catch_msg, beat.pockets_full, POCKETS_FULL_BUG_MSG_ID, true)
+	_motor.facing = entry_yaw
+	await _play_bug_putaway(skeleton)
+
+
+func _play_bug_putaway(skeleton: Skeleton3D) -> void:
+	HeldTool.play(skeleton, _tool_hold_anim, true)
+	var clip := _resolve_clip(String(Netting.PUTAWAY))
+	if _anim == null or clip.is_empty():
+		HeldCatch.unbind(skeleton)
+		return
+	_anim.speed_scale = 1.0
+	_anim.play(clip, 0.08)
+	var res: Animation = _anim.get_animation(clip)
+	if res != null and res.length > 0.0:
+		await get_tree().create_timer(res.length).timeout
+	HeldCatch.unbind(skeleton)
+
+
 ## `Player_actor_MessageControl_Notice_rod` opens the catch report once its 42 frames are up
 ## and holds `LockContinue` until the player advances it, so the pose stays on screen for as
 ## long as the text does. `_update_animation` bails while `_busy`, which is what keeps the
@@ -499,32 +567,38 @@ func _play_putaway(skeleton: Skeleton3D) -> void:
 ## species and the extracted bank has the line, pun and all. The rare three (stringfish,
 ## coelacanth, arapaima) run to two pages, which is why this plays a conversation through the
 ## runner instead of pushing a single string.
-func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
+func _report_catch(
+	catch_msg: int,
+	pockets_full: bool = false,
+	full_msg_id: StringName = POCKETS_FULL_MSG_ID,
+	use_bug_text: bool = false
+) -> void:
 	if catch_msg == 0:
 		return
 	var ui: Node = null
 	if get_tree() != null:
 		ui = get_tree().get_first_node_in_group("dialogue_ui")
 	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % catch_msg))
+	var fallback: String = (
+		BugCatalog.catch_text(catch_msg) if use_bug_text else FishCatalog.catch_text(catch_msg)
+	)
 	if ui == null or not ui.has_signal("closed"):
-		## No window to hold the pose for — a headless run, or the overlay is not in the
-		## scene. Fall back to the transient notice so the catch is still reported.
-		Game.post_notice(FishCatalog.catch_text(catch_msg))
+		Game.post_notice(fallback)
 		return
 	if data != null and ui.has_method("play"):
 		ui.call("play", data, null)
 	elif ui.has_method("say"):
-		ui.call("say", FishCatalog.catch_text(catch_msg))
+		ui.call("say", fallback)
 	else:
-		Game.post_notice(FishCatalog.catch_text(catch_msg))
+		Game.post_notice(fallback)
 		return
 	await ui.closed
 	if not pockets_full:
 		return
-	## `mMsg_Set_continue_msg_num(win, 0x1348)` chains the pockets-full line onto the report.
-	## Its swap-or-discard choice is not modelled, so only the line is shown.
-	var full: DialogueData = DialogueCatalog.conversation(POCKETS_FULL_MSG_ID)
-	var text: String = FishCatalog.first_line(full)
+	var full: DialogueData = DialogueCatalog.conversation(full_msg_id)
+	var text: String = (
+		BugCatalog.first_line(full) if use_bug_text else FishCatalog.first_line(full)
+	)
 	if text.is_empty():
 		return
 	if ui.has_method("say"):

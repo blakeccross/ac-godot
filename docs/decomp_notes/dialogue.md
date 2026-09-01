@@ -55,7 +55,7 @@ Talk is wrapped in `m_demo`: player `mPlib_request_main_talk_type1`, camera `CAM
 - Author **JSON graphs** (`data/dialogue/*.json`), not `m_msg` bytecode. `DialogueData` / `DialogueRunner` / `DialogueCatalog` / `DialogueGreeting` are `RefCounted` helpers, not an autoload.
 - One overlay scene (`scenes/ui/dialogue_overlay.tscn`). Skip appear/disappear interpolation, voice blips, article grammar, mail-string length 132.
 - Named `{player}` tags instead of `mMsg_FREE_STR` 20-slot array.
-- Weather is a `StringName` on `Game` (`clear` / `rain` / `snow` / `sakura` / `leaves`) until a weather system exists.
+- Weather is a `StringName` on `Game` (`clear` / `rain` / `snow` / `sakura`) plus intensity from `Weather.roll`.
 - Camera nudge toward the speaker can wait.
 - Talk start is a Godot picker (`DialogueGreeting`): looks + whether you’ve met / already talked today / weather / mood / hour → starting `msg_no`. That id `goto`s the imported bank. Personality quest/trade trees stay out until a slice needs them. If the bank is missing, `looks_greeting.json` is the placeholder.
 

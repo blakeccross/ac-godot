@@ -508,15 +508,18 @@ func test_water_kind_keeps_sea_fish_out_of_the_river() -> void:
 	assert_bool(anywhere.has(carp)).is_true()
 
 
-## `aSOG_add_kaseki_range_data` splices the coelacanth in only while it rains. There is no
-## weather system, so it must stay out rather than turn up as a free rarity.
+## `aSOG_add_kaseki_range_data` splices the coelacanth in only while it rains, outside day.
 func test_the_coelacanth_waits_for_rain() -> void:
 	var fossil: FishData = FishCatalog.get_fish(&"coelacanth")
 	assert_that(fossil).is_not_null()
 	assert_bool(fossil.needs_rain).is_true()
 	for hour: int in [0, 6, 12, 18]:
-		assert_bool(fossil.is_available(6, hour)).is_false()
-	assert_bool(FishCatalog.available(6, 12, WaterBodies.Kind.OCEAN).has(fossil)).is_false()
+		assert_bool(fossil.is_available(6, hour, false)).is_false()
+	assert_bool(fossil.is_available(6, 12, true)).is_false()
+	assert_bool(fossil.is_available(6, 0, true)).is_true()
+	assert_bool(fossil.is_available(6, 20, true)).is_true()
+	assert_bool(FishCatalog.available(6, 12, WaterBodies.Kind.OCEAN, false).has(fossil)).is_false()
+	assert_bool(FishCatalog.available(6, 0, WaterBodies.Kind.OCEAN, true).has(fossil)).is_true()
 
 
 ## `aUKI_catch` puts `uki_pos` (and so the hooked fish) at `left_hand_pos` while the bobber

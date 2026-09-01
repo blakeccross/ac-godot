@@ -97,6 +97,10 @@ FISH_STATIC_NEEDLES = [
     item["asset_id"] for item in TEST_STATIC if item["asset_id"].startswith("act_f")
 ]
 
+BUG_STATIC_NEEDLES = [
+    item["asset_id"] for item in TEST_STATIC if item["asset_id"].startswith("act_m_")
+]
+
 # River / marine / cliff-river acres. Avoid `grd_s_r` (hits `grd_s_rail`) and `grd_s_m` (hits museum `grd_s_mh`).
 WATER_STATIC_NEEDLES = [
     "grd_s_r1",
@@ -218,6 +222,29 @@ def convert_static_prefixes(cfg: PipelineConfig, needles: list[str]) -> dict[str
     jobs = [
         item
         for item in _static_jobs(symbols)
+        if any(n in item["asset_id"].lower() for n in lowered)
+    ]
+    for i, item in enumerate(jobs, 1):
+        record = _convert_static(cfg, rel, symbols, item, bank)
+        results.append(record)
+        print(f"  static {i}/{len(jobs)} {item['asset_id']} {record['status']}")
+    converted = sum(1 for r in results if r["status"] == "converted")
+    return {"results": results, "converted": converted}
+
+
+def convert_test_static_needles(cfg: PipelineConfig, needles: list[str]) -> dict[str, Any]:
+    """Convert explicit `TEST_STATIC` rows matching needles.
+
+    Insect poses share one vtx across `a`/`b` GLBs, so they cannot go through
+    `_static_jobs`'s one-row-per-vtx dedupe.
+    """
+    results: list[dict[str, Any]] = []
+    rel, symbols = _rel_and_map(cfg)
+    bank = TextureBank(rel, symbols, cfg.extracted_archives)
+    lowered = [n.lower() for n in needles]
+    jobs = [
+        item
+        for item in TEST_STATIC
         if any(n in item["asset_id"].lower() for n in lowered)
     ]
     for i, item in enumerate(jobs, 1):

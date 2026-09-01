@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="BugData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/bug_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"saw_stag_beetle"
+display_name = "Saw Stag Beetle"
+description = "Jagged mandibles on oak."
+category = 4
+sell_price = 8000
+max_stack = 1
+type_index = 29
+months = PackedInt32Array(7, 8)
+time_terms = PackedInt32Array(0, 1, 5)
+habitats = PackedInt32Array(1)
+needs_rain = false
+rarity_weight = 5
+catch_msg = 2633
+model_base = "res://assets/generated/creatures/bug/act_m_nokogiri"
+model_flap = 0
+model_lift = 0.0
+program = 6

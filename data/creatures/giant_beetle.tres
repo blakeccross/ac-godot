@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="BugData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/bug_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"giant_beetle"
+display_name = "Giant Beetle"
+description = "The king of beetles."
+category = 4
+sell_price = 40000
+max_stack = 1
+type_index = 31
+months = PackedInt32Array(7, 8)
+time_terms = PackedInt32Array(0, 1)
+habitats = PackedInt32Array(1)
+needs_rain = false
+rarity_weight = 1
+catch_msg = 2635
+model_base = "res://assets/generated/creatures/bug/act_m_okuwa"
+model_flap = 0
+model_lift = 0.0
+program = 6

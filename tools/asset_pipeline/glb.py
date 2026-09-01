@@ -41,6 +41,7 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
         unlit = bool(part.unlit_fill) or is_window_pane_dl(part.name)
         spill = bool(part.ground_spill) or is_window_spill_dl(part.name)
         water_kind = part.water_kind or ""
+        waterfall_layer = part.waterfall_layer or ""
         base_color = tuple(part.base_color or (1.0, 1.0, 1.0, 1.0))
         beach_prim = part.beach_prim
         if unlit:
@@ -65,6 +66,7 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
             spill,
             part.unlit_rgba,
             water_kind,
+            waterfall_layer,
             part.layer1_png or b"",
             part.layer1_wrap_s,
             part.layer1_wrap_t,
@@ -85,6 +87,7 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
                     "unlit_rgba": part.unlit_rgba,
                     "ground_spill": spill,
                     "water_kind": water_kind,
+                    "waterfall_layer": waterfall_layer,
                     "layer1_png": part.layer1_png,
                     "layer1_wrap_s": part.layer1_wrap_s,
                     "layer1_wrap_t": part.layer1_wrap_t,
@@ -109,7 +112,7 @@ def _bake_wrap_group(group: dict) -> None:
         return
     # Scrolling water / wet-sand need live wrap; baking freezes tiles and (for beachB)
     # leaves CLAMP V UVs outside 0–1 stuck on the solid-white I4 edge row.
-    if group.get("water_kind") in ("river", "ocean", "splash", "beach_wet"):
+    if group.get("water_kind") in ("river", "ocean", "splash", "waterfall", "beach_wet"):
         return
     wrap_s = group["wrap_s"]
     wrap_t = group["wrap_t"]
@@ -182,7 +185,7 @@ def _group_alpha_mode(group: dict) -> str:
     ## OPA I4 band; alpha carries intensity for the runtime env pulse, not coverage.
     if group.get("water_kind") == "beach_wet":
         return "OPAQUE"
-    if group.get("water_kind") in ("river", "ocean", "splash"):
+    if group.get("water_kind") in ("river", "ocean", "splash", "waterfall"):
         return "BLEND"
     modes = {part.alpha_mode for part in group["parts"]}
     if "BLEND" in modes:
@@ -201,7 +204,11 @@ def _material(
     unlit_rgba: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 1.0),
     ground_spill: bool = False,
     water_kind: str = "",
+    waterfall_layer: str = "",
+    wrap_s: int = GX_REPEAT,
+    wrap_t: int = GX_REPEAT,
     layer1_texture_index: int | None = None,
+    layer1_wrap_s: int = GX_REPEAT,
     layer1_wrap_t: int = GX_REPEAT,
     base_color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
     beach_prim: tuple[int, int, int, int] | None = None,
@@ -232,6 +239,13 @@ def _material(
         ## Shore wave2: GX_CLAMP T. Runtime shader masks the curvy crash with this.
         if water_kind == "ocean":
             extras["wave2_clamp_t"] = bool(layer1_wrap_t == GX_CLAMP)
+        if water_kind == "waterfall":
+            if waterfall_layer:
+                extras["waterfall_layer"] = waterfall_layer
+            extras["tile0_mirror_s"] = bool(wrap_s == GX_MIRROR)
+            extras["tile0_clamp_v"] = bool(wrap_t == GX_CLAMP)
+            extras["tile1_mirror_s"] = bool(layer1_wrap_s == GX_MIRROR)
+            extras["tile1_clamp_v"] = bool(layer1_wrap_t == GX_CLAMP)
     if beach_prim is not None:
         extras = dict(extras or {})
         extras["beach_prim"] = [int(beach_prim[0]), int(beach_prim[1]), int(beach_prim[2]), int(beach_prim[3])]
@@ -383,7 +397,11 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
                 unlit_rgba=tuple(group.get("unlit_rgba") or (0.0, 0.0, 0.0, 1.0)),
                 ground_spill=bool(group.get("ground_spill")),
                 water_kind=str(group.get("water_kind") or ""),
+                waterfall_layer=str(group.get("waterfall_layer") or ""),
+                wrap_s=int(group.get("wrap_s", GX_REPEAT)),
+                wrap_t=int(group.get("wrap_t", GX_REPEAT)),
                 layer1_texture_index=layer1_index,
+                layer1_wrap_s=layer1_wrap_s,
                 layer1_wrap_t=layer1_wrap_t,
                 base_color=tuple(group.get("base_color") or (1.0, 1.0, 1.0, 1.0)),
                 beach_prim=group.get("beach_prim"),

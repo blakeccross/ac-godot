@@ -72,6 +72,7 @@ func _on_shake(use: TreeUse, ctx: InteractionContext) -> bool:
 	var out: TreeUse.Outcome = use.shake()
 	if not out.shook:
 		return false
+	_stress_bugs_at(ctx)
 	_drop_fruit(out.dropped_fruit, ctx)
 	if out.dropped_fruit > 0:
 		PlantGrowth.take_fruit(_persist())
@@ -298,3 +299,15 @@ func _kill_motion() -> void:
 	if _motion != null and is_instance_valid(_motion):
 		_motion.kill()
 	_motion = null
+
+
+func _stress_bugs_at(ctx: InteractionContext) -> void:
+	if ctx == null or ctx.world == null:
+		return
+	var field: BugField = ctx.world.get("bugs") as BugField
+	if field == null:
+		return
+	var grid: WorldGrid = ctx.world.get("grid") as WorldGrid
+	if grid == null:
+		return
+	field.notify_player_action(_cell())

@@ -44,8 +44,10 @@ var spawn_at_room_door: bool = false
 var interior_session: Interior
 var player_name: String = DEFAULT_PLAYER_NAME
 var town_name: String = DEFAULT_TOWN_NAME
-## Hook for dialogue / later weather (`mEnv_WEATHER_*`). Not a weather system.
+## Session weather (`mEnv_WEATHER_*`). Rolled by `Weather` on `field_renewed`.
 var weather: StringName = &"clear"
+## `mEnv_WEATHER_INTENSITY_*` (none/light/normal/heavy).
+var weather_intensity: int = int(Weather.Intensity.NONE)
 var dialogue_vars: Dictionary = {}
 var phase: Phase = Phase.TITLE
 var player_position: Vector3 = DEFAULT_SPAWN
@@ -86,6 +88,7 @@ func start_new_game(
 		grass_pattern = WorldData.GrassPattern.TRIANGLE
 	Clock.rtc_override = false
 	Clock.sync_from_os()
+	apply_weather_roll(Weather.roll())
 	if world_mode == WorldData.Mode.TEST:
 		give_test_tools()
 	_change_scene(WORLD_SCENE)
@@ -153,6 +156,7 @@ func reset_session() -> void:
 	player_name = DEFAULT_PLAYER_NAME
 	town_name = DEFAULT_TOWN_NAME
 	weather = &"clear"
+	weather_intensity = int(Weather.Intensity.NONE)
 	dialogue_vars.clear()
 	world_mode = WorldData.Mode.TEST
 	world_seed = WorldGenerator.DEFAULT_SEED
@@ -160,11 +164,30 @@ func reset_session() -> void:
 	set_interact_prompt("")
 
 
-func set_weather(next: StringName) -> void:
-	if weather == next:
+func set_weather(next: StringName, intensity: int = -1) -> void:
+	var next_intensity: int = intensity
+	if next_intensity < 0:
+		next_intensity = int(Weather.default_intensity_for(Weather.kind_from_name(next)))
+	if weather == next and weather_intensity == next_intensity:
 		return
 	weather = next
+	weather_intensity = next_intensity
 	weather_changed.emit(weather)
+
+
+func apply_weather_roll(result: Dictionary) -> void:
+	## `{kind: Weather.Kind, intensity: Weather.Intensity}` from `Weather.roll`.
+	var kind: Weather.Kind = result.get("kind", Weather.Kind.CLEAR) as Weather.Kind
+	var intensity: Weather.Intensity = result.get("intensity", Weather.Intensity.NONE) as Weather.Intensity
+	if kind == Weather.Kind.CLEAR:
+		intensity = Weather.Intensity.NONE
+	set_weather(Weather.kind_name(kind), int(intensity))
+
+
+func cycle_weather_debug() -> void:
+	## HUD debug: clear → rain → snow → sakura.
+	var next: StringName = Weather.next_in_cycle(weather)
+	set_weather(next)
 
 
 func give_test_tools() -> void:
@@ -284,6 +307,7 @@ func to_save() -> Dictionary:
 		"player_name": player_name,
 		"town_name": town_name,
 		"weather": String(weather),
+		"weather_intensity": weather_intensity,
 		"dialogue_vars": dialogue_vars.duplicate(true),
 	}
 
@@ -354,6 +378,14 @@ func apply_snapshot(data: Dictionary) -> void:
 	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
 	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))
 	weather = StringName(str(data.get("weather", "clear")))
+	if data.has("weather_intensity"):
+		weather_intensity = int(data["weather_intensity"])
+	elif data.has("weather_packed"):
+		var unpacked: Dictionary = Weather.unpack(int(data["weather_packed"]))
+		weather = Weather.kind_name(unpacked["kind"] as Weather.Kind)
+		weather_intensity = int(unpacked["intensity"])
+	else:
+		weather_intensity = int(Weather.default_intensity_for(Weather.kind_from_name(weather)))
 	dialogue_vars.clear()
 	var vars_raw: Variant = data.get("dialogue_vars", {})
 	if typeof(vars_raw) == TYPE_DICTIONARY:
@@ -427,6 +459,8 @@ func refresh_shop_set() -> void:
 func _on_field_renewed(days: int) -> void:
 	shops.renew(days)
 	refresh_shop_set()
+	## One roll for the current date after renew (`mEnv_DecideWeather` / `aWeather_ChangeWeatherTime0`).
+	apply_weather_roll(Weather.roll())
 
 
 func exit_interior() -> bool:

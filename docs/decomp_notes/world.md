@@ -153,4 +153,4 @@ All three XLU water shaders sample **linear**, not nearest like the rest of the 
 - Demo fields (`mFI_FIELD_DEMO_*`), title-screen towns.
 - Copy-protect land id behavior beyond “town has a name”.
 - Perfect acre-edge wade camera (`CAMERA2_PROCESS_WADE`).
-- Waterfall FG actors (`obj_fallS` dual-scroll) until a waterfall slice.
+- Waterfall FG actors (`obj_fallS` dual-scroll) — `waterfall_water.gdshader` on grpAT/BT/CT/DT; rainbow billboard still deferred.

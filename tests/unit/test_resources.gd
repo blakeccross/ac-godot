@@ -80,7 +80,7 @@ func test_butterfly_uses_clock_months() -> void:
 	var bug: BugData = load("res://data/creatures/common_butterfly.tres")
 	assert_bool(bug.is_available(3, 8)).is_true()
 	assert_bool(bug.is_available(1, 8)).is_false()
-	assert_bool(bug.is_available(6, 19)).is_false()
+	assert_bool(bug.is_available(6, 10)).is_true()
 	Clock.apply_snapshot({ "year": 2001, "month": 6, "day": 1, "hour": 10, "minute": 0 })
 	assert_bool(bug.is_available_now()).is_true()
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })

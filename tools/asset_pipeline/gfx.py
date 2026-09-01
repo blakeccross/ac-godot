@@ -101,6 +101,23 @@ def is_room_outdoor_view_dl(name: str) -> bool:
     return "room_out" in n
 
 
+def waterfall_surface_kind(*names: str) -> str:
+    """FG waterfall (`obj_fallS` / `obj_fallSE`): fallA/C/CA dual-scroll tiles."""
+    blob = " ".join(names).lower()
+    if any(tag in blob for tag in ("falla", "fallc", "fallca")):
+        return "waterfall"
+    return ""
+
+
+def waterfall_layer_from_part(part_name: str) -> str:
+    """Map grpAT/BT/CT/DT DL names to shader layer ids."""
+    compact = part_name.lower().replace("_", "")
+    for tag in ("grpat", "grpbt", "grpct", "grpdt"):
+        if tag in compact:
+            return tag[-2:]
+    return ""
+
+
 def water_surface_kind(*names: str) -> str:
     """Acre XLU water: river I4, ocean IA waves, or river-mouth sprash I4 pair."""
     blob = " ".join(names).lower()
@@ -146,8 +163,10 @@ class MeshPart:
     ## Tile1 wrap (wave2 is REPEAT S / CLAMP T). Not tile0 — that stays on wrap_s/wrap_t.
     layer1_wrap_s: int = GX_REPEAT
     layer1_wrap_t: int = GX_REPEAT
-    ## `river` / `ocean` (acre XLU) or `beach_wet` (OPA env pulse). Empty for land.
+    ## `river` / `ocean` / `splash` / `waterfall` (XLU scroll) or `beach_wet` (OPA env pulse).
     water_kind: str = ""
+    ## grpAT/BT/CT/DT for obj_fallS dual-scroll combiner variants.
+    waterfall_layer: str = ""
     ## glTF baseColorFactor (usually white). beach_wet bakes prim/env into the PNG.
     base_color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0)
     ## DL prim RGBA 0–255 for beach_wet extras (runtime shader env pulse).
@@ -506,16 +525,19 @@ def parse_gfx(
         water_kind = ""
         base_color = (1.0, 1.0, 1.0, 1.0)
         beach_prim: tuple[int, int, int, int] | None = None
+        waterfall_layer = waterfall_layer_from_part(part_name) if water_kind == "waterfall" else ""
         wrap_s = tex_state.wrap_s
         wrap_t = tex_state.wrap_t
         if bank is not None and not unlit:
             name0 = bank._name_for(int((tex_state.tile0 or {}).get("img_addr") or tex_state.img_addr))
             name1 = bank._name_for(int((tex_state.tile1 or {}).get("img_addr") or 0)) if tex_state.tile1 else ""
-            water_kind = water_surface_kind(name0, name1, part_name)
+            water_kind = waterfall_surface_kind(name0, name1, part_name)
+            if not water_kind:
+                water_kind = water_surface_kind(name0, name1, part_name)
             if not water_kind:
                 water_kind = beach_wet_kind(name0, name1, part_name)
             skip_prim = bool(water_kind)
-            if water_kind in ("river", "ocean", "splash") and tex_state.tile0 and tex_state.tile1:
+            if water_kind in ("river", "ocean", "splash", "waterfall") and tex_state.tile0 and tex_state.tile1:
                 png, tex_name, _alpha = _decode_snap(bank, tex_state, tex_state.tile0, skip_prim=True)
                 layer1_png, layer1_name, _a1 = _decode_snap(bank, tex_state, tex_state.tile1, skip_prim=True)
                 alpha_mode = "BLEND"
@@ -564,6 +586,7 @@ def parse_gfx(
                 layer1_wrap_s=layer1_wrap_s,
                 layer1_wrap_t=layer1_wrap_t,
                 water_kind=water_kind,
+                waterfall_layer=waterfall_layer,
                 base_color=base_color,
                 beach_prim=beach_prim,
             )

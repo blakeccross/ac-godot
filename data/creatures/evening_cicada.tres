@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="BugData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/bug_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"evening_cicada"
+display_name = "Evening Cicada"
+description = "Sings when the sun goes down."
+category = 4
+sell_price = 3400
+max_stack = 1
+type_index = 6
+months = PackedInt32Array(7, 8)
+time_terms = PackedInt32Array(1, 3, 4)
+habitats = PackedInt32Array(1)
+needs_rain = false
+rarity_weight = 15
+catch_msg = 2610
+model_base = "res://assets/generated/creatures/bug/act_m_higurashi"
+model_flap = 0
+model_lift = 0.0
+program = 5

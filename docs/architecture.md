@@ -45,7 +45,7 @@ Fishing is a system (`Fishing` + `FishCatalog` + `FishSize` + `FishShadow` + `Fi
 
 ## Autoloads
 
-Add one only when the matching system is implemented and needs global access. Do **not** autoload inventory, dialogue, weather, fishing, or economy. `Game.weather` is a session value for rain lines, not a weather autoload.
+Add one only when the matching system is implemented and needs global access. Do **not** autoload inventory, dialogue, weather, fishing, or economy. `Game.weather` is a session value (`clear` / `rain` / `snow` / `sakura`) plus `weather_intensity`, rolled by `Weather` on `field_renewed`. Do not autoload weather.
 
 Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides `class_name Clock`). The clock script is `ClockService`; other scripts talk to the `Clock` singleton.
 
@@ -58,7 +58,7 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
-`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `VillagerRoster` is a `RefCounted` owned by `Game` (id → `VillagerState`). `RelationshipBook` is a `RefCounted` owned by `Game` (id → `Relationship`). `InteriorBook` and `ShopBook` are `RefCounted` owned by `Game`. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `StructureOffset`, `HostCollision`, `GeneratedVisual`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `FurnitureUse`, `ShopUse`, `TreeUse`, `HoleUse`, `PlantGrowth`, `Fishing`, `FishCatalog`, `FishSize`, `FishShadow`, and `WaterBodies` are `RefCounted` helpers, not autoloads. `FishSchool` is a `RefCounted` owned by the world scene alongside `WorldGrid`. `VillagerCatalog`, `VillagerAI`, `VillagerPlan`, `VillagerAction`, and `VillagerWalk` are `RefCounted` helpers, not autoloads. `DialogueCatalog`, `DialogueRunner`, `DialogueContext`, and `DialogueGreeting` are `RefCounted` helpers, not autoloads. `BgmCatalog` is a `RefCounted` helper, not an autoload. Do not autoload fishing or events; those systems subscribe to `Clock` when they exist. `Game.weather` is a `StringName` hook (`clear`, `rain`, `snow`, `sakura`, `leaves`) for dialogue until weather is a system.
+`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `VillagerRoster` is a `RefCounted` owned by `Game` (id → `VillagerState`). `RelationshipBook` is a `RefCounted` owned by `Game` (id → `Relationship`). `InteriorBook` and `ShopBook` are `RefCounted` owned by `Game`. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `StructureOffset`, `HostCollision`, `GeneratedVisual`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `FurnitureUse`, `ShopUse`, `TreeUse`, `HoleUse`, `PlantGrowth`, `Fishing`, `FishCatalog`, `FishSize`, `FishShadow`, and `WaterBodies` are `RefCounted` helpers, not autoloads. `FishSchool` is a `RefCounted` owned by the world scene alongside `WorldGrid`. `VillagerCatalog`, `VillagerAI`, `VillagerPlan`, `VillagerAction`, and `VillagerWalk` are `RefCounted` helpers, not autoloads. `DialogueCatalog`, `DialogueRunner`, `DialogueContext`, and `DialogueGreeting` are `RefCounted` helpers, not autoloads. `BgmCatalog` is a `RefCounted` helper, not an autoload. `Weather` is a `RefCounted` helper (roll tables + rain lighting), not an autoload; particles live in `scenes/world/weather_fx.gd`. Do not autoload fishing or events; those systems subscribe to `Clock` when they exist. `Game.weather` / `weather_intensity` are the outdoor session climate for dialogue, BGM, bugs, and fishing.
 
 ### Time system
 
@@ -66,13 +66,13 @@ Prefer signals on the owning system over a global event bus unless many unrelate
 
 | Subscriber (now or next slice) | Signal / query |
 | --- | --- |
-| Day/night lighting | `time_changed` → `outdoor_light()` |
+| Day/night lighting | `time_changed` → `Weather.outdoor_light_for(Game.weather)` |
 | Villager schedules | `time_changed` + `VillagerSchedule.tick` / `activity_now()` |
 | Shops | `in_hour_window(9, 22)`; restock on `field_renewed` |
-| Weather | `field_renewed` (not implemented yet) |
+| Weather | `field_renewed` → `Weather.roll` → `Game.set_weather` |
 | Plant growth | `field_renewed` → `PlantGrowth.refresh_world`; stage from `Clock.renew_index()` |
 | Outdoor BGM | `hour_changed` + `Game.weather` → `BgmCatalog.outdoor_id` |
-| Fish / bugs | `is_listed_now(months, hour_start, hour_end)` |
+| Fish / bugs | `is_listed_now` / catalogs; rain gates via `Weather.is_raining()` |
 | Events | `weekday()` + date (not implemented yet) |
 
 Daily simulation ticks at **06:00**, not midnight (`field_renewed`). Save/load restores the clock without replaying missed renews.

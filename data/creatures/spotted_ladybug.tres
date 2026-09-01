@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="BugData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/bug_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"spotted_ladybug"
+display_name = "Spotted Ladybug"
+description = "More spots than its cousin."
+category = 4
+sell_price = 800
+max_stack = 1
+type_index = 25
+months = PackedInt32Array(3, 4, 5, 6, 7, 10)
+time_terms = PackedInt32Array(2, 3)
+habitats = PackedInt32Array(0)
+needs_rain = false
+rarity_weight = 15
+catch_msg = 2629
+model_base = "res://assets/generated/creatures/bug/act_m_nanahoshi"
+model_flap = 0
+model_lift = 0.0
+program = 3

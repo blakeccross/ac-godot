@@ -94,8 +94,7 @@ Island climate **freezes** term index to summer-ish term 7 (`mTM_get_termIdx`).
 
 ## Simplify
 
-- Weather: one rain and one snow later; skip sakura/leaves particles until visuals need them.
-- No rainbow, wind-term blending, or per-version weather lerp rates.
+- Weather lives in [weather.md](weather.md) (`Weather` + `WeatherFx`); time only supplies `field_renewed`.
 - Calendar UI and holiday flags wait until a holiday slice exists.
 - No island climate override.
 

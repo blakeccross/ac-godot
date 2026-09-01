@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 from asset_pipeline.config import load_config  # noqa: E402
 from asset_pipeline.convert import (  # noqa: E402
+    BUG_STATIC_NEEDLES,
     FISH_STATIC_NEEDLES,
     WATER_STATIC_NEEDLES,
     convert_acre_collision,
@@ -20,6 +21,7 @@ from asset_pipeline.convert import (  # noqa: E402
     convert_ckf_starting_with,
     convert_static_only,
     convert_static_prefixes,
+    convert_test_static_needles,
 )
 from asset_pipeline.fgdata import convert_fgdata  # noqa: E402
 from asset_pipeline.npc_rooms import convert_npc_rooms  # noqa: E402
@@ -48,9 +50,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--kind",
-        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "dialogue", "villagers", "audio", "water", "fish", "seasons"],
+        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "dialogue", "villagers", "audio", "water", "fish", "bugs", "seasons"],
         default="all",
-        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory UI chrome, dialogue banks, villager roster from decomp tables, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, or seasonal field/tree albedo packs",
+        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory UI chrome, dialogue banks, villager roster from decomp tables, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
     )
     args = parser.parse_args()
     cfg = load_config(ROOT, args.config)
@@ -200,6 +202,10 @@ def main() -> int:
                 cfg.test_set_only = False
                 report = convert_static_prefixes(cfg, FISH_STATIC_NEEDLES)
                 label = "fish assets"
+            elif args.kind == "bugs":
+                cfg.test_set_only = False
+                report = convert_test_static_needles(cfg, BUG_STATIC_NEEDLES)
+                label = "bug assets"
             elif args.kind == "seasons":
                 season_report = export_seasonal_textures(cfg)
                 if not season_report.get("ok"):

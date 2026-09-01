@@ -28,7 +28,7 @@ const SLOT_HOURS := {
 ## mouth, offing) are not modelled, so a river fish can bite anywhere in a river.
 @export var waters: PackedInt32Array = PackedInt32Array()
 ## The coelacanth is spliced into the sea table only while it rains
-## (`aSOG_add_kaseki_range_data`). There is no weather system yet, so this shuts it out.
+## (`aSOG_add_kaseki_range_data`). Only while `Weather.is_raining()` and outside day.
 @export var needs_rain: bool = false
 @export var size_class: SizeClass = SizeClass.S
 ## Relative pick weight among the fish available at this month and slot. The original
@@ -80,13 +80,17 @@ func in_water(kind: int) -> bool:
 	return waters.is_empty() or kind in waters
 
 
-func is_available(p_month: int, p_hour: int) -> bool:
+func is_available(p_month: int, p_hour: int, raining: bool = false) -> bool:
+	## Coelacanth only while raining and outside the day slot (`aSOG_add_kaseki_range_data`).
 	if needs_rain:
-		return false
+		if not raining:
+			return false
+		if slot_for_hour(p_hour) == TimeSlot.DAY:
+			return false
 	if not months.is_empty() and not (p_month in months):
 		return false
 	return time_slots.is_empty() or int(slot_for_hour(p_hour)) in time_slots
 
 
 func is_available_now() -> bool:
-	return is_available(Clock.month, Clock.hour)
+	return is_available(Clock.month, Clock.hour, Weather.is_raining())

@@ -50,6 +50,9 @@ const ITEM_SIGN20 := 0x5824
 const ITEM_WISHING_WELL := 0x5825
 const ITEM_MUSEUM := 0x584A
 const ITEM_NEEDLEWORK_SHOP := 0x584D
+const ITEM_WATERFALL_SOUTH := 0x580D
+const ITEM_WATERFALL_EAST := 0x580E
+const ITEM_WATERFALL_WEST := 0x580F
 
 static var _loaded := false
 static var _templates: Dictionary = {} ## int fg_id → PackedInt32Array(256)
@@ -204,6 +207,12 @@ static func placement_for_item(item_id: int) -> Dictionary:
 				"nw_off": Vector2i(-1, 0),
 				"door_verb": &"shop",
 			}
+		ITEM_WATERFALL_SOUTH:
+			return {"kind": &"waterfall", "visual": &"obj_fallS"}
+		ITEM_WATERFALL_EAST:
+			return {"kind": &"waterfall", "visual": &"obj_fallSE"}
+		ITEM_WATERFALL_WEST:
+			return {"kind": &"waterfall", "visual": &"obj_fallSE"}
 	return {}
 
 
