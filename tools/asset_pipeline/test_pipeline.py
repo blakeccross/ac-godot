@@ -373,19 +373,6 @@ class WrapBakeTests(unittest.TestCase):
 
 
 class WindowDlTests(unittest.TestCase):
-    def test_message_ui_compose_window(self) -> None:
-        from PIL import Image
-
-        from asset_pipeline.message_ui import _compose_window_body
-
-        w1 = Image.new("RGBA", (64, 64), (255, 0, 0, 255))
-        w2 = Image.new("RGBA", (128, 64), (0, 255, 0, 255))
-        w3 = Image.new("RGBA", (128, 64), (0, 0, 255, 255))
-        out = _compose_window_body({"msg_kaiwa_w1": w1, "msg_kaiwa_w2": w2, "msg_kaiwa_w3": w3})
-        self.assertIsNotNone(out)
-        assert out is not None
-        self.assertEqual(out.size, (192, 192))
-
     def test_spill_vs_pane_names(self) -> None:
         from asset_pipeline.gfx import is_window_pane_dl, is_window_spill_dl
 

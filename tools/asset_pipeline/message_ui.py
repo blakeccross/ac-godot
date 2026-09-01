@@ -1,7 +1,9 @@
 """Extract `m_msg` dialogue window chrome from foresta.rel for local reference.
 
 Textures from decomp `m_msg_data.c_inc` (`con_kaiwa2_*`, `con_namefuti_TXT`).
-Output is gitignored under `assets/generated/ui/message/` — Nintendo IP, not for commit.
+The game draws a flat PRIMITIVE fill plus three I4 border tiles (corners w1,
+horizontal bands w3, vertical bands w2) — not one nine-patch atlas.
+Output is gitignored under `assets/generated/ui/message/`.
 """
 
 from __future__ import annotations
@@ -63,29 +65,8 @@ def extract_message_ui(cfg: PipelineConfig) -> dict[str, Any]:
     stage_dir.mkdir(parents=True, exist_ok=True)
 
     results: list[dict[str, Any]] = []
-    tiles: dict[str, Image.Image] = {}
     for spec in CHROME:
-        record = _extract_one(rel, by_name, spec, stage_dir, out_dir, cfg.project_root)
-        results.append(record)
-        if record["status"] == "converted":
-            path = out_dir / f"{spec.out_name or spec.name}.png"
-            tiles[spec.out_name or spec.name] = Image.open(path).convert("RGBA")
-
-    composite = _compose_window_body(tiles)
-    if composite is not None:
-        for folder in (stage_dir, out_dir):
-            path = folder / "msg_window_body.png"
-            path.write_bytes(image_png_bytes(composite))
-        write_import_sidecar(out_dir / "msg_window_body.png", cfg.project_root)
-        results.append(
-            {
-                "asset_id": "msg_window_body",
-                "source": "con_kaiwa2_*",
-                "output_path": "ui/message/msg_window_body.png",
-                "status": "converted",
-                "error": None,
-            }
-        )
+        results.append(_extract_one(rel, by_name, spec, stage_dir, out_dir, cfg.project_root))
 
     converted = sum(1 for r in results if r["status"] == "converted")
     return {"results": results, "converted": converted, "output": str(out_dir)}
@@ -144,32 +125,4 @@ def _i_texel_as_alpha(image: Image.Image, prim: tuple[int, int, int, int]) -> Im
     solid = Image.new("RGB", image.size, (pr, pg, pb))
     out = solid.convert("RGBA")
     out.putalpha(alpha)
-    return out
-
-
-def _compose_window_body(tiles: dict[str, Image.Image]) -> Image.Image | None:
-    """Stitch `con_kaiwa2` tiles into one 9-slice-friendly sheet (decomp `con_kaiwa2_modelT`)."""
-    w1 = tiles.get("msg_kaiwa_w1")
-    w2 = tiles.get("msg_kaiwa_w2")
-    w3 = tiles.get("msg_kaiwa_w3")
-    if w1 is None or w2 is None or w3 is None:
-        return None
-    corner = 32
-    mid_w = 128
-    body_h = 64
-    width = corner * 2 + mid_w
-    height = body_h * 3
-    out = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    # Top band (w3): corners from w1, edge from w3 center crop.
-    out.paste(w1.crop((0, 0, corner, body_h)), (0, 0))
-    out.paste(w3.crop((0, 0, mid_w, body_h)), (corner, 0))
-    out.paste(w1.crop((corner, 0, corner * 2, body_h)), (corner + mid_w, 0))
-    # Middle band (w2).
-    out.paste(w1.crop((0, 0, corner, body_h)), (0, body_h))
-    out.paste(w2.crop((0, 0, mid_w, body_h)), (corner, body_h))
-    out.paste(w1.crop((corner, 0, corner * 2, body_h)), (corner + mid_w, body_h))
-    # Bottom band mirrors top (GC window uses symmetric curl).
-    out.paste(w1.crop((0, 0, corner, body_h)), (0, body_h * 2))
-    out.paste(w3.crop((0, 0, mid_w, body_h)), (corner, body_h * 2))
-    out.paste(w1.crop((corner, 0, corner * 2, body_h)), (corner + mid_w, body_h * 2))
     return out

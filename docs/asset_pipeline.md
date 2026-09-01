@@ -192,7 +192,7 @@ Message / talk window chrome (`con_kaiwa2_*`, `con_namefuti_TXT` from `foresta.r
 python3 tools/build_assets.py --step convert --kind message-ui
 ```
 
-Writes `assets/generated/ui/message/` (`msg_window_body.png`, `msg_nameplate.png`, tile sources). Used by `scenes/ui/dialogue_overlay.tscn`.
+Writes `assets/generated/ui/message/` (`msg_kaiwa_w1`, `msg_kaiwa_w2`, `msg_kaiwa_w3`, `msg_nameplate.png`). Used by `scenes/ui/dialogue_overlay.tscn` as separate border tiles over a flat fill.
 
 Dialogue banks (`message_data.bin` → JSON graphs, Nintendo IP, gitignored):
 
