@@ -203,7 +203,7 @@ func _pick(index: int) -> void:
 
 func _highlight() -> void:
 	for i: int in _buttons.size():
-		MessageWindowChrome.style_choice_button(_buttons[i], i == _choice_index)
+		_chrome.style_choice(_buttons[i], i == _choice_index)
 
 
 func _clear_choices() -> void:

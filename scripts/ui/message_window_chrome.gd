@@ -20,6 +20,13 @@ const NAME_BASELINE_V := 0.085
 const BODY_UV := Vector2(0.0828, 0.2059)
 const BODY_LINE_PITCH_V := 0.1568
 const ARROW_UV := Rect2(0.8724, 0.6928, 0.0299, 0.0752)
+## `m_choice` is its own window (`con_sentaku2_modelT`), centred at screen (242, 169) and
+## growing leftward as the options get wider — so it sits over the right half of the talk
+## cloud, clear of the text on the left. Same placement here, as fractions of the cloud.
+const CHOICE_RIGHT_U := 0.95
+const CHOICE_TOP_V := 0.24
+const CHOICE_BOTTOM_V := 0.92
+const CHOICE_FONT_PX := 14.0
 
 ## `window_background_color` is PRIM eb/ff/eb, but `con_kaiwa2`'s texture modulates it down
 ## and the window is XLU; these are what the composited GC frame actually reads.
@@ -54,6 +61,7 @@ const _SHADER := preload("res://shaders/message_window.gdshader")
 
 var _cloud_mat: ShaderMaterial
 var _name_mat: ShaderMaterial
+var _ui_scale: float = 1.0
 
 
 func _ready() -> void:
@@ -98,27 +106,32 @@ func choice_container() -> VBoxContainer:
 	return _choices
 
 
-static func style_choice_button(btn: Button, selected: bool) -> void:
-	## AC draws choices in their own small window; keep the same palette as the cloud so
-	## they read as part of the same chrome rather than as engine buttons.
+## AC draws choices in their own small window; keep the cloud palette so they read as part
+## of the same chrome rather than as engine buttons. Hugs its text instead of stretching.
+func style_choice(btn: Button, selected: bool) -> void:
 	var bg := NAME_BG if selected else Color(CLOUD_RIM.r, CLOUD_RIM.g, CLOUD_RIM.b, 0.95)
+	var radius := int(round(9.0 * _ui_scale))
 	for state: StringName in [&"normal", &"hover", &"pressed", &"focus", &"disabled"]:
 		var box := StyleBoxFlat.new()
 		box.bg_color = bg.lightened(0.08) if state == &"hover" else bg
-		box.draw_center = true
 		box.border_color = Color(BODY_TEXT, 0.35)
 		box.set_border_width_all(1)
-		box.set_corner_radius_all(9)
-		box.content_margin_left = 12
-		box.content_margin_right = 12
-		box.content_margin_top = 3
-		box.content_margin_bottom = 3
+		box.set_corner_radius_all(radius)
+		box.content_margin_left = 10.0 * _ui_scale
+		box.content_margin_right = 10.0 * _ui_scale
+		box.content_margin_top = 2.0 * _ui_scale
+		box.content_margin_bottom = 2.0 * _ui_scale
 		btn.add_theme_stylebox_override(state, box)
 	btn.add_theme_color_override("font_color", NAME_TEXT if selected else BODY_TEXT)
 	btn.add_theme_color_override("font_hover_color", NAME_TEXT if selected else BODY_TEXT)
 	btn.add_theme_color_override("font_outline_color", NAME_OUTLINE if selected else BODY_OUTLINE)
-	btn.add_theme_constant_override("outline_size", 2)
-	btn.add_theme_font_size_override("font_size", 17)
+	btn.add_theme_constant_override("outline_size", maxi(1, int(round(2.0 * _ui_scale))))
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_END
+	var size_px := maxi(1, int(round(CHOICE_FONT_PX * _ui_scale)))
+	btn.add_theme_font_size_override("font_size", size_px)
+	var font: Font = _condensed_font(btn, size_px)
+	if font != null:
+		btn.add_theme_font_override("font", font)
 
 
 func _build_materials() -> void:
@@ -156,6 +169,7 @@ func _layout() -> void:
 	if not is_node_ready():
 		return
 	var ui_scale := minf(size.x / SCREEN_W, size.y / SCREEN_H)
+	_ui_scale = ui_scale
 	## Letterbox the virtual screen so the cloud keeps its 4:3 placement on any window.
 	var origin := (size - Vector2(SCREEN_W, SCREEN_H) * ui_scale) * 0.5
 	var cloud := cloud_rect()
@@ -188,8 +202,13 @@ func _layout() -> void:
 	_arrow.position = cloud_pos + ARROW_UV.position * cloud_size
 	_arrow.size = ARROW_UV.size * cloud_size
 
-	_choices.position = Vector2(body_pos.x, body_pos.y + pitch)
-	_choices.size = Vector2(_body.size.x, pitch * 2.5)
+	var choice_w := cloud_size.x * (CHOICE_RIGHT_U - BODY_UV.x)
+	_choices.position = Vector2(
+		cloud_pos.x + CHOICE_RIGHT_U * cloud_size.x - choice_w,
+		cloud_pos.y + CHOICE_TOP_V * cloud_size.y
+	)
+	_choices.size = Vector2(choice_w, cloud_size.y * (CHOICE_BOTTOM_V - CHOICE_TOP_V))
+	_choices.alignment = BoxContainer.ALIGNMENT_BEGIN
 	_choices.add_theme_constant_override("separation", int(round(3.0 * ui_scale)))
 
 
@@ -208,8 +227,8 @@ func _apply_font(label: Label, font_px: float, pitch: float) -> void:
 	label.add_theme_constant_override("line_spacing", int(round(pitch - line_h)))
 
 
-func _condensed_font(label: Label, size_px: int) -> Font:
-	var base: Font = label.get_theme_font("font")
+func _condensed_font(control: Control, size_px: int) -> Font:
+	var base: Font = control.get_theme_font("font")
 	if base is FontVariation:
 		base = (base as FontVariation).base_font
 	if base == null:
