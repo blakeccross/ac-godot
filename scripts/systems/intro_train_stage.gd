@@ -49,8 +49,10 @@ const ROVER_STAND_GX := Vector3(100.0, 0.0, 300.0)
 const ROVER_AISLE_GX := Vector3(140.0, 0.0, 290.0)
 const ROVER_DOOR_GX := Vector3(140.0, 0.0, 130.0)
 const ROVER_RETURN_START_GX := Vector3(140.0, 0.0, 140.0)
-const CAM_EYE_GX := Vector3(100.0, 80.0, 400.0)
-const CAM_LOOK_GX := Vector3(90.0, 80.0, 280.0)
+## Decomp literals are eye/look Y=80 GX (`aNGD_set_camera`). The GC intro frame reads as
+## a seated POV — eye ~52 GX, look ~34 GX (down the aisle at cushion height).
+const CAM_EYE_GX := Vector3(100.0, 52.0, 400.0)
+const CAM_LOOK_GX := Vector3(90.0, 34.0, 280.0)
 const CAM_FOV := 40.0
 const CAM_NEAR_GX := 60.0
 const CAM_FAR_GX := 800.0

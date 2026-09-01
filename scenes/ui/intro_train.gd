@@ -15,13 +15,14 @@ const CEILING_LIGHT_GX: Array[Vector3] = [
 	Vector3(100.0, 96.0, 395.0),
 ]
 const SEAT_FILL_GX := Vector3(100.0, 50.0, 375.0)
+const EYE_FILL_GX := Vector3(100.0, 52.0, 395.0)
 ## `rom_train_out_shineglass_modelT` — soft XLU god-rays through the glass.
-const LIGHT_RAY_TUNNEL_ALPHA := 0.10
-const LIGHT_RAY_DAYLIGHT_ALPHA := 0.36
+const LIGHT_RAY_TUNNEL_ALPHA := 0.12
+const LIGHT_RAY_DAYLIGHT_ALPHA := 0.38
 ## Warm tunnel palette (GC reference — cozy brown wood, yellow lamp).
-const TUNNEL_AMBIENT := Color(0.68, 0.54, 0.38)
-const TUNNEL_BG := Color(0.07, 0.05, 0.04)
-const DAYLIGHT_AMBIENT := Color(0.72, 0.68, 0.58)
+const TUNNEL_AMBIENT := Color(0.78, 0.64, 0.46)
+const TUNNEL_BG := Color(0.10, 0.07, 0.05)
+const DAYLIGHT_AMBIENT := Color(0.78, 0.72, 0.62)
 
 @onready var _train_host: Node3D = %TrainCar
 @onready var _window_host: Node3D = %WindowScenery
@@ -29,6 +30,7 @@ const DAYLIGHT_AMBIENT := Color(0.72, 0.68, 0.58)
 @onready var _tunnel_fill: DirectionalLight3D = %TunnelFill
 @onready var _window_sun: DirectionalLight3D = %WindowSun
 @onready var _seat_fill: OmniLight3D = %SeatFill
+@onready var _eye_fill: OmniLight3D = %EyeFill
 @onready var _ceiling_lights: Node3D = %CeilingLights
 @onready var _door_host: Node3D = %TrainDoor
 @onready var _rover_host: Node3D = %Rover
@@ -136,6 +138,7 @@ func _attach_visuals() -> void:
 
 func _place_train_lights() -> void:
 	_seat_fill.global_position = IntroTrainStage.gx_to_meters(SEAT_FILL_GX)
+	_eye_fill.global_position = IntroTrainStage.gx_to_meters(EYE_FILL_GX)
 	var lights: Array[Node] = _ceiling_lights.get_children()
 	for i: int in lights.size():
 		if i >= CEILING_LIGHT_GX.size():
@@ -165,9 +168,10 @@ func _apply_car_opa_wood_inner(node: Node) -> void:
 			var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
-			std.roughness = 0.78
+			std.roughness = 0.70
 			std.metallic = 0.0
 			std.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+			std.albedo_color = std.albedo_color * Color(1.14, 1.10, 1.02)
 			mesh_instance.set_surface_override_material(i, std)
 	for child: Node in node.get_children():
 		_apply_car_opa_wood_inner(child)
@@ -306,7 +310,7 @@ func _apply_light_ray_surface(std: StandardMaterial3D, daylight: bool) -> void:
 	if std.albedo_texture == null:
 		std.emission_enabled = true
 		std.emission = Color(1.0, 0.94, 0.76)
-		std.emission_energy_multiplier = 0.45 if daylight else 0.18
+		std.emission_energy_multiplier = 0.55 if daylight else 0.28
 
 
 func _apply_lamp_cone_surface(std: StandardMaterial3D) -> void:
@@ -337,7 +341,7 @@ func _apply_lamp_surface(std: StandardMaterial3D) -> void:
 	std.albedo_color = LAMP_COLOR
 	std.emission_enabled = true
 	std.emission = LAMP_COLOR
-	std.emission_energy_multiplier = 3.5
+	std.emission_energy_multiplier = 5.5
 
 
 func _apply_glass_surface(std: StandardMaterial3D) -> void:
@@ -366,21 +370,24 @@ func _apply_tunnel_lighting() -> void:
 	_daylight = false
 	_tunnel_fill.visible = true
 	_tunnel_fill.light_color = Color(1.0, 0.9, 0.68)
-	_tunnel_fill.light_energy = 0.48
+	_tunnel_fill.light_energy = 0.72
 	_window_sun.visible = false
-	_seat_fill.light_color = Color(1.0, 0.92, 0.72)
-	_seat_fill.light_energy = 1.2
-	_set_ceiling_light_energies(1.55, 0.72)
+	_seat_fill.light_color = Color(1.0, 0.94, 0.76)
+	_seat_fill.light_energy = 2.1
+	_seat_fill.omni_range = 34.0
+	_eye_fill.light_color = Color(1.0, 0.92, 0.74)
+	_eye_fill.light_energy = 1.35
+	_set_ceiling_light_energies(2.2, 1.05)
 	_refresh_train_materials()
 	var env: Environment = _world_env.environment
 	if env != null:
 		env.ambient_light_color = TUNNEL_AMBIENT
-		env.ambient_light_energy = 1.12
+		env.ambient_light_energy = 1.55
 		env.background_color = TUNNEL_BG
-		env.tonemap_exposure = 1.22
+		env.tonemap_exposure = 1.48
 		env.glow_enabled = true
-		env.glow_intensity = 0.42
-		env.glow_bloom = 0.1
+		env.glow_intensity = 0.55
+		env.glow_bloom = 0.14
 
 
 func _apply_daylight() -> void:
@@ -390,8 +397,9 @@ func _apply_daylight() -> void:
 	_window_sun.light_color = Color(1.0, 0.96, 0.82)
 	_window_sun.light_energy = 0.95
 	_tunnel_fill.light_energy = 0.14
-	_seat_fill.light_energy = 0.75
-	_set_ceiling_light_energies(1.05, 0.45)
+	_seat_fill.light_energy = 1.35
+	_eye_fill.light_energy = 0.95
+	_set_ceiling_light_energies(1.65, 0.85)
 	_refresh_train_materials()
 	var env: Environment = _world_env.environment
 	if env != null:
