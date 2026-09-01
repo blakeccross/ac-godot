@@ -50,6 +50,8 @@ const ROVER_STAND_GX := Vector3(100.0, 0.0, 300.0)
 const ROVER_AISLE_GX := Vector3(140.0, 0.0, 290.0)
 const ROVER_DOOR_GX := Vector3(140.0, 0.0, 130.0)
 const ROVER_RETURN_START_GX := Vector3(140.0, 0.0, 140.0)
+## Seated player (the intro POV). Actors that "search" the player turn to this point.
+const PLAYER_GX := Vector3(120.0, 0.0, 340.0)
 ## Decomp literals are eye/look Y=80 GX (`aNGD_set_camera`). The GC intro frame reads as
 ## a seated POV — eye ~52 GX, look ~34 GX (down the aisle at cushion height).
 const CAM_EYE_GX := Vector3(100.0, 52.0, 400.0)
@@ -268,7 +270,7 @@ func _set_action(next: Action) -> void:
 		Action.TALK:
 			camera_eyes = false
 			_set_rover_eyes(false)
-			_yaw = _talk_yaw_toward_player(_pos_gx)
+			_yaw = yaw_toward_player(_pos_gx)
 			_apply_rover_pose()
 			_play_rover(ANIM_WAIT, true)
 			obj_look_talk = true
@@ -490,8 +492,10 @@ func _set_rover_eyes(active: bool) -> void:
 		_rover_look.set_camera_eyes(active)
 
 
-static func _talk_yaw_toward_player(from_gx: Vector3) -> float:
-	var to: Vector3 = Vector3(120.0, 0.0, 340.0) - from_gx
+## Body yaw for any actor that turns to the player (`aNPC_act_search_turn` with
+## `aNPC_ACT_OBJ_PLAYER`). The player is the seated POV the intro camera looks from.
+static func yaw_toward_player(from_gx: Vector3) -> float:
+	var to: Vector3 = PLAYER_GX - from_gx
 	to.y = 0.0
 	if to.length_squared() < 0.001:
 		return 0.0

@@ -7,10 +7,6 @@ const ANIM_KOKKURI_D1 := "npc_1_kokkuri_d1"
 const ANIM_KOKKURI_D2 := "npc_1_kokkuri_d2"
 ## `start_demo1` ut (4,4) center + `aNSO_actor_ct` birth offset (−6 GX, −24 GX).
 const SPAWN_GX := Vector3(174.0, 0.0, 156.0)
-## `aNPC_think_in_block_init_proc` appear index 0 (`appear_rotation` default for SPNPC).
-const APPEAR_ROTATION := 0
-## `mv_posZ[0]` from think-in-block (−120 GX walk target offset; final bench Z if walk completes).
-const THINK_BLOCK_OFFSET_GX := Vector3(0.0, 0.0, -120.0)
 ## Bench cushion height GX (`rom_train_in` seat surface).
 const SEAT_CUSHION_Y_GX := 40.0
 
@@ -21,18 +17,13 @@ var _loops_left: int = 0
 var _pending: bool = false
 
 
-static func decomp_appear_yaw(appear: int) -> float:
-	## `angle_table[]` in `ac_npc_think_in_block.c_inc` → `WorldGrid` / `aMR_angle_table`.
-	var decomp_deg: PackedFloat32Array = PackedFloat32Array([180.0, 0.0, -90.0, 90.0])
-	var idx: int = clampi(appear, 0, decomp_deg.size() - 1)
-	return deg_to_rad(decomp_deg[idx])
-
-
+## `aNPC_think_in_block_init_proc` parks the body at 180° for appear index 0, but that is
+## not where the sleeper ends up: `aNSO_set_request_act` immediately asks for
+## `aNPC_ACT_CLAP` as `aNPC_ACT_TYPE_SEARCH` and `aNSO_act_chg_data_proc` points it at
+## `aNPC_ACT_OBJ_PLAYER`, so `aNPC_act_search_turn` turns the body to the player and holds
+## it there for every nod. On the GC frame that reads as facing the camera, nodding forward.
 static func spawn_yaw() -> float:
-	## Decomp sets `shape_info.rotation.y` to 180° before `kokkuri_*`, but the kab GLB
-	## clips bake that body turn into their rest pose at host yaw 0 (same composite as
-	## `wait_nemu1` at PI). Applying `decomp_appear_yaw` on top flips the recline.
-	return 0.0
+	return IntroTrainStage.yaw_toward_player(SPAWN_GX)
 
 
 func bind(host: Node3D, anim: AnimationPlayer) -> void:

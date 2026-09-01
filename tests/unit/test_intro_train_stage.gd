@@ -105,7 +105,7 @@ func test_resolve_rover_clip_prefers_exact_sitdown() -> void:
 
 
 func test_talk_yaw_faces_player_at_aisle() -> void:
-	var yaw: float = IntroTrainStage._talk_yaw_toward_player(IntroTrainStage.ROVER_TALK_GX)
+	var yaw: float = IntroTrainStage.yaw_toward_player(IntroTrainStage.ROVER_TALK_GX)
 	assert_float(yaw).is_less(0.0)
 	assert_float(yaw).is_greater(-1.0)
 
@@ -124,8 +124,14 @@ func test_sleep_npc_spawn_matches_decomp() -> void:
 		IntroTrainStage.gx_to_meters(Vector3(174.0, 0.0, 156.0)),
 		Vector3(0.001, 0.001, 0.001)
 	)
-	assert_float(IntroTrainSleepNpc.spawn_yaw()).is_equal_approx(0.0, 0.001)
-	assert_float(IntroTrainSleepNpc.decomp_appear_yaw(0)).is_equal_approx(PI, 0.001)
+	## `aNPC_act_search_turn` on `aNPC_ACT_OBJ_PLAYER`: the sleeper faces the seated player,
+	## not the `aNPC_think_in_block` 180°. From (174, 156) that is a slight turn to −X.
+	var yaw: float = IntroTrainSleepNpc.spawn_yaw()
+	assert_float(yaw).is_equal_approx(
+		IntroTrainStage.yaw_toward_player(IntroTrainSleepNpc.SPAWN_GX), 0.001
+	)
+	assert_bool(absf(yaw) < PI * 0.5).is_true()
+	assert_bool(yaw < 0.0).is_true()
 
 
 func test_return_flow_reaches_aisle_talk_after_phone_done() -> void:
