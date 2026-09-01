@@ -456,8 +456,8 @@ static func interior_uniform_scale(visual_id: StringName) -> float:
 	return GX_TO_METERS / PIPELINE_SCALE
 
 
-static func train_interior_uniform_scale() -> float:
-	## `ac_train_window` / rom_train_in: Matrix_scale(0.05) on raw GX DL verts.
+static func train_window_uniform_scale() -> float:
+	## `ac_train_window` / `rom_train_out`: Matrix_scale(0.05) on raw GX DL verts.
 	return GX_TO_METERS / PIPELINE_SCALE
 
 

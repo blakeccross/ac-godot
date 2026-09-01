@@ -344,9 +344,20 @@ static func _fit_ground_decal(pivot: Node3D) -> void:
 	pivot.scale = Vector3.ONE * FieldCatalog.actor_uniform_scale()
 
 
-static func fit_train_shell(pivot: Node3D) -> void:
-	## Train intro shells draw at GX→meter scale, not acre 0.0625 (`ac_train_window`).
-	var s: float = FieldCatalog.train_interior_uniform_scale()
+static func fit_train_car_shell(pivot: Node3D) -> void:
+	## `rom_train_in` BG DLs use 16× acre verts + `Matrix_scale(0.0625)` (`ac_field_draw`).
+	var s: float = FieldCatalog.acre_uniform_scale()
+	pivot.scale = Vector3.ONE * s
+	var aabb: AABB = _local_aabb(pivot)
+	if aabb.size.y > 0.001:
+		pivot.position = Vector3(0.0, -aabb.position.y * s, 0.0)
+	else:
+		pivot.position = Vector3(0.0, FieldCatalog.interior_ground_y_offset(&"rom_train_in"), 0.0)
+
+
+static func fit_train_window_shell(pivot: Node3D) -> void:
+	## `rom_train_out` uses raw GX verts + `Matrix_scale(0.05)` (`ac_train_window`).
+	var s: float = FieldCatalog.train_window_uniform_scale()
 	pivot.scale = Vector3.ONE * s
 	pivot.position = Vector3.ZERO
 	var aabb: AABB = _local_aabb(pivot)

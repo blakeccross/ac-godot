@@ -113,12 +113,12 @@ func _attach_visuals() -> void:
 	var scenery: Node3D = GeneratedVisual.attach(_window_host, &"rom_train_out")
 	if scenery != null:
 		_window_scenery = scenery
-		GeneratedVisual.fit_train_shell(scenery)
+		GeneratedVisual.fit_train_window_shell(scenery)
 		_apply_scenery_materials(scenery)
 	var car: Node3D = GeneratedVisual.attach(_train_host, &"rom_train_in")
 	if car != null:
 		_train_car = car
-		GeneratedVisual.fit_train_shell(car)
+		GeneratedVisual.fit_train_car_shell(car)
 		_apply_car_materials(car)
 		_apply_car_opa_wood(car)
 	_place_train_lights()

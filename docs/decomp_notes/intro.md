@@ -20,7 +20,7 @@ Key Rover actions (`aNGD_ACTION_*`): enter → approach → talk → clock check
 
 Clips (`aNGD_set_animation`): `OPEN_D1`, `WALK1`, `WAIT1`, `SITDOWN_D1`, `SITDOWN_WAIT_D1`, `STANDUP_D1`, `TO_DECK_D1`, `KEITAI_ON1` / `TALK1` / `OFF1`, `OPEN_D2`. Pipeline short names: `npc_1_*`.
 
-GX landmarks: Rover start/door aisle x≈140, z≈130; aisle talk z≈290; sit (100, 280); camera eye ~(100,80,400), look ~(90,80,280); FOV 40°; near/far 60/800. Train shells (`rom_train_in` / `rom_train_out`) draw at `Matrix_scale(0.05)` — use `FieldCatalog.train_interior_uniform_scale()`, not acre 0.0625.
+GX landmarks: Rover start/door aisle x≈140, z≈130; aisle talk z≈290; sit (100, 280); camera eye ~(100,80,400), look ~(90,80,280); FOV 40°; near/far 60/800. **`rom_train_in`** = 16× acre BG DLs (`Matrix_scale(0.0625)` → `acre_uniform_scale()`). **`rom_train_out`** = raw GX (`Matrix_scale(0.05)` → `train_window_uniform_scale()`).
 
 Face bits (`aNGD_check_talk_msg_no` / `aNGD_set_pl_face_type`): messages `0x2AC9` / `0x2ACD` / `0x2ACF` / `0x2AD3` OR bits 3..0 into `answer_flags`. If bit 0 is clear (money = “plenty”), face is random; else `face_type_table[gender][answer_flags >> 1]`.
 
