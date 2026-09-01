@@ -1,13 +1,15 @@
 [gd_resource type="Environment" format=3]
 
+; Ambient is the car's fill light, so the source must be COLOR (2) — DISABLED (1) made
+; every ambient value the scene set inert. GC does not tonemap or bloom this scene, so the
+; curve is LINEAR and glow is off; anything else drifts off the baked CI palette.
+
 [resource]
 background_mode = 1
-background_color = Color(0.1, 0.07, 0.05, 1)
-ambient_light_source = 1
-ambient_light_color = Color(0.78, 0.64, 0.46, 1)
-ambient_light_energy = 0.88
-tonemap_mode = 2
-tonemap_exposure = 1.04
-glow_enabled = true
-glow_intensity = 0.18
-glow_bloom = 0.04
+background_color = Color(0.05, 0.04, 0.04, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.877, 0.828, 0.807, 1)
+ambient_light_energy = 0.62
+tonemap_mode = 0
+tonemap_exposure = 1.0
+glow_enabled = false

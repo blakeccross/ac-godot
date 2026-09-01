@@ -33,8 +33,14 @@ const NAME_OUTLINE := Color(0.0, 23.0 / 255.0, 0.0, 1.0)
 const BODY_TEXT := Color(50.0 / 255.0, 60.0 / 255.0, 50.0 / 255.0, 1.0)
 const BODY_OUTLINE := Color(16.0 / 255.0, 41.0 / 255.0, 16.0 / 255.0, 1.0)
 
-const BODY_FONT_PX := 16.0
+## Cap heights measured off the GC frame. `mFont`'s glyphs are narrower per advance than
+## Godot's default face at the same cap height, so the advance is pulled in to match.
+const BODY_FONT_PX := 14.0
 const NAME_FONT_PX := 17.0
+const GLYPH_CONDENSE := -0.10
+## The condense applies to every advance, spaces included, which welds words together.
+## Give it back on the space glyph so word gaps stay as open as the GC frame's.
+const SPACE_RELIEF := 1.6
 const OUTLINE_PX := 2.0
 
 const _SHADER := preload("res://shaders/message_window.gdshader")
@@ -190,12 +196,30 @@ func _layout() -> void:
 func _apply_font(label: Label, font_px: float, pitch: float) -> void:
 	var size_px := maxi(1, int(round(font_px)))
 	label.add_theme_font_size_override("font_size", size_px)
-	label.add_theme_constant_override("outline_size", maxi(1, int(round(OUTLINE_PX * font_px / BODY_FONT_PX))))
+	label.add_theme_constant_override(
+		"outline_size", maxi(1, int(round(OUTLINE_PX * font_px / BODY_FONT_PX)))
+	)
+	var font: Font = _condensed_font(label, size_px)
+	if font != null:
+		label.add_theme_font_override("font", font)
 	if pitch <= 0.0:
 		return
-	var font: Font = label.get_theme_font("font")
 	var line_h: float = font.get_height(size_px) if font != null else float(size_px)
 	label.add_theme_constant_override("line_spacing", int(round(pitch - line_h)))
+
+
+func _condensed_font(label: Label, size_px: int) -> Font:
+	var base: Font = label.get_theme_font("font")
+	if base is FontVariation:
+		base = (base as FontVariation).base_font
+	if base == null:
+		return null
+	var variation := FontVariation.new()
+	variation.base_font = base
+	var condense: float = GLYPH_CONDENSE * float(size_px)
+	variation.spacing_glyph = int(round(condense))
+	variation.spacing_space = int(round(-condense * SPACE_RELIEF))
+	return variation
 
 
 func _notification(what: int) -> void:
