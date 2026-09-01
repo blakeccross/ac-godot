@@ -20,6 +20,7 @@ func _ready() -> void:
 	add_to_group("world")
 	Game.notify_world_ready()
 	layout = Game.resolve_world_data()
+	FieldCatalog.warn_grass_pattern_pack_missing()
 	print(
 		"Grass pattern: %s (%d)" % [
 			WorldData.grass_pattern_label(layout.grass_pattern), layout.grass_pattern

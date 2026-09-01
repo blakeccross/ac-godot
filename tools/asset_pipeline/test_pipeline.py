@@ -461,6 +461,12 @@ class SeasonRoleTests(unittest.TestCase):
 
         self.assertEqual(GRASS_PATTERN_COUNT, 3)
 
+    def test_grass_pattern_symbol_order(self) -> None:
+        from asset_pipeline.seasons import _GRASS_TEX_SYMBOLS
+
+        self.assertIn("mFM_grd_s_grass_3_tex", _GRASS_TEX_SYMBOLS["s"][1])
+        self.assertIn("mFM_grd_s_grass_2_tex", _GRASS_TEX_SYMBOLS["s"][2])
+
 
 if __name__ == "__main__":
     unittest.main()

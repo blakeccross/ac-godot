@@ -103,6 +103,32 @@ static func grass_pattern_idx() -> int:
 	return _grass_pattern_idx
 
 
+static func grass_season_texture_path() -> String:
+	return season_texture_path("grass")
+
+
+static func grass_pattern_pack_ready() -> bool:
+	## True when ``grass_{pattern}.png`` exists for the active town motif.
+	var letter := season_tex_letter()
+	var rel := "environment/seasons/%s/grass_%d.png" % [letter, _grass_pattern_idx]
+	if not _existing([rel]).is_empty():
+		return true
+	if letter != "s":
+		return not _existing(["environment/seasons/s/grass_%d.png" % _grass_pattern_idx]).is_empty()
+	return false
+
+
+static func warn_grass_pattern_pack_missing() -> void:
+	if grass_pattern_pack_ready():
+		return
+	var label := WorldData.grass_pattern_label(_grass_pattern_idx)
+	push_warning(
+		"Grass pattern is %s but seasons pack is missing grass_%d.png — "
+		% [label, _grass_pattern_idx]
+		+ "run: python3 tools/build_assets.py --step convert --kind seasons"
+	)
+
+
 static func season_tex_letter() -> String:
 	## Pack folder: spring/summer `s`, autumn `f`, winter `w`.
 	return season_letter()

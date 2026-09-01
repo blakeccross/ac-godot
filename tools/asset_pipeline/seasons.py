@@ -63,6 +63,26 @@ _FIELD_TEX_SPECS: dict[str, tuple[int, int, str]] = {
 	"river_tex_dummy": (64, 32, "cliff_pal"),
 }
 
+## `mFM_BG_TEX_*` order: triangle, square, circle. Each maps to a distinct CI4 tile in REL.
+_GRASS_TEX_SYMBOLS: dict[str, tuple[tuple[str, ...], ...]] = {
+	"s": (
+		("mFM_grd_s_grass_tex", "grd_s_grass_tex"),
+		("mFM_grd_s_grass_3_tex", "grd_s_grass_3_tex"),
+		("mFM_grd_s_grass_2_tex", "grd_s_grass_2_tex"),
+	),
+	"w": (
+		("mFM_grd_w_grass_tex", "grd_w_grass_tex"),
+		("mFM_grd_w_grass_3_tex", "grd_w_grass_3_tex"),
+		("mFM_grd_w_grass_2_tex", "grd_w_grass_2_tex"),
+	),
+}
+_EARTH_PAL_SYMBOLS: tuple[str, ...] = (
+	"mFM_earth_pal_dummy",
+	"earth_pal_dummy",
+	"mFM_earth_pal",
+	"earth_pal",
+)
+
 
 def _clear_bank(bank: TextureBank) -> None:
 	bank.segment_images.clear()
@@ -212,27 +232,108 @@ def _collect_roles_from_field_bank(bank: TextureBank) -> dict[str, bytes]:
 	return out
 
 
+def _find_symbol(bank: TextureBank, names: tuple[str, ...]):
+	for name in names:
+		sym = bank._find_symbol(name)
+		if sym is not None and sym.size > 0:
+			return sym
+	return None
+
+
+def _discover_grass_symbol(bank: TextureBank, bg_season: str, pattern: int):
+	"""Scan REL names when canonical ``mFM_grd_*_grass*_tex`` symbols differ by build."""
+	needle: str
+	if pattern == 0:
+		needle = f"grd_{bg_season}_grass_tex"
+		for name, sym in sorted(bank.by_name.items()):
+			lower = name.lower()
+			if needle in lower and "grass_2" not in lower and "grass_3" not in lower:
+				return sym
+	elif pattern == 1:
+		needle = f"grd_{bg_season}_grass_3_tex"
+		for name, sym in sorted(bank.by_name.items()):
+			if needle in name.lower():
+				return sym
+	else:
+		needle = f"grd_{bg_season}_grass_2_tex"
+		for name, sym in sorted(bank.by_name.items()):
+			if needle in name.lower():
+				return sym
+	return None
+
+
+def _field_earth_pal_row(bank: TextureBank, rel: RelData, season: str) -> bytes | None:
+	"""Monthly earth palette row used by ``grass_tex_dummy`` (``mFM_LoadBGCommonMonthlyPal``)."""
+	row = _FIELD_PAL_ROW_BY_SEASON[season]
+	for name in _EARTH_PAL_SYMBOLS:
+		sym = bank._find_symbol(name)
+		if sym is None or sym.size < 32:
+			continue
+		try:
+			blob = rel.slice_at(sym.address, min(sym.size, (row + 1) * 32))
+		except ValueError:
+			continue
+		off = row * 32
+		if off + 32 <= len(blob):
+			return blob[off : off + 32]
+	return None
+
+
+def _decode_grass_pattern_png(
+	rel: RelData, bank: TextureBank, bg_season: str, pattern: int, season: str
+) -> bytes | None:
+	"""Decode one town grass motif (32×32 CI4 + earth pal row)."""
+	candidates = _GRASS_TEX_SYMBOLS.get(bg_season, _GRASS_TEX_SYMBOLS["s"])
+	if pattern < 0 or pattern >= len(candidates):
+		return None
+	sym = _find_symbol(bank, candidates[pattern])
+	if sym is None:
+		sym = _discover_grass_symbol(bank, bg_season, pattern)
+	if sym is None:
+		return None
+	pal = _field_earth_pal_row(bank, rel, season)
+	if not pal:
+		return None
+	width, height = 32, 32
+	needed = width * height // 2
+	try:
+		data = rel.slice_at(sym.address, min(sym.size, needed))
+	except ValueError:
+		return None
+	if len(data) < needed:
+		return None
+	try:
+		image = decode_gbi_texture(data, width, height, G_IM_FMT_CI, G_IM_SIZ_4b, pal)
+		image = apply_prim(image, (255, 255, 255, 255))
+		return image_png_bytes(image)
+	except (KeyError, ValueError, IndexError):
+		return None
+
+
 def _export_grass_patterns(
 	cfg: PipelineConfig,
 	bank: TextureBank,
+	rel: RelData,
 	season: str,
 	out_dir: Path,
 	*,
 	force: bool,
 ) -> tuple[list[str], list[str]]:
-	"""Write ``grass_0..2.png`` from ``l_bg_tex_segment_rom_start_{s|w}_{variant}``."""
+	"""Write ``grass_0..2.png`` from ``mFM_grd_*_grass*_tex`` CI tiles."""
 	written: list[str] = []
 	missing: list[str] = []
 	bg_season = "w" if season == "w" else "s"
 	for variant in range(GRASS_PATTERN_COUNT):
-		_clear_bank(bank)
-		bank.bind_field_bg(
-			season=bg_season,
-			variant=variant,
-			pal_row=_FIELD_PAL_ROW_BY_SEASON[season],
-		)
-		by_role = _collect_roles_from_field_bank(bank)
-		png = by_role.get("grass")
+		png = _decode_grass_pattern_png(rel, bank, bg_season, variant, season)
+		if png is None:
+			## Fallback: older path via segment-0x80 bank variant (often identical to 0).
+			_clear_bank(bank)
+			bank.bind_field_bg(
+				season=bg_season,
+				variant=variant,
+				pal_row=_FIELD_PAL_ROW_BY_SEASON[season],
+			)
+			png = _collect_roles_from_field_bank(bank).get("grass")
 		dest = out_dir / f"grass_{variant}.png"
 		if png is None:
 			missing.append(f"{season}/grass_{variant}")
@@ -352,7 +453,7 @@ def _export_field_season(
 		_merge_gfx_roles(
 			bank, rel, symbols, extra_job, cfg.scale, FIELD_ROLE_NEEDLES, by_role
 		)
-	w, m = _export_grass_patterns(cfg, bank, season, out_dir, force=force)
+	w, m = _export_grass_patterns(cfg, bank, rel, season, out_dir, force=force)
 	written.extend(w)
 	missing.extend(m)
 	for role in FIELD_ROLE_NEEDLES:
