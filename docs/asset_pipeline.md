@@ -186,6 +186,22 @@ python3 tools/build_assets.py --step convert --kind inventory-ui
 
 Writes `assets/generated/ui/inventory/`.
 
+Message / talk window chrome (`con_kaiwa2_*`, `con_namefuti_TXT` from `foresta.rel` → gitignored PNGs):
+
+```sh
+python3 tools/build_assets.py --step convert --kind message-ui
+```
+
+Writes `assets/generated/ui/message/` (`msg_kaiwa_w1`, `msg_kaiwa_w2`, `msg_kaiwa_w3`, `msg_nameplate.png`). **Not used by the talk window** — `MessageWindowChrome` draws `con_kaiwa2` / `con_kaiwaname` from an SDF instead, because the border tiles are scallops that cannot be reassembled as a nine-patch. Kept for reference while comparing against a capture.
+
+NPC face frames (`face_*.bin` eye/mouth blocks → gitignored PNGs):
+
+```sh
+python3 tools/build_assets.py --step convert --kind faces
+```
+
+Writes `assets/generated/characters/faces/{species}_eye0..7.png` and `_mouth0..5.png`. `texbank` already binds frame 0 of each into the head mesh, so a character looks right without this step; the extra frames are what `NpcFace` / `NpcFaceAnim` swap to blink and flap the mouth (`aNPC_tex_anm_ctrl`). Without them the face is simply static.
+
 Dialogue banks (`message_data.bin` → JSON graphs, Nintendo IP, gitignored):
 
 ```sh

@@ -219,7 +219,7 @@ static func beach_env_srgb(game_frame: float) -> Color:
 	)
 
 
-static func attach_villager(host: Node3D, species: StringName) -> Node3D:
+static func attach_villager(host: Node3D, species: StringName, fit_actor: bool = true) -> Node3D:
 	## Species GLB (`squ_1`, `cat_1`, …) when the local pipeline has been run.
 	if host == null or species == &"":
 		return null
@@ -240,7 +240,8 @@ static func attach_villager(host: Node3D, species: StringName) -> Node3D:
 	_stop_autoplay(pivot)
 	host.add_child(pivot)
 	_apply_materials(pivot)
-	_fit_actor(pivot)
+	if fit_actor:
+		_fit_actor(pivot)
 	return pivot
 
 
@@ -324,6 +325,21 @@ static func _fit_acre(pivot: Node3D) -> void:
 	pivot.position = Vector3(0.0, FieldCatalog.acre_ground_y_offset(), 0.0)
 
 
+static func align_actor_to_height_gx(pivot: Node3D, height_gx: float) -> void:
+	## Place the model's lowest vertex on a GX height (seated bench, etc.).
+	if pivot == null:
+		return
+	var aabb: AABB = local_aabb(pivot)
+	if aabb.size == Vector3.ZERO:
+		return
+	var s: float = pivot.scale.y
+	pivot.position.y = height_gx * FieldCatalog.GX_TO_METERS - aabb.position.y * s
+
+
+static func local_aabb(node: Node) -> AABB:
+	return _local_aabb(node)
+
+
 static func _fit_actor(pivot: Node3D, visual_id: StringName = &"") -> void:
 	## Same GX→meter factor as acres. Authored origin is actor world pos
 	## (`m_actor.c` / `aMR_UnitNumber2Position`). Only micro-ground when feet
@@ -342,6 +358,27 @@ static func _fit_actor(pivot: Node3D, visual_id: StringName = &"") -> void:
 static func _fit_ground_decal(pivot: Node3D) -> void:
 	## Keep authored Y. AABB-snapping a coplanar fan onto the acre z-fights with grass.
 	pivot.scale = Vector3.ONE * FieldCatalog.actor_uniform_scale()
+
+
+static func fit_train_car_shell(pivot: Node3D) -> void:
+	## `rom_train_in` BG DLs use 16× acre verts + `Matrix_scale(0.0625)` (`ac_field_draw`).
+	var s: float = FieldCatalog.acre_uniform_scale()
+	pivot.scale = Vector3.ONE * s
+	var aabb: AABB = _local_aabb(pivot)
+	if aabb.size.y > 0.001:
+		pivot.position = Vector3(0.0, -aabb.position.y * s, 0.0)
+	else:
+		pivot.position = Vector3(0.0, FieldCatalog.interior_ground_y_offset(&"rom_train_in"), 0.0)
+
+
+static func fit_train_window_shell(pivot: Node3D) -> void:
+	## `rom_train_out` uses raw GX verts + `Matrix_scale(0.05)` (`ac_train_window`).
+	var s: float = FieldCatalog.train_window_uniform_scale()
+	pivot.scale = Vector3.ONE * s
+	pivot.position = Vector3.ZERO
+	var aabb: AABB = _local_aabb(pivot)
+	if aabb.size.y > 0.001:
+		pivot.position.y = -aabb.position.y * s
 
 
 static func _fit_interior(pivot: Node3D, target: AABB, visual_id: StringName) -> void:

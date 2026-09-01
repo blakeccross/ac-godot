@@ -27,5 +27,9 @@ func _on_generated_town_pressed() -> void:
 	Game.start_new_game(WorldData.Mode.GENERATED, WorldGenerator.DEFAULT_SEED)
 
 
+func _on_intro_pressed() -> void:
+	Game.start_intro_sequence()
+
+
 func _on_continue_pressed() -> void:
 	Game.continue_game()
