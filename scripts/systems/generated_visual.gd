@@ -344,6 +344,16 @@ static func _fit_ground_decal(pivot: Node3D) -> void:
 	pivot.scale = Vector3.ONE * FieldCatalog.actor_uniform_scale()
 
 
+static func fit_train_shell(pivot: Node3D) -> void:
+	## Train intro shells draw at GX→meter scale, not acre 0.0625 (`ac_train_window`).
+	var s: float = FieldCatalog.train_interior_uniform_scale()
+	pivot.scale = Vector3.ONE * s
+	pivot.position = Vector3.ZERO
+	var aabb: AABB = _local_aabb(pivot)
+	if aabb.size.y > 0.001:
+		pivot.position.y = -aabb.position.y * s
+
+
 static func _fit_interior(pivot: Node3D, target: AABB, visual_id: StringName) -> void:
 	## `room01` verts are raw GX (max Z 320 = 8 units). Place at the field origin
 	## with GX→meter scale so FG cells (1,1)–(6,6) sit on the floor. Do not AABB-fit.

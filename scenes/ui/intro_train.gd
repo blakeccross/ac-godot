@@ -16,8 +16,8 @@ const CEILING_LIGHT_GX: Array[Vector3] = [
 ]
 const SEAT_FILL_GX := Vector3(100.0, 50.0, 375.0)
 ## `rom_train_out_shineglass_modelT` — soft XLU god-rays through the glass.
-const LIGHT_RAY_TUNNEL_ALPHA := 0.14
-const LIGHT_RAY_DAYLIGHT_ALPHA := 0.42
+const LIGHT_RAY_TUNNEL_ALPHA := 0.10
+const LIGHT_RAY_DAYLIGHT_ALPHA := 0.36
 ## Warm tunnel palette (GC reference — cozy brown wood, yellow lamp).
 const TUNNEL_AMBIENT := Color(0.68, 0.54, 0.38)
 const TUNNEL_BG := Color(0.07, 0.05, 0.04)
@@ -113,12 +113,12 @@ func _attach_visuals() -> void:
 	var scenery: Node3D = GeneratedVisual.attach(_window_host, &"rom_train_out")
 	if scenery != null:
 		_window_scenery = scenery
-		_fit_train_interior(scenery, &"rom_train_out")
+		GeneratedVisual.fit_train_shell(scenery)
 		_apply_scenery_materials(scenery)
 	var car: Node3D = GeneratedVisual.attach(_train_host, &"rom_train_in")
 	if car != null:
 		_train_car = car
-		_fit_train_interior(car, &"rom_train_in")
+		GeneratedVisual.fit_train_shell(car)
 		_apply_car_materials(car)
 		_apply_car_opa_wood(car)
 	_place_train_lights()
@@ -132,13 +132,6 @@ func _attach_visuals() -> void:
 		_keitai_host.reparent(_rover_host, false)
 	_keitai_host.position = Vector3(0.15, 0.55, 0.1)
 	_keitai_host.rotation = Vector3.ZERO
-
-
-func _fit_train_interior(pivot: Node3D, visual_id: StringName) -> void:
-	## `rom_*` acre-scale verts; place at demo origin (not room AABB fit).
-	var s: float = FieldCatalog.interior_uniform_scale(visual_id)
-	pivot.scale = Vector3.ONE * s
-	pivot.position = Vector3(0.0, FieldCatalog.interior_ground_y_offset(visual_id), 0.0)
 
 
 func _place_train_lights() -> void:
@@ -313,7 +306,7 @@ func _apply_light_ray_surface(std: StandardMaterial3D, daylight: bool) -> void:
 	if std.albedo_texture == null:
 		std.emission_enabled = true
 		std.emission = Color(1.0, 0.94, 0.76)
-		std.emission_energy_multiplier = 0.6 if daylight else 0.35
+		std.emission_energy_multiplier = 0.45 if daylight else 0.18
 
 
 func _apply_lamp_cone_surface(std: StandardMaterial3D) -> void:
@@ -373,21 +366,21 @@ func _apply_tunnel_lighting() -> void:
 	_daylight = false
 	_tunnel_fill.visible = true
 	_tunnel_fill.light_color = Color(1.0, 0.9, 0.68)
-	_tunnel_fill.light_energy = 0.32
+	_tunnel_fill.light_energy = 0.48
 	_window_sun.visible = false
 	_seat_fill.light_color = Color(1.0, 0.92, 0.72)
-	_seat_fill.light_energy = 0.95
-	_set_ceiling_light_energies(1.25, 0.55)
+	_seat_fill.light_energy = 1.2
+	_set_ceiling_light_energies(1.55, 0.72)
 	_refresh_train_materials()
 	var env: Environment = _world_env.environment
 	if env != null:
 		env.ambient_light_color = TUNNEL_AMBIENT
-		env.ambient_light_energy = 0.92
+		env.ambient_light_energy = 1.12
 		env.background_color = TUNNEL_BG
-		env.tonemap_exposure = 1.08
+		env.tonemap_exposure = 1.22
 		env.glow_enabled = true
-		env.glow_intensity = 0.35
-		env.glow_bloom = 0.08
+		env.glow_intensity = 0.42
+		env.glow_bloom = 0.1
 
 
 func _apply_daylight() -> void:

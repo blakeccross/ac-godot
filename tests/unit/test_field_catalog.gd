@@ -260,6 +260,7 @@ func test_acre_block_types_map_to_grd_families() -> void:
 	assert_float(FieldCatalog.acre_uniform_scale() / FieldCatalog.actor_uniform_scale()).is_equal_approx(6.25, 0.0001)
 	assert_float(FieldCatalog.interior_uniform_scale(&"room01")).is_equal_approx(50.0, 0.0001)
 	assert_float(FieldCatalog.interior_uniform_scale(&"rom_myhome1_floor")).is_equal_approx(3.125, 0.0001)
+	assert_float(FieldCatalog.train_interior_uniform_scale()).is_equal_approx(50.0, 0.0001)
 	assert_float(FieldCatalog.interior_ground_y_offset(&"room01")).is_equal_approx(0.0, 0.0001)
 	assert_bool(FieldCatalog.interior_uses_acre_verts(&"rom_shop1f")).is_true()
 	assert_bool(FieldCatalog.interior_uses_acre_verts(&"room01")).is_false()
