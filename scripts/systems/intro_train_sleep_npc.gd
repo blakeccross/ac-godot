@@ -7,8 +7,8 @@ const ANIM_KOKKURI_D1 := "npc_1_kokkuri_d1"
 const ANIM_KOKKURI_D2 := "npc_1_kokkuri_d2"
 ## `start_demo1` ut (4,4) center + `aNSO_actor_ct` birth offset (−6 GX, −24 GX).
 const SPAWN_GX := Vector3(174.0, 0.0, 156.0)
-## Actor birth rotation (0, 0, 0) — faces down the car (+Z).
-const SPAWN_YAW := 0.0
+## `aNPC_think_in_block_init_proc` with `appear_rotation` 0 → 180° (faces the window wall).
+const SPAWN_YAW := PI
 
 var _host: Node3D
 var _anim: AnimationPlayer
@@ -33,10 +33,10 @@ func tick(_delta: float) -> void:
 
 func _start_sleep() -> void:
 	_loops_left = 2 + randi() % 3
-	_play(ANIM_KOKKURI_D1, false)
+	_play(ANIM_KOKKURI_D1, false, true)
 
 
-func _play(suffix: String, loop: bool) -> void:
+func _play(suffix: String, loop: bool, snap: bool = false) -> void:
 	if _anim == null:
 		_clip = suffix
 		_pending = true
@@ -44,13 +44,16 @@ func _play(suffix: String, loop: bool) -> void:
 	var clip: String = IntroTrainStage.resolve_rover_clip(_anim, suffix)
 	if clip.is_empty():
 		return
-	if _clip == clip and _anim.is_playing():
+	if _clip == clip and _anim.is_playing() and not snap:
 		return
 	_clip = clip
 	var animation: Animation = _anim.get_animation(clip)
 	if animation != null:
 		animation.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
-	_anim.play(clip, IntroTrainStage.ANIM_MORPH_BLEND)
+	var blend: float = 0.0 if snap else IntroTrainStage.ANIM_MORPH_BLEND
+	_anim.play(clip, blend)
+	if snap:
+		_anim.advance(0.0)
 	if _anim.animation_finished.is_connected(_on_anim_finished):
 		_anim.animation_finished.disconnect(_on_anim_finished)
 	if not loop:

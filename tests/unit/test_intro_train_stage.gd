@@ -124,6 +124,7 @@ func test_sleep_npc_spawn_matches_decomp() -> void:
 		IntroTrainStage.gx_to_meters(Vector3(174.0, 0.0, 156.0)),
 		Vector3(0.001, 0.001, 0.001)
 	)
+	assert_float(IntroTrainSleepNpc.SPAWN_YAW).is_equal_approx(PI, 0.001)
 
 
 func test_cue_sit_snaps_to_seat_and_sits() -> void:

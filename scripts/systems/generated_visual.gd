@@ -219,7 +219,7 @@ static func beach_env_srgb(game_frame: float) -> Color:
 	)
 
 
-static func attach_villager(host: Node3D, species: StringName) -> Node3D:
+static func attach_villager(host: Node3D, species: StringName, fit_actor: bool = true) -> Node3D:
 	## Species GLB (`squ_1`, `cat_1`, …) when the local pipeline has been run.
 	if host == null or species == &"":
 		return null
@@ -240,7 +240,8 @@ static func attach_villager(host: Node3D, species: StringName) -> Node3D:
 	_stop_autoplay(pivot)
 	host.add_child(pivot)
 	_apply_materials(pivot)
-	_fit_actor(pivot)
+	if fit_actor:
+		_fit_actor(pivot)
 	return pivot
 
 
