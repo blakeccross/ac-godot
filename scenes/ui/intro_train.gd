@@ -15,9 +15,13 @@ const CEILING_LIGHT_GX: Array[Vector3] = [
 	Vector3(100.0, 96.0, 395.0),
 ]
 const SEAT_FILL_GX := Vector3(100.0, 50.0, 375.0)
-## `rom_train_out_shineglass_modelT` — XLU god-rays (prim LOD alpha in decomp).
-const LIGHT_RAY_TUNNEL_ALPHA := 0.28
-const LIGHT_RAY_DAYLIGHT_ALPHA := 0.58
+## `rom_train_out_shineglass_modelT` — soft XLU god-rays through the glass.
+const LIGHT_RAY_TUNNEL_ALPHA := 0.14
+const LIGHT_RAY_DAYLIGHT_ALPHA := 0.42
+## Warm tunnel palette (GC reference — cozy brown wood, yellow lamp).
+const TUNNEL_AMBIENT := Color(0.68, 0.54, 0.38)
+const TUNNEL_BG := Color(0.07, 0.05, 0.04)
+const DAYLIGHT_AMBIENT := Color(0.72, 0.68, 0.58)
 
 @onready var _train_host: Node3D = %TrainCar
 @onready var _window_host: Node3D = %WindowScenery
@@ -116,6 +120,7 @@ func _attach_visuals() -> void:
 		_train_car = car
 		_fit_train_interior(car, &"rom_train_in")
 		_apply_car_materials(car)
+		_apply_car_opa_wood(car)
 	_place_train_lights()
 	GeneratedVisual.attach(_door_host, &"obj_romtrain_door")
 	GeneratedVisual.attach_villager(_rover_host, &"cat")
@@ -148,6 +153,33 @@ func _place_train_lights() -> void:
 		light.global_position = IntroTrainStage.gx_to_meters(CEILING_LIGHT_GX[i])
 
 
+func _apply_car_opa_wood(root: Node3D) -> void:
+	## Polished wood highlights on seats/walls (`rom_train_in_model` OPA).
+	_apply_car_opa_wood_inner(root)
+
+
+func _apply_car_opa_wood_inner(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh == null:
+			return
+		if String(mesh_instance.name).to_lower().contains("modelt"):
+			return
+		for i: int in mesh_instance.mesh.get_surface_count():
+			var mat: Material = mesh_instance.get_active_material(i)
+			if not mat is StandardMaterial3D:
+				continue
+			var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			std.cull_mode = BaseMaterial3D.CULL_DISABLED
+			std.roughness = 0.78
+			std.metallic = 0.0
+			std.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+			mesh_instance.set_surface_override_material(i, std)
+	for child: Node in node.get_children():
+		_apply_car_opa_wood_inner(child)
+
+
 func _apply_car_materials(root: Node3D, daylight: bool = _daylight) -> void:
 	## Only touch the XLU pass (`*_modelT`); leave OPA seat/wall textures imported.
 	_apply_car_materials_inner(root, daylight)
@@ -176,6 +208,9 @@ func _apply_car_materials_inner(node: Node, daylight: bool) -> void:
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
 			if _is_light_ray_surface(label):
 				_apply_light_ray_surface(std, daylight)
+				mesh_instance.set_surface_override_material(i, std)
+			elif _is_lamp_cone_surface(label, std):
+				_apply_lamp_cone_surface(std)
 				mesh_instance.set_surface_override_material(i, std)
 			elif _is_train_lamp_surface(label, std):
 				_apply_lamp_surface(std)
@@ -239,6 +274,16 @@ func _is_light_ray_surface(label: String) -> bool:
 	)
 
 
+func _is_lamp_cone_surface(label: String, std: StandardMaterial3D) -> bool:
+	if _is_light_ray_surface(label):
+		return false
+	return (
+		"modelt" in label
+		and std.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED
+		and ("light" in label or "lamp" in label)
+	)
+
+
 func _is_train_lamp_surface(label: String, std: StandardMaterial3D) -> bool:
 	if _is_light_ray_surface(label):
 		return false
@@ -256,23 +301,32 @@ func _is_train_glass_surface(label: String, std: StandardMaterial3D) -> bool:
 
 
 func _apply_light_ray_surface(std: StandardMaterial3D, daylight: bool) -> void:
-	## `rom_train_out_shineglass_modelT`: XLU prim × texture alpha (decomp `lod_factor`).
+	## Window shine (`rom_train_out_shineglass_modelT`): soft haze, geometry shows through.
 	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	std.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
+	std.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 	std.cull_mode = BaseMaterial3D.CULL_DISABLED
-	std.render_priority = 2
+	std.render_priority = 1
 	var alpha: float = LIGHT_RAY_DAYLIGHT_ALPHA if daylight else LIGHT_RAY_TUNNEL_ALPHA
-	var tint := Color(1.0, 0.97, 0.82, alpha)
-	if std.albedo_texture != null:
-		std.albedo_color = tint
-	else:
-		std.albedo_color = tint
-		std.albedo_texture = null
+	std.albedo_color = Color(1.0, 0.96, 0.82, alpha)
+	if std.albedo_texture == null:
+		std.emission_enabled = true
+		std.emission = Color(1.0, 0.94, 0.76)
+		std.emission_energy_multiplier = 0.6 if daylight else 0.35
+
+
+func _apply_lamp_cone_surface(std: StandardMaterial3D) -> void:
+	## Downward cone under the ceiling fixture.
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+	std.render_priority = 1
+	std.albedo_color = Color(LAMP_COLOR, 0.32)
 	std.emission_enabled = true
-	std.emission = Color(1.0, 0.95, 0.78)
-	std.emission_energy_multiplier = 2.2 if daylight else 1.4
+	std.emission = LAMP_COLOR
+	std.emission_energy_multiplier = 1.2
 
 
 func _apply_xlu_scenery_surface(std: StandardMaterial3D) -> void:
@@ -286,11 +340,11 @@ func _apply_xlu_scenery_surface(std: StandardMaterial3D) -> void:
 
 func _apply_lamp_surface(std: StandardMaterial3D) -> void:
 	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	std.albedo_color = Color(LAMP_COLOR, 0.95)
+	std.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+	std.albedo_color = LAMP_COLOR
 	std.emission_enabled = true
 	std.emission = LAMP_COLOR
-	std.emission_energy_multiplier = 5.0
+	std.emission_energy_multiplier = 3.5
 
 
 func _apply_glass_surface(std: StandardMaterial3D) -> void:
@@ -318,33 +372,52 @@ func _refresh_train_materials() -> void:
 func _apply_tunnel_lighting() -> void:
 	_daylight = false
 	_tunnel_fill.visible = true
-	_tunnel_fill.light_energy = 0.38
+	_tunnel_fill.light_color = Color(1.0, 0.9, 0.68)
+	_tunnel_fill.light_energy = 0.32
 	_window_sun.visible = false
-	_seat_fill.light_energy = 1.35
-	_set_omni_group_energy(_ceiling_lights, 1.55)
+	_seat_fill.light_color = Color(1.0, 0.92, 0.72)
+	_seat_fill.light_energy = 0.95
+	_set_ceiling_light_energies(1.25, 0.55)
 	_refresh_train_materials()
 	var env: Environment = _world_env.environment
 	if env != null:
-		env.ambient_light_color = Color(0.78, 0.74, 0.66)
-		env.ambient_light_energy = 1.05
-		env.background_color = Color(0.08, 0.08, 0.1)
-		env.tonemap_exposure = 1.18
+		env.ambient_light_color = TUNNEL_AMBIENT
+		env.ambient_light_energy = 0.92
+		env.background_color = TUNNEL_BG
+		env.tonemap_exposure = 1.08
+		env.glow_enabled = true
+		env.glow_intensity = 0.35
+		env.glow_bloom = 0.08
 
 
 func _apply_daylight() -> void:
 	## `aNGD_sitdown` sets `sunlight_flag` TRUE — train leaves the tunnel.
 	_daylight = true
 	_window_sun.visible = true
-	_tunnel_fill.light_energy = 0.18
-	_seat_fill.light_energy = 1.0
-	_set_omni_group_energy(_ceiling_lights, 1.25)
+	_window_sun.light_color = Color(1.0, 0.96, 0.82)
+	_window_sun.light_energy = 0.95
+	_tunnel_fill.light_energy = 0.14
+	_seat_fill.light_energy = 0.75
+	_set_ceiling_light_energies(1.05, 0.45)
 	_refresh_train_materials()
 	var env: Environment = _world_env.environment
 	if env != null:
-		env.ambient_light_color = Color(0.82, 0.84, 0.88)
-		env.ambient_light_energy = 1.15
-		env.background_color = Color(0.52, 0.62, 0.72)
-		env.tonemap_exposure = 1.22
+		env.ambient_light_color = DAYLIGHT_AMBIENT
+		env.ambient_light_energy = 1.0
+		env.background_color = Color(0.45, 0.58, 0.72)
+		env.tonemap_exposure = 1.12
+		env.glow_intensity = 0.45
+		env.glow_bloom = 0.1
+
+
+func _set_ceiling_light_energies(primary: float, secondary: float) -> void:
+	var lights: Array[Node] = _ceiling_lights.get_children()
+	for i: int in lights.size():
+		if not lights[i] is OmniLight3D:
+			continue
+		var light := lights[i] as OmniLight3D
+		light.light_color = Color(1.0, 0.94, 0.68)
+		light.light_energy = primary if i == 0 else secondary
 
 
 func _on_stage_changed(action: StringName) -> void:

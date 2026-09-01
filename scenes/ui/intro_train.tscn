@@ -28,8 +28,8 @@ unique_name_in_owner = true
 [node name="TunnelFill" type="DirectionalLight3D" parent="TrainCar/TrainLights"]
 unique_name_in_owner = true
 transform = Transform3D(0.866025, -0.25, 0.43, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 0, 0, 0)
-light_color = Color(0.82, 0.78, 0.72, 1)
-light_energy = 0.38
+light_color = Color(1, 0.9, 0.68, 1)
+light_energy = 0.32
 shadow_enabled = false
 
 [node name="WindowSun" type="DirectionalLight3D" parent="TrainCar/TrainLights"]
@@ -42,8 +42,8 @@ shadow_enabled = false
 
 [node name="SeatFill" type="OmniLight3D" parent="TrainCar/TrainLights"]
 unique_name_in_owner = true
-light_color = Color(1, 0.94, 0.82, 1)
-light_energy = 1.35
+light_color = Color(1, 0.92, 0.72, 1)
+light_energy = 0.95
 omni_range = 28.0
 shadow_enabled = false
 
@@ -51,27 +51,27 @@ shadow_enabled = false
 unique_name_in_owner = true
 
 [node name="CeilingA" type="OmniLight3D" parent="TrainCar/TrainLights/CeilingLights"]
-light_color = Color(1, 0.98, 0.86, 1)
-light_energy = 1.55
-omni_range = 28.0
+light_color = Color(1, 0.94, 0.68, 1)
+light_energy = 1.25
+omni_range = 30.0
 shadow_enabled = false
 
 [node name="CeilingB" type="OmniLight3D" parent="TrainCar/TrainLights/CeilingLights"]
-light_color = Color(1, 0.98, 0.86, 1)
-light_energy = 1.55
-omni_range = 28.0
+light_color = Color(1, 0.94, 0.68, 1)
+light_energy = 0.55
+omni_range = 26.0
 shadow_enabled = false
 
 [node name="CeilingC" type="OmniLight3D" parent="TrainCar/TrainLights/CeilingLights"]
-light_color = Color(1, 0.98, 0.86, 1)
-light_energy = 1.55
-omni_range = 28.0
+light_color = Color(1, 0.94, 0.68, 1)
+light_energy = 0.55
+omni_range = 26.0
 shadow_enabled = false
 
 [node name="CeilingD" type="OmniLight3D" parent="TrainCar/TrainLights/CeilingLights"]
-light_color = Color(1, 0.98, 0.86, 1)
-light_energy = 1.55
-omni_range = 28.0
+light_color = Color(1, 0.94, 0.68, 1)
+light_energy = 0.55
+omni_range = 26.0
 shadow_enabled = false
 
 [node name="TrainDoor" type="Node3D" parent="."]
