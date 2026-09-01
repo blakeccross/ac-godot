@@ -36,9 +36,13 @@ func _ready() -> void:
 
 
 func set_speaker(name: String) -> void:
+	if not is_node_ready():
+		return
+	var show := name != ""
 	_name.text = name
-	_name.visible = name != ""
-	_name_bg.visible = name != ""
+	_name.visible = show
+	_name_bg.visible = show and _name_bg.texture != null
+	_name_fill.visible = show and _name_bg.texture == null
 
 
 func set_body(text: String) -> void:
@@ -93,6 +97,8 @@ func _apply_textures() -> void:
 
 
 func _layout_decomp() -> void:
+	if not is_node_ready():
+		return
 	var scale := minf(size.x / SCREEN_W, size.y / SCREEN_H)
 	var win_size := WINDOW_SIZE * scale
 	var win_pos := Vector2(
@@ -120,5 +126,5 @@ func _layout_decomp() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_RESIZED:
+	if what == NOTIFICATION_RESIZED and is_node_ready():
 		_layout_decomp()
