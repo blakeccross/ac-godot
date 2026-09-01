@@ -5,16 +5,20 @@ extends Control
 
 const SCREEN_W := 320.0
 const SCREEN_H := 240.0
-## Decomp defaults (`m_msg_main.c_inc`).
 const WINDOW_CENTER := Vector2(160.0, 185.4)
 const WINDOW_SIZE := Vector2(245.0, 96.0)
-const NAMEPLATE_POS := Vector2(61.0, 64.0)
-const NAMEPLATE_SIZE := Vector2(144.0, 32.0)
+## Offset from window top-left (`mMsg` nameplate vs window center).
+const NAME_INSET := Vector2(
+	61.0 - (WINDOW_CENTER.x - WINDOW_SIZE.x * 0.5),
+	64.0 - (WINDOW_CENTER.y - WINDOW_SIZE.y * 0.5)
+)
+const NAME_HEIGHT := 32.0
+const NAME_MIN_WIDTH := 72.0
+const NAME_CHAR_WIDTH := 9.0
 const TILE_W1 := "res://assets/generated/ui/message/msg_kaiwa_w1.png"
 const TILE_W2 := "res://assets/generated/ui/message/msg_kaiwa_w2.png"
 const TILE_W3 := "res://assets/generated/ui/message/msg_kaiwa_w3.png"
 const NAME_PATH := "res://assets/generated/ui/message/msg_nameplate.png"
-## Texel border thickness at 320×240 (`con_kaiwa2` corner / band sizes).
 const BORDER_X := 32.0
 const BORDER_Y := 64.0
 
@@ -23,10 +27,14 @@ const NAME_BG := Color(160.0 / 255.0, 215.0 / 255.0, 30.0 / 255.0, 1.0)
 const NAME_TEXT := Color(50.0 / 255.0, 90.0 / 255.0, 0.0, 1.0)
 const BODY_TEXT := Color(0.08, 0.12, 0.06, 1.0)
 const HINT_TEXT := Color(0.12, 0.18, 0.45, 1.0)
+const FALLBACK_BORDER := Color(0.42, 0.58, 0.36, 1.0)
 
-@onready var _name_fill: ColorRect = %NameFill
+@onready var _window: Control = %WindowFrame
 @onready var _body_fill: ColorRect = %BodyFill
-@onready var _name_plate: TextureRect = %NamePlate
+@onready var _border_fallback: Panel = %BorderFallback
+@onready var _name_tab: Control = %NameTab
+@onready var _name_fill: ColorRect = %NameFill
+@onready var _name_plate: NinePatchRect = %NamePlate
 @onready var _name: Label = %NameLabel
 @onready var _body: Label = %BodyLabel
 @onready var _hint: Label = %HintLabel
@@ -42,6 +50,7 @@ var _edge_bottom: TextureRect
 var _edge_left: TextureRect
 var _edge_right: TextureRect
 var _use_tiles: bool = false
+var _has_name_tex: bool = false
 
 
 func _ready() -> void:
@@ -55,9 +64,29 @@ func set_speaker(name: String) -> void:
 		return
 	var show := name != ""
 	_name.text = name
-	_name.visible = show
-	_name_plate.visible = show and _use_tiles
-	_name_fill.visible = show and not _use_tiles
+	_name_tab.visible = show
+	if show:
+		_layout_name_tab()
+	_name_plate.visible = show and _has_name_tex
+	_name_fill.visible = show and not _has_name_tex
+
+
+static func style_choice_button(btn: Button, selected: bool) -> void:
+	var bg := Color(0.72, 0.78, 0.62) if selected else Color(0.58, 0.66, 0.5)
+	var border := Color(0.38, 0.46, 0.32)
+	for state: StringName in [&"normal", &"hover", &"pressed", &"focus"]:
+		var box := StyleBoxFlat.new()
+		box.bg_color = bg.lightened(0.06) if state == &"hover" else bg
+		box.border_color = border
+		box.set_border_width_all(2)
+		box.set_corner_radius_all(2)
+		box.content_margin_left = 10
+		box.content_margin_right = 10
+		box.content_margin_top = 4
+		box.content_margin_bottom = 4
+		btn.add_theme_stylebox_override(state, box)
+	btn.add_theme_color_override("font_color", Color(1.0, 0.95, 0.55) if selected else Color(0.12, 0.16, 0.08))
+	btn.add_theme_font_size_override("font_size", 18)
 
 
 func set_body(text: String) -> void:
@@ -104,7 +133,7 @@ func _apply_textures() -> void:
 	var tex_w2: Texture2D = _load_tile(TILE_W2)
 	var tex_w3: Texture2D = _load_tile(TILE_W3)
 	_use_tiles = tex_w1 != null and tex_w2 != null and tex_w3 != null
-	_body_fill.visible = true
+	_border_fallback.visible = not _use_tiles
 	_body_fill.color = BODY_COLOR
 	_set_tile(_corner_tl, tex_w1)
 	_set_tile(_corner_tr, tex_w1, true, false)
@@ -120,13 +149,19 @@ func _apply_textures() -> void:
 	]:
 		node.visible = _use_tiles
 	var name_tex: Texture2D = _load_tile(NAME_PATH)
-	if name_tex != null:
+	_has_name_tex = name_tex != null
+	if _has_name_tex:
 		_name_plate.texture = name_tex
-		_name_plate.visible = false
-		_name_fill.visible = false
-	else:
-		_name_plate.visible = false
-		_name_fill.color = NAME_BG
+		_name_plate.patch_margin_left = 20
+		_name_plate.patch_margin_top = 8
+		_name_plate.patch_margin_right = 20
+		_name_plate.patch_margin_bottom = 8
+	var fallback := StyleBoxFlat.new()
+	fallback.bg_color = Color(BODY_COLOR, 0.0)
+	fallback.border_color = FALLBACK_BORDER
+	fallback.set_border_width_all(3)
+	fallback.set_corner_radius_all(4)
+	_border_fallback.add_theme_stylebox_override(&"panel", fallback)
 	_name.add_theme_color_override("font_color", NAME_TEXT)
 	_body.add_theme_color_override("font_color", BODY_TEXT)
 	_hint.add_theme_color_override("font_color", HINT_TEXT)
@@ -144,6 +179,23 @@ func _set_tile(rect: TextureRect, tex: Texture2D, flip_h: bool = false, flip_v: 
 	rect.flip_v = flip_v
 
 
+func _name_tab_width(scale: float) -> float:
+	var chars: int = mini(_name.text.length(), 8)
+	var w: float = NAME_CHAR_WIDTH * float(maxi(chars, 4))
+	return maxf(NAME_MIN_WIDTH, w) * scale
+
+
+func _layout_name_tab() -> void:
+	var scale := minf(size.x / SCREEN_W, size.y / SCREEN_H)
+	var tab_w := _name_tab_width(scale)
+	var tab_h := NAME_HEIGHT * scale
+	_name_tab.size = Vector2(tab_w, tab_h)
+	_name_plate.size = _name_tab.size
+	_name_fill.size = _name_tab.size
+	_name.position = Vector2(8.0 * scale, 3.0 * scale)
+	_name.size = _name_tab.size - Vector2(16.0 * scale, 6.0 * scale)
+
+
 func _layout_decomp() -> void:
 	if not is_node_ready():
 		return
@@ -153,38 +205,38 @@ func _layout_decomp() -> void:
 		(WINDOW_CENTER.x - WINDOW_SIZE.x * 0.5) * ui_scale,
 		(WINDOW_CENTER.y - WINDOW_SIZE.y * 0.5) * ui_scale
 	)
+	_window.position = win_pos
+	_window.size = win_size
+	_border_fallback.position = Vector2.ZERO
+	_border_fallback.size = win_size
+	_body_fill.position = Vector2.ZERO
+	_body_fill.size = win_size
 	var bx := BORDER_X * ui_scale
 	var by := BORDER_Y * ui_scale
-	_body_fill.position = win_pos
-	_body_fill.size = win_size
 	if _use_tiles:
-		_corner_tl.position = win_pos
+		_corner_tl.position = Vector2.ZERO
 		_corner_tl.size = Vector2(bx, by)
-		_corner_tr.position = win_pos + Vector2(win_size.x - bx, 0.0)
+		_corner_tr.position = Vector2(win_size.x - bx, 0.0)
 		_corner_tr.size = Vector2(bx, by)
-		_corner_bl.position = win_pos + Vector2(0.0, win_size.y - by)
+		_corner_bl.position = Vector2(0.0, win_size.y - by)
 		_corner_bl.size = Vector2(bx, by)
-		_corner_br.position = win_pos + Vector2(win_size.x - bx, win_size.y - by)
+		_corner_br.position = Vector2(win_size.x - bx, win_size.y - by)
 		_corner_br.size = Vector2(bx, by)
-		_edge_top.position = win_pos + Vector2(bx, 0.0)
+		_edge_top.position = Vector2(bx, 0.0)
 		_edge_top.size = Vector2(win_size.x - bx * 2.0, by)
-		_edge_bottom.position = win_pos + Vector2(bx, win_size.y - by)
+		_edge_bottom.position = Vector2(bx, win_size.y - by)
 		_edge_bottom.size = Vector2(win_size.x - bx * 2.0, by)
-		_edge_left.position = win_pos + Vector2(0.0, by)
+		_edge_left.position = Vector2(0.0, by)
 		_edge_left.size = Vector2(bx, win_size.y - by * 2.0)
-		_edge_right.position = win_pos + Vector2(win_size.x - bx, by)
+		_edge_right.position = Vector2(win_size.x - bx, by)
 		_edge_right.size = Vector2(bx, win_size.y - by * 2.0)
-	var name_pos := NAMEPLATE_POS * ui_scale
-	var name_size := NAMEPLATE_SIZE * ui_scale
-	_name_plate.position = name_pos
-	_name_plate.size = name_size
-	_name_fill.position = name_pos
-	_name_fill.size = name_size
+	var name_y: float = NAME_INSET.y if _has_name_tex else -NAME_HEIGHT
+	_name_tab.position = win_pos + Vector2(NAME_INSET.x, name_y) * ui_scale
+	if _name_tab.visible:
+		_layout_name_tab()
 	var margin := Vector2(18.0, 14.0) * ui_scale
 	_body.position = win_pos + margin
 	_body.size = win_size - margin * 2.0 - Vector2(0.0, 22.0 * ui_scale)
-	_name.position = name_pos + Vector2(10.0, 4.0) * ui_scale
-	_name.size = name_size - Vector2(20.0, 8.0) * ui_scale
 	_hint.position = win_pos + Vector2(win_size.x - 96.0 * ui_scale, win_size.y - 26.0 * ui_scale)
 	_hint.size = Vector2(88.0 * ui_scale, 20.0 * ui_scale)
 	_choices.position = _body.position + Vector2(0.0, _body.size.y * 0.35)

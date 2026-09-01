@@ -197,7 +197,7 @@ func _pick(index: int) -> void:
 
 func _highlight() -> void:
 	for i: int in _buttons.size():
-		_buttons[i].modulate = Color(1, 0.95, 0.55) if i == _choice_index else Color.WHITE
+		MessageWindowChrome.style_choice_button(_buttons[i], i == _choice_index)
 
 
 func _clear_choices() -> void:

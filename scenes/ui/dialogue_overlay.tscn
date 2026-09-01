@@ -40,37 +40,53 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("2")
 
-[node name="BodyFill" type="ColorRect" parent="Root/MessageChrome"]
+[node name="NameTab" type="Control" parent="Root/MessageChrome"]
 unique_name_in_owner = true
+visible = false
 layout_mode = 0
-color = Color(0.921569, 1, 0.921569, 1)
 
-[node name="BorderRoot" type="Control" parent="Root/MessageChrome"]
-unique_name_in_owner = true
-layout_mode = 0
-anchors_preset = 0
-mouse_filter = 2
-
-[node name="NameFill" type="ColorRect" parent="Root/MessageChrome"]
+[node name="NameFill" type="ColorRect" parent="Root/MessageChrome/NameTab"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
 color = Color(0.627451, 0.843137, 0.117647, 1)
 
-[node name="NamePlate" type="TextureRect" parent="Root/MessageChrome"]
+[node name="NamePlate" type="NinePatchRect" parent="Root/MessageChrome/NameTab"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 0
 texture_filter = 0
-expand_mode = 1
-stretch_mode = 5
+patch_margin_left = 20
+patch_margin_top = 8
+patch_margin_right = 20
+patch_margin_bottom = 8
 
-[node name="NameLabel" type="Label" parent="Root/MessageChrome"]
+[node name="NameLabel" type="Label" parent="Root/MessageChrome/NameTab"]
 unique_name_in_owner = true
 layout_mode = 0
 theme_override_colors/font_color = Color(0.196078, 0.352941, 0, 1)
 theme_override_font_sizes/font_size = 18
 text = "Villager"
+
+[node name="WindowFrame" type="Control" parent="Root/MessageChrome"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+
+[node name="BodyFill" type="ColorRect" parent="Root/MessageChrome/WindowFrame"]
+unique_name_in_owner = true
+layout_mode = 0
+color = Color(0.921569, 1, 0.921569, 1)
+
+[node name="BorderFallback" type="Panel" parent="Root/MessageChrome/WindowFrame"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+
+[node name="BorderRoot" type="Control" parent="Root/MessageChrome/WindowFrame"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
 
 [node name="BodyLabel" type="Label" parent="Root/MessageChrome"]
 unique_name_in_owner = true
@@ -82,7 +98,7 @@ text = ""
 [node name="ChoiceList" type="VBoxContainer" parent="Root/MessageChrome"]
 unique_name_in_owner = true
 layout_mode = 0
-theme_override_constants/separation = 4
+theme_override_constants/separation = 6
 
 [node name="HintLabel" type="Label" parent="Root/MessageChrome"]
 unique_name_in_owner = true
