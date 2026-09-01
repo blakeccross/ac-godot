@@ -8,8 +8,8 @@ const ANIM_KOKKURI_D1 := "npc_1_kokkuri_d1"
 const ANIM_KOKKURI_D2 := "npc_1_kokkuri_d2"
 ## `start_demo1` ut (4,4) center + `aNSO_actor_ct` birth offset (−6 GX, −24 GX).
 const SPAWN_GX := Vector3(174.0, 0.0, 156.0)
-## Window bench faces the aisle (+Z); `appear_rotation` 0 → 180° is into the glass.
-const SPAWN_YAW := 0.0
+## `aNPC_think_in_block_init_proc` with `appear_rotation` 0 → 180° (recline into window wall).
+const SPAWN_YAW := PI
 ## Bench cushion height GX (`rom_train_in` seat surface).
 const SEAT_CUSHION_Y_GX := 40.0
 
@@ -25,6 +25,7 @@ func bind(host: Node3D, anim: AnimationPlayer) -> void:
 	_anim = anim
 	if _host != null:
 		_host.global_position = IntroTrainStage.gx_to_meters(SPAWN_GX)
+		_host.rotation = Vector3.ZERO
 		_host.rotation.y = SPAWN_YAW
 	_start_sleep()
 
