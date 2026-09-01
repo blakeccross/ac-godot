@@ -55,7 +55,7 @@ static func authored_test_town() -> WorldData:
 	data.display_name = "Test Town"
 	data.mode = WorldData.Mode.TEST
 	data.seed_value = 0
-	data.grass_pattern = WorldData.GrassPattern.TRANGLE
+	data.grass_pattern = WorldData.GrassPattern.TRIANGLE
 	data.columns = 16
 	data.rows = 16
 	data.cell_size = 2.0
