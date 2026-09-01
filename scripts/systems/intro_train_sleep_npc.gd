@@ -29,7 +29,10 @@ static func decomp_appear_yaw(appear: int) -> float:
 
 
 static func spawn_yaw() -> float:
-	return decomp_appear_yaw(APPEAR_ROTATION)
+	## Decomp sets `shape_info.rotation.y` to 180° before `kokkuri_*`, but the kab GLB
+	## clips bake that body turn into their rest pose at host yaw 0 (same composite as
+	## `wait_nemu1` at PI). Applying `decomp_appear_yaw` on top flips the recline.
+	return 0.0
 
 
 func bind(host: Node3D, anim: AnimationPlayer) -> void:
