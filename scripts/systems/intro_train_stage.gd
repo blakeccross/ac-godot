@@ -50,6 +50,14 @@ const ROVER_DOOR_GX := Vector3(140.0, 0.0, 130.0)
 const CAM_EYE_GX := Vector3(100.0, 80.0, 400.0)
 const CAM_LOOK_GX := Vector3(90.0, 80.0, 280.0)
 const CAM_FOV := 40.0
+const CAM_NEAR_GX := 60.0
+const CAM_FAR_GX := 800.0
+const OBJ_LOOK_Y_TALK_GX := 30.0
+const OBJ_LOOK_Y_NORMAL_GX := 20.0
+const CAMERA_SWAY_STEP := 0xE20
+const CAMERA_TILT_GOAL_PHONE := PI * 0.5
+const CAMERA_TILT_CHASE := deg_to_rad(2.8125)
+const CAMERA_TILT_RESET_CHASE := deg_to_rad(6.75)
 const WALK_SPEED_GX := 1.0 ## GX per frame @ 30 Hz → 1.5 m/s
 const WALK_SPEED2_GX := 1.5
 const DOOR_OPEN_FRAME := 20.0
@@ -74,6 +82,16 @@ var _door_opened: bool = false
 var _clip: String = ""
 var _pending_next: Action = Action.DONE
 var _pending_ready: bool = false
+var _camera_move: int = 0
+var _camera_move_y: float = 0.0
+var _camera_move_range: float = 0.3
+var _camera_move_cnt: int = 0
+var _camera_move_set_counter: int = 1
+var _camera_tilt: float = 0.0
+var _camera_tilt_goal: float = 0.0
+var _camera_tilt_chase: float = CAMERA_TILT_CHASE
+var _obj_look_y_gx: float = OBJ_LOOK_Y_NORMAL_GX
+var _obj_look_y_target_gx: float = OBJ_LOOK_Y_NORMAL_GX
 
 
 static func gx_to_meters(gx: Vector3) -> Vector3:
@@ -121,9 +139,19 @@ func bind(
 		_keitai.visible = false
 	if _camera != null:
 		_camera.fov = CAM_FOV
-		_camera.near = 60.0 * FieldCatalog.GX_TO_METERS
-		_camera.far = 800.0 * FieldCatalog.GX_TO_METERS
+		_camera.near = CAM_NEAR_GX * FieldCatalog.GX_TO_METERS
+		_camera.far = CAM_FAR_GX * FieldCatalog.GX_TO_METERS
+	_camera_move = 0
+	_camera_tilt = 0.0
+	_camera_tilt_goal = 0.0
 	_set_action(Action.ENTER)
+	_update_camera(0.0)
+
+
+static func _hermit_morph(t: float) -> float:
+	## `cKF_HermitCalc(r, 1, 0, 1, 3.2, 0)` — smooth ease for camera morph.
+	var x: float = clampf(t, 0.0, 1.0)
+	return x * x * (3.0 - 2.0 * x)
 
 
 ## Dialogue cue: Rover sits across from the player.
@@ -166,6 +194,7 @@ func _set_action(next: Action) -> void:
 			obj_look_talk = true
 			camera_morph = 40
 			lock_camera = false
+			_obj_look_y_target_gx = OBJ_LOOK_Y_TALK_GX
 			if not _talk_emitted:
 				_talk_emitted = true
 				ready_for_talk.emit()
@@ -180,6 +209,7 @@ func _set_action(next: Action) -> void:
 		Action.STANDUP:
 			obj_look_talk = false
 			lock_camera = false
+			_obj_look_y_target_gx = OBJ_LOOK_Y_NORMAL_GX
 			_play_rover(ANIM_STANDUP, false)
 			_await_then(Action.MOVE_AISLE)
 		Action.MOVE_AISLE:
@@ -192,6 +222,9 @@ func _set_action(next: Action) -> void:
 			_speed_gx = WALK_SPEED2_GX
 			_target_gx = ROVER_DOOR_GX
 			_play_rover(ANIM_WALK, true)
+			if _pos_gx.z < 140.0:
+				_camera_tilt_goal = CAMERA_TILT_GOAL_PHONE
+				_camera_tilt_chase = CAMERA_TILT_CHASE
 		Action.MOVE_DECK:
 			_pos_gx = ROVER_DOOR_GX
 			_apply_rover_pose()
@@ -213,6 +246,9 @@ func _set_action(next: Action) -> void:
 				_keitai.visible = false
 			_open_door()
 			_play_rover(ANIM_OPEN_D2, false)
+			if _pos_gx.z < 140.0:
+				_camera_tilt_goal = 0.0
+				_camera_tilt_chase = CAMERA_TILT_RESET_CHASE
 			_await_then(Action.RETURN_APPROACH)
 		Action.RETURN_APPROACH:
 			_speed_gx = WALK_SPEED2_GX
@@ -224,6 +260,7 @@ func _set_action(next: Action) -> void:
 			obj_look_talk = true
 			camera_morph = 40
 			lock_camera = false
+			_obj_look_y_target_gx = OBJ_LOOK_Y_TALK_GX
 		Action.LAST_SIT:
 			_pos_gx = ROVER_SIT_GX
 			_yaw = 0.0
@@ -365,23 +402,50 @@ func tick(delta: float) -> void:
 	_update_camera(delta)
 
 
-func _update_camera(_delta: float) -> void:
+func _update_camera(delta: float) -> void:
 	if _camera == null:
 		return
-	var eye: Vector3 = gx_to_meters(CAM_EYE_GX)
-	var look: Vector3 = gx_to_meters(CAM_LOOK_GX)
-	if lock_camera and _rover != null:
-		look = _rover.global_position + Vector3(0.0, 30.0 * FieldCatalog.GX_TO_METERS, 0.0)
+	## Train rumble (`aNGD_set_camera` sway).
+	_camera_move += int(CAMERA_SWAY_STEP * delta * 30.0)
+	var move_x_gx: float = cos(float(_camera_move) / 65536.0 * TAU) * 0.1
+	var angle_y: int = _camera_move + CAMERA_SWAY_STEP
+	var move_y_gx: float = sin(float(angle_y) / 65536.0 * TAU) * _camera_move_range
+	if _camera_move_y <= 0.0 and move_y_gx >= 0.0:
+		_camera_move_cnt -= 1
+		if _camera_move_cnt < 0:
+			_camera_move_set_counter -= 1
+			if _camera_move_set_counter < 0:
+				_camera_move_set_counter = 1
+			_camera_move_cnt = 3 if _camera_move_set_counter == 1 else 0
+			_camera_move_range = 0.3
+		else:
+			_camera_move_range *= 0.35
+	_camera_move_y = move_y_gx
+	_camera_tilt = lerp_angle(_camera_tilt, _camera_tilt_goal, _camera_tilt_chase * delta * 30.0)
+	var tilt_sin: float = sin(_camera_tilt)
+	_obj_look_y_gx = lerpf(_obj_look_y_gx, _obj_look_y_target_gx, 0.5 * delta * 30.0)
+	var eye_gx := Vector3(
+		move_x_gx + tilt_sin * 20.0 + CAM_EYE_GX.x,
+		move_y_gx + tilt_sin * -5.0 + CAM_EYE_GX.y,
+		CAM_EYE_GX.z
+	)
+	var center_gx := Vector3(CAM_LOOK_GX.x, CAM_LOOK_GX.y, CAM_LOOK_GX.z)
+	var ground_gx := Vector3(_pos_gx.x, 0.0, _pos_gx.z)
+	if lock_camera:
+		center_gx = Vector3(ground_gx.x, _obj_look_y_gx, ground_gx.z)
 	elif obj_look_talk and camera_morph > 0:
 		camera_morph -= 1
 		var r: float = (40.0 - float(camera_morph)) / 40.0
-		var ground: Vector3 = gx_to_meters(Vector3(_pos_gx.x, 0.0, _pos_gx.z))
-		var eye_y: float = 30.0 * FieldCatalog.GX_TO_METERS
-		var target := Vector3(ground.x, ground.y + eye_y, ground.z)
-		var start := gx_to_meters(CAM_LOOK_GX)
-		look = start.lerp(target, clampf(r, 0.0, 1.0))
+		var inter: float = _hermit_morph(r)
+		center_gx.x = (ground_gx.x - CAM_LOOK_GX.x) * inter + CAM_LOOK_GX.x
+		center_gx.y = (_obj_look_y_gx - CAM_LOOK_GX.y) * inter + CAM_LOOK_GX.y
+		center_gx.z = (ground_gx.z - CAM_LOOK_GX.z) * inter + CAM_LOOK_GX.z
 		if camera_morph <= 0:
 			lock_camera = true
+	center_gx.x += move_x_gx
+	center_gx.y += move_y_gx
+	var eye: Vector3 = gx_to_meters(eye_gx)
+	var look: Vector3 = gx_to_meters(center_gx)
 	_camera.global_position = eye
 	_camera.look_at(look, Vector3.UP)
 

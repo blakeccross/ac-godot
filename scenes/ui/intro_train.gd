@@ -5,9 +5,19 @@ extends Node3D
 
 const DIALOGUE_ID := &"rover_intro"
 const ROVER_GLB := "res://assets/generated/characters/villagers/cat_1.glb"
+## Ceiling omni positions along the aisle (`rom_train_in` GX).
+const CEILING_LIGHT_GX: Array[Vector3] = [
+	Vector3(100.0, 96.0, 320.0),
+	Vector3(100.0, 96.0, 360.0),
+	Vector3(100.0, 96.0, 395.0),
+]
 
 @onready var _train_host: Node3D = %TrainCar
 @onready var _window_host: Node3D = %WindowScenery
+@onready var _world_env: WorldEnvironment = $WorldEnvironment
+@onready var _tunnel_fill: DirectionalLight3D = %TunnelFill
+@onready var _window_sun: DirectionalLight3D = %WindowSun
+@onready var _ceiling_lights: Node3D = %CeilingLights
 @onready var _door_host: Node3D = %TrainDoor
 @onready var _rover_host: Node3D = %Rover
 @onready var _keitai_host: Node3D = %Keitai
@@ -44,6 +54,7 @@ func _ready() -> void:
 	_intro.finished.connect(_on_intro_finished)
 	_intro.cancelled.connect(_on_intro_cancelled)
 	_stage.ready_for_talk.connect(_on_ready_for_talk)
+	_stage.stage_changed.connect(_on_stage_changed)
 	_bootstrap_stage()
 
 
@@ -71,6 +82,7 @@ func _bootstrap_stage() -> void:
 			+ "(need rom_train_in, rom_train_out, obj_romtrain_door, cat_1, tol_keitai_1)"
 		)
 	_attach_visuals()
+	_apply_tunnel_lighting()
 	var rover_anim: AnimationPlayer = GeneratedVisual.find_animation_player(_rover_host)
 	var door_anim: AnimationPlayer = GeneratedVisual.find_animation_player(_door_host)
 	_stage.bind(_rover_host, rover_anim, _door_host, door_anim, _keitai_host, _camera)
@@ -80,12 +92,16 @@ func _bootstrap_stage() -> void:
 
 
 func _attach_visuals() -> void:
+	if _window_host.get_parent() != _train_host:
+		_window_host.reparent(_train_host, false)
 	var car: Node3D = GeneratedVisual.attach(_train_host, &"rom_train_in")
 	if car != null:
 		_fit_train_interior(car, &"rom_train_in")
+		_boost_train_lamp_emission(car)
 	var scenery: Node3D = GeneratedVisual.attach(_window_host, &"rom_train_out")
 	if scenery != null:
 		_fit_train_interior(scenery, &"rom_train_out")
+	_place_ceiling_lights()
 	GeneratedVisual.attach(_door_host, &"obj_romtrain_door")
 	GeneratedVisual.attach_villager(_rover_host, &"cat")
 	GeneratedVisual.attach(_keitai_host, &"tol_keitai_1")
@@ -103,6 +119,71 @@ func _fit_train_interior(pivot: Node3D, visual_id: StringName) -> void:
 	var s: float = FieldCatalog.interior_uniform_scale(visual_id)
 	pivot.scale = Vector3.ONE * s
 	pivot.position = Vector3(0.0, FieldCatalog.interior_ground_y_offset(visual_id), 0.0)
+
+
+func _place_ceiling_lights() -> void:
+	var lights: Array[Node] = _ceiling_lights.get_children()
+	for i: int in lights.size():
+		if i >= CEILING_LIGHT_GX.size():
+			break
+		var light: Node3D = lights[i] as Node3D
+		if light == null:
+			continue
+		light.global_position = IntroTrainStage.gx_to_meters(CEILING_LIGHT_GX[i])
+
+
+func _boost_train_lamp_emission(root: Node3D) -> void:
+	_boost_emissive_surfaces(root)
+
+
+func _boost_emissive_surfaces(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh == null:
+			return
+		for i: int in mesh_instance.mesh.get_surface_count():
+			var mat: Material = mesh_instance.get_active_material(i)
+			if not mat is StandardMaterial3D:
+				continue
+			var label := ""
+			if mesh_instance.mesh is ArrayMesh:
+				label = (mesh_instance.mesh as ArrayMesh).surface_get_name(i).to_lower()
+			var src := mat as StandardMaterial3D
+			if not ("light" in label or src.emission_enabled or src.emission_energy > 0.01):
+				continue
+			var std := src.duplicate() as StandardMaterial3D
+			std.emission_enabled = true
+			std.emission_energy = maxf(std.emission_energy, 2.8)
+			mesh_instance.set_surface_override_material(i, std)
+	for child: Node in node.get_children():
+		_boost_emissive_surfaces(child)
+
+
+func _apply_tunnel_lighting() -> void:
+	_tunnel_fill.visible = true
+	_tunnel_fill.light_energy = 0.12
+	_window_sun.visible = false
+	var env: Environment = _world_env.environment
+	if env != null:
+		env.ambient_light_color = Color(0.42, 0.4, 0.36)
+		env.ambient_light_energy = 0.42
+		env.background_color = Color(0.035, 0.035, 0.05)
+
+
+func _apply_daylight() -> void:
+	## `aNGD_sitdown` sets `sunlight_flag` TRUE — train leaves the tunnel.
+	_window_sun.visible = true
+	_tunnel_fill.light_energy = 0.05
+	var env: Environment = _world_env.environment
+	if env != null:
+		env.ambient_light_color = Color(0.55, 0.58, 0.62)
+		env.ambient_light_energy = 0.55
+		env.background_color = Color(0.48, 0.58, 0.68)
+
+
+func _on_stage_changed(action: StringName) -> void:
+	if action == &"sitdown":
+		_apply_daylight()
 
 
 func _on_ready_for_talk() -> void:
