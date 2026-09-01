@@ -4,7 +4,7 @@
 background_mode = 1
 background_color = Color(0.035, 0.035, 0.05, 1)
 ambient_light_source = 1
-ambient_light_color = Color(0.72, 0.68, 0.6, 1)
-ambient_light_energy = 0.85
+ambient_light_color = Color(0.78, 0.74, 0.66, 1)
+ambient_light_energy = 1.05
 tonemap_mode = 2
-tonemap_exposure = 1.1
+tonemap_exposure = 1.18

@@ -15,6 +15,9 @@ const CEILING_LIGHT_GX: Array[Vector3] = [
 	Vector3(100.0, 96.0, 395.0),
 ]
 const SEAT_FILL_GX := Vector3(100.0, 50.0, 375.0)
+## `rom_train_out_shineglass_modelT` — XLU god-rays (prim LOD alpha in decomp).
+const LIGHT_RAY_TUNNEL_ALPHA := 0.28
+const LIGHT_RAY_DAYLIGHT_ALPHA := 0.58
 
 @onready var _train_host: Node3D = %TrainCar
 @onready var _window_host: Node3D = %WindowScenery
@@ -47,6 +50,8 @@ var _ctx: DialogueContext
 var _finishing: bool = false
 var _dialogue_started: bool = false
 var _window_scenery: Node3D
+var _train_car: Node3D
+var _daylight: bool = false
 
 
 func _ready() -> void:
@@ -108,6 +113,7 @@ func _attach_visuals() -> void:
 		_apply_scenery_materials(scenery)
 	var car: Node3D = GeneratedVisual.attach(_train_host, &"rom_train_in")
 	if car != null:
+		_train_car = car
 		_fit_train_interior(car, &"rom_train_in")
 		_apply_car_materials(car)
 	_place_train_lights()
@@ -142,16 +148,16 @@ func _place_train_lights() -> void:
 		light.global_position = IntroTrainStage.gx_to_meters(CEILING_LIGHT_GX[i])
 
 
-func _apply_car_materials(root: Node3D) -> void:
+func _apply_car_materials(root: Node3D, daylight: bool = _daylight) -> void:
 	## Only touch the XLU pass (`*_modelT`); leave OPA seat/wall textures imported.
-	_apply_car_materials_inner(root)
+	_apply_car_materials_inner(root, daylight)
 
 
-func _apply_scenery_materials(root: Node3D, bright: bool = false) -> void:
-	_apply_scenery_materials_inner(root, bright)
+func _apply_scenery_materials(root: Node3D, daylight: bool = false) -> void:
+	_apply_scenery_materials_inner(root, daylight)
 
 
-func _apply_car_materials_inner(node: Node) -> void:
+func _apply_car_materials_inner(node: Node, daylight: bool) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
 		if mesh_instance.mesh == null:
@@ -168,47 +174,46 @@ func _apply_car_materials_inner(node: Node) -> void:
 			var std := src.duplicate() as StandardMaterial3D
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
-			if _is_train_lamp_surface(label, std):
+			if _is_light_ray_surface(label):
+				_apply_light_ray_surface(std, daylight)
+				mesh_instance.set_surface_override_material(i, std)
+			elif _is_train_lamp_surface(label, std):
 				_apply_lamp_surface(std)
 				mesh_instance.set_surface_override_material(i, std)
 			elif _is_train_glass_surface(label, std):
 				_apply_glass_surface(std)
 				mesh_instance.set_surface_override_material(i, std)
 	for child: Node in node.get_children():
-		_apply_car_materials_inner(child)
+		_apply_car_materials_inner(child, daylight)
 
 
-func _apply_scenery_materials_inner(node: Node, bright: bool) -> void:
+func _apply_scenery_materials_inner(node: Node, daylight: bool) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
 		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mesh_instance.sorting_offset = -2.0
+		mesh_instance.sorting_offset = -1.0
 		if mesh_instance.mesh == null:
 			return
 		var node_label := String(mesh_instance.name).to_lower()
-		var is_xlu := node_label.contains("modelt")
+		if not node_label.contains("modelt"):
+			return
 		for i: int in mesh_instance.mesh.get_surface_count():
 			var mat: Material = mesh_instance.get_active_material(i)
 			if not mat is StandardMaterial3D:
 				continue
 			var label := _surface_label(mesh_instance, i, mat)
 			var src := mat as StandardMaterial3D
-			if not is_xlu and not _material_extras(src).get("unlit_fill", false):
-				continue
 			var std := src.duplicate() as StandardMaterial3D
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
-			std.render_priority = -2
-			if _material_extras(src).get("unlit_fill", false) or _is_outdoor_view_surface(label):
-				_apply_unlit_fill(std, bright)
+			if _is_light_ray_surface(label):
+				_apply_light_ray_surface(std, daylight)
 				mesh_instance.set_surface_override_material(i, std)
-			elif is_xlu:
-				std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-				std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
-				std.render_priority = -1
+			else:
+				_apply_xlu_scenery_surface(std)
 				mesh_instance.set_surface_override_material(i, std)
 	for child: Node in node.get_children():
-		_apply_scenery_materials_inner(child, bright)
+		_apply_scenery_materials_inner(child, daylight)
 
 
 func _surface_label(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> String:
@@ -225,36 +230,19 @@ func _surface_label(mesh_instance: MeshInstance3D, surface: int, mat: Material) 
 	return " ".join(bits)
 
 
-func _material_extras(mat: Material) -> Dictionary:
-	if mat == null:
-		return {}
-	for key: String in ["extras", "gltf_extras"]:
-		if mat.has_meta(key):
-			var extras: Variant = mat.get_meta(key)
-			if extras is Dictionary:
-				return extras as Dictionary
-	return {}
-
-
-func _apply_unlit_fill(std: StandardMaterial3D, bright: bool) -> void:
-	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	std.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
-	std.albedo_texture = null
-	if bright:
-		if std.albedo_color.get_luminance() < 0.08:
-			std.albedo_color = Color(0.55, 0.62, 0.72)
-	else:
-		if std.albedo_color.get_luminance() > 0.2:
-			std.albedo_color = std.albedo_color.darkened(0.55)
-		else:
-			std.albedo_color = Color(0.04, 0.04, 0.05)
+func _is_light_ray_surface(label: String) -> bool:
+	return (
+		"shineglass" in label
+		or "shine_glass" in label
+		or "lightray" in label
+		or "light_ray" in label
+	)
 
 
 func _is_train_lamp_surface(label: String, std: StandardMaterial3D) -> bool:
+	if _is_light_ray_surface(label):
+		return false
 	if "light_model" in label or "lightt_model" in label or "lamp" in label:
-		return true
-	if "shine" in label and "glass" not in label:
 		return true
 	if "light" in label and "highlight" not in label and "flight" not in label:
 		return true
@@ -267,8 +255,33 @@ func _is_train_glass_surface(label: String, std: StandardMaterial3D) -> bool:
 	return std.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED and "modelt" in label
 
 
-func _is_outdoor_view_surface(label: String) -> bool:
-	return "room_out" in label or "bgsky" in label or "bgcloud" in label or "bgtree" in label
+func _apply_light_ray_surface(std: StandardMaterial3D, daylight: bool) -> void:
+	## `rom_train_out_shineglass_modelT`: XLU prim × texture alpha (decomp `lod_factor`).
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_ALWAYS
+	std.cull_mode = BaseMaterial3D.CULL_DISABLED
+	std.render_priority = 2
+	var alpha: float = LIGHT_RAY_DAYLIGHT_ALPHA if daylight else LIGHT_RAY_TUNNEL_ALPHA
+	var tint := Color(1.0, 0.97, 0.82, alpha)
+	if std.albedo_texture != null:
+		std.albedo_color = tint
+	else:
+		std.albedo_color = tint
+		std.albedo_texture = null
+	std.emission_enabled = true
+	std.emission = Color(1.0, 0.95, 0.78)
+	std.emission_energy_multiplier = 2.2 if daylight else 1.4
+
+
+func _apply_xlu_scenery_surface(std: StandardMaterial3D) -> void:
+	## Clouds / trees beyond the glass — keep baked CI textures, alpha blend.
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+	std.render_priority = -1
+	if std.albedo_color.a <= 0.01:
+		std.albedo_color.a = 0.95
 
 
 func _apply_lamp_surface(std: StandardMaterial3D) -> void:
@@ -295,36 +308,43 @@ func _set_omni_group_energy(group: Node3D, energy: float) -> void:
 			(child as OmniLight3D).light_energy = energy
 
 
-func _apply_tunnel_lighting() -> void:
-	_tunnel_fill.visible = true
-	_tunnel_fill.light_energy = 0.28
-	_window_sun.visible = false
-	_seat_fill.light_energy = 1.1
-	_set_omni_group_energy(_ceiling_lights, 1.35)
+func _refresh_train_materials() -> void:
+	if _train_car != null:
+		_apply_car_materials(_train_car, _daylight)
 	if _window_scenery != null:
-		_apply_scenery_materials(_window_scenery, false)
+		_apply_scenery_materials(_window_scenery, _daylight)
+
+
+func _apply_tunnel_lighting() -> void:
+	_daylight = false
+	_tunnel_fill.visible = true
+	_tunnel_fill.light_energy = 0.38
+	_window_sun.visible = false
+	_seat_fill.light_energy = 1.35
+	_set_omni_group_energy(_ceiling_lights, 1.55)
+	_refresh_train_materials()
 	var env: Environment = _world_env.environment
 	if env != null:
-		env.ambient_light_color = Color(0.72, 0.68, 0.6)
-		env.ambient_light_energy = 0.85
-		env.background_color = Color(0.05, 0.05, 0.07)
-		env.tonemap_exposure = 1.1
+		env.ambient_light_color = Color(0.78, 0.74, 0.66)
+		env.ambient_light_energy = 1.05
+		env.background_color = Color(0.08, 0.08, 0.1)
+		env.tonemap_exposure = 1.18
 
 
 func _apply_daylight() -> void:
 	## `aNGD_sitdown` sets `sunlight_flag` TRUE — train leaves the tunnel.
+	_daylight = true
 	_window_sun.visible = true
-	_tunnel_fill.light_energy = 0.12
-	_seat_fill.light_energy = 0.85
-	_set_omni_group_energy(_ceiling_lights, 1.0)
-	if _window_scenery != null:
-		_apply_scenery_materials(_window_scenery, true)
+	_tunnel_fill.light_energy = 0.18
+	_seat_fill.light_energy = 1.0
+	_set_omni_group_energy(_ceiling_lights, 1.25)
+	_refresh_train_materials()
 	var env: Environment = _world_env.environment
 	if env != null:
-		env.ambient_light_color = Color(0.78, 0.8, 0.84)
-		env.ambient_light_energy = 1.0
+		env.ambient_light_color = Color(0.82, 0.84, 0.88)
+		env.ambient_light_energy = 1.15
 		env.background_color = Color(0.52, 0.62, 0.72)
-		env.tonemap_exposure = 1.15
+		env.tonemap_exposure = 1.22
 
 
 func _on_stage_changed(action: StringName) -> void:
