@@ -41,12 +41,14 @@ const ANIM_KEITAI_OFF := "npc_1_keitai_off1"
 const ANIM_OPEN_D2 := "npc_1_open_d2"
 
 ## `aNGD` GX landmarks.
+const ROVER_AISLE_X_GX := 140.0
 const ROVER_START_GX := Vector3(140.0, 0.0, 130.0)
-const ROVER_TALK_GX := Vector3(100.0, 0.0, 290.0)
+const ROVER_TALK_GX := Vector3(140.0, 0.0, 290.0)
 const ROVER_SIT_GX := Vector3(100.0, 0.0, 280.0)
 const ROVER_STAND_GX := Vector3(100.0, 0.0, 300.0)
 const ROVER_AISLE_GX := Vector3(140.0, 0.0, 290.0)
 const ROVER_DOOR_GX := Vector3(140.0, 0.0, 130.0)
+const ROVER_RETURN_START_GX := Vector3(140.0, 0.0, 140.0)
 const CAM_EYE_GX := Vector3(100.0, 80.0, 400.0)
 const CAM_LOOK_GX := Vector3(90.0, 80.0, 280.0)
 const CAM_FOV := 40.0
@@ -58,9 +60,14 @@ const CAMERA_SWAY_STEP := 0xE20
 const CAMERA_TILT_GOAL_PHONE := PI * 0.5
 const CAMERA_TILT_CHASE := deg_to_rad(2.8125)
 const CAMERA_TILT_RESET_CHASE := deg_to_rad(6.75)
-const WALK_SPEED_GX := 1.0 ## GX per frame @ 30 Hz → 1.5 m/s
-const WALK_SPEED2_GX := 1.5
+const WALK_SPEED_GX := 1.0 ## GX per frame @ 30 Hz (`aNGD_set_walk_spd`)
+const WALK_SPEED2_GX := 1.5 ## `aNGD_set_walk_spd2`
 const DOOR_OPEN_FRAME := 20.0
+const DOOR_DECK_OPEN_FRAME := 9.0
+const DOOR_OPEN_D2_FRAME := 22.0
+const KEITAI_ON_ANIM_SPEED := 0.5
+const OPEN_D2_YAW := PI
+const OPEN_D2_YAW_CHASE := deg_to_rad(0.703125)
 
 var action: Action = Action.ENTER
 var lock_camera: bool = false
@@ -183,8 +190,8 @@ func _set_action(next: Action) -> void:
 	match next:
 		Action.ENTER:
 			_speed_gx = WALK_SPEED_GX
+			_door_opened = false
 			_play_rover(ANIM_OPEN_D1, false)
-			_open_door()
 		Action.APPROACH:
 			_speed_gx = WALK_SPEED_GX
 			_target_gx = ROVER_TALK_GX
@@ -228,13 +235,13 @@ func _set_action(next: Action) -> void:
 		Action.MOVE_DECK:
 			_pos_gx = ROVER_DOOR_GX
 			_apply_rover_pose()
-			_open_door()
+			_door_opened = false
 			_play_rover(ANIM_TO_DECK, false)
 			_await_then(Action.KEITAI_ON)
 		Action.KEITAI_ON:
 			if _keitai != null:
 				_keitai.visible = true
-			_play_rover(ANIM_KEITAI_ON, false)
+			_play_rover(ANIM_KEITAI_ON, false, KEITAI_ON_ANIM_SPEED)
 			_await_then(Action.KEITAI_TALK)
 		Action.KEITAI_TALK:
 			_play_rover(ANIM_KEITAI_TALK, true)
@@ -244,7 +251,7 @@ func _set_action(next: Action) -> void:
 		Action.OPEN_DOOR:
 			if _keitai != null:
 				_keitai.visible = false
-			_open_door()
+			_door_opened = false
 			_play_rover(ANIM_OPEN_D2, false)
 			if _pos_gx.z < 140.0:
 				_camera_tilt_goal = 0.0
@@ -252,8 +259,7 @@ func _set_action(next: Action) -> void:
 			_await_then(Action.RETURN_APPROACH)
 		Action.RETURN_APPROACH:
 			_speed_gx = WALK_SPEED2_GX
-			_target_gx = ROVER_TALK_GX
-			_pos_gx = Vector3(140.0, 0.0, 140.0)
+			_pos_gx = ROVER_RETURN_START_GX
 			_yaw = 0.0
 			_apply_rover_pose()
 			_play_rover(ANIM_WALK, true)
@@ -285,21 +291,84 @@ func _tick_enter(_delta: float) -> void:
 		_set_action(Action.APPROACH)
 
 
-func _tick_move(delta: float, target: Vector3, arrive: Action) -> void:
-	_target_gx = target
-	var to: Vector3 = target - _pos_gx
-	to.y = 0.0
-	var dist: float = to.length()
+func _tick_approach(delta: float) -> void:
+	## `aNGD_approach`: walk the aisle at x=140 until z reaches 290.
+	_tick_move_axis_z(delta, ROVER_TALK_GX.z, Action.TALK, ROVER_AISLE_X_GX, 1.0)
+
+
+func _tick_move_aisle(delta: float) -> void:
+	## `aNGD_move_to_aisle`: stand at (100,300), face the aisle, step until x > 140.
+	_face_toward_gx(ROVER_AISLE_GX)
+	_tick_move_until_x_reached(delta, ROVER_AISLE_GX.x, Action.MOVE_DOOR)
+
+
+func _tick_move_door(delta: float) -> void:
+	## `aNGD_move_to_door`: aisle at x=140, walk toward the vestibule.
+	_face_toward_gx(ROVER_DOOR_GX)
+	_tick_move_axis_z(delta, ROVER_DOOR_GX.z, Action.MOVE_DECK, ROVER_AISLE_X_GX, -1.0)
+
+
+func _tick_return_approach(delta: float) -> void:
+	## `aNGD_return_approach`: x=140 fixed, walk back toward the player.
+	_tick_move_axis_z(delta, ROVER_TALK_GX.z, Action.LAST_SIT, ROVER_AISLE_X_GX, 1.0)
+
+
+func _tick_move_deck(_delta: float) -> void:
+	if not _door_opened and _rover_anim != null and _rover_anim.current_animation_position >= (DOOR_DECK_OPEN_FRAME / 30.0):
+		_open_door()
+
+
+func _tick_open_door(_delta: float) -> void:
+	if _pos_gx.z < 140.0:
+		_yaw = lerp_angle(_yaw, OPEN_D2_YAW, OPEN_D2_YAW_CHASE * _delta * 30.0)
+		_apply_rover_pose()
+	if not _door_opened and _rover_anim != null and _rover_anim.current_animation_position >= (DOOR_OPEN_D2_FRAME / 30.0):
+		_open_door()
+
+
+func _tick_move_axis_z(
+	delta: float, target_z: float, arrive: Action, x_gx: float, direction: float
+) -> void:
+	_pos_gx.x = x_gx
 	var step: float = _speed_gx * 30.0 * delta
-	if dist <= step or dist < 0.5:
-		_pos_gx = target
+	if direction >= 0.0:
+		_yaw = 0.0
+		if _pos_gx.z + step >= target_z:
+			_pos_gx.z = target_z
+			_apply_rover_pose()
+			_set_action(arrive)
+			return
+		_pos_gx.z += step
+	else:
+		_yaw = PI
+		if _pos_gx.z - step <= target_z:
+			_pos_gx.z = target_z
+			_apply_rover_pose()
+			_set_action(arrive)
+			return
+		_pos_gx.z -= step
+	_apply_rover_pose()
+
+
+func _tick_move_until_x_reached(delta: float, target_x: float, arrive: Action) -> void:
+	var step: float = _speed_gx * 30.0 * delta
+	if _pos_gx.x + step >= target_x:
+		_pos_gx.x = target_x
 		_apply_rover_pose()
 		_set_action(arrive)
 		return
-	var dir: Vector3 = to / dist
+	var dir: Vector3 = ROVER_AISLE_GX - _pos_gx
+	dir.y = 0.0
+	dir = dir.normalized()
 	_pos_gx += dir * step
-	_yaw = atan2(dir.x, dir.z)
 	_apply_rover_pose()
+
+
+func _face_toward_gx(target_gx: Vector3) -> void:
+	var to: Vector3 = target_gx - _pos_gx
+	to.y = 0.0
+	if to.length_squared() > 0.001:
+		_yaw = atan2(to.x, to.z)
 
 
 func _apply_rover_pose() -> void:
@@ -325,7 +394,7 @@ func _open_door() -> void:
 	_door_anim.speed_scale = 0.5
 
 
-func _play_rover(suffix: String, loop: bool) -> void:
+func _play_rover(suffix: String, loop: bool, speed_scale: float = 1.0) -> void:
 	if _rover_anim == null:
 		return
 	var clip: String = _resolve_clip(suffix)
@@ -337,7 +406,8 @@ func _play_rover(suffix: String, loop: bool) -> void:
 		anim.loop_mode = (
 			Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
 		)
-	_rover_anim.play(clip, 0.12)
+	_rover_anim.speed_scale = speed_scale
+	_rover_anim.play(clip, 0.0)
 
 
 func _resolve_clip(suffix: String) -> String:
@@ -388,14 +458,18 @@ func tick(delta: float) -> void:
 		Action.ENTER:
 			_tick_enter(delta)
 		Action.APPROACH:
-			_tick_move(delta, ROVER_TALK_GX, Action.TALK)
+			_tick_approach(delta)
 		Action.MOVE_AISLE:
-			_tick_move(delta, ROVER_AISLE_GX, Action.MOVE_DOOR)
+			_tick_move_aisle(delta)
 		Action.MOVE_DOOR:
-			_tick_move(delta, ROVER_DOOR_GX, Action.MOVE_DECK)
+			_tick_move_door(delta)
 		Action.RETURN_APPROACH:
-			_tick_move(delta, ROVER_TALK_GX, Action.LAST_SIT)
-		Action.SITDOWN, Action.STANDUP, Action.KEITAI_ON, Action.KEITAI_OFF, Action.OPEN_DOOR, Action.MOVE_DECK:
+			_tick_return_approach(delta)
+		Action.MOVE_DECK:
+			_tick_move_deck(delta)
+		Action.OPEN_DOOR:
+			_tick_open_door(delta)
+		Action.SITDOWN, Action.STANDUP, Action.KEITAI_ON, Action.KEITAI_OFF:
 			pass
 		_:
 			pass

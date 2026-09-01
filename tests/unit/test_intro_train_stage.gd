@@ -67,6 +67,26 @@ func test_bind_places_camera_near_decomp_eye() -> void:
 	cam.queue_free()
 
 
+func test_approach_keeps_rover_in_aisle() -> void:
+	var stage := IntroTrainStage.new()
+	var rover := Node3D.new()
+	add_child(rover)
+	stage.bind(rover, null, null, null, null, null)
+	for _i: int in 200:
+		stage.tick(1.0 / 30.0)
+		if stage.action == IntroTrainStage.Action.TALK:
+			break
+	assert_that(stage.action).is_equal(IntroTrainStage.Action.TALK)
+	var aisle_x: float = IntroTrainStage.gx_to_meters(
+		Vector3(IntroTrainStage.ROVER_AISLE_X_GX, 0.0, 0.0)
+	).x
+	assert_float(rover.global_position.x).is_equal_approx(aisle_x, 0.02)
+	assert_float(rover.global_position.z).is_equal_approx(
+		IntroTrainStage.gx_to_meters(IntroTrainStage.ROVER_TALK_GX).z, 0.02
+	)
+	rover.queue_free()
+
+
 func test_cue_sit_moves_to_sit_gx() -> void:
 	var stage := IntroTrainStage.new()
 	var rover := Node3D.new()

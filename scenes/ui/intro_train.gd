@@ -100,15 +100,16 @@ func _bootstrap_stage() -> void:
 func _attach_visuals() -> void:
 	if _window_host.get_parent() != _train_host:
 		_window_host.reparent(_train_host, false)
-	var car: Node3D = GeneratedVisual.attach(_train_host, &"rom_train_in")
-	if car != null:
-		_fit_train_interior(car, &"rom_train_in")
-		_apply_train_materials(car)
+	## Scenery first so OPA seats/walls in `rom_train_in` depth-occlude window quads.
 	var scenery: Node3D = GeneratedVisual.attach(_window_host, &"rom_train_out")
 	if scenery != null:
 		_window_scenery = scenery
 		_fit_train_interior(scenery, &"rom_train_out")
-		_apply_train_materials(scenery, true)
+		_apply_scenery_materials(scenery)
+	var car: Node3D = GeneratedVisual.attach(_train_host, &"rom_train_in")
+	if car != null:
+		_fit_train_interior(car, &"rom_train_in")
+		_apply_car_materials(car)
 	_place_train_lights()
 	GeneratedVisual.attach(_door_host, &"obj_romtrain_door")
 	GeneratedVisual.attach_villager(_rover_host, &"cat")
@@ -141,14 +142,22 @@ func _place_train_lights() -> void:
 		light.global_position = IntroTrainStage.gx_to_meters(CEILING_LIGHT_GX[i])
 
 
-func _apply_train_materials(root: Node3D, outdoor_scenery: bool = false) -> void:
-	_apply_train_materials_inner(root, outdoor_scenery)
+func _apply_car_materials(root: Node3D) -> void:
+	## Only touch the XLU pass (`*_modelT`); leave OPA seat/wall textures imported.
+	_apply_car_materials_inner(root)
 
 
-func _apply_train_materials_inner(node: Node, outdoor_scenery: bool) -> void:
+func _apply_scenery_materials(root: Node3D, bright: bool = false) -> void:
+	_apply_scenery_materials_inner(root, bright)
+
+
+func _apply_car_materials_inner(node: Node) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
 		if mesh_instance.mesh == null:
+			return
+		var node_label := String(mesh_instance.name).to_lower()
+		if not node_label.contains("modelt"):
 			return
 		for i: int in mesh_instance.mesh.get_surface_count():
 			var mat: Material = mesh_instance.get_active_material(i)
@@ -159,25 +168,47 @@ func _apply_train_materials_inner(node: Node, outdoor_scenery: bool) -> void:
 			var std := src.duplicate() as StandardMaterial3D
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
-			std.roughness = 1.0
-			std.metallic = 0.0
-			if _material_extras(src).get("unlit_fill", false):
-				_apply_unlit_fill(std, outdoor_scenery)
-				mesh_instance.set_surface_override_material(i, std)
-				continue
 			if _is_train_lamp_surface(label, std):
 				_apply_lamp_surface(std)
 				mesh_instance.set_surface_override_material(i, std)
-				continue
-			if _is_train_glass_surface(label, std):
+			elif _is_train_glass_surface(label, std):
 				_apply_glass_surface(std)
 				mesh_instance.set_surface_override_material(i, std)
+	for child: Node in node.get_children():
+		_apply_car_materials_inner(child)
+
+
+func _apply_scenery_materials_inner(node: Node, bright: bool) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mesh_instance.sorting_offset = -2.0
+		if mesh_instance.mesh == null:
+			return
+		var node_label := String(mesh_instance.name).to_lower()
+		var is_xlu := node_label.contains("modelt")
+		for i: int in mesh_instance.mesh.get_surface_count():
+			var mat: Material = mesh_instance.get_active_material(i)
+			if not mat is StandardMaterial3D:
 				continue
-			if outdoor_scenery and _is_outdoor_view_surface(label):
-				_apply_unlit_fill(std, true)
+			var label := _surface_label(mesh_instance, i, mat)
+			var src := mat as StandardMaterial3D
+			if not is_xlu and not _material_extras(src).get("unlit_fill", false):
+				continue
+			var std := src.duplicate() as StandardMaterial3D
+			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			std.cull_mode = BaseMaterial3D.CULL_DISABLED
+			std.render_priority = -2
+			if _material_extras(src).get("unlit_fill", false) or _is_outdoor_view_surface(label):
+				_apply_unlit_fill(std, bright)
+				mesh_instance.set_surface_override_material(i, std)
+			elif is_xlu:
+				std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+				std.render_priority = -1
 				mesh_instance.set_surface_override_material(i, std)
 	for child: Node in node.get_children():
-		_apply_train_materials_inner(child, outdoor_scenery)
+		_apply_scenery_materials_inner(child, bright)
 
 
 func _surface_label(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> String:
@@ -231,7 +262,7 @@ func _is_train_lamp_surface(label: String, std: StandardMaterial3D) -> bool:
 
 
 func _is_train_glass_surface(label: String, std: StandardMaterial3D) -> bool:
-	if "glass" in label or "window" in label:
+	if "glass" in label:
 		return true
 	return std.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED and "modelt" in label
 
@@ -251,7 +282,9 @@ func _apply_lamp_surface(std: StandardMaterial3D) -> void:
 
 func _apply_glass_surface(std: StandardMaterial3D) -> void:
 	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	std.albedo_color.a = minf(std.albedo_color.a, 0.35)
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+	std.render_priority = 1
+	std.albedo_color.a = minf(maxf(std.albedo_color.a, 0.2), 0.35)
 	std.roughness = 0.05
 	std.metallic = 0.0
 
@@ -269,7 +302,7 @@ func _apply_tunnel_lighting() -> void:
 	_seat_fill.light_energy = 1.1
 	_set_omni_group_energy(_ceiling_lights, 1.35)
 	if _window_scenery != null:
-		_apply_train_materials(_window_scenery, false)
+		_apply_scenery_materials(_window_scenery, false)
 	var env: Environment = _world_env.environment
 	if env != null:
 		env.ambient_light_color = Color(0.72, 0.68, 0.6)
@@ -285,7 +318,7 @@ func _apply_daylight() -> void:
 	_seat_fill.light_energy = 0.85
 	_set_omni_group_energy(_ceiling_lights, 1.0)
 	if _window_scenery != null:
-		_apply_train_materials(_window_scenery, true)
+		_apply_scenery_materials(_window_scenery, true)
 	var env: Environment = _world_env.environment
 	if env != null:
 		env.ambient_light_color = Color(0.78, 0.8, 0.84)
