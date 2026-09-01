@@ -35,7 +35,8 @@ Starting a **new town** drops the player into a train demo. Rover walks up, conf
 - 3D stage with pipeline GLBs: `rom_train_in`, `rom_train_out`, `obj_romtrain_door`, Rover=`xct_1`, sleep passenger=`kab_1`, phone=`tol_keitai_1`.
 - `IntroTrainStage` plays decomp clips and GX camera / walk path; dialogue cues `rover_sit` / `rover_phone` / `rover_phone_done` / `rover_return`. Phone-done waits for `KEITAI_TALK` then chains `KEITAI_OFF` → `OPEN_D2` → return walk → standing talk (decomp `LAST_TALK`), not an immediate `OPEN_DOOR` skip mid-walk.
 - Clock confirm → snap to seat + `npc_1_sitdown_d1` (no pre-walk; anim carries motion). Daylight when sitdown finishes.
-- Background sleep NPC at FG ut (4,4), birth offset x−6/z−24 → ~(174, 156) GX; body yaw 180° (`appear_rotation` 0); `wait_nemu1` base + `kokkuri_d1`/`d2` nod; bench align ~40 GX.
+- Background sleep NPC at FG ut (4,4), birth offset x−6/z−24 → ~(174, 156) GX; `aNPC_think_in_block` appear 0 → body yaw 180°; `kokkuri_d1`/`d2` nod only (no `wait_nemu1`); bench align ~40 GX.
+- Dialogue overlay uses extracted `con_kaiwa2` / `con_kaiwaname` chrome (`--kind message-ui`) at decomp `mMsg` layout when present.
 - Rover head tracks camera `(100, eye_y, 400)` during approach/return (`camera_eyes_flag`) on `joint_21` via decomp Euler override; not during `open_d1`.
 - Clock confirm / edit → name → gender → town → face questions → phone → farewell.
 - Face selection matching the decomp bit table (and random when the money answer clears bit 0).

@@ -1,6 +1,6 @@
 extends CanvasLayer
 
-## Modal talk window (`m_msg` appear/normal/cursor). Placeholder chrome.
+## Modal talk window (`m_msg` appear/normal/cursor) with `con_kaiwa2` chrome when extracted.
 
 signal closed
 
@@ -8,6 +8,7 @@ const CHARS_PER_SEC := 42.0
 const FAST_SCALE := 8.0
 
 @onready var _root: Control = %Root
+@onready var _chrome: MessageWindowChrome = %MessageChrome
 @onready var _name: Label = %NameLabel
 @onready var _body: Label = %BodyLabel
 @onready var _hint: Label = %HintLabel
@@ -49,8 +50,7 @@ func play(data: DialogueData, ctx: DialogueContext, state: VillagerState = null)
 	_runner.finished.connect(_on_finished)
 	_open = true
 	_root.visible = true
-	_name.text = ctx.speaker_name if ctx != null else ""
-	_name.visible = _name.text != ""
+	_chrome.set_speaker(ctx.speaker_name if ctx != null else "")
 	_hint.text = ""
 	_clear_choices()
 	_runner.start(data, ctx, state)
@@ -58,9 +58,6 @@ func play(data: DialogueData, ctx: DialogueContext, state: VillagerState = null)
 		close()
 
 
-## One line of text with no conversation behind it, dismissed the same way as any other. The
-## original's catch report is a plain `mMsg` window with `LockContinue` held until the player
-## advances it, which is what `notice_rod` waits on before putting the rod away.
 func say(text: String, speaker: String = "") -> void:
 	if text.is_empty():
 		return
@@ -71,8 +68,7 @@ func say(text: String, speaker: String = "") -> void:
 		_runner = null
 	_open = true
 	_root.visible = true
-	_name.text = speaker
-	_name.visible = speaker != ""
+	_chrome.set_speaker(speaker)
 	_clear_choices()
 	_on_line(text)
 
@@ -112,7 +108,7 @@ func _process(delta: float) -> void:
 	_cursor = mini(_shown.length(), _cursor + int(ceil(rate * delta)))
 	_body.text = _shown.substr(0, _cursor)
 	if _cursor >= _shown.length():
-		_hint.text = "E continue"
+		_hint.text = "▼"
 		if _runner != null and _runner.is_continue_blocked():
 			_hint.text = ""
 
@@ -137,10 +133,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _cursor < _shown.length():
 			_cursor = _shown.length()
 			_body.text = _shown
-			_hint.text = "E continue"
+			_hint.text = "▼"
 			return
 		if _runner == null:
-			## A `say` line has nothing to advance to, so dismissing it closes the window.
 			close()
 			return
 		_runner.advance()
@@ -174,7 +169,7 @@ func _on_choices(options: Array) -> void:
 	_shown = _runner.line
 	_cursor = _shown.length()
 	_body.text = _shown
-	_hint.text = "E choose"
+	_hint.text = "▼ choose"
 	_clear_choices()
 	_choice_index = 0
 	for i: int in options.size():

@@ -1,15 +1,16 @@
 class_name IntroTrainSleepNpc
 extends RefCounted
 
-## Background passenger (`SP_NPC_SLEEP_OBABA`) — `wait_nemu1` base + kokkuri nod/twitch.
+## Background passenger (`SP_NPC_SLEEP_OBABA`) — decomp `aNSO_*` + `aNPC_think_in_block`.
 
-const ANIM_WAIT_NEMU := "npc_1_wait_nemu1"
 const ANIM_KOKKURI_D1 := "npc_1_kokkuri_d1"
 const ANIM_KOKKURI_D2 := "npc_1_kokkuri_d2"
 ## `start_demo1` ut (4,4) center + `aNSO_actor_ct` birth offset (−6 GX, −24 GX).
 const SPAWN_GX := Vector3(174.0, 0.0, 156.0)
-## `aNPC_think_in_block_init_proc` with `appear_rotation` 0 → 180° (recline into window wall).
-const SPAWN_YAW := PI
+## `aNPC_think_in_block_init_proc` appear index 0 (`appear_rotation` default for SPNPC).
+const APPEAR_ROTATION := 0
+## `mv_posZ[0]` from think-in-block (−120 GX walk target offset; final bench Z if walk completes).
+const THINK_BLOCK_OFFSET_GX := Vector3(0.0, 0.0, -120.0)
 ## Bench cushion height GX (`rom_train_in` seat surface).
 const SEAT_CUSHION_Y_GX := 40.0
 
@@ -20,13 +21,24 @@ var _loops_left: int = 0
 var _pending: bool = false
 
 
+static func decomp_appear_yaw(appear: int) -> float:
+	## `angle_table[]` in `ac_npc_think_in_block.c_inc` → `WorldGrid` / `aMR_angle_table`.
+	var decomp_deg: PackedFloat32Array = PackedFloat32Array([180.0, 0.0, -90.0, 90.0])
+	var idx: int = clampi(appear, 0, decomp_deg.size() - 1)
+	return deg_to_rad(decomp_deg[idx])
+
+
+static func spawn_yaw() -> float:
+	return decomp_appear_yaw(APPEAR_ROTATION)
+
+
 func bind(host: Node3D, anim: AnimationPlayer) -> void:
 	_host = host
 	_anim = anim
 	if _host != null:
 		_host.global_position = IntroTrainStage.gx_to_meters(SPAWN_GX)
 		_host.rotation = Vector3.ZERO
-		_host.rotation.y = SPAWN_YAW
+		_host.rotation.y = spawn_yaw()
 	_start_sleep()
 
 
@@ -36,10 +48,9 @@ func tick(_delta: float) -> void:
 
 
 func _start_sleep() -> void:
-	_play(ANIM_WAIT_NEMU, true, true)
-	_align_to_seat()
+	## Decomp `aNSO_setupAction(aNSO_ACT_SLEEP)` → `aNPC_ANIM_KOKKURI_D1` only.
 	_loops_left = 2 + randi() % 3
-	_play(ANIM_KOKKURI_D1, false, false)
+	_play(ANIM_KOKKURI_D1, false, true)
 
 
 func _align_to_seat() -> void:

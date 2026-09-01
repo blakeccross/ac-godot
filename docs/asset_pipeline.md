@@ -186,6 +186,14 @@ python3 tools/build_assets.py --step convert --kind inventory-ui
 
 Writes `assets/generated/ui/inventory/`.
 
+Message / talk window chrome (`con_kaiwa2_*`, `con_namefuti_TXT` from `foresta.rel` → gitignored PNGs):
+
+```sh
+python3 tools/build_assets.py --step convert --kind message-ui
+```
+
+Writes `assets/generated/ui/message/` (`msg_window_body.png`, `msg_nameplate.png`, tile sources). Used by `scenes/ui/dialogue_overlay.tscn`.
+
 Dialogue banks (`message_data.bin` → JSON graphs, Nintendo IP, gitignored):
 
 ```sh
