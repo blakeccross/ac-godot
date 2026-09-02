@@ -207,6 +207,21 @@ TEST_STATIC = [
         "confident_name": True,
     },
     {
+        ## Dock `PORT_SIGN` via `ac_reserve` (`obj_*_attentionT_model`), not kanban.
+        "asset_id": "obj_s_attention",
+        "vtx": "obj_s_attention_v",
+        "gfx": ["obj_s_attentionT_model"],
+        "output": "environment/obj_s_attention.glb",
+        "confident_name": True,
+    },
+    {
+        "asset_id": "obj_w_attention",
+        "vtx": "obj_w_attention_v",
+        "gfx": ["obj_w_attentionT_model"],
+        "output": "environment/obj_w_attention.glb",
+        "confident_name": True,
+    },
+    {
         "asset_id": "obj_hole0",
         "vtx": "obj_hole0_v",
         "gfx": ["obj_hole0T_gfx_model"],

@@ -165,6 +165,18 @@ class PrefixOwnershipTests(unittest.TestCase):
         self.assertEqual(jobs["obj_w_kanban"]["gfx"], ["write_model", "obj_sign_w_model"])
         self.assertEqual(jobs["obj_shop_kanban"]["gfx"], ["obj_shop_kanbanT_gfx_model"])
 
+    def test_attention_dock_sign_uses_attention_display_list(self) -> None:
+        symbols = [
+            _sym("obj_s_attention_v"),
+            _sym("obj_w_attention_v"),
+            _sym("obj_s_attentionT_model"),
+            _sym("obj_w_attentionT_model"),
+        ]
+        jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
+        self.assertEqual(jobs["obj_s_attention"]["gfx"], ["obj_s_attentionT_model"])
+        self.assertEqual(jobs["obj_w_attention"]["gfx"], ["obj_w_attentionT_model"])
+        self.assertEqual(jobs["obj_s_attention"]["output"], "environment/obj_s_attention.glb")
+
     def test_kanban_bulletin_palette_remaps_paper_ink_tack(self) -> None:
         from asset_pipeline.texbank import encode_bulletin_paper_ci4
 

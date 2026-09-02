@@ -220,15 +220,11 @@ def convert_static_only(cfg: PipelineConfig) -> dict[str, Any]:
         if i % 50 == 0 or i == len(static_jobs):
             print(f"  static {i}/{len(static_jobs)}")
     col = _write_acre_collision(cfg, rel, symbols)
-    from .dock_sign import build_dock_sign
-
-    dock = build_dock_sign(cfg)
     converted = sum(1 for r in results if r["status"] == "converted")
     return {
         "results": results,
-        "converted": converted + int(dock.get("converted", 0)),
+        "converted": converted,
         "acre_collision": col,
-        "dock_sign": dock,
     }
 
 
@@ -277,13 +273,7 @@ def convert_static_prefixes(cfg: PipelineConfig, needles: list[str]) -> dict[str
         results.append(record)
         print(f"  static {i}/{len(jobs)} {item['asset_id']} {record['status']}")
     converted = sum(1 for r in results if r["status"] == "converted")
-    dock: dict[str, Any] = {}
-    if any("kanban" in n or "dock" in n for n in lowered):
-        from .dock_sign import build_dock_sign
-
-        dock = build_dock_sign(cfg)
-        converted += int(dock.get("converted", 0))
-    return {"results": results, "converted": converted, "dock_sign": dock}
+    return {"results": results, "converted": converted}
 
 
 def convert_test_static_needles(cfg: PipelineConfig, needles: list[str]) -> dict[str, Any]:

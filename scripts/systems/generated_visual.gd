@@ -842,7 +842,7 @@ static func _apply_materials_inner(
 
 
 static func _is_kanban_visual(visual_id: StringName) -> bool:
-	## Two-layer field signs only (`write_model` + frame). `DOCK_SIGN` is a single composite.
+	## Two-layer field signs only (`write_model` + frame). Dock `PORT_SIGN` uses attention.
 	return visual_id in [&"SIGNBOARD", &"obj_s_kanban", &"obj_w_kanban"]
 
 

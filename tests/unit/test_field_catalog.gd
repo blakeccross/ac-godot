@@ -45,7 +45,7 @@ func test_fg_item_trees_and_sign_reserves() -> void:
 	assert_that(port_sign["visual"]).is_equal(&"DOCK_SIGN")
 	var dock_paths: PackedStringArray = FieldCatalog.mesh_paths(&"DOCK_SIGN")
 	if not dock_paths.is_empty():
-		assert_str(dock_paths[0]).contains("dock_sign")
+		assert_str(dock_paths[0]).contains("attention")
 
 
 func test_summer_tree_paths_when_assets_exist() -> void:

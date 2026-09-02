@@ -198,9 +198,8 @@ def structure_palette_names(prefix: str) -> list[str]:
 # SEGMENT_ADDR values; the actor binds a real pal/tex before draw.
 ANIME_TXT_SEGMENTS = frozenset(range(0x08, 0x10))
 
-## Default dock / `PORT_SIGN` paper: authored bulletin note (white + red tack +
-## scribbles). Retail `my_original` slot 2 is a registration crosshair, not the
-## dock notice — do not bake that design onto field signs.
+## Authored field-sign note (white + red tack + scribbles). Retail `my_original`
+## slot 2 is a registration crosshair — do not bake that design onto field signs.
 KANBAN_DEFAULT_DESIGN_SLOT = 2
 KANBAN_DEFAULT_PALETTE_IDX = 7
 MY_ORIGINAL_DESIGN_BYTES = 512
@@ -230,10 +229,35 @@ def _kanban_bulletin_palette(base: bytes) -> bytes:
     return bytes(pal)
 
 
-def encode_bulletin_paper_ci4() -> tuple[bytes, bytes]:
-    """32×32 CI4 tex + RGB555 palette for the dock / field-sign note."""
-    from .dock_sign import bulletin_paper_image
+def bulletin_paper_image(size: int = 32):
+    """White note + red tack + scribbled lines for field `SIGNBOARD` paper."""
+    from PIL import Image, ImageDraw
 
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rectangle([1, 1, size - 2, size - 3], fill=(255, 255, 255, 255))
+    cx = size // 2
+    d.rectangle([cx - 1, 0, cx + 1, 2], fill=(220, 40, 40, 255))
+    img.putpixel((cx, 1), (180, 20, 20, 255))
+    ink = (40, 40, 80, 255)
+    rows = (
+        ((5, 8), (10, 14), (16, 20), (22, 26)),
+        ((6, 11), (13, 18), (20, 25)),
+        ((7, 12), (14, 19), (21, 25)),
+    )
+    y0 = 8
+    for row in rows:
+        for x0, x1 in row:
+            d.rectangle([x0, y0, x1, y0 + 1], fill=ink)
+        y0 += 4
+    for p in ((11, 9), (16, 13), (9, 17), (21, 17)):
+        if 0 <= p[0] < size and 0 <= p[1] < size:
+            img.putpixel(p, ink)
+    return img
+
+
+def encode_bulletin_paper_ci4() -> tuple[bytes, bytes]:
+    """32×32 CI4 tex + RGB555 palette for field-sign note paper."""
     img = bulletin_paper_image(32).convert("RGBA")
     pal = bytearray(32)
     ## idx 0 = transparent hole (unused on opaque paper quad)

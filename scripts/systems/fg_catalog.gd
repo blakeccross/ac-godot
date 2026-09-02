@@ -212,7 +212,7 @@ static func placement_for_item(item_id: int) -> Dictionary:
 		ITEM_PORT_SIGN:
 			return {
 				"kind": &"sign",
-				## Flat `obj_{s,w}_kanban` billboard (frame + paper quads), not `obj_shop_kanban`.
+				## `ac_reserve` draws `obj_{s,w}_attentionT_model` when arg0 == PORT_SIGN−SIGN00 (0x42).
 				"visual": &"DOCK_SIGN",
 				"id": &"dock_sign",
 				"message": "Dock",

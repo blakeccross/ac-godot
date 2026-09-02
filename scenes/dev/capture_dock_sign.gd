@@ -1,6 +1,6 @@
 extends Node3D
 
-## Renders the dock bulletin (`DOCK_SIGN`) on the wharf acre for visual audit.
+## Renders the dock bulletin (`DOCK_SIGN` → `obj_*_attention`) on the wharf acre.
 ##
 ##   /Applications/Godot.app/Contents/MacOS/Godot --path . --import
 ##   /Applications/Godot.app/Contents/MacOS/Godot --path . res://scenes/dev/capture_dock_sign.tscn
