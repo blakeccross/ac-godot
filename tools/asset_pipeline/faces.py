@@ -57,7 +57,7 @@ def extract_faces(cfg: PipelineConfig) -> dict[str, Any]:
     if data_dir.is_dir():
         for src in sorted(data_dir.glob("face_*.bin")):
             species = src.stem[len("face_") :]
-            results.extend(_extract_species(src, species, stage_dir, out_dir, cfg.project_root))
+            results.extend(_extract_species(src, species, stage_dir, out_dir, cfg))
 
     results.extend(_extract_villager_faces_from_rel(cfg, stage_dir, out_dir))
 
@@ -108,11 +108,15 @@ def _variant_sort_key(prefix: str) -> tuple[int, str]:
 
 
 def _extract_species(
-    src: Path, species: str, stage_dir: Path, out_dir: Path, project_root: Path
+    src: Path, species: str, stage_dir: Path, out_dir: Path, cfg: PipelineConfig
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     blob = src.read_bytes()
     palette = blob[PALETTE_OFFSET : PALETTE_OFFSET + PALETTE_SIZE]
+    from .achd import load_achd_pack, maybe_hd_png
+    from .bti import CI4
+
+    pack = load_achd_pack(cfg.achd_root, cfg.achd_cache) if cfg.achd_enabled else None
     for suffix, offset in frame_offsets():
         stem = f"{species}_{suffix}"
         record: dict[str, Any] = {
@@ -125,18 +129,23 @@ def _extract_species(
         try:
             if len(blob) < offset + FRAME_SIZE or len(palette) < PALETTE_SIZE:
                 raise ValueError(f"{src.name} too short for {suffix} at 0x{offset:04X}")
-            image = decode_gbi_texture(
-                blob[offset : offset + FRAME_SIZE],
-                FACE_W,
-                FACE_H,
-                G_IM_FMT_CI,
-                G_IM_SIZ_4b,
-                palette,
-            )
-            png = image_png_bytes(image)
+            texels = blob[offset : offset + FRAME_SIZE]
+            hd = maybe_hd_png(pack, texels, FACE_W, FACE_H, CI4, palette)
+            if hd is not None:
+                png = hd
+            else:
+                image = decode_gbi_texture(
+                    texels,
+                    FACE_W,
+                    FACE_H,
+                    G_IM_FMT_CI,
+                    G_IM_SIZ_4b,
+                    palette,
+                )
+                png = image_png_bytes(image)
             for folder in (stage_dir, out_dir):
                 (folder / f"{stem}.png").write_bytes(png)
-            write_import_sidecar(out_dir / f"{stem}.png", project_root)
+            write_import_sidecar(out_dir / f"{stem}.png", cfg.project_root)
             record["status"] = "converted"
         except Exception as exc:  # noqa: BLE001
             record["status"] = "error"

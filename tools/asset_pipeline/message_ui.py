@@ -30,6 +30,9 @@ from .texbank import (
     decode_gbi_texture,
     image_png_bytes,
 )
+from .achd import load_achd_pack, maybe_hd_png
+from .bti import I4
+from io import BytesIO
 
 ## Decomp `mMsg_window` default tints (`m_msg_main.c_inc`).
 MSG_BODY_PRIM = (235, 255, 235, 255)
@@ -101,11 +104,24 @@ def extract_message_ui(cfg: PipelineConfig) -> dict[str, Any]:
     out_dir.mkdir(parents=True, exist_ok=True)
     stage_dir.mkdir(parents=True, exist_ok=True)
 
-    results: list[dict[str, Any]] = []
-    for spec in CHROME:
-        results.append(_extract_one(rel, by_name, spec, stage_dir, out_dir, cfg.project_root))
+    achd = (
+        load_achd_pack(cfg.achd_root, cfg.achd_cache)
+        if cfg.achd_enabled and cfg.achd_root is not None
+        else None
+    )
 
-    bake_results = _bake_message_shapes(rel, by_name, out_dir, stage_dir, cfg.project_root)
+    results: list[dict[str, Any]] = []
+    tile_native: dict[str, tuple[int, int]] = {}
+    for spec in CHROME:
+        out_stem = spec.out_name or spec.name
+        tile_native[out_stem] = (spec.width, spec.height)
+        results.append(
+            _extract_one(rel, by_name, spec, stage_dir, out_dir, cfg.project_root, achd=achd)
+        )
+
+    bake_results = _bake_message_shapes(
+        rel, by_name, out_dir, stage_dir, cfg.project_root, tile_native=tile_native
+    )
     results.extend(bake_results)
 
     converted = sum(1 for r in results if r["status"] == "converted")
@@ -126,6 +142,8 @@ def _extract_one(
     stage_dir: Path,
     out_dir: Path,
     project_root: Path,
+    *,
+    achd=None,
 ) -> dict[str, Any]:
     out_stem = spec.out_name or spec.name
     record: dict[str, Any] = {
@@ -138,8 +156,14 @@ def _extract_one(
     try:
         sym = _pick_symbol(by_name, spec.name)
         data = rel.slice_at(sym.address, sym.size)
-        image = decode_gbi_texture(data, spec.width, spec.height, G_IM_FMT_I, G_IM_SIZ_4b, b"")
-        image = _i_texel_as_alpha(image, spec.prim_as_color)
+        hd = maybe_hd_png(achd, data, spec.width, spec.height, I4, None)
+        if hd is not None:
+            image = Image.open(BytesIO(hd)).convert("RGBA")
+            used_achd = True
+        else:
+            image = decode_gbi_texture(data, spec.width, spec.height, G_IM_FMT_I, G_IM_SIZ_4b, b"")
+            image = _i_texel_as_alpha(image, spec.prim_as_color)
+            used_achd = False
         png = image_png_bytes(image)
         for folder in (stage_dir, out_dir):
             path = folder / f"{out_stem}.png"
@@ -147,8 +171,11 @@ def _extract_one(
         write_import_sidecar(out_dir / f"{out_stem}.png", project_root)
         record["status"] = "converted"
         record["meta"] = {
-            "width": spec.width,
-            "height": spec.height,
+            "width": image.width,
+            "height": image.height,
+            "native_width": spec.width,
+            "native_height": spec.height,
+            "achd": used_achd,
             "address": f"0x{sym.address:08X}",
             "size": sym.size,
         }
@@ -164,6 +191,8 @@ def _bake_message_shapes(
     out_dir: Path,
     stage_dir: Path,
     project_root: Path,
+    *,
+    tile_native: dict[str, tuple[int, int]],
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     tile_cache: dict[str, Image.Image] = {}
@@ -175,6 +204,17 @@ def _bake_message_shapes(
                 raise FileNotFoundError(path)
             tile_cache[stem] = Image.open(path).convert("RGBA")
         return tile_cache[stem]
+
+    bake_scale = 1
+    for stem, native in tile_native.items():
+        path = out_dir / f"{stem}.png"
+        if not path.is_file():
+            continue
+        tw, th = Image.open(path).size
+        nw, nh = native
+        if nw > 0 and nh > 0:
+            bake_scale = max(bake_scale, tw // nw, th // nh)
+    bake_scale = max(1, min(bake_scale, 8))
 
     jobs: list[tuple[str, str, list[tuple[str, tuple[int, ...]]], bool]] = [
         ("msg_window_cloud", "con_kaiwa2_v", KAIWA2_BATCHES, False),
@@ -191,14 +231,22 @@ def _bake_message_shapes(
         try:
             sym = _pick_symbol(by_name, vtx_name)
             verts = _parse_ui_vtx(rel.slice_at(sym.address, sym.size))
-            image, bounds = _rasterize_mesh(verts, batches, load_tile, mirror=mirror)
+            image, bounds = _rasterize_mesh(
+                verts,
+                batches,
+                load_tile,
+                tile_native=tile_native,
+                mirror=mirror,
+                scale=bake_scale,
+            )
             if out_stem == "msg_window_cloud":
                 image = _solidify_cloud_interior(image)
+                margins = tuple(m * bake_scale for m in CLOUD_NINE_MARGINS)
                 nine, _nine_meta = _build_ninepatch_atlas(
                     image,
-                    margins=CLOUD_NINE_MARGINS,
-                    h_period=CLOUD_H_TILE,
-                    v_period=CLOUD_V_TILE,
+                    margins=margins,  # type: ignore[arg-type]
+                    h_period=CLOUD_H_TILE * bake_scale,
+                    v_period=CLOUD_V_TILE * bake_scale,
                 )
                 nine_png = image_png_bytes(nine)
                 for folder in (stage_dir, out_dir):
@@ -221,11 +269,12 @@ def _bake_message_shapes(
                 path.write_bytes(png)
             write_import_sidecar(out_dir / f"{out_stem}.png", project_root)
             if out_stem == "msg_nameplate_cloud":
+                margins = tuple(m * bake_scale for m in NAME_NINE_MARGINS)
                 nine, _nine_meta = _build_ninepatch_atlas(
                     image,
-                    margins=NAME_NINE_MARGINS,
-                    h_period=NAME_H_TILE,
-                    v_period=max(1, image.height - NAME_NINE_MARGINS[1] - NAME_NINE_MARGINS[3]),
+                    margins=margins,  # type: ignore[arg-type]
+                    h_period=NAME_H_TILE * bake_scale,
+                    v_period=max(1, image.height - margins[1] - margins[3]),
                 )
                 nine_png = image_png_bytes(nine)
                 for folder in (stage_dir, out_dir):
@@ -247,6 +296,7 @@ def _bake_message_shapes(
                 "width": image.width,
                 "height": image.height,
                 "bounds": bounds,
+                "bake_scale": bake_scale,
             }
         except Exception as exc:  # noqa: BLE001
             record["status"] = "error"
@@ -330,7 +380,9 @@ def _rasterize_mesh(
     batches: list[tuple[str, tuple[int, ...]]],
     load_tile,
     *,
+    tile_native: dict[str, tuple[int, int]],
     mirror: bool,
+    scale: int = 1,
 ) -> tuple[Image.Image, dict[str, float]]:
     screen = [_vtx_to_screen(v) for v in verts]
     xs = [p[0] for p in screen]
@@ -339,20 +391,23 @@ def _rasterize_mesh(
     max_x = int(max(xs)) + 1
     min_y = int(min(ys))
     max_y = int(max(ys)) + 1
-    width = max_x - min_x
-    height = max_y - min_y
+    width = max(1, (max_x - min_x) * scale)
+    height = max(1, (max_y - min_y) * scale)
     out = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    scale_f = float(scale)
 
     for tile_stem, indices in batches:
         tex = load_tile(tile_stem)
+        native = tile_native.get(tile_stem, tex.size)
+        st_scale = (tex.size[0] / max(1, native[0]), tex.size[1] / max(1, native[1]))
         for tri in range(0, len(indices), 3):
             i0, i1, i2 = indices[tri : tri + 3]
-            p0 = (screen[i0][0] - min_x, screen[i0][1] - min_y)
-            p1 = (screen[i1][0] - min_x, screen[i1][1] - min_y)
-            p2 = (screen[i2][0] - min_x, screen[i2][1] - min_y)
-            st0 = (verts[i0].s, verts[i0].t)
-            st1 = (verts[i1].s, verts[i1].t)
-            st2 = (verts[i2].s, verts[i2].t)
+            p0 = ((screen[i0][0] - min_x) * scale_f, (screen[i0][1] - min_y) * scale_f)
+            p1 = ((screen[i1][0] - min_x) * scale_f, (screen[i1][1] - min_y) * scale_f)
+            p2 = ((screen[i2][0] - min_x) * scale_f, (screen[i2][1] - min_y) * scale_f)
+            st0 = (verts[i0].s * st_scale[0], verts[i0].t * st_scale[1])
+            st1 = (verts[i1].s * st_scale[0], verts[i1].t * st_scale[1])
+            st2 = (verts[i2].s * st_scale[0], verts[i2].t * st_scale[1])
             _draw_textured_triangle(out, tex, p0, p1, p2, st0, st1, st2, mirror=mirror)
 
     bounds = {
@@ -362,8 +417,9 @@ def _rasterize_mesh(
         "max_y": float(max_y),
         "center_x": (min_x + max_x) * 0.5,
         "center_y": (min_y + max_y) * 0.5,
-        "width": float(width),
-        "height": float(height),
+        "width": float(max_x - min_x),
+        "height": float(max_y - min_y),
+        "bake_scale": float(scale),
     }
     return out, bounds
 

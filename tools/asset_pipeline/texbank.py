@@ -5,12 +5,16 @@ import re
 import struct
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, Optional
 
 from PIL import Image
 
 from .bti import CI4, CI8, I4, I8, IA4, IA8, RGB5A3, RGBA8, _rgb5a3, decode_gx_image
 from .mapfile import MapSymbol, index_by_name
 from .rel import RelData
+
+if TYPE_CHECKING:
+    from .achd import AchdPack
 
 # GBI
 G_IM_FMT_RGBA = 0
@@ -457,10 +461,17 @@ class TextureState:
 class TextureBank:
     """Resolve SETTIMG / LOADTLUT addresses to decoded PNGs."""
 
-    def __init__(self, rel: RelData, symbols: list[MapSymbol], archives: Path | None = None) -> None:
+    def __init__(
+        self,
+        rel: RelData,
+        symbols: list[MapSymbol],
+        archives: Path | None = None,
+        achd: Optional["AchdPack"] = None,
+    ) -> None:
         self.rel = rel
         self.symbols = symbols
         self.archives = archives
+        self.achd = achd
         self.by_name = index_by_name(symbols)
         self.addr_to_sym: dict[int, MapSymbol] = {}
         self._pal_symbols: list[MapSymbol] = []
@@ -916,6 +927,16 @@ class TextureBank:
         data = self._image_bytes(state)
         if data is None:
             return None, name, "OPAQUE"
+        gx = gbi_to_gx(state.fmt, state.siz)
+        if self.achd is not None:
+            from .achd import is_field_terrain_texture, maybe_hd_png
+
+            if not is_field_terrain_texture(name, self.current_prefix):
+                hd = maybe_hd_png(self.achd, data, state.width, state.height, gx, pal)
+                if hd is not None:
+                    mode = alpha_mode_for_png(hd)
+                    self._png_cache[key] = (hd, mode)
+                    return hd, name, mode
         try:
             image = decode_gbi_texture(data, state.width, state.height, state.fmt, state.siz, pal)
             image = apply_prim(image, state.prim)
