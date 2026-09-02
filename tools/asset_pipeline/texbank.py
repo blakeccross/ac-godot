@@ -210,7 +210,9 @@ def _set_rgb555(pal: bytearray, idx: int, r: int, g: int, b: int) -> None:
     r5 = r * 31 // 255
     g5 = g * 31 // 255
     b5 = b * 31 // 255
-    word = (r5 << 11) | (g5 << 6) | (b5 << 1) | 1
+    ## Game palettes are RGB555 (`0x8000`); without it `_rgb5a3` treats entries as
+    ## RGB5A3 and ink indices decode near-transparent.
+    word = 0x8000 | (r5 << 10) | (g5 << 5) | b5
     pal[idx * 2] = (word >> 8) & 0xFF
     pal[idx * 2 + 1] = word & 0xFF
 
