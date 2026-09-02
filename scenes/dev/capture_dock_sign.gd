@@ -10,6 +10,7 @@ const OUT_DIR := "res://recordings/dock_sign"
 
 const CLIFF_ACRE := &"grd_s_e2_m_1"
 const SIGN_ID := &"SIGNBOARD"
+const PORT_SIGN_UT := Vector2i(8, 7)
 
 @onready var _camera: Camera3D = $Camera3D
 @onready var _cliff_host: Node3D = $CliffAcre
@@ -48,9 +49,13 @@ func _run() -> void:
 		get_tree().quit(1)
 		return
 
-	var acre_half: float = FieldCatalog.ACRE_METERS * 0.5
-	## South edge of the cliff acre, where port dock signs sit in generated towns.
-	_sign_host.position = Vector3(acre_half, 0.0, 2.0)
+	var unit_m: float = FieldCatalog.ACRE_METERS / float(WorldGenerator.UT)
+	## `PORT_SIGN` FG unit on `grd_s_m_wf_*` (see `FgCatalog.ITEM_PORT_SIGN`).
+	_sign_host.position = Vector3(
+		(PORT_SIGN_UT.x + 0.5) * unit_m,
+		0.0,
+		(PORT_SIGN_UT.y + 0.5) * unit_m,
+	)
 	var focus: Vector3 = _sign_host.global_position + Vector3(0.0, 1.4, 0.0)
 	_camera.current = true
 

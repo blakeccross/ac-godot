@@ -50,6 +50,8 @@ const ITEM_SIGN20 := 0x5824
 const ITEM_WISHING_WELL := 0x5825
 const ITEM_MUSEUM := 0x584A
 const ITEM_NEEDLEWORK_SHOP := 0x584D
+## Wharf dock sign (`PORT_SIGN` / `m_name_table.h` STRUCTURE_START + 82).
+const ITEM_PORT_SIGN := 0x5852
 const ITEM_WATERFALL_SOUTH := 0x580D
 const ITEM_WATERFALL_EAST := 0x580E
 const ITEM_WATERFALL_WEST := 0x580F
@@ -206,6 +208,13 @@ static func placement_for_item(item_id: int) -> Dictionary:
 				"foot": Vector2i(2, 2),
 				"nw_off": Vector2i(-1, 0),
 				"door_verb": &"shop",
+			}
+		ITEM_PORT_SIGN:
+			return {
+				"kind": &"sign",
+				"visual": &"SIGNBOARD",
+				"id": &"dock_sign",
+				"message": "Dock",
 			}
 		ITEM_WATERFALL_SOUTH:
 			return {"kind": &"waterfall", "visual": &"obj_fallS"}

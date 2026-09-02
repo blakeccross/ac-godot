@@ -40,6 +40,9 @@ func test_fg_item_trees_and_sign_reserves() -> void:
 	)
 	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_SIGN00)["kind"]).is_equal(&"reserve")
 	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_SIGN20)["kind"]).is_equal(&"reserve")
+	var port_sign: Dictionary = FgCatalog.placement_for_item(FgCatalog.ITEM_PORT_SIGN)
+	assert_that(port_sign["kind"]).is_equal(&"sign")
+	assert_that(port_sign["visual"]).is_equal(&"SIGNBOARD")
 
 
 func test_summer_tree_paths_when_assets_exist() -> void:
