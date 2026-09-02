@@ -212,7 +212,8 @@ static func placement_for_item(item_id: int) -> Dictionary:
 		ITEM_PORT_SIGN:
 			return {
 				"kind": &"sign",
-				"visual": &"SIGNBOARD",
+				## Flat `obj_{s,w}_kanban` billboard (frame + paper quads), not `obj_shop_kanban`.
+				"visual": &"DOCK_SIGN",
 				"id": &"dock_sign",
 				"message": "Dock",
 			}

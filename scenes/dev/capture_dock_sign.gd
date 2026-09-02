@@ -8,8 +8,8 @@ extends Node3D
 
 const OUT_DIR := "res://recordings/dock_sign"
 
-const CLIFF_ACRE := &"grd_s_e2_m_1"
-const SIGN_ID := &"SIGNBOARD"
+const WHARF_ACRE := &"grd_s_m_wf_1"
+const SIGN_ID := &"DOCK_SIGN"
 const PORT_SIGN_UT := Vector2i(8, 7)
 
 @onready var _camera: Camera3D = $Camera3D
@@ -28,16 +28,16 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	var ocean_id: StringName = FieldCatalog.ocean_visual_for_beach(CLIFF_ACRE)
+	var ocean_id: StringName = FieldCatalog.ocean_visual_for_beach(WHARF_ACRE)
 	if (
-		FieldCatalog.mesh_paths(CLIFF_ACRE).is_empty()
+		FieldCatalog.mesh_paths(WHARF_ACRE).is_empty()
 		or FieldCatalog.mesh_paths(SIGN_ID).is_empty()
 	):
 		push_error("Missing dock sign assets — run tools/build_assets.py first")
 		get_tree().quit(1)
 		return
-	if GeneratedVisual.attach(_cliff_host, CLIFF_ACRE) == null:
-		push_error("Failed to attach cliff acre %s" % CLIFF_ACRE)
+	if GeneratedVisual.attach(_cliff_host, WHARF_ACRE) == null:
+		push_error("Failed to attach wharf acre %s" % WHARF_ACRE)
 		get_tree().quit(1)
 		return
 	if ocean_id != &"" and not FieldCatalog.mesh_paths(ocean_id).is_empty():

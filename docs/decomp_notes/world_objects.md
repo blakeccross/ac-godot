@@ -50,7 +50,7 @@ The player never switches on type. Verbs live on the host.
 | Able Sisters | Beach row **bz=6** (`T_NEEDLEWORK` / `grd_s_m_ta_*`). FG `NEEDLEWORK_SHOP` is **(9, 4)** on `_1`/`_2` and **(9, 5)** on `_3`. Door verb shop, NW (−1,0), `aNW_actor_ct` −20 X +20 Z |
 | Post / police / well / station | `obj_s_yubinkyoku` (−1,0) / `obj_s_kouban` (3×3 centered) / `obj_s_shrine` (0,−1) / `obj_s_station1` at TRAIN_STATION **(8, 5)** + −20 X |
 | Villager homes | FG **SIGN00–SIGN20** reserves shuffled; SIGN ut must be 1..14. **6** houses (`mNpc_LOOKS_NUM`). House FG on the SIGN unit (`obj_s_house1`, no `actor_ct` shift); 3×3 RSV overwrites trees. New game also places **6** outdoor villager actors (`mNpc_DecideLivingNpcMax`: one starter per looks). Fallback synthetic plots on flats if catalog has no SIGNs |
-| Dock sign | FG **`PORT_SIGN`** (`0x5852`) on `grd_s_m_wf_*` at unit **(8, 7)** on `_1`/`_2`, **(9, 7)** on `_3` |
+| Dock sign | FG **`PORT_SIGN`** (`0x5852`) on `grd_s_m_wf_*` at unit **(8, 7)** on `_1`/`_2`, **(9, 7)** on `_3`. Visual is the flat **`obj_{s,w}_kanban`** billboard (wood frame + paper quads), not the 3D placeholder mesh or `obj_shop_kanban`. |
 | Trees / rocks / flowers | FG template copy (`FgCatalog`) at **unit center** (`bg_item` `pos_table` 20+40n GX), then border pull / tanuki path, then fruit/cedar. House build clears the SIGN 3×3 |
 
 Structure FG ids (`HOUSE0`, `SHOP0`, `MUSEUM`, `NEEDLEWORK_SHOP`, …) refine cell offsets when the disc FG catalog is present.

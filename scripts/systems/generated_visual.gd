@@ -72,7 +72,8 @@ static func attach(host: Node3D, visual_id: StringName) -> Node3D:
 	_apply_materials(
 		pivot,
 		FieldCatalog.is_ground_decal(visual_id),
-		FieldCatalog.is_ocean_acre_visual(visual_id)
+		FieldCatalog.is_ocean_acre_visual(visual_id),
+		visual_id,
 	)
 	_fit(pivot, visual_id)
 	## Swap field/tree albedos from the seasons pack (autumn grass, winter snow).
@@ -245,6 +246,14 @@ static func attach_villager(host: Node3D, species: StringName, fit_actor: bool =
 	return pivot
 
 
+static func apply_actor_scale(pivot: Node3D, visual_id: StringName = &"") -> void:
+	## GX→meter scale without standing foot snap (sleep / sit poses).
+	if pivot == null:
+		return
+	var s: float = FieldCatalog.actor_uniform_scale_for(visual_id)
+	pivot.scale = Vector3.ONE * s
+
+
 static func find_animation_player(node: Node) -> AnimationPlayer:
 	if node == null:
 		return null
@@ -326,7 +335,7 @@ static func _fit_acre(pivot: Node3D) -> void:
 
 
 static func align_actor_to_height_gx(pivot: Node3D, height_gx: float) -> void:
-	## Place the model's lowest vertex on a GX height (seated bench, etc.).
+	## Place the model's lowest rest-pose vertex on a GX height (standing feet, etc.).
 	if pivot == null:
 		return
 	var aabb: AABB = local_aabb(pivot)
@@ -334,6 +343,17 @@ static func align_actor_to_height_gx(pivot: Node3D, height_gx: float) -> void:
 		return
 	var s: float = pivot.scale.y
 	pivot.position.y = height_gx * FieldCatalog.GX_TO_METERS - aabb.position.y * s
+
+
+static func align_actor_world_min_to_height_gx(pivot: Node3D, height_gx: float) -> void:
+	## Snap the posed world-space mesh min-Y onto a GX height. Use for clips whose rest
+	## AABB spikes (sleep poses) would lift the body off the bench.
+	if pivot == null:
+		return
+	var box: AABB = _world_aabb_named(pivot, "")
+	if box.size == Vector3.ZERO:
+		return
+	pivot.position.y += height_gx * FieldCatalog.GX_TO_METERS - box.position.y
 
 
 static func local_aabb(node: Node) -> AABB:
@@ -379,6 +399,120 @@ static func fit_train_window_shell(pivot: Node3D) -> void:
 	var aabb: AABB = _local_aabb(pivot)
 	if aabb.size.y > 0.001:
 		pivot.position.y = -aabb.position.y * s
+
+
+static func apply_train_door_materials(node: Node) -> void:
+	## Match `rom_train_in` OPA + glass rules so the vestibule door reads like the car shell.
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh == null:
+			return
+		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var node_label := String(mesh_instance.name).to_lower()
+		for i: int in mesh_instance.mesh.get_surface_count():
+			var mat: Material = mesh_instance.get_active_material(i)
+			if not mat is StandardMaterial3D:
+				continue
+			var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			std.cull_mode = BaseMaterial3D.CULL_DISABLED
+			var label := node_label
+			if label.is_empty():
+				label = _resource_label(mat).to_lower()
+			if "glass" in label:
+				std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+				std.render_priority = 1
+				std.albedo_color.a = clampf(minf(std.albedo_color.a, 0.35), 0.2, 0.35)
+				std.roughness = 0.05
+				std.metallic = 0.0
+				std.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+			else:
+				std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+				std.roughness = 1.0
+				std.metallic = 0.0
+				std.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+				std.emission_enabled = false
+				if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR:
+					std.alpha_scissor_threshold = maxf(std.alpha_scissor_threshold, 0.5)
+			mesh_instance.set_surface_override_material(i, std)
+	for child: Node in node.get_children():
+		apply_train_door_materials(child)
+
+
+static func place_train_door_at_gateway(
+	host: Node3D,
+	pivot: Node3D,
+	gateway_gx: Vector3,
+	car_pivot: Node3D = null,
+	panel_z_bias_gx: float = 0.0
+) -> void:
+	## `obj_romtrain_door` is an actor — `gateway_gx` is the decomp spawn origin. When
+	## `car_pivot` is set, nudge Z so the closed door frame lines up with `rom_train_in`'s
+	## vestibule jambs; `panel_z_bias_gx` recesses toward the deck (negative = smaller Z).
+	if host == null or pivot == null:
+		return
+	host.global_transform = Transform3D.IDENTITY
+	host.global_position = gateway_gx * FieldCatalog.GX_TO_METERS
+	if car_pivot == null:
+		return
+	var opening_z: float = _train_vestibule_opening_z_gx(car_pivot)
+	if opening_z <= 0.0:
+		return
+	var panel_z: float = train_door_panel_center_gx(host, pivot).z
+	host.global_position.z += (opening_z + panel_z_bias_gx - panel_z) * FieldCatalog.GX_TO_METERS
+
+
+static func train_vestibule_opening_z_gx(car_pivot: Node3D) -> float:
+	return _train_vestibule_opening_z_gx(car_pivot)
+
+
+static func _train_vestibule_opening_z_gx(car_pivot: Node3D) -> float:
+	## Mid-Z of `rom_train_in` verts in the vestibule cutout near aisle x=140.
+	if car_pivot == null:
+		return 0.0
+	var zs: Array[float] = []
+	_collect_train_vestibule_z(car_pivot, car_pivot.global_transform, zs)
+	if zs.is_empty():
+		return 0.0
+	zs.sort()
+	return zs[zs.size() / 2] / FieldCatalog.GX_TO_METERS
+
+
+static func _collect_train_vestibule_z(node: Node, xf: Transform3D, zs: Array[float]) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh == null:
+			return
+		var arrays: Array = mesh_instance.mesh.surface_get_arrays(0)
+		if arrays.size() <= Mesh.ARRAY_VERTEX:
+			return
+		for v: Vector3 in arrays[Mesh.ARRAY_VERTEX]:
+			var w: Vector3 = xf * v
+			var x_gx: float = w.x / FieldCatalog.GX_TO_METERS
+			if x_gx < 115.0 or x_gx > 165.0:
+				continue
+			var z_gx: float = w.z / FieldCatalog.GX_TO_METERS
+			if z_gx < 118.0 or z_gx > 132.0:
+				continue
+			var y_gx: float = w.y / FieldCatalog.GX_TO_METERS
+			if y_gx < 10.0 or y_gx > 75.0:
+				continue
+			zs.append(w.z)
+	for child: Node in node.get_children():
+		if child is Node3D:
+			_collect_train_vestibule_z(child, xf * (child as Node3D).transform, zs)
+
+
+static func train_door_panel_center_gx(host: Node3D, pivot: Node3D) -> Vector3:
+	if pivot == null:
+		return Vector3.ZERO
+	var panel: AABB = _world_aabb_named(pivot, "door")
+	if panel.size == Vector3.ZERO:
+		panel = _world_aabb_named(pivot, "")
+	if panel.size == Vector3.ZERO:
+		return Vector3.ZERO
+	return panel.get_center() / FieldCatalog.GX_TO_METERS
 
 
 static func _fit_interior(pivot: Node3D, target: AABB, visual_id: StringName) -> void:
@@ -629,13 +763,13 @@ static func _window_lights_on() -> bool:
 
 
 static func _apply_materials(
-	node: Node, as_decal: bool = false, keep_imported: bool = false
+	node: Node, as_decal: bool = false, keep_imported: bool = false, visual_id: StringName = &""
 ) -> void:
-	_apply_materials_inner(node, as_decal, _tree_has_splash_water(node), keep_imported)
+	_apply_materials_inner(node, as_decal, _tree_has_splash_water(node), keep_imported, visual_id)
 
 
 static func _apply_materials_inner(
-	node: Node, as_decal: bool, mouth_river: bool, keep_imported: bool
+	node: Node, as_decal: bool, mouth_river: bool, keep_imported: bool, visual_id: StringName = &""
 ) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
@@ -685,6 +819,12 @@ static func _apply_materials_inner(
 					mesh_instance.set_surface_override_material(
 						i, _make_beach_wet_material(std, mesh_instance, i, src)
 					)
+				elif _is_kanban_paper_surface(mesh_instance, i, src, visual_id):
+					_apply_kanban_paper_material(std)
+					mesh_instance.set_surface_override_material(i, std)
+				elif _is_kanban_frame_surface(mesh_instance, i, src, visual_id):
+					_apply_kanban_frame_material(std)
+					mesh_instance.set_surface_override_material(i, std)
 				elif as_decal:
 					std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 					std.render_priority = 1
@@ -698,7 +838,52 @@ static func _apply_materials_inner(
 			mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mesh_instance.sorting_offset = 1.0
 	for child in node.get_children():
-		_apply_materials_inner(child, as_decal, mouth_river, keep_imported)
+		_apply_materials_inner(child, as_decal, mouth_river, keep_imported, visual_id)
+
+
+static func _is_kanban_visual(visual_id: StringName) -> bool:
+	return visual_id in [&"SIGNBOARD", &"DOCK_SIGN", &"obj_s_kanban", &"obj_w_kanban"]
+
+
+static func _is_kanban_paper_surface(
+	mesh_instance: MeshInstance3D, surface: int, mat: Material, visual_id: StringName
+) -> bool:
+	if not _is_kanban_visual(visual_id):
+		return false
+	if not (mat is StandardMaterial3D):
+		return false
+	var label := _surface_label(mesh_instance, surface, mat)
+	return (
+		"my_original" in label
+		or "hakushi" in label
+		or (mat as StandardMaterial3D).transparency == BaseMaterial3D.TRANSPARENCY_DISABLED
+		and "kanban_base" not in label
+		and surface == 0
+	)
+
+
+static func _is_kanban_frame_surface(
+	mesh_instance: MeshInstance3D, surface: int, mat: Material, visual_id: StringName
+) -> bool:
+	if not _is_kanban_visual(visual_id):
+		return false
+	if not (mat is StandardMaterial3D):
+		return false
+	var label := _surface_label(mesh_instance, surface, mat)
+	return "kanban_base" in label or surface == 1
+
+
+static func _apply_kanban_paper_material(std: StandardMaterial3D) -> void:
+	## `write_model` draws first as a decal (`G_DECAL_LEQUAL`); do not win depth over the frame.
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	std.render_priority = 0
+
+
+static func _apply_kanban_frame_material(std: StandardMaterial3D) -> void:
+	## `obj_sign_{s,w}_model` masks wood over the paper (`G_RM_AA_ZB_TEX_EDGE2`).
+	std.render_priority = 1
+	if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR:
+		std.alpha_scissor_threshold = maxf(std.alpha_scissor_threshold, 0.5)
 
 
 static func _surface_label(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> String:
@@ -1139,6 +1324,29 @@ static func _tiled_albedo(tex: Texture2D, tiles_u: int, tiles_v: int) -> Texture
 
 static func _local_aabb(node: Node) -> AABB:
 	return _local_aabb_named(node, "")
+
+
+static func _world_aabb_named(root: Node3D, needle: String) -> AABB:
+	var boxes: Array[AABB] = []
+	_collect_world_mesh_aabbs(root, needle.to_lower(), boxes)
+	var merged := AABB()
+	for box: AABB in boxes:
+		if merged.size == Vector3.ZERO:
+			merged = box
+		else:
+			merged = merged.merge(box)
+	return merged
+
+
+static func _collect_world_mesh_aabbs(node: Node, needle: String, boxes: Array[AABB]) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		if mi.mesh != null:
+			if needle.is_empty() or String(node.name).to_lower().contains(needle):
+				boxes.append(mi.global_transform * mi.mesh.get_aabb())
+	for child: Node in node.get_children():
+		if child is Node3D:
+			_collect_world_mesh_aabbs(child, needle, boxes)
 
 
 static func _local_aabb_named(node: Node, needle: String) -> AABB:

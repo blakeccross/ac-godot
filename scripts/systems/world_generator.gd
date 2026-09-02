@@ -511,7 +511,7 @@ static func _place_port_sign_fallback(data: WorldData, origin: Vector2i, bx: int
 	if FgCatalog.has_catalog():
 		return
 	data.objects.append(
-		_sign(&"dock_sign", origin + _port_sign_unit(data, bx, bz), "Dock")
+		_sign(&"dock_sign", origin + _port_sign_unit(data, bx, bz), "Dock", &"DOCK_SIGN")
 	)
 
 
@@ -617,7 +617,8 @@ static func _place_from_fg_templates(
 						&"sign":
 							var sign_id: StringName = place.get("id", &"sign") as StringName
 							var sign_msg: String = String(place.get("message", ""))
-							data.objects.append(_sign(sign_id, cell, sign_msg))
+							var sign_vis: StringName = place.get("visual", &"") as StringName
+							data.objects.append(_sign(sign_id, cell, sign_msg, sign_vis))
 						&"waterfall":
 							var fall := _object(
 								StringName("waterfall_fg_%d_%d" % [cell.x, cell.y]),
@@ -1307,8 +1308,10 @@ static func _item(id: StringName, cell: Vector2i, item: ItemData) -> ObjectPlace
 	return o
 
 
-static func _sign(id: StringName, cell: Vector2i, message: String) -> ObjectPlacement:
-	var o := _object(id, &"sign", cell, null)
+static func _sign(
+	id: StringName, cell: Vector2i, message: String, visual_id: StringName = &""
+) -> ObjectPlacement:
+	var o := _object(id, &"sign", cell, null, visual_id)
 	o.message = message
 	return o
 
