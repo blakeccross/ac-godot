@@ -198,6 +198,9 @@ static func placement_for_item(item_id: int) -> Dictionary:
 				"label": "Museum",
 				"foot": Vector2i(2, 2),
 				"nw_off": Vector2i(0, 0),
+				## Actor sits on the FG unit center (no `actor_ct` shift). Occupancy 2×2 NW is
+				## that unit, so footprint center is +0.5,+0.5 — pull the mesh back.
+				"actor_shift": Vector2(-0.5, -0.5),
 			}
 		ITEM_NEEDLEWORK_SHOP:
 			return {

@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/dev/debug_intro_return_walk.gd" id="1"]
+
+[node name="DebugIntroReturnWalk" type="Node"]
+script = ExtResource("1")

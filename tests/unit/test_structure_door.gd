@@ -22,6 +22,37 @@ func test_shop_enter_uses_base_clip() -> void:
 	assert_str(StructureDoor.leave_clip(anim, &"obj_s_shop1")).is_equal("obj_s_shop1")
 
 
+func test_walk_in_uses_into_not_open1() -> void:
+	## `door_type != 0` (museum / police / shop) → INTO_S1; demo type 0 → OPEN1.
+	assert_bool(StructureDoor.uses_walk_in(&"obj_s_museum")).is_true()
+	assert_bool(StructureDoor.uses_walk_in(&"obj_s_kouban")).is_true()
+	assert_bool(StructureDoor.uses_walk_in(&"obj_s_shop1")).is_true()
+	assert_bool(StructureDoor.uses_walk_in(&"obj_s_myhome1")).is_false()
+	assert_bool(StructureDoor.uses_walk_in(&"obj_s_tailor")).is_false()
+	assert_bool(StructureDoor.uses_walk_in(&"obj_s_house1")).is_false()
+
+
+func test_museum_exit_stand_is_south_of_door() -> void:
+	## `aMsm_rewrite_out_data`: home + 120 GX south — past the +100 door and raised footprint.
+	assert_that(StructureDoor.exit_offset_gx(&"obj_s_museum")).is_equal(StructureDoor.MUSEUM_EXIT_GX)
+	assert_float(StructureDoor.MUSEUM_EXIT_GX.y).is_greater(HostCollision.MUSEUM_DOOR_GX.y)
+	var root := Node3D.new()
+	auto_free(root)
+	root.position = Vector3(10.0, 0.0, 10.0)
+	var script := GDScript.new()
+	script.source_code = "extends Node3D\nvar visual_id: StringName = &\"obj_s_museum\"\n"
+	script.reload()
+	root.set_script(script)
+	var tree_root := Node3D.new()
+	auto_free(tree_root)
+	add_child(tree_root)
+	tree_root.add_child(root)
+	var stand: Vector3 = StructureDoor.exit_stand(root)
+	assert_float(stand.z).is_equal_approx(
+		root.global_position.z + StructureDoor.MUSEUM_EXIT_GX.y * FieldCatalog.GX_TO_METERS, 0.01
+	)
+
+
 func test_missing_visual_falls_back_to_library() -> void:
 	var anim: AnimationPlayer = _player_with(["obj_s_house2", "obj_s_house2_out"])
 	assert_str(StructureDoor.enter_clip(anim, &"")).is_equal("obj_s_house2_out")

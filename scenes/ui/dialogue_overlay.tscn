@@ -1,16 +1,17 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://copajrd153xkj"]
 
-[ext_resource type="Script" path="res://scenes/ui/dialogue_overlay.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/ui/message_window_chrome.gd" id="2"]
-[ext_resource type="Script" path="res://scripts/ui/message_continue_arrow.gd" id="3"]
+[ext_resource type="Script" uid="uid://xvwculwpytvf" path="res://scenes/ui/dialogue_overlay.gd" id="1"]
+[ext_resource type="Script" uid="uid://bimebww2k8fsg" path="res://scripts/ui/message_window_chrome.gd" id="2"]
+[ext_resource type="Script" uid="uid://dx5khoy8cqqh2" path="res://scripts/ui/message_continue_arrow.gd" id="3"]
+[ext_resource type="Texture2D" uid="uid://6mb7sdlwwhuc" path="res://assets/generated/ui/message/msg_window_cloud.png" id="4"]
+[ext_resource type="Texture2D" uid="uid://c7q03o0i340a3" path="res://assets/generated/ui/message/msg_nameplate_cloud.png" id="5"]
 
-[node name="DialogueOverlay" type="CanvasLayer"]
+[node name="DialogueOverlay" type="CanvasLayer" unique_id=1368103028]
 process_mode = 3
 script = ExtResource("1")
 
-[node name="Root" type="Control" parent="."]
+[node name="Root" type="Control" parent="." unique_id=1822246975]
 unique_name_in_owner = true
-visible = false
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -19,7 +20,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="MessageChrome" type="Control" parent="Root"]
+[node name="MessageChrome" type="Control" parent="Root" unique_id=2131313550]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -30,41 +31,42 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("2")
 
-[node name="Cloud" type="ColorRect" parent="Root/MessageChrome"]
+[node name="Cloud" type="TextureRect" parent="Root/MessageChrome" unique_id=1656180276]
 unique_name_in_owner = true
 layout_mode = 0
 mouse_filter = 2
+texture = ExtResource("4")
+stretch_mode = 5
 
-[node name="NamePlate" type="ColorRect" parent="Root/MessageChrome"]
+[node name="NamePlate" type="TextureRect" parent="Root/MessageChrome" unique_id=1344100992]
 unique_name_in_owner = true
-visible = false
 layout_mode = 0
 mouse_filter = 2
+texture = ExtResource("5")
+stretch_mode = 5
 
-[node name="NameLabel" type="Label" parent="Root/MessageChrome"]
+[node name="NameLabel" type="Label" parent="Root/MessageChrome" unique_id=781018101]
 unique_name_in_owner = true
-visible = false
 layout_mode = 0
 theme_override_font_sizes/font_size = 17
+text = "Villager"
 horizontal_alignment = 1
 vertical_alignment = 1
-text = "Villager"
 
-[node name="BodyLabel" type="Label" parent="Root/MessageChrome"]
+[node name="BodyLabel" type="Label" parent="Root/MessageChrome" unique_id=1706621246]
 unique_name_in_owner = true
 layout_mode = 0
 theme_override_font_sizes/font_size = 16
+text = "Hello! This is a preview line of dialogue."
 autowrap_mode = 3
-text = ""
 
-[node name="ChoiceList" type="VBoxContainer" parent="Root/MessageChrome"]
+[node name="ChoiceList" type="VBoxContainer" parent="Root/MessageChrome" unique_id=998788931]
 unique_name_in_owner = true
 layout_mode = 0
 theme_override_constants/separation = 3
 
-[node name="ContinueArrow" type="Control" parent="Root/MessageChrome"]
+[node name="ContinueArrow" type="Control" parent="Root/MessageChrome" unique_id=2025257665]
 unique_name_in_owner = true
-visible = false
 layout_mode = 0
 mouse_filter = 2
 script = ExtResource("3")

@@ -154,7 +154,7 @@ effect pass after the field's own XLU water.
 - One **locked action** at a time (cannot walk-and-fish; talk freezes locomotion).
 - Interact from a facing tile, not a 360° magnet.
 - Put-away / cancel for tools.
-- Door enter/exit as a short locked anim, then scene change. Outdoor enter locks the player on `ply_1_open1` (`OPEN1`) while stepping to the door stand (`StructureDoor` + house/shop cKF). Indoor leave locks on `ply_1_into_s1` (`INTO_S1`) walking south through the exit cell. Outdoor emerge after indoor leave uses `ply_1_go_out_s1` (`GO_OUT`) with the structure leave clip. Door camera / triforce wipe wait.
+- Door enter/exit as a short locked anim, then scene change. Outdoor enter: demo `door_type == 0` (player/villager house, Able, post) locks on `ply_1_open1` (`OPEN1`); `request_main_door_type1(..., TRUE)` (museum, police, Nook) locks on `ply_1_into_s1` (`INTO_S1`) while stepping to the door stand (`StructureDoor` + structure cKF when present). Feet stay on acre `keep_h` during the walk — structure plus-offsets are walls, not a raised path. Indoor leave locks on `INTO_S1` walking south through the exit cell. Outdoor emerge uses each structure's `rewrite_out_data` stand (museum `home+120` GX south, outside the raised footprint; Y from keep_h via `GetBgY_OnlyCenter`) then `ply_1_go_out_s1` (`GO_OUT`) with the structure leave clip. Door camera / triforce wipe wait.
 - Outdoor camera follow; tighter camera when talking.
 - Actor origin on the unit heightfield (`GetBgY` / `BgCheck`), not a guessed offset above a physics mesh.
 

@@ -62,7 +62,7 @@ Still deferred vs decomp: bit-exact `data_combi_table` row pick for BG+FG togeth
 | Post / Able Sisters | FG item (Able: `(9, 4)` / `(9, 5)` on `grd_s_m_ta_*`) | `−20` X, `+20` Z | FG + `(−1, 0)` |
 | Station (`ac_station.c`) | `(8, 5)` on `FG_TYPE_GRD_S_T_ST1_*` | `−20` X only | FG unit + `actor_shift (−0.5, 0)` |
 | Shrine | FG `WISHING_WELL` | `+20` X, `−19` Z | FG + `(0, −1)` |
-| Museum / police | FG item | none | Police 3×3 centered; museum 2×2 on the FG unit |
+| Museum / police | FG item | none | Police 3×3 centered; museum 2×2 on the FG unit (`actor_shift` −0.5/−0.5 so the mesh sits on the unit center) |
 | Villager house | SIGN reserve (`mNpc_SetNpcHome`); SIGN ut 1..14; **6** homes (`mNpc_LOOKS_NUM`) | none (`ac_house`) | 3×3 RSV around SIGN overwrites FG trees. New game also places one starter villager in the yard of each house (`mNpc_DecideLivingNpcMax`) |
 
 The house acre always has HOUSE0–3 (top-left, top-right, bottom-left, bottom-right). New game inits all four to tent size; only player 0’s private data is filled. Mailboxes (`ACTOR_PROP_MAILBOX0`–`3`) sit two units toward the acre center on the house row; haniwa two units south of each house. Those props are not spawned yet. Door of the west pair uses AC **+90°** Y (`WorldGrid.Facing.WEST` here — `EAST` is −90°). `mFI_PullTanukiPathTrees` then clears trees on **C-3** (`Save_Get(fg[2][2])`), not B-3: ut indices `0x07, 0x08, 0x17, 0x18, 0x27, 0x28`.

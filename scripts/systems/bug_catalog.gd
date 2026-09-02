@@ -56,15 +56,46 @@ static func get_by_type(type_index: int) -> BugData:
 static func available(month: int, hour: int, habitat: int = -1, raining: bool = false) -> Array[BugData]:
 	ensure_loaded()
 	var out: Array[BugData] = []
-	for bug: BugData in _bugs:
-		if bug.needs_rain and not raining:
+	var seen: Dictionary = {}
+	for entry: BugSpawnEntry in BugSpawnTable.entries_for(month, hour):
+		if not BugSpawnTable.weather_allows(entry.spawn_area, raining):
 			continue
-		if not bug.is_available(month, hour):
+		if habitat >= 0:
+			var resolved: int = entry.spawn_area
+			if resolved == 12:
+				resolved = 3
+			var want: int = habitat
+			var bug_hab: int = int(BugData.habitat_from_spawn_area(resolved))
+			if bug_hab != want and not (resolved == 0 and want == int(BugData.Habitat.TREE)):
+				continue
+		if seen.has(entry.type_index):
 			continue
-		if habitat >= 0 and not bug.in_habitat(habitat):
-			continue
-		out.append(bug)
+		seen[entry.type_index] = true
+		var bug: BugData = get_by_type(entry.type_index)
+		if bug != null:
+			out.append(bug)
 	return out
+
+
+## Weighted pick from `aSOI_ins_get_idx` spawn list (100-point roll when total < 100).
+static func roll_spawn_entry(
+	pool: Array[BugSpawnEntry], rng: RandomNumberGenerator, use_spawn_gate: bool = true
+) -> BugSpawnEntry:
+	if pool.is_empty():
+		return null
+	var total: float = 0.0
+	for entry: BugSpawnEntry in pool:
+		total += entry.weight
+	if total <= 0.0:
+		return null
+	var selected: float = rng.randf() * (total if (not use_spawn_gate or total > 100.0) else 100.0)
+	if use_spawn_gate and selected >= total:
+		return null
+	for entry: BugSpawnEntry in pool:
+		selected -= entry.weight
+		if selected < 0.0:
+			return entry
+	return pool[pool.size() - 1]
 
 
 static func available_now(habitat: int = -1, raining: bool = false) -> Array[BugData]:
@@ -109,4 +140,5 @@ static func catch_text(catch_msg: int) -> String:
 
 static func reload() -> void:
 	_loaded = false
+	BugSpawnTable.reload()
 	ensure_loaded()

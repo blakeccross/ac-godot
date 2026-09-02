@@ -74,6 +74,11 @@ func facing_yaw() -> float:
 	return _motor.facing
 
 
+## `aINS_get_stress_sub`: player planar speed as GX per 30 Hz frame.
+func insect_stress_move_gx() -> float:
+	return _motor.planar_speed / FieldCatalog.GX_TO_METERS / PlayerLocomotion.FRAME_HZ
+
+
 ## `mPlayer_INDEX_DASH`: fish bolt from a dashing player but ignore a walking one.
 func is_dashing() -> bool:
 	return _motor.gait() == PlayerLocomotion.Gait.DASH
@@ -130,10 +135,12 @@ func _physics_process(delta: float) -> void:
 	_update_animation(delta)
 	_update_footprints(delta, bg)
 	_update_focus()
+	_try_auto_enter()
 
 
-## `mPlayer_INDEX_DOOR`: OPEN1 while AnimationMove blends XZ/yaw to the door stand.
-func begin_door_enter(target: Vector3, face_yaw: float) -> void:
+## `mPlayer_INDEX_DOOR`: OPEN1 (door_type 0) or INTO_S1 (door_type ≠ 0) while
+## AnimationMove blends XZ/yaw to the door stand.
+func begin_door_enter(target: Vector3, face_yaw: float, walk_in: bool = false) -> void:
 	_door_entering = true
 	_door_clear_busy = false
 	_door_from = global_position
@@ -144,7 +151,7 @@ func begin_door_enter(target: Vector3, face_yaw: float) -> void:
 	_motor.reset(face_yaw)
 	_mesh.rotation.y = face_yaw
 	velocity = Vector3.ZERO
-	var clip := _resolve_clip(ANIM_OPEN1)
+	var clip := _resolve_clip(ANIM_INTO_S1 if walk_in else ANIM_OPEN1)
 	if _anim == null or clip.is_empty():
 		return
 	_anim.speed_scale = 1.0
@@ -153,6 +160,14 @@ func begin_door_enter(target: Vector3, face_yaw: float) -> void:
 
 func end_door_enter() -> void:
 	_door_entering = false
+
+
+func await_door_enter() -> void:
+	## Used when the structure has no door cKF (museum / police). Wait out INTO_S1 / OPEN1.
+	if _anim != null and _anim.is_playing():
+		await _anim.animation_finished
+	elif get_tree() != null:
+		await get_tree().create_timer(maxf(_door_move_duration, StructureDoor.INTO_SEC)).timeout
 
 
 ## `mPlayer_INDEX_OUTDOOR`: GO_OUT while walking out of the doorway.
@@ -237,10 +252,13 @@ func _bg() -> Array:
 
 func _snap_to_bg() -> bool:
 	## `mCoBG_BgCheckControll` / `GetBgY_AngleS_FromWpos`: feet on the heightfield at this XZ.
+	## Door walks keep acre `keep_h` — structure plus-offsets are walls, not a raised path.
 	var bg: Array = _bg()
 	if bg.is_empty():
 		return false
-	var y: float = FieldCollision.ground_y_at(bg[0] as WorldData, bg[1] as WorldGrid, global_position)
+	var y: float = FieldCollision.ground_y_at(
+		bg[0] as WorldData, bg[1] as WorldGrid, global_position, 0.0, not _door_entering
+	)
 	if not FieldCollision.has_floor(y):
 		return false
 	floor_snap_length = 0.0
@@ -460,6 +478,26 @@ func _try_interact() -> void:
 		if Game.try_place_furniture(self):
 			return
 		return
+	await _run_interact(hit)
+
+
+func _try_auto_enter() -> void:
+	## Museum walk-in (`aMsm_check_player`): no A press while open.
+	if _busy or _door_entering or _menu_open():
+		return
+	var hit: InteractionQuery = _resolve_interact()
+	if hit == null or hit.host == null or hit.action == null:
+		return
+	if not hit.host.has_method("should_auto_enter"):
+		return
+	if not bool(hit.host.call("should_auto_enter")):
+		return
+	## Lock before the first await so the next physics tick does not re-fire.
+	_busy = true
+	await _run_interact(hit)
+
+
+func _run_interact(hit: InteractionQuery) -> void:
 	_focus = hit.host
 	_busy = hit.action.locks_player
 	var tail: float = await _play_action(hit.action.player_anim, hit.action.effect_frame)

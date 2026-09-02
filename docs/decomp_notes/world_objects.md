@@ -16,7 +16,7 @@ WorldObjectRegistry  →  WorldBuilder  →  scene host
 | `WorldObjectRegistry` | One-line `register(kind, scene, place_kind, group)` |
 | `ObjectPlacement` / `BuildingPlacement` | Layout entries inside `WorldData` |
 | Host scene | Thin: `GeneratedVisual` + `InteractVolume` + `get_interactions` / `interact`. Solid hosts size physics from the occupancy footprint (`HostCollision`), not the GLB. |
-| `HostCollision` | Box / cylinder hulls from occupancy for trees, rocks, shops. Houses disable the StaticBody; walk walls come from `StructureOffset` plus-offsets on `FieldCollision`. Door sensors stay on the host. |
+| `HostCollision` | Box / cylinder hulls from occupancy for trees, rocks, and leftover shells. Houses, museum, Able Sisters, post office, Nook shop, and police disable the StaticBody; walk walls come from `StructureOffset` plus-offsets on `FieldCollision`. Door sensors stay on the host. |
 | `Door` | Composable ENTER/SHOP sensor (child of `building`, or own placement) |
 
 **Add a new object**
@@ -77,7 +77,9 @@ East is the mirror. The **porch is the SE (west plot) or SW (east plot) cells**,
 
 Villager homes (`aHUS_set_bgOffset`) are a **3×3** around the SIGN unit: south-center cell is all-zero (door), the other eight are offset **7**. Same mechanism, simpler footprint.
 
-Godot: `StructureOffset.apply` writes those 4×4 / 3×3 tables into `FieldCollision` plus-offsets (`keep_h` + count, same as `SetPluss5PointOffset`). `revise_xz` builds the walls. Actor/mesh Y stays acre `keep_h` (`ground_y` ignores plus). House scenes disable their StaticBody; ENTER stays on `InteractVolume`.
+Museum (`aMsm_set_bgOffset`) raises a **7×5** (X −3..3, Z −2..2) around the FG unit to offset **10** — no porch gap; the door stand is `home.z + 120` GX (south of the block). Walk-in enter (`aMsm_check_player`) has **no A button**. Able Sisters (`aNW_set_bgOffset`) and post office (`aPOFF_set_bgOffset`) share a **4×4** around the FG unit (occupancy NW = FG+(−1,0)) with body **13** and open corners; door stand SW of the mesh. Nook shop (`aSHOP_set_bgOffset`) is the same footprint with body **12** and SW door (−50,+50 GX). Police (`aPBOX_set_bgOffset`) is a **3×3** of offset **10** with slate corners; the door stand is SE of home at `+50,+50` GX.
+
+Godot: `StructureOffset.apply` writes those 4×4 / 3×3 / 7×5 tables into `FieldCollision` plus-offsets (`keep_h` + count, same as `SetPluss5PointOffset`). `revise_xz` builds the walls. Actor/mesh Y stays acre `keep_h` (`ground_y` ignores plus). House / museum / Able Sisters / post / shop / police scenes disable their StaticBody; ENTER stays on `InteractVolume` / `Door`.
 
 ## Ground decals
 

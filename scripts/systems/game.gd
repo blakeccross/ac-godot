@@ -472,8 +472,14 @@ func try_enter_interior(target: StringName) -> bool:
 		return false
 	if not is_indoors():
 		capture_player_from_tree()
-		outdoor_return = player_position
-		outdoor_return_yaw = player_yaw
+		## `rewrite_out_data`: emerge outside the structure, not on the enter stand / roof.
+		var host: Node3D = StructureDoor.find_near(self, player_position)
+		if host != null:
+			outdoor_return = StructureDoor.exit_stand(host)
+			outdoor_return_yaw = StructureDoor.leave_yaw(host, outdoor_return)
+		else:
+			outdoor_return = player_position
+			outdoor_return_yaw = player_yaw
 	close_shop()
 	current_room_id = room_id
 	spawn_at_room_door = true

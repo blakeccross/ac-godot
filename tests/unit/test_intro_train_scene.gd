@@ -27,6 +27,9 @@ func test_intro_scene_loads_and_has_stage_hosts() -> void:
 	await get_tree().process_frame
 	assert_that(scene.get_node_or_null("%TrainCar")).is_not_null()
 	assert_that(scene.get_node_or_null("%Rover")).is_not_null()
+	assert_that((scene.get_node("%Rover") as Node3D).get_node_or_null("AnimationTree")).is_not_null()
+	assert_that(scene.get_node_or_null("%StageSync")).is_not_null()
+	assert_that(scene.get_node_or_null("%IntroCameraRig")).is_not_null()
 	assert_that(scene.get_node_or_null("%IntroCamera")).is_not_null()
 	assert_that(scene.get_node_or_null("%DialogueOverlay")).is_not_null()
 	assert_that(scene.get_node_or_null("%MissingBanner")).is_not_null()
@@ -43,7 +46,7 @@ func test_stage_cues_follow_decomp_action_order() -> void:
 	var stage := IntroTrainStage.new()
 	var rover := Node3D.new()
 	add_child(rover)
-	stage.bind(rover, null, null, null, null, null)
+	stage.bind(rover, null, null, null, null)
 	## Fast-forward to seated talk.
 	for _i: int in 220:
 		stage.tick(1.0 / 30.0)

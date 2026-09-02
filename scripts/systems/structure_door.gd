@@ -2,9 +2,12 @@ class_name StructureDoor
 extends RefCounted
 
 ## Outdoor structure door clips (`ac_house` / `ac_my_house` / `ac_shop`) plus the
-## player OPEN1 step-in (`mPlayer_INDEX_DOOR`) and GO_OUT emerge
-## (`mPlayer_INDEX_OUTDOOR`). Enter starts door + OPEN1 together; the field swap
+## player door step-in (`mPlayer_INDEX_DOOR`) and GO_OUT emerge
+## (`mPlayer_INDEX_OUTDOOR`). Enter starts door + player anim together; the field swap
 ## waits on the structure clip. Exit warps outdoors then plays leave + GO_OUT.
+##
+## `door_type == 0` (demo house / Able / post) → `OPEN1`. `door_type != 0`
+## (museum / police / shop `request_main_door_type1(..., TRUE)`) → `INTO_S1`.
 
 ## cKF plays these at speed 0.5 on a 60 Hz move tick (= 30 anim fps). Pipeline
 ## samples at 30 fps, so Godot speed 1.0 matches the original duration (~1.67 s).
@@ -15,38 +18,61 @@ const APPROACH_SEC := 9.0 / 30.0
 const APPROACH_GX := 20.0
 ## `cKF_ba_r_ply_1_go_out_s1` frame count (demo outdoor start).
 const LEAVE_SEC := 31.0 / 30.0
-## How far past the door stand the emerge walk finishes.
+## How far past the exit stand the emerge walk finishes.
 const LEAVE_GX := 40.0
-## `cKF_ba_r_ply_1_into_s1` frame count (indoor door / exit walk).
+## `cKF_ba_r_ply_1_into_s1` frame count (indoor door / exit walk / outdoor walk-in).
 const INTO_SEC := 49.0 / 30.0
 ## Indoor exit walks this far south past the door cell center.
 const INTO_GX := 30.0
+## `rewrite_out_data` spawn offsets (GX from actor). Outside structure plus-offsets.
+const MUSEUM_EXIT_GX := Vector2(0.0, 120.0)
+const ABLE_EXIT_GX := Vector2(-64.0, 64.0)
+const SHOP_EXIT_GX := Vector2(-68.29, 68.29)
+const POLICE_EXIT_GX := Vector2(60.0, 60.0)
+const NPC_HOUSE_EXIT_GX := Vector2(0.0, 60.0)
+
+
+static func uses_walk_in(visual_id: StringName) -> bool:
+	## `Player_actor_setup_main_Door`: type≠0 → INTO_S1. Museum / police / shop pass TRUE.
+	return (
+		HostCollision.is_museum(visual_id)
+		or HostCollision.is_police(visual_id)
+		or HostCollision.is_shop(visual_id)
+	)
 
 
 static func play_enter(host: Node) -> void:
 	var root: Node3D = _structure_root(host)
 	var player: Node = _find_player(host)
+	var visual_id: StringName = _visual_id(root) if root != null else &""
 	if root != null and player != null and player.has_method("begin_door_enter"):
 		var target: Vector3 = approach_position(root)
 		var yaw: float = enter_yaw(root, player.global_position)
-		player.call("begin_door_enter", target, yaw)
-	await _play(host, true)
+		player.call("begin_door_enter", target, yaw, uses_walk_in(visual_id))
+	var played: bool = await _play(host, true)
+	## Museum / police have no door cKF — hold on player INTO_S1 / OPEN1 instead.
+	if not played and player != null and is_instance_valid(player) and player.has_method("await_door_enter"):
+		await player.call("await_door_enter")
 	if player != null and is_instance_valid(player) and player.has_method("end_door_enter"):
 		player.call("end_door_enter")
 
 
 static func play_emerge(host: Node) -> void:
 	## Outdoor start after indoor leave: structure leave clip + player GO_OUT.
+	## Stand is `rewrite_out_data` (outside plus-offsets), not the enter approach.
 	var root: Node3D = _structure_root(host)
 	var player: Node = _find_player(host)
 	if root != null and player != null and player.has_method("begin_door_leave"):
-		var stand: Vector3 = approach_position(root)
+		var stand: Vector3 = exit_stand(root)
 		var out_yaw: float = leave_yaw(root, stand)
 		var out_dir := Vector3(sin(out_yaw), 0.0, cos(out_yaw))
 		var target: Vector3 = stand + out_dir * (LEAVE_GX * FieldCatalog.GX_TO_METERS)
 		target.y = stand.y
 		player.call("begin_door_leave", stand, target, out_yaw)
-	await _play(host, false)
+	var played: bool = await _play(host, false)
+	## Museum / police have no leave cKF — hold on player GO_OUT.
+	if not played and player != null and is_instance_valid(player) and player.has_method("await_door_enter"):
+		await player.call("await_door_enter")
 	if player != null and is_instance_valid(player) and player.has_method("end_door_leave"):
 		player.call("end_door_leave")
 
@@ -95,6 +121,41 @@ static func approach_position(root: Node3D) -> Vector3:
 	return target
 
 
+static func exit_stand(root: Node3D) -> Vector3:
+	## `structure_exit_door_data` from rewrite_out_data — outside raised footprint.
+	## Y is acre keep_h (`mCoBG_GetBgY_OnlyCenter_FromWpos2`), snapped by the player.
+	if root == null:
+		return Vector3.ZERO
+	var local_gx: Vector2 = exit_offset_gx(_visual_id(root))
+	if local_gx == Vector2.ZERO:
+		## Fallback: door sensor (player house / unknown).
+		return _door_sensor_world(root)
+	var s: float = FieldCatalog.GX_TO_METERS
+	var local := Vector3(local_gx.x * s, 0.0, local_gx.y * s)
+	var world: Vector3 = root.global_position + root.global_transform.basis * local
+	world.y = root.global_position.y
+	return world
+
+
+static func exit_offset_gx(visual_id: StringName) -> Vector2:
+	## Local GX from actor; rotated by mesh yaw. Empty → use door sensor.
+	if HostCollision.is_museum(visual_id):
+		return MUSEUM_EXIT_GX
+	if HostCollision.is_able_sisters(visual_id) or HostCollision.is_post_office(visual_id):
+		return ABLE_EXIT_GX
+	if HostCollision.is_shop(visual_id):
+		return SHOP_EXIT_GX
+	if HostCollision.is_police(visual_id):
+		return POLICE_EXIT_GX
+	if HostCollision.is_player_house(visual_id):
+		## `aMHS_rewrite_pl_out_data`: local SW; west plots rotate with mesh.
+		return Vector2(-HostCollision.PLAYER_DOOR_GX, HostCollision.PLAYER_DOOR_GX)
+	var s := String(visual_id)
+	if s.contains("house") and not s.contains("myhome"):
+		return NPC_HOUSE_EXIT_GX
+	return Vector2.ZERO
+
+
 static func enter_yaw(root: Node3D, from: Vector3) -> float:
 	## Face into the doorway (toward the structure).
 	if root == null:
@@ -114,21 +175,22 @@ static func leave_yaw(root: Node3D, from: Vector3) -> float:
 	return fposmod(enter_yaw(root, from) + PI, TAU)
 
 
-static func _play(host: Node, entering: bool) -> void:
+static func _play(host: Node, entering: bool) -> bool:
 	var root: Node3D = _structure_root(host)
 	if root == null:
-		return
+		return false
 	var anim: AnimationPlayer = GeneratedVisual.find_animation_player(root)
 	if anim == null:
-		return
+		return false
 	var visual_id: StringName = _visual_id(root)
 	var clip: String = enter_clip(anim, visual_id) if entering else leave_clip(anim, visual_id)
 	if clip.is_empty():
-		return
+		return false
 	anim.play(clip)
 	if anim.current_animation_length <= 0.0:
-		return
+		return false
 	await anim.animation_finished
+	return true
 
 
 static func enter_clip(anim: AnimationPlayer, visual_id: StringName) -> String:
@@ -181,7 +243,15 @@ static func _is_door_structure(root: Node) -> bool:
 	var vid: String = String(_visual_id(root))
 	if vid.is_empty():
 		return false
-	return vid.contains("house") or vid.contains("myhome") or vid.contains("shop")
+	return (
+		vid.contains("house")
+		or vid.contains("myhome")
+		or vid.contains("shop")
+		or vid.contains("tailor")
+		or vid.contains("museum")
+		or vid.contains("kouban")
+		or vid.contains("yubinkyoku")
+	)
 
 
 static func _find_player(host: Node) -> Node:

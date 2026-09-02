@@ -102,7 +102,7 @@ def main() -> int:
             else:
                 converted = report["converted"]
                 errors = [r for r in report["results"] if r["status"] == "error"]
-                print(f"wrote {converted} message UI textures -> {report['output']}")
+                print(f"wrote {converted} message UI assets (tiles + baked shapes) -> {report['output']}")
                 for err in errors[:40]:
                     print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
                 if errors:

@@ -423,6 +423,24 @@ func test_indoor_exit_door_is_walk_warp_not_a_prompt() -> void:
 	)
 
 
+func test_museum_door_auto_enters_when_open() -> void:
+	## `aMsm_check_player` has no A button — walk-in while open, silent prompt.
+	var door: Node = auto_free(load("res://scenes/world/door.tscn").instantiate())
+	door.set("occupant_id", &"museum")
+	door.set("auto_enter", true)
+	door.set("label", "Museum")
+	Clock.hour = 12
+	assert_bool(door.call("should_auto_enter")).is_true()
+	var open_actions: Array = door.get_interactions(InteractionContext.new())
+	assert_int(open_actions.size()).is_equal(1)
+	assert_str((open_actions[0] as Interaction).prompt).is_equal("")
+	Clock.hour = 22
+	assert_bool(door.call("should_auto_enter")).is_false()
+	var closed: Array = door.get_interactions(InteractionContext.new())
+	assert_str((closed[0] as Interaction).prompt).contains("Museum")
+	Clock.hour = 12
+
+
 func test_door_cell_is_south_of_spawn() -> void:
 	## Spawn sits one cell inside so walking onto the door does not fire on enter.
 	var room: Room = InteriorCatalog.room_template(&"player_main")

@@ -9,6 +9,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "data" / "creatures"
+SPAWN_TABLE_PATH = ROOT / "data" / "bugs" / "spawn_table.json"
+SPAWN_SOURCE = ROOT / "vendor" / "ac-decomp" / "src" / "actor" / "ac_set_ovl_insect.c"
 SPAWN_URL = (
     "https://raw.githubusercontent.com/ACreTeam/ac-decomp/master/src/actor/ac_set_ovl_insect.c"
 )
@@ -187,8 +189,8 @@ PRICES = [
 ]
 
 HABITAT_MAP = {
-    "ON_FLOWER": 0,
-    "ON_TREE": 1,
+    "ON_TREE": 0,
+    "ON_FLOWER": 1,
     "RAINING_ON_FLOWER": 2,
     "FLYING": 3,
     "ON_GROUND": 4,
@@ -197,9 +199,9 @@ HABITAT_MAP = {
     "ON_WATER": 7,
     "UNDER_ROCK": 8,
     "UNDERGROUND": 9,
-    "FLYING_NEAR_FLOWERS_OR_AROUND": 3,
-    "ON_CANDY": 4,
-    "ON_TRASH": 4,
+    "FLYING_NEAR_FLOWERS_OR_AROUND": 12,
+    "ON_CANDY": -1,
+    "ON_TRASH": -1,
     "NOTHING": -1,
 }
 
@@ -210,12 +212,14 @@ MONTH_RE = re.compile(r"l_insect_m(\d+)_t(\d+)|l_insect_m_other_t")
 
 
 def fetch_spawn_source() -> str:
+    if SPAWN_SOURCE.is_file():
+        return SPAWN_SOURCE.read_text(encoding="utf-8")
     with urllib.request.urlopen(SPAWN_URL, timeout=30) as resp:
         return resp.read().decode("utf-8")
 
 
 def parse_spawn_tables(source: str) -> dict[str, list[tuple[int, int, int, int]]]:
-    """Map table name -> list of (type_idx, habitat, weight, term)."""
+    """Map table name -> list of (type_idx, spawn_area, weight, term)."""
     tables: dict[str, list[tuple[int, int, int, int]]] = {}
     current: str | None = None
     current_term = 0
@@ -246,6 +250,53 @@ def parse_spawn_tables(source: str) -> dict[str, list[tuple[int, int, int, int]]
             term = current_term if current_term >= 0 else 0
             tables[current].append((type_idx, hab, weight, term))
     return tables
+
+
+def build_spawn_table_json(tables: dict[str, list[tuple[int, int, int, int]]]) -> dict:
+    month_map = {
+        "m12": 12,
+        "m11": 11,
+        "m10": 10,
+        "m9": 9,
+        "m8": 8,
+        "m7": 7,
+        "m6": 6,
+        "m5": 5,
+        "m4": 4,
+        "m3": 3,
+    }
+    month_keys = sorted(month_map.keys(), key=len, reverse=True)
+    out_tables: dict[str, dict[str, list[dict]]] = {}
+    other: list[dict] = []
+    for name, entries in tables.items():
+        if name == "other":
+            for type_idx, spawn_area, weight, _term in entries:
+                other.append(
+                    {"type_index": type_idx, "spawn_area": spawn_area, "weight": weight}
+                )
+            continue
+        month = 1
+        term = 0
+        for key in month_keys:
+            if name.startswith(key):
+                month = month_map[key]
+                break
+        term = int(name.split("_t")[1]) - 1
+        month_key = str(month)
+        term_key = str(term)
+        out_tables.setdefault(month_key, {})
+        bucket = out_tables[month_key].setdefault(term_key, [])
+        for type_idx, spawn_area, weight, _term in entries:
+            bucket.append(
+                {"type_index": type_idx, "spawn_area": spawn_area, "weight": weight}
+            )
+    # Jan, Feb, Dec use `l_insect_m_other_t` for every term in the decomp.
+    if other:
+        for month_key in ("1", "2", "12"):
+            out_tables[month_key] = {}
+            for term in range(6):
+                out_tables[month_key][str(term)] = [dict(entry) for entry in other]
+    return {"tables": out_tables, "other": other}
 
 
 def _enum_name(decomp: str) -> str:
@@ -340,10 +391,29 @@ def aggregate(tables: dict[str, list[tuple[int, int, int, int]]]) -> dict[int, d
                 m["months"].add(month)
             if term >= 0:
                 m["terms"].add(term)
-            m["habitats"].add(hab)
+            m["habitats"].add(_bug_habitat_from_spawn_area(hab))
             m["weight"] = max(m["weight"], weight)
             if hab == 2:
                 m["needs_rain"] = True
+    return meta
+
+
+def _bug_habitat_from_spawn_area(spawn_area: int) -> int:
+    """Map decomp spawn area to BugData.Habitat for .tres metadata."""
+    mapping = {
+        0: 1,  # TREE
+        1: 0,  # FLOWER
+        2: 2,  # RAIN_FLOWER
+        3: 3,  # FLYING
+        4: 4,  # GROUND
+        5: 5,  # BUSH
+        6: 6,  # NEAR_WATER
+        7: 7,  # WATER
+        8: 8,  # ROCK
+        9: 9,  # UNDERGROUND
+        12: 3,  # FLYING (also flowers)
+    }
+    return mapping.get(spawn_area, 3)
     return meta
 
 
@@ -399,11 +469,17 @@ program = {[
 
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    SPAWN_TABLE_PATH.parent.mkdir(parents=True, exist_ok=True)
     source = fetch_spawn_source()
     tables = parse_spawn_tables(source)
+    spawn_json = build_spawn_table_json(tables)
+    SPAWN_TABLE_PATH.write_text(
+        __import__("json").dumps(spawn_json, indent=2) + "\n", encoding="utf-8"
+    )
     meta = aggregate(tables)
     for idx in range(len(SPECIES)):
         write_tres(idx, meta[idx])
+    print(f"Wrote spawn table to {SPAWN_TABLE_PATH}")
     print(f"Wrote {len(SPECIES)} bug .tres files to {OUT_DIR}")
 
 

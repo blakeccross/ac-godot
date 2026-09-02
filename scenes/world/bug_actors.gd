@@ -24,7 +24,7 @@ func _bind_field() -> void:
 		node = node.get_parent()
 
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if _field == null:
 		_bind_field()
 		if _field == null:
@@ -39,6 +39,8 @@ func _make_sense() -> BugActor.Sense:
 	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D if get_tree() else null
 	if player != null:
 		sense.player_position = player.global_position
+		if player.has_method("insect_stress_move_gx"):
+			sense.player_move_gx = float(player.call("insect_stress_move_gx"))
 		if player.has_method("is_dashing"):
 			sense.player_dashing = bool(player.call("is_dashing"))
 	return sense

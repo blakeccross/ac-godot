@@ -81,11 +81,21 @@ func test_frame_paths_follow_the_faces_pipeline_layout() -> void:
 	)
 
 
-func test_bind_is_a_no_op_without_extracted_frames() -> void:
-	## The intro must still run before `--kind faces` has been used locally.
+func test_bind_fails_without_face_quads_on_host() -> void:
+	## No 32×16 eye/mouth quads on an empty node.
 	var face := NpcFace.new()
 	var host := Node3D.new()
 	add_child(host)
 	assert_bool(face.bind(host, &"xct")).is_false()
 	face.tick(FRAME, true)
 	host.queue_free()
+
+
+func test_mirror_expand_duplicates_half_face_for_gx_mirror() -> void:
+	var src := Image.create(32, 16, false, Image.FORMAT_RGBA8)
+	src.fill(Color(0, 0, 0, 0))
+	src.set_pixel(4, 8, Color(1, 0, 0, 1))
+	var out := NpcFace._mirror_expand_image(src, 64)
+	assert_int(out.get_width()).is_equal(64)
+	assert_that(out.get_pixel(4, 8)).is_equal(Color(1, 0, 0, 1))
+	assert_that(out.get_pixel(59, 8)).is_equal(Color(1, 0, 0, 1))

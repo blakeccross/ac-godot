@@ -5,22 +5,15 @@
   "nodes": {
     "greet": {
       "type": "line",
-      "text": "Hrmm… Uh… Excuse me… Do you have a second? Could you help me out?",
-      "next": "greet_sit"
+      "text": "Hrmm… Uh… Excuse me…",
+      "next": "greet_2"
     },
-    "greet_sit": {
+    "greet_2": {
       "type": "line",
-      "text": "Mind if I sit here? I promise I won't fall asleep, tumble onto you, and start drooling on your shirt!",
-      "next": "greet_choice"
+      "text": "Do you have a second? Could you help me out?",
+      "next": "greet_clock"
     },
-    "greet_choice": {
-      "type": "choice",
-      "options": [
-        { "text": "Please!", "goto": "clock_ask" },
-        { "text": "No way!", "goto": "clock_ask" }
-      ]
-    },
-    "clock_ask": {
+    "greet_clock": {
       "type": "line",
       "text": "Is it… Let's see now… {hour}:{minute} on {weekday}, {month}/{day}/{year}?",
       "next": "clock_choice"
@@ -28,9 +21,14 @@
     "clock_choice": {
       "type": "choice",
       "options": [
-        { "text": "That's right!", "goto": "sit_stage" },
-        { "text": "Nope!", "goto": "clock_prompt" }
+        { "text": "That's right!", "goto": "clock_ok" },
+        { "text": "Nope!", "goto": "clock_wrong" }
       ]
+    },
+    "clock_wrong": {
+      "type": "line",
+      "text": "Whaaat? It's not? Well, do you think you could straighten this out for me?",
+      "next": "clock_prompt"
     },
     "clock_prompt": {
       "type": "event",
@@ -39,15 +37,71 @@
     },
     "clock_confirm": {
       "type": "line",
-      "text": "Is it… Let's see now… {hour}:{minute} on {weekday}, {month}/{day}/{year}?",
+      "text": "Now, let me get this straight. You say it's {hour}:{minute} on {weekday}, {month}/{day}/{year}?",
       "next": "clock_confirm_choice"
     },
     "clock_confirm_choice": {
       "type": "choice",
       "options": [
-        { "text": "That's right!", "goto": "sit_stage" },
-        { "text": "Nope!", "goto": "clock_prompt" }
+        { "text": "That's right!", "goto": "clock_ok" },
+        { "text": "Nope!", "goto": "clock_reject" }
       ]
+    },
+    "clock_reject": {
+      "type": "line",
+      "text": "What? I think I heard you wrong. Tell me once more.",
+      "next": "clock_prompt"
+    },
+    "clock_ok": {
+      "type": "line",
+      "text": "Say, thanks! You're too kind!",
+      "next": "clock_ok_2"
+    },
+    "clock_ok_2": {
+      "type": "line",
+      "text": "Really, you're a big help… Mya ha ha ha ha howr!",
+      "next": "greet_sit"
+    },
+    "greet_sit": {
+      "type": "line",
+      "text": "So, mind if I sit here?",
+      "next": "greet_sit_2"
+    },
+    "greet_sit_2": {
+      "type": "line",
+      "text": "I promise I won't fall asleep, tumble onto you, and start drooling on your shirt!",
+      "next": "greet_choice"
+    },
+    "greet_choice": {
+      "type": "choice",
+      "options": [
+        {
+          "text": "Please!",
+          "goto": "sit_yes",
+          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 8 }]
+        },
+        { "text": "No way!", "goto": "sit_no" }
+      ]
+    },
+    "sit_yes": {
+      "type": "line",
+      "text": "Thanks again! It sure is nice meeting friendly folk on the train…",
+      "next": "sit_yes_2"
+    },
+    "sit_yes_2": {
+      "type": "line",
+      "text": "You aren't a psycho, right? Just kidding!",
+      "next": "sit_stage"
+    },
+    "sit_no": {
+      "type": "line",
+      "text": "Wow, it's nice to know there are still plenty of rude people in the world.",
+      "next": "sit_no_2"
+    },
+    "sit_no_2": {
+      "type": "line",
+      "text": "Know what? I'm going to sit here anyway.",
+      "next": "sit_stage"
     },
     "sit_stage": {
       "type": "event",
@@ -67,7 +121,17 @@
     },
     "name_react": {
       "type": "line",
-      "text": "{player}, huh? That's a cool name!",
+      "text": "Hrmm… Well… Hrmmm… {player}…",
+      "next": "name_react_2"
+    },
+    "name_react_2": {
+      "type": "line",
+      "text": "Now THAT is an odd name. Mya ha ha ha howr!",
+      "next": "name_react_3"
+    },
+    "name_react_3": {
+      "type": "line",
+      "text": "Not that my opinion means much. What matters is, do YOU like the name {player}?",
       "next": "gender_ask"
     },
     "gender_ask": {
@@ -80,12 +144,22 @@
     },
     "name_again": {
       "type": "line",
-      "text": "Whoops — let's try that again. What's your name?",
+      "text": "Huh? I think maybe I heard you wrong.",
+      "next": "name_again_2"
+    },
+    "name_again_2": {
+      "type": "line",
+      "text": "How about you go ahead and tell me again? What's your name?",
       "next": "name_prompt"
     },
     "gender_confirm_boy": {
       "type": "line",
-      "text": "So you're a boy, then?",
+      "text": "Oh, I'm sorry! Did I say it was odd?",
+      "next": "gender_confirm_boy_2"
+    },
+    "gender_confirm_boy_2": {
+      "type": "line",
+      "text": "It's not odd! It's a great name for a boy! Really. Mya ha ha ha ha ha howr!",
       "next": "gender_boy_choice"
     },
     "gender_boy_choice": {
@@ -98,14 +172,19 @@
         },
         {
           "text": "I'm not a boy.",
-          "goto": "town_ask",
+          "goto": "gender_oops_girl",
           "events": [{ "op": "set_var", "name": "gender", "value": "female" }]
         }
       ]
     },
     "gender_confirm_girl": {
       "type": "line",
-      "text": "So you're a girl, then?",
+      "text": "You're right! Of course! What was I thinking?",
+      "next": "gender_confirm_girl_2"
+    },
+    "gender_confirm_girl_2": {
+      "type": "line",
+      "text": "I think it's a very cute name for a very cute girl. I'm sorry I said it sounded funny!",
       "next": "gender_girl_choice"
     },
     "gender_girl_choice": {
@@ -123,14 +202,29 @@
         }
       ]
     },
+    "gender_oops_girl": {
+      "type": "line",
+      "text": "Oh, whoops! You're a girl? Hrmm… How embarrassing…",
+      "next": "gender_oops_girl_2"
+    },
+    "gender_oops_girl_2": {
+      "type": "line",
+      "text": "Yup. Real awkward… Hey, I oughta apologize!",
+      "next": "town_ask"
+    },
     "gender_oops": {
       "type": "line",
-      "text": "Ha — got it. Boy it is. Moving on!",
+      "text": "What? You're a boy?! Oh, man, my bad! Seriously!",
+      "next": "gender_oops_2"
+    },
+    "gender_oops_2": {
+      "type": "line",
+      "text": "Let me get my paw out of my mouth, here. Now I see…",
       "next": "town_ask"
     },
     "town_ask": {
       "type": "line",
-      "text": "Where are you headed, {player}?",
+      "text": "By the way… if you don't mind me asking… where are you headed?",
       "next": "town_prompt"
     },
     "town_prompt": {
@@ -146,9 +240,19 @@
     "town_confirm_choice": {
       "type": "choice",
       "options": [
-        { "text": "That's right!", "goto": "q2" },
-        { "text": "Wrong town.", "goto": "town_prompt" }
+        { "text": "That's right!", "goto": "town_ok" },
+        { "text": "Wrong town.", "goto": "town_wrong" }
       ]
+    },
+    "town_wrong": {
+      "type": "line",
+      "text": "Huh? I think maybe I heard you wrong. How about you tell me again?",
+      "next": "town_prompt"
+    },
+    "town_ok": {
+      "type": "line",
+      "text": "Hey! I know that place! {town} is one of my favorite vacation spots!",
+      "next": "q2"
     },
     "q2": {
       "type": "line",
@@ -160,11 +264,26 @@
       "options": [
         {
           "text": "I'm moving.",
-          "goto": "q3",
-          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 8 }]
+          "goto": "q2_moving",
+          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 4 }]
         },
-        { "text": "What's it to ya?", "goto": "q3" }
+        { "text": "What's it to ya?", "goto": "q2_rude" }
       ]
+    },
+    "q2_moving": {
+      "type": "line",
+      "text": "Hrmm… Moving, huh? I hate moving. Pack boxes, unpack boxes… It never ends.",
+      "next": "q3"
+    },
+    "q2_rude": {
+      "type": "line",
+      "text": "Fine, don't tell me! Be like that! I don't care!",
+      "next": "q2_rude_2"
+    },
+    "q2_rude_2": {
+      "type": "line",
+      "text": "I know you're moving, though. I can see it in your eyes!",
+      "next": "q3"
     },
     "q3": {
       "type": "line",
@@ -176,46 +295,71 @@
       "options": [
         {
           "text": "Don't know yet.",
-          "goto": "q4",
-          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 4 }]
+          "goto": "q3_unknown",
+          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 2 }]
         },
-        { "text": "Leave me alone!", "goto": "q4" }
+        { "text": "Leave me alone!", "goto": "q3_alone" }
       ]
     },
-    "q4": {
+    "q3_unknown": {
       "type": "line",
-      "text": "You have money, right?",
-      "next": "q4_choice"
+      "text": "What?! You don't know yet? Are you out of your tree?",
+      "next": "phone_lead"
     },
-    "q4_choice": {
-      "type": "choice",
-      "options": [
-        { "text": "Oh, yeah!", "goto": "phone_stage" },
-        {
-          "text": "Just a little…",
-          "goto": "phone_stage",
-          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 1 }]
-        }
-      ]
+    "q3_alone": {
+      "type": "line",
+      "text": "Don't tell me… You haven't found a place to live yet?!",
+      "next": "q3_alone_2"
     },
-    "phone_stage": {
-      "type": "event",
-      "events": [{ "op": "rover_phone" }, { "op": "resolve_face" }],
+    "q3_alone_2": {
+      "type": "line",
+      "text": "Mya ha howr! Of course you have! Who… WHAAAT?! You haven't?!",
       "next": "phone_lead"
     },
     "phone_lead": {
       "type": "line",
-      "text": "Well, we obviously need to find you a place to live!!! …Oh, I know! This buddy of mine runs a shop in {town}… I'll give him a call. It'll only take two seconds, OK?",
+      "text": "Well, we obviously need to find you a place to live!!!",
+      "next": "phone_lead_2"
+    },
+    "phone_lead_2": {
+      "type": "line",
+      "text": "…Oh, I know! This buddy of mine runs a shop in {town}…",
+      "next": "phone_lead_3"
+    },
+    "phone_lead_3": {
+      "type": "line",
+      "text": "I'll give him a call. It'll only take two seconds, OK?",
+      "next": "phone_stage"
+    },
+    "phone_stage": {
+      "type": "event",
+      "events": [{ "op": "rover_phone" }],
+      "wait_stage": "keitai_talk",
       "next": "phone_call"
     },
     "phone_call": {
       "type": "line",
-      "text": "…Hey, it's me. Got a new neighbor for you — {player}, heading to {town}. Got a spare house?",
+      "text": "…Beep, beep, boop, beep!",
       "next": "phone_call2"
     },
     "phone_call2": {
       "type": "line",
-      "text": "…He'll meet you at the station. Don't leave him hanging.",
+      "text": "…Hey there, Nook! It's me! So what's the good word?",
+      "next": "phone_call3"
+    },
+    "phone_call3": {
+      "type": "line",
+      "text": "…I've got someone here who wants to move to {town} — {player}, to be exact.",
+      "next": "phone_call4"
+    },
+    "phone_call4": {
+      "type": "line",
+      "text": "…Still needs a place to live. Think you can help out?",
+      "next": "phone_call5"
+    },
+    "phone_call5": {
+      "type": "line",
+      "text": "…Oh, really? Cool! …Yeah, I'll pass the word on. Thanks a lot. See ya, Nook! Bye!",
       "next": "phone_done_stage"
     },
     "phone_done_stage": {
@@ -226,17 +370,63 @@
     },
     "phone_done": {
       "type": "line",
-      "text": "All set. When we stop, look for the raccoon in the apron — he'll sort you out.",
+      "text": "OK, I'm back! Miss me? Mya!",
+      "next": "phone_done_2"
+    },
+    "phone_done_2": {
+      "type": "line",
+      "text": "Good news — my buddy has some brand-new houses for sale, dirt cheap!",
+      "next": "q4"
+    },
+    "q4": {
+      "type": "line",
+      "text": "You have money, right?",
+      "next": "q4_choice"
+    },
+    "q4_choice": {
+      "type": "choice",
+      "options": [
+        { "text": "Oh, yeah!", "goto": "farewell_rich" },
+        {
+          "text": "Just a little…",
+          "goto": "farewell_poor",
+          "events": [{ "op": "or_var", "name": "answer_flags", "mask": 1 }]
+        }
+      ]
+    },
+    "farewell_rich": {
+      "type": "line",
+      "text": "Then you'll be just fine! Wow… a brand-new house! Nothing like it in the world!",
+      "next": "farewell_rich_2"
+    },
+    "farewell_rich_2": {
+      "type": "line",
+      "text": "Oh! Looks like we're about to pull into {town}. Man, I love this place!",
+      "next": "farewell"
+    },
+    "farewell_poor": {
+      "type": "line",
+      "text": "Oh, really? No wonder you look so helpless. But don't worry!",
+      "next": "farewell_poor_2"
+    },
+    "farewell_poor_2": {
+      "type": "line",
+      "text": "These things have a way of working out! Oh! Looks like we're pulling into {town}.",
       "next": "farewell"
     },
     "farewell": {
       "type": "line",
-      "text": "Well, good-bye! Maybe we'll run into each other again sometime. Next stop: {town}!",
+      "text": "Maybe we'll run into each other again sometime.",
+      "next": "farewell_2"
+    },
+    "farewell_2": {
+      "type": "line",
+      "text": "Well, good-bye! And good luck!",
       "next": "finish"
     },
     "finish": {
       "type": "event",
-      "events": [{ "op": "finish_intro" }],
+      "events": [{ "op": "resolve_face" }, { "op": "finish_intro" }],
       "next": ""
     }
   }

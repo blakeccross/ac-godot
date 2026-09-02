@@ -97,10 +97,11 @@ func _init() -> void:
 	category = Category.BUG
 
 
-## `aSOI_insect_time_no`: thresholds 3 / 8 / 16 / 17 / 19 / 23.
+## `aSOI_insect_time_no` / `aSOI_hour_to_term`: 11PM–3:59AM T0, 4–7 T1, 8–3PM T2,
+## 4PM T3, 5–6PM T4, 7–10PM T5.
 static func term_for_hour(p_hour: int) -> TimeTerm:
 	var h: int = posmod(p_hour, 24)
-	if h <= 3:
+	if h <= 3 or h >= 23:
 		return TimeTerm.T0
 	if h <= 7:
 		return TimeTerm.T1
@@ -111,6 +112,35 @@ static func term_for_hour(p_hour: int) -> TimeTerm:
 	if h <= 18:
 		return TimeTerm.T4
 	return TimeTerm.T5
+
+
+## `aSOI_SPAWN_AREA_*` from `ac_set_ovl_insect.h` → actor habitat after placement.
+static func habitat_from_spawn_area(spawn_area: int, prefer_flower: bool = true) -> Habitat:
+	match spawn_area:
+		0:
+			return Habitat.TREE
+		1:
+			return Habitat.FLOWER
+		2:
+			return Habitat.RAIN_FLOWER
+		3:
+			return Habitat.FLYING
+		4:
+			return Habitat.GROUND
+		5:
+			return Habitat.BUSH
+		6:
+			return Habitat.NEAR_WATER
+		7:
+			return Habitat.WATER
+		8:
+			return Habitat.ROCK
+		9:
+			return Habitat.UNDERGROUND
+		12:
+			return Habitat.FLOWER if prefer_flower else Habitat.FLYING
+		_:
+			return Habitat.FLYING
 
 
 static func catch_msg_for_type(type_idx: int) -> int:

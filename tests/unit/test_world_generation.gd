@@ -128,6 +128,8 @@ func test_generated_town_has_ac_structure() -> void:
 	assert_int(station.cell.y % 16).is_equal(5)
 	## Museum acre is a unique flat below the cliff (`mRF_FlatBlock2Unique` / T_MUSEUM).
 	var museum: Vector2i = _building_at(data, &"museum")
+	var mus_b: BuildingPlacement = _building(data, &"museum")
+	assert_that(mus_b.actor_shift).is_equal(Vector2(-0.5, -0.5))
 	var mus_bx: int = museum.x / 16 + 1
 	var mus_bz: int = museum.y / 16 + 1
 	assert_int(int(data.acre_types[mus_bz * 7 + mus_bx])).is_equal(TownFieldGenerator.T_MUSEUM)

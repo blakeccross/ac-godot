@@ -1,79 +1,77 @@
+@tool
 class_name MessageWindowChrome
 extends Control
 
-## `m_msg` talk window. The window rect and every colour below are the `mMsg_init` values
-## from the decomp; the silhouette and the sub-rect placements are measured off a GC frame
-## because `con_kaiwa2_modelT` overshoots the nominal rect and the name text is centred by
-## `mFont_SetLineStrings_AndSpace`, so neither falls out of the struct alone.
+## `m_msg` talk window. Cloud/nameplate silhouettes are baked from `con_kaiwa2_modelT` /
+## `con_kaiwaname_modelT` at native size — the scalloped border cannot be nine-patched.
 
 const SCREEN_W := 320.0
 const SCREEN_H := 240.0
-## `mMsg_init`: center (160, 185.4), 245 x 96.
-const WINDOW_CENTER := Vector2(160.0, 185.4)
-const WINDOW_SIZE := Vector2(245.0, 96.0)
-## The drawn cloud matches the nominal width but its lobes stand ~6% past top and bottom.
-const CLOUD_OVERSHOOT := Vector2(1.0, 1.0594)
+## Baked `con_kaiwa2` bounds at `mMsg_init` placement (center 160, 185.4).
+const WINDOW_SIZE := Vector2(261.0, 105.0)
+const WINDOW_CENTER_X := 167.5
+const WINDOW_BOTTOM_V := 238.0
+const MAX_BODY_LINES := 4
+
+const CLOUD_TEX_PATHS: Array[String] = [
+	"res://assets/generated/ui/message/msg_window_cloud.png",
+	"res://assets/custom/ui/message/msg_window_cloud.png",
+]
+const NAMEPLATE_TEX_PATHS: Array[String] = [
+	"res://assets/generated/ui/message/msg_nameplate_cloud.png",
+	"res://assets/custom/ui/message/msg_nameplate_cloud.png",
+]
+const MIN_NAMEPLATE_SIZE := Vector2(99.0, 29.0)
 
 ## Sub-rects as fractions of the cloud rect (GC frame). Negative V is above the cloud top.
 const NAME_UV := Rect2(0.041, -0.108, 0.362, 0.271)
-const NAME_BASELINE_V := 0.085
 const BODY_UV := Vector2(0.0828, 0.2059)
 const BODY_LINE_PITCH_V := 0.1568
 const ARROW_UV := Rect2(0.8724, 0.6928, 0.0299, 0.0752)
-## `m_choice` is its own window (`con_sentaku2_modelT`), centred at screen (242, 169) and
-## growing leftward as the options get wider — so it sits over the right half of the talk
-## cloud, clear of the text on the left. Same placement here, as fractions of the cloud.
 const CHOICE_RIGHT_U := 0.95
 const CHOICE_TOP_V := 0.24
 const CHOICE_BOTTOM_V := 0.92
 const CHOICE_FONT_PX := 14.0
 
-## `window_background_color` is PRIM eb/ff/eb, but `con_kaiwa2`'s texture modulates it down
-## and the window is XLU; these are what the composited GC frame actually reads.
-const CLOUD_FILL := Color(178.0 / 255.0, 192.0 / 255.0, 166.0 / 255.0, 0.85)
-const CLOUD_RIM := Color(206.0 / 255.0, 226.0 / 255.0, 198.0 / 255.0, 0.95)
-## `name_background_color` is PRIM a0/d7/1e; the frame reads the brighter modulated lime.
-const NAME_BG := Color(137.0 / 255.0, 235.0 / 255.0, 10.0 / 255.0, 1.0)
-## `name_text_color` 32/5a/00 and `mMsg_init_FontColor` 50/60/50, both with the font outline.
 const NAME_TEXT := Color(50.0 / 255.0, 90.0 / 255.0, 0.0, 1.0)
 const NAME_OUTLINE := Color(0.0, 23.0 / 255.0, 0.0, 1.0)
 const BODY_TEXT := Color(50.0 / 255.0, 60.0 / 255.0, 50.0 / 255.0, 1.0)
 const BODY_OUTLINE := Color(16.0 / 255.0, 41.0 / 255.0, 16.0 / 255.0, 1.0)
+const NAME_BG := Color(137.0 / 255.0, 235.0 / 255.0, 10.0 / 255.0, 1.0)
+const CLOUD_RIM := Color(206.0 / 255.0, 226.0 / 255.0, 198.0 / 255.0, 0.95)
 
-## Cap heights measured off the GC frame. `mFont`'s glyphs are narrower per advance than
-## Godot's default face at the same cap height, so the advance is pulled in to match.
 const BODY_FONT_PX := 14.0
 const NAME_FONT_PX := 17.0
 const GLYPH_CONDENSE := -0.10
-## The condense applies to every advance, spaces included, which welds words together.
-## Give it back on the space glyph so word gaps stay as open as the GC frame's.
 const SPACE_RELIEF := 1.6
 const OUTLINE_PX := 2.0
 
-const _SHADER := preload("res://shaders/message_window.gdshader")
-
-@onready var _cloud: ColorRect = %Cloud
-@onready var _name_plate: ColorRect = %NamePlate
+@onready var _cloud: TextureRect = %Cloud
+@onready var _name_plate: TextureRect = %NamePlate
 @onready var _name: Label = %NameLabel
 @onready var _body: Label = %BodyLabel
 @onready var _arrow: MessageContinueArrow = %ContinueArrow
 @onready var _choices: VBoxContainer = %ChoiceList
 
-var _cloud_mat: ShaderMaterial
-var _name_mat: ShaderMaterial
+@export var editor_preview: bool = true:
+	set(value):
+		editor_preview = value
+		if Engine.is_editor_hint() and is_node_ready():
+			_apply_editor_preview()
+
 var _ui_scale: float = 1.0
 
 
 func _ready() -> void:
-	_build_materials()
+	_apply_textures()
 	_apply_text_theme()
 	_layout()
+	if Engine.is_editor_hint():
+		_apply_editor_preview()
 
 
-## Cloud rect in virtual 320x240 units, before the viewport scale.
 static func cloud_rect() -> Rect2:
-	var cloud_size := WINDOW_SIZE * CLOUD_OVERSHOOT
-	return Rect2(WINDOW_CENTER - cloud_size * 0.5, cloud_size)
+	return Rect2(Vector2(WINDOW_CENTER_X - WINDOW_SIZE.x * 0.5, WINDOW_BOTTOM_V - WINDOW_SIZE.y), WINDOW_SIZE)
 
 
 func set_speaker(speaker: String) -> void:
@@ -106,8 +104,6 @@ func choice_container() -> VBoxContainer:
 	return _choices
 
 
-## AC draws choices in their own small window; keep the cloud palette so they read as part
-## of the same chrome rather than as engine buttons. Hugs its text instead of stretching.
 func style_choice(btn: Button, selected: bool) -> void:
 	var bg := NAME_BG if selected else Color(CLOUD_RIM.r, CLOUD_RIM.g, CLOUD_RIM.b, 0.95)
 	var radius := int(round(9.0 * _ui_scale))
@@ -134,26 +130,28 @@ func style_choice(btn: Button, selected: bool) -> void:
 		btn.add_theme_font_override("font", font)
 
 
-func _build_materials() -> void:
-	_cloud_mat = ShaderMaterial.new()
-	_cloud_mat.shader = _SHADER
-	_cloud_mat.set_shader_parameter("fill_color", CLOUD_FILL)
-	_cloud_mat.set_shader_parameter("rim_color", CLOUD_RIM)
-	_cloud.material = _cloud_mat
-	_cloud.color = Color.WHITE
+func _apply_textures() -> void:
+	## Scene-assigned `TextureRect.texture` values win so you can swap art in the editor.
+	_setup_sprite(_cloud, _cloud.texture if _cloud.texture != null else _load_first_texture(CLOUD_TEX_PATHS))
+	_setup_sprite(
+		_name_plate,
+		_name_plate.texture if _name_plate.texture != null else _load_first_texture(NAMEPLATE_TEX_PATHS),
+	)
 
-	## Nameplate: same SDF, lobes off. `con_kaiwaname` is flatter than an ellipse across the
-	## middle of its long edges, so the exponent sits above 2.
-	_name_mat = ShaderMaterial.new()
-	_name_mat.shader = _SHADER
-	_name_mat.set_shader_parameter("fill_color", NAME_BG)
-	_name_mat.set_shader_parameter("rim_color", NAME_BG)
-	_name_mat.set_shader_parameter("rim_width", 0.0)
-	_name_mat.set_shader_parameter("body_axis_x", 0.5)
-	_name_mat.set_shader_parameter("body_exponent", 2.6)
-	_name_mat.set_shader_parameter("lobe_radius", 0.0)
-	_name_plate.material = _name_mat
-	_name_plate.color = Color.WHITE
+
+func _setup_sprite(sprite: TextureRect, texture: Texture2D) -> void:
+	sprite.texture = texture
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	## Scale the baked sprite to the virtual 320×240 layout rect (STRETCH_KEEP stays at
+	## texture pixels and leaves a tiny box in the corner on hi-DPI windows).
+	sprite.stretch_mode = TextureRect.STRETCH_SCALE
+
+
+func _load_first_texture(paths: Array[String]) -> Texture2D:
+	for path: String in paths:
+		if ResourceLoader.exists(path):
+			return load(path) as Texture2D
+	return null
 
 
 func _apply_text_theme() -> void:
@@ -170,7 +168,6 @@ func _layout() -> void:
 		return
 	var ui_scale := minf(size.x / SCREEN_W, size.y / SCREEN_H)
 	_ui_scale = ui_scale
-	## Letterbox the virtual screen so the cloud keeps its 4:3 placement on any window.
 	var origin := (size - Vector2(SCREEN_W, SCREEN_H) * ui_scale) * 0.5
 	var cloud := cloud_rect()
 	var cloud_pos := origin + cloud.position * ui_scale
@@ -178,25 +175,23 @@ func _layout() -> void:
 
 	_cloud.position = cloud_pos
 	_cloud.size = cloud_size
-	_cloud_mat.set_shader_parameter("rect_px", cloud_size)
 
 	var name_pos := cloud_pos + Vector2(NAME_UV.position.x, NAME_UV.position.y) * cloud_size
-	var name_size := Vector2(NAME_UV.size.x, NAME_UV.size.y) * cloud_size
+	var name_size := MIN_NAMEPLATE_SIZE * ui_scale
 	_name_plate.position = name_pos
 	_name_plate.size = name_size
-	_name_mat.set_shader_parameter("rect_px", name_size)
 	_name.position = name_pos
 	_name.size = name_size
 	_apply_font(_name, NAME_FONT_PX * ui_scale, 0.0)
 
 	var body_pos := cloud_pos + BODY_UV * cloud_size
-	## Godot lays a Label's first line from the box top, not the cap top.
 	var body_font_px := BODY_FONT_PX * ui_scale
 	var pitch := BODY_LINE_PITCH_V * cloud_size.y
 	_apply_font(_body, body_font_px, pitch)
 	_body.position = Vector2(body_pos.x, body_pos.y - body_font_px * 0.25)
 	_body.size = Vector2(
-		cloud_size.x * (ARROW_UV.position.x - BODY_UV.x), pitch * 3.0 + body_font_px
+		cloud_size.x * (ARROW_UV.position.x - BODY_UV.x),
+		pitch * float(MAX_BODY_LINES) + body_font_px * 0.5,
 	)
 
 	_arrow.position = cloud_pos + ARROW_UV.position * cloud_size
@@ -205,7 +200,7 @@ func _layout() -> void:
 	var choice_w := cloud_size.x * (CHOICE_RIGHT_U - BODY_UV.x)
 	_choices.position = Vector2(
 		cloud_pos.x + CHOICE_RIGHT_U * cloud_size.x - choice_w,
-		cloud_pos.y + CHOICE_TOP_V * cloud_size.y
+		cloud_pos.y + CHOICE_TOP_V * cloud_size.y,
 	)
 	_choices.size = Vector2(choice_w, cloud_size.y * (CHOICE_BOTTOM_V - CHOICE_TOP_V))
 	_choices.alignment = BoxContainer.ALIGNMENT_BEGIN
@@ -242,5 +237,22 @@ func _condensed_font(control: Control, size_px: int) -> Font:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_RESIZED and is_node_ready():
-		_layout()
+	if what == NOTIFICATION_RESIZED:
+		if is_node_ready():
+			_layout()
+		return
+	if what == NOTIFICATION_ENTER_TREE and Engine.is_editor_hint():
+		call_deferred("_layout")
+		call_deferred("_apply_editor_preview")
+
+
+func _apply_editor_preview() -> void:
+	if not Engine.is_editor_hint() or not editor_preview or not is_node_ready():
+		return
+	_name_plate.visible = true
+	_name.visible = true
+	_arrow.visible = true
+	if _body.text.is_empty():
+		_body.text = "Hello! This is a preview line of dialogue."
+	if _name.text.is_empty():
+		_name.text = "Villager"

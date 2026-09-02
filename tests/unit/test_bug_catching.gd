@@ -24,6 +24,7 @@ func before_test() -> void:
 	ItemCatalog.reload()
 	ItemCatalog.reload()
 	BugCatalog.reload()
+	BugSpawnTable.reload()
 	BugCatalog.seed_rng(1)
 	Clock.reset_to_default()
 	Clock.paused = true
@@ -57,11 +58,103 @@ func test_catalog_loads_bugs_and_filters_windows() -> void:
 
 func test_term_for_hour_matches_decomp_buckets() -> void:
 	assert_that(BugData.term_for_hour(3)).is_equal(BugData.TimeTerm.T0)
+	assert_that(BugData.term_for_hour(23)).is_equal(BugData.TimeTerm.T0)
 	assert_that(BugData.term_for_hour(4)).is_equal(BugData.TimeTerm.T1)
 	assert_that(BugData.term_for_hour(12)).is_equal(BugData.TimeTerm.T2)
 	assert_that(BugData.term_for_hour(16)).is_equal(BugData.TimeTerm.T3)
 	assert_that(BugData.term_for_hour(18)).is_equal(BugData.TimeTerm.T4)
 	assert_that(BugData.term_for_hour(20)).is_equal(BugData.TimeTerm.T5)
+
+
+func test_spawn_table_january_uses_other_pool_on_trees() -> void:
+	var entries: Array[BugSpawnEntry] = BugSpawnTable.entries_for(1, 12)
+	var tree_types: Array[int] = []
+	for entry: BugSpawnEntry in entries:
+		if entry.spawn_area == 0:
+			tree_types.append(entry.type_index)
+	assert_int(tree_types.size()).is_equal(1)
+	assert_int(tree_types[0]).is_equal(35)
+
+
+func test_spawn_table_august_noon_includes_cicada_not_bagworm() -> void:
+	var entries: Array[BugSpawnEntry] = BugSpawnTable.entries_for(8, 12)
+	var types: Array[int] = []
+	for entry: BugSpawnEntry in entries:
+		types.append(entry.type_index)
+	assert_bool(types.has(4)).is_true()
+	assert_bool(types.has(35)).is_false()
+
+
+func test_roll_spawn_entry_respects_hundred_point_gate() -> void:
+	var pool: Array[BugSpawnEntry] = []
+	var entry := BugSpawnEntry.new()
+	entry.type_index = 35
+	entry.spawn_area = 0
+	entry.weight = 2.0
+	pool.append(entry)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 999
+	var misses: int = 0
+	for _i: int in 100:
+		if BugCatalog.roll_spawn_entry(pool, rng) == null:
+			misses += 1
+	assert_int(misses).is_greater(0)
+
+
+func test_field_spawn_cap_matches_decomp_make_new() -> void:
+	assert_int(BugField.MAX_ACTORS).is_equal(9)
+	assert_int(BugField.MAX_FIELD_SPAWNS).is_equal(8)
+
+
+func test_auto_spawn_is_once_per_acre_and_skips_occupied() -> void:
+	var layout: WorldData = WorldGenerator.authored_test_town()
+	var grid := WorldGrid.new()
+	grid.configure_from_world(layout)
+	var field := BugField.new()
+	field.auto_spawn = true
+	field.configure(grid, layout)
+	field.seed_rng(1)
+	Clock.month = 6
+	Clock.hour = 12
+	var sense := BugActor.Sense.new()
+	sense.player_position = grid.cell_to_world(Vector2i(8, 8))
+	field.tick(STEP, sense)
+	var after_first: int = field.actor_count()
+	assert_int(after_first).is_less_equal(BugField.MAX_FIELD_SPAWNS)
+	field.tick(STEP, sense)
+	field.tick(STEP, sense)
+	assert_int(field.actor_count()).is_equal(after_first)
+	for actor: BugActor in field.actors:
+		assert_that(BugHabitats.acre_of_world_pos(grid, actor.position)).is_equal(
+			BugHabitats.acre_of_world_pos(grid, sense.player_position)
+		)
+
+
+func test_auto_spawn_retries_on_new_acre() -> void:
+	var layout := WorldData.new()
+	layout.columns = 32
+	layout.rows = 16
+	layout.bake()
+	for x: int in 32:
+		for z: int in 16:
+			layout.set_terrain_cell(Vector2i(x, z), WorldGrid.Terrain.GRASS)
+	var grid := WorldGrid.new()
+	grid.configure_from_world(layout)
+	var field := BugField.new()
+	field.auto_spawn = true
+	field.configure(grid, layout)
+	field.seed_rng(42)
+	Clock.month = 6
+	Clock.hour = 12
+	var sense := BugActor.Sense.new()
+	sense.player_position = grid.cell_to_world(Vector2i(4, 8))
+	field.tick(STEP, sense)
+	var first_acre: Vector2i = field._spawned_acre
+	assert_that(first_acre).is_equal(Vector2i(1, 1))
+	sense.player_position = grid.cell_to_world(Vector2i(20, 8))
+	field.tick(STEP, sense)
+	assert_that(field._spawned_acre).is_equal(Vector2i(2, 1))
+	assert_that(field._spawned_acre).is_not_equal(first_acre)
 
 
 func test_catch_message_numbers() -> void:
@@ -116,6 +209,7 @@ func test_test_town_seeds_bugs_on_trees() -> void:
 	var field := BugField.new()
 	field.auto_spawn = false
 	field.configure(grid, layout)
+	field.seed_rng(1)
 	Clock.month = 1
 	Clock.hour = 12
 	field.seed_trees()
@@ -146,6 +240,7 @@ func test_test_town_seeds_tree_bugs_after_world_build() -> void:
 	world.set("bugs", field)
 	WorldBuilder.new().build(world, layout, grid)
 	field.configure(grid, layout)
+	field.seed_rng(1)
 	Clock.month = 8
 	Clock.hour = 12
 	field.seed_trees()
@@ -226,20 +321,132 @@ func test_pose_pattern_tables() -> void:
 	assert_int(BugData.pose_pattern(1)[4]).is_equal(1)
 
 
-func test_patience_flees_when_player_dashes_nearby() -> void:
-	var actor := BugActor.create(
+func test_patience_threshold_triggers_flee() -> void:
+	var butterfly := BugActor.create(
 		BugCatalog.get_bug(&"common_butterfly"),
 		BugData.Habitat.FLYING,
 		Vector3.ZERO,
 		RandomNumberGenerator.new()
 	)
+	butterfly._patience = BugActor.PATIENCE_FLEE_FLYING + 1.0
+	butterfly.tick(STEP, BugActor.Sense.new())
+	assert_that(butterfly.action).is_equal(BugActor.Action.FLEE)
+
+
+func test_patience_flee_threshold_matches_decomp() -> void:
+	var beetle := BugActor.create(
+		BugCatalog.get_bug(&"drone_beetle"),
+		BugData.Habitat.TREE,
+		Vector3(9.0, 0.0, 13.0),
+		RandomNumberGenerator.new()
+	)
+	beetle._patience = BugActor.PATIENCE_FLEE_TREE
+	assert_bool(beetle._patience_triggers_flee()).is_false()
+	beetle._patience = BugActor.PATIENCE_FLEE_TREE + 0.1
+	assert_bool(beetle._patience_triggers_flee()).is_true()
+	var butterfly := BugActor.create(
+		BugCatalog.get_bug(&"common_butterfly"),
+		BugData.Habitat.FLYING,
+		Vector3.ZERO,
+		RandomNumberGenerator.new()
+	)
+	butterfly._patience = BugActor.PATIENCE_FLEE_FLYING
+	assert_bool(butterfly._patience_triggers_flee()).is_true()
+
+
+func test_running_player_builds_patience_and_flees() -> void:
+	var butterfly := BugActor.create(
+		BugCatalog.get_bug(&"common_butterfly"),
+		BugData.Habitat.FLYING,
+		Vector3(0.0, 0.0, 0.0),
+		RandomNumberGenerator.new()
+	)
 	var sense := BugActor.Sense.new()
-	sense.player_position = Vector3(0.5, 0.0, 0.5)
-	sense.player_dashing = true
-	## Avoid sets `alpha_time = 80` frames @ 30 Hz (~2.7 s) before despawn.
-	for _i: int in 200:
+	sense.player_move_gx = PlayerLocomotion.ORIG_RUN
+	sense.player_position = Vector3(0.0, 0.0, 2.0)
+	for _i: int in 90:
+		butterfly.position = Vector3.ZERO
+		butterfly.tick(STEP, sense)
+	assert_that(butterfly.action).is_equal(BugActor.Action.FLEE)
+
+
+func test_wander_moves_at_decomp_cruise_rate() -> void:
+	var butterfly := BugActor.create(
+		BugCatalog.get_bug(&"common_butterfly"),
+		BugData.Habitat.FLYING,
+		Vector3(0.0, 0.0, 0.0),
+		RandomNumberGenerator.new()
+	)
+	butterfly.yaw = 0.0
+	butterfly._timer = 999.0
+	var start := butterfly.position
+	for _i: int in 30:
+		butterfly.tick(1.0 / 30.0, BugActor.Sense.new())
+	var moved: float = Vector2(
+		butterfly.position.x - start.x, butterfly.position.z - start.z
+	).length()
+	assert_float(moved).is_equal_approx(2.0 * FieldCatalog.GX_TO_METERS * 30.0, 0.15)
+
+
+func test_grasshopper_hops_instead_of_crawling() -> void:
+	var hopper := BugActor.create(
+		BugCatalog.get_bug(&"grasshopper"),
+		BugData.Habitat.GROUND,
+		Vector3(4.0, 0.0, 4.0),
+		RandomNumberGenerator.new()
+	)
+	hopper.yaw = 0.0
+	hopper._begin_locust_jump(false)
+	var start := hopper.position
+	var peak_y: float = start.y
+	for _i: int in 12:
+		hopper.tick(1.0 / 30.0, BugActor.Sense.new())
+		peak_y = maxf(peak_y, hopper.position.y)
+	assert_float(Vector2(hopper.position.x - start.x, hopper.position.z - start.z).length()).is_greater(
+		0.15
+	)
+	assert_float(peak_y).is_greater(start.y)
+
+
+func test_grasshopper_scare_triggers_avoid_hops() -> void:
+	var hopper := BugActor.create(
+		BugCatalog.get_bug(&"grasshopper"),
+		BugData.Habitat.GROUND,
+		Vector3(0.0, 0.0, 0.0),
+		RandomNumberGenerator.new()
+	)
+	var sense := BugActor.Sense.new()
+	sense.player_move_gx = PlayerLocomotion.ORIG_RUN
+	sense.player_position = Vector3(0.0, 0.0, 1.5)
+	hopper._patience = BugActor.PATIENCE_FLEE_FLYING + 5.0
+	hopper.tick(STEP, sense)
+	assert_that(hopper._locust_phase).is_equal(BugActor.LocustPhase.AVOID)
+	hopper._begin_locust_jump(true)
+	var start := hopper.position
+	for _i: int in 20:
+		hopper.tick(1.0 / 30.0, sense)
+	assert_float(Vector2(hopper.position.x - start.x, hopper.position.z - start.z).length()).is_greater(
+		0.2
+	)
+
+
+func test_net_nearby_sets_patience_to_flee() -> void:
+	var beetle := BugActor.create(
+		BugCatalog.get_bug(&"drone_beetle"),
+		BugData.Habitat.TREE,
+		Vector3(9.0, 0.0, 13.0),
+		RandomNumberGenerator.new()
+	)
+	var sense := BugActor.Sense.new()
+	sense.net_swing_active = true
+	sense.net_swing_origin = Vector3(9.0, 0.0, 13.5)
+	actor_tick(beetle, sense, 1)
+	assert_that(beetle.action).is_equal(BugActor.Action.FLEE)
+
+
+func actor_tick(actor: BugActor, sense: BugActor.Sense, frames: int) -> void:
+	for _i: int in frames:
 		actor.tick(STEP, sense)
-	assert_bool(actor.finished).is_true()
 
 
 func test_tree_beetle_flee_levels_pitch_and_flies_up() -> void:

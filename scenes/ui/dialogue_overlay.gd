@@ -23,7 +23,8 @@ func _ready() -> void:
 	layer = 25
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("dialogue_ui")
-	_root.visible = false
+	if not Engine.is_editor_hint():
+		_root.visible = false
 
 
 func is_open() -> bool:
@@ -39,7 +40,31 @@ func runner() -> DialogueRunner:
 	return _runner
 
 
-func play(data: DialogueData, ctx: DialogueContext, state: VillagerState = null) -> void:
+## Skip typewriter / pick first choice / advance one step — for offline recording.
+func fast_advance() -> void:
+	if not _open or _runner == null:
+		return
+	if _runner.waiting_choice and not _buttons.is_empty():
+		_pick(_choice_index)
+		return
+	if _cursor < _shown.length():
+		_cursor = _shown.length()
+		_chrome.set_body(_shown)
+		_show_continue()
+		return
+	if _runner == null:
+		return
+	_runner.advance()
+	if _runner.done:
+		close()
+
+
+func play(
+	data: DialogueData,
+	ctx: DialogueContext,
+	state: VillagerState = null,
+	advance_gate: Callable = Callable()
+) -> void:
 	if data == null:
 		return
 	if _open:
@@ -47,6 +72,7 @@ func play(data: DialogueData, ctx: DialogueContext, state: VillagerState = null)
 	if _runner != null:
 		_disconnect_runner()
 	_runner = DialogueRunner.new()
+	_runner.advance_gate = advance_gate
 	_runner.line_shown.connect(_on_line)
 	_runner.choices_shown.connect(_on_choices)
 	_runner.finished.connect(_on_finished)

@@ -65,7 +65,7 @@ static func set_plus(cell: Vector2i, ofs: Dictionary) -> void:
 
 static func add_to(_root: Node3D, _data: WorldData, _grid: WorldGrid) -> void:
 	## Terrain walls are kinematic (`revise_xz`). Trees, buildings, and map bounds stay physics.
-	## Houses rewrite the heightfield (`StructureOffset`); they are not StaticBody hulls.
+	## Houses / museum / Able / post / shop / police rewrite the heightfield (`StructureOffset`); they are not StaticBody hulls.
 	pass
 
 
@@ -82,25 +82,30 @@ static func ground_y(data: WorldData, cell: Vector2i, ground_dist: float = 0.0) 
 
 
 static func ground_y_at(
-	data: WorldData, grid: WorldGrid, world_pos: Vector3, ground_dist: float = 0.0
+	data: WorldData,
+	grid: WorldGrid,
+	world_pos: Vector3,
+	ground_dist: float = 0.0,
+	with_plus: bool = true
 ) -> float:
 	## `mCoBG_GetBgY_AngleS_FromWpos`: bilinear height at the actual XZ, not the unit center.
 	## Slate units use flat high/low side heights (`GetBGHeight_Normal_SlateGround`), not a blend
 	## across the diagonal — that blend dropped Y into the cliff face mesh.
 	## Catalog water has a floor (original wades). Authored ponds / geometric faces do not.
+	## `with_plus=false` is acre `keep_h` only — door walks stay on the yard, not structure walls.
 	if data == null or grid == null:
 		return NO_FLOOR
 	var cell: Vector2i = grid.world_to_cell(world_pos)
 	if not data.is_in_bounds(cell):
 		return NO_FLOOR
-	var ys: PackedFloat32Array = _cell_floor_ys(data, cell)
+	var ys: PackedFloat32Array = _cell_floor_ys(data, cell, with_plus)
 	if ys.is_empty():
 		return NO_FLOOR
 	var c0: Vector3 = grid.cell_corner(cell)
 	var cs: float = grid.cell_size
 	var fx: float = clampf((world_pos.x - c0.x) / cs, 0.0, 1.0)
 	var fz: float = clampf((world_pos.z - c0.z) / cs, 0.0, 1.0)
-	var unit: Dictionary = _catalog_unit(data, cell)
+	var unit: Dictionary = _catalog_unit(data, cell, with_plus)
 	if not unit.is_empty() and _unit_is_slate(unit):
 		return _slate_ground_y(unit, int(_acre_elev(data, cell)), fx, fz) - ground_dist
 	var north: float = lerpf(ys[0], ys[1], fx)
@@ -226,9 +231,11 @@ static func _combine_max(a: float, b: float) -> float:
 	return maxf(a, b)
 
 
-static func _cell_floor_ys(data: WorldData, cell: Vector2i) -> PackedFloat32Array:
+static func _cell_floor_ys(
+	data: WorldData, cell: Vector2i, with_plus: bool = true
+) -> PackedFloat32Array:
 	var t: WorldGrid.Terrain = data.terrain_at(cell)
-	var unit: Dictionary = _catalog_unit(data, cell)
+	var unit: Dictionary = _catalog_unit(data, cell, with_plus)
 	if t == WorldGrid.Terrain.BLOCKED:
 		return PackedFloat32Array()
 	if t == WorldGrid.Terrain.WATER:
@@ -239,7 +246,7 @@ static func _cell_floor_ys(data: WorldData, cell: Vector2i) -> PackedFloat32Arra
 		return PackedFloat32Array()
 	if not unit.is_empty():
 		return _catalog_corners(unit, int(_acre_elev(data, cell)))
-	var center: float = height_at(data, cell)
+	var center: float = height_at(data, cell, with_plus)
 	if not has_floor(center):
 		return PackedFloat32Array()
 	var out := PackedFloat32Array()
