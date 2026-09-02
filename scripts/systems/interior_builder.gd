@@ -34,14 +34,127 @@ func build(root: Node3D, interior: Interior) -> void:
 	for entry: FurniturePlacement in room.placements:
 		add_furniture(furniture_root, interior, entry)
 	add_shop_set(furniture_root, interior)
+	add_museum_set(furniture_root, interior)
 	_add_exit_door(doors_root, grid, room)
 	_add_linked_doors(doors_root, grid, room)
 
 
+func build_museum_stage(root: Node3D, interior: Interior) -> void:
+	## Legacy single-root harness path — prefer `build_museum_room` per authored wing.
+	build_museum_room(root, interior)
+
+
+func build_museum_room(room_root: Node3D, interior: Interior) -> void:
+	## Authored wing helper: shell collision only. Exhibits belong to each room script.
+	if room_root == null or interior == null or interior.room == null:
+		return
+	var terrain: Node3D = room_root.get_node_or_null("Terrain") as Node3D
+	if terrain == null:
+		return
+	_clear_shell_colliders(terrain)
+	add_museum_shell_collision(
+		terrain, interior.room, interior.grid, museum_door_gaps(interior.room, interior.grid)
+	)
+
+
+## Floor slab + outer walls. `gaps` = [{ "side", "center", "half" }, ...] door openings.
+func add_museum_shell_collision(
+	root: Node3D, room: Room, grid: WorldGrid, gaps: Variant = []
+) -> void:
+	if root == null or room == null or grid == null:
+		return
+	var list: Array = _normalize_museum_gaps(gaps)
+	_add_shell_collision(root, room, grid, list)
+
+
+## All wall openings for a museum room (wing links + leave sensors).
+func museum_door_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if room == null or grid == null:
+		return out
+	var sensors: Array[Vector3] = []
+	if room.id == &"museum_entrance":
+		sensors.append(MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX)
+		for link: Dictionary in MuseumDisplay.ENTRANCE_WING_DOORS:
+			sensors.append(link["sensor"] as Vector3)
+	elif MuseumDisplay.WING_EXIT_DOORS.has(room.id):
+		sensors.append(MuseumDisplay.WING_EXIT_DOORS[room.id]["sensor"] as Vector3)
+	var half: float = 40.0 * FieldCatalog.GX_TO_METERS
+	for sensor: Vector3 in sensors:
+		var gap: Dictionary = _museum_gap_for_sensor(grid, sensor, half)
+		if not gap.is_empty():
+			out.append(gap)
+	return out
+
+
+## Backward-compatible single leave-door gap (prefer `museum_door_gaps`).
+func museum_exit_gap(room: Room, grid: WorldGrid) -> Dictionary:
+	var gaps: Array[Dictionary] = museum_door_gaps(room, grid)
+	if room != null and room.id == &"museum_entrance":
+		for gap: Dictionary in gaps:
+			if gap.get("side", &"") == &"south":
+				return gap
+	return gaps[0] if not gaps.is_empty() else {}
+
+
+func _museum_gap_for_sensor(grid: WorldGrid, sensor: Vector3, half: float) -> Dictionary:
+	var world: Vector3 = MuseumDisplay.gx_to_world(grid, sensor)
+	## North openings sit on the low-Z wall (entrance → art / fossil).
+	if sensor.z <= 120.0:
+		return {"side": &"north", "center": world.x, "half": half}
+	if sensor.z >= 400.0 and sensor.x > 120.0 and sensor.x < 400.0:
+		return {"side": &"south", "center": world.x, "half": half}
+	if sensor.x <= 120.0:
+		return {"side": &"west", "center": world.z, "half": half}
+	if sensor.x >= 400.0:
+		return {"side": &"east", "center": world.z, "half": half}
+	return {"side": &"south", "center": world.x, "half": half}
+
+
+func _normalize_museum_gaps(gaps: Variant) -> Array:
+	if gaps is Dictionary:
+		return [gaps] if not (gaps as Dictionary).is_empty() else []
+	if gaps is Array:
+		return gaps as Array
+	return []
+
+
+func _gaps_on_side(gaps: Array, side: StringName) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for entry: Variant in gaps:
+		if entry is Dictionary and (entry as Dictionary).get("side", &"") == side:
+			out.append(entry as Dictionary)
+	return out
+
+
+func _clear_runtime_children(root: Node) -> void:
+	if root == null:
+		return
+	for child: Node in root.get_children():
+		root.remove_child(child)
+		child.free()
+
+
+func _clear_shell_colliders(terrain: Node3D) -> void:
+	## Drop box colliders from a previous populate.
+	if terrain == null:
+		return
+	for child: Node in terrain.get_children():
+		if child is StaticBody3D:
+			terrain.remove_child(child)
+			child.free()
+
+
 func _paint_shell(root: Node3D, room: Room, grid: WorldGrid) -> void:
-	var target := _shell_bounds(room, grid)
+	## Museum `rom_museum*` keep the acre NW at `grid.origin` (FG / tank / door GX).
+	var target := (
+		AABB(grid.origin, Vector3(float(grid.columns) * grid.cell_size, WALL_HEIGHT, float(grid.rows) * grid.cell_size))
+		if room.kind == Room.Kind.MUSEUM
+		else _shell_bounds(room, grid)
+	)
 	var shell: Node3D = GeneratedVisual.attach_interior(root, room.shell_ids, room.wall_id, room.floor_id, target)
-	_add_shell_collision(root, room, grid)
+	var gaps: Array = museum_door_gaps(room, grid) if room.kind == Room.Kind.MUSEUM else []
+	_add_shell_collision(root, room, grid, gaps)
 	if shell != null:
 		return
 	var floor_mat := StandardMaterial3D.new()
@@ -60,48 +173,204 @@ func _paint_shell(root: Node3D, room: Room, grid: WorldGrid) -> void:
 	_add_wall_visuals(root, room, grid, wall_mat)
 
 
-func _add_shell_collision(root: Node3D, room: Room, grid: WorldGrid) -> void:
+func _add_shell_collision(root: Node3D, room: Room, grid: WorldGrid, gaps: Array = []) -> void:
 	var inner := _inner_size(room, grid)
 	var center := _inner_center(room, grid)
 	root.add_child(_collider(Vector3(inner.x, 0.12, inner.z), center + Vector3(0.0, 0.04, 0.0)))
+	## Door porches beyond the floor so wing / leave sensors stay walkable.
+	if room.kind == Room.Kind.MUSEUM:
+		_add_museum_door_porches(root, room, grid, gaps)
 	var origin: Vector3 = grid.cell_corner(Vector2i.ZERO)
 	var full := Vector3(float(grid.columns) * grid.cell_size, WALL_HEIGHT, float(grid.rows) * grid.cell_size)
 	var inner_nw: Vector3 = grid.cell_corner(room.inner_origin)
 	var inner_se: Vector3 = grid.cell_corner(room.inner_origin + room.inner_size)
-	var north_d: float = inner_nw.z - origin.z
+	## Museum wall meshes sit on the floor rim (e.g. rom_museum3 north strip z≈2–4).
+	## Outer-margin-only boxes left a cell of walk-through; pull walls one cell inward.
+	var inset: float = grid.cell_size if room.kind == Room.Kind.MUSEUM else 0.0
+	var wall_nw := Vector3(inner_nw.x + inset, 0.0, inner_nw.z + inset)
+	var wall_se := Vector3(inner_se.x - inset, 0.0, inner_se.z - inset)
+	if wall_se.x <= wall_nw.x + 0.05 or wall_se.z <= wall_nw.z + 0.05:
+		wall_nw = inner_nw
+		wall_se = inner_se
+	var north_d: float = wall_nw.z - origin.z
 	if north_d > 0.05:
-		root.add_child(
-			_collider(
-				Vector3(full.x, WALL_HEIGHT, north_d),
-				Vector3(origin.x + full.x * 0.5, WALL_HEIGHT * 0.5, origin.z + north_d * 0.5)
-			)
+		_add_multi_gapped_wall(
+			root,
+			Vector3(full.x, WALL_HEIGHT, north_d),
+			Vector3(origin.x + full.x * 0.5, WALL_HEIGHT * 0.5, origin.z + north_d * 0.5),
+			&"x",
+			origin.x,
+			origin.x + full.x,
+			_gaps_on_side(gaps, &"north")
 		)
-	var south_d: float = origin.z + full.z - inner_se.z
+	var south_d: float = origin.z + full.z - wall_se.z
 	if south_d > 0.05:
+		_add_multi_gapped_wall(
+			root,
+			Vector3(full.x, WALL_HEIGHT, south_d),
+			Vector3(origin.x + full.x * 0.5, WALL_HEIGHT * 0.5, wall_se.z + south_d * 0.5),
+			&"x",
+			origin.x,
+			origin.x + full.x,
+			_gaps_on_side(gaps, &"south")
+		)
+	var west_d: float = wall_nw.x - origin.x
+	var mid_z: float = (wall_nw.z + wall_se.z) * 0.5
+	var mid_h: float = wall_se.z - wall_nw.z
+	if west_d > 0.05 and mid_h > 0.05:
+		_add_multi_gapped_wall(
+			root,
+			Vector3(west_d, WALL_HEIGHT, mid_h),
+			Vector3(origin.x + west_d * 0.5, WALL_HEIGHT * 0.5, mid_z),
+			&"z",
+			wall_nw.z,
+			wall_se.z,
+			_gaps_on_side(gaps, &"west")
+		)
+	var east_d: float = origin.x + full.x - wall_se.x
+	if east_d > 0.05 and mid_h > 0.05:
+		_add_multi_gapped_wall(
+			root,
+			Vector3(east_d, WALL_HEIGHT, mid_h),
+			Vector3(wall_se.x + east_d * 0.5, WALL_HEIGHT * 0.5, mid_z),
+			&"z",
+			wall_nw.z,
+			wall_se.z,
+			_gaps_on_side(gaps, &"east")
+		)
+
+
+func _add_museum_door_porches(
+	root: Node3D, room: Room, grid: WorldGrid, gaps: Array
+) -> void:
+	var origin: Vector3 = grid.cell_corner(Vector2i.ZERO)
+	var full_x: float = float(grid.columns) * grid.cell_size
+	var full_z: float = float(grid.rows) * grid.cell_size
+	var inner_nw: Vector3 = grid.cell_corner(room.inner_origin)
+	var inner_se: Vector3 = grid.cell_corner(room.inner_origin + room.inner_size)
+	for gap: Dictionary in _gaps_on_side(gaps, &"south"):
+		var depth: float = origin.z + full_z - inner_se.z
+		_add_porch_slab(root, gap, &"z", inner_se.z, depth)
+	for gap: Dictionary in _gaps_on_side(gaps, &"north"):
+		var depth: float = inner_nw.z - origin.z
+		_add_porch_slab(root, gap, &"z", origin.z, depth)
+	for gap: Dictionary in _gaps_on_side(gaps, &"west"):
+		var depth: float = inner_nw.x - origin.x
+		_add_porch_slab(root, gap, &"x", origin.x, depth)
+	for gap: Dictionary in _gaps_on_side(gaps, &"east"):
+		var depth: float = origin.x + full_x - inner_se.x
+		_add_porch_slab(root, gap, &"x", inner_se.x, depth)
+
+
+func _add_porch_slab(
+	root: Node3D, gap: Dictionary, depth_axis: StringName, depth_lo: float, depth: float
+) -> void:
+	var center: float = float(gap.get("center", -1.0))
+	var half: float = float(gap.get("half", 2.0))
+	if center < 0.0 or half <= 0.05 or depth <= 0.05:
+		return
+	if depth_axis == &"z":
 		root.add_child(
 			_collider(
-				Vector3(full.x, WALL_HEIGHT, south_d),
-				Vector3(origin.x + full.x * 0.5, WALL_HEIGHT * 0.5, inner_se.z + south_d * 0.5)
+				Vector3(half * 2.0, 0.12, depth),
+				Vector3(center, 0.04, depth_lo + depth * 0.5)
 			)
 		)
-	var west_d: float = inner_nw.x - origin.x
-	var mid_z: float = (inner_nw.z + inner_se.z) * 0.5
-	var mid_h: float = inner_se.z - inner_nw.z
-	if west_d > 0.05:
+	else:
 		root.add_child(
 			_collider(
-				Vector3(west_d, WALL_HEIGHT, mid_h),
-				Vector3(origin.x + west_d * 0.5, WALL_HEIGHT * 0.5, mid_z)
+				Vector3(depth, 0.12, half * 2.0),
+				Vector3(depth_lo + depth * 0.5, 0.04, center)
 			)
 		)
-	var east_d: float = origin.x + full.x - inner_se.x
-	if east_d > 0.05:
+
+
+func _add_multi_gapped_wall(
+	root: Node3D,
+	full_size: Vector3,
+	full_pos: Vector3,
+	axis: StringName,
+	span_lo: float,
+	span_hi: float,
+	gaps: Array[Dictionary]
+) -> void:
+	if gaps.is_empty():
+		root.add_child(_collider(full_size, full_pos))
+		return
+	## Merge openings, then emit solid segments between them.
+	var cuts: Array[Vector2] = []
+	for gap: Dictionary in gaps:
+		var center: float = float(gap.get("center", -1.0))
+		var half: float = float(gap.get("half", 2.0))
+		if center < 0.0 or half <= 0.05:
+			continue
+		cuts.append(Vector2(center - half, center + half))
+	if cuts.is_empty():
+		root.add_child(_collider(full_size, full_pos))
+		return
+	cuts.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
+	var merged: Array[Vector2] = [cuts[0]]
+	for i: int in range(1, cuts.size()):
+		var prev: Vector2 = merged[merged.size() - 1]
+		var cur: Vector2 = cuts[i]
+		if cur.x <= prev.y + 0.05:
+			merged[merged.size() - 1] = Vector2(prev.x, maxf(prev.y, cur.y))
+		else:
+			merged.append(cur)
+	var cursor: float = span_lo
+	for cut: Vector2 in merged:
+		var gap_lo: float = maxf(cut.x, span_lo)
+		var gap_hi: float = minf(cut.y, span_hi)
+		if gap_lo > cursor + 0.05:
+			_add_wall_segment(root, full_size, full_pos, axis, cursor, gap_lo)
+		cursor = maxf(cursor, gap_hi)
+	if span_hi > cursor + 0.05:
+		_add_wall_segment(root, full_size, full_pos, axis, cursor, span_hi)
+
+
+func _add_wall_segment(
+	root: Node3D,
+	full_size: Vector3,
+	full_pos: Vector3,
+	axis: StringName,
+	seg_lo: float,
+	seg_hi: float
+) -> void:
+	var width: float = seg_hi - seg_lo
+	if width <= 0.05:
+		return
+	if axis == &"x":
 		root.add_child(
 			_collider(
-				Vector3(east_d, WALL_HEIGHT, mid_h),
-				Vector3(inner_se.x + east_d * 0.5, WALL_HEIGHT * 0.5, mid_z)
+				Vector3(width, full_size.y, full_size.z),
+				Vector3(seg_lo + width * 0.5, full_pos.y, full_pos.z)
 			)
 		)
+	else:
+		root.add_child(
+			_collider(
+				Vector3(full_size.x, full_size.y, width),
+				Vector3(full_pos.x, full_pos.y, seg_lo + width * 0.5)
+			)
+		)
+
+
+func _add_gapped_wall(
+	root: Node3D,
+	full_size: Vector3,
+	full_pos: Vector3,
+	axis: StringName,
+	span_lo: float,
+	span_hi: float,
+	cut: bool,
+	gap_center: float,
+	gap_half: float
+) -> void:
+	## Single-gap helper kept for non-museum callers.
+	var gaps: Array[Dictionary] = []
+	if cut:
+		gaps.append({"center": gap_center, "half": gap_half})
+	_add_multi_gapped_wall(root, full_size, full_pos, axis, span_lo, span_hi, gaps)
 
 
 func _add_wall_visuals(root: Node3D, room: Room, grid: WorldGrid, mat: Material) -> void:
@@ -235,6 +504,11 @@ func add_furniture(root: Node3D, interior: Interior, entry: FurniturePlacement) 
 		node.call("apply_footprint", interior.grid.cell_size)
 
 
+func add_museum_set(root: Node3D, interior: Interior) -> void:
+	## Fossils / art / tank fish / case insects from town `MuseumBook` bits.
+	MuseumPresenter.new().present(root, interior)
+
+
 func add_shop_set(root: Node3D, interior: Interior) -> void:
 	if root == null or interior == null or interior.room == null or Game == null:
 		return
@@ -290,15 +564,38 @@ func _shop_stock_cells(room: Room, interior: Interior) -> Array[Vector2i]:
 func _add_exit_door(root: Node3D, grid: WorldGrid, room: Room) -> void:
 	var door: Node3D = DOOR_SCENE.instantiate() as Node3D
 	door.name = "Exit"
-	door.position = grid.cell_to_world(room.door_cell)
 	door.set("label", "Leave")
 	door.set("verb", Interaction.ENTER)
-	door.set("exits_interior", true)
 	door.set("occupy_grid", false)
+	## Museum wings return to the entrance at decomp door spawns — not the outdoor exit.
+	if room.kind == Room.Kind.MUSEUM and room.parent_room_id != &"" and MuseumDisplay.WING_EXIT_DOORS.has(room.id):
+		var link: Dictionary = MuseumDisplay.WING_EXIT_DOORS[room.id] as Dictionary
+		door.position = MuseumDisplay.gx_to_world(grid, link["sensor"] as Vector3)
+		door.set("exits_interior", false)
+		door.set("linked_room_id", room.parent_room_id)
+		door.set("auto_enter", true)
+		door.set("has_linked_spawn", true)
+		door.set("linked_spawn_gx", link["spawn"] as Vector3)
+		## `m_scene.c` angle_table matches furniture yaw (EAST=+90°), not `yaw_for_facing`.
+		door.set("linked_spawn_yaw", WorldGrid.yaw_for_furniture(link["facing"] as WorldGrid.Facing))
+		_size_museum_wing_door(door, link["sensor"] as Vector3)
+	elif room.id == &"museum_entrance":
+		## South opening sits on enter X (`aMsm_museum_enter_data`), not room-center door_cell.
+		var sensor: Vector3 = MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX
+		door.position = MuseumDisplay.gx_to_world(grid, sensor)
+		door.set("exits_interior", true)
+		door.set("auto_enter", true)
+		_size_museum_wing_door(door, sensor)
+	else:
+		door.position = grid.cell_to_world(room.door_cell)
+		door.set("exits_interior", true)
 	root.add_child(door)
 
 
 func _add_linked_doors(root: Node3D, grid: WorldGrid, room: Room) -> void:
+	if room.kind == Room.Kind.MUSEUM and room.id == &"museum_entrance":
+		_add_museum_entrance_doors(root, grid)
+		return
 	if room.linked_rooms.is_empty():
 		return
 	var inner_north := room.inner_origin.y
@@ -317,3 +614,34 @@ func _add_linked_doors(root: Node3D, grid: WorldGrid, room: Room) -> void:
 		door.set("linked_room_id", room_id)
 		door.set("occupy_grid", false)
 		root.add_child(door)
+
+
+func _add_museum_entrance_doors(root: Node3D, grid: WorldGrid) -> void:
+	## Four wing doors from `MUSEUM_ENTRANCE_door_data` (north / west / east walls).
+	for link: Dictionary in MuseumDisplay.ENTRANCE_WING_DOORS:
+		var room_id: StringName = link["room"] as StringName
+		var template: Room = InteriorCatalog.room_template(room_id)
+		var door: Node3D = DOOR_SCENE.instantiate() as Node3D
+		door.name = "Link_%s" % String(room_id)
+		door.position = MuseumDisplay.gx_to_world(grid, link["sensor"] as Vector3)
+		door.set("label", template.display_name if template else "Room")
+		door.set("verb", Interaction.ENTER)
+		door.set("linked_room_id", room_id)
+		door.set("occupy_grid", false)
+		door.set("auto_enter", true)
+		door.set("has_linked_spawn", true)
+		door.set("linked_spawn_gx", link["spawn"] as Vector3)
+		door.set("linked_spawn_yaw", WorldGrid.yaw_for_furniture(link["facing"] as WorldGrid.Facing))
+		_size_museum_wing_door(door, link["sensor"] as Vector3)
+		root.add_child(door)
+
+
+func _size_museum_wing_door(door: Node3D, sensor_gx: Vector3) -> void:
+	## Fill the wall opening (~2 UT / 80 GX) so the player cannot slip past the sensor.
+	## North/south openings (z near 80/520) are wide in X; east/west openings wide in Z.
+	var wide: float = 80.0 * FieldCatalog.GX_TO_METERS
+	var deep: float = 40.0 * FieldCatalog.GX_TO_METERS
+	var tall: float = 2.6
+	var along_x: bool = sensor_gx.z < 200.0 or sensor_gx.z > 400.0
+	var box := Vector3(wide, tall, deep) if along_x else Vector3(deep, tall, wide)
+	HostCollision.resize_interact_box(door, box)

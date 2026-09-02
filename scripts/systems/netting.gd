@@ -89,6 +89,8 @@ static func swing(ctx: InteractionContext, origin: Vector3, direction: Vector3) 
 				actor.catch()
 				out.bug = actor.bug
 				out.catch_msg = actor.bug.catch_msg
+				if Game != null and Game.museum != null and Game.museum.has_insect_type(actor.bug.type_index):
+					out.catch_msg = MuseumDisplay.BUG_ALREADY_MSG
 		else:
 			out.missed = true
 	else:

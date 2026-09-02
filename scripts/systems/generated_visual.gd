@@ -111,6 +111,14 @@ static func apply_preview_materials(node: Node) -> void:
 	_apply_materials(node, false, _tree_is_ocean_acre(node))
 
 
+static func apply_authored_interior(pivot: Node3D) -> void:
+	## Scene-tree museum / train shells: materials + no shadows. Scale/origin stay in the tscn.
+	if pivot == null:
+		return
+	_apply_materials(pivot)
+	_disable_shadows(pivot)
+
+
 static func apply_season_textures(node: Node) -> void:
 	## Replace grass/earth/leaf/trunk albedos from `environment/seasons/{s,f,w}/`.
 	## Acre GLBs bake wrap into the PNG; re-tile the season tile to the current atlas size.
@@ -318,7 +326,9 @@ static func attach_interior(
 
 
 static func _fit(pivot: Node3D, visual_id: StringName) -> void:
-	if FieldCatalog.is_acre(visual_id):
+	if FieldCatalog.is_acre(visual_id) or visual_id == &"obj_museum5":
+		## `obj_museum5` draws with field `Matrix_scale(0.0625)` and no translate —
+		## verts share the acre datum with `rom_museum5` (floor at authored Y=40 GX).
 		_fit_acre(pivot)
 		return
 	if FieldCatalog.is_ground_decal(visual_id):
@@ -371,6 +381,9 @@ static func _fit_actor(pivot: Node3D, visual_id: StringName = &"") -> void:
 	if aabb.size == Vector3.ZERO:
 		return
 	var min_y: float = aabb.position.y
+	## Snap the mesh rest onto the host origin. Museum art hosts sit at
+	## `aMP_DrawOneArt` Y=40 GX, so this puts the frame bottom on the hang line
+	## (pipeline verts start ~10 GX above local 0).
 	if min_y > -0.5 and min_y < 2.0:
 		pivot.position.y = -min_y * s
 
@@ -518,9 +531,9 @@ static func train_door_panel_center_gx(host: Node3D, pivot: Node3D) -> Vector3:
 static func _fit_interior(pivot: Node3D, target: AABB, visual_id: StringName) -> void:
 	## `room01` verts are raw GX (max Z 320 = 8 units). Place at the field origin
 	## with GX→meter scale so FG cells (1,1)–(6,6) sit on the floor. Do not AABB-fit.
-	## `rom_*` stay at acre scale (40 GX = 2 m). Translate the floor min-corner onto
-	## the walkable rect — do not scale to the AABB. Walls (door alcove, trim) are
-	## larger than the carpet and would squash furniture off the FG grid.
+	## `rom_*` stay at acre scale (40 GX = 2 m). Homes translate the floor min-corner onto
+	## the walkable rect. Museum shells keep the 16×16 acre origin so `mMmd_UT` /
+	## `suisou_pos` / scene door GX match FG cells — only Y is snapped to the floor.
 	if not FieldCatalog.interior_uses_acre_verts(visual_id):
 		var gx: float = FieldCatalog.interior_uniform_scale(visual_id)
 		pivot.scale = Vector3.ONE * gx
@@ -535,6 +548,9 @@ static func _fit_interior(pivot: Node3D, target: AABB, visual_id: StringName) ->
 		aabb = _local_aabb(pivot)
 	if aabb.size.x <= 0.001 or aabb.size.z <= 0.001:
 		pivot.position = Vector3(0.0, FieldCatalog.interior_ground_y_offset(visual_id), 0.0)
+		return
+	if String(visual_id).begins_with("rom_museum"):
+		pivot.position = Vector3(target.position.x, -aabb.position.y * s, target.position.z)
 		return
 	pivot.position = Vector3(
 		target.position.x - aabb.position.x * s,
@@ -825,6 +841,9 @@ static func _apply_materials_inner(
 				elif _is_kanban_frame_surface(mesh_instance, i, src, visual_id):
 					_apply_kanban_frame_material(std)
 					mesh_instance.set_surface_override_material(i, std)
+				elif _is_museum_art_surface(mesh_instance, i, src, visual_id):
+					_apply_museum_art_material(std)
+					mesh_instance.set_surface_override_material(i, std)
 				elif as_decal:
 					std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 					std.render_priority = 1
@@ -844,6 +863,28 @@ static func _apply_materials_inner(
 static func _is_kanban_visual(visual_id: StringName) -> bool:
 	## Two-layer field signs only (`write_model` + frame). Dock `PORT_SIGN` uses attention.
 	return visual_id in [&"SIGNBOARD", &"obj_s_kanban", &"obj_w_kanban"]
+
+
+static func _is_museum_art_visual(visual_id: StringName) -> bool:
+	var s := String(visual_id)
+	return s.begins_with("obj_art")
+
+
+static func _is_museum_art_surface(
+	_mesh_instance: MeshInstance3D, _surface: int, _mat: Material, visual_id: StringName
+) -> bool:
+	return _is_museum_art_visual(visual_id)
+
+
+static func _apply_museum_art_material(std: StandardMaterial3D) -> void:
+	## `aMP_DrawOneArt` draws on POLY_OPA (`G_RM_AA_ZB_OPA_SURF2`). Pipeline often marks
+	## CI cutouts as BLEND; soft alpha sorts wrong against frames and walls.
+	if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
+		std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		std.alpha_scissor_threshold = maxf(std.alpha_scissor_threshold, 0.5)
+	elif std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR:
+		std.alpha_scissor_threshold = maxf(std.alpha_scissor_threshold, 0.5)
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 
 
 static func _is_kanban_paper_surface(

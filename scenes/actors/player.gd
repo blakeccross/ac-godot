@@ -135,7 +135,20 @@ func _physics_process(delta: float) -> void:
 	_update_animation(delta)
 	_update_footprints(delta, bg)
 	_update_focus()
+	_clear_auto_enter_block()
 	_try_auto_enter()
+
+
+## After a room load, walk-in doors stay armed until the probe leaves every auto door.
+func _clear_auto_enter_block() -> void:
+	if not Game.block_auto_enter_doors:
+		return
+	var hit: InteractionQuery = _resolve_interact()
+	if hit == null or hit.host == null:
+		Game.block_auto_enter_doors = false
+		return
+	if hit.host.get("auto_enter") != true:
+		Game.block_auto_enter_doors = false
 
 
 ## `mPlayer_INDEX_DOOR`: OPEN1 (door_type 0) or INTO_S1 (door_type ≠ 0) while

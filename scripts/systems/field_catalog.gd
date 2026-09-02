@@ -428,8 +428,11 @@ static func actor_uniform_scale() -> float:
 
 static func actor_draw_scale(visual_id: StringName) -> float:
 	## `aFTR_PROFILE.scale`. Almost every FTR is 0.01; modern chair is 0.1.
+	## Sea tank `obj_museum5` uses field `Matrix_scale(0.0625)` (`Museum_Fish_Suisou_draw`).
 	if visual_id == &"int_ari_isu01":
 		return 0.1
+	if visual_id == &"obj_museum5":
+		return FIELD_DRAW_SCALE
 	return ACTOR_DRAW_SCALE
 
 

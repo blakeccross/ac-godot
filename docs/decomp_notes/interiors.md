@@ -38,7 +38,7 @@ Indoor fields are still a **16×16 unit grid** (`UT_X_NUM`). Walls occupy units 
 
 - One playable player room (small main). Upper/basement exist as data until loans.
 - Shop upgrades are alternate rooms; the town shop enters `shop0`.
-- Museum wings are enterable rooms, not a donation treadmill.
+- Museum wings are enterable rooms with donation displays (`MuseumBook` + `MuseumPresenter`). Completion treadmill / mail-in fossils wait until earned.
 - Island cottage is catalog-only until island is in scope.
 - No indoor villager actors yet (outdoor `IN_HOUSE` already hides them).
 

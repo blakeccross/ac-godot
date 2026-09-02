@@ -22,7 +22,7 @@ Do not start these just because they exist in the original:
 - e-Reader / Game Boy Advance connectivity
 - Famicom / NES minigames
 - Island boat logistics and island-exclusive systems
-- Museum completion as a content treadmill (a single donation loop can wait)
+- Museum completion as a content treadmill (donation display + one donate loop are in; mail-in / reward furniture wait)
 - Town tune editor, custom designs, pattern tool
 - Multiplayer / Dream Suite–style visits
 - Every holiday, every shop, every villager species

@@ -161,10 +161,11 @@ static func apply_building(host: Node3D, visual_id: StringName, occupancy: Vecto
 		disable_body(host)
 		var door: Vector3 = door_offset(visual_id)
 		if door != Vector3.ZERO:
-			## Museum check radius ~33 GX — widen the walk-in sensor.
+			## Museum opening spans ~80 GX — fill it so you cannot walk past the stand.
+			## Outdoor check radius is ~33 GX (`aMsm_check_player` t < 1100); box covers the bay.
 			var box := Vector3(1.6, 2.0, 1.6)
 			if is_museum(visual_id):
-				box = Vector3(2.2, 2.0, 2.2)
+				box = Vector3(4.0, 2.6, 2.2)
 			elif is_police(visual_id):
 				box = Vector3(2.0, 2.0, 2.0)
 			place_door_sensor(host, door, box)
@@ -172,6 +173,16 @@ static func apply_building(host: Node3D, visual_id: StringName, occupancy: Vecto
 			place_south_sensor(host, occupancy, cell_size)
 		return
 	apply_box(host, occupancy, cell_size)
+
+
+static func resize_interact_box(host: Node3D, size: Vector3) -> void:
+	## Public helper for indoor museum wing openings.
+	if host == null or size == Vector3.ZERO:
+		return
+	_resize_door_box(host, size)
+	var nested: Node = host.get_node_or_null("InteractVolume")
+	if nested is Node3D:
+		_resize_door_box(nested as Node3D, size)
 
 
 static func apply_shop(host: Node3D, occupancy: Vector2i, cell_size: float) -> void:

@@ -121,6 +121,8 @@ func test_npc_room_uses_fg_furniture() -> void:
 	assert_bool(InteriorWorld.pins_follow_camera(filbert)).is_true()
 	assert_bool(InteriorWorld.pins_follow_camera(InteriorCatalog.room_template(&"player_main"))).is_true()
 	assert_bool(InteriorWorld.pins_follow_camera(InteriorCatalog.room_template(&"shop0"))).is_false()
+	assert_bool(InteriorWorld.pins_follow_camera(InteriorCatalog.room_template(&"museum_fish"))).is_false()
+	assert_bool(InteriorWorld.pins_follow_camera(InteriorCatalog.room_template(&"museum_entrance"))).is_false()
 
 
 func test_alli_mannequins_carry_cloth_index() -> void:
@@ -291,10 +293,10 @@ func test_museum_uses_pipeline_shells() -> void:
 	assert_that(entrance.floor_id).is_equal(&"")
 	assert_that(entrance.inner_size).is_equal(Vector2i(10, 10))
 	var painting: Room = InteriorCatalog.room_template(&"museum_painting")
-	assert_bool(painting.shell_ids.has("rom_museum2")).is_true()
+	assert_bool(painting.shell_ids.has("rom_museum3")).is_true()
 	assert_that(painting.inner_size).is_equal(Vector2i(14, 12))
 	var fossil: Room = InteriorCatalog.room_template(&"museum_fossil")
-	assert_bool(fossil.shell_ids.has("rom_museum3")).is_true()
+	assert_bool(fossil.shell_ids.has("rom_museum2")).is_true()
 	var insect: Room = InteriorCatalog.room_template(&"museum_insect")
 	assert_bool(insect.shell_ids.has("rom_museum4")).is_true()
 	assert_bool(insect.shell_ids.has("rom_museum4_wall")).is_true()
@@ -425,6 +427,7 @@ func test_indoor_exit_door_is_walk_warp_not_a_prompt() -> void:
 
 func test_museum_door_auto_enters_when_open() -> void:
 	## `aMsm_check_player` has no A button — walk-in while open, silent prompt.
+	Game.block_auto_enter_doors = false
 	var door: Node = auto_free(load("res://scenes/world/door.tscn").instantiate())
 	door.set("occupant_id", &"museum")
 	door.set("auto_enter", true)
@@ -439,6 +442,108 @@ func test_museum_door_auto_enters_when_open() -> void:
 	var closed: Array = door.get_interactions(InteractionContext.new())
 	assert_str((closed[0] as Interaction).prompt).contains("Museum")
 	Clock.hour = 12
+
+
+func test_museum_wing_door_auto_enters_indoors() -> void:
+	## Wing links walk in with INTO_S1 — no E prompt while indoors.
+	Game.block_auto_enter_doors = false
+	Game.current_room_id = &"museum_entrance"
+	var door: Node = auto_free(load("res://scenes/world/door.tscn").instantiate())
+	door.set("auto_enter", true)
+	door.set("linked_room_id", &"museum_fish")
+	door.set("label", "Fish")
+	assert_bool(door.call("should_auto_enter")).is_true()
+	var actions: Array = door.get_interactions(InteractionContext.new())
+	assert_int(actions.size()).is_equal(1)
+	assert_str((actions[0] as Interaction).prompt).is_equal("")
+	Game.block_auto_enter_doors = true
+	assert_bool(door.call("should_auto_enter")).is_false()
+	Game.block_auto_enter_doors = false
+	Game.current_room_id = &""
+
+
+func test_museum_entrance_doors_match_decomp() -> void:
+	## Entrance layout (`MUSEUM_ENTRANCE_door_data` + wing returns):
+	##   N-west painting · N-east fossil · W insect · E fish · S outdoors
+	assert_int(MuseumDisplay.ENTRANCE_WING_DOORS.size()).is_equal(4)
+	var paint: Dictionary = MuseumDisplay.ENTRANCE_WING_DOORS[0]
+	var fossil: Dictionary = MuseumDisplay.ENTRANCE_WING_DOORS[1]
+	var insect: Dictionary = MuseumDisplay.ENTRANCE_WING_DOORS[2]
+	var fish: Dictionary = MuseumDisplay.ENTRANCE_WING_DOORS[3]
+	assert_that(paint["room"]).is_equal(&"museum_painting")
+	assert_vector(paint["sensor"] as Vector3).is_equal(Vector3(160.0, 0.0, 80.0))
+	assert_vector(paint["spawn"] as Vector3).is_equal(Vector3(280.0, 0.0, 480.0))
+	assert_that(paint["facing"]).is_equal(WorldGrid.Facing.NORTH)
+	assert_that(fossil["room"]).is_equal(&"museum_fossil")
+	assert_vector(fossil["sensor"] as Vector3).is_equal(Vector3(320.0, 0.0, 80.0))
+	assert_vector(fossil["spawn"] as Vector3).is_equal(Vector3(280.0, 0.0, 480.0))
+	assert_that(fossil["facing"]).is_equal(WorldGrid.Facing.NORTH)
+	assert_that(insect["room"]).is_equal(&"museum_insect")
+	assert_vector(insect["sensor"] as Vector3).is_equal(Vector3(80.0, 0.0, 280.0))
+	assert_vector(insect["spawn"] as Vector3).is_equal(Vector3(520.0, 0.0, 560.0))
+	assert_that(insect["facing"]).is_equal(WorldGrid.Facing.WEST)
+	assert_that(fish["room"]).is_equal(&"museum_fish")
+	assert_vector(fish["spawn"] as Vector3).is_equal(Vector3(120.0, 0.0, 560.0))
+	assert_that(fish["facing"]).is_equal(WorldGrid.Facing.EAST)
+	## Return spawns sit one cell inside the matching entrance opening.
+	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_painting"]["spawn"] as Vector3).is_equal(
+		Vector3(160.0, 0.0, 120.0)
+	)
+	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_fossil"]["spawn"] as Vector3).is_equal(
+		Vector3(320.0, 0.0, 120.0)
+	)
+	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_insect"]["spawn"] as Vector3).is_equal(
+		Vector3(120.0, 0.0, 280.0)
+	)
+	assert_vector(MuseumDisplay.WING_EXIT_DOORS[&"museum_fish"]["spawn"] as Vector3).is_equal(
+		Vector3(360.0, 0.0, 280.0)
+	)
+	assert_that(MuseumDisplay.WING_EXIT_DOORS[&"museum_fish"]["facing"]).is_equal(
+		WorldGrid.Facing.WEST
+	)
+	## Door exit yaw uses furniture angles so EAST faces +X (into the fish room).
+	assert_float(
+		WorldGrid.yaw_for_furniture(fish["facing"] as WorldGrid.Facing)
+	).is_equal_approx(PI * 0.5, 0.0001)
+	assert_vector(MuseumDisplay.ENTRANCE_SPAWN_GX).is_equal(Vector3(240.0, 0.0, 440.0))
+	assert_vector(MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX).is_equal(Vector3(240.0, 0.0, 500.0))
+	assert_float(MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX.x).is_equal_approx(
+		MuseumDisplay.ENTRANCE_SPAWN_GX.x, 0.01
+	)
+	assert_float(MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX.z).is_greater(MuseumDisplay.ENTRANCE_SPAWN_GX.z)
+
+
+func test_museum_grid_keeps_acre_nw_at_origin() -> void:
+	## Authored shells / door GX / exhibits share acre NW at world 0 — not centered.
+	var room: Room = InteriorCatalog.room_template(&"museum_entrance")
+	var session := Interior.new()
+	session.bind(room)
+	assert_vector(session.grid.origin).is_equal(Vector3.ZERO)
+	assert_vector(MuseumDisplay.gx_to_world(session.grid, MuseumDisplay.ENTRANCE_SPAWN_GX)).is_equal(
+		Vector3(12.0, 0.0, 22.0)
+	)
+	var home: Room = InteriorCatalog.room_template(&"player_main")
+	var home_session := Interior.new()
+	home_session.bind(home)
+	assert_float(home_session.grid.origin.x).is_less(0.0)
+
+
+func test_museum_entrance_exit_sensor_matches_enter_x() -> void:
+	var room: Room = InteriorCatalog.room_template(&"museum_entrance")
+	var session := Interior.new()
+	session.bind(room)
+	var root := Node3D.new()
+	auto_free(root)
+	add_child(root)
+	InteriorBuilder.new().build(root, session)
+	var exit_door: Node3D = root.get_node_or_null("Doors/Exit") as Node3D
+	assert_that(exit_door).is_not_null()
+	var expected: Vector3 = MuseumDisplay.gx_to_world(session.grid, MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX)
+	assert_float(exit_door.position.x).is_equal_approx(expected.x, 0.05)
+	assert_float(exit_door.position.z).is_equal_approx(expected.z, 0.05)
+	## Not the generic room-center south cell (would be ~340 GX / cell 8).
+	var wrong: Vector3 = session.grid.cell_to_world(room.door_cell)
+	assert_float(absf(exit_door.position.x - wrong.x)).is_greater(0.5)
 
 
 func test_door_cell_is_south_of_spawn() -> void:

@@ -1,0 +1,86 @@
+[gd_scene format=3 uid="uid://burriwknr6l5n"]
+
+[ext_resource type="Script" uid="uid://dq270fa7etm8j" path="res://scenes/dev/museum_complete.gd" id="1"]
+[ext_resource type="Script" uid="uid://cv8yyhwgkgtii" path="res://scenes/world/follow_camera.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/ui/clock_hud.tscn" id="3"]
+[ext_resource type="Script" uid="uid://xvhu0kdhg1ar" path="res://scenes/world/museum_wing_keys.gd" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/world/museum/museum_entrance.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/world/museum/museum_painting.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/world/museum/museum_fossil.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://scenes/world/museum/museum_insect.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://scenes/world/museum/museum_fish.tscn" id="9"]
+
+[sub_resource type="Environment" id="Env"]
+background_mode = 1
+background_color = Color(0.18, 0.16, 0.14, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.72, 0.64, 0.52, 1)
+
+[node name="MuseumComplete" type="Node3D" unique_id=921213819]
+script = ExtResource("1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1843603471]
+environment = SubResource("Env")
+
+[node name="FillLight" type="OmniLight3D" parent="." unique_id=741702906]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 8)
+light_color = Color(1, 0.92, 0.78, 1)
+light_energy = 1.6
+omni_range = 40.0
+
+[node name="Rooms" type="Node3D" parent="." unique_id=315149802]
+
+[node name="museum_entrance" parent="Rooms" unique_id=1715406778 instance=ExtResource("5")]
+
+[node name="museum_painting" parent="Rooms" unique_id=725442870 instance=ExtResource("6")]
+visible = false
+
+[node name="museum_fossil" parent="Rooms" unique_id=1008726942 instance=ExtResource("7")]
+visible = false
+
+[node name="museum_insect" parent="Rooms" unique_id=81781376 instance=ExtResource("8")]
+visible = false
+
+[node name="museum_fish" parent="Rooms" unique_id=319175043 instance=ExtResource("9")]
+visible = false
+
+[node name="Characters" type="Node3D" parent="." unique_id=1384402284]
+
+[node name="FollowCamera" type="Camera3D" parent="." unique_id=1002414786]
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 27.2, 27.2)
+current = true
+fov = 20.0
+script = ExtResource("2")
+
+[node name="MuseumWingKeys" type="Node" parent="." unique_id=1879957589]
+script = ExtResource("4")
+
+[node name="ClockHud" parent="." unique_id=1243988905 instance=ExtResource("3")]
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=1151200630]
+layer = 20
+
+[node name="Root" type="Control" parent="UI" unique_id=1163719245]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="MissingBanner" type="Label" parent="UI/Root" unique_id=1771170343]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = -24.0
+offset_bottom = 88.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.95, 0.85, 0.45, 1)
+theme_override_font_sizes/font_size = 15
+text = "Missing museum GLBs — run python3 tools/build_assets.py --step convert"
+autowrap_mode = 3

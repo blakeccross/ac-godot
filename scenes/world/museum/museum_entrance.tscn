@@ -1,0 +1,69 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/world/museum/museum_entrance.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/world/museum/museum_wing_shell.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://dgg4xho8jqr2y" path="res://assets/generated/environment/interiors/rom_museum1.glb" id="4"]
+
+[node name="museum_entrance" type="Node3D"]
+script = ExtResource("1")
+room_id = &"museum_entrance"
+
+[node name="Shell" type="Node3D" parent="."]
+script = ExtResource("2")
+
+[node name="GeneratedVisual" type="Node3D" parent="Shell"]
+transform = Transform3D(3.125, 0, 0, 0, 3.125, 0, 0, 0, 3.125, 0, -2, 0)
+
+[node name="rom_museum1" parent="Shell/GeneratedVisual" instance=ExtResource("4")]
+
+[node name="Terrain" type="Node3D" parent="."]
+
+[node name="Furniture" type="Node3D" parent="."]
+
+[node name="Doors" type="Node3D" parent="."]
+
+[node name="Link_museum_painting" parent="Doors" instance=ExtResource("3")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 4)
+label = "Painting Wing"
+auto_enter = true
+linked_room_id = &"museum_painting"
+has_linked_spawn = true
+linked_spawn_gx = Vector3(280, 0, 480)
+linked_spawn_yaw = 3.1415927
+
+[node name="Link_museum_fossil" parent="Doors" instance=ExtResource("3")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0, 4)
+label = "Fossil Wing"
+auto_enter = true
+linked_room_id = &"museum_fossil"
+has_linked_spawn = true
+linked_spawn_gx = Vector3(280, 0, 480)
+linked_spawn_yaw = 3.1415927
+
+[node name="Link_museum_insect" parent="Doors" instance=ExtResource("3")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 14)
+label = "Insect Wing"
+auto_enter = true
+linked_room_id = &"museum_insect"
+has_linked_spawn = true
+linked_spawn_gx = Vector3(520, 0, 560)
+linked_spawn_yaw = -1.5707964
+
+[node name="Link_museum_fish" parent="Doors" instance=ExtResource("3")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 0, 14)
+label = "Fish Wing"
+auto_enter = true
+linked_room_id = &"museum_fish"
+has_linked_spawn = true
+linked_spawn_gx = Vector3(120, 0, 560)
+linked_spawn_yaw = 1.5707964
+
+[node name="Exit" parent="Doors" instance=ExtResource("3")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 25)
+label = "Leave"
+auto_enter = true
+exits_interior = true
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0.1, 22)

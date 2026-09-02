@@ -10,6 +10,10 @@ from asset_pipeline.texbank import (
     gfx_part_tokens,
     is_dolphin_loadtlut,
     is_image_symbol,
+    is_museum_plate_texture,
+    museum_art_house_twin,
+    museum_dummy_wood_twin,
+    museum_gaku_house_palette,
     parse_loadtlut,
     parse_settile,
     parse_settilesize,
@@ -112,6 +116,43 @@ class ClassicGbiTests(unittest.TestCase):
         self.assertEqual(parsed_tmem, tmem)
         self.assertEqual(pal_slot, 15)
         self.assertEqual(tmem_palette_slot(tmem), 15)
+
+    def test_museum_art_house_twin_maps_mona_lisa(self) -> None:
+        twin = museum_art_house_twin("obj_art01_art_tex")
+        self.assertEqual(twin, ("int_sum_art01_monariza_tex", "int_sum_art01_pal"))
+        self.assertIsNone(museum_art_house_twin("obj_art01_gaku_tex"))
+
+    def test_museum_gaku_uses_house_wood_palette(self) -> None:
+        self.assertEqual(museum_gaku_house_palette("obj_art01_gaku_tex"), "int_sum_art01_pal")
+        self.assertEqual(museum_gaku_house_palette("obj_art01_name_tex"), "int_sum_art01_pal")
+        self.assertIsNone(museum_gaku_house_palette("obj_art01_art_tex"))
+
+    def test_museum_ike_plates_use_etc_palette(self) -> None:
+        ## ang/sya/fel: name+gaku share `*_etc_pal`, not the canvas art pal.
+        self.assertEqual(museum_gaku_house_palette("obj_art_sya_name_tex"), "obj_art_sya_etc_pal")
+        self.assertEqual(museum_gaku_house_palette("obj_art_sya_gaku_tex"), "obj_art_sya_etc_pal")
+        self.assertEqual(museum_gaku_house_palette("obj_art_ang_name_tex"), "obj_art_ang_etc_pal")
+
+    def test_museum_plate_textures_skip_achd(self) -> None:
+        self.assertTrue(is_museum_plate_texture("obj_art01_name_tex"))
+        self.assertTrue(is_museum_plate_texture("obj_art_sya_gaku_tex"))
+        self.assertFalse(is_museum_plate_texture("obj_art_sya_art_tex"))
+        self.assertFalse(is_museum_plate_texture("obj_art01_art_tex"))
+        ## Empty frames are not "plates" — they need wood ACHD / dummy03 twin.
+        self.assertFalse(is_museum_plate_texture("obj_art_dummy01_name_tex"))
+        self.assertFalse(is_museum_plate_texture("obj_art_dummy01_tex"))
+
+    def test_museum_dummy_wood_twin(self) -> None:
+        self.assertEqual(
+            museum_dummy_wood_twin("obj_art_dummy01_tex"),
+            ("obj_art_dummy03_tex", "obj_art_dummy03_pal"),
+        )
+        self.assertEqual(
+            museum_dummy_wood_twin("obj_art_dummy08_name_tex"),
+            ("obj_art_dummy03_name_tex", "obj_art_dummy03_pal"),
+        )
+        self.assertIsNone(museum_dummy_wood_twin("obj_art_dummy03_tex"))
+        self.assertIsNone(museum_dummy_wood_twin("obj_art01_art_tex"))
 
 
 if __name__ == "__main__":

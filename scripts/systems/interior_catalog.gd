@@ -527,19 +527,24 @@ static func _register_museum() -> void:
 		&"museum_insect": Vector2i(12, 14),
 		&"museum_fish": Vector2i(10, 14),
 	}
+	## Floor prims sit one cell in from acre NW (not vertically centered).
+	## Painting/fossil floor z ends at 26 m (cell 13); insect/fish extend to acre SE.
+	var wing_origins := {
+		&"museum_painting": Vector2i(1, 1),
+		&"museum_fossil": Vector2i(1, 1),
+		&"museum_insect": Vector2i(1, 1),
+		&"museum_fish": Vector2i(3, 1),
+	}
 	var wing_shells := {
-		&"museum_painting": PackedStringArray(["rom_museum2"]),
-		&"museum_fossil": PackedStringArray(["rom_museum3"]),
+		&"museum_painting": PackedStringArray(["rom_museum3"]),
+		&"museum_fossil": PackedStringArray(["rom_museum2"]),
 		&"museum_insect": PackedStringArray(["rom_museum4", "rom_museum4_wall", "rom_museum4_ue"]),
 		&"museum_fish": PackedStringArray(["rom_museum5", "rom_museum5_wall"]),
 	}
 	for wing: StringName in entrance.linked_rooms:
 		var label := String(wing).replace("museum_", "").capitalize()
 		var inner: Vector2i = wing_sizes.get(wing, Vector2i(10, 10)) as Vector2i
-		var origin := Vector2i(
-			maxi(0, int((16 - inner.x) / 2)),
-			maxi(0, int((16 - inner.y) / 2))
-		)
+		var origin: Vector2i = wing_origins.get(wing, Vector2i.ZERO) as Vector2i
 		var room := _public(wing, Room.Kind.MUSEUM, "%s Wing" % label, origin, inner, 9, 17)
 		room.parent_room_id = &"museum_entrance"
 		room.wall_id = &""

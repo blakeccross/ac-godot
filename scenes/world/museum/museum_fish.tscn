@@ -1,0 +1,39 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scenes/world/museum/museum_fish.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/world/museum/museum_wing_shell.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://dms5oglm2d2yt" path="res://assets/generated/environment/interiors/rom_museum5.glb" id="4"]
+[ext_resource type="PackedScene" uid="uid://4kteuquyvp7l" path="res://assets/generated/environment/interiors/rom_museum5_wall.glb" id="5"]
+
+[node name="museum_fish" type="Node3D"]
+script = ExtResource("1")
+room_id = &"museum_fish"
+
+[node name="Shell" type="Node3D" parent="."]
+script = ExtResource("2")
+
+[node name="GeneratedVisual" type="Node3D" parent="Shell"]
+transform = Transform3D(3.125, 0, 0, 0, 3.125, 0, 0, 0, 3.125, 0, -2, 0)
+
+[node name="rom_museum5" parent="Shell/GeneratedVisual" instance=ExtResource("4")]
+
+[node name="rom_museum5_wall" parent="Shell/GeneratedVisual" instance=ExtResource("5")]
+
+[node name="Terrain" type="Node3D" parent="."]
+
+[node name="Furniture" type="Node3D" parent="."]
+
+[node name="Doors" type="Node3D" parent="."]
+
+[node name="Exit" parent="Doors" instance=ExtResource("3")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 28)
+label = "Museum"
+auto_enter = true
+linked_room_id = &"museum_entrance"
+has_linked_spawn = true
+linked_spawn_gx = Vector3(360, 0, 280)
+linked_spawn_yaw = -1.5707964
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0.1, 28)

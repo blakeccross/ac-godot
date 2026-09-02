@@ -16,7 +16,13 @@ func bind(p_room: Room) -> void:
 		return
 	var cols: int = maxi(room.columns, 1)
 	var rows: int = maxi(room.rows, 1)
-	var origin := Vector3(-float(cols) * grid.cell_size * 0.5, 0.0, -float(rows) * grid.cell_size * 0.5)
+	## Museum acre shells / door GX / mMmd_UT are absolute from NW — keep origin at 0.
+	## Homes and shops stay centered so the walkable rect sits on the camera.
+	var origin := (
+		Vector3.ZERO
+		if room.kind == Room.Kind.MUSEUM
+		else Vector3(-float(cols) * grid.cell_size * 0.5, 0.0, -float(rows) * grid.cell_size * 0.5)
+	)
 	grid.configure(cols, rows, 2.0, origin)
 	for x: int in cols:
 		for z: int in rows:

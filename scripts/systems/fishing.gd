@@ -298,6 +298,9 @@ static func _resolve_hook(ctx: InteractionContext, school: FishSchool = null) ->
 		return out
 	shadow.reel_in()
 	out.catch_msg = fish.catch_msg
+	## `mSM_CHECK_LAST_FISH_GET` → shorter report once the species is already in the museum.
+	if Game != null and Game.museum != null and Game.museum.has_fish_id(fish.id):
+		out.catch_msg = MuseumDisplay.FISH_ALREADY_MSG
 	_end(school)
 	return out
 

@@ -31,8 +31,11 @@ func _ready() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	## `EXIT_DOOR` warp: stepping onto the door unit leaves (`Player_actor_check_nextgoto`).
+	## `EXIT_DOOR` warp: stepping onto the outdoor exit cell leaves
+	## (`Player_actor_check_nextgoto`). Museum wing exits use linked auto-enter doors.
 	if _exiting or session == null or grid == null or session.room == null:
+		return
+	if session.room.kind == Room.Kind.MUSEUM and session.room.parent_room_id != &"":
 		return
 	var player: Node = get_tree().get_first_node_in_group("player")
 	if player == null or not (player is Node3D):
@@ -114,14 +117,21 @@ func _apply_indoor_light(room: Room) -> void:
 	env.ambient_light_energy = 1.0
 	env.fog_enabled = false
 	if _camera != null and "offset" in _camera:
-		var bounds: AABB = InteriorBuilder.new()._shell_bounds(room, grid)
-		var span: float = maxf(bounds.size.x, bounds.size.z)
-		if _camera.has_method("offset_to_frame_span"):
-			_camera.set("offset", _camera.call("offset_to_frame_span", span))
-		elif _camera.has_method("offset_for_ground_span"):
-			_camera.set("offset", _camera.call("offset_for_ground_span", span))
+		## Homes frame the shell (never closer than Camera2 620). Museum / shops /
+		## other public rooms keep outdoor focus distance — `Camera2_InDoorCheck`
+		## is only NPCROOM0 / ROOM0 / PLAYER0_ROOM.
+		if pins_follow_camera(room):
+			var bounds: AABB = InteriorBuilder.new()._shell_bounds(room, grid)
+			var span: float = maxf(bounds.size.x, bounds.size.z)
+			if _camera.has_method("offset_to_frame_span"):
+				_camera.set("offset", _camera.call("offset_to_frame_span", span))
+			elif _camera.has_method("offset_for_ground_span"):
+				_camera.set("offset", _camera.call("offset_for_ground_span", span))
+			else:
+				_camera.set("offset", Vector3(0.0, span, span))
 		else:
-			_camera.set("offset", Vector3(0.0, span, span))
+			## Restore Camera2 620 when leaving a framed home for a public room.
+			_camera.set("offset", preload("res://scenes/world/follow_camera.gd").DEFAULT_OFFSET)
 	if pins_follow_camera(room) and _camera.has_method("lock_at"):
 		_camera.call("lock_at", _inner_look_point(room))
 
@@ -148,7 +158,12 @@ func _spawn_player() -> void:
 	$Characters.add_child(player)
 	var pos: Vector3 = _spawn.global_position
 	var yaw: float = Game.player_yaw
-	if Game.spawn_at_room_door and session != null and session.room != null:
+	if Game.has_interior_spawn and session != null and session.grid != null:
+		pos = MuseumDisplay.gx_to_world(session.grid, Game.interior_spawn_gx)
+		pos.y = 0.1
+		yaw = Game.interior_spawn_yaw
+		Game.has_interior_spawn = false
+	elif Game.spawn_at_room_door and session != null and session.room != null:
 		pos = session.grid.cell_to_world(session.room.spawn_cell)
 		pos.y = 0.1
 		yaw = WorldGrid.yaw_for_facing(WorldGrid.Facing.NORTH)

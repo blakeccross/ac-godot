@@ -39,10 +39,17 @@ var villagers: VillagerRoster = VillagerRoster.new()
 var relationships: RelationshipBook = RelationshipBook.new()
 var interiors: InteriorBook = InteriorBook.new()
 var shops: ShopBook = ShopBook.new()
+var museum: MuseumBook = MuseumBook.new()
 var current_room_id: StringName = &""
 var outdoor_return: Vector3 = DEFAULT_SPAWN
 var outdoor_return_yaw: float = 0.0
 var spawn_at_room_door: bool = false
+## Museum wing door spawns (`Door_data_c.exit_position` / orientation).
+var has_interior_spawn: bool = false
+var interior_spawn_gx: Vector3 = Vector3.ZERO
+var interior_spawn_yaw: float = 0.0
+## After a room load, ignore walk-in doors until the player steps clear of sensors.
+var block_auto_enter_doors: bool = false
 ## After indoor leave, world plays structure leave + player GO_OUT (`mPlayer_INDEX_OUTDOOR`).
 var emerge_from_door: bool = false
 var interior_session: Interior
@@ -71,9 +78,13 @@ var grass_pattern: int = WorldData.GrassPattern.TRIANGLE
 
 func _init() -> void:
 	villagers.book = relationships
+	if museum == null:
+		museum = MuseumBook.new()
 
 
 func _ready() -> void:
+	if museum == null:
+		museum = MuseumBook.new()
 	if not Clock.field_renewed.is_connected(_on_field_renewed):
 		Clock.field_renewed.connect(_on_field_renewed)
 
@@ -188,11 +199,17 @@ func reset_session() -> void:
 	relationships.clear()
 	interiors.clear()
 	shops.clear()
+	if museum == null:
+		museum = MuseumBook.new()
+	else:
+		museum.clear()
 	interior_session = null
 	current_room_id = &""
 	outdoor_return = DEFAULT_SPAWN
 	outdoor_return_yaw = 0.0
 	spawn_at_room_door = false
+	has_interior_spawn = false
+	block_auto_enter_doors = false
 	emerge_from_door = false
 	villagers.clear()
 	villagers.book = relationships
@@ -350,6 +367,7 @@ func to_save() -> Dictionary:
 		"relationships": relationships.to_save(),
 		"interiors": interiors.to_save(),
 		"shops": shops.to_save(),
+		"museum": museum.to_save(),
 		"current_room_id": String(current_room_id),
 		"outdoor_return": {
 			"x": outdoor_return.x,
@@ -415,6 +433,9 @@ func apply_snapshot(data: Dictionary) -> void:
 	relationships.apply_snapshot(data.get("relationships", {}))
 	interiors.apply_snapshot(data.get("interiors", {}))
 	shops.apply_snapshot(data.get("shops", {}))
+	if museum == null:
+		museum = MuseumBook.new()
+	museum.apply_snapshot(data.get("museum", {}))
 	current_room_id = StringName(str(data.get("current_room_id", "")))
 	var outdoor: Variant = data.get("outdoor_return", {})
 	if typeof(outdoor) == TYPE_DICTIONARY:
@@ -460,7 +481,9 @@ func is_decorating() -> bool:
 	return room != null and room.can_decorate
 
 
-func try_enter_interior(target: StringName) -> bool:
+func try_enter_interior(
+	target: StringName, spawn_gx: Variant = null, spawn_yaw: Variant = null
+) -> bool:
 	var room_id: StringName = InteriorCatalog.resolve_entry(target)
 	if room_id == &"":
 		return false
@@ -482,9 +505,33 @@ func try_enter_interior(target: StringName) -> bool:
 			outdoor_return_yaw = player_yaw
 	close_shop()
 	current_room_id = room_id
-	spawn_at_room_door = true
+	if spawn_gx is Vector3:
+		interior_spawn_gx = spawn_gx as Vector3
+		interior_spawn_yaw = float(spawn_yaw) if spawn_yaw != null else 0.0
+		has_interior_spawn = true
+		spawn_at_room_door = false
+	elif room_id == &"museum_entrance":
+		## `aMsm_museum_enter_data` — not scene player data / generic south door cell.
+		interior_spawn_gx = MuseumDisplay.ENTRANCE_SPAWN_GX
+		interior_spawn_yaw = WorldGrid.yaw_for_furniture(MuseumDisplay.ENTRANCE_SPAWN_FACING)
+		has_interior_spawn = true
+		spawn_at_room_door = false
+	else:
+		has_interior_spawn = false
+		spawn_at_room_door = true
+	block_auto_enter_doors = true
+	var stage: Node = _museum_complete_stage()
+	if stage != null and stage.has_method("switch_wing"):
+		return stage.call("switch_wing", room_id) as bool
 	_change_scene(INTERIOR_SCENE)
 	return true
+
+
+func _museum_complete_stage() -> Node:
+	if get_tree() == null:
+		return null
+	var stages: Array[Node] = get_tree().get_nodes_in_group("museum_complete_stage")
+	return stages[0] if not stages.is_empty() else null
 
 
 func open_shop(shop_id: StringName, mode: StringName = Interaction.BUY) -> bool:
@@ -536,8 +583,15 @@ func exit_interior() -> bool:
 	current_room_id = &""
 	interior_session = null
 	spawn_at_room_door = false
+	has_interior_spawn = false
+	block_auto_enter_doors = true
 	player_position = outdoor_return
 	player_yaw = outdoor_return_yaw
+	## Authored museum harness has no outdoor world — return to title.
+	if _museum_complete_stage() != null:
+		emerge_from_door = false
+		_change_scene(TITLE_SCENE)
+		return true
 	emerge_from_door = true
 	_change_scene(WORLD_SCENE)
 	return true
@@ -545,6 +599,34 @@ func exit_interior() -> bool:
 
 func bind_interior(session: Interior) -> void:
 	interior_session = session
+
+
+## Hand an inventory item to the museum (`mMmd_RequestMuseumDisplay`).
+## Returns a short status string for notices / Blathers dialogue.
+func donate_to_museum(item_id: StringName, player_no: int = 0) -> String:
+	if museum == null:
+		museum = MuseumBook.new()
+	var data: ItemData = ItemCatalog.get_item(item_id)
+	if data == null:
+		return "That's not something for the museum."
+	match museum.display_info_for_item(data):
+		MuseumBook.DisplayInfo.CANNOT_DONATE:
+			return "Blathers can't take that."
+		MuseumBook.DisplayInfo.ALREADY_DONATED:
+			return "The museum already has that."
+		_:
+			pass
+	if inventory.count_of(item_id) <= 0:
+		return "You don't have that."
+	if not museum.request_display(data, player_no):
+		return "The museum already has that."
+	inventory.remove(item_id, 1)
+	var mapped: Dictionary = MuseumDisplay.map_item(data)
+	var category: int = int(mapped.get("category", MuseumDisplay.Category.FOSSIL))
+	var index: int = int(mapped.get("index", -1))
+	if category == MuseumDisplay.Category.FOSSIL and MuseumDisplay.fossil_set_just_completed(museum, index):
+		return "That completes a skeleton! It will appear in the fossil wing."
+	return "Donated! Visit the wing to see it on display."
 
 
 func try_place_furniture(actor: Node3D) -> bool:

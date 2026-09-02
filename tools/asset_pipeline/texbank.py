@@ -161,6 +161,100 @@ _STRUCTURE_PALETTE_ALIASES = {
     "kouban": "police_box",
 }
 
+## Museum wall canvases (`obj_art*_art_tex`) use different CI4 than house FTR
+## (`int_sum_art*` / `int_ike_art*`). ACHD indexes the house hashes — fall back so
+## museum displays get the same HD painting instead of native 32×48 CI4.
+_MUSEUM_ART_HOUSE_TWIN: dict[str, tuple[str, str]] = {
+    "obj_art01_art_tex": ("int_sum_art01_monariza_tex", "int_sum_art01_pal"),
+    "obj_art04_art_tex": ("int_sum_art04_binas_tex", "int_sum_art04_pal"),
+    "obj_art05_art_tex": ("int_sum_art05_himawari_tex", "int_sum_art05_pal"),
+    "obj_art06_art_tex": ("int_sum_art06_ochiba_tex", "int_sum_art06_pal"),
+    "obj_art08_art_tex": ("int_sum_art08_odoriko_tex", "int_sum_art08_pal"),
+    "obj_art09_art_tex": ("int_sum_art09_seurat_tex", "int_sum_art09_pal"),
+    "obj_art10_art_tex": ("int_sum_art10_rautrec_tex", "int_sum_art10_pal"),
+    "obj_art11_art_tex": ("int_sum_art11_kiss_tex", "int_sum_art11_pal"),
+    "obj_art12_art_tex": ("int_sum_art12_manet_tex", "int_sum_art12_pal"),
+    "obj_art13_art_tex": ("int_sum_art13_cezanne_tex", "int_sum_art13_pal"),
+    "obj_art14_art_tex": ("int_sum_art14_gogyan_tex", "int_sum_art14_pal"),
+    "obj_art15_art_tex": ("int_sum_art15_megami_tex", "int_sum_art15_pal"),
+    "obj_art_ang_art_tex": ("int_ike_art_ang_tex", "int_ike_art_ang_pal"),
+    "obj_art_sya_art_tex": ("int_ike_art_sya_tex", "int_ike_art_sya_pal"),
+    "obj_art_fel_art_tex": ("int_ike_art_fel1_tex", "int_ike_art_fel_pal"),
+}
+
+## Museum frames + nameplates share CI4 with the canvas on `obj_art01`/`04`… style
+## DLs. After ACHD replaces the canvas, that TLUT reads as neon on plate texels.
+## Prefer house wood-tone pals for sum frames/names. Ike museum models (`ang` /
+## `sya` / `fel`) keep a separate `*_etc_pal` for name+gaku — use that, not the
+## canvas `*_art_pal` / house `int_ike_art_*_pal`.
+_MUSEUM_PLATE_PAL: dict[str, str] = {
+    "obj_art01_gaku_tex": "int_sum_art01_pal",
+    "obj_art01_name_tex": "int_sum_art01_pal",
+    "obj_art04_gaku_tex": "int_sum_art04_pal",
+    "obj_art04_name_tex": "int_sum_art04_pal",
+    "obj_art05_gaku_tex": "int_sum_art05_pal",
+    "obj_art05_name_tex": "int_sum_art05_pal",
+    "obj_art06_gaku_tex": "int_sum_art06_pal",
+    "obj_art06_name_tex": "int_sum_art06_pal",
+    "obj_art08_gaku_tex": "int_sum_art08_pal",
+    "obj_art08_name_tex": "int_sum_art08_pal",
+    "obj_art09_gaku_tex": "int_sum_art09_pal",
+    "obj_art09_name_tex": "int_sum_art09_pal",
+    "obj_art10_gaku_tex": "int_sum_art10_pal",
+    "obj_art10_name_tex": "int_sum_art10_pal",
+    "obj_art11_gaku_tex": "int_sum_art11_pal",
+    "obj_art11_name_tex": "int_sum_art11_pal",
+    "obj_art12_gaku_tex": "int_sum_art12_pal",
+    "obj_art12_name_tex": "int_sum_art12_pal",
+    "obj_art13_gaku_tex": "int_sum_art13_pal",
+    "obj_art13_name_tex": "int_sum_art13_pal",
+    "obj_art14_gaku_tex": "int_sum_art14_pal",
+    "obj_art14_name_tex": "int_sum_art14_pal",
+    "obj_art15_gaku_tex": "int_sum_art15_pal",
+    "obj_art15_name_tex": "int_sum_art15_pal",
+    "obj_art_ang_gaku_tex": "obj_art_ang_etc_pal",
+    "obj_art_ang_name_tex": "obj_art_ang_etc_pal",
+    "obj_art_sya_gaku_tex": "obj_art_sya_etc_pal",
+    "obj_art_sya_name_tex": "obj_art_sya_etc_pal",
+    "obj_art_fel_gaku_tex": "obj_art_fel_etc_pal",
+    "obj_art_fel_name_tex": "obj_art_fel_etc_pal",
+}
+
+
+def museum_art_house_twin(tex_name: str) -> tuple[str, str] | None:
+    """House FTR (tex, pal) twin for a museum canvas symbol, if any."""
+    return _MUSEUM_ART_HOUSE_TWIN.get(tex_name)
+
+
+def museum_gaku_house_palette(tex_name: str) -> str | None:
+    """Palette symbol for a museum frame / nameplate (`*_gaku_tex` / `*_name_tex`)."""
+    return _MUSEUM_PLATE_PAL.get(tex_name)
+
+
+def is_museum_plate_texture(tex_name: str) -> bool:
+    """Donated-art nameplates/frames stay native CI4 — ACHD false-hits scrap boards.
+
+    Empty-frame `obj_art_dummy*` are excluded: most ship neon CI4 in REL and need
+    ACHD or the dummy03 wood twin instead.
+    """
+    if not tex_name.startswith("obj_art") or "dummy" in tex_name:
+        return False
+    return tex_name.endswith("_name_tex") or tex_name.endswith("_gaku_tex")
+
+
+def museum_dummy_wood_twin(tex_name: str) -> tuple[str, str] | None:
+    """Map neon empty-frame CI4 to `obj_art_dummy03` wood (tex, pal).
+
+    dummy03 is the only empty-frame bank whose REL palette is wood-tone and
+    whose ACHD hashes resolve; other dummies share a green/magenta CI4 bank.
+    """
+    if not tex_name.startswith("obj_art_dummy") or tex_name.startswith("obj_art_dummy03"):
+        return None
+    for suf in ("_name_tex", "_back_tex", "_tex"):
+        if tex_name.endswith(suf):
+            return (f"obj_art_dummy03{suf}", "obj_art_dummy03_pal")
+    return None
+
 
 def structure_palette_names(prefix: str) -> list[str]:
     """Candidate `structure_pal` symbols for a cKF/static structure prefix.
@@ -931,12 +1025,47 @@ class TextureBank:
         if self.achd is not None:
             from .achd import is_field_terrain_texture, maybe_hd_png
 
-            if not is_field_terrain_texture(name, self.current_prefix):
-                hd = maybe_hd_png(self.achd, data, state.width, state.height, gx, pal)
+            ## Museum nameplates/frames: ACHD hash collisions swap in scrap-board
+            ## / trim sheets. Keep native CI4 and fix the TLUT below.
+            if not is_museum_plate_texture(name) and not is_field_terrain_texture(
+                name, self.current_prefix
+            ):
+                ## Neon empty frames: skip hashing their own CI4 (false hits / garbage
+                ## natives) and take dummy03 wood ACHD or decode.
+                if museum_dummy_wood_twin(name) is not None:
+                    hd = self._museum_dummy_wood_png(name, state.width, state.height, gx)
+                else:
+                    hd = maybe_hd_png(self.achd, data, state.width, state.height, gx, pal)
+                    if hd is None:
+                        hd = self._museum_art_house_achd(name, state.width, state.height, gx)
                 if hd is not None:
                     mode = alpha_mode_for_png(hd)
                     self._png_cache[key] = (hd, mode)
                     return hd, name, mode
+        ## Neon empty-frame CI4 (non-dummy03): decode dummy03 wood instead.
+        twin_png = self._museum_dummy_wood_png(name, state.width, state.height, None)
+        if twin_png is not None:
+            mode = alpha_mode_for_png(twin_png)
+            self._png_cache[key] = (twin_png, mode)
+            return twin_png, name, mode
+        ## Frame / nameplate TLUT: house wood (sum) or museum `*_etc_pal` (ike).
+        gaku_pal_name = museum_gaku_house_palette(name)
+        if gaku_pal_name:
+            house_pal = self._symbol_bytes(gaku_pal_name)
+            if house_pal:
+                pal = house_pal
+                key = (
+                    state.img_addr,
+                    state.width,
+                    state.height,
+                    state.fmt,
+                    state.siz,
+                    pal,
+                    state.prim,
+                )
+                cached = self._png_cache.get(key)
+                if cached is not None:
+                    return cached[0], name, cached[1]
         try:
             image = decode_gbi_texture(data, state.width, state.height, state.fmt, state.siz, pal)
             image = apply_prim(image, state.prim)
@@ -1003,6 +1132,61 @@ class TextureBank:
             return base if off == 0 else f"{base}_{off:x}"
         symbol = self.addr_to_sym.get(addr)
         return symbol.name if symbol else f"tex_{addr:08X}"
+
+    def _museum_art_house_achd(
+        self, tex_name: str, width: int, height: int, gx: int
+    ) -> bytes | None:
+        """ACHD via house-furniture twin when museum canvas hashes miss the pack."""
+        twin = museum_art_house_twin(tex_name)
+        if twin is None or self.achd is None:
+            return None
+        from .achd import maybe_hd_png
+
+        house_tex, house_pal = twin
+        data = self._symbol_bytes(house_tex)
+        pal = self._symbol_bytes(house_pal)
+        if data is None or pal is None:
+            return None
+        needed = image_byte_size(width, height, G_IM_SIZ_4b)
+        if needed <= 0 or len(data) < needed:
+            return None
+        return maybe_hd_png(self.achd, data[:needed], width, height, gx, pal)
+
+    def _museum_dummy_wood_png(
+        self, tex_name: str, width: int, height: int, gx: int | None
+    ) -> bytes | None:
+        """Empty-frame stand-in: ACHD (preferred) or native decode of dummy03 wood."""
+        twin = museum_dummy_wood_twin(tex_name)
+        if twin is None:
+            return None
+        wood_tex, wood_pal = twin
+        data = self._symbol_bytes(wood_tex)
+        pal = self._symbol_bytes(wood_pal)
+        if data is None or pal is None:
+            return None
+        needed = image_byte_size(width, height, G_IM_SIZ_4b)
+        if needed <= 0 or len(data) < needed:
+            ## back_tex is 32×48; name/tex are 16×16 — use twin's authored size when
+            ## the caller asked for a mismatched tile (should not happen in practice).
+            if wood_tex.endswith("_back_tex"):
+                width, height = 32, 48
+            else:
+                width, height = 16, 16
+            needed = image_byte_size(width, height, G_IM_SIZ_4b)
+            if needed <= 0 or len(data) < needed:
+                return None
+        data = data[:needed]
+        if self.achd is not None and gx is not None:
+            from .achd import maybe_hd_png
+
+            hd = maybe_hd_png(self.achd, data, width, height, gx, pal)
+            if hd is not None:
+                return hd
+        try:
+            image = decode_gbi_texture(data, width, height, G_IM_FMT_CI, G_IM_SIZ_4b, pal)
+        except (KeyError, ValueError, IndexError):
+            return None
+        return image_png_bytes(image)
 
     def _fg_pal_row(self, name: str, row: int = 4) -> bytes | None:
         symbol = self._find_symbol(name)
