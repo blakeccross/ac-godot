@@ -494,6 +494,18 @@ class WaterNameTests(unittest.TestCase):
         self.assertEqual(water_surface_kind("mFM_grd_sprashC_tex", "mFM_grd_sprashA_tex"), "splash")
         self.assertEqual(water_surface_kind("obj_stump5T_gfx_model"), "")
         self.assertEqual(
+            water_surface_kind(
+                "obj_s_shrine_t3_tex_txt",
+                "obj_s_shrine_water_model",
+                "obj_s_shrine_trunk_model",
+            ),
+            "",
+        )
+        self.assertEqual(
+            water_surface_kind("obj_s_shrine_t4_tex_txt", "", "obj_s_shrine_water_model"),
+            "river",
+        )
+        self.assertEqual(
             waterfall_surface_kind("obj_fallA2_tex_rgb_i4", "obj_fallC3_tex_rgb_i4"),
             "waterfall",
         )

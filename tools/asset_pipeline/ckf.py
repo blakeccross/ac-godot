@@ -631,8 +631,8 @@ def convert_static_gfx(
     vtx_sym = _vtx_sym_for_gfx(rel, symbols, by_name, vtx_name, gfx_names)
     vertices = parse_vtx_blob(rel.slice_at(vtx_sym.address, vtx_sym.size), scale, flip_z=False)
     parts: list[MeshPart] = []
-    tex_state = TextureState()
     for name in gfx_names:
+        tex_state = TextureState()
         if bank is not None:
             bank.current_gfx = name
         mat_name = _mat_model_name(name, by_name)

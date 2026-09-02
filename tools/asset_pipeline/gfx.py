@@ -126,8 +126,19 @@ def water_surface_kind(*names: str) -> str:
         return "splash"
     if "wave" in blob:
         return "ocean"
-    if "water" in blob and "waterfall" not in blob:
+    ## Bound tile symbols only. Segment resolution can attach unrelated `*_model` Gfx
+    ## names (e.g. shrine trunk tile1 → `obj_s_shrine_water_model`) and falsely match "water".
+    tex_blob = " ".join(
+        n for n in names if "_tex" in n.lower() or "_pic_" in n.lower()
+    ).lower()
+    if tex_blob and "water" in tex_blob and "waterfall" not in tex_blob:
         return "river"
+    part_blob = " ".join(
+        n for n in names if n.lower().endswith("_model") or n.lower().endswith("_modelt")
+    ).lower()
+    if part_blob and "water" in part_blob and "waterfall" not in part_blob:
+        if "trunk" not in part_blob:
+            return "river"
     return ""
 
 
