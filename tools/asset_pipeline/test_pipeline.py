@@ -48,6 +48,20 @@ class LayoutTests(unittest.TestCase):
         offsets = [off for _name, off in frames]
         self.assertEqual(len(set(offsets)), len(offsets))
 
+    def test_discover_villager_prefixes_picks_lowest_variant(self) -> None:
+        from asset_pipeline.faces import discover_villager_prefixes, species_code_from_prefix
+        from pathlib import Path
+        import tempfile
+
+        self.assertEqual(species_code_from_prefix("cat_12"), "cat")
+        with tempfile.TemporaryDirectory() as tmp:
+            rel = Path(tmp)
+            for prefix in ("cat_2", "cat_1", "xct_1"):
+                (rel / f"{prefix}_eye1_TA_tex_txt.png").write_bytes(b"png")
+            found = discover_villager_prefixes(rel)
+            self.assertEqual(found["cat"], "cat_1")
+            self.assertEqual(found["xct"], "xct_1")
+
     def test_species_paths(self) -> None:
         self.assertTrue(uses_shared_npc_anims("cat_1"))
         self.assertTrue(uses_shared_npc_anims("xct_1"))
@@ -168,6 +182,26 @@ class PrefixOwnershipTests(unittest.TestCase):
         for asset_id in ("act_f01_funa_a", "act_f01_funa_b", "act_f34_piraluku_a"):
             self.assertTrue(any(n in asset_id for n in FISH_STATIC_NEEDLES), asset_id)
         self.assertFalse(any(n in "act_f01_funa_c" for n in FISH_STATIC_NEEDLES))
+
+    def test_ef_s_cedar_job_uses_modelT_not_numbered_shake(self) -> None:
+        symbols = [
+            _sym("ef_s_cedar_v"),
+            _sym("ef_s_cedar_modelT"),
+            _sym("ef_s_cedar3_shake_model"),
+            _sym("ef_s_cedar3_cutL_leaf_model"),
+        ]
+        jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
+        self.assertEqual(jobs["ef_s_cedar"]["gfx"], ["ef_s_cedar_modelT"])
+
+    def test_static_jobs_skip_overlay_vtx_not_in_dataobject(self) -> None:
+        symbols = [
+            MapSymbol(0x51080, 160, 8, "tol_sponge_1_v", "m_player.o"),
+            MapSymbol(0x5370, 128, 8, "tol_sponge_1_model", "dataobject.obj"),
+            MapSymbol(0x1000, 64, 8, "mbg_v", "ac_mbg.o"),
+        ]
+        jobs = {item["asset_id"] for item in _static_jobs(symbols)}
+        self.assertNotIn("tol_sponge_1", jobs)
+        self.assertNotIn("mbg", jobs)
 
     def test_fish_gfx_names_come_from_the_display_list_table(self) -> None:
         ## `aGYO_displayList` is not regular: the coelacanth's `b` pose display list has no
@@ -589,6 +623,27 @@ class BindAnimTests(unittest.TestCase):
         )
         self.assertIsNone(select_bind_anim("tol_net_1", ["cKF_ba_r_tol_net_1_swing"]))
         self.assertIsNone(select_bind_anim("cat_1", []))
+        self.assertEqual(
+            select_bind_anim(
+                "kab_1",
+                [
+                    "cKF_ba_r_npc_1_wait_nemu1",
+                    "cKF_ba_r_npc_1_kokkuri_d1",
+                    "cKF_ba_r_npc_1_kokkuri_d2",
+                ],
+            ),
+            "cKF_ba_r_npc_1_wait_nemu1",
+        )
+        self.assertEqual(
+            select_bind_anim(
+                "kab_1",
+                [
+                    "cKF_ba_r_npc_1_wait1",
+                    "cKF_ba_r_npc_1_wait_nemu1",
+                ],
+            ),
+            "cKF_ba_r_npc_1_wait_nemu1",
+        )
 
 
 class SeasonRoleTests(unittest.TestCase):

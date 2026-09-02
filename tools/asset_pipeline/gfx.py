@@ -21,6 +21,7 @@ from .texbank import (
 )
 
 G_VTX = 0x01
+G_TEXTURE = 0xD7
 G_TRI1 = 0x05
 G_TRI2 = 0x06
 G_TRIN = 0x09
@@ -679,11 +680,18 @@ def parse_gfx(
             if cmd == G_MTX:
                 if (w1 >> 24) == SEG_MTX:
                     current_mtx = (w1 & 0xFFFFFF) // MTX_STRIDE
+            elif cmd == G_TEXTURE:
+                ## gsSPTexture — state only; no geometry.
+                pass
             elif cmd == G_VTX:
                 n = _bits(w0, 12, 8)
                 vn = _bits(w0, 1, 7)
                 v0 = vn - n
-                if vtx_base_addr is not None:
+                seg = w1 >> 24
+                if seg in range(0x08, 0x10):
+                    ## Runtime `gSPSegment(anime_N_txt, …)` — DL stores 0x08xxxxxx.
+                    src0 = (w1 & 0xFFFFFF) // 16
+                elif vtx_base_addr is not None:
                     src0 = (w1 - vtx_base_addr) // 16
                 else:
                     src0 = vtx_cursor

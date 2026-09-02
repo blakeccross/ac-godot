@@ -553,6 +553,12 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
             # Blob shadows (`*_shadow_v`). Godot uses the sun; DLs are often empty.
             continue
         model_names = sorted(gfx_by_prefix.get(prefix) or model_by_prefix.get(prefix) or [])
+        ## Tree-leaf XLU (`ef_s_cedar_modelT`) shares a prefix with numbered shake/cut DLs
+        ## (`ef_s_cedar3_*`). Export the leaf card only for the base symbol.
+        if prefix.startswith("ef_s_"):
+            preferred = [n for n in (f"{prefix}_modelT", f"{prefix}_model") if n in names]
+            if preferred:
+                model_names = preferred
         # Acre OPA is `*_model`; XLU water/waves live on `*_modelT` (not plant `obj_*T_gfx`).
         if prefix.startswith("grd_"):
             model_t = f"{prefix}_modelT"
@@ -561,6 +567,10 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
         if not model_names:
             continue
         if symbol.name in seen_vtx:
+            continue
+        if symbol.obj != "dataobject.obj":
+            ## Overlay/DOL-local meshes (`tol_sponge_1`, `lat_atena`, `mbg`) are not in
+            ## `foresta.rel` `.data` — only `dataobject.obj` symbols slice reliably.
             continue
         seen_vtx.add(symbol.name)
         folder = output_folder_for_static(prefix)
@@ -618,6 +628,14 @@ def _convert_ckf(cfg: PipelineConfig, rel: RelData, symbols: list, item: dict[st
         record["animations_baked"] = list(model.animations)
         record["textured_parts"] = sum(1 for p in model.parts if p.texture_png)
         _copy_generated(cfg, dest, item["output"])
+    except ValueError as exc:
+        msg = str(exc)
+        if msg.startswith("Meshless cKF") or msg.startswith("Empty cKF"):
+            record["status"] = "skipped"
+            record["error"] = msg
+        else:
+            record["status"] = "error"
+            record["error"] = f"{type(exc).__name__}: {exc}"
     except Exception as exc:  # noqa: BLE001 — report per-asset, keep going
         record["status"] = "error"
         record["error"] = f"{type(exc).__name__}: {exc}"
