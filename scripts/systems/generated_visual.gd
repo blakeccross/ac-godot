@@ -842,7 +842,8 @@ static func _apply_materials_inner(
 
 
 static func _is_kanban_visual(visual_id: StringName) -> bool:
-	return visual_id in [&"SIGNBOARD", &"DOCK_SIGN", &"obj_s_kanban", &"obj_w_kanban"]
+	## Two-layer field signs only (`write_model` + frame). `DOCK_SIGN` is a single composite.
+	return visual_id in [&"SIGNBOARD", &"obj_s_kanban", &"obj_w_kanban"]
 
 
 static func _is_kanban_paper_surface(

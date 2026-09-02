@@ -1,7 +1,8 @@
 extends Node3D
 
-## Renders a field sign on a marine cliff acre (dock / ocean edge) for visual audit.
+## Renders the dock bulletin (`DOCK_SIGN`) on the wharf acre for visual audit.
 ##
+##   /Applications/Godot.app/Contents/MacOS/Godot --path . --import
 ##   /Applications/Godot.app/Contents/MacOS/Godot --path . res://scenes/dev/capture_dock_sign.tscn
 ##
 ## Output: `res://recordings/dock_sign/*.png`

@@ -18,8 +18,6 @@ from asset_pipeline.mapfile import MapSymbol, find_symbol, index_by_name
 from asset_pipeline.texbank import (
     GX_CLAMP,
     GX_REPEAT,
-    KANBAN_DEFAULT_DESIGN_SLOT,
-    KANBAN_DEFAULT_PALETTE_IDX,
     _kanban_bulletin_palette,
 )
 
@@ -168,22 +166,33 @@ class PrefixOwnershipTests(unittest.TestCase):
         self.assertEqual(jobs["obj_shop_kanban"]["gfx"], ["obj_shop_kanbanT_gfx_model"])
 
     def test_kanban_bulletin_palette_remaps_paper_ink_tack(self) -> None:
+        from asset_pipeline.texbank import encode_bulletin_paper_ci4
+
         base = bytes([0xFF, 0xFF] * 16)
         pal = _kanban_bulletin_palette(base)
 
         def rgb555(idx: int) -> tuple[int, int, int]:
             w = (pal[idx * 2] << 8) | pal[idx * 2 + 1]
             return (
-                ((w >> 11) & 0x1F) * 255 // 31,
-                ((w >> 6) & 0x1F) * 255 // 31,
-                ((w >> 1) & 0x1F) * 255 // 31,
+                ((w >> 10) & 0x1F) * 255 // 31,
+                ((w >> 5) & 0x1F) * 255 // 31,
+                (w & 0x1F) * 255 // 31,
             )
 
         self.assertEqual(rgb555(5), (255, 255, 255))
         self.assertEqual(rgb555(7), (213, 32, 32))
         self.assertEqual(rgb555(8), (32, 32, 74))
-        self.assertEqual(KANBAN_DEFAULT_DESIGN_SLOT, 2)
-        self.assertEqual(KANBAN_DEFAULT_PALETTE_IDX, 7)
+        tex, paper_pal = encode_bulletin_paper_ci4()
+        self.assertEqual(len(tex), 512)
+        self.assertEqual(len(paper_pal), 32)
+        ## Paper should be mostly white (index 5), with ink (8) and tack (7).
+        idxs = []
+        for b in tex:
+            idxs.append(b >> 4)
+            idxs.append(b & 0xF)
+        self.assertGreater(idxs.count(5), 500)
+        self.assertGreater(idxs.count(8), 10)
+        self.assertGreater(idxs.count(7), 0)
 
     def test_explicit_entry_survives_unmatchable_gfx_name(self) -> None:
         # The bobber's display list is `tol_uki1_model`, which no prefix rule will pair

@@ -198,8 +198,9 @@ def structure_palette_names(prefix: str) -> list[str]:
 # SEGMENT_ADDR values; the actor binds a real pal/tex before draw.
 ANIME_TXT_SEGMENTS = frozenset(range(0x08, 0x10))
 
-## Default dock / `PORT_SIGN` paper: player design slot 2 + `needlework7_pal`
-## (`m_needlework.c` `pal_table`, `ac_sign` item & 7 / palette lookup).
+## Default dock / `PORT_SIGN` paper: authored bulletin note (white + red tack +
+## scribbles). Retail `my_original` slot 2 is a registration crosshair, not the
+## dock notice — do not bake that design onto field signs.
 KANBAN_DEFAULT_DESIGN_SLOT = 2
 KANBAN_DEFAULT_PALETTE_IDX = 7
 MY_ORIGINAL_DESIGN_BYTES = 512
@@ -218,16 +219,47 @@ def _set_rgb555(pal: bytearray, idx: int, r: int, g: int, b: int) -> None:
 
 
 def _kanban_bulletin_palette(base: bytes) -> bytes:
-    """Remap default design CI indices to bulletin colors on export.
+    """Remap CI indices to bulletin colors on export.
 
-    Slot-2 designs use CI indices 5 (paper), 7 (tack), 8 (ink). Retail `needlework7`
-    maps those to tan/red-orange; shift them to white paper + red tack + dark lines.
+    Bulletin paper CI4 uses indices 5 (paper), 7 (tack), 8 (ink).
     """
-    pal = bytearray(base[:32])
+    pal = bytearray(base[:32] if len(base) >= 32 else bytes(32))
     _set_rgb555(pal, 5, 255, 255, 255)
     _set_rgb555(pal, 7, 220, 40, 40)
     _set_rgb555(pal, 8, 40, 40, 80)
     return bytes(pal)
+
+
+def encode_bulletin_paper_ci4() -> tuple[bytes, bytes]:
+    """32×32 CI4 tex + RGB555 palette for the dock / field-sign note."""
+    from .dock_sign import bulletin_paper_image
+
+    img = bulletin_paper_image(32).convert("RGBA")
+    pal = bytearray(32)
+    ## idx 0 = transparent hole (unused on opaque paper quad)
+    _set_rgb555(pal, 0, 0, 0, 0)
+    _set_rgb555(pal, 5, 255, 255, 255)
+    _set_rgb555(pal, 7, 220, 40, 40)
+    _set_rgb555(pal, 8, 40, 40, 80)
+    tex = bytearray(32 * 32 // 2)
+    px = img.load()
+    i = 0
+    for y in range(32):
+        for x in range(0, 32, 2):
+            idxs: list[int] = []
+            for xi in (x, x + 1):
+                r, g, b, a = px[xi, y]
+                if a < 128:
+                    idxs.append(0)
+                elif r > 200 and g < 80 and b < 80:
+                    idxs.append(7)
+                elif r < 80 and g < 80 and b < 120:
+                    idxs.append(8)
+                else:
+                    idxs.append(5)
+            tex[i] = ((idxs[0] & 0xF) << 4) | (idxs[1] & 0xF)
+            i += 1
+    return bytes(tex), bytes(pal)
 
 
 _SYMBOL_STOPWORDS = frozenset(
@@ -684,21 +716,11 @@ class TextureBank:
         """Bind `write_model` anime segments for field sign export.
 
         `ac_sign` loads palette to ANIME_1 (seg 0x08) and texture to ANIME_2 (seg 0x09).
-        Blank signs use `hakushi_*`; authored dock signs use default player design #2.
+        Dock / default field signs use an authored bulletin note (not `my_original` slot 2).
         """
-        hakushi_pal = self._symbol_bytes("hakushi_pal")
-        paper_tex = self._kanban_default_paper_tex()
-        paper_pal = self._kanban_default_paper_palette()
-        if paper_tex and paper_pal:
-            tex_name = f"my_original_slot{KANBAN_DEFAULT_DESIGN_SLOT}"
-            pal_name = f"needlework{KANBAN_DEFAULT_PALETTE_IDX}_pal"
-        else:
-            paper_tex = self._symbol_bytes("hakushi_tex")
-            paper_pal = hakushi_pal
-            tex_name = "hakushi_tex"
-            pal_name = "hakushi_pal"
-        if not paper_tex or not paper_pal:
-            return
+        paper_tex, paper_pal = encode_bulletin_paper_ci4()
+        tex_name = "bulletin_paper_tex"
+        pal_name = "bulletin_paper_pal"
         self.segment_palettes[0x08] = paper_pal
         self.segment_palettes[0x09] = paper_pal
         self.segment_images[0x09] = SegmentTex(paper_tex, 32, 32, palette=paper_pal)
@@ -706,23 +728,12 @@ class TextureBank:
         self._segment_offset_names.setdefault(0x09, {})[0] = tex_name
 
     def _kanban_default_paper_tex(self) -> bytes | None:
-        if self.archives is None:
-            return None
-        path = self.archives / MY_ORIGINAL_REL_PATH
-        if not path.is_file():
-            return None
-        blob = path.read_bytes()
-        off = KANBAN_DEFAULT_DESIGN_SLOT * MY_ORIGINAL_DESIGN_BYTES
-        end = off + MY_ORIGINAL_DESIGN_BYTES
-        if end > len(blob):
-            return None
-        return blob[off:end]
+        tex, _pal = encode_bulletin_paper_ci4()
+        return tex
 
     def _kanban_default_paper_palette(self) -> bytes | None:
-        base = self._symbol_bytes(f"needlework{KANBAN_DEFAULT_PALETTE_IDX}_pal")
-        if base is None:
-            return None
-        return _kanban_bulletin_palette(base)
+        _tex, pal = encode_bulletin_paper_ci4()
+        return pal
 
     def _resolve_dummy_palette(self, seg: int) -> None:
         """Fill anime_N palettes from the current Gfx part, FG plant TLUTs, or structure pal."""

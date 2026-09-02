@@ -318,8 +318,10 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 			var palm := _seasonal_env_existing("obj_%s_palm5")
 			palm.append_array(_seasonal_env_existing("obj_%s_palm5_coco"))
 			return palm
-		&"obj_s_kanban", &"SIGNBOARD", &"DOCK_SIGN":
+		&"obj_s_kanban", &"SIGNBOARD":
 			return _seasonal_env_existing("obj_%s_kanban")
+		&"dock_sign", &"DOCK_SIGN":
+			return _existing(["environment/dock_sign.glb"])
 		&"obj_flower_a", &"FLOWER_PANSIES0":
 			return _existing(["environment/flowers/obj_flower_a.glb"])
 		&"obj_flower_b", &"FLOWER_PANSIES1":
