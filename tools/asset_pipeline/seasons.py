@@ -61,6 +61,8 @@ _FIELD_TEX_SPECS: dict[str, tuple[int, int, str]] = {
 	"stone_tex_dummy": (64, 64, "earth_pal"),
 	"sand_tex_dummy": (64, 32, "beach_pal"),
 	"river_tex_dummy": (64, 32, "cliff_pal"),
+	## Segment names are ``mFM_grd_*_rail_tex``, not ``rail_tex_dummy``.
+	"rail_tex": (64, 64, "earth_pal"),
 }
 
 ## `mFM_BG_TEX_*` order: triangle, square, circle. Each maps to a distinct CI4 tile in REL.
