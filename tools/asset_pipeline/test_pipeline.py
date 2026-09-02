@@ -15,7 +15,13 @@ from asset_pipeline.layout import (
     uses_shared_npc_anims,
 )
 from asset_pipeline.mapfile import MapSymbol, find_symbol, index_by_name
-from asset_pipeline.texbank import GX_CLAMP, GX_REPEAT
+from asset_pipeline.texbank import (
+    GX_CLAMP,
+    GX_REPEAT,
+    KANBAN_DEFAULT_DESIGN_SLOT,
+    KANBAN_DEFAULT_PALETTE_IDX,
+    _kanban_bulletin_palette,
+)
 
 
 def _sym(name: str, addr: int = 0, size: int = 4) -> MapSymbol:
@@ -160,6 +166,24 @@ class PrefixOwnershipTests(unittest.TestCase):
         self.assertEqual(jobs["obj_s_kanban"]["gfx"], ["write_model", "obj_sign_s_model"])
         self.assertEqual(jobs["obj_w_kanban"]["gfx"], ["write_model", "obj_sign_w_model"])
         self.assertEqual(jobs["obj_shop_kanban"]["gfx"], ["obj_shop_kanbanT_gfx_model"])
+
+    def test_kanban_bulletin_palette_remaps_paper_ink_tack(self) -> None:
+        base = bytes([0xFF, 0xFF] * 16)
+        pal = _kanban_bulletin_palette(base)
+
+        def rgb555(idx: int) -> tuple[int, int, int]:
+            w = (pal[idx * 2] << 8) | pal[idx * 2 + 1]
+            return (
+                ((w >> 11) & 0x1F) * 255 // 31,
+                ((w >> 6) & 0x1F) * 255 // 31,
+                ((w >> 1) & 0x1F) * 255 // 31,
+            )
+
+        self.assertEqual(rgb555(5), (255, 255, 255))
+        self.assertEqual(rgb555(7), (213, 32, 32))
+        self.assertEqual(rgb555(8), (32, 32, 74))
+        self.assertEqual(KANBAN_DEFAULT_DESIGN_SLOT, 2)
+        self.assertEqual(KANBAN_DEFAULT_PALETTE_IDX, 7)
 
     def test_explicit_entry_survives_unmatchable_gfx_name(self) -> None:
         # The bobber's display list is `tol_uki1_model`, which no prefix rule will pair
