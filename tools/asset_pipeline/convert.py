@@ -135,6 +135,12 @@ BUG_STATIC_NEEDLES = [
 ]
 
 # River / marine / cliff-river acres. Avoid `grd_s_r` (hits `grd_s_rail`) and `grd_s_m` (hits museum `grd_s_mh`).
+## Field sign (`ac_sign`): vtx is `obj_{s,w}_kanban_v`; DL is `obj_sign_{s,w}_model`.
+KANBAN_SIGN_GFX: dict[str, str] = {
+    "obj_s_kanban": "obj_sign_s_model",
+    "obj_w_kanban": "obj_sign_w_model",
+}
+
 WATER_STATIC_NEEDLES = [
     "grd_s_r1",
     "grd_s_r2",
@@ -548,6 +554,24 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
             jobs.append(dict(TEST_STATIC_BY_VTX[symbol.name]))
             continue
         if prefix in skel_prefixes:
+            continue
+        gfx_name = KANBAN_SIGN_GFX.get(prefix)
+        if gfx_name is not None:
+            if symbol.name in seen_vtx:
+                continue
+            if symbol.obj != "dataobject.obj":
+                continue
+            seen_vtx.add(symbol.name)
+            folder = output_folder_for_static(prefix)
+            jobs.append(
+                {
+                    "asset_id": prefix,
+                    "vtx": symbol.name,
+                    "gfx": [gfx_name],
+                    "output": f"{folder}/{prefix}.glb",
+                    "confident_name": True,
+                }
+            )
             continue
         if prefix.endswith("_shadow"):
             # Blob shadows (`*_shadow_v`). Godot uses the sun; DLs are often empty.
