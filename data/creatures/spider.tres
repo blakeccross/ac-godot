@@ -20,4 +20,4 @@ catch_msg = 12230
 model_base = "res://assets/generated/creatures/bug/act_m_kumo"
 model_flap = 0
 model_lift = 0.0
-program = 9
+program = 10

@@ -21,6 +21,9 @@ class PipelineConfig:
     scale: float = 0.001
     test_set_only: bool = True
     decomp_root: Optional[Path] = None
+    ## Dolphin ACHD / Load/Textures tree (DDS keyed by tex1_* hashes). Optional.
+    achd_root: Optional[Path] = None
+    achd_enabled: bool = False
 
     @property
     def extracted_disc(self) -> Path:
@@ -37,6 +40,10 @@ class PipelineConfig:
     @property
     def manifests(self) -> Path:
         return self.work_root / "manifests"
+
+    @property
+    def achd_cache(self) -> Path:
+        return self.work_root / "achd_cache"
 
     @property
     def rel_path(self) -> Path:
@@ -62,6 +69,9 @@ def load_config(project_root: Optional[Path] = None, config_path: Optional[Path]
         path = example
     data: dict[str, Any] = json.loads(path.read_text())
     decomp_raw = data.get("decomp_root") or ""
+    achd_raw = data.get("achd_root") or ""
+    achd_enabled = bool(data.get("achd_enabled", False))
+    achd_root = _resolve(root, achd_raw) if str(achd_raw).strip() else None
     return PipelineConfig(
         project_root=root,
         game_files=_resolve(root, data["game_files"]),
@@ -71,4 +81,6 @@ def load_config(project_root: Optional[Path] = None, config_path: Optional[Path]
         scale=float(data.get("scale", 0.001)),
         test_set_only=bool(data.get("test_set_only", True)),
         decomp_root=_resolve(root, decomp_raw) if str(decomp_raw).strip() else None,
+        achd_root=achd_root if achd_enabled else None,
+        achd_enabled=achd_enabled and achd_root is not None,
     )

@@ -21,7 +21,7 @@ Clip API (`aINS_Clip_c`): `make_insect_proc`, `search_near_insect_proc`, `set_pl
 
 ## What does the original system do?
 
-A controller actor holds **9** `aINS_INSECT_ACTOR` slots. Each has type, patience, life timer, tile (ut_x, ut_z), and a **program** (flight vs hop vs tree-sit vs water skater, etc.). Spawns depend on **insect term**, hour, weather, and habitat (flower, tree, rock, light, trash, water).
+A controller actor holds **9** `aINS_INSECT_ACTOR` slots (`aINS_ACTOR_NUM`). Field births use **8** (`aINS_MAKE_NEW`); slot 8 is for exist/release. Spawns run from `aSOI_insect_set` **once when the player enters an acre**, skipped if that acre already has a live insect (`aINS_chk_live_insect`). Placement is restricted to units in the entered acre — not a radius around the player.
 
 The player holds a net, approaches, and swings. Catch converts the actor to an insect item in pockets. Bees can sting (`STUNG_BEE`). Mosquitoes have their own sting. Some bugs flee when the player runs, shakes a tree, or digs nearby (`aINS_PL_ACT_*`).
 

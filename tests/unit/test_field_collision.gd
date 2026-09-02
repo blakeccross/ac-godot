@@ -588,6 +588,147 @@ func test_npc_house_south_center_is_the_door() -> void:
 	assert_float(FieldCollision.height_at(data, body)).is_greater(FieldCollision.height_at(data, porch) + 1.0)
 
 
+func test_museum_plus_offset_raises_footprint() -> void:
+	FieldCollision.clear_caches()
+	var data: WorldData = _house_data()
+	var b := BuildingPlacement.new()
+	b.id = &"museum"
+	b.kind = &"building"
+	b.cell = Vector2i(8, 8)
+	b.footprint = Vector2i(2, 2)
+	b.visual_id = &"obj_s_museum"
+	data.buildings.append(b)
+	StructureOffset.apply(data)
+	var home: Vector2i = StructureOffset.museum_home_cell(b)
+	assert_that(home).is_equal(Vector2i(8, 8))
+	var body: Vector2i = home
+	var outside: Vector2i = home + Vector2i(0, 3)
+	assert_float(FieldCollision.height_at(data, body)).is_greater(FieldCollision.height_at(data, outside) + 2.0)
+	assert_float(FieldCollision.height_at(data, home + Vector2i(3, 2))).is_greater(
+		FieldCollision.height_at(data, outside) + 2.0
+	)
+
+
+func test_able_sisters_plus_offset_leaves_corners() -> void:
+	FieldCollision.clear_caches()
+	var data: WorldData = _house_data()
+	var b := BuildingPlacement.new()
+	b.id = &"able_sisters"
+	b.kind = &"building"
+	b.cell = Vector2i(6, 6)
+	b.footprint = Vector2i(2, 2)
+	b.visual_id = &"obj_s_tailor"
+	data.buildings.append(b)
+	StructureOffset.apply(data)
+	var home: Vector2i = StructureOffset.able_home_cell(b)
+	assert_that(home).is_equal(Vector2i(7, 6))
+	var body: Vector2i = home
+	var corner: Vector2i = home + Vector2i(-2, 2)
+	assert_float(FieldCollision.height_at(data, body)).is_greater(FieldCollision.height_at(data, corner) + 2.0)
+
+
+func test_police_plus_offset_raises_3x3() -> void:
+	FieldCollision.clear_caches()
+	var data: WorldData = _house_data()
+	var b := BuildingPlacement.new()
+	b.id = &"police"
+	b.kind = &"building"
+	b.cell = Vector2i(5, 5)
+	b.footprint = Vector2i(3, 3)
+	b.visual_id = &"obj_s_kouban"
+	data.buildings.append(b)
+	StructureOffset.apply(data)
+	var home: Vector2i = StructureOffset.police_home_cell(b)
+	assert_that(home).is_equal(Vector2i(6, 6))
+	var body: Vector2i = home
+	var outside: Vector2i = home + Vector2i(0, 2)
+	assert_float(FieldCollision.height_at(data, body)).is_greater(FieldCollision.height_at(data, outside) + 2.0)
+
+
+func test_door_walk_uses_keep_h_not_structure_plus() -> void:
+	## Door AnimationMove keeps yard Y; plus-offsets are walls, not a raised path.
+	FieldCollision.clear_caches()
+	var data: WorldData = _house_data()
+	var b := BuildingPlacement.new()
+	b.id = &"museum"
+	b.kind = &"building"
+	b.cell = Vector2i(8, 8)
+	b.footprint = Vector2i(2, 2)
+	b.visual_id = &"obj_s_museum"
+	data.buildings.append(b)
+	StructureOffset.apply(data)
+	var grid := WorldGrid.new()
+	grid.configure_from_world(data)
+	var body: Vector2i = StructureOffset.museum_home_cell(b)
+	var pos: Vector3 = grid.cell_to_world(body)
+	var with_plus: float = FieldCollision.ground_y_at(data, grid, pos, 0.0, true)
+	var keep: float = FieldCollision.ground_y_at(data, grid, pos, 0.0, false)
+	assert_float(with_plus).is_greater(keep + 2.0)
+	assert_float(keep).is_equal_approx(FieldCollision.ground_y(data, body), 0.01)
+
+
+func test_museum_exit_stand_clears_plus_offset() -> void:
+	## Exit at +120 GX is south of the 7×5 raised block (ends at +2 units / +80 GX).
+	FieldCollision.clear_caches()
+	var data: WorldData = _house_data()
+	var b := BuildingPlacement.new()
+	b.id = &"museum"
+	b.kind = &"building"
+	b.cell = Vector2i(8, 8)
+	b.footprint = Vector2i(2, 2)
+	b.visual_id = &"obj_s_museum"
+	b.actor_shift = Vector2(-0.5, -0.5)
+	data.buildings.append(b)
+	StructureOffset.apply(data)
+	var grid := WorldGrid.new()
+	grid.configure_from_world(data)
+	var home: Vector2i = StructureOffset.museum_home_cell(b)
+	var actor: Vector3 = grid.cell_to_world(home)
+	actor += Vector3(b.actor_shift.x, 0.0, b.actor_shift.y) * grid.cell_size
+	var exit_pos: Vector3 = actor + Vector3(0.0, 0.0, StructureDoor.MUSEUM_EXIT_GX.y * FieldCatalog.GX_TO_METERS)
+	var with_plus: float = FieldCollision.ground_y_at(data, grid, exit_pos, 0.0, true)
+	var keep: float = FieldCollision.ground_y_at(data, grid, exit_pos, 0.0, false)
+	assert_float(with_plus).is_equal_approx(keep, 0.01)
+	var south_raised: Vector2i = home + Vector2i(0, 2)
+	assert_float(FieldCollision.height_at(data, south_raised)).is_greater(keep + 2.0)
+
+
+func test_shop_plus_offset_leaves_corners() -> void:
+	FieldCollision.clear_caches()
+	var data: WorldData = _house_data()
+	var b := BuildingPlacement.new()
+	b.id = &"acre_shop"
+	b.kind = &"shop"
+	b.cell = Vector2i(6, 6)
+	b.footprint = Vector2i(2, 2)
+	b.visual_id = &"obj_s_shop1"
+	data.buildings.append(b)
+	StructureOffset.apply(data)
+	var home: Vector2i = StructureOffset.shop_home_cell(b)
+	assert_that(home).is_equal(Vector2i(7, 6))
+	var body: Vector2i = home
+	var corner: Vector2i = home + Vector2i(-2, 2)
+	assert_float(FieldCollision.height_at(data, body)).is_greater(FieldCollision.height_at(data, corner) + 2.0)
+
+
+func test_post_office_plus_offset_matches_able() -> void:
+	FieldCollision.clear_caches()
+	var data: WorldData = _house_data()
+	var b := BuildingPlacement.new()
+	b.id = &"post_office"
+	b.kind = &"building"
+	b.cell = Vector2i(4, 4)
+	b.footprint = Vector2i(2, 2)
+	b.visual_id = &"obj_s_yubinkyoku"
+	data.buildings.append(b)
+	StructureOffset.apply(data)
+	var home: Vector2i = StructureOffset.shop_home_cell(b)
+	assert_that(home).is_equal(Vector2i(5, 4))
+	var body: Vector2i = home
+	var corner: Vector2i = home + Vector2i(1, 2)
+	assert_float(FieldCollision.height_at(data, body)).is_greater(FieldCollision.height_at(data, corner) + 2.0)
+
+
 func _house_data() -> WorldData:
 	var data := WorldData.new()
 	data.columns = 16

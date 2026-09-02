@@ -71,6 +71,12 @@ def main() -> int:
         manifest = scan(cfg)
         print(f"scanned {manifest['asset_count']} assets")
     if args.step in ("all", "convert"):
+        if cfg.achd_enabled and cfg.achd_root is not None:
+            from asset_pipeline.achd import load_achd_pack
+
+            pack = load_achd_pack(cfg.achd_root, cfg.achd_cache)
+            n = pack.size if pack else 0
+            print(f"achd: {cfg.achd_root} ({n} textures)")
         errors: list[dict] = []
         if args.kind == "collision":
             col = convert_acre_collision(cfg)
@@ -102,7 +108,7 @@ def main() -> int:
             else:
                 converted = report["converted"]
                 errors = [r for r in report["results"] if r["status"] == "error"]
-                print(f"wrote {converted} message UI textures -> {report['output']}")
+                print(f"wrote {converted} message UI assets (tiles + baked shapes) -> {report['output']}")
                 for err in errors[:40]:
                     print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
                 if errors:

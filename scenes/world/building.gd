@@ -15,7 +15,7 @@ extends StaticBody3D
 
 func _ready() -> void:
 	GeneratedVisual.attach(self, visual_id)
-	HostCollision.apply_box(self, footprint, HostCollision.CELL)
+	HostCollision.apply_building(self, visual_id, footprint, HostCollision.CELL)
 	var door: Node = get_node_or_null("Door")
 	if door != null:
 		if "label" in door:
@@ -24,6 +24,9 @@ func _ready() -> void:
 			door.set("verb", door_verb)
 		if "closed_notice" in door:
 			door.set("closed_notice", "The %s is locked." % label)
+		## Museum: walk-in enter (`aMsm_check_player` has no A button).
+		if "auto_enter" in door and HostCollision.is_museum(visual_id):
+			door.set("auto_enter", true)
 
 
 func apply_grid_yaw(facing: WorldGrid.Facing) -> void:

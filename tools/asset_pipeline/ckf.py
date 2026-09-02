@@ -237,9 +237,17 @@ def select_bind_anim(prefix: str, anim_names: list[str]) -> str | None:
     """
     if not anim_names:
         return None
+    # `kab_1` is the train sleep passenger; rest is `wait_nemu1`, not standing `wait1`.
+    if prefix == "kab_1":
+        nemu = next((n for n in anim_names if n.endswith("wait_nemu1")), None)
+        if nemu:
+            return nemu
     wait = next((n for n in anim_names if n.endswith("wait1")), None)
     if wait:
         return wait
+    nemu = next((n for n in anim_names if n.endswith("wait_nemu1")), None)
+    if nemu:
+        return nemu
     if prefix.startswith("int_") or prefix.startswith("clk_"):
         exact = f"cKF_ba_r_{prefix}"
         return exact if exact in anim_names else anim_names[0]
@@ -273,12 +281,20 @@ def convert_ckf_model(
     sk_blob = rel.slice_at(skeleton.address, skeleton.size)
     num_joints = sk_blob[0]
     prefix = skeleton_name.replace("cKF_bs_r_", "")
+    if num_joints == 0:
+        raise ValueError(f"Empty cKF skeleton (no joints): {skeleton_name}")
     if bank is not None:
         bank.segment_images.clear()
         bank.segment_palettes.clear()
         bank.bind_model_segments(prefix)
     joints_sym = find_symbol(symbols, f"cKF_je_r_{prefix}_tbl", by_name)
-    vtx_sym = find_symbol(symbols, f"{prefix}_v", by_name)
+    jblob = rel.slice_at(joints_sym.address, joints_sym.size)
+    has_gfx = any(
+        struct.unpack_from(">I", jblob, i)[0] != 0 for i in range(0, len(jblob), 12)
+    )
+    if not has_gfx:
+        raise ValueError(f"Meshless cKF skeleton: {skeleton_name}")
+    vtx_sym = _resolve_vtx_sym(prefix, symbols, by_name, rel, joints_sym)
     vertices = parse_vtx_blob(rel.slice_at(vtx_sym.address, vtx_sym.size), scale, flip_z=False)
 
     addr_to_sym = {s.address: s for s in symbols}
@@ -371,6 +387,8 @@ def convert_ckf_model(
                 _assign_part_joints(part, window_host.index, mtx_joints)
                 parts.append(part)
     if not parts:
+        if all(j.gfx_addr == 0 for j in joints):
+            raise ValueError(f"Meshless cKF skeleton: {skeleton_name}")
         raise ValueError(f"No mesh parts decoded for {skeleton_name}")
 
     anim_names = list(animation_names or [])
@@ -394,7 +412,7 @@ def convert_ckf_model(
             root_raw, bind_rots = evaluate_pose(rel, symbols, bind_anim, num_joints, 1.0)
             root_t = (root_raw[0] * scale, root_raw[1] * scale, root_raw[2] * scale)
             use_anim_bind = True
-            use_wait_bind = bind_anim.endswith("wait1")
+            use_wait_bind = bind_anim.endswith("wait1") or bind_anim.endswith("wait_nemu1")
         except (KeyError, StopIteration, struct.error, ValueError, IndexError):
             bind_rots = identity_rot
             root_t = (0.0, 0.0, 0.0)
@@ -511,22 +529,7 @@ def _mat_model_name(gfx_name: str, by_name: dict[str, MapSymbol]) -> str | None:
     return _overlay_mat_name(gfx_name, by_name)
 
 
-def _vtx_sym_for_gfx(
-    rel: RelData,
-    symbols: list[MapSymbol],
-    by_name: dict[str, MapSymbol],
-    vtx_name: str,
-    gfx_names: list[str],
-) -> MapSymbol:
-    """Pick the copy of `vtx_name` that the display lists actually point at.
-
-    `dataobject.obj` ships the same static array under one name more than once — the
-    inventory icon and the in-world model each get their own `tol_uki_1_v` — and a
-    by-name lookup silently returns the wrong one, decoding zero triangles.
-    """
-    candidates = [s for s in symbols if s.name == vtx_name]
-    if len(candidates) < 2:
-        return find_symbol(symbols, vtx_name, by_name)
+def _g_vtx_targets(rel: RelData, symbols: list[MapSymbol], by_name: dict[str, MapSymbol], gfx_names: list[str]) -> set[int]:
     targets: set[int] = set()
     for name in gfx_names:
         model = find_symbol(symbols, name, by_name)
@@ -535,10 +538,85 @@ def _vtx_sym_for_gfx(
             w0, w1 = struct.unpack_from(">II", blob, off)
             if w0 >> 24 == G_VTX:
                 targets.add(w1)
-    for sym in candidates:
-        if any(sym.address <= addr < sym.address + sym.size for addr in targets):
+    return targets
+
+
+def _vtx_sym_containing(targets: set[int], symbols: list[MapSymbol]) -> MapSymbol | None:
+    if not targets:
+        return None
+    for sym in symbols:
+        if not sym.name.endswith("_v") or sym.name.startswith("cKF_"):
+            continue
+        if sym.obj != "dataobject.obj":
+            continue
+        if any(sym.address <= addr < sym.end for addr in targets):
             return sym
+    return None
+
+
+def _vtx_sym_for_gfx(
+    rel: RelData,
+    symbols: list[MapSymbol],
+    by_name: dict[str, MapSymbol],
+    vtx_name: str,
+    gfx_names: list[str],
+) -> MapSymbol:
+    """Pick the Vtx blob the display lists actually point at.
+
+    `dataobject.obj` ships the same static array under one name more than once — the
+    inventory icon and the in-world model each get their own `tol_uki_1_v` — and a
+    by-name lookup silently returns the wrong one, decoding zero triangles. Summer
+    palms draw `obj_s_palm1T_gfx_model` from `obj_w_palm1_v`, not `obj_s_palm1_v`.
+    """
+    targets = _g_vtx_targets(rel, symbols, by_name, gfx_names)
+    candidates = [s for s in symbols if s.name == vtx_name]
+    if targets:
+        for sym in candidates:
+            if any(sym.address <= addr < sym.end for addr in targets):
+                return sym
+        cross = _vtx_sym_containing(targets, symbols)
+        if cross is not None:
+            return cross
+    if len(candidates) == 1:
+        return candidates[0]
+    if len(candidates) > 1:
+        for sym in candidates:
+            if sym.obj == "dataobject.obj":
+                return sym
+        return candidates[0]
     return find_symbol(symbols, vtx_name, by_name)
+
+
+## cKF skeleton prefix → REL vtx when names diverge (`obj_train1_3` → `obj_train_3_v`).
+_CKF_VTX_ALIASES: dict[str, str] = {
+    "obj_train1_3": "obj_train_3_v",
+}
+
+
+def _resolve_vtx_sym(
+    prefix: str,
+    symbols: list[MapSymbol],
+    by_name: dict[str, MapSymbol],
+    rel: RelData,
+    joints_sym: MapSymbol,
+) -> MapSymbol:
+    alias = _CKF_VTX_ALIASES.get(prefix)
+    if alias and alias in by_name:
+        return by_name[alias]
+    primary = f"{prefix}_v"
+    if primary in by_name and by_name[primary].obj == "dataobject.obj":
+        return by_name[primary]
+    jblob = rel.slice_at(joints_sym.address, joints_sym.size)
+    addr_to_sym = {s.address: s for s in symbols}
+    gfx_names: list[str] = []
+    for i in range(0, len(jblob), 12):
+        gfx, _child, _flags, *_rest = struct.unpack_from(">IBBhhh", jblob, i)
+        if gfx and gfx in addr_to_sym:
+            gfx_names.append(addr_to_sym[gfx].name)
+    cross = _vtx_sym_containing(_g_vtx_targets(rel, symbols, by_name, gfx_names), symbols)
+    if cross is not None:
+        return cross
+    return find_symbol(symbols, primary, by_name)
 
 
 def convert_static_gfx(
@@ -553,8 +631,8 @@ def convert_static_gfx(
     vtx_sym = _vtx_sym_for_gfx(rel, symbols, by_name, vtx_name, gfx_names)
     vertices = parse_vtx_blob(rel.slice_at(vtx_sym.address, vtx_sym.size), scale, flip_z=False)
     parts: list[MeshPart] = []
-    tex_state = TextureState()
     for name in gfx_names:
+        tex_state = TextureState()
         if bank is not None:
             bank.current_gfx = name
         mat_name = _mat_model_name(name, by_name)

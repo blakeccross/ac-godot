@@ -35,12 +35,18 @@ window/stretch/aspect="expand"
 
 enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
 
-[layer_names]
+[gui]
 
-3d_physics/layer_1="world"
-3d_physics/layer_2="player"
-3d_physics/layer_3="actors"
-3d_physics/layer_4="interact"
+theme/custom="res://assets/ui/default_theme.tres"
+
+[importer_defaults]
+
+texture={
+"compress/mode": 0,
+"detect_3d/compress_to": 0,
+"mipmaps/generate": false,
+"process/fix_alpha_border": false
+}
 
 [input]
 
@@ -100,14 +106,12 @@ inventory={
 ]
 }
 
-[importer_defaults]
+[layer_names]
 
-texture={
-"compress/mode": 0,
-"detect_3d/compress_to": 0,
-"mipmaps/generate": false,
-"process/fix_alpha_border": false
-}
+3d_physics/layer_1="world"
+3d_physics/layer_2="player"
+3d_physics/layer_3="actors"
+3d_physics/layer_4="interact"
 
 [rendering]
 

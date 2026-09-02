@@ -128,6 +128,8 @@ func test_generated_town_has_ac_structure() -> void:
 	assert_int(station.cell.y % 16).is_equal(5)
 	## Museum acre is a unique flat below the cliff (`mRF_FlatBlock2Unique` / T_MUSEUM).
 	var museum: Vector2i = _building_at(data, &"museum")
+	var mus_b: BuildingPlacement = _building(data, &"museum")
+	assert_that(mus_b.actor_shift).is_equal(Vector2(-0.5, -0.5))
 	var mus_bx: int = museum.x / 16 + 1
 	var mus_bz: int = museum.y / 16 + 1
 	assert_int(int(data.acre_types[mus_bz * 7 + mus_bx])).is_equal(TownFieldGenerator.T_MUSEUM)
@@ -401,6 +403,20 @@ func test_configure_from_world_copies_terrain() -> void:
 	assert_that(grid.world_to_cell(Vector3(0, 0, 6))).is_equal(Vector2i(8, 11))
 
 
+func test_generated_port_sign_uses_fg_port_sign_unit() -> void:
+	if not FgCatalog.has_catalog():
+		return
+	var data: WorldData = WorldGenerator.generate(12345)
+	var port_bx: int = 5
+	var port_bz: int = 6
+	if int(data.acre_types[port_bz * TownFieldGenerator.BLOCK_X + port_bx]) != TownFieldGenerator.T_PORT:
+		return
+	var origin: Vector2i = Vector2i((port_bx - 1) * WorldGenerator.UT, (port_bz - 1) * WorldGenerator.UT)
+	var visual := String(data.acre_visuals[port_bz * TownFieldGenerator.BLOCK_X + port_bx])
+	var expected_ut: Vector2i = Vector2i(9, 7) if visual.ends_with("wf_3") else Vector2i(8, 7)
+	assert_that(_object_at(data, &"dock_sign")).is_equal(origin + expected_ut)
+
+
 func test_builder_instances_test_town_scenes() -> void:
 	var world: Node3D = _shell()
 	auto_free(world)
@@ -417,6 +433,9 @@ func test_builder_instances_test_town_scenes() -> void:
 	assert_that(world.get_node_or_null("Buildings/npc_house_0")).is_not_null()
 	assert_that(world.get_node_or_null("Buildings/npc_house_0").get("occupant_id")).is_equal(&"filbert")
 	assert_that(world.get_node_or_null("Objects/acre_sign")).is_not_null()
+	var acre_sign: Node3D = world.get_node("Objects/acre_sign") as Node3D
+	var sign_cell: Vector2i = _object_at(data, &"acre_sign")
+	assert_float(acre_sign.position.y).is_equal_approx(FieldCollision.ground_y(data, sign_cell), 0.001)
 	assert_that(world.get_node_or_null("Objects/yard_chair")).is_not_null()
 	assert_that(world.get_node_or_null("Objects/tree_1")).is_not_null()
 	assert_that(world.get_node_or_null("Objects/ground_apple")).is_not_null()

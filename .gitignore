@@ -33,6 +33,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Local dev captures (screen recordings, reference frames)
+recordings/
+
 # Local pipeline (disc images, extracted files, generated Nintendo assets)
 tools/.cache/
 tools/config.local.json

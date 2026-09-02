@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/dev/debug_sleep_npc.gd" id="1"]
+
+[node name="DebugSleepNpc" type="Node"]
+script = ExtResource("1")

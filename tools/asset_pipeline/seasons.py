@@ -13,7 +13,7 @@ from typing import Any
 
 from .ckf import convert_static_gfx
 from .config import PipelineConfig
-from .convert import _static_jobs
+from .convert import _static_jobs, _texture_bank
 from .godot_import import write_import_sidecar
 from .mapfile import parse_map
 from .rel import RelData
@@ -61,6 +61,8 @@ _FIELD_TEX_SPECS: dict[str, tuple[int, int, str]] = {
 	"stone_tex_dummy": (64, 64, "earth_pal"),
 	"sand_tex_dummy": (64, 32, "beach_pal"),
 	"river_tex_dummy": (64, 32, "cliff_pal"),
+	## Segment names are ``mFM_grd_*_rail_tex``, not ``rail_tex_dummy``.
+	"rail_tex": (64, 64, "earth_pal"),
 }
 
 ## `mFM_BG_TEX_*` order: triangle, square, circle. Each maps to a distinct CI4 tile in REL.
@@ -526,7 +528,7 @@ def export_seasonal_textures(cfg: PipelineConfig, *, force: bool = False) -> dic
 		}
 	rel = RelData(cfg.rel_path)
 	symbols = parse_map(cfg.map_path)
-	bank = TextureBank(rel, symbols, cfg.extracted_archives)
+	bank = _texture_bank(cfg, rel, symbols)
 	jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
 	root = cfg.godot_generated / "environment" / "seasons"
 	written: list[str] = []

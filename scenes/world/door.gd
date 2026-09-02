@@ -13,10 +13,25 @@ extends Node3D
 @export var closed_notice: String = "The door is locked."
 @export var linked_room_id: StringName = &""
 @export var exits_interior: bool = false
+## Walk into the sensor to enter (museum). No A prompt while open.
+@export var auto_enter: bool = false
 
 
 func _ready() -> void:
 	add_to_group("interactable")
+
+
+func should_auto_enter() -> bool:
+	if not auto_enter or Game.is_indoors():
+		return false
+	var target: StringName = _enter_target()
+	if target == &"":
+		return false
+	var room_id: StringName = InteriorCatalog.resolve_entry(target)
+	if room_id == &"":
+		return false
+	var room: Room = Game.interiors.room(room_id)
+	return room != null and InteriorCatalog.is_open_now(room)
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
@@ -25,6 +40,9 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 		return []
 	if Game.is_indoors() and linked_room_id != &"":
 		return [Interaction.of(Interaction.ENTER, "Enter %s" % label, 12)]
+	## Open auto-enter: silent verb so the probe still finds us; player walks in.
+	if should_auto_enter():
+		return [Interaction.of(Interaction.ENTER, "", 20)]
 	var prompt: String = "Enter %s" % label if verb == Interaction.ENTER else String(verb).capitalize()
 	if verb == Interaction.SHOP:
 		prompt = "Shop"

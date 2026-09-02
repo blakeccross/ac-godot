@@ -1,0 +1,33 @@
+[gd_scene load_steps=3 format=3 uid="uid://capture_dock_sign"]
+
+[ext_resource type="Script" path="res://scenes/dev/capture_dock_sign.gd" id="1"]
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 1
+background_color = Color(0.45, 0.72, 0.88, 1)
+ambient_light_source = 1
+ambient_light_color = Color(0.55, 0.58, 0.62, 1)
+
+[node name="CaptureDockSign" type="Node3D"]
+script = ExtResource("1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.766044, -0.492404, 0.413176, 0, 0.642788, 0.766044, -0.642788, -0.586824, 0.492404, 0, 8, 0)
+light_energy = 1.15
+
+[node name="Fill" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.5, -0.612372, 0.612372, 0, 0.707107, 0.707107, -0.866025, 0.353553, -0.353553, 0, 6, 0)
+light_energy = 0.35
+
+[node name="CliffAcre" type="Node3D" parent="."]
+
+[node name="OceanAcre" type="Node3D" parent="."]
+
+[node name="Sign" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 10, 4, 12)
+fov = 55.0

@@ -15,7 +15,11 @@ from asset_pipeline.layout import (
     uses_shared_npc_anims,
 )
 from asset_pipeline.mapfile import MapSymbol, find_symbol, index_by_name
-from asset_pipeline.texbank import GX_CLAMP, GX_REPEAT
+from asset_pipeline.texbank import (
+    GX_CLAMP,
+    GX_REPEAT,
+    _kanban_bulletin_palette,
+)
 
 
 def _sym(name: str, addr: int = 0, size: int = 4) -> MapSymbol:
@@ -47,6 +51,20 @@ class LayoutTests(unittest.TestCase):
         self.assertEqual(frames[13], ("mouth5", MOUTH_BASE + 5 * 0x100))
         offsets = [off for _name, off in frames]
         self.assertEqual(len(set(offsets)), len(offsets))
+
+    def test_discover_villager_prefixes_picks_lowest_variant(self) -> None:
+        from asset_pipeline.faces import discover_villager_prefixes, species_code_from_prefix
+        from pathlib import Path
+        import tempfile
+
+        self.assertEqual(species_code_from_prefix("cat_12"), "cat")
+        with tempfile.TemporaryDirectory() as tmp:
+            rel = Path(tmp)
+            for prefix in ("cat_2", "cat_1", "xct_1"):
+                (rel / f"{prefix}_eye1_TA_tex_txt.png").write_bytes(b"png")
+            found = discover_villager_prefixes(rel)
+            self.assertEqual(found["cat"], "cat_1")
+            self.assertEqual(found["xct"], "xct_1")
 
     def test_species_paths(self) -> None:
         self.assertTrue(uses_shared_npc_anims("cat_1"))
@@ -132,6 +150,62 @@ class PrefixOwnershipTests(unittest.TestCase):
             ["grd_s_r1_1_model", "grd_s_r1_1_modelT"],
         )
 
+    def test_kanban_sign_uses_sign_model_display_list(self) -> None:
+        symbols = [
+            _sym("obj_s_kanban_v"),
+            _sym("obj_w_kanban_v"),
+            _sym("write_model"),
+            _sym("obj_sign_s_model"),
+            _sym("obj_sign_w_model"),
+            _sym("obj_shop_kanban_v"),
+            _sym("obj_shop_kanbanT_gfx_model"),
+        ]
+        jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
+        self.assertEqual(jobs["obj_s_kanban"]["gfx"], ["write_model", "obj_sign_s_model"])
+        self.assertEqual(jobs["obj_w_kanban"]["gfx"], ["write_model", "obj_sign_w_model"])
+        self.assertEqual(jobs["obj_shop_kanban"]["gfx"], ["obj_shop_kanbanT_gfx_model"])
+
+    def test_attention_dock_sign_uses_attention_display_list(self) -> None:
+        symbols = [
+            _sym("obj_s_attention_v"),
+            _sym("obj_w_attention_v"),
+            _sym("obj_s_attentionT_model"),
+            _sym("obj_w_attentionT_model"),
+        ]
+        jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
+        self.assertEqual(jobs["obj_s_attention"]["gfx"], ["obj_s_attentionT_model"])
+        self.assertEqual(jobs["obj_w_attention"]["gfx"], ["obj_w_attentionT_model"])
+        self.assertEqual(jobs["obj_s_attention"]["output"], "environment/obj_s_attention.glb")
+
+    def test_kanban_bulletin_palette_remaps_paper_ink_tack(self) -> None:
+        from asset_pipeline.texbank import encode_bulletin_paper_ci4
+
+        base = bytes([0xFF, 0xFF] * 16)
+        pal = _kanban_bulletin_palette(base)
+
+        def rgb555(idx: int) -> tuple[int, int, int]:
+            w = (pal[idx * 2] << 8) | pal[idx * 2 + 1]
+            return (
+                ((w >> 10) & 0x1F) * 255 // 31,
+                ((w >> 5) & 0x1F) * 255 // 31,
+                (w & 0x1F) * 255 // 31,
+            )
+
+        self.assertEqual(rgb555(5), (255, 255, 255))
+        self.assertEqual(rgb555(7), (213, 32, 32))
+        self.assertEqual(rgb555(8), (32, 32, 74))
+        tex, paper_pal = encode_bulletin_paper_ci4()
+        self.assertEqual(len(tex), 512)
+        self.assertEqual(len(paper_pal), 32)
+        ## Paper should be mostly white (index 5), with ink (8) and tack (7).
+        idxs = []
+        for b in tex:
+            idxs.append(b >> 4)
+            idxs.append(b & 0xF)
+        self.assertGreater(idxs.count(5), 500)
+        self.assertGreater(idxs.count(8), 10)
+        self.assertGreater(idxs.count(7), 0)
+
     def test_explicit_entry_survives_unmatchable_gfx_name(self) -> None:
         # The bobber's display list is `tol_uki1_model`, which no prefix rule will pair
         # with `tol_uki_1_v`. The explicit TEST_STATIC row has to win over the inference,
@@ -168,6 +242,26 @@ class PrefixOwnershipTests(unittest.TestCase):
         for asset_id in ("act_f01_funa_a", "act_f01_funa_b", "act_f34_piraluku_a"):
             self.assertTrue(any(n in asset_id for n in FISH_STATIC_NEEDLES), asset_id)
         self.assertFalse(any(n in "act_f01_funa_c" for n in FISH_STATIC_NEEDLES))
+
+    def test_ef_s_cedar_job_uses_modelT_not_numbered_shake(self) -> None:
+        symbols = [
+            _sym("ef_s_cedar_v"),
+            _sym("ef_s_cedar_modelT"),
+            _sym("ef_s_cedar3_shake_model"),
+            _sym("ef_s_cedar3_cutL_leaf_model"),
+        ]
+        jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
+        self.assertEqual(jobs["ef_s_cedar"]["gfx"], ["ef_s_cedar_modelT"])
+
+    def test_static_jobs_skip_overlay_vtx_not_in_dataobject(self) -> None:
+        symbols = [
+            MapSymbol(0x51080, 160, 8, "tol_sponge_1_v", "m_player.o"),
+            MapSymbol(0x5370, 128, 8, "tol_sponge_1_model", "dataobject.obj"),
+            MapSymbol(0x1000, 64, 8, "mbg_v", "ac_mbg.o"),
+        ]
+        jobs = {item["asset_id"] for item in _static_jobs(symbols)}
+        self.assertNotIn("tol_sponge_1", jobs)
+        self.assertNotIn("mbg", jobs)
 
     def test_fish_gfx_names_come_from_the_display_list_table(self) -> None:
         ## `aGYO_displayList` is not regular: the coelacanth's `b` pose display list has no
@@ -460,6 +554,18 @@ class WaterNameTests(unittest.TestCase):
         self.assertEqual(water_surface_kind("mFM_grd_sprashC_tex", "mFM_grd_sprashA_tex"), "splash")
         self.assertEqual(water_surface_kind("obj_stump5T_gfx_model"), "")
         self.assertEqual(
+            water_surface_kind(
+                "obj_s_shrine_t3_tex_txt",
+                "obj_s_shrine_water_model",
+                "obj_s_shrine_trunk_model",
+            ),
+            "",
+        )
+        self.assertEqual(
+            water_surface_kind("obj_s_shrine_t4_tex_txt", "", "obj_s_shrine_water_model"),
+            "river",
+        )
+        self.assertEqual(
             waterfall_surface_kind("obj_fallA2_tex_rgb_i4", "obj_fallC3_tex_rgb_i4"),
             "waterfall",
         )
@@ -589,6 +695,27 @@ class BindAnimTests(unittest.TestCase):
         )
         self.assertIsNone(select_bind_anim("tol_net_1", ["cKF_ba_r_tol_net_1_swing"]))
         self.assertIsNone(select_bind_anim("cat_1", []))
+        self.assertEqual(
+            select_bind_anim(
+                "kab_1",
+                [
+                    "cKF_ba_r_npc_1_wait_nemu1",
+                    "cKF_ba_r_npc_1_kokkuri_d1",
+                    "cKF_ba_r_npc_1_kokkuri_d2",
+                ],
+            ),
+            "cKF_ba_r_npc_1_wait_nemu1",
+        )
+        self.assertEqual(
+            select_bind_anim(
+                "kab_1",
+                [
+                    "cKF_ba_r_npc_1_wait1",
+                    "cKF_ba_r_npc_1_wait_nemu1",
+                ],
+            ),
+            "cKF_ba_r_npc_1_wait_nemu1",
+        )
 
 
 class SeasonRoleTests(unittest.TestCase):

@@ -43,6 +43,8 @@ const ANIM_OPEN_D2 := "npc_1_open_d2"
 
 ## `aNGD` GX landmarks.
 const ROVER_AISLE_X_GX := 140.0
+## Decomp enter landmark — `open_d1` root motion on `joint_0` carries the mesh from the
+## vestibule deck (~48 GX) forward to here; keep the host at this Z throughout ENTER.
 const ROVER_START_GX := Vector3(140.0, 0.0, 130.0)
 const ROVER_TALK_GX := Vector3(140.0, 0.0, 290.0)
 const ROVER_SIT_GX := Vector3(100.0, 0.0, 280.0)
@@ -50,6 +52,10 @@ const ROVER_STAND_GX := Vector3(100.0, 0.0, 300.0)
 const ROVER_AISLE_GX := Vector3(140.0, 0.0, 290.0)
 const ROVER_DOOR_GX := Vector3(140.0, 0.0, 130.0)
 const ROVER_RETURN_START_GX := Vector3(140.0, 0.0, 140.0)
+## Vestibule door actor origin (`ac_train_door`). Panel sits ~7.5 GX into the car from here.
+const DOOR_GATE_GX := Vector3(140.0, 0.0, 120.0)
+## Closed panel sits slightly deck-side of the car-shell jamb sample (GC frame).
+const DOOR_PANEL_Z_BIAS_GX := -20.0
 ## Seated player (the intro POV). Actors that "search" the player turn to this point.
 const PLAYER_GX := Vector3(120.0, 0.0, 340.0)
 ## Decomp literals are eye/look Y=80 GX (`aNGD_set_camera`). The GC intro frame reads as
@@ -80,40 +86,95 @@ const OPEN_D2_YAW := PI
 const OPEN_D2_YAW_CHASE := deg_to_rad(0.703125)
 
 var action: Action = Action.ENTER
-var lock_camera: bool = false
-var camera_morph: int = 40
-var obj_look_talk: bool = false
-var camera_eyes: bool = false
 
 var _rover: Node3D
 var _rover_anim: AnimationPlayer
 var _door: Node3D
-var _door_anim: AnimationPlayer
 var _keitai: Node3D
-var _camera: Camera3D
+var _cam
+var _stage_sync: Node
 var _target_gx: Vector3 = ROVER_TALK_GX
 var _speed_gx: float = WALK_SPEED_GX
 var _pos_gx: Vector3 = ROVER_START_GX
 var _yaw: float = 0.0
 var _talk_emitted: bool = false
-var _door_opened: bool = false
 var _clip: String = ""
 var _pending_clip: String = ""
+var _pending_suffix: String = ""
 var _pending_next: Action = Action.DONE
 var _pending_ready: bool = false
-var _camera_move: int = 0
-var _camera_move_y: float = 0.0
-var _camera_move_range: float = 0.3
-var _camera_move_cnt: int = 0
-var _camera_move_set_counter: int = 1
-var _camera_tilt: float = 0.0
-var _camera_tilt_goal: float = 0.0
-var _camera_tilt_chase: float = CAMERA_TILT_CHASE
-var _obj_look_y_gx: float = OBJ_LOOK_Y_NORMAL_GX
-var _obj_look_y_target_gx: float = OBJ_LOOK_Y_NORMAL_GX
 var _rover_look: RefCounted
 var _phone_dialogue_done: bool = false
+var _aisle_yaw_from: float = 0.0
+var _aisle_yaw_to: float = 0.0
+var _aisle_turn_t: float = 1.0
+var _aisle_walk_started: bool = false
 
+
+var lock_camera: bool:
+	get:
+		return _cam.lock_camera if _cam != null else false
+	set(value):
+		if _cam != null:
+			_cam.lock_camera = value
+
+
+var camera_morph: int:
+	get:
+		return _cam.camera_morph if _cam != null else 0
+	set(value):
+		if _cam != null:
+			_cam.camera_morph = value
+
+
+var obj_look_talk: bool:
+	get:
+		return _cam.obj_look_talk if _cam != null else false
+	set(value):
+		if _cam != null:
+			_cam.obj_look_talk = value
+
+
+var camera_eyes: bool:
+	get:
+		return _cam.camera_eyes if _cam != null else false
+	set(value):
+		if _cam != null:
+			_cam.camera_eyes = value
+
+
+var _obj_look_y_gx: float:
+	get:
+		return _cam._obj_look_y_gx if _cam != null else OBJ_LOOK_Y_NORMAL_GX
+	set(value):
+		if _cam != null:
+			_cam._obj_look_y_gx = value
+
+
+var _obj_look_y_target_gx: float:
+	get:
+		return _cam._obj_look_y_target_gx if _cam != null else OBJ_LOOK_Y_NORMAL_GX
+	set(value):
+		if _cam != null:
+			_cam._obj_look_y_target_gx = value
+
+
+var _camera_morph_from_gx: Vector3:
+	get:
+		return _cam._camera_morph_from_gx if _cam != null else CAM_LOOK_GX
+
+
+var _camera_morph_to_gx: Vector3:
+	get:
+		return _cam._camera_morph_to_gx if _cam != null else CAM_LOOK_GX
+
+
+var _camera_morph_tracks_rover: bool:
+	get:
+		return _cam._camera_morph_tracks_rover if _cam != null else true
+
+
+const _CAMERA_SCRIPT := preload("res://scripts/systems/intro_train_camera.gd")
 
 static func gx_to_meters(gx: Vector3) -> Vector3:
 	return gx * FieldCatalog.GX_TO_METERS
@@ -144,33 +205,32 @@ func bind(
 	rover: Node3D,
 	rover_anim: AnimationPlayer,
 	door: Node3D,
-	door_anim: AnimationPlayer,
 	keitai: Node3D,
-	camera: Camera3D,
-	rover_look: RefCounted = null
+	camera_host: Variant,
+	rover_look: RefCounted = null,
+	stage_sync: Node = null
 ) -> void:
 	_rover = rover
 	_rover_anim = rover_anim
+	if _rover_anim == null and rover != null and rover.has_method("body_animation_player"):
+		_rover_anim = rover.body_animation_player()
 	_door = door
-	_door_anim = door_anim
 	_keitai = keitai
-	_camera = camera
 	_rover_look = rover_look
+	_stage_sync = stage_sync
+	_cam = _CAMERA_SCRIPT.new()
+	if camera_host != null and camera_host.has_method("eye_gx"):
+		_cam.setup(camera_host.camera, camera_host.eye_gx(), camera_host.look_gx())
+	elif camera_host is Camera3D:
+		_cam.setup(camera_host as Camera3D)
 	_pos_gx = ROVER_START_GX
 	_yaw = 0.0
 	_apply_rover_pose()
 	if _keitai != null:
 		_keitai.visible = false
-	if _camera != null:
-		_camera.fov = CAM_FOV
-		_camera.near = CAM_NEAR_METERS
-		_camera.far = CAM_FAR_GX * FieldCatalog.GX_TO_METERS
-	_camera_move = 0
-	_camera_tilt = 0.0
-	_camera_tilt_goal = 0.0
 	_phone_dialogue_done = false
 	_set_action(Action.ENTER)
-	_update_camera(0.0)
+	_refresh_camera(0.0)
 
 
 static func _hermit_morph(t: float) -> float:
@@ -232,6 +292,8 @@ func stage_wait_met(key: String) -> bool:
 	match key:
 		"seated":
 			return action >= Action.SEATED
+		"keitai_talk":
+			return action >= Action.KEITAI_TALK
 		"return_approach":
 			return action >= Action.RETURN_APPROACH
 		"advance_gate":
@@ -252,15 +314,17 @@ func _dialogue_wait_to_node() -> StringName:
 
 
 func _set_action(next: Action) -> void:
+	var morph_from_gx: Vector3 = _current_camera_look_gx(_pos_gx)
+	var seated_look_gx: Vector3 = _cam.look_gx() if _cam != null else CAM_LOOK_GX
 	action = next
 	stage_changed.emit(_action_name(next))
 	match next:
 		Action.ENTER:
 			_speed_gx = WALK_SPEED_GX
-			_door_opened = false
 			camera_eyes = false
 			_set_rover_eyes(false)
 			_play_rover(ANIM_OPEN_D1, false)
+			_play_door_sync(IntroTrainStageSync.SYNC_ENTER)
 		Action.APPROACH:
 			_speed_gx = WALK_SPEED_GX
 			_target_gx = ROVER_TALK_GX
@@ -273,10 +337,9 @@ func _set_action(next: Action) -> void:
 			_yaw = yaw_toward_player(_pos_gx)
 			_apply_rover_pose()
 			_play_rover(ANIM_WAIT, true)
-			obj_look_talk = true
-			camera_morph = 40
-			lock_camera = false
 			_obj_look_y_target_gx = OBJ_LOOK_Y_TALK_GX
+			if _cam != null:
+				_cam.begin_morph_to_rover(morph_from_gx, true)
 			if not _talk_emitted:
 				_talk_emitted = true
 				ready_for_talk.emit()
@@ -288,37 +351,45 @@ func _set_action(next: Action) -> void:
 			_yaw = 0.0
 			_apply_rover_pose()
 			_disconnect_anim_finished()
+			## Re-morph from the aisle talk aim to the bench — not from `CAM_LOOK_GX`, which
+			## would snap the POV and hide the right-bench sleep NPC.
+			_obj_look_y_target_gx = OBJ_LOOK_Y_TALK_GX
+			if _cam != null:
+				_cam.begin_morph_to_rover(morph_from_gx, true)
 			_play_rover(ANIM_SITDOWN, false)
 			_await_then(Action.SEATED, ANIM_SITDOWN)
 		Action.SEATED:
+			if _cam != null:
+				_cam.lock_on_rover()
+				_cam.set_obj_look_y(OBJ_LOOK_Y_TALK_GX)
 			_play_rover(ANIM_SIT_WAIT, true)
 		Action.STANDUP:
-			obj_look_talk = true
-			lock_camera = false
-			camera_morph = 40
+			_pos_gx = ROVER_STAND_GX
+			_apply_rover_pose()
 			_obj_look_y_target_gx = OBJ_LOOK_Y_NORMAL_GX
+			if _cam != null:
+				_cam.begin_morph_to_pov(morph_from_gx)
 			camera_eyes = false
 			_set_rover_eyes(false)
 			_play_rover(ANIM_STANDUP, false)
 			_await_then(Action.MOVE_AISLE, ANIM_STANDUP)
 		Action.MOVE_AISLE:
-			_pos_gx = ROVER_STAND_GX
-			_apply_rover_pose()
+			_begin_aisle_turn()
 			_speed_gx = WALK_SPEED2_GX
 			_target_gx = ROVER_AISLE_GX
-			_play_rover(ANIM_WALK, true)
+			_aisle_walk_started = false
+			_play_rover(ANIM_WAIT, true)
 		Action.MOVE_DOOR:
 			_speed_gx = WALK_SPEED2_GX
 			_target_gx = ROVER_DOOR_GX
 			_play_rover(ANIM_WALK, true)
-			if _pos_gx.z < 140.0:
-				_camera_tilt_goal = CAMERA_TILT_GOAL_PHONE
-				_camera_tilt_chase = CAMERA_TILT_CHASE
+			if _pos_gx.z < 140.0 and _cam != null:
+				_cam.set_phone_tilt(true)
 		Action.MOVE_DECK:
 			_pos_gx = ROVER_DOOR_GX
 			_apply_rover_pose()
-			_door_opened = false
 			_play_rover(ANIM_TO_DECK, false)
+			_play_door_sync(IntroTrainStageSync.SYNC_DECK)
 			_await_then(Action.KEITAI_ON, ANIM_TO_DECK)
 		Action.KEITAI_ON:
 			if _keitai != null:
@@ -335,11 +406,10 @@ func _set_action(next: Action) -> void:
 		Action.OPEN_DOOR:
 			if _keitai != null:
 				_keitai.visible = false
-			_door_opened = false
 			_play_rover(ANIM_OPEN_D2, false)
-			if _pos_gx.z < 140.0:
-				_camera_tilt_goal = 0.0
-				_camera_tilt_chase = CAMERA_TILT_RESET_CHASE
+			_play_door_sync(IntroTrainStageSync.SYNC_OPEN_D2)
+			if _pos_gx.z < 140.0 and _cam != null:
+				_cam.set_phone_tilt(false)
 			_await_then(Action.RETURN_APPROACH, ANIM_OPEN_D2)
 		Action.RETURN_APPROACH:
 			_speed_gx = WALK_SPEED2_GX
@@ -349,20 +419,17 @@ func _set_action(next: Action) -> void:
 			camera_eyes = true
 			_set_rover_eyes(true)
 			_play_rover(ANIM_WALK, true)
-			obj_look_talk = true
-			camera_morph = 40
-			lock_camera = false
 			_obj_look_y_target_gx = OBJ_LOOK_Y_TALK_GX
+			if _cam != null:
+				_cam.begin_morph_to_rover(seated_look_gx, false)
 		Action.LAST_SIT:
 			_set_action(Action.SITDOWN)
 		_:
 			pass
+	_refresh_camera(0.0, false)
 
 
 func _tick_enter(_delta: float) -> void:
-	## Frame 20 of OPEN_D1 also pulses the door (decomp). Then approach.
-	if not _door_opened and _rover_anim != null and _rover_anim.current_animation_position >= (DOOR_OPEN_FRAME / 30.0):
-		_open_door()
 	if not _anim_playing():
 		_set_action(Action.APPROACH)
 
@@ -373,8 +440,15 @@ func _tick_approach(delta: float) -> void:
 
 
 func _tick_move_aisle(delta: float) -> void:
-	## `aNGD_move_to_aisle`: stand at (100,300), face the aisle, step until x > 140.
-	_face_toward_gx(ROVER_AISLE_GX)
+	## `aNGD_move_to_aisle`: ease yaw toward the aisle, then step with walk.
+	_aisle_turn_t = minf(_aisle_turn_t + delta / ANIM_MORPH_BLEND, 1.0)
+	_yaw = lerp_angle(_aisle_yaw_from, _aisle_yaw_to, _hermit_morph(_aisle_turn_t))
+	_apply_rover_pose()
+	if not _aisle_walk_started:
+		if _aisle_turn_t < 1.0:
+			return
+		_aisle_walk_started = true
+		_play_rover(ANIM_WALK, true)
 	_tick_move_until_x_reached(delta, ROVER_AISLE_GX.x, Action.MOVE_DOOR)
 
 
@@ -407,16 +481,13 @@ func _tick_move_to_seat(delta: float) -> void:
 
 
 func _tick_move_deck(_delta: float) -> void:
-	if not _door_opened and _rover_anim != null and _rover_anim.current_animation_position >= (DOOR_DECK_OPEN_FRAME / 30.0):
-		_open_door()
+	pass
 
 
 func _tick_open_door(_delta: float) -> void:
 	if _pos_gx.z < 140.0:
 		_yaw = lerp_angle(_yaw, OPEN_D2_YAW, OPEN_D2_YAW_CHASE * _delta * 30.0)
 		_apply_rover_pose()
-	if not _door_opened and _rover_anim != null and _rover_anim.current_animation_position >= (DOOR_OPEN_D2_FRAME / 30.0):
-		_open_door()
 
 
 func _tick_move_axis_z(
@@ -464,6 +535,17 @@ func _face_toward_gx(target_gx: Vector3) -> void:
 		_yaw = atan2(to.x, to.z)
 
 
+func _begin_aisle_turn() -> void:
+	_aisle_yaw_from = _yaw
+	var to: Vector3 = ROVER_AISLE_GX - _pos_gx
+	to.y = 0.0
+	if to.length_squared() > 0.001:
+		_aisle_yaw_to = atan2(to.x, to.z)
+	else:
+		_aisle_yaw_to = _yaw
+	_aisle_turn_t = 0.0
+
+
 func _apply_rover_pose() -> void:
 	if _rover == null:
 		return
@@ -471,25 +553,28 @@ func _apply_rover_pose() -> void:
 	_rover.rotation.y = _yaw
 
 
-func _open_door() -> void:
-	_door_opened = true
-	if _door_anim == null:
-		return
-	var clips: PackedStringArray = _door_anim.get_animation_list()
-	if clips.is_empty():
-		return
-	var clip: String = clips[0]
-	for name: String in clips:
-		if "romtrain_door" in name or name.ends_with("door"):
-			clip = name
-			break
-	_door_anim.play(clip)
-	_door_anim.speed_scale = 0.5
+func _play_door_sync(sync_name: StringName) -> void:
+	if _door != null and _door.has_method("reset_door_pulse"):
+		_door.call("reset_door_pulse")
+	if _stage_sync != null and _stage_sync.has_method("play"):
+		_stage_sync.call("play", sync_name)
 
 
 func _set_rover_eyes(active: bool) -> void:
 	if _rover_look != null and _rover_look.has_method("set_camera_eyes"):
 		_rover_look.set_camera_eyes(active)
+
+
+func _current_camera_look_gx(ground_gx: Vector3) -> Vector3:
+	if _cam == null:
+		return CAM_LOOK_GX
+	return _cam.current_look_gx(ground_gx, action)
+
+
+func _steady_camera_look_gx(ground_gx: Vector3) -> Vector3:
+	if _cam == null:
+		return CAM_LOOK_GX
+	return _cam.steady_look_gx(ground_gx, action)
 
 
 ## Body yaw for any actor that turns to the player (`aNPC_act_search_turn` with
@@ -502,7 +587,14 @@ static func yaw_toward_player(from_gx: Vector3) -> float:
 	return atan2(to.x, to.z)
 
 
-func _play_rover(suffix: String, loop: bool, speed_scale: float = 1.0) -> bool:
+func _play_rover(
+	suffix: String, loop: bool, speed_scale: float = 1.0, blend_override: float = -1.0
+) -> bool:
+	if _rover != null and _rover.has_method("play_intro_clip"):
+		var ok: bool = _rover.play_intro_clip(suffix, loop, speed_scale, blend_override)
+		if ok and _rover.has_method("current_intro_clip"):
+			_clip = _rover.current_intro_clip()
+		return ok
 	if _rover_anim == null:
 		return false
 	var clip: String = resolve_rover_clip(_rover_anim, suffix)
@@ -523,15 +615,17 @@ func _play_rover(suffix: String, loop: bool, speed_scale: float = 1.0) -> bool:
 			Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
 		)
 	_rover_anim.speed_scale = speed_scale
-	var blend: float = _rover_anim_blend(suffix)
+	var blend: float = (
+		blend_override if blend_override >= 0.0 else _rover_anim_blend(suffix)
+	)
 	_rover_anim.play(clip, blend)
 	return true
 
 
 static func _rover_anim_blend(suffix: String) -> float:
-	## Only `open_d1` and `sitdown_d1` use instant cuts in the decomp clip table.
+	## Instant cuts for clips that must not crossfade from the prior pose.
 	match suffix:
-		ANIM_OPEN_D1, ANIM_SITDOWN:
+		ANIM_OPEN_D1, ANIM_SITDOWN, ANIM_STANDUP:
 			return 0.0
 		_:
 			return ANIM_MORPH_BLEND
@@ -556,6 +650,8 @@ func _resolve_clip(suffix: String) -> String:
 
 
 func _anim_playing() -> bool:
+	if _rover != null and _rover.has_method("intro_clip_playing"):
+		return _rover.intro_clip_playing()
 	if _rover_anim == null:
 		return false
 	return _rover_anim.is_playing()
@@ -563,25 +659,33 @@ func _anim_playing() -> bool:
 
 func _await_then(next: Action, wait_suffix: String = "") -> void:
 	_pending_next = next
+	_pending_suffix = wait_suffix
 	_pending_clip = ""
 	if wait_suffix != "" and _rover_anim != null:
 		_pending_clip = resolve_rover_clip(_rover_anim, wait_suffix)
 	if wait_suffix != "" and _pending_clip.is_empty():
 		_pending_ready = true
 		return
-	if _rover_anim != null and _anim_playing():
-		if _pending_clip != "" and String(_rover_anim.current_animation) != _pending_clip:
-			_pending_ready = true
-			return
-		if _rover_anim.animation_finished.is_connected(_on_anim_finished):
-			_rover_anim.animation_finished.disconnect(_on_anim_finished)
-		_rover_anim.animation_finished.connect(_on_anim_finished)
+	if wait_suffix != "":
+		_connect_anim_finished()
 		return
-	## No clip / already stopped — advance on next tick (RefCounted has no call_deferred).
 	_pending_ready = true
 
 
+func _connect_anim_finished() -> void:
+	if _rover != null and _rover.has_method("connect_intro_clip_finished"):
+		_disconnect_anim_finished()
+		_rover.connect_intro_clip_finished(_on_anim_finished)
+		return
+	if _rover_anim != null:
+		if _rover_anim.animation_finished.is_connected(_on_anim_finished):
+			_rover_anim.animation_finished.disconnect(_on_anim_finished)
+		_rover_anim.animation_finished.connect(_on_anim_finished)
+
+
 func _disconnect_anim_finished() -> void:
+	if _rover != null and _rover.has_method("disconnect_intro_clip_finished"):
+		_rover.disconnect_intro_clip_finished(_on_anim_finished)
 	if _rover_anim != null and _rover_anim.animation_finished.is_connected(_on_anim_finished):
 		_rover_anim.animation_finished.disconnect(_on_anim_finished)
 
@@ -595,14 +699,28 @@ func _flush_pending() -> void:
 	_pending_next = Action.DONE
 	_pending_ready = false
 	_pending_clip = ""
+	_pending_suffix = ""
 	_set_action(next)
 
 
 func _on_anim_finished(anim_name: StringName) -> void:
-	if _pending_clip != "" and String(anim_name) != _pending_clip:
+	if _pending_clip != "" and not _clip_matches_pending(anim_name):
 		return
 	_disconnect_anim_finished()
 	_flush_pending()
+
+
+func _clip_matches_pending(anim_name: StringName) -> bool:
+	var finished := String(anim_name)
+	if _pending_suffix != "" and (
+		finished == _pending_suffix or finished.ends_with(_pending_suffix)
+	):
+		return true
+	if _pending_clip == "":
+		return true
+	if finished == _pending_clip:
+		return true
+	return finished.ends_with(_pending_clip) or _pending_clip.ends_with(finished)
 
 
 func tick(delta: float) -> void:
@@ -629,61 +747,17 @@ func tick(delta: float) -> void:
 			pass
 		_:
 			pass
-	_update_camera(delta)
+	_refresh_camera(delta)
+
+
+func _refresh_camera(delta: float, advance_morph: bool = true) -> void:
+	if _cam == null:
+		return
+	_cam.tick(delta, _pos_gx, action, advance_morph)
 
 
 func _update_camera(delta: float) -> void:
-	if _camera == null:
-		return
-	## Train rumble (`aNGD_set_camera` sway).
-	_camera_move += int(CAMERA_SWAY_STEP * delta * 30.0)
-	var move_x_gx: float = cos(float(_camera_move) / 65536.0 * TAU) * 0.1
-	var angle_y: int = _camera_move + CAMERA_SWAY_STEP
-	var move_y_gx: float = sin(float(angle_y) / 65536.0 * TAU) * _camera_move_range
-	if _camera_move_y <= 0.0 and move_y_gx >= 0.0:
-		_camera_move_cnt -= 1
-		if _camera_move_cnt < 0:
-			_camera_move_set_counter -= 1
-			if _camera_move_set_counter < 0:
-				_camera_move_set_counter = 1
-			_camera_move_cnt = 3 if _camera_move_set_counter == 1 else 0
-			_camera_move_range = 0.3
-		else:
-			_camera_move_range *= 0.35
-	_camera_move_y = move_y_gx
-	_camera_tilt = lerp_angle(_camera_tilt, _camera_tilt_goal, _camera_tilt_chase * delta * 30.0)
-	var tilt_sin: float = sin(_camera_tilt)
-	_obj_look_y_gx = lerpf(_obj_look_y_gx, _obj_look_y_target_gx, 0.5 * delta * 30.0)
-	var eye_gx := Vector3(
-		move_x_gx + tilt_sin * 20.0 + CAM_EYE_GX.x,
-		move_y_gx + tilt_sin * -5.0 + CAM_EYE_GX.y,
-		CAM_EYE_GX.z
-	)
-	var center_gx := Vector3(CAM_LOOK_GX.x, CAM_LOOK_GX.y, CAM_LOOK_GX.z)
-	var ground_gx := Vector3(_pos_gx.x, 0.0, _pos_gx.z)
-	if lock_camera:
-		center_gx = Vector3(ground_gx.x, _obj_look_y_gx, ground_gx.z)
-	elif obj_look_talk and camera_morph > 0:
-		camera_morph -= 1
-		var r: float = (40.0 - float(camera_morph)) / 40.0
-		var inter: float = _hermit_morph(r)
-		center_gx.x = (ground_gx.x - CAM_LOOK_GX.x) * inter + CAM_LOOK_GX.x
-		center_gx.y = (_obj_look_y_gx - CAM_LOOK_GX.y) * inter + CAM_LOOK_GX.y
-		center_gx.z = (ground_gx.z - CAM_LOOK_GX.z) * inter + CAM_LOOK_GX.z
-		if camera_morph <= 0:
-			if _should_lock_camera_after_morph():
-				lock_camera = true
-	center_gx.x += move_x_gx
-	center_gx.y += move_y_gx
-	var eye: Vector3 = gx_to_meters(eye_gx)
-	var look: Vector3 = gx_to_meters(center_gx)
-	_camera.global_position = eye
-	_camera.look_at(look, Vector3.UP)
-
-
-func _should_lock_camera_after_morph() -> bool:
-	## Seated / aisle talk locks on Rover; phone walk and return stay unlocked.
-	return action in [Action.TALK, Action.SEATED, Action.LAST_SIT] and not camera_eyes
+	_refresh_camera(delta)
 
 
 func _action_name(act: Action) -> StringName:

@@ -1,0 +1,7 @@
+[gd_resource type="Theme" load_steps=2 format=3]
+
+[ext_resource type="FontFile" uid="uid://c1jxgwvpyv6dj" path="res://assets/fonts/fot_rodin_pro_db.otf" id="1_font"]
+
+[resource]
+default_font = ExtResource("1_font")
+default_font_size = 16

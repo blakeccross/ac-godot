@@ -23,6 +23,9 @@ const STATION_UT := Vector2i(8, 5)
 ## `aNW_actor_ct` is −20 X, +20 Z — same 2×2 as the shop (`nw_off` (−1, 0)).
 const NEEDLEWORK_UT := Vector2i(9, 4)
 const NEEDLEWORK_UT_TA3 := Vector2i(9, 5)
+## `PORT_SIGN` on `grd_s_m_wf_*`: (8, 7) on `_1`/`_2`, (9, 7) on `_3`.
+const PORT_SIGN_UT := Vector2i(8, 7)
+const PORT_SIGN_UT_WF3 := Vector2i(9, 7)
 ## New-game villagers: one per personality (`mNpc_LOOKS_NUM` / `mNpc_InitNpcAllInfo`).
 const STARTER_NPC_HOUSES := 6
 
@@ -385,7 +388,7 @@ static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray)
 						data, origin, _needlework_unit(data, bx, bz), FgCatalog.ITEM_NEEDLEWORK_SHOP
 					)
 				TownFieldGenerator.T_PORT:
-					data.objects.append(_sign(&"dock_sign", origin + unique_ut, "Dock"))
+					_place_port_sign_fallback(data, origin, bx, bz)
 
 
 static func _place_waterfall(data: WorldData, blocks: PackedByteArray) -> void:
@@ -494,6 +497,24 @@ static func _needlework_unit(data: WorldData, bx: int, bz: int) -> Vector2i:
 	return NEEDLEWORK_UT
 
 
+static func _port_sign_unit(data: WorldData, bx: int, bz: int) -> Vector2i:
+	if data.acre_visuals.size() != TownFieldGenerator.BLOCK_TOTAL:
+		return PORT_SIGN_UT
+	var visual := String(data.acre_visuals[bz * TownFieldGenerator.BLOCK_X + bx])
+	if visual.ends_with("wf_3"):
+		return PORT_SIGN_UT_WF3
+	return PORT_SIGN_UT
+
+
+static func _place_port_sign_fallback(data: WorldData, origin: Vector2i, bx: int, bz: int) -> void:
+	## FG templates place `PORT_SIGN` when the catalog exists; keep a unit-accurate fallback.
+	if FgCatalog.has_catalog():
+		return
+	data.objects.append(
+		_sign(&"dock_sign", origin + _port_sign_unit(data, bx, bz), "Dock", &"DOCK_SIGN")
+	)
+
+
 static func _place_structure_item(
 	data: WorldData, origin: Vector2i, ut: Vector2i, item_id: int
 ) -> void:
@@ -593,6 +614,11 @@ static func _place_from_fg_templates(
 								)
 							)
 							rock_n += 1
+						&"sign":
+							var sign_id: StringName = place.get("id", &"sign") as StringName
+							var sign_msg: String = String(place.get("message", ""))
+							var sign_vis: StringName = place.get("visual", &"") as StringName
+							data.objects.append(_sign(sign_id, cell, sign_msg, sign_vis))
 						&"waterfall":
 							var fall := _object(
 								StringName("waterfall_fg_%d_%d" % [cell.x, cell.y]),
@@ -1282,8 +1308,10 @@ static func _item(id: StringName, cell: Vector2i, item: ItemData) -> ObjectPlace
 	return o
 
 
-static func _sign(id: StringName, cell: Vector2i, message: String) -> ObjectPlacement:
-	var o := _object(id, &"sign", cell, null)
+static func _sign(
+	id: StringName, cell: Vector2i, message: String, visual_id: StringName = &""
+) -> ObjectPlacement:
+	var o := _object(id, &"sign", cell, null, visual_id)
 	o.message = message
 	return o
 

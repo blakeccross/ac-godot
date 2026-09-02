@@ -5,12 +5,16 @@ import re
 import struct
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, Optional
 
 from PIL import Image
 
 from .bti import CI4, CI8, I4, I8, IA4, IA8, RGB5A3, RGBA8, _rgb5a3, decode_gx_image
 from .mapfile import MapSymbol, index_by_name
 from .rel import RelData
+
+if TYPE_CHECKING:
+    from .achd import AchdPack
 
 # GBI
 G_IM_FMT_RGBA = 0
@@ -198,6 +202,94 @@ def structure_palette_names(prefix: str) -> list[str]:
 # SEGMENT_ADDR values; the actor binds a real pal/tex before draw.
 ANIME_TXT_SEGMENTS = frozenset(range(0x08, 0x10))
 
+## Authored field-sign note (white + red tack + scribbles). Retail `my_original`
+## slot 2 is a registration crosshair — do not bake that design onto field signs.
+KANBAN_DEFAULT_DESIGN_SLOT = 2
+KANBAN_DEFAULT_PALETTE_IDX = 7
+MY_ORIGINAL_DESIGN_BYTES = 512
+MY_ORIGINAL_REL_PATH = Path("forest_2nd/data/my_original.bin")
+
+
+def _set_rgb555(pal: bytearray, idx: int, r: int, g: int, b: int) -> None:
+    r5 = r * 31 // 255
+    g5 = g * 31 // 255
+    b5 = b * 31 // 255
+    ## Game palettes are RGB555 (`0x8000`); without it `_rgb5a3` treats entries as
+    ## RGB5A3 and ink indices decode near-transparent.
+    word = 0x8000 | (r5 << 10) | (g5 << 5) | b5
+    pal[idx * 2] = (word >> 8) & 0xFF
+    pal[idx * 2 + 1] = word & 0xFF
+
+
+def _kanban_bulletin_palette(base: bytes) -> bytes:
+    """Remap CI indices to bulletin colors on export.
+
+    Bulletin paper CI4 uses indices 5 (paper), 7 (tack), 8 (ink).
+    """
+    pal = bytearray(base[:32] if len(base) >= 32 else bytes(32))
+    _set_rgb555(pal, 5, 255, 255, 255)
+    _set_rgb555(pal, 7, 220, 40, 40)
+    _set_rgb555(pal, 8, 40, 40, 80)
+    return bytes(pal)
+
+
+def bulletin_paper_image(size: int = 32):
+    """White note + red tack + scribbled lines for field `SIGNBOARD` paper."""
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rectangle([1, 1, size - 2, size - 3], fill=(255, 255, 255, 255))
+    cx = size // 2
+    d.rectangle([cx - 1, 0, cx + 1, 2], fill=(220, 40, 40, 255))
+    img.putpixel((cx, 1), (180, 20, 20, 255))
+    ink = (40, 40, 80, 255)
+    rows = (
+        ((5, 8), (10, 14), (16, 20), (22, 26)),
+        ((6, 11), (13, 18), (20, 25)),
+        ((7, 12), (14, 19), (21, 25)),
+    )
+    y0 = 8
+    for row in rows:
+        for x0, x1 in row:
+            d.rectangle([x0, y0, x1, y0 + 1], fill=ink)
+        y0 += 4
+    for p in ((11, 9), (16, 13), (9, 17), (21, 17)):
+        if 0 <= p[0] < size and 0 <= p[1] < size:
+            img.putpixel(p, ink)
+    return img
+
+
+def encode_bulletin_paper_ci4() -> tuple[bytes, bytes]:
+    """32×32 CI4 tex + RGB555 palette for field-sign note paper."""
+    img = bulletin_paper_image(32).convert("RGBA")
+    pal = bytearray(32)
+    ## idx 0 = transparent hole (unused on opaque paper quad)
+    _set_rgb555(pal, 0, 0, 0, 0)
+    _set_rgb555(pal, 5, 255, 255, 255)
+    _set_rgb555(pal, 7, 220, 40, 40)
+    _set_rgb555(pal, 8, 40, 40, 80)
+    tex = bytearray(32 * 32 // 2)
+    px = img.load()
+    i = 0
+    for y in range(32):
+        for x in range(0, 32, 2):
+            idxs: list[int] = []
+            for xi in (x, x + 1):
+                r, g, b, a = px[xi, y]
+                if a < 128:
+                    idxs.append(0)
+                elif r > 200 and g < 80 and b < 80:
+                    idxs.append(7)
+                elif r < 80 and g < 80 and b < 120:
+                    idxs.append(8)
+                else:
+                    idxs.append(5)
+            tex[i] = ((idxs[0] & 0xF) << 4) | (idxs[1] & 0xF)
+            i += 1
+    return bytes(tex), bytes(pal)
+
+
 _SYMBOL_STOPWORDS = frozenset(
     {
         "obj",
@@ -369,10 +461,17 @@ class TextureState:
 class TextureBank:
     """Resolve SETTIMG / LOADTLUT addresses to decoded PNGs."""
 
-    def __init__(self, rel: RelData, symbols: list[MapSymbol], archives: Path | None = None) -> None:
+    def __init__(
+        self,
+        rel: RelData,
+        symbols: list[MapSymbol],
+        archives: Path | None = None,
+        achd: Optional["AchdPack"] = None,
+    ) -> None:
         self.rel = rel
         self.symbols = symbols
         self.archives = archives
+        self.achd = achd
         self.by_name = index_by_name(symbols)
         self.addr_to_sym: dict[int, MapSymbol] = {}
         self._pal_symbols: list[MapSymbol] = []
@@ -561,6 +660,8 @@ class TextureBank:
                 bind_floor=is_floor or not is_wall,
                 bind_wall=is_wall or not is_floor,
             )
+        if prefix in {"obj_s_kanban", "obj_w_kanban"}:
+            self._bind_kanban_paper_segments()
 
     def _find_symbol(self, name: str) -> MapSymbol | None:
         return self.by_name.get(name)
@@ -646,8 +747,36 @@ class TextureBank:
         # 32-byte GX align padding is normal; a whole extra tile is not.
         return symbol_size - needed < 32
 
+    def _bind_kanban_paper_segments(self) -> None:
+        """Bind `write_model` anime segments for field sign export.
+
+        `ac_sign` loads palette to ANIME_1 (seg 0x08) and texture to ANIME_2 (seg 0x09).
+        Dock / default field signs use an authored bulletin note (not `my_original` slot 2).
+        """
+        paper_tex, paper_pal = encode_bulletin_paper_ci4()
+        tex_name = "bulletin_paper_tex"
+        pal_name = "bulletin_paper_pal"
+        self.segment_palettes[0x08] = paper_pal
+        self.segment_palettes[0x09] = paper_pal
+        self.segment_images[0x09] = SegmentTex(paper_tex, 32, 32, palette=paper_pal)
+        self._segment_offset_names.setdefault(0x08, {})[0] = pal_name
+        self._segment_offset_names.setdefault(0x09, {})[0] = tex_name
+
+    def _kanban_default_paper_tex(self) -> bytes | None:
+        tex, _pal = encode_bulletin_paper_ci4()
+        return tex
+
+    def _kanban_default_paper_palette(self) -> bytes | None:
+        _tex, pal = encode_bulletin_paper_ci4()
+        return pal
+
     def _resolve_dummy_palette(self, seg: int) -> None:
         """Fill anime_N palettes from the current Gfx part, FG plant TLUTs, or structure pal."""
+        if (
+            self.current_prefix in {"obj_s_kanban", "obj_w_kanban"}
+            and seg in self.segment_palettes
+        ):
+            return
         blob, kind = self._pick_dummy_palette()
         if blob is None:
             return
@@ -798,6 +927,16 @@ class TextureBank:
         data = self._image_bytes(state)
         if data is None:
             return None, name, "OPAQUE"
+        gx = gbi_to_gx(state.fmt, state.siz)
+        if self.achd is not None:
+            from .achd import is_field_terrain_texture, maybe_hd_png
+
+            if not is_field_terrain_texture(name, self.current_prefix):
+                hd = maybe_hd_png(self.achd, data, state.width, state.height, gx, pal)
+                if hd is not None:
+                    mode = alpha_mode_for_png(hd)
+                    self._png_cache[key] = (hd, mode)
+                    return hd, name, mode
         try:
             image = decode_gbi_texture(data, state.width, state.height, state.fmt, state.siz, pal)
             image = apply_prim(image, state.prim)

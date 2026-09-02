@@ -16,7 +16,7 @@ WorldObjectRegistry  →  WorldBuilder  →  scene host
 | `WorldObjectRegistry` | One-line `register(kind, scene, place_kind, group)` |
 | `ObjectPlacement` / `BuildingPlacement` | Layout entries inside `WorldData` |
 | Host scene | Thin: `GeneratedVisual` + `InteractVolume` + `get_interactions` / `interact`. Solid hosts size physics from the occupancy footprint (`HostCollision`), not the GLB. |
-| `HostCollision` | Box / cylinder hulls from occupancy for trees, rocks, shops. Houses disable the StaticBody; walk walls come from `StructureOffset` plus-offsets on `FieldCollision`. Door sensors stay on the host. |
+| `HostCollision` | Box / cylinder hulls from occupancy for trees, rocks, and leftover shells. Houses, museum, Able Sisters, post office, Nook shop, and police disable the StaticBody; walk walls come from `StructureOffset` plus-offsets on `FieldCollision`. Door sensors stay on the host. |
 | `Door` | Composable ENTER/SHOP sensor (child of `building`, or own placement) |
 
 **Add a new object**
@@ -50,6 +50,7 @@ The player never switches on type. Verbs live on the host.
 | Able Sisters | Beach row **bz=6** (`T_NEEDLEWORK` / `grd_s_m_ta_*`). FG `NEEDLEWORK_SHOP` is **(9, 4)** on `_1`/`_2` and **(9, 5)** on `_3`. Door verb shop, NW (−1,0), `aNW_actor_ct` −20 X +20 Z |
 | Post / police / well / station | `obj_s_yubinkyoku` (−1,0) / `obj_s_kouban` (3×3 centered) / `obj_s_shrine` (0,−1) / `obj_s_station1` at TRAIN_STATION **(8, 5)** + −20 X |
 | Villager homes | FG **SIGN00–SIGN20** reserves shuffled; SIGN ut must be 1..14. **6** houses (`mNpc_LOOKS_NUM`). House FG on the SIGN unit (`obj_s_house1`, no `actor_ct` shift); 3×3 RSV overwrites trees. New game also places **6** outdoor villager actors (`mNpc_DecideLivingNpcMax`: one starter per looks). Fallback synthetic plots on flats if catalog has no SIGNs |
+| Dock sign | FG **`PORT_SIGN`** (`0x5852`) on `grd_s_m_wf_*` at unit **(8, 7)** on `_1`/`_2`, **(9, 7)** on `_3`. Drawn by **`ac_reserve`** (`arg0 == 0x42`) as seasonal **`obj_{s,w}_attention`** (`obj_*_attentionT_model`) — one-post bulletin with baked paper/tack. Not field `SIGNBOARD`/`obj_*_kanban` (two posts) and not plaza `obj_*_notice`. |
 | Trees / rocks / flowers | FG template copy (`FgCatalog`) at **unit center** (`bg_item` `pos_table` 20+40n GX), then border pull / tanuki path, then fruit/cedar. House build clears the SIGN 3×3 |
 
 Structure FG ids (`HOUSE0`, `SHOP0`, `MUSEUM`, `NEEDLEWORK_SHOP`, …) refine cell offsets when the disc FG catalog is present.
@@ -76,7 +77,9 @@ East is the mirror. The **porch is the SE (west plot) or SW (east plot) cells**,
 
 Villager homes (`aHUS_set_bgOffset`) are a **3×3** around the SIGN unit: south-center cell is all-zero (door), the other eight are offset **7**. Same mechanism, simpler footprint.
 
-Godot: `StructureOffset.apply` writes those 4×4 / 3×3 tables into `FieldCollision` plus-offsets (`keep_h` + count, same as `SetPluss5PointOffset`). `revise_xz` builds the walls. Actor/mesh Y stays acre `keep_h` (`ground_y` ignores plus). House scenes disable their StaticBody; ENTER stays on `InteractVolume`.
+Museum (`aMsm_set_bgOffset`) raises a **7×5** (X −3..3, Z −2..2) around the FG unit to offset **10** — no porch gap; the door stand is `home.z + 120` GX (south of the block). Walk-in enter (`aMsm_check_player`) has **no A button**. Able Sisters (`aNW_set_bgOffset`) and post office (`aPOFF_set_bgOffset`) share a **4×4** around the FG unit (occupancy NW = FG+(−1,0)) with body **13** and open corners; door stand SW of the mesh. Nook shop (`aSHOP_set_bgOffset`) is the same footprint with body **12** and SW door (−50,+50 GX). Police (`aPBOX_set_bgOffset`) is a **3×3** of offset **10** with slate corners; the door stand is SE of home at `+50,+50` GX.
+
+Godot: `StructureOffset.apply` writes those 4×4 / 3×3 / 7×5 tables into `FieldCollision` plus-offsets (`keep_h` + count, same as `SetPluss5PointOffset`). `revise_xz` builds the walls. Actor/mesh Y stays acre `keep_h` (`ground_y` ignores plus). House / museum / Able Sisters / post / shop / police scenes disable their StaticBody; ENTER stays on `InteractVolume` / `Door`.
 
 ## Ground decals
 

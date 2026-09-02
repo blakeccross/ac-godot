@@ -191,6 +191,37 @@ TEST_STATIC = [
         "confident_name": True,
     },
     {
+        ## Field sign board (`ac_sign` / `SIGNBOARD`). Paper is `write_model` + `hakushi_tex`;
+        ## wooden frame is `obj_s_kanban_base_tex` on `obj_sign_s_model`.
+        "asset_id": "obj_s_kanban",
+        "vtx": "obj_s_kanban_v",
+        "gfx": ["write_model", "obj_sign_s_model"],
+        "output": "environment/obj_s_kanban.glb",
+        "confident_name": True,
+    },
+    {
+        "asset_id": "obj_w_kanban",
+        "vtx": "obj_w_kanban_v",
+        "gfx": ["write_model", "obj_sign_w_model"],
+        "output": "environment/obj_w_kanban.glb",
+        "confident_name": True,
+    },
+    {
+        ## Dock `PORT_SIGN` via `ac_reserve` (`obj_*_attentionT_model`), not kanban.
+        "asset_id": "obj_s_attention",
+        "vtx": "obj_s_attention_v",
+        "gfx": ["obj_s_attentionT_model"],
+        "output": "environment/obj_s_attention.glb",
+        "confident_name": True,
+    },
+    {
+        "asset_id": "obj_w_attention",
+        "vtx": "obj_w_attention_v",
+        "gfx": ["obj_w_attentionT_model"],
+        "output": "environment/obj_w_attention.glb",
+        "confident_name": True,
+    },
+    {
         "asset_id": "obj_hole0",
         "vtx": "obj_hole0_v",
         "gfx": ["obj_hole0T_gfx_model"],

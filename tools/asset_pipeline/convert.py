@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .bg_collision import extract_and_write
+from .achd import is_field_terrain_texture, load_achd_pack, maybe_hd_png
 from .bti import bti_to_png
 from .ckf import clear_caches, convert_ckf_model, convert_static_gfx
 from .config import PipelineConfig
@@ -30,6 +31,7 @@ from .texbank import (
     G_IM_SIZ_8b,
     TextureBank,
     decode_gbi_texture,
+    gbi_to_gx,
     image_png_bytes,
 )
 
@@ -135,6 +137,13 @@ BUG_STATIC_NEEDLES = [
 ]
 
 # River / marine / cliff-river acres. Avoid `grd_s_r` (hits `grd_s_rail`) and `grd_s_m` (hits museum `grd_s_mh`).
+## Field sign (`ac_sign`): vtx is `obj_{s,w}_kanban_v`; DLs are `write_model` (paper on
+## seg 0x09) then `obj_sign_{s,w}_model` (wood frame). Blank paper uses `hakushi_tex`.
+KANBAN_SIGN_GFX: dict[str, list[str]] = {
+    "obj_s_kanban": ["write_model", "obj_sign_s_model"],
+    "obj_w_kanban": ["write_model", "obj_sign_w_model"],
+}
+
 WATER_STATIC_NEEDLES = [
     "grd_s_r1",
     "grd_s_r2",
@@ -194,6 +203,16 @@ def _rel_and_map(cfg: PipelineConfig) -> tuple[RelData, list]:
     return RelData(cfg.rel_path), parse_map(cfg.map_path)
 
 
+def _achd(cfg: PipelineConfig):
+    if not cfg.achd_enabled or cfg.achd_root is None:
+        return None
+    return load_achd_pack(cfg.achd_root, cfg.achd_cache)
+
+
+def _texture_bank(cfg: PipelineConfig, rel: RelData, symbols: list) -> TextureBank:
+    return TextureBank(rel, symbols, cfg.extracted_archives, achd=_achd(cfg))
+
+
 def convert_acre_collision(cfg: PipelineConfig) -> dict[str, Any]:
     """Write `grd_*.col.json` sidecars from `data_bgd` without reconverting meshes."""
     rel, symbols = _rel_and_map(cfg)
@@ -205,7 +224,7 @@ def convert_static_only(cfg: PipelineConfig) -> dict[str, Any]:
     """Reconvert static Gfx without wiping cKF / BTI output."""
     results: list[dict[str, Any]] = []
     rel, symbols = _rel_and_map(cfg)
-    bank = TextureBank(rel, symbols, cfg.extracted_archives)
+    bank = _texture_bank(cfg, rel, symbols)
     static_jobs = _static_jobs(symbols)
     for i, item in enumerate(static_jobs, 1):
         record = _convert_static(cfg, rel, symbols, item, bank)
@@ -214,14 +233,18 @@ def convert_static_only(cfg: PipelineConfig) -> dict[str, Any]:
             print(f"  static {i}/{len(static_jobs)}")
     col = _write_acre_collision(cfg, rel, symbols)
     converted = sum(1 for r in results if r["status"] == "converted")
-    return {"results": results, "converted": converted, "acre_collision": col}
+    return {
+        "results": results,
+        "converted": converted,
+        "acre_collision": col,
+    }
 
 
 def convert_ckf_prefixes(cfg: PipelineConfig, prefixes: list[str]) -> dict[str, Any]:
     """Reconvert named cKF skeletons without wiping other generated output."""
     results: list[dict[str, Any]] = []
     rel, symbols = _rel_and_map(cfg)
-    bank = TextureBank(rel, symbols, cfg.extracted_archives)
+    bank = _texture_bank(cfg, rel, symbols)
     names = {s.name for s in symbols}
     wanted = {f"cKF_bs_r_{p}" if not p.startswith("cKF_bs_r_") else p for p in prefixes}
     skels = [s for s in symbols if s.name in wanted]
@@ -250,7 +273,7 @@ def convert_static_prefixes(cfg: PipelineConfig, needles: list[str]) -> dict[str
     """Reconvert static Gfx whose asset_id contains any needle (e.g. palm, cedar)."""
     results: list[dict[str, Any]] = []
     rel, symbols = _rel_and_map(cfg)
-    bank = TextureBank(rel, symbols, cfg.extracted_archives)
+    bank = _texture_bank(cfg, rel, symbols)
     lowered = [n.lower() for n in needles]
     jobs = [
         item
@@ -273,7 +296,7 @@ def convert_test_static_needles(cfg: PipelineConfig, needles: list[str]) -> dict
     """
     results: list[dict[str, Any]] = []
     rel, symbols = _rel_and_map(cfg)
-    bank = TextureBank(rel, symbols, cfg.extracted_archives)
+    bank = _texture_bank(cfg, rel, symbols)
     lowered = [n.lower() for n in needles]
     jobs = [
         item
@@ -292,7 +315,7 @@ def convert_test_set(cfg: PipelineConfig) -> dict[str, Any]:
     results: list[dict[str, Any]] = []
     id_map: dict[str, Any] = {}
     rel, symbols = _rel_and_map(cfg)
-    bank = TextureBank(rel, symbols, cfg.extracted_archives)
+    bank = _texture_bank(cfg, rel, symbols)
     names = {s.name for s in symbols}
 
     for raw in TEST_SKELETONS:
@@ -331,7 +354,7 @@ def convert_all(cfg: PipelineConfig) -> dict[str, Any]:
     id_map: dict[str, Any] = {}
     _reset_staging(cfg)
     rel, symbols = _rel_and_map(cfg)
-    bank = TextureBank(rel, symbols, cfg.extracted_archives)
+    bank = _texture_bank(cfg, rel, symbols)
     names = {s.name for s in symbols}
 
     skels = [s for s in symbols if s.name.startswith("cKF_bs_r_")]
@@ -549,10 +572,34 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
             continue
         if prefix in skel_prefixes:
             continue
+        gfx_names = KANBAN_SIGN_GFX.get(prefix)
+        if gfx_names is not None:
+            if symbol.name in seen_vtx:
+                continue
+            if symbol.obj != "dataobject.obj":
+                continue
+            seen_vtx.add(symbol.name)
+            folder = output_folder_for_static(prefix)
+            jobs.append(
+                {
+                    "asset_id": prefix,
+                    "vtx": symbol.name,
+                    "gfx": list(gfx_names),
+                    "output": f"{folder}/{prefix}.glb",
+                    "confident_name": True,
+                }
+            )
+            continue
         if prefix.endswith("_shadow"):
             # Blob shadows (`*_shadow_v`). Godot uses the sun; DLs are often empty.
             continue
         model_names = sorted(gfx_by_prefix.get(prefix) or model_by_prefix.get(prefix) or [])
+        ## Tree-leaf XLU (`ef_s_cedar_modelT`) shares a prefix with numbered shake/cut DLs
+        ## (`ef_s_cedar3_*`). Export the leaf card only for the base symbol.
+        if prefix.startswith("ef_s_"):
+            preferred = [n for n in (f"{prefix}_modelT", f"{prefix}_model") if n in names]
+            if preferred:
+                model_names = preferred
         # Acre OPA is `*_model`; XLU water/waves live on `*_modelT` (not plant `obj_*T_gfx`).
         if prefix.startswith("grd_"):
             model_t = f"{prefix}_modelT"
@@ -561,6 +608,10 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
         if not model_names:
             continue
         if symbol.name in seen_vtx:
+            continue
+        if symbol.obj != "dataobject.obj":
+            ## Overlay/DOL-local meshes (`tol_sponge_1`, `lat_atena`, `mbg`) are not in
+            ## `foresta.rel` `.data` — only `dataobject.obj` symbols slice reliably.
             continue
         seen_vtx.add(symbol.name)
         folder = output_folder_for_static(prefix)
@@ -618,6 +669,14 @@ def _convert_ckf(cfg: PipelineConfig, rel: RelData, symbols: list, item: dict[st
         record["animations_baked"] = list(model.animations)
         record["textured_parts"] = sum(1 for p in model.parts if p.texture_png)
         _copy_generated(cfg, dest, item["output"])
+    except ValueError as exc:
+        msg = str(exc)
+        if msg.startswith("Meshless cKF") or msg.startswith("Empty cKF"):
+            record["status"] = "skipped"
+            record["error"] = msg
+        else:
+            record["status"] = "error"
+            record["error"] = f"{type(exc).__name__}: {exc}"
     except Exception as exc:  # noqa: BLE001 — report per-asset, keep going
         record["status"] = "error"
         record["error"] = f"{type(exc).__name__}: {exc}"
@@ -682,7 +741,7 @@ def _convert_bti(cfg: PipelineConfig, src_rel: str, dest_rel: str) -> dict[str, 
     try:
         src = cfg.extracted_archives / src_rel
         dest = cfg.converted / dest_rel
-        meta = bti_to_png(src, dest)
+        meta = bti_to_png(src, dest, achd=_achd(cfg))
         record["status"] = "converted"
         record["meta"] = meta
         _copy_generated(cfg, dest, dest_rel)
@@ -721,7 +780,7 @@ def _convert_all_bti(cfg: PipelineConfig) -> list[dict[str, Any]]:
                 subprocess.check_call([str(dtk), "yaz0", "decompress", str(path), "-o", str(tmp)])
             else:
                 tmp.write_bytes(raw)
-            meta = bti_to_png(tmp, dest)
+            meta = bti_to_png(tmp, dest, achd=_achd(cfg))
             tmp.unlink(missing_ok=True)
             record["status"] = "converted"
             record["meta"] = meta
@@ -932,12 +991,21 @@ def _png_record(
         "error": None,
     }
     try:
-        image = decode_gbi_texture(data, width, height, fmt, siz, pal if fmt == G_IM_FMT_CI else None)
         dest = cfg.converted / dest_rel
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(image_png_bytes(image))
+        gx = gbi_to_gx(fmt, siz)
+        pack = _achd(cfg)
+        hd = None
+        if pack is not None and not is_field_terrain_texture(source):
+            hd = maybe_hd_png(pack, data, width, height, gx, pal if fmt == G_IM_FMT_CI else None)
+        if hd is not None:
+            dest.write_bytes(hd)
+            record["meta"] = {"width": width, "height": height, "fmt": fmt, "siz": siz, "achd": True}
+        else:
+            image = decode_gbi_texture(data, width, height, fmt, siz, pal if fmt == G_IM_FMT_CI else None)
+            dest.write_bytes(image_png_bytes(image))
+            record["meta"] = {"width": width, "height": height, "fmt": fmt, "siz": siz, "achd": False}
         record["status"] = "converted"
-        record["meta"] = {"width": width, "height": height, "fmt": fmt, "siz": siz}
         _copy_generated(cfg, dest, dest_rel)
     except Exception as exc:  # noqa: BLE001
         record["status"] = "error"
@@ -952,7 +1020,14 @@ def _write_acre_collision(cfg: PipelineConfig, rel: RelData, symbols: list) -> d
 
 
 def _write_report(cfg: PipelineConfig, results: list[dict[str, Any]], id_map: dict[str, Any]) -> dict[str, Any]:
-    report = {"transforms": TRANSFORMS, "results": results}
+    report: dict[str, Any] = {"transforms": TRANSFORMS, "results": results}
+    pack = _achd(cfg)
+    if pack is not None:
+        report["achd"] = pack.stats()
+        print(
+            f"  achd hits={pack.hits} misses={pack.misses} "
+            f"decode_errors={pack.decode_errors} indexed={pack.size}"
+        )
     cfg.manifests.mkdir(parents=True, exist_ok=True)
     (cfg.manifests / "conversion_report.json").write_text(json.dumps(report, indent=2) + "\n")
     (cfg.manifests / "id_map.json").write_text(json.dumps(id_map, indent=2, sort_keys=True) + "\n")

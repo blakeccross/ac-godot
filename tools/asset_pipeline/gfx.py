@@ -21,6 +21,7 @@ from .texbank import (
 )
 
 G_VTX = 0x01
+G_TEXTURE = 0xD7
 G_TRI1 = 0x05
 G_TRI2 = 0x06
 G_TRIN = 0x09
@@ -125,8 +126,19 @@ def water_surface_kind(*names: str) -> str:
         return "splash"
     if "wave" in blob:
         return "ocean"
-    if "water" in blob and "waterfall" not in blob:
+    ## Bound tile symbols only. Segment resolution can attach unrelated `*_model` Gfx
+    ## names (e.g. shrine trunk tile1 → `obj_s_shrine_water_model`) and falsely match "water".
+    tex_blob = " ".join(
+        n for n in names if "_tex" in n.lower() or "_pic_" in n.lower()
+    ).lower()
+    if tex_blob and "water" in tex_blob and "waterfall" not in tex_blob:
         return "river"
+    part_blob = " ".join(
+        n for n in names if n.lower().endswith("_model") or n.lower().endswith("_modelt")
+    ).lower()
+    if part_blob and "water" in part_blob and "waterfall" not in part_blob:
+        if "trunk" not in part_blob:
+            return "river"
     return ""
 
 
@@ -679,11 +691,18 @@ def parse_gfx(
             if cmd == G_MTX:
                 if (w1 >> 24) == SEG_MTX:
                     current_mtx = (w1 & 0xFFFFFF) // MTX_STRIDE
+            elif cmd == G_TEXTURE:
+                ## gsSPTexture — state only; no geometry.
+                pass
             elif cmd == G_VTX:
                 n = _bits(w0, 12, 8)
                 vn = _bits(w0, 1, 7)
                 v0 = vn - n
-                if vtx_base_addr is not None:
+                seg = w1 >> 24
+                if seg in range(0x08, 0x10):
+                    ## Runtime `gSPSegment(anime_N_txt, …)` — DL stores 0x08xxxxxx.
+                    src0 = (w1 & 0xFFFFFF) // 16
+                elif vtx_base_addr is not None:
                     src0 = (w1 - vtx_base_addr) // 16
                 else:
                     src0 = vtx_cursor

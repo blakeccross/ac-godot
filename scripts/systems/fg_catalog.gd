@@ -50,6 +50,8 @@ const ITEM_SIGN20 := 0x5824
 const ITEM_WISHING_WELL := 0x5825
 const ITEM_MUSEUM := 0x584A
 const ITEM_NEEDLEWORK_SHOP := 0x584D
+## Wharf dock sign (`PORT_SIGN` / `m_name_table.h` STRUCTURE_START + 82).
+const ITEM_PORT_SIGN := 0x5852
 const ITEM_WATERFALL_SOUTH := 0x580D
 const ITEM_WATERFALL_EAST := 0x580E
 const ITEM_WATERFALL_WEST := 0x580F
@@ -196,6 +198,9 @@ static func placement_for_item(item_id: int) -> Dictionary:
 				"label": "Museum",
 				"foot": Vector2i(2, 2),
 				"nw_off": Vector2i(0, 0),
+				## Actor sits on the FG unit center (no `actor_ct` shift). Occupancy 2×2 NW is
+				## that unit, so footprint center is +0.5,+0.5 — pull the mesh back.
+				"actor_shift": Vector2(-0.5, -0.5),
 			}
 		ITEM_NEEDLEWORK_SHOP:
 			return {
@@ -206,6 +211,14 @@ static func placement_for_item(item_id: int) -> Dictionary:
 				"foot": Vector2i(2, 2),
 				"nw_off": Vector2i(-1, 0),
 				"door_verb": &"shop",
+			}
+		ITEM_PORT_SIGN:
+			return {
+				"kind": &"sign",
+				## `ac_reserve` draws `obj_{s,w}_attentionT_model` when arg0 == PORT_SIGN−SIGN00 (0x42).
+				"visual": &"DOCK_SIGN",
+				"id": &"dock_sign",
+				"message": "Dock",
 			}
 		ITEM_WATERFALL_SOUTH:
 			return {"kind": &"waterfall", "visual": &"obj_fallS"}

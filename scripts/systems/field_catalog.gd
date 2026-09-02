@@ -319,8 +319,10 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 			palm.append_array(_seasonal_env_existing("obj_%s_palm5_coco"))
 			return palm
 		&"obj_s_kanban", &"SIGNBOARD":
-			## Field sign is `obj_s_kanban` (`ac_sign`). Pipeline currently exports shop kanban.
-			return _existing(["environment/obj_s_kanban.glb", "environment/obj_shop_kanban.glb"])
+			return _seasonal_env_existing("obj_%s_kanban")
+		&"dock_sign", &"DOCK_SIGN", &"obj_s_attention":
+			## `PORT_SIGN` → `ac_reserve` arg0 0x42 → `obj_{s,w}_attentionT_model` (one post).
+			return _seasonal_env_existing("obj_%s_attention")
 		&"obj_flower_a", &"FLOWER_PANSIES0":
 			return _existing(["environment/flowers/obj_flower_a.glb"])
 		&"obj_flower_b", &"FLOWER_PANSIES1":
