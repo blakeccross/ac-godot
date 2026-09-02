@@ -191,17 +191,18 @@ TEST_STATIC = [
         "confident_name": True,
     },
     {
-        ## Field sign board (`ac_sign` / `SIGNBOARD`). Wooden frame is in `obj_s_kanban_base_tex`.
+        ## Field sign board (`ac_sign` / `SIGNBOARD`). Paper is `write_model` + `hakushi_tex`;
+        ## wooden frame is `obj_s_kanban_base_tex` on `obj_sign_s_model`.
         "asset_id": "obj_s_kanban",
         "vtx": "obj_s_kanban_v",
-        "gfx": ["obj_sign_s_model"],
+        "gfx": ["write_model", "obj_sign_s_model"],
         "output": "environment/obj_s_kanban.glb",
         "confident_name": True,
     },
     {
         "asset_id": "obj_w_kanban",
         "vtx": "obj_w_kanban_v",
-        "gfx": ["obj_sign_w_model"],
+        "gfx": ["write_model", "obj_sign_w_model"],
         "output": "environment/obj_w_kanban.glb",
         "confident_name": True,
     },

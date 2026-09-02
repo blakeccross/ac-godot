@@ -100,7 +100,7 @@ From `m_name_table.h` / `m_bg_type.h` / `ac_sign`. Summer prefix `obj_s_`; winte
 | Police box | `obj_s_kouban` | `obj_s_kouban.glb` |
 | Wishing well | `obj_s_shrine` | `obj_s_shrine.glb` |
 | Train station | `obj_s_station1` | `obj_s_station1.glb` |
-| `SIGNBOARD` / `ac_sign` | Field sign (`obj_s_kanban`) | `obj_{s,w}_kanban.glb` via `obj_sign_{s,w}_model` |
+| `SIGNBOARD` / `ac_sign` | Field sign (`obj_s_kanban`) | `obj_{s,w}_kanban.glb` via `write_model` + `obj_sign_{s,w}_model` |
 | `ITM_FOOD_APPLE` | Dropped apple | `obj_item_apple_tex.png` on the pickup |
 | `int_sum_chair01` | Wood chair | `int_sum_chair01.glb` |
 | Villager | Species GLB (`squ_1`, `cat_1`, …) + shared `npc_1` clips when converted; placeholder capsule otherwise | `GeneratedVisual.attach_villager` / `FieldCatalog.villager_path` |

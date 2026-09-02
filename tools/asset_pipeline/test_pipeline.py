@@ -150,14 +150,15 @@ class PrefixOwnershipTests(unittest.TestCase):
         symbols = [
             _sym("obj_s_kanban_v"),
             _sym("obj_w_kanban_v"),
+            _sym("write_model"),
             _sym("obj_sign_s_model"),
             _sym("obj_sign_w_model"),
             _sym("obj_shop_kanban_v"),
             _sym("obj_shop_kanbanT_gfx_model"),
         ]
         jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
-        self.assertEqual(jobs["obj_s_kanban"]["gfx"], ["obj_sign_s_model"])
-        self.assertEqual(jobs["obj_w_kanban"]["gfx"], ["obj_sign_w_model"])
+        self.assertEqual(jobs["obj_s_kanban"]["gfx"], ["write_model", "obj_sign_s_model"])
+        self.assertEqual(jobs["obj_w_kanban"]["gfx"], ["write_model", "obj_sign_w_model"])
         self.assertEqual(jobs["obj_shop_kanban"]["gfx"], ["obj_shop_kanbanT_gfx_model"])
 
     def test_explicit_entry_survives_unmatchable_gfx_name(self) -> None:

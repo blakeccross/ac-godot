@@ -135,10 +135,11 @@ BUG_STATIC_NEEDLES = [
 ]
 
 # River / marine / cliff-river acres. Avoid `grd_s_r` (hits `grd_s_rail`) and `grd_s_m` (hits museum `grd_s_mh`).
-## Field sign (`ac_sign`): vtx is `obj_{s,w}_kanban_v`; DL is `obj_sign_{s,w}_model`.
-KANBAN_SIGN_GFX: dict[str, str] = {
-    "obj_s_kanban": "obj_sign_s_model",
-    "obj_w_kanban": "obj_sign_w_model",
+## Field sign (`ac_sign`): vtx is `obj_{s,w}_kanban_v`; DLs are `write_model` (paper on
+## seg 0x09) then `obj_sign_{s,w}_model` (wood frame). Blank paper uses `hakushi_tex`.
+KANBAN_SIGN_GFX: dict[str, list[str]] = {
+    "obj_s_kanban": ["write_model", "obj_sign_s_model"],
+    "obj_w_kanban": ["write_model", "obj_sign_w_model"],
 }
 
 WATER_STATIC_NEEDLES = [
@@ -555,8 +556,8 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
             continue
         if prefix in skel_prefixes:
             continue
-        gfx_name = KANBAN_SIGN_GFX.get(prefix)
-        if gfx_name is not None:
+        gfx_names = KANBAN_SIGN_GFX.get(prefix)
+        if gfx_names is not None:
             if symbol.name in seen_vtx:
                 continue
             if symbol.obj != "dataobject.obj":
@@ -567,7 +568,7 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
                 {
                     "asset_id": prefix,
                     "vtx": symbol.name,
-                    "gfx": [gfx_name],
+                    "gfx": list(gfx_names),
                     "output": f"{folder}/{prefix}.glb",
                     "confident_name": True,
                 }

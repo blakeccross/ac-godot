@@ -561,6 +561,17 @@ class TextureBank:
                 bind_floor=is_floor or not is_wall,
                 bind_wall=is_wall or not is_floor,
             )
+        if prefix in {"obj_s_kanban", "obj_w_kanban"}:
+            ## `ac_sign` binds `hakushi_tex` / `hakushi_pal` to anime seg 0x09 for
+            ## `write_model` (blank bulletin paper). Player designs swap at runtime.
+            hakushi_tex = self._symbol_bytes("hakushi_tex")
+            hakushi_pal = self._symbol_bytes("hakushi_pal")
+            if hakushi_tex and hakushi_pal:
+                self.segment_images[0x09] = SegmentTex(
+                    hakushi_tex, 32, 32, palette=hakushi_pal
+                )
+                self.segment_palettes[0x09] = hakushi_pal
+                self._segment_offset_names.setdefault(0x09, {})[0] = "hakushi_tex"
 
     def _find_symbol(self, name: str) -> MapSymbol | None:
         return self.by_name.get(name)
