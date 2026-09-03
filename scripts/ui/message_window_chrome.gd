@@ -156,9 +156,7 @@ func _load_first_texture(paths: Array[String]) -> Texture2D:
 
 func _apply_text_theme() -> void:
 	_body.add_theme_color_override("font_color", BODY_TEXT)
-	_body.add_theme_color_override("font_outline_color", BODY_OUTLINE)
 	_name.add_theme_color_override("font_color", NAME_TEXT)
-	_name.add_theme_color_override("font_outline_color", NAME_OUTLINE)
 	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
@@ -210,9 +208,6 @@ func _layout() -> void:
 func _apply_font(label: Label, font_px: float, pitch: float) -> void:
 	var size_px := maxi(1, int(round(font_px)))
 	label.add_theme_font_size_override("font_size", size_px)
-	label.add_theme_constant_override(
-		"outline_size", maxi(1, int(round(OUTLINE_PX * font_px / BODY_FONT_PX)))
-	)
 	var font: Font = _condensed_font(label, size_px)
 	if font != null:
 		label.add_theme_font_override("font", font)

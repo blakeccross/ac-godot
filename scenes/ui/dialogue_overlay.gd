@@ -3,6 +3,7 @@ extends CanvasLayer
 ## Modal talk window (`m_msg` appear/normal/cursor) drawn by `MessageWindowChrome`.
 
 signal closed
+signal event_fired(event: Dictionary)
 
 const CHARS_PER_SEC := 42.0
 const FAST_SCALE := 8.0
@@ -76,6 +77,7 @@ func play(
 	_runner.line_shown.connect(_on_line)
 	_runner.choices_shown.connect(_on_choices)
 	_runner.finished.connect(_on_finished)
+	_runner.event_fired.connect(_on_runner_event)
 	_open = true
 	_root.visible = true
 	_chrome.set_speaker(ctx.speaker_name if ctx != null else "")
@@ -124,6 +126,12 @@ func _disconnect_runner() -> void:
 		_runner.choices_shown.disconnect(_on_choices)
 	if _runner.finished.is_connected(_on_finished):
 		_runner.finished.disconnect(_on_finished)
+	if _runner.event_fired.is_connected(_on_runner_event):
+		_runner.event_fired.disconnect(_on_runner_event)
+
+
+func _on_runner_event(event: Dictionary) -> void:
+	event_fired.emit(event)
 
 
 func _process(delta: float) -> void:

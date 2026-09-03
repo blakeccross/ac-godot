@@ -35,6 +35,25 @@ func test_intro_scene_loads_and_has_stage_hosts() -> void:
 	assert_that(scene.get_node_or_null("%MissingBanner")).is_not_null()
 
 
+func test_window_scenery_fits_and_scrolls() -> void:
+	var packed: PackedScene = load("res://scenes/ui/intro_train.tscn")
+	var scene: Node3D = auto_free(packed.instantiate()) as Node3D
+	add_child(scene)
+	await get_tree().process_frame
+	var win: Node3D = scene.get_node("%TrainCar/WindowScenery/GeneratedVisual") as Node3D
+	assert_that(win).is_not_null()
+	assert_float(win.scale.x).is_equal_approx(FieldCatalog.train_window_uniform_scale(), 0.0001)
+	assert_that(win.find_child("rom_train_out", true, false)).is_not_null()
+	var car: Node = scene.get_node("%TrainCar")
+	assert_that(car.get("_tree_mats")).is_not_null()
+	var tree_mats: Array = car.get("_tree_mats") as Array
+	assert_int(tree_mats.size()).is_greater(0)
+	var before: Vector3 = (tree_mats[0] as StandardMaterial3D).uv1_offset
+	await get_tree().create_timer(0.1).timeout
+	var after: Vector3 = (tree_mats[0] as StandardMaterial3D).uv1_offset
+	assert_float(after.x).is_greater(before.x)
+
+
 func test_rover_intro_has_stage_cue_nodes() -> void:
 	var data: DialogueData = DialogueCatalog.conversation(&"rover_intro")
 	assert_that(data).is_not_null()

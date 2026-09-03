@@ -69,9 +69,9 @@ func test_museum_complete_instances_room_scenes() -> void:
 		"museum_fish",
 	]:
 		assert_that(rooms.get_node_or_null(wing)).is_not_null()
-	## Painting exhibits live under that room scene only.
+	## Painting exhibits live under that room scene only; entrance hosts Blathers.
 	assert_int(rooms.get_node("museum_painting/Furniture").get_child_count()).is_greater(0)
-	assert_int(rooms.get_node("museum_entrance/Furniture").get_child_count()).is_equal(0)
+	assert_that(rooms.get_node_or_null("museum_entrance/Furniture/Blathers")).is_not_null()
 	## Each wing owns Terrain shell colliders after populate.
 	assert_int(_static_body_count(rooms.get_node("museum_painting/Terrain"))).is_greater(3)
 	assert_int(_static_body_count(rooms.get_node("museum_fossil/Terrain"))).is_greater(3)

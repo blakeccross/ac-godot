@@ -30,6 +30,7 @@ var _intro: IntroSequence = IntroSequence.new()
 var _stage: IntroTrainStage = IntroTrainStage.new()
 var _rover_look: IntroTrainRoverLook = IntroTrainRoverLook.new()
 var _rover_face: NpcFace = NpcFace.new()
+var _rover_feel: NpcFeelGlyphs
 var _ctx: DialogueContext
 var _finishing: bool = false
 var _dialogue_started: bool = false
@@ -55,10 +56,15 @@ func _ready() -> void:
 	_intro.cancelled.connect(_on_intro_cancelled)
 	_stage.ready_for_talk.connect(_on_ready_for_talk)
 	_stage.stage_changed.connect(_on_stage_changed)
+	if _dialogue.has_signal("event_fired") and not _dialogue.event_fired.is_connected(_on_dialogue_event):
+		_dialogue.event_fired.connect(_on_dialogue_event)
 	if not get_tree().process_frame.is_connected(_apply_rover_look):
 		get_tree().process_frame.connect(_apply_rover_look)
 	if _rover_host.has_signal("visual_ready"):
 		_rover_host.visual_ready.connect(_bind_rover_face)
+	var existing: Node3D = _rover_host.get_node_or_null("GeneratedVisual") as Node3D
+	if existing != null:
+		_bind_rover_face(existing)
 	_bootstrap_stage()
 
 
@@ -174,12 +180,53 @@ func _finish_seated_preview() -> void:
 
 func _bind_rover_face(rover_visual: Node3D) -> void:
 	_rover_face.bind(rover_visual, &"xct")
+	## Entrance `open_d1` holds eye3 (stern) for most of the walk-in.
+	if _stage.action == IntroTrainStage.Action.ENTER:
+		_rover_face.set_emote(NpcFaceAnim.Emote.ANGRY)
+	_ensure_rover_feel(rover_visual)
+
+
+func _ensure_rover_feel(rover_visual: Node3D) -> void:
+	if _rover_feel != null and is_instance_valid(_rover_feel):
+		return
+	_rover_feel = NpcFeelGlyphs.new()
+	_rover_feel.name = "FeelGlyphs"
+	_rover_host.add_child(_rover_feel)
+	var lift: float = 1.15
+	if rover_visual != null:
+		var aabb := _local_visual_aabb(rover_visual)
+		if aabb.size.y > 0.1:
+			lift = aabb.position.y + aabb.size.y * 0.92
+	_rover_feel.set_head_lift(lift)
+
+
+func _local_visual_aabb(root: Node3D) -> AABB:
+	var merged := AABB()
+	var first := true
+	for node: Node in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi == null or mi.mesh == null:
+			continue
+		var local: AABB = _rover_host.global_transform.affine_inverse() * (mi.global_transform * mi.mesh.get_aabb())
+		if first:
+			merged = local
+			first = false
+		else:
+			merged = merged.merge(local)
+	return merged
 
 
 func _on_stage_changed(action: StringName) -> void:
-	if action == &"seated":
-		IntroTrainPresentation.apply_daylight(_world_env, _train_car)
-		_sleep_npc.realign()
+	match action:
+		&"enter":
+			## `npc_1_open_d1` fixed_pattern_seq parks on eye3 for the door walk-in.
+			_rover_face.set_emote(NpcFaceAnim.Emote.ANGRY)
+		&"approach", &"talk":
+			if _rover_face.current_emote() == NpcFaceAnim.Emote.ANGRY:
+				_rover_face.set_emote(NpcFaceAnim.Emote.NORMAL)
+		&"seated":
+			IntroTrainPresentation.apply_daylight(_world_env, _train_car)
+			_sleep_npc.realign()
 
 
 func _on_ready_for_talk() -> void:
@@ -196,12 +243,9 @@ func _start_dialogue() -> void:
 	_ctx.speaker_name = "Rover"
 	_ctx.vars = {}
 	_ctx.vars["answer_flags"] = 0
+	## Overlay forwards `event_fired` before `start()`, so manpu on the first line lands.
 	if _dialogue.has_method("play"):
 		_dialogue.play(data, _ctx, null, _dialogue_advance_gate)
-	var runner: DialogueRunner = _dialogue.runner() if _dialogue.has_method("runner") else null
-	if runner != null:
-		if not runner.event_fired.is_connected(_on_dialogue_event):
-			runner.event_fired.connect(_on_dialogue_event)
 
 
 func _dialogue_advance_gate(from_node: StringName, to_node: StringName) -> bool:
@@ -221,6 +265,44 @@ func _on_dialogue_event(event: Dictionary) -> void:
 			_stage.end_phone_talk()
 		"rover_return":
 			_stage.cue_return_sit()
+		"manpu", "set_emote":
+			_apply_rover_manpu(event)
+
+
+func _apply_rover_manpu(event: Dictionary) -> void:
+	var op := String(event.get("op", event.get("type", "")))
+	var name := str(event.get("name", event.get("manpu", event.get("emote", ""))))
+	if name.is_empty() and event.has("code"):
+		name = str(event.get("code"))
+	if name.is_empty():
+		return
+	if op == "set_emote":
+		_rover_face.set_emote(_emote_name(name))
+		return
+	_stage.cue_manpu(name)
+	_rover_face.set_emote(NpcManpu.emote_for(name), NpcManpu.mouth_hold_for(name))
+	if _rover_feel == null:
+		_ensure_rover_feel(_rover_host.get_node_or_null("GeneratedVisual") as Node3D)
+	if _rover_feel != null:
+		_rover_feel.play_for_manpu(name)
+
+
+func _emote_name(name: String) -> NpcFaceAnim.Emote:
+	match name.strip_edges().to_lower():
+		"laugh", "happy", "fun", "smile", "niko":
+			return NpcFaceAnim.Emote.LAUGH
+		"angry", "mad", "punpun", "musu", "hate":
+			return NpcFaceAnim.Emote.ANGRY
+		"sad", "komari", "gloomy":
+			return NpcFaceAnim.Emote.SAD
+		"surprise", "shock", "gaaan", "hirameki":
+			return NpcFaceAnim.Emote.SURPRISE
+		"cry":
+			return NpcFaceAnim.Emote.CRY
+		"sleepy":
+			return NpcFaceAnim.Emote.SLEEPY
+		_:
+			return NpcManpu.emote_for(name)
 
 
 func _on_prompt(kind: StringName) -> void:

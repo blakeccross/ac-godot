@@ -511,8 +511,11 @@ static func _register_public() -> void:
 static func _register_museum() -> void:
 	## Pipeline shells keep baked TEX_EDGE textures — no wallpaper/carpet bank.
 	## Inner sizes match floor prims at acre scale (`rom_museum*_floor*`).
+	## Floor prim AABB at acre scale: X cells 1–11, Z cells 3–11 → (1,3)+(10,8).
+	## Old (3,3)+(10,10) plus the one-cell wall inset put west collision too far in
+	## and left a gap past the east visual wall.
 	var entrance := _public(
-		&"museum_entrance", Room.Kind.MUSEUM, "Museum", Vector2i(3, 3), Vector2i(10, 10), 9, 17
+		&"museum_entrance", Room.Kind.MUSEUM, "Museum", Vector2i(1, 3), Vector2i(10, 8), 9, 17
 	)
 	entrance.linked_rooms = [
 		&"museum_painting", &"museum_fossil", &"museum_insect", &"museum_fish"

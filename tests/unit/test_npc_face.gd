@@ -72,6 +72,62 @@ func test_long_frame_hitch_does_not_replay_the_whole_gap() -> void:
 	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_SHUT)
 
 
+func test_mood_maps_onto_wait_pose_emotes() -> void:
+	assert_int(NpcFaceAnim.emote_from_mood(VillagerState.Mood.NORMAL)).is_equal(
+		NpcFaceAnim.Emote.NORMAL
+	)
+	assert_int(NpcFaceAnim.emote_from_mood(VillagerState.Mood.HAPPY)).is_equal(
+		NpcFaceAnim.Emote.LAUGH
+	)
+	assert_int(NpcFaceAnim.emote_from_mood(VillagerState.Mood.ANGRY)).is_equal(
+		NpcFaceAnim.Emote.ANGRY
+	)
+	assert_int(NpcFaceAnim.emote_from_mood(VillagerState.Mood.SAD)).is_equal(
+		NpcFaceAnim.Emote.SAD
+	)
+	assert_int(NpcFaceAnim.emote_from_mood(VillagerState.Mood.SLEEPY)).is_equal(
+		NpcFaceAnim.Emote.SLEEPY
+	)
+
+
+func test_emotion_holds_use_authored_eye_frames() -> void:
+	var face := NpcFaceAnim.new()
+	face.set_emote(NpcFaceAnim.Emote.ANGRY)
+	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_ANGRY)
+	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_ANGRY_SHUT)
+	_run(face, 120, false)
+	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_ANGRY)
+
+	face.set_emote(NpcFaceAnim.Emote.SAD)
+	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_SAD)
+
+	face.set_emote(NpcFaceAnim.Emote.LAUGH)
+	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_LAUGH)
+
+	face.set_emote(NpcFaceAnim.Emote.SURPRISE)
+	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_SURPRISE)
+
+	face.set_emote(NpcFaceAnim.Emote.CRY)
+	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_CRY)
+
+	face.set_emote(NpcFaceAnim.Emote.SLEEPY)
+	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_SHUT)
+
+
+func test_angry_mouth_flaps_on_emotion_bank_while_uttering() -> void:
+	var face := NpcFaceAnim.new()
+	face.set_emote(NpcFaceAnim.Emote.ANGRY)
+	var counts: Dictionary = _run(face, 300, true)
+	var moved: bool = (
+		counts["mouth"].has(NpcFaceAnim.MOUTH_ANGRY_SMALL)
+		or counts["mouth"].has(NpcFaceAnim.MOUTH_ANGRY_OPEN)
+		or counts["mouth"].has(NpcFaceAnim.MOUTH_ANGRY_SHUT)
+	)
+	assert_bool(moved).is_true()
+	_run(face, 10, false)
+	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_ANGRY_SHUT)
+
+
 func test_frame_paths_follow_the_faces_pipeline_layout() -> void:
 	assert_str(NpcFace.frame_path(&"xct", "eye", 0)).is_equal(
 		"res://assets/generated/characters/faces/xct_eye0.png"
@@ -99,3 +155,42 @@ func test_mirror_expand_duplicates_half_face_for_gx_mirror() -> void:
 	assert_int(out.get_width()).is_equal(64)
 	assert_that(out.get_pixel(4, 8)).is_equal(Color(1, 0, 0, 1))
 	assert_that(out.get_pixel(59, 8)).is_equal(Color(1, 0, 0, 1))
+
+
+func test_achd_mirrored_target_gets_gx_mirror_not_a_stretch() -> void:
+	## Rover's baked eye quad is 512×128 (8× of 64×16). Swapping must mirror the
+	## 32×16 half first — a plain resize left only the left eye stretched.
+	var face := NpcFace.new()
+	var half := Image.create(32, 16, false, Image.FORMAT_RGBA8)
+	half.fill(Color(0, 0, 0, 0))
+	half.set_pixel(2, 4, Color(0, 1, 0, 1))
+	var tex := ImageTexture.create_from_image(half)
+	var out: Texture2D = face._mirror_expand_to(tex, Vector2i(512, 128))
+	var img: Image = out.get_image()
+	assert_int(img.get_width()).is_equal(512)
+	assert_int(img.get_height()).is_equal(128)
+	## Pixel (2,4) scales ×8 → (16,32); mirror of that in 64-space is x=61 → (488,32).
+	assert_that(img.get_pixel(16, 32)).is_equal(Color(0, 1, 0, 1))
+	assert_that(img.get_pixel(488, 32)).is_equal(Color(0, 1, 0, 1))
+
+
+func test_face_quad_accepts_achd_upscaled_eye_sizes() -> void:
+	## Native CI4, GX_MIRROR bake, and ACHD 8× of 32×16.
+	var native := ImageTexture.create_from_image(Image.create(32, 16, false, Image.FORMAT_RGBA8))
+	var mirrored := ImageTexture.create_from_image(Image.create(64, 16, false, Image.FORMAT_RGBA8))
+	var achd := ImageTexture.create_from_image(Image.create(256, 128, false, Image.FORMAT_RGBA8))
+	var body := ImageTexture.create_from_image(Image.create(128, 128, false, Image.FORMAT_RGBA8))
+	assert_bool(NpcFace._is_face_quad(native)).is_true()
+	assert_bool(NpcFace._is_face_quad(mirrored)).is_true()
+	assert_bool(NpcFace._is_face_quad(achd)).is_true()
+	assert_bool(NpcFace._is_face_quad(body)).is_false()
+
+
+func test_manpu_smile_parks_mouth_open() -> void:
+	assert_int(NpcManpu.mouth_hold_for("smile1")).is_equal(NpcFaceAnim.MOUTH_OPEN)
+	assert_int(NpcManpu.mouth_hold_for("gaaan1")).is_equal(NpcFaceAnim.MOUTH_OPEN)
+	assert_int(NpcManpu.mouth_hold_for("reset")).is_equal(NpcFaceAnim.MOUTH_SHUT)
+	var face := NpcFaceAnim.new()
+	face.set_emote(NpcFaceAnim.Emote.LAUGH, NpcFaceAnim.MOUTH_OPEN)
+	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_LAUGH)
+	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_OPEN)

@@ -286,12 +286,26 @@ func test_room_trim_is_not_wallpaper() -> void:
 	assert_that(GeneratedVisual._classify_room_surface("rom_tailor rom_tailor_floorA_tex")).is_equal(&"")
 
 
+func test_vertex_shade_material_multiplies_unshaded() -> void:
+	## Museum / house walls: TEXEL0 × SHADE with G_LIGHTING off.
+	var std := StandardMaterial3D.new()
+	std.set_meta("extras", {"vertex_shade": true})
+	var mi := MeshInstance3D.new()
+	mi.mesh = BoxMesh.new()
+	assert_bool(GeneratedVisual._is_vertex_shade_surface(mi, 0, std)).is_true()
+	GeneratedVisual._apply_vertex_shade_material(std)
+	assert_bool(std.vertex_color_use_as_albedo).is_true()
+	assert_that(std.shading_mode).is_equal(BaseMaterial3D.SHADING_MODE_UNSHADED)
+	mi.free()
+
+
 func test_museum_uses_pipeline_shells() -> void:
 	var entrance: Room = InteriorCatalog.room_template(&"museum_entrance")
 	assert_bool(entrance.shell_ids.has("rom_museum1")).is_true()
 	assert_that(entrance.wall_id).is_equal(&"")
 	assert_that(entrance.floor_id).is_equal(&"")
-	assert_that(entrance.inner_size).is_equal(Vector2i(10, 10))
+	assert_that(entrance.inner_origin).is_equal(Vector2i(1, 3))
+	assert_that(entrance.inner_size).is_equal(Vector2i(10, 8))
 	var painting: Room = InteriorCatalog.room_template(&"museum_painting")
 	assert_bool(painting.shell_ids.has("rom_museum3")).is_true()
 	assert_that(painting.inner_size).is_equal(Vector2i(14, 12))

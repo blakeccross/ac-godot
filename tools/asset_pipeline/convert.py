@@ -600,11 +600,17 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
             preferred = [n for n in (f"{prefix}_modelT", f"{prefix}_model") if n in names]
             if preferred:
                 model_names = preferred
-        # Acre OPA is `*_model`; XLU water/waves live on `*_modelT` (not plant `obj_*T_gfx`).
-        if prefix.startswith("grd_"):
+        # Acre / indoor-shell OPA is `*_model`; XLU (water, museum mado, train glass)
+        # lives on `*_modelT` (not plant `obj_*T_gfx`).
+        if prefix.startswith("grd_") or prefix.startswith("rom_"):
             model_t = f"{prefix}_modelT"
             if model_t in names and model_t not in model_names:
                 model_names.append(model_t)
+        ## Feel / particle cards are often XLU-only (`ef_warau01_00_modelT`, `ef_ha01_00_modelT`).
+        if not model_names and prefix.startswith("ef_"):
+            model_t = f"{prefix}_modelT"
+            if model_t in names:
+                model_names = [model_t]
         if not model_names:
             continue
         if symbol.name in seen_vtx:

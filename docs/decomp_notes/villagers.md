@@ -37,7 +37,7 @@ The field type is a **step machine**, not a single wander loop: leave house (hid
 
 **Talk** is a higher-priority action (`aNPC_ACT_TALK`), not a new schedule type: think yields, they turn to the player, stand until the talk demo ends, then wander resumes. The table can be **forced** for a timer (events). `is_home` on `Animal_c` tracks whether they are inside.
 
-Friendship changes on talk, mail, quests, and annoyances (patience: mildly annoyed / annoyed / normal). Mood (`mNpc_FEEL_*`: normal, happy, angry, sad, sleepy, pitfall) lasts for a `mood_time`. Inter-villager relations are a 15-byte matrix starting at 128 (neutral).
+Friendship changes on talk, mail, quests, and annoyances (patience: mildly annoyed / annoyed / normal). Mood (`mNpc_FEEL_*`: normal, happy, angry, sad, sleepy, pitfall) lasts for a `mood_time`. Inter-villager relations are a 15-byte matrix starting at 128 (neutral). Face texture swaps follow mood wait poses: happy → laugh eyes (`eye5`), angry → `eye3` + angry mouth bank, sad → `eye4`, sleepy → shut eyes; normal blinks on `eye0..2`. Frames are `{species}_eye0..7` / `_mouth0..5` from `--kind faces`.
 
 Move-out: `removing`, `remove_animal_idx` on save, minimum days before force removal (`mNpc_MINIMUM_DAYS_BEFORE_FORCE_REMOVAL` 10). Special NPCs use id type `0xD000`.
 

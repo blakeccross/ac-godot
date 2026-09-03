@@ -240,7 +240,8 @@ def _bake_message_shapes(
                 scale=bake_scale,
             )
             if out_stem == "msg_window_cloud":
-                image = _solidify_cloud_interior(image)
+                ## Rim is ~2 GC pixels; scale with the ACHD bake or it collapses to a hairline.
+                image = _solidify_cloud_interior(image, rim_px=2 * bake_scale)
                 margins = tuple(m * bake_scale for m in CLOUD_NINE_MARGINS)
                 nine, _nine_meta = _build_ninepatch_atlas(
                     image,
@@ -305,12 +306,17 @@ def _bake_message_shapes(
     return records
 
 
-def _solidify_cloud_interior(image: Image.Image) -> Image.Image:
-    """Flatten mesh seam lines: uniform interior, keep a ~2px rim from the bake."""
+def _solidify_cloud_interior(image: Image.Image, *, rim_px: int = 2) -> Image.Image:
+    """Flatten mesh seam lines: uniform interior, keep a GC-scaled rim from the bake.
+
+    `rim_px` is in bake-space pixels. Callers pass `2 * bake_scale` so a 2px GC rim
+    stays ~2 screen pixels after ACHD upscales the border tiles (often 4×–8×).
+    """
+    rim_px = max(1, int(rim_px))
     alpha = image.split()[3]
     mask = alpha.point(lambda v: 255 if v > 48 else 0)
     eroded = mask
-    for _ in range(2):
+    for _ in range(rim_px):
         eroded = eroded.filter(ImageFilter.MinFilter(3))
     rim = ImageChops.subtract(mask, eroded)
     fill = Image.new("RGBA", image.size, CLOUD_COMPOSITED_RGBA)

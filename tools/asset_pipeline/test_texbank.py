@@ -8,8 +8,12 @@ from asset_pipeline.texbank import (
     dummy_name_score,
     dummy_palette_score,
     gfx_part_tokens,
+    house_clock_alpha_mode,
     is_dolphin_loadtlut,
+    is_house_clock_texture,
     is_image_symbol,
+    is_indoor_mado_texture,
+    is_museum_clock_texture,
     is_museum_plate_texture,
     museum_art_house_twin,
     museum_dummy_wood_twin,
@@ -18,7 +22,9 @@ from asset_pipeline.texbank import (
     parse_settile,
     parse_settilesize,
     parse_settimg,
+    revive_stained_glass_alpha,
     season_of_prefix,
+    skips_achd_texture,
     symbol_tokens,
     tmem_palette_slot,
 )
@@ -141,6 +147,46 @@ class ClassicGbiTests(unittest.TestCase):
         ## Empty frames are not "plates" — they need wood ACHD / dummy03 twin.
         self.assertFalse(is_museum_plate_texture("obj_art_dummy01_name_tex"))
         self.assertFalse(is_museum_plate_texture("obj_art_dummy01_tex"))
+
+    def test_mado_and_clock_skip_achd(self) -> None:
+        self.assertTrue(is_indoor_mado_texture("rom_museum1_mado1_tex"))
+        self.assertTrue(is_indoor_mado_texture("rom_museum1_mado2_tex"))
+        self.assertTrue(is_house_clock_texture("obj_clock_museum1_front_tex_txt"))
+        self.assertTrue(is_museum_clock_texture("obj_clock_museum1_front_tex_txt"))
+        self.assertFalse(is_museum_clock_texture("obj_clock_tailor_1_tex_txt"))
+        self.assertTrue(skips_achd_texture("rom_museum1_mado1_tex"))
+        self.assertTrue(skips_achd_texture("obj_clock_museum1_dai_tex_txt"))
+        self.assertTrue(skips_achd_texture("obj_art01_name_tex"))
+        self.assertFalse(skips_achd_texture("obj_art01_art_tex"))
+        self.assertEqual(house_clock_alpha_mode("obj_clock_museum1_dai_tex_txt", "BLEND"), "OPAQUE")
+        self.assertEqual(house_clock_alpha_mode("obj_clock_museum1_hari_tex_txt", "BLEND"), "MASK")
+        self.assertEqual(house_clock_alpha_mode("rom_museum1_wallA_tex", "BLEND"), "BLEND")
+
+    def test_museum_clock_linear_rgba5551_is_wood_not_neon(self) -> None:
+        from asset_pipeline.bti import decode_linear_rgba5551, decode_gx_image, RGB5A3
+
+        ## Synthetic: opaque wood brown as N64 RGBA5551 word 0xAAAA-ish pattern.
+        ## Real museum front top color is (172,82,32); GX RGB5A3 misread is neon green.
+        w, h = 4, 4
+        ## Pack RGBA5551 for (172,82,32,255) ≈ r=21 g=10 b=4 a=1
+        word = (21 << 11) | (10 << 6) | (4 << 1) | 1
+        blob = word.to_bytes(2, "big") * (w * h)
+        lin = decode_linear_rgba5551(blob, w, h)
+        self.assertEqual(lin.getpixel((0, 0))[0], 21 * 255 // 31)
+        gx = decode_gx_image(blob, w, h, RGB5A3, None)
+        ## Same bytes as RGB5A3 are a different color — proves the museum path matters.
+        self.assertNotEqual(lin.getpixel((0, 0)), gx.getpixel((0, 0)))
+
+    def test_revive_stained_glass_alpha(self) -> None:
+        from PIL import Image
+
+        img = Image.new("RGBA", (2, 1))
+        img.putpixel((0, 0), (255, 200, 0, 0))  # yellow glass A=0
+        img.putpixel((1, 0), (40, 0, 0, 255))  # lead
+        out = revive_stained_glass_alpha(img)
+        self.assertEqual(out.getpixel((0, 0))[:3], (255, 200, 0))
+        self.assertGreater(out.getpixel((0, 0))[3], 200)
+        self.assertEqual(out.getpixel((1, 0)), (40, 0, 0, 255))
 
     def test_museum_dummy_wood_twin(self) -> None:
         self.assertEqual(

@@ -49,6 +49,27 @@ func _process(delta: float) -> void:
 	if actor == null:
 		return
 	actor.tick(delta)
-	global_position = actor.position + Vector3(0.0, actor.model_lift, 0.0)
-	rotation = Vector3(actor.pitch, actor.yaw, 0.0)
-	scale = Vector3.ONE * _scale
+	_apply_actor_pose()
+
+
+## `act_mus_*` cKF uses character stand-up (`ckf_basis` +90° Z):
+## length +X→+Y, dorsal +Y→−X. A pure +90° X tip puts the nose on +Z but leaves
+## the dorsal on −X (one eye into the floor). This basis maps nose→+Z and dorsal→+Y.
+## Crayfish draw adds an extra −180° Y (`mfish_zarigani_dw`).
+const SWIM_FROM_STAND := Basis(Vector3(0, -1, 0), Vector3(0, 0, 1), Vector3(-1, 0, 0))
+
+
+func _apply_actor_pose() -> void:
+	if actor == null:
+		return
+	var lift := Vector3(0.0, actor.model_lift, 0.0)
+	var origin: Vector3 = actor.position + lift
+	var yaw: float = actor.yaw
+	if actor.fish_index == 32:
+		yaw = wrapf(yaw + PI, -PI, PI)
+	var face := Basis.from_euler(Vector3(actor.pitch, yaw, 0.0))
+	var posed := Transform3D((face * SWIM_FROM_STAND).scaled(Vector3.ONE * _scale), origin)
+	if is_inside_tree():
+		global_transform = posed
+	else:
+		transform = posed

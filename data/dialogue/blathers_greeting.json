@@ -1,0 +1,22 @@
+{
+  "id": "blathers_greeting",
+  "speaker_id": "blathers",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        { "if": { "already_talked": true }, "goto": "repeat" },
+        { "goto": "welcome" }
+      ]
+    },
+    "welcome": {
+      "type": "line",
+      "text": "Hoo — welcome to the museum! Bring me fossils, art, fish, or bugs and I'll put them on display."
+    },
+    "repeat": {
+      "type": "line",
+      "text": "Hoo hoo. Still exploring? The wings are through those doors — donate anything new to me first."
+    }
+  }
+}

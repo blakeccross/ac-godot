@@ -71,6 +71,22 @@ func tick(delta: float, uttering: bool) -> void:
 		_apply()
 
 
+## Swap to an emotion pose / blink family. Uses `{species}_eye3..7` / `_mouth3..5`
+## when those frames exist; synthesized faces stretch the open frame instead.
+## `mouth_hold_override` keeps smile/shock manpu mouths open (`smile1` / `gaaan1` seqs).
+func set_emote(emote: NpcFaceAnim.Emote, mouth_hold_override: int = -1) -> void:
+	_anim.set_emote(emote, mouth_hold_override)
+	_apply()
+
+
+func set_from_mood(mood: int) -> void:
+	set_emote(NpcFaceAnim.emote_from_mood(mood))
+
+
+func current_emote() -> NpcFaceAnim.Emote:
+	return _anim.emote
+
+
 func _apply() -> void:
 	var eye: int = _anim.eye_pattern
 	if eye != _eye_shown and eye < _eye_frames.size():
@@ -199,13 +215,27 @@ func _mirror_expand_to(tex: Texture2D, target: Vector2i) -> Texture2D:
 	var src := Vector2i(image.get_width(), image.get_height())
 	if src == target:
 		return tex
+	## Authored half (32×16 or ACHD 2:1) → bilateral quad (`GX_MIRROR` on S).
+	## Stretching the half across a 4:1 bake is what made Rover's face one-sided.
+	if _is_half_face_size(src) and _is_mirrored_face_size(target):
+		var half := image
+		if src != FRAME_SIZE:
+			half = image.duplicate()
+			half.resize(FRAME_SIZE.x, FRAME_SIZE.y, Image.INTERPOLATE_NEAREST)
+		var mirrored: Image = _mirror_expand_image(half, GLB_FACE_SIZE.x)
+		if mirrored.get_width() != target.x or mirrored.get_height() != target.y:
+			mirrored.resize(target.x, target.y, Image.INTERPOLATE_NEAREST)
+		return ImageTexture.create_from_image(mirrored)
+	## Already bilateral (64×16) → ACHD / upscale only.
+	if src == GLB_FACE_SIZE and _is_mirrored_face_size(target):
+		var copy := image.duplicate()
+		copy.resize(target.x, target.y, Image.INTERPOLATE_NEAREST)
+		return ImageTexture.create_from_image(copy)
 	if target == GLB_FACE_SIZE and src == FRAME_SIZE:
 		return ImageTexture.create_from_image(_mirror_expand_image(image, target.x))
-	if src == target:
-		return tex
-	var copy := image.duplicate()
-	copy.resize(target.x, target.y, Image.INTERPOLATE_NEAREST)
-	return ImageTexture.create_from_image(copy)
+	var plain := image.duplicate()
+	plain.resize(target.x, target.y, Image.INTERPOLATE_NEAREST)
+	return ImageTexture.create_from_image(plain)
 
 
 static func _mirror_expand_image(image: Image, target_w: int) -> Image:
@@ -245,6 +275,32 @@ func _frame_image(tex: Texture2D) -> Image:
 	return image
 
 
+static func _is_half_face_size(sz: Vector2i) -> bool:
+	## 32×16 authored eye/mouth, or an ACHD upscale of that half (aspect 2:1).
+	return (
+		sz.y > 0
+		and sz.x * FRAME_SIZE.y == sz.y * FRAME_SIZE.x
+		and sz.x >= FRAME_SIZE.x
+		and sz.x % FRAME_SIZE.x == 0
+	)
+
+
+static func _is_mirrored_face_size(sz: Vector2i) -> bool:
+	## 64×16 GX_MIRROR bake, or ACHD of that (aspect 4:1).
+	return (
+		sz.y > 0
+		and sz.x * GLB_FACE_SIZE.y == sz.y * GLB_FACE_SIZE.x
+		and sz.x >= GLB_FACE_SIZE.x
+		and sz.x % GLB_FACE_SIZE.x == 0
+	)
+
+
 static func _is_face_quad(tex: Texture2D) -> bool:
+	## Pipeline may ship native CI4 (32×16), GX_MIRROR bake (64×16), or ACHD
+	## upscales of either (e.g. 256×128 half / 512×128 mirrored).
 	var sz := tex.get_size()
-	return sz == Vector2(FRAME_SIZE) or sz == Vector2(GLB_FACE_SIZE)
+	var w: int = int(sz.x)
+	var h: int = int(sz.y)
+	if w <= 0 or h <= 0:
+		return false
+	return _is_half_face_size(Vector2i(w, h)) or _is_mirrored_face_size(Vector2i(w, h))

@@ -11,6 +11,8 @@ const PIPELINE_SCALE := 0.001
 const ACTOR_DRAW_SCALE := 0.01
 ## `ac_field_draw.c`: `Matrix_scale(0.0625)` undoes 16× acre display-list verts.
 const FIELD_DRAW_SCALE := 0.0625
+## `ac_train_window.c`: `Matrix_scale(0.05)` on raw GX DL verts → world GX.
+const TRAIN_WINDOW_DRAW_SCALE := 0.05
 ## `mFI_UNIT_BASE_SIZE` (40 GX) = one 2 m cell. Keep in sync with `WorldData.cell_size`.
 const GX_TO_METERS := 0.05
 const ACRE_METERS := 32.0
@@ -258,6 +260,9 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		return paths
 	if id.begins_with("tol_"):
 		return _existing(["items/%s.glb" % id])
+	if id.begins_with("ef_"):
+		## Feel glyphs / particle cards (`ef_warau01_00`, `ef_shock01_00`, `ef_ha01_00`, …).
+		return _existing(["effects/%s.glb" % id])
 	if (
 		id.begins_with("rom_")
 		or id.begins_with("mCL_rom_")
@@ -462,8 +467,8 @@ static func interior_uniform_scale(visual_id: StringName) -> float:
 
 
 static func train_window_uniform_scale() -> float:
-	## `ac_train_window` / `rom_train_out`: Matrix_scale(0.05) on raw GX DL verts.
-	return GX_TO_METERS / PIPELINE_SCALE
+	## `ac_train_window` / `rom_train_out`: Matrix_scale(0.05) → world GX, then × GX_TO_METERS.
+	return TRAIN_WINDOW_DRAW_SCALE / PIPELINE_SCALE * GX_TO_METERS
 
 
 static func interior_ground_y_offset(visual_id: StringName) -> float:
@@ -966,6 +971,8 @@ static func _species_code(species: StringName) -> String:
 			return "shp"
 		&"tiger":
 			return "tig"
+		&"owl":
+			return "owl"
 		_:
 			return String(species)
 

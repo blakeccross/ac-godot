@@ -38,7 +38,8 @@ Starting a **new town** drops the player into a train demo. Rover walks up, conf
 - Clock confirm → snap to seat + `npc_1_sitdown_d1` (no pre-walk; anim carries motion). Daylight when sitdown finishes.
 - Background sleep NPC at FG ut (4,4), birth offset x−6/z−24 → (174, 156). `aNPC_COND_DEMO_SKIP_ENTRANCE_CHECK` only skips the house-entrance probe (`aNPC_entranceCheck`); it does **not** skip the `think_in_block` walk. On the visible train frame the sleeper is still at the birth offset. Body yaw is `aNPC_act_search_turn` toward the player (`aNSO_set_request_act`), not raw appear-0 π — pipeline `kab_1` + `kokkuri` frame 0 reads correctly with `yaw_toward_player`. Bench align uses posed world min-Y on the floor datum (rest AABB snap to ~40 GX cushion floated Kab).
 - Dialogue overlay draws `con_kaiwa2` / `con_kaiwaname` as an SDF cloud at the `mMsg_init` rect (center 160/185.4, 245×96) with the decomp tints; the turn mark follows `mMsg_Set_display_button_turn_color`'s 60-frame alpha triangle wave. See `MessageWindowChrome`.
-- Rover blinks and flaps his mouth by eye/mouth **texture swap**, not geometry (`aNPC_tex_anm_ctrl`). Villager model DLs use `GX_MIRROR` on S for `anime_1_txt` / `anime_2_txt`; `NpcFace` expands 32×16 REL frames to 64×16 before swap. Frames come from `--kind faces`: `face_{species}.bin` when present plus all REL villager prefixes discovered under `converted/textures/rel/` (`discover_villager_prefixes` in `faces.py`). Without PNGs, `NpcFace` synthesizes blink/talk frames from the villager GLB's baked `seg_08` / `seg_09` quads.
+- Rover blinks and flaps his mouth by eye/mouth **texture swap**, not geometry (`aNPC_tex_anm_ctrl`). Villager model DLs use `GX_MIRROR` on S for `anime_1_txt` / `anime_2_txt`; `NpcFace` expands 32×16 REL frames to match the GLB quad (64×16 mirror bake or ACHD 256×128). Frames come from `--kind faces`: `face_{species}.bin` when present plus all REL villager prefixes discovered under `converted/textures/rel/` (`discover_villager_prefixes` in `faces.py`). Without PNGs, `NpcFace` synthesizes blink/talk frames from the villager GLB's baked `seg_08` / `seg_09` quads.
+- Intro dialogue `manpu` events (`aNPC_check_manpu_demoCode` / `DEMONPC0` slot 0) play reaction clips (`npc_1_smile1` standing, `smile_d1` seated, …), set a matching face hold (laugh eyes + open mouth for smile), and spawn floating feel glyphs (`eEC_EFFECT_WARAU` HA-HA cards, `SHOCK`, `HA`) via `NpcFeelGlyphs` + pipeline `effects/ef_warau01_*.glb`. Entrance `open_d1` parks on angry/stern eyes (`eye3`) until approach/talk. Face frame swaps mirror-expand 32×16 halves onto ACHD 512×128 `seg_08`/`seg_09` quads (`GX_MIRROR`).
 - Interior light is `mEnv_GetNowRoomPointLightInfo`'s single point light for `FIELD_DRAW_TYPE_TRAIN` — GX (80, 120, 510), colour (255, 255, 160), power 1200 — with `sun_percent` pinned to 0. `mEnv_CalcSetLight_train` lifts ambient by (35, 30, 40) until `sunlight_flag`. No ceiling array, no sun, and OPA surfaces get no albedo lift, emission or specular.
 - Rover head tracks camera `(100, eye_y, 400)` during approach/return (`camera_eyes_flag`) on `joint_21` via decomp Euler override; not during `open_d1`.
 - Clock confirm / edit → name → gender → town → face questions → phone → farewell.
@@ -60,7 +61,7 @@ Without GLBs the scene shows a banner and still runs dialogue so the title entry
 
 - Name and clock are small intro modals, not `m_ledit` / `m_timeIn` ports.
 - Keitai is offset-parented to Rover (not true hand-joint bind).
-- Window UV scroll (`ac_train_window`) not implemented yet.
+- Window UV scroll (`ac_train_window`): tree strip always scrolls; cloud UVs ramp on daylight (`GoingOutTunnel`).
 - Skip returning-player / mask-cat Blanca path.
 
 ## Ignore (later slices)

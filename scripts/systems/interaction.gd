@@ -26,6 +26,7 @@ const TOGGLE := &"toggle"
 const LIE := &"lie"
 const DISPLAY := &"display"
 const TAKE := &"take"
+const DONATE := &"donate"
 
 var id: StringName = &""
 var prompt: String = ""

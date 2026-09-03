@@ -52,10 +52,11 @@ func present_fossils(root: Node3D, interior: Interior) -> void:
 		)
 		var cell: Vector2i = MuseumDisplay.FOSSIL_CELLS[i]
 		var facing: WorldGrid.Facing = MuseumDisplay.FOSSIL_FACINGS[i] as WorldGrid.Facing
+		var foot: Vector2i = MuseumDisplay.fossil_footprint(i)
 		var node := Node3D.new()
 		node.name = "Fossil_%02d" % i
 		node.add_to_group("museum_set")
-		node.position = interior.grid.furniture_world(cell, Vector2i(1, 1), facing)
+		node.position = interior.grid.furniture_world(cell, foot, facing)
 		node.rotation.y = WorldGrid.yaw_for_furniture(facing)
 		root.add_child(node)
 		GeneratedVisual.attach(node, visual)

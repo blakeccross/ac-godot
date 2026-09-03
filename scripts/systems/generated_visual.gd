@@ -405,7 +405,8 @@ static func fit_train_car_shell(pivot: Node3D) -> void:
 
 
 static func fit_train_window_shell(pivot: Node3D) -> void:
-	## `rom_train_out` uses raw GX verts + `Matrix_scale(0.05)` (`ac_train_window`).
+	## `rom_train_out` uses raw GX verts + `Matrix_scale(0.05)` (`ac_train_window`) → world GX,
+	## then `GX_TO_METERS` like actors / acre shells.
 	var s: float = FieldCatalog.train_window_uniform_scale()
 	pivot.scale = Vector3.ONE * s
 	pivot.position = Vector3.ZERO
@@ -610,17 +611,21 @@ static func _paint_room_surfaces(node: Node, wall_id: StringName, floor_id: Stri
 			if mat == null:
 				mat = mesh_instance.get_active_material(i)
 			var std: StandardMaterial3D
+			var src_mat: Material = src if src != null else mat
 			if mat is StandardMaterial3D:
 				std = (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
 			else:
 				std = StandardMaterial3D.new()
-			std.vertex_color_use_as_albedo = false
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			## Wrap-baked shells keep CLAMP UVs on an atlas; tile into that atlas size.
 			std.texture_repeat = false
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
 			std.roughness = 1.0
 			std.metallic = 0.0
+			if _is_vertex_shade_surface(mesh_instance, i, src_mat):
+				_apply_vertex_shade_material(std)
+			else:
+				std.vertex_color_use_as_albedo = false
 			if tile != null:
 				var target: Vector2i = _albedo_size(std)
 				## Floors use GX_MIRROR (corner tile → one room medallion). Walls REPEAT.
@@ -806,12 +811,15 @@ static func _apply_materials_inner(
 					## Ocean-acre land stays imported; river/splash/wet-sand still get shaders.
 					continue
 				var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
-				std.vertex_color_use_as_albedo = false
 				std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 				std.texture_repeat = false
 				std.cull_mode = BaseMaterial3D.CULL_DISABLED
 				std.roughness = 1.0
 				std.metallic = 0.0
+				if _is_vertex_shade_surface(mesh_instance, i, src):
+					_apply_vertex_shade_material(std)
+				else:
+					std.vertex_color_use_as_albedo = false
 				if _is_window_spill_surface(mesh_instance, i, src):
 					mesh_instance.set_surface_override_material(i, _make_window_spill_material(std))
 				elif _is_window_pane_surface(mesh_instance, i, src):
@@ -983,6 +991,29 @@ static func _gltf_extras(mat: Material) -> Dictionary:
 			if extras is Dictionary:
 				return extras as Dictionary
 	return {}
+
+
+static func _surface_has_vertex_colors(mesh_instance: MeshInstance3D, surface: int) -> bool:
+	var mesh: Mesh = mesh_instance.mesh
+	if mesh == null or surface < 0 or surface >= mesh.get_surface_count():
+		return false
+	var arrays: Array = mesh.surface_get_arrays(surface)
+	if arrays.is_empty():
+		return false
+	return arrays[Mesh.ARRAY_COLOR] != null
+
+
+static func _is_vertex_shade_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
+	## Indoor shells: TEXEL0 × SHADE with G_LIGHTING off (ceiling AO in Vtx.cn[]).
+	if bool(_gltf_extras(mat).get("vertex_shade", false)):
+		return true
+	return _surface_has_vertex_colors(mesh_instance, surface)
+
+
+static func _apply_vertex_shade_material(std: StandardMaterial3D) -> void:
+	std.vertex_color_use_as_albedo = true
+	## Original BG DLs skip LightsN; keep the baked shade band free of Godot lights.
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 
 
 static func _water_kind(mat: Material) -> String:

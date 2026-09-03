@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Optional
 
 from PIL import Image
 
-from .bti import CI4, CI8, I4, I8, IA4, IA8, RGB5A3, RGBA8, _rgb5a3, decode_gx_image
+from .bti import CI4, CI8, I4, I8, IA4, IA8, RGB5A3, RGBA8, _rgb5a3, decode_gx_image, decode_linear_rgba5551
 from .mapfile import MapSymbol, index_by_name
 from .rel import RelData
 
@@ -77,6 +77,24 @@ def palette_from_rgb5a3(blob: bytes) -> list[tuple[int, int, int, int]]:
     for i in range(0, len(blob) - 1, 2):
         colors.append(_rgb5a3(int.from_bytes(blob[i : i + 2], "big")))
     return colors
+
+
+def revive_stained_glass_alpha(image: Image.Image) -> Image.Image:
+    """Museum/tailor `*_mado*` CI uses RGB5A3 glass colors with A=0 (clear in TMEM).
+
+    XLU stained glass still needs those RGBs visible in Godot; boost coverage so
+    panes read as translucent color instead of empty holes. Lead/came (dark
+    opaque browns) stay unchanged.
+    """
+    img = image.convert("RGBA")
+    pixels = img.load()
+    w, h = img.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = pixels[x, y]
+            if a < 8 and (r > 16 or g > 16 or b > 16):
+                pixels[x, y] = (r, g, b, 220)
+    return img
 
 
 def apply_prim(image: Image.Image, prim: tuple[int, int, int, int]) -> Image.Image:
@@ -240,6 +258,39 @@ def is_museum_plate_texture(tex_name: str) -> bool:
     if not tex_name.startswith("obj_art") or "dummy" in tex_name:
         return False
     return tex_name.endswith("_name_tex") or tex_name.endswith("_gaku_tex")
+
+
+def is_indoor_mado_texture(tex_name: str) -> bool:
+    """Indoor stained-glass / window CI (`*_mado*_tex`). ACHD hits unrelated red sheets."""
+    return "_mado" in tex_name
+
+
+def is_house_clock_texture(tex_name: str) -> bool:
+    """`HOUSE_CLOCK` RGBA16 sheets. ACHD swaps wrong sizes and breaks wrap/UVs."""
+    return tex_name.startswith("obj_clock_")
+
+
+def is_museum_clock_texture(tex_name: str) -> bool:
+    """`obj_clock_museum1_*` is N64 linear RGBA5551, not GX-tiled RGB5A3."""
+    return tex_name.startswith("obj_clock_museum1_")
+
+
+def skips_achd_texture(tex_name: str) -> bool:
+    """Textures whose Dolphin hashes collide with unrelated ACHD sheets."""
+    return (
+        is_museum_plate_texture(tex_name)
+        or is_indoor_mado_texture(tex_name)
+        or is_house_clock_texture(tex_name)
+    )
+
+
+def house_clock_alpha_mode(tex_name: str, fallback: str) -> str:
+    """Body DLs are `OPA_SURF` (ignore texel A); hands are `TEX_EDGE` cutouts."""
+    if not is_house_clock_texture(tex_name):
+        return fallback
+    if "hari" in tex_name:
+        return "MASK"
+    return "OPAQUE"
 
 
 def museum_dummy_wood_twin(tex_name: str) -> tuple[str, str] | None:
@@ -1025,9 +1076,9 @@ class TextureBank:
         if self.achd is not None:
             from .achd import is_field_terrain_texture, maybe_hd_png
 
-            ## Museum nameplates/frames: ACHD hash collisions swap in scrap-board
-            ## / trim sheets. Keep native CI4 and fix the TLUT below.
-            if not is_museum_plate_texture(name) and not is_field_terrain_texture(
+            ## Museum plates / indoor mado / house clocks: ACHD hash collisions swap
+            ## scrap boards, red sheets, or wrong-size RGBA. Keep native below.
+            if not skips_achd_texture(name) and not is_field_terrain_texture(
                 name, self.current_prefix
             ):
                 ## Neon empty frames: skip hashing their own CI4 (false hits / garbage
@@ -1039,7 +1090,7 @@ class TextureBank:
                     if hd is None:
                         hd = self._museum_art_house_achd(name, state.width, state.height, gx)
                 if hd is not None:
-                    mode = alpha_mode_for_png(hd)
+                    mode = house_clock_alpha_mode(name, alpha_mode_for_png(hd))
                     self._png_cache[key] = (hd, mode)
                     return hd, name, mode
         ## Neon empty-frame CI4 (non-dummy03): decode dummy03 wood instead.
@@ -1067,11 +1118,17 @@ class TextureBank:
                 if cached is not None:
                     return cached[0], name, cached[1]
         try:
-            image = decode_gbi_texture(data, state.width, state.height, state.fmt, state.siz, pal)
+            if is_museum_clock_texture(name):
+                ## REL keeps N64 row-major RGBA5551; GX 4×4 RGB5A3 reads as neon noise.
+                image = decode_linear_rgba5551(data, state.width, state.height)
+            else:
+                image = decode_gbi_texture(data, state.width, state.height, state.fmt, state.siz, pal)
             image = apply_prim(image, state.prim)
         except (KeyError, ValueError, IndexError):
             return None, name, "OPAQUE"
-        mode = alpha_mode_for_image(image)
+        if is_indoor_mado_texture(name):
+            image = revive_stained_glass_alpha(image)
+        mode = house_clock_alpha_mode(name, alpha_mode_for_image(image))
         png = image_png_bytes(image)
         self._png_cache[key] = (png, mode)
         return png, name, mode

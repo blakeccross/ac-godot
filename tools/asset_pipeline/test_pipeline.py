@@ -150,6 +150,19 @@ class PrefixOwnershipTests(unittest.TestCase):
             ["grd_s_r1_1_model", "grd_s_r1_1_modelT"],
         )
 
+    def test_rom_museum1_job_includes_modelT_mado(self) -> None:
+        ## Entrance stained glass is XLU `rom_museum1_modelT` (`*_mado*_tex`).
+        symbols = [
+            _sym("rom_museum1_v"),
+            _sym("rom_museum1_model"),
+            _sym("rom_museum1_modelT"),
+        ]
+        jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
+        self.assertEqual(
+            jobs["rom_museum1"]["gfx"],
+            ["rom_museum1_model", "rom_museum1_modelT"],
+        )
+
     def test_kanban_sign_uses_sign_model_display_list(self) -> None:
         symbols = [
             _sym("obj_s_kanban_v"),
@@ -756,6 +769,125 @@ class SeasonRoleTests(unittest.TestCase):
 
         self.assertIn("mFM_grd_s_grass_3_tex", _GRASS_TEX_SYMBOLS["s"][1])
         self.assertIn("mFM_grd_s_grass_2_tex", _GRASS_TEX_SYMBOLS["s"][2])
+
+
+class VertexShadeTests(unittest.TestCase):
+    def test_geometry_mode_without_lighting_exports_colors(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from asset_pipeline.gfx import (
+            G_ENDDL,
+            G_GEOMETRYMODE,
+            G_LIGHTING,
+            G_TRI1,
+            G_VTX,
+            parse_gfx,
+            parse_vtx_blob,
+        )
+        from asset_pipeline.glb import _material, write_glb
+
+        ## Three verts: top black, bottom white — ceiling AO pattern.
+        vtx = b""
+        for y, rgb in ((0, (255, 255, 255)), (100, (128, 128, 128)), (200, (0, 0, 0))):
+            vtx += struct.pack(">hhhHhhBBBB", 0, y, 0, 0, 0, 0, *rgb, 255)
+        verts = parse_vtx_blob(vtx, scale=0.001)
+        ## LoadGeometryMode without G_LIGHTING (museum / myhome walls).
+        mode = 0x00210405  # ZBUFFER|SHADE|CULL_BACK|FOG|SHADING_SMOOTH
+        self.assertFalse(mode & G_LIGHTING)
+        dl = b""
+        dl += struct.pack(">II", (G_GEOMETRYMODE << 24) | 0x000000, mode)
+        ## G_VTX: n=3 at v0=0, w1 = vertex DRAM (treated as cursor when no base).
+        dl += struct.pack(">II", (G_VTX << 24) | (3 << 12) | (3 << 1), 0)
+        ## One triangle using cache indices 0,1,2 (bytes are ×2 in classic TRI1).
+        dl += struct.pack(">II", (G_TRI1 << 24) | (0 << 16) | (2 << 8) | 4, 0)
+        dl += struct.pack(">II", G_ENDDL << 24, 0)
+        parts = parse_gfx("shade_test_model", dl, verts)
+        self.assertEqual(len(parts), 1)
+        self.assertFalse(parts[0].uses_lighting)
+        tops = [v for v in parts[0].vertices if abs(v.y - 0.2) < 1e-6]
+        bots = [v for v in parts[0].vertices if abs(v.y) < 1e-6]
+        self.assertTrue(tops)
+        self.assertTrue(bots)
+        self.assertAlmostEqual(tops[0].r + tops[0].g + tops[0].b, 0.0)
+        self.assertGreater(bots[0].r + bots[0].g + bots[0].b, 2.9)
+        mat = _material("wall", None, vertex_shade=True)
+        self.assertTrue(mat["extras"]["vertex_shade"])
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "shade.glb"
+            write_glb(path, parts)
+            data = path.read_bytes()
+            ## COLOR_0 accessor present in JSON chunk.
+            self.assertIn(b"COLOR_0", data)
+
+    def test_vertex_shade_exports_opaque_alpha(self) -> None:
+        ## XLU mado verts often carry cn[].a ≈ 63; Godot would scissor/BLEND them away.
+        import struct
+        import tempfile
+        from pathlib import Path
+
+        from asset_pipeline.gfx import (
+            G_ENDDL,
+            G_GEOMETRYMODE,
+            G_LIGHTING,
+            G_TRI1,
+            G_VTX,
+            parse_gfx,
+            parse_vtx_blob,
+        )
+        from asset_pipeline.glb import write_glb
+
+        vtx = b""
+        for y, rgb in ((0, (255, 255, 255)), (100, (128, 128, 128)), (200, (0, 0, 0))):
+            vtx += struct.pack(">hhhHhhBBBB", 0, y, 0, 0, 0, 0, *rgb, 63)
+        verts = parse_vtx_blob(vtx, scale=0.001)
+        mode = 0x00210405
+        self.assertFalse(mode & G_LIGHTING)
+        dl = b""
+        dl += struct.pack(">II", (G_GEOMETRYMODE << 24) | 0x000000, mode)
+        dl += struct.pack(">II", (G_VTX << 24) | (3 << 12) | (3 << 1), 0)
+        dl += struct.pack(">II", (G_TRI1 << 24) | (0 << 16) | (2 << 8) | 4, 0)
+        dl += struct.pack(">II", G_ENDDL << 24, 0)
+        parts = parse_gfx("mado_shade_model", dl, verts)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "mado.glb"
+            write_glb(path, parts)
+            raw = path.read_bytes()
+            n = struct.unpack_from("<I", raw, 12)[0]
+            import json
+
+            j = json.loads(raw[20 : 20 + n])
+            off = 12
+            while off < len(raw):
+                ln, ty = struct.unpack_from("<I4s", raw, off)
+                off += 8
+                if ty == b"BIN\x00":
+                    blob = raw[off : off + ln]
+                    break
+                off += ln
+            prim = j["meshes"][0]["primitives"][0]
+            ai = prim["attributes"]["COLOR_0"]
+            a = j["accessors"][ai]
+            view = j["bufferViews"][a["bufferView"]]
+            start = view.get("byteOffset", 0) + a.get("byteOffset", 0)
+            for i in range(a["count"]):
+                _r, _g, _b, alpha = struct.unpack_from("<4f", blob, start + i * 16)
+                self.assertAlmostEqual(alpha, 1.0)
+
+    def test_default_lighting_keeps_normals_only(self) -> None:
+        from asset_pipeline.gfx import G_ENDDL, G_TRI1, G_VTX, parse_gfx, parse_vtx_blob
+
+        vtx = struct.pack(">hhhHhhBBBB", 0, 0, 0, 0, 0, 0, 0, 127, 0, 255)
+        vtx += struct.pack(">hhhHhhBBBB", 10, 0, 0, 0, 0, 0, 0, 127, 0, 255)
+        vtx += struct.pack(">hhhHhhBBBB", 0, 10, 0, 0, 0, 0, 0, 127, 0, 255)
+        verts = parse_vtx_blob(vtx, scale=0.001)
+        dl = b""
+        dl += struct.pack(">II", (G_VTX << 24) | (3 << 12) | (3 << 1), 0)
+        dl += struct.pack(">II", (G_TRI1 << 24) | (0 << 16) | (2 << 8) | 4, 0)
+        dl += struct.pack(">II", G_ENDDL << 24, 0)
+        parts = parse_gfx("lit_test_model", dl, verts)
+        self.assertEqual(len(parts), 1)
+        self.assertTrue(parts[0].uses_lighting)
 
 
 if __name__ == "__main__":

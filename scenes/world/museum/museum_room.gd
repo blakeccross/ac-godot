@@ -68,9 +68,4 @@ func size_authored_doors() -> void:
 
 
 func _size_door(door: Node3D, sensor_gx: Vector3) -> void:
-	var wide: float = 80.0 * FieldCatalog.GX_TO_METERS
-	var deep: float = 40.0 * FieldCatalog.GX_TO_METERS
-	var tall: float = 2.6
-	var along_x: bool = sensor_gx.z < 200.0 or sensor_gx.z > 400.0
-	var box := Vector3(wide, tall, deep) if along_x else Vector3(deep, tall, wide)
-	HostCollision.resize_interact_box(door, box)
+	HostCollision.resize_interact_box(door, InteriorBuilder.museum_door_box(sensor_gx))

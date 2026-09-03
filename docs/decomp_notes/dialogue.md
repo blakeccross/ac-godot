@@ -47,6 +47,8 @@ Talk is wrapped in `m_demo`: player `mPlib_request_main_talk_type1`, camera `CAM
 - Branching **choices** (yes/no and 2–6 options).
 - Substitutions: `{player}`, `{speaker}`, `{catchphrase}`, `{town}`, `{item0}`, clock fields.
 - Movement locked until the window hides (`dialogue_ui` group, same idea as pockets). The speaker holds a talk action until the overlay emits `closed`.
+- Talk camera: `Camera2_request_main_talk` framing via `TalkCamera` + `FollowCamera.begin_talk` (base distance 290 GX + 1.46× separation, flatter pitch than follow). Goal yaw is world-south (−180° → inv 0) plus `Camera2_Talk_GetAngleY` (±15° when the pair is mostly N/S; east vs west of that axis flips the sign; E/W pairs keep 0). Dramatic ±169° side picks are `Camera2_request_main_listen_front_low_talk` / `CUST_TALK` only (e.g. EV_YOMISE), not normal NPC talk. Villagers and Blathers request talk cam with speaker = player when the overlay opens and clear it on `closed`.
+- Player turn: `mDemo` TYPE_TALK defaults `turn = TRUE` → `Player_actor_Movement_Talk` eases the player toward the NPC (`player_angle_y + 180°`) with `add_calc_short_angle2(1-√0.5, 13.73°, 0.275°)` on a 60 Hz tick. `TalkCamera.begin` starts `player.begin_talk_face(npc)`; `end` clears it. SPEAK/shop paths that set turn off are not modelled yet.
 - Conditions on branches and choices: friendship, talk/gift counts, milestones, time of day / hour window, weekday, season, **weather** (`Game.weather` hook), inventory / held item, dialogue variables.
 - Events on a line or choice: `set_var`, `add_var`, `add_friendship`, `record_gift`, `give_item`, `take_item`, `set_mood`, `notice`. Friendship and gifts go through `Relationship`.
 
@@ -56,7 +58,6 @@ Talk is wrapped in `m_demo`: player `mPlib_request_main_talk_type1`, camera `CAM
 - One overlay scene (`scenes/ui/dialogue_overlay.tscn`). Skip appear/disappear interpolation, voice blips, article grammar, mail-string length 132.
 - Named `{player}` tags instead of `mMsg_FREE_STR` 20-slot array.
 - Weather is a `StringName` on `Game` (`clear` / `rain` / `snow` / `sakura`) plus intensity from `Weather.roll`.
-- Camera nudge toward the speaker can wait.
 - Talk start is a Godot picker (`DialogueGreeting`): looks + whether you’ve met / already talked today / weather / mood / hour → starting `msg_no`. That id `goto`s the imported bank. Personality quest/trade trees stay out until a slice needs them. If the bank is missing, `looks_greeting.json` is the placeholder.
 
 ## Import (disc → gitignored JSON)

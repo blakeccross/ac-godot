@@ -33,6 +33,8 @@ var _stay_elapsed: float = 0.0
 var _stuck_elapsed: float = 0.0
 var _avoid_hits: int = 0
 var _talk_look: Vector3 = Vector3.ZERO
+var _face: NpcFace = NpcFace.new()
+var _face_mood: int = -1
 
 @onready var _model: Node3D = $Model
 @onready var _placeholder: MeshInstance3D = $Model/PlaceholderMesh
@@ -58,6 +60,8 @@ func _ready() -> void:
 	if vis != null:
 		_body_anim = GeneratedVisual.find_animation_player(vis)
 		_play_clip(ANIM_WAIT, true)
+		_face.bind(vis, data.species if data else &"")
+		_sync_face_mood(true)
 	_sync_from_clock()
 
 
@@ -108,6 +112,10 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 			ui.call("close")
 		ai.begin_talk()
 		_bind_talk_end(ui)
+		## Decomp `Camera2_request_main_talk(play, player, npc)` — speaker = player.
+		var player: Node3D = ctx.actor as Node3D if ctx != null else null
+		if player != null:
+			TalkCamera.begin(player, self, get_tree())
 		ui.call("play", VillagerTalk.conversation(data, state), talk_ctx, state)
 	else:
 		_face_towards(_talk_look)
@@ -123,6 +131,7 @@ func _physics_process(delta: float) -> void:
 	ai.sync(current_activity(), _hints())
 	var present: bool = ai.is_present()
 	_apply_presence(present)
+	_tick_face(delta)
 	if not present:
 		velocity = Vector3.ZERO
 		ai.step(delta)
@@ -397,6 +406,29 @@ func _hold_talk(delta: float) -> void:
 	ai.step(delta)
 
 
+func _tick_face(delta: float) -> void:
+	_sync_face_mood(false)
+	_face.tick(delta, _dialogue_uttering())
+
+
+func _sync_face_mood(force: bool) -> void:
+	_ensure_bound()
+	var mood: int = int(state.mood) if state != null else int(VillagerState.Mood.NORMAL)
+	if not force and mood == _face_mood:
+		return
+	_face_mood = mood
+	_face.set_from_mood(mood)
+
+
+func _dialogue_uttering() -> bool:
+	if not ai.is_talking() or get_tree() == null:
+		return false
+	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
+	if ui != null and ui.has_method("is_uttering"):
+		return bool(ui.call("is_uttering"))
+	return false
+
+
 func _bind_talk_end(ui: Node) -> void:
 	if ui == null or not ui.has_signal("closed"):
 		return
@@ -411,10 +443,12 @@ func _unbind_talk() -> void:
 		if ui != null and ui.has_signal("closed") and ui.closed.is_connected(_on_talk_closed):
 			ui.closed.disconnect(_on_talk_closed)
 	if ai.is_talking():
+		TalkCamera.end(get_tree())
 		ai.end_talk()
 
 
 func _on_talk_closed() -> void:
+	TalkCamera.end(get_tree())
 	ai.end_talk()
 
 

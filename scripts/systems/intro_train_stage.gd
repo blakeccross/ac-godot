@@ -265,6 +265,35 @@ func end_phone_talk() -> void:
 			pass
 
 
+## Dialogue `manpu` / `DEMONPC0` reaction (`aNPC_check_manpu_demoCode`).
+func cue_manpu(name: String) -> String:
+	var key := _manpu_key(name)
+	var clip := NpcManpu.clip_for(key)
+	if clip.is_empty():
+		return ""
+	var loop: bool = NpcManpu.loops(key)
+	_play_rover(clip, loop)
+	return clip
+
+
+func _manpu_key(name: String) -> String:
+	var key := name.strip_edges().to_lower()
+	if key.is_empty():
+		return String(NpcManpu.RESET_SIT if _is_seated_action() else NpcManpu.RESET)
+	if NpcManpu.is_reset(key) or key.begins_with("npc_1_") or key.ends_with("_d1"):
+		return key
+	if not _is_seated_action():
+		return key
+	var seated := "npc_1_%s_d1" % key.trim_prefix("npc_1_")
+	if not resolve_rover_clip(_rover_anim, seated).is_empty():
+		return seated
+	return key
+
+
+func _is_seated_action() -> bool:
+	return action == Action.SEATED or action == Action.SITDOWN or action == Action.LAST_SIT
+
+
 ## Legacy dialogue cue — same as `end_phone_talk` when the stage has not started returning yet.
 func cue_return_sit() -> void:
 	end_phone_talk()

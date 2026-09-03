@@ -49,6 +49,29 @@ def _s3tc_rgb(v: int) -> tuple[int, int, int]:
     return r, g, b
 
 
+def _rgba5551(v: int) -> tuple[int, int, int, int]:
+    """N64 `G_IM_FMT_RGBA` / `G_IM_SIZ_16b` (row-major), not GX RGB5A3."""
+    r = ((v >> 11) & 0x1F) * 255 // 31
+    g = ((v >> 6) & 0x1F) * 255 // 31
+    b = ((v >> 1) & 0x1F) * 255 // 31
+    a = 255 if (v & 1) else 0
+    return r, g, b, a
+
+
+def decode_linear_rgba5551(data: bytes, width: int, height: int) -> Image.Image:
+    """Row-major N64 RGBA16. Museum `obj_clock_museum1_*` ships untiled."""
+    needed = width * height * 2
+    if len(data) < needed:
+        data = data + bytes(needed - len(data))
+    img = Image.new("RGBA", (width, height))
+    pixels = img.load()
+    for y in range(height):
+        for x in range(width):
+            off = (y * width + x) * 2
+            pixels[x, y] = _rgba5551(int.from_bytes(data[off : off + 2], "big"))
+    return img
+
+
 def decode_gx_image(data: bytes, width: int, height: int, fmt: int, palette: list[tuple[int, int, int, int]] | None = None) -> Image.Image:
     bw, bh, bpp = _BLOCK[fmt]
     img = Image.new("RGBA", (width, height))

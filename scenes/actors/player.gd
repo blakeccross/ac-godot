@@ -2,9 +2,8 @@ extends CharacterBody3D
 
 ## CharacterBody3D player. Locomotion feel from `m_player_main_walk`; visual from
 ## generated `boy_1.glb` when the local pipeline has been run. Equipped tools
-## parent to HAND (`HeldTool`). Collision is a cylinder (original actor is a
-## circle in XZ) so remaining physics (trees, buildings) cannot catch a capsule
-## lid. Cliffs and water are kinematic segments, not physics shapes.
+## parent to HAND (`HeldTool`). Physics cylinder matches `Player_actor_OcInfoData_forStand`
+## pipe (20×60 GX → 1.0×3.0 m). Cliffs/water use `FieldCollision` (18 GX), not this shape.
 
 const GENERATED_PLAYER := "res://assets/generated/characters/player/boy_1.glb"
 const LOOK_HEIGHT := 0.85
@@ -55,6 +54,9 @@ var _door_yaw: float = 0.0
 var _door_move_elapsed: float = 0.0
 var _door_move_duration: float = StructureDoor.APPROACH_SEC
 var _door_clear_busy: bool = false
+## `Player_actor_Movement_Talk` — ease yaw toward the NPC while the talk demo runs.
+var _talk_face: Node3D = null
+var _talk_turn_debt: float = 0.0
 
 
 func _ready() -> void:
@@ -72,6 +74,21 @@ func _exit_tree() -> void:
 
 func facing_yaw() -> float:
 	return _motor.facing
+
+
+## `mDemo` TYPE_TALK `turn` — face `npc` until `end_talk_face` (`TalkCamera.end`).
+func begin_talk_face(npc: Node3D) -> void:
+	_talk_face = npc
+	_talk_turn_debt = 0.0
+
+
+func end_talk_face() -> void:
+	_talk_face = null
+	_talk_turn_debt = 0.0
+
+
+func is_talk_facing() -> bool:
+	return _talk_face != null and is_instance_valid(_talk_face)
 
 
 ## `aINS_get_stress_sub`: player planar speed as GX per 30 Hz frame.
@@ -123,6 +140,7 @@ func _physics_process(delta: float) -> void:
 	)
 	velocity.x = planar.x
 	velocity.z = planar.z
+	_tick_talk_face(delta)
 	_mesh.rotation.y = _motor.facing
 	var before: Vector3 = global_position
 	move_and_slide()
@@ -137,6 +155,24 @@ func _physics_process(delta: float) -> void:
 	_update_focus()
 	_clear_auto_enter_block()
 	_try_auto_enter()
+
+
+## `Player_actor_Movement_Talk`: ease toward the NPC on a fixed 60 Hz tick.
+func _tick_talk_face(delta: float) -> void:
+	if not is_talk_facing():
+		return
+	_talk_turn_debt += delta
+	var step: float = 1.0 / TalkCamera.TURN_HZ
+	while _talk_turn_debt >= step:
+		_talk_turn_debt -= step
+		var target: float = TalkCamera.face_yaw_toward(global_position, _talk_face.global_position)
+		_motor.facing = MLib.short_angle2(
+			_motor.facing,
+			target,
+			TalkCamera.TURN_FRACTION,
+			TalkCamera.TURN_MAX_STEP,
+			TalkCamera.TURN_MIN_STEP
+		)
 
 
 ## After a room load, walk-in doors stay armed until the probe leaves every auto door.
@@ -160,7 +196,7 @@ func begin_door_enter(target: Vector3, face_yaw: float, walk_in: bool = false) -
 	_door_to = Vector3(target.x, global_position.y, target.z)
 	_door_yaw = face_yaw
 	_door_move_elapsed = 0.0
-	_door_move_duration = StructureDoor.APPROACH_SEC
+	_door_move_duration = StructureDoor.INTO_SEC if walk_in else StructureDoor.APPROACH_SEC
 	_motor.reset(face_yaw)
 	_mesh.rotation.y = face_yaw
 	velocity = Vector3.ZERO

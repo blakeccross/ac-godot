@@ -15,7 +15,7 @@ func test_intro_pipeline_scales_match_decomp_draw() -> void:
 	## `m_actor.c` 0.01, `ac_field_draw` 0.0625, `ac_train_window` 0.05.
 	assert_float(FieldCatalog.actor_uniform_scale()).is_equal_approx(0.5, 0.0001)
 	assert_float(FieldCatalog.acre_uniform_scale()).is_equal_approx(3.125, 0.0001)
-	assert_float(FieldCatalog.train_window_uniform_scale()).is_equal_approx(50.0, 0.0001)
+	assert_float(FieldCatalog.train_window_uniform_scale()).is_equal_approx(2.5, 0.0001)
 
 
 func test_door_actor_origin_before_rover_door_stop() -> void:

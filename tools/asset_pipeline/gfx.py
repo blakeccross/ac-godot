@@ -35,6 +35,9 @@ G_SETTILE = 0xF5
 G_SETTIMG = 0xFD
 G_MTX = 0xDA
 G_SETPRIMCOLOR = 0xFA
+G_GEOMETRYMODE = 0xD9
+## F3DEX2 / libultra geometry flag — when clear, Vtx.cn[] is RGBA shade.
+G_LIGHTING = 0x00020000
 MTX_STRIDE = 0x40
 SEG_MTX = 0x0D
 
@@ -50,6 +53,29 @@ def unit_normal(nx: float, ny: float, nz: float) -> tuple[float, float, float]:
     if length < 1e-8:
         return 0.0, 1.0, 0.0
     return nx / length, ny / length, nz / length
+
+
+def assign_geometric_normals(
+    vertices: list["Vertex"], triangles: list[tuple[int, int, int]]
+) -> None:
+    """Face-average normals when cn[] is shade color (no G_LIGHTING), not LightsN."""
+    for vertex in vertices:
+        vertex.nx = 0.0
+        vertex.ny = 0.0
+        vertex.nz = 0.0
+    for i0, i1, i2 in triangles:
+        a, b, c = vertices[i0], vertices[i1], vertices[i2]
+        ux, uy, uz = b.x - a.x, b.y - a.y, b.z - a.z
+        vx, vy, vz = c.x - a.x, c.y - a.y, c.z - a.z
+        nx = uy * vz - uz * vy
+        ny = uz * vx - ux * vz
+        nz = ux * vy - uy * vx
+        for idx in (i0, i1, i2):
+            vertices[idx].nx += nx
+            vertices[idx].ny += ny
+            vertices[idx].nz += nz
+    for vertex in vertices:
+        vertex.nx, vertex.ny, vertex.nz = unit_normal(vertex.nx, vertex.ny, vertex.nz)
 
 
 @dataclass
@@ -183,6 +209,9 @@ class MeshPart:
     base_color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0)
     ## DL prim RGBA 0–255 for beach_wet extras (runtime shader env pulse).
     beach_prim: tuple[int, int, int, int] | None = None
+    ## True when the DL had G_LIGHTING — cn[] was a lighting normal.
+    ## False → cn[] is RGBA shade (museum / house walls: ceiling AO as vertex color).
+    uses_lighting: bool = True
 
 
 ## Decomp OPA beach2 / beachB under ocean (dark-blue floor), not shore wet sand.
@@ -478,6 +507,8 @@ def parse_gfx(
     ## Nested `gsSPDisplayList` keeps its own symbol name so indoor edge/out
     ## groups are not labeled with the parent `room01_model`.
     current_dl_name = name
+    ## Default on (actors / outdoor acres). Indoor shells LoadGeometryMode without G_LIGHTING.
+    geometry_mode = G_LIGHTING
     if bank is not None and name:
         bank.current_gfx = name
 
@@ -578,6 +609,9 @@ def parse_gfx(
             unlit_rgba = (pr / 255.0, pg / 255.0, pb / 255.0, pa / 255.0)
         else:
             unlit_rgba = (0.0, 0.0, 0.0, 1.0)
+        uses_lighting = bool(geometry_mode & G_LIGHTING)
+        if not uses_lighting:
+            assign_geometric_normals(unique, triangles)
         parts.append(
             MeshPart(
                 name=part_name if not tex_name else f"{part_name}:{tex_name}",
@@ -601,6 +635,7 @@ def parse_gfx(
                 waterfall_layer=waterfall_layer,
                 base_color=base_color,
                 beach_prim=beach_prim,
+                uses_lighting=uses_lighting,
             )
         )
         triangles = []
@@ -652,7 +687,7 @@ def parse_gfx(
         triangles.append((keys[0], keys[1], keys[2]))
 
     def walk(dl: bytes, depth: int = 0, dl_name: str | None = None) -> None:
-        nonlocal vtx_cursor, current_mtx, current_key, current_dl_name
+        nonlocal vtx_cursor, current_mtx, current_key, current_dl_name, geometry_mode
         if depth > 8:
             return
         prev_name = current_dl_name
@@ -694,6 +729,16 @@ def parse_gfx(
             elif cmd == G_TEXTURE:
                 ## gsSPTexture — state only; no geometry.
                 pass
+            elif cmd == G_GEOMETRYMODE:
+                ## gsSPGeometryMode(clear, set): mode = (mode & ~clear) | set.
+                clear = (~(w0 & 0xFFFFFF)) & 0xFFFFFF
+                new_mode = (geometry_mode & ~clear) | w1
+                old_lit = bool(geometry_mode & G_LIGHTING)
+                new_lit = bool(new_mode & G_LIGHTING)
+                if triangles and old_lit != new_lit:
+                    flush()
+                    current_key = None
+                geometry_mode = new_mode
             elif cmd == G_VTX:
                 n = _bits(w0, 12, 8)
                 vn = _bits(w0, 1, 7)

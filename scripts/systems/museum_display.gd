@@ -178,8 +178,21 @@ const ENTRANCE_SPAWN_GX := Vector3(240.0, 0.0, 440.0)
 const ENTRANCE_SPAWN_FACING := WorldGrid.Facing.NORTH
 ## Entrance → outdoors. South threshold on the same X as the outdoor enter stand.
 const ENTRANCE_EXIT_SENSOR_GX := Vector3(240.0, 0.0, 500.0)
+## Blathers stand (`museum_entrance_actable` ut 6,5 → cell center 260,220;
+## `ac_npc_curator` then adds +20 GX on X). Faces south (spawn rot 0).
+const BLATHERS_STAND_GX := Vector3(280.0, 0.0, 220.0)
+const BLATHERS_FACING := WorldGrid.Facing.SOUTH
+## `HOUSE_CLOCK` / `obj_clock_museum1`. Decomp actor pos is `(0,0,0)`
+## (`aHC_position_data`); skeleton root is `(240,70,150)` GX — mid-body, so the
+## mesh floats. We keep joint XZ and snap the AABB to the floor.
+const CLOCK_GX := Vector3(240.0, 0.0, 150.0)
+const CLOCK_VISUAL := &"obj_clock_museum1"
 ## `aMP_DrawOneArt` hang height (GX).
 const ART_HANG_Y_GX := 40.0
+
+## Painting-wing E–W partition rows (unit Z). Paintings hang on these mid walls;
+## gaps are cells in that row with no `ART_CELLS` entry.
+const ART_PARTITION_ROWS: Array[int] = [5, 9]
 
 ## Museum wall meshes (`obj_art*` / `obj_art_dummy*`), not house `int_sum_art*` FTR.
 const ART_MUSEUM_VISUALS: Array[StringName] = [
@@ -305,6 +318,19 @@ const FOSSIL_CELLS: Array[Vector2i] = [
 	Vector2i(9, 8),
 	Vector2i(10, 8),
 ]
+
+## `aFTR_SHAPE_*` → footprint for `furniture_world`. TYPEC (2×2) adds +½ cell
+## (`aMR_UnitNumber2Position`); TYPEB stays on the stored unit; TYPEA is 1×1.
+static func fossil_footprint(index: int) -> Vector2i:
+	match index:
+		9, 12, 13, 14:
+			## stego head + ptera parts / dummyA (`TYPEB_0`)
+			return Vector2i(2, 1)
+		20, 21, 22, 23, 24:
+			## amber / stump / ammonite / egg / trilobite (`TYPEA`)
+			return Vector2i(1, 1)
+		_:
+			return Vector2i(2, 2)
 
 ## `mRmTp_DIRECT_*` → `WorldGrid.Facing`.
 const FOSSIL_FACINGS: Array[int] = [

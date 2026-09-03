@@ -58,6 +58,8 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
         # River/ocean dual tiles must not merge with a single-layer copy of water1.
         # beach_wet prim (base_color) must not merge beachA sand with beachB ocean bed.
         # wave2 (CLAMP T) must not merge with wave3 (REPEAT T) if PNG bytes ever collide.
+        # Lit vs vertex-shade (no G_LIGHTING) must not merge — cn[] meaning differs.
+        uses_lighting = bool(getattr(part, "uses_lighting", True))
         key = (
             part.texture_png or b"",
             part.wrap_s,
@@ -71,6 +73,7 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
             part.layer1_wrap_s,
             part.layer1_wrap_t,
             base_color,
+            uses_lighting,
         )
         if key not in index:
             index[key] = len(groups)
@@ -93,6 +96,7 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
                     "layer1_wrap_t": part.layer1_wrap_t,
                     "base_color": base_color,
                     "beach_prim": beach_prim,
+                    "uses_lighting": uses_lighting,
                     "parts": [],
                 }
             )
@@ -117,6 +121,12 @@ def _bake_wrap_group(group: dict) -> None:
     wrap_s = group["wrap_s"]
     wrap_t = group["wrap_t"]
     if wrap_s == GX_CLAMP and wrap_t == GX_CLAMP:
+        ## Still clamp authored UVs into [0,1] — clock hands/body use CLAMP with
+        ## S/T slightly outside the tile; Godot then samples a solid edge strip.
+        for part in group["parts"]:
+            for vertex in part.vertices:
+                vertex.u = min(1.0, max(0.0, vertex.u))
+                vertex.v = min(1.0, max(0.0, vertex.v))
         return
 
     us = [v.u for part in group["parts"] for v in part.vertices]
@@ -141,6 +151,12 @@ def _bake_wrap_group(group: dict) -> None:
     tiles_v = v1 - v0
     if tiles_u == 1 and tiles_v == 1 and u0 == 0 and v0 == 0:
         # UVs already in a single tile; keep sampler wrap for filtering at edges.
+        for part in group["parts"]:
+            for vertex in part.vertices:
+                if wrap_s == GX_CLAMP:
+                    vertex.u = min(1.0, max(0.0, vertex.u))
+                if wrap_t == GX_CLAMP:
+                    vertex.v = min(1.0, max(0.0, vertex.v))
         return
 
     base = Image.open(io.BytesIO(png)).convert("RGBA")
@@ -168,6 +184,7 @@ def _bake_wrap_group(group: dict) -> None:
 
     scale_u = float(tiles_u)
     scale_v = float(tiles_v)
+    orig_s, orig_t = wrap_s, wrap_t
     for part in group["parts"]:
         part.wrap_s = GX_CLAMP
         part.wrap_t = GX_CLAMP
@@ -175,6 +192,11 @@ def _bake_wrap_group(group: dict) -> None:
         for vertex in part.vertices:
             vertex.u = (vertex.u - u0) / scale_u
             vertex.v = (vertex.v - v0) / scale_v
+            ## Mixed WRAP+CLAMP: tiling one axis must not leave the other at −2…
+            if orig_s == GX_CLAMP:
+                vertex.u = min(1.0, max(0.0, vertex.u))
+            if orig_t == GX_CLAMP:
+                vertex.v = min(1.0, max(0.0, vertex.v))
 
 
 def _group_alpha_mode(group: dict) -> str:
@@ -212,6 +234,7 @@ def _material(
     layer1_wrap_t: int = GX_REPEAT,
     base_color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
     beach_prim: tuple[int, int, int, int] | None = None,
+    vertex_shade: bool = False,
 ) -> dict:
     mat: dict = {
         "name": name or "vertex_color",
@@ -233,6 +256,10 @@ def _material(
     if ground_spill:
         extras = dict(extras or {})
         extras["ground_spill"] = True
+    if vertex_shade:
+        ## Indoor shells: TEXEL0 × SHADE with G_LIGHTING off (ceiling AO in cn[]).
+        extras = dict(extras or {})
+        extras["vertex_shade"] = True
     if water_kind:
         extras = dict(extras or {})
         extras["water_kind"] = water_kind
@@ -322,13 +349,20 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
         positions: list[float] = []
         normals: list[float] = []
         uvs: list[float] = []
+        colors: list[float] = []
         indices: list[int] = []
         vertex_offset = 0
+        vertex_shade = not bool(group.get("uses_lighting", True))
         for part in group["parts"]:
             for vertex in part.vertices:
                 positions.extend((vertex.x, vertex.y, vertex.z))
                 normals.extend(unit_normal(vertex.nx, vertex.ny, vertex.nz))
                 uvs.extend((vertex.u, vertex.v))
+                if vertex_shade:
+                    ## Combiners use SHADE for RGB only (alpha from TEXEL0/PRIM).
+                    ## Exporting cn[].a (often ~63 on XLU mado) multiplies Godot
+                    ## coverage and scissor-kills stained glass / soft BLEND.
+                    colors.extend((vertex.r, vertex.g, vertex.b, 1.0))
             for tri in part.triangles:
                 indices.extend((tri[0] + vertex_offset, tri[1] + vertex_offset, tri[2] + vertex_offset))
             source_dls.append(part.name)
@@ -350,6 +384,10 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
         a_nrm = add_acc(add_view(nrm_bytes, 34962), 5126, nverts, "VEC3")
         a_uv = add_acc(add_view(uv_bytes, 34962), 5126, nverts, "VEC2")
         a_idx = add_acc(add_view(idx_bytes, 34963), 5125, len(indices), "SCALAR")
+        a_col = None
+        if colors:
+            col_bytes = struct.pack("<" + "f" * len(colors), *colors)
+            a_col = add_acc(add_view(col_bytes, 34962), 5126, nverts, "VEC4")
 
         tex_index = None
         png = group["png"]
@@ -405,11 +443,15 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
                 layer1_wrap_t=layer1_wrap_t,
                 base_color=tuple(group.get("base_color") or (1.0, 1.0, 1.0, 1.0)),
                 beach_prim=group.get("beach_prim"),
+                vertex_shade=vertex_shade,
             )
         )
+        attrs: dict = {"POSITION": a_pos, "NORMAL": a_nrm, "TEXCOORD_0": a_uv}
+        if a_col is not None:
+            attrs["COLOR_0"] = a_col
         primitives.append(
             {
-                "attributes": {"POSITION": a_pos, "NORMAL": a_nrm, "TEXCOORD_0": a_uv},
+                "attributes": attrs,
                 "indices": a_idx,
                 "mode": 4,
                 "material": len(materials) - 1,

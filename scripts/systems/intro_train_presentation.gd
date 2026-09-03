@@ -39,10 +39,15 @@ static func apply_car_glass(root: Node3D, daylight: bool) -> void:
 	_apply_car_glass_inner(root, daylight)
 
 
-static func apply_window_scenery(root: Node3D, daylight: bool) -> void:
+static func apply_window_scenery(
+	root: Node3D,
+	daylight: bool,
+	cloud_mats: Array[StandardMaterial3D],
+	tree_mats: Array[StandardMaterial3D]
+) -> void:
 	if root == null:
 		return
-	_apply_window_scenery_inner(root, daylight)
+	_apply_window_scenery_inner(root, daylight, cloud_mats, tree_mats)
 
 
 static func _apply_environment(world_env: WorldEnvironment, daylight: bool) -> void:
@@ -126,15 +131,17 @@ static func _apply_car_glass_inner(node: Node, daylight: bool) -> void:
 		_apply_car_glass_inner(child, daylight)
 
 
-static func _apply_window_scenery_inner(node: Node, daylight: bool) -> void:
+static func _apply_window_scenery_inner(
+	node: Node,
+	daylight: bool,
+	cloud_mats: Array[StandardMaterial3D],
+	tree_mats: Array[StandardMaterial3D]
+) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
 		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mesh_instance.sorting_offset = -1.0
 		if mesh_instance.mesh == null:
-			return
-		var node_label := String(mesh_instance.name).to_lower()
-		if not node_label.contains("modelt"):
 			return
 		for i: int in mesh_instance.mesh.get_surface_count():
 			var mat: Material = mesh_instance.get_active_material(i)
@@ -145,14 +152,57 @@ static func _apply_window_scenery_inner(node: Node, daylight: bool) -> void:
 			var std := src.duplicate() as StandardMaterial3D
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
-			if _is_light_ray_surface(label):
+			std.uv1_offset = Vector3.ZERO
+			if _is_window_tunnel_surface(label):
+				_apply_window_opa_surface(std)
+				## Tunnel walls stay for the exit scroll; dim once daylight hits.
+				if daylight:
+					std.albedo_color = Color(
+						std.albedo_color.r * 0.35,
+						std.albedo_color.g * 0.35,
+						std.albedo_color.b * 0.35,
+						std.albedo_color.a
+					)
+			elif _is_window_sky_surface(label):
+				_apply_window_opa_surface(std)
+			elif _is_light_ray_surface(label):
 				_apply_light_ray_surface(std, daylight)
-				mesh_instance.set_surface_override_material(i, std)
+			elif _is_window_cloud_surface(label):
+				_apply_xlu_scenery_surface(std)
+				cloud_mats.append(std)
+			elif _is_window_tree_surface(label):
+				_apply_xlu_scenery_surface(std)
+				tree_mats.append(std)
 			else:
 				_apply_xlu_scenery_surface(std)
-				mesh_instance.set_surface_override_material(i, std)
+			mesh_instance.set_surface_override_material(i, std)
 	for child: Node in node.get_children():
-		_apply_window_scenery_inner(child, daylight)
+		_apply_window_scenery_inner(child, daylight, cloud_mats, tree_mats)
+
+
+static func _is_window_tunnel_surface(label: String) -> bool:
+	return "tunnel" in label
+
+
+static func _is_window_sky_surface(label: String) -> bool:
+	return "bgsky" in label or "sky" in label
+
+
+static func _is_window_cloud_surface(label: String) -> bool:
+	return "bgcloud" in label or "cloud" in label
+
+
+static func _is_window_tree_surface(label: String) -> bool:
+	return "bgtree" in label or ("tree" in label and "tunnel" not in label)
+
+
+static func _apply_window_opa_surface(std: StandardMaterial3D) -> void:
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	std.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+	std.roughness = 1.0
+	std.metallic = 0.0
+	std.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	std.emission_enabled = false
 
 
 static func _surface_label(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> String:

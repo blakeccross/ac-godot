@@ -58,7 +58,7 @@ transform = Transform3D(3.125, 0, 0, 0, 3.125, 0, 0, 0, 3.125, 0, -2, 0)
 unique_name_in_owner = true
 
 [node name="GeneratedVisual" type="Node3D" parent="TrainCar/WindowScenery" unique_id=1828331897]
-transform = Transform3D(50, 0, 0, 0, 50, 0, 0, 0, 50, 0, -20, 0)
+transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 0, -1, 0)
 
 [node name="rom_train_out" parent="TrainCar/WindowScenery/GeneratedVisual" unique_id=410143504 instance=ExtResource("5")]
 

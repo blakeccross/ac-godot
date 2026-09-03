@@ -8,6 +8,9 @@ const FURNITURE_SCENE := preload("res://scenes/world/furniture.tscn")
 const DOOR_SCENE := preload("res://scenes/world/door.tscn")
 const COUNTER_SCENE := preload("res://scenes/world/shop_counter.tscn")
 const STOCK_SCENE := preload("res://scenes/world/shop_stock.tscn")
+const BLATHERS_SCRIPT := preload("res://scenes/world/museum/museum_blathers.gd")
+## Door opening half-width (~1.5 UT). Matches walk-in sensors better than 1 UT.
+const MUSEUM_DOOR_HALF_GX := 60.0
 
 
 func build(root: Node3D, interior: Interior) -> void:
@@ -79,7 +82,7 @@ func museum_door_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
 			sensors.append(link["sensor"] as Vector3)
 	elif MuseumDisplay.WING_EXIT_DOORS.has(room.id):
 		sensors.append(MuseumDisplay.WING_EXIT_DOORS[room.id]["sensor"] as Vector3)
-	var half: float = 40.0 * FieldCatalog.GX_TO_METERS
+	var half: float = MUSEUM_DOOR_HALF_GX * FieldCatalog.GX_TO_METERS
 	for sensor: Vector3 in sensors:
 		var gap: Dictionary = _museum_gap_for_sensor(grid, sensor, half)
 		if not gap.is_empty():
@@ -99,16 +102,14 @@ func museum_exit_gap(room: Room, grid: WorldGrid) -> Dictionary:
 
 func _museum_gap_for_sensor(grid: WorldGrid, sensor: Vector3, half: float) -> Dictionary:
 	var world: Vector3 = MuseumDisplay.gx_to_world(grid, sensor)
-	## North openings sit on the low-Z wall (entrance → art / fossil).
-	if sensor.z <= 120.0:
-		return {"side": &"north", "center": world.x, "half": half}
-	if sensor.z >= 400.0 and sensor.x > 120.0 and sensor.x < 400.0:
-		return {"side": &"south", "center": world.x, "half": half}
-	if sensor.x <= 120.0:
-		return {"side": &"west", "center": world.z, "half": half}
-	if sensor.x >= 400.0:
-		return {"side": &"east", "center": world.z, "half": half}
-	return {"side": &"south", "center": world.x, "half": half}
+	var side: StringName = museum_door_side(sensor)
+	match side:
+		&"north", &"south":
+			return {"side": side, "center": world.x, "half": half}
+		&"west", &"east":
+			return {"side": side, "center": world.z, "half": half}
+		_:
+			return {"side": &"south", "center": world.x, "half": half}
 
 
 func _normalize_museum_gaps(gaps: Variant) -> Array:
@@ -184,9 +185,13 @@ func _add_shell_collision(root: Node3D, room: Room, grid: WorldGrid, gaps: Array
 	var full := Vector3(float(grid.columns) * grid.cell_size, WALL_HEIGHT, float(grid.rows) * grid.cell_size)
 	var inner_nw: Vector3 = grid.cell_corner(room.inner_origin)
 	var inner_se: Vector3 = grid.cell_corner(room.inner_origin + room.inner_size)
-	## Museum wall meshes sit on the floor rim (e.g. rom_museum3 north strip z≈2–4).
-	## Outer-margin-only boxes left a cell of walk-through; pull walls one cell inward.
-	var inset: float = grid.cell_size if room.kind == Room.Kind.MUSEUM else 0.0
+	## Wing shells with thick rim walls (painting/fossil) inset one cell so
+	## collision matches the inner face. Entrance walls are thin on the floor
+	## AABB. Fish/insect exits sit on the south rim (z=560 GX): inset put the
+	## south wall face on the door threshold and blocked the opening.
+	var inset: float = 0.0
+	if room.kind == Room.Kind.MUSEUM and room.id in [&"museum_painting", &"museum_fossil"]:
+		inset = grid.cell_size
 	var wall_nw := Vector3(inner_nw.x + inset, 0.0, inner_nw.z + inset)
 	var wall_se := Vector3(inner_se.x - inset, 0.0, inner_se.z - inset)
 	if wall_se.x <= wall_nw.x + 0.05 or wall_se.z <= wall_nw.z + 0.05:
@@ -507,6 +512,76 @@ func add_furniture(root: Node3D, interior: Interior, entry: FurniturePlacement) 
 func add_museum_set(root: Node3D, interior: Interior) -> void:
 	## Fossils / art / tank fish / case insects from town `MuseumBook` bits.
 	MuseumPresenter.new().present(root, interior)
+	if interior == null or interior.room == null:
+		return
+	match interior.room.id:
+		&"museum_entrance":
+			add_blathers(root, interior)
+			add_museum_clock(root, interior)
+		&"museum_painting":
+			var terrain: Node3D = null
+			if root != null and root.get_parent() != null:
+				terrain = root.get_parent().get_node_or_null("Terrain") as Node3D
+			add_museum_art_partitions(terrain, interior.room, interior.grid)
+		_:
+			pass
+
+
+## Blathers in the entrance hall (talk / donate).
+func add_blathers(root: Node3D, interior: Interior) -> void:
+	if root == null or interior == null or interior.grid == null:
+		return
+	if root.get_node_or_null("Blathers") != null:
+		return
+	var blathers := StaticBody3D.new()
+	blathers.set_script(BLATHERS_SCRIPT)
+	blathers.name = "Blathers"
+	blathers.position = MuseumDisplay.gx_to_world(interior.grid, MuseumDisplay.BLATHERS_STAND_GX)
+	blathers.rotation.y = WorldGrid.yaw_for_facing(MuseumDisplay.BLATHERS_FACING)
+	root.add_child(blathers)
+
+
+## Floor clock in the entrance hall (`HOUSE_CLOCK` / `obj_clock_museum1`).
+func add_museum_clock(root: Node3D, interior: Interior) -> void:
+	if root == null or interior == null or interior.grid == null:
+		return
+	if root.get_node_or_null("MuseumClock") != null:
+		return
+	if FieldCatalog.mesh_paths(MuseumDisplay.CLOCK_VISUAL).is_empty():
+		return
+	var host := Node3D.new()
+	host.name = "MuseumClock"
+	host.position = MuseumDisplay.gx_to_world(interior.grid, MuseumDisplay.CLOCK_GX)
+	root.add_child(host)
+	var pivot: Node3D = GeneratedVisual.attach(host, MuseumDisplay.CLOCK_VISUAL)
+	if pivot != null:
+		## Skeleton joint Y is mid-body; rest the mesh on the floor.
+		GeneratedVisual.align_actor_to_height_gx(pivot, 0.0)
+
+
+## Painting-wing E–W mid walls with walk gaps where `ART_CELLS` has no hang.
+func add_museum_art_partitions(root: Node3D, room: Room, grid: WorldGrid) -> void:
+	if root == null or room == null or grid == null:
+		return
+	var occupied: Dictionary = {}
+	for cell: Vector2i in MuseumDisplay.ART_CELLS:
+		occupied[cell] = true
+	var x0: int = room.inner_origin.x
+	var x1: int = room.inner_origin.x + room.inner_size.x
+	var thickness: float = grid.cell_size * 0.4
+	for row_z: int in MuseumDisplay.ART_PARTITION_ROWS:
+		var gaps: Array[Dictionary] = []
+		for x: int in range(x0, x1):
+			if bool(occupied.get(Vector2i(x, row_z), false)):
+				continue
+			var world: Vector3 = grid.cell_to_world(Vector2i(x, row_z))
+			gaps.append({"center": world.x, "half": grid.cell_size * 0.5})
+		var span_lo: float = grid.cell_corner(Vector2i(x0, row_z)).x
+		var span_hi: float = grid.cell_corner(Vector2i(x1, row_z)).x
+		var z_center: float = grid.cell_to_world(Vector2i(x0, row_z)).z
+		var full_size := Vector3(span_hi - span_lo, WALL_HEIGHT, thickness)
+		var full_pos := Vector3((span_lo + span_hi) * 0.5, WALL_HEIGHT * 0.5, z_center)
+		_add_multi_gapped_wall(root, full_size, full_pos, &"x", span_lo, span_hi, gaps)
 
 
 func add_shop_set(root: Node3D, interior: Interior) -> void:
@@ -637,11 +712,30 @@ func _add_museum_entrance_doors(root: Node3D, grid: WorldGrid) -> void:
 
 
 func _size_museum_wing_door(door: Node3D, sensor_gx: Vector3) -> void:
-	## Fill the wall opening (~2 UT / 80 GX) so the player cannot slip past the sensor.
-	## North/south openings (z near 80/520) are wide in X; east/west openings wide in Z.
-	var wide: float = 80.0 * FieldCatalog.GX_TO_METERS
+	## Match wall gap half-width so the player cannot slip past the sensor.
+	HostCollision.resize_interact_box(door, museum_door_box(sensor_gx))
+
+
+## North/south walls: wide in X. East/west walls: wide in Z.
+## Corner sensors (insect/fish z=560 + x=80/560) must use X thresholds — z-only
+## heuristics mistook them for south doors and swallowed the enter spawn.
+static func museum_door_box(sensor_gx: Vector3) -> Vector3:
+	var wide: float = MUSEUM_DOOR_HALF_GX * 2.0 * FieldCatalog.GX_TO_METERS
 	var deep: float = 40.0 * FieldCatalog.GX_TO_METERS
 	var tall: float = 2.6
-	var along_x: bool = sensor_gx.z < 200.0 or sensor_gx.z > 400.0
-	var box := Vector3(wide, tall, deep) if along_x else Vector3(deep, tall, wide)
-	HostCollision.resize_interact_box(door, box)
+	var side: StringName = museum_door_side(sensor_gx)
+	var along_x: bool = side == &"north" or side == &"south"
+	return Vector3(wide, tall, deep) if along_x else Vector3(deep, tall, wide)
+
+
+static func museum_door_side(sensor_gx: Vector3) -> StringName:
+	## Same rules as `_museum_gap_for_sensor`.
+	if sensor_gx.z <= 120.0:
+		return &"north"
+	if sensor_gx.z >= 400.0 and sensor_gx.x > 120.0 and sensor_gx.x < 400.0:
+		return &"south"
+	if sensor_gx.x <= 120.0:
+		return &"west"
+	if sensor_gx.x >= 400.0:
+		return &"east"
+	return &"south"

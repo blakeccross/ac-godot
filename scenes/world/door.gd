@@ -72,9 +72,14 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 		if action.id != Interaction.ENTER:
 			return false
 		await _play_indoor_link_enter()
+		var entered: bool = false
 		if has_linked_spawn:
-			return Game.try_enter_interior(linked_room_id, linked_spawn_gx, linked_spawn_yaw)
-		return Game.try_enter_interior(linked_room_id)
+			entered = Game.try_enter_interior(linked_room_id, linked_spawn_gx, linked_spawn_yaw)
+		else:
+			entered = Game.try_enter_interior(linked_room_id)
+		if entered:
+			await _play_indoor_arrive()
+		return entered
 	if action.id != verb:
 		return false
 	if verb == Interaction.SHOP:
@@ -115,6 +120,30 @@ func _play_indoor_link_enter() -> void:
 	var to: Vector3 = target - player.global_position
 	to.y = 0.0
 	var yaw: float = atan2(to.x, to.z) if to.length_squared() > 0.0001 else 0.0
+	player.call("begin_door_enter", target, yaw, true)
+	if player.has_method("await_door_enter"):
+		await player.call("await_door_enter")
+	if player.has_method("end_door_enter"):
+		player.call("end_door_enter")
+
+
+## After the wing load, keep walking INTO_S1 past the door so exit sensors stay clear.
+func _play_indoor_arrive() -> void:
+	var player: Node = get_tree().get_first_node_in_group("player")
+	if player == null or not is_instance_valid(player):
+		return
+	if not player.has_method("begin_door_enter"):
+		return
+	Game.block_auto_enter_doors = true
+	var yaw: float = (
+		float(player.call("facing_yaw"))
+		if player.has_method("facing_yaw")
+		else (player as Node3D).rotation.y
+	)
+	var along := Vector3(sin(yaw), 0.0, cos(yaw))
+	var from: Vector3 = (player as Node3D).global_position
+	var target: Vector3 = from + along * (StructureDoor.INTO_GX * FieldCatalog.GX_TO_METERS)
+	target.y = from.y
 	player.call("begin_door_enter", target, yaw, true)
 	if player.has_method("await_door_enter"):
 		await player.call("await_door_enter")

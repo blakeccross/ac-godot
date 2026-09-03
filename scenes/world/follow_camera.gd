@@ -2,6 +2,7 @@ extends Camera3D
 
 ## 3/4 follow camera. `Init_Camera2`: 20° FOV, distance 620, equal Y/Z (~45°).
 ## 620 original units × (2 m / 40) = 31 m.
+## Talk uses `CAMERA2_PROCESS_TALK` framing (closer, flatter pitch).
 
 const ORIG_DISTANCE := 620.0
 const FOLLOW_DISTANCE := ORIG_DISTANCE * PlayerLocomotion.UNIT_METERS
@@ -14,13 +15,21 @@ const FRAME_PADDING := 1.6
 @export var target_path: NodePath
 @export var offset := DEFAULT_OFFSET
 @export var follow_rate := 6.0
+## `Camera2_MoveDistancePosAndSpeed` / center morph (~0.134 per 60 Hz frame).
+@export var talk_rate := 8.0
 
 var _target: Node3D
 var _locked: bool = false
 var _lock_point := Vector3.ZERO
+var _talk_active: bool = false
+var _talk_speaker: Node3D
+var _talk_listener: Node3D
+var _look_current := Vector3.ZERO
+var _has_look: bool = false
 
 
 func _ready() -> void:
+	add_to_group("follow_camera")
 	fov = 20.0
 	if target_path != NodePath():
 		_target = get_node_or_null(target_path) as Node3D
@@ -29,6 +38,7 @@ func _ready() -> void:
 
 func set_target(node: Node3D) -> void:
 	_locked = false
+	_talk_active = false
 	_target = node
 	_follow(true)
 
@@ -36,9 +46,36 @@ func set_target(node: Node3D) -> void:
 func lock_at(point: Vector3) -> void:
 	## Small indoor fields pin the look-at to the room (`Camera2` border invert).
 	_locked = true
+	_talk_active = false
 	_target = null
 	_lock_point = point
 	_follow(true)
+
+
+## `Camera2_request_main_talk` — ease toward speaker + listener until `end_talk`.
+func begin_talk(speaker: Node3D, listener: Node3D) -> void:
+	if speaker == null or listener == null:
+		return
+	_talk_active = true
+	_talk_speaker = speaker
+	_talk_listener = listener
+	## Keep the current eye / look and morph in `_process` (no snap).
+	if not _has_look:
+		_look_current = global_position - basis.z * 8.0
+		_has_look = true
+
+
+func end_talk() -> void:
+	if not _talk_active:
+		return
+	_talk_active = false
+	_talk_speaker = null
+	_talk_listener = null
+	## Ease back to follow / lock; do not snap.
+
+
+func is_talking() -> bool:
+	return _talk_active
 
 
 ## 45° 3/4 offset that fits a square of `span` meters on the floor at this FOV.
@@ -63,23 +100,40 @@ func _process(delta: float) -> void:
 
 
 func _follow(snap: bool, delta: float = 0.0) -> void:
+	if _talk_active and is_instance_valid(_talk_speaker) and is_instance_valid(_talk_listener):
+		_follow_talk(snap, delta)
+		return
 	if _locked:
+		var look := _lock_point + Vector3(0.0, 0.85, 0.0)
 		var destination := _lock_point + offset
-		if snap:
-			global_position = destination
-		else:
-			global_position = global_position.lerp(destination, clampf(follow_rate * delta, 0.0, 1.0))
-		look_at(_lock_point + Vector3(0.0, 0.85, 0.0), Vector3.UP)
+		_move_camera(destination, look, snap, delta, follow_rate)
 		return
 	if _target == null:
 		return
 	var look_at_point := _look_point()
 	var destination := _target.global_position + offset
-	if snap:
-		global_position = destination
+	_move_camera(destination, look_at_point, snap, delta, follow_rate)
+
+
+func _follow_talk(snap: bool, delta: float) -> void:
+	var framed: Dictionary = TalkCamera.frame(_talk_speaker, _talk_listener)
+	_move_camera(framed["eye"] as Vector3, framed["center"] as Vector3, snap, delta, talk_rate)
+
+
+func _move_camera(eye: Vector3, look: Vector3, snap: bool, delta: float, rate: float) -> void:
+	if snap or delta <= 0.0:
+		global_position = eye
+		_look_current = look
+		_has_look = true
 	else:
-		global_position = global_position.lerp(destination, clampf(follow_rate * delta, 0.0, 1.0))
-	look_at(look_at_point, Vector3.UP)
+		var t: float = clampf(rate * delta, 0.0, 1.0)
+		global_position = global_position.lerp(eye, t)
+		if not _has_look:
+			_look_current = look
+			_has_look = true
+		else:
+			_look_current = _look_current.lerp(look, t)
+	look_at(_look_current, Vector3.UP)
 
 
 func _look_point() -> Vector3:
