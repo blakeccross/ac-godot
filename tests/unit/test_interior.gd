@@ -75,7 +75,7 @@ func test_catalog_covers_every_gc_interior() -> void:
 	assert_bool(starter_ids.has("int_nog_mikanbox")).is_true()
 	assert_bool(starter_ids.has("int_sum_casse01")).is_true()
 	assert_bool(InteriorCatalog.room_template(&"shop0").shell_ids.has("rom_shop1f")).is_true()
-	assert_int(InteriorCatalog.room_template(&"shop0").placements.size()).is_equal(2)
+	assert_int(InteriorCatalog.room_template(&"shop0").placements.size()).is_equal(0)
 	assert_bool(InteriorCatalog.room_template(&"needlework").shell_ids.has("rom_tailor")).is_true()
 	assert_int(InteriorCatalog.room_template(&"needlework").placements.size()).is_equal(1)
 
@@ -139,13 +139,27 @@ func test_alli_mannequins_carry_cloth_index() -> void:
 	assert_int(mannequins).is_greater(1)
 
 
-func test_apply_cloth_paints_seg08_only() -> void:
+func test_peanut_room_has_green_counter_and_styles() -> void:
+	if not FileAccess.file_exists(InteriorCatalog.NPC_ROOMS_PATH):
+		return
+	var room: Room = InteriorCatalog.room_template(&"npc_peanut")
+	assert_that(room).is_not_null()
+	assert_that(room.wall_id).is_equal(&"wall_12")
+	assert_that(room.floor_id).is_equal(&"floor_33")
+	var ids: PackedStringArray = PackedStringArray()
+	for entry: FurniturePlacement in room.placements:
+		ids.append(String(entry.furniture_id))
+	assert_bool(ids.has("int_sum_gre_counter01")).is_true()
+	assert_str(InteriorCatalog.floor_texture_path(room.floor_id)).contains("floor_33")
+
+
+func test_apply_cloth_paints_mannequin_seg08() -> void:
 	var host := MeshInstance3D.new()
 	auto_free(host)
 	add_child(host)
 	host.mesh = BoxMesh.new()
 	var shirt := StandardMaterial3D.new()
-	shirt.resource_name = "seg_08"
+	shirt.resource_name = "obj_shop_manekin_seg_08"
 	host.set_surface_override_material(0, shirt)
 	var path: String = FieldCatalog.cloth_albedo(0)
 	if path.is_empty():
@@ -155,6 +169,25 @@ func test_apply_cloth_paints_seg08_only() -> void:
 	assert_that(painted).is_not_null()
 	assert_that(painted.albedo_texture).is_not_null()
 	assert_bool(painted.texture_repeat).is_false()
+
+
+func test_apply_cloth_skips_villager_eye_seg08() -> void:
+	## Tom Nook / villagers: `seg_08` is ANIME_1 eyes, not cloth.
+	var host := MeshInstance3D.new()
+	auto_free(host)
+	add_child(host)
+	host.mesh = BoxMesh.new()
+	var eyes := StandardMaterial3D.new()
+	eyes.resource_name = "seg_08"
+	var baked := ImageTexture.create_from_image(Image.create(4, 4, false, Image.FORMAT_RGBA8))
+	eyes.albedo_texture = baked
+	host.set_surface_override_material(0, eyes)
+	var path: String = FieldCatalog.cloth_albedo(0)
+	if path.is_empty():
+		return
+	GeneratedVisual.apply_cloth(host, 0)
+	var after: StandardMaterial3D = host.get_surface_override_material(0) as StandardMaterial3D
+	assert_that(after.albedo_texture).is_same(baked)
 
 
 func test_mannequin_glb_shirt_gets_cloth_albedo() -> void:
@@ -284,6 +317,149 @@ func test_room_trim_is_not_wallpaper() -> void:
 	assert_that(GeneratedVisual._classify_room_surface("rom_museum1 rom_museum1_floorA_tex")).is_equal(&"")
 	assert_that(GeneratedVisual._classify_room_surface("rom_museum2 rom_museum2_wallA_tex")).is_equal(&"")
 	assert_that(GeneratedVisual._classify_room_surface("rom_tailor rom_tailor_floorA_tex")).is_equal(&"")
+	## Shop `*f` DLs are carpet even when convert named segs 0x08/0x09 wall.
+	assert_that(GeneratedVisual._classify_room_surface("rom_shop2f player_room_wall_0_0")).is_equal(
+		&"floor"
+	)
+	assert_that(GeneratedVisual._classify_room_surface("rom_shop4_2f player_room_wall_0_1")).is_equal(
+		&"floor"
+	)
+	assert_that(GeneratedVisual._classify_room_surface("rom_shop2w player_room_wall_0_0")).is_equal(
+		&"wall"
+	)
+	assert_that(GeneratedVisual._classify_room_surface("rom_shop1_fuku player_room_wall_0_0")).is_equal(
+		&"wall"
+	)
+
+
+func test_shop_shells_use_nook_bank_textures() -> void:
+	## Cranny DMA: `aSI_*_default_table` → ETC bank index 67 (`WALL_SHOP1` / `FLOOR_SHOP1`).
+	var shop0: Room = InteriorCatalog.room_template(&"shop0")
+	assert_that(shop0.wall_id).is_equal(&"wall_67")
+	assert_that(shop0.floor_id).is_equal(&"floor_67")
+	assert_that(shop0.inner_origin).is_equal(ShopDisplay.CRANNY_INNER_ORIGIN)
+	assert_that(shop0.inner_size).is_equal(ShopDisplay.CRANNY_INNER_SIZE)
+	assert_that(shop0.door_cell).is_equal(ShopDisplay.CRANNY_DOOR_CELL)
+	assert_str(InteriorCatalog.wall_texture_path(shop0.wall_id)).contains("wall_67")
+	assert_str(InteriorCatalog.floor_texture_path(shop0.floor_id)).contains("floor_67")
+	var needle: Room = InteriorCatalog.room_template(&"needlework")
+	assert_that(needle.wall_id).is_equal(&"")
+	assert_that(needle.floor_id).is_equal(&"")
+	var mi := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	var baked := StandardMaterial3D.new()
+	baked.albedo_texture = ImageTexture.create_from_image(Image.create(8, 8, false, Image.FORMAT_RGBA8))
+	baked.albedo_color = Color.WHITE
+	box.surface_set_material(0, baked)
+	mi.mesh = box
+	mi.name = "rom_shop1f"
+	mi.set_surface_override_material(0, null)
+	## Empty / tint ids must not strip baked albedos when no bank PNG resolves.
+	baked.resource_name = "player_room_wall_0_0"
+	GeneratedVisual._paint_room_surfaces(mi, InteriorCatalog.WALL_DEFAULT, InteriorCatalog.FLOOR_DEFAULT)
+	var after: Material = mi.get_active_material(0)
+	assert_that(after).is_not_null()
+	assert_bool(after is StandardMaterial3D).is_true()
+	assert_that((after as StandardMaterial3D).albedo_texture).is_same(baked.albedo_texture)
+	mi.free()
+
+
+func test_nook_cranny_display_helpers() -> void:
+	assert_that(ShopDisplay.nook_wall_id(0)).is_equal(&"wall_67")
+	assert_that(ShopDisplay.nook_floor_id(3)).is_equal(&"floor_70")
+	assert_that(ShopDisplay.NOOK_SPECIES).is_equal(&"rcn")
+	assert_that(ShopDisplay.nook_species(0)).is_equal(&"rcn")
+	assert_that(ShopDisplay.nook_species(1)).is_equal(&"rcc")
+	assert_that(ShopDisplay.nook_species(2)).is_equal(&"rcs")
+	assert_that(ShopDisplay.nook_species(3)).is_equal(&"rcd")
+	assert_that(ShopDisplay.nook_stand_gx(0)).is_equal(ShopDisplay.NOOK_STAND_GX)
+	assert_that(ShopDisplay.nook_stand_gx(1)).is_equal(Vector3(300.0, 0.0, 220.0))
+	assert_that(ShopDisplay.nook_stand_gx(2)).is_equal(Vector3(340.0, 0.0, 380.0))
+	assert_that(ShopDisplay.nook_stand_gx(3)).is_equal(Vector3(300.0, 0.0, 460.0))
+	assert_that(ShopDisplay.display_visual_for_item(&"shovel")).is_equal(&"obj_item_shovel")
+	assert_that(ShopDisplay.display_visual_for_item(&"wall_blue")).is_equal(&"obj_item_wall")
+	assert_that(ShopDisplay.display_visual_for_item(&"floor_tile")).is_equal(&"obj_item_carpet")
+	assert_that(ShopDisplay.display_visual_for_item(&"shirt_000")).is_equal(&"obj_shop_manekin")
+	assert_that(ShopDisplay.display_visual_for_item(&"apple_sapling")).is_equal(&"obj_shop_cnaegi")
+	assert_that(ShopDisplay.display_visual_for_item(&"wood_chair")).is_equal(&"int_sum_chair01")
+	var goods: Array[StringName] = [&"wood_chair", &"wall_blue", &"floor_tile", &"shovel", &"shirt_000"]
+	var cells: Array[Vector2i] = ShopDisplay.stock_cells_for_goods(goods)
+	assert_int(cells.size()).is_equal(5)
+	assert_that(cells[0]).is_equal(Vector2i(1, 1))
+	assert_that(cells[1]).is_equal(Vector2i(3, 1))
+	assert_that(cells[2]).is_equal(Vector2i(4, 1))
+	assert_that(cells[3]).is_equal(Vector2i(5, 1))
+	assert_that(cells[4]).is_equal(Vector2i(1, 3))
+	var placements: Array[Dictionary] = ShopDisplay.stock_placements_for_goods(goods)
+	assert_float(float(placements[0]["y_gx"])).is_equal(0.0)
+	assert_float(float(placements[1]["y_gx"])).is_equal(ShopDisplay.CRANNY_SHELF_Y_GX)
+	assert_float(float(placements[3]["y_gx"])).is_equal(ShopDisplay.CRANNY_SHELF_Y_GX)
+	assert_that(ShopDisplay.nook_clock_visual(0)).is_equal(&"obj_clock_shop1")
+	assert_vector(ShopDisplay.CLOCK_GX).is_equal(Vector3(200.0, 40.0, 40.0))
+	var greeting: DialogueData = DialogueCatalog.conversation(&"nook_greeting")
+	assert_that(greeting).is_not_null()
+	assert_that(greeting.id).is_equal(&"nook_greeting")
+	DialogueCatalog.reset()
+
+
+func test_shop_shell_keeps_acre_origin() -> void:
+	## Home-style floor snap shifted RSV goods off the shell tables by ~¼ cell.
+	var room: Room = InteriorCatalog.room_template(&"shop0")
+	var session := Interior.new()
+	session.bind(room)
+	var root := Node3D.new()
+	auto_free(root)
+	add_child(root)
+	InteriorBuilder.new().build(root, session)
+	var shell: Node3D = root.get_node_or_null("Terrain/GeneratedVisual") as Node3D
+	if shell == null:
+		return
+	assert_float(shell.scale.x).is_equal_approx(FieldCatalog.acre_uniform_scale(), 0.001)
+	assert_float(shell.position.x).is_equal_approx(session.grid.origin.x, 0.05)
+	assert_float(shell.position.z).is_equal_approx(session.grid.origin.z, 0.05)
+
+
+func test_atlas_tile_period_prefers_wrap_bake_cell() -> void:
+	## Shop wall DMA and unique strips wrap-bake at the native 64px bank tile.
+	var wall_path := "res://assets/generated/environment/interiors/rom_shop1w.glb"
+	if not ResourceLoader.exists(wall_path):
+		return
+	var packed: PackedScene = load(wall_path) as PackedScene
+	var strip_tex: Texture2D = _first_named_albedo(packed, "rom_shop1_table")
+	var wall_tex: Texture2D = _first_wall_albedo(packed)
+	if strip_tex == null or wall_tex == null:
+		return
+	assert_int(GeneratedVisual._infer_atlas_tile_size(strip_tex)).is_equal(64)
+	assert_int(GeneratedVisual._infer_atlas_tile_size(wall_tex)).is_equal(64)
+
+
+func _first_wall_albedo(packed: PackedScene) -> Texture2D:
+	return _first_named_albedo(packed, "player_room_wall")
+
+
+func _first_named_albedo(packed: PackedScene, needle: String) -> Texture2D:
+	if packed == null:
+		return null
+	var root: Node = packed.instantiate()
+	auto_free(root)
+	return _find_named_albedo(root, needle)
+
+
+func _find_named_albedo(node: Node, needle: String) -> Texture2D:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		var n: int = mi.mesh.get_surface_count() if mi.mesh != null else 0
+		for i: int in n:
+			var mat: Material = mi.get_active_material(i)
+			var label := GeneratedVisual._surface_label(mi, i, mat)
+			if label.contains(needle) and mat is StandardMaterial3D:
+				return (mat as StandardMaterial3D).albedo_texture
+	for child in node.get_children():
+		var found: Texture2D = _find_named_albedo(child, needle)
+		if found != null:
+			return found
+	return null
+
 
 
 func test_vertex_shade_material_multiplies_unshaded() -> void:
@@ -408,6 +584,26 @@ func test_shop_hours_gate_entry() -> void:
 	var house: Room = InteriorCatalog.room_template(&"player_main")
 	Clock.apply_snapshot({"year": 2001, "month": 1, "day": 1, "hour": 3, "minute": 0})
 	assert_bool(InteriorCatalog.is_open_now(house)).is_true()
+	## Museum / police / post: always open (decomp light hours are not entry gates).
+	var museum: Room = InteriorCatalog.room_template(&"museum_entrance")
+	assert_bool(museum.is_always_open()).is_true()
+	assert_bool(InteriorCatalog.is_open_now(museum)).is_true()
+	assert_bool(InteriorCatalog.room_template(&"police_box").is_always_open()).is_true()
+	assert_bool(InteriorCatalog.room_template(&"post_office").is_always_open()).is_true()
+	## Able Sisters: open 7:00–2:00 (`aNW_check_opend` closed 2:00–7:00).
+	var able: Room = InteriorCatalog.room_template(&"needlework")
+	assert_int(able.open_hour).is_equal(7)
+	assert_int(able.close_hour).is_equal(2)
+	Clock.apply_snapshot({"year": 2001, "month": 1, "day": 1, "hour": 3, "minute": 0})
+	assert_bool(InteriorCatalog.is_open_now(able)).is_false()
+	Clock.apply_snapshot({"year": 2001, "month": 1, "day": 1, "hour": 8, "minute": 0})
+	assert_bool(InteriorCatalog.is_open_now(able)).is_true()
+	Clock.apply_snapshot({"year": 2001, "month": 1, "day": 1, "hour": 23, "minute": 0})
+	assert_bool(InteriorCatalog.is_open_now(able)).is_true()
+	Clock.apply_snapshot({"year": 2001, "month": 1, "day": 1, "hour": 1, "minute": 0})
+	assert_bool(InteriorCatalog.is_open_now(able)).is_true()
+	Clock.apply_snapshot({"year": 2001, "month": 1, "day": 1, "hour": 2, "minute": 0})
+	assert_bool(InteriorCatalog.is_open_now(able)).is_false()
 
 
 func test_enter_exit_restores_outdoor_pose() -> void:
@@ -440,7 +636,7 @@ func test_indoor_exit_door_is_walk_warp_not_a_prompt() -> void:
 
 
 func test_museum_door_auto_enters_when_open() -> void:
-	## `aMsm_check_player` has no A button — walk-in while open, silent prompt.
+	## `aMsm_check_player` has no A button — walk-in any hour (always open).
 	Game.block_auto_enter_doors = false
 	var door: Node = auto_free(load("res://scenes/world/door.tscn").instantiate())
 	door.set("occupant_id", &"museum")
@@ -452,9 +648,10 @@ func test_museum_door_auto_enters_when_open() -> void:
 	assert_int(open_actions.size()).is_equal(1)
 	assert_str((open_actions[0] as Interaction).prompt).is_equal("")
 	Clock.hour = 22
-	assert_bool(door.call("should_auto_enter")).is_false()
-	var closed: Array = door.get_interactions(InteractionContext.new())
-	assert_str((closed[0] as Interaction).prompt).contains("Museum")
+	assert_bool(door.call("should_auto_enter")).is_true()
+	var night: Array = door.get_interactions(InteractionContext.new())
+	assert_int(night.size()).is_equal(1)
+	assert_str((night[0] as Interaction).prompt).is_equal("")
 	Clock.hour = 12
 
 
@@ -474,6 +671,64 @@ func test_museum_wing_door_auto_enters_indoors() -> void:
 	assert_bool(door.call("should_auto_enter")).is_false()
 	Game.block_auto_enter_doors = false
 	Game.current_room_id = &""
+
+
+func test_museum_exit_auto_enters_indoors() -> void:
+	## Entrance Exit sensor walk-out (`exits_interior` + `auto_enter`) — not door_cell.
+	Game.block_auto_enter_doors = false
+	Game.current_room_id = &"museum_entrance"
+	var door: Node = auto_free(load("res://scenes/world/door.tscn").instantiate())
+	door.set("auto_enter", true)
+	door.set("exits_interior", true)
+	door.set("label", "Leave")
+	assert_bool(door.call("should_auto_enter")).is_true()
+	var actions: Array = door.get_interactions(InteractionContext.new())
+	assert_int(actions.size()).is_equal(1)
+	assert_str((actions[0] as Interaction).prompt).is_equal("")
+	## Without auto_enter, Exit stays silent and does not arm walk-in (houses use door_cell).
+	door.set("auto_enter", false)
+	assert_bool(door.call("should_auto_enter")).is_false()
+	assert_int(door.get_interactions(InteractionContext.new()).size()).is_equal(0)
+	Game.current_room_id = &""
+
+
+func test_museum_entrance_sets_spawn_without_arrive() -> void:
+	## Outdoor→entrance: `aMsm_museum_enter_data` spawn only — no post-load INTO_S1.
+	Game.current_room_id = &""
+	Game.play_door_arrive = false
+	Game.has_interior_spawn = false
+	var room_id: StringName = InteriorCatalog.resolve_entry(&"museum")
+	assert_that(room_id).is_equal(&"museum_entrance")
+	Game.interior_spawn_gx = MuseumDisplay.ENTRANCE_SPAWN_GX
+	Game.interior_spawn_yaw = WorldGrid.yaw_for_furniture(MuseumDisplay.ENTRANCE_SPAWN_FACING)
+	Game.has_interior_spawn = true
+	Game.play_door_arrive = false
+	assert_vector(Game.interior_spawn_gx).is_equal(MuseumDisplay.ENTRANCE_SPAWN_GX)
+	assert_float(Game.interior_spawn_yaw).is_equal_approx(
+		WorldGrid.yaw_for_furniture(MuseumDisplay.ENTRANCE_SPAWN_FACING), 0.01
+	)
+	assert_float(MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX.z).is_greater(MuseumDisplay.ENTRANCE_SPAWN_GX.z)
+	assert_bool(Game.play_door_arrive).is_false()
+	Game.has_interior_spawn = false
+
+
+func test_door_transition_wipe_flags() -> void:
+	## Wipe-out arms wipe-in; cancel clears without a scene change.
+	DoorTransition.cancel_wipe()
+	assert_bool(DoorTransition.wipe_in_pending).is_false()
+	DoorTransition.wipe_in_pending = true
+	DoorTransition.cancel_wipe()
+	assert_bool(DoorTransition.wipe_in_pending).is_false()
+	assert_float(DoorTransition.WIPE_SEC).is_greater(0.0)
+	## Pending wipe-in forces full opacity before fading (no indoor flash frame).
+	DoorTransition.wipe_in_pending = true
+	if DoorTransition.get_node_or_null("WipeRoot/Wipe") is ColorRect:
+		(DoorTransition.get_node("WipeRoot/Wipe") as ColorRect).color.a = 0.0
+	DoorTransition.play_wipe_in_if_pending()
+	assert_bool(DoorTransition.wipe_in_pending).is_false()
+	var wipe: ColorRect = DoorTransition.get_node_or_null("WipeRoot/Wipe") as ColorRect
+	if wipe != null:
+		assert_float(wipe.color.a).is_equal_approx(1.0, 0.01)
 
 
 func test_museum_entrance_doors_match_decomp() -> void:
@@ -561,11 +816,39 @@ func test_museum_entrance_exit_sensor_matches_enter_x() -> void:
 
 
 func test_door_cell_is_south_of_spawn() -> void:
-	## Spawn sits one cell inside so walking onto the door does not fire on enter.
+	## NPC: EXIT at (3,8)/(4,8), enter stand one cell north (`aHUS` {160,0,300}).
+	var npc: Room = InteriorCatalog.room_template(&"npc_0")
+	assert_that(npc).is_not_null()
+	assert_that(npc.door_cell).is_equal(InteriorCatalog.NPC_HOUSE_DOOR_CELL)
+	assert_that(npc.spawn_cell).is_equal(InteriorCatalog.NPC_HOUSE_SPAWN_CELL)
+	assert_int(npc.door_cell.y).is_equal(npc.spawn_cell.y + 1)
+	assert_bool(npc.is_exit_cell(npc.door_cell)).is_true()
+	assert_bool(npc.is_exit_cell(npc.door_cell + Vector2i(1, 0))).is_true()
+	## Player small: EXIT at (2,7)/(3,7); enter is further north on the RSV_DOOR row.
 	var room: Room = InteriorCatalog.room_template(&"player_main")
 	assert_that(room).is_not_null()
-	assert_int(room.door_cell.x).is_equal(room.spawn_cell.x)
-	assert_int(room.door_cell.y).is_equal(room.spawn_cell.y + 1)
+	assert_that(room.door_cell).is_equal(InteriorCatalog.PLAYER_SMALL_DOOR_CELL)
+	assert_that(room.spawn_cell).is_equal(InteriorCatalog.PLAYER_SMALL_SPAWN_CELL)
+	assert_int(room.door_cell.y).is_equal(room.spawn_cell.y + 2)
+
+
+func test_house_enter_spawn_matches_decomp() -> void:
+	## Outdoor→NPC house uses `aHUS_npc_house_door_data`, not cell-center south edge.
+	assert_vector(InteriorCatalog.NPC_HOUSE_SPAWN_GX).is_equal(Vector3(160.0, 0.0, 300.0))
+	assert_vector(InteriorCatalog.PLAYER_SMALL_SPAWN_GX).is_equal(Vector3(120.0, 0.0, 220.0))
+	var npc: Room = InteriorCatalog.room_template(&"npc_filbert")
+	assert_that(npc.door_cell).is_equal(InteriorCatalog.NPC_HOUSE_DOOR_CELL)
+	assert_that(npc.spawn_cell).is_equal(InteriorCatalog.NPC_HOUSE_SPAWN_CELL)
+	## Spawn GX sits on the EXIT mid-X / one cell north (ut z=7 center = 300).
+	assert_float(InteriorCatalog.NPC_HOUSE_SPAWN_GX.x).is_equal_approx(160.0, 0.01)
+	assert_float(InteriorCatalog.NPC_HOUSE_SPAWN_GX.z).is_equal_approx(
+		float(InteriorCatalog.NPC_HOUSE_SPAWN_CELL.y) * 40.0 + 20.0, 0.01
+	)
+	var player: Room = InteriorCatalog.room_template(&"player_main")
+	assert_that(player.door_cell).is_equal(InteriorCatalog.PLAYER_SMALL_DOOR_CELL)
+	assert_float(InteriorCatalog.PLAYER_SMALL_SPAWN_GX.z).is_equal_approx(
+		float(InteriorCatalog.PLAYER_SMALL_SPAWN_CELL.y) * 40.0 + 20.0, 0.01
+	)
 
 
 func test_indoor_exit_walks_further_south() -> void:

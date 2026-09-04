@@ -38,8 +38,10 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | --- | --- |
 | Player, Villager | `scenes/actors/` |
 | World, Tree, Rock, Flower, Hole, Furniture, ItemPickup, House, Shop, ShopCounter, ShopStock, Building, Door, Sign | `scenes/world/` |
+| Able Sisters, Police, Post Office (outdoor) | `scenes/world/buildings/` |
+| Nook / Able / police / post interiors; museum wings | `scenes/world/interiors/`, `scenes/world/museum/` |
 | InteractVolume | `scenes/world/interact_volume.gd` (sensor only; host implements verbs) |
-| Title, Clock HUD, Dialogue overlay, Shop overlay | `scenes/ui/` |
+| Title, Clock HUD, Dialogue / Shop / Map overlays | `scenes/ui/` |
 
 Fishing is a system (`Fishing` + `FishCatalog` + `FishSize` + `FishShadow` + `FishSchool` + `WaterBodies` + `scenes/world/bobber.tscn` + `scenes/world/fish_shadows.gd`). Bugs use `BugCatalog` / `BugField` / `BugActor`. The museum is `MuseumBook` (town display bits on `Game`) + `MuseumDisplay` tables + `MuseumPresenter` (wing exhibits) + Blathers in the entrance (`museum_blathers.gd`); donated fish/insects animate in tanks/cases ([museum](decomp_notes/museum.md)). Shops are `ShopBook` (owned by `Game`) plus indoor counters in Nook's Cranny and Able Sisters. Dialogue is `DialogueData` + `DialogueRunner` + `DialogueCatalog` + `DialogueGreeting` (not an autoload) and `scenes/ui/dialogue_overlay.tscn`. Talk framing uses `TalkCamera` (`CAMERA2_PROCESS_TALK`) on `FollowCamera`. Tools exist as `ToolData` + `ToolUse` (shovel, rod, net, axe, watering can) wired through interaction verbs. The rod's `cast` verb opens a `Fishing` session (cast arc → float → nibble → bite → hook); the bite comes from a `FishShadow` finding the bobber inside its species' search cone and committing after a few nibbles. Hooking early, missing the species' hold window, or walking past the leash all end the cast with nothing. `FishSchool` keeps up to two visible shadows in the field's `WaterBodies`, sized by `FishData.size_class` from `FishSize`'s decomp tables. Trees use `TreeUse` (shake, multi-hit chop, stump, fruit drop). Plant growth is `PlantGrowth`: stored `planted_renew` (and water/fruit overlays) on `Game.plant_states`, visual stage derived at 06:00. Shovel empty-ground dig writes a hole (`HoleUse`); shovel on a hole fills it. Shop, door, and sign scenes exist as verb stubs. Furniture is `FurnitureData` + `FurnitureUse` (place, pick, rotate, sit/lie, storage, toggle, display, wall/floor). Shop hours and villager sleep / in-house come from `Clock`. Town layout is `WorldData` produced by `WorldGenerator` and instanced by `WorldBuilder`. `FieldCatalog` maps original FG/BG ids to generated GLBs when present, and loads each acre's paired `mCoBG` table from a gitignored `.col.json` sidecar. `FieldCollision` uses that heightfield (and geometric bands only when the sidecar is missing). Acre XLU water (river dual-scroll, ocean waves, wet sand) is converted into those GLBs and shaded by `GeneratedVisual`. The world scene is a shell that owns a `WorldGrid`. The player scene owns a `PlayerLocomotion` (`RefCounted`, not an autoload) and instances `boy_1.glb` from `assets/generated/` when that file exists. Villagers instance a species GLB the same way (`GeneratedVisual.attach_villager`) and roam goal acres through `VillagerWalk`. Equipped tools parent to HAND through `HeldTool`. Field interact uses `InteractionQuery` (`RefCounted`, not an autoload); objects expose verbs instead of the player switching on type.
 
@@ -174,3 +176,23 @@ Content quantity is not a milestone. One good instance of a system is.
 ## What "Godot-native" means here
 
 Use nodes, scenes, resources, signals, and groups the way Godot expects. Do not emulate GameCube memory layouts, actor overlay tables, or submenu heaps in GDScript.
+
+### Scene-first (prefer the editor)
+
+Build presentation in `.tscn` files whenever the layout is knowable at edit time. The project should feel authored in Godot, not assembled entirely from GDScript at `_ready`.
+
+| Prefer | Avoid when possible |
+| --- | --- |
+| Nested scenes and `instance=` in the `.tscn` | `PackedScene.instantiate()` + `add_child` for fixed layout |
+| Markers, lights, cameras, HUD, environment in the scene tree | Creating those nodes in code |
+| Thin scene scripts that wire exported `NodePath`s / `$` refs | Scripts that construct meshes, colliders, and whole room graphs |
+| Data (`WorldData`, placements) driving *which* packed scenes to place | Builders that invent geometry with `BoxMesh` / ad-hoc nodes |
+| Nodes parked at their real rest pose in the editor | Origin placeholders that a script teleports on `_ready` when the pose never changes |
+
+**Place nodes where they belong.** If a camera, character, or prop does not move (or only animates from a known rest pose), author that transform in the `.tscn` so opening the scene shows the real composition. Do not leave everything at the origin and assign positions in code for a static layout. Example: in `IntroKk`, a fixed camera and on-stage characters/objects should sit at their correct editor positions; scripts handle motion, not the initial placement.
+
+**Still instantiate at runtime** when content is procedural or session-dynamic: generated town cells from `WorldData`, dig holes, dropped items, fishing bobber / fish shadows, bug actors, weather particles, dialogue choice buttons. Those systems still **instance authored packed scenes** (tree, hole, bobber) rather than building visuals from scratch in code.
+
+Good reference: `scenes/dev/museum_complete.tscn` and `scenes/world/interiors/*.tscn` nest shells and doors in the editor. Prefer that shape for fixed interiors and UI over builders constructing rooms entirely in GDScript when the layout is stable. Live play mounts catalog `scene_path` rooms into `interior.tscn`.
+
+When adding or refactoring a feature, ask: *Could a designer open the scene and see the composition?* If yes, put it in the `.tscn` — including correct resting positions.

@@ -1,14 +1,17 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/clock_hud.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/ui/inventory_overlay.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/ui/dialogue_overlay.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/ui/shop_overlay.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/ui/map_overlay.tscn" id="5"]
 
 [node name="ClockHud" type="CanvasLayer"]
 script = ExtResource("1")
 
 [node name="InventoryOverlay" parent="." instance=ExtResource("2")]
+
+[node name="MapOverlay" parent="." instance=ExtResource("5")]
 
 [node name="DialogueOverlay" parent="." instance=ExtResource("3")]
 

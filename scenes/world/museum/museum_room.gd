@@ -1,7 +1,7 @@
 extends Node3D
 
 ## Base museum wing scene. Subclasses own exhibits + any extra collision.
-## Instanced by `museum_complete.tscn` (and play via `interior.tscn` builder).
+## Instanced by `museum_complete.tscn` and by `interior.tscn` via catalog scene paths.
 
 @export var room_id: StringName = &""
 
@@ -21,22 +21,7 @@ func populate() -> void:
 		return
 	_wing = Interior.new()
 	_wing.bind(room)
-	var terrain: Node3D = get_node_or_null("Terrain") as Node3D
-	var furniture: Node3D = get_node_or_null("Furniture") as Node3D
-	if terrain == null or furniture == null:
-		return
-	for child: Node in furniture.get_children():
-		furniture.remove_child(child)
-		child.free()
-	for child: Node in terrain.get_children():
-		if child is StaticBody3D:
-			terrain.remove_child(child)
-			child.free()
-	var builder := InteriorBuilder.new()
-	builder.add_museum_shell_collision(
-		terrain, room, _wing.grid, builder.museum_door_gaps(room, _wing.grid)
-	)
-	present_exhibits(furniture, _wing)
+	InteriorBuilder.new().populate_authored(self, _wing)
 	size_authored_doors()
 
 

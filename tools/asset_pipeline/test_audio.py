@@ -226,6 +226,25 @@ class AudioSeqRenderTests(unittest.TestCase):
         peak = max(abs(int.from_bytes(result.pcm[i : i + 2], "little", signed=True)) for i in range(0, min(4000, len(result.pcm)), 2))
         self.assertGreater(peak, 100)
 
+    def test_mute_subtracks_silences_notes(self) -> None:
+        seq = bytes(
+            [
+                0xDD, 120, 0xDB, 127, 0x90, 0x00, 0x0C, 0xFD, 48, 0xFB, 0x00, 0x07,
+                0xC1, 0x00, 0xDF, 127, 0xDD, 64, 0xC3, 0x88, 0x00, 0x19, 0xFD, 48, 0xFF,
+                0xC1, 127, 0x00, 48, 0xFF,
+            ]
+        )
+        tone = [2000 if (i // 40) % 2 == 0 else -2000 for i in range(4000)]
+        sample = PcmSample(pcm=tone, loop_start=0, loop_end=4000, tuning=1.0)
+        inst = Instrument(low=None, normal=sample, high=None, range_low=0, range_high=127)
+        bank = Bank(bank_id=0, instruments=[inst])
+        muted = render_sequence(seq, {0: bank}, 0, [0], mute_subtracks=[0])
+        peak = max(
+            abs(int.from_bytes(muted.pcm[i : i + 2], "little", signed=True))
+            for i in range(0, min(len(muted.pcm), 8000), 2)
+        )
+        self.assertLess(peak, 50)
+
     def test_note_rings_after_script_delay(self) -> None:
         seq = bytes(
             [

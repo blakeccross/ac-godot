@@ -304,7 +304,12 @@ def _program(sub: SubTrack, inst_id: int) -> None:
 
 class SeqRenderer:
     def __init__(
-        self, seq: bytes, banks: dict[int, Bank], default_bank: int, seq_banks: Optional[list[int]] = None
+        self,
+        seq: bytes,
+        banks: dict[int, Bank],
+        default_bank: int,
+        seq_banks: Optional[list[int]] = None,
+        mute_subtracks: Optional[list[int]] = None,
     ) -> None:
         self.seq = seq
         self.banks = banks
@@ -313,6 +318,9 @@ class SeqRenderer:
         self.grp.subtracks = [
             SubTrack(idx=i, cur=Cursor(seq, 0), bank_id=default_bank) for i in range(AUDIO_SUBTRACK_NUM)
         ]
+        for idx in mute_subtracks or ():
+            if 0 <= idx < len(self.grp.subtracks):
+                self.grp.subtracks[idx].muted = True
         self.note_count = 0
         self.voices: list[Voice] = []
         self.pc_first_time: dict[int, float] = {}
@@ -538,6 +546,9 @@ class SeqRenderer:
                 sub.delay -= 1
             else:
                 self._run_sub_script(sub)
+        if sub.muted:
+            self._silence_sub(sub)
+            return
         for i, note in enumerate(sub.notes):
             if note is not None and note.enabled:
                 self._tick_note(sub, i, note)
@@ -1077,6 +1088,10 @@ def _which(name: str) -> Optional[str]:
 
 
 def render_sequence(
-    seq: bytes, banks: dict[int, Bank], default_bank: int, seq_banks: Optional[list[int]] = None
+    seq: bytes,
+    banks: dict[int, Bank],
+    default_bank: int,
+    seq_banks: Optional[list[int]] = None,
+    mute_subtracks: Optional[list[int]] = None,
 ) -> RenderResult:
-    return SeqRenderer(seq, banks, default_bank, seq_banks).run()
+    return SeqRenderer(seq, banks, default_bank, seq_banks, mute_subtracks).run()

@@ -38,10 +38,71 @@ func test_talk_yaw_flips_when_listener_is_east_vs_west() -> void:
 	assert_float(absf(west_tweak)).is_less_equal(TalkCamera.YAW_TWEAK_DEG + 0.01)
 
 
+func test_talk_yaw_matches_decomp_cardinals() -> void:
+	## Due north uses s16 −180°: `cos*sin == 0` → negative branch → −2730 short-units.
+	var due_north: float = TalkCamera.yaw_tweak_deg(Vector3(0.0, 0.0, 2.0), Vector3(0.0, 0.0, 0.0))
+	assert_float(due_north).is_equal_approx(-TalkCamera.YAW_TWEAK_DEG, 0.001)
+	## Due south same axis product → also −2730.
+	var due_south: float = TalkCamera.yaw_tweak_deg(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.0, 2.0))
+	assert_float(due_south).is_equal_approx(-TalkCamera.YAW_TWEAK_DEG, 0.001)
+	## Slightly east of north (Q2) → positive branch.
+	var north_east: float = TalkCamera.yaw_tweak_deg(Vector3(-0.1, 0.0, 2.0), Vector3(0.0, 0.0, 0.0))
+	assert_float(north_east).is_greater(0.0)
+	## Slightly west of north (Q3) → negative branch.
+	var north_west: float = TalkCamera.yaw_tweak_deg(Vector3(0.1, 0.0, 2.0), Vector3(0.0, 0.0, 0.0))
+	assert_float(north_west).is_less(0.0)
+
+
+func test_talk_eye_side_matches_get_angle_y_sign() -> void:
+	## Positive tweak → eye east of center (`PolaPosCalc`: x += dist_xz * sin(inv_yaw)).
+	## Approach from south with NPC to the player's right (+X) → camera swings east.
+	var speaker := Node3D.new()
+	var listener := Node3D.new()
+	auto_free(speaker)
+	auto_free(listener)
+	add_child(speaker)
+	add_child(listener)
+	speaker.position = Vector3(0.0, 0.0, 4.0)
+	listener.position = Vector3(0.5, 0.0, 0.0)
+	var framed: Dictionary = TalkCamera.frame(speaker, listener)
+	var tweak: float = float(framed["yaw_tweak_deg"])
+	var eye: Vector3 = framed["eye"] as Vector3
+	var center: Vector3 = framed["center"] as Vector3
+	assert_float(tweak).is_greater(0.0)
+	assert_float(eye.x - center.x).is_greater(0.0)
+	## NPC to the player's left (−X) → camera swings west.
+	listener.position = Vector3(-0.5, 0.0, 0.0)
+	framed = TalkCamera.frame(speaker, listener)
+	tweak = float(framed["yaw_tweak_deg"])
+	eye = framed["eye"] as Vector3
+	center = framed["center"] as Vector3
+	assert_float(tweak).is_less(0.0)
+	assert_float(eye.x - center.x).is_less(0.0)
+	## Dead-aligned approach: decomp prefers west (−15°).
+	listener.position = Vector3(0.0, 0.0, 0.0)
+	framed = TalkCamera.frame(speaker, listener)
+	assert_float(float(framed["yaw_tweak_deg"])).is_equal_approx(-TalkCamera.YAW_TWEAK_DEG, 0.01)
+	eye = framed["eye"] as Vector3
+	center = framed["center"] as Vector3
+	assert_float(eye.x - center.x).is_less(0.0)
+
+
+func test_talk_pitch_matches_decomp_inv() -> void:
+	## −164.114° + 1440 short + SHT_MIN → ≈23.796°.
+	assert_float(TalkCamera.PITCH_INV_DEG).is_equal_approx(23.79638671875, 0.001)
+
+
 func test_talk_yaw_zero_when_pair_is_east_west() -> void:
 	## E/W band (45°–135°) keeps world-south framing (no nudge).
 	var tweak: float = TalkCamera.yaw_tweak_deg(Vector3(0.0, 0.0, 0.0), Vector3(2.0, 0.0, 0.0))
 	assert_float(tweak).is_equal_approx(0.0, 0.001)
+	tweak = TalkCamera.yaw_tweak_deg(Vector3(0.0, 0.0, 0.0), Vector3(-2.0, 0.0, 0.0))
+	assert_float(tweak).is_equal_approx(0.0, 0.001)
+	## Just inside the band (50°) → 0; just outside (40°) → non-zero.
+	tweak = TalkCamera.yaw_tweak_deg(Vector3(0.0, 0.0, 0.0), Vector3(1.0, 0.0, 1.0 / tan(deg_to_rad(50.0))))
+	assert_float(tweak).is_equal_approx(0.0, 0.001)
+	tweak = TalkCamera.yaw_tweak_deg(Vector3(0.0, 0.0, 0.0), Vector3(1.0, 0.0, 1.0 / tan(deg_to_rad(40.0))))
+	assert_float(tweak).is_not_equal(0.0)
 
 
 func test_talk_frame_eye_shifts_left_vs_right() -> void:
@@ -91,6 +152,22 @@ func test_talk_face_eases_like_movement_talk() -> void:
 			TalkCamera.TURN_MIN_STEP
 		)
 	assert_float(absf(angle_difference(facing, target))).is_less(0.01)
+
+
+func test_talk_camera_begin_respects_turn_flag() -> void:
+	var player: Node3D = _TalkFaceStub.new()
+	auto_free(player)
+	add_child(player)
+	player.add_to_group("player")
+	var npc := Node3D.new()
+	auto_free(npc)
+	add_child(npc)
+	TalkCamera.begin(player, npc, get_tree(), false)
+	assert_that(player.faced).is_null()
+	TalkCamera.begin(player, npc, get_tree(), true)
+	assert_that(player.faced).is_same(npc)
+	TalkCamera.end(get_tree())
+	assert_that(player.faced).is_null()
 
 
 func test_talk_camera_begin_calls_player_face() -> void:

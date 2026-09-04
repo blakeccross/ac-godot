@@ -177,12 +177,13 @@ func test_motor_stops_when_not_wandering() -> void:
 	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(3, 0, 0), false)
 	assert_vector(step).is_equal(Vector3.ZERO)
 	motor.set_target(Vector3(3, 0, 0))
+	## Accel 2.25 m/s² — after 0.1 s speed is 0.225 along facing (+Z after turn to +X).
 	var walk: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(3, 0, 0), true)
 	assert_float(walk.length()).is_greater(0.1)
-	motor.set_target(Vector3(10, 0, 0))
-	var boxed: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3.ZERO, true)
-	assert_vector(boxed).is_equal(Vector3.ZERO)
 	assert_bool(motor.has_target).is_true()
+	var stopped: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(3, 0, 0), false)
+	assert_vector(stopped).is_equal(Vector3.ZERO)
+	assert_bool(motor.has_target).is_false()
 
 
 func test_field_plan_is_reusable_actions() -> void:
@@ -238,6 +239,66 @@ func test_sleep_plan_is_just_sleep_when_already_home() -> void:
 	assert_bool(plan[0].is_talkable()).is_false()
 
 
+func test_house_plan_goes_home_then_stays() -> void:
+	## IN_HOUSE outdoors: GO_HOME to door approach, then WAKE (hide / is_home).
+	var plan: Array[VillagerAction] = VillagerPlan.build(
+		VillagerActivity.IN_HOUSE,
+		VillagerActivity.FIELD,
+		{"home": Vector3.ZERO, "outdoors": true, "is_home": false}
+	)
+	assert_int(plan.size()).is_equal(2)
+	assert_that(plan[0].kind).is_equal(ActivityKind.GO_HOME)
+	assert_vector(plan[0].target).is_equal(ActivityKind.DOOR_APPROACH)
+	assert_that(plan[1].kind).is_equal(ActivityKind.WAKE)
+	assert_bool(plan[1].is_present()).is_false()
+
+
+func test_house_plan_already_home_is_wake() -> void:
+	var plan: Array[VillagerAction] = VillagerPlan.build(
+		VillagerActivity.IN_HOUSE,
+		VillagerActivity.FIELD,
+		{"home": Vector3.ZERO, "outdoors": true, "is_home": true}
+	)
+	assert_int(plan.size()).is_equal(1)
+	assert_that(plan[0].kind).is_equal(ActivityKind.WAKE)
+
+
+func test_head_look_gates_match_decomp() -> void:
+	## Distance 120 GX = 6 m, FOV ±67.5°.
+	assert_float(NpcHeadLook.LOOK_DIST).is_equal_approx(6.0, 0.01)
+	assert_float(NpcHeadLook.LOOK_FOV).is_equal_approx(deg_to_rad(67.5), 0.001)
+	assert_float(NpcHeadLook.YAW_LIMIT).is_equal_approx(deg_to_rad(67.5), 0.001)
+	assert_float(NpcHeadLook.PITCH_LIMIT).is_equal_approx(deg_to_rad(33.75), 0.001)
+	var look := NpcHeadLook.new()
+	var actor := Node3D.new()
+	actor.position = Vector3.ZERO
+	look._actor = actor
+	var player := Node3D.new()
+	player.position = Vector3(0, 0, 3)
+	assert_bool(look.can_look(player, 0.0)).is_true()
+	player.position = Vector3(0, 0, 8)
+	assert_bool(look.can_look(player, 0.0)).is_false()
+	player.position = Vector3(3, 0, 0.1)
+	assert_bool(look.can_look(player, 0.0)).is_false()
+	actor.free()
+	player.free()
+
+
+func test_villager_home_door_gates() -> void:
+	var state: VillagerState = Game.villagers.get_or_create(&"filbert")
+	state.is_home = false
+	assert_str(VillagerHome.door_notice(&"filbert")).is_equal("Filbert isn't home right now.")
+	state.is_home = true
+	Clock.paused = true
+	## Lazy SLEEP is 22–7; force an IN_HOUSE hour.
+	Clock.hour = 12
+	assert_str(VillagerHome.door_notice(&"filbert")).is_equal("")
+	assert_bool(VillagerHome.should_spawn_indoor(&"filbert")).is_true()
+	Clock.hour = 23
+	assert_str(VillagerHome.door_notice(&"filbert")).is_equal("Filbert is sleeping.")
+	assert_bool(VillagerHome.should_spawn_indoor(&"filbert")).is_false()
+
+
 func test_already_outdoors_skips_leave_house() -> void:
 	var plan: Array[VillagerAction] = VillagerPlan.build(
 		VillagerActivity.FIELD,
@@ -250,21 +311,24 @@ func test_already_outdoors_skips_leave_house() -> void:
 
 func test_wake_then_leave_home_then_sleep() -> void:
 	var indoors: Array[VillagerAction] = VillagerPlan.build(
-		VillagerActivity.IN_HOUSE, VillagerActivity.SLEEP, {"home": Vector3.ZERO, "outdoors": false}
+		VillagerActivity.IN_HOUSE,
+		VillagerActivity.SLEEP,
+		{"home": Vector3.ZERO, "outdoors": false, "is_home": true}
 	)
 	assert_that(indoors[0].kind).is_equal(ActivityKind.WAKE)
 	var field: Array[VillagerAction] = VillagerPlan.build(
 		VillagerActivity.FIELD,
 		VillagerActivity.IN_HOUSE,
-		{"home": Vector3.ZERO, "outdoors": false, "field_actions": [ActivityKind.WANDER]}
+		{"home": Vector3.ZERO, "outdoors": false, "is_home": true, "field_actions": [ActivityKind.WANDER]}
 	)
 	assert_that(field[0].kind).is_equal(ActivityKind.LEAVE_HOME)
 	var going: Array[VillagerAction] = VillagerPlan.build(
 		VillagerActivity.IN_HOUSE,
 		VillagerActivity.FIELD,
-		{"home": Vector3.ZERO, "outdoors": true},
+		{"home": Vector3.ZERO, "outdoors": true, "is_home": false},
 	)
 	assert_that(going[0].kind).is_equal(ActivityKind.GO_HOME)
+	assert_that(going[1].kind).is_equal(ActivityKind.WAKE)
 
 
 func test_shop_and_fish_are_picked_from_field_actions() -> void:
@@ -692,20 +756,67 @@ func test_step_toward_skips_house_cells() -> void:
 	assert_that(cell).is_not_equal(Vector2i(7, 7))
 
 
-func test_avoid_around_skips_house() -> void:
+func test_avoid_around_stays_in_acre() -> void:
+	## `aNPC_avoid_wall` only `moveRangeCheck` — avoid_pos may land on a house cell.
 	var data := _plot_with_house()
+	var block := Vector2i(1, 1)
 	var from: Vector3 = data.cell_to_world(Vector2i(5, 7))
-	var around: Vector3 = VillagerWalk.avoid_around(data, from, deg_to_rad(90.0), Vector2i(1, 1))
-	var cell := Vector2i(
-		int(floor((around.x - data.origin().x) / data.cell_size)),
-		int(floor((around.z - data.origin().z) / data.cell_size))
-	)
-	assert_bool(VillagerWalk.is_standable(data, cell)).is_true()
-	assert_that(cell).is_not_equal(Vector2i(6, 7))
-	assert_that(cell).is_not_equal(Vector2i(7, 7))
+	var around: Vector3 = VillagerWalk.avoid_around(data, from, deg_to_rad(90.0), block, null, 1)
+	assert_bool(VillagerWalk.in_move_range(data, block, around)).is_true()
 	var delta: Vector3 = around - from
 	delta.y = 0.0
 	assert_float(delta.length()).is_greater_equal(VillagerWalk.MIN_STEP)
+	assert_float(delta.length()).is_equal_approx(VillagerWalk.AVOID_METERS, 0.05)
+
+
+func test_circle_revise_clamps_to_roam_radius() -> void:
+	## `aNPC_circleRangeRevice` pulls positions outside R back onto the rim.
+	var data := _plot_with_house()
+	var block := Vector2i(1, 1)
+	var center: Vector3 = VillagerWalk.block_center(data, block)
+	var outside: Vector3 = center + Vector3(VillagerWalk.RANGE_RADIUS + 5.0, 0.0, 0.0)
+	var revised: Vector3 = VillagerWalk.circle_revise(data, block, outside)
+	var to_c: Vector3 = revised - center
+	to_c.y = 0.0
+	assert_float(to_c.length()).is_equal_approx(VillagerWalk.RANGE_RADIUS, 0.05)
+	assert_bool(VillagerWalk.in_move_range(data, block, revised)).is_true()
+	var inside: Vector3 = center + Vector3(3.0, 0.0, 0.0)
+	assert_vector(VillagerWalk.circle_revise(data, block, inside)).is_equal(inside)
+
+
+func test_structure_plus_body_is_not_standable() -> void:
+	## FG occupancy blocks house cells; CheckNpc still allows grass attrs under
+	## plus-offsets outside the FG footprint (decomp walks in and avoid_wall steers).
+	FieldCollision.clear_caches()
+	var data: WorldData = _plot_with_house()
+	data.buildings[0].footprint = Vector2i(2, 2)
+	data.buildings[0].visual_id = &"obj_s_museum"
+	data.buildings[0].id = &"museum"
+	data.buildings[0].kind = &"building"
+	data.buildings[0].cell = Vector2i(6, 6)
+	StructureOffset.apply(data)
+	var home: Vector2i = StructureOffset.museum_home_cell(data.buildings[0])
+	assert_bool(FieldCollision.is_raised_plus(home)).is_true()
+	## Occupied FG footprint stays unstandable; raised grass outside FG can be a dest.
+	assert_bool(VillagerWalk.is_standable(data, home)).is_false()
+	assert_bool(VillagerWalk.is_standable(data, Vector2i(1, 1))).is_true()
+
+
+func test_first_avoid_hop_keeps_side_zero() -> void:
+	var data := _plot_with_house()
+	var from: Vector3 = data.cell_to_world(Vector2i(5, 7))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var hop: Dictionary = VillagerWalk.first_avoid_hop(
+		data, from, deg_to_rad(90.0), Vector2i(1, 1), null, rng
+	)
+	assert_bool(hop.is_empty()).is_false()
+	var pos: Vector3 = hop["pos"] as Vector3
+	## Front hop keeps `avoid_direction` 0 (`turn_to_backward` args[4]).
+	assert_int(int(hop["side"])).is_equal(0)
+	var delta: Vector3 = pos - from
+	delta.y = 0.0
+	assert_float(delta.length()).is_greater_equal(VillagerWalk.TURN_METERS * 0.9)
 
 
 func test_can_step_rejects_house_cell() -> void:
@@ -741,6 +852,8 @@ func test_step_toward_respects_cliff_wall() -> void:
 					continue
 				var from: Vector3 = data.cell_to_world(a)
 				var dest: Vector3 = data.cell_to_world(b)
+				assert_bool(VillagerWalk.can_step(data, from, dest, grid)).is_false()
+				assert_bool(FieldCollision.step_open(data, grid, from, dest)).is_false()
 				var next: Vector3 = VillagerWalk.step_toward(data, from, dest, grid)
 				var next_cell := Vector2i(
 					int(floor((next.x - data.origin().x) / data.cell_size)),
@@ -816,12 +929,14 @@ func test_path_clear_rejects_cliff() -> void:
 
 
 func test_wander_keeps_dest_past_the_next_cell() -> void:
+	## Motor walks along facing toward avoid_pos — rim dest stays until arrive.
 	var motor := VillagerMotor.new()
 	motor.reset(Vector3.ZERO)
 	motor.set_target(Vector3(10, 0, 0), VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE)
 	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(2, 0, 0), true)
 	assert_float(step.length()).is_greater(0.1)
 	assert_bool(motor.has_target).is_true()
+	## Face already toward +X; keep walking even when a cell center is underfoot.
 	var near_cell: Vector3 = motor.tick(0.1, Vector3(1.97, 0, 0), Vector3(2, 0, 0), true)
 	assert_float(near_cell.length()).is_greater(0.1)
 	assert_bool(motor.has_target).is_true()
@@ -833,17 +948,78 @@ func test_avoid_keeps_rim_dest() -> void:
 	motor.reset(Vector3.ZERO)
 	var rim := Vector3(14, 0, 0)
 	motor.set_target(rim, VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE)
-	motor.set_avoid(Vector3(2, 0, 2))
+	assert_int(motor.avoid_direction).is_equal(0)
+	motor.set_avoid(Vector3(2, 0, 2), 1)
+	assert_int(motor.avoid_direction).is_equal(1)
 	assert_bool(motor.is_avoiding()).is_true()
 	assert_vector(motor.target).is_equal(rim)
+	## Landing on avoid retargets steer to dst in the same tick and keeps walking.
 	var at_avoid: Vector3 = motor.tick(0.1, Vector3(2, 0, 2), Vector3(2, 0, 2), true)
-	assert_vector(at_avoid).is_equal(Vector3.ZERO)
+	assert_float(at_avoid.length()).is_greater(0.05)
 	assert_bool(motor.has_target).is_true()
 	assert_bool(motor.is_avoiding()).is_false()
+	assert_int(motor.avoid_direction).is_equal(0)
 	assert_vector(motor.steer).is_equal(rim)
-	var resume: Vector3 = motor.tick(0.1, Vector3(2, 0, 2), Vector3(4, 0, 2), true)
-	assert_float(resume.length()).is_greater(0.1)
 	assert_vector(motor.target).is_equal(rim)
+
+
+func test_front_avoid_turns_before_moving() -> void:
+	## `aNPC_turn_to_backward` is ACT_TURN — without it, run+walk-turn orbits the hop.
+	var motor := VillagerMotor.new()
+	motor.reset(Vector3.ZERO, 0.0)
+	motor.set_target(Vector3(0, 0, 20), VillagerWalk.ACT_RUN, VillagerWalk.WANDER_ARRIVE)
+	## Hop 2 m to the right of facing (+Z).
+	motor.set_avoid(Vector3(2, 0, 0), 0, true)
+	assert_bool(motor.turn_only).is_true()
+	var step: Vector3 = motor.tick(0.05, Vector3.ZERO, Vector3(2, 0, 0), true)
+	assert_vector(step).is_equal(Vector3.ZERO)
+	assert_bool(motor.turn_only).is_true()
+
+
+func test_run_turns_faster_than_walk() -> void:
+	var motor := VillagerMotor.new()
+	motor.reset(Vector3.ZERO, 0.0)
+	motor.set_target(Vector3(10, 0, 0), VillagerWalk.ACT_WALK)
+	motor.tick(0.1, Vector3.ZERO, Vector3(10, 0, 0), true)
+	var walk_yaw: float = absf(motor.facing)
+	motor.reset(Vector3.ZERO, 0.0)
+	motor.set_target(Vector3(10, 0, 0), VillagerWalk.ACT_RUN)
+	motor.tick(0.1, Vector3.ZERO, Vector3(10, 0, 0), true)
+	var run_yaw: float = absf(motor.facing)
+	assert_float(run_yaw).is_greater(walk_yaw)
+	assert_float(VillagerMotor.RUN_TURN).is_greater(VillagerMotor.WALK_TURN)
+
+
+func test_motor_moves_along_facing() -> void:
+	## `Actor_position_speed_set` uses world.angle.y; angle chases after the step.
+	var motor := VillagerMotor.new()
+	motor.reset(Vector3.ZERO, 0.0)
+	motor.set_target(Vector3(0, 0, 10), VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE)
+	var step: Vector3 = motor.tick(0.05, Vector3.ZERO, Vector3(0, 0, 10), true)
+	assert_float(absf(step.x)).is_less(0.05)
+	assert_float(step.z).is_greater(0.05)
+
+
+func test_motor_move_then_turn() -> void:
+	## First frame still moves on the old facing, then turns toward dest.
+	var motor := VillagerMotor.new()
+	motor.reset(Vector3.ZERO, 0.0)
+	motor.set_target(Vector3(10, 0, 0), VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE)
+	var step: Vector3 = motor.tick(0.05, Vector3.ZERO, Vector3(10, 0, 0), true)
+	assert_float(step.z).is_greater(0.05)
+	assert_float(absf(step.x)).is_less(step.z)
+	assert_float(motor.facing).is_greater(0.05)
+
+
+func test_ones_way_turns_before_walking() -> void:
+	var motor := VillagerMotor.new()
+	motor.reset(Vector3.ZERO, 0.0)
+	motor.set_target(
+		Vector3(0, 0, -10), VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE, Vector3.ZERO, 0.0
+	)
+	assert_bool(motor.turn_only).is_true()
+	var step: Vector3 = motor.tick(0.05, Vector3.ZERO, Vector3(0, 0, -10), true)
+	assert_vector(step).is_equal(Vector3.ZERO)
 
 
 func test_pause_keeps_dest() -> void:
@@ -869,14 +1045,25 @@ func test_wander_arrive_is_tight() -> void:
 	assert_vector(arrived).is_equal(Vector3.ZERO)
 	assert_bool(motor.has_target).is_false()
 	motor.set_target(Vector3(8, 0, 0), VillagerWalk.ACT_RUN, VillagerWalk.WANDER_ARRIVE)
-	var run: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(8, 0, 0), true)
-	assert_float(run.length()).is_equal_approx(motor.walk_speed * VillagerMotor.RUN_SCALE, 0.01)
+	## Reach max run speed (~0.67 s walk / faster run accel).
+	var run := Vector3.ZERO
+	for _i: int in 20:
+		run = motor.tick(0.05, Vector3.ZERO, Vector3(8, 0, 0), true)
+	assert_float(run.length()).is_equal_approx(motor.walk_speed * VillagerMotor.RUN_SCALE, 0.05)
 
 
 func test_motor_turns_in_place_when_dest_is_behind() -> void:
 	var motor := VillagerMotor.new()
 	motor.reset(Vector3.ZERO, 0.0)
-	motor.set_target(Vector3(0, 0, -5), VillagerWalk.ACT_WALK, VillagerWalk.WANDER_ARRIVE)
+	## Ones-way needs from/yaw at set_target (`aNPC_think_wander_check_ones_way`).
+	motor.set_target(
+		Vector3(0, 0, -5),
+		VillagerWalk.ACT_WALK,
+		VillagerWalk.WANDER_ARRIVE,
+		Vector3.ZERO,
+		0.0
+	)
+	assert_bool(motor.turn_only).is_true()
 	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(0, 0, -5), true)
 	assert_vector(step).is_equal(Vector3.ZERO)
 	assert_bool(motor.has_target).is_true()

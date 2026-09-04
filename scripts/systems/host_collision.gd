@@ -14,6 +14,12 @@ const SENSOR_PAD := 0.25
 const SENSOR_Y := 1.0
 ## `aMHS_rewrite_pl_out_data` restart offset (GX). Local SW; west plots rotate with mesh yaw.
 const PLAYER_DOOR_GX := 48.29
+## `aMHS_check_player_sub` center: mesh + (−20,+20) local (`arg0_f`/`arg1_f` after yaw).
+## Exit stay at ±48.29; interact sensor is the check, not the emerge stand.
+const PLAYER_DOOR_CHECK_GX := Vector2(-20.0, 20.0)
+## Villager home porch / `wait_door_start` stand (`size` 40 → size_adj 40 south).
+## Exit is `home.z + 60` (`aHUS_rewrite_out_data`); do not use the 3×3 AABB south face.
+const NPC_HOUSE_DOOR_GX := Vector2(0.0, 40.0)
 ## Door approach stands (GX from actor world / mesh). Angled doors are not south-face boxes.
 ## Shop: `aSHOP` request (−50,+50). Able/post check (−40,+50). Police request (+50,+50).
 ## Museum check/request (0,+100).
@@ -21,6 +27,8 @@ const SHOP_DOOR_GX := Vector2(-50.0, 50.0)
 const ABLE_DOOR_GX := Vector2(-40.0, 50.0)
 const POLICE_DOOR_GX := Vector2(50.0, 50.0)
 const MUSEUM_DOOR_GX := Vector2(0.0, 100.0)
+## House interact boxes — cover the check radius (~40 GX) without a thin south strip.
+const HOUSE_DOOR_BOX := Vector3(2.0, 2.0, 2.0)
 
 
 static func is_player_house(visual_id: StringName) -> bool:
@@ -40,7 +48,9 @@ static func is_police(visual_id: StringName) -> bool:
 
 
 static func is_shop(visual_id: StringName) -> bool:
-	return String(visual_id).contains("shop1")
+	## Outdoor Nook shells `obj_s_shop1`…`shop4` (and winter `obj_w_shop*`).
+	var s := String(visual_id)
+	return s.contains("shop1") or s.contains("shop2") or s.contains("shop3") or s.contains("shop4")
 
 
 static func is_post_office(visual_id: StringName) -> bool:
@@ -62,14 +72,25 @@ static func uses_structure_offset(visual_id: StringName) -> bool:
 
 
 static func player_door_offset() -> Vector3:
-	var d: float = PLAYER_DOOR_GX * FieldCatalog.GX_TO_METERS
-	return Vector3(-d, SENSOR_Y, d)
+	## Interact / A-check stand (`aMHS_check_player_sub`), not the exit restart.
+	return _door_from_gx(PLAYER_DOOR_CHECK_GX)
+
+
+static func npc_house_door_offset() -> Vector3:
+	return _door_from_gx(NPC_HOUSE_DOOR_GX)
+
+
+static func is_villager_house(visual_id: StringName) -> bool:
+	var s := String(visual_id)
+	return s.contains("house") and not s.contains("myhome")
 
 
 static func door_offset(visual_id: StringName) -> Vector3:
 	## Local sensor offset from the structure mesh origin (meters). Empty → use south face.
 	if is_player_house(visual_id):
 		return player_door_offset()
+	if is_villager_house(visual_id):
+		return npc_house_door_offset()
 	if is_shop(visual_id):
 		return _door_from_gx(SHOP_DOOR_GX)
 	if is_able_sisters(visual_id) or is_post_office(visual_id):
@@ -144,8 +165,9 @@ static func disable_body(host: Node3D) -> void:
 static func apply_house(host: Node3D, visual_id: StringName, occupancy: Vector2i, cell_size: float) -> void:
 	## Walk collision is `StructureOffset` on the heightfield. Keep the door sensor only.
 	disable_body(host)
-	if is_player_house(visual_id):
-		place_door_sensor(host, player_door_offset())
+	var door: Vector3 = door_offset(visual_id)
+	if door != Vector3.ZERO:
+		place_door_sensor(host, door, HOUSE_DOOR_BOX)
 		return
 	place_south_sensor(host, occupancy, cell_size)
 

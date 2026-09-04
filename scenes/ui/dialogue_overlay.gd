@@ -15,6 +15,7 @@ const FAST_SCALE := 8.0
 var _runner: DialogueRunner
 var _open: bool = false
 var _shown: String = ""
+var _visible_len: int = 0
 var _cursor: int = 0
 var _choice_index: int = 0
 var _buttons: Array[Button] = []
@@ -32,9 +33,20 @@ func is_open() -> bool:
 	return _open
 
 
+## `mMsg_Check_MainNormal` / choice normal — waiting on the player, not typing.
+func is_awaiting_input() -> bool:
+	if not _open or _runner == null:
+		return false
+	if _runner.waiting_choice or _runner.waiting_prompt:
+		return true
+	if _runner.done:
+		return false
+	return _cursor >= _visible_len and _visible_len > 0
+
+
 ## `mMsg_Check_NowUtter`: text is still being laid in. Drives NPC mouth flap.
 func is_uttering() -> bool:
-	return _open and _cursor < _shown.length()
+	return _open and _cursor < _visible_len
 
 
 func runner() -> DialogueRunner:
@@ -48,9 +60,9 @@ func fast_advance() -> void:
 	if _runner.waiting_choice and not _buttons.is_empty():
 		_pick(_choice_index)
 		return
-	if _cursor < _shown.length():
-		_cursor = _shown.length()
-		_chrome.set_body(_shown)
+	if _cursor < _visible_len:
+		_cursor = _visible_len
+		_chrome.set_body_visible_chars(_cursor)
 		_show_continue()
 		return
 	if _runner == null:
@@ -109,6 +121,7 @@ func close() -> void:
 	_open = false
 	_root.visible = false
 	_shown = ""
+	_visible_len = 0
 	_cursor = 0
 	_chrome.set_continue_visible(false)
 	_disconnect_runner()
@@ -137,14 +150,14 @@ func _on_runner_event(event: Dictionary) -> void:
 func _process(delta: float) -> void:
 	if not _open or (_runner != null and _runner.waiting_choice):
 		return
-	if _cursor >= _shown.length():
+	if _cursor >= _visible_len:
 		return
 	var rate: float = CHARS_PER_SEC
 	if Input.is_action_pressed("interact") or Input.is_action_pressed("ui_accept"):
 		rate *= FAST_SCALE
-	_cursor = mini(_shown.length(), _cursor + int(ceil(rate * delta)))
-	_chrome.set_body(_shown.substr(0, _cursor))
-	if _cursor >= _shown.length():
+	_cursor = mini(_visible_len, _cursor + int(ceil(rate * delta)))
+	_chrome.set_body_visible_chars(_cursor)
+	if _cursor >= _visible_len:
 		_show_continue()
 
 
@@ -170,9 +183,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
 		get_viewport().set_input_as_handled()
-		if _cursor < _shown.length():
-			_cursor = _shown.length()
-			_chrome.set_body(_shown)
+		if _cursor < _visible_len:
+			_cursor = _visible_len
+			_chrome.set_body_visible_chars(_cursor)
 			_show_continue()
 			return
 		if _runner == null:
@@ -199,16 +212,22 @@ func _choice_input(event: InputEvent) -> void:
 
 func _on_line(text: String) -> void:
 	_shown = text
+	_chrome.set_body(text)
+	_visible_len = _chrome.body_visible_char_count()
 	_cursor = 0
-	_chrome.set_body("")
+	_chrome.set_body_visible_chars(0)
 	_chrome.set_continue_visible(false)
 	_clear_choices()
+	if _visible_len == 0:
+		_show_continue()
 
 
 func _on_choices(options: Array) -> void:
 	_shown = _runner.line
-	_cursor = _shown.length()
 	_chrome.set_body(_shown)
+	_visible_len = _chrome.body_visible_char_count()
+	_cursor = _visible_len
+	_chrome.set_body_visible_chars(_cursor)
 	_chrome.set_continue_visible(false)
 	_clear_choices()
 	_choice_index = 0
@@ -217,6 +236,7 @@ func _on_choices(options: Array) -> void:
 		var btn := Button.new()
 		btn.text = str(opt.get("text", ""))
 		btn.focus_mode = Control.FOCUS_NONE
+		btn.flat = true
 		btn.pressed.connect(_pick.bind(i))
 		_choices.add_child(btn)
 		_buttons.append(btn)

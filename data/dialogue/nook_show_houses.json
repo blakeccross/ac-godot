@@ -1,0 +1,26 @@
+{
+  "id": "nook_show_houses",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Here we are! Not too shabby,\nhm? I can most heartily\nrecommend any of these\nhouses!",
+      "next": "pick"
+    },
+    "pick": {
+      "type": "line",
+      "text": " Take your pick!",
+      "next": "look"
+    },
+    "look": {
+      "type": "line",
+      "text": "Feel free to take a look\ninside. Really. I don't mind.\nNot in the least!",
+      "next": "locks"
+    },
+    "locks": {
+      "type": "line",
+      "text": "After all, the doors don't\nhave any locks. Just stand in\nfront of the door and press \nthe A Button to go inside."
+    }
+  }
+}

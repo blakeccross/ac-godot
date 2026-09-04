@@ -260,6 +260,9 @@ def _is_y_up_structure(prefix: str) -> bool:
     Clock hands / weather vanes push vtx min-Y below the `_sits_on_y` floor, so
     the prefix list is the source of truth. Bind the door clip (station joint-0
     is identity; house −90°, shop/myhome −135°) and skip `ckf_basis`.
+
+    Outdoor trains are **not** in this class: their vtx fail `_sits_on_y`, and
+    rest uses anim joint-0 (±90° deg×10) **plus** `ckf_basis` like characters.
     """
     m = re.match(r"^obj_[swf]_(.+)$", prefix)
     if not m:
@@ -407,6 +410,17 @@ def convert_ckf_model(
     if bind_anim is None and sits_y and anim_names:
         exact = f"cKF_ba_r_{prefix}"
         bind_anim = exact if exact in anim_names else anim_names[0]
+    ## Trains: bake closed/rest clip (+ joint-0 ±90°) with `ckf_basis` — not the
+    ## Y-up door-clip path used by houses. Prefer `*_close` when present.
+    if bind_anim is None and prefix.startswith("obj_train1_") and anim_names:
+        close = f"cKF_ba_r_{prefix}_close"
+        exact = f"cKF_ba_r_{prefix}"
+        if close in anim_names:
+            bind_anim = close
+        elif exact in anim_names:
+            bind_anim = exact
+        else:
+            bind_anim = anim_names[0]
     if bind_anim is not None:
         try:
             root_raw, bind_rots = evaluate_pose(rel, symbols, bind_anim, num_joints, 1.0)

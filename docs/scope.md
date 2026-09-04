@@ -14,6 +14,7 @@ Build **one good version** of each, then stop until the game needs more:
 - One shop with buy/sell rather than every original store (Nook + Able Sisters are the two in town)
 - Inventory, a small item catalog, and a simple economy
 - Save/load of the systems above
+- Villagers look at the player (head) when nearby; go home / sleep and appear indoors when awake at home
 
 ## Out of scope until earned
 

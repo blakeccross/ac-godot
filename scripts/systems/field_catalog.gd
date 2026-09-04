@@ -487,6 +487,33 @@ static func is_water_attr(attr: int) -> bool:
 	return (attr >= 12 and attr <= 21) or attr == 24
 
 
+static func attr_allows_npc(attr: int) -> bool:
+	## `mCoBG_Attr2CheckPlaceNpc` — bit 4 of `l_attribute_action_info[attr]`.
+	## Water / most banks / wave units are false; grass, soil, sand, bridges true.
+	const NPC_BITS := [
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, # 0–10
+		0, # 11 wave
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, # 12–21 water
+		1, 1, # 22–23 sand/stone
+		0, # 24 sea
+		0, 0, # 25–26 wave shore
+		0, 0, 0, 0, # 27–30 wood bridge edge? table NO_NPC
+		1, 1, 1, 1, 1, # 31–35 bridges
+		0, 0, 0, # 36–38 wave
+		0, 0, 0, 0, # 39–42
+		1, 1, 1, 1, # 43–46
+		1, 1, 1, 1, 1, 1, 1, 1, # 47–54
+		0, 0, 0, 0, # 55–58
+		1, 1, 1, # 59–61
+		1, # 62
+		1, # 63
+	]
+	var a: int = attr & 0x3F
+	if a < 0 or a >= NPC_BITS.size():
+		return false
+	return NPC_BITS[a] != 0
+
+
 static func is_bridge_attr(attr: int) -> bool:
 	## Wood 27–31 and stone 32–35 (`mCoBG_ATTRIBUTE_*`). Walkable deck, not water.
 	return is_wood_bridge_attr(attr) or is_stone_bridge_attr(attr)

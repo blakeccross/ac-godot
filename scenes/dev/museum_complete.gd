@@ -160,6 +160,14 @@ func _spawn_or_move_player(room_node: Node3D) -> void:
 		_camera.call("set_target", player as Node3D)
 	if _camera != null and "offset" in _camera:
 		_camera.set("offset", preload("res://scenes/world/follow_camera.gd").DEFAULT_OFFSET)
+	DoorTransition.play_wipe_in_if_pending()
+	if Game.play_door_arrive:
+		Game.play_door_arrive = false
+		call_deferred("_play_door_arrive", player)
+
+
+func _play_door_arrive(player: Node) -> void:
+	await StructureDoor.play_arrive(player)
 
 
 func _refresh_missing_banner() -> void:

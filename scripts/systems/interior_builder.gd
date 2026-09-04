@@ -8,6 +8,7 @@ const FURNITURE_SCENE := preload("res://scenes/world/furniture.tscn")
 const DOOR_SCENE := preload("res://scenes/world/door.tscn")
 const COUNTER_SCENE := preload("res://scenes/world/shop_counter.tscn")
 const STOCK_SCENE := preload("res://scenes/world/shop_stock.tscn")
+const TOM_NOOK_SCENE := preload("res://scenes/world/interiors/tom_nook.tscn")
 const BLATHERS_SCRIPT := preload("res://scenes/world/museum/museum_blathers.gd")
 ## Door opening half-width (~1.5 UT). Matches walk-in sensors better than 1 UT.
 const MUSEUM_DOOR_HALF_GX := 60.0
@@ -40,6 +41,44 @@ func build(root: Node3D, interior: Interior) -> void:
 	add_museum_set(furniture_root, interior)
 	_add_exit_door(doors_root, grid, room)
 	_add_linked_doors(doors_root, grid, room)
+
+
+## Authored public/museum room: shell fit + collision + furniture + shop set.
+## Doors stay as authored children under `Doors/` (positions refreshed).
+func populate_authored(room_root: Node3D, interior: Interior) -> void:
+	if room_root == null or interior == null or interior.room == null:
+		return
+	var room: Room = interior.room
+	var grid: WorldGrid = interior.grid
+	var terrain: Node3D = room_root.get_node_or_null("Terrain") as Node3D
+	var furniture_root: Node3D = room_root.get_node_or_null("Furniture") as Node3D
+	var doors_root: Node3D = room_root.get_node_or_null("Doors") as Node3D
+	if terrain == null or furniture_root == null:
+		return
+	_clear_shell_colliders(terrain)
+	for child: Node in furniture_root.get_children():
+		## Keep authored shopkeepers / wall clock; restock only rebuilds shelf goods.
+		if child.name == "TomNook" or child.name == "NookClock":
+			continue
+		furniture_root.remove_child(child)
+		child.free()
+	var shell_vis: Node3D = room_root.get_node_or_null("Shell/GeneratedVisual") as Node3D
+	if shell_vis != null and shell_vis.get_child_count() > 0:
+		GeneratedVisual.layout_authored_interior(shell_vis, room, grid, WALL_HEIGHT)
+		var gaps: Array = museum_door_gaps(room, grid) if room.kind == Room.Kind.MUSEUM else []
+		_add_shell_collision(terrain, room, grid, gaps)
+	else:
+		_paint_shell(terrain, room, grid)
+	for entry: FurniturePlacement in room.placements:
+		add_furniture(furniture_root, interior, entry)
+	add_shop_set(furniture_root, interior)
+	if room.kind == Room.Kind.MUSEUM and room_root.has_method("present_exhibits"):
+		room_root.call("present_exhibits", furniture_root, interior)
+	elif room.kind == Room.Kind.MUSEUM:
+		add_museum_set(furniture_root, interior)
+	elif room.kind == Room.Kind.SHOP and room_root.has_method("present_exhibits"):
+		room_root.call("present_exhibits", furniture_root, interior)
+	_place_authored_doors(doors_root, grid, room)
 
 
 func build_museum_stage(root: Node3D, interior: Interior) -> void:
@@ -147,10 +186,14 @@ func _clear_shell_colliders(terrain: Node3D) -> void:
 
 
 func _paint_shell(root: Node3D, room: Room, grid: WorldGrid) -> void:
-	## Museum `rom_museum*` keep the acre NW at `grid.origin` (FG / tank / door GX).
+	## Museum / Nook `rom_shop*` keep the acre NW at `grid.origin` (FG RSV / door GX).
+	var keep_acre := (
+		room.kind == Room.Kind.MUSEUM
+		or (not room.shell_ids.is_empty() and String(room.shell_ids[0]).begins_with("rom_shop"))
+	)
 	var target := (
 		AABB(grid.origin, Vector3(float(grid.columns) * grid.cell_size, WALL_HEIGHT, float(grid.rows) * grid.cell_size))
-		if room.kind == Room.Kind.MUSEUM
+		if keep_acre
 		else _shell_bounds(room, grid)
 	)
 	var shell: Node3D = GeneratedVisual.attach_interior(root, room.shell_ids, room.wall_id, room.floor_id, target)
@@ -592,13 +635,33 @@ func add_shop_set(root: Node3D, interior: Interior) -> void:
 	if shop_id == &"":
 		return
 	Game.shops.ensure_today(shop_id)
-	var counter: Node3D = COUNTER_SCENE.instantiate() as Node3D
-	counter.name = "ShopCounter"
-	counter.set("shop_id", shop_id)
-	counter.position = interior.grid.cell_to_world(_counter_cell(room))
-	root.add_child(counter)
-	var cells: Array[Vector2i] = _shop_stock_cells(room, interior)
+	if room.kind == Room.Kind.SHOP:
+		add_tom_nook(root, interior)
+		add_nook_clock(root, interior)
+	else:
+		var counter: Node3D = COUNTER_SCENE.instantiate() as Node3D
+		counter.name = "ShopCounter"
+		counter.set("shop_id", shop_id)
+		counter.position = interior.grid.cell_to_world(_counter_cell(room))
+		root.add_child(counter)
 	var listed: Array[StringName] = Game.shops.goods(shop_id)
+	if room.id == &"shop0":
+		var placements: Array[Dictionary] = ShopDisplay.stock_placements_for_goods(listed)
+		for i: int in mini(listed.size(), placements.size()):
+			var item_id: StringName = listed[i]
+			var row: Dictionary = placements[i]
+			var cell: Vector2i = row["cell"] as Vector2i
+			var node: Node3D = STOCK_SCENE.instantiate() as Node3D
+			node.name = "ShopStock_%d" % i
+			node.set("shop_id", shop_id)
+			node.set("item_id", item_id)
+			node.set("occupant_id", StringName("shop_stock_%d" % i))
+			var pos: Vector3 = interior.grid.cell_to_world(cell)
+			pos.y = float(row.get("y_gx", 0.0)) * FieldCatalog.GX_TO_METERS
+			node.position = pos
+			root.add_child(node)
+		return
+	var cells: Array[Vector2i] = _shop_stock_cells(room, interior)
 	for i: int in mini(listed.size(), cells.size()):
 		var item_id: StringName = listed[i]
 		var node: Node3D = STOCK_SCENE.instantiate() as Node3D
@@ -610,6 +673,48 @@ func add_shop_set(root: Node3D, interior: Interior) -> void:
 		root.add_child(node)
 
 
+func add_tom_nook(root: Node3D, interior: Interior) -> void:
+	## `shop0N_actable` stand: Cranny (3,5) / conveni (7,5) / super (8,9) / depart (7,11).
+	if root == null or interior == null or interior.grid == null:
+		return
+	var level: int = 0
+	if interior.room != null:
+		level = ShopDisplay.nook_level_for_room(interior.room.id)
+	elif Game != null and Game.shops != null:
+		level = Game.shops.nook_level()
+	var stand: Vector3 = ShopDisplay.nook_stand_gx(level)
+	if root.get_node_or_null("TomNook") != null:
+		var existing: Node3D = root.get_node("TomNook") as Node3D
+		existing.position = ShopDisplay.gx_to_world(interior.grid, stand)
+		existing.rotation.y = WorldGrid.yaw_for_facing(ShopDisplay.NOOK_FACING)
+		return
+	var nook: Node3D = TOM_NOOK_SCENE.instantiate() as Node3D
+	nook.name = "TomNook"
+	nook.position = ShopDisplay.gx_to_world(interior.grid, stand)
+	nook.rotation.y = WorldGrid.yaw_for_facing(ShopDisplay.NOOK_FACING)
+	root.add_child(nook)
+
+
+func add_nook_clock(root: Node3D, interior: Interior) -> void:
+	## `HOUSE_CLOCK` / `aHC_position_data` for Nook shop scenes.
+	if root == null or interior == null or interior.grid == null or Game == null:
+		return
+	if root.get_node_or_null("NookClock") != null:
+		return
+	var visual: StringName = ShopDisplay.nook_clock_visual(Game.shops.nook_level())
+	if FieldCatalog.mesh_paths(visual).is_empty():
+		return
+	var host := Node3D.new()
+	host.name = "NookClock"
+	host.position = ShopDisplay.gx_to_world(
+		interior.grid, Vector3(ShopDisplay.CLOCK_GX.x, 0.0, ShopDisplay.CLOCK_GX.z)
+	)
+	root.add_child(host)
+	var pivot: Node3D = GeneratedVisual.attach(host, visual)
+	if pivot != null:
+		GeneratedVisual.align_actor_to_height_gx(pivot, ShopDisplay.CLOCK_GX.y)
+
+
 func _counter_cell(room: Room) -> Vector2i:
 	return Vector2i(room.door_cell.x - 1, room.spawn_cell.y - 1)
 
@@ -617,6 +722,7 @@ func _counter_cell(room: Room) -> Vector2i:
 func _shop_stock_cells(room: Room, interior: Interior) -> Array[Vector2i]:
 	var skip: Dictionary = {}
 	skip[room.door_cell] = true
+	skip[room.door_cell + Vector2i(1, 0)] = true
 	skip[room.spawn_cell] = true
 	skip[_counter_cell(room)] = true
 	for entry: FurniturePlacement in room.placements:
@@ -662,9 +768,52 @@ func _add_exit_door(root: Node3D, grid: WorldGrid, room: Room) -> void:
 		door.set("auto_enter", true)
 		_size_museum_wing_door(door, sensor)
 	else:
-		door.position = grid.cell_to_world(room.door_cell)
+		## EXIT_DOOR pair midpoint (houses / shops).
+		door.position = (
+			grid.cell_to_world(room.door_cell)
+			+ grid.cell_to_world(room.door_cell + Vector2i(1, 0))
+		) * 0.5
 		door.set("exits_interior", true)
 	root.add_child(door)
+
+
+func _place_authored_doors(root: Node3D, grid: WorldGrid, room: Room) -> void:
+	## Keep editor-authored door nodes; refresh world position + leave/link flags.
+	if root == null or grid == null or room == null:
+		return
+	if room.kind == Room.Kind.MUSEUM:
+		return
+	var exit_door: Node3D = root.get_node_or_null("Exit") as Node3D
+	if exit_door != null:
+		exit_door.position = (
+			grid.cell_to_world(room.door_cell)
+			+ grid.cell_to_world(room.door_cell + Vector2i(1, 0))
+		) * 0.5
+		exit_door.set("exits_interior", true)
+		exit_door.set("label", "Leave")
+		exit_door.set("occupy_grid", false)
+	elif root.get_child_count() == 0:
+		_add_exit_door(root, grid, room)
+	if room.linked_rooms.is_empty():
+		return
+	var inner_north := room.inner_origin.y
+	var start_x: int = room.inner_origin.x + 1
+	for i: int in room.linked_rooms.size():
+		var room_id: StringName = room.linked_rooms[i]
+		var door: Node3D = root.get_node_or_null("Link_%s" % String(room_id)) as Node3D
+		var template: Room = InteriorCatalog.room_template(room_id)
+		var cell := Vector2i(start_x + i * 2, inner_north)
+		if not room.is_inner(cell):
+			cell = Vector2i(room.inner_origin.x, inner_north)
+		if door == null:
+			door = DOOR_SCENE.instantiate() as Node3D
+			door.name = "Link_%s" % String(room_id)
+			root.add_child(door)
+		door.position = grid.cell_to_world(cell)
+		door.set("label", template.display_name if template else "Room")
+		door.set("verb", Interaction.ENTER)
+		door.set("linked_room_id", room_id)
+		door.set("occupy_grid", false)
 
 
 func _add_linked_doors(root: Node3D, grid: WorldGrid, room: Room) -> void:

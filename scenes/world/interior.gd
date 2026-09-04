@@ -1,12 +1,15 @@
 extends Node3D
 
 ## Indoor field. Same `WorldGrid` as outdoor; layout comes from `Interior`.
+## Prefer authored room scenes from `InteriorCatalog.scene_path` when present.
 
 const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
+const VILLAGER_SCENE := preload("res://scenes/actors/villager.tscn")
 
 var grid: WorldGrid
 var session: Interior
 var _exiting: bool = false
+var _room_content: Node3D = null
 
 @onready var _camera: Camera3D = $FollowCamera
 @onready var _spawn: Marker3D = $Characters/PlayerSpawn
@@ -24,18 +27,49 @@ func _ready() -> void:
 	session.bind(room)
 	grid = session.grid
 	Game.bind_interior(session)
-	InteriorBuilder.new().build(self, session)
+	_build_room(room)
 	_apply_indoor_light(room)
 	_spawn_player()
+	_spawn_resident(room)
 	Audio.play_bgm(BgmCatalog.room_id(room.kind))
+
+
+func _build_room(room: Room) -> void:
+	var path: String = InteriorCatalog.scene_path(room.id)
+	if path != "" and ResourceLoader.exists(path):
+		_mount_authored(path)
+		return
+	InteriorBuilder.new().build(self, session)
+
+
+func _mount_authored(path: String) -> void:
+	for name: String in ["Terrain", "Furniture", "Doors"]:
+		var stale: Node = get_node_or_null(name)
+		if stale != null:
+			remove_child(stale)
+			stale.free()
+	var packed: PackedScene = load(path) as PackedScene
+	if packed == null:
+		InteriorBuilder.new().build(self, session)
+		return
+	_room_content = packed.instantiate() as Node3D
+	if _room_content == null:
+		InteriorBuilder.new().build(self, session)
+		return
+	_room_content.name = "RoomContent"
+	add_child(_room_content)
+	if _room_content.has_method("populate"):
+		_room_content.call("populate")
+	else:
+		InteriorBuilder.new().populate_authored(_room_content, session)
 
 
 func _physics_process(_delta: float) -> void:
 	## `EXIT_DOOR` warp: stepping onto the outdoor exit cell leaves
-	## (`Player_actor_check_nextgoto`). Museum wing exits use linked auto-enter doors.
+	## (`Player_actor_check_nextgoto`). Museum uses Exit auto-enter sensors instead.
 	if _exiting or session == null or grid == null or session.room == null:
 		return
-	if session.room.kind == Room.Kind.MUSEUM and session.room.parent_room_id != &"":
+	if session.room.kind == Room.Kind.MUSEUM:
 		return
 	var player: Node = get_tree().get_first_node_in_group("player")
 	if player == null or not (player is Node3D):
@@ -43,10 +77,11 @@ func _physics_process(_delta: float) -> void:
 	if bool(player.get("_busy")) or bool(player.get("_door_entering")):
 		return
 	var cell: Vector2i = grid.world_to_cell((player as Node3D).global_position)
-	if cell != session.room.door_cell:
+	if not session.room.is_exit_cell(cell):
 		return
 	_exiting = true
 	await _play_indoor_exit(player as Node3D)
+	await DoorTransition.play_wipe_out()
 	Game.exit_interior()
 
 
@@ -56,7 +91,11 @@ func _play_indoor_exit(player: Node3D) -> void:
 		return
 	if not player.has_method("run_indoor_exit"):
 		return
-	var door_pos: Vector3 = grid.cell_to_world(session.room.door_cell)
+	## Midpoint of the EXIT_DOOR pair so leave aims at the alcove center.
+	var door_pos: Vector3 = (
+		grid.cell_to_world(session.room.door_cell)
+		+ grid.cell_to_world(session.room.door_cell + Vector2i(1, 0))
+	) * 0.5
 	var south_yaw: float = WorldGrid.yaw_for_facing(WorldGrid.Facing.SOUTH)
 	var target: Vector3 = door_pos + Vector3(0.0, 0.0, StructureDoor.INTO_GX * FieldCatalog.GX_TO_METERS)
 	target.y = player.global_position.y
@@ -68,17 +107,25 @@ func _exit_tree() -> void:
 		Game.bind_interior(null)
 
 
+func _furniture_root() -> Node3D:
+	if _room_content != null:
+		var authored: Node3D = _room_content.get_node_or_null("Furniture") as Node3D
+		if authored != null:
+			return authored
+	return get_node_or_null("Furniture") as Node3D
+
+
 func spawn_placement(entry: FurniturePlacement) -> void:
 	if entry == null:
 		return
-	var root: Node3D = get_node_or_null("Furniture") as Node3D
+	var root: Node3D = _furniture_root()
 	if root == null:
 		return
 	InteriorBuilder.new().add_furniture(root, session, entry)
 
 
 func despawn_placement(placement_id: StringName) -> void:
-	var root: Node = get_node_or_null("Furniture")
+	var root: Node = _furniture_root()
 	if root == null:
 		return
 	var node: Node = root.get_node_or_null(String(placement_id))
@@ -95,7 +142,7 @@ func refresh_placement(placement_id: StringName) -> void:
 
 
 func refresh_shop_set() -> void:
-	var root: Node3D = get_node_or_null("Furniture") as Node3D
+	var root: Node3D = _furniture_root()
 	if root == null or session == null:
 		return
 	var stale: Array[Node] = []
@@ -104,7 +151,8 @@ func refresh_shop_set() -> void:
 			stale.append(child)
 	for node: Node in stale:
 		root.remove_child(node)
-		node.free()
+		## Never `free()` here — buy can refresh while `shop_stock.interact` is still on the stack.
+		node.queue_free()
 	InteriorBuilder.new().add_shop_set(root, session)
 
 
@@ -171,7 +219,46 @@ func _spawn_player() -> void:
 	elif not Game.player_position.is_equal_approx(Game.DEFAULT_SPAWN):
 		pos = Game.player_position
 	player.apply_spawn(pos, yaw)
-	if pins_follow_camera(session.room if session != null else null):
+	if not pins_follow_camera(session.room if session != null else null):
+		if _camera.has_method("set_target"):
+			_camera.call("set_target", player)
+	DoorTransition.play_wipe_in_if_pending()
+	if Game.play_door_arrive:
+		Game.play_door_arrive = false
+		call_deferred("_play_door_arrive", player)
+
+
+func _spawn_resident(room: Room) -> void:
+	## Indoor `ac_npc2`: show the homeowner when awake at home.
+	if room == null or room.kind != Room.Kind.NPC:
 		return
-	if _camera.has_method("set_target"):
-		_camera.call("set_target", player)
+	var occupant: StringName = &""
+	var house: House = InteriorCatalog.house_template(room.id)
+	if house != null:
+		occupant = house.occupant_id
+	if occupant == &"":
+		var raw := String(room.id)
+		if raw.begins_with("npc_"):
+			occupant = StringName(raw.substr(4))
+	if not VillagerHome.should_spawn_indoor(occupant):
+		return
+	var data: VillagerData = VillagerCatalog.get_villager(occupant)
+	if data == null:
+		return
+	var villager: Node = VILLAGER_SCENE.instantiate()
+	if villager == null:
+		return
+	villager.set("data", data)
+	villager.set("indoor_resident", true)
+	villager.name = "Resident"
+	$Characters.add_child(villager)
+	if villager is Node3D:
+		var stand: Vector3 = VillagerHome.indoor_stand(session)
+		stand.y = 0.1
+		(villager as Node3D).global_position = stand
+		(villager as Node3D).rotation.y = WorldGrid.yaw_for_facing(WorldGrid.Facing.SOUTH)
+
+
+func _play_door_arrive(player: Node) -> void:
+	## Museum wing / outdoor→entrance: continue INTO_S1 past the door sensor.
+	await StructureDoor.play_arrive(player)

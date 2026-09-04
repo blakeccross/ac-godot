@@ -73,7 +73,7 @@ func can_place(
 		return false
 	var cells: Array[Vector2i] = grid.footprint_cells(cell, size, facing)
 	for occupied: Vector2i in cells:
-		if occupied == room.door_cell:
+		if room.is_exit_cell(occupied):
 			return false
 		if not room.is_inner(occupied):
 			return false

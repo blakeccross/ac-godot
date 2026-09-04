@@ -65,6 +65,13 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text = "Intro Sequence"
 
+[node name="IntroStationButton" type="Button" parent="Center/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Station Arrival"
+
 [node name="ContinueButton" type="Button" parent="Center/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(280, 44)
@@ -81,4 +88,5 @@ horizontal_alignment = 1
 [connection signal="pressed" from="Center/VBox/NewGameButton" to="." method="_on_new_game_pressed"]
 [connection signal="pressed" from="Center/VBox/GeneratedTownButton" to="." method="_on_generated_town_pressed"]
 [connection signal="pressed" from="Center/VBox/IntroButton" to="." method="_on_intro_pressed"]
+[connection signal="pressed" from="Center/VBox/IntroStationButton" to="." method="_on_intro_station_pressed"]
 [connection signal="pressed" from="Center/VBox/ContinueButton" to="." method="_on_continue_pressed"]

@@ -49,6 +49,11 @@ func _ready() -> void:
 	_apply_time_of_day()
 	_play_outdoor_bgm()
 	_spawn_player()
+	if Game.intro_station_active:
+		var director: Node = load("res://scenes/world/intro_station_director.gd").new()
+		add_child(director)
+		if director.has_method("setup"):
+			director.call("setup", self)
 
 
 func release_occupant(occupant_id: StringName) -> void:
@@ -90,6 +95,9 @@ func _on_weather_changed(_weather: StringName) -> void:
 
 
 func _play_outdoor_bgm() -> void:
+	## Fresh station arrival owns `intro_arrive`; after a house exit we keep field BGM.
+	if Game.intro_station_active and not Game.intro_station_resume_debt:
+		return
 	Audio.play_bgm(BgmCatalog.outdoor_id(Clock.hour, Game.weather))
 
 
@@ -100,8 +108,12 @@ func _spawn_player() -> void:
 	if pos.is_equal_approx(Game.DEFAULT_SPAWN):
 		pos = _spawn.global_position
 	player.apply_spawn(pos, Game.player_yaw)
-	if _camera.has_method("set_target"):
+	if Game.intro_station_active and _camera.has_method("suspend"):
+		## Station demo framing — do not snap-follow the house spawn first.
+		_camera.call("suspend")
+	elif _camera.has_method("set_target"):
 		_camera.call("set_target", player)
+	DoorTransition.play_wipe_in_if_pending()
 	if Game.emerge_from_door:
 		Game.emerge_from_door = false
 		call_deferred("_play_door_emerge", player)

@@ -1,0 +1,30 @@
+[gd_scene format=3 uid="uid://dp73tdqbaklbt"]
+
+[ext_resource type="Script" uid="uid://7kb0gb6mma4t" path="res://scenes/world/interiors/public_room.gd" id="1"]
+[ext_resource type="Script" uid="uid://dfxx8v5xbuuao" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://da2u72or1l8nv" path="res://assets/generated/environment/interiors/rom_tailor.glb" id="10"]
+
+[node name="needlework" type="Node3D" unique_id=1047244665]
+script = ExtResource("1")
+room_id = &"needlework"
+
+[node name="Shell" type="Node3D" parent="." unique_id=30194574]
+script = ExtResource("2")
+
+[node name="GeneratedVisual" type="Node3D" parent="Shell" unique_id=1105425804]
+
+[node name="rom_tailor" parent="Shell/GeneratedVisual" unique_id=898499446 instance=ExtResource("10")]
+
+[node name="Terrain" type="Node3D" parent="." unique_id=470914994]
+
+[node name="Furniture" type="Node3D" parent="." unique_id=764534938]
+
+[node name="Doors" type="Node3D" parent="." unique_id=1368341801]
+
+[node name="Exit" parent="Doors" unique_id=1111153249 instance=ExtResource("3")]
+label = "Leave"
+exits_interior = true
+
+[node name="PlayerSpawn" type="Marker3D" parent="." unique_id=1688780737]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)

@@ -21,6 +21,18 @@ Use typed GDScript on every signature and member. Indent with tabs.
 - **Behavior:** systems under `scripts/systems/`. Scene scripts stay thin: they wire nodes and call systems.
 - Prefer composition (child nodes, resources, systems) over deep inheritance.
 
+### Scene-first authorship
+
+Author fixed presentation in the editor. Do not default to runtime construction.
+
+- Put known hierarchy (rooms, counters, cameras, lights, spawn markers, HUD) in the `.tscn`.
+- Put static (or rest-pose) transforms in the scene too: cameras, characters, and props should sit where they belong when you open the `.tscn`, not at the origin waiting for `_ready` to teleport them.
+- Prefer nesting packed scenes (`instance=`) over `instantiate()` in `_ready` for layouts that never change between runs.
+- Systems may *place* packed scenes from data (town generation, inventory drops). They should not *build* the visual tree with ad-hoc mesh/collider nodes when a scene would do.
+- Exception: truly procedural or ephemeral objects (generated acre FG, bobber, shadows, particles, one-shot FX).
+
+See [architecture.md](architecture.md) § Scene-first.
+
 Do not recreate the original game's single global save blob. Split state by concern.
 
 ## Autoloads

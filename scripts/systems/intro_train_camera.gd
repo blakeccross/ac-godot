@@ -86,10 +86,6 @@ func begin_morph_to_rover(from_gx: Vector3, lock_after: bool) -> void:
 	_begin_morph(from_gx, true, _look_gx, lock_after)
 
 
-func begin_morph_to_pov(from_gx: Vector3) -> void:
-	_begin_morph(from_gx, false, _look_gx, false)
-
-
 func lock_on_rover() -> void:
 	lock_camera = true
 	obj_look_talk = true
@@ -107,10 +103,10 @@ func current_look_gx(ground_gx: Vector3, action: IntroTrainStage.Action = _actio
 
 func steady_look_gx(ground_gx: Vector3, action: IntroTrainStage.Action) -> Vector3:
 	match action:
-		IntroTrainStage.Action.RETURN_APPROACH, IntroTrainStage.Action.SITDOWN, IntroTrainStage.Action.SEATED, IntroTrainStage.Action.TALK, IntroTrainStage.Action.LAST_SIT:
+		IntroTrainStage.Action.RETURN_APPROACH, IntroTrainStage.Action.SITDOWN, IntroTrainStage.Action.SEATED, IntroTrainStage.Action.TALK, IntroTrainStage.Action.LAST_SIT, IntroTrainStage.Action.STANDUP, IntroTrainStage.Action.MOVE_AISLE, IntroTrainStage.Action.MOVE_DOOR, IntroTrainStage.Action.MOVE_DECK, IntroTrainStage.Action.KEITAI_ON, IntroTrainStage.Action.KEITAI_TALK, IntroTrainStage.Action.KEITAI_OFF, IntroTrainStage.Action.OPEN_DOOR:
+			## After first talk lock, look stays on Rover for the whole phone trip
+			## (`lock_camera_flag` is never cleared in `aNGD_*`).
 			return Vector3(ground_gx.x, _obj_look_y_gx, ground_gx.z)
-		IntroTrainStage.Action.STANDUP, IntroTrainStage.Action.MOVE_AISLE, IntroTrainStage.Action.MOVE_DOOR, IntroTrainStage.Action.MOVE_DECK, IntroTrainStage.Action.KEITAI_ON, IntroTrainStage.Action.KEITAI_TALK, IntroTrainStage.Action.KEITAI_OFF, IntroTrainStage.Action.OPEN_DOOR:
-			return _look_gx
 		_:
 			return _look_gx
 
@@ -122,7 +118,7 @@ func tick(delta: float, rover_pos_gx: Vector3, action: IntroTrainStage.Action, a
 	if _camera == null:
 		return
 	_apply_sway(delta)
-	_camera_tilt = lerp_angle(
+	_camera_tilt = _chase_angle(
 		_camera_tilt, _camera_tilt_goal, _camera_tilt_chase * delta * 30.0
 	)
 	var tilt_sin: float = sin(_camera_tilt)
@@ -205,3 +201,13 @@ func _apply_sway(delta: float) -> void:
 		else:
 			_camera_move_range *= 0.35
 	_camera_move_y = move_y_gx
+
+
+## `chase_angle` — fixed angular step toward target (not a lerp fraction).
+static func _chase_angle(current: float, target: float, step: float) -> float:
+	if step <= 0.0:
+		return current
+	var diff: float = wrapf(target - current, -PI, PI)
+	if absf(diff) <= step:
+		return target
+	return current + signf(diff) * step

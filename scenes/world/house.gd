@@ -32,16 +32,37 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.ENTER:
 		return false
-	if occupant_id == &"":
+	var entry_id: StringName = occupant_id
+	if entry_id == &"":
+		entry_id = StringName(name)
+	## Vacant myhome shells during station intro house pick — Nook speaks first.
+	if (
+		Game.intro_station_active
+		and Game.intro_station_can_pick_house
+		and String(name).begins_with("player_house")
+	):
+		Game.request_intro_house_look(StringName(name))
+		return true
+	elif Game.intro_station_active and not Game.intro_station_can_pick_house:
+		if Game.intro_pending_house_id != &"":
+			return true
+		Game.post_notice("Talk to Tom Nook first.")
+		return true
+	if entry_id == &"":
 		Game.post_notice("The door is locked.")
 		return true
-	var room_id: StringName = InteriorCatalog.resolve_entry(occupant_id)
+	## Villager homes: `aHUS_odekake_check` — sleep / not home / enter.
+	var gate: String = VillagerHome.door_notice(entry_id)
+	if gate != "":
+		Game.post_notice(gate)
+		return true
+	var room_id: StringName = InteriorCatalog.resolve_entry(entry_id)
 	if room_id == &"":
 		Game.post_notice("The door is locked.")
 		return true
 	var room: Room = Game.interiors.room(room_id)
 	## Closed hours: notice only, no door swing.
 	if room != null and not InteriorCatalog.is_open_now(room):
-		return Game.try_enter_interior(occupant_id)
+		return Game.try_enter_interior(entry_id)
 	await StructureDoor.play_enter(self)
-	return Game.try_enter_interior(occupant_id)
+	return Game.try_enter_interior(entry_id)

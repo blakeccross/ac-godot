@@ -8,7 +8,10 @@ static func actions(host: Node, _ctx: InteractionContext) -> Array[Interaction]:
 	var shop_id: StringName = _shop_id(host)
 	if shop_id == &"":
 		return []
-	return [Interaction.of(Interaction.BUY, "Shop", 12)]
+	var out: Array[Interaction] = [Interaction.of(Interaction.BUY, "Buy", 12)]
+	if Game != null and Game.shops != null and Game.shops.allows_sell(shop_id):
+		out.append(Interaction.of(Interaction.SELL, "Sell", 11))
+	return out
 
 
 static func apply(action: Interaction, host: Node, _ctx: InteractionContext) -> bool:
@@ -30,6 +33,7 @@ static func _shop_id(host: Node) -> StringName:
 		var from_host: StringName = host.get("shop_id") as StringName
 		if from_host != &"":
 			return from_host
+	## Tom Nook / Able hosts live in a shop room without an exported shop_id.
 	if Game == null:
 		return &""
 	var room: Room = Game.interiors.room(Game.current_room_id)

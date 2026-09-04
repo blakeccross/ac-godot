@@ -2,8 +2,10 @@ extends CharacterBody3D
 
 ## CharacterBody3D player. Locomotion feel from `m_player_main_walk`; visual from
 ## generated `boy_1.glb` when the local pipeline has been run. Equipped tools
-## parent to HAND (`HeldTool`). Physics cylinder matches `Player_actor_OcInfoData_forStand`
-## pipe (20×60 GX → 1.0×3.0 m). Cliffs/water use `FieldCollision` (18 GX), not this shape.
+## parent to HAND (`HeldTool`). Walk physics cylinder radius matches `BgCheckControll`
+## range (18 GX → 0.9 m) — same as `FieldCollision.ACTOR_RADIUS` / trees-rocks columns.
+## Height keeps the OcInfo stand pipe (60 GX → 3.0 m). Cliffs/water use `revise_xz`,
+## not this shape. OcInfo radius 20 is actor-actor CollisionCheck, not world walk.
 
 const GENERATED_PLAYER := "res://assets/generated/characters/player/boy_1.glb"
 const LOOK_HEIGHT := 0.85
@@ -29,6 +31,8 @@ const ANIM_INTO_S1 := "ply_1_into_s1"
 const ANIM_GO_OUT_S1 := "ply_1_go_out_s1"
 ## `mPlayer_ANIM_GO_OUT_O1` — non-demo outdoor emerge fallback.
 const ANIM_GO_OUT_O1 := "ply_1_go_out_o1"
+## `mPlayer_ANIM_OUTTRAIN1` — station caboose step-off (`mPlayer_INDEX_DEMO_GETOFF_TRAIN`).
+const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 
 @onready var _mesh: Node3D = $MeshPivot
 @onready var _placeholder: MeshInstance3D = $MeshPivot/PlaceholderMesh
@@ -38,6 +42,8 @@ const ANIM_GO_OUT_O1 := "ply_1_go_out_o1"
 var _motor: PlayerLocomotion = PlayerLocomotion.new()
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _busy: bool = false
+## Station intro ride / guided walk — stage owns XZ/Y; skip snap + move_and_slide.
+var _cutscene_driven: bool = false
 var _focus: Node = null
 var _anim: AnimationPlayer
 var _gait: PlayerLocomotion.Gait = PlayerLocomotion.Gait.WAIT
@@ -48,15 +54,24 @@ var _tool_use_anim: StringName = &""
 var _step_time: float = 0.0
 var _right_foot: bool = true
 var _door_entering: bool = false
+## `cKF_SkeletonInfo_R_AnimationMove` for INDEX_DOOR. False for INDEX_OUTDOOR (mesh root motion).
+var _door_animation_move: bool = false
 var _door_from: Vector3 = Vector3.ZERO
 var _door_to: Vector3 = Vector3.ZERO
 var _door_yaw: float = 0.0
 var _door_move_elapsed: float = 0.0
 var _door_move_duration: float = StructureDoor.APPROACH_SEC
 var _door_clear_busy: bool = false
+## `model_world_position_correction` — decays toward 0 over `fixed_counter` game frames.
+var _door_correction: Vector3 = Vector3.ZERO
+var _door_fixed_counter: float = 0.0
+var _door_frame_accum: float = 0.0
+var _door_root_clip: String = ""
 ## `Player_actor_Movement_Talk` — ease yaw toward the NPC while the talk demo runs.
 var _talk_face: Node3D = null
 var _talk_turn_debt: float = 0.0
+## Leaf clip → Animation of scaled joint_0 XZ deltas (meters, model space). Filled once.
+static var _door_root_xz: Dictionary = {}
 
 
 func _ready() -> void:
@@ -112,9 +127,58 @@ func apply_spawn(pos: Vector3, yaw: float) -> void:
 	_snap_to_bg()
 
 
+func set_busy(locked: bool) -> void:
+	## Intro / cutscene lock — skips wish input and interact.
+	_busy = locked
+	## Don't steal door-emerge ownership while GO_OUT is running — otherwise
+	## `end_door_leave` cannot hand off, and external locks keep clearing the flag.
+	if not _door_entering:
+		_door_clear_busy = false
+
+
+func is_busy() -> bool:
+	return _busy
+
+
+## Idle while input-locked (talk / intro). Safe to call during `_busy`.
+func play_wait_idle() -> void:
+	if _anim == null or _door_entering:
+		return
+	var clip := _resolve_clip(ANIM_WAIT)
+	if clip.is_empty():
+		return
+	_ensure_loop(clip)
+	_gait = PlayerLocomotion.Gait.WAIT
+	_anim.speed_scale = 1.0
+	if _anim.current_animation != clip or not _anim.is_playing():
+		_anim.play(clip, 0.12)
+
+
+func set_cutscene_driven(enabled: bool) -> void:
+	## External pose owner (train ride, Nook TAKE_WITH). Avoids fighting `_snap_to_bg`.
+	_cutscene_driven = enabled
+	if enabled:
+		velocity = Vector3.ZERO
+		_motor.reset(_motor.facing)
+
+
+func is_cutscene_driven() -> bool:
+	return _cutscene_driven
+
+
+func apply_facing(yaw: float) -> void:
+	_motor.reset(yaw)
+	_mesh.rotation.y = yaw
+
+
 func _physics_process(delta: float) -> void:
 	if _door_entering:
 		_tick_door_enter(delta)
+		return
+	if _cutscene_driven:
+		velocity = Vector3.ZERO
+		_mesh.rotation.y = _motor.facing
+		_update_animation(delta)
 		return
 
 	var bg: Array = _bg()
@@ -187,20 +251,58 @@ func _clear_auto_enter_block() -> void:
 		Game.block_auto_enter_doors = false
 
 
-## `mPlayer_INDEX_DOOR`: OPEN1 (door_type 0) or INTO_S1 (door_type ≠ 0) while
-## AnimationMove blends XZ/yaw to the door stand.
+## `mPlayer_INDEX_DOOR`: OPEN1 / INTO_S1 with `cKF_SkeletonInfo_R_AnimationMove_base`.
+## World XZ = door stand + decaying (start−stand) + scaled joint_0 delta; mesh root stays bind.
 func begin_door_enter(target: Vector3, face_yaw: float, walk_in: bool = false) -> void:
+	var leaf := ANIM_INTO_S1 if walk_in else ANIM_OPEN1
+	_begin_animation_move(
+		target,
+		face_yaw,
+		leaf,
+		StructureDoor.ANIM_MOVE_COUNTER,
+		StructureDoor.INTO_SEC if walk_in else StructureDoor.OPEN1_SEC,
+	)
+
+
+## `mPlayer_INDEX_DEMO_GETOFF_TRAIN`: OUTTRAIN1 with AnimationMove. Decomp passes the
+## current ride pose as correctpos — root motion alone steps onto the platform.
+func begin_demo_getoff_train(stand: Vector3, face_yaw: float) -> void:
+	_begin_animation_move(
+		stand,
+		face_yaw,
+		ANIM_OUTTRAIN1,
+		StructureDoor.ANIM_MOVE_COUNTER_GETOFF,
+		StructureDoor.OUTTRAIN_SEC,
+	)
+
+
+func is_door_entering() -> bool:
+	return _door_entering
+
+
+func _begin_animation_move(
+	target: Vector3,
+	face_yaw: float,
+	clip_leaf: String,
+	counter: float,
+	duration: float,
+) -> void:
 	_door_entering = true
+	_door_animation_move = true
 	_door_clear_busy = false
 	_door_from = global_position
 	_door_to = Vector3(target.x, global_position.y, target.z)
+	_door_correction = Vector3(_door_from.x - _door_to.x, 0.0, _door_from.z - _door_to.z)
+	_door_fixed_counter = counter
+	_door_frame_accum = 0.0
 	_door_yaw = face_yaw
 	_door_move_elapsed = 0.0
-	_door_move_duration = StructureDoor.INTO_SEC if walk_in else StructureDoor.APPROACH_SEC
+	_door_move_duration = duration
 	_motor.reset(face_yaw)
 	_mesh.rotation.y = face_yaw
 	velocity = Vector3.ZERO
-	var clip := _resolve_clip(ANIM_INTO_S1 if walk_in else ANIM_OPEN1)
+	var clip := _resolve_clip(clip_leaf)
+	_door_root_clip = clip_leaf if _door_root_xz.has(clip_leaf) else ""
 	if _anim == null or clip.is_empty():
 		return
 	_anim.speed_scale = 1.0
@@ -209,6 +311,8 @@ func begin_door_enter(target: Vector3, face_yaw: float, walk_in: bool = false) -
 
 func end_door_enter() -> void:
 	_door_entering = false
+	_door_animation_move = false
+	_door_root_clip = ""
 
 
 func await_door_enter() -> void:
@@ -219,17 +323,21 @@ func await_door_enter() -> void:
 		await get_tree().create_timer(maxf(_door_move_duration, StructureDoor.INTO_SEC)).timeout
 
 
-## `mPlayer_INDEX_OUTDOOR`: GO_OUT while walking out of the doorway.
-func begin_door_leave(stand: Vector3, target: Vector3, face_yaw: float) -> void:
+## `mPlayer_INDEX_OUTDOOR`: actor stays on the exit stand; GO_OUT `joint_0` walks the mesh
+## from behind to bind (`Set_force_shadow_position_fromAnimePosition` only).
+func begin_door_leave(stand: Vector3, _target: Vector3, face_yaw: float) -> void:
 	_busy = true
 	_door_entering = true
+	_door_animation_move = false
 	_door_clear_busy = true
 	global_position = Vector3(stand.x, global_position.y, stand.z)
 	_door_from = global_position
-	_door_to = Vector3(target.x, global_position.y, target.z)
+	_door_to = global_position
+	_door_correction = Vector3.ZERO
 	_door_yaw = face_yaw
 	_door_move_elapsed = 0.0
 	_door_move_duration = StructureDoor.LEAVE_SEC
+	_door_root_clip = ""
 	_motor.reset(face_yaw)
 	_mesh.rotation.y = face_yaw
 	velocity = Vector3.ZERO
@@ -244,6 +352,7 @@ func begin_door_leave(stand: Vector3, target: Vector3, face_yaw: float) -> void:
 
 func end_door_leave() -> void:
 	_door_entering = false
+	_door_animation_move = false
 	if _door_clear_busy:
 		_busy = false
 	_door_clear_busy = false
@@ -252,20 +361,10 @@ func end_door_leave() -> void:
 ## Indoor `EXIT_DOOR`: INTO_S1 while walking south through the exit cell.
 func run_indoor_exit(target: Vector3, face_yaw: float) -> void:
 	_busy = true
-	_door_entering = true
 	_door_clear_busy = true
-	_door_from = global_position
-	_door_to = Vector3(target.x, global_position.y, target.z)
-	_door_yaw = face_yaw
-	_door_move_elapsed = 0.0
-	_door_move_duration = StructureDoor.INTO_SEC
-	_motor.reset(face_yaw)
-	_mesh.rotation.y = face_yaw
-	velocity = Vector3.ZERO
-	var clip := _resolve_clip(ANIM_INTO_S1)
-	if _anim != null and not clip.is_empty():
-		_anim.speed_scale = 1.0
-		_anim.play(clip, 0.08)
+	begin_door_enter(target, face_yaw, true)
+	_door_clear_busy = true
+	if _anim != null and _anim.is_playing():
 		await _anim.animation_finished
 	else:
 		await get_tree().create_timer(_door_move_duration).timeout
@@ -274,16 +373,52 @@ func run_indoor_exit(target: Vector3, face_yaw: float) -> void:
 
 func _tick_door_enter(delta: float) -> void:
 	_door_move_elapsed += delta
-	var dur: float = maxf(_door_move_duration, 0.001)
-	var t: float = clampf(_door_move_elapsed / dur, 0.0, 1.0)
-	## Ease-out toward the door stand (`AnimationMove` decays the correction each tick).
-	var w: float = 1.0 - (1.0 - t) * (1.0 - t)
-	var next: Vector3 = _door_from.lerp(_door_to, w)
-	global_position = Vector3(next.x, global_position.y, next.z)
 	_motor.reset(_door_yaw)
 	_mesh.rotation.y = _door_yaw
 	velocity = Vector3.ZERO
+	if _door_animation_move:
+		## `AnimationMove_base` runs once per 60 Hz game frame (`fixed_counter` −= 0.5).
+		_door_frame_accum += delta * StructureDoor.ANIM_MOVE_HZ
+		while _door_frame_accum >= 1.0:
+			_door_frame_accum -= 1.0
+			_decay_door_correction()
+		var root: Vector3 = _sample_door_root_xz()
+		var world_root := Vector3(
+			root.x * cos(_door_yaw) + root.z * sin(_door_yaw),
+			0.0,
+			-root.x * sin(_door_yaw) + root.z * cos(_door_yaw),
+		)
+		global_position = Vector3(
+			_door_to.x + _door_correction.x + world_root.x,
+			global_position.y,
+			_door_to.z + _door_correction.z + world_root.z,
+		)
 	_snap_to_bg()
+
+
+func _decay_door_correction() -> void:
+	## Mirror `cKF_SkeletonInfo_R_AnimationMove_base` XZ correction decay.
+	var fc: float = _door_fixed_counter
+	var count: float = 1.0 + fc
+	if count > 0.5:
+		var w: float = 0.5 / count
+		_door_correction.x -= _door_correction.x * w
+		_door_correction.z -= _door_correction.z * w
+	else:
+		_door_correction = Vector3.ZERO
+	_door_fixed_counter = maxf(fc - 0.5, 0.0)
+
+
+func _sample_door_root_xz() -> Vector3:
+	if _door_root_clip.is_empty() or not _door_root_xz.has(_door_root_clip):
+		return Vector3.ZERO
+	var root_anim: Animation = _door_root_xz[_door_root_clip] as Animation
+	if root_anim == null or root_anim.get_track_count() < 1:
+		return Vector3.ZERO
+	var t: float = 0.0
+	if _anim != null:
+		t = clampf(_anim.current_animation_position, 0.0, root_anim.length)
+	return root_anim.position_track_interpolate(0, t)
 
 
 func _bg() -> Array:
@@ -317,7 +452,12 @@ func _snap_to_bg() -> bool:
 
 
 func _menu_open() -> bool:
-	return _group_open("inventory_ui") or _group_open("dialogue_ui") or _group_open("shop_ui")
+	return (
+		_group_open("inventory_ui")
+		or _group_open("map_ui")
+		or _group_open("dialogue_ui")
+		or _group_open("shop_ui")
+	)
 
 
 func _group_open(group: String) -> bool:
@@ -365,6 +505,10 @@ func _update_animation(delta: float) -> void:
 			_placeholder.position.y = 0.625 + sin(_placeholder_bob) * amp
 		return
 	if _busy:
+		## After door emerge / while dialogue locks input, keep wait looping —
+		## otherwise we freeze on the last GO_OUT frame.
+		if not _door_entering and not _cutscene_driven and not _anim.is_playing():
+			play_wait_idle()
 		return
 	if next == _gait and _anim.is_playing():
 		_anim.speed_scale = _anim_speed(next)
@@ -549,6 +693,8 @@ func _try_auto_enter() -> void:
 func _run_interact(hit: InteractionQuery) -> void:
 	_focus = hit.host
 	_busy = hit.action.locks_player
+	## `SHAKE_TREE` / `SWING_AXE` / scoop set `angle_y` toward the unit before the clip.
+	_face_host(hit)
 	var tail: float = await _play_action(hit.action.player_anim, hit.action.effect_frame)
 	var ctx: InteractionContext = _make_context()
 	if hit.host != null and is_instance_valid(hit.host):
@@ -562,6 +708,19 @@ func _run_interact(hit: InteractionQuery) -> void:
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()
+
+
+## Snap yaw toward the host when the verb plays a body-directed clip. Talk and door enter
+## own their facing; empty-tile field verbs keep stick facing (no host).
+func _face_host(hit: InteractionQuery) -> void:
+	if hit == null or hit.action == null or hit.action.player_anim == &"":
+		return
+	var host: Node3D = hit.host as Node3D
+	if host == null or not is_instance_valid(host):
+		return
+	var yaw: float = TalkCamera.face_yaw_toward(global_position, host.global_position)
+	_motor.facing = yaw
+	_mesh.rotation.y = yaw
 
 
 ## Plays the action clip and returns when the effect should land, along with however much of
@@ -836,10 +995,71 @@ func _try_load_generated_visual() -> void:
 	_apply_preview_materials(body)
 	_anim = _find_animation_player(body)
 	if _anim != null:
+		## INDEX_DOOR / getoff: capture joint_0 XZ into AnimationMove, strip so the mesh stays on the body.
+		## INDEX_OUTDOOR GO_OUT keeps joint_0 (starts behind stand, ends at bind — no snap).
+		_capture_door_root_xz(_anim)
+		GeneratedVisual.strip_named_joint_tracks(
+			_anim,
+			"joint_0",
+			PackedStringArray([ANIM_OPEN1, ANIM_INTO_S1, ANIM_OUTTRAIN1]),
+		)
 		var wait_clip := _resolve_clip(ANIM_WAIT)
 		if not wait_clip.is_empty():
 			_ensure_loop(wait_clip)
 			_anim.play(wait_clip)
+
+
+func _capture_door_root_xz(anim_player: AnimationPlayer) -> void:
+	## Bake scaled joint_0 XZ deltas once before stripping (`base_model_translation` XZ = 0).
+	var scale: float = FieldCatalog.actor_uniform_scale()
+	for leaf: String in [ANIM_OPEN1, ANIM_INTO_S1, ANIM_OUTTRAIN1]:
+		if _door_root_xz.has(leaf):
+			continue
+		var clip_name := _resolve_clip_in(anim_player, leaf)
+		if clip_name.is_empty():
+			continue
+		var src: Animation = anim_player.get_animation(clip_name)
+		if src == null:
+			continue
+		var track_i: int = _find_joint0_position_track(src)
+		if track_i < 0:
+			continue
+		var baked := Animation.new()
+		baked.length = src.length
+		var out_track: int = baked.add_track(Animation.TYPE_POSITION_3D)
+		baked.track_set_path(out_track, NodePath("."))
+		var key_count: int = src.track_get_key_count(track_i)
+		for key_i: int in range(key_count):
+			var t: float = src.track_get_key_time(track_i, key_i)
+			var pos: Vector3 = src.track_get_key_value(track_i, key_i) as Vector3
+			## `scale * (cur_joint.xz - base_model_translation.xz)`; base XZ is 0.
+			baked.position_track_insert_key(
+				out_track, t, Vector3(pos.x * scale, 0.0, pos.z * scale)
+			)
+		_door_root_xz[leaf] = baked
+
+
+func _find_joint0_position_track(animation: Animation) -> int:
+	var needle := ":joint_0"
+	for track_i: int in range(animation.get_track_count()):
+		var path := String(animation.track_get_path(track_i))
+		if not (path.contains(":joint_0:") or path.ends_with(needle)):
+			continue
+		var ttype: int = animation.track_get_type(track_i)
+		if ttype == Animation.TYPE_POSITION_3D or ttype == Animation.TYPE_VALUE:
+			return track_i
+	return -1
+
+
+func _resolve_clip_in(anim_player: AnimationPlayer, suffix: String) -> String:
+	if anim_player == null or suffix.is_empty():
+		return ""
+	if anim_player.has_animation(suffix):
+		return suffix
+	for anim_name: String in anim_player.get_animation_list():
+		if anim_name == suffix or anim_name.ends_with("/" + suffix) or anim_name.ends_with(suffix):
+			return anim_name
+	return ""
 
 
 func _on_equipment_changed(_item_id: StringName) -> void:

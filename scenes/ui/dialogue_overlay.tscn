@@ -5005,19 +5005,21 @@ text = "Villager"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="BodyLabel" type="Label" parent="Root/MessageChrome" unique_id=1706621246]
+[node name="BodyLabel" type="RichTextLabel" parent="Root/MessageChrome" unique_id=1706621246]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 335.8324
 offset_top = 453.3585
 offset_right = 954.0892
 offset_bottom = 671.9265
-theme_override_colors/font_color = Color(0.19607843, 0.23529412, 0.19607843, 1)
-theme_override_colors/font_outline_color = Color(0.0627451, 0.16078432, 0.0627451, 1)
-theme_override_constants/line_spacing = -9
-theme_override_fonts/font = SubResource("FontVariation_qxvdt")
-theme_override_font_sizes/font_size = 42
+mouse_filter = 2
+theme_override_colors/default_color = Color(0.19607843, 0.23529412, 0.19607843, 1)
+theme_override_constants/line_separation = -9
+theme_override_font_sizes/normal_font_size = 42
+bbcode_enabled = true
 text = "Hello! This is a preview line of dialogue."
+fit_content = false
+scroll_active = false
 autowrap_mode = 3
 
 [node name="ChoiceList" type="VBoxContainer" parent="Root/MessageChrome" unique_id=998788931]

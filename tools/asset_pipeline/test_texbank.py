@@ -24,7 +24,9 @@ from asset_pipeline.texbank import (
     parse_settimg,
     revive_stained_glass_alpha,
     season_of_prefix,
+    shop_shell_kind,
     skips_achd_texture,
+    structure_palette_names,
     symbol_tokens,
     tmem_palette_slot,
 )
@@ -162,6 +164,14 @@ class ClassicGbiTests(unittest.TestCase):
         self.assertEqual(house_clock_alpha_mode("obj_clock_museum1_hari_tex_txt", "BLEND"), "MASK")
         self.assertEqual(house_clock_alpha_mode("rom_museum1_wallA_tex", "BLEND"), "BLEND")
 
+    def test_train_structure_palette_and_skip_achd(self) -> None:
+        self.assertIn("obj_train1_a1_pal", structure_palette_names("obj_train1_1"))
+        self.assertIn("obj_train1_a1_pal", structure_palette_names("obj_train1_2"))
+        self.assertIn("obj_train1_a2_pal", structure_palette_names("obj_train1_3"))
+        self.assertTrue(skips_achd_texture("obj_train1_t1_tex_txt"))
+        self.assertTrue(skips_achd_texture("obj_train1_t4_tex_txt"))
+        self.assertFalse(skips_achd_texture("obj_s_station1_a_tex_txt"))
+
     def test_museum_clock_linear_rgba5551_is_wood_not_neon(self) -> None:
         from asset_pipeline.bti import decode_linear_rgba5551, decode_gx_image, RGB5A3
 
@@ -176,6 +186,18 @@ class ClassicGbiTests(unittest.TestCase):
         gx = decode_gx_image(blob, w, h, RGB5A3, None)
         ## Same bytes as RGB5A3 are a different color — proves the museum path matters.
         self.assertNotEqual(lin.getpixel((0, 0)), gx.getpixel((0, 0)))
+
+    def test_shop_clock_tlut_is_n64_rgba5551_not_rgb5a3(self) -> None:
+        from asset_pipeline.texbank import palette_from_rgb5a3, palette_from_rgba5551
+
+        ## `obj_shop1_clock_pal` entry 1 = 0xC417 — wood brown as RGBA5551,
+        ## purple/magenta if misread as GX RGB5A3 (high bit set).
+        pal = bytes.fromhex("0000c417")
+        a3 = palette_from_rgb5a3(pal)[1]
+        n64 = palette_from_rgba5551(pal)[1]
+        self.assertGreater(a3[2], a3[1])  # blue-led (wrong)
+        self.assertGreater(n64[0], n64[2])  # red-led wood (right)
+        self.assertNotEqual(a3[:3], n64[:3])
 
     def test_revive_stained_glass_alpha(self) -> None:
         from PIL import Image
@@ -199,6 +221,98 @@ class ClassicGbiTests(unittest.TestCase):
         )
         self.assertIsNone(museum_dummy_wood_twin("obj_art_dummy03_tex"))
         self.assertIsNone(museum_dummy_wood_twin("obj_art01_art_tex"))
+
+    def test_procedural_mka_face_has_dark_brows(self) -> None:
+        from asset_pipeline.texbank import TextureBank
+
+        face = TextureBank._procedural_mka_face()
+        self.assertEqual(face.size, (32, 32))
+        dark = sum(
+            1
+            for p in face.getdata()
+            if p[0] < 40 and p[1] < 40 and p[2] < 40 and p[3] > 200
+        )
+        ## UV-island stamps only — must stay small to avoid blotches on the face shell.
+        self.assertGreater(dark, 20)
+        self.assertLess(dark, 120)
+        ## Snout-tip nose (UV ~0.81, 0.625 → texel ~25, 20).
+        nose = face.getpixel((25, 20))
+        self.assertLess(nose[0], 40)
+        self.assertLess(nose[1], 40)
+        self.assertLess(nose[2], 40)
+
+    def test_stamp_mka_face_puts_nose_on_snout_uv(self) -> None:
+        from PIL import Image
+
+        from asset_pipeline.texbank import TextureBank
+
+        eye = Image.new("RGBA", (32, 16), (255, 255, 255, 255))
+        mouth = Image.new("RGBA", (32, 16), (255, 255, 255, 255))
+        ## Fill the crop windows used by `_stamp_mka_face_from_sheets`.
+        for y in range(2, 11):
+            for x in range(5, 11):
+                eye.putpixel((x, y), (0, 0, 0, 255))
+            for x in range(21, 27):
+                eye.putpixel((x, y), (0, 0, 0, 255))
+        for y in range(0, 10):
+            for x in range(11, 21):
+                mouth.putpixel((x, y), (10, 10, 10, 255))
+        face = TextureBank._stamp_mka_face_from_sheets(eye, mouth)
+        self.assertEqual(face.size, (32, 32))
+        ## Nose stamp centered near UV (0.81, 0.625) → ~(26, 20).
+        self.assertEqual(face.getpixel((26, 20))[:3], (10, 10, 10))
+        self.assertEqual(face.getpixel((0, 0))[3], 255)
+
+
+class ShopShellKindTests(unittest.TestCase):
+    def test_nook_fw_suffixes(self) -> None:
+        self.assertEqual(shop_shell_kind("rom_shop1f"), "floor")
+        self.assertEqual(shop_shell_kind("rom_shop1w"), "wall")
+        self.assertEqual(shop_shell_kind("rom_shop4_2f"), "floor")
+        self.assertEqual(shop_shell_kind("rom_shop4_2w"), "wall")
+        self.assertEqual(shop_shell_kind("rom_shop1_fuku"), "")
+        self.assertEqual(shop_shell_kind("rom_shop4_1"), "")
+        self.assertEqual(shop_shell_kind("rom_myhome1_floor"), "")
+
+
+class LoadTlutFallbackTests(unittest.TestCase):
+    def test_dolphin_miss_clears_stale_slot_not_img_addr(self) -> None:
+        """Boy hat: failed LOADTLUT 0x0B must not treat skin SETTIMG bytes as a TLUT."""
+        from asset_pipeline.gfx import _apply_loadtlut
+        from asset_pipeline.texbank import TextureState
+
+        class _Bank:
+            def load_palette(self, addr: int, count: int):
+                ## 0x0B anime miss; skin DRAM would look like a 32-byte "pal".
+                if addr == 0x0B000000:
+                    return None
+                if addr == 0x00131F40:
+                    return bytes(range(32))
+                return None
+
+        state = TextureState()
+        state.img_addr = 0x00131F40
+        state.palettes[15] = b"\xAA" * 32
+        state.pal_slot = 15
+        ## Real `head_boy_model` clothing LOADTLUT (dolphin, slot 15, seg 0x0B).
+        _apply_loadtlut(0xF08F4010, 0x0B000000, _Bank(), state)
+        self.assertNotIn(15, state.palettes)
+        self.assertEqual(state.pal_slot, 15)
+
+    def test_dolphin_hit_binds_slot(self) -> None:
+        from asset_pipeline.gfx import _apply_loadtlut
+        from asset_pipeline.texbank import TextureState
+
+        shirt_pal = b"\x11" * 32
+
+        class _Bank:
+            def load_palette(self, addr: int, count: int):
+                return shirt_pal if addr == 0x0B000000 else None
+
+        state = TextureState()
+        state.palettes[15] = b"\xAA" * 32
+        _apply_loadtlut(0xF08F4010, 0x0B000000, _Bank(), state)
+        self.assertEqual(state.palettes[15], shirt_pal)
 
 
 if __name__ == "__main__":

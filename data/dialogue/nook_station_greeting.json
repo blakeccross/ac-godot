@@ -1,0 +1,68 @@
+{
+  "id": "nook_station_greeting",
+  "speaker_id": "tom_nook",
+  "start": "name_check",
+  "nodes": {
+    "name_check": {
+      "type": "line",
+      "text": "Would your name happen to\nbe {player}? Good, good!",
+      "next": "phone"
+    },
+    "phone": {
+      "type": "line",
+      "text": "I just now had a phone call\nabout you, hm?",
+      "next": "made_it"
+    },
+    "made_it": {
+      "type": "line",
+      "text": "Whew! I'm glad I made it\nhere in time to meet your\ntrain. I'm afraid I'm not in\nthe best shape of my life...",
+      "next": "intro"
+    },
+    "intro": {
+      "type": "line",
+      "text": "But I ramble! My name is\nTom Nook.",
+      "next": "store"
+    },
+    "store": {
+      "type": "line",
+      "text": " I, uh, run the\nstore here in town. I'm quite\npleased to meet you, yes?",
+      "next": "odd"
+    },
+    "odd": {
+      "type": "line",
+      "text": "Something strikes me as odd,\nthough, my young friend.\nMoving to a town before\nsettling on a place to live...",
+      "next": "madness"
+    },
+    "madness": {
+      "type": "line",
+      "text": "Why, it's the craziest thing I\nhave ever heard of! Madness!\nAbsolute madness, hm?\nWhoa ho ho ho ho ho ho!",
+      "next": "reaction"
+    },
+    "reaction": {
+      "type": "choice",
+      "options": [
+        {"text": "Don't laugh!", "goto": "pardon"},
+        {"text": "Whatever...", "goto": "pardon"}
+      ]
+    },
+    "pardon": {
+      "type": "line",
+      "text": "Whoa ho! Ho ho! Ah, ahem.\nPardon me, I beg you! That\njust struck my funny bone.",
+      "next": "dont_worry"
+    },
+    "dont_worry": {
+      "type": "line",
+      "text": "Now, don't you worry!",
+      "next": "have_house"
+    },
+    "have_house": {
+      "type": "line",
+      "text": "It may be small, but I have\na house you can move into\nright away! It should more\nthan suit your needs, hm?",
+      "next": "come_along"
+    },
+    "come_along": {
+      "type": "line",
+      "text": "I can show it to you now,\nso come along! Let's scuttle!"
+    }
+  }
+}

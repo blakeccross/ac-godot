@@ -8,6 +8,7 @@ extends RefCounted
 const _WINDOW_PANE_ON := Color(1.0, 1.0, 150.0 / 255.0, 1.0)
 const _WINDOW_PANE_OFF := Color(0.0, 0.0, 0.0, 1.0)
 ## Ground spill: prim RGB, I4 × PRIM_LOD_FRAC (120/255) as alpha (`ac_house_draw` / `ac_shop_draw`).
+## Composited in 8-bit sRGB by `window_ground_spill.gdshader` (not Godot linear blend_mix).
 const _WINDOW_SPILL_ON := Color(1.0, 1.0, 150.0 / 255.0, 120.0 / 255.0)
 const _WINDOW_SPILL_OFF := Color(1.0, 1.0, 150.0 / 255.0, 0.0)
 const _WINDOW_SPILL_SHADER := preload("res://shaders/window_ground_spill.gdshader")
@@ -67,8 +68,12 @@ static func attach(host: Node3D, visual_id: StringName) -> Node3D:
 		pivot.free()
 		return null
 	_hide_placeholder_meshes(host)
-	_stop_autoplay(pivot)
 	host.add_child(pivot)
+	if String(visual_id).begins_with("obj_train1_"):
+		## Stop wheel/door autoplay; strip root tracks (keep skinning for door).
+		prepare_outdoor_train(pivot)
+	else:
+		_stop_autoplay(pivot)
 	_apply_materials(
 		pivot,
 		FieldCatalog.is_ground_decal(visual_id),
@@ -117,6 +122,42 @@ static func apply_authored_interior(pivot: Node3D) -> void:
 		return
 	_apply_materials(pivot)
 	_disable_shadows(pivot)
+
+
+static func layout_authored_interior(
+	pivot: Node3D, room: Room, grid: WorldGrid, wall_height: float = 3.0
+) -> void:
+	## Authored GLB children under `Shell/GeneratedVisual`: materials, room textures, fit.
+	## Museum wings keep editor transforms (apply materials only).
+	if pivot == null or room == null or grid == null:
+		return
+	_apply_materials(pivot)
+	_apply_room_textures(pivot, room.wall_id, room.floor_id)
+	_disable_shadows(pivot)
+	if room.kind == Room.Kind.MUSEUM:
+		return
+	var visual_id: StringName = &""
+	if not room.shell_ids.is_empty():
+		visual_id = StringName(room.shell_ids[0])
+	elif pivot.get_child_count() > 0:
+		visual_id = StringName(pivot.get_child(0).name)
+	if visual_id == &"":
+		return
+	var target := (
+		AABB(
+			grid.origin,
+			Vector3(float(grid.columns) * grid.cell_size, wall_height, float(grid.rows) * grid.cell_size)
+		)
+		if _interior_keeps_acre_origin(visual_id, room)
+		else _authored_shell_bounds(room, grid, wall_height)
+	)
+	_fit_interior(pivot, target, visual_id)
+
+
+static func _authored_shell_bounds(room: Room, grid: WorldGrid, wall_height: float) -> AABB:
+	var nw: Vector3 = grid.cell_corner(room.inner_origin)
+	var se: Vector3 = grid.cell_corner(room.inner_origin + room.inner_size)
+	return AABB(Vector3(nw.x, 0.0, nw.z), Vector3(se.x - nw.x, wall_height, se.z - nw.z))
 
 
 static func apply_season_textures(node: Node) -> void:
@@ -337,11 +378,17 @@ static func _fit(pivot: Node3D, visual_id: StringName) -> void:
 	_fit_actor(pivot, visual_id)
 
 
-static func _fit_acre(pivot: Node3D) -> void:
+static func fit_acre(pivot: Node3D) -> void:
 	## Same scale and origin for every `grd_*` so neighbors share edges and the land datum.
+	if pivot == null:
+		return
 	var s: float = FieldCatalog.acre_uniform_scale()
 	pivot.scale = Vector3.ONE * s
 	pivot.position = Vector3(0.0, FieldCatalog.acre_ground_y_offset(), 0.0)
+
+
+static func _fit_acre(pivot: Node3D) -> void:
+	fit_acre(pivot)
 
 
 static func align_actor_to_height_gx(pivot: Node3D, height_gx: float) -> void:
@@ -430,17 +477,12 @@ static func apply_train_door_materials(node: Node) -> void:
 			var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
-			var label := node_label
+			## Mesh is often `obj_romtrain_door`; glass is the surface / material name.
+			var label := _surface_label(mesh_instance, i, mat).to_lower()
 			if label.is_empty():
-				label = _resource_label(mat).to_lower()
+				label = node_label
 			if "glass" in label:
-				std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-				std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
-				std.render_priority = 1
-				std.albedo_color.a = clampf(minf(std.albedo_color.a, 0.35), 0.2, 0.35)
-				std.roughness = 0.05
-				std.metallic = 0.0
-				std.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+				IntroTrainPresentation._apply_glass_surface(std)
 			else:
 				std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 				std.roughness = 1.0
@@ -533,8 +575,8 @@ static func _fit_interior(pivot: Node3D, target: AABB, visual_id: StringName) ->
 	## `room01` verts are raw GX (max Z 320 = 8 units). Place at the field origin
 	## with GX→meter scale so FG cells (1,1)–(6,6) sit on the floor. Do not AABB-fit.
 	## `rom_*` stay at acre scale (40 GX = 2 m). Homes translate the floor min-corner onto
-	## the walkable rect. Museum shells keep the 16×16 acre origin so `mMmd_UT` /
-	## `suisou_pos` / scene door GX match FG cells — only Y is snapped to the floor.
+	## the walkable rect. Museum / Nook shop shells keep the 16×16 acre origin so FG ut /
+	## RSV / door GX match `cell_to_world` — only Y is snapped to the floor.
 	if not FieldCatalog.interior_uses_acre_verts(visual_id):
 		var gx: float = FieldCatalog.interior_uniform_scale(visual_id)
 		pivot.scale = Vector3.ONE * gx
@@ -550,7 +592,7 @@ static func _fit_interior(pivot: Node3D, target: AABB, visual_id: StringName) ->
 	if aabb.size.x <= 0.001 or aabb.size.z <= 0.001:
 		pivot.position = Vector3(0.0, FieldCatalog.interior_ground_y_offset(visual_id), 0.0)
 		return
-	if String(visual_id).begins_with("rom_museum"):
+	if _shell_keeps_acre_origin(visual_id):
 		pivot.position = Vector3(target.position.x, -aabb.position.y * s, target.position.z)
 		return
 	pivot.position = Vector3(
@@ -558,6 +600,15 @@ static func _fit_interior(pivot: Node3D, target: AABB, visual_id: StringName) ->
 		-aabb.position.y * s,
 		target.position.z - aabb.position.z * s
 	)
+
+
+static func _shell_keeps_acre_origin(visual_id: StringName) -> bool:
+	var id := String(visual_id)
+	return id.begins_with("rom_museum") or id.begins_with("rom_shop")
+
+
+static func _interior_keeps_acre_origin(visual_id: StringName, room: Room) -> bool:
+	return room.kind == Room.Kind.MUSEUM or _shell_keeps_acre_origin(visual_id)
 
 
 static func _disable_shadows(node: Node) -> void:
@@ -602,10 +653,10 @@ static func _paint_room_surfaces(node: Node, wall_id: StringName, floor_id: Stri
 				else InteriorCatalog.wall_texture_path(wall_id, page)
 			)
 			var tile: Texture2D = _load_tex(path)
-			var tint: Color = (
-				InteriorCatalog.floor_color(floor_id) if kind == &"floor" else InteriorCatalog.wall_color(wall_id)
-			)
-			if tile == null and tint.a <= 0.0:
+			## Bank swap only when a real wallpaper/carpet PNG resolves. Named tints
+			## (`wall_default`) and empty ids must not strip baked shell albedos —
+			## shops/tailor bake style-0 `player_room_*` into the GLB.
+			if tile == null:
 				continue
 			var mat: Material = mesh_instance.get_surface_override_material(i)
 			if mat == null:
@@ -626,15 +677,15 @@ static func _paint_room_surfaces(node: Node, wall_id: StringName, floor_id: Stri
 				_apply_vertex_shade_material(std)
 			else:
 				std.vertex_color_use_as_albedo = false
-			if tile != null:
-				var target: Vector2i = _albedo_size(std)
-				## Floors use GX_MIRROR (corner tile → one room medallion). Walls REPEAT.
-				var mirror := kind == &"floor"
-				std.albedo_texture = _tile_to_atlas(tile, target, mirror, mirror)
-				std.albedo_color = Color.WHITE
-			elif tint.a > 0.0:
-				std.albedo_texture = null
-				std.albedo_color = tint
+			var target: Vector2i = _albedo_size(std)
+			## Floors use GX_MIRROR (corner tile → one room medallion). Walls REPEAT.
+			## Match wrap-bake cell size (shop wall DMA and strips are 64²).
+			var mirror := kind == &"floor"
+			var cell: int = 64
+			if std.albedo_texture != null:
+				cell = _infer_atlas_tile_size(std.albedo_texture)
+			std.albedo_texture = _tile_to_atlas(tile, target, mirror, mirror, cell)
+			std.albedo_color = Color.WHITE
 			mesh_instance.set_surface_override_material(i, std)
 	for child in node.get_children():
 		_paint_room_surfaces(child, wall_id, floor_id)
@@ -704,9 +755,13 @@ static func _texture_image(tex: Texture2D) -> Image:
 
 
 static func _tile_to_atlas(
-	tile: Texture2D, target: Vector2i, mirror_u: bool = false, mirror_v: bool = false
+	tile: Texture2D,
+	target: Vector2i,
+	mirror_u: bool = false,
+	mirror_v: bool = false,
+	tile_size: int = 0
 ) -> Texture2D:
-	## Pipeline wrap-bake expands a 64×N tile into an atlas and remaps UVs to 0–1.
+	## Pipeline wrap-bake expands a bank tile into an atlas and remaps UVs to 0–1.
 	## Swapping a single tile without re-tiling makes wallpapers look glitchy.
 	## Room floors are GX_MIRROR (odd cells flipped) so a corner tile becomes one medallion.
 	if tile == null:
@@ -716,30 +771,86 @@ static func _tile_to_atlas(
 	var src: Image = _texture_image(tile)
 	if src == null:
 		return tile
+	## Bank pages are 64×64. Some wrap-bake atlases used 128² cells (2× native / old ACHD).
+	## Prefer an explicit period from the destination atlas; else shrink HD to 64.
+	const BANK_TILE := 64
+	var cell: int = tile_size
+	if cell <= 0:
+		if (
+			src.get_width() == src.get_height()
+			and src.get_width() > BANK_TILE
+			and (mirror_u or mirror_v or target.x < src.get_width() or target.y < src.get_height())
+		):
+			cell = BANK_TILE
+		else:
+			cell = 0
+	if cell > 0 and (src.get_width() != cell or src.get_height() != cell):
+		src = src.duplicate()
+		src.resize(cell, cell, Image.INTERPOLATE_NEAREST)
 	var tw: int = src.get_width()
 	var th: int = src.get_height()
 	if tw <= 0 or th <= 0:
 		return tile
 	if tw == target.x and th == target.y and not mirror_u and not mirror_v:
-		return tile
+		return ImageTexture.create_from_image(src)
 	var out := Image.create(target.x, target.y, false, Image.FORMAT_RGBA8)
 	var tiles_u: int = maxi(1, int(ceili(float(target.x) / float(tw))))
 	var tiles_v: int = maxi(1, int(ceili(float(target.y) / float(th))))
 	for tj: int in tiles_v:
 		for ti: int in tiles_u:
-			var cell: Image = src
+			var patch: Image = src
 			var flip_u := mirror_u and (ti & 1) == 1
 			var flip_v := mirror_v and (tj & 1) == 1
 			if flip_u or flip_v:
-				cell = src.duplicate()
+				patch = src.duplicate()
 				if flip_u:
-					cell.flip_x()
+					patch.flip_x()
 				if flip_v:
-					cell.flip_y()
-			out.blit_rect(cell, Rect2i(0, 0, tw, th), Vector2i(ti * tw, tj * th))
+					patch.flip_y()
+			out.blit_rect(patch, Rect2i(0, 0, tw, th), Vector2i(ti * tw, tj * th))
 	if out.get_width() != target.x or out.get_height() != target.y:
 		out = out.get_region(Rect2i(0, 0, target.x, target.y))
 	return ImageTexture.create_from_image(out)
+
+
+static func _infer_atlas_tile_size(atlas: Texture2D, fallback: int = 64) -> int:
+	## Smallest period that tiles the wrap-bake atlas (shop wall DMA is 64²).
+	var img: Image = _texture_image(atlas)
+	if img == null:
+		return fallback
+	var w: int = img.get_width()
+	var h: int = img.get_height()
+	## Prefer the smallest period that actually repeats (≥2 cells on an axis).
+	for period: int in [32, 64, 128, 256]:
+		if period > mini(w, h):
+			continue
+		if w % period != 0 or h % period != 0:
+			continue
+		if w < period * 2 and h < period * 2:
+			continue
+		if _image_has_period(img, period):
+			return period
+	return fallback
+
+
+static func _image_has_period(img: Image, period: int) -> bool:
+	var w: int = img.get_width()
+	var h: int = img.get_height()
+	if period <= 0 or w % period != 0 or h % period != 0:
+		return false
+	## Sample a sparse grid — full compare is expensive on large atlases.
+	if w >= period * 2:
+		for y: int in range(0, h, maxi(period / 8, 1)):
+			for x: int in range(0, w - period, maxi(period / 8, 1)):
+				if img.get_pixel(x, y) != img.get_pixel(x + period, y):
+					return false
+	if h >= period * 2:
+		for x: int in range(0, w, maxi(period / 8, 1)):
+			for y: int in range(0, h - period, maxi(period / 8, 1)):
+				if img.get_pixel(x, y) != img.get_pixel(x, y + period):
+					return false
+	return w >= period * 2 or h >= period * 2
+
 
 
 static func _room_surface_kind(mesh_instance: MeshInstance3D, surface: int) -> StringName:
@@ -759,11 +870,50 @@ static func _classify_room_surface(label: String) -> StringName:
 	var lower := label.to_lower()
 	if lower.contains("window") or lower.contains("enter"):
 		return &""
+	var shop_kind := _shop_fw_shell_kind(lower)
 	if lower.contains("player_room_floor") or lower.contains("carpet"):
 		return &"floor"
 	if lower.contains("player_room_wall"):
+		## Shop `*f` DLs sample floor segs 0x08–0x0B. Older converts bound wall over
+		## 0x08/0x09, so those pages are named `player_room_wall` on the floor mesh.
+		if shop_kind == &"floor":
+			return &"floor"
 		return &"wall"
 	return &""
+
+
+static func _shop_fw_shell_kind(label: String) -> StringName:
+	## `rom_shop1f` / `rom_shop4_2w` — not `rom_shop1_fuku` or `rom_shop4_1`.
+	var start: int = 0
+	while true:
+		var idx: int = label.find("rom_shop", start)
+		if idx < 0:
+			return &""
+		var end: int = idx
+		while end < label.length():
+			var ch := label[end]
+			if ch == " " or ch == "." or ch == "/":
+				break
+			end += 1
+		var kind := _shop_fw_token_kind(label.substr(idx, end - idx))
+		if kind != &"":
+			return kind
+		start = idx + 8
+	return &""
+
+
+static func _shop_fw_token_kind(token: String) -> StringName:
+	if not token.begins_with("rom_shop"):
+		return &""
+	var suffix := token.substr(token.length() - 1)
+	if suffix != "f" and suffix != "w":
+		return &""
+	var mid := token.substr(8, token.length() - 9)
+	if mid.is_empty():
+		return &""
+	if not mid.is_valid_int() and not mid.replace("_", "").is_valid_int():
+		return &""
+	return &"floor" if suffix == "f" else &"wall"
 
 
 static func _hide_placeholder_meshes(host: Node) -> void:
@@ -843,6 +993,12 @@ static func _apply_materials_inner(
 					mesh_instance.set_surface_override_material(
 						i, _make_beach_wet_material(std, mesh_instance, i, src)
 					)
+				elif _is_player_select_spot_surface(mesh_instance, i, src):
+					_apply_player_select_spot_material(std)
+					mesh_instance.set_surface_override_material(i, std)
+				elif _is_player_select_shade_surface(mesh_instance, i, src):
+					_apply_player_select_shade_material(std)
+					mesh_instance.set_surface_override_material(i, std)
 				elif _is_kanban_paper_surface(mesh_instance, i, src, visual_id):
 					_apply_kanban_paper_material(std)
 					mesh_instance.set_surface_override_material(i, std)
@@ -953,7 +1109,7 @@ static func _resource_label(res: Resource) -> String:
 	return "%s %s" % [String(res.resource_name), res.resource_path.get_file()]
 
 
-static func _stop_autoplay(node: Node) -> void:
+static func stop_autoplay(node: Node) -> void:
 	## Furniture cKF clips are open/close; rest is frame 1 (closed). Do not play.
 	var anim: AnimationPlayer = find_animation_player(node)
 	if anim == null:
@@ -961,6 +1117,83 @@ static func _stop_autoplay(node: Node) -> void:
 	anim.autoplay = ""
 	anim.stop()
 	anim.seek(0.0, true)
+
+
+static func stop_autoplay_keep_rest(node: Node) -> void:
+	## Outdoor trains bake a non-bind `joint_0` translation into every clip frame.
+	## Seeking frame 0 would shove the car off the rails — stop and snap to bind.
+	var anim: AnimationPlayer = find_animation_player(node)
+	if anim != null:
+		anim.autoplay = ""
+		anim.stop()
+	reset_skeleton_rest(node)
+
+
+static func prepare_outdoor_train(node: Node) -> void:
+	## Trains bake anim-bind (+ joint-0 rest) with `ckf_basis` — upright, long on +X.
+	## Stop autoplay so wheel/door clips do not run until the stage asks; strip
+	## `joint_0` tracks so those clips cannot shove the whole car off the rails.
+	## Keep skinning so caboose door open can deform the door joints.
+	stop_autoplay_keep_rest(node)
+	strip_named_joint_tracks(find_animation_player(node), "joint_0")
+
+
+static func disable_skinning(node: Node) -> void:
+	## Render the authored bind-shape mesh; ignore Skeleton3D / Skin.
+	if node == null:
+		return
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		mi.skin = null
+		mi.skeleton = NodePath()
+	for child in node.get_children():
+		disable_skinning(child)
+
+
+static func reset_skeleton_rest(node: Node) -> void:
+	## Clear AnimationPlayer pose and snap every Skeleton3D back to bind.
+	if node == null:
+		return
+	if node is Skeleton3D:
+		(node as Skeleton3D).reset_bone_poses()
+	for child in node.get_children():
+		reset_skeleton_rest(child)
+
+
+static func strip_named_joint_tracks(
+	anim_player: AnimationPlayer,
+	joint_name: String = "joint_0",
+	clip_names: PackedStringArray = PackedStringArray(),
+) -> void:
+	## Drop position/rotation tracks on `joint_name` so door/wheel clips cannot move the root.
+	## When `clip_names` is set, only those animations (exact or suffix match) are edited.
+	if anim_player == null or joint_name.is_empty():
+		return
+	var needle := ":%s:" % joint_name
+	var needle_end := ":%s" % joint_name
+	for clip_name: String in anim_player.get_animation_list():
+		if not clip_names.is_empty() and not _clip_name_matches(clip_name, clip_names):
+			continue
+		var animation: Animation = anim_player.get_animation(clip_name)
+		if animation == null:
+			continue
+		for track_i: int in range(animation.get_track_count() - 1, -1, -1):
+			var path := String(animation.track_get_path(track_i))
+			if path.contains(needle) or path.ends_with(needle_end):
+				animation.remove_track(track_i)
+
+
+static func _clip_name_matches(clip_name: String, names: PackedStringArray) -> bool:
+	for want: String in names:
+		if want.is_empty():
+			continue
+		if clip_name == want or clip_name.ends_with("/" + want) or clip_name.ends_with(want):
+			return true
+	return false
+
+
+static func _stop_autoplay(node: Node) -> void:
+	stop_autoplay(node)
 
 
 static func _is_window_spill_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
@@ -1092,6 +1325,41 @@ static func _is_beach_wet_surface(mesh_instance: MeshInstance3D, surface: int, m
 		or n.contains("beach1")
 		or n.contains("beach2")
 	)
+
+
+static func _is_player_select_spot_surface(
+	mesh_instance: MeshInstance3D, surface: int, mat: Material
+) -> bool:
+	return "rom_open_spot" in _surface_label(mesh_instance, surface, mat).to_lower()
+
+
+static func _is_player_select_shade_surface(
+	mesh_instance: MeshInstance3D, surface: int, mat: Material
+) -> bool:
+	return "rom_open_shade" in _surface_label(mesh_instance, surface, mat).to_lower()
+
+
+static func _apply_player_select_spot_material(std: StandardMaterial3D) -> void:
+	## `grd_player_select_modelT` spot: XLU yellow cone, no LightsN.
+	## Wrap-bake mirrors S into the atlas and normalizes UVs to 0–1 — clamp after.
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.vertex_color_use_as_albedo = false
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	std.texture_repeat = false
+	std.set_meta("player_select_spot", true)
+
+
+static func _apply_player_select_shade_material(std: StandardMaterial3D) -> void:
+	## Shade curtain: black prim × I alpha. Wrap-baked like the spot.
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.vertex_color_use_as_albedo = false
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	std.texture_repeat = false
+	std.set_meta("player_select_shade", true)
 
 
 static func _layer1_texture(std: StandardMaterial3D) -> Texture2D:
@@ -1329,9 +1597,24 @@ static func _paint_cloth(node: Node, tex: Texture2D) -> void:
 			var span: Vector2 = _surface_uv_max(mesh_instance.mesh, i)
 			var tiles_u: int = _repeat_tiles(span.x)
 			var tiles_v: int = _repeat_tiles(span.y)
-			std.albedo_texture = _tiled_albedo(tex, tiles_u, tiles_v)
+			var atlas: Vector2i = _albedo_size(std)
+			## Wrap-baked villager shirts remap UVs to 0–1 on a packed atlas — retile
+			## the bank PNG into that atlas (same as room walls). Mannequins keep U≤2.
+			if atlas.x > 0 and atlas.y > 0 and tiles_u <= 1 and tiles_v <= 1:
+				## Wrap-baked villager shirts are a single 0–1 atlas (not U-repeat).
+				## Stretch the bank shirt into that atlas; do not re-tile by period.
+				var shirt: Image = _texture_image(tex)
+				if shirt != null:
+					shirt = shirt.duplicate()
+					shirt.resize(atlas.x, atlas.y, Image.INTERPOLATE_NEAREST)
+					std.albedo_texture = ImageTexture.create_from_image(shirt)
+				else:
+					std.albedo_texture = tex
+				std.uv1_scale = Vector3.ONE
+			else:
+				std.albedo_texture = _tiled_albedo(tex, tiles_u, tiles_v)
+				std.uv1_scale = Vector3(1.0 / float(tiles_u), 1.0 / float(tiles_v), 1.0)
 			std.albedo_color = Color.WHITE
-			std.uv1_scale = Vector3(1.0 / float(tiles_u), 1.0 / float(tiles_v), 1.0)
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			## Shirt DLs are wrapS=REPEAT / wrapT=CLAMP with U up to 2. Tile the PNG
 			## and keep clamp — Godot has one texture_repeat flag for both axes.
@@ -1346,11 +1629,15 @@ static func _paint_cloth(node: Node, tex: Texture2D) -> void:
 
 static func _is_cloth_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
 	var label := _surface_label(mesh_instance, surface, mat)
+	## Villager ANIME_1 / `seg_08` is eyes (`aNPC_anime_tex_set`); cloth is ANIME_3 / `seg_0A`.
+	if label.contains("seg_0a") or label.contains("anime_3"):
+		return true
+	## Mannequin shirt is `seg_08` / `anime_1` on `*manekin*` meshes only.
+	if not label.contains("manekin"):
+		return false
 	if label.contains("seg_08") or label.contains("anime_1"):
 		return true
 	## Unbound shirt has no baked albedo; stand CI textures do.
-	if not label.contains("manekin"):
-		return false
 	return mat is StandardMaterial3D and (mat as StandardMaterial3D).albedo_texture == null
 
 

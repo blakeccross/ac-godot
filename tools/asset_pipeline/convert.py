@@ -8,7 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from .bg_collision import extract_and_write
-from .achd import is_field_terrain_texture, load_achd_pack, maybe_hd_png
+from .achd import (
+    is_field_terrain_texture,
+    is_player_model_texture,
+    is_room_bank_texture,
+    load_achd_pack,
+    maybe_hd_png,
+)
 from .bti import bti_to_png
 from .ckf import clear_caches, convert_ckf_model, convert_static_gfx
 from .config import PipelineConfig
@@ -33,6 +39,8 @@ from .texbank import (
     decode_gbi_texture,
     gbi_to_gx,
     image_png_bytes,
+    is_house_clock_texture,
+    skips_achd_texture,
 )
 
 ## Shared field-bank IA waves (DL: G_IM_FMT_IA / G_IM_SIZ_8b). Not CI4 — wrong size + opaque A.
@@ -99,6 +107,7 @@ NPC_CORE_ANIMS = [
 ]
 
 ## `ac_npc_guide` train intro clips baked into `xct_1.glb` for the test set.
+## Manpu `_1`/`_d1` attack + `_2`/`_d2` hold match `aNPC_check_manpu_demoCode` / rover_intro.json.
 INTRO_ROVER_NPC_ANIMS = [
     "cKF_ba_r_npc_1_open_d1",
     "cKF_ba_r_npc_1_walk1",
@@ -112,6 +121,48 @@ INTRO_ROVER_NPC_ANIMS = [
     "cKF_ba_r_npc_1_keitai_talk2",
     "cKF_ba_r_npc_1_keitai_off1",
     "cKF_ba_r_npc_1_open_d2",
+    "cKF_ba_r_npc_1_smile1",
+    "cKF_ba_r_npc_1_smile2",
+    "cKF_ba_r_npc_1_smile_d1",
+    "cKF_ba_r_npc_1_smile_d2",
+    "cKF_ba_r_npc_1_gaaan1",
+    "cKF_ba_r_npc_1_gaaan2",
+    "cKF_ba_r_npc_1_gaaan_d1",
+    "cKF_ba_r_npc_1_gaaan_d2",
+    "cKF_ba_r_npc_1_hirameki_d1",
+    "cKF_ba_r_npc_1_hirameki_d2",
+    "cKF_ba_r_npc_1_ha_d1",
+    "cKF_ba_r_npc_1_ha_d2",
+    "cKF_ba_r_npc_1_hate1",
+    "cKF_ba_r_npc_1_hate2",
+    "cKF_ba_r_npc_1_hate_d1",
+    "cKF_ba_r_npc_1_hate_d2",
+    "cKF_ba_r_npc_1_komari_d1",
+    "cKF_ba_r_npc_1_musu_d1",
+    "cKF_ba_r_npc_1_niko_d1",
+]
+
+## Station Tom Nook (`rcn_1`) — standing manpu used by guide msgs (`DEMONPC0`).
+INTRO_NOOK_NPC_ANIMS = [
+    "cKF_ba_r_npc_1_wait1",
+    "cKF_ba_r_npc_1_walk1",
+    "cKF_ba_r_npc_1_run1",
+    "cKF_ba_r_npc_1_smile1",
+    "cKF_ba_r_npc_1_smile2",
+    "cKF_ba_r_npc_1_gaaan1",
+    "cKF_ba_r_npc_1_gaaan2",
+    "cKF_ba_r_npc_1_hate1",
+    "cKF_ba_r_npc_1_hate2",
+    "cKF_ba_r_npc_1_ha1",
+    "cKF_ba_r_npc_1_ha2",
+    "cKF_ba_r_npc_1_hirameki1",
+    "cKF_ba_r_npc_1_hirameki2",
+    "cKF_ba_r_npc_1_musu1",
+    "cKF_ba_r_npc_1_musu2",
+    "cKF_ba_r_npc_1_niko1",
+    "cKF_ba_r_npc_1_niko2",
+    "cKF_ba_r_npc_1_komari1",
+    "cKF_ba_r_npc_1_komari2",
 ]
 
 ## `ac_npc_sleep_obaba` sleep wait + nod/twitch clips baked into `kab_1.glb`.
@@ -119,6 +170,14 @@ INTRO_SLEEP_NPC_ANIMS = [
     "cKF_ba_r_npc_1_wait_nemu1",
     "cKF_ba_r_npc_1_kokkuri_d1",
     "cKF_ba_r_npc_1_kokkuri_d2",
+]
+
+## K.K. player-select opening (`ac_npc_p_sel` / `end_1`) — strum + look-up.
+## Include `wait1` so bind stays wait-upright (no `ckf_basis` double-rotate on seated clips).
+INTRO_KK_NPC_ANIMS = [
+    "cKF_ba_r_npc_1_wait1",
+    "cKF_ba_r_npc_1_4haku_e1",
+    "cKF_ba_r_npc_1_wait_e1",
 ]
 
 # Species skeletons (cat_1, bev_1, …) share the 26-joint npc_1 bank. Not clocks/logos/effects.
@@ -416,8 +475,16 @@ def _intro_rover_anims(names: set[str]) -> list[str]:
     return [n for n in INTRO_ROVER_NPC_ANIMS if n in names]
 
 
+def _intro_nook_anims(names: set[str]) -> list[str]:
+    return [n for n in INTRO_NOOK_NPC_ANIMS if n in names]
+
+
 def _intro_sleep_npc_anims(names: set[str]) -> list[str]:
     return [n for n in INTRO_SLEEP_NPC_ANIMS if n in names]
+
+
+def _intro_kk_anims(names: set[str]) -> list[str]:
+    return [n for n in INTRO_KK_NPC_ANIMS if n in names]
 
 
 def _anims_for_prefix(prefix: str, names: set[str], *, core_only: bool = False) -> list[str]:
@@ -444,10 +511,18 @@ def _anims_for_prefix(prefix: str, names: set[str], *, core_only: bool = False) 
                 intro = _intro_rover_anims(names)
                 if intro:
                     return intro
+            if prefix == "rcn_1":
+                nook = _intro_nook_anims(names)
+                if nook:
+                    return nook
             if prefix == "kab_1":
                 sleep = _intro_sleep_npc_anims(names)
                 if sleep:
                     return sleep
+            if prefix == "end_1":
+                kk = _intro_kk_anims(names)
+                if kk:
+                    return kk
             return _core_anims(NPC_CORE_ANIMS, names)
         return _all_npc_anims(names)
     if known and not hits:
@@ -1002,13 +1077,27 @@ def _png_record(
         gx = gbi_to_gx(fmt, siz)
         pack = _achd(cfg)
         hd = None
-        if pack is not None and not is_field_terrain_texture(source):
+        if (
+            pack is not None
+            and not is_field_terrain_texture(source)
+            and not is_room_bank_texture(source)
+            and not is_player_model_texture(source)
+            and not skips_achd_texture(source)
+        ):
             hd = maybe_hd_png(pack, data, width, height, gx, pal if fmt == G_IM_FMT_CI else None)
         if hd is not None:
             dest.write_bytes(hd)
             record["meta"] = {"width": width, "height": height, "fmt": fmt, "siz": siz, "achd": True}
         else:
-            image = decode_gbi_texture(data, width, height, fmt, siz, pal if fmt == G_IM_FMT_CI else None)
+            image = decode_gbi_texture(
+                data,
+                width,
+                height,
+                fmt,
+                siz,
+                pal if fmt == G_IM_FMT_CI else None,
+                n64_tlut=fmt == G_IM_FMT_CI and is_house_clock_texture(source),
+            )
             dest.write_bytes(image_png_bytes(image))
             record["meta"] = {"width": width, "height": height, "fmt": fmt, "siz": siz, "achd": False}
         record["status"] = "converted"

@@ -10,11 +10,12 @@ static func build(
 ) -> Array[VillagerAction]:
 	var home: Vector3 = hints.get("home", Vector3.ZERO) as Vector3
 	var outdoors: bool = bool(hints.get("outdoors", false))
+	var is_home: bool = bool(hints.get("is_home", false))
 	match schedule_type:
 		VillagerActivity.SLEEP:
-			return _sleep_plan(previous, outdoors, home)
+			return _sleep_plan(previous, outdoors, home, is_home)
 		VillagerActivity.IN_HOUSE:
-			return _house_plan(previous, outdoors, home)
+			return _house_plan(previous, outdoors, home, is_home)
 		VillagerActivity.STAND:
 			return [VillagerAction.make(ActivityKind.SIT, home, ActivityKind.SIT_SECONDS)]
 		_:
@@ -74,6 +75,7 @@ static func _field_plan(
 	var goal: Vector3 = _goal_of(hints, home)
 	var leaving: bool = (
 		not outdoors
+		or is_home_hint(hints)
 		or previous == VillagerActivity.SLEEP
 		or previous == VillagerActivity.IN_HOUSE
 	)
@@ -84,6 +86,10 @@ static func _field_plan(
 		out.append(VillagerAction.make(ActivityKind.WALK_TO, goal))
 	out.append(_wander_at(hints, home))
 	return out
+
+
+static func is_home_hint(hints: Dictionary) -> bool:
+	return bool(hints.get("is_home", false))
 
 
 static func _wander_at(hints: Dictionary, home: Vector3) -> VillagerAction:
@@ -98,21 +104,26 @@ static func _goal_of(hints: Dictionary, home: Vector3) -> Vector3:
 
 
 static func _sleep_plan(
-	previous: StringName, outdoors: bool, home: Vector3
+	previous: StringName, outdoors: bool, home: Vector3, is_home: bool = false
 ) -> Array[VillagerAction]:
+	## SLEEP: if already home, hide. Else go home then sleep (`aNPC_sleep_schedule`).
 	var out: Array[VillagerAction] = []
-	if outdoors and previous != &"" and VillagerActivity.is_present(previous):
-		out.append(VillagerAction.make(ActivityKind.GO_HOME, home))
+	if outdoors and not is_home and previous != &"" and VillagerActivity.is_present(previous):
+		out.append(VillagerAction.make(ActivityKind.GO_HOME, home + ActivityKind.DOOR_APPROACH))
 	out.append(VillagerAction.make(ActivityKind.SLEEP, home))
 	return out
 
 
 static func _house_plan(
-	previous: StringName, outdoors: bool, home: Vector3
+	previous: StringName, outdoors: bool, home: Vector3, is_home: bool = false
 ) -> Array[VillagerAction]:
-	if previous == VillagerActivity.SLEEP or previous == &"" or not outdoors:
+	## IN_HOUSE: go home → stay hidden (`GO_HOME` → `INTO_HOUSE` → HIDE).
+	if previous == VillagerActivity.SLEEP or not outdoors or is_home:
 		return [VillagerAction.make(ActivityKind.WAKE, home)]
-	return [VillagerAction.make(ActivityKind.GO_HOME, home)]
+	return [
+		VillagerAction.make(ActivityKind.GO_HOME, home + ActivityKind.DOOR_APPROACH),
+		VillagerAction.make(ActivityKind.WAKE, home),
+	]
 
 
 static func _wanted(hints: Dictionary) -> Array[StringName]:

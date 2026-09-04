@@ -71,9 +71,13 @@ const CAM_NEAR_METERS := 2.0 * FieldCatalog.GX_TO_METERS
 const OBJ_LOOK_Y_TALK_GX := 30.0
 const OBJ_LOOK_Y_NORMAL_GX := 20.0
 const CAMERA_SWAY_STEP := 0xE20
+## `aNGD_move_to_door`: tilt eye toward vestibule when Rover's shadow z < 140.
 const CAMERA_TILT_GOAL_PHONE := PI * 0.5
-const CAMERA_TILT_CHASE := deg_to_rad(2.8125)
-const CAMERA_TILT_RESET_CHASE := deg_to_rad(6.75)
+const CAMERA_TILT_CHASE := deg_to_rad(2.8125) ## DEG2SHORT_ANGLE2(2.8125°)
+## `aNGD_open_door` frame 22: `camera_tilt_add = 0x600` → 8.4375°.
+const CAMERA_TILT_RESET_CHASE := deg_to_rad(8.4375)
+## Vestibule proximity that starts / clears phone tilt (`shadow_pos.z < 140`).
+const CAMERA_TILT_Z_GX := 140.0
 const WALK_SPEED_GX := 1.0 ## GX per frame @ 30 Hz (`aNGD_set_walk_spd`)
 const WALK_SPEED2_GX := 1.5 ## `aNGD_set_walk_spd2`
 const DOOR_OPEN_FRAME := 20.0
@@ -103,8 +107,13 @@ var _pending_clip: String = ""
 var _pending_suffix: String = ""
 var _pending_next: Action = Action.DONE
 var _pending_ready: bool = false
+## Manpu attack → hold (`*1`/`*_d1` then `*2`/`*_d2`), polled in `tick`.
+var _manpu_hold_clip: String = ""
 var _rover_look: RefCounted
 var _phone_dialogue_done: bool = false
+var _phone_tilt_reset_armed: bool = false
+var _phone_trip_started: bool = false
+var _pending_return_sit: bool = false
 var _aisle_yaw_from: float = 0.0
 var _aisle_yaw_to: float = 0.0
 var _aisle_turn_t: float = 1.0
@@ -226,9 +235,11 @@ func bind(
 	_pos_gx = ROVER_START_GX
 	_yaw = 0.0
 	_apply_rover_pose()
-	if _keitai != null:
-		_keitai.visible = false
+	_reset_keitai()
 	_phone_dialogue_done = false
+	_phone_tilt_reset_armed = false
+	_phone_trip_started = false
+	_pending_return_sit = false
 	_set_action(Action.ENTER)
 	_refresh_camera(0.0)
 
@@ -248,6 +259,7 @@ func cue_sit() -> void:
 
 ## Dialogue cue: phone call to Nook — standup, aisle, deck, keitai.
 func cue_phone() -> void:
+	_phone_trip_started = true
 	_set_action(Action.STANDUP)
 
 
@@ -271,9 +283,25 @@ func cue_manpu(name: String) -> String:
 	var clip := NpcManpu.clip_for(key)
 	if clip.is_empty():
 		return ""
+	_manpu_hold_clip = ""
 	var loop: bool = NpcManpu.loops(key)
-	_play_rover(clip, loop)
+	if loop:
+		_play_rover(clip, true)
+		return clip
+	var hold := _manpu_hold_for(clip)
+	if not hold.is_empty() and not resolve_rover_clip(_rover_anim, hold).is_empty():
+		_manpu_hold_clip = hold
+	_play_rover(clip, false)
 	return clip
+
+
+func _manpu_hold_for(attack_clip: String) -> String:
+	## `eff_idx` → `eff_idx2`: smile1→smile2, smile_d1→smile_d2.
+	if attack_clip.ends_with("_d1"):
+		return attack_clip.trim_suffix("1") + "2"
+	if attack_clip.ends_with("1"):
+		return attack_clip.trim_suffix("1") + "2"
+	return ""
 
 
 func _manpu_key(name: String) -> String:
@@ -294,15 +322,25 @@ func _is_seated_action() -> bool:
 	return action == Action.SEATED or action == Action.SITDOWN or action == Action.LAST_SIT
 
 
-## Legacy dialogue cue — same as `end_phone_talk` when the stage has not started returning yet.
+## Dialogue cue: sitdown2 after the phone return (`aNGD_ACTION_SITDOWN2`).
 func cue_return_sit() -> void:
-	end_phone_talk()
+	if not _phone_trip_started:
+		return
+	match action:
+		Action.TALK, Action.RETURN_APPROACH:
+			_pending_return_sit = false
+			_set_action(Action.LAST_SIT)
+		Action.SITDOWN, Action.LAST_SIT, Action.SEATED:
+			_pending_return_sit = false
+		_:
+			## Still walking back — sit once return talk starts.
+			_pending_return_sit = true
 
 
 ## Decomp `mMsg` LockContinue / demo gating — block Continue until stage catches up.
 func can_advance_dialogue(_from_node: StringName, to_node: StringName) -> bool:
 	match action:
-		Action.SITDOWN, Action.STANDUP, Action.KEITAI_ON, Action.KEITAI_OFF, Action.OPEN_DOOR, Action.MOVE_DECK:
+		Action.SITDOWN, Action.LAST_SIT, Action.STANDUP, Action.KEITAI_ON, Action.KEITAI_OFF, Action.OPEN_DOOR, Action.MOVE_DECK:
 			return false
 	match to_node:
 		&"sit_ok", &"name_prompt":
@@ -311,7 +349,7 @@ func can_advance_dialogue(_from_node: StringName, to_node: StringName) -> bool:
 			return action >= Action.KEITAI_TALK
 		&"phone_done_stage":
 			return action >= Action.KEITAI_TALK
-		&"phone_done", &"farewell":
+		&"phone_done", &"phone_done_2", &"farewell":
 			return action >= Action.RETURN_APPROACH
 		_:
 			return true
@@ -321,6 +359,9 @@ func stage_wait_met(key: String) -> bool:
 	match key:
 		"seated":
 			return action >= Action.SEATED
+		"return_seated":
+			## Exact seated after the phone trip — `>= SEATED` is true during standup/walk.
+			return _phone_trip_started and action == Action.SEATED
 		"keitai_talk":
 			return action >= Action.KEITAI_TALK
 		"return_approach":
@@ -343,8 +384,8 @@ func _dialogue_wait_to_node() -> StringName:
 
 
 func _set_action(next: Action) -> void:
+	_manpu_hold_clip = ""
 	var morph_from_gx: Vector3 = _current_camera_look_gx(_pos_gx)
-	var seated_look_gx: Vector3 = _cam.look_gx() if _cam != null else CAM_LOOK_GX
 	action = next
 	stage_changed.emit(_action_name(next))
 	match next:
@@ -367,11 +408,17 @@ func _set_action(next: Action) -> void:
 			_apply_rover_pose()
 			_play_rover(ANIM_WAIT, true)
 			_obj_look_y_target_gx = OBJ_LOOK_Y_TALK_GX
-			if _cam != null:
+			## First talk morphs aisle POV → Rover then locks. Return talk stays locked
+			## (`lock_camera_flag` is never cleared), so skip a no-op remorph.
+			if _cam != null and not lock_camera:
 				_cam.begin_morph_to_rover(morph_from_gx, true)
 			if not _talk_emitted:
 				_talk_emitted = true
 				ready_for_talk.emit()
+			if _pending_return_sit:
+				_pending_return_sit = false
+				_set_action(Action.LAST_SIT)
+				return
 		Action.MOVE_TO_SEAT:
 			_set_action(Action.SITDOWN)
 		Action.SITDOWN:
@@ -393,11 +440,11 @@ func _set_action(next: Action) -> void:
 				_cam.set_obj_look_y(OBJ_LOOK_Y_TALK_GX)
 			_play_rover(ANIM_SIT_WAIT, true)
 		Action.STANDUP:
+			## Decomp never clears `lock_camera_flag` after first talk — look stays on Rover
+			## through standup / aisle / phone (`aNGD_standup_start_wait` only drops look Y).
 			_pos_gx = ROVER_STAND_GX
 			_apply_rover_pose()
 			_obj_look_y_target_gx = OBJ_LOOK_Y_NORMAL_GX
-			if _cam != null:
-				_cam.begin_morph_to_pov(morph_from_gx)
 			camera_eyes = false
 			_set_rover_eyes(false)
 			_play_rover(ANIM_STANDUP, false)
@@ -412,8 +459,6 @@ func _set_action(next: Action) -> void:
 			_speed_gx = WALK_SPEED2_GX
 			_target_gx = ROVER_DOOR_GX
 			_play_rover(ANIM_WALK, true)
-			if _pos_gx.z < 140.0 and _cam != null:
-				_cam.set_phone_tilt(true)
 		Action.MOVE_DECK:
 			_pos_gx = ROVER_DOOR_GX
 			_apply_rover_pose()
@@ -421,8 +466,7 @@ func _set_action(next: Action) -> void:
 			_play_door_sync(IntroTrainStageSync.SYNC_DECK)
 			_await_then(Action.KEITAI_ON, ANIM_TO_DECK)
 		Action.KEITAI_ON:
-			if _keitai != null:
-				_keitai.visible = true
+			_play_keitai_on()
 			_play_rover(ANIM_KEITAI_ON, false, KEITAI_ON_ANIM_SPEED)
 			_await_then(Action.KEITAI_TALK, ANIM_KEITAI_ON)
 		Action.KEITAI_TALK:
@@ -430,17 +474,17 @@ func _set_action(next: Action) -> void:
 			if _phone_dialogue_done:
 				_set_action(Action.KEITAI_OFF)
 		Action.KEITAI_OFF:
+			_play_keitai_off()
 			_play_rover(ANIM_KEITAI_OFF, false)
 			_await_then(Action.OPEN_DOOR, ANIM_KEITAI_OFF)
 		Action.OPEN_DOOR:
-			if _keitai != null:
-				_keitai.visible = false
+			_hide_keitai()
+			_phone_tilt_reset_armed = true
 			_play_rover(ANIM_OPEN_D2, false)
 			_play_door_sync(IntroTrainStageSync.SYNC_OPEN_D2)
-			if _pos_gx.z < 140.0 and _cam != null:
-				_cam.set_phone_tilt(false)
 			_await_then(Action.RETURN_APPROACH, ANIM_OPEN_D2)
 		Action.RETURN_APPROACH:
+			## Lock still on Rover; `aNGD_return_approach_init` only re-enables head look-at.
 			_speed_gx = WALK_SPEED2_GX
 			_pos_gx = ROVER_RETURN_START_GX
 			_yaw = 0.0
@@ -448,10 +492,8 @@ func _set_action(next: Action) -> void:
 			camera_eyes = true
 			_set_rover_eyes(true)
 			_play_rover(ANIM_WALK, true)
-			_obj_look_y_target_gx = OBJ_LOOK_Y_TALK_GX
-			if _cam != null:
-				_cam.begin_morph_to_rover(seated_look_gx, false)
 		Action.LAST_SIT:
+			## `aNGD_sitdown2` — snap to the bench and play sitdown mid-farewell.
 			_set_action(Action.SITDOWN)
 		_:
 			pass
@@ -483,8 +525,11 @@ func _tick_move_aisle(delta: float) -> void:
 
 func _tick_move_door(delta: float) -> void:
 	## `aNGD_move_to_door`: aisle at x=140, walk toward the vestibule.
+	## Phone tilt starts when shadow z < 140 — checked after the step (decomp order).
 	_face_toward_gx(ROVER_DOOR_GX)
 	_tick_move_axis_z(delta, ROVER_DOOR_GX.z, Action.MOVE_DECK, ROVER_AISLE_X_GX, -1.0)
+	if _pos_gx.z < CAMERA_TILT_Z_GX and _cam != null:
+		_cam.set_phone_tilt(true)
 
 
 func _tick_return_approach(delta: float) -> void:
@@ -514,9 +559,18 @@ func _tick_move_deck(_delta: float) -> void:
 
 
 func _tick_open_door(_delta: float) -> void:
-	if _pos_gx.z < 140.0:
+	## `aNGD_open_door`: ease yaw to face the car; at open_d2 frame 22 clear phone tilt.
+	if _pos_gx.z < CAMERA_TILT_Z_GX:
 		_yaw = lerp_angle(_yaw, OPEN_D2_YAW, OPEN_D2_YAW_CHASE * _delta * 30.0)
 		_apply_rover_pose()
+	if (
+		_phone_tilt_reset_armed
+		and _pos_gx.z < CAMERA_TILT_Z_GX
+		and _rover_anim_frame() >= DOOR_OPEN_D2_FRAME
+	):
+		_phone_tilt_reset_armed = false
+		if _cam != null:
+			_cam.set_phone_tilt(false)
 
 
 func _tick_move_axis_z(
@@ -606,6 +660,25 @@ func _steady_camera_look_gx(ground_gx: Vector3) -> Vector3:
 	return _cam.steady_look_gx(ground_gx, action)
 
 
+func _rover_anim_frame() -> float:
+	## cKF frame index at 30 Hz from the active Rover clip.
+	if _rover_anim == null:
+		return 0.0
+	return _rover_anim.current_animation_position * 30.0
+
+
+func phone_tilt_goal() -> float:
+	if _cam == null:
+		return 0.0
+	return _cam._camera_tilt_goal
+
+
+func phone_tilt() -> float:
+	if _cam == null:
+		return 0.0
+	return _cam._camera_tilt
+
+
 ## Body yaw for any actor that turns to the player (`aNPC_act_search_turn` with
 ## `aNPC_ACT_OBJ_PLAYER`). The player is the seated POV the intro camera looks from.
 static func yaw_toward_player(from_gx: Vector3) -> float:
@@ -649,6 +722,37 @@ func _play_rover(
 	)
 	_rover_anim.play(clip, blend)
 	return true
+
+
+func _reset_keitai() -> void:
+	if _keitai == null:
+		return
+	if _keitai.has_method("hide_phone"):
+		_keitai.hide_phone()
+	else:
+		_keitai.visible = false
+
+
+func _play_keitai_on() -> void:
+	if _keitai == null:
+		return
+	if _keitai.has_method("play_on"):
+		_keitai.play_on(KEITAI_ON_ANIM_SPEED)
+	else:
+		_keitai.visible = true
+
+
+func _play_keitai_off() -> void:
+	if _keitai == null:
+		return
+	if _keitai.has_method("play_off"):
+		_keitai.play_off()
+	else:
+		_keitai.visible = true
+
+
+func _hide_keitai() -> void:
+	_reset_keitai()
 
 
 static func _rover_anim_blend(suffix: String) -> float:
@@ -755,6 +859,10 @@ func _clip_matches_pending(anim_name: StringName) -> bool:
 func tick(delta: float) -> void:
 	if _pending_ready:
 		_flush_pending()
+	if _manpu_hold_clip != "" and not _anim_playing():
+		var hold := _manpu_hold_clip
+		_manpu_hold_clip = ""
+		_play_rover(hold, true)
 	match action:
 		Action.ENTER:
 			_tick_enter(delta)

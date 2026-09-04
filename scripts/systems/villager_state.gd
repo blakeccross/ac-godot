@@ -15,6 +15,8 @@ var villager_id: StringName = &""
 var relationship: Relationship = Relationship.new()
 var mood: Mood = Mood.NORMAL
 var patience: Patience = Patience.NORMAL
+## `Animal_c.is_home` — indoors (hidden outdoors / visible in NPC room).
+var is_home: bool = false
 
 var friendship: int:
 	get:
@@ -52,6 +54,7 @@ func to_save() -> Dictionary:
 		"last_spoke_day": last_spoke_day,
 		"mood": int(mood),
 		"patience": int(patience),
+		"is_home": is_home,
 		"relationship": _bond().to_save(),
 	}
 
@@ -61,6 +64,7 @@ func apply_snapshot(data: Dictionary) -> void:
 		villager_id = StringName(str(data.get("id", "")))
 	mood = int(data.get("mood", Mood.NORMAL)) as Mood
 	patience = int(data.get("patience", Patience.NORMAL)) as Patience
+	is_home = bool(data.get("is_home", false))
 	var nested: Variant = data.get("relationship", {})
 	if typeof(nested) == TYPE_DICTIONARY and not (nested as Dictionary).is_empty():
 		_bond().apply_snapshot(nested as Dictionary)

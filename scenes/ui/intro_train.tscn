@@ -1,20 +1,21 @@
 [gd_scene format=3 uid="uid://c5w0e164gbe14"]
 
 [ext_resource type="Script" uid="uid://8nisoofts0g" path="res://scenes/ui/intro_train.gd" id="1"]
-[ext_resource type="PackedScene" path="res://scenes/ui/dialogue_overlay.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://copajrd153xkj" path="res://scenes/ui/dialogue_overlay.tscn" id="2"]
 [ext_resource type="Environment" path="res://scenes/ui/intro_train_env.tres" id="3"]
-[ext_resource type="Script" path="res://scenes/ui/intro_train_car.gd" id="10"]
-[ext_resource type="Script" path="res://scenes/ui/intro_train_door.gd" id="11"]
-[ext_resource type="Script" path="res://scenes/ui/intro_train_rover.gd" id="12"]
-[ext_resource type="Script" path="res://scripts/systems/intro_train_sleep_npc.gd" id="13"]
-[ext_resource type="Script" path="res://scenes/ui/intro_train_camera_rig.gd" id="15"]
 [ext_resource type="PackedScene" uid="uid://bi2ogokvjlo5o" path="res://assets/generated/environment/interiors/rom_train_in.glb" id="4"]
-[ext_resource type="PackedScene" uid="uid://bkqrywavqarjn" path="res://assets/generated/environment/interiors/rom_train_out.glb" id="5"]
+[ext_resource type="PackedScene" uid="uid://dv6tlhk418td3" path="res://assets/generated/environment/interiors/rom_train_out.glb" id="5"]
 [ext_resource type="PackedScene" uid="uid://dvxc061ox8noc" path="res://assets/generated/environment/obj_romtrain_door.glb" id="6"]
 [ext_resource type="PackedScene" uid="uid://bq657aqebrjw0" path="res://assets/generated/characters/villagers/xct_1.glb" id="7"]
 [ext_resource type="PackedScene" uid="uid://cm670uyu64pv7" path="res://assets/generated/characters/villagers/kab_1.glb" id="8"]
 [ext_resource type="PackedScene" uid="uid://yxldb1gjmsn4" path="res://assets/generated/items/tol_keitai_1.glb" id="9"]
-[ext_resource type="Script" path="res://scenes/ui/intro_train_stage_sync.gd" id="14"]
+[ext_resource type="Script" uid="uid://b1j27rjvht0gy" path="res://scenes/ui/intro_train_car.gd" id="10"]
+[ext_resource type="Script" uid="uid://d0b12vigr1gei" path="res://scenes/ui/intro_train_door.gd" id="11"]
+[ext_resource type="Script" uid="uid://cdkqpli2gdy8k" path="res://scenes/ui/intro_train_rover.gd" id="12"]
+[ext_resource type="Script" uid="uid://gfcu4nl2xrrv" path="res://scripts/systems/intro_train_sleep_npc.gd" id="13"]
+[ext_resource type="Script" uid="uid://cpvk0863sunne" path="res://scenes/ui/intro_train_stage_sync.gd" id="14"]
+[ext_resource type="Script" uid="uid://dstml0imckfih" path="res://scenes/ui/intro_train_camera_rig.gd" id="15"]
+[ext_resource type="Script" uid="uid://dchr4eohq1w4l" path="res://scenes/ui/intro_train_keitai.gd" id="16"]
 
 [node name="IntroTrain" type="Node3D" unique_id=683829147]
 script = ExtResource("1")
@@ -60,7 +61,7 @@ unique_name_in_owner = true
 [node name="GeneratedVisual" type="Node3D" parent="TrainCar/WindowScenery" unique_id=1828331897]
 transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 0, -1, 0)
 
-[node name="rom_train_out" parent="TrainCar/WindowScenery/GeneratedVisual" unique_id=410143504 instance=ExtResource("5")]
+[node name="rom_train_out" parent="TrainCar/WindowScenery/GeneratedVisual" unique_id=458401089 instance=ExtResource("5")]
 
 [node name="TrainLights" type="Node3D" parent="TrainCar" unique_id=2026054953]
 
@@ -97,10 +98,9 @@ transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0.008804, 0)
 [node name="Keitai" type="Node3D" parent="Rover" unique_id=1894452918]
 unique_name_in_owner = true
 visible = false
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.15, 0.55, 0.1)
+script = ExtResource("16")
 
 [node name="GeneratedVisual" type="Node3D" parent="Rover/Keitai" unique_id=2112074148]
-transform = Transform3D(0.5, 0, 0, 0, 0.5, 0, 0, 0, 0.5, 0, 0.1, 0)
 
 [node name="tol_keitai_1" parent="Rover/Keitai/GeneratedVisual" unique_id=638992672 instance=ExtResource("9")]
 

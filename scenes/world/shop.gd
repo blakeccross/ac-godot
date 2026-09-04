@@ -1,8 +1,8 @@
 extends StaticBody3D
 
-## Nook shop. Hours come from `Clock` (Cranny 9–22). Enter loads `shop0`.
+## Nook shop outdoor. Visual and hours follow `ShopBook` upgrade level.
 
-@export var occupant_id: StringName = &""
+@export var occupant_id: StringName = &"acre_shop"
 @export var footprint: Vector2i = Vector2i(2, 2)
 @export var grid_facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH
 @export var occupy_grid: bool = false
@@ -14,8 +14,17 @@ extends StaticBody3D
 
 func _ready() -> void:
 	add_to_group("interactable")
+	_sync_from_shop_book()
 	GeneratedVisual.attach(self, visual_id)
 	HostCollision.apply_shop(self, footprint, HostCollision.CELL)
+
+
+func _sync_from_shop_book() -> void:
+	if Game == null or Game.shops == null:
+		return
+	visual_id = Game.shops.nook_visual_id()
+	open_hour = Game.shops.nook_open_hour()
+	close_hour = Game.shops.nook_close_hour()
 
 
 func is_open() -> bool:
@@ -29,6 +38,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 
 
 func refresh_seasonal_visual() -> void:
+	_sync_from_shop_book()
 	GeneratedVisual.refresh(self, visual_id)
 
 

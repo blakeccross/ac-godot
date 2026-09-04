@@ -55,6 +55,11 @@ func is_inner(cell: Vector2i) -> bool:
 	)
 
 
+## House / shop EXIT_DOOR is a two-unit south strip (`door_cell`, `door_cell+(1,0)`).
+func is_exit_cell(cell: Vector2i) -> bool:
+	return cell == door_cell or cell == door_cell + Vector2i(1, 0)
+
+
 func next_placement_id() -> StringName:
 	placement_seq += 1
 	return StringName("ftr_%d" % placement_seq)

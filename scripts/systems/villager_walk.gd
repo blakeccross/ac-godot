@@ -34,6 +34,10 @@ const WANDER_ARRIVE := 0.45
 const WANDER_TRIES := 5
 ## `aNPC_avoid_wall` looks 2 units ahead (`2 * mFI_UT_WORLDSIZE`).
 const AVOID_METERS := 4.0
+## `aNPC_turn_to_backward` hops 1 unit off the wall.
+const TURN_METERS := 2.0
+## First front hit turns ±112.5° (`aNPC_avoid_obstacle` case 3 / dir 0).
+const FIRST_AVOID_DEG := 112.5
 ## One wait clip, then `decide_next` again.
 const WAIT_SECONDS := 2.0
 const _BLOCK_STAND: Array[StringName] = [&"tree", &"rock", &"house", &"shop", &"building"]
@@ -206,12 +210,45 @@ static func is_in_block(data: WorldData, block: Vector2i, world_pos: Vector3) ->
 	return block_from_cell(cell) == block
 
 
+static func in_move_range(data: WorldData, block: Vector2i, world_pos: Vector3) -> bool:
+	## `aNPC_circleRangeCheck` — inside `range_radius` of acre center (not the acre square).
+	if data == null:
+		return true
+	var delta: Vector3 = world_pos - block_center(data, block)
+	delta.y = 0.0
+	return delta.length_squared() <= RANGE_RADIUS * RANGE_RADIUS + 0.05
+
+
+static func circle_revise(data: WorldData, block: Vector2i, world_pos: Vector3) -> Vector3:
+	## `aNPC_circleRangeRevice` — hard clamp onto the roam circle every frame.
+	if data == null:
+		return world_pos
+	var center: Vector3 = block_center(data, block)
+	var delta: Vector3 = world_pos - center
+	delta.y = 0.0
+	var len_sq: float = delta.length_squared()
+	if len_sq <= RANGE_RADIUS * RANGE_RADIUS or len_sq < 0.0001:
+		return world_pos
+	var on_rim: Vector3 = center + delta * (RANGE_RADIUS / sqrt(len_sq))
+	on_rim.y = world_pos.y
+	return on_rim
+
+
 static func is_standable(data: WorldData, cell: Vector2i) -> bool:
+	## Wander dest unit checks: FG EMPTY/ITEM1/FTR + `mCoBG_Wpos2CheckNpc`.
 	if data == null or not data.is_in_bounds(cell):
 		return false
-	if not _walkable_terrain(data.terrain_at(cell)):
+	if _is_blocked_cell(data, cell):
 		return false
-	return not _is_blocked_cell(data, cell)
+	return _check_npc(data, cell)
+
+
+static func _check_npc(data: WorldData, cell: Vector2i) -> bool:
+	## `mCoBG_Attr2CheckPlaceNpc`. Fall back to coarse terrain when no `.col.json`.
+	var attr: int = FieldCollision.unit_attr_at_cell(data, cell)
+	if attr >= 0:
+		return FieldCatalog.attr_allows_npc(attr)
+	return _walkable_terrain(data.terrain_at(cell))
 
 
 static func wander_in_block(
@@ -222,9 +259,7 @@ static func wander_in_block(
 	grid: WorldGrid = null
 ) -> Vector3:
 	## Rim dest around the acre center (`center + sin/cos * range_radius`).
-	## Keep the world point — do not snap to a cell center. Decomp stores the
-	## float dest and only checks the unit under it (EMPTY/ITEM1/FTR + CheckNpc).
-	## With a grid, skip rim points across a cliff/water wall so they do not charge it.
+	## Decomp: FG under dest + CheckNpc + moveRangeCheck — no pathfinding.
 	if data == null:
 		return from
 	var center: Vector3 = block_center(data, block)
@@ -255,36 +290,68 @@ static func snap_standable(data: WorldData, world_pos: Vector3) -> Vector3:
 	return _snap_walkable(data, world_pos)
 
 
+static func avoid_backward(from: Vector3, facing: float, meters: float = TURN_METERS) -> Vector3:
+	## `aNPC_turn_to_backward` 180° — 1 unit behind facing.
+	return _avoid_stand(from, facing, PI, meters)
+
+
 static func avoid_around(
 	data: WorldData,
 	from: Vector3,
 	facing: float,
 	block: Vector2i,
-	grid: WorldGrid = null
+	grid: WorldGrid = null,
+	prefer_side: int = 1
 ) -> Vector3:
-	## `aNPC_avoid_wall`: try 2 units at 22.5° / 45° / 90°, then 180°.
-	var offsets: Array[float] = [
-		deg_to_rad(22.5),
-		deg_to_rad(-22.5),
-		deg_to_rad(45.0),
-		deg_to_rad(-45.0),
-		deg_to_rad(90.0),
-		deg_to_rad(-90.0),
-		PI,
-	]
-	for offset: float in offsets:
-		var yaw: float = facing + offset
-		var stand := Vector3(
-			from.x + sin(yaw) * AVOID_METERS,
-			from.y,
-			from.z + cos(yaw) * AVOID_METERS
-		)
-		if not _dest_ok(data, block, from, stand, grid):
-			continue
-		if not can_step(data, from, stand, grid):
-			continue
-		return stand
+	## `aNPC_avoid_wall`: one side only — 2 units at 22.5° → 45° → 90°, else 180°.
+	## Only `moveRangeCheck` (stay in acre) — no path/standable gate.
+	## prefer_side 1 = +angles, 2 = −angles (`drt_data` / `add_angl[][direction]`).
+	var sign: float = -1.0 if prefer_side == 2 else 1.0
+	var tiers: Array[float] = [22.5, 45.0, 90.0]
+	for deg: float in tiers:
+		var stand: Vector3 = _avoid_stand(from, facing, deg_to_rad(deg) * sign, AVOID_METERS)
+		if _avoid_range_ok(data, block, stand):
+			return stand
+	var back: Vector3 = _avoid_stand(from, facing, PI, AVOID_METERS)
+	if _avoid_range_ok(data, block, back):
+		return back
 	return from
+
+
+static func first_avoid_hop(
+	data: WorldData,
+	from: Vector3,
+	facing: float,
+	block: Vector2i,
+	grid: WorldGrid = null,
+	rng: RandomNumberGenerator = null
+) -> Dictionary:
+	## Front+wall (`collision_flag` 3) with `avoid_direction == 0`:
+	## `aNPC_turn_to_backward` ±112.5° / 1 unit; args[4] keeps side 0.
+	var order: Array[float] = [1.0, -1.0]
+	if _rand_f(rng) < 0.5:
+		order = [-1.0, 1.0]
+	for sign: float in order:
+		var stand: Vector3 = _avoid_stand(
+			from, facing, deg_to_rad(FIRST_AVOID_DEG) * sign, TURN_METERS
+		)
+		if not _avoid_range_ok(data, block, stand):
+			continue
+		return {"pos": stand, "side": 0}
+	var back: Vector3 = _avoid_stand(from, facing, PI, TURN_METERS)
+	if _avoid_range_ok(data, block, back):
+		return {"pos": back, "side": 0}
+	return {}
+
+
+static func _avoid_stand(from: Vector3, facing: float, offset: float, meters: float) -> Vector3:
+	var yaw: float = facing + offset
+	return Vector3(from.x + sin(yaw) * meters, from.y, from.z + cos(yaw) * meters)
+
+
+static func _avoid_range_ok(data: WorldData, block: Vector2i, stand: Vector3) -> bool:
+	## `aNPC_moveRangeCheck` CIRCLE — avoid_pos may sit on a wall unit.
+	return in_move_range(data, block, stand)
 
 
 static func can_step(
@@ -300,7 +367,8 @@ static func can_step(
 static func path_clear(
 	data: WorldData, from: Vector3, dest: Vector3, grid: WorldGrid, max_steps: int = 24
 ) -> bool:
-	## Greedy cell walk; false when a cliff/water wall or house blocks every step.
+	## Helper for tests / town routing. Field wander does **not** pathfind — it walks
+	## straight and lets BG + `aNPC_avoid_wall` handle walls.
 	if data == null or grid == null:
 		return true
 	var pos: Vector3 = from
@@ -396,12 +464,9 @@ static func _motion_ok(
 		return false
 	if grid == null:
 		return true
-	var revised: Vector3 = FieldCollision.revise_xz(data, grid, from, step)
-	var want := Vector2(step.x - from.x, step.z - from.z)
-	var got := Vector2(revised.x - from.x, revised.z - from.z)
-	if want.length_squared() < 0.0001:
-		return true
-	return got.dot(want.normalized()) > 0.15
+	## Require most of the step to survive `revise_xz`. A tiny 0.15 m remnant used
+	## to count as open, so roam kept aiming into cliffs and water banks.
+	return FieldCollision.step_open(data, grid, from, step)
 
 
 static func pick_act(
@@ -628,15 +693,15 @@ static func _dest_ok(
 	stand: Vector3,
 	grid: WorldGrid = null
 ) -> bool:
-	if not is_in_block(data, block, stand):
+	## `aNPC_think_wander_move_next`: circle range + CheckNpc + FG empty/item1/ftr.
+	## No pathfinding — walls are handled while walking via BG + avoid.
+	if not in_move_range(data, block, stand):
 		return false
 	if not is_standable(data, _world_to_cell(data, stand)):
 		return false
 	var from_delta: Vector3 = stand - from
 	from_delta.y = 0.0
 	if from_delta.length() < MIN_STEP:
-		return false
-	if grid != null and not path_clear(data, from, stand, grid):
 		return false
 	return true
 

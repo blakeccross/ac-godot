@@ -6,9 +6,9 @@ extends CharacterBody3D
 ## Behavior: VillagerSchedule + VillagerAI + VillagerWalk (goal acres) + VillagerMotor.
 
 const IDLE_SPEED := 0.08
-const STUCK_MOVE := 0.03
-## After this many wall hits on one rim dest, drop it — do not grind the cliff.
-const AVOID_GIVE_UP := 3
+## Fraction of intended XZ step that must stick after BG revise; else front-wall.
+## Absolute meters-per-frame thresholds break at 60 Hz (walk ≈ 0.025 m/tick).
+const STUCK_FRAC := 0.35
 const ANIM_WAIT := "npc_1_wait1"
 const ANIM_WALK := "npc_1_walk1"
 const ANIM_RUN := "npc_1_run1"
@@ -16,6 +16,8 @@ const ANIM_SIT := "npc_1_sit1"
 const ANIM_FISH := "npc_1_fish1"
 
 @export var data: VillagerData
+## Indoor `ac_npc2` stand-in: always visible while the player is in this house.
+@export var indoor_resident: bool = false
 
 var state: VillagerState
 var schedule: VillagerSchedule = VillagerSchedule.new()
@@ -30,11 +32,13 @@ var _goal_stand: Vector3 = Vector3.ZERO
 var _goal_block: Vector2i = Vector2i.ZERO
 var _goal_kind: StringName = VillagerWalk.GOAL_MY_HOME
 var _stay_elapsed: float = 0.0
-var _stuck_elapsed: float = 0.0
-var _avoid_hits: int = 0
+## After an avoid hop, wait before re-steering (decomp spends frames in ACT_TURN).
+var _avoid_cool: float = 0.0
 var _talk_look: Vector3 = Vector3.ZERO
 var _face: NpcFace = NpcFace.new()
+var _head_look: NpcHeadLook = NpcHeadLook.new()
 var _face_mood: int = -1
+var _visual: Node3D
 
 @onready var _model: Node3D = $Model
 @onready var _placeholder: MeshInstance3D = $Model/PlaceholderMesh
@@ -55,14 +59,30 @@ func _ready() -> void:
 	_motor.reset(global_position, rotation.y)
 	var table: ScheduleData = data.schedule_table() if data != null else null
 	var first: StringName = table.activity_now() if table != null else VillagerActivity.FIELD
-	_apply_presence(VillagerActivity.is_present(first))
+	if not indoor_resident and state != null:
+		## Start home when the looks table is IN_HOUSE / SLEEP (`Animal_c.is_home`).
+		if first == VillagerActivity.IN_HOUSE or first == VillagerActivity.SLEEP:
+			state.is_home = true
+	_apply_presence(indoor_resident or VillagerActivity.is_present(first))
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, data.species if data else &"")
+	_visual = vis
 	if vis != null:
 		_body_anim = GeneratedVisual.find_animation_player(vis)
 		_play_clip(ANIM_WAIT, true)
 		_face.bind(vis, data.species if data else &"")
+		_head_look.bind(vis, self)
 		_sync_face_mood(true)
-	_sync_from_clock()
+	if indoor_resident:
+		_motor.facing = rotation.y
+	else:
+		_sync_from_clock()
+
+
+func _sync_from_clock() -> void:
+	if indoor_resident:
+		return
+	ai.sync(current_activity(), _hints())
+	_apply_presence(ai.is_present())
 
 
 func _exit_tree() -> void:
@@ -87,19 +107,23 @@ func current_action() -> StringName:
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
+	if indoor_resident:
+		var who: String = data.display_name if data else "Villager"
+		return [Interaction.of(Interaction.TALK, "Talk to %s" % who, 20)]
 	ai.sync(current_activity(), _hints())
 	if not ai.is_talkable():
 		return []
-	var who: String = data.display_name if data else "Villager"
-	return [Interaction.of(Interaction.TALK, "Talk to %s" % who, 20)]
+	var who_out: String = data.display_name if data else "Villager"
+	return [Interaction.of(Interaction.TALK, "Talk to %s" % who_out, 20)]
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.TALK:
 		return false
-	ai.sync(current_activity(), _hints())
-	if not ai.is_talkable():
-		return false
+	if not indoor_resident:
+		ai.sync(current_activity(), _hints())
+		if not ai.is_talkable():
+			return false
 	_ensure_bound()
 	if ctx != null and ctx.actor != null:
 		_talk_look = ctx.actor.global_position
@@ -128,10 +152,14 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	if indoor_resident:
+		_tick_indoor(delta)
+		return
 	ai.sync(current_activity(), _hints())
 	var present: bool = ai.is_present()
 	_apply_presence(present)
 	_tick_face(delta)
+	_tick_head_look(delta)
 	if not present:
 		velocity = Vector3.ZERO
 		ai.step(delta)
@@ -151,25 +179,65 @@ func _physics_process(delta: float) -> void:
 	if ai.is_wandering():
 		_tick_walk_slot(delta)
 	_steer_ai()
-	var next: Vector3 = _next_point()
-	var planar: Vector3 = _motor.tick(delta, global_position, next, ai.wants_move())
+	var aim: Vector3 = _motor.steer if _motor.has_target else global_position
+	var planar: Vector3 = _motor.tick(delta, global_position, aim, ai.wants_move())
 	ai.consider_arrive(global_position)
 	velocity.x = planar.x
 	velocity.z = planar.z
 	if _model != null:
 		_model.rotation.y = _motor.facing
 	var before: Vector3 = global_position
+	## Decomp order: position_move → BGcheck → circleRangeRevice → forward/obj → think avoid.
 	move_and_slide()
 	var bg: Array = _bg()
 	if bg.size() == 2:
 		global_position = FieldCollision.revise_xz(
 			bg[0] as WorldData, bg[1] as WorldGrid, before, global_position
 		)
+		if ai.is_wandering() and _in_goal_block():
+			global_position = VillagerWalk.circle_revise(
+				bg[0] as WorldData, _goal_block, global_position
+			)
 	elif on_bg:
 		_snap_to_bg()
-	_give_up_if_stuck(delta, before, planar, next)
-	_update_animation(delta, planar)
+	if _avoid_cool > 0.0:
+		_avoid_cool = maxf(0.0, _avoid_cool - delta)
+	## Avoid only while moving (`speed != 0` in decomp interrupt).
+	if planar.length() > IDLE_SPEED:
+		_avoid_if_wall(before, planar, delta)
+	_update_animation(delta, Vector3(velocity.x, 0.0, velocity.z))
 	ai.step(delta)
+
+
+func _tick_indoor(delta: float) -> void:
+	## Indoor resident: always present, stand, head-look, talkable (`ac_npc2` wander wait).
+	_apply_presence(true)
+	_tick_face(delta)
+	_tick_head_look(delta)
+	if ai.is_talking():
+		_hold_talk(delta)
+		return
+	velocity = Vector3.ZERO
+	if not is_on_floor():
+		velocity.y -= _gravity * delta
+	move_and_slide()
+	_update_animation(delta, Vector3.ZERO)
+
+
+func _tick_head_look(delta: float) -> void:
+	if get_tree() == null:
+		return
+	var player: Node = get_tree().get_first_node_in_group("player")
+	var sleepy: bool = (
+		state != null and int(state.mood) == int(VillagerState.Mood.SLEEPY)
+	) or ai.kind() == ActivityKind.SLEEP
+	_head_look.locked = ai.is_talking()
+	_head_look.tick(
+		delta,
+		player as Node3D if player is Node3D else null,
+		_motor.facing,
+		sleepy
+	)
 
 
 func _ensure_bound() -> void:
@@ -183,26 +251,33 @@ func _ensure_bound() -> void:
 		state = VillagerState.new()
 
 
-func _sync_from_clock() -> void:
-	ai.sync(current_activity(), _hints())
-	_apply_presence(ai.is_present())
-
-
 func _on_action_changed(kind: StringName) -> void:
-	if kind == ActivityKind.LEAVE_HOME and not visible:
-		global_position = _motor.home
-		_motor.reset(_motor.home, _motor.facing)
+	if kind == ActivityKind.LEAVE_HOME:
+		_set_is_home(false)
+		if not visible:
+			global_position = _motor.home + ActivityKind.YARD_OFFSET
+			_motor.reset(global_position, _motor.facing)
 	if kind == ActivityKind.TALK:
 		_motor.arrive()
 	if kind == ActivityKind.WANDER:
 		_motor.arrive()
 		_stay_elapsed = 0.0
+	if kind == ActivityKind.WAKE or kind == ActivityKind.SLEEP:
+		_set_is_home(true)
+		if kind == ActivityKind.SLEEP and state != null:
+			state.mood = VillagerState.Mood.SLEEPY
 	if (
 		kind == ActivityKind.GO_HOME
 		or kind == ActivityKind.SLEEP
 		or kind == ActivityKind.WAKE
 	) and data != null:
 		VillagerWalk.release(data.id)
+
+
+func _set_is_home(value: bool) -> void:
+	_ensure_bound()
+	if state != null:
+		state.is_home = value
 
 
 func _apply_presence(present: bool) -> void:
@@ -248,8 +323,8 @@ func _steer_wander(wandering: bool) -> void:
 	if delta.length() < VillagerWalk.MIN_STEP:
 		_motor.wait_in_place()
 		return
-	_avoid_hits = 0
-	_motor.set_target(dest, act, VillagerWalk.WANDER_ARRIVE)
+	_avoid_cool = 0.0
+	_motor.set_target(dest, act, VillagerWalk.WANDER_ARRIVE, global_position, _motor.facing)
 	if _agent != null and _nav_ready():
 		_agent.target_position = dest
 
@@ -264,28 +339,12 @@ func _steer_to(world_pos: Vector3) -> void:
 		to_here.y = 0.0
 		if to_goal > 0.35 and to_here.length() > VillagerWalk.WANDER_ARRIVE:
 			return
-	_avoid_hits = 0
-	_motor.set_target(dest)
+	_avoid_cool = 0.0
+	_motor.set_target(
+		dest, VillagerWalk.ACT_WALK, VillagerMotor.ARRIVE, global_position, _motor.facing
+	)
 	if _agent != null and _nav_ready():
 		_agent.target_position = dest
-
-
-func _next_point() -> Vector3:
-	## Aim at avoid/steer (`avoid_pos`), not only the rim dest. Step around house
-	## cells so a far rim point does not charge the yard StaticBody. The motor
-	## keeps `target` as `dst_pos` until the rim arrive — cell steps do not end
-	## the walk (old bug).
-	if not _motor.has_target:
-		return global_position
-	var aim: Vector3 = _motor.steer
-	var bg: Array = _bg()
-	if bg.size() != 2:
-		return aim
-	var next: Vector3 = VillagerWalk.step_toward(
-		bg[0] as WorldData, global_position, aim, bg[1] as WorldGrid
-	)
-	next.y = global_position.y
-	return next
 
 
 func _nav_ready() -> bool:
@@ -304,71 +363,111 @@ func _walkable_near(world_pos: Vector3) -> Vector3:
 	return pos
 
 
-func _give_up_if_stuck(delta: float, before: Vector3, planar: Vector3, next: Vector3) -> void:
-	## `aNPC_avoid_wall`: a front collision steers 2 units off, it does not grind.
-	## Keep the rim dest — avoid only updates `steer` (`avoid_pos`).
+func _avoid_if_wall(before: Vector3, planar: Vector3, delta: float) -> void:
+	## `aNPC_avoid_obstacle` while speed ≠ 0 and front wall flag set.
 	if not _motor.has_target:
-		_stuck_elapsed = 0.0
 		return
-	var to_next: Vector3 = next - before
-	to_next.y = 0.0
-	var boxed: bool = to_next.length() <= 0.001
-	if not boxed and planar.length() <= IDLE_SPEED:
-		_stuck_elapsed = 0.0
+	if _avoid_cool > 0.0:
 		return
-	if not boxed and not _blocked_this_frame(before, planar):
-		_stuck_elapsed = 0.0
+	if not _front_wall_hit(before, planar, delta):
 		return
-	_stuck_elapsed += delta
-	if _stuck_elapsed < 0.08:
-		return
-	_stuck_elapsed = 0.0
 	_steer_around_wall()
 
 
-func _blocked_this_frame(before: Vector3, planar: Vector3) -> bool:
-	var moved: Vector3 = global_position - before
-	moved.y = 0.0
-	var to_aim: Vector3 = _motor.steer - before
-	to_aim.y = 0.0
-	var progress: float = 0.0
-	if to_aim.length() > 0.01:
-		progress = moved.dot(to_aim.normalized())
-	if get_slide_collision_count() > 0 and progress < STUCK_MOVE:
+func _front_wall_hit(before: Vector3, planar: Vector3, delta: float) -> bool:
+	## Analog of `collision_flag` after BG + `aNPC_forward_check`.
+	var intended := Vector3(sin(_motor.facing), 0.0, cos(_motor.facing))
+	var speed_xz := Vector2(planar.x, planar.z).length()
+	if speed_xz > IDLE_SPEED and delta > 0.0:
+		var moved: Vector3 = global_position - before
+		moved.y = 0.0
+		var expected: float = speed_xz * delta
+		if moved.dot(intended) < expected * STUCK_FRAC:
+			return true
+	if get_slide_collision_count() > 0 and _slide_is_front(planar):
 		return true
-	if planar.length() > IDLE_SPEED and progress < STUCK_MOVE:
+	## `aNPC_forward_check_sub` out of move-range returns a wall hit.
+	if ai.is_wandering() and _in_goal_block() and speed_xz > IDLE_SPEED:
+		var bg: Array = _bg()
+		if bg.size() == 2:
+			var probe: Vector3 = before + intended * 1.0
+			if not VillagerWalk.in_move_range(bg[0] as WorldData, _goal_block, probe):
+				return true
+			if _forward_height_wall(bg[0] as WorldData, bg[1] as WorldGrid, before, probe):
+				return true
+	return false
+
+
+func _forward_height_wall(
+	data: WorldData, grid: WorldGrid, from: Vector3, ahead: Vector3
+) -> bool:
+	## Forward probe: |Δheight| ≥ half-unit (~1 m) counts as a wall (`forward_check`).
+	var ya: float = FieldCollision.ground_y_at(data, grid, from)
+	var yb: float = FieldCollision.ground_y_at(data, grid, ahead)
+	if not FieldCollision.has_floor(ya):
+		return false
+	if not FieldCollision.has_floor(yb):
 		return true
-	return moved.length() < STUCK_MOVE
+	return absf(ya - yb) >= 1.0
+
+
+func _slide_is_front(planar: Vector3) -> bool:
+	var move_dir := Vector3(sin(_motor.facing), 0.0, cos(_motor.facing))
+	if planar.length_squared() > 0.0001:
+		move_dir = Vector3(planar.x, 0.0, planar.z).normalized()
+	for i: int in get_slide_collision_count():
+		var col: KinematicCollision3D = get_slide_collision(i)
+		if col == null:
+			continue
+		var n: Vector3 = col.get_normal()
+		n.y = 0.0
+		if n.length_squared() < 0.0001:
+			continue
+		if move_dir.dot(n.normalized()) < -0.15:
+			return true
+	return false
 
 
 func _steer_around_wall() -> void:
+	## `aNPC_avoid_obstacle`: flag 3 + side 0 → ±112.5; side 1/2 → `aNPC_avoid_wall`.
+	## Never drop `dst_pos` — failed hops fall back to 180° (`turn_to_backward`).
 	var bg: Array = _bg()
 	if bg.size() != 2:
 		_motor.pause()
 		return
-	var data: WorldData = bg[0] as WorldData
+	var world_data: WorldData = bg[0] as WorldData
 	var grid: WorldGrid = bg[1] as WorldGrid
-	_avoid_hits += 1
-	if _avoid_hits >= AVOID_GIVE_UP:
-		## Rim dest is across a wall; end the step instead of charging again.
-		_avoid_hits = 0
-		_motor.wait_in_place()
-		return
 	var here: Vector2i = VillagerWalk.block_from_cell(grid.world_to_cell(global_position))
 	if not VillagerWalk.is_fg_block(here):
 		here = _goal_block
-	var around: Vector3 = VillagerWalk.avoid_around(
-		data, global_position, _motor.facing, here, grid
-	)
+	var around: Vector3 = global_position
+	var side: int = _motor.avoid_direction
+	## Front+wall with side 0 → `aNPC_turn_to_backward` (ACT_TURN, then walk).
+	## Side 1/2 → `aNPC_avoid_wall` n=0 sets avoid while still moving.
+	var turn_first: bool = side == 0
+	if side == 0:
+		var hop: Dictionary = VillagerWalk.first_avoid_hop(
+			world_data, global_position, _motor.facing, here, grid
+		)
+		if hop.is_empty():
+			around = VillagerWalk.avoid_backward(global_position, _motor.facing)
+			side = 0
+		else:
+			around = hop["pos"] as Vector3
+			side = int(hop.get("side", 0))
+	else:
+		around = VillagerWalk.avoid_around(
+			world_data, global_position, _motor.facing, here, grid, side
+		)
 	var delta: Vector3 = around - global_position
 	delta.y = 0.0
-	if delta.length() < VillagerWalk.MIN_STEP:
-		## No side hop — turn and drop the unreachable rim dest.
-		_motor.facing = wrapf(_motor.facing + PI, -PI, PI)
-		_avoid_hits = 0
-		_motor.wait_in_place()
-		return
-	_motor.set_avoid(around)
+	if delta.length() < 0.05:
+		around = VillagerWalk.avoid_backward(global_position, _motor.facing)
+		side = 0
+		turn_first = true
+	_motor.set_avoid(around, side, turn_first)
+	## Roughly one turn clip / think beat before another obstacle interrupt.
+	_avoid_cool = 0.25
 
 
 func _roam_point() -> Vector3:
@@ -572,6 +671,7 @@ func _hints() -> Dictionary:
 		"shop_open": Clock.in_hour_window(9, 22),
 		"field_actions": field_actions,
 		"outdoors": visible and not ActivityKind.hides_actor(ai.kind()),
+		"is_home": state != null and state.is_home,
 	}
 
 

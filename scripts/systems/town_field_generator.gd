@@ -113,8 +113,27 @@ const T_SEA_EXCEPTIONAL := 101
 const T_OCEAN_6 := 102
 const T_OCEAN_7 := 103
 const T_OCEAN_8 := 104
-const BIT_BRIDGE_UPPER := 1
-const BIT_BRIDGE_LOWER := 2
+## `mRF_BIT_*` / `mRF_MakePerfectBit` — regenerate until every required unique lands.
+const BIT_SLOPE_LEFT := 1 << 0
+const BIT_SLOPE_RIGHT := 1 << 1
+const BIT_BRIDGE_UPPER := 1 << 2
+const BIT_BRIDGE_LOWER := 1 << 3
+const BIT_SHRINE := 1 << 4
+const BIT_POLICE := 1 << 5
+const BIT_MUSEUM := 1 << 6
+const BIT_POOL := 1 << 7
+const BIT_NEEDLEWORK := 1 << 8
+const PERFECT_BIT := (
+	BIT_SLOPE_LEFT
+	| BIT_SLOPE_RIGHT
+	| BIT_BRIDGE_UPPER
+	| BIT_BRIDGE_LOWER
+	| BIT_SHRINE
+	| BIT_POLICE
+	| BIT_MUSEUM
+	| BIT_POOL
+	| BIT_NEEDLEWORK
+)
 ## River → bridge acre (`RIVER_SOUTH_BRIDGE - RIVER_SOUTH`).
 const RIVER_BRIDGE_DELTA := 7
 const T_NONE := 255
@@ -132,6 +151,8 @@ var _cliff_height: PackedInt32Array = PackedInt32Array()
 
 
 func generate(seed_value: int) -> Dictionary:
+	## `mRF_MakeRandomField_ovl`: pick 2/3-step once, then retry the landform until
+	## slopes, bridges, shrine, police, museum, pool, and Able Sisters all land.
 	_rng = RandomNumberGenerator.new()
 	_rng.seed = seed_value as int
 	var blocks: PackedByteArray = PackedByteArray()
@@ -139,25 +160,31 @@ func generate(seed_value: int) -> Dictionary:
 	var heights: PackedByteArray = PackedByteArray()
 	heights.resize(BLOCK_TOTAL)
 	var stepmode_three: bool = _rand(100) < 15
-	if stepmode_three:
-		_copy(blocks, _pick_step3())
-	else:
-		_make_landform_step2(blocks)
-	_make_flat_info(blocks)
-	_set_beach(blocks)
-	var bridge_flags: int = _set_bridge_block(blocks, not stepmode_three)
-	_set_slope_block(blocks)
-	_set_needlework_and_port(blocks)
-	_set_unique_flat(blocks)
-	_set_unique_rail(blocks)
-	_set_pool(blocks)
-	bridge_flags |= _set_sea_bridge_if_needed(blocks, bridge_flags)
+	var bit := 0
+	var guard := 0
+	while (PERFECT_BIT & bit) != PERFECT_BIT and guard < 400:
+		guard += 1
+		bit = 0
+		if stepmode_three:
+			_copy(blocks, _pick_step3())
+		else:
+			_make_landform_step2(blocks)
+		_make_flat_info(blocks)
+		_set_beach(blocks)
+		bit |= _set_bridge_block(blocks, not stepmode_three)
+		bit |= _set_slope_block(blocks)
+		bit |= _set_needlework_and_port(blocks)
+		bit |= _set_unique_flat(blocks)
+		_set_unique_rail(blocks)
+		bit |= _set_pool(blocks)
+		bit |= _set_sea_bridge_if_needed(blocks, bit)
 	_make_heights(heights, blocks)
 	return {
 		"blocks": blocks,
 		"heights": heights,
 		"stepmode_three": stepmode_three,
 		"seed": seed_value,
+		"perfect": (PERFECT_BIT & bit) == PERFECT_BIT,
 	}
 
 
@@ -580,30 +607,42 @@ func _flat_to_unique(blocks: PackedByteArray, unique: int, river_side: int, clif
 	return _rewrite_flat(blocks, _rand(num), unique, river_side, cliff_h)
 
 
-func _set_unique_flat(blocks: PackedByteArray) -> void:
+func _set_unique_flat(blocks: PackedByteArray) -> int:
+	var flags := 0
 	var side0: int = _rand(100) & 1
 	var side1: int = side0 ^ 1
-	if not _flat_to_unique(blocks, T_SHRINE, side0, CLIFF_BELOW):
-		_flat_to_unique(blocks, T_SHRINE, side1, CLIFF_BELOW)
-	if not _flat_to_unique(blocks, T_POLICE, side1, CLIFF_BELOW):
-		_flat_to_unique(blocks, T_POLICE, side0, CLIFF_BELOW)
-	_flat_to_unique(blocks, T_MUSEUM, RIVER_SIDE_BOTH, CLIFF_BELOW)
+	if _flat_to_unique(blocks, T_SHRINE, side0, CLIFF_BELOW):
+		flags |= BIT_SHRINE
+	elif _flat_to_unique(blocks, T_SHRINE, side1, CLIFF_BELOW):
+		flags |= BIT_SHRINE
+	if _flat_to_unique(blocks, T_POLICE, side1, CLIFF_BELOW):
+		flags |= BIT_POLICE
+	elif _flat_to_unique(blocks, T_POLICE, side0, CLIFF_BELOW):
+		flags |= BIT_POLICE
+	if _flat_to_unique(blocks, T_MUSEUM, RIVER_SIDE_BOTH, CLIFF_BELOW):
+		flags |= BIT_MUSEUM
+	return flags
 
 
-func _set_needlework_and_port(blocks: PackedByteArray) -> void:
-	if blocks[_idx(5, 6)] == T_BEACH:
-		blocks[_idx(5, 6)] = T_PORT
-	var beaches: Array[int] = []
-	for bx: int in range(1, BLOCK_X - 1):
-		if blocks[_idx(bx, 6)] == T_BEACH:
-			beaches.append(bx)
-	if beaches.is_empty():
-		return
-	var pick: int = beaches[_rand(mini(3, beaches.size()))]
-	blocks[_idx(pick, 6)] = T_NEEDLEWORK
+func _set_needlework_and_port(blocks: PackedByteArray) -> int:
+	var flags := 0
+	if blocks[_idx(5, 6)] != T_BEACH:
+		return 0
+	blocks[_idx(5, 6)] = T_PORT
+	## Decomp: `mRF_GetRandom(3)` vs walk index of remaining F-row beaches.
+	var needlework_bx: int = _rand(3)
+	var bx := 0
+	for i: int in range(1, BLOCK_X - 1):
+		if blocks[_idx(i, 6)] != T_BEACH:
+			continue
+		if needlework_bx == bx:
+			blocks[_idx(i, 6)] = T_NEEDLEWORK
+			flags |= BIT_NEEDLEWORK
+		bx += 1
+	return flags
 
 
-func _set_pool(blocks: PackedByteArray) -> void:
+func _set_pool(blocks: PackedByteArray) -> int:
 	## POOL_SOUTH = 69 = RIVER_SOUTH + 29 in m_field_make.h.
 	const POOL_DELTA := 29
 	var pure: Array[int] = []
@@ -612,9 +651,10 @@ func _set_pool(blocks: PackedByteArray) -> void:
 		if t >= T_RIVER_S and t <= T_RIVER_WS:
 			pure.append(i)
 	if pure.is_empty():
-		return
+		return 0
 	var i: int = pure[_rand(pure.size())]
 	blocks[i] = int(blocks[i]) + POOL_DELTA
+	return BIT_POOL
 
 
 func _river_cross_cliff_bz(blocks: PackedByteArray) -> int:
@@ -668,28 +708,33 @@ func _set_sea_bridge_if_needed(blocks: PackedByteArray, flags: int) -> int:
 	return 0
 
 
-func _set_slope_block(blocks: PackedByteArray) -> void:
+func _set_slope_block(blocks: PackedByteArray) -> int:
 	## `mRF_SetSlopeBlock`: each west `LEFT_TRANSITION` is a cliff band. Walk the
 	## cliff (`l_cliff_next_direct`) and turn one pure cliff on each river side into
 	## a slope. 2-step towns have two bands; one pair of slopes left the beach
 	## unreachable.
+	var flags := 0
 	for bz: int in range(BLOCK_Z - 2):
 		if int(blocks[_idx(0, bz)]) != T_BORDER_CLIFF_LEFT_TRANSITION:
 			continue
-		_place_slope_on_half(blocks, bz, RIVER_SIDE_LEFT)
-		_place_slope_on_half(blocks, bz, RIVER_SIDE_RIGHT)
+		if _place_slope_on_half(blocks, bz, RIVER_SIDE_LEFT):
+			flags |= BIT_SLOPE_LEFT
+		if _place_slope_on_half(blocks, bz, RIVER_SIDE_RIGHT):
+			flags |= BIT_SLOPE_RIGHT
+	return flags
 
 
-func _place_slope_on_half(blocks: PackedByteArray, start_bz: int, half: int) -> void:
+func _place_slope_on_half(blocks: PackedByteArray, start_bz: int, half: int) -> bool:
 	var sites: Array[int] = _slope_sites_on_half(blocks, start_bz, half)
 	if sites.is_empty():
-		return
+		return false
 	var bnum: int = sites[_rand(sites.size())]
 	var t: int = int(blocks[bnum])
 	var idx: int = cliff_shape(t)
 	if idx < 0:
-		return
+		return false
 	blocks[bnum] = T_SLOPE_H + idx
+	return true
 
 
 func _slope_sites_on_half(blocks: PackedByteArray, start_bz: int, half: int) -> Array[int]:
@@ -784,7 +829,13 @@ func _in_range(bx: int, bz: int, bx_min: int, bx_max: int, bz_min: int, bz_max: 
 
 
 static func is_waterfall_block(type: int) -> bool:
-	return type >= T_WF_H and type <= T_WF_W_BL
+	## Only the seven river×cliff merges that carry `obj_fall*`. Types 22–38 also
+	## include `T_RIV_CLIFF_*` / `T_RIV_E_*` / `T_RIV_W_*` (no fall actor).
+	match type:
+		T_WF_H, T_WF_BR, T_WF_TL, T_WF_E_BR, T_WF_E_VR, T_WF_W_VL, T_WF_W_BL:
+			return true
+		_:
+			return false
 
 
 static func is_riverish(type: int) -> bool:

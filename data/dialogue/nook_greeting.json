@@ -1,0 +1,22 @@
+{
+  "id": "nook_greeting",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        { "if": { "already_talked": true }, "goto": "repeat" },
+        { "goto": "welcome" }
+      ]
+    },
+    "welcome": {
+      "type": "line",
+      "text": "Yes, yes! Welcome to Nook's Cranny. Take a look at today's goods — talk to me if you'd like to sell something."
+    },
+    "repeat": {
+      "type": "line",
+      "text": "Still browsing? The shelves refresh every morning. Bring me anything you'd like to sell!"
+    }
+  }
+}

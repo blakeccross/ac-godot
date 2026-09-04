@@ -73,7 +73,8 @@ func tick(delta: float, uttering: bool) -> void:
 
 ## Swap to an emotion pose / blink family. Uses `{species}_eye3..7` / `_mouth3..5`
 ## when those frames exist; synthesized faces stretch the open frame instead.
-## `mouth_hold_override` keeps smile/shock manpu mouths open (`smile1` / `gaaan1` seqs).
+## `mouth_hold_override` parks smile/shock/hate mouths from decomp `pattern_stop_idx`
+## / mouth tex seqs (`smile`→mouth2, `gaaan`→mouth5, …).
 func set_emote(emote: NpcFaceAnim.Emote, mouth_hold_override: int = -1) -> void:
 	_anim.set_emote(emote, mouth_hold_override)
 	_apply()

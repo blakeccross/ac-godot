@@ -66,6 +66,30 @@ class TestDolphinHash(unittest.TestCase):
         self.assertFalse(is_field_terrain_texture("tol_axe_1_edge1_tex_txt"))
         self.assertFalse(is_field_terrain_texture("obj_item_apple_tex", "int_minidisk"))
 
+    def test_room_bank_skip(self) -> None:
+        from asset_pipeline.achd import is_room_bank_texture
+
+        self.assertTrue(is_room_bank_texture("player_room_floor.bin:33:0"))
+        self.assertTrue(is_room_bank_texture("player_room_wall.bin:12:1"))
+        self.assertTrue(is_room_bank_texture("player_room_wall_0_0"))
+        self.assertTrue(is_room_bank_texture("player_room_floor_0_2"))
+        self.assertFalse(is_room_bank_texture("int_sum_gre_counter01_front_tex"))
+        self.assertFalse(is_room_bank_texture("mFM_grd_s_grass_tex"))
+        self.assertFalse(is_room_bank_texture("rom_conveni_wall_C"))
+
+    def test_player_model_skip(self) -> None:
+        from asset_pipeline.achd import is_player_model_texture
+
+        self.assertTrue(is_player_model_texture("boy_1_pants_tex_txt"))
+        self.assertTrue(is_player_model_texture("boy_1_hole_tex_txt"))
+        self.assertTrue(is_player_model_texture("seg_0A", "boy_1"))
+        self.assertTrue(is_player_model_texture("", "boy_1"))
+        self.assertTrue(is_player_model_texture("face_boy.bin:0:3"))
+        self.assertTrue(is_player_model_texture("tex_boy.bin:12"))
+        self.assertFalse(is_player_model_texture("seg_0A", "cat_1"))
+        self.assertFalse(is_player_model_texture("int_sum_art01_monariza_tex"))
+        self.assertFalse(is_player_model_texture("tol_axe_1_edge1_tex_txt"))
+
 
 class TestDdsHeader(unittest.TestCase):
     def test_dx10_bc7_header_layout(self) -> None:

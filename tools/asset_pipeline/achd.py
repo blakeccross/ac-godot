@@ -35,6 +35,15 @@ _STEM_RE = re.compile(
     re.IGNORECASE,
 )
 
+## Indoor wall/carpet banks (`player_room_*.bin`). Shells wrap-bake 64×64 tiles into
+## page atlases and runtime GX_MIRROR-fills from those tiles; ACHD 512 sheets get
+## cropped to the atlas TL corner (often padding) and look like solid mud.
+## `player_room_floor.bin:33:0` (bin export) and `player_room_wall_0_1` (segment bind).
+_ROOM_BANK_SOURCE_RE = re.compile(
+    r"^player_room_(floor|wall)(?:\.bin(?:$|:)|_\d+_\d+)",
+    re.IGNORECASE,
+)
+
 ## Field BG / acre terrain / trees. HD swaps break wrap-bake atlases and season
 ## re-tiling (native tiles × UV repeats → atlas; ACHD is many× larger, then the
 ## seasons pack still ships native tiles and over-tiles into that atlas).
@@ -67,6 +76,34 @@ def is_field_terrain_texture(name: str, prefix: str = "") -> bool:
     if not name:
         return False
     return _FIELD_TEXTURE_RE.search(name) is not None
+
+
+def is_room_bank_texture(source: str) -> bool:
+    """True for `player_room_*.bin` pages and `player_room_wall_0_1` segment names."""
+    if not source:
+        return False
+    return _ROOM_BANK_SOURCE_RE.match(source.split(":", 1)[0]) is not None
+
+
+def is_player_model_texture(name: str, prefix: str = "") -> bool:
+    """Player body/face/shirt stay native resolution.
+
+    ACHD + wrap-bake seams the shirt atlas (32×32 REPEAT → tiled HD sheet), and
+    hole/eyes restyle while skin often misses — mixed native/HD on one mesh.
+    Covers REL `boy_1_*` names, cKF prefix `boy_` / `girl_` (seg_08/09/0A), and
+    `face_boy.bin` / `tex_boy.bin` inventory exports.
+    """
+    stem = prefix.split(":")[0] if prefix else ""
+    if stem.startswith(("boy_", "girl_")):
+        return True
+    if not name:
+        return False
+    lower = name.lower()
+    if lower.startswith(("boy_", "girl_")):
+        return True
+    return lower.startswith(
+        ("face_boy.bin", "face_girl.bin", "tex_boy.bin", "tex_girl.bin")
+    )
 
 
 def align_up(value: int, align: int) -> int:

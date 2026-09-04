@@ -186,6 +186,14 @@ python3 tools/build_assets.py --step convert --kind inventory-ui
 
 Writes `assets/generated/ui/inventory/`.
 
+Town map acre tiles + chrome (`kan_tizu_*`, `kan_win_*` from `foresta.rel` → gitignored PNGs):
+
+```sh
+python3 tools/build_assets.py --step convert --kind map-ui
+```
+
+Writes `assets/generated/ui/map/tiles/` (CI4 acres with both pals), `chrome/` (MAP/Acre labels, cursor, A–F / 1–5, building icons), and `catalog.json`. Used by `TownMap` / `map_overlay.tscn`. See [decomp_notes/map.md](decomp_notes/map.md).
+
 Message / talk window chrome (`con_kaiwa2_*`, `con_namefuti_TXT` from `foresta.rel` → gitignored PNGs):
 
 ```sh
@@ -278,6 +286,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | Hole (`obj_hole0`) is solid white | Geometry-only Gfx. `hole00_g_list` draws `obj_hole0T_g_mat_model` then `obj_hole0T_gfx_model`. Palette is `obj_g_hole_pal` (no LOADTLUT). Reconvert with `--kind plants` |
 | Hole flickers / z-fights the acre | The fan is coplanar with grass. `GeneratedVisual` treats `HOLE*` as a ground decal (no AABB snap, no depth write); `HoleUse` places at `GetBgY(..., -1 GX)` |
 | House/shop window blob z-fights the grass | `*_window_model` is an XLU ground decal (`G_RM_AA_ZB_XLU_DECAL2`). Convert keeps it as a BLEND I4-alpha surface. `GeneratedVisual` draws it 1 GX above the acre (not coplanar). Facade glow is a separate opaque `*_light_model` pane |
+| Window spill looks like solid yellow paint | Same linear-HDR vs 8-bit XLU issue as water. `window_ground_spill.gdshader` samples `hint_screen_texture`, lerps prim yellow in sRGB (`TEXEL0 × LOD 120/255`), and emits opaque `ALBEDO` |
 | Tree leaves are pastel pink/teal | Hardwood fallback used map symbol `mFM_obj_tree_01_pal`, whose REL blob does not CI-decode leaf art. Use `mFM_obj_tree_01_pal_dol` / `obj_tree_pal`. Reconvert trees |
 | Summer `obj_s_tree3` leaf is untextured | Disc has only `obj_s_gold_tree3_leafT_mat_model` (no non-gold leaf mat). Converter falls back to the gold mat for SETTIMG |
 | Boy torso is a hollow flame X / see-through chest | `G_SETTILESIZE` 128×32 overwrote the shirt’s 32×32 `SETTIMG` size; decode zero-padded with transparent CI0 → MASK holes. Keep tile size separate from image size; UVs still divide by the 32×32 image so REPEAT can bake. Reconvert `boy_1` |

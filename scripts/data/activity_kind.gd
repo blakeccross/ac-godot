@@ -25,7 +25,10 @@ const TALK_SECONDS := 6.0
 ## Linger in the goal acre, then pick a new walk goal. Not wander duration —
 ## `aNPC_THINK_WANDER` keeps running for the whole FIELD window.
 const STAY_SECONDS := 28.0
-const YARD_OFFSET := Vector3(0.0, 0.0, 2.2)
+## Leave-house yard stand (`house + (20, 40)` GX → meters).
+const YARD_OFFSET := Vector3(1.0, 0.0, 2.0)
+## Go-home door approach (`house + (20, 60)` GX).
+const DOOR_APPROACH := Vector3(1.0, 0.0, 3.0)
 
 
 static func is_known(kind: StringName) -> bool:

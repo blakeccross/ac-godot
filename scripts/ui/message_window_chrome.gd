@@ -34,22 +34,22 @@ const CHOICE_BOTTOM_V := 0.92
 const CHOICE_FONT_PX := 14.0
 
 const NAME_TEXT := Color(50.0 / 255.0, 90.0 / 255.0, 0.0, 1.0)
-const NAME_OUTLINE := Color(0.0, 23.0 / 255.0, 0.0, 1.0)
 const BODY_TEXT := Color(50.0 / 255.0, 60.0 / 255.0, 50.0 / 255.0, 1.0)
-const BODY_OUTLINE := Color(16.0 / 255.0, 41.0 / 255.0, 16.0 / 255.0, 1.0)
-const NAME_BG := Color(137.0 / 255.0, 235.0 / 255.0, 10.0 / 255.0, 1.0)
-const CLOUD_RIM := Color(206.0 / 255.0, 226.0 / 255.0, 198.0 / 255.0, 0.95)
+const CHOICE_TEXT := Color(180.0 / 255.0, 150.0 / 255.0, 110.0 / 255.0, 1.0)
+const CHOICE_TEXT_SELECTED := Color(120.0 / 255.0, 50.0 / 255.0, 50.0 / 255.0, 1.0)
 
 const BODY_FONT_PX := 14.0
 const NAME_FONT_PX := 17.0
 const GLYPH_CONDENSE := -0.10
 const SPACE_RELIEF := 1.6
-const OUTLINE_PX := 2.0
+## `mFont` CHARSCALE / LINESCALE unit: 32 = 1.0.
+const FONT_SCALE_UNIT := 32.0
+const _STYLE_TAG_RE := "\\{([cs]):([0-9,]+)\\}"
 
 @onready var _cloud: TextureRect = %Cloud
 @onready var _name_plate: TextureRect = %NamePlate
 @onready var _name: Label = %NameLabel
-@onready var _body: Label = %BodyLabel
+@onready var _body: RichTextLabel = %BodyLabel
 @onready var _arrow: MessageContinueArrow = %ContinueArrow
 @onready var _choices: VBoxContainer = %ChoiceList
 
@@ -84,7 +84,24 @@ func set_speaker(speaker: String) -> void:
 
 
 func set_body(text: String) -> void:
-	_body.text = text
+	if not is_node_ready():
+		return
+	_body.clear()
+	_body.append_text(_to_bbcode(text))
+
+
+## Visible glyph count for typewriter (`RichTextLabel.visible_characters`).
+func set_body_visible_chars(count: int) -> void:
+	if not is_node_ready():
+		return
+	_body.visible_characters = count
+
+
+func body_visible_char_count() -> int:
+	if not is_node_ready():
+		return 0
+	## `get_total_character_count` ignores BBCode tags.
+	return _body.get_total_character_count()
 
 
 func set_continue_visible(show: bool) -> void:
@@ -105,29 +122,82 @@ func choice_container() -> VBoxContainer:
 
 
 func style_choice(btn: Button, selected: bool) -> void:
-	var bg := NAME_BG if selected else Color(CLOUD_RIM.r, CLOUD_RIM.g, CLOUD_RIM.b, 0.95)
-	var radius := int(round(9.0 * _ui_scale))
+	## `mChoice_DrawFont`: plain coloured text + cyan mark — no outline, no bordered chip.
+	var empty := StyleBoxEmpty.new()
 	for state: StringName in [&"normal", &"hover", &"pressed", &"focus", &"disabled"]:
-		var box := StyleBoxFlat.new()
-		box.bg_color = bg.lightened(0.08) if state == &"hover" else bg
-		box.border_color = Color(BODY_TEXT, 0.35)
-		box.set_border_width_all(1)
-		box.set_corner_radius_all(radius)
-		box.content_margin_left = 10.0 * _ui_scale
-		box.content_margin_right = 10.0 * _ui_scale
-		box.content_margin_top = 2.0 * _ui_scale
-		box.content_margin_bottom = 2.0 * _ui_scale
-		btn.add_theme_stylebox_override(state, box)
-	btn.add_theme_color_override("font_color", NAME_TEXT if selected else BODY_TEXT)
-	btn.add_theme_color_override("font_hover_color", NAME_TEXT if selected else BODY_TEXT)
-	btn.add_theme_color_override("font_outline_color", NAME_OUTLINE if selected else BODY_OUTLINE)
-	btn.add_theme_constant_override("outline_size", maxi(1, int(round(2.0 * _ui_scale))))
+		btn.add_theme_stylebox_override(state, empty)
+	var color := CHOICE_TEXT_SELECTED if selected else CHOICE_TEXT
+	btn.add_theme_color_override("font_color", color)
+	btn.add_theme_color_override("font_hover_color", color)
+	btn.add_theme_color_override("font_pressed_color", color)
+	btn.add_theme_color_override("font_focus_color", color)
+	btn.add_theme_constant_override("outline_size", 0)
 	btn.size_flags_horizontal = Control.SIZE_SHRINK_END
 	var size_px := maxi(1, int(round(CHOICE_FONT_PX * _ui_scale)))
 	btn.add_theme_font_size_override("font_size", size_px)
 	var font: Font = _condensed_font(btn, size_px)
 	if font != null:
 		btn.add_theme_font_override("font", font)
+	var mark := "▶ " if selected else "  "
+	var label := str(btn.get_meta("choice_label")) if btn.has_meta("choice_label") else btn.text
+	if not btn.has_meta("choice_label"):
+		## Strip a prior mark if re-highlighting before meta was set.
+		btn.set_meta("choice_label", label.trim_prefix("▶ ").trim_prefix("  "))
+		label = str(btn.get_meta("choice_label"))
+	btn.text = mark + label
+
+
+func _to_bbcode(raw: String) -> String:
+	## Expand `{c:r,g,b}` / `{s:n}` from the dialogue converter into BBCode.
+	var base_px := maxi(1, int(round(BODY_FONT_PX * _ui_scale)))
+	var out := ""
+	var i := 0
+	var open_color := false
+	var open_scale := false
+	var re := RegEx.new()
+	re.compile(_STYLE_TAG_RE)
+	while i < raw.length():
+		var m: RegExMatch = re.search(raw, i)
+		if m == null:
+			out += _bb_escape(raw.substr(i))
+			break
+		var start: int = m.get_start()
+		if start > i:
+			out += _bb_escape(raw.substr(i, start - i))
+		var kind: String = m.get_string(1)
+		var payload: String = m.get_string(2)
+		if kind == "c":
+			var rgb: PackedStringArray = payload.split(",")
+			if rgb.size() >= 3:
+				if open_color:
+					out += "[/color]"
+				var hex := "%02x%02x%02x" % [
+					clampi(int(rgb[0]), 0, 255),
+					clampi(int(rgb[1]), 0, 255),
+					clampi(int(rgb[2]), 0, 255),
+				]
+				out += "[color=#%s]" % hex
+				open_color = true
+		elif kind == "s":
+			var unit := maxi(1, int(payload))
+			var px := maxi(1, int(round(float(base_px) * float(unit) / FONT_SCALE_UNIT)))
+			if open_scale:
+				out += "[/font_size]"
+			if unit == int(FONT_SCALE_UNIT):
+				open_scale = false
+			else:
+				out += "[font_size=%d]" % px
+				open_scale = true
+		i = m.get_end()
+	if open_scale:
+		out += "[/font_size]"
+	if open_color:
+		out += "[/color]"
+	return out
+
+
+func _bb_escape(text: String) -> String:
+	return text.replace("[", "[lb]")
 
 
 func _apply_textures() -> void:
@@ -155,7 +225,11 @@ func _load_first_texture(paths: Array[String]) -> Texture2D:
 
 
 func _apply_text_theme() -> void:
-	_body.add_theme_color_override("font_color", BODY_TEXT)
+	_body.bbcode_enabled = true
+	_body.fit_content = false
+	_body.scroll_active = false
+	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_body.add_theme_color_override("default_color", BODY_TEXT)
 	_name.add_theme_color_override("font_color", NAME_TEXT)
 	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -185,7 +259,7 @@ func _layout() -> void:
 	var body_pos := cloud_pos + BODY_UV * cloud_size
 	var body_font_px := BODY_FONT_PX * ui_scale
 	var pitch := BODY_LINE_PITCH_V * cloud_size.y
-	_apply_font(_body, body_font_px, pitch)
+	_apply_rich_font(_body, body_font_px, pitch)
 	_body.position = Vector2(body_pos.x, body_pos.y - body_font_px * 0.25)
 	_body.size = Vector2(
 		cloud_size.x * (ARROW_UV.position.x - BODY_UV.x),
@@ -217,8 +291,22 @@ func _apply_font(label: Label, font_px: float, pitch: float) -> void:
 	label.add_theme_constant_override("line_spacing", int(round(pitch - line_h)))
 
 
+func _apply_rich_font(label: RichTextLabel, font_px: float, pitch: float) -> void:
+	var size_px := maxi(1, int(round(font_px)))
+	label.add_theme_font_size_override("normal_font_size", size_px)
+	var font: Font = _condensed_font(label, size_px)
+	if font != null:
+		label.add_theme_font_override("normal_font", font)
+	if pitch <= 0.0:
+		return
+	var line_h: float = font.get_height(size_px) if font != null else float(size_px)
+	label.add_theme_constant_override("line_separation", int(round(pitch - line_h)))
+
+
 func _condensed_font(control: Control, size_px: int) -> Font:
 	var base: Font = control.get_theme_font("font")
+	if base == null and control is RichTextLabel:
+		base = control.get_theme_font("normal_font")
 	if base is FontVariation:
 		base = (base as FontVariation).base_font
 	if base == null:
@@ -247,7 +335,7 @@ func _apply_editor_preview() -> void:
 	_name_plate.visible = true
 	_name.visible = true
 	_arrow.visible = true
-	if _body.text.is_empty():
-		_body.text = "Hello! This is a preview line of dialogue."
+	if _body.get_total_character_count() == 0:
+		set_body("Hello! This is a preview line of dialogue.")
 	if _name.text.is_empty():
 		_name.text = "Villager"

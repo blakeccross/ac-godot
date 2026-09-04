@@ -215,6 +215,42 @@ func test_cue_return_does_not_skip_to_open_door_mid_walk() -> void:
 	rover.queue_free()
 
 
+func test_cue_return_sit_plays_sitdown_after_phone_return() -> void:
+	## `aNGD_sitdown2` — Rover sits again once the farewell talk starts.
+	var stage := IntroTrainStage.new()
+	var rover := Node3D.new()
+	add_child(rover)
+	stage.bind(rover, null, null, null, null)
+	stage._phone_trip_started = true
+	stage.action = IntroTrainStage.Action.TALK
+	stage._pos_gx = IntroTrainStage.ROVER_TALK_GX
+	stage.cue_return_sit()
+	assert_that(stage.action).is_equal(IntroTrainStage.Action.SITDOWN)
+	assert_vector(stage._pos_gx).is_equal_approx(
+		IntroTrainStage.ROVER_SIT_GX, Vector3(0.001, 0.001, 0.001)
+	)
+	assert_that(stage.stage_wait_met("return_seated")).is_false()
+	stage.action = IntroTrainStage.Action.SEATED
+	assert_that(stage.stage_wait_met("return_seated")).is_true()
+	rover.queue_free()
+
+
+func test_cue_return_sit_arms_pending_while_still_on_phone() -> void:
+	var stage := IntroTrainStage.new()
+	var rover := Node3D.new()
+	add_child(rover)
+	stage.bind(rover, null, null, null, null)
+	stage._phone_trip_started = true
+	stage.action = IntroTrainStage.Action.MOVE_DOOR
+	stage.cue_return_sit()
+	assert_that(stage.action).is_equal(IntroTrainStage.Action.MOVE_DOOR)
+	assert_that(stage._pending_return_sit).is_true()
+	stage._pos_gx = IntroTrainStage.ROVER_TALK_GX
+	stage._set_action(IntroTrainStage.Action.TALK)
+	assert_that(stage.action).is_equal(IntroTrainStage.Action.SITDOWN)
+	rover.queue_free()
+
+
 func test_dialogue_gate_blocks_phone_until_keitai_talk() -> void:
 	var stage := IntroTrainStage.new()
 	var rover := Node3D.new()
@@ -328,7 +364,8 @@ func test_standup_moves_host_before_anim() -> void:
 	rover.queue_free()
 
 
-func test_standup_camera_morphs_to_seated_pov() -> void:
+func test_standup_keeps_camera_locked_on_rover() -> void:
+	## Decomp never clears `lock_camera_flag` — look follows Rover to the phone.
 	var stage := IntroTrainStage.new()
 	var rover := Node3D.new()
 	add_child(rover)
@@ -340,20 +377,17 @@ func test_standup_camera_morphs_to_seated_pov() -> void:
 	stage._obj_look_y_gx = IntroTrainStage.OBJ_LOOK_Y_TALK_GX
 	stage.cue_phone()
 	assert_that(stage.action).is_equal(IntroTrainStage.Action.STANDUP)
-	assert_that(stage._camera_morph_tracks_rover).is_false()
-	assert_vector(stage._camera_morph_to_gx).is_equal_approx(
-		IntroTrainStage.CAM_LOOK_GX, Vector3(0.001, 0.001, 0.001)
+	assert_that(stage.lock_camera).is_true()
+	assert_float(stage._obj_look_y_target_gx).is_equal_approx(
+		IntroTrainStage.OBJ_LOOK_Y_NORMAL_GX, 0.001
 	)
-	for _i: int in 45:
-		stage.tick(1.0 / 30.0)
 	var look_gx: Vector3 = stage._steady_camera_look_gx(stage._pos_gx)
-	assert_vector(look_gx).is_equal_approx(
-		IntroTrainStage.CAM_LOOK_GX, Vector3(0.001, 0.001, 0.001)
-	)
+	assert_float(look_gx.x).is_equal_approx(IntroTrainStage.ROVER_STAND_GX.x, 0.001)
+	assert_float(look_gx.z).is_equal_approx(IntroTrainStage.ROVER_STAND_GX.z, 0.001)
 	rover.queue_free()
 
 
-func test_phone_walk_steady_look_stays_on_aisle_pov() -> void:
+func test_phone_walk_steady_look_tracks_rover() -> void:
 	var stage := IntroTrainStage.new()
 	var rover := Node3D.new()
 	add_child(rover)
@@ -361,10 +395,34 @@ func test_phone_walk_steady_look_stays_on_aisle_pov() -> void:
 	stage.action = IntroTrainStage.Action.MOVE_DOOR
 	stage.obj_look_talk = true
 	stage.camera_morph = 0
-	stage.lock_camera = false
+	stage.lock_camera = true
+	stage._pos_gx = Vector3(140.0, 0.0, 200.0)
+	stage._obj_look_y_gx = IntroTrainStage.OBJ_LOOK_Y_NORMAL_GX
 	var look_gx: Vector3 = stage._steady_camera_look_gx(stage._pos_gx)
-	assert_vector(look_gx).is_equal_approx(
-		IntroTrainStage.CAM_LOOK_GX, Vector3(0.001, 0.001, 0.001)
+	assert_float(look_gx.x).is_equal_approx(140.0, 0.001)
+	assert_float(look_gx.z).is_equal_approx(200.0, 0.001)
+	assert_float(look_gx.x).is_not_equal(IntroTrainStage.CAM_LOOK_GX.x)
+	rover.queue_free()
+
+
+func test_phone_tilt_starts_when_rover_nears_vestibule() -> void:
+	var stage := IntroTrainStage.new()
+	var rover := Node3D.new()
+	add_child(rover)
+	stage.bind(rover, null, null, null, null)
+	stage.action = IntroTrainStage.Action.MOVE_DOOR
+	stage.lock_camera = true
+	stage._pos_gx = Vector3(140.0, 0.0, 145.0)
+	stage._speed_gx = IntroTrainStage.WALK_SPEED2_GX
+	assert_float(stage.phone_tilt_goal()).is_equal_approx(0.0, 0.001)
+	## Cross z=140 while walking toward the door.
+	for _i: int in 20:
+		stage._tick_move_door(1.0 / 30.0)
+		if stage._pos_gx.z < IntroTrainStage.CAMERA_TILT_Z_GX:
+			break
+	assert_that(stage._pos_gx.z < IntroTrainStage.CAMERA_TILT_Z_GX).is_true()
+	assert_float(stage.phone_tilt_goal()).is_equal_approx(
+		IntroTrainStage.CAMERA_TILT_GOAL_PHONE, 0.001
 	)
 	rover.queue_free()
 
@@ -386,7 +444,8 @@ func test_return_approach_steady_look_tracks_rover() -> void:
 	rover.queue_free()
 
 
-func test_second_talk_morphs_from_return_follow_not_default_pov() -> void:
+func test_second_talk_stays_locked_without_remorph() -> void:
+	## Return talk keeps `lock_camera` — no aisle-POV remorph.
 	var stage := IntroTrainStage.new()
 	var rover := Node3D.new()
 	add_child(rover)
@@ -395,13 +454,67 @@ func test_second_talk_morphs_from_return_follow_not_default_pov() -> void:
 	stage._pos_gx = IntroTrainStage.ROVER_TALK_GX
 	stage.obj_look_talk = true
 	stage.camera_morph = 0
-	stage.lock_camera = false
-	stage._obj_look_y_gx = IntroTrainStage.OBJ_LOOK_Y_TALK_GX
+	stage.lock_camera = true
+	stage._obj_look_y_gx = IntroTrainStage.OBJ_LOOK_Y_NORMAL_GX
 	stage._set_action(IntroTrainStage.Action.TALK)
-	assert_float(stage._camera_morph_from_gx.x).is_equal_approx(
-		IntroTrainStage.ROVER_TALK_GX.x, 0.001
+	assert_that(stage.lock_camera).is_true()
+	assert_that(stage.camera_morph).is_equal(0)
+	assert_float(stage._obj_look_y_target_gx).is_equal_approx(
+		IntroTrainStage.OBJ_LOOK_Y_TALK_GX, 0.001
 	)
-	assert_float(stage._camera_morph_from_gx.z).is_equal_approx(
-		IntroTrainStage.ROVER_TALK_GX.z, 0.001
-	)
+	rover.queue_free()
+
+
+func test_keitai_on_off_plays_phone_mesh_clips() -> void:
+	var stage := IntroTrainStage.new()
+	var rover := Node3D.new()
+	var keitai := IntroTrainKeitai.new()
+	var anim := AnimationPlayer.new()
+	var lib := AnimationLibrary.new()
+	var on_anim := Animation.new()
+	on_anim.length = 1.0
+	var off_anim := Animation.new()
+	off_anim.length = 1.0
+	lib.add_animation(&"tol_keitai_1_keitai_on1", on_anim)
+	lib.add_animation(&"tol_keitai_1_keitai_off1", off_anim)
+	anim.add_animation_library(&"", lib)
+	keitai.add_child(anim)
+	add_child(rover)
+	add_child(keitai)
+	stage.bind(rover, null, null, keitai, null)
+	assert_that(keitai.visible).is_false()
+	stage._set_action(IntroTrainStage.Action.KEITAI_ON)
+	assert_that(keitai.visible).is_true()
+	assert_str(String(anim.current_animation)).contains("keitai_on")
+	assert_float(anim.speed_scale).is_equal_approx(IntroTrainStage.KEITAI_ON_ANIM_SPEED, 0.001)
+	stage._set_action(IntroTrainStage.Action.KEITAI_OFF)
+	assert_str(String(anim.current_animation)).contains("keitai_off")
+	stage._set_action(IntroTrainStage.Action.OPEN_DOOR)
+	assert_that(keitai.visible).is_false()
+	rover.queue_free()
+	keitai.queue_free()
+
+
+func test_keitai_binds_to_hand_bone() -> void:
+	var rover := IntroTrainRoverAnim.new()
+	rover.name = "Rover"
+	var skel := Skeleton3D.new()
+	for i: int in 21:
+		skel.add_bone("joint_%d" % i)
+		if i > 0:
+			skel.set_bone_parent(i, i - 1)
+	var vis := Node3D.new()
+	vis.name = "GeneratedVisual"
+	vis.add_child(skel)
+	rover.add_child(vis)
+	var keitai := IntroTrainKeitai.new()
+	rover.add_child(keitai)
+	add_child(rover)
+	assert_that(keitai.bind_to_hand()).is_true()
+	var attach: BoneAttachment3D = skel.get_node_or_null(IntroTrainKeitai.ATTACH_NAME) as BoneAttachment3D
+	assert_that(attach).is_not_null()
+	assert_str(attach.bone_name).is_equal(HeldTool.HAND_BONE)
+	assert_that(keitai.get_parent()).is_same(attach)
+	assert_vector(keitai.position).is_equal(Vector3.ZERO)
+	assert_vector(keitai.scale).is_equal(Vector3.ONE)
 	rover.queue_free()

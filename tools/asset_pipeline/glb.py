@@ -104,6 +104,20 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
     return groups
 
 
+def _fit_clamp_axis(lo: float, hi: float) -> tuple[float, float] | None:
+    """Map a CLAMP UV span onto [0, 1] when it sits outside the unit tile.
+
+    Saturating to the edge (legacy) painted whole quads with the border texel —
+    `rom_train_out` tunnel walls became a solid black strip because S landed at
+    U=1..4 with GX_CLAMP. Fitting the authored span preserves the brick sheet.
+    """
+    if hi - lo < 1e-6:
+        return None
+    if lo >= -1e-6 and hi <= 1.0 + 1e-6:
+        return None
+    return lo, hi - lo
+
+
 def _bake_wrap_group(group: dict) -> None:
     """Tile/mirror the PNG for out-of-range UVs, then normalize to [0, 1] + CLAMP.
 
@@ -121,12 +135,20 @@ def _bake_wrap_group(group: dict) -> None:
     wrap_s = group["wrap_s"]
     wrap_t = group["wrap_t"]
     if wrap_s == GX_CLAMP and wrap_t == GX_CLAMP:
-        ## Still clamp authored UVs into [0,1] — clock hands/body use CLAMP with
-        ## S/T slightly outside the tile; Godot then samples a solid edge strip.
+        us = [v.u for part in group["parts"] for v in part.vertices]
+        vs = [v.v for part in group["parts"] for v in part.vertices]
+        fit_u = _fit_clamp_axis(min(us), max(us)) if us else None
+        fit_v = _fit_clamp_axis(min(vs), max(vs)) if vs else None
         for part in group["parts"]:
             for vertex in part.vertices:
-                vertex.u = min(1.0, max(0.0, vertex.u))
-                vertex.v = min(1.0, max(0.0, vertex.v))
+                if fit_u is not None:
+                    vertex.u = (vertex.u - fit_u[0]) / fit_u[1]
+                else:
+                    vertex.u = min(1.0, max(0.0, vertex.u))
+                if fit_v is not None:
+                    vertex.v = (vertex.v - fit_v[0]) / fit_v[1]
+                else:
+                    vertex.v = min(1.0, max(0.0, vertex.v))
         return
 
     us = [v.u for part in group["parts"] for v in part.vertices]
@@ -135,6 +157,8 @@ def _bake_wrap_group(group: dict) -> None:
         return
     u_min, u_max = min(us), max(us)
     v_min, v_max = min(vs), max(vs)
+    fit_u = _fit_clamp_axis(u_min, u_max) if wrap_s == GX_CLAMP else None
+    fit_v = _fit_clamp_axis(v_min, v_max) if wrap_t == GX_CLAMP else None
 
     def axis_span(lo: float, hi: float, mode: int) -> tuple[int, int]:
         if mode == GX_CLAMP:
@@ -149,13 +173,27 @@ def _bake_wrap_group(group: dict) -> None:
     v0, v1 = axis_span(v_min, v_max, wrap_t)
     tiles_u = u1 - u0
     tiles_v = v1 - v0
-    if tiles_u == 1 and tiles_v == 1 and u0 == 0 and v0 == 0:
+    if tiles_u == 1 and tiles_v == 1 and u0 == 0 and v0 == 0 and fit_u is None and fit_v is None:
         # UVs already in a single tile; keep sampler wrap for filtering at edges.
         for part in group["parts"]:
             for vertex in part.vertices:
                 if wrap_s == GX_CLAMP:
                     vertex.u = min(1.0, max(0.0, vertex.u))
                 if wrap_t == GX_CLAMP:
+                    vertex.v = min(1.0, max(0.0, vertex.v))
+        return
+
+    if tiles_u == 1 and tiles_v == 1 and u0 == 0 and v0 == 0:
+        ## CLAMP axis sat outside [0,1] but REPEAT axis did not need tiling.
+        for part in group["parts"]:
+            for vertex in part.vertices:
+                if fit_u is not None:
+                    vertex.u = (vertex.u - fit_u[0]) / fit_u[1]
+                elif wrap_s == GX_CLAMP:
+                    vertex.u = min(1.0, max(0.0, vertex.u))
+                if fit_v is not None:
+                    vertex.v = (vertex.v - fit_v[0]) / fit_v[1]
+                elif wrap_t == GX_CLAMP:
                     vertex.v = min(1.0, max(0.0, vertex.v))
         return
 
@@ -190,13 +228,18 @@ def _bake_wrap_group(group: dict) -> None:
         part.wrap_t = GX_CLAMP
         part.texture_png = group["png"]
         for vertex in part.vertices:
-            vertex.u = (vertex.u - u0) / scale_u
-            vertex.v = (vertex.v - v0) / scale_v
-            ## Mixed WRAP+CLAMP: tiling one axis must not leave the other at −2…
-            if orig_s == GX_CLAMP:
-                vertex.u = min(1.0, max(0.0, vertex.u))
-            if orig_t == GX_CLAMP:
-                vertex.v = min(1.0, max(0.0, vertex.v))
+            if fit_u is not None:
+                vertex.u = (vertex.u - fit_u[0]) / fit_u[1]
+            else:
+                vertex.u = (vertex.u - u0) / scale_u
+                if orig_s == GX_CLAMP:
+                    vertex.u = min(1.0, max(0.0, vertex.u))
+            if fit_v is not None:
+                vertex.v = (vertex.v - fit_v[0]) / fit_v[1]
+            else:
+                vertex.v = (vertex.v - v0) / scale_v
+                if orig_t == GX_CLAMP:
+                    vertex.v = min(1.0, max(0.0, vertex.v))
 
 
 def _group_alpha_mode(group: dict) -> str:
@@ -209,12 +252,32 @@ def _group_alpha_mode(group: dict) -> str:
         return "OPAQUE"
     if group.get("water_kind") in ("river", "ocean", "splash", "waterfall"):
         return "BLEND"
+    ## Train tunnel is TEX_EDGE with a chromakey strip; Godot MASK punches holes in the
+    ## brick wall. Hardware discards those texels only when sampled — force OPAQUE so
+    ## the solid black mortar / brick body always covers (rom_train_out_tunnel_model).
+    name = str(group.get("name") or "").lower()
+    if "tunnel" in name:
+        return "OPAQUE"
     modes = {part.alpha_mode for part in group["parts"]}
     if "BLEND" in modes:
         return "BLEND"
     if "MASK" in modes:
         return "MASK"
     return "OPAQUE"
+
+
+def _flood_opaque_alpha(png: bytes) -> bytes:
+    """Force every texel to a=255 so MASK chromakey cannot cut the mesh."""
+    if not png:
+        return png
+    image = Image.open(io.BytesIO(png)).convert("RGBA")
+    pixels = list(image.getdata())
+    if all(p[3] == 255 for p in pixels):
+        return png
+    image.putdata([(p[0], p[1], p[2], 255) for p in pixels])
+    buf = io.BytesIO()
+    image.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
 
 
 def _material(
@@ -391,6 +454,9 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
 
         tex_index = None
         png = group["png"]
+        if png and "tunnel" in str(group.get("name") or "").lower():
+            png = _flood_opaque_alpha(png)
+            group["png"] = png
         if png:
             padded = png + b"\x00" * _pad4(len(png))
             view = add_view(padded)
@@ -455,17 +521,45 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
                 "indices": a_idx,
                 "mode": 4,
                 "material": len(materials) - 1,
+                ## Stash alpha for mesh splitting — stripped before write.
+                "_alphaMode": _group_alpha_mode(group),
             }
         )
 
+    ## Godot renders a whole mesh in the transparent pipeline if any primitive is
+    ## MASK/BLEND. Train-window trees are MASK cutouts; keeping them on the same
+    ## mesh as opaque tunnel/sky made solid black scenery look see-through.
+    buckets: dict[str, list[dict]] = {"OPAQUE": [], "MASK": [], "BLEND": []}
+    for prim in primitives:
+        mode = str(prim.pop("_alphaMode", "OPAQUE"))
+        if mode not in buckets:
+            mode = "OPAQUE"
+        buckets[mode].append(prim)
+    mesh_nodes: list[dict] = []
+    meshes: list[dict] = []
+    for mode, prims in buckets.items():
+        if not prims:
+            continue
+        suffix = "" if mode == "OPAQUE" and not meshes else f"_{mode.lower()}"
+        mesh_index = len(meshes)
+        meshes.append({"name": f"{path.stem}{suffix}", "primitives": prims})
+        mesh_nodes.append({"mesh": mesh_index, "name": f"{path.stem}{suffix}"})
+
     bin_blob = b"".join(bin_chunks)
     bin_blob += b"\x00" * _pad4(len(bin_blob))
+    if len(mesh_nodes) == 1:
+        nodes = [{"mesh": 0, "name": path.stem}]
+        scene_nodes = [0]
+    else:
+        root = {"name": path.stem, "children": list(range(1, len(mesh_nodes) + 1))}
+        nodes = [root] + mesh_nodes
+        scene_nodes = [0]
     gltf: dict = {
         "asset": {"version": "2.0", "generator": "ac-godot-asset-pipeline"},
         "scene": 0,
-        "scenes": [{"nodes": [0]}],
-        "nodes": [{"mesh": 0, "name": path.stem}],
-        "meshes": [{"name": path.stem, "primitives": primitives}],
+        "scenes": [{"nodes": scene_nodes}],
+        "nodes": nodes,
+        "meshes": meshes,
         "materials": materials,
         "accessors": accessors,
         "bufferViews": buffer_views,

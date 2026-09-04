@@ -31,5 +31,9 @@ func _on_intro_pressed() -> void:
 	Game.start_intro_sequence()
 
 
+func _on_intro_station_pressed() -> void:
+	Game.start_intro_station()
+
+
 func _on_continue_pressed() -> void:
 	Game.continue_game()

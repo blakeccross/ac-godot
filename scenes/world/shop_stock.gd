@@ -1,6 +1,6 @@
 extends StaticBody3D
 
-## One shelf / mannequin good. Buying here spends Bells and removes the listing.
+## One shelf good (`ac_shop_goods` / mannequin). Buy spends Bells and removes the listing.
 
 @export var shop_id: StringName = &""
 @export var item_id: StringName = &""
@@ -33,30 +33,52 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 		return false
 	var msg: String = Game.shops.buy(shop_id, item_id, Game.inventory)
 	Game.post_notice(msg)
-	Game.refresh_shop_set()
+	## Defer so this host is not freed while `interact` is still running.
+	Game.call_deferred("refresh_shop_set")
 	return true
 
 
 func _apply_visual() -> void:
 	var data: ItemData = ItemCatalog.get_item(item_id)
-	var visual: StringName = &""
+	var visual: StringName = ShopDisplay.display_visual_for_item(item_id)
 	var cloth: int = -1
-	if data is FurnitureData:
-		visual = (data as FurnitureData).visual_id
-		var size: Vector2i = (data as FurnitureData).resolved_footprint()
-		if size != Vector2i.ZERO:
-			footprint = Vector2i.ONE
-	elif data != null and data.cloth_index >= 0:
-		visual = &"int_fmanekin"
+	if data != null and data.cloth_index >= 0:
 		cloth = data.cloth_index
+		if visual == &"":
+			visual = &"obj_shop_manekin"
 	var attached: Node3D = GeneratedVisual.attach(self, visual) if visual != &"" else null
-	if cloth >= 0:
-		GeneratedVisual.apply_cloth(self, cloth)
 	if attached != null:
+		if cloth >= 0:
+			GeneratedVisual.apply_cloth(self, cloth)
+		_paint_sample(data)
+		if _mesh != null:
+			_mesh.visible = false
 		return
 	if _mesh != null and data != null:
+		_mesh.visible = true
 		_mesh.material_override = _tint(data.icon_color)
 	_fit_placeholder()
+
+
+func _paint_sample(data: ItemData) -> void:
+	## Wallpaper / carpet sample stands show the listed bank page when present.
+	if data == null:
+		return
+	match data.category:
+		ItemData.Category.WALL:
+			var path: String = InteriorCatalog.wall_texture_path(data.id)
+			if path.is_empty():
+				return
+			var tex: Texture2D = load(path) as Texture2D
+			if tex != null:
+				GeneratedVisual._paint_albedo(self, tex)
+		ItemData.Category.FLOOR:
+			var path: String = InteriorCatalog.floor_texture_path(data.id)
+			if path.is_empty():
+				return
+			var tex: Texture2D = load(path) as Texture2D
+			if tex != null:
+				GeneratedVisual._paint_albedo(self, tex)
 
 
 func _fit_placeholder() -> void:

@@ -10,8 +10,12 @@ from .texbank import (
     TextureBank,
     TextureState,
     bake_beach_wet_png,
+    bake_player_select_shade_png,
+    bake_player_select_spot_png,
     i4_png_as_alpha,
     is_dolphin_loadtlut,
+    is_player_select_shade_tex,
+    is_player_select_spot_tex,
     parse_loadtlut,
     parse_settile,
     parse_settile_dolphin,
@@ -35,6 +39,7 @@ G_SETTILE = 0xF5
 G_SETTIMG = 0xFD
 G_MTX = 0xDA
 G_SETPRIMCOLOR = 0xFA
+G_SETENVCOLOR = 0xFB
 G_GEOMETRYMODE = 0xD9
 ## F3DEX2 / libultra geometry flag — when clear, Vtx.cn[] is RGBA shade.
 G_LIGHTING = 0x00020000
@@ -126,6 +131,23 @@ def is_room_outdoor_view_dl(name: str) -> bool:
     """Primitive fill behind indoor window TEX_EDGE (`room01_grp_room_out01`)."""
     n = name.lower()
     return "room_out" in n
+
+
+def is_train_window_i4_alpha(*names: str) -> bool:
+    """Train I4 where intensity is coverage, not RGB (`rom_train_in` glass / `rom_train_out` cloud).
+
+    Decomp glass: RGB = (PRIM−ENV)×I+ENV, A = I×PRIM. Cloud: RGB = PRIM/ENV, A = I×PRIM.
+    Baking I as opaque grayscale paints solid black panes over the window.
+    """
+    blob = " ".join(names).lower()
+    if "bgcloud" in blob:
+        return True
+    if "shineglass" in blob or "shine_tex" in blob:
+        return True
+    ## Interior car windows (`rom_train_in_modelT`) and outdoor dual-tile shineglass.
+    if "rom_train_glass" in blob or "glass_tex_rgb_i4" in blob:
+        return True
+    return False
 
 
 def waterfall_surface_kind(*names: str) -> str:
@@ -371,6 +393,8 @@ def apply_texture_commands(blob: bytes, bank: TextureBank, state: TextureState, 
             _apply_settile_dolphin(w0, state)
         elif cmd == G_SETPRIMCOLOR:
             state.prim = ((w1 >> 24) & 0xFF, (w1 >> 16) & 0xFF, (w1 >> 8) & 0xFF, w1 & 0xFF)
+        elif cmd == G_SETENVCOLOR:
+            state.env = ((w1 >> 24) & 0xFF, (w1 >> 16) & 0xFF, (w1 >> 8) & 0xFF, w1 & 0xFF)
         elif cmd == G_DL:
             _follow_dl(w1, bank, state, depth + 1)
         i += 8
@@ -401,16 +425,21 @@ def _apply_settimg(w0: int, w1: int, bank: TextureBank, state: TextureState) -> 
 
 def _apply_loadtlut(w0: int, w1: int, bank: TextureBank, state: TextureState) -> None:
     slot, count, addr = parse_loadtlut(w0, w1)
-    if not is_dolphin_loadtlut(w0):
+    dolphin = is_dolphin_loadtlut(w0)
+    if not dolphin:
         ## Classic `gsDPLoadTLUT_pal16`: DRAM was the previous SETTIMG; slot is TMEM.
         addr = state.img_addr
         mapped = tmem_palette_slot(state.tmem)
         slot = mapped if mapped is not None else state.pal_slot
     pal = bank.load_palette(addr, count or 16)
-    if pal is None and state.img_addr and addr != state.img_addr:
-        pal = bank.load_palette(state.img_addr, count or 16)
     if pal and slot >= 0:
         state.palettes[slot] = pal
+        state.pal_slot = slot
+    elif dolphin and slot >= 0 and pal is None:
+        ## Missed anime TLUT must not keep the previous face/skin slot, and must not
+        ## fall back to the current SETTIMG (boy hat: skin texels-as-TLUT → gray BLEND).
+        ## Clearing lets `_palette_for` use `SegmentTex.palette` on the shirt segment.
+        state.palettes.pop(slot, None)
         state.pal_slot = slot
 
 
@@ -591,7 +620,12 @@ def parse_gfx(
                 layer1_wrap_t = int(tex_state.tile1["wrap_t"])
             else:
                 saved_prim = tex_state.prim
-                if skip_prim:
+                saved_env = tex_state.env
+                ## Player-select spot/shade need raw I before prim/env bake.
+                psel_xlu = is_player_select_spot_tex(name0) or is_player_select_shade_tex(name0)
+                if not psel_xlu and name1:
+                    psel_xlu = is_player_select_spot_tex(name1) or is_player_select_shade_tex(name1)
+                if skip_prim or psel_xlu:
                     tex_state.prim = (255, 255, 255, 255)
                 png, tex_name, alpha_mode = bank.decode_current(tex_state)
                 tex_state.prim = saved_prim
@@ -600,6 +634,24 @@ def parse_gfx(
                     beach_prim = saved_prim
                     ## RGB ≈ (PRIM-ENV)*I+ENV; alpha = I for runtime env pulse.
                     png = bake_beach_wet_png(png, saved_prim)
+                elif is_player_select_spot_tex(tex_name) and png:
+                    ## `grd_player_select_modelT`: yellow cone XLU.
+                    png = bake_player_select_spot_png(
+                        png, saved_prim, (saved_env[0], saved_env[1], saved_env[2])
+                    )
+                    alpha_mode = "BLEND"
+                elif is_player_select_shade_tex(tex_name) and png:
+                    ## Black curtain: RGB=PRIM, A=I.
+                    png = bake_player_select_shade_png(png, saved_prim)
+                    alpha_mode = "BLEND"
+                elif is_train_window_i4_alpha(tex_name, part_name) and png:
+                    ## I → alpha; keep RGB white so ENV/PRIM tint can land at runtime.
+                    png = i4_png_as_alpha(png)
+                    alpha_mode = "BLEND"
+                    er, eg, eb, _ea = saved_env
+                    if er + eg + eb > 0:
+                        ## Cloud DL sets ENV (127,127,100); bake as baseColorFactor.
+                        base_color = (er / 255.0, eg / 255.0, eb / 255.0, 1.0)
         if spill and png:
             png = i4_png_as_alpha(png)
             alpha_mode = "BLEND"
@@ -815,6 +867,11 @@ def parse_gfx(
                     flush()
                     current_key = None
                 tex_state.prim = ((w1 >> 24) & 0xFF, (w1 >> 16) & 0xFF, (w1 >> 8) & 0xFF, w1 & 0xFF)
+            elif cmd == G_SETENVCOLOR and bank is not None:
+                if triangles:
+                    flush()
+                    current_key = None
+                tex_state.env = ((w1 >> 24) & 0xFF, (w1 >> 16) & 0xFF, (w1 >> 8) & 0xFF, w1 & 0xFF)
             elif cmd == G_DL and bank is not None:
                 symbol = bank.addr_to_sym.get(w1)
                 if symbol is not None and symbol.size > 0:

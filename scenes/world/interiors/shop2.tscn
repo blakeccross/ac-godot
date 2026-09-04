@@ -1,0 +1,35 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scenes/world/interiors/public_room.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/world/interiors/tom_nook.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://assets/generated/environment/interiors/rom_shop3f.glb" id="10"]
+[ext_resource type="PackedScene" path="res://assets/generated/environment/interiors/rom_shop3w.glb" id="11"]
+
+[node name="shop2" type="Node3D"]
+script = ExtResource("1")
+room_id = &"shop2"
+
+[node name="Shell" type="Node3D" parent="."]
+script = ExtResource("2")
+
+[node name="GeneratedVisual" type="Node3D" parent="Shell"]
+
+[node name="rom_shop3f" parent="Shell/GeneratedVisual" instance=ExtResource("10")]
+[node name="rom_shop3w" parent="Shell/GeneratedVisual" instance=ExtResource("11")]
+
+[node name="Terrain" type="Node3D" parent="."]
+
+[node name="Furniture" type="Node3D" parent="."]
+
+[node name="TomNook" parent="Furniture" instance=ExtResource("4")]
+
+[node name="Doors" type="Node3D" parent="."]
+
+[node name="Exit" parent="Doors" instance=ExtResource("3")]
+label = "Leave"
+exits_interior = true
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)

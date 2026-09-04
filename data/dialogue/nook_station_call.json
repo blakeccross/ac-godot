@@ -1,0 +1,11 @@
+{
+  "id": "nook_station_call",
+  "speaker_id": "tom_nook",
+  "start": "hey",
+  "nodes": {
+    "hey": {
+      "type": "line",
+      "text": "Excuse me! Hey hey!\nHey, you there! Yes, you!"
+    }
+  }
+}

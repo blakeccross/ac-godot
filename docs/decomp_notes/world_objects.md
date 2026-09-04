@@ -44,12 +44,12 @@ The player never switches on type. Verbs live on the host.
 
 | Object | Rule |
 | --- | --- |
-| Player houses | Always **B-3**; HOUSE0–3 at (3,3) / (12,3) / (3,10) / (12,10); west +20 X, east −20 X, both +20 Z; mesh `obj_s_myhome1`; west yaw +90°. Walk collision is a 4×4 heightfield rewrite with a porch gap (see below), not an AABB. Door stand `±48` GX. FG occupancy stays 2×2. |
+| Player houses | Always **B-3**; HOUSE0–3 at (3,3) / (12,3) / (3,10) / (12,10); west +20 X, east −20 X, both +20 Z; mesh `obj_s_myhome1`; west yaw +90°. Walk collision is a 4×4 heightfield rewrite with a porch gap (see below), not an AABB. Interact check `−20,+20` local GX (`aMHS_check_player_sub`); exit stand `±48` GX. FG occupancy stays 2×2. |
 | Nook shop | Tracks row **A**; dump→shop; SHOP0 unit + NW (−1,0); mesh `obj_s_shop1` |
 | Museum | Unique **flat** acre below cliff (`T_MUSEUM`) → `obj_s_museum` |
 | Able Sisters | Beach row **bz=6** (`T_NEEDLEWORK` / `grd_s_m_ta_*`). FG `NEEDLEWORK_SHOP` is **(9, 4)** on `_1`/`_2` and **(9, 5)** on `_3`. Door verb shop, NW (−1,0), `aNW_actor_ct` −20 X +20 Z |
 | Post / police / well / station | `obj_s_yubinkyoku` (−1,0) / `obj_s_kouban` (3×3 centered) / `obj_s_shrine` (0,−1) / `obj_s_station1` at TRAIN_STATION **(8, 5)** + −20 X |
-| Villager homes | FG **SIGN00–SIGN20** reserves shuffled; SIGN ut must be 1..14. **6** houses (`mNpc_LOOKS_NUM`). House FG on the SIGN unit (`obj_s_house1`, no `actor_ct` shift); 3×3 RSV overwrites trees. New game also places **6** outdoor villager actors (`mNpc_DecideLivingNpcMax`: one starter per looks). Fallback synthetic plots on flats if catalog has no SIGNs |
+| Villager homes | FG **SIGN00–SIGN20** reserves shuffled; SIGN ut must be 1..14. **6** houses (`mNpc_LOOKS_NUM`). House FG on the SIGN unit (`obj_s_house1`, no `actor_ct` shift); 3×3 RSV overwrites trees. Door interact / OPEN1 stand is **+40** Z GX (porch); exit rewrite **+60** Z. New game also places **6** outdoor villager actors (`mNpc_DecideLivingNpcMax`: one starter per looks). Fallback synthetic plots on flats if catalog has no SIGNs |
 | Dock sign | FG **`PORT_SIGN`** (`0x5852`) on `grd_s_m_wf_*` at unit **(8, 7)** on `_1`/`_2`, **(9, 7)** on `_3`. Drawn by **`ac_reserve`** (`arg0 == 0x42`) as seasonal **`obj_{s,w}_attention`** (`obj_*_attentionT_model`) — one-post bulletin with baked paper/tack. Not field `SIGNBOARD`/`obj_*_kanban` (two posts) and not plaza `obj_*_notice`. |
 | Trees / rocks / flowers | FG template copy (`FgCatalog`) at **unit center** (`bg_item` `pos_table` 20+40n GX), then border pull / tanuki path, then fruit/cedar. House build clears the SIGN 3×3 |
 
@@ -73,9 +73,9 @@ z0       Hs1   H      H     4s1
 z-40     4     Hs1   Hs1    4
 ```
 
-East is the mirror. The **porch is the SE (west plot) or SW (east plot) cells**, matching the door stand at actor + `(±48.29, +48.29)` GX and demo dirs `NORTH_EAST` / `NORTH_WEST`. FG occupancy stays **2×2**.
+East is the mirror. The **porch is the SE (west plot) or SW (east plot) cells**, matching the door stand at actor + `(±48.29, +48.29)` GX and demo dirs `NORTH_EAST` / `NORTH_WEST`. Interact check is closer on the same diagonal (`−20,+20` local). FG occupancy stays **2×2**.
 
-Villager homes (`aHUS_set_bgOffset`) are a **3×3** around the SIGN unit: south-center cell is all-zero (door), the other eight are offset **7**. Same mechanism, simpler footprint.
+Villager homes (`aHUS_set_bgOffset`) are a **3×3** around the SIGN unit: south-center cell is all-zero (door), the other eight are offset **7**. Same mechanism, simpler footprint. Interact / OPEN1 stand is `home.z + 40` GX; exit rewrite is `+60`.
 
 Museum (`aMsm_set_bgOffset`) raises a **7×5** (X −3..3, Z −2..2) around the FG unit to offset **10** — no porch gap; the door stand is `home.z + 120` GX (south of the block). Walk-in enter (`aMsm_check_player`) has **no A button**. Able Sisters (`aNW_set_bgOffset`) and post office (`aPOFF_set_bgOffset`) share a **4×4** around the FG unit (occupancy NW = FG+(−1,0)) with body **13** and open corners; door stand SW of the mesh. Nook shop (`aSHOP_set_bgOffset`) is the same footprint with body **12** and SW door (−50,+50 GX). Police (`aPBOX_set_bgOffset`) is a **3×3** of offset **10** with slate corners; the door stand is SE of home at `+50,+50` GX.
 
@@ -89,7 +89,7 @@ When shine spots or pitfall holes exist, they reuse the same hole fan and should
 
 **Window panes** (`*_light_model`, museum `*_lightT_model`): opaque quads in the wall TEX_EDGE holes. The combiner ignores the wall SETTIMG and fills with prim/env — black when off, yellow (255, 255, 150) when on (`mEnv_NPC_LIGHTS_*` 18:00–05:00). Convert keeps them untextured (`unlit_fill`) so they do not merge into the MASK wall surface.
 
-**Window ground spill** (`*_window_model`, `*_windowL/R_model`, `windowT_model`): a coplanar I4 fan drawn on the **shadow pass** as `G_RM_AA_ZB_XLU_DECAL2` (prim yellow × I4 × LOD frac 120). Draw callbacks null that joint in OPA. Convert bakes I4 into PNG alpha. `GeneratedVisual` draws it unshaded, 1 GX above the acre, so it does not z-fight the grass.
+**Window ground spill** (`*_window_model`, `*_windowL/R_model`, `windowT_model`): a coplanar I4 fan drawn on the **shadow pass** as `G_RM_AA_ZB_XLU_DECAL2` (prim yellow × I4 × LOD frac 120). Draw callbacks null that joint in OPA. Convert bakes I4 into PNG alpha. `GeneratedVisual` draws it unshaded, 1 GX above the acre, so it does not z-fight the grass. The spill shader composites in **8-bit sRGB** via `hint_screen_texture` (Godot’s linear `blend_mix` made the same alpha read as opaque yellow).
 
 ## Simplify / ignore
 

@@ -1,7 +1,7 @@
 class_name NpcFeelGlyphs
 extends Node3D
 
-## Billboard feel glyphs above an NPC (`eEC_EFFECT_WARAU` / `SHOCK` / `HA`).
+## Billboard feel glyphs above an NPC (`eEC_EFFECT_WARAU` / `SHOCK` / `HA` / `HIRAMEKI_*`).
 ## Pipeline cards live under `assets/generated/effects/`; missing packs are a no-op.
 
 const EFFECT_HZ := 60.0
@@ -29,10 +29,20 @@ const HA_LIFE_FRAMES := 56
 const HA_Y_GX := 12.0
 const HA_X_GX := 16.0
 
+## Lightbulb bolt (`ef_hirameki_den`) + brief glow (`ef_hirameki_hikari`).
+const HIRAMEKI_DEN_VISUAL := &"ef_hirameki01_den"
+const HIRAMEKI_HIKARI_VISUAL := &"ef_hirameki01_hikari"
+const HIRAMEKI_DEN_MATRIX_SCALE := 0.007
+const HIRAMEKI_HIKARI_MATRIX_SCALE := 0.014
+const HIRAMEKI_LIFE_FRAMES := 72
+const HIRAMEKI_HIKARI_FRAMES := 12
+const HIRAMEKI_Y_GX := 24.0
+
 var _kind: StringName = &""
 var _frame: float = 0.0
 var _cycle: int = 0
 var _mesh_host: Node3D
+var _glow_host: Node3D
 var _active_visual: StringName = &""
 var _head_lift: float = 1.15
 
@@ -41,6 +51,9 @@ func _ready() -> void:
 	_mesh_host = Node3D.new()
 	_mesh_host.name = "GlyphMesh"
 	add_child(_mesh_host)
+	_glow_host = Node3D.new()
+	_glow_host.name = "GlyphGlow"
+	add_child(_glow_host)
 
 
 func _process(delta: float) -> void:
@@ -55,6 +68,8 @@ func _process(delta: float) -> void:
 			_tick_shock()
 		&"ha":
 			_tick_ha()
+		&"hirameki":
+			_tick_hirameki()
 		_:
 			clear()
 
@@ -73,6 +88,7 @@ func play(kind: StringName) -> void:
 		&"shock":
 			_set_visual(SHOCK_VISUAL, SHOCK_MATRIX_SCALE)
 			_mesh_host.position = Vector3(0.0, SHOCK_Y_GX * FieldCatalog.GX_TO_METERS, 0.0)
+			_tint_mesh(Color(1.0, 1.0, 0.0))
 		&"ha":
 			_set_visual(HA_VISUAL, HA_MATRIX_SCALE)
 			_mesh_host.position = Vector3(
@@ -80,6 +96,12 @@ func play(kind: StringName) -> void:
 				HA_Y_GX * FieldCatalog.GX_TO_METERS,
 				0.0
 			)
+		&"hirameki":
+			_set_visual(HIRAMEKI_DEN_VISUAL, HIRAMEKI_DEN_MATRIX_SCALE)
+			_mesh_host.position = Vector3(0.0, HIRAMEKI_Y_GX * FieldCatalog.GX_TO_METERS, 0.0)
+			_tint_mesh(Color(1.0, 1.0, 0.39))
+			_set_glow_visual(HIRAMEKI_HIKARI_VISUAL, HIRAMEKI_HIKARI_MATRIX_SCALE)
+			_glow_host.position = _mesh_host.position
 		_:
 			_kind = &""
 
@@ -98,6 +120,11 @@ func clear() -> void:
 			child.free()
 		_mesh_host.position = Vector3.ZERO
 		_mesh_host.scale = Vector3.ONE
+	if _glow_host != null:
+		for child: Node in _glow_host.get_children():
+			child.free()
+		_glow_host.position = Vector3.ZERO
+		_glow_host.scale = Vector3.ONE
 
 
 func set_head_lift(meters: float) -> void:
@@ -151,6 +178,33 @@ func _tick_ha() -> void:
 	_set_mesh_alpha(fade)
 
 
+func _tick_hirameki() -> void:
+	var t: int = int(_frame)
+	if t >= HIRAMEKI_LIFE_FRAMES:
+		clear()
+		return
+	## Den fades from frame 64→72 (`eHiramekiD_dw`); hikari is only the first 12 frames.
+	var den_fade: float = 1.0
+	if t > 64:
+		den_fade = clampf(1.0 - float(t - 64) / 8.0, 0.0, 1.0)
+	_set_mesh_alpha(den_fade)
+	if _glow_host != null and _glow_host.get_child_count() > 0:
+		if t >= HIRAMEKI_HIKARI_FRAMES:
+			for child: Node in _glow_host.get_children():
+				child.free()
+		else:
+			## `eHiramekiH_dw`: scale 0.014→0.0175, alpha ramp then fade.
+			var hs: float = lerpf(0.014, 0.0175, float(t) / float(HIRAMEKI_HIKARI_FRAMES))
+			var g: float = _node_scale_for(hs)
+			_glow_host.scale = Vector3(g, g, g)
+			var ha: float = 1.0
+			if t < 4:
+				ha = float(t) * 50.0 / 255.0
+			else:
+				ha = clampf(1.0 - float(t - 4) / 8.0, 0.0, 1.0)
+			_set_mesh_alpha_node(_glow_host, ha)
+
+
 func _show_warau_frame(card: int) -> void:
 	_set_visual(WARAU_VISUALS[card], WARAU_MATRIX_SCALE)
 	_mesh_host.position = Vector3.ZERO
@@ -174,6 +228,25 @@ func _set_visual(visual_id: StringName, matrix_scale: float) -> void:
 	_make_unshaded(_mesh_host)
 	var s2: float = _node_scale_for(matrix_scale)
 	_mesh_host.scale = Vector3(s2, s2, s2)
+
+
+func _set_glow_visual(visual_id: StringName, matrix_scale: float) -> void:
+	if _glow_host == null:
+		return
+	for child: Node in _glow_host.get_children():
+		child.free()
+	var paths: PackedStringArray = FieldCatalog.mesh_paths(visual_id)
+	if paths.is_empty():
+		return
+	var packed: PackedScene = load(paths[0]) as PackedScene
+	if packed == null:
+		return
+	var inst: Node = packed.instantiate()
+	_glow_host.add_child(inst)
+	_make_unshaded(_glow_host)
+	_tint_mesh_node(_glow_host, Color(1.0, 1.0, 0.39))
+	var s: float = _node_scale_for(matrix_scale)
+	_glow_host.scale = Vector3(s, s, s)
 
 
 func _clear_mesh_only() -> void:
@@ -215,6 +288,25 @@ func _make_unshaded(root: Node) -> void:
 					mi.set_surface_override_material(i, std)
 	for child: Node in root.get_children():
 		_make_unshaded(child)
+
+
+func _tint_mesh(color: Color) -> void:
+	_tint_mesh_node(_mesh_host, color)
+
+
+func _tint_mesh_node(node: Node, color: Color) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		if mi.mesh != null:
+			for i: int in mi.mesh.get_surface_count():
+				var mat: Material = mi.get_active_material(i)
+				if mat is StandardMaterial3D:
+					var std := mat as StandardMaterial3D
+					var c: Color = color
+					c.a = std.albedo_color.a
+					std.albedo_color = c
+	for child: Node in node.get_children():
+		_tint_mesh_node(child, color)
 
 
 func _set_mesh_alpha(alpha: float) -> void:

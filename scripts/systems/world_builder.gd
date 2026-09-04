@@ -193,10 +193,14 @@ func _disable_placeholder_ground(root: Node3D) -> void:
 func _add_building(root: Node3D, placement: BuildingPlacement, data: WorldData, grid: WorldGrid) -> void:
 	if root == null or placement == null:
 		return
-	var node: Node3D = _instance(placement.kind)
+	var node: Node3D = _instance_building(placement)
 	if node == null:
 		return
-	_apply_common(node, placement.id, placement.footprint, placement.facing, placement.occupy_grid, placement.visual_id)
+	var visual_id: StringName = placement.visual_id
+	## Live Nook visual follows upgrade level even if WorldData still has shop1.
+	if placement.id == &"acre_shop" and Game != null and Game.shops != null:
+		visual_id = Game.shops.nook_visual_id()
+	_apply_common(node, placement.id, placement.footprint, placement.facing, placement.occupy_grid, visual_id)
 	if "occupant_id" in node and placement.resident_id != &"":
 		node.set("occupant_id", placement.resident_id)
 	if "label" in node and placement.label != "":
@@ -325,6 +329,20 @@ func _apply_payload(node: Node, placement: ObjectPlacement) -> void:
 
 func _instance(kind: StringName) -> Node3D:
 	var path: String = WorldObjectRegistry.scene_path(kind)
+	if path.is_empty():
+		return null
+	var packed: PackedScene = load(path) as PackedScene
+	if packed == null:
+		return null
+	var node: Node = packed.instantiate()
+	if node is Node3D:
+		return node as Node3D
+	node.queue_free()
+	return null
+
+
+func _instance_building(placement: BuildingPlacement) -> Node3D:
+	var path: String = WorldObjectRegistry.scene_for_building(placement.id, placement.kind)
 	if path.is_empty():
 		return null
 	var packed: PackedScene = load(path) as PackedScene

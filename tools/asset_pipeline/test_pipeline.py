@@ -6,7 +6,7 @@ import struct
 import unittest
 
 from asset_pipeline.ckf import _mat_model_name, _vtx_sym_for_gfx, select_bind_anim
-from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, INTRO_ROVER_NPC_ANIMS, INTRO_SLEEP_NPC_ANIMS, WATER_STATIC_NEEDLES, _intro_rover_anims, _intro_sleep_npc_anims, _name_under_prefix, _owning_vtx_prefix, _static_jobs
+from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, INTRO_KK_NPC_ANIMS, INTRO_NOOK_NPC_ANIMS, INTRO_ROVER_NPC_ANIMS, INTRO_SLEEP_NPC_ANIMS, WATER_STATIC_NEEDLES, _intro_kk_anims, _intro_nook_anims, _intro_rover_anims, _intro_sleep_npc_anims, _name_under_prefix, _owning_vtx_prefix, _static_jobs
 from asset_pipeline.glb import _bake_wrap_group
 from asset_pipeline.layout import (
     bti_output_path,
@@ -38,6 +38,22 @@ class LayoutTests(unittest.TestCase):
         sleep = _intro_sleep_npc_anims(names)
         self.assertIn("cKF_ba_r_npc_1_wait_nemu1", sleep)
         self.assertIn("cKF_ba_r_npc_1_kokkuri_d1", sleep)
+
+    def test_rcn_1_test_set_includes_nook_manpu_clips(self) -> None:
+        names = set(INTRO_NOOK_NPC_ANIMS) | {"cKF_ba_r_npc_1_walk1"}
+        nook = _intro_nook_anims(names)
+        self.assertIn("cKF_ba_r_npc_1_smile1", nook)
+        self.assertIn("cKF_ba_r_npc_1_hate1", nook)
+
+    def test_end_1_test_set_includes_kk_opening_clips(self) -> None:
+        names = set(INTRO_KK_NPC_ANIMS) | {"cKF_ba_r_npc_1_run1"}
+        kk = _intro_kk_anims(names)
+        self.assertEqual(kk, INTRO_KK_NPC_ANIMS)
+        self.assertIn("cKF_ba_r_npc_1_wait1", kk)
+        self.assertIn("cKF_ba_r_npc_1_4haku_e1", kk)
+        self.assertIn("cKF_ba_r_npc_1_wait_e1", kk)
+        ## Wait1 must be present so bind is upright (seated clips alone → ckf_basis sideways).
+        self.assertEqual(select_bind_anim("end_1", kk), "cKF_ba_r_npc_1_wait1")
 
     def test_face_frame_offsets_cover_eyes_then_mouths(self) -> None:
         from asset_pipeline.faces import MOUTH_BASE, frame_offsets
@@ -74,6 +90,10 @@ class LayoutTests(unittest.TestCase):
         self.assertEqual(output_for_prefix("cat_1"), "characters/villagers/cat_1.glb")
         self.assertEqual(output_for_prefix("xct_1"), "characters/villagers/xct_1.glb")
         self.assertEqual(output_for_prefix("kab_1"), "characters/villagers/kab_1.glb")
+        self.assertEqual(output_for_prefix("rcn_1"), "characters/villagers/rcn_1.glb")
+        self.assertEqual(output_for_prefix("rcc_1"), "characters/villagers/rcc_1.glb")
+        self.assertEqual(output_for_prefix("rcs_1"), "characters/villagers/rcs_1.glb")
+        self.assertEqual(output_for_prefix("rcd_1"), "characters/villagers/rcd_1.glb")
         self.assertEqual(output_for_prefix("boy_1"), "characters/player/boy_1.glb")
         self.assertEqual(output_for_prefix("int_kon_redclock"), "furniture/int_kon_redclock.glb")
         self.assertEqual(output_for_prefix("tol_net_1"), "items/tol_net_1.glb")
@@ -228,6 +248,21 @@ class PrefixOwnershipTests(unittest.TestCase):
         self.assertIn("tol_uki_1", jobs)
         self.assertEqual(jobs["tol_uki_1"]["gfx"], ["tol_uki1_model"])
         self.assertEqual(jobs["tol_uki_1"]["output"], "items/tol_uki_1.glb")
+
+    def test_gre_counter_explicit_gfx_alias(self) -> None:
+        ## Vtx/textures keep `gre_`; OPA/XLU Gfx drop it (`int_sum_counter01_on*`).
+        symbols = [
+            _sym("int_sum_gre_counter01_v", 0x1000, 1024),
+            _sym("int_sum_counter01_on_model", 0x2000, 256),
+            _sym("int_sum_counter01_onT_model", 0x2100, 256),
+        ]
+        jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
+        self.assertIn("int_sum_gre_counter01", jobs)
+        self.assertEqual(
+            jobs["int_sum_gre_counter01"]["gfx"],
+            ["int_sum_counter01_on_model", "int_sum_counter01_onT_model"],
+        )
+        self.assertEqual(jobs["int_sum_gre_counter01"]["output"], "furniture/int_sum_gre_counter01.glb")
 
     def test_duplicate_vtx_name_yields_one_job(self) -> None:
         # `dataobject.obj` ships `tol_uki_1_v` twice (inventory icon and in-world model).
@@ -459,6 +494,41 @@ class WrapBakeTests(unittest.TestCase):
         self.assertAlmostEqual(_Part.vertices[1].u, 1.0)
         self.assertAlmostEqual(_Part.vertices[1].v, 1.0)
 
+    def test_clamp_uv_span_outside_unit_tile_is_fitted(self) -> None:
+        """Train tunnel S lands at U=1..4 with GX_CLAMP — fit onto the brick sheet."""
+        from io import BytesIO
+
+        from PIL import Image
+
+        buf = BytesIO()
+        Image.new("RGBA", (8, 8), (40, 30, 30, 255)).save(buf, format="PNG")
+        png = buf.getvalue()
+
+        class _V:
+            def __init__(self, u: float, v: float) -> None:
+                self.u = u
+                self.v = v
+
+        class _Part:
+            wrap_s = GX_CLAMP
+            wrap_t = GX_REPEAT
+            texture_png = png
+            vertices = [_V(1.0, -1.0), _V(4.0, 1.0)]
+
+        group = {
+            "png": png,
+            "name": "rom_train_tunnel_tex",
+            "wrap_s": GX_CLAMP,
+            "wrap_t": GX_REPEAT,
+            "parts": [_Part()],
+        }
+        _bake_wrap_group(group)
+        self.assertAlmostEqual(_Part.vertices[0].u, 0.0)
+        self.assertAlmostEqual(_Part.vertices[1].u, 1.0)
+        ## V still wrap-bakes across two tiles then normalizes.
+        self.assertAlmostEqual(_Part.vertices[0].v, 0.0)
+        self.assertAlmostEqual(_Part.vertices[1].v, 1.0)
+
     def test_water_repeat_is_not_baked(self) -> None:
         from io import BytesIO
 
@@ -550,6 +620,26 @@ class WindowDlTests(unittest.TestCase):
         ).convert("RGBA")
         self.assertEqual(out.getpixel((0, 0)), (144, 128, 96, 0))
         self.assertEqual(out.getpixel((1, 0)), (206, 189, 148, 255))
+
+    def test_player_select_spot_bake_is_yellow_xlu(self) -> None:
+        from io import BytesIO
+
+        from PIL import Image
+
+        from asset_pipeline.texbank import bake_player_select_shade_png, bake_player_select_spot_png
+
+        src = Image.new("RGB", (2, 1), (0, 0, 0))
+        src.putpixel((1, 0), (255, 255, 255))
+        buf = BytesIO()
+        src.save(buf, format="PNG")
+        spot = Image.open(BytesIO(bake_player_select_spot_png(buf.getvalue()))).convert("RGBA")
+        ## I=0 → env yellow; lod 150 → alpha 0.
+        self.assertEqual(spot.getpixel((0, 0)), (255, 255, 130, 0))
+        ## I=255 → prim white; alpha ≈ 150.
+        self.assertEqual(spot.getpixel((1, 0)), (255, 255, 255, 150))
+        shade = Image.open(BytesIO(bake_player_select_shade_png(buf.getvalue()))).convert("RGBA")
+        self.assertEqual(shade.getpixel((0, 0)), (0, 0, 0, 0))
+        self.assertEqual(shade.getpixel((1, 0)), (0, 0, 0, 255))
 
 
 class WaterNameTests(unittest.TestCase):
@@ -694,6 +784,91 @@ class WaterNameTests(unittest.TestCase):
         )
         groups = _group_parts([part])
         self.assertEqual(_group_alpha_mode(groups[0]), "OPAQUE")
+
+    def test_mixed_alpha_modes_split_into_separate_meshes(self) -> None:
+        """MASK cutouts must not share a mesh with OPAQUE or Godot draws both translucent."""
+        import json
+        import struct
+        import tempfile
+        from io import BytesIO
+        from pathlib import Path
+
+        from PIL import Image
+
+        from asset_pipeline.glb import write_glb
+        from asset_pipeline.gfx import MeshPart, Vertex
+        from asset_pipeline.texbank import GX_CLAMP
+
+        def _png(rgb: tuple[int, int, int, int]) -> bytes:
+            buf = BytesIO()
+            Image.new("RGBA", (4, 4), rgb).save(buf, format="PNG")
+            return buf.getvalue()
+
+        verts = [
+            Vertex(0, 0, 0, 0, 0, 255, 255, 255, 255),
+            Vertex(1, 0, 0, 1, 0, 255, 255, 255, 255),
+            Vertex(0, 1, 0, 0, 1, 255, 255, 255, 255),
+        ]
+        opa = MeshPart(
+            name="tunnel:rom_train_tunnel_tex",
+            vertices=list(verts),
+            triangles=[(0, 1, 2)],
+            texture_name="rom_train_tunnel_tex",
+            texture_png=_png((40, 30, 30, 255)),
+            wrap_s=GX_CLAMP,
+            wrap_t=GX_CLAMP,
+            alpha_mode="OPAQUE",
+        )
+        cut = MeshPart(
+            name="tree:rom_train_bgtree_tex",
+            vertices=list(verts),
+            triangles=[(0, 1, 2)],
+            texture_name="rom_train_bgtree_tex",
+            texture_png=_png((0, 0, 0, 0)),
+            wrap_s=GX_CLAMP,
+            wrap_t=GX_CLAMP,
+            alpha_mode="MASK",
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "split.glb"
+            write_glb(path, [opa, cut])
+            raw = path.read_bytes()
+            n = struct.unpack_from("<I", raw, 12)[0]
+            gltf = json.loads(raw[20 : 20 + n])
+        self.assertEqual(len(gltf["meshes"]), 2)
+        modes = {
+            gltf["materials"][p["material"]].get("alphaMode", "OPAQUE")
+            for mesh in gltf["meshes"]
+            for p in mesh["primitives"]
+        }
+        self.assertEqual(modes, {"OPAQUE", "MASK"})
+        for mesh in gltf["meshes"]:
+            mesh_modes = {
+                gltf["materials"][p["material"]].get("alphaMode", "OPAQUE")
+                for p in mesh["primitives"]
+            }
+            self.assertEqual(len(mesh_modes), 1, mesh["name"])
+        self.assertEqual(len(gltf["nodes"][0]["children"]), 2)
+
+    def test_train_window_i4_alpha_detection(self) -> None:
+        from asset_pipeline.gfx import is_train_window_i4_alpha
+
+        self.assertTrue(
+            is_train_window_i4_alpha(
+                "rom_train_bgcloud_tex_rgb_i4", "rom_train_out_bgcloud_modelT"
+            )
+        )
+        self.assertTrue(
+            is_train_window_i4_alpha(
+                "rom_train_glass_tex_rgb_i4", "rom_train_out_shineglass_modelT"
+            )
+        )
+        self.assertTrue(
+            is_train_window_i4_alpha("rom_train_glass_tex", "rom_train_in_modelT")
+        )
+        self.assertFalse(
+            is_train_window_i4_alpha("rom_train_tunnel_tex", "rom_train_out_tunnel_model")
+        )
 
 
 class BindAnimTests(unittest.TestCase):

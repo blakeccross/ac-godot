@@ -31,6 +31,7 @@ from asset_pipeline.villagers import generate_villagers  # noqa: E402
 from asset_pipeline.seasons import export_seasonal_textures  # noqa: E402
 from asset_pipeline.extract import extract_archives, extract_disc  # noqa: E402
 from asset_pipeline.inventory_ui import extract_inventory_ui  # noqa: E402
+from asset_pipeline.map_ui import extract_map_ui  # noqa: E402
 from asset_pipeline.faces import extract_faces  # noqa: E402
 from asset_pipeline.message_ui import extract_message_ui  # noqa: E402
 from asset_pipeline.scan import scan  # noqa: E402
@@ -52,9 +53,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--kind",
-        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "message-ui", "dialogue", "villagers", "faces", "audio", "water", "fish", "bugs", "seasons"],
+        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "map-ui", "message-ui", "dialogue", "villagers", "faces", "audio", "water", "fish", "bugs", "seasons"],
         default="all",
-        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory UI chrome, dialogue banks, villager roster from decomp tables, NPC eye/mouth face frames, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
+        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory/map UI chrome, dialogue banks, villager roster from decomp tables, NPC eye/mouth face frames, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
     )
     args = parser.parse_args()
     cfg = load_config(ROOT, args.config)
@@ -139,6 +140,19 @@ def main() -> int:
                     print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
                 if errors:
                     failed = True
+        elif args.kind == "map-ui":
+            report = extract_map_ui(cfg)
+            if report.get("error"):
+                print(f"map-ui: {report['error']}")
+                failed = True
+            else:
+                converted = report["converted"]
+                errors = [r for r in report["results"] if r["status"] == "error"]
+                print(f"wrote {converted} map UI textures -> {report['output']}")
+                for err in errors[:40]:
+                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+                if errors:
+                    failed = True
         elif args.kind == "villagers":
             report = generate_villagers(cfg)
             if report.get("error"):
@@ -158,7 +172,10 @@ def main() -> int:
                 print(
                     f"wrote {report['converted']} messages -> {report['output']} "
                     f"({report['files']} files, {report['select_count']} choices, "
-                    f"{report['string_count']} strings)"
+                    f"{report['string_count']} strings; "
+                    f"{report.get('manpu_events', 0)} manpu, "
+                    f"{report.get('set_emote_events', 0)} set_emote, "
+                    f"{report.get('demo_order_events', 0)} demo_order)"
                 )
         elif args.kind == "audio":
             report = convert_audio(cfg)

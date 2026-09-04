@@ -46,7 +46,8 @@ func _ready() -> void:
 		auto_advance_dialogue = true
 	Game.notify_intro_ready()
 	if not preview_seated_daylight and not auto_advance_dialogue:
-		Audio.play_bgm(&"title")
+		## `mBGMDemo_make_scene_bgm`: STARTDEMO → BGM_INTRO_TRAIN (42).
+		Audio.play_bgm(&"intro_train")
 	_name_modal.visible = false
 	_town_modal.visible = false
 	_clock_modal.visible = false
@@ -71,6 +72,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not preview_seated_daylight:
 		_stage.tick(delta)
+	IntroTrainPresentation.tick_sunlight(delta, _world_env)
 	_rover_face.tick(delta, _dialogue_uttering())
 	_poll_dialogue_stage_wait()
 	if auto_advance_dialogue and not _finishing:
@@ -139,7 +141,7 @@ func _bootstrap_stage() -> void:
 
 
 func _bootstrap_seated_preview() -> void:
-	IntroTrainPresentation.apply_daylight(_world_env, _train_car)
+	IntroTrainPresentation.snap_daylight(_world_env, _train_car)
 	_stage._pos_gx = IntroTrainStage.ROVER_SIT_GX
 	_stage._yaw = 0.0
 	_stage.action = IntroTrainStage.Action.SEATED
@@ -180,9 +182,9 @@ func _finish_seated_preview() -> void:
 
 func _bind_rover_face(rover_visual: Node3D) -> void:
 	_rover_face.bind(rover_visual, &"xct")
-	## Entrance `open_d1` holds eye3 (stern) for most of the walk-in.
+	## Entrance `open_d1`: normal eye blink seq + mouth3 hold (not angry eye3).
 	if _stage.action == IntroTrainStage.Action.ENTER:
-		_rover_face.set_emote(NpcFaceAnim.Emote.ANGRY)
+		_rover_face.set_emote(NpcFaceAnim.Emote.NORMAL, NpcFaceAnim.MOUTH_ANGRY_SHUT)
 	_ensure_rover_feel(rover_visual)
 
 
@@ -219,11 +221,10 @@ func _local_visual_aabb(root: Node3D) -> AABB:
 func _on_stage_changed(action: StringName) -> void:
 	match action:
 		&"enter":
-			## `npc_1_open_d1` fixed_pattern_seq parks on eye3 for the door walk-in.
-			_rover_face.set_emote(NpcFaceAnim.Emote.ANGRY)
+			## `npc_1_open_d1` eye_seq is normal blinks; mouth_seq parks on mouth3.
+			_rover_face.set_emote(NpcFaceAnim.Emote.NORMAL, NpcFaceAnim.MOUTH_ANGRY_SHUT)
 		&"approach", &"talk":
-			if _rover_face.current_emote() == NpcFaceAnim.Emote.ANGRY:
-				_rover_face.set_emote(NpcFaceAnim.Emote.NORMAL)
+			_rover_face.set_emote(NpcFaceAnim.Emote.NORMAL)
 		&"seated":
 			IntroTrainPresentation.apply_daylight(_world_env, _train_car)
 			_sleep_npc.realign()

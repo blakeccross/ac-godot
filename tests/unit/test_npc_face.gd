@@ -188,9 +188,15 @@ func test_face_quad_accepts_achd_upscaled_eye_sizes() -> void:
 
 func test_manpu_smile_parks_mouth_open() -> void:
 	assert_int(NpcManpu.mouth_hold_for("smile1")).is_equal(NpcFaceAnim.MOUTH_OPEN)
-	assert_int(NpcManpu.mouth_hold_for("gaaan1")).is_equal(NpcFaceAnim.MOUTH_OPEN)
+	assert_int(NpcManpu.mouth_hold_for("gaaan1")).is_equal(NpcFaceAnim.MOUTH_ANGRY_OPEN)
+	assert_int(NpcManpu.mouth_hold_for("ha_d1")).is_equal(NpcFaceAnim.MOUTH_ANGRY_SMALL)
+	assert_int(NpcManpu.mouth_hold_for("niko_d1")).is_equal(NpcFaceAnim.MOUTH_SHUT)
+	assert_int(NpcManpu.mouth_hold_for("hate1")).is_equal(NpcFaceAnim.MOUTH_ANGRY_SHUT)
 	assert_int(NpcManpu.mouth_hold_for("reset")).is_equal(NpcFaceAnim.MOUTH_SHUT)
 	var face := NpcFaceAnim.new()
 	face.set_emote(NpcFaceAnim.Emote.LAUGH, NpcFaceAnim.MOUTH_OPEN)
 	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_LAUGH)
 	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_OPEN)
+	face.set_emote(NpcFaceAnim.Emote.SURPRISE, NpcFaceAnim.MOUTH_ANGRY_OPEN)
+	assert_int(face.eye_pattern).is_equal(NpcFaceAnim.EYE_SURPRISE)
+	assert_int(face.mouth_pattern).is_equal(NpcFaceAnim.MOUTH_ANGRY_OPEN)

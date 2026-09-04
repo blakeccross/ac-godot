@@ -13,7 +13,7 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 | `include/m_player.h` | `PICKUP`, `TALK`, `SHAKE_TREE`, tool indices |
 | `include/m_player_lib.h` | `mPlib_request_main_talk_type1`, `give`, `hold`, `sitdown`, scoop/net/rod requests |
 | `include/m_tag_ovl.h` | Inventory **context menu** types (`mTG_TYPE_FIELD_DEFAULT`, plant, sell, give, …) |
-| `include/m_submenu.h` | Pause/inventory overlay; Start/Y open pockets, X map |
+| `include/m_submenu.h` | Pause/inventory overlay; Start/Y open pockets, X map (`m_map_ovl`) |
 | `include/m_hand_ovl.h` | Cursor-hand grabbing a slot (`mHD_ACTION_*`) |
 | `include/m_demo.h` | Talk/cutscene lock; camera + message priority |
 | `include/m_msg.h` | Message window appear/disappear |

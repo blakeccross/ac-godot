@@ -45,9 +45,10 @@ Talk is wrapped in `m_demo`: player `mPlib_request_main_talk_type1`, camera `CAM
 
 - Modal text box, typewriter, A/E to continue, hold to speed up.
 - Branching **choices** (yes/no and 2–6 options).
+- Inline style codes from the bank: `TEXTCOLOR` / `COLORCHARS` change colour; `CHARSCALE` / `LINESCALE` change size (`n/32`, so 16 ≈ half, 64 ≈ double). Importer keeps them as `{c:r,g,b}` / `{s:n}` tags; `MessageWindowChrome` expands to BBCode. Choice labels use `mChoice` colours with **no** outline/stroke.
 - Substitutions: `{player}`, `{speaker}`, `{catchphrase}`, `{town}`, `{item0}`, clock fields.
 - Movement locked until the window hides (`dialogue_ui` group, same idea as pockets). The speaker holds a talk action until the overlay emits `closed`.
-- Talk camera: `Camera2_request_main_talk` framing via `TalkCamera` + `FollowCamera.begin_talk` (base distance 290 GX + 1.46× separation, flatter pitch than follow). Goal yaw is world-south (−180° → inv 0) plus `Camera2_Talk_GetAngleY` (±15° when the pair is mostly N/S; east vs west of that axis flips the sign; E/W pairs keep 0). Dramatic ±169° side picks are `Camera2_request_main_listen_front_low_talk` / `CUST_TALK` only (e.g. EV_YOMISE), not normal NPC talk. Villagers and Blathers request talk cam with speaker = player when the overlay opens and clear it on `closed`.
+- Talk camera: `Camera2_request_main_talk` framing via `TalkCamera` + `FollowCamera.begin_talk` (base distance 290 GX + 1.46× separation, flatter pitch than follow). Goal yaw is world-south (−180° → inv 0) plus `Camera2_Talk_GetAngleY`: from speaker→listener `search_position_angleY`, E/W band (45°…135°) keeps 0; otherwise nudge `±cos(2y)*2730` short-units (~15°) with `cos*sin >= 0` taking the negative branch (due north is s16 −180°, not +180°). Dramatic ±169° side picks are `Camera2_request_main_listen_front_low_talk` / `CUST_TALK` only (e.g. EV_YOMISE), not normal NPC talk. Villagers and Blathers request talk cam with speaker = player when the overlay opens and clear it on `closed`.
 - Player turn: `mDemo` TYPE_TALK defaults `turn = TRUE` → `Player_actor_Movement_Talk` eases the player toward the NPC (`player_angle_y + 180°`) with `add_calc_short_angle2(1-√0.5, 13.73°, 0.275°)` on a 60 Hz tick. `TalkCamera.begin` starts `player.begin_talk_face(npc)`; `end` clears it. SPEAK/shop paths that set turn off are not modelled yet.
 - Conditions on branches and choices: friendship, talk/gift counts, milestones, time of day / hour window, weekday, season, **weather** (`Game.weather` hook), inventory / held item, dialogue variables.
 - Events on a line or choice: `set_var`, `add_var`, `add_friendship`, `record_gift`, `give_item`, `take_item`, `set_mood`, `notice`. Friendship and gifts go through `Relationship`.
@@ -79,6 +80,16 @@ assets/generated/dialogue/   # gitignored
 ```
 
 Each imported message becomes a graph: pages (`BTN`) → line nodes, `SETSELSTR`+`OPENCHOICE` → choice node, `SETNEXTMSG*` → `goto` `msg_<n>`. `DialogueCatalog` loads those files when they exist so a conversation can `goto` an imported id.
+
+Demo / emotion control codes are kept as node `events` (not dropped):
+
+| Bank code | Event |
+| --- | --- |
+| `DEMONPC0` slot **0** | `{"op":"manpu","code":N,"name":"hate1"}` — `aNPC_check_manpu_demoCode` |
+| Other `DEMONPC*` / `DEMOPLR` slots | `{"op":"demo_order","target":"npc0","slot":S,"value":V}` |
+| `MSGCONTENTS_*` | `{"op":"set_emote","name":"laugh"}` etc. |
+
+Convert fails if the imported manpu / set_emote / demo_order counts do not match the raw bank (see `index.json` tallies).
 
 Hand-authored trees live in `data/dialogue/` (`looks_greeting` is the no-bank fallback; `filbert_greeting` is a small authored example).
 

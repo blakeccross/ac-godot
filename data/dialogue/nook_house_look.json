@@ -1,0 +1,11 @@
+{
+  "id": "nook_house_look",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Take a good look inside.\nAnd please! Bear in mind that\nit's a little...how you say...\ncozy, hm? Yes, cozy!"
+    }
+  }
+}

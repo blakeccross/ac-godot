@@ -34,6 +34,9 @@ WAVE_COUNT = 6
 
 TEST_SET_IDS = (
     "title",
+    "intro_kk",
+    "intro_train",
+    "intro_arrive",
     "field_08",
     "field_14",
     "field_20",
@@ -41,6 +44,11 @@ TEST_SET_IDS = (
     "rain",
     "enter_house",
 )
+
+## `Na_TTKK_ARM(TRUE)` during player-select (post-staffroll): mute intro_kk subtracks 0–2.
+MUTE_SUBTRACKS_BY_ID: dict[str, tuple[int, ...]] = {
+    "intro_kk": (0, 1, 2),
+}
 
 CATALOG_DIR = "audio"
 BGM_SUBDIR = "bgm"
@@ -378,7 +386,8 @@ def _render_entries(
         if not used:
             continue
         try:
-            result = render_sequence(seq, used, default_bank, seq_banks)
+            mute = list(MUTE_SUBTRACKS_BY_ID.get(str(rec.get("id", "")), ()))
+            result = render_sequence(seq, used, default_bank, seq_banks, mute_subtracks=mute)
         except (ValueError, struct.error, IndexError) as exc:
             rec["render_error"] = str(exc)
             continue

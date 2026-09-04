@@ -85,6 +85,39 @@ func test_approach_steps_toward_building() -> void:
 	assert_float(StructureDoor.leave_yaw(root, sensor.global_position)).is_equal_approx(0.0, 0.01)
 
 
+func test_house_approach_uses_demo_stand_not_exit() -> void:
+	## Player/villager OPEN1 stands are check/porch GX — not rewrite_out exit.
+	assert_that(StructureDoor.approach_offset_gx(&"obj_s_myhome1")).is_equal(
+		StructureDoor.PLAYER_APPROACH_GX
+	)
+	assert_that(StructureDoor.approach_offset_gx(&"obj_s_house1")).is_equal(
+		StructureDoor.NPC_HOUSE_APPROACH_GX
+	)
+	assert_float(StructureDoor.PLAYER_APPROACH_GX.length()).is_less(
+		Vector2(HostCollision.PLAYER_DOOR_GX, HostCollision.PLAYER_DOOR_GX).length()
+	)
+	assert_float(StructureDoor.NPC_HOUSE_APPROACH_GX.y).is_less(StructureDoor.NPC_HOUSE_EXIT_GX.y)
+	var root := Node3D.new()
+	auto_free(root)
+	var script := GDScript.new()
+	script.source_code = "extends Node3D\nvar visual_id: StringName = &\"obj_s_myhome1\"\n"
+	script.reload()
+	root.set_script(script)
+	root.position = Vector3(5.0, 0.0, 5.0)
+	var tree_root := Node3D.new()
+	auto_free(tree_root)
+	add_child(tree_root)
+	tree_root.add_child(root)
+	var stand: Vector3 = StructureDoor.approach_position(root)
+	var s: float = FieldCatalog.GX_TO_METERS
+	assert_float(stand.x).is_equal_approx(
+		root.global_position.x + StructureDoor.PLAYER_APPROACH_GX.x * s, 0.05
+	)
+	assert_float(stand.z).is_equal_approx(
+		root.global_position.z + StructureDoor.PLAYER_APPROACH_GX.y * s, 0.05
+	)
+
+
 func test_find_near_picks_closest_house() -> void:
 	var tree_root := Node3D.new()
 	auto_free(tree_root)
@@ -93,6 +126,18 @@ func test_find_near_picks_closest_house() -> void:
 	_fake_house(tree_root, "Far", Vector3(20.0, 0.0, 0.0), &"obj_s_house1")
 	var found: Node3D = StructureDoor.find_near(tree_root, Vector3(0.0, 0.0, 0.0))
 	assert_object(found).is_same(near)
+
+
+func test_arrive_uses_spawn_as_animation_move_target() -> void:
+	## Non-museum post-load INTO_S1: AnimationMove correctpos is the spawn; joint_0 clears sensors.
+	assert_float(StructureDoor.INTO_GX).is_equal_approx(30.0, 0.01)
+	assert_float(StructureDoor.INTO_SEC).is_equal_approx(49.0 / 30.0, 0.01)
+
+
+func test_door_camera_distance_matches_follow() -> void:
+	## CAMERA2_PROCESS_DOOR uses the same 620 focus as Init_Camera2.
+	var cam_script = load("res://scenes/world/follow_camera.gd")
+	assert_float(cam_script.ORIG_DISTANCE).is_equal_approx(620.0, 0.01)
 
 
 func _fake_house(parent: Node, node_name: String, pos: Vector3, visual_id: StringName) -> Node3D:
@@ -120,3 +165,33 @@ func _player_with(names: PackedStringArray) -> AnimationPlayer:
 		lib.add_animation(name, Animation.new())
 	anim.add_animation_library("", lib)
 	return anim
+
+
+func test_strip_joint0_only_on_named_door_clips() -> void:
+	## INDEX_DOOR clips strip joint_0 after baking AnimationMove; wait keeps its track.
+	var anim := AnimationPlayer.new()
+	auto_free(anim)
+	var lib := AnimationLibrary.new()
+	for clip_name: String in ["ply_1_into_s1", "ply_1_wait1"]:
+		var animation := Animation.new()
+		var track: int = animation.add_track(Animation.TYPE_POSITION_3D)
+		animation.track_set_path(track, NodePath("Armature/Skeleton3D:joint_0"))
+		animation.position_track_insert_key(track, 0.0, Vector3(0.0, 1.0, 0.0))
+		animation.position_track_insert_key(track, 1.0, Vector3(0.0, 1.0, 6.4))
+		lib.add_animation(clip_name, animation)
+	anim.add_animation_library("", lib)
+	GeneratedVisual.strip_named_joint_tracks(
+		anim, "joint_0", PackedStringArray(["ply_1_into_s1"])
+	)
+	assert_int(anim.get_animation("ply_1_into_s1").get_track_count()).is_equal(0)
+	assert_int(anim.get_animation("ply_1_wait1").get_track_count()).is_equal(1)
+
+
+func test_animation_move_counter_matches_decomp() -> void:
+	## `AnimationMove_ct_base(..., 9.0f, flag 5)` at −0.5 / 60 Hz frame → ~0.3 s.
+	assert_float(StructureDoor.ANIM_MOVE_COUNTER).is_equal_approx(9.0, 0.01)
+	assert_float(StructureDoor.ANIM_MOVE_HZ).is_equal_approx(60.0, 0.01)
+	assert_float(
+		StructureDoor.ANIM_MOVE_COUNTER / 0.5 / StructureDoor.ANIM_MOVE_HZ
+	).is_equal_approx(StructureDoor.APPROACH_SEC, 0.01)
+	assert_float(StructureDoor.OPEN1_SEC).is_equal_approx(65.0 / 30.0, 0.01)

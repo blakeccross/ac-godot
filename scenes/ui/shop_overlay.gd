@@ -136,7 +136,7 @@ func _activate() -> void:
 		var item_id: StringName = _rows[_cursor].get("id", &"") as StringName
 		var msg: String = Game.shops.buy(_shop_id, item_id, Game.inventory)
 		Game.post_notice(msg)
-		Game.refresh_shop_set()
+		Game.call_deferred("refresh_shop_set")
 		_tag_mode = false
 		_refresh()
 		return

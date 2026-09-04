@@ -69,15 +69,20 @@ func _play_idle(node: Node) -> void:
 func _apply_vertex_colors(node: Node) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
-		var mat := mesh_instance.get_active_material(0)
-		if mat == null:
-			mat = StandardMaterial3D.new()
-			mesh_instance.set_surface_override_material(0, mat)
-		if mat is StandardMaterial3D:
-			var std := mat as StandardMaterial3D
-			std.vertex_color_use_as_albedo = false
-			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-			std.cull_mode = BaseMaterial3D.CULL_DISABLED
+		var surface_count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 1
+		for i: int in surface_count:
+			var mat: Material = mesh_instance.get_active_material(i)
+			if mat == null:
+				mat = StandardMaterial3D.new()
+			if mat is StandardMaterial3D:
+				var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+				std.vertex_color_use_as_albedo = false
+				std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+				std.texture_repeat = false
+				std.cull_mode = BaseMaterial3D.CULL_DISABLED
+				std.roughness = 1.0
+				std.metallic = 0.0
+				mesh_instance.set_surface_override_material(i, std)
 	for child in node.get_children():
 		_apply_vertex_colors(child)
 

@@ -238,6 +238,27 @@ func test_fg_templates_place_authored_trees() -> void:
 			assert_bool(_tree_at(data, Vector2i(79, bz * 16 + uz))).is_false()
 
 
+func test_is_waterfall_block_excludes_river_cliff_only() -> void:
+	## Contiguous 22–38 includes river-cliff acres that must not get a fall actor.
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_WF_H)).is_true()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_WF_BR)).is_true()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_WF_TL)).is_true()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_WF_E_BR)).is_true()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_WF_E_VR)).is_true()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_WF_W_VL)).is_true()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_WF_W_BL)).is_true()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_RIV_CLIFF_VR)).is_false()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_RIV_CLIFF_TR)).is_false()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_RIV_CLIFF_VL)).is_false()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_RIV_CLIFF_BL)).is_false()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_RIV_CLIFF_H)).is_false()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_RIV_E_TR)).is_false()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_RIV_E_TL)).is_false()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_RIV_W_H)).is_false()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_RIV_W_TR)).is_false()
+	assert_bool(TownFieldGenerator.is_waterfall_block(TownFieldGenerator.T_RIV_W_TL)).is_false()
+
+
 func test_generated_town_places_waterfall_when_mesh_exists() -> void:
 	if FieldCatalog.mesh_paths(&"obj_fallS").is_empty():
 		return
@@ -392,6 +413,29 @@ func test_town_field_generator_is_deterministic() -> void:
 	var b: Dictionary = TownFieldGenerator.new().generate(42)
 	assert_that(a["blocks"]).is_equal(b["blocks"])
 	assert_that(a["heights"]).is_equal(b["heights"])
+
+
+func test_generated_towns_always_place_required_uniques() -> void:
+	## `mRF_MakePerfectBit` retries until museum / police / shrine / Able / pool /
+	## slopes / bridges all land. Without the loop, some seeds ship with no museum.
+	for seed: int in range(50):
+		var field: Dictionary = TownFieldGenerator.new().generate(1000 + seed)
+		assert_bool(bool(field.get("perfect", false))).is_true()
+		var blocks: PackedByteArray = field["blocks"] as PackedByteArray
+		assert_bool(_acre_has(blocks, TownFieldGenerator.T_MUSEUM)).is_true()
+		assert_bool(_acre_has(blocks, TownFieldGenerator.T_POLICE)).is_true()
+		assert_bool(_acre_has(blocks, TownFieldGenerator.T_SHRINE)).is_true()
+		assert_bool(_acre_has(blocks, TownFieldGenerator.T_NEEDLEWORK)).is_true()
+		var data: WorldData = WorldGenerator.generate(1000 + seed)
+		assert_that(_building_at(data, &"museum")).is_not_equal(Vector2i(-1, -1))
+		assert_that(_building_at(data, &"able_sisters")).is_not_equal(Vector2i(-1, -1))
+
+
+func _acre_has(blocks: PackedByteArray, type: int) -> bool:
+	for i: int in blocks.size():
+		if int(blocks[i]) == type:
+			return true
+	return false
 
 
 func test_configure_from_world_copies_terrain() -> void:

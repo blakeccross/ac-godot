@@ -91,6 +91,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if shop != null and shop.has_method("is_open") and bool(shop.call("is_open")):
 			get_viewport().set_input_as_handled()
 			return
+		var map_ui: Node = get_tree().get_first_node_in_group("map_ui") if get_tree() != null else null
+		if map_ui != null and map_ui.has_method("is_open") and bool(map_ui.call("is_open")):
+			get_viewport().set_input_as_handled()
+			return
 		toggle()
 		get_viewport().set_input_as_handled()
 		return

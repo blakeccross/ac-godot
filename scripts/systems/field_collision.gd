@@ -63,6 +63,20 @@ static func set_plus(cell: Vector2i, ofs: Dictionary) -> void:
 	_plus[cell] = ofs
 
 
+static func is_raised_plus(cell: Vector2i) -> bool:
+	## Non-zero `SetPluss5PointOffset` body / skirt — porch zeros stay walkable.
+	if not _plus.has(cell):
+		return false
+	var ofs: Dictionary = _plus[cell]
+	return (
+		int(ofs.get("c", 0)) > 0
+		or int(ofs.get("nw", 0)) > 0
+		or int(ofs.get("sw", 0)) > 0
+		or int(ofs.get("se", 0)) > 0
+		or int(ofs.get("ne", 0)) > 0
+	)
+
+
 static func add_to(_root: Node3D, _data: WorldData, _grid: WorldGrid) -> void:
 	## Terrain walls are kinematic (`revise_xz`). Trees, buildings, and map bounds stay physics.
 	## Houses / museum / Able / post / shop / police rewrite the heightfield (`StructureOffset`); they are not StaticBody hulls.
@@ -118,8 +132,13 @@ static func unit_attr_at(data: WorldData, grid: WorldGrid, world_pos: Vector3) -
 	## no `.col.json` (placeholder tiles) — callers fall back to the coarse terrain enum.
 	if data == null or grid == null:
 		return -1
-	var cell: Vector2i = grid.world_to_cell(world_pos)
-	var unit: Dictionary = _catalog_unit(data, cell)
+	return unit_attr_at_cell(data, grid.world_to_cell(world_pos))
+
+
+static func unit_attr_at_cell(data: WorldData, cell: Vector2i) -> int:
+	if data == null:
+		return -1
+	var unit: Dictionary = _catalog_unit(data, cell, false)
 	if unit.is_empty():
 		return -1
 	return int(unit["a"])
@@ -150,6 +169,24 @@ static func revise_xz(
 	if _forbids_enter(data, res_cell) and not _forbids_enter(data, grid.world_to_cell(from)):
 		return Vector3(from.x, _keep_y(data, grid, from), from.z)
 	return Vector3(pos.x, y, pos.y)
+
+
+static func step_open(
+	data: WorldData,
+	grid: WorldGrid,
+	from: Vector3,
+	to: Vector3,
+	radius: float = ACTOR_RADIUS,
+	min_frac: float = 0.55
+) -> bool:
+	## True when `revise_xz` keeps most of the intended XZ step (not a wall scrape).
+	var want := Vector2(to.x - from.x, to.z - from.z)
+	var dist: float = want.length()
+	if dist <= 0.05:
+		return true
+	var revised: Vector3 = revise_xz(data, grid, from, to, radius)
+	var got := Vector2(revised.x - from.x, revised.z - from.z)
+	return got.dot(want.normalized()) >= dist * min_frac
 
 
 static func height_at(data: WorldData, cell: Vector2i, with_plus: bool = true) -> float:

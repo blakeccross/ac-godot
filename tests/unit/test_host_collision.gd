@@ -22,17 +22,27 @@ func test_player_house_sensor_not_a_physics_box() -> void:
 	var stand: Vector3 = HostCollision.player_door_offset()
 	assert_float(door.position.x).is_equal_approx(stand.x, 0.05)
 	assert_float(door.position.z).is_equal_approx(stand.z, 0.05)
+	## Check stand (−20,+20), not exit restart (±48.29).
+	assert_float(absf(door.position.x)).is_less(HostCollision.PLAYER_DOOR_GX * FieldCatalog.GX_TO_METERS)
+	assert_float(door.position.z).is_less(HostCollision.PLAYER_DOOR_GX * FieldCatalog.GX_TO_METERS)
 
 
-func test_npc_house_disables_physics() -> void:
+func test_npc_house_door_is_south_porch_not_aabb_face() -> void:
 	var house: StaticBody3D = auto_free(load("res://scenes/world/house.tscn").instantiate()) as StaticBody3D
 	house.footprint = Vector2i(3, 3)
 	add_child(house)
 	var col: CollisionShape3D = house.get_node("CollisionShape3D") as CollisionShape3D
 	assert_bool(col.disabled).is_true()
 	var door: Node3D = house.get_node("InteractVolume") as Node3D
-	var xz: Vector2 = HostCollision.xz_size(Vector2i(3, 3), 2.0)
-	assert_float(door.position.z).is_greater(xz.y * 0.5)
+	var stand: Vector3 = HostCollision.npc_house_door_offset()
+	assert_float(door.position.x).is_equal_approx(stand.x, 0.05)
+	assert_float(door.position.z).is_equal_approx(stand.z, 0.05)
+	## Porch at +40 GX; exit rewrite is +60 — sensor must not sit on the AABB rim.
+	var aabb_z: float = HostCollision.xz_size(Vector2i(3, 3), 2.0).y * 0.5 + HostCollision.SENSOR_PAD
+	assert_float(door.position.z).is_less(aabb_z - 0.2)
+	assert_float(door.position.z).is_equal_approx(
+		StructureDoor.NPC_HOUSE_APPROACH_GX.y * FieldCatalog.GX_TO_METERS, 0.05
+	)
 
 
 func test_shop_disables_physics() -> void:

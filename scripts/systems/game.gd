@@ -5,7 +5,10 @@ extends Node
 enum Phase { TITLE, INTRO, PLAYING }
 
 const TITLE_SCENE := "res://scenes/ui/title.tscn"
+## K.K. player-select opening (`ac_npc_p_sel`) before the Rover train.
+const INTRO_KK_SCENE := "res://scenes/ui/intro_kk.tscn"
 const INTRO_SCENE := "res://scenes/ui/intro_train.tscn"
+const INTRO_STATION_SCENE := "res://scenes/ui/intro_station.tscn"
 const WORLD_SCENE := "res://scenes/world/world.tscn"
 const INTERIOR_SCENE := "res://scenes/world/interior.tscn"
 const DEFAULT_SPAWN := Vector3(0.0, 0.1, 6.0)
@@ -52,6 +55,8 @@ var interior_spawn_yaw: float = 0.0
 var block_auto_enter_doors: bool = false
 ## After indoor leave, world plays structure leave + player GO_OUT (`mPlayer_INDEX_OUTDOOR`).
 var emerge_from_door: bool = false
+## After spawn, walk INTO_S1 past the door (museum entrance / wing links).
+var play_door_arrive: bool = false
 var interior_session: Interior
 var player_name: String = DEFAULT_PLAYER_NAME
 var town_name: String = DEFAULT_TOWN_NAME
@@ -74,6 +79,16 @@ var world_mode: WorldData.Mode = WorldData.Mode.TEST
 var world_seed: int = WorldGenerator.DEFAULT_SEED
 ## Town grass motif (`bg_tex_idx`): 0 triangle, 1 square, 2 circle.
 var grass_pattern: int = WorldData.GrassPattern.TRIANGLE
+## Station arrival (`ac_intro_demo`) runs inside the generated world, not a test acre.
+var intro_station_active: bool = false
+## After Porter until debt/job finish — vacant myhome doors are enterable for the pick.
+var intro_station_can_pick_house: bool = false
+## Resume debt/job after leaving the chosen house (`IN_HOUSE` → outdoor).
+var intro_station_resume_debt: bool = false
+var intro_station_house_id: StringName = &""
+## Player pressed A on a vacant plot; director plays `msg_2020` then enters.
+signal intro_house_look_requested(house_id: StringName)
+var intro_pending_house_id: StringName = &""
 
 
 func _init() -> void:
@@ -120,6 +135,61 @@ func start_intro_sequence() -> void:
 	Clock.rtc_override = false
 	Clock.sync_from_os()
 	_set_phase(Phase.INTRO)
+	_change_scene(INTRO_KK_SCENE)
+
+
+func start_intro_station() -> void:
+	## Station arrival slice (`ac_intro_demo`) in a freshly generated town.
+	reset_session()
+	Clock.rtc_override = false
+	Clock.sync_from_os()
+	intro_station_active = true
+	intro_station_can_pick_house = false
+	intro_station_resume_debt = false
+	intro_station_house_id = &""
+	intro_pending_house_id = &""
+	world_mode = WorldData.Mode.GENERATED
+	world_seed = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
+	grass_pattern = WorldGenerator.decide_grass_pattern(world_seed)
+	apply_weather_roll(Weather.roll())
+	_set_phase(Phase.INTRO)
+	_change_scene(WORLD_SCENE)
+
+
+func complete_intro_station() -> void:
+	## Stay in the current generated world; unlock normal play.
+	intro_station_active = false
+	intro_station_can_pick_house = false
+	intro_station_resume_debt = false
+	intro_pending_house_id = &""
+	_set_phase(Phase.PLAYING)
+	set_interact_prompt("")
+
+
+func request_intro_house_look(house_id: StringName) -> void:
+	## Vacant myhome interact during pick — Nook lines (`msg_2020`) before the door.
+	if not intro_station_active or not intro_station_can_pick_house:
+		return
+	if house_id == &"":
+		return
+	intro_station_can_pick_house = false
+	intro_pending_house_id = house_id
+	set_interact_prompt("")
+	intro_house_look_requested.emit(house_id)
+
+
+func claim_intro_house(house_id: StringName) -> void:
+	if not intro_station_active:
+		return
+	intro_station_house_id = house_id
+	intro_pending_house_id = &""
+	intro_station_can_pick_house = false
+	intro_station_resume_debt = true
+
+
+func advance_intro_to_train() -> void:
+	## After K.K. fades out (`aNPS_setup_game_start` → `SCENE_START_DEMO`).
+	_set_phase(Phase.INTRO)
 	_change_scene(INTRO_SCENE)
 
 
@@ -134,6 +204,11 @@ func finish_intro_sequence(identity: Dictionary) -> void:
 
 
 func abort_intro_sequence() -> void:
+	intro_station_active = false
+	intro_station_can_pick_house = false
+	intro_station_resume_debt = false
+	intro_station_house_id = &""
+	intro_pending_house_id = &""
 	_set_phase(Phase.TITLE)
 	_change_scene(TITLE_SCENE)
 
@@ -186,7 +261,10 @@ func return_to_title() -> void:
 func notify_world_ready() -> void:
 	if world_mode == WorldData.Mode.TEST:
 		give_test_tools()
-	_set_phase(Phase.PLAYING)
+	if intro_station_active:
+		_set_phase(Phase.INTRO)
+	else:
+		_set_phase(Phase.PLAYING)
 
 
 func notify_title_ready() -> void:
@@ -211,6 +289,7 @@ func reset_session() -> void:
 	has_interior_spawn = false
 	block_auto_enter_doors = false
 	emerge_from_door = false
+	play_door_arrive = false
 	villagers.clear()
 	villagers.book = relationships
 	VillagerWalk.reset()
@@ -231,6 +310,11 @@ func reset_session() -> void:
 	world_mode = WorldData.Mode.TEST
 	world_seed = WorldGenerator.DEFAULT_SEED
 	grass_pattern = WorldData.GrassPattern.TRIANGLE
+	intro_station_active = false
+	intro_station_can_pick_house = false
+	intro_station_resume_debt = false
+	intro_station_house_id = &""
+	intro_pending_house_id = &""
 	set_interact_prompt("")
 
 
@@ -505,15 +589,38 @@ func try_enter_interior(
 			outdoor_return_yaw = player_yaw
 	close_shop()
 	current_room_id = room_id
+	play_door_arrive = false
 	if spawn_gx is Vector3:
 		interior_spawn_gx = spawn_gx as Vector3
 		interior_spawn_yaw = float(spawn_yaw) if spawn_yaw != null else 0.0
 		has_interior_spawn = true
 		spawn_at_room_door = false
+		## Non-museum linked spawns may continue INTO_S1; museum wings stay on door_data.
+		play_door_arrive = not _is_museum_room_id(room_id)
 	elif room_id == &"museum_entrance":
 		## `aMsm_museum_enter_data` — not scene player data / generic south door cell.
 		interior_spawn_gx = MuseumDisplay.ENTRANCE_SPAWN_GX
 		interior_spawn_yaw = WorldGrid.yaw_for_furniture(MuseumDisplay.ENTRANCE_SPAWN_FACING)
+		has_interior_spawn = true
+		spawn_at_room_door = false
+		## Museum: wipe to spawn facing north — no post-load walk.
+		play_door_arrive = false
+	elif room_id == &"shop0":
+		## `SHOP01_player_data` GX {160,0,300}, face south.
+		interior_spawn_gx = ShopDisplay.CRANNY_SPAWN_GX
+		interior_spawn_yaw = WorldGrid.yaw_for_facing(ShopDisplay.CRANNY_SPAWN_FACING)
+		has_interior_spawn = true
+		spawn_at_room_door = false
+	elif room.kind == Room.Kind.NPC:
+		## `aHUS_npc_house_door_data` — not walkable-south `door_cell - 1`.
+		interior_spawn_gx = InteriorCatalog.NPC_HOUSE_SPAWN_GX
+		interior_spawn_yaw = WorldGrid.yaw_for_facing(WorldGrid.Facing.NORTH)
+		has_interior_spawn = true
+		spawn_at_room_door = false
+	elif room_id == &"player_main":
+		## `aMHS_goto_next_pl_scene` HOMESIZE_S startX/Z.
+		interior_spawn_gx = InteriorCatalog.PLAYER_SMALL_SPAWN_GX
+		interior_spawn_yaw = WorldGrid.yaw_for_facing(WorldGrid.Facing.NORTH)
 		has_interior_spawn = true
 		spawn_at_room_door = false
 	else:
@@ -525,6 +632,13 @@ func try_enter_interior(
 		return stage.call("switch_wing", room_id) as bool
 	_change_scene(INTERIOR_SCENE)
 	return true
+
+
+func _is_museum_room_id(room_id: StringName) -> bool:
+	if room_id == &"" or interiors == null:
+		return false
+	var room: Room = interiors.room(room_id)
+	return room != null and room.kind == Room.Kind.MUSEUM
 
 
 func _museum_complete_stage() -> Node:
@@ -584,6 +698,7 @@ func exit_interior() -> bool:
 	interior_session = null
 	spawn_at_room_door = false
 	has_interior_spawn = false
+	play_door_arrive = false
 	block_auto_enter_doors = true
 	player_position = outdoor_return
 	player_yaw = outdoor_return_yaw

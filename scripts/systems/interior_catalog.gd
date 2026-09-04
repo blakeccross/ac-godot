@@ -14,9 +14,17 @@ const NPC_ROOMS_PATH := "res://assets/generated/environment/fg/npc_rooms.json"
 ## Disc NPC rooms occupy the NW 8×8 of the 16×16 FG grid (`fgnpcdata.bin`).
 const NPC_INNER_ORIGIN := Vector2i(1, 1)
 const NPC_INNER_SIZE := Vector2i(6, 6)
+## `fgnpcdata` EXIT_DOOR pair + `aHUS_npc_house_door_data` enter stand.
+const NPC_HOUSE_DOOR_CELL := Vector2i(3, 8)
+const NPC_HOUSE_SPAWN_CELL := Vector2i(3, 7)
+const NPC_HOUSE_SPAWN_GX := Vector3(160.0, 0.0, 300.0)
 ## Small player main (`l_proom_s_tmp`, `rom_myhome1_*`): 4×4 walkable, same NW origin.
 const PLAYER_INNER_ORIGIN := Vector2i(1, 1)
 const PLAYER_INNER_SIZE := Vector2i(4, 4)
+## `l_proom_s_tmp` EXIT_DOOR + `aMHS_goto_next_pl_scene` startX/Z[HOMESIZE_S].
+const PLAYER_SMALL_DOOR_CELL := Vector2i(2, 7)
+const PLAYER_SMALL_SPAWN_CELL := Vector2i(2, 5)
+const PLAYER_SMALL_SPAWN_GX := Vector3(120.0, 0.0, 220.0)
 ## `l_mHm_player_room_default_data[0]`: stone wall & old flooring.
 const PLAYER_START_WALL := 3
 const PLAYER_START_FLOOR := 38
@@ -37,6 +45,8 @@ static var _building_to_house: Dictionary = {}
 static var _npc_layouts: Dictionary = {}
 static var _npc_layouts_loaded: bool = false
 static var _loaded: bool = false
+## room_id → authored `.tscn` (Shell / Terrain / Furniture / Doors). Empty → InteriorBuilder.
+static var _scene_paths: Dictionary = {}
 
 
 static func reset() -> void:
@@ -45,6 +55,7 @@ static func reset() -> void:
 	_building_to_house.clear()
 	_npc_layouts.clear()
 	_npc_layouts_loaded = false
+	_scene_paths.clear()
 	_loaded = false
 
 
@@ -54,6 +65,7 @@ static func ensure_loaded() -> void:
 	_rooms.clear()
 	_houses.clear()
 	_building_to_house.clear()
+	_scene_paths.clear()
 	_register_all()
 	_loaded = true
 
@@ -136,10 +148,31 @@ static func resolve_entry(target: StringName) -> StringName:
 	var house_id: StringName = house_for_building(target)
 	if house_id == &"":
 		return &""
+	## Nook outdoor enter uses current upgrade room (`shop0`…`shop3_1`).
+	if house_id == &"shop":
+		return nook_entry_room()
 	var house: House = _houses[house_id] as House
 	if house == null:
 		return &""
 	return house.entry_room_id()
+
+
+static func nook_entry_room() -> StringName:
+	if Game != null and Game.shops != null:
+		return Game.shops.nook_room_id()
+	return &"shop0"
+
+
+static func scene_path(room_id: StringName) -> String:
+	ensure_loaded()
+	if room_id == &"":
+		return ""
+	return str(_scene_paths.get(room_id, ""))
+
+
+static func has_authored_scene(room_id: StringName) -> bool:
+	var path: String = scene_path(room_id)
+	return path != "" and ResourceLoader.exists(path)
 
 
 static func is_open_now(room: Room) -> bool:
@@ -252,13 +285,36 @@ static func _register_all() -> void:
 	_register_shops()
 	_register_public()
 	_register_museum()
+	_register_scene_paths()
 	_bind(&"player_house", PLAYER_HOUSE_ID)
+	_bind(&"player_house_1", PLAYER_HOUSE_ID)
+	_bind(&"player_house_2", PLAYER_HOUSE_ID)
+	_bind(&"player_house_3", PLAYER_HOUSE_ID)
 	_bind(&"house_door", PLAYER_HOUSE_ID)
 	_bind(&"acre_shop", &"shop")
 	_bind(&"museum", &"museum")
 	_bind(&"able_sisters", &"needlework")
 	_bind(&"post_office", &"post_office")
 	_bind(&"police", &"police_box")
+
+
+static func _register_scene_paths() -> void:
+	## Authored indoor layouts under `scenes/world/interiors/` (+ museum wings).
+	var interiors := "res://scenes/world/interiors/"
+	var museum := "res://scenes/world/museum/"
+	_scene_paths[&"shop0"] = interiors + "shop0.tscn"
+	_scene_paths[&"shop1"] = interiors + "shop1.tscn"
+	_scene_paths[&"shop2"] = interiors + "shop2.tscn"
+	_scene_paths[&"shop3_1"] = interiors + "shop3_1.tscn"
+	_scene_paths[&"shop3_2"] = interiors + "shop3_2.tscn"
+	_scene_paths[&"needlework"] = interiors + "needlework.tscn"
+	_scene_paths[&"police_box"] = interiors + "police_box.tscn"
+	_scene_paths[&"post_office"] = interiors + "post_office.tscn"
+	_scene_paths[&"museum_entrance"] = museum + "museum_entrance.tscn"
+	_scene_paths[&"museum_painting"] = museum + "museum_painting.tscn"
+	_scene_paths[&"museum_fossil"] = museum + "museum_fossil.tscn"
+	_scene_paths[&"museum_insect"] = museum + "museum_insect.tscn"
+	_scene_paths[&"museum_fish"] = museum + "museum_fish.tscn"
 
 
 static func _register_player() -> void:
@@ -275,6 +331,7 @@ static func _register_player() -> void:
 			"shells": PackedStringArray(["rom_myhome1_floor", "rom_myhome1_wall"]),
 		}
 	)
+	_apply_player_small_door(main)
 	_fill_player_starter(main)
 	_put_room(main)
 	_put_room(
@@ -323,6 +380,7 @@ static func _register_npc() -> void:
 				"shells": PackedStringArray(["rom_myhome2_floor", "rom_myhome2_wall"]),
 			}
 		)
+		_apply_npc_house_door(room)
 		_add_ftr(room, &"wood_chair", Vector2i(3, 5), WorldGrid.Facing.SOUTH)
 		_put_room(room)
 		var house_id := room_id
@@ -360,6 +418,7 @@ static func _ensure_villager_room(room_id: StringName) -> Room:
 			"shells": PackedStringArray(["rom_myhome2_floor", "rom_myhome2_wall"]),
 		}
 	)
+	_apply_npc_house_door(room)
 	_fill_npc_furniture(room, villager.id)
 	_put_room(room)
 	_put_house(room_id, villager.id, &"", [room_id])
@@ -431,35 +490,55 @@ static func _ensure_npc_layouts() -> void:
 
 
 static func _register_shops() -> void:
+	## Floor/wall: `aSI_wall/floor_default_table` → ETC bank `WALL_SHOP*` / `FLOOR_SHOP*`.
+	## Shells bake style-0 placeholders; runtime paints the shop bank indices.
 	var shop0 := _public(
-		&"shop0", Room.Kind.SHOP, "Nook's Cranny", Vector2i(4, 4), Vector2i(8, 8), 9, 22
+		&"shop0",
+		Room.Kind.SHOP,
+		"Nook's Cranny",
+		ShopDisplay.CRANNY_INNER_ORIGIN,
+		ShopDisplay.CRANNY_INNER_SIZE,
+		9,
+		22
 	)
+	shop0.wall_id = ShopDisplay.nook_wall_id(0)
+	shop0.floor_id = ShopDisplay.nook_floor_id(0)
+	shop0.door_cell = ShopDisplay.CRANNY_DOOR_CELL
+	shop0.spawn_cell = ShopDisplay.CRANNY_SPAWN_CELL
 	shop0.shell_ids = PackedStringArray(["rom_shop1f", "rom_shop1w"])
-	_add_ftr(shop0, &"wood_table", Vector2i(7, 6), WorldGrid.Facing.SOUTH)
-	_add_ftr(shop0, &"wood_dresser", Vector2i(5, 8), WorldGrid.Facing.EAST)
 	_put_room(shop0)
 	var shop1 := _public(&"shop1", Room.Kind.SHOP, "Nook 'n' Go", Vector2i(3, 3), Vector2i(10, 10), 7, 23)
+	shop1.wall_id = ShopDisplay.nook_wall_id(1)
+	shop1.floor_id = ShopDisplay.nook_floor_id(1)
 	shop1.shell_ids = PackedStringArray(["rom_shop2f", "rom_shop2w"])
 	_put_room(shop1)
 	var shop2 := _public(&"shop2", Room.Kind.SHOP, "Nookway", Vector2i(3, 3), Vector2i(10, 10), 9, 22)
+	shop2.wall_id = ShopDisplay.nook_wall_id(2)
+	shop2.floor_id = ShopDisplay.nook_floor_id(2)
 	shop2.shell_ids = PackedStringArray(["rom_shop3f", "rom_shop3w"])
 	_put_room(shop2)
 	var shop3_1 := _public(
 		&"shop3_1", Room.Kind.SHOP, "Nookington's", Vector2i(3, 3), Vector2i(10, 10), 9, 22
 	)
+	shop3_1.wall_id = ShopDisplay.nook_wall_id(3)
+	shop3_1.floor_id = ShopDisplay.nook_floor_id(3)
 	shop3_1.linked_rooms = [&"shop3_2"]
 	shop3_1.shell_ids = PackedStringArray(["rom_shop4_1"])
 	_put_room(shop3_1)
 	var shop3_2 := _public(
 		&"shop3_2", Room.Kind.SHOP, "Nookington's Annex", Vector2i(3, 3), Vector2i(10, 10), 9, 22
 	)
+	shop3_2.wall_id = &"wall_70"
+	shop3_2.floor_id = &"floor_70"
 	shop3_2.parent_room_id = &"shop3_1"
 	shop3_2.shell_ids = PackedStringArray(["rom_shop4_2f", "rom_shop4_2w"])
 	_put_room(shop3_2)
-	var broker := _public(
-		&"broker_shop", Room.Kind.BROKER, "Redd's Tent", Vector2i(5, 5), Vector2i(6, 6), 9, 22
+	## Broker is event-gated outdoors, not clock hours (`aBRS_open_check`).
+	var broker := _make(
+		&"broker_shop", Room.Kind.BROKER, "Redd's Tent", Vector2i(5, 5), Vector2i(6, 6), {}
 	)
-	broker.wall_id = WALL_ROSE
+	broker.wall_id = &""
+	broker.floor_id = &""
 	broker.shell_ids = PackedStringArray(["rom_tent"])
 	_put_room(broker)
 	_put_house(&"shop", &"", &"acre_shop", [&"shop0"])
@@ -468,29 +547,41 @@ static func _register_shops() -> void:
 
 
 static func _register_public() -> void:
-	_put_room(
-		_public(&"post_office", Room.Kind.POST_OFFICE, "Post Office", Vector2i(5, 5), Vector2i(6, 6), 9, 22)
+	## Post / police: always enterable; hour checks in decomp are lights only.
+	var post := _make(
+		&"post_office", Room.Kind.POST_OFFICE, "Post Office", Vector2i(5, 5), Vector2i(6, 6), {}
 	)
+	post.wall_id = &""
+	post.floor_id = &""
+	_put_room(post)
 	var police := _make(&"police_box", Room.Kind.POLICE, "Police Station", Vector2i(5, 5), Vector2i(6, 6), {})
+	police.wall_id = &""
+	police.floor_id = &""
 	police.shell_ids = PackedStringArray(["police_indoor"])
 	_put_room(police)
 	_put_room(_make(&"buggy", Room.Kind.DUMP, "Dump", Vector2i(4, 4), Vector2i(8, 8), {"floor": FLOOR_STONE}))
 	var snow := _make(
-		&"kamakura", Room.Kind.KAMAKURA, "Snow Cabin", Vector2i(5, 5), Vector2i(6, 6), {"wall": WALL_BLUE}
+		&"kamakura", Room.Kind.KAMAKURA, "Snow Cabin", Vector2i(5, 5), Vector2i(6, 6), {}
 	)
+	snow.wall_id = &""
+	snow.floor_id = &""
 	snow.shell_ids = PackedStringArray(["rom_kamakura"])
 	_put_room(snow)
+	## Able: closed 02:00–07:00 (`aNW_check_opend`); open 7→2 wraps past midnight.
 	var needle := _public(
-		&"needlework", Room.Kind.NEEDLEWORK, "Able Sisters", Vector2i(4, 4), Vector2i(8, 8), 9, 22
+		&"needlework", Room.Kind.NEEDLEWORK, "Able Sisters", Vector2i(4, 4), Vector2i(8, 8), 7, 2
 	)
-	needle.wall_id = WALL_ROSE
+	needle.wall_id = &""
+	needle.floor_id = &""
 	needle.shell_ids = PackedStringArray(["rom_tailor"])
 	_add_ftr(needle, &"wood_table", Vector2i(6, 7), WorldGrid.Facing.SOUTH)
 	_put_room(needle)
 	_put_room(
 		_make(&"lighthouse", Room.Kind.LIGHTHOUSE, "Lighthouse", Vector2i(6, 6), Vector2i(4, 4), {"floor": FLOOR_STONE})
 	)
-	var tent := _make(&"tent", Room.Kind.TENT, "Tent", Vector2i(5, 5), Vector2i(6, 6), {"wall": WALL_GREEN})
+	var tent := _make(&"tent", Room.Kind.TENT, "Tent", Vector2i(5, 5), Vector2i(6, 6), {})
+	tent.wall_id = &""
+	tent.floor_id = &""
 	tent.shell_ids = PackedStringArray(["rom_tent"])
 	_put_room(tent)
 	_put_room(_make(&"cottage", Room.Kind.COTTAGE, "Cottage", Vector2i(5, 5), Vector2i(6, 6), {}))
@@ -514,8 +605,9 @@ static func _register_museum() -> void:
 	## Floor prim AABB at acre scale: X cells 1–11, Z cells 3–11 → (1,3)+(10,8).
 	## Old (3,3)+(10,10) plus the one-cell wall inset put west collision too far in
 	## and left a gap past the east visual wall.
-	var entrance := _public(
-		&"museum_entrance", Room.Kind.MUSEUM, "Museum", Vector2i(1, 3), Vector2i(10, 8), 9, 17
+	## Always open — `aMsm_ctrl_light` is lights only (6–18), not an entry gate.
+	var entrance := _make(
+		&"museum_entrance", Room.Kind.MUSEUM, "Museum", Vector2i(1, 3), Vector2i(10, 8), {}
 	)
 	entrance.linked_rooms = [
 		&"museum_painting", &"museum_fossil", &"museum_insect", &"museum_fish"
@@ -548,7 +640,7 @@ static func _register_museum() -> void:
 		var label := String(wing).replace("museum_", "").capitalize()
 		var inner: Vector2i = wing_sizes.get(wing, Vector2i(10, 10)) as Vector2i
 		var origin: Vector2i = wing_origins.get(wing, Vector2i.ZERO) as Vector2i
-		var room := _public(wing, Room.Kind.MUSEUM, "%s Wing" % label, origin, inner, 9, 17)
+		var room := _make(wing, Room.Kind.MUSEUM, "%s Wing" % label, origin, inner, {})
 		room.parent_room_id = &"museum_entrance"
 		room.wall_id = &""
 		room.floor_id = &""
@@ -623,6 +715,22 @@ static func _make(
 	if opts.has("parent"):
 		room.parent_room_id = opts["parent"] as StringName
 	return room
+
+
+static func _apply_npc_house_door(room: Room) -> void:
+	## `fgnpcdata` EXIT at (3,8)/(4,8); enter `{160,0,300}` facing north.
+	if room == null:
+		return
+	room.door_cell = NPC_HOUSE_DOOR_CELL
+	room.spawn_cell = NPC_HOUSE_SPAWN_CELL
+
+
+static func _apply_player_small_door(room: Room) -> void:
+	## `l_proom_s_tmp` EXIT at (2,7)/(3,7); enter `{120,0,220}` facing north.
+	if room == null:
+		return
+	room.door_cell = PLAYER_SMALL_DOOR_CELL
+	room.spawn_cell = PLAYER_SMALL_SPAWN_CELL
 
 
 static func _fill_player_starter(room: Room) -> void:

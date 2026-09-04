@@ -54,6 +54,137 @@ class DialogueCodecTests(unittest.TestCase):
         self.assertIn("{player}", conv["nodes"]["p0"]["text"])
         self.assertEqual(conv["nodes"]["p0"]["next"], msg_id(0x1234))
 
+    def test_preserves_text_color_and_char_scale(self) -> None:
+        cmap = char_map()
+        cmds = commands()
+        color = cmds.index("TEXTCOLOR")
+        scale = cmds.index("CHARSCALE")
+        raw = bytes(
+            [
+                0x7F,
+                color,
+                150,
+                150,
+                150,
+                0x7F,
+                scale,
+                16,
+                cmap.index("("),
+                0x7F,
+                scale,
+                16,
+                cmap.index("o"),
+                0x7F,
+                scale,
+                16,
+                cmap.index("k"),
+                0x7F,
+                scale,
+                16,
+                cmap.index(")"),
+                0x7F,
+                0x00,
+            ]
+        )
+        text = tokens_to_conversation(2, decode_tokens(raw))["nodes"]["p0"]["text"]
+        self.assertIn("{c:150,150,150}", text)
+        self.assertIn("{s:16}", text)
+        self.assertIn("(ok)", text)
+        self.assertIn("{s:32}", text)
+
+    def test_demonpc0_slot0_becomes_manpu_event(self) -> None:
+        cmap = char_map()
+        cmds = commands()
+        demon = cmds.index("DEMONPC0")
+        raw = bytes(
+            [
+                0x7F,
+                demon,
+                0,
+                0,
+                11,
+                cmap.index("H"),
+                cmap.index("i"),
+                0x7F,
+                0x00,
+            ]
+        )
+        conv = tokens_to_conversation(9, decode_tokens(raw))
+        self.assertEqual(
+            conv["nodes"]["p0"]["events"],
+            [{"op": "manpu", "code": 11, "name": "hate1"}],
+        )
+        self.assertEqual(conv["nodes"]["p0"]["text"], "Hi")
+
+    def test_msgcontents_becomes_set_emote(self) -> None:
+        cmap = char_map()
+        cmds = commands()
+        fun = cmds.index("MSGCONTENTS_FUN")
+        raw = bytes([0x7F, fun, cmap.index("Y"), 0x7F, 0x00])
+        conv = tokens_to_conversation(10, decode_tokens(raw))
+        self.assertEqual(conv["nodes"]["p0"]["events"], [{"op": "set_emote", "name": "laugh"}])
+
+    def test_demonpc0_non_manpu_slot_becomes_demo_order(self) -> None:
+        cmap = char_map()
+        cmds = commands()
+        demon = cmds.index("DEMONPC0")
+        raw = bytes(
+            [
+                0x7F,
+                demon,
+                2,  # timing slot
+                0,
+                5,
+                cmap.index("A"),
+                0x7F,
+                0x00,
+            ]
+        )
+        conv = tokens_to_conversation(11, decode_tokens(raw))
+        self.assertEqual(
+            conv["nodes"]["p0"]["events"],
+            [{"op": "demo_order", "target": "npc0", "slot": 2, "value": 5}],
+        )
+
+    def test_demo_token_counts_match_imported_events(self) -> None:
+        from asset_pipeline.dialogue import count_demo_tokens, count_events_in_conversation
+
+        cmap = char_map()
+        cmds = commands()
+        demon = cmds.index("DEMONPC0")
+        fun = cmds.index("MSGCONTENTS_FUN")
+        plr = cmds.index("DEMOPLR")
+        raw = bytes(
+            [
+                0x7F,
+                demon,
+                0,
+                0,
+                3,  # manpu smile
+                0x7F,
+                fun,  # set_emote
+                0x7F,
+                demon,
+                1,
+                0,
+                2,  # demo_order timing
+                0x7F,
+                plr,
+                0,
+                0,
+                254,  # demo_order player
+                cmap.index("Z"),
+                0x7F,
+                0x00,
+            ]
+        )
+        tokens = decode_tokens(raw)
+        expected = count_demo_tokens(tokens)
+        conv = tokens_to_conversation(12, tokens)
+        imported = count_events_in_conversation(conv)
+        self.assertEqual(expected, {"manpu": 1, "set_emote": 1, "demo_order": 2})
+        self.assertEqual(imported, expected)
+
     def test_table_splits_entries(self) -> None:
         cmap = char_map()
         a = bytes([cmap.index("A"), 0x7F, 0x00])

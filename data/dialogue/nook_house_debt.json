@@ -1,0 +1,21 @@
+{
+  "id": "nook_house_debt",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Ah! So this is the one, is it?\nWonderful taste, yes, yes!",
+      "next": "loan"
+    },
+    "loan": {
+      "type": "line",
+      "text": "Of course, a house isn't free,\nhm? I'll put the loan in your\nname — pay it back whenever\nyou can. No rush, no rush!",
+      "next": "keys"
+    },
+    "keys": {
+      "type": "line",
+      "text": "The keys are yours. Make\nyourself comfortable!"
+    }
+  }
+}

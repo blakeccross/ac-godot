@@ -10,6 +10,7 @@ Study [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp) for **behavior
 - **Data:** `Resource` classes under `scripts/data/`, instances as `.tres` under `data/`.
 - **Presentation:** scenes under `scenes/`.
 - **Behavior:** systems under `scripts/systems/` (autoloads only when a system exists and is shared).
+- **Scene-first:** build fixed layout in the editor (`.tscn`, nested `instance=`). Use runtime `instantiate()` only for procedural / ephemeral content, and then place authored packed scenes—do not construct rooms, HUD, or props from meshes in GDScript when a scene would work.
 - Prefer composition over inheritance. Keep systems independently testable.
 - Use placeholders until the system works. Do not import original game assets.
 - Do not add a feature because the decomp has it. See `docs/scope.md`.

@@ -22,5 +22,5 @@ contact = 0
 can_sit = false
 can_store = true
 blocks_walk = true
-visual_id = &"int_sum_classicchest01"
+visual_id = &"int_sum_classiccabinet01"
 storage_slots = 3

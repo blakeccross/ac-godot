@@ -2,7 +2,18 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — not every store is in scope.
 
-**Godot:** `ShopBook` (`RefCounted` on `Game`, not an autoload). Nook (`shop0`) buy and sell; Able Sisters (`needlework`) buy-only. Listed price is `ItemData.buy_price` (or `sell_price` if buy is 0). Nook pays fruit/fish/bugs at authored `sell_price`; everything else is listed / 4 (`SELL_BUY_RATIO`). Cranny stock is a tiny authored pool (tools, furniture, wallpaper, carpet, sapling, plants). Able stock is four shirts. Lineup rerolls at 06:00 (`Clock.field_renewed`). Wallet is `Inventory.wallet`. Indoor counters and shelf goods are presentation (`shop_counter`, `shop_stock`); they call `ShopBook`. Hours stay on `InteriorCatalog.is_open_now`.
+**Godot:** `ShopBook` (`RefCounted` on `Game`, not an autoload). Nook (`shop0`) buy and sell; Able Sisters (`needlework`) buy-only. Listed price is `ItemData.buy_price` (or `sell_price` if buy is 0). Nook pays fruit/fish/bugs at authored `sell_price`; everything else is listed / 4 (`SELL_BUY_RATIO`). Cranny stock follows zakka counts (tools×2, furniture, wall, carpet, cloth, sapling, plants×2; paper deferred). Able stock is four shirts. Lineup rerolls at 06:00 (`Clock.field_renewed`). Wallet is `Inventory.wallet`.
+
+**Cranny presentation (`ShopDisplay` + authored `shop0.tscn`):**
+- Shells `rom_shop1f` / `rom_shop1w` (and `rom_shop2f`/`w`, `rom_shop3f`/`w`, `rom_shop4_2f`/`w`); the `f`/`w` suffix is floor/wall. Wall/floor bank indices follow `aSI_*_default_table` (`WALL_SHOP*` / `FLOOR_SHOP*` → 67–70).
+- FG walkable `(1,1)+(7,8)`; exit `(3,8)`; player spawn GX `{160,0,300}`.
+- Tom Nook (`tom_nook.tscn`; no cloth DMA — `seg_08` is eyes) at the shop's `shop0N_actable` stand — Talk / Buy / Sell; goods use `obj_item_*` / mannequin stands on RSV cells. Outfit is a different skeleton per level (`rcn_1` Cranny, `rcc_1` Nook 'n' Go, `rcs_1` Nookway, `rcd_1` Nookington's), not a cloth swap.
+- Shelf goods sit at **21 GX** (`CRANNY_SHELF_Y_GX`) on shell tables; freestanding FTR / mannequin / umbrella stay on the floor.
+- Wall clock `obj_clock_shop1`…`4` at GX `(200,40,40)` (`aHC_position_data`).
+- `rom_shop*` shells keep the acre origin (like museum) so FG RSV ut cells line up with `cell_to_world`.
+- Indoor Able still uses `shop_counter`; Nook shops use Tom Nook instead of a counter actor.
+
+Hours stay on `InteriorCatalog.is_open_now`. Nook upgrades by sales → `shop0`…`shop3_1` rooms, outdoor `obj_s_shop1`…`4`, and Tom Nook `rcn`/`rcc`/`rcs`/`rcd`.
 
 **Read before implementing:** shop scene, buy/sell, wallet.
 
@@ -11,6 +22,8 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 | File | Role |
 | --- | --- |
 | `include/m_shop.h`, `src/game/m_shop.c` | Shop type, hours, stock lists, sales sums, prices |
+| `src/data/npc/npc_draw_data.c` | Shop-master draw rows (`rcn_1` / `rcc_1` / `rcs_1` / `rcd_1`) |
+| `src/data/field/mvactor/shop0*.c` | Indoor stand ut (`shop01`…`shop04_1` actables) |
 | `include/m_kabu_manager.h` | Turnip prices (separate stall) |
 | `include/m_post_office.h` | Post office, not Nook |
 | `include/m_field_info.h` | Shop room field ids |
@@ -80,16 +93,16 @@ Other buildings (Able Sisters, auction, island shack, museum shop) are different
 
 ## Simplify
 
-- No four-building upgrade chain; keep the Cranny interior.
-- No lottery, catalog mail-order, turnips, Crazy Redd.
+- Lottery, catalog mail-order, turnips, Crazy Redd stay out.
 - No sales-sum tool unlocks unless we want a single “net appears in stock” flag.
 - Fixed prices; skip ABC rarity percentages (`mSP_GetGoodsPercent`).
 - Sell at a single ratio (catalog / 4) except fruit/fish/bugs, which keep authored `sell_price`.
+- Nook upgrade interiors (`shop0`…`shop3_1` / outdoor `obj_s_shop1`…`4`) follow sales thresholds; Tom Nook uses that level's `npc_draw_data` skeleton (`rcn_1`…`rcd_1`) at the matching `shop0N_actable` stand. Renovation downtime / multi-floor department browsing stay simplified (annex link only). Lottery-day `rcf_1` (`SHOP_MASTERSP`) waits.
 
 ## Ignore
 
 - Roof color enum, signboard 500 Bells, Nintendo 64 / Mario / Famicom lists.
 - Island, tent, kamakura, harvest festival lists.
 - `mSP_SelectFishginPresent`, GBA item dump.
-- Department-store multi-room (`SHOP3_1`, `SHOP3_2`).
+- Full department-store multi-room shopping (SHOP3_1 / SHOP3_2 annex link is enough).
 - Visitor-from-another-town shop logic (`mSP_SetNewVisitor`).

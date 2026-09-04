@@ -9,7 +9,20 @@ from typing import TYPE_CHECKING, Optional
 
 from PIL import Image
 
-from .bti import CI4, CI8, I4, I8, IA4, IA8, RGB5A3, RGBA8, _rgb5a3, decode_gx_image, decode_linear_rgba5551
+from .bti import (
+	CI4,
+	CI8,
+	I4,
+	I8,
+	IA4,
+	IA8,
+	RGB5A3,
+	RGBA8,
+	_rgb5a3,
+	_rgba5551,
+	decode_gx_image,
+	decode_linear_rgba5551,
+)
 from .mapfile import MapSymbol, index_by_name
 from .rel import RelData
 
@@ -33,6 +46,18 @@ GX_MIRROR = 2
 GLTF_CLAMP = 33071
 GLTF_REPEAT = 10497
 GLTF_MIRROR = 33648
+
+
+## Nook indoor DMA shells: `rom_shop1f` / `rom_shop4_2w` (not `rom_shop1_fuku`).
+_SHOP_FW_SHELL_RE = re.compile(r"^rom_shop\d+(?:_\d+)?([fw])$")
+
+
+def shop_shell_kind(prefix: str) -> str:
+    """'floor' / 'wall' for Nook `rom_shopNf` / `rom_shopNw` segment banks."""
+    match = _SHOP_FW_SHELL_RE.match(prefix or "")
+    if match is None:
+        return ""
+    return "floor" if match.group(1) == "f" else "wall"
 
 
 def wrap_to_gltf(mode: int) -> int:
@@ -76,6 +101,14 @@ def palette_from_rgb5a3(blob: bytes) -> list[tuple[int, int, int, int]]:
     colors: list[tuple[int, int, int, int]] = []
     for i in range(0, len(blob) - 1, 2):
         colors.append(_rgb5a3(int.from_bytes(blob[i : i + 2], "big")))
+    return colors
+
+
+def palette_from_rgba5551(blob: bytes) -> list[tuple[int, int, int, int]]:
+    """N64 `G_IM_FMT_RGBA` / `G_IM_SIZ_16b` TLUT words (not GX RGB5A3)."""
+    colors: list[tuple[int, int, int, int]] = []
+    for i in range(0, len(blob) - 1, 2):
+        colors.append(_rgba5551(int.from_bytes(blob[i : i + 2], "big")))
     return colors
 
 
@@ -154,12 +187,77 @@ def bake_beach_wet_png(
     return image_png_bytes(out)
 
 
+## `grd_player_select_modelT` spot: prim white, env (255,255,130), lod 150.
+_PLAYER_SELECT_SPOT_ENV = (255, 255, 130)
+_PLAYER_SELECT_SPOT_LOD = 150
+
+
+def bake_player_select_spot_png(
+    png: bytes,
+    prim: tuple[int, int, int, int] = (255, 255, 255, 255),
+    env: tuple[int, int, int] = _PLAYER_SELECT_SPOT_ENV,
+    lod_frac: int = _PLAYER_SELECT_SPOT_LOD,
+) -> bytes:
+    """Player-select spotlight XLU: `(PRIM-ENV)*I+ENV`, A ≈ I × PRIM_LOD_FRAC.
+
+    Decomp uses dual I tiles (spot2 scroll + spot); single-tex I is enough for the
+    soft yellow cone over the wood floor.
+    """
+    image = Image.open(io.BytesIO(png)).convert("RGBA")
+    pr, pg, pb, _pa = prim
+    er, eg, eb = env
+    lod = max(0, min(255, int(lod_frac))) / 255.0
+    out = Image.new("RGBA", image.size)
+    px_in = image.load()
+    px_out = out.load()
+    for y in range(image.size[1]):
+        for x in range(image.size[0]):
+            intensity = int(px_in[x, y][0])
+            t = intensity / 255.0
+            px_out[x, y] = (
+                int(round(er + (pr - er) * t)),
+                int(round(eg + (pg - eg) * t)),
+                int(round(eb + (pb - eb) * t)),
+                int(round(intensity * lod)),
+            )
+    return image_png_bytes(out)
+
+
+def bake_player_select_shade_png(
+    png: bytes,
+    prim: tuple[int, int, int, int] = (0, 0, 0, 255),
+) -> bytes:
+    """Player-select shade curtain: RGB = PRIMITIVE (black), A = I."""
+    image = Image.open(io.BytesIO(png)).convert("RGBA")
+    pr, pg, pb, _pa = prim
+    out = Image.new("RGBA", image.size)
+    px_in = image.load()
+    px_out = out.load()
+    for y in range(image.size[1]):
+        for x in range(image.size[0]):
+            intensity = int(px_in[x, y][0])
+            px_out[x, y] = (pr, pg, pb, intensity)
+    return image_png_bytes(out)
+
+
+def is_player_select_spot_tex(name: str) -> bool:
+    return "rom_open_spot" in (name or "").lower()
+
+
+def is_player_select_shade_tex(name: str) -> bool:
+    return "rom_open_shade" in (name or "").lower()
+
+
 def alpha_mode_for_image(image: Image.Image) -> str:
     """glTF alphaMode from a decoded RGBA image: cutout CI leaves → MASK, soft IA → BLEND."""
     alpha = image.convert("RGBA").getchannel("A")
     hist = alpha.histogram()
     total = image.size[0] * image.size[1]
     if hist[255] >= total:
+        return "OPAQUE"
+    ## ACHD upscales often leave a few texels at 254/253 with no real holes —
+    ## treat as opaque so ears/body stay TEX_EDGE-solid (not soft BLEND).
+    if sum(hist[250:]) >= total:
         return "OPAQUE"
     if hist[0] + hist[255] >= total:
         return "MASK"
@@ -275,12 +373,19 @@ def is_museum_clock_texture(tex_name: str) -> bool:
     return tex_name.startswith("obj_clock_museum1_")
 
 
+def is_train_structure_texture(tex_name: str) -> bool:
+    """Outdoor train CI4 (`obj_train1_t*_tex_txt`). ACHD hashes need the live
+    structure TLUT (`obj_train1_a1/a2_pal`); wrong-pal lookups paint magenta."""
+    return tex_name.startswith("obj_train1_t") and "_tex" in tex_name
+
+
 def skips_achd_texture(tex_name: str) -> bool:
     """Textures whose Dolphin hashes collide with unrelated ACHD sheets."""
     return (
         is_museum_plate_texture(tex_name)
         or is_indoor_mado_texture(tex_name)
         or is_house_clock_texture(tex_name)
+        or is_train_structure_texture(tex_name)
     )
 
 
@@ -313,6 +418,8 @@ def structure_palette_names(prefix: str) -> list[str]:
     Shop keeps its stage digit (`obj_shop1_pal`). Player house drops it
     (`obj_s_myhome1` → `obj_s_myhome_a_pal`). Post office is an alias
     (`obj_s_yubinkyoku` → `obj_s_post_office_pal` / winter `*_winter_pal`).
+    Trains: `obj_train1_1`/`_2` → `obj_train1_a1_pal` (TRAIN0); caboose `_3` →
+    `obj_train1_a2_pal` (TRAIN1) — see `ac_structure_clip` / `aSTR_PAL_TRAIN1_*`.
     """
     names: list[str] = []
 
@@ -322,6 +429,14 @@ def structure_palette_names(prefix: str) -> list[str]:
                 names.append(name)
 
     add(f"{prefix}_a_pal", f"{prefix}_pal")
+    train = re.match(r"^obj_train1_(\d+)$", prefix)
+    if train:
+        ## Caboose uses A2; loco + mid-car use A1.
+        if train.group(1) == "3":
+            add("obj_train1_a2_pal", "obj_train1_a2_winter_pal")
+        else:
+            add("obj_train1_a1_pal", "obj_train1_a1_winter_pal")
+        return names
     m = re.match(r"^obj_([swf])_(.+)$", prefix)
     if not m:
         return names
@@ -553,8 +668,17 @@ def decode_gbi_texture(
     fmt: int,
     siz: int,
     palette_blob: bytes | None,
+    *,
+    n64_tlut: bool = False,
 ) -> Image.Image:
-    palette = palette_from_rgb5a3(palette_blob) if palette_blob else None
+    if palette_blob:
+        palette = (
+            palette_from_rgba5551(palette_blob)
+            if n64_tlut
+            else palette_from_rgb5a3(palette_blob)
+        )
+    else:
+        palette = None
     gx = gbi_to_gx(fmt, siz)
     needed = image_byte_size(width, height, siz)
     if len(data) < needed:
@@ -597,6 +721,7 @@ class TextureState:
     wrap_s: int = GX_CLAMP
     wrap_t: int = GX_CLAMP
     prim: tuple[int, int, int, int] = (255, 255, 255, 255)
+    env: tuple[int, int, int, int] = (255, 255, 255, 255)
     ## Dual-tile water (river water1+water2, ocean wave1+wave2/3): snapshot on
     ## G_SETTILE_DOLPHIN tile 0 / tile 1 before the next SETTIMG overwrites img_addr.
     tile0: dict | None = None
@@ -633,6 +758,7 @@ class TextureBank:
         self.segment_images: dict[int, SegmentTex] = {}
         self.segment_palettes: dict[int, bytes] = {}
         self._segment_offset_names: dict[int, dict[int, str]] = {}
+        self._segment_png_overrides: dict[int, bytes] = {}
         self._png_cache: dict[tuple, tuple[bytes, str]] = {}
         self.current_prefix = ""
         self.current_gfx = ""
@@ -778,6 +904,8 @@ class TextureBank:
                         self.segment_images[seg] = SegmentTex(tex, 64, 64, palette=pal)
                         self.segment_palettes[seg] = pal
                         self._segment_offset_names[seg] = {0: f"player_room_wall_{idx}_{i}"}
+                    ## Shop/house wall DLs `LOADTLUT anime_3_txt` (seg 0x0A).
+                    self.segment_palettes[0x0A] = pal
                     self.segment_palettes.setdefault(0x0C, pal)
 
     def bind_static_segments(self, prefix: str) -> None:
@@ -799,14 +927,20 @@ class TextureBank:
             or prefix.startswith("mCL_rom_")
             or prefix in {"police_indoor", "room01"}
         ):
-            is_wall = "wall" in prefix
-            is_floor = "floor" in prefix
+            kind = shop_shell_kind(prefix)
+            is_wall = "wall" in prefix or kind == "wall"
+            is_floor = "floor" in prefix or kind == "floor"
             self.bind_player_room(
                 bind_floor=is_floor or not is_wall,
                 bind_wall=is_wall or not is_floor,
             )
         if prefix in {"obj_s_kanban", "obj_w_kanban"}:
             self._bind_kanban_paper_segments()
+        ## Train mid-car (`obj_train1_2`) loads structure pal on seg 8 like TRAIN0 draw.
+        struct_pal = self._structure_palette(prefix)
+        if struct_pal:
+            for seg in (0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0E, 0x0F):
+                self.segment_palettes.setdefault(seg, struct_pal)
 
     def _find_symbol(self, name: str) -> MapSymbol | None:
         return self.by_name.get(name)
@@ -822,6 +956,7 @@ class TextureBank:
         later from REL symbols — see `_resolve_dummy_image` / `_resolve_dummy_palette`.
         """
         self.current_prefix = prefix
+        self._segment_png_overrides.clear()
         self._apply_seasonal_fg_pals(prefix)
         pal = self._symbol_bytes(f"{prefix}_pal")
         if pal is None:
@@ -840,6 +975,11 @@ class TextureBank:
             bank = SegmentTex(tmem, 0, 0, palette=pal)
             self.segment_images[0x0A] = bank
             self.segment_images[0x0B] = bank
+        ## Mask Cat (`mka_*`): draw data has NULL eye/mouth banks, but `head_mka_model`
+        ## still samples anime_1 (32×32 face) + anime_3 (fur). Without a bind the
+        ## dummy resolver used to steal `int_nog_snowman_head_tex`. Prefer ACHD face chips.
+        if prefix.startswith("mka_") and 0x08 not in self.segment_images:
+            self._bind_mka_face_segment(pal)
 
         if self.archives is None:
             return
@@ -864,8 +1004,13 @@ class TextureBank:
             idx = max(0, min(shirt_index, n_shirts - 1))
             shirt = tex_blob[idx * 0x200 : (idx + 1) * 0x200]
             shirt_pal = pal_blob[idx * 0x20 : (idx + 1) * 0x20]
-            self.segment_palettes[0x0B] = shirt_pal
+            ## Shirt is ANIME_3 / seg 0x0A. Player DLs `LOADTLUT` anime_2 (seg 0x0B)
+            ## before shirt/hat; bind the shirt TLUT there too so dolphin LOADTLUT hits.
+            ## Do not clobber 0x0B when a species/structure pal is already bound
+            ## (Tom Nook apron / villager body CI decode through that slot).
             self.segment_images[0x0A] = SegmentTex(shirt, 32, 32, palette=shirt_pal)
+            if 0x0B not in self.segment_palettes:
+                self.segment_palettes[0x0B] = shirt_pal
 
     def _structure_palette(self, prefix: str) -> bytes | None:
         """Houses/shops load CI palettes from `anime_1_txt` (segment 0x08), not `{prefix}_pal`.
@@ -879,7 +1024,138 @@ class TextureBank:
                 return blob
         return None
 
+    def _bind_mka_face_segment(self, pal: bytes | None) -> None:
+        """Bind anime_1 for Mask Cat when eye banks are NULL (`npc_draw_data`)."""
+        needed = 32 * 32 // 2
+        placeholder = bytes([0x11] * needed)  # CI4 index 1 = white in `mka_1_pal`
+        self.segment_images[0x08] = SegmentTex(
+            placeholder, 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, pal
+        )
+        self._segment_offset_names.setdefault(0x08, {})[0] = "mka_1_face"
+        png = self._mka_face_png()
+        if png:
+            self._segment_png_overrides[0x08] = png
 
+    def _mka_face_png(self) -> bytes | None:
+        """Mask Cat `anime_1` is a 32×32 face shell (`head_mka_model`), not 32×16 eye quads.
+
+        Draw data leaves eye/mouth banks NULL. ACHD still dumps live 32×16 eye/mouth sheets,
+        but pasting those full sheets onto the shell stretches into blotches — stamp brows,
+        eyes, and nose only at the shell's UV islands (snout tip ~0.81×0.625).
+        """
+        face = self._achd_mka_face() or self._procedural_mka_face()
+        return image_png_bytes(face)
+
+    ## Neutral expression dumps from ACHD `NPCs/Special/KK Slider`.
+    ## Eye: brows + pupils. Mouth: closed muzzle (nose + lips).
+    _MKA_ACHD_EYE_STEM = "tex1_32x16_ecc1dbca6fe20a36_70d5e162b4c8c076_8"
+    _MKA_ACHD_MOUTH_STEM = "tex1_32x16_95ec9e21e966da4d_0c3a4e79fde2d591_8"
+
+    def _achd_mka_face(self) -> Image.Image | None:
+        """Stamp ACHD eye/mouth chips onto the 32×32 shell at `head_mka` UV islands."""
+        if self.achd is None:
+            return None
+        eye_png = self.achd.png_for_stem(self._MKA_ACHD_EYE_STEM)
+        mouth_png = self.achd.png_for_stem(self._MKA_ACHD_MOUTH_STEM)
+        if not eye_png or not mouth_png:
+            return None
+        try:
+            resample = Image.Resampling.BOX
+        except AttributeError:  # pragma: no cover — Pillow < 9.1
+            resample = Image.BOX
+        eye = Image.open(io.BytesIO(eye_png)).convert("RGBA").resize((32, 16), resample)
+        mouth = Image.open(io.BytesIO(mouth_png)).convert("RGBA").resize((32, 16), resample)
+        return self._stamp_mka_face_from_sheets(eye, mouth)
+
+    @staticmethod
+    def _stamp_mka_face_from_sheets(eye: Image.Image, mouth: Image.Image) -> Image.Image:
+        """Sparse UV stamps — full-sheet paste blotches across the coarse face shell."""
+        face = Image.new("RGBA", (32, 32), (255, 255, 255, 255))
+        ## Small chips only (median UV edge ≈ 8 texels; large stamps smear into blotches).
+        left = TextureBank._cut_opaque_chip(eye, (5, 2, 11, 11))
+        right = TextureBank._cut_opaque_chip(eye, (21, 2, 27, 11))
+        ## Nose on snout-tip UV ~(0.81, 0.625) — not mouth-sheet center.
+        nose = TextureBank._cut_opaque_chip(mouth, (11, 0, 21, 10))
+        TextureBank._paste_uv(face, left, 0.234, 0.25)
+        TextureBank._paste_uv(face, right, 0.762, 0.25)
+        TextureBank._paste_uv(face, nose, 0.81, 0.625)
+        return face
+
+    @staticmethod
+    def _cut_opaque_chip(sheet: Image.Image, box: tuple[int, int, int, int]) -> Image.Image:
+        crop = sheet.convert("RGBA").crop(box)
+        out = Image.new("RGBA", crop.size, (0, 0, 0, 0))
+        px_s = crop.load()
+        px_o = out.load()
+        for y in range(crop.height):
+            for x in range(crop.width):
+                r, g, b, a = px_s[x, y]
+                if a < 40 or (r > 235 and g > 235 and b > 235):
+                    continue
+                px_o[x, y] = (r, g, b, 255)
+        return out
+
+    @staticmethod
+    def _paste_uv(face: Image.Image, chip: Image.Image, u: float, v: float) -> None:
+        x = int(round(u * 32.0 - chip.width / 2.0))
+        y = int(round(v * 32.0 - chip.height / 2.0))
+        face.alpha_composite(chip, (max(0, x), max(0, y)))
+
+    @staticmethod
+    def _compose_mka_face_sheets(eye: Image.Image, mouth: Image.Image) -> Image.Image:
+        """Test helper: stack eye over mouth (not used for export — see `_stamp_mka_face_from_sheets`)."""
+        return TextureBank._stamp_mka_face_from_sheets(
+            eye.convert("RGBA").resize((32, 16), Image.Resampling.NEAREST),
+            mouth.convert("RGBA").resize((32, 16), Image.Resampling.NEAREST),
+        )
+
+    @staticmethod
+    def _flatten_face_sheet(sheet: Image.Image) -> Image.Image:
+        """Legacy helper kept for tests that build 32×16 chips."""
+        try:
+            resample = Image.Resampling.BOX
+        except AttributeError:  # pragma: no cover
+            resample = Image.BOX
+        sheet = sheet.convert("RGBA").resize((32, 16), resample)
+        out = Image.new("RGBA", (32, 16), (255, 255, 255, 255))
+        px_s = sheet.load()
+        px_o = out.load()
+        for y in range(16):
+            for x in range(32):
+                r, g, b, a = px_s[x, y]
+                if a < 32 or (r > 240 and g > 240 and b > 240):
+                    continue
+                px_o[x, y] = (r, g, b, 255)
+        return out
+
+    @staticmethod
+    def _procedural_mka_face() -> Image.Image:
+        """Offline fallback: brows/eyes + nose at the same UV islands as ACHD stamps."""
+        img = Image.new("RGBA", (32, 32), (255, 255, 255, 255))
+        px = img.load()
+        black = (0, 0, 0, 255)
+
+        def fill_disk(cx: int, cy: int, r: int) -> None:
+            for y in range(cy - r, cy + r + 1):
+                for x in range(cx - r, cx + r + 1):
+                    if 0 <= x < 32 and 0 <= y < 32 and (x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r:
+                        px[x, y] = black
+
+        def fill_rect(x0: int, y0: int, x1: int, y1: int) -> None:
+            for y in range(y0, y1 + 1):
+                for x in range(x0, x1 + 1):
+                    if 0 <= x < 32 and 0 <= y < 32:
+                        px[x, y] = black
+
+        ## Left / right brow + eye — UV ~(0.23, 0.25) / ~(0.76, 0.25).
+        fill_rect(5, 6, 10, 9)
+        fill_disk(8, 11, 2)
+        fill_rect(21, 6, 26, 9)
+        fill_disk(24, 11, 2)
+        ## Nose on snout tip UV ~(0.81, 0.625).
+        fill_disk(25, 20, 3)
+        fill_rect(24, 23, 26, 26)
+        return img
     def _symbol_bytes(self, name: str) -> bytes | None:
         symbol = self.by_name.get(name)
         if symbol is None or symbol.size <= 0:
@@ -994,6 +1270,11 @@ class TextureBank:
         # (and can overwrite a palette segment). Require a Gfx part token.
         if not part:
             return None, ""
+        ## Villager / special-NPC bodies already have `{prefix}_tmem_txt`. Do not
+        ## invent furniture stand-ins for unbound anime_1 (eyes) — that painted
+        ## Mask Cat's head with `int_nog_snowman_head_tex`.
+        if self._symbol_bytes(f"{self.current_prefix}_tmem_txt"):
+            return None, ""
 
         def usable(sym: MapSymbol) -> bool:
             if not self._size_fits(sym.size, needed):
@@ -1063,6 +1344,24 @@ class TextureBank:
             return None, "", "OPAQUE"
         if state.img_addr >> 24:
             self._resolve_dummy_image(state)
+            seg = state.img_addr >> 24
+            ## Authored PNG stand-in (Mask Cat face) — skip CI placeholder decode.
+            if (state.img_addr & 0xFFFFFF) == 0 and seg in self._segment_png_overrides:
+                png = self._segment_png_overrides[seg]
+                name = self._name_for(state.img_addr)
+                ## Face sheets are opaque CI; ACHD edge AA must not force BLEND.
+                mode = "OPAQUE"
+                key = (
+                    state.img_addr,
+                    state.width,
+                    state.height,
+                    state.fmt,
+                    state.siz,
+                    b"png_override",
+                    state.prim,
+                )
+                self._png_cache[key] = (png, mode)
+                return png, name, mode
         pal = self._palette_for(state)
         name = self._name_for(state.img_addr)
         key = (state.img_addr, state.width, state.height, state.fmt, state.siz, pal or b"", state.prim)
@@ -1074,12 +1373,22 @@ class TextureBank:
             return None, name, "OPAQUE"
         gx = gbi_to_gx(state.fmt, state.siz)
         if self.achd is not None:
-            from .achd import is_field_terrain_texture, maybe_hd_png
+            from .achd import (
+                is_field_terrain_texture,
+                is_player_model_texture,
+                is_room_bank_texture,
+                maybe_hd_png,
+            )
 
             ## Museum plates / indoor mado / house clocks: ACHD hash collisions swap
             ## scrap boards, red sheets, or wrong-size RGBA. Keep native below.
-            if not skips_achd_texture(name) and not is_field_terrain_texture(
-                name, self.current_prefix
+            ## Room-bank pages wrap-bake 64×64 tiles; HD sheets become empty/mud.
+            ## Player shirt/face: HD wrap-bake seams the REPEAT shirt atlas.
+            if (
+                not skips_achd_texture(name)
+                and not is_room_bank_texture(name)
+                and not is_field_terrain_texture(name, self.current_prefix)
+                and not is_player_model_texture(name, self.current_prefix)
             ):
                 ## Neon empty frames: skip hashing their own CI4 (false hits / garbage
                 ## natives) and take dummy03 wood ACHD or decode.
@@ -1121,6 +1430,12 @@ class TextureBank:
             if is_museum_clock_texture(name):
                 ## REL keeps N64 row-major RGBA5551; GX 4×4 RGB5A3 reads as neon noise.
                 image = decode_linear_rgba5551(data, state.width, state.height)
+            elif is_house_clock_texture(name) and state.fmt == G_IM_FMT_CI:
+                ## Shop/house CI clocks ship N64 RGBA16 TLUTs (`obj_shop1_clock_pal`).
+                ## RGB5A3 misreads them as cyan/purple instead of wood.
+                image = decode_gbi_texture(
+                    data, state.width, state.height, state.fmt, state.siz, pal, n64_tlut=True
+                )
             else:
                 image = decode_gbi_texture(data, state.width, state.height, state.fmt, state.siz, pal)
             image = apply_prim(image, state.prim)
@@ -1150,6 +1465,11 @@ class TextureBank:
                 pal = self.segment_palettes.get(key)
                 if pal:
                     return pal
+        ## Trains/stations: DLs sample CI with TLUT from `structure_clip` seg 8 at
+        ## draw time; baked mats often leave LOADTLUT unresolved for direct REL tex.
+        struct_pal = self._structure_palette(self.current_prefix)
+        if struct_pal:
+            return struct_pal
         return self._fallback_palette(addr)
 
     def _image_bytes(self, state: TextureState) -> bytes | None:

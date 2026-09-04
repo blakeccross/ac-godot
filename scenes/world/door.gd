@@ -26,14 +26,15 @@ func _ready() -> void:
 
 
 func should_auto_enter() -> bool:
-	## Outdoor museum / indoor museum wing links: walk in, no A prompt.
+	## Outdoor museum / indoor wing links / museum outdoor exit: walk in, no A prompt.
 	if not auto_enter:
 		return false
 	## Just spawned on/near a door — wait until the player walks clear.
 	if Game.block_auto_enter_doors:
 		return false
 	if Game.is_indoors():
-		return linked_room_id != &""
+		## Wing links + entrance Exit (`exits_interior`); not house door_cell warps.
+		return linked_room_id != &"" or exits_interior
 	var target: StringName = _enter_target()
 	if target == &"":
 		return false
@@ -47,16 +48,25 @@ func should_auto_enter() -> bool:
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 	## Outdoor exit is a walk-on warp (`EXIT_DOOR`); no A prompt.
 	if Game.is_indoors() and exits_interior:
+		## Silent probe so auto-enter can fire; never show Leave.
+		if should_auto_enter():
+			return [Interaction.of(Interaction.ENTER, "", 20)]
 		return []
 	## Open auto-enter (outdoor museum or indoor wing link): silent verb so the probe
 	## still finds us; player walks in without an E prompt.
 	if should_auto_enter():
 		return [Interaction.of(Interaction.ENTER, "", 20)]
+	## Closed outdoor museum: no E prompt — heightfield keeps the player out.
+	if auto_enter and not Game.is_indoors():
+		return []
 	if Game.is_indoors() and linked_room_id != &"":
 		return [Interaction.of(Interaction.ENTER, "Enter %s" % label, 12)]
 	var prompt: String = "Enter %s" % label if verb == Interaction.ENTER else String(verb).capitalize()
 	if verb == Interaction.SHOP:
 		prompt = "Shop"
+		var shop_room: Room = _resolved_room()
+		if shop_room != null and not InteriorCatalog.is_open_now(shop_room):
+			prompt = "Shop (closed)"
 	return [Interaction.of(verb, prompt, 12)]
 
 
@@ -64,33 +74,38 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if action == null:
 		return false
 	if Game.is_indoors() and exits_interior:
-		## Walk-exit is the normal path; keep A as a fallback.
+		## Museum Exit sensor: wipe only — no INTO_S1 (`aMsm` indoor leave is scene warp).
 		if action.id != Interaction.ENTER:
 			return false
+		await DoorTransition.play_wipe_out()
 		return Game.exit_interior()
 	if Game.is_indoors() and linked_room_id != &"":
 		if action.id != Interaction.ENTER:
 			return false
-		await _play_indoor_link_enter()
+		## Museum wing links: wipe + spawn at door_data — no walk-in clip.
+		if not _is_museum_room(linked_room_id):
+			await _play_indoor_link_enter()
+		await DoorTransition.play_wipe_out()
 		var entered: bool = false
 		if has_linked_spawn:
 			entered = Game.try_enter_interior(linked_room_id, linked_spawn_gx, linked_spawn_yaw)
 		else:
 			entered = Game.try_enter_interior(linked_room_id)
-		if entered:
-			await _play_indoor_arrive()
 		return entered
 	if action.id != verb:
 		return false
 	if verb == Interaction.SHOP:
-		if not Clock.in_hour_window(9, 22):
+		var shop_target: StringName = _enter_target()
+		var shop_room: Room = _resolved_room(shop_target)
+		if shop_room != null and not InteriorCatalog.is_open_now(shop_room):
 			Game.post_notice("The shop is closed.")
 			return false
-		var shop_target: StringName = _enter_target()
 		if shop_target != &"":
 			await StructureDoor.play_enter(self)
+			await DoorTransition.play_wipe_out()
 			if Game.try_enter_interior(shop_target):
 				return true
+			DoorTransition.cancel_wipe()
 			if InteriorCatalog.resolve_entry(shop_target) != &"":
 				return false
 		Game.post_notice("The shop is open.")
@@ -100,13 +115,33 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 		if InteriorCatalog.resolve_entry(target) == &"":
 			Game.post_notice(closed_notice)
 			return true
+		## Outdoor museum still plays INTO_S1 (`aMsm` door_type1) before the wipe.
 		await StructureDoor.play_enter(self)
+		await DoorTransition.play_wipe_out()
 		if Game.try_enter_interior(target):
 			return true
+		DoorTransition.cancel_wipe()
 		if InteriorCatalog.resolve_entry(target) != &"":
 			return false
 	Game.post_notice(closed_notice)
 	return true
+
+
+func _resolved_room(target: StringName = &"") -> Room:
+	var entry: StringName = target if target != &"" else _enter_target()
+	if entry == &"":
+		return null
+	var room_id: StringName = InteriorCatalog.resolve_entry(entry)
+	if room_id == &"" or Game.interiors == null:
+		return null
+	return Game.interiors.room(room_id)
+
+
+func _is_museum_room(room_id: StringName) -> bool:
+	if room_id == &"" or Game.interiors == null:
+		return false
+	var room: Room = Game.interiors.room(room_id)
+	return room != null and room.kind == Room.Kind.MUSEUM
 
 
 func _play_indoor_link_enter() -> void:
@@ -127,28 +162,25 @@ func _play_indoor_link_enter() -> void:
 		player.call("end_door_enter")
 
 
-## After the wing load, keep walking INTO_S1 past the door so exit sensors stay clear.
-func _play_indoor_arrive() -> void:
+## Outdoor leave through Exit sensor: INTO_S1 past the door (`EXIT_DOOR` walk).
+func _play_indoor_exit_through_sensor() -> void:
 	var player: Node = get_tree().get_first_node_in_group("player")
 	if player == null or not is_instance_valid(player):
 		return
-	if not player.has_method("begin_door_enter"):
+	if not player.has_method("run_indoor_exit"):
 		return
-	Game.block_auto_enter_doors = true
+	var sensor := Vector3(global_position.x, player.global_position.y, global_position.z)
+	var to: Vector3 = sensor - player.global_position
+	to.y = 0.0
 	var yaw: float = (
-		float(player.call("facing_yaw"))
-		if player.has_method("facing_yaw")
-		else (player as Node3D).rotation.y
+		atan2(to.x, to.z)
+		if to.length_squared() > 0.0001
+		else WorldGrid.yaw_for_facing(WorldGrid.Facing.SOUTH)
 	)
 	var along := Vector3(sin(yaw), 0.0, cos(yaw))
-	var from: Vector3 = (player as Node3D).global_position
-	var target: Vector3 = from + along * (StructureDoor.INTO_GX * FieldCatalog.GX_TO_METERS)
-	target.y = from.y
-	player.call("begin_door_enter", target, yaw, true)
-	if player.has_method("await_door_enter"):
-		await player.call("await_door_enter")
-	if player.has_method("end_door_enter"):
-		player.call("end_door_enter")
+	var target: Vector3 = sensor + along * (StructureDoor.INTO_GX * FieldCatalog.GX_TO_METERS)
+	target.y = player.global_position.y
+	await player.call("run_indoor_exit", target, yaw)
 
 
 func _enter_target() -> StringName:

@@ -1,0 +1,16 @@
+{
+  "id": "nook_first_job",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Oh! Before I forget — if you\nneed Bells, I always have a\nlittle work around town.",
+      "next": "job"
+    },
+    "job": {
+      "type": "line",
+      "text": "Come see me at the shop\nwhen you're ready. I'll find\nsomething that suits you,\nhm? Welcome to town!"
+    }
+  }
+}

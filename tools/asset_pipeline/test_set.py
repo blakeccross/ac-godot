@@ -20,6 +20,7 @@ TEST_SKELETONS = [
             "cKF_ba_r_ply_1_net_swing1",
             "cKF_ba_r_ply_1_sao_swing1",
             "cKF_ba_r_ply_1_kamae_wait_m1",
+            "cKF_ba_r_ply_1_outtrain1",
         ],
         "confident_name": True,
     },
@@ -45,9 +46,50 @@ TEST_SKELETONS = [
         "confident_name": True,
     },
     {
+        ## K.K. Slider (`SP_NPC_P_SEL` / `SP_NPC_TOTAKEKE` → `end_1` in npc_draw_data).
+        ## Not `mka_1` (that is `SP_NPC_MASK_CAT`).
+        "asset_id": "villager_end_1",
+        "skeleton": "cKF_bs_r_end_1",
+        "output": "characters/villagers/end_1.glb",
+        "animations": [],
+        "confident_name": True,
+    },
+    {
         "asset_id": "villager_bea_1",
         "skeleton": "cKF_bs_r_bea_1",
         "output": "characters/villagers/bea_1.glb",
+        "animations": [],
+        "confident_name": True,
+    },
+    {
+        ## Tom Nook Cranny (`SP_NPC_SHOP_MASTER` / `rcn_1`).
+        "asset_id": "villager_rcn_1",
+        "skeleton": "cKF_bs_r_rcn_1",
+        "output": "characters/villagers/rcn_1.glb",
+        "animations": [],
+        "confident_name": True,
+    },
+    {
+        ## Tom Nook Nook 'n' Go (`SP_NPC_CONV_MASTER` / `rcc_1`).
+        "asset_id": "villager_rcc_1",
+        "skeleton": "cKF_bs_r_rcc_1",
+        "output": "characters/villagers/rcc_1.glb",
+        "animations": [],
+        "confident_name": True,
+    },
+    {
+        ## Tom Nook Nookway (`SP_NPC_SUPER_MASTER` / `rcs_1`).
+        "asset_id": "villager_rcs_1",
+        "skeleton": "cKF_bs_r_rcs_1",
+        "output": "characters/villagers/rcs_1.glb",
+        "animations": [],
+        "confident_name": True,
+    },
+    {
+        ## Tom Nook Nookington's (`SP_NPC_DEPART_MASTER` / `rcd_1`).
+        "asset_id": "villager_rcd_1",
+        "skeleton": "cKF_bs_r_rcd_1",
+        "output": "characters/villagers/rcd_1.glb",
         "animations": [],
         "confident_name": True,
     },
@@ -134,6 +176,14 @@ TEST_SKELETONS = [
 # Static Gfx models (no cKF skeleton). Paths keep original identifiers.
 TEST_STATIC = [
     {
+        ## K.K. opening spotlight stage (`SCENE_PLAYERSELECT` / `grd_player_select`).
+        "asset_id": "grd_player_select",
+        "vtx": "grd_player_select_v",
+        "gfx": ["grd_player_select_model", "grd_player_select_modelT"],
+        "output": "environment/acres/grd_player_select.glb",
+        "confident_name": True,
+    },
+    {
         ## Train car interior (`rom_train_in`). OPA + XLU glass/lights.
         "asset_id": "rom_train_in",
         "vtx": "rom_train_in_v",
@@ -153,6 +203,15 @@ TEST_STATIC = [
             "rom_train_out_shineglass_modelT",
         ],
         "output": "environment/interiors/rom_train_out.glb",
+        "confident_name": True,
+    },
+    {
+        ## Mid-car between loco and caboose (`ac_train0_draw` / `obj_train1_2_model`).
+        ## Vtx is `obj_train_2_v` (not `obj_train1_2_v`).
+        "asset_id": "obj_train1_2",
+        "vtx": "obj_train_2_v",
+        "gfx": ["obj_train1_2_model"],
+        "output": "environment/obj_train1_2.glb",
         "confident_name": True,
     },
     {
@@ -249,6 +308,15 @@ TEST_STATIC = [
         "vtx": "tol_uki_1_v",
         "gfx": ["tol_uki1_model"],
         "output": "items/tol_uki_1.glb",
+        "confident_name": True,
+    },
+    {
+        ## Green counter (`iam_sum_gre_counter01`). Vtx/textures keep `gre_`; Gfx drops it
+        ## (`int_sum_counter01_on_model`), so prefix inference never pairs them.
+        "asset_id": "int_sum_gre_counter01",
+        "vtx": "int_sum_gre_counter01_v",
+        "gfx": ["int_sum_counter01_on_model", "int_sum_counter01_onT_model"],
+        "output": "furniture/int_sum_gre_counter01.glb",
         "confident_name": True,
     },
     {

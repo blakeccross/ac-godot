@@ -6,11 +6,13 @@ extends RefCounted
 
 const BASE_DIST_GX := 290.0
 const DIST_SCALE := 1.46
-## Talk defaults -164.114° + ~8° bump → inv pitch ≈ 23.8° (`Camera2_PolaPosCalc`).
-const PITCH_INV_DEG := 23.8
+## Talk goal dir X = DEG2SHORT(−164.114)+1440 → inv via +SHT_MIN = 4332 short ≈ 23.796°.
+const PITCH_INV_SHORT := 4332.0
+const PITCH_INV_DEG := PITCH_INV_SHORT * 360.0 / 65536.0
 const EYE_HEIGHT_M := 1.15
-## `Camera2_Talk_GetAngleY` max nudge (deg) when the pair is mostly N/S.
-const YAW_TWEAK_DEG := 15.0
+## `Camera2_Talk_GetAngleY` uses `cos_s(2y) * 2730` short-units (≈14.996°).
+const YAW_TWEAK_SHORT := 2730.0
+const YAW_TWEAK_DEG := YAW_TWEAK_SHORT * 360.0 / 65536.0
 ## `Player_actor_Movement_Talk` turn (`add_calc_short_angle2`, once per ~60 Hz frame).
 const TURN_HZ := 60.0
 const TURN_FRACTION := 0.292893 ## 1 - sqrt(0.5)
@@ -18,12 +20,15 @@ const TURN_MAX_STEP := TAU * 2500.0 / 65536.0 ## ~13.73°
 const TURN_MIN_STEP := TAU * 50.0 / 65536.0 ## ~0.275°
 
 
-static func begin(speaker: Node3D, listener: Node3D, tree: SceneTree = null) -> void:
+## `turn` mirrors `mDemo_Set_talk_turn` (SPEAK/TALK force-talk tables may clear it).
+static func begin(
+	speaker: Node3D, listener: Node3D, tree: SceneTree = null, turn: bool = true
+) -> void:
 	var cam: Node = _camera(tree)
 	if cam != null and cam.has_method("begin_talk"):
 		cam.call("begin_talk", speaker, listener)
 	## `mDemo` TYPE_TALK defaults `turn = TRUE` → player faces the NPC.
-	if speaker != null and speaker.has_method("begin_talk_face"):
+	if turn and speaker != null and speaker.has_method("begin_talk_face"):
 		speaker.call("begin_talk_face", listener)
 
 
@@ -59,15 +64,18 @@ static func frame(speaker: Node3D, listener: Node3D) -> Dictionary:
 	var s_eye: Vector3 = eye_of(speaker)
 	var l_eye: Vector3 = eye_of(listener)
 	var between_m: float = s_eye.distance_to(l_eye)
-	var between_gx: float = between_m / FieldCatalog.GX_TO_METERS
+	## Dist / y_adj use feet separation like `search_position_distance` (not eye-to-eye).
+	var s_pos: Vector3 = speaker.global_position if speaker != null else s_eye
+	var l_pos: Vector3 = listener.global_position if listener != null else l_eye
+	var between_gx: float = s_pos.distance_to(l_pos) / FieldCatalog.GX_TO_METERS
+	if between_gx < 0.0001:
+		between_gx = between_m / FieldCatalog.GX_TO_METERS
 	## `y_adjust = 17 - (-60 / dist)` → lower the look target slightly.
 	var y_adj: float = (17.0 + 60.0 / maxf(between_gx, 1.0)) * FieldCatalog.GX_TO_METERS
 	var center: Vector3 = (s_eye + l_eye) * 0.5
 	center.y -= y_adj
 	var dist: float = (BASE_DIST_GX + between_gx * DIST_SCALE) * FieldCatalog.GX_TO_METERS
 	## GetAngleY uses world (feet) positions, not eyes.
-	var s_pos: Vector3 = speaker.global_position if speaker != null else s_eye
-	var l_pos: Vector3 = listener.global_position if listener != null else l_eye
 	var yaw_tweak: float = yaw_tweak_deg(s_pos, l_pos)
 	## Talk goal dir Y is -180°; `PolaPosCalc` adds 180° → inv yaw starts at 0 + tweak.
 	var inv_yaw: float = deg_to_rad(yaw_tweak)
@@ -85,19 +93,24 @@ static func frame(speaker: Node3D, listener: Node3D) -> Dictionary:
 	}
 
 
-## `Camera2_Talk_GetAngleY` — ±15° on goal dir Y when speaker→listener is mostly N/S.
-## East-of-north vs west-of-north (or the south equivalents) flip the sign.
+## `Camera2_Talk_GetAngleY` — nudge goal dir Y (base −180°) when speaker→listener is mostly N/S.
+## E/W band (45°…135°) keeps 0. Otherwise `±cos(2y)*2730` short-units; `cos*sin >= 0`
+## (Q1/Q3 and axes) takes the negative branch. Due north uses s16 −180° not +180°.
 static func yaw_tweak_deg(speaker_pos: Vector3, listener_pos: Vector3) -> float:
 	var delta := Vector3(listener_pos.x - speaker_pos.x, 0.0, listener_pos.z - speaker_pos.z)
 	if delta.length_squared() < 0.0001:
 		return 0.0
+	## `search_position_angleY` → `atans_table(dz, dx)`; s16 maps due-north to −32768 (−π).
 	var angle_y: float = atan2(delta.x, delta.z)
+	if angle_y > PI - 0.0000001:
+		angle_y = -PI
 	var deg: float = rad_to_deg(angle_y)
-	## E/W band: no nudge (camera stays on world-south).
+	## `(y < 135 && y > 45) || (y > -135 && y < -45)` → no nudge.
 	if (deg > 45.0 and deg < 135.0) or (deg < -45.0 and deg > -135.0):
 		return 0.0
 	var add: float = cos(2.0 * angle_y) * YAW_TWEAK_DEG
-	if cos(angle_y) * sin(angle_y) >= 0.0:
+	## `cos_s(y) * sin_s(y) >= 0` ≡ `sin(2y) >= 0` (Q1/Q3 and axes → negative branch).
+	if sin(2.0 * angle_y) >= 0.0:
 		return -add
 	return add
 

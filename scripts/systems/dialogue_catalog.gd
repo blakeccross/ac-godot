@@ -7,14 +7,19 @@ extends RefCounted
 const AUTHORED_DIR := "res://data/dialogue"
 const GENERATED_DIR := "res://assets/generated/dialogue"
 const GENERATED_CHUNK := 256
+const SELECT_PATH := "res://assets/generated/dialogue/select.json"
 
 static var _by_id: Dictionary = {}
 static var _loaded: bool = false
+static var _select: PackedStringArray = PackedStringArray()
+static var _select_loaded: bool = false
 
 
 static func reset() -> void:
 	_by_id.clear()
 	_loaded = false
+	_select = PackedStringArray()
+	_select_loaded = false
 
 
 static func conversation(conv_id: StringName) -> DialogueData:
@@ -29,6 +34,15 @@ static func conversation(conv_id: StringName) -> DialogueData:
 	if found is DialogueData:
 		return found as DialogueData
 	return null
+
+
+static func choice_label(select_id: int) -> String:
+	## `select_data.bin` labels for `{choice:N}` in imported banks.
+	_ensure_select()
+	if select_id < 0 or select_id >= _select.size():
+		return "{choice:%d}" % select_id
+	var label: String = _select[select_id]
+	return label if label != "" else "{choice:%d}" % select_id
 
 
 static func ensure_loaded() -> void:
@@ -46,6 +60,22 @@ static func register(data: DialogueData) -> void:
 	if data.id == &"":
 		return
 	_by_id[data.id] = data
+
+
+static func _ensure_select() -> void:
+	if _select_loaded:
+		return
+	_select_loaded = true
+	if not FileAccess.file_exists(SELECT_PATH):
+		return
+	var file := FileAccess.open(SELECT_PATH, FileAccess.READ)
+	if file == null:
+		return
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if typeof(parsed) != TYPE_ARRAY:
+		return
+	for entry: Variant in parsed as Array:
+		_select.append(str(entry))
 
 
 static func _load_generated_id(conv_id: StringName) -> void:

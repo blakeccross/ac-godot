@@ -197,6 +197,11 @@ func set_emote(next: Emote, mouth_hold_override: int = -1) -> void:
 			_mouth_hold = MOUTH_SHUT
 	if mouth_hold_override >= 0:
 		_mouth_hold = mouth_hold_override
+		## Angry-bank holds (`mouth3..5`) talk with the angry flap tables.
+		if mouth_hold_override >= MOUTH_ANGRY_SHUT:
+			_mouth_seq_type = 2
+		elif _mouth_seq_type == 0:
+			_mouth_seq_type = 1
 	_mouth_active = false
 	mouth_pattern = _mouth_hold
 	if _eye_seq_type == 0:

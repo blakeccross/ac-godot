@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://cqaundubub2tn"]
+
+[ext_resource type="Script" uid="uid://7kb0gb6mma4t" path="res://scenes/world/interiors/public_room.gd" id="1"]
+[ext_resource type="Script" uid="uid://dfxx8v5xbuuao" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/world/interiors/tom_nook.tscn" id="4"]
+[ext_resource type="PackedScene" uid="uid://doc4n4upwbppw" path="res://assets/generated/environment/interiors/rom_shop2f.glb" id="10"]
+[ext_resource type="PackedScene" uid="uid://j4pk2pffpfxy" path="res://assets/generated/environment/interiors/rom_shop2w.glb" id="11"]
+
+[node name="shop1" type="Node3D" unique_id=335550338]
+script = ExtResource("1")
+room_id = &"shop1"
+
+[node name="Shell" type="Node3D" parent="." unique_id=1318952815]
+script = ExtResource("2")
+
+[node name="GeneratedVisual" type="Node3D" parent="Shell" unique_id=919039586]
+
+[node name="rom_shop2f" parent="Shell/GeneratedVisual" unique_id=2039941137 instance=ExtResource("10")]
+
+[node name="rom_shop2w" parent="Shell/GeneratedVisual" unique_id=181235240 instance=ExtResource("11")]
+
+[node name="Terrain" type="Node3D" parent="." unique_id=265703887]
+
+[node name="Furniture" type="Node3D" parent="." unique_id=1341070241]
+
+[node name="TomNook" parent="Furniture" unique_id=2108395850 instance=ExtResource("4")]
+
+[node name="Doors" type="Node3D" parent="." unique_id=920350058]
+
+[node name="Exit" parent="Doors" unique_id=1219640854 instance=ExtResource("3")]
+label = "Leave"
+exits_interior = true
+
+[node name="PlayerSpawn" type="Marker3D" parent="." unique_id=1644768392]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)

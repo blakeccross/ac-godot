@@ -1,0 +1,30 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/world/interiors/public_room.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://assets/generated/environment/interiors/police_indoor.glb" id="10"]
+
+[node name="police_box" type="Node3D"]
+script = ExtResource("1")
+room_id = &"police_box"
+
+[node name="Shell" type="Node3D" parent="."]
+script = ExtResource("2")
+
+[node name="GeneratedVisual" type="Node3D" parent="Shell"]
+
+[node name="police_indoor" parent="Shell/GeneratedVisual" instance=ExtResource("10")]
+
+[node name="Terrain" type="Node3D" parent="."]
+
+[node name="Furniture" type="Node3D" parent="."]
+
+[node name="Doors" type="Node3D" parent="."]
+
+[node name="Exit" parent="Doors" instance=ExtResource("3")]
+label = "Leave"
+exits_interior = true
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)

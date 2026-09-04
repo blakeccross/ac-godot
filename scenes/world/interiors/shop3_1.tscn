@@ -1,0 +1,37 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scenes/world/interiors/public_room.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/world/interiors/tom_nook.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://assets/generated/environment/interiors/rom_shop4_1.glb" id="10"]
+
+[node name="shop3_1" type="Node3D"]
+script = ExtResource("1")
+room_id = &"shop3_1"
+
+[node name="Shell" type="Node3D" parent="."]
+script = ExtResource("2")
+
+[node name="GeneratedVisual" type="Node3D" parent="Shell"]
+
+[node name="rom_shop4_1" parent="Shell/GeneratedVisual" instance=ExtResource("10")]
+
+[node name="Terrain" type="Node3D" parent="."]
+
+[node name="Furniture" type="Node3D" parent="."]
+
+[node name="TomNook" parent="Furniture" instance=ExtResource("4")]
+
+[node name="Doors" type="Node3D" parent="."]
+
+[node name="Exit" parent="Doors" instance=ExtResource("3")]
+label = "Leave"
+exits_interior = true
+
+[node name="Link_shop3_2" parent="Doors" instance=ExtResource("3")]
+label = "Annex"
+linked_room_id = &"shop3_2"
+
+[node name="PlayerSpawn" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)

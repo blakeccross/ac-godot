@@ -66,7 +66,7 @@ K.K. / minidisks are ordinary sequences (`BGM_MD0`–`BGM_MD54`). Gyroids are a 
 
 - **Hear original hourly town BGM** when a converted library is present.
 - Switch track on `Clock.hour_changed` while outdoors.
-- Play **title** BGM on the title scene; **shop** (or house) BGM indoors.
+- Play **title** BGM on the title scene; **intro_kk** on the K.K. opening; **intro_train** on the Rover train; **intro_arrive** on station arrival; **shop** (or house) BGM indoors.
 - **Rain** (`Game.weather == &"rain"`) swaps to the rain track.
 - Missing `assets/generated/audio/` → silence (same as missing GLBs).
 - Crossfade ~1 s between tracks (original uses long fades; keep it short).
@@ -76,7 +76,7 @@ K.K. / minidisks are ordinary sequences (`BGM_MD0`–`BGM_MD54`). Gyroids are a 
 - **Offline render** sequences to looping OGG in the pipeline. Godot only plays streams.
 - Do not port Neos, DSP ADPCM, or sequence bytecode into GDScript.
 - Ignore fanfares, festival overrides, bee chase, train, staff roll, K.K. live mouth-sync, gyroids, furniture stereos, animalese.
-- Ignore snow/sakura **subtrack mutes** until a second render pass (or accept the “fine” mix).
+- Ignore snow/sakura **subtrack mutes** until a second render pass (or accept the “fine” mix). `intro_kk` bakes `Na_TTKK_ARM` mute on subtracks 0–2.
 - Ignore DSP filters / reverb and random velocity-gate (non-deterministic).
 - Ignore the 24 s hourly silence and town-tune chime until a later slice (editor stays out of scope).
 - Talk volume-duck can wait; pause can mute the Music bus.
@@ -133,6 +133,9 @@ Default `test_set_only` (and `--kind audio` without `--full`) renders only:
 | BGM id | Why |
 | --- | --- |
 | `BGM_TITLE` | Title scene |
+| `BGM_INTRO_KK` | K.K. player-select opening |
+| `BGM_INTRO_TRAIN` | Rover train character creation |
+| `BGM_INTRO_ARRIVE` | Station arrival / get-off demo |
 | `BGM_FIELD_08`, `_14`, `_20` | Morning / afternoon / evening smoke test |
 | `BGM_SHOP0` | Indoor |
 | `BGM_RAIN` | Weather swap |

@@ -173,6 +173,22 @@ func substitute(text: String) -> String:
 	out = out.replace("{item}", item0)
 	for i: int in mini(frees.size(), 20):
 		out = out.replace("{free%d}" % i, frees[i])
+	## Imported banks keep `SETSELSTR` as `{choice:N}` until `select.json` is present.
+	var search_from := 0
+	while true:
+		var start: int = out.find("{choice:", search_from)
+		if start < 0:
+			break
+		var end: int = out.find("}", start)
+		if end < 0:
+			break
+		var num_str: String = out.substr(start + 8, end - start - 8)
+		if num_str.is_valid_int():
+			var label: String = DialogueCatalog.choice_label(int(num_str))
+			out = out.substr(0, start) + label + out.substr(end + 1)
+			search_from = start + label.length()
+		else:
+			search_from = end + 1
 	return out
 
 

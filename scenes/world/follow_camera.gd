@@ -24,8 +24,12 @@ var _lock_point := Vector3.ZERO
 var _talk_active: bool = false
 var _talk_speaker: Node3D
 var _talk_listener: Node3D
+var _door_active: bool = false
+var _door_look := Vector3.ZERO
 var _look_current := Vector3.ZERO
 var _has_look: bool = false
+## Intro / cutscene owns the eye; skip `_follow` until `resume`.
+var _suspended: bool = false
 
 
 func _ready() -> void:
@@ -39,14 +43,38 @@ func _ready() -> void:
 func set_target(node: Node3D) -> void:
 	_locked = false
 	_talk_active = false
+	_door_active = false
 	_target = node
-	_follow(true)
+	## Do not clear `suspend` — intro demo owns the eye until `resume`.
+	if not _suspended:
+		_follow(true)
+
+
+func suspend() -> void:
+	## Demo / intro camera drives `global_position` directly.
+	_suspended = true
+	_talk_active = false
+	_door_active = false
+
+
+func resume(snap: bool = true) -> void:
+	## `snap` matches `Camera2` morph_counter 0; false eases from the current eye
+	## (station DEMO → NORMAL after Porter).
+	_suspended = false
+	if snap:
+		_follow(true)
+		return
+	## Keep the demo eye; seed look so `_process` lerps toward the player.
+	if _target != null and is_instance_valid(_target):
+		_look_current = _look_point()
+		_has_look = true
 
 
 func lock_at(point: Vector3) -> void:
 	## Small indoor fields pin the look-at to the room (`Camera2` border invert).
 	_locked = true
 	_talk_active = false
+	_door_active = false
 	_target = null
 	_lock_point = point
 	_follow(true)
@@ -57,6 +85,7 @@ func begin_talk(speaker: Node3D, listener: Node3D) -> void:
 	if speaker == null or listener == null:
 		return
 	_talk_active = true
+	_door_active = false
 	_talk_speaker = speaker
 	_talk_listener = listener
 	## Keep the current eye / look and morph in `_process` (no snap).
@@ -72,6 +101,22 @@ func end_talk() -> void:
 	_talk_speaker = null
 	_talk_listener = null
 	## Ease back to follow / lock; do not snap.
+
+
+## `CAMERA2_PROCESS_DOOR` — morph look-at to the door stand at distance 620.
+func begin_door(look_at: Vector3) -> void:
+	_door_active = true
+	_talk_active = false
+	_door_look = look_at
+	if not _has_look:
+		_look_current = look_at + Vector3(0.0, 0.85, 0.0)
+		_has_look = true
+
+
+func end_door() -> void:
+	if not _door_active:
+		return
+	_door_active = false
 
 
 func is_talking() -> bool:
@@ -96,12 +141,20 @@ func offset_to_frame_span(span: float) -> Vector3:
 
 
 func _process(delta: float) -> void:
+	if _suspended:
+		return
 	_follow(false, delta)
 
 
 func _follow(snap: bool, delta: float = 0.0) -> void:
 	if _talk_active and is_instance_valid(_talk_speaker) and is_instance_valid(_talk_listener):
 		_follow_talk(snap, delta)
+		return
+	if _door_active:
+		var look := _door_look + Vector3(0.0, 0.85, 0.0)
+		## Same 620 eye offset as normal follow; center is the door stand.
+		var destination := _door_look + offset
+		_move_camera(destination, look, snap, delta, follow_rate)
 		return
 	if _locked:
 		var look := _lock_point + Vector3(0.0, 0.85, 0.0)

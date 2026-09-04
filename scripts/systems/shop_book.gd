@@ -3,11 +3,20 @@ extends RefCounted
 
 ## Town shops. Owned by `Game`, not an autoload. Nook buy/sell; Able Sisters buy-only.
 ## Daily lineup at 06:00 (`Clock.field_renewed`). Sell-to-shop is catalog / 4 (`SELL_BUY_RATIO`).
+## Nook upgrades by lifetime sales (`mSP_COMBINI_SUM` / `SUPER_SUM` / `DSUPER_SUM`).
 
 const NOOK_ID := &"shop0"
 const ABLE_ID := &"needlework"
 const SELL_RATIO := 4
 const SHOP_IDS: Array[StringName] = [NOOK_ID, ABLE_ID]
+## Sales thresholds → Cranny / Nook 'n' Go / Nookway / Nookington's.
+const COMBINI_SUM := 25000
+const SUPER_SUM := 90000
+const DSUPER_SUM := 240000
+const NOOK_ROOM_IDS: Array[StringName] = [&"shop0", &"shop1", &"shop2", &"shop3_1"]
+const NOOK_VISUAL_IDS: Array[StringName] = [
+	&"obj_s_shop1", &"obj_s_shop2", &"obj_s_shop3", &"obj_s_shop4"
+]
 
 var _shops: Dictionary = {}
 
@@ -120,6 +129,35 @@ func sales_sum(shop_id: StringName) -> int:
 	return int((_shops[shop_id] as Dictionary).get("sales", 0))
 
 
+func nook_level() -> int:
+	## 0 Cranny · 1 Nook 'n' Go · 2 Nookway · 3 Nookington's.
+	var sales: int = sales_sum(NOOK_ID)
+	if sales >= DSUPER_SUM:
+		return 3
+	if sales >= SUPER_SUM:
+		return 2
+	if sales >= COMBINI_SUM:
+		return 1
+	return 0
+
+
+func nook_room_id() -> StringName:
+	return NOOK_ROOM_IDS[clampi(nook_level(), 0, NOOK_ROOM_IDS.size() - 1)]
+
+
+func nook_visual_id() -> StringName:
+	return NOOK_VISUAL_IDS[clampi(nook_level(), 0, NOOK_VISUAL_IDS.size() - 1)]
+
+
+func nook_open_hour() -> int:
+	## Cranny / Nookway / Nookington's 9–22; Nook 'n' Go 7–23.
+	return 7 if nook_level() == 1 else 9
+
+
+func nook_close_hour() -> int:
+	return 23 if nook_level() == 1 else 22
+
+
 func ensure_today(shop_id: StringName) -> void:
 	if shop_id == &"":
 		return
@@ -210,6 +248,8 @@ func _day_seed(shop_id: StringName) -> int:
 
 
 func _roll(shop_id: StringName, rng: RandomNumberGenerator) -> Array[StringName]:
+	## Zakka counts (`l_zakka_goods`): tools2, ftr1, wall1, carpet1, cloth1,
+	## sapling1, plants2. Stationery (paper1) waits on catalog items.
 	if shop_id == ABLE_ID:
 		return _pick(_cloth_pool(), 4, rng)
 	var out: Array[StringName] = []
@@ -217,6 +257,7 @@ func _roll(shop_id: StringName, rng: RandomNumberGenerator) -> Array[StringName]
 	out.append_array(_pick(_furniture_pool(), 1, rng))
 	out.append_array(_pick(_wall_pool(), 1, rng))
 	out.append_array(_pick(_floor_pool(), 1, rng))
+	out.append_array(_pick(_cloth_pool(), 1, rng))
 	out.append_array(_pick(_sapling_pool(), 1, rng))
 	out.append_array(_pick(_plant_pool(), 2, rng))
 	return out

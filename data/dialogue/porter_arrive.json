@@ -1,0 +1,16 @@
+{
+  "id": "porter_arrive",
+  "speaker_id": "porter",
+  "start": "arrive",
+  "nodes": {
+    "arrive": {
+      "type": "line",
+      "text": "{town}!\nNow arriving at {town}!",
+      "next": "welcome"
+    },
+    "welcome": {
+      "type": "line",
+      "text": "Welcome to {town}!\nWatch your step, eek EEK!"
+    }
+  }
+}
