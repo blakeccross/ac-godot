@@ -1041,13 +1041,7 @@ static func _is_museum_art_surface(
 
 
 static func _apply_museum_art_material(std: StandardMaterial3D) -> void:
-	## `aMP_DrawOneArt` draws on POLY_OPA (`G_RM_AA_ZB_OPA_SURF2`). Pipeline often marks
-	## CI cutouts as BLEND; soft alpha sorts wrong against frames and walls.
-	if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
-		std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-		std.alpha_scissor_threshold = maxf(std.alpha_scissor_threshold, 0.5)
-	elif std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR:
-		std.alpha_scissor_threshold = maxf(std.alpha_scissor_threshold, 0.5)
+	## `aMP_DrawOneArt` draws on POLY_OPA (`G_RM_AA_ZB_OPA_SURF2`). Alpha mode is pipeline-owned.
 	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 
 
@@ -1544,7 +1538,6 @@ static func _i4_as_alpha(tex: Texture2D) -> Texture2D:
 static func _apply_window_pane_material(std: StandardMaterial3D) -> void:
 	## Original: combiner ignores the wall SETTIMG; RGB is PRIMITIVE/ENVIRONMENT, `G_RM_AA_ZB_OPA_SURF2`.
 	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	std.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 	std.albedo_texture = null
 	std.set_meta("window_pane", true)

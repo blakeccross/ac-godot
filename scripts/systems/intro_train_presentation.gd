@@ -170,7 +170,6 @@ static func _apply_car_opa_surfaces_inner(node: Node) -> void:
 			std.metallic = 0.0
 			std.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 			std.emission_enabled = false
-			std.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 			mesh_instance.set_surface_override_material(i, std)
 	for child: Node in node.get_children():
 		_apply_car_opa_surfaces_inner(child)
@@ -281,15 +280,11 @@ static func _is_window_tree_surface(label: String) -> bool:
 
 static func _apply_window_opa_surface(std: StandardMaterial3D) -> void:
 	std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	std.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 	std.roughness = 1.0
 	std.metallic = 0.0
 	std.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 	std.emission_enabled = false
-	## Embedded GLB textures may still carry chromakey A=0; ignore it when opaque.
-	if std.albedo_color.a < 1.0:
-		std.albedo_color.a = 1.0
 
 
 static func _surface_label(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> String:
@@ -416,7 +411,6 @@ static func _apply_cloud_scenery_surface(std: StandardMaterial3D) -> void:
 
 static func _apply_lamp_surface(std: StandardMaterial3D) -> void:
 	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	std.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	std.albedo_color = LAMP_COLOR
 	std.emission_enabled = true
 	std.emission = LAMP_COLOR
