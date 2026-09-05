@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import math
 import re
 import struct
 from dataclasses import dataclass, field
@@ -157,6 +158,18 @@ def i4_png_as_alpha(png: bytes) -> bytes:
     return image_png_bytes(Image.merge("RGBA", (white, white, white, r)))
 
 
+def flood_opaque_alpha(png: bytes) -> bytes:
+    """Force every texel to a=255 so unused chromakey cannot cut an OPAQUE mesh."""
+    if not png:
+        return png
+    image = Image.open(io.BytesIO(png)).convert("RGBA")
+    pixels = list(image.getdata())
+    if all(p[3] == 255 for p in pixels):
+        return png
+    image.putdata([(p[0], p[1], p[2], 255) for p in pixels])
+    return image_png_bytes(image)
+
+
 def bake_beach_wet_png(
     png: bytes,
     prim: tuple[int, int, int, int],
@@ -269,6 +282,134 @@ def alpha_mode_for_png(png: bytes | None) -> str:
     if not png:
         return "OPAQUE"
     return alpha_mode_for_image(Image.open(io.BytesIO(png)))
+
+
+## Coverage from G_SETOTHERMODE_L render mode (libultra bit constants on the mode word).
+COVERAGE_OPA = "opa"
+COVERAGE_TEX_EDGE = "tex_edge"
+COVERAGE_XLU = "xlu"
+
+_CVG_X_ALPHA = 0x1000
+_ZMODE_XLU = 0x800
+_ZMODE_DEC = 0xC00
+_ZMODE_MASK = 0xC00
+_ALPHA_TRANSPARENT = 8
+
+
+def coverage_from_render_mode(mode: int) -> str:
+    """Classify OPA_SURF / TEX_EDGE / XLU from a SetRenderMode data word (unshifted)."""
+    zmode = mode & _ZMODE_MASK
+    if zmode in (_ZMODE_XLU, _ZMODE_DEC):
+        return COVERAGE_XLU
+    if mode & _CVG_X_ALPHA:
+        return COVERAGE_TEX_EDGE
+    return COVERAGE_OPA
+
+
+def coverage_from_othermode_l(othermode_l: int) -> str:
+    """Classify coverage after F3DEX2 apply (`data << G_MDSFT_RENDERMODE`)."""
+    return coverage_from_render_mode(othermode_l >> 3)
+
+
+def resolve_alpha_mode(
+    coverage: str | None,
+    texel_mode: str,
+    *,
+    samples_transparent: bool | None = None,
+) -> str:
+    """Final glTF alphaMode from DL coverage × texel histogram × UV footprint.
+
+    `coverage is None` means no SETOTHERMODE was seen (runtime-set modes, tiny mat
+    DLs) — fall back to the texel classifier so leaves/cutouts still MASK.
+    """
+    if coverage is None:
+        return texel_mode or "OPAQUE"
+    if coverage == COVERAGE_OPA:
+        return "OPAQUE"
+    if coverage == COVERAGE_TEX_EDGE:
+        if samples_transparent is False:
+            return "OPAQUE"
+        if samples_transparent is True:
+            return "MASK"
+        if texel_mode == "OPAQUE":
+            return "OPAQUE"
+        return "MASK"
+    if coverage == COVERAGE_XLU:
+        return "BLEND"
+    return texel_mode or "OPAQUE"
+
+
+def png_has_transparent_texels(png: bytes | None, cutoff: int = _ALPHA_TRANSPARENT) -> bool:
+    if not png:
+        return False
+    image = Image.open(io.BytesIO(png)).convert("RGBA")
+    return any(p[3] < cutoff for p in image.getdata())
+
+
+def needs_stained_glass_revive(image: Image.Image) -> bool:
+    """True when XLU CI glass ships colored RGB5A3 entries with A≈0."""
+    img = image.convert("RGBA")
+    for r, g, b, a in img.getdata():
+        if a < _ALPHA_TRANSPARENT and (r > 16 or g > 16 or b > 16):
+            return True
+    return False
+
+
+def intensity_format_opaque_alpha(png: bytes | None) -> bool:
+    """I4/I8 decode as grayscale RGB with A=255 — coverage lives in intensity."""
+    if not png:
+        return False
+    return alpha_mode_for_png(png) == "OPAQUE"
+
+
+def uv_samples_transparent(
+    image: Image.Image,
+    vertices: list,
+    triangles: list[tuple[int, int, int]],
+    *,
+    wrap_s: int = 0,
+    wrap_t: int = 0,
+    cutoff: int = _ALPHA_TRANSPARENT,
+) -> bool:
+    """True if any triangle UV footprint hits a texel with A below cutoff."""
+    img = image.convert("RGBA")
+    w, h = img.size
+    if w <= 0 or h <= 0 or not triangles:
+        return False
+    pixels = img.load()
+
+    def sample(u: float, v: float) -> int:
+        ## Match glTF UVs; REPEAT wraps, CLAMP/MIRROR treat out-of-range as edge.
+        if wrap_s == GX_REPEAT:
+            u = u - math.floor(u)
+        else:
+            u = min(1.0, max(0.0, u))
+        if wrap_t == GX_REPEAT:
+            v = v - math.floor(v)
+        else:
+            v = min(1.0, max(0.0, v))
+        x = min(w - 1, max(0, int(u * w)))
+        y = min(h - 1, max(0, int(v * h)))
+        return int(pixels[x, y][3])
+
+    for i0, i1, i2 in triangles:
+        pts = (vertices[i0], vertices[i1], vertices[i2])
+        uvs = [(float(p.u), float(p.v)) for p in pts]
+        ## Vertices + edge midpoints + centroid cover thin chromakey strips.
+        samples = list(uvs)
+        samples.append(((uvs[0][0] + uvs[1][0]) * 0.5, (uvs[0][1] + uvs[1][1]) * 0.5))
+        samples.append(((uvs[1][0] + uvs[2][0]) * 0.5, (uvs[1][1] + uvs[2][1]) * 0.5))
+        samples.append(((uvs[2][0] + uvs[0][0]) * 0.5, (uvs[2][1] + uvs[0][1]) * 0.5))
+        samples.append(
+            (
+                (uvs[0][0] + uvs[1][0] + uvs[2][0]) / 3.0,
+                (uvs[0][1] + uvs[1][1] + uvs[2][1]) / 3.0,
+            )
+        )
+        for u, v in samples:
+            if sample(u, v) < cutoff:
+                return True
+    return False
 
 
 # Decomp `structure_pal.c`: Japanese mesh prefixes vs English palette symbols.
@@ -387,15 +528,6 @@ def skips_achd_texture(tex_name: str) -> bool:
         or is_house_clock_texture(tex_name)
         or is_train_structure_texture(tex_name)
     )
-
-
-def house_clock_alpha_mode(tex_name: str, fallback: str) -> str:
-    """Body DLs are `OPA_SURF` (ignore texel A); hands are `TEX_EDGE` cutouts."""
-    if not is_house_clock_texture(tex_name):
-        return fallback
-    if "hari" in tex_name:
-        return "MASK"
-    return "OPAQUE"
 
 
 def museum_dummy_wood_twin(tex_name: str) -> tuple[str, str] | None:
@@ -1399,7 +1531,7 @@ class TextureBank:
                     if hd is None:
                         hd = self._museum_art_house_achd(name, state.width, state.height, gx)
                 if hd is not None:
-                    mode = house_clock_alpha_mode(name, alpha_mode_for_png(hd))
+                    mode = alpha_mode_for_png(hd)
                     self._png_cache[key] = (hd, mode)
                     return hd, name, mode
         ## Neon empty-frame CI4 (non-dummy03): decode dummy03 wood instead.
@@ -1441,9 +1573,8 @@ class TextureBank:
             image = apply_prim(image, state.prim)
         except (KeyError, ValueError, IndexError):
             return None, name, "OPAQUE"
-        if is_indoor_mado_texture(name):
-            image = revive_stained_glass_alpha(image)
-        mode = house_clock_alpha_mode(name, alpha_mode_for_image(image))
+        ## Texel mode only — flush() resolves coverage via SETOTHERMODE + UV footprint.
+        mode = alpha_mode_for_image(image)
         png = image_png_bytes(image)
         self._png_cache[key] = (png, mode)
         return png, name, mode

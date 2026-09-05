@@ -850,25 +850,38 @@ class WaterNameTests(unittest.TestCase):
             self.assertEqual(len(mesh_modes), 1, mesh["name"])
         self.assertEqual(len(gltf["nodes"][0]["children"]), 2)
 
-    def test_train_window_i4_alpha_detection(self) -> None:
-        from asset_pipeline.gfx import is_train_window_i4_alpha
+    def test_train_window_i4_alpha_via_coverage(self) -> None:
+        """XLU + opaque I4 promotes intensity to alpha without texture-name gates."""
+        from io import BytesIO
 
-        self.assertTrue(
-            is_train_window_i4_alpha(
-                "rom_train_bgcloud_tex_rgb_i4", "rom_train_out_bgcloud_modelT"
-            )
+        from PIL import Image
+
+        from asset_pipeline.texbank import (
+            COVERAGE_XLU,
+            i4_png_as_alpha,
+            intensity_format_opaque_alpha,
+            resolve_alpha_mode,
         )
-        self.assertTrue(
-            is_train_window_i4_alpha(
-                "rom_train_glass_tex_rgb_i4", "rom_train_out_shineglass_modelT"
-            )
-        )
-        self.assertTrue(
-            is_train_window_i4_alpha("rom_train_glass_tex", "rom_train_in_modelT")
-        )
-        self.assertFalse(
-            is_train_window_i4_alpha("rom_train_tunnel_tex", "rom_train_out_tunnel_model")
-        )
+
+        buf = BytesIO()
+        Image.new("RGBA", (4, 4), (80, 80, 80, 255)).save(buf, format="PNG")
+        png = buf.getvalue()
+        self.assertTrue(intensity_format_opaque_alpha(png))
+        out = i4_png_as_alpha(png)
+        self.assertFalse(intensity_format_opaque_alpha(out))
+        self.assertEqual(resolve_alpha_mode(COVERAGE_XLU, "BLEND"), "BLEND")
+        ## Missing SetRenderMode (shineglass): texel BLEND still wins via fallback.
+        self.assertEqual(resolve_alpha_mode(None, "BLEND"), "BLEND")
+        self.assertEqual(resolve_alpha_mode(None, "OPAQUE"), "OPAQUE")
+
+    def test_othermode_packets_classify_coverage(self) -> None:
+        from asset_pipeline.gfx import apply_othermode, coverage_from_othermode_l, is_rendermode_update
+
+        w0 = 0xE200001C  ## F3DEX2 SetRenderMode (sft=3, len=29)
+        self.assertTrue(is_rendermode_update(w0))
+        self.assertEqual(coverage_from_othermode_l(apply_othermode(0, w0, 0xC8112078)), "opa")
+        self.assertEqual(coverage_from_othermode_l(apply_othermode(0, w0, 0xC8113078)), "tex_edge")
+        self.assertEqual(coverage_from_othermode_l(apply_othermode(0, w0, 0xC8104A50)), "xlu")
 
 
 class BindAnimTests(unittest.TestCase):

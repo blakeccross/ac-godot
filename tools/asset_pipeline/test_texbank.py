@@ -5,10 +5,13 @@ from __future__ import annotations
 import unittest
 
 from asset_pipeline.texbank import (
+    COVERAGE_OPA,
+    COVERAGE_TEX_EDGE,
+    COVERAGE_XLU,
+    coverage_from_render_mode,
     dummy_name_score,
     dummy_palette_score,
     gfx_part_tokens,
-    house_clock_alpha_mode,
     is_dolphin_loadtlut,
     is_house_clock_texture,
     is_image_symbol,
@@ -22,6 +25,7 @@ from asset_pipeline.texbank import (
     parse_settile,
     parse_settilesize,
     parse_settimg,
+    resolve_alpha_mode,
     revive_stained_glass_alpha,
     season_of_prefix,
     shop_shell_kind,
@@ -29,6 +33,7 @@ from asset_pipeline.texbank import (
     structure_palette_names,
     symbol_tokens,
     tmem_palette_slot,
+    uv_samples_transparent,
 )
 
 
@@ -160,9 +165,50 @@ class ClassicGbiTests(unittest.TestCase):
         self.assertTrue(skips_achd_texture("obj_clock_museum1_dai_tex_txt"))
         self.assertTrue(skips_achd_texture("obj_art01_name_tex"))
         self.assertFalse(skips_achd_texture("obj_art01_art_tex"))
-        self.assertEqual(house_clock_alpha_mode("obj_clock_museum1_dai_tex_txt", "BLEND"), "OPAQUE")
-        self.assertEqual(house_clock_alpha_mode("obj_clock_museum1_hari_tex_txt", "BLEND"), "MASK")
-        self.assertEqual(house_clock_alpha_mode("rom_museum1_wallA_tex", "BLEND"), "BLEND")
+
+    def test_resolve_alpha_mode_from_coverage(self) -> None:
+        self.assertEqual(resolve_alpha_mode(COVERAGE_OPA, "MASK"), "OPAQUE")
+        self.assertEqual(resolve_alpha_mode(COVERAGE_OPA, "BLEND"), "OPAQUE")
+        self.assertEqual(
+            resolve_alpha_mode(COVERAGE_TEX_EDGE, "MASK", samples_transparent=True),
+            "MASK",
+        )
+        self.assertEqual(
+            resolve_alpha_mode(COVERAGE_TEX_EDGE, "MASK", samples_transparent=False),
+            "OPAQUE",
+        )
+        self.assertEqual(resolve_alpha_mode(COVERAGE_XLU, "OPAQUE"), "BLEND")
+        self.assertEqual(resolve_alpha_mode(None, "MASK"), "MASK")
+        self.assertEqual(resolve_alpha_mode(None, "BLEND"), "BLEND")
+
+    def test_coverage_from_real_render_modes(self) -> None:
+        ## Words from museum clock / train / mado SetRenderMode packets.
+        self.assertEqual(coverage_from_render_mode(0xC8112078), COVERAGE_OPA)
+        self.assertEqual(coverage_from_render_mode(0xC8113078), COVERAGE_TEX_EDGE)
+        self.assertEqual(coverage_from_render_mode(0xC8104A50), COVERAGE_XLU)
+
+    def test_uv_samples_transparent_footprint(self) -> None:
+        from asset_pipeline.gfx import Vertex
+        from asset_pipeline.texbank import GX_CLAMP
+        from PIL import Image
+
+        ## Left half opaque, right half clear (chromakey strip).
+        img = Image.new("RGBA", (4, 4), (40, 30, 30, 255))
+        for y in range(4):
+            for x in range(2, 4):
+                img.putpixel((x, y), (0, 0, 0, 0))
+        verts = [
+            Vertex(0, 0, 0, 0, 0, 1, 1, 1, 1, u=0.1, v=0.1),
+            Vertex(1, 0, 0, 0, 0, 1, 1, 1, 1, u=0.4, v=0.1),
+            Vertex(0, 1, 0, 0, 0, 1, 1, 1, 1, u=0.1, v=0.4),
+        ]
+        self.assertFalse(
+            uv_samples_transparent(img, verts, [(0, 1, 2)], wrap_s=GX_CLAMP, wrap_t=GX_CLAMP)
+        )
+        verts[1] = Vertex(1, 0, 0, 0, 0, 1, 1, 1, 1, u=0.9, v=0.1)
+        self.assertTrue(
+            uv_samples_transparent(img, verts, [(0, 1, 2)], wrap_s=GX_CLAMP, wrap_t=GX_CLAMP)
+        )
 
     def test_train_structure_palette_and_skip_achd(self) -> None:
         self.assertIn("obj_train1_a1_pal", structure_palette_names("obj_train1_1"))

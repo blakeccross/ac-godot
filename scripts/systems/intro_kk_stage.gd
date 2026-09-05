@@ -55,7 +55,6 @@ const BGM_ID := &"intro_kk"
 
 const ACRE_PATH := "res://assets/generated/environment/acres/grd_player_select.glb"
 const KK_PATH := "res://assets/generated/characters/villagers/end_1.glb"
-const GUITAR_PATH := "res://assets/generated/furniture/int_sum_guitar01.glb"
 
 ## `l_mEnv_kcolor_data_p_sel` (m_kankyo.c) — void stage, warm key light.
 const AMBIENT_COLOR := Color(30.0 / 255.0, 30.0 / 255.0, 80.0 / 255.0)

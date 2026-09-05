@@ -1,32 +1,33 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3 uid="uid://b4vedrewi57tb"]
 
-[ext_resource type="Script" path="res://scenes/world/interiors/public_room.gd" id="1"]
-[ext_resource type="Script" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
+[ext_resource type="Script" uid="uid://7kb0gb6mma4t" path="res://scenes/world/interiors/public_room.gd" id="1"]
+[ext_resource type="Script" uid="uid://dfxx8v5xbuuao" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
-[ext_resource type="PackedScene" path="res://assets/generated/environment/interiors/rom_shop4_2f.glb" id="10"]
-[ext_resource type="PackedScene" path="res://assets/generated/environment/interiors/rom_shop4_2w.glb" id="11"]
+[ext_resource type="PackedScene" uid="uid://dcud4qlxae1id" path="res://assets/generated/environment/interiors/rom_shop4_2f.glb" id="10"]
+[ext_resource type="PackedScene" uid="uid://wdglhp2g5vmk" path="res://assets/generated/environment/interiors/rom_shop4_2w.glb" id="11"]
 
-[node name="shop3_2" type="Node3D"]
+[node name="shop3_2" type="Node3D" unique_id=1096328692]
 script = ExtResource("1")
 room_id = &"shop3_2"
 
-[node name="Shell" type="Node3D" parent="."]
+[node name="Shell" type="Node3D" parent="." unique_id=246332896]
 script = ExtResource("2")
 
-[node name="GeneratedVisual" type="Node3D" parent="Shell"]
+[node name="GeneratedVisual" type="Node3D" parent="Shell" unique_id=80824155]
 
-[node name="rom_shop4_2f" parent="Shell/GeneratedVisual" instance=ExtResource("10")]
-[node name="rom_shop4_2w" parent="Shell/GeneratedVisual" instance=ExtResource("11")]
+[node name="rom_shop4_2f" parent="Shell/GeneratedVisual" unique_id=552176266 instance=ExtResource("10")]
 
-[node name="Terrain" type="Node3D" parent="."]
+[node name="rom_shop4_2w" parent="Shell/GeneratedVisual" unique_id=673047425 instance=ExtResource("11")]
 
-[node name="Furniture" type="Node3D" parent="."]
+[node name="Terrain" type="Node3D" parent="." unique_id=515211537]
 
-[node name="Doors" type="Node3D" parent="."]
+[node name="Furniture" type="Node3D" parent="." unique_id=205435852]
 
-[node name="Exit" parent="Doors" instance=ExtResource("3")]
+[node name="Doors" type="Node3D" parent="." unique_id=194966633]
+
+[node name="Exit" parent="Doors" unique_id=698597540 instance=ExtResource("3")]
 label = "Leave"
 exits_interior = true
 
-[node name="PlayerSpawn" type="Marker3D" parent="."]
+[node name="PlayerSpawn" type="Marker3D" parent="." unique_id=1539877728]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)

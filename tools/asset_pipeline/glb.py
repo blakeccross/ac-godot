@@ -10,7 +10,7 @@ from PIL import Image
 
 from .ckf import ConvertedModel
 from .gfx import MeshPart, is_window_pane_dl, is_window_spill_dl, unit_normal
-from .texbank import GX_CLAMP, GX_MIRROR, GX_REPEAT, wrap_to_gltf
+from .texbank import GX_CLAMP, GX_MIRROR, GX_REPEAT, flood_opaque_alpha, wrap_to_gltf
 
 # Field acres tile a 16×16 cell grid. Skipping REPEAT bake leaves UVs > 1, and
 # GeneratedVisual forces texture_repeat off, so grass/earth clamp to the edge.
@@ -60,6 +60,7 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
         # wave2 (CLAMP T) must not merge with wave3 (REPEAT T) if PNG bytes ever collide.
         # Lit vs vertex-shade (no G_LIGHTING) must not merge — cn[] meaning differs.
         uses_lighting = bool(getattr(part, "uses_lighting", True))
+        alpha_mode = part.alpha_mode or "OPAQUE"
         key = (
             part.texture_png or b"",
             part.wrap_s,
@@ -74,6 +75,7 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
             part.layer1_wrap_t,
             base_color,
             uses_lighting,
+            alpha_mode,
         )
         if key not in index:
             index[key] = len(groups)
@@ -252,12 +254,6 @@ def _group_alpha_mode(group: dict) -> str:
         return "OPAQUE"
     if group.get("water_kind") in ("river", "ocean", "splash", "waterfall"):
         return "BLEND"
-    ## Train tunnel is TEX_EDGE with a chromakey strip; Godot MASK punches holes in the
-    ## brick wall. Hardware discards those texels only when sampled — force OPAQUE so
-    ## the solid black mortar / brick body always covers (rom_train_out_tunnel_model).
-    name = str(group.get("name") or "").lower()
-    if "tunnel" in name:
-        return "OPAQUE"
     modes = {part.alpha_mode for part in group["parts"]}
     if "BLEND" in modes:
         return "BLEND"
@@ -268,16 +264,7 @@ def _group_alpha_mode(group: dict) -> str:
 
 def _flood_opaque_alpha(png: bytes) -> bytes:
     """Force every texel to a=255 so MASK chromakey cannot cut the mesh."""
-    if not png:
-        return png
-    image = Image.open(io.BytesIO(png)).convert("RGBA")
-    pixels = list(image.getdata())
-    if all(p[3] == 255 for p in pixels):
-        return png
-    image.putdata([(p[0], p[1], p[2], 255) for p in pixels])
-    buf = io.BytesIO()
-    image.save(buf, format="PNG", optimize=True)
-    return buf.getvalue()
+    return flood_opaque_alpha(png)
 
 
 def _material(
@@ -454,9 +441,6 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
 
         tex_index = None
         png = group["png"]
-        if png and "tunnel" in str(group.get("name") or "").lower():
-            png = _flood_opaque_alpha(png)
-            group["png"] = png
         if png:
             padded = png + b"\x00" * _pad4(len(png))
             view = add_view(padded)

@@ -7,22 +7,35 @@ from typing import Optional
 
 from .texbank import (
     GX_REPEAT,
+    I4,
+    I8,
     TextureBank,
     TextureState,
     bake_beach_wet_png,
     bake_player_select_shade_png,
     bake_player_select_spot_png,
+    coverage_from_othermode_l,
+    flood_opaque_alpha,
+    gbi_to_gx,
     i4_png_as_alpha,
+    image_png_bytes,
+    intensity_format_opaque_alpha,
     is_dolphin_loadtlut,
     is_player_select_shade_tex,
     is_player_select_spot_tex,
+    needs_stained_glass_revive,
     parse_loadtlut,
     parse_settile,
     parse_settile_dolphin,
     parse_settilesize,
     parse_settimg,
+    resolve_alpha_mode,
+    revive_stained_glass_alpha,
     tmem_palette_slot,
+    uv_samples_transparent,
 )
+from PIL import Image
+import io
 
 G_VTX = 0x01
 G_TEXTURE = 0xD7
@@ -33,6 +46,8 @@ G_TRIN_INDEPEND = 0x0A
 G_SETTILE_DOLPHIN = 0xD2
 G_DL = 0xDE
 G_ENDDL = 0xDF
+G_SETOTHERMODE_L = 0xE2
+G_SETOTHERMODE_H = 0xE3
 G_LOADTLUT = 0xF0
 G_SETTILESIZE = 0xF2
 G_SETTILE = 0xF5
@@ -45,6 +60,24 @@ G_GEOMETRYMODE = 0xD9
 G_LIGHTING = 0x00020000
 MTX_STRIDE = 0x40
 SEG_MTX = 0x0D
+
+## G_SETOTHERMODE_L field: G_MDSFT_RENDERMODE=3, length=29.
+_RENDERMODE_SFT = 3
+_RENDERMODE_LEN = 29
+
+
+def apply_othermode(reg: int, w0: int, w1: int) -> int:
+    """F3DEX2 gsSPSetOtherMode: insert `len` bits of `data` at `sft`."""
+    length = (w0 & 0xFF) + 1
+    sft = 32 - ((w0 >> 8) & 0xFF) - length
+    mask = ((1 << length) - 1) << sft
+    return (reg & ~mask) | ((w1 << sft) & mask)
+
+
+def is_rendermode_update(w0: int) -> bool:
+    length = (w0 & 0xFF) + 1
+    sft = 32 - ((w0 >> 8) & 0xFF) - length
+    return sft == _RENDERMODE_SFT and length == _RENDERMODE_LEN
 
 
 def _s8_unit(byte: int) -> float:
@@ -133,23 +166,6 @@ def is_room_outdoor_view_dl(name: str) -> bool:
     return "room_out" in n
 
 
-def is_train_window_i4_alpha(*names: str) -> bool:
-    """Train I4 where intensity is coverage, not RGB (`rom_train_in` glass / `rom_train_out` cloud).
-
-    Decomp glass: RGB = (PRIM−ENV)×I+ENV, A = I×PRIM. Cloud: RGB = PRIM/ENV, A = I×PRIM.
-    Baking I as opaque grayscale paints solid black panes over the window.
-    """
-    blob = " ".join(names).lower()
-    if "bgcloud" in blob:
-        return True
-    if "shineglass" in blob or "shine_tex" in blob:
-        return True
-    ## Interior car windows (`rom_train_in_modelT`) and outdoor dual-tile shineglass.
-    if "rom_train_glass" in blob or "glass_tex_rgb_i4" in blob:
-        return True
-    return False
-
-
 def waterfall_surface_kind(*names: str) -> str:
     """FG waterfall (`obj_fallS` / `obj_fallSE`): fallA/C/CA dual-scroll tiles."""
     blob = " ".join(names).lower()
@@ -234,6 +250,8 @@ class MeshPart:
     ## True when the DL had G_LIGHTING — cn[] was a lighting normal.
     ## False → cn[] is RGBA shade (museum / house walls: ceiling AO as vertex color).
     uses_lighting: bool = True
+    ## From G_SETOTHERMODE_L: opa / tex_edge / xlu, or None if never set in this DL.
+    coverage: str | None = None
 
 
 ## Decomp OPA beach2 / beachB under ocean (dark-blue floor), not shore wet sand.
@@ -538,6 +556,10 @@ def parse_gfx(
     current_dl_name = name
     ## Default on (actors / outdoor acres). Indoor shells LoadGeometryMode without G_LIGHTING.
     geometry_mode = G_LIGHTING
+    othermode_l = 0
+    othermode_h = 0
+    ## None until a SetRenderMode packet; trees often set mode at draw time only.
+    coverage: str | None = None
     if bank is not None and name:
         bank.current_gfx = name
 
@@ -558,6 +580,7 @@ def parse_gfx(
             tex_state.prim,
             (tex_state.tile0 or {}).get("img_addr", 0),
             (tex_state.tile1 or {}).get("img_addr", 0),
+            coverage,
         )
 
     def uv_dims() -> tuple[int, int]:
@@ -585,7 +608,7 @@ def parse_gfx(
             return
         png = None
         tex_name = ""
-        alpha_mode = "OPAQUE"
+        texel_mode = "OPAQUE"
         part_name = current_dl_name or name
         outdoor = is_room_outdoor_view_dl(part_name)
         unlit = is_window_pane_dl(part_name) or outdoor
@@ -597,9 +620,11 @@ def parse_gfx(
         water_kind = ""
         base_color = (1.0, 1.0, 1.0, 1.0)
         beach_prim: tuple[int, int, int, int] | None = None
-        waterfall_layer = waterfall_layer_from_part(part_name) if water_kind == "waterfall" else ""
+        waterfall_layer = ""
         wrap_s = tex_state.wrap_s
         wrap_t = tex_state.wrap_t
+        gx = gbi_to_gx(tex_state.fmt, tex_state.siz)
+        force_alpha_mode: str | None = None
         if bank is not None and not unlit:
             name0 = bank._name_for(int((tex_state.tile0 or {}).get("img_addr") or tex_state.img_addr))
             name1 = bank._name_for(int((tex_state.tile1 or {}).get("img_addr") or 0)) if tex_state.tile1 else ""
@@ -608,11 +633,13 @@ def parse_gfx(
                 water_kind = water_surface_kind(name0, name1, part_name)
             if not water_kind:
                 water_kind = beach_wet_kind(name0, name1, part_name)
+            if water_kind == "waterfall":
+                waterfall_layer = waterfall_layer_from_part(part_name)
             skip_prim = bool(water_kind)
             if water_kind in ("river", "ocean", "splash", "waterfall") and tex_state.tile0 and tex_state.tile1:
                 png, tex_name, _alpha = _decode_snap(bank, tex_state, tex_state.tile0, skip_prim=True)
                 layer1_png, layer1_name, _a1 = _decode_snap(bank, tex_state, tex_state.tile1, skip_prim=True)
-                alpha_mode = "BLEND"
+                texel_mode = "BLEND"
                 wrap_s = int(tex_state.tile0["wrap_s"])
                 wrap_t = int(tex_state.tile0["wrap_t"])
                 ## wave2 shore is REPEAT S / CLAMP T; wave3 open is REPEAT/REPEAT.
@@ -627,34 +654,73 @@ def parse_gfx(
                     psel_xlu = is_player_select_spot_tex(name1) or is_player_select_shade_tex(name1)
                 if skip_prim or psel_xlu:
                     tex_state.prim = (255, 255, 255, 255)
-                png, tex_name, alpha_mode = bank.decode_current(tex_state)
+                png, tex_name, texel_mode = bank.decode_current(tex_state)
                 tex_state.prim = saved_prim
                 if water_kind == "beach_wet" and png:
-                    alpha_mode = "OPAQUE"
+                    texel_mode = "OPAQUE"
                     beach_prim = saved_prim
                     ## RGB ≈ (PRIM-ENV)*I+ENV; alpha = I for runtime env pulse.
                     png = bake_beach_wet_png(png, saved_prim)
                 elif is_player_select_spot_tex(tex_name) and png:
                     ## `grd_player_select_modelT`: yellow cone XLU.
+                    ## DL SetRenderMode is ZMODE_INTER|FORCE_BL (not ZMODE_XLU); keep BLEND
+                    ## so resolve/flood cannot flatten the soft alpha to opaque yellow.
                     png = bake_player_select_spot_png(
                         png, saved_prim, (saved_env[0], saved_env[1], saved_env[2])
                     )
-                    alpha_mode = "BLEND"
+                    texel_mode = "BLEND"
+                    force_alpha_mode = "BLEND"
                 elif is_player_select_shade_tex(tex_name) and png:
                     ## Black curtain: RGB=PRIM, A=I.
                     png = bake_player_select_shade_png(png, saved_prim)
-                    alpha_mode = "BLEND"
-                elif is_train_window_i4_alpha(tex_name, part_name) and png:
+                    texel_mode = "BLEND"
+                    force_alpha_mode = "BLEND"
+                elif (
+                    ## Shineglass omits SetRenderMode in the static DL (runtime XLU);
+                    ## still promote opaque I4/I8 intensity to alpha.
+                    coverage in (None, "xlu")
+                    and gx in (I4, I8)
+                    and png
+                    and intensity_format_opaque_alpha(png)
+                ):
                     ## I → alpha; keep RGB white so ENV/PRIM tint can land at runtime.
                     png = i4_png_as_alpha(png)
-                    alpha_mode = "BLEND"
+                    texel_mode = "BLEND"
                     er, eg, eb, _ea = saved_env
                     if er + eg + eb > 0:
                         ## Cloud DL sets ENV (127,127,100); bake as baseColorFactor.
                         base_color = (er / 255.0, eg / 255.0, eb / 255.0, 1.0)
-        if spill and png:
+                elif coverage == "xlu" and png:
+                    image = Image.open(io.BytesIO(png)).convert("RGBA")
+                    if needs_stained_glass_revive(image):
+                        png = image_png_bytes(revive_stained_glass_alpha(image))
+                        texel_mode = "BLEND"
+        if spill and png and intensity_format_opaque_alpha(png):
+            ## Ground spill tagging still uses DL names; I→A when still opaque grayscale.
             png = i4_png_as_alpha(png)
+            texel_mode = "BLEND"
+        samples_transparent: bool | None = None
+        if png and coverage == "tex_edge":
+            image = Image.open(io.BytesIO(png)).convert("RGBA")
+            samples_transparent = uv_samples_transparent(
+                image, unique, triangles, wrap_s=wrap_s, wrap_t=wrap_t
+            )
+        if water_kind in ("river", "ocean", "splash", "waterfall"):
             alpha_mode = "BLEND"
+        elif water_kind == "beach_wet":
+            alpha_mode = "OPAQUE"
+        elif unlit:
+            alpha_mode = "OPAQUE"
+        elif force_alpha_mode is not None:
+            alpha_mode = force_alpha_mode
+        else:
+            alpha_mode = resolve_alpha_mode(
+                coverage, texel_mode, samples_transparent=samples_transparent
+            )
+        if alpha_mode == "OPAQUE" and png and texel_mode != "OPAQUE":
+            png = flood_opaque_alpha(png)
+        elif alpha_mode == "OPAQUE" and png and samples_transparent is False:
+            png = flood_opaque_alpha(png)
         # Indoor outdoor-view uses G_CC_PRIMITIVE (sky/fill). Default prim is white.
         if outdoor:
             pr, pg, pb, pa = tex_state.prim
@@ -675,7 +741,7 @@ def parse_gfx(
                 tex_height=int((tex_state.tile0 or {}).get("height") or tex_state.height),
                 wrap_s=wrap_s,
                 wrap_t=wrap_t,
-                alpha_mode="OPAQUE" if unlit else alpha_mode,
+                alpha_mode=alpha_mode,
                 unlit_fill=unlit,
                 unlit_rgba=unlit_rgba,
                 ground_spill=spill,
@@ -688,6 +754,7 @@ def parse_gfx(
                 base_color=base_color,
                 beach_prim=beach_prim,
                 uses_lighting=uses_lighting,
+                coverage=coverage,
             )
         )
         triangles = []
@@ -740,6 +807,7 @@ def parse_gfx(
 
     def walk(dl: bytes, depth: int = 0, dl_name: str | None = None) -> None:
         nonlocal vtx_cursor, current_mtx, current_key, current_dl_name, geometry_mode
+        nonlocal othermode_l, othermode_h, coverage
         if depth > 8:
             return
         prev_name = current_dl_name
@@ -781,6 +849,19 @@ def parse_gfx(
             elif cmd == G_TEXTURE:
                 ## gsSPTexture — state only; no geometry.
                 pass
+            elif cmd == G_SETOTHERMODE_L:
+                new_l = apply_othermode(othermode_l, w0, w1)
+                new_cov = coverage
+                if is_rendermode_update(w0):
+                    new_cov = coverage_from_othermode_l(new_l)
+                if triangles and new_cov != coverage:
+                    flush()
+                    current_key = None
+                othermode_l = new_l
+                if is_rendermode_update(w0):
+                    coverage = new_cov
+            elif cmd == G_SETOTHERMODE_H:
+                othermode_h = apply_othermode(othermode_h, w0, w1)
             elif cmd == G_GEOMETRYMODE:
                 ## gsSPGeometryMode(clear, set): mode = (mode & ~clear) | set.
                 clear = (~(w0 & 0xFFFFFF)) & 0xFFFFFF

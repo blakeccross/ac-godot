@@ -32,7 +32,7 @@ unique_name_in_owner = true
 [node name="GeneratedVisual" type="Node3D" parent="Acre" unique_id=710460806]
 transform = Transform3D(3.125, 0, 0, 0, 3.125, 0, 0, 0, 3.125, 0, -2, 0)
 
-[node name="grd_player_select" parent="Acre/GeneratedVisual" unique_id=1953328767 instance=ExtResource("4")]
+[node name="grd_player_select" parent="Acre/GeneratedVisual" unique_id=754738252 instance=ExtResource("4")]
 
 [node name="KkSlider" type="Node3D" parent="." unique_id=261923245]
 unique_name_in_owner = true
