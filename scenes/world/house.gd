@@ -2,6 +2,10 @@ extends StaticBody3D
 
 ## Outdoor house shell. Villager homes use `obj_s_house1` (`ac_house`);
 ## the player house placement sets `obj_s_myhome1` (`ac_my_house`).
+##
+## Door rest yaw is baked into the GLB (joint-0). `apply_grid_yaw` only applies
+## world `mesh_facing` (east 0 / west +90° from AC `angle_table`) — do not add
+## extra orientation fixes here.
 
 @export var occupant_id: StringName = &""
 @export var footprint: Vector2i = Vector2i(2, 2)

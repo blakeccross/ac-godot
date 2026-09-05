@@ -219,13 +219,47 @@ def _assign_part_joints(part: MeshPart, owner: int, mtx_joints: list[int]) -> No
             vertex.joint_index = owner
 
 
+## Reject +X-chain meshes (characters / trains in bind) that are long along X.
+_SITS_Y_X_CHAIN_RATIO = 1.75
+_SITS_Y_FLOOR = -0.05
+_SITS_Y_MIN_HEIGHT = 0.5
+## Tent vanes / clock hands can dunk >5% of verts; majority still sits on the floor.
+_SITS_Y_FLOOR_FRAC = 0.90
+
+
+def _percentile(sorted_vals: list[float], p: float) -> float:
+    if not sorted_vals:
+        return 0.0
+    if len(sorted_vals) == 1:
+        return sorted_vals[0]
+    idx = int(p * (len(sorted_vals) - 1))
+    return sorted_vals[max(0, min(idx, len(sorted_vals) - 1))]
+
+
 def _sits_on_y(vertices: list) -> bool:
-    """True when GX verts already stand on +Y (houses/shops), unlike the +X cKF chain."""
+    """True when GX verts already stand on +Y (structures), unlike the +X cKF chain.
+
+    Floor: 5th-percentile Y above the pad, **or** ≥90% of verts above it (player
+    tent vanes dunk more than 5%). Rejects meshes whose AABB is long along +X.
+    """
     if not vertices:
         return False
-    min_y = min(v.y for v in vertices)
-    max_y = max(v.y for v in vertices)
-    return min_y >= -0.05 and (max_y - min_y) >= 0.5
+    ys = sorted(v.y for v in vertices)
+    p05 = _percentile(ys, 0.05)
+    height = ys[-1] - ys[0]
+    if height < _SITS_Y_MIN_HEIGHT:
+        return False
+    frac_ok = sum(1 for y in ys if y >= _SITS_Y_FLOOR) / len(ys) >= _SITS_Y_FLOOR_FRAC
+    if p05 < _SITS_Y_FLOOR and not frac_ok:
+        return False
+    xs = [v.x for v in vertices]
+    zs = [v.z for v in vertices]
+    extent_x = max(xs) - min(xs)
+    extent_y = height
+    extent_z = max(zs) - min(zs)
+    if extent_x > _SITS_Y_X_CHAIN_RATIO * max(extent_y, extent_z):
+        return False
+    return True
 
 
 def select_bind_anim(prefix: str, anim_names: list[str]) -> str | None:
@@ -254,21 +288,9 @@ def select_bind_anim(prefix: str, anim_names: list[str]) -> str | None:
     return None
 
 
-def _is_y_up_structure(prefix: str) -> bool:
-    """Outdoor buildings whose GX verts already sit on +Y.
-
-    Clock hands / weather vanes push vtx min-Y below the `_sits_on_y` floor, so
-    the prefix list is the source of truth. Bind the door clip (station joint-0
-    is identity; house −90°, shop/myhome −135°) and skip `ckf_basis`.
-
-    Outdoor trains are **not** in this class: their vtx fail `_sits_on_y`, and
-    rest uses anim joint-0 (±90° deg×10) **plus** `ckf_basis` like characters.
-    """
-    m = re.match(r"^obj_[swf]_(.+)$", prefix)
-    if not m:
-        return False
-    head = re.split(r"[\d_]", m.group(1), maxsplit=1)[0]
-    return head in {"house", "myhome", "shop", "yubinkyoku", "tailor", "yamishop", "station"}
+def select_close_bind(anim_names: list[str]) -> str | None:
+    """Prefer a `*_close` rest clip when no wait/furniture bind applies (trains, doors)."""
+    return next((n for n in anim_names if n.endswith("_close")), None)
 
 
 def convert_ckf_model(
@@ -397,11 +419,10 @@ def convert_ckf_model(
     anim_names = list(animation_names or [])
     anim_names.sort(key=lambda n: (0 if n.endswith("wait1") else 1, n))
     identity_rot = [(0, 0, 0)] * num_joints
-    sits_y = _sits_on_y(vertices) or _is_y_up_structure(prefix)
+    sits_y = _sits_on_y(vertices)
     # Player wait clips put ~90° on joint 0 (stand the +X chain on +Y).
     # Furniture clips already include rest yaw (degrees×10 constants) — bake frame 1
-    # (closed). Do not add ckf_basis on top. Houses/shops sit on +Y; door clips
-    # store rest yaw on joint 0 (house −90°, shop/myhome −135°).
+    # (closed). Do not add ckf_basis on top. Y-up structures bake door-clip joint-0 yaw.
     use_anim_bind = False
     use_wait_bind = False
     root_t = (0.0, 0.0, 0.0)
@@ -410,17 +431,10 @@ def convert_ckf_model(
     if bind_anim is None and sits_y and anim_names:
         exact = f"cKF_ba_r_{prefix}"
         bind_anim = exact if exact in anim_names else anim_names[0]
-    ## Trains: bake closed/rest clip (+ joint-0 ±90°) with `ckf_basis` — not the
-    ## Y-up door-clip path used by houses. Prefer `*_close` when present.
-    if bind_anim is None and prefix.startswith("obj_train1_") and anim_names:
-        close = f"cKF_ba_r_{prefix}_close"
-        exact = f"cKF_ba_r_{prefix}"
-        if close in anim_names:
-            bind_anim = close
-        elif exact in anim_names:
-            bind_anim = exact
-        else:
-            bind_anim = anim_names[0]
+    ## Prefer `*_close` when no wait/furniture/Y-up bind (trains, doors).
+    ## Successful anim bind uses identity basis — joint-0 ±90° stands the +X chain.
+    if bind_anim is None:
+        bind_anim = select_close_bind(anim_names)
     if bind_anim is not None:
         try:
             root_raw, bind_rots = evaluate_pose(rel, symbols, bind_anim, num_joints, 1.0)

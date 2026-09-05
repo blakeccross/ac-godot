@@ -5,7 +5,13 @@ from __future__ import annotations
 import struct
 import unittest
 
-from asset_pipeline.ckf import _mat_model_name, _vtx_sym_for_gfx, select_bind_anim
+from asset_pipeline.ckf import (
+    _sits_on_y,
+    _vtx_sym_for_gfx,
+    _mat_model_name,
+    select_bind_anim,
+    select_close_bind,
+)
 from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, INTRO_KK_NPC_ANIMS, INTRO_NOOK_NPC_ANIMS, INTRO_ROVER_NPC_ANIMS, INTRO_SLEEP_NPC_ANIMS, WATER_STATIC_NEEDLES, _intro_kk_anims, _intro_nook_anims, _intro_rover_anims, _intro_sleep_npc_anims, _name_under_prefix, _owning_vtx_prefix, _static_jobs
 from asset_pipeline.glb import _bake_wrap_group
 from asset_pipeline.layout import (
@@ -917,6 +923,66 @@ class BindAnimTests(unittest.TestCase):
             ),
             "cKF_ba_r_npc_1_wait_nemu1",
         )
+
+    def test_close_bind_prefers_close_suffix(self) -> None:
+        self.assertEqual(
+            select_close_bind(
+                [
+                    "cKF_ba_r_obj_train1_1",
+                    "cKF_ba_r_obj_train1_1_close",
+                    "cKF_ba_r_obj_train1_1_open",
+                ]
+            ),
+            "cKF_ba_r_obj_train1_1_close",
+        )
+        self.assertIsNone(select_close_bind(["cKF_ba_r_obj_train1_1_open"]))
+
+
+class _V:
+    def __init__(self, x: float, y: float, z: float) -> None:
+        self.x = x
+        self.y = y
+        self.z = z
+
+
+class SitsOnYTests(unittest.TestCase):
+    def test_clean_y_up_aabb(self) -> None:
+        verts = [_V(x, y, z) for x in (-1.0, 1.0) for y in (0.0, 2.0) for z in (-1.0, 1.0)]
+        self.assertTrue(_sits_on_y(verts))
+
+    def test_y_up_with_outlier_hands(self) -> None:
+        ## Clock hands / vanes dip below the floor; percentile or majority must pass.
+        body: list[_V] = []
+        for i in range(5):
+            for j in range(5):
+                for k in range(5):
+                    body.append(_V(-1.0 + i * 0.5, j * 0.5, -1.0 + k * 0.5))
+        outliers = [_V(0.0, -0.4, 0.0), _V(0.1, -0.5, 0.0)]
+        self.assertTrue(_sits_on_y(body + outliers))
+
+    def test_y_up_with_heavy_vane_outliers(self) -> None:
+        ## Player tent: >5% of verts below the floor (p05 fails; ≥90% still pass).
+        dense: list[_V] = []
+        for i in range(10):
+            for j in range(10):
+                dense.append(_V(-1.0 + i * 0.2, j * 0.5, 0.0))
+        vanes = [_V(0.0, -1.5, 0.0) for _ in range(8)]
+        self.assertGreater(len(vanes) / (len(dense) + len(vanes)), 0.05)
+        self.assertTrue(_sits_on_y(dense + vanes))
+
+    def test_rejects_x_chain(self) -> None:
+        ## Character / train bind cloud: long along +X, modest Y/Z.
+        verts = [_V(x, y, z) for x in (0.0, 4.0) for y in (-0.2, 0.4) for z in (-0.3, 0.3)]
+        self.assertFalse(_sits_on_y(verts))
+
+    def test_rejects_deep_mass_below_floor(self) -> None:
+        verts = [_V(x, y, z) for x in (-1.0, 1.0) for y in (-1.0, 1.0) for z in (-1.0, 1.0)]
+        self.assertFalse(_sits_on_y(verts))
+
+    def test_y_up_structure_name_list_removed(self) -> None:
+        import asset_pipeline.ckf as ckf
+
+        self.assertFalse(hasattr(ckf, "_is_y_up_structure"))
 
 
 class SeasonRoleTests(unittest.TestCase):
