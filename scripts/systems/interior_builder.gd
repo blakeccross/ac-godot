@@ -9,6 +9,9 @@ const DOOR_SCENE := preload("res://scenes/world/door.tscn")
 const COUNTER_SCENE := preload("res://scenes/world/shop_counter.tscn")
 const STOCK_SCENE := preload("res://scenes/world/shop_stock.tscn")
 const TOM_NOOK_SCENE := preload("res://scenes/world/interiors/tom_nook.tscn")
+const POST_GIRL_SCENE := preload("res://scenes/world/interiors/post_girl.tscn")
+const BOOKER_SCENE := preload("res://scenes/world/interiors/booker.tscn")
+const LOST_FOUND_SCENE := preload("res://scenes/world/lost_and_found_item.tscn")
 const BLATHERS_SCRIPT := preload("res://scenes/world/museum/museum_blathers.gd")
 ## Door opening half-width (~1.5 UT). Matches walk-in sensors better than 1 UT.
 const MUSEUM_DOOR_HALF_GX := 60.0
@@ -57,15 +60,20 @@ func populate_authored(room_root: Node3D, interior: Interior) -> void:
 		return
 	_clear_shell_colliders(terrain)
 	for child: Node in furniture_root.get_children():
-		## Keep authored shopkeepers / wall clock; restock only rebuilds shelf goods.
-		if child.name == "TomNook" or child.name == "NookClock":
+		## Keep authored shopkeepers / clerks / wall clock; restock rebuilds goods only.
+		if (
+			child.name == "TomNook"
+			or child.name == "NookClock"
+			or child.name == "PostGirl"
+			or child.name == "Booker"
+		):
 			continue
 		furniture_root.remove_child(child)
 		child.free()
 	var shell_vis: Node3D = room_root.get_node_or_null("Shell/GeneratedVisual") as Node3D
 	if shell_vis != null and shell_vis.get_child_count() > 0:
 		GeneratedVisual.layout_authored_interior(shell_vis, room, grid, WALL_HEIGHT)
-		var gaps: Array = museum_door_gaps(room, grid) if room.kind == Room.Kind.MUSEUM else []
+		var gaps: Array = shell_door_gaps(room, grid)
 		_add_shell_collision(terrain, room, grid, gaps)
 	else:
 		_paint_shell(terrain, room, grid)
@@ -77,6 +85,11 @@ func populate_authored(room_root: Node3D, interior: Interior) -> void:
 	elif room.kind == Room.Kind.MUSEUM:
 		add_museum_set(furniture_root, interior)
 	elif room.kind == Room.Kind.SHOP and room_root.has_method("present_exhibits"):
+		room_root.call("present_exhibits", furniture_root, interior)
+	elif (
+		(room.kind == Room.Kind.POST_OFFICE or room.kind == Room.Kind.POLICE)
+		and room_root.has_method("present_exhibits")
+	):
 		room_root.call("present_exhibits", furniture_root, interior)
 	_place_authored_doors(doors_root, grid, room)
 
@@ -107,6 +120,29 @@ func add_museum_shell_collision(
 		return
 	var list: Array = _normalize_museum_gaps(gaps)
 	_add_shell_collision(root, room, grid, list)
+
+
+## Wall openings for the current room (museum sensors or house EXIT_DOOR).
+func shell_door_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
+	if room == null or grid == null:
+		return []
+	if room.kind == Room.Kind.MUSEUM:
+		return museum_door_gaps(room, grid)
+	if room.kind == Room.Kind.PLAYER or room.kind == Room.Kind.NPC:
+		return house_door_gaps(room, grid)
+	return []
+
+
+## Player / NPC EXIT_DOOR pair (`door_cell` + `(+1,0)`) — south porch past the carpet.
+func house_door_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if room == null or grid == null:
+		return out
+	var left: Vector3 = grid.cell_to_world(room.door_cell)
+	var right: Vector3 = grid.cell_to_world(room.door_cell + Vector2i(1, 0))
+	## Full two-unit strip so spawn (north of EXIT) and leave stay walkable.
+	out.append({"side": &"south", "center": (left.x + right.x) * 0.5, "half": grid.cell_size})
+	return out
 
 
 ## All wall openings for a museum room (wing links + leave sensors).
@@ -186,10 +222,10 @@ func _clear_shell_colliders(terrain: Node3D) -> void:
 
 
 func _paint_shell(root: Node3D, room: Room, grid: WorldGrid) -> void:
-	## Museum / Nook `rom_shop*` keep the acre NW at `grid.origin` (FG RSV / door GX).
+	## Museum / Nook / post / police keep the acre NW at `grid.origin` (FG RSV / door GX).
+	var shell_id := StringName(room.shell_ids[0]) if not room.shell_ids.is_empty() else &""
 	var keep_acre := (
-		room.kind == Room.Kind.MUSEUM
-		or (not room.shell_ids.is_empty() and String(room.shell_ids[0]).begins_with("rom_shop"))
+		room.kind == Room.Kind.MUSEUM or GeneratedVisual._shell_keeps_acre_origin(shell_id)
 	)
 	var target := (
 		AABB(grid.origin, Vector3(float(grid.columns) * grid.cell_size, WALL_HEIGHT, float(grid.rows) * grid.cell_size))
@@ -197,7 +233,7 @@ func _paint_shell(root: Node3D, room: Room, grid: WorldGrid) -> void:
 		else _shell_bounds(room, grid)
 	)
 	var shell: Node3D = GeneratedVisual.attach_interior(root, room.shell_ids, room.wall_id, room.floor_id, target)
-	var gaps: Array = museum_door_gaps(room, grid) if room.kind == Room.Kind.MUSEUM else []
+	var gaps: Array = shell_door_gaps(room, grid)
 	_add_shell_collision(root, room, grid, gaps)
 	if shell != null:
 		return
@@ -221,9 +257,9 @@ func _add_shell_collision(root: Node3D, room: Room, grid: WorldGrid, gaps: Array
 	var inner := _inner_size(room, grid)
 	var center := _inner_center(room, grid)
 	root.add_child(_collider(Vector3(inner.x, 0.12, inner.z), center + Vector3(0.0, 0.04, 0.0)))
-	## Door porches beyond the floor so wing / leave sensors stay walkable.
-	if room.kind == Room.Kind.MUSEUM:
-		_add_museum_door_porches(root, room, grid, gaps)
+	## Door porches beyond the floor so wing / house EXIT_DOOR cells stay walkable.
+	if not gaps.is_empty():
+		_add_door_porches(root, room, grid, gaps)
 	var origin: Vector3 = grid.cell_corner(Vector2i.ZERO)
 	var full := Vector3(float(grid.columns) * grid.cell_size, WALL_HEIGHT, float(grid.rows) * grid.cell_size)
 	var inner_nw: Vector3 = grid.cell_corner(room.inner_origin)
@@ -288,7 +324,7 @@ func _add_shell_collision(root: Node3D, room: Room, grid: WorldGrid, gaps: Array
 		)
 
 
-func _add_museum_door_porches(
+func _add_door_porches(
 	root: Node3D, room: Room, grid: WorldGrid, gaps: Array
 ) -> void:
 	var origin: Vector3 = grid.cell_corner(Vector2i.ZERO)
@@ -313,9 +349,10 @@ func _add_museum_door_porches(
 func _add_porch_slab(
 	root: Node3D, gap: Dictionary, depth_axis: StringName, depth_lo: float, depth: float
 ) -> void:
-	var center: float = float(gap.get("center", -1.0))
+	var center: float = float(gap.get("center", NAN))
 	var half: float = float(gap.get("half", 2.0))
-	if center < 0.0 or half <= 0.05 or depth <= 0.05:
+	## Homes are origin-centered; door X can be negative.
+	if is_nan(center) or half <= 0.05 or depth <= 0.05:
 		return
 	if depth_axis == &"z":
 		root.add_child(
@@ -348,9 +385,10 @@ func _add_multi_gapped_wall(
 	## Merge openings, then emit solid segments between them.
 	var cuts: Array[Vector2] = []
 	for gap: Dictionary in gaps:
-		var center: float = float(gap.get("center", -1.0))
+		var center: float = float(gap.get("center", NAN))
 		var half: float = float(gap.get("half", 2.0))
-		if center < 0.0 or half <= 0.05:
+		## Homes are centered at (−16,−16); door X is negative. Do not require center ≥ 0.
+		if is_nan(center) or half <= 0.05:
 			continue
 		cuts.append(Vector2(center - half, center + half))
 	if cuts.is_empty():
@@ -713,6 +751,84 @@ func add_nook_clock(root: Node3D, interior: Interior) -> void:
 	var pivot: Node3D = GeneratedVisual.attach(host, visual)
 	if pivot != null:
 		GeneratedVisual.align_actor_to_height_gx(pivot, ShopDisplay.CLOCK_GX.y)
+
+
+func add_post_girl(root: Node3D, interior: Interior) -> void:
+	## `post_office_actable` ut (4,2) minus 20 GX (`aPG_actor_ct`).
+	if root == null or interior == null or interior.grid == null:
+		return
+	var stand: Vector3 = PostDisplay.POST_GIRL_STAND_GX
+	if root.get_node_or_null("PostGirl") != null:
+		var existing: Node3D = root.get_node("PostGirl") as Node3D
+		existing.position = PostDisplay.gx_to_world(interior.grid, stand)
+		existing.rotation.y = WorldGrid.yaw_for_facing(PostDisplay.POST_GIRL_FACING)
+		return
+	var girl: Node3D = POST_GIRL_SCENE.instantiate() as Node3D
+	girl.name = "PostGirl"
+	girl.position = PostDisplay.gx_to_world(interior.grid, stand)
+	girl.rotation.y = WorldGrid.yaw_for_facing(PostDisplay.POST_GIRL_FACING)
+	root.add_child(girl)
+
+
+func add_post_mail_piles(root: Node3D, interior: Interior) -> void:
+	## `bPTI_actor_draw` — one letter prop per stored mail, max 5.
+	if root == null or interior == null or interior.grid == null or Game == null:
+		return
+	if Game.post == null:
+		return
+	var sum: int = mini(Game.post.get_keep_mail_sum(), PostDisplay.MAIL_PILE_X_GX.size())
+	for i: int in sum:
+		var host := Node3D.new()
+		host.name = "MailPile_%d" % i
+		host.position = PostDisplay.gx_to_world(interior.grid, PostDisplay.mail_pile_gx(i))
+		root.add_child(host)
+		var box := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(0.35, 0.08, 0.25)
+		box.mesh = mesh
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.92, 0.88, 0.78)
+		box.material_override = mat
+		box.position.y = 0.04
+		host.add_child(box)
+
+
+func add_booker(root: Node3D, interior: Interior) -> void:
+	## `police_box_actable` ut (4,6).
+	if root == null or interior == null or interior.grid == null:
+		return
+	var stand: Vector3 = PoliceDisplay.BOOKER_STAND_GX
+	if root.get_node_or_null("Booker") != null:
+		var existing: Node3D = root.get_node("Booker") as Node3D
+		existing.position = PoliceDisplay.gx_to_world(interior.grid, stand)
+		existing.rotation.y = WorldGrid.yaw_for_facing(PoliceDisplay.BOOKER_FACING)
+		return
+	var booker: Node3D = BOOKER_SCENE.instantiate() as Node3D
+	booker.name = "Booker"
+	booker.position = PoliceDisplay.gx_to_world(interior.grid, stand)
+	booker.rotation.y = WorldGrid.yaw_for_facing(PoliceDisplay.BOOKER_FACING)
+	root.add_child(booker)
+
+
+func add_lost_and_found(root: Node3D, interior: Interior) -> void:
+	## `RSV_POLICE_ITEM_*` cells draw `police_box.keep_items`.
+	if root == null or interior == null or interior.grid == null or Game == null:
+		return
+	if Game.police == null:
+		return
+	Game.police.ensure_init()
+	var items: Array[StringName] = Game.police.keep_items()
+	for i: int in mini(items.size(), PoliceDisplay.LOST_FOUND_CELLS.size()):
+		var item_id: StringName = items[i]
+		if item_id == &"":
+			continue
+		var cell: Vector2i = PoliceDisplay.cell_for_slot(i)
+		var node: Node3D = LOST_FOUND_SCENE.instantiate() as Node3D
+		node.name = "LostFound_%d" % i
+		node.set("slot", i)
+		node.set("item_id", item_id)
+		node.position = interior.grid.cell_to_world(cell)
+		root.add_child(node)
 
 
 func _counter_cell(room: Room) -> Vector2i:

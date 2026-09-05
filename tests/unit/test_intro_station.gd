@@ -90,6 +90,33 @@ func test_train_is_loco_mid_passenger_layout() -> void:
 	assert_that(ResourceLoader.exists("res://assets/generated/characters/villagers/mnk_1.glb")).is_true()
 
 
+func test_loco_wheel_speed_matches_decomp() -> void:
+	## `aTR0_actor_move`: (speed/40)*10, max 0.5. Approach 2.0 GX → full 0.5.
+	assert_float(IntroStationStage.loco_wheel_speed_scale(2.0)).is_equal_approx(0.5, 0.0001)
+	assert_float(IntroStationStage.loco_wheel_speed_scale(1.0)).is_equal_approx(0.25, 0.0001)
+	assert_float(IntroStationStage.loco_wheel_speed_scale(0.0)).is_equal_approx(0.0, 0.0001)
+	assert_float(IntroStationStage.loco_wheel_speed_scale(40.0)).is_equal_approx(0.5, 0.0001)
+
+
+func test_caboose_door_snaps_closed_from_open_clip() -> void:
+	## Close clip frame 1 is open; closed pose is open@0 (or close@end).
+	var anim := AnimationPlayer.new()
+	add_child(anim)
+	var lib := AnimationLibrary.new()
+	var open := Animation.new()
+	open.length = 0.8
+	lib.add_animation("obj_train1_3_open", open)
+	var close := Animation.new()
+	close.length = 31.0 / 30.0
+	lib.add_animation("obj_train1_3_close", close)
+	anim.add_animation_library("", lib)
+	GeneratedVisual.snap_train_doors_closed(anim)
+	assert_that(String(anim.current_animation)).is_equal("obj_train1_3_open")
+	assert_float(anim.current_animation_position).is_equal_approx(0.0, 0.001)
+	assert_float(anim.speed_scale).is_equal_approx(0.0, 0.001)
+	anim.queue_free()
+
+
 func test_nook_lead_locks_controls() -> void:
 	## Free stick only after Porter and for house pick; TAKE_WITH is demo-walk.
 	var stage := IntroStationStage.new()

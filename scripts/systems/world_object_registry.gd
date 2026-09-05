@@ -8,7 +8,7 @@ const GROUP_OBJECTS := &"Objects"
 const GROUP_BUILDINGS := &"Buildings"
 const GROUP_CHARACTERS := &"Characters"
 
-## kind → { scene, place_kind, group }
+## kind → { scene, place_kind, group, bg_item_ground }
 static var _entries: Dictionary = {}
 ## building placement id → authored outdoor scene (overrides kind scene).
 static var _building_scenes: Dictionary = {}
@@ -21,14 +21,15 @@ static func ensure() -> void:
 	_ready = true
 	_entries.clear()
 	_building_scenes.clear()
-	register(&"tree", "res://scenes/world/tree.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS)
-	register(&"rock", "res://scenes/world/rock.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS)
-	register(&"flower", "res://scenes/world/flower.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS)
-	register(&"hole", "res://scenes/world/hole.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS)
-	register(&"item", "res://scenes/world/item_pickup.tscn", WorldGrid.PlaceKind.ITEM, GROUP_OBJECTS)
-	register(&"sign", "res://scenes/world/sign.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS)
+	## `bg_item_ground`: drawn/placed like `bg_item` at GetBgY(..., −1 GX).
+	register(&"tree", "res://scenes/world/tree.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS, true)
+	register(&"rock", "res://scenes/world/rock.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS, true)
+	register(&"flower", "res://scenes/world/flower.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS, true)
+	register(&"hole", "res://scenes/world/hole.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS, true)
+	register(&"item", "res://scenes/world/item_pickup.tscn", WorldGrid.PlaceKind.ITEM, GROUP_OBJECTS, true)
+	register(&"sign", "res://scenes/world/sign.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS, true)
 	register(&"waterfall", "res://scenes/world/waterfall.tscn", WorldGrid.PlaceKind.PLANT, GROUP_OBJECTS)
-	register(&"furniture", "res://scenes/world/furniture.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS)
+	register(&"furniture", "res://scenes/world/furniture.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS, true)
 	register(&"door", "res://scenes/world/door.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_OBJECTS)
 	register(&"villager", "res://scenes/actors/villager.tscn", WorldGrid.PlaceKind.FURNITURE, GROUP_CHARACTERS)
 	register(&"house", "res://scenes/world/house.tscn", WorldGrid.PlaceKind.BUILDING, GROUP_BUILDINGS)
@@ -42,12 +43,17 @@ static func ensure() -> void:
 
 
 static func register(
-	kind: StringName, scene_path: String, place_kind: WorldGrid.PlaceKind, group: StringName
+	kind: StringName,
+	scene_path: String,
+	place_kind: WorldGrid.PlaceKind,
+	group: StringName,
+	bg_item_ground: bool = false
 ) -> void:
 	_entries[kind] = {
 		"scene": scene_path,
 		"place_kind": place_kind,
 		"group": group,
+		"bg_item_ground": bg_item_ground,
 	}
 
 
@@ -86,6 +92,15 @@ static func group(kind: StringName) -> StringName:
 	if e == null:
 		return GROUP_OBJECTS
 	return (e as Dictionary).get("group", GROUP_OBJECTS) as StringName
+
+
+static func uses_bg_item_ground(kind: StringName) -> bool:
+	## True for FG props that sit at GetBgY(..., −1 GX) like `bg_item` draw.
+	ensure()
+	var e: Variant = _entries.get(kind)
+	if e == null:
+		return false
+	return bool((e as Dictionary).get("bg_item_ground", false))
 
 
 static func kinds() -> Array[StringName]:

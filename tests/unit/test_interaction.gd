@@ -120,17 +120,46 @@ func test_dummy_hosts_talk_and_pick_up_without_type_checks() -> void:
 
 
 func test_item_pickup_adds_to_inventory() -> void:
-	var pickup: Node = auto_free(load("res://scenes/world/item_pickup.tscn").instantiate())
+	var pickup: Node3D = auto_free(load("res://scenes/world/item_pickup.tscn").instantiate()) as Node3D
+	add_child(pickup)
+	pickup.global_position = Vector3(2.0, 0.0, 0.0)
 	var ctx := InteractionContext.new()
 	ctx.inventory = Inventory.new()
 	ctx.world = auto_free(_FakeWorld.new())
 	var actions: Array[Interaction] = pickup.get_interactions(ctx)
 	assert_int(actions.size()).is_equal(1)
 	assert_str(String(actions[0].id)).is_equal(String(Interaction.PICK_UP))
-	assert_bool(pickup.interact(actions[0], ctx)).is_true()
+	assert_str(String(actions[0].player_anim)).is_equal("ply_1_pickup1")
+	assert_float(actions[0].effect_frame).is_equal(20.0)
+	assert_bool(await pickup.interact(actions[0], ctx)).is_true()
 	assert_int(ctx.inventory.count_of(&"apple")).is_equal(1)
 	assert_bool(Game.is_interactable_removed(&"ground_apple")).is_true()
 	assert_str(String((ctx.world as _FakeWorld).released)).is_equal("ground_apple")
+
+
+func test_item_pickup_shrinks_toward_hand() -> void:
+	## `Player_actor_Set_Item_Pickup`: after the pocket write, the ground item lerps to
+	## `left_hand_pos` and scales out over frames 20–40.
+	var pickup: Node3D = auto_free(load("res://scenes/world/item_pickup.tscn").instantiate()) as Node3D
+	add_child(pickup)
+	pickup.global_position = Vector3(1.0, 0.2, 0.0)
+	var hand := Vector3(0.0, 0.9, 0.0)
+	await PocketPull.run(pickup, func() -> Vector3: return hand)
+	assert_bool(is_instance_valid(pickup)).is_true()
+	assert_float(pickup.scale.x).is_equal(0.0)
+	assert_bool(pickup.visible).is_false()
+	assert_float(pickup.global_position.distance_to(hand)).is_equal_approx(0.0, 0.05)
+
+
+func test_item_pickup_attaches_disc_apple_card() -> void:
+	## Ground apple is `obj_apple2_modelT` (4-vert TEX_EDGE card), not the sphere placeholder.
+	var pickup: Node3D = auto_free(load("res://scenes/world/item_pickup.tscn").instantiate()) as Node3D
+	add_child(pickup)
+	assert_that(FieldCatalog.item_visual(&"apple")).is_equal(&"obj_item_apple")
+	assert_that(pickup.get_node_or_null("GeneratedVisual")).is_not_null()
+	var placeholder: MeshInstance3D = pickup.get_node_or_null("MeshInstance3D") as MeshInstance3D
+	assert_that(placeholder).is_not_null()
+	assert_bool(placeholder.visible).is_false()
 
 
 func test_item_pickup_refuses_when_pockets_full() -> void:
@@ -156,6 +185,10 @@ func test_scene_hosts_offer_expected_verbs() -> void:
 	_assert_verb("res://scenes/world/shop.tscn", Interaction.SHOP, ctx)
 	_assert_verb("res://scenes/world/sign.tscn", Interaction.READ, ctx)
 	_assert_verb("res://scenes/world/flower.tscn", Interaction.PICK_UP, ctx)
+	var flower: Node = auto_free(load("res://scenes/world/flower.tscn").instantiate())
+	var flower_action: Interaction = Interaction.primary(flower.get_interactions(ctx))
+	assert_str(String(flower_action.player_anim)).is_equal("ply_1_pickup1")
+	assert_float(flower_action.effect_frame).is_equal(20.0)
 	_assert_verb("res://scenes/world/door.tscn", Interaction.ENTER, ctx)
 
 

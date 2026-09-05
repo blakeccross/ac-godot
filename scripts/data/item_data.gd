@@ -22,6 +22,8 @@ enum Category { TOOL, FURNITURE, FRUIT, FISH, BUG, OTHER, WALL, FLOOR, CLOTH }
 @export var equippable: bool = false
 ## Verb shown in the tag strip (`m_tag_ovl`), e.g. Eat / Use.
 @export var use_verb: String = "Use"
+## Money sack amount (`ITM_MONEY_*`). Opening adds this many bells to the wallet.
+@export var bell_value: int = 0
 @export var icon_color: Color = Color(0.75, 0.75, 0.75)
 ## Pocket picture. Empty → tinted color block in the tag strip.
 @export var icon: Texture2D

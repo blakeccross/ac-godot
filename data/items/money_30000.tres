@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"money_30000"
+display_name = "Bag of 30,000 Bells"
+description = "An enormous sack of coins."
+category = 5
+sell_price = 30000
+bell_value = 30000
+usable = true
+use_verb = "Open"
+droppable = true
+icon_color = Color(0.85, 0.55, 0.05, 1)

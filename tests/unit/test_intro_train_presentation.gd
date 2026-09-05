@@ -35,7 +35,7 @@ func test_tunnel_ambient_includes_lift() -> void:
 
 
 func test_car_glass_forced_translucent() -> void:
-	## Converted `rom_train_glass_tex` is OPAQUE RGB; presentation must force XLU.
+	## Converted `rom_train_glass_tex` is OPAQUE RGB; presentation must promote I→alpha XLU.
 	var mi := MeshInstance3D.new()
 	var mesh := ArrayMesh.new()
 	var arrays: Array = []
@@ -47,6 +47,11 @@ func test_car_glass_forced_translucent() -> void:
 	mat.resource_name = "rom_train_glass_tex"
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	mat.albedo_color = Color.WHITE
+	var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.5, 0.5, 0.5, 1.0))
+	img.set_pixel(0, 0, Color(0.1, 0.1, 0.1, 1.0))
+	img.set_pixel(1, 1, Color(0.9, 0.9, 0.9, 1.0))
+	mat.albedo_texture = ImageTexture.create_from_image(img)
 	mesh.surface_set_material(0, mat)
 	mi.mesh = mesh
 	add_child(mi)
@@ -54,7 +59,39 @@ func test_car_glass_forced_translucent() -> void:
 	var out: StandardMaterial3D = mi.get_active_material(0) as StandardMaterial3D
 	assert_that(out).is_not_null()
 	assert_int(out.transparency).is_equal(BaseMaterial3D.TRANSPARENCY_ALPHA)
-	assert_float(out.albedo_color.a).is_less(0.95)
+	## ENV cyan tint; see-through is the I channel in texture A (not a forced mid color A).
+	assert_float(out.albedo_color.a).is_equal_approx(1.0, 0.001)
+	var out_img: Image = out.albedo_texture.get_image()
+	assert_float(out_img.get_pixel(0, 0).a).is_less(0.2)
+	assert_float(out_img.get_pixel(1, 1).a).is_greater(0.8)
+	mi.queue_free()
+
+
+func test_shineglass_hidden_in_tunnel() -> void:
+	## `lod_factor` gate — in-cabin shine quads must not read through panes before daylight.
+	var mi := MeshInstance3D.new()
+	var mesh := ArrayMesh.new()
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.surface_set_name(0, "rom_train_out_shineglass_modelT")
+	var mat := StandardMaterial3D.new()
+	mat.resource_name = "rom_train_glass_tex_rgb_i4"
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+	mat.albedo_color = Color.WHITE
+	mesh.surface_set_material(0, mat)
+	mi.mesh = mesh
+	add_child(mi)
+	var clouds: Array[StandardMaterial3D] = []
+	var trees: Array[StandardMaterial3D] = []
+	IntroTrainPresentation.apply_window_scenery(mi, false, clouds, trees)
+	var tunnel: StandardMaterial3D = mi.get_active_material(0) as StandardMaterial3D
+	assert_float(tunnel.albedo_color.a).is_equal_approx(0.0, 0.001)
+	IntroTrainPresentation.apply_window_scenery(mi, true, clouds, trees)
+	var day: StandardMaterial3D = mi.get_active_material(0) as StandardMaterial3D
+	assert_float(day.albedo_color.a).is_greater(0.5)
+	assert_float(day.albedo_color.a).is_less(0.7)
 	mi.queue_free()
 
 

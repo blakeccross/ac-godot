@@ -44,7 +44,8 @@ func test_tile_path_uses_palette_for_beach() -> void:
 func test_label_for_station_and_shop() -> void:
 	var data: WorldData = WorldGenerator.generate(12345)
 	var station_fg: Vector2i = TownMap.fg_from_block(Vector2i(3, 1))
-	assert_str(TownMap.label_for_acre(data, station_fg)).is_equal("Station")
+	assert_str(TownMap.label_for_acre(data, station_fg)).is_equal("Train Station")
+	assert_str(TownMap.icon_name_for_acre(data, station_fg)).is_equal("icon_station")
 	## Shop is on tracks row bz=1 somewhere in generated towns — find it.
 	var found_shop := false
 	for bz: int in range(1, 7):

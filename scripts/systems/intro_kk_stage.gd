@@ -61,7 +61,10 @@ const AMBIENT_COLOR := Color(30.0 / 255.0, 30.0 / 255.0, 80.0 / 255.0)
 const SUN_COLOR := Color(1.0, 1.0, 200.0 / 255.0)
 ## GX light direction toward the sun; Godot shines along −Z.
 const SUN_DIR_GX := Vector3(0.0, 89.0, 79.0)
+## GC captures show a black void; decomp clear `(22,27,94)` is unused with fog off.
+## Atmosphere is the scrolling spot2 fog texture on the XLU cone, not clear color.
 const BG_COLOR := Color(0.0, 0.0, 0.0)
+const FOG_COLOR := Color(100.0 / 255.0, 100.0 / 255.0, 120.0 / 255.0)
 
 
 static func resolve_clip(anim: AnimationPlayer, suffix: String) -> String:

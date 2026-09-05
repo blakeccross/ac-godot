@@ -85,7 +85,7 @@ Godot: `StructureOffset.apply` writes those 4×4 / 3×3 / 7×5 tables into `Fiel
 
 `bg_item` places **every** FG actor at `GetBgY(..., −1 GX)`. That lift is not the same as a ground decal. Only meshes authored on the acre plane (zero Y extent) z-fight the grass: `obj_hole0` / `HOLE00`. Flowers, weeds, rocks, stumps, dropped items, and signs have height — they stay `_fit_actor` at unit-center Y.
 
-When shine spots or pitfall holes exist, they reuse the same hole fan and should go through `FieldCatalog.is_ground_decal`. Actor blob shadows (`*_shadow_v`) are skipped by convert; Godot uses the sun.
+When shine spots or pitfall holes exist, they reuse the same hole fan and should go through `FieldCatalog.is_ground_decal`. Actor blob shadows (`*_shadow_v`) convert as companion GLBs; `GeneratedVisual` attaches them under `BlobShadow`. Characters (player) use `actor_blob_shadow.tscn` — DirectionalLight shadows stay off.
 
 **Window panes** (`*_light_model`, museum `*_lightT_model`): opaque quads in the wall TEX_EDGE holes. The combiner ignores the wall SETTIMG and fills with prim/env — black when off, yellow (255, 255, 150) when on (`mEnv_NPC_LIGHTS_*` 18:00–05:00). Convert keeps them untextured (`unlit_fill`) so they do not merge into the MASK wall surface.
 

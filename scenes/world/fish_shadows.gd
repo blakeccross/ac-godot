@@ -12,8 +12,13 @@ const SHADER := "res://shaders/fish_shadow.gdshader"
 ## the soft rim and the tail sway somewhere to live.
 const QUAD_PADDING := 1.45
 ## `mCoBG_GetWaterHeight` - 8 GX puts the fish under the surface; the quad has to sit just
-## above the water plane instead or it z-fights with it.
-const SURFACE_LIFT := 0.02
+## above the water plane instead or it z-fights with it. River/ocean sheets also add a
+## `ground_lift` of 0.5–1.0 GX in their vertex shader — sit above that or the opaque depth
+## write from `depth_draw_opaque` kills the shadow.
+const SURFACE_LIFT := FieldCatalog.GX_TO_METERS * 2.0
+## River/ocean/splash XLU sheets use priorities 1–2 (`GeneratedVisual`). Same trap as
+## footprints: without a higher priority the water pass paints over the shadow and erases it.
+const RENDER_PRIORITY := 3
 
 var _school: FishSchool = null
 var _material: ShaderMaterial = null
@@ -31,6 +36,7 @@ func _ready() -> void:
 	if ResourceLoader.exists(SHADER):
 		_material = ShaderMaterial.new()
 		_material.shader = load(SHADER) as Shader
+		_material.render_priority = RENDER_PRIORITY
 	_bind_school()
 
 
@@ -93,7 +99,7 @@ func _place(
 	node.visible = alpha > 0.005
 	if not node.visible:
 		return
-	node.global_position = Vector3(at.x, _school.surface_y + SURFACE_LIFT, at.z)
+	node.global_position = Vector3(at.x, _school.surface_at(at) + SURFACE_LIFT, at.z)
 	## The quad's +Y runs along the fish and the node is laid flat, so yaw stays on Y. The
 	## extra half turn is `aGYO_actor_draw_gyoei`'s `rotation.y + DEG2SHORT_ANGLE2(180.0f)`:
 	## the shadow art points down its local -Z, so without it the fish swims tail first.
@@ -115,7 +121,9 @@ func _fit(pool: Array[MeshInstance3D], want: int) -> void:
 		node.mesh = _mesh
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		if _material != null:
-			node.material_override = _material.duplicate() as ShaderMaterial
+			var mat := _material.duplicate() as ShaderMaterial
+			mat.render_priority = RENDER_PRIORITY
+			node.material_override = mat
 		add_child(node)
 		pool.append(node)
 	for i: int in range(want, pool.size()):

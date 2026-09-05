@@ -237,7 +237,18 @@ func _add_object(root: Node3D, placement: ObjectPlacement, data: WorldData, grid
 	if "label" in node and placement.message != "":
 		node.set("label", placement.message)
 	_apply_payload(node, placement)
-	_place_node(root, node, placement.cell, placement.footprint, placement.facing, data, grid)
+	_place_node(
+		root,
+		node,
+		placement.cell,
+		placement.footprint,
+		placement.facing,
+		data,
+		grid,
+		Vector2.ZERO,
+		WorldGrid.Facing.SOUTH,
+		FieldCollision.fg_ground_dist(placement.kind)
+	)
 	if not placement.occupy_grid:
 		return
 	grid.place(
@@ -276,16 +287,18 @@ func _place_node(
 	data: WorldData,
 	grid: WorldGrid,
 	actor_shift: Vector2 = Vector2.ZERO,
-	mesh_facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH
+	mesh_facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH,
+	ground_dist: float = 0.0
 ) -> void:
 	var pos: Vector3 = grid.footprint_center(cell, footprint, facing)
 	pos += Vector3(actor_shift.x, 0.0, actor_shift.y) * grid.cell_size
 	if data != null:
 		## Height at the actor stand unit (`mCoBG_GetBgY_OnlyCenter_FromWpos2`), not the NW cell.
+		## FG props pass `FG_GROUND_DIST` (−1 GX) like `bg_item`; buildings stay at keep_h.
 		var stand: Vector2i = grid.world_to_cell(pos)
 		if not data.is_in_bounds(stand):
 			stand = cell
-		pos.y = FieldCollision.ground_y(data, stand)
+		pos.y = FieldCollision.ground_y(data, stand, ground_dist)
 	node.position = pos
 	root.add_child(node)
 	if node.has_method("apply_grid_yaw"):

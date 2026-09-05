@@ -152,7 +152,9 @@ static func _object_site(
 	site.spawn_area = spawn_area
 	site.habitat = habitat
 	site.anchor = grid.footprint_center(obj.cell, Vector2i(1, 1))
-	site.anchor.y = FieldCollision.ground_y(layout, obj.cell)
+	site.anchor.y = FieldCollision.ground_y(
+		layout, obj.cell, FieldCollision.fg_ground_dist(obj.kind)
+	)
 	return site
 
 

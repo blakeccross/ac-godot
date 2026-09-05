@@ -25,7 +25,7 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 
 Camera (`aNPS_actor_ct`): look (100, 60, 60), eye (100, 130, 210), FOV 40°, near/far 100/400. Godot uses a short near (~0.1 m) — literal 100 GX → 5 m clips the seated mesh. Player actor is invisible. `Na_TTKK_ARM` mutes intro_kk subtracks 0–2 while the arm flag is set (opening bake mutes those tracks offline). During talk, `aNPS_talk_end_chk` `silent_counter`: leave `4haku` → `wait_e1` (look up / stop strum, morph −5); after **600** frames unanswered, order 255 `TALK1` remaps via `default_animation` back to **`4haku`** (morph −3) — not standing `wait1`. Face: `NpcFace` on `end_*` blinks / mouth-flaps while uttering.
 
-Lighting (`l_mEnv_kcolor_data_p_sel`): ambient `(30,30,80)`, sun dir `(0,89,79)` / color `(255,255,200)`, fog `(100,100,120)`, clear black void (decomp bg `(22,27,94)` reads as black under the stage). Acre `grd_player_select_model` = OPA wood floor; `modelT` = XLU yellow spot `(PRIM−ENV)×I+ENV` with env `(255,255,130)` + black shade curtain `RGB=PRIM A=I`. Guitar is furniture `int_sum_guitar01` parented to `chest_end_model` (not a hand TOOL — Totakeke’s prop is not in the NPC draw table). Face: `end_1` has normal eye/mouth/tmem banks (`end_1_eye*_TA_tex_txt`, `end_1_mouth*_TA_tex_txt`, `end_1_tmem_txt`) bound to anime segments like other special NPCs.
+Lighting (`l_mEnv_kcolor_data_p_sel`): ambient `(30,30,80)`, sun dir `(0,89,79)` / color `(255,255,200)`, fog color `(100,100,120)` (cleared — `fog_disabled` for this draw type), clear authored `(22,27,94)` but captures read as black void. Acre `grd_player_select_model` = OPA wood floor; `modelT` = XLU spot `(PRIM−ENV)×I+ENV` env `(255,255,130)` lod 150 (GC also scrolls `rom_open_spot2` via EVW — we bake the cone only) + black shade curtain `RGB=PRIM A=I`. Guitar is furniture `int_sum_guitar01` parented to `chest_end_model` (not a hand TOOL — Totakeke’s prop is not in the NPC draw table). Face: `end_1` has normal eye/mouth/tmem banks (`end_1_eye*_TA_tex_txt`, `end_1_mouth*_TA_tex_txt`, `end_1_tmem_txt`) bound to anime segments like other special NPCs.
 
 ## Decomp sources — train
 
@@ -60,7 +60,8 @@ Boot / first-game path lands on **player select**: K.K. strums for ~440 frames, 
 
 - Title **Intro Sequence** → `intro_kk.tscn` → `intro_train.tscn`.
 - K.K. acre `grd_player_select` + `end_1` playing `npc_1_4haku_e1` @ 0.5; camera lock as above; BGM `intro_kk`.
-- Void lighting (no fog — decomp fog reads as a purple band in Godot); XLU spot/shade; acoustic guitar on chest; dialogue speaker `K.K.`.
+- Void lighting: black clear (captures; decomp bg unused with fog off); fog stays off (`fog_disabled`). XLU baked spot cone / shade; acoustic guitar on chest; dialogue speaker `K.K.`.
+- Acre textures stay native `rom_open_*` (ACHD is a near-identical upscale of the tiny tiles).
 - Face/body from `end_1_*` banks (+ ACHD when enabled). `mka_1` is Mask Cat — do not use it for this scene.
 - Strum wait → talk (`wait_e1` look-up; resume `4haku` after ~10 s idle) → paraphrased dialogue (`kk_opening.json`, decomp msg `0x09C7` flow) → fade + BGM stop → train.
 - Skip full sound/voice/vibration menus (decomp `aNPS_setup_*`); welcome + proceed is enough.
@@ -70,7 +71,7 @@ Boot / first-game path lands on **player select**: K.K. strums for ~440 frames, 
 - `IntroTrainStage` plays decomp clips and GX camera / walk path; dialogue cues `rover_sit` / `rover_phone` / `rover_phone_done` / `rover_return`. Phone-done waits for `KEITAI_TALK` then chains `KEITAI_OFF` → `OPEN_D2` → return walk → standing “I’m back” → `sitdown2` (`rover_return` / `return_seated`) → farewell seated (decomp `LAST_TALK` / `SITDOWN2`), not an immediate `OPEN_DOOR` skip mid-walk.
 - Entrance face: `npc_1_open_d1` eye_seq is normal blinks (`eye0..2`); mouth_seq holds `mouth3` for most of the clip — not angry `eye3`.
 - Clock confirm → snap to seat + `npc_1_sitdown_d1` (no pre-walk; anim carries motion). When sitdown finishes (`aNGD_sitdown`), set `sunlight_flag`: window draw → GoingOutTunnel, `ef_lamp_light` off, `sun_percent` lerps 0→1 (`add_calc` 1−√0.5 / 0.1 / 0.005) and clears the tunnel ambient lift.
-- Car glass is `rom_train_in_modelT` XLU with ENV `(100,230,255)`; converted GLB often merges glass onto the OPA mesh as opaque `rom_train_glass_tex` — force alpha + cyan tint so scenery reads through.
+- Car glass is `rom_train_in_modelT` XLU with ENV `(100,230,255)`; I4 → texture alpha (`I×PRIM`). Do not force a mid color-alpha body. `rom_train_out` shares the car's Y snap (decomp translate 0). Shineglass α is `T0×T1×PRIM_LOD_FRAC` — convert clears PNG alpha when the combiner scales A by `PRIM_LOD_FRAC` (invisible until a future lod restore).
 - Background sleep NPC at FG ut (4,4), birth offset x−6/z−24 → (174, 156).
 - Persist `player_name`, `town_name`, `player_gender`, `player_face` into the session and start a generated new game.
 - Paraphrased dialogue JSON (no bank text).
@@ -119,7 +120,7 @@ Needs `end_1.glb`, `grd_player_select.glb`, and BGM `intro_kk` / `intro_train` i
 ### Godot
 
 - Title **Station Arrival** → `Game.start_intro_station()` → generated `world.tscn` + `IntroStationDirector` + `IntroStationStage`.
-- Train: loco `obj_train1_1` + mid `obj_train1_2` + passenger `obj_train1_3`, all yaw 0 (anim-bind + `ckf_basis` → long on +X). Mid at loco−125, passenger at loco−250. `prepare_outdoor_train` keeps skinning, stops autoplay, strips `joint_0` tracks so door/wheel clips cannot move the root. Player rides/exits the passenger car facing yaw 0. Porter/engineer use `mnk_1` GLBs directly (not `mesh_paths`).
+- Train: loco `obj_train1_1` + mid `obj_train1_2` + passenger `obj_train1_3`, all yaw 0 (anim-bind + `ckf_basis` → long on +X). Mid at loco−125, passenger at loco−250. `prepare_outdoor_train` keeps skinning, stops autoplay, strips `joint_0` tracks so door/wheel clips cannot move the root, and snaps caboose doors closed (`obj_train1_3_open` @ frame 1 — `*_close` frame 1 is open; the 32-frame close clip ends closed). Stage plays loco `obj_train1_1` (wheel/rod loop) during approach with speed `(train_speed/40)*10` capped at 0.5 (`aTR0_actor_move`); on stop plays `obj_train1_3_open` @ 0.5 (`mTRC_ACTION_SIGNAL_STOPPED`). Player rides/exits the passenger car facing yaw 0. Porter/engineer use `mnk_1` GLBs directly (not `mesh_paths`).
 - Station / house landmarks come from the town layout (`Buildings/station`, `player_house*`). Stage GX is relative to the station acre block origin; `set_landmarks` runs **after** `bind` so vacant-plot GX is not wiped.
 - Platform actors sit at count-8 height (40 GX); tracks at count-6 (20 GX). Arrive camera: doorway look, dist 620, FOV 20°.
 - After Porter, free walk until past the station; then Nook → **guided** walk to the vacant house **porches** (`StructureDoor.approach_position`) → house pick → `msg_2020` → interior → outdoor return places Nook at the door **before** emerge, debt/job talk after GO_OUT, then Nook turns and runs off before the director tears down (no intro BGM restart).

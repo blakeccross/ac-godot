@@ -11,6 +11,7 @@ from asset_pipeline.ckf import (
     _mat_model_name,
     select_bind_anim,
     select_close_bind,
+    bind_frame_for_anim,
 )
 from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, INTRO_KK_NPC_ANIMS, INTRO_NOOK_NPC_ANIMS, INTRO_ROVER_NPC_ANIMS, INTRO_SLEEP_NPC_ANIMS, WATER_STATIC_NEEDLES, _intro_kk_anims, _intro_nook_anims, _intro_rover_anims, _intro_sleep_npc_anims, _name_under_prefix, _owning_vtx_prefix, _static_jobs
 from asset_pipeline.glb import _bake_wrap_group
@@ -23,6 +24,7 @@ from asset_pipeline.layout import (
 from asset_pipeline.mapfile import MapSymbol, find_symbol, index_by_name
 from asset_pipeline.texbank import (
     GX_CLAMP,
+    GX_MIRROR,
     GX_REPEAT,
     _kanban_bulletin_palette,
 )
@@ -105,6 +107,9 @@ class LayoutTests(unittest.TestCase):
         self.assertEqual(output_for_prefix("tol_net_1"), "items/tol_net_1.glb")
         self.assertEqual(output_folder_for_static("grd_s_f_1"), "environment/acres")
         self.assertEqual(output_folder_for_static("obj_s_stump5"), "environment/trees")
+        self.assertEqual(output_folder_for_static("obj_s_palm5"), "environment/trees")
+        self.assertEqual(output_folder_for_static("obj_w_cedar5"), "environment/trees")
+        self.assertEqual(output_folder_for_static("obj_s_palm5_coco"), "environment/trees")
         self.assertEqual(output_folder_for_static("obj_hole0"), "environment/holes")
         self.assertEqual(output_folder_for_static("tol_axe_1"), "items")
 
@@ -161,7 +166,11 @@ class PrefixOwnershipTests(unittest.TestCase):
             _sym("grd_s_r1_1_modelT", 9),
         ]
         jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
-        self.assertNotIn("obj_s_kouban_shadow", jobs)
+        self.assertIn("obj_s_kouban_shadow", jobs)
+        self.assertEqual(jobs["obj_s_kouban_shadow"]["gfx"], ["obj_s_kouban_shadow_model"])
+        self.assertEqual(
+            jobs["obj_s_kouban_shadow"]["output"], "environment/obj_s_kouban_shadow.glb"
+        )
         self.assertEqual(
             jobs["obj_s_tree5"]["gfx"],
             ["obj_s_tree5_leafT_gfx_model", "obj_s_tree5_trunkT_gfx_model"],
@@ -176,6 +185,24 @@ class PrefixOwnershipTests(unittest.TestCase):
             ["grd_s_r1_1_model", "grd_s_r1_1_modelT"],
         )
 
+    def test_item_card_gfx_maps_fruit_billboards(self) -> None:
+        ## Dropped fruit/money use mode+vtx or combined modelT, not `*_gfx_model`.
+        symbols = [
+            _sym("obj_item_apple_v"),
+            _sym("obj_apple2_modelT"),
+            _sym("obj_item_bag_v"),
+            _sym("bag_DL_mode"),
+            _sym("bag_DL_vtx"),
+            _sym("obj_item_pear_v"),
+            _sym("pear_DL_mode"),
+            _sym("pear_DL_vtx"),
+        ]
+        jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
+        self.assertEqual(jobs["obj_item_apple"]["gfx"], ["obj_apple2_modelT"])
+        self.assertEqual(jobs["obj_item_bag"]["gfx"], ["bag_DL_mode", "bag_DL_vtx"])
+        self.assertEqual(jobs["obj_item_pear"]["gfx"], ["pear_DL_mode", "pear_DL_vtx"])
+        self.assertEqual(jobs["obj_item_apple"]["output"], "environment/obj_item_apple.glb")
+
     def test_rom_museum1_job_includes_modelT_mado(self) -> None:
         ## Entrance stained glass is XLU `rom_museum1_modelT` (`*_mado*_tex`).
         symbols = [
@@ -188,6 +215,17 @@ class PrefixOwnershipTests(unittest.TestCase):
             jobs["rom_museum1"]["gfx"],
             ["rom_museum1_model", "rom_museum1_modelT"],
         )
+
+    def test_rom_myhome_wall_job_skips_custom_design_variants(self) -> None:
+        ## Stock wrap only — `*_new*` are original-design UV variants (`ac_my_indoor`).
+        symbols = [
+            _sym("rom_myhome1_wall_v"),
+            _sym("rom_myhome1_wall_model"),
+            _sym("rom_myhome1_wall_new_model"),
+            _sym("rom_myhome1_wall_new2_model"),
+        ]
+        jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
+        self.assertEqual(jobs["rom_myhome1_wall"]["gfx"], ["rom_myhome1_wall_model"])
 
     def test_kanban_sign_uses_sign_model_display_list(self) -> None:
         symbols = [
@@ -500,6 +538,88 @@ class WrapBakeTests(unittest.TestCase):
         self.assertAlmostEqual(_Part.vertices[1].u, 1.0)
         self.assertAlmostEqual(_Part.vertices[1].v, 1.0)
 
+    def test_clamp_uv_span_overlapping_unit_keeps_authored_range(self) -> None:
+        """Tank glass U=0..6 under GX_CLAMP must not stretch the rim across the quad."""
+        from io import BytesIO
+
+        from PIL import Image
+
+        buf = BytesIO()
+        Image.new("RGBA", (8, 8), (0, 200, 200, 255)).save(buf, format="PNG")
+        png = buf.getvalue()
+
+        class _V:
+            def __init__(self, u: float, v: float) -> None:
+                self.u = u
+                self.v = v
+
+        class _Part:
+            wrap_s = GX_CLAMP
+            wrap_t = GX_CLAMP
+            texture_png = png
+            vertices = [_V(0.0, 0.0), _V(6.0, 1.0), _V(0.0, -5.0)]
+
+        group = {
+            "png": png,
+            "name": "obj_suisou1_front_tex",
+            "wrap_s": GX_CLAMP,
+            "wrap_t": GX_CLAMP,
+            "parts": [_Part()],
+        }
+        _bake_wrap_group(group)
+        self.assertAlmostEqual(_Part.vertices[0].u, 0.0)
+        self.assertAlmostEqual(_Part.vertices[1].u, 6.0)
+        self.assertAlmostEqual(_Part.vertices[2].v, -5.0)
+        self.assertEqual(group["wrap_s"], GX_CLAMP)
+
+    def test_clamp_uv_peek_past_one_is_not_renormalized(self) -> None:
+        """Tree trunk tip ST peeks to V≈1.19 under GX_CLAMP — keep it.
+
+        Renormalizing onto [0, 1] squashes the root UV wedge and drops the painted
+        tips (MASK scissor). Hardware clamp only affects the overshoot samples.
+        """
+        from io import BytesIO
+
+        from PIL import Image
+
+        from asset_pipeline.texbank import GX_CLAMP
+
+        buf = BytesIO()
+        Image.new("RGBA", (64, 64), (120, 60, 40, 255)).save(buf, format="PNG")
+        png = buf.getvalue()
+
+        class _V:
+            def __init__(self, u: float, v: float) -> None:
+                self.u = u
+                self.v = v
+
+        class _Part:
+            wrap_s = GX_CLAMP
+            wrap_t = GX_CLAMP
+            texture_png = png
+            vertices = [
+                _V(0.0, 0.875),
+                _V(0.5, 1.1875),
+                _V(0.5, 0.875),
+                _V(1.0, 0.875),
+                _V(0.0, 0.0),
+                _V(0.5, 0.0),
+                _V(1.0, 0.0),
+            ]
+
+        group = {
+            "png": png,
+            "name": "obj_s_tree4_trunk_tex",
+            "wrap_s": GX_CLAMP,
+            "wrap_t": GX_CLAMP,
+            "parts": [_Part()],
+        }
+        _bake_wrap_group(group)
+        self.assertAlmostEqual(_Part.vertices[0].v, 0.875)
+        self.assertAlmostEqual(_Part.vertices[1].v, 1.1875)
+        self.assertAlmostEqual(_Part.vertices[2].v, 0.875)
+        self.assertEqual(group["wrap_s"], GX_CLAMP)
+
     def test_clamp_uv_span_outside_unit_tile_is_fitted(self) -> None:
         """Train tunnel S lands at U=1..4 with GX_CLAMP — fit onto the brick sheet."""
         from io import BytesIO
@@ -569,31 +689,94 @@ class WrapBakeTests(unittest.TestCase):
 
 
 class WindowDlTests(unittest.TestCase):
-    def test_spill_vs_pane_names(self) -> None:
-        from asset_pipeline.gfx import is_window_pane_dl, is_window_spill_dl
+    def test_spill_pane_outdoor_from_gfx_state(self) -> None:
+        from asset_pipeline.gfx import (
+            combine_is_unlit_fill,
+            othermode_is_xlu_decal,
+        )
+        from asset_pipeline.texbank import coverage_from_render_mode
 
-        self.assertTrue(is_window_spill_dl("obj_s_shop1_window_model"))
-        self.assertTrue(is_window_spill_dl("obj_s_house1_windowL_model"))
-        self.assertTrue(is_window_spill_dl("obj_s_museum_windowT_model"))
-        self.assertTrue(is_window_spill_dl("obj_s_tailor_window_model"))
-        self.assertFalse(is_window_spill_dl("obj_s_shop1_light_model"))
-        self.assertFalse(is_window_spill_dl("obj_s_museum_lightT_model"))
-        self.assertTrue(is_window_pane_dl("obj_s_shop1_light_model"))
-        self.assertTrue(is_window_pane_dl("obj_s_museum_lightT_model"))
-        self.assertFalse(is_window_pane_dl("obj_s_shop1_window_model"))
-        self.assertFalse(is_window_spill_dl("room01_grp_room01__edge"))
-        self.assertFalse(is_window_spill_dl("room_window"))
-        self.assertFalse(is_window_spill_dl("rom_myhome_window_tex"))
-        ## Parent `*_model` + window tex must not become outdoor I4 spill.
-        self.assertFalse(is_window_spill_dl("room01_model:room_window"))
-        self.assertFalse(is_window_spill_dl("room01_model"))
+        ## XLU_DECAL render mode (unshifted ZMODE_DEC).
+        self.assertEqual(coverage_from_render_mode(0xC00), "xlu")
+        self.assertTrue(othermode_is_xlu_decal(0xC00 << 3))
+        self.assertFalse(othermode_is_xlu_decal(0x800 << 3))  # XLU_SURF
+        ## Unlit prim/env fills (window pane / outdoor view).
+        self.assertTrue(combine_is_unlit_fill(0xFCFFFFFF, 0xFFFCF83C))
+        self.assertFalse(combine_is_unlit_fill(0xFCFF9DFF, 0xFF33FFFF))
+        self.assertFalse(combine_is_unlit_fill(0, 0))
+        ## Shade curtain shares w0 with panes but samples TEXEL for alpha.
+        self.assertFalse(combine_is_unlit_fill(0xFCFFFFFF, 0xFFFDF238))
+        ## House/shop panes SETTIMG a wall tile after combine — still unlit RGB.
+        self.assertTrue(combine_is_unlit_fill(0xFCFFFFFF, 0xFFFDFE38))
+        self.assertTrue(combine_is_unlit_fill(0xFCFFFFFF, 0xFFFEF638))
 
-    def test_room_outdoor_view_names(self) -> None:
-        from asset_pipeline.gfx import is_room_outdoor_view_dl
+    def test_clamp_fit_skips_spans_that_overlap_unit_tile(self) -> None:
+        from asset_pipeline.glb import _fit_clamp_axis
 
-        self.assertTrue(is_room_outdoor_view_dl("room01_grp_room_out01"))
-        self.assertFalse(is_room_outdoor_view_dl("room01_grp_room01__edge"))
-        self.assertFalse(is_room_outdoor_view_dl("room_window"))
+        ## Tunnel brick entirely past U=1 — fit so the sheet is visible.
+        self.assertEqual(_fit_clamp_axis(1.0, 4.0), (1.0, 3.0))
+        self.assertEqual(_fit_clamp_axis(2.0, 5.0), (2.0, 3.0))
+        ## Player-select floor / tank glass U crosses [0,1] — keep GX clamp.
+        self.assertIsNone(_fit_clamp_axis(0.0, 6.0))
+        self.assertIsNone(_fit_clamp_axis(-1.5, 2.5))
+        self.assertIsNone(_fit_clamp_axis(0.0, 1.0))
+        self.assertIsNone(_fit_clamp_axis(-0.25, 1.25))
+        ## River bank V=0..2 under GX_CLAMP — one tile of art + edge clamp, not a fit.
+        self.assertIsNone(_fit_clamp_axis(0.0, 2.0))
+
+    def test_river_bank_mirror_s_clamp_t_keeps_v_past_one(self) -> None:
+        """OPA river_tex is MIRROR S / CLAMP T with V at 0 and 2.
+
+        Fitting or saturating V into [0,1] stretches the 64×32 bank sheet across
+        a span that should be one UV of art plus one UV of edge-clamped waterline.
+        """
+        from io import BytesIO
+
+        from PIL import Image
+
+        buf = BytesIO()
+        Image.new("RGBA", (64, 32), (80, 60, 40, 255)).save(buf, format="PNG")
+        png = buf.getvalue()
+
+        class _V:
+            def __init__(self, u: float, v: float) -> None:
+                self.u = u
+                self.v = v
+
+        class _Part:
+            wrap_s = GX_MIRROR
+            wrap_t = GX_CLAMP
+            texture_png = png
+            vertices = [_V(-4.0, 0.0), _V(5.0, 0.0), _V(-4.0, 2.0), _V(5.0, 2.0)]
+
+        group = {
+            "png": png,
+            "name": "mFM_grd_s_river_tex",
+            "wrap_s": GX_MIRROR,
+            "wrap_t": GX_CLAMP,
+            "parts": [_Part()],
+        }
+        _bake_wrap_group(group)
+        baked = Image.open(BytesIO(group["png"]))
+        self.assertEqual(baked.size, (64 * 9, 32))
+        self.assertAlmostEqual(_Part.vertices[0].v, 0.0)
+        self.assertAlmostEqual(_Part.vertices[2].v, 2.0)
+        self.assertAlmostEqual(_Part.vertices[3].v, 2.0)
+        self.assertEqual(group["wrap_s"], GX_CLAMP)
+        self.assertEqual(group["wrap_t"], GX_CLAMP)
+
+    def test_player_select_spot_name_excludes_spot2(self) -> None:
+        from asset_pipeline.texbank import (
+            is_player_select_fog_tex,
+            is_player_select_shade_tex,
+            is_player_select_spot_tex,
+        )
+
+        self.assertTrue(is_player_select_spot_tex("rom_open_spot_tex"))
+        self.assertFalse(is_player_select_spot_tex("rom_open_spot2_tex_rgb_i4"))
+        self.assertTrue(is_player_select_fog_tex("rom_open_spot2_tex_rgb_i4"))
+        self.assertFalse(is_player_select_fog_tex("rom_open_spot_tex"))
+        self.assertTrue(is_player_select_shade_tex("rom_open_shade_tex"))
 
     def test_i4_png_becomes_alpha(self) -> None:
         from io import BytesIO
@@ -648,43 +831,156 @@ class WindowDlTests(unittest.TestCase):
         self.assertEqual(shade.getpixel((1, 0)), (0, 0, 0, 255))
 
 
-class WaterNameTests(unittest.TestCase):
+class WaterKindTests(unittest.TestCase):
     def test_river_ocean_beach_kinds(self) -> None:
         from asset_pipeline.gfx import (
-            beach_wet_kind,
+            _OCEAN_BED_PRIM,
+            classify_beach_wet,
+            classify_water_surface,
             is_ocean_bed_part,
-            waterfall_layer_from_part,
-            waterfall_surface_kind,
-            water_surface_kind,
+            waterfall_layer_from_wraps,
         )
+        from asset_pipeline.texbank import G_IM_FMT_I, G_IM_FMT_IA, GX_CLAMP, GX_MIRROR, GX_REPEAT
 
-        self.assertEqual(water_surface_kind("mFM_grd_water1_tex", "mFM_grd_water2_tex"), "river")
-        self.assertEqual(water_surface_kind("mFM_grd_wave1_tex", "mFM_grd_wave2_tex"), "ocean")
-        self.assertEqual(water_surface_kind("mFM_grd_sprashC_tex", "mFM_grd_sprashA_tex"), "splash")
-        self.assertEqual(water_surface_kind("obj_stump5T_gfx_model"), "")
+        river = classify_water_surface(
+            coverage="xlu",
+            fmt0=G_IM_FMT_I,
+            fmt1=G_IM_FMT_I,
+            wrap0_s=GX_REPEAT,
+            wrap0_t=GX_REPEAT,
+            wrap1_s=GX_REPEAT,
+            wrap1_t=GX_REPEAT,
+            dual=True,
+            env=(0, 100, 255, 255),
+        )
+        self.assertEqual(river, "river")
+        ## Museum tank dual I4 uses dimmer env — not the outdoor river shader.
         self.assertEqual(
-            water_surface_kind(
-                "obj_s_shrine_t3_tex_txt",
-                "obj_s_shrine_water_model",
-                "obj_s_shrine_trunk_model",
+            classify_water_surface(
+                coverage="xlu",
+                fmt0=G_IM_FMT_I,
+                fmt1=G_IM_FMT_I,
+                wrap0_s=GX_REPEAT,
+                wrap0_t=GX_REPEAT,
+                wrap1_s=GX_REPEAT,
+                wrap1_t=GX_REPEAT,
+                dual=True,
+                env=(0, 30, 120, 255),
+            ),
+            "",
+        )
+        ocean = classify_water_surface(
+            coverage="xlu",
+            fmt0=G_IM_FMT_IA,
+            fmt1=G_IM_FMT_IA,
+            wrap0_s=GX_REPEAT,
+            wrap0_t=GX_REPEAT,
+            wrap1_s=GX_REPEAT,
+            wrap1_t=GX_CLAMP,
+            dual=True,
+        )
+        self.assertEqual(ocean, "ocean")
+        splash = classify_water_surface(
+            coverage="xlu",
+            fmt0=G_IM_FMT_I,
+            fmt1=G_IM_FMT_IA,
+            wrap0_s=GX_REPEAT,
+            wrap0_t=GX_REPEAT,
+            wrap1_s=GX_REPEAT,
+            wrap1_t=GX_REPEAT,
+            dual=True,
+        )
+        self.assertEqual(splash, "splash")
+        self.assertEqual(
+            classify_water_surface(
+                coverage="opa",
+                fmt0=G_IM_FMT_I,
+                fmt1=None,
+                wrap0_s=GX_REPEAT,
+                wrap0_t=GX_REPEAT,
+                wrap1_s=GX_REPEAT,
+                wrap1_t=GX_REPEAT,
+                dual=False,
+            ),
+            "",
+        )
+        fall = classify_water_surface(
+            coverage="xlu",
+            fmt0=G_IM_FMT_I,
+            fmt1=G_IM_FMT_I,
+            wrap0_s=GX_MIRROR,
+            wrap0_t=GX_REPEAT,
+            wrap1_s=GX_MIRROR,
+            wrap1_t=GX_REPEAT,
+            dual=True,
+        )
+        self.assertEqual(fall, "waterfall")
+        ## Train shineglass: dual I4 + CLAMP, no SetRenderMode → not waterfall.
+        self.assertEqual(
+            classify_water_surface(
+                coverage=None,
+                fmt0=G_IM_FMT_I,
+                fmt1=G_IM_FMT_I,
+                wrap0_s=GX_CLAMP,
+                wrap0_t=GX_CLAMP,
+                wrap1_s=GX_CLAMP,
+                wrap1_t=GX_CLAMP,
+                dual=True,
             ),
             "",
         )
         self.assertEqual(
-            water_surface_kind("obj_s_shrine_t4_tex_txt", "", "obj_s_shrine_water_model"),
-            "river",
+            waterfall_layer_from_wraps(
+                GX_MIRROR,
+                GX_REPEAT,
+                GX_MIRROR,
+                GX_REPEAT,
+                prim=(100, 140, 255, 255),
+            ),
+            "bt",
         )
         self.assertEqual(
-            waterfall_surface_kind("obj_fallA2_tex_rgb_i4", "obj_fallC3_tex_rgb_i4"),
-            "waterfall",
+            waterfall_layer_from_wraps(
+                GX_REPEAT,
+                GX_CLAMP,
+                GX_REPEAT,
+                GX_REPEAT,
+                prim=(200, 220, 255, 100),
+                env=(30, 40, 50, 255),
+            ),
+            "ct",
         )
-        self.assertEqual(waterfall_surface_kind("obj_fallCA1_tex_rgb_ia8", "obj_fallCA1_tex_rgb_ia8"), "waterfall")
-        self.assertEqual(waterfall_surface_kind("mFM_grd_water1_tex", "mFM_grd_water2_tex"), "")
-        self.assertEqual(waterfall_layer_from_part("obj_fallS_grpBT_model"), "bt")
-        self.assertEqual(waterfall_layer_from_part("obj_fallSE_grpCT_model"), "ct")
-        self.assertEqual(beach_wet_kind("mFM_grd_beachB_tex"), "beach_wet")
-        self.assertEqual(beach_wet_kind("mFM_grd_beachA_tex"), "beach_wet")
-        self.assertEqual(beach_wet_kind("mFM_grd_s_beach_tex"), "")
+        self.assertEqual(
+            classify_beach_wet(
+                coverage="opa",
+                fmt=G_IM_FMT_I,
+                dual=False,
+                prim=(206, 189, 148, 255),
+                env=(144, 128, 96, 255),
+            ),
+            "beach_wet",
+        )
+        self.assertEqual(
+            classify_beach_wet(
+                coverage="opa",
+                fmt=G_IM_FMT_I,
+                dual=False,
+                prim=(255, 255, 255, 255),
+                env=(144, 128, 96, 255),
+            ),
+            "",
+        )
+        ## Player-select shade: black PRIM + leftover spot ENV must not be wet sand.
+        self.assertEqual(
+            classify_beach_wet(
+                coverage="opa",
+                fmt=G_IM_FMT_I,
+                dual=False,
+                prim=(0, 0, 0, 255),
+                env=(255, 255, 130, 255),
+            ),
+            "",
+        )
         from asset_pipeline.gfx import MeshPart, Vertex
 
         vert = Vertex(0, 0, 0, 0, 0, 255, 255, 255, 255)
@@ -696,6 +992,7 @@ class WaterNameTests(unittest.TestCase):
                     triangles=[(0, 0, 0)],
                     texture_name="mFM_grd_beachB_tex",
                     water_kind="beach_wet",
+                    beach_prim=(*_OCEAN_BED_PRIM, 255),
                 )
             )
         )
@@ -707,6 +1004,7 @@ class WaterNameTests(unittest.TestCase):
                     triangles=[(0, 0, 0)],
                     texture_name="mFM_grd_beachA_tex",
                     water_kind="beach_wet",
+                    beach_prim=(206, 189, 148, 255),
                 )
             )
         )
@@ -856,6 +1154,198 @@ class WaterNameTests(unittest.TestCase):
             self.assertEqual(len(mesh_modes), 1, mesh["name"])
         self.assertEqual(len(gltf["nodes"][0]["children"]), 2)
 
+    def test_skinned_mixed_alpha_modes_split_into_separate_meshes(self) -> None:
+        """House door MASK must not share a skinned mesh with OPAQUE walls."""
+        import json
+        import struct
+        import tempfile
+        from io import BytesIO
+        from pathlib import Path
+
+        from PIL import Image
+
+        from asset_pipeline.ckf import ConvertedModel, Joint
+        from asset_pipeline.glb import write_skinned_glb
+        from asset_pipeline.gfx import MeshPart, Vertex
+        from asset_pipeline.math3d import Mat4
+        from asset_pipeline.texbank import GX_CLAMP
+
+        def _png(rgb: tuple[int, int, int, int]) -> bytes:
+            buf = BytesIO()
+            Image.new("RGBA", (4, 4), rgb).save(buf, format="PNG")
+            return buf.getvalue()
+
+        verts = [
+            Vertex(0, 0, 0, 0, 0, 255, 255, 255, 255, joint_index=0),
+            Vertex(1, 0, 0, 1, 0, 255, 255, 255, 255, joint_index=0),
+            Vertex(0, 1, 0, 0, 1, 255, 255, 255, 255, joint_index=0),
+        ]
+        opa = MeshPart(
+            name="wall:obj_s_myhome1_t1_tex_txt",
+            vertices=list(verts),
+            triangles=[(0, 1, 2)],
+            joint_index=0,
+            texture_name="obj_s_myhome1_t1_tex_txt",
+            texture_png=_png((40, 30, 30, 255)),
+            wrap_s=GX_CLAMP,
+            wrap_t=GX_CLAMP,
+            alpha_mode="OPAQUE",
+        )
+        door = MeshPart(
+            name="door:obj_s_myhome1_t3_tex_txt",
+            vertices=list(verts),
+            triangles=[(0, 1, 2)],
+            joint_index=0,
+            texture_name="obj_s_myhome1_t3_tex_txt",
+            texture_png=_png((0, 0, 0, 0)),
+            wrap_s=GX_CLAMP,
+            wrap_t=GX_CLAMP,
+            alpha_mode="MASK",
+        )
+        ident = Mat4.identity()
+        model = ConvertedModel(
+            parts=[opa, door],
+            joints=[
+                Joint(
+                    child_count=0,
+                    flags=0,
+                    translation=(0.0, 0.0, 0.0),
+                    gfx_addr=0,
+                    model_name="joint_0",
+                    parent=-1,
+                    index=0,
+                )
+            ],
+            bind_local=[ident],
+            bind_world=[ident],
+            animations={},
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "house.glb"
+            write_skinned_glb(path, model)
+            raw = path.read_bytes()
+            n = struct.unpack_from("<I", raw, 12)[0]
+            gltf = json.loads(raw[20 : 20 + n])
+        self.assertEqual(len(gltf["meshes"]), 2)
+        self.assertEqual(len(gltf["skins"]), 1)
+        modes = {
+            gltf["materials"][p["material"]].get("alphaMode", "OPAQUE")
+            for mesh in gltf["meshes"]
+            for p in mesh["primitives"]
+        }
+        self.assertEqual(modes, {"OPAQUE", "MASK"})
+        for mesh in gltf["meshes"]:
+            mesh_modes = {
+                gltf["materials"][p["material"]].get("alphaMode", "OPAQUE")
+                for p in mesh["primitives"]
+            }
+            self.assertEqual(len(mesh_modes), 1, mesh["name"])
+        skinned = [n for n in gltf["nodes"] if "skin" in n]
+        self.assertEqual(len(skinned), 2)
+        self.assertTrue(all(n["skin"] == 0 for n in skinned))
+
+    def test_skinned_export_preserves_coplanar_tex_edge_verts(self) -> None:
+        """Door TEX_EDGE stays on the OPA facade plane — no convert-time nudge."""
+        import json
+        import struct
+        import tempfile
+        from io import BytesIO
+        from pathlib import Path
+
+        from PIL import Image
+
+        from asset_pipeline.ckf import ConvertedModel, Joint
+        from asset_pipeline.glb import write_skinned_glb
+        from asset_pipeline.gfx import MeshPart, Vertex
+        from asset_pipeline.math3d import Mat4
+        from asset_pipeline.texbank import GX_CLAMP
+
+        def _png(rgb: tuple[int, int, int, int]) -> bytes:
+            buf = BytesIO()
+            Image.new("RGBA", (4, 4), rgb).save(buf, format="PNG")
+            return buf.getvalue()
+
+        def _tri() -> list[Vertex]:
+            ## Same XYZ on wall and door — coplanar facade (GC layout).
+            return [
+                Vertex(0, 0, 0, 0, 0, 255, 255, 255, 255, joint_index=0),
+                Vertex(1, 0, 0, 0, 0, 255, 255, 255, 255, joint_index=0),
+                Vertex(0, 1, 0, 0, 0, 255, 255, 255, 255, joint_index=0),
+            ]
+
+        opa = MeshPart(
+            name="wall:t1",
+            vertices=_tri(),
+            triangles=[(0, 1, 2)],
+            joint_index=0,
+            texture_name="t1",
+            texture_png=_png((40, 30, 30, 255)),
+            wrap_s=GX_CLAMP,
+            wrap_t=GX_CLAMP,
+            alpha_mode="OPAQUE",
+            coverage="opa",
+        )
+        door = MeshPart(
+            name="door:t3",
+            vertices=_tri(),
+            triangles=[(0, 1, 2)],
+            joint_index=0,
+            texture_name="t3",
+            texture_png=_png((0, 0, 0, 0)),
+            wrap_s=GX_CLAMP,
+            wrap_t=GX_CLAMP,
+            alpha_mode="MASK",
+            coverage="tex_edge",
+        )
+        ident = Mat4.identity()
+        model = ConvertedModel(
+            parts=[opa, door],
+            joints=[
+                Joint(
+                    child_count=0,
+                    flags=0,
+                    translation=(0.0, 0.0, 0.0),
+                    gfx_addr=0,
+                    model_name="joint_0",
+                    parent=-1,
+                    index=0,
+                )
+            ],
+            bind_local=[ident],
+            bind_world=[ident],
+            animations={},
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "house.glb"
+            write_skinned_glb(path, model)
+            raw = path.read_bytes()
+            n = struct.unpack_from("<I", raw, 12)[0]
+            gltf = json.loads(raw[20 : 20 + n])
+            bin_off = 20 + n
+            bn = struct.unpack_from("<I", raw, bin_off)[0]
+            blob = raw[bin_off + 8 : bin_off + 8 + bn]
+
+            def acc(i: int) -> list[tuple]:
+                a = gltf["accessors"][i]
+                bv = gltf["bufferViews"][a["bufferView"]]
+                start = bv.get("byteOffset", 0) + a.get("byteOffset", 0)
+                nc = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}[a["type"]]
+                fmt = "<" + {5126: "f", 5123: "H", 5125: "I"}[a["componentType"]] * nc
+                size = struct.calcsize(fmt)
+                return [
+                    struct.unpack_from(fmt, blob, start + k * size) for k in range(a["count"])
+                ]
+
+            zs: list[float] = []
+            for mesh in gltf["meshes"]:
+                for prim in mesh["primitives"]:
+                    for v in acc(prim["attributes"]["POSITION"]):
+                        zs.append(float(v[2]))
+            self.assertTrue(zs)
+            ## Authored z=0 must survive export (no ±eps coplanar separation).
+            for z in zs:
+                self.assertAlmostEqual(z, 0.0, places=5)
+
     def test_train_window_i4_alpha_via_coverage(self) -> None:
         """XLU + opaque I4 promotes intensity to alpha without texture-name gates."""
         from io import BytesIO
@@ -879,6 +1369,28 @@ class WaterNameTests(unittest.TestCase):
         ## Missing SetRenderMode (shineglass): texel BLEND still wins via fallback.
         self.assertEqual(resolve_alpha_mode(None, "BLEND"), "BLEND")
         self.assertEqual(resolve_alpha_mode(None, "OPAQUE"), "OPAQUE")
+
+    def test_prim_lod_frac_alpha_combine_detected(self) -> None:
+        from io import BytesIO
+
+        from PIL import Image
+
+        from asset_pipeline.gfx import combine_alpha_scaled_by_prim_lod_frac
+        from asset_pipeline.texbank import clear_png_alpha
+
+        ## `rom_train_out_shineglass_modelT` SetCombine from REL.
+        self.assertTrue(combine_alpha_scaled_by_prim_lod_frac(0xFCFF95FF, 0xFF19FE3F))
+        ## Trees / clouds / car glass — PRIM_LOD_FRAC on RGB or not at all.
+        self.assertFalse(combine_alpha_scaled_by_prim_lod_frac(0xFC377E40, 0xFFFEF3F8))
+        self.assertFalse(combine_alpha_scaled_by_prim_lod_frac(0xFC3717FF, 0xFFFEFE38))
+        self.assertFalse(combine_alpha_scaled_by_prim_lod_frac(0xFC3097FF, 0x5FFEFE38))
+        self.assertFalse(combine_alpha_scaled_by_prim_lod_frac(0, 0))
+
+        buf = BytesIO()
+        Image.new("RGBA", (2, 2), (200, 200, 200, 180)).save(buf, format="PNG")
+        cleared = Image.open(BytesIO(clear_png_alpha(buf.getvalue()))).convert("RGBA")
+        self.assertEqual(cleared.getpixel((0, 0))[3], 0)
+        self.assertEqual(cleared.getpixel((0, 0))[0], 200)
 
     def test_othermode_packets_classify_coverage(self) -> None:
         from asset_pipeline.gfx import apply_othermode, coverage_from_othermode_l, is_rendermode_update
@@ -936,6 +1448,12 @@ class BindAnimTests(unittest.TestCase):
             "cKF_ba_r_obj_train1_1_close",
         )
         self.assertIsNone(select_close_bind(["cKF_ba_r_obj_train1_1_open"]))
+
+    def test_close_bind_uses_last_frame(self) -> None:
+        ## `obj_train1_3_close` is 32 frames open→closed; rest must be frame 32.
+        self.assertEqual(bind_frame_for_anim("cKF_ba_r_obj_train1_3_close", 32), 32.0)
+        self.assertEqual(bind_frame_for_anim("cKF_ba_r_obj_train1_3_open", 24), 1.0)
+        self.assertEqual(bind_frame_for_anim("cKF_ba_r_ply_1_wait1", 30), 1.0)
 
 
 class _V:
@@ -996,7 +1514,7 @@ class SeasonRoleTests(unittest.TestCase):
         self.assertEqual(_role_for_name("bush_b_tex_dummy", FIELD_ROLE_NEEDLES), "bush_b")
         self.assertEqual(_role_for_name("earth_tex_dummy", FIELD_ROLE_NEEDLES), "earth")
         self.assertEqual(_role_for_name("sand_tex_dummy", FIELD_ROLE_NEEDLES), "sand")
-        self.assertEqual(_role_for_name("beach1_tex_dummy2", FIELD_ROLE_NEEDLES), "beach_wet")
+        self.assertEqual(_role_for_name("beach1_tex_dummy2", FIELD_ROLE_NEEDLES), "")
         self.assertEqual(_role_for_name("river_tex_dummy", FIELD_ROLE_NEEDLES), "river_edge")
         self.assertEqual(_role_for_name("river_mFM_grd_water1_tex", FIELD_ROLE_NEEDLES), "")
         self.assertEqual(_role_for_name("obj_s_tree_leaf_tex", TREE_ROLE_NEEDLES), "tree_leaf")
@@ -1005,6 +1523,7 @@ class SeasonRoleTests(unittest.TestCase):
 
     def test_glb_material_field_role_extras(self) -> None:
         from asset_pipeline.glb import _field_role_for_material_name, _material
+        from asset_pipeline.gfx import _OCEAN_BED_PRIM
 
         self.assertEqual(_field_role_for_material_name("grass_tex_dummy"), "grass")
         self.assertEqual(_field_role_for_material_name("bush_a_tex_dummy"), "bush_a")
@@ -1012,6 +1531,28 @@ class SeasonRoleTests(unittest.TestCase):
         self.assertEqual(_field_role_for_material_name("river_mFM_grd_water1_tex", "river"), "")
         mat = _material("grass_tex_dummy", None)
         self.assertEqual(mat.get("extras", {}).get("field_role"), "grass")
+        wet = _material("shore", None, water_kind="beach_wet", beach_prim=(206, 189, 148, 255))
+        self.assertEqual(wet.get("extras", {}).get("field_role"), "beach_wet")
+        bed = _material("bed", None, water_kind="beach_wet", beach_prim=(*_OCEAN_BED_PRIM, 255))
+        self.assertNotIn("field_role", bed.get("extras", {}))
+
+    def test_group_parts_uses_mesh_flags_not_dl_names(self) -> None:
+        from asset_pipeline.glb import _group_parts
+        from asset_pipeline.gfx import MeshPart, Vertex
+
+        v = Vertex(0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0)
+        named_pane = MeshPart(
+            "obj_s_shop1_light_model", [v, v, v], [(0, 1, 2)], unlit_fill=False
+        )
+        self.assertFalse(_group_parts([named_pane])[0]["unlit_fill"])
+        flagged = MeshPart("anything", [v, v, v], [(0, 1, 2)], unlit_fill=True)
+        self.assertTrue(_group_parts([flagged])[0]["unlit_fill"])
+        named_spill = MeshPart(
+            "obj_s_shop1_window_model", [v, v, v], [(0, 1, 2)], ground_spill=False
+        )
+        self.assertFalse(_group_parts([named_spill])[0]["ground_spill"])
+        spill = MeshPart("anything", [v, v, v], [(0, 1, 2)], ground_spill=True)
+        self.assertTrue(_group_parts([spill])[0]["ground_spill"])
 
     def test_grass_pattern_export_count(self) -> None:
         from asset_pipeline.seasons import GRASS_PATTERN_COUNT

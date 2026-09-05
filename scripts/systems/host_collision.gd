@@ -183,11 +183,13 @@ static func apply_building(host: Node3D, visual_id: StringName, occupancy: Vecto
 		disable_body(host)
 		var door: Vector3 = door_offset(visual_id)
 		if door != Vector3.ZERO:
-			## Museum opening spans ~80 GX — fill it so you cannot walk past the stand.
-			## Outdoor check radius is ~33 GX (`aMsm_check_player` t < 1100); box covers the bay.
+			## Museum opening spans ~80 GX — wide so you cannot walk past the stand.
+			## Keep Z shallow: the raised south edge sits on the +100 GX door stand, and a
+			## deep sensor pulls the player into StructureOffset roof cells before enter.
+			## Outdoor check radius is ~33 GX (`aMsm_check_player` t < 1100).
 			var box := Vector3(1.6, 2.0, 1.6)
 			if is_museum(visual_id):
-				box = Vector3(4.0, 2.6, 2.2)
+				box = Vector3(4.0, 2.6, 1.4)
 			elif is_police(visual_id):
 				box = Vector3(2.0, 2.0, 2.0)
 			place_door_sensor(host, door, box)

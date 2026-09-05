@@ -1,12 +1,41 @@
 extends StaticBody3D
 
 ## Outdoor tree. Shake / chop / stump rules live in TreeUse; this scene presents them.
+## Shake timing matches `mPlayer_ANIM_SHAKE1` frame 10; sway matches EffectBG shakeL/S.
 
 const PICKUP_SCENE := preload("res://scenes/world/item_pickup.tscn")
 const STUMP_VISUAL := &"TREE_STUMP004"
-const SHAKE_AMP := 0.08
-const CHOP_AMP := 0.14
-const FALL_SEC := 0.55
+## Player shake effect lands on frame 10 (`Player_actor_SetEffect_Shake_tree`).
+const SHAKE_EFFECT_FRAME := 10.0
+## `STATUS_FOR_BEE_ATTACK` at frame 29.5 — delay from the effect mark (frame 10).
+const BEE_ATTACKABLE_AFTER_EFFECT := (29.5 - SHAKE_EFFECT_FRAME) / 30.0
+## Bee birth retry window starts 5 frames after the effect (`bee_spawn_timer = 5`).
+const BEE_SPAWN_DELAY := 5.0 / 30.0
+const ANIM_FPS := 30.0
+## EffectBG SHAKE_LARGE keyframes (°×10 → degrees) on joint Z, anim @ 0.5 speed.
+const SHAKE_LARGE_DEG: Array[Vector2] = [
+	Vector2(1.0, 0.0),
+	Vector2(5.0, 2.0),
+	Vector2(9.0, -4.0),
+	Vector2(13.0, 6.0),
+	Vector2(17.0, -6.0),
+	Vector2(21.0, 6.0),
+	Vector2(25.0, -4.0),
+	Vector2(29.0, 2.0),
+	Vector2(33.0, -1.0),
+	Vector2(37.0, 0.5),
+	Vector2(41.0, 0.0),
+]
+## EffectBG SHAKE_SMALL (`ef_s_tree5_shakeS`).
+const SHAKE_SMALL_DEG: Array[Vector2] = [
+	Vector2(1.0, 0.0),
+	Vector2(3.0, 3.0),
+	Vector2(6.0, -2.0),
+	Vector2(8.0, 1.0),
+	Vector2(9.0, 0.0),
+]
+## EffectBG plays shake clips at speed 0.5 → wall time ≈ frames / (30 * 0.5).
+const SHAKE_PLAY_RATE := 0.5
 
 @export var plant: PlantData
 @export var occupant_id: StringName = &""
@@ -20,6 +49,7 @@ const FALL_SEC := 0.55
 var _use: TreeUse
 var _motion: Tween
 var _felling: bool = false
+var _pending_bees: BeeSwarm = null
 
 
 func _ready() -> void:
@@ -48,7 +78,9 @@ func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 			return [Interaction.of(Interaction.DIG, "Dig stump", 8, &"ply_1_dig1")]
 		return []
 	var actions: Array[Interaction] = [
-		Interaction.of(Interaction.SHAKE, "Shake %s" % label, 10, &"ply_1_shake1")
+		Interaction.of(
+			Interaction.SHAKE, "Shake %s" % label, 10, &"ply_1_shake1", SHAKE_EFFECT_FRAME
+		)
 	]
 	if ToolUse.has(ctx, ToolData.Kind.AXE):
 		actions.append(Interaction.of(Interaction.CHOP, "Chop %s" % label, 18, &"ply_1_axe_swing1"))
@@ -60,7 +92,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		return false
 	var use: TreeUse = _ensure_use()
 	if action.id == Interaction.SHAKE:
-		return _on_shake(use, ctx)
+		return await _on_shake(use, ctx)
 	if action.id == Interaction.CHOP:
 		return _on_chop(use, ctx)
 	if action.id == Interaction.DIG:
@@ -73,13 +105,21 @@ func _on_shake(use: TreeUse, ctx: InteractionContext) -> bool:
 	if not out.shook:
 		return false
 	_stress_bugs_at(ctx)
-	_drop_fruit(out.dropped_fruit, ctx)
-	if out.dropped_fruit > 0:
-		PlantGrowth.take_fruit(_persist())
+	var had_drops: bool = not out.drops.is_empty() or out.dropped_fruit > 0
+	_emit_drops(out, ctx)
+	if had_drops:
+		if out.dropped_fruit > 0:
+			PlantGrowth.take_fruit(_persist())
+		PlantGrowth.clear_shake_content(_persist())
 		apply_growth()
 	else:
 		Game.post_notice("The tree rustles.")
-	_play_shake(false)
+	_play_shake(true)
+	if out.spawn_bees:
+		_arm_bees(ctx)
+	elif _world_has_bees(ctx):
+		## Existing swarm may sting once the shake clip reaches frame 29.5.
+		_schedule_bee_attackable(BEE_ATTACKABLE_AFTER_EFFECT)
 	return true
 
 
@@ -89,11 +129,17 @@ func _on_chop(use: TreeUse, ctx: InteractionContext) -> bool:
 	var out: TreeUse.Outcome = use.chop()
 	if not out.shook and not out.felled:
 		return false
-	_drop_fruit(out.dropped_fruit, ctx)
+	_emit_drops(out, ctx)
 	if out.dropped_fruit > 0:
 		PlantGrowth.take_fruit(_persist())
-		if not out.felled:
-			apply_growth()
+	if not out.drops.is_empty():
+		PlantGrowth.clear_shake_content(_persist())
+	if out.dropped_fruit > 0 and not out.felled:
+		apply_growth()
+	elif not out.drops.is_empty() and not out.felled:
+		apply_growth()
+	if out.spawn_bees:
+		_arm_bees(ctx)
 	if out.felled:
 		PlantGrowth.clear(_persist())
 		Game.mark_stump(_persist())
@@ -135,11 +181,16 @@ func apply_growth() -> void:
 		var pivot := get_node_or_null("VisualPivot") as Node3D
 		if pivot != null:
 			pivot.scale = Vector3.ONE
+		var content: TreeUse.Content = PlantGrowth.shake_content_of(rec)
 		if _use == null:
 			_ensure_use()
 		else:
 			_use.sync_growth(
-				plant, visual_id, PlantGrowth.tree_size(pipe), PlantGrowth.fruit_ready(rec, plant)
+				plant,
+				visual_id,
+				PlantGrowth.tree_size(pipe),
+				PlantGrowth.fruit_ready(rec, plant),
+				content
 			)
 	_present_live_visual()
 	if _use == null:
@@ -179,7 +230,8 @@ func _ensure_use() -> TreeUse:
 		visual_id,
 		as_stump,
 		PlantGrowth.tree_size(pipe),
-		PlantGrowth.fruit_ready(rec, plant)
+		PlantGrowth.fruit_ready(rec, plant),
+		PlantGrowth.shake_content_of(rec)
 	)
 	return _use
 
@@ -195,8 +247,12 @@ func _cell() -> Vector2i:
 	return Vector2i.ZERO
 
 
-func _drop_fruit(count: int, ctx: InteractionContext) -> void:
-	if count <= 0 or plant == null or plant.fruit == null or ctx == null or ctx.world == null:
+func _emit_drops(out: TreeUse.Outcome, ctx: InteractionContext) -> void:
+	var items: Array[ItemData] = out.drops.duplicate()
+	if items.is_empty() and out.dropped_fruit > 0 and plant != null and plant.fruit != null:
+		for _i: int in out.dropped_fruit:
+			items.append(plant.fruit)
+	if items.is_empty() or ctx == null or ctx.world == null:
 		return
 	var grid: WorldGrid = _grid(ctx)
 	if grid == null:
@@ -205,23 +261,84 @@ func _drop_fruit(count: int, ctx: InteractionContext) -> void:
 	if objects == null:
 		return
 	var origin: Vector2i = grid.world_to_cell(global_position)
-	var cells: Array[Vector2i] = TreeUse.pick_drop_cells(origin, grid, count)
-	var i: int = 0
-	for cell: Vector2i in cells:
+	var prefer_east := false
+	if items.size() == 1 and ctx.actor != null:
+		prefer_east = global_position.x > ctx.actor.global_position.x
+	var cells: Array[Vector2i] = TreeUse.pick_drop_cells(origin, grid, items.size(), prefer_east)
+	var is_palm: bool = _use != null and _use.palm_fruit
+	for i: int in items.size():
+		var data: ItemData = items[i]
+		if data == null:
+			continue
+		var cell: Vector2i = cells[i] if i < cells.size() else origin
+		var is_honey: bool = data.id == &"honeycomb"
+		var is_ftr: bool = data is FurnitureData
 		var pickup: Node3D = PICKUP_SCENE.instantiate() as Node3D
-		pickup.set("item", plant.fruit)
+		pickup.set("item", data)
 		var drop_id := StringName("%s_drop_%d" % [String(_persist()), i])
 		pickup.set("persist_id", drop_id)
 		pickup.set("occupant_id", drop_id)
 		objects.add_child(pickup)
-		var pos: Vector3 = grid.cell_to_world(cell)
+		var land: Vector3 = grid.cell_to_world(cell)
 		if "layout" in ctx.world and ctx.world.layout != null:
-			pos.y = FieldCollision.ground_y(ctx.world.layout, cell)
-		pickup.global_position = pos
+			land.y = FieldCollision.ground_y(
+				ctx.world.layout, cell, FieldCollision.FG_GROUND_DIST
+			)
+		var crown: Vector3 = global_position + TreeUse.crown_offset(i, is_honey, is_palm)
+		var duration: float = TreeUse.drop_duration(i, is_honey, is_ftr)
+		if pickup.has_method("begin_fall"):
+			pickup.call("begin_fall", crown, land, duration, is_ftr)
+			if is_honey and _pending_bees != null:
+				pickup.landed.connect(
+					func() -> void:
+						if is_instance_valid(_pending_bees):
+							_pending_bees.global_position = land + Vector3(0.0, 0.4, 0.0),
+					CONNECT_ONE_SHOT
+				)
+		else:
+			pickup.global_position = land
 		grid.place(
 			drop_id, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM
 		)
-		i += 1
+
+
+func _arm_bees(ctx: InteractionContext) -> void:
+	if ctx == null or ctx.world == null:
+		return
+	var objects: Node = ctx.world.get_node_or_null("Objects")
+	if objects == null:
+		return
+	## Delayed birth (~5 frames after shake effect) then attach to honeycomb land.
+	get_tree().create_timer(BEE_SPAWN_DELAY).timeout.connect(
+		func() -> void:
+			if not is_instance_valid(self) or ctx.world == null:
+				return
+			var parent: Node = ctx.world.get_node_or_null("Objects")
+			if parent == null:
+				return
+			_pending_bees = BeeSwarm.spawn(parent, global_position + Vector3(0.0, 2.5, 0.0), ctx.actor)
+			_schedule_bee_attackable(BEE_ATTACKABLE_AFTER_EFFECT - BEE_SPAWN_DELAY),
+		CONNECT_ONE_SHOT
+	)
+
+
+func _schedule_bee_attackable(delay: float) -> void:
+	get_tree().create_timer(maxf(0.0, delay)).timeout.connect(
+		func() -> void:
+			if _pending_bees != null and is_instance_valid(_pending_bees):
+				_pending_bees.mark_attackable()
+			elif get_tree() != null:
+				for node: Node in get_tree().get_nodes_in_group("bee_swarm"):
+					if node.has_method("mark_attackable"):
+						node.call("mark_attackable"),
+		CONNECT_ONE_SHOT
+	)
+
+
+func _world_has_bees(ctx: InteractionContext) -> bool:
+	if ctx == null or ctx.world == null or ctx.world.get_tree() == null:
+		return false
+	return not ctx.world.get_tree().get_nodes_in_group("bee_swarm").is_empty()
 
 
 func _grid(ctx: InteractionContext) -> WorldGrid:
@@ -237,14 +354,16 @@ func _play_shake(strong: bool) -> void:
 	if pivot == null or not is_inside_tree():
 		return
 	_kill_motion()
-	var amp: float = CHOP_AMP if strong else SHAKE_AMP
 	pivot.rotation = Vector3.ZERO
+	var keys: Array[Vector2] = SHAKE_LARGE_DEG if strong else SHAKE_SMALL_DEG
 	_motion = create_tween()
-	_motion.tween_property(pivot, "rotation:z", amp, 0.05)
-	_motion.tween_property(pivot, "rotation:z", -amp, 0.08)
-	_motion.tween_property(pivot, "rotation:z", amp * 0.55, 0.07)
-	_motion.tween_property(pivot, "rotation:z", -amp * 0.3, 0.07)
-	_motion.tween_property(pivot, "rotation:z", 0.0, 0.08)
+	var prev_frame: float = keys[0].x
+	for i: int in range(1, keys.size()):
+		var frame: float = keys[i].x
+		var deg: float = keys[i].y
+		var dt: float = (frame - prev_frame) / (ANIM_FPS * SHAKE_PLAY_RATE)
+		_motion.tween_property(pivot, "rotation:z", deg_to_rad(deg), maxf(dt, 0.001))
+		prev_frame = frame
 
 
 func _play_fall(ctx: InteractionContext) -> void:
@@ -262,7 +381,7 @@ func _play_fall(ctx: InteractionContext) -> void:
 			axis = Vector3.UP.cross(away.normalized())
 	pivot.rotation = Vector3.ZERO
 	_motion = create_tween()
-	_motion.tween_property(pivot, "rotation", axis * (PI * 0.5), FALL_SEC).set_trans(
+	_motion.tween_property(pivot, "rotation", axis * (PI * 0.5), 0.55).set_trans(
 		Tween.TRANS_QUAD
 	).set_ease(Tween.EASE_IN)
 	_motion.finished.connect(_present_stump, CONNECT_ONE_SHOT)
@@ -275,6 +394,7 @@ func _present_stump() -> void:
 	if _use != null:
 		_use.stage = TreeUse.Stage.STUMP
 		_use.hits_left = 0
+		_use.content = TreeUse.Content.NONE
 	var pivot := get_node_or_null("VisualPivot") as Node3D
 	if pivot != null:
 		pivot.rotation = Vector3.ZERO

@@ -43,6 +43,8 @@ var relationships: RelationshipBook = RelationshipBook.new()
 var interiors: InteriorBook = InteriorBook.new()
 var shops: ShopBook = ShopBook.new()
 var museum: MuseumBook = MuseumBook.new()
+var police: PoliceBook = PoliceBook.new()
+var post: PostBook = PostBook.new()
 var current_room_id: StringName = &""
 var outdoor_return: Vector3 = DEFAULT_SPAWN
 var outdoor_return_yaw: float = 0.0
@@ -281,6 +283,14 @@ func reset_session() -> void:
 		museum = MuseumBook.new()
 	else:
 		museum.clear()
+	if police == null:
+		police = PoliceBook.new()
+	else:
+		police.clear()
+	if post == null:
+		post = PostBook.new()
+	else:
+		post.clear()
 	interior_session = null
 	current_room_id = &""
 	outdoor_return = DEFAULT_SPAWN
@@ -452,6 +462,8 @@ func to_save() -> Dictionary:
 		"interiors": interiors.to_save(),
 		"shops": shops.to_save(),
 		"museum": museum.to_save(),
+		"police": police.to_save(),
+		"post": post.to_save(),
 		"current_room_id": String(current_room_id),
 		"outdoor_return": {
 			"x": outdoor_return.x,
@@ -520,6 +532,12 @@ func apply_snapshot(data: Dictionary) -> void:
 	if museum == null:
 		museum = MuseumBook.new()
 	museum.apply_snapshot(data.get("museum", {}))
+	if police == null:
+		police = PoliceBook.new()
+	police.apply_snapshot(data.get("police", {}))
+	if post == null:
+		post = PostBook.new()
+	post.apply_snapshot(data.get("post", {}))
 	current_room_id = StringName(str(data.get("current_room_id", "")))
 	var outdoor: Variant = data.get("outdoor_return", {})
 	if typeof(outdoor) == TYPE_DICTIONARY:
@@ -611,6 +629,18 @@ func try_enter_interior(
 		interior_spawn_yaw = WorldGrid.yaw_for_facing(ShopDisplay.CRANNY_SPAWN_FACING)
 		has_interior_spawn = true
 		spawn_at_room_door = false
+	elif room_id == &"post_office":
+		## `POST_OFFICE_player_data` GX {100,0,200}.
+		interior_spawn_gx = PostDisplay.SPAWN_GX
+		interior_spawn_yaw = WorldGrid.yaw_for_facing(PostDisplay.SPAWN_FACING)
+		has_interior_spawn = true
+		spawn_at_room_door = false
+	elif room_id == &"police_box":
+		## `POLICE_BOX_player_data` GX {200,0,400}, face south.
+		interior_spawn_gx = PoliceDisplay.SPAWN_GX
+		interior_spawn_yaw = WorldGrid.yaw_for_facing(PoliceDisplay.SPAWN_FACING)
+		has_interior_spawn = true
+		spawn_at_room_door = false
 	elif room.kind == Room.Kind.NPC:
 		## `aHUS_npc_house_door_data` — not walkable-south `door_cell - 1`.
 		interior_spawn_gx = InteriorCatalog.NPC_HOUSE_SPAWN_GX
@@ -680,9 +710,23 @@ func refresh_shop_set() -> void:
 		host.call("refresh_shop_set")
 
 
+func refresh_police_set() -> void:
+	if get_tree() == null:
+		return
+	var host: Node = get_tree().get_first_node_in_group("interior")
+	if host != null and host.has_method("refresh_public_set"):
+		host.call("refresh_public_set")
+	elif host != null and host.has_method("refresh_shop_set"):
+		host.call("refresh_shop_set")
+
+
 func _on_field_renewed(days: int) -> void:
 	shops.renew(days)
 	refresh_shop_set()
+	if police != null:
+		for _i: int in maxi(days, 1):
+			police.force_set_keep_item()
+	refresh_police_set()
 	## One roll for the current date after renew (`mEnv_DecideWeather` / `aWeather_ChangeWeatherTime0`).
 	apply_weather_roll(Weather.roll())
 

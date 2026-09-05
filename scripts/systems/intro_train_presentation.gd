@@ -192,7 +192,7 @@ static func _apply_car_glass_inner(node: Node, daylight: bool) -> void:
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
 			if _is_light_ray_surface(label):
-				_apply_light_ray_surface(std, daylight)
+				_apply_shineglass_surface(std, daylight)
 				mesh_instance.set_surface_override_material(i, std)
 			elif _is_window_light_spill_surface(label):
 				_apply_window_light_spill_surface(std)
@@ -222,7 +222,6 @@ static func _apply_window_scenery_inner(
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
 		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mesh_instance.sorting_offset = -1.0
 		if mesh_instance.mesh == null:
 			return
 		for i: int in mesh_instance.mesh.get_surface_count():
@@ -248,7 +247,7 @@ static func _apply_window_scenery_inner(
 			elif _is_window_sky_surface(label):
 				_apply_window_opa_surface(std)
 			elif _is_light_ray_surface(label):
-				_apply_light_ray_surface(std, daylight)
+				_apply_shineglass_surface(std, daylight)
 			elif _is_window_cloud_surface(label):
 				_apply_cloud_scenery_surface(std)
 				cloud_mats.append(std)
@@ -342,18 +341,28 @@ static func _is_train_lamp_surface(label: String, _std: StandardMaterial3D) -> b
 
 
 static func _is_train_glass_surface(label: String, std: StandardMaterial3D) -> bool:
+	## Shineglass is outdoor sheen (`rom_train_out`), not car panes.
 	if "shineglass" in label or "shine_glass" in label:
-		return true
+		return false
 	if "glass" in label:
 		return true
 	return std.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED and "modelt" in label
 
 
-static func _apply_light_ray_surface(std: StandardMaterial3D, daylight: bool) -> void:
-	## Outside `shineglass` sheen uses the dual glass/shine I4; keep it as XLU glass, not a lamp beam.
-	_apply_glass_surface(std)
-	if daylight:
-		std.albedo_color.a = minf(std.albedo_color.a + 0.08, 0.55)
+## `rom_train_out_shineglass_modelT`: α *= PRIM_LOD_FRAC (`lod_factor` from time of day).
+## Quads sit inside the cabin past the glass plane; without the lod gate they read as
+## scenery poking through the window. Tunnel intro → lod 0; after `sunlight_flag` → soft sheen.
+static func _apply_shineglass_surface(std: StandardMaterial3D, daylight: bool) -> void:
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	std.render_priority = 2
+	if std.albedo_texture != null:
+		std.albedo_texture = _glass_intensity_as_alpha(std.albedo_texture)
+	## Day peak `lod_factor` ≈ 160 (`aTrainWindow_Actor_move`); tunnel keeps 0.
+	var lod: float = (160.0 / 255.0) if daylight else 0.0
+	std.albedo_color = Color(1.0, 1.0, 1.0, lod)
 
 
 static func _apply_window_light_spill_surface(std: StandardMaterial3D) -> void:
@@ -391,7 +400,8 @@ static func _apply_xlu_scenery_surface(std: StandardMaterial3D) -> void:
 	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 	std.render_priority = -1
-	if std.albedo_color.a <= 0.01:
+	## Do not invent alpha — PRIM_LOD_FRAC shineglass bakes A=0 until daylight.
+	if std.albedo_color.a <= 0.01 and std.albedo_texture == null:
 		std.albedo_color.a = 0.95
 
 
@@ -419,7 +429,8 @@ static func _apply_lamp_surface(std: StandardMaterial3D) -> void:
 
 static func _apply_glass_surface(std: StandardMaterial3D) -> void:
 	## `rom_train_in_modelT`: XLU, ENV (100,230,255), `(PRIM−ENV)×I+ENV` / `I×PRIM`.
-	## Converted GLBs often bake the I4 as opaque RGB — put intensity into alpha so scenery shows through.
+	## Converted GLBs often bake the I4 as opaque RGB — put intensity into alpha.
+	## Color A stays 1 so only the I channel gates see-through (no forced 0.55 body).
 	std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	std.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
@@ -432,13 +443,7 @@ static func _apply_glass_surface(std: StandardMaterial3D) -> void:
 	var tint := Color(100.0 / 255.0, 230.0 / 255.0, 255.0 / 255.0, 1.0)
 	if std.albedo_texture != null:
 		std.albedo_texture = _glass_intensity_as_alpha(std.albedo_texture)
-	var src_a: float = std.albedo_color.a
-	if src_a >= 0.95:
-		## PRIM scale for `I×PRIM` — keep some body so the cyan tint reads.
-		src_a = 0.55
-	else:
-		src_a = clampf(src_a, 0.35, 0.7)
-	std.albedo_color = Color(tint.r, tint.g, tint.b, src_a)
+	std.albedo_color = tint
 
 
 ## Rebuild an opaque I4-as-RGB glass tex so luminance drives alpha (`I×PRIM`).

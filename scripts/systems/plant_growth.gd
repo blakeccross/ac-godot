@@ -11,8 +11,15 @@ const KEY_PLANT := "plant"
 const KEY_PLANTED := "planted_renew"
 const KEY_WATERED := "last_watered_renew"
 const KEY_FRUIT := "fruit_taken_renew"
+const KEY_CONTENT := "shake_content"
 const KEY_CELL_X := "cell_x"
 const KEY_CELL_Z := "cell_z"
+
+## Daily special-tree caps (`mAGrw_*`). Town is smaller than GC; still top up to these.
+const MONEY_TREE_NUM := 30
+const FTR_TREE_NUM := 2
+## One bee tree per FG X-column when possible (`FG_BLOCK_X_NUM` = 5).
+const BEE_COLUMN_NUM := 5
 
 static var _plants: Dictionary = {}
 static var _plants_loaded := false
@@ -224,6 +231,113 @@ static func take_fruit(persist_id: StringName) -> bool:
 	return true
 
 
+static func shake_content(persist_id: StringName) -> TreeUse.Content:
+	var rec: Dictionary = record(persist_id)
+	if rec.is_empty():
+		return TreeUse.Content.NONE
+	return TreeUse.content_from_id(StringName(str(rec.get(KEY_CONTENT, ""))))
+
+
+static func set_shake_content(persist_id: StringName, content: TreeUse.Content) -> void:
+	var rec: Dictionary = record(persist_id)
+	if rec.is_empty():
+		return
+	var id: StringName = TreeUse.content_id(content)
+	if id == &"":
+		rec.erase(KEY_CONTENT)
+	else:
+		rec[KEY_CONTENT] = String(id)
+	_store(persist_id, rec)
+
+
+static func clear_shake_content(persist_id: StringName) -> void:
+	set_shake_content(persist_id, TreeUse.Content.NONE)
+
+
+static func can_hold_special(rec: Dictionary, plant: PlantData) -> bool:
+	## Bare mature hardwood/cedar/gold only — not fruiting, not already special, not a flower.
+	if rec.is_empty() or plant == null or plant.kind != PlantData.Kind.TREE:
+		return false
+	if pipeline(rec, plant) != Pipeline.HARVESTABLE:
+		return false
+	if fruit_ready(rec, plant):
+		return false
+	return shake_content_of(rec) == TreeUse.Content.NONE
+
+
+static func shake_content_of(rec: Dictionary) -> TreeUse.Content:
+	if rec.is_empty():
+		return TreeUse.Content.NONE
+	return TreeUse.content_from_id(StringName(str(rec.get(KEY_CONTENT, ""))))
+
+
+static func assign_special_trees(world: Node = null) -> void:
+	## Top up bees / furniture / money trees after grow (`mAGrw_SetHoneycombTree` order).
+	var candidates: Array[StringName] = []
+	var bee_count := 0
+	var ftr_count := 0
+	var money_count := 0
+	for key: Variant in Game.plant_states.keys():
+		var pid := StringName(str(key))
+		if Game.is_interactable_removed(pid) or Game.is_stump(pid):
+			continue
+		var rec: Dictionary = record(pid)
+		var plant: PlantData = plant_data(StringName(str(rec.get(KEY_PLANT, ""))))
+		if plant == null or plant.kind != PlantData.Kind.TREE:
+			continue
+		var existing: TreeUse.Content = shake_content_of(rec)
+		match existing:
+			TreeUse.Content.BEES:
+				bee_count += 1
+			TreeUse.Content.FURNITURE:
+				ftr_count += 1
+			TreeUse.Content.BELLS:
+				money_count += 1
+			_:
+				pass
+		if can_hold_special(rec, plant):
+			candidates.append(pid)
+	_assign_content(candidates, TreeUse.Content.BEES, maxi(0, BEE_COLUMN_NUM - bee_count))
+	_assign_content(candidates, TreeUse.Content.FURNITURE, maxi(0, FTR_TREE_NUM - ftr_count))
+	_assign_content(candidates, TreeUse.Content.BELLS, maxi(0, MONEY_TREE_NUM - money_count))
+	if world != null:
+		refresh_hosts(world)
+
+
+static func _assign_content(
+	candidates: Array[StringName], content: TreeUse.Content, need: int
+) -> void:
+	if need <= 0 or candidates.is_empty():
+		return
+	candidates.shuffle()
+	var placed := 0
+	var i := 0
+	while i < candidates.size() and placed < need:
+		var pid: StringName = candidates[i]
+		i += 1
+		var rec: Dictionary = record(pid)
+		var plant: PlantData = plant_data(StringName(str(rec.get(KEY_PLANT, ""))))
+		if not can_hold_special(rec, plant):
+			continue
+		set_shake_content(pid, content)
+		placed += 1
+	## Drop used ids so later content kinds do not overwrite.
+	var remaining: Array[StringName] = []
+	for pid: StringName in candidates:
+		if shake_content(pid) == TreeUse.Content.NONE:
+			remaining.append(pid)
+	candidates.clear()
+	candidates.append_array(remaining)
+
+
+static func refresh_hosts(world: Node) -> void:
+	if world == null or world.get_tree() == null:
+		return
+	for node: Node in world.get_tree().get_nodes_in_group("plant"):
+		if node.has_method("apply_growth"):
+			node.call("apply_growth")
+
+
 static func plant_from_slot(ctx: InteractionContext, slot_index: int) -> String:
 	if ctx == null or ctx.inventory == null:
 		return ""
@@ -250,11 +364,7 @@ static func plant_from_slot(ctx: InteractionContext, slot_index: int) -> String:
 
 
 static func refresh_world(world: Node) -> void:
-	if world == null or world.get_tree() == null:
-		return
-	for node: Node in world.get_tree().get_nodes_in_group("plant"):
-		if node.has_method("apply_growth"):
-			node.call("apply_growth")
+	assign_special_trees(world)
 
 
 static func restore(world: Node, grid: WorldGrid) -> void:
@@ -379,7 +489,9 @@ static func _instance(
 	objects.add_child(node)
 	var pos: Vector3 = grid.cell_to_world(cell)
 	if "layout" in world and world.layout != null:
-		pos.y = FieldCollision.ground_y(world.layout as WorldData, cell)
+		pos.y = FieldCollision.ground_y(
+			world.layout as WorldData, cell, FieldCollision.fg_ground_dist(kind)
+		)
 	if node.is_inside_tree():
 		node.global_position = pos
 	else:

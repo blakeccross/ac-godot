@@ -81,7 +81,8 @@ A-button in the field is **not** one function. The player actor, collision unit,
 - **One interact button** that does talk, pick up, or use-tool based on target + equipment.
 - Cannot interact while already in a locked action.
 - Pick up goes to the first free pocket; refuse if full (`REFUSE_PICKUP`).
-- Drop / place onto the facing tile if empty.
+- Field / flower / decorating furniture pickup plays `ply_1_pickup1` (`mPlayer_ANIM_PICKUP1`); the pocket write lands at effect frame 20. Ground items and flowers then lerp toward `left_hand_pos` and scale to 0 over frames 20–40 (`Player_actor_Set_Item_Pickup` / `PocketPull`); decorating furniture pick still snaps into the held-furniture path.
+- Drop / place onto the facing tile if empty. Inventory Drop closes the submenu and arcs the item from the player (+50 GX) onto the landing spot (`bIT_actor_player_drop_entry`) — no player body clip.
 - Talk turns the player, locks movement, opens dialogue.
 - Tool use is tile- or volume-based (axe/shake on tree; shovel digs a hole or fills one; net in front; rod at water).
 

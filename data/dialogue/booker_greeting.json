@@ -1,0 +1,22 @@
+{
+  "id": "booker_greeting",
+  "speaker_id": "booker",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        { "if": { "already_talked": true }, "goto": "repeat" },
+        { "goto": "welcome" }
+      ]
+    },
+    "welcome": {
+      "type": "line",
+      "text": "Welcome to the police station. The lost and found is over there — talk to me if something is yours."
+    },
+    "repeat": {
+      "type": "line",
+      "text": "Still looking? Face an item and ask me if it's yours."
+    }
+  }
+}

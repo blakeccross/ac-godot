@@ -16,6 +16,7 @@ Read these before changing gameplay or adding features:
 - Data = `Resource` classes + `.tres`. Presentation = scenes. Behavior = systems. Prefer composition over inheritance.
 - **Scene-first:** author fixed layout in `.tscn` (nested scenes, markers, lights, HUD). Runtime `instantiate()` is for procedural / session-dynamic content only—and then instance packed scenes, do not invent geometry in GDScript. See `docs/architecture.md` § Scene-first.
 - Placeholders until the system works. Do not convert original art.
+- Asset pipeline: classify from Gfx state, not symbol-name string checks; do not nudge verts to hide z-fighting (`.cursor/rules/asset-pipeline.mdc`). Depth bias stays in `GeneratedVisual` (`grow`), not convert.
 - Features must earn their place. The decomp containing a system is not a reason to build it.
 - Each phase should leave something playable.
 

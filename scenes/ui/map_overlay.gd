@@ -3,25 +3,41 @@ extends CanvasLayer
 ## Town map submenu (`m_map_ovl`). Acre art from pipeline `kan_tizu_*` tiles.
 
 const ROW_LETTERS := ["a", "b", "c", "d", "e", "f"]
+## Villager-house offsets inside an acre (`mMP_set_house_dl` idx 0..3).
+const _HOUSE_OFS := [
+	Vector2(0.22, 0.28),
+	Vector2(0.55, 0.28),
+	Vector2(0.22, 0.58),
+	Vector2(0.55, 0.58),
+]
 
 @onready var _root: Control = %Root
 @onready var _paper: PanelContainer = %Paper
 @onready var _shell: TextureRect = %WindowShell
 @onready var _shell_stack: Control = %ShellStack
 @onready var _town_name: Label = %TownName
-@onready var _acre_code: Label = %AcreCode
+@onready var _acre_letter: TextureRect = %AcreLetter
+@onready var _acre_number: TextureRect = %AcreNumber
 @onready var _acre_label: Label = %AcreLabel
+@onready var _feature_icon: TextureRect = %FeatureIcon
+@onready var _info_panel: TextureRect = %InfoPanel
+@onready var _info_stack: Control = %InfoStack
 @onready var _grid: Control = %AcreGrid
 @onready var _map_image: TextureRect = %MapImage
+@onready var _icon_layer: Control = %IconLayer
 @onready var _cursor: TextureRect = %Cursor
 @onready var _here: TextureRect = %HereMark
 @onready var _hint: Label = %HintLabel
 
-## Native `kan_win_kiwaku` outer AABB and inset to the w3 body (GC units).
+## Native `kan_win_kiwaku` outer AABB (GC units).
 const _SHELL_NATIVE := Vector2(272, 204)
-const _SHELL_INSET := 34.0
-## Display scale so the 2× map grid + side panel fit inside the body.
-const _SHELL_DISPLAY_SCALE := 2.65
+## Display scale for the yellow window shell (unchanged — grow the map inside it).
+const _SHELL_DISPLAY_SCALE := 2.9
+## Paper inset as a fraction of shell size.
+const _SHELL_INSET_FRAC := 0.10
+## Info bubble kept smaller so acre tiles can use the body.
+const _INFO_TO_MAP_W := 0.58
+const _INFO_TO_MAP_H := 0.70
 
 var _open: bool = false
 var _sel: Vector2i = Vector2i.ZERO
@@ -125,6 +141,15 @@ func _size_grid() -> void:
 		_map_image.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		_map_image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		_map_image.stretch_mode = TextureRect.STRETCH_SCALE
+	if _icon_layer != null:
+		_icon_layer.position = Vector2.ZERO
+		_icon_layer.size = size
+	## Keep the acre bubble secondary so the map can use the window body.
+	if _info_stack != null:
+		_info_stack.custom_minimum_size = Vector2(
+			size.x * _INFO_TO_MAP_W,
+			size.y * _INFO_TO_MAP_H
+		)
 
 
 func _apply_chrome() -> void:
@@ -145,6 +170,9 @@ func _apply_chrome() -> void:
 	var acre_hdr: TextureRect = %AcreHeader
 	if acre_tex != null and acre_hdr != null:
 		acre_hdr.texture = acre_tex
+	var info_tex: Texture2D = TownMap.load_chrome("info_panel")
+	if info_tex != null and _info_panel != null:
+		_info_panel.texture = info_tex
 	var cursor_tex: Texture2D = TownMap.load_chrome("cursor_frame")
 	if cursor_tex == null:
 		cursor_tex = TownMap.load_chrome("cursor")
@@ -168,7 +196,7 @@ func _layout_shell(shell_tex: Texture2D) -> void:
 	_shell_stack.custom_minimum_size = size
 	if _paper == null:
 		return
-	var inset := _SHELL_INSET * _SHELL_DISPLAY_SCALE
+	var inset := mini(size.x, size.y) * _SHELL_INSET_FRAC
 	_paper.offset_left = inset
 	_paper.offset_top = inset
 	_paper.offset_right = -inset
@@ -182,21 +210,25 @@ func _place_axis_labels() -> void:
 		child.queue_free()
 	for child: Node in row_col.get_children():
 		child.queue_free()
+	## Spacer so column digits align with the map (not the row letters).
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(24, 20)
+	col_row.add_child(spacer)
 	for i: int in TownFieldGenerator.FG_X_NUM:
 		var tr := TextureRect.new()
-		tr.custom_minimum_size = Vector2(TownMap.TILE_PX, 20)
+		tr.custom_minimum_size = Vector2(TownMap.TILE_PX, 22)
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		tr.texture = TownMap.load_chrome("col_%d" % (i + 1))
-		tr.modulate = Color(0.35, 0.85, 0.4, 1)
 		col_row.add_child(tr)
 	for i: int in TownFieldGenerator.FG_Z_NUM:
 		var tr := TextureRect.new()
-		tr.custom_minimum_size = Vector2(20, TownMap.TILE_PX)
+		tr.custom_minimum_size = Vector2(24, TownMap.TILE_PX)
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		tr.texture = TownMap.load_chrome("row_%s" % ROW_LETTERS[i])
-		tr.modulate = Color(0.35, 0.55, 0.95, 1)
 		row_col.add_child(tr)
 
 
@@ -234,22 +266,83 @@ func _refresh() -> void:
 		var atlas: Texture2D = TownMap.compose_fg_texture(types) if TownMap.assets_ready() else null
 		_map_image.texture = atlas
 		_map_image.modulate = Color.WHITE if atlas != null else Color(0.45, 0.75, 0.4, 1)
+	_place_house_icons()
 	_refresh_selection()
 	_update_here_mark()
 	if _hint != null:
 		_hint.text = (
-			"Arrows move · X / M / Esc close"
+			""
 			if TownMap.assets_ready()
 			else "Run: python3 tools/build_assets.py --step convert --kind map-ui"
 		)
 
 
 func _refresh_selection() -> void:
-	if _acre_code != null:
-		_acre_code.text = TownMap.acre_code(_sel)
+	if _acre_letter != null:
+		_acre_letter.texture = TownMap.load_chrome("row_%s" % ROW_LETTERS[_sel.y])
+	if _acre_number != null:
+		_acre_number.texture = TownMap.load_chrome("col_%d" % (_sel.x + 1))
 	if _acre_label != null:
 		_acre_label.text = TownMap.label_for_acre(_layout, _sel)
+	if _feature_icon != null:
+		var icon_name: String = TownMap.icon_name_for_acre(_layout, _sel)
+		_feature_icon.texture = TownMap.load_chrome(icon_name) if not icon_name.is_empty() else null
+		_feature_icon.visible = _feature_icon.texture != null
 	_update_cursor_visual()
+
+
+func _place_house_icons() -> void:
+	if _icon_layer == null:
+		return
+	for child: Node in _icon_layer.get_children():
+		child.queue_free()
+	if _layout == null:
+		return
+	var house_tex: Texture2D = TownMap.load_chrome("icon_house")
+	if house_tex == null:
+		return
+	## Group villager / player houses by FG acre.
+	var by_fg: Dictionary = {}
+	for b: BuildingPlacement in _layout.buildings:
+		if b == null:
+			continue
+		var id := String(b.id)
+		if not (id.begins_with("npc_house_") or id == "player_house"):
+			continue
+		var fg: Vector2i = TownMap.fg_from_block(VillagerWalk.block_from_cell(b.cell))
+		if fg.x < 0:
+			continue
+		if not by_fg.has(fg):
+			by_fg[fg] = 0
+		var idx: int = int(by_fg[fg])
+		by_fg[fg] = idx + 1
+		if idx >= _HOUSE_OFS.size():
+			continue
+		var tr := TextureRect.new()
+		tr.texture = house_tex
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_SCALE
+		tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var icon_px := float(TownMap.TILE_PX) * 0.38
+		tr.size = Vector2(icon_px, icon_px)
+		var ofs: Vector2 = _HOUSE_OFS[idx]
+		tr.position = Vector2(
+			float(_sel_x_px(fg.x)) + ofs.x * float(TownMap.TILE_PX),
+			float(_sel_y_px(fg.y)) + ofs.y * float(TownMap.TILE_PX)
+		)
+		## Player house uses a warmer tint; villagers stay pipeline purple.
+		if id == "player_house":
+			tr.modulate = Color(0.95, 0.55, 0.2, 1)
+		_icon_layer.add_child(tr)
+
+
+func _sel_x_px(fx: int) -> int:
+	return fx * TownMap.TILE_PX
+
+
+func _sel_y_px(fy: int) -> int:
+	return fy * TownMap.TILE_PX
 
 
 func _update_cursor_visual() -> void:
@@ -273,9 +366,9 @@ func _update_here_mark() -> void:
 	_here.visible = _player_fg.x >= 0
 	if not _here.visible:
 		return
-	var inset := 12.0
-	_here.size = Vector2(TownMap.TILE_PX - inset, TownMap.TILE_PX - inset)
+	var mark := float(TownMap.TILE_PX) * 0.42
+	_here.size = Vector2(mark, mark)
 	_here.position = Vector2(
-		float(_player_fg.x) * TownMap.TILE_PX + inset * 0.5,
-		float(_player_fg.y) * TownMap.TILE_PX + inset * 0.5
+		float(_player_fg.x) * TownMap.TILE_PX + float(TownMap.TILE_PX) * 0.48,
+		float(_player_fg.y) * TownMap.TILE_PX + float(TownMap.TILE_PX) * 0.12
 	)

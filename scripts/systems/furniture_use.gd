@@ -30,7 +30,8 @@ static func actions(host: Node, ctx: InteractionContext) -> Array[Interaction]:
 		out.append(Interaction.of(Interaction.DISPLAY, "Put on %s" % label, 10))
 	if Game.is_decorating():
 		## Pick up beats sit/open so A relocates furniture. Place uses player facing.
-		out.append(Interaction.of(Interaction.PICK_UP, "Pick up %s" % label, 12))
+		## Same bend as field pickup (`m_player_main_pickup_furniture` → PICKUP1).
+		out.append(Interaction.of(Interaction.PICK_UP, "Pick up %s" % label, 12, &"ply_1_pickup1", 20.0))
 		if data == null or data.can_rotate:
 			out.append(Interaction.of(Interaction.ROTATE, "Rotate %s" % label, 5))
 	return out

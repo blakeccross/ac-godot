@@ -76,6 +76,16 @@ func test_drop_slot() -> void:
 	assert_int(inv.count_of(&"apple")).is_equal(1)
 
 
+func test_inventory_drop_arcs_item_after_close() -> void:
+	## `mTG_field_put_proc` closes the submenu; `bIT_actor_player_drop_entry` arcs from +50 GX
+	## onto GetBgY(..., −1 GX).
+	var src := FileAccess.get_file_as_string("res://scenes/ui/inventory_overlay.gd")
+	assert_str(src).contains("begin_fall")
+	assert_str(src).contains("50.0 * FieldCatalog.GX_TO_METERS")
+	assert_str(src).contains("FieldCollision.FG_GROUND_DIST")
+	assert_str(src).contains("close()")
+
+
 func test_hand_move() -> void:
 	var inv := Inventory.new()
 	var axe: ItemData = load("res://data/items/axe.tres")
@@ -93,6 +103,18 @@ func test_wallet() -> void:
 	assert_bool(inv.spend_bells(200)).is_true()
 	assert_int(inv.wallet).is_equal(300)
 	assert_bool(inv.spend_bells(999)).is_false()
+
+
+func test_open_money_bag_adds_bells() -> void:
+	ItemCatalog.reload()
+	var inv := Inventory.new()
+	var bag: ItemData = ItemCatalog.get_item(&"money_100")
+	assert_that(bag).is_not_null()
+	inv.add(bag, 1)
+	var msg: String = inv.use_slot(0)
+	assert_str(msg).contains("100")
+	assert_int(inv.wallet).is_equal(100)
+	assert_bool(inv.slot_at(0).is_empty()).is_true()
 
 
 func test_save_round_trip() -> void:

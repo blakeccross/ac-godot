@@ -80,7 +80,15 @@ static func play_enter(host: Node) -> void:
 				await tree.create_timer(APPROACH_SEC).timeout
 		else:
 			await player.call("await_door_enter")
-	if player != null and is_instance_valid(player) and player.has_method("end_door_enter"):
+	## Brief walk-ins keep `keep_h` through the wipe — ending here snaps onto the
+	## raised StructureOffset roof (museum south cells) before the scene swaps.
+	## Scene unload / `end_door_enter` on failed enter clears the flag.
+	if (
+		not brief_walk_in
+		and player != null
+		and is_instance_valid(player)
+		and player.has_method("end_door_enter")
+	):
 		player.call("end_door_enter")
 	## Keep door cam through the wipe fade for brief walk-ins; scene unload clears it.
 	if not brief_walk_in:
@@ -187,11 +195,22 @@ static func approach_position(root: Node3D) -> Vector3:
 
 
 static func approach_offset_gx(visual_id: StringName) -> Vector2:
-	## Local GX walk stand for OPEN1. Empty → sensor − APPROACH_GX heuristic.
+	## Local GX walk stand. Empty → sensor − APPROACH_GX heuristic (into the shell).
+	## Houses: porch demo stands. Walk-in / public check stands stay south of the
+	## raised StructureOffset block — walking +APPROACH_GX into museum cells snaps
+	## the player onto the roof once `keep_h` ends.
 	if HostCollision.is_player_house(visual_id):
 		return PLAYER_APPROACH_GX
 	if HostCollision.is_villager_house(visual_id):
 		return NPC_HOUSE_APPROACH_GX
+	if HostCollision.is_museum(visual_id):
+		return HostCollision.MUSEUM_DOOR_GX
+	if HostCollision.is_police(visual_id):
+		return HostCollision.POLICE_DOOR_GX
+	if HostCollision.is_shop(visual_id):
+		return HostCollision.SHOP_DOOR_GX
+	if HostCollision.is_able_sisters(visual_id) or HostCollision.is_post_office(visual_id):
+		return HostCollision.ABLE_DOOR_GX
 	return Vector2.ZERO
 
 

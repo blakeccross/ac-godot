@@ -1,0 +1,43 @@
+---
+description: Asset pipeline classifies from Gfx state; never name checks or vertex nudges for z-fight
+globs: tools/asset_pipeline/**/*
+alwaysApply: false
+---
+
+# Asset pipeline — Gfx state only, preserve authored geometry
+
+## No name checks
+
+Classify materials, coverage, water, panes, spills, and alpha from **Gfx state** (combine, othermode/coverage, tiles, UV footprint, extras flags written at convert time). Do **not** branch on DL / texture / joint **symbol name** substrings.
+
+```python
+# ❌ BAD — name gate
+if "light_model" in part.name or "window" in part.name:
+    unlit = True
+
+# ✅ GOOD — combiner / coverage / UV
+unlit = combine_is_unlit_fill(combine_w0, combine_w1)
+spill = coverage == "xlu" and othermode_is_xlu_decal(othermode_l)
+alpha = resolve_alpha_mode(coverage, texel_mode, samples_transparent=...)
+```
+
+**Allowed name use:** locating symbols to convert (`cKF_bs_r_*`, job prefixes, map lookup), output paths, and writing `extras` / material names for Godot. Runtime may read those extras; convert must not *decide* behavior by parsing the string.
+
+If a behavior cannot be detected from state, fix the state path (flush, inherited othermode, `prim_set`, UV sample) — do not add an allowlist of names.
+
+## No geometric z-fight “fixes”
+
+GC often keeps cutouts coplanar with walls (house door `TEX_EDGE` on the OPA facade). Convert must **export those verts unchanged**.
+
+```python
+# ❌ BAD — pipeline moves geometry to hide Godot z-fighting
+vertex.x += eps * nx  # “separate coplanar surfaces”
+
+# ✅ GOOD — demote wrong alpha; leave verts alone
+alpha = demote_opaque_uv_alpha(coverage, alpha, samples_transparent=...)
+# Depth bias belongs in GeneratedVisual (material grow / shader), not glb.py
+```
+
+**Allowed runtime (Godot) depth bias:** `StandardMaterial3D.grow` / clip-space bias / future polygon offset — invisible at normal camera distance.
+
+**Still OK in convert:** wrap-bake UV atlases, flood opaque alpha, ACHD decode, bind-pose / basis transforms that match the original rest pose — not ad-hoc offsets between coplanar parts.

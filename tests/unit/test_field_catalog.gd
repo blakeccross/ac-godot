@@ -79,6 +79,11 @@ func test_summer_tree_paths_when_assets_exist() -> void:
 	assert_str(FieldCatalog.mesh_paths(&"grd_s_f_1")[0]).contains("grd_s_f_1")
 	assert_str(FieldCatalog.villager_path(&"squirrel")).contains("squ_1")
 	assert_str(FieldCatalog.item_albedo(&"apple")).contains("obj_item_apple_tex")
+	assert_that(FieldCatalog.item_visual(&"apple")).is_equal(&"obj_item_apple")
+	var apple_mesh: PackedStringArray = FieldCatalog.mesh_paths(&"obj_item_apple")
+	assert_bool(apple_mesh.is_empty()).is_false()
+	assert_str(apple_mesh[0]).contains("obj_item_apple")
+	assert_that(FieldCatalog.item_visual(&"money_100")).is_equal(&"obj_item_bag")
 	var manekin: PackedStringArray = FieldCatalog.mesh_paths(&"int_fmanekin")
 	if not manekin.is_empty():
 		assert_str(manekin[0]).contains("obj_shop_manekin")
@@ -140,6 +145,11 @@ func test_season_role_for_label_matches_field_and_tree() -> void:
 	assert_str(FieldCatalog.season_role_for_label("stone_tex_dummy")).is_equal("stone")
 	assert_str(FieldCatalog.season_role_for_label("obj_s_tree_leaf_tex")).is_equal("tree_leaf")
 	assert_str(FieldCatalog.season_role_for_label("obj_w_tree_trunk_tex")).is_equal("tree_trunk")
+	## Palm/cedar use their own CI + seasonal mesh remap — not hardwood tree_leaf.
+	assert_str(FieldCatalog.season_role_for_label("obj_s_palm_leaf_tex")).is_equal("")
+	assert_str(FieldCatalog.season_role_for_label("obj_s_palm_trunk_tex")).is_equal("")
+	assert_str(FieldCatalog.season_role_for_label("obj_w_cedar_leaf_tex")).is_equal("")
+	assert_str(FieldCatalog.season_role_for_label("obj_s_cedar_trunk_tex")).is_equal("")
 	assert_str(FieldCatalog.season_role_for_label("river_water")).is_equal("")
 	## Acre host node names alone do not identify grass — baked material names must.
 	assert_str(FieldCatalog.season_role_for_label("grd_s_f_1")).is_equal("")
@@ -300,6 +310,9 @@ func test_acre_block_types_map_to_grd_families() -> void:
 	assert_float(FieldCatalog.interior_ground_y_offset(&"room01")).is_equal_approx(0.0, 0.0001)
 	assert_bool(FieldCatalog.interior_uses_acre_verts(&"rom_shop1f")).is_true()
 	assert_bool(FieldCatalog.interior_uses_acre_verts(&"room01")).is_false()
+	assert_bool(FieldCatalog.interior_uses_acre_verts(&"police_indoor")).is_true()
+	assert_bool(FieldCatalog.interior_uses_acre_verts(&"grd_post_office")).is_true()
+	assert_float(FieldCatalog.interior_uniform_scale(&"police_indoor")).is_equal_approx(3.125, 0.0001)
 	assert_float(FieldCatalog.ACRE_STEP_METERS).is_equal(6.0)
 
 

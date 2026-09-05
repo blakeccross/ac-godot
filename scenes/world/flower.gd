@@ -39,7 +39,7 @@ func apply_growth() -> void:
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 	var actions: Array[Interaction] = []
 	if _can_pick():
-		actions.append(Interaction.of(Interaction.PICK_UP, "Pick flower", 10))
+		actions.append(Interaction.of(Interaction.PICK_UP, "Pick flower", 10, &"ply_1_pickup1", 20.0))
 	if ToolUse.has(ctx, ToolData.Kind.WATERING_CAN) and _needs_water():
 		actions.append(Interaction.of(Interaction.WATER, "Water flower", 16, &"ply_1_water1"))
 	return actions
@@ -72,6 +72,8 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		Game.mark_interactable_removed(pid)
 	if ctx != null:
 		ctx.release_occupant(pid)
+	## Same shrink-into-hand as ground items (`Player_actor_Set_Item_Pickup`).
+	await PocketPull.run(self, PocketPull.hand_from_context(ctx, global_position))
 	queue_free()
 	return true
 

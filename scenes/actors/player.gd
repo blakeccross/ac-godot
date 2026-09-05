@@ -91,6 +91,15 @@ func facing_yaw() -> float:
 	return _motor.facing
 
 
+## World space of the computed left hand (`Player_actor_draw_After_Larm2` / `left_hand_pos`).
+## Used by ground-item pocket pull after PICKUP1 frame 20.
+func left_hand_global() -> Vector3:
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	if skeleton == null:
+		return global_position + Vector3(0.0, 0.9, 0.0)
+	return HeldCatch.left_hand_global(skeleton)
+
+
 ## `mDemo` TYPE_TALK `turn` — face `npc` until `end_talk_face` (`TalkCamera.end`).
 func begin_talk_face(npc: Node3D) -> void:
 	_talk_face = npc
@@ -697,12 +706,16 @@ func _run_interact(hit: InteractionQuery) -> void:
 	_face_host(hit)
 	var tail: float = await _play_action(hit.action.player_anim, hit.action.effect_frame)
 	var ctx: InteractionContext = _make_context()
+	var t0: int = Time.get_ticks_msec()
 	if hit.host != null and is_instance_valid(hit.host):
 		## Door enter awaits the structure open clip before changing scene.
+		## Ground pickup awaits the pocket shrink (`Set_Item_Pickup` 20→40); that overlaps
+		## the clip tail, so subtract spent time from `_finish_action`.
 		await hit.host.interact(hit.action, ctx)
 	else:
 		ToolUse.apply_field(hit.action, ctx)
-	await _finish_action(tail)
+	var spent: float = float(Time.get_ticks_msec() - t0) / 1000.0
+	await _finish_action(maxf(0.0, tail - spent))
 	await _play_reel()
 	await _play_catch()
 	_busy = false
@@ -734,6 +747,11 @@ func _play_action(clip_name: StringName, effect_frame: float = -1.0) -> float:
 	if _anim == null or clip.is_empty():
 		await get_tree().create_timer(0.12).timeout
 		return 0.0
+	## One-shots must not inherit LOOP_LINEAR from a gait `_ensure_loop` on a shared clip
+	## name, and must not loop or `animation_finished` never fires while `_busy`.
+	var res0: Animation = _anim.get_animation(clip)
+	if res0 != null:
+		res0.loop_mode = Animation.LOOP_NONE
 	_anim.speed_scale = 1.0
 	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_use_anim, false)
 	_anim.play(clip, 0.08)

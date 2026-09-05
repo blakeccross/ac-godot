@@ -293,6 +293,18 @@ def select_close_bind(anim_names: list[str]) -> str | None:
     return next((n for n in anim_names if n.endswith("_close")), None)
 
 
+def bind_frame_for_anim(anim_name: str, nframes: int) -> float:
+    """Frame sampled into the GLB rest pose.
+
+    Wait/furniture clips store the closed/standing pose at frame 1. `*_close`
+    clips animate open → closed (`obj_train1_3_close` is 32 frames), so rest is
+    the last frame — frame 1 of close is the open door.
+    """
+    if anim_name.endswith("_close") and nframes > 0:
+        return float(nframes)
+    return 1.0
+
+
 def convert_ckf_model(
     rel: RelData,
     symbols: list[MapSymbol],
@@ -359,6 +371,7 @@ def convert_ckf_model(
         tex_state.width = 0
         tex_state.height = 0
         tex_state.prim = (255, 255, 255, 255)
+        tex_state.prim_set = False
         blob = rel.slice_at(model.address, model.size)
         decoded = parse_gfx(
             model.name,
@@ -395,6 +408,7 @@ def convert_ckf_model(
                 tex_state.width = 0
                 tex_state.height = 0
                 tex_state.prim = (255, 255, 255, 255)
+                tex_state.prim_set = False
                 model = by_name[name]
                 mesh_parts = [
                     p
@@ -437,7 +451,13 @@ def convert_ckf_model(
         bind_anim = select_close_bind(anim_names)
     if bind_anim is not None:
         try:
-            root_raw, bind_rots = evaluate_pose(rel, symbols, bind_anim, num_joints, 1.0)
+            _flags, _key, _data, _fix, nframes = _anim_tables(
+                rel, symbols, bind_anim, num_joints
+            )
+            bind_frame = bind_frame_for_anim(bind_anim, nframes)
+            root_raw, bind_rots = evaluate_pose(
+                rel, symbols, bind_anim, num_joints, bind_frame
+            )
             root_t = (root_raw[0] * scale, root_raw[1] * scale, root_raw[2] * scale)
             use_anim_bind = True
             use_wait_bind = bind_anim.endswith("wait1") or bind_anim.endswith("wait_nemu1")
@@ -659,12 +679,16 @@ def convert_static_gfx(
     vtx_sym = _vtx_sym_for_gfx(rel, symbols, by_name, vtx_name, gfx_names)
     vertices = parse_vtx_blob(rel.slice_at(vtx_sym.address, vtx_sym.size), scale, flip_z=False)
     parts: list[MeshPart] = []
+    ## Share texture state across sequential DLs so `*_DL_mode` + `*_DL_vtx` fruit cards
+    ## (apple/pear/bag) keep the mode DL's SETTIMG/TLUT when the vtx DL draws. Reset when a
+    ## companion `*_mat_model` starts a new material (axe/coco style).
+    tex_state = TextureState()
     for name in gfx_names:
-        tex_state = TextureState()
         if bank is not None:
             bank.current_gfx = name
         mat_name = _mat_model_name(name, by_name)
         if bank is not None and mat_name is not None:
+            tex_state = TextureState()
             mat = by_name[mat_name]
             apply_texture_commands(rel.slice_at(mat.address, mat.size), bank, tex_state)
         model = find_symbol(symbols, name, by_name)

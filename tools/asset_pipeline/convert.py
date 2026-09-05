@@ -9,9 +9,6 @@ from typing import Any
 
 from .bg_collision import extract_and_write
 from .achd import (
-    is_field_terrain_texture,
-    is_player_model_texture,
-    is_room_bank_texture,
     load_achd_pack,
     maybe_hd_png,
 )
@@ -53,7 +50,7 @@ _REL_IA_WAVE_DIMS: dict[str, tuple[int, int]] = {
 TRANSFORMS = {
     "scale": "vertex * config.scale (default 0.001). Not actor 0.01 or acre 0.0625 draw scale — Godot FieldCatalog applies those.",
     "z_axis": "cKF: wait bind already stands on +Y; else +90° about Z unless GX verts pass robust Y-up (5th-percentile floor + not +X-chain) — bake door/close clip for joint-0 yaw. Prefer *_close when no wait. Static Gfx keep GX Z (no flip).",
-    "rest_pose": "wait frame 1 when available; furniture/clocks bake own clip frame 1 (closed); Y-up meshes bake door-clip frame 1; else *_close or identity + ckf_basis",
+    "rest_pose": "wait frame 1 when available; furniture/clocks bake own clip frame 1 (closed); Y-up meshes bake door-clip frame 1; else *_close last frame (open→closed) or identity + ckf_basis",
     "animations": "cKF_ba_r_* sampled at 30 fps into skinned glTF clips",
     "textures": "GX CI4/CI8 + pal; I/IA * G_SETPRIMCOLOR; villager tmem on 0x0A/0x0B",
     "skin": "G_MTX 0x0D slots map to Gfx-bearing joints; seam verts stay on the parent",
@@ -67,6 +64,10 @@ PLAYER_CORE_ANIMS = [
     "cKF_ba_r_ply_1_axe1",
     "cKF_ba_r_ply_1_axe_swing1",
     "cKF_ba_r_ply_1_pickup1",
+    # Pocket put-away / take-out (`mPlayer_ANIM_PUTAWAY1`): putin_item plays it forward,
+    # takeout_item plays it in reverse. Field inventory Drop has no body clip — the item
+    # arcs from the player — but equip/unequip needs this once those modes are wired.
+    "cKF_ba_r_ply_1_putaway1",
     "cKF_ba_r_ply_1_dig1",
     "cKF_ba_r_ply_1_shake1",
     "cKF_ba_r_ply_1_net_swing1",
@@ -201,6 +202,16 @@ BUG_STATIC_NEEDLES = [
 KANBAN_SIGN_GFX: dict[str, list[str]] = {
     "obj_s_kanban": ["write_model", "obj_sign_s_model"],
     "obj_w_kanban": ["write_model", "obj_sign_w_model"],
+}
+
+## Dropped FG item cards (`bg_item` / `handOverItem`). Vtx is `obj_item_*_v`; DLs are either a
+## combined `*_modelT` or a `*_DL_mode` + `*_DL_vtx` pair (no `*_gfx_model` to infer).
+ITEM_CARD_GFX: dict[str, list[str]] = {
+    "obj_item_apple": ["obj_apple2_modelT"],
+    "obj_item_pear": ["pear_DL_mode", "pear_DL_vtx"],
+    "obj_item_peach": ["peach_DL_mode", "peach_DL_vtx"],
+    "obj_item_orange": ["item_orange_modelT"],
+    "obj_item_bag": ["bag_DL_mode", "bag_DL_vtx"],
 }
 
 WATER_STATIC_NEEDLES = [
@@ -648,6 +659,8 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
         if prefix in skel_prefixes:
             continue
         gfx_names = KANBAN_SIGN_GFX.get(prefix)
+        if gfx_names is None:
+            gfx_names = ITEM_CARD_GFX.get(prefix)
         if gfx_names is not None:
             if symbol.name in seen_vtx:
                 continue
@@ -665,9 +678,6 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
                 }
             )
             continue
-        if prefix.endswith("_shadow"):
-            # Blob shadows (`*_shadow_v`). Godot uses the sun; DLs are often empty.
-            continue
         model_names = sorted(gfx_by_prefix.get(prefix) or model_by_prefix.get(prefix) or [])
         ## Tree-leaf XLU (`ef_s_cedar_modelT`) shares a prefix with numbered shake/cut DLs
         ## (`ef_s_cedar3_*`). Export the leaf card only for the base symbol.
@@ -680,6 +690,20 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
         if prefix.startswith("grd_") or prefix.startswith("rom_"):
             model_t = f"{prefix}_modelT"
             if model_t in names and model_t not in model_names:
+                model_names.append(model_t)
+        ## Player/NPC house shells: `*_model` is the stock wrap; `*_new_model` /
+        ## `*_new2_model` are custom-design UV variants (`aMI_DrawMyOriginal*`).
+        ## Baking all three stacks triple walls and drops room-prim window fills.
+        if prefix.startswith("rom_myhome"):
+            preferred = [n for n in (f"{prefix}_model", f"{prefix}_modelT") if n in names]
+            if preferred:
+                model_names = preferred
+        ## Fish tanks: OPA shell + XLU water. Drop plant sub-models from museum5's vtx.
+        if prefix in ("obj_suisou1", "obj_museum5"):
+            shell = f"{prefix}_model"
+            model_t = f"{prefix}_modelT"
+            model_names = [shell] if shell in names else []
+            if model_t in names:
                 model_names.append(model_t)
         ## Feel / particle cards are often XLU-only (`ef_warau01_00_modelT`, `ef_ha01_00_modelT`).
         if not model_names and prefix.startswith("ef_"):
@@ -1077,14 +1101,20 @@ def _png_record(
         gx = gbi_to_gx(fmt, siz)
         pack = _achd(cfg)
         hd = None
-        if (
-            pack is not None
-            and not is_field_terrain_texture(source)
-            and not is_room_bank_texture(source)
-            and not is_player_model_texture(source)
-            and not skips_achd_texture(source)
-        ):
-            hd = maybe_hd_png(pack, data, width, height, gx, pal if fmt == G_IM_FMT_CI else None)
+        if pack is not None and not skips_achd_texture(source):
+            ## Bin exports lack wrap state — treat as REPEAT (exact-size HD only).
+            from .texbank import GX_REPEAT
+
+            hd = maybe_hd_png(
+                pack,
+                data,
+                width,
+                height,
+                gx,
+                pal if fmt == G_IM_FMT_CI else None,
+                wrap_s=GX_REPEAT,
+                wrap_t=GX_REPEAT,
+            )
         if hd is not None:
             dest.write_bytes(hd)
             record["meta"] = {"width": width, "height": height, "fmt": fmt, "siz": siz, "achd": True}

@@ -9,8 +9,8 @@ from pathlib import Path
 from PIL import Image
 
 from .ckf import ConvertedModel
-from .gfx import MeshPart, is_window_pane_dl, is_window_spill_dl, unit_normal
-from .texbank import GX_CLAMP, GX_MIRROR, GX_REPEAT, flood_opaque_alpha, wrap_to_gltf
+from .gfx import MeshPart, _OCEAN_BED_PRIM, unit_normal
+from .texbank import GX_CLAMP, GX_MIRROR, GX_REPEAT, fit_clamp_axis, flood_opaque_alpha, wrap_to_gltf
 
 # Field acres tile a 16×16 cell grid. Skipping REPEAT bake leaves UVs > 1, and
 # GeneratedVisual forces texture_repeat off, so grass/earth clamp to the edge.
@@ -38,8 +38,9 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
     for part in parts:
         if not part.triangles:
             continue
-        unlit = bool(part.unlit_fill) or is_window_pane_dl(part.name)
-        spill = bool(part.ground_spill) or is_window_spill_dl(part.name)
+        ## Flags come from gfx flush (`unlit_fill` / `ground_spill`) — not DL-name re-checks.
+        unlit = bool(part.unlit_fill)
+        spill = bool(part.ground_spill)
         water_kind = part.water_kind or ""
         waterfall_layer = part.waterfall_layer or ""
         base_color = tuple(part.base_color or (1.0, 1.0, 1.0, 1.0))
@@ -107,31 +108,26 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
 
 
 def _fit_clamp_axis(lo: float, hi: float) -> tuple[float, float] | None:
-    """Map a CLAMP UV span onto [0, 1] when it sits outside the unit tile.
-
-    Saturating to the edge (legacy) painted whole quads with the border texel —
-    `rom_train_out` tunnel walls became a solid black strip because S landed at
-    U=1..4 with GX_CLAMP. Fitting the authored span preserves the brick sheet.
-    """
-    if hi - lo < 1e-6:
-        return None
-    if lo >= -1e-6 and hi <= 1.0 + 1e-6:
-        return None
-    return lo, hi - lo
+    """See ``texbank.fit_clamp_axis``."""
+    return fit_clamp_axis(lo, hi)
 
 
 def _bake_wrap_group(group: dict) -> None:
     """Tile/mirror the PNG for out-of-range UVs, then normalize to [0, 1] + CLAMP.
 
-    Godot's BaseMaterial3D has one texture_repeat flag for both axes. Shirt DLs use
-    wrapS=REPEAT with wrapT=CLAMP and U up to ~2.5; the importer often clamps both,
-    which paints the left side of the shirt with the texture's right edge.
+    Godot's BaseMaterial3D has one texture_repeat flag for both axes. Mixed
+    wrapS=REPEAT / wrapT=CLAMP with U past 1 would clamp both and pick the
+    wrong edge texel; bake REPEAT/MIRROR into the atlas instead.
     """
     png = group.get("png")
     if not png:
         return
     # Scrolling water / wet-sand need live wrap; baking freezes tiles and (for beachB)
     # leaves CLAMP V UVs outside 0–1 stuck on the solid-white I4 edge row.
+    # Scrolling water / wet-sand need live wrap; baking freezes tiles and (for beachB)
+    # leaves CLAMP V UVs outside 0–1 stuck on the solid-white I4 edge row.
+    # Player-select spot keeps wrap-bake on the cone (MIRROR S) so the beam stays
+    # soft; fog grain is layer1 REPEAT sampled in the shader.
     if group.get("water_kind") in ("river", "ocean", "splash", "waterfall", "beach_wet"):
         return
     wrap_s = group["wrap_s"]
@@ -145,12 +141,12 @@ def _bake_wrap_group(group: dict) -> None:
             for vertex in part.vertices:
                 if fit_u is not None:
                     vertex.u = (vertex.u - fit_u[0]) / fit_u[1]
-                else:
-                    vertex.u = min(1.0, max(0.0, vertex.u))
                 if fit_v is not None:
                     vertex.v = (vertex.v - fit_v[0]) / fit_v[1]
-                else:
-                    vertex.v = min(1.0, max(0.0, vertex.v))
+                ## Spans that overlap [0, 1] must keep authored UVs — saturating to
+                ## [0, 1] stretches the sheet (tank glass U=0..6, futi V=-5..1) or
+                ## squashes TEX_EDGE peeks (tree trunk tip V≈1.19 → cut-off roots).
+                ## Godot CLAMP (texture_repeat off) matches GX edge clamp.
         return
 
     us = [v.u for part in group["parts"] for v in part.vertices]
@@ -176,27 +172,17 @@ def _bake_wrap_group(group: dict) -> None:
     tiles_u = u1 - u0
     tiles_v = v1 - v0
     if tiles_u == 1 and tiles_v == 1 and u0 == 0 and v0 == 0 and fit_u is None and fit_v is None:
-        # UVs already in a single tile; keep sampler wrap for filtering at edges.
-        for part in group["parts"]:
-            for vertex in part.vertices:
-                if wrap_s == GX_CLAMP:
-                    vertex.u = min(1.0, max(0.0, vertex.u))
-                if wrap_t == GX_CLAMP:
-                    vertex.v = min(1.0, max(0.0, vertex.v))
+        # UVs already in a single tile (or CLAMP overlap like U=0..6); keep sampler wrap.
         return
 
     if tiles_u == 1 and tiles_v == 1 and u0 == 0 and v0 == 0:
-        ## CLAMP axis sat outside [0,1] but REPEAT axis did not need tiling.
+        ## CLAMP axis entirely outside [0,1] (fit) but REPEAT axis did not need tiling.
         for part in group["parts"]:
             for vertex in part.vertices:
                 if fit_u is not None:
                     vertex.u = (vertex.u - fit_u[0]) / fit_u[1]
-                elif wrap_s == GX_CLAMP:
-                    vertex.u = min(1.0, max(0.0, vertex.u))
                 if fit_v is not None:
                     vertex.v = (vertex.v - fit_v[0]) / fit_v[1]
-                elif wrap_t == GX_CLAMP:
-                    vertex.v = min(1.0, max(0.0, vertex.v))
         return
 
     base = Image.open(io.BytesIO(png)).convert("RGBA")
@@ -224,7 +210,6 @@ def _bake_wrap_group(group: dict) -> None:
 
     scale_u = float(tiles_u)
     scale_v = float(tiles_v)
-    orig_s, orig_t = wrap_s, wrap_t
     for part in group["parts"]:
         part.wrap_s = GX_CLAMP
         part.wrap_t = GX_CLAMP
@@ -234,14 +219,10 @@ def _bake_wrap_group(group: dict) -> None:
                 vertex.u = (vertex.u - fit_u[0]) / fit_u[1]
             else:
                 vertex.u = (vertex.u - u0) / scale_u
-                if orig_s == GX_CLAMP:
-                    vertex.u = min(1.0, max(0.0, vertex.u))
             if fit_v is not None:
                 vertex.v = (vertex.v - fit_v[0]) / fit_v[1]
             else:
                 vertex.v = (vertex.v - v0) / scale_v
-                if orig_t == GX_CLAMP:
-                    vertex.v = min(1.0, max(0.0, vertex.v))
 
 
 def _group_alpha_mode(group: dict) -> str:
@@ -331,8 +312,11 @@ def _material(
         extras = dict(extras or {})
         extras["field_role"] = field_role
     elif water_kind == "beach_wet":
-        compact = (name or "").lower().replace("_", "")
-        if "beachb" not in compact and "beach2" not in compact:
+        ## Ocean-bed underdraw uses the dark-blue prim; shore wet sand gets seasons.
+        prim_rgb = None
+        if beach_prim is not None and len(beach_prim) >= 3:
+            prim_rgb = (int(beach_prim[0]), int(beach_prim[1]), int(beach_prim[2]))
+        if prim_rgb != _OCEAN_BED_PRIM:
             extras = dict(extras or {})
             extras["field_role"] = "beach_wet"
     if extras:
@@ -402,7 +386,9 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
         colors: list[float] = []
         indices: list[int] = []
         vertex_offset = 0
-        vertex_shade = not bool(group.get("uses_lighting", True))
+        vertex_shade = not bool(group.get("uses_lighting", True)) and not bool(
+            group.get("unlit_fill")
+        )
         for part in group["parts"]:
             for vertex in part.vertices:
                 positions.extend((vertex.x, vertex.y, vertex.z))
@@ -566,6 +552,9 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
     ``ConvertedModel.bind_*`` are already in export space (wait bind stands on +Y;
     otherwise ``ckf_basis`` was applied). Mesh positions are assembled bind-pose
     verts; IBMs are ``inverse(bind_world)``.
+
+    Do **not** offset coplanar TEX_EDGE cutouts vs OPA walls here — GC keeps them
+    on the same plane; Godot depth bias is runtime (`GeneratedVisual` grow).
     """
     parts = [p for p in model.parts if p.joint_index >= 0 and p.triangles]
     groups = _group_parts(parts)
@@ -597,8 +586,6 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
         if children[i]:
             node["children"] = children[i]
         nodes.append(node)
-    mesh_node = len(nodes)
-    nodes.append({"name": path.stem, "mesh": 0, "skin": 0})
 
     bin_chunks: list[bytes] = []
     accessors: list[dict] = []
@@ -719,11 +706,12 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
             len(indices),
             "SCALAR",
         )
+        alpha_mode = _group_alpha_mode(group)
         materials.append(
             _material(
                 group["name"],
                 tex_index_for(group),
-                alpha_mode=_group_alpha_mode(group),
+                alpha_mode=alpha_mode,
                 unlit_fill=bool(group.get("unlit_fill")),
                 unlit_rgba=tuple(group.get("unlit_rgba") or (0.0, 0.0, 0.0, 1.0)),
                 ground_spill=bool(group.get("ground_spill")),
@@ -744,11 +732,33 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
                 "indices": a_idx,
                 "mode": 4,
                 "material": len(materials) - 1,
+                ## Stash alpha for mesh splitting — stripped before write.
+                "_alphaMode": alpha_mode,
             }
         )
 
     if not primitives:
         raise ValueError("No triangles to write")
+
+    ## Same split as write_glb: Godot puts a whole mesh in the transparent
+    ## pipeline if any primitive is MASK/BLEND. Houses mix opaque walls with
+    ## MASK doors/plaques and BLEND window spill — one mesh made the door flicker.
+    buckets: dict[str, list[dict]] = {"OPAQUE": [], "MASK": [], "BLEND": []}
+    for prim in primitives:
+        mode = str(prim.pop("_alphaMode", "OPAQUE"))
+        if mode not in buckets:
+            mode = "OPAQUE"
+        buckets[mode].append(prim)
+    meshes: list[dict] = []
+    mesh_node_indices: list[int] = []
+    for mode, prims in buckets.items():
+        if not prims:
+            continue
+        suffix = "" if mode == "OPAQUE" and not meshes else f"_{mode.lower()}"
+        mesh_index = len(meshes)
+        meshes.append({"name": f"{path.stem}{suffix}", "primitives": prims})
+        mesh_node_indices.append(len(nodes))
+        nodes.append({"name": f"{path.stem}{suffix}", "mesh": mesh_index, "skin": 0})
 
     animations_out: list[dict] = []
     baked_names: list[str] = []
@@ -795,9 +805,9 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
     gltf: dict = {
         "asset": {"version": "2.0", "generator": "ac-godot-asset-pipeline"},
         "scene": 0,
-        "scenes": [{"nodes": roots + [mesh_node]}],
+        "scenes": [{"nodes": roots + mesh_node_indices}],
         "nodes": nodes,
-        "meshes": [{"name": path.stem, "primitives": primitives}],
+        "meshes": meshes,
         "skins": [{"joints": list(range(n_joints)), "inverseBindMatrices": a_ibm}],
         "materials": materials,
         "accessors": accessors,

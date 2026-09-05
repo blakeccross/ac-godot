@@ -92,6 +92,8 @@ def is_player_model_texture(name: str, prefix: str = "") -> bool:
     hole/eyes restyle while skin often misses — mixed native/HD on one mesh.
     Covers REL `boy_1_*` names, cKF prefix `boy_` / `girl_` (seg_08/09/0A), and
     `face_boy.bin` / `tex_boy.bin` inventory exports.
+
+    Prefer ``achd_png_usable`` for new call sites; this remains for diagnostics.
     """
     stem = prefix.split(":")[0] if prefix else ""
     if stem.startswith(("boy_", "girl_")):
@@ -104,6 +106,38 @@ def is_player_model_texture(name: str, prefix: str = "") -> bool:
     return lower.startswith(
         ("face_boy.bin", "face_girl.bin", "tex_boy.bin", "tex_girl.bin")
     )
+
+
+def achd_png_usable(
+    native_w: int,
+    native_h: int,
+    hd_w: int,
+    hd_h: int,
+    wrap_s: int = 0,
+    wrap_t: int = 0,
+) -> bool:
+    """True when an ACHD sheet can replace a native tile without breaking wrap-bake.
+
+    Exact-size hits always work. Uniform integer upscales are safe for CLAMP and
+    MIRROR (tank rocks, props). REPEAT stays exact-size only — field UV atlases
+    (grass × 16) would explode if HD tiles were wrap-baked.
+    """
+    from .texbank import GX_CLAMP, GX_MIRROR, GX_REPEAT
+
+    if native_w <= 0 or native_h <= 0 or hd_w <= 0 or hd_h <= 0:
+        return False
+    if hd_w == native_w and hd_h == native_h:
+        return True
+    if hd_w % native_w != 0 or hd_h % native_h != 0:
+        return False
+    sx = hd_w // native_w
+    sy = hd_h // native_h
+    if sx != sy or sx < 1:
+        return False
+    ## REPEAT atlases (acres) must stay native; CLAMP/MIRROR props may upscale.
+    if wrap_s == GX_REPEAT or wrap_t == GX_REPEAT:
+        return False
+    return wrap_s in (GX_CLAMP, GX_MIRROR) and wrap_t in (GX_CLAMP, GX_MIRROR)
 
 
 def align_up(value: int, align: int) -> int:
@@ -352,7 +386,17 @@ def maybe_hd_png(
     height: int,
     fmt: int,
     tlut: bytes | None = None,
+    *,
+    wrap_s: int = 0,
+    wrap_t: int = 0,
 ) -> bytes | None:
+    """Lookup ACHD and reject sheets that would break wrap-bake / season atlases."""
     if pack is None:
         return None
-    return pack.lookup_png(texture, width, height, fmt, tlut)
+    hd = pack.lookup_png(texture, width, height, fmt, tlut)
+    if hd is None:
+        return None
+    image = Image.open(io.BytesIO(hd))
+    if not achd_png_usable(width, height, image.size[0], image.size[1], wrap_s, wrap_t):
+        return None
+    return hd

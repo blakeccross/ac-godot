@@ -9,6 +9,8 @@ extends RefCounted
 
 ## World-Y sentinel. Catalog water sits below land (count 0 → −2 m); never use `y < 0`.
 const NO_FLOOR := -10000.0
+## `bg_item` / hole: `mCoBG_GetBgY_OnlyCenter_FromWpos2(..., -1.0f)` → 1 GX above keep_h.
+const FG_GROUND_DIST := -FieldCatalog.GX_TO_METERS
 ## `unit_rel_at` hole on a geometric cliff face (0–1 terrace space, not meters).
 const FACE_HOLE := -1.0
 ## Horizontal cliff face in unit Z (north = 0). Matches `grd_s_c1_*` high-north / low-south.
@@ -88,11 +90,16 @@ static func has_floor(y: float) -> bool:
 
 
 static func ground_y(data: WorldData, cell: Vector2i, ground_dist: float = 0.0) -> float:
-	## Actor/mesh Y is acre `keep_h` (`GetBgY` before `SetPluss5PointOffset`). Structure plus-offsets are walk walls, not a raised spawn plane. `ground_dist` is meters subtracted (original passes GX; holes use −1 GX). Terrace fallback so signs still spawn.
+	## Actor/mesh Y is acre `keep_h` (`GetBgY` before `SetPluss5PointOffset`). Structure plus-offsets are walk walls, not a raised spawn plane. `ground_dist` is meters subtracted (original passes GX; FG/`bg_item` uses `FG_GROUND_DIST` = −1 GX). Terrace fallback so signs still spawn.
 	var y: float = height_at(data, cell, false)
 	if not has_floor(y):
 		y = float(data.elevation_at(cell)) * FieldCatalog.ACRE_STEP_METERS
 	return y - ground_dist
+
+
+static func fg_ground_dist(kind: StringName) -> float:
+	## Registry marks which outdoor kinds use `bg_item` (−1 GX). Keep_h otherwise.
+	return FG_GROUND_DIST if WorldObjectRegistry.uses_bg_item_ground(kind) else 0.0
 
 
 static func ground_y_at(

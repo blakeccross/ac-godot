@@ -84,6 +84,8 @@ const DEMO_FOLLOW_FAR_RATE := 1.0
 const GETOFF_DURATION := 1.15
 ## Ride facing is 0 (`aTR1_passenger_ctrl` ZeroSVec), not caboose actor yaw.
 const RIDE_YAW := 0.0
+## `cKF_ba_r_obj_train1_1` — wheel/rod loop (`aTR0_actor_ct` / `aTR0_animation`).
+const LOCO_WHEEL_CLIP := "obj_train1_1"
 
 ## `Camera2_request_main_demo_fromNowPos2`: look doorway, dist 620, dir −135/−180 →
 ## eye = look + (0, 620·√½, 620·√½). Outdoor FOV matches `FollowCamera` (20°).
@@ -126,6 +128,7 @@ var _porter: Node3D
 var _nook: Node3D
 var _player: Node3D
 var _camera: Camera3D
+var _loco_anim: AnimationPlayer
 var _caboose_anim: AnimationPlayer
 var _player_anim: AnimationPlayer
 var _porter_anim: AnimationPlayer
@@ -173,16 +176,15 @@ func bind(
 	_nook = nook
 	_player = player
 	_camera = camera
+	_loco_anim = GeneratedVisual.find_animation_player(loco)
 	_caboose_anim = GeneratedVisual.find_animation_player(caboose)
 	_player_anim = GeneratedVisual.find_animation_player(player)
 	_porter_anim = GeneratedVisual.find_animation_player(porter)
 	_nook_anim = GeneratedVisual.find_animation_player(nook)
 	_engineer_anim = GeneratedVisual.find_animation_player(engineer)
-	## Door open/close bake a non-bind `joint_0` translation; strip so only doors move.
+	## Door/wheel clips bake a non-bind `joint_0` translation; strip so only doors/wheels move.
 	GeneratedVisual.strip_named_joint_tracks(_caboose_anim, "joint_0")
-	GeneratedVisual.strip_named_joint_tracks(
-		GeneratedVisual.find_animation_player(loco), "joint_0"
-	)
+	GeneratedVisual.strip_named_joint_tracks(_loco_anim, "joint_0")
 	_house_gx = HOUSE_GX.duplicate()
 	_load_unit_centers()
 	## Callers that know the town layout should `set_landmarks` after `bind`.
@@ -234,6 +236,8 @@ func reset() -> void:
 	_play_clip(_engineer_anim, "npc_1_wait1", true)
 	_play_clip(_porter_anim, "npc_1_wait1", true)
 	_play_clip(_player_anim, "ply_1_wait1", true)
+	_start_loco_wheels()
+	GeneratedVisual.snap_train_doors_closed(_caboose_anim)
 	_set_action(Action.TRAIN_APPROACH)
 
 
@@ -421,11 +425,13 @@ func _tick_train_approach() -> void:
 		_train_speed = move_toward(_train_speed, 0.0, TRAIN_STOP_RATE)
 		if _train_speed < 0.008:
 			_train_speed = 0.0
+			_sync_loco_wheel_speed()
 			_signal_timer = float(SIGNAL_STOP_FRAMES)
 			_open_caboose_door()
 			_set_action(Action.DOOR_OPEN)
 			return
 	_loco_x_gx += 0.5 * _train_speed
+	_sync_loco_wheel_speed()
 
 
 func _tick_door_open() -> void:
@@ -602,8 +608,28 @@ func _open_caboose_door() -> void:
 		return
 	for name: String in ["obj_train1_3_open", "open"]:
 		if _caboose_anim.has_animation(name):
+			## `mTRC_ACTION_SIGNAL_STOPPED` → open clip @ 0.5 (`aTR1_setupAction` action 4).
+			_caboose_anim.speed_scale = 1.0
 			_caboose_anim.play(name, 0.0, 0.5)
 			return
+
+
+static func loco_wheel_speed_scale(train_speed_gx: float) -> float:
+	## `aTR0_actor_move`: `(speed / 40) * 10`, capped at 0.5 (cKF frames per tick).
+	return minf((train_speed_gx / 40.0) * 10.0, 0.5)
+
+
+func _start_loco_wheels() -> void:
+	if _loco_anim == null:
+		return
+	_play_clip(_loco_anim, LOCO_WHEEL_CLIP, true)
+	_sync_loco_wheel_speed()
+
+
+func _sync_loco_wheel_speed() -> void:
+	if _loco_anim == null:
+		return
+	_loco_anim.speed_scale = loco_wheel_speed_scale(_train_speed)
 
 
 func _play_getoff_anim() -> void:

@@ -41,7 +41,7 @@ FIELD_ROLE_NEEDLES: dict[str, tuple[str, ...]] = {
 	"rail": ("rail",),
 	"stone": ("stone",),
 	"sand": ("sand",),
-	"beach_wet": ("beach1", "beacha"),
+	## beach_wet comes from MeshPart.water_kind / prim, not name needles.
 	"river_edge": ("river_tex",),
 }
 
@@ -397,16 +397,16 @@ def _collect_roles(
 	needles: dict[str, tuple[str, ...]],
 ) -> dict[str, bytes]:
 	out: dict[str, bytes] = {}
+	from .gfx import is_ocean_bed_part
+
 	for part in parts:
 		png = getattr(part, "texture_png", None)
 		name = getattr(part, "texture_name", "") or getattr(part, "name", "")
 		if not png or not name:
 			continue
 		name_s = str(name)
-		if getattr(part, "water_kind", "") == "beach_wet":
-			compact = name_s.lower().replace("_", "")
-			if "beachb" not in compact and "beach2" not in compact:
-				out.setdefault("beach_wet", png)
+		if getattr(part, "water_kind", "") == "beach_wet" and not is_ocean_bed_part(part):
+			out.setdefault("beach_wet", png)
 		role = _role_for_name(name_s, needles)
 		if role and role not in out:
 			out[role] = png

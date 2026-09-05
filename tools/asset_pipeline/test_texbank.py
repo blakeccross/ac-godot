@@ -33,6 +33,7 @@ from asset_pipeline.texbank import (
     structure_palette_names,
     symbol_tokens,
     tmem_palette_slot,
+    demote_opaque_uv_alpha,
     uv_samples_transparent,
 )
 
@@ -165,6 +166,10 @@ class ClassicGbiTests(unittest.TestCase):
         self.assertTrue(skips_achd_texture("obj_clock_museum1_dai_tex_txt"))
         self.assertTrue(skips_achd_texture("obj_art01_name_tex"))
         self.assertFalse(skips_achd_texture("obj_art01_art_tex"))
+        self.assertTrue(skips_achd_texture("rom_open_spot_tex"))
+        self.assertTrue(skips_achd_texture("rom_open_floor_tex"))
+        self.assertTrue(skips_achd_texture("rom_open_shade_tex"))
+        self.assertFalse(skips_achd_texture("grd_s_f_1_gfx_model"))
 
     def test_resolve_alpha_mode_from_coverage(self) -> None:
         self.assertEqual(resolve_alpha_mode(COVERAGE_OPA, "MASK"), "OPAQUE")
@@ -174,12 +179,36 @@ class ClassicGbiTests(unittest.TestCase):
             "MASK",
         )
         self.assertEqual(
+            resolve_alpha_mode(COVERAGE_TEX_EDGE, "BLEND", samples_transparent=True),
+            "BLEND",
+        )
+        self.assertEqual(
             resolve_alpha_mode(COVERAGE_TEX_EDGE, "MASK", samples_transparent=False),
             "OPAQUE",
         )
         self.assertEqual(resolve_alpha_mode(COVERAGE_XLU, "OPAQUE"), "BLEND")
         self.assertEqual(resolve_alpha_mode(None, "MASK"), "MASK")
         self.assertEqual(resolve_alpha_mode(None, "BLEND"), "BLEND")
+
+    def test_demote_opaque_uv_alpha_for_body_dls(self) -> None:
+        ## Shared cutout atlas + no SetRenderMode + UVs only on opaque texels.
+        self.assertEqual(
+            demote_opaque_uv_alpha(None, "MASK", samples_transparent=False),
+            "OPAQUE",
+        )
+        self.assertEqual(
+            demote_opaque_uv_alpha(None, "BLEND", samples_transparent=False),
+            "OPAQUE",
+        )
+        ## Fence / door TEX_EDGE still samples chromakey — keep cutout.
+        self.assertEqual(
+            demote_opaque_uv_alpha(None, "MASK", samples_transparent=True),
+            "MASK",
+        )
+        self.assertEqual(
+            demote_opaque_uv_alpha("tex_edge", "BLEND", samples_transparent=False),
+            "BLEND",
+        )
 
     def test_coverage_from_real_render_modes(self) -> None:
         ## Words from museum clock / train / mado SetRenderMode packets.
@@ -209,6 +238,56 @@ class ClassicGbiTests(unittest.TestCase):
         self.assertTrue(
             uv_samples_transparent(img, verts, [(0, 1, 2)], wrap_s=GX_CLAMP, wrap_t=GX_CLAMP)
         )
+
+    def test_uv_samples_clamp_fit_ignores_edge_chromakey(self) -> None:
+        ## U=1..4 under GX_CLAMP: wrap-bake fits onto the sheet. Raw edge-clamp would
+        ## sample the chromakey border and false-trigger transparency.
+        from asset_pipeline.gfx import Vertex
+        from asset_pipeline.texbank import GX_CLAMP
+        from PIL import Image
+
+        img = Image.new("RGBA", (8, 4), (40, 30, 30, 255))
+        for y in range(4):
+            img.putpixel((7, y), (0, 0, 0, 0))
+        verts = [
+            Vertex(0, 0, 0, 0, 0, 1, 1, 1, 1, u=1.0, v=0.1),
+            Vertex(1, 0, 0, 0, 0, 1, 1, 1, 1, u=4.0, v=0.1),
+            Vertex(0, 1, 0, 0, 0, 1, 1, 1, 1, u=1.0, v=0.4),
+        ]
+        self.assertFalse(
+            uv_samples_transparent(img, verts, [(0, 1, 2)], wrap_s=GX_CLAMP, wrap_t=GX_CLAMP)
+        )
+
+    def test_uv_samples_tank_glass_clamp_sees_chromakey(self) -> None:
+        """U=0..6 overlaps [0,1]: edge-clamp (not fit) so the clear interior counts."""
+        from asset_pipeline.gfx import Vertex
+        from asset_pipeline.texbank import GX_CLAMP
+        from PIL import Image
+
+        ## Left column opaque (rim), rest clear — matches suisou front chromakey.
+        img = Image.new("RGBA", (4, 4), (0, 255, 255, 0))
+        for y in range(4):
+            img.putpixel((0, y), (0, 200, 200, 255))
+        verts = [
+            Vertex(0, 0, 0, 0, 0, 1, 1, 1, 1, u=0.0, v=0.0),
+            Vertex(1, 0, 0, 0, 0, 1, 1, 1, 1, u=6.0, v=0.0),
+            Vertex(0, 1, 0, 0, 0, 1, 1, 1, 1, u=0.0, v=1.0),
+        ]
+        self.assertTrue(
+            uv_samples_transparent(img, verts, [(0, 1, 2)], wrap_s=GX_CLAMP, wrap_t=GX_CLAMP)
+        )
+
+    def test_harden_tex_edge_alpha_bins_soft_fringe(self) -> None:
+        from asset_pipeline.texbank import harden_tex_edge_alpha, image_png_bytes
+        from PIL import Image
+        from io import BytesIO
+
+        img = Image.new("RGBA", (2, 1))
+        img.putpixel((0, 0), (10, 20, 30, 40))
+        img.putpixel((1, 0), (40, 50, 60, 200))
+        out = Image.open(BytesIO(harden_tex_edge_alpha(image_png_bytes(img)))).convert("RGBA")
+        self.assertEqual(out.getpixel((0, 0))[3], 0)
+        self.assertEqual(out.getpixel((1, 0))[3], 255)
 
     def test_train_structure_palette_and_skip_achd(self) -> None:
         self.assertIn("obj_train1_a1_pal", structure_palette_names("obj_train1_1"))

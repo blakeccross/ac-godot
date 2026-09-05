@@ -53,8 +53,10 @@ func test_window_scenery_fits_and_scrolls() -> void:
 	assert_that(win).is_not_null()
 	assert_float(win.scale.x).is_equal_approx(FieldCatalog.train_window_uniform_scale(), 0.0001)
 	assert_that(win.find_child("rom_train_out", true, false)).is_not_null()
-	## Car glass must be XLU so outside scenery reads through the panes.
+	## Same world Y shift as the car (decomp shared origin) — not an independent floor snap.
 	var car_vis: Node3D = scene.get_node("%TrainCar/GeneratedVisual") as Node3D
+	assert_float(win.position.y).is_equal_approx(car_vis.position.y, 0.001)
+	## Car glass must be XLU; see-through is I×PRIM in the texture alpha.
 	var glass_found := false
 	for node: Node in car_vis.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
@@ -67,13 +69,12 @@ func test_window_scenery_fits_and_scrolls() -> void:
 			var label := String(mat.resource_name).to_lower()
 			if mat is StandardMaterial3D and (mat as StandardMaterial3D).albedo_texture != null:
 				label += " " + (mat as StandardMaterial3D).albedo_texture.resource_path.get_file().to_lower()
-			if "glass" not in label:
+			if "glass" not in label or "shine" in label:
 				continue
 			glass_found = true
 			assert_that(mat is StandardMaterial3D).is_true()
 			var std := mat as StandardMaterial3D
 			assert_int(std.transparency).is_equal(BaseMaterial3D.TRANSPARENCY_ALPHA)
-			assert_float(std.albedo_color.a).is_less(0.95)
 	assert_that(glass_found).is_true()
 	var car: Node = scene.get_node("%TrainCar")
 	assert_that(car.get("_tree_mats")).is_not_null()

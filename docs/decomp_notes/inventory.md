@@ -76,6 +76,7 @@ The overlay can show eat / catch animations (`mIV_ANIM_*`) when using food or di
 - Present/quest items should not be usable as normal tools (even if we only implement “present” later).
 - Bells as integer currency.
 - Tag verbs from `m_tag_ovl` (field default): Use/Eat, Drop, Equip; hand move between slots (`m_hand_ovl`).
+- Field Drop closes the overlay and lets `bg_item` arc the FG item from the player (+50 GX) to the unit — Godot mirrors that with `item_pickup.begin_fall` after `close()`. No `PUTAWAY1` body clip on Drop; that anim is for tool put-in / take-out.
 
 ## Simplify
 

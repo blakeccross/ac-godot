@@ -45,6 +45,9 @@ static func detach(host: Node3D) -> void:
 	if vis != null:
 		## Immediate free so a same-frame re-attach (season swap) does not stack two pivots.
 		vis.free()
+	var blob: Node = host.get_node_or_null("BlobShadow")
+	if blob != null:
+		blob.free()
 
 
 static func attach(host: Node3D, visual_id: StringName) -> Node3D:
@@ -83,7 +86,68 @@ static func attach(host: Node3D, visual_id: StringName) -> Node3D:
 	_fit(pivot, visual_id)
 	## Swap field/tree albedos from the seasons pack (autumn grass, winter snow).
 	apply_season_textures(pivot)
+	_attach_blob_shadow(host, visual_id)
 	return pivot
+
+
+static func _attach_blob_shadow(host: Node3D, visual_id: StringName) -> void:
+	## Authored `*_shadow_v` companion. Separate from GeneratedVisual so actor AABB fit
+	## ignores the flat fan. Characters use `actor_blob_shadow.tscn` instead.
+	if host == null or visual_id == &"":
+		return
+	var existing: Node = host.get_node_or_null("BlobShadow")
+	if existing != null:
+		existing.free()
+	var paths: PackedStringArray = FieldCatalog.blob_shadow_paths(visual_id)
+	if paths.is_empty():
+		return
+	var pivot := Node3D.new()
+	pivot.name = "BlobShadow"
+	for path: String in paths:
+		var packed: PackedScene = load(path) as PackedScene
+		if packed == null:
+			continue
+		var inst: Node = packed.instantiate()
+		if inst is Node3D:
+			pivot.add_child(inst)
+		else:
+			inst.queue_free()
+	if pivot.get_child_count() == 0:
+		pivot.free()
+		return
+	host.add_child(pivot)
+	pivot.scale = Vector3.ONE * FieldCatalog.actor_uniform_scale_for(visual_id)
+	_apply_blob_shadow_materials(pivot)
+	_disable_shadows(pivot)
+
+
+static func _apply_blob_shadow_materials(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var surface_count: int = (
+			mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 1
+		)
+		for i: int in surface_count:
+			var mat: Material = mesh_instance.get_active_material(i)
+			if not mat is StandardMaterial3D:
+				continue
+			var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			std.cull_mode = BaseMaterial3D.CULL_DISABLED
+			std.roughness = 1.0
+			std.metallic = 0.0
+			std.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+			if std.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED:
+				std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS:
+				std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			## Clear of grass; under window spill / footprints.
+			std.render_priority = 2
+			mesh_instance.set_surface_override_material(i, std)
+	for child: Node in node.get_children():
+		_apply_blob_shadow_materials(child)
 
 
 ## Load a pipeline GLB with preview materials, but no host, ground-fit, or extra scale.
@@ -133,6 +197,8 @@ static func layout_authored_interior(
 		return
 	_apply_materials(pivot)
 	_apply_room_textures(pivot, room.wall_id, room.floor_id)
+	_mark_shell_room_prim(pivot)
+	refresh_room_prim(pivot)
 	_disable_shadows(pivot)
 	if room.kind == Room.Kind.MUSEUM:
 		return
@@ -253,6 +319,19 @@ static func refresh_window_lights(root: Node) -> void:
 	_set_window_lights(root, _window_lights_on())
 
 
+static func refresh_room_prim(root: Node, color: Color = Color.WHITE) -> void:
+	## `Global_kankyo_set_room_prim` — indoor outdoor-view quads use room prim RGB.
+	if root == null:
+		return
+	if color.a <= 0.0:
+		color = _room_prim_color()
+	_set_room_prim_fills(root, color)
+
+
+static func room_prim_color() -> Color:
+	return _room_prim_color()
+
+
 static func water_wave_cos(game_frame: float) -> float:
 	## `aFD_MakeMarinScrollInfo`: cos((game_frame % 300) / 300 * 2π).
 	var frame: float = fmod(game_frame, 300.0)
@@ -361,6 +440,8 @@ static func attach_interior(
 	host.add_child(pivot)
 	_apply_materials(pivot)
 	_apply_room_textures(pivot, wall_id, floor_id)
+	_mark_shell_room_prim(pivot)
+	refresh_room_prim(pivot)
 	_fit_interior(pivot, target, StringName(shell_ids[0]))
 	_disable_shadows(pivot)
 	return pivot
@@ -451,15 +532,17 @@ static func fit_train_car_shell(pivot: Node3D) -> void:
 		pivot.position = Vector3(0.0, FieldCatalog.interior_ground_y_offset(&"rom_train_in"), 0.0)
 
 
-static func fit_train_window_shell(pivot: Node3D) -> void:
+static func fit_train_window_shell(pivot: Node3D, car_pivot: Node3D = null) -> void:
 	## `rom_train_out` uses raw GX verts + `Matrix_scale(0.05)` (`ac_train_window`) → world GX,
 	## then `GX_TO_METERS` like actors / acre shells.
+	## Decomp draws car BG and window actor at the same translate(0,0,0). Reuse the car's
+	## floor snap so we do not independently raise scenery ~20 GX into the panes.
 	var s: float = FieldCatalog.train_window_uniform_scale()
 	pivot.scale = Vector3.ONE * s
-	pivot.position = Vector3.ZERO
-	var aabb: AABB = _local_aabb(pivot)
-	if aabb.size.y > 0.001:
-		pivot.position.y = -aabb.position.y * s
+	if car_pivot != null:
+		pivot.position = Vector3(0.0, car_pivot.position.y, 0.0)
+	else:
+		pivot.position = Vector3.ZERO
 
 
 static func apply_train_door_materials(node: Node) -> void:
@@ -574,9 +657,10 @@ static func train_door_panel_center_gx(host: Node3D, pivot: Node3D) -> Vector3:
 static func _fit_interior(pivot: Node3D, target: AABB, visual_id: StringName) -> void:
 	## `room01` verts are raw GX (max Z 320 = 8 units). Place at the field origin
 	## with GX→meter scale so FG cells (1,1)–(6,6) sit on the floor. Do not AABB-fit.
-	## `rom_*` stay at acre scale (40 GX = 2 m). Homes translate the floor min-corner onto
-	## the walkable rect. Museum / Nook shop shells keep the 16×16 acre origin so FG ut /
-	## RSV / door GX match `cell_to_world` — only Y is snapped to the floor.
+	## Acre-style shells (`rom_*`, `police_indoor`, `grd_post_office`) stay at acre scale
+	## (40 GX = 2 m). Homes translate the floor min-corner onto the walkable rect.
+	## Museum / Nook / post / police keep the 16×16 acre origin so FG ut / RSV / door GX
+	## match `cell_to_world` — only Y is snapped to the floor.
 	if not FieldCatalog.interior_uses_acre_verts(visual_id):
 		var gx: float = FieldCatalog.interior_uniform_scale(visual_id)
 		pivot.scale = Vector3.ONE * gx
@@ -604,7 +688,12 @@ static func _fit_interior(pivot: Node3D, target: AABB, visual_id: StringName) ->
 
 static func _shell_keeps_acre_origin(visual_id: StringName) -> bool:
 	var id := String(visual_id)
-	return id.begins_with("rom_museum") or id.begins_with("rom_shop")
+	return (
+		id.begins_with("rom_museum")
+		or id.begins_with("rom_shop")
+		or id == "police_indoor"
+		or id == "grd_post_office"
+	)
 
 
 static func _interior_keeps_acre_origin(visual_id: StringName, room: Room) -> bool:
@@ -679,13 +768,14 @@ static func _paint_room_surfaces(node: Node, wall_id: StringName, floor_id: Stri
 				std.vertex_color_use_as_albedo = false
 			var target: Vector2i = _albedo_size(std)
 			## Floors use GX_MIRROR (corner tile → one room medallion). Walls REPEAT.
-			## Match wrap-bake cell size (shop wall DMA and strips are 64²).
+			## Bank pages are always 64². Do not infer period from a MIRROR atlas —
+			## odd cells are flipped so `_image_has_period(64)` fails and 128 wins,
+			## stretching stone/wallpaper 2× across the shell.
 			var mirror := kind == &"floor"
-			var cell: int = 64
-			if std.albedo_texture != null:
-				cell = _infer_atlas_tile_size(std.albedo_texture)
-			std.albedo_texture = _tile_to_atlas(tile, target, mirror, mirror, cell)
-			std.albedo_color = Color.WHITE
+			std.albedo_texture = _tile_to_atlas(tile, target, mirror, mirror, 64)
+			## `Global_kankyo_set_room_prim`: TEXEL × SHADE × PRIM on indoor shells.
+			std.albedo_color = _room_prim_color()
+			std.set_meta("room_prim_surface", true)
 			mesh_instance.set_surface_override_material(i, std)
 	for child in node.get_children():
 		_paint_room_surfaces(child, wall_id, floor_id)
@@ -966,6 +1056,10 @@ static func _apply_materials_inner(
 				std.cull_mode = BaseMaterial3D.CULL_DISABLED
 				std.roughness = 1.0
 				std.metallic = 0.0
+				## glTF BLEND often imports as depth-prepass; that writes depth and
+				## makes house XLU/window spill punch black holes through the door.
+				if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS:
+					std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 				if _is_vertex_shade_surface(mesh_instance, i, src):
 					_apply_vertex_shade_material(std)
 				else:
@@ -974,6 +1068,9 @@ static func _apply_materials_inner(
 					mesh_instance.set_surface_override_material(i, _make_window_spill_material(std))
 				elif _is_window_pane_surface(mesh_instance, i, src):
 					_apply_window_pane_material(std)
+					mesh_instance.set_surface_override_material(i, std)
+				elif _is_room_prim_fill_surface(mesh_instance, i, src):
+					_apply_room_prim_fill_material(std)
 					mesh_instance.set_surface_override_material(i, std)
 				elif _is_splash_water_surface(mesh_instance, i, src):
 					mesh_instance.set_surface_override_material(i, _make_splash_water_material(std))
@@ -1008,6 +1105,12 @@ static func _apply_materials_inner(
 				elif _is_museum_art_surface(mesh_instance, i, src, visual_id):
 					_apply_museum_art_material(std)
 					mesh_instance.set_surface_override_material(i, std)
+				elif _is_fish_tank_visual(visual_id):
+					_apply_fish_tank_surface(std)
+					mesh_instance.set_surface_override_material(i, std)
+				elif HostCollision.uses_structure_offset(visual_id):
+					_apply_structure_surface(std)
+					mesh_instance.set_surface_override_material(i, std)
 				elif as_decal:
 					std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 					std.render_priority = 1
@@ -1022,6 +1125,42 @@ static func _apply_materials_inner(
 			mesh_instance.sorting_offset = 1.0
 	for child in node.get_children():
 		_apply_materials_inner(child, as_decal, mouth_river, keep_imported, visual_id)
+
+
+static func _is_fish_tank_visual(visual_id: StringName) -> bool:
+	## Small tanks + sea tank: OPA shell, TEX_EDGE frame, XLU glass/water.
+	return visual_id == &"obj_suisou1" or visual_id == &"obj_museum5"
+
+
+static func _apply_fish_tank_surface(std: StandardMaterial3D) -> void:
+	## Wall quads are single-sided; default CULL_DISABLED draws both faces on the same
+	## plane and flickers. Frame (MASK) writes depth; XLU depth-tests without writing
+	## so front/evw can share the wall plane without a mesh-scale inset (that shrank water).
+	std.cull_mode = BaseMaterial3D.CULL_BACK
+	if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR:
+		std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+		std.alpha_scissor_threshold = maxf(std.alpha_scissor_threshold, 0.5)
+		std.render_priority = 0
+	elif std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
+		std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+		std.render_priority = 1
+
+
+static func _apply_structure_surface(std: StandardMaterial3D) -> void:
+	## Keep CULL_DISABLED on OPAQUE walls — many facade normals face inward after
+	## bind, so back-face cull hides the shell and leaves black window panes.
+	if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR:
+		## Door/fence share the OPA facade plane (same as GC). Do not move verts —
+		## `grow` biases depth along the normal so MASK wins the depth test without
+		## a visible gap (GC used POLY_OPA + TEX_EDGE alpha-test + joint draw order).
+		std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+		std.alpha_scissor_threshold = maxf(std.alpha_scissor_threshold, 0.5)
+		std.grow = true
+		std.grow_amount = 0.002
+		std.render_priority = 1
+	elif std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
+		std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+		std.render_priority = 1
 
 
 static func _is_kanban_visual(visual_id: StringName) -> bool:
@@ -1128,8 +1267,40 @@ static func prepare_outdoor_train(node: Node) -> void:
 	## Stop autoplay so wheel/door clips do not run until the stage asks; strip
 	## `joint_0` tracks so those clips cannot shove the whole car off the rails.
 	## Keep skinning so caboose door open can deform the door joints.
+	## `*_close` frame 1 is open (clip runs open→closed); snap doors shut for approach.
 	stop_autoplay_keep_rest(node)
-	strip_named_joint_tracks(find_animation_player(node), "joint_0")
+	var anim: AnimationPlayer = find_animation_player(node)
+	strip_named_joint_tracks(anim, "joint_0")
+	snap_train_doors_closed(anim)
+
+
+static func snap_train_doors_closed(anim_player: AnimationPlayer) -> void:
+	## Decomp actions 0–3: `obj_train1_3_open` frozen at frame 1 (closed), speed 0.
+	## Prefer open@0 over close@end — same pose, matches `aTR1_setupAction`.
+	## Keep the clip "playing" at speed 0 so the seeked pose sticks (pause/stop clears it).
+	if anim_player == null:
+		return
+	for name: String in ["obj_train1_3_open", "open"]:
+		if not anim_player.has_animation(name):
+			continue
+		var animation: Animation = anim_player.get_animation(name)
+		if animation != null:
+			animation.loop_mode = Animation.LOOP_NONE
+		anim_player.play(name)
+		anim_player.seek(0.0, true)
+		anim_player.speed_scale = 0.0
+		return
+	for name: String in ["obj_train1_3_close", "close"]:
+		if not anim_player.has_animation(name):
+			continue
+		var animation: Animation = anim_player.get_animation(name)
+		if animation == null:
+			return
+		animation.loop_mode = Animation.LOOP_NONE
+		anim_player.play(name)
+		anim_player.seek(animation.length, true)
+		anim_player.speed_scale = 0.0
+		return
 
 
 static func disable_skinning(node: Node) -> void:
@@ -1191,7 +1362,9 @@ static func _stop_autoplay(node: Node) -> void:
 
 
 static func _is_window_spill_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
-	## Outdoor ground fan (`*_window_model` / `windowL_model`). Not indoor `room_window`.
+	## Prefer glTF extras from pipeline (XLU decal); legacy name match for older GLBs.
+	if bool(_gltf_extras(mat).get("ground_spill", false)):
+		return true
 	var n := _surface_label(mesh_instance, surface, mat).to_lower()
 	if n.contains("light"):
 		return false
@@ -1204,9 +1377,27 @@ static func _is_window_spill_surface(mesh_instance: MeshInstance3D, surface: int
 
 
 static func _is_window_pane_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
-	## Opaque fill in the wall TEX_EDGE holes (`*_light_model`, museum `*_lightT_model`).
+	## Opaque prim fill in wall TEX_EDGE holes. Outdoor-view uses bright unlit prim.
 	var n := _surface_label(mesh_instance, surface, mat).to_lower()
-	return n.contains("light_model") or n.contains("lightt_model")
+	if n.contains("light_model") or n.contains("lightt_model"):
+		return true
+	if bool(_gltf_extras(mat).get("unlit_fill", false)):
+		if mat is StandardMaterial3D:
+			var c: Color = (mat as StandardMaterial3D).albedo_color
+			## Outdoor sky fill is near-white; facade panes are black.
+			return c.r + c.g + c.b < 1.5
+		return true
+	return false
+
+
+static func _is_room_prim_fill_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
+	## Indoor `rom_*` outdoor-view quads (`G_CC_PRIMITIVE` after window MASK).
+	## Bright unlit_fill — not facade night panes.
+	if not bool(_gltf_extras(mat).get("unlit_fill", false)):
+		return false
+	if _is_window_pane_surface(mesh_instance, surface, mat):
+		return false
+	return true
 
 
 static func _gltf_extras(mat: Material) -> Dictionary:
@@ -1334,8 +1525,8 @@ static func _is_player_select_shade_surface(
 
 
 static func _apply_player_select_spot_material(std: StandardMaterial3D) -> void:
-	## `grd_player_select_modelT` spot: XLU yellow cone, no LightsN.
-	## Wrap-bake mirrors S into the atlas and normalizes UVs to 0–1 — clamp after.
+	## Baked yellow cone XLU (`grd_player_select_modelT`). GC uses RDP combine + EVW
+	## scroll on spot2 — not a programmable shader; keep the imported bake.
 	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	std.vertex_color_use_as_albedo = false
 	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -1538,10 +1729,80 @@ static func _i4_as_alpha(tex: Texture2D) -> Texture2D:
 static func _apply_window_pane_material(std: StandardMaterial3D) -> void:
 	## Original: combiner ignores the wall SETTIMG; RGB is PRIMITIVE/ENVIRONMENT, `G_RM_AA_ZB_OPA_SURF2`.
 	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	## Single-sided: CULL_DISABLED draws rear-window backfaces as wall-sized black slabs
+	## when viewed from the porch.
+	std.cull_mode = BaseMaterial3D.CULL_BACK
 	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+	## Draw before facade OPA/MASK so door wood and walls win any residual overlap.
+	std.render_priority = -1
 	std.albedo_texture = null
+	std.vertex_color_use_as_albedo = false
 	std.set_meta("window_pane", true)
 	std.albedo_color = _WINDOW_PANE_ON if _window_lights_on() else _WINDOW_PANE_OFF
+
+
+static func _apply_room_prim_fill_material(std: StandardMaterial3D) -> void:
+	## `Global_kankyo_set_room_prim` fills indoor window holes with room prim RGB.
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.cull_mode = BaseMaterial3D.CULL_BACK
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
+	std.render_priority = -1
+	std.albedo_texture = null
+	std.vertex_color_use_as_albedo = false
+	std.set_meta("room_prim_fill", true)
+	std.albedo_color = _room_prim_color()
+
+
+static func _room_prim_color() -> Color:
+	## Fine-weather `room_color` from `l_mEnv_kcolor_fine_data` (no electric-point blend yet).
+	var clock: Node = Engine.get_main_loop().root.get_node_or_null("/root/Clock")
+	if clock != null and clock.has_method("outdoor_light"):
+		var pal: Dictionary = clock.call("outdoor_light") as Dictionary
+		if pal.has("room"):
+			return pal["room"] as Color
+	return Color8(200, 240, 240)
+
+
+static func _mark_shell_room_prim(node: Node) -> void:
+	## Window frames / enter trim share TEXEL×SHADE×PRIM; tag for room-prim refresh.
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		var surface_count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 1
+		for i: int in surface_count:
+			var mat: Material = mesh_instance.get_surface_override_material(i)
+			if mat == null:
+				mat = mesh_instance.get_active_material(i)
+			if mat == null:
+				continue
+			if _is_window_pane_surface(mesh_instance, i, mat) or _is_room_prim_fill_surface(
+				mesh_instance, i, mat
+			):
+				continue
+			if not _is_vertex_shade_surface(mesh_instance, i, mat):
+				continue
+			var std: StandardMaterial3D
+			if mat is StandardMaterial3D:
+				std = (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			else:
+				continue
+			std.set_meta("room_prim_surface", true)
+			mesh_instance.set_surface_override_material(i, std)
+	for child in node.get_children():
+		_mark_shell_room_prim(child)
+
+
+static func _set_room_prim_fills(node: Node, color: Color) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		var surface_count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 1
+		for i: int in surface_count:
+			var mat: Material = mesh_instance.get_surface_override_material(i)
+			if mat is StandardMaterial3D:
+				var std := mat as StandardMaterial3D
+				if std.has_meta("room_prim_fill") or std.has_meta("room_prim_surface"):
+					std.albedo_color = color
+	for child in node.get_children():
+		_set_room_prim_fills(child, color)
 
 
 static func _set_window_lights(node: Node, on: bool) -> void:

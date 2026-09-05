@@ -1,0 +1,22 @@
+{
+  "id": "post_girl_greeting",
+  "speaker_id": "post_girl",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        { "if": { "already_talked": true }, "goto": "repeat" },
+        { "goto": "welcome" }
+      ]
+    },
+    "welcome": {
+      "type": "line",
+      "text": "Welcome to the post office! How can I help you today?"
+    },
+    "repeat": {
+      "type": "line",
+      "text": "Still here? The desk is ready whenever you are."
+    }
+  }
+}

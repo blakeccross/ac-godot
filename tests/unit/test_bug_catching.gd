@@ -106,6 +106,18 @@ func test_field_spawn_cap_matches_decomp_make_new() -> void:
 	assert_int(BugField.MAX_FIELD_SPAWNS).is_equal(8)
 
 
+func test_birth_sum_swarms_only_ants_and_mosquitoes() -> void:
+	## `l_insect_birth_sum`: ant / mosquito birth 6–8; fireflies and dragonflies are 1.
+	assert_int(BugCatalog.get_bug(&"red_dragonfly").type_index).is_equal(10)
+	assert_int(BugCatalog.get_bug(&"firefly").type_index).is_equal(27)
+	assert_int(BugCatalog.get_bug(&"ant").type_index).is_equal(38)
+	assert_int(BugCatalog.get_bug(&"mosquito").type_index).is_equal(39)
+	assert_that(BugField.BIRTH_SUM[10]).is_equal(Vector2i(1, 0))
+	assert_that(BugField.BIRTH_SUM[27]).is_equal(Vector2i(1, 0))
+	assert_that(BugField.BIRTH_SUM[38]).is_equal(Vector2i(6, 3))
+	assert_that(BugField.BIRTH_SUM[39]).is_equal(Vector2i(6, 3))
+
+
 func test_auto_spawn_is_once_per_acre_and_skips_occupied() -> void:
 	var layout: WorldData = WorldGenerator.authored_test_town()
 	var grid := WorldGrid.new()
@@ -477,7 +489,7 @@ func _nearest_tree_base(layout: WorldData, grid: WorldGrid, at: Vector3) -> Vect
 		if obj == null or obj.kind != &"tree":
 			continue
 		var base: Vector3 = grid.footprint_center(obj.cell, Vector2i(1, 1))
-		base.y = FieldCollision.ground_y(layout, obj.cell)
+		base.y = FieldCollision.ground_y(layout, obj.cell, FieldCollision.FG_GROUND_DIST)
 		var dist: float = Vector2(at.x - base.x, at.z - base.z).length()
 		if dist < best_dist:
 			best_dist = dist

@@ -118,6 +118,36 @@ func test_house_approach_uses_demo_stand_not_exit() -> void:
 	)
 
 
+func test_museum_approach_stays_on_door_stand() -> void:
+	## Walk-in AnimationMove target is `aMsm` +100 GX — not +APPROACH_GX into the roof cells.
+	assert_that(StructureDoor.approach_offset_gx(&"obj_s_museum")).is_equal(
+		HostCollision.MUSEUM_DOOR_GX
+	)
+	assert_float(StructureDoor.approach_offset_gx(&"obj_s_museum").y).is_less(
+		StructureDoor.MUSEUM_EXIT_GX.y
+	)
+	var root := Node3D.new()
+	auto_free(root)
+	var script := GDScript.new()
+	script.source_code = "extends Node3D\nvar visual_id: StringName = &\"obj_s_museum\"\n"
+	script.reload()
+	root.set_script(script)
+	root.position = Vector3(10.0, 0.0, 10.0)
+	var tree_root := Node3D.new()
+	auto_free(tree_root)
+	add_child(tree_root)
+	tree_root.add_child(root)
+	var stand: Vector3 = StructureDoor.approach_position(root)
+	var s: float = FieldCatalog.GX_TO_METERS
+	assert_float(stand.z).is_equal_approx(
+		root.global_position.z + HostCollision.MUSEUM_DOOR_GX.y * s, 0.05
+	)
+	## Heuristic would step another APPROACH_GX north into the raised block.
+	assert_float(stand.z).is_greater(
+		root.global_position.z + (HostCollision.MUSEUM_DOOR_GX.y - StructureDoor.APPROACH_GX) * s
+	)
+
+
 func test_find_near_picks_closest_house() -> void:
 	var tree_root := Node3D.new()
 	auto_free(tree_root)

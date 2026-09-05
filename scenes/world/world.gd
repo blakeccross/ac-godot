@@ -36,7 +36,8 @@ func _ready() -> void:
 	WorldBuilder.new().build(self, layout, grid)
 	HoleUse.restore(self, grid)
 	PlantGrowth.restore(self, grid)
-	fish.configure(grid, WorldBuilder.water_surface_y())
+	PlantGrowth.assign_special_trees(self)
+	fish.configure(grid, WorldBuilder.water_surface_y(), layout)
 	bugs.configure(grid, layout)
 	if layout.mode == WorldData.Mode.TEST:
 		bugs.seed_trees()
@@ -138,10 +139,12 @@ func _apply_time_of_day() -> void:
 	_aim_directional(_sun, pal["sun_dir"] as Vector3)
 	_sun.light_color = pal["sun"] as Color
 	_sun.light_energy = float(pal["sun_energy"])
-	_sun.shadow_enabled = _sun.light_energy > 0.08
+	## Blob shadows live on actors / `*_shadow_v` meshes — not DirectionalLight.
+	_sun.shadow_enabled = false
 	_aim_directional(_moon, pal["moon_dir"] as Vector3)
 	_moon.light_color = pal["moon"] as Color
 	_moon.light_energy = float(pal["moon_energy"])
+	_moon.shadow_enabled = false
 	_moon.visible = _moon.light_energy > 0.02
 	var env: Environment = _world_env.environment
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR

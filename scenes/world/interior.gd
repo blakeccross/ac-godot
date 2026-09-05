@@ -156,14 +156,44 @@ func refresh_shop_set() -> void:
 	InteriorBuilder.new().add_shop_set(root, session)
 
 
+func refresh_public_set() -> void:
+	## Rebuild post mail piles / police lost-and-found without freeing clerks.
+	var root: Node3D = _furniture_root()
+	if root == null or session == null or session.room == null:
+		return
+	var stale: Array[Node] = []
+	for child: Node in root.get_children():
+		if child.is_in_group("police_set") and child.name.begins_with("LostFound_"):
+			stale.append(child)
+		elif child.name.begins_with("MailPile_"):
+			stale.append(child)
+	for node: Node in stale:
+		root.remove_child(node)
+		node.queue_free()
+	match session.room.kind:
+		Room.Kind.POLICE:
+			InteriorBuilder.new().add_lost_and_found(root, session)
+		Room.Kind.POST_OFFICE:
+			InteriorBuilder.new().add_post_mail_piles(root, session)
+		_:
+			pass
+
+
 func _apply_indoor_light(room: Room) -> void:
 	var env: Environment = _world_env.environment
+	var room_color: Color = GeneratedVisual.room_prim_color()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.18, 0.16, 0.14)
+	## Soft indoor void behind TEX_EDGE window holes (room prim fills the quads).
+	env.background_color = room_color.darkened(0.55)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.72, 0.64, 0.52)
-	env.ambient_light_energy = 1.0
+	env.ambient_light_color = room_color
+	env.ambient_light_energy = 1.15
 	env.fog_enabled = false
+	var fill: OmniLight3D = get_node_or_null("FillLight") as OmniLight3D
+	if fill != null:
+		fill.light_color = room_color
+		fill.light_energy = 0.55
+	GeneratedVisual.refresh_room_prim(self, room_color)
 	if _camera != null and "offset" in _camera:
 		## Homes frame the shell (never closer than Camera2 620). Museum / shops /
 		## other public rooms keep outdoor focus distance — `Camera2_InDoorCheck`

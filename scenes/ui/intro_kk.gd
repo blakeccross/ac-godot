@@ -39,7 +39,7 @@ func _ready() -> void:
 
 
 func _setup_stage_look() -> void:
-	## Black void + warm key (`l_mEnv_kcolor_data_p_sel`); acre XLU spot/shade.
+	## Black void + warm key; XLU spot fog (spot2 scroll) / shade on the acre.
 	var acre: Node3D = get_node_or_null("%Acre") as Node3D
 	if acre != null:
 		var vis: Node3D = acre.get_node_or_null("GeneratedVisual") as Node3D
@@ -62,9 +62,10 @@ func _setup_stage_look() -> void:
 		## White fur needs fill or the body reads as a black stick under the key alone.
 		## Decomp ambient RGB is tiny; energy >>1 keeps the cool tint without a black silhouette.
 		env.ambient_light_energy = 1.35
-		## Decomp fog `(100,100,120)` reads as a purple band over the void — keep clear black.
+		## `FIELD_DRAW_TYPE_PLAYER_SELECT` keeps fog_disabled — near==far kills GBI fog.
+		## Black void + scrolling spot2 fog texture (not clear-color atmosphere).
 		env.fog_enabled = false
-		env.fog_light_color = Color(0.0, 0.0, 0.0, 1.0)
+		env.fog_light_color = IntroKkStage.FOG_COLOR
 		env.volumetric_fog_enabled = false
 		world_env.environment = env
 

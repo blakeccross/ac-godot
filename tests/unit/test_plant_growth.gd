@@ -197,6 +197,41 @@ func test_persist_id_round_trip() -> void:
 	assert_vector(PlantGrowth.cell_from_persist(&"tree_1")).is_equal(Vector2i(-1, -1))
 
 
+func test_assign_special_trees_tops_up_bare_mature() -> void:
+	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 20, "hour": 12, "minute": 0})
+	var hardwood: PlantData = load("res://data/plants/hardwood_tree.tres")
+	for i: int in 40:
+		var cell := Vector2i(i % 16, i / 16)
+		var pid: StringName = PlantGrowth.persist_id(cell)
+		PlantGrowth.ensure(pid, hardwood, &"TREE", cell)
+	PlantGrowth.assign_special_trees(null)
+	var bees := 0
+	var ftr := 0
+	var bells := 0
+	for key: Variant in Game.plant_states.keys():
+		match PlantGrowth.shake_content(StringName(str(key))):
+			TreeUse.Content.BEES:
+				bees += 1
+			TreeUse.Content.FURNITURE:
+				ftr += 1
+			TreeUse.Content.BELLS:
+				bells += 1
+			_:
+				pass
+	assert_int(bees).is_equal(PlantGrowth.BEE_COLUMN_NUM)
+	assert_int(ftr).is_equal(PlantGrowth.FTR_TREE_NUM)
+	assert_int(bells).is_equal(PlantGrowth.MONEY_TREE_NUM)
+
+
+func test_fruiting_tree_is_not_special_candidate() -> void:
+	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 20, "hour": 12, "minute": 0})
+	var apple: PlantData = load("res://data/plants/apple_tree.tres")
+	var pid := &"plant_2_2"
+	PlantGrowth.ensure(pid, apple, &"TREE_APPLE_FRUIT", Vector2i(2, 2))
+	var rec: Dictionary = PlantGrowth.record(pid)
+	assert_bool(PlantGrowth.can_hold_special(rec, apple)).is_false()
+
+
 func _rec(plant_id: String, planted: int) -> Dictionary:
 	return {
 		PlantGrowth.KEY_PLANT: plant_id,

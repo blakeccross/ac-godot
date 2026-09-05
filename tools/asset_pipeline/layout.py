@@ -18,12 +18,17 @@ def env_subdir(prefix: str) -> str:
     if (
         prefix.startswith("rom_")
         or prefix.startswith("mCL_rom_")
-        or prefix in {"police_indoor", "room01"}
+        or prefix in {"police_indoor", "room01", "grd_post_office"}
     ):
         return "environment/interiors"
     if prefix.startswith("grd_"):
         return "environment/acres"
-    if "tree" in lower or "stump" in lower:
+    if (
+        "tree" in lower
+        or "stump" in lower
+        or "palm" in lower
+        or "cedar" in lower
+    ):
         return "environment/trees"
     if "flower" in lower:
         return "environment/flowers"
@@ -62,6 +67,7 @@ def output_folder_for_static(prefix: str) -> str:
     if prefix.startswith(("obj_", "act_", "grd_", "rom_", "mCL_rom_")) or prefix in {
         "police_indoor",
         "room01",
+        "grd_post_office",
     }:
         return env_subdir(prefix)
     return "environment"

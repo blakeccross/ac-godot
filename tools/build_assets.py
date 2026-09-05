@@ -195,22 +195,22 @@ def main() -> int:
                 label = "static assets"
             elif args.kind == "buildings":
                 cfg.test_set_only = False
-                report = convert_ckf_prefixes(
+                ## All house/myhome/shop stages — MASK doors must not share a
+                ## skinned mesh with OPAQUE walls (Godot transparent pipeline).
+                report = convert_ckf_starting_with(
                     cfg,
-                    [
-                        "obj_s_house1",
-                        "obj_s_shop1",
-                        "obj_s_myhome1",
-                        "obj_s_tailor",
-                        "obj_s_yubinkyoku",
-                        "obj_s_station1",
-                        "obj_w_house1",
-                        "obj_w_shop1",
-                        "obj_w_myhome1",
-                        "obj_w_tailor",
-                        "obj_w_yubinkyoku",
-                        "obj_w_station1",
-                    ],
+                    "obj_s_house",
+                    "obj_w_house",
+                    "obj_s_myhome",
+                    "obj_w_myhome",
+                    "obj_s_shop",
+                    "obj_w_shop",
+                    "obj_s_tailor",
+                    "obj_w_tailor",
+                    "obj_s_yubinkyoku",
+                    "obj_w_yubinkyoku",
+                    "obj_s_station",
+                    "obj_w_station",
                 )
                 static_report = convert_static_prefixes(
                     cfg, ["obj_s_museum", "obj_w_museum", "obj_s_kouban", "obj_w_kouban", "obj_s_shrine", "obj_w_shrine"]

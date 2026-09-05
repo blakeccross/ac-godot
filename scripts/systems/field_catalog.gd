@@ -210,7 +210,12 @@ static func season_role_for_surface(
 
 static func season_role_for_label(label: String) -> String:
 	## Map a material/texture/surface label to a seasons-pack role stem.
+	## Hardwood only for leaf/trunk — palm/cedar keep baked (or seasonal mesh) art.
+	## `GeneratedVisual.apply_season_textures` would otherwise stamp `tree_leaf.png`
+	## onto `obj_*_palm_leaf_tex` / `obj_*_cedar_leaf_tex` (and trunks).
 	var compact := label.to_lower().replace(" ", "").replace("-", "").replace("_", "")
+	if compact.contains("palm") or compact.contains("cedar"):
+		return ""
 	if compact.contains("leaf"):
 		return String(SEASON_TREE_ROLES.get("leaf", "tree_leaf"))
 	if compact.contains("trunk"):
@@ -252,6 +257,9 @@ static func seasonal_acre_id(visual_id: StringName) -> String:
 
 static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 	var id := String(visual_id)
+	## Indoor post shell lives with other room GLBs (not outdoor acre dumps).
+	if id == "grd_post_office" or id == "police_indoor" or id == "room01":
+		return _existing(["environment/interiors/%s.glb" % id])
 	if id.begins_with("grd_"):
 		var seasonal := seasonal_acre_id(StringName(id))
 		var paths: PackedStringArray = _existing(["environment/acres/%s.glb" % seasonal])
@@ -263,12 +271,7 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 	if id.begins_with("ef_"):
 		## Feel glyphs / particle cards (`ef_warau01_00`, `ef_shock01_00`, `ef_ha01_00`, …).
 		return _existing(["effects/%s.glb" % id])
-	if (
-		id.begins_with("rom_")
-		or id.begins_with("mCL_rom_")
-		or id == "room01"
-		or id == "police_indoor"
-	):
+	if id.begins_with("rom_") or id.begins_with("mCL_rom_"):
 		return _existing(["environment/interiors/%s.glb" % id])
 	if id == "int_fmanekin" or id == "int_myfmanekin":
 		## `iam_fmanekin` draws `obj_shop_manekin_model` (`ac_fmanekin.c`), not `int_fmanekin`.
@@ -310,7 +313,10 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		&"obj_s_cedar4", &"CEDAR_S2":
 			return _cedar_size_paths(4)
 		&"obj_s_cedar5", &"CEDAR_TREE":
-			return _seasonal_env_existing("obj_%s_cedar5")
+			var cedar := _seasonal_tree_existing("obj_%s_cedar5")
+			if cedar.is_empty():
+				cedar = _seasonal_env_existing("obj_%s_cedar5")
+			return cedar
 		&"obj_s_palm2", &"PALM_S0":
 			return _palm_size_paths(2)
 		&"obj_s_palm3", &"PALM_S1":
@@ -318,11 +324,19 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		&"obj_s_palm4", &"PALM_S2":
 			return _palm_size_paths(4)
 		&"obj_s_palm5", &"TREE_PALM":
-			return _seasonal_env_existing("obj_%s_palm5")
-		&"obj_s_palm5_coco", &"TREE_PALM_FRUIT":
-			var palm := _seasonal_env_existing("obj_%s_palm5")
-			palm.append_array(_seasonal_env_existing("obj_%s_palm5_coco"))
+			var palm := _seasonal_tree_existing("obj_%s_palm5")
+			if palm.is_empty():
+				palm = _seasonal_env_existing("obj_%s_palm5")
 			return palm
+		&"obj_s_palm5_coco", &"TREE_PALM_FRUIT":
+			var palm_fruit := _seasonal_tree_existing("obj_%s_palm5")
+			if palm_fruit.is_empty():
+				palm_fruit = _seasonal_env_existing("obj_%s_palm5")
+			var coco := _seasonal_tree_existing("obj_%s_palm5_coco")
+			if coco.is_empty():
+				coco = _seasonal_env_existing("obj_%s_palm5_coco")
+			palm_fruit.append_array(coco)
+			return palm_fruit
 		&"obj_s_kanban", &"SIGNBOARD":
 			return _seasonal_env_existing("obj_%s_kanban")
 		&"dock_sign", &"DOCK_SIGN", &"obj_s_attention":
@@ -426,6 +440,73 @@ static func is_ground_decal(visual_id: StringName) -> bool:
 	return id.begins_with("HOLE") or id.begins_with("obj_hole")
 
 
+static func blob_shadow_paths(visual_id: StringName) -> PackedStringArray:
+	## Companion `*_shadow_v` GLBs next to the main mesh (police, trees, shops, …).
+	## Missing files are fine until convert has been re-run with shadows enabled.
+	var id := String(visual_id)
+	if id.is_empty() or id.ends_with("_shadow"):
+		return PackedStringArray()
+	var stem := _blob_shadow_stem(id)
+	if stem.is_empty():
+		return PackedStringArray()
+	var folder := _blob_shadow_folder(stem)
+	var seasonal := stem
+	if stem.begins_with("obj_s_") or stem.begins_with("obj_w_") or stem.begins_with("obj_f_"):
+		seasonal = "obj_%s_%s" % [season_letter(), stem.substr(6)]
+	var paths: PackedStringArray = _existing(["%s/%s_shadow.glb" % [folder, seasonal]])
+	if paths.is_empty() and seasonal != stem:
+		paths = _existing(["%s/%s_shadow.glb" % [folder, stem]])
+	return paths
+
+
+static func _blob_shadow_stem(id: String) -> String:
+	match id:
+		"TREE", "TREE_S0", "TREE_S1", "TREE_S2", "TREE_APPLE_FRUIT":
+			return "obj_s_tree5"
+		"TREE_STUMP004":
+			return "obj_s_stump5"
+		"CEDAR_TREE", "CEDAR_S0", "CEDAR_S1", "CEDAR_S2":
+			return "obj_s_cedar5"
+		"TREE_PALM", "PALM_S0", "PALM_S1", "PALM_S2", "TREE_PALM_FRUIT":
+			return "obj_s_palm5"
+		"ROCK_A":
+			return "obj_s_stoneA"
+		"ROCK_B":
+			return "obj_s_stoneB"
+		"ROCK_C":
+			return "obj_s_stoneC"
+		"ROCK_D":
+			return "obj_s_stoneD"
+		"ROCK_E":
+			return "obj_s_stoneE"
+		"SIGNBOARD":
+			return "obj_s_kanban"
+		"DOCK_SIGN":
+			return "obj_s_attention"
+		_:
+			if id.begins_with("obj_"):
+				return id
+			return ""
+
+
+static func _blob_shadow_folder(stem: String) -> String:
+	var lower := stem.to_lower()
+	if (
+		"tree" in lower
+		or "stump" in lower
+		or "palm" in lower
+		or "cedar" in lower
+	):
+		return "environment/trees"
+	if "flower" in lower:
+		return "environment/flowers"
+	if "hole" in lower:
+		return "environment/holes"
+	if "stone" in lower or "rock" in lower:
+		return "environment/rocks"
+	return "environment"
+
+
 ## Godot scale for pipeline GLBs so 1 GX matches `GX_TO_METERS`.
 static func actor_uniform_scale() -> float:
 	return actor_uniform_scale_for(&"")
@@ -454,10 +535,17 @@ static func acre_ground_y_offset() -> float:
 
 
 static func interior_uses_acre_verts(visual_id: StringName) -> bool:
-	## `rom_*` / `mCL_rom_*` store 16× verts like acres. `room01` and
-	## `police_indoor` are classic N64 tiles in raw GX (`docs/asset_pipeline.md`).
+	## `rom_*` / `mCL_rom_*` / indoor acre shells store 16× verts like outdoor acres.
+	## `room01` alone is classic N64 tiles in raw GX (`docs/asset_pipeline.md`).
 	var id := String(visual_id)
-	return id.begins_with("rom_") or id.begins_with("mCL_rom_")
+	if id == "room01":
+		return false
+	return (
+		id.begins_with("rom_")
+		or id.begins_with("mCL_rom_")
+		or id == "police_indoor"
+		or id == "grd_post_office"
+	)
 
 
 static func interior_uniform_scale(visual_id: StringName) -> float:
@@ -485,6 +573,11 @@ static func is_water_attr(attr: int) -> bool:
 	## `mCoBG_CheckWaterAttribute`: water / waterfall / river / sea. WAVE and shoreline
 	## wave units (25–26, 36–38) are walkable wet sand, not a bank wall.
 	return (attr >= 12 and attr <= 21) or attr == 24
+
+
+static func is_sea_attr(attr: int) -> bool:
+	## `mCoBG_ATTRIBUTE_SEA`. River / pool / waterfall stay on 12–21.
+	return attr == 24
 
 
 static func attr_allows_npc(attr: int) -> bool:
@@ -888,6 +981,23 @@ static func item_albedo(item_id: StringName) -> String:
 			return _first_existing(["textures/rel/obj_item_apple_tex.png"])
 		_:
 			return ""
+
+
+## Pipeline GLB for a pocket item drawn in the world (`bg_item` fruit/money cards).
+static func item_visual(item_id: StringName) -> StringName:
+	match item_id:
+		&"apple":
+			return &"obj_item_apple"
+		&"pear":
+			return &"obj_item_pear"
+		&"peach":
+			return &"obj_item_peach"
+		&"orange":
+			return &"obj_item_orange"
+		&"money_100", &"money_1000", &"money_10000", &"money_30000":
+			return &"obj_item_bag"
+		_:
+			return &""
 
 
 static func cloth_albedo(cloth_index: int) -> String:

@@ -4,6 +4,8 @@ How to turn a legally obtained Animal Crossing (GameCube) disc into Godot-ready 
 
 Generated Nintendo assets stay **outside git**. The Godot repo only contains conversion scripts, docs, and assets you choose to keep (hand-authored work under `assets/custom/`).
 
+**No name checks:** classify materials and coverage from Gfx state (combine, othermode, tiles, UV footprint), not DL/texture/joint symbol substrings. **No convert-time vertex nudges** for coplanar z-fighting — keep authored planes; depth bias is runtime (`GeneratedVisual` `grow`). See `.cursor/rules/asset-pipeline.mdc`.
+
 ## 1. Required tools
 
 - Python 3.9+
@@ -154,6 +156,8 @@ Reconverts river, marine, open-ocean (`grd_*_o_*`), cliff-edge ocean/marine (`gr
 
 The player's clips are named one by one in `PLAYER_CORE_ANIMS`, so a new pose needs adding there and a reconvert (`--step convert`) before the game can play it — `ply_1_putaway_t1`, the catch-report exit, arrived that way.
 
+Dropped fruit / money bags are TEX_EDGE cards (`obj_apple2_modelT`, `bag_DL_mode`+`bag_DL_vtx`, …). They are not inferred from `*_gfx_model`; `ITEM_CARD_GFX` in `convert.py` names each one. After adding a card, reconvert static (or full convert) so `environment/obj_item_*.glb` exists for `item_pickup`.
+
 Held-up catches (one model per fish species):
 
 ```sh
@@ -281,18 +285,23 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | House/shop is grayscale | CI4 loads `anime_1_txt` (segment 0x08). Bind `obj_s_house1_a_pal` / `obj_shop1_pal` from `structure_pal`, not `{prefix}_pal` |
 | Player house / post office is grayscale | Same `anime_1_txt` bank. `obj_s_myhome1` maps to `obj_s_myhome_a_pal` (strip the stage digit); `obj_s_yubinkyoku` aliases to `obj_s_post_office_pal` (winter: `obj_s_post_office_winter_pal`) |
 | Palm/cedar is black-and-white | CI4 leaf/trunk (`obj_s_palm_*_tex`, `obj_s_cedar_*_tex`) never LOADTLUT. Runtime uses `mFM_obj_palm_01_pal` / `mFM_obj_tree_01_pal_dol` (`mFM_SetFGPal`). Fallback used to require `"tree"` in the symbol name. Reconvert with `--step convert --kind plants` |
+| Palm/cedar wear round hardwood canopy | `GeneratedVisual.apply_season_textures` matched any `*leaf*` / `*trunk*` to `tree_leaf` / `tree_trunk`. Palm and cedar keep baked art (season via `obj_f_*` / `obj_w_*` mesh remap). Do not stamp hardwood season PNGs onto them |
+| Palm/cedar GLB under `environment/` not `trees/` | Layout only routed names containing `tree`/`stump`. Convert now sends palm/cedar to `environment/trees/`; `FieldCatalog` still falls back to the old env root path |
 | Hardwood stump missing / cylinder placeholder | Gfx is `obj_stump5T_*` while verts are `obj_s_stump5_v`. Converter used to skip the job. Reconvert with `--kind plants` |
 | ROCK_B–E (`obj_s_stoneB` …) is solid white | Geometry-only Gfx. `bg_item` draws `obj_s_stoneA_mat_model` once (`stone_DL_table[0]`), then `obj_s_stoneB_gfx_model` as `table[1 + sub_idx]`. Converter used to look for a missing `obj_s_stoneB_mat_model`. Reconvert with `--kind plants` |
 | Hole (`obj_hole0`) is solid white | Geometry-only Gfx. `hole00_g_list` draws `obj_hole0T_g_mat_model` then `obj_hole0T_gfx_model`. Palette is `obj_g_hole_pal` (no LOADTLUT). Reconvert with `--kind plants` |
 | Hole flickers / z-fights the acre | The fan is coplanar with grass. `GeneratedVisual` treats `HOLE*` as a ground decal (no AABB snap, no depth write); `HoleUse` places at `GetBgY(..., -1 GX)` |
 | House/shop window blob z-fights the grass | `*_window_model` is an XLU ground decal (`G_RM_AA_ZB_XLU_DECAL2`). Convert keeps it as a BLEND I4-alpha surface. `GeneratedVisual` draws it 1 GX above the acre (not coplanar). Facade glow is a separate opaque `*_light_model` pane |
+| Player home windows are black holes / walls look tripled | Stock `rom_myhome*_model` ends with unlit PRIMITIVE outdoor-view quads (`Global_kankyo_set_room_prim`). Convert only that DL (not `*_new*` / `*_new2*` custom-design variants). Runtime tints fills + wallpaper with fine-weather `room_color`. Reconvert `rom_myhome1_*` / `rom_myhome2_*` |
+| Player home floor is stretched / wrong medallion | `player_room_*` pages are 64². Runtime must re-tile at 64 — do not `_infer_atlas_tile_size` on a GX_MIRROR atlas (odd cells are flipped, so period 64 fails and 128 wins). |
+| House door texture flickers / z-fights | (1) Skinned export must split OPAQUE / MASK / BLEND meshes (`write_skinned_glb`). (2) Body DLs that omit SetRenderMode but only UV opaque texels of a cutout atlas must demote to OPAQUE (`demote_opaque_uv_alpha`). (3) Door TEX_EDGE is coplanar with the OPA facade in the original — do not offset verts; `GeneratedVisual` uses material `grow` (depth bias along normals) on structure MASK. (4) Keep double-sided cull on OPAQUE walls (inward normals). Reconvert `--kind buildings` |
 | Window spill looks like solid yellow paint | Same linear-HDR vs 8-bit XLU issue as water. `window_ground_spill.gdshader` samples `hint_screen_texture`, lerps prim yellow in sRGB (`TEXEL0 × LOD 120/255`), and emits opaque `ALBEDO` |
 | Tree leaves are pastel pink/teal | Hardwood fallback used map symbol `mFM_obj_tree_01_pal`, whose REL blob does not CI-decode leaf art. Use `mFM_obj_tree_01_pal_dol` / `obj_tree_pal`. Reconvert trees |
 | Summer `obj_s_tree3` leaf is untextured | Disc has only `obj_s_gold_tree3_leafT_mat_model` (no non-gold leaf mat). Converter falls back to the gold mat for SETTIMG |
 | Boy torso is a hollow flame X / see-through chest | `G_SETTILESIZE` 128×32 overwrote the shirt’s 32×32 `SETTIMG` size; decode zero-padded with transparent CI0 → MASK holes. Keep tile size separate from image size; UVs still divide by the 32×32 image so REPEAT can bake. Reconvert `boy_1` |
 | House/shop lies on its back | GX verts already sit on +Y; do not apply `ckf_basis` (+90° Z). Bake door-clip frame 1 (joint-0 yaw in the clip constants) |
 | Structure on its side (tent, station, …) | Absolute `min_y` / low percentiles fail on vanes/clock hands. Robust Y-up: 5th-percentile **or** ≥90% verts above the floor, reject +X-chain AABBs — do not add object-name allowlists. Reconvert buildings |
-| Train car sideways / wrong rest | Prefer `*_close` bind (joint-0 ±90°), not the Y-up door-clip path. Anim bind uses identity basis |
+| Train car sideways / wrong rest | Prefer `*_close` bind at **last** frame (joint-0 ±90°; close clips are open→closed), not frame 1 or the Y-up door-clip path. Anim bind uses identity basis |
 | Shop looks face-on / door due south | Missing anim bind — shop joint-0 Y is **−135°**, not −90° |
 | Acre/room meshes have no textures | DLs use runtime segment banks (`0x80` field BG, `0x08–0x0C` house floor/wall). Convert binds those before walking the Gfx |
 | Acre grass/earth is a stretched edge colour | REPEAT UVs span the 16×16 cell grid. Wrap must be baked into the PNG (`GeneratedVisual` clamps). Reconvert `--step convert --kind static` |
@@ -305,7 +314,9 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | Object part is solid white (`seg_08` / `seg_09` / `seg_0A`) | Gfx samples `anime_N_txt` (dummy `gSPSegment` slots). Actor draw binds the real pal/tex at runtime (shrine leaf → tree leaf + FG pal; house mark → `obj_myhome_mark_*`). Convert resolves unbound anime SETTIMG from REL textures of the same byte size whose name shares the Gfx part (`leaf`, `mark`). Dummy LOADTLUT pals must also share the object family (`myhome`+`mark`) — a generic `front`/`door`/`leaf` hit must not replace the structure TLUT (that recolored shops/houses). Reconvert with `--kind buildings`. Save-data slots (statue faces, some flags) stay white if the REL has no stand-in |
 | Boy cheek/skin is shirt-yellow | Pending tris were flushed after the next shirt `G_LOADTLUT`; flush before TLUT |
 | Leaves/cutouts show a black/gray box | Texture has alpha but GLB material was `OPAQUE`; alphaMode comes from `G_SETOTHERMODE_L` coverage (`opa` / `tex_edge` / `xlu`) × PNG alpha × UV footprint via `resolve_alpha_mode` — not symbol names. Reconvert the mesh |
+| Tree / palm / cedar roots look cut off | Trunk tip ST peeks past the unit tile (`V≈1.19` under `GX_CLAMP`). Wrap-bake must **not** renormalize that peek onto `[0, 1]` — doing so squashes the root UV wedge off the painted tips and MASK scissor eats them. Keep authored UVs (same rule as tank glass U=0..6). Reconvert `--kind plants` |
 | Clock body see-through / tunnel holes in brick | Body DLs are `OPA_SURF` (ignore texel A); tunnel is `TEX_EDGE` with an unused chromakey strip. Coverage + UV sampling forces `OPAQUE` and floods A — do not special-case `hari` / `tunnel` names |
+| Train shineglass shafts pour into the cabin | α is `TEXEL0×TEXEL1×PRIM_LOD_FRAC` (`lod_factor`). Convert clears PNG alpha when the combiner scales A by `PRIM_LOD_FRAC` so the mesh stays invisible until runtime lod. Reconvert `rom_train_out` |
 | Player GLB is ~3.5–4.8 m before Godot scale | Pipeline `scale` 0.001 is not the draw matrix. Actors are `0.01`; acres are `0.0625`. `FieldCatalog.actor_uniform_scale()` (0.5) maps the player into the 2 m cell grid |
 | Magenta PNG | Unsupported BTI format (CI14X2 still incomplete) |
 | Invisible walls in grass / falling into rivers | Collision was a guessed strip or a gravity hole. Need `grd_*.col.json`; water is a heightfield plus bank walls, not `NO_FLOOR` |
@@ -339,7 +350,7 @@ Preview (after convert):
 - Effects: document appearance, then recreate with `GPUParticles3D`. Do not port JPA.
 - REL `.data` offset is hardcoded for `GAFE01_00`.
 - BTI: CI14X2 incomplete; IA4 added but less common on this disc.
-- Shadow blobs (`*_shadow_v`) are skipped; Godot uses the sun.
+- Shadow blobs (`*_shadow_v`) convert to companion GLBs; `GeneratedVisual` attaches them next to the main mesh. Characters use a procedural blob (`actor_blob_shadow.tscn`) instead of DirectionalLight shadows.
 - Famicom `*.bti.szs` on this dump are already uncompressed BTI (not Yaz0); the converter reads them directly.
 - Standalone REL texture PNGs under `textures/rel/` infer CI4 dimensions from symbol size; a nearby `_pal` is required (skipped otherwise). Garbage palettes are still possible for textures never referenced by a display list.
 

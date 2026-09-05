@@ -77,7 +77,7 @@ Every system that has durable state: **time, world FG, inventory, villagers, sho
 - Diary, original design, present, and standalone player-pak files.
 - Island save, GBA, e-Reader.
 - `m_flashrom` error codes except as product inspiration for “save failed”.
-- Noticeboard, police lost-and-found, snowmen, museum bitfields until those systems exist.
+- Noticeboard, snowmen, museum mail-in fossils until those systems exist.
 - Emulating `scene_no` integer tables; store a Godot scene path or acre id.
 
 ## Godot mapping reminder

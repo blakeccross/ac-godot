@@ -6,8 +6,8 @@ extends RefCounted
 
 const VISUAL := &"HOLE00"
 const SCENE := "res://scenes/world/hole.tscn"
-## `mCoBG_GetBgY_OnlyCenter_FromWpos2(*pos, -1.0f)` — 1 GX above the unit so the fan is not coplanar with the acre.
-const GROUND_DIST := -FieldCatalog.GX_TO_METERS
+## Same −1 GX lift as other `bg_item` props (`FieldCollision.FG_GROUND_DIST`).
+const GROUND_DIST := FieldCollision.FG_GROUND_DIST
 
 
 static func persist_id(cell: Vector2i) -> StringName:

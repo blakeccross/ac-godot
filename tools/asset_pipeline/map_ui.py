@@ -70,6 +70,11 @@ _KAN_TIZU2_PAL = (
 )
 
 # Unique stems referenced by `l_map_texture[]` in `m_map_ovl.c`.
+# `kan_tizu_model` UVs sample only the top-left 22×22 of each 32×32 CI4 tile
+# (st 0..22); the unused margin is dark grass that must not be drawn.
+_ACRE_TEX_PX = 32
+_ACRE_UV_PX = 22
+
 _ACRE_STEMS: list[str] = [
     "f",
     "tst1",
@@ -199,6 +204,13 @@ class ChromeSpec:
     out_name: str | None = None
 
 
+## PRIM/ENV pairs from `kan_win_*` / `kan_hyouji*` (lerp ENV→PRIM by IA intensity).
+_JELLY_NUM = ((60, 100, 60, 255), (100, 255, 80, 255))
+_JELLY_LETTER = ((60, 80, 130, 255), (70, 240, 255, 255))
+_HERE_MARK = ((80, 50, 50, 255), (255, 70, 30, 255))
+_HOUSE_ICON = ((90, 90, 225, 255), (225, 225, 225, 255))
+_INFO_BUBBLE = ((255, 255, 175, 255), (255, 135, 0, 255))
+
 _CHROME: list[ChromeSpec] = [
     ChromeSpec("kan_win_map_tex", 64, 16, G_IM_FMT_I, G_IM_SIZ_4b, (85, 55, 55, 255), "map_label"),
     ChromeSpec("kan_win_acre_tex", 32, 16, G_IM_FMT_I, G_IM_SIZ_4b, (85, 55, 55, 255), "acre_label"),
@@ -206,12 +218,12 @@ _CHROME: list[ChromeSpec] = [
     ChromeSpec("kan_win_w1_tex", 128, 32, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="frame_w1"),
     ChromeSpec("kan_win_w2_tex", 32, 64, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="frame_w2"),
     ChromeSpec("kan_win_w3_tex", 32, 32, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="frame_w3"),
-    ChromeSpec("kan_win_saki_tex", 32, 32, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="info_panel"),
-    ChromeSpec("kan_win_suuji1_tex", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="col_1"),
-    ChromeSpec("kan_win_suuji2_tex", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="col_2"),
-    ChromeSpec("kan_win_suuji3_tex", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="col_3"),
-    ChromeSpec("kan_win_suuji4_tex", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="col_4"),
-    ChromeSpec("kan_win_suuji5_tex", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="col_5"),
+    ChromeSpec("kan_win_saki_tex", 32, 32, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="info_tip"),
+    ChromeSpec("kan_win_suuji1_tex_rgb_ia8", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="col_1"),
+    ChromeSpec("kan_win_suuji2_tex_rgb_ia8", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="col_2"),
+    ChromeSpec("kan_win_suuji3_tex_rgb_ia8", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="col_3"),
+    ChromeSpec("kan_win_suuji4_tex_rgb_ia8", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="col_4"),
+    ChromeSpec("kan_win_suuji5_tex_rgb_ia8", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="col_5"),
     ChromeSpec("kan_win_a_tex_rgb_ia8", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="row_a"),
     ChromeSpec("kan_win_b_tex_rgb_ia8", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="row_b"),
     ChromeSpec("kan_win_c_tex_rgb_ia8", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="row_c"),
@@ -277,11 +289,15 @@ def extract_map_ui(cfg: PipelineConfig) -> dict[str, Any]:
             _extract_chrome(rel, by_name, spec, chrome_stage, chrome_out, cfg.project_root)
         )
 
+    results.append(
+        _bake_info_panel(rel, by_name, chrome_stage, chrome_out, cfg.project_root)
+    )
     shell = _bake_window_shell(rel, by_name, chrome_stage, chrome_out, cfg.project_root)
     results.append(shell)
 
     catalog = {
-        "tile_px": 32,
+        "tile_px": _ACRE_UV_PX,
+        "tile_tex_px": _ACRE_TEX_PX,
         "block_stems": _BLOCK_STEMS,
         "block_pals": _BLOCK_PALS,
         "tiles_dir": "ui/map/tiles",
@@ -330,10 +346,12 @@ def _extract_ci4_tile(
     try:
         sym = _pick_symbol(by_name, sym_name)
         data = rel.slice_at(sym.address, min(sym.size, 512))
-        image = decode_gbi_texture(data, 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, pal)
+        image = decode_gbi_texture(data, _ACRE_TEX_PX, _ACRE_TEX_PX, G_IM_FMT_CI, G_IM_SIZ_4b, pal)
         ## Map acres abut; transparent CI edge texels left cream gaps in Godot. Fill
         ## them with the nearest opaque colour so neighbouring tiles connect.
         image = _fill_transparent(image)
+        ## Match `kan_tizu_v` UVs (0..22) — drop the unused 32×32 margin (dark grass bands).
+        image = image.crop((0, 0, _ACRE_UV_PX, _ACRE_UV_PX))
         png = image_png_bytes(image)
         for folder in (stage_dir, out_dir):
             path = folder / f"{out_stem}.png"
@@ -373,6 +391,8 @@ def _extract_chrome(
         image = decode_gbi_texture(data, spec.width, spec.height, spec.fmt, spec.siz, b"")
         if spec.prim_as_color is not None:
             image = _i_texel_as_alpha(image, spec.prim_as_color)
+        else:
+            image = _colorize_chrome(out_stem, image)
         png = image_png_bytes(image)
         for folder in (stage_dir, out_dir):
             path = folder / f"{out_stem}.png"
@@ -414,6 +434,78 @@ def _compose_cursor_frame(corner: Image.Image) -> Image.Image:
     frame.paste(bl, (0, h), bl)
     frame.paste(br, (w, h), br)
     return frame
+
+
+def _mirror_tile(tile: Image.Image) -> Image.Image:
+    """GX_MIRROR on both axes — 2×2 mirrored sheet from one quadrant."""
+    t = tile.convert("RGBA")
+    w, h = t.size
+    out = Image.new("RGBA", (w * 2, h * 2), (0, 0, 0, 0))
+    tr = t.transpose(Image.FLIP_LEFT_RIGHT)
+    bl = t.transpose(Image.FLIP_TOP_BOTTOM)
+    br = tr.transpose(Image.FLIP_TOP_BOTTOM)
+    out.paste(t, (0, 0), t)
+    out.paste(tr, (w, 0), tr)
+    out.paste(bl, (0, h), bl)
+    out.paste(br, (w, h), br)
+    return out
+
+
+def _colorize_chrome(out_stem: str, image: Image.Image) -> Image.Image:
+    """Apply decomp PRIM/ENV jelly / pin / house colours to IA chrome."""
+    if out_stem.startswith("col_"):
+        prim, env = _JELLY_NUM
+        return _ia_prim_env(image, prim, env)
+    if out_stem.startswith("row_"):
+        prim, env = _JELLY_LETTER
+        return _ia_prim_env(image, prim, env)
+    if out_stem == "here_mark":
+        prim, env = _HERE_MARK
+        return _ia_prim_env(image, prim, env)
+    if out_stem == "icon_house":
+        prim, env = _HOUSE_ICON
+        return _ia_prim_env(image, prim, env)
+    if out_stem == "info_tip":
+        prim, env = _INFO_BUBBLE
+        return _ia_prim_env(image, prim, env)
+    return image
+
+
+def _bake_info_panel(
+    rel: RelData,
+    by_name: dict[str, list[MapSymbol]],
+    stage_dir: Path,
+    out_dir: Path,
+    project_root: Path,
+) -> dict[str, Any]:
+    """Bake `kan_win_waku2a` (mirrored) — scalloped acre-info bubble."""
+    record: dict[str, Any] = {
+        "asset_id": "info_panel",
+        "source": "kan_win_waku2a_tex + color0[+0x58]",
+        "output_path": "ui/map/chrome/info_panel.png",
+        "status": "pending",
+        "error": None,
+    }
+    try:
+        sym = _pick_symbol(by_name, "kan_win_waku2a_tex")
+        data = rel.slice_at(sym.address, min(sym.size, 64 * 64))
+        tile = decode_gbi_texture(data, 64, 64, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
+        prim, env = _INFO_BUBBLE
+        colored = _ia_prim_env(tile, prim, env)
+        panel = _mirror_tile(colored)
+        ## Drop transparent padding so Godot stretch fills the visible scallop.
+        bbox = panel.getbbox()
+        if bbox is not None:
+            panel = panel.crop(bbox)
+        png = image_png_bytes(panel)
+        for folder in (stage_dir, out_dir):
+            (folder / "info_panel.png").write_bytes(png)
+        write_import_sidecar(out_dir / "info_panel.png", project_root)
+        record["status"] = "converted"
+    except Exception as exc:  # noqa: BLE001
+        record["status"] = "error"
+        record["error"] = f"{type(exc).__name__}: {exc}"
+    return record
 
 
 def _fill_transparent(image: Image.Image) -> Image.Image:

@@ -101,6 +101,14 @@ func test_camera_and_spawn_match_decomp() -> void:
 	).is_greater(0.99)
 
 
+func test_stage_clear_is_black_void() -> void:
+	## Captures show black; fog stays off. Grain comes from spot2, not clear color.
+	assert_float(IntroKkStage.BG_COLOR.r).is_equal_approx(0.0, 0.001)
+	assert_float(IntroKkStage.BG_COLOR.g).is_equal_approx(0.0, 0.001)
+	assert_float(IntroKkStage.BG_COLOR.b).is_equal_approx(0.0, 0.001)
+	assert_float(IntroKkStage.FOG_COLOR.r).is_equal_approx(100.0 / 255.0, 0.001)
+
+
 func test_kk_scene_loads() -> void:
 	var packed: PackedScene = load("res://scenes/ui/intro_kk.tscn")
 	assert_that(packed).is_not_null()

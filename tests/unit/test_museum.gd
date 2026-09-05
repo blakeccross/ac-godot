@@ -178,6 +178,38 @@ func test_fish_tank_meshes_resolve() -> void:
 	)
 
 
+func test_fish_tank_materials_stop_layer_fighting() -> void:
+	## MASK frame + BLEND evw share wall planes; CULL_DISABLED made each quad fight itself.
+	var host := Node3D.new()
+	auto_free(host)
+	add_child(host)
+	var pivot: Node3D = GeneratedVisual.attach(host, &"obj_suisou1")
+	assert_that(pivot).is_not_null()
+	var saw_mask := false
+	var saw_blend := false
+	for node: Node in pivot.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		for i: int in mi.mesh.get_surface_count():
+			var mat: Material = mi.get_active_material(i)
+			if not mat is StandardMaterial3D:
+				continue
+			var std := mat as StandardMaterial3D
+			assert_int(std.cull_mode).is_equal(BaseMaterial3D.CULL_BACK)
+			if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR:
+				saw_mask = true
+				assert_int(std.depth_draw_mode).is_equal(BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY)
+			elif std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
+				saw_blend = true
+				assert_int(std.depth_draw_mode).is_equal(BaseMaterial3D.DEPTH_DRAW_DISABLED)
+		## Do not XZ-scale the blend mesh — that shrank water away from the frame.
+		if String(mi.name).ends_with("_blend"):
+			assert_float(mi.scale.x).is_equal_approx(1.0, 0.0001)
+	assert_bool(saw_mask).is_true()
+	assert_bool(saw_blend).is_true()
+
+
 func test_museum5_uses_acre_ground_datum() -> void:
 	## Sea tank verts are acre-space; floor datum Y=40 GX must land on world 0 like rom shells.
 	var host := Node3D.new()

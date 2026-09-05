@@ -24,6 +24,20 @@ const RARM2_INDEX := 19
 const RHAND_INDEX := 20
 
 
+static func left_hand_global(skeleton: Skeleton3D) -> Vector3:
+	## World space of the computed left hand (`Player_actor_draw_After_Larm2`).
+	if skeleton == null or not is_instance_valid(skeleton):
+		return Vector3.ZERO
+	var bone := _arm_bone_name(skeleton)
+	if bone.is_empty():
+		return skeleton.global_position
+	var idx: int = skeleton.find_bone(bone)
+	if idx < 0:
+		return skeleton.global_position
+	var pose: Transform3D = skeleton.global_transform * skeleton.get_bone_global_pose(idx)
+	return pose * _hand_offset(skeleton)
+
+
 static func bind_creature(skeleton: Skeleton3D, item: ItemData) -> Node3D:
 	if item is FishData:
 		return bind(skeleton, item as FishData)

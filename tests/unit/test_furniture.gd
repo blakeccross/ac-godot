@@ -154,3 +154,5 @@ func test_decorating_picks_up_before_sit() -> void:
 	ctx.inventory = Game.inventory
 	var action: Interaction = Interaction.primary(node.get_interactions(ctx))
 	assert_str(String(action.id)).is_equal(String(Interaction.PICK_UP))
+	assert_str(String(action.player_anim)).is_equal("ply_1_pickup1")
+	assert_float(action.effect_frame).is_equal(20.0)

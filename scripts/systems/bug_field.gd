@@ -16,15 +16,17 @@ const MAX_FIELD_SPAWNS := 8
 ## `aINS_cull_check`: drop when far and in another acre (600 GX).
 const CULL_DISTANCE := 600.0 * FieldCatalog.GX_TO_METERS
 ## Per-type `l_insect_birth_sum` (min, additional_range). Most types birth 1.
+## Indices match `aINS_INSECT_TYPE_*` / `BugData.type_index`. Only ant (38) and
+## mosquito (39) birth a swarm of 6–8; fireflies and dragonflies are singles.
 const BIRTH_SUM: Array[Vector2i] = [
 	Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0),
 	Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0),
-	Vector2i(6, 3), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0),
 	Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0),
 	Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0),
-	Vector2i(1, 0), Vector2i(1, 0), Vector2i(6, 3), Vector2i(1, 0), Vector2i(1, 0),
 	Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0),
 	Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0),
+	Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0),
+	Vector2i(1, 0), Vector2i(1, 0), Vector2i(1, 0), Vector2i(6, 3), Vector2i(6, 3),
 	Vector2i(1, 0),
 ]
 

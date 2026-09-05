@@ -69,6 +69,28 @@ def wrap_to_gltf(mode: int) -> int:
     return GLTF_CLAMP
 
 
+def fit_clamp_axis(lo: float, hi: float) -> tuple[float, float] | None:
+    """Map a CLAMP UV span onto [0, 1] when it sits entirely outside the unit tile.
+
+    Saturating to the edge painted whole quads with the border texel — e.g. tunnel
+    walls with U=1..4 under GX_CLAMP became a solid black strip. Fitting the
+    authored span preserves the brick sheet.
+
+    Spans that still sample the interior of ``[0, 1]`` keep hardware clamp —
+    tank glass U=0..6 and ``grd_player_select`` floor U=[-1.5, 2.5] must edge-clamp,
+    not stretch the sheet across the whole quad.
+    """
+    if hi - lo < 1e-6:
+        return None
+    if lo >= -1e-6 and hi <= 1.0 + 1e-6:
+        return None
+    ## Overlaps (0, 1): real CLAMP (edge texels outside). Only fit when the
+    ## authored range lies entirely on one side of the unit tile.
+    if lo < 1.0 - 1e-6 and hi > 1e-6:
+        return None
+    return lo, hi - lo
+
+
 def gbi_to_gx(fmt: int, siz: int) -> int:
     if fmt == G_IM_FMT_CI and siz == G_IM_SIZ_4b:
         return CI4
@@ -158,6 +180,16 @@ def i4_png_as_alpha(png: bytes) -> bytes:
     return image_png_bytes(Image.merge("RGBA", (white, white, white, r)))
 
 
+def clear_png_alpha(png: bytes) -> bytes:
+    """Force every texel to a=0 (runtime PRIM_LOD_FRAC / lod_factor gate)."""
+    if not png:
+        return png
+    image = Image.open(io.BytesIO(png)).convert("RGBA")
+    r, g, b, _a = image.split()
+    zero = Image.new("L", image.size, 0)
+    return image_png_bytes(Image.merge("RGBA", (r, g, b, zero)))
+
+
 def flood_opaque_alpha(png: bytes) -> bytes:
     """Force every texel to a=255 so unused chromakey cannot cut an OPAQUE mesh."""
     if not png:
@@ -167,6 +199,28 @@ def flood_opaque_alpha(png: bytes) -> bytes:
     if all(p[3] == 255 for p in pixels):
         return png
     image.putdata([(p[0], p[1], p[2], 255) for p in pixels])
+    return image_png_bytes(image)
+
+
+def harden_tex_edge_alpha(png: bytes, *, cutoff: int = 128) -> bytes:
+    """Collapse ACHD soft fringe to hard TEX_EDGE coverage (MASK).
+
+    Soft AA on cutout glass bleeds wrong edge colors under filtering; the console
+    uses alpha-compare. Keep HD RGB, bin alpha to 0/255.
+    """
+    if not png:
+        return png
+    image = Image.open(io.BytesIO(png)).convert("RGBA")
+    pixels = list(image.getdata())
+    if all(p[3] in (0, 255) for p in pixels):
+        return png
+    out: list[tuple[int, int, int, int]] = []
+    for r, g, b, a in pixels:
+        if a < cutoff:
+            out.append((r, g, b, 0))
+        else:
+            out.append((r, g, b, 255))
+    image.putdata(out)
     return image_png_bytes(image)
 
 
@@ -211,10 +265,9 @@ def bake_player_select_spot_png(
     env: tuple[int, int, int] = _PLAYER_SELECT_SPOT_ENV,
     lod_frac: int = _PLAYER_SELECT_SPOT_LOD,
 ) -> bytes:
-    """Player-select spotlight XLU: `(PRIM-ENV)*I+ENV`, A ≈ I × PRIM_LOD_FRAC.
+    """Bake spotlight XLU: `(PRIM-ENV)*I+ENV`, A ≈ I × PRIM_LOD_FRAC.
 
-    Decomp uses dual I tiles (spot2 scroll + spot); single-tex I is enough for the
-    soft yellow cone over the wood floor.
+    GC pairs this with scrolling spot2 via RDP combine + EVW — we bake the cone only.
     """
     image = Image.open(io.BytesIO(png)).convert("RGBA")
     pr, pg, pb, _pa = prim
@@ -254,7 +307,14 @@ def bake_player_select_shade_png(
 
 
 def is_player_select_spot_tex(name: str) -> bool:
-    return "rom_open_spot" in (name or "").lower()
+    ## Spot cone only — not dual-tile `rom_open_spot2_tex_rgb_i4`.
+    n = (name or "").lower()
+    return "rom_open_spot" in n and "spot2" not in n
+
+
+def is_player_select_fog_tex(name: str) -> bool:
+    ## Scrolling I4 grain paired with the spot cone (`grd_player_select_evw_anime`).
+    return "rom_open_spot2" in (name or "").lower()
 
 
 def is_player_select_shade_tex(name: str) -> bool:
@@ -329,6 +389,9 @@ def resolve_alpha_mode(
     if coverage == COVERAGE_TEX_EDGE:
         if samples_transparent is False:
             return "OPAQUE"
+        ## ACHD soft AA on TEX_EDGE: keep BLEND instead of hard MASK scissor.
+        if texel_mode == "BLEND":
+            return "BLEND"
         if samples_transparent is True:
             return "MASK"
         if texel_mode == "OPAQUE":
@@ -337,6 +400,23 @@ def resolve_alpha_mode(
     if coverage == COVERAGE_XLU:
         return "BLEND"
     return texel_mode or "OPAQUE"
+
+
+def demote_opaque_uv_alpha(
+    coverage: str | None,
+    alpha_mode: str,
+    *,
+    samples_transparent: bool | None,
+) -> str:
+    """OPAQUE when a body DL's UVs never hit transparent texels.
+
+    House walls often omit SetRenderMode and share a cutout atlas with the door
+    plaque. ACHD softens that atlas to BLEND; without this demotion those walls
+    stay in Godot's transparent pass and z-fight the MASK door.
+    """
+    if coverage is None and samples_transparent is False and alpha_mode in ("MASK", "BLEND"):
+        return "OPAQUE"
+    return alpha_mode
 
 
 def png_has_transparent_texels(png: bytes | None, cutoff: int = _ALPHA_TRANSPARENT) -> bool:
@@ -371,27 +451,51 @@ def uv_samples_transparent(
     wrap_t: int = 0,
     cutoff: int = _ALPHA_TRANSPARENT,
 ) -> bool:
-    """True if any triangle UV footprint hits a texel with A below cutoff."""
+    """True if any triangle UV footprint hits a texel with A below cutoff.
+
+    CLAMP axes with UVs entirely outside ``[0, 1]`` are fitted the same way as
+    ``glb._fit_clamp_axis`` / wrap-bake (tunnel brick U=1..4). Spans that still
+    overlap the unit tile (tank glass U=0..6) keep hardware edge-clamp so the
+    chromakey interior is visible to TEX_EDGE → MASK.
+    """
     img = image.convert("RGBA")
     w, h = img.size
     if w <= 0 or h <= 0 or not triangles:
         return False
     pixels = img.load()
 
-    def sample(u: float, v: float) -> int:
-        ## Match glTF UVs; REPEAT wraps, CLAMP/MIRROR treat out-of-range as edge.
-        if wrap_s == GX_REPEAT:
+    us = [float(v.u) for v in vertices]
+    vs = [float(v.v) for v in vertices]
+    fit_u = None
+    fit_v = None
+    if us and wrap_s == GX_CLAMP:
+        fit_u = fit_clamp_axis(min(us), max(us))
+    if vs and wrap_t == GX_CLAMP:
+        fit_v = fit_clamp_axis(min(vs), max(vs))
+
+    def map_uv(u: float, v: float) -> tuple[float, float]:
+        if fit_u is not None:
+            u = (u - fit_u[0]) / fit_u[1]
+        elif wrap_s == GX_REPEAT:
             u = u - math.floor(u)
         else:
             u = min(1.0, max(0.0, u))
-        if wrap_t == GX_REPEAT:
+        if fit_v is not None:
+            v = (v - fit_v[0]) / fit_v[1]
+        elif wrap_t == GX_REPEAT:
             v = v - math.floor(v)
         else:
             v = min(1.0, max(0.0, v))
+        return u, v
+
+    def sample(u: float, v: float) -> int:
+        u, v = map_uv(u, v)
         x = min(w - 1, max(0, int(u * w)))
         y = min(h - 1, max(0, int(v * h)))
         return int(pixels[x, y][3])
 
+    transparent_hits = 0
+    total = 0
     for i0, i1, i2 in triangles:
         pts = (vertices[i0], vertices[i1], vertices[i2])
         uvs = [(float(p.u), float(p.v)) for p in pts]
@@ -407,9 +511,16 @@ def uv_samples_transparent(
             )
         )
         for u, v in samples:
+            total += 1
             if sample(u, v) < cutoff:
-                return True
-    return False
+                transparent_hits += 1
+    if total <= 0:
+        return False
+    ## Clamp-fit maps the span endpoint onto the sheet edge; a single chromakey
+    ## border texel must not force MASK. Require a real transparent footprint.
+    if fit_u is not None or fit_v is not None:
+        return transparent_hits * 4 >= total  # ≥25%
+    return transparent_hits > 0
 
 
 # Decomp `structure_pal.c`: Japanese mesh prefixes vs English palette symbols.
@@ -520,6 +631,12 @@ def is_train_structure_texture(tex_name: str) -> bool:
     return tex_name.startswith("obj_train1_t") and "_tex" in tex_name
 
 
+def is_player_select_stage_texture(tex_name: str) -> bool:
+    """K.K. opening acre (`rom_open_*`). ACHD is a near-identical upscale of the
+    tiny I/CI tiles — keep native so the stage matches the GC look."""
+    return "rom_open_" in (tex_name or "").lower()
+
+
 def skips_achd_texture(tex_name: str) -> bool:
     """Textures whose Dolphin hashes collide with unrelated ACHD sheets."""
     return (
@@ -527,6 +644,7 @@ def skips_achd_texture(tex_name: str) -> bool:
         or is_indoor_mado_texture(tex_name)
         or is_house_clock_texture(tex_name)
         or is_train_structure_texture(tex_name)
+        or is_player_select_stage_texture(tex_name)
     )
 
 
@@ -853,6 +971,8 @@ class TextureState:
     wrap_s: int = GX_CLAMP
     wrap_t: int = GX_CLAMP
     prim: tuple[int, int, int, int] = (255, 255, 255, 255)
+    ## False until G_SETPRIMCOLOR — facade panes leave default white but are not outdoor-view.
+    prim_set: bool = False
     env: tuple[int, int, int, int] = (255, 255, 255, 255)
     ## Dual-tile water (river water1+water2, ocean wave1+wave2/3): snapshot on
     ## G_SETTILE_DOLPHIN tile 0 / tile 1 before the next SETTIMG overwrites img_addr.
@@ -1057,7 +1177,7 @@ class TextureBank:
         if (
             prefix.startswith("rom_")
             or prefix.startswith("mCL_rom_")
-            or prefix in {"police_indoor", "room01"}
+            or prefix in {"police_indoor", "room01", "grd_post_office"}
         ):
             kind = shop_shell_kind(prefix)
             is_wall = "wall" in prefix or kind == "wall"
@@ -1471,7 +1591,9 @@ class TextureBank:
         except ValueError:
             return None
 
-    def decode_current(self, state: TextureState) -> tuple[bytes | None, str, str]:
+    def decode_current(
+        self, state: TextureState, *, allow_achd: bool = True
+    ) -> tuple[bytes | None, str, str]:
         if state.width <= 0 or state.height <= 0 or state.img_addr == 0:
             return None, "", "OPAQUE"
         if state.img_addr >> 24:
@@ -1496,7 +1618,17 @@ class TextureBank:
                 return png, name, mode
         pal = self._palette_for(state)
         name = self._name_for(state.img_addr)
-        key = (state.img_addr, state.width, state.height, state.fmt, state.siz, pal or b"", state.prim)
+        use_achd = bool(allow_achd and self.achd is not None)
+        key = (
+            state.img_addr,
+            state.width,
+            state.height,
+            state.fmt,
+            state.siz,
+            pal or b"",
+            state.prim,
+            use_achd,
+        )
         cached = self._png_cache.get(key)
         if cached is not None:
             return cached[0], name, cached[1]
@@ -1504,7 +1636,7 @@ class TextureBank:
         if data is None:
             return None, name, "OPAQUE"
         gx = gbi_to_gx(state.fmt, state.siz)
-        if self.achd is not None:
+        if use_achd:
             from .achd import (
                 is_field_terrain_texture,
                 is_player_model_texture,
@@ -1512,10 +1644,10 @@ class TextureBank:
                 maybe_hd_png,
             )
 
-            ## Museum plates / indoor mado / house clocks: ACHD hash collisions swap
-            ## scrap boards, red sheets, or wrong-size RGBA. Keep native below.
-            ## Room-bank pages wrap-bake 64×64 tiles; HD sheets become empty/mud.
-            ## Player shirt/face: HD wrap-bake seams the REPEAT shirt atlas.
+            ## Hash-collision sheets (museum plates / mado / clocks / train CI) stay
+            ## on ``skips_achd_texture``. Field/tree/palm/cedar + room banks + player
+            ## body must stay native — ``achd_png_usable`` alone still allows CLAMP
+            ## upscales (hardwood leaf/trunk), which then break season re-tiling.
             if (
                 not skips_achd_texture(name)
                 and not is_room_bank_texture(name)
@@ -1527,7 +1659,16 @@ class TextureBank:
                 if museum_dummy_wood_twin(name) is not None:
                     hd = self._museum_dummy_wood_png(name, state.width, state.height, gx)
                 else:
-                    hd = maybe_hd_png(self.achd, data, state.width, state.height, gx, pal)
+                    hd = maybe_hd_png(
+                        self.achd,
+                        data,
+                        state.width,
+                        state.height,
+                        gx,
+                        pal,
+                        wrap_s=state.wrap_s,
+                        wrap_t=state.wrap_t,
+                    )
                     if hd is None:
                         hd = self._museum_art_house_achd(name, state.width, state.height, gx)
                 if hd is not None:
@@ -1554,6 +1695,7 @@ class TextureBank:
                     state.siz,
                     pal,
                     state.prim,
+                    use_achd,
                 )
                 cached = self._png_cache.get(key)
                 if cached is not None:

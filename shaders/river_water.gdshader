@@ -1,6 +1,4 @@
 shader_type spatial;
-render_mode unshaded, blend_mix, depth_draw_opaque, cull_disabled, shadows_disabled, specular_disabled, ambient_light_disabled;
-
 // 1:1 acre XLU river (`grd_*_modelT` + Evw_Anime SCROLL2).
 // Decomp: ac_field_draw aFD_texture_scroll2_data, grd_*_modelT combiner.
 //
@@ -15,8 +13,16 @@ render_mode unshaded, blend_mix, depth_draw_opaque, cull_disabled, shadows_disab
 // Sampling is linear, not nearest like the rest of the project: m_rcp sets
 // G_TF_BILERP globally, and these 32px cell maps are stretched down a whole acre,
 // so point sampling turns the soft cells into a hard pixel grid.
+//
+// RDP blends XLU in 8-bit gamma; Godot blend_mix is linear HDR. At this layer's
+// 0.20–0.38 alpha that over-lifts water1 foam (measured crest ~135 vs hardware ~90).
+// Composite in sRGB against the screen, then emit opaque ALBEDO.
+render_mode unshaded, blend_mix, depth_draw_opaque, cull_disabled, shadows_disabled,
+		specular_disabled, ambient_light_disabled, fog_disabled;
+
 uniform sampler2D water1 : filter_linear, repeat_enable;
 uniform sampler2D water2 : filter_linear, repeat_enable;
+uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_nearest;
 uniform vec4 prim_color : source_color = vec4(1.0, 1.0, 1.0, 0.19607843);
 uniform vec4 env_color : source_color = vec4(0.0, 0.39215687, 1.0, 1.0);
 uniform float game_fps = 60.0;
@@ -62,7 +68,12 @@ void fragment() {
 	vec3 n = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	float shade = mix(0.45, 1.0, clamp(dot(n, normalize(vec3(0.35, 0.9, 0.2))), 0.0, 1.0));
 	// Cycle2 RGB: COMBINED * SHADE + TEXEL0
-	ALBEDO = srgb_to_linear(clamp(combined * shade + vec3(t0), vec3(0.0), vec3(1.0)));
+	vec3 rgb_srgb = clamp(combined * shade + vec3(t0), vec3(0.0), vec3(1.0));
 	// Cycle2 A: COMBINED * PRIM_LOD_FRAC + PRIM  (LOD=50, A=50)
-	ALPHA = clamp(clamp(t0 + t1, 0.0, 1.0) * 0.19607843 + 0.19607843, 0.0, 1.0);
+	float a = clamp(clamp(t0 + t1, 0.0, 1.0) * 0.19607843 + 0.19607843, 0.0, 1.0);
+
+	vec3 back_srgb = linear_to_srgb(textureLod(screen_texture, SCREEN_UV, 0.0).rgb);
+	ALBEDO = srgb_to_linear(mix(back_srgb, rgb_srgb, a));
+	// Keep the transparent pass (screen_texture filled) while replacing the pixel.
+	ALPHA = 1.0;
 }

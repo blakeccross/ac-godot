@@ -46,6 +46,7 @@ var surface_y: float = 0.0
 var auto_spawn: bool = true
 
 var _grid: WorldGrid = null
+var _layout: WorldData = null
 var _spawn_timer: float = 0.0
 var _tool_swing: float = 0.0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -54,13 +55,25 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 const TOOL_SWING_SECONDS := 0.2
 
 
-func configure(grid: WorldGrid, water_surface_y: float = 0.0) -> void:
+func configure(grid: WorldGrid, water_surface_y: float = 0.0, layout: WorldData = null) -> void:
 	_grid = grid
-	bodies = WaterBodies.find(grid)
+	_layout = layout
+	bodies = WaterBodies.find(grid, layout)
 	surface_y = water_surface_y
 	shadows.clear()
 	puffs.clear()
 	_spawn_timer = 0.0
+
+
+## Catalog water is a heightfield (`mCoBG_GetWaterHeight`). Fallback is the flat placeholder
+## plane used by authored test towns without unit tables.
+func surface_at(pos: Vector3) -> float:
+	if _layout != null and _grid != null:
+		var cell: Vector2i = _grid.world_to_cell(pos)
+		var y: float = FieldCollision.height_at(_layout, cell, false)
+		if FieldCollision.has_floor(y):
+			return y
+	return surface_y
 
 
 func seed_rng(value: int) -> void:
@@ -111,7 +124,7 @@ func spawn(fish: FishData, body: WaterBodies.Body, at: Vector3) -> FishShadow:
 	if fish == null or shadows.size() >= MAX_SHADOWS:
 		return null
 	var shadow: FishShadow = FishShadow.create(fish, body, at, _rng)
-	shadow.position.y = surface_y - FishSize.depth()
+	shadow.position.y = surface_at(at) - FishSize.depth()
 	if _grid != null:
 		shadow.cell_lookup = _grid.world_to_cell
 	shadows.append(shadow)
@@ -175,7 +188,10 @@ func _pick_cell(player_position: Vector3) -> Vector2i:
 	var candidates: Array[Vector2i] = []
 	for body: WaterBodies.Body in bodies:
 		for cell: Vector2i in body.cells:
-			var dist: float = _grid.cell_to_world(cell).distance_to(player_position)
+			var world: Vector3 = _grid.cell_to_world(cell)
+			var dist: float = Vector2(
+				world.x - player_position.x, world.z - player_position.z
+			).length()
 			if dist >= SPAWN_MIN and dist <= SPAWN_MAX and not _occupied(cell):
 				candidates.append(cell)
 	if candidates.is_empty():

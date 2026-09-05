@@ -8,9 +8,9 @@ const TILES_DIR := "res://assets/generated/ui/map/tiles"
 const CHROME_DIR := "res://assets/generated/ui/map/chrome"
 const CATALOG_PATH := "res://assets/generated/ui/map/catalog.json"
 
-## Display size of one acre tile. Native CI is 32×32; 2× nearest keeps seams crisp.
-const TILE_PX := 64
-const NATIVE_TILE_PX := 32
+## Display size of one acre tile. Native drawn region is 22×22 (`kan_tizu` UVs).
+const TILE_PX := 75
+const NATIVE_TILE_PX := 22
 const CURSOR_FRAMES := 18
 
 ## Decomp `l_map_pal` / stems for `mFM_BLOCK_TYPE_*`. Godot compact ids remap first.
@@ -174,7 +174,7 @@ static func label_for_acre(data: WorldData, fg: Vector2i) -> String:
 		type = int(data.acre_types[block.y * TownFieldGenerator.BLOCK_X + block.x])
 	match type:
 		TownFieldGenerator.T_TRACKS_STATION:
-			return "Station"
+			return "Train Station"
 		TownFieldGenerator.T_TRACKS_DUMP:
 			return "Dump"
 		TownFieldGenerator.T_PLAYER_HOUSE:
@@ -190,7 +190,7 @@ static func label_for_acre(data: WorldData, fg: Vector2i) -> String:
 		TownFieldGenerator.T_MUSEUM:
 			return "Museum"
 		TownFieldGenerator.T_NEEDLEWORK:
-			return "Able Sisters"
+			return "Tailor"
 		TownFieldGenerator.T_PORT:
 			return "Dock"
 		_:
@@ -206,6 +206,48 @@ static func label_for_acre(data: WorldData, fg: Vector2i) -> String:
 		if id == &"player_house":
 			return "Your house"
 	return TownFieldGenerator.acre_abbrev(type).strip_edges()
+
+
+## Chrome stem for the selected-acre feature icon (left panel), or "".
+static func icon_name_for_acre(data: WorldData, fg: Vector2i) -> String:
+	if data == null or fg.x < 0:
+		return ""
+	var block: Vector2i = block_from_fg(fg)
+	var type: int = TownFieldGenerator.T_FLAT
+	if data.acre_types.size() == TownFieldGenerator.BLOCK_TOTAL:
+		type = int(data.acre_types[block.y * TownFieldGenerator.BLOCK_X + block.x])
+	match type:
+		TownFieldGenerator.T_TRACKS_STATION:
+			return "icon_station"
+		TownFieldGenerator.T_TRACKS_DUMP:
+			return "icon_dump"
+		TownFieldGenerator.T_PLAYER_HOUSE:
+			return "icon_house"
+		TownFieldGenerator.T_TRACKS_SHOP:
+			return "icon_shop"
+		TownFieldGenerator.T_SHRINE:
+			return "icon_shrine"
+		TownFieldGenerator.T_TRACKS_POST:
+			return "icon_post"
+		TownFieldGenerator.T_POLICE:
+			return "icon_police"
+		TownFieldGenerator.T_MUSEUM:
+			return "icon_museum"
+		TownFieldGenerator.T_NEEDLEWORK:
+			return "icon_able"
+		TownFieldGenerator.T_PORT:
+			return "icon_port"
+		_:
+			pass
+	for b: BuildingPlacement in data.buildings:
+		if b == null:
+			continue
+		if VillagerWalk.block_from_cell(b.cell) != block:
+			continue
+		var id := String(b.id)
+		if id.begins_with("npc_house_") or id == "player_house":
+			return "icon_house"
+	return ""
 
 
 ## Cursor pulse green channel 0–100 over `mMP_CURSOR_FRAMES` (decomp `col_g`).

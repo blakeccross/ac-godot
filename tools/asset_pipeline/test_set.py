@@ -15,6 +15,7 @@ TEST_SKELETONS = [
             "cKF_ba_r_ply_1_axe1",
             "cKF_ba_r_ply_1_axe_swing1",
             "cKF_ba_r_ply_1_pickup1",
+            "cKF_ba_r_ply_1_putaway1",
             "cKF_ba_r_ply_1_dig1",
             "cKF_ba_r_ply_1_shake1",
             "cKF_ba_r_ply_1_net_swing1",

@@ -141,6 +141,59 @@ func test_open_water_touching_the_map_edge_reads_as_ocean() -> void:
 	assert_that(WaterBodies.size_ceiling(bodies[0])).is_equal(FishData.SizeClass.WHALE)
 
 
+func test_fish_shadows_draw_above_water_sheets() -> void:
+	## Same trap footprints hit: river/ocean XLU priorities 1–2 paint over priority 0.
+	var src := FileAccess.get_file_as_string("res://scenes/world/fish_shadows.gd")
+	assert_str(src).contains("RENDER_PRIORITY := 3")
+	assert_str(src).contains("render_priority = RENDER_PRIORITY")
+
+
+func test_sea_and_river_attrs_do_not_merge_into_one_ocean() -> void:
+	## A freshwater channel that touches a sea strip must stay a river, or river-only fish
+	## never spawn once the mouth meets the beach.
+	if not FieldCatalog.has_acre_collision(&"grd_s_o_1") or not FieldCatalog.has_acre_collision(
+		&"grd_s_r1_1"
+	):
+		return
+	var full := WorldData.new()
+	full.columns = 32
+	full.rows = 32
+	full.acre_types.resize(TownFieldGenerator.BLOCK_TOTAL)
+	full.acre_types.fill(0)
+	full.acre_visuals.resize(TownFieldGenerator.BLOCK_TOTAL)
+	full.acre_visuals.fill("")
+	## FG acre (1,1) river visual, (1,2) ocean visual — origins at (0,0) and (0,16).
+	full.acre_visuals[1 * TownFieldGenerator.BLOCK_X + 1] = "grd_s_r1_1"
+	full.acre_visuals[2 * TownFieldGenerator.BLOCK_X + 1] = "grd_s_o_1"
+	full.bake()
+	var grid := WorldGrid.new()
+	grid.configure_from_world(full)
+	## `grd_s_r1_1` freshwater is on units x 4–6; ocean acre is sea on every unit.
+	for z: int in range(0, 16):
+		for x: int in range(4, 7):
+			var cell := Vector2i(x, z)
+			full.set_terrain_cell(cell, WorldGrid.Terrain.WATER)
+			grid.set_terrain(cell, WorldGrid.Terrain.WATER)
+	for x: int in range(0, 16):
+		for z: int in range(16, 22):
+			var cell := Vector2i(x, z)
+			full.set_terrain_cell(cell, WorldGrid.Terrain.WATER)
+			grid.set_terrain(cell, WorldGrid.Terrain.WATER)
+	var split: Array[WaterBodies.Body] = WaterBodies.find(grid, full)
+	assert_int(split.size()).is_greater_equal(2)
+	var river: WaterBodies.Body = WaterBodies.body_at(split, Vector2i(5, 8))
+	var ocean: WaterBodies.Body = WaterBodies.body_at(split, Vector2i(8, 18))
+	assert_that(river).is_not_null()
+	assert_that(ocean).is_not_null()
+	assert_that(river.kind).is_equal(WaterBodies.Kind.RIVER)
+	assert_that(ocean.kind).is_equal(WaterBodies.Kind.OCEAN)
+	assert_bool(river.contains(Vector2i(8, 18))).is_false()
+	## Without attrs the same connected shape collapses to one ocean.
+	var merged: Array[WaterBodies.Body] = WaterBodies.find(grid)
+	assert_int(merged.size()).is_equal(1)
+	assert_that(merged[0].kind).is_equal(WaterBodies.Kind.OCEAN)
+
+
 func test_a_shadow_holds_station_then_wanders() -> void:
 	var shadow: FishShadow = _shadow(FishData.SizeClass.M, 2, 3, _at(Vector2i(8, 8)))
 	assert_that(shadow.action).is_equal(FishShadow.Action.WAIT)

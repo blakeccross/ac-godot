@@ -102,6 +102,7 @@ From `m_name_table.h` / `m_bg_type.h` / `ac_sign`. Summer prefix `obj_s_`; winte
 | Wishing well | `obj_s_shrine` | `obj_s_shrine.glb` |
 | Train station | `obj_s_station1` | `obj_s_station1.glb` |
 | `SIGNBOARD` / `ac_sign` | Field sign (`obj_s_kanban`) | `obj_{s,w}_kanban.glb` via `write_model` + `obj_sign_{s,w}_model` |
-| `ITM_FOOD_APPLE` | Dropped apple | `obj_item_apple_tex.png` on the pickup |
+| `ITM_FOOD_APPLE` | Dropped apple | `obj_item_apple.glb` (`obj_apple2_modelT` 4-vert TEX_EDGE card) on `item_pickup` |
+| `ITM_MONEY_*` | Dropped bells bag | `obj_item_bag.glb` (`bag_DL_mode` + `bag_DL_vtx`) |
 | `int_sum_chair01` | Wood chair | `int_sum_chair01.glb` |
 | Villager | Species GLB (`squ_1`, `cat_1`, …) + shared `npc_1` clips when converted; placeholder capsule otherwise | `GeneratedVisual.attach_villager` / `FieldCatalog.villager_path` |

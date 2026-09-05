@@ -67,23 +67,27 @@ Buried items share the FG slot (hole vs item). Flowers breed in the original; th
 ## Reproduce
 
 - **One tree:** shake for fruit → chop down to a stump → shovel the stump. Plant an apple sapling on grass (or in a hole). Flowers: water to grow, pick when bloomed.
-- Stored per plant: `planted_renew`, plus `last_watered_renew` (flowers) and `fruit_taken_renew` (trees). Visual stage is **derived**.
+- Stored per plant: `planted_renew`, plus `last_watered_renew` (flowers), `fruit_taken_renew` (trees), and `shake_content` (`bells` / `bees` / `furniture` / planted money).
 - Pipeline: Seed → Growing → Mature → Harvestable. Apple `stage_days` `[1, 3, 5, 7]` means day 0 seed, 1–2 growing, 3–4 mature, 5+ harvestable. Seed/growing use `obj_s_tree1` / `tree2` (`TREE_S0` / `TREE_S1`), not a scaled-down full tree.
 - Trees keep counting in winter. Flowers with `winter_pauses` skip winter renews. Watering a flower sets `last_watered_renew` to today and unlocks growth up to today; same-day re-water is a no-op.
 - Fruit returns the next 06:00 because `fruit_taken_renew < now_renew`.
 - Full trees take **3** axe hits (`tree_cut_tbl` S2/full). Fruit drops on the **first** shake or chop that still has fruit (3 apples, 2 coconuts), then the tree is bare.
+- Daily renew tops up special bare mature trees: bees (up to 5), furniture (2), money bags (30) — `PlantGrowth.assign_special_trees`. Shake drops honeycomb (+ bee swarm), random furniture, or `money_100` (×1) / planted denominations (×3).
+- Player shake applies at **frame 10** (`effect_frame`); tree sway follows EffectBG `shakeL` / `shakeS` keyframes. Drops arc from crown GX offsets onto W/E/S tiles.
 - The last hit leaves a **stump**, not an empty tile. Cut progress is session-only; the stump itself is saved (`Game.stump_interactables`). Felling **clears** the growth record so restore does not spawn a second tree.
 - Occupies a tile; cannot plant on occupied/blocked tiles (a hole is allowed: fill, then plant).
-- Shake is a locked player anim that may emit an item. Chop plays `ply_1_axe_swing1` (`mPlayer_ANIM_AXE_SWING1`); the tree wobbles, then falls away from the player.
+- Chop plays `ply_1_axe_swing1` (`mPlayer_ANIM_AXE_SWING1`); the tree wobbles, then falls away from the player.
 
 ## Simplify
 
 - One fruit tree and one flower through Seed → Growing → Mature → Harvestable. Water flowers, not trees.
-- No flower breeding, gold trees, cedar/hardwood seasonal swap, 10k/30k bell trees.
-- Mushrooms, bees, dumped furniture-from-trees, and axe durability wait.
-- Shake / fall are Godot tweens on the live mesh, not converted `ef_s_tree5_*` EffectBG clips.
+- No flower breeding, gold trees, cedar/hardwood seasonal swap.
+- Destiny luck (money → 1000 / goods → Redd-or-lottery furniture) and Christmas lights wait.
+- Bee swarm is a chase + sting lock, not full `ac_bee` net-catch / BGM duck / multi-bee states.
+- Shake / fall use Godot tweens keyed off EffectBG angles, not converted `ef_s_tree5_*` clips.
 - Digging a stump leaves a hole on that tile (`DIG_SCOOP` after the stump flies). Fill with the shovel (`FILL_SCOOP`).
 - Palm exists as sand-only terrain data; not a second content loop.
+- Planted money trees are shake-supported; burying bells to grow them waits.
 
 ## Ignore
 

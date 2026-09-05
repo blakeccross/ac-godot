@@ -231,7 +231,7 @@ func test_follow_camera_begin_end_talk() -> void:
 	## Morph in — no snap on begin.
 	assert_vector(cam.global_position).is_equal(follow_pos)
 	for _i: int in 20:
-		await get_tree().process_frame
+		await get_tree().physics_frame
 	assert_bool(cam.global_position.distance_to(follow_pos) > 0.5).is_true()
 	cam.call("end_talk")
 	assert_bool(cam.call("is_talking")).is_false()

@@ -266,6 +266,9 @@ func use_slot(index: int) -> String:
 	var removed: InventoryItem = remove_from_slot(index, 1)
 	if removed.is_empty():
 		return ""
+	if data.bell_value > 0:
+		add_bells(data.bell_value)
+		return "Opened %s (+%d Bells)" % [data.display_name, data.bell_value]
 	var verb: String = data.use_verb if data.use_verb != "" else "Used"
 	return "%s %s" % [verb, data.display_name]
 

@@ -479,9 +479,27 @@ func test_builder_instances_test_town_scenes() -> void:
 	assert_that(world.get_node_or_null("Objects/acre_sign")).is_not_null()
 	var acre_sign: Node3D = world.get_node("Objects/acre_sign") as Node3D
 	var sign_cell: Vector2i = _object_at(data, &"acre_sign")
-	assert_float(acre_sign.position.y).is_equal_approx(FieldCollision.ground_y(data, sign_cell), 0.001)
+	assert_float(acre_sign.position.y).is_equal_approx(
+		FieldCollision.ground_y(data, sign_cell, FieldCollision.FG_GROUND_DIST), 0.001
+	)
 	assert_that(world.get_node_or_null("Objects/yard_chair")).is_not_null()
+	var yard_chair: Node3D = world.get_node("Objects/yard_chair") as Node3D
+	var chair_cell: Vector2i = grid.world_to_cell(yard_chair.position)
+	assert_float(yard_chair.position.y).is_equal_approx(
+		FieldCollision.ground_y(data, chair_cell, FieldCollision.FG_GROUND_DIST), 0.001
+	)
 	assert_that(world.get_node_or_null("Objects/tree_1")).is_not_null()
+	var tree_1: Node3D = world.get_node("Objects/tree_1") as Node3D
+	var tree_cell: Vector2i = grid.world_to_cell(tree_1.position)
+	assert_float(tree_1.position.y).is_equal_approx(
+		FieldCollision.ground_y(data, tree_cell, FieldCollision.FG_GROUND_DIST), 0.001
+	)
+	assert_float(tree_1.position.y).is_equal_approx(
+		FieldCollision.ground_y(data, tree_cell) + FieldCatalog.GX_TO_METERS, 0.001
+	)
+	assert_bool(WorldObjectRegistry.uses_bg_item_ground(&"furniture")).is_true()
+	assert_bool(WorldObjectRegistry.uses_bg_item_ground(&"waterfall")).is_false()
+	assert_bool(WorldObjectRegistry.uses_bg_item_ground(&"door")).is_false()
 	assert_that(world.get_node_or_null("Objects/ground_apple")).is_not_null()
 	assert_that(world.get_node_or_null("Characters/filbert")).is_not_null()
 	assert_that(world.get_node_or_null("Characters/PlayerSpawn")).is_not_null()

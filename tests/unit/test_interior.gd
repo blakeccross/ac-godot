@@ -590,6 +590,12 @@ func test_shop_hours_gate_entry() -> void:
 	assert_bool(InteriorCatalog.is_open_now(museum)).is_true()
 	assert_bool(InteriorCatalog.room_template(&"police_box").is_always_open()).is_true()
 	assert_bool(InteriorCatalog.room_template(&"post_office").is_always_open()).is_true()
+	assert_that(InteriorCatalog.room_template(&"post_office").inner_origin).is_equal(
+		PostDisplay.INNER_ORIGIN
+	)
+	assert_that(InteriorCatalog.room_template(&"police_box").door_cell).is_equal(
+		PoliceDisplay.DOOR_CELL
+	)
 	## Able Sisters: open 7:00–2:00 (`aNW_check_opend` closed 2:00–7:00).
 	var able: Room = InteriorCatalog.room_template(&"needlework")
 	assert_int(able.open_hour).is_equal(7)
@@ -830,6 +836,67 @@ func test_door_cell_is_south_of_spawn() -> void:
 	assert_that(room.door_cell).is_equal(InteriorCatalog.PLAYER_SMALL_DOOR_CELL)
 	assert_that(room.spawn_cell).is_equal(InteriorCatalog.PLAYER_SMALL_SPAWN_CELL)
 	assert_int(room.door_cell.y).is_equal(room.spawn_cell.y + 2)
+
+
+func test_house_exit_door_gap_opens_south_wall() -> void:
+	## EXIT_DOOR sits south of the carpet; shell collision must leave a porch gap.
+	## Homes use a centered grid origin (−16,−16) — gap X is negative.
+	var room: Room = InteriorCatalog.room_template(&"player_main")
+	var session := Interior.new()
+	session.bind(room)
+	assert_float(session.grid.origin.x).is_less(0.0)
+	var builder := InteriorBuilder.new()
+	var gaps: Array[Dictionary] = builder.house_door_gaps(room, session.grid)
+	assert_int(gaps.size()).is_equal(1)
+	assert_that(gaps[0]["side"]).is_equal(&"south")
+	assert_float(float(gaps[0]["center"])).is_less(0.0)
+	var left: Vector3 = session.grid.cell_to_world(room.door_cell)
+	var right: Vector3 = session.grid.cell_to_world(room.door_cell + Vector2i(1, 0))
+	assert_float(float(gaps[0]["center"])).is_equal_approx((left.x + right.x) * 0.5, 0.01)
+	assert_float(float(gaps[0]["half"])).is_equal_approx(session.grid.cell_size, 0.01)
+	var root := Node3D.new()
+	auto_free(root)
+	add_child(root)
+	builder.build(root, session)
+	var terrain: Node3D = root.get_node("Terrain") as Node3D
+	## Spawn GX and EXIT mid must not be inside a solid south-wall box.
+	var spawn_gx: Vector3 = InteriorCatalog.PLAYER_SMALL_SPAWN_GX
+	var spawn_world := Vector3(
+		session.grid.origin.x + spawn_gx.x * FieldCatalog.GX_TO_METERS,
+		0.0,
+		session.grid.origin.z + spawn_gx.z * FieldCatalog.GX_TO_METERS
+	)
+	var exit_mid: Vector3 = (
+		session.grid.cell_to_world(room.door_cell)
+		+ session.grid.cell_to_world(room.door_cell + Vector2i(1, 0))
+	) * 0.5
+	var wall_hits: int = 0
+	for body: Node in terrain.get_children():
+		if not (body is StaticBody3D):
+			continue
+		var shape_node: CollisionShape3D = null
+		for child: Node in body.get_children():
+			if child is CollisionShape3D:
+				shape_node = child as CollisionShape3D
+				break
+		if shape_node == null or not (shape_node.shape is BoxShape3D):
+			continue
+		var box := shape_node.shape as BoxShape3D
+		var center: Vector3 = (body as Node3D).position
+		## Tall wall boxes only (skip floor slab / porch).
+		if box.size.y < 1.0:
+			continue
+		wall_hits += 1
+		assert_bool(_point_in_box_xz(spawn_world, center, box.size)).is_false()
+		assert_bool(_point_in_box_xz(exit_mid, center, box.size)).is_false()
+	assert_int(wall_hits).is_greater(0)
+
+
+func _point_in_box_xz(point: Vector3, center: Vector3, size: Vector3) -> bool:
+	return (
+		absf(point.x - center.x) <= size.x * 0.5 + 0.02
+		and absf(point.z - center.z) <= size.z * 0.5 + 0.02
+	)
 
 
 func test_house_enter_spawn_matches_decomp() -> void:

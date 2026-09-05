@@ -225,6 +225,9 @@ func _drop_selected() -> void:
 	var data: ItemData = ItemCatalog.get_item(removed.item_id)
 	if data == null:
 		return
+	## `mTG_field_put_proc` closes the submenu, then `bIT_actor_player_drop_entry` arcs the
+	## FG item from the player (+50 GX) onto the facing unit. No player body clip.
+	close()
 	if not _spawn_pickup(data):
 		inv.add(data, removed.count, removed.condition)
 		Game.post_notice("Can't drop here")
@@ -261,7 +264,22 @@ func _spawn_pickup(item: ItemData) -> bool:
 	if player.has_method("facing_yaw"):
 		yaw = float(player.call("facing_yaw"))
 	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
-	pickup.global_position = player.global_position + forward * 1.1 + Vector3(0.0, 0.05, 0.0)
+	## Landing: ~½ cell ahead (facing unit). Start: player + 50 GX (`player_drop_entry`).
+	## Land Y matches `bIT_actor_player_drop_entry` / `GetBgY(..., −1 GX)`.
+	var land: Vector3 = player.global_position + forward * 1.1
+	var layout: Variant = world.get("layout")
+	var grid: Variant = world.get("grid")
+	if layout is WorldData and grid is WorldGrid:
+		land.y = FieldCollision.ground_y_at(
+			layout as WorldData, grid as WorldGrid, land, FieldCollision.FG_GROUND_DIST
+		)
+	else:
+		land.y = player.global_position.y + FieldCatalog.GX_TO_METERS
+	var start: Vector3 = player.global_position + Vector3(0.0, 50.0 * FieldCatalog.GX_TO_METERS, 0.0)
+	if pickup.has_method("begin_fall"):
+		pickup.call("begin_fall", start, land, 0.55)
+	else:
+		pickup.global_position = land
 	return true
 
 

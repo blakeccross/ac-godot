@@ -1,8 +1,10 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/interiors/public_room.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/world/interiors/post_girl.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://assets/generated/environment/interiors/grd_post_office.glb" id="10"]
 
 [node name="post_office" type="Node3D"]
 script = ExtResource("1")
@@ -13,10 +15,13 @@ script = ExtResource("2")
 
 [node name="GeneratedVisual" type="Node3D" parent="Shell"]
 
+[node name="grd_post_office" parent="Shell/GeneratedVisual" instance=ExtResource("10")]
 
 [node name="Terrain" type="Node3D" parent="."]
 
 [node name="Furniture" type="Node3D" parent="."]
+
+[node name="PostGirl" parent="Furniture" instance=ExtResource("4")]
 
 [node name="Doors" type="Node3D" parent="."]
 

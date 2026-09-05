@@ -66,6 +66,24 @@ class TestDolphinHash(unittest.TestCase):
         self.assertFalse(is_field_terrain_texture("tol_axe_1_edge1_tex_txt"))
         self.assertFalse(is_field_terrain_texture("obj_item_apple_tex", "int_minidisk"))
 
+    def test_achd_png_usable_size_wrap_rule(self) -> None:
+        from asset_pipeline.achd import achd_png_usable
+        from asset_pipeline.texbank import GX_CLAMP, GX_REPEAT
+
+        ## Exact size always OK (including REPEAT field tiles).
+        self.assertTrue(achd_png_usable(32, 32, 32, 32, GX_REPEAT, GX_REPEAT))
+        ## Upscaled REPEAT would break wrap-bake atlases.
+        self.assertFalse(achd_png_usable(32, 32, 256, 256, GX_REPEAT, GX_REPEAT))
+        self.assertFalse(achd_png_usable(64, 64, 512, 512, GX_REPEAT, GX_CLAMP))
+        ## Both-CLAMP + uniform integer scale is OK (portraits / one-shots).
+        self.assertTrue(achd_png_usable(32, 32, 256, 256, GX_CLAMP, GX_CLAMP))
+        ## MIRROR props (tank rocks) may upscale.
+        from asset_pipeline.texbank import GX_MIRROR
+
+        self.assertTrue(achd_png_usable(64, 64, 1024, 1024, GX_MIRROR, GX_MIRROR))
+        self.assertFalse(achd_png_usable(32, 32, 256, 128, GX_CLAMP, GX_CLAMP))
+        self.assertFalse(achd_png_usable(32, 32, 250, 250, GX_CLAMP, GX_CLAMP))
+
     def test_room_bank_skip(self) -> None:
         from asset_pipeline.achd import is_room_bank_texture
 

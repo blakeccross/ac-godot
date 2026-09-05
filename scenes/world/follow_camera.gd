@@ -34,6 +34,8 @@ var _suspended: bool = false
 
 func _ready() -> void:
 	add_to_group("follow_camera")
+	## After CharacterBody3D `move_and_slide` so look-at matches this tick.
+	process_physics_priority = 100
 	fov = 20.0
 	if target_path != NodePath():
 		_target = get_node_or_null(target_path) as Node3D
@@ -64,7 +66,7 @@ func resume(snap: bool = true) -> void:
 	if snap:
 		_follow(true)
 		return
-	## Keep the demo eye; seed look so `_process` lerps toward the player.
+	## Keep the demo eye; seed look so `_physics_process` lerps toward the player.
 	if _target != null and is_instance_valid(_target):
 		_look_current = _look_point()
 		_has_look = true
@@ -88,7 +90,7 @@ func begin_talk(speaker: Node3D, listener: Node3D) -> void:
 	_door_active = false
 	_talk_speaker = speaker
 	_talk_listener = listener
-	## Keep the current eye / look and morph in `_process` (no snap).
+	## Keep the current eye / look and morph on the physics tick (no snap).
 	if not _has_look:
 		_look_current = global_position - basis.z * 8.0
 		_has_look = true
@@ -140,7 +142,9 @@ func offset_to_frame_span(span: float) -> Vector3:
 	return framed
 
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	## Same tick as the player. Following in `_process` while the body moves in
+	## `_physics_process` makes the character stutter against a smooth world.
 	if _suspended:
 		return
 	_follow(false, delta)

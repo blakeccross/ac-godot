@@ -549,15 +549,32 @@ static func _register_shops() -> void:
 static func _register_public() -> void:
 	## Post / police: always enterable; hour checks in decomp are lights only.
 	var post := _make(
-		&"post_office", Room.Kind.POST_OFFICE, "Post Office", Vector2i(5, 5), Vector2i(6, 6), {}
+		&"post_office",
+		Room.Kind.POST_OFFICE,
+		"Post Office",
+		PostDisplay.INNER_ORIGIN,
+		PostDisplay.INNER_SIZE,
+		{}
 	)
 	post.wall_id = &""
 	post.floor_id = &""
+	post.door_cell = PostDisplay.DOOR_CELL
+	post.spawn_cell = PostDisplay.SPAWN_CELL
+	post.shell_ids = PackedStringArray([String(PostDisplay.SHELL_ID)])
 	_put_room(post)
-	var police := _make(&"police_box", Room.Kind.POLICE, "Police Station", Vector2i(5, 5), Vector2i(6, 6), {})
+	var police := _make(
+		&"police_box",
+		Room.Kind.POLICE,
+		"Police Station",
+		PoliceDisplay.INNER_ORIGIN,
+		PoliceDisplay.INNER_SIZE,
+		{}
+	)
 	police.wall_id = &""
 	police.floor_id = &""
-	police.shell_ids = PackedStringArray(["police_indoor"])
+	police.door_cell = PoliceDisplay.DOOR_CELL
+	police.spawn_cell = PoliceDisplay.SPAWN_CELL
+	police.shell_ids = PackedStringArray([String(PoliceDisplay.SHELL_ID)])
 	_put_room(police)
 	_put_room(_make(&"buggy", Room.Kind.DUMP, "Dump", Vector2i(4, 4), Vector2i(8, 8), {"floor": FLOOR_STONE}))
 	var snow := _make(
