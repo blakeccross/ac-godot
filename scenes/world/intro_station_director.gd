@@ -541,6 +541,8 @@ func _on_intro_house_look(house_id: StringName) -> void:
 
 func _on_nook_debt() -> void:
 	## `0x07E6` → CAMERA2_PROCESS_TALK + turn (also set in `_resume_debt_sequence`).
+	if Game != null and Game.inventory != null and Game.inventory.loan <= 0:
+		Game.inventory.set_loan(Inventory.DEFAULT_HOUSE_LOAN)
 	_begin_demo_talk(_nook, true, true)
 	_play_dialogue(NOOK_DEBT_DIALOGUE, "Tom Nook", NOOK_DEBT_DIALOGUE_FALLBACK)
 

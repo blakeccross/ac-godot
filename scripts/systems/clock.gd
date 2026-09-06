@@ -153,6 +153,20 @@ func advance_season() -> void:
 	_emit_time(true)
 
 
+## Debug: snap to noon on the first calendar day of `target` (same year).
+func jump_to_season(target: Season) -> void:
+	rtc_override = true
+	_os_follow_seeded = false
+	var s: int = int(target) % 4
+	month = int(_SEASON_START_MONTH[s])
+	day = int(_SEASON_START_DAY[s])
+	hour = 12
+	minute = 0
+	second = 0
+	_accum = 0.0
+	_emit_time(true)
+
+
 func advance_seconds(amount: int) -> void:
 	if amount == 0:
 		return

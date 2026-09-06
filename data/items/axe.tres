@@ -6,6 +6,7 @@
 script = ExtResource("1")
 kind = 4
 visual_id = &"tol_axe_1"
+hold_anim = &"ply_1_axe1"
 id = &"axe"
 display_name = "Axe"
 description = "For chopping wood."

@@ -86,6 +86,15 @@ func test_inventory_drop_arcs_item_after_close() -> void:
 	assert_str(src).contains("close()")
 
 
+func test_inventory_portrait_follows_equipment() -> void:
+	## `mIV_set_player` framing + `mIV_get_player_item_anime_id` held-tool draw.
+	var src := FileAccess.get_file_as_string("res://scenes/ui/inventory_overlay.gd")
+	assert_str(src).contains("330.0 * FieldCatalog.GX_TO_METERS")
+	assert_str(src).contains("25.0 * FieldCatalog.GX_TO_METERS")
+	assert_str(src).contains("HeldTool.bind")
+	assert_str(src).contains("_sync_portrait_equipment")
+
+
 func test_hand_move() -> void:
 	var inv := Inventory.new()
 	var axe: ItemData = load("res://data/items/axe.tres")
@@ -103,6 +112,23 @@ func test_wallet() -> void:
 	assert_bool(inv.spend_bells(200)).is_true()
 	assert_int(inv.wallet).is_equal(300)
 	assert_bool(inv.spend_bells(999)).is_false()
+
+
+func test_savings_deposit_and_withdraw() -> void:
+	var inv := Inventory.new()
+	inv.set_wallet(2500)
+	assert_int(inv.deposit_savings(1000)).is_equal(1000)
+	assert_int(inv.wallet).is_equal(1500)
+	assert_int(inv.savings).is_equal(1000)
+	assert_int(inv.deposit_savings(99999)).is_equal(1500)
+	assert_int(inv.wallet).is_equal(0)
+	assert_int(inv.savings).is_equal(2500)
+	assert_int(inv.withdraw_savings(1000)).is_equal(1000)
+	assert_int(inv.wallet).is_equal(1000)
+	assert_int(inv.savings).is_equal(1500)
+	inv.set_wallet(Inventory.WALLET_MAX)
+	assert_int(inv.withdraw_savings(100)).is_equal(0)
+	assert_int(inv.savings).is_equal(1500)
 
 
 func test_open_money_bag_adds_bells() -> void:
@@ -124,13 +150,41 @@ func test_save_round_trip() -> void:
 	inv.add(apple, 4)
 	inv.add(axe, 1)
 	inv.set_wallet(1234)
+	inv.set_savings(500)
+	inv.set_loan(19800)
+	inv.add_mail(MailData.make_send(&"filbert", "Filbert", "Hello"))
 	inv.equip_slot(1)
 	var other := Inventory.new()
 	other.from_save(inv.to_save())
 	assert_int(other.count_of(&"apple")).is_equal(4)
 	assert_int(other.count_of(&"axe")).is_equal(1)
 	assert_int(other.wallet).is_equal(1234)
+	assert_int(other.savings).is_equal(500)
+	assert_int(other.loan).is_equal(19800)
+	assert_int(other.count_mail()).is_equal(1)
 	assert_that(other.equipment_id).is_equal(&"axe")
+
+
+func test_mail_slots() -> void:
+	var inv := Inventory.new()
+	assert_int(inv.empty_mail_slot_count()).is_equal(Inventory.MAIL_SLOTS)
+	assert_int(inv.add_mail(MailData.make_send(&"filbert", "Filbert", "Hi"))).is_equal(0)
+	assert_int(inv.count_mail()).is_equal(1)
+	assert_int(inv.sendable_mail_indices().size()).is_equal(1)
+	var taken: MailData = inv.remove_mail(0)
+	assert_str(taken.recipient_name).is_equal("Filbert")
+	assert_int(inv.count_mail()).is_equal(0)
+
+
+func test_loan_repay() -> void:
+	var inv := Inventory.new()
+	inv.set_wallet(3000)
+	inv.set_loan(5000)
+	assert_int(inv.repay_loan(1000)).is_equal(1000)
+	assert_int(inv.loan).is_equal(4000)
+	assert_bool(inv.has_bank_account()).is_false()
+	inv.set_loan(0)
+	assert_bool(inv.has_bank_account()).is_true()
 
 
 func test_legacy_array_save() -> void:

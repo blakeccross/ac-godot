@@ -4,7 +4,7 @@ import re
 import struct
 from dataclasses import dataclass, field
 
-from .gfx import G_VTX, MeshPart, apply_texture_commands, parse_gfx, parse_vtx_blob
+from .gfx import G_VTX, MeshPart, RenderState, apply_texture_commands, parse_gfx, parse_vtx_blob
 from .mapfile import MapSymbol, find_symbol, index_by_name
 from .math3d import Mat4, ckf_basis, local_softcv3
 from .rel import RelData
@@ -539,6 +539,8 @@ def _overlay_mat_name(gfx_name: str, by_name: dict[str, MapSymbol]) -> str | Non
     (`obj_*_stoneA_mat_model`) then `table[1 + sub_idx]` (B=1 … E=4).
     Holes: `hole00_g_list` displays `obj_hole0T_g_mat_model` then
     `obj_hole{N}T_gfx_model`. There is no `obj_hole0T_mat_model`.
+    Buried deposit X marks (`crack00_*_list`) reuse the same hole verts/gfx with
+    `obj_crack0T_*_mat_model` — pass `mat=` into `convert_static_gfx` for that.
     """
     if "tree5_apple" in gfx_name and "apple_DL_mode" in by_name:
         return "apple_DL_mode"
@@ -556,8 +558,12 @@ def _overlay_mat_name(gfx_name: str, by_name: dict[str, MapSymbol]) -> str | Non
     return None
 
 
-def _mat_model_name(gfx_name: str, by_name: dict[str, MapSymbol]) -> str | None:
+def _mat_model_name(
+    gfx_name: str, by_name: dict[str, MapSymbol], mat_override: str | None = None
+) -> str | None:
     """Resolve `*_gfx_model` → material DL. Some summer trees only ship a gold mat."""
+    if mat_override and mat_override in by_name:
+        return mat_override
     candidates: list[str] = []
     if "_gfx_model" in gfx_name:
         candidates.append(gfx_name.replace("_gfx_model", "_mat_model"))
@@ -674,21 +680,24 @@ def convert_static_gfx(
     gfx_names: list[str],
     scale: float,
     bank: TextureBank | None = None,
+    mat_override: str | None = None,
 ) -> list[MeshPart]:
     by_name = index_by_name(symbols)
     vtx_sym = _vtx_sym_for_gfx(rel, symbols, by_name, vtx_name, gfx_names)
     vertices = parse_vtx_blob(rel.slice_at(vtx_sym.address, vtx_sym.size), scale, flip_z=False)
     parts: list[MeshPart] = []
-    ## Share texture state across sequential DLs so `*_DL_mode` + `*_DL_vtx` fruit cards
-    ## (apple/pear/bag) keep the mode DL's SETTIMG/TLUT when the vtx DL draws. Reset when a
-    ## companion `*_mat_model` starts a new material (axe/coco style).
+    ## Share texture + render-mode state across sequential DLs so `*_setmode` /
+    ## `*_DL_mode` keep SETTIMG / SetRenderMode when the following vtx DL draws.
+    ## Reset when a companion `*_mat_model` starts a new material (axe/coco style).
     tex_state = TextureState()
+    render_state = RenderState()
     for name in gfx_names:
         if bank is not None:
             bank.current_gfx = name
-        mat_name = _mat_model_name(name, by_name)
+        mat_name = _mat_model_name(name, by_name, mat_override)
         if bank is not None and mat_name is not None:
             tex_state = TextureState()
+            render_state = RenderState()
             mat = by_name[mat_name]
             apply_texture_commands(rel.slice_at(mat.address, mat.size), bank, tex_state)
         model = find_symbol(symbols, name, by_name)
@@ -700,6 +709,7 @@ def convert_static_gfx(
             bank=bank,
             state=tex_state,
             vtx_base_addr=vtx_sym.address,
+            render=render_state,
         )
         parts.extend(p for p in decoded if p.triangles)
     if not parts:

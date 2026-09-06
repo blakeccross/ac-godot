@@ -18,7 +18,8 @@ const SPAWN_FACING := WorldGrid.Facing.SOUTH
 const BOOKER_STAND_UT := Vector2i(4, 6)
 const BOOKER_STAND_GX := Vector3(180.0, 0.0, 260.0)
 const BOOKER_FACING := WorldGrid.Facing.SOUTH
-const BOOKER_SPECIES := &"plc"
+## `SP_NPC_POLICE2` → `pla_1` (`plc_1` is outdoor Copper / `SP_NPC_POLICE`).
+const BOOKER_SPECIES := &"pla"
 
 ## `FG_TYPE_POLICE_INDOOR` RSV_POLICE_ITEM_0..19 cells (row-major fill order).
 const LOST_FOUND_CELLS: Array[Vector2i] = [

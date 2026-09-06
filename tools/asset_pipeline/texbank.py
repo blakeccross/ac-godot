@@ -205,8 +205,9 @@ def flood_opaque_alpha(png: bytes) -> bytes:
 def harden_tex_edge_alpha(png: bytes, *, cutoff: int = 128) -> bytes:
     """Collapse ACHD soft fringe to hard TEX_EDGE coverage (MASK).
 
-    Soft AA on cutout glass bleeds wrong edge colors under filtering; the console
-    uses alpha-compare. Keep HD RGB, bin alpha to 0/255.
+    Soft AA on cutouts bleeds wrong edge colors under filtering; the console
+    uses alpha-compare (any wrap: CLAMP glass, MIRROR house walls, doors).
+    Keep HD RGB, bin alpha to 0/255.
     """
     if not png:
         return png
@@ -389,9 +390,9 @@ def resolve_alpha_mode(
     if coverage == COVERAGE_TEX_EDGE:
         if samples_transparent is False:
             return "OPAQUE"
-        ## ACHD soft AA on TEX_EDGE: keep BLEND instead of hard MASK scissor.
-        if texel_mode == "BLEND":
-            return "BLEND"
+        ## TEX_EDGE is alpha-compare on GC — never BLEND. ACHD soft fringe is
+        ## hardened to 0/255 in gfx before this returns MASK; keeping BLEND put
+        ## house/shop walls in Godot's transparent pass (no depth write).
         if samples_transparent is True:
             return "MASK"
         if texel_mode == "OPAQUE":
@@ -662,7 +663,7 @@ def museum_dummy_wood_twin(tex_name: str) -> tuple[str, str] | None:
     return None
 
 
-def structure_palette_names(prefix: str) -> list[str]:
+def structure_palette_names(prefix: str, letter: str | None = None) -> list[str]:
     """Candidate `structure_pal` symbols for a cKF/static structure prefix.
 
     Shop keeps its stage digit (`obj_shop1_pal`). Player house drops it
@@ -670,6 +671,8 @@ def structure_palette_names(prefix: str) -> list[str]:
     (`obj_s_yubinkyoku` → `obj_s_post_office_pal` / winter `*_winter_pal`).
     Trains: `obj_train1_1`/`_2` → `obj_train1_a1_pal` (TRAIN0); caboose `_3` →
     `obj_train1_a2_pal` (TRAIN1) — see `ac_structure_clip` / `aSTR_PAL_TRAIN1_*`.
+    Villager homes: optional `letter` (`a`..`e`) prefers `obj_s_house1_b_pal`
+    (`aSTR_PAL_HOUSE1_A + pal + shape*5`).
     """
     names: list[str] = []
 
@@ -678,6 +681,9 @@ def structure_palette_names(prefix: str) -> list[str]:
             if name and name not in names:
                 names.append(name)
 
+    pal_letter = (letter or "").lower()
+    if pal_letter in "abcde":
+        add(f"{prefix}_{pal_letter}_pal")
     add(f"{prefix}_a_pal", f"{prefix}_pal")
     train = re.match(r"^obj_train1_(\d+)$", prefix)
     if train:
@@ -691,9 +697,16 @@ def structure_palette_names(prefix: str) -> list[str]:
     if not m:
         return names
     season, rest = m.group(1), m.group(2)
+    if pal_letter in "abcde":
+        add(f"obj_{rest}_{pal_letter}_pal", f"obj_{season}_{rest}_{pal_letter}_pal")
     add(f"obj_{rest}_pal", f"obj_{rest}_a_pal")
     destaged = re.sub(r"\d+$", "", rest)
     if destaged and destaged != rest:
+        if pal_letter in "abcde":
+            add(
+                f"obj_{season}_{destaged}_{pal_letter}_pal",
+                f"obj_{destaged}_{pal_letter}_pal",
+            )
         add(
             f"obj_{season}_{destaged}_a_pal",
             f"obj_{season}_{destaged}_pal",
@@ -1014,6 +1027,8 @@ class TextureBank:
         self._png_cache: dict[tuple, tuple[bytes, str]] = {}
         self.current_prefix = ""
         self.current_gfx = ""
+        ## Optional `a`..`e` for villager house / myhome structure pals.
+        self.structure_palette_letter: str | None = None
         self._tree_pal: bytes | None = None
         for symbol in symbols:
             if symbol.name == "obj_tree_pal":
@@ -1269,8 +1284,9 @@ class TextureBank:
 
         Decomp: `structure_pal_adrs_nowinter` — `obj_s_house1_a_pal`, `obj_shop1_pal`,
         `obj_s_myhome_a_pal` (stage digit stripped), `obj_s_post_office_pal` (yubinkyoku alias).
+        Optional `structure_palette_letter` selects `obj_s_house1_b_pal` … `_e_pal`.
         """
-        for name in structure_palette_names(prefix):
+        for name in structure_palette_names(prefix, self.structure_palette_letter):
             blob = self._symbol_bytes(name)
             if blob:
                 return blob
@@ -1471,7 +1487,7 @@ class TextureBank:
                 best = pal
         if best is not None and best_score >= 10:
             return self.rel.slice_at(best.address, min(best.size, 512)), 2
-        if "hole" in prefix_toks and self._hole_g_pal:
+        if ("hole" in prefix_toks or "crack" in prefix_toks) and self._hole_g_pal:
             return self._hole_g_pal, 1
         if part & _PLANT_PARTS:
             if "palm" in part and self._palm_pal:
@@ -1859,7 +1875,7 @@ class TextureBank:
             return self._cedar_pal
         if "flower" in name and self._flower_pal:
             return self._flower_pal
-        if "obj_hole" in name:
+        if "obj_hole" in name or "obj_crack" in name:
             return self._hole_g_pal
         if "tree" in name:
             return self._tree_fg_pal or self._tree_pal

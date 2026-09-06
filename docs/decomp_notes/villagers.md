@@ -79,7 +79,7 @@ Move-out: `removing`, `remove_animal_idx` on save, minimum days before force rem
 ## Reproduce
 
 - **One villager** with a daily table: sleep, indoors, outdoors, with hour boundaries. Looks (personality) selects the table; the actor is shared.
-- New game fills **six** outdoor villagers: shuffle the starter pool, keep one of each looks, assign to the six NPC houses. Each house interior uses that animal’s `npc_house_list` wall/carpet (`VillagerData.wall_index` / `floor_index`).
+- New game fills **six** outdoor villagers: shuffle the starter pool, keep one of each looks, assign to the six NPC houses. Each house interior uses that animal’s `npc_house_list` wall/carpet (`VillagerData.wall_index` / `floor_index`). Outdoor shell uses `house_type` / `house_palette` → `obj_s_house{1-5}_{a-e}` (`aHUS_actor_ct`).
 - Field day is a reusable action queue: wake / leave home / walk to goal acre / wander / go home / sleep. Wander **loops** for the whole FIELD window (wait / walk / run around the acre). Sit / fish / shop are not the FIELD default.
 - While in the field, pick a goal acre from looks+time (`shrine` / other `home` / `alone` / `my_home`). Walkers go there, linger in-acre, then pick a new goal. Concurrent town-walkers cap at `n/3` (max 5). Empty goal-table windows stay on the home acre. Non-walkers still wander their home acre; they do not stand at the door.
 - Species GLB (`squ_1`, `cat_1`, …) + shared `npc_1` wait/walk when `assets/generated/characters/villagers/` exists. Display names use the original villager names. The catalog is every GC animal (`NPC_NUM` 236); new towns still place six (one looks each).

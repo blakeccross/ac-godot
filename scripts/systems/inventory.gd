@@ -5,40 +5,66 @@ extends RefCounted
 ## Stacking is data-driven via `ItemData.max_stack` (tools stay at 1).
 
 const POCKET_SLOTS := 15
+const MAIL_SLOTS := 10
 const COLUMNS := 5
 const ROWS := 3
+## Letters sit in a tall 2×5 on the pocket paper (`inv_mwin` right column).
+const MAIL_COLUMNS := 2
+const MAIL_ROWS := 5
 const WALLET_MAX := 99999
+## First house loan (`mPr` / Nook). 0 once paid — bank account unlocks.
+const DEFAULT_HOUSE_LOAN := 19800
 
 signal changed
 signal selection_changed(index: int)
 signal wallet_changed(amount: int)
+signal savings_changed(amount: int)
+signal loan_changed(amount: int)
+signal mail_changed
 signal equipment_changed(item_id: StringName)
 
 var wallet: int = 0
+## Post office savings (`mPr` bank after loans). No interest in this slice.
+var savings: int = 0
+## House loan owed to Nook (`Private_c.inventory.loan`).
+var loan: int = 0
 var equipment_id: StringName = &""
 var selected_index: int = 0
+var selected_mail_index: int = 0
 ## Hand hold (`m_hand_ovl` hold_idx). -1 = empty hand.
 var hand_index: int = -1
 
 var _slots: Array[InventorySlot] = []
+var _mail: Array[MailData] = []
 
 
 func _init() -> void:
 	_slots.clear()
 	for i: int in POCKET_SLOTS:
 		_slots.append(InventorySlot.new(i))
+	_mail.clear()
+	for _i: int in MAIL_SLOTS:
+		_mail.append(MailData.new())
 
 
 func clear() -> void:
 	for slot: InventorySlot in _slots:
 		slot.clear()
+	for i: int in MAIL_SLOTS:
+		_mail[i] = MailData.new()
 	wallet = 0
+	savings = 0
+	loan = 0
 	equipment_id = &""
 	selected_index = 0
+	selected_mail_index = 0
 	hand_index = -1
 	changed.emit()
 	selection_changed.emit(selected_index)
 	wallet_changed.emit(wallet)
+	savings_changed.emit(savings)
+	loan_changed.emit(loan)
+	mail_changed.emit()
 	equipment_changed.emit(equipment_id)
 
 
@@ -224,6 +250,134 @@ func spend_bells(amount: int) -> bool:
 	return true
 
 
+func set_savings(amount: int) -> void:
+	var next: int = maxi(amount, 0)
+	if savings == next:
+		return
+	savings = next
+	savings_changed.emit(savings)
+	changed.emit()
+
+
+## Move bells from wallet into savings. Returns amount deposited.
+func deposit_savings(amount: int) -> int:
+	if amount <= 0:
+		return 0
+	var put: int = mini(amount, wallet)
+	if put <= 0:
+		return 0
+	set_wallet(wallet - put)
+	set_savings(savings + put)
+	return put
+
+
+## Move bells from savings into wallet (wallet cap). Returns amount withdrawn.
+func withdraw_savings(amount: int) -> int:
+	if amount <= 0:
+		return 0
+	var room: int = WALLET_MAX - wallet
+	var take: int = mini(amount, mini(savings, room))
+	if take <= 0:
+		return 0
+	set_savings(savings - take)
+	set_wallet(wallet + take)
+	return take
+
+
+func set_loan(amount: int) -> void:
+	var next: int = maxi(amount, 0)
+	if loan == next:
+		return
+	loan = next
+	loan_changed.emit(loan)
+	changed.emit()
+
+
+## Pay loan from wallet. Returns amount applied.
+func repay_loan(amount: int) -> int:
+	if amount <= 0 or loan <= 0:
+		return 0
+	var pay: int = mini(amount, mini(loan, wallet))
+	if pay <= 0:
+		return 0
+	set_wallet(wallet - pay)
+	set_loan(loan - pay)
+	return pay
+
+
+func has_bank_account() -> bool:
+	## Bank unlocks after the house loan is cleared (`aPG_set_post_status` HAS_BANK).
+	return loan <= 0
+
+
+func mail_at(index: int) -> MailData:
+	if index < 0 or index >= MAIL_SLOTS:
+		return null
+	return _mail[index]
+
+
+func select_mail(index: int) -> void:
+	if index < 0 or index >= MAIL_SLOTS:
+		return
+	if selected_mail_index == index:
+		return
+	selected_mail_index = index
+	mail_changed.emit()
+
+
+func move_mail_cursor(dx: int, dy: int) -> void:
+	var col: int = selected_mail_index % MAIL_COLUMNS
+	var row: int = selected_mail_index / MAIL_COLUMNS
+	col = clampi(col + dx, 0, MAIL_COLUMNS - 1)
+	row = clampi(row + dy, 0, MAIL_ROWS - 1)
+	select_mail(row * MAIL_COLUMNS + col)
+
+
+func empty_mail_slot_count() -> int:
+	var n: int = 0
+	for mail: MailData in _mail:
+		if mail == null or mail.is_empty():
+			n += 1
+	return n
+
+
+func count_mail() -> int:
+	return MAIL_SLOTS - empty_mail_slot_count()
+
+
+## Returns slot index or -1.
+func add_mail(mail: MailData) -> int:
+	if mail == null or mail.is_empty():
+		return -1
+	for i: int in MAIL_SLOTS:
+		if _mail[i] == null or _mail[i].is_empty():
+			_mail[i] = mail.duplicate_mail()
+			mail_changed.emit()
+			changed.emit()
+			return i
+	return -1
+
+
+func remove_mail(index: int) -> MailData:
+	var mail: MailData = mail_at(index)
+	if mail == null or mail.is_empty():
+		return MailData.new()
+	var taken: MailData = mail.duplicate_mail()
+	_mail[index] = MailData.new()
+	mail_changed.emit()
+	changed.emit()
+	return taken
+
+
+func sendable_mail_indices() -> Array[int]:
+	var out: Array[int] = []
+	for i: int in MAIL_SLOTS:
+		var mail: MailData = _mail[i]
+		if mail != null and mail.is_sendable():
+			out.append(i)
+	return out
+
+
 func equip_slot(index: int) -> bool:
 	var slot: InventorySlot = slot_at(index)
 	if slot == null or slot.is_empty():
@@ -366,11 +520,21 @@ func to_save() -> Dictionary:
 	var rows: Array = []
 	for slot: InventorySlot in _slots:
 		rows.append(slot.to_save())
+	var mail_rows: Array = []
+	for mail: MailData in _mail:
+		if mail == null or mail.is_empty():
+			mail_rows.append({})
+		else:
+			mail_rows.append(mail.to_save())
 	return {
 		"slots": rows,
+		"mail": mail_rows,
 		"wallet": wallet,
+		"savings": savings,
+		"loan": loan,
 		"equipment": String(equipment_id),
 		"selected": selected_index,
+		"selected_mail": selected_mail_index,
 	}
 
 
@@ -386,8 +550,20 @@ func from_save(data: Variant) -> void:
 		if typeof(slots_v) == TYPE_ARRAY:
 			rows = slots_v
 		set_wallet(int(d.get("wallet", 0)))
+		set_savings(int(d.get("savings", 0)))
+		set_loan(int(d.get("loan", 0)))
 		equipment_id = StringName(str(d.get("equipment", "")))
 		selected_index = clampi(int(d.get("selected", 0)), 0, POCKET_SLOTS - 1)
+		selected_mail_index = clampi(int(d.get("selected_mail", 0)), 0, MAIL_SLOTS - 1)
+		var mail_v: Variant = d.get("mail", [])
+		if typeof(mail_v) == TYPE_ARRAY:
+			var mi: int = 0
+			for entry: Variant in mail_v as Array:
+				if mi >= MAIL_SLOTS:
+					break
+				var loaded_mail: MailData = MailData.from_save(entry)
+				_mail[mi] = loaded_mail if not loaded_mail.is_empty() else MailData.new()
+				mi += 1
 	var i: int = 0
 	for row: Variant in rows:
 		if i >= POCKET_SLOTS:
@@ -407,4 +583,7 @@ func from_save(data: Variant) -> void:
 	changed.emit()
 	selection_changed.emit(selected_index)
 	wallet_changed.emit(wallet)
+	savings_changed.emit(savings)
+	loan_changed.emit(loan)
+	mail_changed.emit()
 	equipment_changed.emit(equipment_id)

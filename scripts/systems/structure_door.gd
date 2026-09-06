@@ -372,19 +372,29 @@ static func _visual_id(root: Node) -> StringName:
 
 static func _candidate_bases(visual_id: StringName, anim: AnimationPlayer) -> PackedStringArray:
 	## Prefer the authored id, then the season remapped mesh (`obj_s_*` → `obj_w_*`).
+	## Palette-suffixed villager homes (`obj_s_house2_c`) also try the shape base —
+	## door clips stay named `obj_s_house2` / `obj_s_house2_out` on the GLB.
 	var out: PackedStringArray = PackedStringArray()
 	var id: String = String(visual_id)
 	if not id.is_empty():
 		_append_unique(out, id)
+		var shape_base: String = String(FieldCatalog.house_shape_base(visual_id))
+		if shape_base != id:
+			_append_unique(out, shape_base)
 		if id.length() > 6 and id.begins_with("obj_") and id[4] == "_":
 			var remapped: String = "obj_%s_%s" % [FieldCatalog.season_letter(), id.substr(6)]
 			_append_unique(out, remapped)
+			var remapped_base: String = String(FieldCatalog.house_shape_base(StringName(remapped)))
+			if remapped_base != remapped:
+				_append_unique(out, remapped_base)
 		## Also accept whatever season letter the loaded AnimationPlayer actually has.
 		for name: String in anim.get_animation_list():
 			var leaf: String = name.get_file() if "/" in name else name
 			if leaf.ends_with("_out"):
 				leaf = leaf.substr(0, leaf.length() - 4)
 			if leaf.begins_with("obj_") and leaf.length() > 6 and leaf.substr(6) == id.substr(6):
+				_append_unique(out, leaf)
+			elif leaf.begins_with("obj_") and shape_base.length() > 6 and leaf.substr(6) == shape_base.substr(6):
 				_append_unique(out, leaf)
 		return out
 	for name: String in anim.get_animation_list():

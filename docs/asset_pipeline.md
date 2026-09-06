@@ -146,13 +146,13 @@ python3 tools/build_assets.py --step convert --kind collision
 
 Writes `assets/generated/environment/acres/grd_*.col.json` from `data_bgd` in `foresta.rel` (paired with each acre mesh). Do not copy `bg_data.c` into this repo.
 
-River/ocean water surfaces (acre XLU `*_modelT` plus dual water/wave textures):
+River/ocean/pond water surfaces (acre XLU `*_modelT` plus dual water/wave textures):
 
 ```sh
 python3 tools/build_assets.py --step convert --kind water
 ```
 
-Reconverts river, marine, open-ocean (`grd_*_o_*`), cliff-edge ocean/marine (`grd_s_e2_o_*` / `e3_m_*`), and cliff-river acres so `grd_*_modelT` is in the GLB and OPA beachB under open ocean is tagged for the wet-sand shader (decomp dark-blue underdraw). Every acre **keeps** its XLU ocean waves alongside OPA shore wet sand (`beachA`) and the dark-blue ocean-floor underdraw (`beachB`). Marine acres draw two wave bands (shore `wave2` 32×64 CLAMP T, open `wave3` 32×32 REPEAT); open-ocean border acres draw the open band only. Grass still wrap-bakes; water keeps REPEAT for UV scroll. Waterfalls (`obj_fallS`) are FG actors, not this step.
+Reconverts every outdoor `grd_s_*` / `grd_w_*` job that ships `*_modelT` — rivers, marine, open-ocean (`grd_*_o_*`), cliff-edge ocean/marine (`grd_s_e2_o_*` / `e3_m_*`), cliff-river, **ponds** (FG holes, tracks post/shop, islands), and empty-XLU siblings — so wrap-bake fixes (river bank `V=0..2` under MIRROR S / CLAMP T) and water shaders stay applied. OPA beachB under open ocean is tagged for the wet-sand shader (decomp dark-blue underdraw). Every acre **keeps** its XLU ocean waves alongside OPA shore wet sand (`beachA`) and the dark-blue ocean-floor underdraw (`beachB`). Marine acres draw two wave bands (shore `wave2` 32×64 CLAMP T, open `wave3` 32×32 REPEAT); open-ocean border acres draw the open band only. Grass still wrap-bakes; water keeps REPEAT for UV scroll. Waterfalls (`obj_fallS`) are FG actors, not this step.
 
 The player's clips are named one by one in `PLAYER_CORE_ANIMS`, so a new pose needs adding there and a reconvert (`--step convert`) before the game can play it — `ply_1_putaway_t1`, the catch-report exit, arrived that way.
 
@@ -295,6 +295,8 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | Player home windows are black holes / walls look tripled | Stock `rom_myhome*_model` ends with unlit PRIMITIVE outdoor-view quads (`Global_kankyo_set_room_prim`). Convert only that DL (not `*_new*` / `*_new2*` custom-design variants). Runtime tints fills + wallpaper with fine-weather `room_color`. Reconvert `rom_myhome1_*` / `rom_myhome2_*` |
 | Player home floor is stretched / wrong medallion | `player_room_*` pages are 64². Runtime must re-tile at 64 — do not `_infer_atlas_tile_size` on a GX_MIRROR atlas (odd cells are flipped, so period 64 fails and 128 wins). |
 | House door texture flickers / z-fights | (1) Skinned export must split OPAQUE / MASK / BLEND meshes (`write_skinned_glb`). (2) Body DLs that omit SetRenderMode but only UV opaque texels of a cutout atlas must demote to OPAQUE (`demote_opaque_uv_alpha`). (3) Door TEX_EDGE is coplanar with the OPA facade in the original — do not offset verts; `GeneratedVisual` uses material `grow` (depth bias along normals) on structure MASK. (4) Keep double-sided cull on OPAQUE walls (inward normals). Reconvert `--kind buildings` |
+| House/shop side walls draw in front of the world | Wall DLs are `TEX_EDGE` (window cutouts) with MIRROR wrap. ACHD soft AA made `alphaMode=BLEND`; harden was CLAMP-only (tank glass). Soft TEX_EDGE must harden to MASK for every wrap — structure BLEND disables depth write. Reconvert `--kind buildings` |
+| NPC / villager body draws in front of the world | Same ACHD soft-AA trap on `OPA_SURF` body sheets (`pgb_1` chest on joint_12, etc.). Coverage forces `OPAQUE`, but soft fringe must still be flooded to A=255; stale GLBs that baked `BLEND` need a character reconvert (`convert_ckf_starting_with` / full convert) |
 | Window spill looks like solid yellow paint | Same linear-HDR vs 8-bit XLU issue as water. `window_ground_spill.gdshader` samples `hint_screen_texture`, lerps prim yellow in sRGB (`TEXEL0 × LOD 120/255`), and emits opaque `ALBEDO` |
 | Tree leaves are pastel pink/teal | Hardwood fallback used map symbol `mFM_obj_tree_01_pal`, whose REL blob does not CI-decode leaf art. Use `mFM_obj_tree_01_pal_dol` / `obj_tree_pal`. Reconvert trees |
 | Summer `obj_s_tree3` leaf is untextured | Disc has only `obj_s_gold_tree3_leafT_mat_model` (no non-gold leaf mat). Converter falls back to the gold mat for SETTIMG |

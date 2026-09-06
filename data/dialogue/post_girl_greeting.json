@@ -4,19 +4,34 @@
   "start": "start",
   "nodes": {
     "start": {
-      "type": "branch",
-      "when": [
-        { "if": { "already_talked": true }, "goto": "repeat" },
-        { "goto": "welcome" }
+      "type": "line",
+      "text": "Welcome!\nHow can I help you?",
+      "next": "menu"
+    },
+    "menu": {
+      "type": "choice",
+      "options": [
+        { "text": "Mail a letter", "goto": "mail" },
+        { "text": "Make a deposit", "goto": "deposit" },
+        { "text": "Save a letter", "goto": "save" },
+        { "text": "Never mind...", "goto": "bye" }
       ]
     },
-    "welcome": {
+    "mail": {
       "type": "line",
-      "text": "Welcome to the post office! How can I help you today?"
+      "text": "Yes, I see... one moment."
     },
-    "repeat": {
+    "deposit": {
       "type": "line",
-      "text": "Still here? The desk is ready whenever you are."
+      "text": "You want to deposit some\nmoney?"
+    },
+    "save": {
+      "type": "line",
+      "text": "Well, then, tell me how you'd\nlike to save."
+    },
+    "bye": {
+      "type": "line",
+      "text": "Oh, really? Come back\nanytime."
     }
   }
 }

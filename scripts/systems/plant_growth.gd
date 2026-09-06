@@ -14,12 +14,18 @@ const KEY_FRUIT := "fruit_taken_renew"
 const KEY_CONTENT := "shake_content"
 const KEY_CELL_X := "cell_x"
 const KEY_CELL_Z := "cell_z"
+## Bloom color visual for grown flowers (`FLOWER_PANSIES0` white / `1` purple / `2` yellow).
+## Not a growth stage — GC uses separate `FLOWER_LEAVES_*` ids for leaves.
+const KEY_BLOOM := "bloom_visual"
 
 ## Daily special-tree caps (`mAGrw_*`). Town is smaller than GC; still top up to these.
 const MONEY_TREE_NUM := 30
 const FTR_TREE_NUM := 2
 ## One bee tree per FG X-column when possible (`FG_BLOCK_X_NUM` = 5).
 const BEE_COLUMN_NUM := 5
+## Unwatered flowers die after this many renews past `last_watered_renew`.
+## GC clears flowers on KILL_PLANT tiles; wilt extends our watering slice.
+const FLOWER_DIE_DAYS := 4
 
 static var _plants: Dictionary = {}
 static var _plants_loaded := false
@@ -118,6 +124,10 @@ static func visual_id(rec: Dictionary, plant: PlantData, now_renew: int = -1) ->
 		Pipeline.MATURE:
 			return _visual(plant.visual_mature, plant)
 		_:
+			if plant.kind == PlantData.Kind.FLOWER:
+				var bloom := StringName(str(rec.get(KEY_BLOOM, "")))
+				if bloom != &"":
+					return bloom
 			if fruit_ready(rec, plant, now_renew) and plant.visual_harvestable != &"":
 				return plant.visual_harvestable
 			return _visual(plant.visual_mature, plant)
@@ -159,8 +169,29 @@ static func ensure(
 		KEY_CELL_X: cell.x,
 		KEY_CELL_Z: cell.y,
 	}
+	if plant.kind == PlantData.Kind.FLOWER and is_grown_flower_visual(visual):
+		rec[KEY_BLOOM] = String(visual)
 	_store(persist_id, rec)
 	return rec
+
+
+static func ensure_grown_bloom(persist_id: StringName, visual: StringName) -> void:
+	## Repair FG blooms saved under the old stage mapping (colors treated as seed/bud).
+	if persist_id == &"" or not is_grown_flower_visual(visual):
+		return
+	var rec: Dictionary = record(persist_id)
+	if rec.is_empty():
+		return
+	var plant: PlantData = plant_data(StringName(str(rec.get(KEY_PLANT, ""))))
+	if plant == null or plant.kind != PlantData.Kind.FLOWER:
+		return
+	rec[KEY_BLOOM] = String(visual)
+	var need: int = _threshold(plant, 2)
+	if growth_days(rec, plant) < need:
+		var now: int = Clock.renew_index()
+		rec[KEY_PLANTED] = now - need
+		rec[KEY_WATERED] = now
+	_store(persist_id, rec)
 
 
 static func plant(ctx: InteractionContext, plant: PlantData, cell: Vector2i) -> StringName:
@@ -365,6 +396,83 @@ static func plant_from_slot(ctx: InteractionContext, slot_index: int) -> String:
 
 static func refresh_world(world: Node) -> void:
 	assign_special_trees(world)
+	refresh_hosts(world)
+
+
+static func should_die(rec: Dictionary, plant: PlantData, now_renew: int = -1) -> bool:
+	## Flowers that need water die when left dry for `FLOWER_DIE_DAYS` renews.
+	if rec.is_empty() or plant == null or plant.kind != PlantData.Kind.FLOWER:
+		return false
+	if not plant.needs_water:
+		return false
+	var now: int = now_renew if now_renew >= 0 else Clock.renew_index()
+	var watered: int = int(rec.get(KEY_WATERED, int(rec.get(KEY_PLANTED, now))))
+	var dry: int = _calendar_days(watered, now, plant.winter_pauses)
+	return dry >= FLOWER_DIE_DAYS
+
+
+static func cull_dead_flowers(world: Node, grid: WorldGrid) -> void:
+	## Remove wilted flowers from the field (`EMPTY_NO` on kill / our water wilt).
+	if world == null or grid == null:
+		return
+	var doomed: Array[StringName] = []
+	for key: Variant in Game.plant_states.keys():
+		var pid := StringName(str(key))
+		var rec: Dictionary = record(pid)
+		var plant: PlantData = plant_data(StringName(str(rec.get(KEY_PLANT, ""))))
+		if should_die(rec, plant):
+			doomed.append(pid)
+	for pid: StringName in doomed:
+		_kill_flower(world, grid, pid)
+
+
+static func dig_up_flower(ctx: InteractionContext, cell: Vector2i) -> bool:
+	## `mFI_CheckDigRemoveItem` for flowers: scoop clears the plant and writes a hole.
+	var grid: WorldGrid = null
+	if ctx != null and ctx.world != null:
+		grid = ctx.world.get("grid") as WorldGrid
+	if grid == null or not grid.is_in_bounds(cell):
+		return false
+	var occupant: StringName = grid.occupant_at(cell)
+	if occupant == &"":
+		return false
+	var rec: Dictionary = record(occupant)
+	var plant: PlantData = plant_data(StringName(str(rec.get(KEY_PLANT, ""))))
+	if plant == null or plant.kind != PlantData.Kind.FLOWER:
+		## Also allow FG flower hosts without a growth record (test town / templates).
+		if not _is_flower_host(ctx.world if ctx != null else null, occupant):
+			return false
+	_kill_flower(ctx.world if ctx != null else null, grid, occupant)
+	Game.post_notice("You dug up the flower.")
+	return HoleUse.dig(ctx, cell)
+
+
+static func _kill_flower(world: Node, grid: WorldGrid, pid: StringName) -> void:
+	clear(pid)
+	Game.mark_interactable_removed(pid)
+	if grid != null:
+		grid.remove(pid)
+	if world == null or world.get_tree() == null:
+		return
+	for node: Node in world.get_tree().get_nodes_in_group("plant"):
+		if node.get("persist_id") == pid or node.get("occupant_id") == pid:
+			node.queue_free()
+			return
+
+
+static func _is_flower_host(world: Node, pid: StringName) -> bool:
+	if world == null or world.get_tree() == null or pid == &"":
+		return false
+	for node: Node in world.get_tree().get_nodes_in_group("plant"):
+		if node.get("persist_id") != pid and node.get("occupant_id") != pid:
+			continue
+		var plant: Variant = node.get("plant")
+		if plant is PlantData and (plant as PlantData).kind == PlantData.Kind.FLOWER:
+			return true
+		var vis := String(node.get("visual_id"))
+		if vis.begins_with("FLOWER_"):
+			return true
+	return false
 
 
 static func restore(world: Node, grid: WorldGrid) -> void:
@@ -409,8 +517,21 @@ static func _threshold(plant: PlantData, index: int) -> int:
 	return maxi(plant.stage_days[index], 0)
 
 
+static func is_grown_flower_visual(visual: StringName) -> bool:
+	## `IS_ITEM_GROWN_FLOWER`: bloom colors, not leaf beds (`FLOWER_LEAVES_*`).
+	var id := String(visual)
+	return (
+		id.begins_with("FLOWER_PANSIES")
+		or id.begins_with("FLOWER_COSMOS")
+		or id.begins_with("FLOWER_TULIP")
+	)
+
+
 static func _days_for_visual(plant: PlantData, visual: StringName) -> int:
 	if visual == &"" or plant == null:
+		return _threshold(plant, 2)
+	## Bloom color ids are already grown (`FLOWER_PANSIES0` white / `1` purple / `2` yellow).
+	if is_grown_flower_visual(visual):
 		return _threshold(plant, 2)
 	if plant.visual_harvestable != &"" and visual == plant.visual_harvestable:
 		return _threshold(plant, 2)
@@ -435,12 +556,8 @@ static func _days_for_visual(plant: PlantData, visual: StringName) -> int:
 		return _threshold(plant, 0)
 	if visual == &"TREE_S2" or visual == &"CEDAR_S2" or visual == &"PALM_S2":
 		return _threshold(plant, 1)
-	if visual == &"TREE_APPLE_FRUIT" or visual == &"TREE_PALM_FRUIT" or visual == &"FLOWER_PANSIES2":
+	if visual == &"TREE_APPLE_FRUIT" or visual == &"TREE_PALM_FRUIT":
 		return _threshold(plant, 2)
-	if visual == &"FLOWER_PANSIES1":
-		return _threshold(plant, 1)
-	if visual == &"FLOWER_PANSIES0":
-		return 0
 	return _threshold(plant, 2)
 
 

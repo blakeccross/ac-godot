@@ -302,6 +302,15 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 			if hole.is_empty():
 				hole = _existing(["environment/obj_hole0.glb"])
 			return hole
+		&"BURIED_CRACK", &"obj_crack0":
+			## Deposit X mark (`bIT_DRAW_TYPE_CRACK00_*`): hole fan + `obj_crack_tex`.
+			var crack: PackedStringArray = _existing(["environment/holes/obj_crack0.glb"])
+			if crack.is_empty():
+				crack = _existing(["environment/obj_crack0.glb"])
+			return crack
+		&"SHINE_SPOT", &"ef_anahikari01_01":
+			## Golden dig rays (`eEC_EFFECT_ANAHIKARI` on `SHINE_SPOT`).
+			return _existing(["effects/ef_anahikari01_01.glb", "effects/ef_anahikari01_02.glb"])
 		&"obj_s_tree5_apple", &"TREE_APPLE_FRUIT":
 			var paths := _seasonal_tree_existing("obj_%s_tree5")
 			paths.append_array(_existing(["environment/trees/obj_s_tree5_apple.glb"]))
@@ -342,22 +351,22 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		&"dock_sign", &"DOCK_SIGN", &"obj_s_attention":
 			## `PORT_SIGN` → `ac_reserve` arg0 0x42 → `obj_{s,w}_attentionT_model` (one post).
 			return _seasonal_env_existing("obj_%s_attention")
-		&"obj_flower_a", &"FLOWER_PANSIES0":
+		&"obj_flower_a", &"FLOWER_PANSIES0", &"FLOWER_LEAVES_PANSIES0":
 			return _existing(["environment/flowers/obj_flower_a.glb"])
-		&"obj_flower_b", &"FLOWER_PANSIES1":
+		&"obj_flower_b", &"FLOWER_PANSIES1", &"FLOWER_LEAVES_PANSIES1":
 			return _existing(["environment/flowers/obj_flower_b.glb"])
-		&"obj_flower_c", &"FLOWER_PANSIES2":
+		&"obj_flower_c", &"FLOWER_PANSIES2", &"FLOWER_LEAVES_PANSIES2":
 			return _existing(["environment/flowers/obj_flower_c.glb"])
 		&"obj_s_stoneA", &"ROCK_A":
-			return _existing([_seasonal_rock("A")])
+			return _seasonal_rock_existing("A")
 		&"obj_s_stoneB", &"ROCK_B":
-			return _existing([_seasonal_rock("B")])
+			return _seasonal_rock_existing("B")
 		&"obj_s_stoneC", &"ROCK_C":
-			return _existing([_seasonal_rock("C")])
+			return _seasonal_rock_existing("C")
 		&"obj_s_stoneD", &"ROCK_D":
-			return _existing([_seasonal_rock("D")])
+			return _seasonal_rock_existing("D")
 		&"obj_s_stoneE", &"ROCK_E":
-			return _existing([_seasonal_rock("E")])
+			return _seasonal_rock_existing("E")
 		_:
 			## Outdoor structures (`obj_s_myhome1`, `obj_s_museum`, `obj_s_tailor`, …).
 			if id.begins_with("obj_"):
@@ -437,7 +446,15 @@ static func is_ground_decal(visual_id: StringName) -> bool:
 	## have height and stay `_fit_actor`. Shine spots / pitfall holes reuse this path
 	## when those visuals exist. Do not treat all `bg_item` −1 GX placements as decals.
 	var id := String(visual_id)
-	return id.begins_with("HOLE") or id.begins_with("obj_hole")
+	return (
+		id.begins_with("HOLE")
+		or id.begins_with("obj_hole")
+		or id == "BURIED_CRACK"
+		or id == "obj_crack0"
+		or id.begins_with("obj_crack")
+		or id == "SHINE_SPOT"
+		or id.begins_with("ef_anahikari")
+	)
 
 
 static func blob_shadow_paths(visual_id: StringName) -> PackedStringArray:
@@ -648,6 +665,21 @@ static func is_grass_attr(attr: int) -> bool:
 static func is_plantable_attr(attr: int) -> bool:
 	## Grass0–3 and soil0–2. Stone, bush, hole, water, wood, and banks kill plants.
 	return attr >= 0 and attr <= 6
+
+
+static func is_diggable_attr(attr: int) -> bool:
+	## `mCoBG_CheckHole_OrgAttr` — shovel / buried deposit ground.
+	## Note: grass3 (3) is excluded; sand and some wave/bank attrs are allowed.
+	match attr:
+		0, 1, 2, 4, 5, 6, 10, SAND_ATTR, 25, 26, 36, 43, 44, 45, 46, 59, 60, 61, 62:
+			return true
+		_:
+			return false
+
+
+static func is_sand_hole_attr(attr: int) -> bool:
+	## `mCoBG_CheckSandHole_ClData` — shine spots refuse these (fossils may still deposit).
+	return attr == 10 or attr == SAND_ATTR or attr == 25 or attr == 26 or attr == 36
 
 
 static func is_slate_unit(slate: int, attr: int) -> bool:
@@ -1018,7 +1050,8 @@ static func default_visual(kind: StringName) -> StringName:
 			return &"TREE_APPLE_FRUIT"
 		&"house":
 			## Villager home (`ac_house`). Player house sets `obj_s_myhome1` explicitly.
-			return &"obj_s_house1"
+			## Per-animal shape/palette overrides via `villager_house_visual`.
+			return &"obj_s_house1_a"
 		&"building":
 			return &""
 		&"shop":
@@ -1033,8 +1066,40 @@ static func default_visual(kind: StringName) -> StringName:
 			return &"ROCK_A"
 		&"hole":
 			return &"HOLE00"
+		&"buried":
+			return &"BURIED_CRACK"
 		_:
 			return &""
+
+
+## `npc_house_list` type/palette → outdoor shell (`aHUS_actor_ct`).
+const HOUSE_PALETTE_LETTERS := "abcde"
+
+
+static func villager_house_visual(house_type: int, house_palette: int) -> StringName:
+	var shape: int = clampi(house_type, 0, 4) + 1
+	var pal: int = clampi(house_palette, 0, 4)
+	var letter: String = HOUSE_PALETTE_LETTERS.substr(pal, 1)
+	return StringName("obj_s_house%d_%s" % [shape, letter])
+
+
+static func house_shape_base(visual_id: StringName) -> StringName:
+	## `obj_s_house2_c` / `obj_w_house3_e` → drop palette letter for mesh / door clips.
+	var id := String(visual_id)
+	if id.length() < 14:
+		return visual_id
+	if not (id.begins_with("obj_s_house") or id.begins_with("obj_w_house") or id.begins_with("obj_f_house")):
+		return visual_id
+	var letter: String = id.substr(id.length() - 1)
+	if not HOUSE_PALETTE_LETTERS.contains(letter):
+		return visual_id
+	if id[id.length() - 2] != "_":
+		return visual_id
+	## Keep island cottage `obj_s_house_i` alone.
+	var stem: String = id.substr(0, id.length() - 2)
+	if stem.ends_with("house_i") or not stem.contains("house"):
+		return visual_id
+	return StringName(stem)
 
 
 static func _species_code(species: StringName) -> String:
@@ -1122,6 +1187,12 @@ static func _structure_paths(id: String) -> PackedStringArray:
 	var paths: PackedStringArray = _existing(["environment/%s.glb" % seasonal])
 	if paths.is_empty() and seasonal != id:
 		paths = _existing(["environment/%s.glb" % id])
+	## Palette-suffixed villager homes (`obj_s_house2_c`) fall back to the shape GLB
+	## (`obj_s_house2`, which bakes palette a) until variants are converted.
+	if paths.is_empty():
+		var base: String = String(house_shape_base(StringName(id)))
+		if base != id:
+			paths = _structure_paths(base)
 	return paths
 
 
@@ -1175,6 +1246,15 @@ static func _seasonal_env_existing(pattern: String) -> PackedStringArray:
 
 static func _seasonal_rock(letter: String) -> String:
 	return "environment/rocks/obj_%s_stone%s.glb" % [season_letter(), letter]
+
+
+static func _seasonal_rock_existing(letter: String) -> PackedStringArray:
+	## Disc ships summer + winter stones only; autumn `obj_f_stone*` is absent.
+	## Prefer current season, then summer (same as trees / env props).
+	var paths: PackedStringArray = _existing([_seasonal_rock(letter)])
+	if paths.is_empty() and season_letter() != "s":
+		paths = _existing(["environment/rocks/obj_s_stone%s.glb" % letter])
+	return paths
 
 
 static func _existing(rel_paths: Array) -> PackedStringArray:

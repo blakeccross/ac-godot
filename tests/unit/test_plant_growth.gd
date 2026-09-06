@@ -76,7 +76,7 @@ func test_flower_water_caps_growth() -> void:
 	var plant: PlantData = load("res://data/plants/pansy.tres")
 	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 1, "hour": 12, "minute": 0})
 	var pid := &"plant_6_10"
-	PlantGrowth.ensure(pid, plant, &"FLOWER_PANSIES0", Vector2i(6, 10))
+	PlantGrowth.ensure(pid, plant, &"FLOWER_LEAVES_PANSIES0", Vector2i(6, 10))
 	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 8, "hour": 12, "minute": 0})
 	var rec: Dictionary = PlantGrowth.record(pid)
 	assert_int(PlantGrowth.growth_days(rec, plant)).is_equal(0)
@@ -88,6 +88,17 @@ func test_flower_water_caps_growth() -> void:
 	assert_that(PlantGrowth.pipeline(rec, plant)).is_equal(PlantGrowth.Pipeline.HARVESTABLE)
 
 
+func test_bloom_color_visuals_are_harvestable() -> void:
+	var plant: PlantData = load("res://data/plants/pansy.tres")
+	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 1, "hour": 12, "minute": 0})
+	for color: StringName in [&"FLOWER_PANSIES0", &"FLOWER_PANSIES1", &"FLOWER_PANSIES2"]:
+		var pid := StringName("bloom_%s" % String(color))
+		PlantGrowth.clear(pid)
+		var rec: Dictionary = PlantGrowth.ensure(pid, plant, color, Vector2i(1, 1))
+		assert_that(PlantGrowth.pipeline(rec, plant)).is_equal(PlantGrowth.Pipeline.HARVESTABLE)
+		assert_str(String(PlantGrowth.visual_id(rec, plant))).is_equal(String(color))
+
+
 func test_flower_winter_does_not_count() -> void:
 	var plant: PlantData = load("res://data/plants/pansy.tres")
 	var rec := _rec("pansy", 1)
@@ -96,6 +107,19 @@ func test_flower_winter_does_not_count() -> void:
 	assert_int(PlantGrowth.growth_days(rec, plant, 40)).is_equal(0)
 	var apple: PlantData = load("res://data/plants/apple_tree.tres")
 	assert_int(PlantGrowth.growth_days(_rec("apple_tree", 1), apple, 40)).is_equal(39)
+
+
+func test_flower_dies_when_left_dry() -> void:
+	## Use spring renews so `winter_pauses` does not zero the dry span.
+	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 1, "hour": 12, "minute": 0})
+	var plant: PlantData = load("res://data/plants/pansy.tres")
+	var watered: int = Clock.renew_index()
+	var rec := _rec("pansy", watered)
+	rec[PlantGrowth.KEY_WATERED] = watered
+	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 4, "hour": 12, "minute": 0})
+	assert_bool(PlantGrowth.should_die(rec, plant)).is_false()
+	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 5, "hour": 12, "minute": 0})
+	assert_bool(PlantGrowth.should_die(rec, plant)).is_true()
 
 
 func test_can_plant_terrain_and_occupancy() -> void:

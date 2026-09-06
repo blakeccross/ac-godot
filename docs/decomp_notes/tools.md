@@ -37,7 +37,7 @@ Equipping a tool puts the player into a **tool-ready** main index. A then uses t
 - Data + `ToolUse`, not a `Tool` / `Shovel` / `Axe` class tree.
 - No golden / broken / silver variants. One of each kind.
 - No fishing bite loop, insect AI, flower breeding, or axe durability in this slice — those stay in [fishing.md](fishing.md), [bugs.md](bugs.md), [plants.md](plants.md).
-- One hole visual (`HOLE00`), treated as a ground decal (`GetBgY(..., -1 GX)` plus no depth write) so it does not z-fight the acre. No buried items, pitfalls, shine spots, or falling-in.
+- One hole visual (`HOLE00`), treated as a ground decal (`GetBgY(..., -1 GX)` plus no depth write) so it does not z-fight the acre. Buried fossils use the deposit X crack (`BURIED_CRACK` / `obj_crack0`, hole fan + `obj_crack_tex`); shine spots use golden rays (`SHINE_SPOT` / `ef_anahikari`). Diggable attrs follow `mCoBG_CheckHole_OrgAttr`; shine also requires flat ground and refuses sand-hole attrs. Pitfalls and falling-in wait.
 - Field uses that have no world effect yet post a notice.
 - Takeout / putaway body clips: `ply_1_putaway1` is in `PLAYER_CORE_ANIMS` / `boy_1.glb`, but equip still snaps the held mesh on with no put-in/take-out mode. Watering can stays unequipped-looking (no disc model to attach).
 

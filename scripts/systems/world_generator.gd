@@ -539,9 +539,10 @@ static func _place_fg_props(data: WorldData, blocks: PackedByteArray, seed_value
 	if FgCatalog.has_catalog():
 		_change_tree_to_fruit(data, rng)
 		_change_tree_to_cedar(data, rng)
-		## Most outdoor FG templates are tree-heavy; a few flats still get flower beds.
+		## Mainland FG templates have ~0 flowers (island acres only in fgdata). Keep a
+		## small starter bed near the player house instead of scattering a dozen beds.
 		if _kind_count(data, &"flower") == 0:
-			_scatter_backup_flowers(data, blocks, rng)
+			_scatter_starter_flowers(data, rng)
 	var apple_cell := _first_open_near_spawn(data, 5)
 	if apple_cell != Vector2i(-1, -1):
 		data.objects.append(_item(&"ground_apple", apple_cell, _APPLE))
@@ -728,7 +729,7 @@ static func _place_villager_homes(
 				house_cell,
 				Vector2i(3, 3),
 				true,
-				&"obj_s_house1",
+				FieldCatalog.default_visual(&"house"),
 				"House"
 			)
 		)
@@ -751,6 +752,7 @@ static func _place_starter_villagers(data: WorldData, rng: RandomNumberGenerator
 		var house: BuildingPlacement = houses[i]
 		var villager: VillagerData = picked[i]
 		house.resident_id = villager.id
+		house.visual_id = villager.outdoor_house_visual()
 		if villager.display_name != "":
 			house.label = "%s's House" % villager.display_name
 		var cell: Vector2i = _yard_cell(data, house.cell, house.footprint)
@@ -867,9 +869,41 @@ static func _near_player_house(data: WorldData, cell: Vector2i, radius: int) -> 
 	return false
 
 
+static func _scatter_starter_flowers(data: WorldData, rng: RandomNumberGenerator) -> void:
+	## Mainland FG templates are nearly flowerless; island acres hold the real beds.
+	## Three near spawn covers pick/water without flooding every flat acre.
+	var flowers: Array[StringName] = [&"FLOWER_PANSIES0", &"FLOWER_PANSIES1", &"FLOWER_PANSIES2"]
+	var base: Vector2i = _first_open_near_spawn(data, 6)
+	if base == Vector2i(-1, -1):
+		return
+	var placed := 0
+	var guard := 0
+	while placed < 3 and guard < 40:
+		guard += 1
+		var cell := Vector2i(
+			base.x + rng.randi_range(-2, 2),
+			base.y + rng.randi_range(-2, 2)
+		)
+		if not _is_open_grass(data, cell):
+			continue
+		if _occupied(data, cell):
+			continue
+		data.objects.append(
+			_object(
+				StringName("flower_%d" % placed),
+				&"flower",
+				cell,
+				_PANSY,
+				flowers[placed % flowers.size()]
+			)
+		)
+		placed += 1
+
+
 static func _scatter_backup_flowers(
 	data: WorldData, blocks: PackedByteArray, rng: RandomNumberGenerator
 ) -> void:
+	## Legacy fallback when no FG catalog — kept for tests that call it directly.
 	var flower_n := 0
 	for bz: int in range(1, 7):
 		for bx: int in range(1, 6):
@@ -914,8 +948,10 @@ static func _place_fg_props_scatter(
 				var n: int = 8 if bz <= 3 else 6
 				_scatter_trees(data, rng, origin, n, bz, tree_n)
 				tree_n += n
-				_scatter_flowers(data, rng, origin, 4, flower_n)
-				flower_n += 4
+				## Sparse flowers — FG mainland templates are nearly flowerless.
+				if rng.randi() % 4 == 0:
+					_scatter_flowers(data, rng, origin, 2, flower_n)
+					flower_n += 2
 				if rng.randi() % 3 == 0:
 					_scatter_rocks(data, rng, origin, 1, rock_n)
 					rock_n += 1
@@ -1282,8 +1318,12 @@ static func _test_river() -> Array[Vector2i]:
 
 
 static func _filbert_house() -> BuildingPlacement:
+	var filbert: VillagerData = load("res://data/villagers/filbert.tres") as VillagerData
+	var visual: StringName = &"obj_s_house1_a"
+	if filbert != null:
+		visual = filbert.outdoor_house_visual()
 	var house: BuildingPlacement = _building(
-		&"npc_house_0", &"house", Vector2i(1, 1), Vector2i(2, 2), true, &"obj_s_house1"
+		&"npc_house_0", &"house", Vector2i(1, 1), Vector2i(2, 2), true, visual
 	)
 	house.resident_id = &"filbert"
 	house.label = "Filbert's House"

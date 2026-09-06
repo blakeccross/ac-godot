@@ -214,6 +214,19 @@ ITEM_CARD_GFX: dict[str, list[str]] = {
     "obj_item_bag": ["bag_DL_mode", "bag_DL_vtx"],
 }
 
+## Rain streaks / ground splash (`ac_weather_rain`). Texture + PRIM/ENV live on shared
+## `ef_ame02_setmode`; each card is only `*_modelT` verts/tris (`ef_ame02_00`…`04`).
+WEATHER_RAIN_GFX: dict[str, list[str]] = {
+    "ef_ame02_00": ["ef_ame02_setmode", "ef_ame02_00_modelT"],
+    "ef_ame02_01": ["ef_ame02_setmode", "ef_ame02_01_modelT"],
+    "ef_ame02_02": ["ef_ame02_setmode", "ef_ame02_02_modelT"],
+    "ef_ame02_03": ["ef_ame02_setmode", "ef_ame02_03_modelT"],
+    "ef_ame02_04": ["ef_ame02_setmode", "ef_ame02_04_modelT"],
+}
+
+## Legacy prefix list kept for tests / callers. `--kind water` uses
+## `convert_water_acres` (every `grd_s_*` / `grd_w_*` job with `*_modelT`) so
+## pond / post / island / FG hole acres are not skipped after wrap-bake fixes.
 WATER_STATIC_NEEDLES = [
     "grd_s_r1",
     "grd_s_r2",
@@ -260,6 +273,28 @@ WATER_STATIC_NEEDLES = [
     "grd_w_c6_r",
     "grd_w_c7_r",
 ]
+
+
+def _is_field_water_acre(item: dict[str, Any]) -> bool:
+    """True for outdoor acre jobs that ship an XLU ``*_modelT`` (water / waves)."""
+    asset_id = str(item.get("asset_id", "")).lower()
+    if not (asset_id.startswith("grd_s_") or asset_id.startswith("grd_w_")):
+        return False
+    return any(str(g).endswith("modelT") for g in item.get("gfx") or [])
+
+
+def convert_water_acres(cfg: PipelineConfig) -> dict[str, Any]:
+    """Reconvert every field acre that includes XLU water / wave DLs."""
+    results: list[dict[str, Any]] = []
+    rel, symbols = _rel_and_map(cfg)
+    bank = _texture_bank(cfg, rel, symbols)
+    jobs = [item for item in _static_jobs(symbols) if _is_field_water_acre(item)]
+    for i, item in enumerate(jobs, 1):
+        record = _convert_static(cfg, rel, symbols, item, bank)
+        results.append(record)
+        print(f"  static {i}/{len(jobs)} {item['asset_id']} {record['status']}")
+    converted = sum(1 for r in results if r["status"] == "converted")
+    return {"results": results, "converted": converted}
 
 
 def convert_assets(cfg: PipelineConfig) -> dict[str, Any]:
@@ -337,6 +372,40 @@ def convert_ckf_starting_with(cfg: PipelineConfig, *prefixes: str) -> dict[str, 
         if any(stem.startswith(p) for p in prefixes):
             wanted.append(stem)
     return convert_ckf_prefixes(cfg, wanted)
+
+
+def convert_villager_house_palettes(cfg: PipelineConfig) -> dict[str, Any]:
+    """Bake `obj_{s,w}_house{1-5}_{a-e}.glb` with each structure_pal letter.
+
+    Decomp `aHUS_actor_ct`: `structure_pal = aSTR_PAL_HOUSE1_A + pal + shape*5`.
+    Base `obj_s_house1.glb` stays palette a; runtime ids use the letter suffix.
+    """
+    results: list[dict[str, Any]] = []
+    rel, symbols = _rel_and_map(cfg)
+    bank = _texture_bank(cfg, rel, symbols)
+    names = {s.name for s in symbols}
+    letters = "abcde"
+    shapes = range(1, 6)
+    seasons = ("s", "w")
+    jobs: list[tuple[str, str, str]] = []
+    for season in seasons:
+        for shape in shapes:
+            stem = f"obj_{season}_house{shape}"
+            skel = f"cKF_bs_r_{stem}"
+            if skel not in names:
+                continue
+            for letter in letters:
+                jobs.append((stem, skel, letter))
+    for i, (stem, skel, letter) in enumerate(jobs, 1):
+        item = _skeleton_job(skel, names)
+        item["asset_id"] = f"{stem}_{letter}"
+        item["output"] = f"environment/{stem}_{letter}.glb"
+        bank.structure_palette_letter = letter
+        record = _convert_ckf(cfg, rel, symbols, item, bank)
+        results.append(record)
+        print(f"  house-pal {i}/{len(jobs)} {item['asset_id']} {record['status']}")
+    bank.structure_palette_letter = None
+    return {"results": results, "converted": sum(1 for r in results if r["status"] == "converted")}
 
 
 def convert_static_prefixes(cfg: PipelineConfig, needles: list[str]) -> dict[str, Any]:
@@ -661,6 +730,8 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
         gfx_names = KANBAN_SIGN_GFX.get(prefix)
         if gfx_names is None:
             gfx_names = ITEM_CARD_GFX.get(prefix)
+        if gfx_names is None:
+            gfx_names = WEATHER_RAIN_GFX.get(prefix)
         if gfx_names is not None:
             if symbol.name in seen_vtx:
                 continue
@@ -809,7 +880,15 @@ def _convert_static(
         bank.segment_palettes.clear()
         bank._segment_offset_names.clear()
         bank.bind_static_segments(item["asset_id"])
-        parts = convert_static_gfx(rel, symbols, item["vtx"], item["gfx"], cfg.scale, bank=bank)
+        parts = convert_static_gfx(
+            rel,
+            symbols,
+            item["vtx"],
+            item["gfx"],
+            cfg.scale,
+            bank=bank,
+            mat_override=item.get("mat"),
+        )
         dest = cfg.converted / item["output"]
         write_glb(
             dest,

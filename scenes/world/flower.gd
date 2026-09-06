@@ -31,6 +31,9 @@ func apply_growth() -> void:
 	if plant != null and persist_id != &"":
 		var rec: Dictionary = PlantGrowth.record(persist_id)
 		if not rec.is_empty():
+			if PlantGrowth.is_grown_flower_visual(visual_id):
+				PlantGrowth.ensure_grown_bloom(persist_id, visual_id)
+				rec = PlantGrowth.record(persist_id)
 			visual_id = PlantGrowth.visual_id(rec, plant)
 	GeneratedVisual.detach(self)
 	GeneratedVisual.attach(self, visual_id)
@@ -38,6 +41,8 @@ func apply_growth() -> void:
 
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 	var actions: Array[Interaction] = []
+	if ToolUse.has(ctx, ToolData.Kind.SHOVEL):
+		actions.append(Interaction.of(Interaction.DIG, "Dig up", 12, &"ply_1_dig1"))
 	if _can_pick():
 		actions.append(Interaction.of(Interaction.PICK_UP, "Pick flower", 10, &"ply_1_pickup1", 20.0))
 	if ToolUse.has(ctx, ToolData.Kind.WATERING_CAN) and _needs_water():
@@ -48,6 +53,10 @@ func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if action == null:
 		return false
+	if action.id == Interaction.DIG:
+		if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):
+			return false
+		return PlantGrowth.dig_up_flower(ctx, _cell())
 	if action.id == Interaction.WATER:
 		if not ToolUse.has(ctx, ToolData.Kind.WATERING_CAN):
 			return false

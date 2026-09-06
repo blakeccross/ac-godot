@@ -1,0 +1,25 @@
+{
+  "id": "post_girl_bank",
+  "speaker_id": "post_girl",
+  "start": "balance",
+  "nodes": {
+    "balance": {
+      "type": "line",
+      "text": "Your balance is\n{free3} Bells.",
+      "next": "menu"
+    },
+    "menu": {
+      "type": "choice",
+      "prompt": "What would you like to do?",
+      "options": [
+        { "text": "Deposit", "goto": "post_girl_deposit" },
+        { "text": "Withdraw", "goto": "post_girl_withdraw" },
+        { "text": "Never mind...", "goto": "cancel" }
+      ]
+    },
+    "cancel": {
+      "type": "line",
+      "text": "Oh, really? Come back\nanytime."
+    }
+  }
+}

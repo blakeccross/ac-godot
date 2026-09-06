@@ -123,7 +123,7 @@ func _blocked_by_other_ui() -> bool:
 	var tree := get_tree()
 	if tree == null:
 		return false
-	for group: String in ["dialogue_ui", "shop_ui", "inventory_ui"]:
+	for group: String in ["dialogue_ui", "shop_ui", "inventory_ui", "debug_console_ui"]:
 		var node: Node = tree.get_first_node_in_group(group)
 		if node != null and node.has_method("is_open") and bool(node.call("is_open")):
 			return true

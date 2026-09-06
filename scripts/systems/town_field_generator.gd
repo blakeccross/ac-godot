@@ -865,6 +865,22 @@ static func is_beach(type: int) -> bool:
 	)
 
 
+static func is_pool(type: int) -> bool:
+	## Pool acres are river types + 29 (`mRF` POOL_SOUTH…); labels 69–75.
+	return type >= 69 and type <= 75
+
+
+static func is_deposit_blocked_acre(type: int) -> bool:
+	## `mFI_CheckBlockKind_OR(..., PLAYER|SHRINE|STATION|POOL|DUMP)` for fossil/shine.
+	return (
+		type == T_PLAYER_HOUSE
+		or type == T_SHRINE
+		or type == T_TRACKS_STATION
+		or type == T_TRACKS_DUMP
+		or is_pool(type)
+	)
+
+
 static func is_cliffish(type: int) -> bool:
 	return (
 		(type >= T_CLIFF_H and type <= T_CLIFF_BL)

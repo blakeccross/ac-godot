@@ -180,7 +180,7 @@ class ClassicGbiTests(unittest.TestCase):
         )
         self.assertEqual(
             resolve_alpha_mode(COVERAGE_TEX_EDGE, "BLEND", samples_transparent=True),
-            "BLEND",
+            "MASK",
         )
         self.assertEqual(
             resolve_alpha_mode(COVERAGE_TEX_EDGE, "MASK", samples_transparent=False),
@@ -288,6 +288,30 @@ class ClassicGbiTests(unittest.TestCase):
         out = Image.open(BytesIO(harden_tex_edge_alpha(image_png_bytes(img)))).convert("RGBA")
         self.assertEqual(out.getpixel((0, 0))[3], 0)
         self.assertEqual(out.getpixel((1, 0))[3], 255)
+
+    def test_flood_opaque_alpha_clears_achd_soft_fringe(self) -> None:
+        """OPAQUE body sheets keep ACHD A=253 fringe unless flooded."""
+        from asset_pipeline.texbank import (
+            alpha_mode_for_image,
+            flood_opaque_alpha,
+            image_png_bytes,
+        )
+        from io import BytesIO
+
+        from PIL import Image
+
+        img = Image.new("RGBA", (2, 2), (80, 80, 80, 253))
+        self.assertEqual(alpha_mode_for_image(img), "OPAQUE")
+        out = Image.open(BytesIO(flood_opaque_alpha(image_png_bytes(img)))).convert("RGBA")
+        self.assertTrue(all(p[3] == 255 for p in out.getdata()))
+
+    def test_house_structure_palette_letter(self) -> None:
+        self.assertIn("obj_s_house1_a_pal", structure_palette_names("obj_s_house1"))
+        self.assertEqual(
+            structure_palette_names("obj_s_house2", "c")[0],
+            "obj_s_house2_c_pal",
+        )
+        self.assertIn("obj_s_house2_a_pal", structure_palette_names("obj_s_house2", "c"))
 
     def test_train_structure_palette_and_skip_achd(self) -> None:
         self.assertIn("obj_train1_a1_pal", structure_palette_names("obj_train1_1"))

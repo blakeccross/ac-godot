@@ -35,8 +35,12 @@ func _ready() -> void:
 	print(WorldGenerator.map_text(layout))
 	WorldBuilder.new().build(self, layout, grid)
 	HoleUse.restore(self, grid)
+	BuriedUse.restore(self, grid)
 	PlantGrowth.restore(self, grid)
 	PlantGrowth.assign_special_trees(self)
+	## First outdoor load seeds dig spots like `mAGrw_GROW_FIRST` deposit.
+	if Game.buried_deposits.is_empty():
+		BuriedUse.renew(self, grid)
 	fish.configure(grid, WorldBuilder.water_surface_y(), layout)
 	bugs.configure(grid, layout)
 	if layout.mode == WorldData.Mode.TEST:
@@ -190,6 +194,8 @@ func _aim_directional(light: DirectionalLight3D, dir: Vector3) -> void:
 
 func _on_field_renewed(_days: int) -> void:
 	PlantGrowth.refresh_world(self)
+	PlantGrowth.cull_dead_flowers(self, grid)
+	BuriedUse.renew(self, grid)
 
 
 func _on_season_changed(_season: Clock.Season) -> void:

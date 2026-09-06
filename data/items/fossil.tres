@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"fossil"
+display_name = "Fossil"
+description = "Something dug up from under the dirt. Take it to the museum."
+category = 5
+sell_price = 100
+droppable = true
+icon_color = Color(0.72, 0.62, 0.42, 1)

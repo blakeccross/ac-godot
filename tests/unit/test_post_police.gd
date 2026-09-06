@@ -42,8 +42,83 @@ func test_post_girl_day_night_species() -> void:
 	assert_that(PostDisplay.post_girl_species(18)).is_equal(PostDisplay.PELLY_SPECIES)
 	assert_that(PostDisplay.post_girl_species(19)).is_equal(PostDisplay.PHYLLIS_SPECIES)
 	assert_that(PostDisplay.post_girl_species(6)).is_equal(PostDisplay.PHYLLIS_SPECIES)
+	assert_that(PostDisplay.PELLY_SPECIES).is_equal(&"pga")
+	assert_that(PostDisplay.PHYLLIS_SPECIES).is_equal(&"pgb")
 	assert_str(PostDisplay.post_girl_name(PostDisplay.PELLY_SPECIES)).is_equal("Pelly")
 	assert_str(PostDisplay.post_girl_name(PostDisplay.PHYLLIS_SPECIES)).is_equal("Phyllis")
+	assert_str(FieldCatalog.villager_path(PostDisplay.PELLY_SPECIES)).contains("pga_1")
+	assert_str(FieldCatalog.villager_path(PostDisplay.PHYLLIS_SPECIES)).contains("pgb_1")
+	assert_that(PoliceDisplay.BOOKER_SPECIES).is_equal(&"pla")
+	assert_str(FieldCatalog.villager_path(PoliceDisplay.BOOKER_SPECIES)).contains("pla_1")
+
+
+func test_post_girl_talk_msg_matches_decomp_status() -> void:
+	## Bank account + empty desk → status 4 → 0x8d1 / Phyllis +1.
+	Game.inventory.set_loan(0)
+	assert_int(PostDisplay.talk_msg_no(PostDisplay.PELLY_SPECIES, false, true)).is_equal(0x8D1)
+	assert_int(PostDisplay.talk_msg_no(PostDisplay.PHYLLIS_SPECIES, false, true)).is_equal(0x8D2)
+	assert_int(PostDisplay.talk_msg_no(PostDisplay.PELLY_SPECIES, true, true)).is_equal(0x8CF)
+	## Outstanding loan → DONE_FIRST_JOB (status 2) → 0x8b1.
+	Game.inventory.set_loan(19800)
+	assert_int(PostDisplay.talk_msg_no(PostDisplay.PELLY_SPECIES, false, true)).is_equal(0x8B1)
+	Game.inventory.set_loan(0)
+	var data: DialogueData = PostDisplay.talk_conversation(PostDisplay.PELLY_SPECIES, false, true)
+	assert_that(data).is_not_null()
+	## Imported bank when pipeline ran; else authored fallback.
+	assert_bool(
+		String(data.id).begins_with("msg_") or data.id == PostDisplay.FALLBACK_GREETING_ID
+	).is_true()
+	assert_vector(PostDisplay.PTERMINAL_GX).is_equal(Vector3(60.0, 0.0, 240.0))
+
+
+func test_post_book_desk_capacity() -> void:
+	var book := PostBook.new()
+	assert_int(book.get_keep_mail_sum()).is_equal(0)
+	assert_bool(book.is_desk_full()).is_false()
+	for _i: int in PostBook.MAIL_STORAGE_SIZE:
+		assert_bool(book.receipt_mail(MailData.make_send(&"filbert", "Filbert", "Hi"))).is_true()
+	assert_bool(book.is_desk_full()).is_true()
+	assert_bool(book.receipt_mail(MailData.make_send(&"filbert", "Filbert", "Hi"))).is_false()
+
+
+func test_post_use_bank_notices() -> void:
+	Game.inventory.set_wallet(2000)
+	Game.inventory.set_savings(0)
+	assert_str(PostUse.deposit_amount(1000)).contains("Deposited 1000")
+	assert_int(Game.inventory.wallet).is_equal(1000)
+	assert_int(Game.inventory.savings).is_equal(1000)
+	assert_str(PostUse.withdraw_amount(500)).contains("Withdrew 500")
+	assert_int(Game.inventory.wallet).is_equal(1500)
+	assert_int(Game.inventory.savings).is_equal(500)
+	assert_str(PostUse.deposit_amount(-1)).contains("Deposited 1500")
+	assert_int(Game.inventory.wallet).is_equal(0)
+	assert_int(Game.inventory.savings).is_equal(2000)
+
+
+func test_post_use_send_and_save_mail() -> void:
+	Game.inventory.clear()
+	Game.post.clear()
+	assert_str(PostUse.write_letter(&"filbert", 0)).contains("Wrote")
+	assert_int(Game.inventory.count_mail()).is_equal(1)
+	var indices: Array[int] = Game.inventory.sendable_mail_indices()
+	assert_int(indices.size()).is_equal(1)
+	assert_str(PostUse.send_mail_at(indices[0])).contains("deliver")
+	assert_int(Game.inventory.count_mail()).is_equal(0)
+	assert_int(Game.post.get_keep_mail_sum()).is_equal(1)
+	PostUse.write_letter(&"filbert", 1)
+	indices = Game.inventory.sendable_mail_indices()
+	assert_str(PostUse.save_mail_at(indices[0])).contains("keep")
+	assert_int(Game.post.get_keep_mail_sum()).is_equal(2)
+
+
+func test_post_use_repay_loan() -> void:
+	Game.inventory.set_wallet(5000)
+	Game.inventory.set_loan(19800)
+	assert_str(PostUse.repay_amount(1000)).contains("Paid 1000")
+	assert_int(Game.inventory.loan).is_equal(18800)
+	assert_int(Game.inventory.wallet).is_equal(4000)
+	assert_str(PostUse.repay_amount(-1)).contains("Paid")
+	assert_int(Game.inventory.loan).is_equal(14800)
 
 
 func test_police_book_init_and_claim() -> void:
@@ -74,14 +149,29 @@ func test_police_book_keep_shifts_when_full() -> void:
 	assert_that(book.item_at(PoliceBook.STORAGE_COUNT - 1)).is_equal(&"shirt_000")
 
 
-func test_post_book_desk_capacity() -> void:
-	var book := PostBook.new()
-	assert_int(book.get_keep_mail_sum()).is_equal(0)
-	assert_bool(book.is_desk_full()).is_false()
-	for _i: int in PostBook.MAIL_STORAGE_SIZE:
-		assert_bool(book.receipt_mail()).is_true()
-	assert_bool(book.is_desk_full()).is_true()
-	assert_bool(book.receipt_mail()).is_false()
+func test_post_office_shell_has_door_gap_and_desk() -> void:
+	var room: Room = InteriorCatalog.room_template(&"post_office")
+	var session := Interior.new()
+	session.bind(room)
+	var builder := InteriorBuilder.new()
+	var gaps: Array[Dictionary] = builder.shell_door_gaps(room, session.grid)
+	assert_int(gaps.size()).is_equal(1)
+	assert_that(gaps[0]["side"]).is_equal(&"south")
+	var packed: PackedScene = load(InteriorCatalog.scene_path(&"post_office")) as PackedScene
+	assert_that(packed).is_not_null()
+	var root: Node3D = packed.instantiate() as Node3D
+	auto_free(root)
+	add_child(root)
+	builder.populate_authored(root, session)
+	var terrain: Node3D = root.get_node("Terrain") as Node3D
+	var bodies := 0
+	for child: Node in terrain.get_children():
+		if child is StaticBody3D:
+			bodies += 1
+	assert_int(bodies).is_greater(2)
+	assert_that(root.get_node_or_null("Furniture/PostDesk")).is_not_null()
+	assert_that(root.get_node_or_null("Furniture/PostTerminal")).is_not_null()
+	assert_vector(PostDisplay.DESK_CENTER_GX).is_equal(Vector3(160.0, 0.0, 140.0))
 
 
 func test_enter_sets_decomp_spawns() -> void:

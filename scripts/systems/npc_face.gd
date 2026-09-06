@@ -4,6 +4,7 @@ extends RefCounted
 ## Drives an `NpcFaceAnim` onto a pipeline character GLB by swapping the eye and mouth
 ## quads' albedo. `texbank` bakes frame 0 of each into the mesh, so the head already looks
 ## right; the extra frames come from `--kind faces` when `face_{species}.bin` is available.
+## Frame paths use disc species codes (`flg`, `rbt`); `bind` accepts English labels too.
 ##
 ## Villager model DLs load `anime_1_txt` / `anime_2_txt` with `GX_MIRROR` on S
 ## (`xct_1.c` / `kab_1.c`): one 32×16 half is mirrored across the bilateral face quad.
@@ -24,8 +25,13 @@ var _mouth_shown: int = -1
 var _target_size := Vector2i.ZERO
 
 
+## Face PNGs are keyed by disc prefix (`flg`, `rbt`, …), while villager data uses
+## English labels (`frog`, `rabbit`). Resolve through `FieldCatalog.species_code`.
 static func frame_path(species: StringName, part: String, index: int) -> String:
-	return "%s/%s_%s%d.png" % [FRAME_DIR, species, part, index]
+	var code := FieldCatalog.species_code(species)
+	if code.is_empty():
+		code = String(species)
+	return "%s/%s_%s%d.png" % [FRAME_DIR, code, part, index]
 
 
 static func has_frames(species: StringName) -> bool:
@@ -45,13 +51,16 @@ func bind(visual: Node3D, species: StringName) -> bool:
 	if _eye_mats.is_empty() or _mouth_mats.is_empty():
 		return false
 	_target_size = _quad_size(_eye_mats[0].albedo_texture)
-	var use_bin_frames: bool = species == &"boy"
+	var code := StringName(FieldCatalog.species_code(species))
+	if String(code).is_empty():
+		code = species
+	var use_bin_frames: bool = code == &"boy"
 	if use_bin_frames:
-		_eye_frames = _load_frames(species, "eye", NpcFaceAnim.EYE_SHUT + 6)
-		_mouth_frames = _load_frames(species, "mouth", NpcFaceAnim.MOUTH_OPEN + 4)
+		_eye_frames = _load_frames(code, "eye", NpcFaceAnim.EYE_SHUT + 6)
+		_mouth_frames = _load_frames(code, "mouth", NpcFaceAnim.MOUTH_OPEN + 4)
 	else:
-		_eye_frames = _prepare_villager_frames(species, "eye", NpcFaceAnim.EYE_SHUT + 6)
-		_mouth_frames = _prepare_villager_frames(species, "mouth", NpcFaceAnim.MOUTH_OPEN + 4)
+		_eye_frames = _prepare_villager_frames(code, "eye", NpcFaceAnim.EYE_SHUT + 6)
+		_mouth_frames = _prepare_villager_frames(code, "mouth", NpcFaceAnim.MOUTH_OPEN + 4)
 	if _eye_frames.is_empty():
 		_eye_frames = _synthesize_eye_frames(_eye_mats[0].albedo_texture)
 	if _mouth_frames.is_empty():

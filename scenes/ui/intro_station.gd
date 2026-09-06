@@ -255,6 +255,8 @@ func _on_nook_show_houses() -> void:
 
 
 func _on_nook_debt() -> void:
+	if Game != null and Game.inventory != null and Game.inventory.loan <= 0:
+		Game.inventory.set_loan(Inventory.DEFAULT_HOUSE_LOAN)
 	_play_dialogue(NOOK_DEBT_DIALOGUE, "Tom Nook", NOOK_DEBT_DIALOGUE_FALLBACK)
 
 

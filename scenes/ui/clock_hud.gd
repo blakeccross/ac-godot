@@ -1,12 +1,13 @@
 extends CanvasLayer
 
 ## Play HUD. T +1 hour, Y +1 day, U next season, I cycle weather. Esc returns to title (and saves).
-## X opens pockets (`m_inventory_ovl` 5×3).
+## X opens pockets (`m_inventory_ovl` 5×3). `/` or ` opens the debug console.
 
 @onready var _label: Label = %ClockLabel
 @onready var _prompt: Label = %PromptLabel
 @onready var _notice: Label = %NoticeLabel
 @onready var _inventory: CanvasLayer = $InventoryOverlay
+@onready var _console: CanvasLayer = $DebugConsole
 
 var _notice_left: float = 0.0
 
@@ -35,6 +36,10 @@ func shop_is_open() -> bool:
 	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
 
 
+func console_is_open() -> bool:
+	return _console != null and _console.has_method("is_open") and bool(_console.call("is_open"))
+
+
 func _process(delta: float) -> void:
 	if _notice_left <= 0.0:
 		return
@@ -44,7 +49,7 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if inventory_is_open() or dialogue_is_open() or shop_is_open():
+	if inventory_is_open() or dialogue_is_open() or shop_is_open() or console_is_open():
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.physical_keycode:
@@ -66,7 +71,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _refresh() -> void:
 	_label.text = (
-		"%s\nWASD walk  Shift run  E interact  X pockets  Esc title  T +1h  Y +1d  U season  I weather"
+		"%s\nWASD walk  Shift run  E interact  X pockets  Esc title  / console  T +1h  Y +1d  U season  I weather"
 		% Clock.format_clock()
 	)
 	var pockets: int = Game.inventory.count_of_occupied()

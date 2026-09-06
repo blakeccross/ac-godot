@@ -1,13 +1,20 @@
-extends MultiMeshInstance3D
+extends Node3D
 
 ## Outdoor weather particles (`ac_weather_*`). Camera-centered pool of 100 privs —
-## rain streaks + splashes, snow, sakura. Center follows the *look-at* (player), not the
-## camera eye — original uses `Camera2_getCenterPos_p()`.
+## rain streaks + splashes from `ef_ame02_*`, snow/sakura placeholders. Center follows
+## the look-at (player), not the camera eye — original uses `Camera2_getCenterPos_p()`.
+##
+## Simulation is fixed at 60 Hz (`GAME_FRAME`), matching decomp priv timers / GX-per-frame
+## speeds. Draw still runs every rendered frame so billboards track the camera.
 
-const SHADER := preload("res://shaders/weather_particle.gdshader")
+const RAIN_SHADER := preload("res://shaders/weather_rain.gdshader")
+const FLOAT_SHADER := preload("res://shaders/weather_particle.gdshader")
 const POOL_SIZE := 100
-const GAME_FPS := 60.0
+## Actor / effect frame rate (GC display). Not player locomotion's 30 Hz feel scale.
+const TICK_HZ := 60.0
+const TICK_DT := 1.0 / TICK_HZ
 const GX := FieldCatalog.GX_TO_METERS
+const PIPELINE := FieldCatalog.PIPELINE_SCALE
 
 ## Rain spawn box around the look-at (GX → meters).
 const RAIN_X := 130.0 * GX
@@ -15,62 +22,73 @@ const RAIN_Z_NEG := 200.0 * GX
 const RAIN_Z_POS := 160.0 * GX
 ## `70 + 120` GX above ground (`aWeatherRain_make`).
 const RAIN_HEIGHT := 190.0 * GX
-## ~(-9.5..-12 - 2) GX/frame at 60 Hz.
-const RAIN_SPEED_MIN := -14.0 * GX * GAME_FPS
-const RAIN_SPEED_MAX := -11.5 * GX * GAME_FPS
-## 10 mover frames then splash (`1000 - timer >= 10`).
-const RAIN_FALL_LIFE := 10.0 / GAME_FPS
-const SPLASH_LIFE := 8.0 / GAME_FPS
-## Streak size: original mesh × `rain_scale` reads larger than a 0.5 m placeholder at 20° FOV.
-const RAIN_STREAK := Vector3(0.12, 1.4, 0.12)
+## `speed.y = -9.5 + RANDOM_F(-2.5) - 2` → [-14, -11.5) GX per game frame.
+const RAIN_SPEED_GX_MIN := -14.0
+const RAIN_SPEED_GX_MAX := -11.5
+## Fall 10 frames then splash (`1000 - timer >= 10`).
+const RAIN_FALL_FRAMES := 10
+## Splash timer 8 (`aWeatherRain_MakePicha`); frames advance `(8 - timer) >> 1`.
+const SPLASH_FRAMES := 8
+## `aWeatherRain_draw` rain_scale / picha_scale on authored ±1000 verts.
+## Godot node scale = matrix_scale × GX / PIPELINE (same as `NpcFeelGlyphs`).
+const RAIN_SCALE := Vector3(
+	0.000299999985145 * GX / PIPELINE,
+	0.035 * GX / PIPELINE,
+	0.01 * GX / PIPELINE
+)
+const SPLASH_SCALE := 0.0033 * GX / PIPELINE
+## `ef_ame02_setmode` PRIM / ENV.
+const RAIN_PRIM := Color(255 / 255.0, 50 / 255.0, 50 / 255.0, 80 / 255.0)
+const RAIN_ENV := Color(100 / 255.0, 225 / 255.0, 225 / 255.0, 1.0)
+const RAIN_SHADE := 0.28
+const RAIN_TEX_FALLBACK := "res://assets/generated/effects/ef_ame02_0.png"
 
 const SNOW_X := 100.0 * GX
 const SNOW_Z_NEG := 200.0 * GX
 const SNOW_Z_POS := 180.0 * GX
 const SNOW_HEIGHT := 230.0 * GX
-const SNOW_LIFE := 280.0 / GAME_FPS
-const SNOW_SPEED_MIN := -2.5 * GX * GAME_FPS
-const SNOW_SPEED_MAX := -0.5 * GX * GAME_FPS
-const SNOW_DRIFT := 0.35
-const SAKURA_FALL_EXTRA := -0.4
+const SNOW_LIFE_FRAMES := 280
+const SNOW_SPEED_GX_MIN := -2.5
+const SNOW_SPEED_GX_MAX := -0.5
+const SNOW_DRIFT_MPS := 0.35
+const SAKURA_FALL_EXTRA_GX := -0.4
+
+const SPLASH_VISUALS: Array[StringName] = [
+	&"ef_ame02_00",
+	&"ef_ame02_01",
+	&"ef_ame02_02",
+	&"ef_ame02_03",
+]
+const RAIN_VISUAL := &"ef_ame02_04"
 
 enum PartKind { RAIN, SPLASH, SNOW, SAKURA }
 
-var _material: ShaderMaterial
 var _rng := RandomNumberGenerator.new()
 var _frame: int = 0
+var _tick_accum: float = 0.0
 var _active: Array[Dictionary] = []
 var _free: Array[int] = []
 var _center: Vector3 = Vector3.ZERO
 var _cam_basis: Basis = Basis.IDENTITY
+var _cam_pos: Vector3 = Vector3.ZERO
 var _lightning_left: float = 0.0
 var _lightning_cooldown: float = 2.0
 var _intensity: Weather.Intensity = Weather.Intensity.NONE
 var _kind: Weather.Kind = Weather.Kind.CLEAR
 
+var _rain_mmi: MultiMeshInstance3D
+var _splash_mmi: Array[MultiMeshInstance3D] = []
+var _float_mmi: MultiMeshInstance3D
+var _rain_ready: bool = false
+
 
 func _ready() -> void:
 	add_to_group("weather_fx")
-	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	extra_cull_margin = 32.0
-	var quad := QuadMesh.new()
-	quad.size = Vector2(1.0, 1.0)
-	_material = ShaderMaterial.new()
-	_material.shader = SHADER
-	_material.render_priority = 4
-	quad.material = _material
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_custom_data = true
-	mm.instance_count = POOL_SIZE
-	mm.visible_instance_count = POOL_SIZE
-	mm.mesh = quad
-	multimesh = mm
 	_free.clear()
 	_active.clear()
 	for i: int in POOL_SIZE:
 		_free.append(i)
-		_hide_slot(i)
+	_setup_meshes()
 	if not Game.weather_changed.is_connected(_on_weather_changed):
 		Game.weather_changed.connect(_on_weather_changed)
 	_sync_from_game()
@@ -92,19 +110,197 @@ func _sync_from_game() -> void:
 		_clear_pool()
 
 
+func _setup_meshes() -> void:
+	var tex: Texture2D = _load_rain_texture()
+	var rain_mesh: Mesh = _load_effect_mesh(RAIN_VISUAL)
+	_rain_ready = rain_mesh != null and tex != null
+	if _rain_ready:
+		_rain_mmi = _make_textured_mmi("Rain", rain_mesh, tex)
+		add_child(_rain_mmi)
+		for i: int in SPLASH_VISUALS.size():
+			var splash_mesh: Mesh = _load_effect_mesh(SPLASH_VISUALS[i])
+			if splash_mesh == null:
+				splash_mesh = rain_mesh
+			var mmi: MultiMeshInstance3D = _make_textured_mmi("Splash%d" % i, splash_mesh, tex)
+			_splash_mmi.append(mmi)
+			add_child(mmi)
+	else:
+		## No generated rain cards — keep a procedural streak fallback so weather still reads.
+		_rain_mmi = _make_procedural_rain_mmi()
+		add_child(_rain_mmi)
+	_float_mmi = _make_float_mmi()
+	add_child(_float_mmi)
+	_hide_all_slots()
+
+
+func _load_rain_texture() -> Texture2D:
+	## Prefer albedo baked into the streak GLB; fall back to a sibling I4 PNG.
+	var from_mesh: Texture2D = _texture_from_visual(RAIN_VISUAL)
+	if from_mesh != null:
+		return from_mesh
+	if ResourceLoader.exists(RAIN_TEX_FALLBACK):
+		return load(RAIN_TEX_FALLBACK) as Texture2D
+	return null
+
+
+func _texture_from_visual(visual_id: StringName) -> Texture2D:
+	var paths: PackedStringArray = FieldCatalog.mesh_paths(visual_id)
+	if paths.is_empty():
+		return null
+	var packed: PackedScene = load(paths[0]) as PackedScene
+	if packed == null:
+		return null
+	var inst: Node = packed.instantiate()
+	var tex: Texture2D = _find_albedo_texture(inst)
+	inst.free()
+	return tex
+
+
+func _find_albedo_texture(node: Node) -> Texture2D:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		var surface_count: int = mi.mesh.get_surface_count() if mi.mesh != null else 1
+		for i: int in surface_count:
+			var mat: Material = mi.get_active_material(i)
+			var tex: Texture2D = _albedo_from_material(mat)
+			if tex != null:
+				return tex
+	for child: Node in node.get_children():
+		var found: Texture2D = _find_albedo_texture(child)
+		if found != null:
+			return found
+	return null
+
+
+func _albedo_from_material(mat: Material) -> Texture2D:
+	if mat is StandardMaterial3D:
+		return (mat as StandardMaterial3D).albedo_texture
+	if mat is BaseMaterial3D:
+		return (mat as BaseMaterial3D).albedo_texture
+	if mat is ShaderMaterial:
+		var sh := mat as ShaderMaterial
+		var tex: Variant = sh.get_shader_parameter("albedo_texture")
+		if tex is Texture2D:
+			return tex as Texture2D
+	return null
+
+
+func _load_effect_mesh(visual_id: StringName) -> Mesh:
+	var paths: PackedStringArray = FieldCatalog.mesh_paths(visual_id)
+	if paths.is_empty():
+		return null
+	var packed: PackedScene = load(paths[0]) as PackedScene
+	if packed == null:
+		return null
+	var inst: Node = packed.instantiate()
+	var mesh: Mesh = _find_mesh(inst)
+	inst.free()
+	return mesh
+
+
+func _find_mesh(node: Node) -> Mesh:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		if mi.mesh != null:
+			return mi.mesh
+	for child: Node in node.get_children():
+		var found: Mesh = _find_mesh(child)
+		if found != null:
+			return found
+	return null
+
+
+func _make_textured_mmi(node_name: String, mesh: Mesh, tex: Texture2D) -> MultiMeshInstance3D:
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = node_name
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.extra_cull_margin = 32.0
+	var mat := ShaderMaterial.new()
+	mat.shader = RAIN_SHADER
+	mat.set_shader_parameter("intensity_tex", tex)
+	mat.set_shader_parameter("prim_color", RAIN_PRIM)
+	mat.set_shader_parameter("env_color", RAIN_ENV)
+	mat.set_shader_parameter("shade_amt", RAIN_SHADE)
+	mat.render_priority = 4
+	var dup: Mesh = mesh.duplicate() as Mesh
+	for s: int in dup.get_surface_count():
+		dup.surface_set_material(s, mat)
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = false
+	mm.instance_count = POOL_SIZE
+	mm.visible_instance_count = POOL_SIZE
+	mm.mesh = dup
+	mmi.multimesh = mm
+	return mmi
+
+
+func _make_procedural_rain_mmi() -> MultiMeshInstance3D:
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "RainFallback"
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.extra_cull_margin = 32.0
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1.0, 1.0)
+	var mat := ShaderMaterial.new()
+	mat.shader = FLOAT_SHADER
+	mat.render_priority = 4
+	quad.material = mat
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = true
+	mm.instance_count = POOL_SIZE
+	mm.visible_instance_count = POOL_SIZE
+	mm.mesh = quad
+	mmi.multimesh = mm
+	_rain_ready = false
+	return mmi
+
+
+func _make_float_mmi() -> MultiMeshInstance3D:
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = "Floaters"
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.extra_cull_margin = 32.0
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1.0, 1.0)
+	var mat := ShaderMaterial.new()
+	mat.shader = FLOAT_SHADER
+	mat.render_priority = 4
+	quad.material = mat
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = true
+	mm.instance_count = POOL_SIZE
+	mm.visible_instance_count = POOL_SIZE
+	mm.mesh = quad
+	mmi.multimesh = mm
+	return mmi
+
+
 func _process(delta: float) -> void:
-	_frame += 1
 	_update_center()
-	## Keep the MultiMesh AABB around the field so far-away hide slots do not cull us.
-	custom_aabb = AABB(
-		_center - Vector3(24.0, 4.0, 24.0),
-		Vector3(48.0, 28.0, 48.0)
-	)
-	if _kind != Weather.Kind.CLEAR and _intensity != Weather.Intensity.NONE:
-		_spawn(delta)
-	_move(delta)
+	var aabb := AABB(_center - Vector3(24.0, 4.0, 24.0), Vector3(48.0, 28.0, 48.0))
+	if _rain_mmi != null:
+		_rain_mmi.custom_aabb = aabb
+	for mmi: MultiMeshInstance3D in _splash_mmi:
+		mmi.custom_aabb = aabb
+	if _float_mmi != null:
+		_float_mmi.custom_aabb = aabb
+	## Fixed 60 Hz sim so spawn density and GX/frame speeds match decomp at any render FPS.
+	_tick_accum += delta
+	while _tick_accum >= TICK_DT:
+		_tick_accum -= TICK_DT
+		_game_tick()
 	_draw()
 	_tick_lightning(delta)
+
+
+func _game_tick() -> void:
+	_frame += 1
+	if _kind != Weather.Kind.CLEAR and _intensity != Weather.Intensity.NONE:
+		_spawn_tick()
+	_move_tick()
 
 
 func _update_center() -> void:
@@ -112,6 +308,7 @@ func _update_center() -> void:
 	var cam: Camera3D = get_viewport().get_camera_3d()
 	if cam != null:
 		_cam_basis = cam.global_transform.basis
+		_cam_pos = cam.global_position
 	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
 	if player != null:
 		if player.has_method("camera_look_position"):
@@ -119,11 +316,7 @@ func _update_center() -> void:
 		else:
 			_center = player.global_position + Vector3(0.0, 0.85, 0.0)
 		return
-	if cam is Camera3D and cam.has_method("_look_point"):
-		## FollowCamera private — fall through to eye-projected ground.
-		pass
 	if cam != null:
-		## Project a point ~look distance along -Z into the ground plane near Y=0.
 		var forward: Vector3 = -cam.global_transform.basis.z
 		var t: float = 0.0
 		if absf(forward.y) > 0.001:
@@ -132,7 +325,7 @@ func _update_center() -> void:
 		_center.y = maxf(_center.y, 0.5)
 
 
-func _spawn(_delta: float) -> void:
+func _spawn_tick() -> void:
 	match _kind:
 		Weather.Kind.RAIN:
 			var count: int = Weather.spawn_count_per_frame(_kind, _intensity)
@@ -160,13 +353,15 @@ func _spawn_rain() -> void:
 	var at: Vector3 = _center + xz
 	var ground: float = _ground_y(at)
 	var pos := Vector3(at.x, ground + RAIN_HEIGHT, at.z)
+	## Meters per tick (= GX/frame × GX_TO_METERS).
+	var speed_y: float = _rng.randf_range(RAIN_SPEED_GX_MIN, RAIN_SPEED_GX_MAX) * GX
 	_active.append({
 		"id": id,
 		"kind": PartKind.RAIN,
 		"pos": pos,
-		"vel": Vector3(0.0, _rng.randf_range(RAIN_SPEED_MIN, RAIN_SPEED_MAX), 0.0),
-		"life": RAIN_FALL_LIFE,
-		"max_life": RAIN_FALL_LIFE,
+		"vel": Vector3(0.0, speed_y, 0.0),
+		"life": RAIN_FALL_FRAMES,
+		"max_life": RAIN_FALL_FRAMES,
 		"phase": 0.0,
 	})
 
@@ -180,18 +375,22 @@ func _spawn_floater(kind: PartKind) -> void:
 		SNOW_HEIGHT,
 		_rng.randf_range(-SNOW_Z_NEG, SNOW_Z_POS)
 	)
-	var fall: float = _rng.randf_range(SNOW_SPEED_MIN, SNOW_SPEED_MAX)
+	var fall_gx: float = _rng.randf_range(SNOW_SPEED_GX_MIN, SNOW_SPEED_GX_MAX)
 	if kind == PartKind.SAKURA:
-		fall += SAKURA_FALL_EXTRA * GX * GAME_FPS
+		fall_gx += SAKURA_FALL_EXTRA_GX
 	_active.append({
 		"id": id,
 		"kind": kind,
 		"pos": _center + offset,
-		"vel": Vector3(SNOW_DRIFT, fall, SNOW_DRIFT * 0.35),
-		"life": SNOW_LIFE,
-		"max_life": SNOW_LIFE,
+		"vel": Vector3(
+			SNOW_DRIFT_MPS * TICK_DT,
+			fall_gx * GX,
+			SNOW_DRIFT_MPS * 0.35 * TICK_DT
+		),
+		"life": SNOW_LIFE_FRAMES,
+		"max_life": SNOW_LIFE_FRAMES,
 		"phase": _rng.randf() * TAU,
-		"spin": _rng.randf_range(1.5, 4.0),
+		"spin": _rng.randf_range(1.5, 4.0) * TICK_DT,
 	})
 
 
@@ -206,44 +405,44 @@ func _spawn_splash(at: Vector3) -> void:
 		"kind": PartKind.SPLASH,
 		"pos": pos,
 		"vel": Vector3.ZERO,
-		"life": SPLASH_LIFE,
-		"max_life": SPLASH_LIFE,
+		"life": SPLASH_FRAMES,
+		"max_life": SPLASH_FRAMES,
 		"phase": 0.0,
 	})
 
 
-func _move(delta: float) -> void:
+func _move_tick() -> void:
 	var keep: Array[Dictionary] = []
 	for part: Dictionary in _active:
 		var kind: int = int(part["kind"])
 		var pos: Vector3 = part["pos"] as Vector3
 		var vel: Vector3 = part["vel"] as Vector3
-		var life: float = float(part["life"]) - delta
+		var life: int = int(part["life"]) - 1
 		if kind == PartKind.RAIN:
-			pos += vel * delta
+			pos += vel
 			part["pos"] = pos
 			part["life"] = life
-			if life <= 0.0:
+			if life <= 0:
 				_free_slot(int(part["id"]))
 				_spawn_splash(pos)
 				continue
 		elif kind == PartKind.SPLASH:
 			part["life"] = life
-			if life <= 0.0:
+			if life <= 0:
 				_free_slot(int(part["id"]))
 				continue
 		else:
-			pos += vel * delta
-			part["phase"] = float(part.get("phase", 0.0)) + float(part.get("spin", 2.0)) * delta
-			pos.x += sin(float(part["phase"])) * 0.3 * delta * 6.0
-			pos.z += cos(float(part["phase"])) * 0.3 * delta * 6.0
+			pos += vel
+			part["phase"] = float(part.get("phase", 0.0)) + float(part.get("spin", 0.05))
+			pos.x += sin(float(part["phase"])) * 0.3 * TICK_DT * 6.0
+			pos.z += cos(float(part["phase"])) * 0.3 * TICK_DT * 6.0
 			part["pos"] = pos
 			_wrap_floater_inplace(part)
 			pos = part["pos"] as Vector3
-			if life <= 0.0 or pos.y < _center.y - 1.0:
+			if life <= 0 or pos.y < _center.y - 1.0:
 				pos.y = _center.y + SNOW_HEIGHT
 				part["pos"] = pos
-				life = float(part["max_life"])
+				life = int(part["max_life"])
 			part["life"] = life
 		keep.append(part)
 	_active = keep
@@ -265,35 +464,96 @@ func _wrap_floater_inplace(part: Dictionary) -> void:
 
 
 func _draw() -> void:
+	_hide_all_slots()
 	for part: Dictionary in _active:
 		var id: int = int(part["id"])
 		var kind: int = int(part["kind"])
 		var pos: Vector3 = part["pos"] as Vector3
-		var life_t: float = clampf(float(part["life"]) / maxf(float(part["max_life"]), 0.001), 0.0, 1.0)
-		var xform := Transform3D()
+		var max_life: float = maxf(float(part["max_life"]), 1.0)
+		var life_t: float = clampf(float(part["life"]) / max_life, 0.0, 1.0)
 		match kind:
 			PartKind.RAIN:
-				## Billboard vertical streak toward the camera (`current_yAngle` + rain SRT).
-				xform = _billboard(pos, RAIN_STREAK)
+				_draw_rain(id, pos)
 			PartKind.SPLASH:
-				xform = Transform3D(
-					Basis.from_euler(Vector3(-PI * 0.5, 0.0, 0.0)).scaled(Vector3(0.55, 0.55, 0.55)),
-					pos
-				)
+				_draw_splash(id, pos, life_t)
 			PartKind.SNOW:
 				var scale: float = lerpf(0.2, 0.4, life_t)
-				xform = _billboard(pos, Vector3(scale, scale, scale))
+				_set_float(id, _billboard(pos, Vector3(scale, scale, scale)), kind, life_t)
 			PartKind.SAKURA:
 				var scale_s: float = lerpf(0.22, 0.45, life_t)
 				var ph: float = float(part.get("phase", 0.0))
-				xform = Transform3D(Basis.from_euler(Vector3(ph * 0.4, ph, ph * 0.2)), pos)
+				var xform := Transform3D(Basis.from_euler(Vector3(ph * 0.4, ph, ph * 0.2)), pos)
 				xform.basis = xform.basis.scaled(Vector3(scale_s, scale_s * 0.7, scale_s))
-		multimesh.set_instance_transform(id, xform)
-		multimesh.set_instance_custom_data(id, Color(float(kind), life_t, 0.0, 1.0))
+				_set_float(id, xform, kind, life_t)
+
+
+func _draw_rain(id: int, pos: Vector3) -> void:
+	if _rain_mmi == null or _rain_mmi.multimesh == null:
+		return
+	if _rain_ready:
+		_rain_mmi.multimesh.set_instance_transform(id, _yaw_billboard(pos, RAIN_SCALE))
+	else:
+		## Procedural fallback: decomp world size ~0.03 × 3.5 m.
+		_rain_mmi.multimesh.set_instance_transform(id, _billboard(pos, Vector3(0.03, 3.5, 0.03)))
+		_rain_mmi.multimesh.set_instance_custom_data(id, Color(0.0, 1.0, 0.0, 1.0))
+
+
+func _draw_splash(id: int, pos: Vector3, life_t: float) -> void:
+	## `disp = (8 - timer) >> 1` while timer counts 8→1.
+	var elapsed: float = (1.0 - life_t) * float(SPLASH_FRAMES)
+	var frame: int = clampi(int(elapsed) >> 1, 0, maxi(_splash_mmi.size() - 1, 0))
+	if _splash_mmi.is_empty():
+		return
+	var s: float = SPLASH_SCALE
+	## Full billboard like `Matrix_mult(&play->billboard_matrix)`.
+	var xform := _full_billboard(pos, Vector3(s, s, s))
+	for i: int in _splash_mmi.size():
+		var mm: MultiMesh = _splash_mmi[i].multimesh
+		if mm == null:
+			continue
+		if i == frame:
+			mm.set_instance_transform(id, xform)
+		else:
+			mm.set_instance_transform(id, _hidden_xform())
+
+
+func _set_float(id: int, xform: Transform3D, kind: int, life_t: float) -> void:
+	if _float_mmi == null or _float_mmi.multimesh == null:
+		return
+	_float_mmi.multimesh.set_instance_transform(id, xform)
+	_float_mmi.multimesh.set_instance_custom_data(id, Color(float(kind), life_t, 0.0, 1.0))
+
+
+func _yaw_billboard(pos: Vector3, scale: Vector3) -> Transform3D:
+	## `suMtxMakeSRT` with rotY = `search_position_angleY(center, eye)` — local scale then yaw.
+	var to_eye: Vector3 = _cam_pos - pos
+	to_eye.y = 0.0
+	var yaw: float = 0.0
+	if to_eye.length_squared() > 0.0001:
+		yaw = atan2(to_eye.x, to_eye.z)
+	var basis := Basis.from_euler(Vector3(0.0, yaw, 0.0)) * Basis.from_scale(scale)
+	return Transform3D(basis, pos)
+
+
+func _full_billboard(pos: Vector3, scale: Vector3) -> Transform3D:
+	var right: Vector3 = _cam_basis.x
+	var up: Vector3 = _cam_basis.y
+	var forward: Vector3 = _cam_basis.z
+	if right.length_squared() < 0.0001:
+		right = Vector3.RIGHT
+	if up.length_squared() < 0.0001:
+		up = Vector3.UP
+	if forward.length_squared() < 0.0001:
+		forward = Vector3.FORWARD
+	right = right.normalized()
+	up = up.normalized()
+	forward = forward.normalized()
+	var basis := Basis(right, up, forward) * Basis.from_scale(scale)
+	return Transform3D(basis, pos)
 
 
 func _billboard(pos: Vector3, scale: Vector3) -> Transform3D:
-	## Face the camera; keep world-up so rain streaks stay vertical.
+	## Face the camera; keep world-up (snow / procedural rain fallback).
 	var right: Vector3 = _cam_basis.x
 	if right.length_squared() < 0.0001:
 		right = Vector3.RIGHT
@@ -356,12 +616,27 @@ func _free_slot(id: int) -> void:
 		_free.append(id)
 
 
+func _hidden_xform() -> Transform3D:
+	return Transform3D(Basis.IDENTITY, Vector3(0.0, -1000.0, 0.0))
+
+
 func _hide_slot(id: int) -> void:
-	if multimesh == null:
-		return
-	var far := Transform3D(Basis.IDENTITY, Vector3(0.0, -1000.0, 0.0))
-	multimesh.set_instance_transform(id, far)
-	multimesh.set_instance_custom_data(id, Color(-1.0, 0.0, 0.0, 0.0))
+	var far: Transform3D = _hidden_xform()
+	if _rain_mmi != null and _rain_mmi.multimesh != null:
+		_rain_mmi.multimesh.set_instance_transform(id, far)
+		if _rain_mmi.multimesh.use_custom_data:
+			_rain_mmi.multimesh.set_instance_custom_data(id, Color(-1.0, 0.0, 0.0, 0.0))
+	for mmi: MultiMeshInstance3D in _splash_mmi:
+		if mmi.multimesh != null:
+			mmi.multimesh.set_instance_transform(id, far)
+	if _float_mmi != null and _float_mmi.multimesh != null:
+		_float_mmi.multimesh.set_instance_transform(id, far)
+		_float_mmi.multimesh.set_instance_custom_data(id, Color(-1.0, 0.0, 0.0, 0.0))
+
+
+func _hide_all_slots() -> void:
+	for i: int in POOL_SIZE:
+		_hide_slot(i)
 
 
 func _clear_pool() -> void:

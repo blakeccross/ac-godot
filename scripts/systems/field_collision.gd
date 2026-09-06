@@ -151,6 +151,24 @@ static func unit_attr_at_cell(data: WorldData, cell: Vector2i) -> int:
 	return int(unit["a"])
 
 
+static func acre_type_at(data: WorldData, cell: Vector2i) -> int:
+	return _type_at(data, cell)
+
+
+static func unit_is_flat(data: WorldData, cell: Vector2i) -> bool:
+	## Shine spots need equal center + four corners (`mAGrw_SetShineGroundBlock`).
+	var unit: Dictionary = _catalog_unit(data, cell, true)
+	if unit.is_empty():
+		return true
+	var c: int = int(unit.get("c", 0))
+	return (
+		c == int(unit.get("nw", 0))
+		and c == int(unit.get("sw", 0))
+		and c == int(unit.get("se", 0))
+		and c == int(unit.get("ne", 0))
+	)
+
+
 static func revise_xz(
 	data: WorldData,
 	grid: WorldGrid,

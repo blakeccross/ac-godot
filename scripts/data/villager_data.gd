@@ -18,9 +18,14 @@ extends Resource
 ## Interior wallpaper / carpet index (`npc_house_list` / `mRmTp_CopyWallData`).
 @export var wall_index: int = 0
 @export var floor_index: int = 0
-## Outdoor house shape / palette (`ac_house`). Not applied yet.
+## Outdoor house shape / palette (`ac_house` / `npc_house_list`).
+## Shape 0..4 → `obj_s_house1`..`5`; palette 0..4 → a..e (`aSTR_PAL_HOUSE1_A + pal + shape*5`).
 @export var house_type: int = 0
 @export var house_palette: int = 0
+
+
+func outdoor_house_visual() -> StringName:
+	return FieldCatalog.villager_house_visual(house_type, house_palette)
 
 
 func wall_style_id() -> StringName:

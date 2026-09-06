@@ -36,7 +36,7 @@ The overlay can show eat / catch animations (`mIV_ANIM_*`) when using food or di
 ## Important states
 
 - 15 item ids + 15 conditions.
-- Wallet and loan.
+- Wallet, savings (post office bank), and loan.
 - Equipment id.
 - Submenu page: inventory vs fish encyclopedia vs insect encyclopedia (`mIV_PAGE_*`).
 - Hand: which table/slot is held (`hold_tbl`, `hold_idx`) and whether it will return on cancel.
@@ -80,10 +80,11 @@ The overlay can show eat / catch animations (`mIV_ANIM_*`) when using food or di
 
 ## Simplify
 
-- Skip mail inventory, catalog orders, foreign maps, original designs.
+- Skip catalog orders, foreign maps, original designs.
 - Skip inventory paper shirt and 3D player preview in the menu.
 - Skip fish/insect **pages** until those systems exist; a list or bitset is enough.
-- Loan can wait until house upgrade exists.
+- Mail inventory is in (10 slots, 2×5 on the same paper as items; Tab switches focus). Full stationery editor deferred — write uses preset bodies.
+- Loan on `Inventory.loan`; repay at the post office when owing. Savings deposit/withdraw when loan is clear.
 - No 2-bit pack; store condition as an enum on `InventoryItem`.
 - **Stacking** is allowed via `ItemData.max_stack` (GC had none; tools stay at 1).
 
@@ -99,7 +100,7 @@ The overlay can show eat / catch animations (`mIV_ANIM_*`) when using food or di
 
 Drawn by `m_inventory_ovl.c` (`mIV_set_base_frame_dl` / `mIV_set_normal_frame_dl`). Models live in `src/data/model/inv_mwin*.c` (plus `inv_sakana.c`, `inv_mushi.c`, `inv_item.c`, `inv_mark.c`, hand skeleton). Texture bins are listed in decomp `config/GAFU01_00/config.yml` under `assets/inv_mwin_*`.
 
-**Local extract** (gitignored PNGs, Nintendo IP — reference only):
+Godot recreation: `scenes/ui/inventory_overlay.tscn` + `pocket_paper.gd` + `InventoryChrome`. Prefer pipeline chrome under `assets/generated/ui/inventory/` (ACHD when `achd_enabled`). Hand-authored fallbacks under `assets/custom/ui/inventory/`.
 
 ```sh
 python3 tools/build_assets.py --step convert --kind inventory-ui

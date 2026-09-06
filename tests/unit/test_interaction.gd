@@ -286,7 +286,7 @@ func test_seed_flower_cannot_pick() -> void:
 	var flower: Node = auto_free(load("res://scenes/world/flower.tscn").instantiate())
 	flower.set("persist_id", &"pansy_1")
 	flower.set("plant", load("res://data/plants/pansy.tres"))
-	flower.set("visual_id", &"FLOWER_PANSIES0")
+	flower.set("visual_id", &"FLOWER_LEAVES_PANSIES0")
 	add_child(flower)
 	var empty := InteractionContext.new()
 	empty.inventory = Inventory.new()
@@ -294,6 +294,24 @@ func test_seed_flower_cannot_pick() -> void:
 	var ctx := _ctx_with_tool(&"watering_can")
 	var action: Interaction = Interaction.primary(flower.get_interactions(ctx))
 	assert_str(String(action.id)).is_equal(String(Interaction.WATER))
+
+
+func test_bloom_colors_can_pick() -> void:
+	## `FLOWER_PANSIES0/1/2` are bloom colors, not growth stages — all are pickable.
+	ItemCatalog.reload()
+	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 1, "hour": 12, "minute": 0})
+	for color: StringName in [&"FLOWER_PANSIES0", &"FLOWER_PANSIES1", &"FLOWER_PANSIES2"]:
+		var flower: Node = auto_free(load("res://scenes/world/flower.tscn").instantiate())
+		flower.set("persist_id", StringName("pansy_%s" % String(color)))
+		flower.set("plant", load("res://data/plants/pansy.tres"))
+		flower.set("visual_id", color)
+		add_child(flower)
+		var empty := InteractionContext.new()
+		empty.inventory = Inventory.new()
+		var actions: Array = flower.get_interactions(empty)
+		assert_int(actions.size()).is_greater(0)
+		var action: Interaction = Interaction.primary(actions)
+		assert_str(String(action.id)).is_equal(String(Interaction.PICK_UP))
 
 
 func test_building_exposes_verbs_on_child_door() -> void:

@@ -1,6 +1,6 @@
 extends StaticBody3D
 
-## Outdoor house shell. Villager homes use `obj_s_house1` (`ac_house`);
+## Outdoor house shell. Villager homes use `obj_s_house{1-5}_{a-e}` (`ac_house`);
 ## the player house placement sets `obj_s_myhome1` (`ac_my_house`).
 ##
 ## Door rest yaw is baked into the GLB (joint-0). `apply_grid_yaw` only applies
@@ -12,7 +12,7 @@ extends StaticBody3D
 @export var grid_facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH
 @export var occupy_grid: bool = true
 @export var place_kind: WorldGrid.PlaceKind = WorldGrid.PlaceKind.BUILDING
-@export var visual_id: StringName = &"obj_s_house1"
+@export var visual_id: StringName = &"obj_s_house1_a"
 
 
 func _ready() -> void:

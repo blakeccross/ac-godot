@@ -1,0 +1,32 @@
+{
+  "id": "post_girl_withdraw",
+  "speaker_id": "post_girl",
+  "start": "ask",
+  "nodes": {
+    "ask": {
+      "type": "choice",
+      "prompt": "How much will you withdraw?",
+      "options": [
+        {
+          "text": "All bells",
+          "goto": "done",
+          "events": [{ "op": "withdraw_bells", "amount": -1 }]
+        },
+        {
+          "text": "1,000 bells",
+          "goto": "done",
+          "events": [{ "op": "withdraw_bells", "amount": 1000 }]
+        },
+        { "text": "Never mind...", "goto": "cancel" }
+      ]
+    },
+    "done": {
+      "type": "line",
+      "text": "Here you go! Spend them wisely."
+    },
+    "cancel": {
+      "type": "line",
+      "text": "Oh, really? Come back\nanytime."
+    }
+  }
+}

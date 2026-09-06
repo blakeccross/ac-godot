@@ -32,7 +32,7 @@ def env_subdir(prefix: str) -> str:
         return "environment/trees"
     if "flower" in lower:
         return "environment/flowers"
-    if "hole" in lower:
+    if "hole" in lower or "crack" in lower:
         return "environment/holes"
     if "stone" in lower or "rock" in lower:
         return "environment/rocks"

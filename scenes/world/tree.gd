@@ -12,7 +12,7 @@ const BEE_ATTACKABLE_AFTER_EFFECT := (29.5 - SHAKE_EFFECT_FRAME) / 30.0
 ## Bee birth retry window starts 5 frames after the effect (`bee_spawn_timer = 5`).
 const BEE_SPAWN_DELAY := 5.0 / 30.0
 const ANIM_FPS := 30.0
-## EffectBG SHAKE_LARGE keyframes (°×10 → degrees) on joint Z, anim @ 0.5 speed.
+## EffectBG SHAKE_LARGE keyframes (°×10 → degrees) on joint Z.
 const SHAKE_LARGE_DEG: Array[Vector2] = [
 	Vector2(1.0, 0.0),
 	Vector2(5.0, 2.0),
@@ -34,8 +34,8 @@ const SHAKE_SMALL_DEG: Array[Vector2] = [
 	Vector2(8.0, 1.0),
 	Vector2(9.0, 0.0),
 ]
-## EffectBG plays shake clips at speed 0.5 → wall time ≈ frames / (30 * 0.5).
-const SHAKE_PLAY_RATE := 0.5
+## EffectBG sets `frame_control.speed = 0.5` on a 60 Hz actor tick (= 30 anim fps).
+## Pipeline / player clips already sample at 30 fps, so Godot dt is frames / 30 — not / 15.
 
 @export var plant: PlantData
 @export var occupant_id: StringName = &""
@@ -361,7 +361,7 @@ func _play_shake(strong: bool) -> void:
 	for i: int in range(1, keys.size()):
 		var frame: float = keys[i].x
 		var deg: float = keys[i].y
-		var dt: float = (frame - prev_frame) / (ANIM_FPS * SHAKE_PLAY_RATE)
+		var dt: float = (frame - prev_frame) / ANIM_FPS
 		_motion.tween_property(pivot, "rotation:z", deg_to_rad(deg), maxf(dt, 0.001))
 		prev_frame = frame
 

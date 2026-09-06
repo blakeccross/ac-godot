@@ -76,6 +76,8 @@ var removed_interactables: Array[String] = []
 var stump_interactables: Array[String] = []
 var hole_interactables: Array[String] = []
 var plant_states: Dictionary = {}
+## Buried dig spots: persist_id → {kind, item_id, cell_x, cell_z} (`mFI` deposit / shine).
+var buried_deposits: Dictionary = {}
 var interact_prompt: String = ""
 var world_mode: WorldData.Mode = WorldData.Mode.TEST
 var world_seed: int = WorldGenerator.DEFAULT_SEED
@@ -310,6 +312,7 @@ func reset_session() -> void:
 	stump_interactables.clear()
 	hole_interactables.clear()
 	plant_states.clear()
+	buried_deposits.clear()
 	player_name = DEFAULT_PLAYER_NAME
 	town_name = DEFAULT_TOWN_NAME
 	player_gender = DEFAULT_PLAYER_GENDER
@@ -363,6 +366,8 @@ func give_test_tools() -> void:
 			inventory.add(data, 1)
 	if inventory.wallet <= 0:
 		inventory.add_bells(TEST_BELLS)
+	if inventory.count_mail() <= 0:
+		PostUse.write_letter(&"filbert", 0)
 
 
 func capture_player_from_tree() -> void:
@@ -454,6 +459,7 @@ func to_save() -> Dictionary:
 		"stump_interactables": stump_interactables.duplicate(),
 		"hole_interactables": hole_interactables.duplicate(),
 		"plants": plant_states.duplicate(true),
+		"buried": buried_deposits.duplicate(true),
 		"world_mode": int(world_mode),
 		"world_seed": world_seed,
 		"grass_pattern": grass_pattern,
@@ -518,6 +524,13 @@ func apply_snapshot(data: Dictionary) -> void:
 			var rec: Variant = plants[key]
 			if typeof(rec) == TYPE_DICTIONARY:
 				plant_states[str(key)] = (rec as Dictionary).duplicate()
+	buried_deposits.clear()
+	var buried: Variant = data.get("buried", {})
+	if typeof(buried) == TYPE_DICTIONARY:
+		for key: Variant in (buried as Dictionary).keys():
+			var rec: Variant = buried[key]
+			if typeof(rec) == TYPE_DICTIONARY:
+				buried_deposits[str(key)] = (rec as Dictionary).duplicate()
 	world_mode = int(data.get("world_mode", WorldData.Mode.TEST)) as WorldData.Mode
 	world_seed = int(data.get("world_seed", WorldGenerator.DEFAULT_SEED))
 	if data.has("grass_pattern"):
@@ -934,6 +947,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_group_is_open("inventory_ui")
 			or _group_is_open("dialogue_ui")
 			or _group_is_open("shop_ui")
+			or _group_is_open("map_ui")
+			or _group_is_open("debug_console_ui")
 		):
 			return
 		return_to_title()

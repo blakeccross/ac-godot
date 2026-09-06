@@ -127,6 +127,23 @@ def combine_alpha_uses_texel(combine_w0: int, combine_w1: int) -> bool:
 _G_ACMUX_PRIM_LOD_FRAC = 6
 
 
+def combine_is_prim_env_texel(combine_w0: int, combine_w1: int) -> bool:
+    """True when cycle-0 RGB is ``(PRIM - ENV) * TEXEL0 + ENV``.
+
+    Wet-sand / ocean-bed (`beachA`/`beachB`) and a few XLU cones share this
+    lerp. Coverage + format gates elsewhere keep OPA beach distinct from spot.
+    """
+    if combine_w0 == 0 and combine_w1 == 0:
+        return False
+    ## F3DEX2 ``GCCc0w0`` / ``GCCc0w1``: a0,c0 in w0; b0,d0 in w1.
+    a0 = (combine_w0 >> 20) & 0xF
+    c0 = (combine_w0 >> 15) & 0x1F
+    b0 = (combine_w1 >> 28) & 0xF
+    d0 = (combine_w1 >> 15) & 0x7
+    ## G_CCMUX_PRIMITIVE=3, ENVIRONMENT=5, TEXEL0=1 (d-mux ENV also 5).
+    return a0 == 3 and b0 == 5 and c0 == 1 and d0 == 5
+
+
 def combine_alpha_scaled_by_prim_lod_frac(combine_w0: int, combine_w1: int) -> bool:
     """True when cycle alpha multiplies by PRIM_LOD_FRAC (e.g. train shineglass).
 
@@ -185,18 +202,31 @@ def classify_beach_wet(
     dual: bool,
     prim: tuple[int, int, int, int],
     env: tuple[int, int, int, int],
+    combine_w0: int = 0,
+    combine_w1: int = 0,
 ) -> str:
-    """OPA I4 wet-sand / ocean-bed: authored (PRIM−ENV)×I+ENV (neither channel white)."""
+    """OPA I4 wet-sand / ocean-bed: ``(PRIM−ENV)×I+ENV``.
+
+    Static acre DLs set PRIM (sand / ocean-bed blue) but leave ENV white —
+    ``aFD_MakeMarinScrollInfo`` pulses ENV at runtime. Detect the combiner
+    lerp so white ENV still classifies; keep the authored-ENV fallback for
+    DLs that bake both ends.
+    """
     from .texbank import G_IM_FMT_I
 
     if dual or fmt != G_IM_FMT_I:
         return ""
     if coverage not in (None, "opa"):
         return ""
-    if prim[:3] == (255, 255, 255) or env[:3] == (255, 255, 255):
+    if prim[:3] == (255, 255, 255):
         return ""
     ## Player-select shade curtain: RGB=PRIM black, A=I — not wet sand.
     if sum(int(c) for c in prim[:3]) < 24:
+        return ""
+    if combine_is_prim_env_texel(combine_w0, combine_w1):
+        return "beach_wet"
+    ## Fallback when combine words are unavailable but both ends are authored.
+    if env[:3] == (255, 255, 255):
         return ""
     return "beach_wet"
 
@@ -334,6 +364,17 @@ class MeshPart:
     uses_lighting: bool = True
     ## From G_SETOTHERMODE_L: opa / tex_edge / xlu, or None if never set in this DL.
     coverage: str | None = None
+
+
+@dataclass
+class RenderState:
+    """Render-mode / combine state shared across sequential static DLs (`*_setmode` → `*_modelT`)."""
+
+    othermode_l: int = 0
+    othermode_h: int = 0
+    coverage: str | None = None
+    combine_w0: int = 0
+    combine_w1: int = 0
 
 
 ## Decomp OPA beach2 / beachB under ocean (dark-blue floor), not shore wet sand.
@@ -618,6 +659,7 @@ def parse_gfx(
     bank: TextureBank | None = None,
     state: TextureState | None = None,
     vtx_base_addr: int | None = None,
+    render: RenderState | None = None,
 ) -> list[MeshPart]:
     """Walk a Dolphin-GBI display list and emit triangle groups, split on texture changes."""
     cache: list[Optional[Vertex]] = [None] * 32
@@ -634,12 +676,13 @@ def parse_gfx(
     current_dl_name = name
     ## Default on (actors / outdoor acres). Indoor shells LoadGeometryMode without G_LIGHTING.
     geometry_mode = G_LIGHTING
-    othermode_l = 0
-    othermode_h = 0
+    rs = render if render is not None else RenderState()
+    othermode_l = rs.othermode_l
+    othermode_h = rs.othermode_h
     ## None until a SetRenderMode packet; trees often set mode at draw time only.
-    coverage: str | None = None
-    combine_w0 = 0
-    combine_w1 = 0
+    coverage: str | None = rs.coverage
+    combine_w0 = rs.combine_w0
+    combine_w1 = rs.combine_w1
     if bank is not None and name:
         bank.current_gfx = name
 
@@ -745,6 +788,8 @@ def parse_gfx(
                     dual=dual,
                     prim=tex_state.prim,
                     env=tex_state.env,
+                    combine_w0=combine_w0,
+                    combine_w1=combine_w1,
                 )
             ## Spot/shade I tiles share OPA+I with wet sand; name wins.
             if (
@@ -783,6 +828,13 @@ def parse_gfx(
                 psel_xlu = is_player_select_spot_tex(name0) or is_player_select_shade_tex(name0)
                 if not psel_xlu and name1:
                     psel_xlu = is_player_select_spot_tex(name1) or is_player_select_shade_tex(name1)
+                ## XLU I4/I8 cards (rain, feel glyphs): keep raw intensity so
+                ## `i4_png_as_alpha` can promote I→A; PRIM/ENV tint at runtime.
+                xlu_intensity = (
+                    coverage == "xlu"
+                    and not dual
+                    and gx in (I4, I8)
+                )
                 ## Prefer the cone tile (tile1) over scrolling fog (tile0) when both are bound.
                 if (
                     is_player_select_spot_tex(name1)
@@ -809,7 +861,7 @@ def parse_gfx(
                         )
                         force_alpha_mode = "BLEND"
                 else:
-                    if skip_prim or psel_xlu:
+                    if skip_prim or psel_xlu or xlu_intensity:
                         tex_state.prim = (255, 255, 255, 255)
                     png, tex_name, texel_mode = bank.decode_current(tex_state)
                     tex_state.prim = saved_prim
@@ -889,14 +941,15 @@ def parse_gfx(
         alpha_mode = demote_opaque_uv_alpha(
             coverage, alpha_mode, samples_transparent=samples_transparent
         )
-        ## CLAMP TEX_EDGE glass (tank front/futi, museum pink): ACHD soft AA must not
-        ## stay BLEND (filters bleed). Keep the HD sheet but harden to MASK coverage.
+        ## TEX_EDGE + ACHD soft AA (house MIRROR walls, CLAMP tank glass, doors):
+        ## keep the HD sheet but bin alpha to 0/255 so alphaMode stays MASK.
+        ## Leaving soft BLEND put structure walls in Godot's transparent pass with
+        ## depth write off — they drew in front of the whole town.
         if (
             coverage == "tex_edge"
-            and wrap_s == GX_CLAMP
-            and wrap_t == GX_CLAMP
             and samples_transparent
             and png
+            and texel_mode == "BLEND"
         ):
             png = harden_tex_edge_alpha(png)
             texel_mode = "MASK"
@@ -914,11 +967,11 @@ def parse_gfx(
             for vertex in unique:
                 vertex.x *= 0.995
                 vertex.z *= 0.995
-        if alpha_mode == "OPAQUE" and png and texel_mode != "OPAQUE":
-            png = flood_opaque_alpha(png)
-        elif alpha_mode == "OPAQUE" and png and samples_transparent is False:
-            png = flood_opaque_alpha(png)
-        elif alpha_mode == "OPAQUE" and png and samples_transparent:
+        ## Always flood when the surface is opaque — ACHD soft fringe at A=250–254
+        ## still classifies as OPAQUE texel, and leaving it in the PNG made Godot /
+        ## stale BLEND exports draw NPC bodies in front of the scene.
+        ## beach_wet keeps I in alpha for the runtime ENV pulse — do not flood.
+        if alpha_mode == "OPAQUE" and png and water_kind != "beach_wet":
             png = flood_opaque_alpha(png)
         # Indoor outdoor-view uses G_CC_PRIMITIVE (sky/fill). Default prim is white.
         if outdoor:
@@ -1184,4 +1237,10 @@ def parse_gfx(
 
     walk(blob)
     flush()
+    if render is not None:
+        render.othermode_l = othermode_l
+        render.othermode_h = othermode_h
+        render.coverage = coverage
+        render.combine_w0 = combine_w0
+        render.combine_w1 = combine_w1
     return parts

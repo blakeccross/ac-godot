@@ -39,9 +39,9 @@ Weather is picked once per **06:00 renew** (`mTM_RENEW_TIME_WEATHER`), not every
 
 Saved as one byte: `(type << 4) | intensity`. After rain/snow clears to fine/sakura, `mEnv_PreRainNowFine_Init` reserves a rainbow and orders haniwa.
 
-**Particles** (`ac_weather`): up to **100** privs around the camera center. Intensity 1/2/3 = light/normal/heavy. Changing type waits until the pool drains (or forces level 0 first); level steps toward the aim every **180** frames. Rain drops fall fast (~10 frames) then spawn a 4-frame splash. Snow/sakura live ~280 frames, wrap in a camera-relative box, and take wind. Thunderstorms (rain + heavy, June–August) flash a blue point light and play thunder SE on a jittered timer.
+**Particles** (`ac_weather`): up to **100** privs around the camera center. Intensity 1/2/3 = light/normal/heavy. Changing type waits until the pool drains (or forces level 0 first); level steps toward the aim every **180** frames. Rain drops fall fast (~10 frames @ 60 Hz, −11.5…−14 GX/frame) then spawn a 4-frame splash (8-tick timer). Streak SRT `(0.0003, 0.035, 0.01)` on ±1000 verts → ~3 cm × 3.5 m; splash scale `0.0033`. Snow/sakura live ~280 frames, wrap in a camera-relative box, and take wind. Thunderstorms (rain + heavy, June–August) flash a blue point light and play thunder SE on a jittered timer.
 
-**Look:** rain/snow use `l_mEnv_kcolor_rain_data` (dimmer sun, cooler fog) instead of fine. Shadow strength is multiplied by **0.75** while raining/snowing. Env colors lerp over ~10 s when the type changes. Outdoor BGM swaps to the rain track while raining (`Sou_BgmTenkiConv`).
+**Look:** rain/snow use `l_mEnv_kcolor_rain_data` (dimmer sun, cooler fog) instead of fine. Shadow strength is multiplied by **0.75** while raining/snowing. Env colors lerp over ~10 s when the type changes. Outdoor BGM swaps to the rain track while raining (`Sou_BgmTenkiConv`). Rain cards are `ef_ame02_04` (streak) + `ef_ame02_00`…`03` (splash), textured via shared `ef_ame02_setmode` (I4 + PRIM `(255,50,50,80)` / ENV `(100,225,225)`); streak SRT scale `(0.0003, 0.035, 0.01)`, splash `0.0033` billboard.
 
 ## Important states
 

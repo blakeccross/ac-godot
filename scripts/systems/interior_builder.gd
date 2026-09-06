@@ -10,6 +10,8 @@ const COUNTER_SCENE := preload("res://scenes/world/shop_counter.tscn")
 const STOCK_SCENE := preload("res://scenes/world/shop_stock.tscn")
 const TOM_NOOK_SCENE := preload("res://scenes/world/interiors/tom_nook.tscn")
 const POST_GIRL_SCENE := preload("res://scenes/world/interiors/post_girl.tscn")
+const POST_DESK_SCRIPT := preload("res://scenes/world/interiors/post_desk.gd")
+const POST_TERMINAL_SCRIPT := preload("res://scenes/world/interiors/post_terminal.gd")
 const BOOKER_SCENE := preload("res://scenes/world/interiors/booker.tscn")
 const LOST_FOUND_SCENE := preload("res://scenes/world/lost_and_found_item.tscn")
 const BLATHERS_SCRIPT := preload("res://scenes/world/museum/museum_blathers.gd")
@@ -65,6 +67,8 @@ func populate_authored(room_root: Node3D, interior: Interior) -> void:
 			child.name == "TomNook"
 			or child.name == "NookClock"
 			or child.name == "PostGirl"
+			or child.name == "PostDesk"
+			or child.name == "PostTerminal"
 			or child.name == "Booker"
 		):
 			continue
@@ -128,7 +132,15 @@ func shell_door_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
 		return []
 	if room.kind == Room.Kind.MUSEUM:
 		return museum_door_gaps(room, grid)
-	if room.kind == Room.Kind.PLAYER or room.kind == Room.Kind.NPC:
+	## Houses + public rooms with south EXIT_DOOR (shop / post / police / Able).
+	if (
+		room.kind == Room.Kind.PLAYER
+		or room.kind == Room.Kind.NPC
+		or room.kind == Room.Kind.SHOP
+		or room.kind == Room.Kind.POST_OFFICE
+		or room.kind == Room.Kind.POLICE
+		or room.kind == Room.Kind.NEEDLEWORK
+	):
 		return house_door_gaps(room, grid)
 	return []
 
@@ -762,12 +774,63 @@ func add_post_girl(root: Node3D, interior: Interior) -> void:
 		var existing: Node3D = root.get_node("PostGirl") as Node3D
 		existing.position = PostDisplay.gx_to_world(interior.grid, stand)
 		existing.rotation.y = WorldGrid.yaw_for_facing(PostDisplay.POST_GIRL_FACING)
+		add_post_desk(root, interior)
+		add_post_terminal(root, interior)
 		return
 	var girl: Node3D = POST_GIRL_SCENE.instantiate() as Node3D
 	girl.name = "PostGirl"
 	girl.position = PostDisplay.gx_to_world(interior.grid, stand)
 	girl.rotation.y = WorldGrid.yaw_for_facing(PostDisplay.POST_GIRL_FACING)
 	root.add_child(girl)
+	add_post_desk(root, interior)
+	add_post_terminal(root, interior)
+
+
+func add_post_desk(root: Node3D, interior: Interior) -> void:
+	## Invisible hull for the baked counter — GLB has no collision. Talk forwards to clerk.
+	if root == null or interior == null or interior.grid == null:
+		return
+	var half: Vector3 = PostDisplay.DESK_HALF_GX * FieldCatalog.GX_TO_METERS
+	var pos: Vector3 = PostDisplay.gx_to_world(interior.grid, PostDisplay.DESK_CENTER_GX)
+	pos.y = half.y
+	var existing: StaticBody3D = root.get_node_or_null("PostDesk") as StaticBody3D
+	if existing != null:
+		existing.position = pos
+		if existing.get_script() != POST_DESK_SCRIPT:
+			existing.set_script(POST_DESK_SCRIPT)
+			if existing.has_method("_ready"):
+				existing.call("_ready")
+		return
+	var body := StaticBody3D.new()
+	body.name = "PostDesk"
+	body.set_script(POST_DESK_SCRIPT)
+	body.position = pos
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = half * 2.0
+	shape.shape = box
+	body.add_child(shape)
+	root.add_child(body)
+
+
+func add_post_terminal(root: Node3D, interior: Interior) -> void:
+	## Left-side eTM (`POST_OFFICE_actor_data` PTerminal at GX {60,0,240}).
+	if root == null or interior == null or interior.grid == null:
+		return
+	var pos: Vector3 = PostDisplay.gx_to_world(interior.grid, PostDisplay.PTERMINAL_GX)
+	var existing: StaticBody3D = root.get_node_or_null("PostTerminal") as StaticBody3D
+	if existing != null:
+		existing.position = pos
+		if existing.get_script() != POST_TERMINAL_SCRIPT:
+			existing.set_script(POST_TERMINAL_SCRIPT)
+			if existing.has_method("_ready"):
+				existing.call("_ready")
+		return
+	var body := StaticBody3D.new()
+	body.name = "PostTerminal"
+	body.set_script(POST_TERMINAL_SCRIPT)
+	body.position = pos
+	root.add_child(body)
 
 
 func add_post_mail_piles(root: Node3D, interior: Interior) -> void:

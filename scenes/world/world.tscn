@@ -84,7 +84,7 @@ script = ExtResource("11")
 [node name="BugActors" type="Node3D" parent="Effects"]
 script = ExtResource("12")
 
-[node name="WeatherFx" type="MultiMeshInstance3D" parent="Effects"]
+[node name="WeatherFx" type="Node3D" parent="Effects"]
 script = ExtResource("13")
 
 [node name="Navigation" type="NavigationRegion3D" parent="." unique_id=577136201]

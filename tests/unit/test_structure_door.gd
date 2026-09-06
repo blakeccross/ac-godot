@@ -8,6 +8,9 @@ func test_villager_house_enter_uses_out_clip() -> void:
 	var anim: AnimationPlayer = _player_with(["obj_s_house1", "obj_s_house1_out"])
 	assert_str(StructureDoor.enter_clip(anim, &"obj_s_house1")).is_equal("obj_s_house1_out")
 	assert_str(StructureDoor.leave_clip(anim, &"obj_s_house1")).is_equal("obj_s_house1")
+	## Palette suffix still resolves shape door clips.
+	assert_str(StructureDoor.enter_clip(anim, &"obj_s_house1_b")).is_equal("obj_s_house1_out")
+	assert_str(StructureDoor.leave_clip(anim, &"obj_s_house1_c")).is_equal("obj_s_house1")
 
 
 func test_player_house_enter_uses_base_clip() -> void:

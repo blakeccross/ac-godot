@@ -1,0 +1,32 @@
+{
+  "id": "post_girl_repay",
+  "speaker_id": "post_girl",
+  "start": "ask",
+  "nodes": {
+    "ask": {
+      "type": "choice",
+      "prompt": "How much would you like to pay back?",
+      "options": [
+        {
+          "text": "All I can",
+          "goto": "done",
+          "events": [{ "op": "repay_loan", "amount": -1 }]
+        },
+        {
+          "text": "1,000 bells",
+          "goto": "done",
+          "events": [{ "op": "repay_loan", "amount": 1000 }]
+        },
+        { "text": "Never mind...", "goto": "cancel" }
+      ]
+    },
+    "done": {
+      "type": "line",
+      "text": "Thank you! Mr. Nook will be\npleased to hear that."
+    },
+    "cancel": {
+      "type": "line",
+      "text": "Oh, really? Come back\nanytime."
+    }
+  }
+}

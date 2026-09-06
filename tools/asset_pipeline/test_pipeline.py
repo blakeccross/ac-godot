@@ -13,7 +13,7 @@ from asset_pipeline.ckf import (
     select_close_bind,
     bind_frame_for_anim,
 )
-from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, INTRO_KK_NPC_ANIMS, INTRO_NOOK_NPC_ANIMS, INTRO_ROVER_NPC_ANIMS, INTRO_SLEEP_NPC_ANIMS, WATER_STATIC_NEEDLES, _intro_kk_anims, _intro_nook_anims, _intro_rover_anims, _intro_sleep_npc_anims, _name_under_prefix, _owning_vtx_prefix, _static_jobs
+from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, INTRO_KK_NPC_ANIMS, INTRO_NOOK_NPC_ANIMS, INTRO_ROVER_NPC_ANIMS, INTRO_SLEEP_NPC_ANIMS, WATER_STATIC_NEEDLES, _intro_kk_anims, _intro_nook_anims, _intro_rover_anims, _intro_sleep_npc_anims, _is_field_water_acre, _name_under_prefix, _owning_vtx_prefix, _static_jobs
 from asset_pipeline.glb import _bake_wrap_group
 from asset_pipeline.layout import (
     bti_output_path,
@@ -111,6 +111,7 @@ class LayoutTests(unittest.TestCase):
         self.assertEqual(output_folder_for_static("obj_w_cedar5"), "environment/trees")
         self.assertEqual(output_folder_for_static("obj_s_palm5_coco"), "environment/trees")
         self.assertEqual(output_folder_for_static("obj_hole0"), "environment/holes")
+        self.assertEqual(output_folder_for_static("obj_crack0"), "environment/holes")
         self.assertEqual(output_folder_for_static("tol_axe_1"), "items")
 
     def test_bti_keeps_archive_subdir(self) -> None:
@@ -202,6 +203,26 @@ class PrefixOwnershipTests(unittest.TestCase):
         self.assertEqual(jobs["obj_item_bag"]["gfx"], ["bag_DL_mode", "bag_DL_vtx"])
         self.assertEqual(jobs["obj_item_pear"]["gfx"], ["pear_DL_mode", "pear_DL_vtx"])
         self.assertEqual(jobs["obj_item_apple"]["output"], "environment/obj_item_apple.glb")
+
+    def test_weather_rain_gfx_prepends_setmode(self) -> None:
+        ## `ef_ame02_setmode` holds I4 + PRIM/ENV; cards are tris-only `*_modelT`.
+        symbols = [
+            _sym("ef_ame02_00_v"),
+            _sym("ef_ame02_00_modelT"),
+            _sym("ef_ame02_04_v"),
+            _sym("ef_ame02_04_modelT"),
+            _sym("ef_ame02_setmode"),
+        ]
+        jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
+        self.assertEqual(
+            jobs["ef_ame02_00"]["gfx"],
+            ["ef_ame02_setmode", "ef_ame02_00_modelT"],
+        )
+        self.assertEqual(
+            jobs["ef_ame02_04"]["gfx"],
+            ["ef_ame02_setmode", "ef_ame02_04_modelT"],
+        )
+        self.assertEqual(jobs["ef_ame02_04"]["output"], "effects/ef_ame02_04.glb")
 
     def test_rom_museum1_job_includes_modelT_mado(self) -> None:
         ## Entrance stained glass is XLU `rom_museum1_modelT` (`*_mado*_tex`).
@@ -326,6 +347,30 @@ class PrefixOwnershipTests(unittest.TestCase):
         self.assertTrue(any(n in "grd_s_e3_m_1" for n in WATER_STATIC_NEEDLES))
         self.assertFalse(any(n in "grd_s_rail_1" for n in WATER_STATIC_NEEDLES))
         self.assertFalse(any(n in "grd_s_mh_1" for n in WATER_STATIC_NEEDLES))
+
+    def test_field_water_acre_includes_pond_post_and_skips_non_acre(self) -> None:
+        ## Needle list missed tracks-post pond (`grd_s_t_po_3`); modelT selection catches it.
+        self.assertTrue(
+            _is_field_water_acre(
+                {"asset_id": "grd_s_t_po_3", "gfx": ["grd_s_t_po_3_model", "grd_s_t_po_3_modelT"]}
+            )
+        )
+        self.assertTrue(
+            _is_field_water_acre(
+                {"asset_id": "grd_s_c2_3", "gfx": ["grd_s_c2_3_model", "grd_s_c2_3_modelT"]}
+            )
+        )
+        self.assertFalse(
+            _is_field_water_acre({"asset_id": "grd_s_c1_1", "gfx": ["grd_s_c1_1_model"]})
+        )
+        self.assertFalse(
+            _is_field_water_acre(
+                {"asset_id": "grd_post_office", "gfx": ["grd_post_office_model", "grd_post_office_modelT"]}
+            )
+        )
+        self.assertFalse(
+            _is_field_water_acre({"asset_id": "grd_s_rail_1", "gfx": ["grd_s_rail_1_model"]})
+        )
 
     def test_fish_needles_cover_every_species_and_only_the_a_pose(self) -> None:
         ## Two poses per `aGYO_TYPE_*` up to `aGYO_TYPE_NUM`. `dl_c` is unreachable, because
@@ -469,9 +514,14 @@ class OverlayMatTests(unittest.TestCase):
         by_name = {
             "obj_hole0T_g_mat_model": _sym("obj_hole0T_g_mat_model"),
             "obj_hole0T_s_mat_model": _sym("obj_hole0T_s_mat_model"),
+            "obj_crack0T_g_mat_model": _sym("obj_crack0T_g_mat_model"),
         }
         self.assertEqual(_mat_model_name("obj_hole0T_gfx_model", by_name), "obj_hole0T_g_mat_model")
         self.assertEqual(_mat_model_name("obj_hole12T_gfx_model", by_name), "obj_hole0T_g_mat_model")
+        self.assertEqual(
+            _mat_model_name("obj_hole0T_gfx_model", by_name, "obj_crack0T_g_mat_model"),
+            "obj_crack0T_g_mat_model",
+        )
         self.assertIsNone(_mat_model_name("obj_hole0T_gfx_model", {}))
 
 
@@ -837,6 +887,7 @@ class WaterKindTests(unittest.TestCase):
             _OCEAN_BED_PRIM,
             classify_beach_wet,
             classify_water_surface,
+            combine_is_prim_env_texel,
             is_ocean_bed_part,
             waterfall_layer_from_wraps,
         )
@@ -967,6 +1018,46 @@ class WaterKindTests(unittest.TestCase):
                 dual=False,
                 prim=(255, 255, 255, 255),
                 env=(144, 128, 96, 255),
+            ),
+            "",
+        )
+        ## Static acre DLs leave ENV white; marin scroll pulses it at runtime.
+        ## Combiner (PRIM−ENV)×TEXEL0+ENV still tags wet sand / ocean bed.
+        beach_combine_w0 = 0xFC30FE04
+        beach_combine_w1 = 0x5FFEF3F8
+        self.assertTrue(combine_is_prim_env_texel(beach_combine_w0, beach_combine_w1))
+        self.assertEqual(
+            classify_beach_wet(
+                coverage="opa",
+                fmt=G_IM_FMT_I,
+                dual=False,
+                prim=(206, 189, 148, 255),
+                env=(255, 255, 255, 255),
+                combine_w0=beach_combine_w0,
+                combine_w1=beach_combine_w1,
+            ),
+            "beach_wet",
+        )
+        self.assertEqual(
+            classify_beach_wet(
+                coverage="opa",
+                fmt=G_IM_FMT_I,
+                dual=False,
+                prim=(32, 48, 144, 255),
+                env=(255, 255, 255, 255),
+                combine_w0=beach_combine_w0,
+                combine_w1=beach_combine_w1,
+            ),
+            "beach_wet",
+        )
+        ## White ENV without the lerp combiner is not wet sand.
+        self.assertEqual(
+            classify_beach_wet(
+                coverage="opa",
+                fmt=G_IM_FMT_I,
+                dual=False,
+                prim=(206, 189, 148, 255),
+                env=(255, 255, 255, 255),
             ),
             "",
         )

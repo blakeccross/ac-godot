@@ -1,6 +1,74 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/inventory_overlay.gd" id="1"]
+[ext_resource type="FontFile" path="res://assets/fonts/fot_rodin_pro_db.otf" id="8"]
+
+[sub_resource type="StyleBoxFlat" id="BellsPill"]
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 5
+border_width_top = 5
+border_width_right = 5
+border_width_bottom = 5
+border_color = Color(0.4, 0.7, 1, 1)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 24
+corner_radius_bottom_left = 24
+content_margin_left = 16
+content_margin_top = 2
+content_margin_right = 16
+content_margin_bottom = 2
+
+[sub_resource type="StyleBoxFlat" id="TabYellow"]
+bg_color = Color(1, 0.85, 0.05, 1)
+corner_radius_top_left = 22
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 22
+content_margin_left = 8
+content_margin_top = 8
+content_margin_right = 8
+content_margin_bottom = 8
+
+[sub_resource type="StyleBoxFlat" id="TabBlue"]
+bg_color = Color(0.3, 0.45, 1, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 6
+content_margin_left = 8
+content_margin_top = 8
+content_margin_right = 8
+content_margin_bottom = 8
+
+[sub_resource type="StyleBoxFlat" id="TabGrey"]
+bg_color = Color(0.45, 0.45, 0.48, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 6
+content_margin_left = 8
+content_margin_top = 8
+content_margin_right = 8
+content_margin_bottom = 8
+
+[sub_resource type="StyleBoxFlat" id="TabRed"]
+bg_color = Color(0.85, 0.18, 0.18, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 6
+content_margin_left = 8
+content_margin_top = 8
+content_margin_right = 8
+content_margin_bottom = 8
+
+[sub_resource type="StyleBoxFlat" id="PortraitClip"]
+bg_color = Color(0.75, 0.88, 1, 1)
+corner_radius_top_left = 999
+corner_radius_top_right = 999
+corner_radius_bottom_right = 999
+corner_radius_bottom_left = 999
 
 [node name="InventoryOverlay" type="CanvasLayer"]
 process_mode = 3
@@ -24,7 +92,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.05, 0.08, 0.12, 0.45)
+color = Color(0.05, 0.08, 0.12, 0.28)
 
 [node name="Center" type="CenterContainer" parent="Root"]
 layout_mode = 1
@@ -34,77 +102,255 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Paper" type="PanelContainer" parent="Root/Center"]
+[node name="ShellStack" type="Control" parent="Root/Center"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(520, 420)
+custom_minimum_size = Vector2(720, 540)
 layout_mode = 2
+clip_contents = false
 
-[node name="Margin" type="MarginContainer" parent="Root/Center/Paper"]
-layout_mode = 2
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 16
+[node name="ShellShadow" type="TextureRect" parent="Root/Center/ShellStack"]
+unique_name_in_owner = true
+modulate = Color(0, 0, 0, 0.28)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 12.0
+offset_right = 10.0
+offset_bottom = 12.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
-[node name="VBox" type="VBoxContainer" parent="Root/Center/Paper/Margin"]
-layout_mode = 2
-theme_override_constants/separation = 10
+[node name="WindowShell" type="TextureRect" parent="Root/Center/ShellStack"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
-[node name="Header" type="HBoxContainer" parent="Root/Center/Paper/Margin/VBox"]
-layout_mode = 2
+[node name="ChromeLayer" type="Control" parent="Root/Center/ShellStack"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
-[node name="Title" type="Label" parent="Root/Center/Paper/Margin/VBox/Header"]
+[node name="PortraitClip" type="Panel" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+clip_children = 1
+layout_mode = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("PortraitClip")
+
+[node name="PortraitViewport" type="SubViewportContainer" parent="Root/Center/ShellStack/ChromeLayer/PortraitClip"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="Root/Center/ShellStack/ChromeLayer/PortraitClip/PortraitViewport"]
+unique_name_in_owner = true
+transparent_bg = true
+handle_input_locally = false
+size = Vector2i(160, 160)
+render_target_update_mode = 4
+
+[node name="PortraitFrame" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TownName" type="Label" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+theme_override_colors/font_color = Color(0.23, 0.31, 0.43, 1)
+theme_override_fonts/font = ExtResource("8")
+theme_override_font_sizes/font_size = 20
+text = "Town"
+horizontal_alignment = 1
+
+[node name="TownBar" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="PlayerName" type="Label" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+theme_override_colors/font_color = Color(0.27, 0.27, 0.39, 1)
+theme_override_fonts/font = ExtResource("8")
+theme_override_font_sizes/font_size = 20
+text = "Player"
+horizontal_alignment = 1
+
+[node name="PlayerBar" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ItemsLabel" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="LettersLabel" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BellsLabel" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BellsPill" type="PanelContainer" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+theme_override_styles/panel = SubResource("BellsPill")
+
+[node name="WalletLabel" type="Label" parent="Root/Center/ShellStack/ChromeLayer/BellsPill"]
+unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.9, 0.22, 0.18, 1)
+theme_override_fonts/font = ExtResource("8")
 theme_override_font_sizes/font_size = 22
-text = "Pockets"
+text = "0"
+horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="WalletLabel" type="Label" parent="Root/Center/Paper/Margin/VBox/Header"]
+[node name="TabPencil" type="PanelContainer" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("TabYellow")
+
+[node name="TabAxeIcon" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer/TabPencil"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TabFish" type="PanelContainer" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("TabBlue")
+
+[node name="TabFishIcon" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer/TabFish"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TabFace" type="PanelContainer" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("TabGrey")
+
+[node name="TabScoopIcon" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer/TabFace"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TabBug" type="PanelContainer" parent="Root/Center/ShellStack/ChromeLayer"]
+unique_name_in_owner = true
+layout_mode = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("TabRed")
+
+[node name="TabBugIcon" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer/TabBug"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="SlotLayer" type="Control" parent="Root/Center/ShellStack"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Detail" type="VBoxContainer" parent="Root/Center/ShellStack"]
+unique_name_in_owner = true
+layout_mode = 0
+theme_override_constants/separation = 2
+
+[node name="ItemNameLabel" type="Label" parent="Root/Center/ShellStack/Detail"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.15, 0.35, 0.15, 1)
-theme_override_font_sizes/font_size = 20
-text = "0 Bells"
-horizontal_alignment = 2
-
-[node name="SlotGrid" type="GridContainer" parent="Root/Center/Paper/Margin/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 8
-columns = 5
-
-[node name="ItemNameLabel" type="Label" parent="Root/Center/Paper/Margin/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = ""
-
-[node name="ItemDescLabel" type="Label" parent="Root/Center/Paper/Margin/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
+theme_override_colors/font_color = Color(0.2, 0.28, 0.45, 1)
+theme_override_fonts/font = ExtResource("8")
+theme_override_font_sizes/font_size = 15
 autowrap_mode = 3
-theme_override_colors/font_color = Color(0.25, 0.25, 0.28, 1)
-theme_override_font_sizes/font_size = 16
-text = ""
 
-[node name="TagLabel" type="Label" parent="Root/Center/Paper/Margin/VBox"]
+[node name="ItemDescLabel" type="Label" parent="Root/Center/ShellStack/Detail"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.1, 0.2, 0.45, 1)
-theme_override_font_sizes/font_size = 18
-text = ""
+theme_override_colors/font_color = Color(0.32, 0.3, 0.28, 1)
+theme_override_fonts/font = ExtResource("8")
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 3
 
-[node name="EquipLabel" type="Label" parent="Root/Center/Paper/Margin/VBox"]
+[node name="TagLabel" type="Label" parent="Root/Center/ShellStack/Detail"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 16
-text = "Held: —"
-
-[node name="HintLabel" type="Label" parent="Root/Center/Paper/Margin/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.35, 0.35, 0.38, 1)
+theme_override_colors/font_color = Color(0.2, 0.28, 0.45, 1)
+theme_override_fonts/font = ExtResource("8")
 theme_override_font_sizes/font_size = 14
+
+[node name="EquipLabel" type="Label" parent="Root/Center/ShellStack/Detail"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.38, 0.35, 0.32, 1)
+theme_override_fonts/font = ExtResource("8")
+theme_override_font_sizes/font_size = 11
+
+[node name="HintLabel" type="Label" parent="Root/Center/ShellStack/Detail"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.38, 0.34, 1)
+theme_override_fonts/font = ExtResource("8")
+theme_override_font_sizes/font_size = 11
 text = "X close"

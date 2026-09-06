@@ -44,6 +44,7 @@ func test_catalog_tools_are_tool_data() -> void:
 	assert_bool(axe.equippable).is_true()
 	assert_int(axe.max_stack).is_equal(1)
 	assert_that(axe.visual_id).is_equal(&"tol_axe_1")
+	assert_that(axe.hold_anim).is_equal(&"ply_1_axe1")
 	assert_that(shovel.visual_id).is_equal(&"tol_scoop_1")
 	assert_that(net.visual_id).is_equal(&"tol_net_1")
 	assert_that(rod.visual_id).is_equal(&"tol_sao_1")

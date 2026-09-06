@@ -131,6 +131,17 @@ func choose(index: int) -> void:
 	_goto(next_id)
 
 
+## Jump to a node in the current graph or another catalog conversation (`msg_*`).
+func jump_to(to: StringName) -> void:
+	if done:
+		return
+	waiting_choice = false
+	waiting_prompt = false
+	waiting_stage = false
+	choices.clear()
+	_goto(to)
+
+
 func current_kind() -> StringName:
 	return StringName(str(_current().get("type", "")))
 
@@ -371,6 +382,32 @@ func _apply_event(event: Dictionary) -> void:
 				context.mood = _mood_from(str(event.get("mood", "normal")))
 		"notice":
 			Game.post_notice(str(event.get("text", "")))
+		"deposit_bells":
+			var dep_msg: String = PostUse.deposit_amount(int(event.get("amount", -1)))
+			if dep_msg != "":
+				Game.post_notice(dep_msg)
+		"withdraw_bells":
+			var wit_msg: String = PostUse.withdraw_amount(int(event.get("amount", -1)))
+			if wit_msg != "":
+				Game.post_notice(wit_msg)
+		"repay_loan":
+			var repay_msg: String = PostUse.repay_amount(int(event.get("amount", -1)))
+			if repay_msg != "":
+				Game.post_notice(repay_msg)
+		"send_mail":
+			var send_msg: String = PostUse.send_mail_at(int(event.get("index", -1)))
+			if send_msg != "":
+				Game.post_notice(send_msg)
+		"save_mail":
+			var save_msg: String = PostUse.save_mail_at(int(event.get("index", -1)))
+			if save_msg != "":
+				Game.post_notice(save_msg)
+		"write_letter":
+			var write_msg: String = PostUse.write_letter(
+				StringName(str(event.get("to", ""))), int(event.get("body", 0))
+			)
+			if write_msg != "":
+				Game.post_notice(write_msg)
 
 
 func _sync_bond_context(bond: Relationship) -> void:

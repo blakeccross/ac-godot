@@ -466,6 +466,7 @@ func _menu_open() -> bool:
 		or _group_open("map_ui")
 		or _group_open("dialogue_ui")
 		or _group_open("shop_ui")
+		or _group_open("debug_console_ui")
 	)
 
 

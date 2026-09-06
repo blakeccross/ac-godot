@@ -14,7 +14,6 @@ from asset_pipeline.config import load_config  # noqa: E402
 from asset_pipeline.convert import (  # noqa: E402
     BUG_STATIC_NEEDLES,
     FISH_STATIC_NEEDLES,
-    WATER_STATIC_NEEDLES,
     convert_acre_collision,
     convert_assets,
     convert_ckf_prefixes,
@@ -22,6 +21,8 @@ from asset_pipeline.convert import (  # noqa: E402
     convert_static_only,
     convert_static_prefixes,
     convert_test_static_needles,
+    convert_villager_house_palettes,
+    convert_water_acres,
 )
 from asset_pipeline.fgdata import convert_fgdata  # noqa: E402
 from asset_pipeline.npc_rooms import convert_npc_rooms  # noqa: E402
@@ -135,7 +136,18 @@ def main() -> int:
             else:
                 converted = report["converted"]
                 errors = [r for r in report["results"] if r["status"] == "error"]
-                print(f"wrote {converted} inventory UI textures -> {report['output']}")
+                achd_hits = int(report.get("achd_hits", 0))
+                print(
+                    f"wrote {converted} inventory UI textures"
+                    f" ({achd_hits} ACHD) -> {report['output']}"
+                )
+                shell_info = report.get("window_shell")
+                if shell_info:
+                    bbox = shell_info.get("alpha_bbox") or {}
+                    print(
+                        f"  window_shell {shell_info.get('width')}x{shell_info.get('height')}"
+                        f" alpha_bbox={bbox}"
+                    )
                 for err in errors[:40]:
                     print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
                 if errors:
@@ -212,6 +224,8 @@ def main() -> int:
                     "obj_s_station",
                     "obj_w_station",
                 )
+                pal_report = convert_villager_house_palettes(cfg)
+                report["results"].extend(pal_report.get("results", []))
                 static_report = convert_static_prefixes(
                     cfg, ["obj_s_museum", "obj_w_museum", "obj_s_kouban", "obj_w_kouban", "obj_s_shrine", "obj_w_shrine"]
                 )
@@ -247,8 +261,8 @@ def main() -> int:
                 label = "plant assets"
             elif args.kind == "water":
                 cfg.test_set_only = False
-                report = convert_static_prefixes(cfg, WATER_STATIC_NEEDLES)
-                label = "river/ocean acre assets"
+                report = convert_water_acres(cfg)
+                label = "river/ocean/pond acre assets"
             elif args.kind == "fish":
                 cfg.test_set_only = False
                 report = convert_static_prefixes(cfg, FISH_STATIC_NEEDLES)

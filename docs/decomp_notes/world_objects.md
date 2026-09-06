@@ -49,7 +49,7 @@ The player never switches on type. Verbs live on the host.
 | Museum | Unique **flat** acre below cliff (`T_MUSEUM`) → `obj_s_museum` |
 | Able Sisters | Beach row **bz=6** (`T_NEEDLEWORK` / `grd_s_m_ta_*`). FG `NEEDLEWORK_SHOP` is **(9, 4)** on `_1`/`_2` and **(9, 5)** on `_3`. Door verb shop, NW (−1,0), `aNW_actor_ct` −20 X +20 Z |
 | Post / police / well / station | `obj_s_yubinkyoku` (−1,0) / `obj_s_kouban` (3×3 centered) / `obj_s_shrine` (0,−1) / `obj_s_station1` at TRAIN_STATION **(8, 5)** + −20 X |
-| Villager homes | FG **SIGN00–SIGN20** reserves shuffled; SIGN ut must be 1..14. **6** houses (`mNpc_LOOKS_NUM`). House FG on the SIGN unit (`obj_s_house1`, no `actor_ct` shift); 3×3 RSV overwrites trees. Door interact / OPEN1 stand is **+40** Z GX (porch); exit rewrite **+60** Z. New game also places **6** outdoor villager actors (`mNpc_DecideLivingNpcMax`: one starter per looks). Fallback synthetic plots on flats if catalog has no SIGNs |
+| Villager homes | FG **SIGN00–SIGN20** reserves shuffled; SIGN ut must be 1..14. **6** houses (`mNpc_LOOKS_NUM`). House FG on the SIGN unit; mesh is `obj_s_house{1-5}_{a-e}` from that animal’s `npc_house_list` type/palette (`aHUS_actor_ct`); 3×3 RSV overwrites trees. Door interact / OPEN1 stand is **+40** Z GX (porch); exit rewrite **+60** Z. New game also places **6** outdoor villager actors (`mNpc_DecideLivingNpcMax`: one starter per looks). Fallback synthetic plots on flats if catalog has no SIGNs |
 | Dock sign | FG **`PORT_SIGN`** (`0x5852`) on `grd_s_m_wf_*` at unit **(8, 7)** on `_1`/`_2`, **(9, 7)** on `_3`. Drawn by **`ac_reserve`** (`arg0 == 0x42`) as seasonal **`obj_{s,w}_attention`** (`obj_*_attentionT_model`) — one-post bulletin with baked paper/tack. Not field `SIGNBOARD`/`obj_*_kanban` (two posts) and not plaza `obj_*_notice`. |
 | Trees / rocks / flowers | FG template copy (`FgCatalog`) at **unit center** (`bg_item` `pos_table` 20+40n GX), then border pull / tanuki path, then fruit/cedar. House build clears the SIGN 3×3 |
 
@@ -85,7 +85,7 @@ Godot: `StructureOffset.apply` writes those 4×4 / 3×3 / 7×5 tables into `Fiel
 
 `bg_item` places **every** FG actor at `GetBgY(..., −1 GX)`. That lift is not the same as a ground decal. Only meshes authored on the acre plane (zero Y extent) z-fight the grass: `obj_hole0` / `HOLE00`. Flowers, weeds, rocks, stumps, dropped items, and signs have height — they stay `_fit_actor` at unit-center Y.
 
-When shine spots or pitfall holes exist, they reuse the same hole fan and should go through `FieldCatalog.is_ground_decal`. Actor blob shadows (`*_shadow_v`) convert as companion GLBs; `GeneratedVisual` attaches them under `BlobShadow`. Characters (player) use `actor_blob_shadow.tscn` — DirectionalLight shadows stay off.
+When shine spots or pitfall holes exist, they reuse the same hole fan and should go through `FieldCatalog.is_ground_decal`. Buried deposit X marks use `obj_crack0` (hole verts + `obj_crack_tex`); shine rays are `ef_anahikari` (also ground-decal materials). Actor blob shadows (`*_shadow_v`) convert as companion GLBs; `GeneratedVisual` attaches them under `BlobShadow`. Characters (player) use `actor_blob_shadow.tscn` — DirectionalLight shadows stay off.
 
 **Window panes** (`*_light_model`, museum `*_lightT_model`): opaque quads in the wall TEX_EDGE holes. The combiner ignores the wall SETTIMG and fills with prim/env — black when off, yellow (255, 255, 150) when on (`mEnv_NPC_LIGHTS_*` 18:00–05:00). Convert keeps them untextured (`unlit_fill`) so they do not merge into the MASK wall surface.
 
@@ -94,5 +94,5 @@ When shine spots or pitfall holes exist, they reuse the same hole fan and should
 ## Simplify / ignore
 
 - Indoor room scenes live: ENTER on a mapped building loads `interior.tscn` (`InteriorCatalog` / `InteriorBook`). Shop hours still gate Nook / Able Sisters.
-- Money-rock / dig loot tables. Pitfall kits, buried items, and walking into a hole (fall).
-- House upgrade stages (`obj_s_myhome2`–`4`, `obj_s_house2`–`5`) until upgrades exist.
+- Money-rock dig loot tables. Pitfall kits and walking into a hole (fall).
+- Player house upgrade stages (`obj_s_myhome2`–`4`) until upgrades exist. Villager outdoor shapes `obj_s_house1`–`5` + palettes a–e are applied from `npc_house_list`.

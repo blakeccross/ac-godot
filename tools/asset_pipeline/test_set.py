@@ -289,6 +289,15 @@ TEST_STATIC = [
         "confident_name": True,
     },
     {
+        ## Deposit X mark: same hole fan as HOLE00, `obj_crack` CI4 (`bIT_DRAW_TYPE_CRACK00_*`).
+        "asset_id": "obj_crack0",
+        "vtx": "obj_hole0_v",
+        "gfx": ["obj_hole0T_gfx_model"],
+        "mat": "obj_crack0T_g_mat_model",
+        "output": "environment/holes/obj_crack0.glb",
+        "confident_name": True,
+    },
+    {
         "asset_id": "tol_axe_1",
         "vtx": "tol_axe_1_v",
         "gfx": ["tol_axe_1_model"],

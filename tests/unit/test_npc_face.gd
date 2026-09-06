@@ -135,6 +135,13 @@ func test_frame_paths_follow_the_faces_pipeline_layout() -> void:
 	assert_str(NpcFace.frame_path(&"xct", "mouth", 5)).is_equal(
 		"res://assets/generated/characters/faces/xct_mouth5.png"
 	)
+	## Villager data uses English labels; PNGs use disc prefixes (`flg_eye0.png`).
+	assert_str(NpcFace.frame_path(&"frog", "eye", 0)).is_equal(
+		"res://assets/generated/characters/faces/flg_eye0.png"
+	)
+	assert_str(NpcFace.frame_path(&"rabbit", "mouth", 2)).is_equal(
+		"res://assets/generated/characters/faces/rbt_mouth2.png"
+	)
 
 
 func test_bind_fails_without_face_quads_on_host() -> void:

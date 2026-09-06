@@ -225,3 +225,12 @@ func test_advance_season_jumps_to_next_boundary() -> void:
 	assert_int(Clock.month).is_equal(12)
 	assert_int(Clock.day).is_equal(10)
 	Clock.season_changed.disconnect(cb)
+
+
+func test_jump_to_season_snaps_to_boundary() -> void:
+	Clock.apply_snapshot({"year": 2001, "month": 7, "day": 4, "hour": 9, "minute": 0})
+	Clock.jump_to_season(ClockService.Season.AUTUMN)
+	assert_that(Clock.season()).is_equal(ClockService.Season.AUTUMN)
+	assert_int(Clock.month).is_equal(9)
+	assert_int(Clock.day).is_equal(16)
+	assert_int(Clock.hour).is_equal(12)

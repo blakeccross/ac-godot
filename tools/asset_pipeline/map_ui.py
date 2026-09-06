@@ -668,13 +668,18 @@ def _draw_textured_triangle(
             if sa <= 0:
                 continue
             dr, dg, db, da = out_px[px, py]
-            alpha = sa / 255.0
-            inv = 1.0 - alpha
+            # Porter-Duff "over" (straight alpha). The old `src*a + dst*(1-a)`
+            # form darkens when dst RGB is 0 with dst A=0 (transparent black).
+            as_ = sa / 255.0
+            ad_ = da / 255.0
+            ao = as_ + ad_ * (1.0 - as_)
+            if ao <= 1e-6:
+                continue
             out_px[px, py] = (
-                int(dr * inv + sr * alpha),
-                int(dg * inv + sg * alpha),
-                int(db * inv + sb * alpha),
-                max(da, sa),
+                int((sr * as_ + dr * ad_ * (1.0 - as_)) / ao + 0.5),
+                int((sg * as_ + dg * ad_ * (1.0 - as_)) / ao + 0.5),
+                int((sb * as_ + db * ad_ * (1.0 - as_)) / ao + 0.5),
+                int(ao * 255.0 + 0.5),
             )
 
 

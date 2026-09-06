@@ -16,7 +16,7 @@ func after_test() -> void:
 
 func test_default_visuals_use_decomp_names() -> void:
 	assert_that(FieldCatalog.default_visual(&"tree")).is_equal(&"TREE_APPLE_FRUIT")
-	assert_that(FieldCatalog.default_visual(&"house")).is_equal(&"obj_s_house1")
+	assert_that(FieldCatalog.default_visual(&"house")).is_equal(&"obj_s_house1_a")
 	assert_that(FieldCatalog.default_visual(&"shop")).is_equal(&"obj_s_shop1")
 	assert_that(FieldCatalog.default_visual(&"sign")).is_equal(&"SIGNBOARD")
 	assert_that(FieldCatalog.default_visual(&"flower")).is_equal(&"FLOWER_PANSIES0")
@@ -25,6 +25,21 @@ func test_default_visuals_use_decomp_names() -> void:
 	assert_bool(FieldCatalog.is_ground_decal(&"HOLE00")).is_true()
 	assert_bool(FieldCatalog.is_ground_decal(&"obj_hole0")).is_true()
 	assert_bool(FieldCatalog.is_ground_decal(&"TREE")).is_false()
+
+
+func test_villager_house_visual_maps_type_and_palette() -> void:
+	## `aHUS_actor_ct`: shape 0..4 → house1..5, palette 0..4 → a..e.
+	assert_that(FieldCatalog.villager_house_visual(0, 0)).is_equal(&"obj_s_house1_a")
+	assert_that(FieldCatalog.villager_house_visual(1, 2)).is_equal(&"obj_s_house2_c")
+	assert_that(FieldCatalog.villager_house_visual(4, 4)).is_equal(&"obj_s_house5_e")
+	assert_that(FieldCatalog.house_shape_base(&"obj_s_house2_c")).is_equal(&"obj_s_house2")
+	assert_that(FieldCatalog.house_shape_base(&"obj_w_house3_e")).is_equal(&"obj_w_house3")
+	assert_that(FieldCatalog.house_shape_base(&"obj_s_house1")).is_equal(&"obj_s_house1")
+	assert_that(FieldCatalog.house_shape_base(&"obj_s_house_i")).is_equal(&"obj_s_house_i")
+	var filbert: VillagerData = load("res://data/villagers/filbert.tres")
+	assert_that(filbert.outdoor_house_visual()).is_equal(&"obj_s_house1_b")
+	var ankha: VillagerData = load("res://data/villagers/ankha.tres")
+	assert_that(ankha.outdoor_house_visual()).is_equal(&"obj_s_house2_c")
 
 
 func test_fg_item_trees_and_sign_reserves() -> void:
@@ -63,6 +78,10 @@ func test_summer_tree_paths_when_assets_exist() -> void:
 	if not stump.is_empty():
 		assert_str(stump[0]).contains("obj_s_stump5")
 	assert_str(FieldCatalog.mesh_paths(&"obj_s_house1")[0]).contains("obj_s_house1")
+	## Palette suffix falls back to the shape GLB when the variant is missing.
+	var house_b: PackedStringArray = FieldCatalog.mesh_paths(&"obj_s_house1_b")
+	assert_int(house_b.size()).is_greater(0)
+	assert_str(house_b[0]).contains("obj_s_house1")
 	for id: StringName in [
 		&"obj_s_myhome1",
 		&"obj_s_museum",
@@ -187,9 +206,14 @@ func test_season_texture_path_falls_back_to_summer_pack() -> void:
 	if summer.is_empty():
 		assert_str(autumn).is_equal("")
 		return
-	assert_str(summer).contains("/seasons/s/grass.png")
-	## Autumn pack or summer fallback.
-	assert_bool(autumn.contains("/seasons/f/grass.png") or autumn.contains("/seasons/s/grass.png")).is_true()
+	## Pattern variant (`grass_0.png`) or plain `grass.png`.
+	assert_bool(
+		summer.contains("/seasons/s/grass_") or summer.contains("/seasons/s/grass.png")
+	).is_true()
+	## Autumn pack or summer fallback (plain or patterned).
+	assert_bool(
+		autumn.contains("/seasons/f/grass") or autumn.contains("/seasons/s/grass")
+	).is_true()
 
 
 func test_is_seasonal_env_visual() -> void:
@@ -214,6 +238,18 @@ func test_winter_structure_and_rock_mesh_remap() -> void:
 		else:
 			var stem := String(id).substr(6)
 			assert_bool(path.contains("obj_w_%s" % stem) or path.contains(String(id))).is_true()
+
+
+func test_autumn_rocks_fall_back_to_summer() -> void:
+	## No `obj_f_stone*` on disc; autumn must still resolve a rock mesh.
+	Clock.apply_snapshot({ "year": 2001, "month": 10, "day": 1, "hour": 12, "minute": 0 })
+	assert_str(FieldCatalog.season_letter()).is_equal("f")
+	for id: StringName in [&"ROCK_A", &"ROCK_B", &"ROCK_C", &"ROCK_D", &"ROCK_E"]:
+		var paths: PackedStringArray = FieldCatalog.mesh_paths(id)
+		assert_bool(paths.is_empty()).is_false()
+		assert_bool(
+			paths[0].contains("obj_f_stone") or paths[0].contains("obj_s_stone")
+		).is_true()
 
 
 func test_species_codes_map_to_disc_prefixes() -> void:
@@ -345,6 +381,10 @@ func test_height_counts_match_gx() -> void:
 	assert_bool(FieldCatalog.is_plantable_attr(6)).is_true()
 	assert_bool(FieldCatalog.is_plantable_attr(7)).is_false()
 	assert_bool(FieldCatalog.is_plantable_attr(23)).is_false()
+	assert_bool(FieldCatalog.is_diggable_attr(0)).is_true()
+	assert_bool(FieldCatalog.is_diggable_attr(3)).is_false()
+	assert_bool(FieldCatalog.is_diggable_attr(FieldCatalog.SAND_ATTR)).is_true()
+	assert_bool(FieldCatalog.is_sand_hole_attr(FieldCatalog.SAND_ATTR)).is_true()
 
 
 func test_south_river_r1_1_water_is_west_of_center() -> void:
