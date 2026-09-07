@@ -1696,20 +1696,18 @@ class TextureBank:
         gx = gbi_to_gx(state.fmt, state.siz)
         if use_achd:
             from .achd import (
-                is_field_terrain_texture,
                 is_player_model_texture,
                 is_room_bank_texture,
                 maybe_hd_png,
             )
 
             ## Hash-collision sheets (museum plates / mado / clocks / train CI) stay
-            ## on ``skips_achd_texture``. Field/tree/palm/cedar + room banks + player
-            ## body must stay native — ``achd_png_usable`` alone still allows CLAMP
-            ## upscales (hardwood leaf/trunk), which then break season re-tiling.
+            ## on ``skips_achd_texture``. Room banks + player body stay native.
+            ## Field/tree use ACHD: CLAMP leaf/trunk keep full HD; REPEAT grass/earth
+            ## are capped in ``maybe_hd_png`` so wrap-bake + seasons stay aligned.
             if (
                 not skips_achd_texture(name)
                 and not is_room_bank_texture(name)
-                and not is_field_terrain_texture(name, self.current_prefix)
                 and not is_player_model_texture(name, self.current_prefix)
             ):
                 ## Neon empty frames: skip hashing their own CI4 (false hits / garbage

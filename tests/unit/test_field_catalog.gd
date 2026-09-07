@@ -103,6 +103,11 @@ func test_summer_tree_paths_when_assets_exist() -> void:
 	assert_bool(apple_mesh.is_empty()).is_false()
 	assert_str(apple_mesh[0]).contains("obj_item_apple")
 	assert_that(FieldCatalog.item_visual(&"money_100")).is_equal(&"obj_item_bag")
+	assert_that(FieldCatalog.item_visual(&"flower")).is_equal(&"obj_item_seed")
+	assert_that(FieldCatalog.item_visual(&"wood_chair")).is_equal(&"obj_item_leaf")
+	assert_that(FieldCatalog.item_visual(&"shirt_016")).is_equal(&"obj_item_cloth")
+	assert_bool(FieldCatalog.mesh_paths(&"obj_item_leaf").is_empty()).is_false()
+	assert_bool(FieldCatalog.mesh_paths(&"obj_item_present").is_empty()).is_false()
 	var manekin: PackedStringArray = FieldCatalog.mesh_paths(&"int_fmanekin")
 	if not manekin.is_empty():
 		assert_str(manekin[0]).contains("obj_shop_manekin")

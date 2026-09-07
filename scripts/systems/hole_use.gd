@@ -39,7 +39,7 @@ static func can_open(grid: WorldGrid, cell: Vector2i) -> bool:
 	return not grid.is_occupied(cell)
 
 
-static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
+static func dig(ctx: InteractionContext, cell: Vector2i, play_scoop_se: bool = true) -> bool:
 	var grid: WorldGrid = _grid(ctx)
 	if not can_open(grid, cell):
 		return false
@@ -50,12 +50,15 @@ static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 		return false
 	_instance(ctx.world if ctx != null else null, grid, cell, pid)
 	_notify_bugs(ctx, cell)
+	if play_scoop_se and ctx != null and ctx.actor != null:
+		PlayerSe.scoop_dig(ctx.actor)
 	return true
 
 
 static func fill(host: Node, ctx: InteractionContext) -> bool:
 	if host == null:
 		return false
+	## `scoop_umeru` is scheduled from the fill clip; host is the SE anchor if needed.
 	var pid: StringName = _host_persist(host)
 	Game.clear_hole(pid)
 	var grid: WorldGrid = _grid(ctx)

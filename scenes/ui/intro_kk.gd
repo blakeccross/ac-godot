@@ -21,6 +21,8 @@ func _ready() -> void:
 	if _cmdline_has("--record-intro"):
 		auto_advance_dialogue = true
 	Game.notify_intro_ready()
+	## Start unmuted — opening pose is strum (`Na_TTKK_ARM(FALSE)` while playing).
+	Audio.set_ttkk_arm(false)
 	Audio.play_bgm(IntroKkStage.BGM_ID)
 	_stage.reset()
 	_stage.ready_for_talk.connect(_on_ready_for_talk)
@@ -96,6 +98,8 @@ func _process(delta: float) -> void:
 
 
 func _on_pose_changed(pose: int) -> void:
+	## Guitar stem on while strumming; mute on look-up (`Na_TTKK_ARM`).
+	Audio.set_ttkk_arm(pose != IntroKkStage.Pose.STRUM)
 	if _kk != null:
 		_kk.apply_pose(pose)
 

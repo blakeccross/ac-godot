@@ -42,7 +42,7 @@ func apply_growth() -> void:
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 	var actions: Array[Interaction] = []
 	if ToolUse.has(ctx, ToolData.Kind.SHOVEL):
-		actions.append(Interaction.of(Interaction.DIG, "Dig up", 12, &"ply_1_dig1"))
+		actions.append(Interaction.of(Interaction.DIG, "Dig up", 12, &"ply_1_dig1", 15.0))
 	if _can_pick():
 		actions.append(Interaction.of(Interaction.PICK_UP, "Pick flower", 10, &"ply_1_pickup1", 20.0))
 	if ToolUse.has(ctx, ToolData.Kind.WATERING_CAN) and _needs_water():
@@ -56,6 +56,8 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if action.id == Interaction.DIG:
 		if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):
 			return false
+		if ctx != null and ctx.actor != null:
+			PlayerSe.scoop_dig(ctx.actor)
 		return PlantGrowth.dig_up_flower(ctx, _cell())
 	if action.id == Interaction.WATER:
 		if not ToolUse.has(ctx, ToolData.Kind.WATERING_CAN):

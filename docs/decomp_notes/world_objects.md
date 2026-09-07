@@ -16,7 +16,7 @@ WorldObjectRegistry  →  WorldBuilder  →  scene host
 | `WorldObjectRegistry` | One-line `register(kind, scene, place_kind, group)` |
 | `ObjectPlacement` / `BuildingPlacement` | Layout entries inside `WorldData` |
 | Host scene | Thin: `GeneratedVisual` + `InteractVolume` + `get_interactions` / `interact`. Solid hosts size physics from the occupancy footprint (`HostCollision`), not the GLB. |
-| `HostCollision` | Box / cylinder hulls from occupancy for trees, rocks, and leftover shells. Houses, museum, Able Sisters, post office, Nook shop, and police disable the StaticBody; walk walls come from `StructureOffset` plus-offsets on `FieldCollision`. Door sensors stay on the host. |
+| `HostCollision` | Box / cylinder hulls from occupancy for trees, rocks, and leftover shells. Houses, museum, Able Sisters, post office, Nook shop, and police disable the StaticBody; walk walls come from `StructureOffset` plus-offsets on `FieldCollision`. Door sensors stay on the host. Train station (`obj_s_station*`) also disables the hull **and** removes the Door — `ac_station` has no `set_bgOffset` and no indoor room; walls are baked into `grd_s_t_st1_*` acre collision, and Porter stands outdoors at unit (5, 4). |
 | `Door` | Composable ENTER/SHOP sensor (child of `building`, or own placement) |
 
 **Add a new object**
@@ -48,7 +48,7 @@ The player never switches on type. Verbs live on the host.
 | Nook shop | Tracks row **A**; dump→shop; SHOP0 unit + NW (−1,0); mesh `obj_s_shop1` |
 | Museum | Unique **flat** acre below cliff (`T_MUSEUM`) → `obj_s_museum` |
 | Able Sisters | Beach row **bz=6** (`T_NEEDLEWORK` / `grd_s_m_ta_*`). FG `NEEDLEWORK_SHOP` is **(9, 4)** on `_1`/`_2` and **(9, 5)** on `_3`. Door verb shop, NW (−1,0), `aNW_actor_ct` −20 X +20 Z |
-| Post / police / well / station | `obj_s_yubinkyoku` (−1,0) / `obj_s_kouban` (3×3 centered) / `obj_s_shrine` (0,−1) / `obj_s_station1` at TRAIN_STATION **(8, 5)** + −20 X |
+| Post / police / well / station | `obj_s_yubinkyoku` (−1,0) / `obj_s_kouban` (3×3 centered) / `obj_s_shrine` (0,−1) / `obj_s_station1` at TRAIN_STATION **(8, 5)** + −20 X. Station is **not** enterable: no `mFI_FIELD_ROOM_STATION`; walk into the open mouth via acre heightfield; talk to Porter (`SP_NPC_STATION_MASTER`) outdoors. |
 | Villager homes | FG **SIGN00–SIGN20** reserves shuffled; SIGN ut must be 1..14. **6** houses (`mNpc_LOOKS_NUM`). House FG on the SIGN unit; mesh is `obj_s_house{1-5}_{a-e}` from that animal’s `npc_house_list` type/palette (`aHUS_actor_ct`); 3×3 RSV overwrites trees. Door interact / OPEN1 stand is **+40** Z GX (porch); exit rewrite **+60** Z. New game also places **6** outdoor villager actors (`mNpc_DecideLivingNpcMax`: one starter per looks). Fallback synthetic plots on flats if catalog has no SIGNs |
 | Dock sign | FG **`PORT_SIGN`** (`0x5852`) on `grd_s_m_wf_*` at unit **(8, 7)** on `_1`/`_2`, **(9, 7)** on `_3`. Drawn by **`ac_reserve`** (`arg0 == 0x42`) as seasonal **`obj_{s,w}_attention`** (`obj_*_attentionT_model`) — one-post bulletin with baked paper/tack. Not field `SIGNBOARD`/`obj_*_kanban` (two posts) and not plaza `obj_*_notice`. |
 | Trees / rocks / flowers | FG template copy (`FgCatalog`) at **unit center** (`bg_item` `pos_table` 20+40n GX), then border pull / tanuki path, then fruit/cedar. House build clears the SIGN 3×3 |

@@ -595,6 +595,7 @@ func open() -> void:
 	_tag_mode = false
 	_focus_mail = false
 	_side_tab = SideTab.POCKETS
+	Audio.play_se(&"menu_pause")
 	_root.visible = true
 	_root.modulate = Color(1, 1, 1, 0)
 	if _shell_stack != null:
@@ -624,6 +625,7 @@ func open() -> void:
 func close() -> void:
 	if not _open:
 		return
+	Audio.play_se(&"menu_exit")
 	_open = false
 	_tag_mode = false
 	_focus_mail = false
@@ -824,6 +826,8 @@ func _on_mail_pressed(index: int) -> void:
 
 
 func _on_selection(_index: int) -> void:
+	if _open:
+		Audio.play_se(&"cursol")
 	_tag_mode = false
 	_refresh()
 	_update_hand_cursor(true)
@@ -844,6 +848,7 @@ func _activate_cursor() -> void:
 	var idx: int = inv.selected_index
 	if inv.hand_index >= 0:
 		inv.place_hand(idx)
+		Audio.play_se(&"60")
 		_play_hand_clip("hnd_catch", false)
 		_refresh()
 		_update_hand_cursor(true)
@@ -858,6 +863,7 @@ func _activate_cursor() -> void:
 		return
 	_tag_mode = true
 	_tag_index = 0
+	Audio.play_se(&"41c")
 	_refresh()
 
 

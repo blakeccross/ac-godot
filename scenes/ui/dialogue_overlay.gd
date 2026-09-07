@@ -37,6 +37,10 @@ var _fast_text: bool = false
 var _choice_index: int = 0
 var _buttons: Array[Button] = []
 var _pending_choice: int = -1
+var _voice_mode: int = DialogueVoice.Mode.ANIMALESE
+var _sound_spec: int = 2
+var _voice_at: int = 0
+var _voice: DialogueVoice = DialogueVoice.new()
 
 
 func _ready() -> void:
@@ -86,6 +90,7 @@ func fast_advance() -> void:
 		return
 	if _cursor < _visible_len:
 		_cursor = _visible_len
+		_voice_at = _cursor
 		_chrome.set_body_visible_chars(_cursor)
 		_show_continue()
 		return
@@ -114,6 +119,7 @@ func play(
 	_runner.choices_shown.connect(_on_choices)
 	_runner.finished.connect(_on_finished)
 	_runner.event_fired.connect(_on_runner_event)
+	_apply_voice_from_ctx(ctx)
 	_begin_open(ctx.speaker_name if ctx != null else "", _sex_from_ctx(ctx))
 	_runner.start(data, ctx, state)
 	if _runner != null and _runner.done:
@@ -132,6 +138,10 @@ func say(
 	if _runner != null:
 		_disconnect_runner()
 		_runner = null
+	_voice_mode = DialogueVoice.Mode.CLICK
+	_sound_spec = 2
+	_voice_at = 0
+	_voice.configure(DialogueVoice.Mode.CLICK, 2)
 	_begin_open(speaker, sex)
 	_on_line(text)
 
@@ -168,6 +178,21 @@ func _sex_from_ctx(ctx: DialogueContext) -> MessageWindowChrome.SpeakerSex:
 	if ctx == null:
 		return MessageWindowChrome.SpeakerSex.OTHER
 	return MessageWindowChrome.sex_from_int(ctx.speaker_sex)
+
+
+func _apply_voice_from_ctx(ctx: DialogueContext) -> void:
+	_voice_at = 0
+	if ctx == null:
+		_voice_mode = DialogueVoice.Mode.CLICK
+		_sound_spec = 2
+		_voice.configure(DialogueVoice.Mode.CLICK, 2)
+		return
+	_voice_mode = ctx.voice_mode
+	_sound_spec = ctx.sound_spec
+	var status: DialogueVoice.Status = DialogueVoice.status_for_mood(ctx.mood)
+	if ctx.voice_status >= 0:
+		status = ctx.voice_status as DialogueVoice.Status
+	_voice.configure(_voice_mode as DialogueVoice.Mode, _sound_spec, status)
 
 
 func _finish_appear() -> void:
@@ -233,11 +258,30 @@ func _process(delta: float) -> void:
 	if step <= 0:
 		return
 	_type_accum -= float(step)
+	var prev: int = _cursor
 	_cursor = mini(_visible_len, _cursor + step)
+	_utter_range(prev, _cursor)
 	_chrome.set_body_visible_chars(_cursor)
 	if _cursor >= _visible_len:
 		_show_continue()
 
+
+func _utter_range(from_idx: int, to_idx: int) -> void:
+	if _shown.is_empty() or to_idx <= from_idx:
+		return
+	var mode := _voice_mode as DialogueVoice.Mode
+	## Click mode: one beep per reveal burst (not per glyph).
+	if mode == DialogueVoice.Mode.CLICK:
+		_voice.utter_glyph(".", "", "", self)
+		_voice_at = to_idx
+		return
+	var start: int = maxi(from_idx, _voice_at)
+	for i in range(start, to_idx):
+		var ch: String = _shown.substr(i, 1)
+		var n1: String = _shown.substr(i + 1, 1) if i + 1 < _shown.length() else ""
+		var n2: String = _shown.substr(i + 2, 1) if i + 2 < _shown.length() else ""
+		_voice.utter_glyph(ch, n1, n2, self)
+	_voice_at = to_idx
 
 func _process_window_anim(delta: float) -> void:
 	if _phase == Phase.APPEARING:
@@ -316,12 +360,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _cursor < _visible_len:
 			## Cancelable dump / A-to-complete page.
 			_cursor = _visible_len
+			_voice_at = _cursor
 			_chrome.set_body_visible_chars(_cursor)
 			_show_continue()
 			return
 		if _runner == null:
 			close()
 			return
+		## `mMsg_sound_PAGE_OKURI` when the player advances past a finished page.
+		Audio.play_se(&"page_okuri")
 		_runner.advance()
 		if _runner != null and _runner.done:
 			close()
@@ -333,10 +380,12 @@ func _choice_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_up") or event.is_action_pressed("move_forward"):
 		_choice_index = posmod(_choice_index - 1, _buttons.size())
 		_highlight()
+		Audio.play_se(&"cursol")
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("ui_down") or event.is_action_pressed("move_back"):
 		_choice_index = posmod(_choice_index + 1, _buttons.size())
 		_highlight()
+		Audio.play_se(&"cursol")
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
 		_pick(_choice_index)
@@ -348,6 +397,8 @@ func _on_line(text: String) -> void:
 	_chrome.set_body(text)
 	_visible_len = _chrome.body_visible_char_count()
 	_cursor = 0
+	_voice_at = 0
+	_voice.reset_line()
 	_type_accum = 0.0
 	_fast_text = false
 	_chrome.set_body_visible_chars(0)
@@ -363,6 +414,7 @@ func _on_choices(options: Array) -> void:
 	_chrome.set_body(_shown)
 	_visible_len = _chrome.body_visible_char_count()
 	_cursor = _visible_len
+	_voice_at = _cursor
 	_chrome.set_body_visible_chars(_cursor)
 	_chrome.set_continue_visible(false)
 	_clear_choices_immediate()

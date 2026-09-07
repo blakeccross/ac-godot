@@ -44,9 +44,9 @@ _ROOM_BANK_SOURCE_RE = re.compile(
     re.IGNORECASE,
 )
 
-## Field BG / acre terrain / trees. HD swaps break wrap-bake atlases and season
-## re-tiling (native tiles × UV repeats → atlas; ACHD is many× larger, then the
-## seasons pack still ships native tiles and over-tiles into that atlas).
+## Field BG / acre terrain / trees (diagnostics + docs). ACHD is allowed: CLAMP
+## trees take full HD; REPEAT grass/earth downscale via ``maybe_hd_png`` so
+## wrap-bake atlases stay under ``REPEAT_HD_MAX_EDGE`` (seasons must match).
 _FIELD_TEXTURE_RE = re.compile(
     r"(mFM_grd_|mFM_obj_tree_|mFM_obj_palm_|mFM_obj_.*flower|"
     r"grass_tex|earth_tex|cliff_tex|bush_[ab]_tex|"
@@ -67,7 +67,7 @@ _TREE_PREFIX_RE = re.compile(
 
 
 def is_field_terrain_texture(name: str, prefix: str = "") -> bool:
-    """True for acre/field/tree/season tiles that must stay native resolution."""
+    """True for acre/field/tree/season tile names (wrap-bake / seasons roles)."""
     stem = prefix.split(":")[0] if prefix else ""
     if stem.startswith("grd_"):
         return True
@@ -78,6 +78,11 @@ def is_field_terrain_texture(name: str, prefix: str = "") -> bool:
     return _FIELD_TEXTURE_RE.search(name) is not None
 
 
+## Cap REPEAT ACHD tiles so grass×16 (and similar) wrap-bakes stay ~2k px.
+## Full ACHD grass is 256² → 4096² atlases; 128² → 2048² is a clear upgrade.
+REPEAT_HD_MAX_EDGE = 128
+
+
 def is_room_bank_texture(source: str) -> bool:
     """True for `player_room_*.bin` pages and `player_room_wall_0_1` segment names."""
     if not source:
@@ -86,14 +91,11 @@ def is_room_bank_texture(source: str) -> bool:
 
 
 def is_player_model_texture(name: str, prefix: str = "") -> bool:
-    """Player body/face/shirt stay native resolution.
+    """True for player mesh / face-bank names that stay native in GLB decode.
 
-    ACHD + wrap-bake seams the shirt atlas (32×32 REPEAT → tiled HD sheet), and
-    hole/eyes restyle while skin often misses — mixed native/HD on one mesh.
-    Covers REL `boy_1_*` names, cKF prefix `boy_` / `girl_` (seg_08/09/0A), and
-    `face_boy.bin` / `tex_boy.bin` inventory exports.
-
-    Prefer ``achd_png_usable`` for new call sites; this remains for diagnostics.
+    ACHD on the skinned ``boy_1`` mesh seams the wrap-baked shirt atlas and can
+    mix HD hole/eyes with missed skin. Shirt/face **bank PNGs**
+    (``textures/player/shirts|faces``) still take full ACHD via ``_png_record``.
     """
     stem = prefix.split(":")[0] if prefix else ""
     if stem.startswith(("boy_", "girl_")):
@@ -108,6 +110,41 @@ def is_player_model_texture(name: str, prefix: str = "") -> bool:
     )
 
 
+def _uniform_integer_scale(
+    native_w: int, native_h: int, hd_w: int, hd_h: int
+) -> int | None:
+    """Return sx when HD is a uniform integer upscale of native; else None."""
+    if native_w <= 0 or native_h <= 0 or hd_w <= 0 or hd_h <= 0:
+        return None
+    if hd_w % native_w != 0 or hd_h % native_h != 0:
+        return None
+    sx = hd_w // native_w
+    sy = hd_h // native_h
+    if sx != sy or sx < 1:
+        return None
+    return sx
+
+
+def repeat_hd_tile_size(
+    native_w: int,
+    native_h: int,
+    hd_w: int,
+    hd_h: int,
+    *,
+    max_edge: int = REPEAT_HD_MAX_EDGE,
+) -> tuple[int, int] | None:
+    """Largest uniform tile ≤ max_edge for REPEAT wrap-bake, or None if no gain."""
+    scale = _uniform_integer_scale(native_w, native_h, hd_w, hd_h)
+    if scale is None or scale < 2:
+        return None
+    max_k_w = max_edge // native_w if native_w else 0
+    max_k_h = max_edge // native_h if native_h else 0
+    k = min(scale, max_k_w, max_k_h)
+    if k < 2:
+        return None
+    return native_w * k, native_h * k
+
+
 def achd_png_usable(
     native_w: int,
     native_h: int,
@@ -116,11 +153,11 @@ def achd_png_usable(
     wrap_s: int = 0,
     wrap_t: int = 0,
 ) -> bool:
-    """True when an ACHD sheet can replace a native tile without breaking wrap-bake.
+    """True when an ACHD sheet can replace a native tile as-is (no resize).
 
     Exact-size hits always work. Uniform integer upscales are safe for CLAMP and
-    MIRROR (tank rocks, props). REPEAT stays exact-size only — field UV atlases
-    (grass × 16) would explode if HD tiles were wrap-baked.
+    MIRROR (trees, props). REPEAT upscales are not usable as-is — wrap-bake
+    would explode (grass × 16); ``maybe_hd_png`` downscales those instead.
     """
     from .texbank import GX_CLAMP, GX_MIRROR, GX_REPEAT
 
@@ -128,13 +165,9 @@ def achd_png_usable(
         return False
     if hd_w == native_w and hd_h == native_h:
         return True
-    if hd_w % native_w != 0 or hd_h % native_h != 0:
+    if _uniform_integer_scale(native_w, native_h, hd_w, hd_h) is None:
         return False
-    sx = hd_w // native_w
-    sy = hd_h // native_h
-    if sx != sy or sx < 1:
-        return False
-    ## REPEAT atlases (acres) must stay native; CLAMP/MIRROR props may upscale.
+    ## REPEAT atlases need a capped resize in maybe_hd_png, not the full sheet.
     if wrap_s == GX_REPEAT or wrap_t == GX_REPEAT:
         return False
     return wrap_s in (GX_CLAMP, GX_MIRROR) and wrap_t in (GX_CLAMP, GX_MIRROR)
@@ -390,13 +423,29 @@ def maybe_hd_png(
     wrap_s: int = 0,
     wrap_t: int = 0,
 ) -> bytes | None:
-    """Lookup ACHD and reject sheets that would break wrap-bake / season atlases."""
+    """Lookup ACHD; CLAMP/MIRROR keep full HD, REPEAT downscales to a bake-safe tile."""
     if pack is None:
         return None
     hd = pack.lookup_png(texture, width, height, fmt, tlut)
     if hd is None:
         return None
-    image = Image.open(io.BytesIO(hd))
-    if not achd_png_usable(width, height, image.size[0], image.size[1], wrap_s, wrap_t):
+    image = Image.open(io.BytesIO(hd)).convert("RGBA")
+    hd_w, hd_h = image.size
+    if achd_png_usable(width, height, hd_w, hd_h, wrap_s, wrap_t):
+        return hd
+    from .texbank import GX_REPEAT
+
+    if wrap_s != GX_REPEAT and wrap_t != GX_REPEAT:
         return None
-    return hd
+    target = repeat_hd_tile_size(width, height, hd_w, hd_h)
+    if target is None:
+        return None
+    if target == (hd_w, hd_h):
+        return hd
+    ## Integer downscale — BOX averages ACHD blocks cleanly onto the bake tile.
+    try:
+        resample = Image.Resampling.BOX
+    except AttributeError:  # pragma: no cover — Pillow < 9.1
+        resample = Image.BOX
+    resized = image.resize(target, resample)
+    return image_png_bytes(resized)

@@ -82,6 +82,32 @@ static func stream_for(id: StringName) -> AudioStream:
 	return null
 
 
+## Guitar stem for `Na_TTKK_ARM` (`intro_kk_arm.ogg`), or null if missing.
+static func arm_stream_for(id: StringName) -> AudioStream:
+	if id == &"":
+		return null
+	ensure_loaded()
+	var arm_id := StringName("%s_arm" % String(id))
+	if _streams.has(arm_id):
+		return _streams[arm_id] as AudioStream
+	var path := _arm_path_for(id)
+	if path.is_empty() or not FileAccess.file_exists(path):
+		return null
+	var loaded: Resource = load(path)
+	if loaded is AudioStream:
+		var stream := loaded as AudioStream
+		_apply_loop(id, stream)
+		_streams[arm_id] = stream
+		return stream
+	return null
+
+
+static func register_arm_stream(id: StringName, stream: AudioStream) -> void:
+	if id == &"" or stream == null:
+		return
+	_streams[StringName("%s_arm" % String(id))] = stream
+
+
 static func _load_catalog() -> void:
 	if not FileAccess.file_exists(CATALOG_PATH):
 		return
@@ -109,6 +135,17 @@ static func _path_for(id: StringName) -> String:
 				return rel
 			return "%s/%s" % [GENERATED_DIR, rel]
 	return _stream_path(id)
+
+
+static func _arm_path_for(id: StringName) -> String:
+	var rec: Variant = _entries.get(id)
+	if rec is Dictionary:
+		var rel := str((rec as Dictionary).get("arm_path", ""))
+		if not rel.is_empty():
+			if rel.begins_with("res://"):
+				return rel
+			return "%s/%s" % [GENERATED_DIR, rel]
+	return "%s/bgm/%s_arm.ogg" % [GENERATED_DIR, String(id)]
 
 
 static func _stream_path(id: StringName) -> String:

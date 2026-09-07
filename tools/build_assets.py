@@ -160,7 +160,11 @@ def main() -> int:
             else:
                 converted = report["converted"]
                 errors = [r for r in report["results"] if r["status"] == "error"]
-                print(f"wrote {converted} map UI textures -> {report['output']}")
+                achd_hits = int(report.get("achd_hits", 0))
+                print(
+                    f"wrote {converted} map UI textures"
+                    f" ({achd_hits} ACHD) -> {report['output']}"
+                )
                 for err in errors[:40]:
                     print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
                 if errors:
@@ -197,8 +201,11 @@ def main() -> int:
             else:
                 print(
                     f"wrote audio catalog ({report['bgm']} bgm, "
+                    f"{report.get('sfx', 0)} sfx, {report.get('voice', 0)} voice, "
                     f"{report['seq_sliced']} seq slices, "
-                    f"rendered {report['rendered']}) -> {report['output']}"
+                    f"rendered bgm={report['rendered']} "
+                    f"sfx={report.get('sfx_rendered', 0)} "
+                    f"voice={report.get('voice_rendered', 0)}) -> {report['output']}"
                 )
         else:
             if args.kind == "static":
@@ -272,7 +279,8 @@ def main() -> int:
                 report = convert_test_static_needles(cfg, BUG_STATIC_NEEDLES)
                 label = "bug assets"
             elif args.kind == "seasons":
-                season_report = export_seasonal_textures(cfg)
+                ## Always rewrite — ACHD caps / palette rows change without new filenames.
+                season_report = export_seasonal_textures(cfg, force=True)
                 if not season_report.get("ok"):
                     print(f"seasons: {season_report.get('error', 'no textures written')}")
                     failed = True

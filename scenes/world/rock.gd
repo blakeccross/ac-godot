@@ -23,7 +23,7 @@ func refresh_seasonal_visual() -> void:
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 	if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):
 		return []
-	return [Interaction.of(Interaction.DIG, "Dig rock", 8, &"ply_1_dig1")]
+	return [Interaction.of(Interaction.DIG, "Dig rock", 8, &"ply_1_dig1", 15.0)]
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
@@ -31,5 +31,6 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		return false
 	if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):
 		return false
+	PlayerSe.scoop_rock(self)
 	Game.post_notice("You dig around the rock.")
 	return true

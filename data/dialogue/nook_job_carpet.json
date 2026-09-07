@@ -5,7 +5,7 @@
   "nodes": {
     "start": {
       "type": "line",
-      "text": "Please deliver this carpet.\nHandle with care!"
+      "text": "Please deliver this carpet\nto {recipient}.\nHandle with care!"
     }
   }
 }

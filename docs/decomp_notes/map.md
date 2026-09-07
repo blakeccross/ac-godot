@@ -25,7 +25,7 @@ Cursor starts on the player’s acre (`mFI_Wpos2BlockNum` − 1) and moves with 
 ## Reproduce
 
 - **5×6** FG grid from `WorldData.acre_types` (skip border acres).
-- Original `kan_tizu_*` tiles cropped to the **22×22** UV window (`kan_tizu_v` st 0..22), not the full 32×32 CI4 (unused margin is dark grass “gaps”).
+- Original `kan_tizu_*` tiles cropped to the **22×22** UV window (`kan_tizu_v` st 0..22), not the full 32×32 CI4 (unused margin is dark grass “gaps”). With ACHD enabled the crop scales with the HD sheet (e.g. 176×176); `catalog.json` `tile_px` / `TownMap.tile_pixel_size()` track that.
 - Cursor on player acre; move with arrows / stick.
 - Acre code (`C-3`) + building label for the selection.
 - Open with **X** (and **M**); close with Esc / X again.

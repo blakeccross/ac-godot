@@ -109,12 +109,14 @@ static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 			Game.post_notice("Pockets are full.")
 			return false
 	_remove(ctx.world if ctx != null else null, grid, occupant, cell)
+	if ctx != null and ctx.actor != null:
+		PlayerSe.buried_dig(ctx.actor)
 	if kind == KIND_SHINE:
 		Game.post_notice("You dug up bells!")
 	else:
 		Game.post_notice("You dug up a fossil!")
 	## Digging a buried spot leaves an open hole (`DIG_SCOOP` after get).
-	HoleUse.dig(ctx, cell)
+	HoleUse.dig(ctx, cell, false)
 	return true
 
 

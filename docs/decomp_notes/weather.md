@@ -71,7 +71,7 @@ Saved as one byte: `(type << 4) | intensity`. After rain/snow clears to fine/sak
 
 - **Clock** — `field_renewed` is the roll hook.
 - **World** — `WorldEnvironment` + directional lights; FX under `Effects`.
-- **Audio** — rain BGM swap; rain ambient SE (defer until SFX catalog).
+- **Audio** — rain BGM swap; rain ambient SE catalog exists, call-site wiring deferred.
 - **Fishing** — coelacanth only while raining (non-day slot).
 - **Bugs** — `needs_rain` / rain-out species.
 - **Dialogue** — greeting and condition gates on `Game.weather`.

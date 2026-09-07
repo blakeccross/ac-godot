@@ -14,6 +14,13 @@ const _DoorCamera := preload("res://scripts/systems/door_camera.gd")
 ## cKF plays these at speed 0.5 on a 60 Hz move tick (= 30 anim fps). Pipeline
 ## samples at 30 fps, so Godot speed 1.0 matches the original duration (~1.67 s).
 
+## Door hinge SE frames (`aHUS_set_doorSE` / `aMHS` / post / Able). Enter =
+## PLAYER_ENTER `chk_pat_out`; leave = PLAYER_LEAVE `chk_pat_in`.
+const DOOR_SE_ENTER_FRAMES: Array[float] = [2.0, 8.0, 33.0, 40.0]
+const DOOR_SE_LEAVE_FRAMES: Array[float] = [10.0, 14.0, 35.0, 50.0]
+const DOOR_SE_IDS: Array[StringName] = [&"6", &"7", &"8", &"9"]
+const DOOR_SE_FPS := 30.0
+
 ## `AnimationMove_ct_base` fixed_counter 9 at −0.5 / frame → ~0.3 s blend to door.
 const APPROACH_SEC := 9.0 / 30.0
 ## Actor updates that advance `fixed_counter` (matches 18 × 0.5 over ~0.3 s).
@@ -279,10 +286,32 @@ static func _play(host: Node, entering: bool) -> bool:
 	if clip.is_empty():
 		return false
 	anim.play(clip)
+	_schedule_door_se(root, entering)
 	if anim.current_animation_length <= 0.0:
 		return false
 	await anim.animation_finished
 	return true
+
+
+static func _schedule_door_se(at: Node, entering: bool) -> void:
+	## Fire NA_SE_6…9 on the same frame offsets as `aHUS_set_doorSE`.
+	if at == null or not is_instance_valid(at):
+		return
+	var tree: SceneTree = at.get_tree()
+	if tree == null:
+		return
+	var frames: Array[float] = DOOR_SE_ENTER_FRAMES if entering else DOOR_SE_LEAVE_FRAMES
+	for i: int in DOOR_SE_IDS.size():
+		var se_id: StringName = DOOR_SE_IDS[i]
+		var delay: float = frames[i] / DOOR_SE_FPS
+		var timer: SceneTreeTimer = tree.create_timer(delay)
+		timer.timeout.connect(_play_door_se.bind(at, se_id), CONNECT_ONE_SHOT)
+
+
+static func _play_door_se(at: Node, se_id: StringName) -> void:
+	if at == null or not is_instance_valid(at):
+		return
+	Audio.play_se(se_id, at)
 
 
 static func enter_clip(anim: AnimationPlayer, visual_id: StringName) -> String:

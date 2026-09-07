@@ -5,7 +5,7 @@
   "nodes": {
     "start": {
       "type": "line",
-      "text": "Here's stationery.\nWrite a letter and mail it\nat the post office!"
+      "text": "Here's stationery.\nWrite a letter to {recipient}\nand mail it at the post office!"
     }
   }
 }

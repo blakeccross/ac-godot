@@ -5,7 +5,7 @@
   "nodes": {
     "start": {
       "type": "line",
-      "text": "Take this furniture and\ndeliver it for me.\nDon't open the package!"
+      "text": "Take this furniture and\ndeliver it to {recipient}.\nDon't open the package!"
     }
   }
 }

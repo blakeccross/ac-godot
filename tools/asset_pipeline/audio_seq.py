@@ -150,6 +150,11 @@ class SubTrack:
     adsr_sustain: int = 0
     envelope: list[tuple[int, int]] = field(default_factory=lambda: list(DEFAULT_ENV))
     vibrato: VibratoParams = field(default_factory=VibratoParams)
+    ## Subtrack ports (`Nap_ReadSubPort` / `Sou_TrgStart`); -1 = empty.
+    port: list[int] = field(default_factory=lambda: [-1] * 8)
+    ## Dynamic table base offset into seq (`SUBTRACK_CMD_SET_DYNTBL*`).
+    dyn_tbl: int = 0
+    dynamic_value: int = 0
 
 
 @dataclass
@@ -317,12 +322,13 @@ class SeqRenderer:
         seq_banks: Optional[list[int]] = None,
         mute_subtracks: Optional[list[int]] = None,
     ) -> None:
-        self.seq = seq
+        ## Mutable: SE scripts patch bank-select args via `WRITE_GROUP_SEQ` (0xC7).
+        self.seq = bytearray(seq)
         self.banks = banks
         self.seq_banks = seq_banks or [default_bank]
-        self.grp = Group(cur=Cursor(seq, 0), bank_id=default_bank)
+        self.grp = Group(cur=Cursor(self.seq, 0), bank_id=default_bank)
         self.grp.subtracks = [
-            SubTrack(idx=i, cur=Cursor(seq, 0), bank_id=default_bank) for i in range(AUDIO_SUBTRACK_NUM)
+            SubTrack(idx=i, cur=Cursor(self.seq, 0), bank_id=default_bank) for i in range(AUDIO_SUBTRACK_NUM)
         ]
         for idx in mute_subtracks or ():
             if 0 <= idx < len(self.grp.subtracks):
@@ -333,6 +339,8 @@ class SeqRenderer:
         self.loop_start_sec = 0.0
         self.loop_end_sec: Optional[float] = None
         self.seconds = 0.0
+        ## When True, sequence 0xFB loop marks do not end the render (SE / voice one-shots).
+        self.ignore_loop_end = False
 
     def bank(self, bank_id: int) -> Optional[Bank]:
         return self.banks.get(bank_id) or self.banks.get(self.grp.bank_id)
@@ -341,24 +349,47 @@ class SeqRenderer:
         banks = self.seq_banks
         if not banks:
             return self.grp.bank_id
-        idx = len(banks) - selector
-        if 0 <= idx < len(banks):
-            return banks[idx]
+        # Inverse lookup (`SET_INSTRUMENT_BANK`): map[ofs + count - selector] →
+        # banks[count - selector - 1]. Selector 0 and 1 near the end of the list.
+        index = len(banks) - int(selector) - 1
+        if 0 <= index < len(banks):
+            return banks[index]
         return banks[-1]
 
-    def run(self) -> RenderResult:
+    def set_subtrack_ports(self, subtrack: int, ports: dict[int, int]) -> None:
+        if subtrack < 0 or subtrack >= AUDIO_SUBTRACK_NUM:
+            return
+        sub = self.grp.subtracks[subtrack]
+        for idx, value in ports.items():
+            if 0 <= idx < len(sub.port):
+                sub.port[idx] = int(value) & 0xFF if value >= 0 else -1
+
+    def run(self, max_sec: Optional[float] = None, stop_after_notes: bool = False) -> RenderResult:
         mix = array("f")
         tatum = 0
+        saw_notes = False
+        silent_tatums = 0
         while tatum < MAX_TATUMS and self.loop_end_sec is None:
+            if max_sec is not None and self.seconds >= max_sec:
+                break
             running = self._tick_group()
             chunk = self._samples_per_tatum()
             self._mix_tatum(mix, chunk)
             self.seconds += chunk / MIX_RATE
             tatum += 1
+            if self.note_count > 0:
+                saw_notes = True
             if not running and not self._voices_active():
                 break
             if running and self._all_idle() and not self._voices_active() and tatum > 8:
                 break
+            if stop_after_notes and saw_notes:
+                if self._voices_active():
+                    silent_tatums = 0
+                else:
+                    silent_tatums += 1
+                    if silent_tatums > 24:
+                        break
         if self.loop_end_sec is not None:
             n = int(self.loop_end_sec * MIX_RATE) * 2
             del mix[n:]
@@ -415,7 +446,11 @@ class SeqRenderer:
                     arg = cur.s16() if bits & 0x80 else cur.u8()
                 if cmd == 0xFB:
                     target = arg & 0xFFFF
-                    if target in self.pc_first_time and target <= pc_before:
+                    if (
+                        not self.ignore_loop_end
+                        and target in self.pc_first_time
+                        and target <= pc_before
+                    ):
                         self.loop_start_sec = self.pc_first_time[target]
                         self.loop_end_sec = self.seconds
                         return True
@@ -591,15 +626,35 @@ class SeqRenderer:
                     continue
                 return
             if hi == 0x10:
+                # VoiceLoad stub — clear port slot like decomp.
+                port_i = lo if lo < 8 else lo - 8
+                if 0 <= port_i < len(sub.port):
+                    sub.port[port_i] = -1
                 continue
             if hi == 0x20:
                 _open_sub(self.grp, lo, cur.u16())
             elif hi == 0x30:
-                cur.u8()
+                # Write this macro value into another subtrack's port.
+                port_i = cur.u8() & 7
+                if lo < AUDIO_SUBTRACK_NUM:
+                    self.grp.subtracks[lo].port[port_i] = int(cur.value) & 0xFF
             elif hi == 0x40:
-                cur.u8()
+                # Read another subtrack's port into macro value.
+                port_i = cur.u8() & 7
+                if lo < AUDIO_SUBTRACK_NUM:
+                    cur.value = self.grp.subtracks[lo].port[port_i]
+            elif hi == 0x50:
+                if lo < 8:
+                    cur.value -= sub.port[lo]
+            elif hi == 0x60:
+                if lo < 8:
+                    cur.value = sub.port[lo]
+                    if lo < 2:
+                        sub.port[lo] = -1
             elif hi == 0x70:
-                if 8 <= lo <= 11:
+                if lo < 8:
+                    sub.port[lo] = int(cur.value) & 0xFF
+                elif 8 <= lo <= 11:
                     rel = cur.s16()
                     _start_note(sub, lo - 8, cur.pc + rel, self.seq)
             elif hi == 0x80:
@@ -622,14 +677,28 @@ class SeqRenderer:
         a1 = args[1] if len(args) > 1 else 0
         if cmd == 0xC1:
             _program(sub, a0 & 0xFF)
+        elif cmd == 0xC2:
+            # SET_DYNTBL — table of u16 addresses at seq offset.
+            sub.dyn_tbl = a0 & 0xFFFF
         elif cmd == 0xC3:
             sub.large_notes = False
         elif cmd == 0xC4:
             sub.large_notes = True
+        elif cmd == 0xC5:
+            # JMP_DYNTBL
+            if sub.cur.value != -1:
+                addr = self._dyn_entry(sub, int(sub.cur.value))
+                if addr is not None:
+                    sub.cur.pc = addr
         elif cmd in (0xC6, 0xEB):
             sub.bank_id = self._resolve_bank(a0 & 0xFF)
             if cmd == 0xEB:
                 _program(sub, a1 & 0xFF)
+        elif cmd == 0xC7:
+            # WRITE_GROUP_SEQ: seq[addr] = value + addend (SE patches C6 bank arg).
+            addr = a1 & 0xFFFF
+            if 0 <= addr < len(self.seq):
+                self.seq[addr] = (int(sub.cur.value) + (a0 & 0xFF)) & 0xFF
         elif cmd == 0xCD:
             idx = a0 & 0x0F
             if idx < AUDIO_SUBTRACK_NUM:
@@ -641,6 +710,30 @@ class SeqRenderer:
             sub.cur.value -= _s8(a0)
         elif cmd == 0xC9:
             sub.cur.value &= a0 & 0xFF
+        elif cmd == 0xCE:
+            sub.dynamic_value = a0 & 0xFFFF
+        elif cmd == 0xB2:
+            # LOAD_DYNVAL_FROM_GROUP_SEQ: u16 at seq[ofs + value*2]
+            base = a0 & 0xFFFF
+            idx = max(0, int(sub.cur.value))
+            ofs = base + idx * 2
+            if ofs + 1 < len(self.seq):
+                sub.dynamic_value = (self.seq[ofs] << 8) | self.seq[ofs + 1]
+        elif cmd == 0xB4:
+            # SET_DYNTBL_FROM_GROUP_SEQ
+            sub.dyn_tbl = sub.dynamic_value & 0xFFFF
+        elif cmd == 0xB5:
+            if sub.dyn_tbl + int(sub.cur.value) * 2 + 1 < len(self.seq):
+                ofs = sub.dyn_tbl + int(sub.cur.value) * 2
+                sub.dynamic_value = (self.seq[ofs] << 8) | self.seq[ofs + 1]
+        elif cmd == 0xE4:
+            # DYNTBL_CALL — call dyn_tbl[value]
+            if sub.cur.value != -1:
+                addr = self._dyn_entry(sub, int(sub.cur.value))
+                if addr is not None:
+                    sub.cur.stack.append(sub.cur.pc)
+                    sub.cur.loops.append(0)
+                    sub.cur.pc = addr
         elif cmd == 0xDB:
             sub.transposition = _s8(a0)
         elif cmd == 0xDC:
@@ -693,6 +786,13 @@ class SeqRenderer:
             pass
         return True
 
+    def _dyn_entry(self, sub: SubTrack, index: int) -> Optional[int]:
+        if index < 0:
+            return None
+        ofs = sub.dyn_tbl + index * 2
+        if ofs + 1 >= len(self.seq):
+            return None
+        return (self.seq[ofs] << 8) | self.seq[ofs + 1]
     def _tick_note(self, sub: SubTrack, _idx: int, note: NotePlayer) -> None:
         if note.delay > 1:
             note.delay -= 1
@@ -1121,3 +1221,58 @@ def render_sequence(
     mute_subtracks: Optional[list[int]] = None,
 ) -> RenderResult:
     return SeqRenderer(seq, banks, default_bank, seq_banks, mute_subtracks).run()
+
+
+SE_SEQ_INDEX = 242
+SE_BANKS = (2, 155, 154, 153)  # audiomap for seq 242
+VOICE_SEQ_BY_SPEC = {1: 243, 2: 244, 3: 245}
+VOICE_BANKS = {243: 0x9C, 244: 0x9D, 245: 0x9E}
+SE_MAX_SEC = 4.0
+VOICE_MAX_SEC = 1.5
+## One-shot trg slots 0–6; mono flag uses subtrack 14 (`Sou_TrgStart`).
+SE_MONO_SUBTRACK = 14
+
+
+def se_port_values(se_id: int) -> tuple[int, int, int]:
+    """Return (lo, hi, subtrack) for `Sou_TrgStart` port writes."""
+    se_id = int(se_id) & 0xFFFF
+    lo = se_id & 0xFF
+    hi = (se_id & 0x0F00) >> 8
+    flags = (se_id & 0xF000) >> 12
+    mono = bool(flags & 0x1)
+    return lo, hi, SE_MONO_SUBTRACK if mono else 0
+
+
+def render_se(
+    seq: bytes,
+    banks: dict[int, Bank],
+    default_bank: int,
+    se_id: int,
+    seq_banks: Optional[list[int]] = None,
+    max_sec: float = SE_MAX_SEC,
+) -> RenderResult:
+    """Offline one-shot: start seq 242 and inject SE id ports like `Sou_TrgStart`."""
+    renderer = SeqRenderer(seq, banks, default_bank, seq_banks or list(SE_BANKS))
+    renderer.ignore_loop_end = True
+    lo, hi, subtrack = se_port_values(se_id)
+    renderer.set_subtrack_ports(subtrack, {0: lo, 1: hi})
+    return renderer.run(max_sec=max_sec, stop_after_notes=True)
+
+
+def render_voice_phoneme(
+    seq: bytes,
+    banks: dict[int, Bank],
+    default_bank: int,
+    phoneme: int,
+    seq_banks: Optional[list[int]] = None,
+    max_sec: float = VOICE_MAX_SEC,
+    subtrack: int = 0,
+    voice_seq_ready: int = 1,
+) -> RenderResult:
+    """Offline phoneme: inject port 0 like `Sou_VoiceStart`."""
+    renderer = SeqRenderer(seq, banks, default_bank, seq_banks)
+    renderer.ignore_loop_end = True
+    # Port 1 readiness (`Nap_ReadSubPort` == sou_now_voice_seq); port 0 = phoneme.
+    renderer.set_subtrack_ports(0, {1: int(voice_seq_ready) & 0xFF})
+    renderer.set_subtrack_ports(subtrack, {0: int(phoneme) & 0xFF})
+    return renderer.run(max_sec=max_sec, stop_after_notes=True)

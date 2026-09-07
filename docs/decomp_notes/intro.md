@@ -23,7 +23,7 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 | `include/audio_defs.h` | `BGM_INTRO_TRAIN`, `BGM_INTRO_KK` |
 | Model | `end_1` (`npc_draw_data` for `SP_NPC_P_SEL` / `SP_NPC_TOTAKEKE`); clip `npc_1_4haku_e1` @ speed 0.5 after staffroll. **Not** `mka_1` (`SP_NPC_MASK_CAT`). |
 
-Camera (`aNPS_actor_ct`): look (100, 60, 60), eye (100, 130, 210), FOV 40°, near/far 100/400. Godot uses a short near (~0.1 m) — literal 100 GX → 5 m clips the seated mesh. Player actor is invisible. `Na_TTKK_ARM` mutes intro_kk subtracks 0–2 while the arm flag is set (opening bake mutes those tracks offline). During talk, `aNPS_talk_end_chk` `silent_counter`: leave `4haku` → `wait_e1` (look up / stop strum, morph −5); after **600** frames unanswered, order 255 `TALK1` remaps via `default_animation` back to **`4haku`** (morph −3) — not standing `wait1`. Face: `NpcFace` on `end_*` blinks / mouth-flaps while uttering.
+Camera (`aNPS_actor_ct`): look (100, 60, 60), eye (100, 130, 210), FOV 40°, near/far 100/400. Godot uses a short near (~0.1 m) — literal 100 GX → 5 m clips the seated mesh. Player actor is invisible. `Na_TTKK_ARM` mutes intro_kk subtracks 0–2 while the arm flag is set. Decomp post-staffroll keeps the flag set; we skip staffroll, so the bed OGG bakes those tracks muted and a synced `intro_kk_arm` stem is unmuted while pose is strum / muted on look-up. During talk, `aNPS_talk_end_chk` `silent_counter`: leave `4haku` → `wait_e1` (look up / stop strum, morph −5); after **600** frames unanswered, order 255 `TALK1` remaps via `default_animation` back to **`4haku`** (morph −3) — not standing `wait1`. Face: `NpcFace` on `end_*` blinks / mouth-flaps while uttering.
 
 Lighting (`l_mEnv_kcolor_data_p_sel`): ambient `(30,30,80)`, sun dir `(0,89,79)` / color `(255,255,200)`, fog color `(100,100,120)` (cleared — `fog_disabled` for this draw type), clear authored `(22,27,94)` but captures read as black void. Acre `grd_player_select_model` = OPA wood floor; `modelT` = XLU spot `(PRIM−ENV)×I+ENV` env `(255,255,130)` lod 150 (GC also scrolls `rom_open_spot2` via EVW — we bake the cone only) + black shade curtain `RGB=PRIM A=I`. Guitar is furniture `int_sum_guitar01` parented to `chest_end_model` (not a hand TOOL — Totakeke’s prop is not in the NPC draw table). Face: `end_1` has normal eye/mouth/tmem banks (`end_1_eye*_TA_tex_txt`, `end_1_mouth*_TA_tex_txt`, `end_1_tmem_txt`) bound to anime segments like other special NPCs.
 
@@ -92,7 +92,7 @@ Needs `end_1.glb`, `grd_player_select.glb`, and BGM `intro_kk` / `intro_train` i
 - Name and clock are small intro modals, not `m_ledit` / `m_timeIn` ports.
 - Window UV scroll (`ac_train_window`): tree strip always scrolls (+5). On sitdown `sunlight_flag`, `DrawGoingOutTunnel` scrolls tunnel+sky (seg 11) and clouds toward xend 1000 (+30, `OperateScrollLimit` → 15 texels/frame); then `DrawGoneOutTunnel` freezes exit scroll while trees keep moving.
 - Skip returning-player / mask-cat Blanca path.
-- Skip K.K. sound/voice/rumble setup menus and staffroll frame sync (strum at constant 0.5×). Opening OGG bakes `Na_TTKK_ARM` mute on subtracks 0–2.
+- Skip K.K. sound/voice/rumble setup menus and staffroll frame sync (strum at constant 0.5×). Guitar uses bed + `intro_kk_arm` stem; mute arm on look-up (`Audio.set_ttkk_arm`).
 - Skip `SCENE_PLAYERSELECT_2` / `SP_NPC_P_SEL2` load path.
 
 ## Ignore (later slices)
@@ -134,7 +134,8 @@ Needs `end_1.glb`, `grd_player_select.glb`, and BGM `intro_kk` / `intro_train` i
 
 - `FirstJob` on `Game` (not an autoload). `cloth_id` is the worn shirt; `GeneratedVisual.apply_cloth` on the player. `has_map` gates the map overlay until furniture delivery.
 - `TomNook` branches on `FirstJob` (force-greet on enter, no Buy/Sell while active); advances the full chore chain.
-- Item gifts use `HandOver` (`npc_1_transfer1` / player `ply_1_get_pull1`); villager deliveries reverse it (`ply_1_transfer1` / `npc_1_get_pull1`).
+- **Named recipients:** furniture / letter / carpet / axe assign + hint graphs (`FirstJob.recipient_dialogue_ids`) must include `{recipient}`. `DialogueContext.from_game` fills the slot from the active first job; `substitute` errors on empty/leftover slots for every conversation. Unit tests cover the id list and all authored `{slot}` expansions.
+- Item gifts use `HandOver` (`npc_1_transfer1` / player `ply_1_get_pull1`) plus the floating `obj_item_*` card (`HandOverItem` / `ac_handOverItem` trans+scale tables); villager deliveries reverse it (`ply_1_transfer1` / `npc_1_get_pull1`).
 - Inventory tag **Wear** for `Category.CLOTH`; delivery goods use `Condition.QUEST`.
 - Villager talk accepts QUEST deliveries / OPEN; post office mailing finishes letter chores; field signs post the notice; Tortimer at the wishing well (`fd_npc_land` ut 10,10 / `SP_NPC_SONCHO`).
 - Bank ids preferred (`msg_2030`…); authored `nook_job_*.json` when banks are missing.

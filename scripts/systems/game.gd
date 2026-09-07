@@ -754,6 +754,9 @@ func try_enter_interior(
 	if stage != null and stage.has_method("switch_wing"):
 		return stage.call("switch_wing", room_id) as bool
 	_change_scene(INTERIOR_SCENE)
+	Audio.sync_rain_syslev(
+		Weather.kind_from_name(weather), weather_intensity as Weather.Intensity, true
+	)
 	return true
 
 
@@ -849,6 +852,9 @@ func exit_interior() -> bool:
 		return true
 	emerge_from_door = true
 	_change_scene(WORLD_SCENE)
+	Audio.sync_rain_syslev(
+		Weather.kind_from_name(weather), weather_intensity as Weather.Intensity, false
+	)
 	return true
 
 

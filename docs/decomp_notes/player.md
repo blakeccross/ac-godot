@@ -83,8 +83,9 @@ Godot: `FootprintMarks` owns the gate, fade curve, cadence, and slope fit;
 measured size, so no original art is converted. `player.gd` alternates feet on a cadence
 derived from the gait clip's speed scale — the generated clips carry no frame tags, but a
 per-frame trigger is really a fixed time between steps, so tracks still spread out as the gait
-speeds up. Villager prints (`ac_npc_anime`), the turn/slip variants, the wave ripple, and
-footstep sound are not built. Nor is `Player_actor_SetFootMark_for_settle_main`, which stamps
+speeds up. Villager prints (`ac_npc_anime`), the turn/slip variants, the wave ripple are not
+built. Footstep SE is wired on the same cadence via `FootstepSe` (`sAdo_Get_WalkLabel` +
+`Na_PlyWalkSe` volumes). Nor is `Player_actor_SetFootMark_for_settle_main`, which stamps
 *both* feet at once when the player settles out of a move — walking alternates, but coming to
 a stop leaves a pair.
 

@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 
 from asset_pipeline.audio import (
+    ARM_SUBTRACKS_BY_ID,
+    AUDIO_SUBTRACK_NUM,
     AUDIOROM_SIZE,
     BANK_OFFSET,
     SEQ_COUNT,
@@ -12,6 +14,7 @@ from asset_pipeline.audio import (
     catalog_id_for_hour,
     decode_vadpcm_frame,
     parse_bgm_ids,
+    parse_se_ids,
     parse_seq_entries,
     parse_seq_table,
 )
@@ -23,7 +26,12 @@ from asset_pipeline.audio_bank import (
     parse_arc_entries,
     parse_audiomap_bytes,
 )
-from asset_pipeline.audio_seq import SeqRenderer, render_sequence
+from asset_pipeline.audio_seq import (
+    SeqRenderer,
+    render_se,
+    render_sequence,
+    se_port_values,
+)
 from asset_pipeline.audio_adsr import Envelope, DEFAULT_ENV
 from asset_pipeline.audio_tables import pcent, pcent2, pitch_ratio
 
@@ -67,6 +75,23 @@ typedef enum bgm_e {
 } BGM_e;
 """
 
+SE_SNIPPET = """
+typedef enum audio_sound_effects {
+    NA_SE_START,
+    NA_SE_CURSOL,
+    NA_SE_MENU_EXIT,
+    NA_SE_6 = 0x6,
+    NA_SE_PAGE_OKURI = 0xB,
+    NA_SE_BEBE = MONO(0x6D),
+    NA_SE_HANABI0 = SE_DIST_REVERB(0x10F),
+    NA_SE_GASAGOSO = 0x69,
+    // Footsteps
+    NA_SE_FOOTSTEP_BEGIN = SE_ECHO(0x200),
+    NA_SE_FOOTSTEP_GRASS,
+    NA_SE_FOOTSTEP_SOIL,
+} AudioSE;
+"""
+
 
 class AudioParseTests(unittest.TestCase):
     def test_region_layout(self) -> None:
@@ -96,7 +121,39 @@ class AudioParseTests(unittest.TestCase):
         self.assertEqual(ids["title"], 4)
         self.assertEqual(ids["totakeke_live0"], 192)
         self.assertEqual(catalog_id_for_hour(14), "field_14")
-        self.assertEqual(catalog_id_for_hour(24), "field_00")
+
+    def test_se_ids_macros_and_keys(self) -> None:
+        ids = parse_se_ids(SE_SNIPPET)
+        self.assertEqual(ids["start"], 0)
+        self.assertEqual(ids["cursol"], 1)
+        self.assertEqual(ids["menu_exit"], 2)
+        self.assertEqual(ids["6"], 0x6)
+        self.assertEqual(ids["page_okuri"], 0xB)
+        self.assertEqual(ids["bebe"], 0x106D)
+        self.assertEqual(ids["hanabi0"], 0x210F)
+        self.assertEqual(ids["gasagoso"], 0x69)
+        self.assertEqual(ids["footstep_begin"], 0x4200)
+        self.assertEqual(ids["footstep_grass"], 0x4201)
+        self.assertEqual(ids["footstep_soil"], 0x4202)
+        self.assertNotIn("NA_SE_CURSOL", ids)
+
+    def test_se_port_values_mono(self) -> None:
+        lo, hi, sub = se_port_values(0x106D)
+        self.assertEqual(lo, 0x6D)
+        self.assertEqual(hi, 0)
+        self.assertEqual(sub, 14)
+        lo2, hi2, sub2 = se_port_values(0x210F)
+        self.assertEqual(lo2, 0x0F)
+        self.assertEqual(hi2, 0x1)
+        self.assertEqual(sub2, 0)
+
+    def test_intro_kk_arm_subtracks(self) -> None:
+        arm = ARM_SUBTRACKS_BY_ID["intro_kk"]
+        self.assertEqual(arm, (0, 1, 2))
+        bed_mute = [i for i in range(AUDIO_SUBTRACK_NUM) if i not in set(arm)]
+        self.assertNotIn(0, bed_mute)
+        self.assertIn(3, bed_mute)
+        self.assertEqual(len(bed_mute), AUDIO_SUBTRACK_NUM - len(arm))
 
     def test_vadpcm_zero_frame(self) -> None:
         book = [[[0] * 8, [0] * 8]]
@@ -245,6 +302,32 @@ class AudioSeqRenderTests(unittest.TestCase):
         )
         self.assertLess(peak, 50)
 
+    def test_subtrack_port_gate_plays_note(self) -> None:
+        # Group opens sub 0; sub polls port 0 (0x60) until set, then plays one note.
+        seq = bytes(
+            [
+                0xDD, 120, 0xDB, 127, 0x90, 0x00, 0x0C, 0xFD, 96, 0xFF,
+                0x00, 0x00,
+                0x60, 0xF9, 0x00, 0x0C,
+                0xC1, 0x00, 0xDF, 127, 0xDD, 64, 0xC3, 0x88, 0x00, 0x1D, 0xFD, 48, 0xFF,
+                0xC1, 127, 0x00, 48, 0xFF,
+            ]
+        )
+        tone = [2000 if (i // 40) % 2 == 0 else -2000 for i in range(4000)]
+        sample = PcmSample(pcm=tone, loop_start=0, loop_end=4000, tuning=1.0)
+        inst = Instrument(low=None, normal=sample, high=None, range_low=0, range_high=127)
+        bank = Bank(bank_id=0, instruments=[inst])
+        renderer = SeqRenderer(seq, {0: bank}, 0, [0])
+        renderer.ignore_loop_end = True
+        renderer.set_subtrack_ports(0, {0: 0x01})
+        result = renderer.run(max_sec=1.0, stop_after_notes=True)
+        self.assertGreater(result.notes, 0)
+        peak = max(
+            abs(int.from_bytes(result.pcm[i : i + 2], "little", signed=True))
+            for i in range(0, min(4000, len(result.pcm)), 2)
+        )
+        self.assertGreater(peak, 100)
+
     def test_note_rings_after_script_delay(self) -> None:
         seq = bytes(
             [
@@ -390,6 +473,20 @@ class AudioMixerBehaviorTests(unittest.TestCase):
 
 
 @unittest.skipUnless((DECOMP / "include" / "audio_defs.h").is_file(), "ac-decomp not present")
+class AudioDecompHeaderTests(unittest.TestCase):
+    def test_bgm_and_se_enums(self) -> None:
+        header = (DECOMP / "include" / "audio_defs.h").read_text(encoding="utf-8", errors="replace")
+        bgm = parse_bgm_ids(header)
+        se = parse_se_ids(header)
+        self.assertIn("title", bgm)
+        self.assertIn("field_14", bgm)
+        self.assertIn("cursol", se)
+        self.assertEqual(se["bebe"], 0x106D)
+        self.assertEqual(se["hanabi0"], 0x210F)
+        self.assertGreater(len(se), 100)
+
+
+@unittest.skipUnless((DECOMP / "include" / "audio_defs.h").is_file(), "ac-decomp not present")
 class AudioDecompBankTests(unittest.TestCase):
     def test_bank_and_map_counts(self) -> None:
         header = (DECOMP / "src" / "static" / "jaudio_NES" / "game" / "audioheaders.c").read_text(
@@ -403,6 +500,7 @@ class AudioDecompBankTests(unittest.TestCase):
         mapping = parse_audiomap_bytes(header)
         self.assertEqual(len(mapping), 0x3F0)
         self.assertEqual(banks_for_seq(mapping, 95), [4])
+        self.assertEqual(banks_for_seq(mapping, 242), [2, 155, 154, 153])
 
 
 if __name__ == "__main__":

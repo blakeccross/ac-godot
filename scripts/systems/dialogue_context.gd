@@ -26,6 +26,12 @@ var already_talked: bool = false
 var mood: VillagerState.Mood = VillagerState.Mood.NORMAL
 var held_item: StringName = &""
 var personality: StringName = &""
+## `mNpc_GetNpcSoundSpec` value (2–4 for villagers). Drives animalese bank/pitch.
+var sound_spec: int = 2
+## `VOICE_MODE_*` — animalese / click / silent.
+var voice_mode: int = DialogueVoice.Mode.ANIMALESE
+## `VOICE_STATUS_*`; -1 → derive from `mood`.
+var voice_status: int = -1
 var islander: bool = false
 var days_since_talk: int = -1
 var inventory: Inventory
@@ -34,9 +40,32 @@ var items: Dictionary = {}
 var rng: RandomNumberGenerator
 var item0: String = ""
 var island: String = ""
+## Delivery / letter target for first-job (and similar) lines.
+var recipient: String = ""
 var frees: PackedStringArray = PackedStringArray()
 var milestones: Array[StringName] = []
 var gifted_items: Array[StringName] = []
+
+## Substitution slots that must not remain after `substitute` (style tags excluded).
+const SLOT_KEYS := [
+	"player",
+	"speaker",
+	"name",
+	"catchphrase",
+	"species",
+	"town",
+	"island",
+	"year",
+	"month",
+	"day",
+	"hour",
+	"minute",
+	"weekday",
+	"ampm",
+	"item0",
+	"item",
+	"recipient",
+]
 
 
 static func from_game(villager: VillagerData = null, state: VillagerState = null) -> DialogueContext:
@@ -64,6 +93,12 @@ static func from_game(villager: VillagerData = null, state: VillagerState = null
 		if villager.personality != null:
 			ctx.personality = villager.personality.id
 			ctx.speaker_sex = villager.personality.message_sex()
+			ctx.sound_spec = DialogueVoice.sound_spec_for_looks(villager.personality.looks)
+			ctx.voice_mode = DialogueVoice.Mode.ANIMALESE
+		else:
+			ctx.voice_mode = DialogueVoice.Mode.CLICK
+	else:
+		ctx.voice_mode = DialogueVoice.Mode.CLICK
 	if state != null:
 		var bond: Relationship = state.relationship
 		if bond == null:
@@ -78,6 +113,10 @@ static func from_game(villager: VillagerData = null, state: VillagerState = null
 		)
 		ctx.mood = state.mood
 		ctx.days_since_talk = _days_since(bond.last_spoke_day, ctx.year, ctx.month, ctx.day)
+		if ctx.voice_status < 0:
+			ctx.voice_status = int(DialogueVoice.status_for_mood(state.mood))
+	if Game.first_job != null and Game.first_job.is_active() and Game.first_job.recipient_id != &"":
+		ctx.recipient = Game.first_job.recipient_name()
 	return ctx
 
 
@@ -158,6 +197,7 @@ func roll(percent: int) -> bool:
 
 func substitute(text: String) -> String:
 	var out: String = MessageWindowChrome._normalize_punct(text)
+	var used: PackedStringArray = slot_keys_in(out)
 	out = out.replace("{player}", player_name)
 	out = out.replace("{speaker}", speaker_name)
 	out = out.replace("{name}", speaker_name)
@@ -174,8 +214,11 @@ func substitute(text: String) -> String:
 	out = out.replace("{ampm}", "AM" if hour < 12 else "PM")
 	out = out.replace("{item0}", item0)
 	out = out.replace("{item}", item0)
-	for i: int in mini(frees.size(), 20):
-		out = out.replace("{free%d}" % i, frees[i])
+	out = out.replace("{recipient}", recipient)
+	## Always clear free0…free19 so unused slots cannot leak as braces.
+	for i: int in 20:
+		var free_val: String = frees[i] if i < frees.size() else ""
+		out = out.replace("{free%d}" % i, free_val)
 	## Imported banks keep `SETSELSTR` as `{choice:N}` until `select.json` is present.
 	var search_from := 0
 	while true:
@@ -192,7 +235,102 @@ func substitute(text: String) -> String:
 			search_from = start + label.length()
 		else:
 			search_from = end + 1
+	_report_empty_slots(used)
+	_report_leftover_slots(out)
 	return out
+
+
+static func slot_keys_in(text: String) -> PackedStringArray:
+	## Named substitution slots present in `text` (ignores `{c:}` / `{s:}` / `{choice:}`).
+	var found: PackedStringArray = PackedStringArray()
+	var seen: Dictionary = {}
+	var search_from := 0
+	while true:
+		var start: int = text.find("{", search_from)
+		if start < 0:
+			break
+		var end: int = text.find("}", start)
+		if end < 0:
+			break
+		var inner: String = text.substr(start + 1, end - start - 1)
+		search_from = end + 1
+		if inner.begins_with("c:") or inner.begins_with("s:") or inner.begins_with("choice:"):
+			continue
+		if not _is_slot_key(inner):
+			continue
+		if seen.has(inner):
+			continue
+		seen[inner] = true
+		found.append(inner)
+	return found
+
+
+static func leftover_slot_keys(text: String) -> PackedStringArray:
+	return slot_keys_in(text)
+
+
+static func _is_slot_key(inner: String) -> bool:
+	if inner in SLOT_KEYS:
+		return true
+	if inner.begins_with("free") and inner.length() > 4 and inner.substr(4).is_valid_int():
+		var idx: int = int(inner.substr(4))
+		return idx >= 0 and idx < 20
+	return false
+
+
+func _slot_value(key: String) -> String:
+	match key:
+		"player":
+			return player_name
+		"speaker", "name":
+			return speaker_name
+		"catchphrase":
+			return catchphrase
+		"species":
+			return species
+		"town":
+			return town_name
+		"island":
+			return island
+		"year":
+			return str(year)
+		"month":
+			return str(month)
+		"day":
+			return str(day)
+		"hour":
+			return str(hour)
+		"minute":
+			return "%02d" % minute
+		"weekday":
+			return ClockService.WEEKDAYS[weekday] if weekday >= 0 and weekday < 7 else ""
+		"ampm":
+			return "AM" if hour < 12 else "PM"
+		"item0", "item":
+			return item0
+		"recipient":
+			return recipient
+		_:
+			if key.begins_with("free") and key.length() > 4 and key.substr(4).is_valid_int():
+				var idx: int = int(key.substr(4))
+				if idx >= 0 and idx < frees.size():
+					return frees[idx]
+			return ""
+
+
+func _report_empty_slots(used: PackedStringArray) -> void:
+	for key: String in used:
+		## Clock / ampm always have a value; skip soft defaults that authors rely on.
+		if key in ["year", "month", "day", "hour", "minute", "weekday", "ampm"]:
+			continue
+		if _slot_value(key).strip_edges() != "":
+			continue
+		push_error("DialogueContext: {%s} used but value is empty" % key)
+
+
+func _report_leftover_slots(text: String) -> void:
+	for key: String in leftover_slot_keys(text):
+		push_error("DialogueContext: unsubstituted {%s} left in dialogue" % key)
 
 
 static func _days_since(last: String, year: int, month: int, day: int) -> int:

@@ -2,7 +2,8 @@
 
 Acre tiles are CI4 32×32 `kan_tizu_*_TA_tex_txt` with the two embedded
 `kan_tizu{1,2}_pal` TLUTs from `m_map_ovl.c`. Window chrome comes from
-`kan_win.c` / `kan_hyouji*.c` / `kan_eki.c` (formats from GBI).
+`kan_win.c` / `kan_hyouji*.c` / `kan_eki.c` (formats from GBI). Prefer ACHD
+hi-res sheets when configured (UV crop scales with the HD sheet).
 
 Output is gitignored under `assets/generated/ui/map/` — Nintendo IP.
 """
@@ -12,11 +13,13 @@ from __future__ import annotations
 import json
 import struct
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 from PIL import Image
 
+from .achd import load_achd_pack, maybe_hd_png
 from .config import PipelineConfig
 from .godot_import import write_import_sidecar
 from .mapfile import MapSymbol, parse_map
@@ -27,7 +30,9 @@ from .texbank import (
     G_IM_FMT_IA,
     G_IM_SIZ_4b,
     G_IM_SIZ_8b,
+    GX_CLAMP,
     decode_gbi_texture,
+    gbi_to_gx,
     image_png_bytes,
 )
 
@@ -264,40 +269,53 @@ def extract_map_ui(cfg: PipelineConfig) -> dict[str, Any]:
     for folder in (tiles_out, chrome_out, tiles_stage, chrome_stage):
         folder.mkdir(parents=True, exist_ok=True)
 
+    achd = (
+        load_achd_pack(cfg.achd_root, cfg.achd_cache)
+        if cfg.achd_enabled and cfg.achd_root is not None
+        else None
+    )
+
     results: list[dict[str, Any]] = []
     pals = [_pack_pal(_KAN_TIZU1_PAL), _pack_pal(_KAN_TIZU2_PAL)]
+    tile_px = _ACRE_UV_PX
 
     for stem in _ACRE_STEMS:
         sym_name = f"kan_tizu_{stem}_TA_tex_txt"
         for pal_idx, pal in enumerate(pals):
             out_stem = f"{stem}_p{pal_idx}"
-            results.append(
-                _extract_ci4_tile(
-                    rel,
-                    by_name,
-                    sym_name,
-                    pal,
-                    out_stem,
-                    tiles_stage,
-                    tiles_out,
-                    cfg.project_root,
-                )
+            record = _extract_ci4_tile(
+                rel,
+                by_name,
+                sym_name,
+                pal,
+                out_stem,
+                tiles_stage,
+                tiles_out,
+                cfg.project_root,
+                achd=achd,
             )
+            results.append(record)
+            meta = record.get("meta") or {}
+            if meta.get("tile_px"):
+                tile_px = max(tile_px, int(meta["tile_px"]))
 
     for spec in _CHROME:
         results.extend(
-            _extract_chrome(rel, by_name, spec, chrome_stage, chrome_out, cfg.project_root)
+            _extract_chrome(
+                rel, by_name, spec, chrome_stage, chrome_out, cfg.project_root, achd=achd
+            )
         )
 
     results.append(
-        _bake_info_panel(rel, by_name, chrome_stage, chrome_out, cfg.project_root)
+        _bake_info_panel(rel, by_name, chrome_stage, chrome_out, cfg.project_root, achd=achd)
     )
     shell = _bake_window_shell(rel, by_name, chrome_stage, chrome_out, cfg.project_root)
     results.append(shell)
 
     catalog = {
-        "tile_px": _ACRE_UV_PX,
+        "tile_px": tile_px,
         "tile_tex_px": _ACRE_TEX_PX,
+        "tile_uv_native": _ACRE_UV_PX,
         "block_stems": _BLOCK_STEMS,
         "block_pals": _BLOCK_PALS,
         "tiles_dir": "ui/map/tiles",
@@ -311,7 +329,13 @@ def extract_map_ui(cfg: PipelineConfig) -> dict[str, Any]:
     results.append({"asset_id": "catalog", "output_path": "ui/map/catalog.json", "status": "converted"})
 
     converted = sum(1 for r in results if r["status"] == "converted")
-    return {"results": results, "converted": converted, "output": str(out_dir)}
+    achd_hits = sum(1 for r in results if (r.get("meta") or {}).get("achd"))
+    return {
+        "results": results,
+        "converted": converted,
+        "achd_hits": achd_hits,
+        "output": str(out_dir),
+    }
 
 
 def _pack_pal(entries: tuple[int, ...]) -> bytes:
@@ -334,6 +358,8 @@ def _extract_ci4_tile(
     stage_dir: Path,
     out_dir: Path,
     project_root: Path,
+    *,
+    achd=None,
 ) -> dict[str, Any]:
     dest_rel = f"ui/map/tiles/{out_stem}.png"
     record: dict[str, Any] = {
@@ -346,18 +372,40 @@ def _extract_ci4_tile(
     try:
         sym = _pick_symbol(by_name, sym_name)
         data = rel.slice_at(sym.address, min(sym.size, 512))
-        image = decode_gbi_texture(data, _ACRE_TEX_PX, _ACRE_TEX_PX, G_IM_FMT_CI, G_IM_SIZ_4b, pal)
+        gx = gbi_to_gx(G_IM_FMT_CI, G_IM_SIZ_4b)
+        hd = maybe_hd_png(
+            achd,
+            data,
+            _ACRE_TEX_PX,
+            _ACRE_TEX_PX,
+            gx,
+            pal,
+            wrap_s=GX_CLAMP,
+            wrap_t=GX_CLAMP,
+        )
+        used_achd = False
+        if hd is not None:
+            image = Image.open(BytesIO(hd)).convert("RGBA")
+            used_achd = True
+        else:
+            image = decode_gbi_texture(
+                data, _ACRE_TEX_PX, _ACRE_TEX_PX, G_IM_FMT_CI, G_IM_SIZ_4b, pal
+            )
         ## Map acres abut; transparent CI edge texels left cream gaps in Godot. Fill
         ## them with the nearest opaque colour so neighbouring tiles connect.
         image = _fill_transparent(image)
         ## Match `kan_tizu_v` UVs (0..22) — drop the unused 32×32 margin (dark grass bands).
-        image = image.crop((0, 0, _ACRE_UV_PX, _ACRE_UV_PX))
+        ## Scale the crop with HD sheet size (e.g. 256 → 176×176).
+        scale = image.size[0] / float(_ACRE_TEX_PX)
+        uv_px = max(1, int(round(_ACRE_UV_PX * scale)))
+        image = image.crop((0, 0, uv_px, uv_px))
         png = image_png_bytes(image)
         for folder in (stage_dir, out_dir):
             path = folder / f"{out_stem}.png"
             path.write_bytes(png)
         write_import_sidecar(out_dir / f"{out_stem}.png", project_root)
         record["status"] = "converted"
+        record["meta"] = {"achd": used_achd, "tile_px": uv_px}
     except Exception as exc:  # noqa: BLE001
         record["status"] = "error"
         record["error"] = f"{type(exc).__name__}: {exc}"
@@ -371,6 +419,8 @@ def _extract_chrome(
     stage_dir: Path,
     out_dir: Path,
     project_root: Path,
+    *,
+    achd=None,
 ) -> list[dict[str, Any]]:
     out_stem = spec.out_name or spec.name
     dest_rel = f"ui/map/chrome/{out_stem}.png"
@@ -388,7 +438,23 @@ def _extract_chrome(
         if spec.fmt == G_IM_FMT_CI or (spec.fmt == G_IM_FMT_I and spec.siz == G_IM_SIZ_4b):
             need //= 2
         data = rel.slice_at(sym.address, min(sym.size, max(need, 16)))
-        image = decode_gbi_texture(data, spec.width, spec.height, spec.fmt, spec.siz, b"")
+        gx = gbi_to_gx(spec.fmt, spec.siz)
+        hd = maybe_hd_png(
+            achd,
+            data,
+            spec.width,
+            spec.height,
+            gx,
+            None,
+            wrap_s=GX_CLAMP,
+            wrap_t=GX_CLAMP,
+        )
+        used_achd = False
+        if hd is not None:
+            image = Image.open(BytesIO(hd)).convert("RGBA")
+            used_achd = True
+        else:
+            image = decode_gbi_texture(data, spec.width, spec.height, spec.fmt, spec.siz, b"")
         if spec.prim_as_color is not None:
             image = _i_texel_as_alpha(image, spec.prim_as_color)
         else:
@@ -399,6 +465,7 @@ def _extract_chrome(
             path.write_bytes(png)
         write_import_sidecar(out_dir / f"{out_stem}.png", project_root)
         record["status"] = "converted"
+        record["meta"] = {"achd": used_achd}
         if out_stem == "cursor":
             frame = _compose_cursor_frame(image)
             frame_stem = "cursor_frame"
@@ -412,6 +479,7 @@ def _extract_chrome(
                     "source": spec.name,
                     "output_path": f"ui/map/chrome/{frame_stem}.png",
                     "status": "converted",
+                    "meta": {"achd": used_achd},
                 }
             )
     except Exception as exc:  # noqa: BLE001
@@ -477,6 +545,8 @@ def _bake_info_panel(
     stage_dir: Path,
     out_dir: Path,
     project_root: Path,
+    *,
+    achd=None,
 ) -> dict[str, Any]:
     """Bake `kan_win_waku2a` (mirrored) — scalloped acre-info bubble."""
     record: dict[str, Any] = {
@@ -489,7 +559,16 @@ def _bake_info_panel(
     try:
         sym = _pick_symbol(by_name, "kan_win_waku2a_tex")
         data = rel.slice_at(sym.address, min(sym.size, 64 * 64))
-        tile = decode_gbi_texture(data, 64, 64, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
+        gx = gbi_to_gx(G_IM_FMT_IA, G_IM_SIZ_8b)
+        hd = maybe_hd_png(
+            achd, data, 64, 64, gx, None, wrap_s=GX_CLAMP, wrap_t=GX_CLAMP
+        )
+        used_achd = False
+        if hd is not None:
+            tile = Image.open(BytesIO(hd)).convert("RGBA")
+            used_achd = True
+        else:
+            tile = decode_gbi_texture(data, 64, 64, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
         prim, env = _INFO_BUBBLE
         colored = _ia_prim_env(tile, prim, env)
         panel = _mirror_tile(colored)
@@ -502,6 +581,7 @@ def _bake_info_panel(
             (folder / "info_panel.png").write_bytes(png)
         write_import_sidecar(out_dir / "info_panel.png", project_root)
         record["status"] = "converted"
+        record["meta"] = {"achd": used_achd}
     except Exception as exc:  # noqa: BLE001
         record["status"] = "error"
         record["error"] = f"{type(exc).__name__}: {exc}"
@@ -729,10 +809,15 @@ def _bake_window_shell(
         "error": None,
     }
     try:
+        ## Native sizes from `kan_win_w*` GBI — ST from `kan_win_v` are in that space.
+        native_sizes = {"w1": (128, 32), "w2": (32, 64), "w3": (32, 32)}
         w1 = _ia_prim_env(Image.open(out_dir / "frame_w1.png"), _WINDOW_PRIM, _WINDOW_ENV)
         w2 = _ia_prim_env(Image.open(out_dir / "frame_w2.png"), _WINDOW_PRIM, _WINDOW_ENV)
         w3 = _ia_prim_env(Image.open(out_dir / "frame_w3.png"), _WINDOW_PRIM, _WINDOW_ENV)
         tiles = {"w1": w1, "w2": w2, "w3": w3}
+        used_achd = any(
+            tiles[k].size != native_sizes[k] for k in native_sizes
+        )
 
         vtx_sym = _pick_symbol(by_name, "kan_win_v")
         verts = _parse_ui_vtx(rel.slice_at(vtx_sym.address, vtx_sym.size))
@@ -754,8 +839,17 @@ def _bake_window_shell(
         def to_px(v: _UiVtx) -> tuple[float, float]:
             return ((v.x - min_x) * scale, (-v.y - min_y) * scale)
 
+        def scale_st(
+            v: _UiVtx, native: tuple[int, int], tex: Image.Image
+        ) -> tuple[float, float]:
+            nw, nh = native
+            sx = tex.size[0] / float(nw) if nw else 1.0
+            sy = tex.size[1] / float(nh) if nh else 1.0
+            return (v.s * sx, v.t * sy)
+
         for tile_key, mode, indices in _KIWAKU_BATCHES:
             tex = tiles[tile_key]
+            native = native_sizes[tile_key]
             for tri in range(0, len(indices), 3):
                 i0, i1, i2 = indices[tri : tri + 3]
                 v0, v1, v2 = loaded[i0], loaded[i1], loaded[i2]
@@ -765,9 +859,9 @@ def _bake_window_shell(
                     to_px(v0),
                     to_px(v1),
                     to_px(v2),
-                    (v0.s, v0.t),
-                    (v1.s, v1.t),
-                    (v2.s, v2.t),
+                    scale_st(v0, native, tex),
+                    scale_st(v1, native, tex),
+                    scale_st(v2, native, tex),
                     mode=mode,
                 )
 
@@ -789,6 +883,7 @@ def _bake_window_shell(
         record["status"] = "converted"
         record["width"] = width
         record["height"] = height
+        record["meta"] = {"achd": used_achd}
     except Exception as exc:  # noqa: BLE001
         record["status"] = "error"
         record["error"] = f"{type(exc).__name__}: {exc}"

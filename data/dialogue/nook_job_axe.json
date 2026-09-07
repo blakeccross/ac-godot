@@ -5,7 +5,7 @@
   "nodes": {
     "start": {
       "type": "line",
-      "text": "Deliver this axe safely.\nNo chopping on the way!"
+      "text": "Deliver this axe to {recipient}.\nNo chopping on the way!"
     }
   }
 }

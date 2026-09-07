@@ -5,7 +5,7 @@
   "nodes": {
     "start": {
       "type": "line",
-      "text": "Deliver that furniture\nto the villager I named.\nGo on, go on!"
+      "text": "Deliver that furniture\nto {recipient}.\nGo on, go on!"
     }
   }
 }

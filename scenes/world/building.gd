@@ -16,6 +16,9 @@ extends StaticBody3D
 func _ready() -> void:
 	GeneratedVisual.attach(self, visual_id)
 	HostCollision.apply_building(self, visual_id, footprint, HostCollision.CELL)
+	## Station is outdoor-only (`ac_station` + acre collision; Porter at ut 5,4). No Door.
+	if HostCollision.is_station(visual_id):
+		return
 	var door: Node = get_node_or_null("Door")
 	if door != null:
 		if "label" in door:

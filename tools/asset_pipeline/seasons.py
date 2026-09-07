@@ -22,9 +22,11 @@ from .texbank import (
 	_TREE_PAL_ROW_BY_SEASON,
 	G_IM_FMT_CI,
 	G_IM_SIZ_4b,
+	GX_REPEAT,
 	TextureBank,
 	apply_prim,
 	decode_gbi_texture,
+	gbi_to_gx,
 	image_png_bytes,
 )
 
@@ -91,6 +93,34 @@ def _clear_bank(bank: TextureBank) -> None:
 	bank.segment_palettes.clear()
 	bank._segment_offset_names.clear()
 	bank._png_cache.clear()
+
+
+def _field_tile_png(
+	bank: TextureBank,
+	data: bytes,
+	width: int,
+	height: int,
+	pal: bytes,
+) -> bytes:
+	"""Decode a field CI4 tile, preferring bake-safe ACHD when the pack hits."""
+	from .achd import maybe_hd_png
+
+	gx = gbi_to_gx(G_IM_FMT_CI, G_IM_SIZ_4b)
+	hd = maybe_hd_png(
+		bank.achd,
+		data,
+		width,
+		height,
+		gx,
+		pal,
+		wrap_s=GX_REPEAT,
+		wrap_t=GX_REPEAT,
+	)
+	if hd is not None:
+		return hd
+	image = decode_gbi_texture(data, width, height, G_IM_FMT_CI, G_IM_SIZ_4b, pal)
+	image = apply_prim(image, (255, 255, 255, 255))
+	return image_png_bytes(image)
 
 
 def _role_for_name(name: str, needles: dict[str, tuple[str, ...]]) -> str:
@@ -224,11 +254,9 @@ def _collect_roles_from_field_bank(bank: TextureBank) -> dict[str, bytes]:
 		if off + needed > len(data):
 			continue
 		try:
-			image = decode_gbi_texture(
-				data[off : off + needed], width, height, G_IM_FMT_CI, G_IM_SIZ_4b, pal
+			out[role] = _field_tile_png(
+				bank, data[off : off + needed], width, height, pal
 			)
-			image = apply_prim(image, (255, 255, 255, 255))
-			out[role] = image_png_bytes(image)
 		except (KeyError, ValueError, IndexError):
 			continue
 	return out
@@ -305,9 +333,7 @@ def _decode_grass_pattern_png(
 	if len(data) < needed:
 		return None
 	try:
-		image = decode_gbi_texture(data, width, height, G_IM_FMT_CI, G_IM_SIZ_4b, pal)
-		image = apply_prim(image, (255, 255, 255, 255))
-		return image_png_bytes(image)
+		return _field_tile_png(bank, data[:needed], width, height, pal)
 	except (KeyError, ValueError, IndexError):
 		return None
 

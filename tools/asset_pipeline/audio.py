@@ -1,4 +1,4 @@
-"""Unpack `audiorom.img`, extract samples, and render test-set BGM to OGG."""
+"""Unpack `audiorom.img`, extract samples, and render BGM / SE / voice to OGG."""
 
 from __future__ import annotations
 
@@ -15,7 +15,17 @@ from .audio_bank import (
     parse_arc_entries,
     parse_audiomap_bytes,
 )
-from .audio_seq import encode_ogg, render_sequence, write_wav
+from .audio_seq import (
+    SE_BANKS,
+    SE_SEQ_INDEX,
+    VOICE_BANKS,
+    VOICE_SEQ_BY_SPEC,
+    encode_ogg,
+    render_se,
+    render_sequence,
+    render_voice_phoneme,
+    write_wav,
+)
 from .audio_vadpcm import decode_vadpcm_frame
 from .config import PipelineConfig
 from .fgdata import _guess_decomp
@@ -45,13 +55,78 @@ TEST_SET_IDS = (
     "enter_house",
 )
 
-## `Na_TTKK_ARM(TRUE)` during player-select (post-staffroll): mute intro_kk subtracks 0–2.
-MUTE_SUBTRACKS_BY_ID: dict[str, tuple[int, ...]] = {
+## Smoke-test SE ids (`NA_SE_*` keys). `--full` renders every named enum entry.
+TEST_SET_SE_IDS = (
+    "cursol",
+    "page_okuri",
+    "6",
+    "7",
+    "8",
+    "9",
+    "bebe",
+    "gasagoso",
+    "hanabi0",
+    "footstep_grass",
+    "footstep_soil",
+    "footstep_stone",
+    "footstep_wood",
+    "footstep_bush",
+    "footstep_snow",
+    "footstep_sand",
+    "footstep_wave",
+    "tool_furi",
+    "axe_cut",
+    "axe_hit",
+    "scoop1",
+    "scoop_umeru",
+    "scoop_hit",
+    "scoop_tree_hit",
+    "scoop_item_hit",
+    "item_horidashi",
+    "kiribasu_scoop",
+    "kiribasu_out",
+    "ami_hit",
+    "tool_get",
+    "rod_stroke",
+    "rod_back",
+    "10b",
+    "10c",
+    "karaburi",
+    "tree_yurasu",
+    "item_get",
+    "menu_pause",
+    "menu_exit",
+    "17c",
+    "17d",
+    "424",
+    "41c",
+    "60",
+    "hachi_sasareru",
+    "drawer_open",
+    "drawer_close",
+    "ftr_door_open",
+    "ftr_door_close",
+    "jump",
+    "landing",
+    "hard_chair_sit",
+    "bed_in",
+)
+
+## Phoneme instrument ids after henkan / digraph (`0x00`–`0x77`, `Na_VoiceSe` cap).
+VOICE_PHONEME_MAX = 0x77
+TEST_SET_PHONEMES = (0x00, 0x01, 0x0A, 0x14, 0x18, 0x29, 0x32, 0x39, 0x52)
+
+## `Na_TTKK_ARM` toggles these guitar subtracks live. Bed OGG bakes them muted;
+## a matching `*_arm` stem keeps only those tracks for runtime mute/unmute.
+ARM_SUBTRACKS_BY_ID: dict[str, tuple[int, ...]] = {
     "intro_kk": (0, 1, 2),
 }
+AUDIO_SUBTRACK_NUM = 16
 
 CATALOG_DIR = "audio"
 BGM_SUBDIR = "bgm"
+SFX_SUBDIR = "sfx"
+VOICE_SUBDIR = "voice"
 
 
 def find_audiorom(cfg: PipelineConfig) -> Optional[Path]:
@@ -110,6 +185,81 @@ def _bgm_key(enum_name: str) -> str:
     return enum_name.removeprefix("BGM_").lower()
 
 
+def _se_key(enum_name: str) -> str:
+    return enum_name.removeprefix("NA_SE_").lower()
+
+
+def _eval_se_expr(expr: str, known: Optional[dict[str, int]] = None) -> Optional[int]:
+    """Evaluate `0x6D`, `MONO(0x6D)`, `SE_DIST_REVERB(0x10F)`, or a prior `NA_SE_*` name."""
+    expr = expr.strip()
+    if not expr:
+        return None
+    known = known or {}
+    mono = re.fullmatch(r"MONO\((.+)\)", expr)
+    if mono:
+        inner = _eval_se_expr(mono.group(1), known)
+        return None if inner is None else (inner | 0x1000) & 0xFFFF
+    for name, bit in (
+        ("SE_DIST_REVERB", 0x2000),
+        ("SE_ECHO", 0x4000),
+        ("SE_SINGLETON", 0x8000),
+    ):
+        m = re.fullmatch(rf"{name}\((.+)\)", expr)
+        if m:
+            inner = _eval_se_expr(m.group(1), known)
+            return None if inner is None else (inner | bit) & 0xFFFF
+    if expr in known:
+        return known[expr]
+    if expr.startswith("NA_SE_"):
+        key = _se_key(expr)
+        if key in known:
+            return known[key]
+        # Allow resolving by full enum name stored as key.
+        return known.get(expr)
+    try:
+        return int(expr, 0) & 0xFFFF
+    except ValueError:
+        return None
+
+
+def parse_se_ids(src: str) -> dict[str, int]:
+    """Parse `typedef enum audio_sound_effects` → `{cursol: 1, bebe: 0x106D, …}`."""
+    match = re.search(
+        r"typedef enum audio_sound_effects\s*\{(.*?)\}\s*AudioSE",
+        src,
+        re.S,
+    )
+    if match is None:
+        return {}
+    out: dict[str, int] = {}
+    index = 0
+    for raw in match.group(1).split(","):
+        line = raw.strip()
+        if not line or line.startswith("/*"):
+            continue
+        line = re.sub(r"/\*.*?\*/", "", line)
+        # `// Footsteps` etc. can sit on the same comma-chunk as the next enumerator.
+        line = re.sub(r"//.*?$", "", line, flags=re.M).strip()
+        if not line.startswith("NA_SE_"):
+            continue
+        if "=" in line:
+            name, val = line.split("=", 1)
+            name = name.strip()
+            parsed = _eval_se_expr(val.strip(), out)
+            if parsed is None:
+                continue
+            index = parsed
+        else:
+            name = line
+        key = _se_key(name)
+        out[key] = index & 0xFFFF
+        # Also stash under full enum for nested MONO(NA_SE_…) refs.
+        out[name] = index & 0xFFFF
+        index = (index + 1) & 0xFFFF
+    # Drop full-enum aliases from the public catalog map.
+    return {k: v for k, v in out.items() if not k.startswith("NA_SE_")}
+
+
 def catalog_id_for_hour(hour: int) -> str:
     return "field_%02d" % (hour % 24)
 
@@ -132,6 +282,7 @@ def convert_audio(cfg: PipelineConfig, decomp_root: Optional[Path] = None) -> di
     seq_entries = _load_seq_entries(decomp)
     seq_table = _load_seq_table(decomp)
     bgm_ids = _load_bgm_ids(decomp)
+    se_ids = _load_se_ids(decomp)
 
     stage = cfg.converted / CATALOG_DIR
     stage.mkdir(parents=True, exist_ok=True)
@@ -165,7 +316,14 @@ def convert_audio(cfg: PipelineConfig, decomp_root: Optional[Path] = None) -> di
     wave_groups = _slice_wave_groups(audiowave, wave_entries)
 
     entries = _catalog_entries(cfg, bgm_ids, seq_table, seq_entries)
+    sfx_entries = _sfx_catalog_entries(cfg, se_ids)
+    voice_entries = _voice_catalog_entries(cfg)
     wanted_banks = _wanted_bank_ids(entries, map_bytes)
+    wanted_banks |= set(SE_BANKS)
+    for seq_idx in VOICE_BANKS:
+        wanted_banks.add(VOICE_BANKS[seq_idx])
+        for bank_id in banks_for_seq(map_bytes, seq_idx):
+            wanted_banks.add(bank_id)
     decoder = SampleDecoder(wave_groups)
     loaded_banks = {}
     bank_dir = stage / "bank"
@@ -183,7 +341,11 @@ def convert_audio(cfg: PipelineConfig, decomp_root: Optional[Path] = None) -> di
 
     wave_debug = _write_debug_waves(stage / "waves", loaded_banks)
     rendered = _render_entries(cfg, entries, seq_blobs, loaded_banks, map_bytes, stage)
-    any_rendered = any(e.get("rendered") for e in entries)
+    sfx_rendered = _render_sfx_entries(cfg, sfx_entries, seq_blobs, loaded_banks, map_bytes, stage)
+    voice_rendered = _render_voice_entries(cfg, voice_entries, seq_blobs, loaded_banks, map_bytes, stage)
+    any_rendered = any(e.get("rendered") for e in entries) or any(
+        e.get("rendered") for e in sfx_entries
+    ) or any(e.get("rendered") for e in voice_entries)
     catalog = {
         "source": "files/audiorom.img",
         "seq_count": len(seq_entries) or SEQ_COUNT,
@@ -192,10 +354,14 @@ def convert_audio(cfg: PipelineConfig, decomp_root: Optional[Path] = None) -> di
         "test_set_only": bool(cfg.test_set_only),
         "rendered": any_rendered,
         "bgm": entries,
+        "sfx": sfx_entries,
+        "voice": voice_entries,
     }
     out_dir = cfg.godot_generated / CATALOG_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / BGM_SUBDIR).mkdir(parents=True, exist_ok=True)
+    (out_dir / SFX_SUBDIR).mkdir(parents=True, exist_ok=True)
+    (out_dir / VOICE_SUBDIR).mkdir(parents=True, exist_ok=True)
     text = json.dumps(catalog, indent=2) + "\n"
     (out_dir / "catalog.json").write_text(text, encoding="utf-8")
     (stage / "catalog.json").write_text(text, encoding="utf-8")
@@ -209,7 +375,11 @@ def convert_audio(cfg: PipelineConfig, decomp_root: Optional[Path] = None) -> di
                 "banks_loaded": len(loaded_banks),
                 "debug_waves": wave_debug,
                 "bgm": len(entries),
+                "sfx": len(sfx_entries),
+                "voice": len(voice_entries),
                 "rendered": rendered,
+                "sfx_rendered": sfx_rendered,
+                "voice_rendered": voice_rendered,
             },
             indent=2,
         )
@@ -223,7 +393,11 @@ def convert_audio(cfg: PipelineConfig, decomp_root: Optional[Path] = None) -> di
         "seq_sliced": sliced,
         "banks_loaded": len(loaded_banks),
         "bgm": len(entries),
+        "sfx": len(sfx_entries),
+        "voice": len(voice_entries),
         "rendered": rendered,
+        "sfx_rendered": sfx_rendered,
+        "voice_rendered": voice_rendered,
     }
 
 
@@ -254,6 +428,15 @@ def _load_bgm_ids(decomp: Optional[Path]) -> dict[str, int]:
     return parse_bgm_ids(path.read_text(encoding="utf-8", errors="replace"))
 
 
+def _load_se_ids(decomp: Optional[Path]) -> dict[str, int]:
+    if decomp is None:
+        return {}
+    path = decomp / "include" / "audio_defs.h"
+    if not path.is_file():
+        return {}
+    return parse_se_ids(path.read_text(encoding="utf-8", errors="replace"))
+
+
 def _wanted_seq_indices(
     cfg: PipelineConfig, bgm_ids: dict[str, int], seq_table: list[int]
 ) -> set[int]:
@@ -265,6 +448,8 @@ def _wanted_seq_indices(
         if bgm_num is None or bgm_num < 0 or bgm_num >= len(seq_table):
             continue
         wanted.add(seq_table[bgm_num])
+    wanted.add(SE_SEQ_INDEX)
+    wanted.update(VOICE_SEQ_BY_SPEC.values())
     return wanted
 
 
@@ -292,6 +477,50 @@ def _catalog_entries(
                 "rendered": False,
             }
         )
+    return out
+
+
+def _sfx_catalog_entries(cfg: PipelineConfig, se_ids: dict[str, int]) -> list[dict[str, Any]]:
+    if cfg.test_set_only:
+        keys = [k for k in TEST_SET_SE_IDS if k in se_ids]
+    else:
+        keys = [k for k, _n in sorted(se_ids.items(), key=lambda kv: (kv[1], kv[0]))]
+    out: list[dict[str, Any]] = []
+    for key in keys:
+        se_num = int(se_ids[key])
+        out.append(
+            {
+                "id": key,
+                "se_num": se_num,
+                "seq": SE_SEQ_INDEX,
+                "path": f"{SFX_SUBDIR}/{key}.ogg",
+                "loop": False,
+                "rendered": False,
+            }
+        )
+    return out
+
+
+def _voice_catalog_entries(cfg: PipelineConfig) -> list[dict[str, Any]]:
+    phonemes = (
+        list(TEST_SET_PHONEMES)
+        if cfg.test_set_only
+        else list(range(VOICE_PHONEME_MAX + 1))
+    )
+    out: list[dict[str, Any]] = []
+    for spec, seq_idx in sorted(VOICE_SEQ_BY_SPEC.items()):
+        for phoneme in phonemes:
+            out.append(
+                {
+                    "id": f"spec_{spec}/ph_{phoneme:02x}",
+                    "spec": spec,
+                    "phoneme": phoneme,
+                    "seq": seq_idx,
+                    "path": f"{VOICE_SUBDIR}/spec_{spec}/ph_{phoneme:02x}.ogg",
+                    "loop": False,
+                    "rendered": False,
+                }
+            )
     return out
 
 
@@ -385,28 +614,191 @@ def _render_entries(
         used = {b: banks[b] for b in seq_banks if b in banks}
         if not used:
             continue
+        track_id = str(rec.get("id", ""))
+        arm_tracks = list(ARM_SUBTRACKS_BY_ID.get(track_id, ()))
         try:
-            mute = list(MUTE_SUBTRACKS_BY_ID.get(str(rec.get("id", "")), ()))
-            result = render_sequence(seq, used, default_bank, seq_banks, mute_subtracks=mute)
+            result = render_sequence(
+                seq, used, default_bank, seq_banks, mute_subtracks=arm_tracks
+            )
         except (ValueError, struct.error, IndexError) as exc:
             rec["render_error"] = str(exc)
             continue
         if result.notes <= 0 or result.duration_sec < 0.4:
             rec["render_error"] = f"silent ({result.notes} notes, {result.duration_sec:.2f}s)"
             continue
-        wav_path = wav_dir / f"{rec['id']}.wav"
-        write_wav(wav_path, result.pcm, result.rate)
-        ogg_path = out_bgm / f"{rec['id']}.ogg"
-        wav_out = out_bgm / f"{rec['id']}.wav"
-        if encode_ogg(wav_path, ogg_path):
-            rec["path"] = f"{BGM_SUBDIR}/{rec['id']}.ogg"
-        else:
-            wav_out.write_bytes(wav_path.read_bytes())
-            rec["path"] = f"{BGM_SUBDIR}/{rec['id']}.wav"
+        if not _write_bgm_file(wav_dir, out_bgm, track_id, result, rec):
+            continue
         rec["rendered"] = True
         rec["loop_start_sec"] = round(result.loop_start_sec, 3)
         rec["duration_sec"] = round(result.duration_sec, 3)
         rec["notes"] = result.notes
         rec.pop("render_error", None)
         rendered += 1
+        if not arm_tracks:
+            continue
+        # Solo the Na_TTKK_ARM guitar subtracks for runtime mute with the bed.
+        bed_mute = [i for i in range(AUDIO_SUBTRACK_NUM) if i not in set(arm_tracks)]
+        try:
+            arm = render_sequence(
+                seq, used, default_bank, seq_banks, mute_subtracks=bed_mute
+            )
+        except (ValueError, struct.error, IndexError) as exc:
+            rec["arm_render_error"] = str(exc)
+            continue
+        if arm.notes <= 0:
+            rec["arm_render_error"] = f"silent arm ({arm.notes} notes)"
+            continue
+        arm_rec: dict[str, Any] = {}
+        if _write_bgm_file(wav_dir, out_bgm, f"{track_id}_arm", arm, arm_rec):
+            rec["arm_path"] = arm_rec["path"]
+            rec["arm_notes"] = arm.notes
+            rec.pop("arm_render_error", None)
+            rendered += 1
     return rendered
+
+
+def _render_sfx_entries(
+    cfg: PipelineConfig,
+    entries: list[dict[str, Any]],
+    seq_blobs: dict[int, bytes],
+    banks: dict,
+    map_bytes: bytes,
+    stage: Path,
+) -> int:
+    seq = seq_blobs.get(SE_SEQ_INDEX)
+    if not seq:
+        for rec in entries:
+            rec["render_error"] = f"missing seq {SE_SEQ_INDEX}"
+        return 0
+    seq_banks = banks_for_seq(map_bytes, SE_SEQ_INDEX) or list(SE_BANKS)
+    default_bank = seq_banks[-1] if seq_banks else SE_BANKS[-1]
+    used = {b: banks[b] for b in seq_banks if b in banks}
+    if not used:
+        for rec in entries:
+            rec["render_error"] = "missing SE banks"
+        return 0
+    wav_dir = stage / "wav" / "sfx"
+    wav_dir.mkdir(parents=True, exist_ok=True)
+    out_sfx = cfg.godot_generated / CATALOG_DIR / SFX_SUBDIR
+    out_sfx.mkdir(parents=True, exist_ok=True)
+    rendered = 0
+    for rec in entries:
+        se_id = int(rec.get("se_num", -1))
+        track_id = str(rec.get("id", ""))
+        try:
+            result = render_se(seq, used, default_bank, se_id, seq_banks)
+        except (ValueError, struct.error, IndexError) as exc:
+            rec["render_error"] = str(exc)
+            continue
+        if result.notes <= 0:
+            rec["render_error"] = f"silent ({result.notes} notes, {result.duration_sec:.2f}s)"
+            continue
+        if not _write_oneshot_file(wav_dir, out_sfx, track_id, result, rec, SFX_SUBDIR):
+            continue
+        rec["rendered"] = True
+        rec["duration_sec"] = round(result.duration_sec, 3)
+        rec["notes"] = result.notes
+        rec.pop("render_error", None)
+        rendered += 1
+    return rendered
+
+
+def _render_voice_entries(
+    cfg: PipelineConfig,
+    entries: list[dict[str, Any]],
+    seq_blobs: dict[int, bytes],
+    banks: dict,
+    map_bytes: bytes,
+    stage: Path,
+) -> int:
+    wav_dir = stage / "wav" / "voice"
+    wav_dir.mkdir(parents=True, exist_ok=True)
+    out_voice = cfg.godot_generated / CATALOG_DIR / VOICE_SUBDIR
+    out_voice.mkdir(parents=True, exist_ok=True)
+    rendered = 0
+    for rec in entries:
+        seq_idx = int(rec.get("seq", -1))
+        seq = seq_blobs.get(seq_idx)
+        if not seq:
+            rec["render_error"] = f"missing seq {seq_idx}"
+            continue
+        seq_banks = banks_for_seq(map_bytes, seq_idx)
+        if not seq_banks:
+            bank = VOICE_BANKS.get(seq_idx)
+            seq_banks = [bank] if bank is not None else []
+        default_bank = seq_banks[-1] if seq_banks else 0
+        used = {b: banks[b] for b in seq_banks if b in banks}
+        if not used:
+            rec["render_error"] = "missing voice banks"
+            continue
+        phoneme = int(rec.get("phoneme", 0))
+        spec = int(rec.get("spec", 1))
+        file_id = f"spec_{spec}/ph_{phoneme:02x}"
+        try:
+            result = render_voice_phoneme(
+                seq,
+                used,
+                default_bank,
+                phoneme,
+                seq_banks,
+                voice_seq_ready=spec,
+            )
+        except (ValueError, struct.error, IndexError) as exc:
+            rec["render_error"] = str(exc)
+            continue
+        if result.notes <= 0:
+            rec["render_error"] = f"silent ({result.notes} notes, {result.duration_sec:.2f}s)"
+            continue
+        rel_dir = out_voice / f"spec_{spec}"
+        rel_dir.mkdir(parents=True, exist_ok=True)
+        stage_dir = wav_dir / f"spec_{spec}"
+        stage_dir.mkdir(parents=True, exist_ok=True)
+        if not _write_oneshot_file(
+            stage_dir, rel_dir, f"ph_{phoneme:02x}", result, rec, f"{VOICE_SUBDIR}/spec_{spec}"
+        ):
+            continue
+        rec["rendered"] = True
+        rec["duration_sec"] = round(result.duration_sec, 3)
+        rec["notes"] = result.notes
+        rec.pop("render_error", None)
+        rendered += 1
+    return rendered
+
+
+def _write_bgm_file(
+    wav_dir: Path,
+    out_bgm: Path,
+    file_id: str,
+    result: Any,
+    rec: dict[str, Any],
+) -> bool:
+    wav_path = wav_dir / f"{file_id}.wav"
+    write_wav(wav_path, result.pcm, result.rate)
+    ogg_path = out_bgm / f"{file_id}.ogg"
+    wav_out = out_bgm / f"{file_id}.wav"
+    if encode_ogg(wav_path, ogg_path):
+        rec["path"] = f"{BGM_SUBDIR}/{file_id}.ogg"
+        return True
+    wav_out.write_bytes(wav_path.read_bytes())
+    rec["path"] = f"{BGM_SUBDIR}/{file_id}.wav"
+    return True
+
+
+def _write_oneshot_file(
+    wav_dir: Path,
+    out_dir: Path,
+    file_id: str,
+    result: Any,
+    rec: dict[str, Any],
+    path_prefix: str,
+) -> bool:
+    wav_path = wav_dir / f"{file_id}.wav"
+    write_wav(wav_path, result.pcm, result.rate)
+    ogg_path = out_dir / f"{file_id}.ogg"
+    wav_out = out_dir / f"{file_id}.wav"
+    if encode_ogg(wav_path, ogg_path):
+        rec["path"] = f"{path_prefix}/{file_id}.ogg"
+        return True
+    wav_out.write_bytes(wav_path.read_bytes())
+    rec["path"] = f"{path_prefix}/{file_id}.wav"
+    return True

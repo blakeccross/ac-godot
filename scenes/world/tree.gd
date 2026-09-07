@@ -75,7 +75,7 @@ func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 	var label: String = plant.display_name if plant else "Tree"
 	if use.stage == TreeUse.Stage.STUMP:
 		if ToolUse.has(ctx, ToolData.Kind.SHOVEL):
-			return [Interaction.of(Interaction.DIG, "Dig stump", 8, &"ply_1_dig1")]
+			return [Interaction.of(Interaction.DIG, "Dig stump", 8, &"ply_1_dig1", 15.0)]
 		return []
 	var actions: Array[Interaction] = [
 		Interaction.of(
@@ -83,7 +83,10 @@ func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 		)
 	]
 	if ToolUse.has(ctx, ToolData.Kind.AXE):
-		actions.append(Interaction.of(Interaction.CHOP, "Chop %s" % label, 18, &"ply_1_axe_swing1"))
+		## Furi @10 (PlayerSe clip marks); cut @15 when interact fires.
+		actions.append(
+			Interaction.of(Interaction.CHOP, "Chop %s" % label, 18, &"ply_1_axe_swing1", 15.0)
+		)
 	return actions
 
 
@@ -104,6 +107,7 @@ func _on_shake(use: TreeUse, ctx: InteractionContext) -> bool:
 	var out: TreeUse.Outcome = use.shake()
 	if not out.shook:
 		return false
+	PlayerSe.tree_yurasu(self)
 	_stress_bugs_at(ctx)
 	var had_drops: bool = not out.drops.is_empty() or out.dropped_fruit > 0
 	_emit_drops(out, ctx)
@@ -129,6 +133,7 @@ func _on_chop(use: TreeUse, ctx: InteractionContext) -> bool:
 	var out: TreeUse.Outcome = use.chop()
 	if not out.shook and not out.felled:
 		return false
+	PlayerSe.axe_cut(self)
 	_emit_drops(out, ctx)
 	if out.dropped_fruit > 0:
 		PlantGrowth.take_fruit(_persist())
@@ -154,6 +159,7 @@ func _on_dig_stump(use: TreeUse, ctx: InteractionContext) -> bool:
 		return false
 	if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):
 		return false
+	PlayerSe.stump_dig(self)
 	Game.post_notice("You dig up the stump.")
 	var pid: StringName = _persist()
 	PlantGrowth.clear(pid)
@@ -166,7 +172,7 @@ func _on_dig_stump(use: TreeUse, ctx: InteractionContext) -> bool:
 		cell = grid.world_to_cell(global_position)
 	if ctx != null:
 		ctx.release_occupant(pid)
-	HoleUse.dig(ctx, cell)
+	HoleUse.dig(ctx, cell, false)
 	queue_free()
 	return true
 

@@ -70,5 +70,6 @@ func test_compose_fg_texture_is_seamless_atlas() -> void:
 	var types: PackedByteArray = TownMap.fg_acre_types(data)
 	var atlas: Texture2D = TownMap.compose_fg_texture(types)
 	assert_that(atlas).is_not_null()
-	assert_int(atlas.get_width()).is_equal(5 * TownMap.NATIVE_TILE_PX)
-	assert_int(atlas.get_height()).is_equal(6 * TownMap.NATIVE_TILE_PX)
+	assert_int(atlas.get_width()).is_equal(5 * TownMap.tile_pixel_size())
+	assert_int(atlas.get_height()).is_equal(6 * TownMap.tile_pixel_size())
+	assert_int(TownMap.tile_pixel_size()).is_greater_equal(TownMap.NATIVE_TILE_PX)

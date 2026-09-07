@@ -29,20 +29,20 @@ const JOB_GOODS_BLOCK_FALLBACK := &"nook_job_goods_block"
 const JOB_INTRO := &"nook_job_intro"
 const JOB_INTRO_HINT := &"nook_job_intro_hint"
 const JOB_INTRO_DONE := &"nook_job_intro_done"
-const JOB_FTR := &"nook_job_furniture"
-const JOB_FTR_HINT := &"nook_job_furniture_hint"
+const JOB_FTR := FirstJob.DIALOGUE_FURNITURE
+const JOB_FTR_HINT := FirstJob.DIALOGUE_FURNITURE_HINT
 const JOB_FTR_DONE := &"nook_job_furniture_done"
-const JOB_LETTER := &"nook_job_letter"
-const JOB_LETTER_HINT := &"nook_job_letter_hint"
+const JOB_LETTER := FirstJob.DIALOGUE_LETTER
+const JOB_LETTER_HINT := FirstJob.DIALOGUE_LETTER_HINT
 const JOB_LETTER_DONE := &"nook_job_letter_done"
 const JOB_OPEN := &"nook_job_open"
 const JOB_OPEN_HINT := &"nook_job_open_hint"
 const JOB_OPEN_DONE := &"nook_job_open_done"
-const JOB_CARPET := &"nook_job_carpet"
-const JOB_CARPET_HINT := &"nook_job_carpet_hint"
+const JOB_CARPET := FirstJob.DIALOGUE_CARPET
+const JOB_CARPET_HINT := FirstJob.DIALOGUE_CARPET_HINT
 const JOB_CARPET_DONE := &"nook_job_carpet_done"
-const JOB_AXE := &"nook_job_axe"
-const JOB_AXE_HINT := &"nook_job_axe_hint"
+const JOB_AXE := FirstJob.DIALOGUE_AXE
+const JOB_AXE_HINT := FirstJob.DIALOGUE_AXE_HINT
 const JOB_AXE_DONE := &"nook_job_axe_done"
 const JOB_NOTICE := &"nook_job_notice"
 const JOB_NOTICE_HINT := &"nook_job_notice_hint"
@@ -322,13 +322,24 @@ func _play_job_line(
 func _play_data(data: DialogueData, listener: Node3D) -> bool:
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = "Tom Nook"
+	var play_data: DialogueData = data
+	if (
+		Game != null
+		and Game.first_job != null
+		and Game.first_job.needs_named_recipient()
+		and play_data != null
+		and play_data.id in FirstJob.recipient_dialogue_ids()
+	):
+		if Game.first_job.recipient_id == &"":
+			push_error("FirstJob: playing recipient dialogue with empty recipient_id")
+		play_data = FirstJob.ensure_dialogue_names_recipient(play_data)
 	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
 	if ui != null and ui.has_method("play"):
 		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
 			ui.call("close")
 		_start_talk_session(listener)
 		_bind_talk_end(ui)
-		ui.call("play", data, talk_ctx)
+		ui.call("play", play_data, talk_ctx)
 		return true
 	_apply_pending_after()
 	return true

@@ -274,6 +274,75 @@ func test_authored_dialogue_lines_fit_body() -> void:
 	assert_int(checked).is_greater(20)
 
 
+func test_substitute_fills_slots_and_flags_empties() -> void:
+	var ctx := DialogueContext.new()
+	ctx.player_name = "Blake"
+	ctx.speaker_name = "Filbert"
+	ctx.town_name = "Oak"
+	ctx.recipient = "Rosie"
+	ctx.item0 = "apple"
+	ctx.frees = PackedStringArray(["", "", "", "1200"])
+	var line: String = ctx.substitute(
+		"Hi {player} / {speaker} / {town} / {recipient} / {item0} / {free3}"
+	)
+	assert_str(line).is_equal("Hi Blake / Filbert / Oak / Rosie / apple / 1200")
+	assert_array(DialogueContext.leftover_slot_keys(line)).is_empty()
+	assert_array(DialogueContext.slot_keys_in("{c:1,2,3}{s:20}hi")).is_empty()
+	assert_array(DialogueContext.slot_keys_in("See {recipient}")).contains("recipient")
+
+
+func test_from_game_fills_first_job_recipient() -> void:
+	Game.villagers.get_or_create(&"filbert")
+	assert_bool(Game.first_job.setup_deliver_furniture(Game.inventory)).is_true()
+	var who: String = Game.first_job.recipient_name()
+	var ctx: DialogueContext = DialogueContext.from_game()
+	assert_str(ctx.recipient).is_equal(who)
+	assert_str(ctx.substitute("Go to {recipient}.")).contains(who)
+
+
+func test_authored_dialogue_slots_expand() -> void:
+	## Every authored `{slot}` must expand under a fully populated context.
+	var ctx := DialogueContext.new()
+	ctx.player_name = "Blake"
+	ctx.speaker_name = "Filbert"
+	ctx.catchphrase = "bucko"
+	ctx.species = "squirrel"
+	ctx.town_name = "Oak"
+	ctx.island = "Isle"
+	ctx.recipient = "Rosie"
+	ctx.item0 = "apple"
+	ctx.frees = PackedStringArray()
+	for i: int in 20:
+		ctx.frees.append("F%d" % i)
+	var dir := DirAccess.open("res://data/dialogue")
+	assert_that(dir).is_not_null()
+	dir.list_dir_begin()
+	var fname := dir.get_next()
+	var checked := 0
+	while fname != "":
+		if fname.ends_with(".json"):
+			var raw: Variant = JSON.parse_string(
+				FileAccess.get_file_as_string("res://data/dialogue/%s" % fname)
+			)
+			assert_that(raw).is_not_null()
+			var nodes: Dictionary = (raw as Dictionary).get("nodes", {})
+			for nid: Variant in nodes.keys():
+				var node: Dictionary = nodes[nid]
+				for field: String in ["text", "prompt"]:
+					if not node.has(field) or typeof(node[field]) != TYPE_STRING:
+						continue
+					var text: String = str(node[field])
+					if DialogueContext.slot_keys_in(text).is_empty():
+						continue
+					var out: String = ctx.substitute(text)
+					assert_array(DialogueContext.leftover_slot_keys(out)).override_failure_message(
+						"%s %s/%s left unsubstituted slots" % [fname, str(nid), field]
+					).is_empty()
+					checked += 1
+		fname = dir.get_next()
+	assert_int(checked).is_greater(5)
+
+
 func _line(data: DialogueData, ctx: DialogueContext) -> String:
 	var runner := DialogueRunner.new()
 	runner.start(data, ctx, null)

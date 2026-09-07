@@ -46,19 +46,23 @@ Do **not** put the disc image inside this repository.
 
 ### ACHD (hi-res textures)
 
-Set `achd_enabled: true` and `achd_root` to a Dolphin ACHD / Load/Textures tree. Convert then prefers matching HD sheets for characters, furniture, buildings, inventory UI, faces, and the dialogue **font**.
+Set `achd_enabled: true` and `achd_root` to a Dolphin ACHD / Load/Textures tree. Convert then prefers matching HD sheets for characters, furniture, buildings, inventory UI, town-map UI, faces, and the dialogue **font**.
 
-**Stay native on purpose** (HD breaks bake or wrong hashes):
+**Stay native / special-cased** (HD breaks bake or wrong hashes):
 
 | Surface | Why |
 | --- | --- |
-| Acre / field / trees / seasons | Wrap-bake + season re-tile need native tile sizes |
+| Acre / field REPEAT (grass, earth, …) | Full ACHD (e.g. grass 256²) × UV repeats → huge wrap-bake atlases. Convert **downscales** REPEAT HD to ≤128px tiles so atlases stay ~2k; seasons pack uses the same cap. Rebuild acres **and** `--kind seasons` together. |
+| Tree leaf/trunk (CLAMP) | **Uses ACHD** full resolution when hashes match; seasons export the same sheets via the tree job. |
+| Player shirt/face **bank PNGs** | **Uses ACHD** full resolution (`textures/player/shirts|faces` via `tex_boy.bin` / `face_boy.bin`) |
+| Player body mesh (`boy_1` GLB) | Mesh bake stays native — HD shirt atlas wrap-bake seams; hole/eyes/skin hit ACHD unevenly |
 | Indoor wall/carpet banks (`player_room_*`) | HD sheets crop to padding in atlases |
-| Player body/shirt (`boy_` / `girl_`) | Mixed native/HD seams on one mesh |
 | Talk-window kaiwa tiles | ~~ACHD is grey/white~~ **Uses ACHD** — grey I4 masks × mint PRIM at extract |
 | Dialogue font | **Uses ACHD** 8× `FONT_nes_tex_font1` when enabled |
 | Museum plates / stained glass / house clocks / train CI | Hash collisions pull wrong art |
 | K.K. opening acre (`rom_open_*`) | Tiny tiles; HD is a near-identical upscale |
+
+Inventory and town-map UI chrome (`--kind inventory-ui` / `map-ui`) prefer ACHD when hashes match; window-shell bakes rescale native ST into the HD sheet.
 
 Use `--all` (or `"test_set_only": false`) and reconvert after enabling ACHD so generated GLBs/PNGs pick up hits.
 
@@ -206,7 +210,7 @@ Inventory window chrome (`inv_mwin_*` from `foresta.rel` → gitignored PNGs, Ni
 python3 tools/build_assets.py --step convert --kind inventory-ui
 ```
 
-Writes `assets/generated/ui/inventory/`.
+Writes `assets/generated/ui/inventory/`. Prefer ACHD sheets for labels, tabs, letters, frames, and the baked `window_shell` when configured.
 
 Town map acre tiles + chrome (`kan_tizu_*`, `kan_win_*` from `foresta.rel` → gitignored PNGs):
 
@@ -214,7 +218,7 @@ Town map acre tiles + chrome (`kan_tizu_*`, `kan_win_*` from `foresta.rel` → g
 python3 tools/build_assets.py --step convert --kind map-ui
 ```
 
-Writes `assets/generated/ui/map/tiles/` (CI4 acres with both pals), `chrome/` (MAP/Acre labels, cursor, A–F / 1–5, building icons), and `catalog.json`. Used by `TownMap` / `map_overlay.tscn`. See [decomp_notes/map.md](decomp_notes/map.md).
+Writes `assets/generated/ui/map/tiles/` (CI4 acres with both pals; ACHD crops scale the 22×22 UV window), `chrome/` (MAP/Acre labels, cursor, A–F / 1–5, building icons, HD window shell), and `catalog.json` (`tile_px` reflects the exported acre size). Used by `TownMap` / `map_overlay.tscn`. See [decomp_notes/map.md](decomp_notes/map.md).
 
 Message / talk window chrome (`con_kaiwa2_*`, `con_namefuti_TXT` from `foresta.rel` → gitignored PNGs):
 
@@ -327,7 +331,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | Shop looks face-on / door due south | Missing anim bind — shop joint-0 Y is **−135°**, not −90° |
 | Acre/room meshes have no textures | DLs use runtime segment banks (`0x80` field BG, `0x08–0x0C` house floor/wall). Convert binds those before walking the Gfx |
 | Acre grass/earth is a stretched edge colour | REPEAT UVs span the 16×16 cell grid. Wrap must be baked into the PNG (`GeneratedVisual` clamps). Reconvert `--step convert --kind static` |
-| Grass colour / tree snow ignore season (U key) | GLBs bake one season into albedo. Build the seasons pack (`--kind seasons`) then press **U**. Runtime swaps grass/earth/cliff/bush/sand/wet-shore/leaf/trunk albedos from `environment/seasons/{s,f,w}/`. Town grass motifs need `grass_0.png`–`grass_2.png` (triangle/square/circle) exported from the three `mFM_grd_*_grass*_tex` CI tiles — not just `grass.png`. River earth strips and beach sand/wet bands need the expanded export (river/beach/shrine acre jobs + field BG bank). Cliff fringe (`bush_a`/`bush_b`) comes from the field BG bank — rebuild seasons after pipeline changes. Autumn recolors summer CI; winter needs the winter field bank + `obj_w_tree*` leaf art in that pack. Mesh remap alone is not enough when only summer GLBs exist. |
+| Grass looks 4× too big on one acre | Season HD tiles (128) re-tiled into a **stale native** wrap-bake atlas (512 = 16×32). Using the season sheet as the cell yields 4×4 repeats. Runtime now infers the atlas period (32 vs 128) before re-tiling. Reconvert leftover `grd_*_s_*` slope acres (`--kind water` / plants) so atlases match the seasons pack. |
 | Rivers/ocean look like missing holes or still water | Acre XLU (`grd_*_modelT`) used to be skipped. Convert keeps dual `mFM_grd_water*` / `wave*` tiles (layer1 as glTF occlusionTexture). River acres use `shaders/river_water.gdshader`; ocean acres use `shaders/ocean_water.gdshader`. Reconvert `--kind water`. Still water after that means the GLB was not reimported. |
 | Open-ocean bed is solid white / shore wet sand is black | `beach_wet` I4 must be baked as `(PRIM−ENV)×I+ENV` in RGB with I in alpha (not `baseColorFactor×I4`). Skip wrap-bake for `beach_wet`. Runtime `beach_wet.gdshader` mixes ENV/PRIM from alpha I (do not add env onto baked RGB). Reconvert `--kind water` if the GLB bake is wrong. |
 | Ocean is near-invisible white cracks over a dark bed | GX `IA4` packs **AAAAIIII** (alpha high nibble, intensity low). Decoding it as `IIIIAAAA` leaves wave maps bright with ~18% peak alpha, so `PRIM×SHADE` never tints the `beachB` underdraw and only the cell outlines show. Correct decode gives dark I / ~50% A and deep-water ≈ `(41,74,174)`. Affects every `G_IM_FMT_IA, G_IM_SIZ_8b` texture, not just waves — reconvert broadly, not just `--kind water` |
@@ -367,7 +371,7 @@ Preview (after convert):
 - Static meshes include `*_gfx_model` and plain `*_model` DLs. Room shells (`rom_*` → `environment/interiors/`) and outdoor acre tiles (`grd_*` → `environment/acres/`) come from that path. Acre DLs sample dummy segment `0x80` (grass/earth/cliff/bush); convert materializes the summer bank from `l_bg_tex_segment_rom_start_s_0` + palettes. Player-house floor/wall DLs sample segments `0x08–0x0C` from `player_room_floor.bin` / `player_room_wall.bin` (style 0). A few interiors (`rom_uranai`, `room01`) use classic N64 `G_SETTILE` / `G_SETTILESIZE` instead of `G_SETTILE_DOLPHIN`.
 - Model textures are GX CI4/CI8 with RGB5A3 palettes. Pending tris flush before `G_LOADTLUT` / prim / tile changes so the palette active at draw time is the one baked into the PNG. Segment banks use one path for every cKF prefix: REL `{prefix}_pal` / `eye1` / `mouth1` / `tmem_txt` when present, else archive `face_{species}.bin` + `tex_{species}.bin` + `pallet_{species}.bin` (shirt index 0). Unbound `anime_N_txt` SETTIMG/LOADTLUT (segments `0x08–0x0F`) resolve from same-size REL textures whose name shares the Gfx part (`leaf` → hardwood leaf tex + FG pal; `mark` → `obj_myhome_mark_*`). I4/IA are modulated by `G_SETPRIMCOLOR`; when the combiner is `(PRIM−ENV)×TEXEL+ENV` (balloon heads, etc.) convert bakes both ends into the PNG.
 - `scale` 0.001 is a shared Vtx multiplier. Godot then applies actor `0.01` vs acre `0.0625` so meshes share 40 GX = 2 m. Do not AABB-fit pipeline meshes to invented meters.
-- Audio (`audiorom.img`) converts via `--kind audio` to gitignored `catalog.json` + looping OGG. The mixer follows original envelopes, vibrato, and portamento; it still skips DSP filters/reverb and weather subtrack mutes. Do not commit Nintendo music.
+- Audio (`audiorom.img`) converts via `--kind audio` to gitignored `catalog.json` + looping OGG. The mixer follows original envelopes, vibrato, and portamento; it still skips DSP filters/reverb and weather subtrack mutes. `intro_kk` also writes an `intro_kk_arm` guitar stem for runtime `Na_TTKK_ARM`. Do not commit Nintendo music.
 - Terrain grass is textures + generated collision in the original game, not one mesh. Water should be a Godot shader/particles, not a GX port.
 - Effects: document appearance, then recreate with `GPUParticles3D`. Do not port JPA.
 - REL `.data` offset is hardcoded for `GAFE01_00`.

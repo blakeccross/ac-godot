@@ -1015,7 +1015,7 @@ static func item_albedo(item_id: StringName) -> String:
 			return ""
 
 
-## Pipeline GLB for a pocket item drawn in the world (`bg_item` fruit/money cards).
+## Pipeline GLB for a pocket item drawn in the world (`bg_item` / `handOverItem` cards).
 static func item_visual(item_id: StringName) -> StringName:
 	match item_id:
 		&"apple":
@@ -1028,8 +1028,67 @@ static func item_visual(item_id: StringName) -> StringName:
 			return &"obj_item_orange"
 		&"money_100", &"money_1000", &"money_10000", &"money_30000":
 			return &"obj_item_bag"
+		&"flower":
+			return &"obj_item_seed"
+		&"paper":
+			return &"obj_item_paper"
+		&"axe":
+			return &"obj_item_axe"
+		&"net":
+			return &"obj_item_net"
+		&"fishing_rod":
+			return &"obj_item_rod"
+		&"shovel":
+			return &"obj_item_shovel"
+		&"floor_tile":
+			return &"obj_item_carpet"
+		&"wall_blue":
+			return &"obj_item_wall"
+		&"wood_chair":
+			return &"obj_item_leaf"
 		_:
-			return &""
+			pass
+	var raw := String(item_id)
+	if raw.begins_with("shirt_") or raw.begins_with("cloth"):
+		return &"obj_item_cloth"
+	if raw.contains("sapling") or raw.contains("seed") or raw.contains("flower"):
+		return &"obj_item_seed"
+	if raw.contains("umbrella"):
+		return &"obj_item_umbrella"
+	if raw.begins_with("floor_"):
+		return &"obj_item_carpet"
+	if raw.begins_with("wall_"):
+		return &"obj_item_wall"
+	var data: ItemData = ItemCatalog.get_item(item_id)
+	if data == null:
+		return &""
+	if data is ToolData:
+		match (data as ToolData).kind:
+			ToolData.Kind.AXE:
+				return &"obj_item_axe"
+			ToolData.Kind.NET:
+				return &"obj_item_net"
+			ToolData.Kind.FISHING_ROD:
+				return &"obj_item_rod"
+			ToolData.Kind.SHOVEL:
+				return &"obj_item_shovel"
+			_:
+				pass
+	match data.category:
+		ItemData.Category.FRUIT:
+			return &"obj_item_apple"
+		ItemData.Category.FISH:
+			return &"obj_item_leaf"
+		ItemData.Category.FURNITURE:
+			return &"obj_item_leaf"
+		ItemData.Category.CLOTH:
+			return &"obj_item_cloth"
+		ItemData.Category.WALL:
+			return &"obj_item_wall"
+		ItemData.Category.FLOOR:
+			return &"obj_item_carpet"
+		_:
+			return &"obj_item_leaf"
 
 
 static func cloth_albedo(cloth_index: int) -> String:

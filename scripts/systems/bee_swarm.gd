@@ -92,6 +92,7 @@ func _chase(delta: float) -> void:
 func _sting() -> void:
 	phase = Phase.DISAPPEAR
 	_elapsed = 0.0
+	PlayerSe.bee_sting(self)
 	Game.post_notice("You've been stung by bees!")
 	if _player != null and is_instance_valid(_player) and _player.has_method("set_busy"):
 		_player.call("set_busy", true)

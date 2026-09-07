@@ -36,6 +36,15 @@ const FURNITURE_ID := &"wood_chair"
 const CARPET_ID := &"floor_tile"
 const AXE_ID := &"axe"
 const PAPER_ID := &"paper"
+## Assign / hint lines for named-recipient chores — must include `{recipient}`.
+const DIALOGUE_FURNITURE := &"nook_job_furniture"
+const DIALOGUE_FURNITURE_HINT := &"nook_job_furniture_hint"
+const DIALOGUE_LETTER := &"nook_job_letter"
+const DIALOGUE_LETTER_HINT := &"nook_job_letter_hint"
+const DIALOGUE_CARPET := &"nook_job_carpet"
+const DIALOGUE_CARPET_HINT := &"nook_job_carpet_hint"
+const DIALOGUE_AXE := &"nook_job_axe"
+const DIALOGUE_AXE_HINT := &"nook_job_axe_hint"
 ## Progress: 0 finished, 2 active, 3 letter mailed (`mQst_base_c.progress`).
 const PROGRESS_DONE := 0
 const PROGRESS_ACTIVE := 2
@@ -482,15 +491,15 @@ func prompt_for_kind() -> String:
 		Kind.INTRODUCTIONS:
 			return "Meet the villagers and Tortimer"
 		Kind.DELIVER_FTR:
-			return "Deliver furniture to %s" % _recipient_name()
+			return "Deliver furniture to %s" % recipient_name()
 		Kind.SEND_LETTER, Kind.SEND_LETTER2:
-			return "Mail a letter to %s" % _recipient_name()
+			return "Mail a letter to %s" % recipient_name()
 		Kind.OPEN:
 			return "Talk to a villager about helping out"
 		Kind.DELIVER_CARPET:
-			return "Deliver carpet to %s" % _recipient_name()
+			return "Deliver carpet to %s" % recipient_name()
 		Kind.DELIVER_AXE, Kind.DELIVER_AXE2:
-			return "Deliver an axe to %s" % _recipient_name()
+			return "Deliver an axe to %s" % recipient_name()
 		Kind.POST_NOTICE:
 			return "Post a notice on a town sign"
 		_:
@@ -575,13 +584,72 @@ func _tick_introductions() -> void:
 		changed.emit()
 
 
-func _recipient_name() -> String:
+func recipient_name() -> String:
+	## Display name for the active delivery / letter target.
 	if recipient_id == &"":
 		return "a villager"
 	var data: VillagerData = VillagerCatalog.get_villager(recipient_id)
 	if data != null and data.display_name != "":
 		return data.display_name
 	return String(recipient_id)
+
+
+func needs_named_recipient() -> bool:
+	## Delivery / letter chores must name the target in assign + hint talk.
+	return _is_delivery_kind() or _is_letter_kind()
+
+
+static func recipient_dialogue_ids() -> Array[StringName]:
+	return [
+		DIALOGUE_FURNITURE,
+		DIALOGUE_FURNITURE_HINT,
+		DIALOGUE_LETTER,
+		DIALOGUE_LETTER_HINT,
+		DIALOGUE_CARPET,
+		DIALOGUE_CARPET_HINT,
+		DIALOGUE_AXE,
+		DIALOGUE_AXE_HINT,
+	]
+
+
+static func dialogue_names_recipient(data: DialogueData) -> bool:
+	## True when some line/prompt still has the `{recipient}` placeholder.
+	if data == null:
+		return false
+	data.ensure_loaded()
+	for nid: Variant in data.nodes.keys():
+		var rec: Variant = data.nodes[nid]
+		if typeof(rec) != TYPE_DICTIONARY:
+			continue
+		var row: Dictionary = rec
+		for field: String in ["text", "prompt"]:
+			if str(row.get(field, "")).contains("{recipient}"):
+				return true
+	return false
+
+
+static func ensure_dialogue_names_recipient(
+	data: DialogueData, report: bool = true
+) -> DialogueData:
+	## Guardrail: assign/hint graphs must name the target; replace if authored poorly.
+	if dialogue_names_recipient(data):
+		return data
+	if report:
+		var id_label: String = String(data.id) if data != null else ""
+		push_error(
+			"FirstJob: dialogue '%s' is missing {recipient}; using fallback line." % id_label
+		)
+	return DialogueData.from_dict({
+		"id": "nook_job_recipient_fallback",
+		"speaker_id": "tom_nook",
+		"start": "start",
+		"nodes": {
+			"start": {
+				"type": "line",
+				"text": "Please take this to {recipient}.",
+			},
+		},
+	})
 
 
 func _is_delivery_kind() -> bool:

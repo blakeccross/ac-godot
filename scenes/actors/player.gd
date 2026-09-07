@@ -564,16 +564,13 @@ func _update_animation(delta: float) -> void:
 
 
 func _update_footprints(delta: float, bg: Array) -> void:
-	## `Player_actor_Set_FootMark_MarkOnly`: one print per foot, alternating, on the gait
-	## clip's foot-down frames. Our generated clips carry no frame tags, so the cadence
-	## comes from the clip rate instead — same time between steps, so tracks still spread
-	## out as the gait speeds up.
+	## `Player_actor_Set_FootMark_MarkOnly` + `Player_actor_sound_FootStep2`: one print and
+	## footstep SE per foot on the gait cadence. Clips lack frame tags, so period comes
+	## from clip rate — same time between steps, tracks still spread as gait speeds up.
+	## SE fires even when the surface cannot hold a mark (stone / soil / wood / indoors).
 	var gait: PlayerLocomotion.Gait = _motor.gait()
 	if bg.size() != 2 or _busy or gait == PlayerLocomotion.Gait.WAIT:
 		_step_time = 0.0
-		return
-	var marks: Node = get_tree().get_first_node_in_group("footprints")
-	if marks == null or not marks.has_method("spawn"):
 		return
 	_step_time += delta
 	var period: float = FootprintMarks.step_period(_anim_speed(gait))
@@ -585,13 +582,20 @@ func _update_footprints(delta: float, bg: Array) -> void:
 	var grid := bg[1] as WorldGrid
 	var season: Clock.Season = Clock.season()
 	var attr: int = FieldCollision.unit_attr_at(data, grid, global_position)
+	var terrain: WorldGrid.Terrain = data.terrain_at(grid.world_to_cell(global_position))
+	var indoors: bool = Game.is_indoors()
+	FootstepSe.play_at(self, attr, terrain, season, gait, indoors)
+	if indoors:
+		return
+	var marks: Node = get_tree().get_first_node_in_group("footprints")
+	if marks == null or not marks.has_method("spawn"):
+		return
 	var snow: bool
 	if attr >= 0:
 		if not FootprintMarks.marks_attr(attr, season):
 			return
 		snow = FootprintMarks.is_snow_mark(attr)
 	else:
-		var terrain: WorldGrid.Terrain = data.terrain_at(grid.world_to_cell(global_position))
 		if not FootprintMarks.marks_terrain(terrain, season):
 			return
 		snow = terrain != WorldGrid.Terrain.SAND
@@ -850,6 +854,7 @@ func _play_action(clip_name: StringName, effect_frame: float = -1.0) -> float:
 	_anim.speed_scale = 1.0
 	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_use_anim, false)
 	_anim.play(clip, 0.08)
+	PlayerSe.schedule_clip(self, clip_name)
 	if effect_frame < 0.0:
 		await _anim.animation_finished
 		HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)
@@ -1087,6 +1092,7 @@ func _play_clip(clip_name: StringName, tool_clip: StringName) -> void:
 	_anim.speed_scale = 1.0
 	HeldTool.play(HeldTool.find_skeleton(_mesh), tool_clip, false)
 	_anim.play(clip, 0.08)
+	PlayerSe.schedule_clip(self, clip_name)
 	await _anim.animation_finished
 	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)
 

@@ -34,12 +34,14 @@ static func field_action(ctx: InteractionContext) -> Interaction:
 	var prompt: String = tool.field_prompt
 	if prompt.is_empty():
 		prompt = tool.display_name
-	## The cast is the one field verb whose effect lands mid-swing rather than after it.
 	var effect_frame: float = -1.0
 	if tool.field_verb == Interaction.CAST:
 		effect_frame = Fishing.CAST_RELEASE_FRAME
 	elif tool.field_verb == Interaction.SWING_NET:
 		effect_frame = Netting.SWING_CATCH_FRAME
+	elif tool.field_verb == Interaction.DIG:
+		## Scoop dig SE / hole write at frame 15 (`Player_actor_SetSound_Dig_scoop`).
+		effect_frame = 15.0
 	return Interaction.of(
 		tool.field_verb, prompt, tool.field_priority, tool.field_anim, effect_frame
 	)
@@ -72,6 +74,8 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 		return false
 	if tool.field_require == ToolData.FieldRequire.EMPTY_GROUND:
 		if not HoleUse.dig(ctx, facing_cell(ctx)):
+			var actor: Node = ctx.actor if ctx != null else null
+			PlayerSe.karaburi(actor if actor != null else null)
 			return false
 	if tool.field_notice != "" and tool.field_verb != Interaction.SWING_NET:
 		Game.post_notice(tool.field_notice)
@@ -109,6 +113,9 @@ static func _apply_net(tool: ToolData, action: Interaction, ctx: InteractionCont
 		Game.post_notice("You swung the net, but didn't catch anything!")
 	elif out.pockets_full:
 		Game.post_notice("Your pockets are full!")
+	elif out.caught():
+		var actor: Node = ctx.actor if ctx != null else null
+		PlayerSe.net_get(actor if actor != null else null)
 	return true
 
 

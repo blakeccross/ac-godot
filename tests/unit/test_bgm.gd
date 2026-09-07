@@ -5,11 +5,13 @@ extends GdUnitTestSuite
 func before_test() -> void:
 	BgmCatalog.reset()
 	Audio.fade_sec = 0.0
+	Audio.set_ttkk_arm(false)
 	Audio.stop_bgm()
 
 
 func after_test() -> void:
 	Audio.stop_bgm()
+	Audio.set_ttkk_arm(false)
 	Audio.fade_sec = Audio.FADE_SEC
 	BgmCatalog.reset()
 
@@ -58,3 +60,25 @@ func test_registered_stream_plays() -> void:
 	assert_that(Audio.current_id).is_equal(&"title")
 	Audio.stop_bgm()
 	assert_that(Audio.current_id).is_equal(&"")
+
+
+func test_ttkk_arm_mutes_guitar_stem() -> void:
+	var bed := AudioStreamWAV.new()
+	bed.format = AudioStreamWAV.FORMAT_8_BITS
+	bed.mix_rate = 22050
+	bed.data = PackedByteArray([0, 0, 0, 0])
+	var arm := AudioStreamWAV.new()
+	arm.format = AudioStreamWAV.FORMAT_8_BITS
+	arm.mix_rate = 22050
+	arm.data = PackedByteArray([0, 0, 0, 0])
+	BgmCatalog.register_stream(&"intro_kk", bed)
+	BgmCatalog.register_arm_stream(&"intro_kk", arm)
+	Audio.set_ttkk_arm(false)
+	Audio.play_bgm(&"intro_kk")
+	assert_that(Audio.current_id).is_equal(&"intro_kk")
+	assert_bool(Audio.arm_muted).is_false()
+	Audio.set_ttkk_arm(true)
+	assert_bool(Audio.arm_muted).is_true()
+	Audio.set_ttkk_arm(false)
+	assert_bool(Audio.arm_muted).is_false()
+	Audio.stop_bgm()

@@ -143,12 +143,12 @@ class TexSpec:
 # Window chrome used by mIV_set_*_frame_dl / inv_mwin_model.
 # `out_name` is the Godot-facing stem under ui/inventory/.
 CHROME: list[TexSpec] = [
-    TexSpec("inv_mwin_w1_tex_rgb_ci4", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_w1_tex_rgb_ci4_pal", out_name="frame_w1", native_only=True),
-    TexSpec("inv_mwin_w2_tex_rgb_ci4", 32, 64, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_w2_tex_rgb_ci4_pal", out_name="frame_w2", native_only=True),
-    TexSpec("inv_mwin_w3_tex_rgb_ci4", 64, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_w3_tex_rgb_ci4_pal", out_name="frame_w3", native_only=True),
-    TexSpec("inv_mwin_w4_tex_rgb_ci4", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_w4_tex_rgb_ci4_pal", out_name="frame_w4", native_only=True),
-    TexSpec("inv_mwin_w5_tex_rgb_ci4", 16, 16, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_w1_tex_rgb_ci4_pal", out_name="frame_w5", native_only=True),
-    TexSpec("inv_mwin_w6_tex_rgb_ci4", 32, 64, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_w6_tex_rgb_ci4_pal", out_name="frame_w6", native_only=True),
+    TexSpec("inv_mwin_w1_tex_rgb_ci4", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_w1_tex_rgb_ci4_pal", out_name="frame_w1"),
+    TexSpec("inv_mwin_w2_tex_rgb_ci4", 32, 64, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_w2_tex_rgb_ci4_pal", out_name="frame_w2"),
+    TexSpec("inv_mwin_w3_tex_rgb_ci4", 64, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_w3_tex_rgb_ci4_pal", out_name="frame_w3"),
+    TexSpec("inv_mwin_w4_tex_rgb_ci4", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_w4_tex_rgb_ci4_pal", out_name="frame_w4"),
+    TexSpec("inv_mwin_w5_tex_rgb_ci4", 16, 16, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_w1_tex_rgb_ci4_pal", out_name="frame_w5"),
+    TexSpec("inv_mwin_w6_tex_rgb_ci4", 32, 64, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_w6_tex_rgb_ci4_pal", out_name="frame_w6"),
     TexSpec(
         "inv_mwin_nwaku_tex",
         32,
@@ -157,7 +157,6 @@ CHROME: list[TexSpec] = [
         G_IM_SIZ_8b,
         env_preview=(100, 100, 255, 255),
         out_name="slot_ring",
-        native_only=True,
     ),
     TexSpec(
         "inv_mwin_items_tex",
@@ -186,8 +185,8 @@ CHROME: list[TexSpec] = [
         prim_as_color=(70, 160, 190, 255),
         out_name="bells_label",
     ),
-    TexSpec("inv_mwin_suujiwaku1_tex", 16, 32, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="bells_frame", native_only=True),
-    TexSpec("inv_mwin_suujiwaku2_tex", 16, 32, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="bells_frame2", native_only=True),
+    TexSpec("inv_mwin_suujiwaku1_tex", 16, 32, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="bells_frame"),
+    TexSpec("inv_mwin_suujiwaku2_tex", 16, 32, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="bells_frame2"),
     TexSpec(
         "inv_mwin_3Dma_tex",
         64,
@@ -196,7 +195,6 @@ CHROME: list[TexSpec] = [
         G_IM_SIZ_4b,
         prim_as_color=(100, 155, 255, 255),
         out_name="portrait_frame",
-        native_only=True,
     ),
     TexSpec("inv_mwin_shirushi4_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(100, 80, 100, 255)),
     TexSpec("inv_original_shirushi_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(75, 50, 40, 255)),
@@ -209,7 +207,6 @@ CHROME: list[TexSpec] = [
         G_IM_SIZ_4b,
         prim_as_color=(70, 170, 255, 200),
         out_name="name_bar",
-        native_only=True,
     ),
     TexSpec(
         "inv_mwin_sen2_tex",
@@ -219,7 +216,6 @@ CHROME: list[TexSpec] = [
         G_IM_SIZ_4b,
         prim_as_color=(70, 170, 255, 200),
         out_name="name_bar2",
-        native_only=True,
     ),
     TexSpec("originl", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, out_name="inv_mwin_originl"),
     TexSpec("original2", 32, 64, G_IM_FMT_I, G_IM_SIZ_4b, out_name="inv_mwin_original2"),
@@ -312,7 +308,7 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
     if paper is not None:
         results.append(paper)
 
-    shell = _bake_inventory_window_shell(rel, by_name, stage_dir, out_dir, project_root)
+    shell = _bake_inventory_window_shell(rel, by_name, stage_dir, out_dir, project_root, achd=achd)
     results.append(shell["record"])
     catalog_path = shell.get("catalog_path")
 
@@ -374,11 +370,9 @@ def _extract_one(
             pal_sym = _pick_symbol(by_name, spec.pal)
             pal = rel.slice_at(pal_sym.address, min(pal_sym.size, 512))
         gx = gbi_to_gx(spec.fmt, spec.siz)
-        ## `inv_mwin_nwaku_tex` is IA8; gbi_to_gx maps SIZ_8b→IA4 and false-hits ACHD.
-        ## Keep slot rings on the native IA decode + env tint.
-        skip_achd = force_env or spec.name == "inv_mwin_nwaku_tex" or spec.native_only
+        ## Prefer ACHD for chrome; `native_only` remains for rare false-hits.
         hd = None
-        if not skip_achd:
+        if not spec.native_only:
             hd = maybe_hd_png(
                 achd,
                 data,
@@ -398,11 +392,12 @@ def _extract_one(
         if spec.prim_as_color is not None and not force_env:
             ## ACHD I4 labels are often white-on-black; same combiner as native.
             image = _i_texel_as_alpha(image, spec.prim_as_color)
-        ## Slot ring + player frame are GX_MIRROR quadrants — expand to a full circle.
-        if force_env or spec.out_name in ("slot_ring", "portrait_frame"):
-            image = _mirror_tile(image)
+        ## Env tint the IA quadrant first (native ST / rim calibrated for one sheet),
+        ## then GX_MIRROR to a full ring — faster and sharper at ACHD sizes.
         if force_env and spec.env_preview is not None:
             image = _ia_env_preview(image, spec.env_preview)
+        if force_env or spec.out_name in ("slot_ring", "portrait_frame"):
+            image = _mirror_tile(image)
         png = image_png_bytes(image)
         for folder in (stage_dir, out_dir):
             path = folder / f"{out_stem}.png"
@@ -441,6 +436,9 @@ def _ia_env_preview(image: Image.Image, env: tuple[int, int, int, int]) -> Image
     rgba = image.convert("RGBA")
     w, h = rgba.size
     src = rgba.load()
+    ## Rim thickness scales with sheet size (native quadrant 32 → radius 3).
+    rim_r = max(3, int(round(3.0 * max(w, h) / 32.0)))
+    rim_r2 = rim_r * rim_r
     # First pass: classify pixels.
     kind = [[0] * w for _ in range(h)]  # 0 outside, 1 fill, 2 edge
     for y in range(h):
@@ -449,15 +447,15 @@ def _ia_env_preview(image: Image.Image, env: tuple[int, int, int, int]) -> Image
             if alpha <= 0 or intensity >= 170:
                 continue
             kind[y][x] = 1 if intensity <= 24 else 2
-    # Dilate fill→edge contact into a thicker rim (WW rings are ~3–4px).
+    # Dilate fill→edge contact into a thicker rim (WW rings are ~3–4px @ native).
     rim_mask = [[False] * w for _ in range(h)]
     for y in range(h):
         for x in range(w):
             if kind[y][x] != 1:
                 continue
-            for dy in range(-3, 4):
-                for dx in range(-3, 4):
-                    if dx * dx + dy * dy > 10:
+            for dy in range(-rim_r, rim_r + 1):
+                for dx in range(-rim_r, rim_r + 1):
+                    if dx * dx + dy * dy > rim_r2:
                         continue
                     nx, ny = x + dx, y + dy
                     if nx < 0 or ny < 0 or nx >= w or ny >= h:
@@ -913,8 +911,11 @@ def _soft_white_rim(shell: Image.Image, inner: int = 3, outer: int = 5) -> None:
             px[x, y] = (255, 255, 255, max(px[x, y][3], a))
 
 
-def _decode_border_tiles(rel: RelData, by_name: dict[str, list[MapSymbol]]) -> dict[str, Image.Image]:
-    tiles: dict[str, Image.Image] = {}
+def _decode_border_tiles(
+    rel: RelData, by_name: dict[str, list[MapSymbol]], *, achd=None
+) -> dict[str, tuple[Image.Image, tuple[int, int]]]:
+    """Return stem → (sheet, native_size). ST from `inv_mwin_v` is in native space."""
+    tiles: dict[str, tuple[Image.Image, tuple[int, int]]] = {}
     frame_specs = [s for s in CHROME if s.out_name and s.out_name.startswith("frame_w")]
     for spec in frame_specs:
         stem = spec.out_name or spec.name
@@ -924,7 +925,26 @@ def _decode_border_tiles(rel: RelData, by_name: dict[str, list[MapSymbol]]) -> d
         if spec.pal:
             pal_sym = _pick_symbol(by_name, spec.pal)
             pal = rel.slice_at(pal_sym.address, min(pal_sym.size, 512))
-        tiles[stem] = decode_gbi_texture(data, spec.width, spec.height, spec.fmt, spec.siz, pal).convert("RGBA")
+        gx = gbi_to_gx(spec.fmt, spec.siz)
+        hd = None
+        if not spec.native_only:
+            hd = maybe_hd_png(
+                achd,
+                data,
+                spec.width,
+                spec.height,
+                gx,
+                pal if spec.fmt == G_IM_FMT_CI else None,
+                wrap_s=GX_CLAMP,
+                wrap_t=GX_CLAMP,
+            )
+        if hd is not None:
+            image = Image.open(BytesIO(hd)).convert("RGBA")
+        else:
+            image = decode_gbi_texture(
+                data, spec.width, spec.height, spec.fmt, spec.siz, pal
+            ).convert("RGBA")
+        tiles[stem] = (image, (spec.width, spec.height))
     return tiles
 
 
@@ -934,6 +954,8 @@ def _bake_inventory_window_shell(
     stage_dir: Path,
     out_dir: Path,
     project_root: Path,
+    *,
+    achd=None,
 ) -> dict[str, Any]:
     record: dict[str, Any] = {
         "asset_id": "window_shell",
@@ -961,7 +983,8 @@ def _bake_inventory_window_shell(
             raise FileNotFoundError("paper.png missing (run paper copy first)")
         paper = Image.open(paper_path).convert("RGBA")
 
-        borders = _decode_border_tiles(rel, by_name)
+        borders = _decode_border_tiles(rel, by_name, achd=achd)
+        used_achd = any(img.size != native for img, native in borders.values())
 
         shell = Image.new("RGBA", (width, height), (0, 0, 0, 0))
         ox, oy = _SHELL_ORIGIN
@@ -970,8 +993,14 @@ def _bake_inventory_window_shell(
         def to_px(v) -> tuple[float, float]:
             return ((float(v.x) - ox) * scale, (oy - float(v.y)) * scale)
 
+        def scale_st(v, native: tuple[int, int], tex: Image.Image) -> tuple[float, float]:
+            nw, nh = native
+            sx = tex.size[0] / float(nw) if nw else 1.0
+            sy = tex.size[1] / float(nh) if nh else 1.0
+            return (v.s * sx, v.t * sy)
+
         for vtx_base, stem, tris in _BORDER_PIECES:
-            border = borders[stem]
+            border, native = borders[stem]
             batch = verts[vtx_base : vtx_base + 4]
             if len(batch) < 4:
                 raise ValueError(f"vtx batch @ {vtx_base} too short")
@@ -984,9 +1013,9 @@ def _bake_inventory_window_shell(
                     to_px(v0),
                     to_px(v1),
                     to_px(v2),
-                    (v0.s, v0.t),
-                    (v1.s, v1.t),
-                    (v2.s, v2.t),
+                    scale_st(v0, native, border),
+                    scale_st(v1, native, border),
+                    scale_st(v2, native, border),
                 )
 
         # 1cT I4 rim deferred: offline raster of those batches floods interior
@@ -1020,6 +1049,7 @@ def _bake_inventory_window_shell(
             "bake_scale": _BAKE_SCALE,
             "ssaa": ssaa,
             "alpha_bbox": alpha_bbox,
+            "achd": used_achd,
         }
     except Exception as exc:  # noqa: BLE001
         record["status"] = "error"
@@ -1029,8 +1059,8 @@ def _bake_inventory_window_shell(
     return {
         "record": record,
         "catalog_path": catalog_path,
-        "width": width if record["status"] == "converted" else None,
-        "height": height if record["status"] == "converted" else None,
+        "width": out_w if record["status"] == "converted" else None,
+        "height": out_h if record["status"] == "converted" else None,
         "alpha_bbox": alpha_bbox,
     }
 

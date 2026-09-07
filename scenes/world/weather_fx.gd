@@ -92,15 +92,18 @@ func _ready() -> void:
 	if not Game.weather_changed.is_connected(_on_weather_changed):
 		Game.weather_changed.connect(_on_weather_changed)
 	_sync_from_game()
+	_sync_rain_se()
 
 
 func _exit_tree() -> void:
 	if Game.weather_changed.is_connected(_on_weather_changed):
 		Game.weather_changed.disconnect(_on_weather_changed)
+	Audio.stop_syslev()
 
 
 func _on_weather_changed(_weather: StringName) -> void:
 	_sync_from_game()
+	_sync_rain_se()
 
 
 func _sync_from_game() -> void:
@@ -108,6 +111,11 @@ func _sync_from_game() -> void:
 	_intensity = Game.weather_intensity as Weather.Intensity
 	if _kind == Weather.Kind.CLEAR or _intensity == Weather.Intensity.NONE:
 		_clear_pool()
+
+
+func _sync_rain_se() -> void:
+	## `aWeather_ChangeEnvSE` SysLev 7/8/9. Outdoor only.
+	Audio.sync_rain_syslev(_kind, _intensity, Game.is_indoors())
 
 
 func _setup_meshes() -> void:
@@ -583,6 +591,7 @@ func _tick_lightning(delta: float) -> void:
 		return
 	_lightning_left = 0.12
 	_lightning_cooldown = _rng.randf_range(4.0, 12.0)
+	Audio.play_se(&"424")
 	_apply_lightning(true)
 
 

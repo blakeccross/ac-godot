@@ -2,7 +2,7 @@ class_name HandOver
 extends RefCounted
 
 ## NPC ↔ player item hand-off (`handOverItem` / `aNPC_ANIM_TRANSFER*` / `GET*`).
-## Plays body clips; full floating item actor waits. Used by first-job gifts and deliveries.
+## Body clips plus the floating `obj_item_*` card (`HandOverItem` / `aHOI_actor_*`).
 
 const NPC_TRANSFER := "npc_1_transfer1"
 const NPC_TRANS_WAIT := "npc_1_trans_wait1"
@@ -21,7 +21,7 @@ const TRANS_WAIT_HOLD := 0.35
 
 
 ## NPC hands an item to the player (`aNPC_DEMO_GIVE_ITEM` / first-job gifts).
-static func npc_gives_to_player(npc: Node3D, player: Node3D, _item_id: StringName = &"") -> void:
+static func npc_gives_to_player(npc: Node3D, player: Node3D, item_id: StringName = &"") -> void:
 	if npc == null or player == null:
 		return
 	var tree: SceneTree = npc.get_tree()
@@ -29,6 +29,10 @@ static func npc_gives_to_player(npc: Node3D, player: Node3D, _item_id: StringNam
 		return
 	_face_each_other(npc, player)
 	var locked: bool = _lock_player(player)
+	var prop: HandOverItem = _spawn_prop(npc, item_id)
+	if prop != null:
+		prop.set_master(npc)
+		prop.begin_mode(HandOverItem.Mode.TRANSFER)
 	await _play_pair(
 		npc,
 		[NPC_TRANSFER],
@@ -37,15 +41,22 @@ static func npc_gives_to_player(npc: Node3D, player: Node3D, _item_id: StringNam
 		tree
 	)
 	## Brief hold while both keep the offer / take pose.
+	if prop != null and is_instance_valid(prop):
+		prop.begin_mode(HandOverItem.Mode.TRANS_WAIT)
 	await _hold_pair(npc, NPC_TRANS_WAIT, player, PLY_GET_PULL, tree, TRANS_WAIT_HOLD)
+	## Master switches to the player for putaway (`aHOI_chg_master_proc`).
+	if prop != null and is_instance_valid(prop):
+		prop.set_master(player, true)
+		prop.begin_mode(HandOverItem.Mode.PUTAWAY)
 	await _play_one(player, [PLY_GET_PUTAWAY], tree)
+	_free_prop(prop)
 	_idle(npc)
 	_idle(player)
 	_unlock_player(player, locked)
 
 
 ## Player hands an item to an NPC (first-job QUEST delivery).
-static func player_gives_to_npc(player: Node3D, npc: Node3D, _item_id: StringName = &"") -> void:
+static func player_gives_to_npc(player: Node3D, npc: Node3D, item_id: StringName = &"") -> void:
 	if npc == null or player == null:
 		return
 	var tree: SceneTree = player.get_tree()
@@ -53,6 +64,10 @@ static func player_gives_to_npc(player: Node3D, npc: Node3D, _item_id: StringNam
 		return
 	_face_each_other(npc, player)
 	var locked: bool = _lock_player(player)
+	var prop: HandOverItem = _spawn_prop(player, item_id)
+	if prop != null:
+		prop.set_master(player)
+		prop.begin_mode(HandOverItem.Mode.TRANSFER)
 	await _play_pair(
 		player,
 		[PLY_TRANSFER],
@@ -60,8 +75,14 @@ static func player_gives_to_npc(player: Node3D, npc: Node3D, _item_id: StringNam
 		[NPC_GET_PULL, NPC_GET],
 		tree
 	)
+	if prop != null and is_instance_valid(prop):
+		prop.begin_mode(HandOverItem.Mode.TRANS_WAIT)
 	await _hold_pair(player, PLY_TRANS_WAIT, npc, NPC_GET_PULL, tree, TRANS_WAIT_HOLD)
+	if prop != null and is_instance_valid(prop):
+		prop.set_master(npc, true)
+		prop.begin_mode(HandOverItem.Mode.PUTAWAY)
 	await _play_one(npc, [NPC_GET_PUTAWAY], tree)
+	_free_prop(prop)
 	_idle(npc)
 	_idle(player)
 	_unlock_player(player, locked)
@@ -74,6 +95,20 @@ static func has_npc_transfer(npc: Node3D) -> bool:
 static func has_player_receive(player: Node3D) -> bool:
 	var ap: AnimationPlayer = _anim_player(player)
 	return _resolve(ap, PLY_GET_PULL) != "" or _resolve(ap, PLY_GET) != ""
+
+
+static func _spawn_prop(host: Node3D, item_id: StringName) -> HandOverItem:
+	if host == null or item_id == &"":
+		return null
+	var parent: Node = host.get_tree().current_scene if host.get_tree() != null else host
+	if parent == null:
+		parent = host
+	return HandOverItem.spawn(parent, item_id)
+
+
+static func _free_prop(prop: HandOverItem) -> void:
+	if prop != null and is_instance_valid(prop):
+		prop.finish()
 
 
 static func _play_pair(

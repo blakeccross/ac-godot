@@ -223,6 +223,10 @@ static func tick(delta: float, school: FishSchool = null) -> void:
 			_state = State.FLOAT
 			## `uki->hit_water_flag`: one frame of splash, which nearby fish react to.
 			_splash_pending = true
+			if _bobber != null and is_instance_valid(_bobber):
+				PlayerSe.bobber_splash(_bobber)
+			elif _actor != null and is_instance_valid(_actor):
+				PlayerSe.bobber_splash(_actor)
 		return
 	if school == null:
 		return

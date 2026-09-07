@@ -8,7 +8,9 @@ const TILES_DIR := "res://assets/generated/ui/map/tiles"
 const CHROME_DIR := "res://assets/generated/ui/map/chrome"
 const CATALOG_PATH := "res://assets/generated/ui/map/catalog.json"
 
-## Display size of one acre tile. Native drawn region is 22×22 (`kan_tizu` UVs).
+## Display size of one acre tile. Native drawn region is 22×22 (`kan_tizu` UVs);
+## ACHD exports scale that crop (e.g. 176×176). `compose_fg_texture` uses the
+## actual PNG size from catalog / first tile.
 const TILE_PX := 75
 const NATIVE_TILE_PX := 22
 const CURSOR_FRAMES := 18
@@ -17,10 +19,22 @@ const CURSOR_FRAMES := 18
 static var _stems: PackedStringArray = PackedStringArray()
 static var _pals: PackedByteArray = PackedByteArray()
 static var _tex_cache: Dictionary = {}
+static var _catalog_tile_px: int = 0
 
 
 static func assets_ready() -> bool:
 	return ResourceLoader.exists(TILES_DIR + "/f_p0.png")
+
+
+static func tile_pixel_size() -> int:
+	ensure_tables()
+	if _catalog_tile_px > 0:
+		return _catalog_tile_px
+	var sample: Image = _tile_image(TownFieldGenerator.T_FLAT)
+	if sample != null and sample.get_width() > 0:
+		_catalog_tile_px = sample.get_width()
+		return _catalog_tile_px
+	return NATIVE_TILE_PX
 
 
 static func ensure_tables() -> void:
@@ -33,6 +47,9 @@ static func ensure_tables() -> void:
 			if typeof(parsed) == TYPE_DICTIONARY:
 				var stems: Variant = parsed.get("block_stems", [])
 				var pals: Variant = parsed.get("block_pals", [])
+				var catalog_px: Variant = parsed.get("tile_px", 0)
+				if typeof(catalog_px) == TYPE_FLOAT or typeof(catalog_px) == TYPE_INT:
+					_catalog_tile_px = maxi(int(catalog_px), 0)
 				if stems is Array and pals is Array and stems.size() == pals.size():
 					for s: Variant in stems:
 						_stems.append(str(s))
@@ -100,15 +117,19 @@ static func compose_fg_texture(types: PackedByteArray) -> Texture2D:
 	var expected: int = cols * rows
 	if types.size() != expected:
 		return null
-	var img := Image.create(cols * NATIVE_TILE_PX, rows * NATIVE_TILE_PX, false, Image.FORMAT_RGBA8)
+	var tile_px: int = tile_pixel_size()
+	var img := Image.create(cols * tile_px, rows * tile_px, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0.45, 0.75, 0.4, 1))
 	for i: int in expected:
 		var src: Image = _tile_image(int(types[i]))
 		if src == null:
 			continue
-		var x: int = (i % cols) * NATIVE_TILE_PX
-		var y: int = int(i / cols) * NATIVE_TILE_PX
-		img.blit_rect(src, Rect2i(0, 0, mini(NATIVE_TILE_PX, src.get_width()), mini(NATIVE_TILE_PX, src.get_height())), Vector2i(x, y))
+		if src.get_width() != tile_px or src.get_height() != tile_px:
+			src = src.duplicate()
+			src.resize(tile_px, tile_px, Image.INTERPOLATE_BILINEAR)
+		var x: int = (i % cols) * tile_px
+		var y: int = int(i / cols) * tile_px
+		img.blit_rect(src, Rect2i(0, 0, tile_px, tile_px), Vector2i(x, y))
 	return ImageTexture.create_from_image(img)
 
 

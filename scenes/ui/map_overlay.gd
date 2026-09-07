@@ -69,6 +69,7 @@ func open() -> void:
 	_sel = _player_fg if _player_fg.x >= 0 else Vector2i.ZERO
 	_cursor_frame = 0
 	_open = true
+	Audio.play_se(&"17c")
 	_root.visible = true
 	_refresh()
 
@@ -76,6 +77,7 @@ func open() -> void:
 func close() -> void:
 	if not _open:
 		return
+	Audio.play_se(&"17d")
 	_open = false
 	_root.visible = false
 
@@ -256,8 +258,14 @@ func _resolve_player_fg() -> Vector2i:
 
 
 func _move_sel(dx: int, dy: int) -> void:
-	_sel.x = clampi(_sel.x + dx, 0, TownFieldGenerator.FG_X_NUM - 1)
-	_sel.y = clampi(_sel.y + dy, 0, TownFieldGenerator.FG_Z_NUM - 1)
+	var next := Vector2i(
+		clampi(_sel.x + dx, 0, TownFieldGenerator.FG_X_NUM - 1),
+		clampi(_sel.y + dy, 0, TownFieldGenerator.FG_Z_NUM - 1)
+	)
+	if next == _sel:
+		return
+	_sel = next
+	Audio.play_se(&"cursol")
 	_refresh_selection()
 
 

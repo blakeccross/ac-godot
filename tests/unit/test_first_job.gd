@@ -118,6 +118,40 @@ func test_job_dialogue_authored() -> void:
 		assert_that(DialogueCatalog.conversation(id)).is_not_null()
 
 
+func test_delivery_dialogue_names_recipient() -> void:
+	## Every assign / hint graph must keep `{recipient}` so Tom Nook names the target.
+	Game.villagers.get_or_create(&"filbert")
+	var job: FirstJob = Game.first_job
+	assert_bool(job.setup_deliver_furniture(Game.inventory)).is_true()
+	assert_bool(job.needs_named_recipient()).is_true()
+	var who: String = job.recipient_name()
+	assert_str(who).is_not_equal("")
+	assert_str(who).is_not_equal("a villager")
+	var ctx := DialogueContext.new()
+	ctx.recipient = who
+	var ids: Array[StringName] = FirstJob.recipient_dialogue_ids()
+	assert_int(ids.size()).is_equal(8)
+	for id: StringName in ids:
+		var data: DialogueData = DialogueCatalog.conversation(id)
+		assert_that(data).override_failure_message("missing %s" % String(id)).is_not_null()
+		assert_bool(FirstJob.dialogue_names_recipient(data)).override_failure_message(
+			"%s must include {recipient}" % String(id)
+		).is_true()
+		var text: String = ctx.substitute(str(data.node(&"start").get("text", "")))
+		assert_str(text).contains(who)
+		assert_str(text).not_contains("{recipient}")
+	## Broken authored line is replaced so the player still hears a name.
+	var broken := DialogueData.from_dict({
+		"id": String(FirstJob.DIALOGUE_FURNITURE),
+		"start": "start",
+		"nodes": {"start": {"type": "line", "text": "Deliver this. Don't open it!"}},
+	})
+	assert_bool(FirstJob.dialogue_names_recipient(broken)).is_false()
+	var fixed: DialogueData = FirstJob.ensure_dialogue_names_recipient(broken, false)
+	assert_bool(FirstJob.dialogue_names_recipient(fixed)).is_true()
+	assert_str(ctx.substitute(str(fixed.node(&"start").get("text", "")))).contains(who)
+
+
 func test_advance_plant_to_introductions() -> void:
 	var job: FirstJob = Game.first_job
 	job.setup_plant_flower()

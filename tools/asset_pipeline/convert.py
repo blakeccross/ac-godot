@@ -227,12 +227,15 @@ KANBAN_SIGN_GFX: dict[str, list[str]] = {
 
 ## Dropped FG item cards (`bg_item` / `handOverItem`). Vtx is `obj_item_*_v`; DLs are either a
 ## combined `*_modelT` or a `*_DL_mode` + `*_DL_vtx` pair (no `*_gfx_model` to infer).
+## Furniture gifts use the leaf card; wrapped presents use `present_DL_*`.
 ITEM_CARD_GFX: dict[str, list[str]] = {
     "obj_item_apple": ["obj_apple2_modelT"],
     "obj_item_pear": ["pear_DL_mode", "pear_DL_vtx"],
     "obj_item_peach": ["peach_DL_mode", "peach_DL_vtx"],
     "obj_item_orange": ["item_orange_modelT"],
     "obj_item_bag": ["bag_DL_mode", "bag_DL_vtx"],
+    "obj_item_leaf": ["leaf_DL_mode", "leaf_DL_vtx"],
+    "obj_item_present": ["present_DL_mode", "present_DL_vtx"],
 }
 
 ## Rain streaks / ground splash (`ac_weather_rain`). Texture + PRIM/ENV live on shared
@@ -1201,9 +1204,16 @@ def _png_record(
         gx = gbi_to_gx(fmt, siz)
         pack = _achd(cfg)
         hd = None
-        if pack is not None and not skips_achd_texture(source):
-            ## Bin exports lack wrap state — treat as REPEAT (exact-size HD only).
-            from .texbank import GX_REPEAT
+        from .achd import is_room_bank_texture
+
+        if (
+            pack is not None
+            and not skips_achd_texture(source)
+            and not is_room_bank_texture(source)
+        ):
+            ## Single-tile bank PNGs (shirts, faces) are not wrap-baked — use CLAMP
+            ## so ACHD keeps full resolution. Room banks stay native above.
+            from .texbank import GX_CLAMP
 
             hd = maybe_hd_png(
                 pack,
@@ -1212,8 +1222,8 @@ def _png_record(
                 height,
                 gx,
                 pal if fmt == G_IM_FMT_CI else None,
-                wrap_s=GX_REPEAT,
-                wrap_t=GX_REPEAT,
+                wrap_s=GX_CLAMP,
+                wrap_t=GX_CLAMP,
             )
         if hd is not None:
             dest.write_bytes(hd)

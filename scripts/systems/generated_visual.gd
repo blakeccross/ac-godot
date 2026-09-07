@@ -263,8 +263,16 @@ static func _apply_season_textures_inner(node: Node) -> void:
 				std = StandardMaterial3D.new()
 			var target: Vector2i = _albedo_size(std)
 			var clamp_v := _season_tile_clamp_v(role)
+			## Wrap-bake cell size from the atlas period (32 native / 128 capped ACHD).
+			## Season HD into a stale native 512² atlas must resize to 32 — using the
+			## 128 season sheet as the cell yields 4×4 tiles and 4× oversized grass.
+			var cell := 0
+			if target != Vector2i.ZERO and std.albedo_texture != null:
+				cell = _infer_atlas_tile_size(std.albedo_texture, 0)
 			std.albedo_texture = (
-				_tile_to_atlas(season_tex, target, false, clamp_v) if target != Vector2i.ZERO else season_tex
+				_tile_to_atlas(season_tex, target, false, clamp_v, cell)
+				if target != Vector2i.ZERO
+				else season_tex
 			)
 			std.albedo_color = Color.WHITE
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -861,15 +869,25 @@ static func _tile_to_atlas(
 	var src: Image = _texture_image(tile)
 	if src == null:
 		return tile
-	## Bank pages are 64×64. Some wrap-bake atlases used 128² cells (2× native / old ACHD).
-	## Prefer an explicit period from the destination atlas; else shrink HD to 64.
+	## Bank pages are 64×64. Field capped ACHD tiles are 128²; tree leaf/trunk may
+	## be full ACHD (512²). Only shrink when the season sheet is not an exact
+	## atlas cell (room wallpaper HD / stale pack mismatch).
 	const BANK_TILE := 64
 	var cell: int = tile_size
 	if cell <= 0:
+		var sw: int = src.get_width()
+		var sh: int = src.get_height()
+		var exact_cell := (
+			sw > 0
+			and sh > 0
+			and target.x % sw == 0
+			and target.y % sh == 0
+		)
 		if (
-			src.get_width() == src.get_height()
-			and src.get_width() > BANK_TILE
-			and (mirror_u or mirror_v or target.x < src.get_width() or target.y < src.get_height())
+			not exact_cell
+			and sw == sh
+			and sw > BANK_TILE
+			and (mirror_u or mirror_v or target.x < sw or target.y < sh)
 		):
 			cell = BANK_TILE
 		else:

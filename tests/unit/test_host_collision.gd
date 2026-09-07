@@ -115,6 +115,21 @@ func test_post_office_disables_physics() -> void:
 	assert_int(building.collision_layer).is_equal(0)
 
 
+func test_station_disables_physics_and_door() -> void:
+	## `ac_station` has no set_bgOffset / no indoor room — acre collision only.
+	var building: StaticBody3D = auto_free(load("res://scenes/world/building.tscn").instantiate()) as StaticBody3D
+	building.visual_id = &"obj_s_station1"
+	building.footprint = Vector2i(1, 1)
+	building.label = "Train Station"
+	add_child(building)
+	## queue_free runs next idle; flush so Door is gone before asserts.
+	await get_tree().process_frame
+	var col: CollisionShape3D = building.get_node("CollisionShape3D") as CollisionShape3D
+	assert_bool(col.disabled).is_true()
+	assert_int(building.collision_layer).is_equal(0)
+	assert_that(building.get_node_or_null("Door")).is_null()
+
+
 func test_tree_uses_a_cell_cylinder() -> void:
 	var tree: StaticBody3D = auto_free(load("res://scenes/world/tree.tscn").instantiate()) as StaticBody3D
 	add_child(tree)

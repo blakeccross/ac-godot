@@ -59,6 +59,12 @@ static func is_post_office(visual_id: StringName) -> bool:
 	return s.contains("yubinkyoku") or s.contains("post_office")
 
 
+static func is_station(visual_id: StringName) -> bool:
+	## Outdoor `obj_s_station1`…`3` / winter `obj_w_station*`. No indoor room —
+	## walk walls are baked into the station acre (`grd_s_t_st1_*`), not `set_bgOffset`.
+	return String(visual_id).contains("station")
+
+
 static func uses_structure_offset(visual_id: StringName) -> bool:
 	## Walk walls from `StructureOffset` plus-offsets — not a StaticBody hull.
 	return (
@@ -174,6 +180,12 @@ static func apply_house(host: Node3D, visual_id: StringName, occupancy: Vector2i
 
 static func apply_building(host: Node3D, visual_id: StringName, occupancy: Vector2i, cell_size: float) -> void:
 	## Public structures with `set_bgOffset` use the heightfield; others keep a box.
+	## Station has neither: acre `collision[]` already forms the walls (`ac_station` has
+	## no `set_bgOffset`, no `mFI_FIELD_ROOM_STATION`). Drop the placeholder hull + door.
+	if is_station(visual_id):
+		disable_body(host)
+		disable_door(host)
+		return
 	if (
 		is_museum(visual_id)
 		or is_able_sisters(visual_id)
@@ -197,6 +209,22 @@ static func apply_building(host: Node3D, visual_id: StringName, occupancy: Vecto
 			place_south_sensor(host, occupancy, cell_size)
 		return
 	apply_box(host, occupancy, cell_size)
+
+
+static func disable_door(host: Node3D) -> void:
+	## Station / non-enterable shells: remove the composed Door so no Enter prompt.
+	## Child `_ready` already joined `interactable` — clear that before queue_free.
+	if host == null:
+		return
+	var door: Node = host.get_node_or_null("Door")
+	if door == null:
+		return
+	if door.is_in_group("interactable"):
+		door.remove_from_group("interactable")
+	var volume: Node = door.get_node_or_null("InteractVolume")
+	if volume is CollisionObject3D:
+		(volume as CollisionObject3D).collision_layer = 0
+	door.queue_free()
 
 
 static func resize_interact_box(host: Node3D, size: Vector3) -> void:

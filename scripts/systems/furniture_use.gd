@@ -43,6 +43,7 @@ static func apply(action: Interaction, host: Node, ctx: InteractionContext) -> b
 	var pid: StringName = host.get("occupant_id") as StringName
 	match action.id:
 		Interaction.SIT:
+			## Jump + chair SE scheduled from `ply_1_sit1` via PlayerSe.
 			Game.post_notice("You sit down.")
 			return true
 		Interaction.LIE:
@@ -71,6 +72,7 @@ static func open_storage(placement_id: StringName, ctx: InteractionContext) -> b
 	var data: FurnitureData = Game.interior_session.furniture_of(entry.furniture_id) if entry else null
 	if entry == null or data == null or not data.has_storage():
 		return false
+	PlayerSe.drawer_open(ctx.actor if ctx != null else null)
 	var inv: Inventory = ctx.inventory if ctx else Game.inventory
 	var held: ItemData = _held_item(inv)
 	if held != null and not (held is FurnitureData):

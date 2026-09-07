@@ -55,7 +55,7 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 | --- | --- | --- |
 | `Clock` | `scripts/systems/clock.gd` (`ClockService`) | Time system: calendar, day/night, 06:00 renew |
 | `SaveService` | `scripts/systems/save_service.gd` | Load/save JSON to `user://` |
-| `Audio` | `scripts/systems/audio.gd` | Music / SFX buses; `play_bgm` from generated OGG via `BgmCatalog` ([audio](decomp_notes/audio.md)) |
+| `Audio` | `scripts/systems/audio.gd` | Music / SFX buses; `play_bgm` / `play_se` / `play_voice` from generated OGG via catalogs ([audio](decomp_notes/audio.md)) |
 | `Game` | `scripts/systems/game.gd` | Session phase, scene changes; owns `Inventory`, `VillagerRoster`, `RelationshipBook`, `InteriorBook`, `ShopBook`, `MuseumBook`, `PoliceBook`, and `PostBook` |
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.

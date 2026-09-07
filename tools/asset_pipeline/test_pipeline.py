@@ -197,11 +197,19 @@ class PrefixOwnershipTests(unittest.TestCase):
             _sym("obj_item_pear_v"),
             _sym("pear_DL_mode"),
             _sym("pear_DL_vtx"),
+            _sym("obj_item_leaf_v"),
+            _sym("leaf_DL_mode"),
+            _sym("leaf_DL_vtx"),
+            _sym("obj_item_present_v"),
+            _sym("present_DL_mode"),
+            _sym("present_DL_vtx"),
         ]
         jobs = {item["asset_id"]: item for item in _static_jobs(symbols)}
         self.assertEqual(jobs["obj_item_apple"]["gfx"], ["obj_apple2_modelT"])
         self.assertEqual(jobs["obj_item_bag"]["gfx"], ["bag_DL_mode", "bag_DL_vtx"])
         self.assertEqual(jobs["obj_item_pear"]["gfx"], ["pear_DL_mode", "pear_DL_vtx"])
+        self.assertEqual(jobs["obj_item_leaf"]["gfx"], ["leaf_DL_mode", "leaf_DL_vtx"])
+        self.assertEqual(jobs["obj_item_present"]["gfx"], ["present_DL_mode", "present_DL_vtx"])
         self.assertEqual(jobs["obj_item_apple"]["output"], "environment/obj_item_apple.glb")
 
     def test_weather_rain_gfx_prepends_setmode(self) -> None:

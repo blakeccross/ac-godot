@@ -50,7 +50,7 @@ class TestDolphinHash(unittest.TestCase):
             self.assertEqual(image.size, (256, 128))
             self.assertGreater(pack.hits, 0)
 
-    def test_field_terrain_skip(self) -> None:
+    def test_field_terrain_classifier(self) -> None:
         from asset_pipeline.achd import is_field_terrain_texture
 
         self.assertTrue(is_field_terrain_texture("mFM_grd_s_grass_tex", "grd_s_c1_1"))
@@ -72,10 +72,10 @@ class TestDolphinHash(unittest.TestCase):
 
         ## Exact size always OK (including REPEAT field tiles).
         self.assertTrue(achd_png_usable(32, 32, 32, 32, GX_REPEAT, GX_REPEAT))
-        ## Upscaled REPEAT would break wrap-bake atlases.
+        ## Upscaled REPEAT is not usable as-is (wrap-bake); maybe_hd_png caps it.
         self.assertFalse(achd_png_usable(32, 32, 256, 256, GX_REPEAT, GX_REPEAT))
         self.assertFalse(achd_png_usable(64, 64, 512, 512, GX_REPEAT, GX_CLAMP))
-        ## Both-CLAMP + uniform integer scale is OK (portraits / one-shots).
+        ## Both-CLAMP + uniform integer scale is OK (portraits / trees).
         self.assertTrue(achd_png_usable(32, 32, 256, 256, GX_CLAMP, GX_CLAMP))
         ## MIRROR props (tank rocks) may upscale.
         from asset_pipeline.texbank import GX_MIRROR
@@ -83,6 +83,63 @@ class TestDolphinHash(unittest.TestCase):
         self.assertTrue(achd_png_usable(64, 64, 1024, 1024, GX_MIRROR, GX_MIRROR))
         self.assertFalse(achd_png_usable(32, 32, 256, 128, GX_CLAMP, GX_CLAMP))
         self.assertFalse(achd_png_usable(32, 32, 250, 250, GX_CLAMP, GX_CLAMP))
+
+    def test_repeat_hd_tile_size_caps_grass(self) -> None:
+        from asset_pipeline.achd import REPEAT_HD_MAX_EDGE, repeat_hd_tile_size
+
+        self.assertEqual(REPEAT_HD_MAX_EDGE, 128)
+        ## ACHD grass 32→256 caps to 128 (4×) for wrap-bake.
+        self.assertEqual(repeat_hd_tile_size(32, 32, 256, 256), (128, 128))
+        ## Earth 64→512 caps to 128 (2×).
+        self.assertEqual(repeat_hd_tile_size(64, 64, 512, 512), (128, 128))
+        ## Already within cap — keep full HD.
+        self.assertEqual(repeat_hd_tile_size(32, 32, 128, 128), (128, 128))
+        self.assertIsNone(repeat_hd_tile_size(32, 32, 32, 32))
+        self.assertIsNone(repeat_hd_tile_size(32, 32, 48, 48))
+
+    def test_maybe_hd_png_downscales_repeat(self) -> None:
+        from asset_pipeline.achd import maybe_hd_png
+        from asset_pipeline.bti import CI4
+        from asset_pipeline.texbank import GX_CLAMP, GX_REPEAT
+        from PIL import Image
+        import io
+
+        class _Stub:
+            def lookup_png(self, *_a, **_k):
+                img = Image.new("RGBA", (256, 256), (10, 200, 40, 255))
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                return buf.getvalue()
+
+        stub = _Stub()
+        hd = maybe_hd_png(
+            stub,  # type: ignore[arg-type]
+            b"\0" * 512,
+            32,
+            32,
+            CI4,
+            b"\0" * 32,
+            wrap_s=GX_REPEAT,
+            wrap_t=GX_REPEAT,
+        )
+        self.assertIsNotNone(hd)
+        assert hd is not None
+        out = Image.open(io.BytesIO(hd))
+        self.assertEqual(out.size, (128, 128))
+        ## CLAMP keeps full 256.
+        full = maybe_hd_png(
+            stub,  # type: ignore[arg-type]
+            b"\0" * 512,
+            32,
+            32,
+            CI4,
+            b"\0" * 32,
+            wrap_s=GX_CLAMP,
+            wrap_t=GX_CLAMP,
+        )
+        self.assertIsNotNone(full)
+        assert full is not None
+        self.assertEqual(Image.open(io.BytesIO(full)).size, (256, 256))
 
     def test_room_bank_skip(self) -> None:
         from asset_pipeline.achd import is_room_bank_texture

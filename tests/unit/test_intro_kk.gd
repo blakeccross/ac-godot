@@ -10,11 +10,13 @@ func before_test() -> void:
 	Game.reset_session()
 	DialogueCatalog.reset()
 	Audio.fade_sec = 0.0
+	Audio.set_ttkk_arm(false)
 	Audio.stop_bgm()
 
 
 func after_test() -> void:
 	Audio.stop_bgm()
+	Audio.set_ttkk_arm(false)
 	Audio.fade_sec = Audio.FADE_SEC
 	DialogueCatalog.reset()
 	Game.reset_session()

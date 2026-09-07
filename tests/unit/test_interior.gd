@@ -517,6 +517,35 @@ func test_floor_atlas_retile_mirrors_odd_cells() -> void:
 	assert_that(out.get_pixel(3, 3)).is_equal(Color.RED) ## flip both
 
 
+func test_season_grass_retile_uses_atlas_cell_not_season_px() -> void:
+	## Native wrap-bake: 16×32px cells → 512². Season ACHD tile is 128².
+	## Blitting 128 into 512 without resize yields 4×4 (4× oversized grass).
+	var atlas := Image.create(512, 512, false, Image.FORMAT_RGBA8)
+	for ty: int in 16:
+		for tx: int in 16:
+			var c := Color(float(tx) / 16.0, float(ty) / 16.0, 0.25, 1.0)
+			for y: int in 32:
+				for x: int in 32:
+					atlas.set_pixel(tx * 32 + x, ty * 32 + y, c)
+	var atlas_tex := ImageTexture.create_from_image(atlas)
+	assert_int(GeneratedVisual._infer_atlas_tile_size(atlas_tex, 0)).is_equal(32)
+
+	var season := Image.create(128, 128, false, Image.FORMAT_RGBA8)
+	season.fill(Color(0.2, 0.8, 0.3, 1.0))
+	season.set_pixel(0, 0, Color.RED)
+	var season_tex := ImageTexture.create_from_image(season)
+	var cell: int = GeneratedVisual._infer_atlas_tile_size(atlas_tex, 0)
+	var tiled: Texture2D = GeneratedVisual._tile_to_atlas(
+		season_tex, Vector2i(512, 512), false, false, cell
+	)
+	var out: Image = tiled.get_image()
+	assert_that(out.get_size()).is_equal(Vector2i(512, 512))
+	## 16 cells of 32px: red marker at each cell origin after resize+tile.
+	assert_that(out.get_pixel(0, 0)).is_equal(Color.RED)
+	assert_that(out.get_pixel(31, 0)).is_equal(Color(0.2, 0.8, 0.3, 1.0))
+	assert_that(out.get_pixel(32, 0)).is_equal(Color.RED)
+
+
 func test_indoor_grid_uses_world_grid() -> void:
 	var room: Room = Game.interiors.room(&"player_main")
 	var interior := Interior.new()
