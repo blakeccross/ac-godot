@@ -10,11 +10,14 @@ from .texbank import (
     GX_REPEAT,
     I4,
     I8,
+    IA4,
+    IA8,
     TextureBank,
     TextureState,
     bake_beach_wet_png,
     bake_player_select_shade_png,
     bake_player_select_spot_png,
+    bake_prim_env_texel_png,
     clear_png_alpha,
     coverage_from_othermode_l,
     demote_opaque_uv_alpha,
@@ -64,6 +67,13 @@ G_SETCOMBINE = 0xFC
 G_GEOMETRYMODE = 0xD9
 ## F3DEX2 / libultra geometry flag — when clear, Vtx.cn[] is RGBA shade.
 G_LIGHTING = 0x00020000
+## Spherical env-map UVs (balloon heads, tub water, lighthouse lens, …).
+G_TEXTURE_GEN = 0x00040000
+
+## `aFSN_actor_draw_before` type 0 — used when the static DL omits SetPrim/Env
+## (``act_balloon_head_model``) but still combines ``(PRIM−ENV)×TEXEL+ENV``.
+_FUUSEN_DEFAULT_PRIM = (255, 210, 200, 255)
+_FUUSEN_DEFAULT_ENV = (255, 40, 0, 255)
 MTX_STRIDE = 0x40
 SEG_MTX = 0x0D
 
@@ -835,6 +845,16 @@ def parse_gfx(
                     and not dual
                     and gx in (I4, I8)
                 )
+                ## Balloon heads / pens: ``(PRIM−ENV)×TEXEL+ENV`` on I/IA intensity.
+                ## Skip when `xlu_intensity` — train door/car glass share that combiner but
+                ## need I→alpha + ENV tint (`i4_png_as_alpha`), not an opaque RGB bake.
+                prim_env_intensity = (
+                    not bool(water_kind)
+                    and not xlu_intensity
+                    and combine_is_prim_env_texel(combine_w0, combine_w1)
+                    and gx in (I4, I8, IA4, IA8)
+                )
+                saved_prim_set = bool(getattr(tex_state, "prim_set", False))
                 ## Prefer the cone tile (tile1) over scrolling fog (tile0) when both are bound.
                 if (
                     is_player_select_spot_tex(name1)
@@ -861,7 +881,7 @@ def parse_gfx(
                         )
                         force_alpha_mode = "BLEND"
                 else:
-                    if skip_prim or psel_xlu or xlu_intensity:
+                    if skip_prim or psel_xlu or xlu_intensity or prim_env_intensity:
                         tex_state.prim = (255, 255, 255, 255)
                     png, tex_name, texel_mode = bank.decode_current(tex_state)
                     tex_state.prim = saved_prim
@@ -882,6 +902,23 @@ def parse_gfx(
                         png = bake_player_select_shade_png(png, saved_prim)
                         texel_mode = "BLEND"
                         force_alpha_mode = "BLEND"
+                    elif prim_env_intensity and png:
+                        bake_prim = saved_prim
+                        bake_env = saved_env
+                        ## ``act_balloon_head``: no SetPrim/Env in the DL; fuusen sets
+                        ## both at draw. IA + TEXTURE_GEN + unset ends → type-0 pair.
+                        if (
+                            not saved_prim_set
+                            and bake_prim[:3] == (255, 255, 255)
+                            and bake_env[:3] == (255, 255, 255)
+                            and gx in (IA4, IA8)
+                            and bool(geometry_mode & G_TEXTURE_GEN)
+                        ):
+                            bake_prim = _FUUSEN_DEFAULT_PRIM
+                            bake_env = _FUUSEN_DEFAULT_ENV
+                        ## White/white with no runtime-IA hint: leave intensity (UI).
+                        if bake_prim[:3] != (255, 255, 255) or bake_env[:3] != (255, 255, 255):
+                            png = bake_prim_env_texel_png(png, bake_prim, bake_env)
                     elif (
                         ## Shineglass omits SetRenderMode in the static DL (runtime XLU);
                         ## still promote opaque I4/I8 intensity to alpha.

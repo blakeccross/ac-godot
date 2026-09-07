@@ -27,13 +27,27 @@ func test_catalog_room_layout_matches_decomp() -> void:
 
 
 func test_spawn_gx_tables() -> void:
-	assert_vector(PostDisplay.SPAWN_GX).is_equal(Vector3(100.0, 0.0, 200.0))
+	## Outdoor enter uses structure door_data, not scene player_data.
+	assert_vector(PostDisplay.SPAWN_GX).is_equal(Vector3(160.0, 0.0, 300.0))
+	assert_that(PostDisplay.SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
 	assert_vector(PostDisplay.POST_GIRL_STAND_GX).is_equal(Vector3(160.0, 0.0, 100.0))
-	assert_vector(PoliceDisplay.SPAWN_GX).is_equal(Vector3(200.0, 0.0, 400.0))
+	assert_vector(PoliceDisplay.SPAWN_GX).is_equal(Vector3(200.0, 0.0, 380.0))
+	assert_that(PoliceDisplay.SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
 	assert_vector(PoliceDisplay.BOOKER_STAND_GX).is_equal(Vector3(180.0, 0.0, 260.0))
 	assert_int(PoliceDisplay.LOST_FOUND_CELLS.size()).is_equal(20)
 	assert_that(PoliceDisplay.LOST_FOUND_CELLS[0]).is_equal(Vector2i(1, 1))
 	assert_that(PoliceDisplay.LOST_FOUND_CELLS[19]).is_equal(Vector2i(7, 5))
+
+
+func test_outdoor_enter_facings_are_north() -> void:
+	## `mSc_DIRECT_NORTH` (orient 4 / rot Y −32768). Scene player_data south is not outdoor enter.
+	assert_that(PoliceDisplay.SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
+	assert_that(PostDisplay.SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
+	assert_that(ShopDisplay.CRANNY_SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
+	assert_that(InteriorCatalog.ABLE_SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
+	assert_that(MuseumDisplay.ENTRANCE_SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
+	assert_vector(InteriorCatalog.ABLE_SPAWN_GX).is_equal(ShopDisplay.CRANNY_SPAWN_GX)
+	assert_vector(PostDisplay.SPAWN_GX).is_equal(ShopDisplay.CRANNY_SPAWN_GX)
 
 
 func test_post_girl_day_night_species() -> void:
@@ -194,6 +208,28 @@ func test_enter_sets_decomp_spawns() -> void:
 	assert_float(Game.interior_spawn_yaw).is_equal_approx(
 		WorldGrid.yaw_for_facing(PoliceDisplay.SPAWN_FACING), 0.01
 	)
+
+
+func test_police_spawn_maps_onto_exit_strip() -> void:
+	## Enter stand `{200,0,380}` sits on SPAWN_CELL — scene player `{200,0,400}` was EXIT.
+	var police: Room = InteriorCatalog.room_template(&"police_box")
+	var police_session := Interior.new()
+	police_session.bind(police)
+	var police_world: Vector3 = PoliceDisplay.gx_to_world(
+		police_session.grid, PoliceDisplay.SPAWN_GX
+	)
+	var police_cell: Vector2i = police_session.grid.world_to_cell(police_world)
+	assert_bool(police.is_exit_cell(police_cell)).is_false()
+	assert_int(police_cell.y).is_equal(PoliceDisplay.SPAWN_CELL.y)
+	var stale_exit: Vector3 = PoliceDisplay.gx_to_world(
+		police_session.grid, Vector3(200.0, 0.0, 400.0)
+	)
+	assert_bool(police.is_exit_cell(police_session.grid.world_to_cell(stale_exit))).is_true()
+	var post: Room = InteriorCatalog.room_template(&"post_office")
+	var post_session := Interior.new()
+	post_session.bind(post)
+	var post_world: Vector3 = PostDisplay.gx_to_world(post_session.grid, PostDisplay.SPAWN_GX)
+	assert_bool(post.is_exit_cell(post_session.grid.world_to_cell(post_world))).is_false()
 
 
 func test_scene_paths_and_shell_meshes() -> void:

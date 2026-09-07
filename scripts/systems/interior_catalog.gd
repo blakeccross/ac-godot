@@ -18,6 +18,9 @@ const NPC_INNER_SIZE := Vector2i(6, 6)
 const NPC_HOUSE_DOOR_CELL := Vector2i(3, 8)
 const NPC_HOUSE_SPAWN_CELL := Vector2i(3, 7)
 const NPC_HOUSE_SPAWN_GX := Vector3(160.0, 0.0, 300.0)
+## Able Sisters outdoor enter (`aNW_needlework_shop_door_data`): same stand / NORTH.
+const ABLE_SPAWN_GX := Vector3(160.0, 0.0, 300.0)
+const ABLE_SPAWN_FACING := WorldGrid.Facing.NORTH
 ## Small player main (`l_proom_s_tmp`, `rom_myhome1_*`): 4×4 walkable, same NW origin.
 const PLAYER_INNER_ORIGIN := Vector2i(1, 1)
 const PLAYER_INNER_SIZE := Vector2i(4, 4)

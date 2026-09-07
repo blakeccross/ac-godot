@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_carpet_hint",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "That carpet won't deliver\nitself. Off you go!"
+    }
+  }
+}

@@ -11,6 +11,10 @@ func _ready() -> void:
 	if vis == null:
 		return
 	GeneratedVisual.apply_train_door_materials(vis)
+	_anim = GeneratedVisual.find_animation_player(self)
+	## Closed pose is anim frame 0 (decomp actor). Snap before gateway fit so a
+	## ckf_basis-only rest GLB still skins the panel into the vestibule.
+	_snap_closed()
 	var car: Node3D = get_node_or_null("%TrainCar") as Node3D
 	var car_vis: Node3D = car.get_node_or_null("GeneratedVisual") as Node3D if car != null else null
 	if car_vis != null:
@@ -21,7 +25,6 @@ func _ready() -> void:
 			car_vis,
 			IntroTrainStage.DOOR_PANEL_Z_BIAS_GX
 		)
-	_anim = GeneratedVisual.find_animation_player(self)
 
 
 func reset_door_pulse() -> void:
@@ -39,6 +42,20 @@ func open_door() -> void:
 		return
 	_anim.play(clip)
 	_anim.speed_scale = 0.5
+
+
+func _snap_closed() -> void:
+	if _anim == null:
+		return
+	var clip: String = _resolve_door_clip()
+	if clip.is_empty():
+		return
+	var animation: Animation = _anim.get_animation(clip)
+	if animation != null:
+		animation.loop_mode = Animation.LOOP_NONE
+	_anim.play(clip)
+	_anim.seek(0.0, true)
+	_anim.speed_scale = 0.0
 
 
 func _resolve_door_clip() -> String:

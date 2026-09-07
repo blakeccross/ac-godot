@@ -77,6 +77,10 @@ Buried items share the FG slot (hole vs item). Flowers breed in the original; th
 - The last hit leaves a **stump**, not an empty tile. Cut progress is session-only; the stump itself is saved (`Game.stump_interactables`). Felling **clears** the growth record so restore does not spawn a second tree.
 - Occupies a tile; cannot plant on occupied/blocked tiles (a hole is allowed: fill, then plant).
 - Chop plays `ply_1_axe_swing1` (`mPlayer_ANIM_AXE_SWING1`); the tree wobbles, then falls away from the player.
+- **Inventory Plant** (`mTG_plant_proc`):
+  - Shovel equipped and facing a fillable hole (`shovel_flag` / `FILL_SCOOP`) → close submenu → `PUTIN_SCOOP` with `ply_1_fill_up_i1`; hole+plant resolve at frame **25** (fill-up reset 18 + i1 offset 7).
+  - Otherwise → close submenu → place the seed/flower on the facing unit (throw-put / grow-in). No body clip.
+- Empty-hole fill (`FILL_SCOOP`) uses `ply_1_fill_up1` and clears the hole at frame **18**.
 
 ## Simplify
 

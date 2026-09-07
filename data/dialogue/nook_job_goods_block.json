@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_goods_block",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Ah-ah-ah! Those goods aren't\nfor browsing while you're on\nthe clock. Talk to me about\nyour chores, yes?"
+    }
+  }
+}

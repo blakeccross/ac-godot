@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_intro_done",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Wonderful! You've met\neveryone. Ready for the\nnext chore?"
+    }
+  }
+}

@@ -181,6 +181,22 @@ func test_achd_mirrored_target_gets_gx_mirror_not_a_stretch() -> void:
 	assert_that(img.get_pixel(488, 32)).is_equal(Color(0, 1, 0, 1))
 
 
+func test_achd_half_mirrors_at_full_res_onto_rover_quad() -> void:
+	## ACHD eye halves are 256×128. Rover's GLB bake is 512×128 — mirror in place,
+	## do not nearest-crush to 32×16 first (that pixelated only Rover).
+	var face := NpcFace.new()
+	var half := Image.create(256, 128, false, Image.FORMAT_RGBA8)
+	half.fill(Color(0, 0, 0, 0))
+	half.set_pixel(20, 40, Color(0, 1, 0, 1))
+	var tex := ImageTexture.create_from_image(half)
+	var out: Texture2D = face._mirror_expand_to(tex, Vector2i(512, 128))
+	var img: Image = out.get_image()
+	assert_int(img.get_width()).is_equal(512)
+	assert_int(img.get_height()).is_equal(128)
+	assert_that(img.get_pixel(20, 40)).is_equal(Color(0, 1, 0, 1))
+	assert_that(img.get_pixel(511 - 20, 40)).is_equal(Color(0, 1, 0, 1))
+
+
 func test_face_quad_accepts_achd_upscaled_eye_sizes() -> void:
 	## Native CI4, GX_MIRROR bake, and ACHD 8× of 32×16.
 	var native := ImageTexture.create_from_image(Image.create(32, 16, false, Image.FORMAT_RGBA8))

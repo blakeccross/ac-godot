@@ -78,6 +78,9 @@ func _ready() -> void:
 	add_to_group("player")
 	_look.position = Vector3(0.0, LOOK_HEIGHT, 0.0)
 	_try_load_generated_visual()
+	if Game != null and not Game.cloth_changed.is_connected(_on_cloth_changed):
+		Game.cloth_changed.connect(_on_cloth_changed)
+	_apply_worn_cloth()
 	Game.inventory.equipment_changed.connect(_on_equipment_changed)
 	_on_equipment_changed(Game.inventory.equipment_id)
 
@@ -145,8 +148,22 @@ func set_busy(locked: bool) -> void:
 		_door_clear_busy = false
 
 
+func set_facing(yaw: float) -> void:
+	_motor.facing = yaw
+	if _mesh != null:
+		_mesh.rotation.y = yaw
+
+
 func is_busy() -> bool:
 	return _busy
+
+
+func play_wait_anim() -> void:
+	play_wait_idle()
+
+
+func animation_player() -> AnimationPlayer:
+	return _anim
 
 
 ## Idle while input-locked (talk / intro). Safe to call during `_busy`.
@@ -252,12 +269,26 @@ func _tick_talk_face(delta: float) -> void:
 func _clear_auto_enter_block() -> void:
 	if not Game.block_auto_enter_doors:
 		return
+	## Keep blocked while still on an indoor EXIT_DOOR strip after a room load.
+	if _on_indoor_exit_cell():
+		return
 	var hit: InteractionQuery = _resolve_interact()
 	if hit == null or hit.host == null:
 		Game.block_auto_enter_doors = false
 		return
 	if hit.host.get("auto_enter") != true:
 		Game.block_auto_enter_doors = false
+
+
+func _on_indoor_exit_cell() -> bool:
+	if not Game.is_indoors():
+		return false
+	var session: Interior = Game.interior_session
+	if session == null or session.room == null or session.grid == null:
+		return false
+	if session.room.kind == Room.Kind.MUSEUM:
+		return false
+	return session.room.is_exit_cell(session.grid.world_to_cell(global_position))
 
 
 ## `mPlayer_INDEX_DOOR`: OPEN1 / INTO_S1 with `cKF_SkeletonInfo_R_AnimationMove_base`.
@@ -673,6 +704,69 @@ func _make_context() -> InteractionContext:
 	return ctx
 
 
+## Inventory Plant after submenu close (`mTG_plant_proc` → putin scoop or throw-put).
+## Item is already removed from the pocket; refunds on failure.
+func plant_from_submenu(
+	plant: PlantData,
+	cell: Vector2i,
+	use_scoop: bool,
+	item: ItemData,
+	condition: InventoryItem.Condition,
+	success_msg: String
+) -> void:
+	if _busy:
+		_refund_plant(item, condition)
+		return
+	_busy = true
+	var ctx: InteractionContext = _make_context()
+	if use_scoop:
+		_face_cell(ctx, cell)
+		var tail: float = await _play_action(
+			PlantGrowth.PUTIN_SCOOP_ANIM, PlantGrowth.PUTIN_HOLE_EFFECT_FRAME
+		)
+		var pid: StringName = PlantGrowth.plant(ctx, plant, cell)
+		if pid == &"":
+			_refund_plant(item, condition)
+			Game.post_notice("Can't plant here.")
+		else:
+			PlantGrowth.play_grow_in(PlantGrowth.host_at(ctx.world, pid))
+			if success_msg != "":
+				Game.post_notice(success_msg)
+		await _finish_action(tail)
+	else:
+		## No body clip — `mTG_common_throw_put_field` / `player_drop_entry` only.
+		var pid: StringName = PlantGrowth.plant(ctx, plant, cell)
+		if pid == &"":
+			_refund_plant(item, condition)
+			Game.post_notice("Can't plant here.")
+		else:
+			PlantGrowth.play_grow_in(PlantGrowth.host_at(ctx.world, pid))
+			if success_msg != "":
+				Game.post_notice(success_msg)
+			## Brief lock so grow-in is not walked through mid-scale.
+			await get_tree().create_timer(PlantGrowth.GROW_IN_SEC).timeout
+	_busy = false
+	_gait = PlayerLocomotion.Gait.WAIT
+	_update_focus()
+
+
+func _refund_plant(item: ItemData, condition: InventoryItem.Condition) -> void:
+	if item != null and Game.inventory != null:
+		Game.inventory.add(item, 1, condition)
+
+
+func _face_cell(ctx: InteractionContext, cell: Vector2i) -> void:
+	if ctx == null or ctx.world == null:
+		return
+	var grid_v: Variant = ctx.world.get("grid")
+	if not (grid_v is WorldGrid):
+		return
+	var target: Vector3 = (grid_v as WorldGrid).cell_to_world(cell)
+	var yaw: float = TalkCamera.face_yaw_toward(global_position, target)
+	_motor.facing = yaw
+	_mesh.rotation.y = yaw
+
+
 func _try_interact() -> void:
 	if Game.held_furniture() != null and Game.try_place_furniture(self):
 		return
@@ -1026,6 +1120,26 @@ func _try_load_generated_visual() -> void:
 		if not wait_clip.is_empty():
 			_ensure_loop(wait_clip)
 			_anim.play(wait_clip)
+	_apply_worn_cloth()
+
+
+func _on_cloth_changed(_cloth_id: StringName) -> void:
+	_apply_worn_cloth()
+
+
+func _apply_worn_cloth() -> void:
+	if Game == null or _mesh == null:
+		return
+	var data: ItemData = ItemCatalog.get_item(Game.cloth_id)
+	var index: int = data.cloth_index if data != null else -1
+	if index < 0 and Game.cloth_id != &"":
+		## Fallback: shirt_NNN id → index.
+		var raw := String(Game.cloth_id)
+		if raw.begins_with("shirt_"):
+			index = int(raw.substr(6))
+	if index < 0:
+		return
+	GeneratedVisual.apply_cloth(_mesh, index)
 
 
 func _capture_door_root_xz(anim_player: AnimationPlayer) -> void:
@@ -1162,6 +1276,9 @@ func _apply_preview_materials(node: Node) -> void:
 				std.cull_mode = BaseMaterial3D.CULL_DISABLED
 				std.roughness = 1.0
 				std.metallic = 0.0
+				if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS:
+					std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+				GeneratedVisual._harden_imported_cutout(std)
 				mesh_instance.set_surface_override_material(i, std)
 	for child in node.get_children():
 		_apply_preview_materials(child)

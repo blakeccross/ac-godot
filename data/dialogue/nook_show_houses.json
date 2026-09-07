@@ -10,7 +10,7 @@
     },
     "pick": {
       "type": "line",
-      "text": " Take your pick!",
+      "text": "Take your pick!",
       "next": "look"
     },
     "look": {
@@ -20,7 +20,7 @@
     },
     "locks": {
       "type": "line",
-      "text": "After all, the doors don't\nhave any locks. Just stand in\nfront of the door and press \nthe A Button to go inside."
+      "text": "After all, the doors don't\nhave any locks. Just stand in\nfront of the door and press\nthe A Button to go inside."
     }
   }
 }

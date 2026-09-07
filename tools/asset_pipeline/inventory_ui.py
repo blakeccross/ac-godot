@@ -42,6 +42,8 @@ _NATIVE_W = 240
 _NATIVE_H = 180
 _SHELL_ORIGIN = (-120, 90)
 _BAKE_SCALE = 4
+## Internal supersample for shell silhouette AA (final PNG stays bake_scale).
+_SHELL_SSAA = 2
 _INV_VTX_COUNT = 296
 _ITEM_SLOT_BASE = 176
 _ITEM_SLOT_COUNT = 15
@@ -816,51 +818,99 @@ def _recolor_shell_paper(shell: Image.Image, paper: Image.Image) -> None:
             px[x, y] = (pr, pg, pb, a)
 
 
-def _soft_white_rim(shell: Image.Image, radius: int = 14) -> None:
-    """Thick white scalloped fringe (stand-in for inv_mwin_1cT)."""
-    if radius <= 0:
+def _soft_white_rim(shell: Image.Image, inner: int = 3, outer: int = 5) -> None:
+    """Thin bright fringe along the silhouette (WW-style; stand-in for inv_mwin_1cT).
+
+    Earlier radius=14 flooded the whole border band (~40px solid white). Keep a
+    short inward stroke + soft outward glow only.
+    """
+    if inner <= 0 and outer <= 0:
         return
     w, h = shell.size
     px = shell.load()
-    edges: list[tuple[int, int]] = []
-    for y in range(1, h - 1):
-        for x in range(1, w - 1):
-            if px[x, y][3] <= 8:
+    exterior = [[False] * w for _ in range(h)]
+    stack: list[tuple[int, int]] = []
+    for x in range(w):
+        stack.append((x, 0))
+        stack.append((x, h - 1))
+    for y in range(h):
+        stack.append((0, y))
+        stack.append((w - 1, y))
+    while stack:
+        x, y = stack.pop()
+        if x < 0 or y < 0 or x >= w or y >= h or exterior[y][x]:
+            continue
+        if px[x, y][3] > 8:
+            continue
+        exterior[y][x] = True
+        stack.extend(((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)))
+
+    # Chebyshev distance from each opaque pixel to exterior (capped).
+    max_d = max(inner, outer) + 1
+    dist_in = [[max_d] * w for _ in range(h)]
+    frontier: list[tuple[int, int]] = []
+    for y in range(h):
+        for x in range(w):
+            if exterior[y][x] or px[x, y][3] <= 8:
                 continue
-            if (
-                px[x - 1, y][3] <= 8
-                or px[x + 1, y][3] <= 8
-                or px[x, y - 1][3] <= 8
-                or px[x, y + 1][3] <= 8
-            ):
-                edges.append((x, y))
-    for x, y in edges:
-        for dy in range(-2, 3):
-            for dx in range(-2, 3):
+            touch = False
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
                 nx, ny = x + dx, y + dy
-                if nx < 0 or ny < 0 or nx >= w or ny >= h:
-                    continue
-                if px[nx, ny][3] <= 8:
-                    continue
-                px[nx, ny] = (255, 255, 255, 255)
-    r2 = float(radius * radius)
-    for x, y in edges:
-        for dy in range(-radius, radius + 1):
-            for dx in range(-radius, radius + 1):
-                dist2 = float(dx * dx + dy * dy)
-                if dist2 > r2:
-                    continue
-                nx, ny = x + dx, y + dy
-                if nx < 0 or ny < 0 or nx >= w or ny >= h:
-                    continue
-                dist = dist2**0.5
-                a = int(255.0 * (1.0 - dist / float(radius)))
-                if a <= 0:
-                    continue
-                if px[nx, ny][3] <= 8:
-                    px[nx, ny] = (255, 255, 255, min(255, a + 40))
-                elif dist < 3.0:
-                    px[nx, ny] = (255, 255, 255, 255)
+                if nx < 0 or ny < 0 or nx >= w or ny >= h or exterior[ny][nx]:
+                    touch = True
+                    break
+            if touch:
+                dist_in[y][x] = 0
+                frontier.append((x, y))
+    head = 0
+    while head < len(frontier):
+        x, y = frontier[head]
+        head += 1
+        d = dist_in[y][x]
+        if d >= inner:
+            continue
+        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            nx, ny = x + dx, y + dy
+            if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                continue
+            if exterior[ny][nx] or px[nx, ny][3] <= 8:
+                continue
+            nd = d + 1
+            if nd < dist_in[ny][nx]:
+                dist_in[ny][nx] = nd
+                frontier.append((nx, ny))
+
+    for y in range(h):
+        for x in range(w):
+            if exterior[y][x] or px[x, y][3] <= 8:
+                continue
+            if dist_in[y][x] <= inner:
+                px[x, y] = (255, 255, 255, 255)
+
+    if outer <= 0:
+        return
+    # Soft white halo just outside the silhouette.
+    for y in range(h):
+        for x in range(w):
+            if not exterior[y][x]:
+                continue
+            best = outer + 1
+            for dy in range(-outer, outer + 1):
+                for dx in range(-outer, outer + 1):
+                    nx, ny = x + dx, y + dy
+                    if nx < 0 or ny < 0 or nx >= w or ny >= h:
+                        continue
+                    if exterior[ny][nx] or px[nx, ny][3] <= 8:
+                        continue
+                    dist = max(abs(dx), abs(dy))
+                    if dist < best:
+                        best = dist
+            if best > outer:
+                continue
+            a = int(220.0 * (1.0 - float(best) / float(outer + 1)))
+            if a <= 0:
+                continue
+            px[x, y] = (255, 255, 255, max(px[x, y][3], a))
 
 
 def _decode_border_tiles(rel: RelData, by_name: dict[str, list[MapSymbol]]) -> dict[str, Image.Image]:
@@ -893,8 +943,11 @@ def _bake_inventory_window_shell(
         "error": None,
     }
     catalog_path: str | None = None
-    width = _NATIVE_W * _BAKE_SCALE
-    height = _NATIVE_H * _BAKE_SCALE
+    out_w = _NATIVE_W * _BAKE_SCALE
+    out_h = _NATIVE_H * _BAKE_SCALE
+    ssaa = max(1, _SHELL_SSAA)
+    width = out_w * ssaa
+    height = out_h * ssaa
     alpha_bbox: dict[str, int] | None = None
     try:
         sym = _pick_symbol(by_name, "inv_mwin_v")
@@ -911,9 +964,11 @@ def _bake_inventory_window_shell(
         borders = _decode_border_tiles(rel, by_name)
 
         shell = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        ox, oy = _SHELL_ORIGIN
+        scale = float(_BAKE_SCALE * ssaa)
 
         def to_px(v) -> tuple[float, float]:
-            return _vtx_to_px(float(v.x), float(v.y))
+            return ((float(v.x) - ox) * scale, (oy - float(v.y)) * scale)
 
         for vtx_base, stem, tris in _BORDER_PIECES:
             border = borders[stem]
@@ -938,7 +993,11 @@ def _bake_inventory_window_shell(
         # quads. Border silhouette + enclosed paper fill is enough for layout.
         _fill_enclosed_paper(shell, paper)
         _recolor_shell_paper(shell, paper)
-        _soft_white_rim(shell, radius=14)
+        _soft_white_rim(shell, inner=2 * ssaa, outer=4 * ssaa)
+
+        if ssaa > 1:
+            ## Downsample for smooth scalloped AA (native tris are binary-covered).
+            shell = shell.resize((out_w, out_h), Image.Resampling.LANCZOS)
 
         catalog = _build_layout_catalog(verts)
         catalog_bytes = json.dumps(catalog, indent=2).encode("utf-8")
@@ -955,10 +1014,11 @@ def _bake_inventory_window_shell(
         alpha_bbox = _alpha_bbox(shell)
         record["status"] = "converted"
         record["meta"] = {
-            "width": width,
-            "height": height,
+            "width": out_w,
+            "height": out_h,
             "native_size": [_NATIVE_W, _NATIVE_H],
             "bake_scale": _BAKE_SCALE,
+            "ssaa": ssaa,
             "alpha_bbox": alpha_bbox,
         }
     except Exception as exc:  # noqa: BLE001

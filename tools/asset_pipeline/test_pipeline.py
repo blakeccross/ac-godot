@@ -1534,11 +1534,20 @@ class BindAnimTests(unittest.TestCase):
                     "cKF_ba_r_obj_train1_1",
                     "cKF_ba_r_obj_train1_1_close",
                     "cKF_ba_r_obj_train1_1_open",
-                ]
+                ],
+                "obj_train1_1",
             ),
             "cKF_ba_r_obj_train1_1_close",
         )
-        self.assertIsNone(select_close_bind(["cKF_ba_r_obj_train1_1_open"]))
+        self.assertIsNone(select_close_bind(["cKF_ba_r_obj_train1_1_open"], "obj_train1_1"))
+
+    def test_close_bind_falls_back_to_exact_door_clip(self) -> None:
+        ## Vestibule door has no `*_close` — exact clip is closed at frame 1.
+        self.assertEqual(
+            select_close_bind(["cKF_ba_r_obj_romtrain_door"], "obj_romtrain_door"),
+            "cKF_ba_r_obj_romtrain_door",
+        )
+        self.assertIsNone(select_close_bind(["cKF_ba_r_obj_romtrain_door"]))
 
     def test_close_bind_uses_last_frame(self) -> None:
         ## `obj_train1_3_close` is 32 frames open→closed; rest must be frame 32.
@@ -1705,6 +1714,41 @@ class VertexShadeTests(unittest.TestCase):
             data = path.read_bytes()
             ## COLOR_0 accessor present in JSON chunk.
             self.assertIn(b"COLOR_0", data)
+
+    def test_bake_prim_env_texel_png(self) -> None:
+        ## Balloon head: white PRIM highlight, red ENV body, intensity mid → pink-red.
+        from asset_pipeline.texbank import bake_prim_env_texel_png, image_png_bytes
+        from PIL import Image
+        import io
+
+        src = Image.new("RGBA", (2, 1))
+        src.putdata([(0, 0, 0, 200), (255, 255, 255, 255)])
+        png = bake_prim_env_texel_png(
+            image_png_bytes(src),
+            (255, 255, 255, 255),
+            (255, 0, 0, 255),
+        )
+        out = Image.open(io.BytesIO(png)).convert("RGBA")
+        self.assertEqual(out.getpixel((0, 0)), (255, 0, 0, 200))
+        self.assertEqual(out.getpixel((1, 0)), (255, 255, 255, 255))
+
+    def test_bake_prim_env_opaque_i_uses_prim_alpha(self) -> None:
+        ## Train door glass: opaque I8 + PRIM.a=150 → A = I×PRIM (not solid A=255).
+        from asset_pipeline.texbank import bake_prim_env_texel_png, image_png_bytes
+        from PIL import Image
+        import io
+
+        src = Image.new("RGBA", (2, 1))
+        src.putdata([(0, 0, 0, 255), (255, 255, 255, 255)])
+        png = bake_prim_env_texel_png(
+            image_png_bytes(src),
+            (255, 255, 255, 150),
+            (100, 200, 255, 255),
+        )
+        out = Image.open(io.BytesIO(png)).convert("RGBA")
+        self.assertEqual(out.getpixel((0, 0)), (100, 200, 255, 0))
+        self.assertEqual(out.getpixel((1, 0))[:3], (255, 255, 255))
+        self.assertEqual(out.getpixel((1, 0))[3], 150)
 
     def test_vertex_shade_exports_opaque_alpha(self) -> None:
         ## XLU mado verts often carry cn[].a ≈ 63; Godot would scissor/BLEND them away.

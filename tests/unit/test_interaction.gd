@@ -254,6 +254,7 @@ func test_hole_fill_requires_shovel() -> void:
 	assert_that(action).is_not_null()
 	assert_str(String(action.id)).is_equal(String(Interaction.FILL))
 	assert_str(action.player_anim).is_equal("ply_1_fill_up1")
+	assert_float(action.effect_frame).is_equal(PlantGrowth.FILL_HOLE_EFFECT_FRAME)
 	assert_bool(hole.interact(action, ctx)).is_true()
 	assert_bool(hole.is_queued_for_deletion()).is_true()
 	assert_bool(Game.is_hole(&"hole_4_5")).is_false()

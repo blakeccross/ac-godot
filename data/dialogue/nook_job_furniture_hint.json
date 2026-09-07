@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_furniture_hint",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Deliver that furniture\nto the villager I named.\nGo on, go on!"
+    }
+  }
+}

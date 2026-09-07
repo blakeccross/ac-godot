@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_pockets_full",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Er, yes, well... You seem to\nhave completely full pockets.\nYou'll need to leave that stuff\nat home if you want to work."
+    }
+  }
+}

@@ -82,6 +82,10 @@ static func send_mail_at(index: int) -> String:
 		return "The desk is full — we can't take more mail."
 	Game.inventory.remove_mail(index)
 	_refresh_mail_piles()
+	if Game.first_job != null and Game.first_job.is_active():
+		Game.first_job.note_letter_mailed(copy.recipient_id)
+		if Game.first_job.chore_finished():
+			Game.set_interact_prompt("Talk to Tom Nook")
 	return "We'll deliver your letter to %s!" % copy.recipient_name
 
 

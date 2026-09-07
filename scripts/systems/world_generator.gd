@@ -113,6 +113,7 @@ static func generate(seed_value: int = DEFAULT_SEED) -> WorldData:
 	data.bake()
 	_rasterize_acres(data, blocks, heights)
 	_place_structure_buildings(data, blocks)
+	_place_tortimer(data, blocks)
 	## Waterfall FG units come from disc templates (`0x580D`–`0x580F`); geometric
 	## fallback only fills waterfall acres that still lack one.
 	_place_fg_props(data, blocks, seed_value)
@@ -422,6 +423,19 @@ static func _place_waterfall(data: WorldData, blocks: PackedByteArray) -> void:
 			)
 			o.occupy_grid = false
 			data.objects.append(o)
+
+
+static func _place_tortimer(data: WorldData, blocks: PackedByteArray) -> void:
+	## `fd_npc_land_actable`: SP_NPC_SONCHO at acre ut (10,10) on SHRINE (wishing well).
+	## Runtime visibility follows first-job active (`mFM_SetMoveActor`).
+	for bz: int in range(1, 7):
+		for bx: int in range(1, 6):
+			if _block(blocks, bx, bz) != TownFieldGenerator.T_SHRINE:
+				continue
+			var o := _object(&"tortimer", &"tortimer", _fg_origin(bx, bz) + Vector2i(10, 10), null)
+			o.occupy_grid = false
+			data.objects.append(o)
+			return
 
 
 static func _waterfall_in_acre(data: WorldData, origin: Vector2i) -> bool:

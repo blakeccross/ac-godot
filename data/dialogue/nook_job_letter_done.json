@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_letter_done",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Letter delivered? Splendid!\nNow try asking a villager\nif they need help."
+    }
+  }
+}

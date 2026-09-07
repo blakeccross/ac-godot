@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_uniform_wait",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Please let me know when\nyou're done changing, yes?"
+    }
+  }
+}

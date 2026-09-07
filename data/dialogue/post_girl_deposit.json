@@ -10,19 +10,32 @@
         {
           "text": "All bells",
           "goto": "done",
-          "events": [{ "op": "deposit_bells", "amount": -1 }]
+          "events": [
+            {
+              "op": "deposit_bells",
+              "amount": -1
+            }
+          ]
         },
         {
           "text": "1,000 bells",
           "goto": "done",
-          "events": [{ "op": "deposit_bells", "amount": 1000 }]
+          "events": [
+            {
+              "op": "deposit_bells",
+              "amount": 1000
+            }
+          ]
         },
-        { "text": "Never mind...", "goto": "cancel" }
+        {
+          "text": "Never mind...",
+          "goto": "cancel"
+        }
       ]
     },
     "done": {
       "type": "line",
-      "text": "All set! Your savings are safe with us."
+      "text": "All set! Your savings are safe\nwith us."
     },
     "cancel": {
       "type": "line",

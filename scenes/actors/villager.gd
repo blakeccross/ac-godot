@@ -129,6 +129,9 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		_talk_look = ctx.actor.global_position
 	else:
 		_talk_look = global_position
+	## First-job delivery / open handoff before normal greetings.
+	if await _try_first_job_talk(ctx):
+		return true
 	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
 	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
 	if ui != null and ui.has_method("play"):
@@ -148,7 +151,68 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		Game.post_notice("%s: %s" % [who, line])
 	if state != null:
 		state.record_talk(VillagerTalk.day_key())
+	_note_first_job_talk()
 	return true
+
+
+func _try_first_job_talk(ctx: InteractionContext) -> bool:
+	if Game == null or Game.first_job == null or not Game.first_job.is_active():
+		return false
+	if data == null or data.id == &"":
+		return false
+	var job: FirstJob = Game.first_job
+	var who: String = data.display_name if data else "Villager"
+	var player: Node3D = ctx.actor as Node3D if ctx != null else null
+	if job.can_deliver_to(data.id, Game.inventory):
+		var delivered_id: StringName = job.item_id
+		if player != null:
+			await HandOver.player_gives_to_npc(player, self, delivered_id)
+		if not job.try_deliver_to(data.id, Game.inventory):
+			return false
+		if Game.relationships != null:
+			Game.relationships.record_gift(
+				data.id,
+				delivered_id if delivered_id != &"" else &"delivery",
+				VillagerTalk.day_key()
+			)
+		_play_first_job_line(&"nook_job_deliver_ok", who, player)
+		Game.set_interact_prompt("Talk to Tom Nook")
+		if state != null:
+			state.record_talk(VillagerTalk.day_key())
+		return true
+	if job.kind == FirstJob.Kind.OPEN and job.progress == FirstJob.PROGRESS_ACTIVE:
+		job.mark_open_finished()
+		_play_first_job_line(&"nook_job_open_villager", who, player)
+		Game.set_interact_prompt("Talk to Tom Nook")
+		if state != null:
+			state.record_talk(VillagerTalk.day_key())
+		return true
+	return false
+
+
+func _note_first_job_talk() -> void:
+	if Game == null or Game.first_job == null or data == null:
+		return
+	Game.first_job.note_villager_talked(data.id)
+	if Game.first_job.kind == FirstJob.Kind.INTRODUCTIONS and Game.first_job.chore_finished():
+		Game.set_interact_prompt("Talk to Tom Nook")
+
+
+func _play_first_job_line(conv_id: StringName, who: String, player: Node3D) -> void:
+	var talk_data: DialogueData = DialogueCatalog.conversation(conv_id)
+	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
+	talk_ctx.speaker_name = who
+	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
+	if ui != null and talk_data != null and ui.has_method("play"):
+		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
+			ui.call("close")
+		ai.begin_talk()
+		_bind_talk_end(ui)
+		if player != null:
+			TalkCamera.begin(player, self, get_tree())
+		ui.call("play", talk_data, talk_ctx, state)
+	else:
+		Game.post_notice("%s: Thanks!" % who)
 
 
 func _physics_process(delta: float) -> void:
@@ -364,18 +428,20 @@ func _walkable_near(world_pos: Vector3) -> Vector3:
 
 
 func _avoid_if_wall(before: Vector3, planar: Vector3, delta: float) -> void:
-	## `aNPC_avoid_obstacle` while speed ≠ 0 and front wall flag set.
+	## `aNPC_avoid_obstacle` while speed ≠ 0 and collision_flag ≠ 0.
 	if not _motor.has_target:
 		return
 	if _avoid_cool > 0.0:
 		return
-	if not _front_wall_hit(before, planar, delta):
+	var flags: int = _collision_flags(before, planar, delta)
+	if flags == 0:
 		return
-	_steer_around_wall()
+	_steer_around_wall(flags)
 
 
-func _front_wall_hit(before: Vector3, planar: Vector3, delta: float) -> bool:
-	## Analog of `collision_flag` after BG + `aNPC_forward_check`.
+func _collision_flags(before: Vector3, planar: Vector3, delta: float) -> int:
+	## `aNPC_BGcheck` then `aNPC_forward_check` OR into `collision_flag`.
+	var flags: int = 0
 	var intended := Vector3(sin(_motor.facing), 0.0, cos(_motor.facing))
 	var speed_xz := Vector2(planar.x, planar.z).length()
 	if speed_xz > IDLE_SPEED and delta > 0.0:
@@ -383,32 +449,23 @@ func _front_wall_hit(before: Vector3, planar: Vector3, delta: float) -> bool:
 		moved.y = 0.0
 		var expected: float = speed_xz * delta
 		if moved.dot(intended) < expected * STUCK_FRAC:
-			return true
+			## Front wall from BG revise — same as hit_wall FRONT|WALL (= 3).
+			flags = VillagerWalk.HIT_WALL | VillagerWalk.HIT_WALL_FRONT
 	if get_slide_collision_count() > 0 and _slide_is_front(planar):
-		return true
-	## `aNPC_forward_check_sub` out of move-range returns a wall hit.
+		flags = VillagerWalk.HIT_WALL | VillagerWalk.HIT_WALL_FRONT
+	## Lateral half-unit probes (`aNPC_forward_check`) — not a forward ray.
 	if ai.is_wandering() and _in_goal_block() and speed_xz > IDLE_SPEED:
 		var bg: Array = _bg()
 		if bg.size() == 2:
-			var probe: Vector3 = before + intended * 1.0
-			if not VillagerWalk.in_move_range(bg[0] as WorldData, _goal_block, probe):
-				return true
-			if _forward_height_wall(bg[0] as WorldData, bg[1] as WorldGrid, before, probe):
-				return true
-	return false
-
-
-func _forward_height_wall(
-	data: WorldData, grid: WorldGrid, from: Vector3, ahead: Vector3
-) -> bool:
-	## Forward probe: |Δheight| ≥ half-unit (~1 m) counts as a wall (`forward_check`).
-	var ya: float = FieldCollision.ground_y_at(data, grid, from)
-	var yb: float = FieldCollision.ground_y_at(data, grid, ahead)
-	if not FieldCollision.has_floor(ya):
-		return false
-	if not FieldCollision.has_floor(yb):
-		return true
-	return absf(ya - yb) >= 1.0
+			flags |= VillagerWalk.forward_check_flags(
+				bg[0] as WorldData,
+				_goal_block,
+				before,
+				_motor.facing,
+				before.y,
+				bg[1] as WorldGrid
+			)
+	return flags
 
 
 func _slide_is_front(planar: Vector3) -> bool:
@@ -428,8 +485,8 @@ func _slide_is_front(planar: Vector3) -> bool:
 	return false
 
 
-func _steer_around_wall() -> void:
-	## `aNPC_avoid_obstacle`: flag 3 + side 0 → ±112.5; side 1/2 → `aNPC_avoid_wall`.
+func _steer_around_wall(flags: int) -> void:
+	## `aNPC_avoid_obstacle` by collision_flag: 3 front hop, 1/2 side avoid_wall.
 	## Never drop `dst_pos` — failed hops fall back to 180° (`turn_to_backward`).
 	var bg: Array = _bg()
 	if bg.size() != 2:
@@ -442,10 +499,25 @@ func _steer_around_wall() -> void:
 		here = _goal_block
 	var around: Vector3 = global_position
 	var side: int = _motor.avoid_direction
-	## Front+wall with side 0 → `aNPC_turn_to_backward` (ACT_TURN, then walk).
-	## Side 1/2 → `aNPC_avoid_wall` n=0 sets avoid while still moving.
-	var turn_first: bool = side == 0
-	if side == 0:
+	var turn_first: bool = false
+	if flags == VillagerWalk.HIT_WALL:
+		## Right-side rise → `aNPC_avoid_wall(direction=1)` (−angles, prefer_side 2).
+		if side == 3:
+			return
+		around = VillagerWalk.avoid_around(
+			world_data, global_position, _motor.facing, here, grid, 2
+		)
+		side = 2
+	elif flags == VillagerWalk.HIT_WALL_FRONT:
+		## Left-side rise → `aNPC_avoid_wall(direction=0)` (+angles, prefer_side 1).
+		if side == 3:
+			return
+		around = VillagerWalk.avoid_around(
+			world_data, global_position, _motor.facing, here, grid, 1
+		)
+		side = 1
+	elif side == 0:
+		## Front+wall with side 0 → `aNPC_turn_to_backward` (ACT_TURN, then walk).
 		var hop: Dictionary = VillagerWalk.first_avoid_hop(
 			world_data, global_position, _motor.facing, here, grid
 		)
@@ -455,10 +527,17 @@ func _steer_around_wall() -> void:
 		else:
 			around = hop["pos"] as Vector3
 			side = int(hop.get("side", 0))
-	else:
+		turn_first = true
+	elif side == 1:
 		around = VillagerWalk.avoid_around(
-			world_data, global_position, _motor.facing, here, grid, side
+			world_data, global_position, _motor.facing, here, grid, 1
 		)
+	elif side == 2:
+		around = VillagerWalk.avoid_around(
+			world_data, global_position, _motor.facing, here, grid, 2
+		)
+	else:
+		return
 	var delta: Vector3 = around - global_position
 	delta.y = 0.0
 	if delta.length() < 0.05:
@@ -609,6 +688,14 @@ func _clip_for(_kind: StringName, moving: bool) -> String:
 			return ANIM_FISH
 		_:
 			return ANIM_WAIT
+
+
+func play_wait_anim() -> void:
+	_play_clip(ANIM_WAIT, true)
+
+
+func animation_player() -> AnimationPlayer:
+	return _body_anim
 
 
 func _play_clip(suffix: String, loop: bool) -> void:

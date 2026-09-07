@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_open_villager",
+  "speaker_id": "villager",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Hmm, help? Sure \u2014\nthanks for asking!\nCome by anytime."
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "nook_job_intro",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Good work planting!\nNext, introduce yourself\nto everyone in town.",
+      "next": "n1"
+    },
+    "n1": {
+      "type": "line",
+      "text": "And don't forget Tortimer\nat the wishing well!"
+    }
+  }
+}

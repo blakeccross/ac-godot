@@ -10,9 +10,10 @@ const INNER_SIZE := Vector2i(6, 8)
 const DOOR_CELL := Vector2i(3, 8)
 const SPAWN_CELL := Vector2i(3, 7)
 
-## `POST_OFFICE_player_data` GX {100,0,200}, face south (yaw 0).
-const SPAWN_GX := Vector3(100.0, 0.0, 200.0)
-const SPAWN_FACING := WorldGrid.Facing.SOUTH
+## Outdoor enter (`aPOFF_post_office_door_data`): GX {160,0,300}, orient 4 = `mSc_DIRECT_NORTH`.
+## Not scene `POST_OFFICE_player_data` {100,0,200} / rot 0.
+const SPAWN_GX := Vector3(160.0, 0.0, 300.0)
+const SPAWN_FACING := WorldGrid.Facing.NORTH
 
 ## `post_office_actable` ut (4,2); `aPG_actor_ct` then subtracts 20 GX on X.
 const POST_GIRL_STAND_UT := Vector2i(4, 2)

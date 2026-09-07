@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_open",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Chat with any villager\nand see if they have\na little request for you."
+    }
+  }
+}

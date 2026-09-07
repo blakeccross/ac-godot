@@ -16,6 +16,7 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 | `include/m_name_table.h` | Tool id ranges (scoop, axe, rod, net, can; golden variants); `HOLE_START`–`HOLE_END` |
 | `m_player_main_dig_scoop.c_inc` | Empty-tile / remove-item scoop writes hole FG (`dig_hole_effect_entry`) |
 | `m_player_main_fill_scoop.c_inc` | Shovel on an empty hole fills it (`bury_hole_effect_entry`) |
+| `m_player_main_putin_scoop.c_inc` | Inventory plant/bury into a hole (`FILL_UP_I1`) |
 | `m_field_info.c` (`mFI_GetDigStatus`) | Dig vs fill vs get-buried vs miss |
 | `bg_item_common.c_inc` | Hole actor scale-in / scale-out; `HOLE00`–`HOLE24` from collision hole number |
 | Player actor draw | `Player_actor_Item_draw` / `Player_actor_draw_After_hand`; HAND = joint 20 |
@@ -30,7 +31,7 @@ Equipping a tool puts the player into a **tool-ready** main index. A then uses t
 - One interact button: host verb if the object cares about the equipped kind, otherwise the tool’s field verb.
 - Axe chops a tree (three hits to a stump; fruit on the first hit or shake); shovel digs (rock / stump / empty ground → hole) and fills a hole; net swings in front; rod casts only at water; watering can waters a flower.
 - Locked player anim while the verb runs.
-- Drawn tool follows the right hand (`mPlayer_JOINT_HAND` / joint 20). Axe and scoop are static Gfx (`tol_axe_1`, `tol_scoop_1`). Net and rod are cKF (`tol_net_1`, `tol_sao_1`) and play their own swing clips with the player. Chop uses `ply_1_axe_swing1` (`mPlayer_ANIM_AXE_SWING1`), not `ply_1_axe1`. Net wait uses `ply_1_kamae_wait_m1`. The GameCube disc has **no watering-can mesh**.
+- Drawn tool follows the right hand (`mPlayer_JOINT_HAND` / joint 20). Axe and scoop are static Gfx (`tol_axe_1`, `tol_scoop_1`). Net and rod are cKF (`tol_net_1`, `tol_sao_1`) and play their own swing clips with the player. Chop uses `ply_1_axe_swing1` (`mPlayer_ANIM_AXE_SWING1`), not `ply_1_axe1`. Net wait uses `ply_1_kamae_wait_m1`. Fill hole uses `ply_1_fill_up1` (effect frame 18); inventory plant into a hole uses `ply_1_fill_up_i1` (effect frame 25). The GameCube disc has **no watering-can mesh**.
 
 ## Simplify
 

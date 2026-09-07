@@ -190,6 +190,62 @@ func test_plant_from_slot_consumes_sapling() -> void:
 	assert_bool(PlantGrowth.has_record(PlantGrowth.persist_id(face))).is_true()
 
 
+func test_take_plant_from_slot_flags_scoop_on_hole() -> void:
+	ItemCatalog.reload()
+	var world := auto_free(_GridWorld.new()) as _GridWorld
+	world.grid.configure(16, 16, 2.0, Vector3(-16, 0, -16))
+	var objects := Node3D.new()
+	objects.name = "Objects"
+	world.add_child(objects)
+	var actor := auto_free(Node3D.new()) as Node3D
+	add_child(actor)
+	actor.global_position = world.grid.cell_to_world(Vector2i(8, 8))
+	var ctx := InteractionContext.new()
+	ctx.world = world
+	ctx.actor = actor
+	ctx.inventory = Inventory.new()
+	ctx.inventory.add(ItemCatalog.get_item(&"shovel"), 1)
+	ctx.inventory.equip_slot(0)
+	ctx.inventory.add(ItemCatalog.get_item(&"apple_sapling"), 1)
+	var face: Vector2i = ToolUse.facing_cell(ctx)
+	assert_bool(HoleUse.dig(ctx, face)).is_true()
+	assert_bool(PlantGrowth.scoop_plant_ready(ctx)).is_true()
+	var taken: Dictionary = PlantGrowth.take_plant_from_slot(ctx, 1)
+	assert_bool(bool(taken.get("ok", false))).is_true()
+	assert_bool(bool(taken.get("use_scoop", false))).is_true()
+	assert_int(ctx.inventory.count_of(&"apple_sapling")).is_equal(0)
+	## Consumed only — host appears after putin scoop / plant().
+	assert_bool(PlantGrowth.has_record(PlantGrowth.persist_id(face))).is_false()
+	var pid: StringName = PlantGrowth.plant(ctx, taken.get("plant") as PlantData, face)
+	assert_str(String(pid)).is_equal(String(PlantGrowth.persist_id(face)))
+	assert_bool(Game.is_hole(HoleUse.persist_id(face))).is_false()
+
+
+func test_scoop_plant_ready_needs_shovel_and_hole() -> void:
+	ItemCatalog.reload()
+	var world := auto_free(_GridWorld.new()) as _GridWorld
+	world.grid.configure(16, 16, 2.0, Vector3(-16, 0, -16))
+	var actor := auto_free(Node3D.new()) as Node3D
+	add_child(actor)
+	actor.global_position = world.grid.cell_to_world(Vector2i(4, 4))
+	var ctx := InteractionContext.new()
+	ctx.world = world
+	ctx.actor = actor
+	ctx.inventory = Inventory.new()
+	assert_bool(PlantGrowth.scoop_plant_ready(ctx)).is_false()
+	ctx.inventory.add(ItemCatalog.get_item(&"shovel"), 1)
+	ctx.inventory.equip_slot(0)
+	assert_bool(PlantGrowth.scoop_plant_ready(ctx)).is_false()
+	assert_bool(HoleUse.dig(ctx, ToolUse.facing_cell(ctx))).is_true()
+	assert_bool(PlantGrowth.scoop_plant_ready(ctx)).is_true()
+
+
+func test_putin_scoop_anim_constants() -> void:
+	assert_str(String(PlantGrowth.PUTIN_SCOOP_ANIM)).is_equal("ply_1_fill_up_i1")
+	assert_float(PlantGrowth.PUTIN_HOLE_EFFECT_FRAME).is_equal(25.0)
+	assert_str(String(PlantGrowth.FILL_SCOOP_ANIM)).is_equal("ply_1_fill_up1")
+	assert_float(PlantGrowth.FILL_HOLE_EFFECT_FRAME).is_equal(18.0)
+
 func test_save_round_trip_keeps_planted_renew() -> void:
 	var plant: PlantData = load("res://data/plants/apple_tree.tres")
 	Clock.apply_snapshot({"year": 2001, "month": 4, "day": 10, "hour": 12, "minute": 0})

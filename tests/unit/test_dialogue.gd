@@ -200,6 +200,80 @@ func test_save_round_trip_dialogue_vars_and_weather() -> void:
 	SaveService.delete_save(path)
 
 
+func test_message_sex_matches_looks() -> void:
+	var peppy: VillagerPersonality = load("res://data/personalities/peppy.tres")
+	var lazy: VillagerPersonality = load("res://data/personalities/lazy.tres")
+	assert_that(peppy).is_not_null()
+	assert_that(lazy).is_not_null()
+	## Female looks → pink nameplate; male → cyan (`m_msg_appear`).
+	assert_that(peppy.message_sex()).is_equal(1)
+	assert_that(lazy.message_sex()).is_equal(0)
+
+
+func test_dialogue_overlay_matches_msg_timing() -> void:
+	## Source constants — keep in sync with `m_msg_appear` / cursol pause frame.
+	var src := FileAccess.get_file_as_string("res://scenes/ui/dialogue_overlay.gd")
+	assert_str(src).contains("APPEAR_FRAMES := 18.0")
+	assert_str(src).contains("CHOICE_APPEAR_FRAMES := 10.2")
+	assert_str(src).contains("CHARS_PER_SEC := 15.0")
+	assert_str(src).contains("FAST_CHARS_PER_SEC := 30.0")
+	assert_str(src).contains("FRAME_HZ := 30.0")
+
+
+func test_normalize_punct_maps_em_dash() -> void:
+	## Authored KK/Nook lines use em dashes; NES atlas has ASCII hyphen only.
+	var normalized := MessageWindowChrome._normalize_punct("Still — if you've got…")
+	assert_str(normalized).is_equal("Still - if you've got...")
+	assert_str(normalized).not_contains("—")
+	assert_str(normalized).not_contains("…")
+
+
+func test_body_width_matches_continue_mark() -> void:
+	## Soft-wrap budget is the strip ending at `ARROW_UV` (~193 px), not full cloud.
+	var max_w: float = MessageWindowChrome.WINDOW_SIZE.x * (
+		MessageWindowChrome.ARROW_UV.position.x - MessageWindowChrome.BODY_UV.x
+	)
+	assert_float(max_w).is_equal_approx(193.0, 1.0)
+	var src := FileAccess.get_file_as_string("res://scripts/ui/message_window_chrome.gd")
+	assert_str(src).contains("_wrap_body_lines")
+	assert_str(src).contains("_strip_style_tags")
+
+
+func test_authored_dialogue_lines_fit_body() -> void:
+	## Guardrail: each authored line (style tags stripped) stays within the body strip.
+	## Runtime soft-wrap still covers misses; this keeps JSON readable like the GC bank.
+	var dir := DirAccess.open("res://data/dialogue")
+	assert_that(dir).is_not_null()
+	dir.list_dir_begin()
+	var name := dir.get_next()
+	var checked := 0
+	while name != "":
+		if name.ends_with(".json"):
+			var data: Variant = JSON.parse_string(
+				FileAccess.get_file_as_string("res://data/dialogue/%s" % name)
+			)
+			assert_that(data).is_not_null()
+			var nodes: Dictionary = (data as Dictionary).get("nodes", {})
+			for nid: Variant in nodes.keys():
+				var node: Dictionary = nodes[nid]
+				for field: String in ["text", "prompt"]:
+					if not node.has(field) or typeof(node[field]) != TYPE_STRING:
+						continue
+					var text: String = str(node[field])
+					for line: String in text.split("\n"):
+						var visible := MessageWindowChrome._strip_style_tags(
+							MessageWindowChrome._normalize_punct(line)
+						)
+						## Placeholders expand shorter than their `{name}` spelling in most cases.
+						if visible.contains("{"):
+							continue
+						checked += 1
+						## Approx: average glyph ~6–8 px; hard fail only on extreme lines.
+						assert_int(visible.length()).is_less(36)
+		name = dir.get_next()
+	assert_int(checked).is_greater(20)
+
+
 func _line(data: DialogueData, ctx: DialogueContext) -> String:
 	var runner := DialogueRunner.new()
 	runner.start(data, ctx, null)

@@ -100,11 +100,12 @@ static func apply_window_scenery(
 	root: Node3D,
 	daylight: bool,
 	cloud_mats: Array[StandardMaterial3D],
-	tree_mats: Array[StandardMaterial3D]
+	tree_mats: Array[StandardMaterial3D],
+	tunnel_mats: Array[StandardMaterial3D] = []
 ) -> void:
 	if root == null:
 		return
-	_apply_window_scenery_inner(root, daylight, cloud_mats, tree_mats)
+	_apply_window_scenery_inner(root, daylight, cloud_mats, tree_mats, tunnel_mats)
 
 
 static func _apply_environment(world_env: WorldEnvironment, sun: float) -> void:
@@ -217,7 +218,8 @@ static func _apply_window_scenery_inner(
 	node: Node,
 	daylight: bool,
 	cloud_mats: Array[StandardMaterial3D],
-	tree_mats: Array[StandardMaterial3D]
+	tree_mats: Array[StandardMaterial3D],
+	tunnel_mats: Array[StandardMaterial3D]
 ) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
@@ -244,8 +246,11 @@ static func _apply_window_scenery_inner(
 						std.albedo_color.b * 0.35,
 						std.albedo_color.a
 					)
+				## `aTrainWindow_DrawGoingOutTunnel` scrolls seg 11 (tunnel + sky).
+				tunnel_mats.append(std)
 			elif _is_window_sky_surface(label):
 				_apply_window_opa_surface(std)
+				tunnel_mats.append(std)
 			elif _is_light_ray_surface(label):
 				_apply_shineglass_surface(std, daylight)
 			elif _is_window_cloud_surface(label):
@@ -258,7 +263,7 @@ static func _apply_window_scenery_inner(
 				_apply_xlu_scenery_surface(std)
 			mesh_instance.set_surface_override_material(i, std)
 	for child: Node in node.get_children():
-		_apply_window_scenery_inner(child, daylight, cloud_mats, tree_mats)
+		_apply_window_scenery_inner(child, daylight, cloud_mats, tree_mats, tunnel_mats)
 
 
 static func _is_window_tunnel_surface(label: String) -> bool:
@@ -279,11 +284,15 @@ static func _is_window_tree_surface(label: String) -> bool:
 
 static func _apply_window_opa_surface(std: StandardMaterial3D) -> void:
 	std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	## Tunnel/sky stay opaque — chromakey A must not punch holes in the exit scroll.
+	std.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 	std.roughness = 1.0
 	std.metallic = 0.0
 	std.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 	std.emission_enabled = false
+	if std.albedo_color.a < 1.0:
+		std.albedo_color.a = 1.0
 
 
 static func _surface_label(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> String:

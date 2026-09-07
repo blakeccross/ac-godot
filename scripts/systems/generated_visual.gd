@@ -1116,6 +1116,11 @@ static func _apply_materials_inner(
 					std.render_priority = 1
 					mesh_instance.set_surface_override_material(i, std)
 				else:
+					## ACHD soft TEX_EDGE often imports as BLEND (no depth write). River /
+					## ocean screen-composite shaders draw later at render_priority 1 and
+					## paint over face/ear cutouts (Maple cub `seg_08`/`seg_09`, etc.).
+					## Intentional XLU already branched above — harden leftover cutouts.
+					_harden_imported_cutout(std)
 					var field_role := FieldCatalog.season_role_for_surface(mesh_instance, i, src)
 					if not field_role.is_empty():
 						std.set_meta("field_role", field_role)
@@ -1125,6 +1130,16 @@ static func _apply_materials_inner(
 			mesh_instance.sorting_offset = 1.0
 	for child in node.get_children():
 		_apply_materials_inner(child, as_decal, mouth_river, keep_imported, visual_id)
+
+
+static func _harden_imported_cutout(std: StandardMaterial3D) -> void:
+	## Match structure TEX_EDGE: scissor + depth write so transparent water cannot
+	## overdraw ears/faces whose soft BLEND fringe left holes in the depth buffer.
+	if std.transparency != BaseMaterial3D.TRANSPARENCY_ALPHA:
+		return
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	std.alpha_scissor_threshold = maxf(std.alpha_scissor_threshold, 0.5)
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 
 
 static func _is_fish_tank_visual(visual_id: StringName) -> bool:

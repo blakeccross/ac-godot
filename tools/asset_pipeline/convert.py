@@ -50,7 +50,7 @@ _REL_IA_WAVE_DIMS: dict[str, tuple[int, int]] = {
 TRANSFORMS = {
     "scale": "vertex * config.scale (default 0.001). Not actor 0.01 or acre 0.0625 draw scale — Godot FieldCatalog applies those.",
     "z_axis": "cKF: wait bind already stands on +Y; else +90° about Z unless GX verts pass robust Y-up (5th-percentile floor + not +X-chain) — bake door/close clip for joint-0 yaw. Prefer *_close when no wait. Static Gfx keep GX Z (no flip).",
-    "rest_pose": "wait frame 1 when available; furniture/clocks bake own clip frame 1 (closed); Y-up meshes bake door-clip frame 1; else *_close last frame (open→closed) or identity + ckf_basis",
+    "rest_pose": "wait frame 1 when available; furniture/clocks bake own clip frame 1 (closed); Y-up meshes bake door-clip frame 1; else *_close last frame (open→closed) or exact cKF_ba_r_{prefix} (vestibule door); else identity + ckf_basis",
     "animations": "cKF_ba_r_* sampled at 30 fps into skinned glTF clips",
     "textures": "GX CI4/CI8 + pal; I/IA * G_SETPRIMCOLOR; villager tmem on 0x0A/0x0B",
     "skin": "G_MTX 0x0D slots map to Gfx-bearing joints; seam verts stay on the parent",
@@ -69,6 +69,9 @@ PLAYER_CORE_ANIMS = [
     # arcs from the player — but equip/unequip needs this once those modes are wired.
     "cKF_ba_r_ply_1_putaway1",
     "cKF_ba_r_ply_1_dig1",
+    # Scoop dig / fill / plant-into-hole (`DIG_SCOOP` / `FILL_SCOOP` / `PUTIN_SCOOP`).
+    "cKF_ba_r_ply_1_fill_up1",
+    "cKF_ba_r_ply_1_fill_up_i1",
     "cKF_ba_r_ply_1_shake1",
     "cKF_ba_r_ply_1_net_swing1",
     "cKF_ba_r_ply_1_sao_swing1",
@@ -88,6 +91,13 @@ PLAYER_CORE_ANIMS = [
     # fish go into the pocket. The rod itself has no putaway clip -- `tol_sao_1` carries only
     # six -- so it holds its wait pose through this one.
     "cKF_ba_r_ply_1_putaway_t1",
+    # Hand-over / receive (`mPlayer_INDEX_GIVE` / `RECEIVE`): transfer to NPC, or
+    # get_pull → get_putaway when an NPC hands something over (`handOverItem`).
+    "cKF_ba_r_ply_1_transfer1",
+    "cKF_ba_r_ply_1_trans_wait1",
+    "cKF_ba_r_ply_1_get1",
+    "cKF_ba_r_ply_1_get_pull1",
+    "cKF_ba_r_ply_1_get_putaway1",
     # Door enter (`mPlayer_INDEX_DOOR` / type 0 → OPEN1). Walks into the doorway while the
     # structure door cKF plays.
     "cKF_ba_r_ply_1_open1",
@@ -105,6 +115,12 @@ NPC_CORE_ANIMS = [
     "cKF_ba_r_npc_1_wait1",
     "cKF_ba_r_npc_1_walk1",
     "cKF_ba_r_npc_1_run1",
+    # Hand-over (`aNPC_ANIM_TRANSFER1` / `GET1`): Nook first-job gifts and villager deliveries.
+    "cKF_ba_r_npc_1_transfer1",
+    "cKF_ba_r_npc_1_trans_wait1",
+    "cKF_ba_r_npc_1_get1",
+    "cKF_ba_r_npc_1_get_pull1",
+    "cKF_ba_r_npc_1_get_putaway1",
 ]
 
 ## `ac_npc_guide` train intro clips baked into `xct_1.glb` for the test set.
@@ -148,6 +164,11 @@ INTRO_NOOK_NPC_ANIMS = [
     "cKF_ba_r_npc_1_wait1",
     "cKF_ba_r_npc_1_walk1",
     "cKF_ba_r_npc_1_run1",
+    "cKF_ba_r_npc_1_transfer1",
+    "cKF_ba_r_npc_1_trans_wait1",
+    "cKF_ba_r_npc_1_get1",
+    "cKF_ba_r_npc_1_get_pull1",
+    "cKF_ba_r_npc_1_get_putaway1",
     "cKF_ba_r_npc_1_smile1",
     "cKF_ba_r_npc_1_smile2",
     "cKF_ba_r_npc_1_gaaan1",

@@ -9,8 +9,8 @@ extends Control
 const PULSE_FRAMES := 60.0
 const FRAME_HZ := 30.0
 
-## `continue_button_color` is pure blue in `mMsg_init`; the GC frame reads violet.
-const ARROW_COLOR := Color(64.0 / 255.0, 0.0, 192.0 / 255.0)
+## `continue_button_color` is pure blue in `mMsg_init`; the GC frame reads violet/lavender.
+const ARROW_COLOR := Color(120.0 / 255.0, 100.0 / 255.0, 220.0 / 255.0)
 
 var _timer: float = 0.0
 

@@ -27,6 +27,16 @@ const BEE_COLUMN_NUM := 5
 ## GC clears flowers on KILL_PLANT tiles; wilt extends our watering slice.
 const FLOWER_DIE_DAYS := 4
 
+## `mPlayer_ANIM_FILL_UP_I1` — plant / bury into a hole from the inventory (`PUTIN_SCOOP`).
+const PUTIN_SCOOP_ANIM := &"ply_1_fill_up_i1"
+## Hole reset is frame 18 on `FILL_UP1`; `FILL_UP_I1` offsets by +7 (`Player_actor_Reset_Hole_Fill_scoop`).
+const PUTIN_HOLE_EFFECT_FRAME := 25.0
+## Empty-hole fill (`FILL_SCOOP`) uses `FILL_UP1` with the same reset at frame 18.
+const FILL_SCOOP_ANIM := &"ply_1_fill_up1"
+const FILL_HOLE_EFFECT_FRAME := 18.0
+## `bIT_actor_drop_move_plant` settle — short grow-in after the FG item lands.
+const GROW_IN_SEC := 0.4
+
 static var _plants: Dictionary = {}
 static var _plants_loaded := false
 
@@ -369,6 +379,44 @@ static func refresh_hosts(world: Node) -> void:
 			node.call("apply_growth")
 
 
+## True when the equipped scoop can fill the facing unit (`mIV` shovel_flag / FILL_SCOOP).
+static func scoop_plant_ready(ctx: InteractionContext) -> bool:
+	if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):
+		return false
+	var grid: WorldGrid = _grid(ctx)
+	if grid == null:
+		return false
+	var cell: Vector2i = ToolUse.facing_cell(ctx)
+	if not grid.is_in_bounds(cell):
+		return false
+	return Game.is_hole(grid.occupant_at(cell))
+
+
+## Scale-in for a freshly placed host (`bIT_actor_drop_move_plant` / hole plant).
+static func play_grow_in(host: Node3D) -> void:
+	if host == null or not is_instance_valid(host):
+		return
+	host.scale = Vector3.ZERO
+	var tw: Tween = host.create_tween()
+	tw.tween_property(host, "scale", Vector3.ONE, GROW_IN_SEC).set_trans(Tween.TRANS_BACK).set_ease(
+		Tween.EASE_OUT
+	)
+
+
+static func host_at(world: Node, persist_id: StringName) -> Node3D:
+	if world == null or world.get_tree() == null or persist_id == &"":
+		return null
+	for node: Node in world.get_tree().get_nodes_in_group("plant"):
+		var persist: Variant = node.get("persist_id")
+		if persist is StringName and persist == persist_id and node is Node3D:
+			return node as Node3D
+		var occupant: Variant = node.get("occupant_id")
+		if occupant is StringName and occupant == persist_id and node is Node3D:
+			return node as Node3D
+	return null
+
+
+## Instant plant for tests / fallbacks. Field Plant closes the submenu and plays scoop or grow-in.
 static func plant_from_slot(ctx: InteractionContext, slot_index: int) -> String:
 	if ctx == null or ctx.inventory == null:
 		return ""
@@ -391,7 +439,48 @@ static func plant_from_slot(ctx: InteractionContext, slot_index: int) -> String:
 	if pid == &"":
 		ctx.inventory.add(item, 1, removed.condition)
 		return "Can't plant here."
+	play_grow_in(host_at(ctx.world, pid))
 	return "Planted %s." % plant.display_name
+
+
+## Validate + consume a plantable pocket slot. Caller closes the submenu then animates.
+## Returns `{ok, msg, plant, cell, item, condition, use_scoop}`.
+static func take_plant_from_slot(ctx: InteractionContext, slot_index: int) -> Dictionary:
+	var out := {
+		"ok": false,
+		"msg": "",
+		"plant": null,
+		"cell": Vector2i(-1, -1),
+		"item": null,
+		"condition": InventoryItem.Condition.NORMAL,
+		"use_scoop": false,
+	}
+	if ctx == null or ctx.inventory == null:
+		return out
+	var slot: InventorySlot = ctx.inventory.slot_at(slot_index)
+	if slot == null or slot.is_empty():
+		return out
+	var item: ItemData = ItemCatalog.get_item(slot.item.item_id)
+	if item == null or item.plant_id == &"":
+		return out
+	var plant: PlantData = plant_data(item.plant_id)
+	if plant == null:
+		return out
+	var cell: Vector2i = ToolUse.facing_cell(ctx)
+	if not can_plant(ctx, plant, cell):
+		out["msg"] = "Can't plant here."
+		return out
+	var removed: InventoryItem = ctx.inventory.remove_from_slot(slot_index, 1)
+	if removed.is_empty():
+		return out
+	out["ok"] = true
+	out["plant"] = plant
+	out["cell"] = cell
+	out["item"] = item
+	out["condition"] = removed.condition
+	out["use_scoop"] = scoop_plant_ready(ctx)
+	out["msg"] = "Planted %s." % plant.display_name
+	return out
 
 
 static func refresh_world(world: Node) -> void:

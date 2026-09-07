@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_letter",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Here's stationery.\nWrite a letter and mail it\nat the post office!"
+    }
+  }
+}

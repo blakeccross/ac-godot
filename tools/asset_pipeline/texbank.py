@@ -255,6 +255,48 @@ def bake_beach_wet_png(
     return image_png_bytes(out)
 
 
+def bake_prim_env_texel_png(
+    png: bytes,
+    prim: tuple[int, int, int, int],
+    env: tuple[int, int, int, int],
+) -> bytes:
+    """Bake combiner ``(PRIM - ENV) * TEXEL0 + ENV``; preserve coverage in alpha.
+
+    Balloon heads / design pens / similar IA (or I) surfaces store intensity in
+    the texel and colour via PRIM (highlight) + ENV (body). ``apply_prim`` only
+    multiplies RGB — white PRIM left those meshes grayscale.
+
+    Alpha: IA keeps texel A; opaque I uses ``I×PRIM`` (then ``I×ENV`` if PRIM.a
+    is 255), matching XLU glass ``TEXEL0×PRIMITIVE`` when this bake still runs.
+    """
+    image = Image.open(io.BytesIO(png)).convert("RGBA")
+    pr, pg, pb, pa = prim
+    er, eg, eb, ea = env
+    out = Image.new("RGBA", image.size)
+    px_in = image.load()
+    px_out = out.load()
+    for y in range(image.size[1]):
+        for x in range(image.size[0]):
+            r, _g, _b, a = px_in[x, y]
+            intensity = int(r)
+            t = intensity / 255.0
+            if a < 255:
+                out_a = int(a)
+            elif pa < 255:
+                out_a = int(round(intensity * (pa / 255.0)))
+            elif ea < 255:
+                out_a = int(round(intensity * (ea / 255.0)))
+            else:
+                out_a = intensity
+            px_out[x, y] = (
+                int(round(er + (pr - er) * t)),
+                int(round(eg + (pg - eg) * t)),
+                int(round(eb + (pb - eb) * t)),
+                out_a,
+            )
+    return image_png_bytes(out)
+
+
 ## `grd_player_select_modelT` spot: prim white, env (255,255,130), lod 150.
 _PLAYER_SELECT_SPOT_ENV = (255, 255, 130)
 _PLAYER_SELECT_SPOT_LOD = 150

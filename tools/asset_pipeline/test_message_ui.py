@@ -19,7 +19,8 @@ class TestSolidifyCloudInterior(unittest.TestCase):
         return im
 
     def _rim_band(self, im: Image.Image) -> int:
-        fill = CLOUD_COMPOSITED_RGBA[:3]
+        ## Fill is sampled from the mesh centre by solidify.
+        fill = im.getpixel((im.width // 2, im.height // 2))[:3]
         a = im.getchannel("A")
         y = im.height // 2
         x0 = next(x for x in range(im.width) if a.getpixel((x, y)) > 48)
@@ -37,9 +38,10 @@ class TestSolidifyCloudInterior(unittest.TestCase):
         thick = _solidify_cloud_interior(src, rim_px=16)
         self.assertGreater(self._rim_band(thick), self._rim_band(thin) * 2)
 
-    def test_default_rim_matches_two_px(self) -> None:
+    def test_default_rim_keeps_border_band(self) -> None:
         src = self._blob()
-        self.assertEqual(self._rim_band(_solidify_cloud_interior(src)), self._rim_band(_solidify_cloud_interior(src, rim_px=2)))
+        ## Default (~8px) must keep more than a hairline of the bright rim.
+        self.assertGreaterEqual(self._rim_band(_solidify_cloud_interior(src)), 6)
 
 
 if __name__ == "__main__":

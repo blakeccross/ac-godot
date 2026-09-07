@@ -169,3 +169,34 @@ func test_window_cloud_uses_i4_as_alpha() -> void:
 	assert_float(out_img.get_pixel(0, 0).a).is_less(0.05)
 	assert_float(out_img.get_pixel(1, 1).a).is_greater(0.9)
 	mi.queue_free()
+
+
+func test_window_tunnel_and_sky_collected_for_exit_scroll() -> void:
+	## `aTrainWindow_DrawGoingOutTunnel` scrolls seg 11 (tunnel + sky) after sitdown.
+	var root := Node3D.new()
+	add_child(root)
+	for surface_name: String in ["rom_train_tunnel_tex", "rom_train_bgsky_tex"]:
+		var mi := MeshInstance3D.new()
+		var mesh := ArrayMesh.new()
+		var arrays: Array = []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mesh.surface_set_name(0, surface_name)
+		var mat := StandardMaterial3D.new()
+		mat.resource_name = surface_name
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color = Color(1, 1, 1, 0.4)
+		mesh.surface_set_material(0, mat)
+		mi.mesh = mesh
+		root.add_child(mi)
+	var clouds: Array[StandardMaterial3D] = []
+	var trees: Array[StandardMaterial3D] = []
+	var tunnels: Array[StandardMaterial3D] = []
+	IntroTrainPresentation.apply_window_scenery(root, true, clouds, trees, tunnels)
+	assert_int(tunnels.size()).is_equal(2)
+	assert_int(clouds.size()).is_equal(0)
+	for mat: StandardMaterial3D in tunnels:
+		assert_int(mat.transparency).is_equal(BaseMaterial3D.TRANSPARENCY_DISABLED)
+		assert_float(mat.albedo_color.a).is_equal_approx(1.0, 0.001)
+	root.queue_free()

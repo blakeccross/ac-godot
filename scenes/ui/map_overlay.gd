@@ -61,6 +61,9 @@ func is_open() -> bool:
 func open() -> void:
 	if _open:
 		return
+	if Game != null and not Game.has_map:
+		Game.post_notice("You don't have a town map yet.")
+		return
 	_layout = Game.resolve_world_data() if Game != null else null
 	_player_fg = _resolve_player_fg()
 	_sel = _player_fg if _player_fg.x >= 0 else Vector2i.ZERO

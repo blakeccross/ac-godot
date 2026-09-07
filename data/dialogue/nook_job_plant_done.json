@@ -1,0 +1,16 @@
+{
+  "id": "nook_job_plant_done",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Ah, yes! The shop looks much\nlivelier already. Good work!",
+      "next": "free"
+    },
+    "free": {
+      "type": "line",
+      "text": "That will do for today. Go\nexplore town — and mind that\nhouse loan, hm?"
+    }
+  }
+}

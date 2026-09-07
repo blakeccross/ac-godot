@@ -438,6 +438,21 @@ func test_generated_towns_always_place_required_uniques() -> void:
 		assert_that(_building_at(data, &"able_sisters")).is_not_equal(Vector2i(-1, -1))
 
 
+func test_tortimer_stands_at_shrine_ut_10_10() -> void:
+	## `fd_npc_land_actable` SP_NPC_SONCHO on SHRINE block at acre ut (10, 10).
+	var data: WorldData = WorldGenerator.generate(42)
+	var cell: Vector2i = _object_at(data, &"tortimer")
+	assert_that(cell).is_not_equal(Vector2i(-1, -1))
+	var bx: int = cell.x / WorldGenerator.UT + 1
+	var bz: int = cell.y / WorldGenerator.UT + 1
+	var bi: int = bz * TownFieldGenerator.BLOCK_X + bx
+	assert_int(int(data.acre_types[bi])).is_equal(TownFieldGenerator.T_SHRINE)
+	assert_that(cell).is_equal(
+		Vector2i((bx - 1) * WorldGenerator.UT + 10, (bz - 1) * WorldGenerator.UT + 10)
+	)
+	assert_str(WorldObjectRegistry.scene_path(&"tortimer")).contains("tortimer.tscn")
+
+
 func _acre_has(blocks: PackedByteArray, type: int) -> bool:
 	for i: int in blocks.size():
 		if int(blocks[i]) == type:

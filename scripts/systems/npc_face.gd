@@ -226,13 +226,11 @@ func _mirror_expand_to(tex: Texture2D, target: Vector2i) -> Texture2D:
 	if src == target:
 		return tex
 	## Authored half (32×16 or ACHD 2:1) → bilateral quad (`GX_MIRROR` on S).
-	## Stretching the half across a 4:1 bake is what made Rover's face one-sided.
+	## Mirror at the half's own resolution first — never crush ACHD 256×128 down to
+	## 32×16 then nearest-upscale (that made Rover look pixelated vs other villagers
+	## whose GLB quads stay 256×128 and skip this path via `src == target`).
 	if _is_half_face_size(src) and _is_mirrored_face_size(target):
-		var half := image
-		if src != FRAME_SIZE:
-			half = image.duplicate()
-			half.resize(FRAME_SIZE.x, FRAME_SIZE.y, Image.INTERPOLATE_NEAREST)
-		var mirrored: Image = _mirror_expand_image(half, GLB_FACE_SIZE.x)
+		var mirrored: Image = _mirror_expand_image(image, src.x * 2)
 		if mirrored.get_width() != target.x or mirrored.get_height() != target.y:
 			mirrored.resize(target.x, target.y, Image.INTERPOLATE_NEAREST)
 		return ImageTexture.create_from_image(mirrored)

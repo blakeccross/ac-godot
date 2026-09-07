@@ -90,7 +90,7 @@ Needs `end_1.glb`, `grd_player_select.glb`, and BGM `intro_kk` / `intro_train` i
 ## Simplify
 
 - Name and clock are small intro modals, not `m_ledit` / `m_timeIn` ports.
-- Window UV scroll (`ac_train_window`): tree strip always scrolls; cloud UVs ramp on daylight.
+- Window UV scroll (`ac_train_window`): tree strip always scrolls (+5). On sitdown `sunlight_flag`, `DrawGoingOutTunnel` scrolls tunnel+sky (seg 11) and clouds toward xend 1000 (+30, `OperateScrollLimit` → 15 texels/frame); then `DrawGoneOutTunnel` freezes exit scroll while trees keep moving.
 - Skip returning-player / mask-cat Blanca path.
 - Skip K.K. sound/voice/rumble setup menus and staffroll frame sync (strum at constant 0.5×). Opening OGG bakes `Na_TTKK_ARM` mute on subtracks 0–2.
 - Skip `SCENE_PLAYERSELECT_2` / `SP_NPC_P_SEL2` load path.
@@ -98,6 +98,7 @@ Needs `end_1.glb`, `grd_player_select.glb`, and BGM `intro_kk` / `intro_train` i
 ## Ignore (later slices)
 
 - Full acre-to-acre house tour / wade lock after Nook’s greeting (`aNRG` STOP_WADE, restart plots). Station slice covers explain → enter → debt → job on the station acre.
+- Ongoing villager deliveries / “can I help” errands / contest letters after first job ends (`m_quest` non–first-job types).
 - Title demos (`m_titledemo`), staff roll, multi-player slot select.
 - Animal Crossing logo actor (`ac_animal_logo`) / trademark Nintendo splash.
 - Returning-player / mask-cat Blanca path; `SCENE_PLAYERSELECT_2`.
@@ -115,9 +116,30 @@ Needs `end_1.glb`, `grd_player_select.glb`, and BGM `intro_kk` / `intro_train` i
 5. Spawn Tom Nook (`rcn_1`) at unit (8,15); force-talk `0x07DE` (**NORMAL**) then `0x07DF` (**TALK** / `GetAngleY`) (`msg_2014` / `msg_2015`, laugh → `msg_2016`).
 6. Nook leads to vacant plots (`aNRG` TAKE_WITH → EXPLAIN, `0x07E1` / `msg_2017`, **TALK**); player picks a house → Nook `0x07E4` / `msg_2020` (**NORMAL**, turn off) → enter. Outdoor Nook is deleted with the field while indoors (`aNRG` THINK_WAIT).
 7. On outdoor return, intro demo `aID_birth_rcn_guide` respawns Nook at the claimed house unit (`restart_ux/uz` + ofsX ±10 / ofsZ +8) before/while the player emerges; `aNRG_restart_wait` holds until GO_OUT ends, then force-talk debt/job `0x07E6` (`msg_2022` → … → `msg_2028`, **TALK**). Authored `nook_*` JSON is the no-bank fallback only.
-8. After talk: `aNRG` EXIT_TURN → EXIT (run to east leave points) → `Actor_delete`. Intro waits in `aID_retire_rcn_guide_wait` until `rcn_guide_actor_p == NULL`, then unlocks play / first job (`Game.complete_intro_station`).
+8. After talk: `aNRG` EXIT_TURN → EXIT (run to east leave points) → `Actor_delete`. Intro waits in `aID_retire_rcn_guide_wait` until `rcn_guide_actor_p == NULL`, then unlocks play / first job (`Game.complete_intro_station` → `FirstJob.begin_after_house`).
 
-### Godot
+### First job (shop / uniform) — this milestone
+
+**Read:** `ac_npc_rcn_guide2*` (`SP_NPC_RCN_GUIDE2` replaces shop-master talk during chores), `mQst_SetFirstJob*`, `aQMgr_move_own_errand_cloth` / `_seed`, `mEv_CheckFirstJob`.
+
+#### Flow
+
+1. After Nook EXIT, errand = `FIRSTJOB_START`; free walk. Shop is force-open (`mSP_ShopOpen` + `CheckFirstJob`).
+2. Enter Cranny → force-talk `0x07EE` / `msg_2030` (“finally you arrive”) then `0x07F1` / `msg_2033` (hand uniform `ITM_CLOTH016`) → quest `CHANGE_CLOTH` progress 2. Authored fallbacks: `nook_job_*`.
+3. Player opens pockets → **Wear** uniform (swap with worn cloth). Quest manager sets progress 0 when `cloth.item == ITM_CLOTH016`.
+4. Talk again → `0x07F4` / `msg_2036` → assign plant job (`PLANT_FLOWER`), give 7 flower bags + 3 saplings (`msg_2038`).
+5. After plants are gone from pockets, talk → plant done → introductions (meet all + Tortimer) if needed → furniture delivery (QUEST item + town map) → letter → OPEN (talk to a villager) → carpet → axe → notice board → all-job end.
+
+#### Godot
+
+- `FirstJob` on `Game` (not an autoload). `cloth_id` is the worn shirt; `GeneratedVisual.apply_cloth` on the player. `has_map` gates the map overlay until furniture delivery.
+- `TomNook` branches on `FirstJob` (force-greet on enter, no Buy/Sell while active); advances the full chore chain.
+- Item gifts use `HandOver` (`npc_1_transfer1` / player `ply_1_get_pull1`); villager deliveries reverse it (`ply_1_transfer1` / `npc_1_get_pull1`).
+- Inventory tag **Wear** for `Category.CLOTH`; delivery goods use `Condition.QUEST`.
+- Villager talk accepts QUEST deliveries / OPEN; post office mailing finishes letter chores; field signs post the notice; Tortimer at the wishing well (`fd_npc_land` ut 10,10 / `SP_NPC_SONCHO`).
+- Bank ids preferred (`msg_2030`…); authored `nook_job_*.json` when banks are missing.
+
+### Godot (station)
 
 - Title **Station Arrival** → `Game.start_intro_station()` → generated `world.tscn` + `IntroStationDirector` + `IntroStationStage`.
 - Train: loco `obj_train1_1` + mid `obj_train1_2` + passenger `obj_train1_3`, all yaw 0 (anim-bind + `ckf_basis` → long on +X). Mid at loco−125, passenger at loco−250. `prepare_outdoor_train` keeps skinning, stops autoplay, strips `joint_0` tracks so door/wheel clips cannot move the root, and snaps caboose doors closed (`obj_train1_3_open` @ frame 1 — `*_close` frame 1 is open; the 32-frame close clip ends closed). Stage plays loco `obj_train1_1` (wheel/rod loop) during approach with speed `(train_speed/40)*10` capped at 0.5 (`aTR0_actor_move`); on stop plays `obj_train1_3_open` @ 0.5 (`mTRC_ACTION_SIGNAL_STOPPED`). Player rides/exits the passenger car facing yaw 0. Porter/engineer use `mnk_1` GLBs directly (not `mesh_paths`).

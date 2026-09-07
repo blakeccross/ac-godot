@@ -57,6 +57,103 @@ static func load_tex(name: String) -> Texture2D:
 	return null
 
 
+## Pocket picture for a slot. Prefers authored `ItemData.icon`, then field
+## `obj_item_*` cards (correct colors), then `inv_mwin_*` encyclopedia glyphs.
+static func icon_for_item(
+	data: ItemData, condition: InventoryItem.Condition = InventoryItem.Condition.NORMAL
+) -> Texture2D:
+	if condition == InventoryItem.Condition.PRESENT:
+		var present: Texture2D = load_tex("item_present")
+		if present == null:
+			present = load_tex("item_pbox")
+		if present != null:
+			return present
+	if data == null:
+		return load_tex("item_leaf")
+	if data.icon != null:
+		return data.icon
+	if data.category == ItemData.Category.CLOTH and data.cloth_index >= 0:
+		var cloth_path: String = FieldCatalog.cloth_albedo(data.cloth_index)
+		if cloth_path != "" and ResourceLoader.exists(cloth_path):
+			var cloth_tex: Texture2D = load(cloth_path) as Texture2D
+			if cloth_tex != null:
+				return cloth_tex
+	var stem: String = _item_icon_stem(data)
+	var tex: Texture2D = load_tex(stem)
+	if tex != null:
+		return tex
+	return load_tex("item_leaf")
+
+
+static func _item_icon_stem(data: ItemData) -> String:
+	## Prefer `obj_item_*` field cards — `inv_mwin_*` encyclopedia icons often bake
+	## the wrong CI palette (green apple, blue disc, etc.).
+	match String(data.id):
+		"axe":
+			return "item_axe"
+		"shovel":
+			return "item_shovel"
+		"fishing_rod":
+			return "item_rod"
+		"net":
+			return "item_net"
+		"watering_can":
+			return "item_akikan"
+		"apple":
+			return "item_apple"
+		"apple_sapling":
+			return "item_naegi"
+		"flower":
+			return "item_seed"
+		"fossil":
+			return "item_fossil"
+		"honeycomb":
+			return "item_matutake"
+		"paper":
+			return "item_paper"
+		"money_100", "money_1000", "money_10000", "money_30000":
+			return "item_bag"
+		"wall_blue":
+			return "item_kabe"
+		"floor_tile":
+			return "item_carpet"
+		_:
+			pass
+	if data is ToolData:
+		match (data as ToolData).kind:
+			ToolData.Kind.AXE:
+				return "item_axe"
+			ToolData.Kind.SHOVEL:
+				return "item_shovel"
+			ToolData.Kind.FISHING_ROD:
+				return "item_rod"
+			ToolData.Kind.NET:
+				return "item_net"
+			ToolData.Kind.WATERING_CAN:
+				return "item_akikan"
+			_:
+				pass
+	match data.category:
+		ItemData.Category.TOOL:
+			return "item_leaf"
+		ItemData.Category.FURNITURE:
+			return "item_leaf"
+		ItemData.Category.FRUIT:
+			return "item_apple"
+		ItemData.Category.FISH:
+			return "item_fish"
+		ItemData.Category.BUG:
+			return "item_net"
+		ItemData.Category.WALL:
+			return "item_kabe"
+		ItemData.Category.FLOOR:
+			return "item_carpet"
+		ItemData.Category.CLOTH:
+			return "item_fuku"
+		_:
+			return "item_leaf"
+
+
 static func _candidate_paths(name: String) -> PackedStringArray:
 	var out: PackedStringArray = []
 	out.append("%s/%s.png" % [CHROME_DIR, name])
@@ -111,5 +208,67 @@ static func _legacy_stem(name: String) -> String:
 			return "inv_mwin_sen_tex"
 		"window_shell":
 			return "window_shell"
+		"item_ono":
+			return "inv_mwin_ono_tex"
+		"item_scoop":
+			return "inv_mwin_scoop_tex"
+		"item_turi":
+			return "inv_mwin_turi_tex"
+		"item_mushi":
+			return "inv_mwin_mushi_tex"
+		"item_akikan":
+			return "inv_mwin_akikan_tex"
+		"item_axe":
+			return "obj_item_axe_tex"
+		"item_shovel":
+			return "obj_item_shovel_tex"
+		"item_rod":
+			return "obj_item_rod_tex"
+		"item_net":
+			return "obj_item_net_tex"
+		"item_apple":
+			return "obj_item_apple_tex"
+		"item_naegi":
+			return "inv_mwin_naegi_tex"
+		"item_seed":
+			return "obj_item_seed_tex"
+		"item_kaseki":
+			return "inv_mwin_kaseki_tex"
+		"item_fossil":
+			return "obj_item_fossil_tex"
+		"item_matutake":
+			return "obj_item_matutake_tex"
+		"item_binsen1":
+			return "inv_mwin_binsen1_tex"
+		"item_paper":
+			return "obj_item_paper_tex"
+		"item_okane1":
+			return "inv_mwin_okane1_tex"
+		"item_okane2":
+			return "inv_mwin_okane2_tex"
+		"item_okane3":
+			return "inv_mwin_okane3_tex"
+		"item_okane4":
+			return "inv_mwin_okane4_tex"
+		"item_bag":
+			return "obj_item_bag_tex"
+		"item_kabe":
+			return "inv_mwin_kabe_tex"
+		"item_jyuutan":
+			return "inv_mwin_jyuutan_tex"
+		"item_carpet":
+			return "obj_item_carpet_tex"
+		"item_fuku3":
+			return "inv_mwin_fuku3_tex"
+		"item_fuku":
+			return "obj_item_fuku_tex"
+		"item_fish":
+			return "obj_item_fish_tex"
+		"item_pbox":
+			return "inv_mwin_pbox_tex"
+		"item_present":
+			return "obj_item_present_tex"
+		"item_leaf":
+			return "obj_item_leaf_tex"
 		_:
 			return name

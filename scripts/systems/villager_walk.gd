@@ -38,6 +38,11 @@ const AVOID_METERS := 4.0
 const TURN_METERS := 2.0
 ## First front hit turns ±112.5° (`aNPC_avoid_obstacle` case 3 / dir 0).
 const FIRST_AVOID_DEG := 112.5
+## `mFI_UT_WORLDSIZE_HALF_*` — lateral probe offset / height wall threshold.
+const HALF_UNIT := 1.0
+## `mCoBG_HIT_WALL` / `mCoBG_HIT_WALL_FRONT` bits on `collision_flag`.
+const HIT_WALL := 1
+const HIT_WALL_FRONT := 2
 ## One wait clip, then `decide_next` again.
 const WAIT_SECONDS := 2.0
 const _BLOCK_STAND: Array[StringName] = [&"tree", &"rock", &"house", &"shop", &"building"]
@@ -232,6 +237,58 @@ static func circle_revise(data: WorldData, block: Vector2i, world_pos: Vector3) 
 	var on_rim: Vector3 = center + delta * (RANGE_RADIUS / sqrt(len_sq))
 	on_rim.y = world_pos.y
 	return on_rim
+
+
+static func lateral_probe(from: Vector3, facing: float, side: int) -> Vector3:
+	## `aNPC_forward_check_sub` offsets: side 0 = right (+half·cos), 1 = left.
+	var cos_y: float = cos(facing)
+	var sin_y: float = sin(facing)
+	if side == 0:
+		return Vector3(from.x + HALF_UNIT * cos_y, from.y, from.z - HALF_UNIT * sin_y)
+	return Vector3(from.x - HALF_UNIT * cos_y, from.y, from.z + HALF_UNIT * sin_y)
+
+
+static func forward_check_flags(
+	data: WorldData,
+	block: Vector2i,
+	from: Vector3,
+	facing: float,
+	actor_y: float,
+	grid: WorldGrid = null
+) -> int:
+	## `aNPC_forward_check`: left/right half-unit probes — **not** forward.
+	## Out of circle → wall bit. Raised ground ≥ half-unit above feet → wall bit.
+	## (`mCoBG_Wpos2GroundCheckOnly` only reports how far *below* ground the feet are.)
+	if data == null:
+		return 0
+	var flags: int = 0
+	var bits: Array[int] = [HIT_WALL, HIT_WALL_FRONT]
+	for side: int in 2:
+		var pos: Vector3 = lateral_probe(from, facing, side)
+		var rise: float = 0.0
+		if in_move_range(data, block, pos):
+			rise = _ground_rise(data, grid, pos, actor_y)
+		else:
+			rise = HALF_UNIT
+		if absf(rise) >= HALF_UNIT:
+			flags |= bits[side]
+	return flags
+
+
+static func _ground_rise(
+	data: WorldData, grid: WorldGrid, pos: Vector3, actor_y: float
+) -> float:
+	## `mCoBG_Wpos2GroundCheckOnly`: ground_y − actor_y when feet are below ground.
+	var ground_y: float
+	if grid != null:
+		ground_y = FieldCollision.ground_y_at(data, grid, pos)
+	else:
+		ground_y = FieldCollision.height_at(data, _world_to_cell(data, pos))
+	if not FieldCollision.has_floor(ground_y):
+		return 0.0
+	if actor_y < ground_y:
+		return ground_y - actor_y
+	return 0.0
 
 
 static func is_standable(data: WorldData, cell: Vector2i) -> bool:

@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_furniture",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Take this furniture and\ndeliver it for me.\nDon't open the package!"
+    }
+  }
+}

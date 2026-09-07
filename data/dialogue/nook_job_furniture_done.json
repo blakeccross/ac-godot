@@ -1,0 +1,16 @@
+{
+  "id": "nook_job_furniture_done",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Excellent delivery!\nHere's a town map \u2014\nyou've earned it.",
+      "next": "n1"
+    },
+    "n1": {
+      "type": "line",
+      "text": "Next, write a letter\nto another resident."
+    }
+  }
+}

@@ -27,9 +27,10 @@ const NOOK_FACING := WorldGrid.Facing.SOUTH
 const NOOK_SPECIES_IDS: Array[StringName] = [&"rcn", &"rcc", &"rcs", &"rcd"]
 const NOOK_SPECIES := &"rcn"
 
-## Player enter spawn (`SHOP01_player_data`).
+## Player outdoor enter (`aSHOP_shop_door_data`): GX {160,0,300}, `mSc_DIRECT_NORTH`.
+## Same stand for every Nook upgrade; not per-scene `SHOP0N_player_data`.
 const CRANNY_SPAWN_GX := Vector3(160.0, 0.0, 300.0)
-const CRANNY_SPAWN_FACING := WorldGrid.Facing.SOUTH
+const CRANNY_SPAWN_FACING := WorldGrid.Facing.NORTH
 
 ## Shell table tops / `mCoBG` shelf (~21 GX). Floor goods stay at 0.
 const CRANNY_SHELF_Y_GX := 21.0

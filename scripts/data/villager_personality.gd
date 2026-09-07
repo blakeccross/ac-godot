@@ -22,6 +22,17 @@ func schedule_table() -> ScheduleData:
 	return schedule
 
 
+## `mNpc_GetLooks2Sex` — drives `m_msg_appear` nameplate colours (0 male / 1 female / 2 other).
+func message_sex() -> int:
+	match looks:
+		Looks.NORMAL, Looks.PEPPY, Looks.SNOOTY:
+			return 1
+		Looks.LAZY, Looks.JOCK, Looks.CRANKY:
+			return 0
+		_:
+			return 2
+
+
 func field_activity_ids() -> Array[StringName]:
 	var out: Array[StringName] = []
 	for entry: String in field_actions:

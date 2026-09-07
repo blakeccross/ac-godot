@@ -1,0 +1,26 @@
+{
+  "id": "nook_job_plant",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "First off, I want you to go\nplant some trees and flowers\naround my shop.",
+      "next": "why"
+    },
+    "why": {
+      "type": "line",
+      "text": "The area around here is too\ndull — not charming at all.",
+      "next": "shop"
+    },
+    "shop": {
+      "type": "line",
+      "text": "People like shopping in areas\nthat are clean and well kept.\nSo I want you to spruce\nthings up a bit for me.",
+      "next": "return"
+    },
+    "return": {
+      "type": "line",
+      "text": "When you're finished, come\nand tell me, yes?"
+    }
+  }
+}

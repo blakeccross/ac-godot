@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_all_done",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "That's every chore!\nYou're a natural.\nWelcome to town!"
+    }
+  }
+}

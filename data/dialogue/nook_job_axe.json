@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_axe",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Deliver this axe safely.\nNo chopping on the way!"
+    }
+  }
+}

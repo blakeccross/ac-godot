@@ -6,17 +6,24 @@
     "start": {
       "type": "branch",
       "when": [
-        { "if": { "already_talked": true }, "goto": "repeat" },
-        { "goto": "welcome" }
+        {
+          "if": {
+            "already_talked": true
+          },
+          "goto": "repeat"
+        },
+        {
+          "goto": "welcome"
+        }
       ]
     },
     "welcome": {
       "type": "line",
-      "text": "Hoo — welcome to the museum! Bring me fossils, art, fish, or bugs and I'll put them on display."
+      "text": "Hoo — welcome to the museum!\nBring me fossils, art, fish, or\nbugs and I'll put them on\ndisplay."
     },
     "repeat": {
       "type": "line",
-      "text": "Hoo hoo. Still exploring? The wings are through those doors — donate anything new to me first."
+      "text": "Hoo hoo. Still exploring? The\nwings are through those doors\n— donate anything new to me\nfirst."
     }
   }
 }

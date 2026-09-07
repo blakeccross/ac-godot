@@ -10,9 +10,10 @@ const INNER_SIZE := Vector2i(8, 10)
 const DOOR_CELL := Vector2i(4, 10)
 const SPAWN_CELL := Vector2i(4, 9)
 
-## `POLICE_BOX_player_data` GX {200,0,400}, face south (`yaw -32768`).
-const SPAWN_GX := Vector3(200.0, 0.0, 400.0)
-const SPAWN_FACING := WorldGrid.Facing.SOUTH
+## Outdoor enter (`aPBOX_police_box_enter_data`): GX {200,0,380}, `mSc_DIRECT_NORTH`.
+## Not scene `POLICE_BOX_player_data` {200,0,400} (that floors onto EXIT_DOOR1).
+const SPAWN_GX := Vector3(200.0, 0.0, 380.0)
+const SPAWN_FACING := WorldGrid.Facing.NORTH
 
 ## `police_box_actable` ut (4,6) → GX center.
 const BOOKER_STAND_UT := Vector2i(4, 6)

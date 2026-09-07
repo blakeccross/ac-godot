@@ -1,0 +1,16 @@
+{
+  "id": "nook_job_arrive",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Well, finally you arrive!\nWhat took you so long?!?",
+      "next": "joke"
+    },
+    "joke": {
+      "type": "line",
+      "text": "I was starting to wonder if\nyou'd show! Only kidding."
+    }
+  }
+}

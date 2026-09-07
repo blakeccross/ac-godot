@@ -173,7 +173,9 @@ class Group:
 class Voice:
     sample: PcmSample
     pos: float
-    step: float
+    ## Playback rate without subtrack frequency_scale (effect.c applies that live).
+    base_step: float
+    layer_freq: float
     left: float
     right: float
     envelope: Envelope = field(default_factory=Envelope)
@@ -182,6 +184,10 @@ class Voice:
     update_acc: float = 0.0
     env: float = 1.0
     released: bool = False
+
+    @property
+    def step(self) -> float:
+        return self.base_step * self.layer_freq
 
 
 @dataclass
@@ -648,9 +654,10 @@ class SeqRenderer:
         elif cmd == 0xE0:
             sub.volume_scale = (a0 & 0xFF) / 128.0
         elif cmd == 0xD3:
-            sub.freq_scale = pcent((a0 & 0xFF) + 128)
+            # u8 wrap: PCENTTABLE[(u8)(arg + 128)] — signed scoops use args like 211 (-45).
+            sub.freq_scale = pcent(((a0 & 0xFF) + 128) & 0xFF)
         elif cmd == 0xEE:
-            sub.freq_scale = pcent2((a0 & 0xFF) + 128)
+            sub.freq_scale = pcent2(((a0 & 0xFF) + 128) & 0xFF)
         elif cmd == 0xD7:
             sub.vibrato.rate_target = (a0 & 0xFF) * 32
             sub.vibrato.rate_start = sub.vibrato.rate_target
@@ -781,10 +788,16 @@ class SeqRenderer:
             elif cmd == 0xCC:
                 note.ignore_drum_pan = True
             elif cmd == 0xCD:
+                # NOTE_CMD_SET_STEREO_PHASE — offline mix ignores phase.
+                cur.u8()
+            elif cmd == 0xCE:
+                # NOTE_CMD_SET_BEND — PCENTTABLE2[128 + arg].
                 note.bend = pcent2((cur.u8() + 128) & 0xFF)
-            elif cmd in (0xCE, 0xF1):
+            elif cmd == 0xF1:
+                # NOTE_CMD_SET_SURROUND_EFFECT_IDX — unused offline.
                 cur.u8()
             elif cmd == 0xF0:
+                # NOTE_CMD_DISABLE_FLAGS — consume; flag effects not modeled.
                 cur.u16()
             elif (cmd & 0xF0) == 0xD0:
                 vel = self.grp.vel_tbl[cmd & 0xF]
@@ -885,7 +898,8 @@ class SeqRenderer:
                 )
             else:
                 freq = _pitch(key) * tuning
-            freq *= sub.freq_scale * note.bend
+        # track.c: frequency_scale *= bend. effect.c multiplies subtrack scale every update.
+        freq *= note.bend
         note.sample = sample
         note.freq_scale = freq
         note.pan = pan
@@ -895,7 +909,7 @@ class SeqRenderer:
         note.envelope = env_table
         if note.playing and sample is not None:
             self.note_count += 1
-            self._start_voice(note, sample, freq, pan, sub, decay_idx, env_table, sweep)
+            self._start_voice(note, sample, freq, sub.freq_scale, pan, sub, decay_idx, env_table, sweep)
         elif not note.playing:
             self._release_note(note, force=True)
 
@@ -904,6 +918,7 @@ class SeqRenderer:
         note: NotePlayer,
         sample: PcmSample,
         freq: float,
+        layer_freq: float,
         pan: int,
         sub: SubTrack,
         decay_idx: int,
@@ -919,10 +934,12 @@ class SeqRenderer:
         envelope = Envelope(table=list(env_table), decay_idx=decay_idx, sustain=sub.adsr_sustain / 256.0)
         envelope.start()
         vibrato = Vibrato(params=sub.vibrato) if sub.vibrato.depth_target or sub.vibrato.depth_start else None
+        base_step = freq * (NATIVE_RATE / MIX_RATE)
         voice = Voice(
             sample=sample,
             pos=0.0,
-            step=freq * (NATIVE_RATE / MIX_RATE),
+            base_step=base_step,
+            layer_freq=layer_freq,
             left=amp * (1.0 - pan_f),
             right=amp * pan_f,
             envelope=envelope,
@@ -933,7 +950,8 @@ class SeqRenderer:
         if note.continuous and note.voice is not None and note.voice.env > 0:
             note.voice.sample = sample
             note.voice.pos = 0.0
-            note.voice.step = voice.step
+            note.voice.base_step = base_step
+            note.voice.layer_freq = layer_freq
             note.voice.left = voice.left
             note.voice.right = voice.right
             note.voice.envelope = envelope
@@ -984,7 +1002,15 @@ class SeqRenderer:
     def _voices_active(self) -> bool:
         return any(not v.envelope.finished() for v in self.voices)
 
+    def _sync_layer_freq(self) -> None:
+        """effect.c: note_frequency_scale = frequency_scale * subtrack->frequency_scale."""
+        for sub in self.grp.subtracks:
+            for note in sub.notes:
+                if note is not None and note.voice is not None:
+                    note.voice.layer_freq = sub.freq_scale
+
     def _mix_tatum(self, mix: array, n_samples: float) -> None:
+        self._sync_layer_freq()
         n = max(1, int(round(n_samples)))
         start = len(mix)
         mix.extend([0.0] * (n * 2))
@@ -1008,7 +1034,7 @@ class SeqRenderer:
                     env = voice.envelope.process()
                     vib = voice.vibrato.process() if voice.vibrato else 1.0
                     porta = voice.sweep.process() if voice.sweep else 1.0
-                    step = voice.step * vib * porta
+                    step = voice.base_step * voice.layer_freq * vib * porta
                     if voice.envelope.finished():
                         env = 0.0
                         finished = True

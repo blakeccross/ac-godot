@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_notice",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Write something on a\ntown sign \u2014 anything\nfriendly will do!"
+    }
+  }
+}

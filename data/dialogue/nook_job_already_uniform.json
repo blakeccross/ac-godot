@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_already_uniform",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "There you go! You're already\nwearing your uniform!\nVery good, yes."
+    }
+  }
+}

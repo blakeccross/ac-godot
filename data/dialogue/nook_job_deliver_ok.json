@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_deliver_ok",
+  "speaker_id": "villager",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Oh! A delivery from\nTom Nook? Thanks!\nI'll take that."
+    }
+  }
+}

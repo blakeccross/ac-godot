@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_open_hint",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Talk to a villager about\nhelping out around town."
+    }
+  }
+}

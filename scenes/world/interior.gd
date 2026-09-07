@@ -71,6 +71,9 @@ func _physics_process(_delta: float) -> void:
 		return
 	if session.room.kind == Room.Kind.MUSEUM:
 		return
+	## Just entered: keep EXIT_DOOR armed until the player walks clear of the strip.
+	if Game.block_auto_enter_doors:
+		return
 	var player: Node = get_tree().get_first_node_in_group("player")
 	if player == null or not (player is Node3D):
 		return

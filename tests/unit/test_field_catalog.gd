@@ -528,6 +528,19 @@ func test_water_wave_cos_matches_decomp() -> void:
 	assert_float(at_zero.r).is_not_equal(144.0 / 255.0)
 
 
+func test_harden_imported_cutout_promotes_blend_to_scissor() -> void:
+	## Soft ACHD face sheets import as BLEND; water overdraws without depth write.
+	var blend := StandardMaterial3D.new()
+	blend.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	GeneratedVisual._harden_imported_cutout(blend)
+	assert_int(blend.transparency).is_equal(BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR)
+	assert_float(blend.alpha_scissor_threshold).is_greater_equal(0.5)
+	assert_int(blend.depth_draw_mode).is_equal(BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY)
+	var opaque := StandardMaterial3D.new()
+	GeneratedVisual._harden_imported_cutout(opaque)
+	assert_int(opaque.transparency).is_equal(BaseMaterial3D.TRANSPARENCY_DISABLED)
+
+
 func test_marine_acre_applies_beach_wet_shader() -> void:
 	if FieldCatalog.mesh_paths(&"grd_s_m_1").is_empty():
 		return

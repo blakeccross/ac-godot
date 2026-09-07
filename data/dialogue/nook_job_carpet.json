@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_carpet",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Please deliver this carpet.\nHandle with care!"
+    }
+  }
+}

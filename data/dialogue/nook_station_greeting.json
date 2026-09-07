@@ -25,7 +25,7 @@
     },
     "store": {
       "type": "line",
-      "text": " I, uh, run the\nstore here in town. I'm quite\npleased to meet you, yes?",
+      "text": "I, uh, run the\nstore here in town. I'm quite\npleased to meet you, yes?",
       "next": "odd"
     },
     "odd": {
@@ -41,8 +41,14 @@
     "reaction": {
       "type": "choice",
       "options": [
-        {"text": "Don't laugh!", "goto": "pardon"},
-        {"text": "Whatever...", "goto": "pardon"}
+        {
+          "text": "Don't laugh!",
+          "goto": "pardon"
+        },
+        {
+          "text": "Whatever...",
+          "goto": "pardon"
+        }
       ]
     },
     "pardon": {

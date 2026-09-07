@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_notice_hint",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Find a signboard and\npost your notice."
+    }
+  }
+}

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"shirt_016"
+display_name = "Work Uniform"
+description = "Tom Nook's part-time employee uniform."
+category = 8
+sell_price = 0
+buy_price = 0
+cloth_index = 16
+max_stack = 1
+droppable = true
+usable = false
+icon_color = Color(0.55, 0.62, 0.78, 1)

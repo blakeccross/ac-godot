@@ -5,19 +5,32 @@
   "nodes": {
     "ask": {
       "type": "choice",
-      "prompt": "How much would you like to pay back?",
+      "prompt": "How much would you like to\npay back?",
       "options": [
         {
           "text": "All I can",
           "goto": "done",
-          "events": [{ "op": "repay_loan", "amount": -1 }]
+          "events": [
+            {
+              "op": "repay_loan",
+              "amount": -1
+            }
+          ]
         },
         {
           "text": "1,000 bells",
           "goto": "done",
-          "events": [{ "op": "repay_loan", "amount": 1000 }]
+          "events": [
+            {
+              "op": "repay_loan",
+              "amount": 1000
+            }
+          ]
         },
-        { "text": "Never mind...", "goto": "cancel" }
+        {
+          "text": "Never mind...",
+          "goto": "cancel"
+        }
       ]
     },
     "done": {

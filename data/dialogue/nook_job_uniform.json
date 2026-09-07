@@ -1,0 +1,16 @@
+{
+  "id": "nook_job_uniform",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Very good, yes! First off,\nyou'll need to change\ninto these clothes!",
+      "next": "name"
+    },
+    "name": {
+      "type": "line",
+      "text": "If you must know, I suppose\nI'd call it your uniform."
+    }
+  }
+}

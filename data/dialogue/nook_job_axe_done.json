@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_axe_done",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Thank you! Last chore:\npost a notice on a\ntown signboard."
+    }
+  }
+}

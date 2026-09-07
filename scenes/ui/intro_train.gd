@@ -419,14 +419,14 @@ func _on_intro_finished(identity: Dictionary) -> void:
 			return
 		_finishing = true
 		if _dialogue.has_method("close"):
-			_dialogue.close()
+			_dialogue.close(true)
 		get_tree().quit()
 		return
 	if _finishing:
 		return
 	_finishing = true
 	if _dialogue.has_method("close"):
-		_dialogue.close()
+		_dialogue.close(true)
 	call_deferred("_finish_deferred", identity)
 
 
@@ -439,7 +439,7 @@ func _on_intro_cancelled() -> void:
 		return
 	_finishing = true
 	if _dialogue.has_method("close"):
-		_dialogue.close()
+		_dialogue.close(true)
 	call_deferred("_abort_deferred")
 
 

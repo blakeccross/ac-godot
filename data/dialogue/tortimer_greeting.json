@@ -1,0 +1,16 @@
+{
+  "id": "tortimer_greeting",
+  "speaker_id": "tortimer",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Ho ho! Welcome, newcomer.\nI'm Tortimer, the mayor.",
+      "next": "n1"
+    },
+    "n1": {
+      "type": "line",
+      "text": "Work hard for Tom Nook,\nand you'll do just fine!"
+    }
+  }
+}

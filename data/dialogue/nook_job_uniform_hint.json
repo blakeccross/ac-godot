@@ -1,0 +1,21 @@
+{
+  "id": "nook_job_uniform_hint",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "You haven't changed yet!?!",
+      "next": "how"
+    },
+    "how": {
+      "type": "line",
+      "text": "Open your pockets, pick the\nuniform, and choose Wear.\nEasy, yes?",
+      "next": "hurry"
+    },
+    "hurry": {
+      "type": "line",
+      "text": "Come on now! Snap to it!\nGet that uniform on!"
+    }
+  }
+}

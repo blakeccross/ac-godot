@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_axe_hint",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Still holding that axe?\nDeliver it, please!"
+    }
+  }
+}

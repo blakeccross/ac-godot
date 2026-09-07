@@ -30,7 +30,16 @@ func refresh_seasonal_visual() -> void:
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 	if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):
 		return []
-	return [Interaction.of(Interaction.FILL, "Fill hole", 8, &"ply_1_fill_up1")]
+	## `FILL_UP1` hole reset at frame 18 (`Player_actor_Reset_Hole_Fill_scoop`).
+	return [
+		Interaction.of(
+			Interaction.FILL,
+			"Fill hole",
+			8,
+			PlantGrowth.FILL_SCOOP_ANIM,
+			PlantGrowth.FILL_HOLE_EFFECT_FRAME
+		)
+	]
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:

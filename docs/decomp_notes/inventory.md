@@ -77,6 +77,7 @@ The overlay can show eat / catch animations (`mIV_ANIM_*`) when using food or di
 - Bells as integer currency.
 - Tag verbs from `m_tag_ovl` (field default): Use/Eat, Drop, Equip; hand move between slots (`m_hand_ovl`).
 - Field Drop closes the overlay and lets `bg_item` arc the FG item from the player (+50 GX) to the unit — Godot mirrors that with `item_pickup.begin_fall` after `close()`. No `PUTAWAY1` body clip on Drop; that anim is for tool put-in / take-out.
+- Field Plant (`mTG_plant_proc`): with scoop + fillable hole → close and `PUTIN_SCOOP` (`ply_1_fill_up_i1`, plant at frame 25); otherwise close and place with grow-in (throw-put).
 
 ## Simplify
 
@@ -100,7 +101,7 @@ The overlay can show eat / catch animations (`mIV_ANIM_*`) when using food or di
 
 Drawn by `m_inventory_ovl.c` (`mIV_set_base_frame_dl` / `mIV_set_normal_frame_dl`). Models live in `src/data/model/inv_mwin*.c` (plus `inv_sakana.c`, `inv_mushi.c`, `inv_item.c`, `inv_mark.c`, hand skeleton). Texture bins are listed in decomp `config/GAFU01_00/config.yml` under `assets/inv_mwin_*`.
 
-Godot recreation: `scenes/ui/inventory_overlay.tscn` + `pocket_paper.gd` + `InventoryChrome`. Prefer pipeline chrome under `assets/generated/ui/inventory/` (ACHD when `achd_enabled`). Hand-authored fallbacks under `assets/custom/ui/inventory/`.
+Godot recreation: scene-first `scenes/ui/inventory_overlay.tscn` (edit chrome/slots in the editor) + thin `inventory_overlay.gd` + `InventoryChrome`. Prefer pipeline chrome under `assets/generated/ui/inventory/` (ACHD when `achd_enabled`). Hand-authored fallbacks under `assets/custom/ui/inventory/`.
 
 ```sh
 python3 tools/build_assets.py --step convert --kind inventory-ui

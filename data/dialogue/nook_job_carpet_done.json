@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_carpet_done",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Nice work! Now take this\naxe to the villager who\ngot your letter."
+    }
+  }
+}

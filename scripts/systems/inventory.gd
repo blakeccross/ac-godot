@@ -500,6 +500,8 @@ func tags_for_slot(index: int) -> PackedStringArray:
 		return tags
 	if data.equippable:
 		tags.append("Equip")
+	if data.category == ItemData.Category.CLOTH:
+		tags.append("Wear")
 	if data.plant_id != &"":
 		tags.append("Plant")
 	elif data.usable:

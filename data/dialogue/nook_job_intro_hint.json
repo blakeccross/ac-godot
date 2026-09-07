@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_intro_hint",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Still meeting folks?\nTalk to every villager,\nand Tortimer too!"
+    }
+  }
+}

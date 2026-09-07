@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_open_done",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "See? Friendly already!\nNext, deliver this carpet."
+    }
+  }
+}

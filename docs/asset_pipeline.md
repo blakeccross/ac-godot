@@ -44,6 +44,24 @@ Edit `tools/config.local.json` (gitignored):
 
 Do **not** put the disc image inside this repository.
 
+### ACHD (hi-res textures)
+
+Set `achd_enabled: true` and `achd_root` to a Dolphin ACHD / Load/Textures tree. Convert then prefers matching HD sheets for characters, furniture, buildings, inventory UI, faces, and the dialogue **font**.
+
+**Stay native on purpose** (HD breaks bake or wrong hashes):
+
+| Surface | Why |
+| --- | --- |
+| Acre / field / trees / seasons | Wrap-bake + season re-tile need native tile sizes |
+| Indoor wall/carpet banks (`player_room_*`) | HD sheets crop to padding in atlases |
+| Player body/shirt (`boy_` / `girl_`) | Mixed native/HD seams on one mesh |
+| Talk-window kaiwa tiles | ~~ACHD is grey/white~~ **Uses ACHD** — grey I4 masks × mint PRIM at extract |
+| Dialogue font | **Uses ACHD** 8× `FONT_nes_tex_font1` when enabled |
+| Museum plates / stained glass / house clocks / train CI | Hash collisions pull wrong art |
+| K.K. opening acre (`rom_open_*`) | Tiny tiles; HD is a near-identical upscale |
+
+Use `--all` (or `"test_set_only": false`) and reconvert after enabling ACHD so generated GLBs/PNGs pick up hits.
+
 ## 3. Required input files
 
 From the US disc (`GAFE01_00`):
@@ -204,7 +222,7 @@ Message / talk window chrome (`con_kaiwa2_*`, `con_namefuti_TXT` from `foresta.r
 python3 tools/build_assets.py --step convert --kind message-ui
 ```
 
-Writes `assets/generated/ui/message/` (`msg_kaiwa_w1`, `msg_kaiwa_w2`, `msg_kaiwa_w3`, `msg_nameplate.png`). **Not used by the talk window** — `MessageWindowChrome` draws `con_kaiwa2` / `con_kaiwaname` from an SDF instead, because the border tiles are scallops that cannot be reassembled as a nine-patch. Kept for reference while comparing against a capture.
+Writes `assets/generated/ui/message/` (`msg_kaiwa_w*`, baked `msg_window_cloud` / `msg_nameplate_cloud`, and `msg_font.fnt` from `FONT_nes_tex_font1`). Cloud chrome uses ACHD kaiwa tiles when enabled (grey I4 masks × mint PRIM). Glyph atlas uses ACHD 8× GAFE font. `MessageWindowChrome` draws the baked clouds and BMFont with CUT advances.
 
 NPC face frames (`face_*.bin` eye/mouth blocks → gitignored PNGs):
 
@@ -282,6 +300,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | Holes in meshes / one side of a symmetric tip folded inward | Vertex dedupe used `id(src)`; after `G_VTX` reloads the cache, CPython reuses object ids so later verts map to earlier ones. Key on `src_index` instead |
 | Left side of shirt (or other tiled body art) looks stuck/wrong | Shirt UVs go past 1.0 with `wrapS=REPEAT` but `wrapT=CLAMP`; Godot’s one `texture_repeat` flag often clamps both. Bake REPEAT/MIRROR into the PNG and normalize UVs to 0–1 |
 | Villager/body textures are grayscale | CI4 missing `{prefix}_pal` (NPC DLs skip LOADTLUT) or I4/IA without `G_SETPRIMCOLOR` tint |
+| Balloon / IA head is gray or black | Combiner is `(PRIM−ENV)×TEXEL+ENV`, not `TEXEL×PRIM`. Convert bakes authored ENV (furniture / `tol_balloon*`); `act_balloon` (no SetPrim/Env in DL) bakes fuusen type-0. Reconvert the GLB |
 | House/shop is grayscale | CI4 loads `anime_1_txt` (segment 0x08). Bind `obj_s_house1_a_pal` / `obj_shop1_pal` from `structure_pal`, not `{prefix}_pal` |
 | Player house / post office is grayscale | Same `anime_1_txt` bank. `obj_s_myhome1` maps to `obj_s_myhome_a_pal` (strip the stage digit); `obj_s_yubinkyoku` aliases to `obj_s_post_office_pal` (winter: `obj_s_post_office_winter_pal`) |
 | Palm/cedar is black-and-white | CI4 leaf/trunk (`obj_s_palm_*_tex`, `obj_s_cedar_*_tex`) never LOADTLUT. Runtime uses `mFM_obj_palm_01_pal` / `mFM_obj_tree_01_pal_dol` (`mFM_SetFGPal`). Fallback used to require `"tree"` in the symbol name. Reconvert with `--step convert --kind plants` |
@@ -297,6 +316,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | House door texture flickers / z-fights | (1) Skinned export must split OPAQUE / MASK / BLEND meshes (`write_skinned_glb`). (2) Body DLs that omit SetRenderMode but only UV opaque texels of a cutout atlas must demote to OPAQUE (`demote_opaque_uv_alpha`). (3) Door TEX_EDGE is coplanar with the OPA facade in the original — do not offset verts; `GeneratedVisual` uses material `grow` (depth bias along normals) on structure MASK. (4) Keep double-sided cull on OPAQUE walls (inward normals). Reconvert `--kind buildings` |
 | House/shop side walls draw in front of the world | Wall DLs are `TEX_EDGE` (window cutouts) with MIRROR wrap. ACHD soft AA made `alphaMode=BLEND`; harden was CLAMP-only (tank glass). Soft TEX_EDGE must harden to MASK for every wrap — structure BLEND disables depth write. Reconvert `--kind buildings` |
 | NPC / villager body draws in front of the world | Same ACHD soft-AA trap on `OPA_SURF` body sheets (`pgb_1` chest on joint_12, etc.). Coverage forces `OPAQUE`, but soft fringe must still be flooded to A=255; stale GLBs that baked `BLEND` need a character reconvert (`convert_ckf_starting_with` / full convert) |
+| River/ocean paints over villager face / ears | Soft ACHD TEX_EDGE on face sheets (`cbr_1` `seg_08`/`seg_09`, many other species) imports as `BLEND` with depth write off. Acre water screen-composites later at `render_priority = 1` and wins those pixels. `GeneratedVisual._harden_imported_cutout` promotes leftover BLEND to MASK scissor + depth write (same idea as structure walls). Reconvert characters still preferred so GLBs ship MASK. |
 | Window spill looks like solid yellow paint | Same linear-HDR vs 8-bit XLU issue as water. `window_ground_spill.gdshader` samples `hint_screen_texture`, lerps prim yellow in sRGB (`TEXEL0 × LOD 120/255`), and emits opaque `ALBEDO` |
 | Tree leaves are pastel pink/teal | Hardwood fallback used map symbol `mFM_obj_tree_01_pal`, whose REL blob does not CI-decode leaf art. Use `mFM_obj_tree_01_pal_dol` / `obj_tree_pal`. Reconvert trees |
 | Summer `obj_s_tree3` leaf is untextured | Disc has only `obj_s_gold_tree3_leafT_mat_model` (no non-gold leaf mat). Converter falls back to the gold mat for SETTIMG |
@@ -345,7 +365,7 @@ Preview (after convert):
 - Player `boy_1.glb` is a **skinned** GLB: wait-frame-1 bind (already stands on +Y), IBMs, and every `cKF_ba_r_ply_1_*` clip. The US disc has **no** `cKF_bs_r_girl_1` / `girl_1_v` — only `boy_1` plus UI portraits (`girl1.bti`…). Girl clothing/face selection is runtime data on that shared player mesh, not a second skeleton. Models without wait use identity bind + +90° Z. Materials are `doubleSided`. Shirt and hat both sample segment `0x0A` (same 32×32 CI4); wrap/UVs differ, so they stay separate materials. Out-of-range REPEAT/MIRROR UVs are baked into a tiled PNG with UVs remapped to 0–1 (Godot cannot express per-axis wrap). Limb/chest DLs switch `G_MTX` mid-list (segment `0x0D`); seam vertices are weighted to the parent joint, not the DL owner.
 - Villager species (`cat_1`, `bev_1`, …) embed the shared `cKF_ba_r_npc_1_*` bank. Pose evaluation is cached across species (same clip tables); rest translations still differ so each GLB has its own tracks. Test-set convert bakes wait/walk/run only.
 - Static meshes include `*_gfx_model` and plain `*_model` DLs. Room shells (`rom_*` → `environment/interiors/`) and outdoor acre tiles (`grd_*` → `environment/acres/`) come from that path. Acre DLs sample dummy segment `0x80` (grass/earth/cliff/bush); convert materializes the summer bank from `l_bg_tex_segment_rom_start_s_0` + palettes. Player-house floor/wall DLs sample segments `0x08–0x0C` from `player_room_floor.bin` / `player_room_wall.bin` (style 0). A few interiors (`rom_uranai`, `room01`) use classic N64 `G_SETTILE` / `G_SETTILESIZE` instead of `G_SETTILE_DOLPHIN`.
-- Model textures are GX CI4/CI8 with RGB5A3 palettes. Pending tris flush before `G_LOADTLUT` / prim / tile changes so the palette active at draw time is the one baked into the PNG. Segment banks use one path for every cKF prefix: REL `{prefix}_pal` / `eye1` / `mouth1` / `tmem_txt` when present, else archive `face_{species}.bin` + `tex_{species}.bin` + `pallet_{species}.bin` (shirt index 0). Unbound `anime_N_txt` SETTIMG/LOADTLUT (segments `0x08–0x0F`) resolve from same-size REL textures whose name shares the Gfx part (`leaf` → hardwood leaf tex + FG pal; `mark` → `obj_myhome_mark_*`). I4/IA are modulated by `G_SETPRIMCOLOR`.
+- Model textures are GX CI4/CI8 with RGB5A3 palettes. Pending tris flush before `G_LOADTLUT` / prim / tile changes so the palette active at draw time is the one baked into the PNG. Segment banks use one path for every cKF prefix: REL `{prefix}_pal` / `eye1` / `mouth1` / `tmem_txt` when present, else archive `face_{species}.bin` + `tex_{species}.bin` + `pallet_{species}.bin` (shirt index 0). Unbound `anime_N_txt` SETTIMG/LOADTLUT (segments `0x08–0x0F`) resolve from same-size REL textures whose name shares the Gfx part (`leaf` → hardwood leaf tex + FG pal; `mark` → `obj_myhome_mark_*`). I4/IA are modulated by `G_SETPRIMCOLOR`; when the combiner is `(PRIM−ENV)×TEXEL+ENV` (balloon heads, etc.) convert bakes both ends into the PNG.
 - `scale` 0.001 is a shared Vtx multiplier. Godot then applies actor `0.01` vs acre `0.0625` so meshes share 40 GX = 2 m. Do not AABB-fit pipeline meshes to invented meters.
 - Audio (`audiorom.img`) converts via `--kind audio` to gitignored `catalog.json` + looping OGG. The mixer follows original envelopes, vibrato, and portamento; it still skips DSP filters/reverb and weather subtrack mutes. Do not commit Nintendo music.
 - Terrain grass is textures + generated collision in the original game, not one mesh. Water should be a Godot shader/particles, not a GX port.

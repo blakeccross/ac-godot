@@ -166,7 +166,7 @@ func test_scene_talks_when_in_field() -> void:
 	assert_that(villager.current_activity()).is_equal(VillagerActivity.FIELD)
 	var actions: Array[Interaction] = villager.get_interactions(InteractionContext.new())
 	assert_int(actions.size()).is_equal(1)
-	assert_bool(villager.interact(actions[0], InteractionContext.new())).is_true()
+	assert_bool(await villager.interact(actions[0], InteractionContext.new())).is_true()
 	assert_int(Game.villagers.get_or_create(&"filbert").friendship).is_equal(VillagerState.TALK_FIRST)
 
 
@@ -584,6 +584,37 @@ func test_attach_villager_is_noop_without_mesh() -> void:
 		assert_that(host.get_node_or_null("GeneratedVisual")).is_not_null()
 
 
+func test_attach_villager_hardens_blend_face_cutouts() -> void:
+	## Cub Maple ships soft-BLEND eye/mouth sheets; without scissor depth they lose to
+	## river screen-composite water. Skip when the local villager GLB is missing.
+	if FieldCatalog.villager_path(&"cub").is_empty():
+		return
+	var host := Node3D.new()
+	auto_free(host)
+	var vis: Node3D = GeneratedVisual.attach_villager(host, &"cub", false)
+	assert_that(vis).is_not_null()
+	var saw_scissor := false
+	var stack: Array[Node] = [vis]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		if node is MeshInstance3D:
+			var mi := node as MeshInstance3D
+			if mi.mesh == null:
+				continue
+			for i: int in mi.mesh.get_surface_count():
+				var mat: Material = mi.get_active_material(i)
+				if not mat is StandardMaterial3D:
+					continue
+				var std := mat as StandardMaterial3D
+				assert_int(std.transparency).is_not_equal(BaseMaterial3D.TRANSPARENCY_ALPHA)
+				if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR:
+					saw_scissor = true
+					assert_int(std.depth_draw_mode).is_equal(BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY)
+		for child: Node in node.get_children():
+			stack.append(child)
+	assert_bool(saw_scissor).is_true()
+
+
 func test_lazy_wait_walk_run_weights() -> void:
 	var waits := 0
 	var walks := 0
@@ -817,6 +848,36 @@ func test_first_avoid_hop_keeps_side_zero() -> void:
 	var delta: Vector3 = pos - from
 	delta.y = 0.0
 	assert_float(delta.length()).is_greater_equal(VillagerWalk.TURN_METERS * 0.9)
+
+
+func test_forward_check_does_not_flag_rim_approach() -> void:
+	## Walking toward a circle-rim dest must not treat "1 m ahead is outside R" as a
+	## wall — decomp probes left/right, not forward (`aNPC_forward_check_sub`).
+	var data := _plot_with_house()
+	var block := Vector2i(1, 1)
+	var center: Vector3 = VillagerWalk.block_center(data, block)
+	## Face +X toward the rim; stand just inside so a *forward* probe would leave R.
+	var from: Vector3 = center + Vector3(VillagerWalk.RANGE_RADIUS - 0.5, 0.0, 0.0)
+	var facing: float = deg_to_rad(90.0)
+	var ahead: Vector3 = from + Vector3(sin(facing), 0.0, cos(facing)) * 1.0
+	assert_bool(VillagerWalk.in_move_range(data, block, ahead)).is_false()
+	assert_int(
+		VillagerWalk.forward_check_flags(data, block, from, facing, from.y)
+	).is_equal(0)
+
+
+func test_forward_check_flags_lateral_out_of_range() -> void:
+	## A side probe past the roam circle sets HIT_WALL / HIT_WALL_FRONT.
+	var data := _plot_with_house()
+	var block := Vector2i(1, 1)
+	var center: Vector3 = VillagerWalk.block_center(data, block)
+	## Face +Z; stand near +X rim so the *right* lateral (+X) leaves the circle.
+	var from: Vector3 = center + Vector3(VillagerWalk.RANGE_RADIUS - 0.2, 0.0, 0.0)
+	var facing: float = 0.0
+	var right: Vector3 = VillagerWalk.lateral_probe(from, facing, 0)
+	assert_bool(VillagerWalk.in_move_range(data, block, right)).is_false()
+	var flags: int = VillagerWalk.forward_check_flags(data, block, from, facing, from.y)
+	assert_bool((flags & VillagerWalk.HIT_WALL) != 0).is_true()
 
 
 func test_can_step_rejects_house_cell() -> void:

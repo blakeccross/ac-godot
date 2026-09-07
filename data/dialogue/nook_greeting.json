@@ -6,17 +6,24 @@
     "start": {
       "type": "branch",
       "when": [
-        { "if": { "already_talked": true }, "goto": "repeat" },
-        { "goto": "welcome" }
+        {
+          "if": {
+            "already_talked": true
+          },
+          "goto": "repeat"
+        },
+        {
+          "goto": "welcome"
+        }
       ]
     },
     "welcome": {
       "type": "line",
-      "text": "Yes, yes! Welcome to Nook's Cranny. Take a look at today's goods — talk to me if you'd like to sell something."
+      "text": "Yes, yes! Welcome to Nook's\nCranny. Take a look at today's\ngoods — talk to me if you'd like\nto sell something."
     },
     "repeat": {
       "type": "line",
-      "text": "Still browsing? The shelves refresh every morning. Bring me anything you'd like to sell!"
+      "text": "Still browsing? The shelves\nrefresh every morning. Bring me\nanything you'd like to sell!"
     }
   }
 }

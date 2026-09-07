@@ -43,8 +43,9 @@ Talk is wrapped in `m_demo`: player `mPlib_request_main_talk_type1`, camera `CAM
 
 ## Reproduce
 
-- Modal text box, typewriter, A/E to continue, hold to speed up.
-- Branching **choices** (yes/no and 2–6 options).
+- Modal text box with appear/disappear scale (18 frames @ 30 Hz), typewriter (15 glyphs/sec, 30 with fast text), A/E to continue, hold to speed up.
+- Branching **choices** (`m_choice`): teal panel mid-right, cyan `MARKTYPE_CHOICE` mark, 16px pitch, appear/disappear scale (~10.2 frames), unselected `(180,150,110)` / selected `(120,50,50)`.
+- Nameplate tint from speaker sex (`m_msg_appear` / `mNpc_GetLooks2Sex`): male cyan, female pink `(235,140,210)` + text `(45,0,30)`, other lime. Glyphs from disc `FONT_nes_tex_font1` (12×16, CUT advances), not Rodin.
 - Inline style codes from the bank: `TEXTCOLOR` / `COLORCHARS` change colour; `CHARSCALE` / `LINESCALE` change size (`n/32`, so 16 ≈ half, 64 ≈ double). Importer keeps them as `{c:r,g,b}` / `{s:n}` tags; `MessageWindowChrome` expands to BBCode. Choice labels use `mChoice` colours with **no** outline/stroke.
 - Substitutions: `{player}`, `{speaker}`, `{catchphrase}`, `{town}`, `{item0}`, clock fields.
 - Movement locked until the window hides (`dialogue_ui` group, same idea as pockets). The speaker holds a talk action until the overlay emits `closed`.
@@ -56,7 +57,7 @@ Talk is wrapped in `m_demo`: player `mPlib_request_main_talk_type1`, camera `CAM
 ## Simplify
 
 - Author **JSON graphs** (`data/dialogue/*.json`), not `m_msg` bytecode. `DialogueData` / `DialogueRunner` / `DialogueCatalog` / `DialogueGreeting` are `RefCounted` helpers, not an autoload.
-- One overlay scene (`scenes/ui/dialogue_overlay.tscn`). Skip appear/disappear interpolation, voice blips, article grammar, mail-string length 132.
+- One overlay scene (`scenes/ui/dialogue_overlay.tscn`). Voice blips, article grammar, and mail-string length 132 are still skipped.
 - Named `{player}` tags instead of `mMsg_FREE_STR` 20-slot array.
 - Weather is a `StringName` on `Game` (`clear` / `rain` / `snow` / `sakura`) plus intensity from `Weather.roll`.
 - Talk start is a Godot picker (`DialogueGreeting`): looks + whether you’ve met / already talked today / weather / mood / hour → starting `msg_no`. That id `goto`s the imported bank. Personality quest/trade trees stay out until a slice needs them. If the bank is missing, `looks_greeting.json` is the placeholder.

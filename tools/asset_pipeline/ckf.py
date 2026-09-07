@@ -288,9 +288,21 @@ def select_bind_anim(prefix: str, anim_names: list[str]) -> str | None:
     return None
 
 
-def select_close_bind(anim_names: list[str]) -> str | None:
-    """Prefer a `*_close` rest clip when no wait/furniture bind applies (trains, doors)."""
-    return next((n for n in anim_names if n.endswith("_close")), None)
+def select_close_bind(anim_names: list[str], prefix: str | None = None) -> str | None:
+    """Prefer a closed rest clip when no wait/furniture bind applies (trains, doors).
+
+    `*_close` wins when present (outdoor caboose). Vestibule `obj_romtrain_door` ships
+    only `cKF_ba_r_{prefix}` — closed at frame 1, no `_close` suffix. Without that
+    fallback the GLB rests on bare `ckf_basis` and the panel floats above the camera.
+    """
+    close = next((n for n in anim_names if n.endswith("_close")), None)
+    if close:
+        return close
+    if prefix:
+        exact = f"cKF_ba_r_{prefix}"
+        if exact in anim_names:
+            return exact
+    return None
 
 
 def bind_frame_for_anim(anim_name: str, nframes: int) -> float:
@@ -445,10 +457,10 @@ def convert_ckf_model(
     if bind_anim is None and sits_y and anim_names:
         exact = f"cKF_ba_r_{prefix}"
         bind_anim = exact if exact in anim_names else anim_names[0]
-    ## Prefer `*_close` when no wait/furniture/Y-up bind (trains, doors).
+    ## Prefer `*_close` or exact `cKF_ba_r_{prefix}` (trains, vestibule door).
     ## Successful anim bind uses identity basis — joint-0 ±90° stands the +X chain.
     if bind_anim is None:
-        bind_anim = select_close_bind(anim_names)
+        bind_anim = select_close_bind(anim_names, prefix)
     if bind_anim is not None:
         try:
             _flags, _key, _data, _fix, nframes = _anim_tables(

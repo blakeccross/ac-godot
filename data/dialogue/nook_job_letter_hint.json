@@ -1,0 +1,11 @@
+{
+  "id": "nook_job_letter_hint",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Write and mail that letter\nat the post office.\nDon't keep me waiting!"
+    }
+  }
+}

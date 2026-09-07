@@ -1,0 +1,16 @@
+{
+  "id": "nook_job_uniform_done",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "That's better! Yes. You look\nlike you were born to wear\nthat uniform!",
+      "next": "debt"
+    },
+    "debt": {
+      "type": "line",
+      "text": "Now you can start working\noff the remaining Bells you\nowe on your house. Hurrah!"
+    }
+  }
+}

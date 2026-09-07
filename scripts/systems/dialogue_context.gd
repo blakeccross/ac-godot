@@ -6,6 +6,8 @@ extends RefCounted
 var player_name: String = "Player"
 var town_name: String = "Town"
 var speaker_name: String = ""
+## `mNpc_GetLooks2Sex`: 0 male, 1 female, 2 other → nameplate tint in `m_msg_appear`.
+var speaker_sex: int = 2
 var catchphrase: String = ""
 var species: String = ""
 var hour: int = 12
@@ -61,6 +63,7 @@ static func from_game(villager: VillagerData = null, state: VillagerState = null
 		ctx.islander = villager.islander
 		if villager.personality != null:
 			ctx.personality = villager.personality.id
+			ctx.speaker_sex = villager.personality.message_sex()
 	if state != null:
 		var bond: Relationship = state.relationship
 		if bond == null:
@@ -154,7 +157,7 @@ func roll(percent: int) -> bool:
 
 
 func substitute(text: String) -> String:
-	var out: String = text
+	var out: String = MessageWindowChrome._normalize_punct(text)
 	out = out.replace("{player}", player_name)
 	out = out.replace("{speaker}", speaker_name)
 	out = out.replace("{name}", speaker_name)

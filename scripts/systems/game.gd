@@ -32,6 +32,7 @@ signal phase_changed(phase: Phase)
 signal prompt_changed(text: String)
 signal notice_posted(text: String)
 signal weather_changed(weather: StringName)
+signal cloth_changed(cloth_id: StringName)
 
 const DEFAULT_PLAYER_NAME := "Player"
 const DEFAULT_TOWN_NAME := "Town"
@@ -45,6 +46,7 @@ var shops: ShopBook = ShopBook.new()
 var museum: MuseumBook = MuseumBook.new()
 var police: PoliceBook = PoliceBook.new()
 var post: PostBook = PostBook.new()
+var first_job: FirstJob = FirstJob.new()
 var current_room_id: StringName = &""
 var outdoor_return: Vector3 = DEFAULT_SPAWN
 var outdoor_return_yaw: float = 0.0
@@ -64,6 +66,10 @@ var player_name: String = DEFAULT_PLAYER_NAME
 var town_name: String = DEFAULT_TOWN_NAME
 var player_gender: StringName = DEFAULT_PLAYER_GENDER
 var player_face: int = 0
+## Worn shirt (`Private_c.cloth.item`). Default `ITM_CLOTH001`.
+var cloth_id: StringName = FirstJob.DEFAULT_CLOTH_ID
+## Town map unlocked after first-job furniture delivery (`Common.map_flag`).
+var has_map: bool = false
 ## Session weather (`mEnv_WEATHER_*`). Rolled by `Weather` on `field_renewed`.
 var weather: StringName = &"clear"
 ## `mEnv_WEATHER_INTENSITY_*` (none/light/normal/heavy).
@@ -161,13 +167,16 @@ func start_intro_station() -> void:
 
 
 func complete_intro_station() -> void:
-	## Stay in the current generated world; unlock normal play.
+	## Stay in the current generated world; unlock normal play + first job.
 	intro_station_active = false
 	intro_station_can_pick_house = false
 	intro_station_resume_debt = false
 	intro_pending_house_id = &""
+	## `mQst_SetFirstJobStart` after Nook EXIT (`aID_retire_rcn_guide_wait`).
+	if first_job != null:
+		first_job.begin_after_house()
 	_set_phase(Phase.PLAYING)
-	set_interact_prompt("")
+	set_interact_prompt("Visit Tom Nook's shop")
 
 
 func request_intro_house_look(house_id: StringName) -> void:
@@ -317,6 +326,12 @@ func reset_session() -> void:
 	town_name = DEFAULT_TOWN_NAME
 	player_gender = DEFAULT_PLAYER_GENDER
 	player_face = 0
+	cloth_id = FirstJob.DEFAULT_CLOTH_ID
+	has_map = false
+	if first_job == null:
+		first_job = FirstJob.new()
+	else:
+		first_job.clear()
 	weather = &"clear"
 	weather_intensity = int(Weather.Intensity.NONE)
 	dialogue_vars.clear()
@@ -340,6 +355,54 @@ func set_weather(next: StringName, intensity: int = -1) -> void:
 	weather = next
 	weather_intensity = next_intensity
 	weather_changed.emit(weather)
+
+
+func set_cloth(next: StringName) -> void:
+	## Worn shirt (`Private_c.cloth`). Empty → default starter cloth.
+	var id: StringName = next if next != &"" else FirstJob.DEFAULT_CLOTH_ID
+	if cloth_id == id:
+		return
+	cloth_id = id
+	if first_job != null:
+		first_job.tick_cloth(cloth_id)
+	cloth_changed.emit(cloth_id)
+
+
+func wear_cloth_from_slot(index: int) -> bool:
+	## Inventory Wear: swap pocket cloth with worn cloth (`m_hand_ovl` drop onto body).
+	if inventory == null:
+		return false
+	var slot: InventorySlot = inventory.slot_at(index)
+	if slot == null or slot.is_empty():
+		return false
+	if slot.item.condition != InventoryItem.Condition.NORMAL:
+		return false
+	var data: ItemData = ItemCatalog.get_item(slot.item.item_id)
+	if data == null or data.category != ItemData.Category.CLOTH:
+		return false
+	var previous: StringName = cloth_id
+	var wearing: StringName = slot.item.item_id
+	inventory.remove_from_slot(index, 1)
+	if previous != &"" and previous != wearing:
+		var prev_data: ItemData = ItemCatalog.get_item(previous)
+		if prev_data != null:
+			inventory.add(prev_data, 1)
+	set_cloth(wearing)
+	return true
+
+
+func unlock_map() -> void:
+	## First-job furniture end hands `ITM_TOWN_MAP` (`Common.map_flag`).
+	if has_map:
+		return
+	has_map = true
+	set_interact_prompt("Press Map to open the town map")
+
+
+func _shop_open_for_first_job(room: Room) -> bool:
+	if room == null or first_job == null or not first_job.is_active():
+		return false
+	return room.kind == Room.Kind.SHOP or room.kind == Room.Kind.NEEDLEWORK
 
 
 func apply_weather_roll(result: Dictionary) -> void:
@@ -481,6 +544,9 @@ func to_save() -> Dictionary:
 		"town_name": town_name,
 		"player_gender": String(player_gender),
 		"player_face": player_face,
+		"cloth_id": String(cloth_id),
+		"has_map": has_map,
+		"first_job": first_job.to_save() if first_job != null else {},
 		"weather": String(weather),
 		"weather_intensity": weather_intensity,
 		"dialogue_vars": dialogue_vars.duplicate(true),
@@ -570,6 +636,13 @@ func apply_snapshot(data: Dictionary) -> void:
 	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))
 	player_gender = IntroSequence.normalize_gender(data.get("player_gender", DEFAULT_PLAYER_GENDER))
 	player_face = clampi(int(data.get("player_face", 0)), 0, IntroSequence.FACE_TYPE_NUM - 1)
+	cloth_id = StringName(str(data.get("cloth_id", FirstJob.DEFAULT_CLOTH_ID)))
+	if cloth_id == &"":
+		cloth_id = FirstJob.DEFAULT_CLOTH_ID
+	has_map = bool(data.get("has_map", false))
+	if first_job == null:
+		first_job = FirstJob.new()
+	first_job.from_save(data.get("first_job", {}))
 	weather = StringName(str(data.get("weather", "clear")))
 	if data.has("weather_intensity"):
 		weather_intensity = int(data["weather_intensity"])
@@ -605,7 +678,8 @@ func try_enter_interior(
 	var room: Room = interiors.room(room_id)
 	if room == null:
 		return false
-	if not InteriorCatalog.is_open_now(room):
+	## Shop is force-open during first-job chores (`mSP_ShopOpen` + CheckFirstJob).
+	if not InteriorCatalog.is_open_now(room) and not _shop_open_for_first_job(room):
 		post_notice(InteriorCatalog.closed_notice(room))
 		return false
 	if not is_indoors():
@@ -636,22 +710,28 @@ func try_enter_interior(
 		spawn_at_room_door = false
 		## Museum: wipe to spawn facing north — no post-load walk.
 		play_door_arrive = false
-	elif room_id == &"shop0":
-		## `SHOP01_player_data` GX {160,0,300}, face south.
+	elif ShopDisplay.nook_is_shop_room(room_id):
+		## `aSHOP_shop_door_data` GX {160,0,300}, `mSc_DIRECT_NORTH` (all Nook levels).
 		interior_spawn_gx = ShopDisplay.CRANNY_SPAWN_GX
 		interior_spawn_yaw = WorldGrid.yaw_for_facing(ShopDisplay.CRANNY_SPAWN_FACING)
 		has_interior_spawn = true
 		spawn_at_room_door = false
 	elif room_id == &"post_office":
-		## `POST_OFFICE_player_data` GX {100,0,200}.
+		## `aPOFF_post_office_door_data` GX {160,0,300}, orient 4 = north.
 		interior_spawn_gx = PostDisplay.SPAWN_GX
 		interior_spawn_yaw = WorldGrid.yaw_for_facing(PostDisplay.SPAWN_FACING)
 		has_interior_spawn = true
 		spawn_at_room_door = false
 	elif room_id == &"police_box":
-		## `POLICE_BOX_player_data` GX {200,0,400}, face south.
+		## `aPBOX_police_box_enter_data` GX {200,0,380}, `mSc_DIRECT_NORTH`.
 		interior_spawn_gx = PoliceDisplay.SPAWN_GX
 		interior_spawn_yaw = WorldGrid.yaw_for_facing(PoliceDisplay.SPAWN_FACING)
+		has_interior_spawn = true
+		spawn_at_room_door = false
+	elif room_id == &"needlework":
+		## `aNW_needlework_shop_door_data` GX {160,0,300}, orient 4 = north.
+		interior_spawn_gx = InteriorCatalog.ABLE_SPAWN_GX
+		interior_spawn_yaw = WorldGrid.yaw_for_facing(InteriorCatalog.ABLE_SPAWN_FACING)
 		has_interior_spawn = true
 		spawn_at_room_door = false
 	elif room.kind == Room.Kind.NPC:
@@ -748,7 +828,10 @@ func exit_interior() -> bool:
 	if not is_indoors():
 		return false
 	close_shop()
-	var room: Room = interiors.room(current_room_id)
+	var leaving: Room = interiors.room(current_room_id)
+	if leaving != null and leaving.kind == Room.Kind.SHOP and first_job != null:
+		first_job.reset_shop_visit()
+	var room: Room = leaving
 	if room != null and room.parent_room_id != &"":
 		return try_enter_interior(room.parent_room_id)
 	current_room_id = &""
