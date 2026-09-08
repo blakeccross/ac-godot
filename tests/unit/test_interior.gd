@@ -747,23 +747,36 @@ func test_museum_entrance_sets_spawn_without_arrive() -> void:
 	Game.has_interior_spawn = false
 
 
-func test_door_transition_wipe_flags() -> void:
+func test_scene_transition_wipe_flags() -> void:
 	## Wipe-out arms wipe-in; cancel clears without a scene change.
-	DoorTransition.cancel_wipe()
-	assert_bool(DoorTransition.wipe_in_pending).is_false()
-	DoorTransition.wipe_in_pending = true
-	DoorTransition.cancel_wipe()
-	assert_bool(DoorTransition.wipe_in_pending).is_false()
-	assert_float(DoorTransition.WIPE_SEC).is_greater(0.0)
+	SceneTransition.cancel_wipe()
+	assert_bool(SceneTransition.wipe_in_pending).is_false()
+	SceneTransition.wipe_in_pending = true
+	SceneTransition.cancel_wipe()
+	assert_bool(SceneTransition.wipe_in_pending).is_false()
+	assert_float(SceneTransition.WIPE_SEC).is_greater(0.0)
 	## Pending wipe-in forces full opacity before fading (no indoor flash frame).
-	DoorTransition.wipe_in_pending = true
-	if DoorTransition.get_node_or_null("WipeRoot/Wipe") is ColorRect:
-		(DoorTransition.get_node("WipeRoot/Wipe") as ColorRect).color.a = 0.0
-	DoorTransition.play_wipe_in_if_pending()
-	assert_bool(DoorTransition.wipe_in_pending).is_false()
-	var wipe: ColorRect = DoorTransition.get_node_or_null("WipeRoot/Wipe") as ColorRect
+	SceneTransition.wipe_in_pending = true
+	if SceneTransition.get_node_or_null("WipeRoot/Wipe") is ColorRect:
+		(SceneTransition.get_node("WipeRoot/Wipe") as ColorRect).color.a = 0.0
+	SceneTransition.play_wipe_in_if_pending()
+	assert_bool(SceneTransition.wipe_in_pending).is_false()
+	var wipe: ColorRect = SceneTransition.get_node_or_null("WipeRoot/Wipe") as ColorRect
 	if wipe != null:
 		assert_float(wipe.color.a).is_equal_approx(1.0, 0.01)
+
+
+func test_scene_transition_handoff_channel() -> void:
+	## `transition.wipe_type` hand-off: `play_wipe_out` records the incoming wipe;
+	## `queue_wipe_in` overrides just that half (train fades out, town irises in).
+	SceneTransition.cancel_wipe()
+	SceneTransition.queue_wipe_in(SceneTransition.Style.IRIS, Color.BLACK)
+	assert_bool(SceneTransition.wipe_in_pending).is_true()
+	assert_int(SceneTransition.pending_style).is_equal(SceneTransition.Style.IRIS)
+	SceneTransition.hold_black()
+	assert_int(SceneTransition.pending_style).is_equal(SceneTransition.Style.FADE)
+	SceneTransition.cancel_wipe()
+	assert_int(SceneTransition.pending_style).is_equal(SceneTransition.Style.FADE)
 
 
 func test_museum_entrance_doors_match_decomp() -> void:

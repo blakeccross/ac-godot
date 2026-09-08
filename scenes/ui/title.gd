@@ -5,6 +5,8 @@ extends Control
 @onready var _continue: Button = %ContinueButton
 @onready var _new_game: Button = %NewGameButton
 
+var _leaving: bool = false
+
 
 func _ready() -> void:
 	Game.notify_title_ready()
@@ -17,23 +19,31 @@ func _ready() -> void:
 
 
 func _on_new_game_pressed() -> void:
-	## Decomp new town: mSDI → mRF with live RNG (not the fixed test acre).
-	var seed_value: int = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
-	Game.start_new_game(WorldData.Mode.GENERATED, seed_value)
+	## Full opening, like the original: K.K. player select → Rover's train →
+	## station arrival (Porter / Nook / house pick) → first job.
+	_leave(Game.start_intro_sequence)
 
 
 func _on_generated_town_pressed() -> void:
-	## Deterministic seed for debugging / tests.
-	Game.start_new_game(WorldData.Mode.GENERATED, WorldGenerator.DEFAULT_SEED)
+	## Dev skip: straight into a deterministic generated town, no intro.
+	_leave(func() -> void: Game.start_new_game(WorldData.Mode.GENERATED, WorldGenerator.DEFAULT_SEED))
 
 
 func _on_intro_pressed() -> void:
-	Game.start_intro_sequence()
+	_leave(Game.start_intro_sequence)
 
 
 func _on_intro_station_pressed() -> void:
-	Game.start_intro_station()
+	_leave(Game.start_intro_station)
 
 
 func _on_continue_pressed() -> void:
-	Game.continue_game()
+	_leave(Game.continue_game)
+
+
+func _leave(action: Callable) -> void:
+	## One transition at a time — the wipe-out entry points are async.
+	if _leaving:
+		return
+	_leaving = true
+	action.call()

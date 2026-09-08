@@ -1,8 +1,9 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/museum/museum_insect.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/world/museum/museum_wing_shell.gd" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
+[ext_resource type="Script" path="res://scenes/world/museum/museum_light_shaft.gd" id="7"]
 [ext_resource type="PackedScene" uid="uid://dw7jcfv31t84d" path="res://assets/generated/environment/interiors/rom_museum4.glb" id="4"]
 [ext_resource type="PackedScene" uid="uid://cbvrikhqaumc0" path="res://assets/generated/environment/interiors/rom_museum4_wall.glb" id="5"]
 [ext_resource type="PackedScene" uid="uid://brpmuhsleaxgh" path="res://assets/generated/environment/interiors/rom_museum4_ue.glb" id="6"]
@@ -26,6 +27,10 @@ transform = Transform3D(3.125, 0, 0, 0, 3.125, 0, 0, 0, 3.125, 0, -2, 0)
 [node name="Terrain" type="Node3D" parent="."]
 
 [node name="Furniture" type="Node3D" parent="."]
+
+[node name="LightShaft" type="Node3D" parent="Furniture"]
+script = ExtResource("7")
+shine_visual = &"obj_museum4_shine"
 
 [node name="Doors" type="Node3D" parent="."]
 

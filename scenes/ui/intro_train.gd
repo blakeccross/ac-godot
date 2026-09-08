@@ -45,6 +45,8 @@ func _ready() -> void:
 	if _cmdline_has("--record-intro"):
 		auto_advance_dialogue = true
 	Game.notify_intro_ready()
+	## Fade in from the black hold carried across the K.K. -> train swap.
+	SceneTransition.play_wipe_in_if_pending()
 	if not preview_seated_daylight and not auto_advance_dialogue:
 		## `mBGMDemo_make_scene_bgm`: STARTDEMO → BGM_INTRO_TRAIN (42).
 		Audio.play_bgm(&"intro_train")
@@ -176,6 +178,7 @@ func _finish_seated_preview() -> void:
 	}
 	_ctx = DialogueContext.from_game()
 	_ctx.speaker_name = "Rover"
+	_apply_rover_voice(_ctx)
 	if _dialogue.has_method("play"):
 		_dialogue.play(data, _ctx)
 
@@ -242,11 +245,21 @@ func _start_dialogue() -> void:
 	var data: DialogueData = DialogueCatalog.conversation(DIALOGUE_ID)
 	_ctx = DialogueContext.from_game()
 	_ctx.speaker_name = "Rover"
+	_apply_rover_voice(_ctx)
 	_ctx.vars = {}
 	_ctx.vars["answer_flags"] = 0
 	## Overlay forwards `event_fired` before `start()`, so manpu on the first line lands.
 	if _dialogue.has_method("play"):
 		_dialogue.play(data, _ctx, null, _dialogue_advance_gate)
+
+
+func _apply_rover_voice(ctx: DialogueContext) -> void:
+	## `DialogueContext.from_game()` with no villager falls back to CLICK. Rover is
+	## `SP_NPC_GUIDE` in `l_sp_actor_name` (`m_npc.c`): male nameplate, animalese
+	## `sound_id` 2 — same path `mNpc_GetNpcSoundSpecNotAnimal` gives Nook / Porter / K.K.
+	ctx.speaker_sex = 0
+	ctx.voice_mode = DialogueVoice.Mode.ANIMALESE
+	ctx.sound_spec = 2
 
 
 func _dialogue_advance_gate(from_node: StringName, to_node: StringName) -> bool:
@@ -431,6 +444,11 @@ func _on_intro_finished(identity: Dictionary) -> void:
 
 
 func _finish_deferred(identity: Dictionary) -> void:
+	## `aNGD_scene_change_wait_init`: fade the train out to black (`fb_wipe_type =
+	## WIPE_TYPE_FADE_BLACK`), then the new town irises in (`transition.wipe_type =
+	## WIPE_TYPE_CIRCLE_LEFT`; `world.gd._spawn_player` runs the wipe-in).
+	await SceneTransition.play_wipe_out(SceneTransition.Style.FADE)
+	SceneTransition.queue_wipe_in(SceneTransition.Style.IRIS)
 	Game.finish_intro_sequence(identity)
 
 

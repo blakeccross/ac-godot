@@ -382,6 +382,13 @@ func _apply_event(event: Dictionary) -> void:
 				context.mood = _mood_from(str(event.get("mood", "normal")))
 		"notice":
 			Game.post_notice(str(event.get("text", "")))
+		"donate_commit":
+			_donate_commit(event)
+		"farway_send":
+			if Game != null:
+				var msg: String = Game.send_fossils_to_farway(int(event.get("count", 1)))
+				if msg != "":
+					Game.post_notice(msg)
 		"deposit_bells":
 			var dep_msg: String = PostUse.deposit_amount(int(event.get("amount", -1)))
 			if dep_msg != "":
@@ -408,6 +415,21 @@ func _apply_event(event: Dictionary) -> void:
 			)
 			if write_msg != "":
 				Game.post_notice(write_msg)
+
+
+## `{op:"donate_commit","item":"<id>"}` — hand the item to the museum and write the
+## outcome back into context vars so the graph can branch on completion.
+func _donate_commit(event: Dictionary) -> void:
+	if context == null or Game == null:
+		return
+	var res: Dictionary = Game.donate_museum_result(StringName(str(event.get("item", ""))))
+	context.set_var("donate_ok", "yes" if res.get("ok", false) else "no")
+	context.set_var("donate_completed_set", "yes" if res.get("completed_set", false) else "no")
+	context.set_var(
+		"donate_completed_collection", "yes" if res.get("completed_collection", false) else "no"
+	)
+	context.set_var("donate_completed_museum", "yes" if res.get("completed_museum", false) else "no")
+	context.set_var("donate_set_name", str(res.get("set_name", "")))
 
 
 func _sync_bond_context(bond: Relationship) -> void:

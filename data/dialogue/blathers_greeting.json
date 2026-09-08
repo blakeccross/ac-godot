@@ -6,24 +6,142 @@
     "start": {
       "type": "branch",
       "when": [
-        {
-          "if": {
-            "already_talked": true
-          },
-          "goto": "repeat"
-        },
-        {
-          "goto": "welcome"
-        }
+        { "if": { "already_talked": true }, "goto": "repeat" },
+        { "goto": "first" }
       ]
+    },
+    "first": {
+      "type": "branch",
+      "when": [
+        { "if": { "hours": [5, 19] }, "goto": "wake" },
+        { "goto": "welcome" }
+      ]
+    },
+    "wake": {
+      "type": "line",
+      "text": "Hoo... hmm... Zzzz...\nZzWAK! Oh! Oh my. A\nthousand pardons — you've\ncaught me having a bit of a\nlie-down.",
+      "next": "wake_2"
+    },
+    "wake_2": {
+      "type": "line",
+      "text": "I am, I confess, rather\nnocturnal by disposition.\nDaylight hours are a trial.\nHoo... But do come in, come\nin. Welcome, all the same.",
+      "next": "after_open"
     },
     "welcome": {
       "type": "line",
-      "text": "Hoo — welcome to the museum!\nBring me fossils, art, fish, or\nbugs and I'll put them on\ndisplay."
+      "text": "Hoo! Good evening to you,\nand welcome! It is a genuine\npleasure to receive a\nvisitor at this civilised\nhour.",
+      "next": "after_open"
+    },
+    "after_open": {
+      "type": "branch",
+      "when": [
+        { "if": { "not": { "var": "museum_orientation_done" } }, "goto": "orient_1" },
+        { "goto": "menu" }
+      ]
+    },
+    "orient_1": {
+      "type": "line",
+      "text": "Since you are new here, permit\nme a brief word about the\nplace. We are the {town}\nbranch of the Farway Museum\n— a smaller cousin, but no\nless earnest for it.",
+      "next": "orient_2"
+    },
+    "orient_2": {
+      "type": "line",
+      "text": "We keep four collections:\nfossils, paintings, fish, and\ninsects. I appraise each\nspecimen that comes through\nthe door personally, hoo.",
+      "next": "orient_3"
+    },
+    "orient_3": {
+      "type": "line",
+      "text": "I am, alas, the entire staff.\nOne owl. So we rely upon the\ngenerosity of residents to\nbuild the collections. Might\nI count on your help?",
+      "next": "orient_stop_q"
+    },
+    "orient_stop_q": {
+      "type": "choice",
+      "prompt": "I do go on. Shall I stop\nthere, or prattle further?",
+      "options": [
+        { "text": "Please, go on.", "goto": "orient_4" },
+        { "text": "That's quite alright.", "goto": "orient_skip" }
+      ]
+    },
+    "orient_4": {
+      "type": "line",
+      "text": "Splendid! By \"donation\" I do\nnot mean whatever you wish\nto be rid of, mind. We are\nselective. But a fine fossil\nor a rare fish — those we\nreceive with open wings.",
+      "next": "orient_5"
+    },
+    "orient_5": {
+      "type": "line",
+      "text": "One specimen of each kind,\nthat is the rule. Bring it to\nme and I shall see it\nproperly displayed. Now —\nenough of my blathering.",
+      "next": "orient_done",
+      "events": [
+        { "op": "set_var", "name": "museum_orientation_done", "value": "yes" }
+      ]
+    },
+    "orient_skip": {
+      "type": "line",
+      "text": "Ha! A merciful soul. Very\nwell — the short version is\nsimply this: bring me\nfossils, art, fish, or bugs,\nand I shall do the rest.",
+      "next": "orient_done",
+      "events": [
+        { "op": "set_var", "name": "museum_orientation_done", "value": "yes" }
+      ]
+    },
+    "orient_done": {
+      "type": "branch",
+      "when": [ { "goto": "menu" } ]
     },
     "repeat": {
+      "type": "branch",
+      "when": [
+        { "if": { "hours": [5, 19] }, "goto": "repeat_day" },
+        { "goto": "repeat_night" }
+      ]
+    },
+    "repeat_day": {
       "type": "line",
-      "text": "Hoo hoo. Still exploring? The\nwings are through those doors\n— donate anything new to me\nfirst."
+      "text": "Hoo... Back again? Forgive\nthe heavy eyelids. Do have a\nwander — the wings are\nthrough the far doors.",
+      "next": "menu"
+    },
+    "repeat_night": {
+      "type": "line",
+      "text": "Hoo hoo! Well met once more.\nThe collection is always here\nfor you. Is there anything\nyou need?",
+      "next": "menu"
+    },
+    "menu": {
+      "type": "choice",
+      "prompt": "Now then — is there something\nI can help you with?",
+      "options": [
+        {
+          "text": "I've something to donate.",
+          "events": [ { "op": "museum_menu", "choice": "donate" } ]
+        },
+        { "text": "Tell me about the museum.", "goto": "about_branch" },
+        { "text": "Just looking, thank you.", "goto": "farewell" }
+      ]
+    },
+    "about_branch": {
+      "type": "branch",
+      "when": [
+        { "if": { "var_eq": { "name": "museum_complete", "value": "yes" } }, "goto": "about_complete" },
+        { "if": { "var_eq": { "name": "museum_empty", "value": "yes" } }, "goto": "about_empty" },
+        { "goto": "about_progress" }
+      ]
+    },
+    "about_empty": {
+      "type": "line",
+      "text": "In all honesty? At present we\nhave a large, costly, and\nthoroughly empty building.\nBut we are open at all hours,\nand every donation helps.",
+      "next": "menu"
+    },
+    "about_progress": {
+      "type": "line",
+      "text": "The collection comes along\nnicely, hoo. There is much\nworth seeing already — and\nmany a gap still waiting to\nbe filled.",
+      "next": "menu"
+    },
+    "about_complete": {
+      "type": "line",
+      "text": "Every display is full, every\ncollection complete. A museum\nto rival any in the world, and\nit was built entirely by the\nhands of this town. Glorious!",
+      "next": "menu"
+    },
+    "farewell": {
+      "type": "line",
+      "text": "Of course. Take your time,\nand enjoy your visit. Hoo!"
     }
   }
 }

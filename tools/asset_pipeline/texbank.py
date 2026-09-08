@@ -462,13 +462,6 @@ def demote_opaque_uv_alpha(
     return alpha_mode
 
 
-def png_has_transparent_texels(png: bytes | None, cutoff: int = _ALPHA_TRANSPARENT) -> bool:
-    if not png:
-        return False
-    image = Image.open(io.BytesIO(png)).convert("RGBA")
-    return any(p[3] < cutoff for p in image.getdata())
-
-
 def needs_stained_glass_revive(image: Image.Image) -> bool:
     """True when XLU CI glass ships colored RGB5A3 entries with A≈0."""
     img = image.convert("RGBA")
@@ -680,6 +673,15 @@ def is_player_select_stage_texture(tex_name: str) -> bool:
     return "rom_open_" in (tex_name or "").lower()
 
 
+def is_museum_tank_texture(tex_name: str) -> bool:
+    """Fish-tank glass + water (`obj_suisou1_*`, `obj_museum5_*`): tiny CI4 glass
+    and I4 caustics scrolled at runtime (`obj_suisou1_evw_anime` SCROLL2). ACHD
+    upscales the 16²/32² tiles to empty or darkened sheets and breaks the
+    32px scroll wrap — keep them native."""
+    n = tex_name or ""
+    return n.startswith("obj_suisou1_") or n.startswith("obj_museum5_")
+
+
 def skips_achd_texture(tex_name: str) -> bool:
     """Textures whose Dolphin hashes collide with unrelated ACHD sheets."""
     return (
@@ -688,6 +690,7 @@ def skips_achd_texture(tex_name: str) -> bool:
         or is_house_clock_texture(tex_name)
         or is_train_structure_texture(tex_name)
         or is_player_select_stage_texture(tex_name)
+        or is_museum_tank_texture(tex_name)
     )
 
 
@@ -1724,6 +1727,7 @@ class TextureBank:
                         pal,
                         wrap_s=state.wrap_s,
                         wrap_t=state.wrap_t,
+                        label=name or self.current_prefix or "mesh",
                     )
                     if hd is None:
                         hd = self._museum_art_house_achd(name, state.width, state.height, gx)

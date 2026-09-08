@@ -14,6 +14,9 @@ const MAIL_ROWS := 5
 const WALLET_MAX := 99999
 ## First house loan (`mPr` / Nook). 0 once paid — bank account unlocks.
 const DEFAULT_HOUSE_LOAN := 19800
+## Debt left after the intro down payment (`mPlayer_DEBT0`, m_player.h). Nook takes
+## the starting 1,000-bell bag on the station acre, then this is what you owe.
+const INTRO_HOUSE_DEBT := 17400
 
 signal changed
 signal selection_changed(index: int)
@@ -345,8 +348,42 @@ func count_mail() -> int:
 	return MAIL_SLOTS - empty_mail_slot_count()
 
 
+## Delivered letters sitting in the mailbox (`RECV*` fonts).
+func received_mail_count() -> int:
+	var n: int = 0
+	for mail: MailData in _mail:
+		if mail != null and not mail.is_empty() and mail.is_received():
+			n += 1
+	return n
+
+
+## Delivered letters the player has not opened yet.
+func unread_mail_count() -> int:
+	var n: int = 0
+	for mail: MailData in _mail:
+		if mail == null or mail.is_empty() or not mail.is_received():
+			continue
+		if mail.font == MailData.LetterFont.RECV or mail.font == MailData.LetterFont.RECV_PRESENT:
+			n += 1
+	return n
+
+
 ## Returns slot index or -1.
 func add_mail(mail: MailData) -> int:
+	if mail == null or mail.is_empty():
+		return -1
+	for i: int in MAIL_SLOTS:
+		if _mail[i] == null or _mail[i].is_empty():
+			_mail[i] = mail.duplicate_mail()
+			mail_changed.emit()
+			changed.emit()
+			return i
+	return -1
+
+
+## Deliver a letter from an NPC / service into the mailbox (`RECV*` fonts). Returns slot
+## index or -1 when the mailbox is full.
+func add_received_mail(mail: MailData) -> int:
 	if mail == null or mail.is_empty():
 		return -1
 	for i: int in MAIL_SLOTS:
@@ -497,6 +534,18 @@ func tags_for_slot(index: int) -> PackedStringArray:
 		tags.append("Open")
 		return tags
 	if slot.item.condition == InventoryItem.Condition.QUEST:
+		## Intro down payment (`aNRG_menu_open_wait_talk_proc`): the money bag is the
+		## only pocket item Nook will take on the station acre.
+		if (
+			Game != null
+			and Game.intro_payment_pending
+			and slot.item.item_id == &"money_1000"
+		):
+			tags.append("Hand over")
+		return tags
+	## Blathers opened the pockets to receive a donation (`mMmd` IV_OPEN).
+	if Game != null and Game.museum_donate_pending and MuseumDialogue.is_offerable(data):
+		tags.append("Donate")
 		return tags
 	if data.equippable:
 		tags.append("Equip")

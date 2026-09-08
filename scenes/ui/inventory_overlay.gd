@@ -588,6 +588,16 @@ func is_open() -> bool:
 	return _open
 
 
+## Open straight to the Letters page (mailbox / "you've got mail").
+func open_letters() -> void:
+	open()
+	if _open:
+		_focus_mail = true
+		_side_tab = SideTab.POCKETS
+		Game.inventory.select_mail(0)
+		_refresh()
+
+
 func open() -> void:
 	if _open:
 		return
@@ -630,6 +640,12 @@ func close() -> void:
 	_tag_mode = false
 	_focus_mail = false
 	_side_tab = SideTab.POCKETS
+	## Closing the pockets during the intro payment without handing anything over is
+	## Nook's "pay it all back" nag (`aNRG_menu_close_wait_talk_proc` empty branch).
+	if Game.intro_payment_pending:
+		Game.notify_intro_payment_declined()
+	if Game.museum_donate_pending:
+		Game.cancel_museum_donation()
 	if _hand_root != null:
 		_hand_root.visible = false
 	if _portrait_viewport != null:
@@ -874,6 +890,11 @@ func _activate_mail_cursor() -> void:
 	_tag_choices = PackedStringArray()
 	if mail == null or mail.is_empty():
 		_tag_choices.append("Write")
+	elif mail.is_received():
+		_tag_choices.append("Read")
+		if mail.has_enclosure():
+			_tag_choices.append("Take")
+		_tag_choices.append("Discard")
 	else:
 		_tag_choices.append("Discard")
 	_tag_mode = true
@@ -916,6 +937,16 @@ func _run_tag(tag: String) -> void:
 				):
 					Game.set_interact_prompt("Talk to Tom Nook")
 				close()
+		"Hand over":
+			## Intro down payment — Nook's director plays the hand-over and books it.
+			Game.notify_intro_payment_made()
+			close()
+		"Donate":
+			## Blathers is waiting — book the outcome and let his dialogue respond.
+			var slot: InventorySlot = inv.slot_at(idx)
+			if slot != null and not slot.is_empty():
+				Game.take_museum_donation(slot.item.item_id)
+			close()
 		"Move":
 			inv.pick_hand(idx)
 			_play_hand_clip("hnd_catch", false)
@@ -979,6 +1010,10 @@ func _run_mail_tag(tag: String) -> void:
 		"Write":
 			close()
 			_open_write_letter()
+		"Read":
+			_read_letter(inv.mail_at(idx))
+		"Take":
+			_take_letter_enclosure(idx)
 		"Discard":
 			inv.remove_mail(idx)
 			Game.post_notice("Discarded letter")
@@ -986,6 +1021,36 @@ func _run_mail_tag(tag: String) -> void:
 			pass
 	_tag_mode = false
 	_refresh()
+
+
+func _read_letter(mail: MailData) -> void:
+	if mail == null or mail.is_empty():
+		return
+	mail.mark_read()
+	var parts: PackedStringArray = PackedStringArray()
+	for line: String in [mail.header, mail.body, mail.footer]:
+		if line.strip_edges() != "":
+			parts.append(line)
+	Game.post_notice("\n".join(parts))
+
+
+func _take_letter_enclosure(idx: int) -> void:
+	var inv: Inventory = Game.inventory
+	var mail: MailData = inv.mail_at(idx)
+	if mail == null or not mail.has_enclosure():
+		return
+	var item: ItemData = ItemCatalog.get_item(mail.present_item_id)
+	if item == null:
+		Game.post_notice("The enclosure is missing.")
+		return
+	if not inv.has_space_for(item, 1):
+		Game.post_notice("Your pockets are full.")
+		return
+	inv.add(item, 1)
+	mail.present_item_id = &""
+	mail.mark_read()
+	inv.mail_changed.emit()
+	Game.post_notice("You took the %s." % item.display_name)
 
 
 func _open_write_letter() -> void:

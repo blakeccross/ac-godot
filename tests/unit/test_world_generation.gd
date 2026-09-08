@@ -38,6 +38,9 @@ func test_authored_test_town_has_fixed_layout() -> void:
 	assert_that(_object_at(data, &"ground_sapling")).is_equal(Vector2i(3, 12))
 	assert_that(_object_at(data, &"rock_1")).is_equal(Vector2i(3, 8))
 	assert_that(_object_at(data, &"house_door")).is_equal(Vector2i(7, 3))
+	assert_that(_object_at(data, &"player_mailbox")).is_equal(Vector2i(9, 2))
+	assert_that(_object_visual(data, &"player_mailbox")).is_equal(&"obj_s_post")
+	assert_that(_object_facing(data, &"player_mailbox")).is_equal(WorldGrid.Facing.NORTH)
 	assert_that(_object_visual(data, &"tree_1")).is_equal(&"TREE_APPLE_FRUIT")
 	assert_that(_object_visual(data, &"tree_3")).is_equal(&"TREE")
 	assert_that(_building_visual(data, &"player_house")).is_equal(&"obj_s_myhome1")
@@ -704,6 +707,13 @@ func _object_visual(data: WorldData, id: StringName) -> StringName:
 		if o != null and o.id == id:
 			return o.visual_id
 	return &""
+
+
+func _object_facing(data: WorldData, id: StringName) -> WorldGrid.Facing:
+	for o: ObjectPlacement in data.objects:
+		if o != null and o.id == id:
+			return o.facing
+	return WorldGrid.Facing.SOUTH
 
 
 func _kind_count(data: WorldData, kind: StringName) -> int:

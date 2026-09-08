@@ -246,7 +246,7 @@ func _add_object(root: Node3D, placement: ObjectPlacement, data: WorldData, grid
 		data,
 		grid,
 		Vector2.ZERO,
-		WorldGrid.Facing.SOUTH,
+		placement.facing,
 		FieldCollision.fg_ground_dist(placement.kind)
 	)
 	if not placement.occupy_grid:

@@ -48,11 +48,6 @@ def main() -> int:
         default="all",
     )
     parser.add_argument(
-        "--full",
-        action="store_true",
-        help="Convert every discovered asset (overrides config test_set_only)",
-    )
-    parser.add_argument(
         "--kind",
         choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "map-ui", "message-ui", "dialogue", "villagers", "faces", "audio", "water", "fish", "bugs", "seasons"],
         default="all",
@@ -60,8 +55,6 @@ def main() -> int:
     )
     args = parser.parse_args()
     cfg = load_config(ROOT, args.config)
-    if args.full:
-        cfg.test_set_only = False
 
     failed = False
 
@@ -209,11 +202,9 @@ def main() -> int:
                 )
         else:
             if args.kind == "static":
-                cfg.test_set_only = False
                 report = convert_static_only(cfg)
                 label = "static assets"
             elif args.kind == "buildings":
-                cfg.test_set_only = False
                 ## All house/myhome/shop stages — MASK doors must not share a
                 ## skinned mesh with OPAQUE walls (Godot transparent pipeline).
                 report = convert_ckf_starting_with(
@@ -239,11 +230,9 @@ def main() -> int:
                 report["results"].extend(static_report.get("results", []))
                 label = "building assets"
             elif args.kind == "furniture":
-                cfg.test_set_only = False
                 report = convert_ckf_starting_with(cfg, "int_", "clk_")
                 label = "furniture cKF assets"
             elif args.kind == "plants":
-                cfg.test_set_only = False
                 report = convert_static_prefixes(
                     cfg,
                     [
@@ -267,15 +256,12 @@ def main() -> int:
                 )
                 label = "plant assets"
             elif args.kind == "water":
-                cfg.test_set_only = False
                 report = convert_water_acres(cfg)
                 label = "river/ocean/pond acre assets"
             elif args.kind == "fish":
-                cfg.test_set_only = False
                 report = convert_static_prefixes(cfg, FISH_STATIC_NEEDLES)
                 label = "fish assets"
             elif args.kind == "bugs":
-                cfg.test_set_only = False
                 report = convert_test_static_needles(cfg, BUG_STATIC_NEEDLES)
                 label = "bug assets"
             elif args.kind == "seasons":
@@ -294,7 +280,7 @@ def main() -> int:
                 report = None
             else:
                 report = convert_assets(cfg)
-                label = "test assets" if cfg.test_set_only else "assets"
+                label = "assets"
             if report is not None:
                 converted = sum(1 for r in report["results"] if r["status"] == "converted")
                 errors = [r for r in report["results"] if r["status"] == "error"]

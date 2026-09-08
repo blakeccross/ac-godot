@@ -4,7 +4,6 @@
   "godot_generated": "assets/generated",
   "dtk_path": "tools/.cache/dtk",
   "scale": 0.001,
-  "test_set_only": true,
   "decomp_root": "",
   "achd_enabled": true,
   "achd_root": "/absolute/path/to/ACHD"

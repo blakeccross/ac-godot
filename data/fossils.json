@@ -1,0 +1,204 @@
+{
+  "fossils": [
+    {
+      "index": 0,
+      "visual_id": "int_din_trikera_head",
+      "id": "fossil_trikera_head",
+      "display_name": "Triceratops Skull",
+      "group": "Triceratops",
+      "sell_price": 4000
+    },
+    {
+      "index": 1,
+      "visual_id": "int_din_trikera_tail",
+      "id": "fossil_trikera_tail",
+      "display_name": "Triceratops Tail",
+      "group": "Triceratops",
+      "sell_price": 3000
+    },
+    {
+      "index": 2,
+      "visual_id": "int_din_trikera_body",
+      "id": "fossil_trikera_body",
+      "display_name": "Triceratops Torso",
+      "group": "Triceratops",
+      "sell_price": 4500
+    },
+    {
+      "index": 3,
+      "visual_id": "int_din_trex_head",
+      "id": "fossil_trex_head",
+      "display_name": "T. Rex Skull",
+      "group": "Tyrannosaurus",
+      "sell_price": 6000
+    },
+    {
+      "index": 4,
+      "visual_id": "int_din_trex_tail",
+      "id": "fossil_trex_tail",
+      "display_name": "T. Rex Tail",
+      "group": "Tyrannosaurus",
+      "sell_price": 3500
+    },
+    {
+      "index": 5,
+      "visual_id": "int_din_trex_body",
+      "id": "fossil_trex_body",
+      "display_name": "T. Rex Torso",
+      "group": "Tyrannosaurus",
+      "sell_price": 5000
+    },
+    {
+      "index": 6,
+      "visual_id": "int_din_bront_head",
+      "id": "fossil_bront_head",
+      "display_name": "Apatosaurus Skull",
+      "group": "Apatosaurus",
+      "sell_price": 4500
+    },
+    {
+      "index": 7,
+      "visual_id": "int_din_bront_tail",
+      "id": "fossil_bront_tail",
+      "display_name": "Apatosaurus Tail",
+      "group": "Apatosaurus",
+      "sell_price": 3500
+    },
+    {
+      "index": 8,
+      "visual_id": "int_din_bront_body",
+      "id": "fossil_bront_body",
+      "display_name": "Apatosaurus Torso",
+      "group": "Apatosaurus",
+      "sell_price": 4500
+    },
+    {
+      "index": 9,
+      "visual_id": "int_din_stego_head",
+      "id": "fossil_stego_head",
+      "display_name": "Stegosaurus Skull",
+      "group": "Stegosaurus",
+      "sell_price": 4000
+    },
+    {
+      "index": 10,
+      "visual_id": "int_din_stego_tail",
+      "id": "fossil_stego_tail",
+      "display_name": "Stegosaurus Tail",
+      "group": "Stegosaurus",
+      "sell_price": 3000
+    },
+    {
+      "index": 11,
+      "visual_id": "int_din_stego_body",
+      "id": "fossil_stego_body",
+      "display_name": "Stegosaurus Torso",
+      "group": "Stegosaurus",
+      "sell_price": 4000
+    },
+    {
+      "index": 12,
+      "visual_id": "int_din_ptera_head",
+      "id": "fossil_ptera_head",
+      "display_name": "Pteranodon Skull",
+      "group": "Pteranodon",
+      "sell_price": 4000
+    },
+    {
+      "index": 13,
+      "visual_id": "int_din_ptera_Rwing",
+      "id": "fossil_ptera_rwing",
+      "display_name": "Pteranodon Right Wing",
+      "group": "Pteranodon",
+      "sell_price": 2500
+    },
+    {
+      "index": 14,
+      "visual_id": "int_din_ptera_Lwing",
+      "id": "fossil_ptera_lwing",
+      "display_name": "Pteranodon Left Wing",
+      "group": "Pteranodon",
+      "sell_price": 2500
+    },
+    {
+      "index": 15,
+      "visual_id": "int_din_hutaba_head",
+      "id": "fossil_hutaba_head",
+      "display_name": "Plesiosaur Skull",
+      "group": "Plesiosaur",
+      "sell_price": 4000
+    },
+    {
+      "index": 16,
+      "visual_id": "int_din_hutaba_neck",
+      "id": "fossil_hutaba_neck",
+      "display_name": "Plesiosaur Neck",
+      "group": "Plesiosaur",
+      "sell_price": 3000
+    },
+    {
+      "index": 17,
+      "visual_id": "int_din_hutaba_body",
+      "id": "fossil_hutaba_body",
+      "display_name": "Plesiosaur Torso",
+      "group": "Plesiosaur",
+      "sell_price": 4000
+    },
+    {
+      "index": 18,
+      "visual_id": "int_din_mammoth_head",
+      "id": "fossil_mammoth_head",
+      "display_name": "Mammoth Skull",
+      "group": "Mammoth",
+      "sell_price": 5500
+    },
+    {
+      "index": 19,
+      "visual_id": "int_din_mammoth_body",
+      "id": "fossil_mammoth_body",
+      "display_name": "Mammoth Torso",
+      "group": "Mammoth",
+      "sell_price": 5000
+    },
+    {
+      "index": 20,
+      "visual_id": "int_din_amber",
+      "id": "fossil_amber",
+      "display_name": "Amber",
+      "group": "Amber",
+      "sell_price": 1200
+    },
+    {
+      "index": 21,
+      "visual_id": "int_din_stump",
+      "id": "fossil_stump",
+      "display_name": "Petrified Wood",
+      "group": "Petrified Wood",
+      "sell_price": 1000
+    },
+    {
+      "index": 22,
+      "visual_id": "int_din_ammonite",
+      "id": "fossil_ammonite",
+      "display_name": "Ammonite",
+      "group": "Ammonite",
+      "sell_price": 1100
+    },
+    {
+      "index": 23,
+      "visual_id": "int_din_egg",
+      "id": "fossil_egg",
+      "display_name": "Dinosaur Egg",
+      "group": "Dinosaur Egg",
+      "sell_price": 1400
+    },
+    {
+      "index": 24,
+      "visual_id": "int_din_trilobite",
+      "id": "fossil_trilobite",
+      "display_name": "Trilobite",
+      "group": "Trilobite",
+      "sell_price": 1300
+    }
+  ]
+}

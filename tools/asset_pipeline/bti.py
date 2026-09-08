@@ -197,7 +197,7 @@ def bti_to_png(src: Path, dest: Path, achd=None) -> dict:
         from .achd import maybe_hd_png
 
         fmt, width, height, texels, pal = bti_raw_parts(raw)
-        hd = maybe_hd_png(achd, texels, width, height, fmt, pal)
+        hd = maybe_hd_png(achd, texels, width, height, fmt, pal, label=src.name)
         if hd is not None:
             dest.write_bytes(hd)
             image = Image.open(dest)

@@ -134,7 +134,11 @@ func _activate() -> void:
 		return
 	if _mode == Interaction.BUY:
 		var item_id: StringName = _rows[_cursor].get("id", &"") as StringName
-		var msg: String = Game.shops.buy(_shop_id, item_id, Game.inventory)
+		var msg: String = ""
+		if _shop_id == &"broker_shop" and Game.redd != null:
+			msg = Game.redd.buy(item_id, Game.inventory)
+		else:
+			msg = Game.shops.buy(_shop_id, item_id, Game.inventory)
 		Game.post_notice(msg)
 		Game.call_deferred("refresh_shop_set")
 		_tag_mode = false
@@ -227,6 +231,22 @@ func _refresh() -> void:
 func _rebuild_rows() -> void:
 	_rows.clear()
 	if _shop_id == &"":
+		return
+	if _mode == Interaction.BUY and _shop_id == &"broker_shop":
+		for entry: Dictionary in (Game.redd.stock() if Game.redd != null else []):
+			var rid: StringName = StringName(str(entry.get("item_id", "")))
+			var rdata: ItemData = ItemCatalog.get_item(rid)
+			if rdata == null:
+				continue
+			var rprice: int = int(entry.get("price", 4000))
+			_rows.append({
+				"id": rid,
+				"name": rdata.display_name,
+				"label": "%s  %d Bells" % [rdata.display_name, rprice],
+				"desc": rdata.description,
+				"price": rprice,
+				"count": 1,
+			})
 		return
 	if _mode == Interaction.BUY:
 		for item_id: StringName in Game.shops.goods(_shop_id):

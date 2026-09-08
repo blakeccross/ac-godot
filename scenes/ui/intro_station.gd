@@ -337,7 +337,9 @@ func _on_stage_finished() -> void:
 
 
 func _finish_to_game() -> void:
-	Game.finish_intro_sequence(
+	## This dev scene already played its own Porter/Nook flow — hand straight to the
+	## world + first job, not back through another station arrival.
+	Game.debug_finish_station_arrival(
 		{
 			"player_name": Game.player_name,
 			"town_name": Game.town_name,

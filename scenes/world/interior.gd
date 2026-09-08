@@ -84,7 +84,7 @@ func _physics_process(_delta: float) -> void:
 		return
 	_exiting = true
 	await _play_indoor_exit(player as Node3D)
-	await DoorTransition.play_wipe_out()
+	await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
 	Game.exit_interior()
 
 
@@ -196,6 +196,8 @@ func _apply_indoor_light(room: Room) -> void:
 	if fill != null:
 		fill.light_color = room_color
 		fill.light_energy = 0.55
+	if room != null and room.kind == Room.Kind.MUSEUM:
+		_apply_museum_mood(env, fill, room)
 	GeneratedVisual.refresh_room_prim(self, room_color)
 	if _camera != null and "offset" in _camera:
 		## Homes frame the shell (never closer than Camera2 620). Museum / shops /
@@ -215,6 +217,27 @@ func _apply_indoor_light(room: Room) -> void:
 			_camera.set("offset", preload("res://scenes/world/follow_camera.gd").DEFAULT_OFFSET)
 	if pins_follow_camera(room) and _camera.has_method("lock_at"):
 		_camera.call("lock_at", _inner_look_point(room))
+
+
+## Museum wings read darker and more dramatic than a home — the skylight shafts and
+## per-wing tint are the mood, not a flat fill (`ac_museum` baked ceiling shade).
+func _apply_museum_mood(env: Environment, fill: OmniLight3D, room: Room) -> void:
+	var tint: Color = Color(0.62, 0.64, 0.70)
+	match room.id:
+		&"museum_fossil":
+			tint = Color(0.55, 0.60, 0.72)
+		&"museum_painting":
+			tint = Color(0.74, 0.68, 0.58)
+		&"museum_fish":
+			tint = Color(0.48, 0.62, 0.74)
+		&"museum_insect":
+			tint = Color(0.56, 0.66, 0.56)
+	env.ambient_light_color = tint
+	env.ambient_light_energy = 0.72
+	env.background_color = tint.darkened(0.7)
+	if fill != null:
+		fill.light_color = tint.lightened(0.15)
+		fill.light_energy = 0.35
 
 
 ## Player and villager homes pin the 3/4 camera to the room (`Camera2` border invert).
@@ -255,7 +278,7 @@ func _spawn_player() -> void:
 	if not pins_follow_camera(session.room if session != null else null):
 		if _camera.has_method("set_target"):
 			_camera.call("set_target", player)
-	DoorTransition.play_wipe_in_if_pending()
+	SceneTransition.play_wipe_in_if_pending()
 	if Game.play_door_arrive:
 		Game.play_door_arrive = false
 		call_deferred("_play_door_arrive", player)

@@ -115,6 +115,9 @@ static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 		Game.post_notice("You dug up bells!")
 	else:
 		Game.post_notice("You dug up a fossil!")
+		## First fossil triggers the Farway Museum's introductory letter (`mMsm` mail-in).
+		if Game.farway != null:
+			Game.farway.request_intro_letter()
 	## Digging a buried spot leaves an open hole (`DIG_SCOOP` after get).
 	HoleUse.dig(ctx, cell, false)
 	return true

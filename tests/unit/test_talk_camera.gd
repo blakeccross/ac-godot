@@ -200,13 +200,15 @@ func test_blathers_greeting_loads() -> void:
 	assert_that(data).is_not_null()
 	var ctx := DialogueContext.from_game()
 	ctx.speaker_name = "Blathers"
+	ctx.hour = 22 # alert (nighttime) opener
 	ctx.already_talked = false
 	var runner := DialogueRunner.new()
 	runner.start(data, ctx)
-	assert_str(runner.line).contains("welcome to the museum")
+	assert_str(runner.line).contains("welcome")
+	ctx.set_var("museum_orientation_done", "yes")
 	ctx.already_talked = true
 	runner.start(data, ctx)
-	assert_str(runner.line).contains("Still exploring")
+	assert_str(runner.line).contains("Well met")
 
 
 func test_follow_camera_begin_end_talk() -> void:

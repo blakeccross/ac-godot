@@ -1052,16 +1052,3 @@ for _base in _BUG_MODEL_BASES:
                 "confident_name": True,
             }
         )
-
-# Standalone BTI files from forest_2nd. Keep original filenames; do not invent roles.
-TEST_BTI = [
-    ("forest_2nd/data/boy1.bti", "ui/boy1.png"),
-    ("forest_2nd/data/boy2.bti", "ui/boy2.png"),
-    ("forest_2nd/data/girl1.bti", "ui/girl1.png"),
-    ("forest_2nd/data/title.bti", "ui/title.png"),
-    ("forest_2nd/data/mura_spring.bti", "ui/mura_spring.png"),
-    ("forest_2nd/data/mura_summer.bti", "ui/mura_summer.png"),
-    ("forest_2nd/data/mura_fall.bti", "ui/mura_fall.png"),
-    ("forest_2nd/data/mura_winter.bti", "ui/mura_winter.png"),
-    ("forest_2nd/data/eki1.bti", "ui/eki1.png"),
-]

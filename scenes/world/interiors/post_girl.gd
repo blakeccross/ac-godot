@@ -4,7 +4,7 @@ extends StaticBody3D
 
 const ANIM_WAIT := "npc_1_wait1"
 
-enum Pending { NONE, BANK, SEND, SAVE, REPAY }
+enum Pending { NONE, BANK, SEND, SAVE, REPAY, FARWAY }
 
 var _model: Node3D
 var _body_anim: AnimationPlayer
@@ -159,6 +159,8 @@ func _note_pending_from_runner() -> void:
 		_pending = Pending.SAVE
 	elif PostDisplay.is_repay_msg(conv.id) or PostDisplay.is_repay_msg(node_id):
 		_pending = Pending.REPAY
+	elif conv.id == &"post_farway" or node_id == &"farway":
+		_pending = Pending.FARWAY
 
 
 func _on_talk_closed() -> void:
@@ -180,6 +182,8 @@ func _on_talk_closed() -> void:
 			_open_followup(PostUse.save_mail_conversation())
 		Pending.REPAY:
 			_open_followup(DialogueCatalog.conversation(PostDisplay.REPAY_AMOUNT_ID))
+		Pending.FARWAY:
+			_open_followup(PostUse.farway_send_conversation())
 		_:
 			pass
 

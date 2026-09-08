@@ -456,6 +456,10 @@ static func attach_interior(
 
 
 static func _fit(pivot: Node3D, visual_id: StringName) -> void:
+	if _is_light_shaft_visual(visual_id):
+		## Skylight shafts are authored in acre space alongside the museum shell.
+		_fit_acre(pivot)
+		return
 	if FieldCatalog.is_acre(visual_id) or visual_id == &"obj_museum5":
 		## `obj_museum5` draws with field `Matrix_scale(0.0625)` and no translate —
 		## verts share the acre datum with `rom_museum5` (floor at authored Y=40 GX).
@@ -1123,8 +1127,11 @@ static func _apply_materials_inner(
 				elif _is_museum_art_surface(mesh_instance, i, src, visual_id):
 					_apply_museum_art_material(std)
 					mesh_instance.set_surface_override_material(i, std)
+				elif _is_light_shaft_visual(visual_id):
+					_apply_light_shaft_surface(std)
+					mesh_instance.set_surface_override_material(i, std)
 				elif _is_fish_tank_visual(visual_id):
-					_apply_fish_tank_surface(std)
+					_apply_fish_tank_surface(std, _surface_label(mesh_instance, i, src))
 					mesh_instance.set_surface_override_material(i, std)
 				elif HostCollision.uses_structure_offset(visual_id):
 					_apply_structure_surface(std)
@@ -1160,12 +1167,50 @@ static func _harden_imported_cutout(std: StandardMaterial3D) -> void:
 	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
 
 
+static func _is_light_shaft_visual(visual_id: StringName) -> bool:
+	## Museum skylight god-rays (`obj_museum1_shine` / `obj_museum4_shine`).
+	var s := String(visual_id)
+	return s.begins_with("obj_museum") and s.ends_with("_shine")
+
+
+## Soft translucent light cone: unshaded, additive-ish MIX, no depth write, daylight-gated.
+static func _apply_light_shaft_surface(std: StandardMaterial3D) -> void:
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	std.cull_mode = BaseMaterial3D.CULL_DISABLED
+	std.render_priority = 2
+	std.vertex_color_use_as_albedo = false
+	std.emission_enabled = true
+	std.emission = Color(1.0, 0.96, 0.86)
+	std.emission_energy_multiplier = 0.6
+	var day: float = _daylight_fraction()
+	std.albedo_color = Color(1.0, 0.97, 0.88, lerp(0.05, 0.32, day))
+
+
+## 0 at night, ~1 at midday — from the clock's outdoor light term when available.
+static func _daylight_fraction() -> float:
+	var loop := Engine.get_main_loop()
+	if loop is SceneTree:
+		var clock: Node = (loop as SceneTree).root.get_node_or_null("Clock")
+		if clock != null and clock.has_method("time_of_day"):
+			match int(clock.call("time_of_day")):
+				2:
+					return 1.0 # DAY
+				1, 3:
+					return 0.5 # DAWN / DUSK
+				_:
+					return 0.12 # NIGHT
+	return 0.6
+
+
 static func _is_fish_tank_visual(visual_id: StringName) -> bool:
 	## Small tanks + sea tank: OPA shell, TEX_EDGE frame, XLU glass/water.
 	return visual_id == &"obj_suisou1" or visual_id == &"obj_museum5"
 
 
-static func _apply_fish_tank_surface(std: StandardMaterial3D) -> void:
+static func _apply_fish_tank_surface(std: StandardMaterial3D, label: String = "") -> void:
 	## Wall quads are single-sided; default CULL_DISABLED draws both faces on the same
 	## plane and flickers. Frame (MASK) writes depth; XLU depth-tests without writing
 	## so front/evw can share the wall plane without a mesh-scale inset (that shrank water).
@@ -1177,6 +1222,16 @@ static func _apply_fish_tank_surface(std: StandardMaterial3D) -> void:
 	elif std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
 		std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
 		std.render_priority = 1
+		## `evw` / `water1` / `water2` are the animated shimmer + caustics layers.
+		## On GC they draw at ~12% (`SetPrimColor` a=30) with TEXTURE_GEN reflection
+		## and a dual-scroll; the static bake keeps the raw texture alpha, so the
+		## diagonal I4/CI4 pattern reads as a hard hatch over the glass. Force them
+		## back to a faint blue wash — the shimmer is a GC-only runtime effect.
+		if "evw" in label or "water1" in label or "water2" in label or "rgb_i4" in label:
+			std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			std.albedo_color = Color(0.36, 0.62, 0.85, 0.12)
+			std.albedo_texture = null
+			std.render_priority = 2
 
 
 static func _apply_structure_surface(std: StandardMaterial3D) -> void:

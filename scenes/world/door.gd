@@ -77,7 +77,7 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 		## Museum Exit sensor: wipe only — no INTO_S1 (`aMsm` indoor leave is scene warp).
 		if action.id != Interaction.ENTER:
 			return false
-		await DoorTransition.play_wipe_out()
+		await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
 		return Game.exit_interior()
 	if Game.is_indoors() and linked_room_id != &"":
 		if action.id != Interaction.ENTER:
@@ -85,7 +85,7 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 		## Museum wing links: wipe + spawn at door_data — no walk-in clip.
 		if not _is_museum_room(linked_room_id):
 			await _play_indoor_link_enter()
-		await DoorTransition.play_wipe_out()
+		await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
 		var entered: bool = false
 		if has_linked_spawn:
 			entered = Game.try_enter_interior(linked_room_id, linked_spawn_gx, linked_spawn_yaw)
@@ -102,10 +102,10 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 			return false
 		if shop_target != &"":
 			await StructureDoor.play_enter(self)
-			await DoorTransition.play_wipe_out()
+			await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
 			if Game.try_enter_interior(shop_target):
 				return true
-			DoorTransition.cancel_wipe()
+			SceneTransition.cancel_wipe()
 			_end_player_door_enter()
 			if InteriorCatalog.resolve_entry(shop_target) != &"":
 				return false
@@ -118,10 +118,10 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 			return true
 		## Outdoor museum still plays INTO_S1 (`aMsm` door_type1) before the wipe.
 		await StructureDoor.play_enter(self)
-		await DoorTransition.play_wipe_out()
+		await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
 		if Game.try_enter_interior(target):
 			return true
-		DoorTransition.cancel_wipe()
+		SceneTransition.cancel_wipe()
 		_end_player_door_enter()
 		if InteriorCatalog.resolve_entry(target) != &"":
 			return false

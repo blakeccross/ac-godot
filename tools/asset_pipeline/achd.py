@@ -284,6 +284,8 @@ class AchdPack:
         self.hits = 0
         self.misses = 0
         self.decode_errors = 0
+        ## label → set of Dolphin stems that had no HD match (diagnostics only).
+        self.missed: dict[str, set[str]] = {}
         self._index()
 
     def _index(self) -> None:
@@ -368,12 +370,16 @@ class AchdPack:
         height: int,
         fmt: int,
         tlut: bytes | None = None,
+        label: str = "",
     ) -> bytes | None:
         if width <= 0 or height <= 0 or fmt not in _BLOCK:
             self.misses += 1
             return None
         stem = dolphin_texture_stem(texture, width, height, fmt, tlut)
-        return self.png_for_stem(stem)
+        png = self.png_for_stem(stem)
+        if png is None:
+            self.missed.setdefault(label or "?", set()).add(stem)
+        return png
 
     def stats(self) -> dict[str, int]:
         return {
@@ -422,11 +428,12 @@ def maybe_hd_png(
     *,
     wrap_s: int = 0,
     wrap_t: int = 0,
+    label: str = "",
 ) -> bytes | None:
     """Lookup ACHD; CLAMP/MIRROR keep full HD, REPEAT downscales to a bake-safe tile."""
     if pack is None:
         return None
-    hd = pack.lookup_png(texture, width, height, fmt, tlut)
+    hd = pack.lookup_png(texture, width, height, fmt, tlut, label)
     if hd is None:
         return None
     image = Image.open(io.BytesIO(hd)).convert("RGBA")

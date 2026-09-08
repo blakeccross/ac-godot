@@ -118,7 +118,7 @@ func _spawn_player() -> void:
 		_camera.call("suspend")
 	elif _camera.has_method("set_target"):
 		_camera.call("set_target", player)
-	DoorTransition.play_wipe_in_if_pending()
+	SceneTransition.play_wipe_in_if_pending()
 	if Game.emerge_from_door:
 		Game.emerge_from_door = false
 		call_deferred("_play_door_emerge", player)

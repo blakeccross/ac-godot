@@ -31,8 +31,7 @@ Edit `tools/config.local.json` (gitignored):
   "work_root": "/absolute/path/to/ac-assets-work",
   "godot_generated": "assets/generated",
   "dtk_path": "tools/.cache/dtk",
-  "scale": 0.001,
-  "test_set_only": true
+  "scale": 0.001
 }
 ```
 
@@ -64,7 +63,7 @@ Set `achd_enabled: true` and `achd_root` to a Dolphin ACHD / Load/Textures tree.
 
 Inventory and town-map UI chrome (`--kind inventory-ui` / `map-ui`) prefer ACHD when hashes match; window-shell bakes rescale native ST into the HD sheet.
 
-Use `--all` (or `"test_set_only": false`) and reconvert after enabling ACHD so generated GLBs/PNGs pick up hits.
+Reconvert (`--step convert`) after enabling ACHD so generated GLBs/PNGs pick up hits.
 
 ## 3. Required input files
 
@@ -154,10 +153,10 @@ disc image
   → validate
 ```
 
-Full library (every cKF skeleton, static Gfx, BTI, player face/shirt bins, room floor/wall, REL `*_tex*`):
+Convert builds the full library (every cKF skeleton, static Gfx, BTI, player face/shirt bins, room floor/wall, REL `*_tex*`):
 
 ```sh
-python3 tools/build_assets.py --step convert --full
+python3 tools/build_assets.py --step convert
 ```
 
 Acre collision only (no mesh reconvert):
@@ -260,9 +259,9 @@ python3 tools/build_assets.py --kind audio --step convert
 
 Writes `assets/generated/audio/catalog.json` and looping `bgm/*.ogg` (gitignored). Needs `audiorom.img`, decomp headers for `BGM_*` → sequence mapping, and `ffmpeg` (vorbis encode; `libvorbis` or native `-strict -2`). Falls back to WAV if encode fails. See [decomp_notes/audio.md](decomp_notes/audio.md).
 
-Or set `"test_set_only": false` in `config.local.json`. Optional `"decomp_root"` points at an `ac-decomp` checkout for FG combis. `--step all` still extract + scan + convert + validate; add `--full` to convert everything.
+Optional `"decomp_root"` points at an `ac-decomp` checkout for FG combis. `--step all` runs extract + scan + convert + validate.
 
-Test-set convert **overwrites** the files it writes and does not delete `assets/generated/` (so a later test run will not wipe a `--full` library, FG catalog, or inventory UI). `--full` clears work-root `converted/` staging only.
+Convert **overwrites** the files it writes and does not delete `assets/generated/` (so a run will not wipe the FG catalog, inventory UI, or other side outputs). It clears work-root `converted/` staging only.
 
 Per-asset failures are recorded and skipped; the run does not stop. The process exits **1** if any convert error occurred or validate is not ok.
 
@@ -279,15 +278,16 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 ## 8. Adding new asset types
 
 1. Identify the symbol or file in `assets.json` / `foresta.map`. Do not invent a villager personal name.
-2. Add a row to `tools/asset_pipeline/test_set.py`:
-   - cKF: `TEST_SKELETONS` with `cKF_bs_r_*` and `{prefix}_v`
+2. Convert already walks every cKF skeleton, static Gfx, and BTI the scanner knows.
+   Add a row to `tools/asset_pipeline/test_set.py` only to **override** the default
+   inference:
+   - cKF: `TEST_SKELETONS` with `cKF_bs_r_*` and `{prefix}_v` (confident name, explicit anims)
    - Static Gfx: `TEST_STATIC` with `*_v` + `*_gfx_model`
-   - BTI: `TEST_BTI`
    A `TEST_STATIC` row wins over the prefix inference, so it is the way in for a display
    list whose name no rule will ever pair with its vertex array (the bobber's
    `tol_uki_1_v` is drawn by `tol_uki1_model`, with no underscore).
 3. Re-run `--step convert`.
-4. If a new type is unreliable, **stop** and fix the decoder before expanding the test set. `--full` already converts every cKF / static Gfx / BTI the scanner knows.
+4. If a new type is unreliable, **stop** and fix the decoder.
 
 ## 9. Troubleshooting
 
@@ -367,7 +367,7 @@ Preview (after convert):
 ## 11. Known limitations
 
 - Player `boy_1.glb` is a **skinned** GLB: wait-frame-1 bind (already stands on +Y), IBMs, and every `cKF_ba_r_ply_1_*` clip. The US disc has **no** `cKF_bs_r_girl_1` / `girl_1_v` — only `boy_1` plus UI portraits (`girl1.bti`…). Girl clothing/face selection is runtime data on that shared player mesh, not a second skeleton. Models without wait use identity bind + +90° Z. Materials are `doubleSided`. Shirt and hat both sample segment `0x0A` (same 32×32 CI4); wrap/UVs differ, so they stay separate materials. Out-of-range REPEAT/MIRROR UVs are baked into a tiled PNG with UVs remapped to 0–1 (Godot cannot express per-axis wrap). Limb/chest DLs switch `G_MTX` mid-list (segment `0x0D`); seam vertices are weighted to the parent joint, not the DL owner.
-- Villager species (`cat_1`, `bev_1`, …) embed the shared `cKF_ba_r_npc_1_*` bank. Pose evaluation is cached across species (same clip tables); rest translations still differ so each GLB has its own tracks. Test-set convert bakes wait/walk/run only.
+- Villager species (`cat_1`, `bev_1`, …) embed the shared `cKF_ba_r_npc_1_*` bank. Pose evaluation is cached across species (same clip tables); rest translations still differ so each GLB has its own tracks. Every `cKF_ba_r_npc_1_*` clip is baked into each species GLB.
 - Static meshes include `*_gfx_model` and plain `*_model` DLs. Room shells (`rom_*` → `environment/interiors/`) and outdoor acre tiles (`grd_*` → `environment/acres/`) come from that path. Acre DLs sample dummy segment `0x80` (grass/earth/cliff/bush); convert materializes the summer bank from `l_bg_tex_segment_rom_start_s_0` + palettes. Player-house floor/wall DLs sample segments `0x08–0x0C` from `player_room_floor.bin` / `player_room_wall.bin` (style 0). A few interiors (`rom_uranai`, `room01`) use classic N64 `G_SETTILE` / `G_SETTILESIZE` instead of `G_SETTILE_DOLPHIN`.
 - Model textures are GX CI4/CI8 with RGB5A3 palettes. Pending tris flush before `G_LOADTLUT` / prim / tile changes so the palette active at draw time is the one baked into the PNG. Segment banks use one path for every cKF prefix: REL `{prefix}_pal` / `eye1` / `mouth1` / `tmem_txt` when present, else archive `face_{species}.bin` + `tex_{species}.bin` + `pallet_{species}.bin` (shirt index 0). Unbound `anime_N_txt` SETTIMG/LOADTLUT (segments `0x08–0x0F`) resolve from same-size REL textures whose name shares the Gfx part (`leaf` → hardwood leaf tex + FG pal; `mark` → `obj_myhome_mark_*`). I4/IA are modulated by `G_SETPRIMCOLOR`; when the combiner is `(PRIM−ENV)×TEXEL+ENV` (balloon heads, etc.) convert bakes both ends into the PNG.
 - `scale` 0.001 is a shared Vtx multiplier. Godot then applies actor `0.01` vs acre `0.0625` so meshes share 40 GX = 2 m. Do not AABB-fit pipeline meshes to invented meters.

@@ -21,7 +21,7 @@ from .config import PipelineConfig
 from .godot_import import write_import_sidecar
 from .mapfile import MapSymbol, parse_map
 from .rel import RelData
-from .map_ui import _draw_textured_triangle, _edge, _mirror_tile, _parse_ui_vtx
+from .map_ui import _edge, _mirror_tile, _parse_ui_vtx
 from .texbank import (
     G_IM_FMT_CI,
     G_IM_FMT_I,

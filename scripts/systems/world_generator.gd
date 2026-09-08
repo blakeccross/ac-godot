@@ -86,6 +86,7 @@ static func authored_test_town() -> WorldData:
 		_object(&"pansy_1", &"flower", Vector2i(6, 10), _PANSY, &"FLOWER_PANSIES0"),
 		_object(&"rock_1", &"rock", Vector2i(3, 8), null, &"ROCK_A"),
 		_door(&"house_door", Vector2i(7, 3), "House"),
+		_object(&"player_mailbox", &"mailbox", Vector2i(9, 2), null, &"obj_s_post", WorldGrid.Facing.NORTH),
 		_villager(&"filbert", Vector2i(10, 9), _FILBERT),
 	]
 	data.spawn_points = [_spawn(&"player", Vector2i(8, 11), 0.0)]
@@ -366,6 +367,13 @@ static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray)
 	_place_structure_item(data, house_origin, HOUSE3_UT, FgCatalog.ITEM_HOUSE3)
 	var house_cell: Vector2i = _building_cell(data, &"player_house")
 	data.spawn_points = [_spawn(&"player", Vector2i(house_cell.x + 1, house_cell.y + 4), 0.0)]
+	## Mailbox two units toward the acre centre on the house row (`ACTOR_PROP_MAILBOX0`).
+	data.objects.append(
+		_object(
+			&"player_mailbox", &"mailbox", house_cell + Vector2i(2, 0), null, &"obj_s_post",
+			WorldGrid.Facing.NORTH
+		)
+	)
 	var unique_ut := Vector2i(7, 7)
 	for bz: int in range(1, 7):
 		for bx: int in range(1, 6):
@@ -1345,13 +1353,19 @@ static func _filbert_house() -> BuildingPlacement:
 
 
 static func _object(
-	id: StringName, kind: StringName, cell: Vector2i, payload: Resource, visual_id: StringName = &""
+	id: StringName,
+	kind: StringName,
+	cell: Vector2i,
+	payload: Resource,
+	visual_id: StringName = &"",
+	facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH
 ) -> ObjectPlacement:
 	var o := ObjectPlacement.new()
 	o.id = id
 	o.kind = kind
 	o.cell = cell
 	o.payload = payload
+	o.facing = facing
 	o.visual_id = visual_id if visual_id != &"" else FieldCatalog.default_visual(kind)
 	return o
 

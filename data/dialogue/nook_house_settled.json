@@ -1,0 +1,16 @@
+{
+  "id": "nook_house_settled",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Every bell helps! The rest\nwe'll simply put on your tab.\nNo hurry — pay it down\nwhenever you're able, hm?",
+      "next": "keys"
+    },
+    "keys": {
+      "type": "line",
+      "text": "The keys are yours now.\nGo on and settle in!"
+    }
+  }
+}

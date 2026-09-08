@@ -26,7 +26,6 @@ from .audio_seq import (
     render_voice_phoneme,
     write_wav,
 )
-from .audio_vadpcm import decode_vadpcm_frame
 from .config import PipelineConfig
 from .fgdata import _guess_decomp
 
@@ -42,79 +41,8 @@ SEQ_COUNT = 249
 BANK_COUNT = 159
 WAVE_COUNT = 6
 
-TEST_SET_IDS = (
-    "title",
-    "intro_kk",
-    "intro_train",
-    "intro_arrive",
-    "field_08",
-    "field_14",
-    "field_20",
-    "shop0",
-    "rain",
-    "enter_house",
-)
-
-## Smoke-test SE ids (`NA_SE_*` keys). `--full` renders every named enum entry.
-TEST_SET_SE_IDS = (
-    "cursol",
-    "page_okuri",
-    "6",
-    "7",
-    "8",
-    "9",
-    "bebe",
-    "gasagoso",
-    "hanabi0",
-    "footstep_grass",
-    "footstep_soil",
-    "footstep_stone",
-    "footstep_wood",
-    "footstep_bush",
-    "footstep_snow",
-    "footstep_sand",
-    "footstep_wave",
-    "tool_furi",
-    "axe_cut",
-    "axe_hit",
-    "scoop1",
-    "scoop_umeru",
-    "scoop_hit",
-    "scoop_tree_hit",
-    "scoop_item_hit",
-    "item_horidashi",
-    "kiribasu_scoop",
-    "kiribasu_out",
-    "ami_hit",
-    "tool_get",
-    "rod_stroke",
-    "rod_back",
-    "10b",
-    "10c",
-    "karaburi",
-    "tree_yurasu",
-    "item_get",
-    "menu_pause",
-    "menu_exit",
-    "17c",
-    "17d",
-    "424",
-    "41c",
-    "60",
-    "hachi_sasareru",
-    "drawer_open",
-    "drawer_close",
-    "ftr_door_open",
-    "ftr_door_close",
-    "jump",
-    "landing",
-    "hard_chair_sit",
-    "bed_in",
-)
-
 ## Phoneme instrument ids after henkan / digraph (`0x00`–`0x77`, `Na_VoiceSe` cap).
 VOICE_PHONEME_MAX = 0x77
-TEST_SET_PHONEMES = (0x00, 0x01, 0x0A, 0x14, 0x18, 0x29, 0x32, 0x39, 0x52)
 
 ## `Na_TTKK_ARM` toggles these guitar subtracks live. Bed OGG bakes them muted;
 ## a matching `*_arm` stem keeps only those tracks for runtime mute/unmute.
@@ -292,12 +220,9 @@ def convert_audio(cfg: PipelineConfig, decomp_root: Optional[Path] = None) -> di
 
     seq_dir = stage / "seq"
     seq_dir.mkdir(parents=True, exist_ok=True)
-    wanted_seq = _wanted_seq_indices(cfg, bgm_ids, seq_table)
     sliced = 0
     seq_blobs: dict[int, bytes] = {}
     for entry in seq_entries:
-        if wanted_seq and entry["index"] not in wanted_seq:
-            continue
         start = entry["addr"]
         end = start + entry["size"]
         if start < 0 or end > SEQ_SIZE:
@@ -315,9 +240,9 @@ def convert_audio(cfg: PipelineConfig, decomp_root: Optional[Path] = None) -> di
     audiowave = blob[WAVE_OFFSET : WAVE_OFFSET + WAVE_SIZE]
     wave_groups = _slice_wave_groups(audiowave, wave_entries)
 
-    entries = _catalog_entries(cfg, bgm_ids, seq_table, seq_entries)
-    sfx_entries = _sfx_catalog_entries(cfg, se_ids)
-    voice_entries = _voice_catalog_entries(cfg)
+    entries = _catalog_entries(bgm_ids, seq_table, seq_entries)
+    sfx_entries = _sfx_catalog_entries(se_ids)
+    voice_entries = _voice_catalog_entries()
     wanted_banks = _wanted_bank_ids(entries, map_bytes)
     wanted_banks |= set(SE_BANKS)
     for seq_idx in VOICE_BANKS:
@@ -351,7 +276,6 @@ def convert_audio(cfg: PipelineConfig, decomp_root: Optional[Path] = None) -> di
         "seq_count": len(seq_entries) or SEQ_COUNT,
         "bank_count": len(bank_entries) or BANK_COUNT,
         "wave_count": len(wave_entries) or WAVE_COUNT,
-        "test_set_only": bool(cfg.test_set_only),
         "rendered": any_rendered,
         "bgm": entries,
         "sfx": sfx_entries,
@@ -437,29 +361,12 @@ def _load_se_ids(decomp: Optional[Path]) -> dict[str, int]:
     return parse_se_ids(path.read_text(encoding="utf-8", errors="replace"))
 
 
-def _wanted_seq_indices(
-    cfg: PipelineConfig, bgm_ids: dict[str, int], seq_table: list[int]
-) -> set[int]:
-    if not cfg.test_set_only:
-        return set()
-    wanted: set[int] = set()
-    for key in TEST_SET_IDS:
-        bgm_num = bgm_ids.get(key)
-        if bgm_num is None or bgm_num < 0 or bgm_num >= len(seq_table):
-            continue
-        wanted.add(seq_table[bgm_num])
-    wanted.add(SE_SEQ_INDEX)
-    wanted.update(VOICE_SEQ_BY_SPEC.values())
-    return wanted
-
-
 def _catalog_entries(
-    cfg: PipelineConfig,
     bgm_ids: dict[str, int],
     seq_table: list[int],
     seq_entries: list[dict[str, int]],
 ) -> list[dict[str, Any]]:
-    keys = list(TEST_SET_IDS) if cfg.test_set_only else _all_catalog_keys(bgm_ids)
+    keys = _all_catalog_keys(bgm_ids)
     size_by_index = {e["index"]: e["size"] for e in seq_entries}
     out: list[dict[str, Any]] = []
     for key in keys:
@@ -480,11 +387,8 @@ def _catalog_entries(
     return out
 
 
-def _sfx_catalog_entries(cfg: PipelineConfig, se_ids: dict[str, int]) -> list[dict[str, Any]]:
-    if cfg.test_set_only:
-        keys = [k for k in TEST_SET_SE_IDS if k in se_ids]
-    else:
-        keys = [k for k, _n in sorted(se_ids.items(), key=lambda kv: (kv[1], kv[0]))]
+def _sfx_catalog_entries(se_ids: dict[str, int]) -> list[dict[str, Any]]:
+    keys = [k for k, _n in sorted(se_ids.items(), key=lambda kv: (kv[1], kv[0]))]
     out: list[dict[str, Any]] = []
     for key in keys:
         se_num = int(se_ids[key])
@@ -501,12 +405,8 @@ def _sfx_catalog_entries(cfg: PipelineConfig, se_ids: dict[str, int]) -> list[di
     return out
 
 
-def _voice_catalog_entries(cfg: PipelineConfig) -> list[dict[str, Any]]:
-    phonemes = (
-        list(TEST_SET_PHONEMES)
-        if cfg.test_set_only
-        else list(range(VOICE_PHONEME_MAX + 1))
-    )
+def _voice_catalog_entries() -> list[dict[str, Any]]:
+    phonemes = list(range(VOICE_PHONEME_MAX + 1))
     out: list[dict[str, Any]] = []
     for spec, seq_idx in sorted(VOICE_SEQ_BY_SPEC.items()):
         for phoneme in phonemes:

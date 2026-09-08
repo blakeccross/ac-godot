@@ -372,6 +372,17 @@ const FOSSIL_SETS: Array = [
 	[18, 19],
 ]
 
+## Display name per `FOSSIL_SETS` group (plaques + completion lectures).
+const FOSSIL_SET_NAMES: Array[String] = [
+	"Triceratops",
+	"Tyrannosaurus",
+	"Apatosaurus",
+	"Stegosaurus",
+	"Pteranodon",
+	"Plesiosaur",
+	"Mammoth",
+]
+
 ## Solo fossils that skip the multi-part thanks branch.
 const FOSSIL_SOLO: Array[int] = [20, 21, 22, 23, 24]
 
@@ -682,6 +693,14 @@ static func fossil_set_just_completed(book: Variant, index: int) -> bool:
 				return false
 		return true
 	return false
+
+
+## Skeleton group name for a fossil part index ("" for solo fossils / out of range).
+static func fossil_set_name(index: int) -> String:
+	for gi: int in FOSSIL_SETS.size():
+		if (FOSSIL_SETS[gi] as Array).has(index):
+			return FOSSIL_SET_NAMES[gi] if gi < FOSSIL_SET_NAMES.size() else ""
+	return ""
 
 
 static func insect_is_active(type_index: int, hour: int, minute: int = 0) -> bool:

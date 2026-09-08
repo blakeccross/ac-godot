@@ -15,6 +15,11 @@ const POST_TERMINAL_SCRIPT := preload("res://scenes/world/interiors/post_termina
 const BOOKER_SCENE := preload("res://scenes/world/interiors/booker.tscn")
 const LOST_FOUND_SCENE := preload("res://scenes/world/lost_and_found_item.tscn")
 const BLATHERS_SCRIPT := preload("res://scenes/world/museum/museum_blathers.gd")
+## Authored `Furniture/*` fixtures that survive a re-populate (only exhibits rebuild).
+const AUTHORED_FIXTURE_NAMES: Array[StringName] = [
+	&"TomNook", &"NookClock", &"PostGirl", &"PostDesk", &"PostTerminal", &"Booker",
+	&"Blathers", &"MuseumClock", &"LightShaft", &"Redd",
+]
 ## Door opening half-width (~1.5 UT). Matches walk-in sensors better than 1 UT.
 const MUSEUM_DOOR_HALF_GX := 60.0
 
@@ -62,15 +67,9 @@ func populate_authored(room_root: Node3D, interior: Interior) -> void:
 		return
 	_clear_shell_colliders(terrain)
 	for child: Node in furniture_root.get_children():
-		## Keep authored shopkeepers / clerks / wall clock; restock rebuilds goods only.
-		if (
-			child.name == "TomNook"
-			or child.name == "NookClock"
-			or child.name == "PostGirl"
-			or child.name == "PostDesk"
-			or child.name == "PostTerminal"
-			or child.name == "Booker"
-		):
+		## Keep authored fixtures (shopkeepers, clerks, curator, clocks, light shafts);
+		## only the data-driven exhibits are rebuilt on re-populate.
+		if child.name in AUTHORED_FIXTURE_NAMES or child.is_in_group("authored_fixture"):
 			continue
 		furniture_root.remove_child(child)
 		child.free()
@@ -95,6 +94,8 @@ func populate_authored(room_root: Node3D, interior: Interior) -> void:
 		and room_root.has_method("present_exhibits")
 	):
 		room_root.call("present_exhibits", furniture_root, interior)
+	elif room.kind == Room.Kind.BROKER:
+		add_redd(furniture_root, interior)
 	_place_authored_doors(doors_root, grid, room)
 
 
@@ -620,6 +621,19 @@ func add_museum_set(root: Node3D, interior: Interior) -> void:
 			pass
 
 
+## Crazy Redd in the tent (talk / browse art).
+func add_redd(root: Node3D, interior: Interior) -> void:
+	if root == null or interior == null or interior.grid == null:
+		return
+	if root.get_node_or_null("Redd") != null:
+		return
+	var redd := StaticBody3D.new()
+	redd.set_script(load("res://scenes/world/interiors/redd.gd"))
+	redd.name = "Redd"
+	redd.position = interior.grid.cell_to_world(_counter_cell(interior.room))
+	root.add_child(redd)
+
+
 ## Blathers in the entrance hall (talk / donate).
 func add_blathers(root: Node3D, interior: Interior) -> void:
 	if root == null or interior == null or interior.grid == null:
@@ -645,6 +659,7 @@ func add_museum_clock(root: Node3D, interior: Interior) -> void:
 	var host := Node3D.new()
 	host.name = "MuseumClock"
 	host.position = MuseumDisplay.gx_to_world(interior.grid, MuseumDisplay.CLOCK_GX)
+	host.set_script(load("res://scenes/world/museum/museum_clock.gd"))
 	root.add_child(host)
 	var pivot: Node3D = GeneratedVisual.attach(host, MuseumDisplay.CLOCK_VISUAL)
 	if pivot != null:

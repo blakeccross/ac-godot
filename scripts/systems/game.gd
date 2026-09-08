@@ -46,6 +46,8 @@ var shops: ShopBook = ShopBook.new()
 var museum: MuseumBook = MuseumBook.new()
 var police: PoliceBook = PoliceBook.new()
 var post: PostBook = PostBook.new()
+var farway: FarwayBook = FarwayBook.new()
+var redd: ReddBook = ReddBook.new()
 var first_job: FirstJob = FirstJob.new()
 var current_room_id: StringName = &""
 var outdoor_return: Vector3 = DEFAULT_SPAWN
@@ -99,6 +101,16 @@ var intro_station_house_id: StringName = &""
 ## Player pressed A on a vacant plot; director plays `msg_2020` then enters.
 signal intro_house_look_requested(house_id: StringName)
 var intro_pending_house_id: StringName = &""
+## `aNRG_demand_payment`: after the debt line Nook opens the pockets (`mSM_IV_OPEN_QUEST`)
+## so the player hands over the starting money bag before the job talk.
+var intro_payment_pending: bool = false
+signal intro_payment_resolved(paid: bool)
+
+## `mMmd` museum donation: Blathers opens the pockets so the player picks what to hand
+## over. `museum_donate_result` holds the last outcome for his response dialogue.
+var museum_donate_pending: bool = false
+var museum_donate_result: Dictionary = {}
+signal museum_donate_resolved(donated: bool)
 
 
 func _init() -> void:
@@ -110,6 +122,7 @@ func _init() -> void:
 func _ready() -> void:
 	if museum == null:
 		museum = MuseumBook.new()
+	ReddBook.ensure_art_items()
 	if not Clock.field_renewed.is_connected(_on_field_renewed):
 		Clock.field_renewed.connect(_on_field_renewed)
 
@@ -141,6 +154,9 @@ func start_new_game(
 
 
 func start_intro_sequence() -> void:
+	## Title fades out black before the swap (`ac_animal_logo` / title-demo
+	## `WIPE_TYPE_FADE_BLACK`); `intro_kk._ready` fades back in.
+	await SceneTransition.play_wipe_out(SceneTransition.Style.FADE)
 	reset_session()
 	Clock.rtc_override = false
 	Clock.sync_from_os()
@@ -149,21 +165,88 @@ func start_intro_sequence() -> void:
 
 
 func start_intro_station() -> void:
-	## Station arrival slice (`ac_intro_demo`) in a freshly generated town.
+	## Debug entry: station arrival slice (`ac_intro_demo`) in a fresh town, with no
+	## K.K. / Rover segment before it. The chained flow arrives here via
+	## `finish_intro_sequence` instead.
+	await SceneTransition.play_wipe_out(SceneTransition.Style.FADE)
+	var seed_value: int = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
+	_begin_station_arrival(seed_value, {}, true)
+
+
+func _begin_station_arrival(seed_value: int, identity: Dictionary, sync_clock: bool) -> void:
+	## New town + outdoor station-arrival demo (decomp: `aNGD_scene_change_wait_init`
+	## creates the town, then `ac_intro_demo` runs Porter → Nook → house pick → debt).
 	reset_session()
-	Clock.rtc_override = false
-	Clock.sync_from_os()
+	_apply_identity(identity)
+	if sync_clock:
+		Clock.rtc_override = false
+		Clock.sync_from_os()
 	intro_station_active = true
 	intro_station_can_pick_house = false
 	intro_station_resume_debt = false
 	intro_station_house_id = &""
 	intro_pending_house_id = &""
 	world_mode = WorldData.Mode.GENERATED
-	world_seed = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
-	grass_pattern = WorldGenerator.decide_grass_pattern(world_seed)
+	world_seed = seed_value
+	grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
 	apply_weather_roll(Weather.roll())
+	_grant_intro_start_items()
+	intro_payment_pending = false
 	_set_phase(Phase.INTRO)
 	_change_scene(WORLD_SCENE)
+
+
+func _grant_intro_start_items() -> void:
+	## `m_start_data_init.c`: a new resident starts with one QUEST-flagged 1,000-bell
+	## bag in pocket slot 0 — the down payment Nook collects after the house tour.
+	var bag: ItemData = ItemCatalog.get_item(&"money_1000")
+	if bag != null and inventory.count_of(&"money_1000") == 0:
+		inventory.add(bag, 1, InventoryItem.Condition.QUEST)
+
+
+func notify_intro_payment_made() -> void:
+	if not intro_payment_pending:
+		return
+	intro_payment_pending = false
+	intro_payment_resolved.emit(true)
+
+
+func notify_intro_payment_declined() -> void:
+	if not intro_payment_pending:
+		return
+	intro_payment_pending = false
+	intro_payment_resolved.emit(false)
+
+
+## Blathers asks for a donation — open the pockets so the player picks (`mMmd` / IV_OPEN).
+func request_museum_donation() -> void:
+	museum_donate_pending = true
+	museum_donate_result = {}
+	if get_tree() == null:
+		return
+	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui")
+	if inv_ui != null and inv_ui.has_method("open"):
+		inv_ui.call("open")
+
+
+## The player picked an item in the donate-select pockets. Books the outcome and tells
+## Blathers to respond. Rejections do not consume the item.
+func take_museum_donation(item_id: StringName) -> void:
+	if not museum_donate_pending:
+		return
+	museum_donate_pending = false
+	museum_donate_result = donate_museum_result(item_id)
+	museum_donate_result["item_id"] = String(item_id)
+	museum_donate_resolved.emit(true)
+
+
+## Pockets closed with nothing chosen.
+func cancel_museum_donation() -> void:
+	if not museum_donate_pending:
+		return
+	museum_donate_pending = false
+	museum_donate_result = {}
+	museum_donate_resolved.emit(false)
 
 
 func complete_intro_station() -> void:
@@ -171,7 +254,12 @@ func complete_intro_station() -> void:
 	intro_station_active = false
 	intro_station_can_pick_house = false
 	intro_station_resume_debt = false
+	intro_payment_pending = false
 	intro_pending_house_id = &""
+	## `aID_retire_rcn_guide_wait`: `Now_Private->inventory.loan = mPlayer_DEBT0` once
+	## Nook has left — the balance after the 1,000-bell down payment.
+	if inventory != null:
+		inventory.set_loan(Inventory.INTRO_HOUSE_DEBT)
 	## `mQst_SetFirstJobStart` after Nook EXIT (`aID_retire_rcn_guide_wait`).
 	if first_job != null:
 		first_job.begin_after_house()
@@ -201,7 +289,11 @@ func claim_intro_house(house_id: StringName) -> void:
 
 
 func advance_intro_to_train() -> void:
-	## After K.K. fades out (`aNPS_setup_game_start` → `SCENE_START_DEMO`).
+	## After K.K. fades out (`aNPS_setup_game_start` → `SCENE_START_DEMO`). The K.K. scene
+	## has already run its strum-synced `%FadeRect` to black; hold the screen opaque across
+	## the load so the train scene can fade itself back in (`aNPS` `transition.wipe_type =
+	## WIPE_TYPE_FADE_BLACK`).
+	SceneTransition.hold_black()
 	_set_phase(Phase.INTRO)
 	_change_scene(INTRO_SCENE)
 
@@ -212,8 +304,23 @@ func notify_intro_ready() -> void:
 
 
 func finish_intro_sequence(identity: Dictionary) -> void:
+	## Rover's train pulls into town (`aNGD_scene_change_wait_init`): make the new town
+	## and continue straight into the outdoor station arrival, keeping the clock the
+	## player set on the train.
+	var seed_value: int = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
+	_begin_station_arrival(seed_value, identity, false)
+
+
+func debug_finish_station_arrival(identity: Dictionary) -> void:
+	## Exit path for the standalone `intro_station.tscn` dev scene, which has already
+	## played its own Porter/Nook beats — drop into the world and start the first job.
 	var seed_value: int = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
 	start_new_game(WorldData.Mode.GENERATED, seed_value, identity)
+	_grant_intro_start_items()
+	if first_job != null:
+		first_job.begin_after_house()
+		_set_phase(Phase.PLAYING)
+		set_interact_prompt("Visit Tom Nook's shop")
 
 
 func abort_intro_sequence() -> void:
@@ -222,6 +329,8 @@ func abort_intro_sequence() -> void:
 	intro_station_resume_debt = false
 	intro_station_house_id = &""
 	intro_pending_house_id = &""
+	## Drop any pending scene wipe so the title is not left under a black hold.
+	SceneTransition.cancel_wipe()
 	_set_phase(Phase.TITLE)
 	_change_scene(TITLE_SCENE)
 
@@ -343,6 +452,17 @@ func reset_session() -> void:
 	intro_station_resume_debt = false
 	intro_station_house_id = &""
 	intro_pending_house_id = &""
+	intro_payment_pending = false
+	museum_donate_pending = false
+	museum_donate_result = {}
+	if farway == null:
+		farway = FarwayBook.new()
+	else:
+		farway.clear()
+	if redd == null:
+		redd = ReddBook.new()
+	else:
+		redd.clear()
 	set_interact_prompt("")
 
 
@@ -533,6 +653,8 @@ func to_save() -> Dictionary:
 		"museum": museum.to_save(),
 		"police": police.to_save(),
 		"post": post.to_save(),
+		"farway": farway.to_save(),
+		"redd": redd.to_save(),
 		"current_room_id": String(current_room_id),
 		"outdoor_return": {
 			"x": outdoor_return.x,
@@ -617,6 +739,12 @@ func apply_snapshot(data: Dictionary) -> void:
 	if post == null:
 		post = PostBook.new()
 	post.apply_snapshot(data.get("post", {}))
+	if farway == null:
+		farway = FarwayBook.new()
+	farway.apply_snapshot(data.get("farway", {}))
+	if redd == null:
+		redd = ReddBook.new()
+	redd.apply_snapshot(data.get("redd", {}))
 	current_room_id = StringName(str(data.get("current_room_id", "")))
 	var outdoor: Variant = data.get("outdoor_return", {})
 	if typeof(outdoor) == TYPE_DICTIONARY:
@@ -823,8 +951,38 @@ func _on_field_renewed(days: int) -> void:
 		for _i: int in maxi(days, 1):
 			police.force_set_keep_item()
 	refresh_police_set()
+	_deliver_farway_mail()
+	if redd != null:
+		redd.check_unlock()
 	## One roll for the current date after renew (`mEnv_DecideWeather` / `aWeather_ChangeWeatherTime0`).
 	apply_weather_roll(Weather.roll())
+
+
+## Farway Museum returns identified fossils (+ the one-time intro letter) each morning.
+func _deliver_farway_mail() -> void:
+	if farway == null or inventory == null:
+		return
+	var letters: Array[MailData] = farway.process_delivery()
+	var delivered: int = 0
+	for letter: MailData in letters:
+		if inventory.add_received_mail(letter) >= 0:
+			delivered += 1
+	if delivered > 0:
+		post_notice("You've got mail!")
+
+
+## Hand `count` dug fossils to the post office for the Farway Museum (`mMsm` mail-in).
+func send_fossils_to_farway(count: int = 1) -> String:
+	if farway == null or inventory == null:
+		return "Nothing to send."
+	var have: int = inventory.count_of(&"fossil")
+	var n: int = clampi(count, 0, have)
+	if n <= 0:
+		return "You have no fossils to send."
+	inventory.remove(&"fossil", n)
+	for _i: int in n:
+		farway.queue_fossil()
+	return "We'll send %d to the Farway Museum. Expect a reply tomorrow." % n
 
 
 func exit_interior() -> bool:
@@ -863,29 +1021,104 @@ func bind_interior(session: Interior) -> void:
 
 
 ## Hand an inventory item to the museum (`mMmd_RequestMuseumDisplay`).
-## Returns a short status string for notices / Blathers dialogue.
+## Returns a short status string for notices / simple callers.
 func donate_to_museum(item_id: StringName, player_no: int = 0) -> String:
+	return String(donate_museum_result(item_id, player_no).get("message", ""))
+
+
+## Structured donation outcome so Blathers' dialogue can branch on category / donor /
+## completion. `reason` is one of: not_item, cannot_donate, forgery, already_donated,
+## not_held, generic_fossil, ok.
+func donate_museum_result(item_id: StringName, player_no: int = 0) -> Dictionary:
 	if museum == null:
 		museum = MuseumBook.new()
+	var out: Dictionary = {
+		"ok": false,
+		"reason": "not_item",
+		"category": -1,
+		"index": -1,
+		"donor": 0,
+		"completed_set": false,
+		"set_name": "",
+		"completed_collection": false,
+		"completed_museum": false,
+		"message": "That's not something for the museum.",
+	}
 	var data: ItemData = ItemCatalog.get_item(item_id)
 	if data == null:
-		return "That's not something for the museum."
+		return out
+	var mapped: Dictionary = MuseumDisplay.map_item(data)
+	out["category"] = int(mapped.get("category", -1))
+	out["index"] = int(mapped.get("index", -1))
+	## Raw dug fossils have no identity yet — the Farway Museum must examine them first.
+	if item_id == &"fossil":
+		out["reason"] = "generic_fossil"
+		out["message"] = "Blathers can't identify an unexamined fossil."
+		return out
 	match museum.display_info_for_item(data):
 		MuseumBook.DisplayInfo.CANNOT_DONATE:
-			return "Blathers can't take that."
+			out["reason"] = "forgery" if _is_museum_forgery(data, out["index"]) else "cannot_donate"
+			out["message"] = "Blathers can't take that."
+			return out
 		MuseumBook.DisplayInfo.ALREADY_DONATED:
-			return "The museum already has that."
+			out["reason"] = "already_donated"
+			out["donor"] = museum.info(out["category"], out["index"])
+			out["message"] = "The museum already has that."
+			return out
 		_:
 			pass
 	if inventory.count_of(item_id) <= 0:
-		return "You don't have that."
+		out["reason"] = "not_held"
+		out["message"] = "You don't have that."
+		return out
 	if not museum.request_display(data, player_no):
-		return "The museum already has that."
+		out["reason"] = "already_donated"
+		out["message"] = "The museum already has that."
+		return out
 	inventory.remove(item_id, 1)
-	var mapped: Dictionary = MuseumDisplay.map_item(data)
-	var category: int = int(mapped.get("category", MuseumDisplay.Category.FOSSIL))
-	var index: int = int(mapped.get("index", -1))
+	out["ok"] = true
+	out["reason"] = "ok"
+	out["donor"] = clampi(player_no, 0, 3) + 1
+	var category: int = out["category"]
+	var index: int = out["index"]
 	if category == MuseumDisplay.Category.FOSSIL and MuseumDisplay.fossil_set_just_completed(museum, index):
+		out["completed_set"] = true
+		out["set_name"] = MuseumDisplay.fossil_set_name(index)
+	out["completed_collection"] = _museum_collection_complete(category)
+	out["completed_museum"] = museum.is_complete()
+	out["message"] = _donate_message(out)
+	return out
+
+
+func _is_museum_forgery(data: ItemData, index: int) -> bool:
+	if String(data.id).begins_with("art_forgery"):
+		return true
+	return index in MuseumBook.FORGERY_ART_INDICES and _mapped_category(data) == MuseumDisplay.Category.ART
+
+
+func _mapped_category(data: ItemData) -> int:
+	return int(MuseumDisplay.map_item(data).get("category", -1))
+
+
+func _museum_collection_complete(category: int) -> bool:
+	match category:
+		MuseumDisplay.Category.FOSSIL:
+			return museum.count_fossils() >= MuseumBook.FOSSIL_NUM
+		MuseumDisplay.Category.ART:
+			return museum.count_art() >= MuseumBook.DONATABLE_ART_NUM
+		MuseumDisplay.Category.FISH:
+			return museum.count_fish() >= MuseumBook.FISH_NUM
+		MuseumDisplay.Category.INSECT:
+			return museum.count_insects() >= MuseumBook.INSECT_NUM
+	return false
+
+
+func _donate_message(out: Dictionary) -> String:
+	if out["completed_museum"]:
+		return "That completes the collection — every wing is full!"
+	if out["completed_collection"]:
+		return "That completes a whole collection! Wonderful."
+	if out["completed_set"]:
 		return "That completes a skeleton! It will appear in the fossil wing."
 	return "Donated! Visit the wing to see it on display."
 

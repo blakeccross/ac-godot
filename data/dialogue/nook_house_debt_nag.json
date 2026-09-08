@@ -1,0 +1,11 @@
+{
+  "id": "nook_house_debt_nag",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "Now now, no need to be shy!\nEvery bell counts toward that\nloan, hm? Let's have a look\nin those pockets again."
+    }
+  }
+}

@@ -72,12 +72,28 @@ func test_museum_complete_instances_room_scenes() -> void:
 	## Painting exhibits live under that room scene only; entrance hosts Blathers.
 	assert_int(rooms.get_node("museum_painting/Furniture").get_child_count()).is_greater(0)
 	assert_that(rooms.get_node_or_null("museum_entrance/Furniture/Blathers")).is_not_null()
+	## The floor clock's mesh sits under its authored node, not flung to one side.
+	var clock: Node3D = rooms.get_node_or_null("museum_entrance/Furniture/MuseumClock") as Node3D
+	assert_that(clock).is_not_null()
+	var clock_vis: Node3D = clock.get_node_or_null("GeneratedVisual") as Node3D
+	if clock_vis != null:
+		var box: AABB = GeneratedVisual.local_aabb(clock_vis)
+		var center: Vector3 = clock_vis.position + (box.position + box.size * 0.5) * clock_vis.scale
+		assert_float(center.x).is_between(-1.5, 1.5)
+		assert_float(center.z).is_between(-1.5, 1.5)
 	## Each wing owns Terrain shell colliders after populate.
 	assert_int(_static_body_count(rooms.get_node("museum_painting/Terrain"))).is_greater(3)
 	assert_int(_static_body_count(rooms.get_node("museum_fossil/Terrain"))).is_greater(3)
 	assert_that(
 		rooms.get_node_or_null("museum_fossil/Furniture/Fossil_00/ExhibitCollision")
 	).is_not_null()
+	## Phase 5 atmosphere: skylight shafts + fish-wing tank greenery / bubbles.
+	assert_that(rooms.get_node_or_null("museum_entrance/Furniture/LightShaft")).is_not_null()
+	assert_that(rooms.get_node_or_null("museum_insect/Furniture/LightShaft")).is_not_null()
+	assert_that(
+		rooms.get_node_or_null("museum_fish/Furniture/Decor_obj_museum5_kusa1")
+	).is_not_null()
+	assert_that(rooms.get_node_or_null("museum_fish/Furniture/TankBubbles")).is_not_null()
 	assert_bool(Game.try_enter_interior(&"museum_painting")).is_true()
 	await get_tree().process_frame
 	assert_that(Game.current_room_id).is_equal(&"museum_painting")

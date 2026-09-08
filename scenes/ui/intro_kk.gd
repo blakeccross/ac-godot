@@ -21,6 +21,8 @@ func _ready() -> void:
 	if _cmdline_has("--record-intro"):
 		auto_advance_dialogue = true
 	Game.notify_intro_ready()
+	## Fade in from the title's black wipe-out (`WIPE_TYPE_FADE_BLACK`).
+	SceneTransition.play_wipe_in_if_pending()
 	## Start unmuted — opening pose is strum (`Na_TTKK_ARM(FALSE)` while playing).
 	Audio.set_ttkk_arm(false)
 	Audio.play_bgm(IntroKkStage.BGM_ID)

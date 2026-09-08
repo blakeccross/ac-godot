@@ -23,7 +23,7 @@ Clock="*res://scripts/systems/clock.gd"
 SaveService="*res://scripts/systems/save_service.gd"
 Audio="*res://scripts/systems/audio.gd"
 Game="*res://scripts/systems/game.gd"
-DoorTransition="*res://scripts/systems/door_transition.gd"
+SceneTransition="*res://scripts/systems/scene_transition.gd"
 
 [display]
 

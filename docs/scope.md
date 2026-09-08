@@ -1,5 +1,10 @@
 # Scope
 
+> **Superseded for anything the team chooses to pursue.** The project goal is now a
+> 1:1 recreation — see [feature-checklist.md](feature-checklist.md). This file is
+> kept as the historical "core feel first" prioritisation and as a guide to build
+> order (do the core-feel version of a system before its long tail).
+
 Features must earn their place. The decomp containing a system is not a reason to build it.
 
 ## In scope (core feel)

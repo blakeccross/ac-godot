@@ -190,6 +190,38 @@ static func save_mail_conversation() -> DialogueData:
 	)
 
 
+## Hand dug fossils to the desk for the Farway Museum. One choice per stack quantity.
+static func farway_send_conversation() -> DialogueData:
+	var have: int = Game.inventory.count_of(&"fossil") if Game != null and Game.inventory != null else 0
+	var nodes := {
+		"ask": {"type": "choice", "prompt": "How many fossils shall we send?", "options": []},
+		"done": {"type": "line", "text": "Off they go! Watch your\nmailbox tomorrow."},
+		"cancel": {"type": "line", "text": "No trouble. Come back with\nthem any time."},
+		"empty": {"type": "line", "text": "You've no fossils on you to\nsend just now."},
+	}
+	if have <= 0:
+		return DialogueData.from_dict(
+			{"id": "post_farway", "speaker_id": "post_girl", "start": "empty", "nodes": nodes}
+		)
+	var options: Array = []
+	for n: int in [1, 3, 5, have]:
+		var count: int = mini(n, have)
+		if count <= 0 or options.any(func(o: Dictionary) -> bool: return int(o.get("count", 0)) == count):
+			continue
+		var node_id := "send_%d" % count
+		options.append({"text": "%d" % count, "count": count, "goto": node_id})
+		nodes[node_id] = {
+			"type": "event",
+			"events": [{"op": "farway_send", "count": count}],
+			"next": "done",
+		}
+	options.append({"text": "Never mind...", "goto": "cancel"})
+	nodes["ask"]["options"] = options
+	return DialogueData.from_dict(
+		{"id": "post_farway", "speaker_id": "post_girl", "start": "ask", "nodes": nodes}
+	)
+
+
 static func write_letter_conversation() -> DialogueData:
 	var options: Array = []
 	var nodes := {

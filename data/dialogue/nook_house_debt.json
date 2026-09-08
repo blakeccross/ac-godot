@@ -5,17 +5,17 @@
   "nodes": {
     "start": {
       "type": "line",
-      "text": "Ah! So this is the one, is it?\nWonderful taste, yes, yes!",
-      "next": "loan"
+      "text": "Ah, so this is the one you\nchose? A fine little place,\nyes, yes!",
+      "next": "cost"
     },
-    "loan": {
+    "cost": {
       "type": "line",
-      "text": "Of course, a house isn't free,\nhm? I'll put the loan in your\nname — pay it back whenever\nyou can. No rush, no rush!",
-      "next": "keys"
+      "text": "Now, a house is no small\nthing, hm? It would help to\nput a little something down\nto start.",
+      "next": "ask"
     },
-    "keys": {
+    "ask": {
       "type": "line",
-      "text": "The keys are yours. Make\nyourself comfortable!"
+      "text": "Let's have a look in those\npockets of yours, shall we?"
     }
   }
 }

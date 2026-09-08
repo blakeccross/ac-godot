@@ -19,7 +19,6 @@ from .mapfile import parse_map
 from .rel import RelData
 from .texbank import (
 	_FIELD_PAL_ROW_BY_SEASON,
-	_TREE_PAL_ROW_BY_SEASON,
 	G_IM_FMT_CI,
 	G_IM_SIZ_4b,
 	GX_REPEAT,

@@ -145,24 +145,9 @@ assets/generated/audio/          # gitignored
 
 `catalog.json` keys use decomp enum names (`field_10`, `page_okuri`), not invented titles.
 
-### Test set vs `--full`
+### Coverage
 
-Default `test_set_only` (and `--kind audio` without `--full`) renders only:
-
-| BGM id | Why |
-| --- | --- |
-| `BGM_TITLE` | Title scene |
-| `BGM_INTRO_KK` | K.K. player-select opening |
-| `BGM_INTRO_TRAIN` | Rover train character creation |
-| `BGM_INTRO_ARRIVE` | Station arrival / get-off demo |
-| `BGM_FIELD_08`, `_14`, `_20` | Morning / afternoon / evening smoke test |
-| `BGM_SHOP0` | Indoor |
-| `BGM_RAIN` | Weather swap |
-| `BGM_ENTER_HOUSE` | Optional door sting if cheap |
-
-SE smoke: `cursol`, `page_okuri`, doors `6`–`9`, `bebe`, `gasagoso`, `hanabi0`, footstep surface set. Voice smoke: a handful of phonemes × three specs.
-
-`--full` / `"test_set_only": false` renders every `BGM_*` that `SEQ_TABLE` maps, every named `NA_SE_*`, and phonemes `0x00`–`0x77` for all three voice specs (covers `Sou_ConnectCheck` digraph ids).
+`--kind audio` renders every `BGM_*` that `SEQ_TABLE` maps, every named `NA_SE_*`, and phonemes `0x00`–`0x77` for all three voice specs (covers `Sou_ConnectCheck` digraph ids).
 
 ### Converter stages
 

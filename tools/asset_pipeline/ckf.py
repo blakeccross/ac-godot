@@ -294,11 +294,16 @@ def select_close_bind(anim_names: list[str], prefix: str | None = None) -> str |
     `*_close` wins when present (outdoor caboose). Vestibule `obj_romtrain_door` ships
     only `cKF_ba_r_{prefix}` — closed at frame 1, no `_close` suffix. Without that
     fallback the GLB rests on bare `ckf_basis` and the panel floats above the camera.
+
+    `act_*` actors (museum fish `act_mus_*`, `act_bee`, `act_balloon`, stag beetles)
+    also ship a single `cKF_ba_r_{prefix}` loop, but those keep the `ckf_basis`
+    stand-up: their draw code (`museum_fish_visual` `SWIM_FROM_STAND`, …) rotates
+    the standing mesh into place. An identity bind lays them on their side.
     """
     close = next((n for n in anim_names if n.endswith("_close")), None)
     if close:
         return close
-    if prefix:
+    if prefix and not prefix.startswith("act_"):
         exact = f"cKF_ba_r_{prefix}"
         if exact in anim_names:
             return exact
@@ -335,6 +340,11 @@ def convert_ckf_model(
     if bank is not None:
         bank.segment_images.clear()
         bank.segment_palettes.clear()
+        ## Names are keyed by segment, not model: a prior skeleton's face bind
+        ## (`mka_1_face`) or dummy-image stand-in would otherwise relabel this
+        ## model's eye/mouth quads and hide them from `NpcFace`. Matches the
+        ## reset `_convert_static` does before `bind_static_segments`.
+        bank._segment_offset_names.clear()
         bank.bind_model_segments(prefix)
     joints_sym = find_symbol(symbols, f"cKF_je_r_{prefix}_tbl", by_name)
     jblob = rel.slice_at(joints_sym.address, joints_sym.size)

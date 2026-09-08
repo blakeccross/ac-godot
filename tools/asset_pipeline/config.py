@@ -19,7 +19,6 @@ class PipelineConfig:
     # 0.01 (m_actor.c), acre DLs use 0.0625 (ac_field_draw.c). Godot maps both
     # into meters with FieldCatalog (40 GX = 2 m).
     scale: float = 0.001
-    test_set_only: bool = True
     decomp_root: Optional[Path] = None
     ## Dolphin ACHD / Load/Textures tree (DDS keyed by tex1_* hashes). Optional.
     achd_root: Optional[Path] = None
@@ -79,7 +78,6 @@ def load_config(project_root: Optional[Path] = None, config_path: Optional[Path]
         godot_generated=_resolve(root, data.get("godot_generated", "assets/generated")),
         dtk_path=_resolve(root, data.get("dtk_path", "tools/.cache/dtk")),
         scale=float(data.get("scale", 0.001)),
-        test_set_only=bool(data.get("test_set_only", True)),
         decomp_root=_resolve(root, decomp_raw) if str(decomp_raw).strip() else None,
         achd_root=achd_root if achd_enabled else None,
         achd_enabled=achd_enabled and achd_root is not None,

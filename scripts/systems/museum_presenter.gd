@@ -14,6 +14,8 @@ func present(root: Node3D, interior: Interior) -> void:
 	if room.kind != Room.Kind.MUSEUM:
 		return
 	match room.id:
+		&"museum_entrance":
+			add_light_shaft(root, interior, &"obj_museum1_shine")
 		&"museum_fossil":
 			present_fossils(root, interior)
 		&"museum_painting":
@@ -26,6 +28,20 @@ func present(root: Node3D, interior: Interior) -> void:
 			pass
 	if String(room.id).begins_with("museum_"):
 		_add_wing_hotkeys(root)
+
+
+## Skylight god-ray mesh (`ac_museum` shine actor). Authored in acre space.
+func add_light_shaft(root: Node3D, interior: Interior, visual_id: StringName) -> void:
+	if FieldCatalog.mesh_paths(visual_id).is_empty():
+		return
+	if root.get_node_or_null("LightShaft") != null:
+		return
+	var host := Node3D.new()
+	host.name = "LightShaft"
+	host.add_to_group("museum_set")
+	host.position = Vector3(interior.grid.origin.x, 0.0, interior.grid.origin.z)
+	root.add_child(host)
+	GeneratedVisual.attach(host, visual_id)
 
 
 func _add_wing_hotkeys(root: Node3D) -> void:
@@ -197,6 +213,34 @@ func _spawn_fish_tanks(root: Node3D, interior: Interior) -> void:
 	GeneratedVisual.attach(sea, &"obj_museum5")
 	var sea_center: Vector3 = MuseumDisplay.gx_to_world(grid, MuseumDisplay.TANK_POS_GX[4])
 	_add_tank_collision(sea, MuseumDisplay.SEA_TANK_HALF_GX, sea_center - sea.position)
+	_add_tank_decor(root, grid)
+
+
+## Sea-tank greenery + rising bubbles (`obj_museum5_kusa*` / `hasu`, `ef_museum5_awa1`).
+func _add_tank_decor(root: Node3D, grid: WorldGrid) -> void:
+	var acre := Vector3(grid.origin.x, 0.0, grid.origin.z)
+	for visual: StringName in [
+		&"obj_museum5_kusa1", &"obj_museum5_kusa2", &"obj_museum5_kusa3", &"obj_museum5_hasu"
+	]:
+		if FieldCatalog.mesh_paths(visual).is_empty():
+			continue
+		var host := Node3D.new()
+		host.name = "Decor_%s" % String(visual)
+		host.add_to_group("museum_set")
+		host.position = acre
+		root.add_child(host)
+		GeneratedVisual.attach(host, visual)
+	if not FieldCatalog.mesh_paths(&"ef_museum5_awa1").is_empty():
+		var centers: Array[Vector3] = []
+		for i: int in MuseumDisplay.TANK_POS_GX.size():
+			var gx: Vector3 = MuseumDisplay.TANK_POS_GX[i]
+			centers.append(MuseumDisplay.gx_to_world(grid, Vector3(gx.x, 0.0, gx.z)))
+		var bubbles := Node3D.new()
+		bubbles.name = "TankBubbles"
+		bubbles.add_to_group("museum_set")
+		bubbles.set_script(load("res://scenes/world/museum/museum_bubbles.gd"))
+		bubbles.set("tank_centers", centers)
+		root.add_child(bubbles)
 
 
 func _add_tank_collision(host: Node3D, half_gx: Vector3, local_center: Vector3 = Vector3.ZERO) -> void:

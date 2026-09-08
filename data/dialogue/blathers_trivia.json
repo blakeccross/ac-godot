@@ -1,0 +1,483 @@
+{
+  "id": "blathers_trivia",
+  "speaker_id": "blathers",
+  "start": "generic",
+  "nodes": {
+    "generic": {
+      "type": "line",
+      "text": "A worthy addition to the\ncollection. Hoo!"
+    },
+    "examine_fish": {
+      "type": "line",
+      "text": "Hoo! A fine fish. We shall keep\nit in excellent care \u2014 no, I\nshan't be eating it. Off it goes\nto the tanks."
+    },
+    "examine_bug": {
+      "type": "line",
+      "text": "Yes. An insect. Quite. I'll pop\nit in a case at arm's length and\ntry not to look at it too\nclosely."
+    },
+    "examine_fossil": {
+      "type": "line",
+      "text": "Hoo! A genuine fossil, and a\nlovely specimen. The past made\nsolid. I could study it for\nhours."
+    },
+    "examine_art": {
+      "type": "line",
+      "text": "Hoo my. A real work of art. We\nare honoured to give it a wall\nof its own."
+    },
+    "fossil_0": {
+      "type": "line",
+      "text": "The horned face itself.\nTriceratops carried three horns\nand a great bony frill \u2014 armour\nagainst far worse company."
+    },
+    "fossil_1": {
+      "type": "line",
+      "text": "The tail of Triceratops. Short\nand stiff, nothing like the\nwhip-tails of the long-necks.\nBalance, mostly."
+    },
+    "fossil_2": {
+      "type": "line",
+      "text": "The body of Triceratops. A four-\nlegged plant-eater the size of\nan elephant, and rather harder\nto argue with."
+    },
+    "fossil_3": {
+      "type": "line",
+      "text": "The skull of Tyrannosaurus.\nThose jaws could crush bone\noutright. I confess a small\nthrill of terror. Hoo!"
+    },
+    "fossil_4": {
+      "type": "line",
+      "text": "The tail of Tyrannosaurus. Thick\nand muscular \u2014 it\ncounterweighted that enormous\nhead as the beast ran."
+    },
+    "fossil_5": {
+      "type": "line",
+      "text": "The body of Tyrannosaurus.\nBarrel-chested, bird-hipped, and\nstanding on two tremendous legs.\nMagnificent."
+    },
+    "fossil_6": {
+      "type": "line",
+      "text": "The little head of Apatosaurus,\nperched at the end of a very\ngreat deal of neck. The brain\nwas famously modest."
+    },
+    "fossil_7": {
+      "type": "line",
+      "text": "The tail of Apatosaurus \u2014 long,\ntapering, and quite possibly\ncracked like a whip to warn off\npredators."
+    },
+    "fossil_8": {
+      "type": "line",
+      "text": "The body of Apatosaurus. A long-\nnecked giant of the late\nJurassic; some grew past seventy\nfeet, nose to tail."
+    },
+    "fossil_9": {
+      "type": "line",
+      "text": "The head of Stegosaurus. Tiny,\nlow-slung, and housing a brain\nno larger than a walnut. And yet\nit managed."
+    },
+    "fossil_10": {
+      "type": "line",
+      "text": "The tail of Stegosaurus, tipped\nwith four fearsome spikes.\nPalaeontologists call that\narrangement a thagomizer."
+    },
+    "fossil_11": {
+      "type": "line",
+      "text": "The body of Stegosaurus, lined\nwith those famous kite-shaped\nplates. Display, temperature, or\nboth \u2014 we still debate it."
+    },
+    "fossil_12": {
+      "type": "line",
+      "text": "The skull of Pteranodon. A\ntoothless beak and a long\nbackward crest. Not a dinosaur\nat all, but a flying reptile."
+    },
+    "fossil_13": {
+      "type": "line",
+      "text": "The right wing of Pteranodon.\nThe wing was a membrane\nstretched along one vastly\nelongated finger. Elegant\nengineering."
+    },
+    "fossil_14": {
+      "type": "line",
+      "text": "The left wing of Pteranodon. A\nspan of over twenty feet, built\nfor gliding on sea winds after\nfish."
+    },
+    "fossil_15": {
+      "type": "line",
+      "text": "The head of a plesiosaur \u2014\nsmall, on a neck of astonishing\nlength. It ruled the Mesozoic\nseas, not the land."
+    },
+    "fossil_16": {
+      "type": "line",
+      "text": "The neck of the plesiosaur. Some\nkinds carried forty and more\nvertebrae in it. Imagine the\ncricks."
+    },
+    "fossil_17": {
+      "type": "line",
+      "text": "The body of the plesiosaur.\nBroad, barrel-shaped, and driven\nthrough the water by four great\nflippers."
+    },
+    "fossil_18": {
+      "type": "line",
+      "text": "The skull of a mammoth, tusks\nand all. A cousin of today's\nelephants, and a creature of the\nIce Age."
+    },
+    "fossil_19": {
+      "type": "line",
+      "text": "The body of a mammoth. Woolly,\nhumped at the shoulder, and gone\nonly some ten thousand years\nago."
+    },
+    "fossil_20": {
+      "type": "line",
+      "text": "Amber \u2014 fossil tree resin. Now\nand then it traps an insect\nwhole, a small drama sealed for\nmillions of years."
+    },
+    "fossil_21": {
+      "type": "line",
+      "text": "Petrified wood. The timber's\nevery cell has been replaced by\nmineral, grain for grain. A tree\nturned to stone."
+    },
+    "fossil_22": {
+      "type": "line",
+      "text": "An ammonite. Not a snail but a\nrelative of the octopus, sealed\nin a coiled shell. They died out\nwith the dinosaurs."
+    },
+    "fossil_23": {
+      "type": "line",
+      "text": "A fossilised egg. I cannot say\nwhose. But picture the moment of\nhatching \u2014 a whole life folded\ninside the shell."
+    },
+    "fossil_24": {
+      "type": "line",
+      "text": "A trilobite. A hard-shelled sea\ncreature from long before the\ndinosaurs; there were thousands\nupon thousands of kinds."
+    },
+    "set_0": {
+      "type": "line",
+      "text": "That completes our Triceratops!\nHoo, what a day. A member of the\nhorned dinosaurs, it flourished\nat the very end of the\nCretaceous \u2014 a three-horned\nplant-eater the length of a bus,\nwith a solid neck frill for\ndefence. One of the last\ndinosaurs standing before the\ngreat extinction."
+    },
+    "set_1": {
+      "type": "line",
+      "text": "Our Tyrannosaurus is complete! I\nam quite beside myself. The\ntyrant lizard was among the\nlargest land carnivores that\never lived: a huge head, a short\nmuscular neck, and jaws set with\nteeth the size of railway\nspikes. Resistance, one\nimagines, was rather futile."
+    },
+    "set_2": {
+      "type": "line",
+      "text": "Apatosaurus, complete at last! A\ndiplodocid \u2014 one of the long-\nnecked sauropods of the late\nJurassic. You may know it as\nbrontosaurus. It reached some\nseventy feet, with a small head,\na great column of a neck, and a\nwhip of a tail."
+    },
+    "set_3": {
+      "type": "line",
+      "text": "The Stegosaurus is finished! A\nplated dinosaur of the late\nJurassic, famous for the double\nrow of bony plates along its\nback and the four spikes on its\ntail. Formidable at one end; not\nterribly bright at the other."
+    },
+    "set_4": {
+      "type": "line",
+      "text": "Our Pteranodon is complete! Not\na dinosaur but a flying reptile\nthat lived among them. With a\nwingspan past twenty feet it\nsoared on sea winds rather than\nflapping, scooping fish in its\nlong toothless beak."
+    },
+    "set_5": {
+      "type": "line",
+      "text": "The plesiosaur is assembled! An\naquatic reptile of the Mesozoic\nseas \u2014 broad-bodied, four-\nflippered, some with long necks\nand small heads, others the\nreverse. The first one was\ndescribed back in 1824."
+    },
+    "set_6": {
+      "type": "line",
+      "text": "The mammoth stands complete! A\nmammal, and a far more recent\none than the dinosaurs \u2014 a\ncreature of the Ice Age that\ndied out only about ten thousand\nyears ago, right as humankind\nwas spreading. Food for thought,\nthat."
+    },
+    "collection_complete": {
+      "type": "line",
+      "text": "Wait \u2014 is it... yes! An entire\ncollection, complete! Huzzah! I\ncould molt with joy. Splendid\nwork, truly."
+    },
+    "museum_complete": {
+      "type": "line",
+      "text": "Hoo! HOO, I say! Every wing\nfull, every collection finished.\nA museum to stand beside the\nfinest in the world \u2014 and built\nentirely by this town. I am\nsimply erupting with pride."
+    },
+    "fish_crucian_carp": {
+      "type": "line",
+      "text": "A humble crucian carp. Common,\nyes, but every thread matters in\nthe great tapestry. We'll mind\nit well."
+    },
+    "fish_brook_trout": {
+      "type": "line",
+      "text": "A brook trout, from cool, clean,\nfast water. Where you find one,\nthe stream itself is in good\nhealth."
+    },
+    "fish_carp": {
+      "type": "line",
+      "text": "A carp \u2014 hardy, long-lived, and\nquite happy in murky water that\nwould see other fish off.\nAdmirable, in its way."
+    },
+    "fish_koi": {
+      "type": "line",
+      "text": "A koi. An ornamental carp,\nreally, bred over centuries for\ncolour. Catching one feels oddly\nlike landing a small fortune."
+    },
+    "fish_catfish": {
+      "type": "line",
+      "text": "A catfish. Those barbels are not\nwhiskers but taste organs \u2014 it\ncan taste the water all around\nitself. Remarkable."
+    },
+    "fish_small_bass": {
+      "type": "line",
+      "text": "A young black bass. It will grow\ninto a proper predator; for now\nit is all appetite and ambition."
+    },
+    "fish_bass": {
+      "type": "line",
+      "text": "A black bass. An ambush hunter\nthat lurks by weed and timber\nand strikes at anything smaller\nthan itself."
+    },
+    "fish_large_bass": {
+      "type": "line",
+      "text": "A large black bass \u2014 a real\nprize. Anglers travel a long way\nfor a fish this size. We're glad\nit came to us."
+    },
+    "fish_bluegill": {
+      "type": "line",
+      "text": "A bluegill. A small sunfish that\nguards its nest fiercely against\nall comers, whatever the size\ndifference."
+    },
+    "fish_giant_catfish": {
+      "type": "line",
+      "text": "A giant catfish! These monsters\nkeep to the deeper ponds. I'll\nwatch over this one myself, hoo."
+    },
+    "fish_giant_snakehead": {
+      "type": "line",
+      "text": "A giant snakehead. A fierce\nthing that can gulp air and even\nwriggle overland between pools.\nDo cook it thoroughly."
+    },
+    "fish_barbel_steed": {
+      "type": "line",
+      "text": "A barbel steed. A schooling\nriver fish that grubs along the\nbottom with its downturned\nmouth. Tidy little creature."
+    },
+    "fish_dace": {
+      "type": "line",
+      "text": "A dace. A quick, silvery fish of\nrunning water, forever darting\nafter insects at the surface."
+    },
+    "fish_pale_chub": {
+      "type": "line",
+      "text": "A pale chub. Small, bright, and\nbold \u2014 it will rise to almost\nany fly. Beginners' luck, made\nfish."
+    },
+    "fish_bitterling": {
+      "type": "line",
+      "text": "A bitterling. It lays its eggs\ninside a living freshwater\nmussel, which carries them to\nsafety. An odd arrangement, but\nit works."
+    },
+    "fish_loach": {
+      "type": "line",
+      "text": "A loach. A bottom-dweller that\ncan breathe through its gut when\nthe water turns foul. Nature is\nnothing if not inventive."
+    },
+    "fish_pond_smelt": {
+      "type": "line",
+      "text": "A pond smelt. A cold-weather\nfish, fished through the ice in\nwinter. It has a faint scent of\ncucumber, they say."
+    },
+    "fish_sweetfish": {
+      "type": "line",
+      "text": "A sweetfish. It appears as the\ndays grow long and is treated as\nsummer's herald \u2014 then promptly\neaten. Poor dear."
+    },
+    "fish_cherry_salmon": {
+      "type": "line",
+      "text": "A cherry salmon. Some run to the\nsea and return; others spend\ntheir whole lives in the\nmountain streams."
+    },
+    "fish_large_char": {
+      "type": "line",
+      "text": "A large char. A char of the cold\nheadwaters, and a fine one. It\nwill want for nothing here."
+    },
+    "fish_rainbow_trout": {
+      "type": "line",
+      "text": "A rainbow trout. Named for the\nband of colour along its flank.\nA strong swimmer that loves\nbroken water."
+    },
+    "fish_stringfish": {
+      "type": "line",
+      "text": "A stringfish! Hoo, indeed \u2014 a\nrare giant of the winter rivers.\nWe have been saving a place for\nthis very fish."
+    },
+    "fish_salmon": {
+      "type": "line",
+      "text": "A salmon, returned from the sea\nto the river of its birth to\nspawn. A journey of\nextraordinary determination."
+    },
+    "fish_goldfish": {
+      "type": "line",
+      "text": "A goldfish. Bred from a plain\ncarp over a thousand years and\nmore. Proof of what patience can\ndo."
+    },
+    "fish_piranha": {
+      "type": "line",
+      "text": "A piranha. Fewer teeth in its\nreputation than in the water,\nthankfully \u2014 but I shall handle\nit with respect."
+    },
+    "fish_arowana": {
+      "type": "line",
+      "text": "An arowana. It cruises just\nunder the surface and can leap\nclear to snatch insects from low\nbranches."
+    },
+    "fish_eel": {
+      "type": "line",
+      "text": "An eel. It breeds far out in the\nocean and no one has ever truly\nwatched it happen. A genuine\nmystery, still."
+    },
+    "fish_freshwater_goby": {
+      "type": "line",
+      "text": "A freshwater goby. Its pelvic\nfins are fused into a little\nsuction cup, so it can hold\nstation in a current."
+    },
+    "fish_angelfish": {
+      "type": "line",
+      "text": "An angelfish. Tall, banded, and\nserene \u2014 though rather\nterritorial once it decides a\ncorner is home."
+    },
+    "fish_guppy": {
+      "type": "line",
+      "text": "A guppy. Small, gaudy, and\nastonishingly prolific. The\nmales wear all the colour; the\nfemales do all the work."
+    },
+    "fish_popeyed_goldfish": {
+      "type": "line",
+      "text": "A popeyed goldfish. Those\nenormous eyes are a bred trait,\nnot a wild one. Charming, if a\ntouch alarming."
+    },
+    "fish_coelacanth": {
+      "type": "line",
+      "text": "A coelacanth! Hoo my. A fish\nthought extinct for millions of\nyears until one turned up in a\nnet. A living fossil."
+    },
+    "fish_crawfish": {
+      "type": "line",
+      "text": "A crawfish \u2014 a crayfish, really,\na small freshwater cousin of the\nlobster. Those pincers are\nstronger than they look."
+    },
+    "fish_frog": {
+      "type": "line",
+      "text": "A frog. Not a fish at all, of\ncourse, but we keep amphibians\ntoo. It shall have all the damp\ncomforts of home."
+    },
+    "fish_killifish": {
+      "type": "line",
+      "text": "A killifish. A tiny thing of\nricefields and ditches that\nsurvives where almost nothing\nelse will."
+    },
+    "fish_jellyfish": {
+      "type": "line",
+      "text": "A jellyfish. Ninety-odd percent\nwater, no brain, no heart, and\ndrifting the seas since long\nbefore us. Beautiful, at a\ndistance."
+    },
+    "fish_sea_bass": {
+      "type": "line",
+      "text": "A sea bass. It changes its\nhaunts with the seasons, moving\nbetween deep water and the\nshallows. We'll settle it in."
+    },
+    "fish_red_snapper": {
+      "type": "line",
+      "text": "A red snapper. A handsome, deep-\nbodied sea fish, long considered\na fish for celebrations."
+    },
+    "fish_barred_knifejaw": {
+      "type": "line",
+      "text": "A barred knifejaw. Its beak-like\nteeth are fused for crushing\nshellfish and barnacles clean\noff the rocks."
+    },
+    "fish_arapaima": {
+      "type": "line",
+      "text": "An arapaima! One of the largest\nfreshwater fish in the world,\nand an air-breather besides. A\ntremendous catch."
+    },
+    "bug_ant": {
+      "type": "line",
+      "text": "An ant. Industrious, I grant\nyou. Also everywhere, and given\nto swarming anything sweet. I'll\nseal the case now."
+    },
+    "bug_bagworm": {
+      "type": "line",
+      "text": "A bagworm \u2014 a moth caterpillar\nin a case of stitched leaves. It\ncan strip a tree bare. Wretched\nappetite."
+    },
+    "bug_banded_dragonfly": {
+      "type": "line",
+      "text": "A banded dragonfly. A superb\nflier, I'll admit. I simply wish\nit would do its superb flying\nelsewhere."
+    },
+    "bug_bee": {
+      "type": "line",
+      "text": "A bee. It takes some nerve to\nbring one of these here intact.\nI trust you were stung only a\nlittle. Blech."
+    },
+    "bug_bell_cricket": {
+      "type": "line",
+      "text": "A bell cricket. The song is\ngenuinely lovely on an autumn\nevening. The insect making it,\nrather less so."
+    },
+    "bug_brown_cicada": {
+      "type": "line",
+      "text": "A brown cicada. It spends years\nunderground and a fortnight\nabove it, most of that fortnight\nshouting. Loudly."
+    },
+    "bug_cockroach": {
+      "type": "line",
+      "text": "A... cockroach. I will never\nunderstand why the regulations\nrequire these. In it goes.\nQuickly. Ugh."
+    },
+    "bug_common_butterfly": {
+      "type": "line",
+      "text": "A common butterfly. Pretty\nenough on the wing. Up close it\nis all dust and twitching legs.\nHooo."
+    },
+    "bug_common_dragonfly": {
+      "type": "line",
+      "text": "A common dragonfly. Two enormous\ncompound eyes that see almost\neverything at once. Unsettling,\nfrankly."
+    },
+    "bug_cricket": {
+      "type": "line",
+      "text": "A cricket. It sings by scraping\none wing against the other. A\nwhole orchestra of friction\nunder the grass."
+    },
+    "bug_darner_dragonfly": {
+      "type": "line",
+      "text": "A darner dragonfly, one of the\nlarger sorts. It can hover, and\nfly backwards. I'd rather it\ndidn't."
+    },
+    "bug_drone_beetle": {
+      "type": "line",
+      "text": "A drone beetle. It flies with a\ndroning buzz, as advertised, and\nblunders into everything.\nIncluding me."
+    },
+    "bug_dynastid_beetle": {
+      "type": "line",
+      "text": "A rhinoceros beetle. It can\nshift many times its own weight\nwith that horn. Impressive. Also\nenormous. Away it goes."
+    },
+    "bug_evening_cicada": {
+      "type": "line",
+      "text": "An evening cicada. Its call at\ndusk is genuinely mournful and\nrather beautiful. I still won't\nbe touching it."
+    },
+    "bug_firefly": {
+      "type": "line",
+      "text": "A firefly. It makes cold light\nin its abdomen through pure\nchemistry. Magical to watch.\nBest from a distance."
+    },
+    "bug_flat_stag_beetle": {
+      "type": "line",
+      "text": "A flat stag beetle. Those jaws\nare for wrestling rival males\noff the branch, not for me.\nSmall mercies."
+    },
+    "bug_giant_beetle": {
+      "type": "line",
+      "text": "A giant beetle! Hoo. Yes. It is\ncertainly giant. That is rather\nthe whole problem. Into the\nlargest case."
+    },
+    "bug_grasshopper": {
+      "type": "line",
+      "text": "A grasshopper. The hind legs\ncome away far too easily when\none handles it. I would rather\nnot dwell on that."
+    },
+    "bug_jewel_beetle": {
+      "type": "line",
+      "text": "A jewel beetle. That iridescence\nhas been prized for ornament for\ncenturies. On the beetle, I find\nit nauseating."
+    },
+    "bug_ladybug": {
+      "type": "line",
+      "text": "A ladybug. I had hopes for this\none. Then I touched it, and it\nwept a foul yellow fluid onto my\nfeathers. Never again."
+    },
+    "bug_long_locust": {
+      "type": "line",
+      "text": "A long locust. Harmless alone.\nIn numbers it becomes a plague\nthat darkens the sky and strips\nthe fields."
+    },
+    "bug_longhorn_beetle": {
+      "type": "line",
+      "text": "A longhorn beetle. The antennae\ncan be longer than the body.\nWhy? No one has ever given me a\nsatisfactory answer."
+    },
+    "bug_mantis": {
+      "type": "line",
+      "text": "A mantis. It turns its head to\nwatch you, which no proper\ninsect should be able to do. I\nfind it deeply judgemental."
+    },
+    "bug_migratory_locust": {
+      "type": "line",
+      "text": "A migratory locust. Crowd them\ntogether and they change colour,\ntemperament, and destiny. Then\nthey eat everything."
+    },
+    "bug_mole_cricket": {
+      "type": "line",
+      "text": "A mole cricket. It lives\nunderground and sings from down\nthere, so you hear it but never\nsee it. Small blessing."
+    },
+    "bug_mosquito": {
+      "type": "line",
+      "text": "A mosquito. Only the females\nbite, for the protein to lay\neggs. Knowing that has never\nonce stopped the itching."
+    },
+    "bug_mountain_beetle": {
+      "type": "line",
+      "text": "A mountain beetle. Handsome, in\nthe way armoured things are\nhandsome. It still opens up into\nflapping wings. No."
+    },
+    "bug_pill_bug": {
+      "type": "line",
+      "text": "A pill bug. Not an insect but a\nland crustacean. It rolls into a\nball when frightened. So,\nfrankly, do I."
+    },
+    "bug_pine_cricket": {
+      "type": "line",
+      "text": "A pine cricket. Another fine\nautumn singer. I do enjoy the\nconcert. I attend it strictly\nfrom indoors."
+    },
+    "bug_pond_skater": {
+      "type": "line",
+      "text": "A pond skater. It stands on the\nsurface film without breaking\nit. An affront to the natural\norder, if you ask me."
+    },
+    "bug_purple_butterfly": {
+      "type": "line",
+      "text": "A purple butterfly. A rarer,\nricher colour than the common\nsort. Still made of dust and\nlegs, alas."
+    },
+    "bug_red_dragonfly": {
+      "type": "line",
+      "text": "A red dragonfly. It reddens as\nit matures, and gathers in great\ncrowds in autumn. Then it\ngathers near me. Blech."
+    },
+    "bug_robust_cicada": {
+      "type": "line",
+      "text": "A robust cicada \u2014 one of the\nbiggest and by far the loudest.\nIts song is roughly the volume\nof a passing train."
+    },
+    "bug_saw_stag_beetle": {
+      "type": "line",
+      "text": "A saw stag beetle. The toothed\njaws give it the name. They are\nfor other beetles. I remind\nmyself of that firmly."
+    },
+    "bug_snail": {
+      "type": "line",
+      "text": "A snail. A mollusc, not an\ninsect \u2014 a cousin of the oyster,\nbelieve it or not. Soft, damp,\nand dreadful to hold."
+    },
+    "bug_spider": {
+      "type": "line",
+      "text": "A spider. Eight legs, eight\neyes, and an all-insect diet.\nUseful, one supposes. I will\nkeep this glass between us."
+    },
+    "bug_spotted_ladybug": {
+      "type": "line",
+      "text": "A spotted ladybug. More spots,\nsame foul trick when alarmed.\nI've learned my lesson. Straight\ninto the case."
+    },
+    "bug_tiger_butterfly": {
+      "type": "line",
+      "text": "A tiger butterfly, boldly\nstriped as a warning. On the\nwing it is quite grand. I shall\nadmire it through the lid."
+    },
+    "bug_walker_cicada": {
+      "type": "line",
+      "text": "A walker cicada. It calls in the\nheat of high summer, on and on,\nuntil the whole afternoon seems\nmade of noise."
+    },
+    "bug_yellow_butterfly": {
+      "type": "line",
+      "text": "A yellow butterfly. It drifts\nabout the flowers looking like a\nstray petal. Then it lands on\nyou. Hoo."
+    }
+  }
+}

@@ -50,6 +50,8 @@ static func ensure_loaded() -> void:
 		return
 	_by_id.clear()
 	_load_dir(AUTHORED_DIR)
+	## Local, unversioned override banks (e.g. a full imported message set) win by id.
+	_load_dir("%s/overrides" % GENERATED_DIR)
 	_loaded = true
 
 

@@ -15,7 +15,24 @@ const NOOK_HOUSE_LOOK_DIALOGUE := &"msg_2020"
 const NOOK_HOUSE_LOOK_DIALOGUE_FALLBACK := &"nook_house_look"
 const NOOK_DEBT_DIALOGUE := &"msg_2022"
 const NOOK_DEBT_DIALOGUE_FALLBACK := &"nook_house_debt"
+## `0x07EB` — "you'd better pay it all back" nag when the pockets close with nothing picked.
+const NOOK_NAG_DIALOGUE := &"msg_2027"
+const NOOK_NAG_DIALOGUE_FALLBACK := &"nook_house_debt_nag"
+## `aNRG_demo_end_wait` continuation of `0x07E6` (loan / settle in) after the hand-over —
+## only played on the authored path; the bank message already chains it.
+const NOOK_SETTLED_DIALOGUE_FALLBACK := &"nook_house_settled"
 const NOOK_JOB_DIALOGUE := &"nook_first_job"
+## `m_start_data_init.c` QUEST bag Nook collects as the down payment.
+const PAYMENT_ITEM := &"money_1000"
+
+## Station-arrival BGM chain (`ac_intro_demo` / `aSTM` / `aNRG`). Each id falls back to
+## the previous stage's track if that OGG has not been rendered yet.
+## `BGM_INTRO_ARRIVE` → (fade at the platform) → `BGM_INTRO_SELECT_HOUSE2` while Nook
+## walks you to the plots → `BGM_INTRO_RCN_GUIDE` for the loan/job talk after the house.
+const BGM_ARRIVE := &"intro_arrive"
+const BGM_SELECT_HOUSE := &"intro_select_house2"
+const BGM_RCN_GUIDE := &"intro_rcn_guide"
+const BGM_FIND_SHOP := &"intro_find_shop"
 
 var _world: Node3D
 var _stage: IntroStationStage = IntroStationStage.new()
@@ -37,12 +54,15 @@ var _entering_look_house: bool = false
 var _nook_face: NpcFace = NpcFace.new()
 var _nook_feel: NpcFeelGlyphs
 var _nook_manpu_hold: String = ""
+## `aNRG_demand_payment` state — the payment beat sits between the debt line and the job.
+var _payment_done: bool = false
 
 
 func setup(world: Node3D) -> void:
 	_world = world
 	name = "IntroStationDirector"
 	_resume_debt = Game.intro_station_resume_debt
+	_payment_done = false
 	call_deferred("_boot")
 
 
@@ -115,15 +135,15 @@ func _boot() -> void:
 
 	## Fresh arrival only — do not restart train/arrive BGM after leaving a house.
 	if not _resume_debt:
-		var bgm: StringName = IntroStationStage.BGM_ID
-		if BgmCatalog.stream_for(bgm) == null:
-			bgm = &"intro_train"
-		Audio.play_bgm(bgm)
+		_play_bgm_chain([BGM_ARRIVE, &"intro_train"])
 
 	if _resume_debt:
 		Game.intro_station_resume_debt = false
 		_stage.drive_camera = false
 		_resume_follow_camera(true)
+		## `ac_intro_demo.c` `_1A4` path: outdoor return restarts `BGM_INTRO_RCN_GUIDE`
+		## for the loan / part-time-job talk.
+		_play_bgm_chain([BGM_RCN_GUIDE, BGM_ARRIVE, &"intro_train"])
 		## `aID_birth_rcn_guide` on outdoor return: Nook is already at the door
 		## while the player GO_OUT / emerges (`aNRG_restart_wait`).
 		_place_nook_at_claimed_house()
@@ -363,6 +383,15 @@ func _claimed_house() -> Node3D:
 	return null
 
 
+func _play_bgm_chain(ids: Array) -> void:
+	## Play the first id in the list whose OGG exists; if none are rendered, leave the
+	## current track alone rather than cutting to silence.
+	for id: StringName in ids:
+		if BgmCatalog.stream_for(id) != null:
+			Audio.play_bgm(id)
+			return
+
+
 func _face_nook_toward_player() -> void:
 	if _nook == null or _player == null:
 		return
@@ -486,6 +515,14 @@ func _on_stage_changed(action: StringName) -> void:
 		## Keep follow while Nook talks / runs.
 		_stage.drive_camera = false
 		_resume_follow_camera(false)
+	## BGM chain: the arrive theme fades once the player clears the platform and Nook
+	## calls out (`aSTM_talk_wait` drops `BGM_INTRO_ARRIVE` at player z >= 970), then a
+	## quieter house-hunting track carries the walk to the plots and the pick.
+	if action == &"nook_birth" or action == &"nook_call":
+		Audio.stop_bgm()
+	elif action == &"nook_lead" or action == &"nook_explain" or action == &"player_pick":
+		if Audio.current_id != BGM_SELECT_HOUSE:
+			_play_bgm_chain([BGM_SELECT_HOUSE])
 
 
 func _resume_follow_camera(snap: bool) -> void:
@@ -541,8 +578,7 @@ func _on_intro_house_look(house_id: StringName) -> void:
 
 func _on_nook_debt() -> void:
 	## `0x07E6` → CAMERA2_PROCESS_TALK + turn (also set in `_resume_debt_sequence`).
-	if Game != null and Game.inventory != null and Game.inventory.loan <= 0:
-		Game.inventory.set_loan(Inventory.DEFAULT_HOUSE_LOAN)
+	## The loan itself is booked in `Game.complete_intro_station` (`aID_retire_rcn_guide_wait`).
 	_begin_demo_talk(_nook, true, true)
 	_play_dialogue(NOOK_DEBT_DIALOGUE, "Tom Nook", NOOK_DEBT_DIALOGUE_FALLBACK)
 
@@ -550,7 +586,7 @@ func _on_nook_debt() -> void:
 func _on_nook_job() -> void:
 	## Bank `msg_2022` already chains through the loan / part-time job (`msg_2028`).
 	## Only play the authored job stub when the debt line was the short fallback.
-	if _last_dialogue_id == NOOK_DEBT_DIALOGUE:
+	if _last_dialogue_id == NOOK_DEBT_DIALOGUE or _last_dialogue_id == NOOK_NAG_DIALOGUE:
 		_stage.notify_dialogue_closed()
 		return
 	_begin_demo_talk(_nook, true, true)
@@ -633,6 +669,66 @@ func _on_dialogue_closed() -> void:
 				Game.intro_station_resume_debt = false
 				_stage.notify_house_pick_again()
 				return
+		## `aNRG_demand_payment`: the debt line (and the nag) hand off to the pockets so
+		## the player gives Nook the money bag before the job talk.
+		if not _payment_done and _last_dialogue_id in [
+			NOOK_DEBT_DIALOGUE,
+			NOOK_DEBT_DIALOGUE_FALLBACK,
+			NOOK_NAG_DIALOGUE,
+			NOOK_NAG_DIALOGUE_FALLBACK,
+		]:
+			_begin_demand_payment()
+			return
+	_end_demo_talk()
+	_stage.notify_dialogue_closed()
+
+
+func _begin_demand_payment() -> void:
+	## `aNRG_menu_open_wait_talk_proc`: open the pockets (QUEST filter) on the money bag.
+	if _payment_done:
+		_end_demo_talk()
+		_stage.notify_dialogue_closed()
+		return
+	if Game.inventory == null or Game.inventory.count_of(PAYMENT_ITEM) == 0:
+		## Nothing to hand over (dev skip / already spent) — go straight to the job.
+		_payment_done = true
+		_end_demo_talk()
+		_stage.notify_dialogue_closed()
+		return
+	_end_demo_talk()
+	if not Game.intro_payment_resolved.is_connected(_on_payment_resolved):
+		Game.intro_payment_resolved.connect(_on_payment_resolved)
+	Game.intro_payment_pending = true
+	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui")
+	if inv_ui == null or not inv_ui.has_method("open"):
+		Game.notify_intro_payment_made()
+		return
+	inv_ui.call("open")
+
+
+func _on_payment_resolved(paid: bool) -> void:
+	if Game.intro_payment_resolved.is_connected(_on_payment_resolved):
+		Game.intro_payment_resolved.disconnect(_on_payment_resolved)
+	if _finishing:
+		return
+	if not paid:
+		## `aNRG_menu_close_wait_talk_proc` empty branch: nag, then reopen the pockets.
+		_begin_demo_talk(_nook, true, true)
+		_play_dialogue(NOOK_NAG_DIALOGUE, "Tom Nook", NOOK_NAG_DIALOGUE_FALLBACK)
+		return
+	_payment_done = true
+	if _player != null:
+		_player.set_busy(true)
+	await HandOver.player_gives_to_npc(_player, _nook, PAYMENT_ITEM)
+	Game.inventory.remove(PAYMENT_ITEM, 1)
+	_face_nook_toward_player()
+	_nook_play_wait()
+	## `aNRG_demo_end_wait`: the bank message chains the loan / shop-address tail itself;
+	## on the authored path play the short "rest goes on your tab" follow-up, then EXIT.
+	if _last_dialogue_id == NOOK_DEBT_DIALOGUE_FALLBACK or _last_dialogue_id == NOOK_NAG_DIALOGUE_FALLBACK:
+		_begin_demo_talk(_nook, true, true)
+		_play_dialogue(NOOK_SETTLED_DIALOGUE_FALLBACK, "Tom Nook")
+		return
 	_end_demo_talk()
 	_stage.notify_dialogue_closed()
 
@@ -675,8 +771,9 @@ func _finish_after_nook_retire() -> void:
 		_player.set_busy(false)
 	_resume_follow_camera(true)
 	Game.complete_intro_station()
-	## Resume outdoor field BGM now that the intro slice is done.
-	Audio.play_bgm(BgmCatalog.outdoor_id(Clock.hour, Game.weather))
+	## `aID_retire_rcn_guide_wait_init` → `aID_set_first_field_bgm`: the "find the shop"
+	## theme carries the first job; fall back to the hourly field track if it is missing.
+	_play_bgm_chain([BGM_FIND_SHOP, BgmCatalog.outdoor_id(Clock.hour, Game.weather)])
 	if _actors != null and is_instance_valid(_actors):
 		_actors.queue_free()
 		_actors = null

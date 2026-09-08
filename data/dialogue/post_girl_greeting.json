@@ -12,6 +12,7 @@
       "type": "choice",
       "options": [
         { "text": "Mail a letter", "goto": "mail" },
+        { "text": "Send fossils to the Farway Museum", "goto": "farway" },
         { "text": "Make a deposit", "goto": "deposit" },
         { "text": "Save a letter", "goto": "save" },
         { "text": "Never mind...", "goto": "bye" }
@@ -20,6 +21,10 @@
     "mail": {
       "type": "line",
       "text": "Yes, I see... one moment."
+    },
+    "farway": {
+      "type": "line",
+      "text": "Fossils for the Farway\nMuseum? Of course. Let's\nsee what you've got."
     },
     "deposit": {
       "type": "line",

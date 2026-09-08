@@ -26,7 +26,7 @@ from .layout import (
 )
 from .mapfile import parse_map
 from .rel import RelData
-from .test_set import TEST_BTI, TEST_SKELETONS, TEST_STATIC
+from .test_set import TEST_SKELETONS, TEST_STATIC
 from .texbank import (
     G_IM_FMT_CI,
     G_IM_FMT_IA,
@@ -123,7 +123,7 @@ NPC_CORE_ANIMS = [
     "cKF_ba_r_npc_1_get_putaway1",
 ]
 
-## `ac_npc_guide` train intro clips baked into `xct_1.glb` for the test set.
+## `ac_npc_guide` train intro clips that `xct_1.glb` must carry (asserted by tests).
 ## Manpu `_1`/`_d1` attack + `_2`/`_d2` hold match `aNPC_check_manpu_demoCode` / rover_intro.json.
 INTRO_ROVER_NPC_ANIMS = [
     "cKF_ba_r_npc_1_open_d1",
@@ -307,12 +307,11 @@ def _is_field_water_acre(item: dict[str, Any]) -> bool:
     return any(str(g).endswith("modelT") for g in item.get("gfx") or [])
 
 
-def convert_water_acres(cfg: PipelineConfig) -> dict[str, Any]:
-    """Reconvert every field acre that includes XLU water / wave DLs."""
+def _run_static_jobs(
+    cfg: PipelineConfig, rel: RelData, symbols: list, bank: TextureBank, jobs: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Convert a pre-filtered list of static Gfx jobs with a shared progress line."""
     results: list[dict[str, Any]] = []
-    rel, symbols = _rel_and_map(cfg)
-    bank = _texture_bank(cfg, rel, symbols)
-    jobs = [item for item in _static_jobs(symbols) if _is_field_water_acre(item)]
     for i, item in enumerate(jobs, 1):
         record = _convert_static(cfg, rel, symbols, item, bank)
         results.append(record)
@@ -321,9 +320,15 @@ def convert_water_acres(cfg: PipelineConfig) -> dict[str, Any]:
     return {"results": results, "converted": converted}
 
 
+def convert_water_acres(cfg: PipelineConfig) -> dict[str, Any]:
+    """Reconvert every field acre that includes XLU water / wave DLs."""
+    rel, symbols = _rel_and_map(cfg)
+    bank = _texture_bank(cfg, rel, symbols)
+    jobs = [item for item in _static_jobs(symbols) if _is_field_water_acre(item)]
+    return _run_static_jobs(cfg, rel, symbols, bank, jobs)
+
+
 def convert_assets(cfg: PipelineConfig) -> dict[str, Any]:
-    if cfg.test_set_only:
-        return convert_test_set(cfg)
     return convert_all(cfg)
 
 
@@ -434,7 +439,6 @@ def convert_villager_house_palettes(cfg: PipelineConfig) -> dict[str, Any]:
 
 def convert_static_prefixes(cfg: PipelineConfig, needles: list[str]) -> dict[str, Any]:
     """Reconvert static Gfx whose asset_id contains any needle (e.g. palm, cedar)."""
-    results: list[dict[str, Any]] = []
     rel, symbols = _rel_and_map(cfg)
     bank = _texture_bank(cfg, rel, symbols)
     lowered = [n.lower() for n in needles]
@@ -443,12 +447,7 @@ def convert_static_prefixes(cfg: PipelineConfig, needles: list[str]) -> dict[str
         for item in _static_jobs(symbols)
         if any(n in item["asset_id"].lower() for n in lowered)
     ]
-    for i, item in enumerate(jobs, 1):
-        record = _convert_static(cfg, rel, symbols, item, bank)
-        results.append(record)
-        print(f"  static {i}/{len(jobs)} {item['asset_id']} {record['status']}")
-    converted = sum(1 for r in results if r["status"] == "converted")
-    return {"results": results, "converted": converted}
+    return _run_static_jobs(cfg, rel, symbols, bank, jobs)
 
 
 def convert_test_static_needles(cfg: PipelineConfig, needles: list[str]) -> dict[str, Any]:
@@ -457,7 +456,6 @@ def convert_test_static_needles(cfg: PipelineConfig, needles: list[str]) -> dict
     Insect poses share one vtx across `a`/`b` GLBs, so they cannot go through
     `_static_jobs`'s one-row-per-vtx dedupe.
     """
-    results: list[dict[str, Any]] = []
     rel, symbols = _rel_and_map(cfg)
     bank = _texture_bank(cfg, rel, symbols)
     lowered = [n.lower() for n in needles]
@@ -466,50 +464,7 @@ def convert_test_static_needles(cfg: PipelineConfig, needles: list[str]) -> dict
         for item in TEST_STATIC
         if any(n in item["asset_id"].lower() for n in lowered)
     ]
-    for i, item in enumerate(jobs, 1):
-        record = _convert_static(cfg, rel, symbols, item, bank)
-        results.append(record)
-        print(f"  static {i}/{len(jobs)} {item['asset_id']} {record['status']}")
-    converted = sum(1 for r in results if r["status"] == "converted")
-    return {"results": results, "converted": converted}
-
-
-def convert_test_set(cfg: PipelineConfig) -> dict[str, Any]:
-    results: list[dict[str, Any]] = []
-    id_map: dict[str, Any] = {}
-    rel, symbols = _rel_and_map(cfg)
-    bank = _texture_bank(cfg, rel, symbols)
-    names = {s.name for s in symbols}
-
-    for raw in TEST_SKELETONS:
-        item = _skeleton_job(raw["skeleton"], names, core_only=True)
-        record = _convert_ckf(cfg, rel, symbols, item, bank)
-        results.append(record)
-        id_map[item["skeleton"]] = {
-            "godot_asset_id": item["asset_id"],
-            "output": item["output"],
-            "confident_name": item["confident_name"],
-        }
-
-    for item in TEST_STATIC:
-        record = _convert_static(cfg, rel, symbols, item, bank)
-        results.append(record)
-        id_map[item["vtx"]] = {
-            "godot_asset_id": item["asset_id"],
-            "output": item["output"],
-            "confident_name": item["confident_name"],
-        }
-
-    for src_rel, dest_rel in TEST_BTI:
-        results.append(_convert_bti(cfg, src_rel, dest_rel))
-        id_map[src_rel] = {
-            "godot_asset_id": Path(dest_rel).stem,
-            "output": dest_rel,
-            "confident_name": True,
-        }
-
-    _write_acre_collision(cfg, rel, symbols)
-    return _write_report(cfg, results, id_map)
+    return _run_static_jobs(cfg, rel, symbols, bank, jobs)
 
 
 def convert_all(cfg: PipelineConfig) -> dict[str, Any]:
@@ -534,6 +489,14 @@ def convert_all(cfg: PipelineConfig) -> dict[str, Any]:
             print(f"  skeletons {i}/{len(skels)}")
 
     static_jobs = _static_jobs(symbols)
+    ## Insect poses (`act_m_*_a` / `_b`) share one vtx, so `_static_jobs`' per-vtx
+    ## dedupe only keeps one. Add back every explicit `TEST_STATIC` row whose output
+    ## no inferred job produced (both bug flap poses, bobber, …).
+    done_outputs = {job["output"] for job in static_jobs}
+    for item in TEST_STATIC:
+        if item["output"] not in done_outputs:
+            static_jobs.append(dict(item))
+            done_outputs.add(item["output"])
     for i, item in enumerate(static_jobs, 1):
         record = _convert_static(cfg, rel, symbols, item, bank)
         results.append(record)
@@ -591,7 +554,7 @@ def _intro_kk_anims(names: set[str]) -> list[str]:
     return [n for n in INTRO_KK_NPC_ANIMS if n in names]
 
 
-def _anims_for_prefix(prefix: str, names: set[str], *, core_only: bool = False) -> list[str]:
+def _anims_for_prefix(prefix: str, names: set[str]) -> list[str]:
     known = TEST_SKEL_BY_NAME.get(f"cKF_bs_r_{prefix}")
     hits = [
         n
@@ -603,49 +566,29 @@ def _anims_for_prefix(prefix: str, names: set[str], *, core_only: bool = False) 
         extra = [n for n in names if n.startswith("cKF_ba_r_ply_1_")]
         extra.sort()
         core = _core_anims(PLAYER_CORE_ANIMS, names)
-        if core_only:
-            return core
         rest = [n for n in extra if n not in core]
         return core + rest
     if uses_shared_npc_anims(prefix):
         # Pose evaluation is cached across species; rest translations still differ
-        # so each GLB embeds its own tracks. core_only is the test-set path.
-        if core_only:
-            if prefix == "xct_1":
-                intro = _intro_rover_anims(names)
-                if intro:
-                    return intro
-            if prefix == "rcn_1":
-                nook = _intro_nook_anims(names)
-                if nook:
-                    return nook
-            if prefix == "kab_1":
-                sleep = _intro_sleep_npc_anims(names)
-                if sleep:
-                    return sleep
-            if prefix == "end_1":
-                kk = _intro_kk_anims(names)
-                if kk:
-                    return kk
-            return _core_anims(NPC_CORE_ANIMS, names)
+        # so each GLB embeds its own tracks.
         return _all_npc_anims(names)
     if known and not hits:
         return list(known.get("animations") or [])
     return hits
 
 
-def _skeleton_job(skeleton: str, names: set[str], *, core_only: bool = False) -> dict[str, Any]:
+def _skeleton_job(skeleton: str, names: set[str]) -> dict[str, Any]:
     if skeleton in TEST_SKEL_BY_NAME:
         item = dict(TEST_SKEL_BY_NAME[skeleton])
         prefix = skeleton.replace("cKF_bs_r_", "")
-        item["animations"] = _anims_for_prefix(prefix, names, core_only=core_only)
+        item["animations"] = _anims_for_prefix(prefix, names)
         return item
     prefix = skeleton.replace("cKF_bs_r_", "")
     return {
         "asset_id": prefix,
         "skeleton": skeleton,
         "output": output_for_prefix(prefix),
-        "animations": _anims_for_prefix(prefix, names, core_only=core_only),
+        "animations": _anims_for_prefix(prefix, names),
         "confident_name": False,
     }
 
@@ -1224,6 +1167,7 @@ def _png_record(
                 pal if fmt == G_IM_FMT_CI else None,
                 wrap_s=GX_CLAMP,
                 wrap_t=GX_CLAMP,
+                label=source or dest_rel,
             )
         if hd is not None:
             dest.write_bytes(hd)
@@ -1263,6 +1207,17 @@ def _write_report(cfg: PipelineConfig, results: list[dict[str, Any]], id_map: di
             f"  achd hits={pack.hits} misses={pack.misses} "
             f"decode_errors={pack.decode_errors} indexed={pack.size}"
         )
+        if pack.missed:
+            misses = {k: sorted(v) for k, v in sorted(pack.missed.items())}
+            report["achd_misses"] = misses
+            cfg.manifests.mkdir(parents=True, exist_ok=True)
+            (cfg.manifests / "achd_misses.json").write_text(
+                json.dumps(misses, indent=2) + "\n"
+            )
+            print(
+                f"  achd misses by label → {cfg.manifests / 'achd_misses.json'} "
+                f"({sum(len(v) for v in misses.values())} stems, {len(misses)} labels)"
+            )
     cfg.manifests.mkdir(parents=True, exist_ok=True)
     (cfg.manifests / "conversion_report.json").write_text(json.dumps(report, indent=2) + "\n")
     (cfg.manifests / "id_map.json").write_text(json.dumps(id_map, indent=2, sort_keys=True) + "\n")
@@ -1270,7 +1225,7 @@ def _write_report(cfg: PipelineConfig, results: list[dict[str, Any]], id_map: di
 
 
 def _reset_staging(cfg: PipelineConfig) -> None:
-    """Clear work-root staging only. Never wipe assets/generated (FG, inventory UI, prior --full)."""
+    """Clear work-root staging only. Never wipe assets/generated (FG, inventory UI, side outputs)."""
     folder = cfg.converted
     folder.mkdir(parents=True, exist_ok=True)
     for child in folder.iterdir():

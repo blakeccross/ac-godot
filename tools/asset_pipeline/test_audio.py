@@ -12,12 +12,12 @@ from asset_pipeline.audio import (
     SEQ_SIZE,
     WAVE_OFFSET,
     catalog_id_for_hour,
-    decode_vadpcm_frame,
     parse_bgm_ids,
     parse_se_ids,
     parse_seq_entries,
     parse_seq_table,
 )
+from asset_pipeline.audio_vadpcm import decode_vadpcm_frame
 from asset_pipeline.audio_bank import (
     Bank,
     Instrument,

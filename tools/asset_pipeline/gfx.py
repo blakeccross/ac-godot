@@ -485,29 +485,6 @@ def _chunks(values: list[int], n: int) -> list[tuple[int, ...]]:
     return out
 
 
-def count_loaded_vertices(blob: bytes) -> int:
-    """Count vertices consumed by G_VTX in a display list (shared-stream advance)."""
-    used = 0
-    i = 0
-    extra = 0
-    while i + 8 <= len(blob):
-        packet = blob[i : i + 8]
-        if extra > 0:
-            extra -= 4
-            i += 8
-            continue
-        cmd = packet[0]
-        w0 = int.from_bytes(packet[0:4], "big")
-        if cmd == G_ENDDL:
-            break
-        if cmd == G_VTX:
-            used += _bits(w0, 12, 8)
-        elif cmd in (G_TRIN, G_TRIN_INDEPEND):
-            extra = max(0, _bits(w0, 17, 7) + 1 - 3)
-        i += 8
-    return used
-
-
 def apply_texture_commands(blob: bytes, bank: TextureBank, state: TextureState, depth: int = 0) -> None:
     """Walk a DL for SETTIMG / LOADTLUT / SETTILE_DOLPHIN only (material DLs)."""
     if depth > 8:
@@ -993,17 +970,25 @@ def parse_gfx(
             alpha_mode = resolve_alpha_mode(
                 coverage, texel_mode, samples_transparent=True
             )
-        ## Tank / sea-tank env glass shares wall planes with the TEX_EDGE frame.
-        ## Pull XLU walls slightly inward so Godot depth-test matches OPA→XLU order.
-        if (
-            coverage == "xlu"
-            and tex_name
-            and "evw" in tex_name.lower()
-            and unique
-        ):
+        ## Tank / sea-tank env glass + caustics share the TEX_EDGE frame's wall planes.
+        ## Godot's depth test flickers coplanar XLU against the depth-writing MASK
+        ## frame, so pull each XLU wall layer inward by a distinct amount: the frame
+        ## keeps its plane, `evw` sits just inside it, the `water*` caustics inside
+        ## that. Horizontal (`mizu`) surface planes are left alone — scaling them in
+        ## opens a gap at the waterline.
+        _tank_inset = 0.0
+        if coverage == "xlu" and tex_name and unique:
+            low = tex_name.lower()
+            if "evw" in low:
+                _tank_inset = 0.97
+            elif "water1" in low:
+                _tank_inset = 0.955
+            elif "water2" in low or "_mizu2" in low:
+                _tank_inset = 0.94
+        if _tank_inset:
             for vertex in unique:
-                vertex.x *= 0.995
-                vertex.z *= 0.995
+                vertex.x *= _tank_inset
+                vertex.z *= _tank_inset
         ## Always flood when the surface is opaque — ACHD soft fringe at A=250–254
         ## still classifies as OPAQUE texel, and leaving it in the PNG made Godot /
         ## stale BLEND exports draw NPC bodies in front of the scene.

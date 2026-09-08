@@ -28,7 +28,32 @@ func is_sendable() -> bool:
 	return not is_empty() and font == LetterFont.SEND and recipient_id != &""
 
 
+func is_received() -> bool:
+	return font in [
+		LetterFont.RECV, LetterFont.RECV_READ, LetterFont.RECV_PRESENT, LetterFont.RECV_PRESENT_READ
+	]
+
+
+func has_enclosure() -> bool:
+	return present_item_id != &"" and font in [LetterFont.RECV_PRESENT, LetterFont.RECV_PRESENT_READ]
+
+
+## Mark this letter opened (`m_mail` read flag).
+func mark_read() -> void:
+	match font:
+		LetterFont.RECV:
+			font = LetterFont.RECV_READ
+		LetterFont.RECV_PRESENT:
+			font = LetterFont.RECV_PRESENT_READ
+
+
 func label() -> String:
+	if is_received():
+		if sender_name != "":
+			return "From %s" % sender_name
+		if sender_id != &"":
+			return "From %s" % String(sender_id)
+		return "Letter"
 	if recipient_name != "":
 		return "To %s" % recipient_name
 	if recipient_id != &"":

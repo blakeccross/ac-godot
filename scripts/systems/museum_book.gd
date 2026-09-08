@@ -137,6 +137,9 @@ func fill_complete(donator: int = int(Donator.PLAYER1)) -> void:
 
 ## `mMmd_GetDisplayInfo`.
 func display_info_for_item(item: ItemData) -> DisplayInfo:
+	## Redd's forgeries carry the real painting's visual but never enter the collection.
+	if item != null and (String(item.id).begins_with("art_forgery") or bool(item.get_meta("art_forgery", false))):
+		return DisplayInfo.CANNOT_DONATE
 	var mapped: Dictionary = MuseumDisplay.map_item(item)
 	if mapped.is_empty():
 		return DisplayInfo.CANNOT_DONATE
