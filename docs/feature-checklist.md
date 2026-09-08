@@ -153,6 +153,8 @@ data tables before a category is called done.
 ## 10. Inventory, items, catalog
 
 - [~] 15 pocket slots; drag/drop, sort, split stacks, drop to ground (`m_inventory_ovl`) — `inventory_overlay.tscn`, `inventory_chrome.gd`
+- [x] Pockets ↔ Fish/Insect encyclopedia pages (`mIV_PAGE_*`, 8×5 grid, right-edge folder tabs); caught-once registry `SpeciesLog` — `encyclopedia_catalog.gd`, `species_log.gd`
+- [x] Portrait player animations: walk-in-place default + `CHANGE`/`EAT`/`CATCH` one-shots (`mIV_ANIM_*`) — `inventory_overlay.gd`
 - [ ] Wallet (bells) separate; 30,000-bell bag stacks; withdraw/deposit at bank
 - [ ] Item info popup; "throw away" confirmation
 - [ ] **Catalog** of every item you've ever owned/received; order from catalog at Nook's (`m_catalog_ovl`)

@@ -8,9 +8,30 @@ extends CanvasLayer
 const ITEM_SCENE := "res://scenes/world/item_pickup.tscn"
 const PLAYER_GLB := "res://assets/generated/characters/player/boy_1.glb"
 const HND_GLB := "res://assets/generated/characters/other/hnd.glb"
-const HAND_SIZE := 56.0
+const HAND_SIZE := 100.0
+## The ROM UI font (`FONT_nes_tex_font1`, `mFont_SetLineStrings`), same as the
+## dialogue window; Rodin `.otf` is the vector fallback.
+const UI_FONT_PATHS := [
+	"res://assets/generated/ui/message/msg_font.fnt",
+	"res://assets/custom/ui/message/msg_font.fnt",
+	"res://assets/fonts/fot_rodin_pro_db.otf",
+]
 
-enum SideTab { POCKETS, FISH, FACE, BUG }
+## `mIV_PAGE_*` (`m_inventory_ovl.c`): the three horizontally-scrolling pages.
+## FISH ← POCKETS → BUG, flipped with the two right-edge folder tabs or `[` `]`.
+enum SideTab { FISH, POCKETS, BUG }
+const PAGE_ORDER: Array = [SideTab.FISH, SideTab.POCKETS, SideTab.BUG]
+
+## `mIV_ANIM_*` (`m_inventory_ovl.c`): the portrait player marches in place (WALK1)
+## and reacts once to equipping (CHANGE1 + sparkles), eating (EAT1), or opening a
+## collection page (CATCH1 hold), then falls back to WALK.
+enum PortraitAnim { WALK, CHANGE, EAT, CATCH }
+const PORTRAIT_CLIPS := {
+	PortraitAnim.WALK: "ply_1_walk1",
+	PortraitAnim.CHANGE: "ply_1_menu_change1",
+	PortraitAnim.EAT: "ply_1_eat1",
+	PortraitAnim.CATCH: "ply_1_menu_catch1",
+}
 
 const COL_ITEM_RING := Color("70c0ff")
 const COL_ITEM_RING_SEL := Color("a0d8ff")
@@ -40,14 +61,12 @@ const COL_MAIL_FILL := Color(0.35, 0.18, 0.2, 1)
 @onready var _bells_label: TextureRect = %BellsLabel
 @onready var _portrait_frame: TextureRect = %PortraitFrame
 @onready var _portrait_viewport: SubViewport = %SubViewport
-@onready var _tab_pencil: PanelContainer = %TabPencil
-@onready var _tab_fish: PanelContainer = %TabFish
-@onready var _tab_face: PanelContainer = %TabFace
-@onready var _tab_bug: PanelContainer = %TabBug
-@onready var _tab_axe_icon: TextureRect = %TabAxeIcon
-@onready var _tab_fish_icon: TextureRect = %TabFishIcon
-@onready var _tab_scoop_icon: TextureRect = %TabScoopIcon
-@onready var _tab_bug_icon: TextureRect = %TabBugIcon
+## Page tabs — style / position / glyphs are all authored in `inventory_overlay.tscn`
+## (nodes `TabFish` / `TabPockets` / `TabBug` / `TabDesign` under `ChromeLayer`).
+@onready var _tab_fish: Panel = %TabFish
+@onready var _tab_pockets: Panel = %TabPockets
+@onready var _tab_bug: Panel = %TabBug
+@onready var _tab_design: Panel = %TabDesign
 
 var _open: bool = false
 var _focus_mail: bool = false
@@ -68,23 +87,53 @@ var _portrait_ready: bool = false
 var _portrait_pivot: Node3D = null
 var _portrait_anim: AnimationPlayer = null
 var _portrait_equipment_id: StringName = &""
+var _portrait_rest: PortraitAnim = PortraitAnim.WALK
 var _hand_root: Control = null
 var _hand_viewport: SubViewport = null
 var _hand_anim: AnimationPlayer = null
 var _hand_tween: Tween = null
 var _hand_ready: bool = false
 var _open_tween: Tween = null
+## Fish / insect encyclopedia page (`mIV_set_collect_dl`): one 8×5 grid, reused.
+var _collect_root: Control = null
+var _collect_slots: Array[TextureRect] = []
+var _collect_title: Label = null
+var _collect_count: Label = null
+var _pocket_chrome: Array[CanvasItem] = []
+## `m_tag_ovl` verb window (`sen_itemw_*`): frame + shadow + pointer, verbs stacked.
+var _tag_popup: Control = null
+var _tag_frame: PanelContainer = null
+var _tag_rows: VBoxContainer = null
+var _tag_arrow: Polygon2D = null
+var _ui_font: Font = null
 
 
 func _ready() -> void:
 	layer = 20
 	add_to_group("inventory_ui")
+	_load_ui_font()
 	_wire_slot_buttons()
 	_wire_side_tabs()
 	_build_styles()
 	_apply_chrome()
+	_build_encyclopedia_grid()
+	_build_tag_popup()
 	_setup_player_portrait()
 	_setup_hand_cursor()
+	## The GC pockets screen has no bottom text block — the verb window and the
+	## slot cards carry everything. Hide the invented name/desc/hint labels.
+	var detail: Control = _shell_stack.get_node_or_null("Detail") as Control
+	if detail != null:
+		detail.visible = false
+	## All live text uses the ROM font (`mFont`), not the .tscn's Rodin fallback.
+	## `mIV_SetLineStrings_centering`: land name scale 0.875, player name 0.9375 of
+	## an ~18 px cell -> ~16/17 px; wallet digits sit in the `suujiwaku` box.
+	if _player_name != null:
+		_font_label(_player_name, 17, Color(0.27, 0.27, 0.39))
+	if _town_name != null:
+		_font_label(_town_name, 16, Color(0.23, 0.31, 0.43))
+	if _wallet != null:
+		_font_label(_wallet, 18, _wallet.get_theme_color("font_color"))
 	_root.visible = false
 	Game.inventory.changed.connect(_refresh)
 	Game.inventory.selection_changed.connect(_on_selection)
@@ -92,6 +141,21 @@ func _ready() -> void:
 	Game.inventory.wallet_changed.connect(func(_a: int) -> void: _refresh())
 	Game.inventory.equipment_changed.connect(func(_id: StringName) -> void: _refresh())
 	_refresh()
+
+
+func _load_ui_font() -> void:
+	for path: String in UI_FONT_PATHS:
+		if ResourceLoader.exists(path):
+			_ui_font = load(path) as Font
+			if _ui_font != null:
+				return
+
+
+func _font_label(lbl: Label, px: int, col: Color) -> void:
+	if _ui_font != null:
+		lbl.add_theme_font_override("font", _ui_font)
+	lbl.add_theme_font_size_override("font_size", px)
+	lbl.add_theme_color_override("font_color", col)
 
 
 func _wire_slot_buttons() -> void:
@@ -149,99 +213,75 @@ func _set_slot_picture(btn: Button, tex: Texture2D) -> void:
 	icon.visible = tex != null
 
 
+## Small "pull out" when a tab is the active page — toward the paper on the left
+## tab, away on the right ones. Everything else about the tabs is in the .tscn.
+const TAB_ACTIVE_NUDGE := 8.0
+
+var _tab_home: Dictionary = {}
+
+
 func _wire_side_tabs() -> void:
-	## Full-rect slot host must not steal clicks meant for the side tabs.
 	if _slot_layer != null:
 		_slot_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	## Lift tabs above SlotLayer so edge hits are reliable (slots used to cover them).
-	var tab_host: Control = _shell_stack if _shell_stack != null else null
-	var tabs: Array = [
-		[_tab_pencil, SideTab.POCKETS],
-		[_tab_fish, SideTab.FISH],
-		[_tab_face, SideTab.FACE],
-		[_tab_bug, SideTab.BUG],
-	]
-	for entry: Variant in tabs:
-		var panel: PanelContainer = entry[0]
-		var page: SideTab = entry[1]
-		if panel == null:
+	var mid: float = _shell_stack.custom_minimum_size.x * 0.5 if _shell_stack != null else 374.0
+	for entry: Array in [
+		[_tab_fish, SideTab.FISH], [_tab_pockets, SideTab.POCKETS],
+		[_tab_bug, SideTab.BUG], [_tab_design, -1],
+	]:
+		var tab: Panel = entry[0]
+		if tab == null:
 			continue
-		if tab_host != null and panel.get_parent() != tab_host:
-			var local: Vector2 = panel.position
-			panel.reparent(tab_host)
-			panel.position = local
-			panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		panel.mouse_filter = Control.MOUSE_FILTER_STOP
-		panel.z_index = 12
-		panel.gui_input.connect(_on_side_tab_gui.bind(page))
-		panel.pivot_offset = panel.size * 0.5
+		tab.mouse_filter = Control.MOUSE_FILTER_STOP
+		if not tab.gui_input.is_connected(_on_side_tab_gui):
+			tab.gui_input.connect(_on_side_tab_gui.bind(tab))
+		## Home position + which way it slides when active (left tab -> right/into paper).
+		_tab_home[tab] = {
+			"pos": tab.position,
+			"dir": TAB_ACTIVE_NUDGE if tab.position.x < mid else -TAB_ACTIVE_NUDGE,
+			"page": entry[1],
+		}
 
 
-func _on_side_tab_gui(event: InputEvent, page: SideTab) -> void:
+func _on_side_tab_gui(event: InputEvent, tab: Panel) -> void:
 	if not _open:
 		return
-	if event is InputEventMouseButton:
-		var mb := event as InputEventMouseButton
-		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			_select_side_tab(page)
-			get_viewport().set_input_as_handled()
-	elif event is InputEventScreenTouch:
-		var touch := event as InputEventScreenTouch
-		if touch.pressed:
-			_select_side_tab(page)
-			get_viewport().set_input_as_handled()
+	var hit: bool = (
+		(event is InputEventMouseButton and (event as InputEventMouseButton).pressed
+			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT)
+		or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed)
+	)
+	if not hit:
+		return
+	get_viewport().set_input_as_handled()
+	var page: int = _tab_home.get(tab, {}).get("page", SideTab.POCKETS)
+	if page < 0:
+		Audio.play_se(&"cursol")
+		Game.post_notice("The design editor isn't in yet.")
+	else:
+		_select_side_tab(page)
 
 
 func _cycle_side_tab(delta: int) -> void:
-	var order: Array[SideTab] = [SideTab.POCKETS, SideTab.FISH, SideTab.FACE, SideTab.BUG]
-	var cur: SideTab = SideTab.FACE if _focus_mail else _side_tab
-	var idx: int = order.find(cur)
+	var idx: int = PAGE_ORDER.find(_side_tab)
 	if idx < 0:
-		idx = 0
-	var next: SideTab = order[(idx + delta + order.size()) % order.size()]
-	_select_side_tab(next)
+		idx = PAGE_ORDER.find(SideTab.POCKETS)
+	_select_side_tab(PAGE_ORDER[clampi(idx + delta, 0, PAGE_ORDER.size() - 1)])
 
 
 func _select_side_tab(page: SideTab) -> void:
+	if page == _side_tab:
+		return
 	_tag_mode = false
+	_hide_tag_popup()
 	_side_tab = page
-	match page:
-		SideTab.POCKETS:
-			_focus_mail = false
-		SideTab.FACE:
-			## Closest in-scope page: letters on the same pockets paper.
-			_focus_mail = true
-			_side_tab = SideTab.POCKETS
-		SideTab.FISH:
-			Game.post_notice("Fish collection coming soon.")
-		SideTab.BUG:
-			Game.post_notice("Insect collection coming soon.")
-	_pulse_side_tab(page)
+	if page != SideTab.POCKETS:
+		_focus_mail = false
+	Audio.play_se(&"cursol")
+	## `mIV_ANIM_CATCH` on a collection page; WALK back on the pockets.
+	_set_portrait_anim(PortraitAnim.CATCH if page != SideTab.POCKETS else PortraitAnim.WALK)
+	_show_page(page)
 	_refresh()
 	_update_hand_cursor(true)
-
-
-func _pulse_side_tab(page: SideTab) -> void:
-	var panel: PanelContainer = _tab_panel(page)
-	if panel == null:
-		return
-	panel.pivot_offset = panel.size * 0.5
-	var tw := create_tween()
-	tw.tween_property(panel, "scale", Vector2(1.12, 1.12), 0.08)
-	tw.tween_property(panel, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_BACK)
-
-
-func _tab_panel(page: SideTab) -> PanelContainer:
-	match page:
-		SideTab.POCKETS:
-			return _tab_pencil
-		SideTab.FISH:
-			return _tab_fish
-		SideTab.FACE:
-			return _tab_face
-		SideTab.BUG:
-			return _tab_bug
-	return null
 
 
 func _apply_chrome() -> void:
@@ -274,12 +314,6 @@ func _apply_chrome() -> void:
 	if _tex_letter == null:
 		_tex_letter = InventoryChrome.load_tex("letter_envelope")
 
-	## WW side tabs: colored discs + pencil / fish / face / butterfly glyphs.
-	_set_tex(_tab_axe_icon, "tab_pencil")
-	_set_tex(_tab_fish_icon, "tab_fish")
-	_set_tex(_tab_scoop_icon, "tab_face")
-	_set_tex(_tab_bug_icon, "tab_bug")
-	_style_tabs_as_discs()
 
 
 func _setup_player_portrait() -> void:
@@ -310,18 +344,14 @@ func _setup_player_portrait() -> void:
 	fill.position = Vector3(-0.8, 1.4, 1.6)
 	world.add_child(fill)
 
-	## `mIV_set_player` → `mSM_change_view(330, 25, …, angle=0x900, 256²)`.
-	## Distances are post-`Matrix_scale(0.01)` GX (= actor world GX) → meters via GX_TO_METERS.
-	## FOV 20° when width==256; elev = 0x900 short-angle ≈ 12.656°.
-	var look_y: float = 25.0 * FieldCatalog.GX_TO_METERS
-	var eye_dist: float = 330.0 * FieldCatalog.GX_TO_METERS
+	## `mIV_set_player` → `mSM_change_view(330, 25, …, angle=0x900, 256²)`: FOV 20°,
+	## eye 0x900 short-angle (~12.66°) above `y_lookAt`. `eye_dist` / `y_lookAt` are
+	## set from the player AABB below so the framing matches whatever `actor_scale` is.
 	var elev: float = deg_to_rad(360.0 * float(0x900) / 65536.0)
 	var cam := Camera3D.new()
 	cam.current = true
 	cam.fov = 20.0
-	cam.position = Vector3(0.0, look_y + eye_dist * sin(elev), eye_dist * cos(elev))
 	world.add_child(cam)
-	cam.look_at(Vector3(0.0, look_y, 0.0), Vector3.UP)
 
 	if not ResourceLoader.exists(PLAYER_GLB):
 		return
@@ -337,11 +367,36 @@ func _setup_player_portrait() -> void:
 	GeneratedVisual.apply_actor_scale(_portrait_pivot, &"boy_1")
 	GeneratedVisual.apply_preview_materials(_portrait_pivot)
 	GeneratedVisual.stop_autoplay_keep_rest(_portrait_pivot)
-	## Decomp: identity model Y under the 0.01 scale — face the +Z eye.
 	_portrait_pivot.rotation.y = 0.0
 	_portrait_pivot.position = Vector3.ZERO
 	_portrait_anim = GeneratedVisual.find_animation_player(_portrait_pivot)
 	_sync_portrait_equipment(true)
+
+	## Frame head → mid-thigh in the circle (`inv_mwin_3Dma` window): the player fills
+	## ~78% of the RT height, look-at at ~62% of body height.
+	await get_tree().process_frame
+	var aabb := _visual_aabb(_portrait_pivot)
+	var ph: float = maxf(aabb.size.y, 0.1)
+	var look_y: float = aabb.position.y + ph * 0.60
+	var eye_dist: float = (ph / 0.70) / (2.0 * tan(deg_to_rad(10.0)))
+	cam.position = Vector3(0.0, look_y + eye_dist * sin(elev), eye_dist * cos(elev))
+	cam.look_at(Vector3(0.0, look_y, 0.0), Vector3.UP)
+
+
+func _visual_aabb(root: Node3D) -> AABB:
+	var merged := AABB()
+	var first := true
+	for node: Node in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi == null or mi.mesh == null:
+			continue
+		var box: AABB = mi.global_transform * mi.mesh.get_aabb()
+		if first:
+			merged = box
+			first = false
+		else:
+			merged = merged.merge(box)
+	return merged
 
 
 func _setup_hand_cursor() -> void:
@@ -371,7 +426,8 @@ func _setup_hand_cursor() -> void:
 	_hand_viewport = SubViewport.new()
 	_hand_viewport.transparent_bg = true
 	_hand_viewport.own_world_3d = true
-	_hand_viewport.size = Vector2i(160, 160)
+	## Roomy RT so the whole hand + cuff fits the frustum (was cropping the wrist).
+	_hand_viewport.size = Vector2i(224, 224)
 	_hand_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	host.add_child(_hand_viewport)
 
@@ -386,11 +442,11 @@ func _setup_hand_cursor() -> void:
 
 	var cam := Camera3D.new()
 	cam.current = true
-	## Pull back so `hnd_sasu` fits inside the RT without fingertip crop.
-	cam.fov = 32.0
-	cam.position = Vector3(0.0, 0.5, 3.35)
+	## Pull back + a touch wider so the whole hand (finger to cuff) sits inside the RT.
+	cam.fov = 38.0
+	cam.position = Vector3(0.0, 0.5, 4.6)
 	world.add_child(cam)
-	cam.look_at(Vector3(0.0, 0.32, 0.0), Vector3.UP)
+	cam.look_at(Vector3(0.05, 0.28, 0.0), Vector3.UP)
 
 	if not ResourceLoader.exists(HND_GLB):
 		return
@@ -406,7 +462,8 @@ func _setup_hand_cursor() -> void:
 	GeneratedVisual.apply_actor_scale(pivot, &"hnd")
 	GeneratedVisual.apply_preview_materials(pivot)
 	GeneratedVisual.stop_autoplay_keep_rest(pivot)
-	pivot.rotation_degrees = Vector3(12.0, 18.0, 0.0)
+	pivot.scale *= 1
+	pivot.rotation_degrees = Vector3(-30.0, -113.0, 0.0)
 	_hand_anim = GeneratedVisual.find_animation_player(pivot)
 	_play_hand_clip("hnd_sasu", true)
 
@@ -445,7 +502,7 @@ func _selected_slot_button() -> Button:
 func _update_hand_cursor(animate: bool = true) -> void:
 	if _hand_root == null:
 		return
-	var on_pockets: bool = _side_tab == SideTab.POCKETS or _side_tab == SideTab.FACE
+	var on_pockets: bool = _side_tab == SideTab.POCKETS
 	var btn: Button = _selected_slot_button() if on_pockets else null
 	if btn == null or not _open:
 		_hand_root.visible = false
@@ -475,28 +532,210 @@ func _update_hand_cursor(animate: bool = true) -> void:
 		_hand_root.position = target
 
 
+## `mIV_set_collect_dl`: `{ 8, 5, mTG_collect_col_pos, mTG_collect_line_pos }` — one
+## 8×5 grid for all 40 species, no in-page scroll. Built once, retargeted per page.
+func _build_encyclopedia_grid() -> void:
+	if _collect_root != null or _shell_stack == null:
+		return
+	_collect_root = Control.new()
+	_collect_root.name = "EncyclopediaPage"
+	_collect_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_collect_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_collect_root.visible = false
+	_shell_stack.add_child(_collect_root)
+
+	const CELL := 46.0
+	const SEP := 6
+	var grid_w: float = 8.0 * CELL + 7.0 * float(SEP)
+	var left: float = (_shell_stack.custom_minimum_size.x - grid_w) * 0.5
+	var top: float = 174.0
+
+	_collect_title = Label.new()
+	_collect_title.position = Vector2(left, 96.0)
+	_font_label(_collect_title, 26, Color(0.30, 0.24, 0.16))
+	_collect_root.add_child(_collect_title)
+
+	_collect_count = Label.new()
+	_collect_count.position = Vector2(left, 132.0)
+	_font_label(_collect_count, 16, Color(0.42, 0.34, 0.24))
+	_collect_root.add_child(_collect_count)
+
+	var grid := GridContainer.new()
+	grid.columns = 8
+	grid.name = "Grid"
+	grid.position = Vector2(left, top)
+	grid.add_theme_constant_override("h_separation", SEP)
+	grid.add_theme_constant_override("v_separation", SEP)
+	_collect_root.add_child(grid)
+
+	var ring := StyleBoxFlat.new()
+	ring.bg_color = Color(1.0, 0.99, 0.92, 0.45)
+	ring.set_corner_radius_all(999)
+	ring.set_border_width_all(2)
+	ring.border_color = Color(0.66, 0.55, 0.38, 0.6)
+
+	for i: int in EncyclopediaCatalog.COLLECT_NUM:
+		var cell := Panel.new()
+		cell.custom_minimum_size = Vector2(CELL, CELL)
+		cell.add_theme_stylebox_override("panel", ring)
+		grid.add_child(cell)
+		var pic := TextureRect.new()
+		pic.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_KEEP_SIZE, 5)
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(pic)
+		_collect_slots.append(pic)
+
+
+func _populate_encyclopedia(kind: StringName) -> void:
+	if _collect_root == null:
+		return
+	var log: SpeciesLog = Game.species_log
+	_collect_title.text = "Fish" if kind == &"fish" else "Insects"
+	var have: int = log.page_count(kind) if log != null else 0
+	_collect_count.text = "%d / %d" % [have, EncyclopediaCatalog.COLLECT_NUM]
+	for slot: int in _collect_slots.size():
+		var pic: TextureRect = _collect_slots[slot]
+		var id: StringName = EncyclopediaCatalog.id_for(kind, slot)
+		var caught: bool = log != null and log.has(id)
+		pic.texture = InventoryChrome.load_tex(EncyclopediaCatalog.icon_for(kind, slot))
+		## Caught: full colour `inv_mwin_NN` card. Uncaught: a dark silhouette.
+		pic.modulate = Color.WHITE if caught else Color(0.05, 0.06, 0.09, 0.32)
+
+
+## `m_tag_ovl` verb window: `sen_itemw_kage` shadow + `sen_itemw_wakuT` frame +
+## `sen_itemw_yajirushi` pointer, verb strings stacked 16 px apart with a row cursor.
+func _build_tag_popup() -> void:
+	if _tag_popup != null or _shell_stack == null:
+		return
+	_tag_popup = Control.new()
+	_tag_popup.name = "TagPopup"
+	_tag_popup.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tag_popup.z_index = 40
+	_tag_popup.visible = false
+	_shell_stack.add_child(_tag_popup)
+
+	## Base at x=0 (flush to the frame edge), apex at x=-13 (points toward the slot).
+	## `scale.x` flips it to point the other way when the window sits on the left.
+	_tag_arrow = Polygon2D.new()
+	_tag_arrow.color = Color(0.99, 0.96, 0.86, 1.0)
+	_tag_arrow.polygon = PackedVector2Array([Vector2(1, -10), Vector2(-13, 0), Vector2(1, 10)])
+	_tag_popup.add_child(_tag_arrow)
+
+	_tag_frame = PanelContainer.new()
+	_tag_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.99, 0.96, 0.86, 1.0)
+	box.set_corner_radius_all(10)
+	box.set_border_width_all(2)
+	box.border_color = Color(0.62, 0.47, 0.30, 1.0)
+	box.shadow_color = Color(0, 0, 0, 0.22)
+	box.shadow_size = 5
+	box.shadow_offset = Vector2(3, 4)
+	box.content_margin_left = 16
+	box.content_margin_right = 12
+	box.content_margin_top = 8
+	box.content_margin_bottom = 8
+	_tag_frame.add_theme_stylebox_override("panel", box)
+	_tag_popup.add_child(_tag_frame)
+
+	_tag_rows = VBoxContainer.new()
+	_tag_rows.add_theme_constant_override("separation", 3)
+	_tag_frame.add_child(_tag_rows)
+
+
+func _hide_tag_popup() -> void:
+	if _tag_popup != null:
+		_tag_popup.visible = false
+
+
+## Verb list beside the selected slot. `mTG_set_tag_win`: the window sits to the item's
+## right with a left-pointing arrow, flipping left when it would run off the paper.
+func _show_tag_popup() -> void:
+	if _tag_popup == null or _tag_choices.is_empty():
+		_hide_tag_popup()
+		return
+	var btn: Button = _selected_slot_button()
+	if btn == null:
+		_hide_tag_popup()
+		return
+	for child: Node in _tag_rows.get_children():
+		child.queue_free()
+	var cursor := StyleBoxFlat.new()
+	cursor.bg_color = Color(0.90, 0.55, 0.20, 0.30)
+	cursor.set_corner_radius_all(5)
+	cursor.content_margin_left = 6
+	cursor.content_margin_right = 10
+	cursor.content_margin_top = 1
+	cursor.content_margin_bottom = 1
+	var blank := StyleBoxEmpty.new()
+	blank.content_margin_left = 6
+	blank.content_margin_right = 10
+	for i: int in _tag_choices.size():
+		var row := Label.new()
+		row.text = _tag_choices[i]
+		var on: bool = i == _tag_index
+		_font_label(row, 17, Color(0.12, 0.09, 0.05) if on else Color(0.46, 0.40, 0.32))
+		row.add_theme_stylebox_override("normal", cursor if on else blank)
+		_tag_rows.add_child(row)
+	_tag_frame.reset_size()
+	await get_tree().process_frame
+	if _tag_popup == null or not _tag_mode:
+		return
+	var fsize: Vector2 = _tag_frame.get_combined_minimum_size()
+	var slot_c: Vector2 = btn.position + btn.size * 0.5
+	var gap: float = btn.size.x * 0.5 + 20.0
+	var right: bool = slot_c.x + gap + fsize.x < _shell_stack.custom_minimum_size.x - 8.0
+	var fx: float = (slot_c.x + gap) if right else (slot_c.x - gap - fsize.x)
+	var fy: float = clampf(
+		slot_c.y - fsize.y * 0.5, 12.0, _shell_stack.custom_minimum_size.y - fsize.y - 12.0
+	)
+	_tag_frame.position = Vector2(fx, fy)
+	_tag_frame.size = fsize
+	_tag_arrow.position = Vector2(fx if right else fx + fsize.x, slot_c.y)
+	_tag_arrow.scale.x = 1.0 if right else -1.0
+	_tag_popup.visible = true
+
+
+## Toggle the pockets chrome (portrait / bells / labels / slots / mail) against the
+## encyclopedia grid. `mIV_set_normal_dl` draws the former, `mIV_set_collect_dl` the latter.
+func _show_page(page: SideTab) -> void:
+	var pockets: bool = page == SideTab.POCKETS
+	if _pocket_chrome.is_empty():
+		for n: CanvasItem in [
+			_slot_layer, _items_label, _letters_label, _bells_label, _portrait_frame,
+			_town_bar, _player_bar, _town_name, _player_name,
+		]:
+			if n != null:
+				_pocket_chrome.append(n)
+	for n: CanvasItem in _pocket_chrome:
+		n.visible = pockets
+	var pc: Control = _portrait_viewport.get_parent() if _portrait_viewport != null else null
+	if pc != null:
+		pc.visible = pockets
+	if _wallet != null and _wallet.get_parent() is CanvasItem:
+		(_wallet.get_parent() as CanvasItem).visible = pockets
+	if _hand_root != null:
+		_hand_root.visible = pockets and _hand_root.visible
+	if _collect_root != null:
+		_collect_root.visible = not pockets
+		if not pockets:
+			_populate_encyclopedia(&"fish" if page == SideTab.FISH else &"insect")
+
+
 func _refresh_side_tab_visuals() -> void:
-	var active: SideTab = SideTab.POCKETS if _side_tab == SideTab.FACE else _side_tab
-	if _focus_mail and active == SideTab.POCKETS:
-		## Letters focus still on pockets paper — highlight face tab as the letters affordance.
-		pass
-	for page: SideTab in [SideTab.POCKETS, SideTab.FISH, SideTab.FACE, SideTab.BUG]:
-		var panel: PanelContainer = _tab_panel(page)
-		if panel == null:
-			continue
-		var selected: bool = false
-		if page == SideTab.POCKETS and not _focus_mail and (_side_tab == SideTab.POCKETS or _side_tab == SideTab.FACE):
-			selected = true
-		elif page == SideTab.FACE and _focus_mail:
-			selected = true
-		elif page == _side_tab and page != SideTab.POCKETS and page != SideTab.FACE:
-			selected = true
-		panel.modulate = Color(1.15, 1.15, 1.15, 1.0) if selected else Color(0.85, 0.85, 0.85, 1.0)
-		panel.scale = Vector2(1.06, 1.06) if selected else Vector2.ONE
-		panel.pivot_offset = panel.size * 0.5
+	## Active page's tab brightens and slides out a touch from its authored home.
+	for tab: Panel in _tab_home:
+		var home: Dictionary = _tab_home[tab]
+		var on: bool = int(home["page"]) == int(_side_tab)
+		tab.position = home["pos"] + Vector2(float(home["dir"]) if on else 0.0, 0.0)
+		tab.modulate = Color(1.12, 1.12, 1.12) if on else Color(0.86, 0.86, 0.86)
 
 
-## Mirror field equipment: bind held tool mesh + hold/wait pose (`mIV_get_player_item_anime_id`).
+## Mirror field equipment: bind the held tool mesh; the portrait body keeps its
+## `mIV_ANIM_*` clip (WALK by default) and the tool follows the hand joint.
 func _sync_portrait_equipment(force: bool = false) -> void:
 	if _portrait_pivot == null:
 		return
@@ -505,33 +744,45 @@ func _sync_portrait_equipment(force: bool = false) -> void:
 		eq_id = Game.inventory.equipment_id
 	if not force and eq_id == _portrait_equipment_id:
 		return
+	var equip_changed: bool = (not force) and eq_id != _portrait_equipment_id
 	_portrait_equipment_id = eq_id
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_portrait_pivot)
 	HeldTool.unbind(skeleton)
-	var hold_clip := "ply_1_wait1"
-	var tool_hold: StringName = &""
 	var tool: ToolData = ItemCatalog.get_item(eq_id) as ToolData
 	if tool != null and tool.visual_id != &"":
 		HeldTool.bind(skeleton, tool.visual_id)
-		if tool.hold_anim != &"":
-			hold_clip = String(tool.hold_anim)
-		tool_hold = tool.visual_hold_anim
-		HeldTool.play(skeleton, tool_hold, true)
-	_play_portrait_clip(hold_clip)
+		HeldTool.play(skeleton, tool.visual_hold_anim, true)
+	## `mIV_pl_check_anm_change`: an equip swap plays CHANGE1, everything else rests.
+	if equip_changed:
+		_set_portrait_anim(PortraitAnim.CHANGE)
+	else:
+		_set_portrait_anim(_portrait_rest)
 
 
-func _play_portrait_clip(suffix: String) -> void:
-	if _portrait_anim == null or suffix.is_empty():
+## `mIV_ANIM_WALK` loops; CHANGE / EAT play once and fall back to the rest clip;
+## CATCH holds while a collection page is open (`_portrait_rest`).
+func _set_portrait_anim(state: PortraitAnim) -> void:
+	if _portrait_anim == null:
 		return
-	var clip := _resolve_portrait_clip(suffix)
+	if state == PortraitAnim.WALK or state == PortraitAnim.CATCH:
+		_portrait_rest = state
+	var clip := _resolve_portrait_clip(String(PORTRAIT_CLIPS.get(state, "ply_1_walk1")))
 	if clip.is_empty():
-		clip = _resolve_portrait_clip("ply_1_wait1")
+		clip = _resolve_portrait_clip("ply_1_walk1")
 	if clip.is_empty():
 		return
+	var looping: bool = state == PortraitAnim.WALK or state == PortraitAnim.CATCH
 	var animation: Animation = _portrait_anim.get_animation(clip)
 	if animation != null:
-		animation.loop_mode = Animation.LOOP_LINEAR
+		animation.loop_mode = Animation.LOOP_LINEAR if looping else Animation.LOOP_NONE
 	_portrait_anim.play(clip)
+	if not looping:
+		if not _portrait_anim.animation_finished.is_connected(_on_portrait_react_done):
+			_portrait_anim.animation_finished.connect(_on_portrait_react_done, CONNECT_ONE_SHOT)
+
+
+func _on_portrait_react_done(_clip: StringName) -> void:
+	_set_portrait_anim(_portrait_rest)
 
 
 func _resolve_portrait_clip(suffix: String) -> String:
@@ -559,31 +810,6 @@ func _set_tex(node: TextureRect, name: String) -> void:
 		node.visible = false
 
 
-func _style_tabs_as_discs() -> void:
-	## WW tabs: yellow / blue / grey / red discs with glyph icons on top.
-	_ensure_disc_backdrop(_tab_pencil, Color(1.0, 0.85, 0.05, 1.0), _tab_axe_icon)
-	_ensure_disc_backdrop(_tab_fish, Color(0.3, 0.45, 1.0, 1.0), _tab_fish_icon)
-	_ensure_disc_backdrop(_tab_face, Color(0.45, 0.45, 0.48, 1.0), _tab_scoop_icon)
-	_ensure_disc_backdrop(_tab_bug, Color(0.85, 0.18, 0.18, 1.0), _tab_bug_icon)
-
-
-func _ensure_disc_backdrop(panel: PanelContainer, color: Color, icon: TextureRect) -> void:
-	if panel == null:
-		return
-	var disc := StyleBoxFlat.new()
-	disc.bg_color = color
-	disc.set_corner_radius_all(999)
-	disc.content_margin_left = 10
-	disc.content_margin_top = 10
-	disc.content_margin_right = 10
-	disc.content_margin_bottom = 10
-	panel.add_theme_stylebox_override("panel", disc)
-	if icon != null:
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.modulate = Color(0.08, 0.08, 0.1, 1.0) if panel == _tab_pencil else Color(1, 1, 1, 1)
-
-
 func is_open() -> bool:
 	return _open
 
@@ -605,6 +831,8 @@ func open() -> void:
 	_tag_mode = false
 	_focus_mail = false
 	_side_tab = SideTab.POCKETS
+	_portrait_rest = PortraitAnim.WALK
+	_show_page(SideTab.POCKETS)
 	Audio.play_se(&"menu_pause")
 	_root.visible = true
 	_root.modulate = Color(1, 1, 1, 0)
@@ -638,6 +866,7 @@ func close() -> void:
 	Audio.play_se(&"menu_exit")
 	_open = false
 	_tag_mode = false
+	_hide_tag_popup()
 	_focus_mail = false
 	_side_tab = SideTab.POCKETS
 	## Closing the pockets during the intro payment without handing anything over is
@@ -773,6 +1002,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _tag_mode:
 		_handle_tag_input(event)
+		return
+	if _side_tab != SideTab.POCKETS:
+		## Encyclopedia pages are read-only — only page flips and close.
+		if event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
+			_cycle_side_tab(-1)
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("ui_right") or event.is_action_pressed("move_right"):
+			_cycle_side_tab(1)
+			get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
 		if _focus_mail:
@@ -996,6 +1234,9 @@ func _run_tag(tag: String) -> void:
 					Game.first_job.mark_plant_finished()
 					Game.set_interact_prompt("Talk to Tom Nook")
 		_:
+			## `mIV_ANIM_EAT`: eating fruit / food plays EAT1 in the portrait.
+			if tag == "Eat":
+				_set_portrait_anim(PortraitAnim.EAT)
 			var msg: String = inv.use_slot(idx)
 			if msg != "":
 				Game.post_notice(msg)
@@ -1150,20 +1391,12 @@ func _refresh() -> void:
 	_refresh_side_tab_visuals()
 	_refresh_items(inv)
 	_refresh_mail(inv)
-	if _side_tab == SideTab.FISH:
-		_name.text = "Fish"
-		_desc.text = "Fish collection coming soon."
-		_tags.text = ""
-	elif _side_tab == SideTab.BUG:
-		_name.text = "Insects"
-		_desc.text = "Insect collection coming soon."
-		_tags.text = ""
-	elif _focus_mail:
-		_refresh_mail_detail(inv)
-		_refresh_tags_hint("X close  Tab items  [ ] tabs  Arrows move  E write/discard")
+	if _side_tab != SideTab.POCKETS:
+		_populate_encyclopedia(&"fish" if _side_tab == SideTab.FISH else &"insect")
+	if _tag_mode and _side_tab == SideTab.POCKETS and not _tag_choices.is_empty():
+		_show_tag_popup()
 	else:
-		_refresh_item_detail(inv)
-		_refresh_tags_hint("X close  Tab letters  [ ] tabs  Arrows move  E tags")
+		_hide_tag_popup()
 	if _open:
 		_update_hand_cursor(false)
 
@@ -1274,16 +1507,3 @@ func _refresh_mail_detail(inv: Inventory) -> void:
 	else:
 		_name.text = sel.label()
 		_desc.text = sel.preview()
-
-
-func _refresh_tags_hint(default_hint: String) -> void:
-	if _tag_mode and not _tag_choices.is_empty():
-		var lines: PackedStringArray = []
-		for i: int in _tag_choices.size():
-			var prefix: String = ">" if i == _tag_index else " "
-			lines.append("%s %s" % [prefix, _tag_choices[i]])
-		_tags.text = "\n".join(lines)
-		_hint.text = "↑↓ choose  E confirm  Esc back"
-	else:
-		_tags.text = ""
-		_hint.text = default_hint

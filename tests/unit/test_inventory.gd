@@ -98,10 +98,12 @@ func test_inventory_plant_closes_then_putin_or_ground() -> void:
 
 
 func test_inventory_portrait_follows_equipment() -> void:
-	## `mIV_set_player` framing + `mIV_get_player_item_anime_id` held-tool draw.
+	## `mIV_set_player` framing (FOV 20, 0x900 elevation, AABB-fit so it matches
+	## whatever actor scale) + `mIV_get_player_item_anime_id` held-tool draw.
 	var src := FileAccess.get_file_as_string("res://scenes/ui/inventory_overlay.gd")
-	assert_str(src).contains("330.0 * FieldCatalog.GX_TO_METERS")
-	assert_str(src).contains("25.0 * FieldCatalog.GX_TO_METERS")
+	assert_str(src).contains("cam.fov = 20.0")
+	assert_str(src).contains("float(0x900)")
+	assert_str(src).contains("_visual_aabb(_portrait_pivot)")
 	assert_str(src).contains("HeldTool.bind")
 	assert_str(src).contains("_sync_portrait_equipment")
 

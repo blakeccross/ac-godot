@@ -102,6 +102,10 @@ func move_cursor(dx: int, dy: int) -> void:
 func add(item: ItemData, count: int = 1, condition: InventoryItem.Condition = InventoryItem.Condition.NORMAL) -> int:
 	if item == null or item.id == &"" or count <= 0:
 		return count
+	## `mIV_set_collect_itemNo` reads the "obtained once" bitfield — a fish/bug
+	## registers in the encyclopedia the moment it first reaches the pockets.
+	if (item is FishData or item is BugData) and Game != null and Game.species_log != null:
+		Game.species_log.record(item.id)
 	var remaining: int = count
 	var max_stack: int = maxi(1, item.max_stack)
 

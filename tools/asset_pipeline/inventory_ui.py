@@ -196,9 +196,15 @@ CHROME: list[TexSpec] = [
         prim_as_color=(100, 155, 255, 255),
         out_name="portrait_frame",
     ),
-    TexSpec("inv_mwin_shirushi4_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(100, 80, 100, 255)),
-    TexSpec("inv_original_shirushi_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(75, 50, 40, 255)),
+    TexSpec("inv_mwin_shirushi4_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), native_only=True, out_name="tab_face_glyph"),
+    TexSpec("inv_original_shirushi_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), native_only=True, out_name="tab_pencil_glyph"),
     TexSpec("inv_original_shirushi3_tex", 32, 64, G_IM_FMT_IA, G_IM_SIZ_8b),
+    ## Encyclopedia page-tab glyphs (`inv_sakana_shirushiT` / `inv_mushi_shirushiT`
+    ## / `inv_mwin_shirushiT` / `inv_mwin_shirushi3`): a fish, a butterfly, a smiley
+    ## and a pencil. `tab_face_glyph` / `tab_pencil_glyph` above. Baked white so the
+    ## page colour drives `modulate`.
+    TexSpec("inv_mwin_shirushi2_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), native_only=True, out_name="tab_fish_glyph"),
+    TexSpec("inv_mwin_shirushi1_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), native_only=True, out_name="tab_bug_glyph"),
     TexSpec(
         "inv_mwin_sen_tex",
         16,
@@ -233,6 +239,40 @@ CHROME: list[TexSpec] = [
     TexSpec("inv_mwin_potegami_tex", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_otegami_pal", out_name="letter_open_present"),
     TexSpec("inv_mwin_mtegami2_tex", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_mtegami2_pal", out_name="letter_alt"),
     TexSpec("inv_win_mark_tex", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="cursor_mark"),
+]
+
+
+## Fish / insect encyclopedia cards (`mIV_set_collect_dl`, drawn by `inv_item_model`
+## = CI4 32x32 + RGBA16 TLUT). One `inv_mwin_NN{name}_tex` + `_pal` per species; `NN`
+## is the species' `m_name_table` index. Order-independent -- `EncyclopediaCatalog`
+## re-sorts to `mIV_*_collect_list` display order in-game. The generic REL dump had
+## decoded these palette-less (opaque black cards); the CI4 spec keeps index 0 clear.
+_COLLECT_FISH = (
+    "funa masu koi nishiki nigoi ugui namazu oonamazu oikawa tanago dojyou gill bass "
+    "bassm bassl raigyo unagi donko wakasagi ayu yamame niji iwana itou sake kingyo "
+    "demekin gupi angel pirania aroana kaseki zarigani kaeru medaka kurage suzuki tai "
+    "ishidai piraruku"
+).split()
+_COLLECT_BUG = (
+    "monshiro monki kiageha ohmurasaki abura minmin tukutuku higurashi akiakane shiokara "
+    "ginyanma oniyanma koorogi kirigirisu matumushi suzumushi tentou nanahoshi kamakiri "
+    "syouryou tonosama danna hati genji kanabun gomadara tamamushi kabuto hirata nokogiri "
+    "miyama okuwa maimai kera amenbo mino dango kumo ari ka"
+).split()
+COLLECT_ICONS: list[TexSpec] = [
+    TexSpec(
+        f"inv_mwin_{i:02d}{name}_tex",
+        32,
+        32,
+        G_IM_FMT_CI,
+        G_IM_SIZ_4b,
+        f"inv_mwin_{i:02d}{name}_pal",
+        ## 32x32 CI4 pixel art -- an ACHD hash hit here would swap in the wrong
+        ## species. Keep native; Godot's nearest filter scales it cleanly.
+        native_only=True,
+    )
+    for names in (_COLLECT_FISH, _COLLECT_BUG)
+    for i, name in enumerate(names, 1)
 ]
 
 
@@ -303,6 +343,10 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
                 achd=achd,
             )
             results.append(red)
+
+    for spec in COLLECT_ICONS:
+        record = _extract_one(rel, by_name, spec, stage_dir, out_dir, project_root, achd=achd)
+        results.append(record)
 
     paper = _copy_default_paper(cfg, stage_dir, out_dir)
     if paper is not None:

@@ -44,6 +44,7 @@ var relationships: RelationshipBook = RelationshipBook.new()
 var interiors: InteriorBook = InteriorBook.new()
 var shops: ShopBook = ShopBook.new()
 var museum: MuseumBook = MuseumBook.new()
+var species_log: SpeciesLog = SpeciesLog.new()
 var police: PoliceBook = PoliceBook.new()
 var post: PostBook = PostBook.new()
 var farway: FarwayBook = FarwayBook.new()
@@ -403,6 +404,10 @@ func reset_session() -> void:
 		museum = MuseumBook.new()
 	else:
 		museum.clear()
+	if species_log == null:
+		species_log = SpeciesLog.new()
+	else:
+		species_log.clear()
 	if police == null:
 		police = PoliceBook.new()
 	else:
@@ -651,6 +656,7 @@ func to_save() -> Dictionary:
 		"interiors": interiors.to_save(),
 		"shops": shops.to_save(),
 		"museum": museum.to_save(),
+		"species_log": species_log.to_save(),
 		"police": police.to_save(),
 		"post": post.to_save(),
 		"farway": farway.to_save(),
@@ -733,6 +739,9 @@ func apply_snapshot(data: Dictionary) -> void:
 	if museum == null:
 		museum = MuseumBook.new()
 	museum.apply_snapshot(data.get("museum", {}))
+	if species_log == null:
+		species_log = SpeciesLog.new()
+	species_log.apply_snapshot(data.get("species_log", {}))
 	if police == null:
 		police = PoliceBook.new()
 	police.apply_snapshot(data.get("police", {}))

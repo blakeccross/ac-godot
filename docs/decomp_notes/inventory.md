@@ -33,6 +33,14 @@ Letters are a parallel inventory: **10** `Mail_c` slots (`mPr_INVENTORY_MAIL_COU
 
 The overlay can show eat / catch animations (`mIV_ANIM_*`) when using food or displaying a catch.
 
+**Pages** (`mIV_PAGE_*`, `page_order[3]`): `FISH_COLLECTION` ← `INVENTORY` → `INSECT_COLLECTION`. `page_move_timer` slides them **vertically** (`y = 100·sin`). Switched with the shoulder buttons (`mTG_move_change` → `mTG_TABLE_WCHANGE` picker on R) or by clicking the **edge tabs**: `inv_sakana_waku2T` (blue fish, top-right, on the fish page), `inv_mwin_shirushiT` (grey smiley = pockets, mid-right), `inv_mushi_waku2T` (red butterfly, bottom-right, on the bug page), `inv_mwin_shirushi2T` (yellow pencil = `inv_original` design editor, mid-left). The right three peek in from the vertically-stacked adjacent pages. Tab body is a rounded quad tinted per-page (`SetPrimColor`); the glyph is `inv_mwin_shirushi2`/`_1`/`_4` + `inv_original_shirushi` (I4, `prim_as_color`). `inv_mwin_gturi`/`gmushi`/`gscoop`/`gono` are the *tool slot* icons (`tool_tex_table`), unrelated. Each collection page is one **8×5 grid** (`mTG_TABLE_COLLECT` = `{8, 5, mTG_collect_col_pos, mTG_collect_line_pos}`) of all 40 species from `mIV_fish_collect_list` / `mIV_insect_collect_list`; caught species (`furniture_collected_bitfield`, distinct from museum-donated) show the `inv_mwin_NN{name}` card, the rest a silhouette.
+
+**Verb window** (`m_tag_ovl`, `mTG_TABLE_ITEM`): `sen_itemw_kage` shadow + `sen_itemw_wakuT` frame + `sen_itemw_yajirushi` pointer at the slot, verb strings stacked 16 px apart with `sen_win_cursor` on the selected row. Sits to the item's right, flips left near the edge. Colors from `p_col_table`/`e_col_table` per verb family.
+
+**Portrait `mIV_ANIM_*`** (`player_main_animation_index_table`): `WALK` = `mPlayer_ANIM_WALK1` marching in place (default, 0.5× speed, in-place cycle — no root motion); `CHANGE` = `MENU_CHANGE1` + sparkle swirl on equip; `EAT` = `EAT1` (SE at frame 17); `CATCH` = `MENU_CATCH1` hold while a collection page is open. One-shots fall back to `WALK`. The player also layer-holds the equipped item (`player_item_anime_idx`).
+
+Godot: `SpeciesLog` on `Game` (caught-once set, saved as `species_log`) + `EncyclopediaCatalog` (the two 40-long ordered lists + icon stems). `Inventory.add` registers a `FishData`/`BugData` the moment it lands. `inventory_overlay.gd` `SideTab {FISH, POCKETS, BUG}` + `_build_encyclopedia_grid` / `_show_page` / `PortraitAnim`.
+
 ## Important states
 
 - 15 item ids + 15 conditions.
@@ -82,8 +90,7 @@ The overlay can show eat / catch animations (`mIV_ANIM_*`) when using food or di
 ## Simplify
 
 - Skip catalog orders, foreign maps, original designs.
-- Skip inventory paper shirt and 3D player preview in the menu.
-- Skip fish/insect **pages** until those systems exist; a list or bitset is enough.
+- Skip inventory paper shirt in the menu.
 - Mail inventory is in (10 slots, 2×5 on the same paper as items; Tab switches focus). Full stationery editor deferred — write uses preset bodies.
 - Loan on `Inventory.loan`; repay at the post office when owing. Savings deposit/withdraw when loan is clear.
 - No 2-bit pack; store condition as an enum on `InventoryItem`.
@@ -162,7 +169,7 @@ CI4 + palette pairs used as the right-edge page icons (fish / face / butterfly i
 - `inv_mwin_gscoop_tex` + `inv_mwin_gscoop_pal` — scoop
 - `inv_mwin_gono_tex` + `inv_mwin_gono_pal` — axe / “ono”
 
-Fish / insect **full page** shells: `inv_sakana_model` / `inv_mushi_model` (+ `*_part_model`, `*_scroll_mode`). Per-species icons: `inv_mwin_01funa_tex`, `inv_mwin_01monshiro_tex`, … in `inv_mwin2.c` / `inv_mwin3.c` / etc.
+Fish / insect **full page** shells: `inv_sakana_model` / `inv_mushi_model` (+ `*_part_model`, `*_scroll_mode`). Per-species cards: `inv_mwin_NN{name}_tex` + `_pal` (CI4 32×32, RGBA16 TLUT, index 0 clear) in `inv_mwin2.c`…`inv_mwin16.c` — `NN` is the species' `m_name_table` index. Pipeline: `inventory_ui.py` `COLLECT_ICONS` → `ui/inventory/`.
 
 ### Items in slots + hand cursor
 
