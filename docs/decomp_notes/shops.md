@@ -2,7 +2,9 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — not every store is in scope.
 
-**Godot:** `ShopBook` (`RefCounted` on `Game`, not an autoload). Nook (`shop0`) buy and sell; Able Sisters (`needlework`) buy-only. Listed price is `ItemData.buy_price` (or `sell_price` if buy is 0). Nook pays fruit/fish/bugs at authored `sell_price`; everything else is listed / 4 (`SELL_BUY_RATIO`). Cranny stock follows zakka counts (tools×2, furniture, wall, carpet, cloth, sapling, plants×2; paper deferred). Able stock is four shirts. Lineup rerolls at 06:00 (`Clock.field_renewed`). Wallet is `Inventory.wallet`.
+**Godot:** `ShopBook` (`RefCounted` on `Game`, not an autoload). Only Nook (`shop0`) is a Bell shop — buy and sell. Listed price is `ItemData.buy_price` (or `sell_price` if buy is 0). Nook pays fruit/fish/bugs at authored `sell_price`; everything else is listed / 4 (`SELL_BUY_RATIO`). Cranny stock follows zakka counts (tools×2, furniture, wall, carpet, cloth, sapling, plants×2; paper deferred). Lineup rerolls at 06:00 (`Clock.field_renewed`). Wallet is `Inventory.wallet`.
+
+**Able Sisters (`needlework`) is NOT a clothing store.** `SCENE_NEEDLEWORK` is a design/pattern shop (`src/game/m_needlework.c`, `ac_needlework_indoor.c`, `ac_npc_needlework`). `ShopBook._roll(ABLE_ID)` returns `[]` — no Bell stock, no counter. The player keeps 8 original designs (`Game.designs` = `DesignBook`), the shop 8 shared ones (4 mannequins + 4 umbrella stands). Designs are made in the pixel editor (350 Bells for a new one) and traded through Mabel. See `docs/decomp_notes/needlework.md` (TODO) and the plan `proud-rolling-newt.md`.
 
 **Cranny presentation (`ShopDisplay` + authored `shop0.tscn`):**
 - Shells `rom_shop1f` / `rom_shop1w` (and `rom_shop2f`/`w`, `rom_shop3f`/`w`, `rom_shop4_2f`/`w`); the `f`/`w` suffix is floor/wall. Wall/floor bank indices follow `aSI_*_default_table` (`WALL_SHOP*` / `FLOOR_SHOP*` → 67–70).
@@ -11,7 +13,7 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 - Shelf goods sit at **21 GX** (`CRANNY_SHELF_Y_GX`) on shell tables; freestanding FTR / mannequin / umbrella stay on the floor.
 - Wall clock `obj_clock_shop1`…`4` at GX `(200,40,40)` (`aHC_position_data`).
 - `rom_shop*` shells keep the acre origin (like museum) so FG RSV ut cells line up with `cell_to_world`.
-- Indoor Able still uses `shop_counter`; Nook shops use Tom Nook instead of a counter actor.
+- Nook shops use Tom Nook instead of a counter actor. Able Sisters has no counter — `InteriorBuilder.add_needlework_set` places 4 mannequins + 4 umbrella stands (`able_fixture.tscn`), the sewing machine (`obj_misin`), Mabel (`hgh_1`), and Sable (`hgs_1`).
 
 Hours stay on `InteriorCatalog.is_open_now`. Nook upgrades by sales → `shop0`…`shop3_1` rooms, outdoor `obj_s_shop1`…`4`, and Tom Nook `rcn`/`rcc`/`rcs`/`rcd`.
 

@@ -46,8 +46,9 @@ func test_outdoor_enter_facings_are_north() -> void:
 	assert_that(ShopDisplay.CRANNY_SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
 	assert_that(InteriorCatalog.ABLE_SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
 	assert_that(MuseumDisplay.ENTRANCE_SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
-	assert_vector(InteriorCatalog.ABLE_SPAWN_GX).is_equal(ShopDisplay.CRANNY_SPAWN_GX)
+	## Nook / post / police / Able all share the `{160,0,300}` door data.
 	assert_vector(PostDisplay.SPAWN_GX).is_equal(ShopDisplay.CRANNY_SPAWN_GX)
+	assert_vector(InteriorCatalog.ABLE_SPAWN_GX).is_equal(ShopDisplay.CRANNY_SPAWN_GX)
 
 
 func test_post_girl_day_night_species() -> void:

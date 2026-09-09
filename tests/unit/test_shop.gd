@@ -85,18 +85,11 @@ func test_nook_sells_quarter_able_does_not_buy() -> void:
 	assert_str(Game.shops.sell(ShopBook.NOOK_ID, &"wood_chair", Game.inventory, 1)).contains("80")
 
 
-func test_able_stock_is_shirts_and_buy_works() -> void:
-	Game.inventory.set_wallet(2000)
+func test_able_holds_no_bell_stock() -> void:
+	## `SCENE_NEEDLEWORK` is a design/pattern shop — designs are traded through Mabel,
+	## nothing is sold for Bells (`ac_npc_needlework`, `m_needlework.c`).
 	Game.shops.ensure_today(ShopBook.ABLE_ID)
-	var listed: Array[StringName] = Game.shops.goods(ShopBook.ABLE_ID)
-	assert_int(listed.size()).is_equal(4)
-	for item_id: StringName in listed:
-		var data: ItemData = ItemCatalog.get_item(item_id)
-		assert_that(data.category).is_equal(ItemData.Category.CLOTH)
-	var first: StringName = listed[0]
-	assert_str(Game.shops.buy(ShopBook.ABLE_ID, first, Game.inventory)).contains("Bought")
-	assert_int(Game.shops.goods(ShopBook.ABLE_ID).size()).is_equal(3)
-	assert_int(Game.inventory.count_of(first)).is_equal(1)
+	assert_int(Game.shops.goods(ShopBook.ABLE_ID).size()).is_equal(0)
 	assert_bool(Game.shops.allows_sell(ShopBook.ABLE_ID)).is_false()
 	assert_bool(Game.shops.allows_sell(ShopBook.NOOK_ID)).is_true()
 
@@ -137,7 +130,8 @@ func test_shop_id_from_room_kind() -> void:
 	assert_bool(Game.shops.is_shop_room(nook)).is_true()
 	assert_bool(Game.shops.is_shop_room(able)).is_true()
 	assert_int(nook.placements.size()).is_equal(0)
-	assert_int(able.placements.size()).is_equal(1)
+	## Able's table / machine / register are baked into the shell — no placements.
+	assert_int(able.placements.size()).is_equal(0)
 	assert_bool(able.shell_ids.has("rom_tailor")).is_true()
 	assert_that(nook.wall_id).is_equal(ShopDisplay.nook_wall_id(0))
 	assert_that(nook.floor_id).is_equal(ShopDisplay.nook_floor_id(0))

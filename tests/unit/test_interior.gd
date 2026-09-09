@@ -77,7 +77,8 @@ func test_catalog_covers_every_gc_interior() -> void:
 	assert_bool(InteriorCatalog.room_template(&"shop0").shell_ids.has("rom_shop1f")).is_true()
 	assert_int(InteriorCatalog.room_template(&"shop0").placements.size()).is_equal(0)
 	assert_bool(InteriorCatalog.room_template(&"needlework").shell_ids.has("rom_tailor")).is_true()
-	assert_int(InteriorCatalog.room_template(&"needlework").placements.size()).is_equal(1)
+	## Able's table / machine / register are baked into the `rom_tailor` shell.
+	assert_int(InteriorCatalog.room_template(&"needlework").placements.size()).is_equal(0)
 
 
 func test_npc_room_uses_fg_furniture() -> void:

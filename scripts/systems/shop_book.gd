@@ -251,7 +251,9 @@ func _roll(shop_id: StringName, rng: RandomNumberGenerator) -> Array[StringName]
 	## Zakka counts (`l_zakka_goods`): tools2, ftr1, wall1, carpet1, cloth1,
 	## sapling1, plants2. Stationery (paper1) waits on catalog items.
 	if shop_id == ABLE_ID:
-		return _pick(_cloth_pool(), 4, rng)
+		## Able Sisters is a design/pattern shop, not a clothing store — it holds no
+		## Bell-priced stock. Designs are traded through Mabel (`ac_npc_needlework`).
+		return [] as Array[StringName]
 	var out: Array[StringName] = []
 	out.append_array(_pick(_tool_pool(), 2, rng))
 	out.append_array(_pick(_furniture_pool(), 1, rng))

@@ -282,6 +282,17 @@ TEST_STATIC = [
         "confident_name": True,
     },
     {
+        ## Able Sisters umbrella-stand mesh (`obj_shop_umbmy_model`, `ac_needlework_indoor.c`
+        ## / `ac_myfumbrella.c`) — a second DL inside `obj_shop_umb01.c` on its own
+        ## `obj_shop_umb_w_v` verts, so prefix inference never pairs it. Canopy binds the
+        ## `ANIME_1/2` design segments.
+        "asset_id": "obj_shop_umbmy",
+        "vtx": "obj_shop_umb_w_v",
+        "gfx": ["obj_shop_umbmy_model"],
+        "output": "environment/obj_shop_umbmy.glb",
+        "confident_name": True,
+    },
+    {
         "asset_id": "obj_hole0",
         "vtx": "obj_hole0_v",
         "gfx": ["obj_hole0T_gfx_model"],

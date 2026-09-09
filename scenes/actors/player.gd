@@ -80,6 +80,8 @@ func _ready() -> void:
 	_try_load_generated_visual()
 	if Game != null and not Game.cloth_changed.is_connected(_on_cloth_changed):
 		Game.cloth_changed.connect(_on_cloth_changed)
+	if Game != null and not Game.design_changed.is_connected(_on_design_changed):
+		Game.design_changed.connect(_on_design_changed)
 	_apply_worn_cloth()
 	Game.inventory.equipment_changed.connect(_on_equipment_changed)
 	_on_equipment_changed(Game.inventory.equipment_id)
@@ -1133,9 +1135,19 @@ func _on_cloth_changed(_cloth_id: StringName) -> void:
 	_apply_worn_cloth()
 
 
+func _on_design_changed() -> void:
+	_apply_worn_cloth()
+
+
 func _apply_worn_cloth() -> void:
 	if Game == null or _mesh == null:
 		return
+	## Custom original design worn as a shirt (`cloth.idx >= CLOTH_NUM+1`).
+	if Game.worn_design_slot >= 0 and Game.designs != null:
+		var design: DesignPattern = Game.designs.resolved(Game.worn_design_slot)
+		if design != null:
+			GeneratedVisual.apply_design(_mesh, DesignTexture.build(design))
+			return
 	var data: ItemData = ItemCatalog.get_item(Game.cloth_id)
 	var index: int = data.cloth_index if data != null else -1
 	if index < 0 and Game.cloth_id != &"":

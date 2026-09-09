@@ -19,6 +19,10 @@ const NPC_HOUSE_DOOR_CELL := Vector2i(3, 8)
 const NPC_HOUSE_SPAWN_CELL := Vector2i(3, 7)
 const NPC_HOUSE_SPAWN_GX := Vector3(160.0, 0.0, 300.0)
 ## Able Sisters outdoor enter (`aNW_needlework_shop_door_data`): same stand / NORTH.
+## `aNW_needlework_shop_door_data` GX {160,0,300}, orient 4 (north) — you enter AND
+## leave at the door. `rom_tailor.col.json` (16×16 units @ 40 GX) puts this on the
+## porch cell (4,7); `block_auto_enter_doors` keeps you from re-exiting until you
+## step off it into the shop.
 const ABLE_SPAWN_GX := Vector3(160.0, 0.0, 300.0)
 const ABLE_SPAWN_FACING := WorldGrid.Facing.NORTH
 ## Small player main (`l_proom_s_tmp`, `rom_myhome1_*`): 4×4 walkable, same NW origin.
@@ -588,13 +592,22 @@ static func _register_public() -> void:
 	snow.shell_ids = PackedStringArray(["rom_kamakura"])
 	_put_room(snow)
 	## Able: closed 02:00–07:00 (`aNW_check_opend`); open 7→2 wraps past midnight.
+	## `rom_tailor` keeps the acre origin. `rom_tailor.col.json`: the walkable room is
+	## FG cells x∈[1,9) z∈[1,7) (matches the shell floor, world x[-14,2] z[-14,-2]),
+	## with a door porch at cells (4-5, 7-8) — the `rom_tailor_ent` mat, world
+	## x[-8,-4] z[-2,0]. `ac_needlework_indoor.c` GX (mannequins z=100, stands z=180)
+	## maps straight through `gx_to_world`.
 	var needle := _public(
-		&"needlework", Room.Kind.NEEDLEWORK, "Able Sisters", Vector2i(4, 4), Vector2i(8, 8), 7, 2
+		&"needlework", Room.Kind.NEEDLEWORK, "Able Sisters", Vector2i(1, 1), Vector2i(8, 6), 7, 2
 	)
 	needle.wall_id = &""
 	needle.floor_id = &""
 	needle.shell_ids = PackedStringArray(["rom_tailor"])
-	_add_ftr(needle, &"wood_table", Vector2i(6, 7), WorldGrid.Facing.SOUTH)
+	## Exit at the door: `rom_tailor.col.json` porch cells (4-5, 7-8). The player
+	## spawns here too (`ABLE_SPAWN_GX` → cell (4,7)) and walks north into the shop.
+	needle.door_cell = Vector2i(4, 7)
+	needle.spawn_cell = Vector2i(4, 6)
+	## The table / sewing machine / register / boxes are baked into the shell.
 	_put_room(needle)
 	_put_room(
 		_make(&"lighthouse", Room.Kind.LIGHTHOUSE, "Lighthouse", Vector2i(6, 6), Vector2i(4, 4), {"floor": FLOOR_STONE})

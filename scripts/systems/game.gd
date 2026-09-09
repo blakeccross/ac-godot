@@ -33,6 +33,7 @@ signal prompt_changed(text: String)
 signal notice_posted(text: String)
 signal weather_changed(weather: StringName)
 signal cloth_changed(cloth_id: StringName)
+signal design_changed
 
 const DEFAULT_PLAYER_NAME := "Player"
 const DEFAULT_TOWN_NAME := "Town"
@@ -49,6 +50,7 @@ var police: PoliceBook = PoliceBook.new()
 var post: PostBook = PostBook.new()
 var farway: FarwayBook = FarwayBook.new()
 var redd: ReddBook = ReddBook.new()
+var designs: DesignBook = DesignBook.new()
 var first_job: FirstJob = FirstJob.new()
 var current_room_id: StringName = &""
 var outdoor_return: Vector3 = DEFAULT_SPAWN
@@ -71,6 +73,8 @@ var player_gender: StringName = DEFAULT_PLAYER_GENDER
 var player_face: int = 0
 ## Worn shirt (`Private_c.cloth.item`). Default `ITM_CLOTH001`.
 var cloth_id: StringName = FirstJob.DEFAULT_CLOTH_ID
+## Worn original design display slot (`cloth.idx >= CLOTH_NUM+1`). -1 = normal shirt.
+var worn_design_slot: int = -1
 ## Town map unlocked after first-job furniture delivery (`Common.map_flag`).
 var has_map: bool = false
 ## Session weather (`mEnv_WEATHER_*`). Rolled by `Weather` on `field_renewed`.
@@ -468,6 +472,11 @@ func reset_session() -> void:
 		redd = ReddBook.new()
 	else:
 		redd.clear()
+	if designs == null:
+		designs = DesignBook.new()
+	else:
+		designs.clear()
+	worn_design_slot = -1
 	set_interact_prompt("")
 
 
@@ -661,6 +670,8 @@ func to_save() -> Dictionary:
 		"post": post.to_save(),
 		"farway": farway.to_save(),
 		"redd": redd.to_save(),
+		"designs": designs.to_save(),
+		"worn_design_slot": worn_design_slot,
 		"current_room_id": String(current_room_id),
 		"outdoor_return": {
 			"x": outdoor_return.x,
@@ -754,6 +765,10 @@ func apply_snapshot(data: Dictionary) -> void:
 	if redd == null:
 		redd = ReddBook.new()
 	redd.apply_snapshot(data.get("redd", {}))
+	if designs == null:
+		designs = DesignBook.new()
+	designs.apply_snapshot(data.get("designs", {}))
+	worn_design_slot = int(data.get("worn_design_slot", -1))
 	current_room_id = StringName(str(data.get("current_room_id", "")))
 	var outdoor: Variant = data.get("outdoor_return", {})
 	if typeof(outdoor) == TYPE_DICTIONARY:
@@ -867,6 +882,7 @@ func try_enter_interior(
 		spawn_at_room_door = false
 	elif room_id == &"needlework":
 		## `aNW_needlework_shop_door_data` GX {160,0,300}, orient 4 = north.
+		## `rom_tailor` keeps the acre origin so this maps like the Nook shops.
 		interior_spawn_gx = InteriorCatalog.ABLE_SPAWN_GX
 		interior_spawn_yaw = WorldGrid.yaw_for_facing(InteriorCatalog.ABLE_SPAWN_FACING)
 		has_interior_spawn = true

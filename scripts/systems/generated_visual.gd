@@ -423,6 +423,43 @@ static func apply_cloth(host: Node, cloth_index: int) -> void:
 	_paint_cloth(host, tex)
 
 
+## Paint a custom original design (32x32, `DesignTexture.build`) onto a shirt /
+## mannequin / umbrella mesh. Decomp binds the CI4 texture + preset palette to the
+## `ANIME_1/2_TXT_SEG` slots (`ac_needlework_indoor.c`, `m_player_lib.c:1060`).
+static func apply_design(host: Node, tex: Texture2D) -> void:
+	if host == null or tex == null:
+		return
+	_paint_cloth(host, tex)
+
+
+## Force `tex` as the albedo of every surface whose name/material contains one of
+## `name_parts` (case-insensitive). Used for the umbrella-stand canopy, whose mesh
+## has no cloth-labelled surface (`obj_shop_umbmy` isn't converted yet).
+static func paint_surface_albedo(node: Node, tex: Texture2D, name_parts: PackedStringArray) -> void:
+	if node == null or tex == null:
+		return
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		var count: int = mi.mesh.get_surface_count() if mi.mesh != null else 0
+		for i in count:
+			var label := _surface_label(mi, i, mi.get_active_material(i))
+			var hit := false
+			for part in name_parts:
+				if label.contains(part.to_lower()):
+					hit = true
+					break
+			if not hit:
+				continue
+			var std := StandardMaterial3D.new()
+			std.albedo_texture = tex
+			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			std.cull_mode = BaseMaterial3D.CULL_DISABLED
+			std.roughness = 1.0
+			mi.set_surface_override_material(i, std)
+	for child in node.get_children():
+		paint_surface_albedo(child, tex, name_parts)
+
+
 static func attach_interior(
 	host: Node3D, shell_ids: PackedStringArray, wall_id: StringName, floor_id: StringName, target: AABB
 ) -> Node3D:
@@ -703,6 +740,7 @@ static func _shell_keeps_acre_origin(visual_id: StringName) -> bool:
 	return (
 		id.begins_with("rom_museum")
 		or id.begins_with("rom_shop")
+		or id == "rom_tailor"
 		or id == "police_indoor"
 		or id == "grd_post_office"
 	)
