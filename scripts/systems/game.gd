@@ -1296,6 +1296,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			or _group_is_open("shop_ui")
 			or _group_is_open("map_ui")
 			or _group_is_open("debug_console_ui")
+			or _group_is_open("design_ui")
+			or _group_is_open("design_list_ui")
+			or _group_is_open("name_entry_ui")
 		):
 			return
 		return_to_title()

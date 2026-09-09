@@ -16,7 +16,7 @@ const FOLLOW_RANGE := 6.0
 const STOP_RANGE := 1.9
 const MOVE_SPEED := 2.4  ## `aNPC_ACT_RUN`
 
-enum Pending { NONE, DESIGN, BOOK, TREND, LISTEN, GBA, TRADE }
+enum Pending { NONE, DESIGN, BOOK, TREND, LISTEN, GBA, TRADE, TRADE_PICK }
 enum Roam { IDLE, APPROACH }
 
 var _model: Node3D
@@ -26,7 +26,14 @@ var _talking: bool = false
 var _talked_today: bool = false
 var _clip: String = ""
 var _pending: Pending = Pending.NONE
-var _trade_slot: int = -1
+## Shop display slot the player pressed A at (0-3 cloth, 4-7 umbrella).
+var _trade_fixture: int = -1
+## The chosen trade action: "display" / "buy" / "exchange".
+var _trade_act: String = ""
+## The player design slot being edited / named.
+var _edit_slot: int = -1
+## Sequential dialogue queue (sister cutscene, multi-part trend report).
+var _line_queue: Array = []
 var _active_ui: Node = null
 var _rng := RandomNumberGenerator.new()
 var _roam: Roam = Roam.IDLE
@@ -123,13 +130,20 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 
 
 ## Called by an `able_fixture` when the player presses A at a mannequin / umbrella
-## stand (decomp `player_buy` sets `buy_ut_idx`, then talks to Mabel).
+## stand (decomp `player_buy` sets `buy_ut_idx`, then talks to Mabel →
+## `aNNW_TALK_TRADE_CHECK`). `slot` is the shop display slot (0-3 cloth, 4-7 umbrella).
 func begin_trade(slot: int, ctx: InteractionContext) -> bool:
-	_trade_slot = slot
-	var ok := _begin_talk(ctx)
-	## Route straight into the trade branch after the greeting.
-	_pending = Pending.TRADE
-	return ok
+	if Game == null or Game.designs == null:
+		return false
+	_trade_fixture = slot
+	_pending = Pending.NONE
+	var listener: Node3D = ctx.actor as Node3D if ctx != null else _player_node()
+	_face_toward(listener.global_position if listener != null else global_position)
+	_talked_today = true
+	## Decomp `player_buy` talks with `talk_idx = aNNW_TALK_TRADE_CHECK` — straight
+	## to the display menu, no 6-way.
+	_flow_trade_menu()
+	return true
 
 
 func _begin_talk(ctx: InteractionContext) -> bool:
@@ -183,14 +197,17 @@ func _bind_end(ui: Node) -> void:
 
 
 func _on_dialogue_event(event: Dictionary) -> void:
-	if str(event.get("op", "")) != "needlework_menu":
-		return
-	match str(event.get("choice", "")):
-		"design": _pending = Pending.DESIGN
-		"book": _pending = Pending.BOOK
-		"trend": _pending = Pending.TREND
-		"listen": _pending = Pending.LISTEN
-		"gba": _pending = Pending.GBA
+	match str(event.get("op", "")):
+		"needlework_menu":
+			match str(event.get("choice", "")):
+				"design": _pending = Pending.DESIGN
+				"book": _pending = Pending.BOOK
+				"trend": _pending = Pending.TREND
+				"listen": _pending = Pending.LISTEN
+				"gba": _pending = Pending.GBA
+		"needlework_trade":
+			_trade_act = str(event.get("act", ""))
+			_pending = Pending.TRADE_PICK
 
 
 func _on_talk_closed() -> void:
@@ -208,17 +225,22 @@ func _on_talk_closed() -> void:
 		Pending.TREND: _flow_trend()
 		Pending.LISTEN: _flow_listen()
 		Pending.GBA: _flow_gba()
-		Pending.TRADE: _flow_trade()
-		_: _trade_slot = -1
+		Pending.TRADE: _flow_trade_menu()
+		Pending.TRADE_PICK: _flow_trade_pick()
+		_:
+			_trade_fixture = -1
+			_trade_act = ""
 
 
 # --- sub-flows --------------------------------------------------------------
 
+## `aNNW_talk_design_check` → `DESIGN_WHICH` → `DESIGN_OPEN` (`mSM_OVL_NEEDLEWORK`,
+## `mNW_OPEN_DESIGN`) → editor → `DESIGN_OPEN3` (`mSM_OVL_LEDIT` name entry).
 func _flow_make_design() -> void:
-	if Game.inventory != null and Game.inventory.wallet < NeedleworkTalk.DESIGN_PRICE:
-		_say_msg(NeedleworkTalk.MSG_DESIGN_NO_MONEY)
+	if Game.inventory != null and _wallet() < NeedleworkTalk.DESIGN_PRICE:
+		_say_line("A new design is %d Bells, and it looks like you're a little short. Come back soon!" % NeedleworkTalk.DESIGN_PRICE)
 		return
-	var list_ui: Node = get_tree().get_first_node_in_group("design_list_ui") if get_tree() != null else null
+	var list_ui: Node = _grp("design_list_ui")
 	if list_ui != null and list_ui.has_method("open"):
 		list_ui.call("open", "pick_edit", Callable(self, "_on_design_slot_chosen"))
 		return
@@ -230,123 +252,209 @@ func _on_design_slot_chosen(slot: int) -> void:
 		return
 	if Game.inventory != null:
 		Game.inventory.spend_bells(NeedleworkTalk.DESIGN_PRICE)
-	var editor: Node = get_tree().get_first_node_in_group("design_ui") if get_tree() != null else null
+	_edit_slot = slot
+	var editor: Node = _grp("design_ui")
 	if editor != null and editor.has_method("open"):
-		editor.call("open", slot)
+		editor.call("open", slot, Callable(self, "_on_editor_done"))
+
+
+func _on_editor_done(slot: int, saved: bool) -> void:
+	if not saved or slot < 0 or Game.designs == null:
+		return
+	## `aNNW_talk_design_open3` — name the freshly-saved design.
+	var d: DesignPattern = Game.designs.player[Game.designs.resolved_index(slot)]
+	var initial: String = d.name if d != null and d.name != "blank" else ""
+	var name_ui: Node = _grp("name_entry_ui")
+	if name_ui != null and name_ui.has_method("open"):
+		name_ui.call("open", initial, Callable(self, "_on_name_entered"))
+
+
+func _on_name_entered(text: String) -> void:
+	if _edit_slot < 0 or Game.designs == null:
+		return
+	var d: DesignPattern = Game.designs.player[Game.designs.resolved_index(_edit_slot)]
+	if d != null:
+		d.name = text
+		d.clamp_name()
+	Game.designs.changed.emit()
+	DesignTexture.clear_cache()
+	if Game.worn_design_slot == _edit_slot:
+		Game.design_changed.emit()
+	_edit_slot = -1
+	_say_line("\"%s\" — I love it! It's all yours." % text)
 
 
 func _flow_design_book() -> void:
-	var list_ui: Node = get_tree().get_first_node_in_group("design_list_ui") if get_tree() != null else null
+	var list_ui: Node = _grp("design_list_ui")
 	if list_ui != null and list_ui.has_method("open"):
 		list_ui.call("open", "manage", Callable())
 		return
 	Game.post_notice("Mabel: The design book isn't ready yet.")
 
 
+## `aNNW_talk_trend_cloth` — reports the top cloth trend then the top umbrella trend.
 func _flow_trend() -> void:
-	_say_line(_trend_line())
+	if Game == null or Game.designs == null:
+		return
+	var cloth: Array = Game.designs.trend_top(false, _rng)
+	var umb: Array = Game.designs.trend_top(true, _rng)
+	_line_queue = [
+		{"text": NeedleworkTalk.trend_line(Game.designs.shop[cloth[0] & 7].name, int(cloth[1]), false), "speaker": "Mabel"},
+		{"text": NeedleworkTalk.trend_line(Game.designs.shop[umb[0] & 7].name, int(umb[1]), true), "speaker": "Mabel"},
+	]
+	_flush_queue()
 
 
+## `aNNW_talk_listen_sister*` — the two-person Mabel/Sable story cutscene.
 func _flow_listen() -> void:
-	if Game.designs != null:
-		Game.designs.listened_flag = true
-	_play_sister_story()
+	if Game == null or Game.designs == null:
+		return
+	Game.designs.listened_flag = true
+	var first_of_day := Game.designs.sable_last_date != _today()
+	if first_of_day:
+		Game.designs.tick_sable_day(_today())
+	var row := NeedleworkTalk.pick_story_row(Game.designs.sable_days, first_of_day, _rng)
+	var ids := NeedleworkTalk.story_line_ids(row, _rng)
+	_line_queue.clear()
+	for i in ids.size():
+		var data: DialogueData = NeedleworkTalk.line(ids[i])
+		var txt: String = _first_line(data) if data != null else ""
+		if txt.strip_edges().replace(".", "").replace("…", "").strip_edges().is_empty():
+			txt = _fallback_story_line(i)
+		_line_queue.append({"text": txt, "speaker": "Sable" if (i % 2 == 1) else "Mabel"})
+	if _line_queue.is_empty():
+		_line_queue.append({"text": "Sable's a little shy, but she's warming up to you.", "speaker": "Mabel"})
+	_flush_queue()
 
 
 func _flow_gba() -> void:
-	_say_msg(NeedleworkTalk.MSG_GBA_NOT_CONNECTED)
+	_say_line("Oh — you'd need a Game Boy Advance hooked up for that. Maybe another time!")
 
 
-func _flow_trade() -> void:
-	var slot: int = _trade_slot
-	_trade_slot = -1
-	if slot < 0 or Game.designs == null:
+## `aNNW_talk_trade_check` — the 4-way display menu (`aNNW_set_...`).
+func _flow_trade_menu() -> void:
+	if _trade_fixture < 0 or Game.designs == null:
 		return
-	var list_ui: Node = get_tree().get_first_node_in_group("design_list_ui") if get_tree() != null else null
+	var is_umb := _trade_fixture >= DesignBook.CLOTH_SLOTS
+	var d: DesignPattern = Game.designs.shop[_trade_fixture & 7]
+	var thing := "umbrella" if is_umb else "outfit"
+	var data := DialogueData.from_dict({
+		"id": "mabel_trade", "start": "start",
+		"nodes": {
+			"start": {"type": "line", "text": "That's the \"%s\" %s. What would you like to do?" % [d.name, thing], "next": "menu"},
+			"menu": {"type": "choice", "prompt": "", "options": [
+				{"text": "Put one of my designs here.", "events": [{"op": "needlework_trade", "act": "display"}]},
+				{"text": "I'd like this design.", "events": [{"op": "needlework_trade", "act": "buy"}]},
+				{"text": "Let's trade designs.", "events": [{"op": "needlework_trade", "act": "exchange"}]},
+				{"text": "Never mind.", "goto": "bye"},
+			]},
+			"bye": {"type": "line", "text": "No trouble at all. Take your time!"},
+		},
+	})
+	var ui: Node = _grp("dialogue_ui")
+	if ui == null or not ui.has_method("play"):
+		_trade_fixture = -1
+		return
+	_start_talk_session(_player_node())
+	_bind_session(ui)
+	ui.call("play", data, _make_ctx())
+
+
+func _flow_trade_pick() -> void:
+	var list_ui: Node = _grp("design_list_ui")
 	if list_ui != null and list_ui.has_method("open"):
-		list_ui.call("open", "pick_trade", Callable(self, "_on_trade_slot_chosen").bind(slot))
+		list_ui.call("open", "pick_trade", Callable(self, "_on_trade_slot_chosen"))
 		return
-	## No picker yet — buy the shop design into the first blank player slot.
-	var d: DesignPattern = Game.designs.shop[slot & 7]
-	Game.post_notice("Mabel: This is \"%s\". Come back when the design book's open!" % d.name)
+	_trade_fixture = -1
 
 
-func _on_trade_slot_chosen(player_slot: int, shop_slot: int) -> void:
-	if player_slot < 0 or Game.designs == null:
+## `aNNW_talk_trade_close*` — apply the chosen op and report.
+func _on_trade_slot_chosen(player_slot: int) -> void:
+	var fixture := _trade_fixture
+	var act := _trade_act
+	_trade_fixture = -1
+	_trade_act = ""
+	if player_slot < 0 or fixture < 0 or Game.designs == null:
 		return
-	## Default action: copy the shop design into the chosen player slot
-	## (`TRADE_CLOSE3`). Exchange / put-on-mannequin variants come with the
-	## full trade menu.
-	Game.designs.buy_shop_into_player(shop_slot, player_slot)
+	var affected := Game.designs.resolved_index(player_slot)
+	match act:
+		"display":
+			Game.designs.copy_player_to_shop(fixture, player_slot)
+		"buy":
+			Game.designs.buy_shop_into_player(fixture, player_slot)
+			Game.designs.trend_delete(fixture)
+		"exchange":
+			Game.designs.exchange(fixture, player_slot)
+		_:
+			return
 	Audio.play_se(&"cursol")
-	_say_msg(NeedleworkTalk.MSG_TRADE_BUY_DESIGN)
-	if Game.worn_design_slot == player_slot:
+	DesignTexture.clear_cache()
+	var shown: String = Game.designs.shop[fixture & 7].name
+	_say_line(NeedleworkTalk.trade_result_line(act, shown))
+	if act != "display" and Game.worn_design_slot >= 0 \
+			and Game.designs.resolved_index(Game.worn_design_slot) == affected:
 		Game.design_changed.emit()
 
 
-func _trend_line() -> String:
-	if Game == null or Game.designs == null:
-		return "Nothing's really caught on yet this season."
-	## Count villagers wearing each of the 4 shop clothing designs.
-	var best_name := ""
-	var best_count := 0
-	for i in DesignBook.CLOTH_SLOTS:
-		var count := _villagers_wearing_design(i)
-		if count > best_count:
-			best_count = count
-			best_name = Game.designs.shop[i].name
-	if best_count == 0:
-		return "Hmm, no home-grown design has really taken off yet."
-	if best_count == 1:
-		return "One person's wearing \"%s\" around town — it's just starting!" % best_name
-	if best_count < 5:
-		return "\"%s\" is catching on — I've seen a few people in it!" % best_name
-	return "\"%s\" is THE look this season. Everyone's wearing it!" % best_name
+# --- sequential dialogue queue -------------------------------------------
 
-
-func _villagers_wearing_design(_shop_cloth_idx: int) -> int:
-	## TODO: villagers do not wear custom designs yet (`animal->cloth == RSV_CLOTH`).
-	return 0
-
-
-func _play_sister_story() -> void:
-	if Game == null or Game.designs == null:
+func _flush_queue() -> void:
+	if _line_queue.is_empty():
 		return
-	var first_of_day := Game.designs.sable_last_date != _today()
-	var row := NeedleworkTalk.pick_story_row(Game.designs.sable_days, first_of_day, _rng)
-	var ids := NeedleworkTalk.story_line_ids(row, _rng)
-	if ids.is_empty():
-		return
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
+	var entry: Dictionary = _line_queue.pop_front()
+	var ui: Node = _grp("dialogue_ui")
 	if ui == null:
+		Game.post_notice("%s: %s" % [entry.get("speaker", "Mabel"), entry.get("text", "")])
+		_flush_queue()
 		return
-	# Alternate speaker Mabel / Sable per line (`aNNW_talk_ane_*`).
-	var texts: Array = []
-	for i in ids.size():
-		var line: DialogueData = NeedleworkTalk.line(ids[i])
-		if line != null:
-			texts.append({"data": line, "speaker": "Sable" if (i % 2 == 1) else "Mabel"})
-	if texts.is_empty():
-		return
-	_start_talk_session(get_tree().get_first_node_in_group("player") as Node3D)
-	_bind_end(ui)
-	# Play the first; the rest chain via the runner's own `next` if present, else
-	# just show the opener (full multi-line chaining is a Phase 3 polish item).
-	var ctx := _make_ctx()
-	ctx.speaker_name = texts[0]["speaker"]
-	ui.call("play", texts[0]["data"], ctx)
+	_start_talk_session(_player_node())
+	if ui.has_signal("closed") and not ui.is_connected("closed", _on_queue_closed):
+		ui.connect("closed", _on_queue_closed, CONNECT_ONE_SHOT)
+	if ui.has_method("say"):
+		ui.call("say", str(entry.get("text", "")), str(entry.get("speaker", "Mabel")))
 
 
-func _say_msg(msg_id: int) -> void:
-	var data: DialogueData = NeedleworkTalk.line(msg_id)
+func _on_queue_closed() -> void:
+	_talking = false
+	TalkCamera.end(get_tree())
+	if not _line_queue.is_empty():
+		_flush_queue()
+
+
+func _first_line(data: DialogueData) -> String:
 	if data == null:
-		return
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui == null or not ui.has_method("play"):
-		return
-	_start_talk_session(get_tree().get_first_node_in_group("player") as Node3D)
-	_bind_end(ui)
-	ui.call("play", data, _make_ctx())
+		return ""
+	data.ensure_loaded()
+	var rec: Dictionary = data.node(data.start)
+	return str(rec.get("text", ""))
+
+
+func _fallback_story_line(i: int) -> String:
+	var mabel := [
+		"Sable used to sew all day and barely say a word.",
+		"She's my little sister — talented, but so shy.",
+		"You've really made her day, you know.",
+	]
+	var sable := [
+		"...Oh! Hello. You're becoming a regular around here.",
+		"I suppose I don't mind the company. It's... nice.",
+		"Thank you for stopping by. Truly.",
+	]
+	return (sable if i % 2 == 1 else mabel)[(i / 2) % 3]
+
+
+func _wallet() -> int:
+	if Game == null or Game.inventory == null:
+		return 0
+	return Game.inventory.wallet
+
+
+func _grp(g: String) -> Node:
+	return get_tree().get_first_node_in_group(g) if get_tree() != null else null
+
+
+func _player_node() -> Node3D:
+	return get_tree().get_first_node_in_group("player") as Node3D if get_tree() != null else null
 
 
 func _say_line(text: String) -> void:

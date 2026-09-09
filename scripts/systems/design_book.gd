@@ -45,6 +45,15 @@ var sister_now: int = 0
 var first_talk_done: bool = false
 var listened_flag: bool = false
 
+## Trend tracking (`aNNW_trend_check_cloth` / `_check_umbrella`). Index 0-3 = shop
+## cloth slots, 4-7 = umbrella slots. `eligible` is set when the player puts one of
+## their designs on a display; `count` grows each day a villager adopts it (capped
+## at the town population) and resets to 0 when the design is removed
+## (`aNNW_trend_delete_*`).
+var trend_count: PackedInt32Array = PackedInt32Array()
+var trend_eligible: PackedByteArray = PackedByteArray()
+var trend_last_date: String = ""
+
 
 func _init() -> void:
 	clear()
@@ -65,6 +74,11 @@ func clear() -> void:
 	sister_now = 0
 	first_talk_done = false
 	listened_flag = false
+	trend_count = PackedInt32Array()
+	trend_count.resize(SLOT_COUNT)
+	trend_eligible = PackedByteArray()
+	trend_eligible.resize(SLOT_COUNT)
+	trend_last_date = ""
 
 
 ## Placeholder motifs per starter slot until ARAM slots 27/28 are extracted.
@@ -152,6 +166,8 @@ func resolved_index(slot: int) -> int:
 ## (`aNI_CopyClothData` / `TRADE_CLOSE2`). `shop_idx` 0-7.
 func copy_player_to_shop(shop_idx: int, player_slot: int) -> void:
 	shop[shop_idx & 7].copy_from(resolved(player_slot))
+	trend_eligible[shop_idx & 7] = 1
+	trend_count[shop_idx & 7] = 0
 	changed.emit()
 
 
@@ -162,7 +178,39 @@ func exchange(shop_idx: int, player_slot: int) -> void:
 	var tmp := shop[shop_idx & 7].duplicate_design()
 	shop[shop_idx & 7].copy_from(player[pi])
 	player[pi].copy_from(tmp)
+	trend_eligible[shop_idx & 7] = 1
+	trend_count[shop_idx & 7] = 0
 	changed.emit()
+
+
+## Design removed from a display (`aNNW_trend_delete_cloth` / `_delete_umbrella`).
+func trend_delete(shop_idx: int) -> void:
+	trend_eligible[shop_idx & 7] = 0
+	trend_count[shop_idx & 7] = 0
+	changed.emit()
+
+
+## Once per day, roll whether a villager adopts each displayed player design.
+func tick_trend(today: String, town_pop: int, rng: RandomNumberGenerator) -> void:
+	if today == trend_last_date:
+		return
+	trend_last_date = today
+	var cap: int = clampi(town_pop, 1, 8)
+	for i in SLOT_COUNT:
+		if trend_eligible[i] == 1 and trend_count[i] < cap and rng.randf() < 0.6:
+			trend_count[i] += 1
+
+
+## Highest-worn cloth (0-3) / umbrella (4-7) slot and its count (`aNNW_set_trend_*`).
+func trend_top(is_umbrella: bool, rng: RandomNumberGenerator) -> Array:
+	var base: int = 4 if is_umbrella else 0
+	var best_idx: int = base + rng.randi_range(0, 3)
+	var best: int = 0
+	for i in 4:
+		if trend_count[base + i] > best:
+			best = trend_count[base + i]
+			best_idx = base + i
+	return [best_idx, best]
 
 
 ## Copy a shop design into a player slot (`TRADE_CLOSE3`).
@@ -218,6 +266,9 @@ func to_save() -> Dictionary:
 		"sister_now": sister_now,
 		"first_talk_done": first_talk_done,
 		"listened": listened_flag,
+		"trend_count": Array(trend_count),
+		"trend_eligible": Array(trend_eligible),
+		"trend_last_date": trend_last_date,
 	}
 
 
@@ -243,3 +294,12 @@ func apply_snapshot(data: Variant) -> void:
 	sister_now = int(dict.get("sister_now", 0))
 	first_talk_done = bool(dict.get("first_talk_done", false))
 	listened_flag = bool(dict.get("listened", false))
+	var tc: Variant = dict.get("trend_count", [])
+	if tc is Array and (tc as Array).size() == SLOT_COUNT:
+		for i in SLOT_COUNT:
+			trend_count[i] = int((tc as Array)[i])
+	var te: Variant = dict.get("trend_eligible", [])
+	if te is Array and (te as Array).size() == SLOT_COUNT:
+		for i in SLOT_COUNT:
+			trend_eligible[i] = int((te as Array)[i]) & 1
+	trend_last_date = str(dict.get("trend_last_date", ""))

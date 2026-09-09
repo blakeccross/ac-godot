@@ -256,7 +256,11 @@ func _on_side_tab_gui(event: InputEvent, tab: Panel) -> void:
 	var page: int = _tab_home.get(tab, {}).get("page", SideTab.POCKETS)
 	if page < 0:
 		Audio.play_se(&"cursol")
-		Game.post_notice("The design editor isn't in yet.")
+		var list_ui: Node = get_tree().get_first_node_in_group("design_list_ui") if get_tree() != null else null
+		if list_ui != null and list_ui.has_method("open"):
+			list_ui.call("open", "manage", Callable())
+		else:
+			Game.post_notice("The design book isn't available here.")
 	else:
 		_select_side_tab(page)
 

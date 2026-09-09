@@ -500,6 +500,9 @@ func _menu_open() -> bool:
 		or _group_open("dialogue_ui")
 		or _group_open("shop_ui")
 		or _group_open("debug_console_ui")
+		or _group_open("design_ui")
+		or _group_open("design_list_ui")
+		or _group_open("name_entry_ui")
 	)
 
 

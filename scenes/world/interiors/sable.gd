@@ -99,14 +99,22 @@ func _advance_story() -> void:
 	if _story_index >= _story_ids.size():
 		if _story_ids.is_empty() and ui.has_method("say"):
 			_bind_end(ui)
-			ui.call("say", "...", "Sable")
+			ui.call("say", _fallback_line(0), "Sable")
 			return
 		_end_talk()
 		return
+	var idx := _story_index
 	var data: DialogueData = NeedleworkTalk.line(_story_ids[_story_index])
 	_story_index += 1
-	if data == null:
-		_advance_story()
+	var text := ""
+	if data != null:
+		data.ensure_loaded()
+		text = str(data.node(data.start).get("text", "")).strip_edges()
+	## Many `aNNW_story_*` ROM lines extract as bare ellipses — swap in readable text.
+	if text.is_empty() or text.replace(".", "").replace("…", "").strip_edges().is_empty():
+		if ui.has_method("say"):
+			_bind_next(ui)
+			ui.call("say", _fallback_line(idx), "Sable")
 		return
 	var ctx := _make_ctx()
 	if ui.has_method("play"):
@@ -114,7 +122,30 @@ func _advance_story() -> void:
 		ui.call("play", data, ctx)
 	elif ui.has_method("say"):
 		_bind_end(ui)
-		ui.call("say", "...", "Sable")
+		ui.call("say", _fallback_line(idx), "Sable")
+
+
+## Friendship-tier small talk while the ROM story text is unavailable
+## (`aNNW_get_make_sister_message` tiers: <4 small talk, 4-7 stories, >=8 close).
+func _fallback_line(i: int) -> String:
+	var days := Game.designs.sable_days if Game != null and Game.designs != null else 0
+	var early := [
+		"Oh — hello. Did you need some thread?",
+		"...I'm nearly through this hem. One moment.",
+		"Mm. Take your time looking around.",
+	]
+	var mid := [
+		"My sister Mabel does all the talking. I just sew.",
+		"When we were small, we used to make doll clothes together.",
+		"...It's strange. I don't usually say this much.",
+	]
+	var close := [
+		"You know, I look forward to you stopping by now.",
+		"Mabel says I've been smiling more. Maybe she's right.",
+		"Thank you — for being patient with me.",
+	]
+	var tier: Array = early if days < 4 else (mid if days < 8 else close)
+	return tier[i % tier.size()]
 
 
 func _make_ctx() -> DialogueContext:

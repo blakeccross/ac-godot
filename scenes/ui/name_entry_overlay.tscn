@@ -1,0 +1,75 @@
+[gd_scene format=3 uid="uid://dygyljgnlyiuq"]
+
+[ext_resource type="Script" path="res://scenes/ui/name_entry_overlay.gd" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="frame"]
+bg_color = Color(0.94, 0.9, 0.82, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.45, 0.32, 0.2, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+content_margin_left = 16.0
+content_margin_top = 14.0
+content_margin_right = 16.0
+content_margin_bottom = 14.0
+
+[node name="NameEntryOverlay" type="CanvasLayer"]
+script = ExtResource("1")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="Dim" type="ColorRect" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.5)
+
+[node name="Frame" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -170.0
+offset_right = 300.0
+offset_bottom = 170.0
+theme_override_styles/panel = SubResource("frame")
+
+[node name="Box" type="VBoxContainer" parent="Root/Frame"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Q" type="Label" parent="Root/Frame/Box"]
+layout_mode = 2
+text = "Name this design:"
+theme_override_colors/font_color = Color(0.2, 0.15, 0.1, 1)
+theme_override_font_sizes/font_size = 16
+
+[node name="Entry" type="Label" parent="Root/Frame/Box"]
+layout_mode = 2
+text = "_"
+theme_override_colors/font_color = Color(0.1, 0.08, 0.05, 1)
+theme_override_font_sizes/font_size = 22
+
+[node name="Grid" type="Control" parent="Root/Frame/Box"]
+custom_minimum_size = Vector2(560, 190)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Hint" type="Label" parent="Root/Frame/Box"]
+layout_mode = 2
+text = "arrows + space to type"
+theme_override_colors/font_color = Color(0.4, 0.32, 0.24, 1)
+theme_override_font_sizes/font_size = 11

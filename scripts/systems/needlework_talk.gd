@@ -39,6 +39,48 @@ const MSG_GBA_NOT_CONNECTED := 0x3008
 
 const DESIGN_PRICE := 350  ## aNNW_DESIGN_PRICE
 
+## Trend tiers (`aNNW_set_trend_cloth_message` / `_umbrella_message`), by worn count
+## 0 / 1 / <5 / >=5.
+const MSG_TREND_CLOTH: Array = [0x2FDC, 0x2FDB, 0x2FDA, 0x2FD9]
+const MSG_TREND_UMBRELLA: Array = [0x2FE0, 0x2FDF, 0x2FDE, 0x2FDD]
+
+
+static func trend_tier(count: int) -> int:
+	if count <= 0:
+		return 0
+	if count == 1:
+		return 1
+	if count < 5:
+		return 2
+	return 3
+
+
+## Plain-English trend line for a design and its town wear count.
+static func trend_line(design_name: String, count: int, is_umbrella: bool) -> String:
+	var thing := "umbrella print" if is_umbrella else "shirt"
+	match trend_tier(count):
+		0:
+			return "Honestly? No %s design has really caught on around town lately." % thing
+		1:
+			return "Someone's been seen in the \"%s\" %s — it's just starting to spread!" % [design_name, thing]
+		2:
+			return "The \"%s\" %s is turning heads — a few folks are wearing it now." % [design_name, thing]
+		_:
+			return "\"%s\" is THE %s this season. Practically everyone's in it!" % [design_name, thing]
+
+
+## Trade result line (`aNNW_talk_trade_close*` msg swap).
+static func trade_result_line(kind: String, design_name: String) -> String:
+	match kind:
+		"exchange":
+			return "There you go — a fair trade. \"%s\" is on display now." % design_name
+		"display":
+			return "\"%s\" looks wonderful up there. Thanks for sharing it!" % design_name
+		"buy":
+			return "\"%s\" is yours now. Wear it well!" % design_name
+		_:
+			return "All done."
+
 
 ## Pick the sister-story row for this talk (`aNNW_get_make_sister_message`).
 ## `days` = DesignBook.sable_days, `first_of_day` = has the counter not advanced yet

@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/clock_hud.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/ui/inventory_overlay.tscn" id="2"]
@@ -6,6 +6,9 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/shop_overlay.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/ui/map_overlay.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/ui/debug_console.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/ui/design_list_overlay.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://scenes/ui/design_editor_overlay.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://scenes/ui/name_entry_overlay.tscn" id="9"]
 
 [node name="ClockHud" type="CanvasLayer"]
 script = ExtResource("1")
@@ -19,6 +22,12 @@ script = ExtResource("1")
 [node name="ShopOverlay" parent="." instance=ExtResource("4")]
 
 [node name="DebugConsole" parent="." instance=ExtResource("6")]
+
+[node name="DesignListOverlay" parent="." instance=ExtResource("7")]
+
+[node name="DesignEditorOverlay" parent="." instance=ExtResource("8")]
+
+[node name="NameEntryOverlay" parent="." instance=ExtResource("9")]
 
 [node name="Margin" type="MarginContainer" parent="."]
 anchors_preset = 15
