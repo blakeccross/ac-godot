@@ -37,6 +37,10 @@ from io import BytesIO
 ## Decomp `mMsg_window` default tints (`m_msg_main.c_inc`).
 MSG_BODY_PRIM = (235, 255, 235, 255)
 MSG_NAME_PRIM = (160, 215, 30, 255)
+## `mChoice` window body (`m_choice_draw.c_inc` `con_sentaku2_modelT`): I4 mask
+## `con_waku_swaku3_tex` drawn white at PRIM alpha 155 over XLU. Keep it white +
+## intensity-alpha so `MessageWindowChrome` can PRIM-tint it to the AC cream.
+MSG_CHOICE_PRIM = (255, 255, 255, 255)
 
 ## Composited GC frame body tint for the talk cloud (`MessageWindowChrome`).
 ## Matches native `MSG_BODY_PRIM` fill after XLU over field grass.
@@ -104,6 +108,8 @@ CHROME: list[TexSpec] = [
     TexSpec("con_kaiwa2_w3_tex", 128, 64, MSG_BODY_PRIM, "msg_kaiwa_w3"),
     ## White+alpha — `MessageWindowChrome` multiplies by sex tint at runtime.
     TexSpec("con_namefuti_TXT", 64, 32, MSG_NAME_PRIM, "msg_nameplate", True),
+    ## `mChoice` lobed window silhouette (`con_waku_swaku3_tex`), 128x64 I4.
+    TexSpec("con_waku_swaku3_tex", 128, 64, MSG_CHOICE_PRIM, "msg_choice_window", True),
 ]
 
 ## `con_kaiwa2_modelT` triangle batches from `m_msg_data.c_inc`.

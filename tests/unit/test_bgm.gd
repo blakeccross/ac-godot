@@ -32,7 +32,7 @@ func test_rain_replaces_hourly_field() -> void:
 
 func test_shop_room_has_bgm_houses_are_silent() -> void:
 	assert_that(BgmCatalog.room_id(Room.Kind.SHOP)).is_equal(&"shop0")
-	assert_that(BgmCatalog.room_id(Room.Kind.NEEDLEWORK)).is_equal(&"shop0")
+	assert_that(BgmCatalog.room_id(Room.Kind.NEEDLEWORK)).is_equal(&"tailors")
 	assert_that(BgmCatalog.room_id(Room.Kind.PLAYER)).is_equal(&"")
 	assert_that(BgmCatalog.room_id(Room.Kind.NPC)).is_equal(&"")
 

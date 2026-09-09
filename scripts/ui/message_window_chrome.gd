@@ -33,12 +33,24 @@ const BODY_UV := Vector2(0.103846, 0.192308)
 const BODY_LINE_PITCH_V := 16.0 / 104.0
 const ARROW_UV := Rect2(0.84615, 0.6923, 0.03077, 0.07692)
 ## Choice window sits mid-right (`mChoice` center begin 242,169); line pitch 16.
-const CHOICE_PAD := Vector2(18.0, 12.0)
+## Pad is generous so text clears the lobed `con_waku_swaku3` silhouette edges.
+const CHOICE_PAD := Vector2(30.0, 18.0)
 const CHOICE_MARK_W := 16.0
 const CHOICE_FONT_PX := 16.0
 const CHOICE_LINE_PITCH := 16.0
-## `mChoice` window PRIM (`background_color`).
-const CHOICE_PANEL_BG := Color(0.0, 195.0 / 255.0, 185.0 / 255.0, 0.92)
+## `mChoice` window body = `con_waku_swaku3_tex` — the lobed AC "cloud" silhouette
+## (`m_choice_draw.c_inc` `con_sentaku2_modelT`), stretched non-uniformly with the
+## choice count exactly like `mChoice_Set_DisplayScaleAndDisplayPos`. Drawn white at
+## PRIM alpha 155 over XLU; on a solid UI layer a warm cream reads right. The teal
+## `background_color` (0,195,185) is ONLY the selected-row ▶ mark (`MessageChoiceMark`).
+const CHOICE_TEX_PATHS: Array[String] = [
+	"res://assets/generated/ui/message/msg_choice_window.png",
+	"res://assets/custom/ui/message/msg_choice_window.png",
+]
+const CHOICE_PANEL_TINT := Color(0.988, 0.965, 0.86, 0.97)
+## Fallback when the extracted silhouette is missing.
+const CHOICE_PANEL_BG := Color(0.965, 0.925, 0.79, 0.9)
+const CHOICE_PANEL_BORDER := Color(0.55, 0.42, 0.26, 0.85)
 
 ## `mMsg_init` defaults / `m_msg_appear` sex branches.
 const NAME_BG_DEFAULT := Color(160.0 / 255.0, 215.0 / 255.0, 30.0 / 255.0, 1.0)
@@ -330,17 +342,24 @@ func _ensure_choice_mark(btn: Button, selected: bool, mark_w: float, pitch: floa
 
 
 func _apply_choice_panel_style() -> void:
-	var box := StyleBoxFlat.new()
-	box.bg_color = CHOICE_PANEL_BG
-	box.corner_radius_top_left = 14
-	box.corner_radius_top_right = 14
-	box.corner_radius_bottom_right = 14
-	box.corner_radius_bottom_left = 14
-	box.content_margin_left = 4
-	box.content_margin_right = 4
-	box.content_margin_top = 4
-	box.content_margin_bottom = 4
-	_choice_panel.add_theme_stylebox_override("panel", box)
+	var tex := _load_first_texture(CHOICE_TEX_PATHS)
+	if tex != null:
+		## Pure stretch (no nine-patch) so the lobes distort with option count,
+		## matching `mChoice_Set_DisplayScaleAndDisplayPos`.
+		var box := StyleBoxTexture.new()
+		box.texture = tex
+		box.modulate_color = CHOICE_PANEL_TINT
+		box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+		box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+		_choice_panel.add_theme_stylebox_override("panel", box)
+		return
+	var flat := StyleBoxFlat.new()
+	flat.bg_color = CHOICE_PANEL_BG
+	flat.set_corner_radius_all(18)
+	flat.set_border_width_all(2)
+	flat.border_color = CHOICE_PANEL_BORDER
+	flat.anti_aliasing = true
+	_choice_panel.add_theme_stylebox_override("panel", flat)
 
 
 func _to_bbcode(raw: String) -> String:

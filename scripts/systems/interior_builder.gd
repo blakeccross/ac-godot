@@ -18,11 +18,12 @@ const MABEL_SCENE := preload("res://scenes/world/interiors/mabel.tscn")
 const SABLE_SCENE := preload("res://scenes/world/interiors/sable.tscn")
 const LOST_FOUND_SCENE := preload("res://scenes/world/lost_and_found_item.tscn")
 const BLATHERS_SCRIPT := preload("res://scenes/world/museum/museum_blathers.gd")
+const NEEDLEWORK_CLOCK_SCRIPT := preload("res://scenes/world/interiors/needlework_clock.gd")
 ## Authored `Furniture/*` fixtures that survive a re-populate (only exhibits rebuild).
 const AUTHORED_FIXTURE_NAMES: Array[StringName] = [
 	&"TomNook", &"NookClock", &"PostGirl", &"PostDesk", &"PostTerminal", &"Booker",
 	&"Blathers", &"MuseumClock", &"LightShaft", &"Redd", &"Mabel", &"Sable",
-	&"NeedleworkFurnitureCol", &"SewingMachine", &"SewingCloth",
+	&"NeedleworkFurnitureCol", &"SewingMachine", &"SewingCloth", &"NeedleworkClock",
 ]
 ## Able Sisters display positions — the exact `ac_needlework_indoor.c` tables
 ## (`manekin_pos` / `umbrella_pos`, 40 GX apart). `rom_tailor` keeps the acre
@@ -42,6 +43,11 @@ const NEEDLEWORK_MABEL_GX := Vector3(210, 0, 250)
 ## Nudge the animated `obj_misin` overlay onto the shell's static machine head
 ## (raw obj_misin verts land ~2.5 m high / a touch west). Tune visually.
 const NEEDLEWORK_MISIN_OFFSET := Vector3(0.8, -2.25, 0.0)
+## Wall clock (`HOUSE_CLOCK` / `obj_clock_tailor`). Decomp `aHC_position_data` for
+## `SCENE_NEEDLEWORK` is `{0,0,0}` (unplaced); `needlework_clock.gd` recentres the
+## mesh AABB on this host, so it is the clock's CENTRE — north wall, left of centre,
+## ~1.9 m up.
+const NEEDLEWORK_CLOCK_GX := Vector3(200.0, 46.0, 46.0)
 ## Door opening half-width (~1.5 UT). Matches walk-in sensors better than 1 UT.
 const MUSEUM_DOOR_HALF_GX := 60.0
 
@@ -775,6 +781,7 @@ func add_needlework_set(root: Node3D, interior: Interior) -> void:
 	var grid: WorldGrid = interior.grid
 	_add_needlework_furniture_collision(root)
 	_add_sewing_machine(root, grid)
+	_add_needlework_clock(root, grid)
 	for i in NEEDLEWORK_MANNEQUIN_GX.size():
 		if root.get_node_or_null("Mannequin_%d" % i) != null:
 			continue
@@ -784,6 +791,7 @@ func add_needlework_set(root: Node3D, interior: Interior) -> void:
 		m.set("kind", 0)
 		m.position = MuseumDisplay.gx_to_world(grid, NEEDLEWORK_MANNEQUIN_GX[i])
 		root.add_child(m)
+		_add_blob_shadow(m, Vector2(0.62, 0.62), 0.34)
 	for i in NEEDLEWORK_UMBRELLA_GX.size():
 		if root.get_node_or_null("UmbrellaStand_%d" % i) != null:
 			continue
@@ -793,14 +801,75 @@ func add_needlework_set(root: Node3D, interior: Interior) -> void:
 		u.set("kind", 1)
 		u.position = MuseumDisplay.gx_to_world(grid, NEEDLEWORK_UMBRELLA_GX[i])
 		root.add_child(u)
+		_add_blob_shadow(u, Vector2(0.7, 0.7), 0.34)
 	if root.get_node_or_null("Sable") == null:
 		var sable: Node3D = SABLE_SCENE.instantiate() as Node3D
 		sable.position = MuseumDisplay.gx_to_world(grid, NEEDLEWORK_SABLE_GX)
 		root.add_child(sable)
+		_add_blob_shadow(sable, Vector2(0.7, 0.58), 0.4)
 	if root.get_node_or_null("Mabel") == null:
 		var mabel: Node3D = MABEL_SCENE.instantiate() as Node3D
 		mabel.position = MuseumDisplay.gx_to_world(grid, NEEDLEWORK_MABEL_GX)
 		root.add_child(mabel)
+		_add_blob_shadow(mabel, Vector2(0.7, 0.58), 0.4)
+
+
+## Soft elliptical drop shadow under an interior fixture / NPC (`ACTOR_SHADOW`).
+## A flat unshaded MUL-blended quad with a radial falloff — reliable indoors where
+## the outdoor `actor_blob_shadow` heightfield probe has nothing to sit on.
+static var _blob_tex: ImageTexture = null
+
+
+func _blob_shadow_texture() -> ImageTexture:
+	## MUL blend: white (×1, no change) at the rim → dark grey (×0.4) at the centre.
+	if _blob_tex == null:
+		var n := 96
+		var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+		var c := (n - 1) * 0.5
+		for y in n:
+			for x in n:
+				var d: float = Vector2(x - c, y - c).length() / c  ## 0 centre → 1 edge
+				var g: float = lerpf(0.4, 1.0, smoothstep(0.15, 1.0, d))
+				img.set_pixel(x, y, Color(g, g, g * 1.03, 1.0))
+		_blob_tex = ImageTexture.create_from_image(img)
+	return _blob_tex
+
+
+func _add_blob_shadow(host: Node3D, extent: Vector2, alpha: float = 0.4) -> void:
+	if host == null or host.get_node_or_null("BlobShadow") != null:
+		return
+	var blob := MeshInstance3D.new()
+	blob.name = "BlobShadow"
+	var plane := PlaneMesh.new()  ## lies flat in XZ, normal +Y
+	plane.size = extent * 2.0
+	blob.mesh = plane
+	blob.position = Vector3(0.0, 0.06, 0.0)
+	blob.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_MUL
+	## `alpha` deepens the shadow (0.34 fixtures → lighter, 0.4 NPCs → darker).
+	var tint: float = clampf(1.0 - (alpha - 0.34) * 0.9, 0.7, 1.0)
+	mat.albedo_color = Color(tint, tint, tint, 1.0)
+	mat.albedo_texture = _blob_shadow_texture()
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	blob.material_override = mat
+	host.add_child(blob)
+
+
+## Able Sisters back-wall pendulum clock (`HOUSE_CLOCK` / `obj_clock_tailor`).
+func _add_needlework_clock(root: Node3D, grid: WorldGrid) -> void:
+	if root.get_node_or_null("NeedleworkClock") != null:
+		return
+	if FieldCatalog.mesh_paths(&"obj_clock_tailor").is_empty():
+		return
+	var host := Node3D.new()
+	host.name = "NeedleworkClock"
+	host.set_script(NEEDLEWORK_CLOCK_SCRIPT)
+	host.position = MuseumDisplay.gx_to_world(grid, NEEDLEWORK_CLOCK_GX)
+	root.add_child(host)
 
 
 ## Solid colliders for the `rom_tailor` shell's baked furniture, from
@@ -815,10 +884,11 @@ func _add_needlework_furniture_collision(root: Node3D) -> void:
 	box.collision_layer = 1
 	box.collision_mask = 0
 	root.add_child(box)
-	## [half-extents, centre] in world metres (measured from the fitted shell).
+	## [half-extents, centre] in world metres — one box per blocked FG-cell run in
+	## `rom_tailor.col.json` (cells (1-2, 1-6) west, cell (8, 6) south-east).
 	var slabs := [
-		[Vector3(2.0, 1.0, 6.0), Vector3(-12.0, 1.0, -8.0)],   ## west counter run (table/machine/register)
-		[Vector3(1.1, 1.7, 1.3), Vector3(1.0, 1.7, -3.1)],     ## east fabric boxes
+		[Vector3(2.0, 1.1, 6.0), Vector3(-12.0, 1.1, -8.0)],   ## west counter run (table/machine/register)
+		[Vector3(1.0, 0.9, 1.0), Vector3(1.0, 0.9, -3.0)],     ## south-east fabric boxes (one cell)
 	]
 	for slab: Array in slabs:
 		var shape := CollisionShape3D.new()
@@ -892,9 +962,9 @@ func _add_sewing_cloth(root: Node3D, _grid: WorldGrid) -> void:
 	pivot.add_child(quad)
 	quad.scale = Vector3.ONE * CLOTH_SCALE
 	quad.position = Vector3(0.0, -5.3 * CLOTH_SCALE, 0.0)
-	## Machine bed centre (`obj_misin` needle ≈ world (-12.5, 0.9, -9)); the quad
-	## rides ~1 cm above it.
-	node.position = Vector3(-12.5, 0.95, -9.0)
+	## Machine bed centre (`obj_misin` needle ≈ world (-11.9, 0.9, -9)); the quad
+	## rides ~1 cm above it. (Nudged +x off the wall — the cloth read too far left.)
+	node.position = Vector3(-11.9, 0.95, -9.0)
 	root.add_child(node)  ## after children so the script's `_ready` sees Pivot
 	var tex := DesignTexture.build(DesignPattern.generate(DesignPattern.Motif.CHECK, 8, 2, 15))
 	for mi in _all_mesh_instances(node):

@@ -1,40 +1,28 @@
 {
   "id": "mabel_menu",
   "speaker_id": "mabel",
-  "start": "start",
+  "start": "greet",
   "nodes": {
-    "start": {
-      "type": "branch",
-      "when": [
-        { "if": { "already_talked": true }, "goto": "greet_repeat" },
-        { "goto": "greet_first" }
-      ]
-    },
-    "greet_first": {
-      "type": "line",
-      "text": "Hi there! Come on in.\nWelcome to Able Sisters,\nwhere YOU are the famous\nfashion designer!",
-      "next": "menu"
-    },
-    "greet_repeat": {
+    "greet": {
       "type": "line",
       "text": "Ohhh, yes?\nWhat do you need?",
       "next": "menu"
     },
     "menu": {
       "type": "choice",
-      "prompt": "What can I do for you?",
+      "prompt": "Ohhh, yes?\nWhat do you need?",
       "options": [
-        { "text": "I want to make a design.", "events": [ { "op": "needlework_menu", "choice": "design" } ] },
-        { "text": "Show me the design book.", "events": [ { "op": "needlework_menu", "choice": "book" } ] },
-        { "text": "What's in fashion?", "events": [ { "op": "needlework_menu", "choice": "trend" } ] },
-        { "text": "Tell me about your sister.", "events": [ { "op": "needlework_menu", "choice": "listen" } ] },
-        { "text": "Let's use the Game Boy Advance.", "events": [ { "op": "needlework_menu", "choice": "gba" } ] },
-        { "text": "Nothing, thanks.", "goto": "bye" }
+        { "text": "Design a pattern", "events": [ { "op": "needlework_menu", "choice": "design" } ] },
+        { "text": "Save a pattern", "events": [ { "op": "needlework_menu", "choice": "book" } ] },
+        { "text": "Any suggestions?", "events": [ { "op": "needlework_menu", "choice": "trend" } ] },
+        { "text": "What's this?", "events": [ { "op": "needlework_menu", "choice": "listen" } ] },
+        { "text": "Other things", "events": [ { "op": "needlework_menu", "choice": "gba" } ] },
+        { "text": "Nothing...", "goto": "bye" }
       ]
     },
     "bye": {
       "type": "line",
-      "text": "OK! Come back soon, all\nright? We'll be here!"
+      "text": "Oh? OK, I see. Well, don't\nhesitate to ask when\nyou DO need something!\nI'll be happy to help."
     }
   }
 }

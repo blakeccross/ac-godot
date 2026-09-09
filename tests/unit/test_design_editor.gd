@@ -156,6 +156,20 @@ func test_trend_grows_only_for_displayed_designs_and_resets_on_delete() -> void:
 	assert_int(Game.designs.trend_eligible[0]).is_equal(0)
 
 
+func test_mabel_menu_options_match_the_rom() -> void:
+	## `aNNW_set_6_ways` choice strings (select.json 489/490/488/49/435/50).
+	var data: DialogueData = DialogueCatalog.conversation(&"mabel_menu")
+	assert_that(data).is_not_null()
+	data.ensure_loaded()
+	var menu: Dictionary = data.node(&"menu")
+	assert_str(str(menu.get("prompt", ""))).contains("Ohhh, yes?")
+	var labels: Array = (menu.get("options", []) as Array).map(func(o): return str(o.get("text", "")))
+	assert_array(labels).is_equal([
+		"Design a pattern", "Save a pattern", "Any suggestions?",
+		"What's this?", "Other things", "Nothing...",
+	])
+
+
 func test_trend_line_tiers() -> void:
 	assert_str(NeedleworkTalk.trend_line("X", 0, false)).contains("caught on")
 	assert_str(NeedleworkTalk.trend_line("X", 1, false)).contains("just starting")

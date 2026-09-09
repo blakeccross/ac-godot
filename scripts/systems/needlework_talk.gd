@@ -69,17 +69,17 @@ static func trend_line(design_name: String, count: int, is_umbrella: bool) -> St
 			return "\"%s\" is THE %s this season. Practically everyone's in it!" % [design_name, thing]
 
 
-## Trade result line (`aNNW_talk_trade_close*` msg swap).
-static func trade_result_line(kind: String, design_name: String) -> String:
+## Trade result line (`aNNW_talk_trade_close*` msg swap: 0x2FF8 / 0x2FF9 / 0x2FFA).
+static func trade_result_line(kind: String) -> String:
 	match kind:
-		"exchange":
-			return "There you go — a fair trade. \"%s\" is on display now." % design_name
 		"display":
-			return "\"%s\" looks wonderful up there. Thanks for sharing it!" % design_name
+			return "Wow! That's so nice!\nAnd who knows? Maybe it'll\nbe the new must-have style\nnext season!"
 		"buy":
-			return "\"%s\" is yours now. Wear it well!" % design_name
+			return "Isn't it great when you\nfinally get a pattern that\nreally speaks to you?\nIt's like...coming home."
+		"exchange":
+			return "Wow! Cool! I hope this new\npattern really catches on!"
 		_:
-			return "All done."
+			return "Oh, I see."
 
 
 ## Pick the sister-story row for this talk (`aNNW_get_make_sister_message`).

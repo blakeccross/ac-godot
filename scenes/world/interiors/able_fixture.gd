@@ -91,10 +91,12 @@ func _ensure_collision() -> void:
 		return
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	## `l_manekin_mBgData` half-extent 14.5 GX ≈ 0.72 m.
-	box.size = Vector3(1.45, 1.8, 1.45)
+	## `l_manekin_mBgData` half-extent 14.5 GX ≈ 0.72 m in XZ; an umbrella stand is
+	## much shorter than a dress form, so keep its box low.
+	var h: float = 1.7 if kind == Kind.CLOTH else 0.95
+	box.size = Vector3(1.45, h, 1.45)
 	shape.shape = box
-	shape.position = Vector3(0.0, 0.9, 0.0)
+	shape.position = Vector3(0.0, h * 0.5, 0.0)
 	add_child(shape)
 
 

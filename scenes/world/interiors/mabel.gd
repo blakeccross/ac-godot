@@ -10,14 +10,15 @@ const ANIM_WAIT := "npc_1_wait1"
 const ANIM_WALK := "npc_1_walk1"
 const MENU_ID := &"mabel_menu"
 
-## `aNNW_my_proc_wait`: chase when the player is ≥ 120 GX (6 m) away, stop within
-## ~2 m (`aNNW_my_proc_player` runs to the player's own position).
-const FOLLOW_RANGE := 6.0
-const STOP_RANGE := 1.9
+## `aNNW_next_target`: run to the player when they are within ~115 GX (5.75 m) and
+## in a reachable area; `aNNW_my_proc_player` runs to the player's own position and
+## stops just short. She auto-greets on the first approach of a visit
+## (`aNNW_norm_talk_request` fires when `MY_PROC_PLAYER` reaches you).
+const APPROACH_RANGE := 5.75
+const STOP_RANGE := 1.7
 const MOVE_SPEED := 2.4  ## `aNPC_ACT_RUN`
 
-enum Pending { NONE, DESIGN, BOOK, TREND, LISTEN, GBA, TRADE, TRADE_PICK }
-enum Roam { IDLE, APPROACH }
+enum Pending { NONE, DESIGN, BOOK, TREND, LISTEN, GBA, TRADE, TRADE_PICK, ACT }
 
 var _model: Node3D
 var _body_anim: AnimationPlayer
@@ -30,15 +31,18 @@ var _pending: Pending = Pending.NONE
 var _trade_fixture: int = -1
 ## The chosen trade action: "display" / "buy" / "exchange".
 var _trade_act: String = ""
+## Deferred action from a confirm dialogue (`needlework_act` event).
+var _next_act: String = ""
 ## The player design slot being edited / named.
 var _edit_slot: int = -1
 ## Sequential dialogue queue (sister cutscene, multi-part trend report).
 var _line_queue: Array = []
 var _active_ui: Node = null
 var _rng := RandomNumberGenerator.new()
-var _roam: Roam = Roam.IDLE
 var _home: Vector3
-var _greeted_at := 0.0
+## `aNNW_norm_talk_request` — Mabel starts the conversation herself the first time
+## she reaches the player after they enter. Sticky for the visit.
+var _auto_greeted := false
 
 
 func _ready() -> void:
@@ -80,7 +84,8 @@ func _physics_process(delta: float) -> void:
 		_play_clip(ANIM_WAIT, true)
 
 
-## `aNNW_MY_PROC_*` boiled down: chase the player, stop just short, idle otherwise.
+## `aNNW_my_proc_player` boiled down: run to the player while they're in range, stop
+## just short, face them, and auto-greet on the first approach of the visit.
 func _roam_velocity(_delta: float) -> Vector3:
 	if get_tree() == null or Game == null:
 		return Vector3.ZERO
@@ -93,30 +98,13 @@ func _roam_velocity(_delta: float) -> Vector3:
 	var to_player: Vector3 = player.global_position - global_position
 	to_player.y = 0.0
 	var dist := to_player.length()
-	match _roam:
-		Roam.IDLE:
-			_face_toward(player.global_position)
-			if dist >= FOLLOW_RANGE:
-				_roam = Roam.APPROACH
-			return Vector3.ZERO
-		Roam.APPROACH:
-			if dist <= STOP_RANGE:
-				_roam = Roam.IDLE
-				_face_toward(player.global_position)
-				_maybe_greet()
-				return Vector3.ZERO
-			return to_player.normalized() * MOVE_SPEED
+	if dist > STOP_RANGE and dist < APPROACH_RANGE:
+		return to_player.normalized() * MOVE_SPEED
+	_face_toward(player.global_position)
+	if dist <= STOP_RANGE and not _auto_greeted and not _talking and not _talked_today:
+		_auto_greeted = true
+		call_deferred("_begin_talk")
 	return Vector3.ZERO
-
-
-func _maybe_greet() -> void:
-	## `aNNW_THINK_IKAGADESYOU` — "How's it going?" bark, rate-limited.
-	var now := Time.get_ticks_msec() / 1000.0
-	if now - _greeted_at < 25.0 or _talked_today:
-		return
-	_greeted_at = now
-	if Game != null:
-		Game.post_notice("Mabel: How's it going? Let me know if you need anything!")
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
@@ -146,10 +134,15 @@ func begin_trade(slot: int, ctx: InteractionContext) -> bool:
 	return true
 
 
-func _begin_talk(ctx: InteractionContext) -> bool:
-	var listener: Node3D = ctx.actor as Node3D if ctx != null else null
+func _begin_talk(ctx: InteractionContext = null) -> bool:
+	## `ctx == null` → Mabel started the talk herself on walk-in
+	## (`aNNW_force_talk_request`): a plain welcome line, NO 6-way menu. The menu
+	## only opens when the player presses A (`aNNW_norm_talk_request`).
+	var listener: Node3D = ctx.actor as Node3D if ctx != null else _player_node()
 	_face_toward(listener.global_position if listener != null else global_position)
 	_pending = Pending.NONE
+	if ctx == null:
+		return _auto_greet(listener)
 	var data: DialogueData = DialogueCatalog.conversation(MENU_ID)
 	var talk_ctx: DialogueContext = _make_ctx()
 	talk_ctx.already_talked = _talked_today
@@ -163,9 +156,31 @@ func _begin_talk(ctx: InteractionContext) -> bool:
 	elif ui != null and ui.has_method("say"):
 		_start_talk_session(listener)
 		_bind_end(ui)
-		ui.call("say", "Welcome to Able Sisters!", "Mabel")
+		ui.call("say", "Ohhh, yes?\nWhat do you need?", "Mabel")
 	else:
-		Game.post_notice("Mabel: Welcome to Able Sisters!")
+		Game.post_notice("Mabel: Ohhh, yes? What do you need?")
+	_talked_today = true
+	return true
+
+
+## `aNNW_set_force_talk_info` talk_idx 0 / 1 → msg 0x2FD1 (first ever visit) /
+## 0x2FD2 (repeat), then `aNNW_TALK_END_WAIT` — line only, no menu.
+func _auto_greet(listener: Node3D) -> bool:
+	var first := Game.designs != null and not Game.designs.first_talk_done
+	if Game.designs != null:
+		Game.designs.first_talk_done = true
+	var line := ("Hi there! Come on in.\nWelcome to Able Sisters,\nwhere YOU are the famous\nfashion designer!"
+		if first else "Oh, hi! Come on in!")
+	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
+	if ui != null and ui.has_method("play"):
+		_start_talk_session(listener)
+		_bind_end(ui)
+		ui.call("play", DialogueData.from_dict({
+			"id": "mabel_welcome", "start": "l",
+			"nodes": {"l": {"type": "line", "text": line}},
+		}), _make_ctx())
+	elif Game != null:
+		Game.post_notice("Mabel: %s" % line.replace("\n", " "))
 	_talked_today = true
 	return true
 
@@ -173,7 +188,8 @@ func _begin_talk(ctx: InteractionContext) -> bool:
 func _make_ctx() -> DialogueContext:
 	var c: DialogueContext = DialogueContext.from_game()
 	c.speaker_name = "Mabel"
-	c.speaker_sex = 1
+	## Special NPCs keep the default green nameplate (`NAME_BG_OTHER`) — same as
+	## Tom Nook / Booker / Pelly. Only animal villagers get the pink/blue plate.
 	c.voice_mode = DialogueVoice.Mode.ANIMALESE
 	c.sound_spec = 4
 	c.frees = PackedStringArray(["Mabel", "Sable"])
@@ -208,6 +224,9 @@ func _on_dialogue_event(event: Dictionary) -> void:
 		"needlework_trade":
 			_trade_act = str(event.get("act", ""))
 			_pending = Pending.TRADE_PICK
+		"needlework_act":
+			_next_act = str(event.get("act", ""))
+			_pending = Pending.ACT
 
 
 func _on_talk_closed() -> void:
@@ -220,31 +239,124 @@ func _on_talk_closed() -> void:
 	var next: Pending = _pending
 	_pending = Pending.NONE
 	match next:
-		Pending.DESIGN: _flow_make_design()
-		Pending.BOOK: _flow_design_book()
+		Pending.DESIGN: _flow_design_check()
+		Pending.BOOK: _flow_save_pattern()
 		Pending.TREND: _flow_trend()
-		Pending.LISTEN: _flow_listen()
-		Pending.GBA: _flow_gba()
+		Pending.LISTEN: _flow_whats_this()
+		Pending.GBA: _flow_other_things()
 		Pending.TRADE: _flow_trade_menu()
 		Pending.TRADE_PICK: _flow_trade_pick()
+		Pending.ACT: _run_act(_next_act)
 		_:
 			_trade_fixture = -1
 			_trade_act = ""
+			_next_act = ""
 
 
 # --- sub-flows --------------------------------------------------------------
 
-## `aNNW_talk_design_check` → `DESIGN_WHICH` → `DESIGN_OPEN` (`mSM_OVL_NEEDLEWORK`,
-## `mNW_OPEN_DESIGN`) → editor → `DESIGN_OPEN3` (`mSM_OVL_LEDIT` name entry).
-func _flow_make_design() -> void:
-	if Game.inventory != null and _wallet() < NeedleworkTalk.DESIGN_PRICE:
-		_say_line("A new design is %d Bells, and it looks like you're a little short. Come back soon!" % NeedleworkTalk.DESIGN_PRICE)
+func _play_dialogue(dict: Dictionary) -> void:
+	var ui: Node = _grp("dialogue_ui")
+	if ui == null or not ui.has_method("play"):
 		return
-	var list_ui: Node = _grp("design_list_ui")
-	if list_ui != null and list_ui.has_method("open"):
-		list_ui.call("open", "pick_edit", Callable(self, "_on_design_slot_chosen"))
-		return
-	Game.post_notice("Mabel: The design editor isn't ready yet.")
+	_start_talk_session(_player_node())
+	_bind_session(ui)
+	ui.call("play", DialogueData.from_dict(dict), _make_ctx())
+
+
+## `aNNW_talk_design_check` — msg `0x2FE5`: cost + 8-slot warning, then
+## "That's fine!" / "That won't do!".
+func _flow_design_check() -> void:
+	_play_dialogue({
+		"id": "mabel_design_check", "start": "l0",
+		"nodes": {
+			"l0": {"type": "line", "text": "Oh, you want to create your\nown design? Great! It'll cost\n350 Bells for materials,\nof course. That's OK, right?", "next": "l1"},
+			"l1": {"type": "line", "text": "Oh, and you can only keep\neight designs, so you'll have\nto give up one of the patterns\nyou have now. Is that OK?", "next": "menu"},
+			"menu": {"type": "choice", "prompt": "Oh, and you can only keep\neight designs, so you'll have\nto give up one of the patterns\nyou have now. Is that OK?", "options": [
+				{"text": "That's fine!", "events": [{"op": "needlework_act", "act": "make_design"}]},
+				{"text": "That won't do!", "goto": "bye"},
+			]},
+			"bye": {"type": "line", "text": "Oh, are you sure? OK.\nDon't hesitate to ask if\nthere's anything I can help\nyou with!"},
+		},
+	})
+
+
+## `aNNW_talk_cporiginal*` — msg `0x2FEC`. The GC memory-card design book is out of
+## scope; this opens the local design book instead.
+func _flow_save_pattern() -> void:
+	_next_act = "open_book"
+	_pending = Pending.ACT
+	_play_dialogue({
+		"id": "mabel_save", "start": "l0",
+		"nodes": {
+			"l0": {"type": "line", "text": "OK, then, tell me how you'd\nlike to save it."},
+		},
+	})
+
+
+## `0x2FD6` (`CHECK_LISTEN`) — the "custom designs" pitch + "Any tips?" /
+## "I know already.".
+func _flow_whats_this() -> void:
+	_play_dialogue({
+		"id": "mabel_whats_this", "start": "l0",
+		"nodes": {
+			"l0": {"type": "line", "text": "OK, OK, check this out. Ahem!\nBrand-name clothing is nice,", "next": "l1"},
+			"l1": {"type": "line", "text": "but wouldn't you just love to\nwear outfits YOU designed?", "next": "l2"},
+			"l2": {"type": "line", "text": "Oh, come on! Admit it!\nI'm sure you've thought the\nsame thing at least once,\nmaybe even twice.", "next": "l3"},
+			"l3": {"type": "line", "text": "Well, I know you'll find this\nhard to believe, but the\nAble Sisters can turn your\ndesigning dreams into reality!", "next": "l4"},
+			"l4": {"type": "line", "text": "I know, I know, it sounds\ntoo good to be true, huh?\nDon't you just feel the need\nto hear more about it?", "next": "menu"},
+			"menu": {"type": "choice", "prompt": "I know, I know, it sounds\ntoo good to be true, huh?\nDon't you just feel the need\nto hear more about it?", "options": [
+				{"text": "Any tips?", "events": [{"op": "needlework_act", "act": "listen"}]},
+				{"text": "I know already.", "goto": "bye"},
+			]},
+			"bye": {"type": "line", "text": "Oh, are you sure? OK.\nDon't hesitate to ask if\nthere's anything I can help\nyou with!"},
+		},
+	})
+
+
+## `0x2FE2` (`OTHER_HAPPEN`) — the GBA / e-Reader 5-way. All options need a linked
+## Game Boy Advance, which isn't wired.
+func _flow_other_things() -> void:
+	_play_dialogue({
+		"id": "mabel_other", "start": "l0",
+		"nodes": {
+			"l0": {"type": "line", "text": "When you say \"other things,\"\nwhat exactly do you mean?", "next": "menu"},
+			"menu": {"type": "choice", "prompt": "When you say \"other things,\"\nwhat exactly do you mean?", "options": [
+				{"text": "Download tool", "events": [{"op": "needlework_act", "act": "gba"}]},
+				{"text": "Upload design", "events": [{"op": "needlework_act", "act": "gba"}]},
+				{"text": "Read card", "events": [{"op": "needlework_act", "act": "gba"}]},
+				{"text": "Prep e-Reader", "events": [{"op": "needlework_act", "act": "gba"}]},
+				{"text": "Maybe not...", "goto": "bye"},
+			]},
+			"bye": {"type": "line", "text": "Ohh, you changed your mind?\nThen, is there anything\nelse I can do for you?"},
+		},
+	})
+
+
+func _run_act(act: String) -> void:
+	_next_act = ""
+	match act:
+		"make_design":
+			if _wallet() < NeedleworkTalk.DESIGN_PRICE:
+				_say_line("Oh, no! %s...\nYou don't have enough money!\nDid you leave your cash in\nanother outfit or something?" % _player_name())
+				return
+			var list_ui: Node = _grp("design_list_ui")
+			if list_ui != null and list_ui.has_method("open"):
+				list_ui.call("open", "pick_edit", Callable(self, "_on_design_slot_chosen"))
+		"open_book":
+			var book_ui: Node = _grp("design_list_ui")
+			if book_ui != null and book_ui.has_method("open"):
+				book_ui.call("open", "manage", Callable())
+		"listen":
+			_flow_listen()
+		"gba":
+			_say_line("Hmm... I don't see a\nGame Boy Advance connected.\nMaybe another time!")
+
+
+func _player_name() -> String:
+	if Game != null and Game.player_name != "":
+		return Game.player_name
+	return "friend"
 
 
 func _on_design_slot_chosen(slot: int) -> void:
@@ -284,14 +396,6 @@ func _on_name_entered(text: String) -> void:
 	_say_line("\"%s\" — I love it! It's all yours." % text)
 
 
-func _flow_design_book() -> void:
-	var list_ui: Node = _grp("design_list_ui")
-	if list_ui != null and list_ui.has_method("open"):
-		list_ui.call("open", "manage", Callable())
-		return
-	Game.post_notice("Mabel: The design book isn't ready yet.")
-
-
 ## `aNNW_talk_trend_cloth` — reports the top cloth trend then the top umbrella trend.
 func _flow_trend() -> void:
 	if Game == null or Game.designs == null:
@@ -327,28 +431,40 @@ func _flow_listen() -> void:
 	_flush_queue()
 
 
-func _flow_gba() -> void:
-	_say_line("Oh — you'd need a Game Boy Advance hooked up for that. Maybe another time!")
-
-
-## `aNNW_talk_trade_check` — the 4-way display menu (`aNNW_set_...`).
+## `aNNW_talk_trade_check` — msg `0x2FF2` (cloth) / `0x2FF3` (umbrella), the 4-way
+## display menu, then the `GIVE_ADMISSION` confirm sub-step (`0x2FF4` / `0x2FFB`).
 func _flow_trade_menu() -> void:
 	if _trade_fixture < 0 or Game.designs == null:
 		return
-	var is_umb := _trade_fixture >= DesignBook.CLOTH_SLOTS
-	var d: DesignPattern = Game.designs.shop[_trade_fixture & 7]
-	var thing := "umbrella" if is_umb else "outfit"
+	var nm: String = Game.designs.shop[_trade_fixture & 7].name
+	var ask := "Yes! Um, sure thing! I like\nto call that design the\n\"%s.\"\nCan I help you with it?" % nm
+	var cd := "That means I have to get rid\nof the pattern we have on\ndisplay now, but you're fine\nwith that, right?"
+	var cb := "If you end up with more than\neight designs, you have to get\nrid of one. But you're OK\nwith that, right?"
 	var data := DialogueData.from_dict({
 		"id": "mabel_trade", "start": "start",
 		"nodes": {
-			"start": {"type": "line", "text": "That's the \"%s\" %s. What would you like to do?" % [d.name, thing], "next": "menu"},
-			"menu": {"type": "choice", "prompt": "", "options": [
-				{"text": "Put one of my designs here.", "events": [{"op": "needlework_trade", "act": "display"}]},
-				{"text": "I'd like this design.", "events": [{"op": "needlework_trade", "act": "buy"}]},
-				{"text": "Let's trade designs.", "events": [{"op": "needlework_trade", "act": "exchange"}]},
-				{"text": "Never mind.", "goto": "bye"},
+			"start": {"type": "line", "text": ask, "next": "menu"},
+			"menu": {"type": "choice", "prompt": ask, "options": [
+				{"text": "Display mine!", "goto": "confirm_display"},
+				{"text": "I want it!", "goto": "confirm_buy"},
+				{"text": "Can we trade?", "goto": "ask_trade"},
+				{"text": "Never mind...", "goto": "bye"},
 			]},
-			"bye": {"type": "line", "text": "No trouble at all. Take your time!"},
+			"confirm_display": {"type": "line", "text": cd, "next": "cd_menu"},
+			"cd_menu": {"type": "choice", "prompt": cd, "options": [
+				{"text": "Sure!", "events": [{"op": "needlework_trade", "act": "display"}]},
+				{"text": "I'll trade...", "events": [{"op": "needlework_trade", "act": "exchange"}]},
+				{"text": "Never mind...", "goto": "bye"},
+			]},
+			"confirm_buy": {"type": "line", "text": cb, "next": "cb_menu"},
+			"cb_menu": {"type": "choice", "prompt": cb, "options": [
+				{"text": "Sure!", "events": [{"op": "needlework_trade", "act": "buy"}]},
+				{"text": "I'll trade...", "events": [{"op": "needlework_trade", "act": "exchange"}]},
+				{"text": "Never mind...", "goto": "bye"},
+			]},
+			"ask_trade": {"type": "line", "text": "Oh, OK. Which design would\nyou like to trade it for?",
+				"events": [{"op": "needlework_trade", "act": "exchange"}]},
+			"bye": {"type": "line", "text": "Oh, I see."},
 		},
 	})
 	var ui: Node = _grp("dialogue_ui")
@@ -389,8 +505,7 @@ func _on_trade_slot_chosen(player_slot: int) -> void:
 			return
 	Audio.play_se(&"cursol")
 	DesignTexture.clear_cache()
-	var shown: String = Game.designs.shop[fixture & 7].name
-	_say_line(NeedleworkTalk.trade_result_line(act, shown))
+	_say_line(NeedleworkTalk.trade_result_line(act))
 	if act != "display" and Game.worn_design_slot >= 0 \
 			and Game.designs.resolved_index(Game.worn_design_slot) == affected:
 		Game.design_changed.emit()

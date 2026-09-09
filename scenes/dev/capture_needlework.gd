@@ -77,11 +77,16 @@ func _run() -> void:
 	print("machine world: ", machine.global_position if machine else "nil")
 	print("sable world: ", sable.global_position if sable else "nil", "  yaw: ",
 		sable.rotation.y if sable else 0.0)
+	var clk: Node3D = furniture.get_node_or_null("NeedleworkClock")
+	if clk != null:
+		print("clock @ ", clk.global_position)
 
 	var shots := [
 		{"name": "entrance", "pos": Vector3(-6.0, 3.5, 6.0), "look": Vector3(-6.0, 0.3, -6.0)},
 		{"name": "room_wide", "pos": Vector3(-6.0, 4.5, 2.5), "look": Vector3(-8.0, 0.5, -8.0)},
 		{"name": "displays", "pos": Vector3(-4.0, 5.5, -2.0), "look": Vector3(-4.0, 0.4, -9.0)},
+		{"name": "back_wall", "pos": Vector3(-9.0, 2.5, -8.0), "look": Vector3(-10.0, 3.0, -15.5)},
+		{"name": "topdown", "pos": Vector3(-5.0, 9.0, -9.0), "look": Vector3(-5.0, 0.0, -9.01)},
 	]
 	for shot in shots:
 		_camera.position = shot["pos"]

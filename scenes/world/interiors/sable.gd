@@ -151,7 +151,7 @@ func _fallback_line(i: int) -> String:
 func _make_ctx() -> DialogueContext:
 	var c: DialogueContext = DialogueContext.from_game()
 	c.speaker_name = "Sable"
-	c.speaker_sex = 1
+	## Special NPC — default green nameplate, like Mabel / Tom Nook.
 	c.voice_mode = DialogueVoice.Mode.ANIMALESE
 	c.sound_spec = 4
 	c.frees = PackedStringArray(["Mabel", "Sable"])
