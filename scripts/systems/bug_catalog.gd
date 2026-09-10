@@ -24,7 +24,10 @@ static func ensure_loaded() -> void:
 			if not dir.current_is_dir() and entry.ends_with(".tres"):
 				var res: Resource = load("%s/%s" % [CREATURES_DIR, entry])
 				if res is BugData and (res as BugData).id != &"":
-					_bugs.append(res as BugData)
+					var bug := res as BugData
+					## `aINS_program_type[]` wins over the authored `program` field.
+					bug.program = BugData.program_for_type(bug.type_index)
+					_bugs.append(bug)
 			entry = dir.get_next()
 		dir.list_dir_end()
 	_bugs.sort_custom(func(a: BugData, b: BugData) -> bool: return a.id < b.id)

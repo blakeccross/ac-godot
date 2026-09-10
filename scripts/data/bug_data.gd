@@ -5,23 +5,54 @@ extends ItemData
 ## (`aSOI_TERM0`–`aSOI_TERM5`), not a free window, because that is the only
 ## resolution the spawn tables have.
 
-## `aINS_PROGRAM_*`. Drives movement AI in `BugActor`.
+## `aINS_PROGRAM_*` from `ac_insect_h.h`, in decomp order. Drives movement AI: each
+## value selects a `BugProgram` subclass under `scripts/systems/bugs/`.
 enum Program {
-	BUTTERFLY,
-	LOCUST,
-	DRAGONFLY,
-	LADYBUG,
-	FIREFLY,
-	CICADA,
-	BEETLE,
-	COCKROACH,
-	WATER_SKATER,
-	BAGWORM,
-	PILL_BUG,
-	MOLE_CRICKET,
-	MANTIS,
-	SPIRIT,
+	CHOU,		## butterflies (`ac_ins_chou.c`)
+	BATTA,		## locusts / crickets / grasshopper (`ac_ins_batta.c`)
+	TONBO,		## dragonflies (`ac_ins_tonbo.c`)
+	TENTOU,		## ladybugs / mantis / snail (`ac_ins_tentou.c`)
+	HOTARU,		## firefly (`ac_ins_hotaru.c`)
+	SEMI,		## cicadas / bee (`ac_ins_semi.c`)
+	KABUTO,		## beetles (`ac_ins_kabuto.c`)
+	GOKI,		## cockroach (`ac_ins_goki.c`)
+	HITODAMA,	## spirit / Wisp (`ac_ins_hitodama.c`)
+	AMENBO,		## pond skater (`ac_ins_amenbo.c`)
+	KA,			## mosquito (`ac_ins_ka.c`)
+	DANGO,		## pill bug / ant (`ac_ins_dango.c`)
+	KERA,		## mole cricket (`ac_ins_kera.c`)
+	MINO,		## bagworm / spider (`ac_ins_mino.c`)
 }
+
+## `aINS_program_type[]` (`ac_insect_data.c_inc`): the program each `type_index`
+## (`aINS_INSECT_TYPE_*`, 0..39, then SPIRIT=40) runs. This table is authoritative —
+## `program` authored on a `.tres` is overwritten from it on load.
+const PROGRAM_FOR_TYPE: Array[int] = [
+	Program.CHOU, Program.CHOU, Program.CHOU, Program.CHOU,          ## 0-3   butterflies
+	Program.SEMI, Program.SEMI, Program.SEMI, Program.SEMI, Program.SEMI,  ## 4-8  cicadas + bee
+	Program.TONBO, Program.TONBO, Program.TONBO, Program.TONBO,      ## 9-12  dragonflies
+	Program.BATTA, Program.BATTA, Program.BATTA, Program.BATTA, Program.BATTA, Program.BATTA,  ## 13-18 locusts/crickets
+	Program.KABUTO, Program.KABUTO, Program.KABUTO, Program.KABUTO, Program.KABUTO,  ## 19-23 beetles
+	Program.TENTOU, Program.TENTOU, Program.TENTOU,                  ## 24-26 ladybug, spotted, mantis
+	Program.HOTARU,                                                  ## 27    firefly
+	Program.GOKI,                                                    ## 28    cockroach
+	Program.KABUTO, Program.KABUTO, Program.KABUTO,                  ## 29-31 saw/mountain/giant beetle
+	Program.TENTOU,                                                  ## 32    snail
+	Program.KERA,                                                    ## 33    mole cricket
+	Program.AMENBO,                                                  ## 34    pond skater
+	Program.MINO,                                                    ## 35    bagworm
+	Program.DANGO,                                                   ## 36    pill bug
+	Program.MINO,                                                    ## 37    spider
+	Program.DANGO,                                                   ## 38    ant
+	Program.KA,                                                      ## 39    mosquito
+	Program.HITODAMA,                                                ## 40    spirit (aINS_INSECT_TYPE_SPIRIT)
+]
+
+
+static func program_for_type(type_idx: int) -> Program:
+	if type_idx < 0 or type_idx >= PROGRAM_FOR_TYPE.size():
+		return Program.CHOU
+	return PROGRAM_FOR_TYPE[type_idx] as Program
 
 ## `aSOI_SPAWN_AREA_*`. Where this species can appear.
 enum Habitat {
@@ -69,7 +100,9 @@ const TERM_HOURS := {
 @export var model_flap: int = 0
 ## Y nudge before draw, in GX.
 @export var model_lift: float = 0.0
-@export var program: Program = Program.BUTTERFLY
+## Movement program. Authored value is a fallback — `BugCatalog` overwrites it from
+## `PROGRAM_FOR_TYPE[type_index]` (the decomp `aINS_program_type[]` table) on load.
+@export var program: Program = Program.CHOU
 
 ## Pose A/B cadence for field and held insects (30 Hz hold table).
 const POSE_FLAP_HZ := 30.0

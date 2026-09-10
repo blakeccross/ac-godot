@@ -134,3 +134,5 @@ static func _notify_bugs(ctx: InteractionContext, cell: Vector2i) -> void:
 	var field: BugField = ctx.world.get("bugs") as BugField
 	if field != null:
 		field.notify_player_action(cell)
+		## `aINS_PL_ACT_DIG_SCOOP` — wakes a mole cricket buried in this unit.
+		field.notify_field_action(BugActor.PlAct.DIG_SCOOP, cell)

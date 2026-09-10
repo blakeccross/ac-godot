@@ -79,6 +79,12 @@ var worn_design_slot: int = -1
 var has_map: bool = false
 ## Session weather (`mEnv_WEATHER_*`). Rolled by `Weather` on `field_renewed`.
 var weather: StringName = &"clear"
+
+## `Save_Get(insect_term)` / `insect_term_transition_offset` — the month whose
+## insect spawn table is currently "settled in" and a per-month random 0-5 day
+## offset for the cross-month blend (`aSOI_ins_chk_term_info`). Session-scoped.
+var insect_term_month: int = 0
+var insect_term_offset: int = 0
 ## `mEnv_WEATHER_INTENSITY_*` (none/light/normal/heavy).
 var weather_intensity: int = int(Weather.Intensity.NONE)
 var dialogue_vars: Dictionary = {}
@@ -421,6 +427,8 @@ func reset_session() -> void:
 	else:
 		post.clear()
 	interior_session = null
+	insect_term_month = 0
+	insect_term_offset = 0
 	current_room_id = &""
 	outdoor_return = DEFAULT_SPAWN
 	outdoor_return_yaw = 0.0

@@ -50,7 +50,9 @@ func _build(bug: BugData) -> void:
 
 
 func sync(actor: BugActor, _delta: float) -> void:
-	visible = not actor.finished
+	## `actor->drawn` — MINO / KERA / DANGO are hidden in the tree / ground until
+	## the player shakes or digs.
+	visible = actor.drawn and not actor.finished
 	if not visible:
 		return
 	## `aINS_actor_draw_sub`: translate, RotateX/Y/Z, then `Matrix_scale(0.01)`. Same

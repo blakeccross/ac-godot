@@ -437,3 +437,5 @@ func _stress_bugs_at(ctx: InteractionContext) -> void:
 	if grid == null:
 		return
 	field.notify_player_action(_cell())
+	## `aINS_PL_ACT_SHAKE_TREE` — wakes bagworms and scares tree cicadas / beetles.
+	field.notify_field_action(BugActor.PlAct.SHAKE_TREE, _cell())

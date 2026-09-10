@@ -43,7 +43,38 @@ func _make_sense() -> BugActor.Sense:
 			sense.player_move_gx = float(player.call("insect_stress_move_gx"))
 		if player.has_method("is_dashing"):
 			sense.player_dashing = bool(player.call("is_dashing"))
+		if player.has_method("facing_yaw"):
+			sense.player_yaw = float(player.call("facing_yaw"))
+	var grid: Variant = _grid_for()
+	if grid is WorldGrid:
+		sense.bg = BugBg.make_probe(grid, _layout_for())
+	if _field != null:
+		var act: Dictionary = _field.take_field_action()
+		sense.player_action = int(act.get("kind", 0))
+		sense.player_action_cell = act.get("cell", Vector2i(-1, -1))
 	return sense
+
+
+func _grid_for() -> Variant:
+	var node: Node = get_parent()
+	while node != null:
+		if node.get("grid") is WorldGrid:
+			return node.get("grid")
+		node = node.get_parent()
+	return null
+
+
+func _layout_for() -> WorldData:
+	var node: Node = get_parent()
+	while node != null:
+		var d: Variant = node.get("layout")
+		if d is WorldData:
+			return d
+		d = node.get("world_data")
+		if d is WorldData:
+			return d
+		node = node.get_parent()
+	return null
 
 
 func _sync(delta: float) -> void:
