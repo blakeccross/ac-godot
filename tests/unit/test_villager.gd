@@ -170,6 +170,21 @@ func test_scene_talks_when_in_field() -> void:
 	assert_int(Game.villagers.get_or_create(&"filbert").friendship).is_equal(VillagerState.TALK_FIRST)
 
 
+func test_sustained_walk_builds_fatigue_and_forces_rest() -> void:
+	## `aNPC_calc_fatigue` (+1 walk / -2 wait per 30 Hz frame) → forced WAIT at 1600,
+	## held by `aNPC_act_wait` until fatigue drains under 200.
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	var moving := Vector3(1.5, 0.0, 0.0)
+	for _i: int in 4000:
+		villager._tick_fatigue(1.0 / 30.0, moving)
+	assert_float(villager._fatigue).is_equal_approx(Villager.FATIGUE_MAX, 0.5)
+	assert_bool(villager._resting).is_true()
+	for _i: int in 4000:
+		villager._tick_fatigue(1.0 / 30.0, Vector3.ZERO)
+	assert_float(villager._fatigue).is_equal(0.0)
+	assert_bool(villager._resting).is_false()
+
+
 func test_motor_stops_when_not_wandering() -> void:
 	var motor := VillagerMotor.new()
 	motor.reset(Vector3.ZERO)
@@ -206,7 +221,10 @@ func test_field_plan_is_reusable_actions() -> void:
 	assert_bool(ActivityKind.loops(ActivityKind.WANDER)).is_true()
 
 
-func test_field_plan_walks_to_goal_acre() -> void:
+func test_field_plan_has_no_cross_acre_walk_step() -> void:
+	## The visible actor only ever wanders its current acre; a far goal acre is
+	## reached by the actor's own coarse per-acre stepper, not a plan `WALK_TO`
+	## (`ac_set_npc_manager` walks culled NPCs, not the rendered one).
 	var goal := Vector3(24, 0, 16)
 	var plan: Array[VillagerAction] = VillagerPlan.build(
 		VillagerActivity.FIELD,
@@ -220,13 +238,20 @@ func test_field_plan_walks_to_goal_acre() -> void:
 			"water": Vector3.INF,
 		}
 	)
-	assert_that(plan[0].kind).is_equal(ActivityKind.WALK_TO)
-	assert_vector(plan[0].target).is_equal(goal)
-	assert_that(plan[1].kind).is_equal(ActivityKind.WANDER)
-	assert_vector(plan[1].target).is_equal(goal)
-	assert_bool(plan[1].is_finished()).is_false()
-	plan[1].tick_time(ActivityKind.STAY_SECONDS + 1.0)
-	assert_bool(plan[1].is_finished()).is_false()
+	assert_int(plan.size()).is_equal(1)
+	assert_that(plan[0].kind).is_equal(ActivityKind.WANDER)
+	for action: VillagerAction in plan:
+		assert_that(action.kind).is_not_equal(ActivityKind.WALK_TO)
+	plan[0].tick_time(ActivityKind.STAY_SECONDS + 1.0)
+	assert_bool(plan[0].is_finished()).is_false()
+
+
+func test_step_block_toward_matches_set_npc_manager() -> void:
+	## `aSNMgr_set_to_block` — one acre toward the goal along the larger-delta axis.
+	assert_that(VillagerWalk.step_block_toward(Vector2i(2, 3), Vector2i(2, 3))).is_equal(Vector2i(2, 3))
+	assert_that(VillagerWalk.step_block_toward(Vector2i(2, 3), Vector2i(5, 4))).is_equal(Vector2i(3, 3))
+	assert_that(VillagerWalk.step_block_toward(Vector2i(2, 3), Vector2i(3, 6))).is_equal(Vector2i(2, 4))
+	assert_that(VillagerWalk.step_block_toward(Vector2i(4, 5), Vector2i(4, 2))).is_equal(Vector2i(4, 4))
 
 
 func test_sleep_plan_is_just_sleep_when_already_home() -> void:
@@ -387,9 +412,7 @@ func test_ai_advances_when_action_finishes() -> void:
 	assert_that(ai.kind()).is_equal(ActivityKind.LEAVE_HOME)
 	ai.consider_arrive(ActivityKind.YARD_OFFSET)
 	ai.step(0.0)
-	assert_that(ai.kind()).is_equal(ActivityKind.WALK_TO)
-	ai.consider_arrive(Vector3(8, 0, 0))
-	ai.step(0.0)
+	## No cross-acre `WALK_TO` step — leave house then straight into the wander loop.
 	assert_that(ai.kind()).is_equal(ActivityKind.WANDER)
 	ai.step(ActivityKind.STAY_SECONDS + 0.1)
 	assert_that(ai.kind()).is_equal(ActivityKind.WANDER)
@@ -792,12 +815,38 @@ func test_avoid_around_stays_in_acre() -> void:
 	var data := _plot_with_house()
 	var block := Vector2i(1, 1)
 	var from: Vector3 = data.cell_to_world(Vector2i(5, 7))
-	var around: Vector3 = VillagerWalk.avoid_around(data, from, deg_to_rad(90.0), block, null, 1)
+	var around: Vector3 = VillagerWalk.avoid_around(data, from, deg_to_rad(90.0), block, 1, 0)
 	assert_bool(VillagerWalk.in_move_range(data, block, around)).is_true()
 	var delta: Vector3 = around - from
 	delta.y = 0.0
 	assert_float(delta.length()).is_greater_equal(VillagerWalk.MIN_STEP)
 	assert_float(delta.length()).is_equal_approx(VillagerWalk.AVOID_METERS, 0.05)
+	## Escalating the tier widens the veer angle but keeps it 2 units out and in-acre.
+	var wide: Vector3 = VillagerWalk.avoid_around(data, from, deg_to_rad(90.0), block, 1, 3)
+	assert_bool(VillagerWalk.in_move_range(data, block, wide)).is_true()
+
+
+func test_segment_clear_rejects_a_line_through_the_house() -> void:
+	## Wander rim picks whose straight segment runs through the house are rejected
+	## (so a villager never wedges at its own door). Clear lines still pass.
+	var data := _plot_with_house()
+	var west: Vector3 = data.cell_to_world(Vector2i(3, 7))
+	var east: Vector3 = data.cell_to_world(Vector2i(11, 7))
+	assert_bool(VillagerWalk.segment_clear(data, west, east)).is_false()
+	var south_a: Vector3 = data.cell_to_world(Vector2i(3, 12))
+	var south_b: Vector3 = data.cell_to_world(Vector2i(11, 12))
+	assert_bool(VillagerWalk.segment_clear(data, south_a, south_b)).is_true()
+
+
+func test_open_spawn_near_lifts_out_of_a_pocket() -> void:
+	## A villager boxed against its house at spawn is nudged to a roomy cell centre.
+	var data := _plot_with_house()
+	var grid := WorldGrid.new()
+	var boxed: Vector3 = data.cell_to_world(Vector2i(6, 5))  # against the 3x3 at (6,6)
+	var out: Vector3 = VillagerWalk.open_spawn_near(data, grid, boxed, Vector2i(1, 1))
+	var out_cell: Vector2i = grid.world_to_cell(out)
+	assert_bool(VillagerWalk.is_standable(data, out_cell)).is_true()
+	assert_int(VillagerWalk._cell_open_score(data, grid, out_cell)).is_greater_equal(3)
 
 
 func test_circle_revise_clamps_to_roam_radius() -> void:

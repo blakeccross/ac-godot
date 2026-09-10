@@ -69,10 +69,11 @@ static func nearest_water_stand(data: WorldData, from: Vector2i, radius: int = 1
 static func _field_plan(
 	previous: StringName, outdoors: bool, hints: Dictionary
 ) -> Array[VillagerAction]:
-	## Field think is leave-house (only if still inside) then wander until the
-	## schedule type changes. Walk slots are a destination acre, not sit/fish.
+	## `aNPC_field_schedule`: leave-house (only if still inside) then wander until the
+	## schedule type changes. The visible actor only ever wanders its current acre;
+	## reaching a goal acre is the actor's own coarse per-acre stepper, not a plan step
+	## (`ac_set_npc_manager` walks culled NPCs block-by-block toward `goal_block`).
 	var home: Vector3 = hints.get("home", Vector3.ZERO) as Vector3
-	var goal: Vector3 = _goal_of(hints, home)
 	var leaving: bool = (
 		not outdoors
 		or is_home_hint(hints)
@@ -82,8 +83,6 @@ static func _field_plan(
 	var out: Array[VillagerAction] = []
 	if leaving:
 		out.append(VillagerAction.make(ActivityKind.LEAVE_HOME, home + ActivityKind.YARD_OFFSET))
-	if goal.distance_to(home) > 0.75:
-		out.append(VillagerAction.make(ActivityKind.WALK_TO, goal))
 	out.append(_wander_at(hints, home))
 	return out
 

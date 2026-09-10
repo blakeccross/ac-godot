@@ -45,6 +45,9 @@ const HIT_WALL := 1
 const HIT_WALL_FRONT := 2
 ## One wait clip, then `decide_next` again.
 const WAIT_SECONDS := 2.0
+## Colliding with a structure this long *despite* avoid steering → abandon the rim
+## dest and re-roll (`aNPC_avoid_wall` → `turn_to_backward` → `decide_next` → WAIT).
+const STUCK_SECONDS := 2.0
 const _BLOCK_STAND: Array[StringName] = [&"tree", &"rock", &"house", &"shop", &"building"]
 
 static var _walkers: Dictionary = {}
@@ -215,6 +218,66 @@ static func is_in_block(data: WorldData, block: Vector2i, world_pos: Vector3) ->
 	return block_from_cell(cell) == block
 
 
+static func step_block_toward(from_block: Vector2i, goal_block: Vector2i) -> Vector2i:
+	## `aSNMgr_set_to_block` — one acre toward the goal, along the larger-delta axis.
+	var diff := Vector2i(goal_block.x - from_block.x, goal_block.y - from_block.y)
+	if diff == Vector2i.ZERO:
+		return from_block
+	var idx_x: bool = absi(diff.x) >= absi(diff.y)
+	if idx_x and diff.x != 0:
+		return from_block + Vector2i(signi(diff.x), 0)
+	if diff.y != 0:
+		return from_block + Vector2i(0, signi(diff.y))
+	if diff.x != 0:
+		return from_block + Vector2i(signi(diff.x), 0)
+	return from_block
+
+
+static func acre_entry_stand(
+	data: WorldData,
+	from_pos: Vector3,
+	from_block: Vector2i,
+	to_block: Vector2i,
+	grid: WorldGrid,
+	depth: int = 2
+) -> Vector3:
+	## Enter the next acre `depth` units past the shared edge (`aNPC_think_in_block`
+	## walks ~3 units in). Scans that edge strip for the walkable cell nearest the
+	## villager and coarse-path-checks it. `Vector3.INF` when none is reachable.
+	if data == null or not is_fg_block(to_block):
+		return Vector3.INF
+	var dir := Vector2i(to_block.x - from_block.x, to_block.y - from_block.y)
+	var org: Vector2i = _origin_cell(data, to_block)
+	var d: int = clampi(depth, 1, 6)
+	var cands: Array[Vector2i] = []
+	if dir.x != 0:
+		var cx: int = org.x + (d if dir.x > 0 else WorldGenerator.UT - 1 - d)
+		for cz: int in range(org.y + 2, org.y + WorldGenerator.UT - 2):
+			cands.append(Vector2i(cx, cz))
+	elif dir.y != 0:
+		var cz2: int = org.y + (d if dir.y > 0 else WorldGenerator.UT - 1 - d)
+		for cx2: int in range(org.x + 2, org.x + WorldGenerator.UT - 2):
+			cands.append(Vector2i(cx2, cz2))
+	else:
+		return Vector3.INF
+	var best := Vector2i(-9999, -9999)
+	var best_d: float = INF
+	for c: Vector2i in cands:
+		if not is_standable(data, c):
+			continue
+		var w: Vector3 = data.cell_to_world(c)
+		var dd: float = Vector2(w.x - from_pos.x, w.z - from_pos.z).length()
+		if dd < best_d:
+			best_d = dd
+			best = c
+	if best.x == -9999:
+		return Vector3.INF
+	var stand: Vector3 = data.cell_to_world(best)
+	if grid != null and not path_clear(data, from_pos, stand, grid, 44):
+		return Vector3.INF
+	return stand
+
+
 static func in_move_range(data: WorldData, block: Vector2i, world_pos: Vector3) -> bool:
 	## `aNPC_circleRangeCheck` — inside `range_radius` of acre center (not the acre square).
 	if data == null:
@@ -347,9 +410,66 @@ static func snap_standable(data: WorldData, world_pos: Vector3) -> Vector3:
 	return _snap_walkable(data, world_pos)
 
 
+static func open_spawn_near(
+	data: WorldData, grid: WorldGrid, world_pos: Vector3, block: Vector2i
+) -> Vector3:
+	## Nearest cell that is standable AND has room to move off it — used once at spawn
+	## to lift a villager out of a pocket at its own front door (`_yard_cell` / house
+	## plus-offsets can box the yard cell). Returns `world_pos` if it is already open.
+	if data == null:
+		return world_pos
+	var here: Vector2i = _world_to_cell(data, world_pos)
+	## Snap to the centre of the roomiest cell within reach (a fully-open cell nearby
+	## ends the search early). Always returns a cell centre so the villager starts
+	## clear of the wall segment its spawn position may be scraping.
+	var best: Vector2i = here
+	var best_key: int = _cell_open_score(data, grid, here) * 1000
+	for radius: int in range(1, 10):
+		for dz: int in range(-radius, radius + 1):
+			for dx: int in range(-radius, radius + 1):
+				if maxi(absi(dx), absi(dz)) != radius:
+					continue
+				var c: Vector2i = here + Vector2i(dx, dz)
+				if is_fg_block(block) and block_from_cell(c) != block:
+					continue
+				var score: int = _cell_open_score(data, grid, c)
+				if score < 3:
+					continue
+				var key: int = score * 1000 - (dx * dx + dz * dz)
+				if key > best_key:
+					best_key = key
+					best = c
+		if best_key >= 4 * 1000 - 250:
+			break
+	var out: Vector3 = data.cell_to_world(best)
+	out.y = world_pos.y
+	return out
+
+
+static func _cell_open_score(data: WorldData, grid: WorldGrid, cell: Vector2i) -> int:
+	if not is_standable(data, cell):
+		return 0
+	var from: Vector3 = data.cell_to_world(cell)
+	var open: int = 0
+	for off: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var n: Vector2i = cell + off
+		if not is_standable(data, n):
+			continue
+		if grid != null and not FieldCollision.step_open(data, grid, from, data.cell_to_world(n)):
+			continue
+		open += 1
+	return open
+
+
 static func avoid_backward(from: Vector3, facing: float, meters: float = TURN_METERS) -> Vector3:
 	## `aNPC_turn_to_backward` 180° — 1 unit behind facing.
 	return _avoid_stand(from, facing, PI, meters)
+
+
+## `aNPC_avoid_wall` widen steps — the decomp is 22.5/45/90/180, steepened here
+## because our steer curves in slower than the original's per-frame recursion.
+const AVOID_TIERS := 4
+const _AVOID_DEG: Array[float] = [45.0, 67.5, 90.0, 135.0]
 
 
 static func avoid_around(
@@ -357,22 +477,33 @@ static func avoid_around(
 	from: Vector3,
 	facing: float,
 	block: Vector2i,
-	grid: WorldGrid = null,
-	prefer_side: int = 1
+	prefer_side: int = 1,
+	tier: int = 0
 ) -> Vector3:
-	## `aNPC_avoid_wall`: one side only — 2 units at 22.5° → 45° → 90°, else 180°.
-	## Only `moveRangeCheck` (stay in acre) — no path/standable gate.
+	## `aNPC_avoid_wall`: veer to a point 2 units out on one committed side at an
+	## escalating angle. `moveRangeCheck` (circle) only — no path/standable gate.
 	## prefer_side 1 = +angles, 2 = −angles (`drt_data` / `add_angl[][direction]`).
-	var sign: float = -1.0 if prefer_side == 2 else 1.0
-	var tiers: Array[float] = [22.5, 45.0, 90.0]
-	for deg: float in tiers:
-		var stand: Vector3 = _avoid_stand(from, facing, deg_to_rad(deg) * sign, AVOID_METERS)
+	var sgn: float = -1.0 if prefer_side == 2 else 1.0
+	for i: int in range(clampi(tier, 0, _AVOID_DEG.size() - 1), _AVOID_DEG.size()):
+		var stand: Vector3 = _avoid_stand(from, facing, deg_to_rad(_AVOID_DEG[i]) * sgn, AVOID_METERS)
 		if _avoid_range_ok(data, block, stand):
 			return stand
 	var back: Vector3 = _avoid_stand(from, facing, PI, AVOID_METERS)
 	if _avoid_range_ok(data, block, back):
 		return back
 	return from
+
+
+static func retreat_hop(data: WorldData, from: Vector3, facing: float, block: Vector2i) -> Vector3:
+	## `aNPC_turn_to_backward(±112.5°)` — 1 unit; 180° or straight back as fallbacks.
+	var order: Array[float] = [112.5, -112.5]
+	if randf() < 0.5:
+		order = [-112.5, 112.5]
+	for d: float in order:
+		var p: Vector3 = _avoid_stand(from, facing, deg_to_rad(d), TURN_METERS)
+		if _avoid_range_ok(data, block, p):
+			return p
+	return _avoid_stand(from, facing, PI, TURN_METERS)
 
 
 static func first_avoid_hop(
@@ -748,10 +879,13 @@ static func _dest_ok(
 	block: Vector2i,
 	from: Vector3,
 	stand: Vector3,
-	grid: WorldGrid = null
+	_grid: WorldGrid = null
 ) -> bool:
-	## `aNPC_think_wander_move_next`: circle range + CheckNpc + FG empty/item1/ftr.
-	## No pathfinding — walls are handled while walking via BG + avoid.
+	## `aNPC_think_wander_move_next`: circle range + CheckNpc + FG empty/item1/ftr. The
+	## decomp then walks a straight line and `aNPC_avoid_wall` clears the way; we also
+	## reject a rim pick whose straight segment runs through unwalkable ground (a house
+	## near the acre centre would otherwise wedge the villager at its own door). This is
+	## line-of-sight only — not a path search — so it stays close to the decomp outcome.
 	if not in_move_range(data, block, stand):
 		return false
 	if not is_standable(data, _world_to_cell(data, stand)):
@@ -760,6 +894,27 @@ static func _dest_ok(
 	from_delta.y = 0.0
 	if from_delta.length() < MIN_STEP:
 		return false
+	if not segment_clear(data, from, stand):
+		return false
+	return true
+
+
+static func segment_clear(data: WorldData, from: Vector3, to: Vector3) -> bool:
+	## Every ~half-unit along the straight line is standable ground.
+	if data == null:
+		return true
+	var d: Vector3 = to - from
+	d.y = 0.0
+	var dist: float = d.length()
+	if dist < 0.01:
+		return true
+	var step: float = maxf(data.cell_size * 0.5, 0.5)
+	var n: int = int(ceil(dist / step))
+	var dir: Vector3 = d / dist
+	for i: int in range(1, n + 1):
+		var p: Vector3 = from + dir * minf(step * i, dist)
+		if not is_standable(data, _world_to_cell(data, p)):
+			return false
 	return true
 
 

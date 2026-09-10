@@ -37,6 +37,8 @@ var steer: Vector3 = Vector3.ZERO
 var has_target: bool = false
 ## `movement.avoid_direction`: 0 = fresh dest, 1/2 = preferred avoid side.
 var avoid_direction: int = 0
+## `aNPC_avoid_wall` recursion depth — widen the veer each time the wall holds.
+var avoid_tier: int = 0
 ## Ones-way: spin in place before the walk (`aNPC_ACT_TURN`).
 var turn_only: bool = false
 var gait: StringName = VillagerWalk.ACT_WAIT
@@ -51,6 +53,7 @@ func reset(p_home: Vector3, yaw: float = 0.0) -> void:
 	steer = p_home
 	has_target = false
 	avoid_direction = 0
+	avoid_tier = 0
 	turn_only = false
 	wait_left = 0.0
 	gait = VillagerWalk.ACT_WAIT
@@ -84,6 +87,7 @@ func set_target(
 	steer = world_pos
 	has_target = true
 	avoid_direction = 0
+	avoid_tier = 0
 	wait_left = 0.0
 	gait = next_gait
 	arrive_radius = p_arrive
@@ -117,6 +121,7 @@ func wait_in_place(seconds: float = VillagerWalk.WAIT_SECONDS) -> void:
 	has_target = false
 	steer = target
 	avoid_direction = 0
+	avoid_tier = 0
 	turn_only = false
 	gait = VillagerWalk.ACT_WAIT
 	wait_left = seconds
@@ -132,6 +137,8 @@ func pause(seconds: float = VillagerWalk.WAIT_SECONDS) -> void:
 func arrive() -> void:
 	has_target = false
 	steer = target
+	avoid_direction = 0
+	avoid_tier = 0
 	turn_only = false
 	wait_left = 0.0
 	gait = VillagerWalk.ACT_WAIT
@@ -189,6 +196,7 @@ func tick(delta: float, from: Vector3, _next: Vector3, moving: bool) -> Vector3:
 			return Vector3.ZERO
 		steer = target
 		avoid_direction = 0
+		avoid_tier = 0
 		to_steer = steer - from
 		to_steer.y = 0.0
 	if to_steer.length_squared() < 0.0001:
