@@ -810,9 +810,11 @@ static func _acre_candidates(block_type: int) -> PackedStringArray:
 		TownFieldGenerator.T_MUSEUM:
 			return _names("grd_s_f_mu_", 1, 3)
 		TownFieldGenerator.T_POLICE:
-			return _names("grd_s_f_pk_", 1, 3)
-		TownFieldGenerator.T_SHRINE:
+			## `data_combi.c`: `GRD_S_F_KO_*` (kouban) → `mFM_BLOCK_TYPE_POLICE_BOX`.
 			return _names("grd_s_f_ko_", 1, 3)
+		TownFieldGenerator.T_SHRINE:
+			## `data_combi.c`: `GRD_S_F_PK_*` (park) → `mFM_BLOCK_TYPE_SHRINE` (wishing well).
+			return _names("grd_s_f_pk_", 1, 3)
 		TownFieldGenerator.T_RIVER_S:
 			return _names("grd_s_r1_", 1, 4)
 		TownFieldGenerator.T_RIVER_E:

@@ -191,8 +191,9 @@ def _pick_beach_acre_job(jobs: dict[str, dict[str, Any]], _season: str) -> dict[
 
 
 def _pick_shrine_acre_job(jobs: dict[str, dict[str, Any]], _season: str) -> dict[str, Any] | None:
-	"""Wishing-well lot (`grd_s_f_ko_*`): bush_b fringe, stone path, earth."""
-	return _pick_job(jobs, "grd_s_f_ko_1", "grd_s_f_ko_2", "grd_s_f_ko_3")
+	"""Wishing-well lot (`grd_s_f_pk_*`, `data_combi.c` `mFM_BLOCK_TYPE_SHRINE`):
+	bush_b fringe, stone path, earth."""
+	return _pick_job(jobs, "grd_s_f_pk_1", "grd_s_f_pk_2", "grd_s_f_pk_3")
 
 
 def _spec_for_tex_name(name: str) -> tuple[int, int, str] | None:

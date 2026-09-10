@@ -8,7 +8,7 @@ extends Node3D
 
 const OUT_DIR := "res://recordings/wishing_well"
 
-const ACRE_ID := &"grd_s_f_ko_2"
+const ACRE_ID := &"grd_s_f_pk_2"
 const WELL_ID := &"obj_s_shrine"
 
 const SEASONS: Array[Dictionary] = [

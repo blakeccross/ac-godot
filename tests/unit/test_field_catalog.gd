@@ -309,6 +309,15 @@ func test_acre_block_types_map_to_grd_families() -> void:
 	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_NEEDLEWORK, 0))).is_equal(
 		"grd_s_m_ta_1"
 	)
+	## `data_combi.c`: `GRD_S_F_KO_*` (kouban) → POLICE_BOX, `GRD_S_F_PK_*` (park) → SHRINE.
+	if not FieldCatalog.mesh_paths(&"grd_s_f_ko_1").is_empty():
+		assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_POLICE, 0))).is_equal(
+			"grd_s_f_ko_1"
+		)
+	if not FieldCatalog.mesh_paths(&"grd_s_f_pk_1").is_empty():
+		assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_SHRINE, 0))).is_equal(
+			"grd_s_f_pk_1"
+		)
 	assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_PORT, 0))).is_equal("grd_s_m_wf_1")
 	if not FieldCatalog.mesh_paths(&"grd_s_e2_1").is_empty():
 		assert_str(String(FieldCatalog.acre_for_block_type(TownFieldGenerator.T_BORDER_CLIFF_LEFT, 0))).is_equal(
