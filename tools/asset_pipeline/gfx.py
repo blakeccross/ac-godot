@@ -37,6 +37,7 @@ from .texbank import (
     parse_settile_dolphin,
     parse_settilesize,
     parse_settimg,
+    png_is_aa_cutout,
     resolve_alpha_mode,
     revive_stained_glass_alpha,
     tmem_palette_slot,
@@ -955,20 +956,28 @@ def parse_gfx(
         alpha_mode = demote_opaque_uv_alpha(
             coverage, alpha_mode, samples_transparent=samples_transparent
         )
-        ## TEX_EDGE + ACHD soft AA (house MIRROR walls, CLAMP tank glass, doors):
-        ## keep the HD sheet but bin alpha to 0/255 so alphaMode stays MASK.
-        ## Leaving soft BLEND put structure walls in Godot's transparent pass with
-        ## depth write off — they drew in front of the whole town.
+        ## ACHD soft AA on an alpha-compare silhouette: keep the HD sheet but bin
+        ## alpha to 0/255 so alphaMode stays MASK. TEX_EDGE says so outright; a DL
+        ## that never set a rendermode (structure sub-DL inheriting the actor setup)
+        ## is judged from the texture — a hard cutout + a UV footprint that lands on
+        ## its holes is alpha-compare on hardware, not a real gradient. Leaving soft
+        ## BLEND put structure walls in Godot's transparent pass with depth write
+        ## off — they drew in front of the whole town.
         if (
-            coverage == "tex_edge"
-            and samples_transparent
+            samples_transparent
             and png
             and texel_mode == "BLEND"
+            and force_alpha_mode is None
+            and not spill
+            and (
+                coverage == "tex_edge"
+                or (coverage is None and png_is_aa_cutout(png))
+            )
         ):
             png = harden_tex_edge_alpha(png)
             texel_mode = "MASK"
             alpha_mode = resolve_alpha_mode(
-                coverage, texel_mode, samples_transparent=True
+                "tex_edge", texel_mode, samples_transparent=True
             )
         ## Tank / sea-tank env glass + caustics share the TEX_EDGE frame's wall planes.
         ## Godot's depth test flickers coplanar XLU against the depth-writing MASK

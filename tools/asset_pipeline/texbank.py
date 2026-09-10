@@ -387,6 +387,26 @@ def alpha_mode_for_png(png: bytes | None) -> str:
     return alpha_mode_for_image(Image.open(io.BytesIO(png)))
 
 
+def png_is_aa_cutout(png: bytes | None, *, fringe_frac: float = 0.12) -> bool:
+    """True when the alpha is a hard 0/255 cutout wearing a thin anti-aliased fringe.
+
+    ACHD upscales a console alpha-compare texture with edge AA, so a silhouette
+    (roof cap, wall window hole) that is MASK on hardware reads as BLEND by
+    histogram. A real soft gradient keeps a broad mid band and fails this.
+    """
+    if not png:
+        return False
+    alpha = Image.open(io.BytesIO(png)).convert("RGBA").getchannel("A")
+    hist = alpha.histogram()
+    total = alpha.size[0] * alpha.size[1]
+    if not total:
+        return False
+    hard = hist[0] + sum(hist[250:])
+    if hard >= total:
+        return False  # already fully hard — nothing to bin
+    return hard >= (1.0 - fringe_frac) * total and hist[0] > 0
+
+
 ## Coverage from G_SETOTHERMODE_L render mode (libultra bit constants on the mode word).
 COVERAGE_OPA = "opa"
 COVERAGE_TEX_EDGE = "tex_edge"

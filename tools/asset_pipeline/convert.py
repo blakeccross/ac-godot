@@ -28,6 +28,7 @@ from .mapfile import parse_map
 from .rel import RelData
 from .test_set import TEST_SKELETONS, TEST_STATIC
 from .texbank import (
+    GX_CLAMP,
     G_IM_FMT_CI,
     G_IM_FMT_IA,
     G_IM_SIZ_4b,
@@ -826,6 +827,167 @@ def _convert_ckf(cfg: PipelineConfig, rel: RelData, symbols: list, item: dict[st
     return record
 
 
+_G_NOOP = 0x00
+_G_DL = 0xDE
+_G_ENDDL = 0xDF
+
+
+def _pure_dl_targets(blob: bytes, bank: TextureBank) -> set[str] | None:
+    """Names a pure `gsSPDisplayList` chain references, or None if it has real work."""
+    targets: set[str] = set()
+    for i in range(0, len(blob) - 7, 8):
+        op = blob[i]
+        if op == _G_ENDDL:
+            break
+        if op == _G_NOOP:
+            continue
+        if op != _G_DL:
+            return None
+        sub = bank.addr_to_sym.get(int.from_bytes(blob[i + 4 : i + 8], "big"))
+        if sub is not None:
+            targets.add(sub.name)
+    return targets
+
+
+def _dedupe_wrapper_gfx(gfx_names: list[str], bank: TextureBank) -> list[str]:
+    """Drop sub-DLs a sibling wrapper in the list already draws.
+
+    A `*_model` blob that is nothing but `gsSPDisplayList` / `gsSPEndDisplayList`
+    is a wrapper (`obj_s_kouban_model` chains `_t3/_t2/_t1/_neon/_light_model`).
+    Baking the wrapper *and* each nested DL standalone double-draws every part —
+    once textured, once with stale render state leaked from the previous sub-DL
+    (the opaque square kouban roof). `parse_gfx` already walks the wrapper's
+    nested DLs, so keep the wrapper plus any sibling it never reaches.
+    """
+    referenced: set[str] = set()
+    for name in gfx_names:
+        sym = bank.by_name.get(name)
+        if sym is None or sym.size <= 0:
+            continue
+        try:
+            blob = bank.rel.slice_at(sym.address, sym.size)
+        except ValueError:
+            continue
+        refs = _pure_dl_targets(blob, bank)
+        if refs is not None:
+            referenced |= refs
+    if not referenced:
+        return gfx_names
+    return [n for n in gfx_names if n not in referenced]
+
+
+def _is_bit_shadow(parts: list) -> bool:
+    """A `bg_item` prop shadow (`bIT_ShadowData_c`), detected from Gfx state alone.
+
+    Every part is a flat XLU-decal fan whose vertex-colour alpha is exactly the
+    binary `bIT_copy_vtx` fix flag — 0 for verts the sun sweep slides along X,
+    1 for the fixed footprint. No other mesh carries that {0, 1}-only vertex alpha
+    on a flat decal, so no name check is needed.
+    """
+    if not parts:
+        return False
+    alphas: set[float] = set()
+    for part in parts:
+        if part.coverage != "xlu" or not part.vertices:
+            return False
+        ys = [v.y for v in part.vertices]
+        if max(ys) - min(ys) > 1e-3:
+            return False
+        for v in part.vertices:
+            alphas.add(round(v.a, 3))
+    return alphas == {0.0, 1.0}
+
+
+def _blob_shadow_parts(parts: list) -> list:
+    """Replace a `bg_item` prop shadow mesh with one soft ground ellipse.
+
+    The GameCube prop shadow is a runtime system: `bIT_copy_vtx` slides every
+    vertex whose colour alpha is 0 along local X by `kankyo->shadow_pos *
+    shadow_len` (∈ [-100,100] × per-prop length) so the blob sweeps E↔W with the
+    sun and only closes up as a solid shape when projected. The static rest pose
+    (`shadow_pos == 0`) of a multi-quad shadow is a sparse frame with gaps — it
+    reads as glitchy geometry. Bake a soft-alpha ellipse fitted to the fixed
+    (alpha 1) footprint verts instead; matches the actor blob-shadow look.
+    """
+    from .gfx import MeshPart, Vertex
+
+    xs_core: list[float] = []
+    zs_core: list[float] = []
+    xs_all: list[float] = []
+    zs_all: list[float] = []
+    ys: list[float] = []
+    for part in parts:
+        for v in part.vertices:
+            xs_all.append(v.x)
+            zs_all.append(v.z)
+            ys.append(v.y)
+            ## `Vertex.a` is normalised 0..1; the `bIT` fix flag is a==0 (swept) vs
+            ## a==1 (fixed footprint).
+            if v.a >= 0.5:
+                xs_core.append(v.x)
+                zs_core.append(v.z)
+    if not xs_all:
+        return parts
+    xs = xs_core if len(xs_core) >= 3 else xs_all
+    zs = zs_core if len(zs_core) >= 3 else zs_all
+    cx = 0.5 * (min(xs) + max(xs))
+    cz = 0.5 * (min(zs) + max(zs))
+    hx = max(0.5 * (max(xs) - min(xs)), 1e-4) * 1.15
+    hz = max(0.5 * (max(zs) - min(zs)), 1e-4) * 1.15
+    y = min(ys)
+
+    def _v(px: float, pz: float, u: float, vv: float) -> "Vertex":
+        return Vertex(
+            x=px, y=y, z=pz, s=0.0, t=0.0, r=255.0, g=255.0, b=255.0, a=255.0,
+            u=u, v=vv, nx=0.0, ny=1.0, nz=0.0,
+        )
+
+    verts = [
+        _v(cx - hx, cz - hz, 0.0, 0.0),
+        _v(cx + hx, cz - hz, 1.0, 0.0),
+        _v(cx + hx, cz + hz, 1.0, 1.0),
+        _v(cx - hx, cz + hz, 0.0, 1.0),
+    ]
+    tris = [(0, 1, 2), (0, 2, 3)]
+    part = MeshPart(name="blob_shadow", vertices=verts, triangles=tris)
+    part.texture_name = "blob_shadow"
+    part.texture_png = _radial_shadow_png()
+    part.tex_width = 96
+    part.tex_height = 96
+    part.wrap_s = GX_CLAMP
+    part.wrap_t = GX_CLAMP
+    part.alpha_mode = "BLEND"
+    part.ground_spill = True
+    part.coverage = "xlu"
+    return [part]
+
+
+_RADIAL_SHADOW_PNG_CACHE: bytes | None = None
+
+
+def _radial_shadow_png() -> bytes:
+    global _RADIAL_SHADOW_PNG_CACHE
+    if _RADIAL_SHADOW_PNG_CACHE is not None:
+        return _RADIAL_SHADOW_PNG_CACHE
+    from PIL import Image
+
+    ## Dark cool grey — `m_kankyo` shadow_color is ~(0, 10, 60) modulated onto the
+    ## I-blob; the runtime blob-shadow material takes RGB straight from this PNG.
+    n = 96
+    img = Image.new("RGBA", (n, n))
+    px = img.load()
+    for j in range(n):
+        for i in range(n):
+            dx = (i + 0.5) / n * 2.0 - 1.0
+            dy = (j + 0.5) / n * 2.0 - 1.0
+            d = (dx * dx + dy * dy) ** 0.5
+            a = max(0.0, 1.0 - d)
+            a = a * a * (3.0 - 2.0 * a)  # smoothstep
+            px[i, j] = (6, 10, 16, int(round(a * 205.0)))
+    _RADIAL_SHADOW_PNG_CACHE = image_png_bytes(img)
+    return _RADIAL_SHADOW_PNG_CACHE
+
+
 def _convert_static(
     cfg: PipelineConfig, rel: RelData, symbols: list, item: dict[str, Any], bank: TextureBank
 ) -> dict[str, Any]:
@@ -847,15 +1009,18 @@ def _convert_static(
         bank.segment_palettes.clear()
         bank._segment_offset_names.clear()
         bank.bind_static_segments(item["asset_id"])
+        gfx_names = _dedupe_wrapper_gfx(item["gfx"], bank)
         parts = convert_static_gfx(
             rel,
             symbols,
             item["vtx"],
-            item["gfx"],
+            gfx_names,
             cfg.scale,
             bank=bank,
             mat_override=item.get("mat"),
         )
+        if _is_bit_shadow(parts):
+            parts = _blob_shadow_parts(parts)
         dest = cfg.converted / item["output"]
         write_glb(
             dest,

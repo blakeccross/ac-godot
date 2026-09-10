@@ -117,6 +117,9 @@ static func _attach_blob_shadow(host: Node3D, visual_id: StringName) -> void:
 		return
 	host.add_child(pivot)
 	pivot.scale = Vector3.ONE * FieldCatalog.actor_uniform_scale_for(visual_id)
+	## Same 2 GX bias as footprints / the actor blob so the flat decal clears the
+	## acre plane (and the raised `StructureOffset` apron) without z-fighting.
+	pivot.position.y = FootprintMarks.GROUND_LIFT
 	_apply_blob_shadow_materials(pivot)
 	_disable_shadows(pivot)
 

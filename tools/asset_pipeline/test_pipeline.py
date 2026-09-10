@@ -13,7 +13,8 @@ from asset_pipeline.ckf import (
     select_close_bind,
     bind_frame_for_anim,
 )
-from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, INTRO_KK_NPC_ANIMS, INTRO_NOOK_NPC_ANIMS, INTRO_ROVER_NPC_ANIMS, INTRO_SLEEP_NPC_ANIMS, WATER_STATIC_NEEDLES, _intro_kk_anims, _intro_nook_anims, _intro_rover_anims, _intro_sleep_npc_anims, _is_field_water_acre, _name_under_prefix, _owning_vtx_prefix, _static_jobs
+from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, INTRO_KK_NPC_ANIMS, INTRO_NOOK_NPC_ANIMS, INTRO_ROVER_NPC_ANIMS, INTRO_SLEEP_NPC_ANIMS, WATER_STATIC_NEEDLES, _blob_shadow_parts, _dedupe_wrapper_gfx, _intro_kk_anims, _intro_nook_anims, _intro_rover_anims, _intro_sleep_npc_anims, _is_bit_shadow, _is_field_water_acre, _name_under_prefix, _owning_vtx_prefix, _static_jobs
+from asset_pipeline.gfx import MeshPart, Vertex
 from asset_pipeline.glb import _bake_wrap_group
 from asset_pipeline.layout import (
     bti_output_path,
@@ -185,6 +186,103 @@ class PrefixOwnershipTests(unittest.TestCase):
             jobs["grd_s_r1_1"]["gfx"],
             ["grd_s_r1_1_model", "grd_s_r1_1_modelT"],
         )
+
+    def test_dedupe_wrapper_gfx_drops_sub_dls_the_wrapper_already_draws(self) -> None:
+        ## A `*_model` blob that is nothing but gsSPDisplayList/gsSPEndDisplayList is
+        ## a wrapper; `parse_gfx` walks its nested DLs, so baking those sub-DLs
+        ## standalone too would double-draw them with leaked render state (the
+        ## opaque square kouban roof). Detected from GBI opcodes — no name check.
+        ## Siblings the wrapper never reaches (the XLU window) stay in the list.
+        WRAP, T3, T1, WINDOW = 0x1000, 0x2000, 0x2010, 0x3000
+        syms = {
+            "obj_s_kouban_model": _sym("obj_s_kouban_model", WRAP, 24),
+            "obj_s_kouban_t3_model": _sym("obj_s_kouban_t3_model", T3, 16),
+            "obj_s_kouban_t1_model": _sym("obj_s_kouban_t1_model", T1, 16),
+            "obj_s_kouban_window_model": _sym("obj_s_kouban_window_model", WINDOW, 16),
+        }
+        blobs = {
+            WRAP: struct.pack(">IIIIII", 0xDE000000, T3, 0xDE000000, T1, 0xDF000000, 0),
+            T3: struct.pack(">IIII", 0x01010030, 0x0, 0xDF000000, 0),  # G_VTX = real work
+            T1: struct.pack(">IIII", 0x01010030, 0x0, 0xDF000000, 0),
+            WINDOW: struct.pack(">IIII", 0x01010030, 0x0, 0xDF000000, 0),
+        }
+
+        class _Bank:
+            by_name = syms
+            addr_to_sym = {s.address: s for s in syms.values()}
+
+            class rel:
+                @staticmethod
+                def slice_at(addr: int, size: int) -> bytes:
+                    return blobs[addr][:size]
+
+        names = list(syms)
+        self.assertEqual(
+            _dedupe_wrapper_gfx(names, _Bank()),
+            ["obj_s_kouban_model", "obj_s_kouban_window_model"],
+        )
+        ## No wrapper in the list -> nothing pruned.
+        self.assertEqual(
+            _dedupe_wrapper_gfx(
+                ["obj_s_kouban_t3_model", "obj_s_kouban_t1_model"], _Bank()
+            ),
+            ["obj_s_kouban_t3_model", "obj_s_kouban_t1_model"],
+        )
+
+    def test_is_bit_shadow_matches_flat_xlu_binary_alpha_fan(self) -> None:
+        ## bg_item prop shadow: every part a flat XLU decal whose vertex alpha is
+        ## exactly the {0, 1} bIT_copy_vtx fix flag. Window spill (alpha {1}) and
+        ## non-flat meshes must not match. Detected from Gfx state — no name check.
+        def _v(y: float, a: float) -> Vertex:
+            return Vertex(x=0.0, y=y, z=0.0, s=0.0, t=0.0, r=255.0, g=255.0, b=255.0, a=a)
+
+        flat_shadow = MeshPart(
+            name="x", coverage="xlu",
+            vertices=[_v(0.0, 0.0), _v(0.0, 1.0), _v(0.0, 0.0)],
+            triangles=[(0, 1, 2)],
+        )
+        self.assertTrue(_is_bit_shadow([flat_shadow]))
+
+        window_spill = MeshPart(
+            name="x", coverage="xlu",
+            vertices=[_v(0.0, 1.0), _v(0.0, 1.0), _v(0.0, 1.0)],
+            triangles=[(0, 1, 2)],
+        )
+        self.assertFalse(_is_bit_shadow([window_spill]))
+
+        not_flat = MeshPart(
+            name="x", coverage="xlu",
+            vertices=[_v(0.0, 0.0), _v(5.0, 1.0), _v(0.0, 0.0)],
+            triangles=[(0, 1, 2)],
+        )
+        self.assertFalse(_is_bit_shadow([not_flat]))
+
+    def test_blob_shadow_parts_fits_one_soft_quad_to_the_fixed_footprint(self) -> None:
+        ## The `bIT` prop shadow is runtime sun-swept (a==0 verts slide on X); its
+        ## static rest pose reads as a glitchy frame. Replace it with a single
+        ## soft-alpha quad fitted to the a==1 (fixed) footprint verts.
+        def _v(x: float, z: float, a: float) -> Vertex:
+            return Vertex(x=x, y=0.0, z=z, s=0.0, t=0.0, r=255.0, g=255.0, b=255.0, a=a)
+
+        src = MeshPart(
+            name="obj_x_shadow_model",
+            vertices=[
+                _v(-4.0, -3.0, 1.0), _v(4.0, -3.0, 1.0), _v(4.0, 3.0, 1.0), _v(-4.0, 3.0, 1.0),
+                _v(0.0, -12.0, 0.0), _v(0.0, 9.0, 0.0),  # swept tail — must not size the quad
+            ],
+            triangles=[(0, 1, 2), (0, 2, 3), (0, 4, 5)],
+        )
+        out = _blob_shadow_parts([src])
+        self.assertEqual(len(out), 1)
+        part = out[0]
+        self.assertEqual(len(part.triangles), 2)
+        self.assertEqual(part.alpha_mode, "BLEND")
+        self.assertTrue(part.ground_spill)
+        self.assertIsNotNone(part.texture_png)
+        xs = [v.x for v in part.vertices]
+        zs = [v.z for v in part.vertices]
+        self.assertAlmostEqual(max(xs), 4.0 * 1.15, places=3)
+        self.assertAlmostEqual(max(zs), 3.0 * 1.15, places=3)  # tail (-12/9) ignored
 
     def test_item_card_gfx_maps_fruit_billboards(self) -> None:
         ## Dropped fruit/money use mode+vtx or combined modelT, not `*_gfx_model`.
