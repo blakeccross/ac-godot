@@ -1,6 +1,6 @@
 extends Node3D
 
-## Renders the Able Sisters interior (shell + `add_needlework_set`) so Sable's
+## Renders the Able Sisters interior (shell + `NeedleworkPresenter`) so Sable's
 ## facing / the sewing machine / mannequins can be eyeballed.
 ##
 ##   /Applications/Godot.app/Contents/MacOS/Godot --path . --import
@@ -35,7 +35,7 @@ func _run() -> void:
 	var furniture := Node3D.new()
 	furniture.name = "Furniture"
 	add_child(furniture)
-	InteriorBuilder.new().add_needlework_set(furniture, session)
+	NeedleworkPresenter.new().present(furniture, session)
 	var terrain := Node3D.new()
 	terrain.name = "Terrain"
 	add_child(terrain)
@@ -63,9 +63,16 @@ func _run() -> void:
 	e.background_color = Color(0.15, 0.15, 0.18)
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color(1, 1, 1)
-	e.ambient_light_energy = 1.2
+	e.ambient_light_energy = 0.9
 	env.environment = e
 	add_child(env)
+	## mirror interior.tscn FillLight so lit fixtures show form shading
+	var fill := OmniLight3D.new()
+	fill.position = Vector3(-6.0, 4.0, -7.0)
+	fill.light_energy = 1.4
+	fill.omni_range = 28.0
+	fill.shadow_enabled = false
+	add_child(fill)
 
 	_camera.current = true
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))

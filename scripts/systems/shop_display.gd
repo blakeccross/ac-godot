@@ -104,6 +104,28 @@ static func stock_cells_for_goods(goods: Array[StringName]) -> Array[Vector2i]:
 	return out
 
 
+## Free inner cells for shelf stock in an upgraded Nook shop (`shop1`..`shop3`):
+## every inner cell except the door strip, spawn, counter and any authored furniture.
+static func free_stock_cells(room: Room, interior: Interior) -> Array[Vector2i]:
+	var skip: Dictionary = {}
+	skip[room.door_cell] = true
+	skip[room.door_cell + Vector2i(1, 0)] = true
+	skip[room.spawn_cell] = true
+	skip[room.counter_cell()] = true
+	for entry: FurniturePlacement in room.placements:
+		var data: FurnitureData = interior.furniture_of(entry.furniture_id)
+		var foot: Vector2i = entry.resolved_footprint(data)
+		for cell: Vector2i in interior.grid.footprint_cells(entry.cell, foot, entry.facing):
+			skip[cell] = true
+	var out: Array[Vector2i] = []
+	for z: int in range(room.inner_origin.y, room.inner_origin.y + room.inner_size.y):
+		for x: int in range(room.inner_origin.x, room.inner_origin.x + room.inner_size.x):
+			var cell := Vector2i(x, z)
+			if not bool(skip.get(cell, false)):
+				out.append(cell)
+	return out
+
+
 static func stock_placements_for_goods(goods: Array[StringName]) -> Array[Dictionary]:
 	## Map each listed good onto the first free RSV cell of matching kind.
 	var used: Dictionary = {}

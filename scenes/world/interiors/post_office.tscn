@@ -1,6 +1,6 @@
 [gd_scene load_steps=6 format=3]
 
-[ext_resource type="Script" path="res://scenes/world/interiors/public_room.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/world/interiors/post_office_room.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/world/interiors/post_girl.tscn" id="4"]

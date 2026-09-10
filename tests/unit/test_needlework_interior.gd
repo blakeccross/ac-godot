@@ -1,7 +1,7 @@
 class_name TestNeedleworkInterior
 extends GdUnitTestSuite
 
-## Able Sisters interior build (`InteriorBuilder.add_needlework_set`).
+## Able Sisters interior build (`NeedleworkPresenter`).
 
 
 func test_room_keeps_acre_origin_and_gx_positions_land_inside() -> void:
@@ -14,14 +14,14 @@ func test_room_keeps_acre_origin_and_gx_positions_land_inside() -> void:
 	session.bind(room)
 	var grid := session.grid
 	## every mannequin / umbrella-stand GX maps onto walkable floor
-	for gx: Vector3 in InteriorBuilder.NEEDLEWORK_MANNEQUIN_GX + InteriorBuilder.NEEDLEWORK_UMBRELLA_GX:
+	for gx: Vector3 in NeedleworkPresenter.MANNEQUIN_GX + NeedleworkPresenter.UMBRELLA_GX:
 		var cell := grid.world_to_cell(MuseumDisplay.gx_to_world(grid, gx))
 		assert_bool(room.is_inner(cell)).override_failure_message(
 			"GX %s -> cell %s is off-floor" % [gx, cell]
 		).is_true()
 	## mannequins sit north of the umbrella stands, which sit north of the spawn
-	var man_z := MuseumDisplay.gx_to_world(grid, InteriorBuilder.NEEDLEWORK_MANNEQUIN_GX[0]).z
-	var umb_z := MuseumDisplay.gx_to_world(grid, InteriorBuilder.NEEDLEWORK_UMBRELLA_GX[0]).z
+	var man_z := MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.MANNEQUIN_GX[0]).z
+	var umb_z := MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.UMBRELLA_GX[0]).z
 	var spawn_z := grid.cell_to_world(room.spawn_cell).z
 	assert_bool(man_z < umb_z).is_true()
 	assert_bool(umb_z < spawn_z).is_true()
@@ -34,20 +34,20 @@ func test_room_keeps_acre_origin_and_gx_positions_land_inside() -> void:
 	assert_bool(room.is_exit_cell(spawn_cell)).is_true()
 	assert_int(room.door_cell.y).is_equal(room.inner_origin.y + room.inner_size.y)  ## porch row, just south of the last inner row
 	## every display / Sable / Mabel sits strictly north of the exit strip
-	for gx: Vector3 in ([InteriorBuilder.NEEDLEWORK_SABLE_GX, InteriorBuilder.NEEDLEWORK_MABEL_GX]
-			+ InteriorBuilder.NEEDLEWORK_MANNEQUIN_GX + InteriorBuilder.NEEDLEWORK_UMBRELLA_GX):
+	for gx: Vector3 in ([NeedleworkPresenter.SABLE_GX, NeedleworkPresenter.MABEL_GX]
+			+ NeedleworkPresenter.MANNEQUIN_GX + NeedleworkPresenter.UMBRELLA_GX):
 		var c := grid.world_to_cell(MuseumDisplay.gx_to_world(grid, gx))
 		assert_bool(c.y < room.door_cell.y).override_failure_message("%s at cell %s not north of exit" % [gx, c]).is_true()
 
 
-func test_add_needlework_set_places_sisters_and_displays() -> void:
+func test_present_places_sisters_and_displays() -> void:
 	var room: Room = InteriorCatalog.room_template(&"needlework")
 	var session := Interior.new()
 	session.bind(room)
 	var root := Node3D.new()
 	auto_free(root)
 	add_child(root)
-	InteriorBuilder.new().add_needlework_set(root, session)
+	NeedleworkPresenter.new().present(root, session)
 	assert_that(root.get_node_or_null("Mabel")).is_not_null()
 	assert_that(root.get_node_or_null("Sable")).is_not_null()
 	for i in 4:
@@ -60,7 +60,7 @@ func test_add_needlework_set_places_sisters_and_displays() -> void:
 	assert_that(mach_anim).is_not_null()
 	assert_bool(mach_anim.is_playing()).is_true()
 	## a second pass must not duplicate
-	InteriorBuilder.new().add_needlework_set(root, session)
+	NeedleworkPresenter.new().present(root, session)
 	assert_int(root.get_children().filter(func(n): return n.name == &"Mabel").size()).is_equal(1)
 
 
@@ -77,7 +77,7 @@ func test_sable_sews_at_the_machine() -> void:
 	var room: Room = InteriorCatalog.room_template(&"needlework")
 	var session := Interior.new()
 	session.bind(room)
-	var pos := MuseumDisplay.gx_to_world(session.grid, InteriorBuilder.NEEDLEWORK_SABLE_GX)
+	var pos := MuseumDisplay.gx_to_world(session.grid, NeedleworkPresenter.SABLE_GX)
 	assert_bool(room.is_inner(session.grid.world_to_cell(pos))).is_true()
 	assert_float(pos.z).is_equal_approx(-10.5, 1.2)
 	assert_float(pos.x).is_equal_approx(-11.7, 1.0)

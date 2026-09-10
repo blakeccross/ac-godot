@@ -1,53 +1,24 @@
 class_name InteriorBuilder
 extends RefCounted
 
-## Turns a bound `Interior` into placeholder floor, walls, furniture, and doors.
+## Generic interior assembly: shell fit + collision, data-driven `FurniturePlacement`,
+## and doors. Building-specific fixtures (shopkeepers, stock, the Able Sisters set,
+## museum exhibits) live in the room's own `.tscn` script → `present_exhibits()` →
+## a `*Presenter` (`ShopPresenter`, `NeedleworkPresenter`, `PostPresenter`,
+## `PolicePresenter`, `MuseumPresenter`). Scene-less rooms use `_furnish_fallback`.
 
 const WALL_HEIGHT := 3.0
 const FURNITURE_SCENE := preload("res://scenes/world/furniture.tscn")
 const DOOR_SCENE := preload("res://scenes/world/door.tscn")
-const COUNTER_SCENE := preload("res://scenes/world/shop_counter.tscn")
-const STOCK_SCENE := preload("res://scenes/world/shop_stock.tscn")
-const TOM_NOOK_SCENE := preload("res://scenes/world/interiors/tom_nook.tscn")
-const POST_GIRL_SCENE := preload("res://scenes/world/interiors/post_girl.tscn")
-const POST_DESK_SCRIPT := preload("res://scenes/world/interiors/post_desk.gd")
-const POST_TERMINAL_SCRIPT := preload("res://scenes/world/interiors/post_terminal.gd")
-const BOOKER_SCENE := preload("res://scenes/world/interiors/booker.tscn")
-const ABLE_FIXTURE_SCENE := preload("res://scenes/world/interiors/able_fixture.tscn")
-const MABEL_SCENE := preload("res://scenes/world/interiors/mabel.tscn")
-const SABLE_SCENE := preload("res://scenes/world/interiors/sable.tscn")
-const LOST_FOUND_SCENE := preload("res://scenes/world/lost_and_found_item.tscn")
 const BLATHERS_SCRIPT := preload("res://scenes/world/museum/museum_blathers.gd")
-const NEEDLEWORK_CLOCK_SCRIPT := preload("res://scenes/world/interiors/needlework_clock.gd")
-## Authored `Furniture/*` fixtures that survive a re-populate (only exhibits rebuild).
+## Authored `Furniture/*` fixtures that survive a re-populate (only data-driven
+## exhibits / stock rebuild). Each presenter names its persistent nodes here or
+## adds them to the `"authored_fixture"` group.
 const AUTHORED_FIXTURE_NAMES: Array[StringName] = [
 	&"TomNook", &"NookClock", &"PostGirl", &"PostDesk", &"PostTerminal", &"Booker",
 	&"Blathers", &"MuseumClock", &"LightShaft", &"Redd", &"Mabel", &"Sable",
 	&"NeedleworkFurnitureCol", &"SewingMachine", &"SewingCloth", &"NeedleworkClock",
 ]
-## Able Sisters display positions — the exact `ac_needlework_indoor.c` tables
-## (`manekin_pos` / `umbrella_pos`, 40 GX apart). `rom_tailor` keeps the acre
-## origin so these map straight through `gx_to_world`. (The `y=40` in decomp is a
-## model-draw offset; `attach` foot-snaps instead.)
-const NEEDLEWORK_MANNEQUIN_GX: Array = [
-	Vector3(180, 0, 100), Vector3(220, 0, 100), Vector3(260, 0, 100), Vector3(300, 0, 100),
-]
-const NEEDLEWORK_UMBRELLA_GX: Array = [
-	Vector3(180, 0, 180), Vector3(220, 0, 180), Vector3(260, 0, 180), Vector3(300, 0, 180),
-]
-## Sable sits BEHIND (north of) the shell's baked sewing machine
-## (`rom_tailor_misindai` world ≈ (-11.95, 0, -9.0)) facing south (`_schedule.c_inc`
-## x=87, z≈home.z+13); Mabel's roam home.
-const NEEDLEWORK_SABLE_GX := Vector3(87, 0, 108)
-const NEEDLEWORK_MABEL_GX := Vector3(210, 0, 250)
-## Nudge the animated `obj_misin` overlay onto the shell's static machine head
-## (raw obj_misin verts land ~2.5 m high / a touch west). Tune visually.
-const NEEDLEWORK_MISIN_OFFSET := Vector3(0.8, -2.25, 0.0)
-## Wall clock (`HOUSE_CLOCK` / `obj_clock_tailor`). Decomp `aHC_position_data` for
-## `SCENE_NEEDLEWORK` is `{0,0,0}` (unplaced); `needlework_clock.gd` recentres the
-## mesh AABB on this host, so it is the clock's CENTRE — north wall, left of centre,
-## ~1.9 m up.
-const NEEDLEWORK_CLOCK_GX := Vector3(200.0, 46.0, 46.0)
 ## Door opening half-width (~1.5 UT). Matches walk-in sensors better than 1 UT.
 const MUSEUM_DOOR_HALF_GX := 60.0
 
@@ -75,8 +46,7 @@ func build(root: Node3D, interior: Interior) -> void:
 	_paint_shell(terrain, room, grid)
 	for entry: FurniturePlacement in room.placements:
 		add_furniture(furniture_root, interior, entry)
-	add_shop_set(furniture_root, interior)
-	add_museum_set(furniture_root, interior)
+	_furnish_fallback(furniture_root, interior)
 	_add_exit_door(doors_root, grid, room)
 	_add_linked_doors(doors_root, grid, room)
 
@@ -110,21 +80,35 @@ func populate_authored(room_root: Node3D, interior: Interior) -> void:
 		_paint_shell(terrain, room, grid)
 	for entry: FurniturePlacement in room.placements:
 		add_furniture(furniture_root, interior, entry)
-	add_shop_set(furniture_root, interior)
-	if room.kind == Room.Kind.MUSEUM and room_root.has_method("present_exhibits"):
+	## Every authored room's script owns its fixtures (`present_exhibits`, same as
+	## the museum wings). Scene-less kinds fall back to `_furnish_fallback`.
+	if room_root.has_method("present_exhibits"):
 		room_root.call("present_exhibits", furniture_root, interior)
-	elif room.kind == Room.Kind.MUSEUM:
-		add_museum_set(furniture_root, interior)
-	elif room.kind == Room.Kind.SHOP and room_root.has_method("present_exhibits"):
-		room_root.call("present_exhibits", furniture_root, interior)
-	elif (
-		(room.kind == Room.Kind.POST_OFFICE or room.kind == Room.Kind.POLICE)
-		and room_root.has_method("present_exhibits")
-	):
-		room_root.call("present_exhibits", furniture_root, interior)
-	elif room.kind == Room.Kind.BROKER:
-		add_redd(furniture_root, interior)
+	else:
+		_furnish_fallback(furniture_root, interior)
 	_place_authored_doors(doors_root, grid, room)
+
+
+## Furnishing for rooms with no authored `.tscn` script (Redd's tent; the
+## `build()` placeholder path). Authored rooms use their own `present_exhibits`.
+func _furnish_fallback(furniture_root: Node3D, interior: Interior) -> void:
+	if interior == null or interior.room == null:
+		return
+	match interior.room.kind:
+		Room.Kind.MUSEUM:
+			add_museum_set(furniture_root, interior)
+		Room.Kind.SHOP:
+			ShopPresenter.new().present(furniture_root, interior)
+		Room.Kind.NEEDLEWORK:
+			NeedleworkPresenter.new().present(furniture_root, interior)
+		Room.Kind.POST_OFFICE:
+			PostPresenter.new().present(furniture_root, interior)
+		Room.Kind.POLICE:
+			PolicePresenter.new().present(furniture_root, interior)
+		Room.Kind.BROKER:
+			add_redd(furniture_root, interior)
+		_:
+			pass
 
 
 func build_museum_stage(root: Node3D, interior: Interior) -> void:
@@ -658,7 +642,7 @@ func add_redd(root: Node3D, interior: Interior) -> void:
 	var redd := StaticBody3D.new()
 	redd.set_script(load("res://scenes/world/interiors/redd.gd"))
 	redd.name = "Redd"
-	redd.position = interior.grid.cell_to_world(_counter_cell(interior.room))
+	redd.position = interior.grid.cell_to_world(interior.room.counter_cell())
 	root.add_child(redd)
 
 
@@ -718,468 +702,6 @@ func add_museum_art_partitions(root: Node3D, room: Room, grid: WorldGrid) -> voi
 		var full_size := Vector3(span_hi - span_lo, WALL_HEIGHT, thickness)
 		var full_pos := Vector3((span_lo + span_hi) * 0.5, WALL_HEIGHT * 0.5, z_center)
 		_add_multi_gapped_wall(root, full_size, full_pos, &"x", span_lo, span_hi, gaps)
-
-
-func add_shop_set(root: Node3D, interior: Interior) -> void:
-	if root == null or interior == null or interior.room == null or Game == null:
-		return
-	var room: Room = interior.room
-	## Able Sisters is a design shop — no counter, no Bell stock. Fixtures + the
-	## sisters are placed by `add_needlework_set` instead.
-	if room.kind == Room.Kind.NEEDLEWORK:
-		add_needlework_set(root, interior)
-		return
-	var shop_id: StringName = Game.shops.shop_id_for_room(room)
-	if shop_id == &"":
-		return
-	Game.shops.ensure_today(shop_id)
-	if room.kind == Room.Kind.SHOP:
-		add_tom_nook(root, interior)
-		add_nook_clock(root, interior)
-	else:
-		var counter: Node3D = COUNTER_SCENE.instantiate() as Node3D
-		counter.name = "ShopCounter"
-		counter.set("shop_id", shop_id)
-		counter.position = interior.grid.cell_to_world(_counter_cell(room))
-		root.add_child(counter)
-	var listed: Array[StringName] = Game.shops.goods(shop_id)
-	if room.id == &"shop0":
-		var placements: Array[Dictionary] = ShopDisplay.stock_placements_for_goods(listed)
-		for i: int in mini(listed.size(), placements.size()):
-			var item_id: StringName = listed[i]
-			var row: Dictionary = placements[i]
-			var cell: Vector2i = row["cell"] as Vector2i
-			var node: Node3D = STOCK_SCENE.instantiate() as Node3D
-			node.name = "ShopStock_%d" % i
-			node.set("shop_id", shop_id)
-			node.set("item_id", item_id)
-			node.set("occupant_id", StringName("shop_stock_%d" % i))
-			var pos: Vector3 = interior.grid.cell_to_world(cell)
-			pos.y = float(row.get("y_gx", 0.0)) * FieldCatalog.GX_TO_METERS
-			node.position = pos
-			root.add_child(node)
-		return
-	var cells: Array[Vector2i] = _shop_stock_cells(room, interior)
-	for i: int in mini(listed.size(), cells.size()):
-		var item_id: StringName = listed[i]
-		var node: Node3D = STOCK_SCENE.instantiate() as Node3D
-		node.name = "ShopStock_%d" % i
-		node.set("shop_id", shop_id)
-		node.set("item_id", item_id)
-		node.set("occupant_id", StringName("shop_stock_%d" % i))
-		node.position = interior.grid.cell_to_world(cells[i])
-		root.add_child(node)
-
-
-## Able Sisters interior: the animated sewing machine + 4 mannequins + 4 umbrella
-## stands + Mabel & Sable (`ac_needlework_indoor.c`, `ac_npc_needlework.c`, `ac_misin.c`).
-## The static machine body / table / register / boxes are baked into the `rom_tailor`
-## shell; `obj_misin` here adds the moving needle + belt on top.
-func add_needlework_set(root: Node3D, interior: Interior) -> void:
-	if root == null or interior == null or interior.grid == null:
-		return
-	var grid: WorldGrid = interior.grid
-	_add_needlework_furniture_collision(root)
-	_add_sewing_machine(root, grid)
-	_add_needlework_clock(root, grid)
-	for i in NEEDLEWORK_MANNEQUIN_GX.size():
-		if root.get_node_or_null("Mannequin_%d" % i) != null:
-			continue
-		var m: Node3D = ABLE_FIXTURE_SCENE.instantiate() as Node3D
-		m.name = "Mannequin_%d" % i
-		m.set("slot", i)
-		m.set("kind", 0)
-		m.position = MuseumDisplay.gx_to_world(grid, NEEDLEWORK_MANNEQUIN_GX[i])
-		root.add_child(m)
-		_add_blob_shadow(m, Vector2(0.62, 0.62), 0.34)
-	for i in NEEDLEWORK_UMBRELLA_GX.size():
-		if root.get_node_or_null("UmbrellaStand_%d" % i) != null:
-			continue
-		var u: Node3D = ABLE_FIXTURE_SCENE.instantiate() as Node3D
-		u.name = "UmbrellaStand_%d" % i
-		u.set("slot", DesignBook.CLOTH_SLOTS + i)
-		u.set("kind", 1)
-		u.position = MuseumDisplay.gx_to_world(grid, NEEDLEWORK_UMBRELLA_GX[i])
-		root.add_child(u)
-		_add_blob_shadow(u, Vector2(0.7, 0.7), 0.34)
-	if root.get_node_or_null("Sable") == null:
-		var sable: Node3D = SABLE_SCENE.instantiate() as Node3D
-		sable.position = MuseumDisplay.gx_to_world(grid, NEEDLEWORK_SABLE_GX)
-		root.add_child(sable)
-		_add_blob_shadow(sable, Vector2(0.7, 0.58), 0.4)
-	if root.get_node_or_null("Mabel") == null:
-		var mabel: Node3D = MABEL_SCENE.instantiate() as Node3D
-		mabel.position = MuseumDisplay.gx_to_world(grid, NEEDLEWORK_MABEL_GX)
-		root.add_child(mabel)
-		_add_blob_shadow(mabel, Vector2(0.7, 0.58), 0.4)
-
-
-## Soft elliptical drop shadow under an interior fixture / NPC (`ACTOR_SHADOW`).
-## A flat unshaded MUL-blended quad with a radial falloff — reliable indoors where
-## the outdoor `actor_blob_shadow` heightfield probe has nothing to sit on.
-static var _blob_tex: ImageTexture = null
-
-
-func _blob_shadow_texture() -> ImageTexture:
-	## MUL blend: white (×1, no change) at the rim → dark grey (×0.4) at the centre.
-	if _blob_tex == null:
-		var n := 96
-		var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-		var c := (n - 1) * 0.5
-		for y in n:
-			for x in n:
-				var d: float = Vector2(x - c, y - c).length() / c  ## 0 centre → 1 edge
-				var g: float = lerpf(0.4, 1.0, smoothstep(0.15, 1.0, d))
-				img.set_pixel(x, y, Color(g, g, g * 1.03, 1.0))
-		_blob_tex = ImageTexture.create_from_image(img)
-	return _blob_tex
-
-
-func _add_blob_shadow(host: Node3D, extent: Vector2, alpha: float = 0.4) -> void:
-	if host == null or host.get_node_or_null("BlobShadow") != null:
-		return
-	var blob := MeshInstance3D.new()
-	blob.name = "BlobShadow"
-	var plane := PlaneMesh.new()  ## lies flat in XZ, normal +Y
-	plane.size = extent * 2.0
-	blob.mesh = plane
-	blob.position = Vector3(0.0, 0.06, 0.0)
-	blob.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-	mat.blend_mode = BaseMaterial3D.BLEND_MODE_MUL
-	## `alpha` deepens the shadow (0.34 fixtures → lighter, 0.4 NPCs → darker).
-	var tint: float = clampf(1.0 - (alpha - 0.34) * 0.9, 0.7, 1.0)
-	mat.albedo_color = Color(tint, tint, tint, 1.0)
-	mat.albedo_texture = _blob_shadow_texture()
-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	blob.material_override = mat
-	host.add_child(blob)
-
-
-## Able Sisters back-wall pendulum clock (`HOUSE_CLOCK` / `obj_clock_tailor`).
-func _add_needlework_clock(root: Node3D, grid: WorldGrid) -> void:
-	if root.get_node_or_null("NeedleworkClock") != null:
-		return
-	if FieldCatalog.mesh_paths(&"obj_clock_tailor").is_empty():
-		return
-	var host := Node3D.new()
-	host.name = "NeedleworkClock"
-	host.set_script(NEEDLEWORK_CLOCK_SCRIPT)
-	host.position = MuseumDisplay.gx_to_world(grid, NEEDLEWORK_CLOCK_GX)
-	root.add_child(host)
-
-
-## Solid colliders for the `rom_tailor` shell's baked furniture, from
-## `rom_tailor.col.json` (blocked FG cells) — the long west-wall counter/table
-## (register + machine + tools) and the east fabric boxes. `_add_shell_collision`
-## only builds the floor slab + perimeter walls, so these are otherwise walk-through.
-func _add_needlework_furniture_collision(root: Node3D) -> void:
-	if root.get_node_or_null("NeedleworkFurnitureCol") != null:
-		return
-	var box := StaticBody3D.new()
-	box.name = "NeedleworkFurnitureCol"
-	box.collision_layer = 1
-	box.collision_mask = 0
-	root.add_child(box)
-	## [half-extents, centre] in world metres — one box per blocked FG-cell run in
-	## `rom_tailor.col.json` (cells (1-2, 1-6) west, cell (8, 6) south-east).
-	var slabs := [
-		[Vector3(2.0, 1.1, 6.0), Vector3(-12.0, 1.1, -8.0)],   ## west counter run (table/machine/register)
-		[Vector3(1.0, 0.9, 1.0), Vector3(1.0, 0.9, -3.0)],     ## south-east fabric boxes (one cell)
-	]
-	for slab: Array in slabs:
-		var shape := CollisionShape3D.new()
-		var b := BoxShape3D.new()
-		b.size = (slab[0] as Vector3) * 2.0
-		shape.shape = b
-		shape.position = slab[1]
-		box.add_child(shape)
-
-
-## `ac_misin.c`: `obj_misin` verts are drawn `Matrix_translate(0) * Matrix_scale(0.01)`
-## — i.e. authored in acre GX from the block NW corner, same datum as the kept-acre
-## `rom_tailor` shell. Instantiate raw (no actor foot-snap), scale to metres, park
-## at the grid origin, and let the "obj_misin" clip loop (needle bob + belt scroll).
-func _add_sewing_machine(root: Node3D, grid: WorldGrid) -> void:
-	var paths: PackedStringArray = FieldCatalog.mesh_paths(&"obj_misin")
-	if paths.is_empty():
-		return
-	var packed: PackedScene = load(paths[0]) as PackedScene
-	if packed == null:
-		return
-	var pivot := Node3D.new()
-	pivot.name = "SewingMachine"
-	var inst: Node = packed.instantiate()
-	if not (inst is Node3D):
-		pivot.free()
-		return
-	pivot.add_child(inst)
-	root.add_child(pivot)
-	GeneratedVisual._apply_materials(pivot)
-	GeneratedVisual._disable_shadows(pivot)
-	pivot.scale = Vector3.ONE * FieldCatalog.actor_uniform_scale_for(&"obj_misin")
-	pivot.position = grid.origin + NEEDLEWORK_MISIN_OFFSET
-	var anim: AnimationPlayer = GeneratedVisual.find_animation_player(pivot)
-	if anim != null and anim.get_animation_list().size() > 0:
-		var clip: String = anim.get_animation_list()[0]
-		var a: Animation = anim.get_animation(clip)
-		if a != null:
-			a.loop_mode = Animation.LOOP_LINEAR
-		anim.play(clip)
-	_add_sewing_cloth(root, grid)
-
-
-## The patterned fabric on the machine bed (`obj_misin_cloth` / `aMSN_DustCloth_c`).
-## Decomp's `aMSN_DustclothCT` shows a random shop design ~1/3 of the time — here it
-## always shows one so the "square pattern" reads like the real game.
-func _add_sewing_cloth(root: Node3D, _grid: WorldGrid) -> void:
-	var paths: PackedStringArray = FieldCatalog.mesh_paths(&"obj_misin_cloth")
-	if paths.is_empty():
-		return
-	var packed: PackedScene = load(paths[0]) as PackedScene
-	if packed == null:
-		return
-	var inst: Node = packed.instantiate()
-	if not (inst is Node3D):
-		return
-	## `obj_misin_cloth` is a flat XZ quad (3.2×3.2, no thickness) centred on local
-	## (0, 5.3, 0). Wrap it in a positioned pivot so the feed-loop script can spin
-	## the pivot without fighting the mesh's local offset.
-	## `obj_misin_cloth` is a flat XZ quad (3.2², centre local (0, 5.3, 0)).
-	## Structure: SewingCloth (scripted, at the machine origin, does the RotateY) →
-	## Pivot (slid by `-target_pos`) → quad (flat on the bed, local-centre corrected).
-	const CLOTH_SCALE := 0.34
-	var node := Node3D.new()
-	node.name = "SewingCloth"
-	node.set_script(load("res://scenes/world/interiors/sewing_cloth.gd"))
-	var pivot := Node3D.new()
-	pivot.name = "Pivot"
-	node.add_child(pivot)
-	var quad := inst as Node3D
-	pivot.add_child(quad)
-	quad.scale = Vector3.ONE * CLOTH_SCALE
-	quad.position = Vector3(0.0, -5.3 * CLOTH_SCALE, 0.0)
-	## Machine bed centre (`obj_misin` needle ≈ world (-11.9, 0.9, -9)); the quad
-	## rides ~1 cm above it. (Nudged +x off the wall — the cloth read too far left.)
-	node.position = Vector3(-11.9, 0.95, -9.0)
-	root.add_child(node)  ## after children so the script's `_ready` sees Pivot
-	var tex := DesignTexture.build(DesignPattern.generate(DesignPattern.Motif.CHECK, 8, 2, 15))
-	for mi in _all_mesh_instances(node):
-		var mat := StandardMaterial3D.new()
-		mat.albedo_texture = tex
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		mi.set_surface_override_material(0, mat)
-	GeneratedVisual._disable_shadows(node)
-
-
-func _all_mesh_instances(n: Node, acc: Array = []) -> Array:
-	if n is MeshInstance3D:
-		acc.append(n)
-	for c in n.get_children():
-		_all_mesh_instances(c, acc)
-	return acc
-
-
-func add_tom_nook(root: Node3D, interior: Interior) -> void:
-	## `shop0N_actable` stand: Cranny (3,5) / conveni (7,5) / super (8,9) / depart (7,11).
-	if root == null or interior == null or interior.grid == null:
-		return
-	var level: int = 0
-	if interior.room != null:
-		level = ShopDisplay.nook_level_for_room(interior.room.id)
-	elif Game != null and Game.shops != null:
-		level = Game.shops.nook_level()
-	var stand: Vector3 = ShopDisplay.nook_stand_gx(level)
-	if root.get_node_or_null("TomNook") != null:
-		var existing: Node3D = root.get_node("TomNook") as Node3D
-		existing.position = ShopDisplay.gx_to_world(interior.grid, stand)
-		existing.rotation.y = WorldGrid.yaw_for_facing(ShopDisplay.NOOK_FACING)
-		return
-	var nook: Node3D = TOM_NOOK_SCENE.instantiate() as Node3D
-	nook.name = "TomNook"
-	nook.position = ShopDisplay.gx_to_world(interior.grid, stand)
-	nook.rotation.y = WorldGrid.yaw_for_facing(ShopDisplay.NOOK_FACING)
-	root.add_child(nook)
-
-
-func add_nook_clock(root: Node3D, interior: Interior) -> void:
-	## `HOUSE_CLOCK` / `aHC_position_data` for Nook shop scenes.
-	if root == null or interior == null or interior.grid == null or Game == null:
-		return
-	if root.get_node_or_null("NookClock") != null:
-		return
-	var visual: StringName = ShopDisplay.nook_clock_visual(Game.shops.nook_level())
-	if FieldCatalog.mesh_paths(visual).is_empty():
-		return
-	var host := Node3D.new()
-	host.name = "NookClock"
-	host.position = ShopDisplay.gx_to_world(
-		interior.grid, Vector3(ShopDisplay.CLOCK_GX.x, 0.0, ShopDisplay.CLOCK_GX.z)
-	)
-	root.add_child(host)
-	var pivot: Node3D = GeneratedVisual.attach(host, visual)
-	if pivot != null:
-		GeneratedVisual.align_actor_to_height_gx(pivot, ShopDisplay.CLOCK_GX.y)
-
-
-func add_post_girl(root: Node3D, interior: Interior) -> void:
-	## `post_office_actable` ut (4,2) minus 20 GX (`aPG_actor_ct`).
-	if root == null or interior == null or interior.grid == null:
-		return
-	var stand: Vector3 = PostDisplay.POST_GIRL_STAND_GX
-	if root.get_node_or_null("PostGirl") != null:
-		var existing: Node3D = root.get_node("PostGirl") as Node3D
-		existing.position = PostDisplay.gx_to_world(interior.grid, stand)
-		existing.rotation.y = WorldGrid.yaw_for_facing(PostDisplay.POST_GIRL_FACING)
-		add_post_desk(root, interior)
-		add_post_terminal(root, interior)
-		return
-	var girl: Node3D = POST_GIRL_SCENE.instantiate() as Node3D
-	girl.name = "PostGirl"
-	girl.position = PostDisplay.gx_to_world(interior.grid, stand)
-	girl.rotation.y = WorldGrid.yaw_for_facing(PostDisplay.POST_GIRL_FACING)
-	root.add_child(girl)
-	add_post_desk(root, interior)
-	add_post_terminal(root, interior)
-
-
-func add_post_desk(root: Node3D, interior: Interior) -> void:
-	## Invisible hull for the baked counter — GLB has no collision. Talk forwards to clerk.
-	if root == null or interior == null or interior.grid == null:
-		return
-	var half: Vector3 = PostDisplay.DESK_HALF_GX * FieldCatalog.GX_TO_METERS
-	var pos: Vector3 = PostDisplay.gx_to_world(interior.grid, PostDisplay.DESK_CENTER_GX)
-	pos.y = half.y
-	var existing: StaticBody3D = root.get_node_or_null("PostDesk") as StaticBody3D
-	if existing != null:
-		existing.position = pos
-		if existing.get_script() != POST_DESK_SCRIPT:
-			existing.set_script(POST_DESK_SCRIPT)
-			if existing.has_method("_ready"):
-				existing.call("_ready")
-		return
-	var body := StaticBody3D.new()
-	body.name = "PostDesk"
-	body.set_script(POST_DESK_SCRIPT)
-	body.position = pos
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = half * 2.0
-	shape.shape = box
-	body.add_child(shape)
-	root.add_child(body)
-
-
-func add_post_terminal(root: Node3D, interior: Interior) -> void:
-	## Left-side eTM (`POST_OFFICE_actor_data` PTerminal at GX {60,0,240}).
-	if root == null or interior == null or interior.grid == null:
-		return
-	var pos: Vector3 = PostDisplay.gx_to_world(interior.grid, PostDisplay.PTERMINAL_GX)
-	var existing: StaticBody3D = root.get_node_or_null("PostTerminal") as StaticBody3D
-	if existing != null:
-		existing.position = pos
-		if existing.get_script() != POST_TERMINAL_SCRIPT:
-			existing.set_script(POST_TERMINAL_SCRIPT)
-			if existing.has_method("_ready"):
-				existing.call("_ready")
-		return
-	var body := StaticBody3D.new()
-	body.name = "PostTerminal"
-	body.set_script(POST_TERMINAL_SCRIPT)
-	body.position = pos
-	root.add_child(body)
-
-
-func add_post_mail_piles(root: Node3D, interior: Interior) -> void:
-	## `bPTI_actor_draw` — one letter prop per stored mail, max 5.
-	if root == null or interior == null or interior.grid == null or Game == null:
-		return
-	if Game.post == null:
-		return
-	var sum: int = mini(Game.post.get_keep_mail_sum(), PostDisplay.MAIL_PILE_X_GX.size())
-	for i: int in sum:
-		var host := Node3D.new()
-		host.name = "MailPile_%d" % i
-		host.position = PostDisplay.gx_to_world(interior.grid, PostDisplay.mail_pile_gx(i))
-		root.add_child(host)
-		var box := MeshInstance3D.new()
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(0.35, 0.08, 0.25)
-		box.mesh = mesh
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(0.92, 0.88, 0.78)
-		box.material_override = mat
-		box.position.y = 0.04
-		host.add_child(box)
-
-
-func add_booker(root: Node3D, interior: Interior) -> void:
-	## `police_box_actable` ut (4,6).
-	if root == null or interior == null or interior.grid == null:
-		return
-	var stand: Vector3 = PoliceDisplay.BOOKER_STAND_GX
-	if root.get_node_or_null("Booker") != null:
-		var existing: Node3D = root.get_node("Booker") as Node3D
-		existing.position = PoliceDisplay.gx_to_world(interior.grid, stand)
-		existing.rotation.y = WorldGrid.yaw_for_facing(PoliceDisplay.BOOKER_FACING)
-		return
-	var booker: Node3D = BOOKER_SCENE.instantiate() as Node3D
-	booker.name = "Booker"
-	booker.position = PoliceDisplay.gx_to_world(interior.grid, stand)
-	booker.rotation.y = WorldGrid.yaw_for_facing(PoliceDisplay.BOOKER_FACING)
-	root.add_child(booker)
-
-
-func add_lost_and_found(root: Node3D, interior: Interior) -> void:
-	## `RSV_POLICE_ITEM_*` cells draw `police_box.keep_items`.
-	if root == null or interior == null or interior.grid == null or Game == null:
-		return
-	if Game.police == null:
-		return
-	Game.police.ensure_init()
-	var items: Array[StringName] = Game.police.keep_items()
-	for i: int in mini(items.size(), PoliceDisplay.LOST_FOUND_CELLS.size()):
-		var item_id: StringName = items[i]
-		if item_id == &"":
-			continue
-		var cell: Vector2i = PoliceDisplay.cell_for_slot(i)
-		var node: Node3D = LOST_FOUND_SCENE.instantiate() as Node3D
-		node.name = "LostFound_%d" % i
-		node.set("slot", i)
-		node.set("item_id", item_id)
-		node.position = interior.grid.cell_to_world(cell)
-		root.add_child(node)
-
-
-func _counter_cell(room: Room) -> Vector2i:
-	return Vector2i(room.door_cell.x - 1, room.spawn_cell.y - 1)
-
-
-func _shop_stock_cells(room: Room, interior: Interior) -> Array[Vector2i]:
-	var skip: Dictionary = {}
-	skip[room.door_cell] = true
-	skip[room.door_cell + Vector2i(1, 0)] = true
-	skip[room.spawn_cell] = true
-	skip[_counter_cell(room)] = true
-	for entry: FurniturePlacement in room.placements:
-		var data: FurnitureData = interior.furniture_of(entry.furniture_id)
-		var foot: Vector2i = entry.resolved_footprint(data)
-		for cell: Vector2i in interior.grid.footprint_cells(entry.cell, foot, entry.facing):
-			skip[cell] = true
-	var out: Array[Vector2i] = []
-	var origin: Vector2i = room.inner_origin
-	var inner: Vector2i = room.inner_size
-	for z: int in range(origin.y, origin.y + inner.y):
-		for x: int in range(origin.x, origin.x + inner.x):
-			var cell := Vector2i(x, z)
-			if bool(skip.get(cell, false)):
-				continue
-			out.append(cell)
-	return out
 
 
 func _add_exit_door(root: Node3D, grid: WorldGrid, room: Room) -> void:

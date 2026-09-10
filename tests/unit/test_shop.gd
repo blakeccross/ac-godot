@@ -202,7 +202,7 @@ func test_tom_nook_stand_follows_shop_room() -> void:
 	var root := Node3D.new()
 	auto_free(root)
 	add_child(root)
-	InteriorBuilder.new().add_tom_nook(root, session)
+	ShopPresenter.new().present(root, session)
 	var nook: Node3D = root.get_node_or_null("TomNook") as Node3D
 	assert_that(nook).is_not_null()
 	var expected: Vector3 = ShopDisplay.gx_to_world(session.grid, ShopDisplay.nook_stand_gx(1))

@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dp73tdqbaklbt"]
 
-[ext_resource type="Script" uid="uid://7kb0gb6mma4t" path="res://scenes/world/interiors/public_room.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/world/interiors/needlework_room.gd" id="1"]
 [ext_resource type="Script" uid="uid://dfxx8v5xbuuao" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
 [ext_resource type="PackedScene" uid="uid://da2u72or1l8nv" path="res://assets/generated/environment/interiors/rom_tailor.glb" id="10"]

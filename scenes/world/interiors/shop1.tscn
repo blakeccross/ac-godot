@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cqaundubub2tn"]
 
-[ext_resource type="Script" uid="uid://7kb0gb6mma4t" path="res://scenes/world/interiors/public_room.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/world/interiors/nook_room.gd" id="1"]
 [ext_resource type="Script" uid="uid://dfxx8v5xbuuao" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/world/interiors/tom_nook.tscn" id="4"]

@@ -60,6 +60,12 @@ func is_exit_cell(cell: Vector2i) -> bool:
 	return cell == door_cell or cell == door_cell + Vector2i(1, 0)
 
 
+## Shop / broker service-counter cell — one unit in and one unit left of the door
+## strip (`ShopCounter` / Redd's stand).
+func counter_cell() -> Vector2i:
+	return Vector2i(door_cell.x - 1, spawn_cell.y - 1)
+
+
 func next_placement_id() -> StringName:
 	placement_seq += 1
 	return StringName("ftr_%d" % placement_seq)

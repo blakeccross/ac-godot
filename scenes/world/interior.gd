@@ -145,6 +145,8 @@ func refresh_placement(placement_id: StringName) -> void:
 
 
 func refresh_shop_set() -> void:
+	## Rebuild the shelf stock after a purchase. Presenters are idempotent — Nook /
+	## the clock are guarded, only `shop_set` props were cleared.
 	var root: Node3D = _furniture_root()
 	if root == null or session == null:
 		return
@@ -156,7 +158,7 @@ func refresh_shop_set() -> void:
 		root.remove_child(node)
 		## Never `free()` here — buy can refresh while `shop_stock.interact` is still on the stack.
 		node.queue_free()
-	InteriorBuilder.new().add_shop_set(root, session)
+	_refurnish(root)
 
 
 func refresh_public_set() -> void:
@@ -173,13 +175,15 @@ func refresh_public_set() -> void:
 	for node: Node in stale:
 		root.remove_child(node)
 		node.queue_free()
-	match session.room.kind:
-		Room.Kind.POLICE:
-			InteriorBuilder.new().add_lost_and_found(root, session)
-		Room.Kind.POST_OFFICE:
-			InteriorBuilder.new().add_post_mail_piles(root, session)
-		_:
-			pass
+	_refurnish(root)
+
+
+## Re-run the room's own furnishing (idempotent presenters).
+func _refurnish(root: Node3D) -> void:
+	if _room_content != null and _room_content.has_method("present_exhibits"):
+		_room_content.call("present_exhibits", root, session)
+	else:
+		InteriorBuilder.new()._furnish_fallback(root, session)
 
 
 func _apply_indoor_light(room: Room) -> void:

@@ -455,6 +455,10 @@ static func paint_surface_albedo(node: Node, tex: Texture2D, name_parts: PackedS
 			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
 			std.roughness = 1.0
+			## `ac_needlework_indoor.c` draws these with `G_LIGHTING` — the flat design
+			## texture is modulated by the model's per-vertex shade, so the curved
+			## stand/canopy picks up the room light unevenly ("shirt shadows").
+			std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 			mi.set_surface_override_material(i, std)
 	for child in node.get_children():
 		paint_surface_albedo(child, tex, name_parts)
@@ -2002,6 +2006,11 @@ static func _paint_cloth(node: Node, tex: Texture2D) -> void:
 			std.cull_mode = BaseMaterial3D.CULL_DISABLED
 			std.roughness = 1.0
 			std.metallic = 0.0
+			## `_texture_z_light_fog_prim` draws the manekin / umbrella with `G_LIGHTING`
+			## on and the design as a modulating texture — the flat pattern takes the
+			## room light unevenly over the curved form (the "shirt shadows").
+			std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+			std.vertex_color_use_as_albedo = false
 			mesh_instance.set_surface_override_material(i, std)
 	for child in node.get_children():
 		_paint_cloth(child, tex)

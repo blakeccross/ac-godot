@@ -1,8 +1,11 @@
 extends Node3D
 
-## Authored public interior (Nook, Able Sisters, police, post, …).
-## Shell GLBs live under `Shell/GeneratedVisual`; collision / stock fill at `populate()`.
-## F6 on this `.tscn` alone bootstraps a camera + light; play normally via `interior.tscn`.
+## Base for an authored public interior (Nook, Able Sisters, police, post).
+## Shell GLBs live under `Shell/GeneratedVisual`; `populate()` fits the shell,
+## builds collision + doors, places data-driven furniture, then calls
+## `present_exhibits()` — which each building's subclass overrides to spawn its
+## own shopkeeper / stock / fixtures (mirrors `museum_room.gd`).
+## F6 on the `.tscn` alone bootstraps a camera + light; play normally via `interior.tscn`.
 
 @export var room_id: StringName = &""
 
@@ -25,19 +28,10 @@ func populate() -> void:
 	InteriorBuilder.new().populate_authored(self, _session)
 
 
-func present_exhibits(furniture: Node3D, session: Interior) -> void:
-	## Pin shopkeepers / public clerks to their actable stands.
-	if furniture == null or session == null:
-		return
-	var builder := InteriorBuilder.new()
-	if ShopDisplay.nook_is_shop_room(room_id):
-		builder.add_tom_nook(furniture, session)
-	elif room_id == &"post_office":
-		builder.add_post_girl(furniture, session)
-		builder.add_post_mail_piles(furniture, session)
-	elif room_id == &"police_box":
-		builder.add_booker(furniture, session)
-		builder.add_lost_and_found(furniture, session)
+## Override per building. `interior.gd` also calls this to refresh shop stock /
+## public props after a purchase, so keep it idempotent.
+func present_exhibits(_furniture: Node3D, _interior: Interior) -> void:
+	pass
 
 
 func _bootstrap_standalone_preview() -> void:
