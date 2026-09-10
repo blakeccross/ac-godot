@@ -172,13 +172,14 @@ func _tick_spawn(delta: float, sense: FishShadow.Sense) -> void:
 	var body: WaterBodies.Body = WaterBodies.body_at(bodies, cell)
 	if body == null:
 		return
-	var pool: Array[FishData] = FishCatalog.available_now(body.kind)
-	if pool.is_empty():
+	## `aSOG_gyoei_make_range_data` + `aSOG_gyoei_get_idx`.
+	var weighted: Array = FishSpawnScheduler.build_pool(body.kind, Weather.is_raining())
+	var fish: FishData = FishSpawnScheduler.decide(
+		weighted, WaterBodies.size_ceiling(body), _rng
+	)
+	if fish == null:
 		return
-	var allowed: Array[FishData] = _fits(pool, WaterBodies.size_ceiling(body))
-	if allowed.is_empty():
-		return
-	spawn(FishCatalog.roll(allowed), body, _grid.cell_to_world(cell))
+	spawn(fish, body, _grid.cell_to_world(cell))
 
 
 ## A water cell in the band around the player where a shadow is worth having.
@@ -206,11 +207,3 @@ func _occupied(cell: Vector2i) -> bool:
 		if _grid.world_to_cell(shadow.position) == cell:
 			return true
 	return false
-
-
-static func _fits(pool: Array[FishData], ceiling: FishData.SizeClass) -> Array[FishData]:
-	var out: Array[FishData] = []
-	for fish: FishData in pool:
-		if int(fish.size_class) <= int(ceiling):
-			out.append(fish)
-	return out

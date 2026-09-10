@@ -1042,6 +1042,9 @@ func _stock(ctx: InteractionContext, id: StringName) -> FishShadow:
 	var spot: Vector3 = Fishing.anchor() + Vector3(0.0, 0.0, ctx.world.grid.cell_size)
 	var shadow: FishShadow = school.spawn(fish, school.bodies[0], spot)
 	assert_that(shadow).is_not_null()
+	## These tests assert on the exact species they stocked; the 1-in-20 trash swap would
+	## turn a small fraction of seeds into a can. `test_fish_behavior` covers the swap itself.
+	shadow.allow_trash_swap = false
 	return shadow
 
 

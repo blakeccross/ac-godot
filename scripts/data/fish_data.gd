@@ -7,6 +7,19 @@ extends ItemData
 ## `aGYO_SIZE_*`. Drives the shadow's scale and every per-size table in `FishSize`.
 enum SizeClass { XXS, XS, S, M, L, XL, XXL, WHALE }
 
+## `aGYO_TYPE_*` order (`ac_gyoei.h` / `gyoei_type[]`). The spawn tables key by this
+## index; `FishCatalog.get_by_type` maps it back to a species.
+const TYPE_IDS: Array[StringName] = [
+	&"crucian_carp", &"brook_trout", &"carp", &"koi", &"catfish", &"small_bass",
+	&"bass", &"large_bass", &"bluegill", &"giant_catfish", &"giant_snakehead",
+	&"barbel_steed", &"dace", &"pale_chub", &"bitterling", &"loach", &"pond_smelt",
+	&"sweetfish", &"cherry_salmon", &"large_char", &"rainbow_trout", &"stringfish",
+	&"salmon", &"goldfish", &"piranha", &"arowana", &"eel", &"freshwater_goby",
+	&"angelfish", &"guppy", &"popeyed_goldfish", &"coelacanth", &"crawfish", &"frog",
+	&"killifish", &"jellyfish", &"sea_bass", &"red_snapper", &"barred_knifejaw",
+	&"arapaima", &"whale", &"empty_can", &"leaky_boot", &"old_tire", &"salmon",
+]
+
 ## `aSOG_TIME_*`. `aSOG_gyoei_time_no` buckets the clock into these four and indexes the
 ## month's spawn table with it, so a fish is in or out of a whole slot at a time.
 enum TimeSlot { NIGHT, MORNING, DAY, EVENING }
@@ -48,6 +61,9 @@ const SLOT_HOURS := {
 @export var model_base: String = ""
 ## `aGYO_anime_ptn`: 1 fast (8-frame cadence), 2 slow (16-frame), 0 never flaps.
 @export var model_flap: int = 0
+## `aGYO_IS_FISH_TRASH`: empty can / boot / old tire — what `aGTT_touch` swaps a real
+## fish for 1 time in 20 (`gomi[size]`). Never appears in a spawn pool.
+@export var is_trash: bool = false
 ## `aGYO_hosei_y`: per-species Y nudge the draw applies before the model, in GX.
 @export var model_lift: float = 0.0
 

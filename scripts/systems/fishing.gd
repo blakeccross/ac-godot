@@ -120,10 +120,16 @@ class ReelBeat:
 		pockets_full = p_pockets_full
 
 
+## `aGYO_get_uki_type` — the golden rod widens every fish's search cone and lengthens
+## every bite window. `golden_fishing_rod` (`Now_Private->equipment == ITM_GOLDEN_ROD`).
+const GOLDEN_ROD_IDS: Array[StringName] = [&"golden_fishing_rod", &"golden_rod"]
+
 static var _state: State = State.IDLE
 static var _anchor: Vector3 = Vector3.ZERO
 static var _actor: Node3D = null
 static var _bobber: Node3D = null
+static var _golden_rod: bool = false
+static var _inventory: Inventory = null
 static var _cast_elapsed: float = 0.0
 static var _dip: float = 0.0
 static var _splash_pending: bool = false
@@ -198,6 +204,8 @@ static func cast(ctx: InteractionContext, point: Vector3) -> bool:
 	_dip = 0.0
 	_nibbles = 0
 	_splash_pending = false
+	_inventory = ctx.inventory
+	_golden_rod = ctx.inventory != null and ctx.inventory.equipment_id in GOLDEN_ROD_IDS
 	_anchor = point
 	## Catalog water is a heightfield below land and we do not model the surface plane yet,
 	## so the shore height the caster stands on is the closest waterline we have.
@@ -243,6 +251,8 @@ static func fill_sense(sense: FishShadow.Sense) -> void:
 	## A fish already has it; a second one must not start nibbling.
 	sense.accepts_nibble = _state == State.FLOAT
 	sense.accepts_bite = _state == State.FLOAT
+	sense.rod = FishSize.ROD_GOLDEN if _golden_rod else FishSize.ROD_NORMAL
+	sense.has_pocket_space = _inventory == null or _inventory.has_space(1)
 
 
 ## Resolves on the frame the button is pressed, then leaves the reel-in performance behind
@@ -351,6 +361,8 @@ static func _end(school: FishSchool = null) -> void:
 	_dip = 0.0
 	_nibbles = 0
 	_splash_pending = false
+	_golden_rod = false
+	_inventory = null
 	## `hook` fills this in after `_end` runs, so dropping the line never leaves a reel queued.
 	_reel = []
 	if _bobber != null and is_instance_valid(_bobber):

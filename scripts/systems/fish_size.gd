@@ -43,17 +43,30 @@ const SHADOW_ASPECT := 0.4
 const ESCAPE_DIST_SMALL_GX := 17.0
 const ESCAPE_DIST_LARGE_GX := 22.0
 
-## `aGYO_search_area` / `aGYO_search_angle` / `aGYO_bite_time`, normal rod row only. Indexed
-## by `FishData.search_area` / `.bite_time`, not by size. The golden rod rows are omitted
-## with the rest of the golden rod.
-const SEARCH_AREA_GX: Array[float] = [40.0, 40.0, 40.0, 50.0, 60.0]
-const SEARCH_ANGLE_DEG: Array[float] = [3.0, 7.0, 30.0, 50.0, 180.0]
-const BITE_FRAMES: Array[float] = [10.0, 11.0, 12.0, 15.0, 45.0]
+## `aGYO_search_area` / `aGYO_search_angle` / `aGYO_bite_time`. Two rows: `[normal, golden]`
+## (`aGYO_get_uki_type`). Indexed by `FishData.search_area` / `.bite_time`, not by size.
+## The golden rod does not see further — it sees *wider* and holds the hook *longer*.
+const SEARCH_AREA_GX := [
+	[40.0, 40.0, 40.0, 50.0, 60.0],   ## normal rod
+	[40.0, 40.0, 40.0, 50.0, 60.0],   ## golden rod
+]
+const SEARCH_ANGLE_DEG := [
+	[3.0, 7.0, 30.0, 50.0, 180.0],
+	[7.5, 15.0, 40.0, 60.0, 180.0],
+]
+const BITE_FRAMES := [
+	[10.0, 11.0, 12.0, 15.0, 45.0],
+	[11.0, 12.0, 13.0, 18.0, 60.0],
+]
+const ROD_NORMAL := 0
+const ROD_GOLDEN := 1
 
 ## `aGTT_touch_init`: nibbles before the fish is forced to commit.
 const TOUCH_TRIES := 5
 ## `aGTT_touch`: `aGTT_random_check(4.0f)` — a 1-in-4 chance to commit on any approach.
 const COMMIT_CHANCE := 4.0
+## `aGTT_touch`: `aGTT_random_check(20.0f)` — 1 in 20, the committing fish is trash instead.
+const TRASH_CHANCE := 20.0
 ## `aGTT_wait_init`: `work0 = (100 + RANDOM_F(30)) * 2`, `speed = -0.15 + RANDOM2_F(0.2)`.
 const WAIT_FRAMES := 100.0
 const WAIT_FRAMES_JITTER := 30.0
@@ -153,16 +166,19 @@ static func splash_escape_distance(size: FishData.SizeClass) -> float:
 	return (ESCAPE_DIST_SMALL_GX if small else ESCAPE_DIST_LARGE_GX) * GX
 
 
-static func search_distance(area_index: int) -> float:
-	return SEARCH_AREA_GX[clampi(area_index, 0, SEARCH_AREA_GX.size() - 1)] * GX
+static func search_distance(area_index: int, rod: int = ROD_NORMAL) -> float:
+	var row: Array = SEARCH_AREA_GX[clampi(rod, 0, 1)]
+	return float(row[clampi(area_index, 0, row.size() - 1)]) * GX
 
 
-static func search_half_angle(area_index: int) -> float:
-	return deg_to_rad(SEARCH_ANGLE_DEG[clampi(area_index, 0, SEARCH_ANGLE_DEG.size() - 1)])
+static func search_half_angle(area_index: int, rod: int = ROD_NORMAL) -> float:
+	var row: Array = SEARCH_ANGLE_DEG[clampi(rod, 0, 1)]
+	return deg_to_rad(float(row[clampi(area_index, 0, row.size() - 1)]))
 
 
-static func bite_seconds(bite_index: int) -> float:
-	var frames: float = BITE_FRAMES[clampi(bite_index, 0, BITE_FRAMES.size() - 1)]
+static func bite_seconds(bite_index: int, rod: int = ROD_NORMAL) -> float:
+	var row: Array = BITE_FRAMES[clampi(rod, 0, 1)]
+	var frames: float = float(row[clampi(bite_index, 0, row.size() - 1)])
 	return frames * AUTHORED_TICK_SCALE / GAME_FPS
 
 

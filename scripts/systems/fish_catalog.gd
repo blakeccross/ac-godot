@@ -1,11 +1,11 @@
 class_name FishCatalog
 extends RefCounted
 
-## Loads `res://data/creatures/*.tres` and answers "what can bite right now".
-## Behavioral analog of the `aGYO_*` spawn tables: filtered by month, time slot and
-## water kind. The half-month `gyoei_term` split and its transition ramp are not
-## modelled, so each fish carries the highest weight it holds across the year rather
-## than a per-term one. Not an autoload.
+## Loads `res://data/creatures/*.tres` and resolves a species by id, `aGYO_TYPE_*`
+## index or size — the reference query behind the museum, the encyclopedia and the
+## coarse "what can bite this month" list. The live per-acre spawn decision, with the
+## 24 half-month `gyoei_term` weights and their 5-day transition ramp, is
+## `FishSpawnScheduler` (from `data/creatures/fish_spawn_table.json`). Not an autoload.
 
 const CREATURES_DIR := "res://data/creatures"
 
@@ -33,9 +33,15 @@ static func ensure_loaded() -> void:
 	_loaded = true
 
 
+## Real catchable species only — the trash placeholders (`is_trash`) are never in a
+## spawn pool and only appear via `trash_for_size` when a committing fish swaps out.
 static func all_fish() -> Array[FishData]:
 	ensure_loaded()
-	return _fish.duplicate()
+	var out: Array[FishData] = []
+	for fish: FishData in _fish:
+		if not fish.is_trash:
+			out.append(fish)
+	return out
 
 
 static func get_fish(fish_id: StringName) -> FishData:
@@ -46,17 +52,38 @@ static func get_fish(fish_id: StringName) -> FishData:
 	return null
 
 
+## `aGYO_TYPE_*` index → species (`FishData.TYPE_IDS`).
+static func get_by_type(type_index: int) -> FishData:
+	if type_index < 0 or type_index >= FishData.TYPE_IDS.size():
+		return null
+	return get_fish(FishData.TYPE_IDS[type_index])
+
+
 ## `water` is a `WaterBodies.Kind`, or -1 for "anywhere" when there is no body in hand.
 static func available(month: int, hour: int, water: int = -1, raining: bool = false) -> Array[FishData]:
 	ensure_loaded()
 	var out: Array[FishData] = []
 	for fish: FishData in _fish:
+		if fish.is_trash:
+			continue
 		if not fish.is_available(month, hour, raining):
 			continue
 		if water >= 0 and not fish.in_water(water):
 			continue
 		out.append(fish)
 	return out
+
+
+## `gomi[gyo->size_type]` (`aGTT_touch`): what a committing fish becomes 1 time in 20.
+## XXS/XS → can, S/M/L → boot, XL/XXL/WHALE → tire.
+static func trash_for_size(size: FishData.SizeClass) -> FishData:
+	ensure_loaded()
+	var id: StringName = &"old_tire"
+	if int(size) <= int(FishData.SizeClass.XS):
+		id = &"empty_can"
+	elif int(size) <= int(FishData.SizeClass.L):
+		id = &"leaky_boot"
+	return get_fish(id)
 
 
 static func available_now(water: int = -1) -> Array[FishData]:

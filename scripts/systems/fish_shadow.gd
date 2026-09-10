@@ -32,6 +32,11 @@ class Sense:
 	## The session is willing to accept a nibble / a bite.
 	var accepts_nibble: bool = false
 	var accepts_bite: bool = false
+	## `aGYO_get_uki_type` — `FishSize.ROD_NORMAL` / `ROD_GOLDEN`. The golden rod widens
+	## every search cone and lengthens every bite window.
+	var rod: int = FishSize.ROD_NORMAL
+	## `mPlib_Get_space_putin_item() >= 0` — a pocket is free, so the trash swap can happen.
+	var has_pocket_space: bool = true
 
 	func has_bobber() -> bool:
 		return bobber_position != Vector3.INF
@@ -58,8 +63,11 @@ var nibbled: bool = false
 var bit: bool = false
 ## Set when the shadow leaves behind an escape puff.
 var puffed: bool = false
+## `aGTT_touch`: the 1-in-20 `gomi[]` swap. Tests that stock one exact species turn it off.
+var allow_trash_swap: bool = true
 
 var _timer: float = 0.0
+var _rod: int = FishSize.ROD_NORMAL
 var _nibbles_left: int = FishSize.TOUCH_TRIES
 var _swim_phase: float = 0.0
 var _swim_kind: int = 0
@@ -106,6 +114,7 @@ func tick(delta: float, sense: Sense) -> void:
 	bit = false
 	if finished:
 		return
+	_rod = sense.rod
 	_anim_elapsed += delta
 	match action:
 		Action.WAIT:
@@ -182,7 +191,7 @@ func _near(_delta: float, sense: Sense) -> void:
 		return
 	yaw = _yaw_to(sense.bobber_position)
 	var dist: float = _planar_distance(sense.bobber_position)
-	if dist > FishSize.search_distance(_search_area()):
+	if dist > FishSize.search_distance(_search_area(), _rod):
 		_enter(Action.WAIT)
 		return
 	if dist < FishSize.touch_distance(size):
@@ -208,8 +217,16 @@ func _touch(delta: float, sense: Sense) -> void:
 	speed = FishSize.speed(size)
 	if _planar_distance(sense.bobber_position) >= FishSize.touch_distance(size):
 		return
+	## `(aGTT_random_check(4) && check_fall) || DECREMENT_TIMER(touch_counter) == 0`.
+	## `aGTT_random_check(v)` is `RANDOM_F(v) < 1.0` — a flat 1-in-`v` chance.
 	var forced: bool = _nibbles_left <= 1
 	if sense.accepts_bite and (forced or _rng.randf_range(0.0, FishSize.COMMIT_CHANCE) < 1.0):
+		## `aGTT_touch`: `aGTT_random_check(20)` — 1 time in 20, a committing fish is really trash.
+		if allow_trash_swap and sense.has_pocket_space and _rng.randf_range(0.0, FishSize.TRASH_CHANCE) < 1.0:
+			var trash: FishData = FishCatalog.trash_for_size(size)
+			if trash != null:
+				fish = trash
+				size = trash.size_class
 		_enter(Action.BITE)
 		return
 	_nibbles_left -= 1
@@ -295,10 +312,10 @@ func _sees_bobber(sense: Sense) -> bool:
 	if not sense.has_bobber() or not sense.bobber_settled or not sense.accepts_nibble:
 		return false
 	var area: int = _search_area()
-	if _planar_distance(sense.bobber_position) >= FishSize.search_distance(area):
+	if _planar_distance(sense.bobber_position) >= FishSize.search_distance(area, _rod):
 		return false
 	var off: float = absf(wrapf(_yaw_to(sense.bobber_position) - yaw, -PI, PI))
-	return off <= FishSize.search_half_angle(area)
+	return off <= FishSize.search_half_angle(area, _rod)
 
 
 # --- helpers -----------------------------------------------------------------------------
@@ -327,7 +344,7 @@ func _enter(next: Action) -> void:
 			_nibbles_left = FishSize.TOUCH_TRIES
 			speed = 0.0
 		Action.BITE:
-			_timer = FishSize.bite_seconds(_bite_time())
+			_timer = FishSize.bite_seconds(_bite_time(), _rod)
 			bit = true
 			speed = 0.0
 		Action.COMEBACK:

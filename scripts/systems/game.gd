@@ -85,6 +85,10 @@ var weather: StringName = &"clear"
 ## offset for the cross-month blend (`aSOI_ins_chk_term_info`). Session-scoped.
 var insect_term_month: int = 0
 var insect_term_offset: int = 0
+## `Save_Get(gyoei_term)` / `gyoei_term_transition_offset` — same, for fish, but keyed
+## to the 24 half-month terms (`aSOG_gyoei_chk_term_info`).
+var gyoei_term: int = 0
+var gyoei_term_offset: int = 0
 ## `mEnv_WEATHER_INTENSITY_*` (none/light/normal/heavy).
 var weather_intensity: int = int(Weather.Intensity.NONE)
 var dialogue_vars: Dictionary = {}
@@ -429,6 +433,8 @@ func reset_session() -> void:
 	interior_session = null
 	insect_term_month = 0
 	insect_term_offset = 0
+	gyoei_term = 0
+	gyoei_term_offset = 0
 	current_room_id = &""
 	outdoor_return = DEFAULT_SPAWN
 	outdoor_return_yaw = 0.0

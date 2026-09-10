@@ -1,0 +1,10269 @@
+{
+ "terms": {
+  "0": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 30
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ]
+   },
+   "pond": {
+    "0": [],
+    "1": [],
+    "2": [],
+    "3": []
+   }
+  },
+  "1": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 30
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ]
+   },
+   "pond": {
+    "0": [],
+    "1": [],
+    "2": [],
+    "3": []
+   }
+  },
+  "2": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 30
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ]
+   },
+   "pond": {
+    "0": [],
+    "1": [],
+    "2": [],
+    "3": []
+   }
+  },
+  "3": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 30
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ]
+   },
+   "pond": {
+    "0": [],
+    "1": [],
+    "2": [],
+    "3": []
+   }
+  },
+  "4": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 21
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 25
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 11
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 25
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 22
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 15
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 35
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 11
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 25
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ]
+   },
+   "pond": {
+    "0": [],
+    "1": [],
+    "2": [],
+    "3": []
+   }
+  },
+  "5": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 21
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 25
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 11
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 25
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 22
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 15
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 35
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 11
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 25
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ]
+   },
+   "pond": {
+    "0": [],
+    "1": [],
+    "2": [],
+    "3": []
+   }
+  },
+  "6": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 24
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 15
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 24
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ]
+   },
+   "pond": {
+    "0": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ],
+    "1": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ],
+    "2": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ],
+    "3": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ]
+   }
+  },
+  "7": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 24
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 15
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 24
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ]
+   },
+   "pond": {
+    "0": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ],
+    "1": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ],
+    "2": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ],
+    "3": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ]
+   }
+  },
+  "8": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 16
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 11
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 18
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 15
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 11
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ]
+   },
+   "pond": {
+    "0": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "1": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "2": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "3": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ]
+   }
+  },
+  "9": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 16
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 11
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 18
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 15
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 11
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 15,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ]
+   },
+   "pond": {
+    "0": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "1": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "2": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "3": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ]
+   }
+  },
+  "10": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 29
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 17
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 15
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 10,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ]
+   },
+   "pond": {
+    "0": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "1": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "2": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "3": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ]
+   }
+  },
+  "11": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 29
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 17
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 15
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 10,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 14
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 15
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ]
+   },
+   "pond": {
+    "0": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "1": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "2": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "3": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ]
+   }
+  },
+  "12": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 23
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 23
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 8
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 10,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 24
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 23
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ]
+   },
+   "pond": {
+    "0": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "1": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "2": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "3": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ]
+   }
+  },
+  "13": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 23
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 23
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 8
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 10,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 24
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 23
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ]
+   },
+   "pond": {
+    "0": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "1": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "2": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "3": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ]
+   }
+  },
+  "14": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 23
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 23
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 8
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 10,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 24
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 23
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ]
+   },
+   "pond": {
+    "0": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "1": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "2": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "3": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ]
+   }
+  },
+  "15": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 23
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 23
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 8
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 10,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 24
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 9,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 23
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 34,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 35,
+      "spawn_area": 4,
+      "weight": 77
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 35,
+      "spawn_area": 4,
+      "weight": 77
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 35,
+      "spawn_area": 4,
+      "weight": 87
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "3": [
+     {
+      "type_index": 35,
+      "spawn_area": 4,
+      "weight": 77
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ]
+   },
+   "pond": {
+    "0": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "1": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "2": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ],
+    "3": [
+     {
+      "type_index": 34,
+      "spawn_area": 6,
+      "weight": 3
+     },
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     },
+     {
+      "type_index": 33,
+      "spawn_area": 6,
+      "weight": 15
+     }
+    ]
+   }
+  },
+  "16": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 16
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 24
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 8
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 16
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 15
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 24,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 2
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 8
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 17,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 25,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 26,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 44,
+      "spawn_area": 2,
+      "weight": 75
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "1": [
+     {
+      "type_index": 44,
+      "spawn_area": 2,
+      "weight": 75
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "2": [
+     {
+      "type_index": 44,
+      "spawn_area": 2,
+      "weight": 85
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "3": [
+     {
+      "type_index": 44,
+      "spawn_area": 2,
+      "weight": 75
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ]
+   },
+   "pond": {
+    "0": [
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ],
+    "1": [
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ],
+    "2": [
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ],
+    "3": [
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ]
+   }
+  },
+  "17": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 22,
+      "spawn_area": 5,
+      "weight": 49
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 4
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 5
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 22,
+      "spawn_area": 5,
+      "weight": 49
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 6
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 22,
+      "spawn_area": 5,
+      "weight": 50
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 4
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 5
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 22,
+      "spawn_area": 5,
+      "weight": 49
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 39,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ]
+   },
+   "pond": {
+    "0": [
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ],
+    "1": [
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ],
+    "2": [
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ],
+    "3": [
+     {
+      "type_index": 32,
+      "spawn_area": 6,
+      "weight": 20
+     }
+    ]
+   }
+  },
+  "18": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 19
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 6
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 24
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 15
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 6
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ]
+   },
+   "pond": {
+    "0": [],
+    "1": [],
+    "2": [],
+    "3": []
+   }
+  },
+  "19": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 19
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 6
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 24
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 15
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 6
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 4,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 28,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 10
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 7
+     }
+    ]
+   },
+   "pond": {
+    "0": [],
+    "1": [],
+    "2": [],
+    "3": []
+   }
+  },
+  "20": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 24
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 15
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 5
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 5
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 5
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 5
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ]
+   },
+   "pond": {
+    "0": [],
+    "1": [],
+    "2": [],
+    "3": []
+   }
+  },
+  "21": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 24
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 15
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 29,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 10
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 18,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 19,
+      "spawn_area": 1,
+      "weight": 10
+     },
+     {
+      "type_index": 20,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 5
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 5
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 5
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 5
+     },
+     {
+      "type_index": 38,
+      "spawn_area": 4,
+      "weight": 5
+     }
+    ]
+   },
+   "pond": {
+    "0": [],
+    "1": [],
+    "2": [],
+    "3": []
+   }
+  },
+  "22": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 30
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ]
+   },
+   "pond": {
+    "0": [],
+    "1": [],
+    "2": [],
+    "3": []
+   }
+  },
+  "23": {
+   "river": {
+    "0": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 15
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 30
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 7
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 8,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 13,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 30,
+      "spawn_area": 5,
+      "weight": 1
+     }
+    ],
+    "3": [
+     {
+      "type_index": 0,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 1,
+      "spawn_area": 0,
+      "weight": 5
+     },
+     {
+      "type_index": 2,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 3,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 5,
+      "spawn_area": 5,
+      "weight": 3
+     },
+     {
+      "type_index": 6,
+      "spawn_area": 5,
+      "weight": 2
+     },
+     {
+      "type_index": 7,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 11,
+      "spawn_area": 5,
+      "weight": 5
+     },
+     {
+      "type_index": 12,
+      "spawn_area": 5,
+      "weight": 10
+     },
+     {
+      "type_index": 14,
+      "spawn_area": 5,
+      "weight": 20
+     },
+     {
+      "type_index": 16,
+      "spawn_area": 5,
+      "weight": 40
+     },
+     {
+      "type_index": 21,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 23,
+      "spawn_area": 5,
+      "weight": 1
+     },
+     {
+      "type_index": 27,
+      "spawn_area": 5,
+      "weight": 3
+     }
+    ]
+   },
+   "sea": {
+    "0": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "1": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "2": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ],
+    "3": [
+     {
+      "type_index": 36,
+      "spawn_area": 4,
+      "weight": 20
+     },
+     {
+      "type_index": 37,
+      "spawn_area": 4,
+      "weight": 3
+     }
+    ]
+   },
+   "pond": {
+    "0": [],
+    "1": [],
+    "2": [],
+    "3": []
+   }
+  }
+ },
+ "event": {
+  "0": [
+   {
+    "type_index": 5,
+    "spawn_area": 5,
+    "weight": 20
+   },
+   {
+    "type_index": 6,
+    "spawn_area": 5,
+    "weight": 70
+   },
+   {
+    "type_index": 7,
+    "spawn_area": 5,
+    "weight": 10
+   }
+  ],
+  "1": [
+   {
+    "type_index": 5,
+    "spawn_area": 5,
+    "weight": 10
+   },
+   {
+    "type_index": 6,
+    "spawn_area": 5,
+    "weight": 70
+   },
+   {
+    "type_index": 7,
+    "spawn_area": 5,
+    "weight": 20
+   }
+  ],
+  "2": [
+   {
+    "type_index": 5,
+    "spawn_area": 5,
+    "weight": 50
+   },
+   {
+    "type_index": 6,
+    "spawn_area": 5,
+    "weight": 40
+   },
+   {
+    "type_index": 7,
+    "spawn_area": 5,
+    "weight": 10
+   }
+  ],
+  "3": [
+   {
+    "type_index": 5,
+    "spawn_area": 5,
+    "weight": 10
+   },
+   {
+    "type_index": 6,
+    "spawn_area": 5,
+    "weight": 70
+   },
+   {
+    "type_index": 7,
+    "spawn_area": 5,
+    "weight": 20
+   }
+  ]
+ },
+ "island": {
+  "0": [
+   {
+    "type_index": 36,
+    "spawn_area": 4,
+    "weight": 20
+   },
+   {
+    "type_index": 37,
+    "spawn_area": 4,
+    "weight": 10
+   },
+   {
+    "type_index": 38,
+    "spawn_area": 4,
+    "weight": 3
+   }
+  ],
+  "1": [
+   {
+    "type_index": 36,
+    "spawn_area": 4,
+    "weight": 20
+   },
+   {
+    "type_index": 37,
+    "spawn_area": 4,
+    "weight": 10
+   },
+   {
+    "type_index": 38,
+    "spawn_area": 4,
+    "weight": 3
+   }
+  ],
+  "2": [
+   {
+    "type_index": 36,
+    "spawn_area": 4,
+    "weight": 20
+   },
+   {
+    "type_index": 37,
+    "spawn_area": 4,
+    "weight": 10
+   },
+   {
+    "type_index": 38,
+    "spawn_area": 4,
+    "weight": 3
+   }
+  ],
+  "3": [
+   {
+    "type_index": 36,
+    "spawn_area": 4,
+    "weight": 20
+   },
+   {
+    "type_index": 37,
+    "spawn_area": 4,
+    "weight": 10
+   },
+   {
+    "type_index": 38,
+    "spawn_area": 4,
+    "weight": 3
+   }
+  ]
+ }
+}
