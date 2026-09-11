@@ -48,6 +48,8 @@ const ITEM_POLICE_STATION := 0x580C
 const ITEM_SIGN00 := 0x5810
 const ITEM_SIGN20 := 0x5824
 const ITEM_WISHING_WELL := 0x5825
+## `TOUDAI` (`STRUCTURE_START + 68`, `m_name_table.h`).
+const ITEM_LIGHTHOUSE := 0x5844
 const ITEM_MUSEUM := 0x584A
 const ITEM_NEEDLEWORK_SHOP := 0x584D
 ## Wharf dock sign (`PORT_SIGN` / `m_name_table.h` STRUCTURE_START + 82).
@@ -189,6 +191,15 @@ static func placement_for_item(item_id: int) -> Dictionary:
 				"label": "Wishing Well",
 				"foot": Vector2i(2, 2),
 				"nw_off": Vector2i(0, -1),
+			}
+		ITEM_LIGHTHOUSE:
+			return {
+				"kind": &"structure",
+				"building": &"building",
+				"visual": &"obj_s_toudai",
+				"label": "Lighthouse",
+				"foot": Vector2i(3, 3),
+				"nw_off": Vector2i(-1, -1),
 			}
 		ITEM_MUSEUM:
 			return {

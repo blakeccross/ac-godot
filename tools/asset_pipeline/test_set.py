@@ -103,6 +103,25 @@ TEST_SKELETONS = [
         "confident_name": True,
     },
     {
+        ## Winter mailbox (`ac_mailbox`). `cKF_bs_r_obj_w_post` has its own skeleton but no
+        ## `cKF_ba_r_obj_w_post*` clips of its own — the ROM has no winter-specific flag
+        ## animation data at all. Same joint count/hierarchy as `cKF_bs_r_obj_s_post`
+        ## (`_anims_for_prefix` would otherwise return an empty list here), so reuse the
+        ## summer post's bind-animations; they're joint-index curves, not name-bound.
+        "asset_id": "obj_w_post",
+        "skeleton": "cKF_bs_r_obj_w_post",
+        "output": "environment/obj_w_post.glb",
+        "animations": [
+            "cKF_ba_r_obj_s_post",
+            "cKF_ba_r_obj_s_post_delivery1",
+            "cKF_ba_r_obj_s_post_flag_off1",
+            "cKF_ba_r_obj_s_post_flag_on1",
+            "cKF_ba_r_obj_s_post_flag_on_wait1",
+            "cKF_ba_r_obj_s_post_open1",
+        ],
+        "confident_name": True,
+    },
+    {
         "asset_id": "item_tol_net_1",
         "skeleton": "cKF_bs_r_tol_net_1",
         "output": "items/tol_net_1.glb",

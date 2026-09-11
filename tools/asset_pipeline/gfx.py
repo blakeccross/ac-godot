@@ -179,6 +179,8 @@ def classify_water_surface(
     wrap1_t: int,
     dual: bool,
     env: tuple[int, int, int, int] = (255, 255, 255, 255),
+    combine_w0: int = 0,
+    combine_w1: int = 0,
 ) -> str:
     """Name-free water kind from coverage + dual-tile formats/wraps + env."""
     from .texbank import G_IM_FMT_I, G_IM_FMT_IA, GX_CLAMP, GX_MIRROR
@@ -189,6 +191,15 @@ def classify_water_surface(
     ## α *= PRIM_LOD_FRAC — not water. Acre/fall water always sets XLU.
     if coverage != "xlu":
         return ""
+    ## `obj_fallS` grpAT/BT/CT/DT — identified by the combiner mux, not the tile
+    ## format, because grpBT is IA8/IA8 (would read as ocean) and grpDT is IA8/I4
+    ## (would read as splash). Do this before the format shortcuts below.
+    if waterfall_layer_from_combiner(combine_w0, combine_w1):
+        return "waterfall"
+    ## River-mouth sprash keyed positively on its combiner, before the wrap heuristics
+    ## below can mistake its MIRROR-S tiles for a fall.
+    if combine_is_river_mouth_sprash(combine_w0, combine_w1):
+        return "splash"
     if fmt0 == G_IM_FMT_IA and fmt1 == G_IM_FMT_IA:
         return "ocean"
     if fmt0 == G_IM_FMT_I and fmt1 == G_IM_FMT_I:
@@ -203,7 +214,13 @@ def classify_water_surface(
         if eb >= 200 and er <= 40 and eg >= 40:
             return "river"
         return ""
-    return "splash"
+    ## Mixed-format dual XLU with no combiner words (folded away): fall back to the
+    ## old catch-all so existing sprash acres keep working. With combiner words this
+    ## point is only reached by non-water dual XLU — e.g. the `obj_fallS` rainbow
+    ## (RGBA16/I4) — which must stay an ordinary decal, not tinted blue by splash.
+    if not (combine_w0 or combine_w1):
+        return "splash"
+    return ""
 
 
 def classify_beach_wet(
@@ -275,6 +292,52 @@ def waterfall_layer_from_wraps(
             return "bt"
         return "dt"
     return ""
+
+
+def waterfall_layer_from_combiner(combine_w0: int, combine_w1: int) -> str:
+    """`obj_fallS` grpAT/BT/CT/DT from the SetCombine mux — name- and format-free.
+
+    cycle-0 RGB:
+      * AT / CT: ``(PRIM - 0) * SHADE + ENV``   (a0=PRIM, c0=SHADE, d0=ENV)
+      * BT / DT: ``(1 - 0) * PRIM + TEXEL0``    (a0=1,    c0=PRIM,  d0=TEXEL0)
+
+    BT/DT share cycle-0 RGB with the river-mouth ``sprash``; the sprash is split
+    off by its cycle-0 alpha, which multiplies by PRIM where the falls multiply
+    by a texel. Within each pair the fourth cycle picks the member:
+      * AT vs CT: cycle-1 RGB samples TEXEL0 (AT) or TEXEL1 (CT)
+      * BT vs DT: cycle-0 alpha ``a`` input is TEXEL1 (BT) or TEXEL0 (DT)
+    """
+    if combine_w0 == 0 and combine_w1 == 0:
+        return ""
+    ## Same F3DEX2 field layout the other combine_* helpers use.
+    a0 = (combine_w0 >> 20) & 0xF
+    c0 = (combine_w0 >> 15) & 0x1F
+    d0 = (combine_w1 >> 15) & 0x7
+    a1 = (combine_w0 >> 5) & 0xF
+    aa0 = (combine_w0 >> 12) & 0x7
+    ac0 = (combine_w0 >> 9) & 0x7
+    ## G_CCMUX: TEXEL0=1, TEXEL1=2, PRIMITIVE=3, SHADE=4, ENVIRONMENT=5, 1=6.
+    ## G_ACMUX: TEXEL0=1, TEXEL1=2, PRIMITIVE=3.
+    if a0 == 3 and c0 == 4 and d0 == 5:
+        return "ct" if a1 == 2 else "at"
+    if a0 == 6 and c0 == 3 and d0 == 1:
+        if ac0 == 3:  # cycle-0 alpha * PRIM → river-mouth sprash, not a fall
+            return ""
+        return "dt" if aa0 == 1 else "bt"
+    return ""
+
+
+def combine_is_river_mouth_sprash(combine_w0: int, combine_w1: int) -> bool:
+    """River-mouth ``sprash`` combiner: cycle-0 RGB ``1*PRIM + TEXEL0`` (shared with
+    waterfall grpBT/DT) but cycle-0 alpha ``(TEXEL1 - 0)*PRIM + 0`` — the ``*PRIM``
+    on alpha is what the falls do not have."""
+    if combine_w0 == 0 and combine_w1 == 0:
+        return False
+    a0 = (combine_w0 >> 20) & 0xF
+    c0 = (combine_w0 >> 15) & 0x1F
+    d0 = (combine_w1 >> 15) & 0x7
+    ac0 = (combine_w0 >> 9) & 0x7
+    return a0 == 6 and c0 == 3 and d0 == 1 and ac0 == 3
 
 
 def _s8_unit(byte: int) -> float:
@@ -768,6 +831,8 @@ def parse_gfx(
                 wrap1_t=wrap1_t,
                 dual=dual,
                 env=tex_state.env,
+                combine_w0=combine_w0,
+                combine_w1=combine_w1,
             )
             if not water_kind:
                 water_kind = classify_beach_wet(
@@ -791,7 +856,12 @@ def parse_gfx(
                 water_kind = ""
                 waterfall_layer = ""
             if water_kind == "waterfall":
-                waterfall_layer = waterfall_layer_from_wraps(
+                ## Combiner mux is the authority (grpAT/BT/CT/DT differ in cycle
+                ## wiring, not always in tile wraps); wraps are the fallback when
+                ## the SetCombine words were folded away.
+                waterfall_layer = waterfall_layer_from_combiner(
+                    combine_w0, combine_w1
+                ) or waterfall_layer_from_wraps(
                     wrap0_s,
                     wrap0_t,
                     wrap1_s,

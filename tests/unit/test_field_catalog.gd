@@ -568,6 +568,57 @@ func test_marine_acre_applies_beach_wet_shader() -> void:
 	assert_bool(hits["sand_prim"]).is_true()
 
 
+func test_waterfall_visual_wires_all_four_grp_layers() -> void:
+	## obj_fallS grpAT/BT/CT/DT — the four dual-scroll EVW layers must each reach the
+	## waterfall shader with its own `waterfall_layer` index (0..3), not collapse onto
+	## the ocean / splash shader the way the raw tile formats would, and the baked-in
+	## rainbow decal (weather-gated in the original, untracked here) must not show.
+	var host := Node3D.new()
+	auto_free(host)
+	add_child(host)
+	var vis: Node3D = GeneratedVisual.attach(host, &"obj_fallS")
+	if vis == null:
+		return
+	var layers: Dictionary = {}
+	_waterfall_layer_hits(vis, layers)
+	for layer: int in [0, 1, 2, 3]:
+		assert_bool(layers.has(layer)).override_failure_message(
+			"waterfall grp layer %d never reached the shader (got %s)" % [layer, layers.keys()]
+		).is_true()
+	assert_bool(_has_visible_fall_rainbow(vis)).override_failure_message(
+		"the weather-gated rainbow decal is showing with no rain state driving it"
+	).is_false()
+
+
+func _waterfall_layer_hits(node: Node, out: Dictionary) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		var n: int = mi.mesh.get_surface_count() if mi.mesh != null else 1
+		for i: int in n:
+			var mat: Material = mi.get_surface_override_material(i)
+			if mat is ShaderMaterial and (mat as ShaderMaterial).has_meta("waterfall_water"):
+				var idx: Variant = (mat as ShaderMaterial).get_shader_parameter("waterfall_layer")
+				if idx != null:
+					out[int(idx)] = true
+	for child in node.get_children():
+		_waterfall_layer_hits(child, out)
+
+
+func _has_visible_fall_rainbow(node: Node) -> bool:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		var n: int = mi.mesh.get_surface_count() if mi.mesh != null else 1
+		for i: int in n:
+			var mat: Material = mi.get_surface_override_material(i)
+			if mat is StandardMaterial3D and (mat as StandardMaterial3D).has_meta("fall_rainbow"):
+				if (mat as StandardMaterial3D).albedo_color.a > 0.0:
+					return true
+	for child in node.get_children():
+		if _has_visible_fall_rainbow(child):
+			return true
+	return false
+
+
 func _beach_wet_hits(node: Node) -> Dictionary:
 	var found := false
 	var sand_prim := false

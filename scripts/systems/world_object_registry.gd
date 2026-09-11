@@ -42,6 +42,7 @@ static func ensure() -> void:
 	_building_scenes[&"able_sisters"] = "res://scenes/world/buildings/able_sisters.tscn"
 	_building_scenes[&"police"] = "res://scenes/world/buildings/police_station.tscn"
 	_building_scenes[&"post_office"] = "res://scenes/world/buildings/post_office.tscn"
+	_building_scenes[&"lighthouse"] = "res://scenes/world/buildings/lighthouse.tscn"
 	_building_scenes[&"acre_shop"] = "res://scenes/world/shop.tscn"
 
 

@@ -323,6 +323,19 @@ func mail_at(index: int) -> MailData:
 	return _mail[index]
 
 
+## `mMB_get_last_mail_idx` (`m_mailbox_ovl.c`): scans backward from the last slot for the
+## first occupied one, so the mailbox overlay's cursor lands on the newest letter instead
+## of always resetting to slot 0. Falls back to slot 0 when every slot is empty.
+func last_used_mail_index() -> int:
+	var idx: int = MAIL_SLOTS
+	while true:
+		idx -= 1
+		var mail: MailData = mail_at(idx)
+		if (mail != null and not mail.is_empty()) or idx == 0:
+			break
+	return idx
+
+
 func select_mail(index: int) -> void:
 	if index < 0 or index >= MAIL_SLOTS:
 		return

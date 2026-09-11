@@ -815,6 +815,12 @@ static func _acre_candidates(block_type: int) -> PackedStringArray:
 		TownFieldGenerator.T_SHRINE:
 			## `data_combi.c`: `GRD_S_F_PK_*` (park) → `mFM_BLOCK_TYPE_SHRINE` (wishing well).
 			return _names("grd_s_f_pk_", 1, 3)
+		TownFieldGenerator.T_LIGHTHOUSE:
+			## No decomp ground combi: `BLOCK_COMBI_ROM_TOUDAI` is `mFM_BLOCK_TYPE_NONE` in
+			## `data_combi.c` — the lighthouse isn't part of the block-type system at all in
+			## the original (see `T_LIGHTHOUSE`'s comment). Plain flat ground, same pool as
+			## `T_FLAT`.
+			return _names("grd_s_f_", 1, 10)
 		TownFieldGenerator.T_RIVER_S:
 			return _names("grd_s_r1_", 1, 4)
 		TownFieldGenerator.T_RIVER_E:

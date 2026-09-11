@@ -61,6 +61,7 @@ static func uses_walk_in(visual_id: StringName) -> bool:
 		HostCollision.is_museum(visual_id)
 		or HostCollision.is_police(visual_id)
 		or HostCollision.is_shop(visual_id)
+		or HostCollision.is_lighthouse(visual_id)
 	)
 
 
@@ -372,6 +373,7 @@ static func _is_door_structure(root: Node) -> bool:
 		or vid.contains("museum")
 		or vid.contains("kouban")
 		or vid.contains("yubinkyoku")
+		or vid.contains("toudai")
 	)
 
 

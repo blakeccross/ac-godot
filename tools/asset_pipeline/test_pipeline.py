@@ -1206,6 +1206,111 @@ class WaterKindTests(unittest.TestCase):
             )
         )
 
+    def test_waterfall_layers_from_the_combiner_mux(self) -> None:
+        ## obj_fallS grpAT/BT/CT/DT SetCombine words (encoded from the LERP args in
+        ## src/data/model/obj_fallS.c). grpBT is IA8/IA8 and grpDT is IA8/I4, so the
+        ## format shortcuts alone read them as ocean / splash — the mux disambiguates.
+        from asset_pipeline.gfx import classify_water_surface, waterfall_layer_from_combiner
+        from asset_pipeline.texbank import G_IM_FMT_I, G_IM_FMT_IA, GX_MIRROR, GX_REPEAT
+
+        cc = 0xFC000000
+        grp_at = (cc | 0x32142E, 0xFFFEFE38)
+        grp_bt = (cc | 0x61A204, 0xFF18FE7F)
+        grp_ct = (cc | 0x32144E, 0xFFFEF438)
+        grp_dt = (cc | 0x619404, 0xFFFCFEB8)
+        sprash = (cc | 0x61A604, 0xFFFCFEB8)
+
+        self.assertEqual(waterfall_layer_from_combiner(*grp_at), "at")
+        self.assertEqual(waterfall_layer_from_combiner(*grp_bt), "bt")
+        self.assertEqual(waterfall_layer_from_combiner(*grp_ct), "ct")
+        self.assertEqual(waterfall_layer_from_combiner(*grp_dt), "dt")
+        ## The river-mouth sprash shares grpBT/DT cycle-0 RGB but keys alpha off PRIM.
+        self.assertEqual(waterfall_layer_from_combiner(*sprash), "")
+        self.assertEqual(waterfall_layer_from_combiner(0, 0), "")
+
+        def kind(fmt0: int, fmt1: int, combine: tuple[int, int], w_s: int = GX_MIRROR) -> str:
+            return classify_water_surface(
+                coverage="xlu",
+                fmt0=fmt0,
+                fmt1=fmt1,
+                wrap0_s=w_s,
+                wrap0_t=GX_REPEAT,
+                wrap1_s=w_s,
+                wrap1_t=GX_REPEAT,
+                dual=True,
+                combine_w0=combine[0],
+                combine_w1=combine[1],
+            )
+
+        ## grpBT (IA8/IA8) would read as ocean and grpDT (IA8/I4) as splash on
+        ## format alone; the combiner routes both to waterfall now.
+        self.assertEqual(kind(G_IM_FMT_IA, G_IM_FMT_IA, grp_bt), "waterfall")
+        self.assertEqual(kind(G_IM_FMT_IA, G_IM_FMT_I, grp_dt), "waterfall")
+        self.assertEqual(kind(G_IM_FMT_I, G_IM_FMT_I, grp_at), "waterfall")
+        self.assertEqual(kind(G_IM_FMT_I, G_IM_FMT_I, grp_ct), "waterfall")
+        ## The combiner does not pull a plain IA8/IA8 crest pair off the ocean shader.
+        self.assertEqual(
+            kind(G_IM_FMT_IA, G_IM_FMT_IA, (0, 0), w_s=GX_REPEAT), "ocean"
+        )
+        ## The sprash still lands on the splash shader (I4/I4, PRIM-keyed alpha),
+        ## keyed positively so it isn't caught by the MIRROR-S waterfall wrap rule.
+        self.assertEqual(kind(G_IM_FMT_I, G_IM_FMT_I, sprash), "splash")
+
+    def test_wrapper_dedupe_tolerates_texture_rendermode_geometrymode_setup(self) -> None:
+        ## `obj_fallS_model` opens with gsSPTexture + gsDPSetRenderMode +
+        ## gsSPLoadGeometryMode before chaining grpAT/BT/CT/DT — none of those touch
+        ## vertex/texture-image data or draw triangles, so the blob is still a pure
+        ## forwarder and `_dedupe_wrapper_gfx` must drop the redundant standalone
+        ## entries for the sub-DLs it already reaches (the "opaque roof square" bug
+        ## class, but for a wrapper that isn't *only* `gsSPDisplayList` calls).
+        from asset_pipeline.convert import _pure_dl_targets
+
+        class _Sym:
+            def __init__(self, name: str, address: int) -> None:
+                self.name = name
+                self.address = address
+                self.size = 8
+
+        class _FakeBank:
+            def __init__(self) -> None:
+                self.addr_to_sym = {0x1000: _Sym("obj_fallS_grpAT_model", 0x1000)}
+
+        _G_TEXTURE = 0xD7
+        _G_SETOTHERMODE_L = 0xE2
+        _G_GEOMETRYMODE = 0xD9
+        _G_DL = 0xDE
+        _G_ENDDL = 0xDF
+
+        def word(op: int, arg: int = 0) -> bytes:
+            return bytes([op, 0, 0, 0]) + arg.to_bytes(4, "big")
+
+        blob = (
+            word(_G_TEXTURE)
+            + word(_G_SETOTHERMODE_L)
+            + word(_G_GEOMETRYMODE)
+            + word(_G_DL, 0x1000)
+            + word(_G_ENDDL)
+        )
+        targets = _pure_dl_targets(blob, _FakeBank())
+        self.assertEqual(targets, {"obj_fallS_grpAT_model"})
+
+        ## A blob that draws real geometry (any other opcode) is still not pure.
+        not_pure = word(_G_TEXTURE) + bytes([0xCA, 0, 0, 0, 0, 0, 0, 0]) + word(_G_ENDDL)
+        self.assertIsNone(_pure_dl_targets(not_pure, _FakeBank()))
+
+    def test_owning_vtx_prefix_handles_glued_compass_suffix(self) -> None:
+        ## `obj_fallSE`'s real wrapper is `obj_fallSESW_model` — "SW" is glued
+        ## straight onto the `obj_fallSE` vtx prefix with no separating underscore,
+        ## so the underscore-split matching never considers it a candidate at all.
+        from asset_pipeline.convert import _owning_vtx_prefix
+
+        prefixes = {"obj_fallS", "obj_fallSE"}
+        self.assertEqual(_owning_vtx_prefix("obj_fallSESW_model", prefixes), "obj_fallSE")
+        self.assertEqual(_owning_vtx_prefix("obj_fallSE_grpAT_model", prefixes), "obj_fallSE")
+        self.assertEqual(_owning_vtx_prefix("obj_fallS_grpAT_model", prefixes), "obj_fallS")
+        ## A long, unrelated remainder does not spuriously match.
+        self.assertIsNone(_owning_vtx_prefix("obj_fallSEasons_model", prefixes))
+
     def test_rel_ia_wave_dims(self) -> None:
         from asset_pipeline.convert import _REL_IA_WAVE_DIMS
 

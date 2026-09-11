@@ -105,6 +105,21 @@ func test_police_disables_physics() -> void:
 	assert_float(door.position.x).is_greater(0.0)
 
 
+func test_lighthouse_disables_physics() -> void:
+	var building: StaticBody3D = auto_free(load("res://scenes/world/building.tscn").instantiate()) as StaticBody3D
+	building.visual_id = &"obj_s_toudai"
+	building.footprint = Vector2i(3, 3)
+	add_child(building)
+	var col: CollisionShape3D = building.get_node("CollisionShape3D") as CollisionShape3D
+	assert_bool(col.disabled).is_true()
+	assert_int(building.collision_layer).is_equal(0)
+	var door: Node3D = building.get_node("Door") as Node3D
+	var stand: Vector3 = HostCollision.door_offset(&"obj_s_toudai")
+	assert_float(door.position.x).is_equal_approx(stand.x, 0.05)
+	assert_float(door.position.z).is_equal_approx(stand.z, 0.05)
+	assert_float(door.position.z).is_greater(0.0)
+
+
 func test_post_office_disables_physics() -> void:
 	var building: StaticBody3D = auto_free(load("res://scenes/world/building.tscn").instantiate()) as StaticBody3D
 	building.visual_id = &"obj_s_yubinkyoku"

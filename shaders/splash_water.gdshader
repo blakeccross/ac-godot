@@ -9,7 +9,12 @@ render_mode unshaded, blend_mix, depth_draw_opaque, cull_disabled, shadows_disab
 uniform sampler2D sprash_c : filter_linear, repeat_enable;
 uniform sampler2D sprash_a : filter_linear, repeat_enable;
 uniform vec4 prim_color : source_color = vec4(0.39215687, 0.54901963, 1.0, 0.78431374);
-uniform float game_fps = 60.0;
+// `play->game_frame` (evw_anime.c) increments once per rendered frame; the
+// texel-conversion chain below it (two_tex_scroll_dolphin -> emu64 SETTILESIZE,
+// verified against src/static/libforest/emu64/emu64.c) is exact — tune this
+// constant, not the /8 or /4 below. Bisecting against in-game feel: 60 too slow,
+// 120 closer but still slow. 180 is the current test point, not a verified value.
+uniform float game_fps = 180.0;
 uniform float ground_lift = 0.03;
 
 // Godot uploads Color uniforms already linearized. The combiner works on 8-bit

@@ -5,6 +5,9 @@ extends CanvasLayer
 ## Top-left circle shows a live 3D player preview (`mIV_set_player`).
 ## Selection cursor is skinned `hnd.glb` (`m_hand_ovl` / `hnd_sasu`).
 
+## `aMBX_pl_close` waits for this to play the mailbox's closing beat.
+signal closed
+
 const ITEM_SCENE := "res://scenes/world/item_pickup.tscn"
 const PLAYER_GLB := "res://assets/generated/characters/player/boy_1.glb"
 const HND_GLB := "res://assets/generated/characters/other/hnd.glb"
@@ -824,7 +827,7 @@ func open_letters() -> void:
 	if _open:
 		_focus_mail = true
 		_side_tab = SideTab.POCKETS
-		Game.inventory.select_mail(0)
+		Game.inventory.select_mail(Game.inventory.last_used_mail_index())
 		_refresh()
 
 
@@ -868,6 +871,7 @@ func close() -> void:
 	if not _open:
 		return
 	Audio.play_se(&"menu_exit")
+	closed.emit()
 	_open = false
 	_tag_mode = false
 	_hide_tag_popup()
@@ -1272,6 +1276,7 @@ func _read_letter(mail: MailData) -> void:
 	if mail == null or mail.is_empty():
 		return
 	mail.mark_read()
+	Game.inventory.mail_changed.emit()
 	var parts: PackedStringArray = PackedStringArray()
 	for line: String in [mail.header, mail.body, mail.footer]:
 		if line.strip_edges() != "":

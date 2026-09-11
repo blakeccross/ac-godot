@@ -30,6 +30,9 @@ func _ready() -> void:
 		## Museum: walk-in enter (`aMsm_check_player` has no A button).
 		if "auto_enter" in door and HostCollision.is_museum(visual_id):
 			door.set("auto_enter", true)
+		## Lighthouse: walk-in enter (`aTOU_actor_move` requests the door with no A button).
+		if "auto_enter" in door and HostCollision.is_lighthouse(visual_id):
+			door.set("auto_enter", true)
 
 
 func apply_grid_yaw(facing: WorldGrid.Facing) -> void:

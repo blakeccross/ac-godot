@@ -436,9 +436,11 @@ func test_generated_towns_always_place_required_uniques() -> void:
 		assert_bool(_acre_has(blocks, TownFieldGenerator.T_POLICE)).is_true()
 		assert_bool(_acre_has(blocks, TownFieldGenerator.T_SHRINE)).is_true()
 		assert_bool(_acre_has(blocks, TownFieldGenerator.T_NEEDLEWORK)).is_true()
+		assert_bool(_acre_has(blocks, TownFieldGenerator.T_LIGHTHOUSE)).is_true()
 		var data: WorldData = WorldGenerator.generate(1000 + seed)
 		assert_that(_building_at(data, &"museum")).is_not_equal(Vector2i(-1, -1))
 		assert_that(_building_at(data, &"able_sisters")).is_not_equal(Vector2i(-1, -1))
+		assert_that(_building_at(data, &"lighthouse")).is_not_equal(Vector2i(-1, -1))
 
 
 func test_tortimer_stands_at_shrine_ut_10_10() -> void:
@@ -539,6 +541,19 @@ func test_builder_instances_test_town_scenes() -> void:
 	assert_that(world.get_node_or_null("Objects/house_door")).is_not_null()
 	assert_that(grid.occupant_at(Vector2i(7, 1))).is_equal(&"player_house")
 	assert_that(grid.occupant_at(Vector2i(4, 6))).is_equal(&"tree_1")
+
+
+func test_builder_instances_lighthouse_scene() -> void:
+	var world: Node3D = _shell()
+	auto_free(world)
+	add_child(world)
+	var data: WorldData = WorldGenerator.generate(1000)
+	var grid := WorldGrid.new()
+	WorldBuilder.new().build(world, data, grid)
+	var lighthouse: Node = world.get_node_or_null("Buildings/lighthouse")
+	assert_that(lighthouse).is_not_null()
+	assert_that(lighthouse.get_node_or_null("LighthouseSwitch")).is_not_null()
+	assert_that(lighthouse.get_node_or_null("Beacon")).is_not_null()
 
 
 func test_builder_places_generated_acre_meshes() -> void:

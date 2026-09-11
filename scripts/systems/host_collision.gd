@@ -27,6 +27,8 @@ const SHOP_DOOR_GX := Vector2(-50.0, 50.0)
 const ABLE_DOOR_GX := Vector2(-40.0, 50.0)
 const POLICE_DOOR_GX := Vector2(50.0, 50.0)
 const MUSEUM_DOOR_GX := Vector2(0.0, 100.0)
+## `aTOU_check_door_pos`: |dx| < 20, dz between −65 and 0 (south face) — center of that range.
+const LIGHTHOUSE_DOOR_GX := Vector2(0.0, 33.0)
 ## House interact boxes — cover the check radius (~40 GX) without a thin south strip.
 const HOUSE_DOOR_BOX := Vector3(2.0, 2.0, 2.0)
 
@@ -45,6 +47,10 @@ static func is_able_sisters(visual_id: StringName) -> bool:
 
 static func is_police(visual_id: StringName) -> bool:
 	return String(visual_id).contains("kouban")
+
+
+static func is_lighthouse(visual_id: StringName) -> bool:
+	return String(visual_id).contains("toudai")
 
 
 static func is_shop(visual_id: StringName) -> bool:
@@ -74,6 +80,7 @@ static func uses_structure_offset(visual_id: StringName) -> bool:
 		or is_police(visual_id)
 		or is_shop(visual_id)
 		or is_post_office(visual_id)
+		or is_lighthouse(visual_id)
 	)
 
 
@@ -105,6 +112,8 @@ static func door_offset(visual_id: StringName) -> Vector3:
 		return _door_from_gx(POLICE_DOOR_GX)
 	if is_museum(visual_id):
 		return _door_from_gx(MUSEUM_DOOR_GX)
+	if is_lighthouse(visual_id):
+		return _door_from_gx(LIGHTHOUSE_DOOR_GX)
 	return Vector3.ZERO
 
 
@@ -191,6 +200,7 @@ static func apply_building(host: Node3D, visual_id: StringName, occupancy: Vecto
 		or is_able_sisters(visual_id)
 		or is_police(visual_id)
 		or is_post_office(visual_id)
+		or is_lighthouse(visual_id)
 	):
 		disable_body(host)
 		var door: Vector3 = door_offset(visual_id)
@@ -202,7 +212,7 @@ static func apply_building(host: Node3D, visual_id: StringName, occupancy: Vecto
 			var box := Vector3(1.6, 2.0, 1.6)
 			if is_museum(visual_id):
 				box = Vector3(4.0, 2.6, 1.4)
-			elif is_police(visual_id):
+			elif is_police(visual_id) or is_lighthouse(visual_id):
 				box = Vector3(2.0, 2.0, 2.0)
 			place_door_sensor(host, door, box)
 		else:

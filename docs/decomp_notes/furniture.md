@@ -90,6 +90,6 @@ NPC houses are a different field type with a pre-arranged FTR set from villager 
 - Famicom / NES furniture, e-Reader, radio aerobics.
 - Gyroid trading and Haniwa messages (`HANIWA_MESSAGE_LEN`).
 - Museum displays, snowman furniture, island cottage (`mHm_InitCottage`).
-- Four-player houses and mailbox (10 letters) until mail exists.
+- Four-player houses (only player 0's house/mailbox spawn — see `docs/decomp_notes/world_generation.md`).
 - `mRmTp_BIRTH_TYPE_*` rarity groups except as optional shop tags.
 - Outlook palette (house exterior colors) as a system.

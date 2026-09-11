@@ -92,6 +92,13 @@ const T_TRACKS_SHOP := 65
 const T_SHRINE := 66
 const T_TRACKS_POST := 67
 const T_POLICE := 68
+## Not a decomp block id — decomp's own combi table opts the lighthouse out of the
+## block-type system entirely (`BLOCK_COMBI_ROM_TOUDAI` → `mFM_BLOCK_TYPE_NONE` in
+## `data_combi.c`; it's placed some other, town-shape-specific way this generator doesn't
+## model). Reuses the shrine/police single-pick mechanism on a flat, elevated
+## (`CLIFF_ABOVE`) block as an approximation of "up on a bluff" so every generated town
+## still gets exactly one.
+const T_LIGHTHOUSE := 105
 ## Beach-side ocean cliffs. Layouts write these via `_set_beach` (not decomp 80/81 —
 ## those collide with compacted museum/needlework ids below).
 const T_BORDER_CLIFF_OCEAN_LEFT := 76
@@ -123,6 +130,7 @@ const BIT_POLICE := 1 << 5
 const BIT_MUSEUM := 1 << 6
 const BIT_POOL := 1 << 7
 const BIT_NEEDLEWORK := 1 << 8
+const BIT_LIGHTHOUSE := 1 << 9
 const PERFECT_BIT := (
 	BIT_SLOPE_LEFT
 	| BIT_SLOPE_RIGHT
@@ -133,6 +141,7 @@ const PERFECT_BIT := (
 	| BIT_MUSEUM
 	| BIT_POOL
 	| BIT_NEEDLEWORK
+	| BIT_LIGHTHOUSE
 )
 ## River → bridge acre (`RIVER_SOUTH_BRIDGE - RIVER_SOUTH`).
 const RIVER_BRIDGE_DELTA := 7
@@ -621,6 +630,8 @@ func _set_unique_flat(blocks: PackedByteArray) -> int:
 		flags |= BIT_POLICE
 	if _flat_to_unique(blocks, T_MUSEUM, RIVER_SIDE_BOTH, CLIFF_BELOW):
 		flags |= BIT_MUSEUM
+	if _flat_to_unique(blocks, T_LIGHTHOUSE, RIVER_SIDE_BOTH, CLIFF_ABOVE):
+		flags |= BIT_LIGHTHOUSE
 	return flags
 
 
@@ -1035,6 +1046,8 @@ static func acre_abbrev(type: int) -> String:
 			return "POST"
 		T_POLICE:
 			return "COPS"
+		T_LIGHTHOUSE:
+			return "LITE"
 		T_BORDER_CLIFF_LEFT_TRANSITION:
 			return "clLT"
 		T_BORDER_CLIFF_RIGHT_TRANSITION:

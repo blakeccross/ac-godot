@@ -14,7 +14,12 @@ uniform sampler2D tile0 : filter_linear, repeat_enable;
 uniform sampler2D tile1 : filter_linear, repeat_enable;
 // 0=grpAT 1=grpBT 2=grpCT 3=grpDT
 uniform int waterfall_layer : hint_range(0, 3) = 1;
-uniform float game_fps = 60.0;
+// `play->game_frame` (evw_anime.c) increments once per rendered frame; the
+// texel-conversion chain below it (two_tex_scroll_dolphin -> emu64 SETTILESIZE,
+// verified against src/static/libforest/emu64/emu64.c) is exact — tune this
+// constant, not the /8 or /4 below. Bisecting against in-game feel: 60 too slow,
+// 120 closer but still slow. 180 is the current test point, not a verified value.
+uniform float game_fps = 180.0;
 uniform float ground_lift = 0.02;
 uniform float tile0_mirror_s = 0.0;
 uniform float tile0_clamp_v = 0.0;
@@ -123,12 +128,13 @@ void fragment() {
 		out_srgb = clamp(combined * shade + vec3(t0), vec3(0.0), vec3(1.0));
 		alpha = t0a * t1a;
 	} else if (waterfall_layer == 2) {
-		// grpCT: PRIM*SHADE+ENV → t1*LOD+combined / t0*t1. Prim (200,220,255,100), env (30,40,50), LOD 47.
+		// grpCT: RGB (PRIM*SHADE+ENV) → t1*LOD+combined. Prim (200,220,255,100), env (30,40,50), LOD 47.
+		// A cycle0 = (t0 - 0)*t1 + t1 = t1*(t0 + 1); A cycle1 = COMBINED. Both tiles I4.
 		vec3 prim = vec3(200.0, 220.0, 255.0) / 255.0;
 		vec3 env = vec3(30.0, 40.0, 50.0) / 255.0;
 		float lod = 47.0 / 255.0;
 		vec3 combined = prim * shade + env;
-		float a1 = t0 * t1;
+		float a1 = clamp(t1 * (t0 + 1.0), 0.0, 1.0);
 		out_srgb = clamp(vec3(t1) * lod + combined, vec3(0.0), vec3(1.0));
 		alpha = a1;
 	} else {

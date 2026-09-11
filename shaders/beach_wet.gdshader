@@ -14,7 +14,12 @@ render_mode depth_draw_opaque, cull_disabled, specular_disabled;
 // Do not add an env delta onto baked RGB; do not fake an unshaded N·L.
 uniform sampler2D albedo_texture : filter_nearest, repeat_enable;
 uniform vec4 prim_color : source_color = vec4(0.80784315, 0.74117649, 0.58039218, 1.0);
-uniform float game_fps = 60.0;
+// `play->game_frame` (evw_anime.c) increments once per rendered frame; the
+// texel-conversion chain below it (two_tex_scroll_dolphin -> emu64 SETTILESIZE,
+// verified against src/static/libforest/emu64/emu64.c) is exact — tune this
+// constant, not the /8 or /4 below. Bisecting against in-game feel: 60 too slow,
+// 120 closer but still slow. 180 is the current test point, not a verified value.
+uniform float game_fps = 180.0;
 
 vec3 srgb_to_linear(vec3 c) {
 	bvec3 cutoff = lessThanEqual(c, vec3(0.04045));

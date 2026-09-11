@@ -1113,6 +1113,7 @@ static func _apply_materials_inner(
 					or _is_ocean_water_surface(mesh_instance, i, src)
 					or _is_splash_water_surface(mesh_instance, i, src)
 					or _is_waterfall_water_surface(mesh_instance, i, src)
+					or _is_fall_rainbow_surface(mesh_instance, i, src)
 					or _is_beach_wet_surface(mesh_instance, i, src)
 				):
 					## Ocean-acre land stays imported; river/splash/wet-sand still get shaders.
@@ -1153,6 +1154,8 @@ static func _apply_materials_inner(
 					mesh_instance.set_surface_override_material(
 						i, _make_waterfall_water_material(std, src, mesh_instance, i)
 					)
+				elif _is_fall_rainbow_surface(mesh_instance, i, src):
+					mesh_instance.set_surface_override_material(i, _make_fall_rainbow_material())
 				elif _is_beach_wet_surface(mesh_instance, i, src):
 					mesh_instance.set_surface_override_material(
 						i, _make_beach_wet_material(std, mesh_instance, i, src)
@@ -1177,6 +1180,9 @@ static func _apply_materials_inner(
 					mesh_instance.set_surface_override_material(i, std)
 				elif _is_fish_tank_visual(visual_id):
 					_apply_fish_tank_surface(std, _surface_label(mesh_instance, i, src))
+					mesh_instance.set_surface_override_material(i, std)
+				elif _is_single_sided_shell_visual(visual_id):
+					std.cull_mode = BaseMaterial3D.CULL_BACK
 					mesh_instance.set_surface_override_material(i, std)
 				elif HostCollision.uses_structure_offset(visual_id):
 					_apply_structure_surface(std)
@@ -1248,6 +1254,16 @@ static func _daylight_fraction() -> float:
 				_:
 					return 0.12 # NIGHT
 	return 0.6
+
+
+static func _is_single_sided_shell_visual(visual_id: StringName) -> bool:
+	## `ac_mailbox`: `inside1_tex` is the exact same wall quad as `side1_tex`, authored
+	## with reversed winding (verified against the ROM's own vertex data) — GX fakes
+	## "visible from both sides" with two coincident single-sided polys, not blending.
+	## The pipeline's blanket `doubleSided: true` (`glb.py::_material`, needed for most
+	## structures) draws both at once here and z-fights; force single-sided back-cull so
+	## only the poly actually facing the camera renders, matching the original GX result.
+	return visual_id == &"obj_s_post" or visual_id == &"obj_w_post"
 
 
 static func _is_fish_tank_visual(visual_id: StringName) -> bool:
@@ -1601,6 +1617,37 @@ static func _is_waterfall_water_surface(mesh_instance: MeshInstance3D, surface: 
 	return n.contains("waterfall_") or (n.contains("fall") and n.contains("grp"))
 
 
+## `obj_fallS_rainbowT_model` (`ac_fallS_draw.c_inc`): only drawn when
+## `Common_Get(rainbow_opacity) > 0` — a billboarded, alpha-faded arc that shows up
+## after it rains. We don't track that weather state, so the baked-in decal has to
+## default to invisible rather than a permanent, wrongly-shaped arc hanging over the
+## falls. Name-free: every OTHER surface sharing this mesh with a `waterfall`-tagged
+## layer is one of the 4 grpAT/BT/CT/DT scrolling sheets — a sibling surface that
+## itself carries no water classification is the leftover rainbow.
+static func _is_fall_rainbow_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:
+	if _water_kind(mat) != "":
+		return false
+	var n: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 0
+	for j: int in n:
+		if j == surface:
+			continue
+		var sibling: Material = mesh_instance.get_active_material(j)
+		if sibling != null and _water_kind(sibling) == "waterfall":
+			return true
+	return false
+
+
+static func _make_fall_rainbow_material() -> StandardMaterial3D:
+	var std := StandardMaterial3D.new()
+	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	std.albedo_color = Color(1.0, 1.0, 1.0, 0.0)
+	std.cull_mode = BaseMaterial3D.CULL_DISABLED
+	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	std.render_priority = -1
+	std.set_meta("fall_rainbow", true)
+	return std
+
+
 static func _tree_has_splash_water(node: Node) -> bool:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
@@ -1701,7 +1748,7 @@ static func _make_river_water_material(std: StandardMaterial3D, mouth: bool = fa
 	sh.set_shader_parameter("water2", water2)
 	sh.set_shader_parameter("env_color", _RIVER_ENV_MOUTH if mouth else _RIVER_ENV_INLAND)
 	sh.set_shader_parameter("prim_color", Color(1.0, 1.0, 1.0, 50.0 / 255.0))
-	sh.set_shader_parameter("game_fps", 60.0)
+	sh.set_shader_parameter("game_fps", 180.0)
 	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.5)
 	sh.set_meta("river_water", true)
 	return sh
@@ -1720,7 +1767,7 @@ static func _make_ocean_water_material(std: StandardMaterial3D, src: Material) -
 	sh.set_shader_parameter("wave1", wave1)
 	sh.set_shader_parameter("wave2", wave2)
 	sh.set_shader_parameter("prim_color", Color(60.0 / 255.0, 120.0 / 255.0, 1.0, 1.0))
-	sh.set_shader_parameter("game_fps", 60.0)
+	sh.set_shader_parameter("game_fps", 180.0)
 	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.5)
 	## Shore band tile1 is wave2 with GX_CLAMP T; open water is wave3 REPEAT.
 	sh.set_shader_parameter(
@@ -1772,7 +1819,7 @@ static func _make_waterfall_water_material(
 	sh.set_shader_parameter("tile0", tile0)
 	sh.set_shader_parameter("tile1", tile1)
 	sh.set_shader_parameter("waterfall_layer", _waterfall_layer_index(src, mesh_instance, surface))
-	sh.set_shader_parameter("game_fps", 60.0)
+	sh.set_shader_parameter("game_fps", 180.0)
 	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.5)
 	var extras := _gltf_extras(src)
 	sh.set_shader_parameter("tile0_mirror_s", 1.0 if bool(extras.get("tile0_mirror_s", false)) else 0.0)
@@ -1795,7 +1842,7 @@ static func _make_splash_water_material(std: StandardMaterial3D) -> ShaderMateri
 	sh.set_shader_parameter("sprash_c", sprash_c)
 	sh.set_shader_parameter("sprash_a", sprash_a)
 	sh.set_shader_parameter("prim_color", Color(100.0 / 255.0, 140.0 / 255.0, 1.0, 200.0 / 255.0))
-	sh.set_shader_parameter("game_fps", 60.0)
+	sh.set_shader_parameter("game_fps", 180.0)
 	## Slightly above river/ocean XLU so the mouth foam composites cleanly.
 	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS * 0.75)
 	sh.set_meta("splash_water", true)
@@ -1810,7 +1857,7 @@ static func _make_beach_wet_material(
 	sh.shader = _BEACH_WET_SHADER
 	sh.set_shader_parameter("albedo_texture", std.albedo_texture)
 	sh.set_shader_parameter("prim_color", _beach_prim_color(mesh_instance, surface, src))
-	sh.set_shader_parameter("game_fps", 60.0)
+	sh.set_shader_parameter("game_fps", 180.0)
 	sh.set_meta("beach_wet", true)
 	return sh
 

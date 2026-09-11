@@ -30,6 +30,7 @@ func test_walk_in_uses_into_not_open1() -> void:
 	assert_bool(StructureDoor.uses_walk_in(&"obj_s_museum")).is_true()
 	assert_bool(StructureDoor.uses_walk_in(&"obj_s_kouban")).is_true()
 	assert_bool(StructureDoor.uses_walk_in(&"obj_s_shop1")).is_true()
+	assert_bool(StructureDoor.uses_walk_in(&"obj_s_toudai")).is_true()
 	assert_bool(StructureDoor.uses_walk_in(&"obj_s_myhome1")).is_false()
 	assert_bool(StructureDoor.uses_walk_in(&"obj_s_tailor")).is_false()
 	assert_bool(StructureDoor.uses_walk_in(&"obj_s_house1")).is_false()

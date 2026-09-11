@@ -367,13 +367,17 @@ static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray)
 	_place_structure_item(data, house_origin, HOUSE3_UT, FgCatalog.ITEM_HOUSE3)
 	var house_cell: Vector2i = _building_cell(data, &"player_house")
 	data.spawn_points = [_spawn(&"player", Vector2i(house_cell.x + 1, house_cell.y + 4), 0.0)]
-	## Mailbox two units toward the acre centre on the house row (`ACTOR_PROP_MAILBOX0`).
-	data.objects.append(
-		_object(
-			&"player_mailbox", &"mailbox", house_cell + Vector2i(2, 0), null, &"obj_s_post",
-			WorldGrid.Facing.NORTH
-		)
-	)
+	## Mailboxes two units toward the acre centre on the house row (`ACTOR_PROP_MAILBOX0`–`3`,
+	## one per house plot). West plots (0/2, `FgCatalog._player_house_place`'s `west` parity)
+	## sit toward +X and face NORTH; east plots (1/3) toward −X and face WEST — the mesh has
+	## no mirrored variant, so this is a 90° rotation picked to read as a mirror image on
+	## screen (confirmed against the real 3/4 follow-camera angle) rather than a true flip.
+	## Only slot 0 has a player behind it (`mailbox.gd::is_owned`) — the other three are
+	## unclaimed-plot decoration.
+	_place_house_mailbox(data, &"player_house", &"player_mailbox", true)
+	_place_house_mailbox(data, &"player_house_1", &"player_mailbox_1", false)
+	_place_house_mailbox(data, &"player_house_2", &"player_mailbox_2", true)
+	_place_house_mailbox(data, &"player_house_3", &"player_mailbox_3", false)
 	var unique_ut := Vector2i(7, 7)
 	for bz: int in range(1, 7):
 		for bx: int in range(1, 6):
@@ -392,12 +396,30 @@ static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray)
 					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_POLICE_STATION)
 				TownFieldGenerator.T_SHRINE:
 					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_WISHING_WELL)
+				TownFieldGenerator.T_LIGHTHOUSE:
+					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_LIGHTHOUSE)
 				TownFieldGenerator.T_NEEDLEWORK:
 					_place_structure_item(
 						data, origin, _needlework_unit(data, bx, bz), FgCatalog.ITEM_NEEDLEWORK_SHOP
 					)
 				TownFieldGenerator.T_PORT:
 					_place_port_sign_fallback(data, origin, bx, bz)
+
+
+static func _place_house_mailbox(
+	data: WorldData, house_id: StringName, mailbox_id: StringName, west: bool
+) -> void:
+	## All four HOUSE0-3 shells are placed unconditionally above, so `house_id` is always
+	## present here — `_building_cell`'s "not found" sentinel (35, 19) is not a safe guard,
+	## it can coincide with a real house cell for some seeds.
+	var cell: Vector2i = _building_cell(data, house_id)
+	## East houses store their NW anchor with `nw_off = (-1, 0)` (`_player_house_place`),
+	## already a cell further from the actor centre than west houses' `nw_off = (0, 0)`
+	## — so the mirrored offset is one cell shorter here to land the same true distance
+	## from the house (measured: west +2 was 4m from centre, matching east -1 here).
+	var offset: Vector2i = Vector2i(2, 0) if west else Vector2i(-1, 0)
+	var facing: WorldGrid.Facing = WorldGrid.Facing.NORTH if west else WorldGrid.Facing.WEST
+	data.objects.append(_object(mailbox_id, &"mailbox", cell + offset, null, &"obj_s_post", facing))
 
 
 static func _place_waterfall(data: WorldData, blocks: PackedByteArray) -> void:
@@ -683,6 +705,8 @@ static func _apply_fg_structure(data: WorldData, cell: Vector2i, place: Dictiona
 				id = &"police"
 			"Wishing Well":
 				id = &"wishing_well"
+			"Lighthouse":
+				id = &"lighthouse"
 			"Shop":
 				id = &"acre_shop"
 			"House":
@@ -966,7 +990,8 @@ static func _place_fg_props_scatter(
 				tree_n += 4
 				continue
 			if type == TownFieldGenerator.T_FLAT or type == TownFieldGenerator.T_MUSEUM \
-					or type == TownFieldGenerator.T_POLICE or type == TownFieldGenerator.T_SHRINE:
+					or type == TownFieldGenerator.T_POLICE or type == TownFieldGenerator.T_SHRINE \
+					or type == TownFieldGenerator.T_LIGHTHOUSE:
 				var n: int = 8 if bz <= 3 else 6
 				_scatter_trees(data, rng, origin, n, bz, tree_n)
 				tree_n += n

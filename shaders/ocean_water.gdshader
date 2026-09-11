@@ -22,7 +22,12 @@ render_mode unshaded, blend_mix, depth_draw_opaque, cull_disabled, shadows_disab
 uniform sampler2D wave1 : filter_linear, repeat_enable;
 uniform sampler2D wave2 : filter_linear, repeat_enable;
 uniform vec4 prim_color : source_color = vec4(0.23529412, 0.47058824, 1.0, 1.0);
-uniform float game_fps = 60.0;
+// `play->game_frame` (evw_anime.c) increments once per rendered frame; the
+// texel-conversion chain below it (two_tex_scroll_dolphin -> emu64 SETTILESIZE,
+// verified against src/static/libforest/emu64/emu64.c) is exact — tune this
+// constant, not the /8 or /4 below. Bisecting against in-game feel: 60 too slow,
+// 120 closer but still slow. 180 is the current test point, not a verified value.
+uniform float game_fps = 180.0;
 uniform float ground_lift = 0.02;
 uniform float wave2_clamp_v = 0.0;
 // G_LIGHTING is on, but acre-edge normals are faceted and turn the sheet into

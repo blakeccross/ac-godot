@@ -204,6 +204,8 @@ static func label_for_acre(data: WorldData, fg: Vector2i) -> String:
 			return "Shop"
 		TownFieldGenerator.T_SHRINE:
 			return "Wishing Well"
+		TownFieldGenerator.T_LIGHTHOUSE:
+			return "Lighthouse"
 		TownFieldGenerator.T_TRACKS_POST:
 			return "Post Office"
 		TownFieldGenerator.T_POLICE:
@@ -248,6 +250,10 @@ static func icon_name_for_acre(data: WorldData, fg: Vector2i) -> String:
 			return "icon_shop"
 		TownFieldGenerator.T_SHRINE:
 			return "icon_shrine"
+		TownFieldGenerator.T_LIGHTHOUSE:
+			## No converted `icon_lighthouse.png` yet — falls back to no icon
+			## (`load_chrome` returns null on a missing file) rather than a wrong one.
+			return "icon_lighthouse"
 		TownFieldGenerator.T_TRACKS_POST:
 			return "icon_post"
 		TownFieldGenerator.T_POLICE:

@@ -391,7 +391,7 @@ data tables before a category is called done.
 - [~] Building + interior; **Pelly** (day) / **Phyllis** (night) at the counter (`ac_post_office`, `ac_npc_post_girl`) — `post_office.tscn`, `post_girl.tscn`, `post_book.gd`
 - [ ] Write & send letters (up to 3 lines + optional attached gift); costs bells (`m_mail`, `ac_pterminal`)
 - [ ] Stationery types (dozens); some from events/villagers; letter paper affects villager reaction
-- [~] Your mailbox at your house: receive letters, gifts, HRA reports, bank interest, event mail, catalog deliveries (`ac_mailbox`) — `scenes/world/mailbox.tscn` + received-mail path; Farway Museum replies land here. Villager/event/bank mail not wired yet
+- [~] Your mailbox at your house: receive letters, gifts, HRA reports, bank interest, event mail, catalog deliveries (`ac_mailbox`) — `scenes/world/mailbox.tscn` + received-mail path, flag raises/lowers on unread mail in every season, lid opens/closes around the Letters menu with the cursor seeded on the last-used slot (`aMBX_pl_open`/`_pl_close`, `mMB_get_last_mail_idx`); Farway Museum replies land here. Missing: the player's walk-up/hop before the lid opens (`aMBX_pl_wait`/`Player_actor_*_Mail_jump`); villager/event/bank mail not wired yet
 - [ ] Mailbox full (10 items) → Post Office holds overflow; retrieve there
 - [ ] Villagers send you letters (with gifts if friendship high); reply to build friendship
 - [ ] Send a gift to a villager by mail → thank-you letter + item back

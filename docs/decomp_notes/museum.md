@@ -94,9 +94,26 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 - Entrance stained glass: XLU `rom_museum1_modelT` (`*_mado*_tex`) — pipeline includes `rom_*_modelT` with the OPA shell. Skip ACHD on `*_mado*` (red scrap false hits). `mado_pal` RGB5A3 glass colors ship with A=0 — revive alpha so panes keep color; vertex-shade exports opaque A so Godot does not scissor the panes.
 - Entrance floor clock: authored `Furniture/MuseumClock` node (`museum_clock.gd`) at world `(12,0,7.5)` = `CLOCK_GX (240,150)` × `GX_TO_METERS`. `obj_clock_museum1` verts carry the decomp skeleton offset (root ~`(240,150)` GX), so `_ensure_visual` AABB-centres the mesh on the node in XZ before the floor snap — `_fit_actor` only micro-snaps Y. Hands (`hari_*`) turn to the RTC each frame. Skip ACHD on `obj_clock_*` (wrong-size false hits); body `OPAQUE`, hands `MASK`; wrap-bake clamps CLAMP-axis UVs. Museum sheets are N64 **linear RGBA5551** (not GX-tiled RGB5A3 — that reads as neon noise).
 - Fossil mail-in is modelled (`farway_book.gd`) and delivered to a real house mailbox
-  (`scenes/world/mailbox.tscn`, `obj_s_post`). Flag raise on unread mail + villager/event/
-  bank letters not wired. No completion furniture reward; re-burying a fossil is warned
-  against in dialogue but not blocked (players can't bury items).
+  (`scenes/world/mailbox.tscn`, `obj_s_post`/`obj_w_post`). Flag raises/lowers on unread
+  mail via the GLB's baked `obj_s_post_flag_on1`/`_flag_on_wait1`/`_flag_off1` clips,
+  driven off `Inventory.mail_changed` (`mailbox.gd::_sync_flag`) so it updates even
+  off-screen. `cKF_bs_r_obj_w_post` (winter) has no `cKF_ba_r_obj_w_post*` clips of its
+  own in the ROM — `tools/asset_pipeline/test_set.py`'s `TEST_SKELETONS` entry for it
+  reuses `cKF_ba_r_obj_s_post*` (joint-index curves, not name-bound; same 6-joint rig),
+  so the winter GLB carries the identical clip names/rest pose and the flag animates in
+  both seasons. Villager/event/bank letters still not wired. No completion furniture
+  reward; re-burying a fossil is warned against in dialogue but not blocked (players
+  can't bury items).
+- Mailbox interaction now matches `ac_mailbox_move.c_inc`'s `aMBX_pl_open`/`_pl_close`
+  sequence: `mailbox.gd::interact()` awaits the `open1` lid clip finishing before opening
+  the Letters page (`Inventory.last_used_mail_index()` seeds the cursor, matching
+  `mMB_get_last_mail_idx`'s backward scan), then awaits the page's new `closed` signal
+  and plays `open1` in reverse (`AnimationPlayer.play_backwards`) before resuming the
+  flag pose. Facing (`ACTOR_PROP_MAILBOX0..3`'s `angle_table = {90,0,90,0}°`) and the
+  west/east position offset are decomp/real-`WorldBuilder`-position confirmed. **Not**
+  implemented: the player's own walk-up/hop into place before the lid opens
+  (`aMBX_pl_wait` → `Player_actor_*_Mail_jump`, `mPlayer_INDEX_MAIL_JUMP`) — no such
+  player locomotion state exists in this port yet.
 - Insect programs are museum-idle orbits/sways, not a full port of every `minsect_*` overlay.
 - Tank grass (`obj_museum5_kusa*`) / lily (`hasu`) instanced as static decor; bubbles are
   Tween sprites (`museum_bubbles.gd`), not GPU particles; tank point lights still deferred.

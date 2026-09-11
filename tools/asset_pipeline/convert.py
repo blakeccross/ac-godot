@@ -649,7 +649,22 @@ def _owning_vtx_prefix(name: str, prefixes: set[str]) -> str | None:
             variant = f"obj_{season}_{dropped.group(1)}"
             if variant in prefixes:
                 return variant
-    return None
+    # Compass-direction variant glued straight onto a shorter prefix with no
+    # separating underscore (`obj_fallSE` -> `obj_fallSESW_model`, "SW" appended
+    # to "fallSE"). Longest prefix wins so `obj_fallSE` beats `obj_fallS` for that
+    # name; the 1-3 upper-case-letter remainder before the next `_` keeps this
+    # from swallowing an unrelated, longer symbol that merely shares a prefix.
+    best: str | None = None
+    for prefix in prefixes:
+        if not (prefix and name.startswith(prefix)):
+            continue
+        rest = name[len(prefix) :]
+        underscore = rest.find("_")
+        head = rest if underscore < 0 else rest[:underscore]
+        if 1 <= len(head) <= 3 and head.isalpha() and head.isupper():
+            if best is None or len(prefix) > len(best):
+                best = prefix
+    return best
 
 
 def _static_jobs(symbols: list) -> list[dict[str, Any]]:
@@ -830,6 +845,16 @@ def _convert_ckf(cfg: PipelineConfig, rel: RelData, symbols: list, item: dict[st
 _G_NOOP = 0x00
 _G_DL = 0xDE
 _G_ENDDL = 0xDF
+_G_TEXTURE = 0xD7
+_G_SETOTHERMODE_L = 0xE2
+_G_SETOTHERMODE_H = 0xE3
+_G_GEOMETRYMODE = 0xD9
+## Render-state toggles a wrapper sets once for its whole sub-DL chain (texture
+## on/off, render mode, geometry mode) — none reference vertex/texture-image data
+## or emit triangles, so a blob that is only these plus `gsSPDisplayList` calls is
+## still "pure": `obj_fallS_model` opens with `gsSPTexture` + `gsDPSetRenderMode` +
+## `gsSPLoadGeometryMode` before chaining grpAT/BT/CT/DT.
+_PURE_WRAPPER_STATE_OPS = {_G_TEXTURE, _G_SETOTHERMODE_L, _G_SETOTHERMODE_H, _G_GEOMETRYMODE}
 
 
 def _pure_dl_targets(blob: bytes, bank: TextureBank) -> set[str] | None:
@@ -839,7 +864,7 @@ def _pure_dl_targets(blob: bytes, bank: TextureBank) -> set[str] | None:
         op = blob[i]
         if op == _G_ENDDL:
             break
-        if op == _G_NOOP:
+        if op == _G_NOOP or op in _PURE_WRAPPER_STATE_OPS:
             continue
         if op != _G_DL:
             return None
