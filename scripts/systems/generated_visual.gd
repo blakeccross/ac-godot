@@ -77,6 +77,10 @@ static func attach(host: Node3D, visual_id: StringName) -> Node3D:
 		prepare_outdoor_train(pivot)
 	else:
 		_stop_autoplay(pivot)
+	## Must run before `_apply_materials`: it detects water surfaces via the
+	## imported glTF material's `water_kind` extras, which `_apply_materials`
+	## then overwrites with a plain `ShaderMaterial` override.
+	_close_water_edge_gaps(pivot)
 	_apply_materials(
 		pivot,
 		FieldCatalog.is_ground_decal(visual_id),
@@ -1206,6 +1210,93 @@ static func _apply_materials_inner(
 			mesh_instance.sorting_offset = 1.0
 	for child in node.get_children():
 		_apply_materials_inner(child, as_decal, mouth_river, keep_imported, visual_id)
+
+
+## Some river acres (verified: `grd_s_c5_r2`, `grd_s_r2`) convert with their XLU
+## water surface stopping short of the acre's own edge on one side by a small,
+## consistent margin (~0.46 of a ~10.24-unit acre) while every opaque ground
+## surface reaches the full edge. `world_builder.gd` places acres edge-to-edge
+## with no overlap, so that shortfall shows up in-game as a flat, unpatterned
+## seam right at the acre boundary — nothing draws there, so the water shader's
+## screen-texture read shows through with no pattern. Reproduced directly:
+## placing two such acres side by side (their real `world_builder.gd` layout)
+## renders exactly this gap.
+##
+## Rather than re-run the whole pipeline chasing the exact per-vertex cause,
+## stretch the water surface (a `Transform3D` scale only — Godot's default
+## normal transform already compensates, and a ~4.5% stretch is invisible on a
+## repeating tile) so it reaches whichever edge(s) of the acre's own ground
+## plane it was already anchored to but fell short of. An edge the water was
+## never meant to reach (a channel narrower than the acre) is left alone: it
+## only stretches an edge where the *other* side already exactly matches the
+## ground, so a real narrow channel (matching neither ground edge) is untouched.
+const _WATER_EDGE_EPS := 0.05
+
+
+static func _close_water_edge_gaps(node: Node) -> void:
+	var ground: MeshInstance3D = _find_ground_mesh_instance(node)
+	if ground == null or ground.mesh == null:
+		return
+	var ground_aabb: AABB = ground.transform * ground.mesh.get_aabb()
+	if ground_aabb.size == Vector3.ZERO:
+		return
+	_stretch_water_instances(node, ground_aabb)
+
+
+static func _find_ground_mesh_instance(node: Node) -> MeshInstance3D:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		if mi.mesh != null:
+			for s: int in mi.mesh.get_surface_count():
+				var mat: Material = mi.get_active_material(s)
+				if (
+					mat != null
+					and _water_kind(mat) == ""
+					and _surface_label(mi, s, mat).to_lower().contains("grass")
+				):
+					return mi
+	for child in node.get_children():
+		var found: MeshInstance3D = _find_ground_mesh_instance(child)
+		if found != null:
+			return found
+	return null
+
+
+static func _stretch_water_instances(node: Node, ground_aabb: AABB) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		if mi.mesh != null:
+			for s: int in mi.mesh.get_surface_count():
+				var mat: Material = mi.get_active_material(s)
+				if mat != null and (_water_kind(mat) == "river" or _water_kind(mat) == "ocean"):
+					_fit_water_to_ground_edge(mi, ground_aabb)
+					break
+	for child in node.get_children():
+		_stretch_water_instances(child, ground_aabb)
+
+
+static func _fit_water_to_ground_edge(mi: MeshInstance3D, ground_aabb: AABB) -> void:
+	var water_aabb: AABB = mi.transform * mi.mesh.get_aabb()
+	var scale := Vector3.ONE
+	var anchor: Vector3 = water_aabb.position
+	for axis: int in [Vector3.AXIS_X, Vector3.AXIS_Z]:
+		var w_min: float = water_aabb.position[axis]
+		var w_max: float = water_aabb.position[axis] + water_aabb.size[axis]
+		var g_min: float = ground_aabb.position[axis]
+		var g_max: float = ground_aabb.position[axis] + ground_aabb.size[axis]
+		var touches_min: bool = absf(w_min - g_min) < _WATER_EDGE_EPS
+		var touches_max: bool = absf(w_max - g_max) < _WATER_EDGE_EPS
+		var span: float = maxf(w_max - w_min, 0.001)
+		if touches_min and not touches_max and w_max < g_max - _WATER_EDGE_EPS:
+			scale[axis] = (g_max - w_min) / span
+			anchor[axis] = w_min
+		elif touches_max and not touches_min and w_min > g_min + _WATER_EDGE_EPS:
+			scale[axis] = (w_max - g_min) / span
+			anchor[axis] = w_max
+	if scale.is_equal_approx(Vector3.ONE):
+		return
+	var origin: Vector3 = anchor - Vector3(scale.x * anchor.x, scale.y * anchor.y, scale.z * anchor.z)
+	mi.transform = Transform3D(Basis().scaled(scale), origin) * mi.transform
 
 
 static func _harden_imported_cutout(std: StandardMaterial3D) -> void:

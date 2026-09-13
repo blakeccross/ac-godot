@@ -108,6 +108,7 @@ var _open_tween: Tween = null
 ## Fish / insect encyclopedia page (`mIV_set_collect_dl`): one 8×5 grid, reused.
 var _collect_root: Control = null
 var _collect_slots: Array[TextureRect] = []
+var _collect_banner: TextureRect = null
 var _collect_title: Label = null
 var _collect_count: Label = null
 var _pocket_chrome: Array[CanvasItem] = []
@@ -398,12 +399,12 @@ func _setup_player_portrait() -> void:
 	_sync_portrait_cloth()
 
 	## Frame head → mid-thigh in the circle (`inv_mwin_3Dma` window). Decomp fill was
-	## ~70% of the RT height; bumped to 0.85 so the player reads bigger in the portrait.
+	## ~70% of the RT height; bumped to 0.95 so the player reads bigger in the portrait.
 	await get_tree().process_frame
 	var aabb := _visual_aabb(_portrait_pivot)
 	var ph: float = maxf(aabb.size.y, 0.1)
 	var look_y: float = aabb.position.y + ph * 0.60
-	var eye_dist: float = (ph / 0.85) / (2.0 * tan(deg_to_rad(10.0)))
+	var eye_dist: float = (ph / 0.95) / (2.0 * tan(deg_to_rad(10.0)))
 	cam.position = Vector3(0.0, look_y + eye_dist * sin(elev), eye_dist * cos(elev))
 	cam.look_at(Vector3(0.0, look_y, 0.0), Vector3.UP)
 
@@ -587,9 +588,24 @@ func _build_encyclopedia_grid() -> void:
 	var left: float = (_shell_stack.custom_minimum_size.x - grid_w) * 0.5
 	var top: float = 174.0
 
+	## `inv_*_daimeiT_model`: the "Fish"/"Insects" title ribbon. Word itself is a
+	## separate glyph pass (`inv_*_moji_model`) drawn over it, not baked into the art.
+	const BANNER_W := 320.0
+	const BANNER_H := 80.0
+	_collect_banner = TextureRect.new()
+	_collect_banner.position = Vector2((_shell_stack.custom_minimum_size.x - BANNER_W) * 0.5, 78.0)
+	_collect_banner.size = Vector2(BANNER_W, BANNER_H)
+	_collect_banner.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	_collect_banner.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_collect_banner.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	_collect_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_collect_root.add_child(_collect_banner)
+
 	_collect_title = Label.new()
 	_collect_title.position = Vector2(left, 96.0)
-	_font_label(_collect_title, 26, Color(0.30, 0.24, 0.16))
+	_font_label(_collect_title, 26, Color(1.0, 1.0, 1.0))
+	_collect_title.size = Vector2(grid_w, 32.0)
+	_collect_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_collect_root.add_child(_collect_title)
 
 	_collect_count = Label.new()
@@ -631,6 +647,9 @@ func _populate_encyclopedia(kind: StringName) -> void:
 		return
 	var log: SpeciesLog = Game.species_log
 	_collect_title.text = "Fish" if kind == &"fish" else "Insects"
+	_collect_banner.texture = InventoryChrome.load_tex(
+		"fish_title_banner" if kind == &"fish" else "bug_title_banner"
+	)
 	var have: int = log.page_count(kind) if log != null else 0
 	_collect_count.text = "%d / %d" % [have, EncyclopediaCatalog.COLLECT_NUM]
 	for slot: int in _collect_slots.size():
@@ -839,6 +858,21 @@ func _show_page(page: SideTab) -> void:
 		_collect_root.visible = not pockets
 		if not pockets:
 			_populate_encyclopedia(&"fish" if page == SideTab.FISH else &"insect")
+	_apply_page_background(page)
+
+
+## `mIV_set_base_frame_dl` scroll_flag branch: the fish/bug collection pages swap
+## the pockets paper for their own cloth pattern (`inv_sakana_scroll_mode` /
+## `inv_mushi_scroll_mode`), still scrolled the same way. Pockets keeps whatever
+## `_refresh_background` picked (chosen shirt, or the default paper).
+func _apply_page_background(page: SideTab) -> void:
+	match page:
+		SideTab.FISH:
+			_apply_paper_scroll_shader(InventoryChrome.load_tex("fish_paper"))
+		SideTab.BUG:
+			_apply_paper_scroll_shader(InventoryChrome.load_tex("bug_paper"))
+		_:
+			_refresh_background()
 
 
 ## Sine-eased vertical swing over `PAGE_SWING_DURATION` — lands back exactly on the home

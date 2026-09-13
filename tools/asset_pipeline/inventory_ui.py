@@ -229,6 +229,28 @@ CHROME: list[TexSpec] = [
     TexSpec("inv_mwin_aw4_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b),
     TexSpec("inv_mwin_aw5_tex", 16, 16, G_IM_FMT_I, G_IM_SIZ_4b),
     TexSpec("inv_mwin_aw6_tex", 32, 64, G_IM_FMT_I, G_IM_SIZ_4b),
+    ## Fish/bug collection pages swap the pockets page's paper for their own
+    ## cloth pattern (`mIV_set_base_frame_dl` scroll_flag branch: `inv_sakana_scroll_mode`
+    ## / `inv_mushi_scroll_mode` load these instead of the ground texture), still
+    ## scrolled by the same shared `mSM_scroll_move` diagonal offset.
+    TexSpec(
+        "inv_sakana_nuno_tex_rgb_ci4",
+        32,
+        32,
+        G_IM_FMT_CI,
+        G_IM_SIZ_4b,
+        "inv_sakana_nuno_tex_rgb_ci4_pal",
+        out_name="fish_paper",
+    ),
+    TexSpec(
+        "inv_mushi_nuno_tex_rgb_ci4",
+        32,
+        32,
+        G_IM_FMT_CI,
+        G_IM_SIZ_4b,
+        "inv_mushi_nuno_tex_rgb_ci4_pal",
+        out_name="bug_paper",
+    ),
     TexSpec("inv_mwin_gmushi_tex", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_gmushi_pal", out_name="tab_bug"),
     TexSpec("inv_mwin_gturi_tex", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_gturi_pal", out_name="tab_fish"),
     TexSpec("inv_mwin_gscoop_tex", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_gscoop_pal", out_name="tab_scoop"),
@@ -363,6 +385,33 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
 
     tag_frame = _bake_tag_popup_frame(rel, by_name, stage_dir, out_dir, project_root)
     results.append(tag_frame)
+
+    results.append(
+        _bake_title_banner(
+            rel, by_name, stage_dir, out_dir, project_root,
+            out_stem="fish_title_banner",
+            left_tex="inv_sakana_waku1_tex",
+            right_tex="inv_sakana_waku2_tex",
+            prim=_FISH_BANNER_PRIM,
+            env=_FISH_BANNER_ENV,
+        )
+    )
+    results.append(
+        _bake_title_banner(
+            rel, by_name, stage_dir, out_dir, project_root,
+            out_stem="bug_title_banner",
+            left_tex="inv_mushi_waku2_tex",
+            right_tex=None,
+            prim=_BUG_BANNER_PRIM,
+            env=_BUG_BANNER_ENV,
+        )
+    )
+    results.append(
+        _bake_design_tab_shape(rel, by_name, stage_dir, out_dir, project_root)
+    )
+    results.append(
+        _bake_tab_lens_mask(rel, by_name, stage_dir, out_dir, project_root)
+    )
     catalog_path = shell.get("catalog_path")
 
     converted = sum(1 for r in results if r["status"] == "converted")
@@ -396,6 +445,23 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
 _TAG_FRAME_PRIM = (252, 245, 219, 255)
 _TAG_FRAME_ENV = (158, 120, 77, 255)
 
+## `inv_sakana_daimeiT_model` / `inv_mushi_daimeiT_model` (`inv_sakana.c` / `inv_mushi.c`):
+## the "Fish"/"Insects" title ribbon at the top of each collection page. Same
+## PRIM/ENV lerp as the tag frame above. The word itself is a separate glyph pass
+## (`inv_*_moji_model`, the ROM font) drawn on top — not baked into this texture.
+_FISH_BANNER_PRIM = (40, 40, 185, 255)
+_FISH_BANNER_ENV = (100, 100, 255, 255)
+_BUG_BANNER_PRIM = (145, 40, 40, 255)
+_BUG_BANNER_ENV = (235, 60, 60, 255)
+
+## `inv_mwin_shirushi2T_model` (`inv_mwin.c`): the design-tab flap's own lens-shaped
+## silhouette (`inv_original_shirushi3_tex`, 32x64 IA8) — a distinct shape from the
+## plain rounded-rect used for the fish/bug/pockets tabs. Same PRIM/ENV lerp as the
+## title banners; the pencil glyph (`inv_original_shirushi_tex` / `tab_pencil_glyph`)
+## draws on top of this, unchanged.
+_DESIGN_TAB_PRIM = (255, 205, 70, 255)
+_DESIGN_TAB_ENV = (165, 145, 50, 255)
+
 
 def _bake_tag_popup_frame(
     rel: RelData, by_name: dict[str, list[MapSymbol]], stage_dir: Path, out_dir: Path, project_root: Path
@@ -419,6 +485,135 @@ def _bake_tag_popup_frame(
         write_import_sidecar(out_dir / "tag_frame.png", project_root)
         record["status"] = "converted"
         record["meta"] = {"width": sheet.width, "height": sheet.height, "address": f"0x{sym.address:08X}"}
+    except Exception as exc:  # noqa: BLE001
+        record["status"] = "error"
+        record["error"] = f"{type(exc).__name__}: {exc}"
+    return record
+
+
+def _bake_title_banner(
+    rel: RelData,
+    by_name: dict[str, list[MapSymbol]],
+    stage_dir: Path,
+    out_dir: Path,
+    project_root: Path,
+    *,
+    out_stem: str,
+    left_tex: str,
+    right_tex: str | None,
+    prim: tuple[int, int, int, int],
+    env: tuple[int, int, int, int],
+) -> dict[str, Any]:
+    """`inv_*_daimeiT_model`: two 64x32 IA8 quads side by side (`inv_*_v[136..]`
+    screen-space positions, GX 0.001 scale). `right_tex=None` mirrors `left_tex`
+    (insects: one authored half, UV s=64..128 GX_MIRROR-wraps it) — fish authors
+    both halves separately (`inv_sakana_waku1_tex` left, `_waku2_tex` right,
+    neither mirrored)."""
+    record: dict[str, Any] = {
+        "asset_id": out_stem,
+        "source": left_tex if right_tex is None else f"{left_tex}+{right_tex}",
+        "output_path": f"ui/inventory/{out_stem}.png",
+        "status": "pending",
+        "error": None,
+    }
+    try:
+        left_sym = _pick_symbol(by_name, left_tex)
+        left = decode_gbi_texture(rel.slice_at(left_sym.address, left_sym.size), 64, 32, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
+        if right_tex is None:
+            right = left.transpose(Image.FLIP_LEFT_RIGHT)
+        else:
+            right_sym = _pick_symbol(by_name, right_tex)
+            right = decode_gbi_texture(
+                rel.slice_at(right_sym.address, right_sym.size), 64, 32, G_IM_FMT_IA, G_IM_SIZ_8b, b""
+            )
+        sheet = Image.new("RGBA", (128, 32), (0, 0, 0, 0))
+        sheet.paste(left, (0, 0))
+        sheet.paste(right, (64, 0))
+        sheet = _ia_prim_env(sheet, prim, env)
+        png = image_png_bytes(sheet)
+        for folder in (stage_dir, out_dir):
+            (folder / f"{out_stem}.png").write_bytes(png)
+        write_import_sidecar(out_dir / f"{out_stem}.png", project_root)
+        record["status"] = "converted"
+        record["meta"] = {"width": sheet.width, "height": sheet.height}
+    except Exception as exc:  # noqa: BLE001
+        record["status"] = "error"
+        record["error"] = f"{type(exc).__name__}: {exc}"
+    return record
+
+
+def _bake_design_tab_shape(
+    rel: RelData,
+    by_name: dict[str, list[MapSymbol]],
+    stage_dir: Path,
+    out_dir: Path,
+    project_root: Path,
+) -> dict[str, Any]:
+    """`inv_mwin_shirushi2T_model`: design-tab flap silhouette — a narrow lens
+    shape (`inv_mwin_v[120..123]`: 30x60 GX units, single quad, no mirroring),
+    not the plain rounded-rect the other side tabs use."""
+    record: dict[str, Any] = {
+        "asset_id": "tab_design_shape",
+        "source": "inv_original_shirushi3_tex",
+        "output_path": "ui/inventory/tab_design_shape.png",
+        "status": "pending",
+        "error": None,
+    }
+    try:
+        sym = _pick_symbol(by_name, "inv_original_shirushi3_tex")
+        image = decode_gbi_texture(rel.slice_at(sym.address, sym.size), 32, 64, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
+        image = _ia_prim_env(image, _DESIGN_TAB_PRIM, _DESIGN_TAB_ENV)
+        png = image_png_bytes(image)
+        for folder in (stage_dir, out_dir):
+            (folder / "tab_design_shape.png").write_bytes(png)
+        write_import_sidecar(out_dir / "tab_design_shape.png", project_root)
+        record["status"] = "converted"
+        record["meta"] = {"width": image.width, "height": image.height, "address": f"0x{sym.address:08X}"}
+    except Exception as exc:  # noqa: BLE001
+        record["status"] = "error"
+        record["error"] = f"{type(exc).__name__}: {exc}"
+    return record
+
+
+def _bake_tab_lens_mask(
+    rel: RelData,
+    by_name: dict[str, list[MapSymbol]],
+    stage_dir: Path,
+    out_dir: Path,
+    project_root: Path,
+) -> dict[str, Any]:
+    """Same `inv_original_shirushi3_tex` lens silhouette as the design tab, but
+    baked white+alpha (RGB=255, A=intensity) so Fish/Bug can `modulate_color`
+    it to their own tint instead of the design tab's baked-in gold.
+
+    The shape is asymmetric (rounded on one side, pointed on the other), not a
+    symmetric lens. Design sits on the window's left edge and uses it unflipped
+    (rounded side lands toward the window). Fish/Bug sit on the right edge — a
+    mirror-image position — so they need a horizontally-flipped copy for the
+    rounded side to land toward the window there too, matching the same
+    round-meets-paper / point-sticks-out-into-the-background read on both sides.
+    """
+    record: dict[str, Any] = {
+        "asset_id": "tab_lens_mask",
+        "source": "inv_original_shirushi3_tex",
+        "output_path": "ui/inventory/tab_lens_mask.png",
+        "status": "pending",
+        "error": None,
+    }
+    try:
+        sym = _pick_symbol(by_name, "inv_original_shirushi3_tex")
+        image = decode_gbi_texture(rel.slice_at(sym.address, sym.size), 32, 64, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
+        image = _i_texel_as_alpha(image, (255, 255, 255, 255))
+        mirrored = image.transpose(Image.FLIP_LEFT_RIGHT)
+        png = image_png_bytes(image)
+        png_mirrored = image_png_bytes(mirrored)
+        for folder in (stage_dir, out_dir):
+            (folder / "tab_lens_mask.png").write_bytes(png)
+            (folder / "tab_lens_mask_r.png").write_bytes(png_mirrored)
+        write_import_sidecar(out_dir / "tab_lens_mask.png", project_root)
+        write_import_sidecar(out_dir / "tab_lens_mask_r.png", project_root)
+        record["status"] = "converted"
+        record["meta"] = {"width": image.width, "height": image.height, "address": f"0x{sym.address:08X}"}
     except Exception as exc:  # noqa: BLE001
         record["status"] = "error"
         record["error"] = f"{type(exc).__name__}: {exc}"

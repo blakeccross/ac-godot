@@ -71,6 +71,26 @@ static func field_of(ctx: InteractionContext) -> BugField:
 	return ctx.world.get("bugs") as BugField
 
 
+static func find_npc_in_net(ctx: InteractionContext, origin: Vector3, direction: Vector3) -> Node3D:
+	## `Player_actor_Item_CheckLocalCapture_forNet` capsule, tested against nearby
+	## villagers instead of bugs (`Player_actor_CheckAndSet_UZAI_forNpc`'s `hit_actor`).
+	if ctx == null or ctx.actor == null or ctx.actor.get_tree() == null:
+		return null
+	for node: Node in ctx.actor.get_tree().get_nodes_in_group("villagers"):
+		var villager := node as Node3D
+		if villager == null or not villager.visible:
+			continue
+		var to: Vector3 = villager.global_position - origin
+		var along: float = to.dot(direction)
+		if along < 0.0 or along > SWING_LENGTH:
+			continue
+		var closest: Vector3 = origin + direction * along
+		var vp: Vector3 = villager.global_position
+		if Vector2(closest.x - vp.x, closest.z - vp.z).length() <= SWING_RADIUS:
+			return villager
+	return null
+
+
 static func swing(ctx: InteractionContext, origin: Vector3, direction: Vector3) -> Outcome:
 	var out := Outcome.new()
 	var field: BugField = field_of(ctx)

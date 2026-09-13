@@ -239,6 +239,28 @@ func test_caught_bug_is_finished_and_flagged() -> void:
 	assert_bool(actor.finished).is_true()
 
 
+func test_find_npc_in_net_matches_swing_capsule() -> void:
+	var actor := Node3D.new()
+	auto_free(actor)
+	add_child(actor)
+	var ctx := InteractionContext.new()
+	ctx.actor = actor
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	add_child(villager)
+	villager.global_position = Vector3(0, 0, 1.0)
+	var hit: Node3D = Netting.find_npc_in_net(ctx, Vector3.ZERO, Vector3(0, 0, 1.0))
+	assert_that(hit).is_same(villager)
+	## Outside the swing radius, sideways of the same forward distance.
+	villager.global_position = Vector3(Netting.SWING_RADIUS + 1.0, 0, 1.0)
+	hit = Netting.find_npc_in_net(ctx, Vector3.ZERO, Vector3(0, 0, 1.0))
+	assert_that(hit).is_null()
+	## A hidden (indoor) villager never registers.
+	villager.global_position = Vector3(0, 0, 1.0)
+	villager.visible = false
+	hit = Netting.find_npc_in_net(ctx, Vector3.ZERO, Vector3(0, 0, 1.0))
+	assert_that(hit).is_null()
+
+
 func _ctx() -> InteractionContext:
 	var world := _GridWorld.new()
 	world.layout.columns = 16

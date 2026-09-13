@@ -430,6 +430,90 @@ func test_mood_clears_when_schedule_leaves_sleep() -> void:
 	assert_that(villager.state.mood).is_equal(VillagerState.Mood.ANGRY)
 
 
+class _PlayerYawStub extends Node3D:
+	var yaw: float = 0.0
+
+	func facing_yaw() -> float:
+		return yaw
+
+
+func test_player_crowding_requires_distance_and_facing() -> void:
+	## `aNPC_check_uzai_cross`: within one field unit (2 m), and roughly facing
+	## the villager — not just standing nearby.
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	add_child(villager)
+	villager.global_position = Vector3.ZERO
+	var player: _PlayerYawStub = auto_free(_PlayerYawStub.new())
+	add_child(player)
+	player.add_to_group("player")
+	## Too far, even facing dead-on.
+	player.global_position = Vector3(0, 0, 3)
+	player.yaw = PI
+	assert_bool(villager._player_crowding()).is_false()
+	## Close, but facing away.
+	player.global_position = Vector3(0, 0, 1.5)
+	player.yaw = 0.0
+	assert_bool(villager._player_crowding()).is_false()
+	## Close and facing the villager.
+	player.yaw = PI
+	assert_bool(villager._player_crowding()).is_true()
+
+
+func test_net_hit_ignored_before_first_meeting() -> void:
+	## `Player_actor_CheckAndSet_UZAI_forNpc` gates on the animal-memory check —
+	## a villager the player has never talked to can't be annoyed yet.
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	villager._ensure_bound()
+	villager.register_net_hit()
+	assert_int(villager._uzai_tool).is_equal(0)
+
+
+func test_net_hits_trigger_then_tighten_to_a_second_annoyance() -> void:
+	## `max_uzai_tool = {3, 1}`: the first offense takes 3 hits; once `uzai.cross`
+	## is set, one more hit is enough, and patience escalates MILDLY_ANNOYED → ANNOYED.
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	villager._ensure_bound()
+	villager.state.last_spoke_day = "2001-01-01"
+	assert_that(villager.state.patience).is_equal(VillagerState.Patience.NORMAL)
+	for _i: int in Villager.ANNOY_TOOL_LIMIT[0]:
+		villager.register_net_hit()
+	villager._tick_annoyance(1.0 / 60.0)
+	assert_that(villager.state.patience).is_equal(VillagerState.Patience.MILDLY_ANNOYED)
+	assert_int(villager._uzai_tool).is_equal(0)
+	assert_bool(villager._uzai_cross).is_true()
+	villager.register_net_hit()
+	villager._tick_annoyance(1.0 / 60.0)
+	assert_that(villager.state.patience).is_equal(VillagerState.Patience.ANNOYED)
+
+
+func test_annoyed_mood_decays_after_one_minute() -> void:
+	## `aNPC_set_feel_info(nactorx, feel, 1)`: the annoyed mood lasts exactly one
+	## real-time minute, unlike SLEEPY's indefinite `-1` sentinel.
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	villager._ensure_bound()
+	villager.state.last_spoke_day = "2001-01-01"
+	villager.state.mood = VillagerState.Mood.ANGRY
+	villager._uzai_mood_left = Villager.ANNOY_MOOD_SECONDS
+	villager._tick_annoyance(Villager.ANNOY_MOOD_SECONDS - 0.1)
+	assert_that(villager.state.mood).is_equal(VillagerState.Mood.ANGRY)
+	villager._tick_annoyance(0.2)
+	assert_that(villager.state.mood).is_equal(VillagerState.Mood.NORMAL)
+
+
+func test_annoyance_scold_dialogue_sets_angry_mood() -> void:
+	## Verifies the forced-scold content directly, since a bare test scene has no
+	## `dialogue_ui` for `_play_annoyance_scold` to actually play through.
+	DialogueCatalog.reset()
+	var talk_data: DialogueData = DialogueCatalog.conversation(&"npc_annoyed_scold")
+	assert_that(talk_data).is_not_null()
+	var node: Dictionary = talk_data.node(&"start")
+	var events: Array = node.get("events", [])
+	assert_int(events.size()).is_equal(1)
+	var event: Dictionary = events[0]
+	assert_str(str(event.get("op", ""))).is_equal("set_mood")
+	assert_str(str(event.get("mood", ""))).is_equal("angry")
+
+
 func test_shop_and_fish_are_picked_from_field_actions() -> void:
 	var shop: VillagerAction = VillagerPlan.pick_perform(
 		{

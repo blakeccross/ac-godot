@@ -27,6 +27,18 @@ const FATIGUE_REST := 200.0
 const FATIGUE_WALK := 1.0
 const FATIGUE_RUN := 2.0
 const FATIGUE_WAIT := -2.0
+## `aNPC_check_uzai_cross`: crowd radius `mFI_UNIT_BASE_SIZE` (40 GX = 2 m), both
+## horizontally and vertically, plus a facing cone of ±135° (2.35619449 rad).
+const ANNOY_CROWD_DIST := 2.0
+const ANNOY_FACE_CONE := 2.35619449
+## `max_uzai_cross`/`max_uzai_tool`: first-offense vs. after-`uzai.cross` (tighter)
+## thresholds. Frame counts (600, 240 @ 60 Hz) converted to seconds.
+const ANNOY_STEP_LIMIT: Array[float] = [10.0, 4.0]
+const ANNOY_TOOL_LIMIT: Array[int] = [3, 1]
+const ANNOY_STEP_GAIN := 2.0
+const ANNOY_STEP_DECAY := 1.0
+## `aNPC_set_feel_info(nactorx, feel, 1)`: the annoyed mood lasts one real-time minute.
+const ANNOY_MOOD_SECONDS := 60.0
 
 @export var data: VillagerData
 ## Indoor `ac_npc2` stand-in: always visible while the player is in this house.
@@ -62,6 +74,13 @@ var _avoid_cool: float = 0.0
 var _wall_time: float = 0.0
 ## One-time: lift the villager out of a pocket at its spawn / front door.
 var _spawn_unstuck: bool = false
+## Runtime-only annoyance state (`nactorx->uzai`) — never persisted; only the
+## `mood` it produces (`Animal_c.mood`) lives on `state`.
+var _uzai_tool: int = 0
+var _uzai_cross: bool = false
+var _uzai_step: float = 0.0
+var _uzai_flag: bool = false
+var _uzai_mood_left: float = 0.0
 var _talk_look: Vector3 = Vector3.ZERO
 var _face: NpcFace = NpcFace.new()
 var _head_look: NpcHeadLook = NpcHeadLook.new()
@@ -321,6 +340,7 @@ func _physics_process(delta: float) -> void:
 		_wall_time = 0.0
 	_update_animation(delta, Vector3(velocity.x, 0.0, velocity.z))
 	_tick_fatigue(delta, Vector3(velocity.x, 0.0, velocity.z))
+	_tick_annoyance(delta)
 	ai.step(delta)
 
 
@@ -951,6 +971,92 @@ func _tick_fatigue(delta: float, planar: Vector3) -> void:
 		_resting = true
 	elif _fatigue < FATIGUE_REST:
 		_resting = false
+
+
+func _tick_annoyance(delta: float) -> void:
+	## `aNPC_check_uzai`: a net hit already flagged `_uzai_flag` this frame;
+	## otherwise crowding builds `_uzai_step`, standing off builds it back down.
+	## Crossing either threshold interrupts with a scold, tightens the next
+	## tier (`_uzai_cross`), and resets both counters.
+	if state == null or data == null or ai.is_talking() or state.last_spoke_day == "":
+		return
+	if not _uzai_flag:
+		var gain: float = ANNOY_STEP_GAIN if _player_crowding() else -ANNOY_STEP_DECAY
+		_uzai_step += gain * delta * 60.0
+	var tier: int = 1 if _uzai_cross else 0
+	if _uzai_step > ANNOY_STEP_LIMIT[tier] or _uzai_tool >= ANNOY_TOOL_LIMIT[tier]:
+		_trigger_annoyance()
+	else:
+		_uzai_step = maxf(_uzai_step, 0.0)
+		_uzai_flag = false
+	if _uzai_mood_left > 0.0:
+		_uzai_mood_left = maxf(0.0, _uzai_mood_left - delta)
+		if _uzai_mood_left == 0.0 and state.mood == VillagerState.Mood.ANGRY:
+			state.mood = VillagerState.Mood.NORMAL
+
+
+func _player_crowding() -> bool:
+	## `aNPC_check_uzai_cross`: player within one field unit horizontally and
+	## vertically, and roughly facing this villager rather than just standing near.
+	if get_tree() == null:
+		return false
+	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	if player == null:
+		return false
+	var to: Vector3 = global_position - player.global_position
+	if Vector2(to.x, to.z).length() >= ANNOY_CROWD_DIST or absf(to.y) >= ANNOY_CROWD_DIST:
+		return false
+	var want_yaw: float = atan2(to.x, to.z)
+	var player_yaw: float = (
+		float(player.call("facing_yaw")) if player.has_method("facing_yaw") else player.rotation.y
+	)
+	return absf(angle_difference(player_yaw, want_yaw)) < ANNOY_FACE_CONE
+
+
+## `Player_actor_CheckAndSet_UZAI_forNpc`, called from `ToolUse._apply_net` when a
+## net swing's capsule lands on this villager instead of a bug.
+func register_net_hit() -> void:
+	if state == null or state.last_spoke_day == "":
+		return
+	_uzai_tool += 1
+	_uzai_flag = true
+
+
+func _trigger_annoyance() -> void:
+	## `uzai.cross`: the first offense is a warning (`MILDLY_ANNOYED`); every one
+	## after — thresholds already tightened — reads as the real thing.
+	state.patience = (
+		VillagerState.Patience.ANNOYED if _uzai_cross else VillagerState.Patience.MILDLY_ANNOYED
+	)
+	_uzai_tool = 0
+	_uzai_cross = true
+	_uzai_step = 0.0
+	_uzai_flag = false
+	_uzai_mood_left = ANNOY_MOOD_SECONDS
+	_play_annoyance_scold()
+
+
+func _play_annoyance_scold() -> void:
+	## `aNPC_force_call_req_proc` + `force_call_camera_type = CAMERA2_PROCESS_TALK`:
+	## a forced conversation, not a player-initiated one — same `begin_talk`/
+	## `TalkCamera` wiring as `_play_first_job_line`.
+	if get_tree() == null:
+		return
+	var talk_data: DialogueData = DialogueCatalog.conversation(&"npc_annoyed_scold")
+	if talk_data == null or data == null:
+		return
+	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
+	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
+	if ui == null or not ui.has_method("play"):
+		return
+	if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
+		ui.call("close")
+	ai.begin_talk()
+	_bind_talk_end(ui)
+	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	if player != null:
+		TalkCamera.begin(player, self, get_tree())
+	ui.call("play", talk_data, talk_ctx, state)
 
 
 func _looks() -> VillagerPersonality.Looks:

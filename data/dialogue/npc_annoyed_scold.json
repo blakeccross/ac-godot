@@ -1,0 +1,12 @@
+{
+  "id": "npc_annoyed_scold",
+  "speaker_id": "villager",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "line",
+      "text": "H-hey! Cut that out!\nWhat's gotten into you?",
+      "events": [{ "op": "set_mood", "mood": "angry" }]
+    }
+  }
+}

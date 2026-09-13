@@ -109,6 +109,12 @@ static func _apply_net(tool: ToolData, action: Interaction, ctx: InteractionCont
 		yaw = float(ctx.actor.call("facing_yaw"))
 	var direction := Vector3(sin(yaw), 0.0, cos(yaw))
 	var out: Netting.Outcome = Netting.swing(ctx, origin, direction)
+	if out.bug == null:
+		## `Player_actor_CheckAndSet_UZAI_forNpc`: swinging the net *at* a villager
+		## (rather than an actual bug) builds their annoyance meter.
+		var hit_npc: Node3D = Netting.find_npc_in_net(ctx, origin, direction)
+		if hit_npc != null and hit_npc.has_method("register_net_hit"):
+			hit_npc.call("register_net_hit")
 	if out.missed:
 		Game.post_notice("You swung the net, but didn't catch anything!")
 	elif out.pockets_full:
