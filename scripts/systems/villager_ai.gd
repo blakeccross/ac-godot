@@ -6,6 +6,9 @@ extends RefCounted
 ## (or `sync` rebuilds if the clock slot changed while they were talking).
 
 signal action_changed(kind: StringName)
+## Fires only on a real looks-table transition (not every no-op `sync` call) —
+## `aNPC_sleep_schedule_chg_schedule` hooks the same edge to clear `mood`.
+signal schedule_changed(previous: StringName, now: StringName)
 
 var schedule_type: StringName = &""
 var previous_type: StringName = &""
@@ -21,6 +24,7 @@ func sync(schedule_type_now: StringName, hints: Dictionary) -> void:
 		return
 	previous_type = schedule_type
 	schedule_type = schedule_type_now
+	schedule_changed.emit(previous_type, schedule_type)
 	var queue: Array[VillagerAction] = VillagerPlan.build(schedule_type, previous_type, hints)
 	_load(queue)
 

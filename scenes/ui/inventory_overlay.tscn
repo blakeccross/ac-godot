@@ -11,10 +11,85 @@
 [ext_resource type="Texture2D" uid="uid://bq4457k8fxl2p" path="res://assets/generated/ui/inventory/letters_label.png" id="16"]
 [ext_resource type="Texture2D" uid="uid://dgega2ephsnmy" path="res://assets/generated/ui/inventory/bells_label.png" id="17"]
 [ext_resource type="Texture2D" uid="uid://dos5rmk5271on" path="res://assets/generated/ui/inventory/portrait_frame.png" id="18"]
-[ext_resource type="Texture2D" uid="uid://y1q54wopfaxo" path="res://assets/generated/ui/inventory/name_bar.png" id="19"]
+[ext_resource type="Texture2D" uid="uid://j4oyfpcwqvs" path="res://assets/generated/ui/inventory/slot_item.png" id="SlotItemTex"]
+[ext_resource type="Texture2D" uid="uid://dep3cpxm7aogs" path="res://assets/generated/ui/inventory/slot_letter.png" id="SlotLetterTex"]
+[ext_resource type="FontFile" uid="uid://d1obuqkxe3oxo" path="res://assets/generated/ui/message/msg_font.fnt" id="RomFont"]
+
+[sub_resource type="StyleBoxFlat" id="SlotItem"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(0.2784314, 0.21960784, 0.3019608, 0.40392157)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.44, 0.75, 1, 1)
+corner_radius_top_left = 999
+corner_radius_top_right = 999
+corner_radius_bottom_right = 999
+corner_radius_bottom_left = 999
+
+[sub_resource type="StyleBoxTexture" id="SlotItemSelected"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+texture = ExtResource("SlotItemTex")
+texture_margin_left = 1.15
+texture_margin_top = 1.15
+texture_margin_right = 1.15
+texture_margin_bottom = 1.15
+
+[sub_resource type="StyleBoxTexture" id="SlotItemMarked"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+texture = ExtResource("SlotItemTex")
+texture_margin_left = 1.1
+texture_margin_top = 1.1
+texture_margin_right = 1.1
+texture_margin_bottom = 1.1
+modulate_color = Color(1.5, 1.2, 0.55, 1)
+
+[sub_resource type="StyleBoxFlat" id="SlotMail"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(0.9019608, 0.2784314, 0.21960784, 0.5019608)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(1, 0.25, 0.25, 1)
+corner_radius_top_left = 999
+corner_radius_top_right = 999
+corner_radius_bottom_right = 999
+corner_radius_bottom_left = 999
+
+[sub_resource type="StyleBoxTexture" id="SlotMailSelected"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+texture = ExtResource("SlotLetterTex")
+texture_margin_left = 1.15
+texture_margin_top = 1.15
+texture_margin_right = 1.15
+texture_margin_bottom = 1.15
 
 [sub_resource type="StyleBoxFlat" id="PortraitClip"]
 bg_color = Color(0.75, 0.88, 1, 1)
+corner_radius_top_left = 999
+corner_radius_top_right = 999
+corner_radius_bottom_right = 999
+corner_radius_bottom_left = 999
+
+[sub_resource type="StyleBoxFlat" id="NameBarSB"]
+bg_color = Color(0.24098796, 0.6707507, 0.9999997, 0.827451)
 corner_radius_top_left = 999
 corner_radius_top_right = 999
 corner_radius_bottom_right = 999
@@ -45,9 +120,7 @@ shadow_color = Color(0, 0, 0, 0.22)
 shadow_size = 4
 shadow_offset = Vector2(2, 3)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_b3yjs"]
-bg_color = Color(0.2, 0.2, 0.92, 1)
-draw_center = false
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_b3yjs"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0p2wo"]
 bg_color = Color(0.8980392, 0.28235295, 0.21960784, 1)
@@ -59,6 +132,10 @@ shadow_size = 4
 shadow_offset = Vector2(2, 3)
 
 [sub_resource type="StyleBoxFlat" id="TabDesignSB"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
 bg_color = Color(1, 0.8, 0.27, 1)
 corner_radius_top_left = 55
 corner_radius_bottom_left = 55
@@ -66,41 +143,14 @@ shadow_color = Color(0, 0, 0, 0.22)
 shadow_size = 4
 shadow_offset = Vector2(-2, 3)
 
-[sub_resource type="StyleBoxFlat" id="SlotItem"]
-content_margin_left = 8.0
-content_margin_top = 8.0
-content_margin_right = 8.0
-content_margin_bottom = 8.0
-bg_color = Color(0.28, 0.22, 0.3, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0.44, 0.75, 1, 1)
-corner_radius_top_left = 999
-corner_radius_top_right = 999
-corner_radius_bottom_right = 999
-corner_radius_bottom_left = 999
-
-[sub_resource type="StyleBoxFlat" id="SlotMail"]
-content_margin_left = 8.0
-content_margin_top = 8.0
-content_margin_right = 8.0
-content_margin_bottom = 8.0
-bg_color = Color(0.9, 0.28, 0.22, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(1, 0.25, 0.25, 1)
-corner_radius_top_left = 999
-corner_radius_top_right = 999
-corner_radius_bottom_right = 999
-corner_radius_bottom_left = 999
-
 [node name="InventoryOverlay" type="CanvasLayer" unique_id=1096957580]
 process_mode = 3
 script = ExtResource("1")
+style_item = SubResource("SlotItem")
+style_item_selected = SubResource("SlotItemSelected")
+style_item_marked = SubResource("SlotItemMarked")
+style_mail = SubResource("SlotMail")
+style_mail_selected = SubResource("SlotMailSelected")
 
 [node name="Root" type="Control" parent="." unique_id=1498015708]
 unique_name_in_owner = true
@@ -220,57 +270,51 @@ texture = ExtResource("18")
 expand_mode = 1
 stretch_mode = 5
 
+[node name="TownBar" type="Panel" parent="Root/Center/ShellStack/ChromeLayer" unique_id=1311663197]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 219.96002
+offset_top = 95.68
+offset_right = 472.0
+offset_bottom = 111.00001
+mouse_filter = 2
+theme_override_styles/panel = SubResource("NameBarSB")
+
 [node name="TownName" type="Label" parent="Root/Center/ShellStack/ChromeLayer" unique_id=255043393]
 unique_name_in_owner = true
 layout_mode = 0
-offset_left = 213.72
-offset_top = 65.52
-offset_right = 330.72
-offset_bottom = 84.24
+offset_left = 214.0
+offset_top = 66.0
+offset_right = 464.0
+offset_bottom = 107.0
 theme_override_colors/font_color = Color(0.23, 0.31, 0.43, 1)
-theme_override_fonts/font = ExtResource("8")
-theme_override_font_sizes/font_size = 20
+theme_override_fonts/font = ExtResource("RomFont")
+theme_override_font_sizes/font_size = 40
 text = "Town"
 horizontal_alignment = 1
 
-[node name="TownBar" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer" unique_id=1311663197]
+[node name="PlayerBar" type="Panel" parent="Root/Center/ShellStack/ChromeLayer" unique_id=1310296868]
 unique_name_in_owner = true
-texture_filter = 2
 layout_mode = 0
-offset_left = 219.96
-offset_top = 82.68
-offset_right = 324.48
-offset_bottom = 90.48
+offset_left = 219.96002
+offset_top = 139.76001
+offset_right = 470.0
+offset_bottom = 155.0
 mouse_filter = 2
-texture = ExtResource("19")
-expand_mode = 1
-stretch_mode = 5
+theme_override_styles/panel = SubResource("NameBarSB")
 
 [node name="PlayerName" type="Label" parent="Root/Center/ShellStack/ChromeLayer" unique_id=1113615025]
 unique_name_in_owner = true
 layout_mode = 0
 offset_left = 213.72
-offset_top = 93.6
-offset_right = 330.72
-offset_bottom = 112.32
+offset_top = 109.600006
+offset_right = 472.0
+offset_bottom = 130.6
 theme_override_colors/font_color = Color(0.27, 0.27, 0.39, 1)
-theme_override_fonts/font = ExtResource("8")
-theme_override_font_sizes/font_size = 20
+theme_override_fonts/font = ExtResource("RomFont")
+theme_override_font_sizes/font_size = 40
 text = "Player"
 horizontal_alignment = 1
-
-[node name="PlayerBar" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer" unique_id=1310296868]
-unique_name_in_owner = true
-texture_filter = 2
-layout_mode = 0
-offset_left = 219.96
-offset_top = 110.76
-offset_right = 324.48
-offset_bottom = 118.56
-mouse_filter = 2
-texture = ExtResource("19")
-expand_mode = 1
-stretch_mode = 5
 
 [node name="ItemsLabel" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer" unique_id=1754980414]
 unique_name_in_owner = true
@@ -324,8 +368,8 @@ theme_override_styles/panel = SubResource("BellsPill")
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.9, 0.22, 0.18, 1)
-theme_override_fonts/font = ExtResource("8")
-theme_override_font_sizes/font_size = 22
+theme_override_fonts/font = ExtResource("RomFont")
+theme_override_font_sizes/font_size = 18
 text = "0"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -362,14 +406,14 @@ stretch_mode = 5
 unique_name_in_owner = true
 z_index = 8
 layout_mode = 0
-offset_left = 673.0
-offset_top = 255.0
-offset_right = 731.0
-offset_bottom = 305.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_b3yjs")
+offset_left = 665.0
+offset_top = 247.0
+offset_right = 733.0
+offset_bottom = 312.0
+theme_override_styles/panel = SubResource("StyleBoxEmpty_b3yjs")
 
 [node name="Glyph" type="TextureRect" parent="Root/Center/ShellStack/ChromeLayer/TabPockets" unique_id=2033765986]
-modulate = Color(0.95, 0.93, 0.96, 1)
+modulate = Color(0.17428961, 0.12552303, 0.20105082, 1)
 texture_filter = 1
 layout_mode = 1
 anchors_preset = 15
@@ -416,7 +460,6 @@ stretch_mode = 5
 
 [node name="TabDesign" type="Panel" parent="Root/Center/ShellStack/ChromeLayer" unique_id=1847082021]
 unique_name_in_owner = true
-z_index = 8
 layout_mode = 0
 offset_left = 4.0
 offset_top = 229.0
@@ -462,6 +505,7 @@ offset_bottom = 349.44
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -470,6 +514,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot0" unique_id=415746836]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot1" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=827160785]
 unique_name_in_owner = true
@@ -481,6 +542,7 @@ offset_bottom = 349.44
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -489,6 +551,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot1" unique_id=1046851108]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot2" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=726866912]
 unique_name_in_owner = true
@@ -500,6 +579,7 @@ offset_bottom = 349.44
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -508,6 +588,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot2" unique_id=1683264327]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot3" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=843487205]
 unique_name_in_owner = true
@@ -519,6 +616,7 @@ offset_bottom = 349.44
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -527,6 +625,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot3" unique_id=40910870]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot4" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=1544635629]
 unique_name_in_owner = true
@@ -538,6 +653,7 @@ offset_bottom = 349.44
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -546,6 +662,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot4" unique_id=1327194480]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot5" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=1706610782]
 unique_name_in_owner = true
@@ -557,6 +690,7 @@ offset_bottom = 424.32
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -565,6 +699,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot5" unique_id=443143636]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot6" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=2030401851]
 unique_name_in_owner = true
@@ -576,6 +727,7 @@ offset_bottom = 424.32
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -584,6 +736,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot6" unique_id=1401953389]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot7" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=1142340996]
 unique_name_in_owner = true
@@ -595,6 +764,7 @@ offset_bottom = 424.32
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -603,6 +773,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot7" unique_id=1074292800]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot8" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=172469415]
 unique_name_in_owner = true
@@ -614,6 +801,7 @@ offset_bottom = 424.32
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -622,6 +810,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot8" unique_id=1732447368]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot9" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=143973148]
 unique_name_in_owner = true
@@ -633,6 +838,7 @@ offset_bottom = 424.32
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -641,6 +847,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot9" unique_id=527706164]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot10" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=790161633]
 unique_name_in_owner = true
@@ -652,6 +875,7 @@ offset_bottom = 499.2
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -660,6 +884,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot10" unique_id=31276154]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot11" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=1585420658]
 unique_name_in_owner = true
@@ -671,6 +912,7 @@ offset_bottom = 499.2
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -679,6 +921,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot11" unique_id=535898900]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot12" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=783229493]
 unique_name_in_owner = true
@@ -690,6 +949,7 @@ offset_bottom = 499.2
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -698,6 +958,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot12" unique_id=364165616]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot13" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=1561962864]
 unique_name_in_owner = true
@@ -709,6 +986,7 @@ offset_bottom = 499.2
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -717,6 +995,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot13" unique_id=1854781453]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="ItemSlot14" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=1929582970]
 unique_name_in_owner = true
@@ -728,6 +1023,7 @@ offset_bottom = 499.2
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotItem")
 theme_override_styles/pressed = SubResource("SlotItem")
@@ -736,6 +1032,23 @@ theme_override_styles/disabled = SubResource("SlotItem")
 theme_override_styles/focus = SubResource("SlotItem")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/ItemSlot14" unique_id=1479017497]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="MailSlot0" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=120491221]
 unique_name_in_owner = true
@@ -747,6 +1060,7 @@ offset_bottom = 199.68
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotMail")
 theme_override_styles/pressed = SubResource("SlotMail")
@@ -755,6 +1069,23 @@ theme_override_styles/disabled = SubResource("SlotMail")
 theme_override_styles/focus = SubResource("SlotMail")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/MailSlot0" unique_id=159393872]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="MailSlot1" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=283480850]
 unique_name_in_owner = true
@@ -766,6 +1097,7 @@ offset_bottom = 199.68
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotMail")
 theme_override_styles/pressed = SubResource("SlotMail")
@@ -774,6 +1106,23 @@ theme_override_styles/disabled = SubResource("SlotMail")
 theme_override_styles/focus = SubResource("SlotMail")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/MailSlot1" unique_id=907064329]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="MailSlot2" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=651275013]
 unique_name_in_owner = true
@@ -785,6 +1134,7 @@ offset_bottom = 274.56
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotMail")
 theme_override_styles/pressed = SubResource("SlotMail")
@@ -793,6 +1143,23 @@ theme_override_styles/disabled = SubResource("SlotMail")
 theme_override_styles/focus = SubResource("SlotMail")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/MailSlot2" unique_id=330516234]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="MailSlot3" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=1958134595]
 unique_name_in_owner = true
@@ -804,6 +1171,7 @@ offset_bottom = 274.56
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotMail")
 theme_override_styles/pressed = SubResource("SlotMail")
@@ -812,6 +1180,23 @@ theme_override_styles/disabled = SubResource("SlotMail")
 theme_override_styles/focus = SubResource("SlotMail")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/MailSlot3" unique_id=1233411712]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="MailSlot4" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=1708591895]
 unique_name_in_owner = true
@@ -823,6 +1208,7 @@ offset_bottom = 349.44
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotMail")
 theme_override_styles/pressed = SubResource("SlotMail")
@@ -831,6 +1217,23 @@ theme_override_styles/disabled = SubResource("SlotMail")
 theme_override_styles/focus = SubResource("SlotMail")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/MailSlot4" unique_id=598500027]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="MailSlot5" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=639516464]
 unique_name_in_owner = true
@@ -842,6 +1245,7 @@ offset_bottom = 349.44
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotMail")
 theme_override_styles/pressed = SubResource("SlotMail")
@@ -850,6 +1254,23 @@ theme_override_styles/disabled = SubResource("SlotMail")
 theme_override_styles/focus = SubResource("SlotMail")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/MailSlot5" unique_id=2003315553]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="MailSlot6" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=1573816801]
 unique_name_in_owner = true
@@ -861,6 +1282,7 @@ offset_bottom = 424.32
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotMail")
 theme_override_styles/pressed = SubResource("SlotMail")
@@ -869,6 +1291,23 @@ theme_override_styles/disabled = SubResource("SlotMail")
 theme_override_styles/focus = SubResource("SlotMail")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/MailSlot6" unique_id=720790842]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="MailSlot7" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=1159822829]
 unique_name_in_owner = true
@@ -880,6 +1319,7 @@ offset_bottom = 424.32
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotMail")
 theme_override_styles/pressed = SubResource("SlotMail")
@@ -888,6 +1328,23 @@ theme_override_styles/disabled = SubResource("SlotMail")
 theme_override_styles/focus = SubResource("SlotMail")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/MailSlot7" unique_id=2100244876]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="MailSlot8" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=1782066726]
 unique_name_in_owner = true
@@ -899,6 +1356,7 @@ offset_bottom = 499.2
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotMail")
 theme_override_styles/pressed = SubResource("SlotMail")
@@ -907,6 +1365,23 @@ theme_override_styles/disabled = SubResource("SlotMail")
 theme_override_styles/focus = SubResource("SlotMail")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/MailSlot8" unique_id=654805319]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="MailSlot9" type="Button" parent="Root/Center/ShellStack/SlotLayer" unique_id=1024831435]
 unique_name_in_owner = true
@@ -918,6 +1393,7 @@ offset_bottom = 499.2
 focus_mode = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.95)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 0.95)
+theme_override_constants/icon_max_width = 52
 theme_override_font_sizes/font_size = 11
 theme_override_styles/normal = SubResource("SlotMail")
 theme_override_styles/pressed = SubResource("SlotMail")
@@ -926,6 +1402,23 @@ theme_override_styles/disabled = SubResource("SlotMail")
 theme_override_styles/focus = SubResource("SlotMail")
 clip_text = true
 expand_icon = true
+
+[node name="ItemIcon" type="TextureRect" parent="Root/Center/ShellStack/SlotLayer/MailSlot9" unique_id=1718141634]
+visible = false
+texture_filter = 1
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="Detail" type="VBoxContainer" parent="Root/Center/ShellStack" unique_id=1485548797]
 unique_name_in_owner = true

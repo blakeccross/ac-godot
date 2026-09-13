@@ -4,7 +4,7 @@ import re
 import struct
 from dataclasses import dataclass, field
 
-from .gfx import G_VTX, MeshPart, RenderState, apply_texture_commands, parse_gfx, parse_vtx_blob
+from .gfx import G_SETTIMG, G_VTX, MeshPart, RenderState, apply_texture_commands, parse_gfx, parse_vtx_blob
 from .mapfile import MapSymbol, find_symbol, index_by_name
 from .math3d import Mat4, ckf_basis, local_softcv3
 from .rel import RelData
@@ -322,6 +322,15 @@ def bind_frame_for_anim(anim_name: str, nframes: int) -> float:
     return 1.0
 
 
+def _blob_sets_texture(blob: bytes) -> bool:
+    """True if this Gfx blob issues its own `G_SETTIMG` (real hardware only reloads
+    TMEM/SETTIMG when told to — everything else inherits the previous DL's state)."""
+    for off in range(0, len(blob) - 7, 8):
+        if (struct.unpack_from(">I", blob, off)[0] >> 24) == G_SETTIMG:
+            return True
+    return False
+
+
 def convert_ckf_model(
     rel: RelData,
     symbols: list[MapSymbol],
@@ -385,16 +394,32 @@ def convert_ckf_model(
         for s in symbols
         if s.name.endswith("_model") and vtx_sym.address < s.address < joints_sym.address
     ]
+    ## Process joint-owned models in *joint/draw* order, not address order: some child
+    ## joints' Gfx (e.g. `obj_s_post_flag_saki_model`, the mailbox flag's tip half) has
+    ## no texture/combine/prim commands of its own at all and relies on inheriting
+    ## whatever the previous joint left bound — exactly like the real RDP's SETTIMG/PRIM
+    ## registers, which persist across DLs until explicitly rewritten. Address order can
+    ## place such a joint's Gfx *before* the sibling it inherits from in the file, which
+    ## silently drops its geometry (no texture context to decode against). Models not
+    ## tied to a joint (unused alt frames, the `window_host` fallback below) keep the
+    ## old address-order/fresh-state behavior, appended after the joint chain.
+    joint_order = {j.model_name: j.index for j in joints if j.model_name}
+    model_syms = sorted(
+        model_syms,
+        key=lambda s: (0, joint_order[s.name]) if s.name in joint_order else (1, s.address),
+    )
     parts_by_name: dict[str, list[MeshPart]] = {}
     tex_state = TextureState()
     for model in model_syms:
-        # Each joint DL sets its own SETTIMG. Do not leak the previous image onto later parts.
-        tex_state.img_addr = 0
-        tex_state.width = 0
-        tex_state.height = 0
-        tex_state.prim = (255, 255, 255, 255)
-        tex_state.prim_set = False
         blob = rel.slice_at(model.address, model.size)
+        if model.name not in joint_order or _blob_sets_texture(blob):
+            # Either a standalone (non-chained) model, or one that rebinds its own
+            # texture — reset so a previous image doesn't leak onto unrelated parts.
+            tex_state.img_addr = 0
+            tex_state.width = 0
+            tex_state.height = 0
+            tex_state.prim = (255, 255, 255, 255)
+            tex_state.prim_set = False
         decoded = parse_gfx(
             model.name,
             blob,

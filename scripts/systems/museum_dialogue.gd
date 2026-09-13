@@ -65,6 +65,9 @@ static func build_outcome(item_id: StringName, result: Dictionary) -> DialogueDa
 		"ok":
 			var data: ItemData = ItemCatalog.get_item(item_id)
 			var index := int(result.get("index", -1))
+			var completion: String = _completion_node(result)
+			if completion.begins_with("fossil_piece_"):
+				nodes[completion] = _fossil_piece_node(index)
 			nodes["outcome_ex"] = {
 				"type": "line",
 				"text": _examine_line(data, category) if data != null else "Hoo! Splendid.",
@@ -73,7 +76,7 @@ static func build_outcome(item_id: StringName, result: Dictionary) -> DialogueDa
 			nodes["outcome_tr"] = {
 				"type": "line",
 				"text": _trivia_text(data, category, index) if data != null else "A fine addition, hoo.",
-				"next": _completion_node(result),
+				"next": completion,
 			}
 			start_id = "outcome_ex"
 		_:
@@ -83,7 +86,31 @@ static func build_outcome(item_id: StringName, result: Dictionary) -> DialogueDa
 	)
 
 
-## Which fanfare / lecture / plain-thanks node a successful donation lands on.
+## `aCR_chk_fossil_parts_complete`'s "another piece" acknowledgment — own wording (no
+## verbatim ROM text available), overridable per-group from the trivia bank like the
+## skeleton-complete lectures (`"fossil_piece_%d" % gi`).
+static func _fossil_piece_node(index: int) -> Dictionary:
+	var gi: int = MuseumDisplay.fossil_set_group_index(index)
+	var set_name: String = MuseumDisplay.FOSSIL_SET_NAMES[gi] if gi >= 0 and gi < MuseumDisplay.FOSSIL_SET_NAMES.size() else "skeleton"
+	var bank: DialogueData = DialogueCatalog.conversation(TRIVIA_ID)
+	var text: String = _bank_text(bank, "fossil_piece_%d" % gi) if gi >= 0 else ""
+	if text == "":
+		var remaining: int = MuseumDisplay.fossil_set_remaining(Game.museum if Game != null else null, index)
+		text = (
+			(
+				"Ahh, a piece of the\n%s! Only %d more piece%s\nand we'll assemble the\nwhole skeleton, hoo."
+				% [set_name, remaining, "" if remaining == 1 else "s"]
+			)
+			if remaining > 0
+			else (
+				"Ahh, a piece of the\n%s! Bring me the rest\nof the skeleton and we\nshall assemble it in full."
+				% set_name
+			)
+		)
+	return {"type": "line", "text": text, "next": "again"}
+
+
+## Which fanfare / lecture / fossil-piece / plain-thanks node a successful donation lands on.
 static func _completion_node(result: Dictionary) -> String:
 	if bool(result.get("completed_museum", false)):
 		return "fanfare_museum"
@@ -93,6 +120,12 @@ static func _completion_node(result: Dictionary) -> String:
 		var gi: int = MuseumDisplay.FOSSIL_SET_NAMES.find(String(result.get("set_name", "")))
 		if gi >= 0:
 			return "lecture_%d" % gi
+	## `aCR_chk_fossil_parts_complete`: a piece of an as-yet-incomplete skeleton gets its
+	## own acknowledgment naming the set, distinct from a solo donation's plain thanks.
+	if int(result.get("category", -1)) == MuseumDisplay.Category.FOSSIL:
+		var pgi: int = MuseumDisplay.fossil_set_group_index(int(result.get("index", -1)))
+		if pgi >= 0:
+			return "fossil_piece_%d" % pgi
 	return "thanks_one"
 
 
@@ -155,6 +188,16 @@ static func _add_item_branch(nodes: Dictionary, node_id: String, data: ItemData,
 			"if": {"var_eq": {"name": "donate_set_name", "value": set_name}},
 			"goto": "lecture_%d" % gi,
 		})
+	## `aCR_chk_fossil_parts_complete`: a piece of an as-yet-incomplete skeleton gets its
+	## own acknowledgment naming the set, distinct from a solo donation's plain thanks.
+	if category == MuseumDisplay.Category.FOSSIL:
+		var pgi: int = MuseumDisplay.fossil_set_group_index(index)
+		if pgi >= 0:
+			nodes["fossil_piece_%d" % pgi] = _fossil_piece_node(index)
+			when.append({
+				"if": {"var_eq": {"name": "donate_fossil_piece_group", "value": str(pgi)}},
+				"goto": "fossil_piece_%d" % pgi,
+			})
 	when.append({"goto": "thanks_one"})
 	nodes[result_id] = {"type": "branch", "when": when}
 

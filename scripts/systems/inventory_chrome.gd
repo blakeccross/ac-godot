@@ -86,6 +86,20 @@ static func icon_for_item(
 
 
 static func _item_icon_stem(data: ItemData) -> String:
+	## Identified fossils (`fossil_trex_head`, etc. — `data/fossils.json`) are
+	## `FurnitureData` (`category == FURNITURE`), which the generic category fallback
+	## below sends to the leaf placeholder. Route them to the fossil badge instead.
+	if String(data.id).begins_with("fossil_"):
+		return "item_fossil"
+	## Every caught fish/bug gets its own catalogued card (`inv_mwin_{NN}{romaji}_tex`,
+	## e.g. a bass shows the bass card, not just "a fish"). `item_turi`/`item_mushi`
+	## (below) are a different, unrelated pair of round badges for the fishing-rod and
+	## net *tools* themselves — using them here previously showed every fish as a
+	## picture of a fishing pole.
+	if data is FishData or data is BugData:
+		var species_stem: String = EncyclopediaCatalog.icon_for_id(data.id)
+		if species_stem != "":
+			return species_stem
 	## Prefer `obj_item_*` field cards — `inv_mwin_*` encyclopedia icons often bake
 	## the wrong CI palette (green apple, blue disc, etc.).
 	match String(data.id):
@@ -140,10 +154,14 @@ static func _item_icon_stem(data: ItemData) -> String:
 			return "item_leaf"
 		ItemData.Category.FRUIT:
 			return "item_apple"
-		ItemData.Category.FISH:
-			return "item_fish"
-		ItemData.Category.BUG:
-			return "item_net"
+		ItemData.Category.FISH, ItemData.Category.BUG:
+			## Reached only for a fish/bug id absent from `EncyclopediaCatalog` (fishing
+			## trash — `empty_can`, `leaky_boot`). `obj_item_fish_tex` decodes as
+			## garbage and `obj_item_net_tex` is actually a fishing hook (both broken/
+			## mislabeled in the REL extract) and `item_turi`/`item_mushi` are the
+			## fishing-rod/net *tool* badges, not fish/bug art — leaf is the honest
+			## "no specific icon" placeholder every other uncategorized item gets.
+			return "item_leaf"
 		ItemData.Category.WALL:
 			return "item_kabe"
 		ItemData.Category.FLOOR:

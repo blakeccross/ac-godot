@@ -160,6 +160,30 @@ func test_completing_a_skeleton_plays_the_lecture() -> void:
 		if runner.line.contains("Triceratops"):
 			saw_triceratops = true
 	assert_bool(saw_triceratops).is_true()
+	## The donated part must actually leave the pockets, not just narrate the fanfare.
+	assert_int(Game.inventory.count_of(part.id)).is_equal(0)
+
+
+func test_donating_one_of_a_multipart_fossil_names_the_set() -> void:
+	## `aCR_chk_fossil_parts_complete`: an incomplete skeleton's piece gets its own
+	## acknowledgment naming the set and how many pieces remain — not the generic
+	## "thanks_one" a solo fossil or unrelated item gets.
+	var part := FurnitureData.new()
+	part.id = MuseumDisplay.FOSSIL_VISUALS[0]
+	part.visual_id = MuseumDisplay.FOSSIL_VISUALS[0]
+	ItemCatalog.remember(part)
+	Game.inventory.add(part, 1)
+	var runner := DialogueRunner.new()
+	runner.start(MuseumDialogue.build_donate(part.id), _game_ctx(), null)
+	var guard := 0
+	var saw_piece_line := false
+	while not runner.done and not runner.waiting_choice and guard < 120:
+		guard += 1
+		runner.advance()
+		if runner.line.contains("Triceratops") and runner.line.contains("2 more piece"):
+			saw_piece_line = true
+	assert_bool(saw_piece_line).is_true()
+	assert_int(Game.inventory.count_of(part.id)).is_equal(0)
 
 
 func test_donate_select_pockets_flow() -> void:
@@ -215,6 +239,97 @@ func test_build_outcome_generic_fossil_is_farway_referral() -> void:
 	var runner := DialogueRunner.new()
 	runner.start(MuseumDialogue.build_outcome(&"fossil", res), _game_ctx(), null)
 	assert_str(runner.line).contains("Farway")
+
+
+func test_generic_fossil_donation_plays_return_handover() -> void:
+	## `aCR_TALK_RETURN_DEMO_*`: Blathers visibly hands rejected items back rather than
+	## silently leaving the pockets unchanged — this is what makes "can't identify that"
+	## legible instead of reading as "nothing happened." `_play_donate_outcome` only
+	## reaches this when a real dialogue UI is mounted (headless falls back to
+	## `_say_line`, same as the pre-existing `_play_putaway` accept path), so call the
+	## handover directly rather than standing up a dialogue UI double.
+	Game.inventory.add(ItemCatalog.get_item(&"fossil"), 1)
+	var blathers := StaticBody3D.new()
+	blathers.set_script(load("res://scenes/world/museum/museum_blathers.gd"))
+	auto_free(blathers)
+	add_child(blathers)
+	var listener := Node3D.new()
+	auto_free(listener)
+	add_child(listener)
+	blathers.set("_listener", listener)
+	blathers.call("_play_return", &"fossil")
+	assert_int(Game.inventory.count_of(&"fossil")).is_equal(1)
+	await get_tree().process_frame
+	var root: Node = get_tree().current_scene if get_tree().current_scene != null else self
+	assert_object(_find_hand_over_item(root)).is_not_null()
+
+
+func test_play_return_skips_when_item_not_held() -> void:
+	## No animation for an item the player no longer has (defensive, not decomp-driven).
+	var blathers := StaticBody3D.new()
+	blathers.set_script(load("res://scenes/world/museum/museum_blathers.gd"))
+	auto_free(blathers)
+	add_child(blathers)
+	var listener := Node3D.new()
+	auto_free(listener)
+	add_child(listener)
+	blathers.set("_listener", listener)
+	blathers.call("_play_return", &"fossil")
+	await get_tree().process_frame
+	var root: Node = get_tree().current_scene if get_tree().current_scene != null else self
+	assert_object(_find_hand_over_item(root)).is_null()
+
+
+func _find_hand_over_item(root: Node) -> HandOverItem:
+	if root == null:
+		return null
+	if root is HandOverItem:
+		return root as HandOverItem
+	for c: Node in root.get_children():
+		var hit: HandOverItem = _find_hand_over_item(c)
+		if hit != null:
+			return hit
+	return null
+
+
+func test_blathers_sleep_window_matches_decomp_hours() -> void:
+	## `aCR_SLEEP_TIME_START`/`_END` (`ac_npc_curator.h`): 06:00–18:00, not 05:00–19:00.
+	var blathers := StaticBody3D.new()
+	blathers.set_script(load("res://scenes/world/museum/museum_blathers.gd"))
+	auto_free(blathers)
+	add_child(blathers)
+	Clock.hour = 5
+	assert_bool(bool(blathers.call("_is_drowsy"))).is_false()
+	Clock.hour = 6
+	assert_bool(bool(blathers.call("_is_drowsy"))).is_true()
+	Clock.hour = 17
+	assert_bool(bool(blathers.call("_is_drowsy"))).is_true()
+	Clock.hour = 18
+	assert_bool(bool(blathers.call("_is_drowsy"))).is_false()
+
+
+func test_blathers_holds_wait_pose_during_sleep_grace_then_sleeps() -> void:
+	## `aCR_ACTION_WAIT` -> `aCR_ACTION_SLEEP_WAIT` (holds `WAIT1` for
+	## `aCR_SLEEP_WAIT_TIMER` = 6s) -> `aCR_ACTION_SLEEP` (`WAIT_NEMU1`) on first crossing
+	## into the drowsy window; no such grace when already drowsy.
+	Clock.hour = 3
+	var blathers := StaticBody3D.new()
+	blathers.set_script(load("res://scenes/world/museum/museum_blathers.gd"))
+	auto_free(blathers)
+	add_child(blathers)
+	assert_bool(bool(blathers.call("_is_drowsy"))).is_false()
+	Clock.hour = 6
+	blathers.call("_update_sleep_grace", 0.1)
+	assert_str(String(blathers.call("_idle_clip"))).is_equal(blathers.get("ANIM_WAIT"))
+	blathers.call("_update_sleep_grace", 5.95)
+	assert_str(String(blathers.call("_idle_clip"))).is_equal(blathers.get("ANIM_WAIT"))
+	blathers.call("_update_sleep_grace", 0.1)
+	assert_str(String(blathers.call("_idle_clip"))).is_equal(blathers.get("ANIM_SLEEP"))
+	## `_talking` freezes the grace timer (only `_process`'s idle branch ticks it), so a
+	## talk/donate session that starts and ends while already past the grace period comes
+	## straight back to the sleep pose — never re-running the 6s hold.
+	blathers.call("_idle_clip") # re-check without advancing time, as `_on_talk_closed` does
+	assert_str(String(blathers.call("_idle_clip"))).is_equal(blathers.get("ANIM_SLEEP"))
 
 
 func test_donate_choice_emits_museum_menu_event() -> void:

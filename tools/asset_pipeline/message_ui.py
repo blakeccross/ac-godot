@@ -92,6 +92,11 @@ class TexSpec:
     out_name: str | None = None
     ## When True, RGB is forced white and intensity is alpha so Godot can PRIM-tint.
     modulate_base: bool = False
+    ## ACHD's `con_kaiwa2_w*` replacements redraw the corner/edge curvature far
+    ## rounder than the native GC art (compare `_ref_dialogue_crop.png`'s flat,
+    ## shallow oval to the ACHD pack's egg-shaped one) — keep the talk window's
+    ## silhouette tiles on the native decode so the cloud shape stays accurate.
+    use_achd: bool = True
 
 
 @dataclass(frozen=True)
@@ -103,9 +108,9 @@ class UiVertex:
 
 
 CHROME: list[TexSpec] = [
-    TexSpec("con_kaiwa2_w1_tex", 64, 64, MSG_BODY_PRIM, "msg_kaiwa_w1"),
-    TexSpec("con_kaiwa2_w2_tex", 128, 64, MSG_BODY_PRIM, "msg_kaiwa_w2"),
-    TexSpec("con_kaiwa2_w3_tex", 128, 64, MSG_BODY_PRIM, "msg_kaiwa_w3"),
+    TexSpec("con_kaiwa2_w1_tex", 64, 64, MSG_BODY_PRIM, "msg_kaiwa_w1", use_achd=False),
+    TexSpec("con_kaiwa2_w2_tex", 128, 64, MSG_BODY_PRIM, "msg_kaiwa_w2", use_achd=False),
+    TexSpec("con_kaiwa2_w3_tex", 128, 64, MSG_BODY_PRIM, "msg_kaiwa_w3", use_achd=False),
     ## White+alpha — `MessageWindowChrome` multiplies by sex tint at runtime.
     TexSpec("con_namefuti_TXT", 64, 32, MSG_NAME_PRIM, "msg_nameplate", True),
     ## `mChoice` lobed window silhouette (`con_waku_swaku3_tex`), 128x64 I4.
@@ -153,7 +158,15 @@ def extract_message_ui(cfg: PipelineConfig) -> dict[str, Any]:
         out_stem = spec.out_name or spec.name
         tile_native[out_stem] = (spec.width, spec.height)
         results.append(
-            _extract_one(rel, by_name, spec, stage_dir, out_dir, cfg.project_root, achd=achd)
+            _extract_one(
+                rel,
+                by_name,
+                spec,
+                stage_dir,
+                out_dir,
+                cfg.project_root,
+                achd=achd if spec.use_achd else None,
+            )
         )
 
     bake_results = _bake_message_shapes(
@@ -429,7 +442,17 @@ def _bake_message_shapes(
             path = out_dir / f"{stem}.png"
             if not path.is_file():
                 raise FileNotFoundError(path)
-            tile_cache[stem] = Image.open(path).convert("RGBA")
+            tile = Image.open(path).convert("RGBA")
+            ## Native (non-ACHD) tiles stay at GC resolution (e.g. 64x64) while the
+            ## mesh bakes at `bake_scale`x — nearest-sampling that gap in
+            ## `_draw_textured_triangle` stair-steps the silhouette. Pre-upscale with
+            ## a smooth filter so the rasterizer reads an already-antialiased source.
+            native = tile_native.get(stem)
+            if native is not None:
+                target = (native[0] * bake_scale, native[1] * bake_scale)
+                if tile.size[0] < target[0] or tile.size[1] < target[1]:
+                    tile = tile.resize(target, Image.LANCZOS)
+            tile_cache[stem] = tile
         return tile_cache[stem]
 
     bake_scale = 1

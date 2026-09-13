@@ -4,6 +4,13 @@ extends RefCounted
 ## Post office desk ops (`ac_npc_post_girl` send / save / bank / repay).
 
 const PRESET_CHUNK := 1000
+## `mPr_CheckMuseumAddress` — the synthetic "Museum" address-book contact used only
+## for mailing a raw fossil in for identification (`m_museum.c`'s `mMsm_SendResultMail`).
+const MUSEUM_RECIPIENT_ID := &"museum"
+const MUSEUM_RECIPIENT_NAME := "Museum"
+## Debug/test-only canned bodies (`give_test_tools`, `test_post_police.gd`) — the
+## interactive pockets "Write" flow types a real body now (`letter_writer_overlay.gd`),
+## it doesn't use these.
 const BODY_PRESETS: Array[String] = [
 	"Hello! How are you today?\nI hope we can hang out soon!",
 	"Just writing to say hi.\nSee you around town!",
@@ -72,11 +79,21 @@ static func repay_amount(amount: int) -> String:
 static func send_mail_at(index: int) -> String:
 	if Game == null or Game.inventory == null or Game.post == null:
 		return ""
-	if Game.post.is_desk_full():
-		return "The desk is full — we can't take more mail."
 	var letter: MailData = Game.inventory.mail_at(index)
 	if letter == null or not letter.is_sendable():
 		return "That isn't a finished letter."
+	## `m_museum.c`'s `mMsm_SendMuseumMail` — mail addressed to "Museum" never sits at
+	## the post office desk; the attached fossil (`mTG_present_proc`) is queued for
+	## identification and returns via the mailbox the next in-game day.
+	if letter.recipient_id == MUSEUM_RECIPIENT_ID:
+		if letter.present_item_id == &"" or Game.farway == null:
+			return "Attach a fossil before mailing this to the Museum."
+		Game.farway.queue_fossil()
+		Game.inventory.remove_mail(index)
+		_refresh_mail_piles()
+		return "We'll send it to the Museum. Expect a reply tomorrow."
+	if Game.post.is_desk_full():
+		return "The desk is full — we can't take more mail."
 	var copy: MailData = letter.duplicate_mail()
 	if not Game.post.receipt_mail(copy):
 		return "The desk is full — we can't take more mail."
@@ -123,28 +140,27 @@ static func write_letter(to_id: StringName, body_index: int = 0) -> String:
 	return "Wrote a letter to %s." % to_name
 
 
-static func recipient_candidates() -> Array[Dictionary]:
-	## Prefer town residents; fall back to catalog starters.
+## Address-book villager list (`m_address_ovl.c`'s `mAD_make_npc_address`): only
+## villagers with a "memory" of you — `mNpc_GetAnimalMemoryIdx` — appear, not the whole
+## town. `Relationship.MET` is this port's equivalent milestone.
+static func met_villager_candidates() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	var seen: Dictionary = {}
-	if Game != null and Game.villagers != null:
-		var snap: Dictionary = Game.villagers.to_save()
-		for key: Variant in snap.keys():
-			var id := StringName(str(key))
-			if id == &"" or seen.has(id):
-				continue
-			seen[id] = true
-			var data: VillagerData = VillagerCatalog.get_villager(id)
-			var name: String = data.display_name if data != null else String(id)
-			out.append({"id": id, "name": name})
-	if out.is_empty():
-		for villager: VillagerData in VillagerCatalog.starters():
-			if villager == null or villager.id == &"" or seen.has(villager.id):
-				continue
-			seen[villager.id] = true
-			out.append({"id": villager.id, "name": villager.display_name})
-	if out.is_empty():
-		out.append({"id": &"filbert", "name": "Filbert"})
+	if Game == null or Game.villagers == null:
+		return out
+	var snap: Dictionary = Game.villagers.to_save()
+	for key: Variant in snap.keys():
+		var id := StringName(str(key))
+		if id == &"":
+			continue
+		var state: VillagerState = Game.villagers.get_or_create(id)
+		if state == null or state.relationship == null:
+			continue
+		if not state.relationship.has_milestone(Relationship.MET):
+			continue
+		var data: VillagerData = VillagerCatalog.get_villager(id)
+		var name: String = data.display_name if data != null else String(id)
+		out.append({"id": id, "name": name})
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return String(a.get("name", "")) < String(b.get("name", "")))
 	return out
 
 
@@ -219,31 +235,6 @@ static func farway_send_conversation() -> DialogueData:
 	nodes["ask"]["options"] = options
 	return DialogueData.from_dict(
 		{"id": "post_farway", "speaker_id": "post_girl", "start": "ask", "nodes": nodes}
-	)
-
-
-static func write_letter_conversation() -> DialogueData:
-	var options: Array = []
-	var nodes := {
-		"ask": {"type": "choice", "prompt": "Who is this letter for?", "options": options},
-		"done": {"type": "line", "text": "All written! Check your Letters page."},
-		"cancel": {"type": "line", "text": "Maybe later."},
-	}
-	var i: int = 0
-	for entry: Dictionary in recipient_candidates():
-		var node_id := "to_%d" % i
-		options.append({"text": str(entry.get("name", "Villager")), "goto": node_id})
-		nodes[node_id] = {
-			"type": "event",
-			"events": [{"op": "write_letter", "to": String(entry.get("id", "")), "body": 0}],
-			"next": "done",
-		}
-		i += 1
-		if i >= 6:
-			break
-	options.append({"text": "Never mind...", "goto": "cancel"})
-	return DialogueData.from_dict(
-		{"id": String(PostDisplay.WRITE_LETTER_ID), "speaker_id": "player", "start": "ask", "nodes": nodes}
 	)
 
 

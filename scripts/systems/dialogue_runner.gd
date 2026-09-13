@@ -409,12 +409,6 @@ func _apply_event(event: Dictionary) -> void:
 			var save_msg: String = PostUse.save_mail_at(int(event.get("index", -1)))
 			if save_msg != "":
 				Game.post_notice(save_msg)
-		"write_letter":
-			var write_msg: String = PostUse.write_letter(
-				StringName(str(event.get("to", ""))), int(event.get("body", 0))
-			)
-			if write_msg != "":
-				Game.post_notice(write_msg)
 
 
 ## `{op:"donate_commit","item":"<id>"}` — hand the item to the museum and write the
@@ -430,6 +424,12 @@ func _donate_commit(event: Dictionary) -> void:
 	)
 	context.set_var("donate_completed_museum", "yes" if res.get("completed_museum", false) else "no")
 	context.set_var("donate_set_name", str(res.get("set_name", "")))
+	## `aCR_chk_fossil_parts_complete`: an incomplete skeleton's piece gets its own
+	## acknowledgment (see `MuseumDialogue._add_item_branch`'s fossil_piece_%d branch).
+	var fp_gi := -1
+	if not bool(res.get("completed_set", false)) and int(res.get("category", -1)) == MuseumDisplay.Category.FOSSIL:
+		fp_gi = MuseumDisplay.fossil_set_group_index(int(res.get("index", -1)))
+	context.set_var("donate_fossil_piece_group", str(fp_gi))
 
 
 func _sync_bond_context(bond: Relationship) -> void:

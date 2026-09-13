@@ -64,6 +64,7 @@ func test_delivered_letter_lands_in_mailbox_and_enclosure_is_takeable() -> void:
 	var res: Dictionary = Game.donate_museum_result(fossil_id)
 	assert_bool(res.get("ok", false)).is_true()
 	assert_int(Game.museum.count_fossils()).is_equal(1)
+	assert_int(Game.inventory.count_of(fossil_id)).is_equal(0)
 
 
 func test_field_renew_delivers_mail_and_notifies() -> void:

@@ -36,13 +36,14 @@ const PORTRAIT_CLIPS := {
 	PortraitAnim.CATCH: "ply_1_menu_catch1",
 }
 
-const COL_ITEM_RING := Color("70c0ff")
-const COL_ITEM_RING_SEL := Color("a0d8ff")
-const COL_ITEM_FILL := Color(0.28, 0.22, 0.3, 1)
-const COL_MAIL_RING := Color("ff4040")
-const COL_MAIL_RING_SEL := Color("ff8080")
-const COL_MAIL_EMPTY := Color(0.9, 0.28, 0.22, 1)
-const COL_MAIL_FILL := Color(0.35, 0.18, 0.2, 1)
+## `page_move_timer` (`m_inventory_ovl.c`): a sine-eased vertical swing over 40 frames
+## when flipping pages, not a hard cut.
+## Item (5x3) and mail (2x5) grids are bottom-aligned in `.tscn` (both grids' last row
+## shares y=424.32-499.2) — mail row `r` lines up with item row `r - MAIL_ROW_OFFSET`.
+const MAIL_ROW_OFFSET := 2
+
+const PAGE_SWING_AMPLITUDE := 22.0
+const PAGE_SWING_DURATION := 40.0 / 60.0
 
 @onready var _root: Control = %Root
 @onready var _shell_stack: Control = %ShellStack
@@ -52,8 +53,8 @@ const COL_MAIL_FILL := Color(0.35, 0.18, 0.2, 1)
 @onready var _wallet: Label = %WalletLabel
 @onready var _player_name: Label = %PlayerName
 @onready var _town_name: Label = %TownName
-@onready var _player_bar: TextureRect = %PlayerBar
-@onready var _town_bar: TextureRect = %TownBar
+@onready var _player_bar: Panel = %PlayerBar
+@onready var _town_bar: Panel = %TownBar
 @onready var _name: Label = %ItemNameLabel
 @onready var _desc: Label = %ItemDescLabel
 @onready var _tags: Label = %TagLabel
@@ -73,19 +74,26 @@ const COL_MAIL_FILL := Color(0.35, 0.18, 0.2, 1)
 
 var _open: bool = false
 var _focus_mail: bool = false
+## `mTG_TABLE_PLAYER`: the cursor can move onto the player doll from the top row of the
+## item grid, same continuous navigable space as items/mail/wallet/background.
+var _focus_player: bool = false
 var _side_tab: SideTab = SideTab.POCKETS
 var _slot_buttons: Array[Button] = []
 var _mail_buttons: Array[Button] = []
 var _tag_choices: PackedStringArray = []
 var _tag_index: int = 0
 var _tag_mode: bool = false
-var _style_item: StyleBox
-var _style_item_sel: StyleBox
-var _style_mail: StyleBox
-var _style_mail_sel: StyleBox
-var _style_mail_empty: StyleBox
+## Which one applies (selected/marked/empty) is runtime state, but the resources
+## themselves are authored in `inventory_overlay.tscn` — assign there, not in code.
+@export var style_item: StyleBox
+@export var style_item_selected: StyleBox
+@export var style_item_marked: StyleBox
+@export var style_mail: StyleBox
+@export var style_mail_selected: StyleBox
 var _tex_letter: Texture2D
 var _tex_letter_present: Texture2D
+var _tex_letter_open: Texture2D
+var _tex_letter_open_present: Texture2D
 var _portrait_ready: bool = false
 var _portrait_pivot: Node3D = null
 var _portrait_anim: AnimationPlayer = null
@@ -103,11 +111,21 @@ var _collect_slots: Array[TextureRect] = []
 var _collect_title: Label = null
 var _collect_count: Label = null
 var _pocket_chrome: Array[CanvasItem] = []
+var _drop_pid_seq: int = 0
+## Mail slot index awaiting a Yes/No discard confirmation, or -1 when none is pending.
+var _pending_mail_discard: int = -1
+## `mTG_TABLE_MONEY`: the wallet's own verb popup (denomination picker), not an item slot.
+var _wallet_tag_mode: bool = false
+## `mTG_TABLE_BG`: the background slot's own verb popup ("Remove").
+var _background_tag_mode: bool = false
+var _background_slot: Control = null
+var _background_icon: TextureRect = null
 ## `m_tag_ovl` verb window (`sen_itemw_*`): frame + shadow + pointer, verbs stacked.
 var _tag_popup: Control = null
+var _tag_shadow: TextureRect = null
 var _tag_frame: PanelContainer = null
 var _tag_rows: VBoxContainer = null
-var _tag_arrow: Polygon2D = null
+var _tag_arrow: TextureRect = null
 var _ui_font: Font = null
 
 
@@ -117,10 +135,10 @@ func _ready() -> void:
 	_load_ui_font()
 	_wire_slot_buttons()
 	_wire_side_tabs()
-	_build_styles()
 	_apply_chrome()
 	_build_encyclopedia_grid()
 	_build_tag_popup()
+	_build_background_slot()
 	_setup_player_portrait()
 	_setup_hand_cursor()
 	## The GC pockets screen has no bottom text block — the verb window and the
@@ -128,21 +146,24 @@ func _ready() -> void:
 	var detail: Control = _shell_stack.get_node_or_null("Detail") as Control
 	if detail != null:
 		detail.visible = false
-	## All live text uses the ROM font (`mFont`), not the .tscn's Rodin fallback.
+	## Font/size/color for name/town/wallet labels are authored directly on the nodes
+	## in `inventory_overlay.tscn` (ROM font `mFont`, not Rodin) — nothing to set here.
 	## `mIV_SetLineStrings_centering`: land name scale 0.875, player name 0.9375 of
 	## an ~18 px cell -> ~16/17 px; wallet digits sit in the `suujiwaku` box.
-	if _player_name != null:
-		_font_label(_player_name, 17, Color(0.27, 0.27, 0.39))
-	if _town_name != null:
-		_font_label(_town_name, 16, Color(0.23, 0.31, 0.43))
-	if _wallet != null:
-		_font_label(_wallet, 18, _wallet.get_theme_color("font_color"))
+	var bells_pill: Control = _wallet.get_parent() as Control if _wallet != null else null
+	if bells_pill != null:
+		bells_pill.mouse_filter = Control.MOUSE_FILTER_STOP
+		bells_pill.gui_input.connect(_on_wallet_gui)
 	_root.visible = false
 	Game.inventory.changed.connect(_refresh)
 	Game.inventory.selection_changed.connect(_on_selection)
 	Game.inventory.mail_changed.connect(_on_mail_changed)
 	Game.inventory.wallet_changed.connect(func(_a: int) -> void: _refresh())
 	Game.inventory.equipment_changed.connect(func(_id: StringName) -> void: _refresh())
+	Game.inventory.background_changed.connect(func(_id: StringName) -> void: _refresh_background())
+	Game.cloth_changed.connect(func(_id: StringName) -> void: _sync_portrait_cloth())
+	Game.design_changed.connect(_sync_portrait_cloth)
+	_refresh_background()
 	_refresh()
 
 
@@ -170,44 +191,20 @@ func _wire_slot_buttons() -> void:
 		if btn == null:
 			continue
 		btn.pressed.connect(_on_item_pressed.bind(i))
-		btn.add_theme_constant_override("icon_max_width", 52)
-		_ensure_slot_icon_rect(btn)
 		_slot_buttons.append(btn)
 	for i: int in Inventory.MAIL_SLOTS:
 		var btn: Button = get_node_or_null("%%MailSlot%d" % i) as Button
 		if btn == null:
 			continue
 		btn.pressed.connect(_on_mail_pressed.bind(i))
-		btn.add_theme_constant_override("icon_max_width", 52)
-		_ensure_slot_icon_rect(btn)
 		_mail_buttons.append(btn)
 
 
-func _ensure_slot_icon_rect(btn: Button) -> void:
-	## Button.icon is easy to lose under theme/stylebox layout; draw the picture explicitly.
-	if btn.get_node_or_null("ItemIcon") != null:
-		return
-	var icon := TextureRect.new()
-	icon.name = "ItemIcon"
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	icon.offset_left = 10
-	icon.offset_top = 10
-	icon.offset_right = -10
-	icon.offset_bottom = -10
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	icon.visible = false
-	btn.add_child(icon)
-
-
 func _set_slot_picture(btn: Button, tex: Texture2D) -> void:
+	## `ItemIcon` is an authored child node in the .tscn on every slot button, not
+	## `Button.icon` — that's easy to lose under theme/stylebox layout.
 	btn.icon = null
 	var icon: TextureRect = btn.get_node_or_null("ItemIcon") as TextureRect
-	if icon == null:
-		_ensure_slot_icon_rect(btn)
-		icon = btn.get_node_or_null("ItemIcon") as TextureRect
 	if icon == null:
 		btn.icon = tex
 		btn.expand_icon = true
@@ -246,14 +243,7 @@ func _wire_side_tabs() -> void:
 
 
 func _on_side_tab_gui(event: InputEvent, tab: Panel) -> void:
-	if not _open:
-		return
-	var hit: bool = (
-		(event is InputEventMouseButton and (event as InputEventMouseButton).pressed
-			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT)
-		or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed)
-	)
-	if not hit:
+	if not _open or not _click_event(event):
 		return
 	get_viewport().set_input_as_handled()
 	var page: int = _tab_home.get(tab, {}).get("page", SideTab.POCKETS)
@@ -279,23 +269,30 @@ func _select_side_tab(page: SideTab) -> void:
 	if page == _side_tab:
 		return
 	_tag_mode = false
+	_pending_mail_discard = -1
+	_wallet_tag_mode = false
+	_background_tag_mode = false
 	_hide_tag_popup()
+	## `mTG_mark_main_CLR`: marks don't survive a page flip.
+	Game.inventory.clear_marks()
 	_side_tab = page
 	if page != SideTab.POCKETS:
 		_focus_mail = false
+		_focus_player = false
 	Audio.play_se(&"cursol")
 	## `mIV_ANIM_CATCH` on a collection page; WALK back on the pockets.
 	_set_portrait_anim(PortraitAnim.CATCH if page != SideTab.POCKETS else PortraitAnim.WALK)
 	_show_page(page)
 	_refresh()
 	_update_hand_cursor(true)
+	_play_page_swing()
 
 
 func _apply_chrome() -> void:
 	## Fill missing textures only — assigned `.tscn` textures stay editable in the editor.
 	InventoryChrome.clear_cache()
 	## Project default filter is nearest; shell / labels need linear for smooth scallops.
-	for node: CanvasItem in [_window_shell, _shell_shadow, _items_label, _letters_label, _bells_label, _portrait_frame, _town_bar, _player_bar]:
+	for node: CanvasItem in [_window_shell, _shell_shadow, _items_label, _letters_label, _bells_label, _portrait_frame]:
 		if node != null:
 			node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	if _window_shell.texture == null:
@@ -309,18 +306,37 @@ func _apply_chrome() -> void:
 			_hint.text = "Run: python3 tools/build_assets.py --step convert --kind inventory-ui"
 	elif _shell_shadow.texture == null:
 		_shell_shadow.texture = _window_shell.texture
+	_apply_paper_scroll_shader()
 
 	_set_tex(_items_label, "items_label")
 	_set_tex(_letters_label, "letters_label")
 	_set_tex(_bells_label, "bells_label")
 	_set_tex(_portrait_frame, "portrait_frame")
-	_set_tex(_town_bar, "name_bar")
-	_set_tex(_player_bar, "name_bar")
 	_tex_letter = InventoryChrome.load_tex("letter")
 	_tex_letter_present = InventoryChrome.load_tex("letter_present")
+	_tex_letter_open = InventoryChrome.load_tex("letter_open")
+	_tex_letter_open_present = InventoryChrome.load_tex("letter_open_present")
 	if _tex_letter == null:
 		_tex_letter = InventoryChrome.load_tex("letter_envelope")
 
+
+## `mSM_scroll_move` (`m_submenu_ovl.c`): every full-screen menu's paper fill
+## slides diagonally, not just a static print. Re-samples a paper texture over
+## the baked shell's alpha so the silhouette/border stay put. `override` swaps
+## in the player's chosen `backgound_texture` shirt pattern (`_refresh_background`);
+## omitted/null falls back to the default paper (`ITM_CLOTH226`).
+func _apply_paper_scroll_shader(override: Texture2D = null) -> void:
+	if _window_shell == null or _window_shell.texture == null:
+		return
+	var paper_tex: Texture2D = override if override != null else InventoryChrome.load_tex("paper")
+	if paper_tex == null:
+		return
+	var mat := _window_shell.material as ShaderMaterial
+	if mat == null:
+		mat = ShaderMaterial.new()
+		mat.shader = load("res://shaders/inventory_shell_paper.gdshader")
+		_window_shell.material = mat
+	mat.set_shader_parameter("paper_tex", paper_tex)
 
 
 func _setup_player_portrait() -> void:
@@ -376,16 +392,18 @@ func _setup_player_portrait() -> void:
 	GeneratedVisual.stop_autoplay_keep_rest(_portrait_pivot)
 	_portrait_pivot.rotation.y = 0.0
 	_portrait_pivot.position = Vector3.ZERO
+
 	_portrait_anim = GeneratedVisual.find_animation_player(_portrait_pivot)
 	_sync_portrait_equipment(true)
+	_sync_portrait_cloth()
 
-	## Frame head → mid-thigh in the circle (`inv_mwin_3Dma` window): the player fills
-	## ~78% of the RT height, look-at at ~62% of body height.
+	## Frame head → mid-thigh in the circle (`inv_mwin_3Dma` window). Decomp fill was
+	## ~70% of the RT height; bumped to 0.85 so the player reads bigger in the portrait.
 	await get_tree().process_frame
 	var aabb := _visual_aabb(_portrait_pivot)
 	var ph: float = maxf(aabb.size.y, 0.1)
 	var look_y: float = aabb.position.y + ph * 0.60
-	var eye_dist: float = (ph / 0.70) / (2.0 * tan(deg_to_rad(10.0)))
+	var eye_dist: float = (ph / 0.85) / (2.0 * tan(deg_to_rad(10.0)))
 	cam.position = Vector3(0.0, look_y + eye_dist * sin(elev), eye_dist * cos(elev))
 	cam.look_at(Vector3(0.0, look_y, 0.0), Vector3.UP)
 
@@ -494,6 +512,18 @@ func _play_hand_clip(suffix: String, loop: bool) -> void:
 	_hand_anim.play(clip)
 
 
+## The verb popup anchors on whatever's under the cursor — usually a pocket/mail slot,
+## but the wallet and background slots have their own popups too (`mTG_TABLE_MONEY`/`BG`).
+func _tag_anchor_control() -> Control:
+	if _wallet_tag_mode:
+		return _wallet.get_parent() as Control
+	if _background_tag_mode:
+		return _background_slot
+	if _focus_player:
+		return _portrait_frame
+	return _selected_slot_button()
+
+
 func _selected_slot_button() -> Button:
 	if _focus_mail:
 		var mi: int = Game.inventory.selected_mail_index
@@ -510,7 +540,7 @@ func _update_hand_cursor(animate: bool = true) -> void:
 	if _hand_root == null:
 		return
 	var on_pockets: bool = _side_tab == SideTab.POCKETS
-	var btn: Button = _selected_slot_button() if on_pockets else null
+	var btn: Control = (_portrait_frame if _focus_player else _selected_slot_button()) if on_pockets else null
 	if btn == null or not _open:
 		_hand_root.visible = false
 		if _hand_viewport != null:
@@ -612,8 +642,69 @@ func _populate_encyclopedia(kind: StringName) -> void:
 		pic.modulate = Color.WHITE if caught else Color(0.05, 0.06, 0.09, 0.32)
 
 
-## `m_tag_ovl` verb window: `sen_itemw_kage` shadow + `sen_itemw_wakuT` frame +
-## `sen_itemw_yajirushi` pointer, verb strings stacked 16 px apart with a row cursor.
+## `mTG_TABLE_BG`: a small clickable slot next to the wallet showing the current pockets
+## backdrop (blank when none is set). Built procedurally, same as `_build_tag_popup` below
+## and the encyclopedia grid — this file already treats supplementary chrome this way
+## rather than hand-authoring every node in the .tscn.
+func _build_background_slot() -> void:
+	if _background_slot != null or _shell_stack == null:
+		return
+	var bells_pill: Control = _wallet.get_parent() as Control if _wallet != null else null
+	var anchor_pos: Vector2 = bells_pill.position if bells_pill != null else Vector2(452.0, 226.0)
+	var anchor_size: Vector2 = bells_pill.size if bells_pill != null else Vector2(158.6, 47.0)
+	var slot := Panel.new()
+	slot.name = "BackgroundSlot"
+	slot.position = Vector2(anchor_pos.x + anchor_size.x + 10.0, anchor_pos.y + 1.5)
+	slot.size = Vector2(44.0, 44.0)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.85, 0.78, 0.6, 1.0)
+	style.set_corner_radius_all(6)
+	style.set_border_width_all(2)
+	style.border_color = Color(0.55, 0.45, 0.3, 1.0)
+	slot.add_theme_stylebox_override("panel", style)
+	slot.mouse_filter = Control.MOUSE_FILTER_STOP
+	slot.gui_input.connect(_on_background_slot_gui)
+	_shell_stack.add_child(slot)
+	_background_slot = slot
+	var icon := TextureRect.new()
+	icon.name = "Icon"
+	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	icon.offset_left = 6
+	icon.offset_top = 6
+	icon.offset_right = -6
+	icon.offset_bottom = -6
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(icon)
+	_background_icon = icon
+
+
+## Decomp `backgound_texture`: swaps the shader's scrolling paper for the chosen
+## shirt's real pattern (`shirt_NNN.png`, same asset the worn cloth uses), falling
+## back to the default paper when nothing is set or the pattern PNG is missing.
+func _refresh_background() -> void:
+	var inv: Inventory = Game.inventory
+	var data: ItemData = ItemCatalog.get_item(inv.background_id) if inv.background_id != &"" else null
+	var paper_tex: Texture2D = null
+	if data != null and data.cloth_index >= 0:
+		var path: String = FieldCatalog.cloth_albedo(data.cloth_index)
+		if path != "":
+			paper_tex = load(path) as Texture2D
+	_apply_paper_scroll_shader(paper_tex)
+	if _background_icon != null:
+		var icon: Texture2D = InventoryChrome.icon_for_item(data, InventoryItem.Condition.NORMAL) if data != null else null
+		_background_icon.texture = icon
+		_background_icon.visible = icon != null
+		if _background_icon.get_parent() is CanvasItem:
+			(_background_icon.get_parent() as CanvasItem).modulate = data.icon_color if (data != null and icon == null) else Color.WHITE
+
+
+## `m_tag_ovl` verb window (`sen_itemw.c`, one GX_MIRROR quad per piece — no 9-slice
+## geometry needed): `sen_itemw_kage` shadow + `sen_itemw_wakuT` frame (both baked by
+## `tools/asset_pipeline/inventory_ui.py`'s `_bake_tag_popup_frame`/`tag_shadow` chrome
+## entry) + `sen_itemw_yajirushi` pointer, verb strings stacked 16 px apart with a row
+## cursor.
 func _build_tag_popup() -> void:
 	if _tag_popup != null or _shell_stack == null:
 		return
@@ -624,27 +715,37 @@ func _build_tag_popup() -> void:
 	_tag_popup.visible = false
 	_shell_stack.add_child(_tag_popup)
 
-	## Base at x=0 (flush to the frame edge), apex at x=-13 (points toward the slot).
-	## `scale.x` flips it to point the other way when the window sits on the left.
-	_tag_arrow = Polygon2D.new()
-	_tag_arrow.color = Color(0.99, 0.96, 0.86, 1.0)
-	_tag_arrow.polygon = PackedVector2Array([Vector2(1, -10), Vector2(-13, 0), Vector2(1, 10)])
+	_tag_shadow = TextureRect.new()
+	_tag_shadow.texture = InventoryChrome.load_tex("tag_shadow")
+	_tag_shadow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_tag_shadow.stretch_mode = TextureRect.STRETCH_SCALE
+	_tag_shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tag_popup.add_child(_tag_shadow)
+
+	## Base at x=0 (flush to the frame edge), apex points toward the slot. `flip_h`
+	## mirrors it when the window sits on the left instead of `Polygon2D.scale.x`.
+	_tag_arrow = TextureRect.new()
+	_tag_arrow.texture = InventoryChrome.load_tex("tag_arrow")
+	_tag_arrow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_tag_arrow.stretch_mode = TextureRect.STRETCH_SCALE
+	_tag_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tag_arrow.size = Vector2(22, 24)
 	_tag_popup.add_child(_tag_arrow)
 
 	_tag_frame = PanelContainer.new()
 	_tag_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.99, 0.96, 0.86, 1.0)
-	box.set_corner_radius_all(10)
-	box.set_border_width_all(2)
-	box.border_color = Color(0.62, 0.47, 0.30, 1.0)
-	box.shadow_color = Color(0, 0, 0, 0.22)
-	box.shadow_size = 5
-	box.shadow_offset = Vector2(3, 4)
-	box.content_margin_left = 16
-	box.content_margin_right = 12
-	box.content_margin_top = 8
-	box.content_margin_bottom = 8
+	var box := StyleBoxTexture.new()
+	box.texture = InventoryChrome.load_tex("tag_frame")
+	## Preserve the rounded corners (9-slice); only the straight edges/middle stretch,
+	## so the popup keeps its pill shape at any verb-count height instead of squashing.
+	box.texture_margin_left = 32
+	box.texture_margin_right = 32
+	box.texture_margin_top = 16
+	box.texture_margin_bottom = 16
+	box.content_margin_left = 20
+	box.content_margin_right = 16
+	box.content_margin_top = 10
+	box.content_margin_bottom = 10
 	_tag_frame.add_theme_stylebox_override("panel", box)
 	_tag_popup.add_child(_tag_frame)
 
@@ -664,7 +765,7 @@ func _show_tag_popup() -> void:
 	if _tag_popup == null or _tag_choices.is_empty():
 		_hide_tag_popup()
 		return
-	var btn: Button = _selected_slot_button()
+	var btn: Control = _tag_anchor_control()
 	if btn == null:
 		_hide_tag_popup()
 		return
@@ -701,8 +802,14 @@ func _show_tag_popup() -> void:
 	)
 	_tag_frame.position = Vector2(fx, fy)
 	_tag_frame.size = fsize
-	_tag_arrow.position = Vector2(fx if right else fx + fsize.x, slot_c.y)
-	_tag_arrow.scale.x = 1.0 if right else -1.0
+	_tag_shadow.position = Vector2(fx, fy) + Vector2(5, 6)
+	_tag_shadow.size = fsize
+	## `tag_arrow.png` points left natively; `flip_h` mirrors it to point right when the
+	## frame sits on the left of the slot instead.
+	_tag_arrow.flip_h = not right
+	_tag_arrow.position = Vector2(
+		(fx - _tag_arrow.size.x) if right else (fx + fsize.x), slot_c.y - _tag_arrow.size.y * 0.5
+	)
 	_tag_popup.visible = true
 
 
@@ -724,12 +831,29 @@ func _show_page(page: SideTab) -> void:
 		pc.visible = pockets
 	if _wallet != null and _wallet.get_parent() is CanvasItem:
 		(_wallet.get_parent() as CanvasItem).visible = pockets
+	if _background_slot != null:
+		_background_slot.visible = pockets
 	if _hand_root != null:
 		_hand_root.visible = pockets and _hand_root.visible
 	if _collect_root != null:
 		_collect_root.visible = not pockets
 		if not pockets:
 			_populate_encyclopedia(&"fish" if page == SideTab.FISH else &"insect")
+
+
+## Sine-eased vertical swing over `PAGE_SWING_DURATION` — lands back exactly on the home
+## position (`sin(π) == 0`), so no separate reset-on-finish step is needed.
+func _play_page_swing() -> void:
+	if _shell_stack == null:
+		return
+	var base_y: float = _shell_stack.position.y
+	var tween := create_tween()
+	tween.tween_method(_set_page_swing_offset.bind(base_y), 0.0, PAGE_SWING_DURATION, PAGE_SWING_DURATION)
+
+
+func _set_page_swing_offset(t: float, base_y: float) -> void:
+	if _shell_stack != null:
+		_shell_stack.position.y = base_y + PAGE_SWING_AMPLITUDE * sin(t * PI / PAGE_SWING_DURATION)
 
 
 func _refresh_side_tab_visuals() -> void:
@@ -764,6 +888,28 @@ func _sync_portrait_equipment(force: bool = false) -> void:
 		_set_portrait_anim(PortraitAnim.CHANGE)
 	else:
 		_set_portrait_anim(_portrait_rest)
+
+
+## Mirror the field player's worn top (`player.gd::_apply_worn_cloth`) onto the
+## portrait doll — previously the doll only ever wore its base skin, regardless of
+## what shirt/design the player actually had on.
+func _sync_portrait_cloth() -> void:
+	if _portrait_pivot == null or Game == null:
+		return
+	if Game.worn_design_slot >= 0 and Game.designs != null:
+		var design: DesignPattern = Game.designs.resolved(Game.worn_design_slot)
+		if design != null:
+			GeneratedVisual.apply_design(_portrait_pivot, DesignTexture.build(design))
+			return
+	var data: ItemData = ItemCatalog.get_item(Game.cloth_id)
+	var index: int = data.cloth_index if data != null else -1
+	if index < 0 and Game.cloth_id != &"":
+		var raw := String(Game.cloth_id)
+		if raw.begins_with("shirt_"):
+			index = int(raw.substr(6))
+	if index < 0:
+		return
+	GeneratedVisual.apply_cloth(_portrait_pivot, index)
 
 
 ## `mIV_ANIM_WALK` loops; CHANGE / EAT play once and fall back to the rest clip;
@@ -837,6 +983,7 @@ func open() -> void:
 	_open = true
 	_tag_mode = false
 	_focus_mail = false
+	_focus_player = false
 	_side_tab = SideTab.POCKETS
 	_portrait_rest = PortraitAnim.WALK
 	_show_page(SideTab.POCKETS)
@@ -852,6 +999,7 @@ func open() -> void:
 		_hand_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	Game.inventory.clear_hand()
 	_sync_portrait_equipment(true)
+	_sync_portrait_cloth()
 	_play_hand_clip("hnd_sasu", true)
 	_refresh()
 	_update_hand_cursor(false)
@@ -874,8 +1022,12 @@ func close() -> void:
 	closed.emit()
 	_open = false
 	_tag_mode = false
+	_pending_mail_discard = -1
+	_wallet_tag_mode = false
+	_background_tag_mode = false
 	_hide_tag_popup()
 	_focus_mail = false
+	_focus_player = false
 	_side_tab = SideTab.POCKETS
 	## Closing the pockets during the intro payment without handing anything over is
 	## Nook's "pay it all back" nag (`aNRG_menu_close_wait_talk_proc` empty branch).
@@ -902,54 +1054,6 @@ func toggle() -> void:
 		close()
 	else:
 		open()
-
-
-func _build_styles() -> void:
-	var item_tex: Texture2D = InventoryChrome.load_tex("slot_item")
-	var letter_tex: Texture2D = InventoryChrome.load_tex("slot_letter")
-	if item_tex != null:
-		_style_item = _tex_style(item_tex)
-		_style_item_sel = _tex_style(item_tex, 1.15)
-	else:
-		_style_item = _circle_style(COL_ITEM_FILL, COL_ITEM_RING, 4)
-		_style_item_sel = _circle_style(COL_ITEM_FILL.lightened(0.12), COL_ITEM_RING_SEL, 5)
-	if letter_tex != null:
-		_style_mail = _tex_style(letter_tex)
-		_style_mail_sel = _tex_style(letter_tex, 1.15)
-		_style_mail_empty = _tex_style(letter_tex, 1.0, Color(1, 0.7, 0.65, 1))
-	else:
-		_style_mail = _circle_style(COL_MAIL_FILL, COL_MAIL_RING, 4)
-		_style_mail_sel = _circle_style(COL_MAIL_FILL.lightened(0.12), COL_MAIL_RING_SEL, 5)
-		_style_mail_empty = _circle_style(COL_MAIL_EMPTY, COL_MAIL_RING, 4)
-
-
-func _tex_style(tex: Texture2D, scale: float = 1.0, modulate: Color = Color.WHITE) -> StyleBoxTexture:
-	var s := StyleBoxTexture.new()
-	s.texture = tex
-	s.modulate_color = modulate
-	var pad: float = 1.0 * scale
-	s.texture_margin_left = pad
-	s.texture_margin_top = pad
-	s.texture_margin_right = pad
-	s.texture_margin_bottom = pad
-	s.content_margin_left = 8
-	s.content_margin_top = 8
-	s.content_margin_right = 8
-	s.content_margin_bottom = 8
-	return s
-
-
-func _circle_style(fill: Color, ring: Color, border: int) -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.bg_color = fill
-	s.border_color = ring
-	s.set_border_width_all(border)
-	s.set_corner_radius_all(999)
-	s.content_margin_left = 4
-	s.content_margin_top = 4
-	s.content_margin_right = 4
-	s.content_margin_bottom = 4
-	return s
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -984,8 +1088,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cycle_side_tab(-1)
 		else:
 			_focus_mail = not _focus_mail
+			_focus_player = false
 			_side_tab = SideTab.POCKETS
 			_tag_mode = false
+			_pending_mail_discard = -1
+			_wallet_tag_mode = false
+			_background_tag_mode = false
+			## Switching between the item table and the mail table clears marks too.
+			Game.inventory.clear_marks()
 			_refresh()
 			_update_hand_cursor(true)
 		get_viewport().set_input_as_handled()
@@ -1003,6 +1113,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause_menu") or event.is_action_pressed("ui_cancel"):
 		if _tag_mode:
 			_tag_mode = false
+			_pending_mail_discard = -1
+			_wallet_tag_mode = false
+			_background_tag_mode = false
 			_refresh()
 		else:
 			close()
@@ -1020,9 +1133,33 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cycle_side_tab(1)
 			get_viewport().set_input_as_handled()
 		return
+	if _focus_player:
+		## The player doll is a single 1×1 slot — only "down" leads back to the grid,
+		## matching how `mTG_move_cursol_between_table_inventory` re-enters the item table.
+		if event.is_action_pressed("ui_down") or event.is_action_pressed("move_back"):
+			_focus_player = false
+			_update_hand_cursor(true)
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
+			_activate_cursor()
+			get_viewport().set_input_as_handled()
+		elif event.is_action_pressed("inventory_quick_grab"):
+			_quick_grab_drop()
+			get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
 		if _focus_mail:
-			Game.inventory.move_mail_cursor(-1, 0)
+			var col: int = Game.inventory.selected_mail_index % Inventory.MAIL_COLUMNS
+			var row: int = Game.inventory.selected_mail_index / Inventory.MAIL_COLUMNS
+			## The item (5x3) and mail (2x5) grids sit side by side, bottom-aligned — mail
+			## row `r` lines up with item row `r - MAIL_ROW_OFFSET`. Off the mail grid's
+			## left edge on an aligned row steps straight into the item grid, same as the
+			## original's single shared cursor (no Tab needed).
+			if col == 0 and row >= MAIL_ROW_OFFSET:
+				_focus_mail = false
+				Game.inventory.select((row - MAIL_ROW_OFFSET) * Inventory.COLUMNS + (Inventory.COLUMNS - 1))
+			else:
+				Game.inventory.move_mail_cursor(-1, 0)
 		else:
 			Game.inventory.move_cursor(-1, 0)
 		_update_hand_cursor(true)
@@ -1031,12 +1168,25 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _focus_mail:
 			Game.inventory.move_mail_cursor(1, 0)
 		else:
-			Game.inventory.move_cursor(1, 0)
+			var col: int = Game.inventory.selected_index % Inventory.COLUMNS
+			var row: int = Game.inventory.selected_index / Inventory.COLUMNS
+			if col == Inventory.COLUMNS - 1:
+				_focus_mail = true
+				Game.inventory.select_mail((row + MAIL_ROW_OFFSET) * Inventory.MAIL_COLUMNS)
+			else:
+				Game.inventory.move_cursor(1, 0)
 		_update_hand_cursor(true)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("ui_up") or event.is_action_pressed("move_forward"):
 		if _focus_mail:
-			Game.inventory.move_mail_cursor(0, -1)
+			if Game.inventory.selected_mail_index < Inventory.MAIL_COLUMNS:
+				## Top row — the player doll sits above both grids (`mTG_TABLE_PLAYER`).
+				_focus_player = true
+			else:
+				Game.inventory.move_mail_cursor(0, -1)
+		elif Game.inventory.selected_index < Inventory.COLUMNS:
+			## Top row — the player doll sits above the grid (`mTG_TABLE_PLAYER`).
+			_focus_player = true
 		else:
 			Game.inventory.move_cursor(0, -1)
 		_update_hand_cursor(true)
@@ -1050,6 +1200,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
 		_activate_cursor()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("inventory_quick_grab") and not _focus_mail:
+		## `mTG_move_catch` (L): grab/drop in one press, skipping the verb popup.
+		_quick_grab_drop()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("inventory_mark") and not _focus_mail:
+		## `mTG_mark_proc` (X): toggle multi-select on the slot under the cursor.
+		_toggle_mark()
 		get_viewport().set_input_as_handled()
 
 
@@ -1075,6 +1233,7 @@ func _on_item_pressed(index: int) -> void:
 	if not _open:
 		return
 	_focus_mail = false
+	_focus_player = false
 	Game.inventory.select(index)
 	_activate_cursor()
 
@@ -1102,7 +1261,147 @@ func _on_mail_changed() -> void:
 	_update_hand_cursor(true)
 
 
+## `mTG_move_catch` (L quick grab/drop): pick straight into the hand, or place/swap
+## whatever's held — the verb popup never opens. Only meaningful on the pockets grid;
+## mail and the read-only collection pages have their own gestures.
+func _quick_grab_drop() -> void:
+	var inv: Inventory = Game.inventory
+	var idx: int = inv.selected_index
+	if inv.hand_index >= 0:
+		inv.place_hand(idx)
+		Audio.play_se(&"60")
+		_play_hand_clip("hnd_catch", false)
+		get_tree().create_timer(0.35).timeout.connect(func() -> void: _play_hand_clip("hnd_sasu", true))
+	else:
+		if not inv.pick_hand(idx):
+			return
+		_play_hand_clip("hnd_catch", false)
+		get_tree().create_timer(0.35).timeout.connect(func() -> void: _play_hand_clip("hnd_side", true))
+	_refresh()
+	_update_hand_cursor(true)
+
+
+## `mTG_mark_proc` (X): toggle the multi-select mark on whatever's under the cursor.
+func _toggle_mark() -> void:
+	var inv: Inventory = Game.inventory
+	if inv.slot_at(inv.selected_index) == null or inv.slot_at(inv.selected_index).is_empty():
+		return
+	var on: bool = inv.toggle_mark(inv.selected_index)
+	Audio.play_se(&"cursol" if on else &"41c")
+	_refresh()
+
+
+## `mTG_TABLE_MONEY`, hand empty: clicking the wallet opens the denomination picker
+## (only amounts you can currently afford), matching `mTG_select_tag_decide_money`.
+## Hand full: dropping a money-bag item here deposits it (mirrors `mHD_open_sack`) —
+## this port's "Use" verb already deposits bags too, so this is a second, faithful path
+## to the same result rather than the only way in.
+func _on_wallet_gui(event: InputEvent) -> void:
+	if not _click_event(event):
+		return
+	get_viewport().set_input_as_handled()
+	_open_wallet_popup()
+
+
+func _open_wallet_popup() -> void:
+	if not _open or _tag_mode:
+		return
+	var inv: Inventory = Game.inventory
+	if inv.hand_index >= 0:
+		_deposit_hand_bag()
+		return
+	var denoms: Array[int] = inv.withdrawable_denominations()
+	if denoms.is_empty():
+		return
+	_tag_choices = PackedStringArray()
+	for amount: int in denoms:
+		_tag_choices.append("%d Bells" % amount)
+	_tag_index = 0
+	_wallet_tag_mode = true
+	_tag_mode = true
+	Audio.play_se(&"41c")
+	_refresh()
+
+
+func _deposit_hand_bag() -> void:
+	var inv: Inventory = Game.inventory
+	var slot: InventorySlot = inv.slot_at(inv.hand_index)
+	if slot == null or slot.is_empty():
+		return
+	var data: ItemData = ItemCatalog.get_item(slot.item.item_id)
+	if data == null or data.bell_value <= 0:
+		return ## only money bags deposit here
+	var hand_idx: int = inv.hand_index
+	inv.clear_hand()
+	inv.remove_from_slot(hand_idx, 1)
+	inv.add_bells(data.bell_value)
+	Audio.play_se(&"52")
+	Game.post_notice("Deposited %d Bells" % data.bell_value)
+	_refresh()
+	_update_hand_cursor(true)
+
+
+func _run_wallet_tag(tag: String) -> void:
+	_wallet_tag_mode = false
+	_tag_mode = false
+	var amount: int = tag.split(" ")[0].to_int()
+	if amount > 0:
+		if Game.inventory.withdraw_to_hand(amount):
+			Audio.play_se(&"52")
+			Game.post_notice("Withdrew %d Bells" % amount)
+		else:
+			Game.post_notice("Pockets are full")
+	_refresh()
+	_update_hand_cursor(true)
+
+
+## `mTG_TABLE_BG`: this port sets the backdrop via a "Set Background" tag on shirt
+## items themselves (`Inventory.tags_for_slot`) rather than decomp's drop-on-slot gesture,
+## matching how "Equip"/"Wear" already work here — so this slot's own click only offers
+## to remove whatever's currently set.
+func _on_background_slot_gui(event: InputEvent) -> void:
+	if not _click_event(event):
+		return
+	get_viewport().set_input_as_handled()
+	_open_background_slot()
+
+
+func _open_background_slot() -> void:
+	if not _open or _tag_mode:
+		return
+	if Game.inventory.background_id == &"":
+		Game.post_notice("No background set")
+		return
+	_tag_choices = PackedStringArray(["Remove"])
+	_tag_index = 0
+	_background_tag_mode = true
+	_tag_mode = true
+	Audio.play_se(&"41c")
+	_refresh()
+
+
+func _run_background_tag(tag: String) -> void:
+	_background_tag_mode = false
+	_tag_mode = false
+	if tag == "Remove":
+		Game.inventory.set_background(&"")
+		_refresh_background()
+		Game.post_notice("Background cleared")
+	_refresh()
+
+
+func _click_event(event: InputEvent) -> bool:
+	return (
+		(event is InputEventMouseButton and (event as InputEventMouseButton).pressed
+			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT)
+		or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed)
+	)
+
+
 func _activate_cursor() -> void:
+	if _focus_player:
+		_activate_player_cursor()
+		return
 	if _focus_mail:
 		_activate_mail_cursor()
 		return
@@ -1129,6 +1428,52 @@ func _activate_cursor() -> void:
 	_refresh()
 
 
+## `mTG_TABLE_PLAYER`, hand empty: pressing A on the player doll offers to take off
+## whatever's equipped — the swap-in direction (hand full) is `_equip_hand_on_player`.
+## Reuses the ordinary "Unequip" tag/case (`Inventory.unequip`, `_run_tag`), which doesn't
+## care which slot the popup was opened from.
+func _activate_player_cursor() -> void:
+	var inv: Inventory = Game.inventory
+	if inv.hand_index >= 0:
+		_equip_hand_on_player()
+		return
+	if inv.equipment_id == &"":
+		return
+	_tag_choices = PackedStringArray(["Unequip"])
+	_tag_index = 0
+	_tag_mode = true
+	Audio.play_se(&"41c")
+	_refresh()
+
+
+## `mHD_open_end_proc_item_type3`: dropping a held tool/clothing item onto the player doll
+## equips/wears it. This port's equip is a reference (the item stays in its pocket slot,
+## `Inventory.equip_slot`), so "dropping" here just runs that and clears the hand rather
+## than physically moving the item.
+func _equip_hand_on_player() -> void:
+	var inv: Inventory = Game.inventory
+	var hand_idx: int = inv.hand_index
+	var slot: InventorySlot = inv.slot_at(hand_idx)
+	if slot == null or slot.is_empty():
+		inv.clear_hand()
+		return
+	var data: ItemData = ItemCatalog.get_item(slot.item.item_id)
+	if data == null:
+		return
+	if data.equippable:
+		inv.clear_hand()
+		if inv.equip_slot(hand_idx):
+			Game.post_notice("Equipped %s" % data.display_name)
+	elif data.category == ItemData.Category.CLOTH:
+		inv.clear_hand()
+		if Game.wear_cloth_from_slot(hand_idx):
+			Game.post_notice("Wearing %s" % data.display_name)
+	else:
+		return
+	_refresh()
+	_update_hand_cursor(true)
+
+
 func _activate_mail_cursor() -> void:
 	var inv: Inventory = Game.inventory
 	var idx: int = inv.selected_mail_index
@@ -1142,6 +1487,13 @@ func _activate_mail_cursor() -> void:
 			_tag_choices.append("Take")
 		_tag_choices.append("Discard")
 	else:
+		## `mTG_present_proc` (`mTG_catch_item_from_table`) — one verb, both directions:
+		## a held item attaches as the gift; with an empty hand and a gift already
+		## attached, the same verb takes it back.
+		if inv.hand_index >= 0 and mail.present_item_id == &"":
+			_tag_choices.append("Present")
+		elif inv.hand_index < 0 and mail.present_item_id != &"":
+			_tag_choices.append("Present")
 		_tag_choices.append("Discard")
 	_tag_mode = true
 	_tag_index = 0
@@ -1149,6 +1501,12 @@ func _activate_mail_cursor() -> void:
 
 
 func _run_tag(tag: String) -> void:
+	if _wallet_tag_mode:
+		_run_wallet_tag(tag)
+		return
+	if _background_tag_mode:
+		_run_background_tag(tag)
+		return
 	if _focus_mail:
 		_run_mail_tag(tag)
 		return
@@ -1167,11 +1525,27 @@ func _run_tag(tag: String) -> void:
 			close()
 		"Drop":
 			_drop_selected()
+		"Drop All":
+			_drop_all_marked()
+		"Wrap":
+			if inv.wrap_slot(idx):
+				Game.post_notice("Wrapped it up")
+		"Set Background":
+			var cloth_slot: InventorySlot = inv.slot_at(idx)
+			if cloth_slot != null and not cloth_slot.is_empty():
+				inv.set_background(cloth_slot.item.item_id)
+				_refresh_background()
+				Game.post_notice("Pockets backdrop changed")
 		"Equip":
 			if inv.equip_slot(idx):
 				var data: ItemData = ItemCatalog.get_item(inv.equipment_id)
 				if data != null:
 					Game.post_notice("Equipped %s" % data.display_name)
+		"Unequip":
+			var equipped: ItemData = ItemCatalog.get_item(inv.equipment_id)
+			inv.unequip()
+			if equipped != null:
+				Game.post_notice("Put away %s" % equipped.display_name)
 		"Wear":
 			if Game.wear_cloth_from_slot(idx):
 				var worn: ItemData = ItemCatalog.get_item(Game.cloth_id)
@@ -1199,10 +1573,18 @@ func _run_tag(tag: String) -> void:
 			get_tree().create_timer(0.35).timeout.connect(func() -> void: _play_hand_clip("hnd_side", true))
 		"Open":
 			var slot: InventorySlot = inv.slot_at(idx)
-			if slot != null and not slot.is_empty():
+			if slot == null or slot.is_empty():
+				pass
+			elif slot.item.condition == InventoryItem.Condition.PRESENT:
 				slot.item.condition = InventoryItem.Condition.NORMAL
 				inv.changed.emit()
 				Game.post_notice("Opened present")
+			else:
+				## Money bags (`ITM_MONEY_START`) also use "Open" as their verb
+				## (`mHD_open_sack`) — only wrapped presents get the unwrap above.
+				var msg: String = inv.use_slot(idx)
+				if msg != "":
+					Game.post_notice(msg)
 		"Plant":
 			## `mTG_plant_proc`: shovel+hole → putin scoop; else throw-put on the facing unit.
 			var taken: Dictionary = PlantGrowth.take_plant_from_slot(_field_context(), idx)
@@ -1255,6 +1637,17 @@ func _run_tag(tag: String) -> void:
 func _run_mail_tag(tag: String) -> void:
 	var inv: Inventory = Game.inventory
 	var idx: int = inv.selected_mail_index
+	## `mTG_dump_mail` (Yes/No): the second tap confirms or cancels the pending discard,
+	## reusing the same verb popup rather than a separate dialog widget.
+	if _pending_mail_discard >= 0:
+		var discard_idx: int = _pending_mail_discard
+		_pending_mail_discard = -1
+		if tag == "Yes":
+			inv.remove_mail(discard_idx)
+			Game.post_notice("Discarded letter")
+		_tag_mode = false
+		_refresh()
+		return
 	match tag:
 		"Write":
 			close()
@@ -1263,25 +1656,30 @@ func _run_mail_tag(tag: String) -> void:
 			_read_letter(inv.mail_at(idx))
 		"Take":
 			_take_letter_enclosure(idx)
+		"Present":
+			_present_on_mail(idx)
 		"Discard":
-			inv.remove_mail(idx)
-			Game.post_notice("Discarded letter")
+			_pending_mail_discard = idx
+			_tag_choices = PackedStringArray(["Yes", "No"])
+			_tag_index = 0
+			_refresh()
+			return
 		_:
 			pass
 	_tag_mode = false
 	_refresh()
 
 
+## `mTG_open_board_init(..., mSM_BD_OPEN_READ, ...)` — the letter's actual stationery
+## art with header/body/footer, not a text toast (`m_board_ovl.c`).
 func _read_letter(mail: MailData) -> void:
 	if mail == null or mail.is_empty():
 		return
-	mail.mark_read()
-	Game.inventory.mail_changed.emit()
-	var parts: PackedStringArray = PackedStringArray()
-	for line: String in [mail.header, mail.body, mail.footer]:
-		if line.strip_edges() != "":
-			parts.append(line)
-	Game.post_notice("\n".join(parts))
+	var reader: Node = get_tree().get_first_node_in_group("letter_reader_ui")
+	if reader == null or not reader.has_method("open"):
+		Game.post_notice(mail.body if mail.body.strip_edges() != "" else mail.header)
+		return
+	reader.call("open", mail)
 
 
 func _take_letter_enclosure(idx: int) -> void:
@@ -1303,16 +1701,47 @@ func _take_letter_enclosure(idx: int) -> void:
 	Game.post_notice("You took the %s." % item.display_name)
 
 
+## `mTG_present_proc`/`mTG_catch_item_from_table` (`m_tag_ovl.c:4672-4685`) — one verb,
+## both directions, same "drop hand contents onto a special slot" shape already used
+## for the equip-on-player and background-slot drops: a held item leaves pockets and
+## becomes the letter's gift; with an empty hand and a gift already attached, it comes
+## back out into an empty pocket slot instead.
+func _present_on_mail(idx: int) -> void:
+	var inv: Inventory = Game.inventory
+	var mail: MailData = inv.mail_at(idx)
+	if mail == null:
+		return
+	if mail.present_item_id == &"" and inv.hand_index >= 0:
+		var removed: InventoryItem = inv.remove_from_slot(inv.hand_index, 1)
+		inv.clear_hand()
+		if removed.is_empty():
+			return
+		mail.present_item_id = removed.item_id
+		inv.mail_changed.emit()
+		var data: ItemData = ItemCatalog.get_item(removed.item_id)
+		Game.post_notice("Attached %s to the letter." % (data.display_name if data != null else String(removed.item_id)))
+	elif mail.present_item_id != &"" and inv.hand_index < 0:
+		var data: ItemData = ItemCatalog.get_item(mail.present_item_id)
+		if data == null:
+			mail.present_item_id = &""
+			inv.mail_changed.emit()
+			return
+		if not inv.has_space_for(data, 1):
+			Game.post_notice("Your pockets are full.")
+			return
+		inv.add(data, 1)
+		mail.present_item_id = &""
+		inv.mail_changed.emit()
+		Game.post_notice("Took back %s." % data.display_name)
+
+
+## `mTG_write_proc` → `mSM_OVL_ADDRESS` — the real flow starts with the address book,
+## not a dialogue-tree popup (`m_address_ovl.c`).
 func _open_write_letter() -> void:
-	var data: DialogueData = PostUse.write_letter_conversation()
-	if data == null:
+	var address: Node = get_tree().get_first_node_in_group("letter_address_ui")
+	if address == null or not address.has_method("open"):
 		return
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui == null or not ui.has_method("play"):
-		PostUse.write_letter(&"filbert", 0)
-		return
-	var ctx: DialogueContext = DialogueContext.from_game()
-	ui.call("play", data, ctx)
+	address.call("open")
 
 
 func _drop_selected() -> void:
@@ -1331,7 +1760,40 @@ func _drop_selected() -> void:
 	Game.post_notice("Dropped %s" % data.display_name)
 
 
-func _spawn_pickup(item: ItemData) -> bool:
+## `mTG_TYPE_TAG_PUT_ALL` ("Drop All"): pull every marked slot out first (so a full-count
+## stack doesn't half-drop if a later slot turns out undroppable), then spawn one pickup
+## per item with a little lateral spread so they don't land in a single pile.
+func _drop_all_marked() -> void:
+	var inv: Inventory = Game.inventory
+	var indices: Array[int] = inv.marked_indices()
+	if indices.is_empty():
+		return
+	var removed: Array[InventoryItem] = []
+	for idx: int in indices:
+		var slot: InventorySlot = inv.slot_at(idx)
+		var count: int = slot.item.count if slot != null and not slot.is_empty() else 1
+		var taken: InventoryItem = inv.drop_slot(idx, count)
+		if not taken.is_empty():
+			removed.append(taken)
+	inv.clear_marks()
+	close()
+	var dropped: int = 0
+	for i: int in removed.size():
+		var item: InventoryItem = removed[i]
+		var data: ItemData = ItemCatalog.get_item(item.item_id)
+		if data == null:
+			continue
+		if _spawn_pickup(data, (float(i) - float(removed.size() - 1) * 0.5) * 0.6):
+			dropped += 1
+		else:
+			inv.add(data, item.count, item.condition)
+	if dropped > 0:
+		Game.post_notice("Dropped %d item(s)" % dropped)
+	else:
+		Game.post_notice("Can't drop here")
+
+
+func _spawn_pickup(item: ItemData, lateral_offset: float = 0.0) -> bool:
 	var tree := get_tree()
 	if tree == null:
 		return false
@@ -1348,7 +1810,10 @@ func _spawn_pickup(item: ItemData) -> bool:
 		return false
 	var pickup := node as Node3D
 	pickup.set("item", item)
-	var pid := StringName("drop_%s_%d" % [String(item.id), Time.get_ticks_msec()])
+	_drop_pid_seq += 1
+	## `Time.get_ticks_msec()` alone can repeat across a same-frame "Drop All" burst —
+	## the counter guarantees each spawned pickup still gets a distinct `persist_id`.
+	var pid := StringName("drop_%s_%d_%d" % [String(item.id), Time.get_ticks_msec(), _drop_pid_seq])
 	pickup.set("persist_id", pid)
 	pickup.set("occupy_grid", false)
 	var objects: Node = world.get_node_or_null("Objects")
@@ -1360,7 +1825,8 @@ func _spawn_pickup(item: ItemData) -> bool:
 	if player.has_method("facing_yaw"):
 		yaw = float(player.call("facing_yaw"))
 	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
-	var land: Vector3 = player.global_position + forward * 1.1
+	var side := Vector3(cos(yaw), 0.0, -sin(yaw))
+	var land: Vector3 = player.global_position + forward * 1.1 + side * lateral_offset
 	var layout: Variant = world.get("layout")
 	var grid: Variant = world.get("grid")
 	if layout is WorldData and grid is WorldGrid:
@@ -1396,6 +1862,9 @@ func _refresh() -> void:
 	_wallet.text = _format_bells(inv.wallet)
 	var eq: ItemData = ItemCatalog.get_item(inv.equipment_id)
 	_equip.text = "Held: %s" % (eq.display_name if eq != null else "—")
+	if _portrait_frame != null:
+		## Selection cue for the player doll, same idea as the item-slot selected style.
+		_portrait_frame.modulate = Color(1.35, 1.3, 1.0) if _focus_player else Color.WHITE
 	_sync_portrait_equipment()
 	_refresh_side_tab_visuals()
 	_refresh_items(inv)
@@ -1426,7 +1895,8 @@ func _refresh_items(inv: Inventory) -> void:
 		var slot: InventorySlot = inv.slot_at(i)
 		var selected: bool = (not _focus_mail) and i == inv.selected_index
 		var in_hand: bool = i == inv.hand_index
-		var style: StyleBox = _style_item_sel if selected else _style_item
+		var marked: bool = inv.is_marked(i)
+		var style: StyleBox = style_item_selected if selected else (style_item_marked if marked else style_item)
 		btn.add_theme_stylebox_override("normal", style)
 		btn.add_theme_stylebox_override("hover", style)
 		btn.add_theme_stylebox_override("pressed", style)
@@ -1464,11 +1934,7 @@ func _refresh_mail(inv: Inventory) -> void:
 		var mail: MailData = inv.mail_at(i)
 		var selected: bool = _focus_mail and i == inv.selected_mail_index
 		var empty: bool = mail == null or mail.is_empty()
-		var style: StyleBox
-		if empty:
-			style = _style_mail_sel if selected else _style_mail_empty
-		else:
-			style = _style_mail_sel if selected else _style_mail
+		var style: StyleBox = style_mail_selected if selected else style_mail
 		btn.add_theme_stylebox_override("normal", style)
 		btn.add_theme_stylebox_override("hover", style)
 		btn.add_theme_stylebox_override("pressed", style)
@@ -1480,9 +1946,22 @@ func _refresh_mail(inv: Inventory) -> void:
 			btn.modulate = Color(1, 1, 1, 1)
 		else:
 			var has_present: bool = mail.present_item_id != &""
-			var letter_tex: Texture2D = (
-				_tex_letter_present if has_present and _tex_letter_present != null else _tex_letter
-			)
+			## Opened mail (`RECV_READ`/`RECV_PRESENT_READ`) shows the slit-open
+			## envelope art instead of the sealed one (`m_mail` read flag).
+			var read: bool = mail.font in [
+				MailData.LetterFont.RECV_READ, MailData.LetterFont.RECV_PRESENT_READ
+			]
+			var letter_tex: Texture2D
+			if read:
+				letter_tex = (
+					_tex_letter_open_present
+					if has_present and _tex_letter_open_present != null
+					else _tex_letter_open
+				)
+			if letter_tex == null:
+				letter_tex = (
+					_tex_letter_present if has_present and _tex_letter_present != null else _tex_letter
+				)
 			_set_slot_picture(btn, letter_tex)
 			btn.modulate = Color(1, 1, 1, 1)
 		btn.disabled = false

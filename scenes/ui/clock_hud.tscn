@@ -9,6 +9,10 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/design_list_overlay.tscn" id="7"]
 [ext_resource type="PackedScene" path="res://scenes/ui/design_editor_overlay.tscn" id="8"]
 [ext_resource type="PackedScene" path="res://scenes/ui/name_entry_overlay.tscn" id="9"]
+[ext_resource type="PackedScene" path="res://scenes/ui/letter_reader_overlay.tscn" id="10"]
+[ext_resource type="PackedScene" path="res://scenes/ui/letter_address_overlay.tscn" id="11"]
+[ext_resource type="PackedScene" path="res://scenes/ui/letter_paper_picker_overlay.tscn" id="12"]
+[ext_resource type="PackedScene" path="res://scenes/ui/letter_writer_overlay.tscn" id="13"]
 
 [node name="ClockHud" type="CanvasLayer"]
 script = ExtResource("1")
@@ -28,6 +32,14 @@ script = ExtResource("1")
 [node name="DesignEditorOverlay" parent="." instance=ExtResource("8")]
 
 [node name="NameEntryOverlay" parent="." instance=ExtResource("9")]
+
+[node name="LetterReaderOverlay" parent="." instance=ExtResource("10")]
+
+[node name="LetterAddressOverlay" parent="." instance=ExtResource("11")]
+
+[node name="LetterPaperPickerOverlay" parent="." instance=ExtResource("12")]
+
+[node name="LetterWriterOverlay" parent="." instance=ExtResource("13")]
 
 [node name="Margin" type="MarginContainer" parent="."]
 anchors_preset = 15

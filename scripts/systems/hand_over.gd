@@ -8,7 +8,14 @@ const NPC_TRANSFER := "npc_1_transfer1"
 const NPC_TRANS_WAIT := "npc_1_trans_wait1"
 const NPC_GET := "npc_1_get1"
 const NPC_GET_PULL := "npc_1_get_pull1"
+## `aNPC_ANIM_GET_PULL_WAIT1` (index 30 — `curator->npc_class.talk_info.default_animation
+## = 30` in `aCR_get_demo_end_wait`): the "examining" hold once an offered item has been
+## pulled in, kept through the identification message before the outcome forks.
+const NPC_GET_PULL_WAIT := "npc_1_get_pull_wait1"
 const NPC_GET_PUTAWAY := "npc_1_get_putaway1"
+## `aNPC_act_get_return` / `aCR_TALK_RETURN_DEMO_*`: an NPC un-taking something it just
+## examined (rejections) — a different body clip from `NPC_TRANSFER`'s fresh hand-over.
+const NPC_GET_RETURN := "npc_1_get_return1"
 
 const PLY_TRANSFER := "ply_1_transfer1"
 const PLY_TRANS_WAIT := "ply_1_trans_wait1"
@@ -18,6 +25,17 @@ const PLY_GET_PUTAWAY := "ply_1_get_putaway1"
 
 ## Hold the transferred pose briefly (`aHOI_REQUEST_TRANS_WAIT`).
 const TRANS_WAIT_HOLD := 0.35
+## `aCR_get_demo_end_wait` → `aCR_msg_win_open_wait`: the examining hold lasts as long as
+## the identification message is up. We don't gate on the dialogue's own advance, so this
+## is a fixed beat long enough to read the shortest outcome line before the fork.
+const EXAMINE_HOLD := 0.6
+
+
+## Godot raises "previously freed" at the call boundary of a TYPED Node3D argument even
+## before a callee's own is_instance_valid guard runs — so this check itself must take
+## untyped Variants, or passing a freed node into it would trip the same error.
+static func _both_valid(a: Variant, b: Variant) -> bool:
+	return is_instance_valid(a) and is_instance_valid(b)
 
 
 ## NPC hands an item to the player (`aNPC_DEMO_GIVE_ITEM` / first-job gifts).
@@ -40,19 +58,82 @@ static func npc_gives_to_player(npc: Node3D, player: Node3D, item_id: StringName
 		[PLY_GET_PULL, PLY_GET],
 		tree
 	)
+	if not _both_valid(npc, player):
+		_free_prop(prop)
+		return
 	## Brief hold while both keep the offer / take pose.
 	if prop != null and is_instance_valid(prop):
 		prop.begin_mode(HandOverItem.Mode.TRANS_WAIT)
 	await _hold_pair(npc, NPC_TRANS_WAIT, player, PLY_GET_PULL, tree, TRANS_WAIT_HOLD)
+	if not _both_valid(npc, player):
+		_free_prop(prop)
+		return
 	## Master switches to the player for putaway (`aHOI_chg_master_proc`).
 	if prop != null and is_instance_valid(prop):
 		prop.set_master(player, true)
 		prop.begin_mode(HandOverItem.Mode.PUTAWAY)
 	await _play_one(player, [PLY_GET_PUTAWAY], tree)
 	_free_prop(prop)
-	_idle(npc)
-	_idle(player)
-	_unlock_player(player, locked)
+	if _both_valid(npc, player):
+		_idle(npc)
+		_idle(player)
+		_unlock_player(player, locked)
+
+
+## Player offers an item and the NPC rejects it (`aCR_TALK_GET_DEMO_*` then
+## `aCR_TALK_RETURN_DEMO_*`): the same take-and-examine beat as an accepted donation
+## (`player_gives_to_npc`'s opening), held through the identification message, then
+## handed back instead of filed away — the NPC plays `NPC_GET_RETURN` (un-taking) rather
+## than a fresh `NPC_TRANSFER`, and the card returns to the player's own pocket.
+static func player_offers_npc_rejects(player: Node3D, npc: Node3D, item_id: StringName = &"") -> void:
+	if npc == null or player == null:
+		return
+	var tree: SceneTree = player.get_tree()
+	if tree == null:
+		return
+	_face_each_other(npc, player)
+	var locked: bool = _lock_player(player)
+	var prop: HandOverItem = _spawn_prop(player, item_id)
+	if prop != null:
+		prop.set_master(player)
+		prop.begin_mode(HandOverItem.Mode.TRANSFER)
+	## GET: player extends the item, the NPC takes it (`aCR_get_demo_start_wait`).
+	await _play_pair(player, [PLY_TRANSFER], npc, [NPC_GET_PULL, NPC_GET], tree)
+	if not _both_valid(npc, player):
+		_free_prop(prop)
+		return
+	if prop != null and is_instance_valid(prop):
+		prop.begin_mode(HandOverItem.Mode.TRANS_WAIT)
+	## Examining hold (`default_animation = aNPC_ANIM_GET_PULL_WAIT1`) through the
+	## identification message, before the accept/reject fork.
+	await _hold_pair(player, PLY_TRANS_WAIT, npc, NPC_GET_PULL_WAIT, tree, EXAMINE_HOLD)
+	if not _both_valid(npc, player):
+		_free_prop(prop)
+		return
+	## RETURN: the NPC extends the item back out instead of keeping it.
+	if prop != null and is_instance_valid(prop):
+		prop.set_master(npc, true)
+		prop.begin_mode(HandOverItem.Mode.TRANSFER)
+	await _play_pair(npc, [NPC_GET_RETURN, NPC_TRANSFER], player, [PLY_GET_PULL, PLY_GET], tree)
+	if not _both_valid(npc, player):
+		_free_prop(prop)
+		return
+	if prop != null and is_instance_valid(prop):
+		prop.begin_mode(HandOverItem.Mode.TRANS_WAIT)
+	await _hold_pair(npc, NPC_TRANS_WAIT, player, PLY_GET_PULL, tree, TRANS_WAIT_HOLD)
+	if not _both_valid(npc, player):
+		_free_prop(prop)
+		return
+	## Back into the player's own pocket.
+	if prop != null and is_instance_valid(prop):
+		prop.set_master(player, true)
+		prop.begin_mode(HandOverItem.Mode.PUTAWAY)
+	await _play_one(player, [PLY_GET_PUTAWAY], tree)
+	_free_prop(prop)
+	if _both_valid(npc, player):
+		_idle(npc)
+		_idle(player)
+		_unlock_player(player, locked)
 
 
 ## Player hands an item to an NPC (first-job QUEST delivery).
@@ -75,17 +156,24 @@ static func player_gives_to_npc(player: Node3D, npc: Node3D, item_id: StringName
 		[NPC_GET_PULL, NPC_GET],
 		tree
 	)
+	if not _both_valid(npc, player):
+		_free_prop(prop)
+		return
 	if prop != null and is_instance_valid(prop):
 		prop.begin_mode(HandOverItem.Mode.TRANS_WAIT)
 	await _hold_pair(player, PLY_TRANS_WAIT, npc, NPC_GET_PULL, tree, TRANS_WAIT_HOLD)
+	if not _both_valid(npc, player):
+		_free_prop(prop)
+		return
 	if prop != null and is_instance_valid(prop):
 		prop.set_master(npc, true)
 		prop.begin_mode(HandOverItem.Mode.PUTAWAY)
 	await _play_one(npc, [NPC_GET_PUTAWAY], tree)
 	_free_prop(prop)
-	_idle(npc)
-	_idle(player)
-	_unlock_player(player, locked)
+	if _both_valid(npc, player):
+		_idle(npc)
+		_idle(player)
+		_unlock_player(player, locked)
 
 
 static func has_npc_transfer(npc: Node3D) -> bool:
@@ -106,9 +194,9 @@ static func _spawn_prop(host: Node3D, item_id: StringName) -> HandOverItem:
 	return HandOverItem.spawn(parent, item_id)
 
 
-static func _free_prop(prop: HandOverItem) -> void:
+static func _free_prop(prop: Variant) -> void:
 	if prop != null and is_instance_valid(prop):
-		prop.finish()
+		(prop as HandOverItem).finish()
 
 
 static func _play_pair(
@@ -118,8 +206,11 @@ static func _play_pair(
 	b_clips: Array[String],
 	tree: SceneTree
 ) -> void:
-	var a_ap: AnimationPlayer = _anim_player(a)
-	var b_ap: AnimationPlayer = _anim_player(b)
+	## Multi-phase sequences (`player_offers_npc_rejects` especially) span several
+	## seconds of real time across many awaits — either actor can be freed mid-sequence
+	## (scene change, the node despawning) before the next phase runs.
+	var a_ap: AnimationPlayer = _anim_player(a) if is_instance_valid(a) else null
+	var b_ap: AnimationPlayer = _anim_player(b) if is_instance_valid(b) else null
 	var a_clip := _first_resolved(a_ap, a_clips)
 	var b_clip := _first_resolved(b_ap, b_clips)
 	var wait_a: float = _start_oneshot(a_ap, a_clip)
@@ -132,7 +223,7 @@ static func _play_pair(
 
 
 static func _play_one(actor: Node3D, clips: Array[String], tree: SceneTree) -> void:
-	var ap: AnimationPlayer = _anim_player(actor)
+	var ap: AnimationPlayer = _anim_player(actor) if is_instance_valid(actor) else null
 	var clip := _first_resolved(ap, clips)
 	var wait: float = _start_oneshot(ap, clip)
 	if wait <= 0.0:
@@ -149,15 +240,15 @@ static func _hold_pair(
 	tree: SceneTree,
 	seconds: float
 ) -> void:
-	var a_ap: AnimationPlayer = _anim_player(a)
-	var b_ap: AnimationPlayer = _anim_player(b)
+	var a_ap: AnimationPlayer = _anim_player(a) if is_instance_valid(a) else null
+	var b_ap: AnimationPlayer = _anim_player(b) if is_instance_valid(b) else null
 	_start_oneshot(a_ap, _resolve(a_ap, a_clip_suffix), true)
 	_start_oneshot(b_ap, _resolve(b_ap, b_clip_suffix), true)
 	await tree.create_timer(maxf(0.05, seconds)).timeout
 
 
 static func _lock_player(player: Node3D) -> bool:
-	if player == null or not player.has_method("set_busy"):
+	if not is_instance_valid(player) or not player.has_method("set_busy"):
 		return false
 	if player.has_method("is_busy") and bool(player.call("is_busy")):
 		return false
@@ -166,7 +257,7 @@ static func _lock_player(player: Node3D) -> bool:
 
 
 static func _unlock_player(player: Node3D, locked: bool) -> void:
-	if locked and player != null and player.has_method("set_busy"):
+	if locked and is_instance_valid(player) and player.has_method("set_busy"):
 		player.call("set_busy", false)
 
 
@@ -184,7 +275,7 @@ static func _start_oneshot(ap: AnimationPlayer, clip: String, loop: bool = false
 
 
 static func _idle(actor: Node3D) -> void:
-	if actor == null:
+	if not is_instance_valid(actor):
 		return
 	if actor.has_method("play_wait_anim"):
 		actor.call("play_wait_anim")
@@ -202,12 +293,14 @@ static func _idle(actor: Node3D) -> void:
 
 
 static func _face_each_other(a: Node3D, b: Node3D) -> void:
+	if not is_instance_valid(a) or not is_instance_valid(b):
+		return
 	_face_toward(a, b.global_position)
 	_face_toward(b, a.global_position)
 
 
 static func _face_toward(actor: Node3D, target: Vector3) -> void:
-	if actor == null:
+	if not is_instance_valid(actor):
 		return
 	var to: Vector3 = target - actor.global_position
 	to.y = 0.0
@@ -221,7 +314,7 @@ static func _face_toward(actor: Node3D, target: Vector3) -> void:
 
 
 static func _anim_player(actor: Node3D) -> AnimationPlayer:
-	if actor == null:
+	if not is_instance_valid(actor):
 		return null
 	if actor.has_method("animation_player"):
 		var custom: Variant = actor.call("animation_player")

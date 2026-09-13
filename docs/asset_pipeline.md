@@ -347,6 +347,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | Magenta PNG | Unsupported BTI format (CI14X2 still incomplete) |
 | Invisible walls in grass / falling into rivers | Collision was a guessed strip or a gravity hole. Need `grd_*.col.json`; water is a heightfield plus bank walls, not `NO_FLOOR` |
 | One acre boxed in by a tall wall | Dummy TRACKS `data_bgd` rows reuse a field mesh (`grd_s_c1_3_1`, …) with HEIGHT_MAX floors. Sidecars must keep the first outdoor table for that mesh; `FieldCatalog` skips filler variants. Reconvert with `--kind collision` |
+| A cKF joint's mesh is missing entirely (no error, just absent geometry) | `convert_ckf_model` used to reset `TextureState` to blank before *every* joint's Gfx, on the assumption each joint sets its own SETTIMG. Some child joints (`obj_s_post_flag_saki_model`, the mailbox flag's tip half) have no texture/combine/prim commands at all and rely on inheriting whatever the previous joint left bound — exactly like the real RDP's SETTIMG/PRIM registers, which persist across DLs until explicitly rewritten. Reset only fires when a joint's own blob contains a `G_SETTIMG` (`_blob_sets_texture`), and joints are now processed in joint/draw order (not address order) so the inheritance chain resolves against the right sibling. Reconvert with `--kind furniture` / `--kind buildings` / `convert_ckf_prefixes` for the specific skeleton |
 
 ## 10. Godot import settings
 

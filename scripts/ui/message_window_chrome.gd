@@ -13,18 +13,6 @@ const WINDOW_CENTER_X := 167.0
 const WINDOW_BOTTOM_V := 237.4
 const MAX_BODY_LINES := 4
 
-const CLOUD_TEX_PATHS: Array[String] = [
-	"res://assets/generated/ui/message/msg_window_cloud.png",
-	"res://assets/custom/ui/message/msg_window_cloud.png",
-]
-const NAMEPLATE_TEX_PATHS: Array[String] = [
-	"res://assets/generated/ui/message/msg_nameplate_cloud.png",
-	"res://assets/custom/ui/message/msg_nameplate_cloud.png",
-]
-const FONT_PATHS: Array[String] = [
-	"res://assets/generated/ui/message/msg_font.fnt",
-	"res://assets/custom/ui/message/msg_font.fnt",
-]
 const MIN_NAMEPLATE_SIZE := Vector2(98.0, 28.0)
 
 ## Sub-rects as fractions of the cloud rect. Body origin = `center - (96, 32)`.
@@ -43,14 +31,8 @@ const CHOICE_LINE_PITCH := 16.0
 ## choice count exactly like `mChoice_Set_DisplayScaleAndDisplayPos`. Drawn white at
 ## PRIM alpha 155 over XLU; on a solid UI layer a warm cream reads right. The teal
 ## `background_color` (0,195,185) is ONLY the selected-row ▶ mark (`MessageChoiceMark`).
-const CHOICE_TEX_PATHS: Array[String] = [
-	"res://assets/generated/ui/message/msg_choice_window.png",
-	"res://assets/custom/ui/message/msg_choice_window.png",
-]
-const CHOICE_PANEL_TINT := Color(0.988, 0.965, 0.86, 0.97)
-## Fallback when the extracted silhouette is missing.
-const CHOICE_PANEL_BG := Color(0.965, 0.925, 0.79, 0.9)
-const CHOICE_PANEL_BORDER := Color(0.55, 0.42, 0.26, 0.85)
+## Panel style (texture + tint) is `ChoicePanel`'s own `theme_override_styles/panel`
+## resource in `dialogue_overlay.tscn` — edit it there, not here.
 
 ## `mMsg_init` defaults / `m_msg_appear` sex branches.
 const NAME_BG_DEFAULT := Color(160.0 / 255.0, 215.0 / 255.0, 30.0 / 255.0, 1.0)
@@ -61,7 +43,7 @@ const NAME_BG_FEMALE := Color(235.0 / 255.0, 140.0 / 255.0, 210.0 / 255.0, 1.0)
 const NAME_TEXT_FEMALE := Color(45.0 / 255.0, 0.0, 30.0 / 255.0, 1.0)
 const NAME_BG_OTHER := Color(185.0 / 255.0, 1.0, 0.0, 1.0)
 const NAME_TEXT_OTHER := Color(0.0, 30.0 / 255.0, 0.0, 1.0)
-const BODY_TEXT := Color(50.0 / 255.0, 60.0 / 255.0, 50.0 / 255.0, 1.0)
+## `default_color` for `BodyLabel` is set in `dialogue_overlay.tscn` (same value).
 const CHOICE_TEXT := Color(180.0 / 255.0, 150.0 / 255.0, 110.0 / 255.0, 1.0)
 const CHOICE_TEXT_SELECTED := Color(120.0 / 255.0, 50.0 / 255.0, 50.0 / 255.0, 1.0)
 
@@ -108,11 +90,11 @@ var _speaker_sex: SpeakerSex = SpeakerSex.OTHER
 
 
 func _ready() -> void:
-	_font = _load_first_font(FONT_PATHS)
-	_apply_textures()
-	_apply_text_theme()
+	## Textures, theme colors/fonts, and the choice panel style are all authored on
+	## the nodes in `dialogue_overlay.tscn` — this just reads the font back for the
+	## layout/wrapping math below, which needs an actual `Font` to measure with.
+	_font = _body.get_theme_font("normal_font")
 	_apply_name_colors()
-	_apply_choice_panel_style()
 	_choice_panel.visible = false
 	_layout()
 	if Engine.is_editor_hint():
@@ -341,27 +323,6 @@ func _ensure_choice_mark(btn: Button, selected: bool, mark_w: float, pitch: floa
 	mark.size = Vector2(mark_w, mark_w)
 
 
-func _apply_choice_panel_style() -> void:
-	var tex := _load_first_texture(CHOICE_TEX_PATHS)
-	if tex != null:
-		## Pure stretch (no nine-patch) so the lobes distort with option count,
-		## matching `mChoice_Set_DisplayScaleAndDisplayPos`.
-		var box := StyleBoxTexture.new()
-		box.texture = tex
-		box.modulate_color = CHOICE_PANEL_TINT
-		box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
-		box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
-		_choice_panel.add_theme_stylebox_override("panel", box)
-		return
-	var flat := StyleBoxFlat.new()
-	flat.bg_color = CHOICE_PANEL_BG
-	flat.set_corner_radius_all(18)
-	flat.set_border_width_all(2)
-	flat.border_color = CHOICE_PANEL_BORDER
-	flat.anti_aliasing = true
-	_choice_panel.add_theme_stylebox_override("panel", flat)
-
-
 func _to_bbcode(raw: String) -> String:
 	## Expand `{c:r,g,b}` / `{s:n}` from the dialogue converter into BBCode.
 	var base_px := maxi(1, int(round(BODY_FONT_PX * _ui_scale)))
@@ -413,57 +374,6 @@ func _to_bbcode(raw: String) -> String:
 
 func _bb_escape(text: String) -> String:
 	return text.replace("[", "[lb]")
-
-
-func _apply_textures() -> void:
-	## Scene-assigned `TextureRect.texture` values win so you can swap art in the editor.
-	_setup_sprite(_cloud, _cloud.texture if _cloud.texture != null else _load_first_texture(CLOUD_TEX_PATHS))
-	_setup_sprite(
-		_name_plate,
-		_name_plate.texture if _name_plate.texture != null else _load_first_texture(NAMEPLATE_TEX_PATHS),
-	)
-
-
-func _setup_sprite(sprite: TextureRect, texture: Texture2D) -> void:
-	sprite.texture = texture
-	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	## Scale the baked sprite to the virtual 320×240 layout rect (STRETCH_KEEP stays at
-	## texture pixels and leaves a tiny box in the corner on hi-DPI windows).
-	sprite.stretch_mode = TextureRect.STRETCH_SCALE
-
-
-func _load_first_texture(paths: Array[String]) -> Texture2D:
-	for path: String in paths:
-		if ResourceLoader.exists(path):
-			return load(path) as Texture2D
-	return null
-
-
-func _load_first_font(paths: Array[String]) -> Font:
-	for path: String in paths:
-		if ResourceLoader.exists(path):
-			var font: Font = load(path) as Font
-			if font != null:
-				return font
-	return null
-
-
-func _apply_text_theme() -> void:
-	_body.bbcode_enabled = true
-	_body.fit_content = false
-	_body.scroll_active = false
-	_body.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_body.add_theme_color_override("default_color", BODY_TEXT)
-	_body.add_theme_constant_override("outline_size", 0)
-	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_name.add_theme_constant_override("outline_size", 0)
-	## Original `mFont` uses `G_TF_BILERP` on the I4 atlas.
-	_name.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	_body.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	if _font != null:
-		_name.add_theme_font_override("font", _font)
-		_body.add_theme_font_override("normal_font", _font)
 
 
 func _apply_name_colors() -> void:
@@ -583,11 +493,11 @@ func _layout_choices(origin: Vector2, ui_scale: float) -> void:
 		if btn2 != null:
 			style_choice(btn2, bool(btn2.get_meta("choice_selected", false)))
 
+## Font itself is `dialogue_overlay.tscn`'s `theme_override_fonts` — only size/pitch
+## (both animated by `window_scale`) need setting here.
 func _apply_font(label: Label, font_px: float, pitch: float) -> void:
 	var size_px := maxi(1, int(round(font_px)))
 	label.add_theme_font_size_override("font_size", size_px)
-	if _font != null:
-		label.add_theme_font_override("font", _font)
 	if pitch <= 0.0:
 		return
 	var line_h: float = _font.get_height(size_px) if _font != null else float(size_px)
@@ -597,8 +507,6 @@ func _apply_font(label: Label, font_px: float, pitch: float) -> void:
 func _apply_rich_font(label: RichTextLabel, font_px: float, pitch: float) -> void:
 	var size_px := maxi(1, int(round(font_px)))
 	label.add_theme_font_size_override("normal_font_size", size_px)
-	if _font != null:
-		label.add_theme_font_override("normal_font", _font)
 	if pitch <= 0.0:
 		return
 	var line_h: float = _font.get_height(size_px) if _font != null else float(size_px)

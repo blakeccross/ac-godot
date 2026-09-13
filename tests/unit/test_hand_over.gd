@@ -8,6 +8,8 @@ func test_clip_constants() -> void:
 	assert_str(HandOver.NPC_TRANSFER).is_equal("npc_1_transfer1")
 	assert_str(HandOver.PLY_GET_PULL).is_equal("ply_1_get_pull1")
 	assert_str(HandOver.PLY_TRANSFER).is_equal("ply_1_transfer1")
+	assert_str(HandOver.NPC_GET_RETURN).is_equal("npc_1_get_return1")
+	assert_str(HandOver.NPC_GET_PULL_WAIT).is_equal("npc_1_get_pull_wait1")
 
 
 func test_gift_display_ids() -> void:
@@ -51,4 +53,16 @@ func test_resolve_finds_baked_clips() -> void:
 	var vis: Node3D = GeneratedVisual.attach_villager(nook, &"rcn")
 	assert_that(vis).is_not_null()
 	assert_bool(HandOver.has_npc_transfer(nook)).is_true()
+	## `aCR_TALK_RETURN_DEMO_*` (Blathers un-taking a rejected item) resolves too, along
+	## with the examining hold (`default_animation = aNPC_ANIM_GET_PULL_WAIT1`).
+	var clips: PackedStringArray = GeneratedVisual.find_animation_player(nook).get_animation_list()
+	var has_get_return := false
+	var has_get_pull_wait := false
+	for clip: String in clips:
+		if clip.ends_with(HandOver.NPC_GET_RETURN):
+			has_get_return = true
+		if clip.ends_with(HandOver.NPC_GET_PULL_WAIT):
+			has_get_pull_wait = true
+	assert_bool(has_get_return).is_true()
+	assert_bool(has_get_pull_wait).is_true()
 	nook.queue_free()

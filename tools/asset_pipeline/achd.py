@@ -91,21 +91,27 @@ def is_room_bank_texture(source: str) -> bool:
 
 
 def is_player_model_texture(name: str, prefix: str = "") -> bool:
-    """True for player mesh / face-bank names that stay native in GLB decode.
+    """True for the player mesh's reused/DMA-bound segment textures.
 
-    ACHD on the skinned ``boy_1`` mesh seams the wrap-baked shirt atlas and can
-    mix HD hole/eyes with missed skin. Shirt/face **bank PNGs**
-    (``textures/player/shirts|faces``) still take full ACHD via ``_png_record``.
+    The skinned ``boy_1``/``girl_1`` mesh's own single-purpose body textures
+    (``boy_1_skin_tex_txt``, ``_pants_``, ``_shoe_``, ``_foot_``, ``_horn_``,
+    ``_bottom_``, ``_hole_`` — each a distinct symbol, always visible, never
+    swapped at runtime) are safe to upscale. Eye/mouth (segment 0x08/0x09) take
+    ACHD too: ``NpcFace`` (the runtime face-swap script) only binds
+    villagers/NPCs (``villager.gd``, ``tortimer.gd``, ...) — ``player.gd`` never
+    instantiates it, so whatever is baked into ``boy_1.glb`` here is what
+    actually renders on the player, in the portrait viewport and in the world.
+    Only the shirt (segment 0x0A, wrap-baked REPEAT atlas, shared with the hat)
+    stays native — ``GeneratedVisual.apply_cloth`` overwrites it at runtime with
+    an already-ACHD'd bank PNG regardless, and upscaling the baked default risks
+    seaming the wrap-bake for no visible benefit.
     """
     stem = prefix.split(":")[0] if prefix else ""
-    if stem.startswith(("boy_", "girl_")):
+    if stem.startswith(("boy_", "girl_")) and (not name or name.lower() == "seg_0a"):
         return True
     if not name:
         return False
-    lower = name.lower()
-    if lower.startswith(("boy_", "girl_")):
-        return True
-    return lower.startswith(
+    return name.lower().startswith(
         ("face_boy.bin", "face_girl.bin", "tex_boy.bin", "tex_girl.bin")
     )
 

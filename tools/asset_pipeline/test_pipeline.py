@@ -6,6 +6,7 @@ import struct
 import unittest
 
 from asset_pipeline.ckf import (
+    _blob_sets_texture,
     _sits_on_y,
     _vtx_sym_for_gfx,
     _mat_model_name,
@@ -2029,6 +2030,30 @@ class VertexShadeTests(unittest.TestCase):
         parts = parse_gfx("lit_test_model", dl, verts)
         self.assertEqual(len(parts), 1)
         self.assertTrue(parts[0].uses_lighting)
+
+
+class JointTextureInheritanceTests(unittest.TestCase):
+    """`convert_ckf_model`'s per-joint texture-state reset — regression coverage for
+    the mailbox flag bug: `obj_s_post_flag_saki_model` has no texture/combine/prim
+    commands of its own and relies on inheriting whatever the previous joint
+    (`obj_s_post_flag_ne_model`) left bound, exactly like the real RDP's SETTIMG
+    register, which persists across DLs until explicitly rewritten."""
+
+    def test_blob_with_settimg_is_detected(self) -> None:
+        from asset_pipeline.gfx import G_SETTIMG
+
+        blob = struct.pack(">II", (G_SETTIMG << 24) | 0x0004_0000, 0x1234)
+        self.assertTrue(_blob_sets_texture(blob))
+
+    def test_blob_without_settimg_is_not_detected(self) -> None:
+        from asset_pipeline.gfx import G_ENDDL, G_TRI1
+
+        blob = struct.pack(">II", (G_TRI1 << 24) | (0 << 16) | (2 << 8) | 4, 0)
+        blob += struct.pack(">II", G_ENDDL << 24, 0)
+        self.assertFalse(_blob_sets_texture(blob))
+
+    def test_empty_blob_is_not_detected(self) -> None:
+        self.assertFalse(_blob_sets_texture(b""))
 
 
 if __name__ == "__main__":

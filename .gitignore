@@ -25,6 +25,10 @@ reports/
 data_*/
 mono_crash.*.json
 
+# Python (asset pipeline tooling)
+__pycache__/
+*.pyc
+
 # OS
 .DS_Store
 Thumbs.db

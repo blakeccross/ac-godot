@@ -13,9 +13,13 @@ const SHOP := &"shop"
 const TALK := &"talk"
 const GO_HOME := &"go_home"
 const SLEEP := &"sleep"
+## Brief visible hold at the door after `GO_HOME` arrives, before hiding —
+## `aNPC_act_into_house`'s `STEP_INTO`/`OPEN_DOOR` beat. Without it the actor
+## pops out of view mid-stride instead of settling at the door first.
+const AT_DOOR := &"at_door"
 
 const ALL: Array[StringName] = [
-	WAKE, LEAVE_HOME, WALK_TO, WANDER, SIT, FISH, SHOP, TALK, GO_HOME, SLEEP
+	WAKE, LEAVE_HOME, WALK_TO, WANDER, SIT, FISH, SHOP, TALK, GO_HOME, SLEEP, AT_DOOR
 ]
 
 const SIT_SECONDS := 8.0
@@ -25,6 +29,7 @@ const TALK_SECONDS := 6.0
 ## Linger in the goal acre, then pick a new walk goal. Not wander duration —
 ## `aNPC_THINK_WANDER` keeps running for the whole FIELD window.
 const STAY_SECONDS := 28.0
+const AT_DOOR_SECONDS := 0.4
 ## Leave-house yard stand (`house + (20, 40)` GX → meters).
 const YARD_OFFSET := Vector3(1.0, 0.0, 2.0)
 ## Go-home door approach (`house + (20, 60)` GX).

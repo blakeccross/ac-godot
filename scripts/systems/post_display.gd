@@ -55,7 +55,6 @@ const BANK_MENU_ID := &"post_girl_bank"
 const REPAY_AMOUNT_ID := &"post_girl_repay"
 const SEND_MAIL_ID := &"post_girl_send_mail"
 const SAVE_MAIL_ID := &"post_girl_save_mail"
-const WRITE_LETTER_ID := &"write_letter"
 const STATUS_DESK_FULL := 1
 const STATUS_DONE_FIRST_JOB := 2
 const STATUS_HAS_BANK := 4

@@ -703,6 +703,30 @@ static func fossil_set_name(index: int) -> String:
 	return ""
 
 
+## Index into `FOSSIL_SETS`/`FOSSIL_SET_NAMES` for a fossil part (-1 for solo fossils).
+static func fossil_set_group_index(index: int) -> int:
+	for gi: int in FOSSIL_SETS.size():
+		if (FOSSIL_SETS[gi] as Array).has(index):
+			return gi
+	return -1
+
+
+## How many OTHER parts of this fossil's skeleton are still undonated
+## (`aCR_chk_fossil_parts_complete`'s completeness check, minus the part just donated).
+static func fossil_set_remaining(book: Variant, index: int) -> int:
+	var gi: int = fossil_set_group_index(index)
+	if gi < 0 or book == null or not book.has_method("fossil_info"):
+		return 0
+	var remaining := 0
+	for part: Variant in (FOSSIL_SETS[gi] as Array):
+		if int(part) == index:
+			continue
+		var donator: int = int(book.call("fossil_info", int(part)))
+		if donator < 1 or donator > 5:
+			remaining += 1
+	return remaining
+
+
 static func insect_is_active(type_index: int, hour: int, minute: int = 0) -> bool:
 	if type_index < 0 or type_index >= INSECT_ACTIVE_HOUR.size():
 		return true

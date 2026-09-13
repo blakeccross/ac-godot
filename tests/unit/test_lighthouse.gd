@@ -60,12 +60,17 @@ func test_beacon_drives_the_real_decomp_sweep_animation() -> void:
 	## does, not just that the on/off booleans flip.
 	var node: Node3D = _lighthouse()
 	var beacon: Node = node.get_node("Beacon")
-	await get_tree().process_frame ## let the deferred AnimationPlayer lookup resolve.
-	## The tower's own AnimationPlayer, not the switch prop's separate one — same scope the
-	## beacon script itself searches (`node/GeneratedVisual/...`).
-	var anim: AnimationPlayer = node.get_node("GeneratedVisual").find_child(
-		"AnimationPlayer", true, false
-	) as AnimationPlayer
+	## Let the deferred AnimationPlayer lookup resolve. One frame is usually enough, but a
+	## long full-suite run can leave several frames' worth of deferred calls queued, so poll
+	## briefly rather than assume a single `await` always lands after it.
+	var anim: AnimationPlayer = null
+	for _i in 10:
+		await get_tree().process_frame
+		## The tower's own AnimationPlayer, not the switch prop's separate one — same scope
+		## the beacon script itself searches (`node/GeneratedVisual/...`).
+		anim = node.get_node("GeneratedVisual").find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if anim != null:
+			break
 	assert_object(anim).is_not_null()
 	assert_bool(anim.has_animation(&"obj_s_toudai")).is_true()
 

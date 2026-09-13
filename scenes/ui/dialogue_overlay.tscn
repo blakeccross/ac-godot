@@ -5,6 +5,14 @@
 [ext_resource type="Script" uid="uid://dx5khoy8cqqh2" path="res://scripts/ui/message_continue_arrow.gd" id="3"]
 [ext_resource type="Texture2D" uid="uid://6mb7sdlwwhuc" path="res://assets/generated/ui/message/msg_window_cloud.png" id="4"]
 [ext_resource type="Texture2D" uid="uid://c7q03o0i340a3" path="res://assets/generated/ui/message/msg_nameplate_cloud.png" id="5"]
+[ext_resource type="FontFile" uid="uid://d1obuqkxe3oxo" path="res://assets/generated/ui/message/msg_font.fnt" id="6"]
+[ext_resource type="Texture2D" uid="uid://c3jrsic63ni0" path="res://assets/generated/ui/message/msg_choice_window.png" id="7"]
+
+[sub_resource type="StyleBoxTexture" id="ChoiceWindowStyle"]
+## `con_waku_swaku3_tex` lobed silhouette, pure stretch (no nine-patch) so it
+## distorts with choice count like `mChoice_Set_DisplayScaleAndDisplayPos`.
+texture = ExtResource("7")
+modulate_color = Color(0.988, 0.965, 0.86, 0.97)
 
 [node name="DialogueOverlay" type="CanvasLayer"]
 process_mode = 3
@@ -49,14 +57,21 @@ expand_mode = 1
 
 [node name="NameLabel" type="Label" parent="Root/MessageChrome"]
 unique_name_in_owner = true
+texture_filter = 2
 layout_mode = 0
+theme_override_fonts/font = ExtResource("6")
+theme_override_constants/outline_size = 0
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="BodyLabel" type="RichTextLabel" parent="Root/MessageChrome"]
 unique_name_in_owner = true
+texture_filter = 2
 layout_mode = 0
 mouse_filter = 2
+theme_override_colors/default_color = Color(0.19607843, 0.23529412, 0.19607843, 1)
+theme_override_constants/outline_size = 0
+theme_override_fonts/normal_font = ExtResource("6")
 bbcode_enabled = true
 fit_content = false
 scroll_active = false
@@ -66,6 +81,7 @@ autowrap_mode = 0
 unique_name_in_owner = true
 layout_mode = 0
 mouse_filter = 2
+theme_override_styles/panel = SubResource("ChoiceWindowStyle")
 
 [node name="ChoiceList" type="VBoxContainer" parent="Root/MessageChrome"]
 unique_name_in_owner = true

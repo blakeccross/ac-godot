@@ -125,3 +125,15 @@ static func kind_of(id: StringName) -> StringName:
 		if row["id"] == id:
 			return &"insect"
 	return &""
+
+
+## The species-specific card for a fish/bug id (`inv_mwin_{NN}{romaji}_tex`), or ""
+## when the id is not one of the 40+40 catalogued species (e.g. fishing trash).
+static func icon_for_id(id: StringName) -> String:
+	for row: Dictionary in FISH:
+		if row["id"] == id:
+			return String(row.get("icon", ""))
+	for row: Dictionary in INSECT:
+		if row["id"] == id:
+			return String(row.get("icon", ""))
+	return ""

@@ -84,6 +84,7 @@ func _ready() -> void:
 	_tint_placeholder()
 	Clock.time_changed.connect(_sync_from_clock)
 	ai.action_changed.connect(_on_action_changed)
+	ai.schedule_changed.connect(_on_schedule_changed)
 	_motor.reset(global_position, rotation.y)
 	var table: ScheduleData = data.schedule_table() if data != null else null
 	var first: StringName = table.activity_now() if table != null else VillagerActivity.FIELD
@@ -369,7 +370,14 @@ func _on_action_changed(kind: StringName) -> void:
 	if kind == ActivityKind.LEAVE_HOME:
 		_set_is_home(false)
 		if not visible:
-			global_position = _motor.home + ActivityKind.YARD_OFFSET
+			## Appear at the door and let `_steer_ai`/`wants_move` walk the short
+			## `YARD_OFFSET` leg (`aNPC_act_leave_house_out_of_door`), instead of
+			## popping straight to the yard target. `reset()` re-anchors
+			## `_motor.home` to whatever position is passed — snapping to the
+			## unshifted `_motor.home` here (not `home + YARD_OFFSET`) also stops
+			## that anchor from drifting a little further from the house every
+			## time a villager leaves it.
+			global_position = _motor.home
 			_motor.reset(global_position, _motor.facing)
 	if kind == ActivityKind.TALK:
 		_motor.arrive()
@@ -389,6 +397,16 @@ func _on_action_changed(kind: StringName) -> void:
 		or kind == ActivityKind.WAKE
 	) and data != null:
 		VillagerWalk.release(data.id)
+
+
+func _on_schedule_changed(previous: StringName, now: StringName) -> void:
+	## `aNPC_sleep_schedule_chg_schedule`: whatever mood a villager went to sleep
+	## with — SLEEPY, or anything a talk/gift left them in — clears back to
+	## NORMAL the moment the schedule leaves SLEEP, whatever it heads into next
+	## (`IN_HOUSE` via `WAKE`, or straight back to `FIELD` via `LEAVE_HOME`).
+	## Moods aren't timed; sleep is what resets them.
+	if previous == VillagerActivity.SLEEP and now != VillagerActivity.SLEEP and state != null:
+		state.mood = VillagerState.Mood.NORMAL
 
 
 func _set_is_home(value: bool) -> void:

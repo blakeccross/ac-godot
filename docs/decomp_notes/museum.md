@@ -54,16 +54,25 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
   overrides `blathers_greeting` / `blathers_trivia` / donation nodes by id
   (`DialogueCatalog.ensure_loaded` loads that dir after `data/dialogue`).
 - **Fossil identification** (`fossil_catalog.gd` + `data/fossils.json`, `farway_book.gd`):
-  25 identified fossils as donatable/sellable `FurnitureData`. Dig → generic `fossil` →
-  post office "Send fossils to the Farway Museum" → `FarwayBook` queue → next 06:00 renew
-  returns a `RECV_PRESENT` letter per fossil (random identity) + a one-time intro letter
-  on first dig. Delivered mail lands in `Inventory._mail` with a `RECV*` font
-  ("You've got mail!" notice); read it at the house **mailbox** (`scenes/world/mailbox.tscn`,
-  kind `mailbox`, visual `obj_s_post` / `obj_w_post` — box + post + flag; placed by
-  `WorldGenerator` two units toward the acre centre on the house row per `ACTOR_PROP_MAILBOX0`,
-  slot facing the player approach — `mailbox.gd::apply_grid_yaw` offsets the −X rest slot by
-  `-PI/2` so `grid_facing` reads as the slot direction) or on the Letters pocket page
-  (Read / Take verbs). Saved under `Game.to_save()["farway"]`.
+  25 identified fossils as donatable/sellable `FurnitureData`. Blathers explicitly
+  refuses a raw `fossil` and hands it back (`ac_npc_curator_move.c_inc:658-681`'s
+  `donate_act[3]` — confirmed decomp-accurate, no on-the-spot identification exists in
+  the original either). The real identification path is mailing it to the special
+  "Museum" address-book contact (`mPr_CheckMuseumAddress`, `m_museum.c`'s
+  `mMsm_SendResultMail`) — this port's `FarwayBook` queue models that scheduling
+  correctly (name predates confirming the real contact is just called "Museum"). Two
+  entry points both land on `FarwayBook.queue_fossil()`: the Post Office's "send N
+  fossils at once" batch shortcut, and the decomp-accurate path — write a letter
+  addressed to "Museum" (`letter_address_overlay.tscn`) and attach one raw fossil as a
+  gift (`Present` mail tag) before sending. Either way, next 06:00 renew returns a
+  `RECV_PRESENT` letter per fossil (random identity) + a one-time intro letter on first
+  dig. Delivered mail lands in `Inventory._mail` with a `RECV*` font ("You've got mail!"
+  notice); read it at the house **mailbox** (`scenes/world/mailbox.tscn`, kind
+  `mailbox`, visual `obj_s_post` / `obj_w_post` — box + post + flag; placed by
+  `WorldGenerator` two units toward the acre centre on the house row per
+  `ACTOR_PROP_MAILBOX0`, slot facing the player approach — `mailbox.gd::apply_grid_yaw`
+  offsets the −X rest slot by `-PI/2` so `grid_facing` reads as the slot direction) or
+  on the Letters pocket page (Read / Take verbs). Saved under `Game.to_save()["farway"]`.
 - **Redd** (`redd_book.gd`, `scenes/world/interiors/redd.gd`): unlocks after the museum
   owns any art or the town is 14 days old; tent open one seeded weekday/week; 4-slot
   stock of genuine + forged paintings (ART02/03 always forged) plus the odd furniture
@@ -114,6 +123,12 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
   implemented: the player's own walk-up/hop into place before the lid opens
   (`aMBX_pl_wait` → `Player_actor_*_Mail_jump`, `mPlayer_INDEX_MAIL_JUMP`) — no such
   player locomotion state exists in this port yet.
+- **Donation removal was never actually broken** (checked against `ac_npc_curator.c`/`ac_npc_curator_move.c_inc` from the real ac-decomp repo, and against all three real donation entrypoints — the pockets "Donate" tag, the dialogue-list commit, and the backend directly): `Game.donate_museum_result()` (`game.gd:1071-1129`) calls `inventory.remove(item_id, 1)` unconditionally on `ok=true`, verified with fossils specifically (a real `FossilCatalog`-identified fossil, not a synthetic test double) through every path. The reported "fossil didn't leave my inventory" is the raw, unidentified `fossil` item — decomp-accurate: Blathers cannot identify one on the spot (`item_id == &"fossil"` short-circuits before `inventory.remove`, `game.gd:1093-1096`), it must go to the Post Office → Farway Museum first (`post_use.gd`, `farway_book.gd`) and comes back a day later as an identified `fossil_*` item, which *does* get consumed correctly. What **was** actually missing, and directly explains the "did nothing happen" read: decomp's `donate_act[]` table (`ac_npc_curator_move.c_inc`) routes every rejection (forgery, already-donated, wrong category, unexamined fossil) through a dedicated `aCR_TALK_RETURN_DEMO_*` hand-over so Blathers visibly gives the item back — this port only ever played a hand-over on **accepted** donations (`_play_putaway`). Added `museum_blathers.gd::_play_return()` (reuses the existing `HandOver.npc_gives_to_player`, no new animation infra needed) wired into `_play_donate_outcome()`'s `!ok` branch.
+- **`ANIM_SLEEP` was a real, silent bug, not a simplification**: `museum_blathers.gd` referenced `"npc_1_sleep1"`, a clip that does not exist in the shared NPC animation set (confirmed against the owl model's actual `AnimationPlayer.get_animation_list()`) — `_resolve_clip` always came back empty and silently fell back to the wait loop, so Blathers has *never* actually shown the sleep pose while drowsy. Fixed: the real clip is `npc_1_wait_nemu1` (`aNPC_ANIM_WAIT_NEMU1`, nemu = 眠 "sleepy"). Also fixed the drowsy hour window to decomp's actual `aCR_SLEEP_TIME_START`/`_END` (`ac_npc_curator.h`): **06:00–18:00**, not the previous 05:00–19:00 guess. And added the missing transition: `aCR_ACTION_WAIT` → `aCR_ACTION_SLEEP_WAIT` (holds the normal wait pose for `aCR_SLEEP_WAIT_TIMER` = 6s) → `aCR_ACTION_SLEEP` — only on the awake→drowsy edge; re-entering idle while already past that edge (e.g. right after a talk/donate session inside the window) skips straight to the sleep pose with no grace, matching decomp's `aCR_act_init_proc` branch on the *previous* action.
+- Rejections now play the *full* decomp GET+RETURN sequence, not just a single hand-over clip: `aCR_TALK_GET_DEMO_*` (player extends the item, Blathers takes it and examines it) followed by `aCR_TALK_RETURN_DEMO_*` (Blathers un-takes it and hands it back) — previously this port only played a single generic hand-over on rejection, skipping the initial take/examine beat entirely. `HandOver.player_offers_npc_rejects()` (superseding the old `npc_returns_to_player`) implements both halves: GET using `NPC_GET_PULL`/`NPC_GET`, an examining hold on `NPC_GET_PULL_WAIT` (`aNPC_ANIM_GET_PULL_WAIT1`, index 30 — `curator->npc_class.talk_info.default_animation = 30` in `aCR_get_demo_end_wait`, the "examining" talk pose previously unconfirmed and unimplemented), then RETURN using `NPC_GET_RETURN` (`npc_1_get_return1`, `aNPC_act_get_return` — an un-taking clip distinct from a fresh `NPC_TRANSFER`) handing the card back into the player's own pocket. `museum_blathers.gd::_play_return` calls this instead of the old accept-flow reuse.
+- Fossil-piece acknowledgment (`aCR_chk_fossil_parts_complete`) now implemented: donating a piece of a multi-part skeleton that doesn't complete the set gets its own line naming the set and how many pieces remain (`MuseumDialogue._fossil_piece_node`, own wording — no verbatim ROM text available, overridable per-group via `blathers_trivia`'s `"fossil_piece_%d"` bank entries same as the completion lectures), distinct from the generic "thanks_one" a solo donation gets. Wired into both donation code paths: the in-conversation pick (`MuseumDialogue._add_item_branch`'s `when` branch list, gated on a new `donate_fossil_piece_group` context var set by `DialogueRunner._donate_commit`) and the pockets-flow outcome (`MuseumDialogue.build_outcome`/`_completion_node`).
+- Remaining Blathers "full copy" gaps, found the same way (real decomp source, not guessed): no GET-demo/PUTAWAY-demo split for *accepted* donations specifically (decomp plays a hand-over *before* the examine line and a separate one *after* the trivia line, timed to when the museum bit and inventory removal actually happen; accepted donations in this port still do one hand-over animation up front and remove the item at commit-time, before any animation plays — rejections now get the full split, see above); the 40-entry insect-only extra trivia table (deliberately skipped — no real reference text available, and fabricating that volume of content isn't consistent with this project's "own wording but real facts" convention); no "museum complete" mail (`mMsm_SetCompMail`).
+- `HandOver.gd` hardened against a real crash: none of its multi-`await` sequences checked whether the `npc`/`player` node references were still alive between phases, so a node freed mid-sequence (e.g. a test's `auto_free` firing while a fire-and-forget `HandOver` coroutine was still running in the background) crashed on "previously freed" argument errors. Added `_both_valid()` checks (using untyped `Variant` params — a *typed* `Node3D` guard function trips the same "previously freed" error at its own call boundary) after every `await` in `npc_gives_to_player`, `player_gives_to_npc`, and `player_offers_npc_rejects`, bailing out early if either actor died mid-sequence.
 - Insect programs are museum-idle orbits/sways, not a full port of every `minsect_*` overlay.
 - Tank grass (`obj_museum5_kusa*`) / lily (`hasu`) instanced as static decor; bubbles are
   Tween sprites (`museum_bubbles.gd`), not GPU particles; tank point lights still deferred.

@@ -1,15 +1,22 @@
 extends StaticBody3D
 
 ## Blathers in the museum entrance (`ac_npc_curator`). Wait anim + talk/donate.
-## Nocturnal (`ac_npc_curator` sleep schedule): drowsy 05:00–19:00, alert at night.
+## Nocturnal (`ac_npc_curator` sleep schedule): drowsy 06:00–18:00, alert at night.
 
 const ANIM_WAIT := "npc_1_wait1"
-## Sleep clip suffix candidates (`_resolve_clip` fuzzy-matches; falls back to wait).
-const ANIM_SLEEP := "npc_1_sleep1"
+## `aNPC_ANIM_WAIT_NEMU1` (nemu = 眠, "sleepy") — the real clip name; there is no
+## `npc_1_sleep1` in the shared NPC animation set, so this previously always resolved
+## empty and silently fell back to `ANIM_WAIT` (Blathers never actually looked asleep).
+const ANIM_SLEEP := "npc_1_wait_nemu1"
 const GREETING_ID := &"blathers_greeting"
-## Museum is drowsy while the sun is up (`aNPC_CURATOR_isSleepTime`-ish window).
-const DROWSY_START_HOUR := 5
-const DROWSY_END_HOUR := 19
+## `aCR_SLEEP_TIME_START`/`_END` (`ac_npc_curator.h`): 6 * mTM_SECONDS_IN_HOUR to 18 *.
+const DROWSY_START_HOUR := 6
+const DROWSY_END_HOUR := 18
+## `aCR_SLEEP_WAIT_TIMER` (6 * 60 frames @ 60 Hz = 6s): crossing awake → drowsy holds the
+## normal wait pose for this long before flopping into the sleep pose (`aCR_ACTION_WAIT`
+## → `aCR_ACTION_SLEEP_WAIT` → `aCR_ACTION_SLEEP`). Re-entering the window while already
+## sleepy (e.g. after a talk/donate demo) skips straight to the sleep pose, no grace.
+const SLEEP_GRACE_SECONDS := 6.0
 
 var _model: Node3D
 var _body_anim: AnimationPlayer
@@ -18,6 +25,8 @@ var _talking: bool = false
 var _clip: String = ""
 var _listener: Node3D = null
 var _pending_menu: StringName = &""
+var _sleep_grace_remaining: float = -1.0
+var _was_drowsy: bool = false
 
 
 func _ready() -> void:
@@ -40,12 +49,27 @@ func _process(delta: float) -> void:
 	if _talking:
 		_face_player()
 	else:
+		_update_sleep_grace(delta)
 		_play_clip(_idle_clip(), true)
 
 
-## Slumped sleep pose while drowsy when the visual has one; otherwise the wait loop.
+## `aCR_act_init_proc`: only the awake→drowsy edge gets the grace period; re-entering
+## idle while already past that edge (talk/donate just ended, still within the window)
+## goes straight to the sleep pose.
+func _update_sleep_grace(delta: float) -> void:
+	var drowsy: bool = _is_drowsy()
+	if drowsy and not _was_drowsy:
+		_sleep_grace_remaining = SLEEP_GRACE_SECONDS
+	elif not drowsy:
+		_sleep_grace_remaining = -1.0
+	elif _sleep_grace_remaining > 0.0:
+		_sleep_grace_remaining = maxf(0.0, _sleep_grace_remaining - delta)
+	_was_drowsy = drowsy
+
+
+## Slumped sleep pose once the grace period (if any) has elapsed; otherwise the wait loop.
 func _idle_clip() -> String:
-	if _is_drowsy() and not _resolve_clip(ANIM_SLEEP).is_empty():
+	if _is_drowsy() and _sleep_grace_remaining <= 0.0 and not _resolve_clip(ANIM_SLEEP).is_empty():
 		return ANIM_SLEEP
 	return ANIM_WAIT
 
@@ -57,15 +81,14 @@ func _is_drowsy() -> bool:
 	return false
 
 
-func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
-	var out: Array[Interaction] = [Interaction.of(Interaction.TALK, "Talk to Blathers", 20)]
-	var item: ItemData = _selected_item(ctx)
-	if item != null and Game != null and Game.museum != null:
-		if item.id == &"fossil":
-			out.append(Interaction.of(Interaction.DONATE, "Show Blathers the fossil", 25))
-		elif Game.museum.display_info_for_item(item) == MuseumBook.DisplayInfo.CAN_DONATE:
-			out.append(Interaction.of(Interaction.DONATE, "Donate %s" % item.display_name, 25))
-	return out
+## Just `TALK`, like every other NPC (`villager.gd`, `tom_nook.gd`, `post_desk.gd`) — a
+## selected donatable item does not hijack the world interact prompt. Donation is reached
+## through the talk menu's "I've something to donate" choice (`blathers_greeting.json`
+## `menu` node -> `{op:"museum_menu", choice:"donate"}` -> `_open_donate_pockets`), same as
+## the decomp's pocket `DONATE` tag route (`Inventory.tags_for_slot`, gated on
+## `Game.museum_donate_pending`).
+func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
+	return [Interaction.of(Interaction.TALK, "Talk to Blathers", 20)]
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
@@ -74,8 +97,6 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	match action.id:
 		Interaction.TALK:
 			return _begin_talk(ctx)
-		Interaction.DONATE:
-			return _begin_donate(ctx)
 		_:
 			return false
 
@@ -142,14 +163,6 @@ func _mark_greeted() -> void:
 		Game.dialogue_vars["blathers_greet_day"] = _greet_day_key()
 
 
-## Pocket "Donate X" interaction — go straight to the donate-select pockets.
-func _begin_donate(ctx: InteractionContext) -> bool:
-	_listener = ctx.actor as Node3D if ctx != null else _listener
-	_face_toward(_listener.global_position if _listener != null else global_position)
-	_open_donate_pockets()
-	return true
-
-
 ## Blathers opens the player's pockets to receive a donation (`mMmd` IV_OPEN). Each item
 ## worth offering shows a "Donate" tag; picking one books the outcome and Blathers
 ## responds. With no pockets UI (headless), fall back to the dialogue-list picker.
@@ -187,8 +200,11 @@ func _play_donate_outcome() -> void:
 	_start_talk_session(_listener)
 	_bind_talk_end(ui)
 	_bind_events(ui)
-	if item_id != &"" and bool(result.get("ok", false)):
-		_play_putaway(item_id)
+	if item_id != &"":
+		if bool(result.get("ok", false)):
+			_play_putaway(item_id)
+		else:
+			_play_return(item_id)
 	ui.call("play", data, _make_talk_ctx())
 
 
@@ -261,6 +277,17 @@ func _play_putaway(item_id: StringName) -> void:
 	HandOver.player_gives_to_npc(_listener, self, item_id)
 
 
+## Rejections (`aCR_TALK_GET_DEMO_*` → `aCR_TALK_RETURN_DEMO_*`): forgery, already-donated,
+## wrong category, or an unexamined fossil — Blathers takes and examines the item exactly
+## like an accepted donation, then visibly hands it back instead of filing it away.
+func _play_return(item_id: StringName) -> void:
+	if item_id == &"" or _listener == null or Game == null:
+		return
+	if Game.inventory == null or Game.inventory.count_of(item_id) <= 0:
+		return
+	HandOver.player_offers_npc_rejects(_listener, self, item_id)
+
+
 func _say_line(text: String) -> void:
 	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
 	if ui != null and ui.has_method("say"):
@@ -291,16 +318,6 @@ func _face_toward(world_pos: Vector3) -> void:
 		_model.rotation.y = yaw
 	else:
 		rotation.y = yaw
-
-
-func _selected_item(ctx: InteractionContext) -> ItemData:
-	var inv: Inventory = ctx.inventory if ctx != null and ctx.inventory != null else Game.inventory
-	if inv == null:
-		return null
-	var slot: InventorySlot = inv.selected_slot()
-	if slot == null or slot.is_empty():
-		return null
-	return ItemCatalog.get_item(slot.item.item_id)
 
 
 func _ensure_collision() -> void:

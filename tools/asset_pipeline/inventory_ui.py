@@ -21,7 +21,7 @@ from .config import PipelineConfig
 from .godot_import import write_import_sidecar
 from .mapfile import MapSymbol, parse_map
 from .rel import RelData
-from .map_ui import _edge, _mirror_tile, _parse_ui_vtx
+from .map_ui import _edge, _ia_prim_env, _mirror_tile, _parse_ui_vtx
 from .texbank import (
     G_IM_FMT_CI,
     G_IM_FMT_I,
@@ -239,6 +239,12 @@ CHROME: list[TexSpec] = [
     TexSpec("inv_mwin_potegami_tex", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_otegami_pal", out_name="letter_open_present"),
     TexSpec("inv_mwin_mtegami2_tex", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, "inv_mwin_mtegami2_pal", out_name="letter_alt"),
     TexSpec("inv_win_mark_tex", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b, out_name="cursor_mark"),
+    ## `m_tag_ovl` verb popup (`sen_itemw.c`) — shadow blob + arrow pointer. Both are
+    ## flat-PRIMITIVE-color/intensity-as-alpha (`sen_itemw_kage_model`/`_yajirushi_model`),
+    ## same shape as the other `prim_as_color` entries above; the frame (`wakuT`) needs a
+    ## PRIM/ENV lerp instead and is baked separately (`_bake_tag_popup_frame`).
+    TexSpec("sen_itemw_kage_tex", 64, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(30, 20, 20, 160), out_name="tag_shadow"),
+    TexSpec("sen_itemw_yaji_tex", 16, 16, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(35, 26, 15, 255), out_name="tag_arrow"),
 ]
 
 
@@ -354,6 +360,9 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
 
     shell = _bake_inventory_window_shell(rel, by_name, stage_dir, out_dir, project_root, achd=achd)
     results.append(shell["record"])
+
+    tag_frame = _bake_tag_popup_frame(rel, by_name, stage_dir, out_dir, project_root)
+    results.append(tag_frame)
     catalog_path = shell.get("catalog_path")
 
     converted = sum(1 for r in results if r["status"] == "converted")
@@ -374,6 +383,46 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
             "alpha_bbox": shell.get("alpha_bbox"),
         }
     return out
+
+
+## `sen_itemw_wakuT_model` (`sen_itemw.c:59-68`) — one GX_MIRROR quad, PRIM/ENV lerp
+## same shape as `des_win_shitaT_model`'s border tiles (`_ia_prim_env`). A single quad
+## needs no triangle rasterizer: decode once, colorize, then 2x2-mirror into a sheet
+## that's seamless under plain repetition (`stretch_mode = TILE` in Godot).
+## PRIM = interior fill (intensity 255, where the corner texture is white); ENV = the
+## curve/edge accent (intensity 0, where the corner texture is black) — matches the
+## existing hand-drawn cream/tan look this replaces rather than decomp's per-verb-family
+## `p_col_table`/`e_col_table` (not chased here, see `docs/decomp_notes/inventory.md`).
+_TAG_FRAME_PRIM = (252, 245, 219, 255)
+_TAG_FRAME_ENV = (158, 120, 77, 255)
+
+
+def _bake_tag_popup_frame(
+    rel: RelData, by_name: dict[str, list[MapSymbol]], stage_dir: Path, out_dir: Path, project_root: Path
+) -> dict[str, Any]:
+    record: dict[str, Any] = {
+        "asset_id": "tag_frame",
+        "source": "sen_itemw_wakuT_model",
+        "output_path": "ui/inventory/tag_frame.png",
+        "status": "pending",
+        "error": None,
+    }
+    try:
+        sym = _pick_symbol(by_name, "san_itemw_waku_tex")
+        data = rel.slice_at(sym.address, sym.size)
+        image = decode_gbi_texture(data, 64, 32, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
+        image = _ia_prim_env(image, _TAG_FRAME_PRIM, _TAG_FRAME_ENV)
+        sheet = _mirror_tile(image)
+        png = image_png_bytes(sheet)
+        for folder in (stage_dir, out_dir):
+            (folder / "tag_frame.png").write_bytes(png)
+        write_import_sidecar(out_dir / "tag_frame.png", project_root)
+        record["status"] = "converted"
+        record["meta"] = {"width": sheet.width, "height": sheet.height, "address": f"0x{sym.address:08X}"}
+    except Exception as exc:  # noqa: BLE001
+        record["status"] = "error"
+        record["error"] = f"{type(exc).__name__}: {exc}"
+    return record
 
 
 def _pick_symbol(by_name: dict[str, list[MapSymbol]], name: str) -> MapSymbol:

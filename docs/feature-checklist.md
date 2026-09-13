@@ -85,7 +85,7 @@ data tables before a category is called done.
 - [ ] Hair style / colour set by creation questions (no salon in GCN)
 - [ ] Clothing: equipped shirt shows on model; hats; accessories/glasses; umbrella held in rain (`m_player_item_umbrella`)
 - [ ] Change clothes anywhere from pockets (`m_player_main_change_cloth`, `ef_kigae`)
-- [ ] Pockets = **15 item slots** + separate wallet (`m_private` `mPr_POCKETS_SLOT_COUNT`) — `inventory.gd`
+- [x] Pockets = **15 item slots** + separate wallet (`m_private` `mPr_POCKETS_SLOT_COUNT`) — `inventory.gd` (duplicate of the line below, kept in sync)
 - [ ] Carrying a piece of furniture / large item in hands (walk slower) (`m_player_main_hold`, `pickup_furniture`)
 - [ ] Trip / stumble when running into things or on ants (`m_player_main_tumble`, `stung`)
 - [ ] Fall in a pitfall; struggle out (`m_player_main_fall_pitfall`, `struggle_pitfall`, `climbup_pitfall`)
@@ -152,18 +152,38 @@ data tables before a category is called done.
 
 ## 10. Inventory, items, catalog
 
-- [~] 15 pocket slots; drag/drop, sort, split stacks, drop to ground (`m_inventory_ovl`) — `inventory_overlay.tscn`, `inventory_chrome.gd`
-- [x] Pockets ↔ Fish/Insect encyclopedia pages (`mIV_PAGE_*`, 8×5 grid, right-edge folder tabs); caught-once registry `SpeciesLog` — `encyclopedia_catalog.gd`, `species_log.gd`
+- [x] 15 pocket slots; grab/drop (click-to-place and single-button `mTG_move_catch` quick
+  grab), multi-select mark + Drop All (`mTG_mark_proc`/`TYPE_TAG_PUT_ALL`), drop to ground
+  (`m_inventory_ovl`) — `inventory_overlay.tscn`, `inventory_chrome.gd`, `inventory.gd`.
+  **Not** sort or stack-splitting — the original has neither (GC pockets are 15
+  independent one-item slots with no count field; this port's stacking is its own
+  deliberate divergence, see `docs/decomp_notes/inventory.md`), so those were dropped
+  from scope rather than built.
+- [x] Pockets ↔ Fish/Insect encyclopedia pages (`mIV_PAGE_*`, 8×5 grid, right-edge folder tabs); caught-once registry `SpeciesLog` — `encyclopedia_catalog.gd`, `species_log.gd`; page-flip sine swing (`page_move_timer`) matches decomp's 40-frame transition
 - [x] Portrait player animations: walk-in-place default + `CHANGE`/`EAT`/`CATCH` one-shots (`mIV_ANIM_*`) — `inventory_overlay.gd`
-- [ ] Wallet (bells) separate; 30,000-bell bag stacks; withdraw/deposit at bank
-- [ ] Item info popup; "throw away" confirmation
+- [~] Wallet (bells) separate; 30,000-bell bag stacks — withdraw (`mTG_select_tag_decide_money`
+  affordability-gated denomination picker) and deposit (drop a bag on the wallet slot, or the
+  pre-existing "Use" verb) both work. Missing: an actual bank/ABD terminal UI — `deposit_savings`/
+  `withdraw_savings` exist on `Inventory` but nothing in-scene calls them yet.
+- [x] "Throw away" confirmation — mail only (Yes/No, `mTG_dump_mail`), matching decomp: ordinary
+  pocket items never had an in-menu discard, only mail and a couple of special items did.
+  Dropped "item info popup" from this line — decomp's pockets screen has no such panel either
+  (`inventory_overlay.gd` already hides the invented Detail block for the same reason).
+- [x] "Read a letter" opens the real board window (`m_board_ovl.c`, `mSM_BD_OPEN_READ`), not a
+  text toast — the letter's actual stationery art (all 64 `lat_letterNN` designs, baked flat
+  from the already-converted 3D models by `scenes/dev/letter_paper_bake.gd`) with
+  header/body/footer text in the sender's ink color (`letter_color[]`), sliding in like every
+  other submenu — `letter_reader_overlay.tscn`, `LetterChrome`. Read-only (decomp confirms
+  `mBD_roll_control`/pagination/caret are write-mode-only, dead code for reading).
 - [ ] **Catalog** of every item you've ever owned/received; order from catalog at Nook's (`m_catalog_ovl`)
 - [ ] Item data tables: furniture, clothing, wallpaper, carpet, umbrellas, tools, stationery, fruit, shells, fossils, gyroids, paintings, music, misc (`m_item_name`, `ac_furniture_data`)
 - [ ] Fruit: native fruit per town + non-native (apple, orange, peach, pear, cherry); coconut on beach palms
 - [ ] Perfect fruit? _(not in GCN — skip)_
 - [ ] Sea shells wash up on the beach on a timer; sell to Nook / Tommy (`ac_mbg` beach items)
 - [ ] Furniture "in hand" vs. "as item" states; wallpaper/carpet items
-- [ ] Wrapping paper — wrap an item as a present to give/mail (`ac_present_demo`)
+- [~] Wrapping paper — wrap/unwrap a droppable item as a present (`Inventory.wrap_slot`, the
+  "Wrap" tag) works; attaching a wrapped gift to outgoing mail depends on the mail-writer UI
+  and isn't wired up yet (`ac_present_demo`)
 - [ ] Lost items / forgotten items handling
 
 ## 11. Economy
@@ -338,7 +358,13 @@ data tables before a category is called done.
 
 ## 20. Design / pattern tool
 
-- [ ] 32×32 pixel pattern editor, 15-colour palette, mirror/tools (`m_design_ovl`, `m_editor_ovl`, `m_ledit_ovl`)
+- [x] 32×32 pixel pattern editor, 16-colour palette (16 preset palettes), full tool set
+  (PEN/NURI-fill/WAKU-shapes/MARK-stamps/UNDO), 8-slot design book (`m_design_ovl`) —
+  `design_editor_overlay.tscn`, `design_list_overlay.tscn`, `design_book.gd`. Real
+  `des_win_shitaT_model` window chrome (was Godot-drawn) baked by
+  `tools/asset_pipeline/design_ui.py` (`--kind design-ui`); the 5-row tool-variant
+  icons and 2-digit palette-number readout still use text/hand-drawn glyphs rather
+  than the real `des_tool_*`/`des_win_suuji*` ROM art.
 - [ ] Apply patterns as: shirt, hat, umbrella, wallpaper?, or place on the ground / as signboards / hung on walls
 - [ ] The **Able Sisters** design display board: submit your design → sold in the shop; wear other players' designs
 - [ ] "Pro" designs? _(GCN: no pro designs)_
@@ -376,7 +402,7 @@ data tables before a category is called done.
 ## 23. Museum
 
 - [~] Building + 4 wings; **Blathers** the owl curator (nocturnal, sleepy by day) (`ac_museum`, `ac_npc_curator`) — `museum/*`, `museum_book.gd`
-- [~] Donate fish / insect / fossil / painting; one-per-species; assessment dialogue (`m_museum_display`) — `museum_display.gd`, `museum_presenter.gd`
+- [~] Donate fish / insect / fossil / painting; one-per-species; assessment dialogue (`m_museum_display`) — `museum_display.gd`, `museum_presenter.gd`; item removal confirmed correct on all 3 real entrypoints (pockets tag, dialogue commit, backend) — rejections (forgery/already-donated/unexamined fossil) now play the full `HandOver.player_offers_npc_rejects` GET+examine+RETURN sequence (`aCR_TALK_GET_DEMO_*`/`aCR_TALK_RETURN_DEMO_*`, including the `NPC_GET_PULL_WAIT` examining pose, decomp index 30) so the item visibly comes back instead of reading as "nothing happened"; fossil-piece acknowledgment for incomplete skeletons (`aCR_chk_fossil_parts_complete`) also lands now. Missing vs. decomp: GET/PUTAWAY hand-over split for *accepted* donations specifically, the 40-entry insect-only extra trivia table (deliberately skipped, no real reference text available), museum-complete mail
 - [~] Fish tanks with the species swimming; insect terrariums/cases; each donated species animates (`ac_museum_fish_*`, `ac_museum_insect_*`) — `museum_fish_actor.gd`, `museum_insect_actor.gd`
 - [ ] Fossil hall with skeleton mounts assembled from fossil groups (`ac_museum_fossil`)
 - [ ] Art gallery: paintings on the walls; Redd sells real + forged art; forgeries rejected by Blathers (`ac_museum_picture`, `ac_mural`)
@@ -389,9 +415,21 @@ data tables before a category is called done.
 ## 24. Post Office
 
 - [~] Building + interior; **Pelly** (day) / **Phyllis** (night) at the counter (`ac_post_office`, `ac_npc_post_girl`) — `post_office.tscn`, `post_girl.tscn`, `post_book.gd`
-- [ ] Write & send letters (up to 3 lines + optional attached gift); costs bells (`m_mail`, `ac_pterminal`)
-- [ ] Stationery types (dozens); some from events/villagers; letter paper affects villager reaction
-- [~] Your mailbox at your house: receive letters, gifts, HRA reports, bank interest, event mail, catalog deliveries (`ac_mailbox`) — `scenes/world/mailbox.tscn` + received-mail path, flag raises/lowers on unread mail in every season, lid opens/closes around the Letters menu with the cursor seeded on the last-used slot (`aMBX_pl_open`/`_pl_close`, `mMB_get_last_mail_idx`); Farway Museum replies land here. Missing: the player's walk-up/hop before the lid opens (`aMBX_pl_wait`/`Player_actor_*_Mail_jump`); villager/event/bank mail not wired yet
+- [x] Write & send letters: real address book gated to villagers who've met the player
+  (`Relationship.MET`) plus a "Museum" entry, a real 6-line character-grid keyboard
+  (`m_editor_ovl.c`'s `mED_TYPE_BOARD`, same line/width cap as reading), Save/Keep
+  editing/Discard confirm (`mSM_OVL_EDITENDCHK`) — `letter_address_overlay.tscn`,
+  `letter_paper_picker_overlay.tscn`, `letter_writer_overlay.tscn`. Gift attachment via
+  the hand (`mTG_present_proc`) — pick an item, "Present" it onto the unsent letter.
+  Sending is still the separate Post Office step, matching decomp. **Simplified**: no
+  stationery-item economy (decomp ties paper choice to which stationery stack you own;
+  here the player freely picks any of the 64 real designs when writing — approved
+  divergence); header/footer are auto-filled, not separately editable.
+- [x] Stationery types — all 64 designs' real art render in both the read window and the
+  write-time picker (`LetterChrome`/`letter_paper_bake.gd`), `MailData.paper_type`
+  round-trips through save. Missing (separate, smaller gaps): specific papers awarded
+  by events/villagers, and letter paper affecting villager reaction.
+- [~] Your mailbox at your house: receive letters, gifts, HRA reports, bank interest, event mail, catalog deliveries (`ac_mailbox`) — `scenes/world/mailbox.tscn` + received-mail path, flag raises/lowers on unread mail in every season, lid opens/closes around the Letters menu with the cursor seeded on the last-used slot (`aMBX_pl_open`/`_pl_close`, `mMB_get_last_mail_idx`); Museum fossil-identification replies land here (`FarwayBook` — the in-code name predates confirming decomp's actual address-book contact is just called "Museum", `mPr_CheckMuseumAddress`). Missing: the player's walk-up/hop before the lid opens (`aMBX_pl_wait`/`Player_actor_*_Mail_jump`); villager/event/bank mail not wired yet
 - [ ] Mailbox full (10 items) → Post Office holds overflow; retrieve there
 - [ ] Villagers send you letters (with gifts if friendship high); reply to build friendship
 - [ ] Send a gift to a villager by mail → thank-you letter + item back

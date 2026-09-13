@@ -265,17 +265,20 @@ func test_sleep_plan_is_just_sleep_when_already_home() -> void:
 
 
 func test_house_plan_goes_home_then_stays() -> void:
-	## IN_HOUSE outdoors: GO_HOME to door approach, then WAKE (hide / is_home).
+	## IN_HOUSE outdoors: GO_HOME to door approach, settle AT_DOOR, then WAKE (hide / is_home).
 	var plan: Array[VillagerAction] = VillagerPlan.build(
 		VillagerActivity.IN_HOUSE,
 		VillagerActivity.FIELD,
 		{"home": Vector3.ZERO, "outdoors": true, "is_home": false}
 	)
-	assert_int(plan.size()).is_equal(2)
+	assert_int(plan.size()).is_equal(3)
 	assert_that(plan[0].kind).is_equal(ActivityKind.GO_HOME)
 	assert_vector(plan[0].target).is_equal(ActivityKind.DOOR_APPROACH)
-	assert_that(plan[1].kind).is_equal(ActivityKind.WAKE)
-	assert_bool(plan[1].is_present()).is_false()
+	assert_that(plan[1].kind).is_equal(ActivityKind.AT_DOOR)
+	assert_vector(plan[1].target).is_equal(Vector3.ZERO)
+	assert_bool(plan[1].is_present()).is_true()
+	assert_that(plan[2].kind).is_equal(ActivityKind.WAKE)
+	assert_bool(plan[2].is_present()).is_false()
 
 
 func test_house_plan_already_home_is_wake() -> void:
@@ -353,7 +356,78 @@ func test_wake_then_leave_home_then_sleep() -> void:
 		{"home": Vector3.ZERO, "outdoors": true, "is_home": false},
 	)
 	assert_that(going[0].kind).is_equal(ActivityKind.GO_HOME)
-	assert_that(going[1].kind).is_equal(ActivityKind.WAKE)
+	assert_that(going[1].kind).is_equal(ActivityKind.AT_DOOR)
+	assert_that(going[2].kind).is_equal(ActivityKind.WAKE)
+
+
+func test_at_door_stays_visible_then_hides_on_wake() -> void:
+	## `aNPC_act_into_house` STEP_INTO/OPEN_DOOR: a visible beat at the door
+	## between arriving (GO_HOME) and hiding (WAKE), not an instant pop.
+	var ai := VillagerAI.new()
+	ai.sync(VillagerActivity.IN_HOUSE, {"home": Vector3.ZERO, "outdoors": true, "is_home": false})
+	assert_that(ai.kind()).is_equal(ActivityKind.GO_HOME)
+	ai.consider_arrive(ActivityKind.DOOR_APPROACH)
+	ai.step(0.0)
+	assert_that(ai.kind()).is_equal(ActivityKind.AT_DOOR)
+	assert_bool(ai.current.is_present()).is_true()
+	assert_bool(ai.wants_move()).is_false()
+	ai.step(ActivityKind.AT_DOOR_SECONDS + 0.1)
+	assert_that(ai.kind()).is_equal(ActivityKind.WAKE)
+	assert_bool(ai.current.is_present()).is_false()
+
+
+func test_leave_home_appears_at_door_and_does_not_drift_home() -> void:
+	## Regression: `_on_action_changed` used to snap straight to `home + YARD_OFFSET`
+	## and re-anchor `_motor.home` there too, drifting the anchor further from the
+	## house every time the villager left it. It should appear at the (unshifted)
+	## door instead and let `_steer_ai` walk the short leg out to the yard.
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	add_child(villager)
+	var door := Vector3(5, 0, 5)
+	villager.global_position = door
+	villager._motor.reset(door, 0.0)
+	villager.visible = false
+	villager._on_action_changed(ActivityKind.LEAVE_HOME)
+	assert_vector(villager.global_position).is_equal(door)
+	assert_vector(villager._motor.home).is_equal(door)
+
+
+func test_schedule_changed_fires_once_per_real_transition() -> void:
+	var ai := VillagerAI.new()
+	var seen: Array = []
+	ai.schedule_changed.connect(func(previous: StringName, now: StringName) -> void: seen.append([previous, now]))
+	var hints := {"home": Vector3.ZERO, "outdoors": false}
+	ai.sync(VillagerActivity.SLEEP, hints)
+	assert_int(seen.size()).is_equal(1)
+	assert_array(seen[0]).is_equal([&"", VillagerActivity.SLEEP])
+	## No-op re-sync (same type, still running): no signal.
+	ai.sync(VillagerActivity.SLEEP, hints)
+	assert_int(seen.size()).is_equal(1)
+	ai.sync(VillagerActivity.FIELD, {"home": Vector3.ZERO, "outdoors": false, "field_actions": [ActivityKind.WANDER]})
+	assert_int(seen.size()).is_equal(2)
+	assert_array(seen[1]).is_equal([VillagerActivity.SLEEP, VillagerActivity.FIELD])
+	## Held during a talk interrupt: no signal until it actually resumes/rebuilds.
+	ai.begin_talk()
+	ai.sync(VillagerActivity.SLEEP, hints)
+	assert_int(seen.size()).is_equal(2)
+
+
+func test_mood_clears_when_schedule_leaves_sleep() -> void:
+	## `aNPC_sleep_schedule_chg_schedule`: mood is a session state, not timed —
+	## it resets to NORMAL exactly when the schedule stops being SLEEP.
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	villager._ensure_bound()
+	villager.state.mood = VillagerState.Mood.SLEEPY
+	villager._on_schedule_changed(VillagerActivity.SLEEP, VillagerActivity.IN_HOUSE)
+	assert_that(villager.state.mood).is_equal(VillagerState.Mood.NORMAL)
+	## A HAPPY mood from a same-day talk clears too — sleep resets it, decomp-faithfully.
+	villager.state.mood = VillagerState.Mood.HAPPY
+	villager._on_schedule_changed(VillagerActivity.SLEEP, VillagerActivity.FIELD)
+	assert_that(villager.state.mood).is_equal(VillagerState.Mood.NORMAL)
+	## Transitions that don't leave SLEEP must not touch mood.
+	villager.state.mood = VillagerState.Mood.ANGRY
+	villager._on_schedule_changed(VillagerActivity.FIELD, VillagerActivity.IN_HOUSE)
+	assert_that(villager.state.mood).is_equal(VillagerState.Mood.ANGRY)
 
 
 func test_shop_and_fish_are_picked_from_field_actions() -> void:

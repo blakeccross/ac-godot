@@ -25,6 +25,17 @@ signal savings_changed(amount: int)
 signal loan_changed(amount: int)
 signal mail_changed
 signal equipment_changed(item_id: StringName)
+signal background_changed(item_id: StringName)
+
+## Bag denominations (`ITM_MONEY_START`) — withdrawing produces one of these as a
+## physical pocket item (`mTG_select_tag_decide_money`). Listed high→low; the popup
+## only offers what the wallet can currently afford at each threshold.
+const BAG_ITEM_IDS := {
+	30000: &"money_30000",
+	10000: &"money_10000",
+	1000: &"money_1000",
+	100: &"money_100",
+}
 
 var wallet: int = 0
 ## Post office savings (`mPr` bank after loans). No interest in this slice.
@@ -32,10 +43,15 @@ var savings: int = 0
 ## House loan owed to Nook (`Private_c.inventory.loan`).
 var loan: int = 0
 var equipment_id: StringName = &""
+## Pockets-menu backdrop (`Now_Private->backgound_texture`, `mTG_TABLE_BG`). "" = default.
+var background_id: StringName = &""
 var selected_index: int = 0
 var selected_mail_index: int = 0
 ## Hand hold (`m_hand_ovl` hold_idx). -1 = empty hand.
 var hand_index: int = -1
+## Multi-select marks (`mTG_mark_proc`, X button). Cleared on page switch / table switch
+## by the UI layer, matching `mTG_mark_main_CLR`.
+var _marked: Dictionary = {}
 
 var _slots: Array[InventorySlot] = []
 var _mail: Array[MailData] = []
@@ -59,9 +75,11 @@ func clear() -> void:
 	savings = 0
 	loan = 0
 	equipment_id = &""
+	background_id = &""
 	selected_index = 0
 	selected_mail_index = 0
 	hand_index = -1
+	_marked.clear()
 	changed.emit()
 	selection_changed.emit(selected_index)
 	wallet_changed.emit(wallet)
@@ -69,6 +87,7 @@ func clear() -> void:
 	loan_changed.emit(loan)
 	mail_changed.emit()
 	equipment_changed.emit(equipment_id)
+	background_changed.emit(background_id)
 
 
 func slot_at(index: int) -> InventorySlot:
@@ -155,6 +174,7 @@ func remove(item_id: StringName, count: int = 1) -> int:
 			slot.clear()
 			if hand_index == i:
 				hand_index = -1
+			_marked.erase(i)
 		if remaining == 0:
 			changed.emit()
 			return 0
@@ -173,6 +193,7 @@ func remove_from_slot(index: int, count: int = 1) -> InventoryItem:
 		slot.clear()
 		if hand_index == index:
 			hand_index = -1
+		_marked.erase(index)
 	changed.emit()
 	return removed
 
@@ -455,6 +476,103 @@ func unequip() -> void:
 	changed.emit()
 
 
+## Decomp `backgound_texture`: any owned shirt (`Category.CLOTH`) reskins the pockets
+## backdrop with its real pattern, independent of what the player is currently
+## wearing (`mHD_open_end_proc_item_type4`); empty id clears it back to the default.
+func set_background(item_id: StringName) -> void:
+	if background_id == item_id:
+		return
+	background_id = item_id
+	background_changed.emit(background_id)
+	changed.emit()
+
+
+## `mTG_mark_proc` (X button). Toggling an empty slot is a no-op — nothing to bulk-act on.
+func toggle_mark(index: int) -> bool:
+	var slot: InventorySlot = slot_at(index)
+	if slot == null or slot.is_empty():
+		return false
+	if _marked.has(index):
+		_marked.erase(index)
+	else:
+		_marked[index] = true
+	changed.emit()
+	return _marked.has(index)
+
+
+func is_marked(index: int) -> bool:
+	return _marked.has(index)
+
+
+## `mTG_mark_main_CLR` — page switch / table switch (items ↔ mail) clears every mark.
+func clear_marks() -> void:
+	if _marked.is_empty():
+		return
+	_marked.clear()
+	changed.emit()
+
+
+func marked_indices() -> Array[int]:
+	var out: Array[int] = []
+	for key: Variant in _marked:
+		out.append(int(key))
+	out.sort()
+	return out
+
+
+## Turn a normal stack into a gift-wrapped one in place (`mTG_TYPE_TAG` wrap, reverse of
+## the existing "Open" tag). Money, mail-only items, and anything not droppable can't be
+## wrapped — mirrors decomp's giftable-item gating closely enough without new per-item data.
+func wrap_slot(index: int) -> bool:
+	var slot: InventorySlot = slot_at(index)
+	if slot == null or slot.is_empty():
+		return false
+	if slot.item.condition != InventoryItem.Condition.NORMAL:
+		return false
+	var data: ItemData = ItemCatalog.get_item(slot.item.item_id)
+	if data == null or not data.droppable or data.bell_value > 0:
+		return false
+	slot.item.condition = InventoryItem.Condition.PRESENT
+	changed.emit()
+	return true
+
+
+## `mTG_select_tag_decide_money` thresholds: showing denomination `d` requires
+## `wallet >= d`, which — because the four amounts are nested (100 < 1000 < 10000 <
+## 30000) — reproduces decomp's exact bracket behavior (≥30000 offers all four, ≥10000
+## offers 100/1000/10000, ≥1000 offers 100/1000, ≥100 offers only 100, below 100 offers
+## none) without needing to special-case each bracket.
+func withdrawable_denominations() -> Array[int]:
+	var out: Array[int] = []
+	for amount: int in [30000, 10000, 1000, 100]:
+		if wallet >= amount:
+			out.append(amount)
+	return out
+
+
+## Spend `amount` and place the matching money-bag item straight into the hand, ready to
+## be placed like anything else that was just picked up (`m_hand_ovl`'s withdraw flow).
+## Fails if the amount isn't a valid denomination, can't be afforded, the hand is already
+## full, or pockets have no empty slot.
+func withdraw_to_hand(amount: int) -> bool:
+	if hand_index != -1 or not BAG_ITEM_IDS.has(amount) or wallet < amount:
+		return false
+	var target: int = -1
+	for i: int in POCKET_SLOTS:
+		if _slots[i].is_empty():
+			target = i
+			break
+	if target == -1:
+		return false
+	if not spend_bells(amount):
+		return false
+	_slots[target].set_stack(BAG_ITEM_IDS[amount], 1, InventoryItem.Condition.NORMAL)
+	hand_index = target
+	select(target)
+	changed.emit()
+	return true
+
+
 ## Returns use verb result text, or "" if nothing happened.
 func use_slot(index: int) -> String:
 	var slot: InventorySlot = slot_at(index)
@@ -532,6 +650,15 @@ func place_hand(target_index: int) -> bool:
 		var tmp: InventoryItem = to.item
 		to.item = from.item
 		from.item = tmp
+	## Marks track the item, not the slot — follow it through the swap.
+	var from_marked: bool = _marked.has(hand_index)
+	var to_marked: bool = _marked.has(target_index)
+	_marked.erase(hand_index)
+	_marked.erase(target_index)
+	if from_marked:
+		_marked[target_index] = true
+	if to_marked:
+		_marked[hand_index] = true
 	hand_index = -1
 	select(target_index)
 	changed.emit()
@@ -565,21 +692,33 @@ func tags_for_slot(index: int) -> PackedStringArray:
 		tags.append("Donate")
 		return tags
 	if data.equippable:
-		tags.append("Equip")
+		## Decomp's equip slot is a swap (drop empty hand on it to clear); this port has no
+		## separate equip slot to drop onto, so offer the reverse verb straight from the
+		## item itself once it's the one currently equipped.
+		tags.append("Unequip" if slot.item.item_id == equipment_id else "Equip")
 	if data.category == ItemData.Category.CLOTH:
 		tags.append("Wear")
+		## `mTG_TABLE_BG` / decomp `backgound_texture`: the menu paper background is any
+		## owned shirt's pattern, not a wallpaper item — simplified from decomp's
+		## hand-drop-on-slot gesture to a tag, matching how this port already offers
+		## "Equip"/"Wear" from the item itself rather than a drop target.
+		tags.append("Set Background")
 	if data.plant_id != &"":
 		tags.append("Plant")
 	elif data.usable:
 		tags.append(data.use_verb if data.use_verb != "" else "Use")
 	if data is FurnitureData and Game.is_decorating():
 		tags.append("Place")
-	if data.category == ItemData.Category.WALL and Game.is_decorating():
-		tags.append("Hang")
+	if data.category == ItemData.Category.WALL:
+		if Game.is_decorating():
+			tags.append("Hang")
 	if data.category == ItemData.Category.FLOOR and Game.is_decorating():
 		tags.append("Lay")
 	if data.droppable:
-		tags.append("Drop")
+		## `mTG_TYPE_TAG_PUT_ALL`: a marked slot drops every marked item at once.
+		tags.append("Drop All" if is_marked(index) else "Drop")
+	if data.droppable and data.bell_value <= 0:
+		tags.append("Wrap")
 	tags.append("Move")
 	return tags
 
@@ -601,6 +740,7 @@ func to_save() -> Dictionary:
 		"savings": savings,
 		"loan": loan,
 		"equipment": String(equipment_id),
+		"background": String(background_id),
 		"selected": selected_index,
 		"selected_mail": selected_mail_index,
 	}
@@ -621,6 +761,7 @@ func from_save(data: Variant) -> void:
 		set_savings(int(d.get("savings", 0)))
 		set_loan(int(d.get("loan", 0)))
 		equipment_id = StringName(str(d.get("equipment", "")))
+		background_id = StringName(str(d.get("background", "")))
 		selected_index = clampi(int(d.get("selected", 0)), 0, POCKET_SLOTS - 1)
 		selected_mail_index = clampi(int(d.get("selected_mail", 0)), 0, MAIL_SLOTS - 1)
 		var mail_v: Variant = d.get("mail", [])
@@ -655,3 +796,4 @@ func from_save(data: Variant) -> void:
 	loan_changed.emit(loan)
 	mail_changed.emit()
 	equipment_changed.emit(equipment_id)
+	background_changed.emit(background_id)

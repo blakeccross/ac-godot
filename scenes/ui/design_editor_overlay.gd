@@ -12,9 +12,10 @@ extends CanvasLayer
 ## 5-row icon picker. `L` / `R` cycle the mode tabs, `Start` opens the
 ## save / keep-editing / discard prompt (`mSM_OVL_EDITENDCHK`).
 ##
-## Chrome is Godot-drawn (`des_*` ROM art not extracted). Controls are keyboard +
-## mouse; the decomp C-stick / D-pad / C-button bindings map to arrows, `[` `]`,
-## `Tab`, `Z`, `,` `.` and number keys.
+## Window frame is the real `des_win_shitaT_model` 8-piece border, baked to
+## `ui/design/window_shell.png` by `tools/asset_pipeline/design_ui.py`
+## (`--kind design-ui`). Controls are keyboard + mouse; the decomp C-stick / D-pad /
+## C-button bindings map to arrows, `[` `]`, `Tab`, `Z`, `,` `.` and number keys.
 
 signal closed
 
@@ -765,7 +766,7 @@ func _draw_panel() -> void:
 	var font := _panel.get_theme_default_font()
 	var fs := 13
 	var y := 16.0
-	var col := Color(0.15, 0.12, 0.1)
+	var col := Color(0.97, 0.92, 0.78)
 	_panel.draw_string(font, Vector2(6, y), "PALETTE %d" % _palette_no, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 	y += 22
 	if _mode == Mode.TOOL:

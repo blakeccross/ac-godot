@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://cdeditovl0001"]
 
 [ext_resource type="Script" path="res://scenes/ui/design_editor_overlay.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://bdesignwinshell01" path="res://assets/generated/ui/design/window_shell.png" id="2"]
 
 [sub_resource type="StyleBoxFlat" id="frame"]
 bg_color = Color(0.94, 0.9, 0.82, 1)
@@ -17,6 +18,17 @@ content_margin_left = 12.0
 content_margin_top = 10.0
 content_margin_right = 12.0
 content_margin_bottom = 10.0
+
+[sub_resource type="StyleBoxTexture" id="win_shell"]
+texture = ExtResource("2")
+texture_margin_left = 90.0
+texture_margin_top = 70.0
+texture_margin_right = 90.0
+texture_margin_bottom = 70.0
+content_margin_left = 60.0
+content_margin_top = 46.0
+content_margin_right = 60.0
+content_margin_bottom = 46.0
 
 [node name="DesignEditorOverlay" type="CanvasLayer"]
 script = ExtResource("1")
@@ -45,7 +57,7 @@ offset_left = -400.0
 offset_top = -320.0
 offset_right = 400.0
 offset_bottom = 320.0
-theme_override_styles/panel = SubResource("frame")
+theme_override_styles/panel = SubResource("win_shell")
 
 [node name="Box" type="VBoxContainer" parent="Root/Frame"]
 layout_mode = 2
@@ -58,7 +70,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Design"
-theme_override_colors/font_color = Color(0.2, 0.15, 0.1, 1)
+theme_override_colors/font_color = Color(0.97, 0.92, 0.78, 1)
 theme_override_font_sizes/font_size = 18
 
 [node name="Middle" type="HBoxContainer" parent="Root/Frame/Box"]
@@ -78,7 +90,7 @@ theme_override_constants/separation = 8
 [node name="SwLabel" type="Label" parent="Root/Frame/Box/Middle/Side"]
 layout_mode = 2
 text = "Colours"
-theme_override_colors/font_color = Color(0.2, 0.15, 0.1, 1)
+theme_override_colors/font_color = Color(0.97, 0.92, 0.78, 1)
 theme_override_font_sizes/font_size = 12
 
 [node name="SwatchRow" type="HBoxContainer" parent="Root/Frame/Box/Middle/Side"]
@@ -100,13 +112,13 @@ layout_mode = 2
 [node name="Status" type="Label" parent="Root/Frame/Box/Footer"]
 layout_mode = 2
 text = "MAIN"
-theme_override_colors/font_color = Color(0.2, 0.15, 0.1, 1)
+theme_override_colors/font_color = Color(0.97, 0.92, 0.78, 1)
 theme_override_font_sizes/font_size = 12
 
 [node name="Hint" type="Label" parent="Root/Frame/Box/Footer"]
 layout_mode = 2
 text = "arrows move  ·  space paint"
-theme_override_colors/font_color = Color(0.4, 0.32, 0.24, 1)
+theme_override_colors/font_color = Color(0.86, 0.78, 0.6, 1)
 theme_override_font_sizes/font_size = 11
 
 [node name="Prompt" type="PanelContainer" parent="Root"]

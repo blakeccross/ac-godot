@@ -155,8 +155,13 @@ class TestDolphinHash(unittest.TestCase):
     def test_player_model_skip(self) -> None:
         from asset_pipeline.achd import is_player_model_texture
 
-        self.assertTrue(is_player_model_texture("boy_1_pants_tex_txt"))
-        self.assertTrue(is_player_model_texture("boy_1_hole_tex_txt"))
+        ## Single-purpose, always-visible body textures now take ACHD.
+        self.assertFalse(is_player_model_texture("boy_1_pants_tex_txt"))
+        self.assertFalse(is_player_model_texture("boy_1_hole_tex_txt"))
+        ## Eyes/mouth actually render on the player (NpcFace never binds player.gd).
+        self.assertFalse(is_player_model_texture("seg_08", "boy_1"))
+        self.assertFalse(is_player_model_texture("seg_09", "boy_1"))
+        ## Shirt/hat stay native — overwritten by GeneratedVisual.apply_cloth anyway.
         self.assertTrue(is_player_model_texture("seg_0A", "boy_1"))
         self.assertTrue(is_player_model_texture("", "boy_1"))
         self.assertTrue(is_player_model_texture("face_boy.bin:0:3"))
