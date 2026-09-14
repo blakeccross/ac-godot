@@ -981,8 +981,9 @@ func _tick_annoyance(delta: float) -> void:
 	if state == null or data == null or ai.is_talking() or state.last_spoke_day == "":
 		return
 	if not _uzai_flag:
+		## `ANNOY_STEP_LIMIT` is already frames→seconds; gain/decay are per-second — no `* 60.0` here.
 		var gain: float = ANNOY_STEP_GAIN if _player_crowding() else -ANNOY_STEP_DECAY
-		_uzai_step += gain * delta * 60.0
+		_uzai_step += gain * delta
 	var tier: int = 1 if _uzai_cross else 0
 	if _uzai_step > ANNOY_STEP_LIMIT[tier] or _uzai_tool >= ANNOY_TOOL_LIMIT[tier]:
 		_trigger_annoyance()
