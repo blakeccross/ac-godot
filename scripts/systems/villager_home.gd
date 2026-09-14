@@ -39,7 +39,7 @@ static func should_spawn_indoor(occupant_id: StringName) -> bool:
 	return _activity_now(data) != VillagerActivity.SLEEP
 
 
-static func indoor_stand(session: Interior) -> Vector3:
+static func indoor_stand(session: IndoorSession) -> Vector3:
 	## Into-room stand near mid walkable (`aNPC_think_into_room` ~160,360 GX).
 	if session == null or session.grid == null or session.room == null:
 		return Vector3(8.0, 0.0, 10.0)

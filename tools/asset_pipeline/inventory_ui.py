@@ -196,15 +196,15 @@ CHROME: list[TexSpec] = [
         prim_as_color=(100, 155, 255, 255),
         out_name="portrait_frame",
     ),
-    TexSpec("inv_mwin_shirushi4_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), native_only=True, out_name="tab_face_glyph"),
-    TexSpec("inv_original_shirushi_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), native_only=True, out_name="tab_pencil_glyph"),
+    TexSpec("inv_mwin_shirushi4_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), out_name="tab_face_glyph"),
+    TexSpec("inv_original_shirushi_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), out_name="tab_pencil_glyph"),
     TexSpec("inv_original_shirushi3_tex", 32, 64, G_IM_FMT_IA, G_IM_SIZ_8b),
     ## Encyclopedia page-tab glyphs (`inv_sakana_shirushiT` / `inv_mushi_shirushiT`
     ## / `inv_mwin_shirushiT` / `inv_mwin_shirushi3`): a fish, a butterfly, a smiley
     ## and a pencil. `tab_face_glyph` / `tab_pencil_glyph` above. Baked white so the
     ## page colour drives `modulate`.
-    TexSpec("inv_mwin_shirushi2_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), native_only=True, out_name="tab_fish_glyph"),
-    TexSpec("inv_mwin_shirushi1_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), native_only=True, out_name="tab_bug_glyph"),
+    TexSpec("inv_mwin_shirushi2_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), out_name="tab_fish_glyph"),
+    TexSpec("inv_mwin_shirushi1_tex", 32, 32, G_IM_FMT_I, G_IM_SIZ_4b, prim_as_color=(255, 255, 255, 255), out_name="tab_bug_glyph"),
     TexSpec(
         "inv_mwin_sen_tex",
         16,
@@ -394,6 +394,7 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
             right_tex="inv_sakana_waku2_tex",
             prim=_FISH_BANNER_PRIM,
             env=_FISH_BANNER_ENV,
+            achd=achd,
         )
     )
     results.append(
@@ -404,13 +405,14 @@ def extract_inventory_ui(cfg: PipelineConfig) -> dict[str, Any]:
             right_tex=None,
             prim=_BUG_BANNER_PRIM,
             env=_BUG_BANNER_ENV,
+            achd=achd,
         )
     )
     results.append(
-        _bake_design_tab_shape(rel, by_name, stage_dir, out_dir, project_root)
+        _bake_design_tab_shape(rel, by_name, stage_dir, out_dir, project_root, achd=achd)
     )
     results.append(
-        _bake_tab_lens_mask(rel, by_name, stage_dir, out_dir, project_root)
+        _bake_tab_lens_mask(rel, by_name, stage_dir, out_dir, project_root, achd=achd)
     )
     catalog_path = shell.get("catalog_path")
 
@@ -503,12 +505,18 @@ def _bake_title_banner(
     right_tex: str | None,
     prim: tuple[int, int, int, int],
     env: tuple[int, int, int, int],
+    achd=None,
 ) -> dict[str, Any]:
     """`inv_*_daimeiT_model`: two 64x32 IA8 quads side by side (`inv_*_v[136..]`
     screen-space positions, GX 0.001 scale). `right_tex=None` mirrors `left_tex`
     (insects: one authored half, UV s=64..128 GX_MIRROR-wraps it) — fish authors
     both halves separately (`inv_sakana_waku1_tex` left, `_waku2_tex` right,
-    neither mirrored)."""
+    neither mirrored). Uses ACHD when available (`achd` supplied) for higher
+    resolution; the earlier concern that ACHD redraws this art differently was
+    a false positive from comparing against a white background, which hides
+    the white-filled interior these PNGs use — composite onto a dark/gray
+    background before judging shape, see `_bake_design_tab_shape` below.
+    """
     record: dict[str, Any] = {
         "asset_id": out_stem,
         "source": left_tex if right_tex is None else f"{left_tex}+{right_tex}",
@@ -517,25 +525,40 @@ def _bake_title_banner(
         "error": None,
     }
     try:
+        gx = gbi_to_gx(G_IM_FMT_IA, G_IM_SIZ_8b)
         left_sym = _pick_symbol(by_name, left_tex)
-        left = decode_gbi_texture(rel.slice_at(left_sym.address, left_sym.size), 64, 32, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
+        left_data = rel.slice_at(left_sym.address, left_sym.size)
+        left_hd = maybe_hd_png(achd, left_data, 64, 32, gx, None)
+        used_achd = left_hd is not None
+        left = (
+            Image.open(BytesIO(left_hd)).convert("RGBA")
+            if left_hd is not None
+            else decode_gbi_texture(left_data, 64, 32, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
+        )
         if right_tex is None:
             right = left.transpose(Image.FLIP_LEFT_RIGHT)
         else:
             right_sym = _pick_symbol(by_name, right_tex)
-            right = decode_gbi_texture(
-                rel.slice_at(right_sym.address, right_sym.size), 64, 32, G_IM_FMT_IA, G_IM_SIZ_8b, b""
+            right_data = rel.slice_at(right_sym.address, right_sym.size)
+            right_hd = maybe_hd_png(achd, right_data, 64, 32, gx, None)
+            used_achd = used_achd or right_hd is not None
+            right = (
+                Image.open(BytesIO(right_hd)).convert("RGBA")
+                if right_hd is not None
+                else decode_gbi_texture(right_data, 64, 32, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
             )
-        sheet = Image.new("RGBA", (128, 32), (0, 0, 0, 0))
+        sheet_w = left.width + right.width
+        sheet_h = max(left.height, right.height)
+        sheet = Image.new("RGBA", (sheet_w, sheet_h), (0, 0, 0, 0))
         sheet.paste(left, (0, 0))
-        sheet.paste(right, (64, 0))
+        sheet.paste(right, (left.width, 0))
         sheet = _ia_prim_env(sheet, prim, env)
         png = image_png_bytes(sheet)
         for folder in (stage_dir, out_dir):
             (folder / f"{out_stem}.png").write_bytes(png)
         write_import_sidecar(out_dir / f"{out_stem}.png", project_root)
         record["status"] = "converted"
-        record["meta"] = {"width": sheet.width, "height": sheet.height}
+        record["meta"] = {"width": sheet.width, "height": sheet.height, "achd": used_achd}
     except Exception as exc:  # noqa: BLE001
         record["status"] = "error"
         record["error"] = f"{type(exc).__name__}: {exc}"
@@ -548,10 +571,21 @@ def _bake_design_tab_shape(
     stage_dir: Path,
     out_dir: Path,
     project_root: Path,
+    *,
+    achd=None,
 ) -> dict[str, Any]:
     """`inv_mwin_shirushi2T_model`: design-tab flap silhouette — a narrow lens
     shape (`inv_mwin_v[120..123]`: 30x60 GX units, single quad, no mirroring),
-    not the plain rounded-rect the other side tabs use."""
+    not the plain rounded-rect the other side tabs use.
+
+    ACHD's replacement for this hash first *looked* like a different drawing (a
+    curved hook, not the lens the native decode/decomp vertex data confirms),
+    but that was a false positive: the ACHD PNG fills the shape interior with
+    white, so viewing it raw against a white background hides that interior
+    and leaves only the dark outline visible, reading as a totally different
+    silhouette. Compositing onto a dark/gray background confirms it's the same
+    lens shape as native, just higher-resolution — used via `achd` normally.
+    """
     record: dict[str, Any] = {
         "asset_id": "tab_design_shape",
         "source": "inv_original_shirushi3_tex",
@@ -561,14 +595,27 @@ def _bake_design_tab_shape(
     }
     try:
         sym = _pick_symbol(by_name, "inv_original_shirushi3_tex")
-        image = decode_gbi_texture(rel.slice_at(sym.address, sym.size), 32, 64, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
-        image = _ia_prim_env(image, _DESIGN_TAB_PRIM, _DESIGN_TAB_ENV)
+        data = rel.slice_at(sym.address, sym.size)
+        gx = gbi_to_gx(G_IM_FMT_IA, G_IM_SIZ_8b)
+        hd = maybe_hd_png(achd, data, 32, 64, gx, None)
+        used_achd = hd is not None
+        if hd is not None:
+            image = Image.open(BytesIO(hd)).convert("RGBA")
+            image = _ia_prim_env(image, _DESIGN_TAB_PRIM, _DESIGN_TAB_ENV)
+        else:
+            image = decode_gbi_texture(data, 32, 64, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
+            image = _ia_prim_env(image, _DESIGN_TAB_PRIM, _DESIGN_TAB_ENV)
         png = image_png_bytes(image)
         for folder in (stage_dir, out_dir):
             (folder / "tab_design_shape.png").write_bytes(png)
         write_import_sidecar(out_dir / "tab_design_shape.png", project_root)
         record["status"] = "converted"
-        record["meta"] = {"width": image.width, "height": image.height, "address": f"0x{sym.address:08X}"}
+        record["meta"] = {
+            "width": image.width,
+            "height": image.height,
+            "achd": used_achd,
+            "address": f"0x{sym.address:08X}",
+        }
     except Exception as exc:  # noqa: BLE001
         record["status"] = "error"
         record["error"] = f"{type(exc).__name__}: {exc}"
@@ -581,6 +628,8 @@ def _bake_tab_lens_mask(
     stage_dir: Path,
     out_dir: Path,
     project_root: Path,
+    *,
+    achd=None,
 ) -> dict[str, Any]:
     """Same `inv_original_shirushi3_tex` lens silhouette as the design tab, but
     baked white+alpha (RGB=255, A=intensity) so Fish/Bug can `modulate_color`
@@ -592,6 +641,8 @@ def _bake_tab_lens_mask(
     mirror-image position — so they need a horizontally-flipped copy for the
     rounded side to land toward the window there too, matching the same
     round-meets-paper / point-sticks-out-into-the-background read on both sides.
+    Same ACHD note as `_bake_design_tab_shape` above: judge shape correctness
+    against a dark background, not white (white-on-white hides the fill).
     """
     record: dict[str, Any] = {
         "asset_id": "tab_lens_mask",
@@ -602,8 +653,21 @@ def _bake_tab_lens_mask(
     }
     try:
         sym = _pick_symbol(by_name, "inv_original_shirushi3_tex")
-        image = decode_gbi_texture(rel.slice_at(sym.address, sym.size), 32, 64, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
-        image = _i_texel_as_alpha(image, (255, 255, 255, 255))
+        data = rel.slice_at(sym.address, sym.size)
+        gx = gbi_to_gx(G_IM_FMT_IA, G_IM_SIZ_8b)
+        hd = maybe_hd_png(achd, data, 32, 64, gx, None)
+        used_achd = hd is not None
+        if hd is not None:
+            ## ACHD PNG/DDS already carries real alpha — `_i_texel_as_alpha` would
+            ## wrongly re-derive it from the red channel (that's for native I4/IA8
+            ## decode, where R=G=B=intensity and alpha isn't meaningful yet).
+            rgba = Image.open(BytesIO(hd)).convert("RGBA")
+            white = Image.new("RGB", rgba.size, (255, 255, 255)).convert("RGBA")
+            white.putalpha(rgba.split()[3])
+            image = white
+        else:
+            image = decode_gbi_texture(data, 32, 64, G_IM_FMT_IA, G_IM_SIZ_8b, b"")
+            image = _i_texel_as_alpha(image, (255, 255, 255, 255))
         mirrored = image.transpose(Image.FLIP_LEFT_RIGHT)
         png = image_png_bytes(image)
         png_mirrored = image_png_bytes(mirrored)

@@ -23,7 +23,7 @@ func _ready() -> void:
 
 func _run() -> void:
 	var room: Room = InteriorCatalog.room_template(&"needlework")
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(room)
 	var host := Node3D.new()
 	add_child(host)
@@ -39,8 +39,8 @@ func _run() -> void:
 	var terrain := Node3D.new()
 	terrain.name = "Terrain"
 	add_child(terrain)
-	InteriorBuilder.new()._add_shell_collision(
-		terrain, room, session.grid, InteriorBuilder.new().shell_door_gaps(room, session.grid)
+	InteriorShellBuilder.add_shell_collision(
+		terrain, room, session.grid, InteriorShellBuilder.shell_door_gaps(room, session.grid)
 	)
 
 	## marker at the decomp enter spawn

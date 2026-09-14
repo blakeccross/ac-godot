@@ -1,13 +1,13 @@
 extends Node3D
 
-## Indoor field. Same `WorldGrid` as outdoor; layout comes from `Interior`.
+## Indoor field. Same `WorldGrid` as outdoor; layout comes from `IndoorSession`.
 ## Prefer authored room scenes from `InteriorCatalog.scene_path` when present.
 
 const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
 const VILLAGER_SCENE := preload("res://scenes/actors/villager.tscn")
 
 var grid: WorldGrid
-var session: Interior
+var session: IndoorSession
 var _exiting: bool = false
 var _room_content: Node3D = null
 
@@ -23,7 +23,7 @@ func _ready() -> void:
 	if room == null:
 		Game.exit_interior()
 		return
-	session = Interior.new()
+	session = IndoorSession.new()
 	session.bind(room)
 	grid = session.grid
 	Game.bind_interior(session)
@@ -39,7 +39,7 @@ func _build_room(room: Room) -> void:
 	if path != "" and ResourceLoader.exists(path):
 		_mount_authored(path)
 		return
-	InteriorBuilder.new().build(self, session)
+	InteriorBuilder.build(self, session)
 
 
 func _mount_authored(path: String) -> void:
@@ -50,18 +50,18 @@ func _mount_authored(path: String) -> void:
 			stale.free()
 	var packed: PackedScene = load(path) as PackedScene
 	if packed == null:
-		InteriorBuilder.new().build(self, session)
+		InteriorBuilder.build(self, session)
 		return
 	_room_content = packed.instantiate() as Node3D
 	if _room_content == null:
-		InteriorBuilder.new().build(self, session)
+		InteriorBuilder.build(self, session)
 		return
 	_room_content.name = "RoomContent"
 	add_child(_room_content)
 	if _room_content.has_method("populate"):
 		_room_content.call("populate")
 	else:
-		InteriorBuilder.new().populate_authored(_room_content, session)
+		InteriorBuilder.populate_authored(_room_content, session)
 
 
 func _physics_process(_delta: float) -> void:
@@ -124,7 +124,7 @@ func spawn_placement(entry: FurniturePlacement) -> void:
 	var root: Node3D = _furniture_root()
 	if root == null:
 		return
-	InteriorBuilder.new().add_furniture(root, session, entry)
+	InteriorBuilder.add_furniture(root, session, entry)
 
 
 func despawn_placement(placement_id: StringName) -> void:
@@ -145,120 +145,15 @@ func refresh_placement(placement_id: StringName) -> void:
 
 
 func refresh_shop_set() -> void:
-	## Rebuild the shelf stock after a purchase. Presenters are idempotent — Nook /
-	## the clock are guarded, only `shop_set` props were cleared.
-	var root: Node3D = _furniture_root()
-	if root == null or session == null:
-		return
-	var stale: Array[Node] = []
-	for child: Node in root.get_children():
-		if child.is_in_group("shop_set"):
-			stale.append(child)
-	for node: Node in stale:
-		root.remove_child(node)
-		## Never `free()` here — buy can refresh while `shop_stock.interact` is still on the stack.
-		node.queue_free()
-	_refurnish(root)
+	InteriorRefresh.shop_set(_furniture_root(), _room_content, session)
 
 
 func refresh_public_set() -> void:
-	## Rebuild post mail piles / police lost-and-found without freeing clerks.
-	var root: Node3D = _furniture_root()
-	if root == null or session == null or session.room == null:
-		return
-	var stale: Array[Node] = []
-	for child: Node in root.get_children():
-		if child.is_in_group("police_set") and child.name.begins_with("LostFound_"):
-			stale.append(child)
-		elif child.name.begins_with("MailPile_"):
-			stale.append(child)
-	for node: Node in stale:
-		root.remove_child(node)
-		node.queue_free()
-	_refurnish(root)
-
-
-## Re-run the room's own furnishing (idempotent presenters).
-func _refurnish(root: Node3D) -> void:
-	if _room_content != null and _room_content.has_method("present_exhibits"):
-		_room_content.call("present_exhibits", root, session)
-	else:
-		InteriorBuilder.new()._furnish_fallback(root, session)
+	InteriorRefresh.public_set(_furniture_root(), _room_content, session)
 
 
 func _apply_indoor_light(room: Room) -> void:
-	var env: Environment = _world_env.environment
-	var room_color: Color = GeneratedVisual.room_prim_color()
-	env.background_mode = Environment.BG_COLOR
-	## Soft indoor void behind TEX_EDGE window holes (room prim fills the quads).
-	env.background_color = room_color.darkened(0.55)
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = room_color
-	env.ambient_light_energy = 1.15
-	env.fog_enabled = false
-	var fill: OmniLight3D = get_node_or_null("FillLight") as OmniLight3D
-	if fill != null:
-		fill.light_color = room_color
-		fill.light_energy = 0.55
-	if room != null and room.kind == Room.Kind.MUSEUM:
-		_apply_museum_mood(env, fill, room)
-	GeneratedVisual.refresh_room_prim(self, room_color)
-	if _camera != null and "offset" in _camera:
-		## Homes frame the shell (never closer than Camera2 620). Museum / shops /
-		## other public rooms keep outdoor focus distance — `Camera2_InDoorCheck`
-		## is only NPCROOM0 / ROOM0 / PLAYER0_ROOM.
-		if pins_follow_camera(room):
-			var bounds: AABB = InteriorBuilder.new()._shell_bounds(room, grid)
-			var span: float = maxf(bounds.size.x, bounds.size.z)
-			if _camera.has_method("offset_to_frame_span"):
-				_camera.set("offset", _camera.call("offset_to_frame_span", span))
-			elif _camera.has_method("offset_for_ground_span"):
-				_camera.set("offset", _camera.call("offset_for_ground_span", span))
-			else:
-				_camera.set("offset", Vector3(0.0, span, span))
-		else:
-			## Restore Camera2 620 when leaving a framed home for a public room.
-			_camera.set("offset", preload("res://scenes/world/follow_camera.gd").DEFAULT_OFFSET)
-	if pins_follow_camera(room) and _camera.has_method("lock_at"):
-		_camera.call("lock_at", _inner_look_point(room))
-
-
-## Museum wings read darker and more dramatic than a home — the skylight shafts and
-## per-wing tint are the mood, not a flat fill (`ac_museum` baked ceiling shade).
-func _apply_museum_mood(env: Environment, fill: OmniLight3D, room: Room) -> void:
-	var tint: Color = Color(0.62, 0.64, 0.70)
-	match room.id:
-		&"museum_fossil":
-			tint = Color(0.55, 0.60, 0.72)
-		&"museum_painting":
-			tint = Color(0.74, 0.68, 0.58)
-		&"museum_fish":
-			tint = Color(0.48, 0.62, 0.74)
-		&"museum_insect":
-			tint = Color(0.56, 0.66, 0.56)
-	env.ambient_light_color = tint
-	env.ambient_light_energy = 0.72
-	env.background_color = tint.darkened(0.7)
-	if fill != null:
-		fill.light_color = tint.lightened(0.15)
-		fill.light_energy = 0.35
-
-
-## Player and villager homes pin the 3/4 camera to the room (`Camera2` border invert).
-static func pins_follow_camera(room: Room) -> bool:
-	return room != null and (room.kind == Room.Kind.NPC or room.kind == Room.Kind.PLAYER)
-
-
-func _inner_look_point(room: Room) -> Vector3:
-	if grid == null or room == null:
-		return Vector3.ZERO
-	var nw: Vector3 = grid.cell_corner(room.inner_origin)
-	var size := Vector3(
-		float(maxi(room.inner_size.x, 1)) * grid.cell_size,
-		0.0,
-		float(maxi(room.inner_size.y, 1)) * grid.cell_size
-	)
-	return Vector3(nw.x + size.x * 0.5, 0.0, nw.z + size.z * 0.5)
+	InteriorLighting.apply(self, _world_env, _camera, grid, room)
 
 
 func _spawn_player() -> void:
@@ -279,7 +174,7 @@ func _spawn_player() -> void:
 	elif not Game.player_position.is_equal_approx(Game.DEFAULT_SPAWN):
 		pos = Game.player_position
 	player.apply_spawn(pos, yaw)
-	if not pins_follow_camera(session.room if session != null else null):
+	if not InteriorLighting.pins_follow_camera(session.room if session != null else null):
 		if _camera.has_method("set_target"):
 			_camera.call("set_target", player)
 	SceneTransition.play_wipe_in_if_pending()

@@ -51,7 +51,7 @@ func test_visual_stub_infers_kind() -> void:
 
 func test_wall_and_surface_placement() -> void:
 	var room: Room = Game.interiors.room(&"player_main")
-	var interior := Interior.new()
+	var interior := IndoorSession.new()
 	interior.bind(room)
 	var picture: FurnitureData = ItemCatalog.furniture_for_visual(&"int_ike_art_ang")
 	picture.placement = FurnitureData.Placement.WALL
@@ -75,7 +75,7 @@ func test_wall_and_surface_placement() -> void:
 
 func test_storage_toggle_display_and_save() -> void:
 	var room: Room = Game.interiors.room(&"player_main")
-	var interior := Interior.new()
+	var interior := IndoorSession.new()
 	interior.bind(room)
 	Game.current_room_id = &"player_main"
 	Game.bind_interior(interior)
@@ -122,7 +122,7 @@ func test_storage_toggle_display_and_save() -> void:
 
 func test_wallpaper_and_carpet_from_inventory() -> void:
 	var room: Room = Game.interiors.room(&"player_main")
-	var interior := Interior.new()
+	var interior := IndoorSession.new()
 	interior.bind(room)
 	Game.current_room_id = &"player_main"
 	Game.bind_interior(interior)
@@ -130,11 +130,11 @@ func test_wallpaper_and_carpet_from_inventory() -> void:
 	assert_that(wall.category).is_equal(ItemData.Category.WALL)
 	Game.inventory.add(wall, 1)
 	assert_bool(Game.try_apply_cover(wall)).is_true()
-	assert_that(room.wall_id).is_equal(InteriorCatalog.WALL_BLUE)
+	assert_that(room.wall_id).is_equal(InteriorStyleCatalog.WALL_BLUE)
 	var floor: ItemData = ItemCatalog.get_item(&"floor_tile")
 	Game.inventory.add(floor, 1)
 	assert_bool(Game.try_apply_cover(floor)).is_true()
-	assert_that(room.floor_id).is_equal(InteriorCatalog.FLOOR_TILE)
+	assert_that(room.floor_id).is_equal(InteriorStyleCatalog.FLOOR_TILE)
 
 
 func test_chair_scene_still_offers_sit() -> void:

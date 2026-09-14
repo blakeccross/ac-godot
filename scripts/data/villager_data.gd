@@ -15,7 +15,7 @@ extends Resource
 @export var starter: bool = true
 ## Island-only animal (`mNpc_GROW_ISLANDER`). Greeting uses the island hello table.
 @export var islander: bool = false
-## Interior wallpaper / carpet index (`npc_house_list` / `mRmTp_CopyWallData`).
+## IndoorSession wallpaper / carpet index (`npc_house_list` / `mRmTp_CopyWallData`).
 @export var wall_index: int = 0
 @export var floor_index: int = 0
 ## Outdoor house shape / palette (`ac_house` / `npc_house_list`).

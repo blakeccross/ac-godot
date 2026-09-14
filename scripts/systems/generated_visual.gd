@@ -798,9 +798,9 @@ static func _paint_room_surfaces(node: Node, wall_id: StringName, floor_id: Stri
 				continue
 			var page: int = _style_page(_style_label(src))
 			var path: String = (
-				InteriorCatalog.floor_texture_path(floor_id, page)
+				InteriorStyleCatalog.floor_texture_path(floor_id, page)
 				if kind == &"floor"
-				else InteriorCatalog.wall_texture_path(wall_id, page)
+				else InteriorStyleCatalog.wall_texture_path(wall_id, page)
 			)
 			var tile: Texture2D = _load_tex(path)
 			## Bank swap only when a real wallpaper/carpet PNG resolves. Named tints

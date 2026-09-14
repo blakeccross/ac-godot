@@ -166,10 +166,9 @@ func test_police_book_keep_shifts_when_full() -> void:
 
 func test_post_office_shell_has_door_gap_and_desk() -> void:
 	var room: Room = InteriorCatalog.room_template(&"post_office")
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(room)
-	var builder := InteriorBuilder.new()
-	var gaps: Array[Dictionary] = builder.shell_door_gaps(room, session.grid)
+	var gaps: Array[Dictionary] = InteriorShellBuilder.shell_door_gaps(room, session.grid)
 	assert_int(gaps.size()).is_equal(1)
 	assert_that(gaps[0]["side"]).is_equal(&"south")
 	var packed: PackedScene = load(InteriorCatalog.scene_path(&"post_office")) as PackedScene
@@ -177,7 +176,7 @@ func test_post_office_shell_has_door_gap_and_desk() -> void:
 	var root: Node3D = packed.instantiate() as Node3D
 	auto_free(root)
 	add_child(root)
-	builder.populate_authored(root, session)
+	InteriorBuilder.populate_authored(root, session)
 	var terrain: Node3D = root.get_node("Terrain") as Node3D
 	var bodies := 0
 	for child: Node in terrain.get_children():
@@ -214,7 +213,7 @@ func test_enter_sets_decomp_spawns() -> void:
 func test_police_spawn_maps_onto_exit_strip() -> void:
 	## Enter stand `{200,0,380}` sits on SPAWN_CELL — scene player `{200,0,400}` was EXIT.
 	var police: Room = InteriorCatalog.room_template(&"police_box")
-	var police_session := Interior.new()
+	var police_session := IndoorSession.new()
 	police_session.bind(police)
 	var police_world: Vector3 = PoliceDisplay.gx_to_world(
 		police_session.grid, PoliceDisplay.SPAWN_GX
@@ -227,7 +226,7 @@ func test_police_spawn_maps_onto_exit_strip() -> void:
 	)
 	assert_bool(police.is_exit_cell(police_session.grid.world_to_cell(stale_exit))).is_true()
 	var post: Room = InteriorCatalog.room_template(&"post_office")
-	var post_session := Interior.new()
+	var post_session := IndoorSession.new()
 	post_session.bind(post)
 	var post_world: Vector3 = PostDisplay.gx_to_world(post_session.grid, PostDisplay.SPAWN_GX)
 	assert_bool(post.is_exit_cell(post_session.grid.world_to_cell(post_world))).is_false()
@@ -247,14 +246,14 @@ func test_post_police_shells_use_acre_scale() -> void:
 	## Classic-N64 scale blew these shells ~16× too large → gray void at spawn.
 	for room_id: StringName in [&"post_office", &"police_box"]:
 		var room: Room = InteriorCatalog.room_template(room_id)
-		var session := Interior.new()
+		var session := IndoorSession.new()
 		session.bind(room)
 		var packed: PackedScene = load(InteriorCatalog.scene_path(room_id)) as PackedScene
 		assert_that(packed).is_not_null()
 		var root: Node3D = packed.instantiate() as Node3D
 		auto_free(root)
 		add_child(root)
-		InteriorBuilder.new().populate_authored(root, session)
+		InteriorBuilder.populate_authored(root, session)
 		var shell: Node3D = root.get_node_or_null("Shell/GeneratedVisual") as Node3D
 		assert_that(shell).is_not_null()
 		assert_float(shell.scale.x).is_equal_approx(FieldCatalog.acre_uniform_scale(), 0.001)

@@ -318,7 +318,7 @@ static func _is_light_ray_surface(label: String) -> bool:
 	)
 
 
-## Interior `rom_train_in_modelT` second pass — soft I4 window spill (`rom_train_light_tex`).
+## IndoorSession `rom_train_in_modelT` second pass — soft I4 window spill (`rom_train_light_tex`).
 ## Not the ceiling lamp fixture; treating it as opaque makes a solid yellow cube.
 static func _is_window_light_spill_surface(label: String) -> bool:
 	if _is_light_ray_surface(label):

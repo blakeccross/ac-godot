@@ -1704,6 +1704,33 @@ class WaterKindTests(unittest.TestCase):
         self.assertEqual(coverage_from_othermode_l(apply_othermode(0, w0, 0xC8113078)), "tex_edge")
         self.assertEqual(coverage_from_othermode_l(apply_othermode(0, w0, 0xC8104A50)), "xlu")
 
+    def test_tank_glass_inset_excludes_classified_field_water(self) -> None:
+        ## Regression: `mFM_grd_water1_tex` (open-field river) collided with the
+        ## tank-glass name match on "water1" and got scaled inward by 4.5%, opening
+        ## a real gap at every river acre's edge. `water_kind` (already-classified
+        ## river/ocean/splash/waterfall) must suppress the inset; real tank-furniture
+        ## panes never set it.
+        from asset_pipeline.gfx import tank_glass_inset
+
+        self.assertEqual(
+            tank_glass_inset("xlu", "mFM_grd_water1_tex", "river", True), 0.0
+        )
+        self.assertEqual(
+            tank_glass_inset("xlu", "mFM_grd_water1_tex", "ocean", True), 0.0
+        )
+        ## An actual tank-furniture pane (no water_kind) still gets inset.
+        self.assertEqual(
+            tank_glass_inset("xlu", "int_gan_tank_water1_tex", "", True), 0.955
+        )
+        self.assertEqual(tank_glass_inset("xlu", "int_gan_tank_evw_tex", "", True), 0.97)
+        self.assertEqual(
+            tank_glass_inset("xlu", "int_gan_tank_water2_tex", "", True), 0.94
+        )
+        ## Not XLU, no texture name, or no vertices yet: never inset.
+        self.assertEqual(tank_glass_inset("opa", "tank_water1_tex", "", True), 0.0)
+        self.assertEqual(tank_glass_inset("xlu", "", "", True), 0.0)
+        self.assertEqual(tank_glass_inset("xlu", "tank_water1_tex", "", False), 0.0)
+
 
 class BindAnimTests(unittest.TestCase):
     def test_furniture_bakes_own_closed_clip(self) -> None:

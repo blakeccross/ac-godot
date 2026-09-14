@@ -38,7 +38,7 @@ const CLOCK_GX := Vector3(200.0, 46.0, 46.0)
 const CLOTH_SCALE := 0.34
 
 
-func present(root: Node3D, interior: Interior) -> void:
+func present(root: Node3D, interior: IndoorSession) -> void:
 	if root == null or interior == null or interior.grid == null:
 		return
 	var grid: WorldGrid = interior.grid

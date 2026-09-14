@@ -36,3 +36,15 @@ func _run() -> void:
 	var img: Image = get_viewport().get_texture().get_image()
 	img.save_png("user://real_inventory_check.png")
 	print("real_inventory_check: wrote screenshot")
+
+	overlay.call("_show_page", 0) # SideTab.FISH
+	await get_tree().create_timer(0.4).timeout
+	img = get_viewport().get_texture().get_image()
+	img.save_png("user://real_inventory_check_fish.png")
+	print("real_inventory_check: wrote fish screenshot")
+
+	overlay.call("_show_page", 2) # SideTab.BUG
+	await get_tree().create_timer(0.4).timeout
+	img = get_viewport().get_texture().get_image()
+	img.save_png("user://real_inventory_check_bug.png")
+	print("real_inventory_check: wrote bug screenshot")

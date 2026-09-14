@@ -51,7 +51,7 @@ const MARK_SIZE := QUAD_SIZE * 1.2
 ## The mask is I4 and tops out at 7/15, so it never drives prim alpha to full. The
 ## combiner takes alpha from `TEXEL0 * PRIMITIVE`, so this multiplies `MAX_ALPHA`.
 const TILE_PEAK := 7.0 / 15.0
-## Interior texels average 1.5 against the rim's 7 — a faint dish, not a hollow.
+## IndoorSession texels average 1.5 against the rim's 7 — a faint dish, not a hollow.
 const INTERIOR_ALPHA := 0.214
 
 

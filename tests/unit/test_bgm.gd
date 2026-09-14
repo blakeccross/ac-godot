@@ -37,6 +37,14 @@ func test_shop_room_has_bgm_houses_are_silent() -> void:
 	assert_that(BgmCatalog.room_id(Room.Kind.NPC)).is_equal(&"")
 
 
+func test_public_building_room_bgm() -> void:
+	assert_that(BgmCatalog.room_id(Room.Kind.MUSEUM)).is_equal(&"museum")
+	assert_that(BgmCatalog.room_id(Room.Kind.POST_OFFICE)).is_equal(&"post_office0")
+	assert_that(BgmCatalog.room_id(Room.Kind.POLICE)).is_equal(&"police_box")
+	assert_that(BgmCatalog.room_id(Room.Kind.BROKER)).is_equal(&"brokers_shop")
+	assert_that(BgmCatalog.room_id(Room.Kind.KAMAKURA)).is_equal(&"kamakura")
+
+
 func test_unknown_ids_are_silence() -> void:
 	assert_object(BgmCatalog.stream_for(&"")).is_null()
 	assert_object(BgmCatalog.stream_for(&"definitely_not_a_track")).is_null()

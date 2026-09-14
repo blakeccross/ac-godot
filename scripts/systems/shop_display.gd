@@ -106,7 +106,7 @@ static func stock_cells_for_goods(goods: Array[StringName]) -> Array[Vector2i]:
 
 ## Free inner cells for shelf stock in an upgraded Nook shop (`shop1`..`shop3`):
 ## every inner cell except the door strip, spawn, counter and any authored furniture.
-static func free_stock_cells(room: Room, interior: Interior) -> Array[Vector2i]:
+static func free_stock_cells(room: Room, interior: IndoorSession) -> Array[Vector2i]:
 	var skip: Dictionary = {}
 	skip[room.door_cell] = true
 	skip[room.door_cell + Vector2i(1, 0)] = true

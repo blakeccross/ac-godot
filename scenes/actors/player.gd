@@ -285,7 +285,7 @@ func _clear_auto_enter_block() -> void:
 func _on_indoor_exit_cell() -> bool:
 	if not Game.is_indoors():
 		return false
-	var session: Interior = Game.interior_session
+	var session: IndoorSession = Game.interior_session
 	if session == null or session.room == null or session.grid == null:
 		return false
 	if session.room.kind == Room.Kind.MUSEUM:

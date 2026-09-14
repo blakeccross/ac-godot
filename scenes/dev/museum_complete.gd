@@ -17,7 +17,7 @@ const WING_IDS: Array[StringName] = [
 ]
 
 var grid: WorldGrid
-var session: Interior
+var session: IndoorSession
 
 @onready var _camera: Camera3D = $FollowCamera
 @onready var _rooms: Node3D = $Rooms
@@ -57,7 +57,7 @@ func switch_wing(room_id: StringName) -> bool:
 		return false
 	Game.current_room_id = room_id
 	_show_room(room_id)
-	session = Interior.new()
+	session = IndoorSession.new()
 	session.bind(room)
 	grid = session.grid
 	Game.bind_interior(session)

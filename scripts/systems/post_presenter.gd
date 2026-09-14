@@ -12,7 +12,7 @@ const POST_DESK_SCRIPT := preload("res://scenes/world/interiors/post_desk.gd")
 const POST_TERMINAL_SCRIPT := preload("res://scenes/world/interiors/post_terminal.gd")
 
 
-func present(root: Node3D, interior: Interior) -> void:
+func present(root: Node3D, interior: IndoorSession) -> void:
 	if root == null or interior == null or interior.grid == null:
 		return
 	_post_girl(root, interior)
@@ -21,7 +21,7 @@ func present(root: Node3D, interior: Interior) -> void:
 	_mail_piles(root, interior)
 
 
-func _post_girl(root: Node3D, interior: Interior) -> void:
+func _post_girl(root: Node3D, interior: IndoorSession) -> void:
 	var pos: Vector3 = PostDisplay.gx_to_world(interior.grid, PostDisplay.POST_GIRL_STAND_GX)
 	var yaw: float = WorldGrid.yaw_for_facing(PostDisplay.POST_GIRL_FACING)
 	var existing: Node3D = root.get_node_or_null("PostGirl") as Node3D
@@ -36,7 +36,7 @@ func _post_girl(root: Node3D, interior: Interior) -> void:
 	root.add_child(girl)
 
 
-func _desk(root: Node3D, interior: Interior) -> void:
+func _desk(root: Node3D, interior: IndoorSession) -> void:
 	## Invisible hull for the baked counter — GLB has no collision. Talk forwards to clerk.
 	var half: Vector3 = PostDisplay.DESK_HALF_GX * FieldCatalog.GX_TO_METERS
 	var pos: Vector3 = PostDisplay.gx_to_world(interior.grid, PostDisplay.DESK_CENTER_GX)
@@ -57,7 +57,7 @@ func _desk(root: Node3D, interior: Interior) -> void:
 	root.add_child(body)
 
 
-func _terminal(root: Node3D, interior: Interior) -> void:
+func _terminal(root: Node3D, interior: IndoorSession) -> void:
 	## Left-side eTM (`POST_OFFICE_actor_data` PTerminal at GX {60,0,240}).
 	var pos: Vector3 = PostDisplay.gx_to_world(interior.grid, PostDisplay.PTERMINAL_GX)
 	var existing: StaticBody3D = root.get_node_or_null("PostTerminal") as StaticBody3D
@@ -71,7 +71,7 @@ func _terminal(root: Node3D, interior: Interior) -> void:
 	root.add_child(body)
 
 
-func _mail_piles(root: Node3D, interior: Interior) -> void:
+func _mail_piles(root: Node3D, interior: IndoorSession) -> void:
 	## `bPTI_actor_draw` — one letter prop per stored piece of mail, max 5.
 	if Game == null or Game.post == null:
 		return

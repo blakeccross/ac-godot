@@ -66,7 +66,7 @@ var block_auto_enter_doors: bool = false
 var emerge_from_door: bool = false
 ## After spawn, walk INTO_S1 past the door (museum entrance / wing links).
 var play_door_arrive: bool = false
-var interior_session: Interior
+var interior_session: IndoorSession
 var player_name: String = DEFAULT_PLAYER_NAME
 var town_name: String = DEFAULT_TOWN_NAME
 var player_gender: StringName = DEFAULT_PLAYER_GENDER
@@ -1055,7 +1055,7 @@ func exit_interior() -> bool:
 	return true
 
 
-func bind_interior(session: Interior) -> void:
+func bind_interior(session: IndoorSession) -> void:
 	interior_session = session
 
 

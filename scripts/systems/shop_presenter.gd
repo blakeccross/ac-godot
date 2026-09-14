@@ -13,7 +13,7 @@ const STOCK_SCENE := preload("res://scenes/world/shop_stock.tscn")
 const TOM_NOOK_SCENE := preload("res://scenes/world/interiors/tom_nook.tscn")
 
 
-func present(root: Node3D, interior: Interior) -> void:
+func present(root: Node3D, interior: IndoorSession) -> void:
 	if root == null or interior == null or interior.room == null or Game == null:
 		return
 	var room: Room = interior.room
@@ -33,7 +33,7 @@ func present(root: Node3D, interior: Interior) -> void:
 	_stock(root, interior, shop_id)
 
 
-func _stock(root: Node3D, interior: Interior, shop_id: StringName) -> void:
+func _stock(root: Node3D, interior: IndoorSession, shop_id: StringName) -> void:
 	var room: Room = interior.room
 	var listed: Array[StringName] = Game.shops.goods(shop_id)
 	if room.id == &"shop0":
@@ -59,7 +59,7 @@ func _add_stock(root: Node3D, i: int, shop_id: StringName, item_id: StringName, 
 	root.add_child(node)
 
 
-func _tom_nook(root: Node3D, interior: Interior) -> void:
+func _tom_nook(root: Node3D, interior: IndoorSession) -> void:
 	## `shop0N_actable` stand by upgrade level.
 	if interior.grid == null:
 		return
@@ -83,7 +83,7 @@ func _tom_nook(root: Node3D, interior: Interior) -> void:
 	root.add_child(nook)
 
 
-func _clock(root: Node3D, interior: Interior) -> void:
+func _clock(root: Node3D, interior: IndoorSession) -> void:
 	## `HOUSE_CLOCK` / `aHC_position_data` for Nook shop scenes.
 	if interior.grid == null or Game == null:
 		return

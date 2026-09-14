@@ -32,14 +32,24 @@ static func outdoor_id(hour: int, weather: StringName) -> StringName:
 
 
 static func room_id(kind: Room.Kind) -> StringName:
-	## `mBGMRoom_make_scene_bgm`: Nook shops use the dynamic shop track; the Able
-	## Sisters have their own (`mFI_FIELD_ROOM_NEEDLEWORK` → `bgm_num` 89 =
-	## `BGM_TAILORS`).
+	## `mBGMRoom_make_scene_bgm` (`m_kankyo.c` `mEnv_SetBaseLight` scene_no switch): each
+	## public building has its own fixed BGM id. Homes (`PLAYER`/`NPC`) have no `BGM_*`
+	## entry in the original and stay silent indoors.
 	match kind:
 		Room.Kind.SHOP:
 			return &"shop0"
 		Room.Kind.NEEDLEWORK:
 			return &"tailors"
+		Room.Kind.MUSEUM:
+			return &"museum"
+		Room.Kind.POST_OFFICE:
+			return &"post_office0"
+		Room.Kind.POLICE:
+			return &"police_box"
+		Room.Kind.BROKER:
+			return &"brokers_shop"
+		Room.Kind.KAMAKURA:
+			return &"kamakura"
 		_:
 			return &""
 

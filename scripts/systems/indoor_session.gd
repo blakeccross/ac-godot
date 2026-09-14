@@ -1,4 +1,4 @@
-class_name Interior
+class_name IndoorSession
 extends RefCounted
 
 ## Indoor occupancy on a `WorldGrid`. Place / pick / rotate / wall+floor.
@@ -144,7 +144,7 @@ func pick_up(placement_id: StringName) -> StringName:
 func decorate_wall(wall_id: StringName) -> bool:
 	if room == null or not room.can_decorate or wall_id == &"":
 		return false
-	if not InteriorCatalog.has_wall(wall_id):
+	if not InteriorStyleCatalog.has_wall(wall_id):
 		return false
 	room.wall_id = wall_id
 	return true
@@ -153,7 +153,7 @@ func decorate_wall(wall_id: StringName) -> bool:
 func decorate_floor(floor_id: StringName) -> bool:
 	if room == null or not room.can_decorate or floor_id == &"":
 		return false
-	if not InteriorCatalog.has_floor(floor_id):
+	if not InteriorStyleCatalog.has_floor(floor_id):
 		return false
 	room.floor_id = floor_id
 	return true

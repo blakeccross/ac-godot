@@ -1,7 +1,7 @@
 class_name FurnitureData
 extends ItemData
 
-## Placeable furniture. Fields are the catalog; `FurnitureUse` / `Interior` read them.
+## Placeable furniture. Fields are the catalog; `FurnitureUse` / `IndoorSession` read them.
 ## Shape/contact/placement follow `aFTR_PROFILE` behavior, not the C bitfields.
 
 enum Shape { TYPE_A, TYPE_B, TYPE_C }

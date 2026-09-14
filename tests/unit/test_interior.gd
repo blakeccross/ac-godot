@@ -66,8 +66,8 @@ func test_catalog_covers_every_gc_interior() -> void:
 	assert_bool(player_main.shell_ids.has("rom_myhome1_floor")).is_true()
 	assert_that(player_main.inner_origin).is_equal(InteriorCatalog.PLAYER_INNER_ORIGIN)
 	assert_that(player_main.inner_size).is_equal(InteriorCatalog.PLAYER_INNER_SIZE)
-	assert_that(player_main.wall_id).is_equal(InteriorCatalog.wall_style_id(InteriorCatalog.PLAYER_START_WALL))
-	assert_that(player_main.floor_id).is_equal(InteriorCatalog.floor_style_id(InteriorCatalog.PLAYER_START_FLOOR))
+	assert_that(player_main.wall_id).is_equal(InteriorStyleCatalog.wall_style_id(InteriorCatalog.PLAYER_START_WALL))
+	assert_that(player_main.floor_id).is_equal(InteriorStyleCatalog.floor_style_id(InteriorCatalog.PLAYER_START_FLOOR))
 	assert_int(player_main.placements.size()).is_equal(2)
 	var starter_ids: PackedStringArray = PackedStringArray()
 	for entry: FurniturePlacement in player_main.placements:
@@ -82,7 +82,7 @@ func test_catalog_covers_every_gc_interior() -> void:
 
 
 func test_npc_room_uses_fg_furniture() -> void:
-	if not FileAccess.file_exists(InteriorCatalog.NPC_ROOMS_PATH):
+	if not FileAccess.file_exists(InteriorCatalogNpc.NPC_ROOMS_PATH):
 		return
 	var filbert: Room = InteriorCatalog.room_template(&"npc_filbert")
 	assert_that(filbert).is_not_null()
@@ -96,9 +96,9 @@ func test_npc_room_uses_fg_furniture() -> void:
 		assert_bool(String(entry.furniture_id).contains("hnw_common")).is_false()
 	assert_that(filbert.inner_origin).is_equal(Vector2i(1, 1))
 	assert_that(filbert.inner_size).is_equal(Vector2i(6, 6))
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(filbert)
-	var shell: AABB = InteriorBuilder.new()._shell_bounds(filbert, session.grid)
+	var shell: AABB = InteriorShellBuilder.shell_bounds(filbert, session.grid)
 	assert_float(shell.size.x).is_equal_approx(12.0, 0.001)
 	assert_float(shell.size.z).is_equal_approx(12.0, 0.001)
 	var cam := Camera3D.new()
@@ -118,16 +118,15 @@ func test_npc_room_uses_fg_furniture() -> void:
 	assert_float(small.y).is_equal_approx(floor.y, 0.01)
 	assert_float(small.y).is_greater(cam.call("offset_for_ground_span", 8.0).y)
 	assert_float(framed.y).is_greater(small.y)
-	var InteriorWorld := load("res://scenes/world/interior.gd")
-	assert_bool(InteriorWorld.pins_follow_camera(filbert)).is_true()
-	assert_bool(InteriorWorld.pins_follow_camera(InteriorCatalog.room_template(&"player_main"))).is_true()
-	assert_bool(InteriorWorld.pins_follow_camera(InteriorCatalog.room_template(&"shop0"))).is_false()
-	assert_bool(InteriorWorld.pins_follow_camera(InteriorCatalog.room_template(&"museum_fish"))).is_false()
-	assert_bool(InteriorWorld.pins_follow_camera(InteriorCatalog.room_template(&"museum_entrance"))).is_false()
+	assert_bool(InteriorLighting.pins_follow_camera(filbert)).is_true()
+	assert_bool(InteriorLighting.pins_follow_camera(InteriorCatalog.room_template(&"player_main"))).is_true()
+	assert_bool(InteriorLighting.pins_follow_camera(InteriorCatalog.room_template(&"shop0"))).is_false()
+	assert_bool(InteriorLighting.pins_follow_camera(InteriorCatalog.room_template(&"museum_fish"))).is_false()
+	assert_bool(InteriorLighting.pins_follow_camera(InteriorCatalog.room_template(&"museum_entrance"))).is_false()
 
 
 func test_alli_mannequins_carry_cloth_index() -> void:
-	if not FileAccess.file_exists(InteriorCatalog.NPC_ROOMS_PATH):
+	if not FileAccess.file_exists(InteriorCatalogNpc.NPC_ROOMS_PATH):
 		return
 	var room: Room = InteriorCatalog.room_template(&"npc_alli")
 	assert_that(room).is_not_null()
@@ -141,7 +140,7 @@ func test_alli_mannequins_carry_cloth_index() -> void:
 
 
 func test_peanut_room_has_green_counter_and_styles() -> void:
-	if not FileAccess.file_exists(InteriorCatalog.NPC_ROOMS_PATH):
+	if not FileAccess.file_exists(InteriorCatalogNpc.NPC_ROOMS_PATH):
 		return
 	var room: Room = InteriorCatalog.room_template(&"npc_peanut")
 	assert_that(room).is_not_null()
@@ -151,7 +150,7 @@ func test_peanut_room_has_green_counter_and_styles() -> void:
 	for entry: FurniturePlacement in room.placements:
 		ids.append(String(entry.furniture_id))
 	assert_bool(ids.has("int_sum_gre_counter01")).is_true()
-	assert_str(InteriorCatalog.floor_texture_path(room.floor_id)).contains("floor_33")
+	assert_str(InteriorStyleCatalog.floor_texture_path(room.floor_id)).contains("floor_33")
 
 
 func test_apply_cloth_paints_mannequin_seg08() -> void:
@@ -251,7 +250,7 @@ func _cloth_uv_scale_is_half(node: Node) -> bool:
 
 
 func test_save_restores_alli_mannequin_cloth() -> void:
-	if not FileAccess.file_exists(InteriorCatalog.NPC_ROOMS_PATH):
+	if not FileAccess.file_exists(InteriorCatalogNpc.NPC_ROOMS_PATH):
 		return
 	var room: Room = Game.interiors.room(&"npc_alli")
 	assert_that(room).is_not_null()
@@ -277,7 +276,7 @@ func test_save_restores_alli_mannequin_cloth() -> void:
 
 func test_huggy_piano_occupies_se_typec_block() -> void:
 	## NORTH TYPEC must not rotate occupancy onto the gyroid at (3,4) (`mRmTp_size_l_data`).
-	if not FileAccess.file_exists(InteriorCatalog.NPC_ROOMS_PATH):
+	if not FileAccess.file_exists(InteriorCatalogNpc.NPC_ROOMS_PATH):
 		return
 	var room: Room = InteriorCatalog.room_template(&"npc_huggy")
 	assert_that(room).is_not_null()
@@ -289,7 +288,7 @@ func test_huggy_piano_occupies_se_typec_block() -> void:
 	assert_that(piano).is_not_null()
 	assert_that(piano.cell).is_equal(Vector2i(4, 4))
 	assert_that(piano.facing).is_equal(WorldGrid.Facing.NORTH)
-	var interior := Interior.new()
+	var interior := IndoorSession.new()
 	interior.bind(room)
 	var data: FurnitureData = interior.furniture_of(piano.furniture_id)
 	assert_that(piano.resolved_footprint(data)).is_equal(Vector2i(2, 2))
@@ -341,8 +340,8 @@ func test_shop_shells_use_nook_bank_textures() -> void:
 	assert_that(shop0.inner_origin).is_equal(ShopDisplay.CRANNY_INNER_ORIGIN)
 	assert_that(shop0.inner_size).is_equal(ShopDisplay.CRANNY_INNER_SIZE)
 	assert_that(shop0.door_cell).is_equal(ShopDisplay.CRANNY_DOOR_CELL)
-	assert_str(InteriorCatalog.wall_texture_path(shop0.wall_id)).contains("wall_67")
-	assert_str(InteriorCatalog.floor_texture_path(shop0.floor_id)).contains("floor_67")
+	assert_str(InteriorStyleCatalog.wall_texture_path(shop0.wall_id)).contains("wall_67")
+	assert_str(InteriorStyleCatalog.floor_texture_path(shop0.floor_id)).contains("floor_67")
 	var needle: Room = InteriorCatalog.room_template(&"needlework")
 	assert_that(needle.wall_id).is_equal(&"")
 	assert_that(needle.floor_id).is_equal(&"")
@@ -357,7 +356,7 @@ func test_shop_shells_use_nook_bank_textures() -> void:
 	mi.set_surface_override_material(0, null)
 	## Empty / tint ids must not strip baked albedos when no bank PNG resolves.
 	baked.resource_name = "player_room_wall_0_0"
-	GeneratedVisual._paint_room_surfaces(mi, InteriorCatalog.WALL_DEFAULT, InteriorCatalog.FLOOR_DEFAULT)
+	GeneratedVisual._paint_room_surfaces(mi, InteriorStyleCatalog.WALL_DEFAULT, InteriorStyleCatalog.FLOOR_DEFAULT)
 	var after: Material = mi.get_active_material(0)
 	assert_that(after).is_not_null()
 	assert_bool(after is StandardMaterial3D).is_true()
@@ -406,12 +405,12 @@ func test_nook_cranny_display_helpers() -> void:
 func test_shop_shell_keeps_acre_origin() -> void:
 	## Home-style floor snap shifted RSV goods off the shell tables by ~¼ cell.
 	var room: Room = InteriorCatalog.room_template(&"shop0")
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(room)
 	var root := Node3D.new()
 	auto_free(root)
 	add_child(root)
-	InteriorBuilder.new().build(root, session)
+	InteriorBuilder.build(root, session)
 	var shell: Node3D = root.get_node_or_null("Terrain/GeneratedVisual") as Node3D
 	if shell == null:
 		return
@@ -549,7 +548,7 @@ func test_season_grass_retile_uses_atlas_cell_not_season_px() -> void:
 
 func test_indoor_grid_uses_world_grid() -> void:
 	var room: Room = Game.interiors.room(&"player_main")
-	var interior := Interior.new()
+	var interior := IndoorSession.new()
 	interior.bind(room)
 	var open: Vector2i = room.inner_origin + Vector2i(1, 1)
 	assert_int(interior.grid.columns).is_equal(16)
@@ -563,7 +562,7 @@ func test_indoor_grid_uses_world_grid() -> void:
 
 func test_place_rotate_footprint_and_collision() -> void:
 	var room: Room = Game.interiors.room(&"player_main")
-	var interior := Interior.new()
+	var interior := IndoorSession.new()
 	interior.bind(room)
 	var table: FurnitureData = ItemCatalog.get_item(&"wood_table") as FurnitureData
 	assert_that(table.footprint).is_equal(Vector2i(2, 1))
@@ -586,7 +585,7 @@ func test_place_rotate_footprint_and_collision() -> void:
 
 func test_pick_up_and_decorate() -> void:
 	var room: Room = Game.interiors.room(&"player_main")
-	var interior := Interior.new()
+	var interior := IndoorSession.new()
 	interior.bind(room)
 	Game.current_room_id = &"player_main"
 	Game.bind_interior(interior)
@@ -595,14 +594,14 @@ func test_pick_up_and_decorate() -> void:
 	assert_that(placed).is_not_null()
 	assert_that(interior.pick_up(placed.id)).is_equal(&"wood_chair")
 	assert_int(room.placements.size()).is_equal(2)
-	assert_bool(interior.decorate_wall(InteriorCatalog.WALL_BLUE)).is_true()
-	assert_that(room.wall_id).is_equal(InteriorCatalog.WALL_BLUE)
-	assert_bool(interior.decorate_floor(InteriorCatalog.FLOOR_TILE)).is_true()
+	assert_bool(interior.decorate_wall(InteriorStyleCatalog.WALL_BLUE)).is_true()
+	assert_that(room.wall_id).is_equal(InteriorStyleCatalog.WALL_BLUE)
+	assert_bool(interior.decorate_floor(InteriorStyleCatalog.FLOOR_TILE)).is_true()
 	assert_bool(interior.decorate_wall(&"nope")).is_false()
 	var npc: Room = Game.interiors.room(&"npc_0")
-	var npc_int := Interior.new()
+	var npc_int := IndoorSession.new()
 	npc_int.bind(npc)
-	assert_bool(npc_int.decorate_wall(InteriorCatalog.WALL_BLUE)).is_false()
+	assert_bool(npc_int.decorate_wall(InteriorStyleCatalog.WALL_BLUE)).is_false()
 
 
 func test_shop_hours_gate_entry() -> void:
@@ -834,26 +833,26 @@ func test_museum_entrance_doors_match_decomp() -> void:
 func test_museum_grid_keeps_acre_nw_at_origin() -> void:
 	## Authored shells / door GX / exhibits share acre NW at world 0 — not centered.
 	var room: Room = InteriorCatalog.room_template(&"museum_entrance")
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(room)
 	assert_vector(session.grid.origin).is_equal(Vector3.ZERO)
 	assert_vector(MuseumDisplay.gx_to_world(session.grid, MuseumDisplay.ENTRANCE_SPAWN_GX)).is_equal(
 		Vector3(12.0, 0.0, 22.0)
 	)
 	var home: Room = InteriorCatalog.room_template(&"player_main")
-	var home_session := Interior.new()
+	var home_session := IndoorSession.new()
 	home_session.bind(home)
 	assert_float(home_session.grid.origin.x).is_less(0.0)
 
 
 func test_museum_entrance_exit_sensor_matches_enter_x() -> void:
 	var room: Room = InteriorCatalog.room_template(&"museum_entrance")
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(room)
 	var root := Node3D.new()
 	auto_free(root)
 	add_child(root)
-	InteriorBuilder.new().build(root, session)
+	InteriorBuilder.build(root, session)
 	var exit_door: Node3D = root.get_node_or_null("Doors/Exit") as Node3D
 	assert_that(exit_door).is_not_null()
 	var expected: Vector3 = MuseumDisplay.gx_to_world(session.grid, MuseumDisplay.ENTRANCE_EXIT_SENSOR_GX)
@@ -885,11 +884,10 @@ func test_house_exit_door_gap_opens_south_wall() -> void:
 	## EXIT_DOOR sits south of the carpet; shell collision must leave a porch gap.
 	## Homes use a centered grid origin (−16,−16) — gap X is negative.
 	var room: Room = InteriorCatalog.room_template(&"player_main")
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(room)
 	assert_float(session.grid.origin.x).is_less(0.0)
-	var builder := InteriorBuilder.new()
-	var gaps: Array[Dictionary] = builder.house_door_gaps(room, session.grid)
+	var gaps: Array[Dictionary] = InteriorShellBuilder.house_door_gaps(room, session.grid)
 	assert_int(gaps.size()).is_equal(1)
 	assert_that(gaps[0]["side"]).is_equal(&"south")
 	assert_float(float(gaps[0]["center"])).is_less(0.0)
@@ -900,7 +898,7 @@ func test_house_exit_door_gap_opens_south_wall() -> void:
 	var root := Node3D.new()
 	auto_free(root)
 	add_child(root)
-	builder.build(root, session)
+	InteriorBuilder.build(root, session)
 	var terrain: Node3D = root.get_node("Terrain") as Node3D
 	## Spawn GX and EXIT mid must not be inside a solid south-wall box.
 	var spawn_gx: Vector3 = InteriorCatalog.PLAYER_SMALL_SPAWN_GX
@@ -972,9 +970,9 @@ func test_indoor_exit_walks_further_south() -> void:
 
 func test_save_round_trip_placements_and_decoration() -> void:
 	var room: Room = Game.interiors.room(&"player_main")
-	var interior := Interior.new()
+	var interior := IndoorSession.new()
 	interior.bind(room)
-	interior.decorate_wall(InteriorCatalog.WALL_BLUE)
+	interior.decorate_wall(InteriorStyleCatalog.WALL_BLUE)
 	var table: FurnitureData = ItemCatalog.get_item(&"wood_table") as FurnitureData
 	var table_cell: Vector2i = room.inner_origin + Vector2i(1, 1)
 	var placed: FurniturePlacement = interior.place(table, table_cell, WorldGrid.Facing.EAST)
@@ -988,7 +986,7 @@ func test_save_round_trip_placements_and_decoration() -> void:
 	assert_that(Game.current_room_id).is_equal(&"player_main")
 	assert_vector(Game.outdoor_return).is_equal(Vector3(1.0, 0.1, 2.0))
 	var loaded: Room = Game.interiors.room(&"player_main")
-	assert_that(loaded.wall_id).is_equal(InteriorCatalog.WALL_BLUE)
+	assert_that(loaded.wall_id).is_equal(InteriorStyleCatalog.WALL_BLUE)
 	assert_int(loaded.placements.size()).is_equal(3)
 	var found := false
 	for entry: FurniturePlacement in loaded.placements:
@@ -1001,9 +999,9 @@ func test_save_round_trip_placements_and_decoration() -> void:
 
 func test_player_main_collision_matches_small_shell() -> void:
 	var room: Room = InteriorCatalog.room_template(&"player_main")
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(room)
-	var shell: AABB = InteriorBuilder.new()._shell_bounds(room, session.grid)
+	var shell: AABB = InteriorShellBuilder.shell_bounds(room, session.grid)
 	assert_float(shell.size.x).is_equal_approx(8.0, 0.001)
 	assert_float(shell.size.z).is_equal_approx(8.0, 0.001)
 
@@ -1043,12 +1041,12 @@ func test_builder_attaches_room_shell_when_converted() -> void:
 	if FieldCatalog.mesh_paths(&"rom_myhome2_floor").is_empty():
 		return
 	var room: Room = Game.interiors.room(&"npc_filbert")
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(room)
 	var root := Node3D.new()
 	auto_free(root)
 	add_child(root)
-	InteriorBuilder.new().build(root, session)
+	InteriorBuilder.build(root, session)
 	var shell: Node = root.get_node_or_null("Terrain/GeneratedVisual")
 	assert_that(shell).is_not_null()
 	assert_that(room.wall_id).is_equal(VillagerCatalog.get_villager(&"filbert").wall_style_id())
@@ -1070,7 +1068,7 @@ func test_builder_attaches_room_shell_when_converted() -> void:
 
 
 func test_npc_typec_footprint_on_placement() -> void:
-	if not FileAccess.file_exists(InteriorCatalog.NPC_ROOMS_PATH):
+	if not FileAccess.file_exists(InteriorCatalogNpc.NPC_ROOMS_PATH):
 		return
 	var teddy: Room = InteriorCatalog.room_template(&"npc_teddy")
 	assert_that(teddy).is_not_null()
@@ -1092,8 +1090,8 @@ func _count_mesh_instances(node: Node) -> int:
 
 func test_player_placeholder_save_upgrades_to_banks() -> void:
 	var room: Room = Game.interiors.room(&"player_main")
-	room.wall_id = InteriorCatalog.WALL_CREAM
-	room.floor_id = InteriorCatalog.FLOOR_WOOD
+	room.wall_id = InteriorStyleCatalog.WALL_CREAM
+	room.floor_id = InteriorStyleCatalog.FLOOR_WOOD
 	var chair := FurniturePlacement.new()
 	chair.id = &"ftr_1"
 	chair.furniture_id = &"wood_chair"
@@ -1103,8 +1101,8 @@ func test_player_placeholder_save_upgrades_to_banks() -> void:
 	Game.reset_session()
 	Game.apply_snapshot(snap)
 	var loaded: Room = Game.interiors.room(&"player_main")
-	assert_that(loaded.wall_id).is_equal(InteriorCatalog.wall_style_id(InteriorCatalog.PLAYER_START_WALL))
-	assert_that(loaded.floor_id).is_equal(InteriorCatalog.floor_style_id(InteriorCatalog.PLAYER_START_FLOOR))
+	assert_that(loaded.wall_id).is_equal(InteriorStyleCatalog.wall_style_id(InteriorCatalog.PLAYER_START_WALL))
+	assert_that(loaded.floor_id).is_equal(InteriorStyleCatalog.floor_style_id(InteriorCatalog.PLAYER_START_FLOOR))
 	assert_int(loaded.placements.size()).is_equal(2)
 	var ids: PackedStringArray = PackedStringArray()
 	for entry: FurniturePlacement in loaded.placements:
@@ -1114,10 +1112,10 @@ func test_player_placeholder_save_upgrades_to_banks() -> void:
 
 
 func test_reset_clears_interior_book() -> void:
-	Game.interiors.room(&"player_main").wall_id = InteriorCatalog.WALL_BLUE
+	Game.interiors.room(&"player_main").wall_id = InteriorStyleCatalog.WALL_BLUE
 	Game.current_room_id = &"player_main"
 	Game.reset_session()
 	assert_that(Game.current_room_id).is_equal(&"")
 	assert_that(Game.interiors.room(&"player_main").wall_id).is_equal(
-		InteriorCatalog.wall_style_id(InteriorCatalog.PLAYER_START_WALL)
+		InteriorStyleCatalog.wall_style_id(InteriorCatalog.PLAYER_START_WALL)
 	)

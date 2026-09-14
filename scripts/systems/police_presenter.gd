@@ -9,14 +9,14 @@ const BOOKER_SCENE := preload("res://scenes/world/interiors/booker.tscn")
 const LOST_FOUND_SCENE := preload("res://scenes/world/lost_and_found_item.tscn")
 
 
-func present(root: Node3D, interior: Interior) -> void:
+func present(root: Node3D, interior: IndoorSession) -> void:
 	if root == null or interior == null or interior.grid == null:
 		return
 	_booker(root, interior)
 	_lost_and_found(root, interior)
 
 
-func _booker(root: Node3D, interior: Interior) -> void:
+func _booker(root: Node3D, interior: IndoorSession) -> void:
 	var pos: Vector3 = PoliceDisplay.gx_to_world(interior.grid, PoliceDisplay.BOOKER_STAND_GX)
 	var yaw: float = WorldGrid.yaw_for_facing(PoliceDisplay.BOOKER_FACING)
 	var existing: Node3D = root.get_node_or_null("Booker") as Node3D
@@ -31,7 +31,7 @@ func _booker(root: Node3D, interior: Interior) -> void:
 	root.add_child(booker)
 
 
-func _lost_and_found(root: Node3D, interior: Interior) -> void:
+func _lost_and_found(root: Node3D, interior: IndoorSession) -> void:
 	if Game == null or Game.police == null:
 		return
 	for old: Node in root.get_children():

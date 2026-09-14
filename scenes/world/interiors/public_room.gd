@@ -9,7 +9,7 @@ extends Node3D
 
 @export var room_id: StringName = &""
 
-var _session: Interior = null
+var _session: IndoorSession = null
 
 
 func _ready() -> void:
@@ -23,14 +23,14 @@ func populate() -> void:
 	var room: Room = Game.interiors.room(room_id)
 	if room == null:
 		return
-	_session = Interior.new()
+	_session = IndoorSession.new()
 	_session.bind(room)
-	InteriorBuilder.new().populate_authored(self, _session)
+	InteriorBuilder.populate_authored(self, _session)
 
 
 ## Override per building. `interior.gd` also calls this to refresh shop stock /
 ## public props after a purchase, so keep it idempotent.
-func present_exhibits(_furniture: Node3D, _interior: Interior) -> void:
+func present_exhibits(_furniture: Node3D, _interior: IndoorSession) -> void:
 	pass
 
 

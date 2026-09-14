@@ -197,7 +197,7 @@ func _nook_visual_named(node: Node, prefix: String) -> bool:
 
 func test_tom_nook_stand_follows_shop_room() -> void:
 	var room: Room = InteriorCatalog.room_template(&"shop1")
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(room)
 	var root := Node3D.new()
 	auto_free(root)
@@ -212,12 +212,12 @@ func test_tom_nook_stand_follows_shop_room() -> void:
 
 func test_nook_clock_spawns_in_cranny() -> void:
 	var room: Room = InteriorCatalog.room_template(&"shop0")
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(room)
 	var root := Node3D.new()
 	auto_free(root)
 	add_child(root)
-	InteriorBuilder.new().build(root, session)
+	InteriorBuilder.build(root, session)
 	var clock: Node3D = root.get_node_or_null("Furniture/NookClock") as Node3D
 	if FieldCatalog.mesh_paths(ShopDisplay.nook_clock_visual(0)).is_empty():
 		return

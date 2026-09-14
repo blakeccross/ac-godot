@@ -7,7 +7,7 @@ extends RefCounted
 const PLAQUE_SCENE := preload("res://scenes/world/museum_plaque.tscn")
 
 
-func present(root: Node3D, interior: Interior) -> void:
+func present(root: Node3D, interior: IndoorSession) -> void:
 	if root == null or interior == null or interior.room == null or Game == null:
 		return
 	var room: Room = interior.room
@@ -31,7 +31,7 @@ func present(root: Node3D, interior: Interior) -> void:
 
 
 ## Skylight god-ray mesh (`ac_museum` shine actor). Authored in acre space.
-func add_light_shaft(root: Node3D, interior: Interior, visual_id: StringName) -> void:
+func add_light_shaft(root: Node3D, interior: IndoorSession, visual_id: StringName) -> void:
 	if FieldCatalog.mesh_paths(visual_id).is_empty():
 		return
 	if root.get_node_or_null("LightShaft") != null:
@@ -59,7 +59,7 @@ func _add_wing_hotkeys(root: Node3D) -> void:
 	root.add_child(keys)
 
 
-func present_fossils(root: Node3D, interior: Interior) -> void:
+func present_fossils(root: Node3D, interior: IndoorSession) -> void:
 	var book: MuseumBook = Game.museum
 	for i: int in MuseumBook.FOSSIL_NUM:
 		var donated: bool = MuseumBook.is_donated(book.fossil_info(i))
@@ -80,7 +80,7 @@ func present_fossils(root: Node3D, interior: Interior) -> void:
 	_add_fossil_plaques(root, interior)
 
 
-func _add_fossil_plaques(root: Node3D, interior: Interior) -> void:
+func _add_fossil_plaques(root: Node3D, interior: IndoorSession) -> void:
 	## One plaque near each skeleton group / solo row.
 	var book: MuseumBook = Game.museum
 	var groups: Array = MuseumDisplay.FOSSIL_SETS.duplicate()
@@ -117,7 +117,7 @@ func _add_fossil_plaques(root: Node3D, interior: Interior) -> void:
 		root.add_child(plaque)
 
 
-func present_paintings(root: Node3D, interior: Interior) -> void:
+func present_paintings(root: Node3D, interior: IndoorSession) -> void:
 	var book: MuseumBook = Game.museum
 	for i: int in MuseumBook.ART_NUM:
 		var donated: bool = MuseumBook.is_donated(book.art_info(i))
@@ -149,7 +149,7 @@ func present_paintings(root: Node3D, interior: Interior) -> void:
 		root.add_child(plaque)
 
 
-func present_fish(root: Node3D, interior: Interior) -> void:
+func present_fish(root: Node3D, interior: IndoorSession) -> void:
 	_spawn_fish_tanks(root, interior)
 	var book: MuseumBook = Game.museum
 	var rng := RandomNumberGenerator.new()
@@ -186,7 +186,7 @@ func present_fish(root: Node3D, interior: Interior) -> void:
 		root.add_child(plaque)
 
 
-func _spawn_fish_tanks(root: Node3D, interior: Interior) -> void:
+func _spawn_fish_tanks(root: Node3D, interior: IndoorSession) -> void:
 	## `Museum_Fish_Suisou_draw`: tanks 0–3 = `obj_suisou1` at `suisou_pos` × 0.01;
 	## tank 4 = `obj_museum5` at field scale with no translate (verts already in acre space).
 	## Glass authored with min Y at the water-line (40 GX); shell floors snap that to 0,
@@ -286,7 +286,7 @@ func _add_exhibit_collision(host: Node3D) -> void:
 	host.add_child(body)
 
 
-func present_insects(root: Node3D, interior: Interior) -> void:
+func present_insects(root: Node3D, interior: IndoorSession) -> void:
 	var book: MuseumBook = Game.museum
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("museum_insect_%s" % Game.town_name)

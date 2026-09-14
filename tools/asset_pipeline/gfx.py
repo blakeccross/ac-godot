@@ -168,6 +168,34 @@ def combine_alpha_scaled_by_prim_lod_frac(combine_w0: int, combine_w1: int) -> b
     return ac0 == _G_ACMUX_PRIM_LOD_FRAC or ac1 == _G_ACMUX_PRIM_LOD_FRAC
 
 
+def tank_glass_inset(
+    coverage: str | None, tex_name: str, water_kind: str, has_vertices: bool
+) -> float:
+    """Inset scale for tank-furniture XLU wall layers, or 0.0 to leave a surface alone.
+
+    Godot's depth test flickers coplanar XLU against the tank's depth-writing MASK
+    frame, so each XLU wall layer pulls inward by a distinct amount: the frame keeps
+    its plane, `evw` sits just inside it, the `water*` caustics inside that.
+
+    `water_kind` (already-classified field river/ocean/splash/waterfall) must exclude
+    this: the open-field river texture `mFM_grd_water1_tex` collides with the
+    tank-glass name match on "water1" (real tank textures are named things like
+    `int_gan_tank_water1_tex`) — applying the tank inset there scaled the whole
+    river mesh inward, opening a real ~4.5% edge gap at every acre boundary. Actual
+    tank-furniture panes never set `water_kind`.
+    """
+    if coverage != "xlu" or not tex_name or not has_vertices or water_kind:
+        return 0.0
+    low = tex_name.lower()
+    if "evw" in low:
+        return 0.97
+    if "water1" in low:
+        return 0.955
+    if "water2" in low or "_mizu2" in low:
+        return 0.94
+    return 0.0
+
+
 def classify_water_surface(
     *,
     coverage: str | None,
@@ -1055,15 +1083,7 @@ def parse_gfx(
         ## keeps its plane, `evw` sits just inside it, the `water*` caustics inside
         ## that. Horizontal (`mizu`) surface planes are left alone — scaling them in
         ## opens a gap at the waterline.
-        _tank_inset = 0.0
-        if coverage == "xlu" and tex_name and unique:
-            low = tex_name.lower()
-            if "evw" in low:
-                _tank_inset = 0.97
-            elif "water1" in low:
-                _tank_inset = 0.955
-            elif "water2" in low or "_mizu2" in low:
-                _tank_inset = 0.94
+        _tank_inset = tank_glass_inset(coverage, tex_name, water_kind, bool(unique))
         if _tank_inset:
             for vertex in unique:
                 vertex.x *= _tank_inset

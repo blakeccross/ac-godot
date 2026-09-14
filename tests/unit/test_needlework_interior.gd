@@ -10,7 +10,7 @@ func test_room_keeps_acre_origin_and_gx_positions_land_inside() -> void:
 	assert_bool(GeneratedVisual._shell_keeps_acre_origin(&"rom_tailor")).is_true()
 	assert_vector(room.inner_origin).is_equal(Vector2i(1, 1))
 	assert_vector(room.inner_size).is_equal(Vector2i(8, 6))
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(room)
 	var grid := session.grid
 	## every mannequin / umbrella-stand GX maps onto walkable floor
@@ -42,7 +42,7 @@ func test_room_keeps_acre_origin_and_gx_positions_land_inside() -> void:
 
 func test_present_places_sisters_and_displays() -> void:
 	var room: Room = InteriorCatalog.room_template(&"needlework")
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(room)
 	var root := Node3D.new()
 	auto_free(root)
@@ -75,7 +75,7 @@ func test_sable_sews_at_the_machine() -> void:
 
 	## placed just north of the baked machine head (world ≈ (-12.5, _, -9.0))
 	var room: Room = InteriorCatalog.room_template(&"needlework")
-	var session := Interior.new()
+	var session := IndoorSession.new()
 	session.bind(room)
 	var pos := MuseumDisplay.gx_to_world(session.grid, NeedleworkPresenter.SABLE_GX)
 	assert_bool(room.is_inner(session.grid.world_to_cell(pos))).is_true()

@@ -242,7 +242,7 @@ func test_fossil_cells_are_absolute_ut() -> void:
 	assert_that(MuseumDisplay.fossil_footprint(0)).is_equal(Vector2i(2, 2))
 	assert_that(MuseumDisplay.fossil_footprint(20)).is_equal(Vector2i(1, 1))
 	assert_that(MuseumDisplay.fossil_footprint(9)).is_equal(Vector2i(2, 1))
-	var wing := Interior.new()
+	var wing := IndoorSession.new()
 	wing.bind(fossil)
 	var cell: Vector2i = MuseumDisplay.FOSSIL_CELLS[0]
 	var type_c: Vector3 = wing.grid.furniture_world(cell, Vector2i(2, 2), WorldGrid.Facing.NORTH)
@@ -254,13 +254,12 @@ func test_painting_fossil_shell_covers_floor_rim() -> void:
 	## Wall meshes occupy the outer floor cell; margin-only boxes left a walk-through gap.
 	for wing_id: StringName in [&"museum_painting", &"museum_fossil"]:
 		var room: Room = InteriorCatalog.room_template(wing_id)
-		var wing := Interior.new()
+		var wing := IndoorSession.new()
 		wing.bind(room)
 		var terrain := Node3D.new()
 		auto_free(terrain)
-		var builder := InteriorBuilder.new()
-		builder.add_museum_shell_collision(
-			terrain, room, wing.grid, builder.museum_door_gaps(room, wing.grid)
+		InteriorShellBuilder.add_museum_shell_collision(
+			terrain, room, wing.grid, InteriorShellBuilder.museum_door_gaps(room, wing.grid)
 		)
 		var inner_nw: Vector3 = wing.grid.cell_corner(room.inner_origin)
 		var rim_end: float = inner_nw.z + wing.grid.cell_size
@@ -290,10 +289,9 @@ func test_painting_fossil_shell_covers_floor_rim() -> void:
 func test_entrance_door_gaps_keep_wing_openings() -> void:
 	## Inset walls must not bury art / fossil / insect door sensors.
 	var room: Room = InteriorCatalog.room_template(&"museum_entrance")
-	var wing := Interior.new()
+	var wing := IndoorSession.new()
 	wing.bind(room)
-	var builder := InteriorBuilder.new()
-	var gaps: Array[Dictionary] = builder.museum_door_gaps(room, wing.grid)
+	var gaps: Array[Dictionary] = InteriorShellBuilder.museum_door_gaps(room, wing.grid)
 	var sides: PackedStringArray = PackedStringArray()
 	for gap: Dictionary in gaps:
 		sides.append(String(gap["side"]))
@@ -313,7 +311,7 @@ func test_entrance_door_gaps_keep_wing_openings() -> void:
 func test_fossil_exhibits_have_collision() -> void:
 	Game.museum.fill_complete()
 	var room: Room = InteriorCatalog.room_template(&"museum_fossil")
-	var wing := Interior.new()
+	var wing := IndoorSession.new()
 	wing.bind(room)
 	var root := Node3D.new()
 	auto_free(root)
@@ -334,7 +332,7 @@ func test_painting_hangs_at_decomp_height() -> void:
 	assert_float(gx.y).is_equal_approx(40.0, 0.01)
 	assert_float(gx.y * FieldCatalog.GX_TO_METERS).is_equal_approx(2.0, 0.01)
 	var room: Room = InteriorCatalog.room_template(&"museum_painting")
-	var wing := Interior.new()
+	var wing := IndoorSession.new()
 	wing.bind(room)
 	Game.museum.fill_complete()
 	var root := Node3D.new()
@@ -355,12 +353,12 @@ func test_painting_hangs_at_decomp_height() -> void:
 func test_insect_fish_exit_doors_are_east_west() -> void:
 	## Corner sensors (z=560) must not be treated as south doors — that made the
 	## interact box swallow the enter spawn and bounce the player straight out.
-	assert_that(InteriorBuilder.museum_door_side(Vector3(560.0, 0.0, 560.0))).is_equal(&"east")
-	assert_that(InteriorBuilder.museum_door_side(Vector3(80.0, 0.0, 560.0))).is_equal(&"west")
-	assert_that(InteriorBuilder.museum_door_side(Vector3(280.0, 0.0, 520.0))).is_equal(&"south")
-	var insect_box: Vector3 = InteriorBuilder.museum_door_box(Vector3(560.0, 0.0, 560.0))
-	var fish_box: Vector3 = InteriorBuilder.museum_door_box(Vector3(80.0, 0.0, 560.0))
-	var paint_box: Vector3 = InteriorBuilder.museum_door_box(Vector3(280.0, 0.0, 520.0))
+	assert_that(InteriorShellBuilder.museum_door_side(Vector3(560.0, 0.0, 560.0))).is_equal(&"east")
+	assert_that(InteriorShellBuilder.museum_door_side(Vector3(80.0, 0.0, 560.0))).is_equal(&"west")
+	assert_that(InteriorShellBuilder.museum_door_side(Vector3(280.0, 0.0, 520.0))).is_equal(&"south")
+	var insect_box: Vector3 = InteriorShellBuilder.museum_door_box(Vector3(560.0, 0.0, 560.0))
+	var fish_box: Vector3 = InteriorShellBuilder.museum_door_box(Vector3(80.0, 0.0, 560.0))
+	var paint_box: Vector3 = InteriorShellBuilder.museum_door_box(Vector3(280.0, 0.0, 520.0))
 	## East/west: deep in X, wide in Z.
 	assert_float(insect_box.x).is_less(insect_box.z)
 	assert_float(fish_box.x).is_less(fish_box.z)
@@ -372,7 +370,7 @@ func test_insect_fish_spawn_clears_exit_sensor() -> void:
 	## Enter spawn sits outside the exit interact volume (after correct axis sizing).
 	for wing_id: StringName in [&"museum_insect", &"museum_fish"]:
 		var room: Room = InteriorCatalog.room_template(wing_id)
-		var wing := Interior.new()
+		var wing := IndoorSession.new()
 		wing.bind(room)
 		var exit: Dictionary = MuseumDisplay.WING_EXIT_DOORS[wing_id] as Dictionary
 		var enter: Dictionary = {}
@@ -383,7 +381,7 @@ func test_insect_fish_spawn_clears_exit_sensor() -> void:
 		assert_bool(enter.is_empty()).is_false()
 		var spawn: Vector3 = MuseumDisplay.gx_to_world(wing.grid, enter["spawn"] as Vector3)
 		var sensor: Vector3 = MuseumDisplay.gx_to_world(wing.grid, exit["sensor"] as Vector3)
-		var box: Vector3 = InteriorBuilder.museum_door_box(exit["sensor"] as Vector3)
+		var box: Vector3 = InteriorShellBuilder.museum_door_box(exit["sensor"] as Vector3)
 		var half: Vector3 = box * 0.5
 		var local: Vector3 = spawn - sensor
 		var inside: bool = (
@@ -393,12 +391,12 @@ func test_insect_fish_spawn_clears_exit_sensor() -> void:
 		assert_bool(inside).is_false()
 
 	var room: Room = InteriorCatalog.room_template(&"museum_entrance")
-	var wing := Interior.new()
+	var wing := IndoorSession.new()
 	wing.bind(room)
 	var root := Node3D.new()
 	auto_free(root)
 	add_child(root)
-	InteriorBuilder.new().add_blathers(root, wing)
+	MuseumInteriorBuilder.add_blathers(root, wing)
 	await get_tree().process_frame
 	var blathers: Node3D = root.get_node_or_null("Blathers") as Node3D
 	assert_that(blathers).is_not_null()
@@ -419,7 +417,7 @@ func test_insect_fish_spawn_clears_exit_sensor() -> void:
 		assert_bool(anim.is_playing()).is_true()
 		assert_str(anim.current_animation).contains("wait")
 
-	InteriorBuilder.new().add_museum_clock(root, wing)
+	MuseumInteriorBuilder.add_museum_clock(root, wing)
 	var clock: Node3D = root.get_node_or_null("MuseumClock") as Node3D
 	if not FieldCatalog.mesh_paths(MuseumDisplay.CLOCK_VISUAL).is_empty():
 		assert_that(clock).is_not_null()
@@ -438,11 +436,11 @@ func test_insect_fish_spawn_clears_exit_sensor() -> void:
 func test_art_partitions_block_painting_cells() -> void:
 	## Mid walls at z=5 / z=9 must collide on art cells and leave walk gaps.
 	var room: Room = InteriorCatalog.room_template(&"museum_painting")
-	var wing := Interior.new()
+	var wing := IndoorSession.new()
 	wing.bind(room)
 	var terrain := Node3D.new()
 	auto_free(terrain)
-	InteriorBuilder.new().add_museum_art_partitions(terrain, room, wing.grid)
+	MuseumInteriorBuilder.add_museum_art_partitions(terrain, room, wing.grid)
 	assert_int(terrain.get_child_count()).is_greater(0)
 	var occupied: Dictionary = {}
 	for cell: Vector2i in MuseumDisplay.ART_CELLS:
@@ -469,25 +467,24 @@ func test_every_museum_room_has_exit_gap() -> void:
 		&"museum_insect": [&"east"],
 		&"museum_fish": [&"west"],
 	}
-	var builder := InteriorBuilder.new()
 	for room_id: StringName in expected.keys():
 		var room: Room = InteriorCatalog.room_template(room_id)
-		var wing := Interior.new()
+		var wing := IndoorSession.new()
 		wing.bind(room)
-		var gaps: Array[Dictionary] = builder.museum_door_gaps(room, wing.grid)
+		var gaps: Array[Dictionary] = InteriorShellBuilder.museum_door_gaps(room, wing.grid)
 		var want: Array = expected[room_id] as Array
 		assert_int(gaps.size()).is_equal(want.size())
 		for i: int in gaps.size():
 			assert_that(gaps[i]["side"]).is_equal(want[i])
 			assert_float(float(gaps[i]["half"])).is_equal_approx(
-				InteriorBuilder.MUSEUM_DOOR_HALF_GX * FieldCatalog.GX_TO_METERS, 0.01
+				InteriorShellBuilder.MUSEUM_DOOR_HALF_GX * FieldCatalog.GX_TO_METERS, 0.01
 			)
 		## Non-corner openings stay clear at the wall mid-band (entrance N/S/W/E).
 		if room_id != &"museum_entrance":
 			continue
 		var terrain := Node3D.new()
 		auto_free(terrain)
-		builder.add_museum_shell_collision(terrain, room, wing.grid, gaps)
+		InteriorShellBuilder.add_museum_shell_collision(terrain, room, wing.grid, gaps)
 		var origin: Vector3 = wing.grid.cell_corner(Vector2i.ZERO)
 		var full_x: float = float(wing.grid.columns) * wing.grid.cell_size
 		var full_z: float = float(wing.grid.rows) * wing.grid.cell_size
@@ -512,15 +509,14 @@ func test_every_museum_room_has_exit_gap() -> void:
 
 func test_fish_and_insect_door_thresholds_stay_clear() -> void:
 	## z=560 corner exits: inset south wall used to sit on the door line.
-	var builder := InteriorBuilder.new()
 	for room_id: StringName in [&"museum_fish", &"museum_insect"]:
 		var room: Room = InteriorCatalog.room_template(room_id)
-		var wing := Interior.new()
+		var wing := IndoorSession.new()
 		wing.bind(room)
-		var gaps: Array[Dictionary] = builder.museum_door_gaps(room, wing.grid)
+		var gaps: Array[Dictionary] = InteriorShellBuilder.museum_door_gaps(room, wing.grid)
 		var terrain := Node3D.new()
 		auto_free(terrain)
-		builder.add_museum_shell_collision(terrain, room, wing.grid, gaps)
+		InteriorShellBuilder.add_museum_shell_collision(terrain, room, wing.grid, gaps)
 		var link: Dictionary = MuseumDisplay.WING_EXIT_DOORS[room_id] as Dictionary
 		var spawn: Vector3 = MuseumDisplay.gx_to_world(wing.grid, link["spawn"] as Vector3)
 		var sensor: Vector3 = MuseumDisplay.gx_to_world(wing.grid, link["sensor"] as Vector3)
@@ -528,7 +524,7 @@ func test_fish_and_insect_door_thresholds_stay_clear() -> void:
 		assert_bool(_point_in_any_box(terrain, sensor + Vector3(0.0, 1.0, 0.0))).is_false()
 		## One cell into the room from the door must also stay open.
 		var inward := Vector3.ZERO
-		match InteriorBuilder.museum_door_side(link["sensor"] as Vector3):
+		match InteriorShellBuilder.museum_door_side(link["sensor"] as Vector3):
 			&"west":
 				inward = Vector3(wing.grid.cell_size, 0.0, 0.0)
 			&"east":

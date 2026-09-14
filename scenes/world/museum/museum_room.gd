@@ -5,7 +5,7 @@ extends Node3D
 
 @export var room_id: StringName = &""
 
-var _wing: Interior = null
+var _wing: IndoorSession = null
 
 
 func _ready() -> void:
@@ -19,14 +19,14 @@ func populate() -> void:
 	var room: Room = Game.interiors.room(room_id)
 	if room == null:
 		return
-	_wing = Interior.new()
+	_wing = IndoorSession.new()
 	_wing.bind(room)
-	InteriorBuilder.new().populate_authored(self, _wing)
+	InteriorBuilder.populate_authored(self, _wing)
 	size_authored_doors()
 
 
 ## Override in each wing script.
-func present_exhibits(_furniture: Node3D, _session: Interior) -> void:
+func present_exhibits(_furniture: Node3D, _session: IndoorSession) -> void:
 	pass
 
 
@@ -53,4 +53,4 @@ func size_authored_doors() -> void:
 
 
 func _size_door(door: Node3D, sensor_gx: Vector3) -> void:
-	HostCollision.resize_interact_box(door, InteriorBuilder.museum_door_box(sensor_gx))
+	HostCollision.resize_interact_box(door, InteriorShellBuilder.museum_door_box(sensor_gx))

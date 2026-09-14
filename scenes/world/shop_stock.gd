@@ -66,14 +66,14 @@ func _paint_sample(data: ItemData) -> void:
 		return
 	match data.category:
 		ItemData.Category.WALL:
-			var path: String = InteriorCatalog.wall_texture_path(data.id)
+			var path: String = InteriorStyleCatalog.wall_texture_path(data.id)
 			if path.is_empty():
 				return
 			var tex: Texture2D = load(path) as Texture2D
 			if tex != null:
 				GeneratedVisual._paint_albedo(self, tex)
 		ItemData.Category.FLOOR:
-			var path: String = InteriorCatalog.floor_texture_path(data.id)
+			var path: String = InteriorStyleCatalog.floor_texture_path(data.id)
 			if path.is_empty():
 				return
 			var tex: Texture2D = load(path) as Texture2D
