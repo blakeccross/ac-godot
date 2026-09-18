@@ -39,8 +39,14 @@ func _place() -> void:
 	var xform: Transform3D
 	var bg: Array = _bg()
 	if bg.size() == 2:
+		## Scripted door walk: match the host's own `with_plus=false` height sampling —
+		## otherwise the shadow snaps onto the structure's raised roof at the door stand
+		## while the body (correctly) stays on the yard.
+		var with_plus: bool = not (
+			host.has_method("is_door_entering") and bool(host.call("is_door_entering"))
+		)
 		xform = ActorBlobShadow.ground_transform(
-			bg[0] as WorldData, bg[1] as WorldGrid, host.global_position, yaw
+			bg[0] as WorldData, bg[1] as WorldGrid, host.global_position, yaw, with_plus
 		)
 	else:
 		xform = ActorBlobShadow.flat_transform(host.global_position, yaw)

@@ -200,10 +200,5 @@ func _enter_target() -> StringName:
 
 
 func _end_player_door_enter() -> void:
-	## Clear brief walk-in `keep_h` when the indoor load fails (scene stayed outdoors).
-	var player: Node = get_tree().get_first_node_in_group("player") if get_tree() != null else null
-	if player != null and is_instance_valid(player) and player.has_method("end_door_enter"):
-		player.call("end_door_enter")
-	var cam_tree: SceneTree = get_tree()
-	if cam_tree != null:
-		preload("res://scripts/systems/door_camera.gd").end(cam_tree)
+	## Clear scripted `keep_h` walk-in when the indoor load fails (scene stayed outdoors).
+	StructureDoor.end_enter(self)

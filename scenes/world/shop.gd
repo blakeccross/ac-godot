@@ -52,5 +52,6 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 		await StructureDoor.play_enter(self)
 		if Game.try_enter_interior(occupant_id):
 			return true
+		StructureDoor.end_enter(self)
 	Game.post_notice("The shop is open.")
 	return true

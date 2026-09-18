@@ -744,7 +744,8 @@ func _enter_pending_look_house() -> void:
 	if house != null:
 		await StructureDoor.play_enter(house)
 	## Entry id resolves via InteriorCatalog (`player_house_*` → player_main).
-	Game.try_enter_interior(house_id if house_id != &"" else &"player_house")
+	if not Game.try_enter_interior(house_id if house_id != &"" else &"player_house") and house != null:
+		StructureDoor.end_enter(house)
 	_entering_look_house = false
 
 

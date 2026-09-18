@@ -119,12 +119,15 @@ static func foot_position(center: Vector3, yaw: float, right_foot: bool) -> Vect
 
 
 static func mark_transform(
-	data: WorldData, grid: WorldGrid, pos: Vector3, yaw: float
+	data: WorldData, grid: WorldGrid, pos: Vector3, yaw: float, with_plus: bool = true
 ) -> Transform3D:
 	## `mCoBG_GetBgY_AngleS_FromWpos` over the probe triangle, so the print lies on the
 	## slope. We only have heights, so fit a plane through the three samples instead of
 	## averaging s16 angles.
-	var y: float = FieldCollision.ground_y_at(data, grid, pos)
+	## `with_plus=false` mirrors the player's own `_snap_to_bg` during a scripted door
+	## walk — the mark (footprint / shadow) must stay on the yard like the body does,
+	## not jump onto the structure's raised `StructureOffset` roof at the door stand.
+	var y: float = FieldCollision.ground_y_at(data, grid, pos, 0.0, with_plus)
 	if not FieldCollision.has_floor(y):
 		## Zero basis, not identity: callers reject a mark by its determinant, and an
 		## identity basis is a valid one that would place a print at the world origin.
@@ -132,7 +135,7 @@ static func mark_transform(
 	var samples: Array[Vector3] = []
 	for probe: Vector2 in SLOPE_PROBES:
 		var at := Vector3(pos.x + probe.x, pos.y, pos.z + probe.y)
-		var py: float = FieldCollision.ground_y_at(data, grid, at)
+		var py: float = FieldCollision.ground_y_at(data, grid, at, 0.0, with_plus)
 		samples.append(Vector3(at.x, py if FieldCollision.has_floor(py) else y, at.z))
 	var normal: Vector3 = (samples[1] - samples[0]).cross(samples[2] - samples[0])
 	if normal.y < 0.0:

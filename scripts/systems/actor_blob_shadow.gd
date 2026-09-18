@@ -13,10 +13,10 @@ const GROUND_LIFT := FootprintMarks.GROUND_LIFT
 
 
 static func ground_transform(
-	data: WorldData, grid: WorldGrid, pos: Vector3, yaw: float = 0.0
+	data: WorldData, grid: WorldGrid, pos: Vector3, yaw: float = 0.0, with_plus: bool = true
 ) -> Transform3D:
 	## Reuse the footprint slope fit so the blob lies on hills with the same probe triangle.
-	return FootprintMarks.mark_transform(data, grid, pos, yaw)
+	return FootprintMarks.mark_transform(data, grid, pos, yaw, with_plus)
 
 
 static func flat_transform(pos: Vector3, yaw: float = 0.0) -> Transform3D:

@@ -69,4 +69,7 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if room != null and not InteriorCatalog.is_open_now(room):
 		return Game.try_enter_interior(entry_id)
 	await StructureDoor.play_enter(self)
-	return Game.try_enter_interior(entry_id)
+	if Game.try_enter_interior(entry_id):
+		return true
+	StructureDoor.end_enter(self)
+	return false

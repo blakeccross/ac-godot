@@ -88,19 +88,34 @@ static func play_enter(host: Node) -> void:
 				await tree.create_timer(APPROACH_SEC).timeout
 		else:
 			await player.call("await_door_enter")
-	## Brief walk-ins keep `keep_h` through the wipe — ending here snaps onto the
-	## raised StructureOffset roof (museum south cells) before the scene swaps.
-	## Scene unload / `end_door_enter` on failed enter clears the flag.
-	if (
-		not brief_walk_in
-		and player != null
-		and is_instance_valid(player)
-		and player.has_method("end_door_enter")
-	):
+	## House / post / tailor door clips (50 frames, ~1.67 s) finish before the
+	## player's own OPEN1 walk (65 frames, ~2.17 s) reaches the approach stand.
+	## Ending `_door_entering` mid-walk hands the player back to normal collision
+	## — structure `StructureOffset` roofs back in play — while still under the
+	## eave, which snaps them onto the roof. Finish the player's own clip first.
+	if played and player != null and is_instance_valid(player):
+		var player_anim: AnimationPlayer = player.call("animation_player") as AnimationPlayer
+		if player_anim != null and player_anim.is_playing():
+			await player_anim.animation_finished
+	## Never call `end_door_enter` / `DoorCamera.end` here on success, for ANY
+	## structure — `Game._change_scene` defers `change_scene_to_file`, so at least
+	## one more physics frame always runs on the outdoor tree first. That frame
+	## would resume normal (`with_plus=true`) collision while the player still
+	## stands on the raised door-approach cell, snapping them onto the roof for
+	## however long the caller's wipe takes to fully cover the screen. Callers
+	## clear both explicitly on a *failed* enter (`StructureDoor.end_enter`); on
+	## success the flags are simply discarded when the outdoor scene unloads.
+
+
+## Cancel a scripted door-enter walk after `Game.try_enter_interior` fails and
+## the scene stayed outdoors. Callers pair this with `SceneTransition.cancel_wipe`.
+static func end_enter(host: Node) -> void:
+	var player: Node = _find_player(host)
+	if player != null and is_instance_valid(player) and player.has_method("end_door_enter"):
 		player.call("end_door_enter")
-	## Keep door cam through the wipe fade for brief walk-ins; scene unload clears it.
-	if not brief_walk_in:
-		_DoorCamera.end(host.get_tree() if host != null else null)
+	var tree: SceneTree = host.get_tree() if host != null else null
+	if tree != null:
+		_DoorCamera.end(tree)
 
 
 static func play_emerge(host: Node) -> void:
