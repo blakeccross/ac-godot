@@ -779,6 +779,23 @@ func test_scene_transition_handoff_channel() -> void:
 	assert_int(SceneTransition.pending_style).is_equal(SceneTransition.Style.FADE)
 
 
+func test_scene_transition_iris_shader() -> void:
+	## IRIS drives a circular-mask shader on the same `Wipe` rect FADE fills flatly;
+	## `cancel_wipe()` (always FADE) detaches it again.
+	SceneTransition.cancel_wipe()
+	SceneTransition.pending_style = SceneTransition.Style.IRIS
+	SceneTransition.wipe_in_pending = true
+	SceneTransition.play_wipe_in_if_pending()
+	var wipe: ColorRect = SceneTransition.get_node_or_null("WipeRoot/Wipe") as ColorRect
+	if wipe != null:
+		assert_that(wipe.material).is_not_null()
+		assert_str((wipe.material as ShaderMaterial).shader.resource_path).contains("iris_wipe.gdshader")
+		assert_float(wipe.material.get_shader_parameter("progress")).is_equal_approx(1.0, 0.01)
+	SceneTransition.cancel_wipe()
+	if wipe != null:
+		assert_that(wipe.material).is_null()
+
+
 func test_museum_entrance_doors_match_decomp() -> void:
 	## Entrance layout (`MUSEUM_ENTRANCE_door_data` + wing returns):
 	##   N-west painting · N-east fossil · W insect · E fish · S outdoors

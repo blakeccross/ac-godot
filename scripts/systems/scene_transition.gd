@@ -14,12 +14,14 @@ extends CanvasLayer
 
 ## `WIPE_TYPE_*` visuals. Doors use `WIPE_TYPE_TRIFORCE` (`IRIS`); title / demo / K.K. use
 ## `WIPE_TYPE_FADE_BLACK`; the train -> town arrival fades out black then irises in
-## (`WIPE_TYPE_CIRCLE_LEFT`). The iris shader is deferred, so `IRIS` currently renders as a
-## plain colour fade — the type is still tracked so it upgrades in place once the mesh lands.
+## (`WIPE_TYPE_CIRCLE_LEFT`). The decomp shapes `IRIS` with a hand-modelled mesh
+## (`ef_wipe2`/`ef_wipe3`); here it's a screen-space circular mask shader
+## (`shaders/iris_wipe.gdshader`) driven by the same 0..1 progress as the flat fade.
 enum Style { FADE, IRIS }
 
 ## Rough hold (~0.6 s) before / after the scene load (`transition.wipe_rate` 28 / `fade_rate` 30).
 const WIPE_SEC := 0.6
+const IRIS_SHADER := preload("res://shaders/iris_wipe.gdshader")
 
 ## Armed by `play_wipe_out()` / `hold_black()`; consumed by `play_wipe_in_if_pending()`
 ## on the next scene. Persists across the load because this node is an autoload.
@@ -28,6 +30,7 @@ var pending_style: Style = Style.FADE
 var pending_color: Color = Color.BLACK
 
 var _rect: ColorRect
+var _iris_material: ShaderMaterial
 var _tween: Tween
 
 
@@ -45,6 +48,17 @@ func _ready() -> void:
 	_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(_rect)
+	_iris_material = ShaderMaterial.new()
+	_iris_material.shader = IRIS_SHADER
+	_iris_material.set_shader_parameter("progress", 0.0)
+	_iris_material.set_shader_parameter("iris_color", Color(0.0, 0.0, 0.0, 1.0))
+	_rect.resized.connect(_sync_iris_rect_size)
+	_sync_iris_rect_size()
+
+
+func _sync_iris_rect_size() -> void:
+	if _iris_material != null and _rect != null:
+		_iris_material.set_shader_parameter("rect_size", _rect.size)
 
 
 ## Fade the screen out before a scene swap. `style` / `color` also become the pending
@@ -53,8 +67,7 @@ func play_wipe_out(style: Style = Style.FADE, color: Color = Color.BLACK) -> voi
 	wipe_in_pending = true
 	pending_style = style
 	pending_color = color
-	if _rect != null:
-		_rect.color = Color(color.r, color.g, color.b, _rect.color.a)
+	_apply_style_color(color)
 	await _fade_to(1.0)
 
 
@@ -72,8 +85,8 @@ func hold_black() -> void:
 	wipe_in_pending = true
 	pending_style = Style.FADE
 	pending_color = Color.BLACK
-	if _rect != null:
-		_rect.color = Color(0.0, 0.0, 0.0, 1.0)
+	_apply_style_color(Color.BLACK)
+	_set_alpha(1.0)
 
 
 func play_wipe_in() -> void:
@@ -86,8 +99,8 @@ func play_wipe_in_if_pending() -> void:
 		return
 	## Stay fully opaque through the first indoor draw — otherwise one frame can flash
 	## the new room before the fade-in tween starts.
-	if _rect != null:
-		_rect.color = Color(pending_color.r, pending_color.g, pending_color.b, 1.0)
+	_apply_style_color(pending_color)
+	_set_alpha(1.0)
 	## Fire-and-forget so room spawn / arrive can start immediately under the fade.
 	play_wipe_in()
 
@@ -100,8 +113,30 @@ func cancel_wipe() -> void:
 	if _tween != null:
 		_tween.kill()
 		_tween = null
-	if _rect != null:
-		_rect.color.a = 0.0
+	_apply_style_color(Color.BLACK)
+	_set_alpha(0.0)
+
+
+## Keep the flat-fill rect and the iris shader's tint/material in lockstep, since
+## `queue_wipe_in()` can hand a `FADE` wipe-out off to an `IRIS` wipe-in (or vice versa)
+## and either one might end up driving the visible rect.
+func _apply_style_color(color: Color) -> void:
+	if _rect == null:
+		return
+	_rect.color = Color(color.r, color.g, color.b, _rect.color.a)
+	if _iris_material != null:
+		_iris_material.set_shader_parameter("iris_color", Color(color.r, color.g, color.b, 1.0))
+	_rect.material = _iris_material if pending_style == Style.IRIS else null
+
+
+## Snap both representations to `alpha` with no tween, for the instant hand-off points
+## (`hold_black()`, the pre-fade-in flash guard, `cancel_wipe()`).
+func _set_alpha(alpha: float) -> void:
+	if _rect == null:
+		return
+	_rect.color.a = alpha
+	if _iris_material != null:
+		_iris_material.set_shader_parameter("progress", alpha)
 
 
 func _fade_to(alpha: float) -> void:
@@ -109,7 +144,11 @@ func _fade_to(alpha: float) -> void:
 		return
 	if _tween != null:
 		_tween.kill()
+	_rect.material = _iris_material if pending_style == Style.IRIS else null
 	_tween = create_tween()
 	_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_tween.set_parallel(true)
 	_tween.tween_property(_rect, "color:a", alpha, WIPE_SEC)
+	if _iris_material != null:
+		_tween.tween_property(_iris_material, "shader_parameter/progress", alpha, WIPE_SEC)
 	await _tween.finished
