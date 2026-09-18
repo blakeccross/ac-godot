@@ -187,6 +187,42 @@ func test_season_role_from_extras() -> void:
 	assert_str(FieldCatalog.season_role_from_extras(mat)).is_equal("")
 
 
+func test_field_roles_come_from_stamp_not_material_name() -> void:
+	## A stamped acre texture resolves to its season role; an unstamped material that
+	## merely contains "stone" / "earth" (rock, bonsai pot) is not swapped.
+	var mi := auto_free(MeshInstance3D.new()) as MeshInstance3D
+	var acre_mat := StandardMaterial3D.new()
+	acre_mat.resource_name = "mFM_grd_s_stone_tex"
+	acre_mat.set_meta("gltf_extras", { "field_role": "stone" })
+	assert_str(FieldCatalog.season_role_for_surface(mi, 0, acre_mat)).is_equal("stone")
+	for label: String in ["obj_s_stoneA_tex", "int_sum_bon_satuki_earth_tex", "int_nog_rail_tex"]:
+		var unstamped := StandardMaterial3D.new()
+		unstamped.resource_name = label
+		assert_str(FieldCatalog.season_role_for_surface(mi, 0, unstamped)).is_equal("")
+	## Hardwood leaf / trunk are not stamped and still match by label.
+	var leaf := StandardMaterial3D.new()
+	leaf.resource_name = "obj_s_tree_leaf_tex"
+	assert_str(FieldCatalog.season_role_for_surface(mi, 0, leaf)).is_equal("tree_leaf")
+
+
+func test_attached_rock_keeps_its_own_albedo() -> void:
+	if FieldCatalog.mesh_paths(&"ROCK_A").is_empty() or FieldCatalog.season_texture_path("stone").is_empty():
+		return
+	var host := auto_free(StaticBody3D.new()) as StaticBody3D
+	var pivot := GeneratedVisual.attach(host, &"ROCK_A")
+	assert_object(pivot).is_not_null()
+	var checked := 0
+	for node: Node in pivot.find_children("*", "MeshInstance3D", true, false):
+		var mat := (node as MeshInstance3D).get_active_material(0) as StandardMaterial3D
+		if mat == null or mat.albedo_texture == null:
+			continue
+		var rock_px: Color = mat.albedo_texture.get_image().get_pixel(0, 0)
+		var season_px: Color = (load(FieldCatalog.season_texture_path("stone")) as Texture2D).get_image().get_pixel(0, 0)
+		assert_bool(rock_px.is_equal_approx(season_px)).is_false()
+		checked += 1
+	assert_int(checked).is_greater(0)
+
+
 func test_grass_pattern_texture_path_prefers_variant() -> void:
 	FieldCatalog.set_grass_pattern(WorldData.GrassPattern.CIRCLE)
 	var path := FieldCatalog.season_texture_path("grass")

@@ -97,6 +97,24 @@ class TestDolphinHash(unittest.TestCase):
         self.assertIsNone(repeat_hd_tile_size(32, 32, 32, 32))
         self.assertIsNone(repeat_hd_tile_size(32, 32, 48, 48))
 
+    def test_tree_repeat_tiles_keep_full_hd(self) -> None:
+        from asset_pipeline.achd import (
+            TREE_REPEAT_HD_MAX_EDGE,
+            is_tree_texture,
+            repeat_hd_tile_size,
+        )
+
+        ## Cedar leaf: 64² native, REPEAT S, ACHD 512² — must not drop to 128².
+        self.assertEqual(
+            repeat_hd_tile_size(64, 64, 512, 512, max_edge=TREE_REPEAT_HD_MAX_EDGE), (512, 512)
+        )
+        for name in ("obj_s_cedar_leaf_tex", "obj_w_cedar_leaf_tex_txt", "obj_s_palm_leaf_tex"):
+            self.assertTrue(is_tree_texture(name), name)
+        self.assertTrue(is_tree_texture("", "obj_s_cedar5"))
+        ## Acre terrain and rocks keep the 128 REPEAT cap.
+        for name in ("grass_tex_dummy", "obj_s_stoneA_tex", "mFM_grd_s_earth_tex"):
+            self.assertFalse(is_tree_texture(name), name)
+
     def test_maybe_hd_png_downscales_repeat(self) -> None:
         from asset_pipeline.achd import maybe_hd_png
         from asset_pipeline.bti import CI4

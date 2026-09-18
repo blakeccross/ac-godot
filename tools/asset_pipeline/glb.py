@@ -77,6 +77,7 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
             base_color,
             uses_lighting,
             alpha_mode,
+            bool(part.runtime_bound),
         )
         if key not in index:
             index[key] = len(groups)
@@ -100,6 +101,7 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
                     "base_color": base_color,
                     "beach_prim": beach_prim,
                     "uses_lighting": uses_lighting,
+                    "runtime_bound": bool(part.runtime_bound),
                     "parts": [],
                 }
             )
@@ -207,6 +209,10 @@ def _bake_wrap_group(group: dict) -> None:
     group["png"] = buf.getvalue()
     group["wrap_s"] = GX_CLAMP
     group["wrap_t"] = GX_CLAMP
+    ## Runtime texture swaps (player/villager shirts) re-tile their own HD tile into
+    ## this atlas; the exact tile grid can't be recovered from the pixels (a solid
+    ## stand-in is periodic at any size).
+    group["wrap_tiles"] = (tiles_u, tiles_v)
 
     scale_u = float(tiles_u)
     scale_v = float(tiles_v)
@@ -266,6 +272,8 @@ def _material(
     base_color: tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0),
     beach_prim: tuple[int, int, int, int] | None = None,
     vertex_shade: bool = False,
+    runtime_bound: bool = False,
+    wrap_tiles: tuple[int, int] | None = None,
 ) -> dict:
     mat: dict = {
         "name": name or "vertex_color",
@@ -307,7 +315,12 @@ def _material(
     if beach_prim is not None:
         extras = dict(extras or {})
         extras["beach_prim"] = [int(beach_prim[0]), int(beach_prim[1]), int(beach_prim[2]), int(beach_prim[3])]
-    field_role = _field_role_for_material_name(name or "", water_kind)
+    if wrap_tiles is not None:
+        extras = dict(extras or {})
+        extras["wrap_tiles"] = [int(wrap_tiles[0]), int(wrap_tiles[1])]
+    ## Seasons roles describe textures the game rebinds per season / grass pattern (acre BG
+    ## bank segments). A fixed-image texture is never swapped, whatever it is called.
+    field_role = _field_role_for_material_name(name or "", water_kind) if runtime_bound else ""
     if field_role:
         extras = dict(extras or {})
         extras["field_role"] = field_role
@@ -480,6 +493,8 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
                 base_color=tuple(group.get("base_color") or (1.0, 1.0, 1.0, 1.0)),
                 beach_prim=group.get("beach_prim"),
                 vertex_shade=vertex_shade,
+                runtime_bound=bool(group.get("runtime_bound")),
+                wrap_tiles=group.get("wrap_tiles"),
             )
         )
         attrs: dict = {"POSITION": a_pos, "NORMAL": a_nrm, "TEXCOORD_0": a_uv}
@@ -718,6 +733,8 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
                 water_kind=str(group.get("water_kind") or ""),
                 base_color=tuple(group.get("base_color") or (1.0, 1.0, 1.0, 1.0)),
                 beach_prim=group.get("beach_prim"),
+                runtime_bound=bool(group.get("runtime_bound")),
+                wrap_tiles=group.get("wrap_tiles"),
             )
         )
         primitives.append(

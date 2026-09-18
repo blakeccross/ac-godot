@@ -163,6 +163,23 @@ static func season_texture_path(role: String) -> String:
 	return ""
 
 
+static func wrap_tiles_from_extras(mat: Material) -> Vector2i:
+	## Tile grid the pipeline wrap-baked into this material's atlas (`wrap_tiles` extra).
+	## `Vector2i.ZERO` when the GLB predates the stamp or the texture was not baked.
+	if mat == null:
+		return Vector2i.ZERO
+	for key: String in ["extras", "gltf_extras"]:
+		if mat.has_meta(key):
+			var extras: Variant = mat.get_meta(key)
+			if extras is Dictionary:
+				var tiles: Variant = (extras as Dictionary).get("wrap_tiles", null)
+				if tiles is Array and (tiles as Array).size() == 2:
+					var grid := Vector2i(int((tiles as Array)[0]), int((tiles as Array)[1]))
+					if grid.x >= 1 and grid.y >= 1:
+						return grid
+	return Vector2i.ZERO
+
+
 static func season_role_from_extras(mat: Material) -> String:
 	if mat == null:
 		return ""
@@ -179,8 +196,12 @@ static func season_role_from_extras(mat: Material) -> String:
 static func season_role_for_surface(
 	mesh_instance: MeshInstance3D, surface: int, active_mat: Material = null
 ) -> String:
-	## Trees often match via child node names (`leaf` / `trunk`). Acre GLBs keep the
-	## glTF material name on the baked mesh surface, not always on runtime overrides.
+	## Field roles (grass, earth, stone, …) come only from the pipeline's `field_role`
+	## stamp, which marks textures the game rebinds per season. A material that merely
+	## has "stone" or "earth" in its name (a rock, a bonsai pot) is never swapped.
+	## Hardwood leaf / trunk are not stamped, so those still match via labels / child
+	## node names. Acre GLBs keep the glTF material name on the baked mesh surface, not
+	## always on runtime overrides.
 	if active_mat == null:
 		active_mat = mesh_instance.get_active_material(surface)
 	if active_mat != null and active_mat.has_meta("field_role"):
@@ -205,7 +226,8 @@ static func season_role_for_surface(
 	if mesh_instance.mesh is ArrayMesh:
 		bits.append((mesh_instance.mesh as ArrayMesh).surface_get_name(surface).to_lower())
 	bits.append(String(mesh_instance.name).to_lower())
-	return season_role_for_label(" ".join(bits))
+	var by_label := season_role_for_label(" ".join(bits))
+	return by_label if by_label.begins_with("tree_") else ""
 
 
 static func season_role_for_label(label: String) -> String:

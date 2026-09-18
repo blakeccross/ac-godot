@@ -695,6 +695,43 @@ class WrapBakeTests(unittest.TestCase):
         self.assertAlmostEqual(_Part.vertices[1].u, 1.0)
         self.assertAlmostEqual(_Part.vertices[1].v, 1.0)
 
+    def test_wrap_bake_records_tile_grid_for_runtime_reskin(self) -> None:
+        """Player shirt: REPEAT S / CLAMP T, U 10..80 texels on a 32² tile → 3×1 atlas."""
+        from io import BytesIO
+
+        from PIL import Image
+
+        from asset_pipeline.glb import _material
+
+        buf = BytesIO()
+        Image.new("RGBA", (32, 32), (255, 0, 0, 255)).save(buf, format="PNG")
+        png = buf.getvalue()
+
+        class _V:
+            def __init__(self, u: float, v: float) -> None:
+                self.u = u
+                self.v = v
+
+        class _Part:
+            wrap_s = GX_REPEAT
+            wrap_t = GX_CLAMP
+            texture_png = png
+            vertices = [_V(10 / 32, 0.0), _V(80 / 32, 1.0)]
+
+        group = {
+            "png": png,
+            "name": "seg_0A",
+            "wrap_s": GX_REPEAT,
+            "wrap_t": GX_CLAMP,
+            "parts": [_Part()],
+        }
+        _bake_wrap_group(group)
+        self.assertEqual(Image.open(BytesIO(group["png"])).size, (96, 32))
+        self.assertEqual(group["wrap_tiles"], (3, 1))
+        mat = _material("seg_0A", None, wrap_tiles=group["wrap_tiles"])
+        self.assertEqual(mat["extras"]["wrap_tiles"], [3, 1])
+        self.assertNotIn("wrap_tiles", _material("seg_0A", None).get("extras", {}))
+
     def test_clamp_uv_span_overlapping_unit_keeps_authored_range(self) -> None:
         """Tank glass U=0..6 under GX_CLAMP must not stretch the rim across the quad."""
         from io import BytesIO
@@ -1868,12 +1905,37 @@ class SeasonRoleTests(unittest.TestCase):
         self.assertEqual(_field_role_for_material_name("bush_a_tex_dummy"), "bush_a")
         self.assertEqual(_field_role_for_material_name("river_tex_dummy"), "river_edge")
         self.assertEqual(_field_role_for_material_name("river_mFM_grd_water1_tex", "river"), "")
-        mat = _material("grass_tex_dummy", None)
+        mat = _material("grass_tex_dummy", None, runtime_bound=True)
         self.assertEqual(mat.get("extras", {}).get("field_role"), "grass")
+        ## Same name on a fixed-image texture (rock, prop) is never season-swapped.
+        for name in ("obj_s_stoneA_tex", "mFM_grd_s_stone_tex", "int_nog_f_tree_grass_tex"):
+            fixed = _material(name, None)
+            self.assertNotIn("field_role", fixed.get("extras", {}), name)
+        self.assertEqual(
+            _material("mFM_grd_s_stone_tex", None, runtime_bound=True)["extras"]["field_role"], "stone"
+        )
         wet = _material("shore", None, water_kind="beach_wet", beach_prim=(206, 189, 148, 255))
         self.assertEqual(wet.get("extras", {}).get("field_role"), "beach_wet")
         bed = _material("bed", None, water_kind="beach_wet", beach_prim=(*_OCEAN_BED_PRIM, 255))
         self.assertNotIn("field_role", bed.get("extras", {}))
+
+    def test_group_parts_keeps_runtime_bound_flag(self) -> None:
+        from asset_pipeline.glb import _group_parts
+        from asset_pipeline.gfx import MeshPart, Vertex
+
+        def part(bound: bool) -> MeshPart:
+            v = Vertex(0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0)
+            return MeshPart(
+                name="p",
+                vertices=[v, v, v],
+                triangles=[(0, 1, 2)],
+                texture_name="tex",
+                texture_png=b"same",
+                runtime_bound=bound,
+            )
+
+        groups = _group_parts([part(True), part(False)])
+        self.assertEqual([g["runtime_bound"] for g in groups], [True, False])
 
     def test_group_parts_uses_mesh_flags_not_dl_names(self) -> None:
         from asset_pipeline.glb import _group_parts

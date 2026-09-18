@@ -66,6 +66,21 @@ _TREE_PREFIX_RE = re.compile(
 )
 
 
+## Tree families only — `_TREE_PREFIX_RE` also matches rocks, which keep the 128 REPEAT cap.
+_TREE_ONLY_RE = re.compile(
+    r"^(obj_[sfwx]_|ef_[sfw]_)?(tree|cedar|palm|cstump|pstump|stump|youngtree|young_cedar|young_palm|yungtree)",
+    re.IGNORECASE,
+)
+
+
+def is_tree_texture(name: str, prefix: str = "") -> bool:
+    """True for tree / cedar / palm / stump textures (not acre terrain or rocks)."""
+    stem = prefix.split(":")[0] if prefix else ""
+    if stem and _TREE_ONLY_RE.search(stem):
+        return True
+    return bool(name) and _TREE_ONLY_RE.search(name) is not None
+
+
 def is_field_terrain_texture(name: str, prefix: str = "") -> bool:
     """True for acre/field/tree/season tile names (wrap-bake / seasons roles)."""
     stem = prefix.split(":")[0] if prefix else ""
@@ -81,6 +96,9 @@ def is_field_terrain_texture(name: str, prefix: str = "") -> bool:
 ## Cap REPEAT ACHD tiles so grass×16 (and similar) wrap-bakes stay ~2k px.
 ## Full ACHD grass is 256² → 4096² atlases; 128² → 2048² is a clear upgrade.
 REPEAT_HD_MAX_EDGE = 128
+## Tree REPEAT tiles (cedar leaf: 64² native, REPEAT S) are a handful of tiles wide,
+## not ×16 like grass, so they keep the full 512² ACHD sheet instead of the 128 cap.
+TREE_REPEAT_HD_MAX_EDGE = 512
 
 
 def is_room_bank_texture(source: str) -> bool:
@@ -435,6 +453,7 @@ def maybe_hd_png(
     wrap_s: int = 0,
     wrap_t: int = 0,
     label: str = "",
+    max_repeat_edge: int = REPEAT_HD_MAX_EDGE,
 ) -> bytes | None:
     """Lookup ACHD; CLAMP/MIRROR keep full HD, REPEAT downscales to a bake-safe tile."""
     if pack is None:
@@ -450,7 +469,7 @@ def maybe_hd_png(
 
     if wrap_s != GX_REPEAT and wrap_t != GX_REPEAT:
         return None
-    target = repeat_hd_tile_size(width, height, hd_w, hd_h)
+    target = repeat_hd_tile_size(width, height, hd_w, hd_h, max_edge=max_repeat_edge)
     if target is None:
         return None
     if target == (hd_w, hd_h):

@@ -2123,18 +2123,14 @@ static func _paint_cloth(node: Node, tex: Texture2D) -> void:
 			var tiles_u: int = _repeat_tiles(span.x)
 			var tiles_v: int = _repeat_tiles(span.y)
 			var atlas: Vector2i = _albedo_size(std)
-			## Wrap-baked villager shirts remap UVs to 0–1 on a packed atlas — retile
-			## the bank PNG into that atlas (same as room walls). Mannequins keep U≤2.
+			## Wrap-baked player / villager shirts remap UVs to 0–1 on a packed atlas of
+			## N×M copies of the 32² tile. Tile the (HD) bank shirt the same N×M so the
+			## design repeats around the torso as on hardware; squashing one copy into
+			## the native-size atlas stretched it and threw the HD detail away.
+			## Mannequins keep U≤2 and tile by UV span below.
 			if atlas.x > 0 and atlas.y > 0 and tiles_u <= 1 and tiles_v <= 1:
-				## Wrap-baked villager shirts are a single 0–1 atlas (not U-repeat).
-				## Stretch the bank shirt into that atlas; do not re-tile by period.
-				var shirt: Image = _texture_image(tex)
-				if shirt != null:
-					shirt = shirt.duplicate()
-					shirt.resize(atlas.x, atlas.y, Image.INTERPOLATE_NEAREST)
-					std.albedo_texture = ImageTexture.create_from_image(shirt)
-				else:
-					std.albedo_texture = tex
+				var grid := _wrap_tile_grid(mesh_instance, i, src, atlas)
+				std.albedo_texture = _tiled_albedo(tex, grid.x, grid.y)
 				std.uv1_scale = Vector3.ONE
 			else:
 				std.albedo_texture = _tiled_albedo(tex, tiles_u, tiles_v)
@@ -2155,6 +2151,31 @@ static func _paint_cloth(node: Node, tex: Texture2D) -> void:
 			mesh_instance.set_surface_override_material(i, std)
 	for child in node.get_children():
 		_paint_cloth(child, tex)
+
+
+static func _wrap_tile_grid(
+	mesh_instance: MeshInstance3D, surface: int, active: Material, atlas: Vector2i
+) -> Vector2i:
+	## Tiles the pipeline baked into this surface's atlas: the `wrap_tiles` stamp when the
+	## GLB has it, else the atlas split into square cells of its gcd (native tiles are
+	## square, so 96×32 → 3×1, 96×64 → 3×2).
+	if mesh_instance.mesh != null:
+		var baked: Vector2i = FieldCatalog.wrap_tiles_from_extras(mesh_instance.mesh.surface_get_material(surface))
+		if baked != Vector2i.ZERO:
+			return baked
+	var stamped: Vector2i = FieldCatalog.wrap_tiles_from_extras(active)
+	if stamped != Vector2i.ZERO:
+		return stamped
+	var cell: int = _gcd(atlas.x, atlas.y)
+	return Vector2i(maxi(atlas.x / cell, 1), maxi(atlas.y / cell, 1)) if cell > 0 else Vector2i.ONE
+
+
+static func _gcd(a: int, b: int) -> int:
+	while b != 0:
+		var t: int = a % b
+		a = b
+		b = t
+	return absi(a)
 
 
 static func _is_cloth_surface(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> bool:

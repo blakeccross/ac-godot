@@ -1719,8 +1719,11 @@ class TextureBank:
         gx = gbi_to_gx(state.fmt, state.siz)
         if use_achd:
             from .achd import (
+                REPEAT_HD_MAX_EDGE,
+                TREE_REPEAT_HD_MAX_EDGE,
                 is_player_model_texture,
                 is_room_bank_texture,
+                is_tree_texture,
                 maybe_hd_png,
             )
 
@@ -1748,6 +1751,11 @@ class TextureBank:
                         wrap_s=state.wrap_s,
                         wrap_t=state.wrap_t,
                         label=name or self.current_prefix or "mesh",
+                        max_repeat_edge=(
+                            TREE_REPEAT_HD_MAX_EDGE
+                            if is_tree_texture(name, self.current_prefix)
+                            else REPEAT_HD_MAX_EDGE
+                        ),
                     )
                     if hd is None:
                         hd = self._museum_art_house_achd(name, state.width, state.height, gx)

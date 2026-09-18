@@ -466,6 +466,10 @@ class MeshPart:
     uses_lighting: bool = True
     ## From G_SETOTHERMODE_L: opa / tex_edge / xlu, or None if never set in this DL.
     coverage: str | None = None
+    ## Texture is sampled through a segment address the game binds at draw time (acre
+    ## BG bank, actor `anime_N`), not a fixed REL image. Only these can take a seasons-pack
+    ## swap; a fixed-image object (rock, prop) keeps its own CI4 whatever it is named.
+    runtime_bound: bool = False
 
 
 @dataclass
@@ -1128,6 +1132,9 @@ def parse_gfx(
                 beach_prim=beach_prim,
                 uses_lighting=uses_lighting,
                 coverage=coverage,
+                runtime_bound=bool(
+                    int((tex_state.tile0 or {}).get("img_addr") or tex_state.img_addr) >> 24
+                ),
             )
         )
         triangles = []

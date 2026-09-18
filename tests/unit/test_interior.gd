@@ -171,6 +171,40 @@ func test_apply_cloth_paints_mannequin_seg08() -> void:
 	assert_bool(painted.texture_repeat).is_false()
 
 
+func test_apply_cloth_keeps_hd_shirt_on_wrap_baked_player() -> void:
+	## Player shirt atlas is the 32² tile wrap-baked 3×1 (96×32). The 256² bank shirt must be
+	## tiled 3× into a 768×256 atlas — not squashed into 96×32 (native-size, stretched).
+	const PLAYER := "res://assets/generated/characters/player/boy_1.glb"
+	if not ResourceLoader.exists(PLAYER) or FieldCatalog.cloth_albedo(16).is_empty():
+		return
+	var bank: Texture2D = load(FieldCatalog.cloth_albedo(16)) as Texture2D
+	var inst: Node = (load(PLAYER) as PackedScene).instantiate()
+	auto_free(inst)
+	add_child(inst)
+	GeneratedVisual.apply_cloth(inst, 16)
+	var sizes: Array[Vector2i] = []
+	_collect_cloth_albedo_sizes(inst, sizes)
+	assert_int(sizes.size()).is_greater(0)
+	for sz: Vector2i in sizes:
+		assert_int(sz.y).is_equal(bank.get_height())
+		assert_int(sz.x % bank.get_width()).is_equal(0)
+	assert_bool(sizes.has(Vector2i(bank.get_width() * 3, bank.get_height()))).is_true()
+
+
+func _collect_cloth_albedo_sizes(node: Node, out: Array[Vector2i]) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		var n: int = mi.mesh.get_surface_count() if mi.mesh != null else 1
+		for i: int in n:
+			var mat: Material = mi.get_active_material(i)
+			if GeneratedVisual._is_cloth_surface(mi, i, mat) and mat is StandardMaterial3D:
+				var tex: Texture2D = (mat as StandardMaterial3D).albedo_texture
+				if tex != null:
+					out.append(Vector2i(tex.get_width(), tex.get_height()))
+	for child in node.get_children():
+		_collect_cloth_albedo_sizes(child, out)
+
+
 func test_apply_cloth_skips_villager_eye_seg08() -> void:
 	## Tom Nook / villagers: `seg_08` is ANIME_1 eyes, not cloth.
 	var host := MeshInstance3D.new()
