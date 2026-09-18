@@ -131,6 +131,8 @@ func _spawn_player() -> void:
 
 
 func _play_door_emerge(player: Node) -> void:
+	## Begin with the iris opening, not while the world is still stalling on its first frames.
+	await SceneTransition.wait_wipe_in_start()
 	if player == null or not is_instance_valid(player):
 		return
 	var host: Node3D = StructureDoor.find_near(self, player.global_position)

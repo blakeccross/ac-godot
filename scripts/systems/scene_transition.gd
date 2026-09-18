@@ -29,9 +29,16 @@ var wipe_in_pending: bool = false
 var pending_style: Style = Style.FADE
 var pending_color: Color = Color.BLACK
 
+## Emitted when the wipe-in tween actually starts (after the new scene has settled).
+signal wipe_in_started
+
 var _rect: ColorRect
 var _iris_material: ShaderMaterial
 var _tween: Tween
+## A wipe-in is armed but holding opaque until the new scene has drawn (see below).
+var _wipe_in_waiting: bool = false
+## Bumped by `cancel_wipe()` so a wipe-in still waiting on its first frames never starts.
+var _wipe_generation: int = 0
 
 
 func _ready() -> void:
@@ -101,13 +108,37 @@ func play_wipe_in_if_pending() -> void:
 	## the new room before the fade-in tween starts.
 	_apply_style_color(pending_color)
 	_set_alpha(1.0)
+	wipe_in_pending = false
+	_wipe_in_waiting = true
+	var generation: int = _wipe_generation
+	## A freshly built scene stalls its first frames (node `_ready`, mesh / shader upload).
+	## Tweens advance by real frame time, so starting the fade now would spend a good part of it
+	## inside that stall and the iris would appear already half open (or open before the world
+	## has drawn at all). Wait for the first drawn frames, then start.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	if generation != _wipe_generation:
+		return
+	_wipe_in_waiting = false
+	wipe_in_started.emit()
 	## Fire-and-forget so room spawn / arrive can start immediately under the fade.
 	play_wipe_in()
+
+
+## Lets a scene start its own opening beat (door emerge) on the same frame the wipe-in starts.
+func wait_wipe_in_start() -> void:
+	if _wipe_in_waiting:
+		await wipe_in_started
 
 
 func cancel_wipe() -> void:
 	## Enter failed after wipe-out — restore visibility without a scene change.
 	wipe_in_pending = false
+	_wipe_generation += 1
+	if _wipe_in_waiting:
+		_wipe_in_waiting = false
+		wipe_in_started.emit()  ## release anything waiting on the start (door emerge)
 	pending_style = Style.FADE
 	pending_color = Color.BLACK
 	if _tween != null:
