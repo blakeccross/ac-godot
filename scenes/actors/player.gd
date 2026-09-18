@@ -29,8 +29,31 @@ const ANIM_OPEN1 := "ply_1_open1"
 const ANIM_INTO_S1 := "ply_1_into_s1"
 ## `mPlayer_ANIM_GO_OUT_S1` — outdoor emerge demo (`mPlayer_INDEX_OUTDOOR`, is_start_demo).
 const ANIM_GO_OUT_S1 := "ply_1_go_out_s1"
-## `mPlayer_ANIM_GO_OUT_O1` — non-demo outdoor emerge fallback.
+## `mPlayer_ANIM_GO_OUT_O1` — non-demo outdoor emerge (`Player_actor_setup_main_Outdoor`).
 const ANIM_GO_OUT_O1 := "ply_1_go_out_o1"
+## `mPlayer_ANIM_PUTAWAY1` — pocket put-away (`putin_item` forward, `takeout_item` reversed).
+const ANIM_PUTAWAY1 := "ply_1_putaway1"
+## `m_player_main_putin_item` / `takeout_item` / `return_outdoor*` timers are game ticks (60 Hz).
+const TOOL_TICK_SEC := 1.0 / 60.0
+## `morph_counter` 9.0 falls 0.5 per tick and `cKF_SkeletonInfo_R_play` holds the clip's first
+## frame the whole time, so the pose morph is 18 ticks before the clip itself starts moving.
+const TOOL_MORPH_SEC := 18.0 * TOOL_TICK_SEC
+## Put-away: `item_scale` = 1 − t / 18 (ticks), so the tool is gone as the morph ends. The state
+## then runs the clip and `Player_actor_CulcAnimation_Base2` needs two more ticks to report
+## it stopped (STOPPED, then speed already 0).
+const PUTIN_SCALE_TICKS := 18.0
+const PUTIN_STOP_TICKS := 2.0
+## Take-out: reverse clip after the morph; at tick 36 the item's own hold pose morphs in
+## (`InitAnimation_Base1`, morph 9 → 18 ticks) while `item_scale` grows 0 → 1 to tick 54, which
+## is also when the state ends.
+const TAKEOUT_SCALE_START_TICKS := 36.0
+const TAKEOUT_END_TICKS := 54.0
+## `RETURN_OUTDOOR` / `RETURN_OUTDOOR2` bracket the take-out, 3 ticks each.
+const RETURN_OUTDOOR_TICKS := 3.0
+## `extra_data == 2` exits (houses, post office, Able Sisters) start O1 at frame 25 — the
+## walk-out is already done, so only the turn-and-close-door shows. `extra_data == 3`
+## exits (Nook, museum, police, …) start at frame 1 and walk out in full.
+const GO_OUT_O1_DOOR_ONLY_START_SEC := 24.0 / 30.0  ## cKF frame 25 (frame 1 is t = 0)
 ## `mPlayer_ANIM_OUTTRAIN1` — station caboose step-off (`mPlayer_INDEX_DEMO_GETOFF_TRAIN`).
 const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 
@@ -51,6 +74,11 @@ var _placeholder_bob: float = 0.0
 var _hold_anim: StringName = &""
 var _tool_hold_anim: StringName = &""
 var _tool_use_anim: StringName = &""
+## Tool is put away (door enter) or not yet taken back out (door emerge). `item_kind` is −1 in
+## interiors too — `Player_actor_CheckScene_AbleOutItem` only allows the outdoor field.
+var _tool_stowed: bool = false
+## `PUTIN_ITEM` / `TAKEOUT_ITEM` own the pose; `_update_animation` stays out of the way.
+var _tool_swap: bool = false
 var _step_time: float = 0.0
 var _right_foot: bool = true
 var _door_entering: bool = false
@@ -367,6 +395,9 @@ func _begin_animation_move(
 
 
 func end_door_enter() -> void:
+	## A failed enter (`Game.try_enter_interior`) stays outdoors — the tool comes back out.
+	if _tool_stowed and not Game.is_indoors():
+		take_out_tool()
 	_door_entering = false
 	_door_animation_move = false
 	_door_root_clip = ""
@@ -382,7 +413,7 @@ func await_door_enter() -> void:
 
 ## `mPlayer_INDEX_OUTDOOR`: actor stays on the exit stand; GO_OUT `joint_0` walks the mesh
 ## from behind to bind (`Set_force_shadow_position_fromAnimePosition` only).
-func begin_door_leave(stand: Vector3, _target: Vector3, face_yaw: float) -> void:
+func begin_door_leave(stand: Vector3, _target: Vector3, face_yaw: float, full_walk: bool = false) -> void:
 	_busy = true
 	_door_entering = true
 	_door_animation_move = false
@@ -398,13 +429,17 @@ func begin_door_leave(stand: Vector3, _target: Vector3, face_yaw: float) -> void
 	_motor.reset(face_yaw)
 	_mesh.rotation.y = face_yaw
 	velocity = Vector3.ZERO
-	var clip := _resolve_clip(ANIM_GO_OUT_S1)
-	if clip.is_empty():
-		clip = _resolve_clip(ANIM_GO_OUT_O1)
+	var clip := _resolve_clip(ANIM_GO_OUT_O1)
 	if _anim == null or clip.is_empty():
 		return
 	_anim.speed_scale = 1.0
-	_anim.play(clip, 0.08)
+	## No morph (`InitAnimation_Base2` morph 0.0) so the first shown frame is the clip's own.
+	_anim.play(clip, 0.0)
+	if not full_walk:
+		_anim.seek(GO_OUT_O1_DOOR_ONLY_START_SEC, true)
+	## Pose the first frame now so un-hiding the model never shows the idle pose.
+	_anim.advance(0.0)
+	visible = true
 
 
 func end_door_leave() -> void:
@@ -558,6 +593,8 @@ func _camera_wish(input_dir: Vector2) -> Vector3:
 
 
 func _update_animation(delta: float) -> void:
+	if _tool_swap:
+		return
 	var next: PlayerLocomotion.Gait = _motor.gait()
 	if _anim == null:
 		_placeholder_bob += delta * (8.0 if next != PlayerLocomotion.Gait.WAIT else 2.0)
@@ -1232,20 +1269,138 @@ func _resolve_clip_in(anim_player: AnimationPlayer, suffix: String) -> String:
 
 
 func _on_equipment_changed(_item_id: StringName) -> void:
+	_bind_equipped_tool(not _tool_hidden())
+	if not _busy:
+		_replay_gait_clip()
+
+
+func _tool_hidden() -> bool:
+	return _tool_stowed or Game.is_indoors()
+
+
+func _bind_equipped_tool(show_tool: bool) -> void:
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
 	HeldTool.unbind(skeleton)
 	_hold_anim = &""
 	_tool_hold_anim = &""
 	_tool_use_anim = &""
 	var tool: ToolData = _equipped_tool()
-	if tool != null and tool.visual_id != &"":
+	if show_tool and tool != null and tool.visual_id != &"":
 		HeldTool.bind(skeleton, tool.visual_id)
 		_hold_anim = tool.hold_anim
 		_tool_hold_anim = tool.visual_hold_anim
 		_tool_use_anim = tool.visual_use_anim
 		HeldTool.play(skeleton, _tool_hold_anim, true)
-	if not _busy:
+
+
+## `Player_actor_CheckAndRequest_ItemInOut`: a door request while a tool is out is swapped for
+## `PUTIN_ITEM` (`PUTAWAY1` forward, the tool shrinking into the hand over 18 ticks), and the
+## door sequence only starts once it ends. The equipped item itself is untouched.
+func put_away_tool_for_door() -> void:
+	if _tool_hidden() or _equipped_tool() == null:
+		return
+	var was_busy: bool = _busy
+	_busy = true
+	_tool_swap = true
+	if not _door_entering:
+		_door_clear_busy = false
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	var length: float = _play_tool_swap_clip(false)
+	var total: float = TOOL_MORPH_SEC + length + PUTIN_STOP_TICKS * TOOL_TICK_SEC
+	var elapsed: float = 0.0
+	while elapsed < total:
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+		if elapsed < TOOL_MORPH_SEC and _anim != null:
+			_anim.seek(0.0, true)
+		var scale_t: float = clampf(elapsed / (PUTIN_SCALE_TICKS * TOOL_TICK_SEC), 0.0, 1.0)
+		HeldTool.set_scale(skeleton, 1.0 - scale_t)
+	_tool_stowed = true
+	_bind_equipped_tool(false)
+	_tool_swap = false
+	## The door sequence (`begin_door_enter`) takes over from here and locks movement itself.
+	_busy = was_busy
+
+
+## Outdoor spawn from a door: `OUTDOOR` has `ABLE_ITEM_NONE`, so nothing is in hand until
+## `take_out_tool`.
+func stow_tool_for_door_exit() -> void:
+	if _equipped_tool() == null:
+		return
+	_tool_stowed = true
+	_bind_equipped_tool(false)
+
+
+## `RETURN_OUTDOOR` (3 ticks) → `TAKEOUT_ITEM` → `RETURN_OUTDOOR2` (3 ticks). Take-out plays
+## `PUTAWAY1` reversed with nothing in hand, then from tick 36 blends to the tool's hold pose
+## while it grows 0 → 1, ending at tick 54.
+func take_out_tool() -> void:
+	if not _tool_stowed:
+		return
+	var was_busy: bool = _busy
+	_busy = true
+	_tool_swap = true
+	if not _door_entering:
+		_door_clear_busy = false
+	await get_tree().create_timer(RETURN_OUTDOOR_TICKS * TOOL_TICK_SEC).timeout
+	_tool_stowed = false
+	_bind_equipped_tool(not Game.is_indoors())
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	HeldTool.set_scale(skeleton, 0.0)
+	var length: float = _play_tool_swap_clip(true)
+	var grow_start: float = TAKEOUT_SCALE_START_TICKS * TOOL_TICK_SEC
+	var end: float = TAKEOUT_END_TICKS * TOOL_TICK_SEC
+	var elapsed: float = 0.0
+	var posed: bool = false
+	while elapsed < end:
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+		if not posed and elapsed < TOOL_MORPH_SEC and _anim != null:
+			## Reverse clip: the morph holds its *last* frame.
+			_anim.seek(length, true)
+		if elapsed < grow_start:
+			continue
+		if not posed:
+			posed = true
+			_blend_to_hold_pose()
+		elif elapsed < grow_start + TOOL_MORPH_SEC and _anim != null:
+			_anim.seek(0.0, true)
+		HeldTool.set_scale(skeleton, clampf((elapsed - grow_start) / (end - grow_start), 0.0, 1.0))
+	HeldTool.set_scale(skeleton, 1.0)
+	await get_tree().create_timer(RETURN_OUTDOOR_TICKS * TOOL_TICK_SEC).timeout
+	_tool_swap = false
+	_busy = was_busy
+	if not _busy and (_anim == null or not _anim.is_playing()):
 		_replay_gait_clip()
+
+
+## Plays `PUTAWAY1` (reversed for take-out) plus its GASAGOSO rustle; returns its length.
+func _play_tool_swap_clip(reverse: bool) -> float:
+	var clip := _resolve_clip(ANIM_PUTAWAY1)
+	if _anim == null or clip.is_empty():
+		return 0.0
+	_anim.speed_scale = 1.0
+	if reverse:
+		_anim.play_backwards(clip, TOOL_MORPH_SEC)
+	else:
+		_anim.play(clip, TOOL_MORPH_SEC)
+	PlayerSe.schedule_clip(self, StringName(clip))
+	var res: Animation = _anim.get_animation(clip)
+	return res.length if res != null else 0.0
+
+
+func _blend_to_hold_pose() -> void:
+	if _anim == null:
+		return
+	var clip := _resolve_clip(String(_hold_anim)) if _hold_anim != &"" else ""
+	if clip.is_empty():
+		clip = _resolve_clip(ANIM_WAIT)
+	if clip.is_empty():
+		return
+	_ensure_loop(clip)
+	_gait = PlayerLocomotion.Gait.WAIT
+	_anim.speed_scale = 1.0
+	_anim.play(clip, TOOL_MORPH_SEC)
 
 
 func _equipped_tool() -> ToolData:

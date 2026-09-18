@@ -25,6 +25,23 @@ func test_shop_enter_uses_base_clip() -> void:
 	assert_str(StructureDoor.leave_clip(anim, &"obj_s_shop1")).is_equal("obj_s_shop1")
 
 
+func test_post_leave_starts_at_frame_25_with_out_sound_pattern() -> void:
+	## `aPOFF_setup_animation` request 4 → `_out` 25→51; `chk_pat_out` on leave, `chk_pat_in` on enter.
+	assert_float(StructureDoor.leave_start_frame(&"obj_s_yubinkyoku")).is_equal(25.0)
+	assert_float(StructureDoor.leave_start_frame(&"obj_s_myhome1")).is_equal(25.0)
+	assert_float(StructureDoor.leave_start_frame(&"obj_s_house1")).is_equal(1.0)
+	assert_array(StructureDoor.door_se_frames(&"obj_s_yubinkyoku", false)).is_equal(
+		StructureDoor.DOOR_SE_OUT_FRAMES
+	)
+	assert_array(StructureDoor.door_se_frames(&"obj_s_yubinkyoku", true)).is_equal(
+		StructureDoor.DOOR_SE_IN_FRAMES
+	)
+	## Villager houses are the reverse.
+	assert_array(StructureDoor.door_se_frames(&"obj_s_house1", true)).is_equal(
+		StructureDoor.DOOR_SE_OUT_FRAMES
+	)
+
+
 func test_walk_in_uses_into_not_open1() -> void:
 	## `door_type != 0` (museum / police / shop) → INTO_S1; demo type 0 → OPEN1.
 	assert_bool(StructureDoor.uses_walk_in(&"obj_s_museum")).is_true()

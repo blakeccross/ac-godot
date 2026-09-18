@@ -21,6 +21,8 @@ const CLIP_MARKS: Dictionary = {
 	&"ply_1_turi_hiki1": [[0.0, &"10c"]],
 	&"ply_1_get_t1": [[0.0, &"rod_back"]],
 	&"ply_1_not_get_t1": [[0.0, &"rod_back"]],
+	## `Player_actor_sound_GASAGOSO` at `setup_main_Putin_item` / `Takeout_item`.
+	&"ply_1_putaway1": [[0.0, &"gasagoso"]],
 	&"ply_1_putaway_t1": [[0.0, &"gasagoso"]],
 	&"ply_1_get_putaway1": [[0.0, &"gasagoso"]],
 	&"ply_1_get_m1": [[0.0, &"ami_hit"]],

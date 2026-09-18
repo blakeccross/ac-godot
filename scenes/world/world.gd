@@ -121,6 +121,12 @@ func _spawn_player() -> void:
 	SceneTransition.play_wipe_in_if_pending()
 	if Game.emerge_from_door:
 		Game.emerge_from_door = false
+		## Hidden until `begin_door_leave` poses GO_OUT — otherwise the idle model
+		## shows on the stand for a frame before the emerge starts (it is deferred).
+		(player as Node3D).visible = false
+		## `OUTDOOR` carries no item; `take_out_tool` brings it back after the emerge.
+		if player.has_method("stow_tool_for_door_exit"):
+			player.call("stow_tool_for_door_exit")
 		call_deferred("_play_door_emerge", player)
 
 
@@ -128,9 +134,14 @@ func _play_door_emerge(player: Node) -> void:
 	if player == null or not is_instance_valid(player):
 		return
 	var host: Node3D = StructureDoor.find_near(self, player.global_position)
-	if host == null:
+	if host != null:
+		await StructureDoor.play_emerge(host)
+	if not is_instance_valid(player):
 		return
-	await StructureDoor.play_emerge(host)
+	(player as Node3D).visible = true
+	## `RETURN_OUTDOOR` → `TAKEOUT_ITEM` → `RETURN_OUTDOOR2` once the emerge demo ends.
+	if player.has_method("take_out_tool"):
+		await player.call("take_out_tool")
 
 
 func _apply_time_of_day() -> void:

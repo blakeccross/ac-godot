@@ -16,8 +16,13 @@ const _DoorCamera := preload("res://scripts/systems/door_camera.gd")
 
 ## Door hinge SE frames (`aHUS_set_doorSE` / `aMHS` / post / Able). Enter =
 ## PLAYER_ENTER `chk_pat_out`; leave = PLAYER_LEAVE `chk_pat_in`.
-const DOOR_SE_ENTER_FRAMES: Array[float] = [2.0, 8.0, 33.0, 40.0]
-const DOOR_SE_LEAVE_FRAMES: Array[float] = [10.0, 14.0, 35.0, 50.0]
+## `chk_pat_in` / `chk_pat_out` — cKF frame numbers (1-based) where NA_SE_6…9 fire. Villager
+## houses use OUT on player enter and IN on leave; post / Able / player house are the reverse.
+const DOOR_SE_IN_FRAMES: Array[float] = [10.0, 14.0, 35.0, 50.0]
+const DOOR_SE_OUT_FRAMES: Array[float] = [2.0, 8.0, 33.0, 40.0]
+## Post / Able / player house leave plays the `*_out` clip from frame 25 (`start_idx[1]`) —
+## the door only swings shut; frames 1–24 (the swing open) are skipped.
+const DOOR_LEAVE_START_FRAME := 25.0
 const DOOR_SE_IDS: Array[StringName] = [&"6", &"7", &"8", &"9"]
 const DOOR_SE_FPS := 30.0
 
@@ -31,8 +36,8 @@ const ANIM_MOVE_COUNTER := 9.0
 const ANIM_MOVE_COUNTER_GETOFF := 5.0
 ## Demo `size_adj` floor when house_info.size is 0 (`aMHS_set_demo_info`).
 const APPROACH_GX := 20.0
-## `cKF_ba_r_ply_1_go_out_s1` frame count (demo outdoor start).
-const LEAVE_SEC := 31.0 / 30.0
+## `cKF_ba_r_ply_1_go_out_o1` frames 25→end (door-close-only emerge).
+const LEAVE_SEC := 34.0 / 30.0
 ## How far past the exit stand the emerge walk finishes (unused for body — GO_OUT root owns it).
 const LEAVE_GX := 40.0
 ## `cKF_ba_r_ply_1_into_s1` frame count (indoor door / exit walk / outdoor walk-in).
@@ -68,6 +73,9 @@ static func uses_walk_in(visual_id: StringName) -> bool:
 static func play_enter(host: Node) -> void:
 	var root: Node3D = _structure_root(host)
 	var player: Node = _find_player(host)
+	## `Player_actor_CheckAndRequest_ItemInOut`: the door request waits on `PUTIN_ITEM`.
+	if player != null and is_instance_valid(player) and player.has_method("put_away_tool_for_door"):
+		await player.call("put_away_tool_for_door")
 	var visual_id: StringName = _visual_id(root) if root != null else &""
 	var look: Vector3 = approach_position(root) if root != null else Vector3.ZERO
 	if root != null:
@@ -127,14 +135,21 @@ static func play_emerge(host: Node) -> void:
 	if HostCollision.is_museum(visual_id):
 		return
 	var player: Node = _find_player(host)
-	var look: Vector3 = approach_position(root) if root != null else Vector3.ZERO
-	if root != null:
-		_DoorCamera.begin(look, host.get_tree() if host != null else null)
+	var stand: Vector3 = exit_stand(root) if root != null else Vector3.ZERO
 	if root != null and player != null and player.has_method("begin_door_leave"):
-		var stand: Vector3 = exit_stand(root)
 		var out_yaw: float = leave_yaw(root, stand)
 		## Body stays on `rewrite_out_data` stand; GO_OUT joint_0 carries the mesh.
-		player.call("begin_door_leave", stand, stand, out_yaw)
+		## `door_data.extra_data`: 2 (houses / post / Able) = door-close only,
+		## 3 (Nook / police / …) = full walk-out. Same split as the enter walk-in.
+		player.call("begin_door_leave", stand, stand, out_yaw, uses_walk_in(visual_id))
+	## `Camera2_request_main_door` (OUTDOOR, flags&1 == 0, morph 0): the door camera
+	## centres on the *player* actor, not the enter approach stand — so it stays put
+	## (use the player's real Y; `exit_stand` Y is only the structure base).
+	if root != null:
+		var cam_center: Vector3 = (
+			(player as Node3D).global_position if player is Node3D else stand
+		)
+		_DoorCamera.begin(cam_center, host.get_tree() if host != null else null)
 	var played: bool = await _play(host, false)
 	## Museum / police have no leave cKF — hold on player GO_OUT.
 	if not played and player != null and is_instance_valid(player) and player.has_method("await_door_enter"):
@@ -301,25 +316,49 @@ static func _play(host: Node, entering: bool) -> bool:
 	var clip: String = enter_clip(anim, visual_id) if entering else leave_clip(anim, visual_id)
 	if clip.is_empty():
 		return false
+	var start_frame: float = 1.0 if entering else leave_start_frame(visual_id)
 	anim.play(clip)
-	_schedule_door_se(root, entering)
+	if start_frame > 1.0:
+		## cKF frame 1 is t = 0.
+		anim.seek((start_frame - 1.0) / DOOR_SE_FPS, true)
+	_schedule_door_se(root, entering, start_frame)
 	if anim.current_animation_length <= 0.0:
 		return false
 	await anim.animation_finished
 	return true
 
 
-static func _schedule_door_se(at: Node, entering: bool) -> void:
+## `start_idx[]` in `aPOFF_/aNW_/aMHS_setup_animation`: the leave (`_out`) clip skips the swing-open.
+static func leave_start_frame(visual_id: StringName) -> float:
+	if (
+		HostCollision.is_post_office(visual_id)
+		or HostCollision.is_able_sisters(visual_id)
+		or HostCollision.is_player_house(visual_id)
+	):
+		return DOOR_LEAVE_START_FRAME
+	return 1.0
+
+
+static func door_se_frames(visual_id: StringName, entering: bool) -> Array[float]:
+	## Villager house: `PLAYER_ENTER` → out, `PLAYER_LEAVE` → in. Others: enter → in, leave → out.
+	var villager: bool = HostCollision.is_villager_house(visual_id)
+	return DOOR_SE_OUT_FRAMES if entering == villager else DOOR_SE_IN_FRAMES
+
+
+static func _schedule_door_se(at: Node, entering: bool, start_frame: float = 1.0) -> void:
 	## Fire NA_SE_6…9 on the same frame offsets as `aHUS_set_doorSE`.
 	if at == null or not is_instance_valid(at):
 		return
 	var tree: SceneTree = at.get_tree()
 	if tree == null:
 		return
-	var frames: Array[float] = DOOR_SE_ENTER_FRAMES if entering else DOOR_SE_LEAVE_FRAMES
+	var frames: Array[float] = door_se_frames(_visual_id(at), entering)
 	for i: int in DOOR_SE_IDS.size():
+		## Frames before the clip's start frame are never reached (`passCheck_now`).
+		if frames[i] < start_frame:
+			continue
 		var se_id: StringName = DOOR_SE_IDS[i]
-		var delay: float = frames[i] / DOOR_SE_FPS
+		var delay: float = (frames[i] - start_frame) / DOOR_SE_FPS
 		var timer: SceneTreeTimer = tree.create_timer(delay)
 		timer.timeout.connect(_play_door_se.bind(at, se_id), CONNECT_ONE_SHOT)
 

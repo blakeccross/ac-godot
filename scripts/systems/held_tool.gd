@@ -58,6 +58,22 @@ static func unbind(skeleton: Skeleton3D) -> void:
 	attach.free()
 
 
+## `player->item_scale` (`Player_actor_Item_draw`): the tool shrinks into / grows out of the
+## hand during put-away / take-out. Scales the visual, not the `BoneAttachment3D`, which
+## re-syncs its own transform to the bone every frame.
+static func set_scale(skeleton: Skeleton3D, item_scale: float) -> void:
+	if skeleton == null:
+		return
+	var attach: Node = skeleton.get_node_or_null(ATTACH_NAME)
+	if attach == null or attach.get_child_count() == 0:
+		return
+	var visual := attach.get_child(0) as Node3D
+	if visual == null:
+		return
+	visual.visible = item_scale > 0.001
+	visual.scale = Vector3.ONE * maxf(item_scale, 0.001)
+
+
 static func play(skeleton: Skeleton3D, clip_name: StringName, loop: bool = true) -> void:
 	if skeleton == null or clip_name == &"":
 		return
