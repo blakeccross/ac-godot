@@ -1,6 +1,6 @@
 # Architecture
 
-This project reimplements *Animal Crossing* (GameCube) **behavior** in Godot-native systems. The decomp is a reference, not a blueprint. Per-system research (states, I/O, reproduce / simplify / ignore) lives in [docs/decomp_notes/](decomp_notes/) (including [audio](decomp_notes/audio.md)). Read the relevant note before writing implementation code.
+This project reimplements *Animal Crossing* (GameCube) **behavior** in Godot-native systems. The decomp is a reference, not a blueprint. Per-system research (states, I/O, behavior) lives in [docs/decomp_notes/](decomp_notes/) (including [audio](decomp_notes/audio.md)). Read the relevant note before writing implementation code.
 
 ## Layers
 
@@ -102,7 +102,7 @@ Hosts duck-type two methods. There is no shared `Interactable` base: a tree is a
 | `WaterBodies` | Flood-filled water, classified pond / river / ocean, so a fish stays in its own |
 | Host scene | `get_interactions(ctx) -> Array[Interaction]` and `interact(action, ctx)` |
 
-The player facing probe (physics layer `interact`) never does `if target is Tree`. It plays `action.player_anim` if set, then calls `host.interact` (or `ToolUse.apply_field` when the equipped tool has an empty-tile verb). Hosts add tool verbs via `ToolUse.has(ctx, kind)`: axe chops a tree (three hits to a stump; first hit or shake drops fruit), shovel digs a rock or a stump (stump leaves a hole), watering can waters a flower, shovel on a hole fills it. Empty-ground shovel writes a hole FG item. Net and rod are field verbs (swing anywhere; cast only at water). While a line is out, the rod's field verb becomes `hook`, which carries no player animation so the bite window is not spent animating. Stub verbs: talk, sit, enter, shop, read. Item pickup (ground items and flowers) is the one path with real pocket logic. Outdoor hosts register through `WorldObjectRegistry` so `WorldBuilder` does not switch on type.
+The player facing probe (physics layer `interact`) never does `if target is Tree`. It plays `action.player_anim` if set, then calls `host.interact` (or `ToolUse.apply_field` when the equipped tool has an empty-tile verb). Hosts add tool verbs via `ToolUse.has(ctx, kind)`: axe chops a tree (three hits to a stump; first hit or shake drops fruit), shovel digs a rock or a stump (stump leaves a hole), watering can waters a flower, shovel on a hole fills it. Empty-ground shovel writes a hole FG item. Net and rod are field verbs (swing anywhere; cast only at water). While a line is out, the rod's field verb becomes `hook`, which carries no player animation so the bite window is not spent animating. Talk, sit, enter, shop, and read are full host implementations, not stubs — see [dialogue](decomp_notes/dialogue.md), [furniture](decomp_notes/furniture.md), [interiors](decomp_notes/interiors.md), and [shops](decomp_notes/shops.md). Outdoor hosts register through `WorldObjectRegistry` so `WorldBuilder` does not switch on type.
 
 ## World scene
 
@@ -150,28 +150,9 @@ Pipeline details: [decomp_notes/world_generation.md](decomp_notes/world_generati
 
 Do not port `m_common_data` as one Resource. Split player, town, inventory, and clock state.
 
-## Vertical-slice roadmap
+## Build order
 
-Each phase should be playable or testable in-engine. Later phases are not started until earlier ones are.
-
-1. **Phase 0** — project scaffold.
-2. **Phase 1** — architectural foundation + clock, empty acre, walk.
-3. **Phase 2** — decomp research notes (`docs/decomp_notes/`).
-4. **Phase 3** — title → world → spawn → walk → pick up → save on return to title.
-5. **Phase 4** — world hierarchy + logical cell grid.
-6. **Phase 5** — player controller: `CharacterBody3D`, GC walk feel, generated `boy_1` visual when present.
-7. **Phase 6** — interaction framework: objects expose verbs; player uses `InteractionQuery`.
-8. **Phase 7** — time and calendar: `Clock` is the source of truth; other systems subscribe.
-9. **Phase 8** — world from data: `WorldData` + deterministic generator + hand-authored test town; world `.tscn` is a shell.
-10. **Phase 9** — world-object framework (`WorldObjectRegistry`): tree, rock, flower, ground item, building, door; all use interaction verbs. New-game placement for house / shop / museum / Able Sisters / villager plots follows decomp acre rules ([world_objects.md](decomp_notes/world_objects.md)).
-11. **Phase 10** — tools: `ToolData` + `ToolUse`; shovel, fishing rod, net, axe, watering can as interaction verbs (not full fishing / bug / plant systems).
-12. **One deep interactable** — one tree (grow, shake, fruit, plant) with correct feel. Growth derived from planting date on `field_renewed`.
-13. **Inventory** — `ItemData` / `InventoryItem` / `InventorySlot` / `Inventory`; 5×3 pocket UI; pick up, drop, stack, use, equip, save.
-14. **Villagers** — shared `Villager` actor + looks data; full GC catalog; six starters in town. Talk opens the overlay via `DialogueGreeting`.
-15. **Town shops + economy** — Nook buy/sell and Able Sisters buy; daily stock at 06:00.
-16. **Town deltas** — persist more than one pickup and the current acre FG.
-
-Content quantity is not a milestone. One good instance of a system is.
+The project grew as a vertical slice: architectural foundation and clock first, then title → world → spawn → walk → save, world hierarchy and cell grid, the player controller, the interaction framework, time/calendar, data-driven world generation, the world-object framework ([world_objects.md](decomp_notes/world_objects.md)), tools, one deep interactable (a tree), inventory, villagers, shops, and persistence. Each addition had to be playable or testable in-engine before the next one started. Content quantity is not a milestone — one good instance of a system is.
 
 ## What "Godot-native" means here
 

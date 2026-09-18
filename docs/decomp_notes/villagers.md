@@ -76,7 +76,7 @@ Move-out: `removing`, `remove_animal_idx` on save, minimum days before force rem
 - **Furniture** — NPC rooms are a field type with placed FTR.
 - **Save** — `animals[]`, `now_npc_max`, `remove_animal_idx`.
 
-## Reproduce
+## Behavior
 
 - **One villager** with a daily table: sleep, indoors, outdoors, with hour boundaries. Looks (personality) selects the table; the actor is shared.
 - New game fills **six** outdoor villagers: shuffle the starter pool, keep one of each looks, assign to the six NPC houses. Each house interior uses that animal’s `npc_house_list` wall/carpet (`VillagerData.wall_index` / `floor_index`). Outdoor shell uses `house_type` / `house_palette` → `obj_s_house{1-5}_{a-e}` (`aHUS_actor_ct`).
@@ -86,21 +86,8 @@ Move-out: `removing`, `remove_animal_idx` on save, minimum days before force rem
 - Talk updates last-spoke and friendship on `Relationship` (not on the dialogue graph). Every catalog villager opens the dialogue overlay: `DialogueGreeting` picks a starting message from looks / meet time / weather / mood, then jumps into the imported bank (or `looks_greeting` if the bank is missing). Talk **interrupts** the current action (`VillagerAI.begin_talk`): they stop, turn toward the player, and hold until the overlay `closed` signal, then resume the previous step (or rebuild if the clock slot changed).
 - **Head look:** while outdoors (and indoors when home), head tracks the player if xz &lt; 120 GX (6 m) and within ±67.5° of body facing (`NpcHeadLook` / `aNPC_check_look_player`). Sleepy mood blocks it. Body does not idle-turn toward the player.
 - **In house:** `VillagerState.is_home` mirrors `Animal_c.is_home`. IN_HOUSE outdoors walks to the door (`DOOR_APPROACH`) then hides (`WAKE`). SLEEP while home refuses the door; not-home refuses entry. Awake-home opens the door and spawns an indoor resident (`indoor_resident`) in the NPC room.
-- Not on the acre when sleeping or indoors (or visibly in bed later). Walking home/out is still visible.
-
-## Simplify
-
+- Not on the acre when sleeping or indoors. Walking home/out is still visible.
 - Looks tables for all six personalities as data. Filbert uses the lazy (boy) table (`data/schedules/pip_weekday.tres`).
-- Shared activity runner (`VillagerAI` + reusable `ActivityKind` steps). Not per-villager AI scripts and not `aNPC_think_*` overlays. Talk is `begin_talk` / `end_talk` on that runner, not `VillagerSchedule.force` and not an action-priority table. Wander wait/walk/run weights and acre-center radius come from that think, encoded as data on `VillagerWalk`. Field walk/run m/s come from the shared `aNPC_spd_data` 1.0 / 3.0 GX rows (`VillagerMotor.RUN_SCALE`), not a per-looks overlay.
-- Field goals use `mNpcW_GOAL_*` kinds and acre picks. Full-town walks the route; no acre-edge appear/streaming and no gate waypoint graphs. Stay-in-acre then new goal is ~28s, not the original 30-minute arrive counter. Wander dests sit on the 280 GX acre circle (not snapped to a cell). Arrive uses √72 GX so a walk covers the rim. Per-frame order matches decomp: move on current facing → BG revise → **circleRangeRevice** (hard clamp to R=280) → reactive avoid → then chase turn. Roam range is the circle, not the acre square. Front walls with `avoid_direction == 0` hop ±112.5° / 1 unit via turn-in-place (`ACT_TURN`) then walk. Side commits use `aNPC_avoid_wall` 2 units at 22.5° / 45° / 90° then 180° while still moving. Walk turn is `0x0200`, run `0x0400`. **`aNPC_forward_check` probes left/right half-units** (not forward): out-of-circle or raised ground ≥20 GX above feet sets `HIT_WALL` / `HIT_WALL_FRONT`. A forward rim probe would false-trigger every approach to a circle dest (often cliff-edge acres). Avoid updates `avoid_pos` only — `dst_pos` stays the rim. Wander rim picks use FG EMPTY/ITEM1/FTR + `CheckNpc` + circle range — no `path_clear`. Display names use the original villager names; meshes are disc species GLBs (`squ_1`, `cat_1`, …) when converted. Roster data is generated from decomp NPC tables (`tools/build_assets.py --kind villagers --step convert`); catchphrases stay empty except for a few hand-authored ones.
-- Friendship as an int 0–255 (or 0–100) without letter scoring. Gates stay on `Relationship` (`best_friend` at 80).
-- Skip villager–villager relation matrix.
-- Skip move-out lottery and “return visitor” (`Anmret_c`). New towns stay at six starters (one looks each). The other animals live in the catalog for talk and later move-in.
-
-## Ignore
-
-- Island play, mask cats, 5 event NPCs, special NPCs (resetti, kettle, etc.) until a slice needs them. Island animals are in the catalog (`islander`) but not placed in a new town.
-- HP password mail, Able Sisters cloth ids, umbrella ids.
-- Contest quests, holiday mail (Valentine / White Day).
-- `SPECIAL` schedule programs per actor overlay.
-- Mechanical translation of `m_npc_walk` waypoint graphs.
+- Shared activity runner (`VillagerAI` + reusable `ActivityKind` steps), not per-villager AI scripts or `aNPC_think_*` overlays. Talk is `begin_talk` / `end_talk` on that runner. Wander wait/walk/run weights and acre-center radius are data on `VillagerWalk`. Field walk/run m/s come from the shared `aNPC_spd_data` 1.0 / 3.0 GX rows (`VillagerMotor.RUN_SCALE`), not a per-looks overlay.
+- Field goals use `mNpcW_GOAL_*` kinds and acre picks; stay-in-acre then new goal is ~28s (not the original 30-minute arrive counter). Wander dests sit on the 280 GX acre circle (not snapped to a cell); arrive uses √72 GX so a walk covers the rim. Per-frame order matches decomp: move on current facing → BG revise → **circleRangeRevice** (hard clamp to R=280) → reactive avoid → chase turn. Front walls with `avoid_direction == 0` hop ±112.5° / 1 unit via turn-in-place then walk; side commits use `aNPC_avoid_wall` 2 units at 22.5° / 45° / 90° then 180° while still moving. `aNPC_forward_check` probes left/right half-units (not forward): out-of-circle or raised ground ≥20 GX above feet sets `HIT_WALL` / `HIT_WALL_FRONT`. Wander rim picks use FG EMPTY/ITEM1/FTR + `CheckNpc` + circle range.
+- Display names use the original villager names; meshes are disc species GLBs (`squ_1`, `cat_1`, …) when converted. Roster data is generated from decomp NPC tables (`tools/build_assets.py --kind villagers --step convert`); catchphrases stay empty except for a few hand-authored ones. The catalog is every GC animal (`NPC_NUM` 236); new towns place six starters (one looks each) — the rest live in the catalog for talk and later move-in. Friendship is an int 0–255 on `Relationship` (`best_friend` at 80), without letter scoring or the villager–villager relation matrix.

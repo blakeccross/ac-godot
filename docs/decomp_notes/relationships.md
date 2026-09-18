@@ -58,25 +58,11 @@ There is **no conversation log** and **no named milestone list**. History is las
 - **Inventory** — wrapped presents (`mPr_ITEM_COND_PRESENT`) and mail attachments.
 - **Save** — `Animal_c.memories[]`.
 
-## Reproduce
+## Behavior
 
-- One **player ↔ villager** bond per town animal (single-player; skip 7-slot eviction).
+- One **player ↔ villager** bond per town animal (single-player, so no 7-slot eviction). Friendship range is **0–255** (as saved), with the original's **80 / 127** gates.
 - Friendship int, last-spoke day, talk count, a short talk history, gift log, named milestones.
-- Talk: +3 first of the day, +1 again that day (`VillagerState` / `Relationship.record_talk`).
-- Gift: +3 (`mNpc` present-on-letter analog) via `Relationship.record_gift` / `RelationshipBook.give_gift`.
+- Talk: +3 first of the day, +1 again that day (`VillagerState` / `Relationship.record_talk`). Talk history stores `{day, kind}`, not spoken lines — lines belong to dialogue.
+- Gift: +3 (`mNpc` present-on-letter analog) via `Relationship.record_gift` / `RelationshipBook.give_gift`. Gift log stores `{day, item}` (cap 12).
 - Milestones: `met` (first talk), `best_friend` (80), `kindred` (127, original cap), `first_gift`.
 - Dialogue **queries** friendship / milestones / gift count. `add_friendship` / `record_gift` events call into `Relationship`.
-
-## Simplify
-
-- One memory per villager, not 7 players. Friendship range stays **0–255** (already in save) with original **80 / 127** gates.
-- No letter body, letter rank, or present-cloth bits.
-- Talk history stores `{day, kind}` not spoken lines (lines belong to dialogue).
-- Gift log stores `{day, item}` (cap 12). No wrapping / mail overlay.
-- Skip villager–villager matrix and memory eviction.
-
-## Ignore
-
-- Multiplayer memory slots and foreigner `mPr_animal_memory`.
-- HP password mail, Able Sisters cloth presents.
-- Contest letter quests.

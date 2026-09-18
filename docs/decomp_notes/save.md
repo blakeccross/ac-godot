@@ -55,30 +55,13 @@ New game (`mSDI_StartDataInit` / `mFM_InitFgCombiSaveData`) generates the town. 
 
 Every system that has durable state: **time, world FG, inventory, villagers, shop, house, calendar, museum, island**. Clips and actors are rebuilt on load.
 
-## Reproduce
+## Behavior
 
 - **Save/load** of: clock, player position/scene, pockets + wallet, town name, FG deltas (trees/items, including stumps), villager friendship / relationships, interior furniture/wall/floor, shop stock if present.
-- New game initializes defaults; load restores them.
-- Fail gracefully if JSON is missing or invalid (do not crash).
-- Single player slot is enough for now.
-
-## Simplify
-
-- JSON (or Godot `ConfigFile`) keyed by system, **not** one packed blob.
-- One player, one house, one acre’s FG.
-- Save on a explicit action and/or leaving the session (Phase 1 already has U/I debug save).
-- No checksum theater beyond “parse failed”.
-- No Slot A/B, travel briefcase, or backup file pair.
-
-## Ignore
-
-- Memory card UI, banners, icons, `mCD_SAVE_DATA_OFS`.
-- Copy protection and foreigner start conditions (`mCD_START_COND_*`).
-- Diary, original design, present, and standalone player-pak files.
-- Island save, GBA, e-Reader.
-- `m_flashrom` error codes except as product inspiration for “save failed”.
-- Noticeboard, snowmen, museum mail-in fossils until those systems exist.
-- Emulating `scene_no` integer tables; store a Godot scene path or acre id.
+- New game initializes defaults; load restores them. Fail gracefully if JSON is missing or invalid.
+- JSON (or Godot `ConfigFile`) keyed by system, not one packed blob. One player, one house, one acre's FG, one save slot.
+- Save on an explicit action and/or leaving the session. No checksum beyond "parse failed". No Slot A/B, travel briefcase, or backup file pair.
+- `scene_no` is a Godot scene path or acre id, not an integer table.
 
 ## Godot mapping reminder
 

@@ -75,7 +75,7 @@ Godot: `SpeciesLog` on `Game` (caught-once set, saved as `species_log`) + `Encyc
 - **Fishing / bugs** — catch goes to first empty slot.
 - **Save** — entire `Private_c.inventory` block.
 
-## Reproduce
+## Behavior
 
 - **15 slots** in a **5×3** grid (`mIV_ITEM_COLUMNS` / `mIV_ITEM_ROWS`).
 - Wallet separate from items (`disp_money`).
@@ -86,23 +86,10 @@ Godot: `SpeciesLog` on `Game` (caught-once set, saved as `species_log`) + `Encyc
 - Tag verbs from `m_tag_ovl` (field default): Use/Eat, Drop, Equip; hand move between slots (`m_hand_ovl`).
 - Field Drop closes the overlay and lets `bg_item` arc the FG item from the player (+50 GX) to the unit — Godot mirrors that with `item_pickup.begin_fall` after `close()`. No `PUTAWAY1` body clip on Drop; that anim is for tool put-in / take-out.
 - Field Plant (`mTG_plant_proc`): with scoop + fillable hole → close and `PUTIN_SCOOP` (`ply_1_fill_up_i1`, plant at frame 25); otherwise close and place with grow-in (throw-put).
-
-## Simplify
-
-- Skip catalog orders, foreign maps, original designs.
-- Skip inventory paper shirt in the menu.
-- Mail inventory is in (10 slots, 2×5 on the same paper as items; Tab switches focus). Full stationery editor deferred — write uses preset bodies.
+- Mail inventory: 10 slots, 2×5 on the same paper as items; Tab switches focus. Writing uses preset bodies rather than a full stationery editor.
 - Loan on `Inventory.loan`; repay at the post office when owing. Savings deposit/withdraw when loan is clear.
-- No 2-bit pack; store condition as an enum on `InventoryItem`.
-- **Stacking** is allowed via `ItemData.max_stack` (GC had none; tools stay at 1).
-
-## Ignore
-
-- Lotto ticket expiry fields next to pockets.
-- Delivery quest arrays sized to 15 and errand quests (5) until quests are in scope.
-- Aircheck bitfields, e-Card letter tracking, mother mail.
-- Destiny/fortune, sunburn, museum record blob as inventory features.
-- GBA / e-Reader item dump (`mSP_SelectRandomItemToAGB`).
+- Condition is an enum on `InventoryItem`, not the original's 2-bit pack.
+- **Stacking** is allowed via `ItemData.max_stack` (the original had none; tools stay at 1).
 
 ## Graphics (UI chrome)
 

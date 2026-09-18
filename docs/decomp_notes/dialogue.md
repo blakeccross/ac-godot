@@ -41,8 +41,11 @@ Talk is wrapped in `m_demo`: player `mPlib_request_main_talk_type1`, camera `CAM
 - Choice overlay index and `selected_choice_idx`.
 - Free-string slots 0–19 filled before appear.
 
-## Reproduce
+## Behavior
 
+- Author **JSON graphs** (`data/dialogue/*.json`), not `m_msg` bytecode. `DialogueData` / `DialogueRunner` / `DialogueCatalog` / `DialogueGreeting` are `RefCounted` helpers, not an autoload. One overlay scene (`scenes/ui/dialogue_overlay.tscn`).
+- Talk start is a Godot picker (`DialogueGreeting`): looks + whether you've met / already talked today / weather / mood / hour → starting `msg_no`. That id `goto`s the imported bank. `looks_greeting.json` is the fallback when no bank is imported.
+- Named `{player}` tags instead of `mMsg_FREE_STR` 20-slot array. Weather is a `StringName` on `Game` (`clear` / `rain` / `snow` / `sakura`) plus intensity from `Weather.roll`.
 - Modal text box with appear/disappear scale (18 frames @ 30 Hz), typewriter (15 glyphs/sec, 30 with fast text), A/E to continue, hold to speed up.
 - Branching **choices** (`m_choice`): teal panel mid-right, cyan `MARKTYPE_CHOICE` mark, 16px pitch, appear/disappear scale (~10.2 frames), unselected `(180,150,110)` / selected `(120,50,50)`.
 - Nameplate tint from speaker sex (`m_msg_appear` / `mNpc_GetLooks2Sex`): male cyan, female pink `(235,140,210)` + text `(45,0,30)`, other lime. Glyphs from disc `FONT_nes_tex_font1` (12×16, CUT advances), not Rodin.
@@ -50,17 +53,9 @@ Talk is wrapped in `m_demo`: player `mPlib_request_main_talk_type1`, camera `CAM
 - Substitutions: `{player}`, `{speaker}`, `{catchphrase}`, `{town}`, `{item0}`, `{recipient}`, `{freeN}`, clock fields. `DialogueContext.substitute` errors if a used slot is empty or left unsubstituted; style tags `{c:}` / `{s:}` / `{choice:}` stay until the overlay expands them.
 - Movement locked until the window hides (`dialogue_ui` group, same idea as pockets). The speaker holds a talk action until the overlay emits `closed`.
 - Talk camera: `Camera2_request_main_talk` framing via `TalkCamera` + `FollowCamera.begin_talk` (base distance 290 GX + 1.46× separation, flatter pitch than follow). Goal yaw is world-south (−180° → inv 0) plus `Camera2_Talk_GetAngleY`: from speaker→listener `search_position_angleY`, E/W band (45°…135°) keeps 0; otherwise nudge `±cos(2y)*2730` short-units (~15°) with `cos*sin >= 0` taking the negative branch (due north is s16 −180°, not +180°). Dramatic ±169° side picks are `Camera2_request_main_listen_front_low_talk` / `CUST_TALK` only (e.g. EV_YOMISE), not normal NPC talk. Villagers and Blathers request talk cam with speaker = player when the overlay opens and clear it on `closed`.
-- Player turn: `mDemo` TYPE_TALK defaults `turn = TRUE` → `Player_actor_Movement_Talk` eases the player toward the NPC (`player_angle_y + 180°`) with `add_calc_short_angle2(1-√0.5, 13.73°, 0.275°)` on a 60 Hz tick. `TalkCamera.begin` starts `player.begin_talk_face(npc)`; `end` clears it. SPEAK/shop paths that set turn off are not modelled yet.
+- Player turn: `mDemo` TYPE_TALK defaults `turn = TRUE` → `Player_actor_Movement_Talk` eases the player toward the NPC (`player_angle_y + 180°`) with `add_calc_short_angle2(1-√0.5, 13.73°, 0.275°)` on a 60 Hz tick. `TalkCamera.begin` starts `player.begin_talk_face(npc)`; `end` clears it.
 - Conditions on branches and choices: friendship, talk/gift counts, milestones, time of day / hour window, weekday, season, **weather** (`Game.weather` hook), inventory / held item, dialogue variables.
 - Events on a line or choice: `set_var`, `add_var`, `add_friendship`, `record_gift`, `give_item`, `take_item`, `set_mood`, `notice`. Friendship and gifts go through `Relationship`.
-
-## Simplify
-
-- Author **JSON graphs** (`data/dialogue/*.json`), not `m_msg` bytecode. `DialogueData` / `DialogueRunner` / `DialogueCatalog` / `DialogueGreeting` are `RefCounted` helpers, not an autoload.
-- One overlay scene (`scenes/ui/dialogue_overlay.tscn`). Voice blips, article grammar, and mail-string length 132 are still skipped.
-- Named `{player}` tags instead of `mMsg_FREE_STR` 20-slot array.
-- Weather is a `StringName` on `Game` (`clear` / `rain` / `snow` / `sakura`) plus intensity from `Weather.roll`.
-- Talk start is a Godot picker (`DialogueGreeting`): looks + whether you’ve met / already talked today / weather / mood / hour → starting `msg_no`. That id `goto`s the imported bank. Personality quest/trade trees stay out until a slice needs them. If the bank is missing, `looks_greeting.json` is the placeholder.
 
 ## Import (disc → gitignored JSON)
 
@@ -93,8 +88,3 @@ Demo / emotion control codes are kept as node `events` (not dropped):
 Convert fails if the imported manpu / set_emote / demo_order counts do not match the raw bank (see `index.json` tallies).
 
 Hand-authored trees live in `data/dialogue/` (`looks_greeting` is the no-bank fallback; `filbert_greeting` is a small authored example).
-
-## Ignore
-
-- Debug `mMsg_debug_draw`, ARAM init, staff-roll / title demo, letter editor, board overlay, password check.
-- Faithful recreation of every personality talk script in C. Import the **bank**; write Godot conditions for the lines we actually play.

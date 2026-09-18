@@ -91,8 +91,7 @@ When shine spots or pitfall holes exist, they reuse the same hole fan and should
 
 **Window ground spill** (`*_window_model`, `*_windowL/R_model`, `windowT_model`): a coplanar I4 fan drawn on the **shadow pass** as `G_RM_AA_ZB_XLU_DECAL2` (prim yellow × I4 × LOD frac 120). Draw callbacks null that joint in OPA. Convert bakes I4 into PNG alpha. `GeneratedVisual` draws it unshaded, 1 GX above the acre, so it does not z-fight the grass. The spill shader composites in **8-bit sRGB** via `hint_screen_texture` (Godot’s linear `blend_mix` made the same alpha read as opaque yellow).
 
-## Simplify / ignore
+## Behavior notes
 
-- Indoor room scenes live: ENTER on a mapped building loads `interior.tscn` (`InteriorCatalog` / `InteriorBook`). Shop hours still gate Nook / Able Sisters.
-- Money-rock dig loot tables. Pitfall kits and walking into a hole (fall).
-- Player house upgrade stages (`obj_s_myhome2`–`4`) until upgrades exist. Villager outdoor shapes `obj_s_house1`–`5` + palettes a–e are applied from `npc_house_list`.
+- ENTER on a mapped building loads `interior.tscn` (`InteriorCatalog` / `InteriorBook`); shop hours gate Nook / Able Sisters.
+- Villager outdoor shapes `obj_s_house1`–`5` + palettes a–e are applied from `npc_house_list`. Player house upgrade stages (`obj_s_myhome2`–`4`) are not modelled.

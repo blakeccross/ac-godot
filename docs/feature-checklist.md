@@ -5,10 +5,10 @@ Nintendo GameCube (`GAFE01`, USA rev 0 — the [ac-decomp](https://github.com/AC
 target) in Godot 4. The only intended deviation is **HD textures / re-authored art**;
 behaviour, numbers, schedules, and content should match the original.
 
-> **Scope note.** This checklist supersedes the "build one good version, then stop"
-> stance in [scope.md](scope.md) for anything the team decides to pursue. Items are
-> listed whether or not they are currently in scope so nothing is forgotten.
-> `docs/decomp_notes/` holds the behavioural detail for systems already studied.
+> This checklist is the authoritative status tracker; see [scope.md](scope.md) for
+> content policy. Items are listed whether or not they are currently in progress so
+> nothing is forgotten. `docs/decomp_notes/` holds the behavioural detail for systems
+> already studied.
 
 ## Legend
 
@@ -212,7 +212,7 @@ data tables before a category is called done.
 - [~] Show-off pose, turn square to camera, catch report at frame 42 (`m_player_main_notice_rod`) — `held_catch.gd`, `held_fish.gd`
 - [~] Species report dialogue; shorter report if already donated; "pockets full → toss back / swap" (`Get_sakana_msg_num`, `0x1348`) — partial
 - [ ] **40 fish** _(verify — 45 spawn types incl. non-fish)_ with month × time-of-day × water-type availability + rarity (`ac_set_ovl_gyoei`, `ac_gyoei_type.c_inc`)
-- [ ] Half-month term split + transition ramp for spawn weights (`gyoei_term`) — _(currently simplified)_
+- [ ] Half-month term split + transition ramp for spawn weights (`gyoei_term`)
 - [ ] Water types: river, river mouth, pond, waterfall pool, sea, island (`aSOG_RANGE_PROC_*`)
 - [ ] Coelacanth only while raining/snowing, in the sea, outside the day slot (`aSOG_add_kaseki_range_data`)
 - [ ] Non-fish catches: boot, tire, tin can, seaweed? _(verify GCN junk list)_
@@ -402,7 +402,7 @@ data tables before a category is called done.
 ## 23. Museum
 
 - [~] Building + 4 wings; **Blathers** the owl curator (nocturnal, sleepy by day) (`ac_museum`, `ac_npc_curator`) — `museum/*`, `museum_book.gd`
-- [~] Donate fish / insect / fossil / painting; one-per-species; assessment dialogue (`m_museum_display`) — `museum_display.gd`, `museum_presenter.gd`; item removal confirmed correct on all 3 real entrypoints (pockets tag, dialogue commit, backend) — rejections (forgery/already-donated/unexamined fossil) now play the full `HandOver.player_offers_npc_rejects` GET+examine+RETURN sequence (`aCR_TALK_GET_DEMO_*`/`aCR_TALK_RETURN_DEMO_*`, including the `NPC_GET_PULL_WAIT` examining pose, decomp index 30) so the item visibly comes back instead of reading as "nothing happened"; fossil-piece acknowledgment for incomplete skeletons (`aCR_chk_fossil_parts_complete`) also lands now. Missing vs. decomp: GET/PUTAWAY hand-over split for *accepted* donations specifically, the 40-entry insect-only extra trivia table (deliberately skipped, no real reference text available), museum-complete mail
+- [~] Donate fish / insect / fossil / painting; one-per-species; assessment dialogue (`m_museum_display`) — `museum_display.gd`, `museum_presenter.gd`; rejections play the full `HandOver.player_offers_npc_rejects` GET+examine+RETURN sequence and fossil-piece acknowledgment for incomplete skeletons lands (see [museum.md](decomp_notes/museum.md)). Missing vs. decomp: GET/PUTAWAY hand-over split for *accepted* donations specifically, the 40-entry insect-only extra trivia table, museum-complete mail
 - [~] Fish tanks with the species swimming; insect terrariums/cases; each donated species animates (`ac_museum_fish_*`, `ac_museum_insect_*`) — `museum_fish_actor.gd`, `museum_insect_actor.gd`
 - [ ] Fossil hall with skeleton mounts assembled from fossil groups (`ac_museum_fossil`)
 - [ ] Art gallery: paintings on the walls; Redd sells real + forged art; forgeries rejected by Blathers (`ac_museum_picture`, `ac_mural`)
@@ -421,10 +421,9 @@ data tables before a category is called done.
   editing/Discard confirm (`mSM_OVL_EDITENDCHK`) — `letter_address_overlay.tscn`,
   `letter_paper_picker_overlay.tscn`, `letter_writer_overlay.tscn`. Gift attachment via
   the hand (`mTG_present_proc`) — pick an item, "Present" it onto the unsent letter.
-  Sending is still the separate Post Office step, matching decomp. **Simplified**: no
-  stationery-item economy (decomp ties paper choice to which stationery stack you own;
-  here the player freely picks any of the 64 real designs when writing — approved
-  divergence); header/footer are auto-filled, not separately editable.
+  Sending is still the separate Post Office step, matching decomp. The player freely
+  picks any of the 64 real paper designs when writing, rather than being limited to a
+  stationery stack they own; header/footer are auto-filled, not separately editable.
 - [x] Stationery types — all 64 designs' real art render in both the read window and the
   write-time picker (`LetterChrome`/`letter_paper_bake.gd`), `MailData.paper_type`
   round-trips through save. Missing (separate, smaller gaps): specific papers awarded

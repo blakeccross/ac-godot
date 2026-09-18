@@ -25,24 +25,12 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 
 Equipping a tool puts the player into a **tool-ready** main index. A then uses that tool on the facing unit or a volume in front (net), not a type-switch on the target actor. Empty hands still shake trees, pick items, and talk. Durability / break (axe), golden variants, and put-away (B) are separate modes.
 
-## Reproduce
+## Behavior
 
-- One equippable tool at a time (`Inventory.equipment_id`).
-- One interact button: host verb if the object cares about the equipped kind, otherwise the tool’s field verb.
-- Axe chops a tree (three hits to a stump; fruit on the first hit or shake); shovel digs (rock / stump / empty ground → hole) and fills a hole; net swings in front; rod casts only at water; watering can waters a flower.
+- One equippable tool at a time (`Inventory.equipment_id`). Data + `ToolUse`, not a `Tool` / `Shovel` / `Axe` class tree. One of each kind (no golden / broken / silver variants).
+- One interact button: host verb if the object cares about the equipped kind, otherwise the tool's field verb.
+- Axe chops a tree (three hits to a stump; fruit on the first hit or shake); shovel digs (rock / stump / empty ground → hole) and fills a hole; net swings in front; rod casts only at water (see [fishing.md](fishing.md)); watering can waters a flower.
 - Locked player anim while the verb runs.
-- Drawn tool follows the right hand (`mPlayer_JOINT_HAND` / joint 20). Axe and scoop are static Gfx (`tol_axe_1`, `tol_scoop_1`). Net and rod are cKF (`tol_net_1`, `tol_sao_1`) and play their own swing clips with the player. Chop uses `ply_1_axe_swing1` (`mPlayer_ANIM_AXE_SWING1`), not `ply_1_axe1`. Net wait uses `ply_1_kamae_wait_m1`. Fill hole uses `ply_1_fill_up1` (effect frame 18); inventory plant into a hole uses `ply_1_fill_up_i1` (effect frame 25). The GameCube disc has **no watering-can mesh**.
-
-## Simplify
-
-- Data + `ToolUse`, not a `Tool` / `Shovel` / `Axe` class tree.
-- No golden / broken / silver variants. One of each kind.
-- No fishing bite loop, insect AI, flower breeding, or axe durability in this slice — those stay in [fishing.md](fishing.md), [bugs.md](bugs.md), [plants.md](plants.md).
-- One hole visual (`HOLE00`), treated as a ground decal (`GetBgY(..., -1 GX)` plus no depth write) so it does not z-fight the acre. Buried fossils use the deposit X crack (`BURIED_CRACK` / `obj_crack0`, hole fan + `obj_crack_tex`); shine spots use golden rays (`SHINE_SPOT` / `ef_anahikari`). Diggable attrs follow `mCoBG_CheckHole_OrgAttr`; shine also requires flat ground and refuses sand-hole attrs. Pitfalls and falling-in wait.
-- Field uses that have no world effect yet post a notice.
-- Takeout / putaway body clips: `ply_1_putaway1` is in `PLAYER_CORE_ANIMS` / `boy_1.glb`, but equip still snaps the held mesh on with no put-in/take-out mode. Watering can stays unequipped-looking (no disc model to attach).
-
-## Ignore
-
-- Golden axe demos, tool fairy, shop sales-sum unlocks until the shop slice wants them.
-- Per-tool air / reflect / broken animation sets.
+- Drawn tool follows the right hand (`mPlayer_JOINT_HAND` / joint 20). Axe and scoop are static Gfx (`tol_axe_1`, `tol_scoop_1`). Net and rod are cKF (`tol_net_1`, `tol_sao_1`) and play their own swing clips with the player. Chop uses `ply_1_axe_swing1` (`mPlayer_ANIM_AXE_SWING1`), not `ply_1_axe1`. Net wait uses `ply_1_kamae_wait_m1`. Fill hole uses `ply_1_fill_up1` (effect frame 18); inventory plant into a hole uses `ply_1_fill_up_i1` (effect frame 25). The GameCube disc has **no watering-can mesh**, so it stays unequipped-looking.
+- One hole visual (`HOLE00`), treated as a ground decal (`GetBgY(..., -1 GX)` plus no depth write) so it does not z-fight the acre. Buried fossils use the deposit X crack (`BURIED_CRACK` / `obj_crack0`, hole fan + `obj_crack_tex`); shine spots use golden rays (`SHINE_SPOT` / `ef_anahikari`). Diggable attrs follow `mCoBG_CheckHole_OrgAttr`; shine also requires flat ground and refuses sand-hole attrs.
+- Field uses with no world effect yet post a notice. Equip snaps the held mesh on directly; there is no put-in/take-out mode.

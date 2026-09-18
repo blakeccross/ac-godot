@@ -107,7 +107,7 @@ Generation order in `mRF_MakeRandomField_ovl`: landform (cliffs + river) → fla
 
 We do **not** port that acre-combination solver. We keep the *rules* (river through town, south beach, house and shop on walkable land, objects on tiles) and express them as `WorldData`.
 
-## Reproduce
+## Behavior
 
 - Discrete **acres** made of a unit grid, not a free-form open world.
 - One acre on screen at first; later, load neighbors.
@@ -137,20 +137,6 @@ All three XLU water shaders sample **linear**, not nearest like the rest of the 
 - Collision that distinguishes **walkable grass**, **water**, and **blocked**. Player Y comes from the **paired acre collision table** (center + four corners × 10 GX) at the current XZ, including water units — original `GetBgY` never returns “no floor” for a river. Banks and terraces are **thin XZ segments** (`SearchWallFlag` + 45° slate + water edges) resolved as a circle (`revise_xz`), not gravity holes, not AABB cell boxes, and not 3D physics walls. Shoreline **wave** units (`CheckWaveAttr` / `Wpos2Attribute` 25–26, 36–38) are walkable wet sand; river and **sea** still wall. Off-map is impassable. Acre-edge **wade** is streaming, not a fence. Trees and rocks use occupancy-sized physics hulls (`HostCollision`). Houses, museum, Able Sisters, post office, Nook shop, and police rewrite the heightfield (`StructureOffset`).
 - Indoor vs outdoor as separate scenes, not one giant mesh.
 - Dropped / grown items occupy **tiles**, not arbitrary floats.
-
-## Simplify
-
-- One 16×16 plot (authored test town **and** a seeded generator), not the 5×6 acre combination solver.
-- No 4-acre visibility window or GameCube overlay streaming.
-- No full river/cliff/bridge combination solver (`m_random_field`). Keep the *rules* (river, beach, cliff, house, shop) as `WorldData`.
-- Scale 40-unit tiles to Godot meters; keep *relative* acre size, not the integer 40.
-- One indoor **system** that can represent every GC interior as data; the player house starts as one small room ([interiors.md](interiors.md)).
-
-## Ignore
-
-- Island BG restore (`mFM_RestoreIslandBG`), police-box special FG, dump/station acre variants until needed.
-- All 293 BG mesh ids and 12 field palettes as a content treadmill.
-- Demo fields (`mFI_FIELD_DEMO_*`), title-screen towns.
-- Copy-protect land id behavior beyond “town has a name”.
-- Perfect acre-edge wade camera (`CAMERA2_PROCESS_WADE`).
-- Waterfall FG actors (`obj_fallS` dual-scroll) — `waterfall_water.gdshader` on grpAT/BT/CT/DT; rainbow billboard still deferred.
+- `TownFieldGenerator` (`GENERATED` mode) reproduces `mRF_MakeRandomField_ovl`'s combination solver: base cliff trace, base river trace (crossing the town center-line, ending at the beach), bridges, sea bridge when no south span, flats, and unique building/shop placement over the full 5×6. `TEST` mode stays one hand-authored 16×16 acre for isolated checks. Neither mode streams a 4-acre visibility window — the whole town loads.
+- Scale 40-unit tiles to Godot meters, keeping relative acre size rather than the integer 40.
+- One indoor **system** represents every GC interior as data; see [interiors.md](interiors.md).

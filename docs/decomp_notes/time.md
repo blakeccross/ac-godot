@@ -6,8 +6,6 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 
 **Read before implementing:** `Clock` (`scripts/systems/clock.gd`), weather, shop hours, villager schedules, plant renewal.
 
-Phase 1 already matches the numbers below. This note is the citation and the leftover original behavior.
-
 ## Decomp sources
 
 | File | Role |
@@ -39,7 +37,7 @@ The year is split into **18 terms** (`mTM_calender`). Each term has an inclusive
 
 At **06:00** a “renew” fires (`mTM_RENEW_TIME_DAILY` / weather). That is when shops restock logic, FG growth (`mAGrw_RenewalFgItem`), mushroom hour checks, and many NPC daily flags run — not at midnight.
 
-Outdoor light interpolates across eight windows (`Clock.outdoor_light` → `World._apply_time_of_day`): ambient / sun / moon / fog / background from `l_mEnv_kcolor_fine_data`, blend via `get_percent`, sun+moon dirs from `mEnv_ChangeDiffuseVctlSet`. Weather is a separate enum: clear, rain, snow, sakura, falling leaves, plus intensity (deferred). NPC house lights off at 05:00 and on at 18:00 (`mEnv_NPC_LIGHTS_*`). Rainbow window is 09:00–15:00.
+Outdoor light interpolates across eight windows (`Clock.outdoor_light` → `World._apply_time_of_day`): ambient / sun / moon / fog / background from `l_mEnv_kcolor_fine_data`, blend via `get_percent`, sun+moon dirs from `mEnv_ChangeDiffuseVctlSet`. Weather is a separate enum: clear, rain, snow, sakura, falling leaves, plus intensity. NPC house lights off at 05:00 and on at 18:00 (`mEnv_NPC_LIGHTS_*`). Rainbow window is 09:00–15:00.
 
 **How actors are lit (original):** every `Actor_draw` builds one `LightsN` from global ambient + sun/moon (`Global_light_read` / `LightsN_list_check` / `LightsN_disp`). There is no per-character lighting hack. Meshes use authored per-vertex lighting normals in Vtx `cn[]` under `G_LIGHTING`. Godot matches that with world sun/moon/ambient plus those normals exported into the GLB — same path for player, villagers, and props.
 
@@ -83,25 +81,11 @@ Island climate **freezes** term index to summer-ish term 7 (`mTM_get_termIdx`).
 - **Plants / bugs / fishing** — spawn tables by term.
 - **Save** — `Time_c` plus calendar structs.
 
-## Reproduce
+## Behavior
 
-- Live clock aligned to real time, with a debug skip (hour/day).
-- Years 2001–2030 clamp (or a documented Godot equivalent).
+- Live clock aligned to real time, with a debug skip (hour/day). Years clamp 2001–2030.
 - **18 terms** and the four season start dates above.
 - **06:00 daily reset** as the hook for growth, shop, schedules.
-- Eight lighting windows and fine-weather colors (already in `Clock.outdoor_light()`).
+- Eight lighting windows and fine-weather colors (`Clock.outdoor_light()`).
 - Weekday for shop lottery / schedules.
-
-## Simplify
-
-- Weather lives in [weather.md](weather.md) (`Weather` + `WeatherFx`); time only supplies `field_renewed`.
-- Calendar UI and holiday flags wait until a holiday slice exists.
-- No island climate override.
-
-## Ignore
-
-- Staff-roll / title-demo clocks.
-- Meteor shower and other `mCD_FLAG_*` until events are in scope.
-- Harvest-moon lunisolar date.
-- `under_sec` / clock-hand radial fields for the Town Hall clock mesh.
-- RTC error UI (`mFRm_ERROR_BAD_RTC`) beyond “clock looks wrong, use fallback”.
+- Weather lives in [weather.md](weather.md) (`Weather` + `WeatherFx`); time only supplies `field_renewed`. No island climate override.

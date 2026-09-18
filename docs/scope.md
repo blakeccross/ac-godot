@@ -1,41 +1,12 @@
 # Scope
 
-> **Superseded for anything the team chooses to pursue.** The project goal is now a
-> 1:1 recreation — see [feature-checklist.md](feature-checklist.md). This file is
-> kept as the historical "core feel first" prioritisation and as a guide to build
-> order (do the core-feel version of a system before its long tail).
-
-Features must earn their place. The decomp containing a system is not a reason to build it.
-
-## In scope (core feel)
-
-Build **one good version** of each, then stop until the game needs more:
-
-- Real-time clock, day/night, seasons
-- A walkable outdoor acre and a simple indoor space
-- Player move, talk, pick up, use a tool
-- One tree (grow, shake, fruit, plant) rather than every tree
-- One villager with a daily schedule rather than every personality
-- One shop with buy/sell rather than every original store (Nook + Able Sisters are the two in town)
-- Inventory, a small item catalog, and a simple economy
-- Save/load of the systems above
-- Villagers look at the player (head) when nearby; go home / sleep and appear indoors when awake at home
-
-## Out of scope until earned
-
-Do not start these just because they exist in the original:
-
-- e-Reader / Game Boy Advance connectivity
-- Famicom / NES minigames
-- Island boat logistics and island-exclusive systems
-- Museum completion as a content treadmill (donation display + one donate loop are in; mail-in / reward furniture wait)
-- Town tune editor, custom designs, pattern tool
-- Multiplayer / Dream Suite–style visits
-- Every holiday, every shop, every villager species
-- Faithful recreation of every submenu, debug overlay, or unused leftover
-
-When a later phase needs one of these, add a short justification in the relevant milestone — gameplay value, not completeness.
+The project goal is a **1:1 recreation** of *Animal Crossing* (GameCube) — see
+[feature-checklist.md](feature-checklist.md) for the authoritative, itemized status of
+every system and content set.
 
 ## Content policy
 
-Villager display names (Filbert, Rosie, …) are allowed. Do not commit Nintendo assets, music, dialogue banks, or decomp source. A local disc may be converted into `assets/generated/` (gitignored) via the pipeline in [asset_pipeline.md](asset_pipeline.md). Hand-authored recreation art lives in `assets/custom/`.
+Villager display names (Filbert, Rosie, …) are allowed. Do not commit Nintendo assets,
+music, dialogue banks, or decomp source. A local disc may be converted into
+`assets/generated/` (gitignored) via the pipeline in [asset_pipeline.md](asset_pipeline.md).
+Hand-authored recreation art lives in `assets/custom/`.

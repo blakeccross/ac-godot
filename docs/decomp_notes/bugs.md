@@ -1,6 +1,6 @@
 # Bugs (insects)
 
-Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — do not ship original insect names as content.
+Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only.
 
 **Read before implementing:** `BugData`, net tool, spawn on trees/flowers/ground.
 
@@ -61,26 +61,6 @@ BGM ducks while collecting (`mPlayer_BGM_VOLUME_MODE_COLLECT_INSECTS`).
 - **Furniture** — displayed bugs; house cockroaches.
 - **Shops** — net unlock after `mSP_NET_SALES_SUM` 3000 at Cranny.
 
-## Reproduce
+## Behavior
 
-- Spawn a visible bug on a valid habitat.
-- Net swing has a catch volume in front of the player.
-- Miss → bug flees; patience so it is not trivial.
-- Success → item in pocket.
-- Full pockets → cannot keep.
-
-## Simplify
-
-- One family (e.g. flying) and 2–3 fictional bugs.
-- 1–2 concurrent spawns, not 9.
-- Skip bees, mosquitoes, cockroaches, wisps, water striders.
-- Patience as a single flee-on-approach radius.
-- No overlay DMA programs (`aINS_PROGRAM_*`).
-
-## Ignore
-
-- All 40 species and island exclusives.
-- Museum insect room treadmill.
-- Firefly point lights (`Lights point_light` on the actor).
-- Ant leftover-food spawns.
-- GBA transfer of insects.
+All 40 species, each on its own `BugProgram` overlay (`scripts/systems/bugs/`: butterfly, dragonfly, grasshopper, cicada, beetle, firefly, water strider, mole cricket, bagworm, pillbug, mosquito, ladybug, cockroach, wisp). `BugActor` runs the shared per-insect state machine; `BugSpawnScheduler` places up to the decomp's live-slot count per acre on entry, gated by season/term/hour/weather from `BugCatalog`; `BugHabitats` maps flowers/trees/ground to valid spawn units. Net swing has a catch volume in front of the player; missing lets the bug flee on its own patience/stress radius; a catch becomes a pocket item; full pockets can't keep it. Museum donation and the display case are covered in [museum.md](museum.md).

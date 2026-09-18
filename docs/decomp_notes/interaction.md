@@ -76,7 +76,7 @@ A-button in the field is **not** one function. The player actor, collision unit,
 - **Dialogue / villagers**.
 - **Furniture / plants / fishing / bugs / shops**.
 
-## Reproduce
+## Behavior
 
 - **One interact button** that does talk, pick up, or use-tool based on target + equipment.
 - Cannot interact while already in a locked action.
@@ -85,19 +85,4 @@ A-button in the field is **not** one function. The player actor, collision unit,
 - Drop / place onto the facing tile if empty. Inventory Drop closes the submenu and arcs the item from the player (+50 GX) onto the landing spot (`bIT_actor_player_drop_entry`) — no player body clip.
 - Talk turns the player, locks movement, opens dialogue.
 - Tool use is tile- or volume-based (axe/shake on tree; shovel digs a hole or fills one; net in front; rod at water).
-
-## Simplify
-
-- One interaction ray / facing-tile query instead of actor overlay clipping.
-- A small verb set: talk, pick up, drop, use tool, sit. Do not port 70+ `mTG_TYPE_*` tags.
-- No separate “pickup jump” / “pickup exchange” unless a slice needs it.
-- Inventory context: field vs shop vs house is enough; skip letters, gyroids, e-Reader, Able Sisters patterns.
-- No GameCube submenu prerender heap (`mSM_MODE_PRERENDER_*`).
-
-## Ignore
-
-- Password items, tickets, balloons, wisps as tag types.
-- Haniwa (gyroid) buy/sell tags.
-- Catalog order / collector hand-over to Blathers tags until museum is in scope.
-- Needlework / custom design stickers.
-- `mDemo_ORDER_*` scripted cutscene sequencer beyond “talk camera + UI”.
+- One interaction ray / facing-tile query, not actor overlay clipping. Inventory context (field vs shop vs house) drives which tag verbs show, rather than porting all 70+ `mTG_TYPE_*` tags individually.

@@ -17,11 +17,11 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 
 Indoor fields are still a **16×16 unit grid** (`UT_X_NUM`). Walls occupy units (`RSV_WALL_NO`); the walkable rectangle grows with house size. Public interiors (shop, museum wings, post, police, Able Sisters, …) are separate field ids, not player `mHm_hs_c`. NPC houses are pre-arranged FTR on `mFI_FIELD_NPCROOM*` with wall/floor from `npc_house_list`.
 
-## Reproduce
+## Behavior
 
 - Same `WorldGrid` as outdoor (2 m cells, occupancy, 90° facing, footprints).
 - Enter / exit swaps the playable field (Godot scene), remembering outdoor pose.
-- Outdoor enter: `door_type 0` (player/villager house, Able, post) plays structure door cKF + player `OPEN1`; `door_type 1` (museum, police, Nook) plays `INTO_S1` (cKF when present). `DoorCamera` pulls look-at to the door stand at Camera2 620; `SceneTransition` fades out before the scene swap (`Style.IRIS` / `WIPE_TYPE_TRIFORCE`; iris shader deferred). Museum outdoor→entrance spawn is `{240,0,440}` facing north, then `INTO_S1` continues past the door so the south Exit stays clear. NPC house outdoor→indoor spawn is `aHUS_npc_house_door_data` `{160,0,300}` facing north (EXIT_DOOR at ut `(3,8)`/`(4,8)` in `fgnpcdata`); player small main is `aMHS` `{120,0,220}` (EXIT at `(2,7)`/`(3,7)`). Do not use walkable-south `door_cell - 1` — that puts the player two cells too far into the carpet.
+- Outdoor enter: `door_type 0` (player/villager house, Able, post) plays structure door cKF + player `OPEN1`; `door_type 1` (museum, police, Nook) plays `INTO_S1` (cKF when present). `DoorCamera` pulls look-at to the door stand at Camera2 620; `SceneTransition` fades out before the scene swap (`Style.IRIS` / `WIPE_TYPE_TRIFORCE`, rendered as a colour fade). Museum outdoor→entrance spawn is `{240,0,440}` facing north, then `INTO_S1` continues past the door so the south Exit stays clear. NPC house outdoor→indoor spawn is `aHUS_npc_house_door_data` `{160,0,300}` facing north (EXIT_DOOR at ut `(3,8)`/`(4,8)` in `fgnpcdata`); player small main is `aMHS` `{120,0,220}` (EXIT at `(2,7)`/`(3,7)`). Do not use walkable-south `door_cell - 1` — that puts the player two cells too far into the carpet.
 - Indoor leave (houses / shops / public rooms): walk-on `Room.door_cell` (`EXIT_DOOR`) plays `INTO_S1` south through the exit, wipe, then `Game.exit_interior` — no A press. Outdoor spawn plays structure leave + player `GO_OUT` (`StructureDoor.play_emerge`). House/shop exit is a two-unit strip (`door_cell` and `door_cell+(1,0)`).
 - Museum entrance leave is the south Exit sensor at enter X (`{240,0,500}`), walk-in `auto_enter` + `INTO_S1` — not the generic room-center `door_cell`. Museum wings use linked auto-enter doors both ways (no `door_cell` leave).
 - Every GC indoor field id exists as a `Room` template (shops, museum wings, NPC 0–14, player main/upper/basement, tent, lighthouse, cottage, …).
@@ -35,17 +35,4 @@ Indoor fields are still a **16×16 unit grid** (`UT_X_NUM`). Walls occupy units 
 - Wall/floor style swaps re-tile into the shell’s wrap-baked atlas so UVs stay correct. Floors use `GX_MIRROR` (odd atlas cells flipped); walls use REPEAT.
 - Wall and floor are room fields. Player house can decorate.
 - Villager homes: outdoor door checks `VillagerHome` (`is_home` / SLEEP). Awake-at-home spawns an indoor resident actor (`indoor_resident`) who stands and head-looks / talks.
-
-## Simplify
-
-- One playable player room (small main). Upper/basement exist as data until loans.
-- Shop upgrades are alternate authored rooms (`shop0`…`shop3_1`); outdoor enter resolves to the current Nook level. Tom Nook's skeleton follows that level (`rcn_1`…`rcd_1`).
-- Museum wings are enterable rooms with donation displays (`MuseumBook` + `MuseumPresenter`). Completion treadmill / mail-in fossils wait until earned.
-- Island cottage is catalog-only until island is in scope.
-- Indoor villager: one standing resident when the player enters an awake-home NPC house (not full indoor wander/`ac_npc2` leave).
-
-## Ignore
-
-- Four-player houses, Famicom rooms, e-Reader, `NPCROOM_FIELD_TOOL_INSIDE`.
-- Secondary FG2 layers (usually empty).
-- Outlook palette / house exterior color as a system.
+- Player room starts as one small main room; upper/basement exist as data unlocked by Nook loans. Shop upgrades are alternate authored rooms (`shop0`…`shop3_1`); outdoor enter resolves to the current Nook level, and Tom Nook's skeleton follows that level (`rcn_1`…`rcd_1`). Museum wings are enterable rooms with donation displays (`MuseumBook` + `MuseumPresenter`).

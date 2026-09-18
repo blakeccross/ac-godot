@@ -64,7 +64,7 @@ Buried items share the FG slot (hole vs item). Flowers breed in the original; th
 - **Shops** — saplings, watering can, foreign fruit price `mSP_FOREIGN_FRUIT_PRICE` 2000.
 - **Save** — `fg[][]`.
 
-## Reproduce
+## Behavior
 
 - **One tree:** shake for fruit → chop down to a stump → shovel the stump. Plant an apple sapling on grass (or in a hole). Flowers: water leaf beds to bloom; pick any grown bloom color (`FLOWER_PANSIES0/1/2` are white/purple/yellow, not growth stages — leaves are `FLOWER_LEAVES_*`).
 - Stored per plant: `planted_renew`, plus `last_watered_renew` (flowers), `fruit_taken_renew` (trees), `shake_content` (`bells` / `bees` / `furniture` / planted money), and flower `bloom_visual` for color.
@@ -81,25 +81,6 @@ Buried items share the FG slot (hole vs item). Flowers breed in the original; th
   - Shovel equipped and facing a fillable hole (`shovel_flag` / `FILL_SCOOP`) → close submenu → `PUTIN_SCOOP` with `ply_1_fill_up_i1`; hole+plant resolve at frame **25** (fill-up reset 18 + i1 offset 7).
   - Otherwise → close submenu → place the seed/flower on the facing unit (throw-put / grow-in). No body clip.
 - Empty-hole fill (`FILL_SCOOP`) uses `ply_1_fill_up1` and clears the hole at frame **18**.
-
-## Simplify
-
-- One fruit tree and one flower through Seed → Growing → Mature → Harvestable. Water flowers, not trees.
-- No flower breeding, gold trees, cedar/hardwood seasonal swap.
-- Destiny luck (money → 1000 / goods → Redd-or-lottery furniture) and Christmas lights wait.
-- Bee swarm is a chase + sting lock, not full `ac_bee` net-catch / BGM duck / multi-bee states.
-- Shake / fall use Godot tweens keyed off EffectBG angles, not converted `ef_s_tree5_*` clips.
-- Digging a stump leaves a hole on that tile (`DIG_SCOOP` after the stump flies). Fill with the shovel (`FILL_SCOOP`).
-- Flowers die after `FLOWER_DIE_DAYS` renews without water (watering slice); shovel dig also removes them (`CheckDigRemoveItem`).
-- Daily renew tops up buried fossils (max 5, deposit X via `obj_crack0`) and one shine spot (golden `ef_anahikari` rays).
-- Buried deposits only on empty diggable units (`mCoBG_CheckHole_OrgAttr`), never on player / shrine / station / pool / dump acres, and not on structure plus-offset pads. Shine also needs flat corners and non-sand attrs (`CheckSandHole_ClData`).
-- Palm exists as sand-only terrain data; not a second content loop.
-- Planted money trees are shake-supported; burying bells to grow them waits.
-
-## Ignore
-
-- `mAGrw_SetXmasTree`, fossil/haniwa dump debug.
-- Perfect-town flower coverage assessments (`m_field_assessment`).
-- Beach shells (`mFI_MAX_SHELLS_PER_BLOCK`).
-- Weed-overrun and fully automated town-wide grow overlay performance tricks.
-- Every `FLOWER_*` id (9 flower kinds × stages).
+- Shake / fall use Godot tweens keyed off EffectBG angles, not converted `ef_s_tree5_*` clips. Bee swarm is a chase + sting lock, not the full `ac_bee` net-catch / BGM duck / multi-bee states.
+- Digging a stump leaves a hole on that tile (`DIG_SCOOP` after the stump flies); fill with the shovel (`FILL_SCOOP`). Flowers die after `FLOWER_DIE_DAYS` renews without water; shovel dig also removes them (`CheckDigRemoveItem`).
+- Daily renew tops up buried fossils (max 5, deposit X via `obj_crack0`) and one shine spot (golden `ef_anahikari` rays). Buried deposits only on empty diggable units (`mCoBG_CheckHole_OrgAttr`), never on player / shrine / station / pool / dump acres, and not on structure plus-offset pads. Shine also needs flat corners and non-sand attrs (`CheckSandHole_ClData`).

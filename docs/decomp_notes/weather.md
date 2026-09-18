@@ -71,35 +71,17 @@ Saved as one byte: `(type << 4) | intensity`. After rain/snow clears to fine/sak
 
 - **Clock** — `field_renewed` is the roll hook.
 - **World** — `WorldEnvironment` + directional lights; FX under `Effects`.
-- **Audio** — rain BGM swap; rain ambient SE catalog exists, call-site wiring deferred.
+- **Audio** — rain BGM swap; rain ambient SE via `Audio.start_syslev`.
 - **Fishing** — coelacanth only while raining (non-day slot).
 - **Bugs** — `needs_rain` / rain-out species.
 - **Dialogue** — greeting and condition gates on `Game.weather`.
 - **Save** — packed type + intensity.
 
-## Reproduce
+## Behavior
 
-- 20 weather terms and the weight table from `mEnv_RandomWeather`.
-- Clear / rain / snow / sakura; light vs heavy (thunder → heavy rain, blizzard → heavy snow).
-- Roll on `field_renewed`; persist type + intensity.
-- Rain palette + 0.75 shadow energy while precip.
-- Camera-following rain streaks + splashes; snow/sakura floaters.
-- Rain outdoor BGM (already via `BgmCatalog`).
-- Coelacanth / rain bugs when `Game.weather == rain`.
-
-## Simplify
-
-- Skip leaves (demo / K.K. only).
-- Skip wind-term gust simulation; snow gets a gentle constant drift.
-- Skip rainbow actor, haniwa order, island climate, umbrella SE, rain ambient SE.
-- Intensity `NORMAL` unused by the roll table (only light/heavy); still accept it for debug / FX density.
-- No per-frame weather→env lerp rate fidelity beyond a short blend; snap is fine if blend is awkward.
-- Lightning: brief ambient flash only (no effect-clip light registry).
-
-## Ignore
-
-- Title-demo forced weather table.
-- Basement / museum SE mute path.
-- Staff-roll rain height hack.
-- `BUGFIXES` sakura-weight bit shift (use the corrected `>> 0` read).
-- Snowmen, wet-ground footprints beyond existing winter marks.
+- 20 weather terms and the weight table from `mEnv_RandomWeather`. Clear / rain / snow / sakura; light vs heavy (thunder → heavy rain, blizzard → heavy snow). Falling leaves (demo / K.K. only) and wind-term gusts are not modelled — snow gets a gentle constant drift instead.
+- Roll on `field_renewed`; persist type + intensity. Intensity `NORMAL` is unused by the roll table (only light/heavy) but still accepted for debug / FX density.
+- Rain palette + 0.75 shadow energy while precip; weather→env lerp is a short blend rather than the original's per-frame rate.
+- Camera-following rain streaks + splashes; snow/sakura floaters. Lightning is a brief ambient flash, not an effect-clip light registry.
+- Rain outdoor BGM via `BgmCatalog`; coelacanth / rain bugs when `Game.weather == rain`.
+- Rainbow actor, haniwa order, island climate, and umbrella SE are not modelled.

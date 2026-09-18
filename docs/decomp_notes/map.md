@@ -22,14 +22,15 @@ Press **X** to open the town map over the field. The playable FG acres (**5×6**
 
 Cursor starts on the player’s acre (`mFI_Wpos2BlockNum` − 1) and moves with the stick. A pulsing magenta→pink frame (`kan_win_cursor_tex`, prim green channel anim) marks the selection. A “you are here” mark (`kan_win_genzai` / play tex) sits on the player acre. Selecting a building acre shows its label (Shop, Police Station, …) or villager / player house names.
 
-## Reproduce
+## Behavior
 
 - **5×6** FG grid from `WorldData.acre_types` (skip border acres).
-- Original `kan_tizu_*` tiles cropped to the **22×22** UV window (`kan_tizu_v` st 0..22), not the full 32×32 CI4 (unused margin is dark grass “gaps”). With ACHD enabled the crop scales with the HD sheet (e.g. 176×176); `catalog.json` `tile_px` / `TownMap.tile_pixel_size()` track that.
+- Original `kan_tizu_*` tiles cropped to the **22×22** UV window (`kan_tizu_v` st 0..22), not the full 32×32 CI4 (unused margin is dark grass "gaps"). With ACHD enabled the crop scales with the HD sheet (e.g. 176×176); `catalog.json` `tile_px` / `TownMap.tile_pixel_size()` track that.
 - Cursor on player acre; move with arrows / stick.
-- Acre code (`C-3`) + building label for the selection.
+- Acre code (`C-3`) + building label for the selection, one label string per acre (no multi-line villager name list).
 - Open with **X** (and **M**); close with Esc / X again.
-- Godot compact acre ids (`T_MUSEUM` 80, `T_PORT` 86, ocean cliffs 76/77) remap to decomp `mFM_BLOCK_TYPE_*` before texture lookup.
+- Godot compact acre ids (`T_MUSEUM` 80, `T_PORT` 86, ocean cliffs 76/77) remap to decomp `mFM_BLOCK_TYPE_*` before texture lookup. Bridge variants come from the acre type itself, not a separate save bit.
+- Wooden map `futi` frame is a StyleBox border, not a mesh bake.
 
 ## Local extract
 
@@ -38,14 +39,3 @@ python3 tools/build_assets.py --step convert --kind map-ui
 ```
 
 Writes `assets/generated/ui/map/tiles/{stem}_p{0,1}.png`, `chrome/*.png`, and `catalog.json`.
-
-## Simplify
-
-- No multi-line villager name list beyond one label string.
-- No bridge overlay from a separate `Save.bridge` bit — acre types already store bridge variants.
-- No submenu slide-in / prerender heap.
-- Wooden map `futi` frame approximated with an orange StyleBox border (not full `ga*` mesh bake).
-
-## Ignore
-
-- Foreign island map, GBA map dump, debug map select.

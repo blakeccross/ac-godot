@@ -2,9 +2,9 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — not every store is in scope.
 
-**Godot:** `ShopBook` (`RefCounted` on `Game`, not an autoload). Only Nook (`shop0`) is a Bell shop — buy and sell. Listed price is `ItemData.buy_price` (or `sell_price` if buy is 0). Nook pays fruit/fish/bugs at authored `sell_price`; everything else is listed / 4 (`SELL_BUY_RATIO`). Cranny stock follows zakka counts (tools×2, furniture, wall, carpet, cloth, sapling, plants×2; paper deferred). Lineup rerolls at 06:00 (`Clock.field_renewed`). Wallet is `Inventory.wallet`.
+**Godot:** `ShopBook` (`RefCounted` on `Game`, not an autoload). Only Nook (`shop0`) is a Bell shop — buy and sell. Listed price is `ItemData.buy_price` (or `sell_price` if buy is 0). Nook pays fruit/fish/bugs at authored `sell_price`; everything else is listed / 4 (`SELL_BUY_RATIO`). Cranny stock follows zakka counts (tools×2, furniture, wall, carpet, cloth, sapling, plants×2; no paper category). Lineup rerolls at 06:00 (`Clock.field_renewed`). Wallet is `Inventory.wallet`.
 
-**Able Sisters (`needlework`) is NOT a clothing store.** `SCENE_NEEDLEWORK` is a design/pattern shop (`src/game/m_needlework.c`, `ac_needlework_indoor.c`, `ac_npc_needlework`). `ShopBook._roll(ABLE_ID)` returns `[]` — no Bell stock, no counter. The player keeps 8 original designs (`Game.designs` = `DesignBook`), the shop 8 shared ones (4 mannequins + 4 umbrella stands). Designs are made in the pixel editor (350 Bells for a new one) and traded through Mabel. See `docs/decomp_notes/needlework.md` (TODO) and the plan `proud-rolling-newt.md`.
+**Able Sisters (`needlework`) is NOT a clothing store.** `SCENE_NEEDLEWORK` is a design/pattern shop (`src/game/m_needlework.c`, `ac_needlework_indoor.c`, `ac_npc_needlework`). `ShopBook._roll(ABLE_ID)` returns `[]` — no Bell stock, no counter. The player keeps 8 original designs (`Game.designs` = `DesignBook`), the shop 8 shared ones (4 mannequins + 4 umbrella stands). Designs are made in the pixel editor (350 Bells for a new one) and traded through Mabel — see the design/pattern tool entry in [feature-checklist.md](../feature-checklist.md).
 
 **Cranny presentation (`ShopDisplay` + authored `shop0.tscn`):**
 - Shells `rom_shop1f` / `rom_shop1w` (and `rom_shop2f`/`w`, `rom_shop3f`/`w`, `rom_shop4_2f`/`w`); the `f`/`w` suffix is floor/wall. Wall/floor bank indices follow `aSI_*_default_table` (`WALL_SHOP*` / `FLOOR_SHOP*` → 67–70).
@@ -86,25 +86,8 @@ Other buildings (Able Sisters, auction, island shack, museum shop) are different
 - **Furniture / plants** — goods kinds.
 - **Save** — `Shop_c`.
 
-## Reproduce
+## Behavior
 
-- **Nook's Cranny and Able Sisters** with open hours, a short stock list, and buy (Nook also sells).
-- Prices on `ItemData`; wallet must cover buy.
-- Closed outside hours.
-- Stock can refresh daily at 06:00 (even if the table is tiny).
-
-## Simplify
-
-- Lottery, catalog mail-order, turnips, Crazy Redd stay out.
-- No sales-sum tool unlocks unless we want a single “net appears in stock” flag.
-- Fixed prices; skip ABC rarity percentages (`mSP_GetGoodsPercent`).
-- Sell at a single ratio (catalog / 4) except fruit/fish/bugs, which keep authored `sell_price`.
-- Nook upgrade interiors (`shop0`…`shop3_1` / outdoor `obj_s_shop1`…`4`) follow sales thresholds; Tom Nook uses that level's `npc_draw_data` skeleton (`rcn_1`…`rcd_1`) at the matching `shop0N_actable` stand. Renovation downtime / multi-floor department browsing stay simplified (annex link only). Lottery-day `rcf_1` (`SHOP_MASTERSP`) waits.
-
-## Ignore
-
-- Roof color enum, signboard 500 Bells, Nintendo 64 / Mario / Famicom lists.
-- Island, tent, kamakura, harvest festival lists.
-- `mSP_SelectFishginPresent`, GBA item dump.
-- Full department-store multi-room shopping (SHOP3_1 / SHOP3_2 annex link is enough).
-- Visitor-from-another-town shop logic (`mSP_SetNewVisitor`).
+- **Nook's Cranny and Able Sisters** (see [museum.md](museum.md) for Redd) with open hours, a stock list, and buy (Nook also sells). Prices come from `ItemData`; wallet must cover the buy. Closed outside hours; stock refreshes daily at 06:00.
+- Fixed prices, no ABC rarity percentages (`mSP_GetGoodsPercent`). Sell is a single ratio (catalog / 4) except fruit/fish/bugs, which keep authored `sell_price`.
+- Nook upgrade interiors (`shop0`…`shop3_1` / outdoor `obj_s_shop1`…`4`) follow sales thresholds; Tom Nook uses that level's `npc_draw_data` skeleton (`rcn_1`…`rcd_1`) at the matching `shop0N_actable` stand, via an annex link rather than full multi-floor department browsing.

@@ -149,29 +149,15 @@ effect pass after the field's own XLU water.
 - **Shops** — receive/give at counter.
 - **Save** — `Private_c` (not the live actor pose).
 
-## Reproduce
+## Behavior
 
 - **Walk vs run** from analog magnitude; a sprint modifier.
 - One **locked action** at a time (cannot walk-and-fish; talk freezes locomotion).
 - Interact from a facing tile, not a 360° magnet.
 - Put-away / cancel for tools.
-- Door enter/exit as a short locked anim, then scene change. Outdoor enter: demo `door_type == 0` (player/villager house, Able, post) locks on `ply_1_open1` (`OPEN1`); `request_main_door_type1(..., TRUE)` (museum, police, Nook) locks on `ply_1_into_s1` (`INTO_S1`) while stepping to the door stand (`StructureDoor` + structure cKF when present). Feet stay on acre `keep_h` during the walk — structure plus-offsets are walls, not a raised path. Indoor leave locks on `INTO_S1` walking south through the exit cell (museum entrance uses Exit sensor at enter X). Outdoor emerge uses each structure's `rewrite_out_data` stand (museum `home+120` GX south, outside the raised footprint; Y from keep_h via `GetBgY_OnlyCenter`) then `ply_1_go_out_s1` (`GO_OUT`) with the structure leave clip. `DoorCamera` (`CAMERA2_PROCESS_DOOR` @ 620) + timed wipe (`SceneTransition.play_wipe_out(Style.IRIS)` — `WIPE_TYPE_TRIFORCE`; iris shader deferred, renders as a colour fade for now).
+- Door enter/exit as a short locked anim, then scene change. Outdoor enter: demo `door_type == 0` (player/villager house, Able, post) locks on `ply_1_open1` (`OPEN1`); `request_main_door_type1(..., TRUE)` (museum, police, Nook) locks on `ply_1_into_s1` (`INTO_S1`) while stepping to the door stand (`StructureDoor` + structure cKF when present). Feet stay on acre `keep_h` during the walk — structure plus-offsets are walls, not a raised path. Indoor leave locks on `INTO_S1` walking south through the exit cell (museum entrance uses Exit sensor at enter X). Outdoor emerge uses each structure's `rewrite_out_data` stand (museum `home+120` GX south, outside the raised footprint; Y from keep_h via `GetBgY_OnlyCenter`) then `ply_1_go_out_s1` (`GO_OUT`) with the structure leave clip. `DoorCamera` (`CAMERA2_PROCESS_DOOR` @ 620) + timed wipe (`SceneTransition.play_wipe_out(Style.IRIS)` — `WIPE_TYPE_TRIFORCE`, rendered as a colour fade).
 - Outdoor camera follow; tighter camera when talking.
 - Actor origin on the unit heightfield (`GetBgY` / `BgCheck`), not a guessed offset above a physics mesh.
-
-## Simplify
-
-- Collapse the 100+ indices into a small Godot state machine: idle, move, interact, tool, talk, menu, scene-transition.
-- One tool animation set per tool, not air/reflect/broken variants for every item.
-- Ignore dash-turn, tumble, umbrella, fan, snowball as first-slice locomotion.
+- The 100+ decomp indices collapse into a small Godot state machine: idle, move, interact, tool, talk, menu, scene-transition. One tool animation set per tool, not air/reflect/broken variants for every item.
 - Meter-scale speeds from the 4.875 / 7.5 per-frame values: one 40-unit tile is one 2 m cell, so walk is 7.31 m/s and run 11.25 m/s relative to the acre.
 - Player / NPC meshes use actor draw scale `0.01` (`m_actor.c`), not AABB-fit to an invented height. `FieldCatalog.actor_uniform_scale()` maps pipeline `0.001` GLBs into that same 2 m cell.
-
-## Ignore
-
-- Train, boat, island wade demos.
-- Radio calisthenics, golden axe/item demos, shrine throw-money / pray.
-- Pitfall, bee/mosquito sting sequences, groundhog, wash-car.
-- Sunburn ranks, reset count, e-Card letters.
-- Multi-player house invade (`INVADE`) and four-save-slot character switching until multiplayer is in scope.
-- Joint-level face/mouth texture swapping (`mPlib_Get_PlayerEyeTexAnimation_p`).
