@@ -83,26 +83,12 @@ func _physics_process(_delta: float) -> void:
 	if not session.room.is_exit_cell(cell):
 		return
 	_exiting = true
-	await _play_indoor_exit(player as Node3D)
+	## Decomp's `goto_other_scene` fires the same frame the exit-cell check lands —
+	## the player just stops, then the wipe warps the scene (no walk-through clip).
+	if player.has_method("stop_for_door"):
+		player.call("stop_for_door")
 	await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
 	Game.exit_interior()
-
-
-func _play_indoor_exit(player: Node3D) -> void:
-	## Face south and walk into the exit (`mPlayer_INDEX_DOOR` / INTO_S1).
-	if player == null or not is_instance_valid(player):
-		return
-	if not player.has_method("run_indoor_exit"):
-		return
-	## Midpoint of the EXIT_DOOR pair so leave aims at the alcove center.
-	var door_pos: Vector3 = (
-		grid.cell_to_world(session.room.door_cell)
-		+ grid.cell_to_world(session.room.door_cell + Vector2i(1, 0))
-	) * 0.5
-	var south_yaw: float = WorldGrid.yaw_for_facing(WorldGrid.Facing.SOUTH)
-	var target: Vector3 = door_pos + Vector3(0.0, 0.0, StructureDoor.INTO_GX * FieldCatalog.GX_TO_METERS)
-	target.y = player.global_position.y
-	await player.call("run_indoor_exit", target, south_yaw)
 
 
 func _exit_tree() -> void:

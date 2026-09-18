@@ -74,9 +74,12 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if action == null:
 		return false
 	if Game.is_indoors() and exits_interior:
-		## Museum Exit sensor: wipe only — no INTO_S1 (`aMsm` indoor leave is scene warp).
+		## Museum Exit sensor: player stops, then the wipe warps the scene.
 		if action.id != Interaction.ENTER:
 			return false
+		var exit_player: Node = get_tree().get_first_node_in_group("player") if get_tree() != null else null
+		if exit_player != null and is_instance_valid(exit_player) and exit_player.has_method("stop_for_door"):
+			exit_player.call("stop_for_door")
 		await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
 		return Game.exit_interior()
 	if Game.is_indoors() and linked_room_id != &"":

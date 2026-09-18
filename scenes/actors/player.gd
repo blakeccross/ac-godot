@@ -156,6 +156,21 @@ func set_facing(yaw: float) -> void:
 		_mesh.rotation.y = yaw
 
 
+## Hard stop for the exit-cell warp — natural deceleration from run speed takes
+## ~0.77 s (`PlayerLocomotion.DECEL`), longer than the 0.6 s wipe, so the player
+## would still be visibly sliding when the screen goes black. Kill the speed outright.
+func stop_for_door() -> void:
+	_busy = true
+	if not _door_entering:
+		_door_clear_busy = false
+	_motor.reset(_motor.facing)
+	velocity = Vector3.ZERO
+	## `_update_animation` only re-picks a clip when the current one has stopped
+	## playing, but WALK/RUN loop forever — force the idle pose now instead of
+	## letting the walk cycle keep looping under `_busy`.
+	play_wait_idle()
+
+
 func is_busy() -> bool:
 	return _busy
 
