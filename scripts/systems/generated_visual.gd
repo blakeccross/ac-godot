@@ -1230,7 +1230,14 @@ static func _apply_materials_inner(
 ## never meant to reach (a channel narrower than the acre) is left alone: it
 ## only stretches an edge where the *other* side already exactly matches the
 ## ground, so a real narrow channel (matching neither ground edge) is untouched.
+##
+## The shortfall must also be small (`_WATER_EDGE_MAX_GAP`). A meandering river
+## (`grd_s_r4_*`–`r7_*`) or a shoreline (`grd_s_m_*`) touches one acre edge on each
+## axis while legitimately ending well short of the other. Without the bound the
+## sheet was scaled up to 2.3x, dragging the ripple layer off the river bed and
+## under the land — the bed then read as flat, unshaded blue.
 const _WATER_EDGE_EPS := 0.05
+const _WATER_EDGE_MAX_GAP := 0.5
 
 
 static func _close_water_edge_gaps(node: Node) -> void:
@@ -1287,10 +1294,22 @@ static func _fit_water_to_ground_edge(mi: MeshInstance3D, ground_aabb: AABB) -> 
 		var touches_min: bool = absf(w_min - g_min) < _WATER_EDGE_EPS
 		var touches_max: bool = absf(w_max - g_max) < _WATER_EDGE_EPS
 		var span: float = maxf(w_max - w_min, 0.001)
-		if touches_min and not touches_max and w_max < g_max - _WATER_EDGE_EPS:
+		var gap_max: float = g_max - w_max
+		var gap_min: float = w_min - g_min
+		if (
+			touches_min
+			and not touches_max
+			and gap_max > _WATER_EDGE_EPS
+			and gap_max <= _WATER_EDGE_MAX_GAP
+		):
 			scale[axis] = (g_max - w_min) / span
 			anchor[axis] = w_min
-		elif touches_max and not touches_min and w_min > g_min + _WATER_EDGE_EPS:
+		elif (
+			touches_max
+			and not touches_min
+			and gap_min > _WATER_EDGE_EPS
+			and gap_min <= _WATER_EDGE_MAX_GAP
+		):
 			scale[axis] = (w_max - g_min) / span
 			anchor[axis] = w_max
 	if scale.is_equal_approx(Vector3.ONE):
