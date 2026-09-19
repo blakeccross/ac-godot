@@ -1082,3 +1082,20 @@ for _base in _BUG_MODEL_BASES:
                 "confident_name": True,
             }
         )
+
+
+## Held umbrellas (`ac_t_umbrella.c` `draw_dt`): each design is two Gfx — the handle
+## (`e_umbNN_model`) and the canopy (`kasa_umbNN_model`) — drawn with separate matrices
+## (the canopy is translated 4500 GX along the handle, and both scale to open/close).
+## They stay two parts of one GLB so the runtime can scale them independently.
+UMBRELLA_DESIGNS = [f"{n:02d}" for n in range(1, 33)] + ["w"]
+for _design in UMBRELLA_DESIGNS:
+    TEST_STATIC.append(
+        {
+            "asset_id": f"tol_umb_{_design}",
+            "vtx": f"tol_umb_{_design}_v",
+            "gfx": [f"e_umb{_design}_model", f"kasa_umb{_design}_model"],
+            "output": f"items/tol_umb_{_design}.glb",
+            "confident_name": True,
+        }
+    )

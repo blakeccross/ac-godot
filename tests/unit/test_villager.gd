@@ -160,9 +160,25 @@ func test_filbert_data_is_lazy_squirrel() -> void:
 	).is_true()
 
 
+func test_home_villager_stays_in_until_player_acre() -> void:
+	## `aSNMgr_check_move_npc_schedule`: FIELD only moves a villager already outside.
+	## One still `is_home` has no actor until the player's acre spawns it.
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	Game.villagers.get_or_create(&"filbert").is_home = true
+	assert_that(villager.current_activity()).is_equal(VillagerActivity.IN_HOUSE)
+	Game.villagers.get_or_create(&"filbert").is_home = false
+	assert_that(villager.current_activity()).is_equal(VillagerActivity.FIELD)
+
+
+func test_new_villager_starts_home() -> void:
+	assert_bool(Game.villagers.get_or_create(&"a_brand_new_villager").is_home).is_true()
+
+
 func test_scene_talks_when_in_field() -> void:
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
 	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	Game.villagers.get_or_create(&"filbert").is_home = false
 	assert_that(villager.current_activity()).is_equal(VillagerActivity.FIELD)
 	var actions: Array[Interaction] = villager.get_interactions(InteractionContext.new())
 	assert_int(actions.size()).is_equal(1)
@@ -310,6 +326,63 @@ func test_head_look_gates_match_decomp() -> void:
 	assert_bool(look.can_look(player, 0.0)).is_false()
 	actor.free()
 	player.free()
+
+
+func _head_rig() -> Array:
+	## Bare skeleton with a head bone at index 0 and no AnimationPlayer (direct apply).
+	var host := Node3D.new()
+	var skel := Skeleton3D.new()
+	skel.add_bone("joint_21")
+	skel.set_bone_rest(0, Transform3D(Basis.IDENTITY, Vector3(0.0, 1.0, 0.0)))
+	skel.reset_bone_poses()
+	host.add_child(skel)
+	var look := NpcHeadLook.new()
+	look.bind(host, host)
+	return [look, host]
+
+
+func test_head_look_aims_at_player_eye_and_only_clamps_pitch_upward() -> void:
+	var rig: Array = _head_rig()
+	var look: NpcHeadLook = rig[0]
+	var host: Node3D = auto_free(rig[1])
+	var player: Node3D = auto_free(Node3D.new())
+	## Player 1 m ahead: their eye (33 GX) sits above the villager's 1 m head → look up.
+	player.position = Vector3(0.0, 0.0, 1.0)
+	for _i: int in 200:
+		look.tick(1.0 / 30.0, player, 0.0, false)
+	assert_float(look._pitch).is_less(0.0)
+	assert_float(look._pitch).is_greater_equal(-NpcHeadLook.PITCH_LIMIT - 0.001)
+	## Feet-height target would have pitched down; a raised player (above the cone) is
+	## clamped at −33.75° looking up but a low one is not clamped looking down.
+	player.position = Vector3(0.0, -8.0, 1.0)
+	for _i: int in 400:
+		look.tick(1.0 / 30.0, player, 0.0, false)
+	assert_float(look._pitch).is_greater(NpcHeadLook.PITCH_LIMIT)
+	player.position = Vector3(0.0, 40.0, 1.0)
+	for _i: int in 400:
+		look.tick(1.0 / 30.0, player, 0.0, false)
+	assert_float(look._pitch).is_equal_approx(-NpcHeadLook.PITCH_LIMIT, 0.001)
+	assert_that(host).is_not_null()
+
+
+func test_head_look_talk_forces_target_and_sleepy_holds() -> void:
+	var rig: Array = _head_rig()
+	var look: NpcHeadLook = rig[0]
+	auto_free(rig[1])
+	var player: Node3D = auto_free(Node3D.new())
+	## 20 m away: outside the 6 m gate, so only a talk request (priority 4) tracks.
+	player.position = Vector3(0.0, 0.0, 20.0)
+	for _i: int in 100:
+		look.tick(1.0 / 30.0, player, 0.0, false)
+	assert_float(look._pitch).is_equal(0.0)
+	player.position = Vector3(10.0, 0.0, 10.0)
+	for _i: int in 100:
+		look.tick(1.0 / 30.0, player, 0.0, false, true)
+	assert_float(look._yaw).is_not_equal(0.0)
+	var held_yaw: float = look._yaw
+	for _i: int in 100:
+		look.tick(1.0 / 30.0, player, 0.0, true, false)
+	assert_float(look._yaw).is_equal(held_yaw)
 
 
 func test_villager_home_door_gates() -> void:

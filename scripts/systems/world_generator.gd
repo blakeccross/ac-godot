@@ -28,6 +28,10 @@ const PORT_SIGN_UT := Vector2i(8, 7)
 const PORT_SIGN_UT_WF3 := Vector2i(9, 7)
 ## New-game villagers: one per personality (`mNpc_LOOKS_NUM` / `mNpc_InitNpcAllInfo`).
 const STARTER_NPC_HOUSES := 6
+## The fixed title-demo FG (`l_title_demo_fg`) marks each named villager's house with its own
+## `0x50xx` item, one unit north of the home unit in `mNpc_SetAnimalTitleDemo`'s table.
+const DEMO_HOME_ITEM_MIN := 0x5000
+const DEMO_HOME_ITEM_MAX := 0x50FF
 
 const _APPLE := preload("res://data/items/apple.tres")
 const _SHOVEL := preload("res://data/items/shovel.tres")
@@ -94,7 +98,9 @@ static func authored_test_town() -> WorldData:
 	return data
 
 
-static func generate(seed_value: int = DEFAULT_SEED) -> WorldData:
+## `title_demo`: the attract-mode town (`SCENE_TITLE_DEMO`) — fixed FG blocks
+## (`l_title_demo_fg`) and the 14 fixed villagers (`mNpc_SetAnimalTitleDemo`), see `TitleDemo`.
+static func generate(seed_value: int = DEFAULT_SEED, title_demo: bool = false) -> WorldData:
 	var field: Dictionary = TownFieldGenerator.new().generate(seed_value)
 	var blocks: PackedByteArray = field["blocks"]
 	var heights: PackedByteArray = field["heights"]
@@ -117,7 +123,7 @@ static func generate(seed_value: int = DEFAULT_SEED) -> WorldData:
 	_place_tortimer(data, blocks)
 	## Waterfall FG units come from disc templates (`0x580D`–`0x580F`); geometric
 	## fallback only fills waterfall acres that still lack one.
-	_place_fg_props(data, blocks, seed_value)
+	_place_fg_props(data, blocks, seed_value, title_demo)
 	_place_waterfall(data, blocks)
 	data.bake()
 	return data
@@ -568,13 +574,16 @@ static func _place_structure_item(
 	_apply_fg_structure(data, origin + ut, place)
 
 
-static func _place_fg_props(data: WorldData, blocks: PackedByteArray, seed_value: int) -> void:
+static func _place_fg_props(
+	data: WorldData, blocks: PackedByteArray, seed_value: int, title_demo: bool = false
+) -> void:
 	## Prefer disc FG templates (`mFM_InitFgCombiSaveData`); scatter only as fallback.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = (seed_value as int) ^ 0x9E3779B9
 	var reserves: Array[Vector2i] = []
+	var demo_fg: Dictionary = _title_demo_fg() if title_demo else {}
 	if FgCatalog.has_catalog():
-		reserves = _place_from_fg_templates(data, blocks, rng)
+		reserves = _place_from_fg_templates(data, blocks, rng, demo_fg)
 	else:
 		_place_fg_props_scatter(data, blocks, rng)
 	## `mSDI_PullTree` / `mFI_PullTanukiPathTrees` before fruit/cedar (`mSDI_StartInitNew`).
@@ -590,15 +599,24 @@ static func _place_fg_props(data: WorldData, blocks: PackedByteArray, seed_value
 	var apple_cell := _first_open_near_spawn(data, 5)
 	if apple_cell != Vector2i(-1, -1):
 		data.objects.append(_item(&"ground_apple", apple_cell, _APPLE))
-	_place_villager_homes(data, reserves, rng)
-	_place_starter_villagers(data, rng)
+	if not demo_fg.is_empty():
+		_set_fruit_title_demo(data)
+		_place_title_demo_villagers(data, reserves)
+	else:
+		_place_villager_homes(data, reserves, rng)
+		_place_starter_villagers(data, rng)
 	_remove_objects_under_buildings(data)
 
 
 static func _place_from_fg_templates(
-	data: WorldData, blocks: PackedByteArray, rng: RandomNumberGenerator
+	data: WorldData,
+	blocks: PackedByteArray,
+	rng: RandomNumberGenerator,
+	fg_override: Dictionary = {}
 ) -> Array[Vector2i]:
 	## Returns SIGN reserve cells (`mNT_IS_RESERVE`) for villager house assignment.
+	## `fg_override` (Vector2i(bx, bz) → fg id) replaces the combi pick — the title demo's fixed
+	## FG. Those templates assume flat ground, so only grass cells take an item.
 	var reserves: Array[Vector2i] = []
 	var tree_n := 0
 	var flower_n := 0
@@ -608,72 +626,96 @@ static func _place_from_fg_templates(
 			var type: int = _block(blocks, bx, bz)
 			var origin: Vector2i = _fg_origin(bx, bz)
 			var visual := _acre_visual(data, bx, bz)
-			var fg_id: int = FgCatalog.pick_fg_id(visual, type, int(rng.randi()))
-			if fg_id < 0:
-				continue
-			var items: PackedInt32Array = FgCatalog.items(fg_id)
-			if items.size() != FgCatalog.ITEMS_PER_ACRE:
-				continue
-			for uz: int in UT:
-				for ux: int in UT:
-					var item_id: int = items[uz * UT + ux]
-					var place: Dictionary = FgCatalog.placement_for_item(item_id)
-					if place.is_empty():
-						continue
-					var cell := origin + Vector2i(ux, uz)
-					var kind: StringName = place["kind"]
-					match kind:
-						&"reserve":
-							reserves.append(cell)
-						&"structure":
-							_apply_fg_structure(data, cell, place)
-						&"tree":
-							## Copy the template cell even if an acre-type building still sits on
-							## a placeholder unit; houses later overwrite the SIGN 3×3.
-							var payload: Resource = _tree_payload(String(place.get("tree", "hardwood")))
-							data.objects.append(
-								_object(
-									StringName("tree_%d" % tree_n),
-									&"tree",
+			var normal_id: int = FgCatalog.pick_fg_id(visual, type, int(rng.randi()))
+			## (fg id, mode): 0 = everything, 1 = structures / signs / waterfalls only, 2 = props only. The title demo
+			## takes its props and homes from the fixed table but must keep the real templates'
+			## structures — they are what position and refine the post office, shop, lighthouse…
+			var passes: Array[Vector2i] = []
+			if fg_override.is_empty():
+				passes.append(Vector2i(normal_id, 0))
+			else:
+				passes.append(Vector2i(normal_id, 1))
+				passes.append(Vector2i(int(fg_override.get(Vector2i(bx, bz), -1)), 2))
+			for pass_entry: Vector2i in passes:
+				var fg_id: int = pass_entry.x
+				var mode: int = pass_entry.y
+				if fg_id < 0:
+					continue
+				var items: PackedInt32Array = FgCatalog.items(fg_id)
+				if items.size() != FgCatalog.ITEMS_PER_ACRE:
+					continue
+				for uz: int in UT:
+					for ux: int in UT:
+						var item_id: int = items[uz * UT + ux]
+						var place: Dictionary = FgCatalog.placement_for_item(item_id)
+						if (
+							place.is_empty()
+							and mode == 2
+							and item_id >= DEMO_HOME_ITEM_MIN
+							and item_id <= DEMO_HOME_ITEM_MAX
+						):
+							place = {"kind": &"reserve", "visual": &"SIGNBOARD"}
+						if place.is_empty():
+							continue
+						var kind: StringName = place["kind"]
+						var is_structure: bool = kind == &"structure" or kind == &"waterfall" or kind == &"sign"
+						if (mode == 1 and not is_structure) or (mode == 2 and is_structure):
+							continue
+						var cell := origin + Vector2i(ux, uz)
+						if mode == 2 and data.terrain_at(cell) != WorldGrid.Terrain.GRASS:
+							continue
+						match kind:
+							&"reserve":
+								reserves.append(cell)
+							&"structure":
+								_apply_fg_structure(data, cell, place)
+							&"tree":
+								## Copy the template cell even if an acre-type building still sits on
+								## a placeholder unit; houses later overwrite the SIGN 3×3.
+								var payload: Resource = _tree_payload(String(place.get("tree", "hardwood")))
+								data.objects.append(
+									_object(
+										StringName("tree_%d" % tree_n),
+										&"tree",
+										cell,
+										payload,
+										place["visual"]
+									)
+								)
+								tree_n += 1
+							&"flower":
+								data.objects.append(
+									_object(
+										StringName("flower_%d" % flower_n),
+										&"flower",
+										cell,
+										_PANSY,
+										place["visual"]
+									)
+								)
+								flower_n += 1
+							&"rock":
+								data.objects.append(
+									_object(
+										StringName("rock_%d" % rock_n), &"rock", cell, null, place["visual"]
+									)
+								)
+								rock_n += 1
+							&"sign":
+								var sign_id: StringName = place.get("id", &"sign") as StringName
+								var sign_msg: String = String(place.get("message", ""))
+								var sign_vis: StringName = place.get("visual", &"") as StringName
+								data.objects.append(_sign(sign_id, cell, sign_msg, sign_vis))
+							&"waterfall":
+								var fall := _object(
+									StringName("waterfall_fg_%d_%d" % [cell.x, cell.y]),
+									&"waterfall",
 									cell,
-									payload,
+									null,
 									place["visual"]
 								)
-							)
-							tree_n += 1
-						&"flower":
-							data.objects.append(
-								_object(
-									StringName("flower_%d" % flower_n),
-									&"flower",
-									cell,
-									_PANSY,
-									place["visual"]
-								)
-							)
-							flower_n += 1
-						&"rock":
-							data.objects.append(
-								_object(
-									StringName("rock_%d" % rock_n), &"rock", cell, null, place["visual"]
-								)
-							)
-							rock_n += 1
-						&"sign":
-							var sign_id: StringName = place.get("id", &"sign") as StringName
-							var sign_msg: String = String(place.get("message", ""))
-							var sign_vis: StringName = place.get("visual", &"") as StringName
-							data.objects.append(_sign(sign_id, cell, sign_msg, sign_vis))
-						&"waterfall":
-							var fall := _object(
-								StringName("waterfall_fg_%d_%d" % [cell.x, cell.y]),
-								&"waterfall",
-								cell,
-								null,
-								place["visual"]
-							)
-							fall.occupy_grid = false
-							data.objects.append(fall)
+								fall.occupy_grid = false
+								data.objects.append(fall)
 	return reserves
 
 
@@ -735,6 +777,87 @@ static func _apply_fg_structure(data: WorldData, cell: Vector2i, place: Dictiona
 			id, bkind, anchor, foot, occupy, vis, label, door_verb, facing, actor_shift, mesh_facing
 		)
 	)
+
+
+## The demo's fixed FG (`l_title_demo_fg`): Vector2i(bx, bz) → fg id. Empty when the
+## extraction step has not been run, which leaves the town on its normal templates.
+static func _title_demo_fg() -> Dictionary:
+	var out: Dictionary = {}
+	if not TitleDemo.has_data():
+		return out
+	var fg: Dictionary = TitleDemo.load_data().get("fg", {}) as Dictionary
+	var cols: int = int(fg.get("cols", 7))
+	var ids: Array = fg.get("ids", []) as Array
+	for bz: int in range(1, 7):
+		for bx: int in range(1, 6):
+			var index: int = bz * cols + bx
+			if index < ids.size():
+				out[Vector2i(bx, bz)] = int(ids[index])
+	return out
+
+
+static func _set_fruit_title_demo(data: WorldData) -> void:
+	## `mFM_SetFruit_title_demo`: `mFI_BlockUtNumtoFGSet(TREE_APPLE_FRUIT, 5, 5, 14, 8)` — one
+	## apple-fruit tree at acre (5, 5), unit (14, 8): convert a tree already there, or plant one
+	## on free grass.
+	var cell: Vector2i = _fg_origin(5, 5) + Vector2i(14, 8)
+	for o: ObjectPlacement in data.objects:
+		if o != null and o.cell == cell:
+			if o.kind == &"tree":
+				o.visual_id = &"TREE_APPLE_FRUIT"
+				o.payload = _APPLE_TREE
+			return
+	if data.terrain_at(cell) != WorldGrid.Terrain.GRASS:
+		return
+	data.objects.append(
+		_object(&"tree_title_demo_fruit", &"tree", cell, _APPLE_TREE, &"TREE_APPLE_FRUIT")
+	)
+
+
+static func _place_title_demo_villagers(data: WorldData, reserves: Array[Vector2i]) -> void:
+	## `mNpc_SetAnimalTitleDemo`: 14 named villagers whose homes sit at fixed acre/unit spots.
+	## The fixed FG templates carry a SIGN reserve within a unit of each, so each villager takes
+	## the nearest unused reserve (within 2 units) that still fits a house here.
+	var free: Array[Vector2i] = reserves.duplicate()
+	var placed := 0
+	for row: Dictionary in TitleDemo.NPCS:
+		var target: Vector2i = (
+			_fg_origin(int(row["bx"]), int(row["bz"])) + Vector2i(int(row["ux"]), int(row["uz"]))
+		)
+		var best: int = -1
+		var best_dist: int = 3
+		for i: int in free.size():
+			var reserve: Vector2i = free[i]
+			var dist: int = maxi(absi(reserve.x - target.x), absi(reserve.y - target.y))
+			if dist >= best_dist or not _sign_fits_house(reserve):
+				continue
+			if _house_plot_blocked(data, reserve):
+				continue
+			best = i
+			best_dist = dist
+		var villager: VillagerData = VillagerCatalog.get_villager(row["id"] as StringName)
+		if best < 0 or villager == null:
+			continue
+		var sign: Vector2i = free[best]
+		free.remove_at(best)
+		_remove_objects_in_house_plot(data, sign)
+		var house := _labeled_building(
+			StringName("npc_house_%d" % placed),
+			&"house",
+			Vector2i(sign.x - 1, sign.y - 1),
+			Vector2i(3, 3),
+			true,
+			villager.outdoor_house_visual(),
+			"House"
+		)
+		house.resident_id = villager.id
+		if villager.display_name != "":
+			house.label = "%s's House" % villager.display_name
+		data.buildings.append(house)
+		data.objects.append(
+			_villager(villager.id, _yard_cell(data, house.cell, house.footprint), villager)
+		)
+		placed += 1
 
 
 static func _place_villager_homes(

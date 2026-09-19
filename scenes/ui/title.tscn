@@ -1,92 +1,85 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/ui/title.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/world/world.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/ui/title_logo.tscn" id="3"]
 
-[node name="Title" type="Control"]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="Title" type="Node"]
 script = ExtResource("1")
 
-[node name="Background" type="ColorRect" parent="."]
-layout_mode = 1
+[node name="World" parent="." instance=ExtResource("2")]
+unique_name_in_owner = true
+
+[node name="TitleLogo" parent="." instance=ExtResource("3")]
+unique_name_in_owner = true
+
+[node name="Menu" type="CanvasLayer" parent="."]
+unique_name_in_owner = true
+layer = 6
+visible = false
+
+[node name="Fade" type="ColorRect" parent="Menu"]
+unique_name_in_owner = true
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.31, 0.55, 0.42, 1)
+mouse_filter = 2
+color = Color(0, 0, 0, 0)
 
-[node name="Center" type="CenterContainer" parent="."]
-layout_mode = 1
+[node name="Center" type="CenterContainer" parent="Menu"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="Center"]
+[node name="VBox" type="VBoxContainer" parent="Menu/Center"]
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="TitleLabel" type="Label" parent="Center/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 48
-text = "AC Godot"
-horizontal_alignment = 1
-
-[node name="Subtitle" type="Label" parent="Center/VBox"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "Walk, pick up, come back."
-horizontal_alignment = 1
-
-[node name="NewGameButton" type="Button" parent="Center/VBox"]
+[node name="NewGameButton" type="Button" parent="Menu/Center/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(280, 44)
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text = "New Game"
 
-[node name="GeneratedTownButton" type="Button" parent="Center/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(280, 44)
-layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "Town Seed 12345"
-
-[node name="IntroButton" type="Button" parent="Center/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(280, 44)
-layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "Intro Sequence"
-
-[node name="IntroStationButton" type="Button" parent="Center/VBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(280, 44)
-layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "Station Arrival"
-
-[node name="ContinueButton" type="Button" parent="Center/VBox"]
+[node name="ContinueButton" type="Button" parent="Menu/Center/VBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(280, 44)
 layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text = "Continue"
 
-[node name="Hints" type="Label" parent="Center/VBox"]
+[node name="DevLabel" type="Label" parent="Menu/Center/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "dev shortcuts"
+horizontal_alignment = 1
+
+[node name="GeneratedTownButton" type="Button" parent="Menu/Center/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Town Seed 12345"
+
+[node name="IntroStationButton" type="Button" parent="Menu/Center/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Station Arrival"
+
+[node name="Hints" type="Label" parent="Menu/Center/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "WASD move · E pick up · Esc save & title"
 horizontal_alignment = 1
 
-[connection signal="pressed" from="Center/VBox/NewGameButton" to="." method="_on_new_game_pressed"]
-[connection signal="pressed" from="Center/VBox/GeneratedTownButton" to="." method="_on_generated_town_pressed"]
-[connection signal="pressed" from="Center/VBox/IntroButton" to="." method="_on_intro_pressed"]
-[connection signal="pressed" from="Center/VBox/IntroStationButton" to="." method="_on_intro_station_pressed"]
-[connection signal="pressed" from="Center/VBox/ContinueButton" to="." method="_on_continue_pressed"]
+[connection signal="pressed" from="Menu/Center/VBox/NewGameButton" to="." method="_on_new_game_pressed"]
+[connection signal="pressed" from="Menu/Center/VBox/ContinueButton" to="." method="_on_continue_pressed"]
+[connection signal="pressed" from="Menu/Center/VBox/GeneratedTownButton" to="." method="_on_generated_town_pressed"]
+[connection signal="pressed" from="Menu/Center/VBox/IntroStationButton" to="." method="_on_intro_station_pressed"]

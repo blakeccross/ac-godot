@@ -111,6 +111,8 @@ func _ready() -> void:
 		## Start home when the looks table is IN_HOUSE / SLEEP (`Animal_c.is_home`).
 		if first == VillagerActivity.IN_HOUSE or first == VillagerActivity.SLEEP:
 			state.is_home = true
+	if first == VillagerActivity.FIELD and _awaits_player_acre():
+		first = _held_activity()
 	_apply_presence(indoor_resident or VillagerActivity.is_present(first))
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, data.species if data else &"")
 	_visual = vis
@@ -145,7 +147,39 @@ func _exit_tree() -> void:
 
 func current_activity() -> StringName:
 	_ensure_bound()
-	return schedule.tick(Clock.now_sec())
+	var now: StringName = schedule.tick(Clock.now_sec())
+	if now == VillagerActivity.FIELD and _awaits_player_acre():
+		return _held_activity()
+	return now
+
+
+## `aSNMgr_check_move_npc_schedule`: FIELD only moves a villager who is already
+## outside (`!is_home`). One still at home has no actor until the player's acre
+## spawns it (`aSNMgr_set_npc_regular`); then `aNPC_field_schedule_init_proc` starts
+## at LEAVE_HOUSE and it walks out of the door. Until then it stays where it was.
+func _awaits_player_acre() -> bool:
+	if indoor_resident or state == null or not state.is_home:
+		return false
+	return not _player_in_home_acre()
+
+
+func _held_activity() -> StringName:
+	if ai.schedule_type == VillagerActivity.SLEEP:
+		return VillagerActivity.SLEEP
+	return VillagerActivity.IN_HOUSE
+
+
+func _player_in_home_acre() -> bool:
+	var bg: Array = _bg()
+	var player: Node = get_tree().get_first_node_in_group("player") if get_tree() != null else null
+	if bg.size() != 2 or not (player is Node3D):
+		return false
+	var grid: WorldGrid = bg[1] as WorldGrid
+	var home_block: Vector2i = VillagerWalk.block_from_cell(grid.world_to_cell(_motor.home))
+	var player_block: Vector2i = VillagerWalk.block_from_cell(
+		grid.world_to_cell((player as Node3D).global_position)
+	)
+	return player_block == home_block
 
 
 func current_action() -> StringName:
@@ -366,12 +400,14 @@ func _tick_head_look(delta: float) -> void:
 	var sleepy: bool = (
 		state != null and int(state.mood) == int(VillagerState.Mood.SLEEPY)
 	) or ai.kind() == ActivityKind.SLEEP
-	_head_look.locked = ai.is_talking()
+	## Talk requests the head at priority 4 (`aNPC_look_target`): tracked past the
+	## range/cone gates. `head.lock_flag` is never set by talking.
 	_head_look.tick(
 		delta,
 		player as Node3D if player is Node3D else null,
 		_motor.facing,
-		sleepy
+		sleepy,
+		ai.is_talking()
 	)
 
 

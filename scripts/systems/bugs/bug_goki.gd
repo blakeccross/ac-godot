@@ -197,9 +197,8 @@ func _avoid(a: BugActor, _sense: BugActor.Sense) -> void:
 
 
 func _check_patience(a: BugActor, sense: BugActor.Sense) -> bool:
-	if a.flag == PLACE_TREE and sense.player_action == BugActor.PlAct.SHAKE_TREE and sense.has_player():
-		if BugProgram.dist_xz(a.pos, sense.player_position / BugActor.GX_M) < 150.0:
-			a.patience = 100.0
+	if a.flag == PLACE_TREE and sense.tree_shaken_at(a.position):
+		a.patience = 100.0
 	if sense.net_swing_active and sense.net_swing_origin != Vector3.INF:
 		if BugProgram.dist_xz(a.pos, sense.net_swing_origin / BugActor.GX_M) < 70.0:
 			a.patience = 100.0

@@ -23,7 +23,7 @@ data tables before a category is called done.
 
 ## 1. Boot, save, and session
 
-- [~] Title screen: New Game / Continue (`m_scene`, `m_start_data_init`) — `scenes/ui/title.tscn`
+- [~] Title screen: New Game / Continue (`m_scene`, `m_start_data_init`) — `scenes/ui/title.tscn` (attract-mode town + animated logo; see [title](decomp_notes/title.md))
 - [~] New town vs. load-existing branch (`mSDI_StartInitNew`)
 - [ ] Up to **4 human residents** per town; pick which one you play each session (`player_select.c`)
 - [ ] Create-a-character on the train (name, town name, face is derived from Rover's questions) (`ac_npc_guide`)
@@ -593,7 +593,7 @@ From `m_event_schedule.c_inc` (117 schedule rows). Localised USA set:
 - [ ] The **name entry keyboard** for all text input
 - [ ] Nook catalog browser UI, shop buy/sell UI, bank UI, HRA letter viewer, letter writer UI
 - [ ] Photo / no screenshot feature (GCN has none)
-- [ ] Trademark / logo / attract-mode title demo loop (`m_titledemo`, `m_trademark`, `ac_animal_logo`)
+- [~] Trademark / logo / attract-mode title demo loop (`m_titledemo`, `m_trademark`, `ac_animal_logo`) — logo actor, 5 recorded demos, the demo loop, the fixed FG table, fixed villagers, apple tree and start chime landed; Nintendo logo stage skipped on purpose; gelato umbrella (needs an umbrella tool system) still open ([title](decomp_notes/title.md))
 - [ ] Debug menus & dev overlays — _explicitly out of scope_ (`m_debug*`)
 
 ## 34. Simulation glue / world objects

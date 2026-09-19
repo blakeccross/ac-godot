@@ -65,6 +65,15 @@ class Sense:
 	var player_action: int = 0  ## aINS_PL_ACT_*
 	## Optional BG probe (Phase 3). Callable(pos_gx: Vector3) -> Dictionary.
 	var bg: Callable = Callable()
+	## `mPlib_Check_tree_shaken`: units whose tree the player is shaking or has just bumped
+	## (the player's shake-table entries still running). Cell → true, in `grid`'s cells.
+	var shaken_cells: Dictionary = {}
+	var grid: WorldGrid = null
+
+	func tree_shaken_at(world_m: Vector3) -> bool:
+		if grid == null or shaken_cells.is_empty():
+			return false
+		return shaken_cells.has(grid.world_to_cell(world_m))
 
 	func has_player() -> bool:
 		return player_position != Vector3.INF

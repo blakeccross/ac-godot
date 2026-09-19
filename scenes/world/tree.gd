@@ -12,30 +12,11 @@ const BEE_ATTACKABLE_AFTER_EFFECT := (29.5 - SHAKE_EFFECT_FRAME) / 30.0
 ## Bee birth retry window starts 5 frames after the effect (`bee_spawn_timer = 5`).
 const BEE_SPAWN_DELAY := 5.0 / 30.0
 const ANIM_FPS := 30.0
-## EffectBG SHAKE_LARGE keyframes (°×10 → degrees) on joint Z.
-const SHAKE_LARGE_DEG: Array[Vector2] = [
-	Vector2(1.0, 0.0),
-	Vector2(5.0, 2.0),
-	Vector2(9.0, -4.0),
-	Vector2(13.0, 6.0),
-	Vector2(17.0, -6.0),
-	Vector2(21.0, 6.0),
-	Vector2(25.0, -4.0),
-	Vector2(29.0, 2.0),
-	Vector2(33.0, -1.0),
-	Vector2(37.0, 0.5),
-	Vector2(41.0, 0.0),
-]
-## EffectBG SHAKE_SMALL (`ef_s_tree5_shakeS`).
-const SHAKE_SMALL_DEG: Array[Vector2] = [
-	Vector2(1.0, 0.0),
-	Vector2(3.0, 3.0),
-	Vector2(6.0, -2.0),
-	Vector2(8.0, 1.0),
-	Vector2(9.0, 0.0),
-]
 ## EffectBG sets `frame_control.speed = 0.5` on a 60 Hz actor tick (= 30 anim fps).
 ## Pipeline / player clips already sample at 30 fps, so Godot dt is frames / 30 — not / 15.
+## `eYoung_Tree_dw`: cedar / palm saplings roll about a point above the trunk base.
+const YOUNG_PIVOT_PALM_GX := 5.0
+const YOUNG_PIVOT_CEDAR_GX := 15.0
 
 @export var plant: PlantData
 @export var occupant_id: StringName = &""
@@ -103,10 +84,25 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	return false
 
 
+## `IS_ITEM_COLLIDEABLE_TREE`: every growth stage, not the stump.
+func can_bump() -> bool:
+	return not _felling and _ensure_use().stage != TreeUse.Stage.STUMP
+
+
+## `Player_actor_check_little_shake_tree` hit: EffectBG SHAKE_SMALL, plus the touch SE for
+## med / large / full trees only (`IS_ITEM_SHAKEABLE_TREE`).
+func bump() -> void:
+	_play_shake(false)
+	if _ensure_use().size != TreeUse.Size.S0:
+		PlayerSe.tree_touch(self)
+
+
 func _on_shake(use: TreeUse, ctx: InteractionContext) -> bool:
 	var out: TreeUse.Outcome = use.shake()
 	if not out.shook:
 		return false
+	if ctx != null and ctx.actor != null and ctx.actor.has_method("note_big_tree_shake"):
+		ctx.actor.call("note_big_tree_shake", _cell())
 	PlayerSe.tree_yurasu(self)
 	_stress_bugs_at(ctx)
 	var had_drops: bool = not out.drops.is_empty() or out.dropped_fruit > 0
@@ -150,7 +146,7 @@ func _on_chop(use: TreeUse, ctx: InteractionContext) -> bool:
 		Game.mark_stump(_persist())
 		_play_fall(ctx)
 	else:
-		_play_shake(true)
+		_play_shake(true, false)
 	return true
 
 
@@ -355,21 +351,98 @@ func _grid(ctx: InteractionContext) -> WorldGrid:
 	return null
 
 
-func _play_shake(strong: bool) -> void:
+## `Player_actor_SetEffect_Shake_tree` / the little bump: the EffectBG sway for this tree's
+## family and size, plus its falling leaves and (in winter) snow. `with_fx` is off for the
+## chop hit, which is not a shake effect.
+func _play_shake(strong: bool, with_fx: bool = true) -> void:
 	var pivot := get_node_or_null("VisualPivot") as Node3D
 	if pivot == null or not is_inside_tree():
 		return
 	_kill_motion()
-	pivot.rotation = Vector3.ZERO
-	var keys: Array[Vector2] = SHAKE_LARGE_DEG if strong else SHAKE_SMALL_DEG
+	pivot.transform = Transform3D.IDENTITY
+	var size: int = _ensure_use().size
+	if size == TreeUse.Size.S0 and not strong:
+		_play_young_wobble(pivot)
+		return
+	var family: PlantData.Family = _family()
+	var curve: Array[Vector3] = TreeSway.keys(family, size, strong)
+	var first: float = TreeSway.first_frame(curve)
+	var last: float = TreeSway.last_frame(curve)
 	_motion = create_tween()
-	var prev_frame: float = keys[0].x
-	for i: int in range(1, keys.size()):
-		var frame: float = keys[i].x
-		var deg: float = keys[i].y
-		var dt: float = (frame - prev_frame) / ANIM_FPS
-		_motion.tween_property(pivot, "rotation:z", deg_to_rad(deg), maxf(dt, 0.001))
-		prev_frame = frame
+	_motion.tween_method(_apply_sway.bind(pivot, curve), first, last, (last - first) / ANIM_FPS)
+	if with_fx:
+		_schedule_shake_fx(strong, family, size)
+
+
+func _apply_sway(frame: float, pivot: Node3D, curve: Array[Vector3]) -> void:
+	if is_instance_valid(pivot):
+		pivot.rotation.z = deg_to_rad(TreeSway.sample(curve, frame))
+
+
+func _family() -> PlantData.Family:
+	return plant.family if plant != null else PlantData.Family.HARDWOOD
+
+
+## `eYoung_Tree_mv`: a sapling rolls about the camera's line of sight, decaying over the
+## effect's 14 ticks; cedar and palm saplings pivot above the trunk base.
+func _play_young_wobble(pivot: Node3D) -> void:
+	var ticks: int = TreeSway.YOUNG_SMALL_TICKS
+	_motion = create_tween()
+	_motion.tween_method(_apply_young.bind(pivot), 0.0, float(ticks), float(ticks) * TreeFx.TICK)
+
+
+func _apply_young(tick: float, pivot: Node3D) -> void:
+	if not is_instance_valid(pivot):
+		return
+	var cam: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null:
+		return
+	var whole: int = int(tick)
+	var roll: float = deg_to_rad(
+		TreeSway.young_roll(TreeSway.YOUNG_SMALL_TICKS - whole, float(whole) * TreeSway.YOUNG_PHASE_STEP)
+	)
+	var axis: Vector3 = (cam.global_position - global_position).normalized()
+	axis = global_transform.basis.inverse() * axis
+	if axis.length_squared() < 0.0001:
+		return
+	var basis := Basis(axis.normalized(), roll)
+	var about := Vector3.ZERO
+	if _family() == PlantData.Family.PALM:
+		about.y = YOUNG_PIVOT_PALM_GX * FieldCatalog.GX_TO_METERS
+	elif _family() == PlantData.Family.CEDAR:
+		about.y = YOUNG_PIVOT_CEDAR_GX * FieldCatalog.GX_TO_METERS
+	pivot.transform = Transform3D(basis, about - basis * about)
+
+
+## `ac_effectbg` timer callbacks: the big shake drops a leaf every 16 ticks from tick 16;
+## both shakes add a winter snow puff every 16 ticks (from tick 0 for the little one).
+func _schedule_shake_fx(strong: bool, family: PlantData.Family, size: int) -> void:
+	var last_tick: int = TreeSway.LARGE_TICKS if strong else TreeSway.SMALL_TICKS
+	var medium_cedar: bool = family == PlantData.Family.CEDAR and size == TreeUse.Size.S1
+	var winter: bool = Clock.season() == Clock.Season.WINTER
+	for tick: int in range(0, last_tick + 1, 16):
+		if strong and tick == 0:
+			continue
+		var delay: float = float(tick) * TreeFx.TICK
+		if delay <= 0.0:
+			_emit_shake_fx(strong, family, medium_cedar, winter)
+		else:
+			get_tree().create_timer(delay).timeout.connect(
+				_emit_shake_fx.bind(strong, family, medium_cedar, winter), CONNECT_ONE_SHOT
+			)
+
+
+func _emit_shake_fx(strong: bool, family: PlantData.Family, medium_cedar: bool, winter: bool) -> void:
+	if not is_inside_tree() or _felling:
+		return
+	var host: Node = get_parent()
+	if host == null:
+		return
+	var crown: Vector3 = global_position + Vector3(0.0, TreeFx.CROWN_GX * FieldCatalog.GX_TO_METERS, 0.0)
+	if strong:
+		TreeFx.leaf(host, crown, family, medium_cedar)
+	if winter:
+		TreeFx.snow(host, crown, medium_cedar)
 
 
 func _play_fall(ctx: InteractionContext) -> void:

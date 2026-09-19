@@ -48,6 +48,10 @@ func _make_sense() -> BugActor.Sense:
 	var grid: Variant = _grid_for()
 	if grid is WorldGrid:
 		sense.bg = BugBg.make_probe(grid, _layout_for())
+		sense.grid = grid
+	if player != null and player.has_method("shaken_tree_cells"):
+		for cell: Vector2i in player.call("shaken_tree_cells"):
+			sense.shaken_cells[cell] = true
 	if _field != null:
 		var act: Dictionary = _field.take_field_action()
 		sense.player_action = int(act.get("kind", 0))

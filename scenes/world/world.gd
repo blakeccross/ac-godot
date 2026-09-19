@@ -100,6 +100,11 @@ func _on_weather_changed(_weather: StringName) -> void:
 
 
 func _play_outdoor_bgm() -> void:
+	## `mBGM_init`: the title demo plays the title music (`mBGMPsComp_make_ps_demo(70, …)`)
+	## instead of the field track, whatever the hour or weather.
+	if Game.title_demo_active:
+		Audio.play_bgm(&"title")
+		return
 	## Fresh station arrival owns `intro_arrive`; after a house exit we keep field BGM.
 	if Game.intro_station_active and not Game.intro_station_resume_debt:
 		return

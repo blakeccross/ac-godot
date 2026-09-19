@@ -138,9 +138,8 @@ func _avoid(a: BugActor, _sense: BugActor.Sense) -> void:
 
 func _check_patience(a: BugActor, sense: BugActor.Sense) -> bool:
 	## tree shake / dig vibration / thrown ball / stopped net / dig scoop.
-	if sense.player_action == BugActor.PlAct.SHAKE_TREE and sense.has_player():
-		if BugProgram.dist_xz(a.pos, sense.player_position / BugActor.GX_M) < 200.0:
-			a.patience = 100.0
+	if sense.tree_shaken_at(a.position):
+		a.patience = 100.0
 	if sense.player_swung_tool and sense.has_player():
 		var d: float = BugProgram.dist_xz(a.pos, sense.player_position / BugActor.GX_M)
 		if d < VIB_SCARE:

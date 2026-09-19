@@ -85,9 +85,25 @@ func test_net_field_action_needs_no_host() -> void:
 	assert_bool("You swing the net." in heard).is_true()
 
 
-func test_axe_has_no_field_verb() -> void:
+func test_axe_field_verb_is_the_open_air_swing() -> void:
+	## `Player_actor_CheckAndRequest_main_axe_all`: no tree, no rock → `AIR_AXE` (`axe_suka1`).
 	var ctx := _equipped(&"axe")
-	assert_object(ToolUse.field_action(ctx)).is_null()
+	var action: Interaction = ToolUse.field_action(ctx)
+	assert_that(action).is_not_null()
+	assert_str(String(action.id)).is_equal(String(Interaction.AIR_AXE))
+	assert_str(String(action.player_anim)).is_equal("ply_1_axe_suka1")
+	assert_bool(ToolUse.apply_field(action, ctx)).is_true()
+
+
+func test_a_tree_chop_outranks_the_open_air_swing() -> void:
+	var ctx := _equipped(&"axe")
+	var chop := InteractionQuery.new()
+	chop.action = Interaction.of(Interaction.CHOP, "Chop tree", 18, &"ply_1_axe_swing1", 15.0)
+	var picked: InteractionQuery = ToolUse.resolve(chop, ctx)
+	assert_str(String(picked.action.id)).is_equal(String(Interaction.CHOP))
+	## With nothing in front, the swing is what A does.
+	var bare: InteractionQuery = ToolUse.resolve(null, ctx)
+	assert_str(String(bare.action.id)).is_equal(String(Interaction.AIR_AXE))
 
 
 func test_watering_can_has_no_field_verb() -> void:

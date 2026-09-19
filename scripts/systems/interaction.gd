@@ -18,6 +18,9 @@ const CHOP := &"chop"
 const WATER := &"water"
 const SWING_NET := &"swing_net"
 const CAST := &"cast"
+## `mPlayer_INDEX_AIR_AXE`: with the axe held A always swings; a tree is the chop, anything else
+## (no tree, no rock) is this whiff.
+const AIR_AXE := &"air_axe"
 const HOOK := &"hook"
 const PLACE := &"place"
 const ROTATE := &"rotate"

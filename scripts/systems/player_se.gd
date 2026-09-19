@@ -9,6 +9,8 @@ const ANIM_FPS := 30.0
 ## Clip basename → [[frame, se_id], …] always played for that clip.
 const CLIP_MARKS: Dictionary = {
 	&"ply_1_axe_swing1": [[10.0, &"tool_furi"]],
+	## `Player_actor_SetSound_AXE_FURI_axe_common`: same whoosh, frame 10, for the open-air swing.
+	&"ply_1_axe_suka1": [[10.0, &"tool_furi"]],
 	## Dig scoop1 is outcome-driven (`HoleUse.dig` / flower dig), not every dig1 clip —
 	## stump dig uses the same clip with kiribasu SE instead.
 	&"ply_1_fill_up1": [[11.0, &"scoop_umeru"]],
@@ -63,6 +65,11 @@ static func axe_cut(at: Node) -> void:
 
 static func axe_hit(at: Node) -> void:
 	_play_now(at, &"axe_hit")
+
+
+static func tree_touch(at: Node) -> void:
+	## `Player_actor_sound_tree_touch`: walking into a shakeable tree.
+	_play_now(at, &"tree_touch")
 
 
 static func tree_yurasu(at: Node) -> void:

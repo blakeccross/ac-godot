@@ -108,14 +108,28 @@ func test_beetle_sway_stays_within_five_degrees_of_south() -> void:
 func test_beetle_scared_by_tree_shake_flies_up_and_away() -> void:
 	var b := _make(&"drone_beetle", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
 	var start_y: float = b.position.y
-	var s := BugActor.Sense.new()
-	s.player_position = Vector3(9.0, 0.0, 14.0)
-	s.player_action = BugActor.PlAct.SHAKE_TREE
+	var s := _tree_shaken_sense(Vector2i(4, 6))
 	b.frame(s)
 	assert_int(b.action).is_equal(BugKabuto.AVOID)
 	assert_float(b.pitch).is_equal(0.0)
 	_run(b, 40, s)
 	assert_float(b.position.y).is_greater(start_y)
+
+
+func _tree_shaken_sense(cell: Vector2i) -> BugActor.Sense:
+	## `mPlib_Check_tree_shaken`: the player's shake table holds this unit's tree.
+	var s := BugActor.Sense.new()
+	s.grid = WorldGrid.new()
+	s.grid.configure(12, 12, 2.0, Vector3.ZERO)
+	s.shaken_cells[cell] = true
+	return s
+
+
+func test_beetle_ignores_a_tree_shake_in_another_unit() -> void:
+	var b := _make(&"drone_beetle", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
+	var s := _tree_shaken_sense(Vector2i(8, 8))
+	_run(b, 20, s)
+	assert_int(b.action).is_not_equal(BugKabuto.AVOID)
 
 
 func test_beetle_net_scare_range_is_angular() -> void:
@@ -237,3 +251,16 @@ func test_mosquito_homes_and_bites_then_leaves() -> void:
 			bit = true
 			break
 	assert_bool(bit).is_true()
+
+
+func test_cicada_flees_a_shaken_tree_in_its_unit() -> void:
+	var calm := _make(&"robust_cicada", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
+	var scared := _make(&"robust_cicada", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
+	var quiet := BugActor.Sense.new()
+	calm.frame(quiet)
+	scared.frame(quiet)
+	assert_int(scared.action).is_equal(calm.action)
+	calm.frame(quiet)
+	scared.frame(_tree_shaken_sense(Vector2i(4, 6)))
+	assert_int(calm.action).is_not_equal(BugSemi.AVOID)
+	assert_int(scared.action).is_equal(BugSemi.AVOID)

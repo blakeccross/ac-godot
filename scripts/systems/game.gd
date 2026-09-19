@@ -121,6 +121,11 @@ var intro_pending_house_id: StringName = &""
 var intro_payment_pending: bool = false
 signal intro_payment_resolved(paid: bool)
 
+## Title attract mode (`SCENE_TITLE_DEMO`): `title.tscn` hosts the generated town with a
+## recorded player. Cleared by `reset_session`, so any real entry point drops it.
+var title_demo_active: bool = false
+var title_demo_index: int = 0
+
 ## `mMmd` museum donation: Blathers opens the pockets so the player picks what to hand
 ## over. `museum_donate_result` holds the last outcome for his response dialogue.
 var museum_donate_pending: bool = false
@@ -186,6 +191,46 @@ func start_intro_station() -> void:
 	await SceneTransition.play_wipe_out(SceneTransition.Style.FADE)
 	var seed_value: int = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
 	_begin_station_arrival(seed_value, {}, true)
+
+
+func begin_title_demo(index: int) -> void:
+	## `trademark_goto_demo_scene`: fixed date, time and weather (`tradeday_table`), a randomised
+	## resident (`mPr_RandomSetPlayerData_title_demo`), a random grass motif
+	## (`mFM_DecideBgTexIdx`), and the recording's tool and spawn. Nothing here is saved: every
+	## real entry point (`start_*`, `continue_game`) begins with `reset_session()`.
+	reset_session()
+	title_demo_active = true
+	title_demo_index = index
+	var moment: Dictionary = TitleDemo.trade_day(index)
+	Clock.set_datetime(
+		Clock.MIN_YEAR + 1, int(moment["month"]), int(moment["day"]), int(moment["hour"])
+	)
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var who: Dictionary = TitleDemo.random_identity(rng)
+	player_gender = who["gender"] as StringName
+	player_face = int(who["face"])
+	cloth_id = who["cloth"] as StringName
+	world_mode = WorldData.Mode.GENERATED
+	world_seed = WorldGenerator.DEFAULT_SEED
+	grass_pattern = rng.randi_range(0, WorldData.GRASS_PATTERN_COUNT - 1)
+	set_weather(moment["weather"] as StringName)
+	var tool_id: StringName = TitleDemo.tool_item_id(index)
+	if tool_id != &"":
+		var tool: ItemData = ItemCatalog.get_item(tool_id)
+		if tool != null:
+			inventory.add(tool, 1)
+			for i: int in Inventory.POCKET_SLOTS:
+				var slot: InventorySlot = inventory.slot_at(i)
+				if slot != null and not slot.is_empty() and slot.item.item_id == tool_id:
+					inventory.equip_slot(i)
+					break
+	var town := WorldData.new()
+	town.columns = WorldGenerator.FG_X * WorldGenerator.UT
+	town.rows = WorldGenerator.FG_Z * WorldGenerator.UT
+	town.cell_size = 2.0
+	player_position = TitleDemo.gx_to_world(town, TitleDemo.spawn_gx(index))
+	player_yaw = TitleDemo.spawn_yaw(index)
 
 
 func _begin_station_arrival(seed_value: int, identity: Dictionary, sync_clock: bool) -> void:
@@ -370,7 +415,7 @@ func _apply_identity(identity: Dictionary) -> void:
 func resolve_world_data() -> WorldData:
 	var data: WorldData
 	if world_mode == WorldData.Mode.GENERATED:
-		data = WorldGenerator.generate(world_seed)
+		data = WorldGenerator.generate(world_seed, title_demo_active)
 	else:
 		data = WorldGenerator.authored_test_town()
 	data.grass_pattern = grass_pattern
@@ -400,6 +445,8 @@ func notify_world_ready() -> void:
 		give_test_tools()
 	if intro_station_active:
 		_set_phase(Phase.INTRO)
+	elif title_demo_active:
+		_set_phase(Phase.TITLE)
 	else:
 		_set_phase(Phase.PLAYING)
 
@@ -476,6 +523,7 @@ func reset_session() -> void:
 	intro_station_house_id = &""
 	intro_pending_house_id = &""
 	intro_payment_pending = false
+	title_demo_active = false
 	museum_donate_pending = false
 	museum_donate_result = {}
 	if farway == null:

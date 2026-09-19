@@ -62,6 +62,9 @@ const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 @onready var _probe: Area3D = $MeshPivot/InteractProbe
 @onready var _look: Marker3D = $CameraLook
 
+## Title demo: a recorded stick + A replace live input (`mEv_IsTitleDemo` swaps the controller
+## in `m_player_controller.c_inc`). Null during normal play.
+var scripted_input: TitleDemoInput = null
 var _motor: PlayerLocomotion = PlayerLocomotion.new()
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _busy: bool = false
@@ -97,6 +100,8 @@ var _door_frame_accum: float = 0.0
 var _door_root_clip: String = ""
 ## `Player_actor_Movement_Talk` — ease yaw toward the NPC while the talk demo runs.
 var _talk_face: Node3D = null
+## `player->shake_tree_*`: trees this player has already shaken (little or button).
+var _tree_bump: TreeBump = TreeBump.new()
 var _talk_turn_debt: float = 0.0
 ## Leaf clip → Animation of scaled joint_0 XZ deltas (meters, model space). Filled once.
 static var _door_root_xz: Dictionary = {}
@@ -266,12 +271,19 @@ func _physics_process(delta: float) -> void:
 	var stick := 0.0
 	var menu_open: bool = _menu_open()
 	if not _busy and not menu_open:
-		var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+		var input_dir: Vector2
+		if scripted_input != null:
+			input_dir = scripted_input.move
+		else:
+			input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 		stick = clampf(input_dir.length(), 0.0, 1.0)
 		wish = _camera_wish(input_dir)
+		if scripted_input != null and scripted_input.consume_a_pressed():
+			_try_interact()
 
+	var sprint: bool = scripted_input == null and Input.is_action_pressed("sprint")
 	var planar: Vector3 = _motor.tick(
-		delta, wish, stick, Input.is_action_pressed("sprint") and not menu_open, _busy or menu_open
+		delta, wish, stick, sprint and not menu_open, _busy or menu_open
 	)
 	velocity.x = planar.x
 	velocity.z = planar.z
@@ -288,8 +300,42 @@ func _physics_process(delta: float) -> void:
 	_update_animation(delta)
 	_update_footprints(delta, bg)
 	_update_focus()
+	_tick_tree_bump(delta)
 	_clear_auto_enter_block()
 	_try_auto_enter()
+
+
+## `Player_actor_check_little_shake_tree`: walking up to a tree shakes it a little.
+func _tick_tree_bump(delta: float) -> void:
+	var bg: Array = _bg()
+	if bg.size() != 2:
+		return
+	var here: Vector3 = global_position
+	var reach_sq: float = pow((bg[1] as WorldGrid).cell_size * 3.0, 2.0)
+	var trees: Array[Node3D] = []
+	for node: Node in get_tree().get_nodes_in_group("plant"):
+		var tree_node := node as Node3D
+		if tree_node == null or not tree_node.has_method("can_bump"):
+			continue
+		if tree_node.global_position.distance_squared_to(here) > reach_sq:
+			continue
+		if bool(tree_node.call("can_bump")):
+			trees.append(tree_node)
+	var hit: Node3D = _tree_bump.tick(
+		delta, here, _motor.facing, bg[0] as WorldData, bg[1] as WorldGrid, trees
+	)
+	if hit != null:
+		hit.call("bump")
+
+
+## `mPlib_Check_tree_shaken`: cells of trees being shaken right now.
+func shaken_tree_cells() -> Array[Vector2i]:
+	return _tree_bump.active_cells()
+
+
+## The button shake (`Player_actor_Set_shake_tree_table`) claims the tree in the same table.
+func note_big_tree_shake(cell: Vector2i) -> void:
+	_tree_bump.note_big_shake(cell)
 
 
 ## `Player_actor_Movement_Talk`: ease toward the NPC on a fixed 60 Hz tick.
@@ -564,7 +610,7 @@ func _group_open(group: String) -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _busy or _menu_open():
+	if scripted_input != null or _busy or _menu_open():
 		return
 	if event.is_action_pressed("interact"):
 		_try_interact()
@@ -836,12 +882,14 @@ func _try_interact() -> void:
 		if Game.try_place_furniture(self):
 			return
 		return
+	if scripted_input != null and not TitleDemo.allows_verb(hit.action.id):
+		return
 	await _run_interact(hit)
 
 
 func _try_auto_enter() -> void:
 	## Museum walk-in (`aMsm_check_player`): no A press while open.
-	if _busy or _door_entering or _menu_open():
+	if scripted_input != null or _busy or _door_entering or _menu_open():
 		return
 	var hit: InteractionQuery = _resolve_interact()
 	if hit == null or hit.host == null or hit.action == null:

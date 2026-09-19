@@ -259,6 +259,14 @@ python3 tools/build_assets.py --kind audio --step convert
 
 Writes `assets/generated/audio/catalog.json` and looping `bgm/*.ogg` (gitignored). Needs `audiorom.img`, decomp headers for `BGM_*` → sequence mapping, and `ffmpeg` (vorbis encode; `libvorbis` or native `-strict -2`). Falls back to WAV if encode fails. See [decomp_notes/audio.md](decomp_notes/audio.md).
 
+Title screen (logo overlay textures + the five recorded attract-mode demos):
+
+```sh
+python3 tools/build_assets.py --kind title --step convert
+```
+
+Writes `assets/generated/ui/title/` (`press_start_{demo}_{half}.png`, `copyright_{n}.png`, PRIM/ENV tints baked) from `foresta.rel`, and `assets/generated/titledemo/demos.json` (spawn, angle, tool and the raw 30 Hz input samples per demo, plus the fixed FG table) from a local `ac-decomp` checkout. The logo skeletons and backdrop come from the normal full convert. These textures are **linear `IIIIAAAA`** 64×16, not the GX IA4 layout above — see [decomp_notes/title.md](decomp_notes/title.md).
+
 Optional `"decomp_root"` points at an `ac-decomp` checkout for FG combis. `--step all` runs extract + scan + convert + validate.
 
 Convert **overwrites** the files it writes and does not delete `assets/generated/` (so a run will not wipe the FG catalog, inventory UI, or other side outputs). It clears work-root `converted/` staging only.

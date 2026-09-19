@@ -5,10 +5,13 @@ extends Resource
 ## `stage_days` are cumulative 06:00 renews to leave Seed / Growing / Mature.
 
 enum Kind { TREE, FLOWER }
+## Which EffectBG / leaf set a tree uses (`EffectBg_STATUS_CEDAR` / `PALM` / `GOLD`).
+enum Family { HARDWOOD, CEDAR, PALM, GOLD }
 
 @export var id: StringName = &""
 @export var display_name: String = ""
 @export var kind: Kind = Kind.TREE
+@export var family: Family = Family.HARDWOOD
 @export var fruit: ItemData
 ## Days-since-plant to enter Growing, Mature, Harvestable (4th value unused).
 @export var stage_days: PackedInt32Array = PackedInt32Array([1, 3, 5, 7])

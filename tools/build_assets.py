@@ -35,6 +35,7 @@ from asset_pipeline.design_ui import extract_design_ui  # noqa: E402
 from asset_pipeline.inventory_ui import extract_inventory_ui  # noqa: E402
 from asset_pipeline.map_ui import extract_map_ui  # noqa: E402
 from asset_pipeline.clock_ui import extract_clock_ui  # noqa: E402
+from asset_pipeline.title_screen import extract_title_demo, extract_title_ui  # noqa: E402
 from asset_pipeline.faces import extract_faces  # noqa: E402
 from asset_pipeline.message_ui import extract_message_ui  # noqa: E402
 from asset_pipeline.scan import scan  # noqa: E402
@@ -51,7 +52,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--kind",
-        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "design-ui", "map-ui", "message-ui", "clock-ui", "dialogue", "villagers", "faces", "audio", "water", "fish", "bugs", "seasons"],
+        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "design-ui", "map-ui", "message-ui", "clock-ui", "title", "dialogue", "villagers", "faces", "audio", "water", "fish", "bugs", "seasons"],
         default="all",
         help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory/map UI chrome, dialogue banks, villager roster from decomp tables, NPC eye/mouth face frames, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
     )
@@ -197,6 +198,28 @@ def main() -> int:
                     print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
                 if errors:
                     failed = True
+        elif args.kind == "title":
+            ui_report = extract_title_ui(cfg)
+            if ui_report.get("error"):
+                print(f"title (ui): {ui_report['error']}")
+                failed = True
+            else:
+                errors = [r for r in ui_report["results"] if r["status"] == "error"]
+                print(f"wrote {ui_report['converted']} title UI textures -> {ui_report['output']}")
+                for err in errors[:40]:
+                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+                if errors:
+                    failed = True
+            demo_report = extract_title_demo(cfg)
+            if demo_report.get("error"):
+                print(f"title (demo): {demo_report['error']}")
+                failed = True
+            else:
+                print(
+                    f"wrote {demo_report['demos']} title demos"
+                    f" ({demo_report['samples']} samples, {demo_report['fg_blocks']} FG blocks)"
+                    f" -> {demo_report['path']}"
+                )
         elif args.kind == "villagers":
             report = generate_villagers(cfg)
             if report.get("error"):

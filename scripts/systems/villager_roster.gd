@@ -20,6 +20,8 @@ func get_or_create(villager_id: StringName) -> VillagerState:
 	var state := VillagerState.new()
 	state.villager_id = villager_id
 	state.relationship = _bond_for(villager_id)
+	## `mNpc` setup: a new villager starts `is_home` until the player's acre spawns it.
+	state.is_home = true
 	_states[villager_id] = state
 	return state
 

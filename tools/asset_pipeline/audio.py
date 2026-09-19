@@ -51,6 +51,13 @@ ARM_SUBTRACKS_BY_ID: dict[str, tuple[int, ...]] = {
 }
 AUDIO_SUBTRACK_NUM = 16
 
+## SEs the game triggers by number that `audio_sound_effects` leaves unnamed. Keyed by the
+## catalog id `Audio.play_se` uses (lower-case hex, like the enum's own unnamed entries).
+EXTRA_SE_NUMS: dict[str, int] = {
+    ## `aAL_fade_out_start_wait_init`: `sAdo_SysTrgStart(0x44D)` — the title START chime.
+    "44d": 0x44D,
+}
+
 CATALOG_DIR = "audio"
 BGM_SUBDIR = "bgm"
 SFX_SUBDIR = "sfx"
@@ -387,7 +394,17 @@ def _catalog_entries(
     return out
 
 
+def _with_extra_se(se_ids: dict[str, int]) -> dict[str, int]:
+    merged = dict(se_ids)
+    taken = set(merged.values())
+    for key, num in EXTRA_SE_NUMS.items():
+        if key not in merged and num not in taken:
+            merged[key] = num
+    return merged
+
+
 def _sfx_catalog_entries(se_ids: dict[str, int]) -> list[dict[str, Any]]:
+    se_ids = _with_extra_se(se_ids)
     keys = [k for k, _n in sorted(se_ids.items(), key=lambda kv: (kv[1], kv[0]))]
     out: list[dict[str, Any]] = []
     for key in keys:

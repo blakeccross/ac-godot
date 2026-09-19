@@ -167,6 +167,21 @@ func jump_to_season(target: Season) -> void:
 	_emit_time(true)
 
 
+## Snap the calendar to an exact date and time and follow the game clock from there
+## (the title demo's fixed `tradeday_table` moments).
+func set_datetime(p_year: int, p_month: int, p_day: int, p_hour: int, p_minute: int = 0) -> void:
+	rtc_override = true
+	_os_follow_seeded = false
+	year = clampi(p_year, MIN_YEAR, MAX_YEAR)
+	month = clampi(p_month, 1, 12)
+	day = clampi(p_day, 1, int(MONTH_DAYS[month]))
+	hour = clampi(p_hour, 0, 23)
+	minute = clampi(p_minute, 0, 59)
+	second = 0
+	_accum = 0.0
+	_emit_time(true)
+
+
 func advance_seconds(amount: int) -> void:
 	if amount == 0:
 		return
