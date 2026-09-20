@@ -309,7 +309,7 @@ static func _play(host: Node, entering: bool) -> bool:
 	var root: Node3D = _structure_root(host)
 	if root == null:
 		return false
-	var anim: AnimationPlayer = GeneratedVisual.find_animation_player(root)
+	var anim: AnimationPlayer = VisualAnimation.find_animation_player(root)
 	if anim == null:
 		return false
 	var visual_id: StringName = _visual_id(root)

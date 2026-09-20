@@ -46,7 +46,7 @@ func _ready() -> void:
 		var box_mesh: Node = get_node_or_null("Box")
 		if box_mesh != null:
 			box_mesh.queue_free()
-		_anim = GeneratedVisual.find_animation_player(self)
+		_anim = VisualAnimation.find_animation_player(self)
 	HostCollision.apply_box(self, footprint, HostCollision.CELL, 1.0)
 	if is_owned() and Game != null and Game.inventory != null:
 		if not Game.inventory.mail_changed.is_connected(_on_mail_changed):
@@ -73,7 +73,7 @@ func apply_grid_yaw(facing: WorldGrid.Facing) -> void:
 func refresh_seasonal_visual() -> void:
 	if _has_mesh:
 		GeneratedVisual.refresh(self, visual_id)
-		_anim = GeneratedVisual.find_animation_player(self)
+		_anim = VisualAnimation.find_animation_player(self)
 		_sync_flag(true)
 
 

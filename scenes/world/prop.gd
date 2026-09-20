@@ -1,6 +1,6 @@
 extends StaticBody3D
 
-## Fixed FG prop from the disc templates: fences, sight-map and tune boards, the station statue.
+## Fixed FG prop from the disc templates: fences, sight-map and tune boards.
 ## Solid over its whole occupancy footprint (`obj_hight_table_item0_nogrow` raises the unit).
 ## Only the sight-map board has a verb: A opens the town map (`mSM_OVL_MAP`, mode 0 — the board
 ## shows the map whether or not the player owns one).
@@ -15,7 +15,6 @@ extends StaticBody3D
 ## `height_table` counts × 10 GX: fences 4 (2 m), boards 7 (3.5 m).
 const FENCE_HEIGHT := 2.0
 const BOARD_HEIGHT := 3.5
-const STATUE_HEIGHT := 3.5
 const SENSOR_HEIGHT := 1.4
 const SENSOR_DEPTH := 0.8
 
@@ -56,6 +55,4 @@ func _collision_height() -> float:
 	var id: String = String(visual_id)
 	if id.contains("fence"):
 		return FENCE_HEIGHT
-	if id.ends_with("_douzou"):
-		return STATUE_HEIGHT
 	return BOARD_HEIGHT

@@ -201,7 +201,7 @@ func _ensure_visual() -> void:
 		mesh.material_override = mat
 		_model.add_child(mesh)
 		return
-	_body_anim = GeneratedVisual.find_animation_player(vis)
+	_body_anim = VisualAnimation.find_animation_player(vis)
 	_face.bind(vis, PoliceDisplay.BOOKER_SPECIES)
 	_play_clip(ANIM_WAIT, true)
 

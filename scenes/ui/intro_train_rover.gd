@@ -36,7 +36,7 @@ var _looping: bool = false
 func _ready() -> void:
 	var vis: Node3D = get_node_or_null("GeneratedVisual") as Node3D
 	if vis != null:
-		GeneratedVisual.apply_actor_scale(vis)
+		VisualFit.apply_actor_scale(vis)
 		call_deferred("_emit_visual_ready", vis)
 	_setup_player()
 
@@ -138,7 +138,7 @@ func _emit_visual_ready(visual: Node3D) -> void:
 
 
 func _setup_player() -> void:
-	_anim = GeneratedVisual.find_animation_player(self)
+	_anim = VisualAnimation.find_animation_player(self)
 	_tree = get_node_or_null("AnimationTree") as AnimationTree
 	if _tree != null:
 		_tree.active = false

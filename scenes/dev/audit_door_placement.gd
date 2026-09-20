@@ -8,7 +8,7 @@ func _ready() -> void:
 	add_child(car_host)
 	var car: Node3D = GeneratedVisual.attach(car_host, &"rom_train_in")
 	if car != null:
-		GeneratedVisual.fit_train_car_shell(car)
+		VisualTrain.fit_train_car_shell(car)
 	var host := Node3D.new()
 	add_child(host)
 	var vis: Node3D = GeneratedVisual.attach(host, &"obj_romtrain_door")
@@ -16,14 +16,14 @@ func _ready() -> void:
 		push_error("door GLB missing")
 		get_tree().quit(1)
 		return
-	GeneratedVisual.place_train_door_at_gateway(
+	VisualTrain.place_train_door_at_gateway(
 		host, vis, IntroTrainStage.DOOR_GATE_GX, car, IntroTrainStage.DOOR_PANEL_Z_BIAS_GX
 	)
 	var host_gx: Vector3 = host.global_position / FieldCatalog.GX_TO_METERS
-	var panel_gx: Vector3 = GeneratedVisual.train_door_panel_center_gx(host, vis)
+	var panel_gx: Vector3 = VisualTrain.train_door_panel_center_gx(host, vis)
 	var opening_z: float = 0.0
 	if car != null:
-		opening_z = GeneratedVisual.train_vestibule_opening_z_gx(car)
+		opening_z = VisualTrain.train_vestibule_opening_z_gx(car)
 	print("door_host_gx=", host_gx)
 	print("door_panel_center_gx=", panel_gx)
 	print("car_opening_z_gx=", opening_z)

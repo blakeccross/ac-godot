@@ -320,7 +320,7 @@ static func _anim_player(actor: Node3D) -> AnimationPlayer:
 		var custom: Variant = actor.call("animation_player")
 		if custom is AnimationPlayer:
 			return custom as AnimationPlayer
-	return GeneratedVisual.find_animation_player(actor)
+	return VisualAnimation.find_animation_player(actor)
 
 
 static func _first_resolved(ap: AnimationPlayer, clips: Array[String]) -> String:

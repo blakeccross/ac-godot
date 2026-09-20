@@ -57,10 +57,10 @@ func _refresh_design() -> void:
 	if d == null:
 		return
 	var tex: Texture2D = DesignTexture.build(d)
-	GeneratedVisual.apply_design(self, tex)
+	VisualCloth.apply_design(self, tex)
 	if kind == Kind.UMBRELLA:
 		## `obj_shop_umbmy` binds the design to `ANIME_2` on the `umb_w` canopy.
-		GeneratedVisual.paint_surface_albedo(
+		VisualCloth.paint_surface_albedo(
 			self, tex, PackedStringArray(["kasa", "umbmy", "umb_w", "anime_2"])
 		)
 

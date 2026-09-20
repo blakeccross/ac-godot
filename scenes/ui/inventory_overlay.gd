@@ -388,13 +388,13 @@ func _setup_player_portrait() -> void:
 		return
 	_portrait_pivot = body as Node3D
 	world.add_child(_portrait_pivot)
-	GeneratedVisual.apply_actor_scale(_portrait_pivot, &"boy_1")
+	VisualFit.apply_actor_scale(_portrait_pivot, &"boy_1")
 	GeneratedVisual.apply_preview_materials(_portrait_pivot)
-	GeneratedVisual.stop_autoplay_keep_rest(_portrait_pivot)
+	VisualAnimation.stop_autoplay_keep_rest(_portrait_pivot)
 	_portrait_pivot.rotation.y = 0.0
 	_portrait_pivot.position = Vector3.ZERO
 
-	_portrait_anim = GeneratedVisual.find_animation_player(_portrait_pivot)
+	_portrait_anim = VisualAnimation.find_animation_player(_portrait_pivot)
 	_sync_portrait_equipment(true)
 	_sync_portrait_cloth()
 
@@ -485,12 +485,12 @@ func _setup_hand_cursor() -> void:
 		return
 	var pivot := body as Node3D
 	world.add_child(pivot)
-	GeneratedVisual.apply_actor_scale(pivot, &"hnd")
+	VisualFit.apply_actor_scale(pivot, &"hnd")
 	GeneratedVisual.apply_preview_materials(pivot)
-	GeneratedVisual.stop_autoplay_keep_rest(pivot)
+	VisualAnimation.stop_autoplay_keep_rest(pivot)
 	pivot.scale *= 1
 	pivot.rotation_degrees = Vector3(-30.0, -113.0, 0.0)
-	_hand_anim = GeneratedVisual.find_animation_player(pivot)
+	_hand_anim = VisualAnimation.find_animation_player(pivot)
 	_play_hand_clip("hnd_sasu", true)
 
 
@@ -933,7 +933,7 @@ func _sync_portrait_cloth() -> void:
 	if Game.worn_design_slot >= 0 and Game.designs != null:
 		var design: DesignPattern = Game.designs.resolved(Game.worn_design_slot)
 		if design != null:
-			GeneratedVisual.apply_design(_portrait_pivot, DesignTexture.build(design))
+			VisualCloth.apply_design(_portrait_pivot, DesignTexture.build(design))
 			return
 	var data: ItemData = ItemCatalog.get_item(Game.cloth_id)
 	var index: int = data.cloth_index if data != null else -1
@@ -943,7 +943,7 @@ func _sync_portrait_cloth() -> void:
 			index = int(raw.substr(6))
 	if index < 0:
 		return
-	GeneratedVisual.apply_cloth(_portrait_pivot, index)
+	VisualCloth.apply_cloth(_portrait_pivot, index)
 
 
 ## `mIV_ANIM_WALK` loops; CHANGE / EAT play once and fall back to the rest clip;

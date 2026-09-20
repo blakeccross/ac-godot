@@ -55,9 +55,9 @@ const ITEM_POLICE_STATION := 0x580C
 const ITEM_SIGN00 := 0x5810
 const ITEM_SIGN20 := 0x5824
 const ITEM_WISHING_WELL := 0x5825
-## `LOTUS` / `DOUZOU` (station statue), `STRUCTURE_START` + 65 / 67.
+## `LOTUS`, `STRUCTURE_START` + 65. `DOUZOU` (0x5843, station statue) is deliberately not placed:
+## `aDOU_set_check` draws it only for a player whose house reached `mHm_HOMESIZE_STATUE`.
 const ITEM_LOTUS := 0x5841
-const ITEM_DOUZOU := 0x5843
 ## `TOUDAI` (`STRUCTURE_START + 68`, `m_name_table.h`).
 const ITEM_LIGHTHOUSE := 0x5844
 const ITEM_MUSEUM := 0x584A
@@ -270,8 +270,6 @@ static func _prop_place(item_id: int) -> Dictionary:
 			board["message"] = "The community board has no new notices."
 			board["notice_board"] = true
 			return board
-		ITEM_DOUZOU:
-			return {"kind": &"prop", "visual": &"obj_s_douzou", "id": &"statue"}
 		ITEM_LOTUS:
 			return {"kind": &"lotus", "visual": &"obj_s_lotus", "id": &"lotus"}
 	return {}

@@ -14,12 +14,12 @@ func _ready() -> void:
 	var sleep: Node3D = intro.get_node("%SleepPassenger") as Node3D
 	var vis: Node3D = sleep.get_node_or_null("GeneratedVisual") as Node3D
 	print("sleep global_pos=", sleep.global_position, " rot_y=", sleep.rotation.y)
-	var anim: AnimationPlayer = GeneratedVisual.find_animation_player(sleep)
+	var anim: AnimationPlayer = VisualAnimation.find_animation_player(sleep)
 	if anim != null:
 		print("anim playing=", anim.is_playing(), " clip=", anim.current_animation)
 	if vis != null:
 		print("vis local_pos=", vis.position, " scale=", vis.scale, " visible=", vis.visible)
-		var aabb := GeneratedVisual.local_aabb(vis)
+		var aabb := VisualFit.local_aabb(vis)
 		print("vis local_aabb=", aabb)
 		var foot_y: float = aabb.position.y * vis.scale.y + vis.position.y
 		print("vis scaled min_y=", foot_y)

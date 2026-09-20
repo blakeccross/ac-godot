@@ -27,8 +27,8 @@ var _tunnel_mats: Array[StandardMaterial3D] = []
 
 
 func _ready() -> void:
-	GeneratedVisual.fit_train_car_shell(_car_visual)
-	GeneratedVisual.fit_train_window_shell(_window_visual, _car_visual)
+	VisualTrain.fit_train_car_shell(_car_visual)
+	VisualTrain.fit_train_window_shell(_window_visual, _car_visual)
 	IntroTrainPresentation.apply_car_surfaces(_car_visual)
 	_cloud_mats.clear()
 	_tree_mats.clear()

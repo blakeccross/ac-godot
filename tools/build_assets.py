@@ -28,6 +28,7 @@ from asset_pipeline.fgdata import convert_fgdata  # noqa: E402
 from asset_pipeline.furniture_profiles import convert_furniture_profiles  # noqa: E402
 from asset_pipeline.npc_rooms import convert_npc_rooms  # noqa: E402
 from asset_pipeline.audio import convert_audio  # noqa: E402
+from asset_pipeline.bake import bake_acre_scenes  # noqa: E402
 from asset_pipeline.dialogue import convert_dialogue  # noqa: E402
 from asset_pipeline.villagers import generate_villagers  # noqa: E402
 from asset_pipeline.seasons import export_seasonal_textures  # noqa: E402
@@ -48,7 +49,7 @@ def main() -> int:
     parser.add_argument("--config", type=Path, default=None)
     parser.add_argument(
         "--step",
-        choices=["all", "extract", "scan", "convert", "validate"],
+        choices=["all", "extract", "scan", "convert", "bake", "validate"],
         default="all",
     )
     parser.add_argument(
@@ -356,6 +357,13 @@ def main() -> int:
                     print(f"  ... {len(errors) - 40} more errors")
                 if errors:
                     failed = True
+    if args.step in ("all", "bake"):
+        baked = bake_acre_scenes(cfg)
+        if baked["ok"]:
+            print("baked acre scenes -> scenes/world/acres/")
+        else:
+            print(f"bake: {baked['error']}")
+            failed = True
     if args.step in ("all", "validate"):
         summary = validate(cfg)
         print(f"validate {summary['passed']}/{summary['count']} ok={summary['ok']}")

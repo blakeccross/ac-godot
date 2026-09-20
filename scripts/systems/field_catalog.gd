@@ -45,6 +45,11 @@ const _STONE_BRIDGE_BG: PackedStringArray = [
 ]
 
 const GENERATED_ROOT := "res://assets/generated/"
+## Acres exist only as baked scenes (`tools/bake_acre_scenes.gd`, run by the asset pipeline).
+## The `<id>.tscn` files are project scenes; the grids, meshes, materials and textures they
+## reference derive from the disc extract and stay under the gitignored `generated/` tree.
+const ACRE_SCENE_DIR := "res://scenes/world/acres/"
+const ACRE_SCENE_ROOT := GENERATED_ROOT + "environment/acre_scenes/"
 ## Active town grass motif (`WorldData.grass_pattern` / `bg_tex_idx`). Set when the world loads.
 static var _grass_pattern_idx: int = WorldData.GrassPattern.TRIANGLE
 ## `FTR_START(FTR_FMANEKIN000)`. Shirt index is `(item - FTR_CLOTH_START) >> 2`.
@@ -230,10 +235,15 @@ static func season_role_for_surface(
 	return by_label if by_label.begins_with("tree_") else ""
 
 
+static func season_tile_clamp_v(role: String) -> bool:
+	## River banks and cliff fringes sample GX_CLAMP T; grass stays REPEAT/REPEAT.
+	return role in ["earth", "river_edge", "bush_a", "bush_b", "sand", "stone", "cliff", "rail"]
+
+
 static func season_role_for_label(label: String) -> String:
 	## Map a material/texture/surface label to a seasons-pack role stem.
 	## Hardwood only for leaf/trunk — palm/cedar keep baked (or seasonal mesh) art.
-	## `GeneratedVisual.apply_season_textures` would otherwise stamp `tree_leaf.png`
+	## `VisualSeasons.apply` would otherwise stamp `tree_leaf.png`
 	## onto `obj_*_palm_leaf_tex` / `obj_*_cedar_leaf_tex` / `obj_lotus_leaf_tex` (and trunks).
 	var compact := label.to_lower().replace(" ", "").replace("-", "").replace("_", "")
 	if compact.contains("palm") or compact.contains("cedar") or compact.contains("lotus"):
@@ -277,17 +287,38 @@ static func seasonal_acre_id(visual_id: StringName) -> String:
 	return "_".join(parts)
 
 
+static func is_interior_shell_visual(visual_id: StringName) -> bool:
+	## Indoor post shell lives with other room GLBs (not outdoor acre dumps), even though
+	## its id starts with `grd_`; the acres folder holds a lower-resolution namesake.
+	var id := String(visual_id)
+	return id == "grd_post_office" or id == "police_indoor" or id == "room01"
+
+
+static func acre_scene_path(visual_id: StringName) -> String:
+	## Scene for a `grd_*` field acre, or "" when it is not an acre or the pipeline has not
+	## produced it. Tries the current season's id, then the summer one.
+	var id := String(visual_id)
+	if not id.begins_with("grd_") or is_interior_shell_visual(visual_id):
+		return ""
+	var seasonal := seasonal_acre_id(visual_id)
+	for candidate: String in [seasonal, id]:
+		var path := ACRE_SCENE_DIR + candidate + ".tscn"
+		if ResourceLoader.exists(path):
+			return path
+	return ""
+
+
+static func acre_grid_path(acre_id: String) -> String:
+	return ACRE_SCENE_ROOT + "grids/" + acre_id + ".tres"
+
+
 static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 	var id := String(visual_id)
-	## Indoor post shell lives with other room GLBs (not outdoor acre dumps).
-	if id == "grd_post_office" or id == "police_indoor" or id == "room01":
+	if is_interior_shell_visual(visual_id):
 		return _existing(["environment/interiors/%s.glb" % id])
 	if id.begins_with("grd_"):
-		var seasonal := seasonal_acre_id(StringName(id))
-		var paths: PackedStringArray = _existing(["environment/acres/%s.glb" % seasonal])
-		if paths.is_empty() and seasonal != id:
-			paths = _existing(["environment/acres/%s.glb" % id])
-		return paths
+		var scene_path := acre_scene_path(visual_id)
+		return PackedStringArray([scene_path]) if not scene_path.is_empty() else PackedStringArray()
 	if id.begins_with("tol_"):
 		return _existing(["items/%s.glb" % id])
 	if id.begins_with("ef_"):
@@ -419,7 +450,8 @@ static func is_open_ocean_visual(visual_id: StringName) -> bool:
 
 
 static func is_ocean_acre_visual(visual_id: StringName) -> bool:
-	## Beach/marine + open ocean. Land/ocean stay imported; river/splash still get shaders.
+	## Beach/marine + open ocean acre ids (bug spawning). Water looks come from the pipeline's
+	## `water_kind` stamp, not from this.
 	return is_beach_marine_visual(visual_id) or is_open_ocean_visual(visual_id)
 
 
@@ -745,48 +777,12 @@ static func unit_at(visual_id: StringName, ux: int, uz: int) -> Dictionary:
 
 
 static func _load_acre_units(id: String) -> PackedByteArray:
-	var path := GENERATED_ROOT + "environment/acres/%s.col.json" % id
-	if not FileAccess.file_exists(path):
+	## The acre scene's own `AcreGrid`. Empty for a filler acre or one with no table.
+	var grid_path := acre_grid_path(id)
+	if not ResourceLoader.exists(grid_path):
 		return PackedByteArray()
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
-	if typeof(parsed) != TYPE_DICTIONARY:
-		return PackedByteArray()
-	var units: Variant = (parsed as Dictionary).get("units", [])
-	if typeof(units) != TYPE_ARRAY or (units as Array).size() != UNITS_PER_ACRE:
-		return PackedByteArray()
-	var packed := PackedByteArray()
-	packed.resize(UNITS_PER_ACRE * UNIT_STRIDE)
-	var i := 0
-	for u: Variant in units:
-		if typeof(u) != TYPE_DICTIONARY:
-			return PackedByteArray()
-		var d: Dictionary = u
-		packed[i] = clampi(int(d.get("c", LAND_COUNTS)), 0, 31)
-		packed[i + 1] = clampi(int(d.get("nw", LAND_COUNTS)), 0, 31)
-		packed[i + 2] = clampi(int(d.get("sw", LAND_COUNTS)), 0, 31)
-		packed[i + 3] = clampi(int(d.get("se", LAND_COUNTS)), 0, 31)
-		packed[i + 4] = clampi(int(d.get("ne", LAND_COUNTS)), 0, 31)
-		packed[i + 5] = clampi(int(d.get("s", 0)), 0, 1)
-		packed[i + 6] = clampi(int(d.get("a", 0)), 0, 63)
-		i += UNIT_STRIDE
-	if _is_height_max_filler(id, packed):
-		return PackedByteArray()
-	return packed
-
-
-static func _is_height_max_filler(id: String, packed: PackedByteArray) -> bool:
-	## Dummy TRACKS `data_bgd` rows reuse a field mesh (`grd_s_c1_3`, …) with an
-	## all-HEIGHT_MAX floor. Border cliffs (`grd_*_e*`) are authored as solid walls
-	## (and tunnels keep a walkable strip) — those are real tables, not fillers.
-	if packed.size() != UNITS_PER_ACRE * UNIT_STRIDE:
-		return false
-	if is_border_edge_acre(id):
-		return false
-	var n_max := 0
-	for u: int in UNITS_PER_ACRE:
-		if packed[u * UNIT_STRIDE] >= HEIGHT_MAX:
-			n_max += 1
-	return n_max > UNITS_PER_ACRE / 2
+	var grid := load(grid_path) as AcreGrid
+	return grid.units if grid != null and grid.is_valid() else PackedByteArray()
 
 
 static func is_border_edge_acre(id: String) -> bool:
@@ -804,15 +800,14 @@ static func acre_for_block_type(
 		candidates = PackedStringArray(["grd_s_f_1", "grd_s_f_2", "grd_s_f_3"])
 	var pool: PackedStringArray = PackedStringArray()
 	for name: String in candidates:
-		var col_path := GENERATED_ROOT + "environment/acres/%s.col.json" % name
-		if FileAccess.file_exists(col_path) and not has_acre_collision(StringName(name)):
+		if ResourceLoader.exists(acre_grid_path(name)) and not has_acre_collision(StringName(name)):
 			continue
 		pool.append(name)
 	if pool.is_empty():
 		pool = candidates
 	var with_mesh := PackedStringArray()
 	for name: String in pool:
-		if ResourceLoader.exists(GENERATED_ROOT + "environment/acres/%s.glb" % name):
+		if not acre_scene_path(StringName(name)).is_empty():
 			with_mesh.append(name)
 	if not with_mesh.is_empty():
 		pool = with_mesh

@@ -35,13 +35,13 @@ func _ensure_visual() -> void:
 	## `obj_clock_tailor` verts carry the decomp skeleton root offset — recentre the
 	## dial on this node so the wall mount lands where we place it.
 	pivot.scale *= 0.62  ## `obj_clock_tailor` verts are oversized for a wall clock
-	var aabb: AABB = GeneratedVisual.local_aabb(pivot)
+	var aabb: AABB = VisualFit.local_aabb(pivot)
 	if aabb.size != Vector3.ZERO:
 		var s: float = pivot.scale.x
 		pivot.position.x = -(aabb.position.x + aabb.size.x * 0.5) * s
 		pivot.position.y = -(aabb.position.y + aabb.size.y * 0.5) * s
 		pivot.position.z = -(aabb.position.z + aabb.size.z * 0.5) * s
-	GeneratedVisual._disable_shadows(pivot)
+	VisualFit.disable_shadows(pivot)
 
 
 func _bind(node: Node) -> void:

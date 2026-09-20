@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://ddgnqmcplfxcj" path="res://scenes/ui/intro_kk.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://copajrd153xkj" path="res://scenes/ui/dialogue_overlay.tscn" id="2"]
 [ext_resource type="Environment" path="res://scenes/ui/intro_kk_env.tres" id="3"]
-[ext_resource type="PackedScene" uid="uid://bpsmet5ch086p" path="res://assets/generated/environment/acres/grd_player_select.glb" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/world/acres/grd_player_select.tscn" id="4"]
 [ext_resource type="PackedScene" uid="uid://cgn6n5tef1ajx" path="res://assets/generated/characters/villagers/end_1.glb" id="5"]
 [ext_resource type="Script" uid="uid://c1j8goi5yhum8" path="res://scenes/ui/intro_kk_kk.gd" id="6"]
 

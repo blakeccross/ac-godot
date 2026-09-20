@@ -11,7 +11,7 @@ Generated Nintendo assets stay **outside git**. The Godot repo only contains con
 - Python 3.9+
 - Pillow (`pip3 install -r tools/requirements.txt`)
 - [decomp-toolkit](https://github.com/encounter/decomp-toolkit) `dtk` — downloaded automatically to `tools/.cache/dtk` on first run
-- Optional: Godot 4.6+ on `PATH` or at `/Applications/Godot.app` (import validation)
+- Godot 4.6+ (set `godot_bin` in the config, or `GODOT_BIN`): the `bake` step runs it headless to build the acre scenes. The game cannot load field acres without them
 - Optional: `ffmpeg` on `PATH` (OGG encode for `--kind audio`; WAV is the fallback)
 - A disc image or Dolphin-extracted folder you already own (`GAFE01`)
 
@@ -195,7 +195,32 @@ Seasonal field/tree albedo packs (runtime material swaps; press **U** in-game to
 python3 tools/build_assets.py --step convert --kind seasons
 ```
 
-Writes `assets/generated/environment/seasons/{s,f,w}/` PNGs (`grass`, `grass_0`–`grass_2` for triangle/square/circle town motifs, `earth`, `cliff`, `bush_a`, `bush_b`, `rail`, `stone`, `sand`, `beach_wet`, `river_edge`, `tree_leaf`, `tree_trunk`). Summer and autumn acres share the summer CI bank with different monthly palettes; winter uses the winter bank. Trees use summer CI + season FG palettes, or winter tree art (`obj_w_tree*`) for snow. Field BG bank export covers textures flat acres never draw; river (`grd_s_r*`), beach (`grd_s_m*`), cliff, and wishing-well (`grd_s_f_pk*`) acre jobs fill earth/sand/wet-shore gaps. `GeneratedVisual.apply_season_textures` swaps albedo on attach (re-tiling wrap-baked acre atlases) including `beach_wet` shore bands. Runtime picks `grass_{bg_tex_idx}.png` from `WorldData.grass_pattern` / `Game.grass_pattern`. Mesh remap (`grd_w_*` / `obj_f_*` / `obj_w_*`) still runs when those GLBs exist. Rebuild this pack after disc extract so grass and snow update even if only summer meshes are present.
+Writes `assets/generated/environment/seasons/{s,f,w}/` PNGs (`grass`, `grass_0`–`grass_2` for triangle/square/circle town motifs, `earth`, `cliff`, `bush_a`, `bush_b`, `rail`, `stone`, `sand`, `beach_wet`, `river_edge`, `tree_leaf`, `tree_trunk`). Summer and autumn acres share the summer CI bank with different monthly palettes; winter uses the winter bank. Trees use summer CI + season FG palettes, or winter tree art (`obj_w_tree*`) for snow. Field BG bank export covers textures flat acres never draw; river (`grd_s_r*`), beach (`grd_s_m*`), cliff, and wishing-well (`grd_s_f_pk*`) acre jobs fill earth/sand/wet-shore gaps. A baked acre scene (below) swaps albedo through `Acre.apply_season` (re-tiling wrap-baked acre atlases, including `beach_wet` shore bands); non-acre visuals still use `VisualSeasons.apply`. Runtime picks `grass_{bg_tex_idx}.png` from `WorldData.grass_pattern` / `Game.grass_pattern`. Mesh remap (`grd_w_*` / `obj_f_*` / `obj_w_*`) still runs when those GLBs exist. Rebuild this pack after disc extract so grass and snow update even if only summer meshes are present.
+
+Acre scenes (every `grd_*` acre baked into a `.tscn`). **Field acres exist only in this form:** the game has no GLB path for them, so the pipeline must have run this step before the town loads. It is the `bake` step, part of `--step all` after `convert`; run it alone after reconverting acres:
+
+```sh
+python3 tools/build_assets.py --step bake      # needs godot_bin in config.local.json or GODOT_BIN
+# or directly, for one acre:
+GODOT_BIN=/Applications/Godot.app/Contents/MacOS/Godot tools/bake_acre_scenes.sh grd_s_r1_1
+```
+
+Writes the scenes to `scenes/world/acres/` and everything they reference to `assets/generated/environment/acre_scenes/` (gitignored like the rest of `generated/`, since it derives from the disc extract):
+
+| Path | Holds |
+| --- | --- |
+| `scenes/world/acres/<id>.tscn` | `Acre` root (`scenes/world/acre.gd`) + one `MeshInstance3D` per mesh, every material assigned as a surface override |
+| `grids/<id>.tres` | `AcreGrid`: the 16×16 unit table from `<id>.col.json` (empty `units` for a filler acre). `FieldCatalog.acre_units` reads it |
+| `meshes/<id>/*.res` | Geometry only (water-edge gap stretch is baked into the node transform) |
+| `materials/*.tres` | Terrain materials, shared between acres. Each carries `field_role` (season swap) and `atlas_cell` (wrap-bake period) |
+| `materials/water/<kind>_<key>.tres` | River / ocean / splash / wet-sand `ShaderMaterial`s with their prim/env colours, `ground_lift`, `game_fps` |
+| `textures/**.png` | Every texture, deduplicated by content. Water layers are `textures/water/<kind>_<param>_<hash>.png` |
+
+The bake runs the same material pass a GLB acre used to get at attach time (`VisualWaterMaterials.prepare_acre`) and saves the result, (`tests/unit/test_acre_scenes.gd` rebuilds each acre from its GLB and compares it to the scene per surface in every season, which also flags a scene left stale by a reconvert). At runtime `GeneratedVisual.attach` instances the scene and calls `Acre.apply_season`; a season change re-points the season-role materials in place (no detach/re-attach), and re-tiled season sheets are cached across acres. With no bake on disk, `attach` returns null and warns; there is no fallback.
+
+**Replace a water texture:** swap the PNG under `textures/water/` (or point the shader parameter on the `materials/water/*.tres` at another texture). Re-bakes never overwrite an existing mesh, material, texture or grid, so the edit survives; delete a file to regenerate it. The `.tscn` files are rewritten on every bake, so make changes on the materials, not in the scenes. Tune colours and `game_fps` the same way, on the material.
+
+The bake needs two Godot passes with an import between them (new PNGs must be imported before a material can reference them); the script does both. Reconverting a GLB requires a re-bake (delete the affected meshes under `acre_scenes/`, then run the step); the scenes themselves are rewritten every time.
 
 FG acre templates (trees/flowers from `fgdata.bin`; needs decomp headers for `data_combi`):
 
@@ -316,7 +341,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | House/shop is grayscale | CI4 loads `anime_1_txt` (segment 0x08). Bind `obj_s_house1_a_pal` / `obj_shop1_pal` from `structure_pal`, not `{prefix}_pal` |
 | Player house / post office is grayscale | Same `anime_1_txt` bank. `obj_s_myhome1` maps to `obj_s_myhome_a_pal` (strip the stage digit); `obj_s_yubinkyoku` aliases to `obj_s_post_office_pal` (winter: `obj_s_post_office_winter_pal`) |
 | Palm/cedar is black-and-white | CI4 leaf/trunk (`obj_s_palm_*_tex`, `obj_s_cedar_*_tex`) never LOADTLUT. Runtime uses `mFM_obj_palm_01_pal` / `mFM_obj_tree_01_pal_dol` (`mFM_SetFGPal`). Fallback used to require `"tree"` in the symbol name. Reconvert with `--step convert --kind plants` |
-| Palm/cedar wear round hardwood canopy | `GeneratedVisual.apply_season_textures` matched any `*leaf*` / `*trunk*` to `tree_leaf` / `tree_trunk`. Palm and cedar keep baked art (season via `obj_f_*` / `obj_w_*` mesh remap). Do not stamp hardwood season PNGs onto them |
+| Palm/cedar wear round hardwood canopy | `VisualSeasons.apply` matched any `*leaf*` / `*trunk*` to `tree_leaf` / `tree_trunk`. Palm and cedar keep baked art (season via `obj_f_*` / `obj_w_*` mesh remap). Do not stamp hardwood season PNGs onto them |
 | Palm/cedar GLB under `environment/` not `trees/` | Layout only routed names containing `tree`/`stump`. Convert now sends palm/cedar to `environment/trees/`; `FieldCatalog` still falls back to the old env root path |
 | Hardwood stump missing / cylinder placeholder | Gfx is `obj_stump5T_*` while verts are `obj_s_stump5_v`. Converter used to skip the job. Reconvert with `--kind plants` |
 | ROCK_B–E (`obj_s_stoneB` …) is solid white | Geometry-only Gfx. `bg_item` draws `obj_s_stoneA_mat_model` once (`stone_DL_table[0]`), then `obj_s_stoneB_gfx_model` as `table[1 + sub_idx]`. Converter used to look for a missing `obj_s_stoneB_mat_model`. Reconvert with `--kind plants` |
@@ -328,7 +353,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | House door texture flickers / z-fights | (1) Skinned export must split OPAQUE / MASK / BLEND meshes (`write_skinned_glb`). (2) Body DLs that omit SetRenderMode but only UV opaque texels of a cutout atlas must demote to OPAQUE (`demote_opaque_uv_alpha`). (3) Door TEX_EDGE is coplanar with the OPA facade in the original — do not offset verts; `GeneratedVisual` uses material `grow` (depth bias along normals) on structure MASK. (4) Keep double-sided cull on OPAQUE walls (inward normals). Reconvert `--kind buildings` |
 | House/shop side walls draw in front of the world | Wall DLs are `TEX_EDGE` (window cutouts) with MIRROR wrap. ACHD soft AA made `alphaMode=BLEND`; harden was CLAMP-only (tank glass). Soft TEX_EDGE must harden to MASK for every wrap — structure BLEND disables depth write. Reconvert `--kind buildings` |
 | NPC / villager body draws in front of the world | Same ACHD soft-AA trap on `OPA_SURF` body sheets (`pgb_1` chest on joint_12, etc.). Coverage forces `OPAQUE`, but soft fringe must still be flooded to A=255; stale GLBs that baked `BLEND` need a character reconvert (`convert_ckf_starting_with` / full convert) |
-| River/ocean paints over villager face / ears | Soft ACHD TEX_EDGE on face sheets (`cbr_1` `seg_08`/`seg_09`, many other species) imports as `BLEND` with depth write off. Acre water screen-composites later at `render_priority = 1` and wins those pixels. `GeneratedVisual._harden_imported_cutout` promotes leftover BLEND to MASK scissor + depth write (same idea as structure walls). Reconvert characters still preferred so GLBs ship MASK. |
+| River/ocean paints over villager face / ears | Soft ACHD TEX_EDGE on face sheets (`cbr_1` `seg_08`/`seg_09`, many other species) imports as `BLEND` with depth write off. Acre water screen-composites later at `render_priority = 1` and wins those pixels. `VisualMaterials.harden_imported_cutout` promotes leftover BLEND to MASK scissor + depth write (same idea as structure walls). Reconvert characters still preferred so GLBs ship MASK. |
 | Window spill looks like solid yellow paint | Same linear-HDR vs 8-bit XLU issue as water. `window_ground_spill.gdshader` samples `hint_screen_texture`, lerps prim yellow in sRGB (`TEXEL0 × LOD 120/255`), and emits opaque `ALBEDO` |
 | Tree leaves are pastel pink/teal | Hardwood fallback used map symbol `mFM_obj_tree_01_pal`, whose REL blob does not CI-decode leaf art. Use `mFM_obj_tree_01_pal_dol` / `obj_tree_pal`. Reconvert trees |
 | Summer `obj_s_tree3` leaf is untextured | Disc has only `obj_s_gold_tree3_leafT_mat_model` (no non-gold leaf mat). Converter falls back to the gold mat for SETTIMG |

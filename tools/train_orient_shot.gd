@@ -65,7 +65,7 @@ func _one(root3: Node3D, c: Dictionary) -> void:
 		var packed: PackedScene = load("res://assets/generated/environment/%s.glb" % String(c["id"]))
 		pivot.add_child(packed.instantiate())
 		host.add_child(pivot)
-		GeneratedVisual.apply_actor_scale(pivot, c["id"])
+		VisualFit.apply_actor_scale(pivot, c["id"])
 	else:
 		pivot = GeneratedVisual.attach(host, c["id"])
 	if pivot == null:

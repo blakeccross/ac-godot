@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_cuhgk"]
+[ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_hole_test.tres" id="2_jvjyj"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_hole_test/grd_s_hole_test2.res" id="3_x1jtq"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/141c284e71a6.tres" id="4_j1x5b"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/8360e5e83fe9.tres" id="5_8o7jj"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/acfe16caf61c.tres" id="6_nryym"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/ae1c40fc6a9f.tres" id="7_rr23i"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_hole_test/grd_s_hole_test_mask.res" id="8_gomnt"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/c1d1b79ca7f3.tres" id="9_jetta"]
+
+[node name="grd_s_hole_test" type="Node3D" unique_id=1968184443]
+script = ExtResource("1_cuhgk")
+visual_id = &"grd_s_hole_test"
+grid = ExtResource("2_jvjyj")
+
+[node name="grd_s_hole_test2" type="MeshInstance3D" parent="." unique_id=1998715312]
+mesh = ExtResource("3_x1jtq")
+surface_material_override/0 = ExtResource("4_j1x5b")
+surface_material_override/1 = ExtResource("5_8o7jj")
+surface_material_override/2 = ExtResource("6_nryym")
+surface_material_override/3 = ExtResource("7_rr23i")
+
+[node name="grd_s_hole_test_mask" type="MeshInstance3D" parent="." unique_id=980572414]
+mesh = ExtResource("8_gomnt")
+surface_material_override/0 = ExtResource("9_jetta")

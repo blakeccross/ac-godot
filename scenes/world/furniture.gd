@@ -21,7 +21,7 @@ func _ready() -> void:
 		visual_id = data.visual_id
 	GeneratedVisual.attach(self, visual_id)
 	if cloth_index >= 0:
-		GeneratedVisual.apply_cloth(self, cloth_index)
+		VisualCloth.apply_cloth(self, cloth_index)
 	apply_footprint(2.0)
 	apply_grid_yaw(grid_facing)
 

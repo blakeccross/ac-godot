@@ -48,8 +48,8 @@ func _setup_stage_look() -> void:
 	if acre != null:
 		var vis: Node3D = acre.get_node_or_null("GeneratedVisual") as Node3D
 		if vis != null:
-			GeneratedVisual.fit_acre(vis)
-		GeneratedVisual.apply_authored_interior(acre)
+			VisualFit.fit_acre(vis)
+		VisualFit.disable_shadows(acre)
 	var sun: DirectionalLight3D = get_node_or_null("Sun") as DirectionalLight3D
 	if sun != null:
 		sun.light_color = IntroKkStage.SUN_COLOR

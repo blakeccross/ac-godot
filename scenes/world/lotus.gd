@@ -62,7 +62,7 @@ func _attach() -> void:
 
 
 func _attach_done() -> void:
-	_anim = GeneratedVisual.find_animation_player(self)
+	_anim = VisualAnimation.find_animation_player(self)
 	if _anim != null:
 		var clip: StringName = _first_clip(_anim)
 		if clip != &"":

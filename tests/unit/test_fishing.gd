@@ -141,7 +141,7 @@ func test_cast_lands_partway_through_the_swing() -> void:
 	var player: Node3D = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Node3D
 	add_child(player)
 	await get_tree().process_frame
-	var anim: AnimationPlayer = GeneratedVisual.find_animation_player(player)
+	var anim: AnimationPlayer = VisualAnimation.find_animation_player(player)
 	if anim == null:
 		return
 	var clip: String = player.call("_resolve_clip", "ply_1_sao_swing1")
@@ -364,7 +364,7 @@ func test_reel_clips_exist_on_the_pipeline_meshes() -> void:
 		return
 	var rod: Node3D = auto_free(GeneratedVisual.instantiate_raw(&"tol_sao_1"))
 	assert_that(rod).is_not_null()
-	var anim: AnimationPlayer = GeneratedVisual.find_animation_player(rod)
+	var anim: AnimationPlayer = VisualAnimation.find_animation_player(rod)
 	assert_that(anim).is_not_null()
 	var clips: String = " ".join(anim.get_animation_list())
 	for wanted: StringName in [Fishing.ROD_PULL, Fishing.ROD_LAND, Fishing.ROD_EMPTY]:
@@ -377,7 +377,7 @@ func test_player_resolves_every_reel_clip() -> void:
 	var player: Node3D = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Node3D
 	add_child(player)
 	await get_tree().process_frame
-	var anim: AnimationPlayer = GeneratedVisual.find_animation_player(player)
+	var anim: AnimationPlayer = VisualAnimation.find_animation_player(player)
 	if anim == null or anim.get_animation_list().is_empty():
 		return
 	## `_resolve_clip` matches the pipeline's `ply_1_*` names loosely, so a missing clip
@@ -418,7 +418,7 @@ func test_player_turns_to_the_camera_for_the_show_off_pose() -> void:
 
 	## And the pose is really on screen, not just a timer running the turn: `_play_show` falls
 	## back to a bare wait when a clip cannot be resolved, which would look like nothing.
-	var anim: AnimationPlayer = GeneratedVisual.find_animation_player(player)
+	var anim: AnimationPlayer = VisualAnimation.find_animation_player(player)
 	if anim != null and not anim.get_animation_list().is_empty():
 		assert_str(anim.current_animation).contains(String(Fishing.REEL_SHOW))
 

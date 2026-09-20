@@ -49,7 +49,7 @@ func _apply_visual() -> void:
 	var attached: Node3D = GeneratedVisual.attach(self, visual) if visual != &"" else null
 	if attached != null:
 		if cloth >= 0:
-			GeneratedVisual.apply_cloth(self, cloth)
+			VisualCloth.apply_cloth(self, cloth)
 		_paint_sample(data)
 		if _mesh != null:
 			_mesh.visible = false
@@ -71,14 +71,14 @@ func _paint_sample(data: ItemData) -> void:
 				return
 			var tex: Texture2D = load(path) as Texture2D
 			if tex != null:
-				GeneratedVisual._paint_albedo(self, tex)
+				VisualCloth.paint_albedo(self, tex)
 		ItemData.Category.FLOOR:
 			var path: String = InteriorStyleCatalog.floor_texture_path(data.id)
 			if path.is_empty():
 				return
 			var tex: Texture2D = load(path) as Texture2D
 			if tex != null:
-				GeneratedVisual._paint_albedo(self, tex)
+				VisualCloth.paint_albedo(self, tex)
 
 
 func _fit_placeholder() -> void:

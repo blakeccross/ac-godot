@@ -55,7 +55,7 @@ func test_resolve_finds_baked_clips() -> void:
 	assert_bool(HandOver.has_npc_transfer(nook)).is_true()
 	## `aCR_TALK_RETURN_DEMO_*` (Blathers un-taking a rejected item) resolves too, along
 	## with the examining hold (`default_animation = aNPC_ANIM_GET_PULL_WAIT1`).
-	var clips: PackedStringArray = GeneratedVisual.find_animation_player(nook).get_animation_list()
+	var clips: PackedStringArray = VisualAnimation.find_animation_player(nook).get_animation_list()
 	var has_get_return := false
 	var has_get_pull_wait := false
 	for clip: String in clips:

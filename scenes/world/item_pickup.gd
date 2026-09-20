@@ -31,7 +31,7 @@ func _apply_visual() -> void:
 	var visual: StringName = FieldCatalog.item_visual(item.id)
 	if visual != &"" and GeneratedVisual.attach(self, visual) != null:
 		return
-	GeneratedVisual.apply_item_albedo(self, item.id)
+	VisualCloth.apply_item_albedo(self, item.id)
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:

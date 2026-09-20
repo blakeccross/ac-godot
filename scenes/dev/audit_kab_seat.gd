@@ -10,21 +10,21 @@ func _ready() -> void:
 	add_child(car_host)
 	var car: Node3D = GeneratedVisual.attach(car_host, &"rom_train_in")
 	if car != null:
-		GeneratedVisual.fit_train_car_shell(car)
+		VisualTrain.fit_train_car_shell(car)
 	var kab_host := Node3D.new()
 	add_child(kab_host)
 	kab_host.global_position = IntroTrainStage.gx_to_meters(IntroTrainSleepNpc.SPAWN_GX)
 	kab_host.rotation.y = IntroTrainSleepNpc.spawn_yaw()
 	var vis: Node3D = GeneratedVisual.attach_villager(kab_host, &"kab", false)
 	if vis != null:
-		GeneratedVisual.apply_actor_scale(vis)
-		var anim: AnimationPlayer = GeneratedVisual.find_animation_player(kab_host)
+		VisualFit.apply_actor_scale(vis)
+		var anim: AnimationPlayer = VisualAnimation.find_animation_player(kab_host)
 		if anim != null:
 			var clip: String = IntroTrainStage.resolve_rover_clip(anim, IntroTrainSleepNpc.ANIM_KOKKURI_D1)
 			if not clip.is_empty():
 				anim.play(clip)
 				anim.advance(0.0)
-		GeneratedVisual.align_actor_world_min_to_height_gx(vis, IntroTrainSleepNpc.BENCH_FLOOR_Y_GX)
+		VisualFit.align_actor_world_min_to_height_gx(vis, IntroTrainSleepNpc.BENCH_FLOOR_Y_GX)
 		print("after_align vis_y_gx=", vis.global_position.y / FieldCatalog.GX_TO_METERS)
 		var aabb := _world_aabb(vis)
 		print(
@@ -34,7 +34,7 @@ func _ready() -> void:
 			(aabb.position.y + aabb.size.y) / FieldCatalog.GX_TO_METERS
 		)
 	if car != null:
-		var seat := GeneratedVisual.local_aabb(car)
+		var seat := VisualFit.local_aabb(car)
 		print("car_full_aabb local=", seat)
 		var seat_world := _world_aabb(car)
 		print(

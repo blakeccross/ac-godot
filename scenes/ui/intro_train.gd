@@ -129,7 +129,7 @@ func _bootstrap_stage() -> void:
 	var rover_anim: AnimationPlayer = (
 		_rover_host.body_animation_player()
 		if _rover_host.has_method("body_animation_player")
-		else GeneratedVisual.find_animation_player(_rover_host)
+		else VisualAnimation.find_animation_player(_rover_host)
 	)
 	_rover_look.bind(_rover_host)
 	_stage.bind(

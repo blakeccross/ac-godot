@@ -6,5 +6,6 @@
   "scale": 0.001,
   "decomp_root": "",
   "achd_enabled": true,
-  "achd_root": "/absolute/path/to/ACHD"
+  "achd_root": "/absolute/path/to/ACHD",
+  "godot_bin": "/Applications/Godot.app/Contents/MacOS/Godot"
 }

@@ -164,7 +164,7 @@ func test_apply_cloth_paints_mannequin_seg08() -> void:
 	var path: String = FieldCatalog.cloth_albedo(0)
 	if path.is_empty():
 		return
-	GeneratedVisual.apply_cloth(host, 0)
+	VisualCloth.apply_cloth(host, 0)
 	var painted: StandardMaterial3D = host.get_surface_override_material(0) as StandardMaterial3D
 	assert_that(painted).is_not_null()
 	assert_that(painted.albedo_texture).is_not_null()
@@ -181,7 +181,7 @@ func test_apply_cloth_keeps_hd_shirt_on_wrap_baked_player() -> void:
 	var inst: Node = (load(PLAYER) as PackedScene).instantiate()
 	auto_free(inst)
 	add_child(inst)
-	GeneratedVisual.apply_cloth(inst, 16)
+	VisualCloth.apply_cloth(inst, 16)
 	var sizes: Array[Vector2i] = []
 	_collect_cloth_albedo_sizes(inst, sizes)
 	assert_int(sizes.size()).is_greater(0)
@@ -197,7 +197,7 @@ func _collect_cloth_albedo_sizes(node: Node, out: Array[Vector2i]) -> void:
 		var n: int = mi.mesh.get_surface_count() if mi.mesh != null else 1
 		for i: int in n:
 			var mat: Material = mi.get_active_material(i)
-			if GeneratedVisual._is_cloth_surface(mi, i, mat) and mat is StandardMaterial3D:
+			if VisualCloth.is_cloth_surface(mi, i, mat) and mat is StandardMaterial3D:
 				var tex: Texture2D = (mat as StandardMaterial3D).albedo_texture
 				if tex != null:
 					out.append(Vector2i(tex.get_width(), tex.get_height()))
@@ -219,7 +219,7 @@ func test_apply_cloth_skips_villager_eye_seg08() -> void:
 	var path: String = FieldCatalog.cloth_albedo(0)
 	if path.is_empty():
 		return
-	GeneratedVisual.apply_cloth(host, 0)
+	VisualCloth.apply_cloth(host, 0)
 	var after: StandardMaterial3D = host.get_surface_override_material(0) as StandardMaterial3D
 	assert_that(after.albedo_texture).is_same(baked)
 
@@ -236,7 +236,7 @@ func test_mannequin_glb_shirt_gets_cloth_albedo() -> void:
 	GeneratedVisual.apply_preview_materials(inst)
 	var labels := PackedStringArray()
 	_collect_surface_labels(inst, labels)
-	GeneratedVisual.apply_cloth(inst, 0)
+	VisualCloth.apply_cloth(inst, 0)
 	assert_str(" | ".join(labels)).contains("seg_08")
 	assert_bool(_any_cloth_albedo(inst)).is_true()
 	assert_bool(_cloth_uv_scale_is_half(inst)).is_true()
@@ -247,7 +247,7 @@ func _collect_surface_labels(node: Node, out: PackedStringArray) -> void:
 		var mi := node as MeshInstance3D
 		var n: int = mi.mesh.get_surface_count() if mi.mesh != null else 1
 		for i: int in n:
-			out.append(GeneratedVisual._surface_label(mi, i, mi.get_active_material(i)))
+			out.append(VisualSurface.surface_label(mi, i, mi.get_active_material(i)))
 	for child in node.get_children():
 		_collect_surface_labels(child, out)
 
@@ -259,7 +259,7 @@ func _any_cloth_albedo(node: Node) -> bool:
 		for i: int in n:
 			var mat: Material = mi.get_active_material(i)
 			if mat is StandardMaterial3D and (mat as StandardMaterial3D).albedo_texture != null:
-				if GeneratedVisual._is_cloth_surface(mi, i, mat):
+				if VisualCloth.is_cloth_surface(mi, i, mat):
 					return true
 	for child in node.get_children():
 		if _any_cloth_albedo(child):
@@ -273,7 +273,7 @@ func _cloth_uv_scale_is_half(node: Node) -> bool:
 		var n: int = mi.mesh.get_surface_count() if mi.mesh != null else 1
 		for i: int in n:
 			var mat: Material = mi.get_active_material(i)
-			if mat is StandardMaterial3D and GeneratedVisual._is_cloth_surface(mi, i, mat):
+			if mat is StandardMaterial3D and VisualCloth.is_cloth_surface(mi, i, mat):
 				var std := mat as StandardMaterial3D
 				if std.albedo_texture != null and is_equal_approx(std.uv1_scale.x, 0.5):
 					return true
@@ -335,33 +335,33 @@ func test_huggy_piano_occupies_se_typec_block() -> void:
 
 
 func test_style_page_from_wall_floor_labels() -> void:
-	assert_int(GeneratedVisual._style_page("wall_15_0.png")).is_equal(0)
-	assert_int(GeneratedVisual._style_page("player_room_wall_0_1")).is_equal(1)
-	assert_int(GeneratedVisual._style_page("floor_03_2.png")).is_equal(2)
-	assert_int(GeneratedVisual._style_page("room_wall room01")).is_equal(0)
-	assert_int(GeneratedVisual._style_page("wall_15.png")).is_equal(0)
+	assert_int(VisualRoomPaint.style_page("wall_15_0.png")).is_equal(0)
+	assert_int(VisualRoomPaint.style_page("player_room_wall_0_1")).is_equal(1)
+	assert_int(VisualRoomPaint.style_page("floor_03_2.png")).is_equal(2)
+	assert_int(VisualRoomPaint.style_page("room_wall room01")).is_equal(0)
+	assert_int(VisualRoomPaint.style_page("wall_15.png")).is_equal(0)
 
 
 func test_room_trim_is_not_wallpaper() -> void:
-	assert_that(GeneratedVisual._classify_room_surface("rom_myhome1_wall rom_myhome_window_tex")).is_equal(&"")
-	assert_that(GeneratedVisual._classify_room_surface("rom_myhome2_wall rom_myhome_enter_tex")).is_equal(&"")
-	assert_that(GeneratedVisual._classify_room_surface("rom_myhome1_wall player_room_wall_03_0")).is_equal(&"wall")
-	assert_that(GeneratedVisual._classify_room_surface("rom_myhome1_floor player_room_floor_38_0")).is_equal(&"floor")
+	assert_that(VisualRoomPaint.classify_room_surface("rom_myhome1_wall rom_myhome_window_tex")).is_equal(&"")
+	assert_that(VisualRoomPaint.classify_room_surface("rom_myhome2_wall rom_myhome_enter_tex")).is_equal(&"")
+	assert_that(VisualRoomPaint.classify_room_surface("rom_myhome1_wall player_room_wall_03_0")).is_equal(&"wall")
+	assert_that(VisualRoomPaint.classify_room_surface("rom_myhome1_floor player_room_floor_38_0")).is_equal(&"floor")
 	## Museum / tailor shells bake wall and floor — do not treat as bank slots.
-	assert_that(GeneratedVisual._classify_room_surface("rom_museum1 rom_museum1_floorA_tex")).is_equal(&"")
-	assert_that(GeneratedVisual._classify_room_surface("rom_museum2 rom_museum2_wallA_tex")).is_equal(&"")
-	assert_that(GeneratedVisual._classify_room_surface("rom_tailor rom_tailor_floorA_tex")).is_equal(&"")
+	assert_that(VisualRoomPaint.classify_room_surface("rom_museum1 rom_museum1_floorA_tex")).is_equal(&"")
+	assert_that(VisualRoomPaint.classify_room_surface("rom_museum2 rom_museum2_wallA_tex")).is_equal(&"")
+	assert_that(VisualRoomPaint.classify_room_surface("rom_tailor rom_tailor_floorA_tex")).is_equal(&"")
 	## Shop `*f` DLs are carpet even when convert named segs 0x08/0x09 wall.
-	assert_that(GeneratedVisual._classify_room_surface("rom_shop2f player_room_wall_0_0")).is_equal(
+	assert_that(VisualRoomPaint.classify_room_surface("rom_shop2f player_room_wall_0_0")).is_equal(
 		&"floor"
 	)
-	assert_that(GeneratedVisual._classify_room_surface("rom_shop4_2f player_room_wall_0_1")).is_equal(
+	assert_that(VisualRoomPaint.classify_room_surface("rom_shop4_2f player_room_wall_0_1")).is_equal(
 		&"floor"
 	)
-	assert_that(GeneratedVisual._classify_room_surface("rom_shop2w player_room_wall_0_0")).is_equal(
+	assert_that(VisualRoomPaint.classify_room_surface("rom_shop2w player_room_wall_0_0")).is_equal(
 		&"wall"
 	)
-	assert_that(GeneratedVisual._classify_room_surface("rom_shop1_fuku player_room_wall_0_0")).is_equal(
+	assert_that(VisualRoomPaint.classify_room_surface("rom_shop1_fuku player_room_wall_0_0")).is_equal(
 		&"wall"
 	)
 
@@ -390,7 +390,7 @@ func test_shop_shells_use_nook_bank_textures() -> void:
 	mi.set_surface_override_material(0, null)
 	## Empty / tint ids must not strip baked albedos when no bank PNG resolves.
 	baked.resource_name = "player_room_wall_0_0"
-	GeneratedVisual._paint_room_surfaces(mi, InteriorStyleCatalog.WALL_DEFAULT, InteriorStyleCatalog.FLOOR_DEFAULT)
+	VisualRoomPaint.paint_room_surfaces(mi, InteriorStyleCatalog.WALL_DEFAULT, InteriorStyleCatalog.FLOOR_DEFAULT)
 	var after: Material = mi.get_active_material(0)
 	assert_that(after).is_not_null()
 	assert_bool(after is StandardMaterial3D).is_true()
@@ -463,8 +463,8 @@ func test_atlas_tile_period_prefers_wrap_bake_cell() -> void:
 	var wall_tex: Texture2D = _first_wall_albedo(packed)
 	if strip_tex == null or wall_tex == null:
 		return
-	assert_int(GeneratedVisual._infer_atlas_tile_size(strip_tex)).is_equal(64)
-	assert_int(GeneratedVisual._infer_atlas_tile_size(wall_tex)).is_equal(64)
+	assert_int(VisualAtlas.infer_tile_size(strip_tex)).is_equal(64)
+	assert_int(VisualAtlas.infer_tile_size(wall_tex)).is_equal(64)
 
 
 func _first_wall_albedo(packed: PackedScene) -> Texture2D:
@@ -485,7 +485,7 @@ func _find_named_albedo(node: Node, needle: String) -> Texture2D:
 		var n: int = mi.mesh.get_surface_count() if mi.mesh != null else 0
 		for i: int in n:
 			var mat: Material = mi.get_active_material(i)
-			var label := GeneratedVisual._surface_label(mi, i, mat)
+			var label := VisualSurface.surface_label(mi, i, mat)
 			if label.contains(needle) and mat is StandardMaterial3D:
 				return (mat as StandardMaterial3D).albedo_texture
 	for child in node.get_children():
@@ -502,8 +502,8 @@ func test_vertex_shade_material_multiplies_unshaded() -> void:
 	std.set_meta("extras", {"vertex_shade": true})
 	var mi := MeshInstance3D.new()
 	mi.mesh = BoxMesh.new()
-	assert_bool(GeneratedVisual._is_vertex_shade_surface(mi, 0, std)).is_true()
-	GeneratedVisual._apply_vertex_shade_material(std)
+	assert_bool(VisualMaterials.is_vertex_shade_surface(mi, 0, std)).is_true()
+	VisualMaterials.apply_vertex_shade_material(std)
 	assert_bool(std.vertex_color_use_as_albedo).is_true()
 	assert_that(std.shading_mode).is_equal(BaseMaterial3D.SHADING_MODE_UNSHADED)
 	mi.free()
@@ -540,7 +540,7 @@ func test_floor_atlas_retile_mirrors_odd_cells() -> void:
 	img.set_pixel(0, 1, Color.BLUE)
 	img.set_pixel(1, 1, Color.WHITE)
 	var tex := ImageTexture.create_from_image(img)
-	var mirrored: Texture2D = GeneratedVisual._tile_to_atlas(tex, Vector2i(4, 4), true, true)
+	var mirrored: Texture2D = VisualAtlas.tile_to_atlas(tex, Vector2i(4, 4), true, true)
 	var out: Image = mirrored.get_image()
 	assert_that(out.get_pixel(0, 0)).is_equal(Color.RED)
 	assert_that(out.get_pixel(1, 0)).is_equal(Color.GREEN)
@@ -562,14 +562,14 @@ func test_season_grass_retile_uses_atlas_cell_not_season_px() -> void:
 				for x: int in 32:
 					atlas.set_pixel(tx * 32 + x, ty * 32 + y, c)
 	var atlas_tex := ImageTexture.create_from_image(atlas)
-	assert_int(GeneratedVisual._infer_atlas_tile_size(atlas_tex, 0)).is_equal(32)
+	assert_int(VisualAtlas.infer_tile_size(atlas_tex, 0)).is_equal(32)
 
 	var season := Image.create(128, 128, false, Image.FORMAT_RGBA8)
 	season.fill(Color(0.2, 0.8, 0.3, 1.0))
 	season.set_pixel(0, 0, Color.RED)
 	var season_tex := ImageTexture.create_from_image(season)
-	var cell: int = GeneratedVisual._infer_atlas_tile_size(atlas_tex, 0)
-	var tiled: Texture2D = GeneratedVisual._tile_to_atlas(
+	var cell: int = VisualAtlas.infer_tile_size(atlas_tex, 0)
+	var tiled: Texture2D = VisualAtlas.tile_to_atlas(
 		season_tex, Vector2i(512, 512), false, false, cell
 	)
 	var out: Image = tiled.get_image()

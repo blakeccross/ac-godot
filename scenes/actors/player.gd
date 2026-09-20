@@ -1565,7 +1565,7 @@ func _try_load_generated_visual() -> void:
 		## INDEX_DOOR / getoff: capture joint_0 XZ into AnimationMove, strip so the mesh stays on the body.
 		## INDEX_OUTDOOR GO_OUT keeps joint_0 (starts behind stand, ends at bind — no snap).
 		_capture_door_root_xz(_anim)
-		GeneratedVisual.strip_named_joint_tracks(
+		VisualAnimation.strip_named_joint_tracks(
 			_anim,
 			"joint_0",
 			PackedStringArray(
@@ -1606,7 +1606,7 @@ func _apply_worn_cloth() -> void:
 	if Game.worn_design_slot >= 0 and Game.designs != null:
 		var design: DesignPattern = Game.designs.resolved(Game.worn_design_slot)
 		if design != null:
-			GeneratedVisual.apply_design(_mesh, DesignTexture.build(design))
+			VisualCloth.apply_design(_mesh, DesignTexture.build(design))
 			return
 	var data: ItemData = ItemCatalog.get_item(Game.cloth_id)
 	var index: int = data.cloth_index if data != null else -1
@@ -1617,7 +1617,7 @@ func _apply_worn_cloth() -> void:
 			index = int(raw.substr(6))
 	if index < 0:
 		return
-	GeneratedVisual.apply_cloth(_mesh, index)
+	VisualCloth.apply_cloth(_mesh, index)
 
 
 func _capture_door_root_xz(anim_player: AnimationPlayer) -> void:
@@ -1874,7 +1874,7 @@ func _apply_preview_materials(node: Node) -> void:
 				std.metallic = 0.0
 				if std.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS:
 					std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-				GeneratedVisual._harden_imported_cutout(std)
+				VisualMaterials.harden_imported_cutout(std)
 				mesh_instance.set_surface_override_material(i, std)
 	for child in node.get_children():
 		_apply_preview_materials(child)

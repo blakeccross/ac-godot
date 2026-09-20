@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_va6hg"]
+[ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_ir_2.tres" id="2_ix8g0"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_ir_2/grd_s_ir_22.res" id="3_4wjpk"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/beach_wet_46fbfbbb4b3f.tres" id="4_2h3r2"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/70119fbd499d.tres" id="5_blsw4"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/7b797d954bde.tres" id="6_l8y5r"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/53afba22f967.tres" id="7_heom6"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/30b9082fe5d1.tres" id="8_8g4f3"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/beach_wet_0e94f1892cd5.tres" id="9_rsprs"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_ir_2/grd_s_ir_2_mask.res" id="10_chav0"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/4f571aa2d399.tres" id="11_yibbo"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_ir_2/grd_s_ir_2_blend.res" id="12_oketb"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/ocean_15f4d08720a2.tres" id="13_gd21u"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/ocean_bea416965ffa.tres" id="14_326d1"]
+
+[node name="grd_s_ir_2" type="Node3D" unique_id=1641428968]
+script = ExtResource("1_va6hg")
+visual_id = &"grd_s_ir_2"
+grid = ExtResource("2_ix8g0")
+
+[node name="grd_s_ir_22" type="MeshInstance3D" parent="." unique_id=965360834]
+mesh = ExtResource("3_4wjpk")
+surface_material_override/0 = ExtResource("4_2h3r2")
+surface_material_override/1 = ExtResource("5_blsw4")
+surface_material_override/2 = ExtResource("6_l8y5r")
+surface_material_override/3 = ExtResource("7_heom6")
+surface_material_override/4 = ExtResource("8_8g4f3")
+surface_material_override/5 = ExtResource("9_rsprs")
+
+[node name="grd_s_ir_2_mask" type="MeshInstance3D" parent="." unique_id=1396827975]
+mesh = ExtResource("10_chav0")
+surface_material_override/0 = ExtResource("11_yibbo")
+
+[node name="grd_s_ir_2_blend" type="MeshInstance3D" parent="." unique_id=1801506869]
+mesh = ExtResource("12_oketb")
+surface_material_override/0 = ExtResource("13_gd21u")
+surface_material_override/1 = ExtResource("14_326d1")

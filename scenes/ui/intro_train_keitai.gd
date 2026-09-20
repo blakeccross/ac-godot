@@ -12,7 +12,7 @@ var _anim: AnimationPlayer
 
 
 func _ready() -> void:
-	_anim = GeneratedVisual.find_animation_player(self)
+	_anim = VisualAnimation.find_animation_player(self)
 	if _anim != null:
 		_anim.stop()
 	visible = false
@@ -92,7 +92,7 @@ func _normalize_local_pose() -> void:
 
 func _play(suffix: String, speed_scale: float) -> void:
 	if _anim == null:
-		_anim = GeneratedVisual.find_animation_player(self)
+		_anim = VisualAnimation.find_animation_player(self)
 	if _anim == null:
 		return
 	var clip: String = _resolve_clip(suffix)

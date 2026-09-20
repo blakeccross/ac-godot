@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_osagi"]
+[ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_e3_1.tres" id="2_dqml4"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_e3_1/grd_s_e3_1.res" id="3_iyepa"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/4cf58a82cd01.tres" id="4_d4ir1"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/fc37ec8db393.tres" id="5_o47ws"]
+
+[node name="grd_s_e3_1" type="Node3D" unique_id=1351569169]
+script = ExtResource("1_osagi")
+visual_id = &"grd_s_e3_1"
+grid = ExtResource("2_dqml4")
+
+[node name="grd_s_e3_1" type="MeshInstance3D" parent="." unique_id=1554512302]
+mesh = ExtResource("3_iyepa")
+surface_material_override/0 = ExtResource("4_d4ir1")
+surface_material_override/1 = ExtResource("5_o47ws")

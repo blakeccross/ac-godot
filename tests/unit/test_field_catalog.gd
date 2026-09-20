@@ -556,23 +556,23 @@ func test_beach_marine_visual_ids() -> void:
 func test_water_wave_cos_matches_decomp() -> void:
 	## `aFD_MakeMarinScrollInfo`: 300-frame cosine; tile1_scroll = 32*(1-cos).
 	## After marin<<1 + two_tex_scroll_dolphin<<1, ΔT texels = tile1_scroll (0..64).
-	assert_float(GeneratedVisual.water_wave_cos(0.0)).is_equal_approx(1.0, 0.0001)
-	assert_float(GeneratedVisual.water_wave_cos(150.0)).is_equal_approx(-1.0, 0.0001)
-	assert_float(GeneratedVisual.water_wave_cos(300.0)).is_equal_approx(1.0, 0.0001)
-	assert_float(32.0 * (1.0 - GeneratedVisual.water_wave_cos(0.0))).is_equal_approx(0.0, 0.0001)
-	assert_float(32.0 * (1.0 - GeneratedVisual.water_wave_cos(150.0))).is_equal_approx(64.0, 0.0001)
+	assert_float(VisualWaterMaterials.water_wave_cos(0.0)).is_equal_approx(1.0, 0.0001)
+	assert_float(VisualWaterMaterials.water_wave_cos(150.0)).is_equal_approx(-1.0, 0.0001)
+	assert_float(VisualWaterMaterials.water_wave_cos(300.0)).is_equal_approx(1.0, 0.0001)
+	assert_float(32.0 * (1.0 - VisualWaterMaterials.water_wave_cos(0.0))).is_equal_approx(0.0, 0.0001)
+	assert_float(32.0 * (1.0 - VisualWaterMaterials.water_wave_cos(150.0))).is_equal_approx(64.0, 0.0001)
 	## Phase −1.2: ENV is (144,128,96) when beach_cos = 1, not at frame 0.
 	var dark_frame: float = 1.2 / TAU * 300.0
-	var dark: Color = GeneratedVisual.beach_env_srgb(dark_frame)
+	var dark: Color = VisualWaterMaterials.beach_env_srgb(dark_frame)
 	assert_float(dark.r).is_equal_approx(144.0 / 255.0, 0.002)
 	assert_float(dark.g).is_equal_approx(128.0 / 255.0, 0.002)
 	assert_float(dark.b).is_equal_approx(96.0 / 255.0, 0.002)
-	var light: Color = GeneratedVisual.beach_env_srgb(dark_frame + 150.0)
+	var light: Color = VisualWaterMaterials.beach_env_srgb(dark_frame + 150.0)
 	assert_float(light.r).is_equal_approx(186.0 / 255.0, 0.002)
 	assert_float(light.g).is_equal_approx(164.0 / 255.0, 0.002)
 	assert_float(light.b).is_equal_approx(124.0 / 255.0, 0.002)
 	## Frame 0 is ocean-cos=1; beach lags 1.2 rad so it is not the dark ENV.
-	var at_zero: Color = GeneratedVisual.beach_env_srgb(0.0)
+	var at_zero: Color = VisualWaterMaterials.beach_env_srgb(0.0)
 	var beach_cos0: float = cos(-1.2)
 	assert_float(at_zero.r).is_equal_approx((165.0 - 21.0 * beach_cos0) / 255.0, 0.002)
 	assert_float(at_zero.r).is_not_equal(144.0 / 255.0)
@@ -582,12 +582,12 @@ func test_harden_imported_cutout_promotes_blend_to_scissor() -> void:
 	## Soft ACHD face sheets import as BLEND; water overdraws without depth write.
 	var blend := StandardMaterial3D.new()
 	blend.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	GeneratedVisual._harden_imported_cutout(blend)
+	VisualMaterials.harden_imported_cutout(blend)
 	assert_int(blend.transparency).is_equal(BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR)
 	assert_float(blend.alpha_scissor_threshold).is_greater_equal(0.5)
 	assert_int(blend.depth_draw_mode).is_equal(BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY)
 	var opaque := StandardMaterial3D.new()
-	GeneratedVisual._harden_imported_cutout(opaque)
+	VisualMaterials.harden_imported_cutout(opaque)
 	assert_int(opaque.transparency).is_equal(BaseMaterial3D.TRANSPARENCY_DISABLED)
 
 

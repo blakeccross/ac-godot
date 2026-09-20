@@ -176,15 +176,15 @@ func bind(
 	_nook = nook
 	_player = player
 	_camera = camera
-	_loco_anim = GeneratedVisual.find_animation_player(loco)
-	_caboose_anim = GeneratedVisual.find_animation_player(caboose)
-	_player_anim = GeneratedVisual.find_animation_player(player)
-	_porter_anim = GeneratedVisual.find_animation_player(porter)
-	_nook_anim = GeneratedVisual.find_animation_player(nook)
-	_engineer_anim = GeneratedVisual.find_animation_player(engineer)
+	_loco_anim = VisualAnimation.find_animation_player(loco)
+	_caboose_anim = VisualAnimation.find_animation_player(caboose)
+	_player_anim = VisualAnimation.find_animation_player(player)
+	_porter_anim = VisualAnimation.find_animation_player(porter)
+	_nook_anim = VisualAnimation.find_animation_player(nook)
+	_engineer_anim = VisualAnimation.find_animation_player(engineer)
 	## Door/wheel clips bake a non-bind `joint_0` translation; strip so only doors/wheels move.
-	GeneratedVisual.strip_named_joint_tracks(_caboose_anim, "joint_0")
-	GeneratedVisual.strip_named_joint_tracks(_loco_anim, "joint_0")
+	VisualAnimation.strip_named_joint_tracks(_caboose_anim, "joint_0")
+	VisualAnimation.strip_named_joint_tracks(_loco_anim, "joint_0")
 	_house_gx = HOUSE_GX.duplicate()
 	_load_unit_centers()
 	## Callers that know the town layout should `set_landmarks` after `bind`.
@@ -237,7 +237,7 @@ func reset() -> void:
 	_play_clip(_porter_anim, "npc_1_wait1", true)
 	_play_clip(_player_anim, "ply_1_wait1", true)
 	_start_loco_wheels()
-	GeneratedVisual.snap_train_doors_closed(_caboose_anim)
+	VisualTrain.snap_train_doors_closed(_caboose_anim)
 	_set_action(Action.TRAIN_APPROACH)
 
 
@@ -840,24 +840,11 @@ func _camera_wish(input_dir: Vector2) -> Vector3:
 
 
 func _load_unit_centers() -> void:
+	## `grd_s_t_st1_1` center counts, one byte per unit, from the acre's baked grid.
 	_unit_centers = PackedByteArray()
-	var path := "res://assets/generated/environment/acres/grd_s_t_st1_1.col.json"
-	if not FileAccess.file_exists(path):
+	var units: PackedByteArray = FieldCatalog.acre_units(&"grd_s_t_st1_1")
+	if units.is_empty():
 		return
-	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		return
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	if typeof(parsed) != TYPE_DICTIONARY:
-		return
-	var units: Variant = (parsed as Dictionary).get("units", [])
-	if typeof(units) != TYPE_ARRAY:
-		return
-	var arr: Array = units
-	_unit_centers.resize(256)
-	for i: int in mini(arr.size(), 256):
-		var u: Variant = arr[i]
-		if typeof(u) == TYPE_DICTIONARY:
-			_unit_centers[i] = clampi(int((u as Dictionary).get("c", 4)), 0, 31)
-		else:
-			_unit_centers[i] = 4
+	_unit_centers.resize(FieldCatalog.UNITS_PER_ACRE)
+	for i: int in FieldCatalog.UNITS_PER_ACRE:
+		_unit_centers[i] = units[i * FieldCatalog.UNIT_STRIDE]

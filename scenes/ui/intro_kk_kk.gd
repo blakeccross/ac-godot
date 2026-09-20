@@ -60,20 +60,20 @@ func _ensure_visual() -> void:
 	var vis: Node3D = get_node_or_null("GeneratedVisual") as Node3D
 	if vis == null:
 		return
-	GeneratedVisual.apply_actor_scale(vis)
+	VisualFit.apply_actor_scale(vis)
 	## Rest AABB then posed snap — `4haku` sits; rest feet alone leave him floating/clipped.
-	GeneratedVisual.align_actor_to_height_gx(vis, 0.0)
+	VisualFit.align_actor_to_height_gx(vis, 0.0)
 	GeneratedVisual.apply_preview_materials(vis)
-	GeneratedVisual.stop_autoplay(vis)
+	VisualAnimation.stop_autoplay(vis)
 
 func _snap_posed_to_floor() -> void:
 	var vis: Node3D = get_node_or_null("GeneratedVisual") as Node3D
 	if vis != null:
-		GeneratedVisual.align_actor_world_min_to_height_gx(vis, 0.0)
+		VisualFit.align_actor_world_min_to_height_gx(vis, 0.0)
 
 
 func _setup_player() -> void:
-	_anim = GeneratedVisual.find_animation_player(self)
+	_anim = VisualAnimation.find_animation_player(self)
 	_tree = get_node_or_null("AnimationTree") as AnimationTree
 	if _tree != null:
 		_tree.active = false

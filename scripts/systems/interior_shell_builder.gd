@@ -15,7 +15,7 @@ static func paint_shell(root: Node3D, room: Room, grid: WorldGrid) -> void:
 	## Museum / Nook / post / police keep the acre NW at `grid.origin` (FG RSV / door GX).
 	var shell_id := StringName(room.shell_ids[0]) if not room.shell_ids.is_empty() else &""
 	var keep_acre := (
-		room.kind == Room.Kind.MUSEUM or GeneratedVisual._shell_keeps_acre_origin(shell_id)
+		room.kind == Room.Kind.MUSEUM or VisualFit.shell_keeps_acre_origin(shell_id)
 	)
 	var target := (
 		AABB(grid.origin, Vector3(float(grid.columns) * grid.cell_size, WALL_HEIGHT, float(grid.rows) * grid.cell_size))

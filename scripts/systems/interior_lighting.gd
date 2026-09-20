@@ -10,7 +10,7 @@ static func apply(
 	host: Node3D, world_env: WorldEnvironment, camera: Camera3D, grid: WorldGrid, room: Room
 ) -> void:
 	var env: Environment = world_env.environment
-	var room_color: Color = GeneratedVisual.room_prim_color()
+	var room_color: Color = VisualWindowLight.room_prim_color()
 	env.background_mode = Environment.BG_COLOR
 	## Void behind gaps in room geometry. `l_mEnv_kcolor_*` (`m_kankyo.c`) keeps a
 	## "background color" field crushed to black on the original CRT/composite output —
@@ -26,7 +26,7 @@ static func apply(
 		fill.light_energy = 0.55
 	if room != null and room.kind == Room.Kind.MUSEUM:
 		_apply_museum_mood(env, fill, room)
-	GeneratedVisual.refresh_room_prim(host, room_color)
+	VisualWindowLight.refresh_room_prim(host, room_color)
 	if camera != null and "offset" in camera:
 		## Homes frame the shell (never closer than Camera2 620). Museum / shops /
 		## other public rooms keep outdoor focus distance — `Camera2_InDoorCheck`

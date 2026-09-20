@@ -38,7 +38,7 @@ The player never switches on type. Verbs live on the host.
 | `item` | Pick up (inventory) | `item_pickup.tscn` |
 | `building` | Enter via child `Door` | `building.tscn` |
 | `door` | Enter / Shop | `door.tscn` |
-| `prop` | Sight-map board opens the map; fences, tune board, station statue are solid only | `prop.tscn` |
+| `prop` | Sight-map board opens the map; fences and tune board are solid only | `prop.tscn` |
 | `lotus` | None (floating decoration) | `lotus.tscn` |
 | `sign` (community board) | Read / first-job post notice | `sign.tscn` with `obj_*_notice` |
 | `house` / `shop` | Enter / Shop (door cKF + player `OPEN1` via `StructureDoor`); leave emerge uses leave cKF + `GO_OUT` | existing shells |
@@ -58,7 +58,7 @@ The player never switches on type. Verbs live on the host.
 
 Structure FG ids (`HOUSE0`, `SHOP0`, `MUSEUM`, `NEEDLEWORK_SHOP`, …) refine cell offsets when the disc FG catalog is present.
 
-## Template props (fences, boards, lotus, statue)
+## Template props (fences, boards, lotus)
 
 `FgCatalog._prop_place` maps these FG ids; `WorldGenerator._place_from_fg_templates` treats them like structures (kept in title-demo pass 1).
 
@@ -70,7 +70,7 @@ Structure FG ids (`HOUSE0`, `SHOP0`, `MUSEUM`, `NEEDLEWORK_SHOP`, …) refine ce
 | `MAP_BOARD0/1` `0x000C` / `0x000D` | `prop` `obj_*_sightmap` | `mSM_OVL_MAP` mode 0 on A (no map item needed). |
 | `MUSIC_BOARD0/1` `0x000E` / `0x000F` | `prop` `obj_*_melody` | Town-tune board; solid only until town tune exists. |
 | `LOTUS` `0x5841` | `lotus` `obj_s_lotus` | No occupancy; sits on pond water. |
-| `DOUZOU` `0x5843` | `prop` `obj_*_douzou` | Station statue, west of the station. |
+| `DOUZOU` `0x5843` | not placed | Statue is drawn / solid only once a player house reaches `mHm_HOMESIZE_STATUE` (loan paid off, `aDOU_set_check`); place it with that feature. |
 
 Two-unit pieces are drawn by `bg_item` at `pos_table2` (**left edge** of the `*0` unit, unit-center Z), so the 8 m mesh is centered on the seam between the `*1`/`*0` pair. The `*0` item therefore carries a 2×1 footprint with `cell_shift (-1, 0)` and the `*1` half places nothing. `obj_hight_table_item0_nogrow` raises the whole unit (fences / notice 4 counts, map / tune 7), so the Godot hull is the full footprint box.
 

@@ -100,4 +100,4 @@ func _clock(root: Node3D, interior: IndoorSession) -> void:
 	root.add_child(host)
 	var pivot: Node3D = GeneratedVisual.attach(host, visual)
 	if pivot != null:
-		GeneratedVisual.align_actor_to_height_gx(pivot, ShopDisplay.CLOCK_GX.y)
+		VisualFit.align_actor_to_height_gx(pivot, ShopDisplay.CLOCK_GX.y)

@@ -181,7 +181,7 @@ func _apply_time_of_day() -> void:
 	var bg: Color = pal["bg"] as Color
 	env.background_color = bg
 	env.background_mode = Environment.BG_SKY
-	GeneratedVisual.refresh_window_lights(self)
+	VisualWindowLight.refresh_window_lights(self)
 	## Soft sky from `background_color` so dawn/dusk match the kankyo clear fill.
 	var sky_mat: ProceduralSkyMaterial = env.sky.sky_material as ProceduralSkyMaterial
 	if sky_mat != null:

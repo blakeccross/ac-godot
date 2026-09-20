@@ -199,7 +199,7 @@ func _tick_nook_talk(delta: float) -> void:
 	_nook_face.tick(delta, uttering)
 	if _nook_manpu_hold.is_empty():
 		return
-	var anim: AnimationPlayer = GeneratedVisual.find_animation_player(_nook)
+	var anim: AnimationPlayer = VisualAnimation.find_animation_player(_nook)
 	if anim == null or anim.is_playing():
 		return
 	var hold := _nook_manpu_hold
@@ -240,10 +240,10 @@ func _spawn_villager(skel_id: StringName, node_name: String) -> Node3D:
 	pivot.name = "GeneratedVisual"
 	pivot.add_child(packed.instantiate())
 	host.add_child(pivot)
-	GeneratedVisual.apply_actor_scale(pivot, skel_id)
-	GeneratedVisual.align_actor_to_height_gx(pivot, 0.0)
+	VisualFit.apply_actor_scale(pivot, skel_id)
+	VisualFit.align_actor_to_height_gx(pivot, 0.0)
 	GeneratedVisual.apply_preview_materials(pivot)
-	GeneratedVisual.stop_autoplay(pivot)
+	VisualAnimation.stop_autoplay(pivot)
 	if skel_id == &"rcn_1":
 		_nook_face.bind(pivot, &"rcn")
 		_ensure_nook_feel(host)
@@ -409,7 +409,7 @@ func _nook_play_wait() -> void:
 func _nook_play_clip(clip_leaf: String, loop: bool) -> void:
 	if _nook == null or clip_leaf.is_empty():
 		return
-	var anim: AnimationPlayer = GeneratedVisual.find_animation_player(_nook)
+	var anim: AnimationPlayer = VisualAnimation.find_animation_player(_nook)
 	if anim == null:
 		return
 	anim.autoplay = ""
@@ -471,7 +471,7 @@ func _apply_nook_manpu(event: Dictionary) -> void:
 		return
 	var hold := _manpu_hold_for(clip)
 	if not hold.is_empty() and _nook != null:
-		var anim: AnimationPlayer = GeneratedVisual.find_animation_player(_nook)
+		var anim: AnimationPlayer = VisualAnimation.find_animation_player(_nook)
 		if anim != null and not _resolve_anim_clip(anim, hold).is_empty():
 			_nook_manpu_hold = hold
 	_nook_play_clip(clip, false)

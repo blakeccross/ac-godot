@@ -51,7 +51,7 @@ func _apply_visual() -> void:
 	var attached: Node3D = GeneratedVisual.attach(self, visual) if visual != &"" else null
 	if attached != null:
 		if cloth >= 0:
-			GeneratedVisual.apply_cloth(self, cloth)
+			VisualCloth.apply_cloth(self, cloth)
 		if _mesh != null:
 			_mesh.visible = false
 		return

@@ -119,11 +119,11 @@ func _sewing_machine(root: Node3D, grid: WorldGrid) -> void:
 	pivot.name = "SewingMachine"
 	pivot.add_child(inst)
 	root.add_child(pivot)
-	GeneratedVisual._apply_materials(pivot)
-	GeneratedVisual._disable_shadows(pivot)
+	VisualMaterials.apply(pivot)
+	VisualFit.disable_shadows(pivot)
 	pivot.scale = Vector3.ONE * FieldCatalog.actor_uniform_scale_for(&"obj_misin")
 	pivot.position = grid.origin + MISIN_OFFSET
-	var anim: AnimationPlayer = GeneratedVisual.find_animation_player(pivot)
+	var anim: AnimationPlayer = VisualAnimation.find_animation_player(pivot)
 	if anim != null and anim.get_animation_list().size() > 0:
 		var clip: String = anim.get_animation_list()[0]
 		var a: Animation = anim.get_animation(clip)
@@ -166,7 +166,7 @@ func _sewing_cloth(root: Node3D) -> void:
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		mi.set_surface_override_material(0, mat)
-	GeneratedVisual._disable_shadows(node)
+	VisualFit.disable_shadows(node)
 
 
 ## Back-wall pendulum clock (`HOUSE_CLOCK` / `obj_clock_tailor`).

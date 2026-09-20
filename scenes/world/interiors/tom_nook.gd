@@ -536,7 +536,7 @@ func _ensure_visual() -> void:
 		_model.add_child(mesh)
 		return
 	## Permanent shop master leaves `cloth_idx` NONE (`aNPC_actor_init_for_special`).
-	_body_anim = GeneratedVisual.find_animation_player(vis)
+	_body_anim = VisualAnimation.find_animation_player(vis)
 	_face.bind(vis, species)
 	_play_clip(ANIM_WAIT, true)
 

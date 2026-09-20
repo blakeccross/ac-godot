@@ -1,0 +1,31 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_42ome"]
+[ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_r6_b_2.tres" id="2_ywx5n"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_r6_b_2/grd_s_r6_b_22.res" id="3_g83er"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/141c284e71a6.tres" id="4_scnod"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/9be1e74b9a2a.tres" id="5_mrw1l"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/71666afc8ae1.tres" id="6_i1jwy"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_r6_b_2/grd_s_r6_b_2_mask.res" id="7_ell8v"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/cb2a39f65921.tres" id="8_xfb54"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_r6_b_2/grd_s_r6_b_2_blend.res" id="9_38l21"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/river_484fd05a2648.tres" id="10_d6113"]
+
+[node name="grd_s_r6_b_2" type="Node3D" unique_id=1191341295]
+script = ExtResource("1_42ome")
+visual_id = &"grd_s_r6_b_2"
+grid = ExtResource("2_ywx5n")
+
+[node name="grd_s_r6_b_22" type="MeshInstance3D" parent="." unique_id=1557869722]
+mesh = ExtResource("3_g83er")
+surface_material_override/0 = ExtResource("4_scnod")
+surface_material_override/1 = ExtResource("5_mrw1l")
+surface_material_override/2 = ExtResource("6_i1jwy")
+
+[node name="grd_s_r6_b_2_mask" type="MeshInstance3D" parent="." unique_id=83322782]
+mesh = ExtResource("7_ell8v")
+surface_material_override/0 = ExtResource("8_xfb54")
+
+[node name="grd_s_r6_b_2_blend" type="MeshInstance3D" parent="." unique_id=614314157]
+mesh = ExtResource("9_38l21")
+surface_material_override/0 = ExtResource("10_d6113")

@@ -26,7 +26,7 @@ func _dump(intro: Node3D) -> void:
 	_print_gx("door_host", door.global_position)
 	var door_vis: Node3D = door.get_node_or_null("GeneratedVisual") as Node3D
 	if door_vis != null:
-		var panel_gx: Vector3 = GeneratedVisual.train_door_panel_center_gx(door, door_vis)
+		var panel_gx: Vector3 = VisualTrain.train_door_panel_center_gx(door, door_vis)
 		print("door_panel_center_gx=", panel_gx, " expected=", IntroTrainStage.DOOR_GATE_GX)
 		_print_gx("door_vis", door_vis.global_position)
 		print("door_vis scale=", door_vis.scale)

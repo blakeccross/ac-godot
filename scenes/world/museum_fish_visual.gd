@@ -33,7 +33,7 @@ func _load(fish_index: int) -> bool:
 		return false
 	GeneratedVisual.apply_preview_materials(visual)
 	add_child(visual)
-	var anim: AnimationPlayer = GeneratedVisual.find_animation_player(visual)
+	var anim: AnimationPlayer = VisualAnimation.find_animation_player(visual)
 	if anim != null:
 		var clips: PackedStringArray = anim.get_animation_list()
 		if not clips.is_empty():

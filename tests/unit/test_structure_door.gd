@@ -231,7 +231,7 @@ func test_strip_joint0_only_on_named_door_clips() -> void:
 		animation.position_track_insert_key(track, 1.0, Vector3(0.0, 1.0, 6.4))
 		lib.add_animation(clip_name, animation)
 	anim.add_animation_library("", lib)
-	GeneratedVisual.strip_named_joint_tracks(
+	VisualAnimation.strip_named_joint_tracks(
 		anim, "joint_0", PackedStringArray(["ply_1_into_s1"])
 	)
 	assert_int(anim.get_animation("ply_1_into_s1").get_track_count()).is_equal(0)

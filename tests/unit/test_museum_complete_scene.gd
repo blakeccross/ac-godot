@@ -77,7 +77,7 @@ func test_museum_complete_instances_room_scenes() -> void:
 	assert_that(clock).is_not_null()
 	var clock_vis: Node3D = clock.get_node_or_null("GeneratedVisual") as Node3D
 	if clock_vis != null:
-		var box: AABB = GeneratedVisual.local_aabb(clock_vis)
+		var box: AABB = VisualFit.local_aabb(clock_vis)
 		var center: Vector3 = clock_vis.position + (box.position + box.size * 0.5) * clock_vis.scale
 		assert_float(center.x).is_between(-1.5, 1.5)
 		assert_float(center.z).is_between(-1.5, 1.5)

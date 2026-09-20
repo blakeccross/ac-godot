@@ -17,7 +17,6 @@ const TARGETS: Array = [
 	["music_board", "music_board"],
 	["fence_", "fence"],
 	["lotus", "lotus"],
-	["statue", "statue"],
 ]
 
 var _camera: Camera3D

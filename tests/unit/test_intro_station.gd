@@ -110,7 +110,7 @@ func test_caboose_door_snaps_closed_from_open_clip() -> void:
 	close.length = 31.0 / 30.0
 	lib.add_animation("obj_train1_3_close", close)
 	anim.add_animation_library("", lib)
-	GeneratedVisual.snap_train_doors_closed(anim)
+	VisualTrain.snap_train_doors_closed(anim)
 	assert_that(String(anim.current_animation)).is_equal("obj_train1_3_open")
 	assert_float(anim.current_animation_position).is_equal_approx(0.0, 0.001)
 	assert_float(anim.speed_scale).is_equal_approx(0.0, 0.001)

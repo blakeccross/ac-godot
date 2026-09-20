@@ -53,7 +53,7 @@ const FACE_SPECIES := &"end"
 
 const BGM_ID := &"intro_kk"
 
-const ACRE_PATH := "res://assets/generated/environment/acres/grd_player_select.glb"
+const ACRE_PATH := "res://scenes/world/acres/grd_player_select.tscn"
 const KK_PATH := "res://assets/generated/characters/villagers/end_1.glb"
 
 ## `l_mEnv_kcolor_data_p_sel` (m_kankyo.c) — void stage, warm key light.

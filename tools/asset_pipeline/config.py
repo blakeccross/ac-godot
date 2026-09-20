@@ -23,6 +23,8 @@ class PipelineConfig:
     ## Dolphin ACHD / Load/Textures tree (DDS keyed by tex1_* hashes). Optional.
     achd_root: Optional[Path] = None
     achd_enabled: bool = False
+    ## Godot executable for the `bake` step (acre scenes). `GODOT_BIN` overrides it.
+    godot_bin: Optional[str] = None
 
     @property
     def extracted_disc(self) -> Path:
@@ -81,4 +83,5 @@ def load_config(project_root: Optional[Path] = None, config_path: Optional[Path]
         decomp_root=_resolve(root, decomp_raw) if str(decomp_raw).strip() else None,
         achd_root=achd_root if achd_enabled else None,
         achd_enabled=achd_enabled and achd_root is not None,
+        godot_bin=str(data.get("godot_bin") or "").strip() or None,
     )

@@ -201,7 +201,7 @@ func _spawn_fish_tanks(root: Node3D, interior: IndoorSession) -> void:
 		root.add_child(node)
 		var pivot: Node3D = GeneratedVisual.attach(node, &"obj_suisou1")
 		if pivot != null:
-			GeneratedVisual.align_actor_to_height_gx(pivot, 0.0)
+			VisualFit.align_actor_to_height_gx(pivot, 0.0)
 		_add_tank_collision(node, MuseumDisplay.TANK_HALF_GX)
 	var sea := Node3D.new()
 	sea.name = "Tank_4"
@@ -272,7 +272,7 @@ func _add_exhibit_collision(host: Node3D) -> void:
 	body.collision_mask = 0
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	var aabb: AABB = GeneratedVisual.local_aabb(host)
+	var aabb: AABB = VisualFit.local_aabb(host)
 	if aabb.size == Vector3.ZERO:
 		box.size = Vector3(1.6, 2.0, 1.6)
 		body.position = Vector3(0.0, 1.0, 0.0)

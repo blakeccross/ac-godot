@@ -47,7 +47,7 @@ func _print_audit(intro: Node3D) -> void:
 	_print_node("door_host", door, IntroTrainStage.DOOR_GATE_GX)
 	var door_vis: Node3D = door.get_node_or_null("GeneratedVisual") as Node3D
 	if door_vis != null:
-		var panel_gx: Vector3 = GeneratedVisual.train_door_panel_center_gx(door, door_vis)
+		var panel_gx: Vector3 = VisualTrain.train_door_panel_center_gx(door, door_vis)
 		print(
 			"door_panel_center_gx=(",
 			snappedf(panel_gx.x, 0.1),
@@ -105,7 +105,7 @@ func _print_vis(label: String, host: Node3D) -> void:
 	if vis == null:
 		print(label, " MISSING")
 		return
-	var aabb: AABB = GeneratedVisual.local_aabb(vis)
+	var aabb: AABB = VisualFit.local_aabb(vis)
 	var foot_y: float = (aabb.position.y * vis.scale.y + vis.position.y) / FieldCatalog.GX_TO_METERS
 	print(
 		label,

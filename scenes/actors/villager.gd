@@ -117,7 +117,7 @@ func _ready() -> void:
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, data.species if data else &"")
 	_visual = vis
 	if vis != null:
-		_body_anim = GeneratedVisual.find_animation_player(vis)
+		_body_anim = VisualAnimation.find_animation_player(vis)
 		_play_clip(ANIM_WAIT, true)
 		_face.bind(vis, data.species if data else &"")
 		_head_look.bind(vis, self)

@@ -156,7 +156,7 @@ func _ensure_visual() -> void:
 		mesh.material_override = mat
 		_model.add_child(mesh)
 		return
-	_body_anim = GeneratedVisual.find_animation_player(vis)
+	_body_anim = VisualAnimation.find_animation_player(vis)
 	_face.bind(vis, &"ttl")
 	if _body_anim != null and _body_anim.has_animation(ANIM_WAIT):
 		_body_anim.play(ANIM_WAIT)

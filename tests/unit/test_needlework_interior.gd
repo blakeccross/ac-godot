@@ -7,7 +7,7 @@ extends GdUnitTestSuite
 func test_room_keeps_acre_origin_and_gx_positions_land_inside() -> void:
 	var room: Room = InteriorCatalog.room_template(&"needlework")
 	## `rom_tailor` keeps the acre origin so `ac_needlework_indoor.c` GX maps directly.
-	assert_bool(GeneratedVisual._shell_keeps_acre_origin(&"rom_tailor")).is_true()
+	assert_bool(VisualFit.shell_keeps_acre_origin(&"rom_tailor")).is_true()
 	assert_vector(room.inner_origin).is_equal(Vector2i(1, 1))
 	assert_vector(room.inner_size).is_equal(Vector2i(8, 6))
 	var session := IndoorSession.new()

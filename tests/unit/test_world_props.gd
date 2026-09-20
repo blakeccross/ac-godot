@@ -1,7 +1,7 @@
 class_name TestWorldProps
 extends GdUnitTestSuite
 
-## FG props from the disc templates: fences, community / map / tune boards, lotus, station statue.
+## FG props from the disc templates: fences, community / map / tune boards, lotus.
 ## Layout tests need the gitignored FG catalog and skip without it.
 
 const PROP_KINDS: Array[StringName] = [&"prop", &"lotus", &"sign"]
@@ -38,11 +38,10 @@ func test_board_kinds_and_visuals() -> void:
 	assert_that(short.has("foot")).is_false()
 
 
-func test_lotus_and_statue() -> void:
+func test_lotus_placed_and_station_statue_is_not() -> void:
 	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_LOTUS)["kind"]).is_equal(&"lotus")
-	var statue: Dictionary = FgCatalog.placement_for_item(FgCatalog.ITEM_DOUZOU)
-	assert_that(statue["kind"]).is_equal(&"prop")
-	assert_that(statue["visual"]).is_equal(&"obj_s_douzou")
+	## The statue only exists after a loan payoff (`aDOU_set_check`); a new town has nothing there.
+	assert_that(FgCatalog.placement_for_item(0x5843).is_empty()).is_true()
 
 
 func test_registry_knows_new_kinds() -> void:

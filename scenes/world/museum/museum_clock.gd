@@ -31,12 +31,12 @@ func _ensure_visual() -> void:
 	## `obj_clock_museum1` verts carry the decomp skeleton offset (root ~240,150 GX), so
 	## `_fit_actor` (which only micro-snaps Y) leaves the dial far off the host. Centre the
 	## mesh AABB on this node in XZ, then rest it on the floor.
-	var aabb: AABB = GeneratedVisual.local_aabb(pivot)
+	var aabb: AABB = VisualFit.local_aabb(pivot)
 	if aabb.size != Vector3.ZERO:
 		var s: float = pivot.scale.x
 		pivot.position.x = -(aabb.position.x + aabb.size.x * 0.5) * s
 		pivot.position.z = -(aabb.position.z + aabb.size.z * 0.5) * s
-	GeneratedVisual.align_actor_to_height_gx(pivot, 0.0)
+	VisualFit.align_actor_to_height_gx(pivot, 0.0)
 
 
 func _process(_delta: float) -> void:

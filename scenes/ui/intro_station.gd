@@ -190,7 +190,7 @@ func _prepare_interior() -> void:
 		if vis == null:
 			continue
 		var id: StringName = &"rom_myhome1_floor" if child_name == "Floor" else &"rom_myhome1_wall"
-		GeneratedVisual.apply_actor_scale(vis, id)
+		VisualFit.apply_actor_scale(vis, id)
 		GeneratedVisual.apply_preview_materials(vis)
 	if _interior_hint != null:
 		_interior_hint.visible = false
@@ -201,7 +201,7 @@ func _fit_acre(host: Node3D) -> void:
 		return
 	var vis: Node3D = host.get_node_or_null("GeneratedVisual") as Node3D
 	if vis != null:
-		GeneratedVisual.fit_acre(vis)
+		VisualFit.fit_acre(vis)
 
 
 func _fit_actor(host: Node3D, visual_id: StringName) -> void:
@@ -210,13 +210,13 @@ func _fit_actor(host: Node3D, visual_id: StringName) -> void:
 	var vis: Node3D = host.get_node_or_null("GeneratedVisual") as Node3D
 	if vis == null:
 		return
-	GeneratedVisual.apply_actor_scale(vis, visual_id)
-	GeneratedVisual.align_actor_to_height_gx(vis, 0.0)
+	VisualFit.apply_actor_scale(vis, visual_id)
+	VisualFit.align_actor_to_height_gx(vis, 0.0)
 	GeneratedVisual.apply_preview_materials(vis)
 	if String(visual_id).begins_with("obj_train1_"):
-		GeneratedVisual.prepare_outdoor_train(vis)
+		VisualTrain.prepare_outdoor_train(vis)
 	else:
-		GeneratedVisual.stop_autoplay(vis)
+		VisualAnimation.stop_autoplay(vis)
 
 
 func _set_node_gx(node: Node3D, gx: Vector3) -> void:

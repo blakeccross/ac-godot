@@ -23,7 +23,7 @@ static func spawn_yaw() -> float:
 
 func _ready() -> void:
 	global_position = IntroTrainStage.gx_to_meters(SPAWN_GX)
-	_anim = GeneratedVisual.find_animation_player(self)
+	_anim = VisualAnimation.find_animation_player(self)
 	_ensure_visual_scale()
 	_setup_player()
 	_apply_spawn_pose()
@@ -44,7 +44,7 @@ func realign() -> void:
 func _ensure_visual_scale() -> void:
 	var vis: Node3D = get_node_or_null("GeneratedVisual") as Node3D
 	if vis != null:
-		GeneratedVisual.apply_actor_scale(vis)
+		VisualFit.apply_actor_scale(vis)
 
 
 func _setup_player() -> void:
@@ -92,7 +92,7 @@ func _align_to_seat() -> void:
 	if vis == null:
 		return
 	vis.position.y = 0.0
-	GeneratedVisual.align_actor_world_min_to_height_gx(vis, BENCH_FLOOR_Y_GX)
+	VisualFit.align_actor_world_min_to_height_gx(vis, BENCH_FLOOR_Y_GX)
 
 
 func _on_sleep_anim_finished(anim_name: StringName) -> void:

@@ -87,7 +87,7 @@ static func add_museum_clock(root: Node3D, interior: IndoorSession) -> void:
 	var pivot: Node3D = GeneratedVisual.attach(host, MuseumDisplay.CLOCK_VISUAL)
 	if pivot != null:
 		## Skeleton joint Y is mid-body; rest the mesh on the floor.
-		GeneratedVisual.align_actor_to_height_gx(pivot, 0.0)
+		VisualFit.align_actor_to_height_gx(pivot, 0.0)
 
 
 ## Painting-wing E–W mid walls with walk gaps where `ART_CELLS` has no hang.

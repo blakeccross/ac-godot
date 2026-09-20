@@ -133,7 +133,7 @@ Name and clock are small intro modals, not `m_ledit` / `m_timeIn` ports. K.K.'s 
 
 #### Godot
 
-- `FirstJob` on `Game` (not an autoload). `cloth_id` is the worn shirt; `GeneratedVisual.apply_cloth` on the player. `has_map` gates the map overlay until furniture delivery.
+- `FirstJob` on `Game` (not an autoload). `cloth_id` is the worn shirt; `VisualCloth.apply_cloth` on the player. `has_map` gates the map overlay until furniture delivery.
 - `TomNook` branches on `FirstJob` (force-greet on enter, no Buy/Sell while active); advances the full chore chain.
 - **Named recipients:** furniture / letter / carpet / axe assign + hint graphs (`FirstJob.recipient_dialogue_ids`) must include `{recipient}`. `DialogueContext.from_game` fills the slot from the active first job; `substitute` errors on empty/leftover slots for every conversation. Unit tests cover the id list and all authored `{slot}` expansions.
 - Item gifts use `HandOver` (`npc_1_transfer1` / player `ply_1_get_pull1`) plus the floating `obj_item_*` card (`HandOverItem` / `ac_handOverItem` trans+scale tables); villager deliveries reverse it (`ply_1_transfer1` / `npc_1_get_pull1`).

@@ -221,7 +221,7 @@ func test_museum5_uses_acre_ground_datum() -> void:
 	assert_float(pivot.position.y).is_equal_approx(FieldCatalog.acre_ground_y_offset(), 0.01)
 	## Authored min Y is below the 40 GX datum — after acre fit it sits under the floor,
 	## while the water-line/datum plane is at host Y=0.
-	var aabb: AABB = GeneratedVisual.local_aabb(pivot)
+	var aabb: AABB = VisualFit.local_aabb(pivot)
 	var floor_y: float = pivot.position.y + 0.64 * pivot.scale.y
 	assert_float(floor_y).is_equal_approx(0.0, 0.02)
 	assert_float(pivot.position.y + aabb.position.y * pivot.scale.y).is_less(0.0)
@@ -345,7 +345,7 @@ func test_painting_hangs_at_decomp_height() -> void:
 	var pivot: Node3D = art.get_node_or_null("GeneratedVisual") as Node3D
 	if pivot == null:
 		return
-	var aabb: AABB = GeneratedVisual.local_aabb(pivot)
+	var aabb: AABB = VisualFit.local_aabb(pivot)
 	var bottom_y: float = art.position.y + aabb.position.y * pivot.scale.y + pivot.position.y
 	assert_float(bottom_y).is_equal_approx(MuseumDisplay.ART_HANG_Y_GX * FieldCatalog.GX_TO_METERS, 0.05)
 
@@ -412,7 +412,7 @@ func test_insect_fish_spawn_clears_exit_sensor() -> void:
 	var actions: Array = blathers.call("get_interactions", ctx)
 	assert_int(actions.size()).is_greater(0)
 	assert_that(actions[0].id).is_equal(Interaction.TALK)
-	var anim: AnimationPlayer = GeneratedVisual.find_animation_player(blathers)
+	var anim: AnimationPlayer = VisualAnimation.find_animation_player(blathers)
 	if anim != null:
 		assert_bool(anim.is_playing()).is_true()
 		assert_str(anim.current_animation).contains("wait")
@@ -427,7 +427,7 @@ func test_insect_fish_spawn_clears_exit_sensor() -> void:
 		var pivot: Node3D = clock.get_node_or_null("GeneratedVisual") as Node3D
 		assert_that(pivot).is_not_null()
 		## Mesh AABB min sits on the floor (joint Y alone would float mid-body).
-		var aabb: AABB = GeneratedVisual.local_aabb(pivot)
+		var aabb: AABB = VisualFit.local_aabb(pivot)
 		var feet_y: float = pivot.position.y + aabb.position.y * pivot.scale.y
 		assert_float(feet_y).is_equal_approx(0.0, 0.02)
 	assert_bool(FieldCatalog.mesh_paths(&"rom_museum1").size() > 0).is_true()
