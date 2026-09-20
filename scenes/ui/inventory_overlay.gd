@@ -1069,6 +1069,8 @@ func close() -> void:
 		Game.notify_intro_payment_declined()
 	if Game.museum_donate_pending:
 		Game.cancel_museum_donation()
+	if Game.storage_putin_pending:
+		Game.cancel_storage_putin()
 	if _hand_root != null:
 		_hand_root.visible = false
 	if _portrait_viewport != null:
@@ -1594,6 +1596,12 @@ func _run_tag(tag: String) -> void:
 		"Hand over":
 			## Intro down payment — Nook's director plays the hand-over and books it.
 			Game.notify_intro_payment_made()
+			close()
+		"Put in":
+			## A drawer or music player is waiting — hand the pick back to it.
+			var putin_slot: InventorySlot = inv.slot_at(idx)
+			if putin_slot != null and not putin_slot.is_empty():
+				Game.take_storage_putin(putin_slot.item.item_id)
 			close()
 		"Donate":
 			## Blathers is waiting — book the outcome and let his dialogue respond.

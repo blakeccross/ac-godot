@@ -4,7 +4,12 @@ extends RefCounted
 ## Slash-command parser for the play HUD debug overlay (weather, season, give, …).
 ## Not an autoload — the overlay owns one instance. Logic stays testable without UI.
 
-const COMMANDS: PackedStringArray = ["help", "weather", "season", "give", "time", "bells", "clear"]
+const COMMANDS: PackedStringArray = [
+	"help", "weather", "season", "give", "time", "bells", "house", "event", "clear"
+]
+const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
+const HOUSE_ARGS: PackedStringArray = ["size", "basement", "build", "loan", "statue", "goki", "neglect"]
+const HOUSE_SIZES: PackedStringArray = ["small", "medium", "large", "upper"]
 const WEATHER_KINDS: PackedStringArray = ["clear", "rain", "snow", "sakura"]
 const INTENSITY_NAMES: PackedStringArray = ["none", "light", "normal", "heavy"]
 const SEASON_ARGS: PackedStringArray = ["spring", "summer", "autumn", "fall", "winter", "next"]
@@ -37,6 +42,10 @@ func execute(raw: String) -> String:
 			return _cmd_time(args)
 		"bells":
 			return _cmd_bells(args)
+		"house":
+			return _cmd_house(args)
+		"event", "events":
+			return _cmd_event(args)
 		"clear":
 			return "__clear__"
 		_:
@@ -72,6 +81,16 @@ func suggestions(line: String) -> PackedStringArray:
 		"bells":
 			if index == 1:
 				return _filter_prefix(["1000", "10000", "99999"], token)
+		"event", "events":
+			if index == 1:
+				return _filter_prefix(EVENT_ARGS, token)
+			if index == 2:
+				return _filter_prefix(_event_ids(String(prior[1]).to_lower()), token)
+		"house":
+			if index == 1:
+				return _filter_prefix(HOUSE_ARGS, token)
+			if index == 2 and String(prior[1]).to_lower() == "size":
+				return _filter_prefix(HOUSE_SIZES, token)
 	return PackedStringArray()
 
 
@@ -135,6 +154,8 @@ func _cmd_help() -> String:
 		"  give <item_id> [count]",
 		"  time [+1h|+1d|HH|HH:MM]",
 		"  bells <amount>",
+		"  house [size <small|medium|large|upper> | basement | build | loan <n> | statue | goki [n] | neglect [days]]",
+		"  event [list | start <id> | stop [id] | goto <id> | special <id>]",
 		"  clear / help",
 		"Tab completes. Up/Down recall history.",
 	])
@@ -235,6 +256,64 @@ func _cmd_time(args: PackedStringArray) -> String:
 	return "Time set → %s" % Clock.format_clock()
 
 
+func _cmd_event(args: PackedStringArray) -> String:
+	var events: EventCalendar = Game.events
+	var sub: String = "list" if args.is_empty() else String(args[0]).to_lower()
+	if sub == "list":
+		return "\n".join(events.describe())
+	if sub == "stop" and args.size() < 2:
+		events.clear_forced()
+		_sync_events()
+		return "Cleared all forced events."
+	if args.size() < 2:
+		return "Usage: event [list | start <id> | stop [id] | goto <id> | special <id>]"
+	var id: StringName = StringName(String(args[1]).to_lower())
+	if not EventSchedule.has_id(id):
+		return "Unknown event '%s'. Tab lists ids." % String(id)
+	match sub:
+		"start":
+			events.force(id)
+			_sync_events()
+			return "Started %s (forced until 'event stop %s')." % [EventSchedule.label(id), String(id)]
+		"stop":
+			events.unforce(id)
+			_sync_events()
+			if events.is_active(id):
+				return "%s is still on the schedule; 'event goto' another date to leave it." % EventSchedule.label(id)
+			return "Stopped %s." % EventSchedule.label(id)
+		"goto":
+			var target: Dictionary = events.next_start(id, EventCalendar.date_from_clock())
+			if target.is_empty():
+				return "%s has no upcoming start in the calendar. Try 'event start %s'." % [
+					EventSchedule.label(id), String(id)
+				]
+			Clock.set_datetime(
+				int(target["year"]), int(target["month"]), int(target["day"]), int(target["hour"])
+			)
+			return "%s begins → %s" % [EventSchedule.label(id), Clock.format_clock()]
+		"special":
+			if not events.schedule_special(id, EventCalendar.date_from_clock()):
+				return "'%s' is not a special visit. Use: %s" % [
+					String(id), ", ".join(PackedStringArray(EventCalendar.SPECIAL_POOL))
+				]
+			_sync_events()
+			return "%s visits now." % EventSchedule.label(id)
+	return "Usage: event [list | start <id> | stop [id] | goto <id> | special <id>]"
+
+
+func _sync_events() -> void:
+	Game.events.sync(EventCalendar.date_from_clock())
+
+
+func _event_ids(sub: String) -> PackedStringArray:
+	if sub == "special":
+		return PackedStringArray(EventCalendar.SPECIAL_POOL)
+	var out: PackedStringArray = []
+	for id: StringName in EventSchedule.ids():
+		out.append(String(id))
+	return out
+
+
 func _cmd_bells(args: PackedStringArray) -> String:
 	if args.is_empty():
 		return "Bells: %d" % Game.inventory.wallet
@@ -243,6 +322,73 @@ func _cmd_bells(args: PackedStringArray) -> String:
 	var amount: int = clampi(int(args[0]), 0, Inventory.WALLET_MAX)
 	Game.inventory.set_wallet(amount)
 	return "Bells set to %d." % Game.inventory.wallet
+
+
+func _cmd_house(args: PackedStringArray) -> String:
+	var house: House = Game.interiors.player_house()
+	if house == null:
+		return "No player house."
+	if args.is_empty():
+		return "House: %s (next %s), basement %s, loan %d, order %04d-%02d-%02d%s" % [
+			HOUSE_SIZES[mini(int(house.size_tier), HOUSE_SIZES.size() - 1)],
+			HOUSE_SIZES[mini(int(house.next_size_tier), HOUSE_SIZES.size() - 1)],
+			"yes" if house.has_basement else "no",
+			Game.inventory.loan,
+			house.order_year,
+			house.order_month,
+			house.order_day,
+			", statue" if HouseUpgrade.is_statue(house) else "",
+		]
+	match String(args[0]).to_lower():
+		"size":
+			var idx: int = HOUSE_SIZES.find(String(args[1]).to_lower()) if args.size() >= 2 else -1
+			if idx < 0:
+				return "Usage: house size <small|medium|large|upper>"
+			house.size_tier = idx as House.SizeTier
+			house.next_size_tier = idx as House.SizeTier
+			if idx < int(House.SizeTier.MEDIUM):
+				house.has_basement = false
+			Game.interiors.refresh_player_rooms()
+			return "House is now %s. Re-enter the world to see the outside." % HOUSE_SIZES[idx]
+		"basement":
+			house.has_basement = not house.has_basement
+			Game.interiors.refresh_player_rooms()
+			return "Basement %s." % ("built" if house.has_basement else "removed")
+		"build":
+			## Make a pending order stale so it lands, as if you had started the game tomorrow.
+			var prior: int = house.order_day
+			house.order_day = 0 if prior != 0 else 32
+			if not Game.check_rehouse_order():
+				house.order_day = prior
+				return "Nothing is on order."
+			return "The order landed. Talk to Tom Nook."
+		"loan":
+			if args.size() < 2 or not String(args[1]).is_valid_int():
+				return "Usage: house loan <amount>"
+			Game.inventory.set_loan(maxi(int(args[1]), 0))
+			return "Loan set to %d." % Game.inventory.loan
+		"goki":
+			if args.size() < 2 or not String(args[1]).is_valid_int():
+				return "Cockroaches waiting: %d (last played %d days ago)." % [house.goki_count, HouseGoki.days_away(house)]
+			house.goki_count = HouseGoki.clamp_count(int(args[1]))
+			return "%d cockroaches are waiting in the walls." % house.goki_count
+		"neglect":
+			var days: int = int(args[1]) if args.size() >= 2 and String(args[1]).is_valid_int() else 10
+			var then: Dictionary = Time.get_datetime_dict_from_unix_time(
+				int(Time.get_unix_time_from_datetime_dict({"year": Clock.year, "month": Clock.month, "day": Clock.day, "hour": 12})) - days * 86400
+			)
+			house.goki_year = int(then["year"])
+			house.goki_month = int(then["month"])
+			house.goki_day = int(then["day"])
+			HouseGoki.decide_family_count(house)
+			return "Away %d days: %d cockroaches waiting." % [days, house.goki_count]
+		"statue":
+			house.size_tier = House.SizeTier.UPPER
+			house.next_size_tier = House.SizeTier.UPPER
+			Game.inventory.set_loan(0)
+			return "House is at its final size with no loan. Talk to Tom Nook about the statue."
+		_:
+			return "Usage: house [size|basement|build|loan|statue]"
 
 
 func _item_label(data: ItemData) -> String:

@@ -232,7 +232,7 @@ data tables before a category is called done.
 - [ ] Cicada shells on trees; cicadas fly off when you approach
 - [ ] Bug sounds are directional and time-gated (crickets at night, cicadas by day)
 - [ ] Ants swarm on dropped rotten food / candy (`ac_ant`)
-- [ ] Cockroaches in a house left closed too long; stomp them (`m_cockroach`, `ac_house_goki`)
+- [x] Cockroaches in a house left closed too long; stomp them (`m_cockroach`, `ac_house_goki`) — see §18
 - [ ] Bug-off / bug tourney? _(GCN has no dedicated bug tourney — verify; fishing only)_
 
 ## 14. Digging, buried items, rocks
@@ -326,19 +326,19 @@ data tables before a category is called done.
 
 ## 18. Player house & interiors
 
-- [ ] Tent on day 1; upgrades via Nook loans to: basic room → bigger room → +second floor → +basement → +left/right/back rooms → mansion + attic
+- [~] Tent on day 1; upgrades via Nook loans to: basic room → bigger room → +second floor → +basement → +left/right/back rooms → mansion + attic — `PlayerHouse` / `HouseUpgrade` / `NookHouseTalk`: S/M/L/upper sizes, upper floor + basement with stairs, next-day builds, loans (148k / 398k / 798k / 49.8k), statue offer; no side/back rooms exist in GCN. Missing: roof colour recolour, statue actor
 - [ ] Room = grid; place furniture on floor, against walls, on tables (`ac_arrange_room`, `ac_arrange_ftr`)
 - [ ] Wallpaper + carpet per room; ceiling? (no)
-- [ ] Furniture rotate (4 or 8 orientations), stack on surfaces, put items on tables (`m_player_main_rotate_furniture`, `rotate_octagon`)
+- [~] Furniture rotate (4 or 8 orientations), stack on surfaces, put items on tables (`m_player_main_rotate_furniture`, `rotate_octagon`) — `FurnitureGrip`: A-grip + stick push / pull / turn about the held end, B pick-up, sit / lie by walking in, per-floor furniture cap; missing: bubu puff, bed rolling, octagon (gyroid) rotation
 - [ ] Wall-mounted items (paintings, clocks, wall clock ticking `ac_house_clock`); rugs
-- [ ] Interior editing mode / catalog reorder; "store in Nook's" / storage
-- [ ] Music player furniture (stereo/radio/etc.) plays a chosen K.K. song; gyroids beat along (`ac_radio`, `ac_my_room_melody`)
+- [~] Interior editing mode / catalog reorder; "store in Nook's" / storage — dresser / wardrobe / closet conversations (`FurnitureStorage`)
+- [~] Music player furniture (stereo/radio/etc.) plays a chosen K.K. song; gyroids beat along (`ac_radio`, `ac_my_room_melody`) — `FurnitureMusic` / `MinidiskCatalog`: discs, music box, one player at a time, aerobics radio, gyroid hop; missing: song titles, K.K. as the disc source, gyroid voices
 - [ ] Lighting: lamps light up at night; some furniture is interactive (sit, lie, TV static `famicom_emu`, fireplace, fountain, toilet, bath `ef_furo_yuge`)
 - [ ] Doorplate / house nameplate (`ac_nameplate`)
-- [ ] Basement = free storage room once unlocked
-- [ ] House exterior model changes with size; door mat; roof
+- [~] Basement = free storage room once unlocked — orderable at Nook's after the medium loan; decorates like any floor
+- [~] House exterior model changes with size; door mat; roof — `obj_{s,w}_myhome1..4` by size, fish weathervane / insect plaque via `CompleteTalk`; palette recolour not rendered
 - [ ] Move house location? _(GCN: no)_
-- [ ] Cockroaches spawn if you don't play for weeks; house dusty
+- [~] Cockroaches spawn if you don't play for weeks; house dusty — `HouseGoki` / `house_goki.gd`: 6-day rule, up to 3 out, furniture flushes, startle, stomp; missing: death puff, cottage, dust
 - [ ] HRA judges the main room only (§11)
 - [ ] Other residents' houses in your town enterable? _(only the one you play; others are just exteriors + villager homes)_
 
@@ -530,6 +530,8 @@ data tables before a category is called done.
 ## 31. Holidays & seasonal events
 
 From `m_event_schedule.c_inc` (117 schedule rows). Localised USA set:
+
+- [~] Event scheduler: every row resolved per date/hour, weekly visitor, special-visit roll, weather override, `/event` debug commands — `event_calendar.gd`, `event_schedule.gd`, `data/events/schedule.json` ([events](decomp_notes/events.md)). **Presenters (the things that actually appear in town) are not built**, so the entries below stay unchecked.
 
 - [ ] New Year's Day (Jan 1) — countdown the night before, Tortimer speech, party poppers
 - [ ] Groundhog Day (Feb 2)

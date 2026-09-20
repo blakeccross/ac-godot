@@ -16,7 +16,7 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 | `include/m_kankyo.h`, `src/game/m_kankyo.c` | 8 lighting windows, weather enum |
 | `include/m_kankyo_weather.c_inc` | Rain/snow/sakura by term |
 | `include/m_calendar.h` | Played-day bitfields and holiday flags |
-| `include/m_event.h` | Scheduled events (Nth weekday, town day, harvest moon) |
+| `include/m_event.h` | Scheduled events (Nth weekday, town day, harvest moon) — see [events](events.md) |
 
 Key symbols: `mTM_FIELD_RENEW_HOUR` **6**, `mTM_MIN_YEAR` **2001**, `mTM_MAX_YEAR` **2030**, `mTM_TERM_NUM` **18**, `mTM_check_renew_time` / `mTM_set_season`. Lighting: `klight_chg_tim` at 0, 4, 6, 8, 12, 16, 18, 20 hours. Fine-weather colors: `l_mEnv_kcolor_fine_data`.
 

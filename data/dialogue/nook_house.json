@@ -1,0 +1,458 @@
+{
+  "id": "nook_house",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "house_scene",
+              "value": "medium_built"
+            }
+          },
+          "goto": "medium_built"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "house_scene",
+              "value": "large_built"
+            }
+          },
+          "goto": "large_built"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "house_scene",
+              "value": "upper_built"
+            }
+          },
+          "goto": "upper_built"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "house_scene",
+              "value": "basement_built"
+            }
+          },
+          "goto": "basement_built"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "house_scene",
+              "value": "statue_built"
+            }
+          },
+          "goto": "statue_built"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "house_scene",
+              "value": "rehouse_medium"
+            }
+          },
+          "goto": "offer_medium"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "house_scene",
+              "value": "rehouse_2_offer"
+            }
+          },
+          "goto": "offer_2"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "house_scene",
+              "value": "basement_paid"
+            }
+          },
+          "goto": "offer_paid"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "house_scene",
+              "value": "rehouse_basement"
+            }
+          },
+          "goto": "offer_basement"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "house_scene",
+              "value": "rehouse_large"
+            }
+          },
+          "goto": "offer_large"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "house_scene",
+              "value": "rehouse_upper"
+            }
+          },
+          "goto": "offer_upper"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "house_scene",
+              "value": "rehouse_statue"
+            }
+          },
+          "goto": "offer_statue"
+        },
+        {
+          "goto": "nothing"
+        }
+      ]
+    },
+    "nothing": {
+      "type": "line",
+      "text": "Yes, yes? Anything else,\nhm?"
+    },
+    "medium_built": {
+      "type": "line",
+      "text": "Ah, {player}! Your house\nhas been expanded, yes, yes!\nMy crew worked hard on it.",
+      "next": "loan_medium"
+    },
+    "loan_medium": {
+      "type": "line",
+      "text": "Of course, a bigger house\nmeans a bigger loan, hm? That\nwill be 148,000 bells. Pay it\nwhen you can!"
+    },
+    "large_built": {
+      "type": "line",
+      "text": "Ah, {player}! The next\nexpansion is finished! Go on,\nhave a look around, yes, yes.",
+      "next": "loan_large"
+    },
+    "loan_large": {
+      "type": "line",
+      "text": "And the new loan comes to\n398,000 bells, hm? Take your\ntime with it."
+    },
+    "upper_built": {
+      "type": "line",
+      "text": "Ah, {player}! Your house\nnow has a second floor! My\ncrew outdid themselves.",
+      "next": "loan_upper"
+    },
+    "loan_upper": {
+      "type": "line",
+      "text": "This one is the largest\nloan yet: 798,000 bells, hm?\nA fine home is worth it!"
+    },
+    "basement_built": {
+      "type": "line",
+      "text": "Ah, {player}! Your\nbasement is dug and ready.\nSpacious, yes, yes!",
+      "next": "loan_basement"
+    },
+    "loan_basement": {
+      "type": "line",
+      "text": "The cost is 49,800 bells,\nhm? A small matter next to\nall that extra room."
+    },
+    "statue_built": {
+      "type": "line",
+      "text": "Ah, {player}! Something\nspecial has been built beside\nyour house. I did promise\nyou a statue, yes, yes!"
+    },
+    "offer_medium": {
+      "type": "line",
+      "text": "{player}, you've paid off\nyour loan — splendid! Would\nyou like a bigger house? I can\nhave my crew start right away.",
+      "next": "offer_yn"
+    },
+    "offer_paid": {
+      "type": "line",
+      "text": "Your basement is paid off\ntoo, {player}! How about a\nbigger house next, hm?",
+      "next": "offer_yn"
+    },
+    "offer_large": {
+      "type": "line",
+      "text": "Loan cleared again — you are\na reliable customer, {player}!\nShall we expand the house?",
+      "next": "offer_yn"
+    },
+    "offer_upper": {
+      "type": "line",
+      "text": "The basement is settled,\n{player}! Now, how about a\nsecond floor, yes, yes?",
+      "next": "offer_yn"
+    },
+    "offer_2": {
+      "type": "line",
+      "text": "{player}, you've paid off\nyour loan! I could expand the\nhouse again... or dig you a\nbasement instead. Which suits?",
+      "next": "offer_2_q"
+    },
+    "offer_2_q": {
+      "type": "choice",
+      "prompt": "Which shall it be?",
+      "options": [
+        {
+          "text": "A bigger house",
+          "goto": "roof_0"
+        },
+        {
+          "text": "A basement",
+          "goto": "basement_order"
+        },
+        {
+          "text": "Not right now",
+          "goto": "decline"
+        }
+      ]
+    },
+    "offer_basement": {
+      "type": "line",
+      "text": "{player}, the loan is paid!\nI'll have my crew dig you a\nbasement, yes, yes.",
+      "next": "basement_order"
+    },
+    "basement_order": {
+      "type": "event",
+      "events": [
+        {
+          "op": "house_order_basement"
+        }
+      ],
+      "next": "ready_tomorrow"
+    },
+    "offer_statue": {
+      "type": "line",
+      "text": "{player}, that's the last of\nyour loans! In gratitude, I'll\nhave a statue put up for you.\nCheck back tomorrow, yes, yes!"
+    },
+    "roof_0": {
+      "type": "choice",
+      "prompt": "Which roof colour would\nyou like?",
+      "options": [
+        {
+          "text": "Roof colour 1",
+          "goto": "roof_pick_0"
+        },
+        {
+          "text": "Roof colour 2",
+          "goto": "roof_pick_1"
+        },
+        {
+          "text": "Roof colour 3",
+          "goto": "roof_pick_2"
+        },
+        {
+          "text": "More colours",
+          "goto": "roof_1"
+        }
+      ]
+    },
+    "roof_1": {
+      "type": "choice",
+      "prompt": "Here are some more colours.",
+      "options": [
+        {
+          "text": "Roof colour 4",
+          "goto": "roof_pick_3"
+        },
+        {
+          "text": "Roof colour 5",
+          "goto": "roof_pick_4"
+        },
+        {
+          "text": "Roof colour 6",
+          "goto": "roof_pick_5"
+        },
+        {
+          "text": "More colours",
+          "goto": "roof_2"
+        }
+      ]
+    },
+    "roof_2": {
+      "type": "choice",
+      "prompt": "Here are some more colours.",
+      "options": [
+        {
+          "text": "Roof colour 7",
+          "goto": "roof_pick_6"
+        },
+        {
+          "text": "Roof colour 8",
+          "goto": "roof_pick_7"
+        },
+        {
+          "text": "Roof colour 9",
+          "goto": "roof_pick_8"
+        },
+        {
+          "text": "More colours",
+          "goto": "roof_3"
+        }
+      ]
+    },
+    "roof_3": {
+      "type": "choice",
+      "prompt": "Here are some more colours.",
+      "options": [
+        {
+          "text": "Roof colour 10",
+          "goto": "roof_pick_9"
+        },
+        {
+          "text": "Roof colour 11",
+          "goto": "roof_pick_10"
+        },
+        {
+          "text": "Roof colour 12",
+          "goto": "roof_pick_11"
+        },
+        {
+          "text": "Never mind",
+          "goto": "decline"
+        }
+      ]
+    },
+    "roof_pick_0": {
+      "type": "event",
+      "events": [
+        {
+          "op": "house_order_roof",
+          "palette": 0
+        }
+      ],
+      "next": "ready_tomorrow"
+    },
+    "roof_pick_1": {
+      "type": "event",
+      "events": [
+        {
+          "op": "house_order_roof",
+          "palette": 1
+        }
+      ],
+      "next": "ready_tomorrow"
+    },
+    "roof_pick_2": {
+      "type": "event",
+      "events": [
+        {
+          "op": "house_order_roof",
+          "palette": 2
+        }
+      ],
+      "next": "ready_tomorrow"
+    },
+    "roof_pick_3": {
+      "type": "event",
+      "events": [
+        {
+          "op": "house_order_roof",
+          "palette": 3
+        }
+      ],
+      "next": "ready_tomorrow"
+    },
+    "roof_pick_4": {
+      "type": "event",
+      "events": [
+        {
+          "op": "house_order_roof",
+          "palette": 4
+        }
+      ],
+      "next": "ready_tomorrow"
+    },
+    "roof_pick_5": {
+      "type": "event",
+      "events": [
+        {
+          "op": "house_order_roof",
+          "palette": 5
+        }
+      ],
+      "next": "ready_tomorrow"
+    },
+    "roof_pick_6": {
+      "type": "event",
+      "events": [
+        {
+          "op": "house_order_roof",
+          "palette": 6
+        }
+      ],
+      "next": "ready_tomorrow"
+    },
+    "roof_pick_7": {
+      "type": "event",
+      "events": [
+        {
+          "op": "house_order_roof",
+          "palette": 7
+        }
+      ],
+      "next": "ready_tomorrow"
+    },
+    "roof_pick_8": {
+      "type": "event",
+      "events": [
+        {
+          "op": "house_order_roof",
+          "palette": 8
+        }
+      ],
+      "next": "ready_tomorrow"
+    },
+    "roof_pick_9": {
+      "type": "event",
+      "events": [
+        {
+          "op": "house_order_roof",
+          "palette": 9
+        }
+      ],
+      "next": "ready_tomorrow"
+    },
+    "roof_pick_10": {
+      "type": "event",
+      "events": [
+        {
+          "op": "house_order_roof",
+          "palette": 10
+        }
+      ],
+      "next": "ready_tomorrow"
+    },
+    "roof_pick_11": {
+      "type": "event",
+      "events": [
+        {
+          "op": "house_order_roof",
+          "palette": 11
+        }
+      ],
+      "next": "ready_tomorrow"
+    },
+    "ready_tomorrow": {
+      "type": "line",
+      "text": "Wonderful! My crew will get\nstarted right away. Come back\ntomorrow, hm?"
+    },
+    "decline": {
+      "type": "line",
+      "text": "Very well. Just let me know\nwhen you're ready, yes, yes."
+    },
+    "offer_yn": {
+      "type": "choice",
+      "prompt": "Shall I get my crew\nstarted?",
+      "options": [
+        {
+          "text": "Yes, please!",
+          "goto": "roof_0"
+        },
+        {
+          "text": "Not right now",
+          "goto": "decline"
+        }
+      ]
+    }
+  }
+}

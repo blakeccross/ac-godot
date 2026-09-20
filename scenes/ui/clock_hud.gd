@@ -1,9 +1,9 @@
 extends CanvasLayer
 
-## Play HUD. T +1 hour, Y +1 day, U next season, I cycle weather. Esc returns to title (and saves).
-## X opens pockets (`m_inventory_ovl` 5×3). `/` or ` opens the debug console.
+## Play HUD host: overlays, interaction prompt, event notices. Hidden debug keys: T +1 hour,
+## Y +1 day, U next season, I cycle weather (the console's `time` / `season` do the same).
+## Esc asks to exit to the title (`PauseOverlay`). X opens pockets. `/` or ` opens the console.
 
-@onready var _label: Label = %ClockLabel
 @onready var _prompt: Label = %PromptLabel
 @onready var _notice: Label = %NoticeLabel
 @onready var _inventory: CanvasLayer = $InventoryOverlay
@@ -13,13 +13,9 @@ var _notice_left: float = 0.0
 
 
 func _ready() -> void:
-	Clock.time_changed.connect(_refresh)
 	Game.prompt_changed.connect(_on_prompt)
 	Game.notice_posted.connect(_on_notice)
-	Game.weather_changed.connect(_on_weather)
-	Game.inventory.changed.connect(_refresh)
 	_on_prompt(Game.interact_prompt)
-	_refresh()
 
 
 func inventory_is_open() -> bool:
@@ -69,18 +65,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 
 
-func _refresh() -> void:
-	_label.text = (
-		"%s\nWASD walk  Shift run  E interact  X pockets  Esc title  / console  T +1h  Y +1d  U season  I weather"
-		% Clock.format_clock()
-	)
-	var pockets: int = Game.inventory.count_of_occupied()
-	var bells: int = Game.inventory.wallet
-	_label.text += "\nPockets %d/%d  %d Bells  %s" % [
-		pockets, Inventory.POCKET_SLOTS, bells, String(Game.weather).capitalize()
-	]
-
-
 func _on_prompt(text: String) -> void:
 	if text == "":
 		_prompt.text = ""
@@ -91,8 +75,3 @@ func _on_prompt(text: String) -> void:
 func _on_notice(text: String) -> void:
 	_notice.text = text
 	_notice_left = 2.5
-	_refresh()
-
-
-func _on_weather(_weather: StringName) -> void:
-	_refresh()

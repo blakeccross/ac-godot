@@ -180,7 +180,6 @@ func test_scene_hosts_offer_expected_verbs() -> void:
 	_assert_verb("res://scenes/world/tree.tscn", Interaction.SHAKE, ctx)
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
 	_assert_verb("res://scenes/actors/villager.tscn", Interaction.TALK, ctx)
-	_assert_verb("res://scenes/world/furniture.tscn", Interaction.SIT, ctx)
 	_assert_verb("res://scenes/world/house.tscn", Interaction.ENTER, ctx)
 	_assert_verb("res://scenes/world/shop.tscn", Interaction.SHOP, ctx)
 	_assert_verb("res://scenes/world/sign.tscn", Interaction.READ, ctx)

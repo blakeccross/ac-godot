@@ -17,6 +17,10 @@ var mood: Mood = Mood.NORMAL
 var patience: Patience = Patience.NORMAL
 ## `Animal_c.is_home` — indoors (hidden outdoors / visible in NPC room).
 var is_home: bool = false
+## `conversation_flags.fish/insect_complete_talk` — this villager already congratulated the
+## player on the finished collection (`mNpc_Set*CompleteTalk`).
+var fish_complete_talk: bool = false
+var insect_complete_talk: bool = false
 
 var friendship: int:
 	get:
@@ -55,6 +59,8 @@ func to_save() -> Dictionary:
 		"mood": int(mood),
 		"patience": int(patience),
 		"is_home": is_home,
+		"fish_complete_talk": fish_complete_talk,
+		"insect_complete_talk": insect_complete_talk,
 		"relationship": _bond().to_save(),
 	}
 
@@ -65,6 +71,8 @@ func apply_snapshot(data: Dictionary) -> void:
 	mood = int(data.get("mood", Mood.NORMAL)) as Mood
 	patience = int(data.get("patience", Patience.NORMAL)) as Patience
 	is_home = bool(data.get("is_home", false))
+	fish_complete_talk = bool(data.get("fish_complete_talk", false))
+	insect_complete_talk = bool(data.get("insect_complete_talk", false))
 	var nested: Variant = data.get("relationship", {})
 	if typeof(nested) == TYPE_DICTIONARY and not (nested as Dictionary).is_empty():
 		_bond().apply_snapshot(nested as Dictionary)

@@ -97,6 +97,16 @@ static func stream_for(id: StringName) -> AudioStream:
 	return null
 
 
+## Catalog id for a decomp `BGM_*` number (`md2` is bgm 128 — the ids are the pipeline's names).
+static func id_for_num(bgm_num: int) -> StringName:
+	ensure_loaded()
+	for key: Variant in _entries.keys():
+		var rec: Variant = _entries[key]
+		if rec is Dictionary and int((rec as Dictionary).get("bgm_num", -1)) == bgm_num:
+			return key as StringName
+	return &""
+
+
 ## Guitar stem for `Na_TTKK_ARM` (`intro_kk_arm.ogg`), or null if missing.
 static func arm_stream_for(id: StringName) -> AudioStream:
 	if id == &"":

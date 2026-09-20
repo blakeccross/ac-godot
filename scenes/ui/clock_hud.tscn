@@ -1,50 +1,53 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene format=3 uid="uid://cupj4ywk2mceh"]
 
-[ext_resource type="Script" path="res://scenes/ui/clock_hud.gd" id="1"]
-[ext_resource type="PackedScene" path="res://scenes/ui/inventory_overlay.tscn" id="2"]
-[ext_resource type="PackedScene" path="res://scenes/ui/dialogue_overlay.tscn" id="3"]
+[ext_resource type="Script" uid="uid://08wa1b53b370" path="res://scenes/ui/clock_hud.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://bctoc2f2h3gl5" path="res://scenes/ui/inventory_overlay.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://copajrd153xkj" path="res://scenes/ui/dialogue_overlay.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/ui/shop_overlay.tscn" id="4"]
-[ext_resource type="PackedScene" path="res://scenes/ui/map_overlay.tscn" id="5"]
+[ext_resource type="PackedScene" uid="uid://cyjbqn0v1g77j" path="res://scenes/ui/map_overlay.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/ui/debug_console.tscn" id="6"]
-[ext_resource type="PackedScene" path="res://scenes/ui/design_list_overlay.tscn" id="7"]
-[ext_resource type="PackedScene" path="res://scenes/ui/design_editor_overlay.tscn" id="8"]
+[ext_resource type="PackedScene" uid="uid://cdlistovl0001" path="res://scenes/ui/design_list_overlay.tscn" id="7"]
+[ext_resource type="PackedScene" uid="uid://cdeditovl0001" path="res://scenes/ui/design_editor_overlay.tscn" id="8"]
 [ext_resource type="PackedScene" path="res://scenes/ui/name_entry_overlay.tscn" id="9"]
 [ext_resource type="PackedScene" path="res://scenes/ui/letter_reader_overlay.tscn" id="10"]
-[ext_resource type="PackedScene" path="res://scenes/ui/letter_address_overlay.tscn" id="11"]
-[ext_resource type="PackedScene" path="res://scenes/ui/letter_paper_picker_overlay.tscn" id="12"]
-[ext_resource type="PackedScene" path="res://scenes/ui/letter_writer_overlay.tscn" id="13"]
+[ext_resource type="PackedScene" uid="uid://tvn6yl1pauls" path="res://scenes/ui/letter_address_overlay.tscn" id="11"]
+[ext_resource type="PackedScene" uid="uid://kmug8r17t7y7" path="res://scenes/ui/letter_paper_picker_overlay.tscn" id="12"]
+[ext_resource type="PackedScene" uid="uid://cv1xkhnchs8oi" path="res://scenes/ui/letter_writer_overlay.tscn" id="13"]
 [ext_resource type="PackedScene" path="res://scenes/ui/clock_widget.tscn" id="14"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pause_overlay.tscn" id="15"]
 
-[node name="ClockHud" type="CanvasLayer"]
+[node name="ClockHud" type="CanvasLayer" unique_id=464119557]
 script = ExtResource("1")
 
-[node name="InventoryOverlay" parent="." instance=ExtResource("2")]
+[node name="InventoryOverlay" parent="." unique_id=1274618056 instance=ExtResource("2")]
 
-[node name="MapOverlay" parent="." instance=ExtResource("5")]
+[node name="MapOverlay" parent="." unique_id=927297890 instance=ExtResource("5")]
 
-[node name="DialogueOverlay" parent="." instance=ExtResource("3")]
+[node name="DialogueOverlay" parent="." unique_id=1832348790 instance=ExtResource("3")]
 
-[node name="ShopOverlay" parent="." instance=ExtResource("4")]
+[node name="ShopOverlay" parent="." unique_id=1539548450 instance=ExtResource("4")]
 
-[node name="DebugConsole" parent="." instance=ExtResource("6")]
+[node name="DebugConsole" parent="." unique_id=1737995488 instance=ExtResource("6")]
 
-[node name="DesignListOverlay" parent="." instance=ExtResource("7")]
+[node name="DesignListOverlay" parent="." unique_id=1145633151 instance=ExtResource("7")]
 
-[node name="DesignEditorOverlay" parent="." instance=ExtResource("8")]
+[node name="DesignEditorOverlay" parent="." unique_id=2097739122 instance=ExtResource("8")]
 
-[node name="NameEntryOverlay" parent="." instance=ExtResource("9")]
+[node name="NameEntryOverlay" parent="." unique_id=431914575 instance=ExtResource("9")]
 
-[node name="LetterReaderOverlay" parent="." instance=ExtResource("10")]
+[node name="LetterReaderOverlay" parent="." unique_id=1435088935 instance=ExtResource("10")]
 
-[node name="LetterAddressOverlay" parent="." instance=ExtResource("11")]
+[node name="LetterAddressOverlay" parent="." unique_id=1833402352 instance=ExtResource("11")]
 
-[node name="LetterPaperPickerOverlay" parent="." instance=ExtResource("12")]
+[node name="LetterPaperPickerOverlay" parent="." unique_id=1836371588 instance=ExtResource("12")]
 
-[node name="LetterWriterOverlay" parent="." instance=ExtResource("13")]
+[node name="LetterWriterOverlay" parent="." unique_id=1893302467 instance=ExtResource("13")]
 
-[node name="ClockWidget" parent="." instance=ExtResource("14")]
+[node name="ClockWidget" parent="." unique_id=1442053792 instance=ExtResource("14")]
+layout_mode = 3
+anchors_preset = 3
 
-[node name="Margin" type="MarginContainer" parent="."]
+[node name="Margin" type="MarginContainer" parent="." unique_id=344651446]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -56,28 +59,17 @@ theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 12
 
-[node name="VBox" type="VBoxContainer" parent="Margin"]
+[node name="VBox" type="VBoxContainer" parent="Margin" unique_id=352197645]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 8
 
-[node name="ClockLabel" type="Label" parent="Margin/VBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 0
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)
-theme_override_constants/shadow_offset_x = 1
-theme_override_constants/shadow_offset_y = 1
-theme_override_font_sizes/font_size = 18
-text = "Clock"
-
-[node name="Spacer" type="Control" parent="Margin/VBox"]
+[node name="Spacer" type="Control" parent="Margin/VBox" unique_id=990851621]
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
 
-[node name="NoticeLabel" type="Label" parent="Margin/VBox"]
+[node name="NoticeLabel" type="Label" parent="Margin/VBox" unique_id=533007995]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.95, 0.7, 1)
@@ -87,7 +79,7 @@ theme_override_constants/shadow_offset_y = 1
 theme_override_font_sizes/font_size = 22
 horizontal_alignment = 1
 
-[node name="PromptLabel" type="Label" parent="Margin/VBox"]
+[node name="PromptLabel" type="Label" parent="Margin/VBox" unique_id=1130182057]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
@@ -96,3 +88,5 @@ theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
 theme_override_font_sizes/font_size = 22
 horizontal_alignment = 1
+
+[node name="PauseOverlay" parent="." unique_id=1555995905 instance=ExtResource("15")]

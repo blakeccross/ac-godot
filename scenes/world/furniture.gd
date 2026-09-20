@@ -50,4 +50,4 @@ func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	return FurnitureUse.apply(action, self, ctx)
+	return await FurnitureUse.apply(action, self, ctx)

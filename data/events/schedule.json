@@ -1,0 +1,1996 @@
+{
+ "_comment": "Generated from the schedule table (`m_event_schedule.c_inc`) as readable rows. See docs/decomp_notes/events.md for the field encodings.",
+ "rows": [
+  {
+   "id": "handbill_shop_sale",
+   "begin": {
+    "month": "save:special0",
+    "day": 0,
+    "hour": 4
+   },
+   "end": {
+    "month": "save:special1",
+    "day": 0,
+    "hour": "save:special3"
+   },
+   "multiday": true
+  },
+  {
+   "id": "shop_sale",
+   "begin": {
+    "month": "save:special1",
+    "day": 0,
+    "hour": 0
+   },
+   "end": {
+    "month": "save:special1",
+    "day": 0,
+    "hour": 23
+   }
+  },
+  {
+   "id": "designer",
+   "begin": {
+    "month": "save:special1",
+    "day": 0,
+    "hour": 6
+   },
+   "end": {
+    "month": "save:special2",
+    "day": 0,
+    "hour": 5
+   },
+   "multiday": true
+  },
+  {
+   "id": "handbill_broker",
+   "begin": {
+    "month": "save:special0",
+    "day": 0,
+    "hour": 0
+   },
+   "end": {
+    "month": "save:special1",
+    "day": 0,
+    "hour": 17
+   },
+   "multiday": true
+  },
+  {
+   "id": "broker_sale",
+   "begin": {
+    "month": "save:special1",
+    "day": 0,
+    "hour": 18
+   },
+   "end": {
+    "month": "save:special2",
+    "day": 0,
+    "hour": 17
+   },
+   "multiday": true
+  },
+  {
+   "id": "artist",
+   "begin": {
+    "month": "save:special1",
+    "day": 0,
+    "hour": 6
+   },
+   "end": {
+    "month": "save:special2",
+    "day": 0,
+    "hour": 5
+   },
+   "multiday": true
+  },
+  {
+   "id": "carpet_peddler",
+   "begin": {
+    "month": "save:special1",
+    "day": 0,
+    "hour": 6
+   },
+   "end": {
+    "month": "save:special2",
+    "day": 0,
+    "hour": 5
+   },
+   "multiday": true
+  },
+  {
+   "id": "gypsy",
+   "begin": {
+    "month": "save:special1",
+    "day": 0,
+    "hour": 21
+   },
+   "end": {
+    "month": "save:special2",
+    "day": 0,
+    "hour": 20
+   },
+   "multiday": true
+  },
+  {
+   "id": "kabu_peddler",
+   "begin": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 0
+    },
+    "hour": 6
+   },
+   "end": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 0
+    },
+    "hour": 11
+   }
+  },
+  {
+   "id": "kk_slider",
+   "begin": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 6
+    },
+    "hour": 20
+   },
+   "end": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 6
+    },
+    "hour": 23
+   }
+  },
+  {
+   "id": "dozaemon",
+   "begin": {
+    "month": "save:weekly",
+    "day": 0,
+    "hour": 6
+   },
+   "end": {
+    "month": "save:weekly",
+    "day": 0,
+    "hour": 22
+   }
+  },
+  {
+   "id": "lottery",
+   "begin": {
+    "month": "now",
+    "day": "last_day",
+    "hour": 0
+   },
+   "end": {
+    "month": "now",
+    "day": "last_day",
+    "hour": 23
+   }
+  },
+  {
+   "id": "player_birthday",
+   "begin": {
+    "month": "save:birthday",
+    "day": 0,
+    "hour": 0
+   },
+   "end": {
+    "month": "save:birthday",
+    "day": 0,
+    "hour": 23
+   }
+  },
+  {
+   "id": "snowman_season",
+   "begin": {
+    "month": 12,
+    "day": 25,
+    "hour": 0
+   },
+   "end": {
+    "month": 2,
+    "day": 17,
+    "hour": 23
+   }
+  },
+  {
+   "id": "cherry_blossom_petals",
+   "begin": {
+    "month": 4,
+    "day": 3,
+    "hour": 0
+   },
+   "end": {
+    "month": 4,
+    "day": 8,
+    "hour": 23
+   }
+  },
+  {
+   "id": "ghost",
+   "begin": {
+    "month": 1,
+    "day": 1,
+    "hour": 0
+   },
+   "end": {
+    "month": 12,
+    "day": 31,
+    "hour": 3
+   }
+  },
+  {
+   "id": "mask_npc",
+   "begin": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 1
+    },
+    "hour": 6
+   },
+   "end": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 1
+    },
+    "hour": 23
+   }
+  },
+  {
+   "id": "mask_npc",
+   "begin": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 2
+    },
+    "hour": 6
+   },
+   "end": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 2
+    },
+    "hour": 23
+   }
+  },
+  {
+   "id": "mask_npc",
+   "begin": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 3
+    },
+    "hour": 6
+   },
+   "end": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 3
+    },
+    "hour": 23
+   }
+  },
+  {
+   "id": "mask_npc",
+   "begin": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 4
+    },
+    "hour": 6
+   },
+   "end": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 4
+    },
+    "hour": 23
+   }
+  },
+  {
+   "id": "mask_npc",
+   "begin": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 5
+    },
+    "hour": 6
+   },
+   "end": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 5
+    },
+    "hour": 23
+   }
+  },
+  {
+   "id": "mask_npc",
+   "begin": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 6
+    },
+    "hour": 6
+   },
+   "end": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 6
+    },
+    "hour": 18
+   }
+  },
+  {
+   "id": "mask_npc",
+   "begin": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 0
+    },
+    "hour": 13
+   },
+   "end": {
+    "month": "now",
+    "day": {
+     "nth": "every",
+     "weekday": 0
+    },
+    "hour": 23
+   }
+  },
+  {
+   "id": "bridge_make",
+   "begin": {
+    "month": 1,
+    "day": 1,
+    "hour": 0
+   },
+   "end": {
+    "month": 12,
+    "day": 31,
+    "hour": 23
+   }
+  },
+  {
+   "id": "new_years_day",
+   "begin": {
+    "month": 1,
+    "day": 1,
+    "hour": 6
+   },
+   "end": {
+    "month": 1,
+    "day": 1,
+    "hour": 10
+   }
+  },
+  {
+   "id": "soncho_new_years_day",
+   "begin": {
+    "month": 1,
+    "day": 1,
+    "hour": 6
+   },
+   "end": {
+    "month": 1,
+    "day": 1,
+    "hour": 10
+   }
+  },
+  {
+   "id": "rumor_new_years_day",
+   "begin": {
+    "month": 12,
+    "day": 25,
+    "hour": 0
+   },
+   "end": {
+    "month": 12,
+    "day": 31,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "kamakura",
+   "begin": {
+    "month": 1,
+    "day": 2,
+    "hour": 10
+   },
+   "end": {
+    "month": 2,
+    "day": 23,
+    "hour": 21
+   },
+   "today": true
+  },
+  {
+   "id": "rumor_kamakura",
+   "begin": {
+    "month": 1,
+    "day": 2,
+    "hour": 0
+   },
+   "end": {
+    "month": 2,
+    "day": 23,
+    "hour": 20
+   },
+   "multiday": true
+  },
+  {
+   "id": "groundhog_day",
+   "begin": {
+    "month": 2,
+    "day": 2,
+    "hour": 7
+   },
+   "end": {
+    "month": 2,
+    "day": 2,
+    "hour": 8
+   }
+  },
+  {
+   "id": "soncho_groundhog_day",
+   "begin": {
+    "month": 2,
+    "day": 2,
+    "hour": 9
+   },
+   "end": {
+    "month": 2,
+    "day": 2,
+    "hour": 16
+   }
+  },
+  {
+   "id": "rumor_groundhog_day",
+   "begin": {
+    "month": 1,
+    "day": 25,
+    "hour": 0
+   },
+   "end": {
+    "month": 2,
+    "day": 1,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "valentines_day",
+   "begin": {
+    "month": 2,
+    "day": 14,
+    "hour": 0
+   },
+   "end": {
+    "month": 2,
+    "day": 14,
+    "hour": 23
+   }
+  },
+  {
+   "id": "rumor_valentines_day",
+   "begin": {
+    "month": 2,
+    "day": 1,
+    "hour": 0
+   },
+   "end": {
+    "month": 2,
+    "day": 13,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "spring_equinox",
+   "begin": {
+    "month": 3,
+    "day": 19,
+    "hour": 9
+   },
+   "end": {
+    "month": 3,
+    "day": 21,
+    "hour": 16
+   }
+  },
+  {
+   "id": "soncho_spring_sports_fair",
+   "begin": {
+    "month": 3,
+    "day": 19,
+    "hour": 9
+   },
+   "end": {
+    "month": 3,
+    "day": 21,
+    "hour": 16
+   }
+  },
+  {
+   "id": "sports_fair_aerobics",
+   "begin": {
+    "month": 3,
+    "day": 19,
+    "hour": 9
+   },
+   "end": {
+    "month": 3,
+    "day": 21,
+    "hour": 10
+   }
+  },
+  {
+   "id": "sports_fair_foot_race",
+   "begin": {
+    "month": 3,
+    "day": 19,
+    "hour": 11
+   },
+   "end": {
+    "month": 3,
+    "day": 21,
+    "hour": 12
+   }
+  },
+  {
+   "id": "sports_fair_ball_toss",
+   "begin": {
+    "month": 3,
+    "day": 19,
+    "hour": 13
+   },
+   "end": {
+    "month": 3,
+    "day": 21,
+    "hour": 14
+   }
+  },
+  {
+   "id": "sports_fair_tug_of_war",
+   "begin": {
+    "month": 3,
+    "day": 19,
+    "hour": 15
+   },
+   "end": {
+    "month": 3,
+    "day": 21,
+    "hour": 16
+   }
+  },
+  {
+   "id": "sports_fair",
+   "begin": {
+    "month": 3,
+    "day": 19,
+    "hour": 11
+   },
+   "end": {
+    "month": 3,
+    "day": 21,
+    "hour": 16
+   }
+  },
+  {
+   "id": "weather_sports_fair",
+   "begin": {
+    "month": 3,
+    "day": 19,
+    "hour": 0
+   },
+   "end": {
+    "month": 3,
+    "day": 21,
+    "hour": 23
+   }
+  },
+  {
+   "id": "rumor_spring_sports_fair",
+   "begin": {
+    "month": 3,
+    "day": 9,
+    "hour": 0
+   },
+   "end": {
+    "month": 3,
+    "day": 20,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "aprilfools_day",
+   "begin": {
+    "month": 4,
+    "day": 1,
+    "hour": 0
+   },
+   "end": {
+    "month": 4,
+    "day": 1,
+    "hour": 23
+   }
+  },
+  {
+   "id": "soncho_aprilfools_day",
+   "begin": {
+    "month": 4,
+    "day": 1,
+    "hour": 10
+   },
+   "end": {
+    "month": 4,
+    "day": 1,
+    "hour": 17
+   }
+  },
+  {
+   "id": "cherry_blossom_festival",
+   "begin": {
+    "month": 4,
+    "day": 5,
+    "hour": 10
+   },
+   "end": {
+    "month": 4,
+    "day": 7,
+    "hour": 21
+   }
+  },
+  {
+   "id": "soncho_cherry_blossom_festival",
+   "begin": {
+    "month": 4,
+    "day": 5,
+    "hour": 10
+   },
+   "end": {
+    "month": 4,
+    "day": 7,
+    "hour": 21
+   }
+  },
+  {
+   "id": "rumor_aprilfools_day",
+   "begin": {
+    "month": 3,
+    "day": 15,
+    "hour": 0
+   },
+   "end": {
+    "month": 3,
+    "day": 31,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "rumor_cherry_blossom_festival",
+   "begin": {
+    "month": 4,
+    "day": 1,
+    "hour": 0
+   },
+   "end": {
+    "month": 4,
+    "day": 4,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "nature_day",
+   "begin": {
+    "month": 4,
+    "day": 22,
+    "hour": 10
+   },
+   "end": {
+    "month": 4,
+    "day": 22,
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_nature_day",
+   "begin": {
+    "month": 4,
+    "day": 22,
+    "hour": 10
+   },
+   "end": {
+    "month": 4,
+    "day": 22,
+    "hour": 17
+   }
+  },
+  {
+   "id": "spring_cleaning",
+   "begin": {
+    "month": 5,
+    "day": 1,
+    "hour": 0
+   },
+   "end": {
+    "month": 5,
+    "day": 1,
+    "hour": 23
+   }
+  },
+  {
+   "id": "soncho_spring_cleaning",
+   "begin": {
+    "month": 5,
+    "day": 1,
+    "hour": 10
+   },
+   "end": {
+    "month": 5,
+    "day": 1,
+    "hour": 17
+   }
+  },
+  {
+   "id": "mothers_day",
+   "begin": {
+    "month": 5,
+    "day": {
+     "nth": 2,
+     "weekday": 0
+    },
+    "hour": 0
+   },
+   "end": {
+    "month": 5,
+    "day": {
+     "nth": 2,
+     "weekday": 0
+    },
+    "hour": 23
+   }
+  },
+  {
+   "id": "soncho_mothers_day",
+   "begin": {
+    "month": 5,
+    "day": {
+     "nth": 2,
+     "weekday": 0
+    },
+    "hour": 10
+   },
+   "end": {
+    "month": 5,
+    "day": {
+     "nth": 2,
+     "weekday": 0
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "summer_camper",
+   "begin": {
+    "month": 6,
+    "day": {
+     "nth": "every",
+     "weekday": 6
+    },
+    "hour": 9
+   },
+   "end": {
+    "month": 6,
+    "day": {
+     "nth": "every",
+     "weekday": 0
+    },
+    "hour": 14
+   },
+   "multiday": true
+  },
+  {
+   "id": "graduation_day",
+   "begin": {
+    "month": 6,
+    "day": {
+     "nth": 2,
+     "weekday": 5
+    },
+    "hour": 10
+   },
+   "end": {
+    "month": 6,
+    "day": {
+     "nth": 2,
+     "weekday": 5
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_graduation_day",
+   "begin": {
+    "month": 6,
+    "day": {
+     "nth": 2,
+     "weekday": 5
+    },
+    "hour": 10
+   },
+   "end": {
+    "month": 6,
+    "day": {
+     "nth": 2,
+     "weekday": 5
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "fathers_day",
+   "begin": {
+    "month": 6,
+    "day": {
+     "nth": 3,
+     "weekday": 0
+    },
+    "hour": 0
+   },
+   "end": {
+    "month": 6,
+    "day": {
+     "nth": 3,
+     "weekday": 0
+    },
+    "hour": 23
+   }
+  },
+  {
+   "id": "soncho_fathers_day",
+   "begin": {
+    "month": 6,
+    "day": {
+     "nth": 3,
+     "weekday": 0
+    },
+    "hour": 10
+   },
+   "end": {
+    "month": 6,
+    "day": {
+     "nth": 3,
+     "weekday": 0
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "fishing_tourney_1",
+   "begin": {
+    "month": 6,
+    "day": {
+     "nth": "every",
+     "weekday": 0
+    },
+    "hour": 6
+   },
+   "end": {
+    "month": 6,
+    "day": {
+     "nth": "every",
+     "weekday": 0
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_fishing_tourney_1",
+   "begin": {
+    "month": 6,
+    "day": {
+     "nth": "every",
+     "weekday": 0
+    },
+    "hour": 6
+   },
+   "end": {
+    "month": 6,
+    "day": {
+     "nth": "every",
+     "weekday": 0
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "rumor_fishing_tourney_1",
+   "begin": {
+    "month": 5,
+    "day": 15,
+    "hour": 0
+   },
+   "end": {
+    "month": 5,
+    "day": 31,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "talk_fishing_tourney_1",
+   "begin": {
+    "month": 6,
+    "day": 1,
+    "hour": 0
+   },
+   "end": {
+    "month": 6,
+    "day": {
+     "nth": "last",
+     "weekday": 0
+    },
+    "hour": 0
+   },
+   "multiday": true
+  },
+  {
+   "id": "fireworks_show",
+   "begin": {
+    "month": 7,
+    "day": 4,
+    "hour": 19
+   },
+   "end": {
+    "month": 7,
+    "day": 4,
+    "hour": 20
+   }
+  },
+  {
+   "id": "soncho_fireworks_show",
+   "begin": {
+    "month": 7,
+    "day": 4,
+    "hour": 19
+   },
+   "end": {
+    "month": 7,
+    "day": 4,
+    "hour": 20
+   }
+  },
+  {
+   "id": "weather_clear",
+   "begin": {
+    "month": 7,
+    "day": 4,
+    "hour": 0
+   },
+   "end": {
+    "month": 7,
+    "day": 4,
+    "hour": 23
+   }
+  },
+  {
+   "id": "rumor_fireworks_show",
+   "begin": {
+    "month": 6,
+    "day": 25,
+    "hour": 0
+   },
+   "end": {
+    "month": 7,
+    "day": 3,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "town_day",
+   "begin": {
+    "month": 7,
+    "day": "town_day",
+    "hour": 10
+   },
+   "end": {
+    "month": 7,
+    "day": "town_day",
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_town_day",
+   "begin": {
+    "month": 7,
+    "day": "town_day",
+    "hour": 10
+   },
+   "end": {
+    "month": 7,
+    "day": "town_day",
+    "hour": 17
+   }
+  },
+  {
+   "id": "morning_aerobics",
+   "begin": {
+    "month": 7,
+    "day": 25,
+    "hour": 6
+   },
+   "end": {
+    "month": 8,
+    "day": 31,
+    "hour": 6
+   },
+   "today": true
+  },
+  {
+   "id": "rumor_morning_aerobics",
+   "begin": {
+    "month": 7,
+    "day": 14,
+    "hour": 0
+   },
+   "end": {
+    "month": 7,
+    "day": 24,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "talk_morning_aerobics",
+   "begin": {
+    "month": 7,
+    "day": 26,
+    "hour": 0
+   },
+   "end": {
+    "month": 8,
+    "day": 30,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "meteor_shower",
+   "begin": {
+    "month": 8,
+    "day": 12,
+    "hour": 18
+   },
+   "end": {
+    "month": 8,
+    "day": 12,
+    "hour": 20
+   }
+  },
+  {
+   "id": "soncho_meteor_shower",
+   "begin": {
+    "month": 8,
+    "day": 12,
+    "hour": 18
+   },
+   "end": {
+    "month": 8,
+    "day": 12,
+    "hour": 20
+   }
+  },
+  {
+   "id": "rumor_meteor_shower",
+   "begin": {
+    "month": 8,
+    "day": 5,
+    "hour": 0
+   },
+   "end": {
+    "month": 8,
+    "day": 11,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "weather_clear",
+   "begin": {
+    "month": 8,
+    "day": 12,
+    "hour": 0
+   },
+   "end": {
+    "month": 8,
+    "day": 12,
+    "hour": 23
+   }
+  },
+  {
+   "id": "founders_day",
+   "begin": {
+    "month": 8,
+    "day": 21,
+    "hour": 10
+   },
+   "end": {
+    "month": 8,
+    "day": 21,
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_founders_day",
+   "begin": {
+    "month": 8,
+    "day": 21,
+    "hour": 10
+   },
+   "end": {
+    "month": 8,
+    "day": 21,
+    "hour": 17
+   }
+  },
+  {
+   "id": "labor_day",
+   "begin": {
+    "month": 9,
+    "day": {
+     "nth": 1,
+     "weekday": 1
+    },
+    "hour": 10
+   },
+   "end": {
+    "month": 9,
+    "day": {
+     "nth": 1,
+     "weekday": 1
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_labor_day",
+   "begin": {
+    "month": 9,
+    "day": {
+     "nth": 1,
+     "weekday": 1
+    },
+    "hour": 10
+   },
+   "end": {
+    "month": 9,
+    "day": {
+     "nth": 1,
+     "weekday": 1
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "autumn_equinox",
+   "begin": {
+    "month": 9,
+    "day": 21,
+    "hour": 9
+   },
+   "end": {
+    "month": 9,
+    "day": 23,
+    "hour": 16
+   }
+  },
+  {
+   "id": "soncho_fall_sports_fair",
+   "begin": {
+    "month": 9,
+    "day": 21,
+    "hour": 9
+   },
+   "end": {
+    "month": 9,
+    "day": 23,
+    "hour": 16
+   }
+  },
+  {
+   "id": "sports_fair_aerobics",
+   "begin": {
+    "month": 9,
+    "day": 21,
+    "hour": 9
+   },
+   "end": {
+    "month": 9,
+    "day": 23,
+    "hour": 10
+   }
+  },
+  {
+   "id": "sports_fair_foot_race",
+   "begin": {
+    "month": 9,
+    "day": 21,
+    "hour": 11
+   },
+   "end": {
+    "month": 9,
+    "day": 23,
+    "hour": 12
+   }
+  },
+  {
+   "id": "sports_fair_ball_toss",
+   "begin": {
+    "month": 9,
+    "day": 21,
+    "hour": 13
+   },
+   "end": {
+    "month": 9,
+    "day": 23,
+    "hour": 14
+   }
+  },
+  {
+   "id": "sports_fair_tug_of_war",
+   "begin": {
+    "month": 9,
+    "day": 21,
+    "hour": 15
+   },
+   "end": {
+    "month": 9,
+    "day": 23,
+    "hour": 16
+   }
+  },
+  {
+   "id": "sports_fair",
+   "begin": {
+    "month": 9,
+    "day": 21,
+    "hour": 11
+   },
+   "end": {
+    "month": 9,
+    "day": 23,
+    "hour": 16
+   }
+  },
+  {
+   "id": "weather_sports_fair",
+   "begin": {
+    "month": 9,
+    "day": 21,
+    "hour": 0
+   },
+   "end": {
+    "month": 9,
+    "day": 23,
+    "hour": 23
+   }
+  },
+  {
+   "id": "rumor_fall_sports_fair",
+   "begin": {
+    "month": 9,
+    "day": 11,
+    "hour": 0
+   },
+   "end": {
+    "month": 9,
+    "day": 22,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "harvest_moon_festival",
+   "begin": {
+    "month": "moon",
+    "day": 15,
+    "hour": 18
+   },
+   "end": {
+    "month": "moon",
+    "day": 15,
+    "hour": 20
+   }
+  },
+  {
+   "id": "soncho_harvest_moon_festival",
+   "begin": {
+    "month": "moon",
+    "day": 15,
+    "hour": 18
+   },
+   "end": {
+    "month": "moon",
+    "day": 15,
+    "hour": 20
+   }
+  },
+  {
+   "id": "weather_clear",
+   "begin": {
+    "month": "moon",
+    "day": 15,
+    "hour": 0
+   },
+   "end": {
+    "month": "moon",
+    "day": 15,
+    "hour": 23
+   }
+  },
+  {
+   "id": "rumor_harvest_moon_day",
+   "begin": {
+    "month": "moon",
+    "day": 8,
+    "hour": 0
+   },
+   "end": {
+    "month": "moon",
+    "day": 14,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "explorers_day",
+   "begin": {
+    "month": 10,
+    "day": {
+     "nth": 2,
+     "weekday": 1
+    },
+    "hour": 10
+   },
+   "end": {
+    "month": 10,
+    "day": {
+     "nth": 2,
+     "weekday": 1
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_explorers_day",
+   "begin": {
+    "month": 10,
+    "day": {
+     "nth": 2,
+     "weekday": 1
+    },
+    "hour": 10
+   },
+   "end": {
+    "month": 10,
+    "day": {
+     "nth": 2,
+     "weekday": 1
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "mushroom_season",
+   "begin": {
+    "month": 10,
+    "day": 15,
+    "hour": 0
+   },
+   "end": {
+    "month": 10,
+    "day": 25,
+    "hour": 23
+   }
+  },
+  {
+   "id": "rumor_mushroom_season",
+   "begin": {
+    "month": 10,
+    "day": 10,
+    "hour": 0
+   },
+   "end": {
+    "month": 10,
+    "day": 14,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "talk_mushroom_season",
+   "begin": {
+    "month": 10,
+    "day": 15,
+    "hour": 0
+   },
+   "end": {
+    "month": 10,
+    "day": 25,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "halloween",
+   "begin": {
+    "month": 10,
+    "day": 31,
+    "hour": 18
+   },
+   "end": {
+    "month": 11,
+    "day": 1,
+    "hour": 0
+   },
+   "multiday": true
+  },
+  {
+   "id": "soncho_halloween",
+   "begin": {
+    "month": 10,
+    "day": 31,
+    "hour": 18
+   },
+   "end": {
+    "month": 11,
+    "day": 1,
+    "hour": 0
+   },
+   "multiday": true
+  },
+  {
+   "id": "weather_clear",
+   "begin": {
+    "month": 10,
+    "day": 31,
+    "hour": 0
+   },
+   "end": {
+    "month": 11,
+    "day": 1,
+    "hour": 0
+   },
+   "multiday": true
+  },
+  {
+   "id": "rumor_halloween",
+   "begin": {
+    "month": 10,
+    "day": 1,
+    "hour": 0
+   },
+   "end": {
+    "month": 10,
+    "day": 30,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "mayors_day",
+   "begin": {
+    "month": 11,
+    "day": {
+     "nth": 1,
+     "weekday": 1,
+     "after": true
+    },
+    "hour": 10
+   },
+   "end": {
+    "month": 11,
+    "day": {
+     "nth": 1,
+     "weekday": 1,
+     "after": true
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_mayors_day",
+   "begin": {
+    "month": 11,
+    "day": {
+     "nth": 1,
+     "weekday": 1,
+     "after": true
+    },
+    "hour": 10
+   },
+   "end": {
+    "month": 11,
+    "day": {
+     "nth": 1,
+     "weekday": 1,
+     "after": true
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "officers_day",
+   "begin": {
+    "month": 11,
+    "day": 11,
+    "hour": 10
+   },
+   "end": {
+    "month": 11,
+    "day": 11,
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_officers_day",
+   "begin": {
+    "month": 11,
+    "day": 11,
+    "hour": 10
+   },
+   "end": {
+    "month": 11,
+    "day": 11,
+    "hour": 17
+   }
+  },
+  {
+   "id": "fishing_tourney_2",
+   "begin": {
+    "month": 11,
+    "day": {
+     "nth": "every",
+     "weekday": 0
+    },
+    "hour": 6
+   },
+   "end": {
+    "month": 11,
+    "day": {
+     "nth": "every",
+     "weekday": 0
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_fishing_tourney_2",
+   "begin": {
+    "month": 11,
+    "day": {
+     "nth": "every",
+     "weekday": 0
+    },
+    "hour": 6
+   },
+   "end": {
+    "month": 11,
+    "day": {
+     "nth": "every",
+     "weekday": 0
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "rumor_fishing_tourney_2",
+   "begin": {
+    "month": 10,
+    "day": 15,
+    "hour": 0
+   },
+   "end": {
+    "month": 10,
+    "day": 31,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "talk_fishing_tourney_2",
+   "begin": {
+    "month": 11,
+    "day": 1,
+    "hour": 0
+   },
+   "end": {
+    "month": 11,
+    "day": {
+     "nth": "last",
+     "weekday": 0
+    },
+    "hour": 0
+   },
+   "multiday": true
+  },
+  {
+   "id": "harvest_festival",
+   "begin": {
+    "month": 11,
+    "day": {
+     "nth": 4,
+     "weekday": 4
+    },
+    "hour": 15
+   },
+   "end": {
+    "month": 11,
+    "day": {
+     "nth": 4,
+     "weekday": 4
+    },
+    "hour": 20
+   }
+  },
+  {
+   "id": "soncho_harvest_festival",
+   "begin": {
+    "month": 11,
+    "day": {
+     "nth": 4,
+     "weekday": 4
+    },
+    "hour": 15
+   },
+   "end": {
+    "month": 11,
+    "day": {
+     "nth": 4,
+     "weekday": 4
+    },
+    "hour": 20
+   }
+  },
+  {
+   "id": "harvest_festival_franklin",
+   "begin": {
+    "month": 11,
+    "day": {
+     "nth": 4,
+     "weekday": 4
+    },
+    "hour": 15
+   },
+   "end": {
+    "month": 11,
+    "day": {
+     "nth": 4,
+     "weekday": 4
+    },
+    "hour": 20
+   }
+  },
+  {
+   "id": "rumor_harvest_festival",
+   "begin": {
+    "month": 11,
+    "day": 11,
+    "hour": 0
+   },
+   "end": {
+    "month": 11,
+    "day": {
+     "nth": 1,
+     "weekday": 0,
+     "after": true
+    },
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "weather_clear",
+   "begin": {
+    "month": 11,
+    "day": {
+     "nth": 4,
+     "weekday": 4
+    },
+    "hour": 0
+   },
+   "end": {
+    "month": 11,
+    "day": {
+     "nth": 4,
+     "weekday": 4
+    },
+    "hour": 23
+   }
+  },
+  {
+   "id": "sale_day",
+   "begin": {
+    "month": 11,
+    "day": {
+     "nth": 4,
+     "weekday": 4,
+     "after": true
+    },
+    "hour": 0
+   },
+   "end": {
+    "month": 11,
+    "day": {
+     "nth": 4,
+     "weekday": 4,
+     "after": true
+    },
+    "hour": 23
+   }
+  },
+  {
+   "id": "soncho_sale_day",
+   "begin": {
+    "month": 11,
+    "day": {
+     "nth": 4,
+     "weekday": 4,
+     "after": true
+    },
+    "hour": 10
+   },
+   "end": {
+    "month": 11,
+    "day": {
+     "nth": 4,
+     "weekday": 4,
+     "after": true
+    },
+    "hour": 17
+   }
+  },
+  {
+   "id": "snow_day",
+   "begin": {
+    "month": 12,
+    "day": 1,
+    "hour": 10
+   },
+   "end": {
+    "month": 12,
+    "day": 1,
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_snow_day",
+   "begin": {
+    "month": 12,
+    "day": 1,
+    "hour": 10
+   },
+   "end": {
+    "month": 12,
+    "day": 1,
+    "hour": 17
+   }
+  },
+  {
+   "id": "toy_day_soncho",
+   "begin": {
+    "month": 12,
+    "day": 23,
+    "hour": 10
+   },
+   "end": {
+    "month": 12,
+    "day": 23,
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_toy_day",
+   "begin": {
+    "month": 12,
+    "day": 23,
+    "hour": 10
+   },
+   "end": {
+    "month": 12,
+    "day": 23,
+    "hour": 17
+   }
+  },
+  {
+   "id": "toy_day_jingle",
+   "begin": {
+    "month": 12,
+    "day": 24,
+    "hour": 20
+   },
+   "end": {
+    "month": 12,
+    "day": 25,
+    "hour": 0
+   },
+   "multiday": true
+  },
+  {
+   "id": "talk_toy_day",
+   "begin": {
+    "month": 12,
+    "day": 24,
+    "hour": 0
+   },
+   "end": {
+    "month": 12,
+    "day": 24,
+    "hour": 23
+   }
+  },
+  {
+   "id": "weather_snow",
+   "begin": {
+    "month": 12,
+    "day": 24,
+    "hour": 0
+   },
+   "end": {
+    "month": 12,
+    "day": 24,
+    "hour": 23
+   }
+  },
+  {
+   "id": "rumor_toy_day",
+   "begin": {
+    "month": 12,
+    "day": 10,
+    "hour": 0
+   },
+   "end": {
+    "month": 12,
+    "day": 23,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "new_years_eve_countdown",
+   "begin": {
+    "month": 12,
+    "day": 31,
+    "hour": 23
+   },
+   "end": {
+    "month": 1,
+    "day": 1,
+    "hour": 0
+   },
+   "multiday": true
+  },
+  {
+   "id": "talk_new_years_countdown",
+   "begin": {
+    "month": 12,
+    "day": 31,
+    "hour": 23
+   },
+   "end": {
+    "month": 1,
+    "day": 1,
+    "hour": 0
+   },
+   "multiday": true
+  },
+  {
+   "id": "rumor_new_years_eve_countdown",
+   "begin": {
+    "month": 12,
+    "day": 25,
+    "hour": 0
+   },
+   "end": {
+    "month": 12,
+    "day": 30,
+    "hour": 23
+   },
+   "multiday": true
+  },
+  {
+   "id": "weather_clear",
+   "begin": {
+    "month": 12,
+    "day": 31,
+    "hour": 0
+   },
+   "end": {
+    "month": 12,
+    "day": 31,
+    "hour": 23
+   }
+  },
+  {
+   "id": "soncho_vacation_january",
+   "begin": {
+    "month": 1,
+    "day": 15,
+    "hour": 10
+   },
+   "end": {
+    "month": 1,
+    "day": 24,
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_vacation_february",
+   "begin": {
+    "month": 2,
+    "day": 12,
+    "hour": 10
+   },
+   "end": {
+    "month": 2,
+    "day": 21,
+    "hour": 17
+   }
+  },
+  {
+   "id": "soncho_bridge_make",
+   "begin": {
+    "month": 1,
+    "day": 1,
+    "hour": 7
+   },
+   "end": {
+    "month": 12,
+    "day": 31,
+    "hour": 23
+   }
+  },
+  {
+   "id": "koinobori",
+   "begin": {
+    "month": 5,
+    "day": 1,
+    "hour": 0
+   },
+   "end": {
+    "month": 5,
+    "day": 5,
+    "hour": 23
+   }
+  }
+ ]
+}

@@ -5,6 +5,7 @@ extends Node3D
 
 const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
 const VILLAGER_SCENE := preload("res://scenes/actors/villager.tscn")
+const GOKI_SCENE := preload("res://scenes/world/house_goki.tscn")
 
 var grid: WorldGrid
 var session: IndoorSession
@@ -31,7 +32,8 @@ func _ready() -> void:
 	_apply_indoor_light(room)
 	_spawn_player()
 	_spawn_resident(room)
-	Audio.play_bgm(BgmCatalog.room_id(room.kind))
+	_spawn_gokis(room)
+	refresh_bgm()
 
 
 func _build_room(room: Room) -> void:
@@ -92,6 +94,9 @@ func _physics_process(_delta: float) -> void:
 
 
 func _exit_tree() -> void:
+	## Whatever is still scuttling goes back into the walls (`aMR_GokiInfoDt`).
+	if session != null and session.room != null and PlayerHouse.is_player_room(session.room.id):
+		HouseGoki.return_survivors(Game.interiors.player_house(), _live_gokis())
 	if Game.interior_session == session:
 		Game.bind_interior(null)
 
@@ -128,6 +133,112 @@ func refresh_placement(placement_id: StringName) -> void:
 	var entry: FurniturePlacement = session.room.placement_by_id(placement_id)
 	despawn_placement(placement_id)
 	spawn_placement(entry)
+
+
+## Cockroaches on entering a player floor (`aMR_GokiInfoCt`).
+func _spawn_gokis(room: Room) -> void:
+	if room == null or not PlayerHouse.is_player_room(room.id):
+		return
+	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	if player == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var spawns: Array[Dictionary] = HouseGoki.entry_spawns(
+		session, Game.interiors.player_house(), player.global_position, rng
+	)
+	for spawn: Dictionary in spawns:
+		add_goki(spawn["pos"] as Vector3, bool(spawn["fade"]))
+	if not spawns.is_empty() and not Game.goki_shocked:
+		Game.goki_shocked = true
+		if player.has_method("request_surprise"):
+			player.call("request_surprise")
+
+
+func add_goki(pos: Vector3, fade: bool) -> Node:
+	var goki: Node3D = GOKI_SCENE.instantiate() as Node3D
+	$Characters.add_child(goki)
+	goki.global_position = pos
+	goki.call("setup", session, fade)
+	return goki
+
+
+func _live_gokis() -> int:
+	var n: int = 0
+	for node: Node in get_tree().get_nodes_in_group("house_goki") if get_tree() != null else []:
+		if bool(node.get("alive")):
+			n += 1
+	return n
+
+
+## Furniture moved off these cells: a waiting roach may run out (`aMR_MakeGokiburi`).
+func on_furniture_moved(vacated: Array) -> void:
+	if session == null or session.room == null or not PlayerHouse.is_player_room(session.room.id):
+		return
+	for entry: Variant in vacated:
+		var spawn: Dictionary = HouseGoki.furniture_spawn(
+			session, Game.interiors.player_house(), entry as Vector2i, _live_gokis()
+		)
+		if not spawn.is_empty():
+			add_goki(spawn["pos"] as Vector3, true)
+			return
+
+
+## The node standing for a placement (a gripped piece is not always inside the probe's reach).
+func furniture_node(placement_id: StringName) -> Node:
+	var root: Node = _furniture_root()
+	return root.get_node_or_null(String(placement_id)) if root != null else null
+
+
+## Room music, or the song of whichever music player is switched on (`aMR_ChangeMDBgm`).
+func refresh_bgm() -> void:
+	if session == null or session.room == null:
+		return
+	var song: StringName = FurnitureMusic.active_bgm(session.room)
+	Audio.play_bgm(song if song != &"" else BgmCatalog.room_id(session.room.kind))
+
+
+## Glide every piece to where the session now has it after a push / pull / turn
+## (`aMR_FtrPush` / `aMR_FtrPull` / `aMR_FtrRotate`).
+func sync_placements(duration: float) -> void:
+	if session == null or session.room == null:
+		return
+	var root: Node = _furniture_root()
+	if root == null:
+		return
+	for entry: FurniturePlacement in session.room.placements:
+		if entry == null:
+			continue
+		var node: Node3D = root.get_node_or_null(String(entry.id)) as Node3D
+		if node == null:
+			continue
+		var data: FurnitureData = session.furniture_of(entry.furniture_id)
+		var size: Vector2i = entry.resolved_footprint(data)
+		var target: Vector3 = session.grid.furniture_world(entry.cell, size, entry.facing)
+		target.y = node.position.y
+		var yaw: float = WorldGrid.yaw_for_furniture(entry.facing)
+		node.set("grid_facing", entry.facing)
+		var moved: bool = not node.position.is_equal_approx(target)
+		var turned: bool = absf(angle_difference(node.rotation.y, yaw)) > 0.001
+		if not moved and not turned:
+			continue
+		if duration <= 0.0:
+			node.position = target
+			node.rotation.y = yaw
+			continue
+		var tween: Tween = node.create_tween().set_parallel(true)
+		if moved:
+			tween.tween_property(node, "position", target, duration).set_trans(Tween.TRANS_SINE).set_ease(
+				Tween.EASE_IN_OUT
+			)
+		if turned:
+			var start: float = node.rotation.y
+			tween.tween_method(
+				func(t: float) -> void: node.rotation.y = lerp_angle(start, yaw, t),
+				0.0,
+				1.0,
+				duration
+			).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func refresh_shop_set() -> void:

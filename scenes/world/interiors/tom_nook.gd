@@ -105,13 +105,32 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 
 func _maybe_force_greet() -> void:
 	## `aNRG2_think_init` force-talk on first shop visit during FIRSTJOB_START.
-	if Game == null or Game.first_job == null or not Game.first_job.is_active():
+	if Game == null:
+		return
+	if Game.first_job == null or not Game.first_job.is_active():
+		## Chores done: he only opens the conversation himself when the house needs him.
+		var house: House = Game.interiors.player_house() if Game.interiors != null else null
+		if NookHouseTalk.has_business(house, Game.inventory):
+			_force_greet_queued = true
+			await _greet_after_frames()
 		return
 	if Game.first_job.shop_greeted:
 		return
 	if _force_greet_queued:
 		return
 	_force_greet_queued = true
+	if get_tree() != null:
+		await get_tree().process_frame
+		await get_tree().process_frame
+	if not is_instance_valid(self):
+		return
+	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D if get_tree() != null else null
+	var ctx := InteractionContext.new()
+	ctx.actor = player
+	_begin_talk(ctx)
+
+
+func _greet_after_frames() -> void:
 	if get_tree() != null:
 		await get_tree().process_frame
 		await get_tree().process_frame
@@ -136,12 +155,26 @@ func _begin_normal_talk(listener: Node3D) -> bool:
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = "Tom Nook"
 	talk_ctx.already_talked = _talked_today
+	## House business first (`aNSC_set_talk_info_start_wait*`): a landed build, the statue, or
+	## an upgrade offer replaces the plain greeting.
+	var house: House = Game.interiors.player_house() if Game.interiors != null else null
+	var house_plan: Dictionary = NookHouseTalk.plan(house, Game.inventory, Game.num_statues)
+	var house_data: DialogueData = (
+		DialogueCatalog.conversation(NookHouseTalk.DIALOGUE_ID) if not house_plan.is_empty() else null
+	)
+	if house_data != null:
+		data = house_data
+		NookHouseTalk.fill_context(talk_ctx, house_plan)
+		if house_plan.has("statues_built"):
+			Game.num_statues = int(house_plan["statues_built"])
 	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
 	if ui != null and data != null and ui.has_method("play"):
 		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
 			ui.call("close")
 		_start_talk_session(listener)
 		_bind_talk_end(ui)
+		if house_data != null and ui.has_signal("event_fired") and not ui.is_connected("event_fired", _on_house_event):
+			ui.connect("event_fired", _on_house_event)
 		ui.call("play", data, talk_ctx)
 	elif ui != null and ui.has_method("say"):
 		_start_talk_session(listener)
@@ -360,8 +393,18 @@ func _bind_talk_end(ui: Node) -> void:
 	ui.connect("closed", _on_talk_closed, CONNECT_ONE_SHOT)
 
 
+func _on_house_event(event: Dictionary) -> void:
+	var house: House = Game.interiors.player_house() if Game.interiors != null else null
+	var notice: String = NookHouseTalk.apply_event(event, house)
+	if notice != "":
+		Game.post_notice(notice)
+
+
 func _on_talk_closed() -> void:
 	_talking = false
+	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
+	if ui != null and ui.has_signal("event_fired") and ui.is_connected("event_fired", _on_house_event):
+		ui.disconnect("event_fired", _on_house_event)
 	TalkCamera.end(get_tree())
 	await _apply_pending_after()
 

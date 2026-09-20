@@ -94,6 +94,38 @@ static func attach(host: Node3D, visual_id: StringName) -> Node3D:
 	return pivot
 
 
+## Attach an actor model at the host origin with the decomp draw scale and **no** floor
+## snap — the model's own Y is authored against the room datum (`obj_myhome_step_down`
+## dips below the floor). `mirror_x` is the `Matrix_scale(-0.01, …)` the decomp uses for
+## the mirrored upstairs / basement steps (`aMI_scale_x_table`).
+static func attach_datum(host: Node3D, visual_id: StringName, mirror_x: bool = false) -> Node3D:
+	if host == null or visual_id == &"":
+		return null
+	var paths: PackedStringArray = FieldCatalog.mesh_paths(visual_id)
+	if paths.is_empty():
+		return null
+	var pivot := Node3D.new()
+	pivot.name = "GeneratedVisual"
+	for path: String in paths:
+		var packed: PackedScene = load(path) as PackedScene
+		if packed == null:
+			continue
+		var inst: Node = packed.instantiate()
+		if inst is Node3D:
+			pivot.add_child(inst)
+		else:
+			inst.queue_free()
+	if pivot.get_child_count() == 0:
+		pivot.free()
+		return null
+	host.add_child(pivot)
+	_stop_autoplay(pivot)
+	_apply_materials(pivot, false, false, visual_id)
+	var s: float = FieldCatalog.actor_uniform_scale_for(visual_id)
+	pivot.scale = Vector3(-s if mirror_x else s, s, s)
+	return pivot
+
+
 static func _attach_blob_shadow(host: Node3D, visual_id: StringName) -> void:
 	## Authored `*_shadow_v` companion. Separate from GeneratedVisual so actor AABB fit
 	## ignores the flat fan. Characters use `actor_blob_shadow.tscn` instead.

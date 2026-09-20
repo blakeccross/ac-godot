@@ -21,38 +21,40 @@ static func register() -> void:
 	_apply_small_door(main)
 	InteriorCatalog.fill_player_starter(main)
 	InteriorCatalog.put_room(main)
-	InteriorCatalog.put_room(
-		InteriorCatalog.make_room(
-			&"player_upper",
-			Room.Kind.PLAYER,
-			"Upstairs",
-			Vector2i(5, 5),
-			Vector2i(6, 6),
-			{
-				"decorate": true,
-				"wall": InteriorStyleCatalog.wall_style_id(InteriorCatalog.PLAYER_START_WALL),
-				"floor": InteriorStyleCatalog.floor_style_id(InteriorCatalog.PLAYER_START_FLOOR),
-				"parent": &"player_main",
-				"shells": PackedStringArray(["rom_myhome2_floor", "rom_myhome2_wall"]),
-			}
-		)
+	## Upper floor / basement: size-independent rects, shells and stairs come from
+	## `PlayerHouse.configure_room` (small-house defaults until a size is known).
+	var upper := InteriorCatalog.make_room(
+		&"player_upper",
+		Room.Kind.PLAYER,
+		"Upstairs",
+		InteriorCatalog.PLAYER_INNER_ORIGIN,
+		PlayerHouse.UPPER_INNER,
+		{
+			"decorate": true,
+			"wall": InteriorStyleCatalog.wall_style_id(InteriorCatalog.PLAYER_START_WALL),
+			"floor": InteriorStyleCatalog.floor_style_id(InteriorCatalog.PLAYER_START_FLOOR),
+			"parent": &"player_main",
+			"shells": PlayerHouse.UPPER_SHELLS,
+		}
 	)
-	InteriorCatalog.put_room(
-		InteriorCatalog.make_room(
-			&"player_basement",
-			Room.Kind.PLAYER,
-			"Basement",
-			Vector2i(4, 4),
-			Vector2i(8, 8),
-			{
-				"decorate": true,
-				"wall": InteriorStyleCatalog.WALL_DEFAULT,
-				"floor": InteriorStyleCatalog.FLOOR_STONE,
-				"parent": &"player_main",
-				"shells": PackedStringArray(["rom_myhome_ug"]),
-			}
-		)
+	PlayerHouse.configure_room(upper, null)
+	InteriorCatalog.put_room(upper)
+	var basement := InteriorCatalog.make_room(
+		&"player_basement",
+		Room.Kind.PLAYER,
+		"Basement",
+		InteriorCatalog.PLAYER_INNER_ORIGIN,
+		PlayerHouse.BASEMENT_INNER,
+		{
+			"decorate": true,
+			"wall": InteriorStyleCatalog.WALL_DEFAULT,
+			"floor": InteriorStyleCatalog.FLOOR_STONE,
+			"parent": &"player_main",
+			"shells": PlayerHouse.BASEMENT_SHELLS,
+		}
 	)
+	PlayerHouse.configure_room(basement, null)
+	InteriorCatalog.put_room(basement)
 	InteriorCatalog.put_house(
 		InteriorCatalog.PLAYER_HOUSE_ID, &"player", &"player_house", [&"player_main"]
 	)

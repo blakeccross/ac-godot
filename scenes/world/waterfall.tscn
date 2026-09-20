@@ -1,6 +1,6 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://ctsja64dhu1vt"]
 
 [ext_resource type="Script" path="res://scenes/world/waterfall.gd" id="1"]
 
-[node name="Waterfall" type="Node3D"]
+[node name="Waterfall" type="Node3D" unique_id=1611549893]
 script = ExtResource("1")

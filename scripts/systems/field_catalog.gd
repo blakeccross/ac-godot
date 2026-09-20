@@ -393,6 +393,9 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 			## Outdoor structures (`obj_s_myhome1`, `obj_s_museum`, `obj_s_tailor`, …).
 			if id.begins_with("obj_"):
 				return _structure_paths(id)
+			## Actor models (`act_m_house_goki`).
+			if id.begins_with("act_"):
+				return _existing(["environment/%s.glb" % id])
 			return PackedStringArray()
 
 

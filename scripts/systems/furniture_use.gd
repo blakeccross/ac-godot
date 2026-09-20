@@ -3,8 +3,6 @@ extends RefCounted
 
 ## Data-driven furniture verbs. Hosts call `actions` / `apply`; they do not switch on kind.
 
-const ANIM_SIT := &"ply_1_sit1"
-const ANIM_LIE := &"ply_1_bed1"
 
 
 static func actions(host: Node, ctx: InteractionContext) -> Array[Interaction]:
@@ -14,13 +12,13 @@ static func actions(host: Node, ctx: InteractionContext) -> Array[Interaction]:
 	var data: FurnitureData = _data(host)
 	var entry: FurniturePlacement = _entry(host)
 	var label: String = data.display_name if data else "Furniture"
-	if data != null and data.is_sittable():
-		out.append(Interaction.of(Interaction.SIT, "Sit on %s" % label, 8, ANIM_SIT))
-	if data != null and data.is_bed():
-		out.append(Interaction.of(Interaction.LIE, "Lie on %s" % label, 8, ANIM_LIE))
-	if data != null and data.has_storage():
-		out.append(Interaction.of(Interaction.OPEN, "Open %s" % label, 9))
-	if data != null and data.is_toggleable():
+	## Chairs and beds are not verbs: walk into them (`FurnitureSeat`).
+	if data != null and data.has_storage() and _from_front(ctx):
+		if data.is_music_player():
+			out.append(Interaction.of(Interaction.OPEN, "Use %s" % label, 9))
+		else:
+			out.append(Interaction.of(Interaction.OPEN, "Open %s" % label, 9, _open_clip(data)))
+	if data != null and data.is_toggleable() and not data.is_music_player() and (not data.radio_aerobics or _from_front(ctx)):
 		var powered: bool = entry == null or entry.on
 		var verb: String = "Turn off %s" if powered else "Turn on %s"
 		out.append(Interaction.of(Interaction.TOGGLE, verb % label, 7))
@@ -28,13 +26,15 @@ static func actions(host: Node, ctx: InteractionContext) -> Array[Interaction]:
 		out.append(Interaction.of(Interaction.TAKE, "Take from %s" % label, 10))
 	elif data != null and _can_display(data, ctx):
 		out.append(Interaction.of(Interaction.DISPLAY, "Put on %s" % label, 10))
-	if Game.is_decorating():
-		## Pick up beats sit/open so A relocates furniture. Place uses player facing.
-		## Same bend as field pickup (`m_player_main_pickup_furniture` → PICKUP1).
-		out.append(Interaction.of(Interaction.PICK_UP, "Pick up %s" % label, 12, &"ply_1_pickup1", 20.0))
-		if data == null or data.can_rotate:
-			out.append(Interaction.of(Interaction.ROTATE, "Rotate %s" % label, 5))
+	## Moving, turning and picking up are not verbs: A grips and the stick moves the piece
+	## (`FurnitureGrip`), B picks it up.
 	return out
+
+
+## `ply_1_kagu_open_{h,k,d}1` for the kind of chest (`Player_actor_request_main_open_furniture`).
+static func _open_clip(data: FurnitureData) -> StringName:
+	var type: int = data.storage_type if data.storage_type != FurnitureData.StorageType.NONE else FurnitureData.StorageType.DRAWERS
+	return FurnitureStorage.OPEN_CLIPS[type] as StringName
 
 
 static func apply(action: Interaction, host: Node, ctx: InteractionContext) -> bool:
@@ -42,15 +42,8 @@ static func apply(action: Interaction, host: Node, ctx: InteractionContext) -> b
 		return false
 	var pid: StringName = host.get("occupant_id") as StringName
 	match action.id:
-		Interaction.SIT:
-			## Jump + chair SE scheduled from `ply_1_sit1` via PlayerSe.
-			Game.post_notice("You sit down.")
-			return true
-		Interaction.LIE:
-			Game.post_notice("You lie down.")
-			return true
 		Interaction.OPEN:
-			return open_storage(pid, ctx)
+			return await FurnitureTalk.run(host, ctx)
 		Interaction.TOGGLE:
 			return toggle(pid)
 		Interaction.DISPLAY:
@@ -65,37 +58,8 @@ static func apply(action: Interaction, host: Node, ctx: InteractionContext) -> b
 			return false
 
 
-static func open_storage(placement_id: StringName, ctx: InteractionContext) -> bool:
-	if Game.interior_session == null:
-		return false
-	var entry: FurniturePlacement = Game.interior_session.room.placement_by_id(placement_id)
-	var data: FurnitureData = Game.interior_session.furniture_of(entry.furniture_id) if entry else null
-	if entry == null or data == null or not data.has_storage():
-		return false
-	PlayerSe.drawer_open(ctx.actor if ctx != null else null)
-	var inv: Inventory = ctx.inventory if ctx else Game.inventory
-	var held: ItemData = _held_item(inv)
-	if held != null and not (held is FurnitureData):
-		if entry.stored.size() >= data.keep_count():
-			Game.post_notice("It's full.")
-			return false
-		if inv.remove(held.id, 1) > 0:
-			return false
-		entry.stored.append(String(held.id))
-		Game.post_notice("Put %s away." % held.display_name)
-		return true
-	if entry.stored.is_empty():
-		Game.post_notice("It's empty.")
-		return false
-	var take_id := StringName(entry.stored[entry.stored.size() - 1])
-	var take: ItemData = ItemCatalog.get_item(take_id)
-	if take == null or not inv.has_space_for(take, 1):
-		Game.post_notice("Pockets are full.")
-		return false
-	entry.stored.remove_at(entry.stored.size() - 1)
-	inv.add(take, 1)
-	Game.post_notice("Took %s." % take.display_name)
-	return true
+static func _from_front(ctx: InteractionContext) -> bool:
+	return ctx == null or ctx.contact_side < 0 or ctx.contact_side == FurnitureGrip.ContactSide.FRONT
 
 
 static func toggle(placement_id: StringName) -> bool:
@@ -104,9 +68,37 @@ static func toggle(placement_id: StringName) -> bool:
 	var entry: FurniturePlacement = Game.interior_session.room.placement_by_id(placement_id)
 	if entry == null:
 		return false
-	entry.on = not entry.on
+	var data: FurnitureData = Game.interior_session.furniture_of(entry.furniture_id)
+	if data != null and data.radio_aerobics:
+		## Only one thing sounds at a time (`aMR_OneMDSwitchOn_TheOtherSwitchOff`).
+		FurnitureMusic.set_switch(Game.interior_session, entry, not entry.on)
+	else:
+		entry.on = not entry.on
+	if data != null and (data.kind == FurnitureData.Kind.TOGGLE or data.radio_aerobics):
+		Audio.play_se(&"light_on" if entry.on else &"light_off")
+	if data != null and data.kind == FurnitureData.Kind.GYROID:
+		_hop(pid_node(placement_id))
+	if data != null and data.radio_aerobics:
+		FurnitureTalk.refresh_room_bgm()
 	Game.post_notice("Turned %s." % ("on" if entry.on else "off"))
 	return true
+
+
+## A gyroid bounces when tapped (`aMR_HaniwaSwitchOn`). Its voice samples are not in the pipeline.
+static func _hop(node: Node3D) -> void:
+	if node == null:
+		return
+	var rest: float = node.position.y
+	var tween: Tween = node.create_tween()
+	tween.tween_property(node, "position:y", rest + 0.35, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(node, "position:y", rest, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+
+
+static func pid_node(placement_id: StringName) -> Node3D:
+	var host: Node = Game.get_tree().get_first_node_in_group("interior") if Game.get_tree() != null else null
+	if host != null and host.has_method("furniture_node"):
+		return host.call("furniture_node", placement_id) as Node3D
+	return null
 
 
 static func put_display(placement_id: StringName, ctx: InteractionContext) -> bool:

@@ -27,6 +27,20 @@ static func yaw_for_furniture(facing: Facing) -> float:
 	return deg_to_rad(float(int(facing)) * 90.0)
 
 
+## The player's heading (`PlayerLocomotion.facing = atan2(x, z)`: east +90°, west −90°) is the
+## furniture convention, not `yaw_for_facing`'s — the two only agree on north and south.
+static func facing_from_player_yaw(yaw: float) -> Facing:
+	var best: Facing = Facing.SOUTH
+	var best_delta: float = INF
+	for i: int in FACING_COUNT:
+		var facing: Facing = i as Facing
+		var delta: float = absf(angle_difference(yaw, yaw_for_furniture(facing)))
+		if delta < best_delta:
+			best_delta = delta
+			best = facing
+	return best
+
+
 static func facing_from_yaw(yaw: float) -> Facing:
 	var best: Facing = Facing.SOUTH
 	var best_delta: float = INF

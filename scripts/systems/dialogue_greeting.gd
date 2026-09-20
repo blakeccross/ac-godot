@@ -35,6 +35,11 @@ static func conversation(villager: VillagerData, state: VillagerState, ctx: Dial
 	var snap: DialogueContext = ctx if ctx != null else DialogueContext.from_game(villager, state)
 	_ensure_rng(snap)
 	var msg_no: int = hello_msg_no(villager, state, snap)
+	## A finished fish / insect collection is worth a word — once per villager per collection.
+	if snap.mood != VillagerState.Mood.PITFALL and meet_type(state, snap) != MEET_FIRST:
+		var congrats: int = CompleteTalk.try_greeting(_looks(villager), state, snap.rng)
+		if congrats >= 0:
+			msg_no = congrats
 	var imported: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % msg_no))
 	if imported != null:
 		return imported

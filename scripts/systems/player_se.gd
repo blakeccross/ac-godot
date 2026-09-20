@@ -15,11 +15,20 @@ const CLIP_MARKS: Dictionary = {
 	## stump dig uses the same clip with kiribasu SE instead.
 	&"ply_1_fill_up1": [[11.0, &"scoop_umeru"]],
 	&"ply_1_fill_up_i1": [[18.0, &"scoop_umeru"]],
+	## `aMR_SetOpenFtrDemoData`: the piece opens as the player reaches for it.
+	&"ply_1_kagu_open_h1": [[0.0, &"drawer_open"]],
+	&"ply_1_kagu_open_k1": [[0.0, &"ftr_door_open"]],
+	&"ply_1_kagu_open_d1": [[0.0, &"ftr_door_open"]],
+	&"ply_1_kagu_close_h1": [[6.0, &"drawer_close"]],
+	&"ply_1_kagu_close_k1": [[6.0, &"ftr_door_close"]],
+	&"ply_1_kagu_close_d1": [[6.0, &"ftr_door_close"]],
 	&"ply_1_pickup1": [[10.0, &"item_get"], [20.0, &"gasagoso"]],
 	&"ply_1_sao_swing1": [[20.0, &"rod_stroke"]],
 	&"ply_1_net_swing1": [[0.0, &"tool_furi"]],
-	&"ply_1_sit1": [[0.0, &"jump"], [8.0, &"hard_chair_sit"]],
-	&"ply_1_bed1": [[0.0, &"bed_in"]],
+	## `Player_actor_sound_JUMP` at setup, `Player_actor_sound_SIT` at frame 18 (`SetSound_Sitdown`).
+	&"ply_1_sitdown1": [[0.0, &"jump"], [18.0, &"hard_chair_sit"]],
+	&"ply_1_inbed_L1": [[0.0, &"bed_in"]],
+	&"ply_1_inbed_R1": [[0.0, &"bed_in"]],
 	&"ply_1_turi_hiki1": [[0.0, &"10c"]],
 	&"ply_1_get_t1": [[0.0, &"rod_back"]],
 	&"ply_1_not_get_t1": [[0.0, &"rod_back"]],

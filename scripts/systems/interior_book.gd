@@ -23,6 +23,8 @@ func room(room_id: StringName) -> Room:
 	var copy: Room = template.duplicate(true) as Room
 	copy.placements = _dup_placements(template.placements)
 	_rooms[room_id] = copy
+	if PlayerHouse.is_player_room(room_id):
+		PlayerHouse.configure_room(copy, player_house())
 	return copy
 
 
@@ -37,6 +39,20 @@ func house(house_id: StringName) -> House:
 	var copy: House = template.duplicate(true) as House
 	_houses[house_id] = copy
 	return copy
+
+
+## The player's house record (size, basement, pending order).
+func player_house() -> House:
+	return house(InteriorCatalog.PLAYER_HOUSE_ID)
+
+
+## Re-derive every live player room from the house size — call after the size, basement
+## or a save load changes (`mHm_RehouseWallDoor`: furniture stays, walls / stairs move).
+func refresh_player_rooms() -> void:
+	var record: House = player_house()
+	for room_id: StringName in [PlayerHouse.MAIN, PlayerHouse.UPPER, PlayerHouse.BASEMENT]:
+		if _rooms.has(room_id):
+			PlayerHouse.configure_room(_rooms[room_id] as Room, record)
 
 
 func to_save() -> Dictionary:
@@ -81,6 +97,7 @@ func apply_snapshot(data: Variant) -> void:
 		var copy: House = house(house_id)
 		if copy != null:
 			copy.apply_snapshot((houses_raw as Dictionary)[key])
+	refresh_player_rooms()
 
 
 func _dup_placements(src: Array[FurniturePlacement]) -> Array[FurniturePlacement]:

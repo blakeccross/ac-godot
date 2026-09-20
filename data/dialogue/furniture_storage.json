@@ -1,0 +1,256 @@
+{
+  "id": "furniture_storage",
+  "speaker_id": "",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "storage_scene",
+              "value": "empty"
+            }
+          },
+          "goto": "empty"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "storage_scene",
+              "value": "one"
+            }
+          },
+          "goto": "one"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "storage_scene",
+              "value": "two"
+            }
+          },
+          "goto": "two"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "storage_scene",
+              "value": "three"
+            }
+          },
+          "goto": "three"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "storage_scene",
+              "value": "other_empty"
+            }
+          },
+          "goto": "other_empty"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "storage_scene",
+              "value": "other_one"
+            }
+          },
+          "goto": "other_one"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "storage_scene",
+              "value": "other_two"
+            }
+          },
+          "goto": "other_two"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "storage_scene",
+              "value": "other_three"
+            }
+          },
+          "goto": "other_three"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "storage_scene",
+              "value": "pockets_full"
+            }
+          },
+          "goto": "pockets_full"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "storage_scene",
+              "value": "nothing_to_put"
+            }
+          },
+          "goto": "nothing_to_put"
+        },
+        {
+          "goto": "empty"
+        }
+      ]
+    },
+    "empty": {
+      "type": "choice",
+      "prompt": "It's empty right now.\nDo you want to put\nsomething in?",
+      "options": [
+        {
+          "text": "Put something in",
+          "events": [
+            {
+              "op": "storage_put"
+            }
+          ]
+        },
+        {
+          "text": "Close"
+        }
+      ]
+    },
+    "one": {
+      "type": "choice",
+      "prompt": "{item0}\nis inside.\nWhat do you want to do?",
+      "options": [
+        {
+          "text": "Put something in",
+          "events": [
+            {
+              "op": "storage_put"
+            }
+          ]
+        },
+        {
+          "text": "Take it out",
+          "events": [
+            {
+              "op": "storage_take",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "text": "Close"
+        }
+      ]
+    },
+    "two": {
+      "type": "choice",
+      "prompt": "{item0} and\n{free0} are inside.\nWhat do you want to do?",
+      "options": [
+        {
+          "text": "Put something in",
+          "events": [
+            {
+              "op": "storage_put"
+            }
+          ]
+        },
+        {
+          "text": "Take something out",
+          "goto": "take_two"
+        },
+        {
+          "text": "Close"
+        }
+      ]
+    },
+    "take_two": {
+      "type": "choice",
+      "prompt": "What do you want\nto take out?",
+      "options": [
+        {
+          "text": "{item0}",
+          "events": [
+            {
+              "op": "storage_take",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "text": "{free0}",
+          "events": [
+            {
+              "op": "storage_take",
+              "index": 1
+            }
+          ]
+        },
+        {
+          "text": "Never mind"
+        }
+      ]
+    },
+    "three": {
+      "type": "choice",
+      "prompt": "{item0}, {free0}\nand {free1} are inside.\nWhat do you want to\ntake out?",
+      "options": [
+        {
+          "text": "{item0}",
+          "events": [
+            {
+              "op": "storage_take",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "text": "{free0}",
+          "events": [
+            {
+              "op": "storage_take",
+              "index": 1
+            }
+          ]
+        },
+        {
+          "text": "{free1}",
+          "events": [
+            {
+              "op": "storage_take",
+              "index": 2
+            }
+          ]
+        },
+        {
+          "text": "Never mind"
+        }
+      ]
+    },
+    "other_empty": {
+      "type": "line",
+      "text": "It's empty right now."
+    },
+    "other_one": {
+      "type": "line",
+      "text": "There's {item0}\ninside."
+    },
+    "other_two": {
+      "type": "line",
+      "text": "{item0} and\n{free0} are inside."
+    },
+    "other_three": {
+      "type": "line",
+      "text": "{item0}, {free0}\nand {free1} are inside."
+    },
+    "pockets_full": {
+      "type": "line",
+      "text": "Your pockets are full!\nYou can't carry any more!"
+    },
+    "nothing_to_put": {
+      "type": "line",
+      "text": "You don't have anything\nyou can put inside!"
+    }
+  }
+}

@@ -32,6 +32,10 @@ static func add_exit_door(root: Node3D, grid: WorldGrid, room: Room) -> void:
 		door.set("exits_interior", true)
 		door.set("auto_enter", true)
 		_size_museum_wing_door(door, sensor)
+	elif room.door_cell.x < 0:
+		## Upper floor / basement: stairs only (`add_stair_doors`).
+		door.free()
+		return
 	else:
 		## EXIT_DOOR pair midpoint (houses / shops).
 		door.position = (
@@ -79,6 +83,29 @@ static func place_authored_doors(root: Node3D, grid: WorldGrid, room: Room) -> v
 		door.set("verb", Interaction.ENTER)
 		door.set("linked_room_id", room_id)
 		door.set("occupy_grid", false)
+
+
+## Player-house stairs: walk onto the `DOOR` unit to change floor (`goto_next_scene` with the
+## door index). Lands at the target scene's `Door_data_c` exit position.
+static func add_stair_doors(root: Node3D, grid: WorldGrid, room: Room) -> void:
+	if root == null or grid == null or room == null:
+		return
+	for stair: RoomStair in room.stairs:
+		if stair == null or stair.target_room_id == &"":
+			continue
+		var door: Node3D = DOOR_SCENE.instantiate() as Node3D
+		door.name = "Stairs_%s" % String(stair.target_room_id)
+		door.position = grid.cell_to_world(stair.cell)
+		door.set("label", stair.label)
+		door.set("verb", Interaction.ENTER)
+		door.set("linked_room_id", stair.target_room_id)
+		door.set("occupy_grid", false)
+		door.set("auto_enter", true)
+		door.set("has_linked_spawn", true)
+		door.set("linked_spawn_gx", stair.spawn_gx)
+		door.set("linked_spawn_yaw", WorldGrid.yaw_for_furniture(stair.spawn_facing))
+		HostCollision.resize_interact_box(door, Vector3(grid.cell_size, 2.0, grid.cell_size))
+		root.add_child(door)
 
 
 static func add_linked_doors(root: Node3D, grid: WorldGrid, room: Room) -> void:

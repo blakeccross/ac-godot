@@ -25,6 +25,7 @@ from asset_pipeline.convert import (  # noqa: E402
     convert_water_acres,
 )
 from asset_pipeline.fgdata import convert_fgdata  # noqa: E402
+from asset_pipeline.furniture_profiles import convert_furniture_profiles  # noqa: E402
 from asset_pipeline.npc_rooms import convert_npc_rooms  # noqa: E402
 from asset_pipeline.audio import convert_audio  # noqa: E402
 from asset_pipeline.dialogue import convert_dialogue  # noqa: E402
@@ -98,6 +99,12 @@ def main() -> int:
                     f"wrote NPC room layouts ({npc['villagers']} villagers, "
                     f"{npc['placements']} furniture) -> {npc.get('path', '')}"
                 )
+            prof = convert_furniture_profiles(cfg)
+            if prof.get("error"):
+                print(f"furniture_profiles: {prof['error']}")
+                failed = True
+            else:
+                print(f"wrote {prof['profiles']} furniture profiles -> {prof.get('path', '')}")
         elif args.kind == "message-ui":
             report = extract_message_ui(cfg)
             if report.get("error"):

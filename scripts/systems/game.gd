@@ -50,6 +50,8 @@ var police: PoliceBook = PoliceBook.new()
 var post: PostBook = PostBook.new()
 var farway: FarwayBook = FarwayBook.new()
 var redd: ReddBook = ReddBook.new()
+## Holidays, weekly visitors and the special-NPC schedule (`m_event`); see `EventCalendar`.
+var events: EventCalendar = EventCalendar.new()
 var designs: DesignBook = DesignBook.new()
 var first_job: FirstJob = FirstJob.new()
 var current_room_id: StringName = &""
@@ -77,8 +79,17 @@ var cloth_id: StringName = FirstJob.DEFAULT_CLOTH_ID
 var worn_design_slot: int = -1
 ## Town map unlocked after first-job furniture delivery (`Common.map_flag`).
 var has_map: bool = false
+## `Save_Get(num_statues)` — how many Nook house statues the town has built (0..3, gold →
+## jade); the next one takes the following rank.
+var num_statues: int = 0
+## `Private_c.complete_fish_insect_flags` — see `CompleteTalk`.
+var complete_flags: int = 0
+## `goki_shocked_flag`: the first roach of a session startles the player, once.
+var goki_shocked: bool = false
 ## Session weather (`mEnv_WEATHER_*`). Rolled by `Weather` on `field_renewed`.
 var weather: StringName = &"clear"
+## False until `sync_events` has adopted the clock for this session.
+var _events_ready: bool = false
 
 ## `Save_Get(insect_term)` / `insect_term_transition_offset` — the month whose
 ## insect spawn table is currently "settled in" and a per-month random 0-5 day
@@ -131,6 +142,11 @@ var title_demo_index: int = 0
 var museum_donate_pending: bool = false
 var museum_donate_result: Dictionary = {}
 signal museum_donate_resolved(donated: bool)
+## A drawer / music player asked for an item from the pockets (`mSM_IV_OPEN_PUTIN_FTR` /
+## `mSM_IV_OPEN_MINIDISK`). `storage_putin_filter` is `&"any"` or `&"minidisk"`.
+var storage_putin_pending: bool = false
+var storage_putin_filter: StringName = &"any"
+signal storage_putin_resolved(item_id: StringName)
 
 
 func _init() -> void:
@@ -145,6 +161,11 @@ func _ready() -> void:
 	ReddBook.ensure_art_items()
 	if not Clock.field_renewed.is_connected(_on_field_renewed):
 		Clock.field_renewed.connect(_on_field_renewed)
+	if not Clock.time_changed.is_connected(sync_events):
+		Clock.time_changed.connect(sync_events)
+	if not events.event_started.is_connected(_on_event_started):
+		events.event_started.connect(_on_event_started)
+		events.event_ended.connect(_on_event_ended)
 
 
 func has_continue() -> bool:
@@ -309,6 +330,32 @@ func cancel_museum_donation() -> void:
 	museum_donate_resolved.emit(false)
 
 
+## Open the pockets so the player picks something to put away. `storage_putin_resolved` fires
+## with the chosen item id, or `&""` when the pockets close without a pick.
+func request_storage_putin(filter: StringName = &"any") -> void:
+	storage_putin_pending = true
+	storage_putin_filter = filter
+	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui") if get_tree() != null else null
+	if inv_ui != null and inv_ui.has_method("open"):
+		inv_ui.call("open")
+	else:
+		cancel_storage_putin()
+
+
+func take_storage_putin(item_id: StringName) -> void:
+	if not storage_putin_pending:
+		return
+	storage_putin_pending = false
+	storage_putin_resolved.emit(item_id)
+
+
+func cancel_storage_putin() -> void:
+	if not storage_putin_pending:
+		return
+	storage_putin_pending = false
+	storage_putin_resolved.emit(&"")
+
+
 func complete_intro_station() -> void:
 	## Stay in the current generated world; unlock normal play + first job.
 	intro_station_active = false
@@ -424,6 +471,9 @@ func resolve_world_data() -> WorldData:
 
 
 func continue_game() -> void:
+	## Every real entry point starts clean; without this the title's attract-demo flag survived
+	## into the loaded game and `notify_world_ready` kept the phase on TITLE (no Esc, no events).
+	reset_session()
 	if SaveService.load_game() != OK:
 		start_new_game()
 		return
@@ -449,6 +499,7 @@ func notify_world_ready() -> void:
 		_set_phase(Phase.TITLE)
 	else:
 		_set_phase(Phase.PLAYING)
+	sync_events()
 
 
 func notify_title_ready() -> void:
@@ -507,6 +558,9 @@ func reset_session() -> void:
 	player_face = 0
 	cloth_id = FirstJob.DEFAULT_CLOTH_ID
 	has_map = false
+	num_statues = 0
+	complete_flags = 0
+	goki_shocked = false
 	if first_job == null:
 		first_job = FirstJob.new()
 	else:
@@ -534,12 +588,50 @@ func reset_session() -> void:
 		redd = ReddBook.new()
 	else:
 		redd.clear()
+	events.clear()
+	_events_ready = false
 	if designs == null:
 		designs = DesignBook.new()
 	else:
 		designs.clear()
 	worn_design_slot = -1
 	set_interact_prompt("")
+
+
+## `mEv_GetEventWeather`: fireworks, the meteor shower and the like force clear skies; Dec 24
+## forces heavy snow. No-op when no event overrides the weather.
+func apply_event_weather() -> void:
+	match events.weather_override():
+		&"clear":
+			apply_weather_roll({"kind": Weather.Kind.CLEAR, "intensity": Weather.Intensity.NONE})
+		&"snow":
+			apply_weather_roll({"kind": Weather.Kind.SNOW, "intensity": Weather.Intensity.HEAVY})
+
+
+## Bring `events` to the clock. The first sync after a session starts only adopts the current
+## state (no announcements) and applies any event weather; later syncs report changes.
+func sync_events() -> void:
+	if phase != Phase.PLAYING or title_demo_active:
+		return
+	var first: bool = not _events_ready
+	_events_ready = true
+	if first and events.town_seed == 0:
+		events.assign_town(world_seed)
+	events.sync(EventCalendar.date_from_clock())
+	if first:
+		apply_event_weather()
+
+
+func _on_event_started(id: StringName) -> void:
+	if String(id).begins_with("weather_"):
+		apply_event_weather()
+	if EventSchedule.announces(id):
+		post_notice("%s has begun!" % EventSchedule.label(id))
+
+
+func _on_event_ended(id: StringName) -> void:
+	if String(id).begins_with("weather_") and events.weather_override() == &"":
+		apply_weather_roll(Weather.roll())
 
 
 func set_weather(next: StringName, intensity: int = -1) -> void:
@@ -707,6 +799,8 @@ func post_notice(text: String) -> void:
 
 
 func to_save() -> Dictionary:
+	## `mCkRh_SavePlayTime` runs whenever the game is saved.
+	HouseGoki.save_play_time(interiors.player_house())
 	return {
 		"player": {
 			"x": player_position.x,
@@ -732,6 +826,7 @@ func to_save() -> Dictionary:
 		"post": post.to_save(),
 		"farway": farway.to_save(),
 		"redd": redd.to_save(),
+		"events": events.to_save(),
 		"designs": designs.to_save(),
 		"worn_design_slot": worn_design_slot,
 		"current_room_id": String(current_room_id),
@@ -747,6 +842,8 @@ func to_save() -> Dictionary:
 		"player_face": player_face,
 		"cloth_id": String(cloth_id),
 		"has_map": has_map,
+		"num_statues": num_statues,
+		"complete_flags": complete_flags,
 		"first_job": first_job.to_save() if first_job != null else {},
 		"weather": String(weather),
 		"weather_intensity": weather_intensity,
@@ -808,6 +905,12 @@ func apply_snapshot(data: Dictionary) -> void:
 		grass_pattern = WorldData.GrassPattern.TRIANGLE
 	relationships.apply_snapshot(data.get("relationships", {}))
 	interiors.apply_snapshot(data.get("interiors", {}))
+	## `m_start_data_init.c`: a house ordered on an earlier day is built when the game starts,
+	## and finished collections are noted for the villagers' congratulations.
+	check_rehouse_order()
+	CompleteTalk.start_set_info()
+	goki_shocked = false
+	HouseGoki.decide_family_count(interiors.player_house())
 	shops.apply_snapshot(data.get("shops", {}))
 	if museum == null:
 		museum = MuseumBook.new()
@@ -827,6 +930,8 @@ func apply_snapshot(data: Dictionary) -> void:
 	if redd == null:
 		redd = ReddBook.new()
 	redd.apply_snapshot(data.get("redd", {}))
+	events.apply_snapshot(data.get("events", {}))
+	_events_ready = false
 	if designs == null:
 		designs = DesignBook.new()
 	designs.apply_snapshot(data.get("designs", {}))
@@ -854,6 +959,8 @@ func apply_snapshot(data: Dictionary) -> void:
 	if cloth_id == &"":
 		cloth_id = FirstJob.DEFAULT_CLOTH_ID
 	has_map = bool(data.get("has_map", false))
+	num_statues = clampi(int(data.get("num_statues", 0)), 0, 3)
+	complete_flags = int(data.get("complete_flags", 0)) & 0xF
 	if first_job == null:
 		first_job = FirstJob.new()
 	first_job.from_save(data.get("first_job", {}))
@@ -870,6 +977,15 @@ func apply_snapshot(data: Dictionary) -> void:
 	var vars_raw: Variant = data.get("dialogue_vars", {})
 	if typeof(vars_raw) == TYPE_DICTIONARY:
 		dialogue_vars = (vars_raw as Dictionary).duplicate(true)
+
+
+## `mHm_CheckRehouseOrder` for the player's house; rebuilds the live rooms when a build lands.
+func check_rehouse_order() -> bool:
+	var record: House = interiors.player_house()
+	if not HouseUpgrade.check_rehouse_order(record):
+		return false
+	interiors.refresh_player_rooms()
+	return true
 
 
 func is_indoors() -> bool:
@@ -915,7 +1031,7 @@ func try_enter_interior(
 		has_interior_spawn = true
 		spawn_at_room_door = false
 		## Non-museum linked spawns may continue INTO_S1; museum wings stay on door_data.
-		play_door_arrive = not _is_museum_room_id(room_id)
+		play_door_arrive = not _is_museum_room_id(room_id) and not PlayerHouse.is_player_room(room_id)
 	elif room_id == &"museum_entrance":
 		## `aMsm_museum_enter_data` — not scene player data / generic south door cell.
 		interior_spawn_gx = MuseumDisplay.ENTRANCE_SPAWN_GX
@@ -956,8 +1072,8 @@ func try_enter_interior(
 		has_interior_spawn = true
 		spawn_at_room_door = false
 	elif room_id == &"player_main":
-		## `aMHS_goto_next_pl_scene` HOMESIZE_S startX/Z.
-		interior_spawn_gx = InteriorCatalog.PLAYER_SMALL_SPAWN_GX
+		## `aMHS_goto_next_pl_scene` startX/Z for the current house size.
+		interior_spawn_gx = PlayerHouse.enter_gx(interiors.player_house())
 		interior_spawn_yaw = WorldGrid.yaw_for_facing(WorldGrid.Facing.NORTH)
 		has_interior_spawn = true
 		spawn_at_room_door = false
@@ -1033,6 +1149,7 @@ func refresh_police_set() -> void:
 
 func _on_field_renewed(days: int) -> void:
 	shops.renew(days)
+	HouseGoki.save_play_time(interiors.player_house())
 	refresh_shop_set()
 	if police != null:
 		for _i: int in maxi(days, 1):
@@ -1043,6 +1160,7 @@ func _on_field_renewed(days: int) -> void:
 		redd.check_unlock()
 	## One roll for the current date after renew (`mEnv_DecideWeather` / `aWeather_ChangeWeatherTime0`).
 	apply_weather_roll(Weather.roll())
+	apply_event_weather()
 
 
 ## Farway Museum returns identified fossils (+ the one-time intro letter) each morning.
@@ -1216,11 +1334,14 @@ func try_place_furniture(actor: Node3D) -> bool:
 	var data: FurnitureData = _selected_furniture()
 	if data == null:
 		return false
-	var facing: WorldGrid.Facing = WorldGrid.facing_from_yaw(
+	var facing: WorldGrid.Facing = WorldGrid.facing_from_player_yaw(
 		float(actor.call("facing_yaw")) if actor.has_method("facing_yaw") else actor.rotation.y
 	)
 	var cell: Vector2i = interior_session.grid.world_to_cell(actor.global_position)
 	cell = interior_session.grid.step(cell, facing)
+	if interior_session.is_full():
+		post_notice("This room can't hold any more furniture.")
+		return false
 	var entry: FurniturePlacement = interior_session.place(data, cell, facing)
 	if entry == null:
 		post_notice("Can't place that here.")
@@ -1348,23 +1469,30 @@ func _return_placement_contents(entry: FurniturePlacement) -> bool:
 	return true
 
 
+const _ESC_BLOCKING_UI: Array[String] = [
+	"inventory_ui", "dialogue_ui", "shop_ui", "map_ui", "debug_console_ui", "design_ui",
+	"design_list_ui", "name_entry_ui", "pause_ui",
+]
+
+
 func _unhandled_input(event: InputEvent) -> void:
-	if phase != Phase.PLAYING:
+	if not event.is_action_pressed("pause_menu"):
 		return
-	if event.is_action_pressed("pause_menu"):
-		if (
-			_group_is_open("inventory_ui")
-			or _group_is_open("dialogue_ui")
-			or _group_is_open("shop_ui")
-			or _group_is_open("map_ui")
-			or _group_is_open("debug_console_ui")
-			or _group_is_open("design_ui")
-			or _group_is_open("design_list_ui")
-			or _group_is_open("name_entry_ui")
-		):
+	if phase != Phase.PLAYING:
+		push_warning("Esc ignored: game phase is %s, not PLAYING." % Phase.keys()[phase])
+		return
+	## Menus close themselves on Esc first; if one is still open here it is stuck.
+	for group: String in _ESC_BLOCKING_UI:
+		if _group_is_open(group):
+			push_warning("Esc ignored: '%s' reports it is open." % group)
 			return
+	## Ask first; `PauseOverlay` saves and returns to the title on Yes.
+	var pause_ui: Node = get_tree().get_first_node_in_group("pause_ui") if get_tree() != null else null
+	if pause_ui != null and pause_ui.has_method("open"):
+		pause_ui.call("open")
+	else:
 		return_to_title()
-		get_viewport().set_input_as_handled()
+	get_viewport().set_input_as_handled()
 
 
 func _set_phase(next: Phase) -> void:

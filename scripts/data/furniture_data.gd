@@ -20,7 +20,11 @@ enum Kind {
 	UMBRELLA,
 	GYROID,
 	RUG,
+	FAMICOM,
 }
+## Which `aFTR_INTERACTION_STORAGE_*` a chest is: dressers open a drawer, wardrobes double
+## doors, closets one door. Picks the player's open / close clip.
+enum StorageType { NONE, DRAWERS, WARDROBE, CLOSET }
 enum Contact { NONE, CHAIR_FRONT, CHAIR_ANY, SOFA, BED_SINGLE, BED_DOUBLE }
 
 ## `aFTR_KEEP_ITEM_COUNT` (`mCoBG_LAYER_NUM - 1`).
@@ -42,6 +46,11 @@ const KEEP_SLOTS := 3
 @export var storage_slots: int = 0
 ## TVs start off (`aFTR_INTERACTION_START_DISABLED`).
 @export var starts_off: bool = false
+@export var storage_type: StorageType = StorageType.NONE
+## `aFTR_INTERACTION_RADIO_AEROBICS` — only answers from the front.
+@export var radio_aerobics: bool = false
+## Non-NULL `aFTR_PROFILE.vtable`: the piece visibly reacts to its switch.
+@export var reacts_to_switch: bool = false
 
 
 func _init() -> void:
@@ -99,7 +108,15 @@ func needs_wall() -> bool:
 
 
 func is_toggleable() -> bool:
-	return kind == Kind.TOGGLE or kind == Kind.MUSIC or kind == Kind.GYROID
+	return kind == Kind.TOGGLE or kind == Kind.MUSIC or kind == Kind.GYROID or radio_aerobics
+
+
+func is_music_player() -> bool:
+	return kind == Kind.MUSIC
+
+
+func is_chest() -> bool:
+	return kind == Kind.STORAGE
 
 
 func accepts_display(item: ItemData) -> bool:
@@ -116,6 +133,82 @@ func accepts_display(item: ItemData) -> bool:
 			return false
 
 
+## Apply the disc profile (`FurnitureProfiles`): footprint, contact and interaction come from
+## the game's own tables rather than the visual's name.
+func apply_profile(profile: Dictionary) -> void:
+	var shape_name: String = str(profile.get("shape", "TYPEA"))
+	if shape_name == "TYPEC":
+		footprint = Vector2i(2, 2)
+		shape = Shape.TYPE_C
+	elif shape_name.begins_with("TYPEB"):
+		footprint = Vector2i(2, 1)
+		shape = Shape.TYPE_B
+	else:
+		footprint = Vector2i.ONE
+		shape = Shape.TYPE_A
+	check_rotation = int(profile.get("check_rotation", 0)) != 0
+	reacts_to_switch = int(profile.get("vtable", 0)) != 0
+	var contacts: Array = profile.get("contact", []) as Array
+	if contacts.has("CHAIR_UNIDIRECTIONAL"):
+		kind = Kind.CHAIR
+		contact = Contact.CHAIR_FRONT
+		can_sit = true
+	elif contacts.has("CHAIR_MULTIDIRECTIONAL"):
+		kind = Kind.CHAIR
+		contact = Contact.CHAIR_ANY
+		can_sit = true
+	elif contacts.has("CHAIR_SOFA"):
+		kind = Kind.SOFA
+		contact = Contact.SOFA
+		can_sit = true
+	elif contacts.has("BED_DOUBLE"):
+		kind = Kind.BED
+		contact = Contact.BED_DOUBLE
+	elif contacts.has("BED_SINGLE"):
+		kind = Kind.BED
+		contact = Contact.BED_SINGLE
+	var acts: Array = profile.get("interaction", []) as Array
+	if acts.has("STORAGE_DRAWERS") or acts.has("STORAGE_WARDROBE") or acts.has("STORAGE_CLOSET"):
+		kind = Kind.STORAGE
+		can_store = true
+		storage_slots = KEEP_SLOTS
+		if acts.has("STORAGE_DRAWERS"):
+			storage_type = StorageType.DRAWERS
+		elif acts.has("STORAGE_WARDROBE"):
+			storage_type = StorageType.WARDROBE
+		else:
+			storage_type = StorageType.CLOSET
+	elif acts.has("MUSIC_DISK"):
+		kind = Kind.MUSIC
+		can_store = true
+		storage_slots = 1
+		## Players are silent until a song is chosen and switched on.
+		starts_off = true
+	elif acts.has("HANIWA"):
+		kind = Kind.GYROID
+	elif acts.has("FAMICOM") or acts.has("FAMICOM_ITEM"):
+		kind = Kind.FAMICOM
+	elif acts.has("MANNEKIN"):
+		kind = Kind.MANNEQUIN
+	elif acts.has("UMBRELLA"):
+		kind = Kind.UMBRELLA
+	elif acts.has("FISH") or acts.has("INSECT") or acts.has("FOSSIL"):
+		kind = Kind.DISPLAY
+	elif acts.has("TOGGLE"):
+		kind = Kind.TOGGLE
+	if acts.has("RADIO_AEROBICS"):
+		radio_aerobics = true
+		starts_off = true
+	if acts.has("START_DISABLED"):
+		starts_off = true
+		if kind == Kind.GENERIC:
+			kind = Kind.TOGGLE
+	if acts.has("NO_COLLISION"):
+		blocks_walk = false
+		if kind == Kind.GENERIC:
+			kind = Kind.RUG
+
+
 func infer_from_visual() -> void:
 	## Runtime stub for disc FTR that has a GLB but no authored `.tres`.
 	if visual_id == &"":
@@ -125,6 +218,15 @@ func infer_from_visual() -> void:
 	indoor = true
 	blocks_walk = true
 	var raw := String(visual_id).to_lower()
+	var profile: Dictionary = FurnitureProfiles.profile_for(visual_id)
+	if not profile.is_empty():
+		apply_profile(profile)
+		## Placement class (table / wall hanging) is not in the profile.
+		if raw.contains("table") or raw.contains("desk") or raw.contains("counter"):
+			placement = Placement.TABLE
+		if raw.contains("art") or raw.contains("paint") or raw.contains("poster") or raw.contains("easel"):
+			placement = Placement.WALL
+		return
 	if raw.contains("sofa") or raw.contains("bench") or raw.contains("benti"):
 		kind = Kind.SOFA
 		contact = Contact.SOFA

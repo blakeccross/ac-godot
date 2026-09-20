@@ -1,0 +1,249 @@
+{
+  "id": "furniture_music",
+  "speaker_id": "",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "music_scene",
+              "value": "music_empty"
+            }
+          },
+          "goto": "music_empty"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "music_scene",
+              "value": "music_off"
+            }
+          },
+          "goto": "music_off"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "music_scene",
+              "value": "music_on"
+            }
+          },
+          "goto": "music_on"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "music_scene",
+              "value": "other_music"
+            }
+          },
+          "goto": "other_music"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "music_scene",
+              "value": "other_music_empty"
+            }
+          },
+          "goto": "other_music_empty"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "music_scene",
+              "value": "box_empty"
+            }
+          },
+          "goto": "box_empty"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "music_scene",
+              "value": "duplicate"
+            }
+          },
+          "goto": "duplicate"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "music_scene",
+              "value": "box_pick"
+            }
+          },
+          "goto": "box_pick"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "music_scene",
+              "value": "no_disc"
+            }
+          },
+          "goto": "no_disc"
+        },
+        {
+          "goto": "music_empty"
+        }
+      ]
+    },
+    "music_empty": {
+      "type": "choice",
+      "prompt": "There's no disc in it.\nWhat do you want to do?",
+      "options": [
+        {
+          "text": "Put a disc in",
+          "events": [
+            {
+              "op": "music_insert"
+            }
+          ]
+        },
+        {
+          "text": "Music box",
+          "events": [
+            {
+              "op": "music_box"
+            }
+          ]
+        },
+        {
+          "text": "Close"
+        }
+      ]
+    },
+    "music_off": {
+      "type": "choice",
+      "prompt": "{item0}\nis in the player.\nWhat do you want to do?",
+      "options": [
+        {
+          "text": "Play it",
+          "events": [
+            {
+              "op": "music_toggle"
+            }
+          ]
+        },
+        {
+          "text": "Put a disc in",
+          "events": [
+            {
+              "op": "music_insert"
+            }
+          ]
+        },
+        {
+          "text": "Music box",
+          "events": [
+            {
+              "op": "music_box"
+            }
+          ]
+        },
+        {
+          "text": "Close"
+        }
+      ]
+    },
+    "music_on": {
+      "type": "choice",
+      "prompt": "{item0}\nis playing.\nWhat do you want to do?",
+      "options": [
+        {
+          "text": "Stop it",
+          "events": [
+            {
+              "op": "music_toggle"
+            }
+          ]
+        },
+        {
+          "text": "Put a disc in",
+          "events": [
+            {
+              "op": "music_insert"
+            }
+          ]
+        },
+        {
+          "text": "Music box",
+          "events": [
+            {
+              "op": "music_box"
+            }
+          ]
+        },
+        {
+          "text": "Close"
+        }
+      ]
+    },
+    "other_music": {
+      "type": "line",
+      "text": "{item0}\nis in the player.",
+      "events": [
+        {
+          "op": "music_toggle"
+        }
+      ]
+    },
+    "other_music_empty": {
+      "type": "line",
+      "text": "There's no disc in it."
+    },
+    "box_empty": {
+      "type": "line",
+      "text": "The music box is empty.\nPut a disc in and it will\nremember the song."
+    },
+    "duplicate": {
+      "type": "line",
+      "text": "The music box already\nhas that song!"
+    },
+    "box_pick": {
+      "type": "choice",
+      "prompt": "Which song?\n{item0}",
+      "options": [
+        {
+          "text": "Play this song",
+          "events": [
+            {
+              "op": "music_play"
+            }
+          ]
+        },
+        {
+          "text": "Next song",
+          "goto": "box_pick",
+          "events": [
+            {
+              "op": "music_step",
+              "dir": 1
+            }
+          ]
+        },
+        {
+          "text": "Previous song",
+          "goto": "box_pick",
+          "events": [
+            {
+              "op": "music_step",
+              "dir": -1
+            }
+          ]
+        },
+        {
+          "text": "Never mind"
+        }
+      ]
+    },
+    "no_disc": {
+      "type": "line",
+      "text": "You don't have any discs\nto put in!"
+    }
+  }
+}

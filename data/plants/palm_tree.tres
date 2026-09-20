@@ -5,8 +5,8 @@
 [resource]
 script = ExtResource("1")
 id = &"palm_tree"
-family = 2
 display_name = "Palm"
+family = 2
 stage_days = PackedInt32Array(1, 3, 5, 7)
 terrains = PackedInt32Array(4)
 visual_seed = &"PALM_S0"

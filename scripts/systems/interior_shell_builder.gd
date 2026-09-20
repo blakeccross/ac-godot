@@ -68,6 +68,8 @@ static func add_shell_collision(root: Node3D, room: Room, grid: WorldGrid, gaps:
 	## Door porches beyond the floor so wing / house EXIT_DOOR cells stay walkable.
 	if not gaps.is_empty():
 		_add_door_porches(root, room, grid, gaps)
+	if not room.stairs.is_empty():
+		_add_stair_caps(root, room, grid)
 	var origin: Vector3 = grid.cell_corner(Vector2i.ZERO)
 	var full := Vector3(float(grid.columns) * grid.cell_size, WALL_HEIGHT, float(grid.rows) * grid.cell_size)
 	var inner_nw: Vector3 = grid.cell_corner(room.inner_origin)
@@ -372,15 +374,55 @@ static func shell_door_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
 
 
 ## Player / NPC EXIT_DOOR pair (`door_cell` + `(+1,0)`) — south porch past the carpet.
+## Upper floor / basement have no outdoor exit (`door_cell.x < 0`), only stair bays.
 static func house_door_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if room == null or grid == null:
 		return out
-	var left: Vector3 = grid.cell_to_world(room.door_cell)
-	var right: Vector3 = grid.cell_to_world(room.door_cell + Vector2i(1, 0))
-	## Full two-unit strip so spawn (north of EXIT) and leave stay walkable.
-	out.append({"side": &"south", "center": (left.x + right.x) * 0.5, "half": grid.cell_size})
+	if room.door_cell.x >= 0:
+		var left: Vector3 = grid.cell_to_world(room.door_cell)
+		var right: Vector3 = grid.cell_to_world(room.door_cell + Vector2i(1, 0))
+		## Full two-unit strip so spawn (north of EXIT) and leave stay walkable.
+		out.append({"side": &"south", "center": (left.x + right.x) * 0.5, "half": grid.cell_size})
+	out.append_array(stair_bay_gaps(room, grid))
 	return out
+
+
+## Stair bays (`DOOR0` / `DOOR1`): the unit you land on plus the `DOOR` unit, in the first
+## wall row south of the carpet. `[{ side, center, half, cap }]`.
+static func stair_bay_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if room == null or grid == null:
+		return out
+	for stair: RoomStair in room.stairs:
+		if stair == null:
+			continue
+		var landing: Vector2i = grid.world_to_cell(MuseumDisplay.gx_to_world(grid, stair.spawn_gx))
+		var x0: int = mini(stair.cell.x, landing.x)
+		var x1: int = maxi(stair.cell.x, landing.x) + 1
+		var lo: float = grid.cell_corner(Vector2i(x0, 0)).x
+		var hi: float = grid.cell_corner(Vector2i(x1, 0)).x
+		out.append({"side": &"south", "center": (lo + hi) * 0.5, "half": (hi - lo) * 0.5, "cap": true})
+	return out
+
+
+## One-row dead end behind each stair bay so the gap does not open the whole south rim.
+static func _add_stair_caps(root: Node3D, room: Room, grid: WorldGrid) -> void:
+	var origin: Vector3 = grid.cell_corner(Vector2i.ZERO)
+	var full_z: float = float(grid.rows) * grid.cell_size
+	var inner_se: Vector3 = grid.cell_corner(room.inner_origin + room.inner_size)
+	var cap_z: float = inner_se.z + grid.cell_size
+	var depth: float = origin.z + full_z - cap_z
+	if depth <= 0.05:
+		return
+	for gap: Dictionary in stair_bay_gaps(room, grid):
+		var half: float = float(gap["half"])
+		root.add_child(
+			_collider(
+				Vector3(half * 2.0, WALL_HEIGHT, depth),
+				Vector3(float(gap["center"]), WALL_HEIGHT * 0.5, cap_z + depth * 0.5)
+			)
+		)
 
 
 ## All wall openings for a museum room (wing links + leave sensors).

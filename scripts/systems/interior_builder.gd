@@ -46,6 +46,22 @@ static func build(root: Node3D, interior: IndoorSession) -> void:
 	furnish_fallback(furniture_root, interior)
 	InteriorDoorBuilder.add_exit_door(doors_root, grid, room)
 	InteriorDoorBuilder.add_linked_doors(doors_root, grid, room)
+	InteriorDoorBuilder.add_stair_doors(doors_root, grid, room)
+	add_player_steps(terrain, grid, room)
+
+
+## `aMI_DrawMyStep`: `obj_myhome_step_{down,up}` at the size anchor. Their Y is authored against
+## the room datum, so they are attached without the floor snap.
+static func add_player_steps(root: Node3D, grid: WorldGrid, room: Room) -> void:
+	if root == null or grid == null or room == null or not PlayerHouse.is_player_room(room.id):
+		return
+	var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+	for step: Dictionary in PlayerHouse.step_draws(room, house):
+		var holder := Node3D.new()
+		holder.name = "Step_%s" % String(step["visual"])
+		holder.position = MuseumDisplay.gx_to_world(grid, step["gx"] as Vector3)
+		root.add_child(holder)
+		GeneratedVisual.attach_datum(holder, step["visual"] as StringName, bool(step["mirror"]))
 
 
 ## Authored public/museum room: shell fit + collision + furniture + shop set.

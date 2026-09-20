@@ -87,17 +87,18 @@ func test_storage_toggle_display_and_save() -> void:
 	Game.inventory.select(Game.inventory.count_of_occupied() - 1)
 	var ctx := InteractionContext.new()
 	ctx.inventory = Game.inventory
-	assert_bool(FurnitureUse.open_storage(drawer.id, ctx)).is_true()
+	assert_int(Game.inventory.remove(&"apple", 1)).is_equal(0)
+	assert_bool(FurnitureStorage.put_in(drawer, &"apple")).is_true()
 	assert_int(drawer.stored.size()).is_equal(1)
 	assert_int(Game.inventory.count_of(&"apple")).is_equal(0)
-	assert_bool(FurnitureUse.open_storage(drawer.id, ctx)).is_true()
+	assert_that(FurnitureStorage.take_out(drawer, 0, Game.inventory)).is_equal(&"ok")
 	assert_int(Game.inventory.count_of(&"apple")).is_equal(1)
 	var tv: FurnitureData = ItemCatalog.get_item(&"wood_tv") as FurnitureData
 	var set: FurniturePlacement = interior.place(tv, room.inner_origin + Vector2i(2, 1), WorldGrid.Facing.SOUTH)
 	assert_bool(set.on).is_false()
 	assert_bool(FurnitureUse.toggle(set.id)).is_true()
 	assert_bool(set.on).is_true()
-	var case: FurnitureData = ItemCatalog.furniture_for_visual(&"int_ike_fish_tro2")
+	var case: FurnitureData = ItemCatalog.furniture_for_visual(_fish_display_visual())
 	var tank: FurniturePlacement = interior.place(case, room.inner_origin + Vector2i(1, 2), WorldGrid.Facing.SOUTH)
 	var fish := ItemData.new()
 	fish.id = &"test_fish"
@@ -137,22 +138,55 @@ func test_wallpaper_and_carpet_from_inventory() -> void:
 	assert_that(room.floor_id).is_equal(InteriorStyleCatalog.FLOOR_TILE)
 
 
-func test_chair_scene_still_offers_sit() -> void:
+func test_chair_has_no_button_verbs() -> void:
+	## Sitting is walking into the chair (`FurnitureSeat`), not an A prompt.
 	var node: Node = auto_free(load("res://scenes/world/furniture.tscn").instantiate())
 	add_child(node)
 	var ctx := InteractionContext.new()
 	ctx.inventory = Inventory.new()
-	var action: Interaction = Interaction.primary(node.get_interactions(ctx))
-	assert_str(String(action.id)).is_equal(String(Interaction.SIT))
+	assert_that(Interaction.primary(node.get_interactions(ctx))).is_null()
 
 
-func test_decorating_picks_up_before_sit() -> void:
+func test_decorating_does_not_add_pickup_or_rotate_verbs() -> void:
+	## A grips and the stick turns / moves the piece; B picks it up (`FurnitureGrip`).
 	Game.current_room_id = &"player_main"
 	var node: Node = auto_free(load("res://scenes/world/furniture.tscn").instantiate())
 	add_child(node)
 	var ctx := InteractionContext.new()
 	ctx.inventory = Game.inventory
-	var action: Interaction = Interaction.primary(node.get_interactions(ctx))
-	assert_str(String(action.id)).is_equal(String(Interaction.PICK_UP))
-	assert_str(String(action.player_anim)).is_equal("ply_1_pickup1")
-	assert_float(action.effect_frame).is_equal(20.0)
+	var ids: Array[String] = []
+	for action: Interaction in node.get_interactions(ctx):
+		ids.append(String(action.id))
+	assert_bool(ids.has(String(Interaction.PICK_UP))).is_false()
+	assert_bool(ids.has(String(Interaction.ROTATE))).is_false()
+	assert_bool(ids.is_empty()).is_true()
+
+
+func test_drawers_only_open_from_the_front() -> void:
+	var dresser: FurnitureData = ItemCatalog.get_item(&"wood_dresser") as FurnitureData
+	var node: Node = auto_free(load("res://scenes/world/furniture.tscn").instantiate())
+	node.set("data", dresser)
+	add_child(node)
+	var ctx := InteractionContext.new()
+	ctx.inventory = Game.inventory
+	var has_open := func() -> bool:
+		for action: Interaction in node.get_interactions(ctx):
+			if action.id == Interaction.OPEN:
+				return true
+		return false
+	ctx.contact_side = FurnitureGrip.ContactSide.FRONT
+	assert_bool(has_open.call()).is_true()
+	ctx.contact_side = FurnitureGrip.ContactSide.BACK
+	assert_bool(has_open.call()).is_false()
+	ctx.contact_side = -1
+	assert_bool(has_open.call()).is_true()
+
+
+## A piece the game lets you put a fish on (`aFTR_INTERACTION_FISH`); falls back to the
+## name-inferred trophy stub when the disc profiles have not been generated.
+func _fish_display_visual() -> StringName:
+	for visual: StringName in [&"int_nog_medaka", &"int_nog_kaeru", &"int_ike_fish_tro2"]:
+		var probe: FurnitureData = ItemCatalog.furniture_for_visual(visual)
+		if probe != null and probe.kind == FurnitureData.Kind.DISPLAY:
+			return visual
+	return &"int_ike_fish_tro2"

@@ -17,7 +17,9 @@ extends StaticBody3D
 
 func _ready() -> void:
 	add_to_group("interactable")
+	visual_id = PlayerHouse.exterior_visual(String(name), visual_id)
 	GeneratedVisual.attach(self, visual_id)
+	PlayerHouse.apply_exterior_decorations(self)
 	HostCollision.apply_house(self, visual_id, footprint, HostCollision.CELL)
 
 
@@ -27,6 +29,7 @@ func apply_grid_yaw(facing: WorldGrid.Facing) -> void:
 
 func refresh_seasonal_visual() -> void:
 	GeneratedVisual.refresh(self, visual_id)
+	PlayerHouse.apply_exterior_decorations(self)
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:

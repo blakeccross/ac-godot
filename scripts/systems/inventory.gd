@@ -687,6 +687,11 @@ func tags_for_slot(index: int) -> PackedStringArray:
 		):
 			tags.append("Hand over")
 		return tags
+	## A drawer or music player opened the pockets (`mTG_TYPE_PUTIN_ITEM`).
+	if Game != null and Game.storage_putin_pending:
+		if putin_allowed(data, Game.storage_putin_filter):
+			tags.append("Put in")
+		return tags
 	## Blathers opened the pockets to receive a donation (`mMmd` IV_OPEN).
 	if Game != null and Game.museum_donate_pending and MuseumDialogue.is_offerable(data):
 		tags.append("Donate")
@@ -721,6 +726,25 @@ func tags_for_slot(index: int) -> PackedStringArray:
 		tags.append("Wrap")
 	tags.append("Move")
 	return tags
+
+
+## What a furniture "put in" prompt accepts: anything, or only K.K. discs for a music player.
+static func putin_allowed(data: ItemData, filter: StringName) -> bool:
+	if data == null:
+		return false
+	if filter == &"minidisk":
+		return MinidiskCatalog.is_disc(data.id)
+	return true
+
+
+## `mSM_check_open_inventory_itemlist`: is there anything in the pockets to offer?
+func has_putin_candidates(filter: StringName = &"any") -> bool:
+	for slot: InventorySlot in _slots:
+		if slot == null or slot.is_empty():
+			continue
+		if putin_allowed(ItemCatalog.get_item(slot.item.item_id), filter):
+			return true
+	return false
 
 
 func to_save() -> Dictionary:

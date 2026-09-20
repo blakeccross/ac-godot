@@ -105,6 +105,31 @@ func test_rover_intro_dialogue_loads() -> void:
 	assert_bool(data.has_node(&"finish")).is_true()
 
 
+## Plays the real `rover_intro` gender branch: (first answer, second answer) → final gender.
+func _play_gender_branch(first: int, second: int) -> IntroSequence:
+	var intro := IntroSequence.new()
+	var runner := DialogueRunner.new()
+	runner.event_fired.connect(func(event: Dictionary) -> void: intro.handle_event(event))
+	runner.start(DialogueCatalog.conversation(&"rover_intro"), DialogueContext.new())
+	runner.jump_to(&"gender_ask")
+	assert_bool(runner.waiting_choice).is_true()
+	runner.choose(first)
+	while not runner.waiting_choice and not runner.done:
+		runner.advance()
+	assert_bool(runner.waiting_choice).is_true()
+	runner.choose(second)
+	return intro
+
+
+func test_rover_gender_branches_set_gender() -> void:
+	# "Isn't it cool?" → confirm → "You know it!" / "I'm not a boy!"
+	assert_that(_play_gender_branch(0, 0).gender).is_equal(IntroSequence.GENDER_MALE)
+	assert_that(_play_gender_branch(0, 1).gender).is_equal(IntroSequence.GENDER_FEMALE)
+	# "Isn't it cute?" → confirm → "I forgive you." / "I'm not a girl!"
+	assert_that(_play_gender_branch(1, 0).gender).is_equal(IntroSequence.GENDER_FEMALE)
+	assert_that(_play_gender_branch(1, 1).gender).is_equal(IntroSequence.GENDER_MALE)
+
+
 func test_prompt_events_pause_runner() -> void:
 	var data: DialogueData = DialogueData.from_dict(
 		{

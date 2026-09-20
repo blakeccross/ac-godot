@@ -40,6 +40,8 @@ enum Kind {
 @export var linked_rooms: Array[StringName] = []
 @export var parent_room_id: StringName = &""
 @export var placement_seq: int = 0
+## Player-house staircases; derived from the house size on load, not saved.
+@export var stairs: Array[RoomStair] = []
 
 
 func is_always_open() -> bool:
