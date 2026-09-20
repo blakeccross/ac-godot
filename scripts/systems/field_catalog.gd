@@ -234,9 +234,9 @@ static func season_role_for_label(label: String) -> String:
 	## Map a material/texture/surface label to a seasons-pack role stem.
 	## Hardwood only for leaf/trunk — palm/cedar keep baked (or seasonal mesh) art.
 	## `GeneratedVisual.apply_season_textures` would otherwise stamp `tree_leaf.png`
-	## onto `obj_*_palm_leaf_tex` / `obj_*_cedar_leaf_tex` (and trunks).
+	## onto `obj_*_palm_leaf_tex` / `obj_*_cedar_leaf_tex` / `obj_lotus_leaf_tex` (and trunks).
 	var compact := label.to_lower().replace(" ", "").replace("-", "").replace("_", "")
-	if compact.contains("palm") or compact.contains("cedar"):
+	if compact.contains("palm") or compact.contains("cedar") or compact.contains("lotus"):
 		return ""
 	if compact.contains("leaf"):
 		return String(SEASON_TREE_ROLES.get("leaf", "tree_leaf"))
@@ -1150,6 +1150,10 @@ static func default_visual(kind: StringName) -> StringName:
 			return &"obj_s_shop1"
 		&"sign":
 			return &"SIGNBOARD"
+		&"prop":
+			return &"obj_s_fenceS"
+		&"lotus":
+			return &"obj_s_lotus"
 		&"furniture":
 			return &"int_sum_chair01"
 		&"flower":

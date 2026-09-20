@@ -10,11 +10,19 @@ extends StaticBody3D
 @export var place_kind: WorldGrid.PlaceKind = WorldGrid.PlaceKind.FURNITURE
 @export var visual_id: StringName = &"SIGNBOARD"
 
+## `MESSAGE_BOARD0`: the community board. The first-job "post a notice" chore happens here
+## (`mNT_finish_notice_first_job`); other signs only read.
+const NOTICE_BOARD_GROUP := &"notice_board"
+
 
 func _ready() -> void:
 	add_to_group("interactable")
+	if is_notice_board():
+		add_to_group(NOTICE_BOARD_GROUP)
 	GeneratedVisual.attach(self, visual_id)
 	HostCollision.apply_box(self, footprint, HostCollision.CELL, 1.4)
+	var xz: Vector2 = HostCollision.xz_size(footprint, HostCollision.CELL)
+	HostCollision.resize_interact_box(self, Vector3(xz.x + 0.4, 1.4, 0.8))
 
 
 func refresh_seasonal_visual() -> void:
@@ -36,8 +44,15 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	return true
 
 
+func is_notice_board() -> bool:
+	return String(visual_id).ends_with("_notice")
+
+
 func _needs_first_job_notice() -> bool:
 	if Game == null or Game.first_job == null:
+		return false
+	## Towns without a community board (the test acre) keep the chore on any sign.
+	if not is_notice_board() and is_inside_tree() and get_tree().has_group(NOTICE_BOARD_GROUP):
 		return false
 	var job: FirstJob = Game.first_job
 	return (

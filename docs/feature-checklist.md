@@ -124,7 +124,7 @@ data tables before a category is called done.
 - [~] Pick up dropped items / fruit / shells off the ground (`m_player_main_pickup`) — partial
 - [~] Talk to villagers & special NPCs (`m_player_main_talk`) — partial
 - [~] Shake trees (fruit, furniture, bells, bees, wasp nest) (`m_player_main_shake_tree`) — `tree_use.gd`
-- [ ] Push signs to read; read bulletin board; read gravestones/signposts (`ac_sign`)
+- [~] Push signs to read; read bulletin board; read gravestones/signposts (`ac_sign`) — community board (`MESSAGE_BOARD0`, `obj_*_notice`) is placed from the FG templates and hosts the first-job "post a notice" chore (posted text is one message; the multi-post notice list `m_notice_ovl` is missing). Sight-map boards (`MAP_BOARD0`) open the town map without needing the item; tune boards (`MUSIC_BOARD0`) and fences (`FENCE0` / `WOOD_FENCE`) are solid props; the station statue (`DOUZOU`) is a solid prop without its sparkle effects
 - [~] Knock on villager doors (`m_player_main_knock_door`)
 - [~] Enter/exit buildings: step-in animation, door swing, screen wipe (`m_player_main_door`) — `structure_door.gd`, `scene_transition.gd`
 - [ ] Hand an item to a villager / receive an item (give / recieve animations) (`m_player_main_give`, `recieve`, `ac_handOverItem`)
@@ -270,7 +270,7 @@ data tables before a category is called done.
 - [ ] Pull-all-weeds errand / Nature Day
 - [ ] Mushrooms: appear in autumn (mid-Oct) around trees/stumps; common + rare + rare furniture; some poisonous-looking (`m_mushroom`, `mEv_EVENT_MUSHROOM_SEASON`)
 - [ ] "Jacob's ladder" & "lily of the valley" spawn only in a perfect-rated town
-- [ ] Lotus / water lilies in ponds (`ac_lotus`), lotus as item
+- [~] Lotus / water lilies in ponds (`ac_lotus`) — FG `LOTUS` places `lotus.tscn`: leaf sway on the baked clip, flower drawn May 26 – Aug 25. Pad / flower colours are placeholders (palette is `aLOT_obj_0N_lotus_pal` per term, not baked); no bobber shake. Lotus as an item still missing
 - [ ] Coconut palms on the beach; coconuts plantable only on the beach
 - [ ] Cherry / persimmon / other decorative? _(verify)_
 

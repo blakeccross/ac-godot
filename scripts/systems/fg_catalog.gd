@@ -33,6 +33,13 @@ const ITEM_FLOWER_TULIP1 := 0x084C
 const ITEM_FLOWER_TULIP2 := 0x084D
 const ITEM_ROCK_A := 0x0063
 const ITEM_ROCK_E := 0x0067
+## `bg_item` boards and fences (`m_name_table.h` `FENCE0`…`WOOD_FENCE`). The long pieces are
+## drawn at the left edge of the `*0` unit (`pos_table2`), so the mesh straddles the pair.
+const ITEM_FENCE0 := 0x0005
+const ITEM_MESSAGE_BOARD0 := 0x0007
+const ITEM_MAP_BOARD0 := 0x000C
+const ITEM_MUSIC_BOARD0 := 0x000E
+const ITEM_WOOD_FENCE := 0x0010
 const ITEM_EMPTY := 0x0000
 const ITEM_NONE := 0xFFFF
 const FG_TYPE_EMPTY := 0x00CB
@@ -48,6 +55,9 @@ const ITEM_POLICE_STATION := 0x580C
 const ITEM_SIGN00 := 0x5810
 const ITEM_SIGN20 := 0x5824
 const ITEM_WISHING_WELL := 0x5825
+## `LOTUS` / `DOUZOU` (station statue), `STRUCTURE_START` + 65 / 67.
+const ITEM_LOTUS := 0x5841
+const ITEM_DOUZOU := 0x5843
 ## `TOUDAI` (`STRUCTURE_START + 68`, `m_name_table.h`).
 const ITEM_LIGHTHOUSE := 0x5844
 const ITEM_MUSEUM := 0x584A
@@ -137,6 +147,9 @@ static func placement_for_item(item_id: int) -> Dictionary:
 			&"ROCK_A", &"ROCK_B", &"ROCK_C", &"ROCK_D", &"ROCK_E"
 		]
 		return {"kind": &"rock", "visual": rock_visuals[item_id - ITEM_ROCK_A]}
+	var prop: Dictionary = _prop_place(item_id)
+	if not prop.is_empty():
+		return prop
 	## Villager house plot reserves (`mNT_IS_RESERVE` / SIGN00–SIGN20).
 	if item_id >= ITEM_SIGN00 and item_id <= ITEM_SIGN20:
 		return {"kind": &"reserve", "visual": &"SIGNBOARD"}
@@ -238,6 +251,40 @@ static func placement_for_item(item_id: int) -> Dictionary:
 		ITEM_WATERFALL_WEST:
 			return {"kind": &"waterfall", "visual": &"obj_fallSE"}
 	return {}
+
+
+static func _prop_place(item_id: int) -> Dictionary:
+	## Fixed props. The `*1` half of a two-unit board or fence places nothing: the `*0` half
+	## carries the 2×1 footprint, shifted one unit west so its center is the pair's seam.
+	match item_id:
+		ITEM_FENCE0:
+			return _wide_prop(&"prop", &"obj_s_fenceL")
+		ITEM_WOOD_FENCE:
+			return {"kind": &"prop", "visual": &"obj_s_fenceS", "id": &"fence"}
+		ITEM_MAP_BOARD0:
+			return _wide_prop(&"prop", &"obj_s_sightmap", &"map_board")
+		ITEM_MUSIC_BOARD0:
+			return _wide_prop(&"prop", &"obj_s_melody", &"music_board")
+		ITEM_MESSAGE_BOARD0:
+			var board: Dictionary = _wide_prop(&"sign", &"obj_s_notice", &"notice_board")
+			board["message"] = "The community board has no new notices."
+			board["notice_board"] = true
+			return board
+		ITEM_DOUZOU:
+			return {"kind": &"prop", "visual": &"obj_s_douzou", "id": &"statue"}
+		ITEM_LOTUS:
+			return {"kind": &"lotus", "visual": &"obj_s_lotus", "id": &"lotus"}
+	return {}
+
+
+static func _wide_prop(kind: StringName, visual: StringName, id: StringName = &"fence") -> Dictionary:
+	return {
+		"kind": kind,
+		"visual": visual,
+		"id": id,
+		"foot": Vector2i(2, 1),
+		"cell_shift": Vector2i(-1, 0),
+	}
 
 
 static func _tree_place(item_id: int) -> Dictionary:

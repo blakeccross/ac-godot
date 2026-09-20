@@ -58,10 +58,11 @@ func is_open() -> bool:
 	return _open
 
 
-func open() -> void:
+## `force` is the town's sight-map board (`mSM_OVL_MAP` mode 0): it shows the map without an item.
+func open(force: bool = false) -> void:
 	if _open:
 		return
-	if Game != null and not Game.has_map:
+	if not force and Game != null and not Game.has_map:
 		Game.post_notice("You don't have a town map yet.")
 		return
 	_layout = Game.resolve_world_data() if Game != null else null

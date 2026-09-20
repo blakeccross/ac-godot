@@ -658,7 +658,13 @@ static func _place_from_fg_templates(
 						if place.is_empty():
 							continue
 						var kind: StringName = place["kind"]
-						var is_structure: bool = kind == &"structure" or kind == &"waterfall" or kind == &"sign"
+						var is_structure: bool = (
+							kind == &"structure"
+							or kind == &"waterfall"
+							or kind == &"sign"
+							or kind == &"prop"
+							or kind == &"lotus"
+						)
 						if (mode == 1 and not is_structure) or (mode == 2 and is_structure):
 							continue
 						var cell := origin + Vector2i(ux, uz)
@@ -705,7 +711,24 @@ static func _place_from_fg_templates(
 								var sign_id: StringName = place.get("id", &"sign") as StringName
 								var sign_msg: String = String(place.get("message", ""))
 								var sign_vis: StringName = place.get("visual", &"") as StringName
-								data.objects.append(_sign(sign_id, cell, sign_msg, sign_vis))
+								var sign_cell: Vector2i = cell + (place.get("cell_shift", Vector2i.ZERO) as Vector2i)
+								if data.is_in_bounds(sign_cell):
+									var sign_obj: ObjectPlacement = _sign(sign_id, sign_cell, sign_msg, sign_vis)
+									sign_obj.footprint = place.get("foot", Vector2i.ONE) as Vector2i
+									if bool(place.get("notice_board", false)):
+										sign_obj.id = StringName("%s_%d_%d" % [sign_id, sign_cell.x, sign_cell.y])
+									data.objects.append(sign_obj)
+							&"prop", &"lotus":
+								var prop_cell: Vector2i = cell + (place.get("cell_shift", Vector2i.ZERO) as Vector2i)
+								if data.is_in_bounds(prop_cell):
+									var prop_id := StringName("%s_%d_%d" % [place.get("id", place["kind"]), prop_cell.x, prop_cell.y])
+									var prop_obj: ObjectPlacement = _object(
+										prop_id, kind, prop_cell, null, place["visual"]
+									)
+									prop_obj.footprint = place.get("foot", Vector2i.ONE) as Vector2i
+									## The lotus floats on water: no occupancy, no cell reservation.
+									prop_obj.occupy_grid = kind != &"lotus"
+									data.objects.append(prop_obj)
 							&"waterfall":
 								var fall := _object(
 									StringName("waterfall_fg_%d_%d" % [cell.x, cell.y]),

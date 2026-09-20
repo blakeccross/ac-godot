@@ -38,6 +38,9 @@ The player never switches on type. Verbs live on the host.
 | `item` | Pick up (inventory) | `item_pickup.tscn` |
 | `building` | Enter via child `Door` | `building.tscn` |
 | `door` | Enter / Shop | `door.tscn` |
+| `prop` | Sight-map board opens the map; fences, tune board, station statue are solid only | `prop.tscn` |
+| `lotus` | None (floating decoration) | `lotus.tscn` |
+| `sign` (community board) | Read / first-job post notice | `sign.tscn` with `obj_*_notice` |
 | `house` / `shop` | Enter / Shop (door cKF + player `OPEN1` via `StructureDoor`); leave emerge uses leave cKF + `GO_OUT` | existing shells |
 
 ## New-game placement (decomp)
@@ -54,6 +57,28 @@ The player never switches on type. Verbs live on the host.
 | Trees / rocks / flowers | FG template copy (`FgCatalog`) at **unit center** (`bg_item` `pos_table` 20+40n GX), then border pull / tanuki path, then fruit/cedar. House build clears the SIGN 3×3 |
 
 Structure FG ids (`HOUSE0`, `SHOP0`, `MUSEUM`, `NEEDLEWORK_SHOP`, …) refine cell offsets when the disc FG catalog is present.
+
+## Template props (fences, boards, lotus, statue)
+
+`FgCatalog._prop_place` maps these FG ids; `WorldGenerator._place_from_fg_templates` treats them like structures (kept in title-demo pass 1).
+
+| FG id | Kind / visual | Notes |
+| --- | --- | --- |
+| `FENCE0` `0x0005` (+ `FENCE1` `0x0006`) | `prop` `obj_{s,w}_fenceL` | 2×1, mostly rail-line fences. |
+| `WOOD_FENCE` `0x0010` | `prop` `obj_*_fenceS` | 1×1. |
+| `MESSAGE_BOARD0/1` `0x0007` / `0x000B` | `sign` `obj_*_notice` | Community board; `notice_board` group. |
+| `MAP_BOARD0/1` `0x000C` / `0x000D` | `prop` `obj_*_sightmap` | `mSM_OVL_MAP` mode 0 on A (no map item needed). |
+| `MUSIC_BOARD0/1` `0x000E` / `0x000F` | `prop` `obj_*_melody` | Town-tune board; solid only until town tune exists. |
+| `LOTUS` `0x5841` | `lotus` `obj_s_lotus` | No occupancy; sits on pond water. |
+| `DOUZOU` `0x5843` | `prop` `obj_*_douzou` | Station statue, west of the station. |
+
+Two-unit pieces are drawn by `bg_item` at `pos_table2` (**left edge** of the `*0` unit, unit-center Z), so the 8 m mesh is centered on the seam between the `*1`/`*0` pair. The `*0` item therefore carries a 2×1 footprint with `cell_shift (-1, 0)` and the `*1` half places nothing. `obj_hight_table_item0_nogrow` raises the whole unit (fences / notice 4 counts, map / tune 7), so the Godot hull is the full footprint box.
+
+Lotus (`ac_lotus`): 129-frame loop at 0.5 speed; joint `0x12` (flower) draws May 26 – Aug 25 (`aLOT_actor_draw_before`); palette index per term (`aLOT_getPalNo`, 18 terms) is **not** baked, so `lotus.gd` recolors the debug palette to green / pink (placeholder). `season_role_for_label` skips `lotus` so the pad texture is not swapped for the hardwood leaf.
+
+Not placed yet: `DUMP` (replaced by Nook's), `BRIDGE_A*`, `MIKANBOX` and other event structures, island (`FLAG` / `BOAT` / `COTTAGE_*`), `KAMAKURA`, `TENT`, `HTABLE*`. Blob shadows for notice / fence / melody / sight-map are not converted (`obj_notice_shadow` etc. absent).
+
+Audit: `scenes/dev/capture_world_props.tscn` photographs each prop in a generated town.
 
 ## Player-house walk collision (decomp)
 
