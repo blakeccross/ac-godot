@@ -10,7 +10,8 @@ extends RefCounted
 ## `eye_*_blink` tables. Mood wait poses (`wait_do1`, `wait_ai1`, `wait_ki1`, …) hold a
 ## single eye frame instead of blinking — `set_emote` follows those holds.
 
-const FRAME_HZ := 30.0
+## `aNPC_tex_anm_ctrl` runs every decomp frame (60 Hz); the tables count in 0.5 / 0.25 steps.
+const FRAME_HZ := PlayerLocomotion.LOGIC_HZ
 
 ## `nture[]` indices.
 const EYE_OPEN := 0

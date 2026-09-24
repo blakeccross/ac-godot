@@ -22,6 +22,7 @@ var _demo_over: bool = false
 var _menu_open: bool = false
 
 @onready var _world: Node = %World
+@onready var _porter: StationPorter = %Porter
 @onready var _logo: CanvasLayer = %TitleLogo
 @onready var _menu: CanvasLayer = %Menu
 @onready var _fade: ColorRect = %Fade
@@ -48,6 +49,7 @@ func _ready() -> void:
 		hud.set("visible", false)
 	_continue.disabled = not Game.has_continue()
 	_demo_input.setup(TitleDemo.keys_for(_demo_index))
+	_place_porter()
 	_bind_player()
 	_arm_start_gate()
 
@@ -62,6 +64,19 @@ func _physics_process(delta: float) -> void:
 		_logo.button_ok = TitleDemo.button_ok(_demo_input.frame)
 		if TitleDemo.is_over(_demo_input.frame):
 			_end_demo()
+
+
+## `title_demo_actable`: Porter on the platform in every demo.
+func _place_porter() -> void:
+	var layout: WorldData = _world.get("layout") as WorldData
+	var grid: WorldGrid = _world.get("grid") as WorldGrid
+	if layout == null or grid == null:
+		return
+	var pos: Vector3 = TitleDemo.gx_to_world(layout, StationPorter.TITLE_GX)
+	var y: float = FieldCollision.ground_y_at(layout, grid, pos, 0.0, false)
+	if FieldCollision.has_floor(y):
+		pos.y = y
+	_porter.place(pos)
 
 
 func _bind_player() -> void:

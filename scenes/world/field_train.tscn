@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/world/field_train.gd" id="1_train"]
+
+[node name="FieldTrain" type="Node3D"]
+script = ExtResource("1_train")
+
+[node name="Loco" type="Node3D" parent="."]
+unique_name_in_owner = true
+
+[node name="Mid" type="Node3D" parent="."]
+unique_name_in_owner = true
+
+[node name="Caboose" type="Node3D" parent="."]
+unique_name_in_owner = true
+
+[node name="Engineer" type="Node3D" parent="."]
+unique_name_in_owner = true

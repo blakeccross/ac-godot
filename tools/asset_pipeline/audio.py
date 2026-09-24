@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import struct
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Optional
 
@@ -21,6 +22,8 @@ from .audio_seq import (
     VOICE_BANKS,
     VOICE_SEQ_BY_SPEC,
     encode_ogg,
+    make_seamless_loop,
+    render_lev_se,
     render_se,
     render_sequence,
     render_voice_phoneme,
@@ -56,6 +59,19 @@ AUDIO_SUBTRACK_NUM = 16
 EXTRA_SE_NUMS: dict[str, int] = {
     ## `aAL_fade_out_start_wait_init`: `sAdo_SysTrgStart(0x44D)` — the title START chime.
     "44d": 0x44D,
+    ## `Na_KishaStatusLevel` wheel clack (`sou_tonton_count`) and `Na_KishaStatusTrg(2)`, the
+    ## train's stop sound. Both sit in gaps of the enum.
+    "3f": 0x3F,
+    "73": 0x73,
+    ## `aTR1_OngenTrgStart(…, 43)`: the passenger-car door opening / closing.
+    "2b": 0x2B,
+}
+
+## Level (looping, positional) SEs, played by level id rather than SE number
+## (`Na_OngenPos(id, index, …)` → `Sou_LevStart`). Catalog id → level id.
+LEV_SE_NUMS: dict[str, int] = {
+    ## `Na_KishaStatusLevel`: `Na_OngenPos(ongenNum1, 0x10, …)` — the running train.
+    "lev_10": 0x10,
 }
 
 CATALOG_DIR = "audio"
@@ -419,6 +435,17 @@ def _sfx_catalog_entries(se_ids: dict[str, int]) -> list[dict[str, Any]]:
                 "rendered": False,
             }
         )
+    for key, lev in LEV_SE_NUMS.items():
+        out.append(
+            {
+                "id": key,
+                "lev": lev,
+                "seq": SE_SEQ_INDEX,
+                "path": f"{SFX_SUBDIR}/{key}.ogg",
+                "loop": True,
+                "rendered": False,
+            }
+        )
     return out
 
 
@@ -603,7 +630,12 @@ def _render_sfx_entries(
         se_id = int(rec.get("se_num", -1))
         track_id = str(rec.get("id", ""))
         try:
-            result = render_se(seq, used, default_bank, se_id, seq_banks)
+            if "lev" in rec:
+                result = render_lev_se(seq, used, default_bank, int(rec["lev"]), seq_banks)
+                result = replace(result, pcm=make_seamless_loop(result.pcm, result.rate))
+                result = replace(result, duration_sec=len(result.pcm) / 4 / result.rate)
+            else:
+                result = render_se(seq, used, default_bank, se_id, seq_banks)
         except (ValueError, struct.error, IndexError) as exc:
             rec["render_error"] = str(exc)
             continue

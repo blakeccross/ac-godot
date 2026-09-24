@@ -244,6 +244,29 @@ static func attach_villager(host: Node3D, species: StringName, fit_actor: bool =
 	return pivot
 
 
+static func attach_special_npc(host: Node3D, skel_id: StringName) -> Node3D:
+	## Special NPCs by skeleton GLB (`mnk_1` Porter / engineer, `rcn_1` Nook) — `mesh_paths`
+	## only resolves `obj_*`, and these are not a villager species.
+	if host == null:
+		return null
+	var path: String = "res://assets/generated/characters/villagers/%s.glb" % String(skel_id)
+	if not ResourceLoader.exists(path):
+		push_warning("GeneratedVisual: missing %s" % path)
+		return null
+	var packed: PackedScene = load(path) as PackedScene
+	if packed == null:
+		return null
+	var pivot := Node3D.new()
+	pivot.name = "GeneratedVisual"
+	pivot.add_child(packed.instantiate())
+	host.add_child(pivot)
+	VisualFit.apply_actor_scale(pivot, skel_id)
+	VisualFit.align_actor_to_height_gx(pivot, 0.0)
+	apply_preview_materials(pivot)
+	VisualAnimation.stop_autoplay(pivot)
+	return pivot
+
+
 static func attach_interior(
 	host: Node3D, shell_ids: PackedStringArray, wall_id: StringName, floor_id: StringName, target: AABB
 ) -> Node3D:

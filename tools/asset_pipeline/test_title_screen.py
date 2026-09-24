@@ -10,6 +10,7 @@ from asset_pipeline.title_screen import (
     PRESS_START_PRIM,
     decode_ia8_linear,
     parse_pact,
+    parse_title_demo_acres,
     parse_title_demo_fg,
     tint_ia4,
 )
@@ -114,7 +115,79 @@ class StartChimeTests(unittest.TestCase):
         entries = {e["id"]: e for e in _sfx_catalog_entries({})}
         self.assertEqual(entries["44d"]["se_num"], 0x44D)
         self.assertEqual(entries["44d"]["path"], "sfx/44d.ogg")
-        self.assertEqual(set(EXTRA_SE_NUMS), {"44d"})
+        self.assertEqual(set(EXTRA_SE_NUMS), {"44d", "3f", "73", "2b"})
+
+
+ACRE_SCENES_H = """
+enum scene_table {
+    SCENE_TEST1,
+    SCENE_FIELD_TOOL, /* field tool */
+    SCENE_TITLE_DEMO, /* title screen demo */
+    SCENE_NUM
+};
+"""
+
+ACRE_COMBI_H = """
+enum __block_combi__ {
+    BLOCK_COMBI_GRD_1,
+    BLOCK_COMBI_GRD_S_E1_1,
+    BLOCK_COMBI_GRD_S_M_1_232,
+    BLOCK_COMBI_NUM
+};
+"""
+
+ACRE_DATA_COMBI_C = """
+mFM_combo_info_c data_combi_table[] = {
+    { BG_TYPE_292, FG_TYPE_EMPTY, mFM_BLOCK_TYPE_NONE },
+    { BG_TYPE_GRD_S_E1_1, FG_TYPE_EMPTY, mFM_BLOCK_TYPE_BORDER_CLIFF_TOP },
+    { BG_TYPE_GRD_S_M_1, FG_TYPE_0061, mFM_BLOCK_TYPE_BEACH },
+};
+"""
+
+ACRE_FIELD_MAKE_H = """
+enum {
+    mFM_BLOCK_TYPE_BORDER_CLIFF_TOP,
+    mFM_BLOCK_TYPE_BORDER_CLIFF_RIVER, // comment
+    mFM_BLOCK_TYPE_BEACH = 63,
+    mFM_BLOCK_TYPE_NONE = 255
+};
+"""
+
+ACRE_FIELD_DATA_C = """
+mFM_field_data_c data_fdd[SCENE_NUM] = {
+    { mFI_FIELD_FG, 1, 1, { { BLOCK_COMBI_GRD_1, 0 }, }, fd0_actable, 0x0, },
+    { mFI_FIELD_FG, 2, 1, { { BLOCK_COMBI_GRD_1, 0 }, { BLOCK_COMBI_GRD_1, 0 }, }, x_actable, },
+    {
+        mFI_FIELD_FG,
+        2,
+        2,
+        {
+            { BLOCK_COMBI_GRD_S_E1_1, 1 }, { BLOCK_COMBI_GRD_S_E1_1, 1 },
+            { BLOCK_COMBI_GRD_S_M_1_232, 0 }, { BLOCK_COMBI_GRD_1, 0 },
+        },
+        title_demo_actable,
+        0x00000000,
+    },
+};
+"""
+
+
+class ParseAcresTests(unittest.TestCase):
+    def test_title_demo_entry_resolves_bg_type_and_height(self) -> None:
+        acres = parse_title_demo_acres(
+            ACRE_FIELD_DATA_C, ACRE_DATA_COMBI_C, ACRE_COMBI_H, ACRE_FIELD_MAKE_H, ACRE_SCENES_H
+        )
+        self.assertEqual((acres["cols"], acres["rows"]), (2, 2))
+        self.assertEqual(acres["bg"], ["grd_s_e1_1", "grd_s_e1_1", "grd_s_m_1", "292"])
+        self.assertEqual(acres["types"], [0, 0, 63, 255])
+        self.assertEqual(acres["heights"], [1, 1, 0, 0])
+
+    def test_combi_table_length_mismatch_raises(self) -> None:
+        short = ACRE_DATA_COMBI_C.replace("{ BG_TYPE_292, FG_TYPE_EMPTY, mFM_BLOCK_TYPE_NONE },", "")
+        with self.assertRaises(ValueError):
+            parse_title_demo_acres(
+                ACRE_FIELD_DATA_C, short, ACRE_COMBI_H, ACRE_FIELD_MAKE_H, ACRE_SCENES_H
+            )
 
 
 if __name__ == "__main__":

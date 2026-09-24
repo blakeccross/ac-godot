@@ -11,7 +11,7 @@ const LOOK_FOV := deg_to_rad(67.5)
 ## Neck clamps while tracking. Pitch only clamps looking up (`angleX < -33.75°`).
 const YAW_LIMIT := deg_to_rad(67.5)
 const PITCH_LIMIT := deg_to_rad(33.75)
-## `head.angle_add_y = 0x400` → 5.625°/frame @ 30 Hz; `angle_add_x = 0x200`.
+## `head.angle_add_y = 0x400`, `angle_add_x = 0x200` through `chase_angle` (frame-scaled): × 30 per second.
 const YAW_RATE := deg_to_rad(5.625) * 30.0
 const PITCH_RATE := deg_to_rad(2.8125) * 30.0
 const HEAD_BONE := "joint_21"

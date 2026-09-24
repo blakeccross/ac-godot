@@ -215,9 +215,10 @@ func test_dialogue_overlay_matches_msg_timing() -> void:
 	var src := FileAccess.get_file_as_string("res://scenes/ui/dialogue_overlay.gd")
 	assert_str(src).contains("APPEAR_FRAMES := 18.0")
 	assert_str(src).contains("CHOICE_APPEAR_FRAMES := 10.2")
-	assert_str(src).contains("CHARS_PER_SEC := 15.0")
-	assert_str(src).contains("FAST_CHARS_PER_SEC := 30.0")
-	assert_str(src).contains("FRAME_HZ := 30.0")
+	## A glyph every other decomp frame (60 Hz) → 30/s; fast text every frame → 60/s.
+	assert_str(src).contains("FRAME_HZ := PlayerLocomotion.LOGIC_HZ")
+	assert_str(src).contains("CHARS_PER_SEC := FRAME_HZ * 0.5")
+	assert_str(src).contains("FAST_CHARS_PER_SEC := FRAME_HZ")
 
 
 func test_normalize_punct_maps_em_dash() -> void:

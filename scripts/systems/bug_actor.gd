@@ -13,7 +13,8 @@ extends RefCounted
 ## `position` (metres) is a view for the visual / net / spawn.
 
 const GX_M := FieldCatalog.GX_TO_METERS
-const GAME_FPS := 30.0
+## Decomp play frames per second: `aINS_actor_move` runs once each.
+const GAME_FPS := PlayerLocomotion.LOGIC_HZ
 
 ## `aINS_setupActor`: life_time 216000 frames (2 game-hours), alpha0 255, bg_range 12.
 const LIFE_TIME_FRAMES := 216000
@@ -311,7 +312,8 @@ func _position_move() -> void:
 	pos_speed.z = speed * cos(angle_y)
 	if not (type in LEVEL_Y_TYPES):
 		pos_speed.y = BugProgram.chase_f(pos_speed.y, max_velocity_y, gravity * 0.5)
-	pos += pos_speed
+	## `Actor_position_move`: half the position speed per 60 Hz frame ("30fps -> 60fps").
+	pos += pos_speed * 0.5
 
 
 # ---- aINS_calc_patience / stress -------------------------------------

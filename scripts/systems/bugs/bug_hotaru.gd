@@ -142,7 +142,8 @@ func _fly(a: BugActor, sense: BugActor.Sense) -> void:
 			a.f32_work[1] = a.pos.z
 			a.flag = 0
 	## Smooth heading chase toward the target angle.
-	a.angle_y = BugProgram.chase_angle(a.angle_y, a.s32_work[1] * S16, 0x400 * S16)
+	## `add_calc_short_angle2(world.angle.y, aIHT_TARGET_ANGLE, 1 - sqrt(0.9), 250, 0)`.
+	a.angle_y = MLib.short_angle2(a.angle_y, a.s32_work[1] * S16, 1.0 - sqrt(0.9), 250.0 * S16)
 	a.rot.y = a.angle_y
 
 

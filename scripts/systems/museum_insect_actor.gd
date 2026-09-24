@@ -5,7 +5,7 @@ extends RefCounted
 ## Anchors and active/relax windows come from `ac_museum_insect`; motion is a lighter
 ## museum-idle version of field `BugActor` programs so wings still flap on schedule.
 
-const GAME_FPS := 30.0
+const GAME_FPS := PlayerLocomotion.LOGIC_HZ
 const BEETLE_HEIGHT_GX := 35.0
 
 var bug: BugData = null

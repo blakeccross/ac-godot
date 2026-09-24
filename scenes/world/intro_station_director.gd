@@ -225,25 +225,12 @@ func _spawn_structure(visual_id: StringName, node_name: String) -> Node3D:
 
 
 func _spawn_villager(skel_id: StringName, node_name: String) -> Node3D:
-	## `mesh_paths` only resolves `obj_*`; special NPCs use villager GLB prefixes (`mnk_1`, `rcn_1`).
 	var host := Node3D.new()
 	host.name = node_name
 	_actors.add_child(host)
-	var path: String = "res://assets/generated/characters/villagers/%s.glb" % String(skel_id)
-	if not ResourceLoader.exists(path):
-		push_warning("IntroStationDirector: missing %s" % path)
+	var pivot: Node3D = GeneratedVisual.attach_special_npc(host, skel_id)
+	if pivot == null:
 		return host
-	var packed: PackedScene = load(path) as PackedScene
-	if packed == null:
-		return host
-	var pivot := Node3D.new()
-	pivot.name = "GeneratedVisual"
-	pivot.add_child(packed.instantiate())
-	host.add_child(pivot)
-	VisualFit.apply_actor_scale(pivot, skel_id)
-	VisualFit.align_actor_to_height_gx(pivot, 0.0)
-	GeneratedVisual.apply_preview_materials(pivot)
-	VisualAnimation.stop_autoplay(pivot)
 	if skel_id == &"rcn_1":
 		_nook_face.bind(pivot, &"rcn")
 		_ensure_nook_feel(host)

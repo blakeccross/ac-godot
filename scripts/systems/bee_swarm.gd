@@ -11,7 +11,7 @@ const ATTACK_GX := 30.0
 const CHASE_HEIGHT_GX := 50.0
 const APPEAR_SEC := 0.45
 const STING_LOCK_SEC := 1.2
-const GAME_FPS := 30.0
+const GAME_FPS := PlayerLocomotion.LOGIC_HZ
 
 var phase: Phase = Phase.APPEAR
 var attackable: bool = false

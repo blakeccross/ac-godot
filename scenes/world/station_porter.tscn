@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/world/station_porter.gd" id="1_porter"]
+
+[sub_resource type="CylinderShape3D" id="BodyShape"]
+radius = 0.32
+height = 1.2
+
+[node name="StationPorter" type="Node3D"]
+script = ExtResource("1_porter")
+
+[node name="Body" type="StaticBody3D" parent="."]
+collision_layer = 4
+collision_mask = 0
+
+[node name="Collision" type="CollisionShape3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+shape = SubResource("BodyShape")

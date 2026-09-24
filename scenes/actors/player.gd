@@ -134,6 +134,9 @@ var _grip_move: Dictionary = {}
 ## Sitting in a chair or lying in a bed: `{ kind, id, pos, yaw_facing, approach, phase, t, dur, from, to }`.
 var _seat: FurnitureSeat = FurnitureSeat.new()
 var _rest: Dictionary = {}
+## Crossing into the next acre (`mPlayer_INDEX_WADE`): `{start, end, t}` (world metres,
+## ticks); empty when not wading. See `AcreWade`.
+var _wade: Dictionary = {}
 ## Leaf clip → Animation of scaled joint_0 XZ deltas (meters, model space). Filled once.
 static var _door_root_xz: Dictionary = {}
 
@@ -220,9 +223,8 @@ func set_facing(yaw: float) -> void:
 		_mesh.rotation.y = yaw
 
 
-## Hard stop for the exit-cell warp — natural deceleration from run speed takes
-## ~0.77 s (`PlayerLocomotion.DECEL`), longer than the 0.6 s wipe, so the player
-## would still be visibly sliding when the screen goes black. Kill the speed outright.
+## Hard stop for the exit-cell warp — natural deceleration from run speed would leave the
+## player visibly sliding as the 0.6 s wipe goes black. Kill the speed outright.
 func stop_for_door() -> void:
 	_busy = true
 	if not _door_entering:
@@ -288,6 +290,10 @@ func _physics_process(delta: float) -> void:
 		_update_animation(delta)
 		return
 
+	if not _wade.is_empty():
+		_tick_wade(delta)
+		return
+
 	if _gripping:
 		_tick_grip(delta)
 	elif not _rest.is_empty():
@@ -307,9 +313,9 @@ func _physics_process(delta: float) -> void:
 
 	var wish := Vector3.ZERO
 	var stick := 0.0
+	var input_dir := Vector2.ZERO
 	var menu_open: bool = _menu_open()
 	if not _busy and not menu_open:
-		var input_dir: Vector2
 		if scripted_input != null:
 			input_dir = scripted_input.move
 		else:
@@ -335,12 +341,96 @@ func _physics_process(delta: float) -> void:
 		)
 	elif on_bg:
 		_snap_to_bg()
+	if bg.size() == 2 and TownSpace.is_outdoor_town():
+		_acre_border(before, input_dir, bg)
+		if not _wade.is_empty():
+			return
 	_update_animation(delta)
 	_update_footprints(delta, bg)
 	_update_focus()
 	_tick_tree_bump(delta)
 	_clear_auto_enter_block()
 	_try_auto_enter()
+
+
+## `Player_actor_CorrectWadeBlockBorder` then `Player_actor_Set_ScrollDemo_forWade` (walk /
+## run / dash only): stay inside this acre unless the stick takes the player across.
+func _acre_border(before: Vector3, input_dir: Vector2, bg: Array) -> void:
+	var old_gx: Vector3 = TownSpace.world_to_gx(before)
+	var now_gx: Vector3 = TownSpace.world_to_gx(global_position)
+	var held: Vector3 = AcreWade.confine(old_gx, now_gx)
+	if held.x != now_gx.x or held.z != now_gx.z:
+		var back: Vector3 = TownSpace.gx_to_world(held)
+		global_position.x = back.x
+		global_position.z = back.z
+		_snap_to_bg()
+	if _busy or _menu_open() or _motor.gait() == PlayerLocomotion.Gait.WAIT:
+		return
+	var pos_gx: Vector3 = TownSpace.world_to_gx(global_position)
+	var dir: AcreWade.Dir = AcreWade.direction(
+		pos_gx,
+		_motor.facing,
+		Vector2(input_dir.x, -input_dir.y),
+		func(d: AcreWade.Dir) -> bool: return _can_land(pos_gx, d, bg)
+	)
+	if dir != AcreWade.Dir.NONE:
+		_begin_wade(pos_gx, dir)
+
+
+## `mCoBG_ScrollCheck` toward 18 GX past the border (walls, water, FG solids), plus — outside
+## the title demo — no villager within 36 GX of it.
+func _can_land(pos_gx: Vector3, dir: AcreWade.Dir, bg: Array) -> bool:
+	var data: WorldData = bg[0] as WorldData
+	var grid: WorldGrid = bg[1] as WorldGrid
+	var probe: Vector3 = TownSpace.gx_to_world(AcreWade.landing_probe(pos_gx, dir))
+	probe.y = global_position.y
+	var reached: Vector3 = FieldCollision.revise_xz(data, grid, global_position, probe)
+	if Vector2(reached.x - probe.x, reached.z - probe.z).length() > 0.05:
+		return false
+	if grid.is_occupied(grid.world_to_cell(probe)):
+		return false
+	if scripted_input == null:
+		var clear: float = AcreWade.NPC_CLEAR_GX * FieldCatalog.GX_TO_METERS
+		for npc: Node in get_tree().get_nodes_in_group("villagers"):
+			if npc is Node3D and (npc as Node3D).global_position.distance_to(probe) < clear:
+				return false
+	return true
+
+
+func _begin_wade(pos_gx: Vector3, dir: AcreWade.Dir) -> void:
+	var end: Vector3 = TownSpace.gx_to_world(AcreWade.end_pos(pos_gx, dir))
+	end.y = global_position.y
+	_wade = {"start": global_position, "end": end, "t": 0.0, "dir": dir}
+	## `Player_actor_Movement_Base_Stop` + `mPlayer_ANIM_WAIT1`.
+	_motor.planar_speed = 0.0
+	velocity = Vector3.ZERO
+	play_wait_idle()
+	_gait = PlayerLocomotion.Gait.WAIT
+
+
+## `Player_actor_main_Wade`: carried across on `get_percent_forAccelBrake`, stick ignored.
+func _tick_wade(delta: float) -> void:
+	velocity = Vector3.ZERO
+	## A pressed during the wade is never read (`Player_actor_Request_Wade` takes no input).
+	if scripted_input != null:
+		scripted_input.consume_a_pressed()
+	var t: float = float(_wade["t"]) + delta * AcreWade.TICK_HZ
+	_wade["t"] = t
+	var start: Vector3 = _wade["start"]
+	var end: Vector3 = _wade["end"]
+	var p: float = AcreWade.percent(minf(t, AcreWade.TICKS))
+	global_position = Vector3(
+		lerpf(start.x, end.x, p), global_position.y, lerpf(start.z, end.z, p)
+	)
+	_snap_to_bg()
+	_mesh.rotation.y = _motor.facing
+	if t > AcreWade.TICKS:
+		_wade = {}
+
+
+## `{start, end, t}` while wading (for the camera), else empty.
+func wade_state() -> Dictionary:
+	return _wade
 
 
 ## `aMR_ManageMoveBottun`: A against a piece in your own house grips it. Anything else —

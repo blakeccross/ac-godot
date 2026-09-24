@@ -19,8 +19,6 @@ const ONIYANMA_RANGE := 12.0 * UNIT_GX
 const OTHER_RANGE := 6.0 * UNIT_GX
 const SPEED_VAR := 2.0
 
-const TURN_STEP := 0x600 * S16
-
 
 func actor_init(a: BugActor, released: bool) -> void:
 	a.gravity = 0.1
@@ -254,7 +252,8 @@ func _rest_on_notice(a: BugActor, sense: BugActor.Sense) -> void:
 # ---- helpers ---------------------------------------------
 
 func _turn(a: BugActor) -> void:
-	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, TURN_STEP)
+	## `add_calc_short_angle2(rot.y, angle.y, 1 - sqrt(0.7), 2500, 0)` in every flying action.
+	a.rot.y = MLib.short_angle2(a.rot.y, a.angle_y, 1.0 - sqrt(0.7), 2500.0 * S16)
 
 
 func _height_ctrl(a: BugActor, sense: BugActor.Sense) -> void:

@@ -100,10 +100,19 @@ static func authored_test_town() -> WorldData:
 
 ## `title_demo`: the attract-mode town (`SCENE_TITLE_DEMO`) — fixed FG blocks
 ## (`l_title_demo_fg`) and the 14 fixed villagers (`mNpc_SetAnimalTitleDemo`), see `TitleDemo`.
+## Its acre layout is the fixed `data_fdd[SCENE_TITLE_DEMO]` map (`TitleDemo.acres`) when the
+## extraction carries it; the seed then only drives the leftover random picks.
 static func generate(seed_value: int = DEFAULT_SEED, title_demo: bool = false) -> WorldData:
-	var field: Dictionary = TownFieldGenerator.new().generate(seed_value)
-	var blocks: PackedByteArray = field["blocks"]
-	var heights: PackedByteArray = field["heights"]
+	var fixed: Dictionary = TitleDemo.acres() if title_demo else {}
+	var blocks: PackedByteArray
+	var heights: PackedByteArray
+	if not fixed.is_empty():
+		blocks = fixed["types"]
+		heights = fixed["heights"]
+	else:
+		var field: Dictionary = TownFieldGenerator.new().generate(seed_value)
+		blocks = field["blocks"]
+		heights = field["heights"]
 	var data := WorldData.new()
 	data.id = &"generated"
 	data.display_name = "Town %d" % seed_value
@@ -116,14 +125,17 @@ static func generate(seed_value: int = DEFAULT_SEED, title_demo: bool = false) -
 	data.acre_visual = &""
 	data.acre_types = blocks.duplicate()
 	data.acre_heights = heights.duplicate()
-	data.acre_visuals = _pick_acre_visuals(blocks, seed_value)
+	if not fixed.is_empty():
+		data.acre_visuals = (fixed["visuals"] as PackedStringArray).duplicate()
+	else:
+		data.acre_visuals = _pick_acre_visuals(blocks, seed_value)
 	data.bake()
 	_rasterize_acres(data, blocks, heights)
 	_place_structure_buildings(data, blocks)
 	_place_tortimer(data, blocks)
 	## Waterfall FG units come from disc templates (`0x580D`–`0x580F`); geometric
 	## fallback only fills waterfall acres that still lack one.
-	_place_fg_props(data, blocks, seed_value, title_demo)
+	_place_fg_props(data, blocks, seed_value, title_demo, not fixed.is_empty())
 	_place_waterfall(data, blocks)
 	data.bake()
 	return data
@@ -575,7 +587,11 @@ static func _place_structure_item(
 
 
 static func _place_fg_props(
-	data: WorldData, blocks: PackedByteArray, seed_value: int, title_demo: bool = false
+	data: WorldData,
+	blocks: PackedByteArray,
+	seed_value: int,
+	title_demo: bool = false,
+	fixed_bg: bool = false
 ) -> void:
 	## Prefer disc FG templates (`mFM_InitFgCombiSaveData`); scatter only as fallback.
 	var rng := RandomNumberGenerator.new()
@@ -583,7 +599,7 @@ static func _place_fg_props(
 	var reserves: Array[Vector2i] = []
 	var demo_fg: Dictionary = _title_demo_fg() if title_demo else {}
 	if FgCatalog.has_catalog():
-		reserves = _place_from_fg_templates(data, blocks, rng, demo_fg)
+		reserves = _place_from_fg_templates(data, blocks, rng, demo_fg, fixed_bg)
 	else:
 		_place_fg_props_scatter(data, blocks, rng)
 	## `mSDI_PullTree` / `mFI_PullTanukiPathTrees` before fruit/cedar (`mSDI_StartInitNew`).
@@ -612,11 +628,15 @@ static func _place_from_fg_templates(
 	data: WorldData,
 	blocks: PackedByteArray,
 	rng: RandomNumberGenerator,
-	fg_override: Dictionary = {}
+	fg_override: Dictionary = {},
+	override_whole: bool = false
 ) -> Array[Vector2i]:
 	## Returns SIGN reserve cells (`mNT_IS_RESERVE`) for villager house assignment.
 	## `fg_override` (Vector2i(bx, bz) → fg id) replaces the combi pick — the title demo's fixed
-	## FG. Those templates assume flat ground, so only grass cells take an item.
+	## FG. `override_whole`: the BG is the demo's own fixed map, so the override replaces the
+	## whole template like `mFM_ChangeFGName` does. Otherwise the override lands on a generated
+	## BG it was not authored for: keep the real templates' structures and put its props on
+	## grass cells only.
 	var reserves: Array[Vector2i] = []
 	var tree_n := 0
 	var flower_n := 0
@@ -633,6 +653,8 @@ static func _place_from_fg_templates(
 			var passes: Array[Vector2i] = []
 			if fg_override.is_empty():
 				passes.append(Vector2i(normal_id, 0))
+			elif override_whole:
+				passes.append(Vector2i(int(fg_override.get(Vector2i(bx, bz), normal_id)), 0))
 			else:
 				passes.append(Vector2i(normal_id, 1))
 				passes.append(Vector2i(int(fg_override.get(Vector2i(bx, bz), -1)), 2))
@@ -650,7 +672,8 @@ static func _place_from_fg_templates(
 						var place: Dictionary = FgCatalog.placement_for_item(item_id)
 						if (
 							place.is_empty()
-							and mode == 2
+							and mode != 1
+							and not fg_override.is_empty()
 							and item_id >= DEMO_HOME_ITEM_MIN
 							and item_id <= DEMO_HOME_ITEM_MAX
 						):
@@ -840,10 +863,14 @@ static func _set_fruit_title_demo(data: WorldData) -> void:
 static func _place_title_demo_villagers(data: WorldData, reserves: Array[Vector2i]) -> void:
 	## `mNpc_SetAnimalTitleDemo`: 14 named villagers whose homes sit at fixed acre/unit spots.
 	## The fixed FG templates carry a SIGN reserve within a unit of each, so each villager takes
-	## the nearest unused reserve (within 2 units) that still fits a house here.
+	## the nearest unused reserve (within 2 units) that still fits a house here. Every villager is
+	## then born at its `title_demo_actable` unit — with or without a house (Lobo has none).
 	var free: Array[Vector2i] = reserves.duplicate()
 	var placed := 0
 	for row: Dictionary in TitleDemo.NPCS:
+		var villager: VillagerData = VillagerCatalog.get_villager(row["id"] as StringName)
+		if villager == null:
+			continue
 		var target: Vector2i = (
 			_fg_origin(int(row["bx"]), int(row["bz"])) + Vector2i(int(row["ux"]), int(row["uz"]))
 		)
@@ -858,29 +885,53 @@ static func _place_title_demo_villagers(data: WorldData, reserves: Array[Vector2
 				continue
 			best = i
 			best_dist = dist
-		var villager: VillagerData = VillagerCatalog.get_villager(row["id"] as StringName)
-		if best < 0 or villager == null:
-			continue
-		var sign: Vector2i = free[best]
-		free.remove_at(best)
-		_remove_objects_in_house_plot(data, sign)
-		var house := _labeled_building(
-			StringName("npc_house_%d" % placed),
-			&"house",
-			Vector2i(sign.x - 1, sign.y - 1),
-			Vector2i(3, 3),
-			true,
-			villager.outdoor_house_visual(),
-			"House"
-		)
-		house.resident_id = villager.id
-		if villager.display_name != "":
-			house.label = "%s's House" % villager.display_name
-		data.buildings.append(house)
-		data.objects.append(
-			_villager(villager.id, _yard_cell(data, house.cell, house.footprint), villager)
-		)
-		placed += 1
+		var house: BuildingPlacement = null
+		if best >= 0:
+			var sign: Vector2i = free[best]
+			free.remove_at(best)
+			_remove_objects_in_house_plot(data, sign)
+			house = _labeled_building(
+				StringName("npc_house_%d" % placed),
+				&"house",
+				Vector2i(sign.x - 1, sign.y - 1),
+				Vector2i(3, 3),
+				true,
+				villager.outdoor_house_visual(),
+				"House"
+			)
+			house.resident_id = villager.id
+			if villager.display_name != "":
+				house.label = "%s's House" % villager.display_name
+			data.buildings.append(house)
+			placed += 1
+		var start: Vector2i = title_demo_start_cell(row)
+		if not _walkable_start(data, start):
+			if house == null:
+				continue
+			start = _yard_cell(data, house.cell, house.footprint)
+		data.objects.append(_villager(villager.id, start, villager))
+
+
+## `title_demo_actable`: the unit a title-demo villager is born on.
+static func title_demo_start_cell(row: Dictionary) -> Vector2i:
+	return _fg_origin(int(row["start_bx"]), int(row["start_bz"])) + Vector2i(
+		int(row["start_ux"]), int(row["start_uz"])
+	)
+
+
+static func _walkable_start(data: WorldData, cell: Vector2i) -> bool:
+	if not data.is_in_bounds(cell):
+		return false
+	var terrain: int = data.terrain_at(cell)
+	if terrain == WorldGrid.Terrain.WATER or terrain == WorldGrid.Terrain.CLIFF:
+		return false
+	for b: BuildingPlacement in data.buildings:
+		if b != null and b.occupy_grid and Rect2i(b.cell, b.footprint).has_point(cell):
+			return false
+	for o: ObjectPlacement in data.objects:
+		if o != null and o.occupy_grid and o.cell == cell:
+			return false
+	return true
 
 
 static func _place_villager_homes(

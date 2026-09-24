@@ -104,8 +104,8 @@ const TERM_HOURS := {
 ## `PROGRAM_FOR_TYPE[type_index]` (the decomp `aINS_program_type[]` table) on load.
 @export var program: Program = Program.CHOU
 
-## Pose A/B cadence for field and held insects (30 Hz hold table).
-const POSE_FLAP_HZ := 30.0
+## Pose A/B cadence for field and held insects: one table step per decomp frame (60 Hz).
+const POSE_FLAP_HZ := PlayerLocomotion.LOGIC_HZ
 const POSE_FLAP_FAST: Array[int] = [0, 0, 0, 0, 1, 1, 0, 0]
 const POSE_FLAP_SLOW: Array[int] = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0]
 

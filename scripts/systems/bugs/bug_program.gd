@@ -10,7 +10,7 @@ extends RefCounted
 ## decomp step (`0x800` etc.) to radians. Distances are GX unless noted.
 
 const S16 := TAU / 65536.0
-const GAME_FPS := 30.0
+const GAME_FPS := PlayerLocomotion.LOGIC_HZ
 
 ## `aINS_INSECT_TYPE_*` for readability inside the overlays.
 const T_COMMON_BUTTERFLY := 0
@@ -105,7 +105,10 @@ static func chase_f(cur: float, target: float, step: float) -> float:
 
 
 ## `chase_angle`: radian analog of the s16 `chase_angle` — shortest-arc chase.
+## `chase_angle` scales its step by `game_GameFrame_2F` (frame × 0.5): `step × 30` per second
+## whatever the frame rate, so half a step per 60 Hz frame.
 static func chase_angle(cur: float, target: float, step: float) -> float:
+	step *= 30.0 / GAME_FPS
 	var diff: float = wrapf(target - cur, -PI, PI)
 	if absf(diff) <= step:
 		return wrapf(target, -PI, PI)

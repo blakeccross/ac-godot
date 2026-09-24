@@ -5,6 +5,9 @@ extends StaticBody3D
 
 const PICKUP_SCENE := preload("res://scenes/world/item_pickup.tscn")
 const STUMP_VISUAL := &"TREE_STUMP004"
+## `mCoBG_MakeOneColumnCollisionData`: a grown stump (`TREE_STUMP004`) is an 18 GX column
+## (the `*_STUMP001` saplings' stumps would be 10). Trees are 19 (`HostCollision`).
+const STUMP_RADIUS := 18.0 * FieldCatalog.GX_TO_METERS
 ## Player shake effect lands on frame 10 (`Player_actor_SetEffect_Shake_tree`).
 const SHAKE_EFFECT_FRAME := 10.0
 ## `STATUS_FOR_BEE_ATTACK` at frame 29.5 — delay from the effect mark (frame 10).
@@ -490,7 +493,7 @@ func _present_stump() -> void:
 		if col.shape is CylinderShape3D:
 			var shape := (col.shape as CylinderShape3D).duplicate() as CylinderShape3D
 			shape.height = 0.4
-			shape.radius = 0.22
+			shape.radius = STUMP_RADIUS
 			col.shape = shape
 
 

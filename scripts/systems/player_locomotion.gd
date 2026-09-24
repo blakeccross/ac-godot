@@ -1,12 +1,21 @@
 class_name PlayerLocomotion
 extends RefCounted
 
-## GameCube walk feel in meters. Speeds follow `m_player_main_walk` (4.875 / 7.5 per
-## frame at 30 Hz) scaled so one 40-unit tile is one 2 m cell. Not a C port.
+## GameCube walk feel in meters, scaled so one 40-unit tile is one 2 m cell. Not a C port.
+##
+## The decomp's play frame is 1/60 s: `Actor_position_move` adds `0.5 · speed` per frame
+## ("30fps -> 60fps") and 30 fps keyframes play at 0.5 per tick. So `speed` (4.875 walk / 7.5
+## dash, `m_player_main_walk`) is GX per 1/30 s — `FRAME_HZ` — while the per-frame steps
+## (accelerate 0.609, brake 0.326, `add_calc_short_angle2` turn) happen `LOGIC_HZ` times a
+## second. Applying those at 30 Hz halved turning and acceleration, which bent the title
+## demo's replayed routes into trees.
 
 enum Gait { WAIT, WALK, RUN, DASH }
 
+## Units of the decomp `speed` value: GX per 1/30 s.
 const FRAME_HZ := 30.0
+## Decomp play frames per second: how often the per-frame steps apply.
+const LOGIC_HZ := 60.0
 const TILE_UNITS := 40.0
 const TILE_METERS := 2.0
 const UNIT_METERS := TILE_METERS / TILE_UNITS
@@ -20,12 +29,12 @@ const ORIG_DECEL := 0.32625002
 const WALK_SPEED := ORIG_WALK * FRAME_HZ * UNIT_METERS
 const RUN_SPEED := ORIG_RUN * FRAME_HZ * UNIT_METERS
 const WALK_RUN_SPEED := ORIG_WALK_RUN * FRAME_HZ * UNIT_METERS
-const ACCEL := ORIG_ACCEL * FRAME_HZ * UNIT_METERS * FRAME_HZ
-const DECEL := ORIG_DECEL * FRAME_HZ * UNIT_METERS * FRAME_HZ
+const ACCEL := ORIG_ACCEL * FRAME_HZ * UNIT_METERS * LOGIC_HZ
+const DECEL := ORIG_DECEL * FRAME_HZ * UNIT_METERS * LOGIC_HZ
 
 const STICK_DEADZONE := 0.05
 const IDLE_SPEED := 0.08
-## s16 2500 / 65536 of a turn, per 30 Hz frame.
+## s16 2500 / 65536 of a turn, per decomp frame (`LOGIC_HZ`).
 const TURN_MAX_RAD := 2500.0 * TAU / 65536.0
 const TURN_MIN_RAD := 50.0 * TAU / 65536.0
 
@@ -89,7 +98,7 @@ static func turn_mod(stick: float) -> float:
 
 static func step_facing(current: float, target: float, stick: float, delta: float) -> float:
 	var fraction: float = 1.0 - sqrt(1.0 - turn_mod(stick))
-	var dt_scale: float = delta * FRAME_HZ
+	var dt_scale: float = delta * LOGIC_HZ
 	var max_step: float = TURN_MAX_RAD * dt_scale
 	var min_step: float = TURN_MIN_RAD * dt_scale
 	var signed: float = angle_difference(current, target)

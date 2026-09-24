@@ -5,16 +5,17 @@ extends CanvasLayer
 signal closed
 signal event_fired(event: Dictionary)
 
-## Message logic runs on a 30 Hz tick in the original (`mMsg_BUTTON_TURN_TIME` = 60).
-const FRAME_HZ := 30.0
+## `m_msg` counts decomp play frames (1/60 s, `PlayerLocomotion.LOGIC_HZ`): appear timer +1 per
+## frame, a glyph every other frame.
+const FRAME_HZ := PlayerLocomotion.LOGIC_HZ
 ## `m_msg_appear` / `m_msg_disappear`: linear scale over 18 frames (accel/brake 0).
 const APPEAR_FRAMES := 18.0
 ## `mChoice` appear/disappear duration.
 const CHOICE_APPEAR_FRAMES := 10.2
-## Every other frame @ 30 Hz (`mMsg_STATUS_FLAG_NOT_PAUSE_FRAME`).
-const CHARS_PER_SEC := 15.0
-## `mMsg_STATUS_FLAG_FAST_TEXT` clears the pause frame → one glyph per tick.
-const FAST_CHARS_PER_SEC := 30.0
+## Every other frame (`mMsg_STATUS_FLAG_NOT_PAUSE_FRAME`).
+const CHARS_PER_SEC := FRAME_HZ * 0.5
+## `mMsg_STATUS_FLAG_FAST_TEXT` clears the pause frame → one glyph per frame.
+const FAST_CHARS_PER_SEC := FRAME_HZ
 
 enum Phase { HIDDEN, APPEARING, OPEN, DISAPPEARING }
 enum ChoicePhase { HIDDEN, APPEARING, OPEN, DISAPPEARING }

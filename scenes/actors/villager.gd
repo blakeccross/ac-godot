@@ -20,7 +20,7 @@ const TRAVEL_REPLAN := 1.0
 const ACRE_ENTRY_DEPTH := 2
 ## Give up on a goal acre after this long stuck in one acre mid-relocation.
 const RELOCATE_GIVEUP := 14.0
-## `aNPC_calc_fatigue`: walk +1, run +2, wait -2 per 30 Hz frame; clamp [0, 1600].
+## `aNPC_calc_fatigue`: walk +1, run +2, wait -2 per decomp frame (60 Hz); clamp [0, 1600].
 ## `aNPC_check_fatigue` forces WAIT at 1600; `aNPC_act_wait` holds it until below 200.
 const FATIGUE_MAX := 1600.0
 const FATIGUE_REST := 200.0
@@ -998,11 +998,11 @@ func _is_sleepy() -> bool:
 
 
 func _tick_fatigue(delta: float, planar: Vector3) -> void:
-	## `aNPC_calc_fatigue` at 30 Hz: walk +1, run +2, wait -2 per frame; clamp [0, 1600].
+	## `aNPC_calc_fatigue` every frame (`LOGIC_HZ`): walk +1, run +2, wait -2; clamp [0, 1600].
 	var rate: float = FATIGUE_WAIT
 	if planar.length() > IDLE_SPEED and _motor.wait_left <= 0.0:
 		rate = FATIGUE_RUN if _motor.gait == VillagerWalk.ACT_RUN else FATIGUE_WALK
-	_fatigue = clampf(_fatigue + rate * delta * 30.0, 0.0, FATIGUE_MAX)
+	_fatigue = clampf(_fatigue + rate * delta * PlayerLocomotion.LOGIC_HZ, 0.0, FATIGUE_MAX)
 	if _fatigue >= FATIGUE_MAX:
 		_resting = true
 	elif _fatigue < FATIGUE_REST:

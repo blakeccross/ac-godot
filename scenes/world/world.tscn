@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scenes/world/fish_shadows.gd" id="11"]
 [ext_resource type="Script" path="res://scenes/world/bug_actors.gd" id="12"]
 [ext_resource type="Script" path="res://scenes/world/weather_fx.gd" id="13"]
+[ext_resource type="PackedScene" path="res://scenes/world/field_train.tscn" id="14_train"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color(0.35, 0.58, 0.88, 1)
@@ -72,6 +73,8 @@ shape = SubResource("GroundShape")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 6)
 
 [node name="Buildings" type="Node3D" parent="." unique_id=90950348]
+
+[node name="FieldTrain" parent="." instance=ExtResource("14_train")]
 
 [node name="Effects" type="Node3D" parent="." unique_id=716419998]
 

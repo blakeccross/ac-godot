@@ -106,6 +106,40 @@ func test_extracted_demos_when_present() -> void:
 		assert_int(TitleDemo.keys_for(i).size()).is_greater_equal(1800)
 
 
+func test_only_demo_one_has_the_parked_train() -> void:
+	## `mTRC_go_process`: the train control runs for `mEv_TITLEDEMO_START1` only.
+	assert_bool(TitleDemo.has_parked_train(0)).is_true()
+	for i: int in range(1, TitleDemo.DEMO_COUNT):
+		assert_bool(TitleDemo.has_parked_train(i)).is_false()
+
+
+func test_decomp_block_types_map_to_generator_ids() -> void:
+	## Ocean-side border cliffs are compacted; the plain rail acre (`NONE` in `data_combi`) is
+	## the generator's dump-rail type; everything else keeps its decomp id.
+	assert_int(TitleDemo.block_type_from_decomp(80, 6)).is_equal(
+		TownFieldGenerator.T_BORDER_CLIFF_OCEAN_LEFT
+	)
+	assert_int(TitleDemo.block_type_from_decomp(81, 6)).is_equal(
+		TownFieldGenerator.T_BORDER_CLIFF_OCEAN_RIGHT
+	)
+	assert_int(TitleDemo.block_type_from_decomp(255, 1)).is_equal(TownFieldGenerator.T_TRACKS_DUMP)
+	assert_int(TitleDemo.block_type_from_decomp(255, 3)).is_equal(TownFieldGenerator.T_NONE)
+	assert_int(TitleDemo.block_type_from_decomp(11, 1)).is_equal(TownFieldGenerator.T_TRACKS_STATION)
+	assert_int(TitleDemo.block_type_from_decomp(57, 3)).is_equal(57)
+
+
+func test_extracted_acres_fill_the_seven_by_ten_grid() -> void:
+	var acres: Dictionary = TitleDemo.acres()
+	if acres.is_empty():
+		return
+	var types: PackedByteArray = acres["types"]
+	var visuals: PackedStringArray = acres["visuals"]
+	assert_int(types.size()).is_equal(TownFieldGenerator.BLOCK_TOTAL)
+	assert_int(visuals.size()).is_equal(TownFieldGenerator.BLOCK_TOTAL)
+	assert_int(types[1 * TownFieldGenerator.BLOCK_X + 3]).is_equal(TownFieldGenerator.T_TRACKS_STATION)
+	assert_int(types[8 * TownFieldGenerator.BLOCK_X]).is_equal(TownFieldGenerator.T_NONE)
+
+
 func test_scripted_a_only_allows_tool_and_pickup_verbs() -> void:
 	for verb: StringName in [
 		Interaction.PICK_UP, Interaction.SHAKE, Interaction.CHOP, Interaction.CAST, Interaction.HOOK

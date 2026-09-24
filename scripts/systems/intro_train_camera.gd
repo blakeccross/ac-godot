@@ -122,7 +122,12 @@ func tick(delta: float, rover_pos_gx: Vector3, action: IntroTrainStage.Action, a
 		_camera_tilt, _camera_tilt_goal, _camera_tilt_chase * delta * 30.0
 	)
 	var tilt_sin: float = sin(_camera_tilt)
-	_obj_look_y_gx = lerpf(_obj_look_y_gx, _obj_look_y_target_gx, 0.5 * delta * 30.0)
+	## `chase_f(eye_y, obj_look_y_max[type], obj_look_y_spd[type] * 0.5)` every frame:
+	## talk (max 30) at 0.5, normal (max 20) at 2.5.
+	var look_spd: float = 0.5 if _obj_look_y_target_gx >= IntroTrainStage.OBJ_LOOK_Y_TALK_GX else 2.5
+	_obj_look_y_gx = move_toward(
+		_obj_look_y_gx, _obj_look_y_target_gx, look_spd * 0.5 * delta * PlayerLocomotion.LOGIC_HZ
+	)
 	var move_x_gx: float = cos(float(_camera_move) / 65536.0 * TAU) * 0.1
 	var move_y_gx: float = _camera_move_y
 	var eye_gx := Vector3(
@@ -186,7 +191,8 @@ func _morph_look_gx(ground_gx: Vector3, inter: float) -> Vector3:
 
 
 func _apply_sway(delta: float) -> void:
-	_camera_move += int(IntroTrainStage.CAMERA_SWAY_STEP * delta * 30.0)
+	## `aNGD_set_camera`: `camera_move += 0xE20` every frame.
+	_camera_move += int(IntroTrainStage.CAMERA_SWAY_STEP * delta * PlayerLocomotion.LOGIC_HZ)
 	var move_x_gx: float = cos(float(_camera_move) / 65536.0 * TAU) * 0.1
 	var angle_y: int = _camera_move + IntroTrainStage.CAMERA_SWAY_STEP
 	var move_y_gx: float = sin(float(angle_y) / 65536.0 * TAU) * _camera_move_range

@@ -163,8 +163,9 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	if _check_patience(a, sense):
 		setup_action(a, AVOID)
 		return
-	## Ease shape yaw toward the target heading.
-	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x1000 * S16)
+	## Ease shape yaw toward the target heading:
+	## `add_calc_short_angle2(rot.y, angle.y, CALC_EASE(0.5), 0x2000, 0)` (not frame-scaled).
+	a.rot.y = MLib.short_angle2(a.rot.y, a.angle_y, 1.0 - sqrt(0.5), 0x2000 * S16)
 	if a.type == T_BELL_CRICKET and _on_ground(a, sense) and a.patience < 20.0:
 		a.anime0 += 1.0
 		if a.anime0 >= 2.0:

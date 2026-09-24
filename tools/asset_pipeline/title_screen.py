@@ -21,7 +21,8 @@ Two outputs, both gitignored under `assets/generated/`:
   do, at a guessed 64x32) gives noise; linear + swapped nibbles reads "Press" /
   "START" / "(c)20" cleanly. The 1024-byte symbol size confirms 64x16 at 8 bpp.
 - `titledemo/demos.json` — per demo: spawn position, angle, tool, and the raw
-  30 Hz `u16` input samples; plus the fixed FG block table for the demo town.
+  30 Hz `u16` input samples; plus the fixed FG block table and the fixed acre (BG)
+  layout for the demo town (`data_fdd[SCENE_TITLE_DEMO]` in `field_data.c`).
 
 The input word is `XXXXXXXB YYYYYYYA` (`pact0.c` header comment); decoding lives in
 GDScript (`TitleDemoInput`) so the raw words stay inspectable here.
@@ -199,6 +200,113 @@ def parse_title_demo_fg(source: str) -> dict[str, Any]:
     return {"cols": cols, "rows": len(ids) // cols, "ids": ids}
 
 
+def _strip_c_comments(text: str) -> str:
+    return re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", "", text, flags=re.S))
+
+
+def _enum_names(source: str, enum_tag: str) -> list[str]:
+    """Member names of `enum <enum_tag> { ... }` in declaration order (no explicit values)."""
+    match = re.search(rf"enum\s+{re.escape(enum_tag)}\s*\{{(.*?)\}}", source, re.S)
+    if match is None:
+        raise ValueError(f"enum {enum_tag} not found")
+    names = []
+    for part in _strip_c_comments(match.group(1)).split(","):
+        name = part.strip()
+        if name:
+            if "=" in name:
+                raise ValueError(f"enum {enum_tag}: explicit value in {name!r} not supported")
+            names.append(name)
+    return names
+
+
+def _block_type_values(field_make_h: str) -> dict[str, int]:
+    """`mFM_BLOCK_TYPE_*` → value (the enum mixes implicit and explicit values)."""
+    out: dict[str, int] = {}
+    value = -1
+    for match in re.finditer(r"\benum\s*\{(.*?)\}", field_make_h, re.S):
+        body = _strip_c_comments(match.group(1))
+        if "mFM_BLOCK_TYPE_" not in body:
+            continue
+        for part in body.split(","):
+            item = part.strip()
+            if not item.startswith("mFM_BLOCK_TYPE_"):
+                continue
+            if "=" in item:
+                name, raw = (s.strip() for s in item.split("=", 1))
+                value = int(raw, 0)
+            else:
+                name = item
+                value += 1
+            out[name] = value
+        return out
+    raise ValueError("mFM_BLOCK_TYPE enum not found")
+
+
+def _top_level_entries(body: str) -> list[str]:
+    """Split a C initializer list body into its depth-1 `{ ... }` entries."""
+    entries: list[str] = []
+    depth = 0
+    start = -1
+    for i, ch in enumerate(body):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0 and start >= 0:
+                entries.append(body[start : i + 1])
+    return entries
+
+
+def parse_title_demo_acres(
+    field_data_c: str, data_combi_c: str, combi_type_h: str, field_make_h: str, scene_table_h: str
+) -> dict[str, Any]:
+    """The title demo's fixed acre layout: `data_fdd[SCENE_TITLE_DEMO].combi`.
+
+    `mFM_MakeField` takes `combi = field_data->combi` for every scene that is not
+    `SCENE_FG` / a player room, so the attract town's BG is this hard-coded 7x8 table,
+    not a save's random field. Each `{ BLOCK_COMBI_*, height }` resolves through
+    `data_combi_table` (indexed by the `__block_combi__` enum) to its BG name and
+    `mFM_BLOCK_TYPE_*`.
+    """
+    scenes = _enum_names(scene_table_h, "scene_table")
+    scene_index = scenes.index("SCENE_TITLE_DEMO")
+    table = re.search(r"data_fdd\[[^\]]*\]\s*=\s*\{(.*)\};", _strip_c_comments(field_data_c), re.S)
+    if table is None:
+        raise ValueError("data_fdd not found")
+    entries = _top_level_entries(table.group(1))
+    if scene_index >= len(entries):
+        raise ValueError(f"data_fdd has {len(entries)} entries, SCENE_TITLE_DEMO is {scene_index}")
+    entry = entries[scene_index]
+    head = re.match(r"\{\s*(\w+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,", entry)
+    if head is None:
+        raise ValueError("data_fdd[SCENE_TITLE_DEMO]: header not parsed")
+    cols, rows = int(head.group(2)), int(head.group(3))
+    cells = re.findall(r"\{\s*(BLOCK_COMBI_\w+)\s*,\s*(\d+)\s*\}", entry)
+    if len(cells) != cols * rows:
+        raise ValueError(f"data_fdd[SCENE_TITLE_DEMO]: {len(cells)} cells for {cols}x{rows}")
+
+    combis = [n for n in _enum_names(combi_type_h, "__block_combi__") if n != "BLOCK_COMBI_NUM"]
+    combi_rows = re.findall(
+        r"\{\s*(BG_TYPE_\w+)\s*,\s*(FG_TYPE_\w+)\s*,\s*(mFM_BLOCK_TYPE_\w+)\s*\}",
+        _strip_c_comments(data_combi_c),
+    )
+    if len(combi_rows) != len(combis):
+        raise ValueError(f"data_combi_table has {len(combi_rows)} rows for {len(combis)} combis")
+    block_types = _block_type_values(field_make_h)
+
+    bg: list[str] = []
+    types: list[int] = []
+    heights: list[int] = []
+    for combi, height in cells:
+        bg_type, _fg_type, block_type = combi_rows[combis.index(combi)]
+        bg.append(bg_type.removeprefix("BG_TYPE_").lower())
+        types.append(block_types[block_type])
+        heights.append(int(height))
+    return {"cols": cols, "rows": rows, "bg": bg, "types": types, "heights": heights}
+
+
 def extract_title_demo(cfg: PipelineConfig, decomp_root: Path | None = None) -> dict[str, Any]:
     decomp = decomp_root or cfg.decomp_root or _guess_decomp(cfg)
     if decomp is None:
@@ -210,10 +318,22 @@ def extract_title_demo(cfg: PipelineConfig, decomp_root: Path | None = None) -> 
 
     demos = [parse_pact((data_dir / f"pact{i}.c").read_text(), i) for i in range(DEMO_COUNT)]
     fg = parse_title_demo_fg(field_make.read_text())
+    acres = parse_title_demo_acres(
+        (decomp / "src" / "data" / "field" / "field_data.c").read_text(),
+        (decomp / "src" / "data" / "combi" / "data_combi.c").read_text(),
+        (decomp / "include" / "m_combi_type.h").read_text(),
+        (decomp / "include" / "m_field_make.h").read_text(),
+        (decomp / "include" / "m_scene_table.h").read_text(),
+    )
 
     out_dir = cfg.godot_generated / "titledemo"
     out_dir.mkdir(parents=True, exist_ok=True)
-    catalog = {"source": "ac-decomp src/data/titledemo + m_field_make.c", "demos": demos, "fg": fg}
+    catalog = {
+        "source": "ac-decomp src/data/titledemo + m_field_make.c + field_data.c",
+        "demos": demos,
+        "fg": fg,
+        "acres": acres,
+    }
     path = out_dir / "demos.json"
     path.write_text(json.dumps(catalog, separators=(",", ":")) + "\n")
     stage = cfg.converted / "titledemo"
@@ -224,5 +344,6 @@ def extract_title_demo(cfg: PipelineConfig, decomp_root: Path | None = None) -> 
         "demos": len(demos),
         "samples": [len(d["keys"]) for d in demos],
         "fg_blocks": len(fg["ids"]),
+        "acre_blocks": len(acres["bg"]),
         "path": str(path),
     }

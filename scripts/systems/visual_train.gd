@@ -144,6 +144,37 @@ static func prepare_outdoor_train(node: Node) -> void:
 	snap_train_doors_closed(anim)
 
 
+static func center_train_visual(host: Node3D, center_gx: Vector3) -> void:
+	## Keep the actor origin on the decomp track point; shift only the mesh so the
+	## car body sits on the rails (pipeline AABBs are off-origin).
+	if host == null:
+		return
+	var vis: Node3D = host.get_node_or_null("GeneratedVisual") as Node3D
+	if vis == null:
+		return
+	var s: float = vis.scale.x if vis.scale.x > 0.0 else FieldCatalog.actor_uniform_scale()
+	vis.position.x = -center_gx.x * s
+	vis.position.z = -center_gx.z * s
+
+
+static func snap_train_doors_open(anim_player: AnimationPlayer) -> void:
+	## Decomp action 5 (`mTRC_ACTION_WAIT_STOPPED`): `obj_train1_3_close` held at frame 1,
+	## speed 0 — the first frame of the close clip is the open pose.
+	if anim_player == null:
+		return
+	for name: String in ["obj_train1_3_close", "close"]:
+		if not anim_player.has_animation(name):
+			continue
+		var animation: Animation = anim_player.get_animation(name)
+		if animation != null:
+			animation.loop_mode = Animation.LOOP_NONE
+		anim_player.speed_scale = 1.0
+		anim_player.play(name)
+		anim_player.seek(0.0, true)
+		anim_player.speed_scale = 0.0
+		return
+
+
 static func snap_train_doors_closed(anim_player: AnimationPlayer) -> void:
 	## Decomp actions 0–3: `obj_train1_3_open` frozen at frame 1 (closed), speed 0.
 	## Prefer open@0 over close@end — same pose, matches `aTR1_setupAction`.

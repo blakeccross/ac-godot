@@ -8,22 +8,26 @@ extends RefCounted
 ## along facing (not cell-step pathfinding).
 
 const ARRIVE := 0.45
-## Walk turn add `0x0200` → 2.8125°/frame @ 30 Hz → ~84.4°/s.
+## Turns go through `chase_angle`, which scales its step by `game_GameFrame_2F` (frame × 0.5):
+## `mv_add_angl × 30` per second at any frame rate.
+## Walk turn add `0x0200` → 2.8125° × 30 → ~84.4°/s.
 const WALK_TURN := 1.473
-## Run turn add `0x0400` → 5.625°/frame → ~168.8°/s (`setup_data` run rows).
+## Run turn add `0x0400` → 5.625° × 30 → ~168.8°/s (`setup_data` run rows).
 const RUN_TURN := 2.945
-## Turn-in-place add `0x0800` → 11.25°/frame → ~337.5°/s.
+## Turn-in-place add `0x0800` → 11.25° × 30 → ~337.5°/s.
 const SPIN_TURN := 5.89
 ## Dest more than 90° behind → turn first (`aNPC_think_wander_check_ones_way`).
 const TURN_ONLY := 1.5708
-## Field NPC `aNPC_spd_data`: walk 1.0 GX/frame, run 3.0. Accel/decel ×0.5 in chase.
-## 40 GX = 2 m at 30 Hz → 1.5 / 4.5 m/s. Accel 0.05 GX/frame² → 2.25 m/s².
+## Field NPC `aNPC_spd_data`: walk 1.0, run 3.0 (`speed`, moved `0.5 · speed` per 60 Hz frame
+## → 30 GX/s per unit; 40 GX = 2 m) → 1.5 / 4.5 m/s. `aNPC_position_move` chases speed by
+## `accel × 0.5` every frame (not frame-scaled): walk 0.1 / 0.2, run 0.3 / 0.6 →
+## 0.05 · 60 = 3 units/s² = 4.5 m/s² walking.
 const RUN_SCALE := 3.0
 const WALK_SPEED := 1.5
-const WALK_ACCEL := 2.25
-const WALK_DECEL := 4.5
-const RUN_ACCEL := 6.75
-const RUN_DECEL := 13.5
+const WALK_ACCEL := 4.5
+const WALK_DECEL := 9.0
+const RUN_ACCEL := 13.5
+const RUN_DECEL := 27.0
 
 var walk_speed: float = WALK_SPEED
 var wander_radius: float = 14.0

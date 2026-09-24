@@ -38,7 +38,10 @@ enum Action {
 }
 
 const BGM_ID := &"intro_arrive"
-const TICK_HZ := 30.0
+## Decomp play frames (`PlayerLocomotion.LOGIC_HZ`): `mTRC_trainControl` / `aNPC` steps run once each.
+const TICK_HZ := PlayerLocomotion.LOGIC_HZ
+## cKF speeds are keyframes per tick; baked clips run 30 keyframes per second.
+const KEYFRAMES_PER_TICK := TICK_HZ / 30.0
 
 ## Block-local GX (`aID_*` / `mTRC_demo_init` minus block origin).
 const TRACK_Z_GX := 100.0
@@ -76,6 +79,7 @@ const LAND_Y_GX := 0.0
 const TRAIN_SLOW_SPEED := 2.0
 const TRAIN_STOP_RATE := 0.005
 const SIGNAL_STOP_FRAMES := 48
+## Nook's run as a decomp `speed` (GX per 1/30 s); moved `0.5 · speed` per frame.
 const NOOK_RUN_SPEED_GX := 4.0
 ## `aID_walk_after_rcn_guide` rates vs Nook speed when xz distance < 80 GX.
 const DEMO_FOLLOW_NEAR_GX := 80.0
@@ -418,7 +422,7 @@ func _tick_frame() -> void:
 
 
 func _tick_train_approach() -> void:
-	## One 30 Hz frame of `mTRC_ACTION_BEGIN_SLOWDOWN` → `BEGIN_STOP`.
+	## One frame of `mTRC_ACTION_BEGIN_SLOWDOWN` → `BEGIN_STOP`.
 	if _loco_x_gx <= TRAIN_SLOW_X_GX:
 		_train_speed = TRAIN_SLOW_SPEED
 	else:
@@ -487,7 +491,7 @@ func _tick_nook_approach() -> void:
 	var goal: Vector3 = _nook_goal_gx
 	var delta_xz := Vector3(goal.x - pos.x, 0.0, goal.z - pos.z)
 	var dist: float = delta_xz.length()
-	var step: float = NOOK_RUN_SPEED_GX
+	var step: float = 0.5 * NOOK_RUN_SPEED_GX
 	if dist <= step:
 		_set_node_gx(_nook, _with_ground(goal))
 		_play_clip(_nook_anim, "npc_1_wait1", true)
@@ -506,7 +510,7 @@ func _tick_nook_lead() -> void:
 	var goal: Vector3 = _nook_goal_gx
 	var delta_xz := Vector3(goal.x - pos.x, 0.0, goal.z - pos.z)
 	var dist: float = delta_xz.length()
-	var step: float = NOOK_RUN_SPEED_GX
+	var step: float = 0.5 * NOOK_RUN_SPEED_GX
 	if dist <= step:
 		_set_node_gx(_nook, _with_ground(goal))
 		_play_clip(_nook_anim, "npc_1_wait1", true)
@@ -542,7 +546,7 @@ func _demo_follow_nook() -> void:
 	var rate: float = (
 		DEMO_FOLLOW_NEAR_RATE if dist < DEMO_FOLLOW_NEAR_GX else DEMO_FOLLOW_FAR_RATE
 	)
-	var speed: float = NOOK_RUN_SPEED_GX * rate
+	var speed: float = 0.5 * NOOK_RUN_SPEED_GX * rate
 	var step: float = minf(speed, dist)
 	var next: Vector3 = pos + delta_xz.normalized() * step
 	next.y = ground_y_gx(next.x, next.z)
@@ -575,20 +579,20 @@ func _place_train() -> void:
 	var loco_gx := Vector3(_loco_x_gx, track_y, TRACK_Z_GX)
 	_set_node_gx(_loco, loco_gx)
 	_face_yaw(_loco, LOCO_YAW)
-	_center_train_visual(_loco, LOCO_MESH_CENTER_GX)
+	VisualTrain.center_train_visual(_loco, LOCO_MESH_CENTER_GX)
 	## Mid-car: `ac_train0_draw` translates to arg0_f (= loco.x − 125) with no yaw.
 	var mid_gx := Vector3(_loco_x_gx - CABOOSE_GAP_GX, track_y, TRACK_Z_GX)
 	_set_node_gx(_mid, mid_gx)
 	_face_yaw(_mid, MID_YAW)
-	_center_train_visual(_mid, MID_MESH_CENTER_GX)
+	VisualTrain.center_train_visual(_mid, MID_MESH_CENTER_GX)
 	## Passenger / caboose (`TRAIN1`): another 125 behind mid → loco.x − 250.
 	var caboose_gx := Vector3(_loco_x_gx - PASSENGER_GAP_GX, track_y, TRACK_Z_GX)
 	_set_node_gx(_caboose, caboose_gx)
 	_face_yaw(_caboose, CABOOSE_YAW)
-	_center_train_visual(_caboose, CABOOSE_MESH_CENTER_GX)
+	VisualTrain.center_train_visual(_caboose, CABOOSE_MESH_CENTER_GX)
 	if _engineer != null:
 		_set_node_gx(_engineer, loco_gx + ENGINEER_OFF_GX)
-		_face_yaw(_engineer, LOCO_YAW)
+		_face_yaw(_engineer, FieldTrain.ENGINEER_YAW)
 
 
 func _snap_player_to_ride() -> void:
@@ -610,7 +614,7 @@ func _open_caboose_door() -> void:
 		if _caboose_anim.has_animation(name):
 			## `mTRC_ACTION_SIGNAL_STOPPED` → open clip @ 0.5 (`aTR1_setupAction` action 4).
 			_caboose_anim.speed_scale = 1.0
-			_caboose_anim.play(name, 0.0, 0.5)
+			_caboose_anim.play(name, 0.0, 0.5 * KEYFRAMES_PER_TICK)
 			return
 
 
@@ -629,7 +633,7 @@ func _start_loco_wheels() -> void:
 func _sync_loco_wheel_speed() -> void:
 	if _loco_anim == null:
 		return
-	_loco_anim.speed_scale = loco_wheel_speed_scale(_train_speed)
+	_loco_anim.speed_scale = loco_wheel_speed_scale(_train_speed) * KEYFRAMES_PER_TICK
 
 
 func _play_getoff_anim() -> void:
@@ -768,19 +772,6 @@ func _face_yaw(node: Node3D, yaw: float) -> void:
 		node.call("apply_facing", yaw)
 	else:
 		node.rotation = Vector3(0.0, yaw, 0.0)
-
-
-func _center_train_visual(host: Node3D, center_gx: Vector3) -> void:
-	## Keep the actor origin on the decomp track point; shift only the mesh so the
-	## car body sits on the rails (pipeline AABBs are off-origin).
-	if host == null:
-		return
-	var vis: Node3D = host.get_node_or_null("GeneratedVisual") as Node3D
-	if vis == null:
-		return
-	var s: float = vis.scale.x if vis.scale.x > 0.0 else FieldCatalog.actor_uniform_scale()
-	vis.position.x = -center_gx.x * s
-	vis.position.z = -center_gx.z * s
 
 
 func _sync_player_gait_anim() -> void:

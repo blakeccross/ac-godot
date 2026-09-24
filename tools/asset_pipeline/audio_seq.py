@@ -1259,6 +1259,62 @@ def render_se(
     return renderer.run(max_sec=max_sec, stop_after_notes=True)
 
 
+## `Sou_LevSet`: a level (looping, positional) SE runs on SE subtrack 8 + its slot, with the
+## level id written to port 0. Slot 0 is enough offline.
+SE_LEV_SUBTRACK = 8
+LEV_RENDER_SEC = 8.0
+## Drop the attack, then crossfade the tail into the head so the OGG loops without a click.
+LEV_LOOP_TRIM_SEC = 0.5
+LEV_LOOP_XFADE_SEC = 0.25
+
+
+def render_lev_se(
+    seq: bytes,
+    banks: dict[int, Bank],
+    default_bank: int,
+    lev_id: int,
+    seq_banks: Optional[list[int]] = None,
+    max_sec: float = LEV_RENDER_SEC,
+) -> RenderResult:
+    """Offline level SE (`Sou_LevStart` / `Na_OngenPos` index): a fixed-length render of the loop."""
+    renderer = SeqRenderer(seq, banks, default_bank, seq_banks or list(SE_BANKS))
+    renderer.ignore_loop_end = True
+    renderer.set_subtrack_ports(SE_LEV_SUBTRACK, {0: int(lev_id) & 0xFF})
+    return renderer.run(max_sec=max_sec)
+
+
+def make_seamless_loop(
+    pcm: bytes,
+    rate: int,
+    trim_sec: float = LEV_LOOP_TRIM_SEC,
+    xfade_sec: float = LEV_LOOP_XFADE_SEC,
+    channels: int = 2,
+) -> bytes:
+    """Interleaved s16 PCM → a loop whose end crossfades into its start.
+
+    Keeps `body[xf:n-xf]` and appends `body[n-xf:]` faded out mixed with `body[:xf]` faded in,
+    so playback wrapping from the last frame to the first continues the waveform."""
+    samples = array("h")
+    samples.frombytes(pcm)
+    frame = channels
+    trim = int(trim_sec * rate) * frame
+    body = samples[trim:]
+    xf = int(xfade_sec * rate)
+    frames = len(body) // frame
+    if xf <= 0 or frames < 3 * xf:
+        return body.tobytes()
+    out = array("h", body[xf * frame : (frames - xf) * frame])
+    tail_start = (frames - xf) * frame
+    for i in range(xf):
+        t = i / xf
+        for c in range(frame):
+            head = body[i * frame + c]
+            tail = body[tail_start + i * frame + c]
+            v = int(round(tail * (1.0 - t) + head * t))
+            out.append(max(-32768, min(32767, v)))
+    return out.tobytes()
+
+
 def render_voice_phoneme(
     seq: bytes,
     banks: dict[int, Bank],

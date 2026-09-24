@@ -12,7 +12,7 @@ const MAX_ACTORS := 9
 const MAX_FIELD_SPAWNS := 8
 ## `aINS_cull_check`: drop when >600 GX from player and in another acre.
 const CULL_DISTANCE := 600.0 * FieldCatalog.GX_TO_METERS
-const GAME_FPS := 30.0
+const GAME_FPS := PlayerLocomotion.LOGIC_HZ
 
 ## `l_insect_birth_sum` (`ac_set_ovl_insect.c`): (min, additional_range). Only
 ## RED_DRAGONFLY (10) and FIREFLY (27) birth a swarm of 6–8; everything else is 1.

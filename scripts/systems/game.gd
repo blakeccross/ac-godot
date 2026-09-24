@@ -54,6 +54,8 @@ var redd: ReddBook = ReddBook.new()
 var events: EventCalendar = EventCalendar.new()
 var designs: DesignBook = DesignBook.new()
 var first_job: FirstJob = FirstJob.new()
+## The town train (`m_train_control`), run for the whole session.
+var train: TrainService
 var current_room_id: StringName = &""
 var outdoor_return: Vector3 = DEFAULT_SPAWN
 var outdoor_return_yaw: float = 0.0
@@ -158,6 +160,9 @@ func _init() -> void:
 func _ready() -> void:
 	if museum == null:
 		museum = MuseumBook.new()
+	train = TrainService.new()
+	train.name = "Train"
+	add_child(train)
 	ReddBook.ensure_art_items()
 	if not Clock.field_renewed.is_connected(_on_field_renewed):
 		Clock.field_renewed.connect(_on_field_renewed)
@@ -509,6 +514,8 @@ func notify_title_ready() -> void:
 
 func reset_session() -> void:
 	inventory.clear()
+	if train != null:
+		train.reset()
 	relationships.clear()
 	interiors.clear()
 	shops.clear()

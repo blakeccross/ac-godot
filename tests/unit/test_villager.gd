@@ -187,7 +187,7 @@ func test_scene_talks_when_in_field() -> void:
 
 
 func test_sustained_walk_builds_fatigue_and_forces_rest() -> void:
-	## `aNPC_calc_fatigue` (+1 walk / -2 wait per 30 Hz frame) → forced WAIT at 1600,
+	## `aNPC_calc_fatigue` (+1 walk / -2 wait per frame) → forced WAIT at 1600,
 	## held by `aNPC_act_wait` until fatigue drains under 200.
 	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
 	var moving := Vector3(1.5, 0.0, 0.0)
@@ -208,7 +208,7 @@ func test_motor_stops_when_not_wandering() -> void:
 	var step: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(3, 0, 0), false)
 	assert_vector(step).is_equal(Vector3.ZERO)
 	motor.set_target(Vector3(3, 0, 0))
-	## Accel 2.25 m/s² — after 0.1 s speed is 0.225 along facing (+Z after turn to +X).
+	## Accel 4.5 m/s² — after 0.1 s speed is 0.45 along facing (+Z after turn to +X).
 	var walk: Vector3 = motor.tick(0.1, Vector3.ZERO, Vector3(3, 0, 0), true)
 	assert_float(walk.length()).is_greater(0.1)
 	assert_bool(motor.has_target).is_true()

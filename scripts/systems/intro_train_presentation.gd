@@ -16,8 +16,8 @@ const TUNNEL_BG := Color(0.05, 0.04, 0.04)
 const DAYLIGHT_BG := Color(0.28, 0.22, 0.38)
 ## `rom_train_out_bgcloud_modelT` ENV (127,127,100) — RGB from combiner, not I4.
 const CLOUD_ENV := Color(127.0 / 255.0, 127.0 / 255.0, 100.0 / 255.0, 1.0)
-## `add_calc(&sun_percent, …, 1−√0.5, 0.1, 0.005)` once per game frame (~30 Hz).
-const _SUN_FRAME_HZ := 30.0
+## `add_calc(&sun_percent, …, 1−√0.5, 0.1, 0.005)` once per decomp frame (`mEnv_CalcSetLight_train`).
+const _SUN_FRAME_HZ := PlayerLocomotion.LOGIC_HZ
 const _SUN_FRACTION := 0.29289321881
 const _SUN_MAX_STEP := 0.1
 const _SUN_MIN_STEP := 0.005
@@ -25,6 +25,7 @@ const _SUN_MIN_STEP := 0.005
 ## 0 in tunnel → 1 after Rover finishes sitdown (`aNGD_sitdown` sets `sunlight_flag`).
 static var sun_percent: float = 0.0
 static var _sun_target: float = 0.0
+static var _sun_accum: float = 0.0
 
 
 static func apply_tunnel(world_env: WorldEnvironment, train_car: Node) -> void:
@@ -59,9 +60,9 @@ static func snap_daylight(world_env: WorldEnvironment, train_car: Node) -> void:
 static func tick_sunlight(delta: float, world_env: WorldEnvironment) -> bool:
 	if is_equal_approx(sun_percent, _sun_target):
 		return false
-	var frames: float = delta * _SUN_FRAME_HZ
-	frames = minf(frames, 4.0)
-	for _i: int in int(ceilf(frames)):
+	_sun_accum = minf(_sun_accum + delta * _SUN_FRAME_HZ, 4.0)
+	while _sun_accum >= 1.0:
+		_sun_accum -= 1.0
 		_step_sun_percent()
 		if is_equal_approx(sun_percent, _sun_target):
 			break

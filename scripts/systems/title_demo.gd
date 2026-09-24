@@ -27,22 +27,24 @@ const TRADE_DAYS: Array[Dictionary] = [
 ]
 
 ## `demo_npc_list` (m_trademark.c): villager, acre (x, z) and unit (x, z) of its home.
-## The decomp lists 14 but loops over 15 (`@BUG`); only these 14 are real.
+## The decomp lists 14 but loops over 15 (`@BUG`); only these 14 are real. `start_*`: where
+## the actor is born (`title_demo_actable`, `src/data/field/mvactor/title_demo.c`) — every
+## villager, Lobo included although the fixed FG has no house marker for him.
 const NPCS: Array[Dictionary] = [
-	{"id": &"bob", "bx": 1, "bz": 2, "ux": 3, "uz": 7},
-	{"id": &"paolo", "bx": 1, "bz": 2, "ux": 8, "uz": 11},
-	{"id": &"vesta", "bx": 1, "bz": 4, "ux": 12, "uz": 11},
-	{"id": &"joey", "bx": 2, "bz": 3, "ux": 5, "uz": 6},
-	{"id": &"lobo", "bx": 2, "bz": 3, "ux": 4, "uz": 12},
-	{"id": &"carrie", "bx": 3, "bz": 5, "ux": 11, "uz": 5},
-	{"id": &"tank", "bx": 4, "bz": 3, "ux": 3, "uz": 12},
-	{"id": &"buzz", "bx": 4, "bz": 4, "ux": 3, "uz": 4},
-	{"id": &"rasher", "bx": 4, "bz": 4, "ux": 12, "uz": 13},
-	{"id": &"biff", "bx": 4, "bz": 6, "ux": 5, "uz": 6},
-	{"id": &"samson", "bx": 5, "bz": 2, "ux": 12, "uz": 4},
-	{"id": &"jane", "bx": 5, "bz": 2, "ux": 9, "uz": 11},
-	{"id": &"tybalt", "bx": 5, "bz": 4, "ux": 11, "uz": 4},
-	{"id": &"cube", "bx": 5, "bz": 5, "ux": 5, "uz": 11},
+	{"id": &"bob", "bx": 1, "bz": 2, "ux": 3, "uz": 7, "start_bx": 1, "start_bz": 2, "start_ux": 3, "start_uz": 9},
+	{"id": &"paolo", "bx": 1, "bz": 2, "ux": 8, "uz": 11, "start_bx": 1, "start_bz": 2, "start_ux": 5, "start_uz": 13},
+	{"id": &"vesta", "bx": 1, "bz": 4, "ux": 12, "uz": 11, "start_bx": 1, "start_bz": 4, "start_ux": 11, "start_uz": 14},
+	{"id": &"joey", "bx": 2, "bz": 3, "ux": 5, "uz": 6, "start_bx": 2, "start_bz": 3, "start_ux": 7, "start_uz": 7},
+	{"id": &"lobo", "bx": 2, "bz": 3, "ux": 4, "uz": 12, "start_bx": 2, "start_bz": 3, "start_ux": 2, "start_uz": 14},
+	{"id": &"carrie", "bx": 3, "bz": 5, "ux": 11, "uz": 5, "start_bx": 3, "start_bz": 5, "start_ux": 8, "start_uz": 7},
+	{"id": &"tank", "bx": 4, "bz": 3, "ux": 3, "uz": 12, "start_bx": 4, "start_bz": 3, "start_ux": 6, "start_uz": 13},
+	{"id": &"buzz", "bx": 4, "bz": 4, "ux": 3, "uz": 4, "start_bx": 4, "start_bz": 4, "start_ux": 6, "start_uz": 5},
+	{"id": &"rasher", "bx": 4, "bz": 4, "ux": 12, "uz": 13, "start_bx": 4, "start_bz": 4, "start_ux": 12, "start_uz": 14},
+	{"id": &"biff", "bx": 4, "bz": 6, "ux": 5, "uz": 6, "start_bx": 4, "start_bz": 6, "start_ux": 3, "start_uz": 8},
+	{"id": &"samson", "bx": 5, "bz": 2, "ux": 12, "uz": 4, "start_bx": 5, "start_bz": 2, "start_ux": 9, "start_uz": 2},
+	{"id": &"jane", "bx": 5, "bz": 2, "ux": 9, "uz": 11, "start_bx": 5, "start_bz": 2, "start_ux": 11, "start_uz": 13},
+	{"id": &"tybalt", "bx": 5, "bz": 4, "ux": 11, "uz": 4, "start_bx": 5, "start_bz": 4, "start_ux": 7, "start_uz": 3},
+	{"id": &"cube", "bx": 5, "bz": 5, "ux": 5, "uz": 11, "start_bx": 5, "start_bz": 5, "start_ux": 5, "start_uz": 5},
 ]
 
 ## Head-table tool word → item id (`mTD_player_keydata_init`). `0x2204` is the gelato
@@ -107,6 +109,60 @@ static func load_data() -> Dictionary:
 static func has_data() -> bool:
 	var demos: Variant = load_data().get("demos", [])
 	return demos is Array and (demos as Array).size() == DEMO_COUNT
+
+
+## The demo town's fixed acre layout (`data_fdd[SCENE_TITLE_DEMO].combi`): `mFM_MakeField`
+## only reads a save's random field for `SCENE_FG`, so the attract town is always this
+## 7×8 map. Returns `{types, heights, visuals}` sized for the 7×10 `TownFieldGenerator`
+## grid (rows 8–9 stay empty), or `{}` when the extraction predates the acre table.
+static func acres() -> Dictionary:
+	var raw: Variant = load_data().get("acres", {})
+	if not raw is Dictionary:
+		return {}
+	var table: Dictionary = raw as Dictionary
+	var cols: int = int(table.get("cols", 0))
+	var rows: int = int(table.get("rows", 0))
+	var bg: Array = table.get("bg", []) as Array
+	var types_in: Array = table.get("types", []) as Array
+	var heights_in: Array = table.get("heights", []) as Array
+	if cols != TownFieldGenerator.BLOCK_X or rows > TownFieldGenerator.BLOCK_Z:
+		return {}
+	if bg.size() != cols * rows or types_in.size() != bg.size() or heights_in.size() != bg.size():
+		return {}
+	var types := PackedByteArray()
+	types.resize(TownFieldGenerator.BLOCK_TOTAL)
+	types.fill(TownFieldGenerator.T_NONE)
+	var heights := PackedByteArray()
+	heights.resize(TownFieldGenerator.BLOCK_TOTAL)
+	var visuals := PackedStringArray()
+	visuals.resize(TownFieldGenerator.BLOCK_TOTAL)
+	for i: int in bg.size():
+		types[i] = block_type_from_decomp(int(types_in[i]), i / cols)
+		heights[i] = int(heights_in[i])
+		visuals[i] = String(bg[i])
+	return {"types": types, "heights": heights, "visuals": visuals}
+
+
+## `mFM_BLOCK_TYPE_*` → `TownFieldGenerator` id. The ids match except the ocean-side border
+## cliffs (decomp 80/81 collide with the compacted museum/needlework ids), and the plain
+## rail acre (`grd_s_t_5` is `mFM_BLOCK_TYPE_NONE` in `data_combi`), which the generator
+## calls `T_TRACKS_DUMP`.
+static func block_type_from_decomp(decomp_type: int, bz: int) -> int:
+	match decomp_type:
+		80:
+			return TownFieldGenerator.T_BORDER_CLIFF_OCEAN_LEFT
+		81:
+			return TownFieldGenerator.T_BORDER_CLIFF_OCEAN_RIGHT
+		TownFieldGenerator.T_NONE:
+			return TownFieldGenerator.T_TRACKS_DUMP if bz == 1 else TownFieldGenerator.T_NONE
+	return decomp_type
+
+
+## `mTRC_go_process` only runs the train control in demo 1 (`mEv_TITLEDEMO_START1`), where
+## `mTRC_schedule` parks it at the station (`TrainControl.mati_init`) and never lets it leave
+## (control state 1 == last state 1). The other four demos have no train at all.
+static func has_parked_train(index: int) -> bool:
+	return index == 0
 
 
 static func demo(index: int) -> Dictionary:

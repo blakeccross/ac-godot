@@ -25,9 +25,9 @@ const FLAP_SLOW := 2
 const FLAP_FAST_POSES: Array[int] = [0, 0, 0, 0, 1, 1, 0, 0]
 const FLAP_SLOW_POSES: Array[int] = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0]
 
-## `aGYO_anime_frame` advances once per drawn frame, which on the GameCube is the 30 Hz
-## draw. Held on a fixed tick so the flap does not run at the monitor's refresh rate.
-const FLAP_HZ := 30.0
+## `aGYO_anime_frame` advances once per drawn frame, one per decomp frame (60 Hz). Held on a
+## fixed tick so the flap does not run at the monitor's refresh rate.
+const FLAP_HZ := PlayerLocomotion.LOGIC_HZ
 
 var _poses: Array[Node3D] = []
 var _pattern: Array[int] = []

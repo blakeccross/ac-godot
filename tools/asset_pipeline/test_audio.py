@@ -503,5 +503,52 @@ class AudioDecompBankTests(unittest.TestCase):
         self.assertEqual(banks_for_seq(mapping, 242), [2, 155, 154, 153])
 
 
+class TrainSoundTests(unittest.TestCase):
+    def test_train_clack_and_stop_are_catalogued_by_hex_id(self) -> None:
+        from asset_pipeline.audio import _sfx_catalog_entries
+
+        entries = {e["id"]: e for e in _sfx_catalog_entries({})}
+        self.assertEqual(entries["3f"]["se_num"], 0x3F)
+        self.assertEqual(entries["73"]["se_num"], 0x73)
+        self.assertEqual(entries["2b"]["se_num"], 0x2B)
+
+    def test_running_train_is_a_looping_level_se(self) -> None:
+        from asset_pipeline.audio import _sfx_catalog_entries
+
+        entries = {e["id"]: e for e in _sfx_catalog_entries({})}
+        self.assertEqual(entries["lev_10"]["lev"], 0x10)
+        self.assertTrue(entries["lev_10"]["loop"])
+        self.assertNotIn("se_num", entries["lev_10"])
+
+
+class SeamlessLoopTests(unittest.TestCase):
+    def test_tail_crossfades_into_the_head(self) -> None:
+        from array import array
+
+        from asset_pipeline.audio_seq import make_seamless_loop
+
+        ## Mono ramp 0..99: trim 10 frames, 10-frame crossfade.
+        pcm = array("h", range(100)).tobytes()
+        out = array("h")
+        out.frombytes(make_seamless_loop(pcm, 100, trim_sec=0.1, xfade_sec=0.1, channels=1))
+        ## body = 10..99 (90 frames); keep body[10:80] = 20..89, then 10 blended frames.
+        self.assertEqual(len(out), 80)
+        self.assertEqual(out[0], 20)
+        self.assertEqual(out[69], 89)
+        ## First blended frame is all tail (90), last leans to the head (≈ 19, next is 20).
+        self.assertEqual(out[70], 90)
+        self.assertLessEqual(abs(out[79] - 19), 8)
+
+    def test_short_input_is_returned_trimmed_only(self) -> None:
+        from array import array
+
+        from asset_pipeline.audio_seq import make_seamless_loop
+
+        pcm = array("h", range(20)).tobytes()
+        out = array("h")
+        out.frombytes(make_seamless_loop(pcm, 100, trim_sec=0.0, xfade_sec=0.1, channels=1))
+        self.assertEqual(list(out), list(range(20)))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -19,9 +19,9 @@ const HELD_DEPTH := 0.115
 ## every proc starts from `DEG2SHORT_ANGLE2(180.0f)`. Godot's Y is already up, so the
 ## flip is the rest pose and the proc targets below are offsets from it.
 const REST_PITCH := PI
-## The draw runs once per rendered frame at 30 Hz, and `add_calc_short_angle2` steps per
+## The draw runs once per decomp frame (60 Hz), and `add_calc_short_angle2` steps per
 ## call, so the tilt is accumulated on a fixed tick rather than scaled by `delta`.
-const TILT_HZ := 30.0
+const TILT_HZ := PlayerLocomotion.LOGIC_HZ
 ## Per-proc `(fraction, max_step)` pairs, straight off the `add_calc_short_angle2` calls.
 ## Fractions are `1 - sqrt(k)`; steps are short angles (0x10000 = a full turn).
 const CAST_FRACTION := 0.025321  # 1 - sqrt(0.95)

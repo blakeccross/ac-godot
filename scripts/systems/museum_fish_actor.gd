@@ -5,7 +5,8 @@ extends RefCounted
 ## Movement follows `mfish_base_FishMove` / `Museum_Fish_BGCheck` / wall turn — not a
 ## mechanical C port, but the same bounds, lookahead, and turn responses.
 
-const GAME_FPS := 30.0
+## `mfish_base_FishMove` adds its whole velocity and eases once per decomp frame (60 Hz).
+const GAME_FPS := PlayerLocomotion.LOGIC_HZ
 ## `Museum_Fish_BGCheck` base half-extent for tanks 0–3.
 const TANK_HALF_BASE_GX := 54.0
 ## `mfish_WallCheck` look-ahead (`GETREG(TAKREG,70)+30`, reg usually 0).

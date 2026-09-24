@@ -42,9 +42,12 @@ func test_demo_villagers_are_the_fixed_fourteen_each_with_a_home() -> void:
 		return
 	var data: WorldData = WorldGenerator.generate(WorldGenerator.DEFAULT_SEED, true)
 	var houses: Array[BuildingPlacement] = _npc_houses(data)
-	## Not every plot is grass in every town layout, so some homes can be dropped — but most
-	## land, never more than the 14 named villagers, and never a duplicate.
-	assert_int(houses.size()).is_between(8, TitleDemo.NPCS.size())
+	## On the fixed map every villager with a marker gets a home: 13 of 14 (Lobo has no
+	## `0x50xx` marker in `l_title_demo_fg`). Never a duplicate.
+	if TitleDemo.acres().is_empty():
+		assert_int(houses.size()).is_between(8, TitleDemo.NPCS.size())
+	else:
+		assert_int(houses.size()).is_equal(TitleDemo.NPCS.size() - 1)
 	var allowed: Array[StringName] = []
 	for row: Dictionary in TitleDemo.NPCS:
 		allowed.append(row["id"] as StringName)
@@ -57,7 +60,25 @@ func test_demo_villagers_are_the_fixed_fourteen_each_with_a_home() -> void:
 	for o: ObjectPlacement in data.objects:
 		if o != null and o.kind == &"villager":
 			villagers += 1
-	assert_int(villagers).is_equal(houses.size())
+	if TitleDemo.acres().is_empty():
+		assert_int(villagers).is_greater_equal(houses.size())
+	else:
+		## `title_demo_actable` births all 14, Lobo without a house.
+		assert_int(villagers).is_equal(TitleDemo.NPCS.size())
+
+
+func test_demo_villagers_are_born_on_their_actor_table_units() -> void:
+	if not _demo_ready() or TitleDemo.acres().is_empty():
+		return
+	var data: WorldData = WorldGenerator.generate(WorldGenerator.DEFAULT_SEED, true)
+	var cells: Dictionary = {}
+	for o: ObjectPlacement in data.objects:
+		if o != null and o.kind == &"villager":
+			cells[o.id] = o.cell
+	for row: Dictionary in TitleDemo.NPCS:
+		var id: StringName = row["id"]
+		assert_bool(cells.has(id)).is_true()
+		assert_vector(Vector2(cells[id])).is_equal(Vector2(WorldGenerator.title_demo_start_cell(row)))
 
 
 func test_a_home_sits_where_the_decomp_table_puts_it() -> void:
@@ -102,17 +123,44 @@ func _structures(data: WorldData) -> Dictionary:
 	return out
 
 
-func test_demo_town_keeps_every_structure_where_the_normal_town_puts_it() -> void:
-	## Regression: the fixed FG table has no structures, so an early version of the demo fell
-	## back to unrefined acre-type positions — the post office landed inside the shop. The real
-	## templates place and refine structures; the fixed table only supplies props and homes.
-	if not _demo_ready():
+func test_demo_town_is_the_fixed_decomp_map() -> void:
+	## `data_fdd[SCENE_TITLE_DEMO].combi`: the attract town never uses a random field.
+	if not _demo_ready() or TitleDemo.acres().is_empty():
 		return
-	var normal: Dictionary = _structures(WorldGenerator.generate(WorldGenerator.DEFAULT_SEED))
-	var demo: Dictionary = _structures(WorldGenerator.generate(WorldGenerator.DEFAULT_SEED, true))
-	assert_bool(normal.has("post_office")).is_true()
-	assert_bool(demo.has("post_office")).is_true()
-	assert_dict(demo).is_equal(normal)
+	var data: WorldData = WorldGenerator.generate(WorldGenerator.DEFAULT_SEED, true)
+	var other: WorldData = WorldGenerator.generate(WorldGenerator.DEFAULT_SEED + 1, true)
+	assert_str(",".join(data.acre_visuals)).is_equal(",".join(other.acre_visuals))
+	var at := func(bx: int, bz: int) -> String:
+		return data.acre_visuals[bz * TownFieldGenerator.BLOCK_X + bx]
+	assert_str(at.call(3, 1)).is_equal("grd_s_t_st1_1")
+	assert_str(at.call(3, 2)).is_equal("grd_s_f_mh_1")
+	assert_str(at.call(3, 4)).is_equal("grd_s_c1_r1_1")
+	assert_str(at.call(2, 6)).is_equal("grd_s_m_r1_b_2")
+	## Rows 8–9 are outside the 7×8 demo field.
+	assert_str(at.call(3, 8)).is_equal("")
+
+
+func test_demo_structures_sit_in_their_fixed_acres() -> void:
+	## Regression: the fixed FG was once laid over a generated BG, so its structure items were
+	## dropped and acre-type fallbacks collided (the post office landed inside the shop). On the
+	## demo's own map the fixed FG places every structure itself.
+	if not _demo_ready() or TitleDemo.acres().is_empty():
+		return
+	var data: WorldData = WorldGenerator.generate(WorldGenerator.DEFAULT_SEED, true)
+	var expect := {
+		"post_office": Vector2i(1, 1),
+		"station": Vector2i(3, 1),
+		"acre_shop": Vector2i(4, 1),
+		"wishing_well": Vector2i(1, 5),
+		"police": Vector2i(4, 5),
+	}
+	var structures: Dictionary = _structures(data)
+	for id: String in expect:
+		assert_bool(structures.has(id)).is_true()
+		var cell: Vector2i = structures[id]
+		assert_vector(Vector2(cell.x / WorldGenerator.UT + 1, cell.y / WorldGenerator.UT + 1)).is_equal(
+			Vector2(expect[id])
+		)
 
 
 func test_no_two_demo_structures_overlap() -> void:
