@@ -103,9 +103,10 @@ var _anim: AnimationPlayer
 var _gait: PlayerLocomotion.Gait = PlayerLocomotion.Gait.WAIT
 var _placeholder_bob: float = 0.0
 var _hold_anim: StringName = &""
-## The umbrella in hand (`player->umbrella_actor`) and the right-arm pose it holds.
+## The umbrella in hand (`player->umbrella_actor`).
 var _umbrella: HeldUmbrella = null
-var _umbrella_arm: Dictionary = {}
+## The item's carry pose layered on the arms (`BOY_part_data` / anim1).
+var _carry: ToolCarry = null
 var _tool_hold_anim: StringName = &""
 var _tool_use_anim: StringName = &""
 ## Tool is put away (door enter) or not yet taken back out (door emerge). `item_kind` is −1 in
@@ -291,6 +292,8 @@ func apply_facing(yaw: float) -> void:
 func _physics_process(delta: float) -> void:
 	if _umbrella != null:
 		_umbrella.tick(delta)
+	if _carry != null:
+		_carry.advance(delta)
 	if _door_entering:
 		_tick_door_enter(delta)
 		return
@@ -1218,8 +1221,7 @@ func _clip_for(gait: PlayerLocomotion.Gait) -> String:
 		PlayerLocomotion.Gait.DASH:
 			return ANIM_DASH
 		_:
-			if _hold_anim != &"" and not _resolve_clip(String(_hold_anim)).is_empty():
-				return String(_hold_anim)
+			## The carried item's pose rides on the arms (`ToolCarry`), not a whole-body clip.
 			return ANIM_WAIT
 
 
@@ -1685,8 +1687,8 @@ func _try_load_generated_visual() -> void:
 	_apply_preview_materials(body)
 	_anim = _find_animation_player(body)
 	if _anim != null:
-		## Umbrella arm overlay lands after the body's own mix (`mPlayer_PART_TABLE_NET`).
-		_anim.mixer_applied.connect(_apply_umbrella_arm)
+		## Carry overlay lands after the body's own mix (anim1 on the part-table joints).
+		_anim.mixer_applied.connect(_apply_carry_pose)
 		## INDEX_DOOR / getoff: capture joint_0 XZ into AnimationMove, strip so the mesh stays on the body.
 		## INDEX_OUTDOOR GO_OUT keeps joint_0 (starts behind stand, ends at bind — no snap).
 		_capture_door_root_xz(_anim)
@@ -1867,18 +1869,15 @@ func is_umbrella_open() -> bool:
 	return _umbrella != null and _umbrella.opened_fully and not _tool_hidden()
 
 
-## `mPlayer_PART_TABLE_NET` with `UMBRELLA1` as anim1: the right arm holds the umbrella pose
-## over the body's clip — except during the umbrella's own full-body clips and tool swaps.
-func _apply_umbrella_arm() -> void:
-	if _umbrella == null or _umbrella_arm.is_empty() or _tool_swap or _anim == null:
-		return
-	if String(_anim.current_animation).contains("umb_"):
+## `Player_actor_InitAnimation_Base1` with a part table: while standing / walking / running the
+## carried item's clip drives the table's arm joints over the body clip. Every other state
+## (swings, digs, take-out, the umbrella's own clips) plays one clip on the whole body.
+func _apply_carry_pose() -> void:
+	if _carry == null or _tool_swap or _anim == null or not ToolCarry.rides_on(String(_anim.current_animation)):
 		return
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	if skeleton == null:
-		return
-	for bone: int in _umbrella_arm:
-		skeleton.set_bone_pose_rotation(bone, _umbrella_arm[bone])
+	if skeleton != null:
+		_carry.apply(skeleton)
 
 
 func _tool_hidden() -> bool:
@@ -1891,17 +1890,17 @@ func _bind_equipped_tool(
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
 	HeldTool.unbind(skeleton)
 	_umbrella = null
+	_carry = null
 	_hold_anim = &""
 	_tool_hold_anim = &""
 	_tool_use_anim = &""
 	var tool: ToolData = _equipped_tool()
 	if show_tool and tool != null and tool.visual_id != &"":
 		var attach: Node3D = HeldTool.bind(skeleton, tool.visual_id)
+		_carry = ToolCarry.build(_anim, skeleton, tool)
 		if tool.kind == ToolData.Kind.UMBRELLA and attach != null and attach.get_child_count() > 0:
 			_umbrella = HeldUmbrella.new()
 			_umbrella.setup(attach.get_child(0) as Node3D, umbrella_start)
-			if _umbrella_arm.is_empty():
-				_umbrella_arm = HeldUmbrella.arm_pose(_anim, skeleton)
 		_hold_anim = tool.hold_anim
 		_tool_hold_anim = tool.visual_hold_anim
 		_tool_use_anim = tool.visual_use_anim
@@ -2025,9 +2024,7 @@ func _play_tool_swap_clip(reverse: bool) -> float:
 func _blend_to_hold_pose() -> void:
 	if _anim == null:
 		return
-	var clip := _resolve_clip(String(_hold_anim)) if _hold_anim != &"" else ""
-	if clip.is_empty():
-		clip = _resolve_clip(ANIM_WAIT)
+	var clip := _resolve_clip(ANIM_WAIT)
 	if clip.is_empty():
 		return
 	_ensure_loop(clip)

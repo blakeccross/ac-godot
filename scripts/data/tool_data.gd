@@ -5,6 +5,8 @@ extends ItemData
 
 enum Kind { NONE, SHOVEL, FISHING_ROD, NET, AXE, WATERING_CAN, UMBRELLA }
 enum FieldRequire { NONE, WATER, EMPTY_GROUND }
+## `mPlayer_PART_TABLE_*` for the carry clip: which joints it drives (`ToolCarry`).
+enum CarryPart { NONE, AXE, NET }
 
 @export var kind: Kind = Kind.NONE
 @export var field_verb: StringName = &""
@@ -15,8 +17,10 @@ enum FieldRequire { NONE, WATER, EMPTY_GROUND }
 @export var field_notice: String = ""
 ## Pipeline id (`tol_axe_1`). Empty when the disc has no mesh (watering can).
 @export var visual_id: StringName = &""
-## Player wait clip while this tool is equipped (`ply_1_kamae_wait_m1` for the net).
+## Carry clip (`mPlib_Get_BasicPlayerAnimeIndex_fromItemKind`: `ply_1_axe1`, `ply_1_net1`, …),
+## layered over the body's wait / walk / run on the `carry_part` joints (`ToolCarry`).
 @export var hold_anim: StringName = &""
+@export var carry_part: CarryPart = CarryPart.NONE
 ## Clip on the tool GLB while equipped (`kamae_main_m1`, `sao_wait1`).
 @export var visual_hold_anim: StringName = &""
 ## Clip on the tool GLB during the player use anim (`net_swing1`, `sao_swing1`).

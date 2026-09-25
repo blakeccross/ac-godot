@@ -11,6 +11,7 @@ field_anim = &"ply_1_umb_rot1"
 field_priority = 4
 visual_id = &"tol_umb_06"
 hold_anim = &"ply_1_umbrella1"
+carry_part = 2
 umbrella_index = 5
 id = &"petal_parasol"
 display_name = "Petal parasol"

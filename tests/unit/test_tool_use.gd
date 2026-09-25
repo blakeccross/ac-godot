@@ -44,7 +44,13 @@ func test_catalog_tools_are_tool_data() -> void:
 	assert_bool(axe.equippable).is_true()
 	assert_int(axe.max_stack).is_equal(1)
 	assert_that(axe.visual_id).is_equal(&"tol_axe_1")
+	## `mPlib_Get_BasicPlayerAnimeIndex_fromItemKind` + its part table (`BOY_part_data`).
 	assert_that(axe.hold_anim).is_equal(&"ply_1_axe1")
+	assert_int(axe.carry_part).is_equal(ToolData.CarryPart.AXE)
+	assert_that(shovel.hold_anim).is_equal(&"ply_1_scoop1")
+	assert_int(shovel.carry_part).is_equal(ToolData.CarryPart.AXE)
+	assert_that(rod.hold_anim).is_equal(&"ply_1_sao1")
+	assert_int(rod.carry_part).is_equal(ToolData.CarryPart.AXE)
 	assert_that(shovel.visual_id).is_equal(&"tol_scoop_1")
 	assert_that(net.visual_id).is_equal(&"tol_net_1")
 	assert_that(rod.visual_id).is_equal(&"tol_sao_1")
@@ -52,7 +58,9 @@ func test_catalog_tools_are_tool_data() -> void:
 	assert_that(shovel.field_anim).is_equal(&"ply_1_dig1")
 	assert_that(net.field_anim).is_equal(&"ply_1_net_swing1")
 	assert_that(rod.field_anim).is_equal(&"ply_1_sao_swing1")
-	assert_that(net.hold_anim).is_equal(&"ply_1_kamae_wait_m1")
+	## `KAMAE_WAIT_M1` is only the ready-to-swing stance (`m_player_main_ready_net`).
+	assert_that(net.hold_anim).is_equal(&"ply_1_net1")
+	assert_int(net.carry_part).is_equal(ToolData.CarryPart.NET)
 	assert_that(net.visual_hold_anim).is_equal(&"kamae_main_m1")
 	assert_that(net.visual_use_anim).is_equal(&"net_swing1")
 	assert_that(rod.visual_hold_anim).is_equal(&"sao_wait1")
@@ -231,3 +239,5 @@ func _equip(ctx: InteractionContext, item_id: StringName) -> void:
 	assert_that(data).is_not_null()
 	assert_int(ctx.inventory.add(data, 1)).is_equal(0)
 	assert_bool(ctx.inventory.equip_slot(0)).is_true()
+
+

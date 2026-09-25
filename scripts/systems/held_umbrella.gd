@@ -7,9 +7,7 @@ extends RefCounted
 ## handle, then moves 4500 GX up it and scales the canopy — so the canopy inherits the
 ## handle's scale. Opening and closing animate those two scales from per-sector tables.
 ##
-## While held, the right arm (`RARM_BASE`, `RARM1`, `RARM2`, `HAND` = joints 17–20) takes the
-## constant `ply_1_umbrella1` pose over whatever the body plays (`mPlayer_ANIM_UMBRELLA1` →
-## `mPlayer_PART_TABLE_NET`).
+## The arm's `ply_1_umbrella1` carry pose is the generic `ToolCarry` overlay (NET part table).
 
 ## `aTUMB_ACTION_*` (the tool's `work0`).
 enum Action { TAKEOUT_BEFORE, OPENING, PUTAWAY, DESTRUCT, OPEN_NOW }
@@ -32,10 +30,6 @@ const CANOPY_OFFSET := 4.5
 ## `aTUMB_OngenTrgStart`: opening / putting away.
 const SE_OPEN := &"139"
 const SE_CLOSE := &"10e"
-const HOLD_CLIP := "ply_1_umbrella1"
-## `mPlayer_JOINT_RARM_BASE` … `HAND`. Bone order is the cKF joint order; the names are the
-## joints' models (`Rarm1_boy_model`), so match by index.
-const ARM_JOINTS: Array[int] = [17, 18, 19, 20]
 
 var action: Action = Action.OPEN_NOW
 var frame: float = 0.0
@@ -52,8 +46,8 @@ func setup(visual: Node3D, start: Action) -> void:
 	if visual == null:
 		set_action(start, false)
 		return
-	## `Matrix_rotateXYZ(0, -0x4000, 0)` on top of the hand basis.
-	visual.basis = visual.basis * Basis(Vector3.UP, -PI * 0.5)
+	## `Matrix_rotateXYZ(0, -0x4000, 0)` straight after the hand matrix.
+	visual.basis = Basis(Vector3.UP, -PI * 0.5)
 	_handle = Node3D.new()
 	_handle.name = "UmbHandle"
 	_canopy = Node3D.new()
@@ -146,29 +140,3 @@ static func _collect(node: Node, out: Array[Node]) -> void:
 			out.append(child)
 		else:
 			_collect(child, out)
-
-
-## The `ply_1_umbrella1` rotations for the right arm, read once from the player's clip.
-static func arm_pose(anim: AnimationPlayer, skeleton: Skeleton3D) -> Dictionary:
-	var out: Dictionary = {}
-	if anim == null or skeleton == null:
-		return out
-	var clip_name: String = ""
-	for n: String in anim.get_animation_list():
-		if n.ends_with(HOLD_CLIP):
-			clip_name = n
-			break
-	if clip_name == "":
-		return out
-	var clip: Animation = anim.get_animation(clip_name)
-	var wanted: Dictionary = {}
-	for joint: int in ARM_JOINTS:
-		if joint < skeleton.get_bone_count():
-			wanted[skeleton.get_bone_name(joint)] = joint
-	for i: int in clip.get_track_count():
-		if clip.track_get_type(i) != Animation.TYPE_ROTATION_3D:
-			continue
-		var bone: String = String(clip.track_get_path(i).get_concatenated_subnames())
-		if wanted.has(bone):
-			out[wanted[bone]] = clip.rotation_track_interpolate(i, 0.0)
-	return out

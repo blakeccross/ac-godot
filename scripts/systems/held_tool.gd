@@ -8,8 +8,6 @@ extends RefCounted
 
 const HAND_BONE := "joint_20"
 const ATTACH_NAME := "HeldTool"
-## Static Gfx keep GX Z; player wait-bind is Y-up. Same +90° Z as pipeline `ckf_basis`.
-const STATIC_HAND_BASIS := Basis(Vector3(0.0, 1.0, 0.0), Vector3(-1.0, 0.0, 0.0), Vector3(0.0, 0.0, 1.0))
 
 
 static func find_skeleton(root: Node) -> Skeleton3D:
@@ -34,12 +32,13 @@ static func bind(skeleton: Skeleton3D, visual_id: StringName) -> Node3D:
 	var visual: Node3D = GeneratedVisual.instantiate_raw(visual_id)
 	if visual == null:
 		return null
+	## Drawn straight off `right_hand_mtx` (`Player_actor_Item_draw` → `gSPDisplayList(tol_axe_1_model)`),
+	## no extra rotation: the player GLB binds on `wait1` with no `ckf_basis`, so the HAND bone's
+	## global pose *is* the cKF hand matrix, and static tool verts keep their GX axes.
 	var attach := BoneAttachment3D.new()
 	attach.name = ATTACH_NAME
 	skeleton.add_child(attach)
 	attach.bone_name = bone
-	if find_skeleton(visual) == null:
-		visual.basis = STATIC_HAND_BASIS
 	attach.add_child(visual)
 	var anim: AnimationPlayer = _find_animation_player(visual)
 	if anim != null:
