@@ -30,6 +30,7 @@ data tables before a category is called done.
 - [~] Character creation flow driven by Rover Q&A (`ac_npc_guide` / intro train) — `intro_train_stage.gd`
 - [ ] Delete a resident / delete the town (`save_menu.c`)
 - [~] Save + return to title on quit (`save_menu.c`, `m_save`) — `save_service.gd`
+- [x] **House gyroid** outside each house plot is the save point (`ac_haniwa`, `ACTOR_PROP_HANIWA0`–`3`) — `scenes/world/haniwa.tscn` + `HaniwaTalk` + `HaniwaStore`: FG placement two units south of every house, `hnw_move` bob / dance speeds and turn-to-player, empty-plot freeze facing front, first-job "need a friend" line; owner menu: **Save** (walk to the door → door opens → save → title), **Store an item** (4-slot consignment table in the pockets: free / display only / for sale with a 5-digit price, take back), **Other things** → **About the door** (post one of your designs on the front door / remove it) and **Set message** (4-line visitor message, ROM default text); sale **proceeds** collected on the next talk (wallet, then 30 000-bell bags); **visitor** flow (read the message, pay and take) is in place but can't trigger in a one-resident town. `BGM_ENTER_HOUSE` is a plain BGM swap rather than a pushed demo track
 - [ ] Memory Card management, copy, "the game was not saved correctly" recovery (`save_check.c_inc`, `m_flashrom`, `s_cpak`)
 - [ ] **Mr. Resetti** appears at spawn if you reset without saving; escalating lectures; **Don Resetti** on repeat offences (`ac_npc_restart`)
 - [ ] `zurumode` / cheat-detection "gnat" bug swarm anti-tamper behaviour (`zurumode.c`)
@@ -83,7 +84,7 @@ data tables before a category is called done.
 - [~] Body model, head model, face texture set (from Rover Q&A), skin/tan state (`m_player`, `m_player_draw`) — `scenes/actors/player.tscn`
 - [ ] Suntan / sunburn from staying out in summer; fades over time
 - [ ] Hair style / colour set by creation questions (no salon in GCN)
-- [ ] Clothing: equipped shirt shows on model; hats; accessories/glasses; umbrella held in rain (`m_player_item_umbrella`)
+- [ ] Clothing: equipped shirt shows on model; hats; accessories/glasses; umbrella held in rain (`m_player_item_umbrella`) — umbrella done (see Umbrella)
 - [ ] Change clothes anywhere from pockets (`m_player_main_change_cloth`, `ef_kigae`)
 - [x] Pockets = **15 item slots** + separate wallet (`m_private` `mPr_POCKETS_SLOT_COUNT`) — `inventory.gd` (duplicate of the line below, kept in sync)
 - [ ] Carrying a piece of furniture / large item in hands (walk slower) (`m_player_main_hold`, `pickup_furniture`)
@@ -143,7 +144,7 @@ data tables before a category is called done.
 - [ ] **Fishing rod / net / axe / shovel** durability & the **golden** variants (golden axe from perfect town, golden rod/net/shovel from milestones) (`demo_get_golden_item`)
 - [ ] **Slingshot** — shoot floating presents/balloons out of the sky (`ac_balloon`, `ac_fuusen`, `m_fuusen`)
 - [ ] **Watering can** — _not in GCN_ (villagers water flowers themselves; skip)
-- [ ] **Umbrella** — held in rain/snow, twirl, many designs (`m_player_item_umbrella`, `rotate_umbrella`)
+- [~] **Umbrella** — held in rain/snow, twirl, many designs (`m_player_item_umbrella`, `rotate_umbrella`) — `HeldUmbrella` + 32 `ToolData` umbrellas (`data/items/umbrellas/`, ROM names/prices): opens out of the hand (`UMB_OPEN1`, handle/canopy scale tables), right arm holds `ply_1_umbrella1` over walk/idle (`PART_TABLE_NET`), A twirls (`UMB_ROT1` + SE 0x432), folds away through doors / on unequip (`UMB_CLOSE1`), switches the rain loop to the under-umbrella one; Nook stocks one a day on the umbrella stand; title demo 2 carries the gelato umbrella. Missing: design umbrellas (`ITM_MY_ORG_UMBRELLA0-7`), the `KASAMIZU` twirl spray (no effect system)
 - [ ] **Fan / uchiwa** (festival), **timer**, **party popper / clacker**, **handbill**, **pitfall seed** as usable items (`m_player_item_fan`, `ac_t_utiwa`, `ef_clacker`)
 - [ ] **Bug / fish held up** show-off pose + species report (`m_player_main_notice_net`, `notice_rod`)
 - [ ] Held tool renders on the right hand with its own animation clips (`Player_actor_Item_draw`, `mPlayer_JOINT_HAND`) — `held_tool.gd`
@@ -289,7 +290,7 @@ data tables before a category is called done.
 - [ ] Full manpu set: `KONPU`, `PUN_YUGE`, `DOYON`, `GIMONHU`, `KANTANHU`, `NAMIDA`, `NEBOKE`, `MUKA`, etc.
 - [ ] Activities villagers do: sit and think, fish, catch bugs, water flowers, sing, exercise, read, talk to each other, shop, deliver mail for you, clap (`ac_npc_act_*`)
 - [ ] Villager catches a bug/fish and shows it off; asks you to catch something
-- [ ] Umbrella open/close in rain (`ac_npc_act_umb_open/close`)
+- [ ] Umbrella open/close in rain (`ac_npc_act_umb_open/close`) — player side done; villagers still walk in the rain without one
 - [ ] Villager falls in your pitfall; you dig them out; anger/forgiveness (`ac_npc_act_pitfall`)
 - [ ] Hitting a villager with the net/axe/shovel → anger, "watch it!" (`m_watch_my_step`)
 - [ ] **Moving in**: new villager, boxes at the plot, introduces self (`ac_npc_act_greeting`, `mEv` move-in)
@@ -595,7 +596,7 @@ From `m_event_schedule.c_inc` (117 schedule rows). Localised USA set:
 - [ ] The **name entry keyboard** for all text input
 - [ ] Nook catalog browser UI, shop buy/sell UI, bank UI, HRA letter viewer, letter writer UI
 - [ ] Photo / no screenshot feature (GCN has none)
-- [~] Trademark / logo / attract-mode title demo loop (`m_titledemo`, `m_trademark`, `ac_animal_logo`) — logo actor, 5 recorded demos, the demo loop, the fixed FG table, fixed villagers, apple tree and start chime landed; Nintendo logo stage skipped on purpose; gelato umbrella (needs an umbrella tool system) still open ([title](decomp_notes/title.md))
+- [~] Trademark / logo / attract-mode title demo loop (`m_titledemo`, `m_trademark`, `ac_animal_logo`) — logo actor, 5 recorded demos, the demo loop, the fixed FG table, fixed villagers, apple tree and start chime landed; Nintendo logo stage skipped on purpose; gelato umbrella landed with the umbrella tool (demo 2) ([title](decomp_notes/title.md))
 - [ ] Debug menus & dev overlays — _explicitly out of scope_ (`m_debug*`)
 
 ## 34. Simulation glue / world objects

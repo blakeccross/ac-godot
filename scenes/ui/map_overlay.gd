@@ -319,7 +319,7 @@ func _place_house_icons() -> void:
 		if b == null:
 			continue
 		var id := String(b.id)
-		if not (id.begins_with("npc_house_") or id == "player_house"):
+		if not (id.begins_with("npc_house_") or PlayerHouse.is_owned_node(id)):
 			continue
 		var fg: Vector2i = TownMap.fg_from_block(VillagerWalk.block_from_cell(b.cell))
 		if fg.x < 0:
@@ -344,7 +344,7 @@ func _place_house_icons() -> void:
 			float(_sel_y_px(fg.y)) + ofs.y * float(TownMap.TILE_PX)
 		)
 		## Player house uses a warmer tint; villagers stay pipeline purple.
-		if id == "player_house":
+		if PlayerHouse.is_owned_node(id):
 			tr.modulate = Color(0.95, 0.55, 0.2, 1)
 		_icon_layer.add_child(tr)
 

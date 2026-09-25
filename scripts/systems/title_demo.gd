@@ -47,11 +47,12 @@ const NPCS: Array[Dictionary] = [
 	{"id": &"cube", "bx": 5, "bz": 5, "ux": 5, "uz": 11, "start_bx": 5, "start_bz": 5, "start_ux": 5, "start_uz": 5},
 ]
 
-## Head-table tool word → item id (`mTD_player_keydata_init`). `0x2204` is the gelato
-## umbrella, which the project has no item for yet, so that demo walks empty-handed.
+## Head-table tool word → item id (`mTD_player_keydata_init`). `0x2204` is the gelato umbrella
+## (demo 2, in the rain).
 const TOOLS := {
 	0x2201: &"axe",
 	0x2203: &"fishing_rod",
+	0x2204: &"gelato_umbrella",
 }
 ## Verbs the scripted A press may trigger. The recordings only ever use tools and pickups; in a
 ## different town they can end up facing a villager or a door, and the original never lets the
@@ -67,6 +68,8 @@ const SAFE_VERBS: Array[StringName] = [
 	Interaction.CAST,
 	Interaction.AIR_AXE,
 	Interaction.HOOK,
+	## `Player_actor_CheckController_forUmbrella` reads the demo's A too.
+	&"twirl_umbrella",
 ]
 const SHIRT_IDS: Array[StringName] = [&"shirt_000", &"shirt_001", &"shirt_002", &"shirt_003", &"shirt_016"]
 

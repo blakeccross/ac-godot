@@ -51,6 +51,7 @@ Saved as one byte: `(type << 4) | intensity`. After rain/snow clears to fine/sak
 - Wind angle / power (separate wind terms; gusts).
 - Lightning timers; umbrella SE variants.
 - Rainbow reserved month/day.
+- **Rain SE** (`aWeather_ChangeEnvSE`): level SE 7/8/9 by the actor's *current* level, 0x12–0x14 with the umbrella open (checked every frame). After an in-session change the level steps 1 → aim every 180 frames (`aWeather_RenewWeatherLevel`), re-picking the SE each step; a scene starts at the saved intensity. Runs in rooms too (0.4 volume), not in the basement or the title demo. Port: `Weather.rain_syslev_id` / `syslev_volume` / `step_level`, `WeatherFx._renew_level`, `interior.gd._sync_rain_se`. The umbrella variants play while the player's umbrella is fully open (`HeldUmbrella.opened_fully`, polled every tick by `WeatherFx._check_umbrella`).
 
 ## Inputs
 
@@ -84,4 +85,4 @@ Saved as one byte: `(type << 4) | intensity`. After rain/snow clears to fine/sak
 - Rain palette + 0.75 shadow energy while precip; weather→env lerp is a short blend rather than the original's per-frame rate.
 - Camera-following rain streaks + splashes; snow/sakura floaters. Lightning is a brief ambient flash, not an effect-clip light registry.
 - Rain outdoor BGM via `BgmCatalog`; coelacanth / rain bugs when `Game.weather == rain`.
-- Rainbow actor, haniwa order, island climate, and umbrella SE are not modelled.
+- Rainbow actor, haniwa order and island climate are not modelled. Villagers don't open umbrellas in the rain yet (`aNPC_ctrl_umbrella`).

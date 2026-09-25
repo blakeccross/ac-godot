@@ -32,7 +32,7 @@ def _pad4(n: int) -> int:
     return (4 - (n % 4)) % 4
 
 
-def _group_parts(parts: list[MeshPart]) -> list[dict]:
+def _group_parts(parts: list[MeshPart], split_by_gfx: bool = False) -> list[dict]:
     groups: list[dict] = []
     index: dict[tuple, int] = {}
     for part in parts:
@@ -78,6 +78,7 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
             uses_lighting,
             alpha_mode,
             bool(part.runtime_bound),
+            _part_gfx(part) if split_by_gfx else "",
         )
         if key not in index:
             index[key] = len(groups)
@@ -102,11 +103,17 @@ def _group_parts(parts: list[MeshPart]) -> list[dict]:
                     "beach_prim": beach_prim,
                     "uses_lighting": uses_lighting,
                     "runtime_bound": bool(part.runtime_bound),
+                    "gfx": _part_gfx(part) if split_by_gfx else "",
                     "parts": [],
                 }
             )
         groups[index[key]]["parts"].append(part)
     return groups
+
+
+def _part_gfx(part: MeshPart) -> str:
+    """Source display list of a part (`MeshPart.name` is `gfx` or `gfx:texture`)."""
+    return part.name.split(":")[0]
 
 
 def _fit_clamp_axis(lo: float, hi: float) -> tuple[float, float] | None:
@@ -357,8 +364,12 @@ def _series_matches(values: list, rest: tuple, *, quat: bool = False) -> bool:
     return all(cmp(v, rest) for v in values)
 
 
-def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> None:
-    groups = _group_parts(parts)
+def write_glb(
+    path: Path, parts: list[MeshPart], extras: dict | None = None, split_by_gfx: bool = False
+) -> None:
+    """`split_by_gfx`: one mesh node per source display list (named after it) instead of one per
+    alpha class — for draws that give each list its own matrix (held umbrella handle / canopy)."""
+    groups = _group_parts(parts, split_by_gfx)
     if not groups:
         raise ValueError("No triangles to write")
 
@@ -506,33 +517,43 @@ def write_glb(path: Path, parts: list[MeshPart], extras: dict | None = None) -> 
                 "indices": a_idx,
                 "mode": 4,
                 "material": len(materials) - 1,
-                ## Stash alpha for mesh splitting — stripped before write.
+                ## Stash alpha / source list for mesh splitting — stripped before write.
                 "_alphaMode": _group_alpha_mode(group),
+                "_gfx": str(group.get("gfx") or ""),
             }
         )
 
     ## Godot renders a whole mesh in the transparent pipeline if any primitive is
     ## MASK/BLEND. Train-window trees are MASK cutouts; keeping them on the same
     ## mesh as opaque tunnel/sky made solid black scenery look see-through.
-    buckets: dict[str, list[dict]] = {"OPAQUE": [], "MASK": [], "BLEND": []}
+    buckets: dict[tuple[str, str], list[dict]] = {}
+    gfx_order: list[str] = []
     for prim in primitives:
         mode = str(prim.pop("_alphaMode", "OPAQUE"))
-        if mode not in buckets:
+        gfx = str(prim.pop("_gfx", ""))
+        if mode not in ("OPAQUE", "MASK", "BLEND"):
             mode = "OPAQUE"
-        buckets[mode].append(prim)
+        if gfx not in gfx_order:
+            gfx_order.append(gfx)
+        buckets.setdefault((gfx, mode), []).append(prim)
     mesh_nodes: list[dict] = []
     meshes: list[dict] = []
-    for mode, prims in buckets.items():
-        if not prims:
-            continue
-        suffix = "" if mode == "OPAQUE" and not meshes else f"_{mode.lower()}"
-        mesh_index = len(meshes)
-        meshes.append({"name": f"{path.stem}{suffix}", "primitives": prims})
-        mesh_nodes.append({"mesh": mesh_index, "name": f"{path.stem}{suffix}"})
+    for gfx in gfx_order:
+        stem: str = gfx if gfx else path.stem
+        first_of_stem: bool = True
+        for mode in ("OPAQUE", "MASK", "BLEND"):
+            prims = buckets.get((gfx, mode), [])
+            if not prims:
+                continue
+            suffix = "" if mode == "OPAQUE" and first_of_stem and (gfx or not meshes) else f"_{mode.lower()}"
+            first_of_stem = False
+            mesh_index = len(meshes)
+            meshes.append({"name": f"{stem}{suffix}", "primitives": prims})
+            mesh_nodes.append({"mesh": mesh_index, "name": f"{stem}{suffix}"})
 
     bin_blob = b"".join(bin_chunks)
     bin_blob += b"\x00" * _pad4(len(bin_blob))
-    if len(mesh_nodes) == 1:
+    if len(mesh_nodes) == 1 and not split_by_gfx:
         nodes = [{"mesh": 0, "name": path.stem}]
         scene_nodes = [0]
     else:

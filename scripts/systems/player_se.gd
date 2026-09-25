@@ -37,6 +37,11 @@ const CLIP_MARKS: Dictionary = {
 	&"ply_1_putaway_t1": [[0.0, &"gasagoso"]],
 	&"ply_1_get_putaway1": [[0.0, &"gasagoso"]],
 	&"ply_1_get_m1": [[0.0, &"ami_hit"]],
+	## `setup_main_Rotate_umbrella` → `Player_actor_sound_umbrella_rotate` (0x432).
+	&"ply_1_umb_rot1": [[0.0, &"umbrella_rotate"]],
+	## Umbrella take-out / put-away (`Player_actor_sound_GASAGOSO` in both setups).
+	&"ply_1_umb_open1": [[0.0, &"gasagoso"]],
+	&"ply_1_umb_close1": [[0.0, &"gasagoso"]],
 }
 
 

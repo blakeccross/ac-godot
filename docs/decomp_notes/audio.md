@@ -53,7 +53,7 @@ Field music is **24 separate sequences**, one per clock hour (`BGM_FIELD_00` …
 Weather:
 
 - Fine / snow / sakura: **mute subtracks** on the same hourly sequence.
-- Rain: **replace** the BGM with `BGM_RAIN` (`id = 0x45` in `Sou_BgmTenkiConv`). Ambient rain SE is separate (SysLev).
+- Rain: **replace** the BGM with `BGM_RAIN` (`id = 0x45` in `Sou_BgmTenkiConv`). Ambient rain SE is separate: a **level** SE (`Na_SysLevStart(7/8/9)` → `Sou_LevStart`, level id on SE subtrack 8 port 0 — its own table, *not* trigger SEs 7/8/9, which are door hinges), 0x12/0x13/0x14 under an open umbrella. Rendered as `sfx/lev_7`…`lev_14`. `Na_SysLevStart` plays 7/8/9 at **0.4** in `sou_scene_mode` 2 / 0xE / 0xF / 0x10 (rooms, exiting, museum, lighthouse). The weather actor is in every field and room scene, so rain is heard indoors; silent only in the player's basement (`basement_event`) and the title demo.
 
 Town tune: 16 nibbles in save (`u64 melody`). Values 0–12 = pitches G(low)–E, 13 = random, 14 = rest, 15 = hold. Playback copies a pre-authored **arrangement** from sequence **248**, then feeds the 16 notes into the live sequence. Nintendo wrote the arrangements; the player only supplies the melody.
 
@@ -134,7 +134,7 @@ Keep `Audio` as the only autoload. Lookup stays in `RefCounted` catalogs so test
 | `VoiceCatalog` | `stream_for(spec, phoneme)` |
 | `Audio.play_bgm` / `stop_bgm` | Music bus crossfade |
 | `Audio.play_se` / `play_voice` | SFX bus one-shots |
-| `Audio.start_syslev` / `stop_syslev` | Looping rain ambient (ids 7–9) |
+| `Audio.start_syslev` / `stop_syslev` / `sync_rain_syslev` | Looping level SE by level id (`lev_<hex>`): rain 7–9 / umbrella 0x12–0x14 |
 | `FootstepSe` | Attr / season / gait → footstep id + volume |
 | `PlayerSe` | Tool / dig / catch / sit frame schedules |
 | `DialogueVoice` | Char → phoneme; looks → sound spec |
@@ -142,7 +142,7 @@ Keep `Audio` as the only autoload. Lookup stays in `RefCounted` catalogs so test
 
 Do not put BGM ids on every furniture actor. Do not autoload a second music manager.
 
-Call sites wired to original frames / triggers: footsteps (`FootstepSe`), doors `6`–`9`, dialogue page/choice/voice; tools (axe / scoop / net / rod via `PlayerSe` + hosts); dig / fill / stump / buried / rock / flower / tree shake; pickup `item_get` + `gasagoso`, bee sting, furniture drawer open, sit/bed; inventory / map UI (`menu_pause`, `cursol`, `menu_exit`, `17c`/`17d`, hand grab); thunder `424`, rain SysLev loops 7/8/9 (`Audio.start_syslev`).
+Call sites wired to original frames / triggers: footsteps (`FootstepSe`), doors `6`–`9`, dialogue page/choice/voice; tools (axe / scoop / net / rod via `PlayerSe` + hosts); dig / fill / stump / buried / rock / flower / tree shake; pickup `item_get` + `gasagoso`, bee sting, furniture drawer open, sit/bed; inventory / map UI (`menu_pause`, `cursol`, `menu_exit`, `17c`/`17d`, hand grab); thunder `424`, rain level-SE loops `lev_7`/`8`/`9` (`Audio.sync_rain_syslev`, from `WeatherFx` outdoors and `interior.gd` indoors).
 
 ## Tests
 

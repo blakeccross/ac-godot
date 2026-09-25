@@ -390,12 +390,19 @@ static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray)
 	## sit toward +X and face NORTH; east plots (1/3) toward −X and face WEST — the mesh has
 	## no mirrored variant, so this is a 90° rotation picked to read as a mirror image on
 	## screen (confirmed against the real 3/4 follow-camera angle) rather than a true flip.
-	## Only slot 0 has a player behind it (`mailbox.gd::is_owned`) — the other three are
-	## unclaimed-plot decoration.
+	## Only the plot the player owns has a live box (`mailbox.gd::is_owned`, following the
+	## intro pick) — the other three are vacant-plot decoration.
 	_place_house_mailbox(data, &"player_house", &"player_mailbox", true)
 	_place_house_mailbox(data, &"player_house_1", &"player_mailbox_1", false)
 	_place_house_mailbox(data, &"player_house_2", &"player_mailbox_2", true)
 	_place_house_mailbox(data, &"player_house_3", &"player_mailbox_3", false)
+	## Gyroids two units south of each house (`ACTOR_PROP_HANIWA0`–`3` at FG ut (3,5) / (12,5) /
+	## (3,12) / (12,12) in the house-acre templates). Every plot has one; only the player's
+	## plot's gyroid is owned (`haniwa.gd::has_owner`).
+	_place_house_haniwa(data, &"player_house", &"player_haniwa", true)
+	_place_house_haniwa(data, &"player_house_1", &"player_haniwa_1", false)
+	_place_house_haniwa(data, &"player_house_2", &"player_haniwa_2", true)
+	_place_house_haniwa(data, &"player_house_3", &"player_haniwa_3", false)
 	var unique_ut := Vector2i(7, 7)
 	for bz: int in range(1, 7):
 		for bx: int in range(1, 6):
@@ -438,6 +445,16 @@ static func _place_house_mailbox(
 	var offset: Vector2i = Vector2i(2, 0) if west else Vector2i(-1, 0)
 	var facing: WorldGrid.Facing = WorldGrid.Facing.NORTH if west else WorldGrid.Facing.WEST
 	data.objects.append(_object(mailbox_id, &"mailbox", cell + offset, null, &"obj_s_post", facing))
+
+
+static func _place_house_haniwa(
+	data: WorldData, house_id: StringName, haniwa_id: StringName, west: bool
+) -> void:
+	## Same house ut as the mailbox: west anchors are the house ut, east anchors sit one cell
+	## west of it (`nw_off (-1, 0)`), so the east gyroid is one cell back east.
+	var cell: Vector2i = _building_cell(data, house_id)
+	var offset: Vector2i = Vector2i(0, 2) if west else Vector2i(1, 2)
+	data.objects.append(_object(haniwa_id, &"haniwa", cell + offset, null, &"", WorldGrid.Facing.SOUTH))
 
 
 static func _place_waterfall(data: WorldData, blocks: PackedByteArray) -> void:

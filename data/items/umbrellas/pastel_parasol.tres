@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ToolData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/tool_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+kind = 6
+field_verb = &"twirl_umbrella"
+field_prompt = "Twirl umbrella"
+field_anim = &"ply_1_umb_rot1"
+field_priority = 4
+visual_id = &"tol_umb_28"
+hold_anim = &"ply_1_umbrella1"
+umbrella_index = 27
+id = &"pastel_parasol"
+display_name = "Pastel parasol"
+description = "Keeps the rain off."
+category = 0
+sell_price = 380
+equippable = true
+icon_color = Color(0.55, 0.7, 0.85, 1)

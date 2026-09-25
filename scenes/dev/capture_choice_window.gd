@@ -35,6 +35,9 @@ func _ready() -> void:
 	for _i in 90:
 		await get_tree().process_frame
 	_shot(OUT_MENU)
+	var panel: Panel = overlay.get_node("%ChoicePanel")
+	var sb: StyleBox = panel.get_theme_stylebox("panel")
+	print("CHOICE panel vis=", panel.is_visible_in_tree(), " rect=", panel.get_global_rect(), " style=", sb, " tex=", (sb as StyleBoxTexture).texture if sb is StyleBoxTexture else null, " mod=", panel.modulate, " self=", panel.self_modulate)
 
 	get_tree().quit()
 

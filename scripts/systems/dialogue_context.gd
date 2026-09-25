@@ -43,6 +43,9 @@ var island: String = ""
 ## Delivery / letter target for first-job (and similar) lines.
 var recipient: String = ""
 var frees: PackedStringArray = PackedStringArray()
+## `mMsg_Set_mail_str`: a player-written block dropped in with `{mail}` (the house gyroid's
+## message for visitors).
+var mail_text: String = ""
 var milestones: Array[StringName] = []
 var gifted_items: Array[StringName] = []
 
@@ -65,6 +68,7 @@ const SLOT_KEYS := [
 	"item0",
 	"item",
 	"recipient",
+	"mail",
 ]
 
 
@@ -215,6 +219,7 @@ func substitute(text: String) -> String:
 	out = out.replace("{item0}", item0)
 	out = out.replace("{item}", item0)
 	out = out.replace("{recipient}", recipient)
+	out = out.replace("{mail}", mail_text)
 	## Always clear free0…free19 so unused slots cannot leak as braces.
 	for i: int in 20:
 		var free_val: String = frees[i] if i < frees.size() else ""
@@ -310,6 +315,8 @@ func _slot_value(key: String) -> String:
 			return item0
 		"recipient":
 			return recipient
+		"mail":
+			return mail_text
 		_:
 			if key.begins_with("free") and key.length() > 4 and key.substr(4).is_valid_int():
 				var idx: int = int(key.substr(4))

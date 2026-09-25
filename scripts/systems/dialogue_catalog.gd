@@ -8,11 +8,15 @@ const AUTHORED_DIR := "res://data/dialogue"
 const GENERATED_DIR := "res://assets/generated/dialogue"
 const GENERATED_CHUNK := 256
 const SELECT_PATH := "res://assets/generated/dialogue/select.json"
+## `string_data.bin` (`mString_Load_StringFromRom`): short ROM strings by `mString_*` id.
+const STRINGS_PATH := "res://assets/generated/dialogue/strings.json"
 
 static var _by_id: Dictionary = {}
 static var _loaded: bool = false
 static var _select: PackedStringArray = PackedStringArray()
 static var _select_loaded: bool = false
+static var _strings: PackedStringArray = PackedStringArray()
+static var _strings_loaded: bool = false
 
 
 static func reset() -> void:
@@ -20,6 +24,8 @@ static func reset() -> void:
 	_loaded = false
 	_select = PackedStringArray()
 	_select_loaded = false
+	_strings = PackedStringArray()
+	_strings_loaded = false
 
 
 static func conversation(conv_id: StringName) -> DialogueData:
@@ -43,6 +49,21 @@ static func choice_label(select_id: int) -> String:
 		return "{choice:%d}" % select_id
 	var label: String = _select[select_id]
 	return label if label != "" else "{choice:%d}" % select_id
+
+
+## `mString_Load_StringFromRom(id)`, or "" when the string bank is not converted.
+static func rom_string(string_id: int) -> String:
+	if not _strings_loaded:
+		_strings_loaded = true
+		if FileAccess.file_exists(STRINGS_PATH):
+			var file := FileAccess.open(STRINGS_PATH, FileAccess.READ)
+			var parsed: Variant = JSON.parse_string(file.get_as_text()) if file != null else null
+			if typeof(parsed) == TYPE_ARRAY:
+				for entry: Variant in parsed as Array:
+					_strings.append(str(entry))
+	if string_id < 0 or string_id >= _strings.size():
+		return ""
+	return _strings[string_id]
 
 
 static func ensure_loaded() -> void:

@@ -51,9 +51,9 @@ _REL_IA_WAVE_DIMS: dict[str, tuple[int, int]] = {
 TRANSFORMS = {
     "scale": "vertex * config.scale (default 0.001). Not actor 0.01 or acre 0.0625 draw scale — Godot FieldCatalog applies those.",
     "z_axis": "cKF: wait bind already stands on +Y; else +90° about Z unless GX verts pass robust Y-up (5th-percentile floor + not +X-chain) — bake door/close clip for joint-0 yaw. Prefer *_close when no wait. Static Gfx keep GX Z (no flip).",
-    "rest_pose": "wait frame 1 when available; furniture/clocks bake own clip frame 1 (closed); Y-up meshes bake door-clip frame 1; else *_close last frame (open→closed) or exact cKF_ba_r_{prefix} (vestibule door); else identity + ckf_basis",
+    "rest_pose": "wait frame 1 when available; furniture/clocks bake own clip frame 1 (closed); Y-up meshes bake door-clip frame 1; else *_close last frame (open→closed) or exact cKF_ba_r_{prefix} (vestibule door); else (non-act_) a clip whose frame 1 already stands the +X joint chain on +Y; else identity + ckf_basis",
     "animations": "cKF_ba_r_* sampled at 30 fps into skinned glTF clips",
-    "textures": "GX CI4/CI8 + pal; I/IA * G_SETPRIMCOLOR; villager tmem on 0x0A/0x0B",
+    "textures": "GX CI4/CI8 + pal; I/IA * G_SETPRIMCOLOR; villager tmem on 0x0A/0x0B (no {prefix}_pal: the 16-colour palette compiled right before the tmem)",
     "skin": "G_MTX 0x0D slots map to Gfx-bearing joints; seam verts stay on the parent",
 }
 
@@ -1057,6 +1057,7 @@ def _convert_static(
                 "scale": cfg.scale,
                 "transforms": TRANSFORMS,
             },
+            split_by_gfx=bool(item.get("split_by_gfx")),
         )
         record["status"] = "converted"
         record["parts"] = len(parts)

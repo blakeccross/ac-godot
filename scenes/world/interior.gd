@@ -28,6 +28,9 @@ func _ready() -> void:
 	session.bind(room)
 	grid = session.grid
 	Game.bind_interior(session)
+	if not Game.weather_changed.is_connected(_on_weather_changed):
+		Game.weather_changed.connect(_on_weather_changed)
+	_sync_rain_se()
 	_build_room(room)
 	_apply_indoor_light(room)
 	_spawn_player()
@@ -93,7 +96,27 @@ func _physics_process(_delta: float) -> void:
 	Game.exit_interior()
 
 
+## The weather actor runs in rooms too (`mAc_PROFILE_WEATHER` in every room scene): rain keeps
+## playing indoors at 0.4, silenced only in the player's basement (`basement_event`). A room
+## starts at the saved intensity — no ramp.
+func _sync_rain_se() -> void:
+	var room_id: StringName = session.room.id if session != null and session.room != null else &""
+	Audio.sync_rain_syslev(
+		Weather.kind_from_name(Game.weather),
+		int(Game.weather_intensity),
+		true,
+		room_id == PlayerHouse.BASEMENT
+	)
+
+
+func _on_weather_changed(_weather: StringName) -> void:
+	_sync_rain_se()
+
+
 func _exit_tree() -> void:
+	if Game.weather_changed.is_connected(_on_weather_changed):
+		Game.weather_changed.disconnect(_on_weather_changed)
+	Audio.stop_syslev()
 	## Whatever is still scuttling goes back into the walls (`aMR_GokiInfoDt`).
 	if session != null and session.room != null and PlayerHouse.is_player_room(session.room.id):
 		HouseGoki.return_survivors(Game.interiors.player_house(), _live_gokis())

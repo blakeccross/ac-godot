@@ -9,6 +9,8 @@ extends RefCounted
 ##
 ## Coordinates are disc GX (`FieldCatalog.GX_TO_METERS`); a unit is 40 GX.
 
+## Plot 0 (`HOUSE0`): the player's house until the intro picks another.
+const DEFAULT_PLOT := &"player_house"
 const MAIN := &"player_main"
 const UPPER := &"player_upper"
 const BASEMENT := &"player_basement"
@@ -245,15 +247,40 @@ static func exterior_visual(node_name: String, fallback: StringName) -> StringNa
 	return StringName("obj_s_myhome%d" % (tier_of(house) + 1))
 
 
-## True for the plot the player actually lives in: the intro pick when there is one, else
-## the default `player_house` plot.
+## Outdoor house node the player lives in (`mHS_get_arrange_idx`): the intro pick while
+## the station intro is choosing, else the saved `House.outdoor_building_id` (the pick is
+## written there by `Game.claim_intro_house`). "" while the intro has no pick yet — every
+## plot is vacant then.
+static func owned_building_id() -> StringName:
+	if Game == null:
+		return DEFAULT_PLOT
+	if Game.intro_station_house_id != &"":
+		return Game.intro_station_house_id
+	if Game.intro_station_active:
+		return &""
+	var house: House = Game.interiors.player_house() if Game.interiors != null else null
+	if house == null or not String(house.outdoor_building_id).begins_with(String(DEFAULT_PLOT)):
+		return DEFAULT_PLOT
+	return house.outdoor_building_id
+
+
+## True for the plot the player actually lives in (see `owned_building_id`).
 static func is_owned_node(node_name: String) -> bool:
-	if not node_name.begins_with("player_house"):
+	if not node_name.begins_with(String(DEFAULT_PLOT)):
 		return false
-	var chosen: String = String(Game.intro_station_house_id) if Game != null else ""
-	if chosen != "":
-		return node_name == chosen
-	return node_name == "player_house"
+	return node_name == String(owned_building_id())
+
+
+## House plot index (0..3, `HOUSE0`–`3`) of a per-plot placement id: `player_house`,
+## `player_mailbox`, `player_haniwa` → 0; `…_1`–`…_3` → 1–3.
+static func plot_of(node_name: String) -> int:
+	var tail: String = node_name.get_slice("_", 2)
+	return clampi(tail.to_int(), 0, 3) if tail.is_valid_int() else 0
+
+
+## The outdoor house node for plot `idx`.
+static func plot_building(idx: int) -> String:
+	return String(DEFAULT_PLOT) if idx <= 0 else "%s_%d" % [DEFAULT_PLOT, idx]
 
 
 ## `aMHS_actor_draw_before`: the fish weathervane (`kazamiA` / `kazamiB`, joints 3 / 5) and the
@@ -269,6 +296,48 @@ static func apply_exterior_decorations(host: Node3D) -> void:
 	_apply_decoration(visual, "_kazamiA_model", CompleteTalk.talked(CompleteTalk.FISH))
 	_apply_decoration(visual, "_kazamiB_model", CompleteTalk.talked(CompleteTalk.FISH))
 	_apply_decoration(visual, "_fuda_model", CompleteTalk.talked(CompleteTalk.INSECT))
+	apply_door_pattern(visual)
+
+
+## `aMHS_actor_draw`: the door's mark (`obj_myhome_mark_tex_txt` on segments 9 / A) is swapped
+## for one of the owner's designs while `door_original` names one (`my_org[door_original & 7]`,
+## posted through the house gyroid); 0xFF shows the mark. Only the albedo changes — the
+## surface keeps its house material and shading.
+const DOOR_MARK_TEX := "obj_myhome_mark"
+const NO_DOOR_PATTERN := 0xFF
+
+
+static func door_design(house: House) -> DesignPattern:
+	if house == null or house.door_original == NO_DOOR_PATTERN or Game == null or Game.designs == null:
+		return null
+	var idx: int = house.door_original & 7
+	return Game.designs.player[idx] if idx < Game.designs.player.size() else null
+
+
+static func apply_door_pattern(visual: Node) -> void:
+	var design: DesignPattern = door_design(Game.interiors.player_house() if Game != null and Game.interiors != null else null)
+	var tex: Texture2D = DesignTexture.build(design) if design != null else null
+	_paint_door_mark(visual, tex)
+
+
+static func _paint_door_mark(node: Node, tex: Texture2D) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		var count: int = mi.mesh.get_surface_count() if mi.mesh != null else 0
+		for i: int in count:
+			var mat: Material = mi.get_active_material(i)
+			if not (mat is StandardMaterial3D):
+				continue
+			if not VisualSurface.surface_label(mi, i, mat).contains(DOOR_MARK_TEX):
+				continue
+			var std: StandardMaterial3D = mat as StandardMaterial3D
+			if not std.has_meta(&"door_mark_albedo"):
+				std = std.duplicate() as StandardMaterial3D
+				std.set_meta(&"door_mark_albedo", std.albedo_texture)
+				mi.set_surface_override_material(i, std)
+			std.albedo_texture = tex if tex != null else std.get_meta(&"door_mark_albedo") as Texture2D
+	for child: Node in node.get_children():
+		_paint_door_mark(child, tex)
 
 
 static func _apply_decoration(root: Node, name_suffix: String, shown: bool) -> void:

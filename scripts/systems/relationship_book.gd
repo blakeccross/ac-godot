@@ -32,6 +32,15 @@ func has_id(villager_id: StringName) -> bool:
 	return _bonds.has(villager_id)
 
 
+## `mNpc_GetFriendAnimalNum`: villagers who remember the player (have talked to them).
+func friend_count() -> int:
+	var n := 0
+	for bond: Relationship in _bonds.values():
+		if bond != null and bond.talk_count > 0:
+			n += 1
+	return n
+
+
 func record_talk(villager_id: StringName, day_key: String) -> int:
 	return get_or_create(villager_id).record_talk(day_key)
 

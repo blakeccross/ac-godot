@@ -1094,8 +1094,16 @@ for _design in UMBRELLA_DESIGNS:
         {
             "asset_id": f"tol_umb_{_design}",
             "vtx": f"tol_umb_{_design}_v",
-            "gfx": [f"e_umb{_design}_model", f"kasa_umb{_design}_model"],
+            ## The design-umbrella blank is `e_umb_w_model` (an underscore the numbered ones lack).
+            "gfx": (
+                [f"e_umb_{_design}_model", f"kasa_umb_{_design}_model"]
+                if not _design.isdigit()
+                else [f"e_umb{_design}_model", f"kasa_umb{_design}_model"]
+            ),
             "output": f"items/tol_umb_{_design}.glb",
             "confident_name": True,
+            ## One node per list: the canopy sits 4500 GX up the handle and each scales
+            ## on its own while opening (`aTUMB_actor_draw`).
+            "split_by_gfx": True,
         }
     )

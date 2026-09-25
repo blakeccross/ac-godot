@@ -30,7 +30,10 @@ static func _load_dir(dir_path: String) -> void:
 	dir.list_dir_begin()
 	var name: String = dir.get_next()
 	while name != "":
-		if not dir.current_is_dir() and name.ends_with(".tres"):
+		## Families of items live in their own folders (`data/items/umbrellas/`).
+		if dir.current_is_dir() and not name.begins_with("."):
+			_load_dir("%s/%s" % [dir_path, name])
+		elif not dir.current_is_dir() and name.ends_with(".tres"):
 			var path := "%s/%s" % [dir_path, name]
 			var res: Resource = load(path)
 			if res is ItemData:

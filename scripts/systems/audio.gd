@@ -19,8 +19,8 @@ var _front: int = 0
 var _fade: Tween
 var _arm_player: AudioStreamPlayer
 var _arm_fade: Tween
-## `Na_SysLevStart` / `Stop` — looping ambient (rain 7/8/9). Same SE nums as door
-## one-shots; playback mode differs (`Sou_LevStart` vs trg).
+## `Na_SysLevStart` / `Stop` — a looping *level* SE (`Sou_LevStart`), catalog id `lev_<hex>`.
+## Level ids are their own table: rain 7 / 8 / 9 are not the door trigger SEs 7 / 8 / 9.
 var _syslev_player: AudioStreamPlayer
 var _syslev_id: int = 0
 
@@ -66,7 +66,7 @@ func play_voice(
 	play_sfx(VoiceCatalog.stream_for(spec, phoneme), at, pitch_scale, volume_db)
 
 
-## `Na_SysLevStart`: loop SE id (rain ambient uses 7 / 8 / 9 by intensity).
+## `Na_SysLevStart`: loop level SE `id` (rain ambient uses 7 / 8 / 9 by level).
 func start_syslev(id: int, volume_db: float = 0.0) -> void:
 	if id <= 0:
 		stop_syslev()
@@ -78,7 +78,7 @@ func start_syslev(id: int, volume_db: float = 0.0) -> void:
 		_syslev_player = AudioStreamPlayer.new()
 		_syslev_player.bus = SFX_BUS
 		add_child(_syslev_player)
-	var stream: AudioStream = SeCatalog.stream_for(StringName(str(id)))
+	var stream: AudioStream = SeCatalog.stream_for(StringName("lev_%x" % id))
 	if stream == null:
 		stop_syslev()
 		return
@@ -95,6 +95,15 @@ func start_syslev(id: int, volume_db: float = 0.0) -> void:
 	_syslev_id = id
 
 
+## The level SE now looping (0 = none).
+func syslev_id() -> int:
+	return _syslev_id
+
+
+func syslev_volume_db() -> float:
+	return _syslev_player.volume_db if _syslev_player != null else 0.0
+
+
 ## `Na_SysLevStop`. Pass 0 / omit to stop whatever is playing.
 func stop_syslev(id: int = 0) -> void:
 	if id > 0 and _syslev_id != 0 and id != _syslev_id:
@@ -105,20 +114,23 @@ func stop_syslev(id: int = 0) -> void:
 	_syslev_id = 0
 
 
-## Rain SysLev from `aWeather_ChangeEnvSE` (no umbrella variants yet).
-func sync_rain_syslev(kind: Weather.Kind, intensity: Weather.Intensity, indoors: bool) -> void:
-	if indoors or kind != Weather.Kind.RAIN:
+## Rain SysLev from `aWeather_ChangeEnvSE`. The weather actor lives in every field *and*
+## room, so it rains indoors too (quieter, `Weather.syslev_volume`) — except in the player's
+## basement (`basement_event`) and in the title demo (`mEv_IsNotTitleDemo`). `level` is the
+## weather actor's current level (it ramps after an in-session change); the saved intensity
+## otherwise.
+func sync_rain_syslev(
+	kind: Weather.Kind,
+	level: int,
+	indoors: bool,
+	basement: bool = false,
+	umbrella: bool = false
+) -> void:
+	var id: int = Weather.rain_syslev_id(kind, level, umbrella)
+	if id == 0 or basement or (Game != null and Game.title_demo_active):
 		stop_syslev()
 		return
-	match intensity:
-		Weather.Intensity.LIGHT:
-			start_syslev(7)
-		Weather.Intensity.NORMAL:
-			start_syslev(8)
-		Weather.Intensity.HEAVY:
-			start_syslev(9)
-		_:
-			stop_syslev()
+	start_syslev(id, linear_to_db(Weather.syslev_volume(id, indoors)))
 
 
 func play_bgm(id: StringName) -> void:

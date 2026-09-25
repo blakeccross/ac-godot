@@ -37,7 +37,7 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | Scene | Path |
 | --- | --- |
 | Player, Villager | `scenes/actors/` |
-| World, Tree, Rock, Flower, Hole, Furniture, ItemPickup, House, Shop, ShopCounter, ShopStock, Building, Door, Sign, Prop (fences / boards), Lotus | `scenes/world/` |
+| World, Tree, Rock, Flower, Hole, Furniture, ItemPickup, House, Shop, ShopCounter, ShopStock, Building, Door, Sign, Prop (fences / boards), Lotus, Mailbox, Haniwa (house gyroid / save point) | `scenes/world/` |
 | Able Sisters, Police, Post Office (outdoor) | `scenes/world/buildings/` |
 | Nook / Able / police / post interiors; museum wings | `scenes/world/interiors/`, `scenes/world/museum/` |
 | InteractVolume | `scenes/world/interact_volume.gd` (sensor only; host implements verbs) |

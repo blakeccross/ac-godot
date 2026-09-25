@@ -5,9 +5,9 @@ extends StaticBody3D
 
 ## `obj_s_post` / `obj_w_post` (`ac_mailbox`): box + post + raiseable flag, seasonal pair.
 ## `world_builder.gd::_apply_common` overwrites this with the placement id at spawn
-## (`player_mailbox`, or `player_mailbox_1/2/3` for the three unclaimed house plots —
-## `ACTOR_PROP_MAILBOX1`–`3` have no save data behind them, decomp: "only player 0's
-## private data is filled"). Only the real player's box reads/reacts to `Inventory`.
+## (`player_mailbox`, `player_mailbox_1`–`3`: one per `HOUSE0`–`3` plot). Only the box in
+## front of the plot the player owns (`PlayerHouse.owned_building_id` — the intro pick, not
+## always plot 0) reads / reacts to `Inventory`; the others front vacant plots.
 @export var occupant_id: StringName = &"player"
 @export var footprint: Vector2i = Vector2i(1, 1)
 ## Compass direction the mail slot / flag face (where the player stands to read it).
@@ -48,16 +48,20 @@ func _ready() -> void:
 			box_mesh.queue_free()
 		_anim = VisualAnimation.find_animation_player(self)
 	HostCollision.apply_box(self, footprint, HostCollision.CELL, 1.0)
-	if is_owned() and Game != null and Game.inventory != null:
+	## Connected on every plot: which one is owned can change mid-session (intro house pick).
+	if Game != null and Game.inventory != null:
 		if not Game.inventory.mail_changed.is_connected(_on_mail_changed):
 			Game.inventory.mail_changed.connect(_on_mail_changed)
 	_sync_flag(true)
 
 
-## Unclaimed house plots (`player_mailbox_1`–`3`) have no player behind them — decoration
-## only, flag always down, no "check mailbox" prompt.
+## The box in front of the player's own plot. Vacant plots' boxes are decoration only: flag
+## always down, no "check mailbox" prompt. An unplaced box (`occupant_id == &"player"`, the
+## scene default) counts as the player's.
 func is_owned() -> bool:
-	return occupant_id == &"player" or occupant_id == &"player_mailbox"
+	if occupant_id == &"player":
+		return true
+	return PlayerHouse.is_owned_node(PlayerHouse.plot_building(PlayerHouse.plot_of(String(occupant_id))))
 
 
 func _exit_tree() -> void:

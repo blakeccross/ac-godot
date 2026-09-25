@@ -123,6 +123,27 @@ var _background_slot: Control = null
 var _background_icon: TextureRect = null
 ## `m_tag_ovl` verb window (`sen_itemw_*`): frame + shadow + pointer, verbs stacked.
 var _tag_popup: Control = null
+## `mSM_OVL_HANIWA` (`m_haniwa_ovl`): the house gyroid's 4-slot table beside the pockets.
+## `_haniwa_house` is set while the pockets were opened from the gyroid; `_haniwa_owner` is
+## entrust mode (`mSM_IV_OPEN_HANIWA_ENTRUST`), else visitor take mode.
+var _haniwa_house: House = null
+var _haniwa_owner: bool = true
+var _focus_haniwa: bool = false
+var _haniwa_sel: int = 0
+var _haniwa_root: Control = null
+var _haniwa_buttons: Array[Button] = []
+var _haniwa_status: Label = null
+var _haniwa_tag_mode: bool = false
+## Pocket slot being put in (hand held over an empty gyroid slot), −1 = setting terms on an
+## item already there.
+var _haniwa_put_pocket: int = -1
+## `mTG_mv_priceSet`: digit cursor 0..4 over a 5-digit price.
+var _price_mode: bool = false
+var _price: int = 0
+var _price_digit: int = 4
+## `mHW_set_interrupt_message`: a status line held for 120 frames.
+var _haniwa_interrupt: String = ""
+var _haniwa_interrupt_left: float = 0.0
 var _tag_shadow: TextureRect = null
 var _tag_frame: PanelContainer = null
 var _tag_rows: VBoxContainer = null
@@ -526,6 +547,10 @@ func _tag_anchor_control() -> Control:
 
 
 func _selected_slot_button() -> Button:
+	if _focus_haniwa:
+		if _haniwa_sel >= 0 and _haniwa_sel < _haniwa_buttons.size():
+			return _haniwa_buttons[_haniwa_sel]
+		return null
 	if _focus_mail:
 		var mi: int = Game.inventory.selected_mail_index
 		if mi >= 0 and mi < _mail_buttons.size():
@@ -1049,10 +1074,34 @@ func open() -> void:
 	get_tree().paused = false
 
 
+## Open the pockets with the house gyroid's table (`mSM_OVL_HANIWA`). `owner`: the house's
+## owner consigning items; else a visitor taking them.
+func open_haniwa(house: House, owner: bool) -> void:
+	if house == null:
+		return
+	HaniwaStore.ensure(house)
+	open()
+	if not _open:
+		return
+	_haniwa_house = house
+	_haniwa_owner = owner
+	_focus_haniwa = false
+	_haniwa_sel = 0
+	_build_haniwa_table()
+	_set_haniwa_visible(true)
+	_refresh()
+
+
 func close() -> void:
 	if not _open:
 		return
 	Audio.play_se(&"menu_exit")
+	_haniwa_house = null
+	_focus_haniwa = false
+	_haniwa_tag_mode = false
+	_price_mode = false
+	_haniwa_interrupt = ""
+	_set_haniwa_visible(false)
 	closed.emit()
 	_open = false
 	_tag_mode = false
@@ -1122,6 +1171,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		var shift: bool = event is InputEventKey and (event as InputEventKey).shift_pressed
 		if shift:
 			_cycle_side_tab(-1)
+		elif _haniwa_house != null:
+			## The gyroid table stands in for the letters while it's open.
+			_focus_haniwa = not _focus_haniwa
+			_tag_mode = false
+			_haniwa_tag_mode = false
+			_refresh()
+			_update_hand_cursor(true)
 		else:
 			_focus_mail = not _focus_mail
 			_focus_player = false
@@ -1146,8 +1202,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			_cycle_side_tab(1)
 			get_viewport().set_input_as_handled()
 			return
+	if _price_mode:
+		_handle_price_input(event)
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("pause_menu") or event.is_action_pressed("ui_cancel"):
 		if _tag_mode:
+			_haniwa_tag_mode = false
 			_tag_mode = false
 			_pending_mail_discard = -1
 			_wallet_tag_mode = false
@@ -1183,6 +1244,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			_quick_grab_drop()
 			get_viewport().set_input_as_handled()
 		return
+	if _focus_haniwa:
+		_haniwa_navigate(event)
+		return
 	if event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
 		if _focus_mail:
 			var col: int = Game.inventory.selected_mail_index % Inventory.MAIL_COLUMNS
@@ -1206,7 +1270,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			var col: int = Game.inventory.selected_index % Inventory.COLUMNS
 			var row: int = Game.inventory.selected_index / Inventory.COLUMNS
-			if col == Inventory.COLUMNS - 1:
+			if col == Inventory.COLUMNS - 1 and _haniwa_house != null:
+				## `mTG_move_cursol_between_table_haniwa`: off the pockets' right edge.
+				_focus_haniwa = true
+				_haniwa_sel = clampi(row, 0, HANIWA_ROWS - 1) * HANIWA_COLS
+			elif col == Inventory.COLUMNS - 1:
 				_focus_mail = true
 				Game.inventory.select_mail((row + MAIL_ROW_OFFSET) * Inventory.MAIL_COLUMNS)
 			else:
@@ -1435,6 +1503,9 @@ func _click_event(event: InputEvent) -> bool:
 
 
 func _activate_cursor() -> void:
+	if _focus_haniwa:
+		_activate_haniwa_cursor()
+		return
 	if _focus_player:
 		_activate_player_cursor()
 		return
@@ -1537,6 +1608,9 @@ func _activate_mail_cursor() -> void:
 
 
 func _run_tag(tag: String) -> void:
+	if _haniwa_tag_mode:
+		_run_haniwa_tag(tag)
+		return
 	if _wallet_tag_mode:
 		_run_wallet_tag(tag)
 		return
@@ -1911,6 +1985,7 @@ func _refresh() -> void:
 	_refresh_side_tab_visuals()
 	_refresh_items(inv)
 	_refresh_mail(inv)
+	_refresh_haniwa()
 	if _side_tab != SideTab.POCKETS:
 		_populate_encyclopedia(&"fish" if _side_tab == SideTab.FISH else &"insect")
 	if _tag_mode and _side_tab == SideTab.POCKETS and not _tag_choices.is_empty():
@@ -1935,7 +2010,7 @@ func _refresh_items(inv: Inventory) -> void:
 	for i: int in _slot_buttons.size():
 		var btn: Button = _slot_buttons[i]
 		var slot: InventorySlot = inv.slot_at(i)
-		var selected: bool = (not _focus_mail) and i == inv.selected_index
+		var selected: bool = (not _focus_mail) and (not _focus_haniwa) and i == inv.selected_index
 		var in_hand: bool = i == inv.hand_index
 		var marked: bool = inv.is_marked(i)
 		var style: StyleBox = style_item_selected if selected else (style_item_marked if marked else style_item)
@@ -2037,3 +2112,270 @@ func _refresh_mail_detail(inv: Inventory) -> void:
 	else:
 		_name.text = sel.label()
 		_desc.text = sel.preview()
+
+
+
+## --- house gyroid table (`m_haniwa_ovl`) -------------------------------------------------
+
+const HANIWA_COLS := 2
+const HANIWA_ROWS := 2
+const HANIWA_INTERRUPT_SEC := 120.0 / 60.0
+
+
+## Four slots over the letter column's rows 2-3 (level with pocket rows 0-1), styled like the
+## pocket slots, plus the gyroid's status line above them. Built once, like the other
+## supplementary chrome here.
+func _build_haniwa_table() -> void:
+	if _haniwa_root != null or _slot_buttons.is_empty() or _mail_buttons.size() < 8:
+		return
+	var host: Control = _mail_buttons[0].get_parent() as Control
+	_haniwa_root = Control.new()
+	_haniwa_root.name = "HaniwaTable"
+	_haniwa_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	host.add_child(_haniwa_root)
+	for i: int in HaniwaStore.SLOTS:
+		var mail_btn: Button = _mail_buttons[MAIL_ROW_OFFSET * Inventory.MAIL_COLUMNS + i]
+		var btn: Button = _slot_buttons[0].duplicate() as Button
+		btn.name = "HaniwaSlot%d" % i
+		btn.unique_name_in_owner = false
+		btn.position = mail_btn.position
+		btn.size = mail_btn.size
+		btn.pressed.connect(_on_haniwa_pressed.bind(i))
+		_haniwa_root.add_child(btn)
+		_haniwa_buttons.append(btn)
+	var top: Button = _mail_buttons[0]
+	_haniwa_status = Label.new()
+	_haniwa_status.position = top.position - Vector2(10.0, 0.0)
+	_haniwa_status.size = Vector2(top.size.x * 2.0 + 30.0, top.size.y * 2.0)
+	_haniwa_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_haniwa_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_haniwa_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_font_label(_haniwa_status, 16, Color(0.35, 0.22, 0.12))
+	_haniwa_root.add_child(_haniwa_status)
+
+
+func _set_haniwa_visible(on: bool) -> void:
+	if _haniwa_root != null:
+		_haniwa_root.visible = on
+	for btn: Button in _mail_buttons:
+		btn.visible = not on
+	if _letters_label != null:
+		_letters_label.visible = not on and _side_tab == SideTab.POCKETS
+
+
+func _on_haniwa_pressed(slot: int) -> void:
+	if not _open or _haniwa_house == null:
+		return
+	_focus_haniwa = true
+	_focus_mail = false
+	_haniwa_sel = slot
+	_activate_haniwa_cursor()
+
+
+func _haniwa_navigate(event: InputEvent) -> void:
+	var col: int = _haniwa_sel % HANIWA_COLS
+	var row: int = _haniwa_sel / HANIWA_COLS
+	if event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
+		if col == 0:
+			## Back onto the pockets' right edge, same row.
+			_focus_haniwa = false
+			Game.inventory.select(row * Inventory.COLUMNS + (Inventory.COLUMNS - 1))
+		else:
+			_haniwa_sel -= 1
+	elif event.is_action_pressed("ui_right") or event.is_action_pressed("move_right"):
+		if col < HANIWA_COLS - 1:
+			_haniwa_sel += 1
+	elif event.is_action_pressed("ui_up") or event.is_action_pressed("move_forward"):
+		if row > 0:
+			_haniwa_sel -= HANIWA_COLS
+	elif event.is_action_pressed("ui_down") or event.is_action_pressed("move_back"):
+		if row < HANIWA_ROWS - 1:
+			_haniwa_sel += HANIWA_COLS
+	elif event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
+		_activate_haniwa_cursor()
+		get_viewport().set_input_as_handled()
+		return
+	else:
+		return
+	Audio.play_se(&"cursol")
+	_refresh()
+	_update_hand_cursor(true)
+	get_viewport().set_input_as_handled()
+
+
+## `mTG_select_tag_decide_haniwa` + the hand dropping a pocket item on the table.
+func _activate_haniwa_cursor() -> void:
+	var house: House = _haniwa_house
+	if house == null:
+		return
+	var inv: Inventory = Game.inventory
+	var empty: bool = HaniwaStore.is_empty_slot(house, _haniwa_sel)
+	_tag_choices = PackedStringArray()
+	_haniwa_put_pocket = -1
+	if _haniwa_owner:
+		if inv.hand_index >= 0:
+			if not empty:
+				Audio.play_se(&"3")
+				return
+			## `mTG_haniwa_put_item`.
+			_haniwa_put_pocket = inv.hand_index
+			_tag_choices = PackedStringArray(["Free", "Set price", "Display only"])
+		elif not empty:
+			## `mTG_haniwa_item`.
+			_tag_choices = PackedStringArray(["Grab", "Free", "Set price", "Display only", "Quit"])
+	elif not empty and int(HaniwaStore.item_at(house, _haniwa_sel)["exchange"]) != HaniwaStore.Exchange.DISPLAY:
+		## `mTG_haniwa_get_item`.
+		_tag_choices = PackedStringArray(["Take it", "Quit"])
+	if _tag_choices.is_empty():
+		return
+	_haniwa_tag_mode = true
+	_tag_mode = true
+	_tag_index = 0
+	Audio.play_se(&"41c")
+	_refresh()
+
+
+func _run_haniwa_tag(tag: String) -> void:
+	var house: House = _haniwa_house
+	var inv: Inventory = Game.inventory
+	_haniwa_tag_mode = false
+	_tag_mode = false
+	match tag:
+		"Free":
+			_haniwa_set_terms(HaniwaStore.Exchange.FREE, 0)
+		"Display only":
+			_haniwa_set_terms(HaniwaStore.Exchange.DISPLAY, 0)
+		"Set price":
+			## `mTG_priceset_proc`: starts from the item's current price.
+			_price_mode = true
+			_price_digit = 4
+			_price = int(HaniwaStore.item_at(house, _haniwa_sel)["price"]) if _haniwa_put_pocket < 0 else 0
+			Audio.play_se(&"33")
+		"Grab":
+			if HaniwaStore.take_back(house, _haniwa_sel, inv):
+				Audio.play_se(&"60")
+			else:
+				_haniwa_say(HaniwaStore.MSG_NO_ROOM)
+				Audio.play_se(&"3")
+		"Take it":
+			var paid: bool = int(HaniwaStore.item_at(house, _haniwa_sel)["price"]) > 0
+			match HaniwaStore.buy(house, _haniwa_sel, inv):
+				&"ok":
+					_haniwa_say(HaniwaStore.MSG_THANKS)
+					## `NA_SE_5F` for a gift, the till for a sale.
+					Audio.play_se(&"register" if paid else &"5f")
+				&"no_room":
+					_haniwa_say(HaniwaStore.MSG_NO_ROOM)
+					Audio.play_se(&"3")
+				&"no_money":
+					_haniwa_say(HaniwaStore.MSG_CANT_AFFORD)
+					Audio.play_se(&"3")
+	_refresh()
+	_update_hand_cursor(true)
+
+
+## `mTG_set_trade_cond`: put the held pocket item in on these terms, or re-term an item.
+func _haniwa_set_terms(exchange: HaniwaStore.Exchange, price: int) -> void:
+	var house: House = _haniwa_house
+	var inv: Inventory = Game.inventory
+	if _haniwa_put_pocket >= 0:
+		if not HaniwaStore.entrust(house, _haniwa_sel, inv, _haniwa_put_pocket, exchange, price):
+			return
+		_play_hand_clip("hnd_sasu", true)
+	else:
+		HaniwaStore.set_terms(house, _haniwa_sel, exchange, price)
+	_haniwa_put_pocket = -1
+	Audio.play_se(&"33")
+	_haniwa_say(HaniwaStore.MSG_GOT_IT)
+
+
+## `mTG_mv_priceSet`: left/right pick a digit, up/down step it, A sets (0 = free), B backs out.
+func _handle_price_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause_menu"):
+		_price_mode = false
+		_haniwa_put_pocket = -1
+		Audio.play_se(&"3")
+	elif event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
+		_price_mode = false
+		if _price == 0:
+			_haniwa_set_terms(HaniwaStore.Exchange.FREE, 0)
+		else:
+			_haniwa_set_terms(HaniwaStore.Exchange.SALE, _price)
+	elif event.is_action_pressed("ui_up") or event.is_action_pressed("move_forward"):
+		var up: int = HaniwaStore.step_price(_price, _price_digit, 1)
+		if up != _price:
+			Audio.play_se(&"426")
+		_price = up
+	elif event.is_action_pressed("ui_down") or event.is_action_pressed("move_back"):
+		var down: int = HaniwaStore.step_price(_price, _price_digit, -1)
+		if down != _price:
+			Audio.play_se(&"426")
+		_price = down
+	elif event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
+		if _price_digit > 0:
+			_price_digit -= 1
+			Audio.play_se(&"cursol")
+	elif event.is_action_pressed("ui_right") or event.is_action_pressed("move_right"):
+		if _price_digit < HaniwaStore.PRICE_STEPS.size() - 1:
+			_price_digit += 1
+			Audio.play_se(&"cursol")
+	else:
+		return
+	_refresh()
+
+
+func _haniwa_say(text: String) -> void:
+	_haniwa_interrupt = text
+	_haniwa_interrupt_left = HANIWA_INTERRUPT_SEC
+
+
+func _process(delta: float) -> void:
+	if _haniwa_interrupt_left > 0.0:
+		_haniwa_interrupt_left -= delta
+		if _haniwa_interrupt_left <= 0.0:
+			_haniwa_interrupt = ""
+			_refresh_haniwa()
+
+
+## Price as five digits with the edited one bracketed, e.g. `0 1 [2] 0 0 Bells`.
+func _price_text() -> String:
+	var digits: String = "%05d" % _price
+	var parts: PackedStringArray = PackedStringArray()
+	for i: int in digits.length():
+		parts.append("[%s]" % digits[i] if i == _price_digit else digits[i])
+	return " ".join(parts) + " Bells"
+
+
+func _refresh_haniwa() -> void:
+	if _haniwa_root == null or _haniwa_house == null:
+		return
+	var house: House = _haniwa_house
+	for i: int in _haniwa_buttons.size():
+		var btn: Button = _haniwa_buttons[i]
+		var selected: bool = _focus_haniwa and i == _haniwa_sel
+		var style: StyleBox = style_item_selected if selected else style_item
+		for key: String in ["normal", "hover", "pressed", "disabled", "focus"]:
+			btn.add_theme_stylebox_override(key, style)
+		var rec: Dictionary = HaniwaStore.item_at(house, i)
+		var id: StringName = StringName(rec.get("item", &""))
+		btn.text = ""
+		if id == &"":
+			_set_slot_picture(btn, null)
+			btn.modulate = Color.WHITE
+			continue
+		var data: ItemData = ItemCatalog.get_item(id)
+		var icon: Texture2D = InventoryChrome.icon_for_item(data, int(rec.get("cond", 0)) as InventoryItem.Condition)
+		_set_slot_picture(btn, icon)
+		if icon == null and data != null:
+			btn.text = data.display_name.substr(0, mini(5, data.display_name.length()))
+		btn.modulate = Color.WHITE
+	## `mHW_make_message`: interrupt line, else what the cursor / tag is on.
+	var line: String = _haniwa_interrupt
+	if line == "":
+		if _price_mode:
+			line = HaniwaStore.MSG_HOW_MUCH + "\n" + _price_text()
+		elif _haniwa_tag_mode:
+			line = HaniwaStore.MSG_CHOOSE_ONE
+		else:
+			line = HaniwaStore.status_line(house, _haniwa_sel if _focus_haniwa else -1, _haniwa_owner)
+	_haniwa_status.text = line

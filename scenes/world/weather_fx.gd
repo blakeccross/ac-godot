@@ -65,6 +65,13 @@ enum PartKind { RAIN, SPLASH, SNOW, SAKURA }
 
 var _rng := RandomNumberGenerator.new()
 var _frame: int = 0
+## The weather actor's `current_level` for the rain SysLev (`aWeather_RenewWeatherLevel`): the
+## saved intensity when the scene starts, then stepped toward the new aim every 180 frames
+## after an in-session change. `_level_counter` is `weather->counter`.
+var _se_level: int = 0
+var _level_counter: int = 0
+## `weather->umbrella_flag`: the player's umbrella was open last tick.
+var _umbrella_open: bool = false
 var _tick_accum: float = 0.0
 var _active: Array[Dictionary] = []
 var _free: Array[int] = []
@@ -92,6 +99,7 @@ func _ready() -> void:
 	if not Game.weather_changed.is_connected(_on_weather_changed):
 		Game.weather_changed.connect(_on_weather_changed)
 	_sync_from_game()
+	_se_level = int(_intensity) if _kind != Weather.Kind.CLEAR else 0
 	_sync_rain_se()
 
 
@@ -102,7 +110,13 @@ func _exit_tree() -> void:
 
 
 func _on_weather_changed(_weather: StringName) -> void:
+	var was: Weather.Kind = _kind
 	_sync_from_game()
+	## `aWeather_ChangeWeather`: a new type comes in at level 1 and ramps from there; the same
+	## type only changes its aim (`_game_tick` steps toward it).
+	if _kind != was:
+		_se_level = 1 if _kind != Weather.Kind.CLEAR and _intensity != Weather.Intensity.NONE else 0
+		_level_counter = 0
 	_sync_rain_se()
 
 
@@ -114,8 +128,8 @@ func _sync_from_game() -> void:
 
 
 func _sync_rain_se() -> void:
-	## `aWeather_ChangeEnvSE` SysLev 7/8/9. Outdoor only.
-	Audio.sync_rain_syslev(_kind, _intensity, Game.is_indoors())
+	## `aWeather_ChangeEnvSE` SysLev 7/8/9 by the current (ramping) level.
+	Audio.sync_rain_syslev(_kind, _se_level, Game.is_indoors(), false, _umbrella_open)
 
 
 func _setup_meshes() -> void:
@@ -306,9 +320,37 @@ func _process(delta: float) -> void:
 
 func _game_tick() -> void:
 	_frame += 1
+	_renew_level()
+	_check_umbrella()
 	if _kind != Weather.Kind.CLEAR and _intensity != Weather.Intensity.NONE:
 		_spawn_tick()
 	_move_tick()
+
+
+## `Weather_Actor_move`: while it rains, an umbrella opening or closing swaps the rain loop for
+## the under-the-umbrella one (`mPlib_check_player_open_umbrella` vs `umbrella_flag`).
+func _check_umbrella() -> void:
+	if _kind != Weather.Kind.RAIN:
+		return
+	var player: Node = get_tree().get_first_node_in_group("player") if get_tree() != null else null
+	var open: bool = player != null and player.has_method("is_umbrella_open") and bool(player.call("is_umbrella_open"))
+	if open != _umbrella_open:
+		_umbrella_open = open
+		_sync_rain_se()
+
+
+## `aWeather_RenewWeatherLevel`: one step toward the aim every 180 frames, re-picking the SE.
+func _renew_level() -> void:
+	var aim: int = int(_intensity) if _kind != Weather.Kind.CLEAR else 0
+	if _se_level == aim:
+		_level_counter = 0
+		return
+	_level_counter += 1
+	if _level_counter < Weather.LEVEL_STEP_FRAMES:
+		return
+	_level_counter = 0
+	_se_level = Weather.step_level(_se_level, aim)
+	_sync_rain_se()
 
 
 func _update_center() -> void:

@@ -39,6 +39,13 @@ const ANNOY_STEP_GAIN := 2.0
 const ANNOY_STEP_DECAY := 1.0
 ## `aNPC_set_feel_info(nactorx, feel, 1)`: the annoyed mood lasts one real-time minute.
 const ANNOY_MOOD_SECONDS := 60.0
+## `aNPC_ACT_REACT_TOOL` (`ac_npc_act_react_tool.c_inc`): the jump when a tool lands on the
+## villager. Steps: surprise (`gyafun1`, then done), surprise2 (`gyafun2` when the player is
+## in view, then stare at them), surprise while already annoyed (`gyafun2`, then done), and
+## the stare itself (wait clip, 5 s, head at talk priority).
+enum React { NONE = -1, SURPRISE, SURPRISE2, SURPRISE_UZAI, LOOK_PLAYER }
+const REACT_CLIPS: Array[String] = ["npc_1_gyafun1", "npc_1_gyafun2", "npc_1_gyafun2", ANIM_WAIT]
+const REACT_LOOK_SECONDS := 5.0
 
 @export var data: VillagerData
 ## Indoor `ac_npc2` stand-in: always visible while the player is in this house.
@@ -77,6 +84,8 @@ var _spawn_unstuck: bool = false
 ## Runtime-only annoyance state (`nactorx->uzai`) — never persisted; only the
 ## `mood` it produces (`Animal_c.mood`) lives on `state`.
 var _uzai_tool: int = 0
+var _react: React = React.NONE
+var _react_timer: float = 0.0
 var _uzai_cross: bool = false
 var _uzai_step: float = 0.0
 var _uzai_flag: bool = false
@@ -312,7 +321,12 @@ func _physics_process(delta: float) -> void:
 		_update_animation(delta, Vector3.ZERO)
 		return
 	if ai.is_talking():
+		_react = React.NONE
+		_head_look.fast = false
 		_hold_talk(delta)
+		return
+	if _react != React.NONE:
+		_tick_react(delta)
 		return
 	if not _spawn_unstuck:
 		_unstick_spawn()
@@ -397,17 +411,24 @@ func _tick_head_look(delta: float) -> void:
 	if get_tree() == null:
 		return
 	var player: Node = get_tree().get_first_node_in_group("player")
-	var sleepy: bool = (
-		state != null and int(state.mood) == int(VillagerState.Mood.SLEEPY)
-	) or ai.kind() == ActivityKind.SLEEP
+	## `aNPC_check_condition_search_eye`: only the sleepy *feel* freezes the head.
+	var sleepy: bool = state != null and int(state.mood) == int(VillagerState.Mood.SLEEPY)
+	## `aNPC_COND_DEMO_SKIP_HEAD_LOOKAT`: asleep (`ac_npc_think_sleep`) or walking in the door
+	## (`ac_npc_act_into_house`) — no player look; the head eases back to the animation.
+	var kind: StringName = ai.kind()
+	var skip_look: bool = kind == ActivityKind.SLEEP or kind == ActivityKind.AT_DOOR
+	## The tool reaction's jumps set the same skip flag; its stare is a priority-4 request.
+	if _react != React.NONE and _react != React.LOOK_PLAYER:
+		skip_look = true
 	## Talk requests the head at priority 4 (`aNPC_look_target`): tracked past the
-	## range/cone gates. `head.lock_flag` is never set by talking.
+	## range/cone gates and the skip flag. `head.lock_flag` is never set by talking.
 	_head_look.tick(
 		delta,
 		player as Node3D if player is Node3D else null,
 		_motor.facing,
 		sleepy,
-		ai.is_talking()
+		ai.is_talking() or _react == React.LOOK_PLAYER,
+		skip_look
 	)
 
 
@@ -1051,12 +1072,74 @@ func _player_crowding() -> bool:
 
 
 ## `Player_actor_CheckAndSet_UZAI_forNpc`, called from `ToolUse._apply_net` when a
-## net swing's capsule lands on this villager instead of a bug.
+## net swing's capsule lands on this villager instead of a bug. `aNPC_check_uzai` returns
+## TRUE for every hit, so every villager jumps (`aNPC_ACT_REACT_TOOL`); only one who knows
+## the player also counts it toward a scold.
 func register_net_hit() -> void:
+	_begin_react_tool()
 	if state == null or state.last_spoke_day == "":
 		return
 	_uzai_tool += 1
 	_uzai_flag = true
+
+
+## `aNPC_act_react_tool_init_proc`: annoyed feel → the short jump; player in view → jump,
+## then stare; else just the jump. Head chases 3× faster for the whole act.
+func _begin_react_tool() -> void:
+	if Game != null and Game.title_demo_active:
+		return
+	if ai.is_talking() or indoor_resident:
+		return
+	var step: React = React.SURPRISE
+	if _uzai_mood_left > 0.0:
+		step = React.SURPRISE_UZAI
+	else:
+		var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D if get_tree() else null
+		if player != null and _head_look.can_look(player, _motor.facing):
+			step = React.SURPRISE2
+	_head_look.fast = true
+	_set_react(step)
+
+
+func _set_react(step: React) -> void:
+	_react = step
+	_react_timer = REACT_LOOK_SECONDS
+	_play_clip(REACT_CLIPS[int(step)], step == React.LOOK_PLAYER)
+
+
+func _end_react() -> void:
+	## `aNPC_setup_react_tool_end`: head rates back to 0x200 / 0x400.
+	_react = React.NONE
+	_head_look.fast = false
+
+
+## The act runs in place (`mv_angl` pinned to the facing); the scold can still fire under it.
+func _tick_react(delta: float) -> void:
+	var on_bg: bool = _snap_to_bg()
+	if on_bg:
+		velocity.y = 0.0
+	elif not is_on_floor():
+		velocity.y -= _gravity * delta
+	velocity.x = 0.0
+	velocity.z = 0.0
+	move_and_slide()
+	var clip_done: bool = (
+		_body_anim == null
+		or not _body_anim.is_playing()
+		or _body_anim.current_animation != _clip
+	)
+	match _react:
+		React.SURPRISE, React.SURPRISE_UZAI:
+			if clip_done:
+				_end_react()
+		React.SURPRISE2:
+			if clip_done:
+				_set_react(React.LOOK_PLAYER)
+		React.LOOK_PLAYER:
+			_react_timer -= delta
+			if _react_timer < 0.0:
+				_end_react()
+	_tick_annoyance(delta)
 
 
 func _trigger_annoyance() -> void:

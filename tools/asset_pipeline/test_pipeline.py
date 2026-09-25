@@ -13,6 +13,8 @@ from asset_pipeline.ckf import (
     select_bind_anim,
     select_close_bind,
     bind_frame_for_anim,
+    Joint,
+    pose_stands_chain,
 )
 from asset_pipeline.convert import BUG_STATIC_NEEDLES, FISH_STATIC_NEEDLES, INTRO_KK_NPC_ANIMS, INTRO_NOOK_NPC_ANIMS, INTRO_ROVER_NPC_ANIMS, INTRO_SLEEP_NPC_ANIMS, WATER_STATIC_NEEDLES, _blob_shadow_parts, _dedupe_wrapper_gfx, _intro_kk_anims, _intro_nook_anims, _intro_rover_anims, _intro_sleep_npc_anims, _is_bit_shadow, _is_field_water_acre, _name_under_prefix, _owning_vtx_prefix, _static_jobs
 from asset_pipeline.gfx import MeshPart, Vertex
@@ -1830,6 +1832,31 @@ class BindAnimTests(unittest.TestCase):
         self.assertEqual(bind_frame_for_anim("cKF_ba_r_obj_train1_3_close", 32), 32.0)
         self.assertEqual(bind_frame_for_anim("cKF_ba_r_obj_train1_3_open", 24), 1.0)
         self.assertEqual(bind_frame_for_anim("cKF_ba_r_ply_1_wait1", 30), 1.0)
+
+
+class PoseStandsChainTests(unittest.TestCase):
+    """House gyroid (`hnw`): its only clip turns the +X bind chain up by itself."""
+
+    @staticmethod
+    def _chain() -> list[Joint]:
+        ## root → body → head along +X, like `cKF_je_r_hnw_tbl`.
+        return [
+            Joint(1, 0, (0.0, 0.0, 0.0), 0, None, -1, 0),
+            Joint(1, 0, (0.0, 0.0, 0.0), 0, None, 0, 1),
+            Joint(0, 0, (0.629, 0.0, 0.0), 0, None, 1, 2),
+        ]
+
+    def test_body_at_90_degrees_z_stands_the_chain(self) -> None:
+        rots = [(0, 0, 0), (0, 0, 0x4000), (0, 0, 0)]
+        self.assertTrue(pose_stands_chain(self._chain(), rots))
+
+    def test_identity_pose_lies_along_x(self) -> None:
+        self.assertFalse(pose_stands_chain(self._chain(), [(0, 0, 0)] * 3))
+
+    def test_sideways_turn_does_not_stand(self) -> None:
+        ## 90° about Y swings the chain to Z, not Y.
+        rots = [(0, 0, 0), (0, 0x4000, 0), (0, 0, 0)]
+        self.assertFalse(pose_stands_chain(self._chain(), rots))
 
 
 class _V:

@@ -21,6 +21,18 @@ func _ready() -> void:
 	GeneratedVisual.attach(self, visual_id)
 	PlayerHouse.apply_exterior_decorations(self)
 	HostCollision.apply_house(self, visual_id, footprint, HostCollision.CELL)
+	## A redrawn design repaints the door it is posted on.
+	if Game != null and not Game.design_changed.is_connected(_on_design_changed):
+		Game.design_changed.connect(_on_design_changed)
+
+
+func _exit_tree() -> void:
+	if Game != null and Game.design_changed.is_connected(_on_design_changed):
+		Game.design_changed.disconnect(_on_design_changed)
+
+
+func _on_design_changed() -> void:
+	PlayerHouse.apply_exterior_decorations(self)
 
 
 func apply_grid_yaw(facing: WorldGrid.Facing) -> void:

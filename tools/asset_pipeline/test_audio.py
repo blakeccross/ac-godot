@@ -520,6 +520,16 @@ class TrainSoundTests(unittest.TestCase):
         self.assertTrue(entries["lev_10"]["loop"])
         self.assertNotIn("se_num", entries["lev_10"])
 
+    def test_rain_is_a_level_se_not_the_door_trigger(self) -> None:
+        ## `aWeather_ChangeEnvSE` → `Na_SysLevStart(7/8/9)`, umbrella 0x12–0x14: level ids,
+        ## a separate table from trigger SEs 7/8/9 (door hinges).
+        from asset_pipeline.audio import _sfx_catalog_entries
+
+        entries = {e["id"]: e for e in _sfx_catalog_entries({})}
+        for key, lev in (("lev_7", 7), ("lev_8", 8), ("lev_9", 9), ("lev_12", 0x12), ("lev_13", 0x13), ("lev_14", 0x14)):
+            self.assertEqual(entries[key]["lev"], lev)
+            self.assertTrue(entries[key]["loop"])
+
 
 class SeamlessLoopTests(unittest.TestCase):
     def test_tail_crossfades_into_the_head(self) -> None:

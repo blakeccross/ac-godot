@@ -152,3 +152,48 @@ func test_mailbox_check_plays_open_clip_then_resumes_flag_pose() -> void:
 	assert_bool(anim.is_playing()).is_true()
 	await anim.animation_finished
 	assert_str(anim.current_animation).is_equal("obj_s_post_flag_on_wait1")
+
+
+func _placed_box(id: StringName) -> Node:
+	var box: Node = load("res://scenes/world/mailbox.tscn").instantiate()
+	box.set("occupant_id", id)
+	box.name = String(id)
+	auto_free(box)
+	add_child(box)
+	return box
+
+
+func test_only_the_owned_plots_box_is_live() -> void:
+	var box0: Node = _placed_box(&"player_mailbox")
+	var box2: Node = _placed_box(&"player_mailbox_2")
+	assert_bool(box0.call("is_owned")).is_true()
+	assert_bool(box2.call("is_owned")).is_false()
+	var none: Array[Interaction] = box2.call("get_interactions", InteractionContext.new())
+	assert_int(none.size()).is_equal(0)
+
+
+func test_mailbox_follows_the_intro_house_pick() -> void:
+	## `mHS_get_arrange_idx`: the player picked plot 2 at the station.
+	Game.intro_station_active = true
+	var box0: Node = _placed_box(&"player_mailbox")
+	var box2: Node = _placed_box(&"player_mailbox_2")
+	## Nothing picked yet: every plot is vacant.
+	assert_bool(box0.call("is_owned")).is_false()
+	Game.claim_intro_house(&"player_house_2")
+	assert_bool(box2.call("is_owned")).is_true()
+	assert_bool(box0.call("is_owned")).is_false()
+	var verbs: Array[Interaction] = box2.call("get_interactions", InteractionContext.new())
+	assert_int(verbs.size()).is_equal(1)
+
+
+func test_house_pick_survives_save_and_load() -> void:
+	Game.intro_station_active = true
+	Game.claim_intro_house(&"player_house_3")
+	Game.intro_station_active = false
+	var snapshot: Dictionary = Game.to_save()
+	Game.reset_session()
+	assert_that(PlayerHouse.owned_building_id()).is_equal(&"player_house")
+	Game.apply_snapshot(snapshot)
+	assert_that(PlayerHouse.owned_building_id()).is_equal(&"player_house_3")
+	assert_bool(PlayerHouse.is_owned_node("player_house_3")).is_true()
+	assert_bool(PlayerHouse.is_owned_node("player_house")).is_false()

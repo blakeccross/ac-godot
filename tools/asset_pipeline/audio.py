@@ -65,6 +65,9 @@ EXTRA_SE_NUMS: dict[str, int] = {
     "73": 0x73,
     ## `aTR1_OngenTrgStart(…, 43)`: the passenger-car door opening / closing.
     "2b": 0x2B,
+    ## `aTUMB_OngenTrgStart`: a held umbrella opening (0x139) / closing (0x10E).
+    "139": 0x139,
+    "10e": 0x10E,
 }
 
 ## Level (looping, positional) SEs, played by level id rather than SE number
@@ -72,6 +75,14 @@ EXTRA_SE_NUMS: dict[str, int] = {
 LEV_SE_NUMS: dict[str, int] = {
     ## `Na_KishaStatusLevel`: `Na_OngenPos(ongenNum1, 0x10, …)` — the running train.
     "lev_10": 0x10,
+    ## `aWeather_ChangeEnvSE` → `Na_SysLevStart`: rain by level 1 / 2 / 3, and the same three
+    ## heard under an open umbrella (0x12 / 0x13 / 0x14).
+    "lev_7": 0x07,
+    "lev_8": 0x08,
+    "lev_9": 0x09,
+    "lev_12": 0x12,
+    "lev_13": 0x13,
+    "lev_14": 0x14,
 }
 
 CATALOG_DIR = "audio"

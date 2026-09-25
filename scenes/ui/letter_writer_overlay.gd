@@ -20,7 +20,13 @@ extends CanvasLayer
 ## `mSM_OVL_EDITENDCHK`/`mEE_TYPE_BOARD` (same 3-choice shape already used by
 ## `design_editor_overlay.gd`'s save prompt).
 
+signal closed
+
 const MAX_LINES := 6
+## `mED_TYPE_HBOARD` (`m_hboard_ovl`): the house gyroid's visitor message — 4 lines of the same
+## 192 px width, 128 characters, no header / footer, edited in place.
+const HBOARD_LINES := 4
+const HBOARD_LEN := 128
 const ROWS := [
 	"ABCDEFGHIJKLM",
 	"NOPQRSTUVWXYZ",
@@ -37,6 +43,11 @@ var _row: int = 0
 var _col: int = 0
 var _prompt: bool = false
 var _prompt_idx: int = 0
+## Board mode: `_max_lines` / `_max_len` caps and the callback that receives the text on
+## Save (never called on Discard). Letter mode leaves `_board_cb` invalid.
+var _max_lines: int = MAX_LINES
+var _max_len: int = -1
+var _board_cb: Callable = Callable()
 
 @onready var _root: Control = $Root
 @onready var _paper: TextureRect = %Paper
@@ -62,9 +73,31 @@ func is_open() -> bool:
 	return _open
 
 
+## Edit a free text block in place (`m_hboard_ovl`): `initial` split on newlines, capped at
+## `lines` lines / `max_len` characters. `callback(text: String)` runs on Save.
+func open_board(initial: String, lines: int, max_len: int, callback: Callable, paper_type: int = 0) -> void:
+	if _open:
+		return
+	open({}, paper_type)
+	_max_lines = lines
+	_max_len = max_len
+	_board_cb = callback
+	_lines = PackedStringArray(initial.split("\n")) if initial != "" else PackedStringArray([""])
+	while _lines.size() > _max_lines:
+		_lines.remove_at(_lines.size() - 1)
+	_header.visible = false
+	_footer.visible = false
+	_refresh()
+
+
 func open(recipient: Dictionary, paper_type: int) -> void:
 	if _open:
 		return
+	_max_lines = MAX_LINES
+	_max_len = -1
+	_board_cb = Callable()
+	_header.visible = true
+	_footer.visible = true
 	_recipient = recipient
 	_paper_type = LetterChrome.clamp_paper_type(paper_type)
 	_lines = PackedStringArray([""])
@@ -93,6 +126,7 @@ func close() -> void:
 	_open = false
 	_root.visible = false
 	set_process_unhandled_input(false)
+	closed.emit()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -136,13 +170,16 @@ func _unhandled_input(event: InputEvent) -> void:
 ## box's measured pixel width (`mBD_strLineCheck`'s 192px cap, against real font metrics
 ## here instead of the N64 font's).
 func _type(ch: String) -> void:
+	if _max_len > 0 and "\n".join(_lines).length() >= _max_len:
+		Audio.play_se(&"cursol")
+		return
 	var line: String = _lines[_lines.size() - 1]
 	var font: Font = _body.get_theme_font("font")
 	var fs: int = _body.get_theme_font_size("font_size")
 	var max_w: float = maxf(_body.size.x, 1.0)
 	var candidate: String = line + ch
 	if font != null and font.get_string_size(candidate, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > max_w:
-		if _lines.size() >= MAX_LINES:
+		if _lines.size() >= _max_lines:
 			Audio.play_se(&"cursol")
 			return
 		## Break at the last space so a wrap doesn't split a word mid-way
@@ -162,7 +199,7 @@ func _type(ch: String) -> void:
 
 
 func _newline() -> void:
-	if _lines.size() >= MAX_LINES:
+	if _lines.size() >= _max_lines:
 		Audio.play_se(&"cursol")
 		return
 	_lines.append("")
@@ -221,6 +258,14 @@ func _resolve_prompt(idx: int) -> void:
 
 
 func _save() -> void:
+	if _board_cb.is_valid():
+		var cb: Callable = _board_cb
+		var text: String = "\n".join(_lines)
+		Audio.play_se(&"cursol")
+		## Before `close()`: whoever awaits `closed` should already see the saved text.
+		cb.call(text)
+		close()
+		return
 	var inv: Inventory = Game.inventory
 	var body: String = "\n".join(_lines)
 	var mail := MailData.make_send(

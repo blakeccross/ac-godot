@@ -395,6 +395,10 @@ func claim_intro_house(house_id: StringName) -> void:
 	if not intro_station_active:
 		return
 	intro_station_house_id = house_id
+	## The pick outlives the intro: the saved house record carries it (`PlayerHouse.owned_building_id`).
+	var record: House = interiors.player_house() if interiors != null else null
+	if record != null and house_id != &"":
+		record.outdoor_building_id = house_id
 	intro_pending_house_id = &""
 	intro_station_can_pick_house = false
 	intro_station_resume_debt = true
@@ -1092,9 +1096,6 @@ func try_enter_interior(
 	if stage != null and stage.has_method("switch_wing"):
 		return stage.call("switch_wing", room_id) as bool
 	_change_scene(INTERIOR_SCENE)
-	Audio.sync_rain_syslev(
-		Weather.kind_from_name(weather), weather_intensity as Weather.Intensity, true
-	)
 	return true
 
 
@@ -1222,9 +1223,6 @@ func exit_interior() -> bool:
 		return true
 	emerge_from_door = true
 	_change_scene(WORLD_SCENE)
-	Audio.sync_rain_syslev(
-		Weather.kind_from_name(weather), weather_intensity as Weather.Intensity, false
-	)
 	return true
 
 

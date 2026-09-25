@@ -226,7 +226,7 @@ static func label_for_acre(data: WorldData, fg: Vector2i) -> String:
 		var id := String(b.id)
 		if id.begins_with("npc_house_"):
 			return "Villager house"
-		if id == &"player_house":
+		if PlayerHouse.is_owned_node(id):
 			return "Your house"
 	return TownFieldGenerator.acre_abbrev(type).strip_edges()
 
@@ -272,7 +272,7 @@ static func icon_name_for_acre(data: WorldData, fg: Vector2i) -> String:
 		if VillagerWalk.block_from_cell(b.cell) != block:
 			continue
 		var id := String(b.id)
-		if id.begins_with("npc_house_") or id == "player_house":
+		if id.begins_with("npc_house_") or PlayerHouse.is_owned_node(id):
 			return "icon_house"
 	return ""
 

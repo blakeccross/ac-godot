@@ -294,6 +294,35 @@ static func _light_blend_public() -> float:
 	return clampf(float(Clock.now_sec() - t0) / float(t1 - t0), 0.0, 1.0)
 
 
+## `aWeather_ChangeEnvSE`: the rain ambient is a *level* SE (`Na_SysLevStart` → `Sou_LevStart`),
+## not a trigger SE — 7 / 8 / 9 by the current level, 0x12 / 0x13 / 0x14 under an open umbrella.
+## Only rain has one. Returns the SysLev id (0 = silence).
+static func rain_syslev_id(kind: Kind, level: int, umbrella: bool = false) -> int:
+	if kind != Kind.RAIN or level < 1 or level > 3:
+		return 0
+	return (0x11 if umbrella else 6) + level
+
+
+## `Na_SysLevStart`: rain 7 / 8 / 9 play at 0.4 in `sou_scene_mode` 2 (rooms), 0xE (walking out
+## an exit), 0xF (museum) and 0x10 (lighthouse) — i.e. indoors — and at full volume in the field.
+## The umbrella variants are not scaled.
+static func syslev_volume(id: int, indoors: bool) -> float:
+	if indoors and id >= 7 and id <= 9:
+		return 0.4
+	return 1.0
+
+
+## `aWeather_RenewWeatherLevel`: after an in-session change the level steps one toward the aim
+## every 180 frames (a new type starts at level 1). Frames at 60 Hz.
+const LEVEL_STEP_FRAMES := 180
+
+
+static func step_level(level: int, aim: int) -> int:
+	if level == aim:
+		return level
+	return level + (1 if aim > level else -1)
+
+
 static func spawn_count_per_frame(kind: Kind, intensity: Intensity) -> int:
 	## Rain: 1/2/3 per frame. Snow/sakura: 1 on a frame mask (caller checks).
 	if intensity == Intensity.NONE or kind == Kind.CLEAR:

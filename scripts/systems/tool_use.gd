@@ -72,6 +72,9 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 		return false
 	if not _field_ok(tool, ctx):
 		return false
+	## `ROTATE_UMBRELLA`: the twirl is the whole verb (clip + SE on the player).
+	if tool.kind == ToolData.Kind.UMBRELLA:
+		return true
 	if tool.field_require == ToolData.FieldRequire.EMPTY_GROUND:
 		if not HoleUse.dig(ctx, facing_cell(ctx)):
 			var actor: Node = ctx.actor if ctx != null else null

@@ -160,6 +160,8 @@ static func _kind_for_item(item_id: StringName) -> StringName:
 		return &""
 	if data is FurnitureData:
 		return &"furniture"
+	if data is ToolData and (data as ToolData).kind == ToolData.Kind.UMBRELLA:
+		return &"umbrella"
 	if data is ToolData:
 		return &"tool"
 	match data.category:
@@ -195,6 +197,9 @@ static func display_visual_for_item(item_id: StringName) -> StringName:
 				return &"obj_item_rod"
 			ToolData.Kind.SHOVEL:
 				return &"obj_item_shovel"
+			ToolData.Kind.UMBRELLA:
+				## `ac_shop_umbrella`: the stand shows that umbrella open (`obj_shop_umbNN`).
+				return StringName("obj_shop_umb%02d" % ((data as ToolData).umbrella_index + 1))
 			_:
 				var tool_vis: StringName = (data as ToolData).visual_id
 				return tool_vis

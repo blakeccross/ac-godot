@@ -1293,6 +1293,8 @@ class TextureBank:
         pal = self._symbol_bytes(f"{prefix}_pal")
         if pal is None:
             pal = self._structure_palette(prefix)
+        if pal is None:
+            pal = self._tmem_unit_palette(prefix)
         eye1 = self._symbol_bytes(f"{prefix}_eye1_TA_tex_txt")
         mouth1 = self._symbol_bytes(f"{prefix}_mouth1_TA_tex_txt")
         tmem = self._symbol_bytes(f"{prefix}_tmem_txt")
@@ -1356,6 +1358,27 @@ class TextureBank:
             if blob:
                 return blob
         return None
+
+    def _tmem_unit_palette(self, prefix: str) -> bytes | None:
+        """16-colour palette compiled right before `{prefix}_tmem_txt` in the same data unit.
+
+        A cKF body whose draw code loads its TLUT itself (house gyroid: `hnw_face.c` holds the
+        palette then the tmem, `aHNW_actor_draw` loads slot 15) has no `{prefix}_pal`. The
+        palette is the CI4-sized symbol immediately before the tmem bank, with nothing but
+        section padding between them.
+        """
+        tmem = self.by_name.get(f"{prefix}_tmem_txt")
+        if tmem is None:
+            return None
+        best: MapSymbol | None = None
+        for sym in self.symbols:
+            if sym.address >= tmem.address or sym.size <= 0 or sym.name.startswith("."):
+                continue
+            if best is None or sym.address > best.address:
+                best = sym
+        if best is None or best.size != 0x20 or tmem.address - best.end >= 32:
+            return None
+        return self._symbol_bytes(best.name)
 
     def _bind_mka_face_segment(self, pal: bytes | None) -> None:
         """Bind anime_1 for Mask Cat when eye banks are NULL (`npc_draw_data`)."""

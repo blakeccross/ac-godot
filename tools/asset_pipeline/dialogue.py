@@ -502,6 +502,8 @@ def find_pair(cfg: PipelineConfig, stem: str) -> Optional[tuple[Path, Path]]:
     roots = [
         cfg.extracted_disc / "files",
         cfg.extracted_archives / "forest_2nd" / "data",
+        ## `string_data` (mString_*: gyroid default message, …) ships in the first archive.
+        cfg.extracted_archives / "forest_1st" / "data",
         cfg.game_files / "files" if cfg.game_files.is_dir() else None,
         cfg.game_files if cfg.game_files.is_dir() else None,
     ]

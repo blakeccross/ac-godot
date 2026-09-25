@@ -341,7 +341,9 @@ func _head_rig() -> Array:
 	return [look, host]
 
 
-func test_head_look_aims_at_player_eye_and_only_clamps_pitch_upward() -> void:
+func test_head_look_aims_at_player_eye_and_only_clamps_pitch_downward() -> void:
+	## `aNPC_search_eye_target_sub`: angle_x = −atan2(eye.y − target.y, dxz) — positive
+	## looking up; only looking down is clamped (−33.75°).
 	var rig: Array = _head_rig()
 	var look: NpcHeadLook = rig[0]
 	var host: Node3D = auto_free(rig[1])
@@ -350,19 +352,40 @@ func test_head_look_aims_at_player_eye_and_only_clamps_pitch_upward() -> void:
 	player.position = Vector3(0.0, 0.0, 1.0)
 	for _i: int in 200:
 		look.tick(1.0 / 30.0, player, 0.0, false)
-	assert_float(look._pitch).is_less(0.0)
-	assert_float(look._pitch).is_greater_equal(-NpcHeadLook.PITCH_LIMIT - 0.001)
-	## Feet-height target would have pitched down; a raised player (above the cone) is
-	## clamped at −33.75° looking up but a low one is not clamped looking down.
-	player.position = Vector3(0.0, -8.0, 1.0)
+	assert_float(look._pitch).is_greater(0.0)
+	## Far above: not clamped looking up.
+	player.position = Vector3(0.0, 40.0, 1.0)
 	for _i: int in 400:
 		look.tick(1.0 / 30.0, player, 0.0, false)
 	assert_float(look._pitch).is_greater(NpcHeadLook.PITCH_LIMIT)
-	player.position = Vector3(0.0, 40.0, 1.0)
+	## Far below: clamped at −33.75°.
+	player.position = Vector3(0.0, -8.0, 1.0)
 	for _i: int in 400:
 		look.tick(1.0 / 30.0, player, 0.0, false)
 	assert_float(look._pitch).is_equal_approx(-NpcHeadLook.PITCH_LIMIT, 0.001)
 	assert_that(host).is_not_null()
+
+
+func test_head_angles_are_relative_to_the_neck_world_rotation() -> void:
+	## `angleX += world_rot.x; angleY -= world_rot.y` — the neck's own lean / yaw.
+	var eye := Vector3(0.0, 1.0, 0.0)
+	var root := Vector3.ZERO
+	var target_root := Vector3(1.0, 0.0, 1.0)
+	var target_eye := Vector3(1.0, 1.0, 1.0)
+	var level: Vector2 = NpcHeadLook.target_angles(eye, root, target_eye, target_root, Vector3.ZERO)
+	assert_float(level.x).is_equal_approx(0.0, 0.0001)
+	assert_float(level.y).is_equal_approx(PI / 4.0, 0.0001)
+	## Neck already turned 45° toward it → the head needs no yaw; a 0.1 lean adds to pitch.
+	var turned: Vector2 = NpcHeadLook.target_angles(
+		eye, root, target_eye, target_root, Vector3(0.1, PI / 4.0, PI / 2.0)
+	)
+	assert_float(turned.y).is_equal_approx(0.0, 0.0001)
+	assert_float(turned.x).is_equal_approx(0.1, 0.0001)
+	## Yaw clamps at ±67.5°.
+	var behind: Vector2 = NpcHeadLook.target_angles(
+		eye, root, Vector3(-1.0, 1.0, -0.1), Vector3(-1.0, 0.0, -0.1), Vector3.ZERO
+	)
+	assert_float(behind.y).is_equal_approx(-NpcHeadLook.YAW_LIMIT, 0.0001)
 
 
 func test_head_look_talk_forces_target_and_sleepy_holds() -> void:
@@ -383,6 +406,25 @@ func test_head_look_talk_forces_target_and_sleepy_holds() -> void:
 	for _i: int in 100:
 		look.tick(1.0 / 30.0, player, 0.0, true, false)
 	assert_float(look._yaw).is_equal(held_yaw)
+
+
+func test_head_lookat_skip_eases_back_but_talk_still_tracks() -> void:
+	## `aNPC_COND_DEMO_SKIP_HEAD_LOOKAT` drops the priority-1 player look (head returns to the
+	## animation), but a priority-4 talk request still goes through.
+	var rig: Array = _head_rig()
+	var look: NpcHeadLook = rig[0]
+	auto_free(rig[1])
+	var player: Node3D = auto_free(Node3D.new())
+	player.position = Vector3(2.0, 0.0, 2.0)
+	for _i: int in 100:
+		look.tick(1.0 / 30.0, player, 0.0, false)
+	assert_float(look._yaw).is_greater(0.5)
+	for _i: int in 100:
+		look.tick(1.0 / 30.0, player, 0.0, false, false, true)
+	assert_float(look._yaw).is_equal_approx(0.0, 0.0001)
+	for _i: int in 100:
+		look.tick(1.0 / 30.0, player, 0.0, false, true, true)
+	assert_float(look._yaw).is_greater(0.5)
 
 
 func test_villager_home_door_gates() -> void:
@@ -533,12 +575,49 @@ func test_player_crowding_requires_distance_and_facing() -> void:
 
 
 func test_net_hit_ignored_before_first_meeting() -> void:
-	## `Player_actor_CheckAndSet_UZAI_forNpc` gates on the animal-memory check —
+	## `aNPC_check_uzai` gates the scold counters on the animal-memory check —
 	## a villager the player has never talked to can't be annoyed yet.
 	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
 	villager._ensure_bound()
 	villager.register_net_hit()
 	assert_int(villager._uzai_tool).is_equal(0)
+
+
+func test_net_hit_makes_any_villager_jump() -> void:
+	## `aNPC_check_uzai` returns TRUE on `uzai.flag == 1` before the memory check, so even a
+	## stranger does `aNPC_ACT_REACT_TOOL`; only the scold counter needs a meeting.
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	villager._ensure_bound()
+	villager.register_net_hit()
+	assert_int(villager._react).is_equal(Villager.React.SURPRISE)
+	assert_bool(villager._head_look.fast).is_true()
+	assert_int(villager._uzai_tool).is_equal(0)
+	villager._end_react()
+	assert_bool(villager._head_look.fast).is_false()
+
+
+func test_net_hit_in_view_stares_then_annoyed_only_jumps() -> void:
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	add_child(villager)
+	villager._ensure_bound()
+	villager.global_position = Vector3.ZERO
+	villager._motor.facing = 0.0
+	var player: _PlayerYawStub = auto_free(_PlayerYawStub.new())
+	add_child(player)
+	player.add_to_group("player")
+	player.global_position = Vector3(0, 0, 3)
+	## Player in front → `gyafun2`, then a 5 s stare with the head at talk priority.
+	villager.register_net_hit()
+	assert_int(villager._react).is_equal(Villager.React.SURPRISE2)
+	villager._set_react(Villager.React.LOOK_PLAYER)
+	villager._tick_react(Villager.REACT_LOOK_SECONDS - 0.1)
+	assert_int(villager._react).is_equal(Villager.React.LOOK_PLAYER)
+	villager._tick_react(0.2)
+	assert_int(villager._react).is_equal(Villager.React.NONE)
+	## Already annoyed (`mNpc_FEEL_UZAI_*`) → the short jump, no stare.
+	villager._uzai_mood_left = 10.0
+	villager.register_net_hit()
+	assert_int(villager._react).is_equal(Villager.React.SURPRISE_UZAI)
 
 
 func test_net_hits_trigger_then_tighten_to_a_second_annoyance() -> void:

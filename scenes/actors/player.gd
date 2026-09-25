@@ -88,6 +88,11 @@ const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 ## Title demo: a recorded stick + A replace live input (`mEv_IsTitleDemo` swaps the controller
 ## in `m_player_controller.c_inc`). Null during normal play.
 var scripted_input: TitleDemoInput = null
+## `mPlib_request_main_demo_walk_type1`: walk to a world point with the stick ignored (the house
+## gyroid's "Save" walk to the door). Inactive when `_demo_walk_speed` is 0.
+var _demo_walk_goal: Vector3 = Vector3.ZERO
+var _demo_walk_speed: float = 0.0
+var _demo_walk_arrive: float = 0.0
 var _motor: PlayerLocomotion = PlayerLocomotion.new()
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _busy: bool = false
@@ -98,6 +103,9 @@ var _anim: AnimationPlayer
 var _gait: PlayerLocomotion.Gait = PlayerLocomotion.Gait.WAIT
 var _placeholder_bob: float = 0.0
 var _hold_anim: StringName = &""
+## The umbrella in hand (`player->umbrella_actor`) and the right-arm pose it holds.
+var _umbrella: HeldUmbrella = null
+var _umbrella_arm: Dictionary = {}
 var _tool_hold_anim: StringName = &""
 var _tool_use_anim: StringName = &""
 ## Tool is put away (door enter) or not yet taken back out (door emerge). `item_kind` is −1 in
@@ -281,6 +289,8 @@ func apply_facing(yaw: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _umbrella != null:
+		_umbrella.tick(delta)
 	if _door_entering:
 		_tick_door_enter(delta)
 		return
@@ -315,7 +325,12 @@ func _physics_process(delta: float) -> void:
 	var stick := 0.0
 	var input_dir := Vector2.ZERO
 	var menu_open: bool = _menu_open()
-	if not _busy and not menu_open:
+	if _demo_walk_speed > 0.0 and not _busy and not menu_open:
+		var to_goal := Vector3(_demo_walk_goal.x - global_position.x, 0.0, _demo_walk_goal.z - global_position.z)
+		if to_goal.length() > _demo_walk_arrive:
+			wish = to_goal.normalized()
+			stick = clampf(_demo_walk_speed / PlayerLocomotion.WALK_SPEED, 0.0, 1.0)
+	elif not _busy and not menu_open:
 		if scripted_input != null:
 			input_dir = scripted_input.move
 		else:
@@ -325,7 +340,9 @@ func _physics_process(delta: float) -> void:
 		if scripted_input != null and scripted_input.consume_a_pressed():
 			_try_interact()
 
-	var sprint: bool = scripted_input == null and Input.is_action_pressed("sprint")
+	var sprint: bool = (
+		scripted_input == null and not is_demo_walking() and Input.is_action_pressed("sprint")
+	)
 	var planar: Vector3 = _motor.tick(
 		delta, wish, stick, sprint and not menu_open, _busy or menu_open
 	)
@@ -837,6 +854,22 @@ func begin_demo_getoff_train(stand: Vector3, face_yaw: float) -> void:
 	)
 
 
+## Walk to `goal` at `speed` (m/s), stopping within `arrive` (m); repeat calls move the goal
+## (`mPlib_Set_goal_player_demo_walk`). Held until `end_demo_walk`.
+func begin_demo_walk(goal: Vector3, speed: float, arrive: float) -> void:
+	_demo_walk_goal = goal
+	_demo_walk_speed = maxf(speed, 0.0)
+	_demo_walk_arrive = maxf(arrive, 0.0)
+
+
+func end_demo_walk() -> void:
+	_demo_walk_speed = 0.0
+
+
+func is_demo_walking() -> bool:
+	return _demo_walk_speed > 0.0
+
+
 func is_door_entering() -> bool:
 	return _door_entering
 
@@ -1040,7 +1073,7 @@ func _group_open(group: String) -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if scripted_input != null or _busy or _menu_open():
+	if scripted_input != null or _busy or _menu_open() or is_demo_walking():
 		return
 	if event.is_action_pressed("interact"):
 		if _try_grip():
@@ -1652,6 +1685,8 @@ func _try_load_generated_visual() -> void:
 	_apply_preview_materials(body)
 	_anim = _find_animation_player(body)
 	if _anim != null:
+		## Umbrella arm overlay lands after the body's own mix (`mPlayer_PART_TABLE_NET`).
+		_anim.mixer_applied.connect(_apply_umbrella_arm)
 		## INDEX_DOOR / getoff: capture joint_0 XZ into AnimationMove, strip so the mesh stays on the body.
 		## INDEX_OUTDOOR GO_OUT keeps joint_0 (starts behind stand, ends at bind — no snap).
 		_capture_door_root_xz(_anim)
@@ -1764,24 +1799,109 @@ func _resolve_clip_in(anim_player: AnimationPlayer, suffix: String) -> String:
 
 
 func _on_equipment_changed(_item_id: StringName) -> void:
+	var tool: ToolData = _equipped_tool()
+	var to_umbrella: bool = tool != null and tool.kind == ToolData.Kind.UMBRELLA
+	## An umbrella opens out of / folds into the hand (`TAKEOUT_ITEM` / `PUTIN_ITEM` with
+	## `UMB_OPEN1` / `UMB_CLOSE1`) rather than just appearing.
+	if (to_umbrella or _umbrella != null) and not _tool_hidden() and not _busy and is_inside_tree() \
+			and _anim != null:
+		_swap_umbrella(to_umbrella)
+		return
 	_bind_equipped_tool(not _tool_hidden())
 	if not _busy:
 		_replay_gait_clip()
+
+
+## `setup_main_Putin_item` (umbrella: `UMB_CLOSE1`, the tool folds shut over 30 frames) then
+## `setup_main_Takeout_item` (umbrella: `UMB_OPEN1`, it opens from nothing).
+func _swap_umbrella(to_umbrella: bool) -> void:
+	var was_busy: bool = _busy
+	_busy = true
+	_tool_swap = true
+	if _umbrella != null:
+		await _fold_umbrella()
+	if to_umbrella:
+		await _open_umbrella()
+	else:
+		_bind_equipped_tool(not _tool_hidden())
+	_tool_swap = false
+	_busy = was_busy
+	if not _busy:
+		_replay_gait_clip()
+
+
+func _fold_umbrella() -> void:
+	if _umbrella == null:
+		return
+	_umbrella.set_action(HeldUmbrella.Action.PUTAWAY)
+	var length: float = _play_umbrella_clip("ply_1_umb_close1")
+	var waited: float = 0.0
+	while is_inside_tree() and waited < maxf(length, 1.0) and not _umbrella.is_closed():
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	_umbrella = null
+	HeldTool.unbind(HeldTool.find_skeleton(_mesh))
+
+
+func _open_umbrella() -> void:
+	_bind_equipped_tool(true, HeldUmbrella.Action.TAKEOUT_BEFORE)
+	var length: float = _play_umbrella_clip("ply_1_umb_open1")
+	if length > 0.0 and is_inside_tree():
+		await get_tree().create_timer(length).timeout
+
+
+## Full-body umbrella clip once (`cKF_FRAMECONTROL_STOP`); returns its length.
+func _play_umbrella_clip(leaf: String) -> float:
+	var clip := _resolve_clip(leaf)
+	if _anim == null or clip.is_empty():
+		return 0.0
+	_anim.speed_scale = 1.0
+	_anim.play(clip, 0.08)
+	PlayerSe.schedule_clip(self, StringName(clip))
+	var res: Animation = _anim.get_animation(clip)
+	return res.length if res != null else 0.0
+
+
+## `mPlib_check_player_open_umbrella`: an umbrella is out and fully open.
+func is_umbrella_open() -> bool:
+	return _umbrella != null and _umbrella.opened_fully and not _tool_hidden()
+
+
+## `mPlayer_PART_TABLE_NET` with `UMBRELLA1` as anim1: the right arm holds the umbrella pose
+## over the body's clip — except during the umbrella's own full-body clips and tool swaps.
+func _apply_umbrella_arm() -> void:
+	if _umbrella == null or _umbrella_arm.is_empty() or _tool_swap or _anim == null:
+		return
+	if String(_anim.current_animation).contains("umb_"):
+		return
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	if skeleton == null:
+		return
+	for bone: int in _umbrella_arm:
+		skeleton.set_bone_pose_rotation(bone, _umbrella_arm[bone])
 
 
 func _tool_hidden() -> bool:
 	return _tool_stowed or Game.is_indoors()
 
 
-func _bind_equipped_tool(show_tool: bool) -> void:
+func _bind_equipped_tool(
+	show_tool: bool, umbrella_start: HeldUmbrella.Action = HeldUmbrella.Action.OPEN_NOW
+) -> void:
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
 	HeldTool.unbind(skeleton)
+	_umbrella = null
 	_hold_anim = &""
 	_tool_hold_anim = &""
 	_tool_use_anim = &""
 	var tool: ToolData = _equipped_tool()
 	if show_tool and tool != null and tool.visual_id != &"":
-		HeldTool.bind(skeleton, tool.visual_id)
+		var attach: Node3D = HeldTool.bind(skeleton, tool.visual_id)
+		if tool.kind == ToolData.Kind.UMBRELLA and attach != null and attach.get_child_count() > 0:
+			_umbrella = HeldUmbrella.new()
+			_umbrella.setup(attach.get_child(0) as Node3D, umbrella_start)
+			if _umbrella_arm.is_empty():
+				_umbrella_arm = HeldUmbrella.arm_pose(_anim, skeleton)
 		_hold_anim = tool.hold_anim
 		_tool_hold_anim = tool.visual_hold_anim
 		_tool_use_anim = tool.visual_use_anim
@@ -1799,6 +1919,14 @@ func put_away_tool_for_door() -> void:
 	_tool_swap = true
 	if not _door_entering:
 		_door_clear_busy = false
+	if _umbrella != null:
+		## `setup_main_Putin_item`: an umbrella folds (`UMB_CLOSE1`) instead of `PUTAWAY1`.
+		await _fold_umbrella()
+		_tool_stowed = true
+		_bind_equipped_tool(false)
+		_tool_swap = false
+		_busy = was_busy
+		return
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
 	var length: float = _play_tool_swap_clip(false)
 	var total: float = TOOL_MORPH_SEC + length + PUTIN_STOP_TICKS * TOOL_TICK_SEC
@@ -1839,6 +1967,16 @@ func take_out_tool() -> void:
 		_door_clear_busy = false
 	await get_tree().create_timer(RETURN_OUTDOOR_TICKS * TOOL_TICK_SEC).timeout
 	_tool_stowed = false
+	var held: ToolData = _equipped_tool()
+	if held != null and held.kind == ToolData.Kind.UMBRELLA and not Game.is_indoors():
+		## `setup_main_Takeout_item`: an umbrella opens out (`UMB_OPEN1`), no grow-in.
+		await _open_umbrella()
+		await get_tree().create_timer(RETURN_OUTDOOR_TICKS * TOOL_TICK_SEC).timeout
+		_tool_swap = false
+		_busy = was_busy
+		if not _busy:
+			_replay_gait_clip()
+		return
 	_bind_equipped_tool(not Game.is_indoors())
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
 	HeldTool.set_scale(skeleton, 0.0)

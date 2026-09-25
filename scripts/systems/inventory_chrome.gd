@@ -145,6 +145,8 @@ static func _item_icon_stem(data: ItemData) -> String:
 				return "item_net"
 			ToolData.Kind.WATERING_CAN:
 				return "item_akikan"
+			ToolData.Kind.UMBRELLA:
+				return "item_umbrella"
 			_:
 				pass
 	match data.category:
@@ -244,6 +246,8 @@ static func _legacy_stem(name: String) -> String:
 			return "obj_item_rod_tex"
 		"item_net":
 			return "obj_item_net_tex"
+		"item_umbrella":
+			return "obj_item_umbrella_tex"
 		"item_apple":
 			return "obj_item_apple_tex"
 		"item_naegi":

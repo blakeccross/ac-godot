@@ -3,7 +3,7 @@ extends ItemData
 
 ## Equippable field tool. Kind selects host verbs; field_* is the empty-tile A-button.
 
-enum Kind { NONE, SHOVEL, FISHING_ROD, NET, AXE, WATERING_CAN }
+enum Kind { NONE, SHOVEL, FISHING_ROD, NET, AXE, WATERING_CAN, UMBRELLA }
 enum FieldRequire { NONE, WATER, EMPTY_GROUND }
 
 @export var kind: Kind = Kind.NONE
@@ -21,6 +21,8 @@ enum FieldRequire { NONE, WATER, EMPTY_GROUND }
 @export var visual_hold_anim: StringName = &""
 ## Clip on the tool GLB during the player use anim (`net_swing1`, `sao_swing1`).
 @export var visual_use_anim: StringName = &""
+## Umbrellas (`ITM_UMBRELLA00`…): `tool_name` index into `ac_t_umbrella`'s `draw_dt` (0-31).
+@export var umbrella_index: int = -1
 
 
 func _init() -> void:

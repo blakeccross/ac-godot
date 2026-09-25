@@ -107,17 +107,23 @@ def _anim_tables(
     header = find_symbol(symbols, anim_name)
     flag_p, data_p, key_p, fix_p, _pad, nframes = struct.unpack(">IIIIhh", rel.slice_at(header.address, 20))
     flags = rel.slice_at(flag_p, num_joints)
-    try:
-        key_sym = next(s for s in symbols if s.address == key_p and not s.name.startswith("."))
-        data_sym = next(s for s in symbols if s.address == data_p and not s.name.startswith("."))
-        fix_sym = next(s for s in symbols if s.address == fix_p and not s.name.startswith("."))
-    except StopIteration:
-        key_sym = next(s for s in symbols if s.address == key_p)
-        data_sym = next(s for s in symbols if s.address == data_p)
-        fix_sym = next(s for s in symbols if s.address == fix_p)
-    key = _s16s(rel.slice_at(key_sym.address, key_sym.size))
-    data = _s16s(rel.slice_at(data_sym.address, data_sym.size))
-    fix = _s16s(rel.slice_at(fix_sym.address, fix_sym.size))
+
+    def table(addr: int) -> list[int]:
+        ## A clip whose every channel is constant (`ply_1_umbrella1`, the held-umbrella pose)
+        ## has NULL key / data tables — only the fixed table.
+        if addr == 0:
+            return []
+        ## Code from another module can share the address (`aTUT_actor_ct` vs
+        ## `cKF_c_ply_1_umbrella1_tbl`): prefer a symbol from the clip header's own object.
+        at = [s for s in symbols if s.address == addr]
+        named = [s for s in at if not s.name.startswith(".")]
+        same_obj = [s for s in named if s.obj == header.obj]
+        sym = (same_obj or named or at)[0]
+        return _s16s(rel.slice_at(sym.address, sym.size))
+
+    key = table(key_p)
+    data = table(data_p)
+    fix = table(fix_p)
     tables = (flags, key, data, fix, nframes)
     _ANIM_TABLES[cache_key] = tables
     return tables
@@ -260,6 +266,37 @@ def _sits_on_y(vertices: list) -> bool:
     if extent_x > _SITS_Y_X_CHAIN_RATIO * max(extent_y, extent_z):
         return False
     return True
+
+
+## A pose "stands" the skeleton when its joint chain points this much more along +Y than
+## sideways (identity cKF binds lie along +X).
+_STANDS_CHAIN_RATIO = 2.0
+
+
+def _chain_vector(joints: list[Joint], rotations: list[tuple[int, int, int]]) -> tuple[float, float, float]:
+    """Sum of joint positions relative to the root: which way the skeleton's chain points."""
+    _local, world = _world_matrices(joints, (0.0, 0.0, 0.0), rotations)
+    sx = sy = sz = 0.0
+    for w in world[1:]:
+        x, y, z = w.transform_point(0.0, 0.0, 0.0)
+        sx += x
+        sy += y
+        sz += z
+    return sx, sy, sz
+
+
+def pose_stands_chain(joints: list[Joint], rotations: list[tuple[int, int, int]]) -> bool:
+    """True when this pose turns a +X-lying bind chain up onto +Y by itself.
+
+    Such a clip already does what `ckf_basis` would (the house gyroid's `hnw_move` holds the
+    body joint at 90° Z), so baking it on top of the basis lays the model on its side.
+    """
+    identity = [(0, 0, 0)] * len(joints)
+    ix, iy, iz = _chain_vector(joints, identity)
+    if ix <= _STANDS_CHAIN_RATIO * max(abs(iy), abs(iz)):
+        return False
+    px, py, pz = _chain_vector(joints, rotations)
+    return py > _STANDS_CHAIN_RATIO * max(abs(px), abs(pz))
 
 
 def select_bind_anim(prefix: str, anim_names: list[str]) -> str | None:
@@ -496,6 +533,16 @@ def convert_ckf_model(
     ## Successful anim bind uses identity basis — joint-0 ±90° stands the +X chain.
     if bind_anim is None:
         bind_anim = select_close_bind(anim_names, prefix)
+    ## Only clip(s) stand the chain up themselves (house gyroid): bake frame 1, no basis.
+    if bind_anim is None and not prefix.startswith("act_"):
+        for name in anim_names:
+            try:
+                _root, rots = evaluate_pose(rel, symbols, name, num_joints, 1.0)
+            except (KeyError, StopIteration, struct.error, ValueError, IndexError):
+                continue
+            if pose_stands_chain(joints, rots):
+                bind_anim = name
+                break
     if bind_anim is not None:
         try:
             _flags, _key, _data, _fix, nframes = _anim_tables(

@@ -27,12 +27,16 @@ const CHOICE_MARK_W := 16.0
 const CHOICE_FONT_PX := 16.0
 const CHOICE_LINE_PITCH := 16.0
 ## `mChoice` window body = `con_waku_swaku3_tex` — the lobed AC "cloud" silhouette
-## (`m_choice_draw.c_inc` `con_sentaku2_modelT`), stretched non-uniformly with the
-## choice count exactly like `mChoice_Set_DisplayScaleAndDisplayPos`. Drawn white at
-## PRIM alpha 155 over XLU; on a solid UI layer a warm cream reads right. The teal
-## `background_color` (0,195,185) is ONLY the selected-row ▶ mark (`MessageChoiceMark`).
-## Panel style (texture + tint) is `ChoicePanel`'s own `theme_override_styles/panel`
-## resource in `dialogue_overlay.tscn` — edit it there, not here.
+## (`m_choice_draw.c_inc` `con_sentaku2_modelT`), one quad mapping the whole texture,
+## stretched non-uniformly with the choice count exactly like
+## `mChoice_Set_DisplayScaleAndDisplayPos` (pure stretch, no nine-patch). The texture is
+## the ACHD sheet (`msg_choice_window.png`, 8× the 128×64 I4). Combiner is PRIM colour ×
+## TEXEL alpha with PRIM (255,255,255,155) over XLU — a white, ~61 % translucent bubble —
+## so the style's `modulate_color` is white at 155/255. The teal `background_color`
+## (0,195,185) is ONLY the selected-row ▶ mark (`MessageChoiceMark`). Panel style
+## (texture + tint) is `ChoicePanel`'s own `theme_override_styles/panel` resource in
+## `dialogue_overlay.tscn` — edit it there, not here. (A `.tscn` takes no `##` comments:
+## one inside that sub-resource once dropped its `texture` and hid the window.)
 
 ## `mMsg_init` defaults / `m_msg_appear` sex branches.
 const NAME_BG_DEFAULT := Color(160.0 / 255.0, 215.0 / 255.0, 30.0 / 255.0, 1.0)

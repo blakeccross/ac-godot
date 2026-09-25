@@ -51,6 +51,20 @@ const OUTLOOK_PAL_COUNT := 12
 @export var goki_year: int = 0
 @export var goki_month: int = 0
 @export var goki_day: int = 0
+## `mHm_hs_c.flags.has_saved`: the owner has saved at the gyroid at least once
+## (`aHNW_set_save_permission`). Until then a first-job player with no villager friends gets
+## the "good luck with your part-time job" line instead of the menu.
+@export var has_saved: bool = false
+## `mHm_hs_c.haniwa` (`Haniwa_c`): the gyroid outside the house. Four held items, each
+## `{ "item": StringName, "count": int, "cond": int (InventoryItem.Condition),
+## "exchange": int (HaniwaStore.Exchange), "price": int }` — an empty slot has item &"".
+## `haniwa_message` is shown to visitors (4 lines, `HANIWA_MESSAGE_LEN` 128); `haniwa_bells`
+## is what visitors have paid and the owner has not collected yet.
+@export var haniwa_items: Array[Dictionary] = []
+@export var haniwa_message: String = ""
+@export var haniwa_bells: int = 0
+## `door_original`: player design slot (0-7) shown on the front door, 0xFF = the house mark.
+@export var door_original: int = 0xFF
 
 
 func entry_room_id() -> StringName:
@@ -91,7 +105,21 @@ func to_save() -> Dictionary:
 		"music_box": str(music_box),
 		"goki_count": goki_count,
 		"goki_date": [goki_year, goki_month, goki_day],
+		"has_saved": has_saved,
+		"haniwa_items": _haniwa_items_to_save(),
+		"haniwa_message": haniwa_message,
+		"haniwa_bells": haniwa_bells,
+		"door_original": door_original,
 	}
+
+
+func _haniwa_items_to_save() -> Array:
+	var out: Array = []
+	for rec: Dictionary in haniwa_items:
+		var copy: Dictionary = rec.duplicate()
+		copy["item"] = String(rec.get("item", ""))
+		out.append(copy)
+	return out
 
 
 func apply_snapshot(data: Variant) -> void:
@@ -130,6 +158,24 @@ func apply_snapshot(data: Variant) -> void:
 	keep_house_size = int(bag.get("keep_house_size", keep_house_size))
 	music_box = int(str(bag.get("music_box", music_box)))
 	goki_count = clampi(int(bag.get("goki_count", goki_count)), 0, 10)
+	has_saved = bool(bag.get("has_saved", has_saved))
+	var held: Variant = bag.get("haniwa_items", null)
+	if typeof(held) == TYPE_ARRAY:
+		haniwa_items.clear()
+		for raw: Variant in held as Array:
+			if typeof(raw) != TYPE_DICTIONARY:
+				continue
+			var rec: Dictionary = raw as Dictionary
+			haniwa_items.append({
+				"item": StringName(str(rec.get("item", ""))),
+				"count": int(rec.get("count", 1)),
+				"cond": int(rec.get("cond", 0)),
+				"exchange": int(rec.get("exchange", 0)),
+				"price": int(rec.get("price", 0)),
+			})
+	haniwa_message = str(bag.get("haniwa_message", haniwa_message))
+	haniwa_bells = maxi(0, int(bag.get("haniwa_bells", haniwa_bells)))
+	door_original = int(bag.get("door_original", door_original))
 	var goki_date: Variant = bag.get("goki_date", [])
 	if typeof(goki_date) == TYPE_ARRAY and (goki_date as Array).size() >= 3:
 		goki_year = int((goki_date as Array)[0])

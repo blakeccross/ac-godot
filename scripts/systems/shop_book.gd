@@ -262,6 +262,8 @@ func _roll(shop_id: StringName, rng: RandomNumberGenerator) -> Array[StringName]
 	out.append_array(_pick(_cloth_pool(), 1, rng))
 	out.append_array(_pick(_sapling_pool(), 1, rng))
 	out.append_array(_pick(_plant_pool(), 2, rng))
+	## `mSP_RandomUmbSelect(goods, 1)`: one of the 32 umbrellas every day, at every size.
+	out.append_array(_pick(umbrella_pool(), 1, rng))
 	return out
 
 
@@ -280,6 +282,16 @@ func _pick(pool: Array[StringName], count: int, rng: RandomNumberGenerator) -> A
 		var idx: int = rng.randi_range(0, bag.size() - 1)
 		out.append(bag[idx])
 		bag.remove_at(idx)
+	return out
+
+
+## `ITM_UMBRELLA00` + `RANDOM(UMBRELLA_NUM)`: every umbrella tool in the catalog.
+static func umbrella_pool() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for item: ItemData in ItemCatalog.all_items():
+		if item is ToolData and (item as ToolData).kind == ToolData.Kind.UMBRELLA:
+			out.append(item.id)
+	out.sort()
 	return out
 
 

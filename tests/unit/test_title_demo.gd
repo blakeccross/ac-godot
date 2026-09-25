@@ -85,16 +85,16 @@ func test_random_identity_is_deterministic_and_in_range() -> void:
 func test_tools_map_to_project_items() -> void:
 	for word: int in TitleDemo.TOOLS:
 		var id: StringName = TitleDemo.TOOLS[word] as StringName
-		assert_bool(ResourceLoader.exists("res://data/items/%s.tres" % id)).is_true()
+		assert_object(ItemCatalog.get_item(id)).is_not_null()
 
 
 func test_extracted_demos_when_present() -> void:
 	if not TitleDemo.has_data():
 		return
-	## `pact4` is the axe demo, `pact2` the rod, `pact1` the umbrella (no item yet).
+	## `pact4` is the axe demo, `pact2` the rod, `pact1` the gelato umbrella.
 	assert_str(String(TitleDemo.tool_item_id(4))).is_equal("axe")
 	assert_str(String(TitleDemo.tool_item_id(2))).is_equal("fishing_rod")
-	assert_str(String(TitleDemo.tool_item_id(1))).is_equal("")
+	assert_str(String(TitleDemo.tool_item_id(1))).is_equal("gelato_umbrella")
 	assert_str(String(TitleDemo.tool_item_id(0))).is_equal("")
 	## Head table = door data (m_trademark.c): demo 1 spawns at (2180, 200, 824).
 	assert_vector(TitleDemo.spawn_gx(0)).is_equal(Vector3(2180.0, 200.0, 824.0))

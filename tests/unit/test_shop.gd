@@ -39,7 +39,8 @@ func test_nook_buy_takes_wallet_stock_and_sales() -> void:
 	var shop: ShopBook = Game.shops
 	shop.ensure_today(ShopBook.NOOK_ID)
 	var listed: Array[StringName] = shop.goods(ShopBook.NOOK_ID)
-	assert_int(listed.size()).is_equal(9)
+	## Zakka tools 2, furniture, wall, carpet, cloth, sapling, plants 2 + the daily umbrella.
+	assert_int(listed.size()).is_equal(10)
 	var item_id: StringName = listed[0]
 	var data: ItemData = ItemCatalog.get_item(item_id)
 	var price: int = ShopBook.buy_price(data)
@@ -48,7 +49,7 @@ func test_nook_buy_takes_wallet_stock_and_sales() -> void:
 	assert_str(msg).contains("Bought")
 	assert_int(Game.inventory.wallet).is_equal(0)
 	assert_int(Game.inventory.count_of(item_id)).is_equal(1)
-	assert_int(shop.goods(ShopBook.NOOK_ID).size()).is_equal(8)
+	assert_int(shop.goods(ShopBook.NOOK_ID).size()).is_equal(9)
 	assert_int(shop.sales_sum(ShopBook.NOOK_ID)).is_equal(price)
 
 
@@ -59,7 +60,7 @@ func test_cannot_buy_if_broke_or_full_or_sold_out() -> void:
 	var data: ItemData = ItemCatalog.get_item(item_id)
 	Game.inventory.set_wallet(0)
 	assert_str(shop.buy(ShopBook.NOOK_ID, item_id, Game.inventory)).contains("Not enough")
-	assert_int(shop.goods(ShopBook.NOOK_ID).size()).is_equal(9)
+	assert_int(shop.goods(ShopBook.NOOK_ID).size()).is_equal(10)
 	Game.inventory.set_wallet(ShopBook.buy_price(data) * 20)
 	var chair: ItemData = ItemCatalog.get_item(&"wood_chair")
 	for _i: int in Inventory.POCKET_SLOTS:
@@ -103,7 +104,7 @@ func test_sold_out_does_not_restock_until_six() -> void:
 	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(0)
 	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(0)
 	Clock.advance_minutes(18 * 60)
-	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(9)
+	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(10)
 	assert_int(Game.shops.sales_sum(ShopBook.NOOK_ID)).is_greater(0)
 
 
