@@ -933,6 +933,25 @@ def season_of_prefix(prefix: str) -> str:
     return m.group(1) if m else ""
 
 
+## Actor-supplied TLUT tables (`gSPSegment(seg, table[row])` at draw time), keyed by the
+## display-list prefix the actor draws. `ac_train_window` binds seg 0x0A (`anime_3_txt`,
+## the bgtree LOADTLUT) to `aTrainWindow_tree_pal_table[aTrainWindow_GetTreePalletIdx()]`.
+## Without it the dummy-palette picker grabbed the *field* tree TLUT for the train strip.
+ACTOR_TLUT_TABLES: dict[str, tuple[int, str, str, int, tuple[int, int]]] = {
+    ## prefix: (segment, table symbol, CI4 texture symbol, baked default row, SETTIMG w×h)
+    "rom_train_out": (0x0A, "aTrainWindow_tree_pal_table", "rom_train_bgtree_tex", 4, (128, 32)),
+}
+
+
+def actor_tlut_rows(rel, symbols, table_name: str) -> list[bytes]:
+    """Split an actor TLUT table (16 RGB5A3 per row) into 32-byte rows."""
+    for symbol in symbols:
+        if symbol.name == table_name:
+            blob = rel.slice_at(symbol.address, symbol.size)
+            return [blob[i : i + 32] for i in range(0, len(blob) - 31, 32)]
+    return []
+
+
 ## Representative `tree_pal_idx_table` / field rows for baked seasonal converts.
 ## Mid-season picks: summer term~7 → 3, autumn term~12 → 7, winter term~0 → 10.
 _TREE_PAL_ROW_BY_SEASON = {"s": 3, "f": 7, "w": 10}
@@ -1244,6 +1263,12 @@ class TextureBank:
         """Bind runtime segment banks needed by static grd_/rom_ display lists."""
         self.current_prefix = prefix
         self._apply_seasonal_fg_pals(prefix)
+        actor_tlut = ACTOR_TLUT_TABLES.get(prefix)
+        if actor_tlut is not None:
+            seg, table, _tex, row, _dims = actor_tlut
+            rows = actor_tlut_rows(self.rel, self.symbols, table)
+            if rows:
+                self.segment_palettes[seg] = rows[min(row, len(rows) - 1)]
         if (
             prefix.startswith("grd_")
             or prefix.startswith("rom_")
@@ -1849,6 +1874,13 @@ class TextureBank:
                 pal = self.segment_palettes.get(key)
                 if pal:
                     return pal
+        ## `bg_item` field plants: the DL only picks a TLUT slot; `bg_item` loads
+        ## `pal_p[bIT_PAL_TREE/PALM/…]` (seasonal `mFM_SetFGPal` rows) itself. Resolve that
+        ## before the structure-name search, whose destaged `obj_tree_pal` is the *museum*
+        ## room's TLUT and pinned every `obj_{s,f,w}_tree*` to one green palette (no snow).
+        fg_pal = self._fg_plant_palette(addr)
+        if fg_pal:
+            return fg_pal
         ## Trains/stations: DLs sample CI with TLUT from `structure_clip` seg 8 at
         ## draw time; baked mats often leave LOADTLUT unresolved for direct REL tex.
         struct_pal = self._structure_palette(self.current_prefix)
@@ -1959,11 +1991,14 @@ class TextureBank:
             return blob[off : off + 32]
         return blob[:32]
 
-    def _fallback_palette(self, img_addr: int) -> bytes | None:
+    def _fg_plant_palette(self, img_addr: int) -> bytes | None:
+        """`bg_item` `pal_p[bIT_PAL_*]` for a field-plant texture (seasonal FG TLUT row)."""
         if img_addr >> 24:
-            return self.segment_palettes.get(img_addr >> 24)
+            return None
         symbol = self.addr_to_sym.get(img_addr)
         name = symbol.name.lower() if symbol else ""
+        if not name.startswith("obj_"):
+            return None
         if "palm" in name and self._palm_pal:
             return self._palm_pal
         if "cedar" in name and self._cedar_pal:
@@ -1974,6 +2009,14 @@ class TextureBank:
             return self._hole_g_pal
         if "tree" in name:
             return self._tree_fg_pal or self._tree_pal
+        return None
+
+    def _fallback_palette(self, img_addr: int) -> bytes | None:
+        if img_addr >> 24:
+            return self.segment_palettes.get(img_addr >> 24)
+        fg_pal = self._fg_plant_palette(img_addr)
+        if fg_pal:
+            return fg_pal
         best: MapSymbol | None = None
         for pal in self._pal_symbols:
             if pal.address >= img_addr:

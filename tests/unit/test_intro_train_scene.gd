@@ -156,3 +156,15 @@ func test_game_start_intro_targets_train_scene() -> void:
 	assert_str(Game.INTRO_SCENE).is_equal("res://scenes/ui/intro_train.tscn")
 	assert_that(ResourceLoader.exists(Game.INTRO_KK_SCENE)).is_true()
 	assert_that(ResourceLoader.exists(Game.INTRO_SCENE)).is_true()
+
+
+func test_tree_palette_row_follows_decomp_dates() -> void:
+	## `aTrainWindow_GetTreePalletIdx` `till_data` bounds.
+	var car := preload("res://scenes/ui/intro_train_car.gd")
+	assert_int(car.tree_palette_row(1, 15)).is_equal(0)
+	assert_int(car.tree_palette_row(2, 3)).is_equal(0)
+	assert_int(car.tree_palette_row(2, 4)).is_equal(1)
+	assert_int(car.tree_palette_row(4, 5)).is_equal(4)
+	assert_int(car.tree_palette_row(5, 10)).is_equal(5)
+	assert_int(car.tree_palette_row(12, 31)).is_equal(14)
+

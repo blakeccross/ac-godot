@@ -28,6 +28,14 @@ const CLOUD_TEXELS_PER_FRAME := 2.0 / 8.0
 const XLU_ALPHA_RATE := 0.07
 const LOD_FACTOR_RATE := 0.3
 const _LOGIC_HZ := PlayerLocomotion.LOGIC_HZ
+## `aTrainWindow_GetTreePalletIdx` `till_data`: row i covers dates up to (month, day).
+const TREE_PAL_TILL: Array[Vector2i] = [
+	Vector2i(2, 3), Vector2i(2, 17), Vector2i(2, 24), Vector2i(4, 3), Vector2i(4, 8),
+	Vector2i(7, 22), Vector2i(9, 15), Vector2i(10, 5), Vector2i(10, 23), Vector2i(11, 7),
+	Vector2i(11, 14), Vector2i(11, 28), Vector2i(12, 10), Vector2i(12, 17), Vector2i(12, 31),
+]
+## Pipeline `_convert_actor_tlut_rows`: bgtree CI4 decoded under each table row.
+const TREE_ROW_TEXTURE := "res://assets/generated/textures/rel/rom_train_bgtree_tex_p%02d.png"
 
 var _daylight: bool = false
 var _exiting_tunnel: bool = false
@@ -57,6 +65,7 @@ func _ready() -> void:
 	_cloud_mats = roles[&"cloud"]
 	_tree_mats = roles[&"tree"]
 	_shine_mats.assign(roles[&"shine"])
+	_apply_tree_palette()
 	_apply_window()
 
 
@@ -88,11 +97,31 @@ func apply_daylight(daylight: bool) -> void:
 	_daylight = daylight
 	IntroTrainPresentation.apply_car_glass(_car_visual, daylight)
 	if daylight:
+		## `DrawInTunnel` re-picks the palette row as it switches to GoingOutTunnel.
+		_apply_tree_palette()
 		_exiting_tunnel = true
 	else:
 		_exiting_tunnel = false
 		_exit_scroll = 0.0
 	_apply_window()
+
+
+## `aTrainWindow_GetTreePalletIdx`: first row whose (month, day) bound is not passed.
+static func tree_palette_row(month: int, day: int) -> int:
+	for i: int in TREE_PAL_TILL.size():
+		var till: Vector2i = TREE_PAL_TILL[i]
+		if month < till.x or (month == till.x and day <= till.y):
+			return i
+	return 0
+
+
+func _apply_tree_palette() -> void:
+	var path := TREE_ROW_TEXTURE % tree_palette_row(Clock.month, Clock.day)
+	if not ResourceLoader.exists(path):
+		return
+	var tex: Texture2D = load(path) as Texture2D
+	for mat: StandardMaterial3D in _tree_mats:
+		mat.albedo_texture = tex
 
 
 ## `aTW_GetNowAlpha` — XLU alpha target (0 at 04:00 / 20:00, 255 at noon).

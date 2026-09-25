@@ -514,6 +514,7 @@ def convert_all(cfg: PipelineConfig) -> dict[str, Any]:
     results.extend(_convert_room_bins(cfg))
     print("  dumping REL textures...")
     results.extend(_convert_rel_textures(cfg, rel, symbols, bank))
+    results.extend(_convert_actor_tlut_rows(cfg, rel, symbols))
     _write_acre_collision(cfg, rel, symbols)
 
     for rec in results:
@@ -1314,6 +1315,35 @@ def _convert_rel_textures(cfg: PipelineConfig, rel: RelData, symbols: list, bank
     return results
 
 
+def _convert_actor_tlut_rows(cfg: PipelineConfig, rel: RelData, symbols: list) -> list[dict[str, Any]]:
+    """One PNG per row of an actor-bound TLUT table (runtime palette swap by date/state).
+
+    `textures/rel/{tex}_p{row:02d}.png` — e.g. the train window tree strip under each
+    `aTrainWindow_tree_pal_table` row; the scene picks the row like the actor does.
+    """
+    from .texbank import ACTOR_TLUT_TABLES, actor_tlut_rows
+
+    by_name = {s.name: s for s in symbols}
+    results: list[dict[str, Any]] = []
+    for _prefix, (_seg, table, tex_name, _row, dims) in ACTOR_TLUT_TABLES.items():
+        tex = by_name.get(tex_name)
+        rows = actor_tlut_rows(rel, symbols, table)
+        if tex is None or not rows or tex.size * 2 < dims[0] * dims[1]:
+            continue
+        data = rel.slice_at(tex.address, tex.size)
+        for i, pal in enumerate(rows):
+            dest_rel = f"textures/rel/{tex_name}_p{i:02d}.png"
+            ## Native decode: ACHD matched only some rows and ignores the TLUT on others,
+            ## so the date rows came out mixed-resolution with the wrong foliage colours.
+            results.append(
+                _png_record(
+                    cfg, dest_rel, f"{tex_name}:{table}[{i}]", data, dims[0], dims[1], pal,
+                    allow_achd=False,
+                )
+            )
+    return results
+
+
 def _png_record(
     cfg: PipelineConfig,
     dest_rel: str,
@@ -1324,6 +1354,8 @@ def _png_record(
     pal: bytes,
     fmt: int = G_IM_FMT_CI,
     siz: int = G_IM_SIZ_4b,
+    *,
+    allow_achd: bool = True,
 ) -> dict[str, Any]:
     record: dict[str, Any] = {
         "asset_id": Path(dest_rel).stem,
@@ -1341,7 +1373,8 @@ def _png_record(
         from .achd import is_room_bank_texture
 
         if (
-            pack is not None
+            allow_achd
+            and pack is not None
             and not skips_achd_texture(source)
             and not is_room_bank_texture(source)
         ):
