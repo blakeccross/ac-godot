@@ -1,29 +1,29 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_hkm5j"]
-[ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_t_po_1.tres" id="2_pq50t"]
-[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_t_po_1/grd_s_t_po_12.res" id="3_w53f6"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/d9a84ba7fe41.tres" id="4_axu4e"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/29b5ef12f011.tres" id="5_54bv3"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/141c284e71a6.tres" id="6_xo13l"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/483aeb8aa37f.tres" id="7_m2eco"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/da12b0b1dba0.tres" id="8_8s14i"]
-[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_t_po_1/grd_s_t_po_1_mask.res" id="9_qp76m"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/990d59b7628b.tres" id="10_5qrrk"]
+[ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_2isb0"]
+[ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_t_po_1.tres" id="2_r677n"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_t_po_1/grd_s_t_po_12.res" id="3_lbfw3"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/56738b8fa5de.tres" id="4_iloig"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/36747dc17472.tres" id="5_gdpqp"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/b9aef45eb859.tres" id="6_8ei5o"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/029d6546d1c7.tres" id="7_0bxme"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/0bd2bbd9a612.tres" id="8_xjhxe"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_t_po_1/grd_s_t_po_1_mask.res" id="9_12thj"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/2ad3563e3216.tres" id="10_ncspa"]
 
-[node name="grd_s_t_po_1" type="Node3D" unique_id=1355264346]
-script = ExtResource("1_hkm5j")
+[node name="grd_s_t_po_1" type="Node3D" unique_id=1576896433]
+script = ExtResource("1_2isb0")
 visual_id = &"grd_s_t_po_1"
-grid = ExtResource("2_pq50t")
+grid = ExtResource("2_r677n")
 
-[node name="grd_s_t_po_12" type="MeshInstance3D" parent="." unique_id=73472513]
-mesh = ExtResource("3_w53f6")
-surface_material_override/0 = ExtResource("4_axu4e")
-surface_material_override/1 = ExtResource("5_54bv3")
-surface_material_override/2 = ExtResource("6_xo13l")
-surface_material_override/3 = ExtResource("7_m2eco")
-surface_material_override/4 = ExtResource("8_8s14i")
+[node name="grd_s_t_po_12" type="MeshInstance3D" parent="." unique_id=181807526]
+mesh = ExtResource("3_lbfw3")
+surface_material_override/0 = ExtResource("4_iloig")
+surface_material_override/1 = ExtResource("5_gdpqp")
+surface_material_override/2 = ExtResource("6_8ei5o")
+surface_material_override/3 = ExtResource("7_0bxme")
+surface_material_override/4 = ExtResource("8_xjhxe")
 
-[node name="grd_s_t_po_1_mask" type="MeshInstance3D" parent="." unique_id=1190308651]
-mesh = ExtResource("9_qp76m")
-surface_material_override/0 = ExtResource("10_5qrrk")
+[node name="grd_s_t_po_1_mask" type="MeshInstance3D" parent="." unique_id=82236714]
+mesh = ExtResource("9_12thj")
+surface_material_override/0 = ExtResource("10_ncspa")

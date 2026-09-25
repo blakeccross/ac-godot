@@ -1,31 +1,31 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_m1jru"]
-[ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_r5_p_1.tres" id="2_kdruj"]
-[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_r5_p_1/grd_s_r5_p_12.res" id="3_3wim4"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/141c284e71a6.tres" id="4_nlskm"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/222f18808731.tres" id="5_28nct"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/a87a8f7c11c9.tres" id="6_xhnhp"]
-[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_r5_p_1/grd_s_r5_p_1_mask.res" id="7_13fpy"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/cb2a39f65921.tres" id="8_sunxf"]
-[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_r5_p_1/grd_s_r5_p_1_blend.res" id="9_quoi7"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/river_484fd05a2648.tres" id="10_yqs5w"]
+[ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_ore4t"]
+[ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_r5_p_1.tres" id="2_7pq1a"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_r5_p_1/grd_s_r5_p_12.res" id="3_b1w5g"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/b9aef45eb859.tres" id="4_cq0em"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/9a770cf1f53a.tres" id="5_go5un"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/ef9f2816e400.tres" id="6_q23h3"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_r5_p_1/grd_s_r5_p_1_mask.res" id="7_w1tkh"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/e294a925bd76.tres" id="8_eqa1y"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_r5_p_1/grd_s_r5_p_1_blend.res" id="9_r5xdm"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/water/river_484fd05a2648.tres" id="10_o71xg"]
 
-[node name="grd_s_r5_p_1" type="Node3D" unique_id=1315892823]
-script = ExtResource("1_m1jru")
+[node name="grd_s_r5_p_1" type="Node3D" unique_id=1775201821]
+script = ExtResource("1_ore4t")
 visual_id = &"grd_s_r5_p_1"
-grid = ExtResource("2_kdruj")
+grid = ExtResource("2_7pq1a")
 
-[node name="grd_s_r5_p_12" type="MeshInstance3D" parent="." unique_id=775255343]
-mesh = ExtResource("3_3wim4")
-surface_material_override/0 = ExtResource("4_nlskm")
-surface_material_override/1 = ExtResource("5_28nct")
-surface_material_override/2 = ExtResource("6_xhnhp")
+[node name="grd_s_r5_p_12" type="MeshInstance3D" parent="." unique_id=1015219170]
+mesh = ExtResource("3_b1w5g")
+surface_material_override/0 = ExtResource("4_cq0em")
+surface_material_override/1 = ExtResource("5_go5un")
+surface_material_override/2 = ExtResource("6_q23h3")
 
-[node name="grd_s_r5_p_1_mask" type="MeshInstance3D" parent="." unique_id=100053960]
-mesh = ExtResource("7_13fpy")
-surface_material_override/0 = ExtResource("8_sunxf")
+[node name="grd_s_r5_p_1_mask" type="MeshInstance3D" parent="." unique_id=1810371351]
+mesh = ExtResource("7_w1tkh")
+surface_material_override/0 = ExtResource("8_eqa1y")
 
-[node name="grd_s_r5_p_1_blend" type="MeshInstance3D" parent="." unique_id=531056167]
-mesh = ExtResource("9_quoi7")
-surface_material_override/0 = ExtResource("10_yqs5w")
+[node name="grd_s_r5_p_1_blend" type="MeshInstance3D" parent="." unique_id=872587579]
+mesh = ExtResource("9_r5xdm")
+surface_material_override/0 = ExtResource("10_o71xg")

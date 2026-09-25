@@ -1333,13 +1333,10 @@ def _convert_actor_tlut_rows(cfg: PipelineConfig, rel: RelData, symbols: list) -
         data = rel.slice_at(tex.address, tex.size)
         for i, pal in enumerate(rows):
             dest_rel = f"textures/rel/{tex_name}_p{i:02d}.png"
-            ## Native decode: ACHD matched only some rows and ignores the TLUT on others,
-            ## so the date rows came out mixed-resolution with the wrong foliage colours.
+            ## ACHD keys on texture + TLUT, so each row takes its own HD sheet when the
+            ## pack has it (11 of 15 train-tree rows) and decodes natively otherwise.
             results.append(
-                _png_record(
-                    cfg, dest_rel, f"{tex_name}:{table}[{i}]", data, dims[0], dims[1], pal,
-                    allow_achd=False,
-                )
+                _png_record(cfg, dest_rel, f"{tex_name}:{table}[{i}]", data, dims[0], dims[1], pal)
             )
     return results
 

@@ -18,6 +18,7 @@ from .godot_import import write_import_sidecar
 from .mapfile import parse_map
 from .rel import RelData
 from .texbank import (
+	TREE_PAL_ROW_AUTUMN,
 	_FIELD_PAL_ROW_BY_SEASON,
 	G_IM_FMT_CI,
 	G_IM_SIZ_4b,
@@ -516,12 +517,11 @@ def _export_tree_season(
 	if job is None:
 		return written, [f"tree:{season}:no_tree_job"]
 	_clear_bank(bank)
-	# Autumn keeps summer tree CI; force the autumn FG palette row via prefix.
+	# Autumn keeps summer tree meshes + CI (`BGITEM`); only the TLUT row changes.
+	# (`obj_f_*` is the cherry-blossom set, so do not borrow its prefix here.)
+	bank.bind_static_segments(job["asset_id"])
 	if season == "f":
-		bank.current_prefix = "obj_f_tree5"
-		bank._apply_seasonal_fg_pals("obj_f_tree5")
-	else:
-		bank.bind_static_segments(job["asset_id"])
+		bank._apply_seasonal_fg_pals(job["asset_id"], tree_row=TREE_PAL_ROW_AUTUMN)
 	try:
 		parts = convert_static_gfx(
 			rel, symbols, job["vtx"], job["gfx"], cfg.scale, bank=bank

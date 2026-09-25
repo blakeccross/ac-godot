@@ -702,6 +702,13 @@ def is_museum_tank_texture(tex_name: str) -> bool:
     return n.startswith("obj_suisou1_") or n.startswith("obj_museum5_")
 
 
+def _seasons_field_role(name: str) -> str:
+    """Seasons-pack role for a texture name (``glb._field_role_for_material_name``)."""
+    from .seasons import FIELD_ROLE_NEEDLES, _role_for_name
+
+    return _role_for_name(name or "", FIELD_ROLE_NEEDLES)
+
+
 def skips_achd_texture(tex_name: str) -> bool:
     """Textures whose Dolphin hashes collide with unrelated ACHD sheets."""
     return (
@@ -939,7 +946,15 @@ def season_of_prefix(prefix: str) -> str:
 ## Without it the dummy-palette picker grabbed the *field* tree TLUT for the train strip.
 ACTOR_TLUT_TABLES: dict[str, tuple[int, str, str, int, tuple[int, int]]] = {
     ## prefix: (segment, table symbol, CI4 texture symbol, baked default row, SETTIMG w×h)
-    "rom_train_out": (0x0A, "aTrainWindow_tree_pal_table", "rom_train_bgtree_tex", 4, (128, 32)),
+    "rom_train_out": (0x0A, "aTrainWindow_tree_pal_table", "rom_train_bgtree_tex", 5, (128, 32)),
+}
+
+
+## Actors that `gSPSegment` a seasonal FG TLUT (`field_palette.*`) for their own DLs.
+## `ac_shrine_draw`: seg 9 = `cedar_tree_pal` for the shrine tree leaves.
+ACTOR_FG_TLUT_SEGMENTS: dict[str, tuple[int, str]] = {
+    "obj_s_shrine": (0x09, "tree"),
+    "obj_w_shrine": (0x09, "tree"),
 }
 
 
@@ -952,9 +967,12 @@ def actor_tlut_rows(rel, symbols, table_name: str) -> list[bytes]:
     return []
 
 
-## Representative `tree_pal_idx_table` / field rows for baked seasonal converts.
-## Mid-season picks: summer term~7 → 3, autumn term~12 → 7, winter term~0 → 10.
-_TREE_PAL_ROW_BY_SEASON = {"s": 3, "f": 7, "w": 10}
+## Representative `tree_pal_idx_table` rows for baked seasonal converts, keyed by the
+## mesh infix. `f` is the cherry-blossom set (`BGCHERRYITEM`, term 4 → row 1), not
+## autumn; autumn reuses `s` meshes and is recoloured through the seasons pack.
+_TREE_PAL_ROW_BY_SEASON = {"s": 3, "f": 1, "w": 10}
+## Autumn snapshot row for the seasons pack (term~12 → 7).
+TREE_PAL_ROW_AUTUMN = 7
 _FIELD_PAL_ROW_BY_SEASON = {"s": 2, "f": 6, "w": 9}
 
 
@@ -1111,6 +1129,11 @@ class TextureBank:
         self._png_cache: dict[tuple, tuple[bytes, str]] = {}
         self.current_prefix = ""
         self.current_gfx = ""
+        ## Set by the Gfx flush while decoding a `water_kind` surface: the live-scroll
+        ## water shaders (`ocean_water`, `beach_wet`, river, falls) do texel maths via
+        ## `textureSize()` and were tuned on the ≤128 REPEAT cap (the wet-sand band's
+        ## native 128×64 even stays a prim-baked native decode). Keep that contract.
+        self.water_surface = False
         ## Optional `a`..`e` for villager house / myhome structure pals.
         self.structure_palette_letter: str | None = None
         self._tree_pal: bytes | None = None
@@ -1126,20 +1149,23 @@ class TextureBank:
         self._cedar_pal = self._fg_pal_row("mFM_obj_tree_01_pal_dol") or self._tree_fg_pal
         self._palm_pal = self._fg_pal_row("mFM_obj_palm_01_pal")
         self._flower_pal = self._fg_pal_row("mFM_obj_a_01_flower_pal")
+        self._zassou_pal = self._fg_pal_row("mFM_obj_01_zassou_pal", 1)
         ## Hole DLs SETTILE pal_slot 4/5 and never LOADTLUT. `bg_item` binds
         ## `obj_g_hole_pal` / `obj_b_hole_pal` (`bIT_PAL_HOLE_G` / `_S`).
         self._hole_g_pal = self._symbol_bytes("obj_g_hole_pal")
         self._hole_s_pal = self._symbol_bytes("obj_b_hole_pal")
 
-    def _apply_seasonal_fg_pals(self, prefix: str) -> None:
+    def _apply_seasonal_fg_pals(self, prefix: str, tree_row: int | None = None) -> None:
         """Pick term-representative FG palette rows for the mesh season infix."""
         season = season_of_prefix(prefix) or "s"
-        row = _TREE_PAL_ROW_BY_SEASON.get(season, 4)
+        row = tree_row if tree_row is not None else _TREE_PAL_ROW_BY_SEASON.get(season, 4)
         self._tree_fg_pal = self._fg_pal_row("mFM_obj_tree_01_pal_dol", row) or self._tree_pal
         self._cedar_pal = self._fg_pal_row("mFM_obj_tree_01_pal_dol", row) or self._tree_fg_pal
         self._palm_pal = self._fg_pal_row("mFM_obj_palm_01_pal", row)
         flower_row = {"s": 1, "f": 5, "w": 8}.get(season, 1)
         self._flower_pal = self._fg_pal_row("mFM_obj_a_01_flower_pal", flower_row)
+        ## `bIT_PAL_GRASS` = `mFM_obj_01_zassou_pal[flower_pal_idx]` (weeds).
+        self._zassou_pal = self._fg_pal_row("mFM_obj_01_zassou_pal", flower_row)
 
     def bind_field_bg(self, season: str = "s", variant: int = 0, *, pal_row: int | None = None) -> None:
         """Map acre/field segment 0x80 from l_bg_tex_segment_rom_start_* tables.
@@ -1263,6 +1289,9 @@ class TextureBank:
         """Bind runtime segment banks needed by static grd_/rom_ display lists."""
         self.current_prefix = prefix
         self._apply_seasonal_fg_pals(prefix)
+        fg_seg = ACTOR_FG_TLUT_SEGMENTS.get(prefix)
+        if fg_seg is not None and fg_seg[1] == "tree" and self._cedar_pal:
+            self.segment_palettes[fg_seg[0]] = self._cedar_pal
         actor_tlut = ACTOR_TLUT_TABLES.get(prefix)
         if actor_tlut is not None:
             seg, table, _tex, row, _dims = actor_tlut
@@ -1757,6 +1786,7 @@ class TextureBank:
             pal or b"",
             state.prim,
             use_achd,
+            self.water_surface,
         )
         cached = self._png_cache.get(key)
         if cached is not None:
@@ -1769,6 +1799,8 @@ class TextureBank:
             from .achd import (
                 REPEAT_HD_MAX_EDGE,
                 TREE_REPEAT_HD_MAX_EDGE,
+                UNCAPPED_REPEAT_HD_MAX_EDGE,
+                is_field_terrain_texture,
                 is_player_model_texture,
                 is_room_bank_texture,
                 is_tree_texture,
@@ -1802,7 +1834,14 @@ class TextureBank:
                         max_repeat_edge=(
                             TREE_REPEAT_HD_MAX_EDGE
                             if is_tree_texture(name, self.current_prefix)
+                            ## Runtime-bound textures the seasons pack swaps (same
+                            ## `field_role` stamp the glTF gets) must match its 128²
+                            ## sheets. Bridges / station / rail art is never swapped
+                            ## → full HD (wrap-bake budget still applies).
                             else REPEAT_HD_MAX_EDGE
+                            if self.water_surface
+                            or ((state.img_addr >> 24) and _seasons_field_role(name))
+                            else UNCAPPED_REPEAT_HD_MAX_EDGE
                         ),
                     )
                     if hd is None:
@@ -2005,6 +2044,8 @@ class TextureBank:
             return self._cedar_pal
         if "flower" in name and self._flower_pal:
             return self._flower_pal
+        if "zassou" in name and self._zassou_pal:
+            return self._zassou_pal
         if "obj_hole" in name or "obj_crack" in name:
             return self._hole_g_pal
         if "tree" in name:

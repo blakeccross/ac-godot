@@ -902,6 +902,7 @@ def parse_gfx(
                     env=tex_state.env,
                 )
             skip_prim = bool(water_kind)
+            bank.water_surface = bool(water_kind)
             if water_kind in ("river", "ocean", "splash", "waterfall") and tex_state.tile0 and tex_state.tile1:
                 png, tex_name, _alpha = _decode_snap(bank, tex_state, tex_state.tile0, skip_prim=True)
                 layer1_png, layer1_name, _a1 = _decode_snap(bank, tex_state, tex_state.tile1, skip_prim=True)
@@ -1138,6 +1139,8 @@ def parse_gfx(
             )
         )
         triangles = []
+        if bank is not None:
+            bank.water_surface = False
         unique = []
         index_of = {}
 

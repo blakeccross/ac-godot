@@ -121,7 +121,9 @@ func test_summer_tree_paths_when_assets_exist() -> void:
 
 
 func test_seasonal_acre_and_tree_letters() -> void:
-	## Acres only swap summer↔winter; trees also use autumn `f`.
+	## Acres only swap summer↔winter. Tree meshes follow the term's bg-item profile:
+	## `f` is the cherry-blossom set (Apr 1–8); autumn keeps `s` meshes and recolours
+	## through the `f` seasons-pack sheets.
 	Clock.apply_snapshot({ "year": 2001, "month": 7, "day": 1, "hour": 12, "minute": 0 })
 	assert_str(FieldCatalog.season_letter()).is_equal("s")
 	assert_str(FieldCatalog.acre_season_letter()).is_equal("s")
@@ -130,9 +132,17 @@ func test_seasonal_acre_and_tree_letters() -> void:
 
 	Clock.apply_snapshot({ "year": 2001, "month": 10, "day": 1, "hour": 12, "minute": 0 })
 	assert_that(Clock.season()).is_equal(Clock.Season.AUTUMN)
-	assert_str(FieldCatalog.season_letter()).is_equal("f")
+	assert_str(FieldCatalog.season_letter()).is_equal("s")
+	assert_str(FieldCatalog.season_tex_letter()).is_equal("f")
 	assert_str(FieldCatalog.acre_season_letter()).is_equal("s")
 	assert_str(FieldCatalog.seasonal_acre_id(&"grd_s_f_1")).is_equal("grd_s_f_1")
+
+	## `BGCHERRYITEM` term (Apr 1–8): cherry meshes; hardwood season sheets stay off.
+	Clock.apply_snapshot({ "year": 2001, "month": 4, "day": 5, "hour": 12, "minute": 0 })
+	assert_str(FieldCatalog.season_letter()).is_equal("f")
+	assert_str(FieldCatalog.season_texture_path("tree_leaf")).is_empty()
+	Clock.apply_snapshot({ "year": 2001, "month": 4, "day": 9, "hour": 12, "minute": 0 })
+	assert_str(FieldCatalog.season_letter()).is_equal("s")
 
 	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 15, "hour": 12, "minute": 0 })
 	assert_that(Clock.season()).is_equal(Clock.Season.WINTER)
@@ -281,16 +291,16 @@ func test_winter_structure_and_rock_mesh_remap() -> void:
 			assert_bool(path.contains("obj_w_%s" % stem) or path.contains(String(id))).is_true()
 
 
-func test_autumn_rocks_fall_back_to_summer() -> void:
-	## No `obj_f_stone*` on disc; autumn must still resolve a rock mesh.
-	Clock.apply_snapshot({ "year": 2001, "month": 10, "day": 1, "hour": 12, "minute": 0 })
-	assert_str(FieldCatalog.season_letter()).is_equal("f")
-	for id: StringName in [&"ROCK_A", &"ROCK_B", &"ROCK_C", &"ROCK_D", &"ROCK_E"]:
-		var paths: PackedStringArray = FieldCatalog.mesh_paths(id)
-		assert_bool(paths.is_empty()).is_false()
-		assert_bool(
-			paths[0].contains("obj_f_stone") or paths[0].contains("obj_s_stone")
-		).is_true()
+func test_autumn_and_cherry_rocks_use_summer() -> void:
+	## Autumn is `BGITEM` (summer meshes); the cherry term (`f`) has no `obj_f_stone*`
+	## on disc, so both resolve the summer rock.
+	for date: Array in [[10, 1, "s"], [4, 5, "f"]]:
+		Clock.apply_snapshot({ "year": 2001, "month": date[0], "day": date[1], "hour": 12, "minute": 0 })
+		assert_str(FieldCatalog.season_letter()).is_equal(date[2])
+		for id: StringName in [&"ROCK_A", &"ROCK_B", &"ROCK_C", &"ROCK_D", &"ROCK_E"]:
+			var paths: PackedStringArray = FieldCatalog.mesh_paths(id)
+			assert_bool(paths.is_empty()).is_false()
+			assert_bool(paths[0].contains("obj_s_stone")).is_true()
 
 
 func test_species_codes_map_to_disc_prefixes() -> void:

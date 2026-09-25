@@ -16,6 +16,9 @@ from .texbank import GX_CLAMP, GX_MIRROR, GX_REPEAT, fit_clamp_axis, flood_opaqu
 # GeneratedVisual forces texture_repeat off, so grass/earth clamp to the edge.
 # Cap on output pixels only (a 16×128px atlas is 2048px — well under this).
 MAX_WRAP_PIXELS = 8192
+## Wrap-bake atlas edge budget: an HD tile repeated N times is halved until
+## tile × N fits (grass ×16 at 256² → 128² tiles, 2048² atlas).
+WRAP_HD_BUDGET = 2048
 _EPS = 1e-5
 
 
@@ -196,6 +199,14 @@ def _bake_wrap_group(group: dict) -> None:
 
     base = Image.open(io.BytesIO(png)).convert("RGBA")
     tw, th = base.size
+    ## Only shrink HD sheets (≥ 128) — native tiles are never downscaled.
+    while (
+        (tw * tiles_u > WRAP_HD_BUDGET or th * tiles_v > WRAP_HD_BUDGET)
+        and tw >= 128 and th >= 128 and tw % 2 == 0 and th % 2 == 0
+    ):
+        tw //= 2
+        th //= 2
+        base = base.resize((tw, th), Image.Resampling.BOX)
     if tw * tiles_u > MAX_WRAP_PIXELS or th * tiles_v > MAX_WRAP_PIXELS:
         print(
             f"  wrap bake large for {group.get('name')}: "

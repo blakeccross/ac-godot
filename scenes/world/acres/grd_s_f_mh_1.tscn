@@ -1,19 +1,19 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_fdv3j"]
-[ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_f_mh_1.tres" id="2_e5y84"]
-[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_f_mh_1/grd_s_f_mh_1.res" id="3_88ilt"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/f5d8fc8a15c9.tres" id="4_o2bdd"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/141c284e71a6.tres" id="5_fps4b"]
-[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/483aeb8aa37f.tres" id="6_whg2u"]
+[ext_resource type="Script" path="res://scenes/world/acre.gd" id="1_k03vw"]
+[ext_resource type="Resource" path="res://assets/generated/environment/acre_scenes/grids/grd_s_f_mh_1.tres" id="2_ovpdq"]
+[ext_resource type="ArrayMesh" path="res://assets/generated/environment/acre_scenes/meshes/grd_s_f_mh_1/grd_s_f_mh_1.res" id="3_fr460"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/db78c869228b.tres" id="4_70f8r"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/b9aef45eb859.tres" id="5_2popp"]
+[ext_resource type="Material" path="res://assets/generated/environment/acre_scenes/materials/029d6546d1c7.tres" id="6_bco2r"]
 
-[node name="grd_s_f_mh_1" type="Node3D" unique_id=171169668]
-script = ExtResource("1_fdv3j")
+[node name="grd_s_f_mh_1" type="Node3D" unique_id=109230226]
+script = ExtResource("1_k03vw")
 visual_id = &"grd_s_f_mh_1"
-grid = ExtResource("2_e5y84")
+grid = ExtResource("2_ovpdq")
 
-[node name="grd_s_f_mh_1" type="MeshInstance3D" parent="." unique_id=380904933]
-mesh = ExtResource("3_88ilt")
-surface_material_override/0 = ExtResource("4_o2bdd")
-surface_material_override/1 = ExtResource("5_fps4b")
-surface_material_override/2 = ExtResource("6_whg2u")
+[node name="grd_s_f_mh_1" type="MeshInstance3D" parent="." unique_id=2077928337]
+mesh = ExtResource("3_fr460")
+surface_material_override/0 = ExtResource("4_70f8r")
+surface_material_override/1 = ExtResource("5_2popp")
+surface_material_override/2 = ExtResource("6_bco2r")

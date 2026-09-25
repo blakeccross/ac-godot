@@ -23,6 +23,23 @@ func test_example() -> void:
 2. Confirm **Project → Project Settings → Plugins** has gdUnit4 enabled.
 3. Use the GdUnit inspector, or right-click a test script → Run Test(s).
 
+## Quick commands (quiet output)
+
+```sh
+tools/test.sh                         # all gdUnit suites; prints failures + summary only
+tools/test.sh intro_train_stage       # tests/unit/test_intro_train_stage.gd
+tools/test.sh intro_train_* tree_use  # globs / several suites in one run
+tools/test.sh pipeline                # Python asset-pipeline unittests
+tools/test.sh -v field_catalog        # full runner output
+
+tools/capture.sh target=visual:TREE_APPLE_FRUIT date=2001-01-15,2001-04-05
+tools/capture.sh target=node:Buildings/station cam=-6,5,9 name=station
+tools/capture.sh scene=res://scenes/ui/intro_train.tscn wait=300
+tools/capture.sh --import target=acre:acre_5_6   # refresh imports after regenerating assets
+```
+
+`tools/capture.sh` renders a generated town (or any `scene=`) and writes PNGs to `.tmp_captures/` (gitignored), printing one `CAPTURE <path>` line each. Targets: `visual:<id|glob>`, `node:<path>`, `acre:<name>`, `pos:x,y,z`, `scene`; camera via `cam=`/`look=`/`fov=`. Full arg list in `scenes/dev/capture_world.gd`. Both scripts find Godot via `GODOT_BIN`, `godot_bin` in `tools/config.local.json`, or the default macOS app path.
+
 ## Run from the CLI
 
 ```sh

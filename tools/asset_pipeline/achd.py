@@ -99,6 +99,11 @@ REPEAT_HD_MAX_EDGE = 128
 ## Tree REPEAT tiles (cedar leaf: 64² native, REPEAT S) are a handful of tiles wide,
 ## not ×16 like grass, so they keep the full 512² ACHD sheet instead of the 128 cap.
 TREE_REPEAT_HD_MAX_EDGE = 512
+## Everything else: keep the full ACHD sheet at decode. The wrap-bake knows the real UV
+## tile count and shrinks the tile only when the baked atlas would pass
+## ``glb.WRAP_HD_BUDGET`` — a 128 cap made every 128-wide REPEAT tile (flowers,
+## props) fall back to native even when its UVs never wrap.
+UNCAPPED_REPEAT_HD_MAX_EDGE = 4096
 
 
 def is_room_bank_texture(source: str) -> bool:

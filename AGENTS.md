@@ -20,6 +20,10 @@ Read these before changing gameplay or adding features:
 - Features must earn their place. The decomp containing a system is not a reason to build it.
 - Each phase should leave something playable.
 
+## Tests and visual checks
+
+Use `tools/test.sh <suite…>` (quiet gdUnit; `pipeline` for Python) and `tools/capture.sh target=… date=…` (render to `.tmp_captures/`) instead of raw runner output or throwaway capture scripts. See `docs/testing.md`.
+
 ## Git
 
 Commits use the user's git identity only. Do **not** add `Co-authored-by`, `Made-with`, or any other trailer for Cursor, the agent, or any AI. Do not pass `--trailer` flags that attribute the agent. Do not change git config.

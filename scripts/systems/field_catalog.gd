@@ -58,17 +58,23 @@ const FTR_CLOTH_START := 0x17AC
 static var _units_cache: Dictionary = {}
 
 
+## `mTM_calender` term whose `bgitem_profile` is `BGCHERRYITEM` (Apr 1–8).
+const CHERRY_TERM := 4
+
+
 static func season_letter() -> String:
-	## Tree / rock / structure mesh infix: summer+spring `s`, autumn `f`, winter `w`.
+	## Mesh infix from the term's bg-item profile (`mTM_calender.bgitem_profile`):
+	## `BGWINTERITEM` / `BGXMASITEM` → `w`; `BGCHERRYITEM` (Apr 1–8) → `f` — the
+	## `obj_f_*` set is the cherry-blossom trees, not autumn; every other term, autumn
+	## included, is `BGITEM` → `s` (autumn recolours summer meshes via TLUT rows).
+	## Callers fall back to `s` when a variant GLB does not exist.
 	if Clock == null:
 		return "s"
-	match Clock.season():
-		ClockService.Season.WINTER:
-			return "w"
-		ClockService.Season.AUTUMN:
-			return "f"
-		_:
-			return "s"
+	if Clock.season() == ClockService.Season.WINTER:
+		return "w"
+	if Clock.term_idx() == CHERRY_TERM:
+		return "f"
+	return "s"
 
 
 static func acre_season_letter() -> String:
@@ -137,13 +143,26 @@ static func warn_grass_pattern_pack_missing() -> void:
 
 
 static func season_tex_letter() -> String:
-	## Pack folder: spring/summer `s`, autumn `f`, winter `w`.
-	return season_letter()
+	## Seasons-pack folder (palette snapshots): spring/summer `s`, autumn `f`, winter `w`.
+	## Follows the Clock season, not the mesh letter — autumn is a TLUT recolour.
+	if Clock == null:
+		return "s"
+	match Clock.season():
+		ClockService.Season.WINTER:
+			return "w"
+		ClockService.Season.AUTUMN:
+			return "f"
+		_:
+			return "s"
 
 
 static func season_texture_path(role: String) -> String:
 	## `environment/seasons/{s|f|w}/{role}.png` when the seasons pack has been built.
 	if role.is_empty():
+		return ""
+	## Cherry term draws `obj_f_*` meshes whose own CI + TLUT row is baked; the pack's
+	## hardwood sheets are summer-CI snapshots and would not fit those UVs.
+	if role.begins_with("tree_") and season_letter() == "f":
 		return ""
 	var letter := season_tex_letter()
 	var rels: PackedStringArray = PackedStringArray()
