@@ -3,9 +3,9 @@
   "speaker_id": "tom_nook",
   "start": "start",
   "nodes": {
-    "start": {
-      "type": "line",
-      "text": "Still holding that axe?\nTake it to {recipient}!"
-    }
+	"start": {
+	  "type": "line",
+	  "text": "Still holding that axe?\nTake it to {recipient}!"
+	}
   }
 }

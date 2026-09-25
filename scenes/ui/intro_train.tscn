@@ -34,10 +34,10 @@ unique_name_in_owner = true
 script = ExtResource("15")
 
 [node name="SeatedEye" type="Marker3D" parent="IntroCameraRig" unique_id=1511574934]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2.6, 20)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 2, 20)
 
 [node name="SeatedLook" type="Marker3D" parent="IntroCameraRig" unique_id=1511574935]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 1.7, 14)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 2, 14)
 
 [node name="IntroCamera" type="Camera3D" parent="IntroCameraRig" unique_id=1511574933]
 unique_name_in_owner = true
@@ -73,6 +73,25 @@ light_energy = 3.2
 light_specular = 0.0
 omni_range = 60.0
 omni_attenuation = 1.15
+
+[node name="Sun" type="DirectionalLight3D" parent="TrainCar/TrainLights" unique_id=612123030]
+unique_name_in_owner = true
+light_energy = 0.0
+light_specular = 0.0
+visible = false
+
+[node name="Moon" type="DirectionalLight3D" parent="TrainCar/TrainLights" unique_id=612123031]
+unique_name_in_owner = true
+light_energy = 0.0
+light_specular = 0.0
+visible = false
+
+[node name="LampLight" type="DirectionalLight3D" parent="TrainCar/TrainLights" unique_id=612123032]
+unique_name_in_owner = true
+light_color = Color(1, 1, 0.75, 1)
+light_energy = 0.0
+light_specular = 0.0
+visible = false
 
 [node name="TrainDoor" type="Node3D" parent="." unique_id=1473175996]
 unique_name_in_owner = true

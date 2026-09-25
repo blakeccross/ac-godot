@@ -74,7 +74,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not preview_seated_daylight:
 		_stage.tick(delta)
-	IntroTrainPresentation.tick_sunlight(delta, _world_env)
+	IntroTrainPresentation.tick_sunlight(delta, _world_env, _train_car)
 	_rover_face.tick(delta, _dialogue_uttering())
 	_poll_dialogue_stage_wait()
 	if auto_advance_dialogue and not _finishing:
@@ -147,16 +147,13 @@ func _bootstrap_seated_preview() -> void:
 	_stage._pos_gx = IntroTrainStage.ROVER_SIT_GX
 	_stage._yaw = 0.0
 	_stage.action = IntroTrainStage.Action.SEATED
-	_stage.lock_camera = true
-	_stage.obj_look_talk = true
-	_stage._obj_look_y_gx = IntroTrainStage.OBJ_LOOK_Y_TALK_GX
-	_stage._obj_look_y_target_gx = IntroTrainStage.OBJ_LOOK_Y_TALK_GX
 	_stage._apply_rover_pose()
-	_stage._update_camera(0.0)
 	if _stage._play_rover(IntroTrainStage.ANIM_SIT_WAIT, true, 1.0) and _rover_host.has_method(
 		"snap_intro_clip_to_end"
 	):
 		_rover_host.snap_intro_clip_to_end()
+	_stage._cam.lock_on_rover(_stage.shadow_gx(), true)
+	_stage._refresh_camera(0.0)
 	if preview_dialogue_text.is_empty():
 		return
 	call_deferred("_finish_seated_preview")

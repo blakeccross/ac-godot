@@ -77,24 +77,22 @@ func test_window_scenery_fits_and_scrolls() -> void:
 			assert_int(std.transparency).is_equal(BaseMaterial3D.TRANSPARENCY_ALPHA)
 	assert_that(glass_found).is_true()
 	var car: Node = scene.get_node("%TrainCar")
-	assert_that(car.get("_tree_mats")).is_not_null()
 	var tree_mats: Array = car.get("_tree_mats") as Array
 	assert_int(tree_mats.size()).is_greater(0)
 	var before: Vector3 = (tree_mats[0] as StandardMaterial3D).uv1_offset
 	await get_tree().create_timer(0.1).timeout
 	var after: Vector3 = (tree_mats[0] as StandardMaterial3D).uv1_offset
-	assert_float(after.x).is_greater(before.x)
-	## Sitdown daylight → GoingOutTunnel scrolls tunnel/sky UVs (seg 11).
+	## `tex_scroll2` tile origin grows → sample coordinate shifts negative.
+	assert_float(after.x).is_less(before.x)
+	## Sitdown daylight → `DrawGoingOutTunnel` slides the tunnel onto its clear edge.
 	var tunnel_mats: Array = car.get("_tunnel_mats") as Array
 	assert_int(tunnel_mats.size()).is_greater(0)
 	car.call("apply_daylight", true)
-	tunnel_mats = car.get("_tunnel_mats") as Array
-	assert_int(tunnel_mats.size()).is_greater(0)
 	assert_that(car.get("_exiting_tunnel")).is_true()
 	var tunnel_before: Vector3 = (tunnel_mats[0] as StandardMaterial3D).uv1_offset
 	await get_tree().create_timer(0.1).timeout
 	var tunnel_after: Vector3 = (tunnel_mats[0] as StandardMaterial3D).uv1_offset
-	assert_float(tunnel_after.x).is_greater(tunnel_before.x)
+	assert_float(tunnel_after.x).is_less(tunnel_before.x)
 
 
 func test_rover_intro_has_stage_cue_nodes() -> void:

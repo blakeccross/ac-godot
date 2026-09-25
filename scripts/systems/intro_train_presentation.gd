@@ -2,21 +2,30 @@ class_name IntroTrainPresentation
 extends RefCounted
 
 ## Train car materials and WorldEnvironment tuning for the intro scene.
-## Lighting follows `mEnv_CalcSetLight_train` / `sunlight_flag` → `sun_percent`.
+## Lighting follows `mEnv_SetBaseLight` (`FIELD_DRAW_TYPE_TRAIN`): the outdoor
+## `l_mEnv_normal_kcolor_data` palette for the current time, every RGB field scaled by
+## `sun_percent`, plus the `mEnv_CalcSetLight_train` tunnel lift, the fixed car point
+## light (`mEnv_GetNowRoomPointLightInfo`) and the `ef_lamp_light` down-light.
 
 const LAMP_COLOR := Color(1.0, 1.0, 0.59)
-## Authored `CarLamp` energy while `sunlight_flag` is clear (`ef_lamp_light` on).
+## `mEnv_GetNowRoomPointLightInfo` TRAIN: pos (80,120,510), colour (255,255,160), power
+## 1200. No light-switch index for the start demo → `point_light_percent` stays 1 all
+## ride (it is *not* switched off with `sunlight_flag`).
 const CAR_LAMP_ENERGY := 3.2
-const CAR_AMBIENT := Color(140.0 / 255.0, 92.0 / 255.0, 58.0 / 255.0)
-const CAR_AMBIENT_ENERGY := 0.46
 ## `mEnv_CalcSetLight_train` ambient lift while `sun_percent < 1`: (35, 30, 40).
 const TUNNEL_AMBIENT_LIFT := Color(35.0 / 255.0, 30.0 / 255.0, 40.0 / 255.0)
-const DAYLIGHT_AMBIENT_ENERGY := 0.54
-const TUNNEL_BG := Color(0.05, 0.04, 0.04)
-const DAYLIGHT_BG := Color(0.28, 0.22, 0.38)
-## `rom_train_out_bgcloud_modelT` ENV (127,127,100) — RGB from combiner, not I4.
-const CLOUD_ENV := Color(127.0 / 255.0, 127.0 / 255.0, 100.0 / 255.0, 1.0)
-## `add_calc(&sun_percent, …, 1−√0.5, 0.1, 0.005)` once per decomp frame (`mEnv_CalcSetLight_train`).
+## `mEnv_ChangeDiffuseVctlSet` TRAIN / PLAYER_SELECT: dir (0,60,60) → sun (0, 90, 80),
+## moon (0, −30, −40). Fixed — not the time-of-day arc.
+const SUN_DIR := Vector3(0.0, 90.0, 80.0)
+const MOON_DIR := Vector3(0.0, -30.0, -40.0)
+## `ef_lamp_light`: `Light_diffuse_ct(…, 0, 0x50, 0, …)` — straight-down diffuse whose
+## colour `chase_s` toward (200,200,150) while on (step 0.5·{16,16,8}) and toward 0
+## while off (step 0.5·{2,2,1}). On in the tunnel; off once `sunlight_flag` is set.
+const LAMP_LIGHT_DIR := Vector3(0.0, 80.0, 0.0)
+const LAMP_LIGHT_ON := Vector3(200.0, 200.0, 150.0)
+const LAMP_LIGHT_STEP_ON := Vector3(8.0, 8.0, 4.0)
+const LAMP_LIGHT_STEP_OFF := Vector3(1.0, 1.0, 0.5)
+## `add_calc(&sun_percent, …, 1−√0.5, 0.1, 0.005)` once per decomp frame (`mEnv_ChangeDiffuseLight`).
 const _SUN_FRAME_HZ := PlayerLocomotion.LOGIC_HZ
 const _SUN_FRACTION := 0.29289321881
 const _SUN_MAX_STEP := 0.1
@@ -26,15 +35,18 @@ const _SUN_MIN_STEP := 0.005
 static var sun_percent: float = 0.0
 static var _sun_target: float = 0.0
 static var _sun_accum: float = 0.0
+## `ef_lamp_light` diffuse colour (0–255 per channel); starts black (`Light_diffuse_ct`).
+static var lamp_light: Vector3 = Vector3.ZERO
 
 
 static func apply_tunnel(world_env: WorldEnvironment, train_car: Node) -> void:
 	sun_percent = 0.0
 	_sun_target = 0.0
+	_sun_accum = 0.0
+	lamp_light = Vector3.ZERO
 	if train_car != null and train_car.has_method("apply_daylight"):
 		train_car.call("apply_daylight", false)
-	_apply_environment(world_env, sun_percent)
-	_apply_car_lamp(train_car)
+	_apply_lighting(world_env, train_car)
 
 
 ## Begin the tunnel→daylight ramp (`sunlight_flag = TRUE` when sitdown finishes).
@@ -42,31 +54,28 @@ static func apply_daylight(world_env: WorldEnvironment, train_car: Node) -> void
 	_sun_target = 1.0
 	if train_car != null and train_car.has_method("apply_daylight"):
 		train_car.call("apply_daylight", true)
-	_apply_environment(world_env, sun_percent)
-	_apply_car_lamp(train_car)
+	_apply_lighting(world_env, train_car)
 
 
 ## Instant daylight (seated preview / capture helpers).
 static func snap_daylight(world_env: WorldEnvironment, train_car: Node) -> void:
 	sun_percent = 1.0
 	_sun_target = 1.0
+	lamp_light = Vector3.ZERO
 	if train_car != null and train_car.has_method("apply_daylight"):
 		train_car.call("apply_daylight", true)
-	_apply_environment(world_env, sun_percent)
-	_apply_car_lamp(train_car)
+	_apply_lighting(world_env, train_car)
 
 
-## Advance `sun_percent` toward the target and refresh ambient. Returns true while moving.
-static func tick_sunlight(delta: float, world_env: WorldEnvironment) -> bool:
-	if is_equal_approx(sun_percent, _sun_target):
-		return false
+## Per-frame kankyo update: `sun_percent` add_calc + `ef_lamp_light` chase, then relight.
+## Returns true while `sun_percent` is still moving.
+static func tick_sunlight(delta: float, world_env: WorldEnvironment, train_car: Node = null) -> bool:
 	_sun_accum = minf(_sun_accum + delta * _SUN_FRAME_HZ, 4.0)
 	while _sun_accum >= 1.0:
 		_sun_accum -= 1.0
 		_step_sun_percent()
-		if is_equal_approx(sun_percent, _sun_target):
-			break
-	_apply_environment(world_env, sun_percent)
+		_step_lamp_light()
+	_apply_lighting(world_env, train_car)
 	return not is_equal_approx(sun_percent, _sun_target)
 
 
@@ -79,9 +88,102 @@ static func _step_sun_percent() -> void:
 	if absf(step) > _SUN_MAX_STEP:
 		step = _SUN_MAX_STEP * signf(step)
 	if absf(step) < _SUN_MIN_STEP:
-		sun_percent = _sun_target
-	else:
-		sun_percent += step
+		step = _SUN_MIN_STEP * signf(step)
+	sun_percent += step
+
+
+## `Ef_Lamp_Light_actor_move` / `eLL_get_light_sw_start_demo`: on until `sunlight_flag`.
+static func _step_lamp_light() -> void:
+	var on: bool = _sun_target < 1.0
+	var goal: Vector3 = LAMP_LIGHT_ON if on else Vector3.ZERO
+	var step: Vector3 = LAMP_LIGHT_STEP_ON if on else LAMP_LIGHT_STEP_OFF
+	lamp_light = Vector3(
+		move_toward(lamp_light.x, goal.x, step.x),
+		move_toward(lamp_light.y, goal.y, step.y),
+		move_toward(lamp_light.z, goal.z, step.z)
+	)
+
+
+## Decomp `BaseLight` for this frame: palette × `sun_percent` + tunnel lift.
+static func current_light() -> Dictionary:
+	var pal: Dictionary = Clock.outdoor_light()
+	var t: float = clampf(sun_percent, 0.0, 1.0)
+	var lift: float = 1.0 - t
+	var amb: Color = pal["ambient"] as Color
+	return {
+		"ambient": Color(
+			minf(amb.r * t + TUNNEL_AMBIENT_LIFT.r * lift, 1.0),
+			minf(amb.g * t + TUNNEL_AMBIENT_LIFT.g * lift, 1.0),
+			minf(amb.b * t + TUNNEL_AMBIENT_LIFT.b * lift, 1.0)
+		),
+		"sun": pal["sun"] as Color,
+		## `base_light.sun_color` after `mEnv_ChangeRGBLight(…, sun_percent)`.
+		"sun_scaled": Color((pal["sun"] as Color) * t, 1.0),
+		"sun_energy": float(pal["sun_energy"]) * t,
+		"moon": pal["moon"] as Color,
+		"moon_energy": float(pal["moon_energy"]) * t,
+		"bg": Color((pal["bg"] as Color) * t, 1.0),
+	}
+
+
+static func _apply_lighting(world_env: WorldEnvironment, train_car: Node) -> void:
+	var light: Dictionary = current_light()
+	_apply_environment(world_env, light)
+	_apply_car_lights(train_car, light)
+
+
+static func _apply_environment(world_env: WorldEnvironment, light: Dictionary) -> void:
+	if world_env == null:
+		return
+	var env: Environment = world_env.environment
+	if env == null:
+		return
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = light["ambient"] as Color
+	## Same RGB-as-intensity mapping as the outdoor field (`world.gd`).
+	env.ambient_light_energy = 1.0
+	env.background_color = light["bg"] as Color
+	env.tonemap_exposure = 1.0
+	env.glow_enabled = false
+
+
+static func _apply_car_lights(train_car: Node, light: Dictionary) -> void:
+	if train_car == null:
+		return
+	var lamp: OmniLight3D = train_car.get_node_or_null("%CarLamp") as OmniLight3D
+	if lamp != null:
+		lamp.light_energy = CAR_LAMP_ENERGY
+	var sun: DirectionalLight3D = train_car.get_node_or_null("%Sun") as DirectionalLight3D
+	if sun != null:
+		aim_directional(sun, SUN_DIR)
+		sun.light_color = light["sun"] as Color
+		sun.light_energy = float(light["sun_energy"])
+		sun.visible = sun.light_energy > 0.001
+	var moon: DirectionalLight3D = train_car.get_node_or_null("%Moon") as DirectionalLight3D
+	if moon != null:
+		aim_directional(moon, MOON_DIR)
+		moon.light_color = light["moon"] as Color
+		moon.light_energy = float(light["moon_energy"])
+		moon.visible = moon.light_energy > 0.001
+	var down: DirectionalLight3D = train_car.get_node_or_null("%LampLight") as DirectionalLight3D
+	if down != null:
+		aim_directional(down, LAMP_LIGHT_DIR)
+		var peak: float = maxf(lamp_light.x, maxf(lamp_light.y, lamp_light.z))
+		if peak > 0.0:
+			down.light_color = Color(lamp_light.x / peak, lamp_light.y / peak, lamp_light.z / peak)
+		down.light_energy = peak / 255.0
+		down.visible = peak > 0.0
+
+
+## Decomp light dirs point toward the source; Godot directional lights shine along −Z.
+static func aim_directional(light: DirectionalLight3D, dir: Vector3) -> void:
+	if light == null or dir.length_squared() < 0.0001:
+		return
+	var d: Vector3 = dir.normalized()
+	var up := Vector3.UP
+	if absf(d.dot(up)) > 0.95:
+		up = Vector3.RIGHT
+	light.basis = Basis.looking_at(-d, up)
 
 
 static func apply_car_surfaces(root: Node3D) -> void:
@@ -97,47 +199,19 @@ static func apply_car_glass(root: Node3D, daylight: bool) -> void:
 	_apply_car_glass_inner(root, daylight)
 
 
-static func apply_window_scenery(
-	root: Node3D,
-	daylight: bool,
-	cloud_mats: Array[StandardMaterial3D],
-	tree_mats: Array[StandardMaterial3D],
-	tunnel_mats: Array[StandardMaterial3D] = []
-) -> void:
-	if root == null:
-		return
-	_apply_window_scenery_inner(root, daylight, cloud_mats, tree_mats, tunnel_mats)
-
-
-static func _apply_environment(world_env: WorldEnvironment, sun: float) -> void:
-	if world_env == null:
-		return
-	var env: Environment = world_env.environment
-	if env == null:
-		return
-	var t: float = clampf(sun, 0.0, 1.0)
-	## Tunnel lift fades as `1 − sun_percent` (`mEnv_CalcSetLight_train`).
-	var lift: float = 1.0 - t
-	var ambient := Color(
-		minf(CAR_AMBIENT.r + TUNNEL_AMBIENT_LIFT.r * lift, 1.0),
-		minf(CAR_AMBIENT.g + TUNNEL_AMBIENT_LIFT.g * lift, 1.0),
-		minf(CAR_AMBIENT.b + TUNNEL_AMBIENT_LIFT.b * lift, 1.0)
-	)
-	env.ambient_light_color = ambient
-	env.ambient_light_energy = lerpf(CAR_AMBIENT_ENERGY, DAYLIGHT_AMBIENT_ENERGY, t)
-	env.background_color = TUNNEL_BG.lerp(DAYLIGHT_BG, t)
-	env.tonemap_exposure = 1.0
-	env.glow_enabled = false
-
-
-## `ef_lamp_light` / `eLL_get_light_sw_start_demo`: off as soon as `sunlight_flag` is set.
-static func _apply_car_lamp(train_car: Node) -> void:
-	if train_car == null:
-		return
-	var lamp: OmniLight3D = train_car.get_node_or_null("%CarLamp") as OmniLight3D
-	if lamp == null:
-		return
-	lamp.light_energy = 0.0 if _sun_target >= 1.0 else CAR_LAMP_ENERGY
+## `rom_train_out` surfaces by draw role. Every window combiner ignores SHADE, so they are
+## unshaded here; `intro_train_car.gd` drives prim tint / alpha / scroll per frame.
+static func apply_window_scenery(root: Node3D) -> Dictionary:
+	var roles := {
+		&"sky": [] as Array[StandardMaterial3D],
+		&"tunnel": [] as Array[StandardMaterial3D],
+		&"cloud": [] as Array[StandardMaterial3D],
+		&"tree": [] as Array[StandardMaterial3D],
+		&"shine": [] as Array[ShaderMaterial],
+	}
+	if root != null:
+		_apply_window_scenery_inner(root, roles)
+	return roles
 
 
 static func _apply_car_opa_surfaces_inner(node: Node) -> void:
@@ -215,13 +289,7 @@ static func _apply_car_glass_inner(node: Node, daylight: bool) -> void:
 		_apply_car_glass_inner(child, daylight)
 
 
-static func _apply_window_scenery_inner(
-	node: Node,
-	daylight: bool,
-	cloud_mats: Array[StandardMaterial3D],
-	tree_mats: Array[StandardMaterial3D],
-	tunnel_mats: Array[StandardMaterial3D]
-) -> void:
+static func _apply_window_scenery_inner(node: Node, roles: Dictionary) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
 		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -231,69 +299,87 @@ static func _apply_window_scenery_inner(
 			var mat: Material = mesh_instance.get_active_material(i)
 			if not mat is StandardMaterial3D:
 				continue
-			var label := _surface_label(mesh_instance, i, mat)
-			var src := mat as StandardMaterial3D
-			var std := src.duplicate() as StandardMaterial3D
-			std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-			std.cull_mode = BaseMaterial3D.CULL_DISABLED
-			std.uv1_offset = Vector3.ZERO
-			if _is_window_tunnel_surface(label):
-				_apply_window_opa_surface(std)
-				## Tunnel walls stay for the exit scroll; dim once daylight hits.
-				if daylight:
-					std.albedo_color = Color(
-						std.albedo_color.r * 0.35,
-						std.albedo_color.g * 0.35,
-						std.albedo_color.b * 0.35,
-						std.albedo_color.a
-					)
-				## `aTrainWindow_DrawGoingOutTunnel` scrolls seg 11 (tunnel + sky).
-				tunnel_mats.append(std)
-			elif _is_window_sky_surface(label):
-				_apply_window_opa_surface(std)
-				tunnel_mats.append(std)
-			elif _is_light_ray_surface(label):
-				_apply_shineglass_surface(std, daylight)
-			elif _is_window_cloud_surface(label):
-				_apply_cloud_scenery_surface(std)
-				cloud_mats.append(std)
-			elif _is_window_tree_surface(label):
-				_apply_xlu_scenery_surface(std)
-				tree_mats.append(std)
-			else:
-				_apply_xlu_scenery_surface(std)
+			var role: StringName = window_role(_surface_label(mesh_instance, i, mat))
+			if role == &"":
+				continue
+			if role == &"shine":
+				var shine := shine_material((mat as StandardMaterial3D).albedo_texture)
+				(roles[role] as Array).append(shine)
+				mesh_instance.set_surface_override_material(i, shine)
+				continue
+			var std := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			_setup_window_surface(std, role)
+			(roles[role] as Array[StandardMaterial3D]).append(std)
 			mesh_instance.set_surface_override_material(i, std)
 	for child: Node in node.get_children():
-		_apply_window_scenery_inner(child, daylight, cloud_mats, tree_mats, tunnel_mats)
+		_apply_window_scenery_inner(child, roles)
 
 
-static func _is_window_tunnel_surface(label: String) -> bool:
-	return "tunnel" in label
+static func window_role(label: String) -> StringName:
+	if "tunnel" in label:
+		return &"tunnel"
+	if "shine" in label:
+		return &"shine"
+	if "bgcloud" in label or "cloud" in label:
+		return &"cloud"
+	if "bgtree" in label or "tree" in label:
+		return &"tree"
+	if "bgsky" in label or "sky" in label:
+		return &"sky"
+	return &""
 
 
-static func _is_window_sky_surface(label: String) -> bool:
-	return "bgsky" in label or "sky" in label
-
-
-static func _is_window_cloud_surface(label: String) -> bool:
-	return "bgcloud" in label or "cloud" in label
-
-
-static func _is_window_tree_surface(label: String) -> bool:
-	return "bgtree" in label or ("tree" in label and "tunnel" not in label)
-
-
-static func _apply_window_opa_surface(std: StandardMaterial3D) -> void:
-	std.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	## Tunnel/sky stay opaque — chromakey A must not punch holes in the exit scroll.
-	std.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
-	std.roughness = 1.0
-	std.metallic = 0.0
-	std.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+static func _setup_window_surface(std: StandardMaterial3D, role: StringName) -> void:
+	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	std.vertex_color_use_as_albedo = false
+	std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	std.cull_mode = BaseMaterial3D.CULL_DISABLED
 	std.emission_enabled = false
-	if std.albedo_color.a < 1.0:
-		std.albedo_color.a = 1.0
+	std.uv1_offset = Vector3.ZERO
+	match role:
+		&"sky":
+			## `G_RM_AA_ZB_OPA_SURF2`, `TEXEL0 × PRIM`.
+			std.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+			std.render_priority = -2
+		&"tunnel":
+			## `G_RM_AA_ZB_TEX_EDGE2`: alpha-tested, S clamped. The exit scroll slides the
+			## tile origin 250 texels so every sample clamps to the transparent edge column.
+			std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			std.alpha_scissor_threshold = 0.5
+			std.texture_repeat = false
+			std.render_priority = 0
+		&"cloud":
+			## `ZB_XLU_SURF2`; RGB = PRIM·LOD + ENV, A = I4 × PRIM.a (I4 → alpha).
+			std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+			std.texture_repeat = true
+			std.render_priority = -1
+			if std.albedo_texture != null:
+				std.albedo_texture = _glass_intensity_as_alpha(std.albedo_texture)
+		&"tree":
+			## `ZB_XLU_SURF2`; RGB = TEXEL × (PRIM·LOD + ENV), A = TEXEL.
+			std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+			std.texture_repeat = true
+			std.render_priority = 0
+
+
+const SHINEGLASS_SHADER := preload("res://shaders/train_shineglass.gdshader")
+## Tile-1 glass I4 (`rom_train_glass_tex_rgb_i4`, 16×16). The converted car glass is the
+## same asset family; the dedicated `_rgb_i4` bank is not extracted separately.
+const SHINEGLASS_TILE1_PATH := "res://assets/generated/textures/rel/rom_train_glass_tex.png"
+
+
+static func shine_material(shine_tex: Texture2D) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = SHINEGLASS_SHADER
+	mat.render_priority = 2
+	if shine_tex != null:
+		mat.set_shader_parameter(&"shine_tex", _glass_intensity_as_alpha(shine_tex))
+	if ResourceLoader.exists(SHINEGLASS_TILE1_PATH):
+		mat.set_shader_parameter(&"glass_tex", load(SHINEGLASS_TILE1_PATH))
+	mat.set_shader_parameter(&"lod_frac", 0.0)
+	return mat
 
 
 static func _surface_label(mesh_instance: MeshInstance3D, surface: int, mat: Material) -> String:
@@ -404,29 +490,6 @@ static func _apply_lamp_cone_surface(std: StandardMaterial3D) -> void:
 	std.emission_enabled = true
 	std.emission = LAMP_COLOR
 	std.emission_energy_multiplier = 0.65
-
-
-static func _apply_xlu_scenery_surface(std: StandardMaterial3D) -> void:
-	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY
-	std.render_priority = -1
-	## Do not invent alpha — PRIM_LOD_FRAC shineglass bakes A=0 until daylight.
-	if std.albedo_color.a <= 0.01 and std.albedo_texture == null:
-		std.albedo_color.a = 0.95
-
-
-## `rom_train_out_bgcloud_modelT`: RGB = PRIM/ENV, A = I×PRIM. I4 must not stay opaque black.
-static func _apply_cloud_scenery_surface(std: StandardMaterial3D) -> void:
-	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	std.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
-	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	std.render_priority = -1
-	## Combiner ignores SHADE; baked vertex gray would darken the ENV tint.
-	std.vertex_color_use_as_albedo = false
-	if std.albedo_texture != null:
-		std.albedo_texture = _glass_intensity_as_alpha(std.albedo_texture)
-	std.albedo_color = CLOUD_ENV
 
 
 static func _apply_lamp_surface(std: StandardMaterial3D) -> void:

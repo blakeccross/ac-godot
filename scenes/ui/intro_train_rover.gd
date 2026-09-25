@@ -25,12 +25,16 @@ const _SIGNAL_FINISH_SUFFIXES: Array[String] = [
 	IntroTrainStage.ANIM_STANDUP,
 ]
 
+## `aNPC_set_shadow_pos` base: `trans_y = 1000` with XZ 0, in pipeline joint units.
+const ROOT_BASE := Vector3(0.0, 1.0, 0.0)
+
 var _anim: AnimationPlayer
 var _tree: AnimationTree
 var _active_clip: String = ""
 var _active_suffix: String = ""
 var _clip_active: bool = false
 var _looping: bool = false
+var _skeleton: Skeleton3D
 
 
 func _ready() -> void:
@@ -111,6 +115,29 @@ func intro_clip_playing() -> bool:
 	if _active_suffix in _SIGNAL_FINISH_SUFFIXES:
 		return _anim.is_playing()
 	return _anim.is_playing() and not _one_shot_reached_end()
+
+
+## `draw.shadow_pos − world.position` in GX: `joint_0` translation relative to the decomp base
+## (`cKF_SkeletonInfo_R_AnimationMove_CulcTransToWorld`, TRANS_XZ | TRANS_Y), in world axes.
+func root_motion_offset_gx() -> Vector3:
+	if _skeleton == null or not is_instance_valid(_skeleton):
+		_skeleton = _find_skeleton()
+	if _skeleton == null or _skeleton.get_bone_count() == 0:
+		return Vector3.ZERO
+	var xf: Transform3D = _skeleton.global_transform
+	var now: Vector3 = xf * _skeleton.get_bone_pose_position(0)
+	## Decomp subtracts a fixed (0, 1000, 0) — the pipeline stores joints at 1/1000, so
+	## the standing root is (0, 1, 0) in skeleton space (not the bind rest).
+	var base: Vector3 = xf * ROOT_BASE
+	return (now - base) / FieldCatalog.GX_TO_METERS
+
+
+func _find_skeleton() -> Skeleton3D:
+	var vis: Node = get_node_or_null("GeneratedVisual")
+	if vis == null:
+		return null
+	var found: Array[Node] = vis.find_children("*", "Skeleton3D", true, false)
+	return found[0] as Skeleton3D if not found.is_empty() else null
 
 
 func current_intro_clip() -> String:

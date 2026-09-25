@@ -41,35 +41,40 @@ const ANIM_KEITAI_TALK2 := "npc_1_keitai_talk2"
 const ANIM_KEITAI_OFF := "npc_1_keitai_off1"
 const ANIM_OPEN_D2 := "npc_1_open_d2"
 
-## `aNGD` GX landmarks.
+## `aNGD` GX landmarks. Y is floor-relative: the decomp car floor is y 40 GX, ours is 0.
+const DECOMP_FLOOR_Y_GX := 40.0
 const ROVER_AISLE_X_GX := 140.0
-## Decomp enter landmark — `open_d1` root motion on `joint_0` carries the mesh from the
-## vestibule deck (~48 GX) forward to here; keep the host at this Z throughout ENTER.
+## `aNGD_actor_ct` z=130 — `open_d1` root motion on `joint_0` carries the mesh from the
+## vestibule deck (−82 GX) forward to here; the actor stays at this Z throughout ENTER.
 const ROVER_START_GX := Vector3(140.0, 0.0, 130.0)
 const ROVER_TALK_GX := Vector3(140.0, 0.0, 290.0)
 const ROVER_SIT_GX := Vector3(100.0, 0.0, 280.0)
+## `aNGD_move_ready` snap once `standup_d1` ends (its root ends +20 GX in z).
 const ROVER_STAND_GX := Vector3(100.0, 0.0, 300.0)
 const ROVER_AISLE_GX := Vector3(140.0, 0.0, 290.0)
 const ROVER_DOOR_GX := Vector3(140.0, 0.0, 130.0)
-const ROVER_RETURN_START_GX := Vector3(140.0, 0.0, 140.0)
+## `aNGD_move_to_deck_init` parks the actor at (140, 130); `return_approach` walks from there.
+const ROVER_RETURN_START_GX := Vector3(140.0, 0.0, 130.0)
 ## Vestibule door actor origin (`ac_train_door`). Panel sits ~7.5 GX into the car from here.
 const DOOR_GATE_GX := Vector3(140.0, 0.0, 120.0)
 ## Closed panel sits slightly deck-side of the car-shell jamb sample (GC frame).
 const DOOR_PANEL_Z_BIAS_GX := -20.0
 ## Seated player (the intro POV). Actors that "search" the player turn to this point.
 const PLAYER_GX := Vector3(120.0, 0.0, 340.0)
-## Decomp literals are eye/look Y=80 GX (`aNGD_set_camera`). The GC intro frame reads as
-## a seated POV — eye ~52 GX, look ~34 GX (down the aisle at cushion height).
-const CAM_EYE_GX := Vector3(100.0, 52.0, 400.0)
-const CAM_LOOK_GX := Vector3(90.0, 34.0, 280.0)
+## `aNGD_set_camera`: eye (100, 80, 400), default look (90, 80, 280) — both 40 GX above
+## the decomp floor.
+const CAM_EYE_GX := Vector3(100.0, 80.0 - DECOMP_FLOOR_Y_GX, 400.0)
+const CAM_LOOK_GX := Vector3(90.0, 80.0 - DECOMP_FLOOR_Y_GX, 280.0)
 const CAM_FOV := 40.0
 const CAM_NEAR_GX := 60.0
 const CAM_FAR_GX := 800.0
 ## Decomp passes near=60 in GX world units. Converted literally (×0.05 → 3 m) the clip
-## plane eats the foreground seat; keep ~1 GX for Godot.
+## plane eats the foreground seat; keep ~2 GX for Godot.
 const CAM_NEAR_METERS := 2.0 * FieldCatalog.GX_TO_METERS
-const OBJ_LOOK_Y_TALK_GX := 30.0
-const OBJ_LOOK_Y_NORMAL_GX := 20.0
+## `obj_look_y_max[] = { 30, 20 }` — NORMAL looks 30 above the floor, TALK 20 above the
+## shadow (root-motion) height.
+const OBJ_LOOK_Y_NORMAL_GX := 30.0
+const OBJ_LOOK_Y_TALK_GX := 20.0
 const CAMERA_SWAY_STEP := 0xE20
 ## `aNGD_move_to_door`: tilt eye toward vestibule when Rover's shadow z < 140.
 const CAMERA_TILT_GOAL_PHONE := PI * 0.5
@@ -78,16 +83,28 @@ const CAMERA_TILT_CHASE := deg_to_rad(2.8125) ## DEG2SHORT_ANGLE2(2.8125°)
 const CAMERA_TILT_RESET_CHASE := deg_to_rad(8.4375)
 ## Vestibule proximity that starts / clears phone tilt (`shadow_pos.z < 140`).
 const CAMERA_TILT_Z_GX := 140.0
-const WALK_SPEED_GX := 1.0 ## GX per frame @ 30 Hz (`aNGD_set_walk_spd`)
-const WALK_SPEED2_GX := 1.5 ## `aNGD_set_walk_spd2`
+## `aNGD_set_walk_spd` / `_spd2`: max speed (GX per 1/30 s), accel, decel.
+const WALK_SPEED_GX := 1.0
+const WALK_ACCEL_GX := 0.1
+const WALK_DECEL_GX := 0.2
+const WALK_SPEED2_GX := 1.5
+const WALK_ACCEL2_GX := 0.15
+const WALK_DECEL2_GX := 0.3
 const DOOR_OPEN_FRAME := 20.0
 const DOOR_DECK_OPEN_FRAME := 9.0
 const DOOR_OPEN_D2_FRAME := 22.0
 const KEITAI_ON_ANIM_SPEED := 0.5
-## Decomp `morph_counter = -5` → ~10 frames of blend at 30 Hz when switching clips.
-const ANIM_MORPH_BLEND := 10.0 / 30.0
+## cKF `morph_counter = -5` steps +0.5 per 60 Hz frame → 10 frames of blend.
+const ANIM_MORPH_BLEND := 10.0 / 60.0
 const OPEN_D2_YAW := PI
 const OPEN_D2_YAW_CHASE := deg_to_rad(0.703125)
+## `chase_angle` steps (per 1/30 s — `chase_angle` is frame-scaled, halved per 60 Hz tick).
+const TALK_TURN_STEP := 0x400 / 65536.0 * TAU ## `aNGD_talk_start_wait`
+const BODY_TURN_STEP := deg_to_rad(11.25) ## `aNGD_calc_body_angl`
+## `aNPC_set_body_angle`: pitch goal `speed * 3640 / 3`, `chase_angle(…, 224)`.
+const BODY_LEAN_PER_SPEED := 3640.0 / 3.0 / 65536.0 * TAU
+const BODY_LEAN_STEP := 224.0 / 65536.0 * TAU
+const _LOGIC_HZ := PlayerLocomotion.LOGIC_HZ
 
 var action: Action = Action.ENTER
 
@@ -95,12 +112,18 @@ var _rover: Node3D
 var _rover_anim: AnimationPlayer
 var _door: Node3D
 var _keitai: Node3D
-var _cam
+var _cam: IntroTrainCamera
 var _stage_sync: Node
-var _target_gx: Vector3 = ROVER_TALK_GX
-var _speed_gx: float = WALK_SPEED_GX
 var _pos_gx: Vector3 = ROVER_START_GX
 var _yaw: float = 0.0
+## `actor.speed` (GX per 1/30 s) and `movement.speed` max / accel / decel.
+var _speed_gx: float = 0.0
+var _max_speed_gx: float = 0.0
+var _accel_gx: float = 0.0
+var _decel_gx: float = 0.0
+## `shape_info.rotation.x` forward lean (`aNPC_set_body_angle`).
+var _lean: float = 0.0
+var _logic_accum: float = 0.0
 var _talk_emitted: bool = false
 var _clip: String = ""
 var _pending_clip: String = ""
@@ -114,10 +137,8 @@ var _phone_dialogue_done: bool = false
 var _phone_tilt_reset_armed: bool = false
 var _phone_trip_started: bool = false
 var _pending_return_sit: bool = false
-var _aisle_yaw_from: float = 0.0
-var _aisle_yaw_to: float = 0.0
-var _aisle_turn_t: float = 1.0
-var _aisle_walk_started: bool = false
+## `aNGD_keitai_talk`: `keitai_talk1` plays once, then `keitai_talk2` loops.
+var _keitai_talk_looping: bool = false
 
 
 var lock_camera: bool:
@@ -128,20 +149,13 @@ var lock_camera: bool:
 			_cam.lock_camera = value
 
 
-var camera_morph: int:
+## `obj_look_type == aNGD_OBJ_LOOK_TYPE_TALK`.
+var look_talk: bool:
 	get:
-		return _cam.camera_morph if _cam != null else 0
+		return _cam.look_talk if _cam != null else false
 	set(value):
 		if _cam != null:
-			_cam.camera_morph = value
-
-
-var obj_look_talk: bool:
-	get:
-		return _cam.obj_look_talk if _cam != null else false
-	set(value):
-		if _cam != null:
-			_cam.obj_look_talk = value
+			_cam.look_talk = value
 
 
 var camera_eyes: bool:
@@ -151,39 +165,6 @@ var camera_eyes: bool:
 		if _cam != null:
 			_cam.camera_eyes = value
 
-
-var _obj_look_y_gx: float:
-	get:
-		return _cam._obj_look_y_gx if _cam != null else OBJ_LOOK_Y_NORMAL_GX
-	set(value):
-		if _cam != null:
-			_cam._obj_look_y_gx = value
-
-
-var _obj_look_y_target_gx: float:
-	get:
-		return _cam._obj_look_y_target_gx if _cam != null else OBJ_LOOK_Y_NORMAL_GX
-	set(value):
-		if _cam != null:
-			_cam._obj_look_y_target_gx = value
-
-
-var _camera_morph_from_gx: Vector3:
-	get:
-		return _cam._camera_morph_from_gx if _cam != null else CAM_LOOK_GX
-
-
-var _camera_morph_to_gx: Vector3:
-	get:
-		return _cam._camera_morph_to_gx if _cam != null else CAM_LOOK_GX
-
-
-var _camera_morph_tracks_rover: bool:
-	get:
-		return _cam._camera_morph_tracks_rover if _cam != null else true
-
-
-const _CAMERA_SCRIPT := preload("res://scripts/systems/intro_train_camera.gd")
 
 static func gx_to_meters(gx: Vector3) -> Vector3:
 	return gx * FieldCatalog.GX_TO_METERS
@@ -227,13 +208,15 @@ func bind(
 	_keitai = keitai
 	_rover_look = rover_look
 	_stage_sync = stage_sync
-	_cam = _CAMERA_SCRIPT.new()
+	_cam = IntroTrainCamera.new()
 	if camera_host != null and camera_host.has_method("eye_gx"):
 		_cam.setup(camera_host.camera, camera_host.eye_gx(), camera_host.look_gx())
 	elif camera_host is Camera3D:
 		_cam.setup(camera_host as Camera3D)
 	_pos_gx = ROVER_START_GX
 	_yaw = 0.0
+	_lean = 0.0
+	_set_stop_spd()
 	_apply_rover_pose()
 	_reset_keitai()
 	_phone_dialogue_done = false
@@ -242,12 +225,6 @@ func bind(
 	_pending_return_sit = false
 	_set_action(Action.ENTER)
 	_refresh_camera(0.0)
-
-
-static func _hermit_morph(t: float) -> float:
-	## `cKF_HermitCalc(r, 1, 0, 1, 3.2, 0)` — smooth ease for camera morph.
-	var x: float = clampf(t, 0.0, 1.0)
-	return x * x * (3.0 - 2.0 * x)
 
 
 ## Dialogue cue: snap to the seat and play `npc_1_sitdown_d1` (decomp `aNGD_ACTION_SITDOWN`).
@@ -385,33 +362,29 @@ func _dialogue_wait_to_node() -> StringName:
 
 func _set_action(next: Action) -> void:
 	_manpu_hold_clip = ""
-	var morph_from_gx: Vector3 = _current_camera_look_gx(_pos_gx)
 	action = next
 	stage_changed.emit(_action_name(next))
 	match next:
 		Action.ENTER:
-			_speed_gx = WALK_SPEED_GX
+			_set_stop_spd()
 			camera_eyes = false
 			_set_rover_eyes(false)
 			_play_rover(ANIM_OPEN_D1, false)
 			_play_door_sync(IntroTrainStageSync.SYNC_ENTER)
 		Action.APPROACH:
-			_speed_gx = WALK_SPEED_GX
-			_target_gx = ROVER_TALK_GX
+			## `aNGD_set_walk_spd`; `enter` sets `camera_eyes_flag`.
+			_set_walk_spd(WALK_SPEED_GX, WALK_ACCEL_GX, WALK_DECEL_GX)
 			camera_eyes = true
 			_set_rover_eyes(true)
 			_play_rover(ANIM_WALK, true)
 		Action.TALK:
-			camera_eyes = false
-			_set_rover_eyes(false)
-			_yaw = yaw_toward_player(_pos_gx)
-			_apply_rover_pose()
+			## `aNGD_talk_start_wait` / `last_talk_start_wait`: stop, request speak with
+			## `obj_look_type = TALK`, then chase-turn to the player (see `_step_talk`).
+			_set_stop_spd()
+			look_talk = true
 			_play_rover(ANIM_WAIT, true)
-			_obj_look_y_target_gx = OBJ_LOOK_Y_TALK_GX
-			## First talk morphs aisle POV → Rover then locks. Return talk stays locked
-			## (`lock_camera_flag` is never cleared), so skip a no-op remorph.
-			if _cam != null and not lock_camera:
-				_cam.begin_morph_to_rover(morph_from_gx, true)
+			if _cam != null:
+				_cam.begin_speak_morph()
 			if not _talk_emitted:
 				_talk_emitted = true
 				ready_for_talk.emit()
@@ -421,45 +394,40 @@ func _set_action(next: Action) -> void:
 				return
 		Action.MOVE_TO_SEAT:
 			_set_action(Action.SITDOWN)
+			return
 		Action.SITDOWN:
+			## `aNGD_sitdown` pins (100, 280) yaw 0; `sitdown_d1` (morph 0) carries the
+			## body in from the aisle on `joint_0`.
 			_pos_gx = ROVER_SIT_GX
-			_speed_gx = 0.0
+			_set_stop_spd()
 			_yaw = 0.0
 			_apply_rover_pose()
 			_disconnect_anim_finished()
-			## Re-morph from the aisle talk aim to the bench — not from `CAM_LOOK_GX`, which
-			## would snap the POV and hide the right-bench sleep NPC.
-			_obj_look_y_target_gx = OBJ_LOOK_Y_TALK_GX
-			if _cam != null:
-				_cam.begin_morph_to_rover(morph_from_gx, true)
 			_play_rover(ANIM_SITDOWN, false)
 			_await_then(Action.SEATED, ANIM_SITDOWN)
 		Action.SEATED:
-			if _cam != null:
-				_cam.lock_on_rover()
-				_cam.set_obj_look_y(OBJ_LOOK_Y_TALK_GX)
 			_play_rover(ANIM_SIT_WAIT, true)
 		Action.STANDUP:
-			## Decomp never clears `lock_camera_flag` after first talk — look stays on Rover
-			## through standup / aisle / phone (`aNGD_standup_start_wait` only drops look Y).
-			_pos_gx = ROVER_STAND_GX
-			_apply_rover_pose()
-			_obj_look_y_target_gx = OBJ_LOOK_Y_NORMAL_GX
+			## `aNGD_standup_start_wait` → NORMAL look; the actor stays on the seat while
+			## `standup_d1` (morph −5) plays. `lock_camera_flag` is never cleared.
+			look_talk = false
 			camera_eyes = false
 			_set_rover_eyes(false)
 			_play_rover(ANIM_STANDUP, false)
 			_await_then(Action.MOVE_AISLE, ANIM_STANDUP)
 		Action.MOVE_AISLE:
-			_begin_aisle_turn()
-			_speed_gx = WALK_SPEED2_GX
-			_target_gx = ROVER_AISLE_GX
-			_aisle_walk_started = false
-			_play_rover(ANIM_WAIT, true)
-		Action.MOVE_DOOR:
-			_speed_gx = WALK_SPEED2_GX
-			_target_gx = ROVER_DOOR_GX
+			## `aNGD_move_ready`: snap to (100, 300) on WAIT1 (morph 0), then
+			## `move_to_aisle` starts WALK1 (morph −5) at `walk_spd2` from rest.
+			_pos_gx = ROVER_STAND_GX
+			_apply_rover_pose()
+			_play_rover(ANIM_WAIT, true, 1.0, 0.0)
+			_set_walk_spd(WALK_SPEED2_GX, WALK_ACCEL2_GX, WALK_DECEL2_GX)
 			_play_rover(ANIM_WALK, true)
+		Action.MOVE_DOOR:
+			pass
 		Action.MOVE_DECK:
+			## `aNGD_move_to_deck_init`: stop and pin (140, 130).
+			_set_stop_spd()
 			_pos_gx = ROVER_DOOR_GX
 			_apply_rover_pose()
 			_play_rover(ANIM_TO_DECK, false)
@@ -470,10 +438,14 @@ func _set_action(next: Action) -> void:
 			_play_rover(ANIM_KEITAI_ON, false, KEITAI_ON_ANIM_SPEED)
 			_await_then(Action.KEITAI_TALK, ANIM_KEITAI_ON)
 		Action.KEITAI_TALK:
-			_play_rover(ANIM_KEITAI_TALK, true)
 			if _phone_dialogue_done:
 				_set_action(Action.KEITAI_OFF)
+				return
+			## `keitai_talk1` is a STOP clip; `aNGD_keitai_talk` swaps to `keitai_talk2` (loop).
+			_keitai_talk_looping = false
+			_play_rover(ANIM_KEITAI_TALK, false)
 		Action.KEITAI_OFF:
+			_keitai_talk_looping = false
 			_play_keitai_off()
 			_play_rover(ANIM_KEITAI_OFF, false)
 			_await_then(Action.OPEN_DOOR, ANIM_KEITAI_OFF)
@@ -484,156 +456,154 @@ func _set_action(next: Action) -> void:
 			_play_door_sync(IntroTrainStageSync.SYNC_OPEN_D2)
 			_await_then(Action.RETURN_APPROACH, ANIM_OPEN_D2)
 		Action.RETURN_APPROACH:
-			## Lock still on Rover; `aNGD_return_approach_init` only re-enables head look-at.
-			_speed_gx = WALK_SPEED2_GX
+			## `aNGD_return_approach_init`: head look on, `walk_spd2`, WALK1 with morph 0.
 			_pos_gx = ROVER_RETURN_START_GX
 			_yaw = 0.0
 			_apply_rover_pose()
 			camera_eyes = true
 			_set_rover_eyes(true)
-			_play_rover(ANIM_WALK, true)
+			_set_walk_spd(WALK_SPEED2_GX, WALK_ACCEL2_GX, WALK_DECEL2_GX)
+			_play_rover(ANIM_WALK, true, 1.0, 0.0)
 		Action.LAST_SIT:
 			## `aNGD_sitdown2` — snap to the bench and play sitdown mid-farewell.
 			_set_action(Action.SITDOWN)
+			return
 		_:
 			pass
-	_refresh_camera(0.0, false)
+	_refresh_camera(0.0)
 
 
-func _tick_enter(_delta: float) -> void:
-	if not _anim_playing():
-		_set_action(Action.APPROACH)
+func _set_walk_spd(max_speed: float, accel: float, decel: float) -> void:
+	_max_speed_gx = max_speed
+	_accel_gx = accel
+	_decel_gx = decel
 
 
-func _tick_approach(delta: float) -> void:
-	## `aNGD_approach`: walk the aisle at x=140 until z reaches 290.
-	_tick_move_axis_z(delta, ROVER_TALK_GX.z, Action.TALK, ROVER_AISLE_X_GX, 1.0)
+## `aNGD_set_stop_spd`: zero speed immediately.
+func _set_stop_spd() -> void:
+	_speed_gx = 0.0
+	_max_speed_gx = 0.0
+	_accel_gx = 0.0
+	_decel_gx = 0.0
 
 
-func _tick_move_aisle(delta: float) -> void:
-	## `aNGD_move_to_aisle`: ease yaw toward the aisle, then step with walk.
-	_aisle_turn_t = minf(_aisle_turn_t + delta / ANIM_MORPH_BLEND, 1.0)
-	_yaw = lerp_angle(_aisle_yaw_from, _aisle_yaw_to, _hermit_morph(_aisle_turn_t))
+## One decomp frame (1/60 s): `move_before` (position) → `aNGD_*` proc → `move_after`
+## (body lean) → `aNGD_set_camera`.
+func _logic_step() -> void:
+	_step_position()
+	match action:
+		Action.APPROACH:
+			_step_approach()
+		Action.TALK:
+			_step_talk()
+		Action.MOVE_AISLE:
+			_step_move_aisle()
+		Action.MOVE_DOOR:
+			_step_move_door()
+		Action.RETURN_APPROACH:
+			_step_return_approach()
+		Action.OPEN_DOOR:
+			_step_open_door()
+		_:
+			pass
+	_step_lean()
 	_apply_rover_pose()
-	if not _aisle_walk_started:
-		if _aisle_turn_t < 1.0:
-			return
-		_aisle_walk_started = true
-		_play_rover(ANIM_WALK, true)
-	_tick_move_until_x_reached(delta, ROVER_AISLE_GX.x, Action.MOVE_DOOR)
+	if _cam != null:
+		_cam.step_logic(shadow_gx())
 
 
-func _tick_move_door(delta: float) -> void:
-	## `aNGD_move_to_door`: aisle at x=140, walk toward the vestibule.
-	## Phone tilt starts when shadow z < 140 — checked after the step (decomp order).
-	_face_toward_gx(ROVER_DOOR_GX)
-	_tick_move_axis_z(delta, ROVER_DOOR_GX.z, Action.MOVE_DECK, ROVER_AISLE_X_GX, -1.0)
-	if _pos_gx.z < CAMERA_TILT_Z_GX and _cam != null:
+## `aNPC_position_move`: `chase_f(speed, max, accel·0.5)` then `pos += 0.5·speed` along yaw.
+func _step_position() -> void:
+	var accel: float = _accel_gx if _speed_gx < _max_speed_gx else _decel_gx
+	_speed_gx = move_toward(_speed_gx, _max_speed_gx, accel * 0.5)
+	if _speed_gx == 0.0:
+		return
+	var step: float = 0.5 * _speed_gx
+	_pos_gx.x += sin(_yaw) * step
+	_pos_gx.z += cos(_yaw) * step
+
+
+func _step_approach() -> void:
+	## `aNGD_approach`: straight down the aisle (yaw 0) until z reaches 290.
+	if _pos_gx.z >= ROVER_TALK_GX.z:
+		_pos_gx.z = ROVER_TALK_GX.z
+		_set_action(Action.TALK)
+
+
+func _step_talk() -> void:
+	## `chase_angle(&rotation.y, player_angle_y, 0x400)`.
+	_yaw = _chase_angle(_yaw, yaw_toward_player(_pos_gx), TALK_TURN_STEP * 0.5)
+
+
+func _step_move_aisle() -> void:
+	_calc_body_angl(ROVER_AISLE_GX)
+	if _pos_gx.x > ROVER_AISLE_GX.x:
+		_set_action(Action.MOVE_DOOR)
+
+
+func _step_move_door() -> void:
+	_calc_body_angl(ROVER_DOOR_GX)
+	if _pos_gx.z < ROVER_DOOR_GX.z:
+		_set_action(Action.MOVE_DECK)
+		return
+	if shadow_gx().z < CAMERA_TILT_Z_GX and _cam != null:
 		_cam.set_phone_tilt(true)
 
 
-func _tick_return_approach(delta: float) -> void:
-	## `aNGD_return_approach`: x=140 fixed, walk back toward the player.
-	_tick_move_axis_z(delta, ROVER_TALK_GX.z, Action.TALK, ROVER_AISLE_X_GX, 1.0)
+func _step_return_approach() -> void:
+	## `aNGD_return_approach`: x = 140 and yaw 0 every frame until z passes 290.
+	_pos_gx.x = ROVER_AISLE_X_GX
+	_yaw = 0.0
+	if _pos_gx.z > ROVER_TALK_GX.z:
+		_set_action(Action.TALK)
 
 
-func _tick_move_to_seat(delta: float) -> void:
-	## Walk from the aisle talk spot to the facing seat before `npc_1_sitdown_d1`.
-	_face_toward_gx(ROVER_SIT_GX)
-	var step: float = _speed_gx * 30.0 * delta
-	var to_seat: Vector3 = ROVER_SIT_GX - _pos_gx
-	to_seat.y = 0.0
-	var dist: float = to_seat.length()
-	if dist <= maxf(step, 0.001):
-		_pos_gx = ROVER_SIT_GX
-		_yaw = 0.0
-		_apply_rover_pose()
-		_set_action(Action.SITDOWN)
-		return
-	_pos_gx += to_seat.normalized() * step
-	_apply_rover_pose()
-
-
-func _tick_move_deck(_delta: float) -> void:
-	pass
-
-
-func _tick_open_door(_delta: float) -> void:
-	## `aNGD_open_door`: ease yaw to face the car; at open_d2 frame 22 clear phone tilt.
-	if _pos_gx.z < CAMERA_TILT_Z_GX:
-		_yaw = lerp_angle(_yaw, OPEN_D2_YAW, OPEN_D2_YAW_CHASE * _delta * 30.0)
-		_apply_rover_pose()
+func _step_open_door() -> void:
+	## `aNGD_open_door`: chase yaw to −180°; at open_d2 frame 22 clear phone tilt.
+	_yaw = _chase_angle(_yaw, OPEN_D2_YAW, OPEN_D2_YAW_CHASE * 0.5)
 	if (
 		_phone_tilt_reset_armed
-		and _pos_gx.z < CAMERA_TILT_Z_GX
 		and _rover_anim_frame() >= DOOR_OPEN_D2_FRAME
 	):
 		_phone_tilt_reset_armed = false
-		if _cam != null:
+		if shadow_gx().z < CAMERA_TILT_Z_GX and _cam != null:
 			_cam.set_phone_tilt(false)
 
 
-func _tick_move_axis_z(
-	delta: float, target_z: float, arrive: Action, x_gx: float, direction: float
-) -> void:
-	_pos_gx.x = x_gx
-	var step: float = _speed_gx * 30.0 * delta
-	if direction >= 0.0:
-		_yaw = 0.0
-		if _pos_gx.z + step >= target_z:
-			_pos_gx.z = target_z
-			_apply_rover_pose()
-			_set_action(arrive)
-			return
-		_pos_gx.z += step
-	else:
-		_yaw = PI
-		if _pos_gx.z - step <= target_z:
-			_pos_gx.z = target_z
-			_apply_rover_pose()
-			_set_action(arrive)
-			return
-		_pos_gx.z -= step
-	_apply_rover_pose()
-
-
-func _tick_move_until_x_reached(delta: float, target_x: float, arrive: Action) -> void:
-	var step: float = _speed_gx * 30.0 * delta
-	if _pos_gx.x + step >= target_x:
-		_pos_gx.x = target_x
-		_apply_rover_pose()
-		_set_action(arrive)
-		return
-	var dir: Vector3 = ROVER_AISLE_GX - _pos_gx
-	dir.y = 0.0
-	dir = dir.normalized()
-	_pos_gx += dir * step
-	_apply_rover_pose()
-
-
-func _face_toward_gx(target_gx: Vector3) -> void:
+## `aNGD_calc_body_angl`: chase yaw toward a GX point at 11.25° per 1/30 s.
+func _calc_body_angl(target_gx: Vector3) -> void:
 	var to: Vector3 = target_gx - _pos_gx
-	to.y = 0.0
-	if to.length_squared() > 0.001:
-		_yaw = atan2(to.x, to.z)
+	if absf(to.x) < 0.0001 and absf(to.z) < 0.0001:
+		return
+	_yaw = _chase_angle(_yaw, atan2(to.x, to.z), BODY_TURN_STEP * 0.5)
 
 
-func _begin_aisle_turn() -> void:
-	_aisle_yaw_from = _yaw
-	var to: Vector3 = ROVER_AISLE_GX - _pos_gx
-	to.y = 0.0
-	if to.length_squared() > 0.001:
-		_aisle_yaw_to = atan2(to.x, to.z)
-	else:
-		_aisle_yaw_to = _yaw
-	_aisle_turn_t = 0.0
+## `aNPC_set_body_angle`: forward pitch proportional to speed.
+func _step_lean() -> void:
+	_lean = _chase_angle(_lean, _speed_gx * BODY_LEAN_PER_SPEED, BODY_LEAN_STEP * 0.5)
+
+
+static func _chase_angle(current: float, target: float, step: float) -> float:
+	var diff: float = wrapf(target - current, -PI, PI)
+	if absf(diff) <= step:
+		return target
+	return current + signf(diff) * step
+
+
+## `draw.shadow_pos`: actor position + `joint_0` root-motion offset
+## (`cKF_SkeletonInfo_R_AnimationMove_CulcTransToWorld`). Floor-relative Y.
+func shadow_gx() -> Vector3:
+	var out: Vector3 = _pos_gx
+	if _rover != null and _rover.has_method("root_motion_offset_gx"):
+		out += _rover.call("root_motion_offset_gx") as Vector3
+	return out
 
 
 func _apply_rover_pose() -> void:
 	if _rover == null:
 		return
 	_rover.global_position = gx_to_meters(_pos_gx)
-	_rover.rotation.y = _yaw
+	_rover.rotation = Vector3(_lean, _yaw, 0.0)
 
 
 func _play_door_sync(sync_name: StringName) -> void:
@@ -648,16 +618,10 @@ func _set_rover_eyes(active: bool) -> void:
 		_rover_look.set_camera_eyes(active)
 
 
-func _current_camera_look_gx(ground_gx: Vector3) -> Vector3:
+func current_look_gx() -> Vector3:
 	if _cam == null:
 		return CAM_LOOK_GX
-	return _cam.current_look_gx(ground_gx, action)
-
-
-func _steady_camera_look_gx(ground_gx: Vector3) -> Vector3:
-	if _cam == null:
-		return CAM_LOOK_GX
-	return _cam.steady_look_gx(ground_gx, action)
+	return _cam.current_look_gx()
 
 
 func _rover_anim_frame() -> float:
@@ -758,7 +722,7 @@ func _hide_keitai() -> void:
 static func _rover_anim_blend(suffix: String) -> float:
 	## Instant cuts for clips that must not crossfade from the prior pose.
 	match suffix:
-		ANIM_OPEN_D1, ANIM_SITDOWN, ANIM_STANDUP:
+		ANIM_OPEN_D1, ANIM_SITDOWN:
 			return 0.0
 		_:
 			return ANIM_MORPH_BLEND
@@ -863,38 +827,23 @@ func tick(delta: float) -> void:
 		var hold := _manpu_hold_clip
 		_manpu_hold_clip = ""
 		_play_rover(hold, true)
-	match action:
-		Action.ENTER:
-			_tick_enter(delta)
-		Action.APPROACH:
-			_tick_approach(delta)
-		Action.MOVE_AISLE:
-			_tick_move_aisle(delta)
-		Action.MOVE_DOOR:
-			_tick_move_door(delta)
-		Action.RETURN_APPROACH:
-			_tick_return_approach(delta)
-		Action.MOVE_TO_SEAT:
-			_tick_move_to_seat(delta)
-		Action.MOVE_DECK:
-			_tick_move_deck(delta)
-		Action.OPEN_DOOR:
-			_tick_open_door(delta)
-		Action.SITDOWN, Action.STANDUP, Action.KEITAI_ON, Action.KEITAI_OFF:
-			pass
-		_:
-			pass
+	if action == Action.ENTER and not _anim_playing():
+		## `aNGD_enter`: `open_d1` stopped → APPROACH.
+		_set_action(Action.APPROACH)
+	if action == Action.KEITAI_TALK and not _keitai_talk_looping and not _anim_playing():
+		_keitai_talk_looping = true
+		_play_rover(ANIM_KEITAI_TALK2, true)
+	_logic_accum = minf(_logic_accum + delta * _LOGIC_HZ, 8.0)
+	while _logic_accum >= 1.0:
+		_logic_accum -= 1.0
+		_logic_step()
 	_refresh_camera(delta)
 
 
-func _refresh_camera(delta: float, advance_morph: bool = true) -> void:
+func _refresh_camera(delta: float) -> void:
 	if _cam == null:
 		return
-	_cam.tick(delta, _pos_gx, action, advance_morph)
-
-
-func _update_camera(delta: float) -> void:
-	_refresh_camera(delta)
+	_cam.tick(delta, shadow_gx())
 
 
 func _action_name(act: Action) -> StringName:
