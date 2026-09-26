@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"cedar_sapling"
+display_name = "Cedar Sapling"
+description = "Plant on grass. Grows into a cedar."
+category = 5
+buy_price = 60
+usable = true
+use_verb = "Plant"
+plant_id = &"cedar_tree"
+icon_color = Color(0.25, 0.5, 0.3, 1)

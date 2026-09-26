@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"yellow_tulip_bag"
+display_name = "Yellow Tulip Bag"
+description = "A bag of flower seeds. Plant it on grass."
+category = 5
+buy_price = 120
+usable = true
+use_verb = "Plant"
+plant_id = &"pansy"
+icon_color = Color(0.8, 0.7, 0.5, 1)

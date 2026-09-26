@@ -36,24 +36,41 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 func _stock(root: Node3D, interior: IndoorSession, shop_id: StringName) -> void:
 	var room: Room = interior.room
 	var listed: Array[StringName] = Game.shops.goods(shop_id)
+	var prizes: bool = false
+	## Raffle day: no goods, the three prizes are on display instead.
+	if shop_id == ShopBook.NOOK_ID and listed.is_empty() and Game.shops.is_lottery_day():
+		for prize: StringName in Game.shops.lottery_prizes():
+			if prize != &"":
+				listed.append(prize)
+		prizes = true
+	var placed: int = 0
 	if room.id == &"shop0":
 		var placements: Array[Dictionary] = ShopDisplay.stock_placements_for_goods(listed)
 		for i: int in mini(listed.size(), placements.size()):
 			var row: Dictionary = placements[i]
 			var pos: Vector3 = interior.grid.cell_to_world(row["cell"] as Vector2i)
 			pos.y = float(row.get("y_gx", 0.0)) * FieldCatalog.GX_TO_METERS
-			_add_stock(root, i, shop_id, listed[i], pos)
-		return
+			_add_stock(root, i, shop_id, listed[i], pos, prizes)
+		placed = placements.size()
+		if placed >= listed.size():
+			return
+	## Upgraded shops (and any Cranny overflow) use the free floor cells.
 	var cells: Array[Vector2i] = ShopDisplay.free_stock_cells(room, interior)
-	for i: int in mini(listed.size(), cells.size()):
-		_add_stock(root, i, shop_id, listed[i], interior.grid.cell_to_world(cells[i]))
+	if room.id == &"shop0":
+		for used: Dictionary in ShopDisplay.stock_placements_for_goods(listed):
+			cells.erase(used["cell"] as Vector2i)
+	for i: int in mini(listed.size() - placed, cells.size()):
+		_add_stock(root, placed + i, shop_id, listed[placed + i], interior.grid.cell_to_world(cells[i]), prizes)
 
 
-func _add_stock(root: Node3D, i: int, shop_id: StringName, item_id: StringName, pos: Vector3) -> void:
+func _add_stock(
+	root: Node3D, i: int, shop_id: StringName, item_id: StringName, pos: Vector3, prize: bool = false
+) -> void:
 	var node: Node3D = STOCK_SCENE.instantiate() as Node3D
 	node.name = "ShopStock_%d" % i
 	node.set("shop_id", shop_id)
 	node.set("item_id", item_id)
+	node.set("lottery_prize", prize)
 	node.set("occupant_id", StringName("shop_stock_%d" % i))
 	node.position = pos
 	root.add_child(node)

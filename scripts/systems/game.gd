@@ -50,6 +50,10 @@ var police: PoliceBook = PoliceBook.new()
 var post: PostBook = PostBook.new()
 var farway: FarwayBook = FarwayBook.new()
 var redd: ReddBook = ReddBook.new()
+## Every catalog item the player has owned + Nook mail orders (`m_catalog_ovl`).
+var catalog: CatalogBook = CatalogBook.new()
+## `Save_Get(fruit)`: the town's native fruit. Other fruit sells to Nook at the foreign price.
+var town_fruit: StringName = &"apple"
 ## Holidays, weekly visitors and the special-NPC schedule (`m_event`); see `EventCalendar`.
 var events: EventCalendar = EventCalendar.new()
 var designs: DesignBook = DesignBook.new()
@@ -619,6 +623,11 @@ func reset_session() -> void:
 		redd = ReddBook.new()
 	else:
 		redd.clear()
+	if catalog == null:
+		catalog = CatalogBook.new()
+	else:
+		catalog.clear()
+	town_fruit = &"apple"
 	events.clear()
 	_events_ready = false
 	if designs == null:
@@ -856,6 +865,8 @@ func to_save() -> Dictionary:
 		"post": post.to_save(),
 		"farway": farway.to_save(),
 		"redd": redd.to_save(),
+		"catalog": catalog.to_save(),
+		"town_fruit": String(town_fruit),
 		"events": events.to_save(),
 		"designs": designs.to_save(),
 		"worn_design_slot": worn_design_slot,
@@ -961,6 +972,11 @@ func apply_snapshot(data: Dictionary) -> void:
 	if redd == null:
 		redd = ReddBook.new()
 	redd.apply_snapshot(data.get("redd", {}))
+	if catalog == null:
+		catalog = CatalogBook.new()
+	catalog.apply_snapshot(data.get("catalog", {}))
+	catalog.record_inventory(inventory)
+	town_fruit = StringName(str(data.get("town_fruit", "apple")))
 	events.apply_snapshot(data.get("events", {}))
 	_events_ready = false
 	if designs == null:
@@ -1187,6 +1203,7 @@ func _on_field_renewed(days: int) -> void:
 			police.force_set_keep_item()
 	refresh_police_set()
 	_deliver_farway_mail()
+	_deliver_shop_mail()
 	if redd != null:
 		redd.check_unlock()
 	## One roll for the current date after renew (`mEnv_DecideWeather` / `aWeather_ChangeWeatherTime0`).
@@ -1199,6 +1216,21 @@ func _deliver_farway_mail() -> void:
 	if farway == null or inventory == null:
 		return
 	var letters: Array[MailData] = farway.process_delivery()
+	var delivered: int = 0
+	for letter: MailData in letters:
+		if inventory.add_received_mail(letter) >= 0:
+			delivered += 1
+	if delivered > 0:
+		post_notice("You've got mail!")
+
+
+## Nook's letters each morning: catalog orders, mailed raffle tickets, renovation notices.
+func _deliver_shop_mail() -> void:
+	if shops == null or inventory == null:
+		return
+	var letters: Array[MailData] = shops.take_mail()
+	if catalog != null:
+		letters.append_array(catalog.take_deliveries())
 	var delivered: int = 0
 	for letter: MailData in letters:
 		if inventory.add_received_mail(letter) >= 0:

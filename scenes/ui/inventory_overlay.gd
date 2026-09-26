@@ -1810,11 +1810,13 @@ func _take_letter_enclosure(idx: int) -> void:
 	if item == null:
 		Game.post_notice("The enclosure is missing.")
 		return
-	if not inv.has_space_for(item, 1):
+	var count: int = maxi(1, mail.present_count)
+	if not inv.has_space_for(item, count):
 		Game.post_notice("Your pockets are full.")
 		return
-	inv.add(item, 1)
+	inv.add(item, count)
 	mail.present_item_id = &""
+	mail.present_count = 1
 	mail.mark_read()
 	inv.mail_changed.emit()
 	Game.post_notice("You took the %s." % item.display_name)

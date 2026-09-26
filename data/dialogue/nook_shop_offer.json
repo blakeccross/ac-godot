@@ -1,0 +1,216 @@
+{
+  "id": "nook_shop_offer",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_offer_kind",
+              "value": "cloth"
+            }
+          },
+          "goto": "cloth"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_offer_kind",
+              "value": "paint"
+            }
+          },
+          "goto": "paint"
+        },
+        {
+          "goto": "offer"
+        }
+      ]
+    },
+    "offer": {
+      "type": "choice",
+      "prompt": "That's the {item0}.\nIt's {free0} Bells.\nWould you like it?",
+      "options": [
+        {
+          "text": "I'll buy it!",
+          "goto": "buy"
+        },
+        {
+          "text": "No thanks.",
+          "goto": "decline"
+        }
+      ]
+    },
+    "cloth": {
+      "type": "choice",
+      "prompt": "The {item0}? That's\n{free0} Bells. Want to\ntry it on first?",
+      "options": [
+        {
+          "text": "I'll buy it!",
+          "goto": "buy"
+        },
+        {
+          "text": "Let me try it on.",
+          "goto": "try_on"
+        },
+        {
+          "text": "No thanks.",
+          "goto": "decline"
+        }
+      ]
+    },
+    "try_on": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "try_on"
+        }
+      ],
+      "next": "after_try"
+    },
+    "after_try": {
+      "type": "choice",
+      "prompt": "Looking sharp! So, will\nyou take it for {free0} Bells?",
+      "options": [
+        {
+          "text": "I'll buy it!",
+          "goto": "buy"
+        },
+        {
+          "text": "No thanks.",
+          "goto": "decline"
+        }
+      ]
+    },
+    "paint": {
+      "type": "choice",
+      "prompt": "{item0}, for your roof.\n{free0} Bells, and I'll have\nit painted. Interested?",
+      "options": [
+        {
+          "text": "Paint my roof!",
+          "goto": "buy"
+        },
+        {
+          "text": "No thanks.",
+          "goto": "decline"
+        }
+      ]
+    },
+    "buy": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "buy"
+        }
+      ],
+      "next": "result"
+    },
+    "result": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_buy",
+              "value": "no_money"
+            }
+          },
+          "goto": "no_money"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_buy",
+              "value": "full"
+            }
+          },
+          "goto": "full"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_buy",
+              "value": "sold_out"
+            }
+          },
+          "goto": "sold_out"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_buy",
+              "value": "not_for_sale"
+            }
+          },
+          "goto": "sold_out"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_ticket",
+              "value": "pocket"
+            }
+          },
+          "goto": "ticket"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_ticket",
+              "value": "mail"
+            }
+          },
+          "goto": "ticket_mail"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_ticket",
+              "value": "paint"
+            }
+          },
+          "goto": "painted"
+        },
+        {
+          "goto": "thanks"
+        }
+      ]
+    },
+    "thanks": {
+      "type": "line",
+      "text": "Thank you kindly!"
+    },
+    "ticket": {
+      "type": "line",
+      "text": "Thank you kindly! And\nhere's a raffle ticket.\nThe drawing is at month's end!"
+    },
+    "ticket_mail": {
+      "type": "line",
+      "text": "Thank you! Your pockets\nare full, so I'll mail your\nraffle ticket tomorrow."
+    },
+    "painted": {
+      "type": "line",
+      "text": "Consider it done! Your roof\nwill have its new color the\nnext time you come to town."
+    },
+    "no_money": {
+      "type": "line",
+      "text": "Oh... it seems you're a bit\nshort on Bells. Come back\nwhen you've saved up!"
+    },
+    "full": {
+      "type": "line",
+      "text": "Your pockets look full!\nMake some room first,\nyes, yes?"
+    },
+    "sold_out": {
+      "type": "line",
+      "text": "Oh dear, that one's\nalready gone."
+    },
+    "decline": {
+      "type": "line",
+      "text": "I see. Take your time\nand look around!"
+    }
+  }
+}

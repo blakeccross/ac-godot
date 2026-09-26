@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"ticket_06"
+display_name = "June Ticket"
+description = "A raffle ticket for Nook's drawing on the last day of June."
+category = 5
+max_stack = 5
+icon_color = Color(0.95, 0.9, 0.55, 1)

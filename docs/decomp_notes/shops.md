@@ -2,9 +2,9 @@
 
 Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp). Behavioral reference only — not every store is in scope.
 
-**Godot:** `ShopBook` (`RefCounted` on `Game`, not an autoload). Only Nook (`shop0`) is a Bell shop — buy and sell. Listed price is `ItemData.buy_price` (or `sell_price` if buy is 0). Nook pays fruit/fish/bugs at authored `sell_price`; everything else is listed / 4 (`SELL_BUY_RATIO`). Cranny stock follows zakka counts (tools×2, furniture, wall, carpet, cloth, sapling, plants×2; no paper category). Lineup rerolls at 06:00 (`Clock.field_renewed`). Wallet is `Inventory.wallet`.
+**Godot:** `ShopBook` (`RefCounted` on `Game`, not an autoload) owns Nook's state; `ShopGoods` rolls the lineup; `KabuMarket` is the Stalk Market; `CatalogBook` (on `Game`) is the catalog + mail-order queue; `ShopMail` writes the store's letters; `NookShopTalk` drives Tom Nook's conversations (`nook_shop_menu` / `nook_shop_offer` / `nook_lottery` JSON). Only Nook (`shop0`) is a Bell shop — buy and sell. Listed price is `ItemData.buy_price` (or `sell_price` if buy is 0); stationery is a 4-sheet pad, the signboard 500, a grab bag costs the year. Nook pays fruit/fish/bugs at authored `sell_price`, foreign fruit 2000 / 4, everything else listed / 4 (`SELL_BUY_RATIO`). Wallet is `Inventory.wallet`; money sacks in the pockets top it up when buying.
 
-**Able Sisters (`needlework`) is NOT a clothing store.** `SCENE_NEEDLEWORK` is a design/pattern shop (`src/game/m_needlework.c`, `ac_needlework_indoor.c`, `ac_npc_needlework`). `ShopBook._roll(ABLE_ID)` returns `[]` — no Bell stock, no counter. The player keeps 8 original designs (`Game.designs` = `DesignBook`), the shop 8 shared ones (4 mannequins + 4 umbrella stands). Designs are made in the pixel editor (350 Bells for a new one) and traded through Mabel — see the design/pattern tool entry in [feature-checklist.md](../feature-checklist.md).
+**Able Sisters (`needlework`) is NOT a clothing store.** `SCENE_NEEDLEWORK` is a design/pattern shop (`src/game/m_needlework.c`, `ac_needlework_indoor.c`, `ac_npc_needlework`). `ShopBook.restock(ABLE_ID)` stocks nothing — no Bell stock, no counter. The player keeps 8 original designs (`Game.designs` = `DesignBook`), the shop 8 shared ones (4 mannequins + 4 umbrella stands). Designs are made in the pixel editor (350 Bells for a new one) and traded through Mabel — see the design/pattern tool entry in [feature-checklist.md](../feature-checklist.md).
 
 **Cranny presentation (`ShopDisplay` + authored `shop0.tscn`):**
 - Shells `rom_shop1f` / `rom_shop1w` (and `rom_shop2f`/`w`, `rom_shop3f`/`w`, `rom_shop4_2f`/`w`); the `f`/`w` suffix is floor/wall. Wall/floor bank indices follow `aSI_*_default_table` (`WALL_SHOP*` / `FLOOR_SHOP*` → 67–70).
@@ -26,7 +26,10 @@ Hours stay on `InteriorCatalog.is_open_now`. Nook upgrades by sales → `shop0`�
 | `include/m_shop.h`, `src/game/m_shop.c` | Shop type, hours, stock lists, sales sums, prices |
 | `src/data/npc/npc_draw_data.c` | Shop-master draw rows (`rcn_1` / `rcc_1` / `rcs_1` / `rcd_1`) |
 | `src/data/field/mvactor/shop0*.c` | Indoor stand ut (`shop01`…`shop04_1` actables) |
-| `include/m_kabu_manager.h` | Turnip prices (separate stall) |
+| `src/game/m_kabu_manager.c` | Stalk Market weekly schedule |
+| `src/actor/npc/ac_npc_shop_common.c` | Shop-master talk: menu, shelf offers, buy/sell checks, tickets, orders |
+| `src/actor/npc/ac_npc_shop_mastersp_talk.c_inc` | Raffle-day Nook: ticket check, odds, prizes |
+| `src/actor/ac_shop_level.c` | Renovation booking and upgrade |
 | `include/m_post_office.h` | Post office, not Nook |
 | `include/m_field_info.h` | Shop room field ids |
 | `include/m_tag_ovl.h` | `mTG_TYPE_SELL_ITEM`, `SELL_ALL_ITEM` |
@@ -86,8 +89,16 @@ Other buildings (Able Sisters, auction, island shack, museum shop) are different
 - **Furniture / plants** — goods kinds.
 - **Save** — `Shop_c`.
 
-## Behavior
+## Behavior (as built)
 
-- **Nook's Cranny and Able Sisters** (see [museum.md](museum.md) for Redd) with open hours, a stock list, and buy (Nook also sells). Prices come from `ItemData`; wallet must cover the buy. Closed outside hours; stock refreshes daily at 06:00.
-- Fixed prices, no ABC rarity percentages (`mSP_GetGoodsPercent`). Sell is a single ratio (catalog / 4) except fruit/fish/bugs, which keep authored `sell_price`.
-- Nook upgrade interiors (`shop0`…`shop3_1` / outdoor `obj_s_shop1`…`4`) follow sales thresholds; Tom Nook uses that level's `npc_draw_data` skeleton (`rcn_1`…`rcd_1`) at the matching `shop0N_actable` stand, via an annex link rather than full multi-floor department browsing.
+- **Level & renovation** (`mSP_PlusSales`, `mSP_GetRealShopLevel`, `aSL_JudgeRenewShop`, `aSL_RenewShop`, `mSP_InRenewal`): `level` is stored. Buying adds the price to sales, Nook buying from you adds half the payout, catalog orders add the price; sales cap at the next threshold (25k / 90k / 240k) until that building exists. When sales earn the next building (Nookington's also needs `visitor`), a renovation is booked for two days later unless raffle day, Sale Day or the shop-sale event falls in the window; it is cancelled if the clock moves more than two days back. The shop is `RENEW` (closed for renovations) from opening time the day before, and the new building opens at its own opening hour on the booked day with a fresh lineup. A renovation notice goes out when booked and a grand-opening letter when it lands (`aSL_SetShopRenewalChirashi_Notice`, `mSP_SetRenewalChiraswhi_AppoDay`).
+- **Hours** (`mSP_ShopOpen`): `PRE` 06:00 until opening, `OPEN`, `END`; forced open during the first job. Raffle day (last of the month) opens at 10.
+- **Lineup** (`mSP_MakeGoodsList`): counts per level from `l_*_goods`; Cranny tools unlock by sales (shovel, net ≥3k, rod ≥8k, axe ≥12k), bigger shops draw any; Nookway+ adds the rotating paint colour, a signboard, a cedar sapling and a rare-furniture slot (`ItemData.shop_rare`); one umbrella; flower-seed bags never repeat. Oct 16–30 flower bags become candy and saplings become bags. Sale Day (day after the 4th Thursday of November) replaces stationery/tools/plants/saplings (+ paint/sign) with grab bags. Raffle day has no goods; the three prizes are on the shelves.
+- **Buying** (`aNSC_sell_answer0`): money check counts sacks (`mSP_money_check`); sacks are opened smallest-first with change to the wallet (`mSP_get_sell_price`). Pockets full → refused. Furniture / clothes / wallpaper / carpet / umbrellas earn a ticket for this month (`ticket_MM`, stack of 5); with no room it is mailed at the next 06:00 (up to 255 held, five per letter). Paint does not enter the pockets: it sets the house's `next_outlook_pal`, applied at the next game start. Clothes can be tried on first (the player changes back either way).
+- **Selling** (`aNSC_check_buy_item_*`, `aNSC_buy_check`): quest items refused; presents skipped; zero-value items are taken for free ("off your hands"); turnips at `KabuMarket.price_today() × bundle`, never on Sunday; spoiled turnips are junk. Payout over 99,999 becomes 30,000-bell bags; if the bags won't fit (counting slots the sale frees) Nook refuses.
+- **Catalog orders** (`aNSC_order_check`, `mPO_delivery_mail_with_order_ftr`): catalog items (furniture, clothing, wallpaper, carpet, stationery, umbrellas) record when they reach the pockets. Five order slots; paid at the counter; delivered enclosed in a letter the next morning.
+- **Raffle** (`ac_npc_shop_mastersp`): prizes rerolled monthly, first one preferring furniture you don't own. Five same-month tickets per spin; roll <5 first, <15 second, <35 third; a prize already won is a miss.
+- **Turnips** (`m_kabu_manager.c`): schedule keyed to the week's Sunday; Sunday price `100 × [0.7, 1.3)`; trend A = B + one Mon–Fri day at 8× Sunday, B random walk, C falling 80–95% a day; next trend from the current one's odds (A .5/.3/.2, B .6/.2/.2, C .6/.3/.1). Rerolled on the setting Sunday and whenever a week stale.
+- **Sale event**: on the `shop_sale` event Nook gives one balloon on the first talk if a pocket slot is free.
+
+Not built: the Nookway+ diary (no diary items exist), ABC rarity lists (`mSP_GetGoodsPercent` — needs the ROM item lists), rare-furniture leaflet (`mSP_SetShopRareFurnitureChirashi`), the bargain-event FG layouts, wallpaper/carpet preview on the shop walls, Timmy & Tommy (`ac_npc_mamedanuki`), passwords, HRA talk, April Fool's lines, ground turnips spoiling.

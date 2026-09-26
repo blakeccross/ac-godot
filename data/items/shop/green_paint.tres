@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"green_paint"
+display_name = "Green Paint"
+description = "Roof paint. Nook repaints your roof overnight."
+category = 5
+buy_price = 980
+droppable = false
+icon_color = Color(0.2, 0.6, 0.25, 1)
