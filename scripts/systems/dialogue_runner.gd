@@ -334,6 +334,10 @@ func _fire_list(raw: Variant) -> void:
 func _apply_event(event: Dictionary) -> void:
 	var op := String(event.get("op", event.get("type", "")))
 	match op:
+		"bgm_make":
+			MessageBgm.make(int(event.get("bgm", 0)), int(event.get("stop", 0)))
+		"bgm_delete":
+			MessageBgm.delete(int(event.get("bgm", 0)), int(event.get("stop", 0)))
 		"set_var":
 			if context != null:
 				context.set_var(str(event.get("name", "")), event.get("value", 0))

@@ -35,6 +35,8 @@ const BUS := "Train"
 var control: TrainControl = TrainControl.new()
 
 var _initialized: bool = false
+## `train_coming_flag = 3` (`aID_first_set`): the next tick runs `mTRC_demo_init`.
+var _coming_demo: bool = false
 var _steps := FrameStepper.new()
 ## `sou_kisha_status`, `sou_shu_count`, `sou_tonton_count`.
 var _status: int = 0
@@ -56,6 +58,7 @@ func _ready() -> void:
 ## `mTRC_init`: a new play session starts with no train and a fresh timetable.
 func reset() -> void:
 	_initialized = false
+	_coming_demo = false
 	_steps.reset()
 	_status = 0
 	_shu = 0
@@ -81,19 +84,31 @@ func _physics_process(delta: float) -> void:
 		_tick()
 
 
-## `mTRC_go_process`: the field train runs in play (not the K.K. / Rover intro scenes, and not
-## while the intro arrival stage owns its own train) and in title demo 1 only.
+## `aID_first_set`: `Common_Set(train_coming_flag, 3)` — the new resident's train pulls in.
+func request_arrival_demo() -> void:
+	_coming_demo = true
+
+
+## `mTRC_go_process`: the field train runs in play and during the station arrival (not in the
+## K.K. / Rover intro scenes), and in title demo 1 only.
 static func is_active() -> bool:
 	if Game.world_mode != WorldData.Mode.GENERATED:
 		return false
 	if Game.title_demo_active:
 		return TitleDemo.has_parked_train(Game.title_demo_index)
-	return Game.phase == Game.Phase.PLAYING and not Game.intro_station_active
+	return Game.phase == Game.Phase.PLAYING or Game.intro_station_active
+
+
+func field_train() -> FieldTrain:
+	return _field_train()
 
 
 func _tick() -> void:
 	var parked: bool = Game.title_demo_active
-	var state: int = control.step(Clock.now_sec(), Clock.day, Game.first_job.is_active(), parked)
+	var state: int = control.step(
+		Clock.now_sec(), Clock.day, Game.first_job.is_active(), parked, _coming_demo
+	)
+	_coming_demo = false
 	var mode: int = _scene_mode()
 	var mic: Vector3 = _mic_gx()
 	var loco := Vector3(control.x_gx, SOUND_Y_GX, TrainControl.RAIL_Z_GX)

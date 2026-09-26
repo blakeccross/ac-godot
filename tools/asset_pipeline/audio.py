@@ -420,6 +420,17 @@ def _load_se_ids(decomp: Optional[Path]) -> dict[str, int]:
     return parse_se_ids(path.read_text(encoding="utf-8", errors="replace"))
 
 
+def resolve_seq_alias(seq: int, seq_entries: list[dict[str, int]]) -> int:
+    """A zero-size `AudioseqHeader` entry is an alias: its `addr` is the sequence it plays
+    (`BGM_INTRO_SELECT_HOUSE2` seq 65 → 64, title seq 70 → 62)."""
+    by_index = {e["index"]: e for e in seq_entries}
+    seen: set[int] = set()
+    while seq in by_index and by_index[seq]["size"] == 0 and seq not in seen:
+        seen.add(seq)
+        seq = by_index[seq]["addr"]
+    return seq
+
+
 def _catalog_entries(
     bgm_ids: dict[str, int],
     seq_table: list[int],
@@ -431,6 +442,7 @@ def _catalog_entries(
     for key in keys:
         bgm_num = bgm_ids.get(key, -1)
         seq = seq_table[bgm_num] if 0 <= bgm_num < len(seq_table) else -1
+        seq = resolve_seq_alias(seq, seq_entries)
         out.append(
             {
                 "id": key,

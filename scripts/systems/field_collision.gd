@@ -41,6 +41,22 @@ static var _cell_segs: Dictionary = {}
 static var _nearby_segs: Dictionary = {}
 ## `mCoBG_SetPluss5PointOffset` overlay (cell → corner offsets + slate).
 static var _plus: Dictionary = {}
+## `mCoBG_SetAttribute` overlay (cell → unit attribute), e.g. the station platform gate.
+static var _attr_override: Dictionary = {}
+
+## `mCoBG_forbid_vector_idx[attr − 27]` → `mCoBG_make_vector_table` walls for attributes
+## 27…62 (`mCoBG_MakeForbidVectorData`, built for every actor checked with `attr_wall`).
+## Wall ids: 0 UP (north edge), 1 RIGHT (east), 2 LEFT (west), 3 DOWN (south),
+## 4 / 6 SLATE_UP (SW↔NE diagonal), 5 / 7 SLATE_DOWN (NW↔SE diagonal).
+const FORBID_ATTR_MIN := 27
+const FORBID_ATTR_MAX := 62
+const FORBID_WALLS: Array = [
+	[4], [5], [6], [7], [], [0], [1], [2],
+	[3], [3], [6], [5], [4], [5], [6], [7],
+	[0], [1], [2], [3], [0], [1], [2], [3],
+	[0, 2], [3, 2], [3, 1], [0, 1], [4], [5], [6], [7],
+	[0, 2], [3, 2], [3, 1], [0, 1],
+]
 
 
 static func clear_caches() -> void:
@@ -48,6 +64,25 @@ static func clear_caches() -> void:
 	_cell_segs.clear()
 	_nearby_segs.clear()
 	_plus.clear()
+	_attr_override.clear()
+
+
+## `mCoBG_SetAttribute`: change one unit's attribute at runtime (walls rebuild).
+static func set_attr_override(cell: Vector2i, attr: int) -> void:
+	_attr_override[cell] = attr
+	invalidate_segments()
+
+
+static func clear_attr_override(cell: Vector2i) -> void:
+	if _attr_override.erase(cell):
+		invalidate_segments()
+
+
+## Walls a unit's attribute forbids (`FORBID_WALLS` ids), none outside 27…62.
+static func forbid_walls(attr: int) -> Array:
+	if attr < FORBID_ATTR_MIN or attr > FORBID_ATTR_MAX:
+		return []
+	return FORBID_WALLS[attr - FORBID_ATTR_MIN]
 
 
 static func clear_plus() -> void:
@@ -148,7 +183,7 @@ static func unit_attr_at_cell(data: WorldData, cell: Vector2i) -> int:
 	var unit: Dictionary = _catalog_unit(data, cell, false)
 	if unit.is_empty():
 		return -1
-	return int(unit["a"])
+	return int(unit["a"])  ## `_catalog_unit` applies `_attr_override`.
 
 
 static func acre_type_at(data: WorldData, cell: Vector2i) -> int:
@@ -461,6 +496,9 @@ static func _catalog_unit(data: WorldData, cell: Vector2i, with_plus: bool = tru
 		base = FieldCatalog.unit_at(
 			visual, posmod(cell.x, WorldGenerator.UT), posmod(cell.y, WorldGenerator.UT)
 		)
+	if _attr_override.has(cell) and not base.is_empty():
+		base = base.duplicate()
+		base["a"] = int(_attr_override[cell])
 	if not with_plus or not data.is_in_bounds(cell) or not _plus.has(cell):
 		return base
 	if base.is_empty():
@@ -539,6 +577,39 @@ static func _append_cell_segments(
 	if not data.is_in_bounds(north) and not _catalog_unit(data, north).is_empty():
 		_append_cardinal(segs, data, grid, north, cell, false)
 	_append_slate(segs, data, grid, cell)
+	_append_forbid(segs, data, grid, cell)
+
+
+## `mCoBG_MakeForbidVectorData`: the attribute's own edge / diagonal walls in this unit.
+static func _append_forbid(
+	segs: Array[Vector4], data: WorldData, grid: WorldGrid, cell: Vector2i
+) -> void:
+	var unit: Dictionary = _catalog_unit(data, cell, false)
+	if unit.is_empty():
+		return
+	var walls: Array = forbid_walls(int(unit["a"]))
+	if walls.is_empty():
+		return
+	var c0: Vector3 = grid.cell_corner(cell)
+	var cs: float = grid.cell_size
+	var nw := Vector2(c0.x, c0.z)
+	var ne := Vector2(c0.x + cs, c0.z)
+	var sw := Vector2(c0.x, c0.z + cs)
+	var se := Vector2(c0.x + cs, c0.z + cs)
+	for wall: Variant in walls:
+		match int(wall):
+			0:
+				_push_seg(segs, nw, ne)
+			1:
+				_push_seg(segs, ne, se)
+			2:
+				_push_seg(segs, nw, sw)
+			3:
+				_push_seg(segs, sw, se)
+			4, 6:
+				_push_seg(segs, sw, ne)
+			5, 7:
+				_push_seg(segs, nw, se)
 
 
 static func _append_cardinal(

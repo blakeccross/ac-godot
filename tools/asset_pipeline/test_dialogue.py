@@ -199,3 +199,15 @@ class DialogueCodecTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DialogueBgmEventTests(unittest.TestCase):
+    def test_bgm_make_and_delete_become_events(self) -> None:
+        from asset_pipeline.dialogue import _page_event_from_token
+
+        self.assertEqual(
+            _page_event_from_token("BGMMAKE", [2, 0]), {"op": "bgm_make", "bgm": 2, "stop": 0}
+        )
+        self.assertEqual(
+            _page_event_from_token("BGMDELETE", [1, 1]), {"op": "bgm_delete", "bgm": 1, "stop": 1}
+        )

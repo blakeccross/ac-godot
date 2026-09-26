@@ -2172,5 +2172,30 @@ class JointTextureInheritanceTests(unittest.TestCase):
         self.assertFalse(_blob_sets_texture(b""))
 
 
+
+
+class EffectFrameFormatTests(unittest.TestCase):
+    def test_formats_come_from_the_effect_dls(self) -> None:
+        from asset_pipeline.convert import effect_dl_frame_formats
+
+        kemuri = (
+            "u8 ef_kisha_kemuri01_0[] = {};\n"
+            "gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 16, 16, ef_kisha_kemuri01_0),\n"
+            "gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 16, 16, ef_kisha_kemuri01_1),\n"
+        )
+        dust = (
+            'u8 ef_dust01_0[] ATTRIBUTE_ALIGN(32) = {\n#include "assets/ef_dust01_0.inc"\n};\n'
+            'u8 ef_dust01_1[] = {\n#include "assets/ef_dust01_1.inc"\n};\n'
+            "u8 ef_dust01_anime_ptn[] = { 0, 1, 2 };\n"
+            "gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 16, 16, anime_1_txt),\n"
+            "gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 16, 16, anime_2_txt),\n"
+        )
+        out = effect_dl_frame_formats({"k.c": kemuri, "d.c": dust})
+        self.assertEqual(out["ef_kisha_kemuri01_1"], (4, 0))
+        self.assertEqual(out["ef_dust01_0"], (4, 0))
+        self.assertEqual(out["ef_dust01_1"], (4, 0))
+        self.assertNotIn("ef_dust01_anime_ptn", out)
+
+
 if __name__ == "__main__":
     unittest.main()

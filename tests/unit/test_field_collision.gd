@@ -482,6 +482,9 @@ func test_walls_do_not_cover_walkable_cell_centers() -> void:
 			)
 			if not unit.is_empty() and FieldCatalog.is_slate_unit(int(unit["s"]), int(unit["a"])):
 				continue
+			## Diagonal forbid walls (beach wave / cliff corners) cross the centre too.
+			if not unit.is_empty() and _has_diagonal_forbid(int(unit["a"])):
+				continue
 			var y: float = FieldCollision.height_at(data, cell)
 			if not FieldCollision.has_floor(y):
 				continue
@@ -491,6 +494,26 @@ func test_walls_do_not_cover_walkable_cell_centers() -> void:
 			if Vector2(revised.x - pos.x, revised.z - pos.z).length() > 0.05:
 				hit += 1
 	assert_int(hit).is_equal(0)
+
+
+static func _has_diagonal_forbid(attr: int) -> bool:
+	for wall: Variant in FieldCollision.forbid_walls(attr):
+		if int(wall) >= 4:
+			return true
+	return false
+
+
+func test_forbid_attribute_walls_match_decomp_table() -> void:
+	## `mCoBG_forbid_vector_idx`: 32 platform edge → north (UP), 33 → east, 34 → west,
+	## 35 → south; 31 (wood bridge centre) none; 51 → north + west; outside 27…62 none.
+	assert_array(FieldCollision.forbid_walls(32)).is_equal([0])
+	assert_array(FieldCollision.forbid_walls(33)).is_equal([1])
+	assert_array(FieldCollision.forbid_walls(34)).is_equal([2])
+	assert_array(FieldCollision.forbid_walls(35)).is_equal([3])
+	assert_array(FieldCollision.forbid_walls(31)).is_empty()
+	assert_array(FieldCollision.forbid_walls(51)).is_equal([0, 2])
+	assert_array(FieldCollision.forbid_walls(7)).is_empty()
+	assert_array(FieldCollision.forbid_walls(63)).is_empty()
 
 
 func test_corner_does_not_trap_circle() -> void:

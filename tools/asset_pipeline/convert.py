@@ -1408,27 +1408,66 @@ def _convert_rel_textures(cfg: PipelineConfig, rel: RelData, symbols: list, bank
     return results
 
 
-## Effect frame banks swapped onto `anime_N` each draw (dust, splashes, snow). The symbol
-## suffix is the GX format the effect DL loads them as; the dust frames carry no suffix
-## but `ef_dust01_modelT` SETTIMGs them as I4 16×16.
+## Effect frame banks swapped onto `anime_N` each draw (dust, splashes, snow, train smoke).
+## The symbol suffix is the GX format the effect DL loads them as; unsuffixed frames take the
+## format their `ef_*` model DL loads them with (`gsDPSetTextureImage_Dolphin(fmt, siz, …)`).
 _EFFECT_FRAME_SUFFIX_FMT: dict[str, tuple[int, int]] = {
     "_int_i4": (G_IM_FMT_I, G_IM_SIZ_4b),
     "_inta_ia8": (G_IM_FMT_IA, G_IM_SIZ_8b),
 }
-_EFFECT_FRAME_EXTRA: dict[str, tuple[int, int]] = {
-    "ef_dust01_0": (G_IM_FMT_I, G_IM_SIZ_4b),
-    "ef_dust01_1": (G_IM_FMT_I, G_IM_SIZ_4b),
-    "ef_dust01_2": (G_IM_FMT_I, G_IM_SIZ_4b),
-    "ef_dust01_3": (G_IM_FMT_I, G_IM_SIZ_4b),
-}
+_GX_FMT = {"G_IM_FMT_RGBA": 0, "G_IM_FMT_YUV": 1, "G_IM_FMT_CI": 2, "G_IM_FMT_IA": 3, "G_IM_FMT_I": 4}
+_GX_SIZ = {"G_IM_SIZ_4b": 0, "G_IM_SIZ_8b": 1, "G_IM_SIZ_16b": 2, "G_IM_SIZ_32b": 3}
+_SETTIMG_RE = re.compile(
+    r"gsDPSetTextureImage_Dolphin\(\s*(G_IM_FMT_\w+)\s*,\s*(G_IM_SIZ_\w+)\s*,\s*\d+\s*,\s*\d+\s*,\s*(\w+)\s*\)"
+)
+## Texture banks are `u8 sym[] … = { #include "assets/….inc" }`; inline tables (evw anime
+## patterns) are not textures.
+_U8_SYMBOL_RE = re.compile(r"\bu8\s+(ef_\w+)\s*\[\][^=]*=\s*\{\s*#include")
+
+
+def effect_dl_frame_formats(model_sources: dict[str, str]) -> dict[str, tuple[int, int]]:
+    """`ef_*` texture symbol → (fmt, siz) as its effect model's DLs load it: directly by
+    name, or — for frame banks swapped onto `anime_N_txt` — the one format every segment
+    load in the same model file uses."""
+    out: dict[str, tuple[int, int]] = {}
+    for text in model_sources.values():
+        segment_formats: set[tuple[int, int]] = set()
+        for fmt, siz, sym in _SETTIMG_RE.findall(text):
+            if fmt not in _GX_FMT or siz not in _GX_SIZ:
+                continue
+            pair = (_GX_FMT[fmt], _GX_SIZ[siz])
+            if sym.startswith("anime_") and sym.endswith("_txt"):
+                segment_formats.add(pair)
+            elif sym.startswith("ef_"):
+                out.setdefault(sym, pair)
+        if len(segment_formats) == 1:
+            pair = next(iter(segment_formats))
+            for sym in _U8_SYMBOL_RE.findall(text):
+                out.setdefault(sym, pair)
+    return out
+
+
+def _effect_model_sources(cfg: PipelineConfig) -> dict[str, str]:
+    from .fgdata import _guess_decomp
+
+    root = cfg.decomp_root or _guess_decomp(cfg)
+    if root is None:
+        return {}
+    model_dir = Path(root) / "src" / "data" / "model"
+    if not model_dir.is_dir():
+        return {}
+    return {
+        p.name: p.read_text(encoding="utf-8", errors="replace") for p in sorted(model_dir.glob("ef_*.c"))
+    }
 
 
 def _convert_effect_frames(cfg: PipelineConfig, rel: RelData, symbols: list) -> list[dict[str, Any]]:
     """Square effect frame textures → `textures/rel/{symbol}.png` (native decode)."""
     results: list[dict[str, Any]] = []
+    dl_formats = effect_dl_frame_formats(_effect_model_sources(cfg))
     for symbol in symbols:
         name = symbol.name
-        fmt_siz = _EFFECT_FRAME_EXTRA.get(name)
+        fmt_siz = dl_formats.get(name)
         if fmt_siz is None and name.startswith("ef_"):
             for suffix, pair in _EFFECT_FRAME_SUFFIX_FMT.items():
                 if name.endswith(suffix):
@@ -1437,7 +1476,8 @@ def _convert_effect_frames(cfg: PipelineConfig, rel: RelData, symbols: list) -> 
         if fmt_siz is None or symbol.size <= 0:
             continue
         fmt, siz = fmt_siz
-        pixels = symbol.size * 2 if siz == G_IM_SIZ_4b else symbol.size
+        bits = {0: 4, 1: 8, 2: 16, 3: 32}[siz]
+        pixels = symbol.size * 8 // bits
         side = int(round(pixels ** 0.5))
         if side * side != pixels:
             continue

@@ -99,6 +99,12 @@ const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 ## Title demo: a recorded stick + A replace live input (`mEv_IsTitleDemo` swaps the controller
 ## in `m_player_controller.c_inc`). Null during normal play.
 var scripted_input: TitleDemoInput = null
+## `mPlib_Set_unable_wade`: acre crossings are refused; trying one raises `wade_cancelled`
+## (`excute_cancel_wade`, which the intro's Nook answers).
+var unable_wade: bool = false
+## `mCoBG_ChangeBlockBgCheckMode(1)` (intro house pick): walls one unit further in on the
+## player-house acre, and the wade border with them.
+var intro_block_bg_check: bool = false
 ## `mPlib_request_main_demo_walk_type1`: walk to a world point with the stick ignored (the house
 ## gyroid's "Save" walk to the door). Inactive when `_demo_walk_speed` is 0.
 var _demo_walk_goal: Vector3 = Vector3.ZERO
@@ -141,6 +147,10 @@ var _door_correction: Vector3 = Vector3.ZERO
 var _door_fixed_counter: float = 0.0
 var _door_steps := FrameStepper.new()
 var _door_root_clip: String = ""
+## `mPlayer_INDEX_DEMO_GETOFF_TRAIN`: `cKF_ANIMATION_TRANS_Y` is on too — the body follows the
+## clip's root height from `_door_base_y`, and the state ends itself when the clip does.
+var _door_getoff: bool = false
+var _door_base_y: float = 0.0
 ## `Player_actor_Movement_Talk` — ease yaw toward the NPC while the talk demo runs.
 var _talk_face: Node3D = null
 ## `player->shake_tree_*`: trees this player has already shaken (little or button).
@@ -157,9 +167,12 @@ var _rest: Dictionary = {}
 ## Crossing into the next acre (`mPlayer_INDEX_WADE`): `{start, end, t}` (world metres,
 ## ticks); empty when not wading. See `AcreWade`.
 var _wade: Dictionary = {}
-## Leaf clip → Animation of scaled joint_0 XZ deltas (meters, model space). Filled once.
+## Leaf clip → Animation of scaled joint_0 deltas (meters, model space): XZ from the origin,
+## Y from the 1000-unit base height (`base_shape_trs` y). Filled once.
 static var _door_root_xz: Dictionary = {}
 
+
+signal wade_cancelled
 
 const GROUP := &"player"
 
@@ -372,7 +385,12 @@ func _physics_process(delta: float) -> void:
 	_motor.position = global_position
 	## `mEv_IsNotTitleDemo() && destiny == BAD_LUCK` gates the dash trip.
 	_motor.bad_luck = scripted_input == null and Game.destiny() == Game.Destiny.BAD_LUCK
-	_motor.axes_active = _axes_active(input_dir) if scripted_input == null else stick > 0.0
+	## Recorded title-demo input and demo walks (`Player_actor_Movement_Demo_walk` steers
+	## without the stick) count as held axes whenever they ask to move.
+	if scripted_input != null or is_demo_walking():
+		_motor.axes_active = stick > 0.0
+	else:
+		_motor.axes_active = _axes_active(input_dir)
 	_feed_clip_state()
 	var planar: Vector3 = _motor.tick(
 		delta, wish, stick, sprint and not menu_open, _busy or menu_open
@@ -408,7 +426,9 @@ func _physics_process(delta: float) -> void:
 func _acre_border(before: Vector3, input_dir: Vector2, bg: Array) -> void:
 	var old_gx: Vector3 = TownSpace.world_to_gx(before)
 	var now_gx: Vector3 = TownSpace.world_to_gx(global_position)
-	var held: Vector3 = AcreWade.confine(old_gx, now_gx)
+	var inset: float = AcreWade.INTRO_INSET_GX if intro_block_bg_check else 0.0
+	var wall_inset: float = inset if _is_player_house_block(TownSpace.block_of(old_gx)) else 0.0
+	var held: Vector3 = AcreWade.confine(old_gx, now_gx, wall_inset)
 	if held.x != now_gx.x or held.z != now_gx.z:
 		var back: Vector3 = TownSpace.gx_to_world(held)
 		global_position.x = back.x
@@ -417,14 +437,36 @@ func _acre_border(before: Vector3, input_dir: Vector2, bg: Array) -> void:
 	if _busy or _menu_open() or _motor.gait() == PlayerLocomotion.Gait.WAIT:
 		return
 	var pos_gx: Vector3 = TownSpace.world_to_gx(global_position)
+	## `Player_actor_request_proc_index_fromDemo_walk` → `Set_ScrollDemo_forDemo_wade`; the
+	## demo walk picks up again after the 36-tick wade (`fromDemo_wade`).
+	if is_demo_walking():
+		if _motor.planar_speed > 0.0:
+			var block: Vector2i = TownSpace.block_of(pos_gx)
+			var demo_dir: AcreWade.Dir = AcreWade.demo_direction(
+				pos_gx, _motor.facing, func(d: AcreWade.Dir) -> bool: return AcreWade.scroll_ok(block, d)
+			)
+			if demo_dir != AcreWade.Dir.NONE:
+				_begin_wade(pos_gx, demo_dir)
+		return
 	var dir: AcreWade.Dir = AcreWade.direction(
 		pos_gx,
 		_motor.facing,
 		Vector2(input_dir.x, -input_dir.y),
-		func(d: AcreWade.Dir) -> bool: return _can_land(pos_gx, d, bg)
+		func(d: AcreWade.Dir) -> bool: return _can_land(pos_gx, d, bg),
+		inset,
+		unable_wade,
 	)
-	if dir != AcreWade.Dir.NONE:
-		_begin_wade(pos_gx, dir)
+	if dir == AcreWade.Dir.NONE:
+		return
+	if unable_wade:
+		wade_cancelled.emit()
+		return
+	_begin_wade(pos_gx, dir)
+
+
+## `mFI_BkNum2BlockKind(bx, bz) & mRF_BLOCKKIND_PLAYER` — the four house plots' acre.
+func _is_player_house_block(block: Vector2i) -> bool:
+	return block == WorldGenerator.PLAYER_HOUSE_BLOCK
 
 
 ## `mCoBG_ScrollCheck` toward 18 GX past the border (walls, water, FG solids), plus — outside
@@ -877,6 +919,9 @@ func begin_demo_getoff_train(stand: Vector3, face_yaw: float) -> void:
 		StructureDoor.ANIM_MOVE_COUNTER_GETOFF,
 		StructureDoor.OUTTRAIN_SEC,
 	)
+	_door_getoff = true
+	_door_base_y = stand.y
+	global_position.y = stand.y
 
 
 ## Walk to `goal` at `speed` (m/s), stopping within `arrive` (m); repeat calls move the goal
@@ -934,6 +979,7 @@ func end_door_enter() -> void:
 		take_out_tool()
 	_door_entering = false
 	_door_animation_move = false
+	_door_getoff = false
 	_door_root_clip = ""
 
 
@@ -1015,9 +1061,16 @@ func _tick_door_enter(delta: float) -> void:
 		)
 		global_position = Vector3(
 			_door_to.x + _door_correction.x + world_root.x,
-			global_position.y,
+			_door_base_y + root.y if _door_getoff else global_position.y,
 			_door_to.z + _door_correction.z + world_root.z,
 		)
+	if _door_getoff:
+		## `Player_actor_request_proc_index_fromDemo_getoff_train`: the clip's end hands over
+		## to `demo_wait` (the caller keeps the player busy).
+		if _door_move_elapsed >= _door_move_duration:
+			end_door_enter()
+			play_wait_idle()
+		return
 	_snap_to_bg()
 
 
@@ -1967,9 +2020,9 @@ func _capture_door_root_xz(anim_player: AnimationPlayer) -> void:
 		for key_i: int in range(key_count):
 			var t: float = src.track_get_key_time(track_i, key_i)
 			var pos: Vector3 = src.track_get_key_value(track_i, key_i) as Vector3
-			## `scale * (cur_joint.xz - base_model_translation.xz)`; base XZ is 0.
+			## `scale * (cur_joint - base_model_translation)`; base XZ is 0, base Y 1000.
 			baked.position_track_insert_key(
-				out_track, t, Vector3(pos.x * scale, 0.0, pos.z * scale)
+				out_track, t, Vector3(pos.x * scale, (pos.y - 1.0) * scale, pos.z * scale)
 			)
 		_door_root_xz[leaf] = baked
 

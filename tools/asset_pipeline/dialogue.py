@@ -313,6 +313,13 @@ def count_events_in_conversation(conv: dict[str, Any]) -> dict[str, int]:
 
 
 def _page_event_from_token(name: str, args: list[int]) -> Optional[dict[str, Any]]:
+    ## `mMsg_sound_bgm_make` / `_delete`: `mMsg_bgm_num[bgm]` with `mMsg_bgm_stop[stop]`.
+    if name in ("BGMMAKE", "BGMDELETE") and len(args) >= 2:
+        return {
+            "op": "bgm_make" if name == "BGMMAKE" else "bgm_delete",
+            "bgm": int(args[0]),
+            "stop": int(args[1]),
+        }
     ## Face mood window colour family (`MSGCONTENTS_*`).
     emote = _CONTENTS_EMOTE.get(name)
     if emote is not None:

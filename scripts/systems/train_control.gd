@@ -9,8 +9,8 @@ extends RefCounted
 ## the station, waits, then pulls out and leaves east. It is due to leave the far edge at
 ## hh:19; `mTRC_get_depart_time` schedules its entry 4:10 earlier.
 ##
-## Only `train_coming_flag` 0 (the timetable) is modelled. The intro arrival (flag 3) is
-## `IntroStationStage`; the call-a-friend / departure flags (2, 4) have no feature yet.
+## `train_coming_flag` 0 (the timetable) and 3 (the new-resident arrival, `demo_init`) are
+## modelled; the call-a-friend / departure flags (2, 4) have no feature yet.
 
 enum Action {
 	NONE,
@@ -44,6 +44,11 @@ const RAIL_Z_GX := 740.0
 const BLOCK_GX := 640.0
 const SPAWN_X_GX := 320.0
 const PARKED_X_GX := 2367.0
+## `mTRC_demo_init`: the intro train is already slowing at x 2037 when the town loads.
+const DEMO_X_GX := 2037.0
+## `mTRC_demo_init`: `train_start_timer = now − 4:50`, so after the 310 s dwell is added at
+## the stop the train is due out 20 s after the arrival began.
+const DEMO_LEAD_SEC := 4 * 60 + 50
 const STOP_FROM_X_GX := 2165.0
 const EXIT_X_GX := 4400.0
 ## `TRAIN1` stands 250 behind the locomotive (`mTRC_trainSet`).
@@ -101,6 +106,19 @@ func mati_init() -> void:
 	x_gx = PARKED_X_GX
 
 
+## `mTRC_demo_init` (`train_coming_flag` 3, set by `aID_first_set`): the new resident's train
+## appears west of the station already at slow speed, stops, and leaves on its own shortly
+## after. The caller raises `STATE_DEMO` (`mTRC_schedule` returns 0).
+func demo_init(now_sec: int, today: int) -> void:
+	action = Action.BEGIN_SLOWDOWN
+	speed = SLOW_SPEED
+	start_timer = now_sec - DEMO_LEAD_SEC
+	day = today
+	control_state = 0
+	last_control_state = 0
+	x_gx = DEMO_X_GX
+
+
 ## `mTRC_norm_init`: enter from the west edge.
 func _norm_init() -> void:
 	action = Action.SPAWN_MOVING
@@ -119,11 +137,17 @@ func caboose_x_gx() -> float:
 
 
 ## One `mTRC_move` tick. `arbeit`: the first job is running (`mEv_CheckArbeit`), which holds
-## the timetable. `parked_demo`: title demo 1 (`mEv_TITLEDEMO_START1`). Returns the
+## the timetable. `parked_demo`: title demo 1 (`mEv_TITLEDEMO_START1`). `coming_demo`:
+## `train_coming_flag == 3` this tick (consumed by the caller). Returns the
 ## `KishaStatusTrg` state raised this tick, or `STATE_NONE`.
-func step(now_sec: int, today: int, arbeit: bool = false, parked_demo: bool = false) -> int:
+func step(
+	now_sec: int, today: int, arbeit: bool = false, parked_demo: bool = false, coming_demo: bool = false
+) -> int:
 	var state: int = STATE_NONE
-	if parked_demo:
+	if coming_demo:
+		demo_init(now_sec, today)
+		state = STATE_DEMO
+	elif parked_demo:
 		if action == Action.NONE:
 			mati_init()
 	elif action == Action.NONE and not arbeit and now_sec >= start_timer:

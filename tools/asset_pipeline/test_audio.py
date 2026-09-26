@@ -560,5 +560,22 @@ class SeamlessLoopTests(unittest.TestCase):
         self.assertEqual(list(out), list(range(20)))
 
 
+
+
+
+class SeqAliasTests(unittest.TestCase):
+    def test_zero_size_entry_plays_its_addr_sequence(self) -> None:
+        from asset_pipeline.audio import resolve_seq_alias
+
+        entries = [
+            {"index": 64, "addr": 214304, "size": 1376},
+            {"index": 65, "addr": 64, "size": 0},
+            {"index": 66, "addr": 215680, "size": 1856},
+        ]
+        self.assertEqual(resolve_seq_alias(65, entries), 64)
+        self.assertEqual(resolve_seq_alias(66, entries), 66)
+        self.assertEqual(resolve_seq_alias(-1, entries), -1)
+
+
 if __name__ == "__main__":
     unittest.main()

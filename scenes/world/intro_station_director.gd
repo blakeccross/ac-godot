@@ -22,29 +22,32 @@ const NOOK_NAG_DIALOGUE_FALLBACK := &"nook_house_debt_nag"
 ## only played on the authored path; the bank message already chains it.
 const NOOK_SETTLED_DIALOGUE_FALLBACK := &"nook_house_settled"
 const NOOK_JOB_DIALOGUE := &"nook_first_job"
+## `0x07E2` STOP_WADE: the player tried to leave the house acre during the pick.
+const NOOK_STOP_WADE_DIALOGUE := &"msg_2018"
+## `aNRG_norm_talk_request` (`0x0820`) while he waits for the pick.
+const NOOK_PICK_TALK_DIALOGUE := &"msg_2080"
+## `aSTM_norm_talk_request` THINK_4 (`0x0831`) once he has stepped east.
+const PORTER_TALK_DIALOGUE := &"msg_2097"
 ## `m_start_data_init.c` QUEST bag Nook collects as the down payment.
 const PAYMENT_ITEM := &"money_1000"
 
-## Station-arrival BGM chain (`ac_intro_demo` / `aSTM` / `aNRG`). Each id falls back to
-## the previous stage's track if that OGG has not been rendered yet.
-## `BGM_INTRO_ARRIVE` → (fade at the platform) → `BGM_INTRO_SELECT_HOUSE2` while Nook
-## walks you to the plots → `BGM_INTRO_RCN_GUIDE` for the loan/job talk after the house.
+## Music the intro actors start themselves (the text cues the rest, `MessageBgm`):
+## `aID_first_set_init` `BGM_INTRO_ARRIVE`; the `_1A4` return `BGM_INTRO_RCN_GUIDE`;
+## `aID_set_first_field_bgm` `BGM_INTRO_FIND_SHOP` once Nook is leaving.
 const BGM_ARRIVE := &"intro_arrive"
-const BGM_SELECT_HOUSE := &"intro_select_house2"
 const BGM_RCN_GUIDE := &"intro_rcn_guide"
 const BGM_FIND_SHOP := &"intro_find_shop"
+
+const PORTER_SCENE := preload("res://scenes/world/station_porter.tscn")
+const NOOK_SCENE := preload("res://scenes/world/intro_rcn_guide.tscn")
 
 var _world: Node3D
 var _stage: IntroStationStage = IntroStationStage.new()
 var _player: Player
 var _camera: Camera3D
 var _dialogue: DialogueOverlay
-var _loco: Node3D
-var _mid: Node3D
-var _caboose: Node3D
-var _engineer: Node3D
-var _porter: Node3D
-var _nook: Node3D
+var _porter: StationPorter
+var _nook: IntroRcnGuide
 var _actors: Node3D
 var _finishing: bool = false
 var _resume_debt: bool = false
@@ -56,6 +59,16 @@ var _nook_feel: NpcFeelGlyphs
 var _nook_manpu_hold: String = ""
 ## `aNRG_demand_payment` state — the payment beat sits between the debt line and the job.
 var _payment_done: bool = false
+## A normal talk the player started (Porter `0x0831`, Nook `0x0820`) — not a stage beat.
+var _norm_talk: bool = false
+## `aSTM_talk_init` for a normal talk records `happening_sound` (the arrive theme).
+var _porter_talked: bool = false
+## The bank text raised `mDemo_Set_OrderValue(NPC0, 9, 1)` (`aNRG_demand_payment_talk_proc`):
+## the message is parked on that order (`MAIN_DISAPPEAR_WAIT`) while the pockets are open,
+## and runs on after the hand-over (`aNRG_demo_end_wait` → appear + `ForceNext`).
+var _payment_hold: bool = false
+## Who the current force / normal talk belongs to (`TALK_TURN` target).
+var _talk_npc: Node3D
 
 
 func setup(world: Node3D) -> void:
@@ -91,39 +104,35 @@ func _boot() -> void:
 	_actors.name = "IntroStationActors"
 	_world.add_child(_actors)
 	if not _resume_debt:
-		_loco = _spawn_structure(&"obj_train1_1", "TrainLoco")
-		_mid = _spawn_structure(&"obj_train1_2", "TrainMid")
-		_caboose = _spawn_structure(&"obj_train1_3", "TrainCaboose")
-		_engineer = _spawn_villager(&"mnk_1", "Engineer")
-		_porter = _spawn_villager(&"mnk_1", "Porter")
-	_nook = _spawn_villager(&"rcn_1", "Nook")
-	if _nook != null:
-		_nook.visible = false
+		_porter = PORTER_SCENE.instantiate() as StationPorter
+		_porter.name = "Porter"
+		_actors.add_child(_porter)
+	_nook = NOOK_SCENE.instantiate() as IntroRcnGuide
+	_nook.name = "Nook"
+	_actors.add_child(_nook)
+	var pivot: Node3D = _nook.build()
+	if pivot != null:
+		_nook_face.bind(pivot, &"rcn")
+	_ensure_nook_feel(_nook)
 
-	var origin: Vector3 = _station_block_origin(station)
-	var houses_gx: Array[Vector3] = _collect_house_gx(origin)
-	var explain: Vector3 = _explain_gx_for_houses(origin, houses_gx)
-	var nook_spawn: Vector3 = IntroStationStage.NOOK_SPAWN_GX
-	var out_z: float = IntroStationStage.OUT_STATION_Z_GX
-	## Leave the station acre southward relative to the platform doorway.
-	out_z = maxf(out_z, IntroStationStage.DOORWAY_GX.z + 120.0)
-
-	_stage.drive_player = false
-	_stage.drive_camera = true
+	## Stage GX is relative to the station block (3, 1); the town keeps decomp world GX.
+	var origin: Vector3 = TownSpace.gx_to_world(IntroStationStage.BLOCK_ORIGIN_GX)
 	_stage.set_block_origin(origin)
 	_stage.set_world_ground(_world.layout as WorldData, _world.grid as WorldGrid)
-	_stage.bind(_loco, _mid, _caboose, _engineer, _porter, _nook, _player, _camera)
-	## Landmarks after bind — bind used to reset house GX to the station-lawn stub.
-	_stage.set_landmarks(out_z, nook_spawn, IntroStationStage.NOOK_FACE_GX, explain, houses_gx)
+	_stage.bind(null, null, null, null, _porter, _nook, _player, _camera)
+	_stage.use_field_train(Game.train.control, Game.train.field_train())
 	_stage.porter_talk_requested.connect(_on_porter_talk)
 	_stage.nook_call_requested.connect(_on_nook_call)
 	_stage.nook_introduce_requested.connect(_on_nook_introduce)
 	_stage.nook_show_houses_requested.connect(_on_nook_show_houses)
+	_stage.nook_stop_wade_requested.connect(_on_nook_stop_wade)
 	_stage.nook_debt_requested.connect(_on_nook_debt)
 	_stage.nook_job_requested.connect(_on_nook_job)
+	_stage.nook_exit_started.connect(_on_nook_exit_started)
 	_stage.house_pick_enabled.connect(_on_house_pick_enabled)
 	_stage.stage_changed.connect(_on_stage_changed)
 	_stage.finished.connect(_on_finished)
+	_player.wade_cancelled.connect(_stage.notify_wade_cancelled)
 	if _dialogue != null and _dialogue.has_signal("closed"):
 		if not _dialogue.closed.is_connected(_on_dialogue_closed):
 			_dialogue.closed.connect(_on_dialogue_closed)
@@ -133,10 +142,6 @@ func _boot() -> void:
 	if not Game.intro_house_look_requested.is_connected(_on_intro_house_look):
 		Game.intro_house_look_requested.connect(_on_intro_house_look)
 
-	## Fresh arrival only — do not restart train/arrive BGM after leaving a house.
-	if not _resume_debt:
-		_play_bgm_chain([BGM_ARRIVE, &"intro_train"])
-
 	if _resume_debt:
 		Game.intro_station_resume_debt = false
 		_stage.drive_camera = false
@@ -144,11 +149,15 @@ func _boot() -> void:
 		## `ac_intro_demo.c` `_1A4` path: outdoor return restarts `BGM_INTRO_RCN_GUIDE`
 		## for the loan / part-time-job talk.
 		_play_bgm_chain([BGM_RCN_GUIDE, BGM_ARRIVE, &"intro_train"])
-		## `aID_birth_rcn_guide` on outdoor return: Nook is already at the door
+		## `aID_birth_rcn_guide` on outdoor return: Nook is already beside the house
 		## while the player GO_OUT / emerges (`aNRG_restart_wait`).
-		_place_nook_at_claimed_house()
+		_stage.place_nook_for_restart(IntroStationStage.house_index(Game.intro_station_house_id))
+		_nook_play_wait()
 		call_deferred("_resume_debt_sequence")
 	else:
+		## `aID_first_set_init`: `BGM_INTRO_ARRIVE` + `train_coming_flag = 3`.
+		_play_bgm_chain([BGM_ARRIVE, &"intro_train"])
+		Game.train.request_arrival_demo()
 		if _camera.has_method("suspend"):
 			_camera.call("suspend")
 		_player.set_busy(true)
@@ -166,8 +175,7 @@ func _resume_debt_sequence() -> void:
 			await get_tree().process_frame
 	if _finishing or _player == null or not is_instance_valid(_player):
 		return
-	## Face + wait after emerge, then force-talk (`aNRG_restart_wait` → RESTART_TALK).
-	_face_nook_toward_player()
+	## `aNRG_restart_wait` → RESTART_TALK once the player is out of the door.
 	_nook_play_wait()
 	_player.set_busy(true)
 	_player.set_cutscene_driven(false)
@@ -185,12 +193,17 @@ func _process(delta: float) -> void:
 	if _player != null and is_instance_valid(_player):
 		_player.set_busy(_stage.player_controls_locked())
 		_player.set_cutscene_driven(_stage.player_cutscene_driven())
+		## `aID_decide_house_init`: `mPlib_Set_unable_wade(TRUE)` +
+		## `mCoBG_ChangeBlockBgCheckMode(1)` until `aID_retire_rcn_guide_wait` clears both.
+		var pick_lock: bool = _stage.player_unable_wade()
+		_player.unable_wade = pick_lock
+		_player.intro_block_bg_check = pick_lock
 	_tick_nook_talk(delta)
 
 
 func _tick_nook_talk(delta: float) -> void:
 	var uttering: bool = false
-	if _dialogue != null:
+	if _dialogue != null and _talk_npc != null and _talk_npc == _nook:
 		uttering = _dialogue.is_uttering()
 	_nook_face.tick(delta, uttering)
 	if _nook_manpu_hold.is_empty():
@@ -211,28 +224,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		Game.abort_intro_sequence()
 
 
-func _spawn_structure(visual_id: StringName, node_name: String) -> Node3D:
-	var host := Node3D.new()
-	host.name = node_name
-	_actors.add_child(host)
-	GeneratedVisual.attach(host, visual_id)
-	## `attach` already calls `prepare_outdoor_train` for `obj_train1_*`.
-	return host
-
-
-func _spawn_villager(skel_id: StringName, node_name: String) -> Node3D:
-	var host := Node3D.new()
-	host.name = node_name
-	_actors.add_child(host)
-	var pivot: Node3D = GeneratedVisual.attach_special_npc(host, skel_id)
-	if pivot == null:
-		return host
-	if skel_id == &"rcn_1":
-		_nook_face.bind(pivot, &"rcn")
-		_ensure_nook_feel(host)
-	return host
-
-
 func _ensure_nook_feel(host: Node3D) -> void:
 	if host == null:
 		return
@@ -243,127 +234,6 @@ func _ensure_nook_feel(host: Node3D) -> void:
 	host.add_child(_nook_feel)
 	## Head is roughly 1.6 m on the scaled rcn mesh.
 	_nook_feel.set_head_lift(1.55)
-
-
-func _station_block_origin(station: Node3D) -> Vector3:
-	## Acre NW corner in world meters — demo GX is relative to that block.
-	var layout: WorldData = _world.layout as WorldData
-	var grid: WorldGrid = _world.grid as WorldGrid
-	if layout != null and grid != null:
-		for b: BuildingPlacement in layout.buildings:
-			if b == null or b.id != &"station":
-				continue
-			var acre_nw := Vector2i(
-				int(floor(float(b.cell.x) / 16.0)) * 16,
-				int(floor(float(b.cell.y) / 16.0)) * 16
-			)
-			return grid.cell_corner(acre_nw)
-	## Fallback: reverse from the placed station actor (unit 8,5 −20 X).
-	var origin: Vector3 = station.global_position - IntroStationStage.gx_to_meters(
-		IntroStationStage.STATION_GX
-	)
-	origin.y = 0.0
-	return origin
-
-
-func _collect_house_gx(origin: Vector3) -> Array[Vector3]:
-	var out: Array[Vector3] = []
-	var buildings: Node = _world.get_node_or_null("Buildings")
-	if buildings == null:
-		return out
-	for child in buildings.get_children():
-		if child == null or not String(child.name).begins_with("player_house"):
-			continue
-		if child is Node3D:
-			var n: Node3D = child as Node3D
-			out.append((n.global_position - origin) / FieldCatalog.GX_TO_METERS)
-	out.sort_custom(func(a: Vector3, b: Vector3) -> bool:
-		if absf(a.z - b.z) > 1.0:
-			return a.z < b.z
-		return a.x < b.x
-	)
-	return out
-
-
-func _explain_gx_for_houses(origin: Vector3, houses_gx: Array[Vector3]) -> Vector3:
-	## Stand in front of the vacant doors (porch approach), not behind the roofs.
-	## `aNRG` TAKE_WITH ends near the cluster; EXPLAIN faces the house fronts.
-	var approaches: Array[Vector3] = []
-	var buildings: Node = _world.get_node_or_null("Buildings") if _world != null else null
-	if buildings != null:
-		for child in buildings.get_children():
-			if child == null or not String(child.name).begins_with("player_house"):
-				continue
-			if child is Node3D:
-				var approach: Vector3 = StructureDoor.approach_position(child as Node3D)
-				approaches.append((approach - origin) / FieldCatalog.GX_TO_METERS)
-	if approaches.is_empty():
-		if houses_gx.is_empty():
-			return IntroStationStage.NOOK_EXPLAIN_GX
-		## Fallback: south of the southernmost actor (doors face +Z / south).
-		var sum := Vector3.ZERO
-		var max_z: float = houses_gx[0].z
-		for h: Vector3 in houses_gx:
-			sum += h
-			max_z = maxf(max_z, h.z)
-		var avg: Vector3 = sum / float(houses_gx.size())
-		return Vector3(avg.x, 0.0, max_z + 80.0)
-	var sum_a := Vector3.ZERO
-	for a: Vector3 in approaches:
-		sum_a += a
-	return sum_a / float(approaches.size())
-
-
-func _place_nook_at_claimed_house() -> void:
-	## `aID_birth_rcn_guide` restart: beside the outdoor exit stand for the loan talk.
-	## Decomp ±10/+8 GX is from a *neighbor unit cell*, not the door stand — applying
-	## that to `exit_stand` puts Nook on the player. Use ~1 unit (40 GX) lateral.
-	if _nook == null or _world == null:
-		return
-	_nook.visible = true
-	var house: Node3D = _claimed_house()
-	var stand: Vector3 = (
-		_player.global_position if _player != null else Vector3.ZERO
-	)
-	if house != null:
-		stand = StructureDoor.exit_stand(house)
-	var side := Vector3.RIGHT
-	if house != null:
-		var leave: float = StructureDoor.leave_yaw(house, stand)
-		var forward := Vector3(sin(leave), 0.0, cos(leave))
-		side = Vector3(forward.z, 0.0, -forward.x)
-		if side.length_squared() < 0.0001:
-			side = Vector3.RIGHT
-		else:
-			side = side.normalized()
-		## Prefer the side that opens toward town / away from the house body.
-		var away: Vector3 = stand - house.global_position
-		away.y = 0.0
-		if away.dot(side) < 0.0:
-			side = -side
-	var gx: float = FieldCatalog.GX_TO_METERS
-	_nook.global_position = stand + side * (40.0 * gx)
-	_nook.global_position.y = stand.y
-	_face_nook_toward_player()
-	_nook_play_wait()
-
-
-func _claimed_house() -> Node3D:
-	if _world == null:
-		return null
-	if Game.intro_station_house_id != &"":
-		var named: Node3D = _world.get_node_or_null(
-			"Buildings/%s" % String(Game.intro_station_house_id)
-		) as Node3D
-		if named != null:
-			return named
-	var buildings: Node = _world.get_node_or_null("Buildings")
-	if buildings == null:
-		return null
-	for child in buildings.get_children():
-		if child != null and String(child.name).begins_with("player_house"):
-			return child as Node3D
-	return null
 
 
 func _play_bgm_chain(ids: Array) -> void:
@@ -428,6 +298,45 @@ func _on_dialogue_event(event: Dictionary) -> void:
 	match op:
 		"manpu", "set_emote":
 			_apply_nook_manpu(event)
+		"demo_order":
+			if String(event.get("target", "")) == "npc0" and int(event.get("slot", -1)) == 9:
+				_interrupt_for_payment()
+
+
+## `aNRG_demand_payment_talk_proc`: order `npc0[9]` from the text (`0x07E6` chain after
+## "…comes to 19,800 Bells!!!", and the `0x07EB` nag) parks the message and opens the pockets
+## (`aNRG_menu_open_wait_talk_proc` once the window is gone).
+func _interrupt_for_payment() -> void:
+	if _payment_done or _stage.action != IntroStationStage.Action.NOOK_DEBT or _dialogue == null:
+		return
+	_payment_hold = true
+	call_deferred("_open_payment_pockets")
+
+
+## `DialogueRunner.advance_gate` for Nook's talks: holds the text on the payment order.
+func _payment_gate(_from_node: StringName, _to_node: StringName) -> bool:
+	return not _payment_hold
+
+
+func _open_payment_pockets() -> void:
+	if _dialogue != null:
+		_dialogue.set_suspended(true)
+	_begin_demand_payment()
+
+
+## `aNRG_demo_end_wait` / the `0x07EB` swap: show the window again and run the text on.
+func _resume_payment_text(jump_to: StringName = &"") -> void:
+	_payment_hold = false
+	if _dialogue == null:
+		return
+	_dialogue.set_suspended(false)
+	var runner: DialogueRunner = _dialogue.runner()
+	if runner == null:
+		return
+	if jump_to != &"":
+		runner.jump_to(jump_to)
+	else:
+		runner.release_stage_wait()
 
 
 func _apply_nook_manpu(event: Dictionary) -> void:
@@ -487,25 +396,25 @@ func _emote_from_name(name: String) -> NpcFaceAnim.Emote:
 
 
 func _on_stage_changed(action: StringName) -> void:
-	if action == &"player_control" or action == &"player_pick":
+	## `aID_ride_off_player_init`: `mCoBG_SetAttribute(enter_pos, STONE)` — the gate opens.
+	if action == &"get_off":
+		FieldTrain.set_station_gate(get_tree(), true)
+	## `aID_go_out_of_station_init`: `Camera2_request_main_normal` after the one-unit walk.
+	if action == &"player_control":
 		_stage.drive_camera = false
 		_resume_follow_camera(false)
-	elif action == &"nook_lead":
-		## Guided walk — follow camera, stick locked (`aID_walk_after_rcn_guide`).
-		_stage.drive_camera = false
-		_resume_follow_camera(false)
-	elif action == &"nook_call" or action == &"nook_approach":
-		## Keep follow while Nook talks / runs.
-		_stage.drive_camera = false
-		_resume_follow_camera(false)
-	## BGM chain: the arrive theme fades once the player clears the platform and Nook
-	## calls out (`aSTM_talk_wait` drops `BGM_INTRO_ARRIVE` at player z >= 970), then a
-	## quieter house-hunting track carries the walk to the plots and the pick.
-	if action == &"nook_birth" or action == &"nook_call":
+	## THINK_4 onward the Porter answers a normal talk (`0x0831`).
+	if action == &"player_control" and _porter != null and not _porter.talk_handler.is_valid():
+		_porter.talk_handler = _on_porter_norm_talk
+	## `aNRG` DECIDE_HOUSE_WAIT is the only think with `aNRG_norm_talk_request` (`0x0820`).
+	if _nook != null:
+		_nook.talk_handler = _on_nook_norm_talk if action == &"player_pick" else Callable()
+	## The house-hunt music is cued by the text itself (`MessageBgm`: Nook's call starts
+	## `INTRO_RCN_GUIDE`, "It's decided!" `INTRO_SELECT_HOUSE`, the part-time offer
+	## `INTRO_SELECT_HOUSE2`). `aSTM_talk_wait` only fades `INTRO_ARRIVE` early at z ≥ 970
+	## when the player has talked to the Porter (his `happening_sound`).
+	if action == &"nook_birth" and _porter_talked:
 		Audio.stop_bgm()
-	elif action == &"nook_lead" or action == &"nook_explain" or action == &"player_pick":
-		if Audio.current_id != BGM_SELECT_HOUSE:
-			_play_bgm_chain([BGM_SELECT_HOUSE])
 
 
 func _resume_follow_camera(snap: bool) -> void:
@@ -522,6 +431,44 @@ func _on_house_pick_enabled(enabled: bool) -> void:
 	Game.intro_station_can_pick_house = enabled
 	if enabled:
 		Game.set_interact_prompt("Choose a house")
+
+
+func _on_porter_norm_talk() -> void:
+	## `aSTM_set_norm_talk_info` idx 0: `0x0831`, CAMERA2_PROCESS_TALK.
+	_porter_talked = true
+	await _norm_talk_with(_porter, PORTER_TALK_DIALOGUE, "Porter")
+
+
+func _on_nook_norm_talk() -> void:
+	## `aNRG_set_norm_talk_info`: `0x0820`, CAMERA2_PROCESS_TALK + turn.
+	await _norm_talk_with(_nook, NOOK_PICK_TALK_DIALOGUE, "Tom Nook")
+
+
+func _norm_talk_with(npc: Node3D, id: StringName, speaker: String) -> void:
+	if _dialogue == null or DialogueCatalog.conversation(id) == null:
+		return
+	_norm_talk = true
+	_begin_demo_talk(npc, true, true)
+	_play_dialogue(id, speaker)
+	await _dialogue.closed
+
+
+func _on_nook_stop_wade() -> void:
+	## `0x07E2` → CAMERA2_PROCESS_NORMAL + turn.
+	_begin_demo_talk(_nook, false, true)
+	_play_dialogue(NOOK_STOP_WADE_DIALOGUE, "Tom Nook")
+
+
+func _on_nook_exit_started() -> void:
+	## `aID_retire_rcn_guide_wait_init`: `delete_ps_demo(SELECT_HOUSE2)` + `fc_quiet` fade the
+	## music as Nook turns to go; once it is out (`aID_check_set_first_field_bgm`) the "find the
+	## shop" theme starts while he is still running off.
+	_end_demo_talk()
+	Audio.stop_bgm()
+	await get_tree().create_timer(Audio.fade_sec).timeout
+	if not is_instance_valid(self):
+		return
+	_play_bgm_chain([BGM_FIND_SHOP, BgmCatalog.outdoor_id(Clock.hour, Game.weather)])
 
 
 func _on_porter_talk() -> void:
@@ -553,7 +500,6 @@ func _on_intro_house_look(house_id: StringName) -> void:
 	_pending_look_house_id = house_id
 	if _player != null:
 		_player.set_busy(true)
-	_face_nook_toward_player()
 	_nook_play_wait()
 	_begin_demo_talk(_nook, false, false)
 	_play_dialogue(NOOK_HOUSE_LOOK_DIALOGUE, "Tom Nook", NOOK_HOUSE_LOOK_DIALOGUE_FALLBACK)
@@ -569,7 +515,7 @@ func _on_nook_debt() -> void:
 func _on_nook_job() -> void:
 	## Bank `msg_2022` already chains through the loan / part-time job (`msg_2028`).
 	## Only play the authored job stub when the debt line was the short fallback.
-	if _last_dialogue_id == NOOK_DEBT_DIALOGUE or _last_dialogue_id == NOOK_NAG_DIALOGUE:
+	if String(_last_dialogue_id).begins_with("msg_"):
 		_stage.notify_dialogue_closed()
 		return
 	_begin_demo_talk(_nook, true, true)
@@ -590,16 +536,48 @@ func _play_dialogue(id: StringName, speaker: String, fallback: StringName = &"")
 		_stage.notify_dialogue_closed()
 		return
 	_last_dialogue_id = id
+	await _npc_talk_turn(_talk_npc)
+	if _finishing or _dialogue == null:
+		return
 	var ctx := DialogueContext.new()
 	ctx.speaker_name = speaker
 	ctx.player_name = Game.player_name
 	ctx.town_name = Game.town_name
 	_fill_shop_acre_frees(ctx)
-	_dialogue.play(data, ctx)
+	_dialogue.play(data, ctx, null, _payment_gate)
+
+
+## `aNPC_act_talk_turn` (`aNPC_ACTION_TYPE_TALK_TURN`, `mv_add_angl` 0x800): every talk opens
+## with the NPC turning to the player; the window only appears once he faces them
+## (`aNPC_act_talk_wait`). The demo `turn` flag is the player's side, not this.
+func _npc_talk_turn(npc: Node3D) -> void:
+	if npc == null or _player == null or get_tree() == null:
+		return
+	var steps := FrameStepper.new()
+	var step: float = NpcPointMove.turn_step(NpcPointMove.SPIN_TURN)
+	while is_instance_valid(npc) and is_instance_valid(_player):
+		var to: Vector3 = _player.global_position - npc.global_position
+		if Vector2(to.x, to.z).length_squared() < 0.000001:
+			return
+		var want: float = atan2(to.x, to.z)
+		var porter := npc as StationPorter
+		var yaw: float = porter.facing if porter != null else npc.rotation.y
+		if is_equal_approx(yaw, want):
+			return
+		steps.add(get_process_delta_time())
+		while steps.next():
+			yaw = NpcPointMove.chase_yaw(yaw, want, step)
+		if porter != null:
+			porter.facing = yaw
+		npc.rotation.y = yaw
+		await get_tree().process_frame
 
 
 func _begin_demo_talk(npc: Node3D, talk_camera: bool, turn: bool) -> void:
 	## `aSTM` / `aNRG` force-talk `camera_type` + `turn_flag`.
+	_talk_npc = npc
+	if _porter != null:
+		_porter.speaking = npc == _porter
 	if _player == null or npc == null:
 		return
 	if talk_camera:
@@ -612,6 +590,8 @@ func _begin_demo_talk(npc: Node3D, talk_camera: bool, turn: bool) -> void:
 
 func _end_demo_talk() -> void:
 	TalkCamera.end(get_tree())
+	if _porter != null and is_instance_valid(_porter):
+		_porter.speaking = false
 
 
 func _fill_shop_acre_frees(ctx: DialogueContext) -> void:
@@ -625,15 +605,23 @@ func _fill_shop_acre_frees(ctx: DialogueContext) -> void:
 		var is_shop: bool = b.id == &"acre_shop" or b.kind == &"shop"
 		if not is_shop:
 			continue
-		var bx: int = int(floor(float(b.cell.x) / 16.0))
-		var bz: int = int(floor(float(b.cell.y) / 16.0))
-		## Playable FG acres are 1..5 / 1..6; letter A–F for north→south.
-		var letter := char(64 + clampi(bz, 1, 6))
-		ctx.frees = PackedStringArray([letter, str(clampi(bx, 1, 5))])
+		ctx.frees = shop_address_frees(b.cell)
 		return
 
 
+## `aNRG_set_shop_address`: `FREE_STR1` = row letter (`choume_str[shop_bz]`, "QABCDEF"),
+## `FREE_STR2` = column digit — decomp block numbers, 1-based (FG cell / 16 + 1).
+static func shop_address_frees(cell: Vector2i) -> PackedStringArray:
+	var bx: int = clampi(cell.x / WorldGenerator.UT + 1, 1, WorldGenerator.FG_X)
+	var bz: int = clampi(cell.y / WorldGenerator.UT + 1, 1, WorldGenerator.FG_Z)
+	return PackedStringArray(["", "QABCDEF"[bz], str(bx)])
+
+
 func _on_dialogue_closed() -> void:
+	if _norm_talk:
+		_norm_talk = false
+		_end_demo_talk()
+		return
 	## After `msg_2020`, claim the plot and walk through the door.
 	if _pending_look_house_id != &"" and not _entering_look_house:
 		_end_demo_talk()
@@ -678,7 +666,8 @@ func _begin_demand_payment() -> void:
 		_end_demo_talk()
 		_stage.notify_dialogue_closed()
 		return
-	_end_demo_talk()
+	if not _payment_hold:
+		_end_demo_talk()
 	if not Game.intro_payment_resolved.is_connected(_on_payment_resolved):
 		Game.intro_payment_resolved.connect(_on_payment_resolved)
 	Game.intro_payment_pending = true
@@ -695,7 +684,11 @@ func _on_payment_resolved(paid: bool) -> void:
 	if _finishing:
 		return
 	if not paid:
-		## `aNRG_menu_close_wait_talk_proc` empty branch: nag, then reopen the pockets.
+		## `aNRG_menu_close_wait_talk_proc` empty branch: `mMsg_ChangeMsgData(0x07EB)` +
+		## `ForceNext` — the nag, whose own order reopens the pockets.
+		if _payment_hold:
+			_resume_payment_text(NOOK_NAG_DIALOGUE)
+			return
 		_begin_demo_talk(_nook, true, true)
 		_play_dialogue(NOOK_NAG_DIALOGUE, "Tom Nook", NOOK_NAG_DIALOGUE_FALLBACK)
 		return
@@ -706,8 +699,11 @@ func _on_payment_resolved(paid: bool) -> void:
 	Game.inventory.remove(PAYMENT_ITEM, 1)
 	_face_nook_toward_player()
 	_nook_play_wait()
-	## `aNRG_demo_end_wait`: the bank message chains the loan / shop-address tail itself;
-	## on the authored path play the short "rest goes on your tab" follow-up, then EXIT.
+	## `aNRG_demo_end_wait`: the bank message reappears and runs on (`msg_2028`: the loan, the
+	## part-time job, the shop's acre); the authored path has its own short follow-up.
+	if _payment_hold:
+		_resume_payment_text()
+		return
 	if _last_dialogue_id == NOOK_DEBT_DIALOGUE_FALLBACK or _last_dialogue_id == NOOK_NAG_DIALOGUE_FALLBACK:
 		_begin_demo_talk(_nook, true, true)
 		_play_dialogue(NOOK_SETTLED_DIALOGUE_FALLBACK, "Tom Nook")
@@ -733,7 +729,7 @@ func _enter_pending_look_house() -> void:
 
 
 func _on_finished() -> void:
-	## `aID_retire_rcn_guide_wait`: wait until Nook EXIT_TURN → EXIT deletes himself.
+	## `aID_retire_rcn_guide_wait`: Nook has run off and deleted himself (the stage's EXIT).
 	_end_demo_talk()
 	if _finishing:
 		return
@@ -742,88 +738,21 @@ func _on_finished() -> void:
 
 
 func _finish_after_nook_retire() -> void:
-	await _nook_retire_exit()
 	if Game.intro_house_look_requested.is_connected(_on_intro_house_look):
 		Game.intro_house_look_requested.disconnect(_on_intro_house_look)
 	if _dialogue != null and _dialogue.has_signal("event_fired"):
 		if _dialogue.event_fired.is_connected(_on_dialogue_event):
 			_dialogue.event_fired.disconnect(_on_dialogue_event)
-	Audio.stop_bgm()
 	if _player != null and is_instance_valid(_player):
+		_player.unable_wade = false
+		_player.intro_block_bg_check = false
+		if _player.wade_cancelled.is_connected(_stage.notify_wade_cancelled):
+			_player.wade_cancelled.disconnect(_stage.notify_wade_cancelled)
 		_player.set_cutscene_driven(false)
 		_player.set_busy(false)
 	_resume_follow_camera(true)
 	Game.complete_intro_station()
-	## `aID_retire_rcn_guide_wait_init` → `aID_set_first_field_bgm`: the "find the shop"
-	## theme carries the first job; fall back to the hourly field track if it is missing.
-	_play_bgm_chain([BGM_FIND_SHOP, BgmCatalog.outdoor_id(Clock.hour, Game.weather)])
 	if _actors != null and is_instance_valid(_actors):
 		_actors.queue_free()
 		_actors = null
 	queue_free()
-
-
-func _nook_retire_exit() -> void:
-	## `aNRG_exit_turn` then `aNRG_exit`: turn toward leave point, run off, Actor_delete.
-	if _nook == null or not is_instance_valid(_nook):
-		return
-	if _player != null and is_instance_valid(_player):
-		_player.set_busy(true)
-	var goal: Vector3 = _nook_exit_goal()
-	var to_goal: Vector3 = goal - _nook.global_position
-	to_goal.y = 0.0
-	if to_goal.length_squared() > 0.0001:
-		_nook.rotation.y = atan2(to_goal.x, to_goal.z)
-	_nook_play_wait()
-	if get_tree() != null:
-		await get_tree().create_timer(0.4).timeout
-	if _nook == null or not is_instance_valid(_nook):
-		return
-	_nook_play_clip("npc_1_run1", true)
-	var speed_mps: float = (
-		IntroStationStage.NOOK_RUN_SPEED_GX
-		* FieldCatalog.GX_TO_METERS
-		* DecompTime.TICK_HZ
-	)
-	while is_instance_valid(_nook):
-		var delta: float = get_process_delta_time()
-		var remain: Vector3 = goal - _nook.global_position
-		remain.y = 0.0
-		var dist: float = remain.length()
-		if dist < 0.25:
-			break
-		var step: float = minf(speed_mps * delta, dist)
-		var dir: Vector3 = remain / dist
-		_nook.global_position += dir * step
-		_nook.rotation.y = atan2(dir.x, dir.z)
-		await get_tree().process_frame
-	if _nook != null and is_instance_valid(_nook):
-		_nook.visible = false
-		_nook.queue_free()
-		_nook = null
-
-
-func _nook_exit_goal() -> Vector3:
-	## Decomp runs toward fixed east X=2240 with Z north or south of the plot.
-	## Here: away from the house, biased east, ~220 GX.
-	var from: Vector3 = _nook.global_position if _nook != null else Vector3.ZERO
-	var away := Vector3(1.0, 0.0, 0.0)
-	var house: Node3D = _claimed_house()
-	if house != null:
-		away = from - house.global_position
-		away.y = 0.0
-		if away.length_squared() < 0.0001:
-			away = Vector3(1.0, 0.0, 0.0)
-		else:
-			away = away.normalized()
-		away = (away + Vector3(1.25, 0.0, 0.0)).normalized()
-	elif _player != null and is_instance_valid(_player):
-		away = from - _player.global_position
-		away.y = 0.0
-		if away.length_squared() < 0.0001:
-			away = Vector3(1.0, 0.0, 0.0)
-		else:
-			away = away.normalized()
-	var goal: Vector3 = from + away * (220.0 * FieldCatalog.GX_TO_METERS)
-	goal.y = from.y
-	return goal

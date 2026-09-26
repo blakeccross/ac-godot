@@ -42,6 +42,9 @@ var _voice_mode: int = DialogueVoice.Mode.ANIMALESE
 var _sound_spec: int = 2
 var _voice_at: int = 0
 var _voice: DialogueVoice = DialogueVoice.new()
+## `mMsg_REQUEST_MAIN_DISAPPEAR_WAIT`: the window is put away mid-conversation (a menu is up
+## on top of the talk). Hidden, no typing, no input; the runner keeps its place.
+var _suspended: bool = false
 
 
 func _ready() -> void:
@@ -75,6 +78,17 @@ func is_open() -> bool:
 	return _open
 
 
+## Put the window away while the talk waits on something else (the intro payment's pockets),
+## or bring it back (`mMsg_request_main_appear_wait_type1`).
+func set_suspended(suspended: bool) -> void:
+	_suspended = suspended
+	visible = not suspended
+
+
+func is_suspended() -> bool:
+	return _suspended
+
+
 ## `mMsg_Check_MainNormal` / choice normal — waiting on the player, not typing.
 func is_awaiting_input() -> bool:
 	if not _open or _runner == null or _phase != Phase.OPEN:
@@ -90,7 +104,7 @@ func is_awaiting_input() -> bool:
 
 ## `mMsg_Check_NowUtter`: text is still being laid in. Drives NPC mouth flap.
 func is_uttering() -> bool:
-	return _open and _phase == Phase.OPEN and _cursor < _visible_len
+	return _open and not _suspended and _phase == Phase.OPEN and _cursor < _visible_len
 
 
 func runner() -> DialogueRunner:
@@ -224,6 +238,8 @@ func _finish_appear() -> void:
 
 
 func _finish_close() -> void:
+	_suspended = false
+	visible = true
 	_open = false
 	_phase = Phase.HIDDEN
 	_anim_t = 0.0
@@ -259,7 +275,7 @@ func _on_runner_event(event: Dictionary) -> void:
 
 
 func _process(delta: float) -> void:
-	if not _open:
+	if not _open or _suspended:
 		return
 	_process_window_anim(delta)
 	_process_choice_anim(delta)
@@ -355,7 +371,7 @@ func _show_continue() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not _open:
+	if not _open or _suspended:
 		return
 	if _phase == Phase.APPEARING or _phase == Phase.DISAPPEARING:
 		get_viewport().set_input_as_handled()

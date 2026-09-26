@@ -9,6 +9,8 @@ const FG_X := 5
 const FG_Z := 6
 ## FG_TYPE_GRD_S_F_MH_* / FG_TYPE_0069: four player plots on B-3 (`mHS_HOUSE0`–`3`).
 ## Actor ct: west +20 X, east −20 X; both +20 Z (`aMHS_posX_table`).
+## Decomp block (`mRF_BLOCKKIND_PLAYER`) holding the four player-house plots, south of the station.
+const PLAYER_HOUSE_BLOCK := Vector2i(3, 2)
 const HOUSE0_UT := Vector2i(3, 3)
 const HOUSE1_UT := Vector2i(12, 3)
 const HOUSE2_UT := Vector2i(3, 10)
@@ -378,7 +380,7 @@ static func _paint_cliff_acre(data: WorldData, origin: Vector2i, type: int, elev
 
 static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray) -> void:
 	## Acre-type fallbacks use the same actor_ct offsets as FG templates (`FgCatalog`).
-	var house_origin: Vector2i = _fg_origin(3, 2)
+	var house_origin: Vector2i = _fg_origin(PLAYER_HOUSE_BLOCK.x, PLAYER_HOUSE_BLOCK.y)
 	_place_structure_item(data, house_origin, HOUSE0_UT, FgCatalog.ITEM_HOUSE0)
 	_place_structure_item(data, house_origin, HOUSE1_UT, FgCatalog.ITEM_HOUSE1)
 	_place_structure_item(data, house_origin, HOUSE2_UT, FgCatalog.ITEM_HOUSE2)

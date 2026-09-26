@@ -1,18 +1,19 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scenes/world/station_porter.gd" id="1_porter"]
+[ext_resource type="Script" path="res://scenes/world/intro_rcn_guide.gd" id="1_nook"]
 [ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="2_volume"]
-
-[sub_resource type="CapsuleShape3D" id="InteractShape"]
-radius = 0.55
-height = 1.6
 
 [sub_resource type="CylinderShape3D" id="BodyShape"]
 radius = 0.32
 height = 1.2
 
-[node name="StationPorter" type="Node3D"]
-script = ExtResource("1_porter")
+[sub_resource type="CapsuleShape3D" id="InteractShape"]
+radius = 0.55
+height = 1.6
+
+[node name="IntroRcnGuide" type="Node3D"]
+visible = false
+script = ExtResource("1_nook")
 
 [node name="Body" type="StaticBody3D" parent="."]
 collision_layer = 4

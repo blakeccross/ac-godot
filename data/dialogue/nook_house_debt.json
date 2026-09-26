@@ -6,7 +6,19 @@
     "start": {
       "type": "line",
       "text": "Ah, so this is the one you\nchose? A fine little place,\nyes, yes!",
-      "next": "cost"
+      "next": "cost",
+      "events": [
+        {
+          "op": "bgm_delete",
+          "bgm": 2,
+          "stop": 0
+        },
+        {
+          "op": "bgm_make",
+          "bgm": 3,
+          "stop": 0
+        }
+      ]
     },
     "cost": {
       "type": "line",

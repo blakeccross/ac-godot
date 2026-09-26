@@ -205,6 +205,15 @@ TEST_STATIC = [
         "confident_name": True,
     },
     {
+        ## `ef_kisha_kemuri01_modelT` — locomotive smoke puff (`ef_kisha_kemuri`). Its two I4
+        ## tiles are exported as effect frames (`textures/rel/ef_kisha_kemuri01_{0,1}.png`).
+        "asset_id": "ef_kisha_kemuri01",
+        "vtx": "ef_kisha_kemuri01_00_v",
+        "gfx": ["ef_kisha_kemuri01_modelT"],
+        "output": "effects/ef_kisha_kemuri01.glb",
+        "confident_name": True,
+    },
+    {
         ## K.K. opening spotlight stage (`SCENE_PLAYERSELECT` / `grd_player_select`).
         "asset_id": "grd_player_select",
         "vtx": "grd_player_select_v",

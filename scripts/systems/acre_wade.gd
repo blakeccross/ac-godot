@@ -18,6 +18,9 @@ const EDGE_GX := 18.00001
 const WALL_GX := 18.0
 const STICK_RANGE := 0.65
 const ANGLE_RANGE := 40.0
+## `mCoBG_BLOCK_BGCHECK_MODE_INTRO_DEMO` (while Nook shows the houses): player-house acres
+## are walled one unit further in, and the wade trigger border moves in by the same unit.
+const INTRO_INSET_GX := 40.0
 ## Ticks (1/60 s): 36 = 0.6 s.
 const TICKS := 36.0
 const ACCEL := 1.1999999
@@ -27,34 +30,84 @@ const NPC_CLEAR_GX := 36.0
 
 
 ## `mCoBG_UniqueWallCheck` → `mCoBG_ScopeWallCheck(block, 640, 640, 18)`: keep the new
-## position inside the acre the player was in, 18 GX from its edges.
-static func confine(old_gx: Vector3, new_gx: Vector3) -> Vector3:
+## position inside the acre the player was in, 18 GX from its edges. `inset` is the intro
+## BG-check mode's extra unit on player-house acres (`block_base + 40`, size `640 − 80`).
+static func confine(old_gx: Vector3, new_gx: Vector3, inset: float = 0.0) -> Vector3:
 	var base: Vector2 = TownSpace.block_base(TownSpace.block_of(old_gx))
 	var out := new_gx
-	out.x = clampf(out.x, base.x + WALL_GX, base.x + BLOCK_GX - WALL_GX)
-	out.z = clampf(out.z, base.y + WALL_GX, base.y + BLOCK_GX - WALL_GX)
+	var lo: float = WALL_GX + inset
+	var hi: float = BLOCK_GX - WALL_GX - inset
+	out.x = clampf(out.x, base.x + lo, base.x + hi)
+	out.z = clampf(out.z, base.y + lo, base.y + hi)
 	return out
 
 
 ## `Player_actor_CheckAbleMoveWadeBlock`. `stick`: x right, y up (`move_percentX/Y`).
 ## `facing`: decomp angle as radians (0 = +Z / south, +π/2 = +X / east). `can_land(dir)`
-## is `mFI_ScrollCheck` + `Player_actor_CheckAbleMoveWadeBG`.
-static func direction(pos_gx: Vector3, facing: float, stick: Vector2, can_land: Callable) -> Dir:
+## is `mFI_ScrollCheck` + `Player_actor_CheckAbleMoveWadeBG`. `inset`: intro BG-check mode
+## (`border ∓ mFI_UNIT_BASE_SIZE_F`). `unable`: `mPlib_Get_unable_wade()` — the direction is
+## reported without the landing check, and the caller cancels the wade
+## (`excute_cancel_wade`).
+static func direction(
+	pos_gx: Vector3,
+	facing: float,
+	stick: Vector2,
+	can_land: Callable,
+	inset: float = 0.0,
+	unable: bool = false,
+) -> Dir:
 	var local := Vector2(fposmod(pos_gx.x, BLOCK_GX), fposmod(pos_gx.z, BLOCK_GX))
 	var deg: float = rad_to_deg(wrapf(facing, -PI, PI))
+	var near: float = EDGE_GX + inset
+	var far: float = BLOCK_GX - EDGE_GX - inset
 	if stick.x > STICK_RANGE and absf(deg - 90.0) < ANGLE_RANGE:
-		return _at(Dir.RIGHT, local.x >= BLOCK_GX - EDGE_GX, can_land)
+		return _at(Dir.RIGHT, local.x >= far, can_land, unable)
 	if stick.x < -STICK_RANGE and absf(deg + 90.0) < ANGLE_RANGE:
-		return _at(Dir.LEFT, local.x <= EDGE_GX, can_land)
+		return _at(Dir.LEFT, local.x <= near, can_land, unable)
 	if stick.y > STICK_RANGE and absf(deg) > 180.0 - ANGLE_RANGE:
-		return _at(Dir.UP, local.y <= EDGE_GX, can_land)
+		return _at(Dir.UP, local.y <= near, can_land, unable)
 	if stick.y < -STICK_RANGE and absf(deg) < ANGLE_RANGE:
-		return _at(Dir.DOWN, local.y >= BLOCK_GX - EDGE_GX, can_land)
+		return _at(Dir.DOWN, local.y >= far, can_land, unable)
 	return Dir.NONE
 
 
-static func _at(dir: Dir, at_edge: bool, can_land: Callable) -> Dir:
-	if at_edge and bool(can_land.call(dir)):
+## `Player_actor_CheckAbleMoveDemoWadeBlock` (a demo walk that is moving): wade whichever
+## edge the body faces into once within 18 GX of it — no stick, angle cone or landing check,
+## only `mFI_ScrollCheck` (`can_scroll(dir)`: the next acre is part of the field).
+static func demo_direction(pos_gx: Vector3, facing: float, can_scroll: Callable) -> Dir:
+	var local := Vector2(fposmod(pos_gx.x, BLOCK_GX), fposmod(pos_gx.z, BLOCK_GX))
+	var dir_x: float = sin(facing)
+	var dir_z: float = cos(facing)
+	if dir_x > 0.0 and local.x >= BLOCK_GX - EDGE_GX and bool(can_scroll.call(Dir.RIGHT)):
+		return Dir.RIGHT
+	if dir_x < 0.0 and local.x <= EDGE_GX and bool(can_scroll.call(Dir.LEFT)):
+		return Dir.LEFT
+	if dir_z < 0.0 and local.y <= EDGE_GX and bool(can_scroll.call(Dir.UP)):
+		return Dir.UP
+	if dir_z > 0.0 and local.y >= BLOCK_GX - EDGE_GX and bool(can_scroll.call(Dir.DOWN)):
+		return Dir.DOWN
+	return Dir.NONE
+
+
+## `mFI_ScrollCheck`: the acre `dir` of `block` is one of the town's field acres.
+static func scroll_ok(block: Vector2i, dir: Dir) -> bool:
+	var next: Vector2i = block
+	match dir:
+		Dir.RIGHT:
+			next.x += 1
+		Dir.LEFT:
+			next.x -= 1
+		Dir.UP:
+			next.y -= 1
+		Dir.DOWN:
+			next.y += 1
+	return (
+		next.x >= 1 and next.x <= WorldGenerator.FG_X and next.y >= 1 and next.y <= WorldGenerator.FG_Z
+	)
+
+
+static func _at(dir: Dir, at_edge: bool, can_land: Callable, unable: bool) -> Dir:
+	if at_edge and (unable or bool(can_land.call(dir))):
 		return dir
 	return Dir.NONE
 

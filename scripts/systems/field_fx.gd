@@ -3,12 +3,14 @@ extends Node3D
 
 ## One effect-controller particle for the player's step / skid / tumble effects:
 ## `ef_dust`, `ef_tumble_dust`, `ef_sandsplash`, `ef_mizutama`, `ef_yukidama`,
-## `ef_yukihane`, `ef_sibuki`, `ef_hanabira`, `ef_turn_footprint`, `ef_tumble_bodyprint`.
+## `ef_yukihane`, `ef_sibuki`, `ef_hanabira`, `ef_turn_footprint`, `ef_tumble_bodyprint`,
+## and the locomotive's `ef_kisha_kemuri` (smoke) / `ef_steam` (piston steam).
 ## Each ticks at the controller's 60 Hz: `*_mv`, then `timer--`, dead at 0. State is GX
 ## (40 GX = 2 m); the node itself lives in metres. `StepFx` decides which to spawn.
 
 enum Kind {
-	DUST, TUMBLE_DUST, SAND, MIZUTAMA, YUKIDAMA, YUKIHANE, SIBUKI, PETAL, TURN_PRINT, BODY_PRINT
+	DUST, TUMBLE_DUST, SAND, MIZUTAMA, YUKIDAMA, YUKIHANE, SIBUKI, PETAL, TURN_PRINT, BODY_PRINT,
+	KISHA_KEMURI, STEAM,
 }
 
 const GX := FieldCatalog.GX_TO_METERS
@@ -53,6 +55,18 @@ const YUKI_ANGLE_DEG: Array[float] = [
 	0.0, 9.997559, 65.994873, 29.998169, 325.00305, 306.002197, 119.998169, 90.0, 280.003052,
 	234.003296,
 ]
+## `Steam_tex_indx` / `Steam_plod_tbl` (`ef_steam`, 15 half-steps over 30 frames).
+const STEAM_TILES: Array[Vector2i] = [
+	Vector2i(0, 1), Vector2i(0, 1), Vector2i(0, 1), Vector2i(0, 1), Vector2i(2, 1),
+	Vector2i(2, 1), Vector2i(2, 1), Vector2i(2, 1), Vector2i(2, 3), Vector2i(2, 3),
+	Vector2i(2, 3), Vector2i(2, 3), Vector2i(3, 3), Vector2i(3, 3), Vector2i(3, 3),
+]
+const STEAM_LOD: Array[int] = [
+	0x00, 0x40, 0x80, 0xC0, 0xFF, 0xC0, 0x80, 0x40, 0x00, 0x40, 0x80, 0xC0, 0xFF, 0xFF, 0xFF
+]
+## `eKishaK_dw`: `gDPSetPrimColor(0, 128, 30, 30, 30, alpha)`.
+const KEMURI_PRIM := Color8(30, 30, 30)
+const KEMURI_LOD := 128.0 / 255.0
 ## `ef_hanabira_model_tbl` by `arg0 / 3`; colour `arg0 % 3` → `flowerK_pal`.
 const PETAL_MODELS: Array[String] = ["ef_hana01_pa_a", "ef_hana01_co_a", "ef_hana01_tu_a", "ef_hana01_ha_a"]
 ## `mFM_SetFGPal` `flower_pal_idx_table[term]`.
@@ -176,6 +190,23 @@ func _construct() -> bool:
 			timer = 12
 		Kind.PETAL:
 			_ct_petal()
+		Kind.KISHA_KEMURI:
+			## `eKishaK_ct`: scale 0, 80 frames, ±2.5 GX jitter; `arg0 == 1` drifts by `arg1`.
+			scale_gx = Vector3.ZERO
+			timer = 80
+			pos_gx.x += randf() * 5.0 - 2.5
+			pos_gx.z += randf() * 5.0 - 2.5
+			if arg0 == 1:
+				var drift: float = float(arg1) * MLib.S16
+				acc = Vector3(sin(drift) * 0.2, 0.0, cos(drift) * 0.2)
+		Kind.STEAM:
+			## `eSteam_ct`: puffs out along `angle` at 0.5…1.5, up 1.5…4.5 GX, rises back.
+			var speed: float = randf() + 0.5
+			scale_gx = Vector3.ONE * 0.005
+			offset.x = 0.02
+			vel = Vector3(sin(angle) * speed, -randf() * 3.0 - 1.5, cos(angle) * speed)
+			acc = Vector3(0.0, 0.125, 0.0)
+			timer = 30
 		Kind.TURN_PRINT:
 			return _ct_turn_print()
 		Kind.BODY_PRINT:
@@ -358,6 +389,14 @@ func _move() -> void:
 		Kind.SAND:
 			vel += acc
 			pos_gx += vel
+		Kind.KISHA_KEMURI:
+			pos_gx.y += calc_adjust(80 - timer, 0, 20, 2.2, 0.5)
+			if arg0 == 1:
+				pos_gx += Vector3(acc.x, 0.0, acc.z)
+		Kind.STEAM:
+			vel += acc
+			pos_gx += vel
+			vel *= sqrt(0.8)
 			scale_gx = Vector3.ONE * calc_adjust(timer, 0, 16, offset.y, offset.x)
 		Kind.MIZUTAMA, Kind.YUKIDAMA:
 			_move_drop()
@@ -441,14 +480,20 @@ func _model_id() -> String:
 			return PETAL_MODELS[clampi(int(spec[0]), 0, 3)]
 		Kind.TURN_PRINT:
 			return "ef_turn_footprint"
+		Kind.KISHA_KEMURI:
+			return "ef_kisha_kemuri01"
+		Kind.STEAM:
+			return "ef_dust01"
 		_:
 			return "ef_bodyprint01_00"
 
 
 func _frame_names() -> Array[String]:
 	match kind:
-		Kind.DUST, Kind.TUMBLE_DUST:
+		Kind.DUST, Kind.TUMBLE_DUST, Kind.STEAM:
 			return ["ef_dust01_0", "ef_dust01_1", "ef_dust01_2", "ef_dust01_3"]
+		Kind.KISHA_KEMURI:
+			return ["ef_kisha_kemuri01_0", "ef_kisha_kemuri01_1"]
 		Kind.SAND:
 			return _numbered("ef_sunahane01_%d_inta_ia8", 0, 3)
 		Kind.MIZUTAMA:
@@ -534,6 +579,25 @@ func _draw() -> void:
 			lod = TDUST_LOD[idx] / 255.0
 			mode = 1
 			billboard = true
+		Kind.KISHA_KEMURI:
+			var kt: int = 80 - timer
+			s = Vector3.ONE * calc_adjust(kt, 0, 40, 0.003, 0.027) * GX / FieldCatalog.PIPELINE_SCALE
+			prim = Color(KEMURI_PRIM, int(calc_adjust(kt, 40, 80, 200.0, 4.0)) / 255.0)
+			f0 = 0
+			f1 = 1
+			lod = KEMURI_LOD
+			mode = 1
+			billboard = true
+		Kind.STEAM:
+			var sc: int = 30 - timer
+			var si: int = clampi(sc >> 1, 0, 14)
+			f0 = STEAM_TILES[si].x
+			f1 = STEAM_TILES[si].y
+			s = Vector3.ONE * calc_adjust(sc, 0, 30, 0.005, offset.x) * GX / FieldCatalog.PIPELINE_SCALE
+			prim = Color(1, 1, 1, 1)
+			lod = STEAM_LOD[si] / 255.0
+			mode = 1
+			billboard = true
 		Kind.SAND:
 			f0 = clampi((16 - timer) >> 1, 0, 7) >> 1
 			basis = Basis(Vector3.RIGHT, deg_to_rad(-45.0))
@@ -590,7 +654,8 @@ func _draw() -> void:
 			prim.a = ba / 255.0
 	_holder.basis = basis * Basis.from_scale(s)
 	_mat.set_shader_parameter(&"intensity_alpha", kind in [
-		Kind.DUST, Kind.TUMBLE_DUST, Kind.MIZUTAMA, Kind.SIBUKI, Kind.TURN_PRINT, Kind.BODY_PRINT
+		Kind.DUST, Kind.TUMBLE_DUST, Kind.MIZUTAMA, Kind.SIBUKI, Kind.TURN_PRINT, Kind.BODY_PRINT,
+		Kind.KISHA_KEMURI, Kind.STEAM,
 	])
 	_mat.set_shader_parameter(&"mode", mode)
 	_mat.set_shader_parameter(&"billboard", billboard)

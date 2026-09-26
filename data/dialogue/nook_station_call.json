@@ -5,7 +5,19 @@
   "nodes": {
     "hey": {
       "type": "line",
-      "text": "Excuse me! Hey hey!\nHey, you there! Yes, you!"
+      "text": "Excuse me! Hey hey!\nHey, you there! Yes, you!",
+      "events": [
+        {
+          "op": "bgm_delete",
+          "bgm": 1,
+          "stop": 0
+        },
+        {
+          "op": "bgm_make",
+          "bgm": 2,
+          "stop": 0
+        }
+      ]
     }
   }
 }
