@@ -27,7 +27,6 @@ const CLOUD_TEXELS_PER_FRAME := 2.0 / 8.0
 ## `window->scroll_speed` for SCENE_START_DEMO; `xlu_alpha` starts 254.
 const XLU_ALPHA_RATE := 0.07
 const LOD_FACTOR_RATE := 0.3
-const _LOGIC_HZ := PlayerLocomotion.LOGIC_HZ
 ## `aTrainWindow_GetTreePalletIdx` `till_data`: row i covers dates up to (month, day).
 const TREE_PAL_TILL: Array[Vector2i] = [
 	Vector2i(2, 3), Vector2i(2, 17), Vector2i(2, 24), Vector2i(4, 3), Vector2i(4, 8),
@@ -44,7 +43,7 @@ var _exit_scroll: float = 0.0
 var _cloud_frames: float = 0.0
 var _xlu_alpha: float = 254.0
 var _lod_factor: float = 0.0
-var _frame_accum: float = 0.0
+var _frame_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _sky_mats: Array[StandardMaterial3D] = []
 var _tunnel_mats: Array[StandardMaterial3D] = []
 var _cloud_mats: Array[StandardMaterial3D] = []
@@ -70,9 +69,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_frame_accum = minf(_frame_accum + delta * _LOGIC_HZ, 8.0)
-	while _frame_accum >= 1.0:
-		_frame_accum -= 1.0
+	_frame_steps.add(delta)
+	while _frame_steps.next():
 		_step_frame()
 	_apply_window()
 

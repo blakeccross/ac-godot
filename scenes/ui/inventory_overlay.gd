@@ -43,7 +43,7 @@ const PORTRAIT_CLIPS := {
 const MAIL_ROW_OFFSET := 2
 
 const PAGE_SWING_AMPLITUDE := 22.0
-const PAGE_SWING_DURATION := 40.0 / 60.0
+const PAGE_SWING_DURATION := 40.0 / DecompTime.TICK_HZ
 
 @onready var _root: Control = %Root
 @onready var _shell_stack: Control = %ShellStack
@@ -2122,7 +2122,7 @@ func _refresh_mail_detail(inv: Inventory) -> void:
 
 const HANIWA_COLS := 2
 const HANIWA_ROWS := 2
-const HANIWA_INTERRUPT_SEC := 120.0 / 60.0
+const HANIWA_INTERRUPT_SEC := 120.0 / DecompTime.TICK_HZ
 
 
 ## Four slots over the letter column's rows 2-3 (level with pocket rows 0-1), styled like the

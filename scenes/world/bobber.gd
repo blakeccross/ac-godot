@@ -19,9 +19,6 @@ const HELD_DEPTH := 0.115
 ## every proc starts from `DEG2SHORT_ANGLE2(180.0f)`. Godot's Y is already up, so the
 ## flip is the rest pose and the proc targets below are offsets from it.
 const REST_PITCH := PI
-## The draw runs once per decomp frame (60 Hz), and `add_calc_short_angle2` steps per
-## call, so the tilt is accumulated on a fixed tick rather than scaled by `delta`.
-const TILT_HZ := PlayerLocomotion.LOGIC_HZ
 ## Per-proc `(fraction, max_step)` pairs, straight off the `add_calc_short_angle2` calls.
 ## Fractions are `1 - sqrt(k)`; steps are short angles (0x10000 = a full turn).
 const CAST_FRACTION := 0.025321  # 1 - sqrt(0.95)
@@ -37,7 +34,7 @@ var _base: Vector3 = Vector3.INF
 var _phase: float = 0.0
 var _float: Node3D
 var _pitch: float = PITCH_FLAT
-var _tilt_debt: float = 0.0
+var _tilt_steps := FrameStepper.new()
 
 
 func _ready() -> void:
@@ -92,10 +89,10 @@ func _tilt(delta: float) -> void:
 			target = 0.0
 			fraction = SETTLE_FRACTION
 			max_step = SETTLE_MAX_STEP
-	_tilt_debt += delta
-	var step: float = 1.0 / TILT_HZ
-	while _tilt_debt >= step:
-		_tilt_debt -= step
+	## The draw runs once per tick and `add_calc_short_angle2` steps per call, so the tilt
+	## runs on fixed ticks rather than being scaled by `delta`.
+	_tilt_steps.add(delta)
+	while _tilt_steps.next():
 		## Every `aUKI_rotate_calc` call passes `minStep == 0`, so the tilt stops where the
 		## step rounds away rather than being floored to a minimum turn.
 		_pitch = MLib.short_angle2(_pitch, target, fraction, max_step)

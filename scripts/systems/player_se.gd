@@ -4,7 +4,6 @@ extends RefCounted
 ## Player action SE on animation frames (`m_player_main_*` / `m_player_sound.c_inc`).
 ## Schedules one-shots via `Audio.play_se`. Outcome-specific hits also call helpers.
 
-const ANIM_FPS := 30.0
 
 ## Clip basename → [[frame, se_id], …] always played for that clip.
 const CLIP_MARKS: Dictionary = {
@@ -64,7 +63,7 @@ static func schedule_clip(at: Node, clip_name: StringName, extra: Array = []) ->
 		var se_id: StringName = (mark as Array)[1] as StringName
 		if se_id == &"":
 			continue
-		var delay: float = maxf(0.0, frame / ANIM_FPS)
+		var delay: float = maxf(0.0, frame / DecompTime.FRAME_HZ)
 		if delay <= 0.001:
 			Audio.play_se(se_id, at)
 			continue
@@ -153,7 +152,7 @@ static func _play_at_frame(at: Node, frame: float, se_id: StringName) -> void:
 	if tree == null:
 		Audio.play_se(se_id, at)
 		return
-	var delay: float = maxf(0.0, frame / ANIM_FPS)
+	var delay: float = maxf(0.0, frame / DecompTime.FRAME_HZ)
 	if delay <= 0.001:
 		Audio.play_se(se_id, at)
 		return

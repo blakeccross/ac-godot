@@ -29,10 +29,10 @@ func _ready() -> void:
 	_material.render_priority = 3
 	_material.set_shader_parameter("life_seconds", FootprintMarks.LIFETIME)
 	_material.set_shader_parameter(
-		"fade_start_seconds", FootprintMarks.FADE_START_FRAME / FootprintMarks.GAME_FPS
+		"fade_start_seconds", FootprintMarks.FADE_START_FRAME / DecompTime.TICK_HZ
 	)
 	_material.set_shader_parameter(
-		"fade_end_seconds", FootprintMarks.FADE_END_FRAME / FootprintMarks.GAME_FPS
+		"fade_end_seconds", FootprintMarks.FADE_END_FRAME / DecompTime.TICK_HZ
 	)
 	_material.set_shader_parameter("max_alpha", FootprintMarks.MAX_ALPHA)
 	_material.set_shader_parameter(

@@ -16,7 +16,6 @@ const MAX_DY := 10.0 * FieldCatalog.GX_TO_METERS
 ## `*shake_timer_p = 16.0f` / `84.0f` (little / button shake), in 60 Hz frames.
 const LITTLE_TICKS := 16.0
 const BIG_TICKS := 84.0
-const TICK := 1.0 / 60.0
 const SLOTS := 3
 const NONE := Vector2i(-1, -1)
 
@@ -69,7 +68,7 @@ func tick(
 		if _timers[i] <= 0.0 and _used(i) and _cells[i] != target_cell:
 			_cells[i] = NONE
 	for i: int in SLOTS:
-		_timers[i] = maxf(_timers[i] - delta / TICK, 0.0)
+		_timers[i] = maxf(_timers[i] - delta / DecompTime.TICK_SEC, 0.0)
 	return fired
 
 

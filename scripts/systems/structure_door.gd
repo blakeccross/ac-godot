@@ -24,12 +24,9 @@ const DOOR_SE_OUT_FRAMES: Array[float] = [2.0, 8.0, 33.0, 40.0]
 ## the door only swings shut; frames 1–24 (the swing open) are skipped.
 const DOOR_LEAVE_START_FRAME := 25.0
 const DOOR_SE_IDS: Array[StringName] = [&"6", &"7", &"8", &"9"]
-const DOOR_SE_FPS := 30.0
 
 ## `AnimationMove_ct_base` fixed_counter 9 at −0.5 / frame → ~0.3 s blend to door.
-const APPROACH_SEC := 9.0 / 30.0
-## Actor updates that advance `fixed_counter` (matches 18 × 0.5 over ~0.3 s).
-const ANIM_MOVE_HZ := 60.0
+const APPROACH_SEC := 9.0 / DecompTime.FRAME_HZ
 ## Initial `fixed_counter` for door enter (`AnimationMove_ct_base(..., 9.0f, ...)`).
 const ANIM_MOVE_COUNTER := 9.0
 ## Getoff train uses counter 5 (`AnimationMove_ct_base(..., 5.0f, ...)`).
@@ -37,15 +34,15 @@ const ANIM_MOVE_COUNTER_GETOFF := 5.0
 ## Demo `size_adj` floor when house_info.size is 0 (`aMHS_set_demo_info`).
 const APPROACH_GX := 20.0
 ## `cKF_ba_r_ply_1_go_out_o1` frames 25→end (door-close-only emerge).
-const LEAVE_SEC := 34.0 / 30.0
+const LEAVE_SEC := 34.0 / DecompTime.FRAME_HZ
 ## How far past the exit stand the emerge walk finishes (unused for body — GO_OUT root owns it).
 const LEAVE_GX := 40.0
 ## `cKF_ba_r_ply_1_into_s1` frame count (indoor door / exit walk / outdoor walk-in).
-const INTO_SEC := 49.0 / 30.0
+const INTO_SEC := 49.0 / DecompTime.FRAME_HZ
 ## `cKF_ba_r_ply_1_open1` frame count (house / Able / post door enter).
-const OPEN1_SEC := 65.0 / 30.0
+const OPEN1_SEC := 65.0 / DecompTime.FRAME_HZ
 ## `cKF_ba_r_ply_1_outtrain1` frame count (~28 @ 30 fps).
-const OUTTRAIN_SEC := 28.0 / 30.0
+const OUTTRAIN_SEC := 28.0 / DecompTime.FRAME_HZ
 ## Indoor exit walks this far south past the door cell center.
 const INTO_GX := 30.0
 ## `rewrite_out_data` spawn offsets (GX from actor). Outside structure plus-offsets.
@@ -320,7 +317,7 @@ static func _play(host: Node, entering: bool) -> bool:
 	anim.play(clip)
 	if start_frame > 1.0:
 		## cKF frame 1 is t = 0.
-		anim.seek((start_frame - 1.0) / DOOR_SE_FPS, true)
+		anim.seek((start_frame - 1.0) / DecompTime.FRAME_HZ, true)
 	_schedule_door_se(root, entering, start_frame)
 	if anim.current_animation_length <= 0.0:
 		return false
@@ -358,7 +355,7 @@ static func _schedule_door_se(at: Node, entering: bool, start_frame: float = 1.0
 		if frames[i] < start_frame:
 			continue
 		var se_id: StringName = DOOR_SE_IDS[i]
-		var delay: float = (frames[i] - start_frame) / DOOR_SE_FPS
+		var delay: float = (frames[i] - start_frame) / DecompTime.FRAME_HZ
 		var timer: SceneTreeTimer = tree.create_timer(delay)
 		timer.timeout.connect(_play_door_se.bind(at, se_id), CONNECT_ONE_SHOT)
 

@@ -5,7 +5,7 @@ extends GdUnitTestSuite
 ## the `aGTT_*` action machine. Timing-sensitive behaviour is driven in 60 Hz steps because
 ## the decomp tables are frame counts.
 
-const STEP := 1.0 / 60.0
+const STEP := DecompTime.TICK_SEC
 
 var _grid: WorldGrid = null
 var _pond: WaterBodies.Body = null

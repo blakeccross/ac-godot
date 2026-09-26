@@ -24,7 +24,7 @@ const CAST_PROBE_METERS := 10.0 * FieldCatalog.GX_TO_METERS
 ## `aUKI_set_proc_cast`: `frame_timer = 50` mover frames, not doubled like the authored
 ## 30 Hz dwell values, so 50 is already at 60 Hz. The parabola is built to reach the landing
 ## point in exactly that span and `aUKI_cast` ends it the moment the bobber touches water.
-const CAST_SECONDS := 50.0 / 60.0
+const CAST_SECONDS := 50.0 / DecompTime.TICK_HZ
 ## `Player_actor_request_proc_index_fromReady_rod` fires once the swing reaches animation
 ## frame 10, and `cast_rod` gives the bobber its cast command on its very first frame. So the
 ## line leaves the rod a third of the way through the swing, not after it — the rest of the
@@ -63,13 +63,12 @@ const PUTAWAY := &"ply_1_putaway_t1"
 const SHOW_YAW := 0.0
 ## `add_calc_short_angle2(&rotation.y, 0, 1 - sqrt(0.5), 2500, 50)`, stepped once per mover
 ## frame by `Player_actor_Movement_Notice_rod`.
-const SHOW_TURN_HZ := 60.0
 const SHOW_TURN_FRACTION := 0.292893  # 1 - sqrt(0.5)
 const SHOW_TURN_MAX_STEP := TAU * 2500.0 / 65536.0
 const SHOW_TURN_MIN_STEP := TAU * 50.0 / 65536.0
 ## `main_notice->timer < 42.0f`: the pose is held this long before the catch is announced,
 ## whatever the clip does. Mover frames, so 60 Hz.
-const SHOW_HOLD_SECONDS := 42.0 / 60.0
+const SHOW_HOLD_SECONDS := 42.0 / DecompTime.TICK_HZ
 
 
 ## Result of one hook attempt. Callers read this; the notices are posted for the HUD.

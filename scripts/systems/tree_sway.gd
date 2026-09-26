@@ -10,7 +10,6 @@ extends RefCounted
 ## siblings: medium and large hardwood + palm share one curve, a full hardwood / palm
 ## and every cedar share another (cedar's small shake is a little wider).
 
-const FPS := 30.0
 ## `efbg->timer_max` on the 60 Hz tick.
 const SMALL_TICKS := 18
 const LARGE_TICKS := 82
@@ -122,7 +121,7 @@ static func sample(curve: Array[Vector3], frame: float) -> float:
 			if span <= 0.0:
 				return a.y
 			var t: float = (frame - a.x) / span
-			return _hermite(t, span / FPS, a.y, b.y, a.z, b.z)
+			return _hermite(t, span / DecompTime.FRAME_HZ, a.y, b.y, a.z, b.z)
 	return curve[last].y
 
 

@@ -105,7 +105,7 @@ func _setup_action(action: HaniwaTalk.Action) -> void:
 ## `aHNW_common_process` + `cKF_SkeletonInfo_R_play`, one 60 Hz tick scaled by `delta`.
 func _common_process(delta: float, player_yaw: float) -> void:
 	var owned: bool = has_owner()
-	var ticks: float = delta * 60.0
+	var ticks: float = delta * DecompTime.TICK_HZ
 	_speed = HaniwaTalk.chase_speed(_speed, _target_speed, ticks)
 	if owned and _stopped:
 		_stopped = false
@@ -136,7 +136,7 @@ func _step_frame(ticks: float) -> void:
 	if _anim.assigned_animation != ANIM_MOVE:
 		_anim.play(ANIM_MOVE)
 		_anim.pause()
-	_anim.seek((_frame - first) / PlayerLocomotion.FRAME_HZ, true)
+	_anim.seek((_frame - first) / DecompTime.FRAME_HZ, true)
 
 
 ## `aHNW_dance` → the conversation. Returns true when the owner chose to save. Menus
@@ -306,7 +306,7 @@ func _save_walk() -> void:
 	var player: Node3D = _player()
 	if player != null and player.has_method("begin_demo_walk"):
 		var gx: float = FieldCatalog.GX_TO_METERS
-		var speed: float = HaniwaTalk.DOOR_WALK_SPEED_GX * PlayerLocomotion.FRAME_HZ * gx
+		var speed: float = HaniwaTalk.DOOR_WALK_SPEED_GX * DecompTime.FRAME_HZ * gx
 		var arrive: float = HaniwaTalk.DOOR_ARRIVE_GX * gx
 		var frames: float = 0.0
 		while is_instance_valid(player) and frames <= float(HaniwaTalk.DOOR_WALK_FRAMES):
@@ -322,7 +322,7 @@ func _save_walk() -> void:
 			if stage == 1 and near < arrive * 2.0:
 				break
 			await get_tree().physics_frame
-			frames += get_physics_process_delta_time() * 60.0
+			frames += get_physics_process_delta_time() * DecompTime.TICK_HZ
 		if is_instance_valid(player):
 			player.call("end_demo_walk")
 	var house: Node3D = _house_node() as Node3D

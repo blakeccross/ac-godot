@@ -18,11 +18,10 @@ const NET_PULL := &"net_swing1"
 const NET_SHOW := &"kamae_main_m1"
 
 const SHOW_YAW := 0.0
-const SHOW_TURN_HZ := 60.0
 const SHOW_TURN_FRACTION := 0.292893
 const SHOW_TURN_MAX_STEP := TAU * 2500.0 / 65536.0
 const SHOW_TURN_MIN_STEP := TAU * 50.0 / 65536.0
-const SHOW_HOLD_SECONDS := 42.0 / 60.0
+const SHOW_HOLD_SECONDS := 42.0 / DecompTime.TICK_HZ
 
 
 class Outcome:

@@ -82,7 +82,7 @@ func tick(delta: float) -> void:
 	if action == Action.TAKEOUT_BEFORE:
 		set_action(Action.OPENING)
 	var last: float = MAX_FRAME[int(action)]
-	frame = minf(frame + FRAME_STEP * delta * 60.0, last)
+	frame = minf(frame + FRAME_STEP * delta * DecompTime.TICK_HZ, last)
 	if action == Action.OPENING:
 		opened_fully = frame >= last
 	_apply()

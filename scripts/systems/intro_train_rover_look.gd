@@ -54,7 +54,7 @@ func tick(delta: float) -> void:
 	desired_pitch = clampf(desired_pitch, -HEAD_PITCH_LIMIT, HEAD_PITCH_LIMIT)
 	if absf(desired_yaw) > HEAD_YAW_LIMIT:
 		desired_yaw = signf(desired_yaw) * HEAD_YAW_LIMIT
-	var chase: float = delta * 30.0
+	var chase: float = delta * DecompTime.FRAME_HZ
 	_head_pitch = lerp_angle(_head_pitch, desired_pitch, HEAD_PITCH_CHASE * chase)
 	_head_yaw = lerp_angle(_head_yaw, desired_yaw, HEAD_YAW_CHASE * chase)
 	## Decomp draw override: `rot.x = head.angle_y`, `rot.y = head.angle_x`.

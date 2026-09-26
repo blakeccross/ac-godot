@@ -6,7 +6,6 @@ extends RefCounted
 ## pocket write at frame 20.
 
 const PULL_FRAMES := 20.0
-const ANIM_FPS := 30.0
 
 
 static func run(node: Node3D, hand_world: Callable) -> void:
@@ -17,7 +16,7 @@ static func run(node: Node3D, hand_world: Callable) -> void:
 		node.scale = Vector3.ZERO
 		node.visible = false
 		return
-	var duration: float = PULL_FRAMES / ANIM_FPS
+	var duration: float = PULL_FRAMES / DecompTime.FRAME_HZ
 	var hand0: Vector3 = _safe_hand(hand_world, node.global_position)
 	var offset: Vector3 = node.global_position - hand0
 	var start_scale: Vector3 = node.scale

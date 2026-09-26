@@ -50,14 +50,14 @@ func test_stage_strum_then_talk_then_fade() -> void:
 	stage.ready_for_talk.connect(func() -> void: talked[0] = true)
 	stage.fade_finished.connect(func() -> void: faded[0] = true)
 	## Cover the decomp 440-frame strum window (plus a frame of float slack).
-	stage.tick(float(IntroKkStage.STRUM_FRAMES) / IntroKkStage.FRAME_HZ + 0.05)
+	stage.tick(float(IntroKkStage.STRUM_FRAMES) / DecompTime.TICK_HZ + 0.05)
 	assert_that(stage.phase).is_equal(IntroKkStage.Phase.TALK)
 	assert_that(stage.pose).is_equal(IntroKkStage.Pose.LOOK_UP)
 	assert_bool(talked[0]).is_true()
 	stage.begin_fade()
 	assert_that(stage.phase).is_equal(IntroKkStage.Phase.FADE)
 	assert_that(stage.pose).is_equal(IntroKkStage.Pose.STRUM)
-	stage.tick(float(IntroKkStage.FADE_FRAMES) / IntroKkStage.FRAME_HZ + 0.05)
+	stage.tick(float(IntroKkStage.FADE_FRAMES) / DecompTime.TICK_HZ + 0.05)
 	assert_that(stage.phase).is_equal(IntroKkStage.Phase.DONE)
 	assert_bool(faded[0]).is_true()
 	assert_float(stage.fade_alpha).is_equal_approx(1.0, 0.001)
@@ -65,13 +65,13 @@ func test_stage_strum_then_talk_then_fade() -> void:
 
 func test_stage_silent_idle_looks_then_resumes_strum() -> void:
 	var stage := IntroKkStage.new()
-	stage.tick(float(IntroKkStage.STRUM_FRAMES) / IntroKkStage.FRAME_HZ + 0.05)
+	stage.tick(float(IntroKkStage.STRUM_FRAMES) / DecompTime.TICK_HZ + 0.05)
 	assert_that(stage.pose).is_equal(IntroKkStage.Pose.LOOK_UP)
 	## Still typing / not awaiting — silent counter resets; stay on look-up.
 	stage.tick(1.0, false)
 	assert_that(stage.pose).is_equal(IntroKkStage.Pose.LOOK_UP)
 	## ~10 s unanswered → TALK1 remaps to default_animation 4haku (resume playing).
-	stage.tick(float(IntroKkStage.SILENT_FRAMES) / IntroKkStage.FRAME_HZ + 0.05, true)
+	stage.tick(float(IntroKkStage.SILENT_FRAMES) / DecompTime.TICK_HZ + 0.05, true)
 	assert_that(stage.pose).is_equal(IntroKkStage.Pose.STRUM)
 	## Stay strumming while still unanswered past the threshold.
 	stage.tick(0.5, true)

@@ -58,7 +58,7 @@ func _run() -> void:
 	for c: Array in cases:
 		target.position = c[1]
 		for _i in 90:
-			look.tick(1.0 / 60.0, target if c[2] else null, FACING, false, true)
+			look.tick(DecompTime.TICK_SEC, target if c[2] else null, FACING, false, true)
 			await get_tree().physics_frame
 		print("HEAD %s yaw=%.1f pitch=%.1f neck=%s" % [
 			c[0], rad_to_deg(look._yaw), rad_to_deg(look._pitch),

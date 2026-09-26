@@ -7,7 +7,6 @@ extends RefCounted
 
 enum Rest { NONE, SIT, LIE }
 
-const TICK_HZ := 60.0
 ## `sit_timer > 14` / `bed_timer > 14`.
 const HOLD_TICKS := 14
 ## `aMR_3DStickNuetral` + `move_pR > 0.6`.
@@ -20,13 +19,13 @@ const STAND_STEP := 35.0 * FieldCatalog.GX_TO_METERS
 
 var sit_ticks: int = 0
 var bed_ticks: int = 0
-var _accum: float = 0.0
+var _steps := FrameStepper.new()
 
 
 func reset() -> void:
 	sit_ticks = 0
 	bed_ticks = 0
-	_accum = 0.0
+	_steps.reset()
 
 
 ## Advance `delta` seconds of held stick. Returns `{}` until a rest starts, then
@@ -38,10 +37,9 @@ func poll(
 	face: WorldGrid.Facing,
 	stick: Vector2
 ) -> Dictionary:
-	_accum += delta * TICK_HZ
+	_steps.add(delta)
 	var result: Dictionary = {}
-	while _accum >= 1.0:
-		_accum -= 1.0
+	while _steps.next():
 		result = _tick(session, player_pos, face, stick)
 		if not result.is_empty():
 			reset()

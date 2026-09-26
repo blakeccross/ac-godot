@@ -1019,11 +1019,11 @@ func _is_sleepy() -> bool:
 
 
 func _tick_fatigue(delta: float, planar: Vector3) -> void:
-	## `aNPC_calc_fatigue` every frame (`LOGIC_HZ`): walk +1, run +2, wait -2; clamp [0, 1600].
+	## `aNPC_calc_fatigue` once per tick: walk +1, run +2, wait -2; clamp [0, 1600].
 	var rate: float = FATIGUE_WAIT
 	if planar.length() > IDLE_SPEED and _motor.wait_left <= 0.0:
 		rate = FATIGUE_RUN if _motor.gait == VillagerWalk.ACT_RUN else FATIGUE_WALK
-	_fatigue = clampf(_fatigue + rate * delta * PlayerLocomotion.LOGIC_HZ, 0.0, FATIGUE_MAX)
+	_fatigue = clampf(_fatigue + rate * delta * DecompTime.TICK_HZ, 0.0, FATIGUE_MAX)
 	if _fatigue >= FATIGUE_MAX:
 		_resting = true
 	elif _fatigue < FATIGUE_REST:

@@ -40,7 +40,6 @@ const STOP_RATE := 0.005
 const START_RATE := 0.00345
 const SPEEDUP_RATE := 0.00345
 
-const TICK_HZ := PlayerLocomotion.LOGIC_HZ
 const RAIL_Z_GX := 740.0
 const BLOCK_GX := 640.0
 const SPAWN_X_GX := 320.0

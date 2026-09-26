@@ -22,11 +22,9 @@ const FADE_RAMP_FRAMES := 70
 ## Idle on MainNormal / choice before `aNPC_MANPU_CODE_RESET` (255 → TALK1 → 4haku).
 const SILENT_FRAMES := 600
 
-const FRAME_HZ := 60.0
 ## cKF morph_counter −N → |N|/30 s crossfade (same as train Rover).
-const MORPH_HZ := 30.0
-const MORPH_STRUM := 3.0 / MORPH_HZ
-const MORPH_LOOK_UP := 5.0 / MORPH_HZ
+const MORPH_STRUM := 3.0 / DecompTime.FRAME_HZ
+const MORPH_LOOK_UP := 5.0 / DecompTime.FRAME_HZ
 
 ## Camera lock from `aNPS_actor_ct`, look-at lowered so KK clears the dialogue box.
 const CAM_CENTER_GX := Vector3(100.0, 10.0, 60.0)
@@ -103,8 +101,8 @@ var phase: Phase = Phase.STRUM
 var pose: Pose = Pose.STRUM
 var fade_alpha: float = 0.0
 
-var _strum_left: float = float(STRUM_FRAMES) / FRAME_HZ
-var _fade_left: float = float(FADE_FRAMES) / FRAME_HZ
+var _strum_left: float = float(STRUM_FRAMES) / DecompTime.TICK_HZ
+var _fade_left: float = float(FADE_FRAMES) / DecompTime.TICK_HZ
 var _bgm_stop_left: float = -1.0
 var _silent_frames: float = 0.0
 var _talk_signaled: bool = false
@@ -137,8 +135,8 @@ func reset() -> void:
 	phase = Phase.STRUM
 	pose = Pose.STRUM
 	fade_alpha = 0.0
-	_strum_left = float(STRUM_FRAMES) / FRAME_HZ
-	_fade_left = float(FADE_FRAMES) / FRAME_HZ
+	_strum_left = float(STRUM_FRAMES) / DecompTime.TICK_HZ
+	_fade_left = float(FADE_FRAMES) / DecompTime.TICK_HZ
 	_bgm_stop_left = -1.0
 	_silent_frames = 0.0
 	_talk_signaled = false
@@ -149,8 +147,8 @@ func begin_fade() -> void:
 	if phase == Phase.FADE or phase == Phase.DONE:
 		return
 	phase = Phase.FADE
-	_fade_left = float(FADE_FRAMES) / FRAME_HZ
-	_bgm_stop_left = float(BGM_STOP_FRAMES) / FRAME_HZ
+	_fade_left = float(FADE_FRAMES) / DecompTime.TICK_HZ
+	_bgm_stop_left = float(BGM_STOP_FRAMES) / DecompTime.TICK_HZ
 	fade_alpha = 0.0
 	_set_pose(Pose.STRUM)
 
@@ -176,7 +174,7 @@ func tick(delta: float, awaiting_input: bool = false) -> void:
 func _tick_talk_idle(delta: float, awaiting_input: bool) -> void:
 	## `silent_counter` only climbs on MainNormal / choice; resets while text lays in.
 	if awaiting_input:
-		_silent_frames = minf(_silent_frames + delta * FRAME_HZ, float(SILENT_FRAMES))
+		_silent_frames = minf(_silent_frames + delta * DecompTime.TICK_HZ, float(SILENT_FRAMES))
 	else:
 		_silent_frames = 0.0
 	## Mirrors `aNPS_talk_end_chk` order 253 / 255:
@@ -211,7 +209,7 @@ func _tick_fade(delta: float) -> void:
 			## `mBGMPsComp_make_ps_wipe(0x421C)` — crossfade out intro_kk.
 			Audio.stop_bgm()
 	_fade_left = maxf(_fade_left - delta, 0.0)
-	var frames_left: float = _fade_left * FRAME_HZ
+	var frames_left: float = _fade_left * DecompTime.TICK_HZ
 	if frames_left < float(FADE_RAMP_FRAMES):
 		fade_alpha = clampf(1.0 - frames_left / float(FADE_RAMP_FRAMES), 0.0, 1.0)
 	else:

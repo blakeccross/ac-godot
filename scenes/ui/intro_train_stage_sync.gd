@@ -7,7 +7,6 @@ const SYNC_ENTER := &"enter_door"
 const SYNC_DECK := &"deck_door"
 const SYNC_OPEN_D2 := &"open_d2_door"
 
-const _FPS := 30.0
 
 @onready var _player: AnimationPlayer = $AnimationPlayer
 
@@ -35,7 +34,7 @@ func _build_library() -> void:
 
 
 func _door_pulse_anim(frame: float) -> Animation:
-	var time: float = frame / _FPS
+	var time: float = frame / DecompTime.FRAME_HZ
 	var anim := Animation.new()
 	anim.length = maxf(time + 0.001, 0.001)
 	var track: int = anim.add_track(Animation.TYPE_METHOD)

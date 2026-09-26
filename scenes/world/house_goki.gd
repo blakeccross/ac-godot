@@ -3,7 +3,7 @@ extends Node3D
 ## A cockroach in the player's house (`ac_house_goki.c`). Runs from the player, hops when
 ## cornered, dawdles when left alone, and dies when stepped on or when furniture lands on it.
 ## Timers and speeds keep the decomp's per-frame units. A decomp frame is 1/60 s
-## (`PlayerLocomotion.LOGIC_HZ`): positions move `0.5 · speed` per frame (1 speed unit =
+## (`DecompTime.TICK_HZ`): positions move `0.5 · speed` per frame (1 speed unit =
 ## 1.5 m/s), `aHG_calc_timer` takes 0.5 off each timer per frame (a timer unit is 1/30 s).
 
 signal died
@@ -11,9 +11,8 @@ signal died
 enum Act { AWAY, JUMP_AWAY, WAIT, MOVE, DEAD }
 
 const VISUAL := &"act_m_house_goki"
-const TICK_HZ := PlayerLocomotion.LOGIC_HZ
 const MPS := 1.5
-const TIMER_HZ := 0.5 * TICK_HZ
+const TIMER_HZ := 0.5 * DecompTime.TICK_HZ
 ## `aHG_check_dead`: the player treads on it inside 9 GX while moving.
 const STEP_KILL := 9.0 * FieldCatalog.GX_TO_METERS
 ## `aHG_player_check`: a moving player within 60 GX scares it.
@@ -21,9 +20,9 @@ const SCARE := 60.0 * FieldCatalog.GX_TO_METERS
 const RADIUS := 0.4
 ## `position_speed.y = 17`, `gravity = -2` (rising) / `-7` (falling): the position moves
 ## `0.5 · vy` per frame and `vy` chases by `0.5 · gravity` per frame.
-const JUMP_VY := 17.0 * FieldCatalog.GX_TO_METERS * 0.5 * TICK_HZ
-const G_UP := -2.0 * FieldCatalog.GX_TO_METERS * 0.25 * TICK_HZ * TICK_HZ
-const G_DOWN := -7.0 * FieldCatalog.GX_TO_METERS * 0.25 * TICK_HZ * TICK_HZ
+const JUMP_VY := 17.0 * FieldCatalog.GX_TO_METERS * 0.5 * DecompTime.TICK_HZ
+const G_UP := -2.0 * FieldCatalog.GX_TO_METERS * 0.25 * DecompTime.TICK_HZ * DecompTime.TICK_HZ
+const G_DOWN := -7.0 * FieldCatalog.GX_TO_METERS * 0.25 * DecompTime.TICK_HZ * DecompTime.TICK_HZ
 
 var session: IndoorSession
 var act: Act = Act.AWAY
@@ -63,7 +62,7 @@ func _physics_process(delta: float) -> void:
 	_timer2 = maxf(_timer2 - delta * TIMER_HZ, 0.0)
 	if act != Act.DEAD:
 		if _fade_in:
-			alpha = minf(alpha + 3.5 * TICK_HZ * delta, 255.0)
+			alpha = minf(alpha + 3.5 * DecompTime.TICK_HZ * delta, 255.0)
 			if alpha >= 255.0:
 				_fade_in = false
 		if not _fade_in and _should_die():

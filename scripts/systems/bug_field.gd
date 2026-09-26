@@ -12,7 +12,6 @@ const MAX_ACTORS := 9
 const MAX_FIELD_SPAWNS := 8
 ## `aINS_cull_check`: drop when >600 GX from player and in another acre.
 const CULL_DISTANCE := 600.0 * FieldCatalog.GX_TO_METERS
-const GAME_FPS := PlayerLocomotion.LOGIC_HZ
 
 ## `l_insect_birth_sum` (`ac_set_ovl_insect.c`): (min, additional_range). Only
 ## RED_DRAGONFLY (10) and FIREFLY (27) birth a swarm of 6–8; everything else is 1.
@@ -40,7 +39,7 @@ var _net_origin: Vector3 = Vector3.ZERO
 var _net_dir: Vector3 = Vector3.ZERO
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _spawned_acre: Vector2i = Vector2i(-999, -999)
-var _step_acc: float = 0.0
+var _steps := FrameStepper.new()
 var _field_action: Dictionary = {"kind": 0, "cell": Vector2i(-1, -1)}
 
 const TOOL_SWING_SECONDS := 0.25
@@ -52,7 +51,7 @@ func configure(grid: WorldGrid, layout: WorldData) -> void:
 	_layout = layout
 	actors.clear()
 	_spawned_acre = Vector2i(-999, -999)
-	_step_acc = 0.0
+	_steps.reset()
 
 
 func seed_rng(value: int) -> void:
@@ -108,10 +107,9 @@ func tick(delta: float, sense: BugActor.Sense) -> void:
 	## the insect frame loop — run it once per call, guarded by `_spawned_acre`.
 	_tick_spawn(sense)
 
-	_step_acc += delta
+	_steps.add(delta)
 	var budget: int = 8
-	while _step_acc >= 1.0 / GAME_FPS and budget > 0:
-		_step_acc -= 1.0 / GAME_FPS
+	while budget > 0 and _steps.next():
 		budget -= 1
 		_frame(sense)
 

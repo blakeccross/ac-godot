@@ -203,7 +203,7 @@ static func look_yaw(house_idx: int, has_owner: bool, action: Action, player_yaw
 ## `chase_angle(rot, target, 0x0600)`: scaled by the 30 Hz game frame (`game_GameFrame_2F`),
 ## so it turns `TURN_STEP` × 30 per second whatever the tick rate.
 static func chase_yaw(current: float, target: float, delta: float) -> float:
-	var step: float = short_to_rad(TURN_STEP) * 30.0 * delta
+	var step: float = short_to_rad(TURN_STEP) * DecompTime.FRAME_HZ * delta
 	var diff: float = wrapf(target - current, -PI, PI)
 	if absf(diff) <= step:
 		return target

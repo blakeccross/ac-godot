@@ -24,7 +24,7 @@ func _run(intro: Node3D) -> void:
 	stage.cue_sit()
 	for i: int in 120:
 		await get_tree().process_frame
-		stage.tick(1.0 / 60.0)
+		stage.tick(DecompTime.TICK_SEC)
 		var act := String(stage._action_name(stage.action))
 		if i % 5 == 0 or act in ["sitdown", "seated"]:
 			var look := _look_gx(cam)

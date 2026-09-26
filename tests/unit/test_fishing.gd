@@ -19,7 +19,7 @@ class _GridWorld extends Node:
 
 ## Long enough for five nibbles at the slowest size, short enough to fail a stuck shadow.
 const DRIVE_CAP := 30.0
-const STEP := 1.0 / 60.0
+const STEP := DecompTime.TICK_SEC
 
 var _heard: Array[String] = []
 
@@ -148,7 +148,7 @@ func test_cast_lands_partway_through_the_swing() -> void:
 	if clip.is_empty():
 		return
 	var length: float = anim.get_animation(clip).length
-	assert_float(Fishing.CAST_RELEASE_FRAME / player.ANIM_FPS).is_less(length)
+	assert_float(Fishing.CAST_RELEASE_FRAME / DecompTime.FRAME_HZ).is_less(length)
 
 
 func test_show_off_pose_waits_for_the_catch_report() -> void:
@@ -917,7 +917,7 @@ func test_show_off_turn_settles_facing_the_camera() -> void:
 		)
 		frames += 1
 	assert_float(yaw).is_equal_approx(Fishing.SHOW_YAW, 0.0001)
-	assert_int(frames).is_less(int(Fishing.SHOW_HOLD_SECONDS * Fishing.SHOW_TURN_HZ))
+	assert_int(frames).is_less(int(Fishing.SHOW_HOLD_SECONDS * DecompTime.TICK_HZ))
 	## `maxStep` bounds the first step of a half turn.
 	var capped: float = MLib.short_angle2(
 		PI * 0.5,

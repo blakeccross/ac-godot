@@ -10,9 +10,6 @@ extends RefCounted
 ## `eye_*_blink` tables. Mood wait poses (`wait_do1`, `wait_ai1`, `wait_ki1`, …) hold a
 ## single eye frame instead of blinking — `set_emote` follows those holds.
 
-## `aNPC_tex_anm_ctrl` runs every decomp frame (60 Hz); the tables count in 0.5 / 0.25 steps.
-const FRAME_HZ := PlayerLocomotion.LOGIC_HZ
-
 ## `nture[]` indices.
 const EYE_OPEN := 0
 const EYE_HALF := 1
@@ -113,7 +110,7 @@ var mouth_pattern: int = MOUTH_SHUT
 var emote: Emote = Emote.NORMAL
 
 var _rng := RandomNumberGenerator.new()
-var _accum: float = 0.0
+var _steps := FrameStepper.new()
 
 ## 0 = hold `_eye_hold` (mood wait poses); 1..6 = blink table index.
 var _eye_seq_type: int = 1
@@ -218,9 +215,8 @@ func set_emote(next: Emote, mouth_hold_override: int = -1) -> void:
 ## Returns true when either pattern changed, so the caller can skip redundant rebinding.
 func tick(delta: float, uttering: bool) -> bool:
 	var before := Vector2i(eye_pattern, mouth_pattern)
-	_accum += delta * FRAME_HZ
-	var frames: int = int(_accum)
-	_accum -= float(frames)
+	## `aNPC_tex_anm_ctrl` runs once per tick; the tables count in 0.5 / 0.25 steps.
+	var frames: int = _steps.take(delta)
 	## The original runs these off the draw, so cap a long hitch rather than replaying it.
 	frames = mini(frames, 8)
 	for _i in frames:

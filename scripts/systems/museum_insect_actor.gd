@@ -5,7 +5,6 @@ extends RefCounted
 ## Anchors and active/relax windows come from `ac_museum_insect`; motion is a lighter
 ## museum-idle version of field `BugActor` programs so wings still flap on schedule.
 
-const GAME_FPS := PlayerLocomotion.LOGIC_HZ
 const BEETLE_HEIGHT_GX := 35.0
 
 var bug: BugData = null
@@ -133,7 +132,7 @@ func _tick_pose(delta: float) -> void:
 	## Still flap slowly while relaxed so cases are not frozen silhouettes.
 	var rate: float = 1.0 if active else 0.25
 	_pose_tick += delta * rate
-	var step: float = 1.0 / BugData.POSE_FLAP_HZ
+	var step: float = DecompTime.TICK_SEC
 	while _pose_tick >= step:
 		_pose_tick -= step
 		_pose_frame = (_pose_frame + 1) % _pose_pattern.size()

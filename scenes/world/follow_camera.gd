@@ -35,7 +35,7 @@ var _acre_active: bool = false
 var _acre_center := Vector3.ZERO
 ## `Camera2` `direction.x` relative to the 45° base: the rail-row swing, eased.
 var _acre_pitch: float = 0.0
-var _acre_accum: float = 0.0
+var _acre_steps := FrameStepper.new()
 ## `Camera2_main_Wade`: `{start, goal, t}` in GX while the player wades.
 var _acre_wade: Dictionary = {}
 
@@ -194,7 +194,7 @@ func _follow_acre(snap: bool, delta: float) -> void:
 	var player_gx: Vector3 = TownSpace.world_to_gx(_target.global_position)
 	if snap or not _acre_active:
 		_acre_active = true
-		_acre_accum = 0.0
+		_acre_steps.reset()
 		_acre_wade = {}
 		if snap or not _has_look:
 			_acre_center = AcreCamera.goal(eye_gx, player_gx)
@@ -211,9 +211,8 @@ func _follow_acre(snap: bool, delta: float) -> void:
 			"t": 0.0,
 		}
 	if not snap:
-		_acre_accum += delta * AcreWade.TICK_HZ
-		while _acre_accum >= 1.0:
-			_acre_accum -= 1.0
+		_acre_steps.add(delta)
+		while _acre_steps.next():
 			_acre_tick(eye_gx, player_gx)
 	var center_w: Vector3 = TownSpace.gx_to_world(_acre_center)
 	global_position = center_w + _swung_offset(_acre_pitch)

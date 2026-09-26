@@ -13,7 +13,6 @@ extends RefCounted
 enum Phase { IDLE, GRIPPED, BUSY }
 enum ContactSide { FRONT, BACK, LEFT, RIGHT }
 
-const TICK_HZ := 60.0
 ## `switch_timer < 14`: a shorter A press is a tap.
 const TAP_TICKS := 14
 ## `push_timer > 16` / `pull_timer > 16`.
@@ -40,7 +39,7 @@ var allow_rotation: bool = true
 ## After a blocked attempt the stick has to come back before the next one (`push_bubu`).
 var need_neutral: bool = false
 
-var _accum: float = 0.0
+var _steps := FrameStepper.new()
 
 
 func is_active() -> bool:
@@ -55,7 +54,7 @@ func reset() -> void:
 	pull_ticks = 0
 	allow_rotation = true
 	need_neutral = false
-	_accum = 0.0
+	_steps.reset()
 
 
 ## The floor piece the player is up against, or `{}`. `{ placement, data, pivot, side, nice_pos }`.
@@ -153,7 +152,7 @@ func press(session: IndoorSession, player_pos: Vector3, face: WorldGrid.Facing) 
 	pull_ticks = 0
 	allow_rotation = true
 	need_neutral = false
-	_accum = 0.0
+	_steps.reset()
 	return contact
 
 
@@ -176,9 +175,8 @@ func advance(
 	var out: Array[Dictionary] = []
 	if phase == Phase.IDLE:
 		return out
-	_accum += delta * TICK_HZ
-	while _accum >= 1.0 and phase != Phase.IDLE:
-		_accum -= 1.0
+	_steps.add(delta)
+	while phase != Phase.IDLE and _steps.next():
 		out.append_array(_tick(session, a_held, stick, player_pos))
 	return out
 

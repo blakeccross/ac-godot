@@ -165,7 +165,7 @@ func _wait(delta: float, sense: Sense) -> void:
 func _swim(delta: float, sense: Sense) -> void:
 	## `aGTT_swim`: the three `swim_flag` patterns. All three run a sine speed envelope over
 	## a sweep that advances 2.5 degrees a frame, so a shadow eases out and back in.
-	_swim_phase += FishSize.SWEEP_DEG_PER_FRAME * FishSize.GAME_FPS * delta
+	_swim_phase += FishSize.SWEEP_DEG_PER_FRAME * DecompTime.TICK_HZ * delta
 	var sweep: float = 360.0 if _swim_kind == 0 else 180.0
 	speed = FishSize.cruise_speed() * sin(deg_to_rad(_swim_phase))
 	if _swim_kind == 2:
@@ -179,7 +179,7 @@ func _swim(delta: float, sense: Sense) -> void:
 func _escape(delta: float, _sense: Sense) -> void:
 	## `aGTT_escape`: bolt, ease off over 100 frames, then settle back into WAIT.
 	_timer -= delta
-	speed = move_toward(speed, 0.0, FishSize.gx_per_frame_to_mps(FishSize.ESCAPE_DECAY_GX) * delta * FishSize.GAME_FPS)
+	speed = move_toward(speed, 0.0, FishSize.gx_per_frame_to_mps(FishSize.ESCAPE_DECAY_GX) * delta * DecompTime.TICK_HZ)
 	if _timer <= 0.0:
 		_enter(Action.WAIT)
 
@@ -335,7 +335,7 @@ func _enter(next: Action) -> void:
 				yaw += _rng.randf_range(-PI, PI)
 			speed = 0.0
 		Action.ESCAPE:
-			_timer = FishSize.ESCAPE_FRAMES / FishSize.GAME_FPS
+			_timer = FishSize.ESCAPE_FRAMES / DecompTime.TICK_HZ
 			speed = FishSize.escape_speed()
 		Action.NEAR:
 			speed = FishSize.speed(size)
@@ -378,7 +378,7 @@ func _cell_of(at: Vector3) -> Vector2i:
 
 func _turn_towards(target: float, delta: float) -> void:
 	## `chase_angle(..., 0x100)`: 0x100 of 0x10000 is 1/256 of a turn per frame.
-	var rate: float = TAU / 256.0 * FishSize.GAME_FPS * delta
+	var rate: float = TAU / 256.0 * DecompTime.TICK_HZ * delta
 	yaw = _step_angle(yaw, target, rate)
 
 

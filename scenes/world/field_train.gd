@@ -14,8 +14,6 @@ const ENGINEER_YAW := PI * 0.5
 const ENGINEER_OFF_GX := Vector3(-40.0, 47.0, 20.0)
 const WHEEL_CLIP := "obj_train1_1"
 const DOOR_CLIPS: Array[String] = ["obj_train1_3_open", "obj_train1_3_close"]
-## cKF speeds are keyframes per decomp tick; baked clips run 30 keyframes per second.
-const KEYFRAMES_PER_TICK := IntroStationStage.KEYFRAMES_PER_TICK
 
 var cars: TrainCars = TrainCars.new()
 
@@ -69,7 +67,7 @@ func tick(control: TrainControl, parked_demo: bool) -> Dictionary:
 	_place(_caboose, cars.caboose_x)
 	_engineer.global_position = _loco.global_position + ENGINEER_OFF_GX * FieldCatalog.GX_TO_METERS
 	if _loco_anim != null:
-		_loco_anim.speed_scale = IntroStationStage.loco_wheel_speed_scale(control.speed) * KEYFRAMES_PER_TICK
+		_loco_anim.speed_scale = IntroStationStage.loco_wheel_speed_scale(control.speed) * DecompTime.TICKS_PER_FRAME
 	if not door.is_empty():
 		_apply_door(door)
 	return door
@@ -91,7 +89,7 @@ func _apply_door(door: Dictionary) -> void:
 	_caboose_anim.speed_scale = 1.0
 	_caboose_anim.play(clip)
 	_caboose_anim.seek(animation.length if bool(door["at_end"]) else 0.0, true)
-	_caboose_anim.speed_scale = float(door["speed"]) * KEYFRAMES_PER_TICK
+	_caboose_anim.speed_scale = float(door["speed"]) * DecompTime.TICKS_PER_FRAME
 
 
 func _build() -> void:

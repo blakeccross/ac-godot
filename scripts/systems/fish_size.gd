@@ -7,9 +7,8 @@ extends RefCounted
 ##
 ## The originals are in GX per logic frame. Movement runs at 60 Hz (the authored dwell
 ## values are all multiplied by 2 on their way into a counter), so a speed converts with
-## `GX_TO_METERS * GAME_FPS` and a frame count with `/ GAME_FPS`.
+## `GX_TO_METERS * DecompTime.TICK_HZ` and a frame count with `/ DecompTime.TICK_HZ`.
 
-const GAME_FPS := 60.0
 const GX := FieldCatalog.GX_TO_METERS
 ## The dwell tables are authored in 30 Hz frames and every site that loads one into a
 ## counter doubles it (`work0 = (100 + RANDOM_F(30)) * 2`, `bite_time * 2.0f`). Speeds and
@@ -104,7 +103,7 @@ const TILE_PAIRS: Array[Vector2i] = [
 ## each of the 20 entries is held two frames — a 38-frame swim loop.
 const ANIM_FRAMES := 20
 const ANIM_FRAME_HOLD := 2.0
-const ANIM_LOOP_SECONDS := ANIM_FRAMES * ANIM_FRAME_HOLD / GAME_FPS
+const ANIM_LOOP_SECONDS := ANIM_FRAMES * ANIM_FRAME_HOLD / DecompTime.TICK_HZ
 ## `dec_step`: 1.0 for every size but WHALE, which is 0.0 and therefore never wiggles.
 const WHALE_IS_STILL := true
 
@@ -140,11 +139,11 @@ static func touch_distance(size: FishData.SizeClass) -> float:
 
 
 static func touch_seconds(size: FishData.SizeClass) -> float:
-	return float(_at(TOUCH_FRAMES, size)) * AUTHORED_TICK_SCALE / GAME_FPS
+	return float(_at(TOUCH_FRAMES, size)) * AUTHORED_TICK_SCALE / DecompTime.TICK_HZ
 
 
 static func touch_jitter_seconds() -> float:
-	return TOUCH_JITTER_FRAMES * AUTHORED_TICK_SCALE / GAME_FPS
+	return TOUCH_JITTER_FRAMES * AUTHORED_TICK_SCALE / DecompTime.TICK_HZ
 
 
 static func back_speed_jitter() -> float:
@@ -179,13 +178,13 @@ static func search_half_angle(area_index: int, rod: int = ROD_NORMAL) -> float:
 static func bite_seconds(bite_index: int, rod: int = ROD_NORMAL) -> float:
 	var row: Array = BITE_FRAMES[clampi(rod, 0, 1)]
 	var frames: float = float(row[clampi(bite_index, 0, row.size() - 1)])
-	return frames * AUTHORED_TICK_SCALE / GAME_FPS
+	return frames * AUTHORED_TICK_SCALE / DecompTime.TICK_HZ
 
 
 ## The `WAIT` dwell before a fish gives up holding station and swims.
 static func wait_seconds(jitter01: float) -> float:
 	var frames: float = WAIT_FRAMES + clampf(jitter01, 0.0, 1.0) * WAIT_FRAMES_JITTER
-	return frames * AUTHORED_TICK_SCALE / GAME_FPS
+	return frames * AUTHORED_TICK_SCALE / DecompTime.TICK_HZ
 
 
 static func depth() -> float:
@@ -193,7 +192,7 @@ static func depth() -> float:
 
 
 static func gx_per_frame_to_mps(gx_per_frame: float) -> float:
-	return gx_per_frame * GX * GAME_FPS
+	return gx_per_frame * GX * DecompTime.TICK_HZ
 
 
 ## Which of the 20 swim frames a shadow is on, given how long it has been swimming.
@@ -215,7 +214,7 @@ static func tile_pair(frame: int) -> Vector2i:
 
 ## Escape-puff alpha at an age in seconds, 0–1. `(timer * 0.5 - 10) * 6` over 255.
 static func puff_alpha(age: float) -> float:
-	var timer: float = PUFF_FRAMES - age * GAME_FPS
+	var timer: float = PUFF_FRAMES - age * DecompTime.TICK_HZ
 	if timer <= 0.0:
 		return 0.0
 	var alpha: float = (timer * 0.5 - PUFF_ALPHA_BIAS) * PUFF_ALPHA_GAIN
@@ -223,4 +222,4 @@ static func puff_alpha(age: float) -> float:
 
 
 static func puff_seconds() -> float:
-	return PUFF_FRAMES / GAME_FPS
+	return PUFF_FRAMES / DecompTime.TICK_HZ

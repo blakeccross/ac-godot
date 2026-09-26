@@ -19,7 +19,6 @@ enum Action {
 	IDLE,
 }
 
-const TICK_HZ := 60.0
 ## `cKF_SkeletonInfo_R_init(..., start 1, end 121, ..., speed 0.5)`: (121 − 1) / 0.5 ticks.
 ## At 60 Hz that is the 4.0 s the baked `logo_us_*` clips run.
 const IN_TICKS := 240
@@ -102,7 +101,7 @@ func tick(
 
 ## Seconds into the 4 s logo clips.
 func anim_seconds() -> float:
-	return float(in_ticks) / TICK_HZ
+	return float(in_ticks) / DecompTime.TICK_HZ
 
 
 func back_visible() -> bool:

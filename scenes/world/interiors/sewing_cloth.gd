@@ -9,7 +9,6 @@ extends Node3D
 ## Draw is `RotateY(angle) · translate(-target_pos) · model`, so `angle` spins the
 ## pivot and `-target_pos` slides the cloth under the needle.
 
-const FPS := 60.0
 const LOOP := 138
 ## aMSN_dustcloth_target_table (x, z), scaled to metres for a ~1.4 m quad.
 const CORNERS: Array[Vector2] = [Vector2(-4, 4), Vector2(-4, -4), Vector2(4, -4), Vector2(4, 4)]
@@ -30,7 +29,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_frame += delta * FPS
+	_frame += delta * DecompTime.TICK_HZ
 	if _frame >= LOOP:
 		_frame -= LOOP
 		_target_idx = (_target_idx + 1) % 4

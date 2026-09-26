@@ -142,7 +142,7 @@ func _tick_puffs(delta: float) -> void:
 		puff.age += delta
 		## `chase_f(&speed, 0.0f, 0.02f)`: the puff coasts to a stop as it fades.
 		puff.speed = move_toward(
-			puff.speed, 0.0, FishSize.gx_per_frame_to_mps(FishSize.ESCAPE_DECAY_GX) * FishSize.GAME_FPS * delta
+			puff.speed, 0.0, FishSize.gx_per_frame_to_mps(FishSize.ESCAPE_DECAY_GX) * DecompTime.TICK_HZ * delta
 		)
 		puff.position += Vector3(sin(puff.yaw), 0.0, cos(puff.yaw)) * puff.speed * delta
 		if not puff.done():

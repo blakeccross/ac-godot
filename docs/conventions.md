@@ -35,6 +35,13 @@ See [architecture.md](architecture.md) § Scene-first.
 
 Do not recreate the original game's single global save blob. Split state by concern.
 
+## Decomp time
+
+Decomp numbers come in two rates; use `DecompTime` rather than a local `60.0` / `30.0` constant:
+
+- **Tick** (`DecompTime.TICK_HZ` 60, `TICK_SEC`): one play-loop update. Per-frame steps (`add_calc*`, `chase_f`, brakes, `timer--`, per-frame `RANDOM` rolls, `0.5 · speed` moves) run once per tick through a `FrameStepper` (`add(delta)` then `while steps.next():`). Don't scale these by `delta`; the results differ.
+- **Frame** (`DecompTime.FRAME_HZ` 30): the original 30 fps frame. Clip frame numbers, `speed` in GX per frame, and `chase_angle` steps (scaled by `game_GameFrame_2F`) use it. The pipeline bakes clips at this rate (`ckf.py` `FPS`, checked by `test_decomp_time`), so animations need no conversion.
+
 ## Autoloads
 
 Autoloads currently: `Clock`, `SaveService`, `Audio`, `Game`. Do not add more until a system exists and must be globally reachable. Inventory, `VillagerRoster`, `VillagerCatalog`, `VillagerAI`, `VillagerPlan`, `VillagerAction`, `VillagerWalk`, `Relationship` / `RelationshipBook`, `Interior` / `InteriorCatalog` / `InteriorBook`, `ShopBook` / `ShopUse`, `MuseumBook` / `MuseumDisplay` / `MuseumPresenter`, dialogue (`DialogueCatalog` / `DialogueRunner` / `DialogueGreeting`), `IntroSequence`, `BgmCatalog`, `Weather`, fishing, economy, `WorldGrid`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `StructureOffset`, `HostCollision`, `GeneratedVisual`, `HeldTool`, `PlayerLocomotion`, `InteractionQuery`, `ToolUse`, `FurnitureUse`, `TreeUse`, `HoleUse`, `PlantGrowth`, `VillagerSchedule`, `VillagerMotor`, and `VillagerTalk` are not autoloads. Weather, plants, fish, bugs, shops, museum, and events read `Clock` instead of tracking time themselves. Dialogue rain lines read `Game.weather`. Outdoor BGM follows `Clock.hour_changed` and `Game.weather`. See [architecture.md](architecture.md).

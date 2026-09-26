@@ -11,10 +11,9 @@ const STUMP_RADIUS := 18.0 * FieldCatalog.GX_TO_METERS
 ## Player shake effect lands on frame 10 (`Player_actor_SetEffect_Shake_tree`).
 const SHAKE_EFFECT_FRAME := 10.0
 ## `STATUS_FOR_BEE_ATTACK` at frame 29.5 — delay from the effect mark (frame 10).
-const BEE_ATTACKABLE_AFTER_EFFECT := (29.5 - SHAKE_EFFECT_FRAME) / 30.0
+const BEE_ATTACKABLE_AFTER_EFFECT := (29.5 - SHAKE_EFFECT_FRAME) / DecompTime.FRAME_HZ
 ## Bee birth retry window starts 5 frames after the effect (`bee_spawn_timer = 5`).
-const BEE_SPAWN_DELAY := 5.0 / 30.0
-const ANIM_FPS := 30.0
+const BEE_SPAWN_DELAY := 5.0 / DecompTime.FRAME_HZ
 ## EffectBG sets `frame_control.speed = 0.5` on a 60 Hz actor tick (= 30 anim fps).
 ## Pipeline / player clips already sample at 30 fps, so Godot dt is frames / 30 — not / 15.
 ## `eYoung_Tree_dw`: cedar / palm saplings roll about a point above the trunk base.
@@ -372,7 +371,7 @@ func _play_shake(strong: bool, with_fx: bool = true) -> void:
 	var first: float = TreeSway.first_frame(curve)
 	var last: float = TreeSway.last_frame(curve)
 	_motion = create_tween()
-	_motion.tween_method(_apply_sway.bind(pivot, curve), first, last, (last - first) / ANIM_FPS)
+	_motion.tween_method(_apply_sway.bind(pivot, curve), first, last, (last - first) / DecompTime.FRAME_HZ)
 	if with_fx:
 		_schedule_shake_fx(strong, family, size)
 
@@ -391,7 +390,7 @@ func _family() -> PlantData.Family:
 func _play_young_wobble(pivot: Node3D) -> void:
 	var ticks: int = TreeSway.YOUNG_SMALL_TICKS
 	_motion = create_tween()
-	_motion.tween_method(_apply_young.bind(pivot), 0.0, float(ticks), float(ticks) * TreeFx.TICK)
+	_motion.tween_method(_apply_young.bind(pivot), 0.0, float(ticks), float(ticks) * DecompTime.TICK_SEC)
 
 
 func _apply_young(tick: float, pivot: Node3D) -> void:
@@ -426,7 +425,7 @@ func _schedule_shake_fx(strong: bool, family: PlantData.Family, size: int) -> vo
 	for tick: int in range(0, last_tick + 1, 16):
 		if strong and tick == 0:
 			continue
-		var delay: float = float(tick) * TreeFx.TICK
+		var delay: float = float(tick) * DecompTime.TICK_SEC
 		if delay <= 0.0:
 			_emit_shake_fx(strong, family, medium_cedar, winter)
 		else:

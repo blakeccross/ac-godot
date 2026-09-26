@@ -3,12 +3,11 @@ extends Node3D
 
 ## Caught bug held up on the show-off pose. Mirrors `HeldFish` for insects.
 
-const FLAP_HZ := BugData.POSE_FLAP_HZ
 
 var _poses: Array[Node3D] = []
 var _pattern: Array[int] = []
 var _shown: int = -1
-var _tick: float = 0.0
+var _steps := FrameStepper.new()
 var _index: int = 0
 var _scale: float = 1.0
 var _lift: float = 0.0
@@ -63,10 +62,8 @@ func _process(delta: float) -> void:
 	_billboard()
 	if _pattern.size() <= 1:
 		return
-	_tick += delta
-	var step: float = 1.0 / FLAP_HZ
-	while _tick >= step:
-		_tick -= step
+	_steps.add(delta)
+	while _steps.next():
 		_index = (_index + 1) % _pattern.size()
 		_show(_pattern[_index])
 

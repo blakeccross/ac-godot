@@ -18,9 +18,8 @@ const EDGE_GX := 18.00001
 const WALL_GX := 18.0
 const STICK_RANGE := 0.65
 const ANGLE_RANGE := 40.0
+## Ticks (1/60 s): 36 = 0.6 s.
 const TICKS := 36.0
-## Decomp play frames per second (`PlayerLocomotion.LOGIC_HZ`): 36 frames = 0.6 s.
-const TICK_HZ := PlayerLocomotion.LOGIC_HZ
 const ACCEL := 1.1999999
 const BRAKE := 34.8
 ## `Player_actor_Search_exist_npc_inCircle_forWade` (not in the title demo).

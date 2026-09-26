@@ -30,7 +30,6 @@ const CROWN_PALM_GX: Array[Vector3] = [
 const DROP_SPEED_FRAMES: Array[int] = [14, 18, 22]
 const HONEY_DROP_FRAMES := 5
 const FURNITURE_DROP_FRAMES := 26
-const GAME_FPS := 30.0
 
 const MONEY_IDS: Dictionary = {
 	Content.BELLS: &"money_100",
@@ -285,11 +284,11 @@ static func crown_offset(index: int, is_honey: bool, is_palm: bool) -> Vector3:
 
 static func drop_duration(index: int, is_honey: bool, is_furniture: bool) -> float:
 	if is_furniture:
-		return float(FURNITURE_DROP_FRAMES) / GAME_FPS
+		return float(FURNITURE_DROP_FRAMES) / DecompTime.FRAME_HZ
 	if is_honey:
-		return float(HONEY_DROP_FRAMES) / GAME_FPS
+		return float(HONEY_DROP_FRAMES) / DecompTime.FRAME_HZ
 	var frames: int = DROP_SPEED_FRAMES[clampi(index, 0, DROP_SPEED_FRAMES.size() - 1)]
-	return float(frames) / GAME_FPS
+	return float(frames) / DecompTime.FRAME_HZ
 
 
 static func _try_add_drop(cells: Array[Vector2i], grid: WorldGrid, cell: Vector2i) -> void:

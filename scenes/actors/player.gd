@@ -11,9 +11,6 @@ const GENERATED_PLAYER := "res://assets/generated/characters/player/boy_1.glb"
 const LOOK_HEIGHT := 0.85
 const INTERACT_REACH := 1.1
 
-## The pipeline samples every `cKF_ba_r_*` clip at 30 fps, so decomp frame numbers convert to
-## clip time at this rate.
-const ANIM_FPS := 30.0
 ## `notice_rod` chains message 0x1348 onto the fish catch report when pockets are full.
 const POCKETS_FULL_MSG_ID := &"msg_4936"
 ## `mMsg_Set_continue_msg_num(win, 0xA4F)` for insect catches.
@@ -26,8 +23,8 @@ const ANIM_DASH := "ply_1_dash1"
 ## `mPlayer_ANIM_RUN_SLIP1` — the dash skid (`turn_dash`).
 const ANIM_RUN_SLIP := "ply_1_run_slip1"
 ## cKF morph −5 / −12 at 60 Hz (`-5.0f` on walk/run/dash/wait, `-12.0f` skid → wait).
-const MORPH_5 := 10.0 / 60.0
-const MORPH_12 := 24.0 / 60.0
+const MORPH_5 := 10.0 / DecompTime.TICK_HZ
+const MORPH_12 := 24.0 / DecompTime.TICK_HZ
 ## `Player_actor_sound_slip` (`0x4129`).
 const SE_SLIP := &"4129"
 ## `mPlayer_ANIM_KOKERU*` — fall / get-up, by held item (`Get_PlayerAnimeIndex_fromItemKind_Tumble`).
@@ -71,10 +68,9 @@ const FURNITURE_TURN_SEC := 0.45
 ## `Player_actor_Movement_Hold`: the player settles onto the contact point.
 const GRIP_SETTLE_RATE := 14.0
 ## `m_player_main_putin_item` / `takeout_item` / `return_outdoor*` timers are game ticks (60 Hz).
-const TOOL_TICK_SEC := 1.0 / 60.0
 ## `morph_counter` 9.0 falls 0.5 per tick and `cKF_SkeletonInfo_R_play` holds the clip's first
 ## frame the whole time, so the pose morph is 18 ticks before the clip itself starts moving.
-const TOOL_MORPH_SEC := 18.0 * TOOL_TICK_SEC
+const TOOL_MORPH_SEC := 18.0 * DecompTime.TICK_SEC
 ## Put-away: `item_scale` = 1 − t / 18 (ticks), so the tool is gone as the morph ends. The state
 ## then runs the clip and `Player_actor_CulcAnimation_Base2` needs two more ticks to report
 ## it stopped (STOPPED, then speed already 0).
@@ -90,7 +86,7 @@ const RETURN_OUTDOOR_TICKS := 3.0
 ## `extra_data == 2` exits (houses, post office, Able Sisters) start O1 at frame 25 — the
 ## walk-out is already done, so only the turn-and-close-door shows. `extra_data == 3`
 ## exits (Nook, museum, police, …) start at frame 1 and walk out in full.
-const GO_OUT_O1_DOOR_ONLY_START_SEC := 24.0 / 30.0  ## cKF frame 25 (frame 1 is t = 0)
+const GO_OUT_O1_DOOR_ONLY_START_SEC := 24.0 / DecompTime.FRAME_HZ  ## cKF frame 25 (frame 1 is t = 0)
 ## `mPlayer_ANIM_OUTTRAIN1` — station caboose step-off (`mPlayer_INDEX_DEMO_GETOFF_TRAIN`).
 const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 
@@ -142,13 +138,13 @@ var _door_clear_busy: bool = false
 ## `model_world_position_correction` — decays toward 0 over `fixed_counter` game frames.
 var _door_correction: Vector3 = Vector3.ZERO
 var _door_fixed_counter: float = 0.0
-var _door_frame_accum: float = 0.0
+var _door_steps := FrameStepper.new()
 var _door_root_clip: String = ""
 ## `Player_actor_Movement_Talk` — ease yaw toward the NPC while the talk demo runs.
 var _talk_face: Node3D = null
 ## `player->shake_tree_*`: trees this player has already shaken (little or button).
 var _tree_bump: TreeBump = TreeBump.new()
-var _talk_turn_debt: float = 0.0
+var _talk_turn_steps := FrameStepper.new()
 ## Holding onto a piece of furniture (`mPlayer_INDEX_HOLD` and its push / pull / turn children).
 var _grip: FurnitureGrip = FurnitureGrip.new()
 var _gripping: bool = false
@@ -200,12 +196,12 @@ func left_hand_global() -> Vector3:
 ## `mDemo` TYPE_TALK `turn` — face `npc` until `end_talk_face` (`TalkCamera.end`).
 func begin_talk_face(npc: Node3D) -> void:
 	_talk_face = npc
-	_talk_turn_debt = 0.0
+	_talk_turn_steps.reset()
 
 
 func end_talk_face() -> void:
 	_talk_face = null
-	_talk_turn_debt = 0.0
+	_talk_turn_steps.reset()
 
 
 func is_talk_facing() -> bool:
@@ -214,7 +210,7 @@ func is_talk_facing() -> bool:
 
 ## `aINS_get_stress_sub`: player planar speed as GX per 30 Hz frame.
 func insect_stress_move_gx() -> float:
-	return _motor.planar_speed / FieldCatalog.GX_TO_METERS / PlayerLocomotion.FRAME_HZ
+	return _motor.planar_speed / FieldCatalog.GX_TO_METERS / DecompTime.FRAME_HZ
 
 
 ## `mPlayer_INDEX_DASH`: fish bolt from a dashing player but ignore a walking one.
@@ -459,7 +455,7 @@ func _tick_wade(delta: float) -> void:
 	## A pressed during the wade is never read (`Player_actor_Request_Wade` takes no input).
 	if scripted_input != null:
 		scripted_input.consume_a_pressed()
-	var t: float = float(_wade["t"]) + delta * AcreWade.TICK_HZ
+	var t: float = float(_wade["t"]) + delta * DecompTime.TICK_HZ
 	_wade["t"] = t
 	var start: Vector3 = _wade["start"]
 	var end: Vector3 = _wade["end"]
@@ -575,9 +571,9 @@ func request_surprise() -> void:
 	var yaw: float = WorldGrid.yaw_for_facing(WorldGrid.Facing.NORTH)
 	_motor.reset(yaw)
 	_mesh.rotation.y = yaw
-	await get_tree().create_timer(20.0 / 60.0).timeout
+	await get_tree().create_timer(20.0 / DecompTime.TICK_HZ).timeout
 	_play_grip_clip("ply_1_gaaan1", false)
-	await get_tree().create_timer(44.0 / 60.0).timeout
+	await get_tree().create_timer(44.0 / DecompTime.TICK_HZ).timeout
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	play_wait_idle()
@@ -817,10 +813,8 @@ func note_big_tree_shake(cell: Vector2i) -> void:
 func _tick_talk_face(delta: float) -> void:
 	if not is_talk_facing():
 		return
-	_talk_turn_debt += delta
-	var step: float = 1.0 / TalkCamera.TURN_HZ
-	while _talk_turn_debt >= step:
-		_talk_turn_debt -= step
+	_talk_turn_steps.add(delta)
+	while _talk_turn_steps.next():
 		var target: float = TalkCamera.face_yaw_toward(global_position, _talk_face.global_position)
 		_motor.facing = MLib.short_angle2(
 			_motor.facing,
@@ -916,7 +910,7 @@ func _begin_animation_move(
 	_door_to = Vector3(target.x, global_position.y, target.z)
 	_door_correction = Vector3(_door_from.x - _door_to.x, 0.0, _door_from.z - _door_to.z)
 	_door_fixed_counter = counter
-	_door_frame_accum = 0.0
+	_door_steps.reset()
 	_door_yaw = face_yaw
 	_door_move_elapsed = 0.0
 	_door_move_duration = duration
@@ -1007,9 +1001,8 @@ func _tick_door_enter(delta: float) -> void:
 	velocity = Vector3.ZERO
 	if _door_animation_move:
 		## `AnimationMove_base` runs once per 60 Hz game frame (`fixed_counter` −= 0.5).
-		_door_frame_accum += delta * StructureDoor.ANIM_MOVE_HZ
-		while _door_frame_accum >= 1.0:
-			_door_frame_accum -= 1.0
+		_door_steps.add(delta)
+		while _door_steps.next():
 			_decay_door_correction()
 		var root: Vector3 = _sample_door_root_xz()
 		var world_root := Vector3(
@@ -1177,7 +1170,7 @@ func _feed_clip_state() -> void:
 		_motor.clip_frame = 0.0
 		_motor.clip_done = false
 		return
-	var frame: float = _anim.current_animation_position * ANIM_FPS
+	var frame: float = _anim.current_animation_position * DecompTime.FRAME_HZ
 	_motor.clip_done = not _anim.is_playing()
 	if mode == PlayerLocomotion.Gait.TUMBLE:
 		_tumble_events(_motor.clip_frame, frame)
@@ -1189,7 +1182,7 @@ func _tumble_events(before: float, now: float) -> void:
 	var bg: Array = _bg()
 	var attr: int = _unit_attr(bg)
 	if before < 10.0 and now >= 10.0:
-		Input.start_joy_vibration(0, 0.6, 1.0, 17.0 / 60.0)
+		Input.start_joy_vibration(0, 0.6, 1.0, 17.0 / DecompTime.TICK_HZ)
 	if before < 15.0 and now >= 15.0:
 		StepFx.tumble(bg, global_position, _motor.facing, attr, 1)
 	if before < 17.0 and now >= 17.0:
@@ -1662,7 +1655,7 @@ func _play_action(clip_name: StringName, effect_frame: float = -1.0) -> float:
 	## the effect has already been applied, and there is no second `animation_finished`.
 	var res: Animation = _anim.get_animation(clip)
 	var length: float = res.length if res != null else 0.0
-	var mark: float = minf(effect_frame / ANIM_FPS, length)
+	var mark: float = minf(effect_frame / DecompTime.FRAME_HZ, length)
 	if mark > 0.0:
 		await get_tree().create_timer(mark).timeout
 	return maxf(0.0, length - mark)
@@ -1718,8 +1711,7 @@ func _play_show(beat: Fishing.ReelBeat) -> void:
 	## frame 42 whether or not the clip has finished — `GET_T2` is longer than that and plays
 	## on underneath the text.
 	var held: float = 0.0
-	var turn_debt: float = 0.0
-	var step: float = 1.0 / Fishing.SHOW_TURN_HZ
+	var turn_steps := FrameStepper.new()
 	while held < beat.hold:
 		await get_tree().process_frame
 		var delta: float = get_process_delta_time()
@@ -1728,9 +1720,8 @@ func _play_show(beat: Fishing.ReelBeat) -> void:
 			continue
 		## `Player_actor_Movement_Notice_rod` turns once per mover frame, so the step is
 		## accumulated on a fixed tick rather than scaled by the frame we happen to get.
-		turn_debt += delta
-		while turn_debt >= step:
-			turn_debt -= step
+		turn_steps.add(delta)
+		while turn_steps.next():
 			_motor.facing = MLib.short_angle2(
 				_motor.facing,
 				Fishing.SHOW_YAW,
@@ -1790,17 +1781,15 @@ func _play_bug_show(beat: Netting.CatchBeat) -> void:
 		if res != null:
 			length = res.length
 	var held: float = 0.0
-	var turn_debt: float = 0.0
-	var step: float = 1.0 / Netting.SHOW_TURN_HZ
+	var turn_steps := FrameStepper.new()
 	while held < beat.hold:
 		await get_tree().process_frame
 		var delta: float = get_process_delta_time()
 		held += delta
 		if not beat.face_camera:
 			continue
-		turn_debt += delta
-		while turn_debt >= step:
-			turn_debt -= step
+		turn_steps.add(delta)
+		while turn_steps.next():
 			_motor.facing = MLib.short_angle2(
 				_motor.facing,
 				Netting.SHOW_YAW,
@@ -2153,14 +2142,14 @@ func put_away_tool_for_door() -> void:
 		return
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
 	var length: float = _play_tool_swap_clip(false)
-	var total: float = TOOL_MORPH_SEC + length + PUTIN_STOP_TICKS * TOOL_TICK_SEC
+	var total: float = TOOL_MORPH_SEC + length + PUTIN_STOP_TICKS * DecompTime.TICK_SEC
 	var elapsed: float = 0.0
 	while elapsed < total:
 		await get_tree().process_frame
 		elapsed += get_process_delta_time()
 		if elapsed < TOOL_MORPH_SEC and _anim != null:
 			_anim.seek(0.0, true)
-		var scale_t: float = clampf(elapsed / (PUTIN_SCALE_TICKS * TOOL_TICK_SEC), 0.0, 1.0)
+		var scale_t: float = clampf(elapsed / (PUTIN_SCALE_TICKS * DecompTime.TICK_SEC), 0.0, 1.0)
 		HeldTool.set_scale(skeleton, 1.0 - scale_t)
 	_tool_stowed = true
 	_bind_equipped_tool(false)
@@ -2189,13 +2178,13 @@ func take_out_tool() -> void:
 	_tool_swap = true
 	if not _door_entering:
 		_door_clear_busy = false
-	await get_tree().create_timer(RETURN_OUTDOOR_TICKS * TOOL_TICK_SEC).timeout
+	await get_tree().create_timer(RETURN_OUTDOOR_TICKS * DecompTime.TICK_SEC).timeout
 	_tool_stowed = false
 	var held: ToolData = _equipped_tool()
 	if held != null and held.kind == ToolData.Kind.UMBRELLA and not Game.is_indoors():
 		## `setup_main_Takeout_item`: an umbrella opens out (`UMB_OPEN1`), no grow-in.
 		await _open_umbrella()
-		await get_tree().create_timer(RETURN_OUTDOOR_TICKS * TOOL_TICK_SEC).timeout
+		await get_tree().create_timer(RETURN_OUTDOOR_TICKS * DecompTime.TICK_SEC).timeout
 		_tool_swap = false
 		_busy = was_busy
 		if not _busy:
@@ -2205,8 +2194,8 @@ func take_out_tool() -> void:
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
 	HeldTool.set_scale(skeleton, 0.0)
 	var length: float = _play_tool_swap_clip(true)
-	var grow_start: float = TAKEOUT_SCALE_START_TICKS * TOOL_TICK_SEC
-	var end: float = TAKEOUT_END_TICKS * TOOL_TICK_SEC
+	var grow_start: float = TAKEOUT_SCALE_START_TICKS * DecompTime.TICK_SEC
+	var end: float = TAKEOUT_END_TICKS * DecompTime.TICK_SEC
 	var elapsed: float = 0.0
 	var posed: bool = false
 	while elapsed < end:
@@ -2224,7 +2213,7 @@ func take_out_tool() -> void:
 			_anim.seek(0.0, true)
 		HeldTool.set_scale(skeleton, clampf((elapsed - grow_start) / (end - grow_start), 0.0, 1.0))
 	HeldTool.set_scale(skeleton, 1.0)
-	await get_tree().create_timer(RETURN_OUTDOOR_TICKS * TOOL_TICK_SEC).timeout
+	await get_tree().create_timer(RETURN_OUTDOOR_TICKS * DecompTime.TICK_SEC).timeout
 	_tool_swap = false
 	_busy = was_busy
 	if not _busy and (_anim == null or not _anim.is_playing()):

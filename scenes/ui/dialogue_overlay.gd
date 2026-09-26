@@ -5,17 +5,16 @@ extends CanvasLayer
 signal closed
 signal event_fired(event: Dictionary)
 
-## `m_msg` counts decomp play frames (1/60 s, `PlayerLocomotion.LOGIC_HZ`): appear timer +1 per
+## `m_msg` counts decomp play frames (1/60 s, `DecompTime.TICK_HZ`): appear timer +1 per
 ## frame, a glyph every other frame.
-const FRAME_HZ := PlayerLocomotion.LOGIC_HZ
 ## `m_msg_appear` / `m_msg_disappear`: linear scale over 18 frames (accel/brake 0).
 const APPEAR_FRAMES := 18.0
 ## `mChoice` appear/disappear duration.
 const CHOICE_APPEAR_FRAMES := 10.2
 ## Every other frame (`mMsg_STATUS_FLAG_NOT_PAUSE_FRAME`).
-const CHARS_PER_SEC := FRAME_HZ * 0.5
+const CHARS_PER_SEC := DecompTime.TICK_HZ * 0.5
 ## `mMsg_STATUS_FLAG_FAST_TEXT` clears the pause frame → one glyph per frame.
-const FAST_CHARS_PER_SEC := FRAME_HZ
+const FAST_CHARS_PER_SEC := DecompTime.TICK_HZ
 
 enum Phase { HIDDEN, APPEARING, OPEN, DISAPPEARING }
 enum ChoicePhase { HIDDEN, APPEARING, OPEN, DISAPPEARING }
@@ -286,13 +285,13 @@ func _utter_range(from_idx: int, to_idx: int) -> void:
 
 func _process_window_anim(delta: float) -> void:
 	if _phase == Phase.APPEARING:
-		_anim_t = minf(APPEAR_FRAMES, _anim_t + delta * FRAME_HZ)
+		_anim_t = minf(APPEAR_FRAMES, _anim_t + delta * DecompTime.TICK_HZ)
 		## accel/brake 0 → linear (`get_percent_forAccelBrake`).
 		_chrome.set_window_scale(_anim_t / APPEAR_FRAMES)
 		if _anim_t >= APPEAR_FRAMES:
 			_finish_appear()
 	elif _phase == Phase.DISAPPEARING:
-		_anim_t = minf(APPEAR_FRAMES, _anim_t + delta * FRAME_HZ)
+		_anim_t = minf(APPEAR_FRAMES, _anim_t + delta * DecompTime.TICK_HZ)
 		_chrome.set_window_scale(1.0 - _anim_t / APPEAR_FRAMES)
 		if _anim_t >= APPEAR_FRAMES:
 			_finish_close()
@@ -300,12 +299,12 @@ func _process_window_anim(delta: float) -> void:
 
 func _process_choice_anim(delta: float) -> void:
 	if _choice_phase == ChoicePhase.APPEARING:
-		_choice_anim_t = minf(CHOICE_APPEAR_FRAMES, _choice_anim_t + delta * FRAME_HZ)
+		_choice_anim_t = minf(CHOICE_APPEAR_FRAMES, _choice_anim_t + delta * DecompTime.TICK_HZ)
 		_chrome.set_choice_scale(_choice_anim_t / CHOICE_APPEAR_FRAMES)
 		if _choice_anim_t >= CHOICE_APPEAR_FRAMES:
 			_finish_choice_appear()
 	elif _choice_phase == ChoicePhase.DISAPPEARING:
-		_choice_anim_t = minf(CHOICE_APPEAR_FRAMES, _choice_anim_t + delta * FRAME_HZ)
+		_choice_anim_t = minf(CHOICE_APPEAR_FRAMES, _choice_anim_t + delta * DecompTime.TICK_HZ)
 		_chrome.set_choice_scale(1.0 - _choice_anim_t / CHOICE_APPEAR_FRAMES)
 		if _choice_anim_t >= CHOICE_APPEAR_FRAMES:
 			_finish_choice_disappear()

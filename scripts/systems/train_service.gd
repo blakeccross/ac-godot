@@ -10,7 +10,6 @@ extends Node
 ## door indoors (`mTRC_SetMicPos`). Stereo pan uses one shared panner on the `Train` bus, set
 ## from the locomotive's bearing each tick (the wheel clack really comes from 250 GX behind).
 
-const TICK_HZ := TrainControl.TICK_HZ
 const MIC_OFFSET_GX := Vector3(0.0, 240.0, 77.0)
 ## `train_position.y` (GAFE01_00 `mTRC_*_init`): the height the sounds use.
 const SOUND_Y_GX := 180.0
@@ -39,7 +38,7 @@ const BUS := "Train"
 var control: TrainControl = TrainControl.new()
 
 var _initialized: bool = false
-var _accum: float = 0.0
+var _steps := FrameStepper.new()
 ## `sou_kisha_status`, `sou_shu_count`, `sou_tonton_count`.
 var _status: int = 0
 var _shu: int = 0
@@ -60,7 +59,7 @@ func _ready() -> void:
 ## `mTRC_init`: a new play session starts with no train and a fresh timetable.
 func reset() -> void:
 	_initialized = false
-	_accum = 0.0
+	_steps.reset()
 	_status = 0
 	_shu = 0
 	_tonton = 0
@@ -80,9 +79,8 @@ func _physics_process(delta: float) -> void:
 	if not _initialized:
 		control.init(Clock.now_sec(), Clock.day)
 		_initialized = true
-	_accum += delta * TICK_HZ
-	while _accum >= 1.0:
-		_accum -= 1.0
+	_steps.add(delta)
+	while _steps.next():
 		_tick()
 
 

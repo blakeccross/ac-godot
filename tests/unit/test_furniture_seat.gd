@@ -1,7 +1,7 @@
 class_name TestFurnitureSeat
 extends GdUnitTestSuite
 
-const TICK := 1.0 / 60.0
+const TICK := DecompTime.TICK_SEC
 
 var _session: IndoorSession
 var _chair: FurnitureData

@@ -26,7 +26,6 @@ const LAMP_LIGHT_ON := Vector3(200.0, 200.0, 150.0)
 const LAMP_LIGHT_STEP_ON := Vector3(8.0, 8.0, 4.0)
 const LAMP_LIGHT_STEP_OFF := Vector3(1.0, 1.0, 0.5)
 ## `add_calc(&sun_percent, …, 1−√0.5, 0.1, 0.005)` once per decomp frame (`mEnv_ChangeDiffuseLight`).
-const _SUN_FRAME_HZ := PlayerLocomotion.LOGIC_HZ
 const _SUN_FRACTION := 0.29289321881
 const _SUN_MAX_STEP := 0.1
 const _SUN_MIN_STEP := 0.005
@@ -34,7 +33,7 @@ const _SUN_MIN_STEP := 0.005
 ## 0 in tunnel → 1 after Rover finishes sitdown (`aNGD_sitdown` sets `sunlight_flag`).
 static var sun_percent: float = 0.0
 static var _sun_target: float = 0.0
-static var _sun_accum: float = 0.0
+static var _sun_steps := FrameStepper.new(DecompTime.TICK_HZ, 4.0)
 ## `ef_lamp_light` diffuse colour (0–255 per channel); starts black (`Light_diffuse_ct`).
 static var lamp_light: Vector3 = Vector3.ZERO
 
@@ -42,7 +41,7 @@ static var lamp_light: Vector3 = Vector3.ZERO
 static func apply_tunnel(world_env: WorldEnvironment, train_car: Node) -> void:
 	sun_percent = 0.0
 	_sun_target = 0.0
-	_sun_accum = 0.0
+	_sun_steps.reset()
 	lamp_light = Vector3.ZERO
 	if train_car != null and train_car.has_method("apply_daylight"):
 		train_car.call("apply_daylight", false)
@@ -70,9 +69,8 @@ static func snap_daylight(world_env: WorldEnvironment, train_car: Node) -> void:
 ## Per-frame kankyo update: `sun_percent` add_calc + `ef_lamp_light` chase, then relight.
 ## Returns true while `sun_percent` is still moving.
 static func tick_sunlight(delta: float, world_env: WorldEnvironment, train_car: Node = null) -> bool:
-	_sun_accum = minf(_sun_accum + delta * _SUN_FRAME_HZ, 4.0)
-	while _sun_accum >= 1.0:
-		_sun_accum -= 1.0
+	_sun_steps.add(delta)
+	while _sun_steps.next():
 		_step_sun_percent()
 		_step_lamp_light()
 	_apply_lighting(world_env, train_car)

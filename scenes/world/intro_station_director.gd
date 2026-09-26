@@ -788,7 +788,7 @@ func _nook_retire_exit() -> void:
 	var speed_mps: float = (
 		IntroStationStage.NOOK_RUN_SPEED_GX
 		* FieldCatalog.GX_TO_METERS
-		* IntroStationStage.TICK_HZ
+		* DecompTime.TICK_HZ
 	)
 	while is_instance_valid(_nook):
 		var delta: float = get_process_delta_time()

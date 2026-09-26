@@ -8,7 +8,6 @@ extends Node3D
 
 enum Kind { LEAF, SNOW }
 
-const TICK := 1.0 / 60.0
 const GX := FieldCatalog.GX_TO_METERS
 
 ## `EffectBG_Make_Leafs`: crown of a shaken tree, ±40 GX jitter (±30 for a medium cedar).
@@ -34,7 +33,7 @@ var _accel: Vector3 = Vector3.ZERO
 var _pos_gx: Vector3 = Vector3.ZERO
 var _timer: int = 0
 var _life: int = 0
-var _acc: float = 0.0
+var _steps := FrameStepper.new()
 var _falling: bool = false
 var _spin_x: float = 0.0  ## radians
 var _spin_z: float = 0.0
@@ -211,9 +210,8 @@ func _load_model(id: StringName) -> Node3D:
 
 
 func _process(delta: float) -> void:
-	_acc += delta
-	while _acc >= TICK and _timer > 0:
-		_acc -= TICK
+	_steps.add(delta)
+	while _timer > 0 and _steps.next():
 		_step()
 	if _timer <= 0:
 		queue_free()

@@ -56,7 +56,7 @@ func test_tint_follows_prim_color() -> void:
 
 
 func test_alpha_holds_then_fades_to_zero() -> void:
-	var fps: float = FootprintMarks.GAME_FPS
+	var fps: float = DecompTime.TICK_HZ
 	assert_float(FootprintMarks.alpha_at(0.0)).is_equal_approx(FootprintMarks.MAX_ALPHA, 0.0001)
 	assert_float(FootprintMarks.alpha_at(100.0 / fps)).is_equal_approx(
 		FootprintMarks.MAX_ALPHA, 0.0001

@@ -537,7 +537,7 @@ static func dig_up_flower(ctx: InteractionContext, cell: Vector2i) -> bool:
 
 
 ## `bIT_actor_fade_entry` / `_fade_move`: alpha 255 → 0 at −20 per 60 Hz frame.
-const TRAMPLE_FADE_SECONDS := 13.0 / 60.0
+const TRAMPLE_FADE_SECONDS := 13.0 / DecompTime.TICK_HZ
 
 
 ## `Player_actor_SetEffectRemoveFlower_Dash`: a dashing foot plant on a flower unit clears

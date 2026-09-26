@@ -10,13 +10,13 @@ func _run_visit(control: TrainControl, start_sec: int) -> Array[Vector2i]:
 	var raised: Array[Vector2i] = []
 	var sec_accum: float = 0.0
 	var now: int = start_sec
-	for tick: int in int(TrainControl.TICK_HZ) * 60 * 20:
+	for tick: int in int(DecompTime.TICK_HZ) * 60 * 20:
 		var state: int = control.step(now, 1)
 		if state != TrainControl.STATE_NONE:
 			raised.append(Vector2i(state, tick))
 			if state == TrainControl.STATE_GONE:
 				break
-		sec_accum += 1.0 / TrainControl.TICK_HZ
+		sec_accum += DecompTime.TICK_SEC
 		if sec_accum >= 1.0:
 			sec_accum -= 1.0
 			now += 1
@@ -64,7 +64,7 @@ func test_the_train_stops_just_past_the_station_trigger() -> void:
 	var control := TrainControl.new()
 	control.init(10 * 3600, 1)
 	var now: int = control.start_timer
-	var hz := int(TrainControl.TICK_HZ)
+	var hz := int(DecompTime.TICK_HZ)
 	for tick: int in hz * 120:
 		if control.step(now + tick / hz, 1) == TrainControl.STATE_STOPPED:
 			break
@@ -81,7 +81,7 @@ func test_the_train_waits_its_dwell_before_leaving() -> void:
 	var stopped_tick: int = raised[1].y
 	var pull_tick: int = raised[2].y
 	## Stood for at least the 310 s dwell (entry → stop already ate into `start_timer`).
-	assert_int(pull_tick - stopped_tick).is_greater(int(TrainControl.TICK_HZ) * 60)
+	assert_int(pull_tick - stopped_tick).is_greater(int(DecompTime.TICK_HZ) * 60)
 
 
 func test_the_first_job_holds_the_timetable() -> void:
@@ -95,7 +95,7 @@ func test_title_demo_one_parks_and_never_leaves() -> void:
 	var control := TrainControl.new()
 	control.init(13 * 3600, 6)
 	for tick: int in 30 * 60 * 30:
-		assert_int(control.step(13 * 3600 + tick / int(TrainControl.TICK_HZ), 6, false, true)).is_equal(TrainControl.STATE_NONE)
+		assert_int(control.step(13 * 3600 + tick / int(DecompTime.TICK_HZ), 6, false, true)).is_equal(TrainControl.STATE_NONE)
 	assert_int(control.action).is_equal(TrainControl.Action.WAIT_STOPPED)
 	assert_float(control.x_gx).is_equal(TrainControl.PARKED_X_GX)
 

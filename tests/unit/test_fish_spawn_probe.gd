@@ -4,7 +4,7 @@ extends GdUnitTestSuite
 ## months and water kinds and print what actually turns up. Kept as a smoke test that
 ## every water body stocks itself with in-season, in-ceiling species.
 
-const STEP := 1.0 / 60.0
+const STEP := DecompTime.TICK_SEC
 
 
 func before_test() -> void:

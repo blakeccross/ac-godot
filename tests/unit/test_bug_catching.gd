@@ -17,7 +17,7 @@ class _GridWorld extends Node:
 	var bugs: BugField = BugField.new()
 
 
-const STEP := 1.0 / 60.0
+const STEP := DecompTime.TICK_SEC
 
 var _heard: Array[String] = []
 

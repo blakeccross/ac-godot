@@ -11,7 +11,6 @@ const DEMO_COUNT := 5
 const TOTAL_FRAMES := 3600
 ## `mTD_tdemo_button_ok_check`: START is ignored from this tick on.
 const BUTTON_LOCKOUT_FRAME := 3530
-const TICK_HZ := 60.0
 const DATA_PATH := "res://assets/generated/titledemo/demos.json"
 ## World XZ is measured from the outer map corner; the playable town starts one 640-GX
 ## border block in (`mFI` block 1).
@@ -224,7 +223,7 @@ static func allows_verb(verb: StringName) -> bool:
 
 ## Ticks elapsed for `seconds` of real time (the demo runs on the 60 Hz frame clock).
 static func ticks_for(seconds: float) -> int:
-	return int(floorf(seconds * TICK_HZ))
+	return int(floorf(seconds * DecompTime.TICK_HZ))
 
 
 static func button_ok(frame: int) -> bool:

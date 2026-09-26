@@ -7,7 +7,6 @@ extends Control
 ## wave and not a hard blink.
 
 const PULSE_FRAMES := 60.0
-const FRAME_HZ := PlayerLocomotion.LOGIC_HZ
 
 ## `continue_button_color` is pure blue in `mMsg_init`; the GC frame reads violet/lavender.
 const ARROW_COLOR := Color(120.0 / 255.0, 100.0 / 255.0, 220.0 / 255.0)
@@ -28,7 +27,7 @@ func restart() -> void:
 func _process(delta: float) -> void:
 	if not visible:
 		return
-	_timer = fmod(_timer + delta * FRAME_HZ, PULSE_FRAMES)
+	_timer = fmod(_timer + delta * DecompTime.TICK_HZ, PULSE_FRAMES)
 	queue_redraw()
 
 

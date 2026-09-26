@@ -95,7 +95,7 @@ const DOOR_DECK_OPEN_FRAME := 9.0
 const DOOR_OPEN_D2_FRAME := 22.0
 const KEITAI_ON_ANIM_SPEED := 0.5
 ## cKF `morph_counter = -5` steps +0.5 per 60 Hz frame → 10 frames of blend.
-const ANIM_MORPH_BLEND := 10.0 / 60.0
+const ANIM_MORPH_BLEND := 10.0 / DecompTime.TICK_HZ
 const OPEN_D2_YAW := PI
 const OPEN_D2_YAW_CHASE := deg_to_rad(0.703125)
 ## `chase_angle` steps (per 1/30 s — `chase_angle` is frame-scaled, halved per 60 Hz tick).
@@ -104,7 +104,6 @@ const BODY_TURN_STEP := deg_to_rad(11.25) ## `aNGD_calc_body_angl`
 ## `aNPC_set_body_angle`: pitch goal `speed * 3640 / 3`, `chase_angle(…, 224)`.
 const BODY_LEAN_PER_SPEED := 3640.0 / 3.0 / 65536.0 * TAU
 const BODY_LEAN_STEP := 224.0 / 65536.0 * TAU
-const _LOGIC_HZ := PlayerLocomotion.LOGIC_HZ
 
 var action: Action = Action.ENTER
 
@@ -123,7 +122,7 @@ var _accel_gx: float = 0.0
 var _decel_gx: float = 0.0
 ## `shape_info.rotation.x` forward lean (`aNPC_set_body_angle`).
 var _lean: float = 0.0
-var _logic_accum: float = 0.0
+var _logic_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _talk_emitted: bool = false
 var _clip: String = ""
 var _pending_clip: String = ""
@@ -628,7 +627,7 @@ func _rover_anim_frame() -> float:
 	## cKF frame index at 30 Hz from the active Rover clip.
 	if _rover_anim == null:
 		return 0.0
-	return _rover_anim.current_animation_position * 30.0
+	return _rover_anim.current_animation_position * DecompTime.FRAME_HZ
 
 
 func phone_tilt_goal() -> float:
@@ -833,9 +832,8 @@ func tick(delta: float) -> void:
 	if action == Action.KEITAI_TALK and not _keitai_talk_looping and not _anim_playing():
 		_keitai_talk_looping = true
 		_play_rover(ANIM_KEITAI_TALK2, true)
-	_logic_accum = minf(_logic_accum + delta * _LOGIC_HZ, 8.0)
-	while _logic_accum >= 1.0:
-		_logic_accum -= 1.0
+	_logic_steps.add(delta)
+	while _logic_steps.next():
 		_logic_step()
 	_refresh_camera(delta)
 

@@ -5,9 +5,9 @@ extends RefCounted
 ## cell = 40 GX = 2 m.
 ##
 ## The decomp's play frame is 1/60 s: `Actor_position_move` adds `0.5 · speed` per frame
-## ("30fps -> 60fps"), so `speed` (4.875 walk / 7.5 dash) is GX per 1/30 s (`FRAME_HZ`)
+## ("30fps -> 60fps"), so `speed` (4.875 walk / 7.5 dash) is GX per 1/30 s (`DecompTime.FRAME_HZ`)
 ## while every per-frame step (accelerate 0.609, brake 0.326, `add_calc_short_angle2`
-## turn) runs `LOGIC_HZ` times a second. `tick` therefore steps whole 60 Hz frames.
+## turn) runs once per tick (`DecompTime.TICK_HZ`). `tick` therefore steps whole ticks.
 ##
 ## Gait is a mode machine, not a speed band: the clip rate `0.6·√(speed·norm / 7.5)`
 ## (floored at 0.22, cut by wall contact) decides walk ↔ run (3.525) ↔ dash (4.875) via
@@ -16,10 +16,6 @@ extends RefCounted
 
 enum Gait { WAIT, WALK, RUN, DASH, TURN_DASH, TUMBLE, TUMBLE_GETUP }
 
-## Units of the decomp `speed` value: GX per 1/30 s.
-const FRAME_HZ := 30.0
-## Decomp play frames per second: how often the per-frame steps apply.
-const LOGIC_HZ := 60.0
 const TILE_UNITS := 40.0
 const TILE_METERS := 2.0
 const UNIT_METERS := TILE_METERS / TILE_UNITS
@@ -45,11 +41,11 @@ const FLAT_PROBES: Array[Vector2] = [
 	Vector2(0.0, 84.85281), Vector2(20.0, 84.85281), Vector2(-20.0, 84.85281),
 ]
 
-const WALK_SPEED := ORIG_WALK * FRAME_HZ * UNIT_METERS
-const RUN_SPEED := ORIG_RUN * FRAME_HZ * UNIT_METERS
-const WALK_RUN_SPEED := ORIG_WALK_RUN * FRAME_HZ * UNIT_METERS
-const ACCEL := ORIG_ACCEL * FRAME_HZ * UNIT_METERS * LOGIC_HZ
-const DECEL := ORIG_DECEL * FRAME_HZ * UNIT_METERS * LOGIC_HZ
+const WALK_SPEED := ORIG_WALK * DecompTime.FRAME_HZ * UNIT_METERS
+const RUN_SPEED := ORIG_RUN * DecompTime.FRAME_HZ * UNIT_METERS
+const WALK_RUN_SPEED := ORIG_WALK_RUN * DecompTime.FRAME_HZ * UNIT_METERS
+const ACCEL := ORIG_ACCEL * DecompTime.FRAME_HZ * UNIT_METERS * DecompTime.TICK_HZ
+const DECEL := ORIG_DECEL * DecompTime.FRAME_HZ * UNIT_METERS * DecompTime.TICK_HZ
 
 ## `mCon_calc`: `STICK_MIN / STICK_MAX` — below this the stick reads zero; above it
 ## `move_pR = t / STICK_MAX` (not shifted by the dead zone), so the first registered
@@ -58,7 +54,7 @@ const STICK_MIN := 9.899495
 const STICK_MAX := 61.0
 const STICK_DEADZONE := 0.05
 const IDLE_SPEED := 0.08
-## s16 2500 / 65536 of a turn, per decomp frame (`LOGIC_HZ`).
+## s16 2500 / 65536 of a turn, per tick.
 const TURN_MAX_RAD := 2500.0 * TAU / 65536.0
 const TURN_MIN_RAD := 50.0 * TAU / 65536.0
 ## `Player_actor_Get_DiffWorldAngleToControllerAngle(actor) >= 18204` (100°).
@@ -113,14 +109,14 @@ var tumble_roll: Callable = Callable()
 var position: Vector3 = Vector3.ZERO
 
 var _facing: float = 0.0
-var _accum: float = 0.0
+var _steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _turn_target: float = 0.0
 
 var planar_speed: float:
 	get:
-		return speed_gx * FRAME_HZ * UNIT_METERS
+		return speed_gx * DecompTime.FRAME_HZ * UNIT_METERS
 	set(value):
-		speed_gx = value / (FRAME_HZ * UNIT_METERS)
+		speed_gx = value / (DecompTime.FRAME_HZ * UNIT_METERS)
 
 
 func reset(yaw: float = 0.0) -> void:
@@ -130,7 +126,7 @@ func reset(yaw: float = 0.0) -> void:
 	lean = 0.0
 	anim_rate = ANIM_BASE_RATE
 	wall_ratio = 1.0
-	_accum = 0.0
+	_steps.reset()
 	_set_mode(Gait.WAIT)
 	mode_changed = false
 
@@ -179,9 +175,8 @@ func tick(delta: float, wish_dir: Vector3, stick: float, dashing: bool, locked: 
 	stick = clampf(stick, 0.0, 1.0)
 	var has_dir: bool = stick > 0.0 and wish_dir.length_squared() > 0.0001
 	var wish_yaw: float = atan2(wish_dir.x, wish_dir.z) if has_dir else facing
-	_accum = minf(_accum + maxf(delta, 0.0) * LOGIC_HZ, 8.0)
-	while _accum >= 1.0:
-		_accum -= 1.0
+	_steps.add(delta)
+	while _steps.next():
 		_frame(wish_yaw, stick if has_dir else 0.0, dashing)
 	return forward() * planar_speed
 
@@ -372,7 +367,7 @@ static func turn_mod(stick: float) -> float:
 static func step_facing(current: float, target: float, stick: float, delta: float) -> float:
 	## One `add_calc_short_angle2` per elapsed decomp frame (kept for callers that steer
 	## outside `tick`, e.g. the intro station follow).
-	var frames: int = maxi(int(round(delta * LOGIC_HZ)), 1)
+	var frames: int = maxi(int(round(DecompTime.sec_to_ticks(delta))), 1)
 	var fraction: float = 1.0 - sqrt(1.0 - turn_mod(stick))
 	for _i: int in frames:
 		current = MLib.short_angle2(current, target, fraction, TURN_MAX_RAD, TURN_MIN_RAD)

@@ -19,8 +19,8 @@ const LOOK_FOV := deg_to_rad(67.5)
 const YAW_LIMIT := deg_to_rad(67.5)
 const PITCH_LIMIT := deg_to_rad(33.75)
 ## `head.angle_add_y = 0x400`, `angle_add_x = 0x200` through `chase_angle` (frame-scaled): × 30 per second.
-const YAW_RATE := deg_to_rad(5.625) * 30.0
-const PITCH_RATE := deg_to_rad(2.8125) * 30.0
+const YAW_RATE := deg_to_rad(5.625) * DecompTime.FRAME_HZ
+const PITCH_RATE := deg_to_rad(2.8125) * DecompTime.FRAME_HZ
 ## `aNPC_act_react_tool_init_proc`: 0xC00 / 0x600 while reacting to a tool hit.
 const YAW_RATE_FAST := YAW_RATE * 3.0
 const PITCH_RATE_FAST := PITCH_RATE * 3.0

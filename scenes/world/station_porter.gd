@@ -14,17 +14,16 @@ const SKELETON := &"mnk_1"
 const WAIT_CLIP := "npc_1_wait1"
 ## Block (3, 1) unit (5, 4), unit centre: 3·640 + 5·40 + 20, 1·640 + 4·40 + 20.
 const TITLE_GX := Vector3(2140.0, 0.0, 820.0)
-const TICK_HZ := PlayerLocomotion.LOGIC_HZ
 ## `chase_angle` scales its step by `game_GameFrame_2F` (frame × 0.5), so a chase-angle turn is
 ## `step × 30` per second at any frame rate: `0x800` → half of it per 60 Hz frame.
-const TURN_STEP := TAU * float(0x800) / 65536.0 * 30.0 / TICK_HZ
+const TURN_STEP := TAU * float(0x800) / 65536.0 / DecompTime.TICKS_PER_FRAME
 const LOOK_CONE := deg_to_rad(67.5)
 
 var facing: float = 0.0
 var _turning: bool = false
 var _wait_left: float = 0.0
 var _wait_len: float = 1.0
-var _accum: float = 0.0
+var _steps := FrameStepper.new()
 var _built: bool = false
 
 
@@ -52,9 +51,8 @@ func place(world: Vector3) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	_accum += delta * TICK_HZ
-	while _accum >= 1.0:
-		_accum -= 1.0
+	_steps.add(delta)
+	while _steps.next():
 		_tick()
 	rotation.y = facing
 
@@ -70,7 +68,7 @@ func _tick() -> void:
 		if is_equal_approx(facing, want):
 			_turning = false
 		return
-	_wait_left -= 1.0 / TICK_HZ
+	_wait_left -= DecompTime.TICK_SEC
 	if _wait_left > 0.0:
 		return
 	## `aSTM_look_player` on action end.

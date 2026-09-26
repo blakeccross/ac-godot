@@ -22,7 +22,7 @@ var _camera_move_y: float = 0.0
 var _camera_move_range: float = 0.0
 var _camera_move_cnt: int = 0
 var _camera_move_set_counter: int = 1
-var _sway_accum: float = 0.0
+var _sway_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _camera_tilt: float = 0.0
 var _camera_tilt_goal: float = 0.0
 var _camera_tilt_chase: float = IntroTrainStage.CAMERA_TILT_CHASE
@@ -117,7 +117,7 @@ func tick(delta: float, shadow_gx: Vector3) -> void:
 		return
 	_apply_sway(delta)
 	_camera_tilt = _chase_angle(
-		_camera_tilt, _camera_tilt_goal, _camera_tilt_chase * delta * 30.0
+		_camera_tilt, _camera_tilt_goal, _camera_tilt_chase * delta * DecompTime.FRAME_HZ
 	)
 	var tilt_sin: float = sin(_camera_tilt)
 	var move_x_gx: float = cos(_short_to_rad(_camera_move)) * 0.1
@@ -156,9 +156,8 @@ static func _look_y_speed(talk: bool) -> float:
 
 func _apply_sway(delta: float) -> void:
 	## `aNGD_set_camera`: `camera_move += 0xE20` every frame.
-	_sway_accum = minf(_sway_accum + delta * PlayerLocomotion.LOGIC_HZ, 8.0)
-	while _sway_accum >= 1.0:
-		_sway_accum -= 1.0
+	_sway_steps.add(delta)
+	while _sway_steps.next():
 		_step_sway()
 
 

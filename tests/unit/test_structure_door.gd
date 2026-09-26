@@ -241,8 +241,7 @@ func test_strip_joint0_only_on_named_door_clips() -> void:
 func test_animation_move_counter_matches_decomp() -> void:
 	## `AnimationMove_ct_base(..., 9.0f, flag 5)` at −0.5 / 60 Hz frame → ~0.3 s.
 	assert_float(StructureDoor.ANIM_MOVE_COUNTER).is_equal_approx(9.0, 0.01)
-	assert_float(StructureDoor.ANIM_MOVE_HZ).is_equal_approx(60.0, 0.01)
 	assert_float(
-		StructureDoor.ANIM_MOVE_COUNTER / 0.5 / StructureDoor.ANIM_MOVE_HZ
+		StructureDoor.ANIM_MOVE_COUNTER / 0.5 / DecompTime.TICK_HZ
 	).is_equal_approx(StructureDoor.APPROACH_SEC, 0.01)
 	assert_float(StructureDoor.OPEN1_SEC).is_equal_approx(65.0 / 30.0, 0.01)

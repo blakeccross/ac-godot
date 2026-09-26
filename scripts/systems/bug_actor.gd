@@ -13,8 +13,6 @@ extends RefCounted
 ## `position` (metres) is a view for the visual / net / spawn.
 
 const GX_M := FieldCatalog.GX_TO_METERS
-## Decomp play frames per second: `aINS_actor_move` runs once each.
-const GAME_FPS := PlayerLocomotion.LOGIC_HZ
 
 ## `aINS_setupActor`: life_time 216000 frames (2 game-hours), alpha0 255, bg_range 12.
 const LIFE_TIME_FRAMES := 216000
@@ -148,7 +146,7 @@ var move_proc: Callable = Callable()
 
 var _prog: BugProgram = null
 var _rng: RandomNumberGenerator = null
-var _step_acc: float = 0.0
+var _steps := FrameStepper.new()
 
 
 # ---- construction -------------------------------------------------------
@@ -262,16 +260,15 @@ func _angular_catch(player_yaw: float, _to_insect: float) -> float:
 	return 24.0
 
 
-# ---- 30 Hz fixed stepper -------------------------------------------------
+# ---- fixed tick stepper -------------------------------------------------
 
 func tick(delta: float, sense: Sense) -> void:
-	## Standalone / test driver. `BugField` calls `frame()` directly at 30 Hz.
+	## Standalone / test driver. `BugField` calls `frame()` directly once per tick.
 	if finished:
 		return
-	_step_acc += delta
+	_steps.add(delta)
 	var budget: int = 8
-	while _step_acc >= 1.0 / GAME_FPS and budget > 0:
-		_step_acc -= 1.0 / GAME_FPS
+	while budget > 0 and _steps.next():
 		budget -= 1
 		frame(sense)
 		if finished:

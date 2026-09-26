@@ -32,7 +32,7 @@ func _run(intro: Node3D) -> void:
 	print("start open_d2 z=", stage._pos_gx.z)
 	for i: int in 600:
 		await get_tree().process_frame
-		stage.tick(1.0 / 60.0)
+		stage.tick(DecompTime.TICK_SEC)
 		var act := String(stage._action_name(stage.action))
 		if i % 20 == 0 or act == "return_approach":
 			print(

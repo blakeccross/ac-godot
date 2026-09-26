@@ -2,8 +2,8 @@ class_name TestPlayerLocomotion
 extends GdUnitTestSuite
 
 ## One decomp frame is 1/60 s; `tick` steps whole frames.
-const FRAME := 1.0 / 60.0
-const GX := PlayerLocomotion.FRAME_HZ * PlayerLocomotion.UNIT_METERS
+const FRAME := DecompTime.TICK_SEC
+const GX := DecompTime.FRAME_HZ * PlayerLocomotion.UNIT_METERS
 
 
 func _frames(motor: PlayerLocomotion, n: int, wish: Vector3, stick: float, dash := false) -> void:

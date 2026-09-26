@@ -12,8 +12,7 @@ const LIFE_FRAMES := 160.0
 const FADE_START_FRAME := 118.0
 const FADE_END_FRAME := 159.0
 const MAX_ALPHA := 150.0 / 255.0
-const GAME_FPS := 60.0
-const LIFETIME := LIFE_FRAMES / GAME_FPS
+const LIFETIME := LIFE_FRAMES / DecompTime.TICK_HZ
 
 ## `gDPSetPrimColor` per surface: sand/wave is a dark depression, snow a cool dent.
 const SAND_TINT := Color(70.0 / 255.0, 50.0 / 255.0, 50.0 / 255.0)
@@ -61,7 +60,6 @@ const INTERIOR_ALPHA := 0.214
 const FOOT_OFFSET := 0.21
 ## `left_data_walk1 = {1}` / `right_data_walk1 = {9}` — 8 animation frames between feet.
 const STEP_FRAMES := 8.0
-const ANIM_FPS := 30.0
 
 
 static func rim_radii_uv() -> Vector2:
@@ -97,7 +95,7 @@ static func tint(snow: bool) -> Color:
 
 
 static func alpha_at(age: float) -> float:
-	var frame: float = age * GAME_FPS
+	var frame: float = age * DecompTime.TICK_HZ
 	if frame >= LIFE_FRAMES:
 		return 0.0
 	if frame <= FADE_START_FRAME:
@@ -109,7 +107,7 @@ static func alpha_at(age: float) -> float:
 static func step_period(anim_speed: float) -> float:
 	## Original triggers on animation frames, so a faster gait clip steps sooner and the
 	## tracks spread out with speed. Distance-based emission would space them evenly.
-	return STEP_FRAMES / (ANIM_FPS * maxf(anim_speed, 0.05))
+	return STEP_FRAMES / (DecompTime.FRAME_HZ * maxf(anim_speed, 0.05))
 
 
 static func foot_position(center: Vector3, yaw: float, right_foot: bool) -> Vector3:

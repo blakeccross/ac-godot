@@ -13,7 +13,6 @@ const VIRTUAL := Vector2(320.0, 240.0)
 ## One GLB unit = `scale 0.001` of a decomp vertex unit; the logo matrix is 0.135 and the
 ## font ortho is 16 units per pixel, so 1 GLB unit = 0.135 / 16 / 0.001 px.
 const PX_PER_UNIT := 8.4375
-const TICK_SEC := 1.0 / TitleLogoState.TICK_HZ
 
 const MODEL_ANIMAL := "res://assets/generated/ui/logo_us_animal.glb"
 const MODEL_CROS := "res://assets/generated/ui/logo_us_cros.glb"
@@ -34,7 +33,7 @@ var can_start: bool = false
 var button_ok: bool = true
 var demo_ended: bool = false
 
-var _accum: float = 0.0
+var _steps := FrameStepper.new()
 var _start_latched: bool = false
 var _clips: Array[AnimationPlayer] = []
 var _back_materials: Array[ShaderMaterial] = []
@@ -64,9 +63,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_accum += delta
-	while _accum >= TICK_SEC:
-		_accum -= TICK_SEC
+	_steps.add(delta)
+	while _steps.next():
 		_tick()
 
 

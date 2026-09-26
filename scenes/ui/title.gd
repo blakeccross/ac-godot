@@ -16,7 +16,7 @@ const MENU_FADE_SEC := 0.6
 
 var _demo_index: int = 0
 var _demo_input: TitleDemoInput = TitleDemoInput.new()
-var _tick_accum: float = 0.0
+var _steps := FrameStepper.new()
 var _leaving: bool = false
 var _demo_over: bool = false
 var _menu_open: bool = false
@@ -57,9 +57,8 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if _leaving or _demo_over:
 		return
-	_tick_accum += delta * TitleDemo.TICK_HZ
-	while _tick_accum >= 1.0 and not _demo_over:
-		_tick_accum -= 1.0
+	_steps.add(delta)
+	while not _demo_over and _steps.next():
 		_demo_input.step()
 		_logo.button_ok = TitleDemo.button_ok(_demo_input.frame)
 		if TitleDemo.is_over(_demo_input.frame):

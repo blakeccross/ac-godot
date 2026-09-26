@@ -38,10 +38,7 @@ enum Action {
 }
 
 const BGM_ID := &"intro_arrive"
-## Decomp play frames (`PlayerLocomotion.LOGIC_HZ`): `mTRC_trainControl` / `aNPC` steps run once each.
-const TICK_HZ := PlayerLocomotion.LOGIC_HZ
 ## cKF speeds are keyframes per tick; baked clips run 30 keyframes per second.
-const KEYFRAMES_PER_TICK := TICK_HZ / 30.0
 
 ## Block-local GX (`aID_*` / `mTRC_demo_init` minus block origin).
 const TRACK_Z_GX := 100.0
@@ -155,7 +152,7 @@ var _getoff_t: float = 0.0
 var _getoff_from_gx: Vector3 = Vector3.ZERO
 var _nook_goal_gx: Vector3 = Vector3.ZERO
 var _awaiting_dialogue: bool = false
-var _tick_accum: float = 0.0
+var _steps := FrameStepper.new()
 var _unit_centers: PackedByteArray = PackedByteArray()
 var _motor: PlayerLocomotion = PlayerLocomotion.new()
 var house_idx: int = 0
@@ -227,7 +224,7 @@ func reset() -> void:
 	_signal_timer = 0.0
 	_getoff_t = 0.0
 	_awaiting_dialogue = false
-	_tick_accum = 0.0
+	_steps.reset()
 	_control_locked = false
 	house_idx = 0
 	_motor.reset(PI * 0.5)
@@ -268,10 +265,8 @@ func missing_assets() -> PackedStringArray:
 
 
 func tick(delta: float) -> void:
-	_tick_accum += delta
-	var step: float = 1.0 / TICK_HZ
-	while _tick_accum >= step:
-		_tick_accum -= step
+	_steps.add(delta)
+	while _steps.next():
 		_tick_frame()
 	if _player_may_move():
 		_tick_player_control(delta)
@@ -449,7 +444,7 @@ func _tick_door_open() -> void:
 
 
 func _tick_get_off() -> void:
-	_getoff_t = minf(1.0, _getoff_t + (1.0 / TICK_HZ) / GETOFF_DURATION)
+	_getoff_t = minf(1.0, _getoff_t + (DecompTime.TICK_SEC) / GETOFF_DURATION)
 	var to_gx: Vector3 = _with_ground(Vector3(DOORWAY_GX.x, 0.0, DOORWAY_GX.z + 8.0))
 	var p: Vector3 = _getoff_from_gx.lerp(to_gx, smoothstep(0.0, 1.0, _getoff_t))
 	_set_node_gx(_player, p)
@@ -614,7 +609,7 @@ func _open_caboose_door() -> void:
 		if _caboose_anim.has_animation(name):
 			## `mTRC_ACTION_SIGNAL_STOPPED` → open clip @ 0.5 (`aTR1_setupAction` action 4).
 			_caboose_anim.speed_scale = 1.0
-			_caboose_anim.play(name, 0.0, 0.5 * KEYFRAMES_PER_TICK)
+			_caboose_anim.play(name, 0.0, 0.5 * DecompTime.TICKS_PER_FRAME)
 			return
 
 
@@ -633,7 +628,7 @@ func _start_loco_wheels() -> void:
 func _sync_loco_wheel_speed() -> void:
 	if _loco_anim == null:
 		return
-	_loco_anim.speed_scale = loco_wheel_speed_scale(_train_speed) * KEYFRAMES_PER_TICK
+	_loco_anim.speed_scale = loco_wheel_speed_scale(_train_speed) * DecompTime.TICKS_PER_FRAME
 
 
 func _play_getoff_anim() -> void:

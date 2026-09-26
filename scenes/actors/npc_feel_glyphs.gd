@@ -4,7 +4,6 @@ extends Node3D
 ## Billboard feel glyphs above an NPC (`eEC_EFFECT_WARAU` / `SHOCK` / `HA` / `HIRAMEKI_*`).
 ## Pipeline cards live under `assets/generated/effects/`; missing packs are a no-op.
 
-const EFFECT_HZ := 60.0
 
 const WARAU_VISUALS: Array[StringName] = [
 	&"ef_warau01_00",
@@ -60,7 +59,7 @@ func _process(delta: float) -> void:
 	if _kind == &"":
 		return
 	_billboard()
-	_frame += delta * EFFECT_HZ
+	_frame += delta * DecompTime.TICK_HZ
 	match _kind:
 		&"warau":
 			_tick_warau()

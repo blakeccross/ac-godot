@@ -14,7 +14,6 @@ const EYE_HEIGHT_M := 1.15
 const YAW_TWEAK_SHORT := 2730.0
 const YAW_TWEAK_DEG := YAW_TWEAK_SHORT * 360.0 / 65536.0
 ## `Player_actor_Movement_Talk` turn (`add_calc_short_angle2`, once per ~60 Hz frame).
-const TURN_HZ := 60.0
 const TURN_FRACTION := 0.292893 ## 1 - sqrt(0.5)
 const TURN_MAX_STEP := TAU * 2500.0 / 65536.0 ## ~13.73°
 const TURN_MIN_STEP := TAU * 50.0 / 65536.0 ## ~0.275°

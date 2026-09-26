@@ -25,14 +25,10 @@ const FLAP_SLOW := 2
 const FLAP_FAST_POSES: Array[int] = [0, 0, 0, 0, 1, 1, 0, 0]
 const FLAP_SLOW_POSES: Array[int] = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0]
 
-## `aGYO_anime_frame` advances once per drawn frame, one per decomp frame (60 Hz). Held on a
-## fixed tick so the flap does not run at the monitor's refresh rate.
-const FLAP_HZ := PlayerLocomotion.LOGIC_HZ
-
 var _poses: Array[Node3D] = []
 var _pattern: Array[int] = []
 var _shown: int = -1
-var _tick: float = 0.0
+var _steps := FrameStepper.new()
 var _index: int = 0
 var _scale: float = 1.0
 var _lift: float = 0.0
@@ -103,10 +99,9 @@ func _process(delta: float) -> void:
 	_billboard()
 	if _pattern.size() <= 1:
 		return
-	_tick += delta
-	var step: float = 1.0 / FLAP_HZ
-	while _tick >= step:
-		_tick -= step
+	## `aGYO_anime_frame` advances once per tick, not per monitor refresh.
+	_steps.add(delta)
+	while _steps.next():
 		_index = (_index + 1) % _pattern.size()
 		_show(_pattern[_index])
 

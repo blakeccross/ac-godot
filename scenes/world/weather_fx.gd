@@ -10,9 +10,6 @@ extends Node3D
 const RAIN_SHADER := preload("res://shaders/weather_rain.gdshader")
 const FLOAT_SHADER := preload("res://shaders/weather_particle.gdshader")
 const POOL_SIZE := 100
-## Actor / effect frame rate (GC display). Not player locomotion's 30 Hz feel scale.
-const TICK_HZ := 60.0
-const TICK_DT := 1.0 / TICK_HZ
 const GX := FieldCatalog.GX_TO_METERS
 const PIPELINE := FieldCatalog.PIPELINE_SCALE
 
@@ -72,7 +69,7 @@ var _se_level: int = 0
 var _level_counter: int = 0
 ## `weather->umbrella_flag`: the player's umbrella was open last tick.
 var _umbrella_open: bool = false
-var _tick_accum: float = 0.0
+var _steps := FrameStepper.new()
 var _active: Array[Dictionary] = []
 var _free: Array[int] = []
 var _center: Vector3 = Vector3.ZERO
@@ -310,9 +307,8 @@ func _process(delta: float) -> void:
 	if _float_mmi != null:
 		_float_mmi.custom_aabb = aabb
 	## Fixed 60 Hz sim so spawn density and GX/frame speeds match decomp at any render FPS.
-	_tick_accum += delta
-	while _tick_accum >= TICK_DT:
-		_tick_accum -= TICK_DT
+	_steps.add(delta)
+	while _steps.next():
 		_game_tick()
 	_draw()
 	_tick_lightning(delta)
@@ -433,14 +429,14 @@ func _spawn_floater(kind: PartKind) -> void:
 		"kind": kind,
 		"pos": _center + offset,
 		"vel": Vector3(
-			SNOW_DRIFT_MPS * TICK_DT,
+			SNOW_DRIFT_MPS * DecompTime.TICK_SEC,
 			fall_gx * GX,
-			SNOW_DRIFT_MPS * 0.35 * TICK_DT
+			SNOW_DRIFT_MPS * 0.35 * DecompTime.TICK_SEC
 		),
 		"life": SNOW_LIFE_FRAMES,
 		"max_life": SNOW_LIFE_FRAMES,
 		"phase": _rng.randf() * TAU,
-		"spin": _rng.randf_range(1.5, 4.0) * TICK_DT,
+		"spin": _rng.randf_range(1.5, 4.0) * DecompTime.TICK_SEC,
 	})
 
 
@@ -484,8 +480,8 @@ func _move_tick() -> void:
 		else:
 			pos += vel
 			part["phase"] = float(part.get("phase", 0.0)) + float(part.get("spin", 0.05))
-			pos.x += sin(float(part["phase"])) * 0.3 * TICK_DT * 6.0
-			pos.z += cos(float(part["phase"])) * 0.3 * TICK_DT * 6.0
+			pos.x += sin(float(part["phase"])) * 0.3 * DecompTime.TICK_SEC * 6.0
+			pos.z += cos(float(part["phase"])) * 0.3 * DecompTime.TICK_SEC * 6.0
 			part["pos"] = pos
 			_wrap_floater_inplace(part)
 			pos = part["pos"] as Vector3

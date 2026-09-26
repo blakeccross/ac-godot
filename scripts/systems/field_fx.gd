@@ -11,7 +11,6 @@ enum Kind {
 	DUST, TUMBLE_DUST, SAND, MIZUTAMA, YUKIDAMA, YUKIHANE, SIBUKI, PETAL, TURN_PRINT, BODY_PRINT
 }
 
-const TICK := 1.0 / 60.0
 const GX := FieldCatalog.GX_TO_METERS
 const SHADER := preload("res://shaders/field_effect.gdshader")
 const EFFECT_DIR := "res://assets/generated/effects/%s.glb"
@@ -78,7 +77,7 @@ var ground_basis: Basis = Basis.IDENTITY
 
 var _holder: Node3D
 var _mat: ShaderMaterial
-var _acc: float = 0.0
+var _steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _frames: Array[Texture2D] = []
 
 
@@ -135,9 +134,8 @@ static func _short(a: int) -> float:
 
 
 func _process(delta: float) -> void:
-	_acc = minf(_acc + delta, TICK * 8.0)
-	while _acc >= TICK:
-		_acc -= TICK
+	_steps.add(delta)
+	while _steps.next():
 		_move()
 		timer -= 1
 		if timer <= 0:

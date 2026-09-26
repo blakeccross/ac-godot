@@ -5,8 +5,6 @@ extends RefCounted
 ## Movement follows `mfish_base_FishMove` / `Museum_Fish_BGCheck` / wall turn — not a
 ## mechanical C port, but the same bounds, lookahead, and turn responses.
 
-## `mfish_base_FishMove` adds its whole velocity and eases once per decomp frame (60 Hz).
-const GAME_FPS := PlayerLocomotion.LOGIC_HZ
 ## `Museum_Fish_BGCheck` base half-extent for tanks 0–3.
 const TANK_HALF_BASE_GX := 54.0
 ## `mfish_WallCheck` look-ahead (`GETREG(TAKREG,70)+30`, reg usually 0).
@@ -65,11 +63,11 @@ static func create(p_fish: FishData, index: int, grid: WorldGrid, rng: RandomNum
 	actor._water_line_gx = MuseumDisplay.TANK_POS_GX[actor.tank].y
 	var swim_gx: float = float(init.get("depth", 70.0))
 	actor._swim_y = (swim_gx - actor._water_line_gx) * FieldCatalog.GX_TO_METERS
-	actor._speed = actor._speed_min * FieldCatalog.GX_TO_METERS * GAME_FPS
+	actor._speed = actor._speed_min * FieldCatalog.GX_TO_METERS * DecompTime.TICK_HZ
 	actor._target_speed = actor._speed
 	var active_min: int = int(init.get("active_min", 120))
 	var active_range: int = int(init.get("active_range", 120))
-	actor._activity = float(active_min + actor._rng.randi_range(0, maxi(active_range, 0))) / GAME_FPS
+	actor._activity = float(active_min + actor._rng.randi_range(0, maxi(active_range, 0))) / DecompTime.TICK_HZ
 	var center_gx: Vector3 = MuseumDisplay.TANK_POS_GX[actor.tank]
 	actor._tank_center = MuseumDisplay.gx_to_world(grid, Vector3(center_gx.x, 0.0, center_gx.z))
 	## Start inside the tightest BGCheck half (`54 + _28`).
@@ -100,15 +98,15 @@ func tick(delta: float) -> void:
 		var init: Dictionary = MuseumDisplay.fish_init(fish_index)
 		var active_min: int = int(init.get("active_min", 120))
 		var active_range: int = int(init.get("active_range", 120))
-		_activity += float(active_min + _rng.randi_range(0, maxi(active_range, 0))) / GAME_FPS
+		_activity += float(active_min + _rng.randi_range(0, maxi(active_range, 0))) / DecompTime.TICK_HZ
 	## Ease yaw toward target (`add_calc_short_angle2`, ~6.25°/frame max).
-	var max_turn: float = deg_to_rad(6.25) * delta * GAME_FPS
+	var max_turn: float = deg_to_rad(6.25) * delta * DecompTime.TICK_HZ
 	var diff: float = wrapf(_target_yaw - yaw, -PI, PI)
 	yaw = wrapf(yaw + clampf(diff, -max_turn, max_turn), -PI, PI)
 	## Speed eases toward the burst target, then decays (`_18` drag).
-	var speed_step: float = FieldCatalog.GX_TO_METERS * GAME_FPS
+	var speed_step: float = FieldCatalog.GX_TO_METERS * DecompTime.TICK_HZ
 	_speed = move_toward(_speed, _target_speed, 0.75 * speed_step * delta)
-	_target_speed = maxf(_target_speed * pow(_drag, delta * GAME_FPS), 0.0)
+	_target_speed = maxf(_target_speed * pow(_drag, delta * DecompTime.TICK_HZ), 0.0)
 	var forward := Vector3(sin(yaw), 0.0, cos(yaw))
 	var move: float = _speed * delta
 	if fish.id == &"jellyfish":
@@ -118,7 +116,7 @@ func tick(delta: float) -> void:
 		position.y = lerpf(position.y, _swim_y * 0.35, 0.05)
 	position += forward * move
 	## Ease Y toward cruise depth (`add_calc2` toward `_5F4 + _0C`).
-	position.y = lerpf(position.y, _swim_y, clampf(0.1 * delta * GAME_FPS, 0.0, 1.0))
+	position.y = lerpf(position.y, _swim_y, clampf(0.1 * delta * DecompTime.TICK_HZ, 0.0, 1.0))
 	_bg_check()
 	## Mid-cruise: if heading into a wall, kick a turn like `mfish_normal_process`.
 	if _wall_flags != 0 and absf(wrapf(_wall_yaw - yaw, -PI, PI)) < deg_to_rad(30.0):
@@ -249,7 +247,7 @@ func _on_activity_expired() -> void:
 func _start_normal_burst() -> void:
 	## `mfish_normal_process_init`: new cruise speed + small heading change.
 	var burst: float = _speed_min + _rng.randf() * _speed_range
-	_target_speed = burst * FieldCatalog.GX_TO_METERS * GAME_FPS
+	_target_speed = burst * FieldCatalog.GX_TO_METERS * DecompTime.TICK_HZ
 	var turn: float = _rng.randf_range(-_turn_limit, _turn_limit)
 	if absf(turn) < deg_to_rad(20.0):
 		turn = deg_to_rad(20.0) if turn >= 0.0 else deg_to_rad(-20.0)
@@ -267,4 +265,4 @@ func _start_wall_turn() -> void:
 	if _wall_flags != 0:
 		var side: float = 1.0 if wrapf(yaw - face, -PI, PI) > 0.0 else -1.0
 		_target_yaw = wrapf(face + side * deg_to_rad(112.5), -PI, PI)
-	_target_speed = maxf(_target_speed, (_speed_min + _speed_range * 0.5) * FieldCatalog.GX_TO_METERS * GAME_FPS)
+	_target_speed = maxf(_target_speed, (_speed_min + _speed_range * 0.5) * FieldCatalog.GX_TO_METERS * DecompTime.TICK_HZ)
