@@ -194,6 +194,9 @@ func _avoid(a: BugActor, _sense: BugActor.Sense) -> void:
 	if a.anime0 >= 2.0:
 		a.anime0 -= 2.0
 	a.gravity = minf(a.gravity * 1.1, 12.0)
+	## `aIGK_avoid`: ground / wall collision switches on once it has flown off its home unit.
+	if a.bg_type == 0 and BugProgram.left_home_unit(a):
+		a.bg_type = 1
 
 
 func _check_patience(a: BugActor, sense: BugActor.Sense) -> bool:

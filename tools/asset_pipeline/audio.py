@@ -86,6 +86,28 @@ LEV_SE_NUMS: dict[str, int] = {
     "lev_12": 0x12,
     "lev_13": 0x13,
     "lev_14": 0x14,
+    ## Field insects, `sAdo_OngenPos(insect, index, pos)` every frame while the sound holds.
+    ## `NA_SE_25` beetle / water-strider / bee buzz, `NA_SE_26` flying away (cicada, roach,
+    ## ladybug), mole cricket underground (0x44 hide / 0x45 out), cicada cries
+    ## (`semi_sound_data`: 0x9B 0x9A 0x98 0x97), cricket chirps (`batta_sound_data`:
+    ## 0x9F 0x9E 0xA0 0x9D), locust wings (0xA2 long, 0xA3 migratory), roach scuttle
+    ## (`NA_SE_GOKI_MOVE` 0xA8), mosquito whine (`NA_SE_KA_BUZZ` 0xCF).
+    "lev_25": 0x25,
+    "lev_26": 0x26,
+    "lev_44": 0x44,
+    "lev_45": 0x45,
+    "lev_97": 0x97,
+    "lev_98": 0x98,
+    "lev_9a": 0x9A,
+    "lev_9b": 0x9B,
+    "lev_9d": 0x9D,
+    "lev_9e": 0x9E,
+    "lev_9f": 0x9F,
+    "lev_a0": 0xA0,
+    "lev_a2": 0xA2,
+    "lev_a3": 0xA3,
+    "lev_a8": 0xA8,
+    "lev_cf": 0xCF,
 }
 
 CATALOG_DIR = "audio"

@@ -101,8 +101,9 @@ func _let_escape_init(a: BugActor) -> void:
 	a.timer = 0
 	a.speed = 5.0
 	a.pos_speed.y = 3.0
-	if a.f32_work[1] != 0.0 or a._last_player_gx != Vector3.INF:
-		a.angle_y = a.f32_work[1] + a._rng.randf_range(-1.0, 1.0) * (21845.0 * 0.5 * MLib.S16)
+	## Off the player's facing (`shape_info.rotation.y + 21845·(rand − 0.5)`), not toward them.
+	if a._last_player_gx != Vector3.INF:
+		a.angle_y = a.f32_work[1] + (a._rng.randf() - 0.5) * (21845.0 * MLib.S16)
 		a.rot.y = a.angle_y
 	a.f_no_catch = true
 	a.f_bit2 = true
@@ -124,8 +125,9 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.f_scared and not a.f_bit2:
 		setup_action(a, LET_ESCAPE)
 		return
+	## The player's facing, for `let_escape_init` (a released hopper leaps the way they face).
 	if sense.has_player():
-		a.f32_work[1] = BugProgram.angle_to(a.pos, sense.player_position / BugActor.GX_M)
+		a.f32_work[1] = sense.player_yaw
 	if a.action_proc.is_valid():
 		a.action_proc.call(a, sense)
 
@@ -145,7 +147,7 @@ func _chg_direction(a: BugActor, sense: BugActor.Sense) -> void:
 	if sense != null and sense.bg.is_valid():
 		var r: Dictionary = sense.bg.call(probe)
 		var bg_y: float = float(r.get("ground_y", a.home.y))
-		water = bool(r.get("water", false))
+		water = bool(r.get("water", false))  ## `mCoBG_CheckWaterAttribute(attr)`
 		ok = absf(a.pos.y - bg_y) < 40.0
 	if ok and not water:
 		a.angle_y = ang
@@ -170,16 +172,19 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 		a.anime0 += 1.0
 		if a.anime0 >= 2.0:
 			a.anime0 -= 2.0
-	a.timer -= 1
 	if a.timer > 0:
+		a.timer -= 1
 		return
+	## `play->game_frame % 200`: every hopper shares the play clock — locusts jump unless the
+	## timer runs out in the first 20 frames of a 200-frame window, crickets only then.
 	var action: int = CHANGE_DIRECTION
+	var window: int = sense.game_frame % 200 if sense != null else a._rng.randi_range(0, 199)
 	if not _in_active_range(a):
 		action = JUMP
 	elif a.type == T_LONG_LOCUST or a.type == T_MIGRATORY_LOCUST:
-		if a._rng.randi_range(0, 199) > 20:
+		if window > 20:
 			action = JUMP
-	elif a._rng.randi_range(0, 199) < 20:
+	elif window < 20:
 		action = JUMP
 	setup_action(a, action)
 
@@ -207,15 +212,20 @@ func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 		a.timer = int(2.0 * (5.0 + a._rng.randf() * 10.0))
 		setup_action(a, CHANGE_DIRECTION)
 		return
-	var ang: float = a.rot.y
-	if _in_active_range(a) and sense.has_player():
-		ang = BugProgram.angle_to(a.pos, sense.player_position / BugActor.GX_M) + PI
+	## Away from the player inside the active range; outside it, back toward the acre centre
+	## (`aIBT_chk_active_range` writes that angle).
+	var home: Array = _range_angle(a)
+	var ang: float = float(home[1])
+	if bool(home[0]):
+		ang = a.rot.y
+		if sense.has_player():
+			ang = BugProgram.angle_to(a.pos, sense.player_position / BugActor.GX_M) + PI
 	## `chk_avoid_jump_angle`: wall hit → flip ±90°.
 	if sense != null and sense.bg.is_valid() and bool(sense.bg.call(a.pos).get("hit_wall_front", false)):
 		ang = a.angle_y + (PI * 0.5 if a._rng.randi_range(0, 1) == 1 else -PI * 0.5)
 	a.angle_y = ang
 	a.rot.y = ang
-	_set_avoid_jump_spd(a)
+	_set_avoid_jump_spd(a, sense)
 
 
 func _let_escape(a: BugActor, sense: BugActor.Sense) -> void:
@@ -233,18 +243,25 @@ func _let_escape(a: BugActor, sense: BugActor.Sense) -> void:
 		return
 	a.timer = 8
 	a.rot.y = a.angle_y
-	_set_avoid_jump_spd(a)
+	_set_avoid_jump_spd(a, sense)
 
 
-func _set_avoid_jump_spd(a: BugActor) -> void:
+func _set_avoid_jump_spd(a: BugActor, sense: BugActor.Sense = null) -> void:
 	if a.type == T_MIGRATORY_LOCUST:
 		a.speed = 7.5
 		a.pos_speed.y = 9.0
 		a.gravity = 0.6
-	else:
-		a.speed = 5.0
-		a.pos_speed.y = 3.0
-		a.gravity = 0.3
+		return
+	## Hopping north (`|rot.y| > 0x4000`) up a rising slope adds `3·sin(angle.x)` so the arc
+	## clears the ground instead of diving into it.
+	var lift: float = 3.0
+	if absf(wrapf(a.rot.y, -PI, PI)) > PI * 0.5 and sense != null and sense.grid != null:
+		var rise: float = BugBg.rise_ahead(sense.grid, sense.layout, a.pos, a.rot.y)
+		if rise > 0.0:
+			lift += 3.0 * rise
+	a.speed = 5.0
+	a.pos_speed.y = lift
+	a.gravity = 0.3
 
 
 # ---- helpers ---------------------------------------------------
@@ -268,7 +285,10 @@ func _ground_y(a: BugActor, sense: BugActor.Sense) -> float:
 
 
 func _on_ground(a: BugActor, sense: BugActor.Sense) -> bool:
-	## Also clamps — without `bg_collision_check` nothing else stops the arc.
+	## `bg_collision_check.result.on_ground` from this frame's `aINS_BGcheck`.
+	if sense != null and sense.ground.is_valid():
+		return a.bg_on_ground
+	## No BG sampler (unit tests): clamp to the flat plane ourselves.
 	var g: float = _ground_y(a, sense)
 	if a.pos.y <= g + 0.001:
 		a.pos.y = g
@@ -279,6 +299,8 @@ func _on_ground(a: BugActor, sense: BugActor.Sense) -> bool:
 
 
 func _in_water(a: BugActor, sense: BugActor.Sense) -> bool:
+	if sense != null and sense.ground.is_valid():
+		return a.bg_in_water
 	if sense != null and sense.bg.is_valid():
 		return bool(sense.bg.call(a.pos).get("in_water", false))
 	return false

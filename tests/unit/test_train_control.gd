@@ -178,9 +178,9 @@ func test_a_freshly_spawned_car_skips_to_the_end_quietly() -> void:
 
 
 func test_sound_curves() -> void:
-	assert_float(TrainService.ongen_volume(0.0)).is_equal_approx(1.15, 0.0001)
-	assert_float(TrainService.ongen_volume(540.0)).is_equal_approx(0.0, 0.0001)
-	assert_float(TrainService.ongen_volume(541.0)).is_equal(0.0)
+	assert_float(Ongen.volume(0.0)).is_equal_approx(1.15, 0.0001)
+	assert_float(Ongen.volume(540.0)).is_equal_approx(0.0, 0.0001)
+	assert_float(Ongen.volume(541.0)).is_equal(0.0)
 	assert_float(TrainService.whistle_volume(320.0)).is_equal_approx(1.15, 0.0001)
 	assert_float(TrainService.whistle_volume(6400.0)).is_equal_approx(0.0, 0.0001)
 	assert_float(TrainService.whistle_volume(8000.0)).is_equal(0.0)
@@ -188,10 +188,10 @@ func test_sound_curves() -> void:
 
 func test_pan_follows_the_east_west_bearing() -> void:
 	var mic := Vector3(1000.0, 0.0, 1000.0)
-	assert_float(TrainService.pan_for(mic, mic + Vector3(500.0, 0.0, 0.0))).is_greater(0.9)
-	assert_float(TrainService.pan_for(mic, mic + Vector3(-500.0, 0.0, 0.0))).is_less(-0.9)
-	assert_float(TrainService.pan_for(mic, mic + Vector3(0.0, 0.0, -500.0))).is_equal_approx(0.0, 0.05)
-	assert_float(TrainService.pan_for(mic, mic + Vector3(0.0, 0.0, 500.0))).is_equal_approx(0.0, 0.05)
+	assert_float(Ongen.pan(mic, mic + Vector3(500.0, 0.0, 0.0))).is_greater(0.9)
+	assert_float(Ongen.pan(mic, mic + Vector3(-500.0, 0.0, 0.0))).is_less(-0.9)
+	assert_float(Ongen.pan(mic, mic + Vector3(0.0, 0.0, -500.0))).is_equal_approx(0.0, 0.05)
+	assert_float(Ongen.pan(mic, mic + Vector3(0.0, 0.0, 500.0))).is_equal_approx(0.0, 0.05)
 
 
 func test_gx_world_round_trip_matches_the_title_mapping() -> void:

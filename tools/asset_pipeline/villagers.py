@@ -251,6 +251,32 @@ def parse_texture_sets(path: Path) -> list[tuple[str, str]]:
     return found[:NPC_NUM]
 
 
+def parse_draw_scales(path: Path) -> dict[str, dict[str, float]]:
+    """`aNPC_draw_data_c.scale` for every draw entry (villagers and special NPCs).
+
+    `by_skeleton` (first entry per skeleton) is baked into each NPC GLB as a root scale
+    (`convert._npc_draw_scales`): cubs 0.0065, Nook 0.011. `by_set` keys the entry's texture
+    set. `chn_1` is the one skeleton with two scales, only on an unused test villager.
+    """
+    text = path.read_text(encoding="utf-8", errors="replace")
+    start = text.find("npc_draw_data_tbl[]")
+    if start < 0:
+        raise ValueError("npc_draw_data_tbl not found")
+    found = re.findall(
+        r"&cKF_bs_r_([a-z0-9]+_\d+),\s*\{\s*([a-z0-9]+_\d+)_tmem_txt.*?\},\s*-?\d+,\s*-?\d+,"
+        r"\s*-?\d+,\s*\},\s*([0-9.]+)",
+        text[start:],
+        re.S,
+    )
+    by_set: dict[str, float] = {}
+    by_skeleton: dict[str, float] = {}
+    for skeleton, tex, scale in found:
+        value = round(float(scale), 6)
+        by_set.setdefault(tex, value)
+        by_skeleton.setdefault(skeleton, value)
+    return {"by_set": by_set, "by_skeleton": by_skeleton}
+
+
 def _villager_id(enum_name: str) -> str:
     return enum_name.lower()
 

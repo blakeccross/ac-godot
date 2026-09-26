@@ -593,7 +593,9 @@ def write_glb(
     _write_glb_file(path, gltf, bin_blob)
 
 
-def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = None) -> None:
+def write_skinned_glb(
+    path: Path, model: ConvertedModel, extras: dict | None = None, root_scale: float | None = None
+) -> None:
     """Export a skinned GLB in glTF bind-pose form + clips.
 
     ``ConvertedModel.bind_*`` are already in export space (wait bind stands on +Y;
@@ -602,6 +604,9 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
 
     Do **not** offset coplanar TEX_EDGE cutouts vs OPA walls here — GC keeps them
     on the same plane; Godot depth bias is runtime (`GeneratedVisual` grow).
+
+    ``root_scale`` wraps the skeleton and meshes in one `{stem}_draw_scale` node, like the
+    actor's model matrix: joint_0 root motion scales with the mesh (a joint scale would not).
     """
     parts = [p for p in model.parts if p.joint_index >= 0 and p.triangles]
     groups = _group_parts(parts)
@@ -849,12 +854,23 @@ def write_skinned_glb(path: Path, model: ConvertedModel, extras: dict | None = N
             animations_out.append({"name": anim_name, "samplers": samplers_anim, "channels": channels_anim})
             baked_names.append(anim_name)
 
+    scene_nodes: list[int] = roots + mesh_node_indices
+    if root_scale is not None:
+        nodes.append(
+            {
+                "name": f"{path.stem}_draw_scale",
+                "scale": [root_scale, root_scale, root_scale],
+                "children": scene_nodes,
+            }
+        )
+        scene_nodes = [len(nodes) - 1]
+
     bin_blob = b"".join(bin_chunks)
     bin_blob += b"\x00" * _pad4(len(bin_blob))
     gltf: dict = {
         "asset": {"version": "2.0", "generator": "ac-godot-asset-pipeline"},
         "scene": 0,
-        "scenes": [{"nodes": roots + mesh_node_indices}],
+        "scenes": [{"nodes": scene_nodes}],
         "nodes": nodes,
         "meshes": meshes,
         "skins": [{"joints": list(range(n_joints)), "inverseBindMatrices": a_ibm}],

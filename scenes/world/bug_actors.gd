@@ -44,7 +44,10 @@ func _make_sense() -> BugActor.Sense:
 		sense.player_yaw = player.facing_yaw()
 	var grid: Variant = _grid_for()
 	if grid is WorldGrid:
-		sense.bg = BugBg.make_probe(grid, _layout_for())
+		var layout := _layout_for()
+		sense.bg = BugBg.make_probe(grid, layout)
+		sense.ground = BugBg.make_ground(grid, layout)
+		sense.layout = layout
 		sense.grid = grid
 	if player != null:
 		for cell: Vector2i in player.shaken_tree_cells():

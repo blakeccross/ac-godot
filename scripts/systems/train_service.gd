@@ -10,7 +10,6 @@ extends Node
 ## door indoors (`mTRC_SetMicPos`). Stereo pan uses one shared panner on the `Train` bus, set
 ## from the locomotive's bearing each tick (the wheel clack really comes from 250 GX behind).
 
-const MIC_OFFSET_GX := Vector3(0.0, 240.0, 77.0)
 ## `train_position.y` (GAFE01_00 `mTRC_*_init`): the height the sounds use.
 const SOUND_Y_GX := 180.0
 
@@ -26,9 +25,7 @@ const CHUFF_SE := &"3b"
 const CLACK_SE := &"3f"
 const RUN_LEVEL_SE := &"lev_10"
 
-## `SOU_ONGEN_AREA1` and the `distance2vol` / `distance2vol4KITEKI` curves (GX).
-const ONGEN_AREA := 540.0
-const ONGEN_BASE_VOLUME := 1.15
+## `distance2vol4KITEKI` (GX); the plain ongen curve is `Ongen.volume`.
 const KITEKI_BASE_VOLUME := 1.15
 const KITEKI_MIN := 320.0
 const KITEKI_MAX := 6400.0
@@ -131,7 +128,7 @@ func _trigger(mode: int, state: int, mic: Vector3, loco: Vector3) -> void:
 ## on counters that speed up with the train.
 func _level(mode: int, mic: Vector3, loco: Vector3) -> void:
 	var distance: float = mic.distance_to(loco)
-	_panner.pan = pan_for(mic, loco)
+	_panner.pan = Ongen.pan(mic, loco)
 	if _status == 0:
 		return
 	_update_run(mode, distance)
@@ -168,20 +165,15 @@ func _sync_visual(parked: bool, mode: int, mic: Vector3) -> void:
 
 
 func _update_run(mode: int, distance: float) -> void:
-	if mode == SCENE_SILENT or distance > ONGEN_AREA:
+	if mode == SCENE_SILENT or distance > Ongen.AREA:
 		_stop_run()
 		return
 	if _run_player.stream == null:
 		var stream: AudioStream = SeCatalog.stream_for(RUN_LEVEL_SE)
 		if stream == null:
 			return
-		var looped: AudioStream = stream.duplicate()
-		if looped is AudioStreamOggVorbis:
-			(looped as AudioStreamOggVorbis).loop = true
-		elif looped is AudioStreamWAV:
-			(looped as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
-		_run_player.stream = looped
-	_run_player.volume_db = linear_to_db(maxf(ongen_volume(distance), 0.0001))
+		_run_player.stream = Ongen.looped(stream)
+	_run_player.volume_db = linear_to_db(maxf(Ongen.volume(distance), 0.0001))
 	if not _run_player.playing:
 		_run_player.play()
 
@@ -200,9 +192,9 @@ func _play_whistle(mode: int, ids: Dictionary, distance: float) -> void:
 
 ## `Na_OngenTrgStart` → `Sou_PosTrgStart` default branch.
 func _play_ongen(mode: int, id: StringName, distance: float) -> void:
-	if mode == SCENE_SILENT or distance > ONGEN_AREA:
+	if mode == SCENE_SILENT or distance > Ongen.AREA:
 		return
-	_play(id, ongen_volume(distance))
+	_play(id, Ongen.volume(distance))
 
 
 func _play(id: StringName, volume: float) -> void:
@@ -220,33 +212,11 @@ func _play(id: StringName, volume: float) -> void:
 	player.play()
 
 
-## `distance2vol`.
-static func ongen_volume(distance: float) -> float:
-	if distance > ONGEN_AREA:
-		return 0.0
-	return minf(ONGEN_BASE_VOLUME - (ONGEN_BASE_VOLUME / (ONGEN_AREA * ONGEN_AREA)) * distance * distance, 1.5)
-
-
 ## `distance2vol4KITEKI`: linear from 1.15 at 320 GX to 0 at 6400 (the decomp's early-outs are
 ## dead code; `Sou_PosTrgStart` already drops anything past 6400).
 static func whistle_volume(distance: float) -> float:
 	var scale: float = KITEKI_BASE_VOLUME / (KITEKI_MAX - KITEKI_MIN)
 	return maxf(KITEKI_BASE_VOLUME - scale * (distance - KITEKI_MIN), 0.0)
-
-
-## `atans_table(dz, dx)` → `angle2pan` (without the `pan_kochou` curve): −1 left … 1 right.
-## Due east is hard right, due west hard left, north / south centred.
-static func pan_for(mic: Vector3, source: Vector3) -> float:
-	var angle: int = MLib.rad_to_s16(atan2(source.x - mic.x, source.z - mic.z))
-	var a: int = angle >> 8
-	var p: int
-	if a >= 0x40 and a <= 0xC0:
-		p = mini(0x80 - (a - 0x40), 0x7F)
-	elif a >= 0xC1:
-		p = a - 0xC0
-	else:
-		p = a + 0x40
-	return clampf((float(p) - 64.0) / 64.0, -1.0, 1.0)
 
 
 func _scene_mode() -> int:
@@ -262,7 +232,7 @@ func _mic_gx() -> Vector3:
 		var player := Player.find(get_tree())
 		if player != null:
 			base = player.global_position
-	return TownSpace.world_to_gx(base) + MIC_OFFSET_GX
+	return TownSpace.world_to_gx(base) + Ongen.MIC_OFFSET_GX
 
 
 func _player_block() -> Vector2i:

@@ -6,6 +6,8 @@ extends RefCounted
 ## the programs read for ground height, walls, water, flowers, and dig/shake state.
 
 const GX_M := FieldCatalog.GX_TO_METERS
+## Half-span of the slope sample for `rise_ahead`, GX (a quarter unit).
+const SLOPE_PROBE_GX := 10.0
 
 
 static func make_probe(grid: WorldGrid, layout: WorldData) -> Callable:
@@ -15,21 +17,48 @@ static func make_probe(grid: WorldGrid, layout: WorldData) -> Callable:
 		return probe(grid, layout, pos_gx)
 
 
+## Ground-only sampler for `BugActor._bg_check` (runs every frame for every insect, so
+## none of `probe`'s object scans).
+static func make_ground(grid: WorldGrid, layout: WorldData) -> Callable:
+	if grid == null:
+		return Callable()
+	return func(pos_gx: Vector3) -> Dictionary:
+		return ground(grid, layout, pos_gx)
+
+
+## `mCoBG_GetBgY_AngleS_FromWpos` at the insect's XZ — the sloped surface the terrain draws
+## and the player walks, not the unit's flat centre height. Water units report the bed as
+## `ground_y` and the surface `WATER_DEPTH_GX` above it.
+static func ground(grid: WorldGrid, layout: WorldData, pos_gx: Vector3) -> Dictionary:
+	var world: Vector3 = pos_gx * GX_M
+	var ground_y: float = pos_gx.y
+	if layout != null:
+		ground_y = FieldCollision.ground_y_at(layout, grid, world) / GX_M
+	var cell: Vector2i = grid.world_to_cell(world)
+	var water: bool = grid.is_in_bounds(cell) and grid.terrain_at(cell) == WorldGrid.Terrain.WATER
+	return {"ground_y": ground_y, "water": water, "water_y": ground_y + BugActor.WATER_DEPTH_GX}
+
+
+## Ground pitch at `pos_gx` along the facing `yaw` as `sin(angle)`: positive when the ground
+## rises ahead. `mCoBG_GetBgY_AngleS_FromWpos`'s angle for the jump boost.
+static func rise_ahead(grid: WorldGrid, layout: WorldData, pos_gx: Vector3, yaw: float) -> float:
+	if grid == null or layout == null:
+		return 0.0
+	var d := Vector3(sin(yaw), 0.0, cos(yaw)) * SLOPE_PROBE_GX
+	var ahead: float = float(ground(grid, layout, pos_gx + d)["ground_y"])
+	var behind: float = float(ground(grid, layout, pos_gx - d)["ground_y"])
+	return sin(atan2(ahead - behind, 2.0 * SLOPE_PROBE_GX))
+
+
 static func probe(grid: WorldGrid, layout: WorldData, pos_gx: Vector3) -> Dictionary:
 	var world: Vector3 = pos_gx * GX_M
 	var cell: Vector2i = grid.world_to_cell(world)
-	var out: Dictionary = {}
-
-	var ground_m: float = world.y
-	if layout != null:
-		ground_m = FieldCollision.ground_y(layout, cell, FieldCollision.FG_GROUND_DIST)
-	out["ground_y"] = ground_m / GX_M
-
-	var terrain: int = grid.terrain_at(cell) if grid.is_in_bounds(cell) else WorldGrid.Terrain.BLOCKED
-	var water: bool = terrain == WorldGrid.Terrain.WATER
-	out["water"] = water
-	out["in_water"] = water and pos_gx.y <= out["ground_y"] + 1.0
-	out["water_y"] = out["ground_y"]
+	var out: Dictionary = ground(grid, layout, pos_gx)
+	var water: bool = bool(out["water"])
+	## Surface only exists over water; the dive programs drown at `pos.y <= water_y`.
+	if not water:
+		out["water_y"] = -1e9
+	out["in_water"] = water and pos_gx.y <= float(out["water_y"])
 	out["on_ground"] = pos_gx.y <= float(out["ground_y"]) + 0.5
 
 	## Wall: this cell (or, roughly, any 4-neighbour) is unwalkable.

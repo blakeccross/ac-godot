@@ -17,6 +17,8 @@ const GX_M := FieldCatalog.GX_TO_METERS
 ## `aINS_setupActor`: life_time 216000 frames (2 game-hours), alpha0 255, bg_range 12.
 const LIFE_TIME_FRAMES := 216000
 const BG_RANGE_DEFAULT := 12.0
+## `mCoBG_GroundCheck`: river / pond units put the surface 20 GX over the bed.
+const WATER_DEPTH_GX := 20.0
 ## `aINS_MAX_STRESS_DIST` = 3 units ; `mFI_UNIT_BASE_SIZE_F` = 20 GX.
 const UNIT_GX := 20.0
 const MAX_STRESS_DIST_GX := 3.0 * UNIT_GX
@@ -62,12 +64,18 @@ class Sense:
 	## Cell the player just acted on (shovel / axe / tree shake).
 	var player_action_cell: Vector2i = Vector2i(-1, -1)
 	var player_action: int = 0  ## aINS_PL_ACT_*
-	## Optional BG probe (Phase 3). Callable(pos_gx: Vector3) -> Dictionary.
+	## Optional BG probe. Callable(pos_gx: Vector3) -> Dictionary (walls, flowers, perches…).
 	var bg: Callable = Callable()
+	## Ground-only sampler for the per-frame `aINS_BGcheck` (`BugBg.make_ground`):
+	## Callable(pos_gx) -> {ground_y, water, water_y}. Unset → no ground collision.
+	var ground: Callable = Callable()
+	## `play->game_frame`: play frames since the field loaded (`BugField` advances it).
+	var game_frame: int = 0
 	## `mPlib_Check_tree_shaken`: units whose tree the player is shaking or has just bumped
 	## (the player's shake-table entries still running). Cell → true, in `grid`'s cells.
 	var shaken_cells: Dictionary = {}
 	var grid: WorldGrid = null
+	var layout: WorldData = null
 
 	func tree_shaken_at(world_m: Vector3) -> bool:
 		if grid == null or shaken_cells.is_empty():
@@ -122,6 +130,10 @@ var ut_z: int = -1
 var bg_type: int = 0
 var bg_range: float = BG_RANGE_DEFAULT
 var bg_height: float = 0.0
+## `bg_collision_check.result` after this frame's `aINS_BGcheck`.
+var bg_on_ground: bool = false
+var bg_in_water: bool = false
+var bg_ground_y: float = 0.0
 var block: Vector2i = Vector2i(-1, -1)
 
 # ---- flags (insect_flags) --------------------------------------------
@@ -285,7 +297,7 @@ func frame(sense: Sense) -> void:
 	else:
 		_position_move()
 	## aINS_set_player_info handled implicitly (Sense carries player pos).
-	## aINS_BGcheck — Phase 3.
+	_bg_check(sense)
 	_calc_patience(sense)
 	_calc_life_time()
 	_calc_alpha_time()
@@ -298,6 +310,48 @@ func frame(sense: Sense) -> void:
 
 func xyz_move_last() -> void:
 	last_pos = pos
+
+
+# ---- aINS_BGcheck ------------------------------------------------------
+
+## `mCoBG_BgCheckControll` ground half (`mCoBG_GroundCheck` → `mCoBG_AdjustActorY`), every
+## frame after the move for any `bg_type`. Feet are `pos.y + bg_height`: a foot at or under
+## the ground is lifted onto it (`on_ground`, vertical speed zeroed); a grounded insect
+## whose ground drops by no more than this frame's XZ step follows it down the slope.
+## Water units floor 20 GX under the surface (`water_y − 20`) and flag `is_in_water`.
+## Walls stay with the programs' `sense.bg` queries.
+func _bg_check(sense: Sense) -> void:
+	if bg_type == 0 or sense == null or not sense.ground.is_valid():
+		return
+	var was_on_ground: bool = bg_on_ground
+	var old_ground_y: float = bg_ground_y
+	bg_on_ground = false
+	bg_in_water = false
+	var r: Dictionary = sense.ground.call(pos)
+	var ground_y: float = float(r.get("ground_y", pos.y))
+	bg_ground_y = ground_y
+	var foot: float = pos.y + bg_height
+	if bool(r.get("water", false)):
+		var water_y: float = float(r.get("water_y", ground_y + WATER_DEPTH_GX))
+		var floor_y: float = water_y - WATER_DEPTH_GX
+		if floor_y >= foot:
+			pos.y = floor_y - bg_height
+			bg_in_water = true
+			bg_on_ground = true
+			pos_speed.y = 0.0
+		elif water_y >= foot:
+			bg_in_water = true
+		return
+	if ground_y >= foot:
+		pos.y = ground_y - bg_height
+		bg_on_ground = true
+		pos_speed.y = 0.0
+	elif was_on_ground and old_ground_y > ground_y:
+		var step: float = Vector2(pos.x - last_pos.x, pos.z - last_pos.z).length()
+		if absf(ground_y - foot) <= step:
+			pos.y = ground_y - bg_height
+			bg_on_ground = true
+			pos_speed.y = 0.0
 
 
 # ---- aINS_position_move ------------------------------------------------

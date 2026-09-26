@@ -14,8 +14,11 @@ extends Node3D
 ##   seed=12345        Generated-town seed.
 ##   date=Y-M-D[,…]    One capture per date (default 2001-07-15). time=HH:MM (12:00).
 ##   target=…          visual:<id or glob> | node:<path under world> | acre:<name> |
+##                     bug:<id or glob> (a live field insect, e.g. bug:*grasshopper*) |
 ##                     pos:x,y,z | scene (keep the scene's own camera). Default: scene
 ##                     camera for scene=, else the town centre.
+##   console=cmd,args  Debug-console command run once the scene is up, commas for spaces
+##                     (`console=bug,grasshopper,3`).
 ##   cam=dx,dy,dz      Camera offset from the focus in metres (default 0,4,7).
 ##   look=dx,dy,dz     Offset added to the focus point (default 0,1,0).
 ##   fov=50  size=960x540  wait=20 (frames before the grab)
@@ -70,10 +73,19 @@ func _capture_date(date: String) -> void:
 	add_child(root)
 	for _i: int in 10:
 		await get_tree().process_frame
+	if _args.has("console"):
+		print("CONSOLE ", DebugConsole.new().execute(str(_args["console"]).replace(",", " ")))
 	var target := str(_args.get("target", "scene" if not scene_path.is_empty() else "town"))
 	var cam: Camera3D = null
 	if target != "scene":
 		var focus: Variant = _resolve_focus(root, target)
+		## Insects spawn over time: keep looking for up to `wait` frames.
+		if focus == null and target.begins_with("bug:"):
+			for _i: int in int(_args.get("wait", "20")):
+				await get_tree().process_frame
+				focus = _resolve_focus(root, target)
+				if focus != null:
+					break
 		if focus == null:
 			_error("target '%s' not found" % target)
 			root.queue_free()
@@ -131,6 +143,12 @@ func _resolve_focus(root: Node, target: String) -> Variant:
 		"visual":
 			var hit := _find_visual(root, value)
 			return hit.global_position if hit != null else null
+		"bug":
+			for node: Node in root.find_children("*", "BugActorVisual", true, false):
+				var bug := node as BugActorVisual
+				if bug.visible and (String(bug.bug_id) == value or String(bug.bug_id).match(value)):
+					return bug.global_position
+			return null
 	return null
 
 

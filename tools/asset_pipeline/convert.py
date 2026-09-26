@@ -469,6 +469,27 @@ def convert_villager_texture_sets(cfg: PipelineConfig) -> dict[str, Any]:
     return {"results": results, "converted": sum(1 for r in results if r["status"] == "converted")}
 
 
+## `Matrix_scale` every actor draw starts from; NPC draw entries carry their own.
+ACTOR_DRAW_SCALE = 0.01
+_NPC_DRAW_SCALES: dict[str, float] | None = None
+
+
+def _npc_draw_scales(cfg: PipelineConfig) -> dict[str, float]:
+    """Skeleton prefix → `npc_draw_data_tbl[].scale` (first entry per skeleton; the only
+    skeleton with two scales, `chn_1`, differs just on an unused test villager)."""
+    global _NPC_DRAW_SCALES
+    if _NPC_DRAW_SCALES is None:
+        from .fgdata import _guess_decomp
+        from .villagers import parse_draw_scales
+
+        decomp = cfg.decomp_root or _guess_decomp(cfg)
+        table = decomp / "src" / "data" / "npc" / "npc_draw_data.c" if decomp else None
+        _NPC_DRAW_SCALES = (
+            parse_draw_scales(table)["by_skeleton"] if table is not None and table.is_file() else {}
+        )
+    return _NPC_DRAW_SCALES
+
+
 def convert_villager_house_palettes(cfg: PipelineConfig) -> dict[str, Any]:
     """Bake `obj_{s,w}_house{1-5}_{a-e}.glb` with each structure_pal letter.
 
@@ -877,6 +898,8 @@ def _convert_ckf(cfg: PipelineConfig, rel: RelData, symbols: list, item: dict[st
             bank=bank,
         )
         dest = cfg.converted / item["output"]
+        prefix = item["skeleton"].replace("cKF_bs_r_", "")
+        draw_scale = _npc_draw_scales(cfg).get(prefix)
         write_skinned_glb(
             dest,
             model,
@@ -885,7 +908,11 @@ def _convert_ckf(cfg: PipelineConfig, rel: RelData, symbols: list, item: dict[st
                 "source_skeleton": item["skeleton"],
                 "scale": cfg.scale,
                 "transforms": TRANSFORMS,
+                **({"npc_draw_scale": draw_scale} if draw_scale is not None else {}),
             },
+            ## `aNPC_draw_data_c.scale` over the flat actor scale the game applies to every
+            ## actor (`FieldCatalog.ACTOR_DRAW_SCALE`): Maple's cub is 0.0065 → 0.65.
+            root_scale=draw_scale / ACTOR_DRAW_SCALE if draw_scale is not None else None,
         )
         record["status"] = "converted"
         record["parts"] = len(model.parts)

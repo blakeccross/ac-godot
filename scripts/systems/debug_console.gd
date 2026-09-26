@@ -5,7 +5,7 @@ extends RefCounted
 ## Not an autoload — the overlay owns one instance. Logic stays testable without UI.
 
 const COMMANDS: PackedStringArray = [
-	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "clear"
+	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "clear"
 ]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
 const HOUSE_ARGS: PackedStringArray = ["size", "basement", "build", "loan", "statue", "goki", "neglect"]
@@ -48,6 +48,8 @@ func execute(raw: String) -> String:
 			return _cmd_event(args)
 		"fortune", "destiny":
 			return _cmd_fortune(args)
+		"bug", "insect":
+			return _cmd_bug(args)
 		"clear":
 			return "__clear__"
 		_:
@@ -159,9 +161,39 @@ func _cmd_help() -> String:
 		"  house [size <small|medium|large|upper> | basement | build | loan <n> | statue | goki [n] | neglect [days]]",
 		"  event [list | start <id> | stop [id] | goto <id> | special <id>]",
 		"  fortune [normal|popular|unpopular|bad_luck|money_luck|goods_luck]",
+		"  bug <id> [count]  (spawn insects in front of the player)",
 		"  clear / help",
 		"Tab completes. Up/Down recall history.",
 	])
+
+
+## Spawns field insects a few metres ahead of the player, on the ground there, in the bug's
+## first habitat — for watching a program without waiting on `aSOI_insect_set`.
+func _cmd_bug(args: PackedStringArray) -> String:
+	if args.is_empty():
+		return "Usage: bug <id> [count], e.g. bug grasshopper 3"
+	var bug: BugData = BugCatalog.get_bug(StringName(String(args[0]).to_lower()))
+	if bug == null:
+		return "Unknown bug '%s'." % String(args[0])
+	var tree: SceneTree = Game.get_tree()
+	var world := World.find(tree)
+	var player := Player.find(tree)
+	if world == null or player == null or world.layout == null:
+		return "Bugs need the outdoor field."
+	var count: int = clampi(int(args[1]) if args.size() > 1 else 1, 1, BugField.MAX_ACTORS)
+	var habitat: BugData.Habitat = (
+		bug.habitats[0] as BugData.Habitat if not bug.habitats.is_empty() else BugData.Habitat.GROUND
+	)
+	var yaw: float = player.facing_yaw()
+	var ahead := Vector3(sin(yaw), 0.0, cos(yaw))
+	var side := Vector3(ahead.z, 0.0, -ahead.x)
+	var spawned: int = 0
+	for i: int in count:
+		var at: Vector3 = player.global_position + ahead * 3.0 + side * (float(i) - (count - 1) * 0.5)
+		at.y = FieldCollision.ground_y_at(world.layout, world.grid, at)
+		if world.bugs.spawn(bug, habitat, at) != null:
+			spawned += 1
+	return "Spawned %d %s." % [spawned, bug.id]
 
 
 ## Today's `Private_c.destiny` — normally set by Katrina / the New Year shrine (not built

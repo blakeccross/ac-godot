@@ -39,3 +39,22 @@ func _albedo_by_material(root: Node) -> Dictionary:
 			if mat != null and mat.albedo_texture != null:
 				out[String(mat.resource_name)] = mat.albedo_texture.resource_path
 	return out
+
+
+func test_npc_glbs_carry_their_draw_scale() -> void:
+	## `aNPC_draw_data_c.scale` is baked as a root node over the flat actor scale: cubs are
+	## 0.0065 (0.65×), bulls 0.0125 (1.25×). Skip when the local GLBs are missing.
+	if FieldCatalog.villager_path(&"cub").is_empty() or FieldCatalog.villager_path(&"bull").is_empty():
+		return
+	assert_float(_skeleton_scale(&"cub")).is_equal_approx(0.65, 1e-4)
+	assert_float(_skeleton_scale(&"bull")).is_equal_approx(1.25, 1e-4)
+
+
+## Skeleton scale relative to the fitted pivot.
+func _skeleton_scale(species: StringName) -> float:
+	var host := Node3D.new()
+	auto_free(host)
+	add_child(host)
+	var vis: Node3D = GeneratedVisual.attach_villager(host, species)
+	var skel := vis.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+	return skel.global_transform.basis.get_scale().x / vis.global_transform.basis.get_scale().x

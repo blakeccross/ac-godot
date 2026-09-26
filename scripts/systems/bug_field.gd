@@ -40,6 +40,7 @@ var _net_dir: Vector3 = Vector3.ZERO
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _spawned_acre: Vector2i = Vector2i(-999, -999)
 var _steps := FrameStepper.new()
+var _game_frame: int = 0
 var _field_action: Dictionary = {"kind": 0, "cell": Vector2i(-1, -1)}
 
 const TOOL_SWING_SECONDS := 0.25
@@ -115,6 +116,8 @@ func tick(delta: float, sense: BugActor.Sense) -> void:
 
 
 func _frame(sense: BugActor.Sense) -> void:
+	_game_frame += 1
+	sense.game_frame = _game_frame
 	for actor: BugActor in actors:
 		if not actor.finished:
 			actor.frame(sense)
