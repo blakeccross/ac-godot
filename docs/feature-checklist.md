@@ -176,11 +176,11 @@ data tables before a category is called done.
   header/body/footer text in the sender's ink color (`letter_color[]`), sliding in like every
   other submenu — `letter_reader_overlay.tscn`, `LetterChrome`. Read-only (decomp confirms
   `mBD_roll_control`/pagination/caret are write-mode-only, dead code for reading).
-- [ ] **Catalog** of every item you've ever owned/received; order from catalog at Nook's (`m_catalog_ovl`)
+- [~] **Catalog** of every item you've ever owned/received; order from catalog at Nook's (`m_catalog_ovl`) — `CatalogBook`: furniture / clothing / wallpaper / carpet / stationery / umbrellas register as they reach the pockets (`mSP_CollectCheck`); Nook takes up to 5 paid orders that arrive enclosed in a letter the next morning (`mPO_delivery_mail_with_order_ftr`). Missing: the catalog browser pages (orders use the shop paper list), non-orderable flags beyond "rare"
 - [ ] Item data tables: furniture, clothing, wallpaper, carpet, umbrellas, tools, stationery, fruit, shells, fossils, gyroids, paintings, music, misc (`m_item_name`, `ac_furniture_data`)
 - [ ] Fruit: native fruit per town + non-native (apple, orange, peach, pear, cherry); coconut on beach palms
 - [ ] Perfect fruit? _(not in GCN — skip)_
-- [ ] Sea shells wash up on the beach on a timer; sell to Nook / Tommy (`ac_mbg` beach items)
+- [ ] Sea shells wash up on the beach on a timer; sell to Nook / Tommy (`ac_mbg` beach items) — shell prices are in `mSP_ItemNo2ItemPrice` (160/80/600/120/240/1800/1400/1000) for when the items exist
 - [ ] Furniture "in hand" vs. "as item" states; wallpaper/carpet items
 - [~] Wrapping paper — wrap/unwrap a droppable item as a present (`Inventory.wrap_slot`, the
   "Wrap" tag) works; attaching a wrapped gift to outgoing mail depends on the mail-writer UI
@@ -195,10 +195,10 @@ data tables before a category is called done.
 - [ ] House sizes: small house (4×4) → medium (6×6) → large (8×8) → upper floor (2nd floor); basement is a separate unlock, and no side/back rooms or mansion exist in GCN (`m_home`, `m_house`, room types)
 - [ ] **HRA — Happy Room Academy**: weekly letter scoring your house layout; feng shui, sets, matching series, gyroids, furniture count; rank letters (`m_huusui_room`, `mark_room`)
 - [ ] Feng shui: colour-by-direction bonuses (`m_huusui_room_ovl`)
-- [ ] Selling: Nook buys almost anything at set prices; fish/bugs/fossils/paintings prices; foreign fruit premium
-- [ ] Turnip market (**Stalk Market**): Sow Joan sells turnips Sunday AM; Nook buys at fluctuating daily AM/PM price; turnips rot after a week; spoiled-turnip uses (`m_kabu_manager`, `ac_ev_kabuPeddler`, `ac_yomise`)
-- [ ] Lottery / raffle at Nook's on the last day of the month (`mEv_EVENT_LOTTERY`)
-- [ ] Nook's point card / "Nook Points" — _(verify GCN)_
+- [~] Selling: Nook buys almost anything at set prices; fish/bugs/fossils/paintings prices; foreign fruit premium — `ShopBook.sell_result`: catalog price / 4, foreign fruit 2000 / 4 (`Game.town_fruit`), worthless items taken for free, quest items refused, 30,000-bell bags when the wallet overflows (refused with no room), half the payout counts toward Nook's sales. Missing: shell / fossil / painting price data
+- [~] Turnip market (**Stalk Market**): Sow Joan sells turnips Sunday AM; Nook buys at fluctuating daily price; turnips rot after a week; spoiled-turnip uses (`m_kabu_manager`, `ac_ev_kabuPeddler`, `ac_yomise`) — `KabuMarket` ports `Kabu_manager` (Sunday price 70–129, spike ×8 / random / falling trends with the decomp's transition odds; one price per day, not AM/PM, in GCN); Nook quotes it under "Other things" and buys 10/50/100 bundles (never on Sunday), spoiled turnips as junk. Missing: Joan, turnips spoiling on the ground (`mAGrw_SpoilKabu`)
+- [x] Lottery / raffle at Nook's on the last day of the month (`mEv_EVENT_LOTTERY`) — see §21
+- [x] Nook's point card / "Nook Points" — _not in GCN_ (`m_shop.c` has only raffle tickets); skip
 - [ ] Flea market? — _not in GCN_ (skip)
 
 ## 12. Fishing (§ of tools, detailed)
@@ -376,19 +376,21 @@ data tables before a category is called done.
 
 ## 21. Nook's store
 
-- [~] 4 building types over time + purchase volume: **Nook's Cranny → Nook 'n' Go → Nookway → Nookington's**; upgrades at 25,000 / 90,000 / 240,000 bells, with Nookington's also requiring a visiting foreign player (`ac_shop_level`, `m_shop`) — `shop_book.gd`, `shop0`–`shop3` interiors
-- [ ] Nookington's has a second floor with Timmy & Tommy; requires a friend from another town to visit to trigger the final upgrade
-- [~] Daily stock: a few furniture, wallpaper, carpet, tools, stationery, seeds, umbrella, a "special" (`ac_shop_goods`, `ac_shop_goods_data`) — `shop_stock.gd`
-- [ ] Stock rotates at 06:00; sells out; sold-out slot shows empty
-- [ ] Sell items to Nook (he names a price, you confirm); can't sell some things
-- [ ] Nook buys turnips at fluctuating price (§11)
-- [ ] Catalog ordering kiosk; items delivered by mail next day
-- [ ] Sale days, "Nook's Point"/members, the flooring/wallpaper wall
+- [x] 4 building types over time + purchase volume: **Nook's Cranny → Nook 'n' Go → Nookway → Nookington's**; upgrades at 25,000 / 90,000 / 240,000 bells, with Nookington's also requiring a visiting foreign player (`ac_shop_level`, `m_shop`) — `ShopBook`: stored level (`shop_info.shop_level`), sales capped at the next threshold until the upgrade lands (`mSP_PlusSales`), a renovation booked two days out once earned (`aSL_JudgeRenewShop`, never across raffle day or Sale Day, cancelled if the clock runs backwards), closed for renovations from opening time the day before, reopening upgraded at the new building's opening hour; renovation-notice and grand-opening letters; `visitor` flag gates Nookington's (`shop visitor` debug command until multi-town visits exist). `shop0`–`shop3` interiors
+- [ ] Nookington's has a second floor with Timmy & Tommy; requires a friend from another town to visit to trigger the final upgrade — `shop3_2` room exists; Timmy & Tommy (`ac_npc_mamedanuki`, they share the shop-master code) not yet placed
+- [x] Daily stock (`mSP_MakeGoodsList`, `ac_shop_goods`) — `ShopGoods.roll`: per-level counts (`l_zakka/conbini/super/dsuper_goods`), Cranny tools unlocked by sales (net 3k / rod 8k / axe 12k), Nookway+ paint (colour rotates each restock) + signboard + cedar sapling + rare-furniture slot (`ItemData.shop_rare`), stationery as a 4-sheet pad, distinct flower-seed bags, one umbrella, Halloween candy (Oct 16–30), Sale Day grab bags priced at the year (open with three free slots: rare goods or a pinwheel). Missing: the ABC rarity lists (`mSP_GetGoodsPercent`), which need the full ROM item lists; seed bags plant pansies until flower species exist
+- [x] Stock rotates at 06:00; sells out; sold-out slot shows empty
+- [x] Sell items to Nook (he names a price, you confirm); can't sell some things — counter menu "I want to sell" opens the sell paper (`ShopBook.sell_result`, §11)
+- [x] Nook buys turnips at fluctuating price (§11) — `KabuMarket`
+- [x] Catalog ordering; items delivered by mail next day — "Order from the catalog" (5 order slots, `CatalogBook`)
+- [~] Sale days, the flooring/wallpaper wall — Sale Day grab bags, sale-event balloon gift on the first talk (`aNSC_check_present_balloon`); missing: the bargain-event FG layout (`mSP_GetNowShopFgNum` event kinds), wallpaper/carpet preview on the shop walls (`change_wall_proc`)
 - [ ] Nook gives you your first job (§29) and the initial furniture set
-- [ ] Nook's closed hours (roughly 09:00–22:00; later tiers longer); knock when closed
-- [ ] Tom Nook dialogue moods; Timmy & Tommy (nephews) at higher tiers
-- [ ] Emotion/Redd membership card sold by Nook (the "secret" black-market referral)
-- [ ] Point-card / raffle tickets; end-of-month lottery drawing at the store
+- [x] Nook's hours (`mSP_GetShopOpenTime`): Cranny / Nookway / Nookington's 9–22, Nook 'n' Go 7–23, raffle day opens at 10, forced open during the part-time job; the door says why it's closed (renovations / opening hour)
+- [~] Tom Nook talk (`ac_npc_shop_common`): house business first, then the counter menu — sell / catalog order / other (turnip price) — and shelf offers ("That's X, N Bells") with try-on for clothes (`aNSC_show_item_check`); `NookShopTalk`. Missing: Timmy & Tommy, April Fool's lines, HRA talk, the password (code) options
+- [ ] Emotion/Redd membership card sold by Nook — _not found in the decomp's shop-master code (`ac_npc_shop_common`)_; verify where the referral lives before building
+- [x] Raffle tickets & end-of-month drawing (`ac_npc_shop_mastersp`): furniture / clothes / wallpaper / carpet / umbrella purchases each earn a month ticket (stack of 5; mailed next morning when the pockets are full, `aNSC_setup_ticket_remain`); on the last day Nook shows three prizes (the first one you don't own), five same-month tickets per spin, 5% / 10% / 20% for 1st / 2nd / 3rd, each prize won once
+- [x] Roof paint sold at Nookway+: no pocket item, the roof changes at the next game start (`next_outlook_pal`)
+- [ ] Nook's secret codes / passwords (make a code for a friend, enter a code for a gift, 3 a day) (`m_passwordMake_ovl`, `m_passwordChk_ovl`) — see §28
 
 ## 22. Able Sisters (Nook's neighbour)
 
@@ -557,12 +559,12 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [ ] **Halloween** (Oct 31, 18:00–24:00) — wear a mask, trick-or-treat villagers, Jack the pumpkin king, candy, lollipops, spooky furniture (`ac_halloween_npc`, `ef_halloween`, `ac_ev_pumpkin`)
 - [ ] Officers' Day (Nov 11), Mayor's Day
 - [ ] **Harvest Festival** (4th Thu Nov) — Franklin
-- [ ] The day after — **Sale Day** at Nook's
+- [~] The day after — **Sale Day** at Nook's — grab bags (`mSP_Chk_HukubukuroSail`); see §21
 - [ ] Snow Day (Dec 1) — snow begins
 - [ ] **Toy Day** (Dec 24) — Jingle, presents, Toy Day furniture; Tortimer Dec 23
 - [ ] **New Year's Eve** (Dec 31 23:00) — countdown, fireworks, party
 - [ ] Weekly: K.K. (Sat night), turnips (Sun AM), Tortimer/mayor rounds
-- [ ] Monthly: bank interest, HRA report, lottery (last day), Nook stock reshuffle
+- [~] Monthly: bank interest, HRA report, lottery (last day), Nook stock reshuffle — raffle + monthly prize reshuffle done
 - [ ] "Rumor" pre-event villager chatter for each holiday (`mEv_EVENT_RUMOR_*`)
 - [ ] Tortimer "soncho" variant appearances for each holiday (`mEv_EVENT_SONCHO_*`)
 - [ ] Player Birthday party — villagers throw a party at your house or theirs, cake, presents
@@ -594,7 +596,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [ ] Rumble / vibration on tool use, catches, bumps (`m_vibctl`, `m_player_vibration`)
 - [ ] "Copying data" / autosave indicator
 - [ ] The **name entry keyboard** for all text input
-- [ ] Nook catalog browser UI, shop buy/sell UI, bank UI, HRA letter viewer, letter writer UI
+- [~] Nook catalog browser UI, shop buy/sell UI, bank UI, HRA letter viewer, letter writer UI — shop paper covers buy / sell / catalog order (placeholder list UI, not the ROM catalog pages)
 - [ ] Photo / no screenshot feature (GCN has none)
 - [~] Trademark / logo / attract-mode title demo loop (`m_titledemo`, `m_trademark`, `ac_animal_logo`) — logo actor, 5 recorded demos, the demo loop, the fixed FG table, fixed villagers, apple tree and start chime landed; Nintendo logo stage skipped on purpose; gelato umbrella landed with the umbrella tool (demo 2) ([title](decomp_notes/title.md))
 - [ ] Debug menus & dev overlays — _explicitly out of scope_ (`m_debug*`)

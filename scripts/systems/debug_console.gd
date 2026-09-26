@@ -5,8 +5,10 @@ extends RefCounted
 ## Not an autoload — the overlay owns one instance. Logic stays testable without UI.
 
 const COMMANDS: PackedStringArray = [
-	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "clear"
+	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
+	"clear"
 ]
+const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
 const HOUSE_ARGS: PackedStringArray = ["size", "basement", "build", "loan", "statue", "goki", "neglect"]
 const HOUSE_SIZES: PackedStringArray = ["small", "medium", "large", "upper"]
@@ -50,6 +52,8 @@ func execute(raw: String) -> String:
 			return _cmd_fortune(args)
 		"bug", "insect":
 			return _cmd_bug(args)
+		"shop":
+			return _cmd_shop(args)
 		"clear":
 			return "__clear__"
 		_:
@@ -90,6 +94,9 @@ func suggestions(line: String) -> PackedStringArray:
 				return _filter_prefix(EVENT_ARGS, token)
 			if index == 2:
 				return _filter_prefix(_event_ids(String(prior[1]).to_lower()), token)
+		"shop":
+			if index == 1:
+				return _filter_prefix(SHOP_ARGS, token)
 		"house":
 			if index == 1:
 				return _filter_prefix(HOUSE_ARGS, token)
@@ -162,6 +169,7 @@ func _cmd_help() -> String:
 		"  event [list | start <id> | stop [id] | goto <id> | special <id>]",
 		"  fortune [normal|popular|unpopular|bad_luck|money_luck|goods_luck]",
 		"  bug <id> [count]  (spawn insects in front of the player)",
+		"  shop [status | sales <n> | visitor | restock | turnips]",
 		"  clear / help",
 		"Tab completes. Up/Down recall history.",
 	])
@@ -362,6 +370,37 @@ func _event_ids(sub: String) -> PackedStringArray:
 	for id: StringName in EventSchedule.ids():
 		out.append(String(id))
 	return out
+
+
+## Nook's store: level, renovation, hours, raffle and Stalk Market state.
+func _cmd_shop(args: PackedStringArray) -> String:
+	var shop: ShopBook = Game.shops
+	var sub: String = String(args[0]).to_lower() if not args.is_empty() else "status"
+	match sub:
+		"sales":
+			if args.size() < 2 or not String(args[1]).is_valid_int():
+				return "Usage: shop sales <amount>"
+			shop.plus_sales(int(args[1]))
+		"visitor":
+			shop.set_visitor()
+		"restock":
+			shop.restock(ShopBook.NOOK_ID)
+			Game.refresh_shop_set()
+		"turnips":
+			var week: PackedStringArray = []
+			shop.kabu.update(Clock.year, Clock.month, Clock.day)
+			for d: int in 7:
+				week.append("%s %d" % [String(ClockService.WEEKDAYS[d]).substr(0, 3), shop.kabu.price_on(d)])
+			return "Turnips (%s): %s" % [KabuMarket.Trend.keys()[shop.kabu.trend], ", ".join(week)]
+		"status":
+			pass
+		_:
+			return "Usage: shop [status | sales <n> | visitor | restock | turnips]"
+	return "%s · level %d (earned %d) · sales %d · %s %d:00-%d:00 · renewal day %d · visitor %s" % [
+		ShopMail.store_name(shop.nook_level()), shop.nook_level(), shop.real_level(),
+		shop.sales_sum(), ShopBook.Status.keys()[shop.nook_status()], shop.nook_open_hour(),
+		shop.nook_close_hour(), shop.renewal_day(), "yes" if shop.has_visitor() else "no",
+	]
 
 
 func _cmd_bells(args: PackedStringArray) -> String:

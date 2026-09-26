@@ -125,6 +125,9 @@ func add(item: ItemData, count: int = 1, condition: InventoryItem.Condition = In
 	## registers in the encyclopedia the moment it first reaches the pockets.
 	if (item is FishData or item is BugData) and Game != null and Game.species_log != null:
 		Game.species_log.record(item.id)
+	## `mSP_CollectCheck`: catalog pages fill in as goods reach the pockets.
+	if Game != null and Game.catalog != null:
+		Game.catalog.record(item.id)
 	var remaining: int = count
 	var max_stack: int = maxi(1, item.max_stack)
 
@@ -589,6 +592,16 @@ func use_slot(index: int) -> String:
 		return ""
 	if not data.usable:
 		return ""
+	if data.id == ShopGoods.GRAB_BAG:
+		## `mTG_hukubukuro_open_proc`: three empty slots besides the bag's own.
+		if empty_slot_count() < 3:
+			return "You need three empty spaces to open it."
+		remove_from_slot(index, 1)
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		for item_id: StringName in ShopGoods.open_grab_bag(rng):
+			add(ItemCatalog.get_item(item_id), 1)
+		return "Opened the %s!" % data.display_name
 	var removed: InventoryItem = remove_from_slot(index, 1)
 	if removed.is_empty():
 		return ""

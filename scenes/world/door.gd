@@ -101,7 +101,7 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 		var shop_target: StringName = _enter_target()
 		var shop_room: Room = _resolved_room(shop_target)
 		if shop_room != null and not InteriorCatalog.is_open_now(shop_room):
-			Game.post_notice("The shop is closed.")
+			Game.post_notice(InteriorCatalog.closed_notice(shop_room))
 			return false
 		if shop_target != &"":
 			await StructureDoor.play_enter(self)

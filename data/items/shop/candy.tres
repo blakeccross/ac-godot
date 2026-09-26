@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"candy"
+display_name = "Candy"
+description = "A sweet treat for Halloween."
+category = 5
+buy_price = 100
+max_stack = 1
+icon_color = Color(0.95, 0.5, 0.2, 1)

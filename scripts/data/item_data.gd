@@ -27,6 +27,9 @@ enum Category { TOOL, FURNITURE, FRUIT, FISH, BUG, OTHER, WALL, FLOOR, CLOTH }
 @export var icon_color: Color = Color(0.75, 0.75, 0.75)
 ## Pocket picture. Empty → tinted color block in the tag strip.
 @export var icon: Texture2D
+## Nook's rare-furniture list (`mSP_LISTTYPE_RARE`): the Nookway+ spotlight slot and
+## Sale Day grab bags draw from items flagged here.
+@export var shop_rare: bool = false
 ## Non-empty → inventory **Plant** tag (`PlantData.id`).
 @export var plant_id: StringName = &""
 

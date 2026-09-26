@@ -1,6 +1,7 @@
 extends CanvasLayer
 
-## Counter paper UI. Buy today's goods; sell pockets at Nook only (`SELL_BUY_RATIO`).
+## Counter paper UI. Buy today's goods; sell pockets at Nook only (`ShopBook.sell_result`);
+## order from the catalog at Nook (`ShopUse.ORDER`, `m_catalog_ovl`).
 
 @onready var _root: Control = %Root
 @onready var _paper: PanelContainer = %Paper
@@ -42,7 +43,11 @@ func open(shop_id: StringName, mode: StringName = Interaction.BUY) -> void:
 	if shop_id == &"":
 		return
 	_shop_id = shop_id
-	_mode = Interaction.SELL if mode == Interaction.SELL and Game.shops.allows_sell(shop_id) else Interaction.BUY
+	_mode = Interaction.BUY
+	if mode == Interaction.SELL and Game.shops.allows_sell(shop_id):
+		_mode = Interaction.SELL
+	elif mode == ShopUse.ORDER and shop_id == ShopBook.NOOK_ID:
+		_mode = ShopUse.ORDER
 	_open = true
 	_tag_mode = false
 	_cursor = 0
@@ -82,10 +87,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("ui_down") or event.is_action_pressed("move_back"):
 		_move_cursor(1)
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
+	elif _mode != ShopUse.ORDER and (event.is_action_pressed("ui_left") or event.is_action_pressed("move_left")):
 		_set_mode(Interaction.BUY)
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("ui_right") or event.is_action_pressed("move_right"):
+	elif _mode != ShopUse.ORDER and (event.is_action_pressed("ui_right") or event.is_action_pressed("move_right")):
 		if Game.shops.allows_sell(_shop_id):
 			_set_mode(Interaction.SELL)
 		get_viewport().set_input_as_handled()
@@ -131,6 +136,11 @@ func _move_cursor(delta: int) -> void:
 
 func _activate() -> void:
 	if _rows.is_empty() or _cursor < 0 or _cursor >= _rows.size():
+		return
+	if _mode == ShopUse.ORDER:
+		var order_id: StringName = _rows[_cursor].get("id", &"") as StringName
+		Game.post_notice(Game.shops.order(order_id, Game.inventory, Game.catalog))
+		_refresh()
 		return
 	if _mode == Interaction.BUY:
 		var item_id: StringName = _rows[_cursor].get("id", &"") as StringName
@@ -189,6 +199,8 @@ func _refresh() -> void:
 	var tab: String = "Buy"
 	if _mode == Interaction.SELL:
 		tab = "Sell"
+	elif _mode == ShopUse.ORDER:
+		tab = "Catalog (%d/%d orders)" % [Game.catalog.orders().size(), CatalogBook.ORDER_SLOTS]
 	_title.text = "%s — %s" % [shop_name, tab]
 	_wallet.text = "%d Bells" % Game.inventory.wallet
 	for child: Node in _list.get_children():
@@ -196,7 +208,11 @@ func _refresh() -> void:
 	_buttons.clear()
 	if _rows.is_empty():
 		var empty := Label.new()
-		empty.text = "Nothing for sale." if _mode == Interaction.BUY else "Nothing to sell."
+		empty.text = "Nothing to sell."
+		if _mode == Interaction.BUY:
+			empty.text = "Nothing for sale."
+		elif _mode == ShopUse.ORDER:
+			empty.text = "Nothing to order."
 		_list.add_child(empty)
 		_name.text = ""
 		_desc.text = ""
@@ -222,7 +238,9 @@ func _refresh() -> void:
 		_hint.text = "↑↓ choose  E confirm  Esc back"
 	else:
 		_tags.text = ""
-		if Game.shops.allows_sell(_shop_id):
+		if _mode == ShopUse.ORDER:
+			_hint.text = "↑↓ list  E order  Esc close"
+		elif Game.shops.allows_sell(_shop_id):
 			_hint.text = "↑↓ list  ← Buy  → Sell  E confirm  Esc close"
 		else:
 			_hint.text = "↑↓ list  E buy  Esc close"
@@ -263,17 +281,41 @@ func _rebuild_rows() -> void:
 				"count": 1,
 			})
 		return
+	if _mode == ShopUse.ORDER:
+		for order_id: StringName in Game.catalog.owned_ids():
+			var odata: ItemData = ItemCatalog.get_item(order_id)
+			if odata == null:
+				continue
+			var orderable: bool = CatalogBook.is_orderable(odata)
+			var oprice: int = ShopBook.buy_price(odata)
+			_rows.append({
+				"id": order_id,
+				"name": odata.display_name,
+				"label": "%s  %s" % [odata.display_name, "%d Bells" % oprice if orderable else "(not for sale)"],
+				"desc": odata.description,
+				"price": oprice,
+				"count": 1,
+			})
+		return
+	var seen: Dictionary = {}
 	for i: int in Inventory.POCKET_SLOTS:
 		var slot: InventorySlot = Game.inventory.slot_at(i)
 		if slot == null or slot.is_empty():
 			continue
+		## Quest items and presents aren't for sale (`aNSC_check_buy_item_sub`).
+		if slot.item.condition != InventoryItem.Condition.NORMAL or seen.has(slot.item.item_id):
+			continue
 		var data: ItemData = ItemCatalog.get_item(slot.item.item_id)
 		if data == null:
 			continue
-		var unit: int = ShopBook.sell_price(data)
-		if unit <= 0:
+		seen[slot.item.item_id] = true
+		var quote: Dictionary = Game.shops.sell_quote(data.id, Game.inventory)
+		var count: int = int(quote.get("count", 0))
+		if int(quote.get("code", ShopBook.Sell.NOTHING)) == ShopBook.Sell.SUNDAY_TURNIPS:
+			count = Game.inventory.count_of(data.id)
+		if count <= 0:
 			continue
-		var count: int = slot.item.count
+		var unit: int = int(quote.get("unit", 0))
 		var label: String = "%s  %d Bells" % [data.display_name, unit]
 		if count > 1:
 			label = "%s ×%d  %d Bells each" % [data.display_name, count, unit]

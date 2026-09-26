@@ -13,6 +13,8 @@ var sender_id: StringName = &""
 var sender_name: String = ""
 var sender_type: NameType = NameType.PLAYER
 var present_item_id: StringName = &""
+## Stack size of the enclosure (Nook mails raffle tickets up to five per letter).
+var present_count: int = 1
 var font: LetterFont = LetterFont.SEND
 var header: String = ""
 var body: String = ""
@@ -81,6 +83,7 @@ func duplicate_mail() -> MailData:
 	out.sender_name = sender_name
 	out.sender_type = sender_type
 	out.present_item_id = present_item_id
+	out.present_count = present_count
 	out.font = font
 	out.header = header
 	out.body = body
@@ -98,6 +101,7 @@ func to_save() -> Dictionary:
 		"sender_name": sender_name,
 		"sender_type": int(sender_type),
 		"present": String(present_item_id),
+		"present_count": present_count,
 		"font": int(font),
 		"header": header,
 		"body": body,
@@ -118,6 +122,7 @@ static func from_save(data: Variant) -> MailData:
 	out.sender_name = str(row.get("sender_name", ""))
 	out.sender_type = int(row.get("sender_type", NameType.PLAYER)) as NameType
 	out.present_item_id = StringName(str(row.get("present", "")))
+	out.present_count = maxi(1, int(row.get("present_count", 1)))
 	out.font = int(row.get("font", LetterFont.SEND)) as LetterFont
 	out.header = str(row.get("header", ""))
 	out.body = str(row.get("body", ""))

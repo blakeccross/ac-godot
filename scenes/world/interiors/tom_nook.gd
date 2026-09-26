@@ -56,11 +56,17 @@ var _talked_today: bool = false
 var _clip: String = ""
 var _pending_after: StringName = &""
 var _force_greet_queued: bool = false
+## Store talk follow-ups: paper to open after the talk (`&"sell"` / `&"order"`) and the
+## shirt worn before a try-on (`aNSC_chg_cloth_start_wait`), restored when the talk ends.
+var _open_after: StringName = &""
+var _try_on_restore: StringName = &""
+var _shop_talk: bool = false
 
 
 func _ready() -> void:
 	## Not in `shop_set` — restock only clears shelf goods, not the shopkeeper.
 	add_to_group("interactable")
+	add_to_group("tom_nook")
 	collision_layer = 1
 	collision_mask = 0
 	_ensure_collision()
@@ -165,6 +171,17 @@ func _begin_normal_talk(listener: Node3D) -> bool:
 		NookHouseTalk.fill_context(talk_ctx, house_plan)
 		if house_plan.has("statues_built"):
 			Game.num_statues = int(house_plan["statues_built"])
+	elif Game.shops.is_lottery_day() and DialogueCatalog.conversation(NookShopTalk.LOTTERY_ID) != null:
+		## Raffle day: Nook runs the drawing instead of the counter (`ac_npc_shop_mastersp`).
+		data = DialogueCatalog.conversation(NookShopTalk.LOTTERY_ID)
+		NookShopTalk.fill_lottery(talk_ctx)
+		_shop_talk = true
+	elif DialogueCatalog.conversation(NookShopTalk.MENU_ID) != null:
+		data = DialogueCatalog.conversation(NookShopTalk.MENU_ID)
+		## `aNSC_check_present_balloon`: a sale-event gift on the first talk.
+		var balloon: StringName = Game.shops.take_sale_balloon(Game.inventory)
+		NookShopTalk.fill_menu(talk_ctx, _talked_today, balloon)
+		_shop_talk = true
 	var ui := DialogueOverlay.find(get_tree())
 	if ui != null and data != null:
 		if ui.is_open():
@@ -173,6 +190,8 @@ func _begin_normal_talk(listener: Node3D) -> bool:
 		_bind_talk_end(ui)
 		if house_data != null and not ui.event_fired.is_connected(_on_house_event):
 			ui.event_fired.connect(_on_house_event)
+		if _shop_talk and not ui.event_fired.is_connected(_on_shop_event):
+			ui.event_fired.connect(_on_shop_event)
 		ui.play(data, talk_ctx)
 	elif ui != null:
 		_start_talk_session(listener)
@@ -398,12 +417,66 @@ func _on_house_event(event: Dictionary) -> void:
 		Game.post_notice(notice)
 
 
+## A shelf good was picked (`aNSC_message_ctrl_talk_request_normal_day`): Nook names the
+## price and asks. Returns false when there is no dialogue to run it.
+func offer_item(item_id: StringName, ctx: InteractionContext) -> bool:
+	var data: DialogueData = DialogueCatalog.conversation(NookShopTalk.OFFER_ID)
+	var ui := DialogueOverlay.find(get_tree())
+	if data == null or ui == null or Game == null:
+		return false
+	if Game.shops.is_lottery_day():
+		return _begin_talk(ctx)
+	var listener: Node3D = _listener(ctx)
+	_face_toward(listener.global_position if listener != null else global_position)
+	var talk_ctx: DialogueContext = DialogueContext.from_game()
+	talk_ctx.speaker_name = "Tom Nook"
+	NookShopTalk.fill_offer(talk_ctx, item_id)
+	if ui.is_open():
+		ui.close()
+	_shop_talk = true
+	_start_talk_session(listener)
+	_bind_talk_end(ui)
+	if not ui.event_fired.is_connected(_on_shop_event):
+		ui.event_fired.connect(_on_shop_event)
+	ui.play(data, talk_ctx)
+	return true
+
+
+func _on_shop_event(event: Dictionary) -> void:
+	var ui := DialogueOverlay.find(get_tree())
+	var ctx: DialogueContext = ui.runner().context if ui != null and ui.runner() != null else null
+	var res: Dictionary = NookShopTalk.apply_event(event, ctx)
+	if res.get("open", &"") != &"":
+		_open_after = res["open"] as StringName
+	var try_on: StringName = res.get("try_on", &"") as StringName
+	if try_on != &"":
+		if _try_on_restore == &"":
+			_try_on_restore = Game.cloth_id
+		Game.set_cloth(try_on)
+	if bool(res.get("bought", false)):
+		Game.call_deferred("refresh_shop_set")
+	var notice: String = str(res.get("notice", ""))
+	if notice != "":
+		Game.post_notice(notice)
+
+
 func _on_talk_closed() -> void:
 	_talking = false
 	var ui := DialogueOverlay.find(get_tree())
 	if ui != null and ui.event_fired.is_connected(_on_house_event):
 		ui.event_fired.disconnect(_on_house_event)
+	if ui != null and ui.event_fired.is_connected(_on_shop_event):
+		ui.event_fired.disconnect(_on_shop_event)
+	_shop_talk = false
+	## The try-on is a preview: the player changes back either way (`aNSC_sell_check`).
+	if _try_on_restore != &"":
+		Game.set_cloth(_try_on_restore)
+		_try_on_restore = &""
 	TalkCamera.end(get_tree())
+	if _open_after != &"":
+		var mode: StringName = Interaction.SELL if _open_after == &"sell" else ShopUse.ORDER
+		_open_after = &""
+		Game.open_shop(ShopBook.NOOK_ID, mode)
 	await _apply_pending_after()
 
 

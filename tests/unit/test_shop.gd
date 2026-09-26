@@ -253,7 +253,7 @@ func test_nook_upgrades_by_sales() -> void:
 	assert_that(shop.nook_visual_id()).is_equal(&"obj_s_shop3")
 	assert_that(ShopDisplay.nook_species(shop.nook_level())).is_equal(&"rcs")
 	shop.apply_snapshot(
-		{"shop0": {"id": "shop0", "goods": [], "sales": ShopBook.DSUPER_SUM, "renew": Clock.renew_index()}}
+		{"shop0": {"id": "shop0", "goods": [], "sales": ShopBook.DSUPER_SUM, "renew": Clock.renew_index(), "visitor": true}}
 	)
 	assert_that(shop.nook_room_id()).is_equal(&"shop3_1")
 	assert_that(shop.nook_visual_id()).is_equal(&"obj_s_shop4")

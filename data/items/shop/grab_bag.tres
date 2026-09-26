@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"grab_bag"
+display_name = "Grab Bag"
+description = "A Sale Day grab bag. Open it with three free pocket spaces."
+category = 5
+usable = true
+use_verb = "Open"
+icon_color = Color(0.9, 0.3, 0.3, 1)

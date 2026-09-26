@@ -28,6 +28,8 @@ func _sync_from_shop_book() -> void:
 
 
 func is_open() -> bool:
+	if Game != null and Game.shops != null:
+		return Game.shops.nook_is_open()
 	return Clock.in_hour_window(open_hour, close_hour)
 
 
@@ -46,7 +48,7 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.SHOP:
 		return false
 	if not is_open():
-		Game.post_notice("The shop is closed.")
+		Game.post_notice(Game.shops.closed_notice())
 		return false
 	if occupant_id != &"":
 		await StructureDoor.play_enter(self)

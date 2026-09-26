@@ -1,0 +1,156 @@
+{
+  "id": "nook_lottery",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "choice",
+      "prompt": "It's raffle day! Five\n{free0} tickets get you\none spin. Want to try?",
+      "options": [
+        {
+          "text": "Let's spin!",
+          "goto": "draw"
+        },
+        {
+          "text": "Not now.",
+          "goto": "bye"
+        }
+      ]
+    },
+    "draw": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "lottery"
+        }
+      ],
+      "next": "result"
+    },
+    "result": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_lottery",
+              "value": "tickets"
+            }
+          },
+          "goto": "no_tickets"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_lottery",
+              "value": "pockets"
+            }
+          },
+          "goto": "pockets"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_lottery",
+              "value": "closed"
+            }
+          },
+          "goto": "bye"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_lottery",
+              "value": "win1"
+            }
+          },
+          "goto": "win1"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_lottery",
+              "value": "win2"
+            }
+          },
+          "goto": "win2"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_lottery",
+              "value": "win3"
+            }
+          },
+          "goto": "win3"
+        },
+        {
+          "goto": "miss"
+        }
+      ]
+    },
+    "win1": {
+      "type": "line",
+      "text": "Ding-ding-ding! First prize!\nThe {item0} is yours!",
+      "next": "again"
+    },
+    "win2": {
+      "type": "line",
+      "text": "Ding-ding! Second prize!\nYou win the {item0}!",
+      "next": "again"
+    },
+    "win3": {
+      "type": "line",
+      "text": "Ding! Third prize!\nHere's the {item0}!",
+      "next": "again"
+    },
+    "miss": {
+      "type": "line",
+      "text": "Oh, too bad... that one's\nnot a winner.",
+      "next": "again"
+    },
+    "again": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_lottery_again",
+              "value": "yes"
+            }
+          },
+          "goto": "again_choice"
+        },
+        {
+          "goto": "bye"
+        }
+      ]
+    },
+    "again_choice": {
+      "type": "choice",
+      "prompt": "You still have {free1}\ntickets. Spin again?",
+      "options": [
+        {
+          "text": "Again!",
+          "goto": "draw"
+        },
+        {
+          "text": "That's enough.",
+          "goto": "bye"
+        }
+      ]
+    },
+    "no_tickets": {
+      "type": "line",
+      "text": "You'll need five {free0}\ntickets to spin. You get one\nwith most things you buy here!"
+    },
+    "pockets": {
+      "type": "line",
+      "text": "Your pockets are full!\nMake some room for your\nprize first."
+    },
+    "bye": {
+      "type": "line",
+      "text": "Thanks for stopping by!"
+    }
+  }
+}

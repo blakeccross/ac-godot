@@ -181,6 +181,9 @@ static func has_authored_scene(room_id: StringName) -> bool:
 static func is_open_now(room: Room) -> bool:
 	if room == null or room.is_always_open():
 		return true
+	## Nook's hours move with the building, raffle day and renovations (`mSP_ShopOpen`).
+	if room.kind == Room.Kind.SHOP and Game != null and Game.shops != null:
+		return Game.shops.nook_is_open()
 	return Clock.in_hour_window(room.open_hour, room.close_hour)
 
 
@@ -188,7 +191,11 @@ static func closed_notice(room: Room) -> String:
 	if room == null:
 		return "It's locked."
 	match room.kind:
-		Room.Kind.SHOP, Room.Kind.BROKER, Room.Kind.NEEDLEWORK:
+		Room.Kind.SHOP:
+			if Game != null and Game.shops != null:
+				return Game.shops.closed_notice()
+			return "The shop is closed."
+		Room.Kind.BROKER, Room.Kind.NEEDLEWORK:
 			return "The shop is closed."
 		Room.Kind.MUSEUM:
 			return "The museum is closed."

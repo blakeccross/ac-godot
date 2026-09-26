@@ -3,6 +3,9 @@ extends RefCounted
 
 ## Counter verbs. Hosts call `actions` / `apply`; they do not switch on shop type.
 
+## Shop paper mode for Nook's catalog orders (`mSM_OVL_CATALOG` from `aNSC_order_select`).
+const ORDER := &"order"
+
 
 static func actions(host: Node, _ctx: InteractionContext) -> Array[Interaction]:
 	var shop_id: StringName = _shop_id(host)

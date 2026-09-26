@@ -1,0 +1,179 @@
+{
+  "id": "nook_shop_menu",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_balloon",
+              "value": "yes"
+            }
+          },
+          "goto": "balloon"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_again",
+              "value": "yes"
+            }
+          },
+          "goto": "again"
+        },
+        {
+          "goto": "welcome"
+        }
+      ]
+    },
+    "welcome": {
+      "type": "line",
+      "text": "Hello, hello! Welcome to\n{free0}! What can I do\nfor you today?",
+      "next": "menu"
+    },
+    "again": {
+      "type": "line",
+      "text": "Yes, yes? Was there\nsomething else?",
+      "next": "menu"
+    },
+    "balloon": {
+      "type": "line",
+      "text": "It's our big sale today!\nHere, take this {item0}\nas a thank-you gift!",
+      "next": "menu"
+    },
+    "menu": {
+      "type": "choice",
+      "prompt": "What can I do for you?",
+      "options": [
+        {
+          "text": "I want to sell.",
+          "goto": "sell"
+        },
+        {
+          "text": "Order from the catalog.",
+          "goto": "order"
+        },
+        {
+          "text": "Other things.",
+          "goto": "other"
+        },
+        {
+          "text": "Never mind.",
+          "goto": "bye"
+        }
+      ]
+    },
+    "sell": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "sell"
+        }
+      ],
+      "next": "sell_line"
+    },
+    "sell_line": {
+      "type": "line",
+      "text": "Oh-ho! Let's see what\nyou've got for me."
+    },
+    "order": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "order"
+        }
+      ],
+      "next": "order_branch"
+    },
+    "order_branch": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_order",
+              "value": "full"
+            }
+          },
+          "goto": "order_full"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_order",
+              "value": "empty"
+            }
+          },
+          "goto": "order_empty"
+        },
+        {
+          "goto": "order_line"
+        }
+      ]
+    },
+    "order_line": {
+      "type": "line",
+      "text": "Our catalog, yes, yes!\nPick something and I'll\nmail it to you tomorrow."
+    },
+    "order_full": {
+      "type": "line",
+      "text": "Hm, you already have five\norders on the way. Let's wait\nuntil those arrive, shall we?",
+      "next": "menu"
+    },
+    "order_empty": {
+      "type": "line",
+      "text": "Your catalog is still empty!\nItems you own get added\nto it automatically.",
+      "next": "menu"
+    },
+    "other": {
+      "type": "choice",
+      "prompt": "What is it?",
+      "options": [
+        {
+          "text": "Turnip prices?",
+          "goto": "turnip_branch"
+        },
+        {
+          "text": "Never mind.",
+          "goto": "bye"
+        }
+      ]
+    },
+    "turnip_branch": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_sunday",
+              "value": "yes"
+            }
+          },
+          "goto": "turnip_sunday"
+        },
+        {
+          "goto": "turnip_price"
+        }
+      ]
+    },
+    "turnip_price": {
+      "type": "line",
+      "text": "Today I'm buying turnips\nat {free1} Bells apiece.\nBring me as many as you like!",
+      "next": "menu"
+    },
+    "turnip_sunday": {
+      "type": "line",
+      "text": "I don't buy turnips on\nSundays. That's when Joan\ncomes by to sell them!",
+      "next": "menu"
+    },
+    "bye": {
+      "type": "line",
+      "text": "Please come again!"
+    }
+  }
+}
