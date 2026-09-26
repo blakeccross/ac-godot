@@ -947,6 +947,12 @@ def season_of_prefix(prefix: str) -> str:
 ACTOR_TLUT_TABLES: dict[str, tuple[int, str, str, int, tuple[int, int]]] = {
     ## prefix: (segment, table symbol, CI4 texture symbol, baked default row, SETTIMG w×h)
     "rom_train_out": (0x0A, "aTrainWindow_tree_pal_table", "rom_train_bgtree_tex", 5, (128, 32)),
+    ## `eHanabira_dw`: seg 8 (`anime_1_txt` LOADTLUT) = `field_palette.flowerK_pal`, i.e.
+    ## `mFM_obj_a_01_flower_pal[K * 9 + flower_pal_idx]`. Row 1 = summer, colour 0.
+    "ef_hana01_pa_a": (0x08, "mFM_obj_a_01_flower_pal", "ef_hana01_pa_a_tex", 1, (16, 16)),
+    "ef_hana01_co_a": (0x08, "mFM_obj_a_01_flower_pal", "ef_hana01_co_a_tex", 1, (16, 16)),
+    "ef_hana01_tu_a": (0x08, "mFM_obj_a_01_flower_pal", "ef_hana01_tu_a_tex", 1, (16, 16)),
+    "ef_hana01_ha_a": (0x08, "mFM_obj_a_01_flower_pal", "ef_hana01_ha_a_tex", 1, (16, 16)),
 }
 
 
@@ -1298,16 +1304,15 @@ class TextureBank:
             rows = actor_tlut_rows(self.rel, self.symbols, table)
             if rows:
                 self.segment_palettes[seg] = rows[min(row, len(rows) - 1)]
-        if (
-            prefix.startswith("grd_")
-            or prefix.startswith("rom_")
-            or prefix.startswith("mCL_rom_")
-        ):
-            season = season_of_prefix(prefix) or "s"
-            ## Acre DLs only sample summer/winter CI banks (`mFM_LoadBGCommonTex`).
-            if season == "f":
-                season = "s"
-            self.bind_field_bg(season=season)
+        ## Segment 0x80 is the BSS field-bank dummy area (`bush_pal_dummy`, `grass_tex_dummy`,
+        ## …) the game DMA's the seasonal bank into — any DL that reads it (acres, rooms, and
+        ## effects such as `ef_s_yabu01_00`'s `LOADTLUT bush_pal_dummy`) sees that bank.
+        ## Binding it only touches segment 0x80, never the actor `anime_N` segments.
+        season = season_of_prefix(prefix) or "s"
+        ## Field DLs only sample summer/winter CI banks (`mFM_LoadBGCommonTex`).
+        if season == "f":
+            season = "s"
+        self.bind_field_bg(season=season)
         if (
             prefix.startswith("rom_")
             or prefix.startswith("mCL_rom_")

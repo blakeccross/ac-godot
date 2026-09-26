@@ -68,6 +68,9 @@ EXTRA_SE_NUMS: dict[str, int] = {
     ## `aTUMB_OngenTrgStart`: a held umbrella opening (0x139) / closing (0x10E).
     "139": 0x139,
     "10e": 0x10E,
+    ## `Player_actor_sound_slip`: `set_sound_common2(actor, 0x4129)` — dash skid
+    ## (`turn_dash`) and net slip.
+    "4129": 0x4129,
 }
 
 ## Level (looping, positional) SEs, played by level id rather than SE number

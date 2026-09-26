@@ -3,7 +3,7 @@
 #
 #   tools/test.sh                        # all gdUnit suites (res://tests)
 #   tools/test.sh intro_train_stage      # tests/unit/test_intro_train_stage.gd
-#   tools/test.sh intro_train_* tree_use # globs over tests/unit/test_<name>.gd
+#   tools/test.sh 'intro_train_*' tree_use  # globs (quote for zsh) over tests/unit/test_<name>.gd
 #   tools/test.sh res://tests/unit/x.gd  # explicit path (file or directory)
 #   tools/test.sh pipeline               # Python asset-pipeline unittests
 #   tools/test.sh -v intro_train_stage   # full runner output

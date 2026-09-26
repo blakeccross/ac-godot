@@ -23,7 +23,40 @@ Key functions: `mPlib_request_main_talk_type1`, `mPlib_request_main_wait_*`, `mP
 
 The player is a single actor with a **main index** state machine. Movement, tools, doors, furniture, demos, and talk are mutually exclusive modes (`mPlayer_INDEX_WAIT`, `WALK`, `RUN`, `DASH`, `PICKUP`, `SWING_AXE`, `READY_ROD` … `TALK`, `SHAKE_TREE`, …). Other systems never poke bones directly; they **request** a mode via `mPlib_request_main_*`.
 
-Stick magnitude picks walk vs run (normalized against 7.5 run, 4.875 walk). Sprint/dash is a further index. Wade, snow, and furniture push have their own modes.
+Wade, snow, and furniture push have their own modes. Ground movement is ported 1:1 in `PlayerLocomotion` (see **Movement** below).
+
+## Movement
+
+`m_player_main_{wait,walk,run,dash,turn_dash}.c_inc`, `m_controller.c` `mCon_calc`, and `m_player_common.c_inc` helpers. `PlayerLocomotion` steps whole 60 Hz frames. `speed` is in GX per 1/30 s: position moves `0.5·speed` per frame.
+
+- **Stick** (`mCon_calc`): radius `t` below `STICK_MIN` 9.9 (of `STICK_MAX` 61) reads 0. Above it, `move_pR = t / 61`, which is *not* rescaled from the dead zone, so the first registered tilt is about 16 %. `player.gd._read_stick` reads Godot's raw vector (dead zone 0) and applies this. The title demo feeds `move_pR` straight in.
+- **Walk/run/dash movement** (`Movement_Walk`, shared by all three):
+  - Turn: `add_calc_short_angle2(angle, stick_angle, 1−√(1−mod), 2500, 50)`, where `mod` is 0.5 at full stick and `0.01 + 0.516·(pR−0.05)` otherwise.
+  - Target speed: `(B held ? 7.5 : 4.875)·pR / norm · cos(angle to stick)`, and 0 once that cosine is ≤ 0.
+  - Speed chases the target at +0.609 / −0.326 per frame.
+- **Slope** (`Culc_over_speed_normalize_NoneZero`): climbing a slope sets `norm = |move_vec|² = 1 + rise²`. This is checked at the current position and one step ahead, and descents don't count.
+- **Clip rate** (`CulcAnimation_Walk`): `0.59999996·√(speed·norm / 7.5)` keyframes per frame (0.5 is the clip's own 30 fps).
+  - One wall scales it by `√|sin(wall − heading)|`. `player.gd` measures this as achieved ÷ intended step.
+  - A corner, or any result below 0.22, floors it at 0.22.
+- **Gait is a mode machine on the clip rate**, with `gauge = rate² / 0.048`, which equals speed on open ground:
+  - WALK → RUN when gauge ≥ 3.525.
+  - RUN → WALK when < 3.525, and RUN → DASH when ≥ 4.875.
+  - DASH → RUN when < 4.875.
+  - WALK → WAIT only when speed == 0 *and* the stick is 0.
+  - WAIT → WALK on any stick input (the clip restarts at frame 1). Walk ↔ run ↔ dash keep the current keyframe.
+  - Pushing into a wall floors the rate, so a pinned dash plays the slow walk clip.
+  - A full-stick walk settles in RUN, because 0.59999996 keeps 4.875 just under the dash gauge.
+- **Brakes:** WAIT 0.23925 per frame, the skid 0.261, and a released stick inside walk/run/dash 0.326.
+- **Lean** (`set_lean_angle`): `min((rate² / 0.36)⁶ · 20°, 20°)`, eased with `add_calc_short_angle2(1−√½, 10°, 0)`. It is recovered in wait and the skid, so it only really shows when dashing (about 1.5° at walk speed).
+- **Skid** (`turn_dash`): starts when a DASH is ≥ 100° (18204) off the stick.
+  - Speed brakes 0.261 per frame along the *old* heading, while the body turns via `add_calc_short_angle3`. That always turns the positive way (`MLib.short_angle3`), so skids spin one direction only.
+  - It ends in WAIT (morph −12) once stopped and turned, and `world.angle` then snaps to the body.
+  - Clip `run_slip1`, SE `0x4129` (`EXTRA_SE_NUMS["4129"]`). On entry `StepFx.turn` (`eTurnAsimoto_init`): tumble-dust + dust puff, sand splash, 5 water/snow drops on wave/winter grass/rain, bush leaves, 3 petals 30 GX ahead over a flower. Leaving the skid drops `StepFx.turn_footprint` (`eTurnFootPrint`) at the right foot.
+- **Dash trampling** (`SetEffectRemoveFlower_Dash`): 1 in 4 dash foot plants on a flower unit clear it, and the art fades out over 13 frames (`PlantGrowth.trample_flower`), with `StepFx.hanatiri` (5 bloom-palette petals + 4 leaf bits at the unit centre).
+- **Foot-plant effects** (`eWalk_Asimoto_init`, `eDashAsimoto_ct`): walk/run only react on bushes; dash picks dust / sand / splash (`SIBUKI`, also in rain) / winter `YUKIHANE` / bush leaves by unit attribute, plus 2 petals over a flower. Particles are `FieldFx` (`scripts/systems/field_fx.gd`, `shaders/field_effect.gdshader`); routing is `StepFx`.
+- **Bad-luck tumble** (`Player_actor_CheckAndRequest_main_tumble`): in DASH with `destiny.type == BAD_LUCK`, 1/600 per frame, only when the 12 `FLAT_PROBES` ahead are flat. `TUMBLE` brakes 0.175/frame (`kokeru1`, or `_a1`/`_n1` by held tool), SE `tumble_*` by ground, events @10 vibration, @15 landing effects (`StepFx.tumble` arg 1), @17 `eTumbleBodyPrint`; then `TUMBLE_GETUP` → WAIT. Fortune is `Game.set_destiny` / `Game.destiny()` (expires the next calendar day); debug: `fortune bad_luck`.
+- **Per-axis dead zone**: WAIT → WALK also needs `move_pX` or `move_pY` non-zero (`PlayerLocomotion.axis_percent`), so a diagonal nudge just past the radial dead zone doesn't start a walk.
+- **Not ported:** `TURI_HAMON` ripples from landing drops; balloon release on tumble getup; fortune sources (Katrina, shrine) — only the debug command sets destiny.
 
 `mPlayer_ADDRESSABLE_*` gates whether NPCs may start dialogue: false while moving, talking, or holding a ready net.
 

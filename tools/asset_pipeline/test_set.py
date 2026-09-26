@@ -196,6 +196,15 @@ TEST_SKELETONS = [
 # Static Gfx models (no cKF skeleton). Paths keep original identifiers.
 TEST_STATIC = [
     {
+        ## `ef_dust01_modelT` (dust / tumble dust): vtx is `ef_dust01_00_v`, so the
+        ## name-paired job inference misses it. Frames come from `ef_dust01_0..3`.
+        "asset_id": "ef_dust01",
+        "vtx": "ef_dust01_00_v",
+        "gfx": ["ef_dust01_modelT"],
+        "output": "effects/ef_dust01.glb",
+        "confident_name": True,
+    },
+    {
         ## K.K. opening spotlight stage (`SCENE_PLAYERSELECT` / `grd_player_select`).
         "asset_id": "grd_player_select",
         "vtx": "grd_player_select_v",

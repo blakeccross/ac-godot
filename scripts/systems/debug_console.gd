@@ -5,7 +5,7 @@ extends RefCounted
 ## Not an autoload — the overlay owns one instance. Logic stays testable without UI.
 
 const COMMANDS: PackedStringArray = [
-	"help", "weather", "season", "give", "time", "bells", "house", "event", "clear"
+	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "clear"
 ]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
 const HOUSE_ARGS: PackedStringArray = ["size", "basement", "build", "loan", "statue", "goki", "neglect"]
@@ -46,6 +46,8 @@ func execute(raw: String) -> String:
 			return _cmd_house(args)
 		"event", "events":
 			return _cmd_event(args)
+		"fortune", "destiny":
+			return _cmd_fortune(args)
 		"clear":
 			return "__clear__"
 		_:
@@ -156,9 +158,25 @@ func _cmd_help() -> String:
 		"  bells <amount>",
 		"  house [size <small|medium|large|upper> | basement | build | loan <n> | statue | goki [n] | neglect [days]]",
 		"  event [list | start <id> | stop [id] | goto <id> | special <id>]",
+		"  fortune [normal|popular|unpopular|bad_luck|money_luck|goods_luck]",
 		"  clear / help",
 		"Tab completes. Up/Down recall history.",
 	])
+
+
+## Today's `Private_c.destiny` — normally set by Katrina / the New Year shrine (not built
+## yet); bad luck makes a full dash trip on flat ground.
+func _cmd_fortune(args: PackedStringArray) -> String:
+	var names: PackedStringArray = PackedStringArray(
+		["normal", "popular", "unpopular", "bad_luck", "money_luck", "goods_luck"]
+	)
+	if args.is_empty():
+		return "Fortune: %s" % names[int(Game.destiny())]
+	var want: int = names.find(String(args[0]).to_lower())
+	if want < 0:
+		return "Unknown fortune '%s'. Use %s." % [String(args[0]), ", ".join(names)]
+	Game.set_destiny(want)
+	return "Fortune set to %s for today." % names[want]
 
 
 func _cmd_weather(args: PackedStringArray) -> String:

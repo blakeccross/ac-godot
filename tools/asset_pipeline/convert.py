@@ -30,6 +30,7 @@ from .test_set import TEST_SKELETONS, TEST_STATIC
 from .texbank import (
     GX_CLAMP,
     G_IM_FMT_CI,
+    G_IM_FMT_I,
     G_IM_FMT_IA,
     G_IM_SIZ_4b,
     G_IM_SIZ_8b,
@@ -515,6 +516,7 @@ def convert_all(cfg: PipelineConfig) -> dict[str, Any]:
     print("  dumping REL textures...")
     results.extend(_convert_rel_textures(cfg, rel, symbols, bank))
     results.extend(_convert_actor_tlut_rows(cfg, rel, symbols))
+    results.extend(_convert_effect_frames(cfg, rel, symbols))
     _write_acre_collision(cfg, rel, symbols)
 
     for rec in results:
@@ -1312,6 +1314,49 @@ def _convert_rel_textures(cfg: PipelineConfig, rel: RelData, symbols: list, bank
                     "error": f"{type(exc).__name__}: {exc}",
                 }
             )
+    return results
+
+
+## Effect frame banks swapped onto `anime_N` each draw (dust, splashes, snow). The symbol
+## suffix is the GX format the effect DL loads them as; the dust frames carry no suffix
+## but `ef_dust01_modelT` SETTIMGs them as I4 16×16.
+_EFFECT_FRAME_SUFFIX_FMT: dict[str, tuple[int, int]] = {
+    "_int_i4": (G_IM_FMT_I, G_IM_SIZ_4b),
+    "_inta_ia8": (G_IM_FMT_IA, G_IM_SIZ_8b),
+}
+_EFFECT_FRAME_EXTRA: dict[str, tuple[int, int]] = {
+    "ef_dust01_0": (G_IM_FMT_I, G_IM_SIZ_4b),
+    "ef_dust01_1": (G_IM_FMT_I, G_IM_SIZ_4b),
+    "ef_dust01_2": (G_IM_FMT_I, G_IM_SIZ_4b),
+    "ef_dust01_3": (G_IM_FMT_I, G_IM_SIZ_4b),
+}
+
+
+def _convert_effect_frames(cfg: PipelineConfig, rel: RelData, symbols: list) -> list[dict[str, Any]]:
+    """Square effect frame textures → `textures/rel/{symbol}.png` (native decode)."""
+    results: list[dict[str, Any]] = []
+    for symbol in symbols:
+        name = symbol.name
+        fmt_siz = _EFFECT_FRAME_EXTRA.get(name)
+        if fmt_siz is None and name.startswith("ef_"):
+            for suffix, pair in _EFFECT_FRAME_SUFFIX_FMT.items():
+                if name.endswith(suffix):
+                    fmt_siz = pair
+                    break
+        if fmt_siz is None or symbol.size <= 0:
+            continue
+        fmt, siz = fmt_siz
+        pixels = symbol.size * 2 if siz == G_IM_SIZ_4b else symbol.size
+        side = int(round(pixels ** 0.5))
+        if side * side != pixels:
+            continue
+        data = rel.slice_at(symbol.address, symbol.size)
+        results.append(
+            _png_record(
+                cfg, f"textures/rel/{name}.png", name, data, side, side, b"", fmt=fmt, siz=siz,
+                allow_achd=False,
+            )
+        )
     return results
 
 

@@ -321,3 +321,20 @@ func _rec(plant_id: String, planted: int) -> Dictionary:
 		PlantGrowth.KEY_CELL_X: 0,
 		PlantGrowth.KEY_CELL_Z: 0,
 	}
+
+
+func test_dash_trample_clears_a_flower_cell_only() -> void:
+	## `Player_actor_SetEffectRemoveFlower_Dash` → `mFI_SetFG_common(EMPTY_NO)`.
+	var grid := WorldGrid.new()
+	grid.configure(16, 16, 2.0, Vector3(-16, 0, -16))
+	var cell := Vector2i(8, 8)
+	grid.set_terrain(cell, WorldGrid.Terrain.GRASS)
+	assert_bool(PlantGrowth.trample_flower(null, grid, cell)).is_false()
+	var pid: StringName = PlantGrowth.persist_id(cell)
+	PlantGrowth._store(pid, {PlantGrowth.KEY_PLANT: "pansy"})
+	assert_bool(
+		grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT)
+	).is_true()
+	assert_bool(PlantGrowth.trample_flower(null, grid, cell)).is_true()
+	assert_str(String(grid.occupant_at(cell))).is_empty()
+	assert_bool(PlantGrowth.has_record(pid)).is_false()

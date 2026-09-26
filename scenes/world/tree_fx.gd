@@ -65,6 +65,29 @@ static func snow(host: Node, crown: Vector3, medium_cedar: bool) -> void:
 	fx._sync()
 
 
+## Walk / dash / skid / tumble through a bush: `eBushHappa_ct` with arg1 0–3 draws
+## `ef_s_yabu01_00` (`arg1 <= 3`). `pos` is world metres.
+static func bush_leaf(host: Node, pos: Vector3, arg1: int) -> void:
+	var fx := TreeFx.new()
+	fx._kind = Kind.LEAF
+	fx._setup_bush_leaf(pos, arg1)
+	host.add_child(fx)
+	fx.global_position = pos
+	fx._model = fx._load_model(&"ef_s_yabu01_00")
+	fx._sync()
+
+
+## Winter bush snow puff from a step (`eBushYuki_ct` arg1 0).
+static func bush_snow(host: Node, pos: Vector3) -> void:
+	var fx := TreeFx.new()
+	fx._kind = Kind.SNOW
+	fx._setup_bush_snow(pos)
+	host.add_child(fx)
+	fx.global_position = pos
+	fx._attach_snow_model()
+	fx._sync()
+
+
 ## `EffectBG_Make_Leafs` position: crown plus a random box around it.
 static func jitter(crown: Vector3, medium_cedar: bool) -> Vector3:
 	var spread: float = SPREAD_CEDAR_MED_GX if medium_cedar else SPREAD_GX
@@ -95,6 +118,44 @@ func _setup_leaf(crown: Vector3, family: PlantData.Family, medium_cedar: bool) -
 	_spin_z = randf() * TAU
 	_sway = randf() * TAU
 	_base_scale = LEAF_SCALE
+
+
+func _setup_bush_leaf(pos: Vector3, arg1: int) -> void:
+	## `eBushHappa_ct`: ±4 GX jitter on X and Z, 60 frames (+20 for arg1 1–3).
+	var v_speed: float = 2.5 + _rand() * 1.3
+	var hz: float = -4.0 + _rand() * 8.0
+	_pos_gx = pos / GX + Vector3(hz, 0.0, hz)
+	_life = 60
+	match arg1:
+		1:
+			_life += 20
+			v_speed *= 1.5
+		2:
+			_life += 20
+			v_speed *= 1.8
+		3:
+			_life += 20
+			v_speed *= 1.6
+	_timer = _life
+	var spread: float = 32.0 if arg1 == 2 or arg1 == 3 else 20.0
+	_velocity = FieldFx.random_first_speed(v_speed, spread, spread)
+	_accel = Vector3(0.0, 0.5 * (0.1 * -_velocity.y), 0.0)
+	_spin_x = randf() * TAU
+	_spin_z = randf() * TAU
+	_sway = randf() * TAU
+	_base_scale = 0.010199999
+
+
+func _setup_bush_snow(pos: Vector3) -> void:
+	## `eBushYuki_ct` (arg1 0): `random_first_speed(1.5 + rand·1.5, 45, 45)`.
+	var y: float = 1.5 + _rand() * 1.5
+	var offset: float = -3.0 + 6.0 * _rand()
+	_pos_gx = pos / GX + Vector3(offset, offset, 0.0)
+	_life = SNOW_LIFE
+	_timer = _life
+	_velocity = FieldFx.random_first_speed(y, 45.0, 45.0)
+	_accel = Vector3(0.0, -0.125, 0.0)
+	_base_scale = SNOW_SCALE
 
 
 func _setup_snow(crown: Vector3, medium_cedar: bool) -> void:

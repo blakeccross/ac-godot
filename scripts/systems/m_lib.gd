@@ -28,3 +28,19 @@ static func short_angle2(
 	if absf(step) >= absf(diff):
 		return target
 	return value + step
+
+
+## `add_calc_short_angle3`: always turns the *positive* way — the target is lifted a full
+## turn above the value when it sits below it — by `fraction` of that gap, clamped to
+## [`min_step`, `max_step`], never past the target. (Dash skids spin one direction only.)
+static func short_angle3(
+	value: float, target: float, fraction: float, max_step: float, min_step: float
+) -> float:
+	var gap: float = fposmod(target - value, TAU)
+	if is_zero_approx(gap) or is_equal_approx(gap, TAU):
+		return target
+	var step: float = clampf(gap * fraction, min_step, max_step)
+	if step >= gap:
+		return target
+	return wrapf(value + step, -PI, PI)
+

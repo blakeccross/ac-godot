@@ -77,6 +77,11 @@ var player_gender: StringName = DEFAULT_PLAYER_GENDER
 var player_face: int = 0
 ## Worn shirt (`Private_c.cloth.item`). Default `ITM_CLOTH001`.
 var cloth_id: StringName = FirstJob.DEFAULT_CLOTH_ID
+## `Private_c.destiny` (`mPr_DESTINY_*`): the day's fortune from Katrina (`ac_ev_gypsy`) or
+## the New Year shrine (`ac_ev_miko`); both reset it at the next calendar day.
+enum Destiny { NORMAL, POPULAR, UNPOPULAR, BAD_LUCK, MONEY_LUCK, GOODS_LUCK }
+var destiny_type: int = Destiny.NORMAL
+var destiny_date: Vector3i = Vector3i.ZERO
 ## Worn original design display slot (`cloth.idx >= CLOTH_NUM+1`). -1 = normal shirt.
 var worn_design_slot: int = -1
 ## Town map unlocked after first-job furniture delivery (`Common.map_flag`).
@@ -516,7 +521,22 @@ func notify_title_ready() -> void:
 	set_interact_prompt("")
 
 
+## `mDemo_Copy_change_player_destiny`: record the fortune and the day it was received.
+func set_destiny(kind: int) -> void:
+	destiny_type = kind
+	destiny_date = Vector3i(Clock.year, Clock.month, Clock.day)
+
+
+## `Game_play_Reset_destiny`: a fortune only lasts the calendar day it was received.
+func destiny() -> int:
+	if destiny_type != Destiny.NORMAL and destiny_date != Vector3i(Clock.year, Clock.month, Clock.day):
+		destiny_type = Destiny.NORMAL
+	return destiny_type
+
+
 func reset_session() -> void:
+	destiny_type = Destiny.NORMAL
+	destiny_date = Vector3i.ZERO
 	inventory.clear()
 	if train != null:
 		train.reset()
@@ -852,6 +872,7 @@ func to_save() -> Dictionary:
 		"player_gender": String(player_gender),
 		"player_face": player_face,
 		"cloth_id": String(cloth_id),
+		"destiny": {"type": int(destiny_type), "y": destiny_date.x, "m": destiny_date.y, "d": destiny_date.z},
 		"has_map": has_map,
 		"num_statues": num_statues,
 		"complete_flags": complete_flags,
@@ -967,6 +988,9 @@ func apply_snapshot(data: Dictionary) -> void:
 	player_gender = IntroSequence.normalize_gender(data.get("player_gender", DEFAULT_PLAYER_GENDER))
 	player_face = clampi(int(data.get("player_face", 0)), 0, IntroSequence.FACE_TYPE_NUM - 1)
 	cloth_id = StringName(str(data.get("cloth_id", FirstJob.DEFAULT_CLOTH_ID)))
+	var fortune: Dictionary = data.get("destiny", {})
+	destiny_type = clampi(int(fortune.get("type", 0)), 0, Destiny.GOODS_LUCK)
+	destiny_date = Vector3i(int(fortune.get("y", 0)), int(fortune.get("m", 0)), int(fortune.get("d", 0)))
 	if cloth_id == &"":
 		cloth_id = FirstJob.DEFAULT_CLOTH_ID
 	has_map = bool(data.get("has_map", false))

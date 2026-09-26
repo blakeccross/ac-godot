@@ -28,7 +28,7 @@ func test_example() -> void:
 ```sh
 tools/test.sh                         # all gdUnit suites; prints failures + summary only
 tools/test.sh intro_train_stage       # tests/unit/test_intro_train_stage.gd
-tools/test.sh intro_train_* tree_use  # globs / several suites in one run
+tools/test.sh 'intro_train_*' tree_use  # globs (quote them in zsh) / several suites
 tools/test.sh pipeline                # Python asset-pipeline unittests
 tools/test.sh -v field_catalog        # full runner output
 

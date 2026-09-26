@@ -536,6 +536,37 @@ static func dig_up_flower(ctx: InteractionContext, cell: Vector2i) -> bool:
 	return HoleUse.dig(ctx, cell)
 
 
+## `bIT_actor_fade_entry` / `_fade_move`: alpha 255 → 0 at −20 per 60 Hz frame.
+const TRAMPLE_FADE_SECONDS := 13.0 / 60.0
+
+
+## `Player_actor_SetEffectRemoveFlower_Dash`: a dashing foot plant on a flower unit clears
+## it (`mFI_SetFG_common(EMPTY_NO)`) and hands the art to `bg_item` to fade out. Returns
+## true when a flower was trampled. (The `HANATIRI` petal burst is not ported yet.)
+static func trample_flower(world: Node, grid: WorldGrid, cell: Vector2i) -> bool:
+	if grid == null or not grid.is_in_bounds(cell):
+		return false
+	var occupant: StringName = grid.occupant_at(cell)
+	if occupant == &"":
+		return false
+	var rec: Dictionary = record(occupant)
+	var plant: PlantData = plant_data(StringName(str(rec.get(KEY_PLANT, ""))))
+	var is_flower: bool = plant != null and plant.kind == PlantData.Kind.FLOWER
+	if not is_flower and not _is_flower_host(world, occupant):
+		return false
+	var host: Node3D = host_at(world, occupant)
+	clear(occupant)
+	Game.mark_interactable_removed(occupant)
+	grid.remove(occupant)
+	if host != null and host.is_inside_tree():
+		host.remove_from_group("plant")
+		var tween: Tween = host.create_tween().set_parallel(true)
+		for mesh: Node in host.find_children("*", "GeometryInstance3D", true, false):
+			tween.tween_property(mesh, "transparency", 1.0, TRAMPLE_FADE_SECONDS)
+		tween.chain().tween_callback(host.queue_free)
+	return true
+
+
 static func _kill_flower(world: Node, grid: WorldGrid, pid: StringName) -> void:
 	clear(pid)
 	Game.mark_interactable_removed(pid)

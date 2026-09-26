@@ -23,6 +23,20 @@ const ANIM_WAIT := "ply_1_wait1"
 const ANIM_WALK := "ply_1_walk1"
 const ANIM_RUN := "ply_1_run1"
 const ANIM_DASH := "ply_1_dash1"
+## `mPlayer_ANIM_RUN_SLIP1` — the dash skid (`turn_dash`).
+const ANIM_RUN_SLIP := "ply_1_run_slip1"
+## cKF morph −5 / −12 at 60 Hz (`-5.0f` on walk/run/dash/wait, `-12.0f` skid → wait).
+const MORPH_5 := 10.0 / 60.0
+const MORPH_12 := 24.0 / 60.0
+## `Player_actor_sound_slip` (`0x4129`).
+const SE_SLIP := &"4129"
+## `mPlayer_ANIM_KOKERU*` — fall / get-up, by held item (`Get_PlayerAnimeIndex_fromItemKind_Tumble`).
+const ANIM_KOKERU := "ply_1_kokeru1"
+const ANIM_KOKERU_A := "ply_1_kokeru_a1"
+const ANIM_KOKERU_N := "ply_1_kokeru_n1"
+const ANIM_KOKERU_GETUP := "ply_1_kokeru_getup1"
+const ANIM_KOKERU_GETUP_A := "ply_1_kokeru_getup_a1"
+const ANIM_KOKERU_GETUP_N := "ply_1_kokeru_getup_n1"
 ## `mPlayer_ANIM_OPEN1` — door enter demo (`mPlayer_INDEX_DOOR`, type 0).
 const ANIM_OPEN1 := "ply_1_open1"
 ## `mPlayer_ANIM_INTO_S1` — indoor door / exit walk (`mPlayer_INDEX_DOOR`, type ≠ 0).
@@ -152,6 +166,8 @@ static var _door_root_xz: Dictionary = {}
 
 func _ready() -> void:
 	add_to_group("player")
+	_motor.ground_sampler = _motor_ground_y
+	_motor.flat_sampler = _motor_unit_flat
 	_look.position = Vector3(0.0, LOOK_HEIGHT, 0.0)
 	_try_load_generated_visual()
 	if Game != null and not Game.cloth_changed.is_connected(_on_cloth_changed):
@@ -290,6 +306,8 @@ func apply_facing(yaw: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _mesh != null:
+		_mesh.rotation.x = _motor.lean
 	if _umbrella != null:
 		_umbrella.tick(delta)
 	if _carry != null:
@@ -337,7 +355,7 @@ func _physics_process(delta: float) -> void:
 		if scripted_input != null:
 			input_dir = scripted_input.move
 		else:
-			input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+			input_dir = _read_stick()
 		stick = clampf(input_dir.length(), 0.0, 1.0)
 		wish = _camera_wish(input_dir)
 		if scripted_input != null and scripted_input.consume_a_pressed():
@@ -346,13 +364,19 @@ func _physics_process(delta: float) -> void:
 	var sprint: bool = (
 		scripted_input == null and not is_demo_walking() and Input.is_action_pressed("sprint")
 	)
+	_motor.position = global_position
+	## `mEv_IsNotTitleDemo() && destiny == BAD_LUCK` gates the dash trip.
+	_motor.bad_luck = scripted_input == null and Game.destiny() == Game.Destiny.BAD_LUCK
+	_motor.axes_active = _axes_active(input_dir) if scripted_input == null else stick > 0.0
+	_feed_clip_state()
 	var planar: Vector3 = _motor.tick(
 		delta, wish, stick, sprint and not menu_open, _busy or menu_open
 	)
 	velocity.x = planar.x
 	velocity.z = planar.z
 	_tick_talk_face(delta)
-	_mesh.rotation.y = _motor.facing
+	_mesh.rotation.y = _motor.body_yaw
+	_mesh.rotation.x = _motor.lean
 	var before: Vector3 = global_position
 	move_and_slide()
 	if bg.size() == 2:
@@ -361,6 +385,7 @@ func _physics_process(delta: float) -> void:
 		)
 	elif on_bg:
 		_snap_to_bg()
+	_note_wall_contact(before, planar, delta)
 	if bg.size() == 2 and TownSpace.is_outdoor_town():
 		_acre_border(before, input_dir, bg)
 		if not _wade.is_empty():
@@ -479,7 +504,7 @@ func _try_grip() -> bool:
 func _grip_stick() -> Vector2:
 	if _menu_open():
 		return Vector2.ZERO
-	var input_dir: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var input_dir: Vector2 = _read_stick()
 	var wish: Vector3 = _camera_wish(input_dir)
 	return Vector2(wish.x, wish.z) * clampf(input_dir.length(), 0.0, 1.0)
 
@@ -1107,6 +1132,96 @@ func _camera_wish(input_dir: Vector2) -> Vector3:
 	return wish
 
 
+## `mCon_calc`: raw stick (no Godot dead-zone remap) → `move_pR` direction × percent.
+## Below `STICK_MIN` it reads zero; above, the percent is the raw radius — not rescaled
+## from the dead zone, so the smallest registered tilt already walks at ~16 %.
+func _read_stick() -> Vector2:
+	var raw: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back", 0.0)
+	var pr: float = PlayerLocomotion.stick_percent(raw.length())
+	if pr <= 0.0:
+		return Vector2.ZERO
+	return raw.normalized() * pr
+
+
+## `mCon_calc` `move_pX` / `move_pY`: zeroed per axis inside the dead zone.
+func _axes_active(stick_vec: Vector2) -> bool:
+	if stick_vec == Vector2.ZERO:
+		return false
+	var raw: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back", 0.0)
+	return (
+		PlayerLocomotion.axis_percent(raw.x) != 0.0 or PlayerLocomotion.axis_percent(raw.y) != 0.0
+	)
+
+
+## `Player_actor_Check_FlatPlace` probe: the unit's normal is vertical.
+func _motor_unit_flat(pos: Vector3) -> bool:
+	var bg: Array = _bg()
+	if bg.size() != 2:
+		return false
+	var grid := bg[1] as WorldGrid
+	var cell: Vector2i = grid.world_to_cell(pos)
+	if not grid.is_in_bounds(cell):
+		return false
+	return FieldCollision.unit_is_flat(bg[0] as WorldData, cell)
+
+
+## Tumble / get-up transitions wait on the clip (`CulcAnimation` end), like the original.
+func _feed_clip_state() -> void:
+	if _anim == null:
+		_motor.clip_done = true
+		return
+	var mode: PlayerLocomotion.Gait = _motor.gait()
+	if mode != PlayerLocomotion.Gait.TUMBLE and mode != PlayerLocomotion.Gait.TUMBLE_GETUP:
+		return
+	if _motor.mode_changed or _gait != mode:
+		_motor.clip_frame = 0.0
+		_motor.clip_done = false
+		return
+	var frame: float = _anim.current_animation_position * ANIM_FPS
+	_motor.clip_done = not _anim.is_playing()
+	if mode == PlayerLocomotion.Gait.TUMBLE:
+		_tumble_events(_motor.clip_frame, frame)
+	_motor.clip_frame = frame
+
+
+## `Player_actor_SetEffect_Tumble`: rumble at frame 10, landing dust at 15, body print at 17.
+func _tumble_events(before: float, now: float) -> void:
+	var bg: Array = _bg()
+	var attr: int = _unit_attr(bg)
+	if before < 10.0 and now >= 10.0:
+		Input.start_joy_vibration(0, 0.6, 1.0, 17.0 / 60.0)
+	if before < 15.0 and now >= 15.0:
+		StepFx.tumble(bg, global_position, _motor.facing, attr, 1)
+	if before < 17.0 and now >= 17.0:
+		StepFx.body_print(bg, global_position, _motor.facing, attr)
+
+
+func _unit_attr(bg: Array) -> int:
+	if bg.size() != 2:
+		return -1
+	return FieldCollision.unit_attr_at(bg[0] as WorldData, bg[1] as WorldGrid, global_position)
+
+
+## `mCoBG_GetBgNorm_FromWpos` stand-in for the motor's uphill speed normalise.
+func _motor_ground_y(pos: Vector3) -> float:
+	var bg: Array = _bg()
+	if bg.size() != 2:
+		return FieldCollision.NO_FLOOR
+	return FieldCollision.ground_y_at(bg[0] as WorldData, bg[1] as WorldGrid, pos)
+
+
+## `bg_collision_check.result.hit_wall`: how much of this frame's step the walls let
+## through. `Player_actor_CulcAnimation_Walk` slows the clip by √ of it next frame.
+func _note_wall_contact(before: Vector3, planar: Vector3, delta: float) -> void:
+	var intended: float = Vector2(planar.x, planar.z).length() * delta
+	if intended <= 0.0005:
+		_motor.wall_ratio = 1.0
+		return
+	var moved: float = Vector2(global_position.x - before.x, global_position.z - before.z).length()
+	var ratio: float = clampf(moved / intended, 0.0, 1.0)
+	_motor.wall_ratio = 1.0 if ratio > 0.98 else ratio
+
+
 func _update_animation(delta: float) -> void:
 	if _tool_swap:
 		return
@@ -1123,16 +1238,75 @@ func _update_animation(delta: float) -> void:
 		if not _door_entering and not _cutscene_driven and not _anim.is_playing():
 			play_wait_idle()
 		return
-	if next == _gait and _anim.is_playing():
+	var one_shot: bool = next in [
+		PlayerLocomotion.Gait.TURN_DASH, PlayerLocomotion.Gait.TUMBLE, PlayerLocomotion.Gait.TUMBLE_GETUP
+	]
+	if next == _gait and not _motor.mode_changed and (_anim.is_playing() or one_shot):
 		_anim.speed_scale = _anim_speed(next)
 		return
+	_motor.mode_changed = false
+	var prev: PlayerLocomotion.Gait = _gait
 	_gait = next
 	var clip := _resolve_clip(_clip_for(next))
 	if clip.is_empty():
 		return
-	_ensure_loop(clip)
+	_on_mode_entered(prev, next)
+	if one_shot:
+		var once: Animation = _anim.get_animation(clip)
+		if once != null:
+			once.loop_mode = Animation.LOOP_NONE
+	else:
+		_ensure_loop(clip)
+	## Walk ↔ run ↔ dash keep the current keyframe (`frame = current_frame`); wait → walk
+	## and every other start restart at frame 1.
+	var gaits: Array = [
+		PlayerLocomotion.Gait.WALK, PlayerLocomotion.Gait.RUN, PlayerLocomotion.Gait.DASH
+	]
+	var carry: bool = prev in gaits and next in gaits and _anim.is_playing()
+	var phase: float = _anim.current_animation_position if carry else 0.0
+	var blend: float = MORPH_12 if prev == PlayerLocomotion.Gait.TURN_DASH else MORPH_5
 	_anim.speed_scale = _anim_speed(next)
-	_anim.play(clip, 0.12)
+	_anim.play(clip, blend)
+	if carry:
+		var length: float = _anim.get_animation(clip).length
+		_anim.seek(fmod(phase, maxf(length, 0.001)), true)
+
+
+## Mode entry side effects: skid SE + `TURN_ASIMOTO`, tumble SE + `TUMBLE` (arg 0), and the
+## skid's `TURN_FOOTPRINT` at the right foot when it settles into wait.
+func _on_mode_entered(prev: PlayerLocomotion.Gait, next: PlayerLocomotion.Gait) -> void:
+	var bg: Array = _bg()
+	var attr: int = _unit_attr(bg)
+	match next:
+		PlayerLocomotion.Gait.TURN_DASH:
+			Audio.play_se(SE_SLIP, self)
+			StepFx.turn(bg, global_position, _motor.facing, attr, 0)
+		PlayerLocomotion.Gait.TUMBLE:
+			Audio.play_se(_tumble_se(attr), self)
+			StepFx.tumble(bg, global_position, _motor.facing, attr, 0)
+	if prev == PlayerLocomotion.Gait.TURN_DASH:
+		var foot: Transform3D = _foot_anchor(true)
+		var at: Vector3 = foot.origin if foot.basis.determinant() != 0.0 else global_position
+		StepFx.turn_footprint(bg, at, _motor.facing, attr)
+
+
+## `sAdo_Get_KokeruLabel`: the footstep label for the unit, as its tumble twin.
+func _tumble_se(attr: int) -> StringName:
+	if Game.is_indoors():
+		return &"tumble_wood"
+	var bg: Array = _bg()
+	var step: StringName
+	if attr >= 0:
+		step = FootstepSe.id_for_attr(attr, Clock.season())
+	elif bg.size() == 2:
+		var data := bg[0] as WorldData
+		step = FootstepSe.id_for_terrain(
+			data.terrain_at((bg[1] as WorldGrid).world_to_cell(global_position)), Clock.season()
+		)
+	else:
+		step = &"footstep_soil"
+	var tumble := StringName(String(step).replace("footstep_", "tumble_"))
+	return tumble if SeCatalog.stream_for(tumble) != null else &"tumble_soil"
 
 
 func _update_footprints(delta: float, bg: Array) -> void:
@@ -1141,7 +1315,14 @@ func _update_footprints(delta: float, bg: Array) -> void:
 	## from clip rate — same time between steps, tracks still spread as gait speeds up.
 	## SE fires even when the surface cannot hold a mark (stone / soil / wood / indoors).
 	var gait: PlayerLocomotion.Gait = _motor.gait()
-	if bg.size() != 2 or _busy or gait == PlayerLocomotion.Gait.WAIT:
+	if (
+		bg.size() != 2
+		or _busy
+		or gait == PlayerLocomotion.Gait.WAIT
+		or gait == PlayerLocomotion.Gait.TURN_DASH
+		or gait == PlayerLocomotion.Gait.TUMBLE
+		or gait == PlayerLocomotion.Gait.TUMBLE_GETUP
+	):
 		_step_time = 0.0
 		return
 	_step_time += delta
@@ -1159,6 +1340,16 @@ func _update_footprints(delta: float, bg: Array) -> void:
 	FootstepSe.play_at(self, attr, terrain, season, gait, indoors)
 	if indoors:
 		return
+	var foot: Vector3
+	var yaw: float
+	var anchor: Transform3D = _foot_anchor(_right_foot)
+	if anchor.basis.determinant() != 0.0:
+		foot = anchor.origin
+		yaw = anchor.basis.get_euler().y
+	else:
+		yaw = _motor.facing
+		foot = FootprintMarks.foot_position(global_position, yaw, _right_foot)
+	_step_effects(gait, bg, attr, foot, yaw)
 	var marks: Node = get_tree().get_first_node_in_group("footprints")
 	if marks == null or not marks.has_method("spawn"):
 		return
@@ -1171,19 +1362,31 @@ func _update_footprints(delta: float, bg: Array) -> void:
 		if not FootprintMarks.marks_terrain(terrain, season):
 			return
 		snow = terrain != WorldGrid.Terrain.SAND
-	var foot: Vector3
-	var yaw: float
-	var anchor: Transform3D = _foot_anchor(_right_foot)
-	if anchor.basis.determinant() != 0.0:
-		foot = anchor.origin
-		yaw = anchor.basis.get_euler().y
-	else:
-		yaw = _motor.facing
-		foot = FootprintMarks.foot_position(global_position, yaw, _right_foot)
 	var xform: Transform3D = FootprintMarks.mark_transform(data, grid, foot, yaw)
 	if xform.basis.determinant() == 0.0:
 		return
 	marks.call("spawn", xform, snow)
+
+
+## `Player_actor_SetEffect_Walk` / `_Dash`: `WALK_ASIMOTO` on walk + run foot plants,
+## `DASH_ASIMOTO` on dash ones — unless 1 in 4 dash plants on a flower tramples it
+## (`SetEffectRemoveFlower_Dash` → `HANATIRI` instead).
+func _step_effects(gait: PlayerLocomotion.Gait, bg: Array, attr: int, foot: Vector3, yaw: float) -> void:
+	if gait == PlayerLocomotion.Gait.DASH:
+		var grid := bg[1] as WorldGrid
+		if randi() % 4 == 0:
+			var cell: Vector2i = grid.world_to_cell(global_position)
+			var flower: int = StepFx.flower_index(global_position)
+			var world: Node = get_tree().get_first_node_in_group("world")
+			if PlantGrowth.trample_flower(world, grid, cell):
+				## `mFI_Wpos2UtCenterWpos`: petals burst from the unit centre.
+				var center: Vector3 = grid.cell_corner(cell) + Vector3(grid.cell_size, 0.0, grid.cell_size) * 0.5
+				center.y = global_position.y
+				StepFx.hanatiri(bg, center, flower)
+				return
+		StepFx.dash_step(bg, foot, yaw, attr)
+	else:
+		StepFx.walk_step(bg, foot, yaw, attr)
 
 
 func _foot_anchor(right_foot: bool) -> Transform3D:
@@ -1203,13 +1406,13 @@ func _foot_anchor(right_foot: bool) -> Transform3D:
 
 
 func _anim_speed(gait: PlayerLocomotion.Gait) -> float:
+	## Walk / run / dash: `0.6·√(speed / 7.5)` keyframes per 1/60 s (floor 0.22, wall
+	## contact slows it) over the clip's native 0.5. Wait and the skid play at 0.5.
 	match gait:
-		PlayerLocomotion.Gait.WAIT:
-			return 1.0
-		PlayerLocomotion.Gait.WALK:
-			return clampf(_motor.planar_speed / PlayerLocomotion.WALK_RUN_SPEED, 0.7, 1.15)
+		PlayerLocomotion.Gait.WALK, PlayerLocomotion.Gait.RUN, PlayerLocomotion.Gait.DASH:
+			return _motor.anim_speed_scale()
 		_:
-			return clampf(_motor.planar_speed / PlayerLocomotion.RUN_SPEED, 0.85, 1.25)
+			return 1.0
 
 
 func _clip_for(gait: PlayerLocomotion.Gait) -> String:
@@ -1220,9 +1423,29 @@ func _clip_for(gait: PlayerLocomotion.Gait) -> String:
 			return ANIM_RUN
 		PlayerLocomotion.Gait.DASH:
 			return ANIM_DASH
+		PlayerLocomotion.Gait.TURN_DASH:
+			return ANIM_RUN_SLIP
+		PlayerLocomotion.Gait.TUMBLE:
+			return _tumble_clip(false)
+		PlayerLocomotion.Gait.TUMBLE_GETUP:
+			return _tumble_clip(true)
 		_:
 			## The carried item's pose rides on the arms (`ToolCarry`), not a whole-body clip.
 			return ANIM_WAIT
+
+
+## `Get_PlayerAnimeIndex_fromItemKind_Tumble(_getup)`: axes / shovels / fans → `_a1`;
+## nets / umbrellas / rods / pinwheels → `_n1`; empty hands → plain `kokeru1`.
+func _tumble_clip(getup: bool) -> String:
+	var tool: ToolData = _equipped_tool()
+	var kind: ToolData.Kind = tool.kind if tool != null else ToolData.Kind.NONE
+	match kind:
+		ToolData.Kind.AXE, ToolData.Kind.SHOVEL, ToolData.Kind.WATERING_CAN:
+			return ANIM_KOKERU_GETUP_A if getup else ANIM_KOKERU_A
+		ToolData.Kind.NET, ToolData.Kind.FISHING_ROD, ToolData.Kind.UMBRELLA:
+			return ANIM_KOKERU_GETUP_N if getup else ANIM_KOKERU_N
+		_:
+			return ANIM_KOKERU_GETUP if getup else ANIM_KOKERU
 
 
 func _resolve_clip(suffix: String) -> String:
@@ -1343,6 +1566,8 @@ func _face_cell(ctx: InteractionContext, cell: Vector2i) -> void:
 
 
 func _try_interact() -> void:
+	if _motor.gait() in [PlayerLocomotion.Gait.TUMBLE, PlayerLocomotion.Gait.TUMBLE_GETUP]:
+		return
 	if Game.held_furniture() != null and Game.try_place_furniture(self):
 		return
 	var hit: InteractionQuery = _resolve_interact()
