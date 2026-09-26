@@ -54,7 +54,7 @@ data tables before a category is called done.
 - [~] Rain / snow / clear by term probability tables (`m_kankyo_weather.c_inc`) — `weather.gd`
 - [ ] Rain intensity: drizzle vs. downpour; snow: flurry vs. heavy
 - [~] Weather particles + puddles / wet sand shader — `WeatherFx`, `beach_wet.gdshader`
-- [ ] Cherry-blossom petal fall (Apr 3–8) (`ac_weather_sakura`, `ev_cherry_manager`)
+- [ ] Cherry-blossom petal fall / festival window (festival dates: Apr 5–7; visual petal window still verify) (`ac_weather_sakura`, `ev_cherry_manager`, `m_calendar_ovl.c`)
 - [ ] Falling leaves in autumn (`ac_weather_leaf`)
 - [ ] Rainbow after rain
 - [ ] Fog / haze mornings
@@ -192,7 +192,7 @@ data tables before a category is called done.
 - [ ] Bells as currency; wallet cap; 30k bags
 - [ ] **Post Office bank (ABD)**: deposit, withdraw, interest paid by mail monthly (`m_bank_ovl`)
 - [ ] **Tom Nook home loan**: 4 (or 5) escalating amounts; pay any amount; statue/"paid off" reward; house expands on payoff (`m_repay_ovl`, `mQst` house upgrade)
-- [ ] House sizes: tent → 1-room → expanded room → +2nd floor / basement / side rooms → mansion (`m_home`, `m_house`, room types)
+- [ ] House sizes: small house (4×4) → medium (6×6) → large (8×8) → upper floor (2nd floor); basement is a separate unlock, and no side/back rooms or mansion exist in GCN (`m_home`, `m_house`, room types)
 - [ ] **HRA — Happy Room Academy**: weekly letter scoring your house layout; feng shui, sets, matching series, gyroids, furniture count; rank letters (`m_huusui_room`, `mark_room`)
 - [ ] Feng shui: colour-by-direction bonuses (`m_huusui_room_ovl`)
 - [ ] Selling: Nook buys almost anything at set prices; fish/bugs/fossils/paintings prices; foreign fruit premium
@@ -212,7 +212,7 @@ data tables before a category is called done.
 - [~] Reel-in beats: pull / swing up / reel empty, per-beat player + rod clips (`vib_rod`, `fly_rod`, `collect_rod`) — `fishing.gd` `reel_beats`
 - [~] Show-off pose, turn square to camera, catch report at frame 42 (`m_player_main_notice_rod`) — `held_catch.gd`, `held_fish.gd`
 - [~] Species report dialogue; shorter report if already donated; "pockets full → toss back / swap" (`Get_sakana_msg_num`, `0x1348`) — partial
-- [ ] **40 fish** _(verify — 45 spawn types incl. non-fish)_ with month × time-of-day × water-type availability + rarity (`ac_set_ovl_gyoei`, `ac_gyoei_type.c_inc`)
+- [ ] **45 fish types** plus **5 extended fishing catches** (whale, empty can, boot, old tire, salmon2), with month × time-of-day × water-type availability + rarity (`aGYO_TYPE_NUM`, `aGYO_TYPE_EXTENDED_NUM`, `ac_set_ovl_gyoei`, `ac_gyoei_type.c_inc`)
 - [ ] Half-month term split + transition ramp for spawn weights (`gyoei_term`)
 - [ ] Water types: river, river mouth, pond, waterfall pool, sea, island (`aSOG_RANGE_PROC_*`)
 - [ ] Coelacanth only while raining/snowing, in the sea, outside the day slot (`aSOG_add_kaseki_range_data`)
@@ -225,7 +225,7 @@ data tables before a category is called done.
 
 - [~] Net swing hitbox, timing, whiff, bug flees (`ac_insect`, `ac_npc_act_chase_insect`) — `netting.gd`, `bug_actor.gd` _(partial)_
 - [~] Bug spawn tables by month / time / habitat (tree trunk, flying, on flowers, on the ground, in the ground (mole cricket), by water, tree stumps, rotten food, street lamps at night) (`ac_set_ovl_insect`, `ac_insect_data`) — `bug_catalog.gd`, `bug_habitats.gd`
-- [ ] **40 insects** _(verify)_: butterflies, bees/wasps, beetles, dung beetle, ladybug, mantis, dragonflies, cicadas (7 kinds), grasshopper/locust, cricket, bell cricket, pine cricket, spider, tarantula, ant, pill bug, snail, mole cricket (dig sound), firefly, mosquito, fly, cockroach, bagworm, pond skater, diving beetle, mantid, walking stick, etc.
+- [ ] **40 individual insect types** (`aINS_INSECT_TYPE_NUM`): butterflies, cicadas, bees/wasps, dragonflies, locusts, crickets, beetles, ladybugs, mantis, tarantula, firefly, cockroach, snail, mole cricket, pond skater, bagworm, pill bug, spider, ant, and mosquito (`ac_insect_h.h`, `ac_insect_data.c_inc`)
 - [ ] Bee swarm from a shaken tree chases you; hide indoors or net them; sting → swollen face (`ac_bee`, `bee_swarm.gd`)
 - [ ] Wasp nest drops from tree; getting stung (`ac_bee` variant)
 - [ ] Tarantula aggressive chase behaviour at night
@@ -327,7 +327,7 @@ data tables before a category is called done.
 
 ## 18. Player house & interiors
 
-- [~] Tent on day 1; upgrades via Nook loans to: basic room → bigger room → +second floor → +basement → +left/right/back rooms → mansion + attic — `PlayerHouse` / `HouseUpgrade` / `NookHouseTalk`: S/M/L/upper sizes, upper floor + basement with stairs, next-day builds, loans (148k / 398k / 798k / 49.8k), statue offer; no side/back rooms exist in GCN. Missing: roof colour recolour, statue actor
+- [~] Small house on day 1 (4×4 interior); upgrades via Nook loans to medium (6×6), large (8×8), and upper floor (2nd floor, 6×6); basement is a separate unlock (49,800 bells). The statue is a reward state, not a room size; no side/back rooms, mansion, or attic exist in GCN — `PlayerHouse` / `HouseUpgrade` / `NookHouseTalk`: next-day builds, loans (148k / 398k / 798k / 49.8k), statue offer. Missing: roof colour recolour, statue actor
 - [ ] Room = grid; place furniture on floor, against walls, on tables (`ac_arrange_room`, `ac_arrange_ftr`)
 - [ ] Wallpaper + carpet per room; ceiling? (no)
 - [~] Furniture rotate (4 or 8 orientations), stack on surfaces, put items on tables (`m_player_main_rotate_furniture`, `rotate_octagon`) — `FurnitureGrip`: A-grip + stick push / pull / turn about the held end, B pick-up, sit / lie by walking in, per-floor furniture cap; missing: bubu puff, bed rolling, octagon (gyroid) rotation
@@ -376,7 +376,7 @@ data tables before a category is called done.
 
 ## 21. Nook's store
 
-- [~] 5 upgrade tiers over time + purchase volume: **Nook's Cranny → Nook 'n' Go → Nook's → Nookway → Nookington's** (`ac_shop_level`, `m_shop`) — `shop_book.gd`, `shop0`–`shop3` interiors
+- [~] 4 building types over time + purchase volume: **Nook's Cranny → Nook 'n' Go → Nookway → Nookington's**; upgrades at 25,000 / 90,000 / 240,000 bells, with Nookington's also requiring a visiting foreign player (`ac_shop_level`, `m_shop`) — `shop_book.gd`, `shop0`–`shop3` interiors
 - [ ] Nookington's has a second floor with Timmy & Tommy; requires a friend from another town to visit to trigger the final upgrade
 - [~] Daily stock: a few furniture, wallpaper, carpet, tools, stationery, seeds, umbrella, a "special" (`ac_shop_goods`, `ac_shop_goods_data`) — `shop_stock.gd`
 - [ ] Stock rotates at 06:00; sells out; sold-out slot shows empty
@@ -504,7 +504,7 @@ data tables before a category is called done.
 
 ## 30. Special visitors & recurring NPCs
 
-- [ ] **K.K. Slider** — Saturdays 20:00–24:00 at the train station; request a song by name or get a random one; take home a bootleg (aircheck); ~50 songs _(verify count)_ (`ac_npc_totakeke`, `mEv_EVENT_KK_SLIDER`, `m_music_ovl`, `m_mscore_ovl`)
+- [ ] **K.K. Slider** — Saturdays 20:00–23:59 at the train station; request a song by name or get a random one; take home a bootleg (aircheck); **55 songs** (`ac_npc_totakeke`, `mEv_EVENT_KK_SLIDER`, `m_music_ovl`, `m_mscore_ovl`)
 - [ ] **Crazy Redd** — travelling black-market tent (needs Nook's referral card); furniture (some rare), carpets/wallpaper, and forged/real paintings; stock rotates (`ac_ev_broker`, `ac_ev_broker2`, `ac_br_shop`)
 - [ ] **Saharah** — camel rug peddler; sells randomly, buys your old carpets; exclusive carpets/wallpaper (`ac_ev_gypsy`, `ac_ev_carpetPeddler`)
 - [ ] **Wendell** — hungry walrus artist; give him food → free design pattern (`ac_ev_designer`, `ac_ev_artist`)
@@ -512,7 +512,7 @@ data tables before a category is called done.
 - [ ] **Gulliver** — seagull washed up (drunk) on the beach; wake him repeatedly → he flies off → mails a foreign item days later (`ac_ev_dokutu`? / castaway)
 - [ ] **Wisp / Genie** — ghost you free from a bottle/lamp at night → wish granted (item or town favour) (`ac_ev_ghost`, `mEv_EVENT_GHOST`)
 - [ ] **Sow Joan** — turnip seller, Sunday mornings (`ac_ev_kabuPeddler`, `ac_yomise`)
-- [ ] **Katrina** the fortune teller — _not in GCN_ (skip; there is a gypsy/fortune role — verify)
+- [ ] **Katrina** the fortune teller — present in GCN as the gypsy fortune event; fortune reading costs 50 bells (`ac_ev_gypsy`, `mEv_EVENT_GYPSY`)
 - [ ] **Jingle** — reindeer, Toy Day (Dec 24); collects/gives presents (`ac_ev_santa`, `mEv_EVENT_TOY_DAY_*`)
 - [ ] **Franklin** — turkey chef, Harvest Festival (US Thanksgiving); hides from villagers; fetch ingredients → furniture (`ac_ev_turkey`, `ac_harvest_npc*`, `mEv_EVENT_HARVEST_FESTIVAL`)
 - [ ] **Pavé / dancers** — _later games_ (skip)
@@ -530,7 +530,7 @@ data tables before a category is called done.
 
 ## 31. Holidays & seasonal events
 
-From `m_event_schedule.c_inc` (117 schedule rows). Localised USA set:
+From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table rows). Localised USA set:
 
 - [~] Event scheduler: every row resolved per date/hour, weekly visitor, special-visit roll, weather override, `/event` debug commands — `event_calendar.gd`, `event_schedule.gd`, `data/events/schedule.json` ([events](decomp_notes/events.md)). **Presenters (the things that actually appear in town) are not built**, so the entries below stay unchecked.
 
@@ -538,9 +538,9 @@ From `m_event_schedule.c_inc` (117 schedule rows). Localised USA set:
 - [ ] Groundhog Day (Feb 2)
 - [ ] Valentine's Day (Feb 14) — chocolate from a villager
 - [ ] Snowman season / Kamakura (Dec–Feb) — build snowmen
-- [ ] Spring Equinox / **Spring Sports Fair** (Mar 19–21) — aerobics, foot race, ball toss, tug-of-war
+- [ ] Spring Equinox / **Spring Sports Fair** (calculated vernal equinox day, usually Mar 19–21) — aerobics, foot race, ball toss, tug-of-war
 - [ ] April Fools' Day (Apr 1)
-- [ ] Cherry Blossom Festival & petals (Apr 3–8)
+- [ ] Cherry Blossom Festival & petals (festival dates Apr 5–7; broader visual petal window verify)
 - [ ] Nature Day (Apr 22)
 - [ ] Spring Cleaning (May 1)
 - [ ] Mother's Day (2nd Sun May), Father's Day (3rd Sun Jun)
@@ -551,7 +551,7 @@ From `m_event_schedule.c_inc` (117 schedule rows). Localised USA set:
 - [ ] Morning Aerobics (Jul 25 – Aug 31, 06:00 daily)
 - [ ] Meteor Shower (Aug 12) — wish on shooting stars
 - [ ] Labor Day (1st Mon Sep)
-- [ ] Autumn Equinox / **Fall Sports Fair** (Sep 21–23)
+- [ ] Autumn Equinox / **Fall Sports Fair** (calculated autumnal equinox day, usually Sep 21–23)
 - [ ] Explorers' Day (2nd Mon Oct)
 - [ ] Mushroom season (mid-Oct)
 - [ ] **Halloween** (Oct 31, 18:00–24:00) — wear a mask, trick-or-treat villagers, Jack the pumpkin king, candy, lollipops, spooky furniture (`ac_halloween_npc`, `ef_halloween`, `ac_ev_pumpkin`)
@@ -627,21 +627,21 @@ From `m_event_schedule.c_inc` (117 schedule rows). Localised USA set:
 
 | Set | Count (verify) | Decomp source |
 | --- | --- | --- |
-| Fish | ~40 (45 spawn types) | `ac_gyoei_type.c_inc`, `ac_set_ovl_gyoei.c` |
-| Insects | ~40 | `ac_insect_data.c_inc`, `ac_set_ovl_insect.c` |
+| Fish | 45 fish types + 5 extended catches | `aGYO_TYPE_NUM`, `aGYO_TYPE_EXTENDED_NUM`, `ac_gyoei_type.c_inc`, `ac_set_ovl_gyoei.c` |
+| Insects | 40 individual types | `aINS_INSECT_TYPE_NUM`, `ac_insect_data.c_inc`, `ac_set_ovl_insect.c` |
 | Fossils | ~25 items / ~13 skeletons | `ac_museum_fossil.c` |
-| Paintings | ~25 | `ac_museum_picture.c` |
+| Paintings | 15 | `ac_museum_picture.c` |
 | Gyroids | ~127 | `m_melody.c`, `ac_my_room_melody.c_inc` |
 | Furniture | ~1000+ | `ac_furniture_data.c_inc`, `f_furniture.c` |
 | Wallpaper / carpet | ~90 each | `m_item_name.c` |
 | Clothing (shirts) | ~230 | `m_item_name.c` |
-| Umbrellas | ~30 | `ac_t_umbrella.c` |
+| Umbrellas | 32 standard designs | `ac_t_umbrella.c` |
 | Villagers (roster) | ~215 | `ac_npc_data.c_inc`, `m_name_table.c` |
-| K.K. songs | ~50 | `m_music_ovl.c`, `m_mscore_ovl.c` |
+| K.K. songs | 55 | `m_music_ovl.c`, `m_mscore_ovl.c`, `audioheaders.c` |
 | NES games | ~15–19 | `src/static/Famicom`, `famicom_emu.c` |
-| Stationery | ~60 | `m_mail.c` |
+| Stationery | 64 designs | `m_mail.c`, `lat_letterNN` |
 | Hourly BGM tracks | 24 | `m_bgm.c` |
-| Holidays / events | 117 schedule rows | `m_event_schedule.c_inc` |
+| Holidays / events | 117 unique event IDs / 134 schedule rows | `m_event_schedule.c_inc` |
 | Calendar terms | 18 | `lb_rtc.c` |
 
 ---
