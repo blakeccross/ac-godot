@@ -245,7 +245,7 @@ func _persist() -> StringName:
 
 
 func _cell() -> Vector2i:
-	var world: Node = get_tree().get_first_node_in_group("world") if get_tree() != null else null
+	var world := World.find(get_tree())
 	if world != null and "grid" in world and world.grid != null:
 		return world.grid.world_to_cell(global_position)
 	return Vector2i.ZERO

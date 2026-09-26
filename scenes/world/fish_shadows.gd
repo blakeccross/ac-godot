@@ -45,12 +45,12 @@ func school() -> FishSchool:
 
 
 func _bind_school() -> void:
-	var world: Node = get_parent()
-	while world != null and not world.is_in_group("world"):
-		world = world.get_parent()
-	if world == null:
+	var node: Node = get_parent()
+	while node != null and not node is World:
+		node = node.get_parent()
+	if node == null:
 		return
-	_school = world.get("fish") as FishSchool
+	_school = (node as World).fish
 
 
 func _process(delta: float) -> void:
@@ -66,11 +66,10 @@ func _process(delta: float) -> void:
 
 func _make_sense() -> FishShadow.Sense:
 	var sense := FishShadow.Sense.new()
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D if get_tree() else null
+	var player := Player.find(get_tree())
 	if player != null:
 		sense.player_position = player.global_position
-		if player.has_method("is_dashing"):
-			sense.player_dashing = bool(player.call("is_dashing"))
+		sense.player_dashing = player.is_dashing()
 	Fishing.fill_sense(sense)
 	return sense
 

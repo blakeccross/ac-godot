@@ -6,10 +6,9 @@ extends RefCounted
 ## (`aINS_actor_move`) then calls `actor_move()` here — the program's state machine
 ## (`*_actor_move` → `action_proc`). Subclasses live beside this file.
 ##
-## Angles: decomp uses s16 (0..65535, wrapping). We keep radians; `S16` converts a
+## Angles: decomp uses s16 (0..65535, wrapping). We keep radians; `MLib.S16` converts a
 ## decomp step (`0x800` etc.) to radians. Distances are GX unless noted.
 
-const S16 := TAU / 65536.0
 
 ## `aINS_INSECT_TYPE_*` for readability inside the overlays.
 const T_COMMON_BUTTERFLY := 0

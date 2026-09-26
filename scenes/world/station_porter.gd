@@ -16,7 +16,7 @@ const WAIT_CLIP := "npc_1_wait1"
 const TITLE_GX := Vector3(2140.0, 0.0, 820.0)
 ## `chase_angle` scales its step by `game_GameFrame_2F` (frame × 0.5), so a chase-angle turn is
 ## `step × 30` per second at any frame rate: `0x800` → half of it per 60 Hz frame.
-const TURN_STEP := TAU * float(0x800) / 65536.0 / DecompTime.TICKS_PER_FRAME
+const TURN_STEP := float(0x800) * MLib.S16 / DecompTime.TICKS_PER_FRAME
 const LOOK_CONE := deg_to_rad(67.5)
 
 var facing: float = 0.0
@@ -58,7 +58,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _tick() -> void:
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var player := Player.find(get_tree())
 	if player == null:
 		return
 	var to: Vector3 = player.global_position - global_position

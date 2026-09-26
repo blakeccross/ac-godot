@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"cleo"
 display_name = "Cleo"
 species = &"horse"
+texture_set = &"hrs_5"
 personality = ExtResource("2")
 starter = true
 wall_index = 50

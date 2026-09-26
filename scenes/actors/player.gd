@@ -1,3 +1,4 @@
+class_name Player
 extends CharacterBody3D
 
 ## CharacterBody3D player. Locomotion feel from `m_player_main_walk`; visual from
@@ -160,8 +161,16 @@ var _wade: Dictionary = {}
 static var _door_root_xz: Dictionary = {}
 
 
+const GROUP := &"player"
+
+
+## The field / room player in `tree`, or null.
+static func find(tree: SceneTree) -> Player:
+	return tree.get_first_node_in_group(GROUP) as Player if tree != null else null
+
+
 func _ready() -> void:
-	add_to_group("player")
+	add_to_group(GROUP)
 	_motor.ground_sampler = _motor_ground_y
 	_motor.flat_sampler = _motor_unit_flat
 	_look.position = Vector3(0.0, LOOK_HEIGHT, 0.0)
@@ -816,13 +825,7 @@ func _tick_talk_face(delta: float) -> void:
 	_talk_turn_steps.add(delta)
 	while _talk_turn_steps.next():
 		var target: float = TalkCamera.face_yaw_toward(global_position, _talk_face.global_position)
-		_motor.facing = MLib.short_angle2(
-			_motor.facing,
-			target,
-			TalkCamera.TURN_FRACTION,
-			TalkCamera.TURN_MAX_STEP,
-			TalkCamera.TURN_MIN_STEP
-		)
+		_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, target)
 
 
 ## After a room load, walk-in doors stay armed until the probe leaves every auto door.
@@ -1046,11 +1049,11 @@ func _sample_door_root_xz() -> Vector3:
 func _bg() -> Array:
 	if get_tree() == null:
 		return []
-	var world: Node = get_tree().get_first_node_in_group("world")
+	var world := World.find(get_tree())
 	if world == null:
 		return []
-	var data: Variant = world.get("layout")
-	var grid: Variant = world.get("grid")
+	var data: Variant = world.layout
+	var grid: Variant = world.grid
 	if not (data is WorldData) or not (grid is WorldGrid):
 		return []
 	return [data, grid]
@@ -1370,7 +1373,7 @@ func _step_effects(gait: PlayerLocomotion.Gait, bg: Array, attr: int, foot: Vect
 		if randi() % 4 == 0:
 			var cell: Vector2i = grid.world_to_cell(global_position)
 			var flower: int = StepFx.flower_index(global_position)
-			var world: Node = get_tree().get_first_node_in_group("world")
+			var world := World.find(get_tree())
 			if PlantGrowth.trample_flower(world, grid, cell):
 				## `mFI_Wpos2UtCenterWpos`: petals burst from the unit centre.
 				var center: Vector3 = grid.cell_corner(cell) + Vector3(grid.cell_size, 0.0, grid.cell_size) * 0.5
@@ -1491,7 +1494,7 @@ func _make_context() -> InteractionContext:
 	ctx.inventory = Game.inventory
 	var tree := get_tree()
 	if tree != null:
-		ctx.world = tree.get_first_node_in_group("world")
+		ctx.world = World.find(tree)
 	return ctx
 
 
@@ -1722,13 +1725,7 @@ func _play_show(beat: Fishing.ReelBeat) -> void:
 		## accumulated on a fixed tick rather than scaled by the frame we happen to get.
 		turn_steps.add(delta)
 		while turn_steps.next():
-			_motor.facing = MLib.short_angle2(
-				_motor.facing,
-				Fishing.SHOW_YAW,
-				Fishing.SHOW_TURN_FRACTION,
-				Fishing.SHOW_TURN_MAX_STEP,
-				Fishing.SHOW_TURN_MIN_STEP
-			)
+			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW)
 	if beat.catch_msg == 0:
 		## Nothing to hold for, so the pose still has to outlast its own clip: dropping
 		## `_busy` early would let the idle animation cut it off mid-hold.
@@ -1790,13 +1787,7 @@ func _play_bug_show(beat: Netting.CatchBeat) -> void:
 			continue
 		turn_steps.add(delta)
 		while turn_steps.next():
-			_motor.facing = MLib.short_angle2(
-				_motor.facing,
-				Netting.SHOW_YAW,
-				Netting.SHOW_TURN_FRACTION,
-				Netting.SHOW_TURN_MAX_STEP,
-				Netting.SHOW_TURN_MIN_STEP
-			)
+			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Netting.SHOW_YAW)
 	if beat.catch_msg == 0:
 		if held < length:
 			await get_tree().create_timer(length - held).timeout
@@ -1836,23 +1827,18 @@ func _report_catch(
 ) -> void:
 	if catch_msg == 0:
 		return
-	var ui: Node = null
-	if get_tree() != null:
-		ui = get_tree().get_first_node_in_group("dialogue_ui")
+	var ui := DialogueOverlay.find(get_tree())
 	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % catch_msg))
 	var fallback: String = (
 		BugCatalog.catch_text(catch_msg) if use_bug_text else FishCatalog.catch_text(catch_msg)
 	)
-	if ui == null or not ui.has_signal("closed"):
+	if ui == null:
 		Game.post_notice(fallback)
 		return
-	if data != null and ui.has_method("play"):
-		ui.call("play", data, null)
-	elif ui.has_method("say"):
-		ui.call("say", fallback)
+	if data != null:
+		ui.play(data, null)
 	else:
-		Game.post_notice(fallback)
-		return
+		ui.say(fallback)
 	await ui.closed
 	if not pockets_full:
 		return
@@ -1862,11 +1848,8 @@ func _report_catch(
 	)
 	if text.is_empty():
 		return
-	if ui.has_method("say"):
-		ui.call("say", text)
-		await ui.closed
-	else:
-		Game.post_notice(text)
+	ui.say(text)
+	await ui.closed
 
 
 func _play_clip(clip_name: StringName, tool_clip: StringName) -> void:

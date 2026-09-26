@@ -26,7 +26,6 @@ const LAMP_LIGHT_ON := Vector3(200.0, 200.0, 150.0)
 const LAMP_LIGHT_STEP_ON := Vector3(8.0, 8.0, 4.0)
 const LAMP_LIGHT_STEP_OFF := Vector3(1.0, 1.0, 0.5)
 ## `add_calc(&sun_percent, …, 1−√0.5, 0.1, 0.005)` once per decomp frame (`mEnv_ChangeDiffuseLight`).
-const _SUN_FRACTION := 0.29289321881
 const _SUN_MAX_STEP := 0.1
 const _SUN_MIN_STEP := 0.005
 
@@ -82,7 +81,7 @@ static func _step_sun_percent() -> void:
 	if absf(diff) <= _SUN_MIN_STEP:
 		sun_percent = _sun_target
 		return
-	var step: float = diff * _SUN_FRACTION
+	var step: float = diff * MLib.HALF_FRACTION
 	if absf(step) > _SUN_MAX_STEP:
 		step = _SUN_MAX_STEP * signf(step)
 	if absf(step) < _SUN_MIN_STEP:

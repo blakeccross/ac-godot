@@ -3,7 +3,27 @@ extends RefCounted
 
 ## Transcriptions of the `m_lib.c` easing helpers that more than one system needs. Angles are
 ## radians here rather than the original's s16 (0x10000 to a turn), so callers convert their
-## step limits once where they declare them.
+## step limits once where they declare them (`2500.0 * MLib.S16`).
+
+## Radians per s16 angle unit (`0x10000` = a full turn).
+const S16 := TAU / 65536.0
+## `1.0f - sqrtf(0.5f)`: the stock `add_calc` fraction — half the gap every two ticks.
+const HALF_FRACTION := 1.0 - sqrt(0.5)
+
+
+static func s16_to_rad(value: float) -> float:
+	return value * S16
+
+
+## Nearest s16 angle, wrapped to 0..0xFFFF.
+static func rad_to_s16(radians: float) -> int:
+	return int(round(radians / S16)) & 0xFFFF
+
+
+## Reinterpret the low 16 bits as a signed `s16` (−0x8000..0x7FFF).
+static func s16_signed(value: int) -> int:
+	var v: int = value & 0xFFFF
+	return v - 0x10000 if v >= 0x8000 else v
 
 
 ## `add_calc_short_angle2`: move a fraction of the shortest way to `target`, clamped to

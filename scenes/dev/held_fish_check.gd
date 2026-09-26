@@ -108,12 +108,12 @@ func _shoot_alone(id: StringName, fish: FishData) -> void:
 ## whose space is scaled, and land somewhere the camera can actually see.
 func _shoot_on_player(id: StringName) -> void:
 	var viewport: SubViewport = _viewport()
-	var player: Node3D = load("res://scenes/actors/player.tscn").instantiate() as Node3D
+	var player: Player = load("res://scenes/actors/player.tscn").instantiate() as Player
 	viewport.add_child(player)
 	for _i in 4:
 		await get_tree().process_frame
 
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(player.get("_mesh") as Node)
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(player._mesh)
 	if skeleton == null:
 		print("player        no skeleton")
 		return
@@ -127,7 +127,7 @@ func _shoot_on_player(id: StringName) -> void:
 	outcome.fish = FishCatalog.get_fish(id)
 	outcome.catch_msg = outcome.fish.catch_msg
 	var beats: Array[Fishing.ReelBeat] = Fishing.reel_beats(outcome)
-	player.call("_play_show", beats[beats.size() - 1])
+	player._play_show(beats[beats.size() - 1])
 	for _i in 8:
 		await get_tree().process_frame
 

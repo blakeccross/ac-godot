@@ -26,27 +26,27 @@ func _run() -> void:
 	add_child(load("res://scenes/world/world.tscn").instantiate())
 	for _i in 30:
 		await get_tree().process_frame
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var player := Player.find(get_tree())
 	var cam := Camera3D.new()
 	add_child(cam)
 	for tool: StringName in TOOLS:
 		Game.inventory.clear()
 		Game.inventory.add(ItemCatalog.get_item(tool), 1)
 		Game.inventory.equip_slot(0)
-		player.call("set_facing", 0.0)
+		player.set_facing(0.0)
 		await get_tree().create_timer(1.6).timeout
 		cam.current = true
 		var at: Vector3 = player.global_position
 		cam.global_position = at + Vector3(-2.2, 1.6, 2.6)
 		cam.look_at(at + Vector3(0.0, 0.8, 0.0))
 		await _shot("%s_idle" % tool)
-		player.call("begin_demo_walk", at + Vector3(8.0, 0.0, 0.0), 3.0, 0.1)
+		player.begin_demo_walk(at + Vector3(8.0, 0.0, 0.0), 3.0, 0.1)
 		await get_tree().create_timer(0.7).timeout
 		var at2: Vector3 = player.global_position
 		cam.global_position = at2 + Vector3(2.4, 1.6, 2.4)
 		cam.look_at(at2 + Vector3(0.0, 0.8, 0.0))
 		await _shot("%s_walk" % tool)
-		player.call("end_demo_walk")
+		player.end_demo_walk()
 		await get_tree().create_timer(0.8).timeout
 		player.global_position = at
 	get_tree().quit()

@@ -19,7 +19,7 @@ func _run() -> void:
 	Game.world_mode = WorldData.Mode.GENERATED
 	Game.world_seed = 42
 
-	var world: Node3D = load("res://scenes/world/world.tscn").instantiate() as Node3D
+	var world: World = load("res://scenes/world/world.tscn").instantiate() as World
 	add_child(world)
 	for _i in 45:
 		await get_tree().process_frame
@@ -30,8 +30,8 @@ func _run() -> void:
 		if child is CanvasLayer:
 			(child as CanvasLayer).visible = false
 
-	var grid: WorldGrid = world.get("grid") as WorldGrid
-	var school: FishSchool = world.get("fish") as FishSchool
+	var grid: WorldGrid = world.grid
+	var school: FishSchool = world.fish
 	assert(school != null and school.has_water())
 
 	var water_cell := _pick_open_river_cell(grid, school)

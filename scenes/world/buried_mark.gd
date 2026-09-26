@@ -35,8 +35,8 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		return false
 	if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):
 		return false
-	var world: Node = get_tree().get_first_node_in_group("world") if get_tree() != null else null
-	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+	var world := World.find(get_tree())
+	var grid: WorldGrid = world.grid if world != null else null
 	if grid == null:
 		return false
 	return BuriedUse.dig(ctx, grid.world_to_cell(global_position))

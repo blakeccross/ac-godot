@@ -88,14 +88,14 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 
 func _fuwafuwa(a: BugActor) -> void:
 	var ang: int = a.s32_work[0]
-	var last: float = a.f32_work[0] * sin(ang * S16)
+	var last: float = a.f32_work[0] * sin(ang * MLib.S16)
 	a.s32_work[0] = int(ang + 0x180) & 0xFFFF
 	if (int(ang + 0x180) & 0xFFFF) < 32768 and ang >= 32768:
 		pass
 	if ((ang + 0x180) & 0x8000) != 0 and (ang & 0x8000) == 0:
 		a.f32_work[0] = 10.0 + a._rng.randf() * 10.0
 	var na: int = ang + 0x180
-	var now: float = a.f32_work[0] * sin(na * S16)
+	var now: float = a.f32_work[0] * sin(na * MLib.S16)
 	a.f32_work[1] = BugProgram.chase_f(a.f32_work[1], a.max_velocity_y, a.gravity * 0.5)
 	a.pos_speed.y = a.f32_work[1] + (now - last)
 
@@ -113,7 +113,7 @@ func _fly(a: BugActor, sense: BugActor.Sense) -> void:
 	if _in_reach(a, sense):
 		setup_action(a, SEARCH)
 	else:
-		a.rot.y += 0x80 * S16
+		a.rot.y += 0x80 * MLib.S16
 		a.angle_y = a.rot.y
 
 
@@ -125,7 +125,7 @@ func _search(a: BugActor, sense: BugActor.Sense) -> void:
 	if d <= ATTACK_DIST:
 		setup_action(a, ATTACK_WAIT)
 		return
-	var step: float = (0x100 if d <= 20.0 else 0x200) * S16
+	var step: float = (0x100 if d <= 20.0 else 0x200) * MLib.S16
 	var to_pl: float = BugProgram.angle_to(a.pos, sense.player_position / BugActor.GX_M)
 	a.rot.y = BugProgram.chase_angle(a.rot.y, to_pl, step)
 	a.angle_y = a.rot.y
@@ -139,7 +139,7 @@ func _attack_wait(a: BugActor, sense: BugActor.Sense) -> void:
 		setup_action(a, SEARCH)
 		return
 	var to_pl: float = BugProgram.angle_to(a.pos, sense.player_position / BugActor.GX_M)
-	a.rot.y = BugProgram.chase_angle(a.rot.y, to_pl, 0x600 * S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, to_pl, 0x600 * MLib.S16)
 	a.angle_y = a.rot.y
 	a.s32_work[1] += 1
 	if a.s32_work[1] > ATTACK_TIME:

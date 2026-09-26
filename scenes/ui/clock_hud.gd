@@ -23,8 +23,8 @@ func inventory_is_open() -> bool:
 
 
 func dialogue_is_open() -> bool:
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
+	var ui := DialogueOverlay.find(get_tree())
+	return ui != null and ui.is_open()
 
 
 func shop_is_open() -> bool:

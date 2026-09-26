@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"nibbles"
 display_name = "Nibbles"
 species = &"squirrel"
+texture_set = &"squ_8"
 personality = ExtResource("2")
 starter = true
 wall_index = 33

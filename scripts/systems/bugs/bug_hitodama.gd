@@ -88,9 +88,9 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 func _fuwafuwa(a: BugActor, hard: bool) -> void:
 	var dir: int = 0x400 if hard else (0x100 + a._rng.randi_range(0, 0x2FF))
 	var grav: float = 13.0 if hard else 10.0
-	var last: float = sin(a.s32_work[3] * S16) * 10.0
+	var last: float = sin(a.s32_work[3] * MLib.S16) * 10.0
 	a.s32_work[3] = (a.s32_work[3] + dir) & 0xFFFF
-	var now: float = grav * sin(a.s32_work[3] * S16)
+	var now: float = grav * sin(a.s32_work[3] * MLib.S16)
 	a.pos_speed.y = a.gravity + (now - last)
 
 
@@ -108,7 +108,7 @@ func _fly(a: BugActor, _sense: BugActor.Sense) -> void:
 		a.s32_work[2] -= 1
 		if a.s32_work[2] < 0:
 			_set_move_info(a)
-	a.angle_y = wrapf(a.angle_y + a.s32_work[1] * S16, -PI, PI)
+	a.angle_y = wrapf(a.angle_y + a.s32_work[1] * MLib.S16, -PI, PI)
 	a.rot.y = a.angle_y
 
 

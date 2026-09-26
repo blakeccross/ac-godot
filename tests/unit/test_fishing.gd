@@ -138,13 +138,13 @@ func test_cast_lands_partway_through_the_swing() -> void:
 		assert_float(dig.effect_frame).is_less(0.0)
 
 	## And the release is genuinely inside the swing, not past the end of it.
-	var player: Node3D = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Node3D
+	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
 	var anim: AnimationPlayer = VisualAnimation.find_animation_player(player)
 	if anim == null:
 		return
-	var clip: String = player.call("_resolve_clip", "ply_1_sao_swing1")
+	var clip: String = player._resolve_clip("ply_1_sao_swing1")
 	if clip.is_empty():
 		return
 	var length: float = anim.get_animation(clip).length
@@ -152,14 +152,14 @@ func test_cast_lands_partway_through_the_swing() -> void:
 
 
 func test_show_off_pose_waits_for_the_catch_report() -> void:
-	var overlay: CanvasLayer = (
-		auto_free(load("res://scenes/ui/dialogue_overlay.tscn").instantiate()) as CanvasLayer
+	var overlay: DialogueOverlay = (
+		auto_free(load("res://scenes/ui/dialogue_overlay.tscn").instantiate()) as DialogueOverlay
 	)
 	add_child(overlay)
-	var player: Node3D = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Node3D
+	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
-	var motor: PlayerLocomotion = player.get("_motor") as PlayerLocomotion
+	var motor: PlayerLocomotion = player._motor
 	var entry: float = PI * 0.75
 	motor.facing = entry
 	var beat := Fishing.ReelBeat.new(
@@ -169,12 +169,12 @@ func test_show_off_pose_waits_for_the_catch_report() -> void:
 		Fishing.SHOW_HOLD_SECONDS,
 		FishCatalog.get_fish(&"crucian_carp").catch_msg
 	)
-	player.call("_play_show", beat)
+	player._play_show(beat)
 
 	var opened: bool = false
 	for _i in 180:
 		await get_tree().process_frame
-		if bool(overlay.call("is_open")):
+		if overlay.is_open():
 			opened = true
 			break
 	assert_bool(opened).override_failure_message(
@@ -185,10 +185,10 @@ func test_show_off_pose_waits_for_the_catch_report() -> void:
 	## the facing must not snap back while the text is readable.
 	for _i in 10:
 		await get_tree().process_frame
-	assert_bool(bool(overlay.call("is_open"))).is_true()
+	assert_bool(overlay.is_open()).is_true()
 	assert_float(motor.facing).is_not_equal(entry)
 
-	overlay.call("close")
+	overlay.close()
 	var restored: bool = false
 	for _i in 60:
 		await get_tree().process_frame
@@ -374,7 +374,7 @@ func test_reel_clips_exist_on_the_pipeline_meshes() -> void:
 
 
 func test_player_resolves_every_reel_clip() -> void:
-	var player: Node3D = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Node3D
+	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
 	var anim: AnimationPlayer = VisualAnimation.find_animation_player(player)
@@ -385,17 +385,17 @@ func test_player_resolves_every_reel_clip() -> void:
 	for wanted: StringName in [
 		Fishing.REEL_PULL, Fishing.REEL_LAND, Fishing.REEL_EMPTY, Fishing.REEL_SHOW
 	]:
-		var resolved: String = player.call("_resolve_clip", String(wanted))
+		var resolved: String = player._resolve_clip(String(wanted))
 		assert_str(resolved).override_failure_message(
 			"player cannot resolve %s; has %s" % [wanted, anim.get_animation_list()]
 		).is_not_empty()
 
 
 func test_player_turns_to_the_camera_for_the_show_off_pose() -> void:
-	var player: Node3D = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Node3D
+	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
-	var motor: PlayerLocomotion = player.get("_motor") as PlayerLocomotion
+	var motor: PlayerLocomotion = player._motor
 	assert_that(motor).is_not_null()
 	## Facing away from the camera, the way you stand when the water is behind the player.
 	var entry: float = PI * 0.75
@@ -403,7 +403,7 @@ func test_player_turns_to_the_camera_for_the_show_off_pose() -> void:
 	var beat := Fishing.ReelBeat.new(
 		Fishing.REEL_SHOW, Fishing.ROD_LAND, true, Fishing.SHOW_HOLD_SECONDS
 	)
-	player.call("_play_show", beat)
+	player._play_show(beat)
 
 	var away: float = absf(angle_difference(entry, Fishing.SHOW_YAW))
 	var turned: bool = false
@@ -525,10 +525,10 @@ func test_the_coelacanth_waits_for_rain() -> void:
 ## `aUKI_catch` puts `uki_pos` (and so the hooked fish) at `left_hand_pos` while the bobber
 ## goes to the right hand, so the catch really is in the player's other hand.
 func test_the_catch_hangs_off_the_free_hand() -> void:
-	var player: Node3D = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Node3D
+	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(player.get("_mesh") as Node)
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(player._mesh)
 	assert_that(skeleton).is_not_null()
 	assert_bool(HeldCatch.is_held(skeleton)).is_false()
 
@@ -689,10 +689,10 @@ func test_the_show_off_beat_carries_the_fish() -> void:
 
 
 func test_the_pose_holds_the_fish_until_the_report_closes() -> void:
-	var player: Node3D = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Node3D
+	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(player.get("_mesh") as Node)
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(player._mesh)
 	var beat := Fishing.ReelBeat.new(
 		Fishing.REEL_SHOW,
 		Fishing.ROD_LAND,
@@ -701,7 +701,7 @@ func test_the_pose_holds_the_fish_until_the_report_closes() -> void:
 		0,
 		FishCatalog.get_fish(&"crucian_carp")
 	)
-	player.call("_play_show", beat)
+	player._play_show(beat)
 
 	var held: bool = false
 	for _i in 60:
@@ -725,21 +725,21 @@ func test_the_pose_holds_the_fish_until_the_report_closes() -> void:
 ## to `putaway_rod`, which plays `PUTAWAY_T1` before the player is free again. Without it the
 ## catch simply vanished out of a raised hand.
 func test_the_catch_is_put_away_once_the_report_is_done() -> void:
-	var player: Node3D = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Node3D
+	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
 	add_child(player)
 	await get_tree().process_frame
-	var anim: AnimationPlayer = player.get("_anim") as AnimationPlayer
+	var anim: AnimationPlayer = player._anim
 	assert_that(anim).is_not_null()
 
 	## The clip has to be in the converted bank, or the beat silently degrades to a snap back
 	## to idle: `PLAYER_CORE_ANIMS` names each one and nothing else pulls this one in.
-	var putaway: String = player.call("_resolve_clip", String(Fishing.PUTAWAY))
+	var putaway: String = player._resolve_clip(String(Fishing.PUTAWAY))
 	assert_str(putaway).override_failure_message(
 		"ply_1_putaway_t1 is not in the player GLB — add it to PLAYER_CORE_ANIMS and reconvert"
 	).is_not_empty()
 	assert_bool(anim.has_animation(putaway)).is_true()
 
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(player.get("_mesh") as Node)
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(player._mesh)
 	var beat := Fishing.ReelBeat.new(
 		Fishing.REEL_SHOW,
 		Fishing.ROD_LAND,
@@ -748,7 +748,7 @@ func test_the_catch_is_put_away_once_the_report_is_done() -> void:
 		0,
 		FishCatalog.get_fish(&"crucian_carp")
 	)
-	player.call("_play_show", beat)
+	player._play_show(beat)
 
 	## The fish rides the hand down rather than blinking out as the pose breaks, so it should
 	## still be in hand on the frame the putaway starts.
@@ -908,25 +908,13 @@ func test_show_off_turn_settles_facing_the_camera() -> void:
 	var yaw: float = PI * 0.95
 	var frames: int = 0
 	while not is_equal_approx(yaw, Fishing.SHOW_YAW) and frames < 600:
-		yaw = MLib.short_angle2(
-			yaw,
-			Fishing.SHOW_YAW,
-			Fishing.SHOW_TURN_FRACTION,
-			Fishing.SHOW_TURN_MAX_STEP,
-			Fishing.SHOW_TURN_MIN_STEP
-		)
+		yaw = PlayerLocomotion.ease_turn(yaw, Fishing.SHOW_YAW)
 		frames += 1
 	assert_float(yaw).is_equal_approx(Fishing.SHOW_YAW, 0.0001)
 	assert_int(frames).is_less(int(Fishing.SHOW_HOLD_SECONDS * DecompTime.TICK_HZ))
 	## `maxStep` bounds the first step of a half turn.
-	var capped: float = MLib.short_angle2(
-		PI * 0.5,
-		Fishing.SHOW_YAW,
-		Fishing.SHOW_TURN_FRACTION,
-		Fishing.SHOW_TURN_MAX_STEP,
-		Fishing.SHOW_TURN_MIN_STEP
-	)
-	assert_float(absf(PI * 0.5 - capped)).is_less_equal(Fishing.SHOW_TURN_MAX_STEP + 0.0001)
+	var capped: float = PlayerLocomotion.ease_turn(PI * 0.5, Fishing.SHOW_YAW)
+	assert_float(absf(PI * 0.5 - capped)).is_less_equal(PlayerLocomotion.TURN_MAX_RAD + 0.0001)
 
 
 func test_min_step_keeps_a_turn_from_stalling_short() -> void:
@@ -935,19 +923,19 @@ func test_min_step_keeps_a_turn_from_stalling_short() -> void:
 	assert_float(MLib.short_angle2(0.0, 1e-9, 0.5, 1.0)).is_equal(1e-9)
 	## `notice_rod` passes 50, so a turn this close still moves by exactly that floor instead
 	## of creeping in ever-smaller fractions.
-	var near: float = Fishing.SHOW_TURN_MIN_STEP * 0.5
+	var near: float = PlayerLocomotion.TURN_MIN_RAD * 0.5
 	var stepped: float = MLib.short_angle2(
-		near, 0.0, 0.0001, Fishing.SHOW_TURN_MAX_STEP, Fishing.SHOW_TURN_MIN_STEP
+		near, 0.0, 0.0001, PlayerLocomotion.TURN_MAX_RAD, PlayerLocomotion.TURN_MIN_RAD
 	)
 	## The floor overshoots what is left, so it lands on the target rather than past it.
 	assert_float(stepped).is_equal(0.0)
 
 
 func test_world_owns_a_school_and_an_effects_node_that_finds_it() -> void:
-	var world: Node3D = auto_free(load("res://scenes/world/world.tscn").instantiate()) as Node3D
+	var world: World = auto_free(load("res://scenes/world/world.tscn").instantiate()) as World
 	add_child(world)
 	await get_tree().process_frame
-	var school: FishSchool = world.get("fish") as FishSchool
+	var school: FishSchool = world.fish
 	assert_that(school).is_not_null()
 	## The authored town has a river, so a fresh field always has somewhere to put fish.
 	assert_bool(school.has_water()).is_true()
@@ -957,7 +945,7 @@ func test_world_owns_a_school_and_an_effects_node_that_finds_it() -> void:
 	## Driven by hand rather than by frames: a headless delta is not wall clock, so waiting
 	## on `_process` to cover `SPAWN_INTERVAL` would be a coin flip.
 	var sense := FishShadow.Sense.new()
-	var grid: WorldGrid = world.get("grid") as WorldGrid
+	var grid: WorldGrid = world.grid
 	sense.player_position = grid.cell_to_world(school.bodies[0].cells[0])
 	for _i: int in 60:
 		school.tick(0.1, sense)

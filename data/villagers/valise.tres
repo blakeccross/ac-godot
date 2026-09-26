@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"valise"
 display_name = "Valise"
 species = &"kangaroo"
+texture_set = &"kgr_5"
 personality = ExtResource("2")
 starter = false
 wall_index = 21

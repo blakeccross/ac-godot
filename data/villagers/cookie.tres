@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"cookie"
 display_name = "Cookie"
 species = &"dog"
+texture_set = &"dog_7"
 personality = ExtResource("2")
 starter = true
 wall_index = 22

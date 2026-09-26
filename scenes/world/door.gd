@@ -77,9 +77,9 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 		## Museum Exit sensor: player stops, then the wipe warps the scene.
 		if action.id != Interaction.ENTER:
 			return false
-		var exit_player: Node = get_tree().get_first_node_in_group("player") if get_tree() != null else null
-		if exit_player != null and is_instance_valid(exit_player) and exit_player.has_method("stop_for_door"):
-			exit_player.call("stop_for_door")
+		var exit_player := Player.find(get_tree())
+		if exit_player != null and is_instance_valid(exit_player):
+			exit_player.stop_for_door()
 		await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
 		return Game.exit_interior()
 	if Game.is_indoors() and linked_room_id != &"":
@@ -151,28 +151,22 @@ func _is_museum_room(room_id: StringName) -> bool:
 
 func _play_indoor_link_enter() -> void:
 	## Wing doors have no structure cKF — walk INTO_S1 into the sensor like outdoor museum.
-	var player: Node = get_tree().get_first_node_in_group("player")
+	var player := Player.find(get_tree())
 	if player == null or not is_instance_valid(player):
-		return
-	if not player.has_method("begin_door_enter"):
 		return
 	var target := Vector3(global_position.x, player.global_position.y, global_position.z)
 	var to: Vector3 = target - player.global_position
 	to.y = 0.0
 	var yaw: float = atan2(to.x, to.z) if to.length_squared() > 0.0001 else 0.0
-	player.call("begin_door_enter", target, yaw, true)
-	if player.has_method("await_door_enter"):
-		await player.call("await_door_enter")
-	if player.has_method("end_door_enter"):
-		player.call("end_door_enter")
+	player.begin_door_enter(target, yaw, true)
+	await player.await_door_enter()
+	player.end_door_enter()
 
 
 ## Outdoor leave through Exit sensor: INTO_S1 past the door (`EXIT_DOOR` walk).
 func _play_indoor_exit_through_sensor() -> void:
-	var player: Node = get_tree().get_first_node_in_group("player")
+	var player := Player.find(get_tree())
 	if player == null or not is_instance_valid(player):
-		return
-	if not player.has_method("run_indoor_exit"):
 		return
 	var sensor := Vector3(global_position.x, player.global_position.y, global_position.z)
 	var to: Vector3 = sensor - player.global_position
@@ -185,7 +179,7 @@ func _play_indoor_exit_through_sensor() -> void:
 	var along := Vector3(sin(yaw), 0.0, cos(yaw))
 	var target: Vector3 = sensor + along * (StructureDoor.INTO_GX * FieldCatalog.GX_TO_METERS)
 	target.y = player.global_position.y
-	await player.call("run_indoor_exit", target, yaw)
+	await player.run_indoor_exit(target, yaw)
 
 
 func _enter_target() -> StringName:

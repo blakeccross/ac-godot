@@ -1,3 +1,4 @@
+class_name World
 extends Node3D
 
 ## Playable acre. Owns a WorldGrid; children are presentation only.
@@ -22,8 +23,16 @@ var _lightning_flash: bool = false
 @onready var _navigation: NavigationRegion3D = $Navigation
 
 
+const GROUP := &"world"
+
+
+## The outdoor field in `tree`, or null.
+static func find(tree: SceneTree) -> World:
+	return tree.get_first_node_in_group(GROUP) as World if tree != null else null
+
+
 func _ready() -> void:
-	add_to_group("world")
+	add_to_group(GROUP)
 	Game.notify_world_ready()
 	layout = Game.resolve_world_data()
 	FieldCatalog.warn_grass_pattern_pack_missing()
@@ -112,7 +121,7 @@ func _play_outdoor_bgm() -> void:
 
 
 func _spawn_player() -> void:
-	var player: CharacterBody3D = PLAYER_SCENE.instantiate() as CharacterBody3D
+	var player: Player = PLAYER_SCENE.instantiate() as Player
 	$Characters.add_child(player)
 	var pos := Game.player_position
 	if pos.is_equal_approx(Game.DEFAULT_SPAWN):
@@ -128,14 +137,13 @@ func _spawn_player() -> void:
 		Game.emerge_from_door = false
 		## Hidden until `begin_door_leave` poses GO_OUT — otherwise the idle model
 		## shows on the stand for a frame before the emerge starts (it is deferred).
-		(player as Node3D).visible = false
+		player.visible = false
 		## `OUTDOOR` carries no item; `take_out_tool` brings it back after the emerge.
-		if player.has_method("stow_tool_for_door_exit"):
-			player.call("stow_tool_for_door_exit")
+		player.stow_tool_for_door_exit()
 		call_deferred("_play_door_emerge", player)
 
 
-func _play_door_emerge(player: Node) -> void:
+func _play_door_emerge(player: Player) -> void:
 	## Begin with the iris opening, not while the world is still stalling on its first frames.
 	await SceneTransition.wait_wipe_in_start()
 	if player == null or not is_instance_valid(player):
@@ -145,10 +153,9 @@ func _play_door_emerge(player: Node) -> void:
 		await StructureDoor.play_emerge(host)
 	if not is_instance_valid(player):
 		return
-	(player as Node3D).visible = true
+	player.visible = true
 	## `RETURN_OUTDOOR` → `TAKEOUT_ITEM` → `RETURN_OUTDOOR2` once the emerge demo ends.
-	if player.has_method("take_out_tool"):
-		await player.call("take_out_tool")
+	await player.take_out_tool()
 
 
 func _apply_time_of_day() -> void:

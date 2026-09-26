@@ -29,7 +29,7 @@ func _run() -> void:
 	add_child(world)
 	for _i in 30:
 		await get_tree().process_frame
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var player := Player.find(get_tree())
 	var gyroid: Node3D = null
 	for n: Node in get_tree().get_nodes_in_group("haniwa"):
 		if n.name == "player_haniwa":
@@ -40,7 +40,7 @@ func _run() -> void:
 		return
 	## One unit south of the gyroid, facing it (north).
 	player.global_position = gyroid.global_position + Vector3(0.0, 0.0, 2.0)
-	player.call("set_facing", PI)
+	player.set_facing(PI)
 	for _i in 20:
 		await get_tree().physics_frame
 	print("AUDIT gyroid=", gyroid.global_position, " player=", player.global_position)
@@ -48,13 +48,13 @@ func _run() -> void:
 	_press_a()
 	for _i in 30:
 		await get_tree().process_frame
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
-	print("AUDIT talk opened=", ui != null and bool(ui.call("is_open")))
+	var ui := DialogueOverlay.find(get_tree())
+	print("AUDIT talk opened=", ui != null and ui.is_open())
 	var presses: int = 0
 	var shot_menu: bool = false
-	while ui != null and bool(ui.call("is_open")) and presses < 60:
+	while ui != null and ui.is_open() and presses < 60:
 		await get_tree().create_timer(0.35).timeout
-		var runner: DialogueRunner = ui.call("runner") as DialogueRunner
+		var runner: DialogueRunner = ui.runner()
 		if runner != null and runner.waiting_choice and not shot_menu:
 			await get_tree().create_timer(0.4).timeout
 			await _shot("menu")
@@ -74,7 +74,7 @@ func _run() -> void:
 			last_log = t
 			var off: Vector3 = (player.global_position - gyroid.global_position) / FieldCatalog.GX_TO_METERS
 			print("AUDIT t=%d walk=%s door=%s off_gx=(%.0f, %.0f)" % [
-				t, player.call("is_demo_walking"), player.call("is_door_entering"), off.x, off.z
+				t, player.is_demo_walking(), player.is_door_entering(), off.x, off.z
 			])
 			if t in [500, 1000] or (t >= 1500 and _shots < 4):
 				await _shot("walk_%d" % t)

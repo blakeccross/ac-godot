@@ -22,7 +22,7 @@ var _talked_today: bool = false
 var _clip: String = ""
 var _story_ids: Array[int] = []
 var _story_index: int = 0
-var _active_ui: Node = null
+var _active_ui: DialogueOverlay = null
 var _rng := RandomNumberGenerator.new()
 
 
@@ -45,9 +45,7 @@ func _face_machine() -> void:
 func _process(delta: float) -> void:
 	var uttering: bool = false
 	if _talking and get_tree() != null:
-		var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
-		if ui != null and ui.has_method("is_uttering"):
-			uttering = bool(ui.call("is_uttering"))
+		uttering = DialogueOverlay.uttering_in(get_tree())
 	_face.tick(delta, uttering)
 
 
@@ -92,14 +90,14 @@ func _pick_story(was_first: bool) -> Array[int]:
 
 
 func _advance_story() -> void:
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
+	var ui := DialogueOverlay.find(get_tree())
 	if ui == null:
 		_end_talk()
 		return
 	if _story_index >= _story_ids.size():
-		if _story_ids.is_empty() and ui.has_method("say"):
+		if _story_ids.is_empty():
 			_bind_end(ui)
-			ui.call("say", _fallback_line(0), "Sable")
+			ui.say(_fallback_line(0), "Sable")
 			return
 		_end_talk()
 		return
@@ -112,17 +110,12 @@ func _advance_story() -> void:
 		text = str(data.node(data.start).get("text", "")).strip_edges()
 	## Many `aNNW_story_*` ROM lines extract as bare ellipses — swap in readable text.
 	if text.is_empty() or text.replace(".", "").replace("…", "").strip_edges().is_empty():
-		if ui.has_method("say"):
-			_bind_next(ui)
-			ui.call("say", _fallback_line(idx), "Sable")
+		_bind_next(ui)
+		ui.say(_fallback_line(idx), "Sable")
 		return
 	var ctx := _make_ctx()
-	if ui.has_method("play"):
-		_bind_next(ui)
-		ui.call("play", data, ctx)
-	elif ui.has_method("say"):
-		_bind_end(ui)
-		ui.call("say", _fallback_line(idx), "Sable")
+	_bind_next(ui)
+	ui.play(data, ctx)
 
 
 ## Friendship-tier small talk while the ROM story text is unavailable
@@ -159,18 +152,17 @@ func _make_ctx() -> DialogueContext:
 	return c
 
 
-func _bind_next(ui: Node) -> void:
+func _bind_next(ui: DialogueOverlay) -> void:
 	_active_ui = ui
-	if ui.has_signal("closed"):
-		if ui.is_connected("closed", _on_line_closed):
-			ui.disconnect("closed", _on_line_closed)
-		ui.connect("closed", _on_line_closed, CONNECT_ONE_SHOT)
+	if ui.closed.is_connected(_on_line_closed):
+		ui.closed.disconnect(_on_line_closed)
+	ui.closed.connect(_on_line_closed, CONNECT_ONE_SHOT)
 
 
-func _bind_end(ui: Node) -> void:
-	if ui == null or not ui.has_signal("closed") or ui.is_connected("closed", _on_talk_closed):
+func _bind_end(ui: DialogueOverlay) -> void:
+	if ui == null or ui.closed.is_connected(_on_talk_closed):
 		return
-	ui.connect("closed", _on_talk_closed, CONNECT_ONE_SHOT)
+	ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
 
 
 func _on_line_closed() -> void:

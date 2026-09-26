@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"boomer"
 display_name = "Boomer"
 species = &"penguin"
+texture_set = &"pgn_8"
 personality = ExtResource("2")
 islander = true
 starter = false

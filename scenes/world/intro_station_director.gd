@@ -36,9 +36,9 @@ const BGM_FIND_SHOP := &"intro_find_shop"
 
 var _world: Node3D
 var _stage: IntroStationStage = IntroStationStage.new()
-var _player: CharacterBody3D
+var _player: Player
 var _camera: Camera3D
-var _dialogue: CanvasLayer
+var _dialogue: DialogueOverlay
 var _loco: Node3D
 var _mid: Node3D
 var _caboose: Node3D
@@ -70,11 +70,11 @@ func _boot() -> void:
 	if _world == null or not is_instance_valid(_world):
 		queue_free()
 		return
-	_player = _world.get_node_or_null("Characters/Player") as CharacterBody3D
+	_player = _world.get_node_or_null("Characters/Player") as Player
 	_camera = _world.get_node_or_null("FollowCamera") as Camera3D
 	var hud: Node = _world.get_node_or_null("ClockHud")
 	if hud != null:
-		_dialogue = hud.get_node_or_null("DialogueOverlay") as CanvasLayer
+		_dialogue = hud.get_node_or_null("DialogueOverlay") as DialogueOverlay
 	if _player == null or _camera == null:
 		push_warning("IntroStationDirector: missing player or camera")
 		Game.complete_intro_station()
@@ -152,8 +152,7 @@ func _boot() -> void:
 		if _camera.has_method("suspend"):
 			_camera.call("suspend")
 		_player.set_busy(true)
-		if _player.has_method("set_cutscene_driven"):
-			_player.call("set_cutscene_driven", true)
+		_player.set_cutscene_driven(true)
 		_stage.reset()
 
 
@@ -162,8 +161,8 @@ func _resume_debt_sequence() -> void:
 	if get_tree() != null:
 		await get_tree().process_frame
 		await get_tree().process_frame
-	if _player != null and _player.has_method("is_door_entering"):
-		while is_instance_valid(_player) and bool(_player.call("is_door_entering")):
+	if _player != null:
+		while is_instance_valid(_player) and _player.is_door_entering():
 			await get_tree().process_frame
 	if _finishing or _player == null or not is_instance_valid(_player):
 		return
@@ -171,10 +170,8 @@ func _resume_debt_sequence() -> void:
 	_face_nook_toward_player()
 	_nook_play_wait()
 	_player.set_busy(true)
-	if _player.has_method("set_cutscene_driven"):
-		_player.call("set_cutscene_driven", false)
-	if _player.has_method("play_wait_idle"):
-		_player.call("play_wait_idle")
+	_player.set_cutscene_driven(false)
+	_player.play_wait_idle()
 	## `0x07E6` → CAMERA2_PROCESS_TALK + turn.
 	_begin_demo_talk(_nook, true, true)
 	_stage.begin_debt_after_house()
@@ -187,15 +184,14 @@ func _process(delta: float) -> void:
 	## Keep the real player locked while the stage owns pose / cutscenes.
 	if _player != null and is_instance_valid(_player):
 		_player.set_busy(_stage.player_controls_locked())
-		if _player.has_method("set_cutscene_driven"):
-			_player.call("set_cutscene_driven", _stage.player_cutscene_driven())
+		_player.set_cutscene_driven(_stage.player_cutscene_driven())
 	_tick_nook_talk(delta)
 
 
 func _tick_nook_talk(delta: float) -> void:
 	var uttering: bool = false
-	if _dialogue != null and _dialogue.has_method("is_uttering"):
-		uttering = bool(_dialogue.call("is_uttering"))
+	if _dialogue != null:
+		uttering = _dialogue.is_uttering()
 	_nook_face.tick(delta, uttering)
 	if _nook_manpu_hold.is_empty():
 		return
@@ -581,7 +577,7 @@ func _on_nook_job() -> void:
 
 
 func _play_dialogue(id: StringName, speaker: String, fallback: StringName = &"") -> void:
-	if _dialogue == null or not _dialogue.has_method("play"):
+	if _dialogue == null:
 		_end_demo_talk()
 		_stage.notify_dialogue_closed()
 		return
@@ -599,7 +595,7 @@ func _play_dialogue(id: StringName, speaker: String, fallback: StringName = &"")
 	ctx.player_name = Game.player_name
 	ctx.town_name = Game.town_name
 	_fill_shop_acre_frees(ctx)
-	_dialogue.call("play", data, ctx)
+	_dialogue.play(data, ctx)
 
 
 func _begin_demo_talk(npc: Node3D, talk_camera: bool, turn: bool) -> void:
@@ -610,8 +606,8 @@ func _begin_demo_talk(npc: Node3D, talk_camera: bool, turn: bool) -> void:
 		TalkCamera.begin(_player, npc, get_tree(), turn)
 		return
 	TalkCamera.end(get_tree())
-	if turn and _player.has_method("begin_talk_face"):
-		_player.call("begin_talk_face", npc)
+	if turn:
+		_player.begin_talk_face(npc)
 
 
 func _end_demo_talk() -> void:
@@ -646,8 +642,8 @@ func _on_dialogue_closed() -> void:
 	## Rejecting a house (`msg_2023`) returns to pick instead of the job offer.
 	if _stage != null and _stage.action == IntroStationStage.Action.NOOK_DEBT:
 		var runner: DialogueRunner = null
-		if _dialogue != null and _dialogue.has_method("runner"):
-			runner = _dialogue.call("runner") as DialogueRunner
+		if _dialogue != null:
+			runner = _dialogue.runner()
 		if runner != null and runner.conversation != null:
 			var end_id: StringName = runner.conversation.id
 			if end_id == &"msg_2023":
@@ -754,8 +750,7 @@ func _finish_after_nook_retire() -> void:
 			_dialogue.event_fired.disconnect(_on_dialogue_event)
 	Audio.stop_bgm()
 	if _player != null and is_instance_valid(_player):
-		if _player.has_method("set_cutscene_driven"):
-			_player.call("set_cutscene_driven", false)
+		_player.set_cutscene_driven(false)
 		_player.set_busy(false)
 	_resume_follow_camera(true)
 	Game.complete_intro_station()

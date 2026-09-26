@@ -132,7 +132,7 @@ func _set_collision_enabled(node: Node, enabled: bool) -> void:
 
 
 func _spawn_or_move_player(room_node: Node3D) -> void:
-	var player: Node = get_tree().get_first_node_in_group("player")
+	var player := Player.find(get_tree())
 	var spawn_marker: Marker3D = room_node.get_node_or_null("PlayerSpawn") as Marker3D
 	var pos: Vector3 = (
 		spawn_marker.global_position if spawn_marker != null else Vector3(12.0, 0.1, 22.0)
@@ -149,15 +149,11 @@ func _spawn_or_move_player(room_node: Node3D) -> void:
 		yaw = WorldGrid.yaw_for_facing(WorldGrid.Facing.NORTH)
 		Game.spawn_at_room_door = false
 	if player == null:
-		player = PLAYER_SCENE.instantiate()
+		player = PLAYER_SCENE.instantiate() as Player
 		_characters.add_child(player)
-	if player.has_method("apply_spawn"):
-		player.call("apply_spawn", pos, yaw)
-	elif player is Node3D:
-		(player as Node3D).global_position = pos
-		(player as Node3D).rotation.y = yaw
+	player.apply_spawn(pos, yaw)
 	if _camera != null and _camera.has_method("set_target"):
-		_camera.call("set_target", player as Node3D)
+		_camera.call("set_target", player)
 	if _camera != null and "offset" in _camera:
 		_camera.set("offset", preload("res://scenes/world/follow_camera.gd").DEFAULT_OFFSET)
 	SceneTransition.play_wipe_in_if_pending()

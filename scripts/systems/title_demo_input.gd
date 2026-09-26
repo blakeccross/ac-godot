@@ -31,11 +31,11 @@ var b_pressed: bool = false
 
 
 static func stick_x(word: int) -> int:
-	return _signed16(word & 0xFE00) / 512
+	return MLib.s16_signed(word & 0xFE00) / 512
 
 
 static func stick_y(word: int) -> int:
-	return _signed16((word & 0x00FE) << 8) / 512
+	return MLib.s16_signed((word & 0x00FE) << 8) / 512
 
 
 static func a_bit(word: int) -> bool:
@@ -101,8 +101,3 @@ func _word(index: int) -> int:
 	if index < 0 or index >= keys.size():
 		return 0
 	return keys[index]
-
-
-static func _signed16(value: int) -> int:
-	var v: int = value & 0xFFFF
-	return v - 0x10000 if v >= 0x8000 else v

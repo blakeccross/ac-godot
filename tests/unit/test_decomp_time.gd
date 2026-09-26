@@ -47,3 +47,12 @@ func test_stepper_keeps_ticks_banked_when_gated() -> void:
 	assert_float(steps.pending()).is_equal_approx(3.5, 1e-4)
 	steps.reset()
 	assert_float(steps.pending()).is_equal(0.0)
+
+
+func test_s16_angle_helpers() -> void:
+	assert_float(MLib.s16_to_rad(0x4000)).is_equal_approx(PI * 0.5, 1e-6)
+	assert_int(MLib.rad_to_s16(PI)).is_equal(0x8000)
+	assert_int(MLib.rad_to_s16(-PI * 0.5)).is_equal(0xC000)
+	assert_int(MLib.s16_signed(0xC000)).is_equal(-0x4000)
+	assert_int(MLib.s16_signed(0x17FFF)).is_equal(0x7FFF)
+	assert_float(MLib.HALF_FRACTION).is_equal_approx(0.29289321881, 1e-9)

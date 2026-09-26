@@ -62,11 +62,11 @@ func _place() -> void:
 func _bg() -> Array:
 	if get_tree() == null:
 		return []
-	var world: Node = get_tree().get_first_node_in_group("world")
+	var world := World.find(get_tree())
 	if world == null:
 		return []
-	var data: Variant = world.get("layout")
-	var grid: Variant = world.get("grid")
+	var data: Variant = world.layout
+	var grid: Variant = world.grid
 	if not (data is WorldData) or not (grid is WorldGrid):
 		return []
 	return [data, grid]

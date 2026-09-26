@@ -143,7 +143,7 @@ func _step_frame(ticks: float) -> void:
 ## (consign, message, door pattern, visitor take) close the window, run, and the talk picks up
 ## again at "Request processed." (`aHNW_menu_open_wait` / `aHNW_menu_end_wait`).
 func _talk(listener: Node3D) -> bool:
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
+	var ui := DialogueOverlay.find(get_tree())
 	var owned: bool = has_owner()
 	## One resident per town: the owner is always the player (`OTHER_OWNER` is the visitor path).
 	var owner_is_player: bool = owned
@@ -156,11 +156,11 @@ func _talk(listener: Node3D) -> bool:
 		Game.relationships.friend_count() if Game.relationships != null else 0,
 		house.haniwa_bells if house != null and owned else 0
 	)
-	if ui == null or not ui.has_method("play"):
+	if ui == null:
 		Game.post_notice("The gyroid hums a tune.")
 		return false
-	if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-		ui.call("close")
+	if ui.is_open():
+		ui.close()
 	_talking = true
 	## Dance at talk speed, facing the player.
 	_setup_action(HaniwaTalk.Action.TALK_WITH_MASTER)
@@ -218,7 +218,7 @@ func _run_menus(msg: HaniwaTalk.Msg, house: House) -> bool:
 ## takes effect the moment it is chosen.
 func _play(data: DialogueData, vars: Dictionary, house: House) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
+	var ui := DialogueOverlay.find(get_tree())
 	if ui == null or data == null:
 		return events
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
@@ -242,11 +242,11 @@ func _play(data: DialogueData, vars: Dictionary, house: House) -> Array[Dictiona
 			house.door_original = PlayerHouse.NO_DOOR_PATTERN
 			Audio.play_se(&"461")
 			_refresh_door()
-	ui.connect("event_fired", capture)
-	ui.call("play", data, talk_ctx)
-	if not ui.has_method("is_open") or bool(ui.call("is_open")):
+	ui.event_fired.connect(capture)
+	ui.play(data, talk_ctx)
+	if ui.is_open():
 		await ui.closed
-	ui.disconnect("event_fired", capture)
+	ui.event_fired.disconnect(capture)
 	return events
 
 
@@ -303,8 +303,8 @@ func _save_walk() -> void:
 		house_record.has_saved = true
 	Audio.play_bgm(&"enter_house")
 	_setup_action(HaniwaTalk.Action.PL_APPROACH_DOOR)
-	var player: Node3D = _player()
-	if player != null and player.has_method("begin_demo_walk"):
+	var player := Player.find(get_tree())
+	if player != null:
 		var gx: float = FieldCatalog.GX_TO_METERS
 		var speed: float = HaniwaTalk.DOOR_WALK_SPEED_GX * DecompTime.FRAME_HZ * gx
 		var arrive: float = HaniwaTalk.DOOR_ARRIVE_GX * gx
@@ -317,14 +317,14 @@ func _save_walk() -> void:
 			var stage: int = HaniwaTalk.door_stage(house_idx, offset)
 			var goal_gx: Vector2 = HaniwaTalk.door_goal_gx(house_idx, stage)
 			var goal := global_position + Vector3(goal_gx.x * gx, 0.0, goal_gx.y * gx)
-			player.call("begin_demo_walk", goal, speed, arrive)
+			player.begin_demo_walk(goal, speed, arrive)
 			var near: float = Vector2(player.global_position.x - goal.x, player.global_position.z - goal.z).length()
 			if stage == 1 and near < arrive * 2.0:
 				break
 			await get_tree().physics_frame
 			frames += get_physics_process_delta_time() * DecompTime.TICK_HZ
 		if is_instance_valid(player):
-			player.call("end_demo_walk")
+			player.end_demo_walk()
 	var house: Node3D = _house_node() as Node3D
 	if house != null:
 		await StructureDoor.play_enter(house)
@@ -332,12 +332,10 @@ func _save_walk() -> void:
 	## `return_to_title` saves where the player stands, which is now halfway through the
 	## door. Continue from the porch instead, facing out (`rewrite_out_data`'s stand).
 	if house != null and is_instance_valid(player):
-		if player.has_method("end_door_enter"):
-			player.call("end_door_enter")
+		player.end_door_enter()
 		var stand: Vector3 = StructureDoor.exit_stand(house)
 		player.global_position = stand
-		if player.has_method("set_facing"):
-			player.call("set_facing", StructureDoor.leave_yaw(house, stand))
+		player.set_facing(StructureDoor.leave_yaw(house, stand))
 	Game.return_to_title()
 
 

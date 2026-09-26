@@ -149,14 +149,14 @@ func _move(a: BugActor, sense: BugActor.Sense) -> void:
 			a.pos.z = a.home.z + 14.0
 			collision |= 8
 	if collision != 0:
-		a.s32_work[1] = int(REF_ANGL[collision] / S16)
+		a.s32_work[1] = int(REF_ANGL[collision] / MLib.S16)
 		a.s32_work[2] = 10
 		a.speed_step = 0.0
 		a.speed = 0.0
-	elif is_equal_approx(a.angle_y, a.s32_work[1] * S16):
-		a.s32_work[1] = int(a.angle_y / S16) + int(a._rng.randf_range(-1.0, 1.0) * deg_to_rad(90.0) / S16)
-	var step: float = (0x180 if a.type == T_SNAIL else 0x600) * S16
-	a.angle_y = BugProgram.chase_angle(a.angle_y, a.s32_work[1] * S16, step)
+	elif is_equal_approx(a.angle_y, a.s32_work[1] * MLib.S16):
+		a.s32_work[1] = int(a.angle_y / MLib.S16) + int(a._rng.randf_range(-1.0, 1.0) * deg_to_rad(90.0) / MLib.S16)
+	var step: float = (0x180 if a.type == T_SNAIL else 0x600) * MLib.S16
+	a.angle_y = BugProgram.chase_angle(a.angle_y, a.s32_work[1] * MLib.S16, step)
 	a.rot.y = a.angle_y
 	if a.s32_work[2] == 0:
 		a.speed_step = 0.1
@@ -175,7 +175,7 @@ func _avoid_maimai(a: BugActor, sense: BugActor.Sense) -> void:
 	## `aITT_calc_direction_angl`: wall bounce + slow yaw chase.
 	if sense != null and sense.bg.is_valid() and bool(sense.bg.call(a.pos).get("hit_wall_front", false)):
 		a.angle_y = wrapf(a.angle_y + PI * 0.5, -PI, PI)
-	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * MLib.S16)
 
 
 func _check_patience(a: BugActor, sense: BugActor.Sense) -> bool:

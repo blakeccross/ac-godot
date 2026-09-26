@@ -6,6 +6,9 @@ extends Resource
 @export var id: StringName = &""
 @export var display_name: String = ""
 @export var species: StringName = &""
+## `npc_draw_data` `tex_data` bank (`bul_2` for Stu): body sheet, palette and face frames.
+## Species share one skeleton GLB (`bul_1`); empty means that GLB's own set.
+@export var texture_set: StringName = &""
 @export var catchphrase: String = ""
 @export var personality: VillagerPersonality
 ## Optional override. Empty → personality looks table (`mNPS_schedule[looks]`).

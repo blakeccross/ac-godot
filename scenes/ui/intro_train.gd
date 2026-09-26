@@ -13,7 +13,7 @@ const DIALOGUE_ID := &"rover_intro"
 @onready var _keitai_host: Node3D = %Keitai
 @onready var _camera_rig: Node3D = %IntroCameraRig
 @onready var _missing_banner: Label = %MissingBanner
-@onready var _dialogue: CanvasLayer = %DialogueOverlay
+@onready var _dialogue: DialogueOverlay = %DialogueOverlay
 @onready var _clock_label: Label = %ClockLabel
 @onready var _name_modal: Control = %NameModal
 @onready var _town_modal: Control = %TownModal
@@ -86,11 +86,11 @@ func _process(delta: float) -> void:
 
 
 func _dialogue_uttering() -> bool:
-	return _dialogue.has_method("is_uttering") and _dialogue.is_uttering()
+	return _dialogue.is_uttering()
 
 
 func _poll_dialogue_stage_wait() -> void:
-	if not _dialogue_started or not _dialogue.has_method("runner"):
+	if not _dialogue_started:
 		return
 	var runner: DialogueRunner = _dialogue.runner()
 	if runner == null or not runner.waiting_stage:
@@ -176,8 +176,7 @@ func _finish_seated_preview() -> void:
 	_ctx = DialogueContext.from_game()
 	_ctx.speaker_name = "Rover"
 	_apply_rover_voice(_ctx)
-	if _dialogue.has_method("play"):
-		_dialogue.play(data, _ctx)
+	_dialogue.play(data, _ctx)
 
 
 func _bind_rover_face(rover_visual: Node3D) -> void:
@@ -246,8 +245,7 @@ func _start_dialogue() -> void:
 	_ctx.vars = {}
 	_ctx.vars["answer_flags"] = 0
 	## Overlay forwards `event_fired` before `start()`, so manpu on the first line lands.
-	if _dialogue.has_method("play"):
-		_dialogue.play(data, _ctx, null, _dialogue_advance_gate)
+	_dialogue.play(data, _ctx, null, _dialogue_advance_gate)
 
 
 func _apply_rover_voice(ctx: DialogueContext) -> void:
@@ -331,7 +329,7 @@ func _modal_open() -> bool:
 
 
 func _hide_dialogue_box() -> void:
-	if _dialogue.has_method("is_open") and _dialogue.is_open():
+	if _dialogue.is_open():
 		var root: Control = _dialogue.get_node_or_null("%Root") as Control
 		if root != null:
 			root.visible = false
@@ -414,7 +412,7 @@ func _on_clock_submit() -> void:
 
 func _resume_prompt() -> void:
 	_show_dialogue_box()
-	var runner: DialogueRunner = _dialogue.runner() if _dialogue.has_method("runner") else null
+	var runner: DialogueRunner = _dialogue.runner()
 	if runner != null:
 		runner.resume_after_prompt()
 
@@ -428,15 +426,13 @@ func _on_intro_finished(identity: Dictionary) -> void:
 		if _finishing:
 			return
 		_finishing = true
-		if _dialogue.has_method("close"):
-			_dialogue.close(true)
+		_dialogue.close(true)
 		get_tree().quit()
 		return
 	if _finishing:
 		return
 	_finishing = true
-	if _dialogue.has_method("close"):
-		_dialogue.close(true)
+	_dialogue.close(true)
 	call_deferred("_finish_deferred", identity)
 
 
@@ -453,8 +449,7 @@ func _on_intro_cancelled() -> void:
 	if _finishing:
 		return
 	_finishing = true
-	if _dialogue.has_method("close"):
-		_dialogue.close(true)
+	_dialogue.close(true)
 	call_deferred("_abort_deferred")
 
 
@@ -481,9 +476,6 @@ func _auto_advance_step() -> void:
 	if _clock_modal.visible:
 		_on_clock_submit()
 		return
-	var runner: DialogueRunner = _dialogue.runner() if _dialogue.has_method("runner") else null
-	if runner != null and _dialogue.has_method("is_open") and _dialogue.is_open():
-		if _dialogue.has_method("fast_advance"):
-			_dialogue.fast_advance()
-		else:
-			runner.advance()
+	var runner: DialogueRunner = _dialogue.runner()
+	if runner != null and _dialogue.is_open():
+		_dialogue.fast_advance()

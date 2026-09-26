@@ -755,12 +755,11 @@ func give_test_tools() -> void:
 func capture_player_from_tree() -> void:
 	if get_tree() == null:
 		return
-	var player := get_tree().get_first_node_in_group("player") as Node3D
+	var player := Player.find(get_tree())
 	if player == null:
 		return
 	player_position = player.global_position
-	if player.has_method("facing_yaw"):
-		player_yaw = float(player.call("facing_yaw"))
+	player_yaw = player.facing_yaw()
 
 
 func is_interactable_removed(persist_id: StringName) -> bool:

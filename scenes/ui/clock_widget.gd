@@ -183,10 +183,10 @@ func _player_is_idle() -> bool:
 	var tree: SceneTree = get_tree()
 	if tree == null:
 		return false
-	var player: Node = tree.get_first_node_in_group("player")
+	var player := Player.find(tree)
 	if player == null:
 		return false
-	if player.has_method("is_busy") and bool(player.call("is_busy")):
+	if player.is_busy():
 		return false
 	if player is CharacterBody3D:
 		return (player as CharacterBody3D).velocity.length() < _IDLE_VELOCITY_EPS

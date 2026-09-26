@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"leigh"
 display_name = "Leigh"
 species = &"chicken"
+texture_set = &"chn_7"
 personality = ExtResource("2")
 starter = true
 wall_index = 13

@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"peaches"
 display_name = "Peaches"
 species = &"horse"
+texture_set = &"hrs_6"
 personality = ExtResource("2")
 starter = true
 wall_index = 54

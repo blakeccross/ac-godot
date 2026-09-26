@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"bud"
 display_name = "Bud"
 species = &"lion"
+texture_set = &"lon_4"
 personality = ExtResource("2")
 islander = true
 starter = false

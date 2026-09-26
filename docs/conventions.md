@@ -41,6 +41,11 @@ Decomp numbers come in two rates; use `DecompTime` rather than a local `60.0` / 
 
 - **Tick** (`DecompTime.TICK_HZ` 60, `TICK_SEC`): one play-loop update. Per-frame steps (`add_calc*`, `chase_f`, brakes, `timer--`, per-frame `RANDOM` rolls, `0.5 · speed` moves) run once per tick through a `FrameStepper` (`add(delta)` then `while steps.next():`). Don't scale these by `delta`; the results differ.
 - **Frame** (`DecompTime.FRAME_HZ` 30): the original 30 fps frame. Clip frame numbers, `speed` in GX per frame, and `chase_angle` steps (scaled by `game_GameFrame_2F`) use it. The pipeline bakes clips at this rate (`ckf.py` `FPS`, checked by `test_decomp_time`), so animations need no conversion.
+- **Angles** come as s16 (`0x10000` = a full turn): write limits as `2500.0 * MLib.S16`, convert with `MLib.s16_to_rad` / `rad_to_s16` / `s16_signed`. The stock `add_calc` fraction `1 − √0.5` is `MLib.HALF_FRACTION`; other fractions are written as `1.0 - sqrt(k)`, not decimals. The player's fixed talk / show-off turn is `PlayerLocomotion.ease_turn`.
+
+## Typed scene references
+
+`Player`, `DialogueOverlay` and `World` have class names. Reach them with `Player.find(tree)`, `DialogueOverlay.find(tree)` (plus `uttering_in` / `open_in`) and `World.find(tree)`, and call their methods directly — no `get_first_node_in_group("player")`, `.call("method")`, `has_method` guards or `connect("closed", …)` strings. Duck typing stays where a slot really takes different nodes: `InteractionContext.actor` / `.world` (tests pass grid stubs), talk-camera speakers, the follow-camera target, NPC hand-over actors, and villager player checks (tests use stand-ins).
 
 ## Autoloads
 

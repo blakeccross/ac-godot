@@ -114,7 +114,7 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	## `aIKB_wait` leg-shuffle: chase ±4.2° a few times, hold 30f, pause 20-40f.
 	if a.s32_work[0] == 0:
 		var target: float = -BugActor.TREE_FACE_YAW + (SWAY if (a.s32_work[1] & 1) == 0 else -SWAY)
-		a.rot.y = BugProgram.chase_angle(a.rot.y, target, 128 * S16)
+		a.rot.y = BugProgram.chase_angle(a.rot.y, target, 128 * MLib.S16)
 		a.angle_y = a.rot.y
 		if a.s32_work[2] == 0:
 			if a.s32_work[1] == 0:

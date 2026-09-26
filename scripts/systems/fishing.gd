@@ -61,11 +61,7 @@ const PUTAWAY := &"ply_1_putaway_t1"
 ## 3/4 acre is square-on to the screen. Our follow camera sits on +Z and yaw 0 faces +Z, so
 ## the original's target angle already means "look at the camera".
 const SHOW_YAW := 0.0
-## `add_calc_short_angle2(&rotation.y, 0, 1 - sqrt(0.5), 2500, 50)`, stepped once per mover
-## frame by `Player_actor_Movement_Notice_rod`.
-const SHOW_TURN_FRACTION := 0.292893  # 1 - sqrt(0.5)
-const SHOW_TURN_MAX_STEP := TAU * 2500.0 / 65536.0
-const SHOW_TURN_MIN_STEP := TAU * 50.0 / 65536.0
+## Turned to with `PlayerLocomotion.ease_turn`, once per tick.
 ## `main_notice->timer < 42.0f`: the pose is held this long before the catch is announced,
 ## whatever the clip does. Mover frames, so 60 Hz.
 const SHOW_HOLD_SECONDS := 42.0 / DecompTime.TICK_HZ

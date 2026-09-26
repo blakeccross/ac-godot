@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"bubbles"
 display_name = "Bubbles"
 species = &"hippo"
+texture_set = &"hip_2"
 personality = ExtResource("2")
 starter = true
 wall_index = 12

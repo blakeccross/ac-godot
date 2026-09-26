@@ -21,7 +21,7 @@ var _leaving: bool = false
 var _demo_over: bool = false
 var _menu_open: bool = false
 
-@onready var _world: Node = %World
+@onready var _world: World = %World
 @onready var _porter: StationPorter = %Porter
 @onready var _logo: CanvasLayer = %TitleLogo
 @onready var _menu: CanvasLayer = %Menu
@@ -67,8 +67,8 @@ func _physics_process(delta: float) -> void:
 
 ## `title_demo_actable`: Porter on the platform in every demo.
 func _place_porter() -> void:
-	var layout: WorldData = _world.get("layout") as WorldData
-	var grid: WorldGrid = _world.get("grid") as WorldGrid
+	var layout: WorldData = _world.layout
+	var grid: WorldGrid = _world.grid
 	if layout == null or grid == null:
 		return
 	var pos: Vector3 = TitleDemo.gx_to_world(layout, StationPorter.TITLE_GX)
@@ -79,9 +79,9 @@ func _place_porter() -> void:
 
 
 func _bind_player() -> void:
-	var player: Node = get_tree().get_first_node_in_group("player")
+	var player := Player.find(get_tree())
 	if player != null and TitleDemo.has_data():
-		player.set("scripted_input", _demo_input)
+		player.scripted_input = _demo_input
 
 
 ## `aAL_wipe_end_check`: START only counts once the fade-in has finished.
@@ -135,9 +135,9 @@ func _end_demo() -> void:
 
 
 func _release_player() -> void:
-	var player: Node = get_tree().get_first_node_in_group("player")
+	var player := Player.find(get_tree())
 	if player != null:
-		player.set("scripted_input", null)
+		player.scripted_input = null
 
 
 func _on_new_game_pressed() -> void:

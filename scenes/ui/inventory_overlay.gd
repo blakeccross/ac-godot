@@ -392,7 +392,7 @@ func _setup_player_portrait() -> void:
 	## `mIV_set_player` → `mSM_change_view(330, 25, …, angle=0x900, 256²)`: FOV 20°,
 	## eye 0x900 short-angle (~12.66°) above `y_lookAt`. `eye_dist` / `y_lookAt` are
 	## set from the player AABB below so the framing matches whatever `actor_scale` is.
-	var elev: float = deg_to_rad(360.0 * float(0x900) / 65536.0)
+	var elev: float = float(0x900) * MLib.S16
 	var cam := Camera3D.new()
 	cam.current = true
 	cam.fov = 20.0
@@ -1146,8 +1146,8 @@ func toggle() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("inventory"):
-		var talk: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-		if talk != null and talk.has_method("is_open") and bool(talk.call("is_open")):
+		var talk := DialogueOverlay.find(get_tree())
+		if talk != null and talk.is_open():
 			get_viewport().set_input_as_handled()
 			return
 		var shop: Node = get_tree().get_first_node_in_group("shop_ui") if get_tree() != null else null
@@ -1627,7 +1627,7 @@ func _run_tag(tag: String) -> void:
 	var idx: int = inv.selected_index
 	match tag:
 		"Place":
-			var player := get_tree().get_first_node_in_group("player") as Node3D
+			var player := Player.find(get_tree())
 			if player != null:
 				Game.try_place_furniture(player)
 			close()
@@ -1713,8 +1713,8 @@ func _run_tag(tag: String) -> void:
 					Game.post_notice(fail)
 			else:
 				close()
-				var player := get_tree().get_first_node_in_group("player") as Node
-				if player != null and player.has_method("plant_from_submenu"):
+				var player := Player.find(get_tree())
+				if player != null:
 					player.call(
 						"plant_from_submenu",
 						taken.get("plant"),
@@ -1916,8 +1916,8 @@ func _spawn_pickup(item: ItemData, lateral_offset: float = 0.0) -> bool:
 	var tree := get_tree()
 	if tree == null:
 		return false
-	var player := tree.get_first_node_in_group("player") as Node3D
-	var world := tree.get_first_node_in_group("world") as Node
+	var player := Player.find(tree)
+	var world := World.find(tree)
 	if player == null or world == null:
 		return false
 	var packed: PackedScene = load(ITEM_SCENE) as PackedScene
@@ -1941,13 +1941,12 @@ func _spawn_pickup(item: ItemData, lateral_offset: float = 0.0) -> bool:
 	else:
 		objects.add_child(pickup)
 	var yaw: float = 0.0
-	if player.has_method("facing_yaw"):
-		yaw = float(player.call("facing_yaw"))
+	yaw = player.facing_yaw()
 	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
 	var side := Vector3(cos(yaw), 0.0, -sin(yaw))
 	var land: Vector3 = player.global_position + forward * 1.1 + side * lateral_offset
-	var layout: Variant = world.get("layout")
-	var grid: Variant = world.get("grid")
+	var layout: Variant = world.layout
+	var grid: Variant = world.grid
 	if layout is WorldData and grid is WorldGrid:
 		land.y = FieldCollision.ground_y_at(
 			layout as WorldData, grid as WorldGrid, land, FieldCollision.FG_GROUND_DIST
@@ -1968,7 +1967,7 @@ func _field_context() -> InteractionContext:
 	var tree := get_tree()
 	if tree != null:
 		ctx.actor = tree.get_first_node_in_group("player") as Node3D
-		ctx.world = tree.get_first_node_in_group("world")
+		ctx.world = World.find(tree)
 	return ctx
 
 

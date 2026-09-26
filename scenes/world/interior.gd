@@ -79,10 +79,10 @@ func _physics_process(_delta: float) -> void:
 	## Just entered: keep EXIT_DOOR armed until the player walks clear of the strip.
 	if Game.block_auto_enter_doors:
 		return
-	var player: Node = get_tree().get_first_node_in_group("player")
+	var player := Player.find(get_tree())
 	if player == null or not (player is Node3D):
 		return
-	if bool(player.get("_busy")) or bool(player.get("_door_entering")):
+	if player.is_busy() or player.is_door_entering():
 		return
 	var cell: Vector2i = grid.world_to_cell((player as Node3D).global_position)
 	if not session.room.is_exit_cell(cell):
@@ -90,8 +90,7 @@ func _physics_process(_delta: float) -> void:
 	_exiting = true
 	## Decomp's `goto_other_scene` fires the same frame the exit-cell check lands —
 	## the player just stops, then the wipe warps the scene (no walk-through clip).
-	if player.has_method("stop_for_door"):
-		player.call("stop_for_door")
+	player.stop_for_door()
 	await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
 	Game.exit_interior()
 
@@ -162,7 +161,7 @@ func refresh_placement(placement_id: StringName) -> void:
 func _spawn_gokis(room: Room) -> void:
 	if room == null or not PlayerHouse.is_player_room(room.id):
 		return
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var player := Player.find(get_tree())
 	if player == null:
 		return
 	var rng := RandomNumberGenerator.new()
@@ -174,8 +173,7 @@ func _spawn_gokis(room: Room) -> void:
 		add_goki(spawn["pos"] as Vector3, bool(spawn["fade"]))
 	if not spawns.is_empty() and not Game.goki_shocked:
 		Game.goki_shocked = true
-		if player.has_method("request_surprise"):
-			player.call("request_surprise")
+		player.request_surprise()
 
 
 func add_goki(pos: Vector3, fade: bool) -> Node:
@@ -277,7 +275,7 @@ func _apply_indoor_light(room: Room) -> void:
 
 
 func _spawn_player() -> void:
-	var player: CharacterBody3D = PLAYER_SCENE.instantiate() as CharacterBody3D
+	var player: Player = PLAYER_SCENE.instantiate() as Player
 	$Characters.add_child(player)
 	var pos: Vector3 = _spawn.global_position
 	var yaw: float = Game.player_yaw
@@ -334,6 +332,6 @@ func _spawn_resident(room: Room) -> void:
 		(villager as Node3D).rotation.y = WorldGrid.yaw_for_facing(WorldGrid.Facing.SOUTH)
 
 
-func _play_door_arrive(player: Node) -> void:
+func _play_door_arrive(player: Player) -> void:
 	## Museum wing / outdoor→entrance: continue INTO_S1 past the door sensor.
 	await StructureDoor.play_arrive(player)

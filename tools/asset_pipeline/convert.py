@@ -405,6 +405,70 @@ def convert_ckf_starting_with(cfg: PipelineConfig, *prefixes: str) -> dict[str, 
     return convert_ckf_prefixes(cfg, wanted)
 
 
+VILLAGER_TEXTURE_DIR = "characters/villagers/textures"
+## Segments a villager draw entry fills from its own `tex_data` (`{set}_tmem_txt` body
+## sheet); eyes / mouths (0x08 / 0x09) are per-set face frames from `--kind faces`.
+_VILLAGER_BODY_SEGMENTS = ("seg_0A", "seg_0B")
+
+
+def convert_villager_texture_sets(cfg: PipelineConfig) -> dict[str, Any]:
+    """Body sheets for every villager whose texture set is not its skeleton's own.
+
+    `npc_draw_data_tbl`: Stu draws `cKF_bs_r_bul_1` with `bul_2_tmem_txt` / `bul_2_pal`.
+    The species GLB bakes the skeleton's own set, so re-walk the same model with the other
+    set bound and keep each body material's image under its GLB material name —
+    `characters/villagers/textures/bul_2/seg_0B_300.png` — for `VillagerTextures` to swap.
+    """
+    from .fgdata import _guess_decomp
+    from .villagers import parse_texture_sets
+
+    decomp = cfg.decomp_root or _guess_decomp(cfg)
+    if decomp is None:
+        return {"results": [], "converted": 0, "error": "ac-decomp not found"}
+    pairs = parse_texture_sets(decomp / "src" / "data" / "npc" / "npc_draw_data.c")
+    jobs = sorted({(skel, tex) for skel, tex in pairs if skel != tex})
+    rel, symbols = _rel_and_map(cfg)
+    bank = _texture_bank(cfg, rel, symbols)
+    results: list[dict[str, Any]] = []
+    for i, (skel, tex) in enumerate(jobs, 1):
+        record: dict[str, Any] = {
+            "asset_id": tex,
+            "source": f"cKF_bs_r_{skel}+{tex}_tmem_txt",
+            "output_path": f"{VILLAGER_TEXTURE_DIR}/{tex}",
+            "status": "pending",
+            "error": None,
+        }
+        try:
+            model = convert_ckf_model(
+                rel, symbols, f"cKF_bs_r_{skel}", cfg.scale, animation_names=[], bank=bank,
+                texture_prefix=tex,
+            )
+            written: dict[str, bytes] = {}
+            for part in model.parts:
+                name = part.texture_name or ""
+                if not part.texture_png or not name.startswith(_VILLAGER_BODY_SEGMENTS):
+                    continue
+                if name in written:
+                    if written[name] != part.texture_png:
+                        record["warning"] = f"{name}: parts disagree; kept the first"
+                    continue
+                written[name] = part.texture_png
+                dest_rel = f"{VILLAGER_TEXTURE_DIR}/{tex}/{name}.png"
+                dest = cfg.converted / dest_rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(part.texture_png)
+                _copy_generated(cfg, dest, dest_rel)
+            record["status"] = "converted" if written else "skipped"
+            record["materials"] = sorted(written)
+        except Exception as exc:  # noqa: BLE001 — report per-set, keep going
+            record["status"] = "error"
+            record["error"] = f"{type(exc).__name__}: {exc}"
+        results.append(record)
+        if i % 25 == 0 or i == len(jobs):
+            print(f"  villager texture sets {i}/{len(jobs)}")
+    return {"results": results, "converted": sum(1 for r in results if r["status"] == "converted")}
+
+
 def convert_villager_house_palettes(cfg: PipelineConfig) -> dict[str, Any]:
     """Bake `obj_{s,w}_house{1-5}_{a-e}.glb` with each structure_pal letter.
 

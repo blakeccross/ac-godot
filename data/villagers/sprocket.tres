@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"sprocket"
 display_name = "Sprocket"
 species = &"ostrich"
+texture_set = &"ost_2"
 catchphrase = "zort"
 personality = ExtResource("2")
 starter = false

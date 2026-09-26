@@ -80,7 +80,7 @@ const _FULL_L: Array[Vector3] = [
 
 ## `eYoung_Tree_mv`: sapling wobble roll amplitude 2184 s16 = 12°, phase step 0xC68.
 const YOUNG_MAX_DEG := 12.0
-const YOUNG_PHASE_STEP := TAU * 0xC68 / 65536.0
+const YOUNG_PHASE_STEP := 0xC68 * MLib.S16
 ## `calc_adjust(timer, 0, 0x28, 0, 2184)` — full amplitude from 40 ticks left.
 const YOUNG_FULL_TICKS := 40
 ## `eYoung_Tree_ct` life by `arg0` (EffectBG type): small shake 14, large 82.

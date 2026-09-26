@@ -14,7 +14,7 @@ var _talked_today: bool = false
 var _clip: String = ""
 var _species: StringName = PostDisplay.PELLY_SPECIES
 var _pending: Pending = Pending.NONE
-var _active_ui: Node = null
+var _active_ui: DialogueOverlay = null
 
 
 func _ready() -> void:
@@ -31,9 +31,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	var uttering: bool = false
 	if _talking and get_tree() != null:
-		var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
-		if ui != null and ui.has_method("is_uttering"):
-			uttering = bool(ui.call("is_uttering"))
+		uttering = DialogueOverlay.uttering_in(get_tree())
 	_face.tick(delta, uttering)
 	if _talking:
 		_face_player()
@@ -62,17 +60,17 @@ func begin_talk(ctx: InteractionContext) -> bool:
 	talk_ctx.already_talked = _talked_today
 	PostUse.fill_bank_frees(talk_ctx)
 	_pending = Pending.NONE
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and data != null and ui.has_method("play"):
-		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-			ui.call("close")
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null and data != null:
+		if ui.is_open():
+			ui.close()
 		_start_talk_session(listener)
 		_bind_talk_session(ui)
-		ui.call("play", data, talk_ctx)
-	elif ui != null and ui.has_method("say"):
+		ui.play(data, talk_ctx)
+	elif ui != null:
 		_start_talk_session(listener)
 		_bind_talk_end(ui)
-		ui.call("say", _greeting_line(), speaker)
+		ui.say(_greeting_line(), speaker)
 	else:
 		Game.post_notice("%s: %s" % [speaker, _greeting_line()])
 	_talked_today = true
@@ -94,25 +92,23 @@ func _start_talk_session(listener: Node3D) -> void:
 	_play_clip(ANIM_WAIT, true)
 
 
-func _bind_talk_session(ui: Node) -> void:
+func _bind_talk_session(ui: DialogueOverlay) -> void:
 	_active_ui = ui
 	if ui == null:
 		return
-	if ui.has_signal("event_fired") and not ui.is_connected("event_fired", _on_dialogue_event):
-		ui.connect("event_fired", _on_dialogue_event)
-	if ui.has_signal("closed"):
-		if ui.is_connected("closed", _on_talk_closed):
-			ui.disconnect("closed", _on_talk_closed)
-		ui.connect("closed", _on_talk_closed, CONNECT_ONE_SHOT)
+	if not ui.event_fired.is_connected(_on_dialogue_event):
+		ui.event_fired.connect(_on_dialogue_event)
+	if ui.closed.is_connected(_on_talk_closed):
+		ui.closed.disconnect(_on_talk_closed)
+	ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
 	## `close()` nulls the runner before `closed` — capture pending action on finish.
-	if ui.has_method("runner"):
-		var runner: Variant = ui.call("runner")
-		if runner is DialogueRunner:
-			var r: DialogueRunner = runner as DialogueRunner
-			if not r.finished.is_connected(_on_runner_finished):
-				r.finished.connect(_on_runner_finished, CONNECT_ONE_SHOT)
-			if not r.line_shown.is_connected(_on_line_shown):
-				r.line_shown.connect(_on_line_shown)
+	var runner: Variant = ui.runner()
+	if runner is DialogueRunner:
+		var r: DialogueRunner = runner as DialogueRunner
+		if not r.finished.is_connected(_on_runner_finished):
+			r.finished.connect(_on_runner_finished, CONNECT_ONE_SHOT)
+		if not r.line_shown.is_connected(_on_line_shown):
+			r.line_shown.connect(_on_line_shown)
 
 
 func _on_line_shown(_text: String) -> void:
@@ -125,26 +121,26 @@ func _on_dialogue_event(_event: Dictionary) -> void:
 
 func _on_runner_finished() -> void:
 	_note_pending_from_runner()
-	if _active_ui != null and _active_ui.has_method("runner"):
-		var runner: Variant = _active_ui.call("runner")
+	if _active_ui != null:
+		var runner: Variant = _active_ui.runner()
 		if runner is DialogueRunner:
 			var r: DialogueRunner = runner as DialogueRunner
 			if r.line_shown.is_connected(_on_line_shown):
 				r.line_shown.disconnect(_on_line_shown)
 
 
-func _bind_talk_end(ui: Node) -> void:
-	if ui == null or not ui.has_signal("closed"):
+func _bind_talk_end(ui: DialogueOverlay) -> void:
+	if ui == null:
 		return
-	if ui.is_connected("closed", _on_talk_closed):
+	if ui.closed.is_connected(_on_talk_closed):
 		return
-	ui.connect("closed", _on_talk_closed, CONNECT_ONE_SHOT)
+	ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
 
 
 func _note_pending_from_runner() -> void:
-	if _active_ui == null or not _active_ui.has_method("runner"):
+	if _active_ui == null:
 		return
-	var runner: Variant = _active_ui.call("runner")
+	var runner: Variant = _active_ui.runner()
 	if runner == null or not (runner is DialogueRunner):
 		return
 	var conv: DialogueData = (runner as DialogueRunner).conversation
@@ -165,9 +161,9 @@ func _note_pending_from_runner() -> void:
 
 func _on_talk_closed() -> void:
 	_note_pending_from_runner()
-	if _active_ui != null and _active_ui.has_signal("event_fired"):
-		if _active_ui.is_connected("event_fired", _on_dialogue_event):
-			_active_ui.disconnect("event_fired", _on_dialogue_event)
+	if _active_ui != null:
+		if _active_ui.event_fired.is_connected(_on_dialogue_event):
+			_active_ui.event_fired.disconnect(_on_dialogue_event)
 	_active_ui = null
 	_talking = false
 	TalkCamera.end(get_tree())
@@ -191,19 +187,19 @@ func _on_talk_closed() -> void:
 func _open_followup(data: DialogueData) -> void:
 	if data == null:
 		return
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui == null or not ui.has_method("play"):
+	var ui := DialogueOverlay.find(get_tree())
+	if ui == null:
 		return
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = PostDisplay.post_girl_name(_species)
 	PostUse.fill_bank_frees(talk_ctx)
 	_start_talk_session(get_tree().get_first_node_in_group("player") as Node3D)
 	_bind_talk_end(ui)
-	ui.call("play", data, talk_ctx)
+	ui.play(data, talk_ctx)
 
 
 func _face_player() -> void:
-	var player: Node = get_tree().get_first_node_in_group("player") if get_tree() != null else null
+	var player := Player.find(get_tree())
 	if player is Node3D:
 		_face_toward((player as Node3D).global_position)
 

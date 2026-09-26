@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"bliss"
 display_name = "Bliss"
 species = &"squirrel"
+texture_set = &"squ_11"
 personality = ExtResource("2")
 islander = true
 starter = false

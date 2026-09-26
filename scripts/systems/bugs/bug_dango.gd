@@ -55,7 +55,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.speed_step = 0.3
 			a.anime0 = 1.0
 			if a._last_player_gx != Vector3.INF:
-				a.angle_y = BugProgram.angle_to(a._last_player_gx, a.pos) + a._rng.randf_range(-1.0, 1.0) * (21845.0 * 0.5 * S16)
+				a.angle_y = BugProgram.angle_to(a._last_player_gx, a.pos) + a._rng.randf_range(-1.0, 1.0) * (21845.0 * 0.5 * MLib.S16)
 				a.rot.y = a.angle_y
 		LET_ESCAPE:
 			a.action_proc = _let_escape
@@ -69,7 +69,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.target_speed = 1.5
 			a.speed_step = 0.3
 			if a._last_player_gx != Vector3.INF:
-				a.angle_y = BugProgram.angle_to(a._last_player_gx, a.pos) + a._rng.randf_range(-1.0, 1.0) * (21845.0 * 0.5 * S16)
+				a.angle_y = BugProgram.angle_to(a._last_player_gx, a.pos) + a._rng.randf_range(-1.0, 1.0) * (21845.0 * 0.5 * MLib.S16)
 				a.rot.y = a.angle_y
 			a.f_no_catch = true
 			a.f_bit2 = true
@@ -184,7 +184,7 @@ func _dive(a: BugActor, sense: BugActor.Sense) -> void:
 func _calc_direction(a: BugActor, sense: BugActor.Sense) -> void:
 	if sense != null and sense.bg.is_valid() and bool(sense.bg.call(a.pos).get("hit_wall_front", false)):
 		a.angle_y = wrapf(a.angle_y + deg_to_rad(90.0), -PI, PI)
-	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * MLib.S16)
 
 
 func _check_patience(a: BugActor, sense: BugActor.Sense) -> bool:

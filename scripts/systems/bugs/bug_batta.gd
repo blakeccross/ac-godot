@@ -90,7 +90,7 @@ func _avoid_init(a: BugActor) -> void:
 		var to: float = BugProgram.atans(
 			a._last_player_gx.z - a.pos.z, a._last_player_gx.x - a.pos.x
 		)
-		a.angle_y = to + PI + a._rng.randf_range(-1.0, 1.0) * (8192.0 * S16)
+		a.angle_y = to + PI + a._rng.randf_range(-1.0, 1.0) * (8192.0 * MLib.S16)
 		a.rot.y = a.angle_y
 
 
@@ -102,7 +102,7 @@ func _let_escape_init(a: BugActor) -> void:
 	a.speed = 5.0
 	a.pos_speed.y = 3.0
 	if a.f32_work[1] != 0.0 or a._last_player_gx != Vector3.INF:
-		a.angle_y = a.f32_work[1] + a._rng.randf_range(-1.0, 1.0) * (21845.0 * 0.5 * S16)
+		a.angle_y = a.f32_work[1] + a._rng.randf_range(-1.0, 1.0) * (21845.0 * 0.5 * MLib.S16)
 		a.rot.y = a.angle_y
 	a.f_no_catch = true
 	a.f_bit2 = true
@@ -137,7 +137,7 @@ func _chg_direction(a: BugActor, sense: BugActor.Sense) -> void:
 		setup_action(a, WAIT)
 		return
 	var idx: int = clampi(a.s32_work[0], 0, TURN_RANGE.size() - 1)
-	var ang: float = a.rot.y + PI + TURN_RANGE[idx] * S16 * a._rng.randf_range(-1.0, 1.0)
+	var ang: float = a.rot.y + PI + TURN_RANGE[idx] * MLib.S16 * a._rng.randf_range(-1.0, 1.0)
 	var mod: float = 218.0 if a.type == T_MIGRATORY_LOCUST else 53.0
 	var probe: Vector3 = a.pos + Vector3(sin(ang) * mod, 0.0, cos(ang) * mod)
 	var ok: bool = true
@@ -165,7 +165,7 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 		return
 	## Ease shape yaw toward the target heading:
 	## `add_calc_short_angle2(rot.y, angle.y, CALC_EASE(0.5), 0x2000, 0)` (not frame-scaled).
-	a.rot.y = MLib.short_angle2(a.rot.y, a.angle_y, 1.0 - sqrt(0.5), 0x2000 * S16)
+	a.rot.y = MLib.short_angle2(a.rot.y, a.angle_y, MLib.HALF_FRACTION, 0x2000 * MLib.S16)
 	if a.type == T_BELL_CRICKET and _on_ground(a, sense) and a.patience < 20.0:
 		a.anime0 += 1.0
 		if a.anime0 >= 2.0:

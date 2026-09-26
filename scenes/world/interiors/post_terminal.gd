@@ -33,23 +33,22 @@ func _begin_use(ctx: InteractionContext) -> bool:
 		return true
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = ""
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui == null or not ui.has_method("play"):
+	var ui := DialogueOverlay.find(get_tree())
+	if ui == null:
 		Game.post_notice("Welcome. Thank you for using the e-Reader Transfer Machine.")
 		return true
-	if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-		ui.call("close")
+	if ui.is_open():
+		ui.close()
 	_busy = true
 	var listener: Node3D = ctx.actor as Node3D if ctx != null else null
 	if listener != null:
 		TalkCamera.begin(listener, self, get_tree())
-	if ui.has_signal("event_fired") and not ui.is_connected("event_fired", _on_dialogue_event):
-		ui.connect("event_fired", _on_dialogue_event)
-	if ui.has_signal("closed"):
-		if ui.is_connected("closed", _on_closed):
-			ui.disconnect("closed", _on_closed)
-		ui.connect("closed", _on_closed, CONNECT_ONE_SHOT)
-	ui.call("play", data, talk_ctx)
+	if not ui.event_fired.is_connected(_on_dialogue_event):
+		ui.event_fired.connect(_on_dialogue_event)
+	if ui.closed.is_connected(_on_closed):
+		ui.closed.disconnect(_on_closed)
+	ui.closed.connect(_on_closed, CONNECT_ONE_SHOT)
+	ui.play(data, talk_ctx)
 	return true
 
 
@@ -59,10 +58,10 @@ func _on_dialogue_event(event: Dictionary) -> void:
 		return
 	if int(event.get("slot", -1)) != 9:
 		return
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui == null or not ui.has_method("runner"):
+	var ui := DialogueOverlay.find(get_tree())
+	if ui == null:
 		return
-	var runner: Variant = ui.call("runner")
+	var runner: Variant = ui.runner()
 	if runner == null or not (runner is DialogueRunner):
 		return
 	var conv: DialogueData = (runner as DialogueRunner).conversation
@@ -76,9 +75,9 @@ func _on_dialogue_event(event: Dictionary) -> void:
 
 
 func _on_closed() -> void:
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and ui.has_signal("event_fired") and ui.is_connected("event_fired", _on_dialogue_event):
-		ui.disconnect("event_fired", _on_dialogue_event)
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null and ui.event_fired.is_connected(_on_dialogue_event):
+		ui.event_fired.disconnect(_on_dialogue_event)
 	_busy = false
 	TalkCamera.end(get_tree())
 

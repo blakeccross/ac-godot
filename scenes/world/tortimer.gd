@@ -35,9 +35,7 @@ func _process(delta: float) -> void:
 		return
 	var uttering: bool = false
 	if _talking and get_tree() != null:
-		var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
-		if ui != null and ui.has_method("is_uttering"):
-			uttering = bool(ui.call("is_uttering"))
+		uttering = DialogueOverlay.uttering_in(get_tree())
 	_face.tick(delta, uttering)
 	if _talking:
 		_face_player()
@@ -76,16 +74,16 @@ func _begin_talk(listener: Node3D) -> bool:
 	var data: DialogueData = DialogueCatalog.conversation(GREETING_ID)
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = "Tortimer"
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and data != null and ui.has_method("play"):
-		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-			ui.call("close")
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null and data != null:
+		if ui.is_open():
+			ui.close()
 		_talking = true
 		if listener != null:
 			TalkCamera.begin(listener, self, get_tree())
-		if ui.has_signal("closed") and not ui.is_connected("closed", _on_talk_closed):
-			ui.connect("closed", _on_talk_closed, CONNECT_ONE_SHOT)
-		ui.call("play", data, talk_ctx)
+		if not ui.closed.is_connected(_on_talk_closed):
+			ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
+		ui.play(data, talk_ctx)
 	else:
 		Game.post_notice("Tortimer: Ho ho! Welcome!")
 	return true
@@ -97,7 +95,7 @@ func _on_talk_closed() -> void:
 
 
 func _face_player() -> void:
-	var player: Node = get_tree().get_first_node_in_group("player") if get_tree() != null else null
+	var player := Player.find(get_tree())
 	if player is Node3D:
 		var to: Vector3 = (player as Node3D).global_position - global_position
 		to.y = 0.0

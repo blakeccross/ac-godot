@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"drift"
 display_name = "Drift"
 species = &"frog"
+texture_set = &"flg_13"
 personality = ExtResource("2")
 islander = true
 starter = false

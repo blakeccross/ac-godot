@@ -22,6 +22,7 @@ from asset_pipeline.convert import (  # noqa: E402
     convert_static_prefixes,
     convert_test_static_needles,
     convert_villager_house_palettes,
+    convert_villager_texture_sets,
     convert_water_acres,
 )
 from asset_pipeline.fgdata import convert_fgdata  # noqa: E402
@@ -54,9 +55,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--kind",
-        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "design-ui", "map-ui", "message-ui", "clock-ui", "title", "dialogue", "villagers", "faces", "audio", "water", "fish", "bugs", "seasons"],
+        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "design-ui", "map-ui", "message-ui", "clock-ui", "title", "dialogue", "villagers", "villager-textures", "faces", "audio", "water", "fish", "bugs", "seasons"],
         default="all",
-        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory/map UI chrome, dialogue banks, villager roster from decomp tables, NPC eye/mouth face frames, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
+        help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory/map UI chrome, dialogue banks, villager roster from decomp tables, per-villager body texture sets, NPC eye/mouth face frames, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
     )
     args = parser.parse_args()
     cfg = load_config(ROOT, args.config)
@@ -321,6 +322,9 @@ def main() -> int:
                     ],
                 )
                 label = "plant assets"
+            elif args.kind == "villager-textures":
+                report = convert_villager_texture_sets(cfg)
+                label = "villager texture sets"
             elif args.kind == "water":
                 report = convert_water_acres(cfg)
                 label = "river/ocean/pond acre assets"
@@ -346,6 +350,7 @@ def main() -> int:
                 report = None
             else:
                 report = convert_assets(cfg)
+                report["results"].extend(convert_villager_texture_sets(cfg).get("results", []))
                 label = "assets"
             if report is not None:
                 converted = sum(1 for r in report["results"] if r["status"] == "converted")

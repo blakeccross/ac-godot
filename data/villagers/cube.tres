@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"cube"
 display_name = "Cube"
 species = &"penguin"
+texture_set = &"pgn_4"
 personality = ExtResource("2")
 starter = true
 wall_index = 39

@@ -120,7 +120,7 @@ func tick(delta: float, shadow_gx: Vector3) -> void:
 		_camera_tilt, _camera_tilt_goal, _camera_tilt_chase * delta * DecompTime.FRAME_HZ
 	)
 	var tilt_sin: float = sin(_camera_tilt)
-	var move_x_gx: float = cos(_short_to_rad(_camera_move)) * 0.1
+	var move_x_gx: float = cos(MLib.s16_to_rad(_camera_move)) * 0.1
 	var move_y_gx: float = _camera_move_y
 	var eye_gx := Vector3(
 		move_x_gx + tilt_sin * 20.0 + _eye_gx.x,
@@ -164,7 +164,7 @@ func _apply_sway(delta: float) -> void:
 func _step_sway() -> void:
 	var move: int = _camera_move
 	_camera_move = (_camera_move + IntroTrainStage.CAMERA_SWAY_STEP) & 0xFFFF
-	var move_y_gx: float = sin(_short_to_rad(move + IntroTrainStage.CAMERA_SWAY_STEP)) * _camera_move_range
+	var move_y_gx: float = sin(MLib.s16_to_rad(move + IntroTrainStage.CAMERA_SWAY_STEP)) * _camera_move_range
 	if _camera_move_y <= 0.0 and move_y_gx >= 0.0:
 		var cnt: int = _camera_move_cnt - 1
 		if cnt < 0:
@@ -178,10 +178,6 @@ func _step_sway() -> void:
 			_camera_move_range *= 0.35
 		_camera_move_cnt = cnt
 	_camera_move_y = move_y_gx
-
-
-static func _short_to_rad(angle: int) -> float:
-	return float(angle) / 65536.0 * TAU
 
 
 ## `chase_angle` — fixed angular step toward target (not a lerp fraction).

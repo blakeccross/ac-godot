@@ -72,9 +72,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	var uttering: bool = false
 	if _talking and get_tree() != null:
-		var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
-		if ui != null and ui.has_method("is_uttering"):
-			uttering = bool(ui.call("is_uttering"))
+		uttering = DialogueOverlay.uttering_in(get_tree())
 	_face.tick(delta, uttering)
 	if _talking:
 		_face_player()
@@ -124,7 +122,7 @@ func _maybe_force_greet() -> void:
 		await get_tree().process_frame
 	if not is_instance_valid(self):
 		return
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D if get_tree() != null else null
+	var player := Player.find(get_tree())
 	var ctx := InteractionContext.new()
 	ctx.actor = player
 	_begin_talk(ctx)
@@ -136,7 +134,7 @@ func _greet_after_frames() -> void:
 		await get_tree().process_frame
 	if not is_instance_valid(self):
 		return
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D if get_tree() != null else null
+	var player := Player.find(get_tree())
 	var ctx := InteractionContext.new()
 	ctx.actor = player
 	_begin_talk(ctx)
@@ -167,19 +165,19 @@ func _begin_normal_talk(listener: Node3D) -> bool:
 		NookHouseTalk.fill_context(talk_ctx, house_plan)
 		if house_plan.has("statues_built"):
 			Game.num_statues = int(house_plan["statues_built"])
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and data != null and ui.has_method("play"):
-		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-			ui.call("close")
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null and data != null:
+		if ui.is_open():
+			ui.close()
 		_start_talk_session(listener)
 		_bind_talk_end(ui)
-		if house_data != null and ui.has_signal("event_fired") and not ui.is_connected("event_fired", _on_house_event):
-			ui.connect("event_fired", _on_house_event)
-		ui.call("play", data, talk_ctx)
-	elif ui != null and ui.has_method("say"):
+		if house_data != null and not ui.event_fired.is_connected(_on_house_event):
+			ui.event_fired.connect(_on_house_event)
+		ui.play(data, talk_ctx)
+	elif ui != null:
 		_start_talk_session(listener)
 		_bind_talk_end(ui)
-		ui.call("say", "Yes, yes — welcome! Look around, and talk to me if you'd like to sell.", "Tom Nook")
+		ui.say("Yes, yes — welcome! Look around, and talk to me if you'd like to sell.", "Tom Nook")
 	else:
 		Game.post_notice("Tom Nook: Yes, yes — welcome!")
 	_talked_today = true
@@ -366,13 +364,13 @@ func _play_data(data: DialogueData, listener: Node3D) -> bool:
 		if Game.first_job.recipient_id == &"":
 			push_error("FirstJob: playing recipient dialogue with empty recipient_id")
 		play_data = FirstJob.ensure_dialogue_names_recipient(play_data)
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and ui.has_method("play"):
-		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-			ui.call("close")
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null:
+		if ui.is_open():
+			ui.close()
 		_start_talk_session(listener)
 		_bind_talk_end(ui)
-		ui.call("play", play_data, talk_ctx)
+		ui.play(play_data, talk_ctx)
 		return true
 	_apply_pending_after()
 	return true
@@ -385,12 +383,12 @@ func _start_talk_session(listener: Node3D) -> void:
 	_play_clip(ANIM_WAIT, true)
 
 
-func _bind_talk_end(ui: Node) -> void:
-	if ui == null or not ui.has_signal("closed"):
+func _bind_talk_end(ui: DialogueOverlay) -> void:
+	if ui == null:
 		return
-	if ui.is_connected("closed", _on_talk_closed):
+	if ui.closed.is_connected(_on_talk_closed):
 		return
-	ui.connect("closed", _on_talk_closed, CONNECT_ONE_SHOT)
+	ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
 
 
 func _on_house_event(event: Dictionary) -> void:
@@ -402,9 +400,9 @@ func _on_house_event(event: Dictionary) -> void:
 
 func _on_talk_closed() -> void:
 	_talking = false
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and ui.has_signal("event_fired") and ui.is_connected("event_fired", _on_house_event):
-		ui.disconnect("event_fired", _on_house_event)
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null and ui.event_fired.is_connected(_on_house_event):
+		ui.event_fired.disconnect(_on_house_event)
 	TalkCamera.end(get_tree())
 	await _apply_pending_after()
 
@@ -473,7 +471,7 @@ func _listener(ctx: InteractionContext) -> Node3D:
 
 
 func _face_player() -> void:
-	var player: Node = get_tree().get_first_node_in_group("player") if get_tree() != null else null
+	var player := Player.find(get_tree())
 	if player is Node3D:
 		_face_toward((player as Node3D).global_position)
 

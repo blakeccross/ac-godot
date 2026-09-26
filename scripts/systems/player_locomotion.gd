@@ -54,11 +54,11 @@ const STICK_MIN := 9.899495
 const STICK_MAX := 61.0
 const STICK_DEADZONE := 0.05
 const IDLE_SPEED := 0.08
-## s16 2500 / 65536 of a turn, per tick.
-const TURN_MAX_RAD := 2500.0 * TAU / 65536.0
-const TURN_MIN_RAD := 50.0 * TAU / 65536.0
+## s16 2500 / 50 per tick (`add_calc_short_angle2` limits).
+const TURN_MAX_RAD := 2500.0 * MLib.S16
+const TURN_MIN_RAD := 50.0 * MLib.S16
 ## `Player_actor_Get_DiffWorldAngleToControllerAngle(actor) >= 18204` (100°).
-const TURN_DASH_ANGLE := 18204.0 * TAU / 65536.0
+const TURN_DASH_ANGLE := 18204.0 * MLib.S16
 ## `Player_actor_CulcAnimation_Walk`: clip rate floor, and the clip rate at 30 fps.
 const ANIM_RATE_MIN := 0.22
 ## `0.59999996f` — keeps a full-stick walk (4.875) just under the dash gauge.
@@ -67,7 +67,6 @@ const ANIM_BASE_RATE := 0.5
 ## `Player_actor_set_lean_angle`: 20° cap, `add_calc_short_angle2(…, 1−√½, 10°, 0)`.
 const LEAN_MAX := deg_to_rad(20.0)
 const LEAN_STEP_MAX := deg_to_rad(10.0)
-const HALF_FRACTION := 0.29289321881
 
 ## Decomp `actor->speed` (GX / 1/30 s).
 var speed_gx: float = 0.0
@@ -200,7 +199,7 @@ func _frame_wait(stick: float) -> void:
 	speed_gx = maxf(speed_gx - ORIG_WAIT_BRAKE, 0.0)
 	_advance(speed_gx)
 	anim_rate = ANIM_BASE_RATE
-	lean = MLib.short_angle2(lean, 0.0, HALF_FRACTION, LEAN_STEP_MAX)
+	lean = MLib.short_angle2(lean, 0.0, MLib.HALF_FRACTION, LEAN_STEP_MAX)
 	## `request_proc_index_fromWait`: `move_pX || move_pY` → WALK (starts at frame 1).
 	if stick > 0.0 and axes_active:
 		_set_mode(Gait.WALK)
@@ -236,7 +235,7 @@ func _frame_move(wish_yaw: float, stick: float, dashing: bool) -> void:
 	## `Player_actor_set_lean_angle`.
 	var e: float = (anim_rate * anim_rate) / 0.36
 	var lean_target: float = minf(pow(e * e, 3.0) * LEAN_MAX, LEAN_MAX)
-	lean = MLib.short_angle2(lean, lean_target, HALF_FRACTION, LEAN_STEP_MAX)
+	lean = MLib.short_angle2(lean, lean_target, MLib.HALF_FRACTION, LEAN_STEP_MAX)
 	_move_transitions(wish_yaw, stick)
 
 
@@ -269,9 +268,9 @@ func _frame_turn_dash() -> void:
 	## spins (always the positive way, `add_calc_short_angle3`) to the stick angle.
 	speed_gx = maxf(speed_gx - ORIG_TURN_DASH_BRAKE, 0.0)
 	_advance(speed_gx)
-	body_yaw = MLib.short_angle3(body_yaw, _turn_target, HALF_FRACTION, TURN_MAX_RAD, TURN_MIN_RAD)
+	body_yaw = MLib.short_angle3(body_yaw, _turn_target, MLib.HALF_FRACTION, TURN_MAX_RAD, TURN_MIN_RAD)
 	anim_rate = ANIM_BASE_RATE
-	lean = MLib.short_angle2(lean, 0.0, HALF_FRACTION, LEAN_STEP_MAX)
+	lean = MLib.short_angle2(lean, 0.0, MLib.HALF_FRACTION, LEAN_STEP_MAX)
 	if speed_gx == 0.0 and is_equal_approx(wrapf(body_yaw - _turn_target, -PI, PI), 0.0):
 		## Settle: `world.angle.y = shape_info.rotation.y`.
 		facing = body_yaw
@@ -362,6 +361,12 @@ static func turn_mod(stick: float) -> float:
 	if stick <= STICK_DEADZONE:
 		return 0.01
 	return 0.01 + 0.5157895 * (stick - STICK_DEADZONE)
+
+
+## `add_calc_short_angle2(&angle, target, 1−√0.5, 2500, 50)`: the fixed turn that the talk
+## (`Movement_Talk`) and show-off (`Movement_Notice_rod`, net) states step once per tick.
+static func ease_turn(current: float, target: float) -> float:
+	return MLib.short_angle2(current, target, MLib.HALF_FRACTION, TURN_MAX_RAD, TURN_MIN_RAD)
 
 
 static func step_facing(current: float, target: float, stick: float, delta: float) -> float:

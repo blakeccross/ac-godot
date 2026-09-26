@@ -276,7 +276,7 @@ func _let_escape(a: BugActor, sense: BugActor.Sense) -> void:
 
 func _twist(a: BugActor) -> void:
 	a.continue_timer += 0x100
-	a.rot.z = sin(a.continue_timer * S16) * deg_to_rad(22.5)
+	a.rot.z = sin(a.continue_timer * MLib.S16) * deg_to_rad(22.5)
 
 
 func _shake_angle(a: BugActor) -> void:
@@ -290,9 +290,9 @@ func _shake_angle(a: BugActor) -> void:
 			cur = 0
 			a.rot.y = BugActor.TREE_FACE_YAW
 		a.s32_work[3] = tgt
-	cur = int(BugProgram.chase_angle(float(cur) * S16, float(tgt) * S16, 16 * S16) / S16)
+	cur = int(BugProgram.chase_angle(float(cur) * MLib.S16, float(tgt) * MLib.S16, 16 * MLib.S16) / MLib.S16)
 	a.s32_work[0] = cur
-	a.rot.y = wrapf(BugActor.TREE_FACE_YAW + (cur * 0.5) * S16, -PI, PI)
+	a.rot.y = wrapf(BugActor.TREE_FACE_YAW + (cur * 0.5) * MLib.S16, -PI, PI)
 
 
 func _calc_direction(a: BugActor, sense: BugActor.Sense) -> void:
@@ -300,7 +300,7 @@ func _calc_direction(a: BugActor, sense: BugActor.Sense) -> void:
 	if bool(probe.get("hit_wall", false)):
 		a.angle_y = wrapf(a.angle_y + PI * 0.5, -PI, PI)
 	var target: float = a.angle_y if a.type == T_BAGWORM else a.angle_y + PI
-	a.rot.y = BugProgram.chase_angle(a.rot.y, target, 0x800 * S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, target, 0x800 * MLib.S16)
 
 
 func _bg(a: BugActor, sense: BugActor.Sense) -> Dictionary:

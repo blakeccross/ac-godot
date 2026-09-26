@@ -328,8 +328,8 @@ func _game_tick() -> void:
 func _check_umbrella() -> void:
 	if _kind != Weather.Kind.RAIN:
 		return
-	var player: Node = get_tree().get_first_node_in_group("player") if get_tree() != null else null
-	var open: bool = player != null and player.has_method("is_umbrella_open") and bool(player.call("is_umbrella_open"))
+	var player := Player.find(get_tree())
+	var open: bool = player != null and player.is_umbrella_open()
 	if open != _umbrella_open:
 		_umbrella_open = open
 		_sync_rain_se()
@@ -355,12 +355,9 @@ func _update_center() -> void:
 	if cam != null:
 		_cam_basis = cam.global_transform.basis
 		_cam_pos = cam.global_position
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var player := Player.find(get_tree())
 	if player != null:
-		if player.has_method("camera_look_position"):
-			_center = player.call("camera_look_position") as Vector3
-		else:
-			_center = player.global_position + Vector3(0.0, 0.85, 0.0)
+		_center = player.camera_look_position()
 		return
 	if cam != null:
 		var forward: Vector3 = -cam.global_transform.basis.z
@@ -634,17 +631,17 @@ func _tick_lightning(delta: float) -> void:
 
 
 func _apply_lightning(on: bool) -> void:
-	var world: Node = get_tree().get_first_node_in_group("world")
-	if world == null or not world.has_method("set_lightning_flash"):
+	var world := World.find(get_tree())
+	if world == null:
 		return
-	world.call("set_lightning_flash", on)
+	world.set_lightning_flash(on)
 
 
 func _ground_y(at: Vector3) -> float:
-	var world: Node = get_tree().get_first_node_in_group("world")
+	var world := World.find(get_tree())
 	if world != null and "layout" in world and "grid" in world:
-		var data: WorldData = world.get("layout") as WorldData
-		var grid: WorldGrid = world.get("grid") as WorldGrid
+		var data: WorldData = world.layout
+		var grid: WorldGrid = world.grid
 		var y: float = FieldCollision.ground_y_at(data, grid, at)
 		if FieldCollision.has_floor(y):
 			return y

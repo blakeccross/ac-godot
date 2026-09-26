@@ -21,9 +21,9 @@ const HELD_DEPTH := 0.115
 const REST_PITCH := PI
 ## Per-proc `(fraction, max_step)` pairs, straight off the `add_calc_short_angle2` calls.
 ## Fractions are `1 - sqrt(k)`; steps are short angles (0x10000 = a full turn).
-const CAST_FRACTION := 0.025321  # 1 - sqrt(0.95)
-const CAST_MAX_STEP := TAU * 1024.0 / 65536.0
-const SETTLE_FRACTION := 0.105573  # 1 - sqrt(0.8)
+const CAST_FRACTION := 1.0 - sqrt(0.95)
+const CAST_MAX_STEP := 1024.0 * MLib.S16
+const SETTLE_FRACTION := 1.0 - sqrt(0.8)
 const SETTLE_MAX_STEP := PI * 0.25
 ## `aUKI_PROC_CAST` / `aUKI_PROC_WAIT` while `cast_timer` runs: the float lies flat.
 const PITCH_FLAT := PI * 0.5
@@ -100,7 +100,7 @@ func _tilt(delta: float) -> void:
 
 
 func _origin() -> Vector3:
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D if get_tree() else null
+	var player := Player.find(get_tree())
 	if player == null:
 		return _base
 	return Vector3(player.global_position.x, _base.y, player.global_position.z)

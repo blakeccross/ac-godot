@@ -144,13 +144,7 @@ func test_talk_face_eases_like_movement_talk() -> void:
 	var facing: float = 0.0
 	var target: float = TalkCamera.face_yaw_toward(Vector3(0.0, 0.0, 4.0), Vector3(0.0, 0.0, 0.0))
 	for _i: int in 30:
-		facing = MLib.short_angle2(
-			facing,
-			target,
-			TalkCamera.TURN_FRACTION,
-			TalkCamera.TURN_MAX_STEP,
-			TalkCamera.TURN_MIN_STEP
-		)
+		facing = PlayerLocomotion.ease_turn(facing, target)
 	assert_float(absf(angle_difference(facing, target))).is_less(0.01)
 
 

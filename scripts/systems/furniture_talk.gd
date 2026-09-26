@@ -162,9 +162,9 @@ static func _play(
 ) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 	var tree: SceneTree = Game.get_tree()
-	var ui: Node = tree.get_first_node_in_group("dialogue_ui") if tree != null else null
+	var ui := DialogueOverlay.find(tree)
 	var data: DialogueData = DialogueCatalog.conversation(dialogue_id)
-	if ui == null or data == null or not ui.has_method("play"):
+	if ui == null or data == null:
 		return events
 	var dctx: DialogueContext = DialogueContext.from_game()
 	if prepare.is_valid():
@@ -174,9 +174,9 @@ static func _play(
 		events.append(event)
 		if on_event.is_valid():
 			on_event.call(event, dctx)
-	ui.connect("event_fired", capture)
-	ui.call("play", data, dctx)
-	if not ui.has_method("is_open") or bool(ui.call("is_open")):
+	ui.event_fired.connect(capture)
+	ui.play(data, dctx)
+	if ui.is_open():
 		await ui.closed
-	ui.disconnect("event_fired", capture)
+	ui.event_fired.disconnect(capture)
 	return events

@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"petunia"
 display_name = "Petunia"
 species = &"cow"
+texture_set = &"cow_2"
 personality = ExtResource("2")
 starter = true
 wall_index = 5

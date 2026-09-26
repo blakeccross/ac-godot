@@ -193,7 +193,7 @@ func _landing(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.type == T_COMMON_BUTTERFLY or a.type == T_YELLOW_BUTTERFLY:
 		a.bg_height -= 3.0
 	var ang: float = BugProgram.angle_to(a.pos, target)
-	a.rot.y = BugProgram.chase_angle(a.rot.y, ang, 0x1000 * S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, ang, 0x1000 * MLib.S16)
 	a.angle_y = a.rot.y
 	if is_zero_approx(a.target_speed) or (
 		absf(a.pos.x - target.x) < 2.0 and absf(a.pos.z - target.z) < 2.0
@@ -268,7 +268,7 @@ func _loop_move_ctrl(a: BugActor, sense: BugActor.Sense) -> void:
 	var z: float = a.pos.z - (a.f32_work[1] + PT_Z[idx])
 	var sq: float = sqrt(x * x + z * z)
 	var ang: float = BugProgram.atans(-z, -x)
-	var step: float = (0x800 if sq < 15.0 else 0x400) * S16
+	var step: float = (0x800 if sq < 15.0 else 0x400) * MLib.S16
 	a.rot.y = BugProgram.chase_angle(a.rot.y, ang, step)
 	a.angle_y = a.rot.y
 	if x * CHK_X[idx] < 0.0 or z * CHK_Z[idx] < 0.0:
@@ -316,9 +316,9 @@ func _on_flower(a: BugActor, sense: BugActor.Sense) -> bool:
 
 
 func _chou_fuwafuwa(a: BugActor) -> void:
-	var save_ang: float = 10.0 * sin(a.flag * S16)
+	var save_ang: float = 10.0 * sin(a.flag * MLib.S16)
 	a.flag += 0x800
-	var cur_ang: float = 10.0 * sin(a.flag * S16)
+	var cur_ang: float = 10.0 * sin(a.flag * MLib.S16)
 	a.pos_speed.y = a.gravity + (cur_ang - save_ang)
 
 
@@ -337,8 +337,8 @@ func _avoid_player(a: BugActor, sense: BugActor.Sense) -> void:
 		return
 	var to_player: float = BugProgram.angle_to(a.pos, sense.player_position / BugActor.GX_M)
 	var away: float = wrapf(to_player + PI, -PI, PI)
-	away += (0x1000 * S16) * (1.0 if (_frame_counter >> 5) & 1 else -1.0)
-	a.rot.y = BugProgram.chase_angle(a.rot.y, away, 0x600 * S16)
+	away += (0x1000 * MLib.S16) * (1.0 if (_frame_counter >> 5) & 1 else -1.0)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, away, 0x600 * MLib.S16)
 	a.angle_y = a.rot.y
 
 
@@ -349,7 +349,7 @@ func _avoid_move_ctrl(a: BugActor, sense: BugActor.Sense) -> void:
 		_avoid_player(a, sense)
 		return
 	var ang: float = BugProgram.angle_to(a.pos, a.home)
-	a.rot.y = BugProgram.chase_angle(a.rot.y, ang, 0x600 * S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, ang, 0x600 * MLib.S16)
 	a.angle_y = a.rot.y
 
 

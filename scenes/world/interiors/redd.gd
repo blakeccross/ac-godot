@@ -51,15 +51,15 @@ func _talk() -> bool:
 
 
 func _say(text: String) -> void:
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and ui.has_method("say"):
-		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-			ui.call("close")
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null:
+		if ui.is_open():
+			ui.close()
 		if _listener != null:
 			TalkCamera.begin(_listener, self, get_tree())
-		if ui.has_signal("closed") and not ui.closed.is_connected(_on_closed):
+		if not ui.closed.is_connected(_on_closed):
 			ui.closed.connect(_on_closed, CONNECT_ONE_SHOT)
-		ui.call("say", text, "Redd")
+		ui.say(text, "Redd")
 		_talking = true
 	elif Game != null:
 		Game.post_notice("Redd: %s" % text)

@@ -28,16 +28,16 @@ func _run() -> void:
 	for _i in 30:
 		await get_tree().process_frame
 	Game.inventory.add(ItemCatalog.get_item(&"apple"), 1)
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var player := Player.find(get_tree())
 	var gyroid: Node3D = null
 	for n: Node in get_tree().get_nodes_in_group("haniwa"):
 		if n.name == "player_haniwa":
 			gyroid = n as Node3D
 	player.global_position = gyroid.global_position + Vector3(0.0, 0.0, 2.0)
-	player.call("set_facing", PI)
+	player.set_facing(PI)
 	for _i in 10:
 		await get_tree().physics_frame
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
+	var ui := DialogueOverlay.find(get_tree())
 	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui")
 	var house: House = Game.interiors.player_house()
 
@@ -65,8 +65,8 @@ func _run() -> void:
 	print("MENU slot0=", HaniwaStore.item_at(house, 0), " apples in pockets=", Game.inventory.count_of(&"apple"))
 	await _shot("menu_store_done")
 	await _key(&"ui_cancel")
-	await _wait_for(func() -> bool: return bool(ui.call("is_open")))
-	var runner: DialogueRunner = ui.call("runner") as DialogueRunner
+	await _wait_for(func() -> bool: return ui.is_open())
+	var runner: DialogueRunner = ui.runner()
 	print("MENU resumed line=", runner.line.replace("\n", " "))
 
 	## 2. Other things → About the door → Post pattern.
@@ -84,7 +84,7 @@ func _run() -> void:
 	## The design list reads raw keys.
 	await _raw_key(KEY_RIGHT)
 	await _raw_key(KEY_SPACE)
-	await _wait_for(func() -> bool: return bool(ui.call("is_open")))
+	await _wait_for(func() -> bool: return ui.is_open())
 	print("MENU door_original=", house.door_original)
 
 	## 3. Other things → Set message.
@@ -107,7 +107,7 @@ func _run() -> void:
 		await get_tree().create_timer(0.1).timeout
 	await _raw_key(KEY_ESCAPE)
 	await _raw_key(KEY_SPACE)      ## Save it
-	await _wait_for(func() -> bool: return bool(ui.call("is_open")))
+	await _wait_for(func() -> bool: return ui.is_open())
 	print("MENU message=", house.haniwa_message.replace("\n", " | "))
 	## Leave the talk, then look at the door.
 	await _to_choice(ui)
@@ -115,7 +115,7 @@ func _run() -> void:
 	await _key(&"ui_down")
 	await _key(&"ui_down")
 	await _key(&"interact")        ## Never mind
-	while bool(ui.call("is_open")):
+	while ui.is_open():
 		await _key(&"interact")
 	var cam: Camera3D = get_viewport().get_camera_3d()
 	var door_house: Node3D = get_tree().root.find_child("player_house", true, false) as Node3D
@@ -127,9 +127,9 @@ func _run() -> void:
 	get_tree().quit()
 
 
-func _to_choice(ui: Node) -> void:
+func _to_choice(ui: DialogueOverlay) -> void:
 	for _i in 30:
-		var r: DialogueRunner = ui.call("runner") as DialogueRunner
+		var r: DialogueRunner = ui.runner()
 		if r != null and r.waiting_choice:
 			await get_tree().create_timer(0.5).timeout
 			return

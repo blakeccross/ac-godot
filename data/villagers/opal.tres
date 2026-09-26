@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"opal"
 display_name = "Opal"
 species = &"elephant"
+texture_set = &"elp_4"
 personality = ExtResource("2")
 starter = true
 wall_index = 50

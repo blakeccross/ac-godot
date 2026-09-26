@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"savannah"
 display_name = "Savannah"
 species = &"horse"
+texture_set = &"hrs_3"
 personality = ExtResource("2")
 starter = true
 wall_index = 28

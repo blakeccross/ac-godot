@@ -38,8 +38,9 @@ static func has_frames(species: StringName) -> bool:
 	return ResourceLoader.exists(frame_path(species, "eye", 0))
 
 
-## Returns true when both quads were found and frames are available to swap.
-func bind(visual: Node3D, species: StringName) -> bool:
+## Returns true when both quads were found and frames are available to swap. `texture_set`
+## (`bul_2`) picks that draw entry's own eye / mouth frames over the species default.
+func bind(visual: Node3D, species: StringName, texture_set: StringName = &"") -> bool:
 	_eye_mats.clear()
 	_mouth_mats.clear()
 	_eye_frames.clear()
@@ -54,6 +55,8 @@ func bind(visual: Node3D, species: StringName) -> bool:
 	var code := StringName(FieldCatalog.species_code(species))
 	if String(code).is_empty():
 		code = species
+	if texture_set != &"" and ResourceLoader.exists(frame_path(texture_set, "eye", 0)):
+		code = texture_set
 	var use_bin_frames: bool = code == &"boy"
 	if use_bin_frames:
 		_eye_frames = _load_frames(code, "eye", NpcFaceAnim.EYE_SHUT + 6)

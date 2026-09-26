@@ -248,17 +248,16 @@ static func _hold_pair(
 
 
 static func _lock_player(player: Node3D) -> bool:
-	if not is_instance_valid(player) or not player.has_method("set_busy"):
+	var p := player as Player if is_instance_valid(player) else null
+	if p == null or p.is_busy():
 		return false
-	if player.has_method("is_busy") and bool(player.call("is_busy")):
-		return false
-	player.call("set_busy", true)
+	p.set_busy(true)
 	return true
 
 
 static func _unlock_player(player: Node3D, locked: bool) -> void:
-	if locked and is_instance_valid(player) and player.has_method("set_busy"):
-		player.call("set_busy", false)
+	if locked and is_instance_valid(player) and player is Player:
+		(player as Player).set_busy(false)
 
 
 static func _start_oneshot(ap: AnimationPlayer, clip: String, loop: bool = false) -> float:

@@ -103,7 +103,9 @@ def parse_roster(decomp: Path) -> list[dict[str, Any]]:
     names = _parse_npc_names(decomp / "include" / "m_name_table.h")
     looks = _parse_looks(decomp / "src" / "game" / "m_name_table.c")
     grow = _parse_grow(decomp / "src" / "data" / "npc" / "grow_list.c")
-    prefixes = _parse_draw_prefixes(decomp / "src" / "data" / "npc" / "npc_draw_data.c")
+    draw = decomp / "src" / "data" / "npc" / "npc_draw_data.c"
+    prefixes = _parse_draw_prefixes(draw)
+    sets = parse_texture_sets(draw)
     houses = _parse_house_list(decomp / "src" / "data" / "npc" / "house_list.c")
     if len(names) != NPC_NUM:
         raise ValueError(f"expected {NPC_NUM} NPCs, got {len(names)}")
@@ -122,6 +124,7 @@ def parse_roster(decomp: Path) -> list[dict[str, Any]]:
                 "display_name": DISPLAY_SPECIAL.get(vid, _title_name(vid)),
                 "species": species,
                 "prefix": prefix,
+                "texture_set": sets[i][1] if i < len(sets) else "",
                 "looks": look,
                 "personality": LOOKS[look] if 0 <= look < len(LOOKS) else "lazy",
                 "starter": grow_kind == "starter",
@@ -232,6 +235,22 @@ def _parse_draw_prefixes(path: Path) -> list[str]:
     return prefixes[:NPC_NUM]
 
 
+def parse_texture_sets(path: Path) -> list[tuple[str, str]]:
+    """`(skeleton prefix, texture set)` per villager, e.g. `("bul_1", "bul_2")` for Stu.
+
+    Species share one skeleton (`&cKF_bs_r_bul_1`), but each `npc_draw_data_tbl` entry
+    names its own `tex_data` bank (`bul_2_tmem_txt`, `bul_2_pal`, `bul_2_eye*`, …).
+    """
+    text = path.read_text(encoding="utf-8", errors="replace")
+    start = text.find("npc_draw_data_tbl[]")
+    if start < 0:
+        raise ValueError("npc_draw_data_tbl not found")
+    found = re.findall(r"&cKF_bs_r_([a-z0-9]+_\d+),\s*\{\s*([a-z0-9]+_\d+)_tmem_txt", text[start:])
+    if len(found) < NPC_NUM:
+        raise ValueError(f"draw table too short: {len(found)}")
+    return found[:NPC_NUM]
+
+
 def _villager_id(enum_name: str) -> str:
     return enum_name.lower()
 
@@ -254,6 +273,8 @@ def _write_tres(path: Path, entry: dict[str, Any]) -> None:
         f'display_name = "{_escape(entry["display_name"])}"',
         f'species = &"{entry["species"]}"',
     ]
+    if entry.get("texture_set"):
+        lines.append(f'texture_set = &"{entry["texture_set"]}"')
     if entry["catchphrase"]:
         lines.append(f'catchphrase = "{_escape(entry["catchphrase"])}"')
     lines.append('personality = ExtResource("2")')

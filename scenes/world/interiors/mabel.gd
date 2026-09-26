@@ -37,7 +37,7 @@ var _next_act: String = ""
 var _edit_slot: int = -1
 ## Sequential dialogue queue (sister cutscene, multi-part trend report).
 var _line_queue: Array = []
-var _active_ui: Node = null
+var _active_ui: DialogueOverlay = null
 var _rng := RandomNumberGenerator.new()
 var _home: Vector3
 ## `aNNW_norm_talk_request` — Mabel starts the conversation herself the first time
@@ -63,9 +63,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	var uttering: bool = false
 	if _talking and get_tree() != null:
-		var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
-		if ui != null and ui.has_method("is_uttering"):
-			uttering = bool(ui.call("is_uttering"))
+		uttering = DialogueOverlay.uttering_in(get_tree())
 	_face.tick(delta, uttering)
 
 
@@ -89,11 +87,11 @@ func _physics_process(delta: float) -> void:
 func _roam_velocity(_delta: float) -> Vector3:
 	if get_tree() == null or Game == null:
 		return Vector3.ZERO
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var player := Player.find(get_tree())
 	if player == null:
 		return Vector3.ZERO
-	var dlg: Node = get_tree().get_first_node_in_group("dialogue_ui")
-	if dlg != null and dlg.has_method("is_open") and bool(dlg.call("is_open")):
+	var dlg := DialogueOverlay.find(get_tree())
+	if dlg != null and dlg.is_open():
 		return Vector3.ZERO
 	var to_player: Vector3 = player.global_position - global_position
 	to_player.y = 0.0
@@ -146,17 +144,17 @@ func _begin_talk(ctx: InteractionContext = null) -> bool:
 	var data: DialogueData = DialogueCatalog.conversation(MENU_ID)
 	var talk_ctx: DialogueContext = _make_ctx()
 	talk_ctx.already_talked = _talked_today
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and data != null and ui.has_method("play"):
-		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-			ui.call("close")
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null and data != null:
+		if ui.is_open():
+			ui.close()
 		_start_talk_session(listener)
 		_bind_session(ui)
-		ui.call("play", data, talk_ctx)
-	elif ui != null and ui.has_method("say"):
+		ui.play(data, talk_ctx)
+	elif ui != null:
 		_start_talk_session(listener)
 		_bind_end(ui)
-		ui.call("say", "Ohhh, yes?\nWhat do you need?", "Mabel")
+		ui.say("Ohhh, yes?\nWhat do you need?", "Mabel")
 	else:
 		Game.post_notice("Mabel: Ohhh, yes? What do you need?")
 	_talked_today = true
@@ -171,11 +169,11 @@ func _auto_greet(listener: Node3D) -> bool:
 		Game.designs.first_talk_done = true
 	var line := ("Hi there! Come on in.\nWelcome to Able Sisters,\nwhere YOU are the famous\nfashion designer!"
 		if first else "Oh, hi! Come on in!")
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and ui.has_method("play"):
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null:
 		_start_talk_session(listener)
 		_bind_end(ui)
-		ui.call("play", DialogueData.from_dict({
+		ui.play(DialogueData.from_dict({
 			"id": "mabel_welcome", "start": "l",
 			"nodes": {"l": {"type": "line", "text": line}},
 		}), _make_ctx())
@@ -196,20 +194,19 @@ func _make_ctx() -> DialogueContext:
 	return c
 
 
-func _bind_session(ui: Node) -> void:
+func _bind_session(ui: DialogueOverlay) -> void:
 	_active_ui = ui
-	if ui.has_signal("event_fired") and not ui.event_fired.is_connected(_on_dialogue_event):
+	if not ui.event_fired.is_connected(_on_dialogue_event):
 		ui.event_fired.connect(_on_dialogue_event)
-	if ui.has_signal("closed"):
-		if ui.is_connected("closed", _on_talk_closed):
-			ui.disconnect("closed", _on_talk_closed)
-		ui.connect("closed", _on_talk_closed, CONNECT_ONE_SHOT)
+	if ui.closed.is_connected(_on_talk_closed):
+		ui.closed.disconnect(_on_talk_closed)
+	ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
 
 
-func _bind_end(ui: Node) -> void:
-	if ui == null or not ui.has_signal("closed") or ui.is_connected("closed", _on_talk_closed):
+func _bind_end(ui: DialogueOverlay) -> void:
+	if ui == null or ui.closed.is_connected(_on_talk_closed):
 		return
-	ui.connect("closed", _on_talk_closed, CONNECT_ONE_SHOT)
+	ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
 
 
 func _on_dialogue_event(event: Dictionary) -> void:
@@ -230,7 +227,7 @@ func _on_dialogue_event(event: Dictionary) -> void:
 
 
 func _on_talk_closed() -> void:
-	if _active_ui != null and _active_ui.has_signal("event_fired"):
+	if _active_ui != null:
 		if _active_ui.event_fired.is_connected(_on_dialogue_event):
 			_active_ui.event_fired.disconnect(_on_dialogue_event)
 	_active_ui = null
@@ -256,12 +253,12 @@ func _on_talk_closed() -> void:
 # --- sub-flows --------------------------------------------------------------
 
 func _play_dialogue(dict: Dictionary) -> void:
-	var ui: Node = _grp("dialogue_ui")
-	if ui == null or not ui.has_method("play"):
+	var ui := DialogueOverlay.find(get_tree())
+	if ui == null:
 		return
 	_start_talk_session(_player_node())
 	_bind_session(ui)
-	ui.call("play", DialogueData.from_dict(dict), _make_ctx())
+	ui.play(DialogueData.from_dict(dict), _make_ctx())
 
 
 ## `aNNW_talk_design_check` — msg `0x2FE5`: cost + 8-slot warning, then
@@ -467,13 +464,13 @@ func _flow_trade_menu() -> void:
 			"bye": {"type": "line", "text": "Oh, I see."},
 		},
 	})
-	var ui: Node = _grp("dialogue_ui")
-	if ui == null or not ui.has_method("play"):
+	var ui := DialogueOverlay.find(get_tree())
+	if ui == null:
 		_trade_fixture = -1
 		return
 	_start_talk_session(_player_node())
 	_bind_session(ui)
-	ui.call("play", data, _make_ctx())
+	ui.play(data, _make_ctx())
 
 
 func _flow_trade_pick() -> void:
@@ -517,16 +514,15 @@ func _flush_queue() -> void:
 	if _line_queue.is_empty():
 		return
 	var entry: Dictionary = _line_queue.pop_front()
-	var ui: Node = _grp("dialogue_ui")
+	var ui := DialogueOverlay.find(get_tree())
 	if ui == null:
 		Game.post_notice("%s: %s" % [entry.get("speaker", "Mabel"), entry.get("text", "")])
 		_flush_queue()
 		return
 	_start_talk_session(_player_node())
-	if ui.has_signal("closed") and not ui.is_connected("closed", _on_queue_closed):
-		ui.connect("closed", _on_queue_closed, CONNECT_ONE_SHOT)
-	if ui.has_method("say"):
-		ui.call("say", str(entry.get("text", "")), str(entry.get("speaker", "Mabel")))
+	if not ui.closed.is_connected(_on_queue_closed):
+		ui.closed.connect(_on_queue_closed, CONNECT_ONE_SHOT)
+	ui.say(str(entry.get("text", "")), str(entry.get("speaker", "Mabel")))
 
 
 func _on_queue_closed() -> void:
@@ -573,11 +569,11 @@ func _player_node() -> Node3D:
 
 
 func _say_line(text: String) -> void:
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and ui.has_method("say"):
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null:
 		_start_talk_session(get_tree().get_first_node_in_group("player") as Node3D)
 		_bind_end(ui)
-		ui.call("say", text, "Mabel")
+		ui.say(text, "Mabel")
 	elif Game != null:
 		Game.post_notice("Mabel: %s" % text)
 
@@ -596,7 +592,7 @@ func _start_talk_session(listener: Node3D) -> void:
 
 
 func _face_player() -> void:
-	var player: Node = get_tree().get_first_node_in_group("player") if get_tree() != null else null
+	var player := Player.find(get_tree())
 	if player is Node3D:
 		_face_toward((player as Node3D).global_position)
 

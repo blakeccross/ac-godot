@@ -117,7 +117,7 @@ func _fuwafuwa(a: BugActor, hard: bool) -> void:
 	else:
 		a.s32_work[2] += 0x400
 		a.speed = 1.5
-	var ofs: float = sin(a.s32_work[2] * S16) * 10.0
+	var ofs: float = sin(a.s32_work[2] * MLib.S16) * 10.0
 	a.pos_speed.y = (a.home.y + ofs) - a.pos.y
 
 
@@ -127,15 +127,15 @@ func _fly(a: BugActor, sense: BugActor.Sense) -> void:
 	_fuwafuwa(a, false)
 	if absf(a.f32_work[0] - a.pos.x) > 30.0 or absf(a.f32_work[1] - a.pos.z) > 30.0:
 		var to_target: float = BugProgram.angle_to(a.pos, Vector3(a.f32_work[0], a.pos.y, a.f32_work[1]))
-		a.s32_work[1] = int((to_target + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(67.5)) / S16)
+		a.s32_work[1] = int((to_target + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(67.5)) / MLib.S16)
 		if a.patience > 90.0:
 			var dx: float = a.f32_work[2] - a.pos.x
 			var dz: float = a.f32_work[3] - a.pos.z
 			if absf(dx) > 240.0 or absf(dz) > 240.0:
-				a.s32_work[1] = int(BugProgram.atans(dz, dx) / S16)
+				a.s32_work[1] = int(BugProgram.atans(dz, dx) / MLib.S16)
 			elif sense.has_player():
 				var to_pl: float = BugProgram.angle_to(a.pos, sense.player_position / BugActor.GX_M)
-				a.s32_work[1] = int((to_pl + PI) / S16)
+				a.s32_work[1] = int((to_pl + PI) / MLib.S16)
 			a.flag = 1
 		elif a.flag == 1 and a.patience < 10.0:
 			a.f32_work[0] = a.pos.x
@@ -143,7 +143,7 @@ func _fly(a: BugActor, sense: BugActor.Sense) -> void:
 			a.flag = 0
 	## Smooth heading chase toward the target angle.
 	## `add_calc_short_angle2(world.angle.y, aIHT_TARGET_ANGLE, 1 - sqrt(0.9), 250, 0)`.
-	a.angle_y = MLib.short_angle2(a.angle_y, a.s32_work[1] * S16, 1.0 - sqrt(0.9), 250.0 * S16)
+	a.angle_y = MLib.short_angle2(a.angle_y, a.s32_work[1] * MLib.S16, 1.0 - sqrt(0.9), 250.0 * MLib.S16)
 	a.rot.y = a.angle_y
 
 

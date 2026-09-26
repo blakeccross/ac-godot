@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"truffles"
 display_name = "Truffles"
 species = &"pig"
+texture_set = &"pig_2"
 personality = ExtResource("2")
 starter = true
 wall_index = 12

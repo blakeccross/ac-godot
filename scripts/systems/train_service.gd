@@ -237,7 +237,7 @@ static func whistle_volume(distance: float) -> float:
 ## `atans_table(dz, dx)` → `angle2pan` (without the `pan_kochou` curve): −1 left … 1 right.
 ## Due east is hard right, due west hard left, north / south centred.
 static func pan_for(mic: Vector3, source: Vector3) -> float:
-	var angle: int = int(round(atan2(source.x - mic.x, source.z - mic.z) / TAU * 65536.0)) & 0xFFFF
+	var angle: int = MLib.rad_to_s16(atan2(source.x - mic.x, source.z - mic.z))
 	var a: int = angle >> 8
 	var p: int
 	if a >= 0x40 and a <= 0xC0:
@@ -259,7 +259,7 @@ func _scene_mode() -> int:
 func _mic_gx() -> Vector3:
 	var base: Vector3 = Game.outdoor_return
 	if Game.current_room_id == &"":
-		var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+		var player := Player.find(get_tree())
 		if player != null:
 			base = player.global_position
 	return TownSpace.world_to_gx(base) + MIC_OFFSET_GX
@@ -268,7 +268,7 @@ func _mic_gx() -> Vector3:
 func _player_block() -> Vector2i:
 	if Game.current_room_id != &"":
 		return Vector2i(-1, -1)
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var player := Player.find(get_tree())
 	if player == null:
 		return Vector2i(-1, -1)
 	var gx: Vector3 = TownSpace.world_to_gx(player.global_position)

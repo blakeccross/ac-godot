@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"prince"
 display_name = "Prince"
 species = &"frog"
+texture_set = &"flg_11"
 personality = ExtResource("2")
 starter = true
 wall_index = 39

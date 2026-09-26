@@ -1,3 +1,4 @@
+class_name DialogueOverlay
 extends CanvasLayer
 
 ## Modal talk window (`m_msg` appear/normal/cursor/disappear) drawn by `MessageWindowChrome`.
@@ -46,9 +47,28 @@ var _voice: DialogueVoice = DialogueVoice.new()
 func _ready() -> void:
 	layer = 25
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_to_group("dialogue_ui")
+	add_to_group(GROUP)
 	if not Engine.is_editor_hint():
 		_root.visible = false
+
+
+const GROUP := &"dialogue_ui"
+
+
+## The talk window in `tree`, or null (title screen, tests without one).
+static func find(tree: SceneTree) -> DialogueOverlay:
+	return tree.get_first_node_in_group(GROUP) as DialogueOverlay if tree != null else null
+
+
+## `mMsg_Check_NowUtter` for NPC mouth flaps: false when there is no window.
+static func uttering_in(tree: SceneTree) -> bool:
+	var ui := find(tree)
+	return ui != null and ui.is_uttering()
+
+
+static func open_in(tree: SceneTree) -> bool:
+	var ui := find(tree)
+	return ui != null and ui.is_open()
 
 
 func is_open() -> bool:

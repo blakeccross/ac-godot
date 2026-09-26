@@ -253,7 +253,7 @@ func _rest_on_notice(a: BugActor, sense: BugActor.Sense) -> void:
 
 func _turn(a: BugActor) -> void:
 	## `add_calc_short_angle2(rot.y, angle.y, 1 - sqrt(0.7), 2500, 0)` in every flying action.
-	a.rot.y = MLib.short_angle2(a.rot.y, a.angle_y, 1.0 - sqrt(0.7), 2500.0 * S16)
+	a.rot.y = MLib.short_angle2(a.rot.y, a.angle_y, 1.0 - sqrt(0.7), 2500.0 * MLib.S16)
 
 
 func _height_ctrl(a: BugActor, sense: BugActor.Sense) -> void:

@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"limberg"
 display_name = "Limberg"
 species = &"mouse"
+texture_set = &"mus_8"
 personality = ExtResource("2")
 starter = true
 wall_index = 9

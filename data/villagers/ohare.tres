@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"ohare"
 display_name = "O'Hare"
 species = &"rabbit"
+texture_set = &"rbt_11"
 personality = ExtResource("2")
 islander = true
 starter = false

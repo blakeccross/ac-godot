@@ -8,7 +8,7 @@ const DIALOGUE_ID := &"kk_opening"
 @onready var _camera: Camera3D = %IntroCamera
 @onready var _fade: ColorRect = %FadeRect
 @onready var _missing_banner: Label = %MissingBanner
-@onready var _dialogue: CanvasLayer = %DialogueOverlay
+@onready var _dialogue: DialogueOverlay = %DialogueOverlay
 
 var _stage: IntroKkStage = IntroKkStage.new()
 var _finishing: bool = false
@@ -78,14 +78,12 @@ func _process(delta: float) -> void:
 	var awaiting: bool = (
 		_dialogue_started
 		and _dialogue != null
-		and _dialogue.has_method("is_awaiting_input")
 		and _dialogue.is_awaiting_input()
 	)
 	_stage.tick(delta, awaiting)
 	if _kk != null:
 		var uttering: bool = (
 			_dialogue != null
-			and _dialogue.has_method("is_uttering")
 			and _dialogue.is_uttering()
 		)
 		_kk.tick_face(delta, uttering)
@@ -95,8 +93,7 @@ func _process(delta: float) -> void:
 		_auto_advance_timer += delta
 		if _auto_advance_timer >= 0.35:
 			_auto_advance_timer = 0.0
-			if _dialogue.has_method("fast_advance"):
-				_dialogue.fast_advance()
+			_dialogue.fast_advance()
 
 
 func _on_pose_changed(pose: int) -> void:

@@ -229,12 +229,12 @@ func _step() -> void:
 			_velocity.x *= sqrt(0.95)
 			_velocity.z *= sqrt(0.95)
 			## `0x662` / `0xA00` on the s16 angle wheel.
-			_spin_x += TAU * 0x662 / 65536.0
-			_spin_z += TAU * 0x662 / 65536.0
-			_sway += TAU * 0xA00 / 65536.0
+			_spin_x += 0x662 * MLib.S16
+			_spin_z += 0x662 * MLib.S16
+			_sway += 0xA00 * MLib.S16
 		else:
-			_spin_x += TAU * 0x280 / 65536.0
-			_spin_z += TAU * 0x280 / 65536.0
+			_spin_x += 0x280 * MLib.S16
+			_spin_z += 0x280 * MLib.S16
 			if _velocity.y <= 0.0:
 				_falling = true
 				_accel.y = -0.05

@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"blaire"
 display_name = "Blaire"
 species = &"squirrel"
+texture_set = &"squ_9"
 personality = ExtResource("2")
 starter = true
 wall_index = 12

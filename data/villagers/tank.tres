@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"tank"
 display_name = "Tank"
 species = &"rhino"
+texture_set = &"rhn_1"
 personality = ExtResource("2")
 starter = true
 wall_index = 32

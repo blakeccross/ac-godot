@@ -197,21 +197,17 @@ static func chase_speed(current: float, target: float, ticks: float = 1.0) -> fl
 static func look_yaw(house_idx: int, has_owner: bool, action: Action, player_yaw: float) -> float:
 	if has_owner or action >= Action.CHECK_PROCEEDS:
 		return player_yaw
-	return short_to_rad(FRONT_ANGLE[clampi(house_idx, 0, 3)])
+	return MLib.s16_to_rad(FRONT_ANGLE[clampi(house_idx, 0, 3)])
 
 
 ## `chase_angle(rot, target, 0x0600)`: scaled by the 30 Hz game frame (`game_GameFrame_2F`),
 ## so it turns `TURN_STEP` × 30 per second whatever the tick rate.
 static func chase_yaw(current: float, target: float, delta: float) -> float:
-	var step: float = short_to_rad(TURN_STEP) * DecompTime.FRAME_HZ * delta
+	var step: float = MLib.s16_to_rad(TURN_STEP) * DecompTime.FRAME_HZ * delta
 	var diff: float = wrapf(target - current, -PI, PI)
 	if absf(diff) <= step:
 		return target
 	return current + step * signf(diff)
-
-
-static func short_to_rad(value: int) -> float:
-	return float(value) * TAU / 65536.0
 
 
 ## `aHNW_pl_approach_door` stage for a player `offset_gx` from the gyroid (x only matters).

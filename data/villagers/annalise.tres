@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"annalise"
 display_name = "Annalise"
 species = &"horse"
+texture_set = &"hrs_8"
 personality = ExtResource("2")
 islander = true
 starter = false

@@ -162,7 +162,16 @@ def _extract_villager_faces_from_rel(
         return []
 
     records: list[dict[str, Any]] = []
-    for _species, prefix in discover_villager_prefixes(rel_dir).items():
+    ## `{species}_eye0` is the species default (first set); every draw entry's own set
+    ## is also written as `{set}_eye0` (`bul_2_eye0`) — each villager has its own face.
+    targets: list[tuple[str, str]] = [
+        (species, prefix) for species, prefix in discover_villager_prefixes(rel_dir).items()
+    ]
+    for src in sorted(rel_dir.glob("*_eye1_TA_tex_txt.png")):
+        prefix = src.name[: -len("_eye1_TA_tex_txt.png")]
+        if _VARIANT_SUFFIX.match(prefix):
+            targets.append((prefix, prefix))
+    for _species, prefix in targets:
         for eye_i in range(1, EYE_REL_COUNT + 1):
             records.append(
                 _copy_rel_face_frame(

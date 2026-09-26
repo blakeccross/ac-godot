@@ -28,9 +28,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	var uttering: bool = false
 	if _talking and get_tree() != null:
-		var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
-		if ui != null and ui.has_method("is_uttering"):
-			uttering = bool(ui.call("is_uttering"))
+		uttering = DialogueOverlay.uttering_in(get_tree())
 	_face.tick(delta, uttering)
 	if _talking:
 		_face_player()
@@ -66,13 +64,13 @@ func _begin_talk(ctx: InteractionContext, slot: int) -> bool:
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = "Booker"
 	talk_ctx.already_talked = _talked_today
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
+	var ui := DialogueOverlay.find(get_tree())
 	if slot >= 0:
 		## Confirm claim (`aPOL2_check_answer` CHOICE0).
 		_start_talk_session(listener)
-		if ui != null and ui.has_method("say"):
+		if ui != null:
 			_bind_talk_end(ui)
-			ui.call("say", line, "Booker")
+			ui.say(line, "Booker")
 			_try_claim(slot)
 		else:
 			Game.post_notice("Booker: %s" % line)
@@ -80,16 +78,16 @@ func _begin_talk(ctx: InteractionContext, slot: int) -> bool:
 			_on_talk_closed()
 		_talked_today = true
 		return true
-	if ui != null and data != null and ui.has_method("play"):
-		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-			ui.call("close")
+	if ui != null and data != null:
+		if ui.is_open():
+			ui.close()
 		_start_talk_session(listener)
 		_bind_talk_end(ui)
-		ui.call("play", data, talk_ctx)
-	elif ui != null and ui.has_method("say"):
+		ui.play(data, talk_ctx)
+	elif ui != null:
 		_start_talk_session(listener)
 		_bind_talk_end(ui)
-		ui.call("say", line, "Booker")
+		ui.say(line, "Booker")
 	else:
 		Game.post_notice("Booker: %s" % line)
 	_talked_today = true
@@ -125,12 +123,12 @@ func _start_talk_session(listener: Node3D) -> void:
 	_play_clip(ANIM_WAIT, true)
 
 
-func _bind_talk_end(ui: Node) -> void:
-	if ui == null or not ui.has_signal("closed"):
+func _bind_talk_end(ui: DialogueOverlay) -> void:
+	if ui == null:
 		return
-	if ui.is_connected("closed", _on_talk_closed):
+	if ui.closed.is_connected(_on_talk_closed):
 		return
-	ui.connect("closed", _on_talk_closed, CONNECT_ONE_SHOT)
+	ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
 
 
 func _on_talk_closed() -> void:
@@ -140,7 +138,7 @@ func _on_talk_closed() -> void:
 
 
 func _face_player() -> void:
-	var player: Node = get_tree().get_first_node_in_group("player") if get_tree() != null else null
+	var player := Player.find(get_tree())
 	if player is Node3D:
 		_face_toward((player as Node3D).global_position)
 

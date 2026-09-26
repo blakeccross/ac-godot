@@ -18,8 +18,8 @@ const MIN_STEP := 0.25
 const SWING := 250.0
 ## `Camera2_MoveDirectionAngleXYZ`: `add_calc_short_angle2(dir.x, goal, 0.0513, 11000, 100)`.
 const PITCH_FRACTION := 0.051316679
-const PITCH_MAX_STEP := 11000.0 * TAU / 65536.0
-const PITCH_MIN_STEP := 100.0 * TAU / 65536.0
+const PITCH_MAX_STEP := 11000.0 * MLib.S16
+const PITCH_MIN_STEP := 100.0 * MLib.S16
 
 
 ## `Camera2_GetBorderScale(scale 1)` for `block`: `{x_min, x_max, z_min, z_max}` of the centre.
@@ -112,7 +112,7 @@ static func swing(eye_gx: Vector3, player_gx: Vector3) -> float:
 	var ratio: float = clampf((eye_gx.z - z_mid) / half, -1.0, 1.0)
 	if ratio >= 0.0:
 		return 0.0
-	return ratio * SWING * TAU / 65536.0
+	return ratio * SWING * MLib.S16
 
 
 ## One normal-camera frame of the pitch ease (`Camera2_MoveDirectionAngleXYZ`).

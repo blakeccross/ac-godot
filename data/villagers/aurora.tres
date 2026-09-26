@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"aurora"
 display_name = "Aurora"
 species = &"penguin"
+texture_set = &"pgn_2"
 personality = ExtResource("2")
 starter = true
 wall_index = 15

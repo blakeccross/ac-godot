@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"friga"
 display_name = "Friga"
 species = &"penguin"
+texture_set = &"pgn_7"
 catchphrase = "brr"
 personality = ExtResource("2")
 starter = true

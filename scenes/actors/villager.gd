@@ -128,7 +128,9 @@ func _ready() -> void:
 	if vis != null:
 		_body_anim = VisualAnimation.find_animation_player(vis)
 		_play_clip(ANIM_WAIT, true)
-		_face.bind(vis, data.species if data else &"")
+		var texture_set: StringName = data.texture_set if data else &""
+		VillagerTextures.apply(vis, texture_set)
+		_face.bind(vis, data.species if data else &"", texture_set)
 		_head_look.bind(vis, self)
 		_sync_face_mood(true)
 	if indoor_resident:
@@ -224,17 +226,17 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if await _try_first_job_talk(ctx):
 		return true
 	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and ui.has_method("play"):
-		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-			ui.call("close")
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null:
+		if ui.is_open():
+			ui.close()
 		ai.begin_talk()
 		_bind_talk_end(ui)
 		## Decomp `Camera2_request_main_talk(play, player, npc)` — speaker = player.
 		var player: Node3D = ctx.actor as Node3D if ctx != null else null
 		if player != null:
 			TalkCamera.begin(player, self, get_tree())
-		ui.call("play", VillagerTalk.conversation(data, state), talk_ctx, state)
+		ui.play(VillagerTalk.conversation(data, state), talk_ctx, state)
 	else:
 		_face_towards(_talk_look)
 		var line: String = VillagerTalk.greeting(data, state)
@@ -293,15 +295,15 @@ func _play_first_job_line(conv_id: StringName, who: String, player: Node3D) -> v
 	var talk_data: DialogueData = DialogueCatalog.conversation(conv_id)
 	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
 	talk_ctx.speaker_name = who
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and talk_data != null and ui.has_method("play"):
-		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-			ui.call("close")
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null and talk_data != null:
+		if ui.is_open():
+			ui.close()
 		ai.begin_talk()
 		_bind_talk_end(ui)
 		if player != null:
 			TalkCamera.begin(player, self, get_tree())
-		ui.call("play", talk_data, talk_ctx, state)
+		ui.play(talk_data, talk_ctx, state)
 	else:
 		Game.post_notice("%s: Thanks!" % who)
 
@@ -739,14 +741,11 @@ func _sync_face_mood(force: bool) -> void:
 func _dialogue_uttering() -> bool:
 	if not ai.is_talking() or get_tree() == null:
 		return false
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
-	if ui != null and ui.has_method("is_uttering"):
-		return bool(ui.call("is_uttering"))
-	return false
+	return DialogueOverlay.uttering_in(get_tree())
 
 
-func _bind_talk_end(ui: Node) -> void:
-	if ui == null or not ui.has_signal("closed"):
+func _bind_talk_end(ui: DialogueOverlay) -> void:
+	if ui == null:
 		return
 	if ui.closed.is_connected(_on_talk_closed):
 		ui.closed.disconnect(_on_talk_closed)
@@ -755,8 +754,8 @@ func _bind_talk_end(ui: Node) -> void:
 
 func _unbind_talk() -> void:
 	if get_tree() != null:
-		var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
-		if ui != null and ui.has_signal("closed") and ui.closed.is_connected(_on_talk_closed):
+		var ui := DialogueOverlay.find(get_tree())
+		if ui != null and ui.closed.is_connected(_on_talk_closed):
 			ui.closed.disconnect(_on_talk_closed)
 	if ai.is_talking():
 		TalkCamera.end(get_tree())
@@ -1166,17 +1165,17 @@ func _play_annoyance_scold() -> void:
 	if talk_data == null or data == null:
 		return
 	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
-	if ui == null or not ui.has_method("play"):
+	var ui := DialogueOverlay.find(get_tree())
+	if ui == null:
 		return
-	if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-		ui.call("close")
+	if ui.is_open():
+		ui.close()
 	ai.begin_talk()
 	_bind_talk_end(ui)
 	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
 	if player != null:
 		TalkCamera.begin(player, self, get_tree())
-	ui.call("play", talk_data, talk_ctx, state)
+	ui.play(talk_data, talk_ctx, state)
 
 
 func _looks() -> VillagerPersonality.Looks:
@@ -1289,11 +1288,11 @@ func _water_stand() -> Vector3:
 func _bg() -> Array:
 	if get_tree() == null:
 		return []
-	var world: Node = get_tree().get_first_node_in_group("world")
+	var world := World.find(get_tree())
 	if world == null:
 		return []
-	var world_data: Variant = world.get("layout")
-	var grid: Variant = world.get("grid")
+	var world_data: Variant = world.layout
+	var grid: Variant = world.grid
 	if not (world_data is WorldData) or not (grid is WorldGrid):
 		return []
 	return [world_data, grid]

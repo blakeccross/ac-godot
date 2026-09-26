@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"biskit"
 display_name = "Biskit"
 species = &"dog"
+texture_set = &"dog_1"
 catchphrase = "dawg"
 personality = ExtResource("2")
 starter = true

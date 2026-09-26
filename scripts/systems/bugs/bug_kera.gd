@@ -137,7 +137,7 @@ func _appear(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
-	a.rot.x = BugProgram.chase_angle(a.rot.x, 0.0, 0x1000 * S16)
+	a.rot.x = BugProgram.chase_angle(a.rot.x, 0.0, 0x1000 * MLib.S16)
 	a.s32_work[0] -= 1
 	if a.s32_work[0] <= 0:
 		a.target_speed = (1.1 - a._rng.randf() * 0.2) * 1.5
@@ -169,13 +169,13 @@ func _dive(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _dug(a: BugActor, _sense: BugActor.Sense) -> void:
-	a.rot.x = BugProgram.chase_angle(a.rot.x, deg_to_rad(157.5), 0x300 * S16)
+	a.rot.x = BugProgram.chase_angle(a.rot.x, deg_to_rad(157.5), 0x300 * MLib.S16)
 
 
 func _calc_direction(a: BugActor, sense: BugActor.Sense) -> void:
 	if sense != null and sense.bg.is_valid() and bool(sense.bg.call(a.pos).get("hit_wall_front", false)):
 		a.angle_y = wrapf(a.angle_y + PI * 0.5, -PI, PI)
-	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * MLib.S16)
 
 
 func _ground_clamp(a: BugActor, sense: BugActor.Sense) -> void:

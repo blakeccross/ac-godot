@@ -129,10 +129,6 @@ static func calc_adjust(now: float, start: float, end: float, a: float, b: float
 	return a + (now - start) * ((b - a) / (end - start))
 
 
-static func _short(a: int) -> float:
-	return float(a) / 65536.0 * TAU
-
-
 func _process(delta: float) -> void:
 	_steps.add(delta)
 	while _steps.next():
@@ -278,7 +274,7 @@ func _ct_drop(table: Array[Vector4], gravity: float) -> void:
 	var v := Vector3(0.0, sp.x + randf() * sp.y, sp.z)
 	var dir: float
 	if kind == Kind.MIZUTAMA:
-		dir = angle + _short(MIZU_ANGLE[clampi(int(spec[3]), 0, MIZU_ANGLE.size() - 1)])
+		dir = angle + MLib.s16_to_rad(MIZU_ANGLE[clampi(int(spec[3]), 0, MIZU_ANGLE.size() - 1)])
 	else:
 		dir = angle + deg_to_rad(YUKI_ANGLE_DEG[clampi(int(spec[3]), 0, YUKI_ANGLE_DEG.size() - 1)])
 	vel = rot_y(v, dir)
@@ -411,18 +407,18 @@ func _move_petal() -> void:
 	vel += acc
 	pos_gx += vel
 	if spec[5] == 0.0:
-		spec[4] += _short(0xA00)
-		spec[2] += _short(0x280)
-		spec[3] += _short(0x280)
+		spec[4] += MLib.s16_to_rad(0xA00)
+		spec[2] += MLib.s16_to_rad(0x280)
+		spec[3] += MLib.s16_to_rad(0x280)
 		if vel.y <= 0.0:
 			spec[5] = 1.0
 			acc.y = -0.05
 	else:
 		var s: float = sin(spec[4]) * 2.0
 		offset = Vector3(s, 0.0, -s)
-		spec[4] += _short(0xA00)
-		spec[2] += _short(0x662)
-		spec[3] += _short(0x662)
+		spec[4] += MLib.s16_to_rad(0xA00)
+		spec[2] += MLib.s16_to_rad(0x662)
+		spec[3] += MLib.s16_to_rad(0x662)
 
 
 # --- presentation (`*_dw`) ------------------------------------------------------------

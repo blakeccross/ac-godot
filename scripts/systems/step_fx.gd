@@ -17,7 +17,7 @@ const GX := FieldCatalog.GX_TO_METERS
 
 static var _grid: WorldGrid
 static var _data: WorldData
-static var _world: Node
+static var _world: World
 
 
 static func is_grass(attr: int) -> bool:
@@ -60,7 +60,7 @@ static func _bind(bg: Array) -> Node:
 	_data = bg[0] as WorldData if bg.size() == 2 else null
 	_grid = bg[1] as WorldGrid if bg.size() == 2 else null
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
-	_world = tree.get_first_node_in_group("world") if tree != null else null
+	_world = World.find(tree)
 	if _world == null:
 		return null
 	var effects: Node = _world.get_node_or_null("Effects")

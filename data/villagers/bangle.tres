@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"bangle"
 display_name = "Bangle"
 species = &"tiger"
+texture_set = &"tig_3"
 personality = ExtResource("2")
 starter = true
 wall_index = 62

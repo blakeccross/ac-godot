@@ -36,21 +36,18 @@ func _physics_process(delta: float) -> void:
 
 func _make_sense() -> BugActor.Sense:
 	var sense := BugActor.Sense.new()
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D if get_tree() else null
+	var player := Player.find(get_tree())
 	if player != null:
 		sense.player_position = player.global_position
-		if player.has_method("insect_stress_move_gx"):
-			sense.player_move_gx = float(player.call("insect_stress_move_gx"))
-		if player.has_method("is_dashing"):
-			sense.player_dashing = bool(player.call("is_dashing"))
-		if player.has_method("facing_yaw"):
-			sense.player_yaw = float(player.call("facing_yaw"))
+		sense.player_move_gx = player.insect_stress_move_gx()
+		sense.player_dashing = player.is_dashing()
+		sense.player_yaw = player.facing_yaw()
 	var grid: Variant = _grid_for()
 	if grid is WorldGrid:
 		sense.bg = BugBg.make_probe(grid, _layout_for())
 		sense.grid = grid
-	if player != null and player.has_method("shaken_tree_cells"):
-		for cell: Vector2i in player.call("shaken_tree_cells"):
+	if player != null:
+		for cell: Vector2i in player.shaken_tree_cells():
 			sense.shaken_cells[cell] = true
 	if _field != null:
 		var act: Dictionary = _field.take_field_action()

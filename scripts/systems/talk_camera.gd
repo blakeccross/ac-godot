@@ -8,15 +8,11 @@ const BASE_DIST_GX := 290.0
 const DIST_SCALE := 1.46
 ## Talk goal dir X = DEG2SHORT(−164.114)+1440 → inv via +SHT_MIN = 4332 short ≈ 23.796°.
 const PITCH_INV_SHORT := 4332.0
-const PITCH_INV_DEG := PITCH_INV_SHORT * 360.0 / 65536.0
+const PITCH_INV_DEG := rad_to_deg(PITCH_INV_SHORT * MLib.S16)
 const EYE_HEIGHT_M := 1.15
 ## `Camera2_Talk_GetAngleY` uses `cos_s(2y) * 2730` short-units (≈14.996°).
 const YAW_TWEAK_SHORT := 2730.0
-const YAW_TWEAK_DEG := YAW_TWEAK_SHORT * 360.0 / 65536.0
-## `Player_actor_Movement_Talk` turn (`add_calc_short_angle2`, once per ~60 Hz frame).
-const TURN_FRACTION := 0.292893 ## 1 - sqrt(0.5)
-const TURN_MAX_STEP := TAU * 2500.0 / 65536.0 ## ~13.73°
-const TURN_MIN_STEP := TAU * 50.0 / 65536.0 ## ~0.275°
+const YAW_TWEAK_DEG := rad_to_deg(YAW_TWEAK_SHORT * MLib.S16)
 
 
 ## `turn` mirrors `mDemo_Set_talk_turn` (SPEAK/TALK force-talk tables may clear it).

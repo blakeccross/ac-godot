@@ -100,7 +100,7 @@ func test_speed_chases_up_faster_than_down() -> void:
 
 
 func test_empty_plot_looks_front_and_owner_tracks_the_player() -> void:
-	var front: float = HaniwaTalk.short_to_rad(8000)
+	var front: float = MLib.s16_to_rad(8000)
 	assert_float(HaniwaTalk.look_yaw(0, false, HaniwaTalk.Action.WAIT, 1.0)).is_equal_approx(front, 0.0001)
 	assert_float(HaniwaTalk.look_yaw(1, false, HaniwaTalk.Action.WAIT, 1.0)).is_equal_approx(-front, 0.0001)
 	assert_float(HaniwaTalk.look_yaw(1, false, HaniwaTalk.Action.TALK_END_WAIT, 1.0)).is_equal(1.0)
@@ -108,7 +108,7 @@ func test_empty_plot_looks_front_and_owner_tracks_the_player() -> void:
 
 
 func test_chase_yaw_turns_0x600_per_30hz_frame() -> void:
-	var step: float = HaniwaTalk.short_to_rad(0x0600)
+	var step: float = MLib.s16_to_rad(0x0600)
 	assert_float(HaniwaTalk.chase_yaw(0.0, 1.0, 1.0 / 30.0)).is_equal_approx(step, 0.0001)
 	assert_float(HaniwaTalk.chase_yaw(0.0, -1.0, 1.0 / 30.0)).is_equal_approx(-step, 0.0001)
 	assert_float(HaniwaTalk.chase_yaw(0.9, 1.0, 1.0 / 30.0)).is_equal(1.0)

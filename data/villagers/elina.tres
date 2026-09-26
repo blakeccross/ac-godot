@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"elina"
 display_name = "Elina"
 species = &"elephant"
+texture_set = &"elp_7"
 personality = ExtResource("2")
 islander = true
 starter = false

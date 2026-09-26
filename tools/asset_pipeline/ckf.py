@@ -368,6 +368,24 @@ def _blob_sets_texture(blob: bytes) -> bool:
     return False
 
 
+def _joint_gfx_index(symbols: list[MapSymbol], joints_sym: MapSymbol) -> dict[int, MapSymbol]:
+    """Address → symbol for a joint table's Gfx pointers, from the table's own object.
+
+    The map lists every object's symbols in one address space, so a REL data DL can
+    share its number with unrelated code (`Lfoot1_bul_model` and `m_player.o`'s
+    `Player_actor_request_main_demo_geton_train` are both 0x18d858). Last-wins picked the
+    function, the joint lost its model name, and the thigh DL was walked as a loose part
+    with reset texture state — the bull's left thigh vanished. Section labels (`.data`)
+    never name a DL.
+    """
+    out: dict[int, MapSymbol] = {}
+    for sym in symbols:
+        if sym.obj != joints_sym.obj or sym.name.startswith("."):
+            continue
+        out[sym.address] = sym  # same tie-break as before within the object
+    return out
+
+
 def convert_ckf_model(
     rel: RelData,
     symbols: list[MapSymbol],
@@ -375,7 +393,10 @@ def convert_ckf_model(
     scale: float,
     animation_names: list[str] | None = None,
     bank: TextureBank | None = None,
+    texture_prefix: str | None = None,
 ) -> ConvertedModel:
+    """`texture_prefix` binds another draw entry's texture set (`bul_2` on the `bul_1`
+    skeleton) — villagers of one species share a skeleton but not their textures."""
     by_name = index_by_name(symbols)
     skeleton = find_symbol(symbols, skeleton_name, by_name)
     sk_blob = rel.slice_at(skeleton.address, skeleton.size)
@@ -391,7 +412,7 @@ def convert_ckf_model(
         ## model's eye/mouth quads and hide them from `NpcFace`. Matches the
         ## reset `_convert_static` does before `bind_static_segments`.
         bank._segment_offset_names.clear()
-        bank.bind_model_segments(prefix)
+        bank.bind_model_segments(texture_prefix or prefix)
     joints_sym = find_symbol(symbols, f"cKF_je_r_{prefix}_tbl", by_name)
     jblob = rel.slice_at(joints_sym.address, joints_sym.size)
     has_gfx = any(
@@ -402,7 +423,7 @@ def convert_ckf_model(
     vtx_sym = _resolve_vtx_sym(prefix, symbols, by_name, rel, joints_sym)
     vertices = parse_vtx_blob(rel.slice_at(vtx_sym.address, vtx_sym.size), scale, flip_z=False)
 
-    addr_to_sym = {s.address: s for s in symbols}
+    addr_to_sym = _joint_gfx_index(symbols, joints_sym)
     jblob = rel.slice_at(joints_sym.address, joints_sym.size)
     raw_joints: list[tuple[int, int, int, tuple[int, int, int]]] = []
     child_counts: list[int] = []
@@ -755,7 +776,7 @@ def _resolve_vtx_sym(
     if primary in by_name and by_name[primary].obj == "dataobject.obj":
         return by_name[primary]
     jblob = rel.slice_at(joints_sym.address, joints_sym.size)
-    addr_to_sym = {s.address: s for s in symbols}
+    addr_to_sym = _joint_gfx_index(symbols, joints_sym)
     gfx_names: list[str] = []
     for i in range(0, len(jblob), 12):
         gfx, _child, _flags, *_rest = struct.unpack_from(">IBBhhh", jblob, i)

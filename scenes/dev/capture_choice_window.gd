@@ -15,21 +15,21 @@ func _ready() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	var overlay: Node = load("res://scenes/ui/dialogue_overlay.tscn").instantiate()
+	var overlay: DialogueOverlay = load("res://scenes/ui/dialogue_overlay.tscn").instantiate() as DialogueOverlay
 	add_child(overlay)
 	await get_tree().process_frame
 
 	var data := DialogueData.from_json_file("res://data/dialogue/mabel_menu.json")
 	var ctx := DialogueContext.new()
 	ctx.speaker_name = "Mabel"
-	overlay.call("play", data, ctx)
+	overlay.play(data, ctx)
 
 	for _i in 120:
 		await get_tree().process_frame
 	_shot(OUT_GREET)
 
 	## advance past the greeting line → choices appear
-	var runner = overlay.call("runner")
+	var runner = overlay.runner()
 	if runner != null:
 		runner.advance()
 	for _i in 90:

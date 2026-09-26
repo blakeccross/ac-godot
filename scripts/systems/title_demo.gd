@@ -194,7 +194,7 @@ static func spawn_gx(index: int) -> Vector3:
 
 ## Head-table facing. Decomp angle 0 faces +Z, increasing toward +X: yaw = atan2(x, z).
 static func spawn_yaw(index: int) -> float:
-	return float(int(demo(index).get("angle", 0))) * TAU / 65536.0
+	return float(int(demo(index).get("angle", 0))) * MLib.S16
 
 
 static func tool_item_id(index: int) -> StringName:

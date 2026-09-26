@@ -242,13 +242,13 @@ func _resolve_player_fg() -> Vector2i:
 	var tree := get_tree()
 	if tree == null:
 		return Vector2i.ZERO
-	var player: Node = tree.get_first_node_in_group("player")
+	var player := Player.find(tree)
 	if player == null or not (player is Node3D):
 		return Vector2i.ZERO
-	var world: Node = tree.get_first_node_in_group("world")
+	var world := World.find(tree)
 	var grid: WorldGrid = null
 	if world != null and "grid" in world:
-		grid = world.get("grid") as WorldGrid
+		grid = world.grid
 	if grid == null:
 		return Vector2i(2, 2)
 	var block: Vector2i = VillagerWalk.block_from_cell(grid.world_to_cell((player as Node3D).global_position))

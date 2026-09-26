@@ -42,9 +42,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	var uttering: bool = false
 	if _talking and get_tree() != null:
-		var ui: Node = get_tree().get_first_node_in_group("dialogue_ui")
-		if ui != null and ui.has_method("is_uttering"):
-			uttering = bool(ui.call("is_uttering"))
+		uttering = DialogueOverlay.uttering_in(get_tree())
 	_face.tick(delta, uttering)
 	if _talking:
 		_face_player()
@@ -108,19 +106,18 @@ func _begin_talk(ctx: InteractionContext) -> bool:
 	_face_toward(listener.global_position if listener != null else global_position)
 	var data: DialogueData = DialogueCatalog.conversation(GREETING_ID)
 	var talk_ctx: DialogueContext = _make_talk_ctx()
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and data != null and ui.has_method("play"):
-		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-			ui.call("close")
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null and data != null:
+		if ui.is_open():
+			ui.close()
 		_start_talk_session(listener)
 		_bind_talk_end(ui)
 		_bind_events(ui)
-		ui.call("play", data, talk_ctx)
-	elif ui != null and ui.has_method("say"):
+		ui.play(data, talk_ctx)
+	elif ui != null:
 		_start_talk_session(listener)
 		_bind_talk_end(ui)
-		ui.call(
-			"say",
+		ui.say(
 			"Hoo — welcome to the museum. Bring me fossils, art, fish, or bugs!",
 			"Blathers"
 		)
@@ -190,13 +187,13 @@ func _on_donate_resolved(donated: bool) -> void:
 func _play_donate_outcome() -> void:
 	var result: Dictionary = Game.museum_donate_result if Game != null else {}
 	var item_id: StringName = StringName(str(result.get("item_id", "")))
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
+	var ui := DialogueOverlay.find(get_tree())
 	var data: DialogueData = MuseumDialogue.build_outcome(item_id, result)
-	if ui == null or data == null or not ui.has_method("play"):
+	if ui == null or data == null:
 		_say_line(String(result.get("message", "Thank you.")))
 		return
-	if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-		ui.call("close")
+	if ui.is_open():
+		ui.close()
 	_start_talk_session(_listener)
 	_bind_talk_end(ui)
 	_bind_events(ui)
@@ -205,7 +202,7 @@ func _play_donate_outcome() -> void:
 			_play_putaway(item_id)
 		else:
 			_play_return(item_id)
-	ui.call("play", data, _make_talk_ctx())
+	ui.play(data, _make_talk_ctx())
 
 
 func _start_talk_session(listener: Node3D) -> void:
@@ -216,16 +213,16 @@ func _start_talk_session(listener: Node3D) -> void:
 	_play_clip(ANIM_WAIT, true)
 
 
-func _bind_talk_end(ui: Node) -> void:
-	if ui == null or not ui.has_signal("closed"):
+func _bind_talk_end(ui: DialogueOverlay) -> void:
+	if ui == null:
 		return
 	if ui.closed.is_connected(_on_talk_closed):
 		ui.closed.disconnect(_on_talk_closed)
 	ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
 
 
-func _bind_events(ui: Node) -> void:
-	if ui == null or not ui.has_signal("event_fired"):
+func _bind_events(ui: DialogueOverlay) -> void:
+	if ui == null:
 		return
 	if not ui.event_fired.is_connected(_on_dialogue_event):
 		ui.event_fired.connect(_on_dialogue_event)
@@ -243,8 +240,8 @@ func _on_dialogue_event(event: Dictionary) -> void:
 func _on_talk_closed() -> void:
 	_talking = false
 	TalkCamera.end(get_tree())
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and ui.has_signal("event_fired") and ui.event_fired.is_connected(_on_dialogue_event):
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null and ui.event_fired.is_connected(_on_dialogue_event):
 		ui.event_fired.disconnect(_on_dialogue_event)
 	_play_clip(_idle_clip(), true)
 	var menu: StringName = _pending_menu
@@ -256,18 +253,18 @@ func _on_talk_closed() -> void:
 
 ## Item-by-item donation conversation (`MuseumDialogue`). `preselect` opens on that item.
 func _play_donate_conversation(preselect: StringName) -> void:
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
+	var ui := DialogueOverlay.find(get_tree())
 	var data: DialogueData = MuseumDialogue.build_donate(preselect)
-	if ui == null or data == null or not ui.has_method("play"):
+	if ui == null or data == null:
 		_say_line("Hoo — bring me a fossil, some art, a fish, or a bug, and I'll see it displayed.")
 		return
-	if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-		ui.call("close")
+	if ui.is_open():
+		ui.close()
 	var talk_ctx: DialogueContext = _make_talk_ctx()
 	_start_talk_session(_listener)
 	_bind_talk_end(ui)
 	_bind_events(ui)
-	ui.call("play", data, talk_ctx)
+	ui.play(data, talk_ctx)
 
 
 ## `handOverItem` put-away demo while the examine line types.
@@ -289,13 +286,13 @@ func _play_return(item_id: StringName) -> void:
 
 
 func _say_line(text: String) -> void:
-	var ui: Node = get_tree().get_first_node_in_group("dialogue_ui") if get_tree() != null else null
-	if ui != null and ui.has_method("say"):
-		if ui.has_method("is_open") and bool(ui.call("is_open")) and ui.has_method("close"):
-			ui.call("close")
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null:
+		if ui.is_open():
+			ui.close()
 		_start_talk_session(_listener)
 		_bind_talk_end(ui)
-		ui.call("say", text, "Blathers")
+		ui.say(text, "Blathers")
 	elif Game != null:
 		Game.post_notice("Blathers: %s" % text)
 
@@ -303,7 +300,7 @@ func _say_line(text: String) -> void:
 func _face_player() -> void:
 	if get_tree() == null:
 		return
-	var player: Node = get_tree().get_first_node_in_group("player")
+	var player := Player.find(get_tree())
 	if player is Node3D:
 		_face_toward((player as Node3D).global_position)
 

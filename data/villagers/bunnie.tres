@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"bunnie"
 display_name = "Bunnie"
 species = &"rabbit"
+texture_set = &"rbt_1"
 catchphrase = "teehee"
 personality = ExtResource("2")
 starter = true

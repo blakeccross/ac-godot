@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"anchovy"
 display_name = "Anchovy"
 species = &"bird"
+texture_set = &"brd_3"
 personality = ExtResource("2")
 starter = true
 wall_index = 1

@@ -1118,9 +1118,16 @@ class TextureBank:
         self.by_name = index_by_name(symbols)
         self.addr_to_sym: dict[int, MapSymbol] = {}
         self._pal_symbols: list[MapSymbol] = []
+        ## One map covers every object, so REL data can share an address with unrelated code
+        ## (`cat_3_tmem_txt` / `mAGrw_CheckChestnutTree`). Image and TLUT pointers only
+        ## ever land in data, so a data-object symbol wins over code at the same address.
         for symbol in symbols:
             existing = self.addr_to_sym.get(symbol.address)
-            if existing is None or symbol.name[0] != ".":
+            if existing is not None and existing.obj == "dataobject.obj" and symbol.obj != existing.obj:
+                continue
+            if existing is None or symbol.name[0] != "." or (
+                symbol.obj == "dataobject.obj" and existing.obj != "dataobject.obj"
+            ):
                 self.addr_to_sym[symbol.address] = symbol
             if symbol.name.endswith("_pal") and symbol.size >= 32:
                 self._pal_symbols.append(symbol)

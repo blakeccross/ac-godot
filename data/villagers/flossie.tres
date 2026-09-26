@@ -8,6 +8,7 @@ script = ExtResource("1")
 id = &"flossie"
 display_name = "Flossie"
 species = &"mouse"
+texture_set = &"mus_10"
 personality = ExtResource("2")
 islander = true
 starter = false

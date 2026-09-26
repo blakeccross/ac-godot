@@ -138,11 +138,6 @@ func _set_action(next: Action) -> void:
 
 func _pulse() -> void:
 	var step: int = PULSE_STEP_POSITIVE if _pulse_phase > 0 else PULSE_STEP_NONPOSITIVE
-	_pulse_phase = _wrap_s16(_pulse_phase + step)
-	var opacity: float = 127.5 * sin(float(_pulse_phase) * TAU / 65536.0) + 127.5
+	_pulse_phase = MLib.s16_signed(_pulse_phase + step)
+	var opacity: float = 127.5 * sin(float(_pulse_phase) * MLib.S16) + 127.5
 	press_start_opacity = clampf(opacity, 0.0, 255.0)
-
-
-static func _wrap_s16(value: int) -> int:
-	var v: int = value & 0xFFFF
-	return v - 0x10000 if v >= 0x8000 else v
