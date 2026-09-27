@@ -74,6 +74,9 @@ var block_auto_enter_doors: bool = false
 var emerge_from_door: bool = false
 ## After spawn, walk INTO_S1 past the door (museum entrance / wing links).
 var play_door_arrive: bool = false
+## `Common_Get(last_scene_no)`: the room the player last walked out of (Copper greets
+## you outside the police box). Session-only.
+var last_room_id: StringName = &""
 var interior_session: IndoorSession
 var player_name: String = DEFAULT_PLAYER_NAME
 var town_name: String = DEFAULT_TOWN_NAME
@@ -557,8 +560,8 @@ func reset_session() -> void:
 		species_log.clear()
 	if police == null:
 		police = PoliceBook.new()
-	else:
-		police.clear()
+	## `mPB_police_box_init` (`m_start_data_init`): a new town starts with three items.
+	police.init_town()
 	if post == null:
 		post = PostBook.new()
 	else:
@@ -576,6 +579,7 @@ func reset_session() -> void:
 	block_auto_enter_doors = false
 	emerge_from_door = false
 	play_door_arrive = false
+	last_room_id = &""
 	villagers.clear()
 	villagers.book = relationships
 	VillagerWalk.reset()
@@ -962,7 +966,11 @@ func apply_snapshot(data: Dictionary) -> void:
 	species_log.apply_snapshot(data.get("species_log", {}))
 	if police == null:
 		police = PoliceBook.new()
-	police.apply_snapshot(data.get("police", {}))
+	if data.has("police"):
+		police.apply_snapshot(data["police"])
+	else:
+		## Saves from before the lost and found was stored: treat as a new town's box.
+		police.init_town()
 	if post == null:
 		post = PostBook.new()
 	post.apply_snapshot(data.get("post", {}))
@@ -1198,9 +1206,10 @@ func _on_field_renewed(days: int) -> void:
 	shops.renew(days)
 	HouseGoki.save_play_time(interiors.player_house())
 	refresh_shop_set()
+	## `mAGrw_RenewalFgItem` tops the lost and found up once per renewal, however many
+	## days were skipped.
 	if police != null:
-		for _i: int in maxi(days, 1):
-			police.force_set_keep_item()
+		police.force_set_keep_item()
 	refresh_police_set()
 	_deliver_farway_mail()
 	_deliver_shop_mail()
@@ -1260,6 +1269,10 @@ func exit_interior() -> bool:
 	var leaving: Room = interiors.room(current_room_id)
 	if leaving != null and leaving.kind == Room.Kind.SHOP and first_job != null:
 		first_job.reset_shop_visit()
+	if leaving != null and leaving.kind == Room.Kind.POLICE and police != null:
+		## `aPOL2_player_getout_check` → `mPB_copy_itemBuf`: close the claimed gaps.
+		police.copy_item_buf()
+	last_room_id = current_room_id
 	var room: Room = leaving
 	if room != null and room.parent_room_id != &"":
 		return try_enter_interior(room.parent_room_id)

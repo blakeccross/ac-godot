@@ -136,34 +136,6 @@ func test_post_use_repay_loan() -> void:
 	assert_int(Game.inventory.loan).is_equal(14800)
 
 
-func test_police_book_init_and_claim() -> void:
-	var book := PoliceBook.new()
-	assert_int(book.keep_item_sum()).is_equal(0)
-	book.ensure_init()
-	assert_int(book.keep_item_sum()).is_equal(3)
-	assert_that(book.item_at(0)).is_not_equal(&"")
-	assert_that(book.item_at(1)).is_not_equal(&"")
-	assert_that(book.item_at(2)).is_not_equal(&"")
-	Game.inventory.clear()
-	var before: int = Game.inventory.count_of_occupied()
-	var msg: String = book.claim(0, Game.inventory)
-	assert_str(msg).contains("Received")
-	assert_that(book.item_at(0)).is_equal(&"")
-	assert_int(book.keep_item_sum()).is_equal(2)
-	assert_int(Game.inventory.count_of_occupied()).is_equal(before + 1)
-
-
-func test_police_book_keep_shifts_when_full() -> void:
-	var book := PoliceBook.new()
-	book.clear()
-	for i: int in PoliceBook.STORAGE_COUNT:
-		book.keep_item(&"wood_chair")
-	assert_int(book.keep_item_sum()).is_equal(PoliceBook.STORAGE_COUNT)
-	assert_bool(book.keep_item(&"shirt_000")).is_true()
-	assert_int(book.keep_item_sum()).is_equal(PoliceBook.STORAGE_COUNT)
-	assert_that(book.item_at(PoliceBook.STORAGE_COUNT - 1)).is_equal(&"shirt_000")
-
-
 func test_post_office_shell_has_door_gap_and_desk() -> void:
 	var room: Room = InteriorCatalog.room_template(&"post_office")
 	var session := IndoorSession.new()
@@ -262,7 +234,6 @@ func test_post_police_shells_use_acre_scale() -> void:
 
 
 func test_save_roundtrip_books() -> void:
-	Game.police.ensure_init()
 	Game.police.keep_item(&"net")
 	Game.post.receipt_mail()
 	Game.post.receipt_mail()

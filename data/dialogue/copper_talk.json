@@ -1,0 +1,106 @@
+{
+  "id": "copper_talk",
+  "speaker_id": "copper",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {"if": {"var_eq": {"name": "copper_entry", "value": "exit"}}, "goto": "exit_greeting"},
+        {"if": {"var_eq": {"name": "copper_time", "value": "morning"}}, "goto": "menu_morning"},
+        {"if": {"var_eq": {"name": "copper_time", "value": "day"}}, "goto": "menu_day"},
+        {"if": {"var_eq": {"name": "copper_time", "value": "evening"}}, "goto": "menu_evening"},
+        {"goto": "menu_night"}
+      ]
+    },
+    "exit_greeting": {
+      "type": "line",
+      "text": "Take care out there, citizen!\nKeep a close eye on your\nbelongings!"
+    },
+    "menu_morning": {
+      "type": "choice",
+      "prompt": "Good morning, citizen! All\nquiet on my watch. Something\nI can help you with?",
+      "options": [
+        {"text": "Any events?", "goto": "hint"},
+        {"text": "Lost and found?", "goto": "lost"},
+        {"text": "Never mind.", "goto": "never_mind"}
+      ]
+    },
+    "menu_day": {
+      "type": "choice",
+      "prompt": "Afternoon, citizen! Keeping\nthe peace as always. What\ncan I do for you?",
+      "options": [
+        {"text": "Any events?", "goto": "hint"},
+        {"text": "Lost and found?", "goto": "lost"},
+        {"text": "Never mind.", "goto": "never_mind"}
+      ]
+    },
+    "menu_evening": {
+      "type": "choice",
+      "prompt": "Evening, citizen! Getting\ndark. Is there something you\nneed?",
+      "options": [
+        {"text": "Any events?", "goto": "hint"},
+        {"text": "Lost and found?", "goto": "lost"},
+        {"text": "Never mind.", "goto": "never_mind"}
+      ]
+    },
+    "menu_night": {
+      "type": "choice",
+      "prompt": "Out this late, citizen? I'm\nstill on duty. What is it?",
+      "options": [
+        {"text": "Any events?", "goto": "hint"},
+        {"text": "Lost and found?", "goto": "lost"},
+        {"text": "Never mind.", "goto": "never_mind"}
+      ]
+    },
+    "hint": {
+      "type": "branch",
+      "when": [
+        {"if": {"var_eq": {"name": "copper_hint", "value": "first_job"}}, "goto": "hint_first_job"},
+        {"if": {"var_eq": {"name": "copper_hint", "value": "run_sale"}}, "goto": "hint_run_sale"},
+        {"if": {"var_eq": {"name": "copper_hint", "value": "today"}}, "goto": "hint_today"},
+        {"if": {"var_eq": {"name": "copper_hint", "value": "later"}}, "goto": "hint_later"},
+        {"goto": "hint_none"}
+      ]
+    },
+    "hint_first_job": {
+      "type": "line",
+      "text": "You're new here, aren't you?\nFinish up your work for Tom\nNook first, citizen!"
+    },
+    "hint_none": {
+      "type": "line",
+      "text": "Nothing special on the books\nright now. I'll let you know\nif anything comes up!"
+    },
+    "hint_run_sale": {
+      "type": "line",
+      "text": "The sale at Nook's store is\non right now! Better hurry,\ncitizen!"
+    },
+    "hint_today": {
+      "type": "line",
+      "text": "Word is, {free1} is on\ntoday's schedule. Keep your\neyes open, citizen!"
+    },
+    "hint_later": {
+      "type": "line",
+      "text": "{free1} is on the\nschedule for {free5} {free4}.\nMark your calendar, citizen!"
+    },
+    "lost": {
+      "type": "branch",
+      "when": [
+        {"if": {"var_eq": {"name": "copper_lost", "value": "some"}}, "goto": "lost_some"},
+        {"goto": "lost_none"}
+      ]
+    },
+    "lost_some": {
+      "type": "line",
+      "text": "There are {free0} items in\nthe lost and found. Ask\nBooker inside!"
+    },
+    "lost_none": {
+      "type": "line",
+      "text": "The lost and found is empty\nright now. Good work,\ncitizens!"
+    },
+    "never_mind": {
+      "type": "line",
+      "text": "Carry on, then! Stay safe!"
+    }
+  }
+}

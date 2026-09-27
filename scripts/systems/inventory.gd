@@ -121,13 +121,7 @@ func move_cursor(dx: int, dy: int) -> void:
 func add(item: ItemData, count: int = 1, condition: InventoryItem.Condition = InventoryItem.Condition.NORMAL) -> int:
 	if item == null or item.id == &"" or count <= 0:
 		return count
-	## `mIV_set_collect_itemNo` reads the "obtained once" bitfield — a fish/bug
-	## registers in the encyclopedia the moment it first reaches the pockets.
-	if (item is FishData or item is BugData) and Game != null and Game.species_log != null:
-		Game.species_log.record(item.id)
-	## `mSP_CollectCheck`: catalog pages fill in as goods reach the pockets.
-	if Game != null and Game.catalog != null:
-		Game.catalog.record(item.id)
+	_note_obtained(item)
 	var remaining: int = count
 	var max_stack: int = maxi(1, item.max_stack)
 
@@ -160,6 +154,33 @@ func add(item: ItemData, count: int = 1, condition: InventoryItem.Condition = In
 
 	changed.emit()
 	return remaining
+
+
+## `mPlib_Get_space_putin_item` + `mPr_SetPossessionItem`: the whole stack goes into
+## the first empty pocket, never onto a matching stack. Returns the slot, or -1.
+func add_to_empty_slot(
+	item: ItemData, count: int = 1, condition: InventoryItem.Condition = InventoryItem.Condition.NORMAL
+) -> int:
+	if item == null or item.id == &"" or count <= 0:
+		return -1
+	for i: int in POCKET_SLOTS:
+		if not _slots[i].is_empty():
+			continue
+		_note_obtained(item)
+		_slots[i].set_stack(item.id, count, condition)
+		changed.emit()
+		return i
+	return -1
+
+
+func _note_obtained(item: ItemData) -> void:
+	## `mIV_set_collect_itemNo` reads the "obtained once" bitfield — a fish/bug
+	## registers in the encyclopedia the moment it first reaches the pockets.
+	if (item is FishData or item is BugData) and Game != null and Game.species_log != null:
+		Game.species_log.record(item.id)
+	## `mSP_CollectCheck`: catalog pages fill in as goods reach the pockets.
+	if Game != null and Game.catalog != null:
+		Game.catalog.record(item.id)
 
 
 func remove(item_id: StringName, count: int = 1) -> int:

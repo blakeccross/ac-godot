@@ -90,6 +90,16 @@ static func make_window_spill_material(std: StandardMaterial3D) -> ShaderMateria
 	return sh
 
 
+## An XLU `G_IM_FMT_I` texture as coverage in alpha (the PNG may carry it as grey).
+static func coverage_texture(tex: Texture2D) -> Texture2D:
+	if tex == null:
+		return null
+	var img: Image = tex.get_image()
+	if img != null and img.detect_alpha() == Image.ALPHA_NONE:
+		return _i4_as_alpha(tex)
+	return tex
+
+
 static func _i4_as_alpha(tex: Texture2D) -> Texture2D:
 	if tex == null:
 		return null

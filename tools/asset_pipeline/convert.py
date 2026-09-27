@@ -227,6 +227,9 @@ KANBAN_SIGN_GFX: dict[str, list[str]] = {
     "obj_w_kanban": ["write_model", "obj_sign_w_model"],
 }
 
+## Statics whose only DL is the XLU `{prefix}_modelT` (no `_model` to infer from).
+XLU_ONLY_STATICS: frozenset[str] = frozenset({"obj_koban_shine"})
+
 ## Dropped FG item cards (`bg_item` / `handOverItem`). Vtx is `obj_item_*_v`; DLs are either a
 ## combined `*_modelT` or a `*_DL_mode` + `*_DL_vtx` pair (no `*_gfx_model` to infer).
 ## Furniture gifts use the leaf card; wrapped presents use `present_DL_*`.
@@ -847,8 +850,9 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
             model_names = [shell] if shell in names else []
             if model_t in names:
                 model_names.append(model_t)
-        ## Feel / particle cards are often XLU-only (`ef_warau01_00_modelT`, `ef_ha01_00_modelT`).
-        if not model_names and prefix.startswith("ef_"):
+        ## Feel / particle cards are often XLU-only (`ef_warau01_00_modelT`, `ef_ha01_00_modelT`),
+        ## as are the room sunshine beams (`obj_koban_shine_modelT`, `ef_room_sunshine_police`).
+        if not model_names and (prefix.startswith("ef_") or prefix in XLU_ONLY_STATICS):
             model_t = f"{prefix}_modelT"
             if model_t in names:
                 model_names = [model_t]

@@ -1,0 +1,70 @@
+{
+  "id": "booker_talk",
+  "speaker_id": "booker",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {"if": {"var_eq": {"name": "police_msg", "value": "greet_empty"}}, "goto": "greet_empty"},
+        {"if": {"var_eq": {"name": "police_msg", "value": "greet_items"}}, "goto": "greet_items"},
+        {"if": {"var_eq": {"name": "police_msg", "value": "claim"}}, "goto": "claim"},
+        {"if": {"var_eq": {"name": "police_msg", "value": "talk_empty"}}, "goto": "talk_empty"},
+        {"if": {"var_eq": {"name": "police_msg", "value": "talk_empty_after"}}, "goto": "talk_empty_after"},
+        {"goto": "talk_items"}
+      ]
+    },
+    "greet_empty": {
+      "type": "line",
+      "text": "Oh! H-hello! Welcome to the\npolice station. Um... the lost\nand found is empty right now."
+    },
+    "greet_items": {
+      "type": "line",
+      "text": "Oh! H-hello! Welcome to the\npolice station. Did you lose\nsomething? Have a look around!"
+    },
+    "talk_items": {
+      "type": "line",
+      "text": "If you see something that's\nyours, just face it and let\nme know, OK?"
+    },
+    "talk_empty": {
+      "type": "line",
+      "text": "Um, there's nothing in the\nlost and found today. Sorry!"
+    },
+    "talk_empty_after": {
+      "type": "line",
+      "text": "That's everything! The lost\nand found is all empty now.\nI-I'm glad it all went home!"
+    },
+    "claim": {
+      "type": "choice",
+      "prompt": "Oh, you mean {item0}?\nIs that yours?",
+      "options": [
+        {"text": "It's mine!", "goto": "claim_take"},
+        {"text": "Not mine.", "goto": "claim_no"}
+      ]
+    },
+    "claim_take": {
+      "type": "event",
+      "events": [{"op": "police", "action": "claim"}],
+      "next": "claim_result"
+    },
+    "claim_result": {
+      "type": "branch",
+      "when": [
+        {"if": {"var_eq": {"name": "police_claim", "value": "full"}}, "goto": "claim_full"},
+        {"goto": "claim_ok"}
+      ]
+    },
+    "claim_ok": {
+      "type": "line",
+      "text": "OK! Here you go. Please don't\nlose it again!"
+    },
+    "claim_full": {
+      "type": "line",
+      "text": "Um... your pockets are full.\nMake some room and come\nback for it, OK?"
+    },
+    "claim_no": {
+      "type": "line",
+      "text": "Oh... OK. Sorry!"
+    }
+  }
+}

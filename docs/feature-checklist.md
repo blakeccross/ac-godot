@@ -185,7 +185,7 @@ data tables before a category is called done.
 - [~] Wrapping paper — wrap/unwrap a droppable item as a present (`Inventory.wrap_slot`, the
   "Wrap" tag) works; attaching a wrapped gift to outgoing mail depends on the mail-writer UI
   and isn't wired up yet (`ac_present_demo`)
-- [ ] Lost items / forgotten items handling
+- [~] Lost items / forgotten items handling — `PoliceBook.keep_item` / `keep_all_items` (`mPB_keep_item` / `mPB_keep_all_item_in_block`) and the 06:00 top-up exist; the field callers that turn items in (structures built over them, event clean-ups, snowmen, house moves) are not wired yet
 
 ## 11. Economy
 
@@ -444,14 +444,25 @@ data tables before a category is called done.
 
 ## 25. Police Station
 
-- [~] Building + interior; **Copper** (stands guard) & **Booker** (timid) (`ac_police_box`, `ac_npc_police`, `ac_npc_police2`) — `police_station.tscn`, `police_box.tscn`, `police_book.gd`
-- [~] **Lost and found**: items you (or the game) dropped in town get turned in; claim them (`police_display.gd`)
-- [ ] Ask about a villager's location / who's moved in / who's moving out
-- [ ] Ask for a town map / directions
-- [ ] Report / hear about the town's news
-- [ ] Booker's nervous dialogue; Copper's terse dialogue
-- [ ] Not every town has the police station from day 1? _(GCN: present)_
-- [ ] Lost & found also holds forgotten umbrellas etc.
+Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
+`ac_npc_police*`, `bg_police_item*` and `ef_room_sunshine_police.c`; details in
+[post / police](decomp_notes/post_police.md). Tests: `tests/unit/test_police_box.gd`.
+
+- [~] Building exterior (`ac_police_box`) — `police_station.tscn`: shell, 3×3 plus-offset hull, door (`INTO_S1`, triforce wipe), exit stand `+60,+60`, window lights 18:00–05:00. Missing: the 320-per-frame env-colour fade between on/off (lights snap)
+- [~] Interior (`SCENE_POLICE_BOX`) — `police_box.tscn`: `police_indoor` shell, enter `{200,0,380}` north, exit `EXIT_DOOR1`, BGM. Unverified against a real render in this pass (no generated assets in the container)
+- [x] Lost-and-found storage rules (`PoliceBox_c`, `police_book.gd`): 20 slots; new town gets 1 furniture + 2 shirts once (never refilled when emptied); `keep_item` appends at the occupied count and drops the oldest when full; ITEM1/FTR only; claimed gaps packed when you walk out (`mPB_copy_itemBuf`); `keep_all_item_in_block` batch rules
+- [x] 06:00 top-up (`mPB_force_set_keep_item`): once per renewal, only with ≤ 5 kept, 50% roll; goods 86% (furniture 36 / stationery 23 / clothing 30 / carpet 6 / wallpaper 5), tools & saplings 5%, flower bags 5% (first 8 bags), umbrella 4%
+- [~] Lost-and-found display (`bg_police_item`): each kept item drawn as its field card (`obj_item_*`) at its `RSV_POLICE_ITEM_N` unit centre on the BG under it. Units read from `FG_TYPE_POLICE_INDOOR` (0xCE) in the generated FG catalog; the authored fallback table is unverified. The furniture/cloth pools are the shop pools — the ABC / common priority lists are not modelled (`ShopGoods`)
+- [x] Claiming (`aPOL2_message_ctrl` / `aPOL2_check_answer`): face a kept item + A → Booker asks (0x077E, item name with article) → "yes" puts it in the first empty pocket (tickets stack), plays `ITEM_GET`, removes it; pockets full → 0x0781
+- [x] **Booker** (`ac_npc_police2`, `booker.gd`): greets you on walk-in (0x0784 empty / 0x0785 items); talk 0x077D / 0x0786 / 0x0787; tails the player through the 4×5 zone grid (stop < ~50 GX, walk < ~70 GX, run beyond; waypoint routing round the shelves; turn-in-place past 90°; 11.25°/frame turns; walk 1.0 / run 4.0 speeds); turns to you before every talk
+- [~] Booker / Copper lines: the disc bank's own text plays when the dialogue bank has been generated (`msg_<n>`); otherwise authored stand-ins in `booker_talk.json` / `copper_talk.json`. The claim confirm and Copper's menu always use the authored graph (choices). April Fools' lines (`aprilfool_control`) not wired
+- [~] Window sunshine (`ef_room_sunshine_police`): left/right beams stretched by time of day, sun/moon window colour, rain × 0.6, camera-side culling, `windowlight_alpha` ramp (05:00–18:00, incl. the noon and `s16`-wrap blinks) — `police_sunshine.tscn`. Needs `obj_koban_shine` from the pipeline (`XLU_ONLY_STATICS`); not yet seen rendered
+- [~] **Copper** (`ac_npc_police`, `copper.tscn`): stands two units east of the station facing south; walk-out greeting (0x0771) after leaving the police box; time-of-day menu (0x0772–0x0775) → event hint / lost-and-found count (0x0782 / 0x0783) / never mind (0x0777); 06:00–07:00 exercises (5%, fair weather) and 02:00–04:00 dozing (5%). Missing: removed during morning-aerobics events (`mEv_EVENT_MORNING_AEROBICS`); items under his unit sent to the lost and found on spawn
+- [~] Copper's event hint (`aPOL_get_hint_msg_no`): first-job hint, none / later / today / running per special visitor. A running visit other than the sale needs the visitor's acre (`mEv_get_event_place`); no visitor is placed in town yet, so that answers "nothing" like the original's not-found path
+- [ ] Ask for a town map — GCN: only a *foreign* player gets the extra "map" option (`aPOL_check_select2` → `mPr_SetNewMap`); needs visiting between towns
+- [x] ~~Ask about a villager's location / who's moved in / who's moving out~~ — not in GCN (Copper's menu is the three options above)
+- [x] Every town has the police station from day 1 (`mRF_BLOCKKIND_POLICE` block)
+- [x] Lost & found also holds forgotten umbrellas etc. (umbrella / tool / flower-bag top-up rolls)
 
 ## 26. Town Hall & civic
 
