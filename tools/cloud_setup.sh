@@ -94,7 +94,14 @@ if [ -z "$iso" ] && [ -n "${AC_ISO_URL:-}" ]; then
 	mkdir -p "$CACHE/iso"
 	name=$(basename "${AC_ISO_URL%%\?*}")
 	case "$name" in *.iso | *.gcm | *.rvz | *.ciso | *.gcz | *.zip) ;; *) name=disc.iso ;; esac
-	fetch "$AC_ISO_URL" "$CACHE/iso/$name" || { log "disc download failed"; exit 1; }
+	case "$AC_ISO_URL" in
+	*drive.google.com* | *drive.usercontent.google.com*)
+		# Drive answers large files with a virus-scan warning page, not the file.
+		python3 -m pip install -q gdown || { log "pip install gdown failed"; exit 1; }
+		python3 -m gdown -q "$AC_ISO_URL" -O "$CACHE/iso/$name" || { log "disc download failed (is drive.google.com allowed by the network policy?)"; exit 1; }
+		;;
+	*) fetch "$AC_ISO_URL" "$CACHE/iso/$name" || { log "disc download failed"; exit 1; } ;;
+	esac
 	if [[ "$name" == *.zip ]]; then
 		unzip -qo "$CACHE/iso/$name" -d "$CACHE/iso" && rm -f "$CACHE/iso/$name"
 	fi
