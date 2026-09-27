@@ -262,6 +262,13 @@ ROOM_SUNSHINE_GFX: dict[str, list[str]] = {
     "room_lightR": ["light_floor01_mode", "light_floorR01_vtx", "light_shine01_mode", "light_shineR01_vtx"],
 }
 
+## Museum entrance skylight beam (`ef_room_sunshine_museum`): the shaft then the floor
+## patch, in the effect's draw order. Inference from `*_model` alone drops the patch.
+## The shaft keeps both of its textures (`museum_sunshine.gdshader` fades by the second).
+MUSEUM_SUNSHINE_GFX: dict[str, list[str]] = {
+    "obj_museum1_shine": ["obj_museum1_shine_model", "obj_museum1_shine_modelT"],
+}
+
 ## Legacy prefix list kept for tests / callers. `--kind water` uses
 ## `convert_water_acres` (every `grd_s_*` / `grd_w_*` job with `*_modelT`) so
 ## pond / post / island / FG hole acres are not skipped after wrap-bake fixes.
@@ -817,6 +824,8 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
             gfx_names = WEATHER_RAIN_GFX.get(prefix)
         if gfx_names is None:
             gfx_names = ROOM_SUNSHINE_GFX.get(prefix)
+        if gfx_names is None:
+            gfx_names = MUSEUM_SUNSHINE_GFX.get(prefix)
         if gfx_names is not None:
             if symbol.name in seen_vtx:
                 continue
@@ -832,6 +841,7 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
                     "output": f"{folder}/{prefix}.glb",
                     "confident_name": True,
                     **({"share_geometry_mode": True} if prefix in ROOM_SUNSHINE_GFX else {}),
+                    **({"classic_two_tile": True} if prefix in MUSEUM_SUNSHINE_GFX else {}),
                 }
             )
             continue
@@ -1155,6 +1165,7 @@ def _convert_static(
             bank=bank,
             mat_override=item.get("mat"),
             share_geometry_mode=bool(item.get("share_geometry_mode")),
+            classic_two_tile=bool(item.get("classic_two_tile")),
         )
         if _is_bit_shadow(parts):
             parts = _blob_shadow_parts(parts)

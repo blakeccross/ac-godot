@@ -1,7 +1,9 @@
 extends "res://scenes/world/museum/museum_room.gd"
 
-## Insect wing — case exhibits.
+## Insect wing — case exhibits and the two window beams.
 
 
 func present_exhibits(furniture: Node3D, session: IndoorSession) -> void:
-	MuseumPresenter.new().present_insects(furniture, session)
+	var presenter := MuseumPresenter.new()
+	presenter.present_insects(furniture, session)
+	presenter.present_sunshine(furniture, session)

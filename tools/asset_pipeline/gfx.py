@@ -138,6 +138,39 @@ def combine_alpha_uses_texel(combine_w0: int, combine_w1: int) -> bool:
 _G_ACMUX_SHADE = 4
 
 
+## `G_TX_LOADTILE`: the tile classic `gsDPLoadTextureBlock` loads through.
+_G_TX_LOADTILE = 7
+
+
+def combine_uses_texel1(combine_w0: int, combine_w1: int) -> bool:
+    """True when any colour or alpha mux of either cycle reads TEXEL1."""
+    if combine_w0 == 0 and combine_w1 == 0:
+        return False
+    ## Colour a/c/b/d (cycle 0 then 1), then alpha a/c/b/d (cycle 0 then 1).
+    colour = (
+        (combine_w0 >> 20) & 0xF,
+        (combine_w0 >> 15) & 0x1F,
+        (combine_w1 >> 28) & 0xF,
+        (combine_w1 >> 15) & 0x7,
+        (combine_w0 >> 5) & 0xF,
+        combine_w0 & 0x1F,
+        (combine_w1 >> 24) & 0xF,
+        (combine_w1 >> 6) & 0x7,
+    )
+    alpha = (
+        (combine_w0 >> 12) & 7,
+        (combine_w0 >> 9) & 7,
+        (combine_w1 >> 12) & 7,
+        (combine_w1 >> 9) & 7,
+        (combine_w1 >> 21) & 7,
+        (combine_w1 >> 18) & 7,
+        (combine_w1 >> 3) & 7,
+        combine_w1 & 7,
+    )
+    ## `G_CCMUX_TEXEL1` / `G_ACMUX_TEXEL1` are both 2.
+    return 2 in colour or 2 in alpha
+
+
 def combine_alpha_uses_shade(combine_w0: int, combine_w1: int) -> bool:
     """True when either cycle's alpha mux reads SHADE (vertex alpha fades a beam out)."""
     if combine_w0 == 0 and combine_w1 == 0:
@@ -447,6 +480,10 @@ class Vertex:
     # Stable index into the source Vtx blob. Used as a dict key instead of id(),
     # which Python may reuse after G_VTX overwrites the vertex cache.
     src_index: int = -1
+    ## Tile-1 UV (TEXCOORD_1) for a two-texture combiner outside water: taken from the raw
+    ## S/T before the tile-0 wrap bake rescales `u` / `v`.
+    u1: float | None = None
+    v1: float | None = None
 
 
 @dataclass
@@ -510,6 +547,9 @@ class RenderState:
     geometry_mode: int | None = None
     ## `gsSPTexture(..., G_OFF)`: the tile is not sampled, whatever SETTIMG is loaded.
     texture_on: bool = True
+    ## Export a classic two-tile combiner as TEXEL0 + TEXEL1 layers (TEXCOORD_1). Only
+    ## jobs whose runtime shader reads layer 1 opt in; everyone else keeps one texture.
+    classic_two_tile: bool = False
 
 
 ## Decomp OPA beach2 / beachB under ocean (dark-blue floor), not shore wet sand.
@@ -654,6 +694,8 @@ def _apply_settimg(w0: int, w1: int, bank: TextureBank, state: TextureState) -> 
     state.fmt = fmt
     state.siz = siz
     state.img_addr = addr
+    ## Only the Dolphin SETTIMG (it carries a height) points at GX-tiled texels.
+    state.n64_linear = not height and not (addr >> 24)
     ## New image: drop prior tile size so UVs follow this SETTIMG until SETTILESIZE.
     state.tile_w = 0
     state.tile_h = 0
@@ -700,6 +742,21 @@ def _apply_settile(w0: int, w1: int, state: TextureState) -> None:
     state.tmem = tmem
     state.wrap_s = wrap_s
     state.wrap_t = wrap_t
+    tile = (w1 >> 24) & 7
+    if tile == _G_TX_LOADTILE:
+        ## The LoadBlock that follows copies the current SETTIMG to this TMEM.
+        state.tmem_images[tmem] = state.img_addr
+    elif tile in (0, 1):
+        state.classic_tiles[tile] = {
+            "img_addr": state.tmem_images.get(tmem, state.img_addr),
+            "width": 0,
+            "height": 0,
+            "fmt": fmt,
+            "siz": siz,
+            "wrap_s": wrap_s,
+            "wrap_t": wrap_t,
+            "n64_linear": state.n64_linear,
+        }
 
 
 def _apply_settile_dolphin(w0: int, state: TextureState) -> None:
@@ -723,6 +780,18 @@ def _apply_settile_dolphin(w0: int, state: TextureState) -> None:
         state.tile1 = snap
 
 
+def _classic_pair(state: TextureState) -> bool:
+    """Both classic render tiles bound to sized, distinct images."""
+    t0 = state.classic_tiles.get(0)
+    t1 = state.classic_tiles.get(1)
+    return bool(
+        t0 and t1
+        and t0["width"] > 0 and t0["height"] > 0
+        and t1["width"] > 0 and t1["height"] > 0
+        and t0["img_addr"] != t1["img_addr"]
+    )
+
+
 def _decode_snap(
     bank: TextureBank, state: TextureState, snap: dict, *, skip_prim: bool
 ) -> tuple[bytes | None, str, str]:
@@ -736,12 +805,17 @@ def _decode_snap(
         wrap_s=int(snap["wrap_s"]),
         wrap_t=int(snap["wrap_t"]),
         prim=(255, 255, 255, 255) if skip_prim else state.prim,
+        n64_linear=bool(snap.get("n64_linear", state.n64_linear)),
     )
     return bank.decode_current(tmp)
 
 
 def _apply_settilesize(w0: int, w1: int, state: TextureState) -> None:
     width, height = parse_settilesize(w0, w1)
+    snap = state.classic_tiles.get((w1 >> 24) & 7)
+    if snap is not None:
+        snap["width"] = width
+        snap["height"] = height
     state.tile_w = width
     state.tile_h = height
     ## Classic SETTIMG often omits height; then the tile size is the image size.
@@ -942,6 +1016,32 @@ def parse_gfx(
                 ## wave2 shore is REPEAT S / CLAMP T; wave3 open is REPEAT/REPEAT.
                 layer1_wrap_s = int(tex_state.tile1["wrap_s"])
                 layer1_wrap_t = int(tex_state.tile1["wrap_t"])
+            elif (
+                not water_kind
+                and not dual
+                and render is not None
+                and render.classic_two_tile
+                and _classic_pair(tex_state)
+                and combine_uses_texel1(combine_w0, combine_w1)
+            ):
+                ## Classic two-texture combiner (museum skylight shaft: TEXEL0 colour,
+                ## TEXEL0 × TEXEL1 alpha). Keep both tiles raw; the runtime shader
+                ## combines them, reading tile 1 through TEXCOORD_1.
+                snap0 = tex_state.classic_tiles[0]
+                snap1 = tex_state.classic_tiles[1]
+                png, tex_name, _alpha = _decode_snap(bank, tex_state, snap0, skip_prim=True)
+                layer1_png, layer1_name, _a1 = _decode_snap(bank, tex_state, snap1, skip_prim=True)
+                texel_mode = "BLEND"
+                force_alpha_mode = "BLEND"
+                wrap_s = int(snap0["wrap_s"])
+                wrap_t = int(snap0["wrap_t"])
+                layer1_wrap_s = int(snap1["wrap_s"])
+                layer1_wrap_t = int(snap1["wrap_t"])
+                tw1 = float(snap1["width"])
+                th1 = float(snap1["height"])
+                for vertex in unique:
+                    vertex.u1 = vertex.s / tw1
+                    vertex.v1 = vertex.t / th1
             else:
                 saved_prim = tex_state.prim
                 saved_env = tex_state.env

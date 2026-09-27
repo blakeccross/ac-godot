@@ -72,6 +72,56 @@ def decode_linear_rgba5551(data: bytes, width: int, height: int) -> Image.Image:
     return img
 
 
+def decode_n64_linear(
+    data: bytes,
+    width: int,
+    height: int,
+    fmt: int,
+    siz: int,
+    palette: list[tuple[int, int, int, int]] | None = None,
+) -> Image.Image:
+    """Row-major N64 texels (GBI `fmt` / `siz`), as a classic `gsDPSetTextureImage` +
+    `gsDPLoadBlock` reads them. CI palettes are the caller's (N64 TLUTs are RGBA5551)."""
+    bits = 4 << siz
+    needed = (width * height * bits + 7) // 8
+    if len(data) < needed:
+        data = data + bytes(needed - len(data))
+    img = Image.new("RGBA", (width, height))
+    pixels = img.load()
+    for y in range(height):
+        for x in range(width):
+            i = y * width + x
+            if bits == 4:
+                byte = data[i // 2]
+                v = (byte >> 4) if i % 2 == 0 else (byte & 0xF)
+            elif bits == 8:
+                v = data[i]
+            elif bits == 16:
+                v = int.from_bytes(data[i * 2 : i * 2 + 2], "big")
+            else:
+                v = int.from_bytes(data[i * 4 : i * 4 + 4], "big")
+            if fmt == 2:  ## CI
+                color = palette[v] if palette and v < len(palette) else (255, 0, 255, 255)
+            elif fmt == 4:  ## I
+                i8 = v * 17 if bits == 4 else v & 0xFF
+                color = (i8, i8, i8, 255)
+            elif fmt == 3:  ## IA: 3/1, 4/4, 8/8
+                if bits == 4:
+                    i8 = (v >> 1) * 255 // 7
+                    color = (i8, i8, i8, 255 if v & 1 else 0)
+                elif bits == 8:
+                    i8 = (v >> 4) * 17
+                    color = (i8, i8, i8, (v & 0xF) * 17)
+                else:
+                    color = (v >> 8, v >> 8, v >> 8, v & 0xFF)
+            elif bits == 32:  ## RGBA32
+                color = (v >> 24, (v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF)
+            else:  ## RGBA16
+                color = _rgba5551(v)
+            pixels[x, y] = color
+    return img
+
+
 def decode_gx_image(data: bytes, width: int, height: int, fmt: int, palette: list[tuple[int, int, int, int]] | None = None) -> Image.Image:
     bw, bh, bpp = _BLOCK[fmt]
     img = Image.new("RGBA", (width, height))

@@ -159,6 +159,8 @@ Convert builds the full library (every cKF skeleton, static Gfx, BTI, player fac
 python3 tools/build_assets.py --step convert
 ```
 
+Texture layout follows the Gfx that loads it. A Dolphin `gsDPSetTextureImage_Dolphin` (it carries a height) points at GX 4×4 / 8×8 blocks with RGB5A3 TLUTs. A classic `gsDPSetTextureImage` of a REL image, the N64 `gsDPLoadBlock` path about a hundred models still use (insect models, museum art, clocks, window beams), points at N64 row-major texels with RGBA5551 TLUTs (`TextureState.n64_linear`, `bti.decode_n64_linear`). Decoding those as GX blocks gives banded noise.
+
 Acre collision only (no mesh reconvert):
 
 ```sh

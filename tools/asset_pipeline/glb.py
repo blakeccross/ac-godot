@@ -421,6 +421,7 @@ def write_glb(
         positions: list[float] = []
         normals: list[float] = []
         uvs: list[float] = []
+        uvs1: list[float] = []
         colors: list[float] = []
         indices: list[int] = []
         vertex_offset = 0
@@ -432,6 +433,8 @@ def write_glb(
                 positions.extend((vertex.x, vertex.y, vertex.z))
                 normals.extend(unit_normal(vertex.nx, vertex.ny, vertex.nz))
                 uvs.extend((vertex.u, vertex.v))
+                if vertex.u1 is not None:
+                    uvs1.extend((vertex.u1, vertex.v1))
                 if vertex_shade:
                     ## Combiners use SHADE for RGB only (alpha from TEXEL0/PRIM).
                     ## Exporting cn[].a (often ~63 on XLU mado) multiplies Godot
@@ -460,6 +463,9 @@ def write_glb(
         )
         a_nrm = add_acc(add_view(nrm_bytes, 34962), 5126, nverts, "VEC3")
         a_uv = add_acc(add_view(uv_bytes, 34962), 5126, nverts, "VEC2")
+        a_uv1 = None
+        if uvs1 and len(uvs1) == len(uvs):
+            a_uv1 = add_acc(add_view(struct.pack("<" + "f" * len(uvs1), *uvs1), 34962), 5126, nverts, "VEC2")
         a_idx = add_acc(add_view(idx_bytes, 34963), 5125, len(indices), "SCALAR")
         a_col = None
         if colors:
@@ -528,6 +534,8 @@ def write_glb(
         attrs: dict = {"POSITION": a_pos, "NORMAL": a_nrm, "TEXCOORD_0": a_uv}
         if a_col is not None:
             attrs["COLOR_0"] = a_col
+        if a_uv1 is not None:
+            attrs["TEXCOORD_1"] = a_uv1
         primitives.append(
             {
                 "attributes": attrs,

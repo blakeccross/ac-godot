@@ -78,3 +78,14 @@ func test_post_office_beams_stand_on_the_floor() -> void:
 		.is_equal(Vector3(38.0, 1.0, 160.0))
 	assert_vector(PostDisplay.sunshine_anchor_gx(PostDisplay.SUNSHINE_R_GX, false)) \
 		.is_equal(Vector3(280.0, 1.0, 160.0))
+
+
+func test_museum_beams_use_the_police_anchor() -> void:
+	## `ef_room_sunshine_museum` args 2 / 3: X −2 / +0 and `1 + BgY − 40`.
+	assert_vector(MuseumDisplay.sunshine_anchor_gx(MuseumDisplay.ENTRANCE_SUNSHINE_GX[0], true, false)) \
+		.is_equal(Vector3(121.0, -39.0, 180.0))
+	assert_vector(MuseumDisplay.sunshine_anchor_gx(MuseumDisplay.ENTRANCE_SUNSHINE_GX[3], false, false)) \
+		.is_equal(Vector3(360.0, -39.0, 380.0))
+	## `ef_room_sunshine_minsect` puts Y back on the actor's own 0 each frame.
+	assert_vector(MuseumDisplay.sunshine_anchor_gx(MuseumDisplay.INSECT_SUNSHINE_GX[1], false, true)) \
+		.is_equal(Vector3(520.0, -40.0, 280.0))

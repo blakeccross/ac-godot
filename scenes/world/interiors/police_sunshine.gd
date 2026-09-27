@@ -6,13 +6,17 @@ extends Node3D
 ## `sunshine_alpha × windowlight_alpha`; colour is the window sun colour 04–20, else moon.
 ## The police box has no light switch, so `windowlight_alpha` only opens 05:00–18:00.
 ## The post office beam (`ef_room_sunshine_posthouse`) is the same effect with its own
-## model (`visual`), a 0.05 scale and no camera cull.
+## model (`visual`), a 0.05 scale and no camera cull; so are the museum's
+## (`ef_room_sunshine_museum` / `_minsect`, no cull). The entrance hall's beam is coloured
+## by its stained-glass texture (`stained_glass`, `museum_sunshine.gdshader`).
 
 const SHADER := preload("res://shaders/police_sunshine.gdshader")
+const STAINED_GLASS_SHADER := preload("res://shaders/museum_sunshine.gdshader")
 
 @export var left: bool = true
 @export var visual: StringName = PoliceDisplay.SUNSHINE_VISUAL
 @export var cull: bool = true
+@export var stained_glass: bool = false
 
 var _pivot: Node3D
 var _base_scale: float = 1.0
@@ -80,13 +84,23 @@ func _swap_materials(node: Node) -> void:
 		var mesh_instance := node as MeshInstance3D
 		var count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 0
 		for i: int in count:
-			var src: Material = mesh_instance.get_active_material(i)
+			## The imported material: `VisualMaterials` may already have swapped a
+			## `ground_spill` patch for a shader that hides its texture.
+			var src: Material = mesh_instance.mesh.surface_get_material(i)
 			var tex: Texture2D = null
 			if src is BaseMaterial3D:
 				tex = (src as BaseMaterial3D).albedo_texture
 			var mat := ShaderMaterial.new()
-			mat.shader = SHADER
-			mat.set_shader_parameter("albedo_texture", VisualWindowLight.coverage_texture(tex))
+			if stained_glass:
+				## The shaft's second texture (its fade) comes in as the AO texture on UV2.
+				var fade: Texture2D = (src as BaseMaterial3D).ao_texture if src is BaseMaterial3D else null
+				mat.shader = STAINED_GLASS_SHADER
+				mat.set_shader_parameter("albedo_texture", tex)
+				mat.set_shader_parameter("fade_texture", fade)
+				mat.set_shader_parameter("shaft", fade != null)
+			else:
+				mat.shader = SHADER
+				mat.set_shader_parameter("albedo_texture", VisualWindowLight.coverage_texture(tex))
 			mesh_instance.set_surface_override_material(i, mat)
 			_materials.append(mat)
 	for child: Node in node.get_children():

@@ -63,7 +63,9 @@ func _swap_materials(node: Node) -> void:
 		var mesh_instance := node as MeshInstance3D
 		var count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 0
 		for i: int in count:
-			var src: Material = mesh_instance.get_active_material(i)
+			## The imported material: `VisualMaterials` may already have swapped a
+			## `ground_spill` patch for a shader that hides its texture.
+			var src: Material = mesh_instance.mesh.surface_get_material(i)
 			var tex: Texture2D = null
 			if src is BaseMaterial3D:
 				tex = (src as BaseMaterial3D).albedo_texture

@@ -1,44 +1,6 @@
 class_name VisualStructureMaterials
 extends RefCounted
-## Material rules for structures and fixtures: light shafts, fish tanks, kanban boards, museum art, player-select spot/shade.
-
-
-static func is_light_shaft_visual(visual_id: StringName) -> bool:
-	## Museum skylight god-rays (`obj_museum1_shine` / `obj_museum4_shine`).
-	var s := String(visual_id)
-	return s.begins_with("obj_museum") and s.ends_with("_shine")
-
-
-## Soft translucent light cone: unshaded, additive-ish MIX, no depth write, daylight-gated.
-static func apply_light_shaft_surface(std: StandardMaterial3D) -> void:
-	std.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	std.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
-	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	std.cull_mode = BaseMaterial3D.CULL_DISABLED
-	std.render_priority = 2
-	std.vertex_color_use_as_albedo = false
-	std.emission_enabled = true
-	std.emission = Color(1.0, 0.96, 0.86)
-	std.emission_energy_multiplier = 0.6
-	var day: float = _daylight_fraction()
-	std.albedo_color = Color(1.0, 0.97, 0.88, lerp(0.05, 0.32, day))
-
-
-## 0 at night, ~1 at midday — from the clock's outdoor light term when available.
-static func _daylight_fraction() -> float:
-	var loop := Engine.get_main_loop()
-	if loop is SceneTree:
-		var clock: Node = (loop as SceneTree).root.get_node_or_null("Clock")
-		if clock != null and clock.has_method("time_of_day"):
-			match int(clock.call("time_of_day")):
-				2:
-					return 1.0 # DAY
-				1, 3:
-					return 0.5 # DAWN / DUSK
-				_:
-					return 0.12 # NIGHT
-	return 0.6
+## Material rules for structures and fixtures: fish tanks, kanban boards, museum art, player-select spot/shade.
 
 
 static func is_single_sided_shell_visual(visual_id: StringName) -> bool:

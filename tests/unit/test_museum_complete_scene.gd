@@ -87,9 +87,9 @@ func test_museum_complete_instances_room_scenes() -> void:
 	assert_that(
 		rooms.get_node_or_null("museum_fossil/Furniture/Fossil_00/ExhibitCollision")
 	).is_not_null()
-	## Phase 5 atmosphere: skylight shafts + fish-wing tank greenery / bubbles.
-	assert_that(rooms.get_node_or_null("museum_entrance/Furniture/LightShaft")).is_not_null()
-	assert_that(rooms.get_node_or_null("museum_insect/Furniture/LightShaft")).is_not_null()
+	## Phase 5 atmosphere: window beams + fish-wing tank greenery / bubbles.
+	assert_that(rooms.get_node_or_null("museum_entrance/Furniture/Sunshine_3")).is_not_null()
+	assert_that(rooms.get_node_or_null("museum_insect/Furniture/Sunshine_1")).is_not_null()
 	assert_that(
 		rooms.get_node_or_null("museum_fish/Furniture/Decor_obj_museum5_kusa1")
 	).is_not_null()

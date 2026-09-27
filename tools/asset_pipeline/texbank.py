@@ -23,6 +23,7 @@ from .bti import (
 	_rgba5551,
 	decode_gx_image,
 	decode_linear_rgba5551,
+	decode_n64_linear,
 )
 from .mapfile import MapSymbol, index_by_name
 from .rel import RelData
@@ -1099,6 +1100,14 @@ class TextureState:
     ## G_SETTILE_DOLPHIN tile 0 / tile 1 before the next SETTIMG overwrites img_addr.
     tile0: dict | None = None
     tile1: dict | None = None
+    ## Classic render tiles 0 / 1 (`gsDPSetTile` + `gsDPSetTileSize` after a LoadBlock):
+    ## the image loaded at that TMEM with the render tile's format and size. Only the
+    ## two-texture combiner path reads these; the shared `tile0` / `tile1` stay Dolphin-only.
+    classic_tiles: dict[int, dict] = field(default_factory=dict)
+    tmem_images: dict[int, int] = field(default_factory=dict)
+    ## Classic (non-Dolphin) SETTIMG of a REL image: the data is N64 row-major texels
+    ## with RGBA5551 TLUTs, not GX 4×4 / 8×8 blocks with RGB5A3 ones.
+    n64_linear: bool = False
 
 
 class TextureBank:
@@ -1799,6 +1808,7 @@ class TextureBank:
             state.prim,
             use_achd,
             self.water_surface,
+            state.n64_linear,
         )
         cached = self._png_cache.get(key)
         if cached is not None:
@@ -1883,12 +1893,22 @@ class TextureBank:
                     pal,
                     state.prim,
                     use_achd,
+                    state.n64_linear,
                 )
                 cached = self._png_cache.get(key)
                 if cached is not None:
                     return cached[0], name, cached[1]
         try:
-            if is_museum_clock_texture(name):
+            if state.n64_linear:
+                image = decode_n64_linear(
+                    data,
+                    state.width,
+                    state.height,
+                    state.fmt,
+                    state.siz,
+                    palette_from_rgba5551(pal) if pal else None,
+                )
+            elif is_museum_clock_texture(name):
                 ## REL keeps N64 row-major RGBA5551; GX 4×4 RGB5A3 reads as neon noise.
                 image = decode_linear_rgba5551(data, state.width, state.height)
             elif is_house_clock_texture(name) and state.fmt == G_IM_FMT_CI:
