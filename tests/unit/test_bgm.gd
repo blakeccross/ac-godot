@@ -31,7 +31,6 @@ func test_rain_replaces_hourly_field() -> void:
 
 
 func test_shop_room_has_bgm_houses_are_silent() -> void:
-	assert_that(BgmCatalog.room_id(Room.Kind.SHOP)).is_equal(&"shop0")
 	assert_that(BgmCatalog.room_id(Room.Kind.NEEDLEWORK)).is_equal(&"tailors")
 	assert_that(BgmCatalog.room_id(Room.Kind.PLAYER)).is_equal(&"")
 	assert_that(BgmCatalog.room_id(Room.Kind.NPC)).is_equal(&"")
@@ -43,6 +42,63 @@ func test_public_building_room_bgm() -> void:
 	assert_that(BgmCatalog.room_id(Room.Kind.POLICE)).is_equal(&"police_box")
 	assert_that(BgmCatalog.room_id(Room.Kind.BROKER)).is_equal(&"brokers_shop")
 	assert_that(BgmCatalog.room_id(Room.Kind.KAMAKURA)).is_equal(&"kamakura")
+
+
+func test_each_nook_building_has_its_own_track() -> void:
+	## `mBGMRoom_make_scene_bgm_shop_get`: BGM 44 / 37 / 38 / 39 by building.
+	var noon: int = 12 * 3600
+	assert_that(BgmCatalog.room_bgm(InteriorCatalog.room_template(&"shop0"), noon)).is_equal(&"shop0")
+	assert_that(BgmCatalog.room_bgm(InteriorCatalog.room_template(&"shop1"), noon)).is_equal(&"shop1")
+	assert_that(BgmCatalog.room_bgm(InteriorCatalog.room_template(&"shop2"), noon)).is_equal(&"shop2")
+	assert_that(BgmCatalog.room_bgm(InteriorCatalog.room_template(&"shop3_1"), noon)).is_equal(&"shop3")
+	## Nookington's upstairs keeps the downstairs track.
+	assert_that(BgmCatalog.room_bgm(InteriorCatalog.room_template(&"shop3_2"), noon)).is_equal(&"shop3")
+	assert_that(BgmCatalog.room_bgm(InteriorCatalog.room_template(&"broker_shop"), noon)).is_equal(
+		&"brokers_shop"
+	)
+
+
+func test_nook_late_track_five_minutes_before_close() -> void:
+	## BGM 79–82 from `mSP_GetShopCloseTime_Bgm` − 5 min; Nook 'n' Go closes an hour later.
+	var cranny: Room = InteriorCatalog.room_template(&"shop0")
+	var combini: Room = InteriorCatalog.room_template(&"shop1")
+	var upstairs: Room = InteriorCatalog.room_template(&"shop3_2")
+	var t2154: int = 21 * 3600 + 54 * 60 + 59
+	var t2155: int = 21 * 3600 + 55 * 60
+	assert_that(BgmCatalog.room_bgm(cranny, t2154)).is_equal(&"shop0")
+	assert_that(BgmCatalog.room_bgm(cranny, t2155)).is_equal(&"shop0_late")
+	assert_that(BgmCatalog.room_bgm(upstairs, t2155)).is_equal(&"shop3_late")
+	assert_that(BgmCatalog.room_bgm(combini, t2155)).is_equal(&"shop1")
+	assert_that(BgmCatalog.room_bgm(combini, 22 * 3600 + 55 * 60)).is_equal(&"shop1_late")
+	assert_that(BgmCatalog.room_bgm(InteriorCatalog.room_template(&"shop2"), t2155)).is_equal(&"shop2_late")
+	## The part-time job keeps the normal track (`mEv_CheckRealArbeit`).
+	assert_that(BgmCatalog.room_bgm(cranny, t2155, true)).is_equal(&"shop0")
+	## Close hour comes from the shop's own hours table.
+	for level: int in 4:
+		var edge: int = ShopBook.CLOSE_HOURS[level] * 3600 - BgmCatalog.SHOP_LATE_LEAD_SEC
+		assert_bool(BgmCatalog.shop_late(level, edge - 1)).is_false()
+		assert_bool(BgmCatalog.shop_late(level, edge)).is_true()
+
+
+func test_shop_switches_to_late_track_while_inside() -> void:
+	for id: StringName in [&"shop0", &"shop0_late"]:
+		BgmCatalog.register_stream(id, AudioStreamWAV.new())
+	Clock.paused = true
+	Clock.set_datetime(2001, 1, 2, 21, 50)
+	var interior: Node = auto_free(load("res://scenes/world/interior.gd").new())
+	var session := IndoorSession.new()
+	session.bind(InteriorCatalog.room_template(&"shop0"))
+	interior.set("session", session)
+	interior.call("refresh_bgm")
+	interior.set("_shop_bgm", Audio.current_id)
+	assert_that(Audio.current_id).is_equal(&"shop0")
+	interior.call("_on_shop_clock")
+	assert_that(Audio.current_id).is_equal(&"shop0")
+	Clock.set_datetime(2001, 1, 2, 21, 55)
+	interior.call("_on_shop_clock")
+	assert_that(Audio.current_id).is_equal(&"shop0_late")
+	Clock.reset_to_default()
+	Clock.paused = false
 
 
 func test_unknown_ids_are_silence() -> void:

@@ -6,6 +6,11 @@ extends RefCounted
 
 const GENERATED_DIR := "res://assets/generated/audio"
 const CATALOG_PATH := GENERATED_DIR + "/catalog.json"
+## Nook's per-building tracks, by shop level (BGM 44 / 37 / 38 / 39, late 79–82).
+const SHOP_IDS: Array[StringName] = [&"shop0", &"shop1", &"shop2", &"shop3"]
+const SHOP_LATE_IDS: Array[StringName] = [&"shop0_late", &"shop1_late", &"shop2_late", &"shop3_late"]
+## `mBGMRoom_shop_close_time_set`: the late track starts five minutes before closing.
+const SHOP_LATE_LEAD_SEC := 5 * 60
 
 static var _loaded: bool = false
 static var _entries: Dictionary = {}
@@ -34,7 +39,8 @@ static func outdoor_id(hour: int, weather: StringName) -> StringName:
 static func room_id(kind: Room.Kind) -> StringName:
 	## `mBGMRoom_make_scene_bgm` (`m_kankyo.c` `mEnv_SetBaseLight` scene_no switch): each
 	## public building has its own fixed BGM id. Homes (`PLAYER`/`NPC`) have no `BGM_*`
-	## entry in the original and stay silent indoors.
+	## entry in the original and stay silent indoors. Nook's track depends on the building
+	## and the time: see `room_bgm`.
 	match kind:
 		Room.Kind.SHOP:
 			return &"shop0"
@@ -52,6 +58,39 @@ static func room_id(kind: Room.Kind) -> StringName:
 			return &"kamakura"
 		_:
 			return &""
+
+
+## Room BGM at `now_sec` (seconds since midnight). `job_active` is the part-time job
+## (`mEv_CheckRealArbeit`), which keeps the normal shop track past closing.
+static func room_bgm(room: Room, now_sec: int, job_active: bool = false) -> StringName:
+	if room == null:
+		return &""
+	var level: int = shop_level(room)
+	if level < 0:
+		return room_id(room.kind)
+	return shop_id(level, not job_active and shop_late(level, now_sec))
+
+
+## Nook level of a shop room, -1 otherwise. Nookington's upstairs (`shop3_2`) plays the
+## same track as downstairs (`mFI_FIELD_ROOM_SHOP3_2` falls to BGM 39 / 82).
+static func shop_level(room: Room) -> int:
+	if room == null or room.kind != Room.Kind.SHOP:
+		return -1
+	var base: StringName = room.parent_room_id if room.parent_room_id != &"" else room.id
+	return ShopBook.NOOK_ROOM_IDS.find(base)
+
+
+## `mBGMRoom_make_scene_bgm_shop_get`.
+static func shop_id(level: int, late: bool) -> StringName:
+	var i: int = clampi(level, 0, SHOP_IDS.size() - 1)
+	return SHOP_LATE_IDS[i] if late else SHOP_IDS[i]
+
+
+## `mBGMClock_after_time_check` against `mSP_GetShopCloseTime_Bgm` minus five minutes
+## (hh:mm:ss only, so it clears again at midnight).
+static func shop_late(level: int, now_sec: int) -> bool:
+	var close_hour: int = ShopBook.CLOSE_HOURS[clampi(level, 0, ShopBook.CLOSE_HOURS.size() - 1)]
+	return now_sec >= close_hour * 3600 - SHOP_LATE_LEAD_SEC
 
 
 static func ensure_loaded() -> void:

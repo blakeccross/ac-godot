@@ -11,6 +11,8 @@ var grid: WorldGrid
 var session: IndoorSession
 var _exiting: bool = false
 var _room_content: Node3D = null
+## Last shop track chosen for the clock (`_on_shop_clock`).
+var _shop_bgm: StringName = &""
 
 @onready var _camera: Camera3D = $FollowCamera
 @onready var _spawn: Marker3D = $Characters/PlayerSpawn
@@ -30,6 +32,8 @@ func _ready() -> void:
 	Game.bind_interior(session)
 	if not Game.weather_changed.is_connected(_on_weather_changed):
 		Game.weather_changed.connect(_on_weather_changed)
+	if BgmCatalog.shop_level(room) >= 0 and not Clock.time_changed.is_connected(_on_shop_clock):
+		Clock.time_changed.connect(_on_shop_clock)
 	_sync_rain_se()
 	_build_room(room)
 	_apply_indoor_light(room)
@@ -37,6 +41,7 @@ func _ready() -> void:
 	_spawn_resident(room)
 	_spawn_gokis(room)
 	refresh_bgm()
+	_shop_bgm = _room_bgm()
 
 
 func _build_room(room: Room) -> void:
@@ -128,6 +133,8 @@ func _on_weather_changed(_weather: StringName) -> void:
 func _exit_tree() -> void:
 	if Game.weather_changed.is_connected(_on_weather_changed):
 		Game.weather_changed.disconnect(_on_weather_changed)
+	if Clock.time_changed.is_connected(_on_shop_clock):
+		Clock.time_changed.disconnect(_on_shop_clock)
 	Audio.stop_syslev()
 	## Whatever is still scuttling goes back into the walls (`aMR_GokiInfoDt`).
 	if session != null and session.room != null and PlayerHouse.is_player_room(session.room.id):
@@ -229,7 +236,23 @@ func refresh_bgm() -> void:
 	if session == null or session.room == null:
 		return
 	var song: StringName = FurnitureMusic.active_bgm(session.room)
-	Audio.play_bgm(song if song != &"" else BgmCatalog.room_id(session.room.kind))
+	Audio.play_bgm(song if song != &"" else _room_bgm())
+
+
+func _room_bgm() -> StringName:
+	var job: bool = Game.first_job != null and Game.first_job.is_active()
+	return BgmCatalog.room_bgm(session.room, Clock.now_sec(), job)
+
+
+## `mBGMRoom_shop_close_check`: swap to the late track while the player is inside. Only
+## when the room track itself changes, so a jingle playing over it is otherwise left alone.
+func _on_shop_clock() -> void:
+	if session == null or session.room == null:
+		return
+	var song: StringName = _room_bgm()
+	if song != _shop_bgm:
+		_shop_bgm = song
+		Audio.play_bgm(song)
 
 
 ## Glide every piece to where the session now has it after a push / pull / turn
