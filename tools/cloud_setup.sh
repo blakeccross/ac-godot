@@ -92,12 +92,24 @@ fi
 if [ -z "$iso" ] && [ -n "${AC_ISO_URL:-}" ]; then
 	log "downloading disc image"
 	mkdir -p "$CACHE/iso"
-	name=$(basename "${AC_ISO_URL%%\?*}")
-	case "$name" in *.iso | *.gcm | *.rvz | *.ciso | *.gcz | *.zip) ;; *) name=disc.iso ;; esac
-	fetch "$AC_ISO_URL" "$CACHE/iso/$name" || { log "disc download failed"; exit 1; }
-	if [[ "$name" == *.zip ]]; then
-		unzip -qo "$CACHE/iso/$name" -d "$CACHE/iso" && rm -f "$CACHE/iso/$name"
-	fi
+	url=$AC_ISO_URL
+	# Google Drive share links (.../file/d/<id>/view or ?id=<id>) -> direct download,
+	# with confirm=t to skip the "can't scan for viruses" page on large files.
+	drive_id=$(printf '%s' "$url" | sed -nE 's#.*drive\.google\.com/(file/d/|open\?id=|uc\?.*id=)([A-Za-z0-9_-]+).*#\2#p')
+	[ -n "$drive_id" ] && url="https://drive.usercontent.google.com/download?id=$drive_id&export=download&confirm=t"
+	name=$(basename "${url%%\?*}")
+	case "$name" in *.iso | *.gcm | *.rvz | *.ciso | *.gcz | *.zip) ;; *) name=disc.bin ;; esac
+	fetch "$url" "$CACHE/iso/$name" || { log "disc download failed"; exit 1; }
+	case "$(file -b "$CACHE/iso/$name")" in
+	Zip*)
+		unzip -qo "$CACHE/iso/$name" -d "$CACHE/iso" && rm -f "$CACHE/iso/$name" ;;
+	HTML* | *text*)
+		log "disc download returned a web page, not a disc image (is the link shared as 'Anyone with the link'?)"
+		rm -f "$CACHE/iso/$name"
+		exit 1 ;;
+	*)
+		[ "$name" = disc.bin ] && mv "$CACHE/iso/disc.bin" "$CACHE/iso/disc.iso" ;;
+	esac
 	iso=$(find "$CACHE/iso" -type f \( -iname '*.iso' -o -iname '*.gcm' -o -iname '*.rvz' -o -iname '*.ciso' -o -iname '*.gcz' \) | head -1)
 fi
 if [ -z "$iso" ] || [ ! -f "$iso" ]; then

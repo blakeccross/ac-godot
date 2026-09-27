@@ -11,6 +11,6 @@ See [docs/asset_pipeline.md](../docs/asset_pipeline.md). Do not commit `config.l
 
 ## Cloud containers (Claude Code on the web)
 
-`.claude/settings.json` runs `tools/cloud_setup.sh` at session start in cloud sessions only. It installs the Python deps, Godot 4.6 (`GODOT_BIN`), dtk, an `ac-decomp` checkout and ffmpeg under `~/ac-cache`, downloads the disc from the `AC_ISO_URL` environment secret, writes `config.local.json`, and runs `build_assets.py --step all` plus the side kinds (`villagers` excluded, it rewrites tracked `.tres`). Later sessions skip finished steps; `AC_FORCE_ASSETS=1` regenerates. Without `AC_ISO_URL` it installs the tools and stops.
+`.claude/settings.json` runs `tools/cloud_setup.sh` at session start in cloud sessions only. It installs the Python deps, Godot 4.6 (`GODOT_BIN`), dtk, an `ac-decomp` checkout and ffmpeg under `~/ac-cache`, downloads the disc from the `AC_ISO_URL` environment secret (a direct link, or a Google Drive share link shared as "Anyone with the link"; Drive needs `drive.google.com` and `drive.usercontent.google.com` in the environment's allowed domains), writes `config.local.json`, and runs `build_assets.py --step all` plus the side kinds (`villagers` excluded, it rewrites tracked `.tres`). Later sessions skip finished steps; `AC_FORCE_ASSETS=1` regenerates. Without `AC_ISO_URL` it installs the tools and stops.
 
 The container has no display, so run gdUnit under Xvfb: `xvfb-run -a tools/test.sh <suite>`.
