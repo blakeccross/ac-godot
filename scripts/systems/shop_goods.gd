@@ -106,9 +106,9 @@ static func roll(
 	else:
 		for _i: int in int(counts[Kind.PAPER]):
 			goods.append(PAPER)
-	goods.append_array(_pick(_category_pool(ItemData.Category.CLOTH), int(counts[Kind.CLOTH]), rng))
-	goods.append_array(_pick(_category_pool(ItemData.Category.FLOOR), int(counts[Kind.CARPET]), rng))
-	goods.append_array(_pick(_category_pool(ItemData.Category.WALL), int(counts[Kind.WALL]), rng))
+	goods.append_array(_pick(category_pool(ItemData.Category.CLOTH), int(counts[Kind.CLOTH]), rng))
+	goods.append_array(_pick(category_pool(ItemData.Category.FLOOR), int(counts[Kind.CARPET]), rng))
+	goods.append_array(_pick(category_pool(ItemData.Category.WALL), int(counts[Kind.WALL]), rng))
 	if grab_bags:
 		bag_count += int(counts[Kind.TOOL]) + int(counts[Kind.PLANT]) + int(counts[Kind.SAPLING])
 		if lv >= 2:
@@ -195,8 +195,8 @@ static func open_grab_bag(rng: RandomNumberGenerator) -> Array[StringName]:
 	var out: Array[StringName] = []
 	var pin_slot: int = rng.randi_range(0, 2)
 	var pools: Array = [
-		_category_pool(ItemData.Category.CLOTH), _category_pool(ItemData.Category.FLOOR),
-		_category_pool(ItemData.Category.WALL), furniture_pool(),
+		category_pool(ItemData.Category.CLOTH), category_pool(ItemData.Category.FLOOR),
+		category_pool(ItemData.Category.WALL), furniture_pool(),
 	]
 	for i: int in 3:
 		if i == pin_slot and rng.randf() <= 0.5:
@@ -219,7 +219,7 @@ static func umbrella_pool() -> Array[StringName]:
 	for item: ItemData in ItemCatalog.all_items():
 		if item is ToolData and (item as ToolData).kind == ToolData.Kind.UMBRELLA:
 			out.append(item.id)
-	out.sort()
+	out.sort_custom(_by_name)
 	return out
 
 
@@ -229,7 +229,7 @@ static func furniture_pool() -> Array[StringName]:
 	for item: ItemData in ItemCatalog.all_items():
 		if item is FurnitureData and not item.shop_rare and ShopBook.buy_price(item) > 0:
 			out.append(item.id)
-	out.sort()
+	out.sort_custom(_by_name)
 	return out
 
 
@@ -238,19 +238,25 @@ static func _rare_pool() -> Array[StringName]:
 	for item: ItemData in ItemCatalog.all_items():
 		if item is FurnitureData and item.shop_rare and ShopBook.buy_price(item) > 0:
 			out.append(item.id)
-	out.sort()
+	out.sort_custom(_by_name)
 	return out
 
 
-static func _category_pool(category: ItemData.Category) -> Array[StringName]:
+static func category_pool(category: ItemData.Category) -> Array[StringName]:
 	var out: Array[StringName] = []
 	for item: ItemData in ItemCatalog.all_items():
 		if item is FurnitureData or item.category != category or item.shop_rare:
 			continue
 		if ShopBook.buy_price(item) > 0:
 			out.append(item.id)
-	out.sort()
+	out.sort_custom(_by_name)
 	return out
+
+
+## Pools sort by id text. `Array[StringName].sort()` orders by interning, which shifts
+## whenever some other system touches the same ids first — and with it every seeded roll.
+static func _by_name(a: StringName, b: StringName) -> bool:
+	return String(a) < String(b)
 
 
 static func _pick(pool: Array[StringName], count: int, rng: RandomNumberGenerator) -> Array[StringName]:

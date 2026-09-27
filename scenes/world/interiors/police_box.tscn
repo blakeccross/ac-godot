@@ -1,9 +1,10 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/interiors/police_room.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/world/interiors/booker.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/world/interiors/police_sunshine.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://assets/generated/environment/interiors/police_indoor.glb" id="10"]
 
 [node name="police_box" type="Node3D"]
@@ -22,6 +23,12 @@ script = ExtResource("2")
 [node name="Furniture" type="Node3D" parent="."]
 
 [node name="Booker" parent="Furniture" instance=ExtResource("4")]
+
+[node name="SunshineL" parent="Furniture" instance=ExtResource("5")]
+left = true
+
+[node name="SunshineR" parent="Furniture" instance=ExtResource("5")]
+left = false
 
 [node name="Doors" type="Node3D" parent="."]
 

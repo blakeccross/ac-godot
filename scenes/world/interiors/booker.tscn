@@ -2,5 +2,5 @@
 
 [ext_resource type="Script" path="res://scenes/world/interiors/booker.gd" id="1"]
 
-[node name="Booker" type="StaticBody3D"]
+[node name="Booker" type="CharacterBody3D"]
 script = ExtResource("1")

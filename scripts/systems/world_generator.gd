@@ -28,6 +28,8 @@ const NEEDLEWORK_UT_TA3 := Vector2i(9, 5)
 ## `PORT_SIGN` on `grd_s_m_wf_*`: (8, 7) on `_1`/`_2`, (9, 7) on `_3`.
 const PORT_SIGN_UT := Vector2i(8, 7)
 const PORT_SIGN_UT_WF3 := Vector2i(9, 7)
+## `mFM_KeepPolicePos`: Copper's unit is the police station's `ut_x + 2`, same row.
+const COPPER_UT_OFFSET := Vector2i(2, 0)
 ## New-game villagers: one per personality (`mNpc_LOOKS_NUM` / `mNpc_InitNpcAllInfo`).
 const STARTER_NPC_HOUSES := 6
 ## The fixed title-demo FG (`l_title_demo_fg`) marks each named villager's house with its own
@@ -139,6 +141,8 @@ static func generate(seed_value: int = DEFAULT_SEED, title_demo: bool = false) -
 	## fallback only fills waterfall acres that still lack one.
 	_place_fg_props(data, blocks, seed_value, title_demo, not fixed.is_empty())
 	_place_waterfall(data, blocks)
+	## After the FG templates, which may move the police station onto its disc unit.
+	_place_copper(data)
 	data.bake()
 	return data
 
@@ -503,6 +507,19 @@ static func _place_tortimer(data: WorldData, blocks: PackedByteArray) -> void:
 			o.occupy_grid = false
 			data.objects.append(o)
 			return
+
+
+static func _place_copper(data: WorldData) -> void:
+	## `fd_npc_land_actable`: SP_NPC_POLICE on `mRF_BLOCKKIND_POLICE`; `mFM_SetMoveActorInfo`
+	## finds the `POLICE_STATION` unit in that acre and stands him two units east of it.
+	for b: BuildingPlacement in data.buildings:
+		if b == null or b.id != &"police":
+			continue
+		var home: Vector2i = StructureOffset.police_home_cell(b)
+		var o := _object(&"copper", &"copper", home + COPPER_UT_OFFSET, null)
+		o.occupy_grid = false
+		data.objects.append(o)
+		return
 
 
 static func _waterfall_in_acre(data: WorldData, origin: Vector2i) -> bool:
