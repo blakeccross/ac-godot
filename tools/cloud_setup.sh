@@ -100,6 +100,23 @@ if [ -z "$iso" ] && [ -n "${AC_ISO_URL:-}" ]; then
 	name=$(basename "${url%%\?*}")
 	case "$name" in *.iso | *.gcm | *.rvz | *.ciso | *.gcz | *.zip) ;; *) name=disc.bin ;; esac
 	fetch "$url" "$CACHE/iso/$name" || { log "disc download failed"; exit 1; }
+	# Big files can still get Drive's "can't scan for viruses" form. Resubmit it
+	# with its hidden fields (id, export, confirm, uuid) to get the real file.
+	if [ -n "$drive_id" ] && file -b "$CACHE/iso/$name" | grep -qi html; then
+		form_url=$(python3 - "$CACHE/iso/$name" <<'PY'
+import html, re, sys, urllib.parse
+page = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+m = re.search(r'<form[^>]*action="([^"]+)"', page)
+if m:
+    fields = dict(re.findall(r'<input[^>]*type="hidden"[^>]*name="([^"]+)"[^>]*value="([^"]*)"', page))
+    print(html.unescape(m.group(1)) + "?" + urllib.parse.urlencode(fields))
+PY
+		)
+		if [ -n "$form_url" ]; then
+			log "Drive returned its large-file warning; confirming"
+			fetch "$form_url" "$CACHE/iso/$name" || { log "disc download failed"; exit 1; }
+		fi
+	fi
 	case "$(file -b "$CACHE/iso/$name")" in
 	Zip*)
 		unzip -qo "$CACHE/iso/$name" -d "$CACHE/iso" && rm -f "$CACHE/iso/$name" ;;
