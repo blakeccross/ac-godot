@@ -16,12 +16,13 @@ Decomp: `ac_npc_needlework.c` + `_talk.c_inc` / `_schedule.c_inc` / `_gba.c_inc`
 - **Trades** (`TRADE_CLOSE` exchange / `CLOSE2` display / `CLOSE3` buy): display and exchange call `trend_delete` (wearers revert), buy doesn't (`Mabel.apply_trade`).
 - **Trends** (`NeedleworkTrend`): wear is `VillagerState.cloth_design` / `umbrella_design`. Greeting reactions use `react_rate_table` (0.2 feel, 0.1 copy catchphrase, 0.1 reset catchphrase, 0.1 shop umbrella, 0.1 copy shirt, 0.05 new normal shirt, 0.1 shop shirt, 0.05 reset shirt + umbrella; A = the villager the player is friendlier with). Stand-in: each resident greets one random neighbour per daily renewal. Report tiers 0 / 1 / <5 / ≥5 (`MSG_TREND_*`).
 - **Sable** (`sable.gd`): `pick_story_row(days, first_of_day)` *before* `tick_sable_day` (first talk of days 4–7 → rows 5/9/13/17); parts are Sable / Mabel (`chime_in`, facing Sable) / Sable; story 9 turns to the player; she turns to the player only at `days >= 5`; `NeedleworkPresenter.set_machine_running` stops the machine + fabric while she talks.
-- Not built: ROM text (authored stand-ins in `NeedleworkTalk`), GBA / e-Reader, April Fool's, foreigner rules, Mabel's area-table roaming and walk-over before trades.
+- Not built: the two window sunbeams (`ROOM_SUNSHINE` at GX `{40,0,160}` / `{360,0,160}`, `room_lightR/L` models — the same effect every house uses), ROM text (authored stand-ins in `NeedleworkTalk`), GBA / e-Reader, April Fool's, foreigner rules, Mabel's area-table roaming and walk-over before trades.
 
 **Cranny presentation (`ShopDisplay` + authored `shop0.tscn`):**
 - Shells `rom_shop1f` / `rom_shop1w` (and `rom_shop2f`/`w`, `rom_shop3f`/`w`, `rom_shop4_2f`/`w`); the `f`/`w` suffix is floor/wall. Wall/floor bank indices follow `aSI_*_default_table` (`WALL_SHOP*` / `FLOOR_SHOP*` → 67–70).
 - FG walkable `(1,1)+(7,8)`; exit `(3,8)`; player spawn GX `{160,0,300}`.
 - Tom Nook (`tom_nook.tscn`; no cloth DMA — `seg_08` is eyes) at the shop's `shop0N_actable` stand — Talk / Buy / Sell; goods use `obj_item_*` / mannequin stands on RSV cells. Outfit is a different skeleton per level (`rcn_1` Cranny, `rcc_1` Nook 'n' Go, `rcs_1` Nookway, `rcd_1` Nookington's), not a cloth swap.
+- Cranny RSV cells come from `FG_TYPE_ROM_SHOP1`: 11 slots, including the sapling on `RSV_SHOP_HALLOWEEN` (6,4) (`aSD_ItemName2ReservePointName`).
 - Shelf goods sit at **21 GX** (`CRANNY_SHELF_Y_GX`) on shell tables; freestanding FTR / mannequin / umbrella stay on the floor.
 - Wall clock `obj_clock_shop1`…`4` at GX `(200,40,40)` (`aHC_position_data`).
 - `rom_shop*` shells keep the acre origin (like museum) so FG RSV ut cells line up with `cell_to_world`.

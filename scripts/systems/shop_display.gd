@@ -52,6 +52,8 @@ const CRANNY_SLOTS: Array[Dictionary] = [
 	{"kind": &"paper", "cell": Vector2i(3, 4), "y_gx": CRANNY_SHELF_Y_GX},
 	{"kind": &"plant", "cell": Vector2i(4, 4), "y_gx": CRANNY_SHELF_Y_GX},
 	{"kind": &"plant", "cell": Vector2i(5, 4), "y_gx": CRANNY_SHELF_Y_GX},
+	## `RSV_SHOP_HALLOWEEN`: saplings (`aSD_ItemName2ReservePointName`).
+	{"kind": &"sapling", "cell": Vector2i(6, 4), "y_gx": CRANNY_SHELF_Y_GX},
 	{"kind": &"umbrella", "cell": Vector2i(1, 5), "y_gx": 0.0},
 ]
 
@@ -175,7 +177,9 @@ static func _kind_for_item(item_id: StringName) -> StringName:
 			var raw := String(item_id)
 			if raw.contains("umbrella") or raw.contains("utiwa"):
 				return &"umbrella"
-			if data.plant_id != &"" or raw.contains("sapling") or raw.contains("flower"):
+			if raw.contains("sapling"):
+				return &"sapling"
+			if data.plant_id != &"" or raw.contains("flower"):
 				return &"plant"
 			return &""
 

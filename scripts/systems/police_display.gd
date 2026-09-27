@@ -77,6 +77,14 @@ const SUNSHINE_R_GX := Vector3(360.0, 0.0, 200.0)
 const SUNSHINE_VISUAL := &"obj_koban_shine"
 
 const SHELL_ID := &"police_indoor"
+## `aHC_position_data` SCENE_POLICE_BOX: back-wall clock (`obj_clock_koban`). y is 0 —
+## the skeleton carries the mounting height.
+const CLOCK_GX := Vector3(200.0, 0.0, 30.0)
+const CLOCK_VISUAL := &"obj_clock_koban"
+## `police_indoor` BG units above the floor (`LAND_COUNTS`): the three lost-and-found
+## shelf rows, the phone desk and the locker. Walls are `HEIGHT_MAX`.
+
+static var _raised: Dictionary = {}
 
 
 static func gx_to_world(grid: WorldGrid, gx: Vector3) -> Vector3:
@@ -269,3 +277,26 @@ static func _s16(v: int) -> int:
 ## `setup_mode_Ef_Room_Sunshine_Police`: sun window colour 04:00–20:00, else moon.
 static func sunshine_uses_sun(now_sec: int) -> bool:
 	return now_sec >= 14400 and now_sec < 72000
+
+
+## Raised BG units of the `police_indoor` shell: `Vector2i` unit → height above the floor
+## in GX (`mCoBG` counts × 10). Empty when the pipeline's `.col.json` is not generated.
+static func raised_units() -> Dictionary:
+	if not _raised.is_empty():
+		return _raised
+	## Read the sidecar directly: `AcreGrid` drops mostly-`HEIGHT_MAX` tables as fillers,
+	## and an interior shell is mostly wall.
+	var path := FieldCatalog.GENERATED_ROOT + "environment/acres/%s.col.json" % SHELL_ID
+	if not FileAccess.file_exists(path):
+		return _raised
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return _raised
+	var rows: Array = (parsed as Dictionary).get("units", []) as Array
+	if rows.size() != FieldCatalog.UNITS_PER_ACRE:
+		return _raised
+	for i: int in rows.size():
+		var c: int = int((rows[i] as Dictionary).get("c", FieldCatalog.LAND_COUNTS))
+		if c > FieldCatalog.LAND_COUNTS and c < FieldCatalog.HEIGHT_MAX:
+			_raised[Vector2i(i % 16, i / 16)] = float(c - FieldCatalog.LAND_COUNTS) * 10.0
+	return _raised

@@ -239,6 +239,37 @@ func test_presenter_places_one_card_per_kept_item() -> void:
 	assert_float(card.position.z).is_equal_approx(want.z, 0.001)
 
 
+func test_raised_units_are_the_shelves_desk_and_locker() -> void:
+	var raised: Dictionary = PoliceDisplay.raised_units()
+	if raised.is_empty():
+		return  ## `police_indoor.col.json` not generated (no disc)
+	## Every lost-and-found unit sits on a shelf 20 GX above the floor.
+	for cell: Vector2i in PoliceDisplay.lost_found_cells():
+		assert_float(float(raised.get(cell, 0.0))).is_equal(20.0)
+	## Walkways between the shelf rows stay flat.
+	assert_bool(raised.has(Vector2i(4, 2))).is_false()
+	assert_bool(raised.has(PoliceDisplay.BOOKER_STAND_UT)).is_false()
+
+
+func test_presenter_adds_shelf_hulls_and_clock() -> void:
+	if PoliceDisplay.raised_units().is_empty():
+		return
+	var room: Room = InteriorCatalog.room_template(&"police_box")
+	var session := IndoorSession.new()
+	session.bind(room)
+	var root := Node3D.new()
+	auto_free(root)
+	add_child(root)
+	PolicePresenter.new().present(root, session)
+	var col: StaticBody3D = root.get_node_or_null("PoliceFurnitureCol") as StaticBody3D
+	assert_object(col).is_not_null()
+	## Back shelf row: one 8-unit hull, 1 m tall.
+	var back: BoxShape3D = (col.get_child(0) as CollisionShape3D).shape as BoxShape3D
+	assert_vector(back.size).is_equal(Vector3(16.0, 1.0, 2.0))
+	if not FieldCatalog.mesh_paths(PoliceDisplay.CLOCK_VISUAL).is_empty():
+		assert_object(root.get_node_or_null("PoliceClock")).is_not_null()
+
+
 # --- Booker (`ac_npc_police2`) ----------------------------------------------------------
 
 

@@ -1082,6 +1082,21 @@ func try_enter_interior(
 			outdoor_return_yaw = player_yaw
 	close_shop()
 	current_room_id = room_id
+	prepare_interior_spawn(room_id, spawn_gx, spawn_yaw)
+	block_auto_enter_doors = true
+	var stage: Node = _museum_complete_stage()
+	if stage != null and stage.has_method("switch_wing"):
+		return stage.call("switch_wing", room_id) as bool
+	_change_scene(INTERIOR_SCENE)
+	return true
+
+
+## Where the player lands in `room_id` (door data per building, or an explicit stand).
+## `interior.tscn` reads these when it spawns the player.
+func prepare_interior_spawn(
+	room_id: StringName, spawn_gx: Variant = null, spawn_yaw: Variant = null
+) -> void:
+	var room: Room = interiors.room(room_id)
 	play_door_arrive = false
 	if spawn_gx is Vector3:
 		interior_spawn_gx = spawn_gx as Vector3
@@ -1138,12 +1153,6 @@ func try_enter_interior(
 	else:
 		has_interior_spawn = false
 		spawn_at_room_door = true
-	block_auto_enter_doors = true
-	var stage: Node = _museum_complete_stage()
-	if stage != null and stage.has_method("switch_wing"):
-		return stage.call("switch_wing", room_id) as bool
-	_change_scene(INTERIOR_SCENE)
-	return true
 
 
 func _is_museum_room_id(room_id: StringName) -> bool:

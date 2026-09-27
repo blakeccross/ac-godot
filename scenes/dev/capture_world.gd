@@ -11,6 +11,8 @@ extends Node3D
 ##
 ## Args (all optional):
 ##   scene=res://…     Scene to instance instead of the generated town.
+##   room=<id>         Mount an interior (`needlework`, `police_box`, `shop0`, …) in
+##                     `interior.tscn` with its own follow camera and lighting.
 ##   seed=12345        Generated-town seed.
 ##   date=Y-M-D[,…]    One capture per date (default 2001-07-15). time=HH:MM (12:00).
 ##   target=…          visual:<id or glob> | node:<path under world> | acre:<name> |
@@ -56,6 +58,12 @@ func _capture_date(date: String) -> void:
 	var hm := str(_args.get("time", "12:00")).split(":")
 	Game.reset_session()
 	var scene_path := str(_args.get("scene", ""))
+	if _args.has("room"):
+		## Mount the room the way the game does (`Game.INTERIOR_SCENE` reads the id).
+		Game.current_room_id = StringName(str(_args["room"]))
+		Game.prepare_interior_spawn(Game.current_room_id)
+		Game.block_auto_enter_doors = true
+		scene_path = Game.INTERIOR_SCENE
 	if scene_path.is_empty():
 		var seed_value := int(_args.get("seed", "12345"))
 		Game.world_mode = WorldData.Mode.GENERATED

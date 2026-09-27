@@ -170,6 +170,16 @@ func test_cranny_stock_maps_to_rsv_cells() -> void:
 	assert_bool(saw_floor).is_true()
 
 
+func test_cranny_sapling_uses_its_own_shelf_cell() -> void:
+	## `FG_TYPE_ROM_SHOP1`: saplings sit on `RSV_SHOP_HALLOWEEN` (6,4), not a seed-bag cell.
+	var goods: Array[StringName] = [&"sapling", &"white_pansy_bag", &"purple_pansy_bag"]
+	var cells: Array[Vector2i] = ShopDisplay.stock_cells_for_goods(goods)
+	assert_that(cells[0]).is_equal(Vector2i(6, 4))
+	assert_that(cells[1]).is_equal(Vector2i(4, 4))
+	assert_that(cells[2]).is_equal(Vector2i(5, 4))
+	assert_int(ShopDisplay.CRANNY_SLOTS.size()).is_equal(11)
+
+
 func test_tom_nook_model_follows_shop_level() -> void:
 	var rooms: Array[StringName] = [&"shop0", &"shop1", &"shop2", &"shop3_1"]
 	for level: int in rooms.size():

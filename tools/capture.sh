@@ -21,6 +21,11 @@ if [ "${1:-}" = "--import" ]; then
 	"$bin" --headless --path . --import >/dev/null 2>&1
 	shift
 fi
-"$bin" --path . res://scenes/dev/capture_world.tscn -- "$@" 2>&1 \
+# Cloud containers: no display and no Vulkan, so render through Xvfb + software GL.
+run=("$bin")
+if [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ] && command -v xvfb-run >/dev/null; then
+	run=(xvfb-run -a "$bin" --rendering-driver opengl3)
+fi
+"${run[@]}" --path . res://scenes/dev/capture_world.tscn -- "$@" 2>&1 \
 	| grep -E "^CAPTURE|SCRIPT ERROR|Parse Error|^ +at: (res|GDScript)" \
 	| grep -v "Remote Debugger"

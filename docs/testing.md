@@ -36,9 +36,10 @@ tools/capture.sh target=visual:TREE_APPLE_FRUIT date=2001-01-15,2001-04-05
 tools/capture.sh target=node:Buildings/station cam=-6,5,9 name=station
 tools/capture.sh scene=res://scenes/ui/intro_train.tscn wait=300
 tools/capture.sh --import target=acre:acre_5_6   # refresh imports after regenerating assets
+tools/capture.sh room=police_box target=pos:-6,0,-5 cam=0,22,18   # an interior, entered like the game does
 ```
 
-`tools/capture.sh` renders a generated town (or any `scene=`) and writes PNGs to `.tmp_captures/` (gitignored), printing one `CAPTURE <path>` line each. Targets: `visual:<id|glob>`, `node:<path>`, `acre:<name>`, `pos:x,y,z`, `scene`; camera via `cam=`/`look=`/`fov=`. Full arg list in `scenes/dev/capture_world.gd`. Both scripts find Godot via `GODOT_BIN`, `godot_bin` in `tools/config.local.json`, or the default macOS app path.
+`tools/capture.sh` renders a generated town (or any `scene=`) and writes PNGs to `.tmp_captures/` (gitignored), printing one `CAPTURE <path>` line each. Targets: `visual:<id|glob>`, `node:<path>`, `acre:<name>`, `pos:x,y,z`, `scene`; camera via `cam=`/`look=`/`fov=`. Full arg list in `scenes/dev/capture_world.gd`. With no display (cloud sessions) `capture.sh` renders through `xvfb-run` and the OpenGL compatibility renderer, so colours and lighting differ slightly from Forward+; run gdUnit there as `xvfb-run -a tools/test.sh …`. Both scripts find Godot via `GODOT_BIN`, `godot_bin` in `tools/config.local.json`, or the default macOS app path.
 
 ## Run from the CLI
 
