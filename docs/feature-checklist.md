@@ -366,11 +366,11 @@ data tables before a category is called done.
   `tools/asset_pipeline/design_ui.py` (`--kind design-ui`); the 5-row tool-variant
   icons and 2-digit palette-number readout still use text/hand-drawn glyphs rather
   than the real `des_tool_*`/`des_win_suuji*` ROM art.
-- [ ] Apply patterns as: shirt, hat, umbrella, wallpaper?, or place on the ground / as signboards / hung on walls
-- [ ] The **Able Sisters** design display board: submit your design → sold in the shop; wear other players' designs
+- [~] Apply patterns as: shirt, hat, umbrella, wallpaper?, or place on the ground / as signboards / hung on walls — shirt (design book "C" wear, `cloth.idx >= CLOTH_NUM + 1`) and the house-door design (§1 gyroid) work; design umbrellas (`ITM_MY_ORG_UMBRELLA0-7`, dragging a design onto the umbrella slot) not yet
+- [x] The **Able Sisters** design display board: put your design on a mannequin / stand, take a copy of one, or swap (§22); villagers pick the displayed designs up (§22 trends)
 - [ ] "Pro" designs? _(GCN: no pro designs)_
 - [ ] Wendell / Saharah / gypsy hand you free patterns (`ac_ev_designer`, `ac_broker_design`)
-- [ ] Design catalog / storage (`m_cpedit_ovl`, `m_cporiginal_ovl`)
+- [x] Design storage (`m_cporiginal_ovl`): the Able Sisters design album, 8 folders × 12 (§22). `m_cpedit_ovl` is the Memory Card copy/edit shell around it — no Memory Card layer in the port
 - [ ] Town flag design (on the flagpole at the station) (`ac_flag`)
 - [ ] e-Reader design cards import (§28)
 
@@ -394,13 +394,24 @@ data tables before a category is called done.
 
 ## 22. Able Sisters (Nook's neighbour)
 
-- [~] Shop building + interior (`ac_needlework_shop`, `ac_misin`) — `able_sisters.tscn`, `needlework.tscn`
-- [ ] **Mabel** runs the counter; **Sable** at the sewing machine (silent for weeks, then warms up if you visit daily) (`ac_npc_needlework`, `ac_npc_sleep_obaba`)
-- [ ] Sells: shirts (rotating daily stock), a few hats, accessories, umbrellas, carpets & wallpaper (some days)
-- [ ] The **design board**: browse & buy player-made patterns; upload your own (`ac_broker_design`, `ac_shop_design`)
-- [ ] Sable's backstory dialogue chain unlocked by consecutive-day visits → she gives you a free pattern
-- [ ] Umbrella stand (`ac_shop_umbrella`)
-- [ ] Mannequin displaying featured outfit (`ac_shop_manekin`)
+GCN Able Sisters is a design shop, not a clothing store: no Bell stock, no counter
+(`ShopBook.restock(ABLE_ID)` stocks nothing). The old "sells shirts / hats / wallpaper"
+and "umbrella stand" lines described later games (`ac_shop_umbrella` is Nook's stand) and
+were dropped. See [shops](decomp_notes/shops.md) § Able Sisters.
+
+- [x] Shop building + interior (`ac_needlework_shop`, `ac_needlework_indoor`, `ac_misin`) — `able_sisters.tscn`, `needlework.tscn`, `NeedleworkPresenter`: 4 mannequins + 4 umbrella stands at the `manekin_pos` / `umbrella_pos` GX, the animated machine + fabric (`obj_misin`, `aMSN_DustCloth_c`), back-wall clock; open 07:00–02:00 (`aNW_check_opend`)
+- [x] **Mabel** runs the shop (`ac_npc_needlework`, `SP_NPC_NEEDLEWORK0`) — `mabel.gd`: runs up to greet you on the first approach (0x2FD1 first visit / 0x2FD2 after); A opens the 6-way (`aNNW_set_6_ways`) with the first-time lead until "What's this?" has been picked (`needlework_first_talk_flags & 0x40`), and sub-flows that end in `WHAT_HAPPEN` bounce back to the menu; she sees you off when you face the exit from the row inside (`player_go_away` → think 10 → 0x2FD3 → leave). Her area-table roaming (`aNNW_next_target2`) is simplified to "run to the player when within 115 GX"; pressing A at a display opens the trade straight away instead of her running over first (`aNNW_THINK_OMATIKUDASI`)
+- [x] **Design a pattern** (`aNNW_TALK_DESIGN_*`): 350 Bells checked up front with sacks counted (`mSP_money_check`), charged only once the design is saved *and* named (`aNNW_talk_design_close3`); closing the list or quitting the editor unsaved costs nothing (0x2FE9); re-dresses you if you rewrote the design you're wearing (`CLOTH_CHANGE2`)
+- [x] **Save a pattern** → the design album (`m_cporiginal_ovl`, `mNW_OPEN_CPORIGINAL`) — `design_album_overlay.tscn` + `DesignBook.album`: 8 folders × 12 designs with 12-character folder names, the hand swaps album ↔ album, album ↔ your 8, and your 8 among themselves (`mCO_swap_image`); closing asks keep / discard (`mSM_OVL_EDITENDCHK`); the worn slot changing re-dresses you (`change_flg` → `CLOTH_CHANGE3`). Kept in the save rather than on a Memory Card
+- [x] The **display board** (`aNNW_TALK_TRADE_*`): A at a mannequin / umbrella stand → "Display mine!" (copy yours up), "I want it!" (copy theirs into one of your 8), "Can we trade?" (swap), with the 8-slot / replace confirms; wearing the design you traded away re-dresses you (`CLOTH_CHANGE`)
+- [x] **Trends** — villagers wear the shop's designs (`Animal_c.cloth == RSV_CLOTH` + `cloth_original_id`, `umbrella_id` = `ITM_MY_ORG_UMBRELLA0..3`) — `NeedleworkTrend` + `VillagerState.cloth_design` / `umbrella_design`: picked up and passed around through the greeting reactions (`aNPC_act_greeting_reaction` rates: change into a shop shirt / umbrella, copy a friend's shirt, back to a normal shirt, reset both); "Any suggestions?" names the most-worn shirt then umbrella in four tiers (`aNNW_trend_check_*`, 0 / 1 / <5 / 5+); displaying over or trading away a design sends its wearers back to their own clothes (`aNNW_trend_delete_*`), buying a copy doesn't. Villagers paint the design over their cloth surfaces. Approximation: the port has no villager-to-villager greetings yet, so every resident greets one random neighbour per daily renewal; villagers don't carry umbrellas yet, so umbrella wear only feeds the report
+- [x] **What's this?** (`aNNW_TALK_CHECK_LISTEN` → `LISTEN_SISTER*`): Mabel's pitch, then "Any tips?" plays the explanation with the camera on both sisters and Sable adding a line
+- [x] **Sable** at the sewing machine (`SP_NPC_NEEDLEWORK1`, `aNNW_THINK_MISIN_WAIT`) — `sable.gd`: the machine and fabric stop while she talks and start again after (`misin_clip` stop / move); she only looks up at you once `nw_visitor.days >= 5`
+- [x] Sable's story arc (`aNNW_get_make_sister_message`, `aNNW_message_table`): the visit-day counter ticks once per real day she's spoken to, capped at 10 (`aNNW_day_day`); the row is picked from the count *before* today's tick, so the first talk of days 4–7 tells that day's chapter (`aNNW_story_first_table` 5/9/13/17) and later talks a follow-up; ≥8 days she's at ease. Three-part rows play Sable → Mabel (turned to face her, `aNNW_THINK_AINOTE`) → Sable; story 9 ends with Sable turning to you (`aNNW_talk_ane_3`). **No free pattern** — the GCN arc has no gift (nothing in `ac_npc_needlework_talk.c_inc` hands one over; that's later games)
+- [ ] ROM text: the greeting, menu-lead, story and explanation lines are authored stand-ins until the message banks (`0x2FD1`–`0x3035`, `0x3012+`) and the design-name strings (`0x6DF`/`0x6E7`) are extracted; `NeedleworkTalk` prefers the ROM line when the bank is present
+- [ ] **Other things** → GBA design tool / upload / e-Reader cards (`ac_npc_needlework_gba.c_inc`, `aNNW_TALK_GBA_*`, `CARD_E_*`): the menu is there and answers "no Game Boy Advance connected" (0x3008); the link itself is §28
+- [ ] April Fool's lines for both sisters (`aprilfool_control_clip`) — no April Fool's system yet
+- [ ] Foreign-player rules (`mPr_FOREIGNER`: no album, Sable's arc stuck at day 0) — no visiting players yet
 
 ## 23. Museum
 

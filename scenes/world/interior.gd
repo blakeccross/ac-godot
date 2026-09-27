@@ -95,6 +95,19 @@ func _physics_process(_delta: float) -> void:
 	Game.exit_interior()
 
 
+## Leave by the exit door on someone else's say-so (Mabel's goodbye, `aNNW_talk_exit`
+## → `goto_other_scene` with the stored exit door).
+func leave_through_exit() -> void:
+	if _exiting:
+		return
+	_exiting = true
+	var player := Player.find(get_tree())
+	if player != null:
+		player.stop_for_door()
+	await SceneTransition.play_wipe_out(SceneTransition.Style.IRIS)
+	Game.exit_interior()
+
+
 ## The weather actor runs in rooms too (`mAc_PROFILE_WEATHER` in every room scene): rain keeps
 ## playing indoors at 0.4, silenced only in the player's basement (`basement_event`). A room
 ## starts at the saved intensity — no ramp.

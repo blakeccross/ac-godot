@@ -116,3 +116,99 @@ static func force_greeting(rng: RandomNumberGenerator) -> int:
 ## `DialogueData` for a single ROM message id, or null.
 static func line(msg_id: int) -> DialogueData:
 	return DialogueCatalog.conversation(StringName("msg_%d" % msg_id))
+
+
+# --- authored text ------------------------------------------------------------
+# The ROM message banks aren't in the repo; these stand in for the ids above when
+# `DialogueCatalog` has no generated text. Wording is the port's own.
+
+## 0x2FD4 (`aNNW_TALK_WHAT_HAPPEN_FIRST`, before "What's this?" was ever picked) and
+## 0x3005 (`aNNW_TALK_WHAT_HAPPEN`) lead into the same 6-way menu.
+const TEXT_MENU_FIRST := "Oh, hi! Is this your first\ntime designing? If you're not\nsure, just ask \"What's this?\""
+const TEXT_MENU := "Ohhh, yes?\nWhat do you need?"
+## `aNNW_TALK_WHAT_HAPPEN` lead after a sub-flow bounces back to the menu.
+const TEXT_MENU_AGAIN := "Is there anything else\nI can do for you?"
+## 0x2FD3 — force talk when the player faces the exit (`aNNW_THINK_10`).
+const TEXT_BYE := "Thanks for stopping by!\nCome back and see us soon!"
+## 0x2FE9 — the design list or the editor was closed without a new design.
+const TEXT_DESIGN_CANCEL := "Oh, you changed your mind?\nThat's OK! No charge."
+## 0x2FEA — the editor saved; the name entry follows.
+const TEXT_DESIGN_SAVED := "Oh, that's lovely! Now,\nwhat would you like to\ncall it?"
+## 0x2FEB — named and paid for.
+const TEXT_DESIGN_NAMED := "\"%s\"! What a great name.\nThat'll be 350 Bells.\nThanks so much!"
+## 0x2FE7 — can't afford the 350 Bells.
+const TEXT_NO_MONEY := "Oh, no! %s...\nYou don't have enough money!\nDid you leave your cash in\nanother outfit or something?"
+## 0x2FF0 — back from the design album.
+const TEXT_ALBUM_DONE := "All done? Keep your designs\nsafe and sound in there."
+## 0x2FF5 — the trade list was closed without a pick.
+const TEXT_TRADE_CANCEL := "Oh? Never mind, then."
+## 0x3008 — the GBA branches: no Game Boy Advance is linked.
+const TEXT_NO_GBA := "Hmm... I don't see a\nGame Boy Advance connected.\nMaybe another time!"
+
+## `aNNW_TALK_LISTEN_SISTER*` — Mabel explains the shop, turns to Sable for one line
+## (`npc_id` swapped to NEEDLEWORK1), then wraps up.
+const LISTEN_LINES: Array = [
+	["Mabel", "OK! Here at Able Sisters,\nyou can make your very own\ndesigns for 350 Bells each."],
+	["Mabel", "Wear one as your shirt\nwhenever you like. You can\nkeep eight at a time."],
+	["Mabel", "And if you're proud of one,\nput it on a mannequin or an\numbrella stand here in the shop!"],
+	["Sable", "...Folks around town notice\nwhat's on display. Sometimes\nthey start wearing it too."],
+	["Mabel", "Right, sis! So check in with\n\"Any suggestions?\" to see\nwhat's catching on!"],
+]
+
+## Sister-story rows (`aNNW_message_table`), speakers Sable / Mabel / Sable by `sister_now`.
+## <4 days: small talk; 4-7: the first-of-day chapter (5/9/13/17) or its follow-ups;
+## >=8: at ease.
+const STORY_TEXT: Dictionary = {
+	0: ["...Oh. Hello."],
+	1: ["...Mm. The needle's being\nfussy today."],
+	2: ["...Are you looking for Mabel?", "Sis, it's a customer! Say hi!", "...I did say hello."],
+	3: ["...", "Don't mind her, she's just\nshy with new faces!", "...Mabel."],
+	4: ["...This hem won't finish itself."],
+	5: ["...You came back again.\nMost people only talk to Mabel."],
+	6: ["...The thread for this one\ncame all the way from the city."],
+	7: ["...Mabel picks the colors.\nI just follow along.", "That's not true! Her stitching\nis the best in the valley!"],
+	8: ["...Mm. It's quieter in the\nmornings. I like that."],
+	9: ["...When we were small, our\nmother sewed every night.", "We'd fall asleep to the\nsound of her machine.", "...This was her machine."],
+	10: ["...I've been fixing this\nmachine for years. It's old,\nbut it still hums."],
+	11: ["...Mabel was always the one\nwho talked to people."],
+	12: ["...Do you sew? ...No?\nThat's all right."],
+	13: ["...After Mother was gone, we\nkept the shop going together.", "Sable did all the sewing.\nI handled...everything else!", "...She still does."],
+	14: ["...Some days I wonder if\nthe shop was a good idea."],
+	15: ["...We almost closed once.", "Business was slow, and I\nwas so worried...", "...We made it, though."],
+	16: ["...Your visits make\nthe days go faster."],
+	17: ["...I don't say this much, but\nI'm glad you keep coming.", "See, sis? I told you they're\nnice!", "...Yes. You did."],
+	18: ["...I used to dream of making\nclothes for a big city shop."],
+	19: ["...Maybe someday. For now,\nthis little shop is enough."],
+	20: ["...Thank you for listening\nto an old hedgehog ramble."],
+	21: ["Oh, it's you. Come in, come in.\nI saved you a spot by the\nmachine."],
+	22: ["Welcome back. ...Mabel's been\nhumming all morning. I think\nshe's happy you visit."],
+	23: ["There you are. The shop feels\nbrighter when you stop by."],
+}
+
+
+## Speaker for part `now` of a sister story: Sable opens, Mabel chimes in
+## (`aNNW_THINK_AINOTE` → force talk 5), Sable closes (`AINOTE3` → force talk 6).
+static func story_speaker(now: int) -> String:
+	return "Mabel" if now == 1 else "Sable"
+
+
+## Readable text for message `msg_id` at part `now` of `story_row`: the ROM line when the
+## bank is present and not a bare ellipsis, else `STORY_TEXT`.
+static func story_text(story_row: int, now: int, msg_id: int = -1) -> String:
+	if msg_id >= 0:
+		var data := line(msg_id)
+		if data != null:
+			data.ensure_loaded()
+			var txt := str(data.node(data.start).get("text", "")).strip_edges()
+			if not txt.replace(".", "").replace("…", "").strip_edges().is_empty():
+				return txt
+	var parts: Array = STORY_TEXT.get(clampi(story_row, 0, 23), [])
+	if now >= 0 and now < parts.size():
+		return str(parts[now])
+	return "..."
+
+
+## `aNNW_ane_3`: the story-9 ending has Sable turn to the player for her last line.
+const STORY_TURN_TO_PLAYER := 9
+## `aNNW_talk_init`: Sable only looks up from the machine once `nw_visitor.days >= 5`.
+const SABLE_TURN_DAYS := 5

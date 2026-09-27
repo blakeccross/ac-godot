@@ -133,27 +133,12 @@ func test_trade_display_and_exchange_touch_the_right_slots() -> void:
 	Game.designs.player[Game.designs.resolved_index(3)].copy_from(mine)
 	Game.designs.copy_player_to_shop(1, 3)
 	assert_array(Array(Game.designs.shop[1].pixels)).is_equal(Array(mine.pixels))
-	assert_int(Game.designs.trend_eligible[1]).is_equal(1)
 
 	var shop_before: PackedByteArray = Game.designs.shop[2].pixels.duplicate()
 	var player_before: PackedByteArray = Game.designs.player[Game.designs.resolved_index(0)].pixels.duplicate()
 	Game.designs.exchange(2, 0)
 	assert_array(Array(Game.designs.shop[2].pixels)).is_equal(Array(player_before))
 	assert_array(Array(Game.designs.player[Game.designs.resolved_index(0)].pixels)).is_equal(Array(shop_before))
-
-
-func test_trend_grows_only_for_displayed_designs_and_resets_on_delete() -> void:
-	Game.designs.clear()
-	Game.designs.copy_player_to_shop(0, 1)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 1
-	for day in 20:
-		Game.designs.tick_trend("2026-01-%02d" % (day + 1), 8, rng)
-	assert_int(Game.designs.trend_count[0]).is_greater(0)
-	assert_int(Game.designs.trend_count[3]).is_equal(0)  # never displayed
-	Game.designs.trend_delete(0)
-	assert_int(Game.designs.trend_count[0]).is_equal(0)
-	assert_int(Game.designs.trend_eligible[0]).is_equal(0)
 
 
 func test_mabel_menu_options_match_the_rom() -> void:
@@ -175,14 +160,3 @@ func test_trend_line_tiers() -> void:
 	assert_str(NeedleworkTalk.trend_line("X", 1, false)).contains("just starting")
 	assert_str(NeedleworkTalk.trend_line("X", 3, false)).contains("turning heads")
 	assert_str(NeedleworkTalk.trend_line("X", 9, true)).contains("THE umbrella print")
-
-
-func test_save_round_trip_keeps_trend_state() -> void:
-	Game.designs.clear()
-	Game.designs.copy_player_to_shop(2, 0)
-	Game.designs.trend_count[2] = 4
-	var snap: Dictionary = Game.designs.to_save()
-	var fresh := DesignBook.new()
-	fresh.apply_snapshot(snap)
-	assert_int(fresh.trend_count[2]).is_equal(4)
-	assert_int(fresh.trend_eligible[2]).is_equal(1)

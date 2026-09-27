@@ -91,7 +91,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if _mode == ListMode.MANAGE:
 				_edit_selected()
 				return
-		KEY_W:
+		KEY_C:
 			if _mode == ListMode.MANAGE:
 				_wear_selected()
 		KEY_ESCAPE, KEY_B:
@@ -192,7 +192,7 @@ func _refresh() -> void:
 	_name.text = d.name if d != null else ""
 	if _mode == ListMode.MANAGE:
 		var worn := Game.worn_design_slot if Game != null else -1
-		_hint.text = "space swap  ·  E edit  ·  W %s  ·  B/Esc close%s" % [
+		_hint.text = "space swap  ·  E edit  ·  C %s  ·  B/Esc close%s" % [
 			"take off" if worn == _sel else "wear",
 			"   (wearing \"%s\")" % Game.designs.player[Game.designs.resolved_index(worn)].name if worn >= 0 else ""]
 	else:

@@ -1,9 +1,11 @@
 extends CharacterBody3D
 
 ## Mabel — the Able Sisters shopkeeper (`ac_npc_needlework` / `SP_NPC_NEEDLEWORK0`,
-## skeleton `hgh_1`). Runs the design / trade / trend / listen menu
-## (`aNNW_set_6_ways`, `ac_npc_needlework_talk.c_inc:305`) and walks up to greet the
-## player (`aNNW_MY_PROC_*`, `_schedule.c_inc:329`).
+## skeleton `hgh_1`). Runs the design / album / trend / listen / GBA menu
+## (`aNNW_set_6_ways`, `ac_npc_needlework_talk.c_inc`), walks up to greet the player
+## (`aNNW_MY_PROC_*`, `_schedule.c_inc`), handles the display trades when the player
+## presses A at a mannequin / stand, chimes in on Sable's stories (`aNNW_THINK_AINOTE`),
+## and sees the player off at the door (`aNNW_THINK_10`, `player_go_away`).
 
 const SPECIES := &"hgh"
 const ANIM_WAIT := "npc_1_wait1"
@@ -13,12 +15,12 @@ const MENU_ID := &"mabel_menu"
 ## `aNNW_next_target`: run to the player when they are within ~115 GX (5.75 m) and
 ## in a reachable area; `aNNW_my_proc_player` runs to the player's own position and
 ## stops just short. She auto-greets on the first approach of a visit
-## (`aNNW_norm_talk_request` fires when `MY_PROC_PLAYER` reaches you).
+## (`aNNW_force_talk_request` think 8 / 9).
 const APPROACH_RANGE := 5.75
 const STOP_RANGE := 1.7
 const MOVE_SPEED := 2.4  ## `aNPC_ACT_RUN`
 
-enum Pending { NONE, DESIGN, BOOK, TREND, LISTEN, GBA, TRADE, TRADE_PICK, ACT }
+enum Pending { NONE, DESIGN, BOOK, TREND, LISTEN, GBA, TRADE_PICK, ACT }
 
 var _model: Node3D
 var _body_anim: AnimationPlayer
@@ -27,22 +29,27 @@ var _talking: bool = false
 var _talked_today: bool = false
 var _clip: String = ""
 var _pending: Pending = Pending.NONE
-## Shop display slot the player pressed A at (0-3 cloth, 4-7 umbrella).
+## Shop display slot the player pressed A at (0-3 cloth, 4-7 umbrella) — `buy_ut_idx`.
 var _trade_fixture: int = -1
 ## The chosen trade action: "display" / "buy" / "exchange".
 var _trade_act: String = ""
 ## Deferred action from a confirm dialogue (`needlework_act` event).
 var _next_act: String = ""
-## The player design slot being edited / named.
+## The player design slot being edited / named (`_9AE`).
 var _edit_slot: int = -1
-## Sequential dialogue queue (sister cutscene, multi-part trend report).
+## Sequential line queue: `{text, speaker, focus}` entries, then `_after_queue`.
 var _line_queue: Array = []
+var _after_queue: Callable = Callable()
 var _active_ui: DialogueOverlay = null
 var _rng := RandomNumberGenerator.new()
 var _home: Vector3
-## `aNNW_norm_talk_request` — Mabel starts the conversation herself the first time
+## `aNNW_force_talk_request` — Mabel starts the conversation herself the first time
 ## she reaches the player after they enter. Sticky for the visit.
 var _auto_greeted := false
+## Turned toward Sable for a story interjection (`aNNW_ainote_init`).
+var _chiming: Node3D = null
+## `aNNW_THINK_10` fired — the goodbye is said once and the player leaves.
+var _bye_said := false
 
 
 func _ready() -> void:
@@ -62,15 +69,22 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	var uttering: bool = false
-	if _talking and get_tree() != null:
+	if (_talking or _chiming != null) and get_tree() != null:
 		uttering = DialogueOverlay.uttering_in(get_tree())
 	_face.tick(delta, uttering)
 
 
 func _physics_process(delta: float) -> void:
+	if _chiming != null:
+		velocity = Vector3.ZERO
+		_face_toward(_chiming.global_position)
+		_play_clip(ANIM_WAIT, true)
+		return
 	if _talking:
 		velocity = Vector3.ZERO
 		_face_player()
+		return
+	if _check_goodbye():
 		return
 	var roam := _roam_velocity(delta)
 	velocity = Vector3(roam.x, 0.0, roam.z)
@@ -105,6 +119,69 @@ func _roam_velocity(_delta: float) -> Vector3:
 	return Vector3.ZERO
 
 
+## `player_go_away` → `aNNW_THINK_10`: the player stands on the row in front of the
+## exit strip facing it (`item_in_front == EXIT_DOOR1`). Mabel says goodbye without
+## turning the player (`mDemo_Set_talk_turn(FALSE)`, normal camera) and the talk ends
+## by leaving the shop (`aNNW_talk_byebye` → `aNNW_talk_exit`).
+func _check_goodbye() -> bool:
+	if _bye_said or Game == null or Game.block_auto_enter_doors or get_tree() == null:
+		return false
+	var dlg := DialogueOverlay.find(get_tree())
+	if dlg != null and dlg.is_open():
+		return false
+	var player := Player.find(get_tree())
+	if player == null or player.is_busy():
+		return false
+	var session: IndoorSession = Game.interior_session
+	if session == null or session.grid == null or session.room == null:
+		return false
+	if not facing_exit(session, player.global_position, player.facing_yaw()):
+		return false
+	_bye_said = true
+	player.stop_for_door()
+	_say_goodbye()
+	return true
+
+
+## True when `pos` is on the row just inside the exit strip and `yaw` points at it.
+static func facing_exit(session: IndoorSession, pos: Vector3, yaw: float) -> bool:
+	var cell: Vector2i = session.grid.world_to_cell(pos)
+	var door: Vector2i = session.room.door_cell
+	if cell.y != door.y - 1 or (cell.x != door.x and cell.x != door.x + 1):
+		return false
+	var target: Vector3 = session.grid.cell_to_world(Vector2i(cell.x, door.y))
+	var to: Vector3 = target - pos
+	to.y = 0.0
+	if to.length_squared() < 0.0001:
+		return true
+	var fwd := Vector3(sin(yaw), 0.0, cos(yaw))
+	return fwd.dot(to.normalized()) > 0.5
+
+
+func _say_goodbye() -> void:
+	var ui := DialogueOverlay.find(get_tree())
+	if ui == null:
+		_leave_shop()
+		return
+	_talking = true
+	if not ui.closed.is_connected(_on_goodbye_closed):
+		ui.closed.connect(_on_goodbye_closed, CONNECT_ONE_SHOT)
+	ui.play(_one_line("mabel_bye", NeedleworkTalk.TEXT_BYE), _make_ctx())
+
+
+func _on_goodbye_closed() -> void:
+	_talking = false
+	_leave_shop()
+
+
+func _leave_shop() -> void:
+	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
+	if host != null and host.has_method("leave_through_exit"):
+		host.call("leave_through_exit")
+	elif Game != null:
+		Game.exit_interior()
+
+
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 	return [Interaction.of(Interaction.TALK, "Talk to Mabel", 20)]
 
@@ -116,8 +193,8 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 
 
 ## Called by an `able_fixture` when the player presses A at a mannequin / umbrella
-## stand (decomp `player_buy` sets `buy_ut_idx`, then talks to Mabel →
-## `aNNW_TALK_TRADE_CHECK`). `slot` is the shop display slot (0-3 cloth, 4-7 umbrella).
+## stand (decomp `player_buy` sets `buy_ut_idx` → `aNNW_THINK_OMATIKUDASI`, then force
+## talk 3 / 4 opens `aNNW_TALK_TRADE_CHECK`). `slot` is the shop display slot.
 func begin_trade(slot: int, ctx: InteractionContext) -> bool:
 	if Game == null or Game.designs == null:
 		return false
@@ -126,8 +203,7 @@ func begin_trade(slot: int, ctx: InteractionContext) -> bool:
 	var listener: Node3D = ctx.actor as Node3D if ctx != null else _player_node()
 	_face_toward(listener.global_position if listener != null else global_position)
 	_talked_today = true
-	## Decomp `player_buy` talks with `talk_idx = aNNW_TALK_TRADE_CHECK` — straight
-	## to the display menu, no 6-way.
+	_auto_greeted = true
 	_flow_trade_menu()
 	return true
 
@@ -141,22 +217,12 @@ func _begin_talk(ctx: InteractionContext = null) -> bool:
 	_pending = Pending.NONE
 	if ctx == null:
 		return _auto_greet(listener)
-	var data: DialogueData = DialogueCatalog.conversation(MENU_ID)
-	var talk_ctx: DialogueContext = _make_ctx()
-	talk_ctx.already_talked = _talked_today
-	var ui := DialogueOverlay.find(get_tree())
-	if ui != null and data != null:
-		if ui.is_open():
-			ui.close()
-		_start_talk_session(listener)
-		_bind_session(ui)
-		ui.play(data, talk_ctx)
-	elif ui != null:
-		_start_talk_session(listener)
-		_bind_end(ui)
-		ui.say("Ohhh, yes?\nWhat do you need?", "Mabel")
-	else:
-		Game.post_notice("Mabel: Ohhh, yes? What do you need?")
+	## `aNNW_set_norm_talk_info`: 0x2FD4 (WHAT_HAPPEN_FIRST) until "What's this?" has
+	## been picked once (`needlework_first_talk_flags & 0x40`), 0x3005 after.
+	var lead: String = NeedleworkTalk.TEXT_MENU
+	if Game.designs != null and not Game.designs.listened_flag:
+		lead = NeedleworkTalk.TEXT_MENU_FIRST
+	_play_menu(lead)
 	_talked_today = true
 	return true
 
@@ -173,25 +239,60 @@ func _auto_greet(listener: Node3D) -> bool:
 	if ui != null:
 		_start_talk_session(listener)
 		_bind_end(ui)
-		ui.play(DialogueData.from_dict({
-			"id": "mabel_welcome", "start": "l",
-			"nodes": {"l": {"type": "line", "text": line}},
-		}), _make_ctx())
+		ui.play(_one_line("mabel_welcome", line), _make_ctx())
 	elif Game != null:
 		Game.post_notice("Mabel: %s" % line.replace("\n", " "))
 	_talked_today = true
 	return true
 
 
-func _make_ctx() -> DialogueContext:
+## The 6-way menu (`aNNW_set_6_ways`) led by `lead`. Options come from `mabel_menu`.
+func _play_menu(lead: String) -> void:
+	var base: DialogueData = DialogueCatalog.conversation(MENU_ID)
+	var ui := DialogueOverlay.find(get_tree())
+	if ui == null:
+		if Game != null:
+			Game.post_notice("Mabel: %s" % lead.replace("\n", " "))
+		return
+	var menu: Dictionary = {}
+	var bye: Dictionary = {}
+	if base != null:
+		base.ensure_loaded()
+		menu = base.node(&"menu").duplicate(true)
+		bye = base.node(&"bye").duplicate(true)
+	if menu.is_empty():
+		_say_line(lead)
+		return
+	menu["prompt"] = lead
+	var nodes := {"lead": {"type": "line", "text": lead, "next": "menu"}, "menu": menu}
+	if not bye.is_empty():
+		nodes["bye"] = bye
+	_start_talk_session(_player_node())
+	_bind_session(ui)
+	ui.play(DialogueData.from_dict({"id": "mabel_menu_live", "start": "lead", "nodes": nodes}), _make_ctx())
+
+
+## A result line, then back to the 6-way (`mMsg_Set_continue_msg_num` + WHAT_HAPPEN).
+func _line_then_menu(text: String) -> void:
+	_line_queue = [{"text": text, "speaker": "Mabel"}]
+	_after_queue = Callable(self, "_play_menu").bind(NeedleworkTalk.TEXT_MENU_AGAIN)
+	_flush_queue()
+
+
+func _make_ctx(speaker: String = "Mabel") -> DialogueContext:
 	var c: DialogueContext = DialogueContext.from_game()
-	c.speaker_name = "Mabel"
+	c.speaker_name = speaker
 	## Special NPCs keep the default green nameplate (`NAME_BG_OTHER`) — same as
 	## Tom Nook / Booker / Pelly. Only animal villagers get the pink/blue plate.
 	c.voice_mode = DialogueVoice.Mode.ANIMALESE
 	c.sound_spec = 4
+	## `aNNW_talk_init`: FREE_STR0 / 1 = "Mabel" / "Sable" (strings 0x6D5 / 0x6D6).
 	c.frees = PackedStringArray(["Mabel", "Sable"])
 	return c
+
+
+static func _one_line(id: String, text: String) -> DialogueData:
+	return DialogueData.from_dict({"id": id, "start": "l", "nodes": {"l": {"type": "line", "text": text}}})
 
 
 func _bind_session(ui: DialogueOverlay) -> void:
@@ -216,7 +317,11 @@ func _on_dialogue_event(event: Dictionary) -> void:
 				"design": _pending = Pending.DESIGN
 				"book": _pending = Pending.BOOK
 				"trend": _pending = Pending.TREND
-				"listen": _pending = Pending.LISTEN
+				"listen":
+					_pending = Pending.LISTEN
+					## `aNNW_first_talk_end(0x40)` on picking "What's this?".
+					if Game != null and Game.designs != null:
+						Game.designs.listened_flag = true
 				"gba": _pending = Pending.GBA
 		"needlework_trade":
 			_trade_act = str(event.get("act", ""))
@@ -241,7 +346,6 @@ func _on_talk_closed() -> void:
 		Pending.TREND: _flow_trend()
 		Pending.LISTEN: _flow_whats_this()
 		Pending.GBA: _flow_other_things()
-		Pending.TRADE: _flow_trade_menu()
 		Pending.TRADE_PICK: _flow_trade_pick()
 		Pending.ACT: _run_act(_next_act)
 		_:
@@ -262,7 +366,7 @@ func _play_dialogue(dict: Dictionary) -> void:
 
 
 ## `aNNW_talk_design_check` — msg `0x2FE5`: cost + 8-slot warning, then
-## "That's fine!" / "That won't do!".
+## "That's fine!" / "That won't do!" (back to the menu).
 func _flow_design_check() -> void:
 	_play_dialogue({
 		"id": "mabel_design_check", "start": "l0",
@@ -271,24 +375,19 @@ func _flow_design_check() -> void:
 			"l1": {"type": "line", "text": "Oh, and you can only keep\neight designs, so you'll have\nto give up one of the patterns\nyou have now. Is that OK?", "next": "menu"},
 			"menu": {"type": "choice", "prompt": "Oh, and you can only keep\neight designs, so you'll have\nto give up one of the patterns\nyou have now. Is that OK?", "options": [
 				{"text": "That's fine!", "events": [{"op": "needlework_act", "act": "make_design"}]},
-				{"text": "That won't do!", "goto": "bye"},
+				{"text": "That won't do!", "events": [{"op": "needlework_act", "act": "menu"}]},
 			]},
-			"bye": {"type": "line", "text": "Oh, are you sure? OK.\nDon't hesitate to ask if\nthere's anything I can help\nyou with!"},
 		},
 	})
 
 
-## `aNNW_talk_cporiginal*` — msg `0x2FEC`. The GC memory-card design book is out of
-## scope; this opens the local design book instead.
+## `aNNW_talk_cporiginal0-2` — msg `0x2FEC`, then the design album
+## (`mSM_OVL_NEEDLEWORK` with `mNW_OPEN_CPORIGINAL`). The GC kept it on the Memory
+## Card; here it's `DesignBook.album` in the save.
 func _flow_save_pattern() -> void:
-	_next_act = "open_book"
-	_pending = Pending.ACT
-	_play_dialogue({
-		"id": "mabel_save", "start": "l0",
-		"nodes": {
-			"l0": {"type": "line", "text": "OK, then, tell me how you'd\nlike to save it."},
-		},
-	})
+	_line_queue = [{"text": "OK, then, tell me how you'd\nlike to save it.", "speaker": "Mabel"}]
+	_after_queue = Callable(self, "_run_act").bind("open_album")
+	_flush_queue()
 
 
 ## `0x2FD6` (`CHECK_LISTEN`) — the "custom designs" pitch + "Any tips?" /
@@ -311,8 +410,8 @@ func _flow_whats_this() -> void:
 	})
 
 
-## `0x2FE2` (`OTHER_HAPPEN`) — the GBA / e-Reader 5-way. All options need a linked
-## Game Boy Advance, which isn't wired.
+## `0x2FE2` (`OTHER_HAPPEN`) — the GBA / e-Reader 5-way. Every branch needs a linked
+## Game Boy Advance (`aNNW_check_GBA` → NOT_CONNECTED → 0x3008 → menu).
 func _flow_other_things() -> void:
 	_play_dialogue({
 		"id": "mabel_other", "start": "l0",
@@ -323,9 +422,8 @@ func _flow_other_things() -> void:
 				{"text": "Upload design", "events": [{"op": "needlework_act", "act": "gba"}]},
 				{"text": "Read card", "events": [{"op": "needlework_act", "act": "gba"}]},
 				{"text": "Prep e-Reader", "events": [{"op": "needlework_act", "act": "gba"}]},
-				{"text": "Maybe not...", "goto": "bye"},
+				{"text": "Maybe not...", "events": [{"op": "needlework_act", "act": "menu"}]},
 			]},
-			"bye": {"type": "line", "text": "Ohh, you changed your mind?\nThen, is there anything\nelse I can do for you?"},
 		},
 	})
 
@@ -333,21 +431,27 @@ func _flow_other_things() -> void:
 func _run_act(act: String) -> void:
 	_next_act = ""
 	match act:
+		"menu":
+			_play_menu(NeedleworkTalk.TEXT_MENU_AGAIN)
 		"make_design":
-			if _wallet() < NeedleworkTalk.DESIGN_PRICE:
-				_say_line("Oh, no! %s...\nYou don't have enough money!\nDid you leave your cash in\nanother outfit or something?" % _player_name())
+			## `mSP_money_check(aNNW_DESIGN_PRICE)` — sacks count; paid only once the
+			## design is saved and named (`aNNW_talk_design_close3`).
+			if not ShopBook.can_afford(Game.inventory, NeedleworkTalk.DESIGN_PRICE):
+				_line_then_menu(NeedleworkTalk.TEXT_NO_MONEY % _player_name())
 				return
 			var list_ui: Node = _grp("design_list_ui")
 			if list_ui != null and list_ui.has_method("open"):
 				list_ui.call("open", "pick_edit", Callable(self, "_on_design_slot_chosen"))
-		"open_book":
-			var book_ui: Node = _grp("design_list_ui")
-			if book_ui != null and book_ui.has_method("open"):
-				book_ui.call("open", "manage", Callable())
+		"open_album":
+			var album_ui: Node = _grp("design_album_ui")
+			if album_ui != null and album_ui.has_method("open"):
+				album_ui.call("open", Callable(self, "_on_album_closed"))
+			else:
+				_line_then_menu(NeedleworkTalk.TEXT_ALBUM_DONE)
 		"listen":
 			_flow_listen()
 		"gba":
-			_say_line("Hmm... I don't see a\nGame Boy Advance connected.\nMaybe another time!")
+			_line_then_menu(NeedleworkTalk.TEXT_NO_GBA)
 
 
 func _player_name() -> String:
@@ -356,31 +460,45 @@ func _player_name() -> String:
 	return "friend"
 
 
+## `aNNW_talk_design_close`: a slot → the editor; cancelled → 0x2FE9, back to the menu.
 func _on_design_slot_chosen(slot: int) -> void:
 	if slot < 0:
+		_line_then_menu(NeedleworkTalk.TEXT_DESIGN_CANCEL)
 		return
-	if Game.inventory != null:
-		Game.inventory.spend_bells(NeedleworkTalk.DESIGN_PRICE)
 	_edit_slot = slot
 	var editor: Node = _grp("design_ui")
 	if editor != null and editor.has_method("open"):
 		editor.call("open", slot, Callable(self, "_on_editor_done"))
 
 
+## `aNNW_talk_design_close2`: saved → 0x2FEA, then the name entry
+## (`aNNW_talk_design_open3`); quit without saving → 0x2FE9, no charge.
 func _on_editor_done(slot: int, saved: bool) -> void:
 	if not saved or slot < 0 or Game.designs == null:
+		_edit_slot = -1
+		_line_then_menu(NeedleworkTalk.TEXT_DESIGN_CANCEL)
 		return
-	## `aNNW_talk_design_open3` — name the freshly-saved design.
-	var d: DesignPattern = Game.designs.player[Game.designs.resolved_index(slot)]
+	_line_queue = [{"text": NeedleworkTalk.TEXT_DESIGN_SAVED, "speaker": "Mabel"}]
+	_after_queue = Callable(self, "_open_name_entry")
+	_flush_queue()
+
+
+func _open_name_entry() -> void:
+	var d: DesignPattern = Game.designs.player[Game.designs.resolved_index(_edit_slot)]
 	var initial: String = d.name if d != null and d.name != "blank" else ""
 	var name_ui: Node = _grp("name_entry_ui")
 	if name_ui != null and name_ui.has_method("open"):
 		name_ui.call("open", initial, Callable(self, "_on_name_entered"))
+	else:
+		_on_name_entered(initial if initial != "" else "design")
 
 
+## `aNNW_talk_design_close3`: pay (`mSP_get_sell_price`), store the name, change the
+## player's shirt if they're wearing this slot (`CLOTH_CHANGE2`), then 0x2FEB.
 func _on_name_entered(text: String) -> void:
 	if _edit_slot < 0 or Game.designs == null:
 		return
+	ShopBook.pay(Game.inventory, NeedleworkTalk.DESIGN_PRICE)
 	var d: DesignPattern = Game.designs.player[Game.designs.resolved_index(_edit_slot)]
 	if d != null:
 		d.name = text
@@ -390,10 +508,17 @@ func _on_name_entered(text: String) -> void:
 	if Game.worn_design_slot == _edit_slot:
 		Game.design_changed.emit()
 	_edit_slot = -1
-	_say_line("\"%s\" — I love it! It's all yours." % text)
+	_line_then_menu(NeedleworkTalk.TEXT_DESIGN_NAMED % text)
 
 
-## `aNNW_talk_trend_cloth` — reports the top cloth trend then the top umbrella trend.
+## `aNNW_talk_cporiginal2`: 0x2FF0, back to the menu (`CLOTH_CHANGE3` when the worn
+## design moved — `design_changed` already re-dressed the player).
+func _on_album_closed() -> void:
+	_line_then_menu(NeedleworkTalk.TEXT_ALBUM_DONE)
+
+
+## `aNNW_talk_trend_cloth` — reports the most-worn shirt, then umbrella
+## (`aNNW_set_trend_cloth_message` / `_umbrella_message`), then ends.
 func _flow_trend() -> void:
 	if Game == null or Game.designs == null:
 		return
@@ -403,28 +528,19 @@ func _flow_trend() -> void:
 		{"text": NeedleworkTalk.trend_line(Game.designs.shop[cloth[0] & 7].name, int(cloth[1]), false), "speaker": "Mabel"},
 		{"text": NeedleworkTalk.trend_line(Game.designs.shop[umb[0] & 7].name, int(umb[1]), true), "speaker": "Mabel"},
 	]
+	_after_queue = Callable()
 	_flush_queue()
 
 
-## `aNNW_talk_listen_sister*` — the two-person Mabel/Sable story cutscene.
+## `aNNW_talk_listen_sister*` — Mabel explains the shop, the camera takes in both
+## sisters (`aNNW_change_camera_priority_demo`), Sable adds a line, and it ends
+## (`LISTEN_SISTER4` → END_WAIT). Not the story — that's Sable's own talk.
 func _flow_listen() -> void:
-	if Game == null or Game.designs == null:
-		return
-	Game.designs.listened_flag = true
-	var first_of_day := Game.designs.sable_last_date != _today()
-	if first_of_day:
-		Game.designs.tick_sable_day(_today())
-	var row := NeedleworkTalk.pick_story_row(Game.designs.sable_days, first_of_day, _rng)
-	var ids := NeedleworkTalk.story_line_ids(row, _rng)
+	var sable := _sister()
 	_line_queue.clear()
-	for i in ids.size():
-		var data: DialogueData = NeedleworkTalk.line(ids[i])
-		var txt: String = _first_line(data) if data != null else ""
-		if txt.strip_edges().replace(".", "").replace("…", "").strip_edges().is_empty():
-			txt = _fallback_story_line(i)
-		_line_queue.append({"text": txt, "speaker": "Sable" if (i % 2 == 1) else "Mabel"})
-	if _line_queue.is_empty():
-		_line_queue.append({"text": "Sable's a little shy, but she's warming up to you.", "speaker": "Mabel"})
+	for entry: Array in NeedleworkTalk.LISTEN_LINES:
+		_line_queue.append({"text": entry[1], "speaker": entry[0], "focus": sable if entry[0] == "Sable" else null})
+	_after_queue = Callable()
 	_flush_queue()
 
 
@@ -487,77 +603,99 @@ func _on_trade_slot_chosen(player_slot: int) -> void:
 	var act := _trade_act
 	_trade_fixture = -1
 	_trade_act = ""
-	if player_slot < 0 or fixture < 0 or Game.designs == null:
+	if fixture < 0 or Game.designs == null:
+		return
+	if player_slot < 0:
+		_say_line(NeedleworkTalk.TEXT_TRADE_CANCEL)
 		return
 	var affected := Game.designs.resolved_index(player_slot)
-	match act:
-		"display":
-			Game.designs.copy_player_to_shop(fixture, player_slot)
-		"buy":
-			Game.designs.buy_shop_into_player(fixture, player_slot)
-			Game.designs.trend_delete(fixture)
-		"exchange":
-			Game.designs.exchange(fixture, player_slot)
-		_:
-			return
+	if not apply_trade(Game.designs, act, fixture, player_slot):
+		return
 	Audio.play_se(&"cursol")
 	DesignTexture.clear_cache()
 	_say_line(NeedleworkTalk.trade_result_line(act))
+	## `org_idx == Now_Private->cloth.idx` → `aNNW_TALK_CLOTH_CHANGE` (not for display).
 	if act != "display" and Game.worn_design_slot >= 0 \
 			and Game.designs.resolved_index(Game.worn_design_slot) == affected:
 		Game.design_changed.emit()
+
+
+## The three `aNNW_talk_trade_close` cases. Replacing what's on a display (exchange /
+## display mine) sends its wearers back to their own clothes (`aNNW_trend_delete_*`);
+## taking a copy ("I want it!") leaves the display alone.
+static func apply_trade(book: DesignBook, act: String, fixture: int, player_slot: int,
+		states: Variant = null) -> bool:
+	match act:
+		"display":
+			book.copy_player_to_shop(fixture, player_slot)
+			book.trend_delete(fixture, states)
+		"buy":
+			book.buy_shop_into_player(fixture, player_slot)
+		"exchange":
+			book.exchange(fixture, player_slot)
+			book.trend_delete(fixture, states)
+		_:
+			return false
+	return true
+
+
+# --- Sable story support ---------------------------------------------------
+
+## `aNNW_THINK_AINOTE` / `aNNW_ainote_init`: turn to Sable and hold still while she
+## tells a story; `null` releases Mabel back to her normal think.
+func chime_in(sable: Node3D) -> void:
+	_chiming = sable
+
+
+func _sister() -> Node3D:
+	return get_tree().get_first_node_in_group("needlework_sable") as Node3D if get_tree() != null else null
 
 
 # --- sequential dialogue queue -------------------------------------------
 
 func _flush_queue() -> void:
 	if _line_queue.is_empty():
+		_finish_queue()
 		return
 	var entry: Dictionary = _line_queue.pop_front()
+	var speaker: String = str(entry.get("speaker", "Mabel"))
 	var ui := DialogueOverlay.find(get_tree())
 	if ui == null:
-		Game.post_notice("%s: %s" % [entry.get("speaker", "Mabel"), entry.get("text", "")])
+		Game.post_notice("%s: %s" % [speaker, str(entry.get("text", "")).replace("\n", " ")])
 		_flush_queue()
 		return
-	_start_talk_session(_player_node())
+	var focus: Node3D = entry.get("focus") as Node3D
+	if focus != null:
+		## `Camera2_request_main_needlework_talk` — frame the two sisters.
+		_talking = true
+		_chiming = focus
+		TalkCamera.begin(self, focus, get_tree(), false)
+	else:
+		_chiming = null
+		_start_talk_session(_player_node())
 	if not ui.closed.is_connected(_on_queue_closed):
 		ui.closed.connect(_on_queue_closed, CONNECT_ONE_SHOT)
-	ui.say(str(entry.get("text", "")), str(entry.get("speaker", "Mabel")))
+	ui.play(_one_line("mabel_queue", str(entry.get("text", ""))), _make_ctx(speaker))
 
 
 func _on_queue_closed() -> void:
 	_talking = false
-	TalkCamera.end(get_tree())
+	_chiming = null
 	if not _line_queue.is_empty():
 		_flush_queue()
+		return
+	_finish_queue()
 
 
-func _first_line(data: DialogueData) -> String:
-	if data == null:
-		return ""
-	data.ensure_loaded()
-	var rec: Dictionary = data.node(data.start)
-	return str(rec.get("text", ""))
-
-
-func _fallback_story_line(i: int) -> String:
-	var mabel := [
-		"Sable used to sew all day and barely say a word.",
-		"She's my little sister — talented, but so shy.",
-		"You've really made her day, you know.",
-	]
-	var sable := [
-		"...Oh! Hello. You're becoming a regular around here.",
-		"I suppose I don't mind the company. It's... nice.",
-		"Thank you for stopping by. Truly.",
-	]
-	return (sable if i % 2 == 1 else mabel)[(i / 2) % 3]
-
-
-func _wallet() -> int:
-	if Game == null or Game.inventory == null:
-		return 0
-	return Game.inventory.wallet
+func _finish_queue() -> void:
+	_chiming = null
+	var then := _after_queue
+	_after_queue = Callable()
+	if then.is_valid():
+		then.call()
+	else:
+		_talking = false
+		TalkCamera.end(get_tree())
 
 
 func _grp(g: String) -> Node:
@@ -569,13 +707,9 @@ func _player_node() -> Node3D:
 
 
 func _say_line(text: String) -> void:
-	var ui := DialogueOverlay.find(get_tree())
-	if ui != null:
-		_start_talk_session(get_tree().get_first_node_in_group("player") as Node3D)
-		_bind_end(ui)
-		ui.say(text, "Mabel")
-	elif Game != null:
-		Game.post_notice("Mabel: %s" % text)
+	_line_queue = [{"text": text, "speaker": "Mabel"}]
+	_after_queue = Callable()
+	_flush_queue()
 
 
 func _today() -> String:

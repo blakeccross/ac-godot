@@ -1206,9 +1206,19 @@ func _on_field_renewed(days: int) -> void:
 	_deliver_shop_mail()
 	if redd != null:
 		redd.check_unlock()
+	_spread_able_designs(days)
 	## One roll for the current date after renew (`mEnv_DecideWeather` / `aWeather_ChangeWeatherTime0`).
 	apply_weather_roll(Weather.roll())
 	apply_event_weather()
+
+
+## Villagers pass Able Sisters designs around as they greet (`NeedleworkTrend`).
+func _spread_able_designs(days: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	NeedleworkTrend.daily_greetings(NeedleworkTrend.town_states(), rng, maxi(days, 1))
+	if designs != null:
+		designs.changed.emit()
 
 
 ## Farway Museum returns identified fossils (+ the one-time intro letter) each morning.

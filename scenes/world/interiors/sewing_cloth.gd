@@ -21,6 +21,8 @@ const ANGLES: Array[float] = [0.0, 90.0, -180.0, -90.0]
 var _base_rot_y: float
 var _frame := 0.0
 var _target_idx := 0
+## `request_dustcloth_stop_proc` / `_move_proc` — held still while Sable talks.
+var running := true
 
 
 func _ready() -> void:
@@ -29,6 +31,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if not running:
+		return
 	_frame += delta * DecompTime.TICK_HZ
 	if _frame >= LOOP:
 		_frame -= LOOP

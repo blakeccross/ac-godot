@@ -15,6 +15,7 @@
 [ext_resource type="PackedScene" uid="uid://cv1xkhnchs8oi" path="res://scenes/ui/letter_writer_overlay.tscn" id="13"]
 [ext_resource type="PackedScene" path="res://scenes/ui/clock_widget.tscn" id="14"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_overlay.tscn" id="15"]
+[ext_resource type="PackedScene" uid="uid://cdalbumovl001" path="res://scenes/ui/design_album_overlay.tscn" id="16"]
 
 [node name="ClockHud" type="CanvasLayer" unique_id=464119557]
 script = ExtResource("1")
@@ -32,6 +33,8 @@ script = ExtResource("1")
 [node name="DesignListOverlay" parent="." unique_id=1145633151 instance=ExtResource("7")]
 
 [node name="DesignEditorOverlay" parent="." unique_id=2097739122 instance=ExtResource("8")]
+
+[node name="DesignAlbumOverlay" parent="." instance=ExtResource("16")]
 
 [node name="NameEntryOverlay" parent="." unique_id=431914575 instance=ExtResource("9")]
 
