@@ -39,6 +39,20 @@ static func should_spawn_indoor(occupant_id: StringName) -> bool:
 	return _activity_now(data) != VillagerActivity.SLEEP
 
 
+## `aHUS_ctrl_light` (GAFE01): the house lights only while its villager is home in
+## the IN_HOUSE part of their schedule. Night is the caller's half of the rule.
+static func lights_on(occupant_or_entry: StringName) -> bool:
+	var villager_id: StringName = _resolve_villager(occupant_or_entry)
+	if villager_id == &"" or Game == null or Game.villagers == null:
+		return false
+	var data: VillagerData = VillagerCatalog.get_villager(villager_id)
+	if data == null:
+		return false
+	if not Game.villagers.get_or_create(villager_id).is_home:
+		return false
+	return _activity_now(data) == VillagerActivity.IN_HOUSE
+
+
 static func indoor_stand(session: IndoorSession) -> Vector3:
 	## Into-room stand near mid walkable (`aNPC_think_into_room` ~160,360 GX).
 	if session == null or session.grid == null or session.room == null:

@@ -14,8 +14,8 @@ const MENU_ID := &"mabel_menu"
 
 ## `aNNW_next_target`: run to the player when they are within ~115 GX (5.75 m) and
 ## in a reachable area; `aNNW_my_proc_player` runs to the player's own position and
-## stops just short. She auto-greets on the first approach of a visit
-## (`aNNW_force_talk_request` think 8 / 9).
+## stops just short. She greets the player as soon as they walk in
+## (`aNNW_force_talk_request`, think 8 / 9).
 const APPROACH_RANGE := 5.75
 const STOP_RANGE := 1.7
 const MOVE_SPEED := 2.4  ## `aNPC_ACT_RUN`
@@ -43,8 +43,8 @@ var _after_queue: Callable = Callable()
 var _active_ui: DialogueOverlay = null
 var _rng := RandomNumberGenerator.new()
 var _home: Vector3
-## `aNNW_force_talk_request` — Mabel starts the conversation herself the first time
-## she reaches the player after they enter. Sticky for the visit.
+## `aNNW_force_talk_request` — Mabel starts the conversation herself as the player
+## walks in. Sticky for the visit.
 var _auto_greeted := false
 ## Turned toward Sable for a story interjection (`aNNW_ainote_init`).
 var _chiming: Node3D = null
@@ -97,7 +97,7 @@ func _physics_process(delta: float) -> void:
 
 
 ## `aNNW_my_proc_player` boiled down: run to the player while they're in range, stop
-## just short, face them, and auto-greet on the first approach of the visit.
+## just short and face them. The walk-in greeting (think 8 / 9) comes first.
 func _roam_velocity(_delta: float) -> Vector3:
 	if get_tree() == null or Game == null:
 		return Vector3.ZERO
@@ -107,15 +107,18 @@ func _roam_velocity(_delta: float) -> Vector3:
 	var dlg := DialogueOverlay.find(get_tree())
 	if dlg != null and dlg.is_open():
 		return Vector3.ZERO
+	## Think 8 / 9 is the state she spawns in: its force talk fires as soon as the
+	## player can be spoken to, wherever they stand (no range check).
+	if not _auto_greeted and not _talking and not _talked_today and not player.is_busy():
+		_auto_greeted = true
+		call_deferred("_begin_talk")
+		return Vector3.ZERO
 	var to_player: Vector3 = player.global_position - global_position
 	to_player.y = 0.0
 	var dist := to_player.length()
 	if dist > STOP_RANGE and dist < APPROACH_RANGE:
 		return to_player.normalized() * MOVE_SPEED
 	_face_toward(player.global_position)
-	if dist <= STOP_RANGE and not _auto_greeted and not _talking and not _talked_today:
-		_auto_greeted = true
-		call_deferred("_begin_talk")
 	return Vector3.ZERO
 
 
@@ -197,6 +200,10 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 ## talk 3 / 4 opens `aNNW_TALK_TRADE_CHECK`). `slot` is the shop display slot.
 func begin_trade(slot: int, ctx: InteractionContext) -> bool:
 	if Game == null or Game.designs == null:
+		return false
+	## `player_buy` is only polled in `aNNW_THINK_IKAGADESYOU`: not mid-talk, not while
+	## she's turned to Sable for a story (`sister_state`), not after the goodbye.
+	if _talking or _chiming != null or _bye_said:
 		return false
 	_trade_fixture = slot
 	_pending = Pending.NONE
@@ -611,7 +618,9 @@ func _on_trade_slot_chosen(player_slot: int) -> void:
 	var affected := Game.designs.resolved_index(player_slot)
 	if not apply_trade(Game.designs, act, fixture, player_slot):
 		return
-	Audio.play_se(&"cursol")
+	## `aNI_CopyClothData(.., se_flag)`: NA_SE_461 when a mannequin's cloth changes.
+	if act != "buy":
+		Audio.play_se(&"461")
 	DesignTexture.clear_cache()
 	_say_line(NeedleworkTalk.trade_result_line(act))
 	## `org_idx == Now_Private->cloth.idx` → `aNNW_TALK_CLOTH_CHANGE` (not for display).
