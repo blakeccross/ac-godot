@@ -1,14 +1,15 @@
 extends Node3D
 
-## One Able Sisters window beam (`ef_room_sunshine`): `room_lightL` for the west window
-## (`actor_specific` 2), `room_lightR` for the east one (3). Timing, alpha and colour are
-## the police box beam's (`PoliceDisplay.sunshine_*`, same formulas in both effects);
-## unlike it, each side has its own model, both stretch along +X, and there is no camera
-## cull. The shop has no light switch, so `windowlight_alpha` only opens 05:00–18:00.
+## One window beam (`ef_room_sunshine`): `room_lightL` for the west window
+## (`actor_specific` 2), `room_lightR` for the east one (3). Placed by `WindowSunshine`,
+## which also holds the timing. Unlike the police box beam, each side has its own model,
+## both stretch along +X, and there is no camera cull. `light_switch` rooms (homes) keep
+## the window light partly open at every hour.
 
 const SHADER := preload("res://shaders/room_sunshine.gdshader")
 
 @export var left: bool = true
+@export var light_switch: bool = false
 
 var _pivot: Node3D
 var _base_scale: float = 1.0
@@ -18,7 +19,7 @@ var _window_alpha: float = -1.0
 
 func _ready() -> void:
 	_pivot = GeneratedVisual.attach_datum(
-		self, NeedleworkPresenter.SUNSHINE_L_VISUAL if left else NeedleworkPresenter.SUNSHINE_R_VISUAL
+		self, WindowSunshine.VISUAL_L if left else WindowSunshine.VISUAL_R
 	)
 	if _pivot == null:
 		return
@@ -35,13 +36,13 @@ func _tick(delta: float) -> void:
 	if _pivot == null or Clock == null:
 		return
 	var now: int = Clock.now_sec()
-	var target: float = PoliceDisplay.window_light_target(now)
+	var target: float = WindowSunshine.window_light_target(now, light_switch)
 	if _window_alpha < 0.0:
 		## Scene entry resets the ramp with a step of 1 (`enabled == FALSE`): it lands at once.
 		_window_alpha = target
 	else:
 		_window_alpha = move_toward(_window_alpha, target, PoliceDisplay.WINDOW_LIGHT_RATE * delta)
-	var stretch: float = NeedleworkPresenter.sunshine_stretch(now, left)
+	var stretch: float = WindowSunshine.stretch(now, left)
 	var raining: bool = Game != null and (Game.weather == &"rain" or Game.weather == &"snow")
 	var alpha: float = float(PoliceDisplay.sunshine_alpha(now, raining)) / 255.0 * _window_alpha
 	var show: bool = _window_alpha >= 0.0001 and stretch != 0.0

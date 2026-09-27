@@ -5,10 +5,14 @@ extends Node3D
 ## one at 04–12 and 20–24, each stretched along X by `PoliceDisplay.sunshine_*_x`. Alpha is
 ## `sunshine_alpha × windowlight_alpha`; colour is the window sun colour 04–20, else moon.
 ## The police box has no light switch, so `windowlight_alpha` only opens 05:00–18:00.
+## The post office beam (`ef_room_sunshine_posthouse`) is the same effect with its own
+## model (`visual`), a 0.05 scale and no camera cull.
 
 const SHADER := preload("res://shaders/police_sunshine.gdshader")
 
 @export var left: bool = true
+@export var visual: StringName = PoliceDisplay.SUNSHINE_VISUAL
+@export var cull: bool = true
 
 var _pivot: Node3D
 var _base_scale: float = 1.0
@@ -17,7 +21,7 @@ var _window_alpha: float = -1.0
 
 
 func _ready() -> void:
-	_pivot = GeneratedVisual.attach_datum(self, PoliceDisplay.SUNSHINE_VISUAL)
+	_pivot = GeneratedVisual.attach_datum(self, visual)
 	if _pivot == null:
 		return
 	_base_scale = _pivot.scale.y
@@ -60,6 +64,8 @@ func _tick(delta: float) -> void:
 ## `cull_check_from_camera`: the left beam hides once the camera eye is at or west of it,
 ## the right beam once the eye is at or east of it.
 func _culled() -> bool:
+	if not cull:
+		return false
 	var cam: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam == null:
 		return false

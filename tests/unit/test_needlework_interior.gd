@@ -144,17 +144,17 @@ func test_blocked_units_match_the_rom_tailor_bg() -> void:
 
 func test_window_sunbeams_follow_ef_room_sunshine() -> void:
 	## `ROOM_SUNSHINE` arg 2 / 3: the constructor nets −2 / 0 X and lifts 1.1 GX.
-	assert_vector(NeedleworkPresenter.sunshine_anchor_gx(NeedleworkPresenter.SUNSHINE_L_GX, true)) \
+	assert_vector(WindowSunshine.anchor_gx(WindowSunshine.NEEDLEWORK[0], true)) \
 		.is_equal(Vector3(38.0, 1.1, 160.0))
-	assert_vector(NeedleworkPresenter.sunshine_anchor_gx(NeedleworkPresenter.SUNSHINE_R_GX, false)) \
+	assert_vector(WindowSunshine.anchor_gx(WindowSunshine.NEEDLEWORK[1], false)) \
 		.is_equal(Vector3(360.0, 1.1, 160.0))
 	## Morning: only the east beam, reaching full length (1.5) at 04:00.
-	assert_float(NeedleworkPresenter.sunshine_stretch(8 * 3600, true)).is_equal(0.0)
-	assert_float(NeedleworkPresenter.sunshine_stretch(4 * 3600, false)).is_equal_approx(1.5, 0.001)
-	assert_float(NeedleworkPresenter.sunshine_stretch(8 * 3600, false)).is_greater(0.0)
+	assert_float(WindowSunshine.stretch(8 * 3600, true)).is_equal(0.0)
+	assert_float(WindowSunshine.stretch(4 * 3600, false)).is_equal_approx(1.5, 0.001)
+	assert_float(WindowSunshine.stretch(8 * 3600, false)).is_greater(0.0)
 	## Afternoon: only the west beam, growing from noon.
-	assert_float(NeedleworkPresenter.sunshine_stretch(15 * 3600, false)).is_equal(0.0)
-	assert_float(NeedleworkPresenter.sunshine_stretch(15 * 3600, true)).is_greater(0.0)
+	assert_float(WindowSunshine.stretch(15 * 3600, false)).is_equal(0.0)
+	assert_float(WindowSunshine.stretch(15 * 3600, true)).is_greater(0.0)
 
 
 func test_present_adds_both_window_sunbeams() -> void:

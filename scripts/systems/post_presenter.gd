@@ -3,13 +3,15 @@ extends RefCounted
 
 ## Furnishes the post office: Pelly / Phyllis at the desk, an invisible hull for
 ## the baked counter, the left-side e-Terminal, and one letter prop per stored
-## piece of mail (`aPG_actor_ct`, `POST_OFFICE_actor_data`, `bPTI_actor_draw`).
+## piece of mail (`aPG_actor_ct`, `POST_OFFICE_actor_data`, `bPTI_actor_draw`), and the
+## two window beams (`ef_room_sunshine_posthouse`).
 ## Mail piles join the `"authored_fixture"`-free set so `refresh_public_set`
 ## rebuilds them.
 
 const POST_GIRL_SCENE := preload("res://scenes/world/interiors/post_girl.tscn")
 const POST_DESK_SCRIPT := preload("res://scenes/world/interiors/post_desk.gd")
 const POST_TERMINAL_SCRIPT := preload("res://scenes/world/interiors/post_terminal.gd")
+const SUNSHINE_SCENE := preload("res://scenes/world/interiors/police_sunshine.tscn")
 
 
 func present(root: Node3D, interior: IndoorSession) -> void:
@@ -19,6 +21,20 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 	_desk(root, interior)
 	_terminal(root, interior)
 	_mail_piles(root, interior)
+	_sunshine(root, interior, "SunshineL", PostDisplay.SUNSHINE_L_GX, true)
+	_sunshine(root, interior, "SunshineR", PostDisplay.SUNSHINE_R_GX, false)
+
+
+func _sunshine(root: Node3D, interior: IndoorSession, node_name: String, gx: Vector3, left: bool) -> void:
+	var node: Node3D = root.get_node_or_null(node_name) as Node3D
+	if node == null:
+		node = SUNSHINE_SCENE.instantiate() as Node3D
+		node.name = node_name
+		node.set("left", left)
+		node.set("visual", PostDisplay.SUNSHINE_VISUAL)
+		node.set("cull", false)
+		root.add_child(node)
+	node.position = PostDisplay.gx_to_world(interior.grid, PostDisplay.sunshine_anchor_gx(gx, left))
 
 
 func _post_girl(root: Node3D, interior: IndoorSession) -> void:

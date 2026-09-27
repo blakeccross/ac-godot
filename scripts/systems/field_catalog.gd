@@ -443,7 +443,7 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 			## Outdoor structures (`obj_s_myhome1`, `obj_s_museum`, `obj_s_tailor`, …).
 			if id.begins_with("obj_"):
 				return _structure_paths(id)
-			## Actor models (`act_m_house_goki`); Able's window beams (`ef_room_sunshine`).
+			## Actor models (`act_m_house_goki`); window beams (`ef_room_sunshine`).
 			if id.begins_with("act_") or id == "room_lightL" or id == "room_lightR":
 				return _existing(["environment/%s.glb" % id])
 			return PackedStringArray()
@@ -617,6 +617,9 @@ static func actor_draw_scale(visual_id: StringName) -> float:
 	## `Ef_Room_Sunshine_actor_ct` sets scale 1: the beam verts are plain GX.
 	if visual_id == &"room_lightL" or visual_id == &"room_lightR":
 		return 1.0
+	## `Ef_Room_Sunshine_Posthouse_actor_ct` scales its beam 0.05, not the police 0.01.
+	if visual_id == &"obj_yubinkyoku_shine":
+		return 0.05
 	return ACTOR_DRAW_SCALE
 
 
