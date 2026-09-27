@@ -231,6 +231,39 @@ static func revise_xz(
 	return Vector3(pos.x, y, pos.y)
 
 
+## `mCoBG_LineWallCheck` stand-in: does the segment cross a cliff / bank wall below that
+## wall's top? The top is the higher ground either side of the crossing, so a line passing
+## over a drop from the upper side misses the wall it is above.
+static func line_hits_wall(data: WorldData, grid: WorldGrid, from: Vector3, to: Vector3) -> bool:
+	if data == null or grid == null:
+		return false
+	var a := Vector2(from.x, from.z)
+	var b := Vector2(to.x, to.z)
+	var ab: Vector2 = b - a
+	if ab.length_squared() <= 0.000001:
+		return false
+	for seg: Vector4 in _nearby_segments(data, grid, from, to):
+		var c := Vector2(seg.x, seg.y)
+		var d := Vector2(seg.z, seg.w)
+		var cd: Vector2 = d - c
+		var denom: float = ab.cross(cd)
+		if is_zero_approx(denom):
+			continue
+		var t: float = (c - a).cross(cd) / denom
+		var u: float = (c - a).cross(ab) / denom
+		if t < 0.0 or t > 1.0 or u < 0.0 or u > 1.0:
+			continue
+		var hit: Vector2 = a + ab * t
+		var normal: Vector2 = Vector2(-cd.y, cd.x).normalized() * 0.05
+		var top: float = maxf(
+			ground_y_at(data, grid, Vector3(hit.x + normal.x, from.y, hit.y + normal.y)),
+			ground_y_at(data, grid, Vector3(hit.x - normal.x, from.y, hit.y - normal.y))
+		)
+		if not has_floor(top) or lerpf(from.y, to.y, t) < top:
+			return true
+	return false
+
+
 static func step_open(
 	data: WorldData,
 	grid: WorldGrid,

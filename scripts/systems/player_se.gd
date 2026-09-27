@@ -23,7 +23,6 @@ const CLIP_MARKS: Dictionary = {
 	&"ply_1_kagu_close_d1": [[6.0, &"ftr_door_close"]],
 	&"ply_1_pickup1": [[10.0, &"item_get"], [20.0, &"gasagoso"]],
 	&"ply_1_sao_swing1": [[20.0, &"rod_stroke"]],
-	&"ply_1_net_swing1": [[0.0, &"tool_furi"]],
 	## `Player_actor_sound_JUMP` at setup, `Player_actor_sound_SIT` at frame 18 (`SetSound_Sitdown`).
 	&"ply_1_sitdown1": [[0.0, &"jump"], [18.0, &"hard_chair_sit"]],
 	&"ply_1_inbed_L1": [[0.0, &"bed_in"]],
@@ -35,7 +34,6 @@ const CLIP_MARKS: Dictionary = {
 	&"ply_1_putaway1": [[0.0, &"gasagoso"]],
 	&"ply_1_putaway_t1": [[0.0, &"gasagoso"]],
 	&"ply_1_get_putaway1": [[0.0, &"gasagoso"]],
-	&"ply_1_get_m1": [[0.0, &"ami_hit"]],
 	## `setup_main_Rotate_umbrella` → `Player_actor_sound_umbrella_rotate` (0x432).
 	&"ply_1_umb_rot1": [[0.0, &"umbrella_rotate"]],
 	## Umbrella take-out / put-away (`Player_actor_sound_GASAGOSO` in both setups).
@@ -115,7 +113,24 @@ static func buried_dig(at: Node) -> void:
 
 
 static func net_get(at: Node) -> void:
+	## `Player_actor_sound_AMI_GET` (`NA_SE_TOOL_GET`) on the tick the net takes an insect.
 	_play_now(at, &"tool_get")
+
+
+## `Player_actor_sound_AMI_FURI` (`NA_SE_TOOL_FURI`) at `setup_main_Swing_net`.
+static func net_furi(at: Node) -> void:
+	_play_now(at, &"tool_furi")
+
+
+## `Player_actor_sound_AMI_HIT` (`NA_SE_AMI_HIT`): the net struck a wall, the ground or a
+## villager.
+static func net_hit(at: Node) -> void:
+	_play_now(at, &"ami_hit")
+
+
+## `Player_actor_sound_GASAGOSO` (`NA_SE_GASAGOSO`): rummaging something into the pockets.
+static func gasagoso(at: Node) -> void:
+	_play_now(at, &"gasagoso")
 
 
 static func bobber_splash(at: Node) -> void:

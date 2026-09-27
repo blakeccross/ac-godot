@@ -33,3 +33,8 @@ func _init() -> void:
 	category = Category.TOOL
 	equippable = true
 	max_stack = 1
+
+
+## Umbrellas open out of and fold into the hand instead of just appearing.
+func is_umbrella() -> bool:
+	return kind == Kind.UMBRELLA

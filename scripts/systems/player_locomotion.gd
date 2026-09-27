@@ -328,6 +328,10 @@ func _advance(spd_gx: float) -> void:
 
 ## `Player_actor_Culc_over_speed_normalize_NoneZero`: climbing a slope divides the target
 ## speed by `|move_vec|²` (1 + rise²); flat ground and descents return 1.
+func over_speed_normalize(at: Vector3) -> float:
+	return _over_speed_normalize(at)
+
+
 func _over_speed_normalize(at: Vector3) -> float:
 	if not ground_sampler.is_valid():
 		return 1.0

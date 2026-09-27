@@ -13,11 +13,15 @@ const ORDER_SLOTS := 5
 var _owned: Dictionary = {}
 ## [{item: String, level: int}] — `mPr_catalog_order_c` (item + shop level at order time).
 var _orders: Array[Dictionary] = []
+## Insect types (`aINS_INSECT_TYPE_*`) ever caught: `mSM_COLLECT_INSECT_SET` keeps these in the
+## same `furniture_collected_bitfield`, from bit 0x2F2.
+var _insects: Dictionary = {}
 
 
 func clear() -> void:
 	_owned.clear()
 	_orders.clear()
+	_insects.clear()
 
 
 static func is_catalog_item(data: ItemData) -> bool:
@@ -54,6 +58,22 @@ func record_inventory(inv: Inventory) -> void:
 
 func has(item_id: StringName) -> bool:
 	return _owned.has(String(item_id))
+
+
+## `mSM_COLLECT_INSECT_SET`.
+func record_insect(type_index: int) -> void:
+	if type_index >= 0:
+		_insects[type_index] = true
+
+
+## `mSM_COLLECT_INSECT_GET`.
+func has_insect(type_index: int) -> bool:
+	return _insects.has(type_index)
+
+
+## `mSM_CHECK_ALL_INSECT_GET_SUB`.
+func insect_count() -> int:
+	return _insects.size()
 
 
 func owned_ids() -> Array[StringName]:
@@ -94,7 +114,11 @@ func take_deliveries() -> Array[MailData]:
 
 
 func to_save() -> Dictionary:
-	return {"owned": _owned.keys().duplicate(), "orders": _orders.duplicate(true)}
+	return {
+		"owned": _owned.keys().duplicate(),
+		"orders": _orders.duplicate(true),
+		"insects": _insects.keys().duplicate(),
+	}
 
 
 func apply_snapshot(data: Variant) -> void:
@@ -106,6 +130,10 @@ func apply_snapshot(data: Variant) -> void:
 	if typeof(owned) == TYPE_ARRAY:
 		for entry: Variant in owned as Array:
 			_owned[str(entry)] = true
+	var insects: Variant = row.get("insects", [])
+	if typeof(insects) == TYPE_ARRAY:
+		for entry: Variant in insects as Array:
+			record_insect(int(entry))
 	var orders_raw: Variant = row.get("orders", [])
 	if typeof(orders_raw) == TYPE_ARRAY:
 		for entry: Variant in orders_raw as Array:

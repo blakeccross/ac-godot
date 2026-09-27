@@ -1,64 +1,81 @@
 class_name Netting
 extends RefCounted
 
-## Net swing session. Behavioral analog of `SWING_NET` → `PULL_NET` → `NOTICE_NET`
-## in `m_player.h`. Not an autoload: `ToolUse` resolves the catch on the swing
-## frame, then the player plays pull/notice beats.
+## What happens around a net swing: building each tick's `NetSwing.Probe`, and the catch
+## sequence once the net comes back with something in it. Behavioral port of
+## `m_player_main_pull_net` → `notice_net` → `putaway_net`. Not an autoload; the player
+## drives the timing and asks this for the numbers and the side effects.
+##
+## - **Pull** (`GET_M1`, 52 keyframes): the insect rides hidden in the net until keyframe 15,
+##   then sits in the left hand. Past keyframe 17 the player turns to face the camera
+##   (yaw 0). A report timer counts ticks from the start and opens the catch message at 50,
+##   whether or not the clip is done.
+## - **Notice**: on entry the insect goes into the pockets (`Player_actor_putin_item`) and
+##   onto the catch record (`mSM_COLLECT_INSECT_SET`), and the player snaps to yaw 0. If this
+##   species was the last one missing from the record, the report is 0xA4E and continues into
+##   0xA4F with `YATTA2` and fanfare 0x4B. With full pockets it continues into 0xA4D, a
+##   yes / no on swapping something out; no lets the insect go.
+## - **Put-away** (`PUTAWAY_M1`, 19 keyframes, `GASAGOSO`): the insect shrinks ×0.89125 a tick
+##   until keyframe 17 and is gone from the hand there.
 
-## `Player_actor_Item_CheckLocalCapture_forNet`: net column length 50 GX (60 gold).
-const SWING_LENGTH := 50.0 * FieldCatalog.GX_TO_METERS
-const SWING_RADIUS := 15.0 * FieldCatalog.GX_TO_METERS
-## Catch resolves after animation frame 6 (`Player_actor_CatchSomethingCheck_Swing_net`).
-const SWING_CATCH_FRAME := 6.0
+const ANIM_PULL := &"ply_1_get_m1"
+const TOOL_PULL := &"get_m1"
+const ANIM_YATTA := &"ply_1_yatta2"
+const TOOL_YATTA := &"yatta_m1"
+const ANIM_PUTAWAY := &"ply_1_putaway_m1"
+const TOOL_PUTAWAY := &"kamae_main_m1"
 
-const PULL := &"ply_1_get_m1"
-const SHOW := &"ply_1_yatta2"
-const PUTAWAY := &"ply_1_get_putaway1"
-const NET_PULL := &"net_swing1"
-const NET_SHOW := &"kamae_main_m1"
-
+## Keyframe counts (`cKF_ba_r_ply_1_get_m1`, `_yatta2`, `_putaway_m1`).
+const PULL_FRAMES := 52.0
+const YATTA_FRAMES := 53.0
+const PUTAWAY_FRAMES := 19.0
+const FRAME_SPEED := 0.5
+## `Player_actor_CorrectSomething_Pull_net`: net → left hand after this keyframe.
+const PULL_TO_HAND_FRAME := 15.0
+## `Player_actor_Movement_Pull_net`: turn toward the camera after this keyframe.
+const PULL_TURN_FRAME := 17.0
 const SHOW_YAW := 0.0
-const SHOW_HOLD_SECONDS := 42.0 / DecompTime.TICK_HZ
+## `Player_actor_MessageControl_Pull_net`: ticks until the report opens.
+const PULL_REPORT_TICKS := 50.0
+## `Player_actor_CorrectSomething_Putaway_net`.
+const PUTAWAY_GONE_FRAME := 17.0
+const PUTAWAY_SHRINK := 0.89125
+
+## `Player_actor_Get_mushi_msg_num`.
+const MUSHI_MSG_LOW := 0xA2C
+const MUSHI_MSG_HIGH := 0x2FA1
+const MUSHI_MSG_SPLIT := 0x20
+## `main_pull->already_collected` (really `mSM_CHECK_LAST_INSECT_GET`) report and its
+## continuation.
+const LAST_GET_MSG := 0xA4E
+const LAST_GET_CONTINUE_MSG := 0xA4F
+## Pockets full: "swap something out?" with a yes / no.
+const POCKETS_FULL_MSG := 0xA4D
+## `mBGMPsComp_make_ps_fanfare`: the pull's jingle, and the collection-complete one.
+const FANFARE_CATCH := 0x28
+const FANFARE_COMPLETE := 0x4B
+## `INSECT_ONLY_NUM`: insect types on the catch record (the five spirits are not).
+const INSECT_RECORD_NUM := 40
+
+## `aNPC_CoInfoData`: the villager collision pipe the net's triangle is tested against.
+const NPC_PIPE_RADIUS_GX := 20.0
+const NPC_PIPE_HEIGHT_GX := 30.0
+## `Player_actor_SetPosition_OBJtoLine_forItem`: the triangle's third corner sits this far
+## above the net's end.
+const NET_TRI_RISE_GX := 10.0
 
 
-class Outcome:
-	var missed: bool = false
-	var pockets_full: bool = false
+## One catch, from the pull to the put-away.
+class Catch:
 	var bug: BugData = null
-	var catch_msg: int = 0
+	var actor: BugActor = null
+	## `mSM_CHECK_LAST_INSECT_GET` at the start of the pull.
+	var completes_record: bool = false
+	## `main_notice->not_full_pocket`.
+	var banked: bool = false
 
-	func caught() -> bool:
-		return bug != null and not pockets_full
-
-
-class CatchBeat:
-	var player_anim: StringName = &""
-	var tool_anim: StringName = &""
-	var face_camera: bool = false
-	var hold: float = 0.0
-	var catch_msg: int = 0
-	var bug: BugData = null
-	var pockets_full: bool = false
-
-	func _init(
-		p_player: StringName = &"",
-		p_tool: StringName = &"",
-		p_face_camera: bool = false,
-		p_hold: float = 0.0,
-		p_catch_msg: int = 0,
-		p_bug: BugData = null,
-		p_pockets_full: bool = false
-	) -> void:
-		player_anim = p_player
-		tool_anim = p_tool
-		face_camera = p_face_camera
-		hold = p_hold
-		catch_msg = p_catch_msg
-		bug = p_bug
-		pockets_full = p_pockets_full
-
-
-static var _reel: Array[CatchBeat] = []
+	func report_msg() -> int:
+		return LAST_GET_MSG if completes_record else Netting.mushi_msg(bug.type_index if bug != null else 0)
 
 
 static func field_of(ctx: InteractionContext) -> BugField:
@@ -67,70 +84,139 @@ static func field_of(ctx: InteractionContext) -> BugField:
 	return ctx.world.get("bugs") as BugField
 
 
-static func find_npc_in_net(ctx: InteractionContext, origin: Vector3, direction: Vector3) -> Node3D:
-	## `Player_actor_Item_CheckLocalCapture_forNet` capsule, tested against nearby
-	## villagers instead of bugs (`Player_actor_CheckAndSet_UZAI_forNpc`'s `hit_actor`).
-	if ctx == null or ctx.actor == null or ctx.actor.get_tree() == null:
+static func mushi_msg(type_index: int) -> int:
+	if type_index < MUSHI_MSG_SPLIT:
+		return MUSHI_MSG_LOW + type_index
+	return MUSHI_MSG_HIGH + type_index
+
+
+## `setup_main_Pull_net`: the caught insect leaves the field (it is drawn off the player
+## from here on) and whether it is the last one the record is missing is fixed now.
+static func begin_catch(caught: Object) -> Catch:
+	var actor := caught as BugActor
+	if actor == null or actor.bug == null:
 		return null
+	var out := Catch.new()
+	out.actor = actor
+	out.bug = actor.bug
+	out.completes_record = completes_record(actor.bug.type_index)
+	actor.catch()
+	return out
+
+
+## `mSM_CHECK_LAST_INSECT_GET`: every other insect is on the record and this one is not.
+static func completes_record(type_index: int) -> bool:
+	var book: CatalogBook = Game.catalog if Game != null else null
+	if book == null or type_index < 0 or type_index >= INSECT_RECORD_NUM:
+		return false
+	if book.has_insect(type_index):
+		return false
+	return book.insect_count() == INSECT_RECORD_NUM - 1
+
+
+## `setup_main_Notice_net`: pockets first, then the record, whether or not it fit.
+static func bank(catch_: Catch, inventory: Inventory) -> bool:
+	if catch_ == null or catch_.bug == null:
+		return false
+	catch_.banked = (
+		inventory != null
+		and inventory.has_space_for(catch_.bug, 1)
+		and inventory.add(catch_.bug, 1) == 0
+	)
+	if Game != null and Game.catalog != null:
+		Game.catalog.record_insect(catch_.bug.type_index)
+	return catch_.banked
+
+
+## `settle_main_Notice_net` / `release_creature`: a catch that did not go in the pockets is
+## let go where the player is holding it, with `actor_specific = 1` (it flees).
+static func release(catch_: Catch, field: BugField, at: Vector3) -> BugActor:
+	if catch_ == null or catch_.bug == null or field == null:
+		return null
+	var habitat: BugData.Habitat = catch_.actor.habitat if catch_.actor != null else BugData.Habitat.FLYING
+	return field.spawn(catch_.bug, habitat, at, true)
+
+
+## Fills this tick's catch table and line result. `hand` is the right-hand joint's world
+## transform (`right_hand_mtx`); `null_hand` draws the net off a fixed point ahead of the
+## player instead (no skeleton loaded).
+static func probe(
+	ctx: InteractionContext, player_pos: Vector3, yaw: float, hand: Transform3D, has_hand: bool
+) -> NetSwing.Probe:
+	var out := NetSwing.Probe.new()
+	var start: Vector3
+	var end: Vector3
+	if has_hand:
+		out.net_pos = NetSwing.net_point(hand, NetSwing.NET_POS_GX)
+		start = NetSwing.net_point(hand, NetSwing.NET_START_GX)
+		end = NetSwing.net_point(hand, NetSwing.NET_END_GX)
+	else:
+		var fwd := Vector3(sin(yaw), 0.0, cos(yaw))
+		var at_hand: Vector3 = player_pos + Vector3(0.0, 20.0 * FieldCatalog.GX_TO_METERS, 0.0)
+		out.net_pos = at_hand + fwd * (NetSwing.NET_POS_GX * FieldCatalog.GX_TO_METERS)
+		start = at_hand + fwd * (NetSwing.NET_START_GX * FieldCatalog.GX_TO_METERS)
+		end = at_hand + fwd * (NetSwing.NET_END_GX * FieldCatalog.GX_TO_METERS)
+	var field: BugField = field_of(ctx)
+	if field != null:
+		out.candidates = field.net_candidates(player_pos)
+	out.hit_actor = npc_on_line(ctx, start, end)
+	out.line_bits = line_bits(ctx, start, end)
+	return out
+
+
+## `Player_actor_Check_OBJtoLine_forItem_net`: the net's triangle (start, end, end + 10 GX up)
+## against the villagers' collision pipes.
+static func npc_on_line(ctx: InteractionContext, start: Vector3, end: Vector3) -> Node3D:
+	if ctx == null or ctx.actor == null or not ctx.actor.is_inside_tree():
+		return null
+	var radius: float = NPC_PIPE_RADIUS_GX * FieldCatalog.GX_TO_METERS
+	var height: float = NPC_PIPE_HEIGHT_GX * FieldCatalog.GX_TO_METERS
+	var rise: float = NET_TRI_RISE_GX * FieldCatalog.GX_TO_METERS
 	for node: Node in ctx.actor.get_tree().get_nodes_in_group("villagers"):
 		var villager := node as Node3D
 		if villager == null or not villager.visible:
 			continue
-		var to: Vector3 = villager.global_position - origin
-		var along: float = to.dot(direction)
-		if along < 0.0 or along > SWING_LENGTH:
+		var base: Vector3 = villager.global_position
+		var t: float = _closest_t_xz(start, end, base)
+		var p: Vector3 = start.lerp(end, t)
+		if Vector2(p.x - base.x, p.z - base.z).length() > radius:
 			continue
-		var closest: Vector3 = origin + direction * along
-		var vp: Vector3 = villager.global_position
-		if Vector2(closest.x - vp.x, closest.z - vp.z).length() <= SWING_RADIUS:
-			return villager
+		if p.y + rise * t < base.y or p.y > base.y + height:
+			continue
+		return villager
 	return null
 
 
-static func swing(ctx: InteractionContext, origin: Vector3, direction: Vector3) -> Outcome:
-	var out := Outcome.new()
-	var field: BugField = field_of(ctx)
-	if field != null:
-		field.notify_net_swing(origin, direction)
-		var actor: BugActor = field.find_in_net(origin, direction)
-		if actor != null and actor.bug != null:
-			var inventory: Inventory = ctx.inventory if ctx != null else null
-			if inventory == null or not inventory.has_space_for(actor.bug, 1):
-				out.pockets_full = true
-				out.bug = actor.bug
-				out.catch_msg = actor.bug.catch_msg
-				actor.release()
-			else:
-				inventory.add(actor.bug, 1)
-				actor.catch()
-				out.bug = actor.bug
-				out.catch_msg = actor.bug.catch_msg
-				if Game != null and Game.museum != null and Game.museum.has_insect_type(actor.bug.type_index):
-					out.catch_msg = MuseumDisplay.BUG_ALREADY_MSG
-		else:
-			out.missed = true
-	else:
-		out.missed = true
-	_reel = catch_beats(out)
-	return out
+## `mCoBG_LineCheck_RemoveFg(…, 7)`: wall, ground and water bits for the net's line.
+static func line_bits(ctx: InteractionContext, start: Vector3, end: Vector3) -> int:
+	var world: Object = ctx.world if ctx != null else null
+	if world == null:
+		return 0
+	var layout := world.get("layout") as WorldData
+	var grid := world.get("grid") as WorldGrid
+	if layout == null or grid == null:
+		return 0
+	var bits: int = 0
+	if FieldCollision.line_hits_wall(layout, grid, start, end):
+		bits |= NetSwing.LINE_WALL
+	## `mCoBG_LineGroundCheck`: any stretch of the line under the ground.
+	for t: float in [0.25, 0.5, 0.75, 1.0]:
+		var at: Vector3 = start.lerp(end, t)
+		var y: float = FieldCollision.ground_y_at(layout, grid, at)
+		if FieldCollision.has_floor(y) and at.y < y:
+			bits |= NetSwing.LINE_GROUND
+			break
+	var ground: float = FieldCollision.ground_y_at(layout, grid, end)
+	var cell: Vector2i = grid.world_to_cell(end)
+	if grid.is_in_bounds(cell) and grid.terrain_at(cell) == WorldGrid.Terrain.WATER:
+		if FieldCollision.has_floor(ground) and end.y <= ground + FieldCatalog.GX_TO_METERS:
+			bits |= NetSwing.LINE_UNDERWATER
+	return bits
 
 
-static func catch_beats(out: Outcome) -> Array[CatchBeat]:
-	if out != null and out.bug != null:
-		return [
-			CatchBeat.new(PULL, NET_PULL),
-			CatchBeat.new(
-				SHOW, NET_SHOW, true, SHOW_HOLD_SECONDS, out.catch_msg, out.bug, out.pockets_full
-			),
-		]
-	return []
-
-
-static func take_catch_beats() -> Array[CatchBeat]:
-	var beats: Array[CatchBeat] = _reel
-	_reel = []
-	return beats
-
-
-static func reset() -> void:
-	_reel = []
+static func _closest_t_xz(a: Vector3, b: Vector3, p: Vector3) -> float:
+	var ab := Vector2(b.x - a.x, b.z - a.z)
+	var len2: float = ab.length_squared()
+	if len2 <= 0.000001:
+		return 0.0
+	return clampf(Vector2(p.x - a.x, p.z - a.z).dot(ab) / len2, 0.0, 1.0)

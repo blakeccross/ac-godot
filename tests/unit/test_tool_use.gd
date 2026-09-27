@@ -85,12 +85,13 @@ func test_net_field_action_needs_no_host() -> void:
 	assert_that(action).is_not_null()
 	assert_str(String(action.id)).is_equal(String(Interaction.SWING_NET))
 	assert_str(action.prompt).is_equal("Swing net")
+	## A raises the net; `NetSwing` runs the swing, and the original posts no text for it.
 	var heard: Array[String] = []
 	var on_notice: Callable = func(text: String) -> void: heard.append(text)
 	Game.notice_posted.connect(on_notice)
 	assert_bool(ToolUse.apply_field(action, ctx)).is_true()
 	Game.notice_posted.disconnect(on_notice)
-	assert_bool("You swing the net." in heard).is_true()
+	assert_array(heard).is_empty()
 
 
 func test_axe_field_verb_is_the_open_air_swing() -> void:

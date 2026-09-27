@@ -34,12 +34,10 @@ func before_test() -> void:
 	Clock.hour = 10
 	_heard.clear()
 	Game.notice_posted.connect(_on_notice)
-	Netting.reset()
 
 
 func after_test() -> void:
 	Game.notice_posted.disconnect(_on_notice)
-	Netting.reset()
 	Game.reset_session()
 	Clock.reset_to_default()
 	Clock.paused = false
@@ -192,54 +190,103 @@ func test_catch_message_numbers() -> void:
 	assert_int(BugData.catch_msg_for_type(0)).is_equal(0xA2C)
 
 
-func test_net_swing_catches_bug_in_volume() -> void:
+func test_net_candidates_register_catch_ranges() -> void:
 	var ctx: InteractionContext = _ctx()
 	var field: BugField = ctx.world.get("bugs") as BugField
-	field.auto_spawn = false
-	var bug: BugData = BugCatalog.get_bug(&"common_butterfly")
-	var actor: BugActor = field.spawn(bug, BugData.Habitat.FLYING, Vector3(0.0, 0.0, 0.5))
-	assert_that(actor).is_not_null()
-	var out: Netting.Outcome = Netting.swing(ctx, Vector3.ZERO, Vector3(0.0, 0.0, 1.0))
-	assert_bool(out.caught()).is_true()
-	assert_that(out.bug.id).is_equal(&"common_butterfly")
-	assert_int(ctx.inventory.count_of(bug.id)).is_equal(1)
+	var butterfly: BugActor = field.spawn(
+		BugCatalog.get_bug(&"common_butterfly"), BugData.Habitat.FLYING, Vector3(0.0, 1.0, 1.0)
+	)
+	var rows: Array[NetSwing.Candidate] = field.net_candidates(Vector3.ZERO)
+	assert_int(rows.size()).is_equal(1)
+	assert_object(rows[0].target).is_same(butterfly)
+	## `aINS_get_catch_range`: butterflies register 24 GX.
+	assert_float(rows[0].range_gx).is_equal(24.0)
+	## Caught or let-go insects stop registering (`bit_1`).
+	butterfly.release()
+	assert_array(field.net_candidates(Vector3.ZERO)).is_empty()
 
 
-func test_net_miss_reports_nothing_caught() -> void:
+func test_begin_catch_takes_bug_off_the_field() -> void:
 	var ctx: InteractionContext = _ctx()
 	var field: BugField = ctx.world.get("bugs") as BugField
-	field.auto_spawn = false
-	field.spawn(BugCatalog.get_bug(&"common_butterfly"), BugData.Habitat.FLYING, Vector3(12.0, 0.0, 12.0))
-	var out: Netting.Outcome = Netting.swing(ctx, Vector3.ZERO, Vector3.FORWARD)
-	assert_bool(out.missed).is_true()
-
-
-func test_swing_resolves_on_catch_frame() -> void:
-	assert_float(Netting.SWING_CATCH_FRAME).is_equal(6.0)
-	var ctx: InteractionContext = _ctx()
-	var net: ItemData = ItemCatalog.get_item(&"net")
-	assert_that(net).is_not_null()
-	assert_int(ctx.inventory.add(net, 1)).is_equal(0)
-	assert_bool(ctx.inventory.equip_slot(0)).is_true()
-	var action: Interaction = ToolUse.field_action(ctx)
-	assert_that(action).is_not_null()
-	assert_str(String(action.id)).is_equal(String(Interaction.SWING_NET))
-	assert_float(action.effect_frame).is_equal(Netting.SWING_CATCH_FRAME)
-
-
-func test_caught_bug_is_finished_and_flagged() -> void:
-	var ctx: InteractionContext = _ctx()
-	var field: BugField = ctx.world.get("bugs") as BugField
-	field.auto_spawn = false
 	var actor: BugActor = field.spawn(
 		BugCatalog.get_bug(&"common_butterfly"), BugData.Habitat.FLYING, Vector3(0.0, 0.0, 0.5)
 	)
-	Netting.swing(ctx, Vector3.ZERO, Vector3(0.0, 0.0, 1.0))
+	var catch_: Netting.Catch = Netting.begin_catch(actor)
+	assert_object(catch_).is_not_null()
 	assert_bool(actor.caught).is_true()
 	assert_bool(actor.finished).is_true()
+	assert_int(catch_.report_msg()).is_equal(0xA2C)
 
 
-func test_find_npc_in_net_matches_swing_capsule() -> void:
+func test_bank_puts_catch_in_pockets_and_on_the_record() -> void:
+	var ctx: InteractionContext = _ctx()
+	var field: BugField = ctx.world.get("bugs") as BugField
+	var bug: BugData = BugCatalog.get_bug(&"common_butterfly")
+	var catch_: Netting.Catch = Netting.begin_catch(field.spawn(bug, BugData.Habitat.FLYING, Vector3.ZERO))
+	assert_bool(Netting.bank(catch_, ctx.inventory)).is_true()
+	assert_int(ctx.inventory.count_of(bug.id)).is_equal(1)
+	assert_bool(Game.catalog.has_insect(bug.type_index)).is_true()
+
+
+func test_full_pockets_still_record_and_release() -> void:
+	var ctx: InteractionContext = _ctx()
+	var field: BugField = ctx.world.get("bugs") as BugField
+	var filler: ItemData = ItemCatalog.get_item(&"axe")
+	for i: int in Inventory.POCKET_SLOTS:
+		ctx.inventory.add(filler, 1)
+	var bug: BugData = BugCatalog.get_bug(&"common_butterfly")
+	var catch_: Netting.Catch = Netting.begin_catch(field.spawn(bug, BugData.Habitat.FLYING, Vector3.ZERO))
+	assert_bool(Netting.bank(catch_, ctx.inventory)).is_false()
+	assert_int(ctx.inventory.count_of(bug.id)).is_equal(0)
+	## `setup_main_Notice_net` sets the record bit whether or not it fit.
+	assert_bool(Game.catalog.has_insect(bug.type_index)).is_true()
+	var freed: BugActor = Netting.release(catch_, field, Vector3(0.0, 1.0, 0.0))
+	assert_object(freed).is_not_null()
+	assert_bool(freed.released).is_true()
+
+
+func test_last_missing_insect_gets_the_complete_report() -> void:
+	## `mSM_CHECK_LAST_INSECT_GET`: all but this one on the record.
+	for i: int in Netting.INSECT_RECORD_NUM:
+		if i != 5:
+			Game.catalog.record_insect(i)
+	assert_bool(Netting.completes_record(5)).is_true()
+	assert_bool(Netting.completes_record(4)).is_false()
+	Game.catalog.record_insect(5)
+	assert_bool(Netting.completes_record(5)).is_false()
+
+
+func test_mushi_msg_numbers() -> void:
+	## `Player_actor_Get_mushi_msg_num`.
+	assert_int(Netting.mushi_msg(0)).is_equal(0xA2C)
+	assert_int(Netting.mushi_msg(0x1F)).is_equal(0xA2C + 0x1F)
+	assert_int(Netting.mushi_msg(0x20)).is_equal(0x2FA1 + 0x20)
+
+
+func test_insect_record_round_trips_save() -> void:
+	Game.catalog.record_insect(3)
+	Game.catalog.record_insect(35)
+	var book := CatalogBook.new()
+	book.apply_snapshot(Game.catalog.to_save())
+	assert_bool(book.has_insect(3)).is_true()
+	assert_bool(book.has_insect(35)).is_true()
+	assert_int(book.insect_count()).is_equal(2)
+
+
+func test_stop_net_is_seen_for_one_insect_frame() -> void:
+	var ctx: InteractionContext = _ctx()
+	var field: BugField = ctx.world.get("bugs") as BugField
+	field.notify_stop_net(Vector3(1.0, 0.0, 1.0))
+	var sense := BugActor.Sense.new()
+	field.tick(STEP, sense)
+	assert_bool(sense.net_swing_active).is_true()
+	assert_vector(sense.net_swing_origin).is_equal(Vector3(1.0, 0.0, 1.0))
+	field.tick(STEP, sense)
+	assert_bool(sense.net_swing_active).is_false()
+
+
+func test_npc_on_line_uses_the_villager_pipe() -> void:
 	var actor := Node3D.new()
 	auto_free(actor)
 	add_child(actor)
@@ -247,18 +294,19 @@ func test_find_npc_in_net_matches_swing_capsule() -> void:
 	ctx.actor = actor
 	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
 	add_child(villager)
-	villager.global_position = Vector3(0, 0, 1.0)
-	var hit: Node3D = Netting.find_npc_in_net(ctx, Vector3.ZERO, Vector3(0, 0, 1.0))
-	assert_that(hit).is_same(villager)
-	## Outside the swing radius, sideways of the same forward distance.
-	villager.global_position = Vector3(Netting.SWING_RADIUS + 1.0, 0, 1.0)
-	hit = Netting.find_npc_in_net(ctx, Vector3.ZERO, Vector3(0, 0, 1.0))
-	assert_that(hit).is_null()
+	## Villagers stay hidden until the roster places them.
+	villager.visible = true
+	villager.global_position = Vector3(0.0, 0.0, 2.0)
+	var start := Vector3(0.0, 0.5, 0.0)
+	var end := Vector3(0.0, 0.5, 2.75)
+	assert_object(Netting.npc_on_line(ctx, start, end)).is_same(villager)
+	## Beyond the 20 GX pipe radius, sideways.
+	villager.global_position = Vector3(Netting.NPC_PIPE_RADIUS_GX * FieldCatalog.GX_TO_METERS + 0.2, 0.0, 2.0)
+	assert_object(Netting.npc_on_line(ctx, start, end)).is_null()
 	## A hidden (indoor) villager never registers.
-	villager.global_position = Vector3(0, 0, 1.0)
+	villager.global_position = Vector3(0.0, 0.0, 2.0)
 	villager.visible = false
-	hit = Netting.find_npc_in_net(ctx, Vector3.ZERO, Vector3(0, 0, 1.0))
-	assert_that(hit).is_null()
+	assert_object(Netting.npc_on_line(ctx, start, end)).is_null()
 
 
 func _ctx() -> InteractionContext:

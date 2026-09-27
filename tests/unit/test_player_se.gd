@@ -5,10 +5,13 @@ extends GdUnitTestSuite
 func test_clip_marks_cover_core_actions() -> void:
 	assert_that(PlayerSe.CLIP_MARKS.has(&"ply_1_axe_swing1")).is_true()
 	assert_that(PlayerSe.CLIP_MARKS.has(&"ply_1_sao_swing1")).is_true()
-	assert_that(PlayerSe.CLIP_MARKS.has(&"ply_1_net_swing1")).is_true()
 	assert_that(PlayerSe.CLIP_MARKS.has(&"ply_1_pickup1")).is_true()
 	## Dig scoop is outcome-driven, not on every dig1.
 	assert_that(PlayerSe.CLIP_MARKS.has(&"ply_1_dig1")).is_false()
+	## The net's whoosh / get / hit follow `NetSwing` events (the clip is re-seeked each
+	## tick), and `GET_M1` has no `AMI_HIT` of its own.
+	assert_that(PlayerSe.CLIP_MARKS.has(&"ply_1_net_swing1")).is_false()
+	assert_that(PlayerSe.CLIP_MARKS.has(&"ply_1_get_m1")).is_false()
 
 
 func test_rain_syslev_ids() -> void:

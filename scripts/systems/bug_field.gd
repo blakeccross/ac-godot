@@ -34,9 +34,10 @@ var auto_spawn: bool = true
 var _grid: WorldGrid = null
 var _layout: WorldData = null
 var _tool_swing: float = 0.0
-var _net_swing: float = 0.0
-var _net_origin: Vector3 = Vector3.ZERO
-var _net_dir: Vector3 = Vector3.ZERO
+## `mPlib_Check_StopNet`: the net's position on the tick the player enters `STOP_NET` or
+## `PULL_NET`. Seen by exactly one insect frame, then cleared.
+var _stop_net_pending: bool = false
+var _stop_net_pos: Vector3 = Vector3.ZERO
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _spawned_acre: Vector2i = Vector2i(-999, -999)
 var _steps := FrameStepper.new()
@@ -44,7 +45,6 @@ var _game_frame: int = 0
 var _field_action: Dictionary = {"kind": 0, "cell": Vector2i(-1, -1)}
 
 const TOOL_SWING_SECONDS := 0.25
-const NET_SWING_SECONDS := 0.35
 
 
 func configure(grid: WorldGrid, layout: WorldData) -> void:
@@ -67,10 +67,21 @@ func notify_tool_swing() -> void:
 	_tool_swing = TOOL_SWING_SECONDS
 
 
-func notify_net_swing(origin: Vector3, direction: Vector3) -> void:
-	_net_swing = NET_SWING_SECONDS
-	_net_origin = origin
-	_net_dir = direction.normalized() if direction.length_squared() > 0.0001 else Vector3.FORWARD
+## `Player_actor_Check_StopNet` is true on the tick the swing turns into `STOP_NET` /
+## `PULL_NET`; the insect programs panic within 60–70 GX of `net_pos` (`aICH_check_player_net`).
+func notify_stop_net(net_pos: Vector3) -> void:
+	_stop_net_pending = true
+	_stop_net_pos = net_pos
+
+
+## `aINS_set_catch_range` for every live insect: the rows a swinging net tests this tick.
+func net_candidates(player_position: Vector3) -> Array[NetSwing.Candidate]:
+	var out: Array[NetSwing.Candidate] = []
+	for actor: BugActor in actors:
+		var row: NetSwing.Candidate = actor.net_candidate(player_position)
+		if row != null:
+			out.append(row)
+	return out
 
 
 ## Generic "player acted on this cell" — releases any bug settled there
@@ -98,11 +109,6 @@ func tick(delta: float, sense: BugActor.Sense) -> void:
 	if _tool_swing > 0.0:
 		sense.player_swung_tool = true
 	_tool_swing = maxf(_tool_swing - delta, 0.0)
-	if _net_swing > 0.0:
-		sense.net_swing_active = true
-		sense.net_swing_origin = _net_origin
-		sense.net_swing_dir = _net_dir
-	_net_swing = maxf(_net_swing - delta, 0.0)
 
 	## `aSOI_insect_set` is driven by the set manager on acre transitions, not by
 	## the insect frame loop — run it once per call, guarded by `_spawned_acre`.
@@ -118,6 +124,9 @@ func tick(delta: float, sense: BugActor.Sense) -> void:
 func _frame(sense: BugActor.Sense) -> void:
 	_game_frame += 1
 	sense.game_frame = _game_frame
+	sense.net_swing_active = _stop_net_pending
+	sense.net_swing_origin = _stop_net_pos if _stop_net_pending else Vector3.INF
+	_stop_net_pending = false
 	for actor: BugActor in actors:
 		if not actor.finished:
 			actor.frame(sense)
@@ -165,21 +174,6 @@ func seed_trees() -> void:
 		if bug == null:
 			continue
 		spawn(bug, BugData.Habitat.TREE, site.anchor)
-
-
-func find_in_net(origin: Vector3, direction: Vector3) -> BugActor:
-	var best: BugActor = null
-	var best_dist: float = INF
-	for actor: BugActor in actors:
-		if actor.finished or actor.caught:
-			continue
-		if not actor.in_net_volume(origin, direction, Netting.SWING_LENGTH, Netting.SWING_RADIUS):
-			continue
-		var dist: float = actor.position.distance_to(origin)
-		if dist < best_dist:
-			best_dist = dist
-			best = actor
-	return best
 
 
 func clear() -> void:
