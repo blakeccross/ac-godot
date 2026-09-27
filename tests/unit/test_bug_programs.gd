@@ -134,11 +134,17 @@ func test_beetle_ignores_a_tree_shake_in_another_unit() -> void:
 
 func test_beetle_net_scare_range_is_angular() -> void:
 	var b := _make(&"drone_beetle", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
-	b.rot.y = 0.0
-	## Player facing the same way as the beetle → catchable (24 GX).
-	assert_float(b.net_catch_range_gx(0.0, 0.0)).is_equal(24.0)
-	## Player facing 180° away → 0.
-	assert_float(b.net_catch_range_gx(PI, 0.0)).is_equal(0.0)
+	## `aINS_get_catch_range_sub` compares `world.angle.y` with the angle from the beetle to
+	## the player: the player must stand on the side the beetle faces.
+	b.angle_y = 0.0
+	## Beetle faces +Z; player 1 m in front of it → catchable (24 GX).
+	assert_float(b.net_catch_range_gx(b.position + Vector3(0.0, 0.0, 1.0))).is_equal(24.0)
+	## Player behind it (the far side of the trunk) → 0.
+	assert_float(b.net_catch_range_gx(b.position + Vector3(0.0, 0.0, -1.0))).is_equal(0.0)
+	assert_object(b.net_candidate(b.position + Vector3(0.0, 0.0, -1.0))).is_null()
+	var row: NetSwing.Candidate = b.net_candidate(b.position + Vector3(0.0, 0.0, 1.0))
+	assert_object(row.target).is_same(b)
+	assert_float(row.range_gx).is_equal(24.0)
 
 
 # ---- every program: smoke ----------------------------------------

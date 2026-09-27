@@ -57,9 +57,9 @@ class Sense:
 	var player_dashing: bool = false
 	var player_yaw: float = 0.0
 	var player_swung_tool: bool = false
-	var player_swung_net: bool = false
+	## `mPlib_Check_StopNet`: true for the one frame the player's swing stops or pulls in,
+	## with `net_swing_origin` the net's position (metres).
 	var net_swing_origin: Vector3 = Vector3.INF
-	var net_swing_dir: Vector3 = Vector3.ZERO
 	var net_swing_active: bool = false
 	## Cell the player just acted on (shovel / axe / tree shake).
 	var player_action_cell: Vector2i = Vector2i(-1, -1)
@@ -240,36 +240,38 @@ func release() -> void:
 		_prog.on_release(self)
 
 
-func in_net_volume(origin_m: Vector3, direction: Vector3, length_m: float, radius_m: float) -> bool:
-	## `Player_actor_Item_CheckLocalCapture_forNet`: capsule ahead of the swing.
-	var p: Vector3 = position
-	var to: Vector3 = p - origin_m
-	var along: float = to.dot(direction)
-	if along < 0.0 or along > length_m:
-		return false
-	var closest: Vector3 = origin_m + direction * along
-	return Vector2(closest.x - p.x, closest.z - p.z).length() <= radius_m
-
-
-func net_catch_range_gx(player_yaw: float, player_faces_toward: float) -> float:
-	## `aINS_get_catch_range`. `player_faces_toward` = yaw from player to this insect.
+func net_catch_range_gx(player_position_m: Vector3) -> float:
+	## `aINS_get_catch_range`. The facing-gated types need the player in front of them.
 	match type:
 		0, 1:  ## common / yellow butterfly
 			return 24.0
 		4, 5, 6, 7, 8, 19, 20, 21, 22, 23, 29, 30, 31:  ## cicadas, bee, beetles
-			return _angular_catch(player_yaw, player_faces_toward)
+			return _angular_catch(player_position_m)
 		28:  ## cockroach only once it has stopped (`flag == 4`)
-			return _angular_catch(player_yaw, player_faces_toward) if flag == 4 else 8.0
+			return _angular_catch(player_position_m) if flag == 4 else 8.0
 		_:
 			return 8.0
 
 
-func _angular_catch(player_yaw: float, _to_insect: float) -> float:
-	## `aINS_get_catch_range_sub`: 24 GX if the player faces within 90° of the
-	## insect's own yaw, else 0.
-	if absf(wrapf(rot.y - player_yaw, -PI, PI)) > PI * 0.5:
+func _angular_catch(player_position_m: Vector3) -> float:
+	## `aINS_get_catch_range_sub`: 24 GX while `world.angle.y` is within 90° of
+	## `player_angle_y` (the angle from the insect to the player), else 0 — a bug on a
+	## trunk can only be netted from the side it faces.
+	var to_player: Vector3 = player_position_m - position
+	var player_angle: float = atan2(to_player.x, to_player.z)
+	if absf(angle_difference(player_angle, angle_y)) > PI * 0.5:
 		return 0.0
 	return 24.0
+
+
+## `aINS_set_catch_range`: the row this insect registers with a swinging net, or null.
+func net_candidate(player_position_m: Vector3) -> NetSwing.Candidate:
+	if finished or caught or f_no_catch:
+		return null
+	var range_gx: float = net_catch_range_gx(player_position_m)
+	if is_zero_approx(range_gx):
+		return null
+	return NetSwing.Candidate.new(self, position, range_gx)
 
 
 # ---- fixed tick stepper -------------------------------------------------

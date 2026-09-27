@@ -4,6 +4,15 @@ extends RefCounted
 ## Equipped-tool lookup and empty-tile field verbs. Not an autoload.
 ## Hosts ask `has(ctx, kind)`; the player never switches on Shovel vs Axe.
 
+## `mPlayer_ANIM_KOKERU*` — fall / get-up, by held item (`Get_PlayerAnimeIndex_fromItemKind_Tumble`).
+const ANIM_KOKERU := "ply_1_kokeru1"
+const ANIM_KOKERU_A := "ply_1_kokeru_a1"
+const ANIM_KOKERU_N := "ply_1_kokeru_n1"
+const ANIM_KOKERU_GETUP := "ply_1_kokeru_getup1"
+const ANIM_KOKERU_GETUP_A := "ply_1_kokeru_getup_a1"
+const ANIM_KOKERU_GETUP_N := "ply_1_kokeru_getup_n1"
+
+
 static func equipped(ctx: InteractionContext) -> ToolData:
 	if ctx == null or ctx.inventory == null:
 		return null
@@ -37,8 +46,6 @@ static func field_action(ctx: InteractionContext) -> Interaction:
 	var effect_frame: float = -1.0
 	if tool.field_verb == Interaction.CAST:
 		effect_frame = Fishing.CAST_RELEASE_FRAME
-	elif tool.field_verb == Interaction.SWING_NET:
-		effect_frame = Netting.SWING_CATCH_FRAME
 	elif tool.field_verb == Interaction.DIG:
 		## Scoop dig SE / hole write at frame 15 (`Player_actor_SetSound_Dig_scoop`).
 		effect_frame = 15.0
@@ -66,8 +73,9 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 		return false
 	if tool.field_verb == Interaction.CAST:
 		return _apply_rod(tool, action, ctx)
+	## The net's A raises it; `NetSwing`, driven by the player tick by tick, owns the rest.
 	if tool.field_verb == Interaction.SWING_NET:
-		return _apply_net(tool, action, ctx)
+		return action.id == tool.field_verb
 	if action.id != tool.field_verb:
 		return false
 	if not _field_ok(tool, ctx):
@@ -80,7 +88,7 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 			var actor: Node = ctx.actor if ctx != null else null
 			PlayerSe.karaburi(actor if actor != null else null)
 			return false
-	if tool.field_notice != "" and tool.field_verb != Interaction.SWING_NET:
+	if tool.field_notice != "":
 		Game.post_notice(tool.field_notice)
 	_scare_fish(ctx)
 	_stress_bugs(ctx)
@@ -99,33 +107,6 @@ static func _stress_bugs(ctx: InteractionContext) -> void:
 	var field: BugField = Netting.field_of(ctx)
 	if field != null:
 		field.notify_tool_swing()
-
-
-static func _apply_net(tool: ToolData, action: Interaction, ctx: InteractionContext) -> bool:
-	if action.id != tool.field_verb or not _field_ok(tool, ctx):
-		return false
-	_scare_fish(ctx)
-	_stress_bugs(ctx)
-	var origin: Vector3 = ctx.actor.global_position if ctx != null and ctx.actor != null else Vector3.ZERO
-	var yaw: float = 0.0
-	if ctx != null and ctx.actor != null and ctx.actor.has_method("facing_yaw"):
-		yaw = float(ctx.actor.call("facing_yaw"))
-	var direction := Vector3(sin(yaw), 0.0, cos(yaw))
-	var out: Netting.Outcome = Netting.swing(ctx, origin, direction)
-	if out.bug == null:
-		## `Player_actor_CheckAndSet_UZAI_forNpc`: swinging the net *at* a villager
-		## (rather than an actual bug) builds their annoyance meter.
-		var hit_npc: Node3D = Netting.find_npc_in_net(ctx, origin, direction)
-		if hit_npc != null and hit_npc.has_method("register_net_hit"):
-			hit_npc.call("register_net_hit")
-	if out.missed:
-		Game.post_notice("You swung the net, but didn't catch anything!")
-	elif out.pockets_full:
-		Game.post_notice("Your pockets are full!")
-	elif out.caught():
-		var actor: Node = ctx.actor if ctx != null else null
-		PlayerSe.net_get(actor if actor != null else null)
-	return true
 
 
 static func _apply_rod(tool: ToolData, action: Interaction, ctx: InteractionContext) -> bool:
@@ -219,3 +200,16 @@ static func _grid(ctx: InteractionContext) -> WorldGrid:
 		return null
 	var value: Variant = ctx.world.get("grid")
 	return value as WorldGrid
+
+
+## `Get_PlayerAnimeIndex_fromItemKind_Tumble(_getup)`: axes / shovels / fans → `_a1`;
+## nets / umbrellas / rods / pinwheels → `_n1`; empty hands → plain `kokeru1`.
+static func tumble_clip(tool: ToolData, getup: bool) -> String:
+	var held: ToolData.Kind = tool.kind if tool != null else ToolData.Kind.NONE
+	match held:
+		ToolData.Kind.AXE, ToolData.Kind.SHOVEL, ToolData.Kind.WATERING_CAN:
+			return ANIM_KOKERU_GETUP_A if getup else ANIM_KOKERU_A
+		ToolData.Kind.NET, ToolData.Kind.FISHING_ROD, ToolData.Kind.UMBRELLA:
+			return ANIM_KOKERU_GETUP_N if getup else ANIM_KOKERU_N
+		_:
+			return ANIM_KOKERU_GETUP if getup else ANIM_KOKERU

@@ -9,7 +9,6 @@ field_verb = &"swing_net"
 field_prompt = "Swing net"
 field_anim = &"ply_1_net_swing1"
 field_priority = 12
-field_notice = "You swing the net."
 visual_id = &"tol_net_1"
 hold_anim = &"ply_1_net1"
 carry_part = 2
