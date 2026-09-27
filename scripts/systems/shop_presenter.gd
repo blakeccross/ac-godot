@@ -24,6 +24,10 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 	if room.kind == Room.Kind.SHOP:
 		_tom_nook(root, interior)
 		_clock(root, interior)
+		if room.id == &"shop0":
+			InteriorUnitCollision.add_hulls(
+				root, interior.grid, "NookFurnitureCol", ShopDisplay.cranny_blocked_units()
+			)
 	elif root.get_node_or_null("ShopCounter") == null:
 		var counter: Node3D = COUNTER_SCENE.instantiate() as Node3D
 		counter.name = "ShopCounter"
@@ -50,7 +54,10 @@ func _stock(root: Node3D, interior: IndoorSession, shop_id: StringName) -> void:
 			var row: Dictionary = placements[i]
 			var pos: Vector3 = interior.grid.cell_to_world(row["cell"] as Vector2i)
 			pos.y = float(row.get("y_gx", 0.0)) * FieldCatalog.GX_TO_METERS
-			_add_stock(root, i, shop_id, listed[i], pos, prizes)
+			var stock: Node3D = _add_stock(root, i, shop_id, listed[i], pos, prizes)
+			var half_gx: float = float(row.get("half_gx", 0.0))
+			if half_gx > 0.0:
+				stock.call("set_footprint_gx", half_gx)
 		placed = placements.size()
 		if placed >= listed.size():
 			return
@@ -65,7 +72,7 @@ func _stock(root: Node3D, interior: IndoorSession, shop_id: StringName) -> void:
 
 func _add_stock(
 	root: Node3D, i: int, shop_id: StringName, item_id: StringName, pos: Vector3, prize: bool = false
-) -> void:
+) -> Node3D:
 	var node: Node3D = STOCK_SCENE.instantiate() as Node3D
 	node.name = "ShopStock_%d" % i
 	node.set("shop_id", shop_id)
@@ -74,6 +81,7 @@ func _add_stock(
 	node.set("occupant_id", StringName("shop_stock_%d" % i))
 	node.position = pos
 	root.add_child(node)
+	return node
 
 
 func _tom_nook(root: Node3D, interior: IndoorSession) -> void:

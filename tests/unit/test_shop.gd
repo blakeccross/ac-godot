@@ -180,6 +180,21 @@ func test_cranny_sapling_uses_its_own_shelf_cell() -> void:
 	assert_int(ShopDisplay.CRANNY_SLOTS.size()).is_equal(11)
 
 
+func test_cranny_blocks_room01_walls_and_the_goods_tables() -> void:
+	var blocked: Dictionary = ShopDisplay.cranny_blocked_units()
+	for slot: Dictionary in ShopDisplay.CRANNY_SLOTS:
+		var cell: Vector2i = slot["cell"] as Vector2i
+		assert_bool(blocked.has(cell)).is_equal(float(slot["y_gx"]) > 0.0)
+	if InteriorUnitCollision.bg_counts(ShopDisplay.CRANNY_BG_ID).is_empty():
+		return  ## `room01.col.json` not generated (no disc)
+	## South wall either side of the door, the east column; the door and Nook stay open.
+	for x: int in range(1, 8):
+		assert_bool(blocked.has(Vector2i(x, 7))).is_equal(x != 3 and x != 4)
+	for z: int in range(1, 8):
+		assert_bool(blocked.has(Vector2i(7, z))).is_true()
+	assert_bool(blocked.has(ShopDisplay.NOOK_STAND_UT[0])).is_false()
+
+
 func test_tom_nook_model_follows_shop_level() -> void:
 	var rooms: Array[StringName] = [&"shop0", &"shop1", &"shop2", &"shop3_1"]
 	for level: int in rooms.size():

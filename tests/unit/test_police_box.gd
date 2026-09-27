@@ -239,20 +239,24 @@ func test_presenter_places_one_card_per_kept_item() -> void:
 	assert_float(card.position.z).is_equal_approx(want.z, 0.001)
 
 
-func test_raised_units_are_the_shelves_desk_and_locker() -> void:
-	var raised: Dictionary = PoliceDisplay.raised_units()
-	if raised.is_empty():
+func test_blocked_units_match_the_police_indoor_bg() -> void:
+	var blocked: Dictionary = PoliceDisplay.blocked_units()
+	if blocked.is_empty():
 		return  ## `police_indoor.col.json` not generated (no disc)
 	## Every lost-and-found unit sits on a shelf 20 GX above the floor.
 	for cell: Vector2i in PoliceDisplay.lost_found_cells():
-		assert_float(float(raised.get(cell, 0.0))).is_equal(20.0)
-	## Walkways between the shelf rows stay flat.
-	assert_bool(raised.has(Vector2i(4, 2))).is_false()
-	assert_bool(raised.has(PoliceDisplay.BOOKER_STAND_UT)).is_false()
+		assert_float(float(blocked.get(cell, 0.0))).is_equal(20.0)
+	## Walkways between the shelf rows and Booker's stand stay open.
+	assert_bool(blocked.has(Vector2i(4, 2))).is_false()
+	assert_bool(blocked.has(PoliceDisplay.BOOKER_STAND_UT)).is_false()
+	## Only the two-unit entrance strip is open south of the room (rows 9–10).
+	for z: int in [9, 10]:
+		for x: int in range(1, 9):
+			assert_bool(blocked.has(Vector2i(x, z))).is_equal(x != 4 and x != 5)
 
 
 func test_presenter_adds_shelf_hulls_and_clock() -> void:
-	if PoliceDisplay.raised_units().is_empty():
+	if PoliceDisplay.blocked_units().is_empty():
 		return
 	var room: Room = InteriorCatalog.room_template(&"police_box")
 	var session := IndoorSession.new()

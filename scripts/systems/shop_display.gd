@@ -42,20 +42,27 @@ const CLOCK_VISUALS: Array[StringName] = [
 
 ## RSV_SHOP_* cells for Cranny (`l_zakka_goods` fill order → typed slots).
 ## `y_gx`: freestanding FTR / mannequin / umbrella on the floor; shelf samples on tables.
+## `half_gx`: floor goods' collision half-extent — a 1×1 FTR fills its unit, the mannequin
+## and umbrella stand register `l_manekin_mBgData` (16) / `l_umbrella_mBgData` (13).
 const CRANNY_SLOTS: Array[Dictionary] = [
-	{"kind": &"furniture", "cell": Vector2i(1, 1), "y_gx": 0.0},
+	{"kind": &"furniture", "cell": Vector2i(1, 1), "y_gx": 0.0, "half_gx": 20.0},
 	{"kind": &"wall", "cell": Vector2i(3, 1), "y_gx": CRANNY_SHELF_Y_GX},
 	{"kind": &"floor", "cell": Vector2i(4, 1), "y_gx": CRANNY_SHELF_Y_GX},
 	{"kind": &"tool", "cell": Vector2i(5, 1), "y_gx": CRANNY_SHELF_Y_GX},
 	{"kind": &"tool", "cell": Vector2i(6, 1), "y_gx": CRANNY_SHELF_Y_GX},
-	{"kind": &"cloth", "cell": Vector2i(1, 3), "y_gx": 0.0},
+	{"kind": &"cloth", "cell": Vector2i(1, 3), "y_gx": 0.0, "half_gx": 16.0},
 	{"kind": &"paper", "cell": Vector2i(3, 4), "y_gx": CRANNY_SHELF_Y_GX},
 	{"kind": &"plant", "cell": Vector2i(4, 4), "y_gx": CRANNY_SHELF_Y_GX},
 	{"kind": &"plant", "cell": Vector2i(5, 4), "y_gx": CRANNY_SHELF_Y_GX},
 	## `RSV_SHOP_HALLOWEEN`: saplings (`aSD_ItemName2ReservePointName`).
 	{"kind": &"sapling", "cell": Vector2i(6, 4), "y_gx": CRANNY_SHELF_Y_GX},
-	{"kind": &"umbrella", "cell": Vector2i(1, 5), "y_gx": 0.0},
+	{"kind": &"umbrella", "cell": Vector2i(1, 5), "y_gx": 0.0, "half_gx": 13.0},
 ]
+
+## The Cranny floor is the plain `room01` BG: 6×6 floor at count 0, walls at 16, door
+## (3,7)/(4,7) — the same runs as the `RSV_WALL_NO` units in `FG_TYPE_ROM_SHOP1`.
+const CRANNY_BG_ID := &"room01"
+const CRANNY_BG_WALL_COUNTS := 16
 
 
 static func nook_wall_id(level: int) -> StringName:
@@ -141,7 +148,11 @@ static func stock_placements_for_goods(goods: Array[StringName]) -> Array[Dictio
 			break
 		var cell: Vector2i = slot["cell"] as Vector2i
 		used["%d,%d" % [cell.x, cell.y]] = true
-		out.append({"cell": cell, "y_gx": float(slot.get("y_gx", CRANNY_SHELF_Y_GX))})
+		out.append({
+			"cell": cell,
+			"y_gx": float(slot.get("y_gx", CRANNY_SHELF_Y_GX)),
+			"half_gx": float(slot.get("half_gx", 0.0)),
+		})
 	return out
 
 
@@ -225,3 +236,15 @@ static func display_visual_for_item(item_id: StringName) -> StringName:
 			if data.plant_id != &"" or raw.contains("flower"):
 				return &"obj_item_seed"
 			return &""
+
+
+## Units the Cranny blocks: `room01` walls inside the inner rect (east column, south wall
+## either side of the door) plus the two goods tables (the shelf RSV cells, 21 GX high).
+static func cranny_blocked_units() -> Dictionary:
+	var out: Dictionary = InteriorUnitCollision.blocked_from_bg(
+		CRANNY_BG_ID, 0, CRANNY_BG_WALL_COUNTS, Rect2i(CRANNY_INNER_ORIGIN, CRANNY_INNER_SIZE)
+	)
+	for slot: Dictionary in CRANNY_SLOTS:
+		if float(slot["y_gx"]) > 0.0:
+			out[slot["cell"] as Vector2i] = CRANNY_SHELF_Y_GX
+	return out

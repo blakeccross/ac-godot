@@ -123,3 +123,20 @@ func test_design_texture_renders_32x32_rgba() -> void:
 	assert_int(img.get_width()).is_equal(32)
 	assert_int(img.get_height()).is_equal(32)
 	assert_float(img.get_pixel(0, 0).a).is_equal(1.0)
+
+
+func test_blocked_units_match_the_rom_tailor_bg() -> void:
+	var blocked: Dictionary = NeedleworkPresenter.blocked_units()
+	if blocked.is_empty():
+		return  ## `rom_tailor.col.json` not generated (no disc)
+	## `rom_tailor` raises only these units inside the shop floor.
+	var want: Array[Vector2i] = [
+		Vector2i(1, 1), Vector2i(2, 1), Vector2i(1, 3), Vector2i(2, 3),
+		Vector2i(2, 5), Vector2i(2, 6), Vector2i(8, 6),
+	]
+	assert_int(blocked.size()).is_equal(want.size())
+	for cell: Vector2i in want:
+		assert_bool(blocked.has(cell)).is_true()
+	## Sable's spot beside the machine is floor.
+	assert_bool(blocked.has(Vector2i(2, 2))).is_false()
+
