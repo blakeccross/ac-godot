@@ -4,7 +4,9 @@ extends RefCounted
 ## The Stalk Market (`m_kabu_manager.c`). A weekly price schedule keyed to the Sunday that
 ## starts the week: Joan's Sunday buy price in [70, 130) and Nook's Mon–Sat prices from one
 ## of three trends (A spike / B random / C falling), each chosen from the last one's odds.
-## Owned by `ShopBook`; Nook quotes and pays `price_today()`.
+## Owned by `ShopBook`; Nook quotes and pays `price_today()`. The schedule only moves in
+## `update`, which `Game` runs on a date change and at game start (`m_time.c`,
+## `m_start_data_init.c`), never on a read.
 
 enum Trend { SPIKE, RANDOM, FALLING }
 
@@ -63,8 +65,14 @@ func update(year: int, month: int, day: int) -> void:
 	if week_ordinal >= 0 and today == week_ordinal:
 		_decide_without_sunday(year, month, day)
 		return
-	if week_ordinal < 0 or today >= week_ordinal + 7 or today <= week_ordinal - 7:
+	if is_stale(year, month, day):
 		decide_schedule(year, month, day)
+
+
+## No schedule yet, or a week or more away from `day`.
+func is_stale(year: int, month: int, day: int) -> bool:
+	var today: int = EventDates.ordinal(year, month, day)
+	return week_ordinal < 0 or today >= week_ordinal + 7 or today <= week_ordinal - 7
 
 
 ## Today's price — Sunday is Joan's buy price, the rest Nook's.
@@ -72,8 +80,12 @@ func price_on(weekday: int) -> int:
 	return prices[clampi(weekday, 0, 6)]
 
 
+## `Kabu_get_price`: a plain read. Only a missing or stale schedule (a new game, or a
+## clock jump no date change saw) is decided here, once; the same-Sunday re-roll is left
+## to `update`.
 func price_today() -> int:
-	update(Clock.year, Clock.month, Clock.day)
+	if is_stale(Clock.year, Clock.month, Clock.day):
+		decide_schedule(Clock.year, Clock.month, Clock.day)
 	return price_on(Clock.weekday())
 
 

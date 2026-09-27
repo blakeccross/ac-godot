@@ -162,16 +162,18 @@ func test_sales_cap_at_next_threshold_until_renovation() -> void:
 	assert_int(shop.real_level()).is_equal(1)
 	var booked: int = EventDates.ordinal(2001, 1, 12)
 	assert_int(shop.renewal_day()).is_equal(booked)
-	## Still open today; closed from opening time the day before reopening.
+	## Still open today; closed all of the day before reopening (`mSP_InRenewal` date match).
 	assert_int(shop.nook_status()).is_equal(ShopBook.Status.OPEN)
 	_set_date(2001, 1, 11, 8)
-	assert_int(shop.nook_status()).is_equal(ShopBook.Status.PRE)
+	assert_int(shop.nook_status()).is_equal(ShopBook.Status.RENEW)
 	_set_date(2001, 1, 11, 12)
 	assert_int(shop.nook_status()).is_equal(ShopBook.Status.RENEW)
 	assert_str(shop.closed_notice()).contains("renovation")
-	## Nook 'n' Go opens at 7 on the booked day.
+	## The upgrade lands at any hour of the booked day; Nook 'n' Go then opens at 7.
 	_set_date(2001, 1, 12, 6)
-	assert_int(shop.nook_status()).is_equal(ShopBook.Status.RENEW)
+	assert_int(shop.nook_status()).is_equal(ShopBook.Status.PRE)
+	assert_str(shop.closed_notice()).contains("7:00")
+	assert_int(shop.nook_level()).is_equal(1)
 	_set_date(2001, 1, 12, 7)
 	assert_int(shop.nook_status()).is_equal(ShopBook.Status.OPEN)
 	assert_int(shop.nook_level()).is_equal(1)
@@ -279,6 +281,30 @@ func test_stationery_is_a_four_sheet_pad() -> void:
 	assert_int(ShopBook.buy_price(ItemCatalog.get_item(&"paper"))).is_equal(160)
 	shop.buy(ShopBook.NOOK_ID, &"paper", Game.inventory)
 	assert_int(Game.inventory.count_of(&"paper")).is_equal(4)
+	assert_int(ItemCatalog.get_item(&"paper").max_stack).is_equal(4)
+
+
+## `ac_npc_shop_common.c` `mPr_GetPossessionItemIdx(EMPTY_NO)`: a purchase needs a truly
+## empty pocket, even when a partial stack of the same thing could take it.
+func test_purchase_needs_an_empty_pocket() -> void:
+	var shop: ShopBook = Game.shops
+	shop.apply_snapshot({"shop0": {"goods": ["paper", "paper"], "renew": Clock.renew_index()}})
+	var inv: Inventory = Game.inventory
+	inv.set_wallet(1000)
+	var paper: ItemData = ItemCatalog.get_item(&"paper")
+	var shovel: ItemData = ItemCatalog.get_item(&"shovel")
+	inv.add(paper, 1)
+	for _i: int in Inventory.POCKET_SLOTS - 1:
+		inv.add(shovel, 1)
+	var res: Dictionary = shop.buy_result(ShopBook.NOOK_ID, &"paper", inv)
+	assert_int(int(res["code"])).is_equal(ShopBook.Buy.POCKETS_FULL)
+	assert_int(inv.wallet).is_equal(1000)
+	## With a free pocket the whole pad goes there, not onto the partial stack.
+	inv.remove(&"shovel", 1)
+	res = shop.buy_result(ShopBook.NOOK_ID, &"paper", inv)
+	assert_int(int(res["code"])).is_equal(ShopBook.Buy.OK)
+	assert_int(inv.count_of(&"paper")).is_equal(5)
+	assert_int(inv.empty_slot_count()).is_equal(0)
 
 
 # --- Selling -----------------------------------------------------------------------------
@@ -316,6 +342,46 @@ func test_foreign_fruit_sells_high() -> void:
 	assert_int(ShopBook.sell_price(cherry)).is_equal(500)
 	Game.town_fruit = &"cherry"
 	assert_int(ShopBook.sell_price(cherry)).is_equal(100)
+
+
+## `m_shop.c` `mSP_ItemNo2ItemPrice` / `SELL_BUY_RATIO`: fish and bugs pay a quarter of
+## `fish_price_table` / `insect_price_table`.
+func test_fish_and_bugs_sell_for_a_quarter_of_the_rom_price() -> void:
+	var expected: Dictionary = {
+		&"ant": 80, &"bee": 4500, &"giant_beetle": 10000, &"cockroach": 5,
+		&"sea_bass": 120, &"coelacanth": 15000, &"crucian_carp": 120, &"stringfish": 15000,
+	}
+	for item_id: StringName in expected:
+		var data: ItemData = ItemCatalog.get_item(item_id)
+		assert_that(data).is_not_null()
+		assert_int(ShopBook.sell_price(data)).is_equal(int(expected[item_id]))
+	Game.inventory.add(ItemCatalog.get_item(&"sea_bass"), 1)
+	Game.shops.sell(ShopBook.NOOK_ID, &"sea_bass", Game.inventory, 1)
+	assert_int(Game.inventory.wallet).is_equal(120)
+
+
+## `mSM_check_item_for_sell`: money bags are not in the sell menu.
+func test_money_bags_are_not_for_sale() -> void:
+	var inv: Inventory = Game.inventory
+	inv.add(ItemCatalog.get_item(&"money_1000"), 1)
+	var quote: Dictionary = Game.shops.sell_quote(&"money_1000", inv)
+	assert_int(int(quote["code"])).is_equal(ShopBook.Sell.REFUSED)
+	assert_int(int(quote["count"])).is_equal(0)
+	var res: Dictionary = Game.shops.sell_result(ShopBook.NOOK_ID, &"money_1000", inv, 1)
+	assert_int(int(res["code"])).is_equal(ShopBook.Sell.REFUSED)
+	assert_int(inv.count_of(&"money_1000")).is_equal(1)
+	assert_int(inv.wallet).is_equal(0)
+
+
+## `aNSC_check_money_overflow`: a wallet reaching exactly 99,999 already spills a bag.
+func test_wallet_at_max_spills_a_bag() -> void:
+	var inv: Inventory = Game.inventory
+	inv.set_wallet(99999 - 80)
+	inv.add(ItemCatalog.get_item(&"wood_chair"), 1)
+	assert_int(ShopBook.bags_needed(inv, 80)).is_equal(1)
+	Game.shops.sell(ShopBook.NOOK_ID, &"wood_chair", inv, 1)
+	assert_int(inv.count_of(ShopBook.BAG_30000)).is_equal(1)
+	assert_int(inv.wallet).is_equal(99999 - 30000)
 
 
 func test_wallet_overflow_becomes_bags() -> void:
@@ -362,6 +428,35 @@ func test_stalk_market_schedule() -> void:
 	## Week starts on Sunday; a stale schedule re-rolls.
 	market.update(2001, 1, 10)
 	assert_int(market.week_ordinal).is_equal(EventDates.ordinal(2001, 1, 7))
+
+
+## `Kabu_get_price` is a plain read; `Kabu_manager` only runs on a date change / game start.
+func test_stalk_market_reads_do_not_reroll() -> void:
+	var market: KabuMarket = Game.shops.kabu
+	## 2001-01-07 is a Sunday: many reads leave the trend chain and the week alone.
+	_set_date(2001, 1, 7, 12)
+	market.clear()
+	var sunday: int = market.price_today()
+	var before: Dictionary = market.to_save()
+	var rng_state: int = market.rng.state
+	for _i: int in 20:
+		assert_int(market.price_today()).is_equal(sunday)
+	assert_that(market.to_save()).is_equal(before)
+	assert_int(market.rng.state).is_equal(rng_state)
+	## Through the week too, Monday to Saturday.
+	for d: int in range(8, 14):
+		_set_date(2001, 1, d, 12)
+		var price: int = market.price_today()
+		assert_int(market.price_today()).is_equal(price)
+		assert_int(price).is_equal(int((before["prices"] as Array)[d - 7]))
+	assert_int(market.rng.state).is_equal(rng_state)
+	## The next Sunday's date change rolls a new week once.
+	_set_date(2001, 1, 14, 0)
+	market.update(Clock.year, Clock.month, Clock.day)
+	assert_int(market.week_ordinal).is_equal(EventDates.ordinal(2001, 1, 14))
+	var rolled: int = market.rng.state
+	market.price_today()
+	assert_int(market.rng.state).is_equal(rolled)
 
 
 func test_nook_buys_turnips_except_sundays() -> void:
