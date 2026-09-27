@@ -250,9 +250,10 @@ func _random_from(pool: Array[StringName], count: int) -> Array[StringName]:
 	for id: StringName in pool:
 		if ItemCatalog.get_item(id) != null:
 			live.append(id)
+	## `mSP_SelectRandomItem_New` never picks the same item twice.
 	var out: Array[StringName] = []
-	if live.is_empty():
-		return out
-	for _i: int in count:
-		out.append(live[rng.randi_range(0, live.size() - 1)])
+	for _i: int in mini(count, live.size()):
+		var pick: int = rng.randi_range(0, live.size() - 1)
+		out.append(live[pick])
+		live.remove_at(pick)
 	return out

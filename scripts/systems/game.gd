@@ -91,6 +91,8 @@ var destiny_type: int = Destiny.NORMAL
 var destiny_date: Vector3i = Vector3i.ZERO
 ## Worn original design display slot (`cloth.idx >= CLOTH_NUM+1`). -1 = normal shirt.
 var worn_design_slot: int = -1
+## A 06:00 lost-and-found top-up that came due while the player was in the police box.
+var _police_topup_pending: bool = false
 ## Town map unlocked after first-job furniture delivery (`Common.map_flag`).
 var has_map: bool = false
 ## `Save_Get(num_statues)` — how many Nook house statues the town has built (0..3, gold →
@@ -639,6 +641,7 @@ func reset_session() -> void:
 	else:
 		designs.clear()
 	worn_design_slot = -1
+	_police_topup_pending = false
 	set_interact_prompt("")
 
 
@@ -1211,14 +1214,26 @@ func refresh_police_set() -> void:
 		host.call("refresh_shop_set")
 
 
+func _in_police_box() -> bool:
+	if not is_indoors():
+		return false
+	var room: Room = interiors.room(current_room_id)
+	return room != null and room.kind == Room.Kind.POLICE
+
+
 func _on_field_renewed(days: int) -> void:
 	shops.renew(days)
 	HouseGoki.save_play_time(interiors.player_house())
 	refresh_shop_set()
 	## `mAGrw_RenewalFgItem` tops the lost and found up once per renewal, however many
 	## days were skipped.
+	## It runs on field make, so while the player is inside the police box the new item
+	## waits for them to leave (after Booker packs the list), never landing mid-visit.
 	if police != null:
-		police.force_set_keep_item()
+		if _in_police_box():
+			_police_topup_pending = true
+		else:
+			police.force_set_keep_item()
 	refresh_police_set()
 	_deliver_farway_mail()
 	_deliver_shop_mail()
@@ -1291,6 +1306,9 @@ func exit_interior() -> bool:
 	if leaving != null and leaving.kind == Room.Kind.POLICE and police != null:
 		## `aPOL2_player_getout_check` → `mPB_copy_itemBuf`: close the claimed gaps.
 		police.copy_item_buf()
+		if _police_topup_pending:
+			_police_topup_pending = false
+			police.force_set_keep_item()
 	last_room_id = current_room_id
 	var room: Room = leaving
 	if room != null and room.parent_room_id != &"":

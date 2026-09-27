@@ -182,6 +182,32 @@ func test_renew_tops_up_once_per_renewal() -> void:
 	assert_int(Game.police.keep_item_sum() - before).is_less_equal(1)
 
 
+func test_renew_waits_while_in_the_police_box() -> void:
+	## `mAGrw_RenewalFgItem_ovl` runs on field make: a claim's gap is packed on exit
+	## before the new item lands, so no kept item is overwritten mid-visit.
+	Game.police.clear()
+	for id: StringName in [&"net", &"axe", &"shovel"]:
+		Game.police.keep_item(id)
+	assert_int(Game.police.claim_result(0, Inventory.new())).is_equal(PoliceBook.Claim.OK)
+	Game.current_room_id = &"police_box"
+	Game._on_field_renewed(1)
+	assert_array(Game.police.keep_items().slice(0, 3)).is_equal([&"", &"axe", &"shovel"])
+	assert_bool(Game._police_topup_pending).is_true()
+	Game.exit_interior()
+	assert_bool(Game._police_topup_pending).is_false()
+	assert_that(Game.police.item_at(0)).is_equal(&"axe")
+	assert_that(Game.police.item_at(1)).is_equal(&"shovel")
+
+
+func test_start_box_shirts_are_different() -> void:
+	## `mSP_SelectRandomItem_New` rejects duplicates.
+	for seed: int in 40:
+		var book := PoliceBook.new()
+		book.rng.seed = seed
+		book.init_town()
+		assert_that(book.item_at(1)).is_not_equal(book.item_at(2))
+
+
 func test_legacy_save_without_police_inits() -> void:
 	var snap: Dictionary = Game.to_save()
 	snap.erase("police")
@@ -454,6 +480,17 @@ func test_copper_talk_graph() -> void:
 			assert_bool(runner.waiting_choice).is_true()
 			runner.choose(1)
 			assert_str(runner.line).contains(str(Game.police.keep_item_sum()))
+
+
+func test_copper_is_away_on_aerobics_mornings() -> void:
+	## `aPOL_actor_ct` deletes him while MORNING_AEROBICS / SPORTS_FAIR_AEROBICS is on.
+	var copper_script: GDScript = load("res://scenes/world/copper.gd")
+	assert_bool(copper_script.away_for_event()).is_false()
+	Game.events.force(&"morning_aerobics")
+	Game.events._refresh_active(6)
+	assert_bool(copper_script.away_for_event()).is_true()
+	Game.events.unforce(&"morning_aerobics")
+	Game.events._refresh_active(6)
 
 
 func test_copper_stands_two_units_east_of_the_station() -> void:
