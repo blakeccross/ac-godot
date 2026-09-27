@@ -20,8 +20,12 @@ var _face: NpcFace = NpcFace.new()
 var _talking: bool = false
 var _talked_today: bool = false
 var _clip: String = ""
+## Current sister story (`sister_story`) and the message ids for its parts.
+var _story_row: int = 0
 var _story_ids: Array[int] = []
 var _story_index: int = 0
+## `nw_visitor.days >= 5` — she looks up from the machine for this talk.
+var _turns_to_player: bool = false
 var _active_ui: DialogueOverlay = null
 var _rng := RandomNumberGenerator.new()
 
@@ -59,17 +63,26 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	return _begin_talk(ctx)
 
 
+## `aNNW_set_norm_talk_info` (talk_idx 2 → `aNNW_set_ane_msg`) then `aNNW_talk_init`:
+## the story row is picked from the day counter *before* today's visit is counted
+## (`aNNW_get_make_sister_message` adds it itself), then `aNNW_day_day` bumps it.
 func _begin_talk(ctx: InteractionContext) -> bool:
 	var listener: Node3D = ctx.actor as Node3D if ctx != null else null
-	_face_toward(listener.global_position if listener != null else global_position)
+	_story_row = 0
+	_story_ids = []
 	if Game.designs != null:
-		var was_first := Game.designs.sable_last_date != _today()
+		var first := Game.designs.sable_last_date != _today()
+		_story_row = NeedleworkTalk.pick_story_row(Game.designs.sable_days, first, _rng)
+		_story_ids = NeedleworkTalk.story_line_ids(_story_row, _rng)
 		Game.designs.tick_sable_day(_today())
-		_story_ids = _pick_story(was_first)
+		_turns_to_player = Game.designs.sable_days >= NeedleworkTalk.SABLE_TURN_DAYS
 	else:
-		_story_ids = []
+		_turns_to_player = false
 	_story_index = 0
-	## Slow the sewing loop while talking (decomp anim speed 0.5).
+	if _turns_to_player and listener != null:
+		_face_toward(listener.global_position)
+	## The machine and the fabric stop; her own loop slows to half speed.
+	NeedleworkPresenter.set_machine_running(get_parent(), false)
 	if _body_anim != null:
 		_body_anim.speed_scale = 0.5
 	_start_talk_session(listener)
@@ -78,72 +91,40 @@ func _begin_talk(ctx: InteractionContext) -> bool:
 	return true
 
 
-func _pick_story(was_first: bool) -> Array[int]:
-	if Game == null or Game.designs == null:
-		return []
-	## sable_days has already been ticked, so pass first_of_day = false and the
-	## current (post-tick) count.
-	var row := NeedleworkTalk.pick_story_row(Game.designs.sable_days, false, _rng)
-	if Game.designs.sable_days == 0:
-		row = 0
-	return NeedleworkTalk.story_line_ids(row, _rng)
-
-
+## One part of the story: Sable (`ANE_0`), Mabel turned to face her (`AINOTE` → force
+## talk 5), Sable again (`AINOTE3` → force talk 6; story 9 turns her to the player,
+## `aNNW_talk_ane_3`).
 func _advance_story() -> void:
 	var ui := DialogueOverlay.find(get_tree())
-	if ui == null:
+	if ui == null or _story_index >= maxi(_story_ids.size(), 1):
 		_end_talk()
 		return
-	if _story_index >= _story_ids.size():
-		if _story_ids.is_empty():
-			_bind_end(ui)
-			ui.say(_fallback_line(0), "Sable")
-			return
-		_end_talk()
-		return
-	var idx := _story_index
-	var data: DialogueData = NeedleworkTalk.line(_story_ids[_story_index])
+	var now := _story_index
+	var msg: int = _story_ids[now] if now < _story_ids.size() else -1
 	_story_index += 1
-	var text := ""
-	if data != null:
-		data.ensure_loaded()
-		text = str(data.node(data.start).get("text", "")).strip_edges()
-	## Many `aNNW_story_*` ROM lines extract as bare ellipses — swap in readable text.
-	if text.is_empty() or text.replace(".", "").replace("…", "").strip_edges().is_empty():
-		_bind_next(ui)
-		ui.say(_fallback_line(idx), "Sable")
-		return
-	var ctx := _make_ctx()
+	var speaker := NeedleworkTalk.story_speaker(now)
+	var mabel: Node3D = _mabel()
+	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	if speaker == "Mabel" and mabel != null:
+		if mabel.has_method("chime_in"):
+			mabel.call("chime_in", self)
+		TalkCamera.begin(mabel, self, get_tree(), false)
+	else:
+		if mabel != null and mabel.has_method("chime_in"):
+			mabel.call("chime_in", self if now > 0 else null)
+		if now == 2 and _story_row == NeedleworkTalk.STORY_TURN_TO_PLAYER and player != null:
+			_face_toward(player.global_position)
+		if player != null:
+			TalkCamera.begin(player, self, get_tree(), false)
+	var text := NeedleworkTalk.story_text(_story_row, now, msg)
 	_bind_next(ui)
-	ui.play(data, ctx)
+	ui.play(DialogueData.from_dict({"id": "sable_story", "start": "l",
+		"nodes": {"l": {"type": "line", "text": text}}}), _make_ctx(speaker))
 
 
-## Friendship-tier small talk while the ROM story text is unavailable
-## (`aNNW_get_make_sister_message` tiers: <4 small talk, 4-7 stories, >=8 close).
-func _fallback_line(i: int) -> String:
-	var days := Game.designs.sable_days if Game != null and Game.designs != null else 0
-	var early := [
-		"Oh — hello. Did you need some thread?",
-		"...I'm nearly through this hem. One moment.",
-		"Mm. Take your time looking around.",
-	]
-	var mid := [
-		"My sister Mabel does all the talking. I just sew.",
-		"When we were small, we used to make doll clothes together.",
-		"...It's strange. I don't usually say this much.",
-	]
-	var close := [
-		"You know, I look forward to you stopping by now.",
-		"Mabel says I've been smiling more. Maybe she's right.",
-		"Thank you — for being patient with me.",
-	]
-	var tier: Array = early if days < 4 else (mid if days < 8 else close)
-	return tier[i % tier.size()]
-
-
-func _make_ctx() -> DialogueContext:
+func _make_ctx(speaker: String = "Sable") -> DialogueContext:
 	var c: DialogueContext = DialogueContext.from_game()
-	c.speaker_name = "Sable"
+	c.speaker_name = speaker
 	## Special NPC — default green nameplate, like Mabel / Tom Nook.
 	c.voice_mode = DialogueVoice.Mode.ANIMALESE
 	c.sound_spec = 4
@@ -159,12 +140,6 @@ func _bind_next(ui: DialogueOverlay) -> void:
 	ui.closed.connect(_on_line_closed, CONNECT_ONE_SHOT)
 
 
-func _bind_end(ui: DialogueOverlay) -> void:
-	if ui == null or ui.closed.is_connected(_on_talk_closed):
-		return
-	ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
-
-
 func _on_line_closed() -> void:
 	if _story_index < _story_ids.size():
 		_advance_story()
@@ -172,17 +147,22 @@ func _on_line_closed() -> void:
 		_end_talk()
 
 
-func _on_talk_closed() -> void:
-	_end_talk()
-
-
 func _end_talk() -> void:
 	_talking = false
 	_active_ui = null
 	if _body_anim != null:
 		_body_anim.speed_scale = 1.0
+	var mabel: Node3D = _mabel()
+	if mabel != null and mabel.has_method("chime_in"):
+		mabel.call("chime_in", null)
 	TalkCamera.end(get_tree())
-	_face_machine()  ## back to the sewing machine
+	## `aNNW_THINK_TURN` → back to the machine (`MISIN_WAIT`), which starts up again.
+	_face_machine()
+	NeedleworkPresenter.set_machine_running(get_parent(), true)
+
+
+func _mabel() -> Node3D:
+	return get_tree().get_first_node_in_group("needlework_mabel") as Node3D if get_tree() != null else null
 
 
 func _start_talk_session(listener: Node3D) -> void:

@@ -77,6 +77,21 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 		InteriorShadow.add(mabel, Vector2(0.7, 0.58), 0.4)
 
 
+## `misin_clip->request_misin_stop_proc` / `_dustcloth_stop_proc` (Sable stops sewing
+## to talk, `aNNW_talk_init`) and the matching `_move_proc`s when she goes back to it.
+static func set_machine_running(root: Node, on: bool) -> void:
+	if root == null:
+		return
+	var machine: Node = root.get_node_or_null("SewingMachine")
+	if machine != null:
+		var anim: AnimationPlayer = VisualAnimation.find_animation_player(machine)
+		if anim != null:
+			anim.speed_scale = 1.0 if on else 0.0
+	var cloth: Node = root.get_node_or_null("SewingCloth")
+	if cloth != null and "running" in cloth:
+		cloth.set("running", on)
+
+
 ## Solid hulls for the `rom_tailor` shell's baked furniture — the blocked FG-cell
 ## runs in `rom_tailor.col.json` (cells (1-2, 1-6) west, cell (8, 6) south-east).
 ## `_add_shell_collision` only builds the floor slab + perimeter walls.

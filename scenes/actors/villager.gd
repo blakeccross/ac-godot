@@ -95,6 +95,8 @@ var _face: NpcFace = NpcFace.new()
 var _head_look: NpcHeadLook = NpcHeadLook.new()
 var _face_mood: int = -1
 var _visual: Node3D
+## Cloth-surface overrides from before an Able design was painted on: `[mesh, surface, material]`.
+var _own_cloth: Array = []
 
 @onready var _model: Node3D = $Model
 @onready var _placeholder: MeshInstance3D = $Model/PlaceholderMesh
@@ -133,6 +135,9 @@ func _ready() -> void:
 		_face.bind(vis, data.species if data else &"", texture_set)
 		_head_look.bind(vis, self)
 		_sync_face_mood(true)
+		_apply_design_wear()
+		if Game != null and Game.designs != null and not Game.designs.changed.is_connected(_apply_design_wear):
+			Game.designs.changed.connect(_apply_design_wear)
 	if indoor_resident:
 		_motor.facing = rotation.y
 	else:
@@ -154,6 +159,39 @@ func _exit_tree() -> void:
 		Clock.time_changed.disconnect(_sync_from_clock)
 	if ai.action_changed.is_connected(_on_action_changed):
 		ai.action_changed.disconnect(_on_action_changed)
+	if Game != null and Game.designs != null and Game.designs.changed.is_connected(_apply_design_wear):
+		Game.designs.changed.disconnect(_apply_design_wear)
+
+
+## An Able Sisters shirt (`RSV_CLOTH` + `cloth_original_id`, `aNPC_setup_chg_cloth`):
+## paint the mannequin's design over the cloth surfaces, or put the villager's own
+## shirt back when they stop wearing one.
+func _apply_design_wear() -> void:
+	if _visual == null or state == null or Game == null or Game.designs == null:
+		return
+	var idx: int = state.cloth_design
+	if idx < 0:
+		if not _own_cloth.is_empty():
+			for entry: Array in _own_cloth:
+				var mi := entry[0] as MeshInstance3D
+				if is_instance_valid(mi):
+					mi.set_surface_override_material(int(entry[1]), entry[2] as Material)
+			_own_cloth.clear()
+		return
+	if _own_cloth.is_empty():
+		_own_cloth = _cloth_overrides(_visual)
+	VisualCloth.apply_design(_visual, DesignTexture.build(Game.designs.shop[idx & 3]))
+
+
+func _cloth_overrides(node: Node, acc: Array = []) -> Array:
+	if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+		var mi := node as MeshInstance3D
+		for i: int in mi.mesh.get_surface_count():
+			if VisualCloth.is_cloth_surface(mi, i, mi.get_active_material(i)):
+				acc.append([mi, i, mi.get_surface_override_material(i)])
+	for child: Node in node.get_children():
+		_cloth_overrides(child, acc)
+	return acc
 
 
 func current_activity() -> StringName:

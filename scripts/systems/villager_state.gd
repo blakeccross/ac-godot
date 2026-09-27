@@ -21,6 +21,11 @@ var is_home: bool = false
 ## player on the finished collection (`mNpc_Set*CompleteTalk`).
 var fish_complete_talk: bool = false
 var insect_complete_talk: bool = false
+## Able Sisters design worn (`Animal_c.cloth == RSV_CLOTH` + `cloth_original_id`, and
+## `umbrella_id` in `ITM_MY_ORG_UMBRELLA0..3`): -1 = none, else mannequin / stand 0-3.
+## Spread by `NeedleworkTrend`.
+var cloth_design: int = -1
+var umbrella_design: int = -1
 
 var friendship: int:
 	get:
@@ -61,6 +66,8 @@ func to_save() -> Dictionary:
 		"is_home": is_home,
 		"fish_complete_talk": fish_complete_talk,
 		"insect_complete_talk": insect_complete_talk,
+		"cloth_design": cloth_design,
+		"umbrella_design": umbrella_design,
 		"relationship": _bond().to_save(),
 	}
 
@@ -73,6 +80,8 @@ func apply_snapshot(data: Dictionary) -> void:
 	is_home = bool(data.get("is_home", false))
 	fish_complete_talk = bool(data.get("fish_complete_talk", false))
 	insect_complete_talk = bool(data.get("insect_complete_talk", false))
+	cloth_design = clampi(int(data.get("cloth_design", -1)), -1, 3)
+	umbrella_design = clampi(int(data.get("umbrella_design", -1)), -1, 3)
 	var nested: Variant = data.get("relationship", {})
 	if typeof(nested) == TYPE_DICTIONARY and not (nested as Dictionary).is_empty():
 		_bond().apply_snapshot(nested as Dictionary)

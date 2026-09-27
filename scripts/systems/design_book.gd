@@ -31,6 +31,13 @@ const SHOP_START_NAMES: Array = [
 	"Rain", "Solid", "Polka Dot", "Herringbone",
 ]
 
+## Design album behind "Save a pattern" (`m_cporiginal_ovl.c`, `mCD_keep_original_c`):
+## 8 folders of 12 designs, each folder with a 12-character name (blank on a fresh card).
+## The GC kept it on the Memory Card, shared by every resident; here it rides the save.
+const ALBUM_PAGES := 8  ## mCO_PAGE_NUM
+const ALBUM_PER_PAGE := 12  ## mCO_ORIGINAL_NUM
+const FOLDER_NAME_LEN := 12  ## mCO_FOLDER_NAME_LEN
+
 signal changed
 signal sable_day_advanced(days: int)
 
@@ -38,22 +45,15 @@ var player: Array[DesignPattern] = []
 var player_order: PackedByteArray = PackedByteArray()
 var shop: Array[DesignPattern] = []
 
+var album: Array = []  ## ALBUM_PAGES × Array[DesignPattern]
+var album_names: PackedStringArray = PackedStringArray()
+
 ## Sable friendship arc.
 var sable_days: int = 0
 var sable_last_date: String = ""
 var sister_now: int = 0
 var first_talk_done: bool = false
 var listened_flag: bool = false
-
-## Trend tracking (`aNNW_trend_check_cloth` / `_check_umbrella`). Index 0-3 = shop
-## cloth slots, 4-7 = umbrella slots. `eligible` is set when the player puts one of
-## their designs on a display; `count` grows each day a villager adopts it (capped
-## at the town population) and resets to 0 when the design is removed
-## (`aNNW_trend_delete_*`).
-var trend_count: PackedInt32Array = PackedInt32Array()
-var trend_eligible: PackedByteArray = PackedByteArray()
-var trend_last_date: String = ""
-
 
 func _init() -> void:
 	clear()
@@ -69,16 +69,19 @@ func clear() -> void:
 		var pd: DesignPattern = _seed_player(i)
 		player.append(pd)
 		shop.append(_seed_shop(i))
+	album.clear()
+	album_names = PackedStringArray()
+	for _p in ALBUM_PAGES:
+		var page: Array[DesignPattern] = []
+		for _i in ALBUM_PER_PAGE:
+			page.append(DesignPattern.blank())
+		album.append(page)
+		album_names.append("")
 	sable_days = 0
 	sable_last_date = ""
 	sister_now = 0
 	first_talk_done = false
 	listened_flag = false
-	trend_count = PackedInt32Array()
-	trend_count.resize(SLOT_COUNT)
-	trend_eligible = PackedByteArray()
-	trend_eligible.resize(SLOT_COUNT)
-	trend_last_date = ""
 
 
 ## Placeholder motifs per starter slot until ARAM slots 27/28 are extracted.
@@ -166,8 +169,6 @@ func resolved_index(slot: int) -> int:
 ## (`aNI_CopyClothData` / `TRADE_CLOSE2`). `shop_idx` 0-7.
 func copy_player_to_shop(shop_idx: int, player_slot: int) -> void:
 	shop[shop_idx & 7].copy_from(resolved(player_slot))
-	trend_eligible[shop_idx & 7] = 1
-	trend_count[shop_idx & 7] = 0
 	changed.emit()
 
 
@@ -178,39 +179,23 @@ func exchange(shop_idx: int, player_slot: int) -> void:
 	var tmp := shop[shop_idx & 7].duplicate_design()
 	shop[shop_idx & 7].copy_from(player[pi])
 	player[pi].copy_from(tmp)
-	trend_eligible[shop_idx & 7] = 1
-	trend_count[shop_idx & 7] = 0
 	changed.emit()
 
 
-## Design removed from a display (`aNNW_trend_delete_cloth` / `_delete_umbrella`).
-func trend_delete(shop_idx: int) -> void:
-	trend_eligible[shop_idx & 7] = 0
-	trend_count[shop_idx & 7] = 0
+## A display's design was replaced (`aNNW_trend_delete_cloth` / `_delete_umbrella`):
+## every villager wearing the old one changes back. `states` defaults to the town.
+func trend_delete(shop_idx: int, states: Variant = null) -> int:
+	var list: Array = states if states is Array else NeedleworkTrend.town_states()
+	var n := NeedleworkTrend.delete(list, shop_idx)
 	changed.emit()
+	return n
 
 
-## Once per day, roll whether a villager adopts each displayed player design.
-func tick_trend(today: String, town_pop: int, rng: RandomNumberGenerator) -> void:
-	if today == trend_last_date:
-		return
-	trend_last_date = today
-	var cap: int = clampi(town_pop, 1, 8)
-	for i in SLOT_COUNT:
-		if trend_eligible[i] == 1 and trend_count[i] < cap and rng.randf() < 0.6:
-			trend_count[i] += 1
-
-
-## Highest-worn cloth (0-3) / umbrella (4-7) slot and its count (`aNNW_set_trend_*`).
-func trend_top(is_umbrella: bool, rng: RandomNumberGenerator) -> Array:
-	var base: int = 4 if is_umbrella else 0
-	var best_idx: int = base + rng.randi_range(0, 3)
-	var best: int = 0
-	for i in 4:
-		if trend_count[base + i] > best:
-			best = trend_count[base + i]
-			best_idx = base + i
-	return [best_idx, best]
+## Most-worn cloth (0-3) / umbrella (4-7) display and its wearer count
+## (`aNNW_set_trend_*_message`). `states` defaults to the town.
+func trend_top(is_umbrella: bool, rng: RandomNumberGenerator, states: Variant = null) -> Array:
+	var list: Array = states if states is Array else NeedleworkTrend.town_states()
+	return NeedleworkTrend.top(list, is_umbrella, rng)
 
 
 ## Copy a shop design into a player slot (`TRADE_CLOSE3`).
@@ -230,6 +215,37 @@ func swap_player_order(a: int, b: int) -> void:
 
 func save_player_slot(player_slot: int, design: DesignPattern) -> void:
 	player[resolved_index(player_slot)].copy_from(design)
+	changed.emit()
+
+
+# --- design album (`mCO_swap_image`) ---------------------------------------
+
+func album_design(page: int, idx: int) -> DesignPattern:
+	return (album[clampi(page, 0, ALBUM_PAGES - 1)] as Array)[clampi(idx, 0, ALBUM_PER_PAGE - 1)]
+
+
+## Player display slot ↔ album entry (`mCO_swap_image_2` → `mNW_SwapOriginalData`).
+func album_swap_player(page: int, idx: int, player_slot: int) -> void:
+	var mine := player[resolved_index(player_slot)]
+	var theirs := album_design(page, idx)
+	var tmp := mine.duplicate_design()
+	mine.copy_from(theirs)
+	theirs.copy_from(tmp)
+	changed.emit()
+
+
+## Two album entries trade places (`mNW_SwapOriginalData` on two card designs).
+func album_swap(page_a: int, idx_a: int, page_b: int, idx_b: int) -> void:
+	var a := album_design(page_a, idx_a)
+	var b := album_design(page_b, idx_b)
+	var tmp := a.duplicate_design()
+	a.copy_from(b)
+	b.copy_from(tmp)
+	changed.emit()
+
+
+func set_folder_name(page: int, text: String) -> void:
+	album_names[clampi(page, 0, ALBUM_PAGES - 1)] = text.substr(0, FOLDER_NAME_LEN)
 	changed.emit()
 
 
@@ -261,14 +277,13 @@ func to_save() -> Dictionary:
 		"player": p,
 		"shop": s,
 		"order": order,
+		"album": album.map(func(page: Array) -> Array: return page.map(func(d: DesignPattern) -> Variant: return d.to_save())),
+		"album_names": Array(album_names),
 		"sable_days": sable_days,
 		"sable_last_date": sable_last_date,
 		"sister_now": sister_now,
 		"first_talk_done": first_talk_done,
 		"listened": listened_flag,
-		"trend_count": Array(trend_count),
-		"trend_eligible": Array(trend_eligible),
-		"trend_last_date": trend_last_date,
 	}
 
 
@@ -289,17 +304,19 @@ func apply_snapshot(data: Variant) -> void:
 	if order is Array and (order as Array).size() == SLOT_COUNT:
 		for i in SLOT_COUNT:
 			player_order[i] = int((order as Array)[i]) & 7
+	var alb: Variant = dict.get("album", [])
+	if alb is Array:
+		for pg in mini((alb as Array).size(), ALBUM_PAGES):
+			var page: Variant = (alb as Array)[pg]
+			if page is Array:
+				for i in mini((page as Array).size(), ALBUM_PER_PAGE):
+					(album[pg] as Array)[i] = DesignPattern.from_save((page as Array)[i])
+	var names: Variant = dict.get("album_names", [])
+	if names is Array:
+		for pg in mini((names as Array).size(), ALBUM_PAGES):
+			album_names[pg] = str((names as Array)[pg]).substr(0, FOLDER_NAME_LEN)
 	sable_days = clampi(int(dict.get("sable_days", 0)), 0, SABLE_DAYS_MAX)
 	sable_last_date = str(dict.get("sable_last_date", ""))
 	sister_now = int(dict.get("sister_now", 0))
 	first_talk_done = bool(dict.get("first_talk_done", false))
 	listened_flag = bool(dict.get("listened", false))
-	var tc: Variant = dict.get("trend_count", [])
-	if tc is Array and (tc as Array).size() == SLOT_COUNT:
-		for i in SLOT_COUNT:
-			trend_count[i] = int((tc as Array)[i])
-	var te: Variant = dict.get("trend_eligible", [])
-	if te is Array and (te as Array).size() == SLOT_COUNT:
-		for i in SLOT_COUNT:
-			trend_eligible[i] = int((te as Array)[i]) & 1
-	trend_last_date = str(dict.get("trend_last_date", ""))

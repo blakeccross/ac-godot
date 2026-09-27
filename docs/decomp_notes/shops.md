@@ -6,6 +6,18 @@ Research notes from [ACreTeam/ac-decomp](https://github.com/ACreTeam/ac-decomp).
 
 **Able Sisters (`needlework`) is NOT a clothing store.** `SCENE_NEEDLEWORK` is a design/pattern shop (`src/game/m_needlework.c`, `ac_needlework_indoor.c`, `ac_npc_needlework`). `ShopBook.restock(ABLE_ID)` stocks nothing — no Bell stock, no counter. The player keeps 8 original designs (`Game.designs` = `DesignBook`), the shop 8 shared ones (4 mannequins + 4 umbrella stands). Designs are made in the pixel editor (350 Bells for a new one) and traded through Mabel — see the design/pattern tool entry in [feature-checklist.md](../feature-checklist.md).
 
+## Able Sisters (as built)
+
+Decomp: `ac_npc_needlework.c` + `_talk.c_inc` / `_schedule.c_inc` / `_gba.c_inc`, `ac_needlework_indoor.c`, `ac_needlework_shop*.c`, `m_needlework*.c`, `m_cporiginal_ovl.c`, villager wear in `ac_npc_act_greeting.c_inc`.
+
+- **Mabel** (`mabel.gd`): force-talk greeting on the first approach (0x2FD1 / 0x2FD2). A → 6-way led by 0x2FD4 until "What's this?" is picked once (`first_talk_flags & 0x40`), then 0x3005. Results that go to `aNNW_TALK_WHAT_HAPPEN` re-open the menu; trade, trend and listen end the talk. Goodbye (think 10): facing the exit from the row inside → 0x2FD3 → leave (`Interior.leave_through_exit`).
+- **Design** (`DESIGN_CHECK` … `DESIGN_CLOSE3`): money checked with sacks (`ShopBook.can_afford`), 350 paid after the name entry (`ShopBook.pay`); cancel / unsaved = 0x2FE9, free.
+- **Album** (`CPORIGINAL0-2`, `design_album_overlay`): `DesignBook.album` 8 × 12 + `album_names`; swaps per `mCO_swap_image`; keep / discard on close restores a `to_save()` snapshot.
+- **Trades** (`TRADE_CLOSE` exchange / `CLOSE2` display / `CLOSE3` buy): display and exchange call `trend_delete` (wearers revert), buy doesn't (`Mabel.apply_trade`).
+- **Trends** (`NeedleworkTrend`): wear is `VillagerState.cloth_design` / `umbrella_design`. Greeting reactions use `react_rate_table` (0.2 feel, 0.1 copy catchphrase, 0.1 reset catchphrase, 0.1 shop umbrella, 0.1 copy shirt, 0.05 new normal shirt, 0.1 shop shirt, 0.05 reset shirt + umbrella; A = the villager the player is friendlier with). Stand-in: each resident greets one random neighbour per daily renewal. Report tiers 0 / 1 / <5 / ≥5 (`MSG_TREND_*`).
+- **Sable** (`sable.gd`): `pick_story_row(days, first_of_day)` *before* `tick_sable_day` (first talk of days 4–7 → rows 5/9/13/17); parts are Sable / Mabel (`chime_in`, facing Sable) / Sable; story 9 turns to the player; she turns to the player only at `days >= 5`; `NeedleworkPresenter.set_machine_running` stops the machine + fabric while she talks.
+- Not built: ROM text (authored stand-ins in `NeedleworkTalk`), GBA / e-Reader, April Fool's, foreigner rules, Mabel's area-table roaming and walk-over before trades.
+
 **Cranny presentation (`ShopDisplay` + authored `shop0.tscn`):**
 - Shells `rom_shop1f` / `rom_shop1w` (and `rom_shop2f`/`w`, `rom_shop3f`/`w`, `rom_shop4_2f`/`w`); the `f`/`w` suffix is floor/wall. Wall/floor bank indices follow `aSI_*_default_table` (`WALL_SHOP*` / `FLOOR_SHOP*` → 67–70).
 - FG walkable `(1,1)+(7,8)`; exit `(3,8)`; player spawn GX `{160,0,300}`.
