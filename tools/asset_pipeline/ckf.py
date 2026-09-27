@@ -4,7 +4,7 @@ import re
 import struct
 from dataclasses import dataclass, field
 
-from .gfx import G_SETTIMG, G_VTX, MeshPart, RenderState, apply_texture_commands, parse_gfx, parse_vtx_blob
+from .gfx import G_LIGHTING, G_SETTIMG, G_VTX, MeshPart, RenderState, apply_texture_commands, parse_gfx, parse_vtx_blob
 from .mapfile import MapSymbol, find_symbol, index_by_name
 from .math3d import Mat4, ckf_basis, local_softcv3
 from .rel import RelData
@@ -796,6 +796,7 @@ def convert_static_gfx(
     scale: float,
     bank: TextureBank | None = None,
     mat_override: str | None = None,
+    share_geometry_mode: bool = False,
 ) -> list[MeshPart]:
     by_name = index_by_name(symbols)
     vtx_sym = _vtx_sym_for_gfx(rel, symbols, by_name, vtx_name, gfx_names)
@@ -805,7 +806,7 @@ def convert_static_gfx(
     ## `*_DL_mode` keep SETTIMG / SetRenderMode when the following vtx DL draws.
     ## Reset when a companion `*_mat_model` starts a new material (axe/coco style).
     tex_state = TextureState()
-    render_state = RenderState()
+    render_state = RenderState(geometry_mode=G_LIGHTING if share_geometry_mode else None)
     for name in gfx_names:
         if bank is not None:
             bank.current_gfx = name

@@ -140,3 +140,34 @@ func test_blocked_units_match_the_rom_tailor_bg() -> void:
 	## Sable's spot beside the machine is floor.
 	assert_bool(blocked.has(Vector2i(2, 2))).is_false()
 
+
+
+func test_window_sunbeams_follow_ef_room_sunshine() -> void:
+	## `ROOM_SUNSHINE` arg 2 / 3: the constructor nets −2 / 0 X and lifts 1.1 GX.
+	assert_vector(NeedleworkPresenter.sunshine_anchor_gx(NeedleworkPresenter.SUNSHINE_L_GX, true)) \
+		.is_equal(Vector3(38.0, 1.1, 160.0))
+	assert_vector(NeedleworkPresenter.sunshine_anchor_gx(NeedleworkPresenter.SUNSHINE_R_GX, false)) \
+		.is_equal(Vector3(360.0, 1.1, 160.0))
+	## Morning: only the east beam, reaching full length (1.5) at 04:00.
+	assert_float(NeedleworkPresenter.sunshine_stretch(8 * 3600, true)).is_equal(0.0)
+	assert_float(NeedleworkPresenter.sunshine_stretch(4 * 3600, false)).is_equal_approx(1.5, 0.001)
+	assert_float(NeedleworkPresenter.sunshine_stretch(8 * 3600, false)).is_greater(0.0)
+	## Afternoon: only the west beam, growing from noon.
+	assert_float(NeedleworkPresenter.sunshine_stretch(15 * 3600, false)).is_equal(0.0)
+	assert_float(NeedleworkPresenter.sunshine_stretch(15 * 3600, true)).is_greater(0.0)
+
+
+func test_present_adds_both_window_sunbeams() -> void:
+	var session := IndoorSession.new()
+	session.bind(InteriorCatalog.room_template(&"needlework"))
+	var root := Node3D.new()
+	auto_free(root)
+	add_child(root)
+	NeedleworkPresenter.new().present(root, session)
+	var left: Node3D = root.get_node_or_null("SunshineL") as Node3D
+	var right: Node3D = root.get_node_or_null("SunshineR") as Node3D
+	assert_object(left).is_not_null()
+	assert_object(right).is_not_null()
+	assert_bool(left.get("left")).is_true()
+	assert_bool(right.get("left")).is_false()
+	assert_float(right.position.x).is_greater(left.position.x)

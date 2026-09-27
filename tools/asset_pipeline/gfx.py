@@ -134,6 +134,27 @@ def combine_alpha_uses_texel(combine_w0: int, combine_w1: int) -> bool:
     return any(v in texel for v in (aa0, ab0, ac0, ad0, aa1, ab1, ac1, ad1))
 
 
+## `G_ACMUX_SHADE` — the same code in every alpha mux slot (a, b, c, d).
+_G_ACMUX_SHADE = 4
+
+
+def combine_alpha_uses_shade(combine_w0: int, combine_w1: int) -> bool:
+    """True when either cycle's alpha mux reads SHADE (vertex alpha fades a beam out)."""
+    if combine_w0 == 0 and combine_w1 == 0:
+        return False
+    muxes = (
+        (combine_w0 >> 12) & 7,
+        (combine_w0 >> 9) & 7,
+        (combine_w1 >> 12) & 7,
+        (combine_w1 >> 9) & 7,
+        (combine_w1 >> 21) & 7,
+        (combine_w1 >> 18) & 7,
+        (combine_w1 >> 3) & 7,
+        combine_w1 & 7,
+    )
+    return _G_ACMUX_SHADE in muxes
+
+
 ## `G_ACMUX_PRIM_LOD_FRAC` — alpha multiplier gated by runtime lod (`lod_factor`).
 _G_ACMUX_PRIM_LOD_FRAC = 6
 
@@ -464,6 +485,9 @@ class MeshPart:
     ## True when the DL had G_LIGHTING — cn[] was a lighting normal.
     ## False → cn[] is RGBA shade (museum / house walls: ceiling AO as vertex color).
     uses_lighting: bool = True
+    ## Unlit, texture off and the alpha combiner reads SHADE: cn[].a is coverage (room
+    ## sunshine shafts fade to 0 at the floor), so the GLB keeps it in COLOR_0.
+    shade_alpha: bool = False
     ## From G_SETOTHERMODE_L: opa / tex_edge / xlu, or None if never set in this DL.
     coverage: str | None = None
     ## Texture is sampled through a segment address the game binds at draw time (acre
@@ -481,6 +505,11 @@ class RenderState:
     coverage: str | None = None
     combine_w0: int = 0
     combine_w1: int = 0
+    ## None: every DL starts lit (the long-standing default). A job that draws a `*_mode`
+    ## DL with `gsSPLoadGeometryMode` before its vtx DLs sets this so the mode carries.
+    geometry_mode: int | None = None
+    ## `gsSPTexture(..., G_OFF)`: the tile is not sampled, whatever SETTIMG is loaded.
+    texture_on: bool = True
 
 
 ## Decomp OPA beach2 / beachB under ocean (dark-blue floor), not shore wet sand.
@@ -757,9 +786,10 @@ def parse_gfx(
     ## Nested `gsSPDisplayList` keeps its own symbol name so indoor edge/out
     ## groups are not labeled with the parent `room01_model`.
     current_dl_name = name
-    ## Default on (actors / outdoor acres). Indoor shells LoadGeometryMode without G_LIGHTING.
-    geometry_mode = G_LIGHTING
     rs = render if render is not None else RenderState()
+    ## Default on (actors / outdoor acres). Indoor shells LoadGeometryMode without G_LIGHTING.
+    geometry_mode = rs.geometry_mode if rs.geometry_mode is not None else G_LIGHTING
+    texture_on = rs.texture_on
     othermode_l = rs.othermode_l
     othermode_h = rs.othermode_h
     ## None until a SetRenderMode packet; trees often set mode at draw time only.
@@ -850,7 +880,7 @@ def parse_gfx(
         wrap0_t = int((tex_state.tile0 or {}).get("wrap_t", wrap_t))
         wrap1_s = int((tex_state.tile1 or {}).get("wrap_s", GX_REPEAT)) if tex_state.tile1 else GX_REPEAT
         wrap1_t = int((tex_state.tile1 or {}).get("wrap_t", GX_REPEAT)) if tex_state.tile1 else GX_REPEAT
-        if bank is not None and not unlit:
+        if bank is not None and not unlit and texture_on:
             name0 = bank._name_for(int((tex_state.tile0 or {}).get("img_addr") or tex_state.img_addr))
             name1 = bank._name_for(int((tex_state.tile1 or {}).get("img_addr") or 0)) if tex_state.tile1 else ""
             water_kind = classify_water_surface(
@@ -1132,6 +1162,13 @@ def parse_gfx(
                 base_color=base_color,
                 beach_prim=beach_prim,
                 uses_lighting=uses_lighting,
+                ## Texture off only: textured SHADE-alpha surfaces (tank water) keep the
+                ## opaque vertex alpha their materials were tuned against.
+                shade_alpha=(
+                    not uses_lighting
+                    and not texture_on
+                    and combine_alpha_uses_shade(combine_w0, combine_w1)
+                ),
                 coverage=coverage,
                 runtime_bound=bool(
                     int((tex_state.tile0 or {}).get("img_addr") or tex_state.img_addr) >> 24
@@ -1190,7 +1227,7 @@ def parse_gfx(
 
     def walk(dl: bytes, depth: int = 0, dl_name: str | None = None) -> None:
         nonlocal vtx_cursor, current_mtx, current_key, current_dl_name, geometry_mode
-        nonlocal othermode_l, othermode_h, coverage, combine_w0, combine_w1
+        nonlocal othermode_l, othermode_h, coverage, combine_w0, combine_w1, texture_on
         if depth > 8:
             return
         prev_name = current_dl_name
@@ -1220,8 +1257,12 @@ def parse_gfx(
                 if (w1 >> 24) == SEG_MTX:
                     current_mtx = (w1 & 0xFFFFFF) // MTX_STRIDE
             elif cmd == G_TEXTURE:
-                ## gsSPTexture — state only; no geometry.
-                pass
+                ## gsSPTexture — state only; no geometry. `on` is w0 bits 1–7.
+                new_on = bool((w0 >> 1) & 0x7F)
+                if triangles and new_on != texture_on:
+                    flush()
+                    current_key = None
+                texture_on = new_on
             elif cmd == G_SETOTHERMODE_L:
                 new_l = apply_othermode(othermode_l, w0, w1)
                 new_cov = coverage
@@ -1374,4 +1415,7 @@ def parse_gfx(
         render.coverage = coverage
         render.combine_w0 = combine_w0
         render.combine_w1 = combine_w1
+        if render.geometry_mode is not None:
+            render.geometry_mode = geometry_mode
+        render.texture_on = texture_on
     return parts

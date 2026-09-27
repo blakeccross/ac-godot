@@ -253,6 +253,15 @@ WEATHER_RAIN_GFX: dict[str, list[str]] = {
     "ef_ame02_04": ["ef_ame02_setmode", "ef_ame02_04_modelT"],
 }
 
+## Able Sisters window beams (`ef_room_sunshine`). Each side is its own mesh: a textured
+## floor patch (`light_floor01_mode`, I4 `light_window`) then the PRIM×SHADE shaft
+## (`light_shine01_mode`). The vtx arrays have no `*_model` to infer from. The floor mode's
+## `gsSPLoadGeometryMode` (unlit, shade) carries into every DL after it.
+ROOM_SUNSHINE_GFX: dict[str, list[str]] = {
+    "room_lightL": ["light_floor01_mode", "light_floorL01_vtx", "light_shine01_mode", "light_shineL01_vtx"],
+    "room_lightR": ["light_floor01_mode", "light_floorR01_vtx", "light_shine01_mode", "light_shineR01_vtx"],
+}
+
 ## Legacy prefix list kept for tests / callers. `--kind water` uses
 ## `convert_water_acres` (every `grd_s_*` / `grd_w_*` job with `*_modelT`) so
 ## pond / post / island / FG hole acres are not skipped after wrap-bake fixes.
@@ -806,6 +815,8 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
             gfx_names = ITEM_CARD_GFX.get(prefix)
         if gfx_names is None:
             gfx_names = WEATHER_RAIN_GFX.get(prefix)
+        if gfx_names is None:
+            gfx_names = ROOM_SUNSHINE_GFX.get(prefix)
         if gfx_names is not None:
             if symbol.name in seen_vtx:
                 continue
@@ -820,6 +831,7 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
                     "gfx": list(gfx_names),
                     "output": f"{folder}/{prefix}.glb",
                     "confident_name": True,
+                    **({"share_geometry_mode": True} if prefix in ROOM_SUNSHINE_GFX else {}),
                 }
             )
             continue
@@ -1141,6 +1153,7 @@ def _convert_static(
             cfg.scale,
             bank=bank,
             mat_override=item.get("mat"),
+            share_geometry_mode=bool(item.get("share_geometry_mode")),
         )
         if _is_bit_shadow(parts):
             parts = _blob_shadow_parts(parts)

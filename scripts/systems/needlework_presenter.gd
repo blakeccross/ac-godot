@@ -2,12 +2,13 @@ class_name NeedleworkPresenter
 extends RefCounted
 
 ## Furnishes the Able Sisters interior: the animated sewing machine + fabric, the
-## 4 clothing mannequins + 4 umbrella stands, Mabel & Sable, the back-wall clock,
-## and solid hulls for the shell's baked west counter / east fabric boxes.
+## 4 clothing mannequins + 4 umbrella stands, Mabel & Sable, the back-wall clock, the
+## two window sunbeams, and solid hulls for the shell's baked west counter / east
+## fabric boxes.
 ##
 ## Decomp: `ac_needlework_indoor.c` (`manekin_pos` / `umbrella_pos`),
 ## `ac_npc_needlework.c` (sisters), `ac_misin.c` (machine + dustcloth),
-## `HOUSE_CLOCK` / `obj_clock_tailor`. The static machine body / table / register /
+## `HOUSE_CLOCK` / `obj_clock_tailor`, `ef_room_sunshine.c` (window beams). The static machine body / table / register /
 ## boxes are baked into the `rom_tailor` shell.
 
 const ABLE_FIXTURE_SCENE := preload("res://scenes/world/interiors/able_fixture.tscn")
@@ -15,6 +16,7 @@ const MABEL_SCENE := preload("res://scenes/world/interiors/mabel.tscn")
 const SABLE_SCENE := preload("res://scenes/world/interiors/sable.tscn")
 const CLOCK_SCRIPT := preload("res://scenes/world/interiors/needlework_clock.gd")
 const CLOTH_SCRIPT := preload("res://scenes/world/interiors/sewing_cloth.gd")
+const SUNSHINE_SCENE := preload("res://scenes/world/interiors/room_sunshine.tscn")
 
 ## Exact `ac_needlework_indoor.c` tables (`manekin_pos` z=100, `umbrella_pos` z=180,
 ## 40 GX apart). `rom_tailor` keeps the acre origin, so these map straight through
@@ -37,6 +39,12 @@ const MISIN_OFFSET := Vector3(0.8, -2.25, 0.0)
 const CLOCK_GX := Vector3(200.0, 46.0, 46.0)
 const CLOTH_SCALE := 0.34
 
+## `NEEDLEWORK` actor list: `ROOM_SUNSHINE` arg 2 (west window) and arg 3 (east).
+const SUNSHINE_L_GX := Vector3(40.0, 0.0, 160.0)
+const SUNSHINE_R_GX := Vector3(360.0, 0.0, 160.0)
+const SUNSHINE_L_VISUAL := &"room_lightL"
+const SUNSHINE_R_VISUAL := &"room_lightR"
+
 
 func present(root: Node3D, interior: IndoorSession) -> void:
 	if root == null or interior == null or interior.grid == null:
@@ -45,6 +53,8 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 	_furniture_collision(root, grid)
 	_sewing_machine(root, grid)
 	_clock(root, grid)
+	_sunshine(root, grid, "SunshineL", SUNSHINE_L_GX, true)
+	_sunshine(root, grid, "SunshineR", SUNSHINE_R_GX, false)
 	for i in MANNEQUIN_GX.size():
 		if root.get_node_or_null("Mannequin_%d" % i) != null:
 			continue
@@ -90,6 +100,32 @@ static func set_machine_running(root: Node, on: bool) -> void:
 	var cloth: Node = root.get_node_or_null("SewingCloth")
 	if cloth != null and "running" in cloth:
 		cloth.set("running", on)
+
+
+## `Ef_Room_Sunshine_actor_ct`: every non-zero `actor_specific` first steps −1 X, then
+## case 2 nets −1 more and case 3 nets +1. Y is `1 + BgY` and the draw adds 0.1.
+static func sunshine_anchor_gx(actor_gx: Vector3, left: bool) -> Vector3:
+	var x: float = actor_gx.x - 1.0 + (-1.0 if left else 1.0)
+	return Vector3(x, actor_gx.y + 1.1, actor_gx.z)
+
+
+## X stretch of a window beam; 0 hides it. The west beam shows at night 00–04 and in the
+## afternoon 12–20, the east one in the morning 04–12 and evening 20–24. Both models
+## already point into the room, so unlike the police box the east beam is not mirrored.
+static func sunshine_stretch(now_sec: int, left: bool) -> float:
+	if left:
+		return PoliceDisplay.sunshine_left_x(now_sec)
+	return absf(PoliceDisplay.sunshine_right_x(now_sec))
+
+
+func _sunshine(root: Node3D, grid: WorldGrid, node_name: String, gx: Vector3, left: bool) -> void:
+	var node: Node3D = root.get_node_or_null(node_name) as Node3D
+	if node == null:
+		node = SUNSHINE_SCENE.instantiate() as Node3D
+		node.name = node_name
+		node.set("left", left)
+		root.add_child(node)
+	node.position = MuseumDisplay.gx_to_world(grid, sunshine_anchor_gx(gx, left))
 
 
 ## Solid hulls for the `rom_tailor` BG's raised units: the counter, the sewing-machine
