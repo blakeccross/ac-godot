@@ -388,7 +388,7 @@ func _cmd_shop(args: PackedStringArray) -> String:
 			Game.refresh_shop_set()
 		"turnips":
 			var week: PackedStringArray = []
-			shop.kabu.update(Clock.year, Clock.month, Clock.day)
+			shop.kabu.price_today()
 			for d: int in 7:
 				week.append("%s %d" % [String(ClockService.WEEKDAYS[d]).substr(0, 3), shop.kabu.price_on(d)])
 			return "Turnips (%s): %s" % [KabuMarket.Trend.keys()[shop.kabu.trend], ", ".join(week)]

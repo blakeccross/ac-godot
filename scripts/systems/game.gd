@@ -180,6 +180,8 @@ func _ready() -> void:
 	ReddBook.ensure_art_items()
 	if not Clock.field_renewed.is_connected(_on_field_renewed):
 		Clock.field_renewed.connect(_on_field_renewed)
+	if not Clock.day_changed.is_connected(_on_day_changed):
+		Clock.day_changed.connect(_on_day_changed)
 	if not Clock.time_changed.is_connected(sync_events):
 		Clock.time_changed.connect(sync_events)
 	if not events.event_started.is_connected(_on_event_started):
@@ -1219,6 +1221,11 @@ func _in_police_box() -> bool:
 		return false
 	var room: Room = interiors.room(current_room_id)
 	return room != null and room.kind == Room.Kind.POLICE
+
+
+## `mTM_*` time step: `Kabu_manager` runs when the date changes (midnight, not 06:00).
+func _on_day_changed() -> void:
+	shops.kabu.update(Clock.year, Clock.month, Clock.day)
 
 
 func _on_field_renewed(days: int) -> void:
