@@ -9,7 +9,7 @@ A fresh cloud container has no disc, no generated assets and no Godot. The game 
    - `pip3 install -r tools/requirements.txt` (Pillow, xxhash, texture2ddecoder).
    - `apt-get install -y ffmpeg` (optional; BGM falls back to WAV without it).
    - `dtk` downloads itself to `tools/.cache/dtk` on first run.
-2. **Fetch the disc image** (the owner's own dump, shared privately on Google Drive). The link lives in the `AC_ISO_URL` environment secret, never in the repo: `pip3 install gdown && mkdir -p /tmp/ac && gdown --fuzzy "$AC_ISO_URL" -O /tmp/ac/GAFE01.iso`. Never place the image inside the repo or commit it.
+2. **Fetch the disc image** (the owner's own dump, shared privately on Google Drive). The link lives in the `AC_ISO_URL` environment secret, never in the repo: `pip3 install gdown && mkdir -p /tmp/ac && gdown "$AC_ISO_URL" -O /tmp/ac/GAFE01.iso`. Never place the image inside the repo or commit it.
 3. **Clone the decomp** outside the repo: `git clone --depth 1 https://github.com/ACreTeam/ac-decomp /tmp/ac/ac-decomp`. FG templates, NPC rooms, villagers and audio read its headers.
 4. **Write `tools/config.local.json`** (gitignored):
    ```json
