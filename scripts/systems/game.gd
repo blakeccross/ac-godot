@@ -108,9 +108,9 @@ var weather: StringName = &"clear"
 ## False until `sync_events` has adopted the clock for this session.
 var _events_ready: bool = false
 
-## `Save_Get(insect_term)` / `insect_term_transition_offset` — the month whose
-## insect spawn table is currently "settled in" and a per-month random 0-5 day
-## offset for the cross-month blend (`aSOI_ins_chk_term_info`). Session-scoped.
+## `Save_Get(insect_term)` / `insect_term_transition_offset` — the 0-based month the
+## insect spawn table is heading into and how many days (0-5) before its 1st the
+## cross-month blend starts (`aSOI_ins_chk_term_info`). Session-scoped.
 var insect_term_month: int = 0
 var insect_term_offset: int = 0
 ## `Save_Get(gyoei_term)` / `gyoei_term_transition_offset` — same, for fish, but keyed
