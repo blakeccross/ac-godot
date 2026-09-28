@@ -271,24 +271,19 @@ func test_a_dashing_player_scares_a_fish_into_a_puff() -> void:
 	assert_int(school.puffs.size()).is_equal(0)
 
 
-func test_school_stocks_water_up_to_two_shadows() -> void:
+func test_school_stocks_the_acre_the_player_enters_once() -> void:
 	var school := FishSchool.new()
 	school.configure(_grid, 0.0)
 	school.seed_rng(11)
 	assert_bool(school.has_water()).is_true()
 	var sense := FishShadow.Sense.new()
 	sense.player_position = _at(Vector2i(8, 8))
-	## `aGYO_MAX_GYOEI`: two at once and no more, however long it runs.
+	## `aSOG_gyoei_set` runs on acre entry: one attempt, one fish at most per acre.
 	for _i: int in 400:
 		school.tick(STEP * 4.0, sense)
-		assert_int(school.shadow_count()).is_less_equal(FishSchool.MAX_SHADOWS)
-	assert_int(school.shadow_count()).is_equal(FishSchool.MAX_SHADOWS)
+		assert_int(school.shadow_count()).is_less_equal(1)
 	for shadow: FishShadow in school.shadows:
 		assert_that(shadow.fish).is_not_null()
-		## Nothing spawns that the pond is too small to hold.
-		assert_int(int(shadow.fish.size_class)).is_less_equal(
-			int(WaterBodies.size_ceiling(shadow.body))
-		)
 		## Shadows ride under the surface, not on it.
 		assert_float(shadow.position.y).is_equal_approx(-FishSize.depth(), 0.001)
 

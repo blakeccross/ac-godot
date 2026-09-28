@@ -69,8 +69,14 @@ func _run() -> void:
 		stand = grid.cell_to_world(school.bodies[0].cells[0])
 	var sense := FishShadow.Sense.new()
 	sense.player_position = stand
-	for _i in 40:
+	## One `aSOG_gyoei_set` roll per acre entry, and a roll can come up empty: re-enter
+	## the acre with fresh seeds until it stocks.
+	for i in 40:
 		school.tick(0.5, sense)
+		if school.shadow_count() > 0:
+			break
+		school.clear()
+		school.seed_rng(i + 2)
 	print("spawned_shadows=%d at %s" % [school.shadow_count(), stand])
 	for shadow: FishShadow in school.shadows:
 		print(
