@@ -716,3 +716,26 @@ func test_hopper_flees_a_stopped_net_but_not_a_swing_nearby() -> void:
 	s.net_swing_origin = at + Vector3(3.0, 0.0, 0.0)   ## 60 GX
 	a.frame(s)
 	assert_int(a.action).is_equal(BugBatta.AVOID)
+
+
+func test_wisp_floats_forty_over_the_ground_and_flips_its_turn_heading_out() -> void:
+	var s := _field_sense()
+	var at: Vector3 = s.grid.cell_to_world(Vector2i(4, 9))
+	var wisp := BugData.new()
+	wisp.type_index = BugProgram.T_SPIRIT
+	wisp.program = BugData.Program.HITODAMA
+	var a := BugActor.create(wisp, BugData.Habitat.FLYING, at, _rng)
+	a.frame(s)
+	assert_float(a.home.y).is_equal_approx(40.0, 0.01)
+	## 260 GX west of the acre centre (x 320): heading straight away flips its turn…
+	a.pos = Vector3(60.0, a.pos.y, 320.0)
+	a.angle_y = -PI * 0.5
+	a.s32_work[1] = 40
+	a.frame(s)
+	assert_int(a.s32_work[1]).is_less(0)
+	## …heading back in does not.
+	a.pos = Vector3(60.0, a.pos.y, 320.0)
+	a.angle_y = PI * 0.5
+	a.s32_work[1] = 40
+	a.frame(s)
+	assert_int(a.s32_work[1]).is_equal(40)
