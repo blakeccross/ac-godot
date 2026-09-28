@@ -19,6 +19,8 @@ extends Node3D
 ##                     bug:<id or glob> (a live field insect, e.g. bug:*grasshopper*) |
 ##                     pos:x,y,z | scene (keep the scene's own camera). Default: scene
 ##                     camera for scene=, else the town centre.
+##   room=shop0..shop3_2  Load that Nook floor at its store level (fresh lineup);
+##                     `buy=N` buys N goods off the shelf first.
 ##   console=cmd,args  Debug-console command run once the scene is up, commas for spaces
 ##                     (`console=bug,grasshopper,3`).
 ##   cam=dx,dy,dz      Camera offset from the focus in metres (default 0,4,7).
@@ -58,13 +60,7 @@ func _capture_date(date: String) -> void:
 	var hm := str(_args.get("time", "12:00")).split(":")
 	Game.reset_session()
 	var scene_path := str(_args.get("scene", ""))
-	if _args.has("room"):
-		## Mount the room the way the game does (`Game.INTERIOR_SCENE` reads the id).
-		Game.current_room_id = StringName(str(_args["room"]))
-		Game.prepare_interior_spawn(Game.current_room_id)
-		Game.block_auto_enter_doors = true
-		scene_path = Game.INTERIOR_SCENE
-	if scene_path.is_empty():
+	if scene_path.is_empty() and not _args.has("room"):
 		var seed_value := int(_args.get("seed", "12345"))
 		Game.world_mode = WorldData.Mode.GENERATED
 		Game.world_seed = seed_value
@@ -73,6 +69,15 @@ func _capture_date(date: String) -> void:
 		"year": int(ymd[0]), "month": int(ymd[1]), "day": int(ymd[2]),
 		"hour": int(hm[0]), "minute": int(hm[1]) if hm.size() > 1 else 0, "second": 0,
 	})
+	if _args.has("room"):
+		## Mount the room the way the game does (`Game.INTERIOR_SCENE` reads the id). A Nook
+		## floor loads at its own level with a fresh lineup; `buy=N` sells N goods first.
+		Game.current_room_id = StringName(str(_args["room"]))
+		Game.block_auto_enter_doors = true
+		scene_path = Game.INTERIOR_SCENE
+		if String(Game.current_room_id).begins_with("shop"):
+			_stock_nook(ShopDisplay.nook_level_for_room(Game.current_room_id))
+		Game.prepare_interior_spawn(Game.current_room_id)
 	var packed := load(scene_path if not scene_path.is_empty() else WORLD_SCENE) as PackedScene
 	if packed == null:
 		_error("cannot load scene '%s'" % scene_path)
@@ -81,6 +86,8 @@ func _capture_date(date: String) -> void:
 	add_child(root)
 	for _i: int in 10:
 		await get_tree().process_frame
+	for layer: Node in get_tree().root.find_children("*", "CanvasLayer", true, false):
+		(layer as CanvasLayer).visible = false
 	if _args.has("console"):
 		print("CONSOLE ", DebugConsole.new().execute(str(_args["console"]).replace(",", " ")))
 	var target := str(_args.get("target", "scene" if not scene_path.is_empty() else "town"))
@@ -212,3 +219,16 @@ static func _vec2i(text: String, fallback: Vector2i) -> Vector2i:
 	if p.size() != 2:
 		return fallback
 	return Vector2i(int(p[0]), int(p[1]))
+
+
+## Nook at store level `lv` with a fresh lineup, `buy=N` goods already sold.
+func _stock_nook(lv: int) -> void:
+	Game.shops.apply_snapshot({String(ShopBook.NOOK_ID): {
+		"id": String(ShopBook.NOOK_ID), "goods": [], "level": lv,
+		"sales": ShopBook.LEVEL_SUMS[lv], "renew": -1, "visitor": true,
+	}})
+	Game.shops.ensure_today(ShopBook.NOOK_ID)
+	Game.inventory.set_wallet(99999)
+	for i: int in int(_args.get("buy", "0")):
+		var g: Array[StringName] = Game.shops.goods(ShopBook.NOOK_ID)
+		print("BUY ", Game.shops.buy(ShopBook.NOOK_ID, g[mini(i * 3, g.size() - 1)], Game.inventory))
