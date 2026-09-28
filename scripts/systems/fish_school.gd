@@ -6,7 +6,7 @@ extends RefCounted
 ## the world scene alongside `WorldGrid`, not an autoload.
 ##
 ## Spawning follows `aSOG_gyoei_set`: one attempt each time the player wades into an acre
-## (never the acre the field loads into), skipped if that acre already has a live shadow. `FishSpawnScheduler` picks the species
+## (never the acre the field loads into, unless the field is a single acre), skipped if that acre already has a live shadow. `FishSpawnScheduler` picks the species
 ## from the acre's block kind, half-month term and hour, and a unit inside the acre for it.
 ## Shadows are dropped once they are more than 600 GX away in another acre
 ## (`aGYO_cull_check`), which is what lets an acre restock when the player comes back.
@@ -259,8 +259,10 @@ func _tick_spawn(sense: FishShadow.Sense) -> void:
 	var crossed: bool = _spawned_acre != NO_ACRE
 	_spawned_acre = acre
 	## `aSetMgr_move_check_set` only fires on `mFI_WADE_START`: the acre the field loads
-	## into gets nothing until the player wades out of it and back.
-	if crossed:
+	## into gets nothing until the player wades out of it and back. A one-acre field (the
+	## authored test town) has no neighbour to wade in from, so there the load counts as the
+	## entry; otherwise its river could never stock.
+	if crossed or _single_acre():
 		try_spawn_in_acre(acre)
 
 
@@ -316,7 +318,7 @@ func acre_has_fish(acre: Vector2i) -> bool:
 ## `mFI_BkNum2BlockKind`, or a stand-in from the water in the acre when the layout carries
 ## no block types.
 func block_kind(acre: Vector2i, units: Array = []) -> int:
-	if _layout != null and _layout.acre_types.size() == TownFieldGenerator.BLOCK_TOTAL:
+	if _has_block_types():
 		if acre.x < 0 or acre.x >= TownFieldGenerator.BLOCK_X or acre.y < 0 or acre.y >= TownFieldGenerator.BLOCK_Z:
 			return 0
 		return FishSpawnScheduler.block_kind_for_type(
@@ -350,6 +352,12 @@ func acre_units(acre: Vector2i) -> Array:
 func _unit_at(cell: Vector2i) -> Dictionary:
 	if _layout != null:
 		var attr: int = FieldCollision.unit_attr_at_cell(_layout, cell)
+		## An authored town paints its water onto the grid over a single land acre visual
+		## (`grd_s_f_1`), whose unit table has no water attributes. The painted water is
+		## that town's `mCoBG` water, so it wins over the visual's land attribute.
+		if attr >= 0 and not _has_block_types() and not FishSpawnScheduler.is_water_attr(attr):
+			if _grid != null and _grid.is_in_bounds(cell) and _grid.terrain_at(cell) == WorldGrid.Terrain.WATER:
+				attr = -1
 		if attr >= 0:
 			## Back to the original's frame, where land (`LAND_COUNTS`) sits at 40 GX and the
 			## sea surface at 20 GX, so a sea unit is deep enough only at count 0.
@@ -370,6 +378,14 @@ func _unit_row(units: Array, unit: Vector2i) -> Dictionary:
 	if unit.x < 0 or unit.y < 0 or unit.x >= FishSpawnScheduler.UT or unit.y >= FishSpawnScheduler.UT:
 		return {}
 	return units[unit.y * FishSpawnScheduler.UT + unit.x]
+
+
+func _single_acre() -> bool:
+	return _grid != null and _grid.columns <= WorldGenerator.UT and _grid.rows <= WorldGenerator.UT
+
+
+func _has_block_types() -> bool:
+	return _layout != null and _layout.acre_types.size() == TownFieldGenerator.BLOCK_TOTAL
 
 
 func _acre_origin(acre: Vector2i) -> Vector2i:

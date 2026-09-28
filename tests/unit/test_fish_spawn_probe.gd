@@ -533,3 +533,88 @@ func test_generated_town_species_stay_in_their_acres() -> void:
 					var cell: Vector2i = grid.world_to_cell(shadow.position)
 					assert_that(VillagerWalk.block_from_cell(cell)).is_equal(acre)
 	assert_int(checked).is_greater(10)
+
+
+## Regression: the authored test town paints its river onto a land acre visual, whose unit
+## table has no water attributes, so every roll found no unit and acre (1,1) never stocked.
+## It is also the only acre, so there is no wade into it: the load has to count.
+func test_authored_town_river_stocks_every_month_and_hour() -> void:
+	var data: WorldData = WorldGenerator.authored_test_town()
+	var grid := WorldGrid.new()
+	grid.configure_from_world(data)
+	var school := FishSchool.new()
+	school.configure(grid, 0.0, data)
+	var acre := Vector2i(1, 1)
+	assert_int(school.block_kind(acre)).is_equal(S.KIND_RIVER)
+	for month: int in range(1, 13):
+		for hour: int in [2, 6, 12, 18]:
+			_at(month, 10, hour)
+			_settle()
+			var stocked := false
+			for i: int in 10:
+				school.clear()
+				school.seed_rng(i)
+				var shadow: FishShadow = school.try_spawn_in_acre(acre, 0)
+				if shadow == null:
+					continue
+				stocked = true
+				var cell: Vector2i = grid.world_to_cell(shadow.position)
+				assert_bool(data.water_cells.has(cell)).is_true()
+				break
+			assert_bool(stocked).override_failure_message(
+				"no fish in the authored river at %d/%d" % [month, hour]
+			).is_true()
+	## Gameplay path: standing in the one acre after load stocks it.
+	_at(7, 10, 12)
+	_settle()
+	school.configure(grid, 0.0, data)
+	school.seed_rng(1)
+	school.tick(DecompTime.TICK_SEC, _sense(grid, Vector2i(8, 11)))
+	assert_int(school.shadow_count()).is_equal(1)
+
+
+## Generated towns: river and sea acres stock in every month and time slot, ponds from
+## April to mid-September (`p_month` is empty otherwise).
+func test_generated_town_river_pond_and_sea_acres_stock_all_year() -> void:
+	var data: WorldData = WorldGenerator.generate(42)
+	data.bake()
+	var grid := WorldGrid.new()
+	grid.configure_from_world(data)
+	var school := FishSchool.new()
+	school.configure(grid, 0.0, data)
+	var classes := {"river": [], "sea": [], "pond": []}
+	for bz: int in range(VillagerWalk.FG_Z0, VillagerWalk.FG_Z1 + 1):
+		for bx: int in range(VillagerWalk.FG_X0, VillagerWalk.FG_X1 + 1):
+			var acre := Vector2i(bx, bz)
+			var units: Array = school.acre_units(acre)
+			var kind: int = school.block_kind(acre, units)
+			if kind & S.KIND_MARINE:
+				classes["sea"].append(acre)
+			elif kind & S.KIND_RIVER:
+				classes["river"].append(acre)
+			else:
+				for row: Dictionary in units:
+					if S.is_fresh_water_attr(int(row["a"])):
+						classes["pond"].append(acre)
+						break
+	for key: String in classes:
+		assert_array(classes[key]).override_failure_message("no %s acres" % key).is_not_empty()
+	for month: int in range(1, 13):
+		for hour: int in [2, 6, 12, 18]:
+			_at(month, 10, hour)
+			_settle()
+			for key: String in classes:
+				var expect: bool = key != "pond" or (month >= 4 and month <= 9)
+				var stocked := false
+				for acre: Vector2i in classes[key]:
+					for i: int in 4:
+						school.clear()
+						school.seed_rng(i + acre.x * 17 + acre.y * 131)
+						if school.try_spawn_in_acre(acre, 0) != null:
+							stocked = true
+							break
+					if stocked:
+						break
+				assert_bool(stocked).override_failure_message(
+					"%s acres at %d/%d: stocked=%s" % [key, month, hour, stocked]
+				).is_equal(expect)
