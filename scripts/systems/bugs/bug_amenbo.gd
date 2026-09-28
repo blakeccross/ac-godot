@@ -1,13 +1,15 @@
 class_name BugAmenbo
 extends BugProgram
 
-## `ac_ins_amenbo.c` — pond skater. Darts across the water surface in short bursts
-## (`MOVE`), decelerating to a stop, rests a moment, then picks a new heading. Only
-## flees (straight up) when caught. Turns 180° on a wall.
+## `ac_ins_amenbo.c` — pond skater. Rides 14 GX over the pond bed (`bg_height` −14,
+## pulled down at up to 2 GX/frame) and darts in bursts: 2.3 GX/frame easing to a stop,
+## a 0–59-frame rest, then a new heading ±60° off the last. Anything that is not water a
+## unit ahead is a wall: it stops at once and turns about. Only a caught / released one
+## leaves, flying off the player's facing ±60°. (The squash-and-stretch scale and ripple
+## effect are presentation.)
 
 enum { WAIT, LET_ESCAPE, MOVE, REST }
 
-const UNIT_GX := 20.0
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -15,7 +17,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 	a.bg_height = -14.0
 	a.item = 34
 	if not released:
-		a.pos.y = a.home.y
+		a.pos.y = a.home.y + 14.0     ## `GetBgY_OnlyCenter_FromWpos(pos, −14)`
 		a.home = a.pos
 		a.bg_type = 2
 		setup_action(a, MOVE)
@@ -42,8 +44,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.max_velocity_y = 12.0
 			a.speed = 4.0
 			a.rot.x = 0.0
-			if a._last_player_gx != Vector3.INF:
-				a.angle_y = BugProgram.angle_to(a._last_player_gx, a.pos) + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(60.0)
+			if BugProgram.heading_from_player_facing(a, deg_to_rad(120.0)):
 				a.rot.y = a.angle_y
 			a.f_no_catch = true
 			a.f_bit2 = true
@@ -79,7 +80,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _move(a: BugActor, sense: BugActor.Sense) -> void:
-	a.pos.y = a.home.y                     ## kept on the surface
+	_hold_without_ground(a, sense)
 	_bg(a, sense)
 	if is_zero_approx(a.speed) or a.s32_work[3] == 1:
 		setup_action(a, REST)
@@ -87,7 +88,7 @@ func _move(a: BugActor, sense: BugActor.Sense) -> void:
 
 func _rest(a: BugActor, sense: BugActor.Sense) -> void:
 	_bg(a, sense)
-	a.pos.y = a.home.y
+	_hold_without_ground(a, sense)
 	a.timer -= 1
 	if a.timer <= 0:
 		setup_action(a, MOVE)
@@ -100,6 +101,18 @@ func _let_escape(a: BugActor, _sense: BugActor.Sense) -> void:
 	a.gravity = minf(a.gravity + a.gravity * 0.05, 12.0)
 
 
+## `aIAB_BGcheck`: a front wall latches `HIT_WALL`. On the field the pond bank is that
+## wall; here, any unit a unit ahead that is not water (or a real wall / column).
 func _bg(a: BugActor, sense: BugActor.Sense) -> void:
-	if sense != null and sense.bg.is_valid() and bool(sense.bg.call(a.pos).get("hit_wall_front", false)):
+	if a.s32_work[3] == 1 or sense == null or sense.grid == null:
+		return
+	var ahead: Vector3 = a.pos + Vector3(sin(a.angle_y), 0.0, cos(a.angle_y)) * a.bg_range
+	if BugProgram.wall_front(a, sense) or not BugBg.water_at(sense.grid, ahead):
 		a.s32_work[3] = 1
+
+
+## Without a ground sampler (no field) there is no bed to land on: hold the spawn height.
+func _hold_without_ground(a: BugActor, sense: BugActor.Sense) -> void:
+	if sense == null or not sense.ground.is_valid():
+		a.pos.y = a.home.y
+		a.pos_speed.y = 0.0
