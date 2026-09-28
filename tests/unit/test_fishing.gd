@@ -1117,6 +1117,55 @@ func test_the_bobber_stops_short_of_the_bank() -> void:
 	assert_that(grid.terrain_at(grid.world_to_cell(Fishing.anchor()))).is_equal(WorldGrid.Terrain.WATER)
 
 
+func test_only_the_last_missing_fish_gets_the_record_report() -> void:
+	## `mSM_CHECK_LAST_FISH_GET` is not "already caught" or "already donated": it is true
+	## only when every other fish is on the record and this one is not.
+	var carp: FishData = FishCatalog.get_fish(&"crucian_carp")
+	assert_bool(Fishing.completes_record(carp)).is_false()
+	for row: Dictionary in EncyclopediaCatalog.page(&"fish"):
+		if StringName(row["id"]) != carp.id:
+			Game.species_log.record(StringName(row["id"]))
+	assert_bool(Fishing.completes_record(carp)).is_true()
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	_stock(ctx, &"crucian_carp")
+	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
+	var out: Fishing.Outcome = _reel(ctx)
+	assert_bool(out.completes_record).is_true()
+	assert_int(out.catch_msg).is_equal(MuseumDisplay.FISH_ALREADY_MSG)
+	var beats: Array[Fishing.ReelBeat] = Fishing.take_reel_beats()
+	assert_bool(beats[1].completes_record).is_true()
+	## Caught once, it never completes the record again.
+	assert_bool(Fishing.completes_record(carp)).is_false()
+
+
+func test_a_species_already_caught_keeps_its_own_report() -> void:
+	var carp: FishData = FishCatalog.get_fish(&"crucian_carp")
+	Game.species_log.record(carp.id)
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	_stock(ctx, &"crucian_carp")
+	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
+	var out: Fishing.Outcome = _reel(ctx)
+	assert_int(out.catch_msg).is_equal(carp.catch_msg)
+	assert_bool(out.completes_record).is_false()
+
+
+func test_a_fish_thrown_back_from_full_pockets_still_goes_on_the_record() -> void:
+	## `mSM_COLLECT_FISH_SET` runs whether or not `Player_actor_putin_item` did.
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	_stock(ctx, &"crucian_carp")
+	_fill_pockets(ctx.inventory)
+	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
+	var out: Fishing.Outcome = _reel(ctx)
+	assert_bool(out.pockets_full).is_true()
+	assert_bool(Game.species_log.has(&"crucian_carp")).is_true()
+
+
 ## Pumps frames until `check` passes or the clock runs out. The reel beats wait on real-time
 ## timers, so a frame budget is the wrong unit: headless gets through hundreds of frames in
 ## the time one 0.7s beat takes, and a loop counting frames gives up long before the beat.

@@ -14,6 +14,8 @@ const INTERACT_REACH := 1.1
 
 ## `notice_rod` chains message 0x1348 onto the fish catch report when pockets are full.
 const POCKETS_FULL_MSG_ID := &"msg_4936"
+## `notice_rod`'s follow-up to 0x1349 when the catch completes the fish record.
+const FISH_RECORD_DONE_MSG := 0x134A
 
 const ANIM_WAIT := "ply_1_wait1"
 const ANIM_WALK := "ply_1_walk1"
@@ -1801,7 +1803,7 @@ func _play_show(beat: Fishing.ReelBeat) -> void:
 		if held < length:
 			await get_tree().create_timer(length - held).timeout
 	else:
-		await _report_catch(beat.catch_msg, beat.pockets_full)
+		await _report_catch(beat.catch_msg, beat.pockets_full, beat.fish, beat.completes_record)
 	_motor.facing = entry_yaw
 	await _play_putaway(skeleton)
 
@@ -2152,7 +2154,9 @@ func _net_wait_closed(ui: DialogueOverlay) -> void:
 ## species and the extracted bank has the line, pun and all. The rare three (stringfish,
 ## coelacanth, arapaima) run to two pages, which is why this plays a conversation through the
 ## runner instead of pushing a single string.
-func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
+func _report_catch(
+	catch_msg: int, pockets_full: bool = false, fish: FishData = null, completes_record: bool = false
+) -> void:
 	if catch_msg == 0:
 		return
 	var ui := DialogueOverlay.find(get_tree())
@@ -2161,11 +2165,23 @@ func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
 	if ui == null:
 		Game.post_notice(fallback)
 		return
+	## 0x1349 names the fish (`mMsg_Set_item_str_art(win, mMsg_ITEM_STR0, …)`).
+	var ctx := DialogueContext.from_game()
+	ctx.item0 = fish.display_name if fish != null else ""
 	if data != null:
-		ui.play(data, null)
+		ui.play(data, ctx)
 	else:
 		ui.say(fallback)
 	await ui.closed
+	if completes_record:
+		## `MessageControl_Notice_rod` states 1–2: 0x134A continues the report over `YATTA2`.
+		_play_body_once(Netting.ANIM_YATTA)
+		var more: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % FISH_RECORD_DONE_MSG))
+		if more != null:
+			ui.play(more, ctx)
+		else:
+			ui.say(FishCatalog.catch_text(FISH_RECORD_DONE_MSG))
+		await ui.closed
 	if not pockets_full:
 		return
 	var text: String = FishCatalog.first_line(DialogueCatalog.conversation(POCKETS_FULL_MSG_ID))

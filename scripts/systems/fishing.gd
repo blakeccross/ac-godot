@@ -105,6 +105,9 @@ class Outcome:
 	## than posted because `notice_rod` shows the report over the show-off pose and holds the
 	## pose until it is dismissed, so it belongs to that beat and not to the button press.
 	var catch_msg: int = 0
+	## `mSM_CHECK_LAST_FISH_GET`: this catch is the one species the record was missing.
+	## The report becomes 0x1349 (naming the fish), then 0x134A over a `YATTA2`.
+	var completes_record: bool = false
 
 	func caught() -> bool:
 		return fish != null and not pockets_full
@@ -124,6 +127,8 @@ class ReelBeat:
 	var pockets_full: bool = false
 	## Put in the free hand for the length of the beat. Null on an empty line.
 	var fish: FishData = null
+	## `already_collected`: follow the report with 0x134A and `YATTA2`.
+	var completes_record: bool = false
 	## 30 fps frame the clip starts from. `air_rod` picks up `NOT_SAO_SWING1` where
 	## `SAO_SWING1` left off rather than from the top.
 	var start_frame: float = 0.0
@@ -333,12 +338,11 @@ static func hook(ctx: InteractionContext, school: FishSchool = null) -> bool:
 ## it plays for as long as the fight lasts, while `is_reeling` holds.
 static func reel_beats(out: Outcome) -> Array[ReelBeat]:
 	if out != null and out.fish != null:
-		return [
-			ReelBeat.new(REEL_LAND, ROD_LAND),
-			ReelBeat.new(
-				REEL_SHOW, ROD_LAND, true, SHOW_HOLD_SECONDS, out.catch_msg, out.fish, out.pockets_full
-			),
-		]
+		var show := ReelBeat.new(
+			REEL_SHOW, ROD_LAND, true, SHOW_HOLD_SECONDS, out.catch_msg, out.fish, out.pockets_full
+		)
+		show.completes_record = out.completes_record
+		return [ReelBeat.new(REEL_LAND, ROD_LAND), show]
 	return [ReelBeat.new(REEL_EMPTY, ROD_EMPTY)]
 
 
@@ -507,21 +511,35 @@ static func _reel_catch(school: FishSchool) -> void:
 		_finish(out, school)
 		return
 	out.fish = fish
-	out.catch_msg = fish.catch_msg
+	## `setup_main_Notice_rod`: pockets first, then the record check, then the record —
+	## whether or not the fish fit.
+	out.completes_record = completes_record(fish)
+	out.catch_msg = MuseumDisplay.FISH_ALREADY_MSG if out.completes_record else fish.catch_msg
 	var inventory: Inventory = _inventory
 	if inventory == null or not inventory.has_space_for(fish, 1) or inventory.add(fish, 1) != 0:
 		## `notice_rod` → `release_creature`: shown, then thrown back.
 		out.pockets_full = true
-	else:
-		## `mSM_CHECK_LAST_FISH_GET` → shorter report once the species is already in the museum.
-		if Game != null and Game.museum != null and Game.museum.has_fish_id(fish.id):
-			out.catch_msg = MuseumDisplay.FISH_ALREADY_MSG
+	if Game != null and Game.species_log != null:
+		## `mSM_COLLECT_FISH_SET`. `Inventory.add` already did it for a banked fish.
+		Game.species_log.record(fish.id)
 	shadow.reel_in()
 	if fish.is_trash:
 		## `aGTT_comeback` → `aGTT_kage_make_actor(gyo, 1)`: junk leaves a fish's shadow
 		## swimming off as it comes up — the one that was really nibbling.
 		shadow.puffed = true
 	_finish(out, school)
+
+
+## `mSM_CHECK_LAST_FISH_GET`: every other fish is on the catch record and this one is not.
+## Not "already in the museum" — it is true exactly once, for the catch that completes it.
+static func completes_record(fish: FishData) -> bool:
+	if fish == null or fish.is_trash or Game == null or Game.species_log == null:
+		return false
+	var log: SpeciesLog = Game.species_log
+	if log.has(fish.id):
+		return false
+	var total: int = log.page_total(&"fish")
+	return total > 0 and log.page_count(&"fish") == total - 1
 
 
 static func _finish(out: Outcome, school: FishSchool) -> void:
