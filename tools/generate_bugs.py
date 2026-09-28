@@ -197,12 +197,12 @@ HABITAT_MAP = {
     "IN_BUSH": 5,
     "FLYING_NEAR_WATER": 6,
     "ON_WATER": 7,
-    "UNDER_ROCK": 8,
-    "UNDERGROUND": 9,
+    "ON_CANDY": 8,
+    "ON_TRASH": 9,
+    "UNDER_ROCK": 10,
+    "UNDERGROUND": 11,
     "FLYING_NEAR_FLOWERS_OR_AROUND": 12,
-    "ON_CANDY": -1,
-    "ON_TRASH": -1,
-    "NOTHING": -1,
+    "NOTHING": 13,
 }
 
 SPAWN_RE = re.compile(
@@ -409,8 +409,8 @@ def _bug_habitat_from_spawn_area(spawn_area: int) -> int:
         5: 5,  # BUSH
         6: 6,  # NEAR_WATER
         7: 7,  # WATER
-        8: 8,  # ROCK
-        9: 9,  # UNDERGROUND
+        10: 8,  # UNDER_ROCK -> ROCK
+        11: 9,  # UNDERGROUND
         12: 3,  # FLYING (also flowers)
     }
     return mapping.get(spawn_area, 3)

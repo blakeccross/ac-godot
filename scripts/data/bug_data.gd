@@ -165,9 +165,11 @@ static func habitat_from_spawn_area(spawn_area: int, prefer_flower: bool = true)
 			return Habitat.NEAR_WATER
 		7:
 			return Habitat.WATER
-		8:
+		8, 9:  ## ON_CANDY / ON_TRASH: on the item lying on the ground
+			return Habitat.GROUND
+		10:
 			return Habitat.ROCK
-		9:
+		11:
 			return Habitat.UNDERGROUND
 		12:
 			return Habitat.FLOWER if prefer_flower else Habitat.FLYING

@@ -202,16 +202,12 @@ static func chk_term_info(rng: RandomNumberGenerator) -> Dictionary:
 		day = 15
 	var start: int = _day_number(year, (saved >> 1) + 1, day) - Game.gyoei_term_offset
 	var today: int = _day_number(Clock.year, Clock.month, Clock.day)
-	var past_midnight: bool = Clock.hour > 0 or Clock.minute > 0 or Clock.second > 0
-	## `lbRTC_IsOverRTC`: strictly after that moment.
-	var over_end: bool = today > start + TRANSITION_DAYS or (
-		today == start + TRANSITION_DAYS and past_midnight
-	)
-	if over_end:
+	## `lbRTC_IsOverRTC`: the clock is at or past that midnight (`lbRTC_IsOverTime` answers
+	## `lbRTC_OVER` on equality), so both boundaries fall on whole days.
+	if today >= start + TRANSITION_DAYS:
 		_renew_term(next_term, rng)
 		return pure
-	var over_start: bool = today > start or (today == start and past_midnight)
-	if not over_start:
+	if today < start:
 		return pure
 	var days_in: int = clampi(today - start, 0, TERM_RATE.size() - 1)
 	return {"term0": now_term, "term1": saved, "term0_rate": float(TERM_RATE[days_in])}
