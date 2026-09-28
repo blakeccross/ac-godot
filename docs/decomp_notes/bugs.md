@@ -87,6 +87,8 @@ Checked `ac_set_ovl_insect.c`, `ac_set_manager.c`, `ac_insect_clip.c_inc`, `ac_i
 
 **Cull** (`aINS_cull_check`): only while off screen (`Sense.on_screen`, the camera frustum). A released insect (`actor_specific == 1`) is destructed at once; any other when > 600 GX from the player and born in another block than `play->block_table`. Life time 216000 frames, then the alpha fade.
 
+**Notice / stress** (`aINS_get_stress`): patience rises from the most stressful moving actor in the PLAYER, NPC, BG and unused lists within `aINS_MAX_STRESS_DIST` + `catch_ME_data[type]` (3D distance, frame move × `calc_table`). Villagers now count (`Sense.npc_positions` / `npc_moves_gx`, filled by `bug_actors.gd`); before 2026-09-28 only the player stressed insects. BG actors other than villagers (ants, bees, the train) are not fed in.
+
 **Net** (`Player_actor_CatchSomethingCheck_common`): from keyframe > 6 every tick tests each registered insect (`aINS_set_catch_range`: 24 GX butterflies 0/1, 24 GX facing-gated cicadas / bee / beetles and a stopped cockroach, else 8 GX) against the net head + 15 GX; first hit in registration order wins; the swing plays out. Pull → report 0xA2C+type (<0x20) / 0x2FA1+type, 0xA4E/0xA4F for the last missing insect; pockets full → 0xA4D and the insect is let go (`release_creature` on the caught actor). Already matched; no change.
 
 **Not ported / left:** ants as a separate non-slot actor (ours are ordinary insects in a slot); island (`l_insect_island`, NOTHING weights) and Wisp (`aSOI_SPAWN_TYPE_SPIRIT`) spawn types; the town-rank `env_rate` (no assessment); the buried-item (`mFI_GetLineDeposit`) exclusion in the per-area "any unit?" pre-check; the gold net's 21 GX reach.

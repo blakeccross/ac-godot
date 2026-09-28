@@ -57,6 +57,10 @@ class Sense:
 	var player_dashing: bool = false
 	var player_yaw: float = 0.0
 	var player_swung_tool: bool = false
+	## `aINS_get_stress` also reads the NPC actor list: every villager on the field (metres)
+	## and how far it moved this 30 Hz frame (GX), index-aligned.
+	var npc_positions: PackedVector3Array = PackedVector3Array()
+	var npc_moves_gx: PackedFloat32Array = PackedFloat32Array()
 	## `mPlib_Check_StopNet`: true for the one frame the player's swing stops or pulls in,
 	## with `net_swing_origin` the net's position (metres).
 	var net_swing_origin: Vector3 = Vector3.INF
@@ -382,19 +386,26 @@ func stress_radius_gx() -> float:
 
 
 func _calc_stress(sense: Sense) -> float:
-	if not sense.has_player():
-		return 0.0
-	var player_gx: Vector3 = sense.player_position / GX_M
-	var d: float = pos.distance_to(player_gx)
+	## `aINS_get_stress`: the largest stress any moving player / NPC actor puts on it.
+	var stress: float = 0.0
+	if sense.has_player():
+		stress = _stress_from(sense.player_position / GX_M, _player_frame_move_gx(sense))
+	for i: int in mini(sense.npc_positions.size(), sense.npc_moves_gx.size()):
+		stress = maxf(stress, _stress_from(sense.npc_positions[i] / GX_M, sense.npc_moves_gx[i]))
+	return stress
+
+
+## `aINS_get_stress_sub` for one actor at `at_gx` that moved `move_gx` this frame.
+func _stress_from(at_gx: Vector3, move_gx: float) -> float:
+	var d: float = pos.distance_to(at_gx)
 	var min_dist: float = stress_radius_gx()
 	if d >= min_dist:
 		return 0.0
 	var tmp0: float = maxf(d - UNIT_GX, 0.0)
 	var idx: int = int((min_dist - UNIT_GX - tmp0) / 20.0)
 	idx = clampi(idx, 0, STRESS_CALC_TABLE.size() - 1)
-	## `calc_stress = |player frame move| * calc_table[idx]`.
-	var move: float = _player_frame_move_gx(sense)
-	return move * STRESS_CALC_TABLE[idx]
+	## `calc_stress = |frame move| * calc_table[idx]`.
+	return move_gx * STRESS_CALC_TABLE[idx]
 
 
 var _last_player_gx: Vector3 = Vector3.INF
