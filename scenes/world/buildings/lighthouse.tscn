@@ -1,9 +1,8 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/building.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/world/buildings/lighthouse_beacon.tscn" id="3"]
-[ext_resource type="Script" path="res://scenes/world/buildings/lighthouse_switch.gd" id="4"]
 
 [sub_resource type="CylinderMesh" id="TowerMesh"]
 top_radius = 1.0
@@ -25,22 +24,13 @@ albedo_color = Color(0.55, 0.2, 0.18, 1)
 radius = 1.15
 height = 7.0
 
-[sub_resource type="BoxMesh" id="SwitchMesh"]
-size = Vector3(0.3, 0.6, 0.2)
-
-[sub_resource type="StandardMaterial3D" id="SwitchMat"]
-albedo_color = Color(0.7, 0.68, 0.65, 1)
-
-[sub_resource type="BoxShape3D" id="SwitchShape"]
-size = Vector3(0.5, 0.8, 0.5)
-
 [node name="Lighthouse" type="StaticBody3D"]
 collision_layer = 1
 collision_mask = 0
 script = ExtResource("1")
+footprint = Vector2i(2, 2)
 visual_id = &"obj_s_toudai"
 label = "Lighthouse"
-footprint = Vector2i(3, 3)
 
 [node name="Body" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0)
@@ -57,22 +47,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0)
 shape = SubResource("BodyShape")
 
 [node name="Door" parent="." instance=ExtResource("2")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 1.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -1.625)
 
 [node name="Beacon" parent="." instance=ExtResource("3")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.3, 0)
-
-[node name="LighthouseSwitch" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6, 0, 1.0)
-collision_layer = 1
-collision_mask = 0
-script = ExtResource("4")
-
-[node name="Post" type="MeshInstance3D" parent="LighthouseSwitch"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.3, 0)
-mesh = SubResource("SwitchMesh")
-surface_material_override/0 = SubResource("SwitchMat")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="LighthouseSwitch"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)
-shape = SubResource("SwitchShape")

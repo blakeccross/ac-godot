@@ -27,6 +27,12 @@ const _MUSEUM_Z0 := -2
 const _MUSEUM_Z1 := 2
 const MUSEUM_BODY := 10
 const POLICE_BODY := 10
+## Lighthouse (`aTOU_set_bgOffset`): the 2×2 units NW of the FG unit, all corners at 16 —
+## a solid tower with no porch.
+const LIGHTHOUSE_BODY := 16
+const _LIGHTHOUSE_UNITS: Array[Vector2i] = [
+	Vector2i(-1, -1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(0, 0)
+]
 
 
 static func apply(data: WorldData) -> void:
@@ -49,9 +55,28 @@ static func apply(data: WorldData) -> void:
 			_apply_4x4_open_corners(data, shop_home_cell(b), _SHOP_TBL)
 		elif HostCollision.is_police(b.visual_id) or b.id == &"police":
 			_apply_police(data, b)
+		elif HostCollision.is_lighthouse(b.visual_id) or b.id == &"lighthouse":
+			_apply_lighthouse(data, b)
 		elif b.kind == &"house":
 			_apply_npc(data, b)
 	FieldCollision.invalidate_segments()
+
+
+## FG unit (`actor.home`): the SE cell of the 2×2 footprint (`nw_off` −1,−1).
+static func lighthouse_home_cell(placement: BuildingPlacement) -> Vector2i:
+	return placement.cell + Vector2i(1, 1)
+
+
+static func _apply_lighthouse(data: WorldData, placement: BuildingPlacement) -> void:
+	var home: Vector2i = lighthouse_home_cell(placement)
+	var body := {
+		"c": LIGHTHOUSE_BODY, "nw": LIGHTHOUSE_BODY, "sw": LIGHTHOUSE_BODY,
+		"se": LIGHTHOUSE_BODY, "ne": LIGHTHOUSE_BODY, "s": 0,
+	}
+	for offset: Vector2i in _LIGHTHOUSE_UNITS:
+		var cell: Vector2i = home + offset
+		if data.is_in_bounds(cell):
+			FieldCollision.set_plus(cell, body.duplicate())
 
 
 static func player_home_cell(placement: BuildingPlacement) -> Vector2i:

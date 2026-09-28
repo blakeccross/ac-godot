@@ -179,7 +179,12 @@ static func has_authored_scene(room_id: StringName) -> bool:
 
 
 static func is_open_now(room: Room) -> bool:
-	if room == null or room.is_always_open():
+	if room == null:
+		return true
+	## `aTOU_actor_move` only requests the door while `mSC_LightHouse_In_Check` holds.
+	if room.kind == Room.Kind.LIGHTHOUSE:
+		return Game != null and Game.lighthouse != null and Game.lighthouse.door_open_now()
+	if room.is_always_open():
 		return true
 	## Nook's hours move with the building, raffle day and renovations (`mSP_ShopOpen`).
 	if room.kind == Room.Kind.SHOP and Game != null and Game.shops != null:
@@ -236,6 +241,7 @@ static func _register_scene_paths() -> void:
 	_scene_paths[&"needlework"] = interiors + "needlework.tscn"
 	_scene_paths[&"police_box"] = interiors + "police_box.tscn"
 	_scene_paths[&"post_office"] = interiors + "post_office.tscn"
+	_scene_paths[&"lighthouse"] = interiors + "lighthouse.tscn"
 	_scene_paths[&"museum_entrance"] = museum + "museum_entrance.tscn"
 	_scene_paths[&"museum_painting"] = museum + "museum_painting.tscn"
 	_scene_paths[&"museum_fossil"] = museum + "museum_fossil.tscn"

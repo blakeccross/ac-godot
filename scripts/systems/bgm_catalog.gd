@@ -56,6 +56,9 @@ static func room_id(kind: Room.Kind) -> StringName:
 			return &"brokers_shop"
 		Room.Kind.KAMAKURA:
 			return &"kamakura"
+		Room.Kind.LIGHTHOUSE:
+			## `mFI_FIELD_ROOM_LIGHTHOUSE` → BGM 90, an empty sequence: the room is quiet.
+			return &""
 		_:
 			return &""
 

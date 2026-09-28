@@ -1108,6 +1108,13 @@ static func _remove_objects_under_buildings(data: WorldData) -> void:
 			if _in_footprint(o.cell, b.cell, b.footprint):
 				under = true
 				break
+			## `aTOU_fgunit_on`: the two units in front of the lighthouse door are `RSV_NO`,
+			## whatever the FG template put there is kept off the field.
+			if HostCollision.is_lighthouse(b.visual_id) and _in_footprint(
+				o.cell, b.cell + Vector2i(0, -1), Vector2i(2, 1)
+			):
+				under = true
+				break
 		if not under:
 			keep.append(o)
 	data.objects = keep

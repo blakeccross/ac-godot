@@ -370,6 +370,14 @@ static func shell_door_gaps(room: Room, grid: WorldGrid) -> Array[Dictionary]:
 		or room.kind == Room.Kind.NEEDLEWORK
 	):
 		return house_door_gaps(room, grid)
+	## Lighthouse: the `EXIT_DOOR` pair is on the north rim.
+	if room.kind == Room.Kind.LIGHTHOUSE and room.door_cell.x >= 0:
+		var left: Vector3 = grid.cell_to_world(room.door_cell)
+		var right: Vector3 = grid.cell_to_world(room.door_cell + Vector2i(1, 0))
+		var north: Array[Dictionary] = [
+			{"side": &"north", "center": (left.x + right.x) * 0.5, "half": grid.cell_size}
+		]
+		return north
 	return []
 
 

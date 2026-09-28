@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"clear"
+	"lighthouse", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -14,6 +14,7 @@ const HOUSE_ARGS: PackedStringArray = ["size", "basement", "build", "loan", "sta
 const HOUSE_SIZES: PackedStringArray = ["small", "medium", "large", "upper"]
 const WEATHER_KINDS: PackedStringArray = ["clear", "rain", "snow", "sakura"]
 const INTENSITY_NAMES: PackedStringArray = ["none", "light", "normal", "heavy"]
+const LIGHTHOUSE_ARGS: PackedStringArray = ["status", "start", "lit", "clear"]
 const SEASON_ARGS: PackedStringArray = ["spring", "summer", "autumn", "fall", "winter", "next"]
 
 var history: PackedStringArray = []
@@ -54,6 +55,8 @@ func execute(raw: String) -> String:
 			return _cmd_bug(args)
 		"shop":
 			return _cmd_shop(args)
+		"lighthouse":
+			return _cmd_lighthouse(args)
 		"clear":
 			return "__clear__"
 		_:
@@ -97,6 +100,9 @@ func suggestions(line: String) -> PackedStringArray:
 		"shop":
 			if index == 1:
 				return _filter_prefix(SHOP_ARGS, token)
+		"lighthouse":
+			if index == 1:
+				return _filter_prefix(LIGHTHOUSE_ARGS, token)
 		"house":
 			if index == 1:
 				return _filter_prefix(HOUSE_ARGS, token)
@@ -170,9 +176,38 @@ func _cmd_help() -> String:
 		"  fortune [normal|popular|unpopular|bad_luck|money_luck|goods_luck]",
 		"  bug <id> [count]  (spawn insects in front of the player)",
 		"  shop [status | sales <n> | visitor | restock | turnips]",
+		"  lighthouse [status | start | lit | clear]  (Tortimer's lighthouse quest)",
 		"  clear / help",
 		"Tab completes. Up/Down recall history.",
 	])
+
+
+## The lighthouse quest has no Tortimer to hand it out yet (`ac_ev_soncho2`); `start` gives
+## it today, `lit` throws tonight's switch.
+func _cmd_lighthouse(args: PackedStringArray) -> String:
+	if Game == null or Game.lighthouse == null:
+		return "No game."
+	var book: LighthouseBook = Game.lighthouse
+	match String(args[0]).to_lower() if not args.is_empty() else "status":
+		"start":
+			book.start_quest_now()
+		"lit":
+			if not book.in_nights(Clock.year, Clock.month, Clock.day):
+				return "Not a quest night."
+			book.switch_on_now()
+		"clear":
+			book.clear()
+		"status":
+			pass
+		_:
+			return "Usage: lighthouse [status | start | lit | clear]"
+	var ordinal: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
+	return "Lighthouse: period %s, nights lit %s, lamp %s, door %s" % [
+		LighthouseBook.Period.keys()[book.period_on(ordinal)],
+		String.num_int64(book.nights_lit, 2).lpad(LighthouseBook.NIGHT_COUNT, "0"),
+		"on" if book.lamp_on_now() else "off",
+		"open" if book.door_open_now() else "shut",
+	]
 
 
 ## Spawns field insects a few metres ahead of the player, on the ground there, in the bug's
