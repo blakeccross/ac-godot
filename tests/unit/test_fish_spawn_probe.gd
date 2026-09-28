@@ -296,6 +296,24 @@ func test_a_sub_area_the_acre_lacks_is_struck_and_rerolled() -> void:
 	assert_int(S.get_idx([pool[0]], S.KIND_RIVER, rng)).is_equal(-1)
 
 
+func test_a_poor_town_rank_leaves_acres_empty() -> void:
+	## `env_rate_table`: rank 0 scales every weight by 0.5 inside the walk but not the total,
+	## so half the rolls land on nothing.
+	var pool: Array = [{"type_index": 0, "spawn_area": S.Area.RIVER, "weight": 10.0}]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var keep: int = Game.events.field_rank
+	Game.events.field_rank = 0
+	var empty := 0
+	for _i: int in 400:
+		if S.get_idx(pool, S.KIND_RIVER, rng) == -1:
+			empty += 1
+	Game.events.field_rank = keep
+	assert_int(empty).is_between(160, 240)
+	for _i: int in 50:
+		assert_int(S.get_idx(pool, S.KIND_RIVER, rng)).is_equal(0)
+
+
 func test_place_check_matches_the_us_rules() -> void:
 	assert_bool(S.place_check(S.Area.WATERFALL, S.KIND_RIVER)).is_false()
 	assert_bool(S.place_check(S.Area.WATERFALL, S.KIND_RIVER | S.KIND_WATERFALL)).is_true()

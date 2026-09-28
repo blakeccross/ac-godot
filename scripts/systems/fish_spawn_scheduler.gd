@@ -130,8 +130,12 @@ static func reload() -> void:
 	ensure_loaded()
 
 
+## `mFAs_GetFieldRank`. No town-assessment system yet: the calendar's constant rank 3,
+## so `env_rate` is 1.0.
 static func field_rank() -> int:
-	return 3  ## no town-assessment system yet — `env_rate` 1.0
+	if Game != null and Game.events != null:
+		return Game.events.field_rank
+	return EventCalendar.DEFAULT_FIELD_RANK
 
 
 static func env_rate() -> float:
