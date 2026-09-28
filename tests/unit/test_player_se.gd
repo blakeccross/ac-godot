@@ -4,7 +4,9 @@ extends GdUnitTestSuite
 
 func test_clip_marks_cover_core_actions() -> void:
 	assert_that(PlayerSe.CLIP_MARKS.has(&"ply_1_axe_swing1")).is_true()
-	assert_that(PlayerSe.CLIP_MARKS.has(&"ply_1_sao_swing1")).is_true()
+	## The rod's stroke is `cast_rod`'s or `air_rod`'s, chosen at the frame-10 water check
+	## (`PlayerSe.rod_stroke`), so `ready_rod`'s clip carries none.
+	assert_that(PlayerSe.CLIP_MARKS.has(&"ply_1_sao_swing1")).is_false()
 	assert_that(PlayerSe.CLIP_MARKS.has(&"ply_1_pickup1")).is_true()
 	## Dig scoop is outcome-driven, not on every dig1.
 	assert_that(PlayerSe.CLIP_MARKS.has(&"ply_1_dig1")).is_false()

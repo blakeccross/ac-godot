@@ -1163,6 +1163,15 @@ func test_a_fish_thrown_back_from_full_pockets_still_goes_on_the_record() -> voi
 	assert_bool(Game.species_log.has(&"crucian_carp")).is_true()
 
 
+func test_rod_sounds_land_on_their_own_beats() -> void:
+	## `ROD_STROKE` is `cast_rod`'s (and `_small` is `air_rod`'s), and `NA_SE_10C` is the
+	## bobber leaving the water at `aUKI_set_proc_hit` — not the start of the fight.
+	assert_bool(PlayerSe.CLIP_MARKS.has(&"ply_1_sao_swing1")).is_false()
+	assert_bool(PlayerSe.CLIP_MARKS.has(Fishing.REEL_PULL)).is_false()
+	var src: String = FileAccess.get_file_as_string("res://scripts/systems/fishing.gd")
+	assert_str(src).contains("PlayerSe.line_out_of_water(")
+
+
 ## Pumps frames until `check` passes or the clock runs out. The reel beats wait on real-time
 ## timers, so a frame budget is the wrong unit: headless gets through hundreds of frames in
 ## the time one 0.7s beat takes, and a loop counting frames gives up long before the beat.

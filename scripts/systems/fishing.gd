@@ -543,6 +543,10 @@ static func completes_record(fish: FishData) -> bool:
 
 
 static func _finish(out: Outcome, school: FishSchool) -> void:
+	if _bobber != null and is_instance_valid(_bobber):
+		PlayerSe.line_out_of_water(_bobber)
+	elif _actor != null and is_instance_valid(_actor):
+		PlayerSe.line_out_of_water(_actor)
 	_end(school)
 	_last = out
 	## `_end` clears the queue, so the beats go in after it.

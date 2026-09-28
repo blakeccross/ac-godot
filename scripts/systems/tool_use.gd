@@ -125,11 +125,13 @@ static func _apply_rod(tool: ToolData, action: Interaction, ctx: InteractionCont
 		return Fishing.hook(ctx, Fishing.school_of(ctx))
 	if action.id == Interaction.AIR_ROD:
 		Fishing.air_cast()
+		PlayerSe.rod_stroke(ctx.actor if ctx != null else null, true)
 		return true
 	if action.id != tool.field_verb or not _field_ok(tool, ctx):
 		return false
 	if not Fishing.cast(ctx, cast_point(ctx)):
 		return false
+	PlayerSe.rod_stroke(ctx.actor, false)
 	if tool.field_notice != "":
 		Game.post_notice(tool.field_notice)
 	return true

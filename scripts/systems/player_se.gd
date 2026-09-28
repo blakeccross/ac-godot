@@ -22,12 +22,14 @@ const CLIP_MARKS: Dictionary = {
 	&"ply_1_kagu_close_k1": [[6.0, &"ftr_door_close"]],
 	&"ply_1_kagu_close_d1": [[6.0, &"ftr_door_close"]],
 	&"ply_1_pickup1": [[10.0, &"item_get"], [20.0, &"gasagoso"]],
-	&"ply_1_sao_swing1": [[20.0, &"rod_stroke"]],
+	## `ply_1_sao_swing1`'s stroke belongs to `cast_rod` / `air_rod`, not `ready_rod`, so it is
+	## played by `rod_stroke` once the water check has picked one of them.
 	## `Player_actor_sound_JUMP` at setup, `Player_actor_sound_SIT` at frame 18 (`SetSound_Sitdown`).
 	&"ply_1_sitdown1": [[0.0, &"jump"], [18.0, &"hard_chair_sit"]],
 	&"ply_1_inbed_L1": [[0.0, &"bed_in"]],
 	&"ply_1_inbed_R1": [[0.0, &"bed_in"]],
-	&"ply_1_turi_hiki1": [[0.0, &"10c"]],
+	## `NA_SE_10C` is `aUKI_set_proc_hit` — the bobber leaving the water — so `Fishing` plays
+	## it (`line_out_of_water`) when the reel resolves, not when the fight starts.
 	&"ply_1_get_t1": [[0.0, &"rod_back"]],
 	&"ply_1_not_get_t1": [[0.0, &"rod_back"]],
 	## `Player_actor_sound_GASAGOSO` at `setup_main_Putin_item` / `Takeout_item`.
@@ -135,6 +137,17 @@ static func gasagoso(at: Node) -> void:
 
 static func bobber_splash(at: Node) -> void:
 	_play_now(at, &"10b")
+
+
+## `aUKI_set_proc_hit` / `aUKI_force_command`: `NA_SE_10C` as the bobber comes up.
+static func line_out_of_water(at: Node) -> void:
+	_play_now(at, &"10c")
+
+
+## `SetSound_Cast_rod` / `SetSound_Air_rod`: `ROD_STROKE` (or `_small` for the dry swing) at
+## frame 20 of the swing. Called at the frame-10 water check, so ten frames on.
+static func rod_stroke(at: Node, small: bool) -> void:
+	_play_at_frame(at, 10.0, &"rod_stroke_small" if small else &"rod_stroke")
 
 
 static func karaburi(at: Node) -> void:
