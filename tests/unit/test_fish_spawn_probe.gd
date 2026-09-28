@@ -201,9 +201,13 @@ func test_next_term_ramps_in_before_it_starts() -> void:
 	## Saved: next is September first half (16), five days' lead → ramp from Aug 27.
 	Game.gyoei_term = 16
 	Game.gyoei_term_offset = 5
-	_at(8, 27, 0)
+	_at(8, 26, 23, 59)
 	var info: Dictionary = S.chk_term_info(null)
-	assert_float(float(info["term0_rate"])).is_equal(1.0)  ## midnight on the dot is not "over"
+	assert_float(float(info["term0_rate"])).is_equal(1.0)
+	## `lbRTC_IsOverTime` counts equality as over: the ramp starts on the stroke of midnight.
+	_at(8, 27, 0)
+	info = S.chk_term_info(null)
+	assert_float(float(info["term0_rate"])).is_equal_approx(5.0 / 6.0, 0.0001)
 	_at(8, 27, 12)
 	info = S.chk_term_info(null)
 	assert_int(int(info["term0"])).is_equal(15)
@@ -382,8 +386,23 @@ func test_one_attempt_per_acre_entry() -> void:
 	var sense := _sense(grid, Vector2i(4, 4))
 	for _i: int in 200:
 		school.tick(DecompTime.TICK_SEC * 4.0, sense)
-	## However long the player stands there, one acre gives one fish at most.
-	assert_int(school.shadow_count()).is_less_equal(1)
+	## The acre the field loads into is never rolled: the set manager only runs on a wade.
+	assert_int(school.shadow_count()).is_equal(0)
+	## Wading into the next acre rolls once; standing there never rolls again.
+	var stocked := 0
+	for attempt: int in 30:
+		school.clear()
+		school.configure(grid, 0.0)
+		school.seed_rng(attempt)
+		school.tick(DecompTime.TICK_SEC, sense)
+		var over := _sense(grid, Vector2i(20, 4))
+		for _i: int in 200:
+			school.tick(DecompTime.TICK_SEC * 4.0, over)
+		assert_int(school.shadow_count()).is_less_equal(1)
+		if school.shadow_count() == 1:
+			stocked += 1
+			assert_that(school.acre_of(school.shadows[0].position)).is_equal(Vector2i(2, 1))
+	assert_int(stocked).is_greater(0)
 
 
 func test_an_acre_with_a_live_fish_does_not_restock() -> void:
