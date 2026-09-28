@@ -634,7 +634,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [ ] Balloon presents drift across the sky on windy days; slingshot to drop (`ac_balloon`, `ac_fuusen`)
 - [ ] Airplane / helicopter flyover (`ac_airplane`)
 - [ ] Message-in-a-bottle on the beach (`ac_mbg` beach spawns) — random letter/pattern _(verify GCN)_
-- [ ] The lighthouse light sweeps at night; switch it (`ac_toudai`, `ac_lighthouse_switch`)
+- [~] The lighthouse light sweeps at night; switch it (`ac_toudai`, `ac_lighthouse_switch`) — `LighthouseBook`, `lighthouse_beacon.gd`, switch room `interiors/lighthouse.tscn` ([notes](decomp_notes/lighthouse.md)). Tortimer's vacation quest giver and reward not built
 - [ ] Windmill turning in wind (`ac_windmill`)
 
 ## 35. Multiplayer / multi-town

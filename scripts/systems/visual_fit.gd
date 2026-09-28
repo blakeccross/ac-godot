@@ -121,6 +121,7 @@ static func shell_keeps_acre_origin(visual_id: StringName) -> bool:
 		or id == "rom_tailor"
 		or id == "police_indoor"
 		or id == "grd_post_office"
+		or id == "rom_toudai"
 	)
 
 

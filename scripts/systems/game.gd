@@ -50,6 +50,7 @@ var police: PoliceBook = PoliceBook.new()
 var post: PostBook = PostBook.new()
 var farway: FarwayBook = FarwayBook.new()
 var redd: ReddBook = ReddBook.new()
+var lighthouse: LighthouseBook = LighthouseBook.new()
 ## Every catalog item the player has owned + Nook mail orders (`m_catalog_ovl`).
 var catalog: CatalogBook = CatalogBook.new()
 ## `Save_Get(fruit)`: the town's native fruit. Other fruit sells to Nook at the foreign price.
@@ -631,6 +632,10 @@ func reset_session() -> void:
 		redd = ReddBook.new()
 	else:
 		redd.clear()
+	if lighthouse == null:
+		lighthouse = LighthouseBook.new()
+	else:
+		lighthouse.clear()
 	if catalog == null:
 		catalog = CatalogBook.new()
 	else:
@@ -874,6 +879,7 @@ func to_save() -> Dictionary:
 		"post": post.to_save(),
 		"farway": farway.to_save(),
 		"redd": redd.to_save(),
+		"lighthouse": lighthouse.to_save(),
 		"catalog": catalog.to_save(),
 		"town_fruit": String(town_fruit),
 		"events": events.to_save(),
@@ -985,6 +991,9 @@ func apply_snapshot(data: Dictionary) -> void:
 	if redd == null:
 		redd = ReddBook.new()
 	redd.apply_snapshot(data.get("redd", {}))
+	if lighthouse == null:
+		lighthouse = LighthouseBook.new()
+	lighthouse.apply_snapshot(data.get("lighthouse", {}))
 	if catalog == null:
 		catalog = CatalogBook.new()
 	catalog.apply_snapshot(data.get("catalog", {}))
@@ -1141,6 +1150,12 @@ func prepare_interior_spawn(
 		## `rom_tailor` keeps the acre origin so this maps like the Nook shops.
 		interior_spawn_gx = InteriorCatalog.ABLE_SPAWN_GX
 		interior_spawn_yaw = WorldGrid.yaw_for_facing(InteriorCatalog.ABLE_SPAWN_FACING)
+		has_interior_spawn = true
+		spawn_at_room_door = false
+	elif room_id == &"lighthouse":
+		## `aTOU_door_data` GX {120,0,100}, `mSc_DIRECT_SOUTH` (just inside the north door).
+		interior_spawn_gx = LighthouseRoom.SPAWN_GX
+		interior_spawn_yaw = WorldGrid.yaw_for_facing(LighthouseRoom.SPAWN_FACING)
 		has_interior_spawn = true
 		spawn_at_room_door = false
 	elif room.kind == Room.Kind.NPC:
