@@ -287,14 +287,69 @@ func test_mole_cricket_pops_out_when_its_cell_is_dug() -> void:
 
 
 func test_bagworm_hides_until_the_tree_is_shaken() -> void:
-	var a := _make(&"bagworm", BugData.Habitat.TREE, Vector3(9.0, 0.0, 13.0))
+	var s := _field_sense()
+	var tree := Vector2i(5, 5)
+	_put(s.layout, &"tree", tree)
+	var at: Vector3 = s.grid.cell_to_world(tree)
+	var a := _make(&"bagworm", BugData.Habitat.TREE, at)
 	assert_int(a.action).is_equal(BugMino.HIDE)
 	assert_bool(a.drawn).is_false()
-	var s := BugActor.Sense.new()
+	assert_float(a.pos.y).is_equal_approx(65.0, 0.01)
+	s.player_position = at + Vector3(-3.0, 0.0, 0.0)   ## west of the tree
 	s.player_action = BugActor.PlAct.SHAKE_TREE
+	s.player_action_cell = Vector2i(6, 5)
+	a.frame(s)
+	assert_int(a.action).is_equal(BugMino.HIDE)
+	s.player_action_cell = tree
 	a.frame(s)
 	assert_int(a.action).is_equal(BugMino.APPEAR)
 	assert_bool(a.drawn).is_true()
+	## Drops on the far (east) side, 18 GX north.
+	assert_float(a.pos.x - a.home.x).is_equal_approx(30.0, 0.01)
+	s.player_action = BugActor.PlAct.NONE
+	for i in 300:
+		a.frame(s)
+		if a.action == BugMino.WAIT:
+			break
+	assert_int(a.action).is_equal(BugMino.WAIT)
+	var hang := Vector3(a.pos)
+	## A second shake swings it on its 50 GX arm, then it settles facing south again.
+	s.player_action = BugActor.PlAct.SHAKE_TREE
+	a.frame(s)
+	s.player_action = BugActor.PlAct.NONE
+	var swung := 0.0
+	for i in 400:
+		a.frame(s)
+		swung = maxf(swung, absf(a.pos.x - hang.x))
+	assert_float(swung).is_greater(0.5)
+	assert_float(absf(wrapf(a.rot.y - PI, -PI, PI))).is_less(0.01)
+	## After its 1200 frames it climbs back into the tree.
+	for i in 1200:
+		a.frame(s)
+		if a.action == BugMino.HIDE:
+			break
+	assert_int(a.action).is_equal(BugMino.HIDE)
+
+
+func test_bagworm_falls_from_a_felled_tree_and_crawls_off() -> void:
+	var s := _field_sense()
+	var tree := Vector2i(5, 5)
+	var t := _put(s.layout, &"tree", tree)
+	var at: Vector3 = s.grid.cell_to_world(tree)
+	var a := _make(&"bagworm", BugData.Habitat.TREE, at)
+	a.frame(s)
+	assert_int(a.action).is_equal(BugMino.HIDE)
+	s.layout.objects.erase(t)
+	s.player_position = at + Vector3(0.0, 0.0, 6.0)
+	s.player_yaw = PI
+	a.frame(s)
+	assert_int(a.action).is_equal(BugMino.FALL)
+	for i in 60:
+		a.frame(s)
+		if a.action == BugMino.LET_ESCAPE:
+			break
+	assert_int(a.action).is_equal(BugMino.LET_ESCAPE)
+	assert_float(absf(wrapf(a.angle_y - PI, -PI, PI))).is_less_equal(deg_to_rad(60.5))
 
 
 func test_pill_bug_curls_into_a_ball_when_scared() -> void:
