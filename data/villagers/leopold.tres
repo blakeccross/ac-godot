@@ -11,6 +11,7 @@ species = &"lion"
 texture_set = &"lon_3"
 personality = ExtResource("2")
 starter = true
+npc_index = 124
 wall_index = 1
 floor_index = 1
 house_type = 4

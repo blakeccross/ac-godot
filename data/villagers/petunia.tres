@@ -11,6 +11,7 @@ species = &"cow"
 texture_set = &"cow_2"
 personality = ExtResource("2")
 starter = true
+npc_index = 57
 wall_index = 5
 floor_index = 41
 house_type = 4

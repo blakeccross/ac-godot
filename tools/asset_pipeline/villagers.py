@@ -307,6 +307,7 @@ def _write_tres(path: Path, entry: dict[str, Any]) -> None:
     if entry["islander"]:
         lines.append("islander = true")
     lines.append(f"starter = {'true' if entry['starter'] else 'false'}")
+    lines.append(f"npc_index = {int(entry.get('npc_idx', -1))}")
     lines.append(f"wall_index = {int(entry.get('wall_index', 0))}")
     lines.append(f"floor_index = {int(entry.get('floor_index', 0))}")
     lines.append(f"house_type = {int(entry.get('house_type', 0))}")

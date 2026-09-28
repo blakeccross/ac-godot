@@ -251,7 +251,8 @@ def main() -> int:
                     f"{report['string_count']} strings; "
                     f"{report.get('manpu_events', 0)} manpu, "
                     f"{report.get('set_emote_events', 0)} set_emote, "
-                    f"{report.get('demo_order_events', 0)} demo_order)"
+                    f"{report.get('demo_order_events', 0)} demo_order; "
+                    f"{report.get('mail_strings', 0)} letter strings)"
                 )
         elif args.kind == "audio":
             report = convert_audio(cfg)

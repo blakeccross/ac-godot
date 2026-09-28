@@ -982,6 +982,12 @@ static func _place_villager_homes(
 			plots.append(r)
 	if plots.is_empty():
 		plots = _synthetic_house_plots(data, rng)
+	## Plots a house could stand on (the list `mNpc_MakeReservedListBeforeFieldct` rebuilds
+	## each load); taken ones are filtered against the roster when assigning.
+	data.reserve_cells = []
+	for r: Vector2i in plots:
+		if not _house_plot_blocked(data, r):
+			data.reserve_cells.append(r)
 	## Fisher–Yates (`mNpc_MakeRandTable` is a different shuffle; same “pick N plots”).
 	for i: int in range(plots.size() - 1, 0, -1):
 		var j: int = rng.randi_range(0, i)
@@ -1036,6 +1042,85 @@ static func _place_starter_villagers(data: WorldData, rng: RandomNumberGenerator
 			house.label = "%s's House" % villager.display_name
 		var cell: Vector2i = _yard_cell(data, house.cell, house.footprint)
 		data.objects.append(_villager(villager.id, cell, villager))
+
+
+## Replace the generator's starter houses with the saved roster (`TownResidents`): houses
+## sit on each slot's SIGN plot (`npc_house_<slot>`), and every plot a house ever stood on
+## stays cleared (`mNpc_DestroyHouse` writes EMPTY).
+static func apply_residents(data: WorldData, residents: TownResidents) -> void:
+	if data == null or residents == null or residents.is_empty():
+		return
+	if _residents_match_generated(data, residents):
+		return
+	var keep_b: Array[BuildingPlacement] = []
+	for b: BuildingPlacement in data.buildings:
+		if b != null and not String(b.id).begins_with("npc_house_"):
+			keep_b.append(b)
+	data.buildings = keep_b
+	var keep_o: Array[ObjectPlacement] = []
+	for o: ObjectPlacement in data.objects:
+		if o != null and o.kind != &"villager":
+			keep_o.append(o)
+	data.objects = keep_o
+	for plot: Variant in residents.used_plots.keys():
+		_remove_objects_in_house_plot(data, plot as Vector2i)
+	for slot: int in TownResidents.ANIMAL_NUM_MAX:
+		if residents.is_free(slot):
+			continue
+		var sign: Vector2i = residents.home_of(slot)
+		var villager: VillagerData = VillagerCatalog.get_villager(residents.slots[slot]["id"] as StringName)
+		if sign == TownResidents.NO_HOME or villager == null:
+			continue
+		place_villager_house(data, slot, sign, villager)
+
+
+## Nobody has moved yet: the generator's own houses already are the roster.
+static func _residents_match_generated(data: WorldData, residents: TownResidents) -> bool:
+	var generated: Array[Dictionary] = generated_houses(data)
+	if generated.size() != residents.animal_num() or residents.used_plots.size() != generated.size():
+		return false
+	for slot: int in generated.size():
+		if residents.is_free(slot):
+			return false
+		if residents.slots[slot]["id"] != generated[slot]["id"]:
+			return false
+		if residents.home_of(slot) != (generated[slot]["home"] as Vector2i):
+			return false
+	return true
+
+
+## One villager's house on its SIGN plot plus the villager in the yard
+## (`mNpc_BuildHouseBeforeFieldct`; the house FG item sits on the SIGN unit).
+static func place_villager_house(data: WorldData, slot: int, sign: Vector2i, villager: VillagerData) -> void:
+	_remove_objects_in_house_plot(data, sign)
+	var house := _labeled_building(
+		StringName("npc_house_%d" % slot),
+		&"house",
+		Vector2i(sign.x - 1, sign.y - 1),
+		Vector2i(3, 3),
+		true,
+		villager.outdoor_house_visual(),
+		"%s's House" % villager.display_name if villager.display_name != "" else "House"
+	)
+	house.resident_id = villager.id
+	data.buildings.append(house)
+	data.objects.append(_villager(villager.id, _yard_cell(data, house.cell, house.footprint), villager))
+
+
+## Starter houses the generator placed, in slot order, for `TownResidents.adopt_from_houses`.
+static func generated_houses(data: WorldData) -> Array[Dictionary]:
+	var houses: Array[BuildingPlacement] = []
+	for b: BuildingPlacement in data.buildings:
+		if b != null and String(b.id).begins_with("npc_house_") and b.resident_id != &"":
+			houses.append(b)
+	houses.sort_custom(
+		func(a: BuildingPlacement, b: BuildingPlacement) -> bool:
+			return String(a.id).naturalnocasecmp_to(String(b.id)) < 0
+	)
+	var out: Array[Dictionary] = []
+	for b: BuildingPlacement in houses:
+		out.append({"id": b.resident_id, "home": b.cell + Vector2i(1, 1)})
+	return out
 
 
 static func _yard_cell(data: WorldData, house_nw: Vector2i, footprint: Vector2i) -> Vector2i:

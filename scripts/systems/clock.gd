@@ -205,6 +205,16 @@ func now_sec() -> int:
 	return hour * 3600 + minute * 60 + second
 
 
+## Days since 2000-12-31 (2001-01-01 = 1). `lbRTC_GetIntervalDays` compares these.
+func day_number() -> int:
+	return _day_number(year, month, day)
+
+
+## Minutes since the same epoch (`lbRTC_IntervalTime` works in minutes).
+func absolute_minute() -> int:
+	return day_number() * 1440 + hour * 60 + minute
+
+
 ## 06:00 crossings since 2001-01-01. Plants derive stage from this, not a stored enum.
 func renew_index() -> int:
 	return _renew_id(year, month, day, hour, minute, second)

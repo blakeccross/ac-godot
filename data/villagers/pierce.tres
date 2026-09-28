@@ -11,6 +11,7 @@ species = &"eagle"
 texture_set = &"pbr_5"
 personality = ExtResource("2")
 starter = true
+npc_index = 143
 wall_index = 21
 floor_index = 21
 house_type = 4

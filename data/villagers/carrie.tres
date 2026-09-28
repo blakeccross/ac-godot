@@ -11,6 +11,7 @@ species = &"kangaroo"
 texture_set = &"kgr_1"
 personality = ExtResource("2")
 starter = false
+npc_index = 111
 wall_index = 33
 floor_index = 33
 house_type = 0

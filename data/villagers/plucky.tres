@@ -12,6 +12,7 @@ texture_set = &"chn_9"
 personality = ExtResource("2")
 islander = true
 starter = false
+npc_index = 227
 wall_index = 13
 floor_index = 22
 house_type = 1

@@ -12,6 +12,7 @@ texture_set = &"pig_11"
 personality = ExtResource("2")
 islander = true
 starter = false
+npc_index = 233
 wall_index = 60
 floor_index = 60
 house_type = 0

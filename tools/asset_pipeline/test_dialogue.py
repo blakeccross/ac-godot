@@ -211,3 +211,25 @@ class DialogueBgmEventTests(unittest.TestCase):
         self.assertEqual(
             _page_event_from_token("BGMDELETE", [1, 1]), {"op": "bgm_delete", "bgm": 1, "stop": 1}
         )
+
+
+class MailTextTests(unittest.TestCase):
+    def _raw(self, text: str) -> bytes:
+        cmap = char_map()
+        return bytes(cmap.index(c) for c in text)
+
+    def test_header_line_break_is_the_name_slot(self) -> None:
+        from asset_pipeline.dialogue import mail_text
+
+        self.assertEqual(mail_text(self._raw("Dear \n,"), header=True), "Dear {name},")
+        self.assertEqual(mail_text(self._raw("\n, FYI:"), header=True), "{name}, FYI:")
+
+    def test_header_without_one_break_puts_the_name_last(self) -> None:
+        from asset_pipeline.dialogue import mail_text
+
+        self.assertEqual(mail_text(self._raw("Hi "), header=True), "Hi {name}")
+
+    def test_body_keeps_leading_breaks(self) -> None:
+        from asset_pipeline.dialogue import mail_text
+
+        self.assertEqual(mail_text(self._raw("\nHello  ")), "\nHello")

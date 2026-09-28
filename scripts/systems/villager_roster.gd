@@ -11,6 +11,13 @@ func clear() -> void:
 	_states.clear()
 
 
+## The animal left town (`mNpc_ClearAnimalInfo`); a later return starts fresh.
+func forget(villager_id: StringName) -> void:
+	_states.erase(villager_id)
+	if book != null:
+		book.forget(villager_id)
+
+
 func get_or_create(villager_id: StringName) -> VillagerState:
 	if villager_id == &"":
 		var orphan := VillagerState.new()

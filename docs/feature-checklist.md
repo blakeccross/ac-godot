@@ -278,7 +278,7 @@ data tables before a category is called done.
 ## 16. Villagers (animal residents)
 
 - [~] One NPC actor, behaviour driven by "looks"/personality tables (`m_npc`, `ac_npc`) — `villager.tscn`, `villager_ai.gd`
-- [ ] **~15 villagers** live in town at once; ~215 species/characters total in the GCN roster _(verify)_
+- [x] Up to **15 villagers** (starts at 6, one move-in per day at most); 236 animals in the GCN roster
 - [ ] Personalities: **Normal, Peppy, Snooty, Cranky, Lazy, Jock** (6); + Big Sister/Uchi? — _no, GCN is 6_ — `personalities/`
 - [ ] Species models: cat, dog, rabbit, squirrel, bear, cub, pig, cow, bull, horse, sheep, goat, wolf, dog, duck, chicken, ostrich, penguin, eagle, elephant, rhino, hippo, gorilla, monkey, koala, kangaroo, anteater, alligator, frog, octopus, deer, mouse, hamster, tiger, lion, chameleon? _(verify GCN species list)_ — `generated_visual.attach_villager`
 - [~] Daily schedules per personality: wake, wander acres, visit shops, go to specific acres (shrine / friend's house / own house), sleep (`m_npc_schedule`, `ac_npc_schedule_*`) — `villager_schedule.gd`
@@ -293,9 +293,9 @@ data tables before a category is called done.
 - [ ] Umbrella open/close in rain (`ac_npc_act_umb_open/close`) — player side done; villagers still walk in the rain without one
 - [ ] Villager falls in your pitfall; you dig them out; anger/forgiveness (`ac_npc_act_pitfall`)
 - [ ] Hitting a villager with the net/axe/shovel → anger, "watch it!" (`m_watch_my_step`)
-- [ ] **Moving in**: new villager, boxes at the plot, introduces self (`ac_npc_act_greeting`, `mEv` move-in)
-- [ ] **Moving out**: villager announces plans days ahead; you can talk them into staying; boxes; gone next day; leaves a goodbye letter/gift (`ac_go_home_npc`)
-- [ ] Move-in / move-out cadence tied to friendship, time played, town population
+- [x] **Moving in**: new villager on a free SIGN plot, introduces self on first meeting (`mNpc_Grow`, `MSG_11573`) — `town_residents.gd`. GCN has no moving boxes
+- [~] **Moving out**: full town + 10 days → fewest-memories villager leaves with a goodbye letter (`mNpc_ForceRemove`) — `town_residents.gd`. The "thinking of moving" talk (`remove_animal_idx`) is picked but its dialogue isn't wired (only matters for card transfer)
+- [x] Move-in / move-out cadence tied to friendship, time played, town population (`mNpc_CheckGrow`, `mNpc_ForceRemove`)
 - [ ] **Friendship** per resident: points, best-friend at 80, decays over neglect (`Anmmem_c`, `mNpc_AddFriendship`) — `relationship.gd`, `relationship_book.gd`
 - [ ] Villager **memory**: last time you spoke, letters exchanged, favours done, gifts, whether you've been mean (`Anmmem_c`)
 - [ ] Nicknames: villager gives you a nickname; you can set what villagers call each other / call you; catchphrase ("hippie", etc.); you can change a villager's catchphrase

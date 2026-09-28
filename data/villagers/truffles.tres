@@ -11,6 +11,7 @@ species = &"pig"
 texture_set = &"pig_2"
 personality = ExtResource("2")
 starter = true
+npc_index = 152
 wall_index = 12
 floor_index = 7
 house_type = 0

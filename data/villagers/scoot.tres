@@ -11,6 +11,7 @@ species = &"duck"
 texture_set = &"duk_4"
 personality = ExtResource("2")
 starter = true
+npc_index = 73
 wall_index = 13
 floor_index = 55
 house_type = 2

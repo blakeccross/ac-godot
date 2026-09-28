@@ -12,6 +12,7 @@ texture_set = &"flg_13"
 personality = ExtResource("2")
 islander = true
 starter = false
+npc_index = 219
 wall_index = 46
 floor_index = 46
 house_type = 4

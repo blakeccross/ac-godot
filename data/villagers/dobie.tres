@@ -12,6 +12,7 @@ texture_set = &"wol_6"
 personality = ExtResource("2")
 islander = true
 starter = false
+npc_index = 224
 wall_index = 16
 floor_index = 9
 house_type = 0

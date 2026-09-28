@@ -11,6 +11,7 @@ species = &"bird"
 texture_set = &"brd_3"
 personality = ExtResource("2")
 starter = true
+npc_index = 29
 wall_index = 1
 floor_index = 51
 house_type = 3

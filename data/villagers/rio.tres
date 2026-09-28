@@ -11,6 +11,7 @@ species = &"ostrich"
 texture_set = &"ost_3"
 personality = ExtResource("2")
 starter = false
+npc_index = 137
 wall_index = 41
 floor_index = 24
 house_type = 3

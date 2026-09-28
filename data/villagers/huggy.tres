@@ -11,6 +11,7 @@ species = &"koala"
 texture_set = &"kal_5"
 personality = ExtResource("2")
 starter = true
+npc_index = 121
 wall_index = 24
 floor_index = 8
 house_type = 3

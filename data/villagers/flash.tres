@@ -12,6 +12,7 @@ texture_set = &"brd_11"
 personality = ExtResource("2")
 islander = true
 starter = false
+npc_index = 223
 wall_index = 41
 floor_index = 6
 house_type = 3

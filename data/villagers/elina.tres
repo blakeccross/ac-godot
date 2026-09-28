@@ -12,6 +12,7 @@ texture_set = &"elp_7"
 personality = ExtResource("2")
 islander = true
 starter = false
+npc_index = 222
 wall_index = 29
 floor_index = 40
 house_type = 4

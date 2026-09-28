@@ -12,6 +12,7 @@ texture_set = &"ost_2"
 catchphrase = "zort"
 personality = ExtResource("2")
 starter = false
+npc_index = 136
 wall_index = 56
 floor_index = 56
 house_type = 0

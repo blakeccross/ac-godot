@@ -12,6 +12,7 @@ texture_set = &"squ_1"
 catchphrase = "bucko"
 personality = ExtResource("2")
 starter = true
+npc_index = 174
 wall_index = 15
 floor_index = 12
 house_type = 0

@@ -11,6 +11,7 @@ species = &"horse"
 texture_set = &"hrs_1"
 personality = ExtResource("2")
 starter = true
+npc_index = 104
 wall_index = 51
 floor_index = 37
 house_type = 3

@@ -12,6 +12,7 @@ texture_set = &"cat_2"
 catchphrase = "purrr"
 personality = ExtResource("2")
 starter = true
+npc_index = 1
 wall_index = 30
 floor_index = 1
 house_type = 4

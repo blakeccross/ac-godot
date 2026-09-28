@@ -41,6 +41,10 @@ const DEFAULT_PLAYER_GENDER := &"male"
 
 var inventory: Inventory = Inventory.new()
 var villagers: VillagerRoster = VillagerRoster.new()
+## `animals[]` slots + move-in / move-out bookkeeping (`m_npc.c`).
+var residents: TownResidents = TownResidents.new()
+## `mSDI_StartInitAfter` runs once per load; the world resolves several times a session.
+var _residents_session_done: bool = false
 var relationships: RelationshipBook = RelationshipBook.new()
 var interiors: InteriorBook = InteriorBook.new()
 var shops: ShopBook = ShopBook.new()
@@ -484,11 +488,75 @@ func resolve_world_data() -> WorldData:
 	var data: WorldData
 	if world_mode == WorldData.Mode.GENERATED:
 		data = WorldGenerator.generate(world_seed, title_demo_active)
+		if not title_demo_active:
+			_resolve_residents(data)
 	else:
 		data = WorldGenerator.authored_test_town()
 	data.grass_pattern = grass_pattern
 	FieldCatalog.set_grass_pattern(grass_pattern)
 	return data
+
+
+## New town: the generator's starters become the roster. Then, once per load, the
+## `mSDI_StartInitAfter` villager steps (moving candidate, move-out, move-in, new house),
+## and the houses are rebuilt from the roster.
+func _resolve_residents(data: WorldData) -> void:
+	if residents.is_empty():
+		residents.adopt_from_houses(WorldGenerator.generated_houses(data))
+	if not _residents_session_done:
+		_residents_session_done = true
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		var report: Dictionary = residents.start_session(_residents_context(data, rng))
+		if report.get("moved_in", &"") != &"":
+			villagers.get_or_create(report["moved_in"] as StringName)
+	WorldGenerator.apply_residents(data, residents)
+
+
+func _residents_context(data: WorldData, rng: RandomNumberGenerator) -> Dictionary:
+	return {
+		"rng": rng,
+		"day": Clock.day_number(),
+		"minute": Clock.absolute_minute(),
+		"met": func(id: StringName) -> bool: return _player_met(id),
+		"letters": func(_id: StringName) -> int: return 0,
+		"field_rank": events.field_rank if events != null else EventCalendar.DEFAULT_FIELD_RANK,
+		"reserves": data.reserve_cells,
+		"on_goodbye": func(id: StringName, looks: int) -> void: _villager_moved_out(id, looks, rng),
+	}
+
+
+## `mNpc_GetAnimalMemoryIdx(player) != -1`: the player has a memory in this animal, made on
+## first talk.
+func _player_met(villager_id: StringName) -> bool:
+	return relationships.has_id(villager_id) and relationships.get_or_create(villager_id).talk_count > 0
+
+
+## `mNpc_ForceRemove`: goodbye letter to the player (`mNpc_SetGoodbyMailData`, mail
+## `0x20E + looks × 3 + rand(3)`), then the animal's memories go with it (`mNpc_ClearAnimalInfo`).
+func _villager_moved_out(villager_id: StringName, looks: int, rng: RandomNumberGenerator) -> void:
+	var villager: VillagerData = VillagerCatalog.get_villager(villager_id)
+	var name: String = villager.display_name if villager != null else String(villager_id)
+	if looks >= 0 and looks < TownResidents.LOOKS_NUM and MailBank.has_bank():
+		var mail_no: int = 0x20E + looks * 3 + rng.randi_range(0, 2)
+		var text: Dictionary = MailBank.letter(mail_no, player_name, {0: player_name, 1: name, 3: town_name})
+		var mail := MailData.new()
+		mail.sender_id = villager_id
+		mail.sender_name = name
+		mail.sender_type = MailData.NameType.NPC
+		mail.recipient_type = MailData.NameType.PLAYER
+		mail.recipient_name = player_name
+		mail.font = MailData.LetterFont.RECV
+		mail.header = str(text["header"])
+		mail.body = str(text["body"])
+		mail.footer = str(text["footer"])
+		## `mNpc_GetPaperType`: a random stationery pick (the shop paper lists aren't ported).
+		mail.paper_type = rng.randi_range(0, MailBank.PAPER_NUM - 1)
+		## Home mailbox first, else the post office keeps it (`mNpc_SendGoodbyAnimalMailOne`).
+		if inventory.add_received_mail(mail) < 0 and post != null:
+			post.receipt_mail(mail)
+	relationships.forget(villager_id)
+	villagers.forget(villager_id)
 
 
 func continue_game() -> void:
@@ -582,6 +650,8 @@ func reset_session() -> void:
 	last_room_id = &""
 	villagers.clear()
 	villagers.book = relationships
+	residents.clear()
+	_residents_session_done = false
 	VillagerWalk.reset()
 	Fishing.reset()
 	player_position = DEFAULT_SPAWN
@@ -860,6 +930,7 @@ func to_save() -> Dictionary:
 		"world_seed": world_seed,
 		"grass_pattern": grass_pattern,
 		"villagers": villagers.to_save(),
+		"residents": residents.to_save(),
 		"relationships": relationships.to_save(),
 		"interiors": interiors.to_save(),
 		"shops": shops.to_save(),
@@ -1006,6 +1077,9 @@ func apply_snapshot(data: Dictionary) -> void:
 		outdoor_return_yaw = 0.0
 	villagers.book = relationships
 	villagers.apply_snapshot(data.get("villagers", {}))
+	## Saves from before the roster was stored adopt the generated starters on first resolve.
+	residents.apply_snapshot(data.get("residents", {}))
+	_residents_session_done = false
 	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
 	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))
 	player_gender = IntroSequence.normalize_gender(data.get("player_gender", DEFAULT_PLAYER_GENDER))

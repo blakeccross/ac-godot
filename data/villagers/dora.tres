@@ -12,6 +12,7 @@ texture_set = &"mus_3"
 catchphrase = "squeaky"
 personality = ExtResource("2")
 starter = true
+npc_index = 127
 wall_index = 11
 floor_index = 10
 house_type = 2

@@ -12,6 +12,7 @@ texture_set = &"flg_10"
 catchphrase = "zzrrbbitt"
 personality = ExtResource("2")
 starter = false
+npc_index = 88
 wall_index = 15
 floor_index = 15
 house_type = 3

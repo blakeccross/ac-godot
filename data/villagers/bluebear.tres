@@ -11,6 +11,7 @@ species = &"cub"
 texture_set = &"cbr_9"
 personality = ExtResource("2")
 starter = true
+npc_index = 55
 wall_index = 8
 floor_index = 24
 house_type = 1

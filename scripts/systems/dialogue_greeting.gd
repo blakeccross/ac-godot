@@ -5,6 +5,8 @@ extends RefCounted
 ## Jumps into the imported bank when present; otherwise `looks_greeting`.
 
 const KIND := 3
+## `MSG_11573`: new-arrival first greeting, 3 variants × 4 times × 6 looks.
+const MOVED_IN_HELLO := 11573
 const FALLBACK_ID := &"looks_greeting"
 
 const MEET_FIRST := 0
@@ -59,6 +61,11 @@ static func hello_msg_no(villager: VillagerData, state: VillagerState, ctx: Dial
 			return SAD[looks] + _roll(5, ctx)
 		if ctx.mood == VillagerState.Mood.SLEEPY:
 			return SLEEPY[looks] + _roll(5, ctx)
+	## `aQMgr_get_hello_msg_how_do_you_do`: a villager who moved in (`Animal_c.moved_in`)
+	## introduces themself as the new neighbour on first meeting.
+	if meet == MEET_FIRST and villager != null and Game != null and Game.residents != null:
+		if Game.residents.moved_in(villager.id):
+			return msg_offset(MOVED_IN_HELLO, looks, ctx.hour, _roll(KIND, ctx), KIND)
 	if ctx.mood == VillagerState.Mood.HAPPY:
 		return _hello_offset(GRAD[meet], looks, ctx.hour, KIND, ctx)
 	if villager != null and villager.islander:

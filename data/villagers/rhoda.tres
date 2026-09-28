@@ -11,6 +11,7 @@ species = &"chicken"
 texture_set = &"chn_8"
 personality = ExtResource("2")
 starter = true
+npc_index = 46
 wall_index = 62
 floor_index = 35
 house_type = 4

@@ -11,6 +11,7 @@ species = &"sheep"
 texture_set = &"shp_6"
 personality = ExtResource("2")
 starter = false
+npc_index = 214
 wall_index = 61
 floor_index = 42
 house_type = 0

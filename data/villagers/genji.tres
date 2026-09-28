@@ -11,6 +11,7 @@ species = &"rabbit"
 texture_set = &"rbt_7"
 personality = ExtResource("2")
 starter = false
+npc_index = 167
 wall_index = 16
 floor_index = 16
 house_type = 2

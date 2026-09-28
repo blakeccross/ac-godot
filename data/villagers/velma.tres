@@ -11,6 +11,7 @@ species = &"goat"
 texture_set = &"goa_6"
 personality = ExtResource("2")
 starter = false
+npc_index = 96
 wall_index = 58
 floor_index = 2
 house_type = 4

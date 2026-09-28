@@ -11,6 +11,7 @@ species = &"cat"
 texture_set = &"cat_9"
 personality = ExtResource("2")
 starter = false
+npc_index = 8
 wall_index = 65
 floor_index = 65
 house_type = 1

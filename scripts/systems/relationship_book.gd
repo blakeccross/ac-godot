@@ -10,6 +10,11 @@ func clear() -> void:
 	_bonds.clear()
 
 
+## `mNpc_ClearAnimalInfo`: the animal left town and takes its memories along.
+func forget(villager_id: StringName) -> void:
+	_bonds.erase(villager_id)
+
+
 func get_or_create(villager_id: StringName) -> Relationship:
 	if villager_id == &"":
 		return Relationship.new()

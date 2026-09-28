@@ -11,6 +11,7 @@ species = &"bear"
 texture_set = &"bea_2"
 personality = ExtResource("2")
 starter = true
+npc_index = 19
 wall_index = 36
 floor_index = 36
 house_type = 4

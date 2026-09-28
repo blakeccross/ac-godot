@@ -11,6 +11,7 @@ species = &"dog"
 texture_set = &"dog_4"
 personality = ExtResource("2")
 starter = false
+npc_index = 66
 wall_index = 44
 floor_index = 44
 house_type = 2

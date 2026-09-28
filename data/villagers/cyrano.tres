@@ -11,6 +11,7 @@ species = &"anteater"
 texture_set = &"ant_4"
 personality = ExtResource("2")
 starter = false
+npc_index = 16
 wall_index = 31
 floor_index = 11
 house_type = 2

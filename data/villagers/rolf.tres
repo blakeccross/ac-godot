@@ -11,6 +11,7 @@ species = &"tiger"
 texture_set = &"tig_2"
 personality = ExtResource("2")
 starter = true
+npc_index = 183
 wall_index = 56
 floor_index = 42
 house_type = 4

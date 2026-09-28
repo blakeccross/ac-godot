@@ -524,6 +524,51 @@ def find_pair(cfg: PipelineConfig, stem: str) -> Optional[tuple[Path, Path]]:
     return None
 
 
+## Letter banks (`m_handbill`): body (`mail`), header (`super`) and signature (`ps`), plus the
+## `*z` / `maila..c` variants read through `mHandbillz`. Same table format as `message_data`.
+MAIL_BANKS = ("mail", "super", "ps", "maila", "mailb", "mailc", "superz", "psz")
+HEADER_BANKS = ("super", "superz")
+NAME_SLOT = "{name}"
+
+
+def mail_text(raw: bytes, header: bool = False) -> str:
+    """Decode one letter string. Headers keep their single line break as the name slot
+    (`mHandbill_CheckSuperStringBorderAndCopy`: exactly one `\n` marks `header_back_start`,
+    otherwise the name goes after the text)."""
+    parts: list[str] = []
+    for tok in decode_tokens(raw):
+        if tok["type"] == "text":
+            parts.append(tok["text"])
+        elif tok["name"] in SUBS:
+            parts.append(SUBS[tok["name"]])
+    text = "".join(parts)
+    if header:
+        if text.count("\n") == 1:
+            text = text.replace("\n", NAME_SLOT)
+        else:
+            text = text.replace("\n", "") + NAME_SLOT
+        return text.strip(" ")
+    return text.rstrip()
+
+
+def convert_mail(cfg: PipelineConfig) -> dict[str, Any]:
+    banks: dict[str, list[str]] = {}
+    for stem in MAIL_BANKS:
+        pair = find_pair(cfg, f"{stem}_data")
+        if pair is None:
+            continue
+        raws = decode_table(pair[0].read_bytes(), pair[1].read_bytes())
+        banks[stem] = [mail_text(r, stem in HEADER_BANKS) if r else "" for r in raws]
+    if "mail" not in banks:
+        return {"error": "mail_data.bin not found", "converted": 0}
+    out_dir = cfg.godot_generated / "dialogue"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "mail.json").write_text(
+        json.dumps(banks, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
+    )
+    return {"converted": sum(len(v) for v in banks.values()), "banks": sorted(banks)}
+
+
 def convert_dialogue(cfg: PipelineConfig) -> dict[str, Any]:
     pair = find_pair(cfg, "message_data")
     if pair is None:
@@ -601,8 +646,10 @@ def convert_dialogue(cfg: PipelineConfig) -> dict[str, Any]:
     (out_dir / "index.json").write_text(
         json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+    mail = convert_mail(cfg)
     return {
         "converted": len(conversations),
+        "mail_strings": mail.get("converted", 0),
         "output": str(out_dir),
         "files": len(files),
         "select_count": len(select),

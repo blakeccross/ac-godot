@@ -16,6 +16,9 @@ extends Resource
 @export var dialogue: DialogueData
 ## New-town eligible (`mNpc_GROW_STARTER`). Move-in-only animals stay out of the starter pick.
 @export var starter: bool = true
+## Row in the decomp NPC tables (`npc_id & 0xFFF`): `npc_looks_table`, `npc_grow_list`,
+## the `npc_used_tbl` appeared bits. Index order drives the move-in candidate pick.
+@export var npc_index: int = -1
 ## Island-only animal (`mNpc_GROW_ISLANDER`). Greeting uses the island hello table.
 @export var islander: bool = false
 ## IndoorSession wallpaper / carpet index (`npc_house_list` / `mRmTp_CopyWallData`).

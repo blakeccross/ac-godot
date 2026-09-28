@@ -11,6 +11,7 @@ species = &"squirrel"
 texture_set = &"squ_4"
 personality = ExtResource("2")
 starter = true
+npc_index = 177
 wall_index = 35
 floor_index = 35
 house_type = 0

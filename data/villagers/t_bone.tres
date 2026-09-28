@@ -11,6 +11,7 @@ species = &"bull"
 texture_set = &"bul_4"
 personality = ExtResource("2")
 starter = true
+npc_index = 193
 wall_index = 32
 floor_index = 32
 house_type = 3

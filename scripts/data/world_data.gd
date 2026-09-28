@@ -29,6 +29,9 @@ const GRASS_PATTERN_COUNT := 3
 @export var buildings: Array[BuildingPlacement] = []
 @export var objects: Array[ObjectPlacement] = []
 @export var spawn_points: Array[SpawnPoint] = []
+## SIGN reserve cells a villager house fits on (`mNT_IS_RESERVE`), in FG order. Houses are
+## rebuilt from `TownResidents`, which assigns new arrivals to the free ones.
+@export var reserve_cells: Array[Vector2i] = []
 ## Original acre mesh (`BG_TYPE_GRD_S_F_1` → `grd_s_f_1`). Empty keeps the placeholder plane.
 @export var acre_visual: StringName = &"grd_s_f_1"
 ## Full 7×10 `mFM_BLOCK_TYPE_*` grid from TownFieldGenerator (70 bytes). Empty for test town.

@@ -12,6 +12,7 @@ texture_set = &"mus_10"
 personality = ExtResource("2")
 islander = true
 starter = false
+npc_index = 225
 wall_index = 33
 floor_index = 33
 house_type = 3

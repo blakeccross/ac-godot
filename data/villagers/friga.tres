@@ -12,6 +12,7 @@ texture_set = &"pgn_7"
 catchphrase = "brr"
 personality = ExtResource("2")
 starter = true
+npc_index = 150
 wall_index = 51
 floor_index = 1
 house_type = 1
