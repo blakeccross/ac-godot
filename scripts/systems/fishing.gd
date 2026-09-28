@@ -33,10 +33,6 @@ const CAST_TICKS := 50
 const CAST_RELEASE_FRAME := 10.0
 ## How high the parabola peaks, as a fraction of the throw distance.
 const CAST_ARC := 0.35
-## Walking away drops the line. The original locks the player through the whole cast
-## instead, which we cannot do without holding the A-button loop hostage. Has to stay clear
-## of `CAST_METERS` or the line would go slack the instant the bobber landed.
-const LEASH_METERS := CAST_METERS + 3.0
 ## How long a nibble visibly pulls the bobber under.
 const DIP_SECONDS := 0.22
 ## `aUKI_set_proc_cast`: `cast_timer = 40`, counted down only once the bobber is floating.
@@ -58,6 +54,12 @@ const DRIFT_SPEED_GX := 0.45
 const DRIFT_TOUCH_SPEED_GX := 0.225
 const DRIFT_ACCEL_GX := 0.1
 const TOW_SPEED_GX := 0.8
+## The caster cannot walk away: `relax_rod` and `vib_rod` brake the player and turn them to
+## face the bobber (`Player_actor_SetPlayerAngle_forUki`), and A is the only way out. What
+## is left is a silent guard for a caster moved by something else — a warp or a scene
+## change — which the original answers with `uki->command = 8`. It sits well past the
+## 130 GX tow radius, so the drift can never trip it.
+const LEASH_METERS := DRIFT_RADIUS_GX * 2.0 * FieldCatalog.GX_TO_METERS
 ## `aUKI_BGcheck`: the bobber keeps 12 GX off the bank while settling, then `range` eases
 ## out to 40 GX at 0.05 a tick.
 const BANK_RANGE_START_GX := 12.0
@@ -219,6 +221,16 @@ static func is_active() -> bool:
 	return _state != State.IDLE
 
 
+## True while `actor` has the line out: the player brakes to a stop and cannot walk.
+static func holds(actor: Node) -> bool:
+	return is_active() and actor != null and _actor == actor
+
+
+## `relax_rod` / `vib_rod` turn the caster toward the bobber; `cast_rod` only brakes.
+static func faces_bobber(actor: Node) -> bool:
+	return holds(actor) and _state != State.CAST
+
+
 static func state() -> State:
 	return _state
 
@@ -322,7 +334,6 @@ static func tick(delta: float, school: FishSchool = null) -> void:
 		_end(school)
 		return
 	if not _reeling and _actor.global_position.distance_to(_anchor) > LEASH_METERS:
-		Game.post_notice("Your line went slack.")
 		_end(school)
 		return
 	_dip = maxf(_dip - delta, 0.0)

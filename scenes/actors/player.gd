@@ -104,6 +104,10 @@ var _demo_walk_goal: Vector3 = Vector3.ZERO
 var _demo_walk_speed: float = 0.0
 var _demo_walk_arrive: float = 0.0
 var _motor: PlayerLocomotion = PlayerLocomotion.new()
+## `Player_actor_SetPlayerAngle_forUki`'s clamps, and its own tick clock.
+const UKI_TURN_MAX := 13.73291015625 * PI / 180.0
+const UKI_TURN_MIN := 0.274658203125 * PI / 180.0
+var _uki_turn := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _busy: bool = false
 ## Station intro ride / guided walk — stage owns XZ/Y; skip snap + move_and_slide.
@@ -378,6 +382,12 @@ func _physics_process(delta: float) -> void:
 		if scripted_input != null and scripted_input.consume_a_pressed():
 			_try_interact()
 
+	## `cast_rod` / `relax_rod` / `vib_rod`: `Movement_Base_Braking_common`, stick ignored.
+	var rod_locked: bool = Fishing.holds(self)
+	if rod_locked:
+		wish = Vector3.ZERO
+		stick = 0.0
+		input_dir = Vector2.ZERO
 	var sprint: bool = (
 		scripted_input == null and not is_demo_walking() and Input.is_action_pressed("sprint")
 	)
@@ -395,9 +405,12 @@ func _physics_process(delta: float) -> void:
 	if _net.is_active():
 		planar = _tick_net(delta, input_dir, wish, stick, menu_open)
 	else:
-		planar = _motor.tick(delta, wish, stick, sprint and not menu_open, _busy or menu_open)
+		planar = _motor.tick(
+			delta, wish, stick, sprint and not menu_open, _busy or menu_open or rod_locked
+		)
 	velocity.x = planar.x
 	velocity.z = planar.z
+	_face_bobber(delta)
 	_tick_talk_face(delta)
 	_mesh.rotation.y = _motor.body_yaw
 	_mesh.rotation.x = _motor.lean
@@ -1149,6 +1162,22 @@ func _group_open(group: String) -> bool:
 		return false
 	var ui: Node = get_tree().get_first_node_in_group(group)
 	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
+
+
+## `Player_actor_SetPlayerAngle_forUki`: one `add_calc_short_angle2(1−√½, 13.73°, 0.27°)`
+## a tick toward the bobber while the line is out.
+func _face_bobber(delta: float) -> void:
+	if not Fishing.faces_bobber(self):
+		_uki_turn.reset()
+		return
+	var to_uki: Vector3 = Fishing.anchor() - global_position
+	_uki_turn.add(delta)
+	while _uki_turn.next():
+		if is_zero_approx(to_uki.x) and is_zero_approx(to_uki.z):
+			continue
+		_motor.facing = MLib.short_angle2(
+			_motor.facing, atan2(to_uki.x, to_uki.z), MLib.HALF_FRACTION, UKI_TURN_MAX, UKI_TURN_MIN
+		)
 
 
 func _unhandled_input(event: InputEvent) -> void:

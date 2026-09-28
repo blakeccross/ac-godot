@@ -805,14 +805,68 @@ func test_casting_on_top_of_a_fish_scares_it_off() -> void:
 	assert_that(shadow.action).is_equal(FishShadow.Action.ESCAPE)
 
 
-func test_walking_away_drops_the_line() -> void:
+func test_a_warped_caster_drops_the_line_without_a_word() -> void:
+	## The original never lets you walk off (`relax_rod` brakes); only a warp takes the line
+	## (`uki->command = 8`), and it says nothing. The guard sits past the 130 GX tow radius.
+	assert_float(Fishing.LEASH_METERS).is_greater(
+		Fishing.DRIFT_RADIUS_GX * FieldCatalog.GX_TO_METERS
+	)
 	var ctx: InteractionContext = _at_water()
 	_cast(ctx)
 	var actor := ctx.actor as _FacingActor
 	actor.global_position += Vector3(0.0, 0.0, -Fishing.LEASH_METERS - 2.0)
 	Fishing.tick(0.1, _school(ctx))
 	assert_bool(Fishing.is_active()).is_false()
-	assert_bool("Your line went slack." in _heard).is_true()
+	assert_array(_heard).is_empty()
+
+
+func test_the_line_holds_the_caster_and_a_goes_to_the_bobber() -> void:
+	var ctx: InteractionContext = _at_water()
+	assert_bool(Fishing.holds(ctx.actor)).is_false()
+	_cast(ctx)
+	assert_bool(Fishing.holds(ctx.actor)).is_true()
+	## `cast_rod` only brakes; `relax_rod` turns to the bobber as well.
+	assert_bool(Fishing.faces_bobber(ctx.actor)).is_false()
+	## While it flies, A does nothing — not even a villager in front of you.
+	var talk := InteractionQuery.new()
+	talk.host = Node3D.new()
+	talk.action = Interaction.of(&"talk", "Talk", 99)
+	assert_that(ToolUse.resolve(talk, ctx)).is_null()
+	_settle(ctx)
+	assert_bool(Fishing.faces_bobber(ctx.actor)).is_true()
+	var hit: InteractionQuery = ToolUse.resolve(talk, ctx)
+	assert_that(hit).is_not_null()
+	assert_that(hit.host).is_null()
+	assert_str(String(hit.action.id)).is_equal(String(Interaction.HOOK))
+	talk.host.free()
+
+
+func test_the_player_cannot_walk_off_and_turns_to_the_bobber() -> void:
+	## `Player_actor_Movement_Relax_rod`: `SetPlayerAngle_forUki` + braking — the stick does
+	## nothing, and the body eases round to face the float.
+	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	add_child(player)
+	await get_tree().process_frame
+	var ctx := InteractionContext.new()
+	ctx.actor = player
+	var start: Vector3 = player.global_position
+	## Bobber off to the player's right (+X); the player faces +Z.
+	player.apply_facing(0.0)
+	assert_bool(Fishing.cast(ctx, start + Vector3(5.0, 0.0, 0.0))).is_true()
+	Fishing.tick(Fishing.CAST_SECONDS + 0.1)
+	assert_bool(Fishing.faces_bobber(player)).is_true()
+	Input.action_press(&"move_back")
+	var yaws: Array[float] = []
+	for _i in 30:
+		await get_tree().physics_frame
+		yaws.append(player._motor.facing)
+	Input.action_release(&"move_back")
+	var moved: Vector3 = player.global_position - start
+	assert_float(Vector2(moved.x, moved.z).length()).is_less(0.01)
+	## First tick is clamped to 13.73°; it ends up looking at the bobber (yaw +90°).
+	assert_float(absf(yaws[0])).is_less_equal(Player.UKI_TURN_MAX * 2.0 + 0.0001)
+	assert_float(yaws[-1]).is_equal_approx(PI * 0.5, 0.02)
+	Fishing.reset()
 
 
 func test_authored_town_river_is_castable_near_spawn() -> void:

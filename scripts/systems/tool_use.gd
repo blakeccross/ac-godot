@@ -66,6 +66,14 @@ static func field_action(ctx: InteractionContext) -> Interaction:
 ## Prefer a higher-priority field verb (net swing, rod cast) over a weaker host.
 static func resolve(hit: InteractionQuery, ctx: InteractionContext) -> InteractionQuery:
 	var field: Interaction = field_action(ctx)
+	## `relax_rod`: with the line out, A goes to the bobber and nothing else — no talking,
+	## no picking up. While the line is flying or coming in, A does nothing at all.
+	if Fishing.holds(ctx.actor if ctx != null else null):
+		if field == null:
+			return null
+		var reel := InteractionQuery.new()
+		reel.action = field
+		return reel
 	if field == null:
 		return hit
 	if hit == null or hit.action == null or field.priority > hit.action.priority:
