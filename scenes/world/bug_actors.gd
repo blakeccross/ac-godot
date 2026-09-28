@@ -4,6 +4,8 @@ extends Node3D
 
 var _field: BugField = null
 var _nodes: Array[BugActorVisual] = []
+## Villager positions last physics tick (instance id → metres), for their frame move.
+var _npc_last: Dictionary = {}
 
 
 func _ready() -> void:
@@ -30,6 +32,7 @@ func _physics_process(delta: float) -> void:
 		if _field == null:
 			return
 	var sense: BugActor.Sense = _make_sense()
+	_sense_npcs(sense, delta)
 	_field.tick(delta, sense)
 	_sync(delta)
 
@@ -61,6 +64,27 @@ func _make_sense() -> BugActor.Sense:
 		sense.player_action = int(act.get("kind", 0))
 		sense.player_action_cell = act.get("cell", Vector2i(-1, -1))
 	return sense
+
+
+## `aINS_get_stress` walks the NPC actor list too: a villager walking past spooks an
+## insect exactly like the player does.
+func _sense_npcs(sense: BugActor.Sense, delta: float) -> void:
+	var seen: Dictionary = {}
+	for node: Node in get_tree().get_nodes_in_group("villagers"):
+		var npc := node as Node3D
+		if npc == null or not npc.visible or not npc.is_inside_tree():
+			continue
+		var id: int = npc.get_instance_id()
+		var at: Vector3 = npc.global_position
+		var move_gx: float = 0.0
+		if _npc_last.has(id) and delta > 0.0:
+			var last: Vector3 = _npc_last[id]
+			var step_m: float = Vector2(at.x - last.x, at.z - last.z).length()
+			move_gx = step_m / FieldCatalog.GX_TO_METERS / (delta * DecompTime.FRAME_HZ)
+		seen[id] = at
+		sense.npc_positions.append(at)
+		sense.npc_moves_gx.append(move_gx)
+	_npc_last = seen
 
 
 func _grid_for() -> Variant:

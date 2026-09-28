@@ -650,3 +650,24 @@ func test_live_insect_check_uses_the_birth_block() -> void:
 	a.block = Vector2i(1, 1)
 	assert_bool(field._acre_has_insect(Vector2i(1, 1))).is_true()
 	assert_bool(field._acre_has_insect(Vector2i(2, 1))).is_false()
+
+
+func test_a_walking_villager_stresses_an_insect_like_the_player() -> void:
+	## `aINS_get_stress` reads the NPC actor list as well as the player: a villager
+	## moving 2 GX a frame one unit away adds 2 × calc_table[2] × 0.5 patience.
+	var bug: BugData = BugCatalog.get_bug(&"common_butterfly")
+	var at := Vector3(0.0, 0.5, 0.0)
+	var actor: BugActor = BugActor.create(bug, BugData.Habitat.FLYING, at, RandomNumberGenerator.new())
+	actor.patience = 0.0
+	var sense := BugActor.Sense.new()
+	sense.npc_positions.append(at + Vector3(20.0 * FieldCatalog.GX_TO_METERS, 0.0, 0.0))
+	sense.npc_moves_gx.append(2.0)
+	assert_float(actor._calc_stress(sense)).is_equal_approx(2.0 * BugActor.STRESS_CALC_TABLE[2], 0.0001)
+	actor._calc_patience(sense)
+	assert_float(actor.patience).is_equal_approx(2.0 * BugActor.STRESS_CALC_TABLE[2] * 0.5, 0.0001)
+	## A standing villager, or one past the 3-unit stress radius, does nothing.
+	sense.npc_moves_gx[0] = 0.0
+	assert_float(actor._calc_stress(sense)).is_equal(0.0)
+	sense.npc_moves_gx[0] = 2.0
+	sense.npc_positions[0] = at + Vector3(70.0 * FieldCatalog.GX_TO_METERS, 0.0, 0.0)
+	assert_float(actor._calc_stress(sense)).is_equal(0.0)
