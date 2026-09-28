@@ -4,7 +4,7 @@ extends RefCounted
 ## Live insects on the field — the `aINS_CTRL_ACTOR` analog with `aINS_ACTOR_NUM` (9)
 ## slots. Owned by the world scene, not an autoload. Drives the shared 30 Hz frame
 ## loop (`aINS_actor_move`) for every slot, then culls and runs one spawn attempt
-## per acre the player enters (`aSOI_insect_set`).
+## per acre crossing (`aSOI_insect_set`, run by the set manager on a wade).
 
 ## `aINS_ACTOR_NUM`
 const MAX_ACTORS := 9
@@ -44,10 +44,17 @@ var _steps := FrameStepper.new()
 var _game_frame: int = 0
 var _field_action: Dictionary = {"kind": 0, "cell": Vector2i(-1, -1)}
 var _keep_pool: Array[BugSpawnEntry] = []
+## Set manager: the acre the current wade lands in and the frames left before its set runs
+## (−1 = idle); `_was_wading` catches the wade's first tick (`mFI_WADE_START`).
+var _set_acre: Vector2i = Vector2i(-999, -999)
+var _set_wait: int = -1
+var _was_wading: bool = false
 var _keep_month: int = -1
 var _keep_term: int = -1
 
 const TOOL_SWING_SECONDS := 0.25
+## `aSetMgr_WAIT_TIME`: frames between the wade starting and the set overlay running.
+const SET_WAIT_FRAMES := 5
 
 
 func configure(grid: WorldGrid, layout: WorldData) -> void:
@@ -55,6 +62,8 @@ func configure(grid: WorldGrid, layout: WorldData) -> void:
 	_layout = layout
 	actors.clear()
 	_spawned_acre = Vector2i(-999, -999)
+	_set_wait = -1
+	_was_wading = false
 	_steps.reset()
 
 
@@ -113,14 +122,23 @@ func tick(delta: float, sense: BugActor.Sense) -> void:
 		sense.player_swung_tool = true
 	_tool_swing = maxf(_tool_swing - delta, 0.0)
 
-	## `aSOI_insect_set` is driven by the set manager on acre transitions, not by
-	## the insect frame loop — run it once per call, guarded by `_spawned_acre`.
-	_tick_spawn(sense)
+	## `aSetMgr_move_check_set`: a wade starting names the acre being entered.
+	var wading: bool = sense.wade_end != Vector3.INF
+	if wading and not _was_wading and _grid != null:
+		_set_acre = BugHabitats.acre_of_world_pos(_grid, sense.wade_end)
+		_set_wait = SET_WAIT_FRAMES
+	_was_wading = wading
 
 	_steps.add(delta)
 	var budget: int = 8
 	while budget > 0 and _steps.next():
 		budget -= 1
+		## `aSetMgr_move_check_wait` → `aSetMgr_move_set`: `aSOI_insect_set` for that acre.
+		if _set_wait > 0:
+			_set_wait -= 1
+			if _set_wait == 0:
+				_set_wait = -1
+				_tick_spawn(_set_acre)
 		_frame(sense)
 
 
@@ -184,16 +202,12 @@ func clear() -> void:
 	_spawned_acre = Vector2i(-999, -999)
 
 
-func _tick_spawn(sense: BugActor.Sense) -> void:
+## `aSOI_insect_set` for the acre a wade is entering. Nothing spawns on a scene load or
+## while standing in an acre — only on crossing into one. With every field slot taken
+## the attempt is simply lost (`aINS_make_insect` fails).
+func _tick_spawn(acre: Vector2i) -> void:
 	if not auto_spawn or _grid == null or _layout == null:
 		return
-	if not sense.has_player():
-		return
-	var acre: Vector2i = BugHabitats.acre_of_world_pos(_grid, sense.player_position)
-	if acre == _spawned_acre:
-		return
-	## The attempt is spent on entry even when every field slot is taken
-	## (`aINS_make_insect` just fails); it is not retried later in the same acre.
 	_spawned_acre = acre
 	## `aSOI_ins_block_check` / `aINS_chk_live_insect`: one attempt per acre entry,
 	## and only if that acre does not already host a live insect.

@@ -64,6 +64,8 @@ class Sense:
 	## Cell the player just acted on (shovel / axe / tree shake).
 	var player_action_cell: Vector2i = Vector2i(-1, -1)
 	var player_action: int = 0  ## aINS_PL_ACT_*
+	## `Get_WadeEndPos_proc` while the player is crossing into another acre, else INF.
+	var wade_end: Vector3 = Vector3.INF
 	## Optional BG probe. Callable(pos_gx: Vector3) -> Dictionary (walls, flowers, perches…).
 	var bg: Callable = Callable()
 	## Ground-only sampler for the per-frame `aINS_BGcheck` (`BugBg.make_ground`):

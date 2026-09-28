@@ -42,6 +42,7 @@ func _make_sense() -> BugActor.Sense:
 		sense.player_move_gx = player.insect_stress_move_gx()
 		sense.player_dashing = player.is_dashing()
 		sense.player_yaw = player.facing_yaw()
+		sense.wade_end = player.wade_end_position()
 	var grid: Variant = _grid_for()
 	if grid is WorldGrid:
 		var layout := _layout_for()

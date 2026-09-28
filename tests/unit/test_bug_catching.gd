@@ -133,6 +133,47 @@ func test_life_time_default_is_two_game_hours() -> void:
 	assert_int(BugActor.LIFE_TIME_FRAMES).is_equal(216000)
 
 
+## Starts a wade into `cell` and runs the set manager's wait out.
+func _wade_into(field: BugField, grid: WorldGrid, sense: BugActor.Sense, cell: Vector2i) -> void:
+	sense.wade_end = grid.cell_to_world(cell)
+	for _i: int in BugField.SET_WAIT_FRAMES + 1:
+		field.tick(STEP, sense)
+	sense.wade_end = Vector3.INF
+	sense.player_position = grid.cell_to_world(cell)
+	field.tick(STEP, sense)
+
+
+func test_no_spawn_without_an_acre_crossing() -> void:
+	## `aSOI_insect_set` only runs from the set manager on a wade: loading into an acre or
+	## standing in it births nothing.
+	var layout: WorldData = WorldGenerator.authored_test_town()
+	var grid := WorldGrid.new()
+	grid.configure_from_world(layout)
+	var field := BugField.new()
+	field.configure(grid, layout)
+	field.seed_rng(1)
+	var sense := BugActor.Sense.new()
+	sense.player_position = grid.cell_to_world(Vector2i(8, 8))
+	for _i: int in 60:
+		field.tick(STEP, sense)
+	assert_int(field.actor_count()).is_equal(0)
+	assert_that(field._spawned_acre).is_equal(Vector2i(-999, -999))
+
+
+func test_set_waits_for_the_set_manager_timer() -> void:
+	var world: Array = _open_layout()
+	var field := BugField.new()
+	field.configure(world[1], world[0])
+	var sense := BugActor.Sense.new()
+	sense.player_position = (world[1] as WorldGrid).cell_to_world(Vector2i(8, 8))
+	sense.wade_end = (world[1] as WorldGrid).cell_to_world(Vector2i(9, 8))
+	for _i: int in BugField.SET_WAIT_FRAMES - 1:
+		field.tick(STEP, sense)
+	assert_that(field._spawned_acre).is_equal(Vector2i(-999, -999))
+	field.tick(STEP, sense)
+	assert_that(field._spawned_acre).is_not_equal(Vector2i(-999, -999))
+
+
 func test_auto_spawn_is_once_per_acre_and_skips_occupied() -> void:
 	var layout: WorldData = WorldGenerator.authored_test_town()
 	var grid := WorldGrid.new()
@@ -145,7 +186,7 @@ func test_auto_spawn_is_once_per_acre_and_skips_occupied() -> void:
 	Clock.hour = 12
 	var sense := BugActor.Sense.new()
 	sense.player_position = grid.cell_to_world(Vector2i(8, 8))
-	field.tick(STEP, sense)
+	_wade_into(field, grid, sense, Vector2i(8, 8))
 	var after_first: int = field.actor_count()
 	assert_int(after_first).is_less_equal(BugField.MAX_FIELD_SPAWNS)
 	field.tick(STEP, sense)
@@ -174,12 +215,11 @@ func test_auto_spawn_retries_on_new_acre() -> void:
 	Clock.month = 6
 	Clock.hour = 12
 	var sense := BugActor.Sense.new()
-	sense.player_position = grid.cell_to_world(Vector2i(4, 8))
-	field.tick(STEP, sense)
+	sense.player_position = grid.cell_to_world(Vector2i(20, 8))
+	_wade_into(field, grid, sense, Vector2i(4, 8))
 	var first_acre: Vector2i = field._spawned_acre
 	assert_that(first_acre).is_equal(Vector2i(1, 1))
-	sense.player_position = grid.cell_to_world(Vector2i(20, 8))
-	field.tick(STEP, sense)
+	_wade_into(field, grid, sense, Vector2i(20, 8))
 	assert_that(field._spawned_acre).is_equal(Vector2i(2, 1))
 	assert_that(field._spawned_acre).is_not_equal(first_acre)
 
@@ -531,8 +571,8 @@ func test_acre_entry_is_spent_even_with_every_slot_full() -> void:
 	for i: int in BugField.MAX_FIELD_SPAWNS:
 		field.spawn(bug, BugData.Habitat.FLYING, grid.cell_to_world(Vector2i(17, 4 + i)))
 	var sense := BugActor.Sense.new()
-	sense.player_position = grid.cell_to_world(Vector2i(14, 8))
-	field.tick(STEP, sense)
+	sense.player_position = grid.cell_to_world(Vector2i(17, 8))
+	_wade_into(field, grid, sense, Vector2i(14, 8))
 	assert_that(field._spawned_acre).is_equal(
 		BugHabitats.acre_of_world_pos(world[1], sense.player_position)
 	)
