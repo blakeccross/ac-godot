@@ -56,12 +56,17 @@ static func entries_for(month: int, hour: int) -> Array[BugSpawnEntry]:
 	return out
 
 
-static func weather_allows(spawn_area: int, raining: bool) -> bool:
+## The weather half of `aSOI_chk_live_area_data[area].chk_live_area_proc`: ON_FLOWER and
+## FLYING_NEAR_FLOWERS_OR_AROUND not in rain, RAINING_ON_FLOWER only in rain, ON_CANDY /
+## ON_TRASH in neither rain nor snow.
+static func weather_allows(spawn_area: int, raining: bool, snowing: bool = false) -> bool:
 	match spawn_area:
-		1:
+		1, 12:
 			return not raining
 		2:
 			return raining
+		8, 9:
+			return not raining and not snowing
 		_:
 			return true
 

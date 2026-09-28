@@ -108,13 +108,14 @@ var weather: StringName = &"clear"
 ## False until `sync_events` has adopted the clock for this session.
 var _events_ready: bool = false
 
-## `Save_Get(insect_term)` / `insect_term_transition_offset` — the month whose
-## insect spawn table is currently "settled in" and a per-month random 0-5 day
-## offset for the cross-month blend (`aSOI_ins_chk_term_info`). Session-scoped.
+## `Save_Get(insect_term)` / `insect_term_transition_offset` — the 0-based month the
+## insect spawn table is heading into and how many days (0-5) before its 1st the
+## cross-month blend starts (`aSOI_ins_chk_term_info`). Session-scoped.
 var insect_term_month: int = 0
 var insect_term_offset: int = 0
-## `Save_Get(gyoei_term)` / `gyoei_term_transition_offset` — same, for fish, but keyed
-## to the 24 half-month terms (`aSOG_gyoei_chk_term_info`).
+## `Save_Get(gyoei_term)` / `gyoei_term_transition_offset` — for fish: the *next* of the
+## 24 half-month terms and how many days (0–5) before it starts its list ramps in
+## (`aSOG_gyoei_chk_term_info`). Saved with the town.
 var gyoei_term: int = 0
 var gyoei_term_offset: int = 0
 ## `mEnv_WEATHER_INTENSITY_*` (none/light/normal/heavy).
@@ -904,6 +905,7 @@ func to_save() -> Dictionary:
 		"first_job": first_job.to_save() if first_job != null else {},
 		"weather": String(weather),
 		"weather_intensity": weather_intensity,
+		"gyoei_term": {"term": gyoei_term, "offset": gyoei_term_offset},
 		"dialogue_vars": dialogue_vars.duplicate(true),
 	}
 
@@ -1045,6 +1047,10 @@ func apply_snapshot(data: Dictionary) -> void:
 		weather_intensity = int(unpacked["intensity"])
 	else:
 		weather_intensity = int(Weather.default_intensity_for(Weather.kind_from_name(weather)))
+	## `Save_Get(gyoei_term)`: the fish ramp's next term and its 0–5 day lead.
+	var fish_term: Dictionary = data.get("gyoei_term", {})
+	gyoei_term = clampi(int(fish_term.get("term", 0)), 0, 23)
+	gyoei_term_offset = clampi(int(fish_term.get("offset", 0)), 0, 5)
 	dialogue_vars.clear()
 	var vars_raw: Variant = data.get("dialogue_vars", {})
 	if typeof(vars_raw) == TYPE_DICTIONARY:

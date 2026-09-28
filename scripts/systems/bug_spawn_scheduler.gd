@@ -16,20 +16,23 @@ extends RefCounted
 
 ## `aSOI_ins_add_range_info` — {type_index, spawn_area, weight}. Always appended.
 const ADDITIONS := [
-	{"type_index": 38, "spawn_area": 8, "weight": 1.0},   ## ANT on candy
-	{"type_index": 38, "spawn_area": 9, "weight": 1.0},   ## ANT on trash
-	{"type_index": 28, "spawn_area": 9, "weight": 1.0},   ## COCKROACH on trash
+	{"type_index": 38, "spawn_area": BugHabitats.AREA_ON_CANDY, "weight": 1.0},   ## ANT on candy
+	{"type_index": 38, "spawn_area": BugHabitats.AREA_ON_TRASH, "weight": 1.0},   ## ANT on trash
+	{"type_index": 28, "spawn_area": BugHabitats.AREA_ON_TRASH, "weight": 1.0},   ## COCKROACH on trash
 ]
 ## `env_rate_table[mFAs_FIELDRANK_*]` — town-environment weighting.
 const ENV_RATE := [0.5, 0.75, 0.875, 1.0, 1.0, 1.0, 1.0]
-## `aSOI_ins_chk_term_info` `rate[]` — previous-month weight over the transition.
-const PREV_RATE := [1.0 / 6.0, 2.0 / 6.0, 3.0 / 6.0, 4.0 / 6.0, 5.0 / 6.0]
+## `aSOI_TERM_TRANSITION_MAX_DAYS`.
+const TRANSITION_DAYS := 5
+## `aSOI_ins_chk_term_info` `rate[]` — the *current* month's weight on each day of the
+## transition window; the next month gets the rest.
+const NOW_RATE := [5.0 / 6.0, 4.0 / 6.0, 3.0 / 6.0, 2.0 / 6.0, 1.0 / 6.0]
 
-const AREA_ON_CANDY := 8
-const AREA_ON_TRASH := 9
-const AREA_FLYING := 3
-const AREA_ON_FLOWER := 1
-const AREA_FLYING_NEAR_FLOWERS := 12
+const AREA_ON_CANDY := BugHabitats.AREA_ON_CANDY
+const AREA_ON_TRASH := BugHabitats.AREA_ON_TRASH
+const AREA_FLYING := BugHabitats.AREA_FLYING
+const AREA_ON_FLOWER := BugHabitats.AREA_ON_FLOWER
+const AREA_FLYING_NEAR_FLOWERS := BugHabitats.AREA_FLYING_NEAR_FLOWERS
 
 
 ## Town field rank (`mFAs_GetFieldRank`). No town-assessment system yet → rank 3
@@ -42,40 +45,65 @@ static func env_rate() -> float:
 	return ENV_RATE[clampi(field_rank(), 0, ENV_RATE.size() - 1)]
 
 
-## `aSOI_ins_chk_term_info`: the previous month's table and its blend weight for
-## today. Returns {prev_month, prev_rate} — prev_rate 0 outside the transition.
+## `aSOI_ins_chk_term_info`. `Game.insect_term_month` is the save's `insect_term`: the
+## 0-based month the table is heading into, and `insect_term_offset` how many days before
+## that month's 1st the blend starts. Inside the 5-day window from there, the current
+## month weighs `NOW_RATE[day]` and the saved month the rest (so the next month fades in
+## over the last days of this one; once the calendar reaches it both halves are the same
+## month). Past the window the save moves on to the month after this one with a fresh
+## 0-5 day offset. Returns {month, other_month, rate} (1-based months; rate is `month`'s
+## weight, 1.0 outside the window).
 static func term_blend(rng: RandomNumberGenerator) -> Dictionary:
-	var month: int = Clock.month
-	var prev_month: int = 12 if month == 1 else month - 1
-	if Game.insect_term_month != month:
-		Game.insect_term_month = month
-		Game.insect_term_offset = (rng.randi_range(0, 5) if rng != null else 0)
-	var di: int = Clock.day - 1 - Game.insect_term_offset
-	var prev_rate: float = 0.0
-	if di >= 0 and di < PREV_RATE.size():
-		prev_rate = PREV_RATE[di]
-	return {"prev_month": prev_month, "prev_rate": prev_rate}
+	var now_term: int = Clock.month - 1
+	var next_term: int = 0 if now_term == 11 else now_term + 1
+	var saved: int = Game.insect_term_month
+	var pure := {"month": Clock.month, "other_month": Clock.month, "rate": 1.0}
+	if absi(saved - now_term) > 1 and saved != 0 and now_term != 11:
+		_renew_term(next_term, rng)
+		return pure
+	var year: int = Clock.year
+	if saved != now_term and now_term == 11:
+		year += 1
+	var start: int = _day_number(year, saved + 1, 1) - Game.insect_term_offset
+	var today: int = _day_number(Clock.year, Clock.month, Clock.day)
+	if today >= start + TRANSITION_DAYS:
+		_renew_term(next_term, rng)
+		return pure
+	if today >= start:
+		return {
+			"month": Clock.month,
+			"other_month": saved + 1,
+			"rate": float(NOW_RATE[clampi(today - start, 0, NOW_RATE.size() - 1)]),
+		}
+	return pure
 
 
-## `aSOI_ins_make_range_data` (town): blended month/term table + the 3 additions.
+## `aSOI_ins_renew_term_info`.
+static func _renew_term(term: int, rng: RandomNumberGenerator) -> void:
+	Game.insect_term_month = term
+	Game.insect_term_offset = (
+		int(rng.randf() * float(TRANSITION_DAYS + 1)) if rng != null else 0
+	)
+
+
+static func _day_number(year: int, month: int, day: int) -> int:
+	return int(
+		Time.get_unix_time_from_datetime_dict(
+			{"year": year, "month": month, "day": day, "hour": 12}
+		) / 86400
+	)
+
+
+## `aSOI_ins_make_range_data` (town): this month's table at `rate`, the blended-in month
+## at `1 − rate` while the transition runs, then the 3 always-on additions.
 static func build_pool(rng: RandomNumberGenerator) -> Array[BugSpawnEntry]:
 	var hour: int = Clock.hour
 	var out: Array[BugSpawnEntry] = []
 	var blend: Dictionary = term_blend(rng)
-	var prev_rate: float = float(blend["prev_rate"])
-	for e: BugSpawnEntry in BugSpawnTable.entries_for(Clock.month, hour):
-		var c := BugSpawnEntry.new()
-		c.type_index = e.type_index
-		c.spawn_area = e.spawn_area
-		c.weight = e.weight * (1.0 - prev_rate)
-		out.append(c)
-	if prev_rate > 0.0:
-		for e: BugSpawnEntry in BugSpawnTable.entries_for(int(blend["prev_month"]), hour):
-			var c := BugSpawnEntry.new()
-			c.type_index = e.type_index
-			c.spawn_area = e.spawn_area
-			c.weight = e.weight * prev_rate
-			out.append(c)
+	var rate: float = float(blend["rate"])
+	_append(out, BugSpawnTable.entries_for(int(blend["month"]), hour), rate)
+	if rate != 1.0:
+		_append(out, BugSpawnTable.entries_for(int(blend["other_month"]), hour), 1.0 - rate)
 	for add: Dictionary in ADDITIONS:
 		var c := BugSpawnEntry.new()
 		c.type_index = int(add["type_index"])
@@ -83,6 +111,15 @@ static func build_pool(rng: RandomNumberGenerator) -> Array[BugSpawnEntry]:
 		c.weight = float(add["weight"])
 		out.append(c)
 	return out
+
+
+static func _append(out: Array[BugSpawnEntry], src: Array[BugSpawnEntry], rate: float) -> void:
+	for e: BugSpawnEntry in src:
+		var c := BugSpawnEntry.new()
+		c.type_index = e.type_index
+		c.spawn_area = e.spawn_area
+		c.weight = e.weight * rate
+		out.append(c)
 
 
 ## `aSOI_ins_decide_insect` + `aSOI_ins_get_idx`. Returns the chosen entry (spawn
@@ -96,59 +133,89 @@ static func decide(
 	occupied: Callable,
 	rng: RandomNumberGenerator
 ) -> BugSpawnEntry:
-	## Feasibility: zero the weight of any entry whose spawn area the acre cannot host.
-	var feasible: Dictionary = {}   ## spawn_area -> bool
-	var candy: bool = false
-	var trash: bool = false
-	for entry: BugSpawnEntry in pool:
-		var area: int = entry.spawn_area
-		if not feasible.has(area):
-			feasible[area] = BugHabitats.has_spawn_area(area, layout, grid, acre, occupied, raining)
-			if bool(feasible[area]):
-				if area == AREA_ON_CANDY:
-					candy = true
-				elif area == AREA_ON_TRASH:
-					trash = true
-	## Candy / spoiled-turnip present → only those entries can spawn.
-	var live: Array[BugSpawnEntry] = []
-	for entry: BugSpawnEntry in pool:
-		if not bool(feasible.get(entry.spawn_area, false)):
-			continue
-		if (candy or trash) and entry.spawn_area != AREA_ON_CANDY and entry.spawn_area != AREA_ON_TRASH:
-			continue
-		live.append(entry)
-	if live.is_empty():
+	var info: Array[BugSpawnEntry] = limit(pool, layout, grid, acre, raining, occupied)
+	var on_bait: bool = false
+	for e: BugSpawnEntry in info:
+		if e.weight > 0.0 and (e.spawn_area == AREA_ON_CANDY or e.spawn_area == AREA_ON_TRASH):
+			on_bait = true
+	var idx: int = get_idx(info, on_bait, rng)
+	if idx < 0:
 		return null
+	## `spawn_area < FLYING_NEAR_FLOWERS_OR_AROUND`: NOTHING (and an unresolved 12) births
+	## nothing.
+	if info[idx].spawn_area >= AREA_FLYING_NEAR_FLOWERS:
+		return null
+	return info[idx]
 
-	var on_bait: bool = candy or trash
-	var rate: float = 1.0 if on_bait else env_rate()
+
+## The `chk_live_area_proc` pass of `aSOI_ins_decide_insect` over a copy of the pool:
+## every spawn area in enum order is checked against the acre; one the acre cannot host
+## has its entries' weight cleared (`aSOI_ins_clear_prob`). FLYING_NEAR_FLOWERS entries
+## become ON_FLOWER / FLYING (`aSOI_ins_change_how_to_make`) unless it rains, when they
+## are cleared. Candy or a spoiled turnip in the acre then zeroes every other entry
+## (`aSOI_ins_limit_insect_data`).
+static func limit(
+	pool: Array[BugSpawnEntry],
+	layout: WorldData,
+	grid: WorldGrid,
+	acre: Vector2i,
+	raining: bool,
+	occupied: Callable = Callable()
+) -> Array[BugSpawnEntry]:
+	var feasible: Array[bool] = []
+	for area: int in BugHabitats.AREA_NUM:
+		feasible.append(BugHabitats.has_spawn_area(area, layout, grid, acre, occupied, raining))
+	var flowers: bool = feasible[AREA_FLYING_NEAR_FLOWERS]
+	var raining_now: bool = BugHabitats.is_raining(raining)
+	var info: Array[BugSpawnEntry] = []
+	for e: BugSpawnEntry in pool:
+		var c := BugSpawnEntry.new()
+		c.type_index = e.type_index
+		c.spawn_area = e.spawn_area
+		c.weight = e.weight
+		if c.spawn_area == AREA_FLYING_NEAR_FLOWERS:
+			if raining_now:
+				c.weight = 0.0
+			else:
+				## Converted at area 12, after ON_FLOWER / FLYING were checked: the weight
+				## stays whatever the acre.
+				c.spawn_area = AREA_ON_FLOWER if flowers else AREA_FLYING
+		elif c.spawn_area < 0 or c.spawn_area >= feasible.size() or not feasible[c.spawn_area]:
+			c.weight = 0.0
+		info.append(c)
+	var candy: bool = feasible[AREA_ON_CANDY]
+	var trash: bool = feasible[AREA_ON_TRASH]
+	if candy or trash:
+		for c: BugSpawnEntry in info:
+			if c.spawn_area == AREA_ON_CANDY:
+				if not candy:
+					c.weight = 0.0
+			elif c.spawn_area == AREA_ON_TRASH:
+				if not trash:
+					c.weight = 0.0
+			else:
+				c.weight = 0.0
+	return info
+
+
+## `aSOI_ins_get_idx`: index of the picked entry, or −1. Off bait, a total under 100 rolls
+## against 100 (the rest is "no insect"), and each weight is scaled by the town's
+## `env_rate`; on bait the roll is over the total at rate 1.
+static func get_idx(info: Array[BugSpawnEntry], on_bait: bool, rng: RandomNumberGenerator) -> int:
 	var total: float = 0.0
-	for entry: BugSpawnEntry in live:
-		total += entry.weight
+	for e: BugSpawnEntry in info:
+		total += e.weight
 	if total <= 0.0:
-		return null
-	var sel: float = rng.randf() * (total if (on_bait or total > 100.0) else 100.0)
-	for entry: BugSpawnEntry in live:
-		sel -= entry.weight * rate
+		return -1
+	var rate: float = 1.0
+	var sel: float
+	if on_bait:
+		sel = rng.randf() * total
+	else:
+		rate = env_rate()
+		sel = rng.randf() * (total if total > 100.0 else 100.0)
+	for i: int in info.size():
+		sel -= info[i].weight * rate
 		if sel < 0.0:
-			return _resolve(entry, layout, grid, acre)
-	return null
-
-
-static func _resolve(
-	entry: BugSpawnEntry, layout: WorldData, grid: WorldGrid, acre: Vector2i
-) -> BugSpawnEntry:
-	if entry.spawn_area != AREA_FLYING_NEAR_FLOWERS:
-		return entry
-	## `aSOI_ins_change_how_to_make`: flowers if any, else flying.
-	var out := BugSpawnEntry.new()
-	out.type_index = entry.type_index
-	out.weight = entry.weight
-	out.spawn_area = (
-		AREA_ON_FLOWER
-		if not BugHabitats.sites_for_spawn_area(
-			AREA_ON_FLOWER, layout, grid, acre, func(_c: Vector2i) -> bool: return false, false
-		).is_empty()
-		else AREA_FLYING
-	)
-	return out
+			return i
+	return -1

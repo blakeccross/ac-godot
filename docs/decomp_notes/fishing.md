@@ -104,3 +104,36 @@ The hooked fish is a real actor the whole way: `aGTT_fish_make_actor` spawns it 
 `Player_actor_request_proc_index_fromNotice_rod`'s exit code 0x39 hands off to `putaway_rod`, which plays `ply_1_putaway_t1` before requesting the wait; the catch is banked into the pocket before the report opens (`Player_actor_putin_item`), and a full pocket takes the other exit (0x53, `release_creature`) and throws the fish back. The model releases at the end of the putaway rather than the start, so the fish rides the hand down. That handoff is timed off the putaway clip's own length rather than `animation_finished`, since anything else driving the player in the meantime would mean the signal never arrives.
 
 The catch report uses the game's own words: `Player_actor_Get_sakana_msg_num` maps a species to a message number (`0x1327 + type` up to type `0x20`, `0x2FA9 + type` past it), and `FishData.catch_msg` plays that conversation through `DialogueCatalog` and the existing overlay — multi-page, since the stringfish, coelacanth, and arapaima open on a reaction page before naming the fish. `mSM_CHECK_LAST_FISH_GET`'s `0x1349` swap (species already in `MuseumBook`) happens at hook time. An empty or escaped line uses `Game.post_notice` since there is no pose to hang it on.
+
+## Spawning (`ac_set_ovl_gyoei.c`, `ac_gyoei_clip.c_inc`)
+
+`FishSpawnScheduler` is the decision, `FishSchool._tick_spawn` / `try_spawn_in_acre` the loop, `data/creatures/fish_spawn_table.json` (`tools/generate_fish.py`) the weights. This section supersedes the spawn remarks above.
+
+**When.** The set manager runs `aSOG_gyoei_set` once per acre transition (`aSetMgr_move_check_set` on wade start, for the acre being entered), never on a timer. It is skipped when a live shadow is already in that acre (`aGYO_chk_live_gyoei`) and when the acre is neither `MARINE` nor `RIVER` and holds no fresh water (`aSOG_gyoei_check_water_unit_in_block`; its loop runs 40×40 over a 16×16 table and reads into later acres, which has no visible effect because an acre with no water still has no unit to spawn on). A spawn fails silently when both `aGYO_MAX_GYOEI` controllers are taken. So an acre holds at most one fish per visit, and two at once across the town. The acre the field loads into (after a door, the train, a new day) stays empty until the player wades out and back, because `mFI_SetPlayerWade` only reports `WADE_START` for a real crossing; `FishSchool` does the same (`BugField` still stocks the load acre).
+
+**Despawn.** `aGYO_cull_check`: a shadow off screen, more than 600 GX from the player and in another acre is destroyed. That is the only restock path: walk away, come back, roll again. We skip the off-screen test (as insects do) and never cull a hooked fish.
+
+**Which list.** From the acre's `mRF_BLOCKKIND_*` (`mRF_block_info` in `m_random_field.c`, `FishSpawnScheduler.BLOCK_INFO`), not the water body:
+
+| Block kind | List |
+| --- | --- |
+| `MARINE` + `OFFING` | sea list ×10, plus whale weight 1 (current term only) |
+| `MARINE` + `ISLAND` | `f_island` (sea bass 20, red snapper 10, knifejaw 3), no ramp |
+| `MARINE` (beach, river-mouth beach, dock, tailors) | `s_month` |
+| `RIVER` during a fishing tourney, acre has `POOL`, `BRIDGE` or `WATERFALL` | 75%: `f_event` (small / normal / large bass), no ramp |
+| `RIVER` | `r_month` |
+| anything else with water | `p_month` (empty Oct–Mar and from Sep 16) |
+
+A river-mouth beach fishes the sea list; its river water only hosts salmon (`SALMON2`, area `RIVER_MOUTH`). A pond inside a river acre fishes the river list.
+
+**Term ramp** (`aSOG_gyoei_chk_term_info`). The save holds the *next* half-month and a 0–5 day lead (`renew_term_info`). From midnight `lead` days before the next term starts (the 1st, or the 15th for a second half) for five days, the current term's weights are scaled 5/6, 4/6 … 1/6 and the next term's list is added at the remainder. `lbRTC_IsOverTime` treats equality as over, so each step lands on the stroke of midnight. Past that window the saved term moves on and a new lead is rolled; a saved term more than one away (except term 0 / now 23) resets without a ramp. The previous implementation blended the *previous* term in after the boundary, the wrong way round. Terms are persisted in the save.
+
+**Additions.** Coelacanth `FISH_SPAWN(COELACANTH, SEA, 2.0f)` is appended to sea and island lists when `mEnv_NowWeather() == RAIN` (snow does not count) and the slot is not 9am–3:59pm, current term only and unscaled, so it thins during a ramp. It was weighted 5 here before. The whale needs an offing acre, which the player cannot enter, so it never spawns in practice; it has no `FishData` and rolls to nothing.
+
+**Roll** (`aSOG_gyoei_get_idx`). `selected = total * rand`, then walk the list subtracting `weight * env_rate`; the first entry whose remainder is ≤ `selected` wins, and if the remainder goes negative there is no fish. `env_rate` is 0.5 / 0.75 / 0.875 / 1.0 by field rank, so a poor town leaves up to half the rolls empty (rank is the calendar's constant 3 until town assessment exists). If the winner's sub-area fails `aSOG_gyoei_place_check` — `WATERFALL` needs a waterfall acre, `POOL` (brook trout, giant catfish, giant snakehead) a river-pool acre, `RIVER_MOUTH` a `RIVER` bit (GAFE01; the AUS build also wants `MARINE`) — it is struck and the roll repeats over the rest. All struck: no fish. The old code let every sub-area spawn anywhere and added an invented per-body size ceiling; both are gone.
+
+**Where in the acre** (`aSOG_gyoei_set_gyoei_data`, `aSOG_gyoei_make`). Units 2–13 of the 16×16 acre only, filtered per species: large char on `WATERFALL` units; coelacanth, jellyfish, sea bass, red snapper, knifejaw on `SEA` units at least 20 GX deep (sea surface is a flat 20 GX, so bed height ≤ 0 GX, i.e. count 0 at beach level); salmon on any water, sea units only where deep; whale units 5–10; everything else any water unit (sea included). One qualifying unit is chosen uniformly. The shadow appears on that unit's north-west corner (`aSOG_get_water_attribute_position` returns the first water point it scans); the large char goes half a unit across and one unit down to the foot of the fall when that is water, else the unit centre. No qualifying unit: no fish.
+
+**Shadow size and opacity.** `aGYO_shadow_scale` {0.3, 0.4, 0.5, 0.5, 0.6, 0.8, 1.2, 10} × 0.02 scales a ±1000 GX quad (`act_gyoei02_00_v`), X further ×0.4. The I4 tiles fill 14 of 16 rows and 28 of 32 columns, so the visible fish is 7/8 of the quad: 35 × scale GX long (17.5 GX for size S). We had it at 1000 GX, about two thirds of the original size. Prim alpha is 120 (whale 50) multiplied into the tile lerp; the escape puff starts at `(100·0.5 − 10)·6 = 240`, so it reads darker than the fish it left.
+
+**Species rows.** `FishData.months / time_slots / waters / rarity_weight` are the union of the table (checked by `test_species_rows_agree_with_the_spawn_table`); the salmon row covers the river mouth. The spawn table generator copied the first half of September into `p_month`'s NULL second half; fixed.

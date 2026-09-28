@@ -233,6 +233,12 @@ func insect_stress_move_gx() -> float:
 
 
 ## `mPlayer_INDEX_DASH`: fish bolt from a dashing player but ignore a walking one.
+## `Get_WadeEndPos_proc`: where the running acre crossing lands (world metres), or
+## `Vector3.INF` when not wading. The set manager reads it to pick the acre it spawns in.
+func wade_end_position() -> Vector3:
+	return _wade.get("end", Vector3.INF) if not _wade.is_empty() else Vector3.INF
+
+
 func is_dashing() -> bool:
 	return _motor.gait() == PlayerLocomotion.Gait.DASH
 

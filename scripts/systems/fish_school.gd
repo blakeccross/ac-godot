@@ -5,22 +5,18 @@ extends RefCounted
 ## `aGYO_MAX_GYOEI` controllers and tracks `aGYO_EXIST_MAX` slots. A `RefCounted` owned by
 ## the world scene alongside `WorldGrid`, not an autoload.
 ##
-## Spawning is ours, not the original's: `ac_set_ovl_gyoei` streams shadows in per acre from
-## the `gyoei_term` tables. We pick from `FishCatalog` (month and hour only) and place into
-## whichever `WaterBodies.Body` is near the player, capped by that body's size ceiling so a
-## garden pond does not produce an XL.
+## Spawning follows `aSOG_gyoei_set`: one attempt each time the player wades into an acre
+## (never the acre the field loads into), skipped if that acre already has a live shadow. `FishSpawnScheduler` picks the species
+## from the acre's block kind, half-month term and hour, and a unit inside the acre for it.
+## Shadows are dropped once they are more than 600 GX away in another acre
+## (`aGYO_cull_check`), which is what lets an acre restock when the player comes back.
 
 ## `aGYO_MAX_GYOEI`: two shadows on screen at once, ever.
 const MAX_SHADOWS := 2
-## `aGYO_EXIST_MAX`: slots the original keeps tracked. Ours is the respawn budget.
+## `aGYO_EXIST_MAX`: slots the original keeps tracked.
 const EXIST_MAX := 4
-## Shadows only exist near the player; `aGYO_cull_check` drops them past 600 GX.
+## `aGYO_cull_check` drops a shadow past 600 GX once it is in another acre.
 const CULL_DISTANCE := 600.0 * FishSize.GX
-## Spawn just inside the cull radius so a shadow does not pop in under the player's nose.
-const SPAWN_MIN := 3.0
-const SPAWN_MAX := CULL_DISTANCE * 0.8
-## Gap between spawn attempts, so an empty pond is not retried every frame.
-const SPAWN_INTERVAL := 1.4
 
 
 class Puff:
@@ -47,12 +43,13 @@ var auto_spawn: bool = true
 
 var _grid: WorldGrid = null
 var _layout: WorldData = null
-var _spawn_timer: float = 0.0
+var _spawned_acre: Vector2i = NO_ACRE
 var _tool_swing: float = 0.0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 ## How long a swung tool keeps scaring fish. Long enough to span the swing animation.
 const TOOL_SWING_SECONDS := 0.2
+const NO_ACRE := Vector2i(-999, -999)
 
 
 func configure(grid: WorldGrid, water_surface_y: float = 0.0, layout: WorldData = null) -> void:
@@ -62,7 +59,7 @@ func configure(grid: WorldGrid, water_surface_y: float = 0.0, layout: WorldData 
 	surface_y = water_surface_y
 	shadows.clear()
 	puffs.clear()
-	_spawn_timer = 0.0
+	_spawned_acre = NO_ACRE
 
 
 ## Catalog water is a heightfield (`mCoBG_GetWaterHeight`). Fallback is the flat placeholder
@@ -115,8 +112,9 @@ func tick(delta: float, sense: FishShadow.Sense) -> void:
 		if not shadow.finished:
 			kept.append(shadow)
 	shadows = kept
+	_cull_distant(sense)
 	_tick_puffs(delta)
-	_tick_spawn(delta, sense)
+	_tick_spawn(sense)
 
 
 ## Spawn one shadow immediately. Returns it so tests can drive a known fish.
@@ -134,6 +132,7 @@ func spawn(fish: FishData, body: WaterBodies.Body, at: Vector3) -> FishShadow:
 func clear() -> void:
 	shadows.clear()
 	puffs.clear()
+	_spawned_acre = NO_ACRE
 
 
 func _tick_puffs(delta: float) -> void:
@@ -159,51 +158,153 @@ func _add_puff(shadow: FishShadow) -> void:
 	puffs.append(puff)
 
 
-func _tick_spawn(delta: float, sense: FishShadow.Sense) -> void:
-	if not auto_spawn or bodies.is_empty() or shadows.size() >= MAX_SHADOWS or not sense.has_player():
+## `aSetMgr` runs `aSOG_gyoei_set` on each acre transition, not on a timer. Like
+## `BugField`, the acre the player starts in counts as entered.
+func _tick_spawn(sense: FishShadow.Sense) -> void:
+	if not auto_spawn or _grid == null or bodies.is_empty() or not sense.has_player():
 		return
-	_spawn_timer -= delta
-	if _spawn_timer > 0.0:
+	var acre: Vector2i = acre_of(sense.player_position)
+	if acre == _spawned_acre:
 		return
-	_spawn_timer = SPAWN_INTERVAL
-	var cell: Vector2i = _pick_cell(sense.player_position)
-	if cell.x < 0:
-		return
-	var body: WaterBodies.Body = WaterBodies.body_at(bodies, cell)
-	if body == null:
-		return
-	## `aSOG_gyoei_make_range_data` + `aSOG_gyoei_get_idx`.
-	var weighted: Array = FishSpawnScheduler.build_pool(body.kind, Weather.is_raining())
-	var fish: FishData = FishSpawnScheduler.decide(
-		weighted, WaterBodies.size_ceiling(body), _rng
+	var crossed: bool = _spawned_acre != NO_ACRE
+	_spawned_acre = acre
+	## `aSetMgr_move_check_set` only fires on `mFI_WADE_START`: the acre the field loads
+	## into gets nothing until the player wades out of it and back.
+	if crossed:
+		try_spawn_in_acre(acre)
+
+
+## `aSOG_gyoei_set` for one acre. Returns the new shadow, or null.
+func try_spawn_in_acre(acre: Vector2i, tourney: int = -1) -> FishShadow:
+	if _grid == null:
+		return null
+	## `aSOG_gyoei_block_check` / `aGYO_chk_live_gyoei`.
+	if acre_has_fish(acre):
+		return null
+	var units: Array = acre_units(acre)
+	var kind: int = block_kind(acre, units)
+	if (
+		(kind & FishSpawnScheduler.KIND_MARINE) == 0
+		and (kind & FishSpawnScheduler.KIND_RIVER) == 0
+		and not _has_fresh_water(units)
+	):
+		return null
+	var pick: Dictionary = FishSpawnScheduler.decide(kind, units, Weather.is_raining(), _rng, tourney)
+	if pick.is_empty():
+		return null
+	var unit: Vector2i = pick["unit"]
+	var cell: Vector2i = _acre_origin(acre) + unit
+	var type_index: int = int(pick["type_index"])
+	var south_attr: int = int(_unit_row(units, unit + Vector2i(0, 1)).get("a", -1))
+	var offset: Vector2 = FishSpawnScheduler.spawn_offset(
+		type_index, FishSpawnScheduler.is_water_attr(south_attr)
 	)
-	if fish == null:
-		return
-	spawn(fish, body, _grid.cell_to_world(cell))
+	var at: Vector3 = _grid.cell_corner(cell) + Vector3(offset.x, 0.0, offset.y) * _grid.cell_size
+	var body: WaterBodies.Body = WaterBodies.body_at(bodies, _grid.world_to_cell(at))
+	if body == null:
+		body = WaterBodies.body_at(bodies, cell)
+	if body == null:
+		return null
+	## `aGYO_make_gyoei`: no free controller, no fish.
+	return spawn(pick["fish"], body, at)
 
 
-## A water cell in the band around the player where a shadow is worth having.
-func _pick_cell(player_position: Vector3) -> Vector2i:
+## The block an actor stands in (`mFI_Wpos2BlockNum`).
+func acre_of(world: Vector3) -> Vector2i:
 	if _grid == null:
-		return Vector2i(-1, -1)
-	var candidates: Array[Vector2i] = []
-	for body: WaterBodies.Body in bodies:
-		for cell: Vector2i in body.cells:
-			var world: Vector3 = _grid.cell_to_world(cell)
-			var dist: float = Vector2(
-				world.x - player_position.x, world.z - player_position.z
-			).length()
-			if dist >= SPAWN_MIN and dist <= SPAWN_MAX and not _occupied(cell):
-				candidates.append(cell)
-	if candidates.is_empty():
-		return Vector2i(-1, -1)
-	return candidates[_rng.randi_range(0, candidates.size() - 1)]
+		return NO_ACRE
+	return VillagerWalk.block_from_cell(_grid.world_to_cell(world))
 
 
-func _occupied(cell: Vector2i) -> bool:
-	if _grid == null:
-		return false
+func acre_has_fish(acre: Vector2i) -> bool:
 	for shadow: FishShadow in shadows:
-		if _grid.world_to_cell(shadow.position) == cell:
+		if not shadow.finished and acre_of(shadow.position) == acre:
 			return true
 	return false
+
+
+## `mFI_BkNum2BlockKind`, or a stand-in from the water in the acre when the layout carries
+## no block types.
+func block_kind(acre: Vector2i, units: Array = []) -> int:
+	if _layout != null and _layout.acre_types.size() == TownFieldGenerator.BLOCK_TOTAL:
+		if acre.x < 0 or acre.x >= TownFieldGenerator.BLOCK_X or acre.y < 0 or acre.y >= TownFieldGenerator.BLOCK_Z:
+			return 0
+		return FishSpawnScheduler.block_kind_for_type(
+			int(_layout.acre_types[acre.y * TownFieldGenerator.BLOCK_X + acre.x])
+		)
+	var rows: Array = units if not units.is_empty() else acre_units(acre)
+	var kind: int = 0
+	var origin: Vector2i = _acre_origin(acre)
+	for uz: int in FishSpawnScheduler.UT:
+		for ux: int in FishSpawnScheduler.UT:
+			var body: WaterBodies.Body = WaterBodies.body_at(bodies, origin + Vector2i(ux, uz))
+			if body != null:
+				kind |= FishSpawnScheduler.block_kind_for_water(body.kind)
+	if (kind & FishSpawnScheduler.KIND_MARINE) != 0:
+		return FishSpawnScheduler.KIND_MARINE
+	return kind
+
+
+## The acre's 16×16 unit rows, `{"a": attr, "y": centre height in GX}`. From the unit
+## catalog when the layout has one; otherwise water cells stand in as `WATER` (river / pond)
+## or deep `SEA` (ocean bodies).
+func acre_units(acre: Vector2i) -> Array:
+	var rows: Array = []
+	var origin: Vector2i = _acre_origin(acre)
+	for uz: int in FishSpawnScheduler.UT:
+		for ux: int in FishSpawnScheduler.UT:
+			rows.append(_unit_at(origin + Vector2i(ux, uz)))
+	return rows
+
+
+func _unit_at(cell: Vector2i) -> Dictionary:
+	if _layout != null:
+		var attr: int = FieldCollision.unit_attr_at_cell(_layout, cell)
+		if attr >= 0:
+			## Back to the original's frame, where land (`LAND_COUNTS`) sits at 40 GX and the
+			## sea surface at 20 GX, so a sea unit is deep enough only at count 0.
+			var y: float = FieldCollision.height_at(_layout, cell, false)
+			var gx: float = 0.0
+			if FieldCollision.has_floor(y):
+				gx = y / FishSize.GX + float(FieldCatalog.LAND_COUNTS) * 10.0
+			return {"a": attr, "y": gx}
+	if _grid == null or not _grid.is_in_bounds(cell) or _grid.terrain_at(cell) != WorldGrid.Terrain.WATER:
+		return {"a": 0, "y": 0.0}
+	var body: WaterBodies.Body = WaterBodies.body_at(bodies, cell)
+	if body != null and body.kind == WaterBodies.Kind.OCEAN:
+		return {"a": FishSpawnScheduler.ATTR_SEA, "y": 0.0}
+	return {"a": FishSpawnScheduler.ATTR_WATER, "y": 0.0}
+
+
+func _unit_row(units: Array, unit: Vector2i) -> Dictionary:
+	if unit.x < 0 or unit.y < 0 or unit.x >= FishSpawnScheduler.UT or unit.y >= FishSpawnScheduler.UT:
+		return {}
+	return units[unit.y * FishSpawnScheduler.UT + unit.x]
+
+
+func _acre_origin(acre: Vector2i) -> Vector2i:
+	return Vector2i((acre.x - 1) * WorldGenerator.UT, (acre.y - 1) * WorldGenerator.UT)
+
+
+## `aSOG_gyoei_check_water_unit_in_block`: river / pond water, not sea.
+func _has_fresh_water(units: Array) -> bool:
+	for row: Dictionary in units:
+		if FishSpawnScheduler.is_fresh_water_attr(int(row.get("a", -1))):
+			return true
+	return false
+
+
+## `aGYO_cull_check`: gone once more than 600 GX from the player and in another acre.
+func _cull_distant(sense: FishShadow.Sense) -> void:
+	if _grid == null or not sense.has_player():
+		return
+	var player_acre: Vector2i = acre_of(sense.player_position)
+	var kept: Array[FishShadow] = []
+	for shadow: FishShadow in shadows:
+		var dist: float = Vector2(
+			shadow.position.x - sense.player_position.x, shadow.position.z - sense.player_position.z
+		).length()
+		if not shadow.is_hooked() and dist > CULL_DISTANCE and acre_of(shadow.position) != player_acre:
+			continue
+		kept.append(shadow)
+	shadows = kept

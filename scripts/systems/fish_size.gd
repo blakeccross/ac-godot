@@ -29,11 +29,19 @@ const TOUCH_DIST_GX: Array[float] = [12.0, 13.0, 15.0, 15.0, 20.0, 25.0, 30.0, 3
 ## `aGYO_shadow_scale`: shadow length. The draw also scales X by 0.4, so a shadow is always
 ## 2.5x longer than it is wide. WHALE is 10.0 and deliberately absurd.
 const SHADOW_SCALE: Array[float] = [0.3, 0.4, 0.5, 0.5, 0.6, 0.8, 1.2, 10.0]
+## `aGYO_setupActor`: the shadow's prim alpha — 120 for every fish, 50 for the whale. The
+## combiner multiplies the tile lerp by it, so a live shadow is about half as dark as the
+## tile art; the escape puff (`PUFF_*`) starts near 240 and so reads darker than the fish.
+const SHADOW_ALPHA := 120
+const WHALE_SHADOW_ALPHA := 50
 ## `aGTT_position_calc` `hosei`: how far behind the bobber the fish body sits once hooked.
 const HOOK_TRAIL_GX: Array[float] = [-8.0, -10.0, -12.0, -12.0, -15.0, -20.0, -25.0, -25.0]
-## `aGYO_shadow_scale` is multiplied by 0.02 to reach an actor scale, and the shadow art is
-## 1000 GX square, so one scale unit is 20 GX of shadow length.
-const SCALE_TO_GX := 0.02 * 1000.0
+## `aGYO_shadow_scale` is multiplied by 0.02 to reach an actor scale, and the shadow quad
+## (`act_gyoei02_00_v`) runs ±1000 GX, so one scale unit is 40 GX of quad length.
+const SCALE_TO_GX := 0.02 * 2000.0
+## The fish silhouette in the `act_gyoei02_*` tiles covers 14 of 16 texel rows and 28 of 32
+## columns: the visible shadow is 7/8 of the quad each way.
+const SILHOUETTE_FILL := 0.875
 ## Shadow X is scaled by 0.4 at draw time (`Matrix_scale(scale.x * 0.4, ...)`).
 const SHADOW_ASPECT := 0.4
 
@@ -150,10 +158,17 @@ static func back_speed_jitter() -> float:
 	return gx_per_frame_to_mps(BACK_SPEED_JITTER_GX)
 
 
-## Shadow footprint in meters: length along the facing, width across it.
+## Shadow quad in meters (the `act_gyoei02` quad at actor scale): length along the facing,
+## width across it. The visible fish is `SILHOUETTE_FILL` of this.
 static func shadow_size(size: FishData.SizeClass) -> Vector2:
 	var length: float = float(_at(SHADOW_SCALE, size)) * SCALE_TO_GX * GX
 	return Vector2(length * SHADOW_ASPECT, length)
+
+
+## Live shadow opacity, 0–1 (`ctrl->alpha` over 255).
+static func shadow_alpha(size: FishData.SizeClass) -> float:
+	var a: int = WHALE_SHADOW_ALPHA if size == FishData.SizeClass.WHALE else SHADOW_ALPHA
+	return float(a) / 255.0
 
 
 static func hook_trail(size: FishData.SizeClass) -> float:
