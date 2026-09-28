@@ -1656,6 +1656,8 @@ func _run_interact(hit: InteractionQuery) -> void:
 	else:
 		ToolUse.apply_field(hit.action, ctx)
 	var spent: float = float(Time.get_ticks_msec() - t0) / 1000.0
+	if Fishing.take_cut_swing():
+		tail = 0.0
 	await _finish_action(maxf(0.0, tail - spent))
 	await _play_reel()
 	_busy = false
@@ -1728,7 +1730,7 @@ func _play_reel() -> void:
 		if beat.face_camera or beat.hold > 0.0:
 			await _play_show(beat)
 		else:
-			await _play_clip(beat.player_anim, beat.tool_anim)
+			await _play_clip(beat.player_anim, beat.tool_anim, beat.start_frame)
 
 
 ## Between A and the line coming up. `relax_rod` holds its pose until the bobber reports
@@ -2173,7 +2175,7 @@ func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
 	await ui.closed
 
 
-func _play_clip(clip_name: StringName, tool_clip: StringName) -> void:
+func _play_clip(clip_name: StringName, tool_clip: StringName, start_frame: float = 0.0) -> void:
 	if clip_name == &"":
 		return
 	var clip := _resolve_clip(String(clip_name))
@@ -2183,6 +2185,8 @@ func _play_clip(clip_name: StringName, tool_clip: StringName) -> void:
 	_anim.speed_scale = 1.0
 	HeldTool.play(HeldTool.find_skeleton(_mesh), tool_clip, false)
 	_anim.play(clip, 0.08)
+	if start_frame > 0.0:
+		_anim.seek(start_frame / DecompTime.FRAME_HZ, true)
 	PlayerSe.schedule_clip(self, clip_name)
 	await _anim.animation_finished
 	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)

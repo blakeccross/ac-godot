@@ -306,6 +306,95 @@ func test_a_school_with_no_water_never_spawns() -> void:
 	assert_int(school.shadow_count()).is_equal(0)
 
 
+func test_shadows_move_half_their_speed_a_tick() -> void:
+	## `Actor_position_move` adds `0.5 * speed` a tick: `aGTT_speed` is GX per 30 fps frame.
+	var at: Vector3 = _at(Vector2i(8, 8))
+	var shadow: FishShadow = _shadow(FishData.SizeClass.M, 4, 1, at)
+	var sense: FishShadow.Sense = _bobber_sense(at + Vector3(0.0, 0.0, 1.5))
+	shadow._set_angle(0.0)
+	shadow._enter(FishShadow.Action.NEAR)
+	shadow.step(sense)
+	var moved: float = shadow.position.distance_to(at)
+	assert_float(moved).is_equal_approx(FishSize.SPEED_GX[FishData.SizeClass.M] * 0.5 * FishSize.GX, 0.0001)
+
+
+func test_a_pond_fish_holds_station_facing_north_and_a_river_fish_upstream() -> void:
+	## `aGTT_Get_flow_angle_rv`: still water has no flow and `atans_table(0, 0)` is +Z, so the
+	## fish faces -Z. `RIVER_N` flows toward -Z, so its fish face +Z.
+	var still: FishShadow = _shadow(FishData.SizeClass.M, 2, 1, _at(Vector2i(8, 8)))
+	assert_float(absf(still.yaw)).is_equal_approx(PI, 0.0001)
+	var river_flow: Vector2 = FishSchool.flow_for_attr(14)
+	assert_that(river_flow).is_equal(Vector2(0.0, -0.5))
+	var fish := FishData.new()
+	fish.size_class = FishData.SizeClass.M
+	var shadow := FishShadow.new()
+	shadow.fish = fish
+	shadow.flow_lookup = func(_p: Vector3) -> Vector2: return river_flow
+	assert_float(shadow._upstream_yaw()).is_equal_approx(0.0, 0.0001)
+	## `aGTT_flow_direction`: 0x400 a tick while more than a quarter turn off, then 0x100.
+	shadow._set_angle(PI)
+	shadow._rng = RandomNumberGenerator.new()
+	shadow._enter(FishShadow.Action.WAIT)
+	shadow.step(FishShadow.Sense.new())
+	assert_float(absf(wrapf(shadow.yaw - PI, -PI, PI))).is_equal_approx(FishShadow.FLOW_TURN_FAST, 0.0001)
+
+
+func test_an_escape_runs_a_hundred_ticks_then_holds_station() -> void:
+	var shadow: FishShadow = _shadow(FishData.SizeClass.M, 0, 1, _at(Vector2i(8, 6)))
+	shadow._set_angle(0.0)
+	shadow._enter(FishShadow.Action.ESCAPE)
+	var sense := FishShadow.Sense.new()
+	for _i: int in 99:
+		shadow.step(sense)
+	assert_that(shadow.action).is_equal(FishShadow.Action.ESCAPE)
+	## Eased off by 0.02 a tick from 2.0.
+	assert_float(shadow.speed).is_equal_approx(FishSize.ESCAPE_SPEED_GX - 0.02 * 99.0, 0.0001)
+	shadow.step(sense)
+	assert_that(shadow.action).is_equal(FishShadow.Action.WAIT)
+
+
+func test_a_scared_fish_leaves_a_puff_darting_south() -> void:
+	## `aGTT_kage_make_actor` makes the `GYO_KAGE` with a zero rotation, so the puff always
+	## heads +Z at 2.0 GX a frame whichever way the fish was going.
+	var school := FishSchool.new()
+	school.configure(_grid, 0.0)
+	school.auto_spawn = false
+	var shadow: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), _pond, _at(Vector2i(8, 8)))
+	var sense := FishShadow.Sense.new()
+	sense.player_position = _at(Vector2i(10, 8))
+	sense.player_dashing = true
+	school.tick(STEP, sense)
+	assert_int(school.puffs.size()).is_equal(1)
+	var puff: FishSchool.Puff = school.puffs[0]
+	var start: Vector3 = puff.position
+	sense.player_dashing = false
+	school.tick(STEP * 10.0, sense)
+	assert_float(puff.position.z - start.z).is_greater(0.0)
+	assert_float(absf(puff.position.x - start.x)).is_less(0.0001)
+	assert_bool(shadow.finished).is_true()
+
+
+func test_a_claimed_bobber_is_invisible_to_the_other_shadow() -> void:
+	## `bite_check`: once one shadow is closing on the bobber (`gyo_flags & 2`), every
+	## shadow's `gyo_flags & 1` is up and `aGTT_search_Uki` looks straight through it.
+	var school := FishSchool.new()
+	school.configure(_grid, 0.0)
+	school.auto_spawn = false
+	var bobber: Vector3 = _at(Vector2i(8, 8))
+	var first: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), _pond, bobber + Vector3(1.0, 0.0, 0.0))
+	var second: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), _pond, bobber + Vector3(-1.0, 0.0, 0.0))
+	first._enter(FishShadow.Action.NEAR)
+	## A 180° cone on the second, so only the claim can stop it seeing the bobber.
+	second.fish = second.fish.duplicate()
+	second.fish.search_area = 4
+	var sense: FishShadow.Sense = _bobber_sense(bobber)
+	sense.accepts_bite = false
+	for _i: int in 20:
+		school.tick(STEP, sense)
+		assert_bool(second.is_engaged()).is_false()
+	assert_bool(first.is_engaged()).is_true()
+
+
 func _at(cell: Vector2i) -> Vector3:
 	return _grid.cell_to_world(cell)
 

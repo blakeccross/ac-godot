@@ -79,6 +79,9 @@ const ROD_EMPTY := &"not_sao_swing1"
 ## no matching rod clip — `tol_sao_1` has no `sao_get_t2` — so the rod keeps the pose it
 ## finished the lift in.
 const REEL_SHOW := &"ply_1_get_t2"
+## `air_rod`: the cast found no water, so `ready_rod` hands over to `NOT_SAO_SWING1` at the
+## frame it checked (10) and the swing finishes empty.
+const REEL_AIR := &"ply_1_not_sao_swing1"
 
 ## `putaway_rod`, which `notice_rod` requests once the catch report is dismissed.
 const PUTAWAY := &"ply_1_putaway_t1"
@@ -121,6 +124,9 @@ class ReelBeat:
 	var pockets_full: bool = false
 	## Put in the free hand for the length of the beat. Null on an empty line.
 	var fish: FishData = null
+	## 30 fps frame the clip starts from. `air_rod` picks up `NOT_SAO_SWING1` where
+	## `SAO_SWING1` left off rather than from the top.
+	var start_frame: float = 0.0
 
 	func _init(
 		p_player: StringName = &"",
@@ -172,6 +178,8 @@ static var _drift_speed: float = 0.0
 static var _bank_range: float = BANK_RANGE_START_GX
 static var _ctx: InteractionContext = null
 static var _last: Outcome = null
+## Set by an `air_rod` swing: the rest of the cast swing is cut and the beat takes over.
+static var _cut_swing: bool = false
 
 
 static func is_active() -> bool:
@@ -334,6 +342,24 @@ static func reel_beats(out: Outcome) -> Array[ReelBeat]:
 	return [ReelBeat.new(REEL_EMPTY, ROD_EMPTY)]
 
 
+## `air_rod`: A with nothing but land (or a far bank) 100 GX out. The swing goes over into
+## `NOT_SAO_SWING1` from frame 10 and the bobber flies out and straight back; no session.
+static func air_cast() -> void:
+	if is_active():
+		return
+	var beat := ReelBeat.new(REEL_AIR, ROD_EMPTY)
+	beat.start_frame = CAST_RELEASE_FRAME
+	_reel = [beat]
+	_cut_swing = true
+
+
+## True once after `air_cast`: the player drops the tail of the cast swing.
+static func take_cut_swing() -> bool:
+	var cut: bool = _cut_swing
+	_cut_swing = false
+	return cut
+
+
 ## Drained by the player once the line is in. Empty unless a reel just resolved.
 static func take_reel_beats() -> Array[ReelBeat]:
 	var beats: Array[ReelBeat] = _reel
@@ -350,6 +376,7 @@ static func cancel(school: FishSchool = null) -> void:
 static func reset(school: FishSchool = null) -> void:
 	_end(school)
 	_last = null
+	_cut_swing = false
 
 
 # --- one bobber tick ---------------------------------------------------------------------

@@ -38,6 +38,15 @@ static func field_action(ctx: InteractionContext) -> Interaction:
 	## A line already out replaces the cast verb, and survives the player turning away.
 	if tool.field_verb == Interaction.CAST and Fishing.is_active():
 		return Fishing.field_action()
+	if tool.field_verb == Interaction.CAST and not _field_ok(tool, ctx):
+		## `ready_rod` swings whatever is in front; only at frame 10 does it look for water,
+		## and without it `air_rod` takes over. Lowest priority, so anything else in front of
+		## the player (a villager, a sign) still gets A first.
+		if ctx == null or ctx.actor == null:
+			return null
+		return Interaction.of(
+			Interaction.AIR_ROD, "Cast", 0, tool.field_anim, Fishing.CAST_RELEASE_FRAME
+		)
 	if not _field_ok(tool, ctx):
 		return null
 	var prompt: String = tool.field_prompt
@@ -114,6 +123,9 @@ static func _apply_rod(tool: ToolData, action: Interaction, ctx: InteractionCont
 		if action.id != Interaction.HOOK:
 			return false
 		return Fishing.hook(ctx, Fishing.school_of(ctx))
+	if action.id == Interaction.AIR_ROD:
+		Fishing.air_cast()
+		return true
 	if action.id != tool.field_verb or not _field_ok(tool, ctx):
 		return false
 	if not Fishing.cast(ctx, cast_point(ctx)):

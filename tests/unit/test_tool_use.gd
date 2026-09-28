@@ -121,6 +121,7 @@ func test_watering_can_has_no_field_verb() -> void:
 
 
 func test_rod_casts_only_at_water() -> void:
+	Fishing.reset()
 	var world := auto_free(_GridWorld.new()) as _GridWorld
 	world.grid.configure(16, 16, 2.0, Vector3(-16, 0, -16))
 	var actor := auto_free(_FacingActor.new()) as _FacingActor
@@ -133,7 +134,20 @@ func test_rod_casts_only_at_water() -> void:
 	## Water at the player's feet is not enough: the rod reaches `Fishing.CAST_METERS`, so
 	## what matters is the water under the landing spot, not the cell being stood next to.
 	world.grid.set_terrain(Vector2i(8, 9), WorldGrid.Terrain.WATER)
-	assert_object(ToolUse.field_action(ctx)).is_null()
+	## `ready_rod` still swings; with no water at the landing spot `air_rod` takes over, at
+	## the lowest priority so anything else in front of the player wins A.
+	var air: Interaction = ToolUse.field_action(ctx)
+	assert_str(String(air.id)).is_equal(String(Interaction.AIR_ROD))
+	assert_int(air.priority).is_equal(0)
+	assert_str(String(air.player_anim)).is_equal("ply_1_sao_swing1")
+	assert_bool(ToolUse.apply_field(air, ctx)).is_true()
+	assert_bool(Fishing.is_active()).is_false()
+	## The swing goes over into `NOT_SAO_SWING1` from the frame the water check ran.
+	assert_bool(Fishing.take_cut_swing()).is_true()
+	var beats: Array[Fishing.ReelBeat] = Fishing.take_reel_beats()
+	assert_int(beats.size()).is_equal(1)
+	assert_str(String(beats[0].player_anim)).is_equal(String(Fishing.REEL_AIR))
+	assert_float(beats[0].start_frame).is_equal(Fishing.CAST_RELEASE_FRAME)
 
 	for z: int in range(9, 13):
 		world.grid.set_terrain(Vector2i(8, z), WorldGrid.Terrain.WATER)
@@ -146,7 +160,7 @@ func test_rod_casts_only_at_water() -> void:
 	## The cast opens a `Fishing` session; the hook verb replaces it until the line is in.
 	Fishing.cancel()
 	actor.yaw = -PI * 0.5
-	assert_object(ToolUse.field_action(ctx)).is_null()
+	assert_str(String(ToolUse.field_action(ctx).id)).is_equal(String(Interaction.AIR_ROD))
 
 
 func test_shovel_digs_empty_ground() -> void:
