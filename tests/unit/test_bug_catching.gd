@@ -588,3 +588,65 @@ func test_spawn_pool_is_kept_until_the_term_changes() -> void:
 	assert_bool(field.spawn_pool() == first).is_true()
 	Clock.hour = 16
 	assert_bool(field.spawn_pool() == first).is_false()
+
+
+func _two_acre_field() -> Array:
+	var layout := WorldData.new()
+	layout.columns = 48
+	layout.rows = 16
+	layout.bake()
+	var grid := WorldGrid.new()
+	grid.configure_from_world(layout)
+	var field := BugField.new()
+	field.configure(grid, layout)
+	return [layout, grid, field]
+
+
+func test_cull_needs_off_screen_distance_and_another_block() -> void:
+	## `aINS_cull_check`: > 600 GX away and born in another block than the player's.
+	var w: Array = _two_acre_field()
+	var grid: WorldGrid = w[1]
+	var field: BugField = w[2]
+	var bug: BugData = BugCatalog.get_by_type(0)
+	var sense := BugActor.Sense.new()
+	sense.player_position = grid.cell_to_world(Vector2i(40, 8))
+	field.tick(STEP, sense)   ## player block = acre 3
+	var far_other: BugActor = field.spawn(bug, BugData.Habitat.FLYING, grid.cell_to_world(Vector2i(2, 8)))
+	far_other.block = Vector2i(1, 1)
+	var far_same: BugActor = field.spawn(bug, BugData.Habitat.FLYING, grid.cell_to_world(Vector2i(3, 8)))
+	far_same.block = Vector2i(3, 1)
+	sense.on_screen = func(_p: Vector3) -> bool: return true
+	field.tick(STEP * 2.0, sense)
+	assert_bool(far_other.finished).is_false()
+	sense.on_screen = Callable()
+	field.tick(STEP * 2.0, sense)
+	assert_bool(far_other.finished).is_true()
+	assert_bool(far_same.finished).is_false()
+
+
+func test_released_insect_is_culled_once_off_screen() -> void:
+	var w: Array = _two_acre_field()
+	var grid: WorldGrid = w[1]
+	var field: BugField = w[2]
+	var sense := BugActor.Sense.new()
+	sense.player_position = grid.cell_to_world(Vector2i(8, 8))
+	sense.on_screen = func(_p: Vector3) -> bool: return true
+	var freed: BugActor = field.spawn(
+		BugCatalog.get_by_type(0), BugData.Habitat.FLYING, grid.cell_to_world(Vector2i(8, 8)), true
+	)
+	field.tick(STEP * 2.0, sense)
+	assert_bool(freed.finished).is_false()
+	sense.on_screen = func(_p: Vector3) -> bool: return false
+	field.tick(STEP * 2.0, sense)
+	assert_bool(freed.finished).is_true()
+
+
+func test_live_insect_check_uses_the_birth_block() -> void:
+	## `aINS_chk_live_insect` reads `actor.block_x/z` (set at birth), not where it is now.
+	var w: Array = _two_acre_field()
+	var grid: WorldGrid = w[1]
+	var field: BugField = w[2]
+	var a: BugActor = field.spawn(BugCatalog.get_by_type(0), BugData.Habitat.FLYING, grid.cell_to_world(Vector2i(20, 8)))
+	a.block = Vector2i(1, 1)
+	assert_bool(field._acre_has_insect(Vector2i(1, 1))).is_true()
+	assert_bool(field._acre_has_insect(Vector2i(2, 1))).is_false()

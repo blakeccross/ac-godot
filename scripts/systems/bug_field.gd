@@ -49,6 +49,7 @@ var _keep_pool: Array[BugSpawnEntry] = []
 var _set_acre: Vector2i = Vector2i(-999, -999)
 var _set_wait: int = -1
 var _was_wading: bool = false
+var _play_block: Vector2i = Vector2i(-999, -999)
 var _keep_month: int = -1
 var _keep_term: int = -1
 
@@ -128,6 +129,13 @@ func tick(delta: float, sense: BugActor.Sense) -> void:
 		_set_acre = BugHabitats.acre_of_world_pos(_grid, sense.wade_end)
 		_set_wait = SET_WAIT_FRAMES
 	_was_wading = wading
+	## `play->block_table`: switched to the wade's landing acre as the wade starts
+	## (`mFI_SetBearActor`), else the acre the player stands in.
+	if _grid != null:
+		if wading:
+			_play_block = BugHabitats.acre_of_world_pos(_grid, sense.wade_end)
+		elif sense.has_player():
+			_play_block = BugHabitats.acre_of_world_pos(_grid, sense.player_position)
 
 	_steps.add(delta)
 	var budget: int = 8
@@ -164,7 +172,12 @@ func spawn(bug: BugData, habitat: BugData.Habitat, at: Vector3, released: bool =
 		return null
 	var actor: BugActor = BugActor.create(bug, habitat, at, _rng, released)
 	if _grid != null:
-		actor.block = BugHabitats.acre_of_world_pos(_grid, at)
+		## `Actor_init_actor_class(…, play->block_table.block_x/z, …)`: the insect belongs to
+		## the acre the game currently counts the player in, for good.
+		actor.block = (
+			_play_block if _play_block != Vector2i(-999, -999)
+			else BugHabitats.acre_of_world_pos(_grid, at)
+		)
 		## Tie the HIDE trigger to the cell it spawned on (tree / rock / dig spot).
 		var cell: Vector2i = _grid.world_to_cell(at)
 		var prog: BugProgram = actor._prog
@@ -312,11 +325,12 @@ func _filtered_entries(
 
 
 func _acre_has_insect(acre: Vector2i) -> bool:
-	## `aINS_chk_live_insect`: any live insect whose block matches.
+	## `aINS_chk_live_insect`: any live insect whose birth block (`actor.block_x/z`) is
+	## that acre, wherever it has since wandered.
 	for actor: BugActor in actors:
 		if actor.finished:
 			continue
-		if BugHabitats.acre_of_world_pos(_grid, actor.position) == acre:
+		if actor.block == acre:
 			return true
 	return false
 
@@ -340,30 +354,31 @@ func _acre_allows_insects(acre: Vector2i) -> bool:
 
 
 func _cull_distant(sense: BugActor.Sense) -> void:
-	## `aINS_cull_check`: destruct flagged actors; despawn the rest when >600 GX from
-	## the player and in another acre.
+	## `aINS_cull_check`: flagged actors are destructed. Off screen, a released insect
+	## (`actor_specific == 1`) is gone at once; any other goes once it is > 600 GX from the
+	## player and belongs to another acre than `play->block_table`. On screen nothing is
+	## culled. With no camera probe (tests) everything counts as off screen.
 	if _grid == null:
 		return
-	var player_acre: Vector2i = (
-		BugHabitats.acre_of_world_pos(_grid, sense.player_position) if sense.has_player()
-		else Vector2i(-999, -999)
-	)
 	for actor: BugActor in actors:
 		if actor.finished:
 			continue
 		if actor.f_destruct:
 			actor.finished = true
 			continue
-		if not sense.has_player() or actor.caught:
+		if actor.caught:
+			continue
+		if sense.on_screen.is_valid() and bool(sense.on_screen.call(actor.position)):
 			continue
 		if actor.released:
-			continue  ## released bugs fade out via alpha_time, not cull
+			actor.finished = true
+			continue
+		if not sense.has_player():
+			continue
 		var dist: float = Vector2(
 			actor.position.x - sense.player_position.x, actor.position.z - sense.player_position.z
 		).length()
-		if dist <= CULL_DISTANCE:
-			continue
-		if BugHabitats.acre_of_world_pos(_grid, actor.position) != player_acre:
+		if dist > CULL_DISTANCE and actor.block != _play_block:
 			actor.finished = true
 
 
