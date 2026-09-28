@@ -4,7 +4,7 @@ extends RefCounted
 ## Live insects on the field — the `aINS_CTRL_ACTOR` analog with `aINS_ACTOR_NUM` (9)
 ## slots. Owned by the world scene, not an autoload. Drives the shared 30 Hz frame
 ## loop (`aINS_actor_move`) for every slot, then culls and runs one spawn attempt
-## per acre the player enters (`aSOI_insect_set`).
+## per acre crossing (`aSOI_insect_set`, run by the set manager on a wade).
 
 ## `aINS_ACTOR_NUM`
 const MAX_ACTORS := 9
@@ -43,8 +43,19 @@ var _spawned_acre: Vector2i = Vector2i(-999, -999)
 var _steps := FrameStepper.new()
 var _game_frame: int = 0
 var _field_action: Dictionary = {"kind": 0, "cell": Vector2i(-1, -1)}
+var _keep_pool: Array[BugSpawnEntry] = []
+## Set manager: the acre the current wade lands in and the frames left before its set runs
+## (−1 = idle); `_was_wading` catches the wade's first tick (`mFI_WADE_START`).
+var _set_acre: Vector2i = Vector2i(-999, -999)
+var _set_wait: int = -1
+var _was_wading: bool = false
+var _play_block: Vector2i = Vector2i(-999, -999)
+var _keep_month: int = -1
+var _keep_term: int = -1
 
 const TOOL_SWING_SECONDS := 0.25
+## `aSetMgr_WAIT_TIME`: frames between the wade starting and the set overlay running.
+const SET_WAIT_FRAMES := 5
 
 
 func configure(grid: WorldGrid, layout: WorldData) -> void:
@@ -52,6 +63,8 @@ func configure(grid: WorldGrid, layout: WorldData) -> void:
 	_layout = layout
 	actors.clear()
 	_spawned_acre = Vector2i(-999, -999)
+	_set_wait = -1
+	_was_wading = false
 	_steps.reset()
 
 
@@ -110,14 +123,30 @@ func tick(delta: float, sense: BugActor.Sense) -> void:
 		sense.player_swung_tool = true
 	_tool_swing = maxf(_tool_swing - delta, 0.0)
 
-	## `aSOI_insect_set` is driven by the set manager on acre transitions, not by
-	## the insect frame loop — run it once per call, guarded by `_spawned_acre`.
-	_tick_spawn(sense)
+	## `aSetMgr_move_check_set`: a wade starting names the acre being entered.
+	var wading: bool = sense.wade_end != Vector3.INF
+	if wading and not _was_wading and _grid != null:
+		_set_acre = BugHabitats.acre_of_world_pos(_grid, sense.wade_end)
+		_set_wait = SET_WAIT_FRAMES
+	_was_wading = wading
+	## `play->block_table`: switched to the wade's landing acre as the wade starts
+	## (`mFI_SetBearActor`), else the acre the player stands in.
+	if _grid != null:
+		if wading:
+			_play_block = BugHabitats.acre_of_world_pos(_grid, sense.wade_end)
+		elif sense.has_player():
+			_play_block = BugHabitats.acre_of_world_pos(_grid, sense.player_position)
 
 	_steps.add(delta)
 	var budget: int = 8
 	while budget > 0 and _steps.next():
 		budget -= 1
+		## `aSetMgr_move_check_wait` → `aSetMgr_move_set`: `aSOI_insect_set` for that acre.
+		if _set_wait > 0:
+			_set_wait -= 1
+			if _set_wait == 0:
+				_set_wait = -1
+				_tick_spawn(_set_acre)
 		_frame(sense)
 
 
@@ -143,7 +172,12 @@ func spawn(bug: BugData, habitat: BugData.Habitat, at: Vector3, released: bool =
 		return null
 	var actor: BugActor = BugActor.create(bug, habitat, at, _rng, released)
 	if _grid != null:
-		actor.block = BugHabitats.acre_of_world_pos(_grid, at)
+		## `Actor_init_actor_class(…, play->block_table.block_x/z, …)`: the insect belongs to
+		## the acre the game currently counts the player in, for good.
+		actor.block = (
+			_play_block if _play_block != Vector2i(-999, -999)
+			else BugHabitats.acre_of_world_pos(_grid, at)
+		)
 		## Tie the HIDE trigger to the cell it spawned on (tree / rock / dig spot).
 		var cell: Vector2i = _grid.world_to_cell(at)
 		var prog: BugProgram = actor._prog
@@ -181,15 +215,11 @@ func clear() -> void:
 	_spawned_acre = Vector2i(-999, -999)
 
 
-func _tick_spawn(sense: BugActor.Sense) -> void:
+## `aSOI_insect_set` for the acre a wade is entering. Nothing spawns on a scene load or
+## while standing in an acre — only on crossing into one. With every field slot taken
+## the attempt is simply lost (`aINS_make_insect` fails).
+func _tick_spawn(acre: Vector2i) -> void:
 	if not auto_spawn or _grid == null or _layout == null:
-		return
-	if not sense.has_player():
-		return
-	if actors.size() >= MAX_FIELD_SPAWNS:
-		return
-	var acre: Vector2i = BugHabitats.acre_of_world_pos(_grid, sense.player_position)
-	if acre == _spawned_acre:
 		return
 	_spawned_acre = acre
 	## `aSOI_ins_block_check` / `aINS_chk_live_insect`: one attempt per acre entry,
@@ -204,7 +234,7 @@ func _tick_spawn(sense: BugActor.Sense) -> void:
 func _try_spawn_in_acre(acre: Vector2i) -> void:
 	var raining: bool = Game.weather == &"rain"
 	## `aSOI_ins_make_range_data` + `aSOI_ins_decide_insect` + `aSOI_ins_get_idx`.
-	var pool: Array[BugSpawnEntry] = BugSpawnScheduler.build_pool(_rng)
+	var pool: Array[BugSpawnEntry] = spawn_pool()
 	var entry: BugSpawnEntry = BugSpawnScheduler.decide(
 		pool, _layout, _grid, acre, raining, Callable(self, "_occupied_cell"), _rng
 	)
@@ -216,7 +246,7 @@ func _try_spawn_in_acre(acre: Vector2i) -> void:
 	## `aSOI_ins_make`: birth count, each pick a fresh live unit.
 	var birth_num: int = _birth_count(entry.type_index)
 	for _i: int in birth_num:
-		if actors.size() >= MAX_FIELD_SPAWNS:
+		if field_slots_used() >= MAX_FIELD_SPAWNS:
 			return
 		if not _spawn_one_in_acre(bug, entry.spawn_area, acre, raining):
 			return
@@ -237,13 +267,35 @@ func _spawn_one_in_acre(bug: BugData, spawn_area: int, acre: Vector2i, raining: 
 	)
 
 
+## `set_manager->keep.insect_keep`: the spawn list is rebuilt only when the month or the
+## insect term changed since it was last made (`aSOI_ins_not_cmp_time`), so the month
+## blend is fixed for the rest of the term.
+func spawn_pool() -> Array[BugSpawnEntry]:
+	var term: int = int(BugData.term_for_hour(Clock.hour))
+	if _keep_pool.is_empty() or _keep_month != Clock.month or _keep_term != term:
+		_keep_pool = BugSpawnScheduler.build_pool(_rng)
+		_keep_month = Clock.month
+		_keep_term = term
+	return _keep_pool
+
+
+## Occupied `aINS_MAKE_NEW` slots (0..7). A released insect sits in the extra slot.
+func field_slots_used() -> int:
+	var n: int = 0
+	for actor: BugActor in actors:
+		if not actor.finished and not actor.released:
+			n += 1
+	return n
+
+
 func _birth_count(type_index: int) -> int:
 	if type_index < 0 or type_index >= BIRTH_SUM.size():
 		return 1
 	var row: Vector2i = BIRTH_SUM[type_index]
 	if row.y <= 0:
 		return row.x
-	return row.x + _rng.randi_range(0, row.y - 1)
+	## `min_birth_count + (int)(fqrand() * additional_range)`.
+	return row.x + int(_rng.randf() * float(row.y))
 
 
 func _roll_tree_entry(raining: bool) -> BugSpawnEntry:
@@ -273,11 +325,12 @@ func _filtered_entries(
 
 
 func _acre_has_insect(acre: Vector2i) -> bool:
-	## `aINS_chk_live_insect`: any live insect whose block matches.
+	## `aINS_chk_live_insect`: any live insect whose birth block (`actor.block_x/z`) is
+	## that acre, wherever it has since wandered.
 	for actor: BugActor in actors:
 		if actor.finished:
 			continue
-		if BugHabitats.acre_of_world_pos(_grid, actor.position) == acre:
+		if actor.block == acre:
 			return true
 	return false
 
@@ -301,30 +354,31 @@ func _acre_allows_insects(acre: Vector2i) -> bool:
 
 
 func _cull_distant(sense: BugActor.Sense) -> void:
-	## `aINS_cull_check`: destruct flagged actors; despawn the rest when >600 GX from
-	## the player and in another acre.
+	## `aINS_cull_check`: flagged actors are destructed. Off screen, a released insect
+	## (`actor_specific == 1`) is gone at once; any other goes once it is > 600 GX from the
+	## player and belongs to another acre than `play->block_table`. On screen nothing is
+	## culled. With no camera probe (tests) everything counts as off screen.
 	if _grid == null:
 		return
-	var player_acre: Vector2i = (
-		BugHabitats.acre_of_world_pos(_grid, sense.player_position) if sense.has_player()
-		else Vector2i(-999, -999)
-	)
 	for actor: BugActor in actors:
 		if actor.finished:
 			continue
 		if actor.f_destruct:
 			actor.finished = true
 			continue
-		if not sense.has_player() or actor.caught:
+		if actor.caught:
+			continue
+		if sense.on_screen.is_valid() and bool(sense.on_screen.call(actor.position)):
 			continue
 		if actor.released:
-			continue  ## released bugs fade out via alpha_time, not cull
+			actor.finished = true
+			continue
+		if not sense.has_player():
+			continue
 		var dist: float = Vector2(
 			actor.position.x - sense.player_position.x, actor.position.z - sense.player_position.z
 		).length()
-		if dist <= CULL_DISTANCE:
-			continue
-		if BugHabitats.acre_of_world_pos(_grid, actor.position) != player_acre:
+		if dist > CULL_DISTANCE and actor.block != _play_block:
 			actor.finished = true
 
 

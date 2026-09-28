@@ -14,12 +14,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -41,12 +41,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -88,12 +88,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -125,12 +125,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -152,12 +152,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -179,12 +179,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -208,12 +208,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -240,12 +240,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -297,12 +297,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -349,12 +349,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -381,12 +381,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -413,12 +413,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -447,12 +447,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 3
         },
         {
@@ -479,12 +479,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 3
         },
         {
@@ -541,12 +541,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 3
         },
         {
@@ -603,12 +603,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 3
         },
         {
@@ -635,7 +635,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -645,7 +645,7 @@
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 3
         },
         {
@@ -672,7 +672,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -682,7 +682,7 @@
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 3
         },
         {
@@ -721,7 +721,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -753,7 +753,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -830,7 +830,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -907,7 +907,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -939,7 +939,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -981,7 +981,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1045,7 +1045,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1107,7 +1107,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1214,7 +1214,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1311,7 +1311,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1353,7 +1353,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1410,7 +1410,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1474,7 +1474,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1536,7 +1536,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1643,7 +1643,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1740,7 +1740,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1787,7 +1787,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1844,7 +1844,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1893,7 +1893,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -1935,7 +1935,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -2012,7 +2012,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -2069,7 +2069,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -2131,7 +2131,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -2178,7 +2178,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -2227,7 +2227,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -2264,7 +2264,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -2326,7 +2326,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -2378,7 +2378,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -2430,7 +2430,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -2467,7 +2467,7 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
@@ -2496,12 +2496,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 3
         },
         {
@@ -2528,12 +2528,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 3
         },
         {
@@ -2565,12 +2565,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 3
         },
         {
@@ -2602,12 +2602,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 3
         },
         {
@@ -2634,12 +2634,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 3
         },
         {
@@ -2666,12 +2666,12 @@
         },
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 3
         },
         {
@@ -2685,12 +2685,12 @@
       "0": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2702,12 +2702,12 @@
       "1": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2719,12 +2719,12 @@
       "2": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2736,12 +2736,12 @@
       "3": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2753,12 +2753,12 @@
       "4": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2770,12 +2770,12 @@
       "5": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2789,12 +2789,12 @@
       "0": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2806,12 +2806,12 @@
       "1": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2823,12 +2823,12 @@
       "2": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2840,12 +2840,12 @@
       "3": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2857,12 +2857,12 @@
       "4": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2874,12 +2874,12 @@
       "5": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2893,12 +2893,12 @@
       "0": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2910,12 +2910,12 @@
       "1": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2927,12 +2927,12 @@
       "2": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2944,12 +2944,12 @@
       "3": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2961,12 +2961,12 @@
       "4": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2978,12 +2978,12 @@
       "5": [
         {
           "type_index": 36,
-          "spawn_area": 8,
+          "spawn_area": 10,
           "weight": 5
         },
         {
           "type_index": 33,
-          "spawn_area": 9,
+          "spawn_area": 11,
           "weight": 10
         },
         {
@@ -2997,12 +2997,12 @@
   "other": [
     {
       "type_index": 36,
-      "spawn_area": 8,
+      "spawn_area": 10,
       "weight": 5
     },
     {
       "type_index": 33,
-      "spawn_area": 9,
+      "spawn_area": 11,
       "weight": 10
     },
     {
