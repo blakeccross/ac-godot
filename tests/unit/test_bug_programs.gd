@@ -506,3 +506,24 @@ func test_stressed_firefly_veers_away_from_the_player() -> void:
 	var away: float = BugProgram.angle_to(s.player_position / BugActor.GX_M, a.pos)
 	assert_float(absf(angle_difference(a.s32_work[1] * MLib.S16, away))).is_less(deg_to_rad(2.0))
 	assert_float(a.player_distance_xz).is_greater(60.0)
+
+
+func test_mosquito_hovers_inside_a_half_unit_and_ignores_other_acres() -> void:
+	## 16 GX off (0.8 m): inside `mFI_UNIT_BASE_SIZE_F / 2` = 20 GX → ATTACK_WAIT.
+	var near := _make(&"mosquito", BugData.Habitat.FLYING, Vector3(10.0, 0.0, 10.0))
+	var s := _field_sense()
+	var entered := false
+	for i in 20:
+		s.player_position = Vector3(near.position.x + 0.8, 0.0, near.position.z)
+		near.frame(s)
+		if near.action == BugKa.ATTACK_WAIT:
+			entered = true
+			break
+	assert_bool(entered).is_true()
+	## 3 m away but over the acre line (acres are 32 m): it keeps circling.
+	var far := _make(&"mosquito", BugData.Habitat.FLYING, Vector3(30.5, 0.0, 10.0))
+	var s2 := _field_sense()
+	for i in 30:
+		s2.player_position = Vector3(33.5, 0.0, far.position.z)
+		far.frame(s2)
+	assert_int(far.action).is_equal(BugKa.FLY)
