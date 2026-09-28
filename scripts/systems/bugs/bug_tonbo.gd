@@ -341,10 +341,7 @@ func _bg_check(a: BugActor, sense: BugActor.Sense, probe_only: bool = false) -> 
 		return BG_NONE
 	var angle: float = 0.0
 	if wall:
-		## Wall normal: from the blocked unit ahead back toward this one (units are square).
-		var fwd := Vector2(sin(a.angle_y), cos(a.angle_y))
-		var normal: float = atan2(-signf(fwd.x), 0.0) if absf(fwd.x) >= absf(fwd.y) \
-			else atan2(0.0, -signf(fwd.y))
+		var normal: float = BugProgram.wall_normal(a)
 		angle = wrapf(normal - (PI + a.angle_y), -PI, PI)
 	var jitter: float = a._rng.randf() * deg_to_rad(45.0)
 	angle += jitter if wrapf(a.angle_y - angle, -PI, PI) >= 0.0 else -jitter

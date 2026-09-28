@@ -527,3 +527,42 @@ func test_mosquito_hovers_inside_a_half_unit_and_ignores_other_acres() -> void:
 		s2.player_position = Vector3(33.5, 0.0, far.position.z)
 		far.frame(s2)
 	assert_int(far.action).is_equal(BugKa.FLY)
+
+
+func test_ladybug_sits_on_the_flower_head_and_flees_a_nearby_dig() -> void:
+	var s := _field_sense()
+	var at: Vector3 = s.grid.cell_to_world(Vector2i(5, 5))
+	at.y = 0.0
+	_put(s.layout, &"flower", Vector2i(5, 5))
+	var a := _make(&"ladybug", BugData.Habitat.FLOWER, at)
+	assert_float(a.pos.y).is_equal_approx(25.0, 0.01)
+	## Not on a flower is no scare in the US build.
+	var bare := _field_sense()
+	var b := _make(&"ladybug", BugData.Habitat.FLOWER, at)
+	_run(b, 30, bare)
+	assert_int(b.action).is_not_equal(BugTentou.AVOID)
+	## A dig two units off (80 GX) leaves it; one unit off (40 GX) is inside 60.
+	s.player_position = at + Vector3(0.0, 0.0, 6.0)
+	s.player_action = BugActor.PlAct.DIG_SCOOP
+	s.player_action_cell = Vector2i(5, 7)
+	a.frame(s)
+	assert_int(a.action).is_not_equal(BugTentou.AVOID)
+	s.player_action_cell = Vector2i(5, 6)
+	a.frame(s)
+	assert_int(a.action).is_equal(BugTentou.AVOID)
+
+
+func test_snail_only_leaves_once_its_flower_is_gone() -> void:
+	var s := _field_sense()
+	var at: Vector3 = s.grid.cell_to_world(Vector2i(5, 5))
+	at.y = 0.0
+	var f := _put(s.layout, &"flower", Vector2i(5, 5))
+	var a := _make(&"snail", BugData.Habitat.RAIN_FLOWER, at)
+	s.player_position = at + Vector3(0.0, 0.0, 2.0)
+	s.player_action = BugActor.PlAct.DIG_SCOOP
+	s.player_action_cell = Vector2i(5, 6)
+	_run(a, 10, s)
+	assert_int(a.action).is_not_equal(BugTentou.AVOID_MAIMAI)
+	s.layout.objects.erase(f)
+	a.frame(s)
+	assert_int(a.action).is_equal(BugTentou.AVOID_MAIMAI)

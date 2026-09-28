@@ -164,6 +164,26 @@ static func wall_front(a: BugActor, sense: BugActor.Sense, range_gx: float = -1.
 	return BugBg.wall_front(sense.grid, sense.layout, a.pos, a.angle_y, maxf(r, 1.0))
 
 
+## `wall_info[i].angleY` of the front wall, estimated from the heading: units are square,
+## so the wall faces back along the dominant axis of travel (toward this unit).
+static func wall_normal(a: BugActor) -> float:
+	var fwd := Vector2(sin(a.angle_y), cos(a.angle_y))
+	if absf(fwd.x) >= absf(fwd.y):
+		return atan2(-signf(fwd.x), 0.0)
+	return atan2(0.0, -signf(fwd.y))
+
+
+## `mFI_GetUnitFG` is a flower (`IS_ITEM_FLOWER`); off the field (NULL) or with no layout
+## known it counts as one.
+static func on_flower(a: BugActor, sense: BugActor.Sense) -> bool:
+	if sense == null or sense.grid == null or sense.layout == null:
+		return true
+	var cell: Vector2i = unit_of(sense, a.pos)
+	if not sense.grid.is_in_bounds(cell):
+		return true
+	return BugBg.has_kind(sense.layout, cell, &"flower")
+
+
 ## `*_chk_water_attr`: on the ground and the point `bg_range + speed` ahead is water.
 static func water_ahead(a: BugActor, sense: BugActor.Sense) -> bool:
 	if sense == null or sense.grid == null:

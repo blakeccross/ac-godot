@@ -1,14 +1,21 @@
 class_name BugTentou
 extends BugProgram
 
-## `ac_ins_tentou.c` — ladybug, spotted ladybug, mantis and snail. Ladybugs / mantis
-## crawl a small box on their flower, turning at random and bouncing off the box
-## edge; when scared they fly straight up and away. The snail crawls that box very
-## slowly and, when scared (or off a flower), just keeps crawling on the ground.
+## `ac_ins_tentou.c` — ladybug, spotted ladybug, mantis and snail. They sit 25 GX over
+## the ground (on the flower head), rest 90–180 frames, then crawl a ±14 GX box for
+## 90–149 frames (0.4 GX/frame, the snail a quarter of that), turning at random and
+## bouncing off the box edge. A stopped net within 70 GX or a dig within 60 GX sends a
+## ladybug / mantis off the player's facing ±60°, climbing ever faster (US: leaving the
+## flower does not scare them — that check is AUS-only). The snail only reacts to its
+## unit losing its flower: it drops to the ground and crawls away, sliding along walls.
 
 enum { AVOID, AVOID_MAIMAI, LET_ESCAPE, LET_ESCAPE_MAIMAI, MOVE, WAIT }
 
 ## `ref_angl[]` (`aITT_move`) — target yaw per box-edge collision bitmask, s16→rad.
+const FLOWER_Y := 25.0       ## `6 + GetBgY_OnlyCenter_FromWpos(pos, −19)`
+const NET_SCARE := 70.0
+const SCOOP_SCARE := 60.0
+
 const REF_ANGL := [
 	0.0, deg_to_rad(90.0), deg_to_rad(-90.0), 0.0,
 	0.0, deg_to_rad(45.0), deg_to_rad(-45.0), 0.0,
@@ -25,10 +32,11 @@ func actor_init(a: BugActor, released: bool) -> void:
 		T_MANTIS: a.item = 26
 		T_SNAIL: a.item = 32
 	if not released:
-		a.pos.y = a.home.y + 6.0        ## 13 GX up a flower, then +6
+		a.pos.y = a.home.y + FLOWER_Y
 		a.home = a.pos
 		setup_action(a, WAIT)
 	elif a.type == T_SNAIL:
+		a.home.y = a.pos.y
 		setup_action(a, LET_ESCAPE_MAIMAI)
 	else:
 		setup_action(a, LET_ESCAPE)
@@ -74,10 +82,8 @@ func _avoid_init(a: BugActor) -> void:
 	a.max_velocity_y = 12.0
 	a.gravity = 0.06
 	a.rot.x = 0.0
-	if a._last_player_gx != Vector3.INF:
-		var pyaw: float = BugProgram.angle_to(a.pos, a._last_player_gx)
-		a.rot.y = pyaw + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(120.0)
-		a.angle_y = a.rot.y
+	if BugProgram.heading_from_player_facing(a, deg_to_rad(120.0)):
+		a.rot.y = a.angle_y
 	a.f_no_catch = true
 	a.f_bit2 = true
 
@@ -93,7 +99,7 @@ func _avoid_maimai_init(a: BugActor) -> void:
 
 
 func _move_init(a: BugActor) -> void:
-	a.timer = int((90.0 + a._rng.randi_range(0, 59)) * 2.0)
+	a.timer = int((90.0 + float(a.game_frame % 60)) * 2.0)
 	a.s32_work[2] = 0                ## turn delay
 	a.target_speed = 0.4
 	a.speed_step = 0.1
@@ -105,6 +111,8 @@ func _move_init(a: BugActor) -> void:
 # ---- actions --------------------------------------------------
 
 func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
+	## US `aITT_actor_move` sends a caught snail down the flying LET_ESCAPE (a bug fixed in
+	## the AUS release); the port keeps the fix so a snail never takes off.
 	if a.caught:
 		setup_action(a, LET_ESCAPE_MAIMAI if a.type == T_SNAIL else LET_ESCAPE)
 		return
@@ -148,12 +156,13 @@ func _move(a: BugActor, sense: BugActor.Sense) -> void:
 		else:
 			a.pos.z = a.home.z + 14.0
 			collision |= 8
+	a.pos.y = BugProgram.center_y(sense, a.pos, a.home.y - FLOWER_Y) + FLOWER_Y
 	if collision != 0:
 		a.s32_work[1] = int(REF_ANGL[collision] / MLib.S16)
 		a.s32_work[2] = 10
 		a.speed_step = 0.0
 		a.speed = 0.0
-	elif is_equal_approx(a.angle_y, a.s32_work[1] * MLib.S16):
+	elif BugProgram.angle_reached(a.angle_y, a.s32_work[1] * MLib.S16):
 		a.s32_work[1] = int(a.angle_y / MLib.S16) + int(a._rng.randf_range(-1.0, 1.0) * deg_to_rad(90.0) / MLib.S16)
 	var step: float = (0x180 if a.type == T_SNAIL else 0x600) * MLib.S16
 	a.angle_y = BugProgram.chase_angle(a.angle_y, a.s32_work[1] * MLib.S16, step)
@@ -172,39 +181,28 @@ func _avoid(a: BugActor, _sense: BugActor.Sense) -> void:
 
 
 func _avoid_maimai(a: BugActor, sense: BugActor.Sense) -> void:
-	## `aITT_calc_direction_angl`: wall bounce + slow yaw chase.
-	if sense != null and sense.bg.is_valid() and bool(sense.bg.call(a.pos).get("hit_wall_front", false)):
-		a.angle_y = wrapf(a.angle_y + PI * 0.5, -PI, PI)
+	## `aITT_calc_direction_angl`: a front wall turns it to run along the wall (90° off
+	## the wall's facing); the shape follows at 0x800.
+	if BugProgram.wall_front(a, sense):
+		a.angle_y = wrapf(PI * 0.5 + BugProgram.wall_normal(a), -PI, PI)
 	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * MLib.S16)
 
 
+## `aITT_check_patience`: the snail only leaves when its unit has no flower; the others
+## flee a stopped net within 70 GX (not the one holding them) or a dig within 60 GX.
 func _check_patience(a: BugActor, sense: BugActor.Sense) -> bool:
-	var on_flower: bool = _on_flower(a, sense)
 	if a.type == T_SNAIL:
-		if not on_flower:
+		if not BugProgram.on_flower(a, sense):
 			setup_action(a, AVOID_MAIMAI)
 			a.target_speed = 0.1
 			a.speed_step = 0.025
 			return true
 		return false
-	if sense.net_swing_active and sense.net_swing_origin != Vector3.INF:
-		if BugProgram.dist_xz(a.pos, sense.net_swing_origin / BugActor.GX_M) < 70.0:
-			a.patience = 100.0
-	if sense.player_swung_tool and sense.has_player():
-		if BugProgram.dist_xz(a.pos, sense.player_position / BugActor.GX_M) < 60.0:
-			a.patience = 100.0
-	if not on_flower:
+	if not a.caught and BugProgram.near_xz(a, BugProgram.net_stop_pos(sense), NET_SCARE):
+		a.patience = 100.0
+	elif BugProgram.near_xz(a, BugProgram.scoop_pos(sense), SCOOP_SCARE):
 		a.patience = 100.0
 	if a.patience > 90.0:
 		setup_action(a, AVOID)
 		return true
 	return false
-
-
-func _on_flower(_a: BugActor, sense: BugActor.Sense) -> bool:
-	## `aITT_check_flower` — true when there is no probe (assume still on it) or the
-	## probe reports a flower.
-	if sense == null or not sense.bg.is_valid():
-		return true
-	var r: Dictionary = sense.bg.call(_a.pos)
-	return not r.has("on_flower") or bool(r["on_flower"])
