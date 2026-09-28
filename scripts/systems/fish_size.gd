@@ -5,9 +5,10 @@ extends RefCounted
 ## Every array here is indexed by `FishData.SizeClass` unless it says otherwise. Not an
 ## autoload — `FishShadow` reads it.
 ##
-## The originals are in GX per logic frame. Movement runs at 60 Hz (the authored dwell
-## values are all multiplied by 2 on their way into a counter), so a speed converts with
-## `GX_TO_METERS * DecompTime.TICK_HZ` and a frame count with `/ DecompTime.TICK_HZ`.
+## Counters run at 60 Hz (the authored dwell values are all multiplied by 2 on their way
+## into a counter), so a frame count converts with `/ DecompTime.TICK_HZ`. Speeds are GX per
+## 30 fps frame: `Actor_position_move` adds `0.5 * speed` every 60 Hz tick, so a speed
+## converts with `GX_TO_METERS * DecompTime.FRAME_HZ`.
 
 const GX := FieldCatalog.GX_TO_METERS
 ## The dwell tables are authored in 30 Hz frames and every site that loads one into a
@@ -207,7 +208,7 @@ static func depth() -> float:
 
 
 static func gx_per_frame_to_mps(gx_per_frame: float) -> float:
-	return gx_per_frame * GX * DecompTime.TICK_HZ
+	return gx_per_frame * GX * DecompTime.FRAME_HZ
 
 
 ## Which of the 20 swim frames a shadow is on, given how long it has been swimming.

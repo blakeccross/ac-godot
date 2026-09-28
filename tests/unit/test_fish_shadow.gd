@@ -384,6 +384,14 @@ func test_a_scared_fish_leaves_a_puff_darting_south() -> void:
 	assert_bool(shadow.finished).is_true()
 
 
+func test_speeds_convert_at_half_a_speed_per_tick() -> void:
+	## `Actor_position_move`: `0.5 * speed` GX a 60 Hz tick is `speed` GX a 30 fps frame.
+	assert_float(FishSize.gx_per_frame_to_mps(1.0)).is_equal_approx(
+		FieldCatalog.GX_TO_METERS * 30.0, 0.0001
+	)
+	assert_float(FishSize.escape_speed()).is_equal_approx(2.0 * 0.05 * 30.0, 0.0001)
+
+
 func test_a_puff_turns_off_the_bank_and_keeps_slowing() -> void:
 	## `aGYO_KAGE_actor_move`: blocked by a bank it turns a quarter off it rather than going
 	## through, and `chase_f(speed, 0, 0.02)` still runs that tick.
