@@ -291,17 +291,33 @@ func test_bagworm_hides_until_the_tree_is_shaken() -> void:
 
 
 func test_pill_bug_curls_into_a_ball_when_scared() -> void:
-	var a := _make(&"pill_bug", BugData.Habitat.ROCK, Vector3(5.0, 0.0, 5.0))
-	var s := BugActor.Sense.new()
+	var s := _field_sense()
+	var rock := Vector2i(5, 5)
+	var at: Vector3 = s.grid.cell_to_world(rock)
+	var a := _make(&"pill_bug", BugData.Habitat.ROCK, at)
+	(a._prog as BugDango).set_rock_cell(rock)
+	s.player_position = at + Vector3(0.0, 0.0, 10.0)  ## outside the 120 GX stress radius
+	s.player_yaw = PI
+	## A strike on a neighbouring unit does nothing.
 	s.player_action = BugActor.PlAct.REFLECT_SCOOP
+	s.player_action_cell = Vector2i(5, 6)
+	a.frame(s)
+	assert_int(a.action).is_equal(BugDango.HIDE)
+	s.player_action_cell = rock
 	a.frame(s)
 	assert_int(a.action).is_equal(BugDango.APPEAR)
 	s.player_action = BugActor.PlAct.NONE
+	s.player_action_cell = Vector2i(-1, -1)
 	_run(a, 30, s)
 	a.patience = 30.0
-	_run(a, 5, s)
+	_run(a, 2, s)
 	assert_int(a.action).is_equal(BugDango.AVOID)
-	a.patience = 95.0
+	## Scares count only once it has crawled off the rock's unit (`bg_type` 4 → 2).
+	for i in 120:
+		a.frame(s)
+		if a.bg_type == 2:
+			break
+	assert_int(a.bg_type).is_equal(2)
 	s.net_swing_active = true
 	s.net_swing_origin = a.position
 	a.frame(s)
@@ -584,3 +600,24 @@ func test_pond_skater_never_skates_off_its_pond() -> void:
 		if BugProgram.dist_xz(a.pos, a.home) > 5.0:
 			moved = true
 	assert_bool(moved).is_true()
+
+
+func test_crawling_pill_bug_dives_into_water_ahead_and_drowns() -> void:
+	var s := _field_sense()
+	s.bg = BugBg.make_probe(s.grid, s.layout)
+	s.ground = BugBg.make_ground(s.grid, s.layout)
+	for z in 32:
+		s.grid.set_terrain(Vector2i(7, z), WorldGrid.Terrain.WATER)
+	var at: Vector3 = s.grid.cell_to_world(Vector2i(5, 5))
+	var a := _make(&"ant", BugData.Habitat.GROUND, at)
+	s.player_position = at + Vector3(-10.0, 0.0, 0.0)
+	s.player_yaw = PI * 0.5   ## facing east, toward the water
+	var dived := false
+	for i in 400:
+		a.frame(s)
+		if a.action == BugDango.DIVE:
+			dived = true
+		if a.finished:
+			break
+	assert_bool(dived).is_true()
+	assert_bool(a.finished).is_true()
