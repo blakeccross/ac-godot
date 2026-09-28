@@ -474,3 +474,35 @@ func test_beetle_scared_by_an_axe_hit_in_its_acre_within_150_gx() -> void:
 	s.player_position = b.position + Vector3(6.0, 0.0, 0.0)  ## 120 GX east
 	b.frame(s)
 	assert_int(b.action).is_equal(BugKabuto.AVOID)
+
+
+# ---- HOTARU (firefly) ----------------------------------------------
+
+func test_firefly_hovers_seventy_gx_over_the_ground() -> void:
+	## `GetBgY_OnlyCenter_FromWpos(pos, −70)`, bobbing ±10 GX (`aIHT_fuwafuwa`).
+	var a := _make(&"firefly", BugData.Habitat.NEAR_WATER, Vector3(2.0, 0.0, 2.0))
+	var lo := 1e9
+	var hi := -1e9
+	for _i: int in 600:
+		a.frame(BugActor.Sense.new())
+		lo = minf(lo, a.pos.y)
+		hi = maxf(hi, a.pos.y)
+	assert_float(lo).is_greater(55.0)
+	assert_float(hi).is_less(85.0)
+
+
+func test_stressed_firefly_veers_away_from_the_player() -> void:
+	var a := _make(&"firefly", BugData.Habitat.NEAR_WATER, Vector3(0.0, 0.0, 0.0))
+	a.f32_work[0] = a.pos.x + 100.0  ## a far target so the steering branch runs
+	a.patience = 95.0
+	var s := BugActor.Sense.new()
+	s.player_position = a.position + Vector3(0.0, 0.0, 2.0)  ## player due south
+	s.player_move_gx = 0.0
+	for _i: int in 200:
+		a.patience = 95.0
+		a.frame(s)
+	assert_int(a.flag).is_equal(1)
+	## Target heading is `player_angle_y + 180°`, straight away from the player.
+	var away: float = BugProgram.angle_to(s.player_position / BugActor.GX_M, a.pos)
+	assert_float(absf(angle_difference(a.s32_work[1] * MLib.S16, away))).is_less(deg_to_rad(2.0))
+	assert_float(a.player_distance_xz).is_greater(60.0)
