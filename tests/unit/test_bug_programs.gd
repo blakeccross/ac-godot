@@ -268,10 +268,17 @@ func test_mole_cricket_pops_out_when_its_cell_is_dug() -> void:
 	assert_int(a.action).is_equal(BugKera.HIDE)
 	assert_bool(a.drawn).is_false()
 	var s := BugActor.Sense.new()
-	s.player_position = Vector3(6.0, 0.0, 6.5)
+	s.player_position = Vector3(6.0, 0.0, 7.5)
+	s.player_yaw = PI   ## facing north
 	s.player_action = BugActor.PlAct.DIG_SCOOP
+	## Digging the next unit over leaves it hidden; its own unit (6 m = 120 GX → 11) wakes it.
+	s.player_action_cell = Vector2i(11, 12)
+	a.frame(s)
+	assert_int(a.action).is_equal(BugKera.HIDE)
+	s.player_action_cell = Vector2i(11, 11)
 	a.frame(s)
 	assert_int(a.action).is_equal(BugKera.APPEAR)
+	assert_float(absf(wrapf(a.angle_y - PI, -PI, PI))).is_less_equal(deg_to_rad(60.5))
 	assert_bool(a.drawn).is_true()
 	s.player_action = BugActor.PlAct.NONE
 	_run(a, 60, s)
