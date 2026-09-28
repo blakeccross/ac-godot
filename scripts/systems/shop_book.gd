@@ -74,9 +74,35 @@ func shop(shop_id: StringName) -> Dictionary:
 	return _shops[shop_id] as Dictionary
 
 
+## What is still on the shelves.
 func goods(shop_id: StringName) -> Array[StringName]:
-	var row: Dictionary = shop(shop_id)
-	return _string_names(row.get("goods", []))
+	var out: Array[StringName] = []
+	var sold: Array[int] = sold_slots(shop_id)
+	var listed: Array[StringName] = lineup(shop_id)
+	for i: int in listed.size():
+		if not sold.has(i):
+			out.append(listed[i])
+	return out
+
+
+## The whole day's list, sold goods included: each keeps its reserve point until 06:00.
+func lineup(shop_id: StringName) -> Array[StringName]:
+	return _string_names(shop(shop_id).get("goods", []))
+
+
+## Indices into `lineup` bought today (`mSP_ShopSaleReport` turns them `RSV_SHOP_SOLD_*`).
+func sold_slots(shop_id: StringName) -> Array[int]:
+	var out: Array[int] = []
+	var raw: Variant = shop(shop_id).get("sold", [])
+	if typeof(raw) == TYPE_ARRAY:
+		for entry: Variant in raw as Array:
+			out.append(int(entry))
+	return out
+
+
+## Today's rare furniture (`Shop_c.rare_item`), "" when none.
+func rare_item(shop_id: StringName = NOOK_ID) -> StringName:
+	return StringName(str(shop(shop_id).get("rare", "")))
 
 
 func allows_sell(shop_id: StringName) -> bool:
@@ -328,6 +354,7 @@ func restock(shop_id: StringName) -> void:
 	_ensure_row(shop_id)
 	var row: Dictionary = _shops[shop_id]
 	row["renew"] = Clock.renew_index()
+	row["sold"] = []
 	if shop_id != NOOK_ID:
 		## Able Sisters is a design/pattern shop, not a clothing store — it holds no
 		## Bell-priced stock. Designs are traded through Mabel (`ac_npc_needlework`).
@@ -426,8 +453,8 @@ func buy_result(shop_id: StringName, item_id: StringName, inv: Inventory) -> Dic
 	var data: ItemData = ItemCatalog.get_item(item_id)
 	if data == null or inv == null:
 		return {"code": Buy.NOT_FOR_SALE, "msg": "That's not for sale."}
-	var listed: Array[StringName] = goods(shop_id)
-	var slot: int = listed.find(item_id)
+	var sold: Array[int] = sold_slots(shop_id)
+	var slot: int = _unsold_slot(lineup(shop_id), sold, item_id)
 	if slot < 0:
 		return {"code": Buy.SOLD_OUT, "msg": "That's sold out."}
 	var price: int = buy_price(data)
@@ -456,8 +483,9 @@ func buy_result(shop_id: StringName, item_id: StringName, inv: Inventory) -> Dic
 		out["msg"] = "Bought %s for %d Bells." % [data.display_name, price]
 		if earns_ticket(data):
 			out["ticket"] = _give_ticket(inv)
-	listed.remove_at(slot)
-	_set_goods(shop_id, listed)
+	## `mSP_ShopSaleReport`: the slot turns `RSV_SHOP_SOLD_*`, the other goods stay put.
+	sold.append(slot)
+	(_shops[shop_id] as Dictionary)["sold"] = sold
 	if shop_id == NOOK_ID:
 		plus_sales(price)
 	return out
@@ -740,9 +768,11 @@ func _today() -> int:
 	return EventDates.ordinal(Clock.year, Clock.month, Clock.day)
 
 
-func _set_goods(shop_id: StringName, listed: Array[StringName]) -> void:
-	_ensure_row(shop_id)
-	(_shops[shop_id] as Dictionary)["goods"] = _as_strings(listed)
+static func _unsold_slot(listed: Array[StringName], sold: Array[int], item_id: StringName) -> int:
+	for i: int in listed.size():
+		if listed[i] == item_id and not sold.has(i):
+			return i
+	return -1
 
 
 func _as_strings(listed: Array[StringName]) -> Array:

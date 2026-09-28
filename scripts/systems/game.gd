@@ -1099,8 +1099,8 @@ func try_enter_interior(
 		## Museum: wipe to spawn facing north — no post-load walk.
 		play_door_arrive = false
 	elif ShopDisplay.nook_is_shop_room(room_id):
-		## `aSHOP_shop_door_data` GX {160,0,300}, `mSc_DIRECT_NORTH` (all Nook levels).
-		interior_spawn_gx = ShopDisplay.CRANNY_SPAWN_GX
+		## The building's `Door_data_c` (`aSHOP_` … `aDPT_depart_door_data`), `mSc_DIRECT_NORTH`.
+		interior_spawn_gx = ShopDisplay.nook_spawn_gx(room_id)
 		interior_spawn_yaw = WorldGrid.yaw_for_facing(ShopDisplay.CRANNY_SPAWN_FACING)
 		has_interior_spawn = true
 		spawn_at_room_door = false
