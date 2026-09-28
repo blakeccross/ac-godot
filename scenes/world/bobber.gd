@@ -1,7 +1,8 @@
 extends Node3D
 
 ## Uki (`ac_uki.h`) presentation: a parabola out to the cast point, a slow float bob, a dip
-## on every nibble, and held under while a fish has it. `Fishing` owns all the timing and
+## on every nibble, pulled under while a fish has it and yanked up out of the water once
+## struck. `Fishing` owns all the timing and
 ## the bobber's position once it lands (`aUKI_movement`'s drift), including when this node
 ## is freed — this script only reads it.
 
@@ -9,12 +10,15 @@ const VISUAL_ID := &"tol_uki_1"
 
 const BOB_AMPLITUDE := 0.03
 const BOB_RATE := 2.2
-## `aUKI_STATUS_VIB`: the bobber shudders while the fish is on.
-const VIB_AMPLITUDE := 0.055
-const VIB_RATE := 26.0
-## How far under the surface a nibble and a hooked fish pull it.
+## How far under the surface a nibble pulls it. A fish that has it sets the height itself
+## (`Fishing.rise`).
 const DIP_DEPTH := 0.075
-const HELD_DEPTH := 0.115
+## `aUKI_color`: more than 3 GX under the surface the float is tinted (100, 100, 128), and
+## back above it returns to white. `aUKI_chase_color` moves each channel by half its step
+## a tick (the int of 52 * 0.5 and 43 * 0.5).
+const UNDERWATER_GX := 3.0
+const UNDERWATER_RGB := Vector3i(100, 100, 128)
+const COLOR_STEP := Vector3i(26, 26, 21)
 
 ## `aUKI_actor_draw` tilts the float on X only, and the model is authored upside down —
 ## every proc starts from `DEG2SHORT_ANGLE2(180.0f)`. Godot's Y is already up, so the
@@ -28,7 +32,8 @@ const SETTLE_FRACTION := 1.0 - sqrt(0.8)
 const SETTLE_MAX_STEP := PI * 0.25
 ## `aUKI_PROC_CAST` / `aUKI_PROC_WAIT` while `cast_timer` runs: the float lies flat.
 const PITCH_FLAT := PI * 0.5
-## `aUKI_PROC_BITE` with `gyo_status == 4`: yanked nose-down.
+## `aUKI_PROC_BITE` with `gyo_status == 4`: yanked over toward the rod. Before the strike
+## the bite proc draws no RotateX or RotateY at all — the float stands straight.
 const PITCH_PULLED := -PI * 0.5
 
 var _base: Vector3 = Vector3.INF
@@ -36,6 +41,9 @@ var _phase: float = 0.0
 var _float: Node3D
 var _pitch: float = PITCH_FLAT
 var _tilt_steps := FrameStepper.new()
+## `uki->color`, 0–255 a channel.
+var _rgb: Vector3i = Vector3i(255, 255, 255)
+var _materials: Array[BaseMaterial3D] = []
 
 
 func _ready() -> void:
@@ -48,6 +56,7 @@ func _ready() -> void:
 		## at the actor position, and for the uki that is the waterline. Keep it there so the
 		## spindle hangs under the surface and the dome shows above it.
 		mesh.position.y = 0.0
+		_own_materials(mesh)
 
 
 func _process(delta: float) -> void:
@@ -65,28 +74,28 @@ func _process(delta: float) -> void:
 		offset = -throw * (1.0 - progress)
 		offset.y += throw.length() * Fishing.CAST_ARC * sin(progress * PI)
 	else:
-		var dip: float = Fishing.dip()
-		var held: bool = Fishing.state() == Fishing.State.BITE
-		var amplitude: float = VIB_AMPLITUDE if held else BOB_AMPLITUDE
-		var rate: float = VIB_RATE if held else BOB_RATE
-		offset.y = sin(_phase * rate) * amplitude
-		offset.y -= dip * (HELD_DEPTH if held else DIP_DEPTH)
+		if Fishing.state() == Fishing.State.BITE:
+			offset.y = Fishing.rise()
+		else:
+			offset.y = sin(_phase * BOB_RATE) * BOB_AMPLITUDE - Fishing.dip() * DIP_DEPTH
 	if is_inside_tree():
 		global_position = _base + offset
 	else:
 		position = _base + offset
-	_tilt(delta)
+	_tilt(delta, offset.y)
 
 
-func _tilt(delta: float) -> void:
+func _tilt(delta: float, height: float) -> void:
 	if _float == null:
 		return
 	var target: float = PITCH_FLAT
 	var fraction: float = CAST_FRACTION
 	var max_step: float = CAST_MAX_STEP
+	var drawn := true
 	match Fishing.state():
 		Fishing.State.BITE:
 			target = PITCH_PULLED
+			drawn = Fishing.is_struck()
 		Fishing.State.FLOAT:
 			## `aUKI_PROC_WAIT` once `cast_timer` has run out: stand upright, and stand up
 			## fast — this is the beat that tells you the cast has settled.
@@ -99,8 +108,53 @@ func _tilt(delta: float) -> void:
 	while _tilt_steps.next():
 		## Every `aUKI_rotate_calc` call passes `minStep == 0`, so the tilt stops where the
 		## step rounds away rather than being floored to a minimum turn.
-		_pitch = MLib.short_angle2(_pitch, target, fraction, max_step)
-	_float.rotation.x = REST_PITCH + _pitch
+		if drawn:
+			_pitch = MLib.short_angle2(_pitch, target, fraction, max_step)
+		_rgb = chase_color(_rgb, height < -UNDERWATER_GX * FieldCatalog.GX_TO_METERS)
+	## Every proc but an unstruck bite turns the float to face the rod (`uki_angle.y`) and
+	## then tips it; an unstruck bite leaves it standing with neither.
+	var to_rod: Vector3 = _origin() - global_position if is_inside_tree() else Vector3.ZERO
+	var yaw: float = atan2(to_rod.x, to_rod.z) if drawn and to_rod.length_squared() > 0.0 else 0.0
+	_float.rotation = Vector3(REST_PITCH + (_pitch if drawn else 0.0), yaw, 0.0)
+	_paint()
+
+
+## One tick of `aUKI_color`: each channel steps toward the underwater tint or back to white.
+static func chase_color(rgb: Vector3i, under: bool) -> Vector3i:
+	var goal: Vector3i = UNDERWATER_RGB if under else Vector3i(255, 255, 255)
+	return Vector3i(
+		int(move_toward(rgb.x, goal.x, COLOR_STEP.x)),
+		int(move_toward(rgb.y, goal.y, COLOR_STEP.y)),
+		int(move_toward(rgb.z, goal.z, COLOR_STEP.z)),
+	)
+
+
+func tint() -> Color:
+	return Color8(_rgb.x, _rgb.y, _rgb.z)
+
+
+## `gDPSetPrimColor` on the float: give it its own copies of its materials so tinting one
+## bobber does not tint the shared model.
+func _own_materials(node: Node) -> void:
+	var mi := node as MeshInstance3D
+	if mi != null and mi.mesh != null:
+		for i in mi.mesh.get_surface_count():
+			var mat := mi.get_active_material(i) as BaseMaterial3D
+			if mat == null:
+				continue
+			var copy := mat.duplicate() as BaseMaterial3D
+			copy.set_meta(&"uki_base_color", mat.albedo_color)
+			mi.set_surface_override_material(i, copy)
+			_materials.append(copy)
+	for child in node.get_children():
+		_own_materials(child)
+
+
+func _paint() -> void:
+	var tint_color: Color = tint()
+	for mat in _materials:
+		var base: Color = mat.get_meta(&"uki_base_color", Color.WHITE)
+		mat.albedo_color = Color(base.r * tint_color.r, base.g * tint_color.g, base.b * tint_color.b, base.a)
 
 
 func _origin() -> Vector3:

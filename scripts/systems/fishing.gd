@@ -63,6 +63,24 @@ const TOW_SPEED_GX := 0.8
 const BANK_RANGE_START_GX := 12.0
 const BANK_RANGE_GX := 40.0
 const BANK_RANGE_STEP_GX := 0.05
+## `aUKI_set_spd_relations_in_water` with `gyo_command == 2`: once a fish has it the bobber
+## is pulled 7.5 GX under the surface (vertical speed chased to 1.5 by 0.5 a tick), and once
+## struck it is yanked 7.5 GX above it (2.0 by 1.0). Having got there it hangs about that
+## height, chasing 0.3 by 0.1. GX per frame, like every `Actor_position_move` speed.
+const BITE_DEPTH_GX := 7.5
+const BITE_SINK_SPEED_GX := 1.5
+const BITE_SINK_ACCEL_GX := 0.5
+const STRUCK_RISE_SPEED_GX := 2.0
+const STRUCK_RISE_ACCEL_GX := 1.0
+const BITE_HOLD_SPEED_GX := 0.3
+const BITE_HOLD_ACCEL_GX := 0.1
+## `aUKI_bite` once struck: the bobber runs in a circle, turning half of `angl[size]` a tick
+## at `spd[size]` — small fish whip round fast and tight, big ones pull wide.
+const STRUCK_TURN_DEG: Array[float] = [
+	10.1513671875, 9.4647216796875, 8.778076171875, 8.778076171875,
+	8.0914306640625, 7.40478515625, 7.03125, 7.03125,
+]
+const STRUCK_SPEED_GX: Array[float] = [0.1, 0.2, 0.3, 0.3, 0.4, 0.6, 0.8, 0.8]
 
 ## Reel-in clips. The original spends a whole player state on each beat: `vib_rod` pulls
 ## the rod over (`TURI_HIKI1`) while the rod itself flexes, `fly_rod` swings the catch up
@@ -180,6 +198,16 @@ static var _reel_ticks: int = 0
 static var _hooked: FishShadow = null
 static var _fight_ticks: int = 0
 static var _drift_speed: float = 0.0
+## `uki->world.angle.y`: which way the current (or the tow) last moved the bobber, and the
+## heading it circles from once struck.
+static var _heading: float = 0.0
+## `gyo_status == 4`: A was pressed while the fish had it.
+static var _struck: bool = false
+## The bobber's height against the surface while a fish has it (GX), its vertical speed, and
+## whether it has reached the hold height (`touch_timer` 5 / 6).
+static var _rise_gx: float = 0.0
+static var _rise_speed: float = 0.0
+static var _rise_held: bool = false
 static var _bank_range: float = BANK_RANGE_START_GX
 static var _ctx: InteractionContext = null
 static var _last: Outcome = null
@@ -229,6 +257,16 @@ static func dip() -> float:
 	if _dip <= 0.0:
 		return 0.0
 	return clampf(_dip / DIP_SECONDS, 0.0, 1.0)
+
+
+## Metres above (+) or below (−) the surface the bobber sits while a fish has it.
+static func rise() -> float:
+	return _rise_gx * FieldCatalog.GX_TO_METERS if _state == State.BITE else 0.0
+
+
+## True once A has struck a fish that had the bobber — it is being fought.
+static func is_struck() -> bool:
+	return _struck and _state == State.BITE
 
 
 static func nibble_count() -> int:
@@ -431,6 +469,9 @@ static func _float(school: FishSchool) -> void:
 		## `gyo_command == 2`: `aUKI_set_proc_bite`.
 		_state = State.BITE
 		_hooked = biter
+		_rise_gx = 0.0
+		_rise_speed = 0.0
+		_rise_held = false
 		_fight_ticks = FIGHT_TRASH_TICKS if biter.fish != null and biter.fish.is_trash else FIGHT_FRAMES[int(biter.size)] * 2
 		if _reeling:
 			_strike()
@@ -457,18 +498,52 @@ static func _bite(school: FishSchool) -> void:
 		## `aUKI_set_proc_wait`: `gyo_status = 1`, ready for the next fish.
 		_state = State.FLOAT
 		_touching = false
+		_struck = false
+		_rise_gx = 0.0
+		_rise_speed = 0.0
 		_reel_ticks = EMPTY_REEL_TICKS
 		return
+	_bob_on_line()
 	if not _reeling:
 		return
 	_reel_ticks -= 1
 	if _reel_ticks <= 0:
 		_reel_catch(school)
+		return
+	if _struck:
+		_circle()
+
+
+## The vertical spring under a hooked bobber: down to 7.5 GX under while the fish has it,
+## up to 7.5 GX over once struck, then hanging about there.
+static func _bob_on_line() -> void:
+	var target: float = BITE_DEPTH_GX if _struck else -BITE_DEPTH_GX
+	var max_speed: float = BITE_HOLD_SPEED_GX
+	var accel: float = BITE_HOLD_ACCEL_GX
+	if not _rise_held:
+		max_speed = STRUCK_RISE_SPEED_GX if _struck else BITE_SINK_SPEED_GX
+		accel = STRUCK_RISE_ACCEL_GX if _struck else BITE_SINK_ACCEL_GX
+	var goal: float = max_speed if _rise_gx < target else -max_speed
+	_rise_speed = move_toward(_rise_speed, goal, accel)
+	_rise_gx += _rise_speed * FishShadow.MOVE_PER_TICK
+	if not _rise_held:
+		_rise_held = _rise_gx >= target if _struck else _rise_gx < target
+
+
+## `aUKI_bite` with `command == 6`: the struck fish drags the bobber round in a circle.
+static func _circle() -> void:
+	var size: int = clampi(int(_hooked.size), 0, STRUCK_TURN_DEG.size() - 1) if _hooked != null else 0
+	_heading = wrapf(_heading + deg_to_rad(STRUCK_TURN_DEG[size]) * 0.5, -PI, PI)
+	var step: float = STRUCK_SPEED_GX[size] * FishShadow.MOVE_PER_TICK * FieldCatalog.GX_TO_METERS
+	_anchor += Vector3(sin(_heading), 0.0, cos(_heading)) * step
 
 
 ## `gyo_status = 4`: struck while the fish had it. It stays on until the fight is over.
 static func _strike() -> void:
 	_reel_ticks = _fight_ticks
+	_struck = true
+	## `touch_timer` is no longer 6, so the fast spring takes it up out of the water.
+	_rise_held = false
 	if _hooked != null:
 		_hooked.hook()
 
@@ -486,6 +561,7 @@ static func _drift(school: FishSchool, nibbling: bool) -> void:
 	else:
 		_drift_speed = TOW_SPEED_GX
 		dir = atan2(to_player.x, to_player.y)
+	_heading = dir
 	var ahead := Vector3(sin(dir), 0.0, cos(dir))
 	var step: float = _drift_speed * FishShadow.MOVE_PER_TICK * FieldCatalog.GX_TO_METERS
 	var next: Vector3 = _anchor + ahead * step
@@ -578,6 +654,11 @@ static func _end(school: FishSchool = null) -> void:
 	_hooked = null
 	_fight_ticks = 0
 	_drift_speed = 0.0
+	_heading = 0.0
+	_struck = false
+	_rise_gx = 0.0
+	_rise_speed = 0.0
+	_rise_held = false
 	_bank_range = BANK_RANGE_START_GX
 	_steps.reset()
 	_reel = []

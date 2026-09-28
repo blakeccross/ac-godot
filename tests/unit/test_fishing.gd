@@ -1021,6 +1021,54 @@ func test_a_struck_fish_is_fought_for_its_size() -> void:
 	assert_bool(Fishing.last_outcome().caught()).is_true()
 
 
+func test_a_bite_pulls_the_bobber_under_and_a_strike_yanks_it_up_and_round() -> void:
+	## `aUKI_set_spd_relations_in_water`: 7.5 GX under while the fish has it, 7.5 GX over once
+	## struck, and `aUKI_bite` drags it round in a circle at `spd[size]`.
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	var shadow: FishShadow = _stock(ctx, &"crucian_carp")
+	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
+	var depth: float = Fishing.BITE_DEPTH_GX * FieldCatalog.GX_TO_METERS
+	var lowest: float = 0.0
+	for _i in 12:
+		_tick(ctx, STEP)
+		lowest = minf(lowest, Fishing.rise())
+	assert_float(lowest).is_less_equal(-depth)
+	assert_bool(Fishing.is_struck()).is_false()
+	assert_that(Fishing.state()).is_equal(Fishing.State.BITE)
+	assert_bool(Fishing.hook(ctx, _school(ctx))).is_true()
+	assert_bool(Fishing.is_struck()).is_true()
+	var before: Vector3 = Fishing.anchor()
+	var highest: float = -INF
+	var headings: Array[float] = []
+	for _i in 20:
+		_tick(ctx, STEP)
+		highest = maxf(highest, Fishing.rise())
+		headings.append(Fishing._heading)
+	assert_float(highest).is_greater_equal(depth)
+	## Round in a circle: the heading turns half of `angl[size]` every tick.
+	var turn: float = deg_to_rad(Fishing.STRUCK_TURN_DEG[int(shadow.size)]) * 0.5
+	assert_float(wrapf(headings[1] - headings[0], -PI, PI)).is_equal_approx(turn, 0.0001)
+	var step: float = Fishing.STRUCK_SPEED_GX[int(shadow.size)] * 0.5 * FieldCatalog.GX_TO_METERS
+	assert_float(Fishing.anchor().distance_to(before)).is_less_equal(step * 20.0 + 0.0001)
+	assert_float(Fishing.anchor().distance_to(before)).is_greater(0.0)
+
+
+func test_the_bobber_turns_blue_under_water_and_white_above() -> void:
+	## `aUKI_color`: past 3 GX under, (100, 100, 128); `aUKI_chase_color` steps 26 / 26 / 21.
+	var script: GDScript = load("res://scenes/world/bobber.gd")
+	var rgb := Vector3i(255, 255, 255)
+	rgb = script.chase_color(rgb, true)
+	assert_that(rgb).is_equal(Vector3i(229, 229, 234))
+	for _i in 10:
+		rgb = script.chase_color(rgb, true)
+	assert_that(rgb).is_equal(Vector3i(100, 100, 128))
+	for _i in 10:
+		rgb = script.chase_color(rgb, false)
+	assert_that(rgb).is_equal(Vector3i(255, 255, 255))
+
+
 func test_an_empty_press_reels_in_after_twelve_ticks() -> void:
 	var ctx: InteractionContext = _at_water()
 	_cast(ctx)
