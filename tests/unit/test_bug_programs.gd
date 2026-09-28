@@ -739,3 +739,20 @@ func test_wisp_floats_forty_over_the_ground_and_flips_its_turn_heading_out() -> 
 	a.s32_work[1] = 40
 	a.frame(s)
 	assert_int(a.s32_work[1]).is_equal(40)
+
+
+func test_released_insect_heads_the_way_the_player_faces() -> void:
+	## `*_let_escape_init`: `player->shape_info.rotation.y + RANDOM_CENTER_F(120°)`, not away
+	## from the player's position.
+	for id: StringName in [
+		&"common_butterfly", &"robust_cicada", &"common_dragonfly", &"grasshopper",
+		&"drone_beetle", &"ladybug", &"firefly", &"cockroach", &"mole_cricket",
+		&"pond_skater", &"bagworm", &"spider", &"pill_bug", &"mosquito",
+	]:
+		var a := _make(id, BugData.Habitat.FLYING, Vector3(2.0, 1.0, 2.0), true)
+		var s := BugActor.Sense.new()
+		s.player_position = Vector3(2.0, 0.0, 3.0)  ## south of the bug, facing west
+		s.player_yaw = -PI * 0.5
+		a.frame(s)
+		assert_float(absf(angle_difference(a.angle_y, -PI * 0.5))) \
+			.append_failure_message("%s heading %f" % [id, a.angle_y]).is_less_equal(deg_to_rad(60.5))

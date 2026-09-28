@@ -55,7 +55,9 @@ const TREE_FACE_YAW := PI
 
 class Sense:
 	var player_position: Vector3 = Vector3.INF
-	## Player planar move this 30 Hz frame, GX (`world - last_world_position`).
+	## Player planar move this 60 Hz tick, GX (`world - last_world_position`). Only a
+	## fallback for when no movement is observed between ticks (tests); the field feeds
+	## positions and the actor measures the per-tick move itself.
 	var player_move_gx: float = 0.0
 	var player_dashing: bool = false
 	var player_yaw: float = 0.0
