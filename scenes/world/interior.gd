@@ -30,6 +30,8 @@ func _ready() -> void:
 	Game.bind_interior(session)
 	if not Game.weather_changed.is_connected(_on_weather_changed):
 		Game.weather_changed.connect(_on_weather_changed)
+	if not Clock.time_changed.is_connected(_refresh_light):
+		Clock.time_changed.connect(_refresh_light)
 	_sync_rain_se()
 	_build_room(room)
 	_apply_indoor_light(room)
@@ -123,11 +125,15 @@ func _sync_rain_se() -> void:
 
 func _on_weather_changed(_weather: StringName) -> void:
 	_sync_rain_se()
+	_refresh_light()
 
 
 func _exit_tree() -> void:
 	if Game.weather_changed.is_connected(_on_weather_changed):
 		Game.weather_changed.disconnect(_on_weather_changed)
+	if Clock.time_changed.is_connected(_refresh_light):
+		Clock.time_changed.disconnect(_refresh_light)
+	VisualWindowLight.clear_indoor_room_prim()
 	Audio.stop_syslev()
 	## Whatever is still scuttling goes back into the walls (`aMR_GokiInfoDt`).
 	if session != null and session.room != null and PlayerHouse.is_player_room(session.room.id):
@@ -285,6 +291,13 @@ func refresh_public_set() -> void:
 
 func _apply_indoor_light(room: Room) -> void:
 	InteriorLighting.apply(self, _world_env, _camera, grid, room)
+
+
+func _refresh_light() -> void:
+	## Palette blends with the clock; villager-home lamps follow the owner (`m_kankyo`).
+	if session == null or session.room == null:
+		return
+	InteriorLighting.refresh_light(self, _world_env, grid, session.room)
 
 
 func _spawn_player() -> void:

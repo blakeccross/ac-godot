@@ -224,7 +224,10 @@ func season_on_renew(renew: int) -> Season:
 
 
 func light_term() -> int:
-	var sec: int = now_sec()
+	return light_term_at(now_sec())
+
+
+static func light_term_at(sec: int) -> int:
 	for i: int in range(LIGHT_TERM_HOURS.size() - 1):
 		var start: int = int(LIGHT_TERM_HOURS[i]) * 3600
 		var end_s: int = int(LIGHT_TERM_HOURS[i + 1]) * 3600
@@ -275,19 +278,33 @@ func outdoor_light() -> Dictionary:
 
 
 func _light_blend() -> float:
+	return light_blend_at(now_sec())
+
+
+static func light_blend_at(sec: int) -> float:
 	## `get_percent` between `klight_chg_tim[term]` and the next.
-	var term: int = light_term()
+	var term: int = light_term_at(sec)
 	var t0: int = int(LIGHT_TERM_HOURS[term]) * 3600
 	var t1: int = int(LIGHT_TERM_HOURS[term + 1]) * 3600
 	if t1 <= t0:
 		return 0.0
-	return clampf(float(now_sec() - t0) / float(t1 - t0), 0.0, 1.0)
+	return clampf(float(sec - t0) / float(t1 - t0), 0.0, 1.0)
+
+
+## Raw `l_mEnv_kcolor_fine_data` row. The rain and museum-insect tables are this
+## scaled per channel (rain ×0.9; insect ×0.6 outside 08:00–18:00).
+static func fine_light_row(term: int) -> Dictionary:
+	return _FINE_LIGHT[posmod(term, _FINE_LIGHT.size())]
 
 
 func _celestial_dirs() -> Dictionary:
+	return celestial_dirs_at(now_sec())
+
+
+static func celestial_dirs_at(sec: int) -> Dictionary:
 	## `mEnv_ChangeDiffuseVctlSet` outdoor default (noon-centered half-day angle).
 	var halfday: float = 12.0 * 3600.0
-	var radial: float = (float(now_sec()) - halfday) / halfday * PI
+	var radial: float = (float(sec) - halfday) / halfday * PI
 	var dir_x: float = sin(radial) * 60.0
 	var dir_y: float = cos(radial) * 60.0
 	var dir_z: float = cos(radial) * 60.0

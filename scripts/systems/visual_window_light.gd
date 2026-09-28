@@ -13,6 +13,9 @@ const _WINDOW_SPILL_ON := Color(1.0, 1.0, 150.0 / 255.0, 120.0 / 255.0)
 const _WINDOW_SPILL_OFF := Color(1.0, 1.0, 150.0 / 255.0, 0.0)
 const _WINDOW_SPILL_SHADER := preload("res://shaders/window_ground_spill.gdshader")
 
+## Room prim of the interior currently on screen (`InteriorLighting`); alpha 0 = none.
+static var _indoor_room_prim := Color(0, 0, 0, 0)
+
 
 static func refresh_window_lights(root: Node) -> void:
 	## `mEnv_NPC_LIGHTS_*`: panes and ground spill 18:00–05:00.
@@ -143,8 +146,19 @@ static func apply_room_prim_fill_material(std: StandardMaterial3D) -> void:
 	std.albedo_color = room_prim_color()
 
 
+static func set_indoor_room_prim(color: Color) -> void:
+	_indoor_room_prim = color
+
+
+static func clear_indoor_room_prim() -> void:
+	_indoor_room_prim = Color(0, 0, 0, 0)
+
+
 static func room_prim_color() -> Color:
-	## Fine-weather `room_color` from `l_mEnv_kcolor_fine_data` (no electric-point blend yet).
+	## Inside a room: `mEnv_GetRoomPrimColor` (palette room colour + lamp) from
+	## `InteriorLightModel`. Otherwise fine-weather `room_color` from `l_mEnv_kcolor_fine_data`.
+	if _indoor_room_prim.a > 0.0:
+		return _indoor_room_prim
 	var clock: Node = Engine.get_main_loop().root.get_node_or_null("/root/Clock")
 	if clock != null and clock.has_method("outdoor_light"):
 		var pal: Dictionary = clock.call("outdoor_light") as Dictionary
