@@ -91,6 +91,112 @@ func flees_at_ninety(_a: BugActor) -> bool:
 	return false
 
 
+# ---- field units / acres (`mFI_*`) ---------------------------------------
+
+const UNIT_GX := BugActor.UNIT_GX
+const ACRE_GX := BugActor.ACRE_GX
+const ACRE_UNITS := 16
+## Without a grid, units are laid out like the default one-acre `WorldGrid` (origin −320 GX).
+const NO_GRID_ORIGIN_GX := -0.5 * ACRE_GX
+
+
+## `mFI_Wpos2UtNum`: the field unit (grid cell) under `pos_gx`.
+static func unit_of(sense: BugActor.Sense, pos_gx: Vector3) -> Vector2i:
+	if sense != null and sense.grid != null:
+		return sense.grid.world_to_cell(pos_gx * BugActor.GX_M)
+	return Vector2i(
+		floori((pos_gx.x - NO_GRID_ORIGIN_GX) / UNIT_GX),
+		floori((pos_gx.z - NO_GRID_ORIGIN_GX) / UNIT_GX)
+	)
+
+
+## `mFI_Wpos2UtNum_inBlock`: the unit's 0..15 index inside its acre.
+static func unit_in_block(cell: Vector2i) -> Vector2i:
+	return Vector2i(posmod(cell.x, ACRE_UNITS), posmod(cell.y, ACRE_UNITS))
+
+
+## `mFI_UtNum2CenterWpos`: centre of a unit, GX (y = 0).
+static func unit_center(sense: BugActor.Sense, cell: Vector2i) -> Vector3:
+	if sense != null and sense.grid != null:
+		var w: Vector3 = sense.grid.cell_to_world(cell) / BugActor.GX_M
+		return Vector3(w.x, 0.0, w.z)
+	return Vector3(
+		NO_GRID_ORIGIN_GX + (float(cell.x) + 0.5) * UNIT_GX,
+		0.0,
+		NO_GRID_ORIGIN_GX + (float(cell.y) + 0.5) * UNIT_GX
+	)
+
+
+## `mFI_BkNum2WposXZ(block) + mFI_BK_WORLDSIZE_HALF`: centre of the acre the insect was
+## born in (`actor->block_x/z` never changes), cached on the actor.
+static func acre_center(a: BugActor, sense: BugActor.Sense) -> Vector2:
+	if a.acre_center_gx != Vector2.INF:
+		return a.acre_center_gx
+	var cell: Vector2i = unit_of(sense, a.home)
+	var corner := Vector2i(
+		floori(float(cell.x) / ACRE_UNITS) * ACRE_UNITS, floori(float(cell.y) / ACRE_UNITS) * ACRE_UNITS
+	)
+	var c: Vector3 = unit_center(sense, corner)
+	a.acre_center_gx = Vector2(c.x, c.z) + Vector2.ONE * (0.5 * ACRE_GX - 0.5 * UNIT_GX)
+	return a.acre_center_gx
+
+
+## `mFI_GetUnitFG` owner: same acre as the spawn (`actor->block_x/z == block_table`).
+static func in_home_acre(a: BugActor, sense: BugActor.Sense, pos_gx: Vector3) -> bool:
+	var c: Vector2 = acre_center(a, sense)
+	return absf(pos_gx.x - c.x) < 0.5 * ACRE_GX and absf(pos_gx.z - c.y) < 0.5 * ACRE_GX
+
+
+## `mCoBG_GetBgY_OnlyCenter_FromWpos(pos, 0)` — unit centre height, GX.
+static func center_y(sense: BugActor.Sense, pos_gx: Vector3, fallback: float) -> float:
+	if sense == null:
+		return fallback
+	return BugBg.unit_center_y(sense.grid, sense.layout, pos_gx, fallback)
+
+
+## Front wall along the insect's travel heading within its `bg_range`.
+static func wall_front(a: BugActor, sense: BugActor.Sense, range_gx: float = -1.0) -> bool:
+	if sense == null or sense.grid == null:
+		return false
+	var r: float = a.bg_range if range_gx < 0.0 else range_gx
+	return BugBg.wall_front(sense.grid, sense.layout, a.pos, a.angle_y, maxf(r, 1.0))
+
+
+## `*_chk_water_attr`: on the ground and the point `bg_range + speed` ahead is water.
+static func water_ahead(a: BugActor, sense: BugActor.Sense) -> bool:
+	if sense == null or sense.grid == null:
+		return false
+	if sense.ground.is_valid() and not a.bg_on_ground:
+		return false
+	var d: float = a.bg_range + a.speed
+	var ahead: Vector3 = a.pos + Vector3(sin(a.angle_y) * d, 0.0, cos(a.angle_y) * d)
+	return BugBg.water_at(sense.grid, ahead)
+
+
+## `mCoBG_GetWaterHeight`: the water surface at the insect, or −1e9 on dry land.
+static func water_y(a: BugActor, sense: BugActor.Sense) -> float:
+	if sense == null or not sense.bg.is_valid():
+		return -1e9
+	return float(sense.bg.call(a.pos).get("water_y", -1e9))
+
+
+# ---- player-relative headings -------------------------------------------
+
+## `RANDOM_CENTER_F(range)` / `(fqrand() - 0.5f) * range`.
+static func rand_center(a: BugActor, range_rad: float) -> float:
+	return (a._rng.randf() - 0.5) * range_rad
+
+
+## `player->shape_info.rotation.y + RANDOM_CENTER_F(spread)`: the escape heading most
+## overlays take (a released / caught insect goes the way the player faces). False while
+## no player is known — the released init reruns once one is (`BugActor.frame`).
+static func heading_from_player_facing(a: BugActor, spread_rad: float) -> bool:
+	if not a.has_player_info:
+		return false
+	a.angle_y = wrapf(a.player_yaw + rand_center(a, spread_rad), -PI, PI)
+	return true
+
+
 # ---- shared math (libultra / m_lib analogs) --------------------------------
 
 ## `chase_f`: move `cur` toward `target` by at most `step` (>= 0).
@@ -111,6 +217,11 @@ static func chase_angle(cur: float, target: float, step: float) -> float:
 	if absf(diff) <= step:
 		return wrapf(target, -PI, PI)
 	return wrapf(cur + signf(diff) * step, -PI, PI)
+
+
+## `chase_angle`'s return value: TRUE once `cur` has reached `target`.
+static func angle_reached(cur: float, target: float) -> bool:
+	return absf(wrapf(target - cur, -PI, PI)) < 0.5 * MLib.S16
 
 
 ## `search_position_angleY(from, to)` — yaw that points from `from` toward `to`.

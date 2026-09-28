@@ -11,7 +11,6 @@ enum { AVOID, LET_ESCAPE, FLY }
 
 ## `aIHT_anim_data` — the glow pulse (`_1E0` / `_1E4`).
 const PULSE := [0.0, 1.0, 2.0, 3.0, 2.0, 1.0]
-const UNIT_GX := 20.0
 
 
 func actor_init(a: BugActor, released: bool) -> void:

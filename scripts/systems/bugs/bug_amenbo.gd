@@ -7,7 +7,6 @@ extends BugProgram
 
 enum { WAIT, LET_ESCAPE, MOVE, REST }
 
-const UNIT_GX := 20.0
 
 
 func actor_init(a: BugActor, released: bool) -> void:

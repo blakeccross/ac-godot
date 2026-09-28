@@ -8,6 +8,8 @@ extends RefCounted
 const GX_M := FieldCatalog.GX_TO_METERS
 ## Half-span of the slope sample for `rise_ahead`, GX (a quarter unit).
 const SLOPE_PROBE_GX := 10.0
+## `mCoBG_MakeOneColumnCollisionData`: FG item columns (trees 19, stumps 18, rocks …).
+const COLUMN_GX := 20.0
 
 
 static func make_probe(grid: WorldGrid, layout: WorldData) -> Callable:
@@ -97,25 +99,134 @@ static func _is_hole(_attr: int) -> bool:
 static func _flower_cell(layout: WorldData, grid: WorldGrid, cell: Vector2i) -> bool:
 	if layout == null or grid == null:
 		return true
-	for obj: Variant in layout.objects:
-		if obj == null:
-			continue
-		var kind: String = String(obj.get("kind"))
-		if kind != "flower":
-			continue
-		if grid.world_to_cell(grid.footprint_center(obj.cell, Vector2i(1, 1))) == cell:
-			return true
-	return false
+	return has_kind(layout, cell, &"flower")
 
 
 static func _perch_cell(layout: WorldData, cell: Vector2i) -> bool:
 	if layout == null:
 		return false
-	for obj: Variant in layout.objects:
-		if obj == null:
+	for obj: ObjectPlacement in objects_at(layout, cell):
+		if obj.kind == &"sign" or obj.kind == &"stake" or obj.kind == &"post":
+			return true
+	return false
+
+
+# ---- unit FG queries (`mFI_GetUnitFG`) -------------------------------------
+
+## Cell → objects on it, rebuilt when the layout's object list changes.
+static var _index_layout_id: int = 0
+static var _index_count: int = -1
+static var _index: Dictionary = {}
+
+
+static func objects_at(layout: WorldData, cell: Vector2i) -> Array:
+	if layout == null:
+		return []
+	var id: int = layout.get_instance_id()
+	if id != _index_layout_id or layout.objects.size() != _index_count:
+		_index_layout_id = id
+		_index_count = layout.objects.size()
+		_index = {}
+		for obj: ObjectPlacement in layout.objects:
+			if obj == null:
+				continue
+			if not _index.has(obj.cell):
+				_index[obj.cell] = []
+			(_index[obj.cell] as Array).append(obj)
+	return _index.get(cell, [])
+
+
+static func has_kind(layout: WorldData, cell: Vector2i, kind: StringName) -> bool:
+	for obj: ObjectPlacement in objects_at(layout, cell):
+		if obj.kind == kind:
+			return true
+	return false
+
+
+## `*unit == FLOWER_PANSIES0` (`aICH_rest_check`). The layout keeps only the flower's
+## visual, so this is the white-pansy visual (shared with the white cosmos / red tulip).
+static func is_pansy0(layout: WorldData, cell: Vector2i) -> bool:
+	for obj: ObjectPlacement in objects_at(layout, cell):
+		if obj.kind == &"flower" and obj.visual_id == &"FLOWER_PANSIES0":
+			return true
+	return false
+
+
+## `mFI_CheckFGNpcOn`: an empty unit, a flower, grass, a sapling or a dropped item —
+## anything without a collision column (trees, rocks, signs, structures).
+static func npc_on(grid: WorldGrid, layout: WorldData, cell: Vector2i) -> bool:
+	if grid != null and not grid.is_in_bounds(cell):
+		return false
+	for obj: ObjectPlacement in objects_at(layout, cell):
+		match obj.kind:
+			&"tree", &"rock", &"sign", &"reserve", &"structure", &"stake", &"post", &"fence", \
+			&"waterfall", &"prop":
+				return false
+	return true
+
+
+## `*fg == CEDAR_TREE` (the cicada / beetle / cockroach climb table). Only the plain grown
+## cedar — the decomp misses the bells / furniture / bee / lights variants.
+static func is_cedar(layout: WorldData, cell: Vector2i) -> bool:
+	for obj: ObjectPlacement in objects_at(layout, cell):
+		if obj.kind == &"tree" and obj.visual_id == &"CEDAR_TREE":
+			return true
+	return false
+
+
+## `fg_p == NULL || IS_ITEM_TREE_STUMP(*fg_p)` (`aIMN_check_cut_tree`): the tree on this
+## unit is gone or felled.
+static func tree_cut(layout: WorldData, cell: Vector2i) -> bool:
+	if layout == null:
+		return false
+	for obj: ObjectPlacement in objects_at(layout, cell):
+		if obj.kind != &"tree":
 			continue
-		var kind: String = String(obj.get("kind"))
-		if kind == "sign" or kind == "stake" or kind == "post":
-			if Vector2i(obj.get("cell")) == cell:
-				return true
+		var pid: StringName = obj.persist_id if obj.persist_id != &"" else obj.id
+		return Game != null and Game.is_stump(pid)
+	return true
+
+
+## `DUMMY_RESERVE`: the unit a villager's house sign reserves (dragonflies perch on it).
+static func is_reserve(layout: WorldData, cell: Vector2i) -> bool:
+	return has_kind(layout, cell, &"reserve") or _perch_cell(layout, cell)
+
+
+## `mCoBG_CheckWaterAttribute` for the unit under `pos_gx`.
+static func water_at(grid: WorldGrid, pos_gx: Vector3) -> bool:
+	if grid == null:
+		return false
+	var cell: Vector2i = grid.world_to_cell(pos_gx * GX_M)
+	return grid.is_in_bounds(cell) and grid.terrain_at(cell) == WorldGrid.Terrain.WATER
+
+
+## `mCoBG_GetBgY_OnlyCenter_FromWpos(pos, 0)`: the unit's centre (keep) height, GX.
+static func unit_center_y(grid: WorldGrid, layout: WorldData, pos_gx: Vector3, fallback: float) -> float:
+	if grid == null or layout == null:
+		return fallback
+	var cell: Vector2i = grid.world_to_cell(pos_gx * GX_M)
+	if not layout.is_in_bounds(cell):
+		return fallback
+	var y: float = FieldCollision.ground_y(layout, cell)
+	return y / GX_M if FieldCollision.has_floor(y) else fallback
+
+
+## `bg_collision_check.result.hit_wall & mCoBG_HIT_WALL_FRONT`: a bank / cliff / column
+## within `range_gx` ahead along `yaw`, or the next unit is off the field.
+static func wall_front(grid: WorldGrid, layout: WorldData, pos_gx: Vector3, yaw: float, range_gx: float) -> bool:
+	if grid == null:
+		return false
+	var ahead: Vector3 = pos_gx + Vector3(sin(yaw), 0.0, cos(yaw)) * range_gx
+	var cell: Vector2i = grid.world_to_cell(ahead * GX_M)
+	if not grid.is_in_bounds(cell):
+		return true
+	var t: int = grid.terrain_at(cell)
+	if t == WorldGrid.Terrain.BLOCKED:
+		return true
+	if cell != grid.world_to_cell(pos_gx * GX_M) and not npc_on(grid, layout, cell):
+		## Tree / rock / sign columns stand ~20 GX; a flyer above one passes over it.
+		if pos_gx.y < unit_center_y(grid, layout, ahead, pos_gx.y) + COLUMN_GX:
+			return true
+	if layout != null and FieldCollision.line_hits_wall(layout, grid, pos_gx * GX_M, ahead * GX_M):
+		return true
 	return false

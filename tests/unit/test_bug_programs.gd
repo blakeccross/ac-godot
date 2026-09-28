@@ -270,3 +270,26 @@ func test_cicada_flees_a_shaken_tree_in_its_unit() -> void:
 	scared.frame(_tree_shaken_sense(Vector2i(4, 6)))
 	assert_int(calm.action).is_not_equal(BugSemi.AVOID)
 	assert_int(scared.action).is_equal(BugSemi.AVOID)
+
+
+# ---- shared framework (`ac_insect_move.c_inc`) --------------------------
+
+func test_stress_radius_is_three_forty_gx_units_plus_type_bias() -> void:
+	## `aINS_MAX_STRESS_DIST` = 3 × `mFI_UNIT_BASE_SIZE_F` (40 GX) + `catch_ME_data[type]`.
+	var butterfly := _make(&"common_butterfly", BugData.Habitat.FLYING, Vector3.ZERO)
+	var cricket := _make(&"cricket", BugData.Habitat.GROUND, Vector3.ZERO)
+	var cicada := _make(&"robust_cicada", BugData.Habitat.TREE, Vector3.ZERO)
+	assert_float(butterfly.stress_radius_gx()).is_equal(120.0)
+	assert_float(cricket.stress_radius_gx()).is_equal(100.0)
+	assert_float(cicada.stress_radius_gx()).is_equal(130.0)
+
+
+func test_player_walking_two_and_a_half_units_away_stresses_an_insect() -> void:
+	## 100 GX (5 m) is inside the 120 GX radius: `idx = (int)(80 − 60) / 20 = 1` → ×1.0.
+	var b := _make(&"tiger_butterfly", BugData.Habitat.FLYING, Vector3(0.0, 1.5, 0.0))
+	var s := BugActor.Sense.new()
+	for i: int in 10:
+		s.player_position = b.position + Vector3(5.0, 0.0, 0.1 * i)
+		b.frame(s)
+	assert_float(b.patience).is_greater(0.0)
+
