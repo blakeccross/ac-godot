@@ -139,6 +139,7 @@ func tick(delta: float, sense: FishShadow.Sense) -> void:
 		sense.bobber_splashed = false
 		_tick_puffs()
 	sense.bobber_splashed = splashed
+	_cull(sense)
 	var kept: Array[FishShadow] = []
 	for shadow: FishShadow in shadows:
 		if shadow.puffed:
@@ -148,6 +149,23 @@ func tick(delta: float, sense: FishShadow.Sense) -> void:
 			kept.append(shadow)
 	shadows = kept
 	_tick_spawn(delta, sense)
+
+
+## `aGYO_cull_check`: a shadow off screen, more than 600 GX from the player and in another
+## acre is destroyed — no puff — which frees its slot for water near the player. One that
+## has the bobber is left alone: it is on screen next to the player by construction.
+func _cull(sense: FishShadow.Sense) -> void:
+	if _grid == null or not sense.has_player():
+		return
+	var player_acre: Vector2i = BugHabitats.acre_of_world_pos(_grid, sense.player_position)
+	for shadow: FishShadow in shadows:
+		if shadow.finished or shadow.is_engaged():
+			continue
+		var dist: float = Vector2(
+			shadow.position.x - sense.player_position.x, shadow.position.z - sense.player_position.z
+		).length()
+		if dist > CULL_DISTANCE and BugHabitats.acre_of_world_pos(_grid, shadow.position) != player_acre:
+			shadow.finished = true
 
 
 ## `bite_check`: any shadow closing on or holding the bobber claims it for all of them.

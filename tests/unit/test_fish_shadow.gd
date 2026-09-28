@@ -395,6 +395,29 @@ func test_a_claimed_bobber_is_invisible_to_the_other_shadow() -> void:
 	assert_bool(first.is_engaged()).is_true()
 
 
+func test_a_shadow_far_off_in_another_acre_is_culled() -> void:
+	## `aGYO_cull_check`: past 600 GX and outside the player's acre, the shadow is simply
+	## destroyed (no puff), which is what lets the school restock near the player.
+	var grid := WorldGrid.new()
+	grid.configure(64, 16, 2.0, Vector3.ZERO)
+	for x: int in range(2, 6):
+		for z: int in range(4, 8):
+			grid.set_terrain(Vector2i(x, z), WorldGrid.Terrain.WATER)
+	var school := FishSchool.new()
+	school.configure(grid, 0.0)
+	school.auto_spawn = false
+	var shadow: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), school.bodies[0], grid.cell_to_world(Vector2i(3, 5)))
+	var sense := FishShadow.Sense.new()
+	sense.player_position = grid.cell_to_world(Vector2i(8, 5))
+	school.tick(STEP, sense)
+	assert_int(school.shadow_count()).is_equal(1)
+	sense.player_position = grid.cell_to_world(Vector2i(60, 5))
+	school.tick(STEP, sense)
+	assert_int(school.shadow_count()).is_equal(0)
+	assert_bool(shadow.finished).is_true()
+	assert_int(school.puffs.size()).is_equal(0)
+
+
 func _at(cell: Vector2i) -> Vector3:
 	return _grid.cell_to_world(cell)
 
