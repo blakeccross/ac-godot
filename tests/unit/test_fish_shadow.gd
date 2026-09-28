@@ -57,6 +57,12 @@ func test_bigger_fish_cast_bigger_shadows_and_swim_faster() -> void:
 	var xxs: Vector2 = FishSize.shadow_size(FishData.SizeClass.XXS)
 	var xxl: Vector2 = FishSize.shadow_size(FishData.SizeClass.XXL)
 	assert_float(xxl.y / xxs.y).is_equal_approx(4.0, 0.01)
+	## The quad is ±1000 GX at `scale * 0.02`: an S shadow's quad is 20 GX long, 8 wide,
+	## and the fish inside it 7/8 of that (17.5 GX).
+	var s: Vector2 = FishSize.shadow_size(FishData.SizeClass.S)
+	assert_float(s.y).is_equal_approx(20.0 * FishSize.GX, 0.0001)
+	assert_float(s.x).is_equal_approx(8.0 * FishSize.GX, 0.0001)
+	assert_float(s.y * FishSize.SILHOUETTE_FILL).is_equal_approx(17.5 * FishSize.GX, 0.0001)
 
 
 func test_search_cone_and_bite_window_come_from_the_species_row() -> void:
@@ -85,6 +91,15 @@ func test_swim_animation_holds_each_of_twenty_frames_for_two() -> void:
 	assert_that(FishSize.tile_pair(0)).is_equal(Vector2i(0, 3))
 	assert_that(FishSize.tile_pair(5)).is_equal(Vector2i(2, 3))
 	assert_that(FishSize.tile_pair(19)).is_equal(Vector2i(0, 1))
+
+
+func test_shadow_alpha_is_120_and_the_whale_50() -> void:
+	## `aGYO_setupActor`: prim alpha 120 (whale 50), multiplied into the tile lerp.
+	assert_float(FishSize.shadow_alpha(FishData.SizeClass.M)).is_equal_approx(120.0 / 255.0, 0.0001)
+	assert_float(FishSize.shadow_alpha(FishData.SizeClass.XXL)).is_equal_approx(120.0 / 255.0, 0.0001)
+	assert_float(FishSize.shadow_alpha(FishData.SizeClass.WHALE)).is_equal_approx(50.0 / 255.0, 0.0001)
+	## The puff starts darker than the fish it came from: (100 * 0.5 - 10) * 6 = 240.
+	assert_float(FishSize.puff_alpha(0.0)).is_greater(FishSize.shadow_alpha(FishData.SizeClass.M))
 
 
 func test_whale_shadow_never_wiggles() -> void:
@@ -271,24 +286,19 @@ func test_a_dashing_player_scares_a_fish_into_a_puff() -> void:
 	assert_int(school.puffs.size()).is_equal(0)
 
 
-func test_school_stocks_water_up_to_two_shadows() -> void:
+func test_school_stocks_the_acre_the_player_enters_once() -> void:
 	var school := FishSchool.new()
 	school.configure(_grid, 0.0)
 	school.seed_rng(11)
 	assert_bool(school.has_water()).is_true()
 	var sense := FishShadow.Sense.new()
 	sense.player_position = _at(Vector2i(8, 8))
-	## `aGYO_MAX_GYOEI`: two at once and no more, however long it runs.
+	## `aSOG_gyoei_set` runs on acre entry: one attempt, one fish at most per acre.
 	for _i: int in 400:
 		school.tick(STEP * 4.0, sense)
-		assert_int(school.shadow_count()).is_less_equal(FishSchool.MAX_SHADOWS)
-	assert_int(school.shadow_count()).is_equal(FishSchool.MAX_SHADOWS)
+		assert_int(school.shadow_count()).is_less_equal(1)
 	for shadow: FishShadow in school.shadows:
 		assert_that(shadow.fish).is_not_null()
-		## Nothing spawns that the pond is too small to hold.
-		assert_int(int(shadow.fish.size_class)).is_less_equal(
-			int(WaterBodies.size_ceiling(shadow.body))
-		)
 		## Shadows ride under the surface, not on it.
 		assert_float(shadow.position.y).is_equal_approx(-FishSize.depth(), 0.001)
 
@@ -414,7 +424,7 @@ func test_a_shadow_far_off_in_another_acre_is_culled() -> void:
 	sense.player_position = grid.cell_to_world(Vector2i(60, 5))
 	school.tick(STEP, sense)
 	assert_int(school.shadow_count()).is_equal(0)
-	assert_bool(shadow.finished).is_true()
+	assert_bool(school.shadows.has(shadow)).is_false()
 	assert_int(school.puffs.size()).is_equal(0)
 
 

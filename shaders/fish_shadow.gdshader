@@ -31,9 +31,10 @@ uniform float edge_softness = 0.075;
 uniform float sway = 0.075;
 // The nose end barely moves; the tail does the work.
 uniform float sway_bias = 1.6;
-// I4 art peaks at 7/15, and combiner alpha is TEXEL0 * PRIMITIVE, so the tile never drives
-// prim alpha to full.
-uniform float tile_peak = 0.4666667;
+// The I4 tiles peak at 15/15 inside the body; combiner alpha is lerp(TEXEL0, TEXEL1) *
+// PRIMITIVE, so the prim alpha passed in `alpha` (120/255 for a fish, `FishSize.shadow_alpha`;
+// the puff's fade) is the whole story.
+uniform float tile_peak = 1.0;
 
 void fragment() {
 	// Work in a space where the body's long axis is Y and one unit is one quad length.

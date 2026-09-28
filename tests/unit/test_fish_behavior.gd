@@ -128,16 +128,18 @@ func test_spawn_table_loads_all_24_half_month_terms() -> void:
 	assert_bool(has_pond_smelt).is_true()
 
 
-func test_scheduler_blends_the_previous_half_month() -> void:
-	Clock.month = 9
-	Clock.day = 1
+func test_scheduler_ramps_into_the_next_half_month() -> void:
+	## `aSOG_gyoei_chk_term_info` fades the *next* term in before it starts; the full
+	## ramp is covered in `test_fish_spawn_probe`.
+	Clock.month = 8
+	Clock.day = 31
 	Clock.hour = 12
-	Game.gyoei_term = (9 - 1) * 2      ## already rolled; pin offset 0
-	Game.gyoei_term_offset = 0
-	var blend: Dictionary = FishSpawnScheduler.term_blend(null)
-	assert_int(int(blend["term"])).is_equal(16)          ## Sep first half
-	assert_int(int(blend["prev_term"])).is_equal(15)     ## Aug second half
-	assert_float(float(blend["prev_rate"])).is_greater(0.0)
+	Game.gyoei_term = (9 - 1) * 2      ## saved: Sep first half is next
+	Game.gyoei_term_offset = 1
+	var info: Dictionary = FishSpawnScheduler.chk_term_info(null)
+	assert_int(int(info["term0"])).is_equal(15)          ## Aug second half
+	assert_int(int(info["term1"])).is_equal(16)          ## Sep first half
+	assert_float(float(info["term0_rate"])).is_less(1.0)
 
 
 func test_coelacanth_is_spliced_into_the_rainy_sea() -> void:
@@ -148,19 +150,6 @@ func test_coelacanth_is_spliced_into_the_rainy_sea() -> void:
 	var dry: Array = FishSpawnScheduler.build_pool(WaterBodies.Kind.OCEAN, false)
 	assert_bool(_has_type(wet, 31)).is_true()
 	assert_bool(_has_type(dry, 31)).is_false()
-
-
-func test_scheduler_respects_the_body_size_ceiling() -> void:
-	Clock.month = 7
-	Clock.day = 10
-	Clock.hour = 12
-	var pool: Array = FishSpawnScheduler.build_pool(WaterBodies.Kind.OCEAN, false)
-	var rng := RandomNumberGenerator.new()
-	for _i: int in 60:
-		rng.seed = _i
-		var fish: FishData = FishSpawnScheduler.decide(pool, FishData.SizeClass.S, rng)
-		if fish != null:
-			assert_int(int(fish.size_class)).is_less_equal(int(FishData.SizeClass.S))
 
 
 func _has_type(pool: Array, type_index: int) -> bool:

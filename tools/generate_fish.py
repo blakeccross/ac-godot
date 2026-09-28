@@ -49,6 +49,12 @@ MONTHS = ["january", "february", "march", "april", "may", "june", "july",
 
 
 def load_source() -> str:
+    config = ROOT / "tools" / "config.local.json"
+    if config.is_file():
+        root = json.loads(config.read_text()).get("decomp_root", "")
+        local = Path(root) / "src" / "actor" / "ac_set_ovl_gyoei.c"
+        if root and local.is_file():
+            return local.read_text()
     if LOCAL.is_file():
         return LOCAL.read_text()
     return urllib.request.urlopen(URL).read().decode()
@@ -90,7 +96,11 @@ def parse_term_lists(src: str, infos: dict) -> dict[str, list[list[dict]]]:
 
 def parse_month_master(src: str, key: str, lists: dict) -> list[list[list[list[dict]]]]:
     """`static aSOG_term_list_c* KEY[lbRTC_MONTHS_MAX][aSOG_TERM_NUM] = { {a, b}, ... };`
-    → [month][half][slot] = list of entries (NULL → [])."""
+    → [month][half][slot] = list of entries (NULL → []).
+
+    A NULL half is empty, not a copy of the other half: `p_month` September is
+    `{ p_begining_september, NULL }`, so the pond is fished out from the 16th.
+    `aSOG_gyoei_make_pool_range_data` skips a NULL list outright."""
     m = re.search(
         rf"static aSOG_term_list_c\*\s+{key}\s*\[lbRTC_MONTHS_MAX\]\s*\[aSOG_TERM_NUM\]\s*=\s*\{{(.*?)\}};",
         src, re.S,
@@ -101,7 +111,7 @@ def parse_month_master(src: str, key: str, lists: dict) -> list[list[list[list[d
     months = []
     for begin, latter in rows:
         b = lists.get(begin, [[], [], [], []]) if begin != "NULL" else [[], [], [], []]
-        l = lists.get(latter, b) if latter != "NULL" else b
+        l = lists.get(latter, [[], [], [], []]) if latter != "NULL" else [[], [], [], []]
         months.append([b, l])
     return months
 

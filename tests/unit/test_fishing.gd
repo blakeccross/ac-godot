@@ -958,17 +958,14 @@ func test_world_owns_a_school_and_an_effects_node_that_finds_it() -> void:
 	var effects: Node = world.get_node_or_null("Effects/FishShadows")
 	assert_that(effects).is_not_null()
 	assert_that(effects.call("school")).is_same(school)
-	## Driven by hand rather than by frames: a headless delta is not wall clock, so waiting
-	## on `_process` to cover `SPAWN_INTERVAL` would be a coin flip.
-	var sense := FishShadow.Sense.new()
+	## A shadow placed in the field's own river lives in the world's school. (Whether the
+	## spawner stocks this acre by itself is `test_fish_spawn_probe`'s business.)
 	var grid: WorldGrid = world.grid
-	sense.player_position = grid.cell_to_world(school.bodies[0].cells[0])
-	for _i: int in 60:
-		school.tick(0.1, sense)
-	assert_int(school.shadow_count()).is_equal(FishSchool.MAX_SHADOWS)
-	for shadow: FishShadow in school.shadows:
-		assert_that(shadow.fish).is_not_null()
-		assert_float(shadow.shadow_extent().y).is_greater(0.0)
+	var at: Vector3 = grid.cell_to_world(school.bodies[0].cells[0])
+	var shadow: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), school.bodies[0], at)
+	assert_that(shadow).is_not_null()
+	assert_bool(school.shadows.has(shadow)).is_true()
+	assert_float(shadow.shadow_extent().y).is_greater(0.0)
 
 
 func test_fishing_is_not_an_autoload() -> void:
