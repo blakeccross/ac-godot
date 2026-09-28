@@ -37,8 +37,9 @@ const SLOT_HOURS := {
 ## non-adjacent slots, which is why this is a set and not a start/end pair.
 @export var time_slots: PackedInt32Array = PackedInt32Array()
 ## `WaterBodies.Kind` values, from the `r_month` / `s_month` / `p_month` split. Empty
-## means any water. The finer `aSOG_SPAWN_AREA_*` sub-areas (pool, waterfall, river
-## mouth, offing) are not modelled, so a river fish can bite anywhere in a river.
+## means any water. A summary for the museum and `FishCatalog.available`: live spawning
+## goes through `FishSpawnScheduler`, which also enforces the `aSOG_SPAWN_AREA_*`
+## sub-areas (river pool, waterfall, river mouth).
 @export var waters: PackedInt32Array = PackedInt32Array()
 ## The coelacanth is spliced into the sea table only while it rains
 ## (`aSOG_add_kaseki_range_data`). Only while `Weather.is_raining()` and outside day.

@@ -68,6 +68,45 @@ func test_pond_is_fished_out_from_the_sixteenth_of_september() -> void:
 	assert_array(S.make_range_data(0, false, null, 0)).is_empty()
 
 
+## The coarse per-species rows (museum, encyclopedia, `FishCatalog.available`) are the
+## union of the spawn table: every month, slot and water a species appears in, and its
+## heaviest weight. `SALMON2` (44) is the river-mouth salmon.
+func test_species_rows_agree_with_the_spawn_table() -> void:
+	S.ensure_loaded()
+	var keys := {"river": WaterBodies.Kind.RIVER, "sea": WaterBodies.Kind.OCEAN, "pond": WaterBodies.Kind.POND}
+	var seen: Dictionary = {}
+	for term: int in 24:
+		for key: String in keys:
+			for slot: int in 4:
+				for e: Dictionary in S._slot_entries(term, key, slot):
+					var t: int = int(e["type_index"])
+					if t == S.TYPE_SALMON2:
+						t = S.TYPE_SALMON
+					var row: Dictionary = seen.get(t, {"months": {}, "slots": {}, "waters": {}, "w": 0})
+					row["months"][term / 2 + 1] = true
+					row["slots"][slot] = true
+					row["waters"][int(keys[key])] = true
+					row["w"] = maxi(int(row["w"]), int(e["weight"]))
+					seen[t] = row
+	for t: int in seen:
+		var fish: FishData = FishCatalog.get_by_type(t)
+		var row: Dictionary = seen[t]
+		var months: Array = row["months"].keys()
+		months.sort()
+		var want_months: Array = [] if months.size() == 12 else months
+		var slots: Array = row["slots"].keys()
+		slots.sort()
+		var want_slots: Array = [] if slots.size() == 4 else slots
+		var waters: Array = row["waters"].keys()
+		waters.sort()
+		var got_waters: Array = Array(fish.waters)
+		got_waters.sort()
+		assert_array(Array(fish.months)).override_failure_message("%s months" % fish.id).is_equal(want_months)
+		assert_array(Array(fish.time_slots)).override_failure_message("%s slots" % fish.id).is_equal(want_slots)
+		assert_array(got_waters).override_failure_message("%s waters" % fish.id).is_equal(waters)
+		assert_int(fish.rarity_weight).override_failure_message("%s weight" % fish.id).is_equal(int(row["w"]))
+
+
 func test_block_kinds_follow_the_block_info_table() -> void:
 	assert_int(S.block_kind_for_type(TownFieldGenerator.T_FLAT)).is_equal(0)
 	assert_int(S.block_kind_for_type(TownFieldGenerator.T_RIVER_S)).is_equal(S.KIND_RIVER)
@@ -213,6 +252,17 @@ func test_a_stale_saved_term_resets_without_a_ramp() -> void:
 	var info: Dictionary = S.chk_term_info(null)
 	assert_float(float(info["term0_rate"])).is_equal(1.0)
 	assert_int(Game.gyoei_term).is_equal(17)
+
+
+func test_the_saved_term_survives_a_save() -> void:
+	Game.gyoei_term = 17
+	Game.gyoei_term_offset = 4
+	var snap: Dictionary = Game.to_save()
+	Game.reset_session()
+	assert_int(Game.gyoei_term).is_equal(0)
+	Game.apply_snapshot(snap)
+	assert_int(Game.gyoei_term).is_equal(17)
+	assert_int(Game.gyoei_term_offset).is_equal(4)
 
 
 func test_december_ramps_into_january_across_the_year() -> void:

@@ -8,9 +8,9 @@ extends RefCounted
 ## respect wall segments. We only get the coarse `WorldGrid.Terrain.WATER` enum on authored
 ## acres, so the bodies get flood-filled once when the field loads.
 ##
-## Kind is a classification, not a spawn table — `docs/decomp_notes/fishing.md` keeps the
-## river / sea / pond species split out of scope. It exists so ocean bodies can hold the
-## larger sizes and a four-cell pond does not sprout an XXL.
+## Kind is a classification, not a spawn table: which list an acre fishes from comes from
+## its block kind (`FishSpawnScheduler.block_kind_for_type`). Kind stands in for that only
+## in authored towns without block types, and tells a shadow whether its water flows.
 ##
 ## When `WorldData` is available, sea (`attr` 24) is flood-filled separately from river /
 ## waterfall / pool water (`attr` 12–21). Without that split, a river mouth that touches the
@@ -68,7 +68,8 @@ static func body_at(bodies: Array[Body], cell: Vector2i) -> Body:
 	return null
 
 
-## Largest size class this body can plausibly hold. A puddle should not contain an XXL.
+## Largest size class this body can plausibly hold. Not a spawn rule — the original has no
+## such cap and `FishSpawnScheduler` does not use it.
 static func size_ceiling(body: Body) -> FishData.SizeClass:
 	if body == null:
 		return FishData.SizeClass.XXS
