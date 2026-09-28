@@ -35,6 +35,24 @@ func bind(p_room: Room) -> void:
 		_occupy(entry)
 
 
+## `item_in_front == EXIT_DOOR1`: `pos` is on the row just inside the exit strip and `yaw`
+## points at it. Shopkeepers say goodbye here (Mabel, Tom Nook).
+func facing_exit(pos: Vector3, yaw: float) -> bool:
+	if room == null or grid == null:
+		return false
+	var cell: Vector2i = grid.world_to_cell(pos)
+	var door: Vector2i = room.door_cell
+	if cell.y != door.y - 1 or (cell.x != door.x and cell.x != door.x + 1):
+		return false
+	var target: Vector3 = grid.cell_to_world(Vector2i(cell.x, door.y))
+	var to: Vector3 = target - pos
+	to.y = 0.0
+	if to.length_squared() < 0.0001:
+		return true
+	var fwd := Vector3(sin(yaw), 0.0, cos(yaw))
+	return fwd.dot(to.normalized()) > 0.5
+
+
 ## Furniture limit for this room (0 = none). Only the player's floors are capped.
 func capacity() -> int:
 	if room == null or not PlayerHouse.is_player_room(room.id):

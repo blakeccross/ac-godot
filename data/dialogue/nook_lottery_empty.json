@@ -1,0 +1,16 @@
+{
+  "id": "nook_lottery_empty",
+  "speaker_id": "tom_nook",
+  "start": "l0",
+  "nodes": {
+    "l0": {
+      "type": "line",
+      "text": "Oh, I'm so sorry! Every\nprize has already been won\ntoday.",
+      "next": "l1"
+    },
+    "l1": {
+      "type": "line",
+      "text": "There'll be another raffle\nnext month. Keep collecting\ntickets until then, yes?"
+    }
+  }
+}

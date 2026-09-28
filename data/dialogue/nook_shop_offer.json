@@ -176,6 +176,51 @@
           "goto": "painted"
         },
         {
+          "if": {
+            "var_eq": {
+              "name": "shop_offer_tool",
+              "value": "net"
+            }
+          },
+          "goto": "tool_net"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_offer_tool",
+              "value": "axe"
+            }
+          },
+          "goto": "tool_axe"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_offer_tool",
+              "value": "shovel"
+            }
+          },
+          "goto": "tool_shovel"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_offer_tool",
+              "value": "rod"
+            }
+          },
+          "goto": "tool_rod"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_offer_tool",
+              "value": "sign"
+            }
+          },
+          "goto": "tool_sign"
+        },
+        {
           "goto": "thanks"
         }
       ]
@@ -211,6 +256,51 @@
     "decline": {
       "type": "line",
       "text": "I see. Take your time\nand look around!"
+    },
+    "tool_net": {
+      "type": "line",
+      "text": "Thank you kindly! Hold the\nnet, then press the button\nto swing it at a bug.",
+      "next": "tool_net_2"
+    },
+    "tool_net_2": {
+      "type": "line",
+      "text": "Creep up slowly, now.\nBugs spook easily!"
+    },
+    "tool_axe": {
+      "type": "line",
+      "text": "Thank you kindly! Hold the\naxe, face a tree and swing.\nCareful where you aim it!",
+      "next": "tool_axe_2"
+    },
+    "tool_axe_2": {
+      "type": "line",
+      "text": "Chop too many and the town\nwon't look nearly as nice.\nPlant new ones, yes, yes?"
+    },
+    "tool_shovel": {
+      "type": "line",
+      "text": "Thank you kindly! Hold the\nshovel and you can dig holes,\nbury things, or dig them up.",
+      "next": "tool_shovel_2"
+    },
+    "tool_shovel_2": {
+      "type": "line",
+      "text": "Keep an eye out for cracks\nin the ground. There may be\nsomething buried there!"
+    },
+    "tool_rod": {
+      "type": "line",
+      "text": "Thank you kindly! Hold the\nrod by the water and cast\npast a fish's shadow.",
+      "next": "tool_rod_2"
+    },
+    "tool_rod_2": {
+      "type": "line",
+      "text": "When the float dips under,\nreel it in quick! Patience\nis the secret, yes?"
+    },
+    "tool_sign": {
+      "type": "line",
+      "text": "Thank you kindly! Find a\nnice spot outdoors and set\nthe sign down there.",
+      "next": "tool_sign_2"
+    },
+    "tool_sign_2": {
+      "type": "line",
+      "text": "Just don't put it in\nsomeone's front yard, hm?"
     }
   }
 }

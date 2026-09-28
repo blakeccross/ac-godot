@@ -138,16 +138,13 @@ func test_shop_id_from_room_kind() -> void:
 	assert_that(nook.floor_id).is_equal(ShopDisplay.nook_floor_id(0))
 
 
-func test_tom_nook_offers_talk_buy_sell() -> void:
+func test_tom_nook_offers_talk_only() -> void:
+	## Sell / order go through his menu; goods are bought at the shelf.
 	Game.current_room_id = &"shop0"
 	var nook: Node = auto_free(load("res://scenes/world/interiors/tom_nook.tscn").instantiate())
 	var actions: Array[Interaction] = nook.get_interactions(InteractionContext.new())
-	var ids: PackedStringArray = PackedStringArray()
-	for action: Interaction in actions:
-		ids.append(String(action.id))
-	assert_bool(ids.has(String(Interaction.TALK))).is_true()
-	assert_bool(ids.has(String(Interaction.BUY))).is_true()
-	assert_bool(ids.has(String(Interaction.SELL))).is_true()
+	assert_int(actions.size()).is_equal(1)
+	assert_str(String(actions[0].id)).is_equal(String(Interaction.TALK))
 	Game.current_room_id = &""
 
 

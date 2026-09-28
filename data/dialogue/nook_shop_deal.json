@@ -1,0 +1,316 @@
+{
+  "id": "nook_shop_deal",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_deal",
+              "value": "sell"
+            }
+          },
+          "goto": "sell_q"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_deal",
+              "value": "sell_many"
+            }
+          },
+          "goto": "sell_many_q"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_deal",
+              "value": "junk"
+            }
+          },
+          "goto": "junk_q"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_deal",
+              "value": "sunday"
+            }
+          },
+          "goto": "sunday"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_deal",
+              "value": "order"
+            }
+          },
+          "goto": "order_q"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_deal",
+              "value": "unorderable"
+            }
+          },
+          "goto": "unorderable"
+        },
+        {
+          "goto": "nook_shop_menu"
+        }
+      ]
+    },
+    "sell_q": {
+      "type": "choice",
+      "prompt": "Hmm, your {item0}...\nI can pay {free0} Bells\nfor that. Do we have a deal?",
+      "options": [
+        {
+          "text": "Deal!",
+          "goto": "sell_do"
+        },
+        {
+          "text": "Never mind.",
+          "goto": "sell_cancel"
+        }
+      ]
+    },
+    "sell_many_q": {
+      "type": "choice",
+      "prompt": "{free1} of your {item0}?\nI'll pay {free0} Bells\nfor the lot. Deal?",
+      "options": [
+        {
+          "text": "Deal!",
+          "goto": "sell_do"
+        },
+        {
+          "text": "Never mind.",
+          "goto": "sell_cancel"
+        }
+      ]
+    },
+    "junk_q": {
+      "type": "choice",
+      "prompt": "The {item0}? It isn't\nworth a single Bell, but I can\ntake it off your hands.",
+      "options": [
+        {
+          "text": "Take it.",
+          "goto": "sell_do"
+        },
+        {
+          "text": "I'll keep it.",
+          "goto": "sell_cancel"
+        }
+      ]
+    },
+    "sunday": {
+      "type": "line",
+      "text": "I don't buy turnips on\nSundays, I'm afraid. Bring\nthem by on a weekday!",
+      "next": "nook_shop_menu"
+    },
+    "sell_do": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "sell_confirm"
+        }
+      ],
+      "next": "sell_result"
+    },
+    "sell_result": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_deal_result",
+              "value": "overflow"
+            }
+          },
+          "goto": "overflow"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_deal_result",
+              "value": "junk"
+            }
+          },
+          "goto": "junk_done"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_deal_result",
+              "value": "ok"
+            }
+          },
+          "goto": "sold"
+        },
+        {
+          "goto": "sell_fail"
+        }
+      ]
+    },
+    "sold": {
+      "type": "line",
+      "text": "{free0} Bells it is!\nPleasure doing business.",
+      "next": "sell_more"
+    },
+    "junk_done": {
+      "type": "line",
+      "text": "There we are, all gone.\nOne less thing to carry!",
+      "next": "sell_more"
+    },
+    "overflow": {
+      "type": "line",
+      "text": "Oh my, that's more Bells\nthan you can carry! Make some\nroom in your pockets first.",
+      "next": "sell_more"
+    },
+    "sell_fail": {
+      "type": "line",
+      "text": "Hm? It seems you don't\nhave that anymore.",
+      "next": "sell_more"
+    },
+    "sell_cancel": {
+      "type": "choice",
+      "prompt": "No? Is there something\nelse you'd like to sell?",
+      "options": [
+        {
+          "text": "Yes.",
+          "goto": "sell_again"
+        },
+        {
+          "text": "No, thanks.",
+          "goto": "bye"
+        }
+      ]
+    },
+    "sell_more": {
+      "type": "choice",
+      "prompt": "Anything else you'd\nlike to sell today?",
+      "options": [
+        {
+          "text": "Yes.",
+          "goto": "sell_again"
+        },
+        {
+          "text": "No, thanks.",
+          "goto": "bye"
+        }
+      ]
+    },
+    "sell_again": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "sell"
+        }
+      ],
+      "next": "sell_again_line"
+    },
+    "sell_again_line": {
+      "type": "line",
+      "text": "Let's see what else\nyou've got, then."
+    },
+    "order_q": {
+      "type": "choice",
+      "prompt": "The {item0}, yes? That's\n{free0} Bells, and I'll mail it\nto you tomorrow. Order it?",
+      "options": [
+        {
+          "text": "Order it!",
+          "goto": "order_do"
+        },
+        {
+          "text": "Not now.",
+          "goto": "order_cancel"
+        }
+      ]
+    },
+    "unorderable": {
+      "type": "line",
+      "text": "Ah, the {item0}... I'm sorry,\nbut that isn't something I can\norder in for you.",
+      "next": "nook_shop_menu"
+    },
+    "order_cancel": {
+      "type": "line",
+      "text": "Of course, of course.\nNo pressure!",
+      "next": "nook_shop_menu"
+    },
+    "order_do": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "order_confirm"
+        }
+      ],
+      "next": "order_result"
+    },
+    "order_result": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_deal_result",
+              "value": "no_money"
+            }
+          },
+          "goto": "order_no_money"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_deal_result",
+              "value": "full"
+            }
+          },
+          "goto": "order_full"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_deal_result",
+              "value": "ok"
+            }
+          },
+          "goto": "ordered"
+        },
+        {
+          "goto": "order_fail"
+        }
+      ]
+    },
+    "ordered": {
+      "type": "line",
+      "text": "Wonderful! I'll send the\n{item0} along in\ntomorrow's mail.",
+      "next": "nook_shop_menu"
+    },
+    "order_no_money": {
+      "type": "line",
+      "text": "Oh dear, you're a little\nshort. Orders are paid up\nfront, I'm afraid.",
+      "next": "nook_shop_menu"
+    },
+    "order_full": {
+      "type": "line",
+      "text": "You already have five\norders on the way. Let's wait\nuntil those arrive, shall we?",
+      "next": "nook_shop_menu"
+    },
+    "order_fail": {
+      "type": "line",
+      "text": "Hm, I can't seem to\norder that one.",
+      "next": "nook_shop_menu"
+    },
+    "bye": {
+      "type": "line",
+      "text": "Please come again!"
+    }
+  }
+}

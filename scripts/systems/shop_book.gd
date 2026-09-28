@@ -426,6 +426,9 @@ func buy_result(shop_id: StringName, item_id: StringName, inv: Inventory) -> Dic
 	var data: ItemData = ItemCatalog.get_item(item_id)
 	if data == null or inv == null:
 		return {"code": Buy.NOT_FOR_SALE, "msg": "That's not for sale."}
+	## Door hours (`mSP_ShopOpen`) also bound the counter: nothing is sold once Nook is shut.
+	if shop_id == NOOK_ID and not nook_is_open():
+		return {"code": Buy.CLOSED, "msg": closed_notice()}
 	var listed: Array[StringName] = goods(shop_id)
 	var slot: int = listed.find(item_id)
 	if slot < 0:
