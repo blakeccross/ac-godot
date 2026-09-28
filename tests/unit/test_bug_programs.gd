@@ -756,3 +756,23 @@ func test_released_insect_heads_the_way_the_player_faces() -> void:
 		a.frame(s)
 		assert_float(absf(angle_difference(a.angle_y, -PI * 0.5))) \
 			.append_failure_message("%s heading %f" % [id, a.angle_y]).is_less_equal(deg_to_rad(60.5))
+
+
+func test_stress_fallback_speed_counts_per_tick() -> void:
+	## `player_move_gx` is per 30 Hz frame; stress uses the per-60 Hz-tick move, so a 6 GX
+	## frame speed stresses like a player seen moving 3 GX a tick.
+	var at := Vector3(4.0, 0.0, 4.0)
+	var by_speed := _make(&"drone_beetle", BugData.Habitat.TREE, at)
+	var by_move := _make(&"drone_beetle", BugData.Habitat.TREE, at)
+	var s1 := BugActor.Sense.new()
+	var s2 := BugActor.Sense.new()
+	var r: float = 3.0   ## m (60 GX)
+	for i in 8:
+		s1.player_position = at + Vector3(r, 0.0, 0.0)
+		s1.player_move_gx = 6.0
+		by_speed.frame(s1)
+		var ang: float = float(i) * 3.0 / 60.0
+		s2.player_position = at + Vector3(cos(ang) * r, 0.0, sin(ang) * r)
+		by_move.frame(s2)
+	assert_float(by_speed.patience).is_greater(0.0)
+	assert_float(by_speed.patience).is_equal_approx(by_move.patience, by_move.patience * 0.1 + 0.5)

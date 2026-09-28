@@ -55,9 +55,9 @@ const TREE_FACE_YAW := PI
 
 class Sense:
 	var player_position: Vector3 = Vector3.INF
-	## Player planar move this 60 Hz tick, GX (`world - last_world_position`). Only a
-	## fallback for when no movement is observed between ticks (tests); the field feeds
-	## positions and the actor measures the per-tick move itself.
+	## Player planar speed as GX per 30 Hz decomp frame (`Player.insect_stress_move_gx`).
+	## Stress uses the per-60 Hz-tick move (`world - last_world_position`); this is only
+	## the fallback when no move is observed between ticks, halved to that unit.
 	var player_move_gx: float = 0.0
 	var player_dashing: bool = false
 	var player_yaw: float = 0.0
@@ -454,7 +454,7 @@ func _player_frame_move_gx(sense: Sense) -> float:
 			sense.player_position.z / GX_M - _last_player_gx.z
 		).length()
 	if observed <= 0.0 and sense.player_move_gx > 0.0:
-		observed = sense.player_move_gx
+		observed = sense.player_move_gx / DecompTime.TICKS_PER_FRAME
 	return observed
 
 
