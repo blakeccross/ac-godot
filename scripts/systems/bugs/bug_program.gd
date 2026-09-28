@@ -128,7 +128,7 @@ static func unit_center(sense: BugActor.Sense, cell: Vector2i) -> Vector3:
 
 
 ## `mFI_BkNum2WposXZ(block) + mFI_BK_WORLDSIZE_HALF`: centre of the acre the insect was
-## born in (`actor->block_x/z` never changes), cached on the actor.
+## born in (`actor->block_x/z` never changes), cached on the actor once a grid is known.
 static func acre_center(a: BugActor, sense: BugActor.Sense) -> Vector2:
 	if a.acre_center_gx != Vector2.INF:
 		return a.acre_center_gx
@@ -137,8 +137,10 @@ static func acre_center(a: BugActor, sense: BugActor.Sense) -> Vector2:
 		floori(float(cell.x) / ACRE_UNITS) * ACRE_UNITS, floori(float(cell.y) / ACRE_UNITS) * ACRE_UNITS
 	)
 	var c: Vector3 = unit_center(sense, corner)
-	a.acre_center_gx = Vector2(c.x, c.z) + Vector2.ONE * (0.5 * ACRE_GX - 0.5 * UNIT_GX)
-	return a.acre_center_gx
+	var out: Vector2 = Vector2(c.x, c.z) + Vector2.ONE * (0.5 * ACRE_GX - 0.5 * UNIT_GX)
+	if sense != null and sense.grid != null:
+		a.acre_center_gx = out  ## only cache once the field grid is known
+	return out
 
 
 ## `mFI_GetUnitFG` owner: same acre as the spawn (`actor->block_x/z == block_table`).
@@ -178,6 +180,54 @@ static func water_y(a: BugActor, sense: BugActor.Sense) -> float:
 	if sense == null or not sense.bg.is_valid():
 		return -1e9
 	return float(sense.bg.call(a.pos).get("water_y", -1e9))
+
+
+# ---- player tool checks (`mPlib_Check_*`) --------------------------------
+
+## `mPlib_Check_StopNet(&pos)`: the net's position (GX) on the tick a swing stops, else INF.
+static func net_stop_pos(sense: BugActor.Sense) -> Vector3:
+	if sense == null or not sense.net_swing_active or sense.net_swing_origin == Vector3.INF:
+		return Vector3.INF
+	return sense.net_swing_origin / BugActor.GX_M
+
+
+## `mPlib_Check_DigScoop(&pos)`: the unit the shovel is digging / striking (GX), else INF.
+static func scoop_pos(sense: BugActor.Sense) -> Vector3:
+	if sense == null or sense.player_action_cell.x < 0:
+		return Vector3.INF
+	match sense.player_action:
+		BugActor.PlAct.DIG_SCOOP, BugActor.PlAct.REFLECT_SCOOP:
+			return unit_center(sense, sense.player_action_cell)
+	return Vector3.INF
+
+
+## `mPlib_Check_HitAxe(&pos)`: a tool swing that is not a scoop — the unit in front of
+## the player (GX), else INF.
+static func axe_hit_pos(sense: BugActor.Sense) -> Vector3:
+	if sense == null or not sense.player_swung_tool or not sense.has_player():
+		return Vector3.INF
+	if scoop_pos(sense) != Vector3.INF:
+		return Vector3.INF
+	var p: Vector3 = sense.player_position / BugActor.GX_M
+	return p + Vector3(sin(sense.player_yaw), 0.0, cos(sense.player_yaw)) * UNIT_GX
+
+
+## `mPlib_Check_VibUnit_OneFrame(&pos)`: an axe hit anywhere in the insect's acre.
+static func vib_unit(a: BugActor, sense: BugActor.Sense) -> bool:
+	var hit: Vector3 = axe_hit_pos(sense)
+	if hit == Vector3.INF:
+		return false
+	var c: Vector2 = acre_center(a, sense)
+	var ha: Vector2 = Vector2(floorf((hit.x - c.x) / ACRE_GX + 0.5), floorf((hit.z - c.y) / ACRE_GX + 0.5))
+	var pa: Vector2 = Vector2(floorf((a.pos.x - c.x) / ACRE_GX + 0.5), floorf((a.pos.z - c.y) / ACRE_GX + 0.5))
+	return ha == pa
+
+
+## `SQ(dx) + SQ(dz) < SQ(r)` against a tool position (INF never matches).
+static func near_xz(a: BugActor, p: Vector3, r: float) -> bool:
+	if p == Vector3.INF:
+		return false
+	return Vector2(p.x - a.pos.x, p.z - a.pos.z).length_squared() < r * r
 
 
 # ---- player-relative headings -------------------------------------------

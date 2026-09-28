@@ -20,6 +20,27 @@ func _make(id: StringName, hab: BugData.Habitat, at: Vector3, released: bool = f
 	return BugActor.create(BugCatalog.get_bug(id), hab, at, _rng, released)
 
 
+## A 32×32-unit (2×2 acre) flat field with an empty layout, for FG / unit queries.
+func _field_sense() -> BugActor.Sense:
+	var s := BugActor.Sense.new()
+	s.grid = WorldGrid.new()
+	s.grid.configure(32, 32, 2.0, Vector3.ZERO)
+	s.layout = WorldData.new()
+	s.layout.columns = 32
+	s.layout.rows = 32
+	return s
+
+
+func _put(layout: WorldData, kind: StringName, cell: Vector2i, visual: StringName = &"") -> ObjectPlacement:
+	var o := ObjectPlacement.new()
+	o.kind = kind
+	o.cell = cell
+	o.visual_id = visual
+	o.id = StringName("%s_%d_%d" % [kind, cell.x, cell.y])
+	layout.objects.append(o)
+	return o
+
+
 func _run(a: BugActor, frames: int, s: BugActor.Sense) -> void:
 	for _i: int in frames:
 		a.frame(s)
@@ -71,13 +92,55 @@ func test_tiger_butterfly_avoids_when_patience_high() -> void:
 
 
 func test_butterfly_leaving_acre_escapes_and_fades() -> void:
+	## `aICH_check_block_edge`: the outer ring of units (in-block 0 / 15) is off limits.
+	## Without a grid the acre spans −320..320 GX, so x = 300 GX is unit 15.
 	var b := _make(&"common_butterfly", BugData.Habitat.FLYING, Vector3(4.0, 0.5, 4.0))
-	b.pos = b.home + Vector3(9.0 * BugActor.UNIT_GX, 0.0, 0.0)
+	b.pos = Vector3(300.0, b.pos.y, b.home.z)
 	b.frame(BugActor.Sense.new())
 	assert_int(b.action).is_equal(BugChou.LET_ESCAPE)
 	assert_int(b.alpha_time).is_equal(0x50)
 	_run(b, 90, BugActor.Sense.new())
 	assert_bool(b.finished).is_true()
+
+
+func test_butterfly_far_from_home_but_inside_the_acre_keeps_flying() -> void:
+	var b := _make(&"common_butterfly", BugData.Habitat.FLYING, Vector3(4.0, 0.5, 4.0))
+	b.pos = Vector3(-250.0, b.pos.y, 250.0)  ## unit 1 / 14 — the inner edge
+	b.frame(BugActor.Sense.new())
+	assert_int(b.action).is_equal(BugChou.FLY)
+
+
+func test_butterfly_lands_on_a_white_pansy_after_its_cooldown() -> void:
+	## `aICH_rest_check`: `f32_work3` counts 120 → 0 by 0.5 a frame, then a
+	## `FLOWER_PANSIES0` unit below lands it; HOVER 10 frames, REST 15–45, FLY again.
+	var s := _field_sense()
+	var cell := Vector2i(5, 5)
+	_put(s.layout, &"flower", cell, &"FLOWER_PANSIES0")
+	var at: Vector3 = s.grid.cell_to_world(cell)
+	var b := _make(&"common_butterfly", BugData.Habitat.FLOWER, at)
+	var seen := {}
+	for _i: int in 700:
+		if b.action == BugChou.FLY:
+			b.pos.x = at.x / BugActor.GX_M  ## hold it over the pansy
+			b.pos.z = at.z / BugActor.GX_M
+		b.frame(s)
+		seen[b.action] = true
+		if b.action == BugChou.REST:
+			break
+	assert_bool(seen.has(BugChou.LANDING)).is_true()
+	assert_bool(seen.has(BugChou.HOVER)).is_true()
+	assert_bool(seen.has(BugChou.REST)).is_true()
+	assert_int(b.pose_index()).is_equal(1)
+
+
+func test_butterfly_scared_by_a_dig_within_sixty_gx() -> void:
+	var s := _field_sense()
+	var b := _make(&"tiger_butterfly", BugData.Habitat.FLOWER, s.grid.cell_to_world(Vector2i(5, 5)))
+	b._prog.setup_action(b, BugChou.HOVER)
+	s.player_action = BugActor.PlAct.DIG_SCOOP
+	s.player_action_cell = Vector2i(6, 5)  ## next unit: 40 GX away
+	b.frame(s)
+	assert_int(b.action).is_equal(BugChou.AVOID)
 
 
 func test_caught_butterfly_finishes() -> void:
