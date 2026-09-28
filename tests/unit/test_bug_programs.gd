@@ -356,3 +356,55 @@ func test_player_walking_two_and_a_half_units_away_stresses_an_insect() -> void:
 		b.frame(s)
 	assert_float(b.patience).is_greater(0.0)
 
+
+
+# ---- TONBO (dragonfly) ---------------------------------------------
+
+func test_dragonfly_cruises_at_its_hover_height_and_stops_to_turn() -> void:
+	## `aITB_height_ctrl`: 52–62 GX over the ground; bursts of 20 frames then a WAIT turn.
+	var a := _make(&"common_dragonfly", BugData.Habitat.FLYING, Vector3(0.0, 0.0, 0.0))
+	var s := BugActor.Sense.new()
+	var waited := false
+	for _i: int in 600:
+		a.frame(s)
+		if a.action == BugTonbo.WAIT:
+			waited = true
+	assert_bool(waited).is_true()
+	assert_float(a.pos.y).is_between(40.0, 75.0)
+	assert_float(a.f32_work[0]).is_between(52.0, 62.0)
+
+
+func test_dragonfly_turns_back_toward_the_acre_centre_past_240_gx() -> void:
+	## `aITB_wait_init`: beyond `6 × 40` GX from the acre centre the new heading is the centre.
+	var a := _make(&"common_dragonfly", BugData.Habitat.FLYING, Vector3(0.0, 0.0, 0.0))
+	a.pos = Vector3(260.0, 60.0, 0.0)
+	a.angle_y = PI * 0.5  ## heading east, away from the centre
+	a._prog.setup_action(a, BugTonbo.WAIT)
+	assert_float(absf(angle_difference(a.angle_y, -PI * 0.5))).is_less(0.01)
+
+
+func test_banded_dragonfly_leaves_past_480_gx() -> void:
+	var a := _make(&"banded_dragonfly", BugData.Habitat.FLYING, Vector3(0.0, 0.0, 0.0))
+	assert_int(a.action).is_equal(BugTonbo.ONIYANMA_FLY)
+	a.pos = Vector3(300.0, 60.0, 300.0)  ## 424 GX out: still patrolling
+	a.frame(BugActor.Sense.new())
+	assert_int(a.action).is_equal(BugTonbo.ONIYANMA_FLY)
+	a.pos = Vector3(360.0, 60.0, 360.0)  ## 509 GX out
+	a.frame(BugActor.Sense.new())
+	assert_int(a.action).is_equal(BugTonbo.LET_ESCAPE)
+
+
+func test_red_dragonfly_perches_on_a_reserved_unit() -> void:
+	var s := _field_sense()
+	_put(s.layout, &"reserve", Vector2i(5, 5), &"SIGNBOARD")
+	var at: Vector3 = s.grid.cell_to_world(Vector2i(5, 5))
+	var a := _make(&"red_dragonfly", BugData.Habitat.FLYING, at)
+	var seen := {}
+	for _i: int in 400:
+		a.frame(s)
+		seen[a.action] = true
+		if a.action == BugTonbo.REST_ON_NOTICE:
+			break
+	assert_bool(seen.has(BugTonbo.FLY_ON_NOTICE)).is_true()
+	assert_int(a.action).is_equal(BugTonbo.REST_ON_NOTICE)
+	assert_float(a.pos.y).is_equal_approx(20.0, 3.0)

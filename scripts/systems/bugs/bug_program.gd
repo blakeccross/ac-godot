@@ -269,6 +269,22 @@ static func chase_angle(cur: float, target: float, step: float) -> float:
 	return wrapf(cur + signf(diff) * step, -PI, PI)
 
 
+## `add_calc`: move `cur` by `fraction` of the gap, clamped to `max_step`, at least
+## `min_step`, never past `target` (not frame-scaled).
+static func add_calc(cur: float, target: float, fraction: float, max_step: float, min_step: float = 0.0) -> float:
+	if cur == target:
+		return cur
+	var step: float = fraction * (target - cur)
+	if step <= -min_step or min_step <= step:
+		step = clampf(step, -max_step, max_step)
+	else:
+		step = min_step if step > 0.0 else -min_step
+	var out: float = cur + step
+	if (step > 0.0 and out > target) or (step <= 0.0 and out < target):
+		out = target
+	return out
+
+
 ## `chase_angle`'s return value: TRUE once `cur` has reached `target`.
 static func angle_reached(cur: float, target: float) -> bool:
 	return absf(wrapf(target - cur, -PI, PI)) < 0.5 * MLib.S16
