@@ -654,20 +654,23 @@ func test_live_insect_check_uses_the_birth_block() -> void:
 
 func test_a_walking_villager_stresses_an_insect_like_the_player() -> void:
 	## `aINS_get_stress` reads the NPC actor list as well as the player: a villager
-	## moving 2 GX a frame one unit away adds 2 × calc_table[2] × 0.5 patience.
+	## walking 4 GX per 30 Hz frame (2 GX a 60 Hz tick) 50 GX away adds
+	## 2 × calc_table[idx] × 0.5 patience, idx = (radius − 40 − (50 − 40)) / 20.
 	var bug: BugData = BugCatalog.get_bug(&"common_butterfly")
 	var at := Vector3(0.0, 0.5, 0.0)
 	var actor: BugActor = BugActor.create(bug, BugData.Habitat.FLYING, at, RandomNumberGenerator.new())
 	actor.patience = 0.0
+	var radius: float = actor.stress_radius_gx()
+	var idx: int = int(radius - BugActor.UNIT_GX - 10.0) / 20
 	var sense := BugActor.Sense.new()
-	sense.npc_positions.append(at + Vector3(20.0 * FieldCatalog.GX_TO_METERS, 0.0, 0.0))
-	sense.npc_moves_gx.append(2.0)
-	assert_float(actor._calc_stress(sense)).is_equal_approx(2.0 * BugActor.STRESS_CALC_TABLE[2], 0.0001)
+	sense.npc_positions.append(at + Vector3(50.0 * FieldCatalog.GX_TO_METERS, 0.0, 0.0))
+	sense.npc_moves_gx.append(4.0)
+	assert_float(actor._calc_stress(sense)).is_equal_approx(2.0 * BugActor.STRESS_CALC_TABLE[idx], 0.0001)
 	actor._calc_patience(sense)
-	assert_float(actor.patience).is_equal_approx(2.0 * BugActor.STRESS_CALC_TABLE[2] * 0.5, 0.0001)
-	## A standing villager, or one past the 3-unit stress radius, does nothing.
+	assert_float(actor.patience).is_equal_approx(2.0 * BugActor.STRESS_CALC_TABLE[idx] * 0.5, 0.0001)
+	## A standing villager, or one past the stress radius, does nothing.
 	sense.npc_moves_gx[0] = 0.0
 	assert_float(actor._calc_stress(sense)).is_equal(0.0)
-	sense.npc_moves_gx[0] = 2.0
-	sense.npc_positions[0] = at + Vector3(70.0 * FieldCatalog.GX_TO_METERS, 0.0, 0.0)
+	sense.npc_moves_gx[0] = 4.0
+	sense.npc_positions[0] = at + Vector3((radius + 10.0) * FieldCatalog.GX_TO_METERS, 0.0, 0.0)
 	assert_float(actor._calc_stress(sense)).is_equal(0.0)

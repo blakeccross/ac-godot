@@ -440,8 +440,10 @@ func _calc_stress(sense: Sense) -> float:
 	var stress: float = 0.0
 	if sense.has_player():
 		stress = _stress_from(sense.player_position / GX_M, _player_frame_move_gx(sense))
+	## `npc_moves_gx` is per 30 Hz frame; the decomp's frame move is per 60 Hz tick.
 	for i: int in mini(sense.npc_positions.size(), sense.npc_moves_gx.size()):
-		stress = maxf(stress, _stress_from(sense.npc_positions[i] / GX_M, sense.npc_moves_gx[i]))
+		var move: float = sense.npc_moves_gx[i] / DecompTime.TICKS_PER_FRAME
+		stress = maxf(stress, _stress_from(sense.npc_positions[i] / GX_M, move))
 	return stress
 
 
