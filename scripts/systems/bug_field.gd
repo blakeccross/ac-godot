@@ -43,6 +43,9 @@ var _spawned_acre: Vector2i = Vector2i(-999, -999)
 var _steps := FrameStepper.new()
 var _game_frame: int = 0
 var _field_action: Dictionary = {"kind": 0, "cell": Vector2i(-1, -1)}
+var _keep_pool: Array[BugSpawnEntry] = []
+var _keep_month: int = -1
+var _keep_term: int = -1
 
 const TOOL_SWING_SECONDS := 0.25
 
@@ -186,11 +189,11 @@ func _tick_spawn(sense: BugActor.Sense) -> void:
 		return
 	if not sense.has_player():
 		return
-	if actors.size() >= MAX_FIELD_SPAWNS:
-		return
 	var acre: Vector2i = BugHabitats.acre_of_world_pos(_grid, sense.player_position)
 	if acre == _spawned_acre:
 		return
+	## The attempt is spent on entry even when every field slot is taken
+	## (`aINS_make_insect` just fails); it is not retried later in the same acre.
 	_spawned_acre = acre
 	## `aSOI_ins_block_check` / `aINS_chk_live_insect`: one attempt per acre entry,
 	## and only if that acre does not already host a live insect.
@@ -204,7 +207,7 @@ func _tick_spawn(sense: BugActor.Sense) -> void:
 func _try_spawn_in_acre(acre: Vector2i) -> void:
 	var raining: bool = Game.weather == &"rain"
 	## `aSOI_ins_make_range_data` + `aSOI_ins_decide_insect` + `aSOI_ins_get_idx`.
-	var pool: Array[BugSpawnEntry] = BugSpawnScheduler.build_pool(_rng)
+	var pool: Array[BugSpawnEntry] = spawn_pool()
 	var entry: BugSpawnEntry = BugSpawnScheduler.decide(
 		pool, _layout, _grid, acre, raining, Callable(self, "_occupied_cell"), _rng
 	)
@@ -216,7 +219,7 @@ func _try_spawn_in_acre(acre: Vector2i) -> void:
 	## `aSOI_ins_make`: birth count, each pick a fresh live unit.
 	var birth_num: int = _birth_count(entry.type_index)
 	for _i: int in birth_num:
-		if actors.size() >= MAX_FIELD_SPAWNS:
+		if field_slots_used() >= MAX_FIELD_SPAWNS:
 			return
 		if not _spawn_one_in_acre(bug, entry.spawn_area, acre, raining):
 			return
@@ -237,13 +240,35 @@ func _spawn_one_in_acre(bug: BugData, spawn_area: int, acre: Vector2i, raining: 
 	)
 
 
+## `set_manager->keep.insect_keep`: the spawn list is rebuilt only when the month or the
+## insect term changed since it was last made (`aSOI_ins_not_cmp_time`), so the month
+## blend is fixed for the rest of the term.
+func spawn_pool() -> Array[BugSpawnEntry]:
+	var term: int = int(BugData.term_for_hour(Clock.hour))
+	if _keep_pool.is_empty() or _keep_month != Clock.month or _keep_term != term:
+		_keep_pool = BugSpawnScheduler.build_pool(_rng)
+		_keep_month = Clock.month
+		_keep_term = term
+	return _keep_pool
+
+
+## Occupied `aINS_MAKE_NEW` slots (0..7). A released insect sits in the extra slot.
+func field_slots_used() -> int:
+	var n: int = 0
+	for actor: BugActor in actors:
+		if not actor.finished and not actor.released:
+			n += 1
+	return n
+
+
 func _birth_count(type_index: int) -> int:
 	if type_index < 0 or type_index >= BIRTH_SUM.size():
 		return 1
 	var row: Vector2i = BIRTH_SUM[type_index]
 	if row.y <= 0:
 		return row.x
-	return row.x + _rng.randi_range(0, row.y - 1)
+	## `min_birth_count + (int)(fqrand() * additional_range)`.
+	return row.x + int(_rng.randf() * float(row.y))
 
 
 func _roll_tree_entry(raining: bool) -> BugSpawnEntry:
