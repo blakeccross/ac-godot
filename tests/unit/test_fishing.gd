@@ -210,6 +210,10 @@ func test_cast_is_refused_away_from_water() -> void:
 func test_line_survives_turning_away_and_offers_the_hook_verb() -> void:
 	var ctx: InteractionContext = _at_water()
 	_cast(ctx)
+	## `cast_rod` only hands over to `relax_rod` once the bobber is floating, so there is
+	## nothing to press while it is still in the air.
+	assert_object(ToolUse.field_action(ctx)).is_null()
+	_settle(ctx)
 	(ctx.actor as _FacingActor).yaw = -PI * 0.5
 	var action: Interaction = ToolUse.field_action(ctx)
 	assert_that(action).is_not_null()
@@ -239,7 +243,7 @@ func test_hook_during_bite_lands_the_fish_that_bit() -> void:
 	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
 	assert_that(Fishing.state()).is_equal(Fishing.State.BITE)
 	var before: int = ctx.inventory.count_of_occupied()
-	var out: Fishing.Outcome = Fishing.hook(ctx, _school(ctx))
+	var out: Fishing.Outcome = _reel(ctx)
 	assert_bool(out.caught()).is_true()
 	## The catch is the shadow that bit, not a fresh roll off the catalog.
 	assert_that(out.fish).is_same(shadow.fish)
@@ -253,7 +257,7 @@ func test_hooking_with_nothing_on_the_line_yields_nothing() -> void:
 	_cast(ctx)
 	_settle(ctx)
 	var before: int = ctx.inventory.count_of_occupied()
-	var out: Fishing.Outcome = Fishing.hook(ctx, _school(ctx))
+	var out: Fishing.Outcome = _reel(ctx)
 	assert_bool(out.too_early).is_true()
 	assert_object(out.fish).is_null()
 	assert_bool(Fishing.is_active()).is_false()
@@ -267,11 +271,21 @@ func test_missing_the_bite_window_lets_the_fish_escape() -> void:
 	var shadow: FishShadow = _stock(ctx, &"crucian_carp")
 	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
 	var before: int = ctx.inventory.count_of_occupied()
+	_heard.clear()
 	## `aGYO_bite_time`: the fish holds on for its own species' window and then lets go.
 	_tick(ctx, FishSize.bite_seconds(shadow.fish.bite_time) + 0.1)
-	assert_bool(Fishing.is_active()).is_false()
-	assert_bool("It got away." in _heard).is_true()
+	## `aGTT_bite` → `aGTT_kage_make_actor`: the fish is gone in a puff, and `aUKI_bite` drops
+	## back to `aUKI_wait` — the line stays out for the next fish, and nothing is said.
+	assert_bool(shadow.finished).is_true()
+	assert_bool(Fishing.is_active()).is_true()
+	assert_that(Fishing.state()).is_equal(Fishing.State.FLOAT)
+	assert_int(_school(ctx).puffs.size()).is_equal(1)
+	assert_array(_heard).is_empty()
 	assert_int(ctx.inventory.count_of_occupied()).is_equal(before)
+	## And the next fish can have it.
+	var next: FishShadow = _stock(ctx, &"crucian_carp")
+	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
+	assert_bool(next.is_hooked()).is_true()
 
 
 func test_full_pockets_cannot_keep_the_catch() -> void:
@@ -281,7 +295,7 @@ func test_full_pockets_cannot_keep_the_catch() -> void:
 	_stock(ctx, &"crucian_carp")
 	_fill_pockets(ctx.inventory)
 	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
-	var out: Fishing.Outcome = Fishing.hook(ctx, _school(ctx))
+	var out: Fishing.Outcome = _reel(ctx)
 	assert_bool(out.pockets_full).is_true()
 	assert_bool(out.caught()).is_false()
 	assert_int(ctx.inventory.count_of(out.fish.id)).is_equal(0)
@@ -294,26 +308,23 @@ func test_landing_a_fish_queues_a_pull_then_a_lift() -> void:
 	_settle(ctx)
 	_stock(ctx, &"crucian_carp")
 	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
-	var out: Fishing.Outcome = Fishing.hook(ctx, _school(ctx))
+	var out: Fishing.Outcome = _reel(ctx)
 	assert_bool(out.caught()).is_true()
-	## `vib_rod`, `fly_rod`, `notice_rod`: pull the rod over, swing the fish up out of the
-	## water, then hold it up to the camera.
+	## `fly_rod`, `notice_rod`: swing the fish up out of the water, then hold it up to the
+	## camera. `vib_rod`'s pull is the fight itself, played while `is_reeling` holds.
 	var beats: Array[Fishing.ReelBeat] = Fishing.take_reel_beats()
-	assert_int(beats.size()).is_equal(3)
-	assert_str(String(beats[0].player_anim)).is_equal(String(Fishing.REEL_PULL))
-	assert_str(String(beats[0].tool_anim)).is_equal(String(Fishing.ROD_PULL))
-	assert_str(String(beats[1].player_anim)).is_equal(String(Fishing.REEL_LAND))
-	assert_str(String(beats[1].tool_anim)).is_equal(String(Fishing.ROD_LAND))
-	assert_str(String(beats[2].player_anim)).is_equal(String(Fishing.REEL_SHOW))
+	assert_int(beats.size()).is_equal(2)
+	assert_str(String(beats[0].player_anim)).is_equal(String(Fishing.REEL_LAND))
+	assert_str(String(beats[0].tool_anim)).is_equal(String(Fishing.ROD_LAND))
+	assert_str(String(beats[1].player_anim)).is_equal(String(Fishing.REEL_SHOW))
 	## Only the show-off beat turns and only it outlasts its own clip.
 	assert_bool(beats[0].face_camera).is_false()
-	assert_bool(beats[1].face_camera).is_false()
-	assert_bool(beats[2].face_camera).is_true()
-	assert_float(beats[2].hold).is_equal_approx(Fishing.SHOW_HOLD_SECONDS, 0.0001)
+	assert_bool(beats[1].face_camera).is_true()
+	assert_float(beats[1].hold).is_equal_approx(Fishing.SHOW_HOLD_SECONDS, 0.0001)
 	## The catch report rides on the show-off beat rather than being posted on the button
 	## frame, because the pose has to stay up for as long as the text does.
-	assert_int(beats[2].catch_msg).is_equal(FishCatalog.get_fish(&"crucian_carp").catch_msg)
-	assert_bool(_heard.has(FishCatalog.catch_text(beats[2].catch_msg))).is_false()
+	assert_int(beats[1].catch_msg).is_equal(FishCatalog.get_fish(&"crucian_carp").catch_msg)
+	assert_bool(_heard.has(FishCatalog.catch_text(beats[1].catch_msg))).is_false()
 	## Draining is one-shot, so the reel cannot replay on the next interaction.
 	assert_int(Fishing.take_reel_beats().size()).is_equal(0)
 
@@ -322,7 +333,7 @@ func test_empty_line_queues_a_single_empty_reel() -> void:
 	var ctx: InteractionContext = _at_water()
 	_cast(ctx)
 	_settle(ctx)
-	Fishing.hook(ctx, _school(ctx))
+	_reel(ctx)
 	var beats: Array[Fishing.ReelBeat] = Fishing.take_reel_beats()
 	assert_int(beats.size()).is_equal(1)
 	assert_str(String(beats[0].player_anim)).is_equal(String(Fishing.REEL_EMPTY))
@@ -336,16 +347,16 @@ func test_full_pockets_still_lift_the_fish_into_view() -> void:
 	_stock(ctx, &"crucian_carp")
 	_fill_pockets(ctx.inventory)
 	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
-	var out: Fishing.Outcome = Fishing.hook(ctx, _school(ctx))
+	var out: Fishing.Outcome = _reel(ctx)
 	assert_bool(out.pockets_full).is_true()
 	## You landed it, so you watch it come up and get held up before it is refused.
 	var beats: Array[Fishing.ReelBeat] = Fishing.take_reel_beats()
-	assert_int(beats.size()).is_equal(3)
-	assert_bool(beats[2].face_camera).is_true()
+	assert_int(beats.size()).is_equal(2)
+	assert_bool(beats[1].face_camera).is_true()
 	## The report is still the species line; `notice_rod` chains the pockets-full message
 	## onto it rather than replacing it.
-	assert_int(beats[2].catch_msg).is_equal(FishCatalog.get_fish(&"crucian_carp").catch_msg)
-	assert_bool(beats[2].pockets_full).is_true()
+	assert_int(beats[1].catch_msg).is_equal(FishCatalog.get_fish(&"crucian_carp").catch_msg)
+	assert_bool(beats[1].pockets_full).is_true()
 
 
 func test_dropping_the_line_queues_no_reel() -> void:
@@ -355,7 +366,7 @@ func test_dropping_the_line_queues_no_reel() -> void:
 	Fishing.cancel(_school(ctx))
 	assert_int(Fishing.take_reel_beats().size()).is_equal(0)
 	## Hooking with no session open is a no-op, not an empty reel.
-	Fishing.hook(ctx, _school(ctx))
+	assert_bool(Fishing.hook(ctx, _school(ctx))).is_false()
 	assert_int(Fishing.take_reel_beats().size()).is_equal(0)
 
 
@@ -669,7 +680,11 @@ func test_the_rare_fish_reports_run_to_two_pages() -> void:
 		assert_str(String(first.get("next", ""))).override_failure_message(
 			"%s's report is a single page" % id
 		).is_not_empty()
-	assert_str(FishCatalog.catch_text(FishCatalog.get_fish(&"arapaima").catch_msg)).contains("WOW")
+	## The arapaima's "WOW!!!" is drawn letter by letter at shrinking sizes, so the size
+	## codes (`{s:64}W{s:60}O…`) sit between the letters.
+	var wow: String = FishCatalog.catch_text(FishCatalog.get_fish(&"arapaima").catch_msg)
+	var codes := RegEx.create_from_string("\\{[^}]*\\}")
+	assert_str(codes.sub(wow, "", true)).contains("WOW")
 
 
 ## The show-off beat has to carry the fish, or the pose has nothing to hold up.
@@ -679,11 +694,10 @@ func test_the_show_off_beat_carries_the_fish() -> void:
 	out.fish = carp
 	out.catch_msg = carp.catch_msg
 	var beats: Array[Fishing.ReelBeat] = Fishing.reel_beats(out)
-	assert_int(beats.size()).is_equal(3)
-	assert_that(beats[2].fish).is_equal(carp)
-	## The earlier beats are the rod coming up out of the water; nothing is in hand yet.
+	assert_int(beats.size()).is_equal(2)
+	assert_that(beats[1].fish).is_equal(carp)
+	## The lift is the rod coming up out of the water; nothing is in hand yet.
 	assert_that(beats[0].fish).is_null()
-	assert_that(beats[1].fish).is_null()
 	## And an empty line holds nothing at all.
 	assert_that(Fishing.reel_beats(Fishing.Outcome.new())[0].fish).is_null()
 
@@ -1047,6 +1061,19 @@ func _tick(ctx: InteractionContext, seconds: float) -> void:
 		school.tick(STEP, sense)
 		Fishing.tick(STEP, school)
 		elapsed += STEP
+
+
+## Press A and run the bobber until the line is in. Returns what came up.
+func _reel(ctx: InteractionContext) -> Fishing.Outcome:
+	assert_bool(Fishing.hook(ctx, _school(ctx))).is_true()
+	var ticks: int = 0
+	while Fishing.is_reeling() and ticks < 400:
+		_tick(ctx, STEP)
+		ticks += 1
+	assert_bool(Fishing.is_active()).is_false()
+	var out: Fishing.Outcome = Fishing.last_outcome()
+	assert_that(out).is_not_null()
+	return out
 
 
 func _drive_until(ctx: InteractionContext, done: Callable) -> void:

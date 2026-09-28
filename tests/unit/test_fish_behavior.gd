@@ -38,26 +38,24 @@ func test_shadow_reads_the_rod_from_the_sense() -> void:
 	var body := WaterBodies.Body.new()
 	var fish: FishData = FishCatalog.get_fish(&"large_char")   ## search_area 1 → 7° normal
 	var shadow := FishShadow.create(fish, body, Vector3.ZERO, RandomNumberGenerator.new())
-	shadow.action = FishShadow.Action.NEAR
-	shadow.yaw = 0.0
+	## Still water: `aGTT_flow_direction` holds a pond fish facing upstream of a zero flow,
+	## which is -Z (`atans_table(0, 0)` is +Z, turned half round).
+	assert_float(absf(shadow.yaw)).is_equal_approx(PI, 0.0001)
 	var s := FishShadow.Sense.new()
 	s.bobber_settled = true
 	s.accepts_nibble = true
-	shadow.yaw = 0.0
-	shadow.action = FishShadow.Action.WAIT
 	shadow._timer = 999.0
 	## Within the 40 GX (2 m) radius, off to one side by ~10° — outside the 7° normal
 	## cone (`search_area` 1), inside the 15° golden one.
 	var d: float = 1.5
-	s.bobber_position = Vector3(sin(deg_to_rad(10.0)) * d, 0.0, cos(deg_to_rad(10.0)) * d)
+	var off: float = PI + deg_to_rad(10.0)
+	s.bobber_position = Vector3(sin(off) * d, 0.0, cos(off) * d)
 
 	s.rod = FishSize.ROD_NORMAL
 	shadow.tick(1.0 / 30.0, s)
 	assert_int(shadow.action).is_equal(FishShadow.Action.WAIT)   ## fussy — misses it
 
-	shadow.action = FishShadow.Action.WAIT
 	shadow._timer = 999.0
-	shadow.yaw = 0.0
 	s.rod = FishSize.ROD_GOLDEN
 	shadow.tick(1.0 / 30.0, s)
 	assert_int(shadow.action).is_equal(FishShadow.Action.NEAR)   ## golden — spots it

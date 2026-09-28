@@ -21,15 +21,25 @@ const SPAWN_MIN := 3.0
 const SPAWN_MAX := CULL_DISTANCE * 0.8
 ## Gap between spawn attempts, so an empty pond is not retried every frame.
 const SPAWN_INTERVAL := 1.4
+## `mCoBG_ATTRIBUTE_WATER`, `_RIVER_NE` and `_SEA`: the water unit attributes.
+const ATTR_WATER := 12
+const ATTR_RIVER_NE := 21
+const ATTR_SEA := 24
 
 
 class Puff:
-	## `GYO_KAGE_ACTOR`: the fading shadow a scared fish leaves behind.
+	## `GYO_KAGE_ACTOR`: the fading shadow a scared fish leaves behind. `aGTT_kage_make_actor`
+	## spawns it with a zero rotation, so it always darts off along +Z at 2.0 GX a frame
+	## whichever way the fish was facing, easing off by 0.02 a tick.
 	var position: Vector3 = Vector3.ZERO
 	var yaw: float = 0.0
 	var size: FishData.SizeClass = FishData.SizeClass.S
 	var age: float = 0.0
+	## GX per 30 fps frame, like `FishShadow.speed`.
 	var speed: float = 0.0
+	var body: WaterBodies.Body = null
+	## `wall_flag`: the puff already turned off one bank.
+	var wall_turned: bool = false
 
 	func alpha() -> float:
 		return FishSize.puff_alpha(age)
@@ -50,6 +60,7 @@ var _layout: WorldData = null
 var _spawn_timer: float = 0.0
 var _tool_swing: float = 0.0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
+var _steps := FrameStepper.new()
 
 ## How long a swung tool keeps scaring fish. Long enough to span the swing animation.
 const TOOL_SWING_SECONDS := 0.2
@@ -101,12 +112,33 @@ func notify_tool_swing() -> void:
 	_tool_swing = TOOL_SWING_SECONDS
 
 
+## Advance every shadow and puff by whole mover ticks. Each tick runs the shadows in turn
+## the way `aGYO_actor_move` walks its controllers, so `bite_check` sees any shadow that
+## engaged the bobber earlier in the same tick.
 func tick(delta: float, sense: FishShadow.Sense) -> void:
 	if _tool_swing > 0.0:
 		sense.player_swung_tool = true
 	_tool_swing = maxf(_tool_swing - delta, 0.0)
 	for shadow: FishShadow in shadows:
-		shadow.tick(delta, sense)
+		shadow.nibbled = false
+		shadow.bit = false
+	var splashed: bool = sense.bobber_splashed
+	_steps.add(delta)
+	while _steps.next():
+		for shadow: FishShadow in shadows:
+			if shadow.finished:
+				continue
+			sense.bobber_taken = _bobber_taken()
+			var nibbled: bool = shadow.nibbled
+			var bit: bool = shadow.bit
+			shadow.step(sense)
+			## A batch of ticks must not lose a one-tick event to the tick after it.
+			shadow.nibbled = shadow.nibbled or nibbled
+			shadow.bit = shadow.bit or bit
+		## `hit_water_flag` is cleared by the bobber's next tick.
+		sense.bobber_splashed = false
+		_tick_puffs()
+	sense.bobber_splashed = splashed
 	var kept: Array[FishShadow] = []
 	for shadow: FishShadow in shadows:
 		if shadow.puffed:
@@ -115,8 +147,53 @@ func tick(delta: float, sense: FishShadow.Sense) -> void:
 		if not shadow.finished:
 			kept.append(shadow)
 	shadows = kept
-	_tick_puffs(delta)
 	_tick_spawn(delta, sense)
+
+
+## `bite_check`: any shadow closing on or holding the bobber claims it for all of them.
+func _bobber_taken() -> bool:
+	for shadow: FishShadow in shadows:
+		if not shadow.finished and shadow.is_engaged():
+			return true
+	return false
+
+
+## `mCoBG_GetWaterFlow` at a point, as a planar (x, z) vector. Unit attributes when the
+## field has them; otherwise the body's own axis, and still water for a pond.
+func water_flow(pos: Vector3) -> Vector2:
+	if _layout != null and _grid != null:
+		var attr: int = FieldCollision.unit_attr_at(_layout, _grid, pos)
+		if attr >= 0:
+			return flow_for_attr(attr)
+	if _grid != null:
+		var body: WaterBodies.Body = WaterBodies.body_at(bodies, _grid.world_to_cell(pos))
+		if body != null and body.flows:
+			return Vector2(sin(body.flow_yaw), cos(body.flow_yaw)) * 0.5
+	return Vector2.ZERO
+
+
+## `mCoBG_GetWaterFlow`'s `flow_data[]`, indexed from `mCoBG_ATTRIBUTE_WATER` (12). The
+## sea has its own fixed flow; anything that is not water has none.
+static func flow_for_attr(attr: int) -> Vector2:
+	if attr == ATTR_SEA:
+		return Vector2(0.0, -1.0)
+	if attr < ATTR_WATER or attr > ATTR_RIVER_NE:
+		return Vector2.ZERO
+	var d: float = 0.35355338
+	var table: Array[Vector2] = [
+		Vector2(0.0, 0.0),  ## still water
+		Vector2(0.0, 0.0),  ## waterfall: straight down, nothing across
+		Vector2(0.0, -0.5), Vector2(-d, -d), Vector2(-0.5, 0.0), Vector2(-d, d),
+		Vector2(0.0, 0.5), Vector2(d, d), Vector2(0.5, 0.0), Vector2(d, -d),
+	]
+	return table[attr - ATTR_WATER]
+
+
+## Whether a point is on water, for the bobber's drift. True when there is no grid to ask.
+func is_water(pos: Vector3) -> bool:
+	if _grid == null:
+		return true
+	return _grid.terrain_at(_grid.world_to_cell(pos)) == WorldGrid.Terrain.WATER
 
 
 ## Spawn one shadow immediately. Returns it so tests can drive a known fish.
@@ -127,6 +204,9 @@ func spawn(fish: FishData, body: WaterBodies.Body, at: Vector3) -> FishShadow:
 	shadow.position.y = surface_at(at) - FishSize.depth()
 	if _grid != null:
 		shadow.cell_lookup = _grid.world_to_cell
+		shadow.flow_lookup = water_flow
+		## `aGTT_actor_init` read the flow before we could hand it the lookup.
+		shadow._set_angle(shadow._upstream_yaw())
 	shadows.append(shadow)
 	return shadow
 
@@ -136,26 +216,38 @@ func clear() -> void:
 	puffs.clear()
 
 
-func _tick_puffs(delta: float) -> void:
+## One tick of every `GYO_KAGE` puff: `Actor_position_moveF`, the one wall turn, and
+## `chase_f(&speed, 0.0f, 0.02f)` while `delete_timer` runs down.
+func _tick_puffs() -> void:
 	var kept: Array[Puff] = []
 	for puff: Puff in puffs:
-		puff.age += delta
-		## `chase_f(&speed, 0.0f, 0.02f)`: the puff coasts to a stop as it fades.
-		puff.speed = move_toward(
-			puff.speed, 0.0, FishSize.gx_per_frame_to_mps(FishSize.ESCAPE_DECAY_GX) * DecompTime.TICK_HZ * delta
-		)
-		puff.position += Vector3(sin(puff.yaw), 0.0, cos(puff.yaw)) * puff.speed * delta
-		if not puff.done():
-			kept.append(puff)
+		puff.age += DecompTime.TICK_SEC
+		var step_gx: float = puff.speed * FishShadow.MOVE_PER_TICK
+		var next: Vector3 = puff.position + Vector3(sin(puff.yaw), 0.0, cos(puff.yaw)) * step_gx * FishSize.GX
+		var blocked: bool = puff.body != null and _grid != null and not puff.body.contains(_grid.world_to_cell(next))
+		if not blocked:
+			puff.position = next
+		if puff.done():
+			continue
+		kept.append(puff)
+		if blocked and not puff.wall_turned:
+			## `aGYO_KAGE_Wall_Check`: a quarter turn off the bank, once, and no slowing that tick.
+			puff.wall_turned = true
+			var left: float = puff.yaw + PI * 0.5
+			var probe: Vector3 = puff.position + Vector3(sin(left), 0.0, cos(left)) * FishSize.GX * 4.0
+			puff.yaw = wrapf(left if puff.body.contains(_grid.world_to_cell(probe)) else puff.yaw - PI * 0.5, -PI, PI)
+			continue
+		puff.speed = move_toward(puff.speed, 0.0, FishSize.ESCAPE_DECAY_GX)
 	puffs = kept
 
 
 func _add_puff(shadow: FishShadow) -> void:
 	var puff := Puff.new()
 	puff.position = shadow.position
-	puff.yaw = shadow.yaw
+	puff.yaw = 0.0
 	puff.size = shadow.size
-	puff.speed = FishSize.escape_speed()
+	puff.speed = FishSize.ESCAPE_SPEED_GX
+	puff.body = shadow.body
 	puffs.append(puff)
 
 

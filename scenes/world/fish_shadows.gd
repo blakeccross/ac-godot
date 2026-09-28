@@ -24,6 +24,8 @@ var _school: FishSchool = null
 var _material: ShaderMaterial = null
 var _mesh: QuadMesh = null
 var _shadow_nodes: Array[MeshInstance3D] = []
+## One mover tick at a time, so the bobber and the shadows take turns the way the actors do.
+var _steps := FrameStepper.new(DecompTime.TICK_HZ, 30.0)
 var _puff_nodes: Array[MeshInstance3D] = []
 
 
@@ -58,9 +60,11 @@ func _process(delta: float) -> void:
 		_bind_school()
 		if _school == null:
 			return
-	var sense: FishShadow.Sense = _make_sense()
-	_school.tick(delta, sense)
-	Fishing.tick(delta, _school)
+	_steps.add(delta)
+	while _steps.next():
+		var sense: FishShadow.Sense = _make_sense()
+		_school.tick(DecompTime.TICK_SEC, sense)
+		Fishing.tick(DecompTime.TICK_SEC, _school)
 	_sync()
 
 

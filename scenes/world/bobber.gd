@@ -1,8 +1,9 @@
 extends Node3D
 
 ## Uki (`ac_uki.h`) presentation: a parabola out to the cast point, a slow float bob, a dip
-## on every nibble, and held under while a fish has it. `Fishing` owns all the timing,
-## including when this node is freed — this script only reads it.
+## on every nibble, and held under while a fish has it. `Fishing` owns all the timing and
+## the bobber's position once it lands (`aUKI_movement`'s drift), including when this node
+## is freed — this script only reads it.
 
 const VISUAL_ID := &"tol_uki_1"
 
@@ -50,10 +51,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if _base == Vector3.INF:
-		_base = position
 	if not Fishing.is_active():
 		return
+	## The landing spot while it flies, then wherever the current has taken it.
+	_base = Fishing.anchor()
 	_phase += delta
 	var offset: Vector3 = Vector3.ZERO
 	var progress: float = Fishing.cast_progress()
@@ -70,7 +71,10 @@ func _process(delta: float) -> void:
 		var rate: float = VIB_RATE if held else BOB_RATE
 		offset.y = sin(_phase * rate) * amplitude
 		offset.y -= dip * (HELD_DEPTH if held else DIP_DEPTH)
-	position = _base + offset
+	if is_inside_tree():
+		global_position = _base + offset
+	else:
+		position = _base + offset
 	_tilt(delta)
 
 

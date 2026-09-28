@@ -113,8 +113,7 @@ static func _apply_rod(tool: ToolData, action: Interaction, ctx: InteractionCont
 	if Fishing.is_active():
 		if action.id != Interaction.HOOK:
 			return false
-		Fishing.hook(ctx, Fishing.school_of(ctx))
-		return true
+		return Fishing.hook(ctx, Fishing.school_of(ctx))
 	if action.id != tool.field_verb or not _field_ok(tool, ctx):
 		return false
 	if not Fishing.cast(ctx, cast_point(ctx)):

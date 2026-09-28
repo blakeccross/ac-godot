@@ -1723,11 +1723,39 @@ func _finish_action(tail: float) -> void:
 ## resolve on the button frame or the bite window is spent animating. `Fishing` picks the
 ## beats from what came up on the line.
 func _play_reel() -> void:
+	await _wait_for_line()
 	for beat: Fishing.ReelBeat in Fishing.take_reel_beats():
 		if beat.face_camera or beat.hold > 0.0:
 			await _play_show(beat)
 		else:
 			await _play_clip(beat.player_anim, beat.tool_anim)
+
+
+## Between A and the line coming up. `relax_rod` holds its pose until the bobber reports
+## `aUKI_STATUS_VIB`, and from then `vib_rod` loops `TURI_HIKI1` against the fish for as long
+## as the fight lasts (`FIGHT_FRAMES`); an empty line just waits out the bobber's 12 ticks.
+func _wait_for_line() -> void:
+	## The longest fight is 156 ticks; anything past this means nothing is ticking the line.
+	var budget: float = 5.0
+	var pulling: bool = false
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	while Fishing.is_reeling() and budget > 0.0:
+		if not pulling and Fishing.state() == Fishing.State.BITE:
+			pulling = true
+			var clip := _resolve_clip(String(Fishing.REEL_PULL))
+			if _anim != null and not clip.is_empty():
+				var res: Animation = _anim.get_animation(clip)
+				if res != null:
+					res.loop_mode = Animation.LOOP_LINEAR
+				_anim.speed_scale = 1.0
+				_anim.play(clip, 0.08)
+			HeldTool.play(skeleton, Fishing.ROD_PULL, true)
+		await get_tree().process_frame
+		budget -= get_process_delta_time()
+	if Fishing.is_reeling():
+		Fishing.cancel(Fishing.school_of(_make_context()))
+	if pulling:
+		HeldTool.play(skeleton, _tool_hold_anim, true)
 
 
 ## `m_player_main_notice_rod`: hold the catch up and turn square-on to the camera, then put
