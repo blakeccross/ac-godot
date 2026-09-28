@@ -5,8 +5,8 @@ extends RefCounted
 ## `aGYO_MAX_GYOEI` controllers and tracks `aGYO_EXIST_MAX` slots. A `RefCounted` owned by
 ## the world scene alongside `WorldGrid`, not an autoload.
 ##
-## Spawning follows `aSOG_gyoei_set`: one attempt each time the player enters an acre,
-## skipped if that acre already has a live shadow. `FishSpawnScheduler` picks the species
+## Spawning follows `aSOG_gyoei_set`: one attempt each time the player wades into an acre
+## (never the acre the field loads into), skipped if that acre already has a live shadow. `FishSpawnScheduler` picks the species
 ## from the acre's block kind, half-month term and hour, and a unit inside the acre for it.
 ## Shadows are dropped once they are more than 600 GX away in another acre
 ## (`aGYO_cull_check`), which is what lets an acre restock when the player comes back.
@@ -166,8 +166,12 @@ func _tick_spawn(sense: FishShadow.Sense) -> void:
 	var acre: Vector2i = acre_of(sense.player_position)
 	if acre == _spawned_acre:
 		return
+	var crossed: bool = _spawned_acre != NO_ACRE
 	_spawned_acre = acre
-	try_spawn_in_acre(acre)
+	## `aSetMgr_move_check_set` only fires on `mFI_WADE_START`: the acre the field loads
+	## into gets nothing until the player wades out of it and back.
+	if crossed:
+		try_spawn_in_acre(acre)
 
 
 ## `aSOG_gyoei_set` for one acre. Returns the new shadow, or null.
