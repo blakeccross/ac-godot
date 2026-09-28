@@ -12,6 +12,7 @@ texture_set = &"brd_9"
 personality = ExtResource("2")
 starter = true
 npc_index = 35
+catchphrase_string = 151
 wall_index = 54
 floor_index = 6
 house_type = 0

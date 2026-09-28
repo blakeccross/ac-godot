@@ -94,6 +94,8 @@ var _talk_look: Vector3 = Vector3.ZERO
 var _face: NpcFace = NpcFace.new()
 var _head_look: NpcHeadLook = NpcHeadLook.new()
 var _face_mood: int = -1
+## Quest manager for the conversation in progress (`VillagerTalkManager`).
+var _talk_manager: VillagerTalkManager
 var _visual: Node3D
 ## Cloth-surface overrides from before an Able design was painted on: `[mesh, surface, material]`.
 var _own_cloth: Array = []
@@ -274,7 +276,8 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		var player: Node3D = ctx.actor as Node3D if ctx != null else null
 		if player != null:
 			TalkCamera.begin(player, self, get_tree())
-		ui.play(VillagerTalk.conversation(data, state), talk_ctx, state)
+		_talk_manager = VillagerTalk.manager(data, state, talk_ctx)
+		ui.play(VillagerTalk.conversation(data, state), talk_ctx, state, Callable(), _talk_manager)
 	else:
 		_face_towards(_talk_look)
 		var line: String = VillagerTalk.greeting(data, state)
@@ -347,6 +350,9 @@ func _play_first_job_line(conv_id: StringName, who: String, player: Node3D) -> v
 
 
 func _physics_process(delta: float) -> void:
+	## `aNPC_check_feel_tim`.
+	if state != null:
+		state.tick_feel(roundi(delta * DecompTime.TICK_HZ))
 	if indoor_resident:
 		_tick_indoor(delta)
 		return
@@ -803,6 +809,10 @@ func _unbind_talk() -> void:
 func _on_talk_closed() -> void:
 	TalkCamera.end(get_tree())
 	ai.end_talk()
+	## `mNpc_TalkEndMove` (from `aQMgr_move_talk` when the talk demo ends).
+	if _talk_manager != null and Game != null and data != null:
+		Game.npc_talk_info.talk_end(_talk_manager.slot, _talk_manager.looks)
+	_talk_manager = null
 
 
 func _refresh_talk_look() -> void:

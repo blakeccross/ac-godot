@@ -12,6 +12,7 @@ texture_set = &"cow_4"
 personality = ExtResource("2")
 starter = true
 npc_index = 59
+catchphrase_string = 134
 wall_index = 24
 floor_index = 13
 house_type = 1

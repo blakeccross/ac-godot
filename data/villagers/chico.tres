@@ -12,6 +12,7 @@ texture_set = &"mus_4"
 personality = ExtResource("2")
 starter = true
 npc_index = 128
+catchphrase_string = 110
 wall_index = 45
 floor_index = 34
 house_type = 4

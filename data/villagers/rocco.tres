@@ -12,6 +12,7 @@ texture_set = &"hip_6"
 personality = ExtResource("2")
 starter = true
 npc_index = 199
+catchphrase_string = 36
 wall_index = 3
 floor_index = 3
 house_type = 1

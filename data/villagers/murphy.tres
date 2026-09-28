@@ -12,6 +12,7 @@ texture_set = &"cbr_2"
 personality = ExtResource("2")
 starter = true
 npc_index = 48
+catchphrase_string = 587
 wall_index = 3
 floor_index = 36
 house_type = 4

@@ -13,6 +13,7 @@ catchphrase = "ah-rooooo"
 personality = ExtResource("2")
 starter = true
 npc_index = 185
+catchphrase_string = 141
 wall_index = 3
 floor_index = 41
 house_type = 1

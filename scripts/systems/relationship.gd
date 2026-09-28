@@ -6,14 +6,16 @@ extends RefCounted
 signal milestone_reached(milestone: StringName)
 
 const FRIENDSHIP_MIN := 0
-## Original clamp is s8 0–127 (`mNpc_AddFriendship`). We keep the existing 0–255 range.
-const FRIENDSHIP_MAX := 255
+## `Anmmem_c.friendship` is an s8 clamped to 0–127 (`mNpc_AddFriendship`).
+const FRIENDSHIP_MAX := 127
 ## `mNpc_GetAnimalMemoryBestFriend` rejects memories below 80.
 const BEST_FRIEND_AT := 80
 ## Original friendship cap.
 const KINDRED_AT := 127
-const TALK_FIRST := 3
-const TALK_REPEAT := 1
+## `mNpc_SetAnimalMemory`: the memory made on first meeting starts at 1. Talking by itself
+## adds nothing after that — friendship moves through the talk (`VillagerTalkManager`).
+const TALK_FIRST := 1
+const TALK_REPEAT := 0
 ## Mail with a present is +3 (`mNpc` receive letter).
 const GIFT_DELTA := 3
 const HISTORY := 12
@@ -49,12 +51,13 @@ func record_talk(day_key: String) -> int:
 		kind = TALK_KIND_FIRST
 	elif first_today:
 		kind = TALK_KIND_AGAIN
-	var delta: int = TALK_FIRST if first_today else TALK_REPEAT
 	talk_count += 1
 	last_spoke_day = day_key
 	_push_talk(day_key, kind)
-	add_friendship(delta)
-	return delta
+	if first_ever:
+		set_friendship(TALK_FIRST)
+		return TALK_FIRST
+	return TALK_REPEAT
 
 
 func record_gift(item_id: StringName, day_key: String) -> int:

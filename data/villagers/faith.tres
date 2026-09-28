@@ -13,6 +13,7 @@ personality = ExtResource("2")
 islander = true
 starter = false
 npc_index = 228
+catchphrase_string = 1825
 wall_index = 61
 floor_index = 61
 house_type = 3

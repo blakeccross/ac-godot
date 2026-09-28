@@ -12,6 +12,7 @@ texture_set = &"ant_5"
 personality = ExtResource("2")
 starter = false
 npc_index = 17
+catchphrase_string = 653
 wall_index = 31
 floor_index = 36
 house_type = 2

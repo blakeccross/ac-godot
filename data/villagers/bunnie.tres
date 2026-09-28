@@ -13,6 +13,7 @@ catchphrase = "teehee"
 personality = ExtResource("2")
 starter = true
 npc_index = 161
+catchphrase_string = 75
 wall_index = 41
 floor_index = 51
 house_type = 1

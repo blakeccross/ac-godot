@@ -10,10 +10,16 @@ const FRIENDSHIP_MIN := Relationship.FRIENDSHIP_MIN
 const FRIENDSHIP_MAX := Relationship.FRIENDSHIP_MAX
 const TALK_FIRST := Relationship.TALK_FIRST
 const TALK_REPEAT := Relationship.TALK_REPEAT
+## `mNpc_FEEL_ALL_NUM`; orders at or above it are ignored.
+const FEEL_ALL_NUM := 9
+## `FRAMES_PER_MINUTE` in decomp logic ticks.
+const FEEL_TICKS_PER_MINUTE := 3600
 
 var villager_id: StringName = &""
 var relationship: Relationship = Relationship.new()
 var mood: Mood = Mood.NORMAL
+## Ticks left on a message-set feel (`condition_info.feel_tim`, not saved). 0 = untimed.
+var feel_ticks: int = 0
 var patience: Patience = Patience.NORMAL
 ## `Animal_c.is_home` — indoors (hidden outdoors / visible in NPC room).
 var is_home: bool = false
@@ -26,6 +32,8 @@ var insect_complete_talk: bool = false
 ## Spread by `NeedleworkTrend`.
 var cloth_design: int = -1
 var umbrella_design: int = -1
+## `Animal_c.catchphrase` once the player changed it (`aQMgr_order_change_gobi`); empty = default.
+var catchphrase: String = ""
 
 var friendship: int:
 	get:
@@ -45,10 +53,44 @@ func talked_on(day_key: String) -> bool:
 
 
 func record_talk(day_key: String) -> int:
-	var delta: int = _bond().record_talk(day_key)
-	if mood == Mood.NORMAL:
-		mood = Mood.HAPPY
-	return delta
+	return _bond().record_talk(day_key)
+
+
+## `aNPC_set_feel_info`: a message sets the feel (`mNpc_FEEL_*`) for `minutes`; the same
+## feel again adds time up to ten minutes; normal clears the timer. `mNpc_FEEL_PITFALL`
+## becomes normal and the annoyed feels (6–8, `mNpc_FEEL_UZAI_*`) read as angry here.
+func set_feel(feel: int, minutes: int) -> void:
+	if feel <= 0 or feel >= FEEL_ALL_NUM:
+		if feel == 0:
+			mood = Mood.NORMAL
+			feel_ticks = 0
+		return
+	var next: Mood = Mood.ANGRY
+	match feel:
+		1:
+			next = Mood.HAPPY
+		2:
+			next = Mood.ANGRY
+		3:
+			next = Mood.SAD
+		4:
+			next = Mood.SLEEPY
+		5:
+			next = Mood.NORMAL
+	if next != mood:
+		mood = next
+		feel_ticks = 0 if next == Mood.NORMAL else minutes * FEEL_TICKS_PER_MINUTE
+	else:
+		feel_ticks = mini(feel_ticks + minutes * FEEL_TICKS_PER_MINUTE, 10 * FEEL_TICKS_PER_MINUTE)
+
+
+## `aNPC_check_feel_tim`: a timed feel runs out back to normal.
+func tick_feel(ticks: int) -> void:
+	if feel_ticks <= 0:
+		return
+	feel_ticks = maxi(feel_ticks - ticks, 0)
+	if feel_ticks == 0:
+		mood = Mood.NORMAL
 
 
 func add_friendship(amount: int) -> void:
@@ -68,6 +110,7 @@ func to_save() -> Dictionary:
 		"insect_complete_talk": insect_complete_talk,
 		"cloth_design": cloth_design,
 		"umbrella_design": umbrella_design,
+		"catchphrase": catchphrase,
 		"relationship": _bond().to_save(),
 	}
 
@@ -82,6 +125,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	insect_complete_talk = bool(data.get("insect_complete_talk", false))
 	cloth_design = clampi(int(data.get("cloth_design", -1)), -1, 3)
 	umbrella_design = clampi(int(data.get("umbrella_design", -1)), -1, 3)
+	catchphrase = str(data.get("catchphrase", ""))
 	var nested: Variant = data.get("relationship", {})
 	if typeof(nested) == TYPE_DICTIONARY and not (nested as Dictionary).is_empty():
 		_bond().apply_snapshot(nested as Dictionary)

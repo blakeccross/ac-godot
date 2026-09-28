@@ -23,11 +23,20 @@ var last_choice_index: int = -1
 var events_this_step: Array[Dictionary] = []
 ## Optional `(from_node, to_node) -> bool` gate; return false to block Continue.
 var advance_gate: Callable
+## Villager quest manager (`VillagerTalkManager`): picks the next message when one ends,
+## answers its own menus and receives the messages' quest demo orders.
+var talk_manager: VillagerTalkManager
 
 var _state: VillagerState
 var _prompt_next: StringName = &""
 var _stage_wait_key: String = ""
 var _stage_wait_next: StringName = &""
+## Menu the talk manager asked for, shown when the current message ends.
+var _pending_choices: Array[String] = []
+## `mDemo_ORDER_NPC0` slot 8 arrives before slot 2 on the same page.
+var _feel_minutes: int = 0
+var _pending_feel: int = 0
+var _manager_choice: bool = false
 
 
 func start(
@@ -44,6 +53,8 @@ func start(
 	_stage_wait_next = &""
 	_prompt_next = &""
 	advance_gate = Callable()
+	_pending_choices.clear()
+	_manager_choice = false
 	last_choice_index = -1
 	line = ""
 	choices.clear()
@@ -61,7 +72,7 @@ func advance() -> void:
 	var rec: Dictionary = _current()
 	var next_id := StringName(str(rec.get("next", "")))
 	if next_id == &"":
-		_finish()
+		_message_end()
 		return
 	if not _advance_allowed(node_id, next_id):
 		if not waiting_stage:
@@ -120,6 +131,12 @@ func choose(index: int) -> void:
 	if not waiting_choice or index < 0 or index >= choices.size():
 		return
 	last_choice_index = index
+	if _manager_choice:
+		_manager_choice = false
+		waiting_choice = false
+		choices.clear()
+		_run_manager_step(talk_manager.choose(index))
+		return
 	var opt: Dictionary = choices[index]
 	_fire_list(opt.get("events", []))
 	waiting_choice = false
@@ -329,6 +346,12 @@ func _fire_list(raw: Variant) -> void:
 		events_this_step.append(event)
 		_apply_event(event)
 		event_fired.emit(event)
+	if _pending_feel != 0 and _state != null:
+		_state.set_feel(_pending_feel, _feel_minutes)
+		if context != null:
+			context.mood = _state.mood
+	_pending_feel = 0
+	_feel_minutes = 0
 
 
 func _apply_event(event: Dictionary) -> void:
@@ -409,10 +432,30 @@ func _apply_event(event: Dictionary) -> void:
 			var send_msg: String = PostUse.send_mail_at(int(event.get("index", -1)))
 			if send_msg != "":
 				Game.post_notice(send_msg)
+		"demo_order":
+			_demo_order(event)
 		"save_mail":
 			var save_msg: String = PostUse.save_mail_at(int(event.get("index", -1)))
 			if save_msg != "":
 				Game.post_notice(save_msg)
+
+
+## `mDemo_ORDER_QUEST` → the quest manager; `mDemo_ORDER_NPC0` slot 2 (feel) with slot 8
+## (minutes) → the villager's mood (`aNPC_check_feel_demoCode`).
+func _demo_order(event: Dictionary) -> void:
+	var target := str(event.get("target", ""))
+	var order_slot: int = int(event.get("slot", -1))
+	var value: int = int(event.get("value", 0))
+	if target == "quest" and talk_manager != null and value != 0:
+		talk_manager.order(order_slot, value)
+		return
+	if target != "npc0" or _state == null:
+		return
+	match order_slot:
+		8:
+			_feel_minutes = value
+		2:
+			_pending_feel = value
 
 
 ## `{op:"donate_commit","item":"<id>"}` — hand the item to the museum and write the
@@ -470,6 +513,45 @@ func _current() -> Dictionary:
 	if conversation == null:
 		return {}
 	return conversation.node(node_id)
+
+
+## A message ran out of pages: show the manager's pending menu, or let it pick the next
+## message (`mMsg_Set_continue_msg_num`), or end.
+func _message_end() -> void:
+	if not _pending_choices.is_empty():
+		var labels: Array[String] = _pending_choices.duplicate()
+		_pending_choices.clear()
+		choices.clear()
+		for label: String in labels:
+			choices.append({"text": context.substitute(label) if context != null else label})
+		_manager_choice = true
+		waiting_choice = true
+		choices_shown.emit(choices)
+		return
+	if talk_manager != null:
+		_run_manager_step(talk_manager.next_step())
+		return
+	_finish()
+
+
+func _run_manager_step(step: Dictionary) -> void:
+	if step.is_empty() or int(step.get("msg", -1)) < 0:
+		_finish()
+		return
+	var raw: Variant = step.get("choices", [])
+	_pending_choices.clear()
+	if typeof(raw) == TYPE_ARRAY:
+		for label: Variant in raw as Array:
+			_pending_choices.append(str(label))
+	var target := StringName("msg_%d" % int(step["msg"]))
+	if DialogueCatalog.conversation(target) == null:
+		## Bank missing: still offer the menu so the flow can go on.
+		if not _pending_choices.is_empty():
+			_message_end()
+			return
+		_finish()
+		return
+	_goto(target)
 
 
 func _finish() -> void:

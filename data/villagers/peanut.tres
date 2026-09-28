@@ -12,6 +12,7 @@ texture_set = &"squ_3"
 personality = ExtResource("2")
 starter = true
 npc_index = 176
+catchphrase_string = 123
 wall_index = 12
 floor_index = 33
 house_type = 3

@@ -492,6 +492,7 @@ func _begin_wade(pos_gx: Vector3, dir: AcreWade.Dir) -> void:
 	var end: Vector3 = TownSpace.gx_to_world(AcreWade.end_pos(pos_gx, dir))
 	end.y = global_position.y
 	_wade = {"start": global_position, "end": end, "t": 0.0, "dir": dir}
+	Game.notify_wade_start()
 	## `Player_actor_Movement_Base_Stop` + `mPlayer_ANIM_WAIT1`.
 	_motor.planar_speed = 0.0
 	velocity = Vector3.ZERO

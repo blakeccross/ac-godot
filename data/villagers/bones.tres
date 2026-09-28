@@ -12,6 +12,7 @@ texture_set = &"dog_9"
 personality = ExtResource("2")
 starter = true
 npc_index = 196
+catchphrase_string = 107
 wall_index = 61
 floor_index = 19
 house_type = 2

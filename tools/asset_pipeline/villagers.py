@@ -107,6 +107,7 @@ def parse_roster(decomp: Path) -> list[dict[str, Any]]:
     prefixes = _parse_draw_prefixes(draw)
     sets = parse_texture_sets(draw)
     houses = _parse_house_list(decomp / "src" / "data" / "npc" / "house_list.c")
+    defaults = _parse_default_list(decomp / "src" / "data" / "npc" / "default_list.c")
     if len(names) != NPC_NUM:
         raise ValueError(f"expected {NPC_NUM} NPCs, got {len(names)}")
     roster: list[dict[str, Any]] = []
@@ -130,6 +131,7 @@ def parse_roster(decomp: Path) -> list[dict[str, Any]]:
                 "starter": grow_kind == "starter",
                 "islander": grow_kind == "islander",
                 "catchphrase": CATCHPHRASES.get(vid, ""),
+                "catchphrase_string": defaults[i]["catchphrase"] if i < len(defaults) else -1,
                 "wall_index": int(house.get("wall", 0)),
                 "floor_index": int(house.get("floor", 0)),
                 "house_type": int(house.get("type", 0)),
@@ -189,6 +191,15 @@ def _parse_grow(path: Path) -> list[str]:
     if len(out) < NPC_NUM:
         raise ValueError(f"grow list too short: {len(out)}")
     return out[:NPC_NUM]
+
+
+def _parse_default_list(path: Path) -> list[dict[str, int]]:
+    """`npc_def_list`: default shirt, catchphrase `string_data` index, umbrella."""
+    if not path.is_file():
+        return []
+    text = path.read_text(encoding="utf-8", errors="replace")
+    rows = re.findall(r"\{\s*([A-Z_0-9]+),\s*(0x[0-9a-fA-F]+|\d+),\s*(-?0x[0-9a-fA-F]+|-?\d+)\s*\}", text)
+    return [{"catchphrase": int(r[1], 0), "umbrella": int(r[2], 0)} for r in rows]
 
 
 def _parse_house_list(path: Path) -> list[dict[str, int]]:
@@ -308,6 +319,7 @@ def _write_tres(path: Path, entry: dict[str, Any]) -> None:
         lines.append("islander = true")
     lines.append(f"starter = {'true' if entry['starter'] else 'false'}")
     lines.append(f"npc_index = {int(entry.get('npc_idx', -1))}")
+    lines.append(f"catchphrase_string = {int(entry.get('catchphrase_string', -1))}")
     lines.append(f"wall_index = {int(entry.get('wall_index', 0))}")
     lines.append(f"floor_index = {int(entry.get('floor_index', 0))}")
     lines.append(f"house_type = {int(entry.get('house_type', 0))}")

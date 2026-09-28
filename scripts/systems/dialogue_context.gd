@@ -39,6 +39,8 @@ var vars: Dictionary = {}
 var items: Dictionary = {}
 var rng: RandomNumberGenerator
 var item0: String = ""
+## `mMsg_ITEM_STR1`…`4` (trades, set-string orders). `{item0}` stays `item0`.
+var item_strs: PackedStringArray = PackedStringArray(["", "", "", ""])
 var island: String = ""
 ## Delivery / letter target for first-job (and similar) lines.
 var recipient: String = ""
@@ -91,7 +93,7 @@ static func from_game(villager: VillagerData = null, state: VillagerState = null
 		ctx.held_item = Game.inventory.equipment_id
 	if villager != null:
 		ctx.speaker_name = villager.display_name
-		ctx.catchphrase = villager.catchphrase
+		ctx.catchphrase = VillagerTalk.catchphrase_of(villager, state)
 		ctx.species = String(villager.species)
 		ctx.islander = villager.islander
 		if villager.personality != null:
@@ -199,6 +201,14 @@ func roll(percent: int) -> bool:
 	return rng.randi_range(0, 99) < percent
 
 
+## `mMsg_SET_ITEM_STR(n, …)`.
+func set_item_str(n: int, text: String) -> void:
+	if n == 0:
+		item0 = text
+	elif n >= 1 and n <= 4:
+		item_strs[n - 1] = text
+
+
 func substitute(text: String) -> String:
 	var out: String = MessageWindowChrome._normalize_punct(text)
 	var used: PackedStringArray = slot_keys_in(out)
@@ -217,6 +227,8 @@ func substitute(text: String) -> String:
 	out = out.replace("{weekday}", ClockService.WEEKDAYS[weekday] if weekday >= 0 and weekday < 7 else "")
 	out = out.replace("{ampm}", "AM" if hour < 12 else "PM")
 	out = out.replace("{item0}", item0)
+	for i: int in 4:
+		out = out.replace("{item%d}" % (i + 1), item_strs[i] if i < item_strs.size() else "")
 	out = out.replace("{item}", item0)
 	out = out.replace("{recipient}", recipient)
 	out = out.replace("{mail}", mail_text)

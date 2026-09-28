@@ -139,7 +139,8 @@ func play(
 	data: DialogueData,
 	ctx: DialogueContext,
 	state: VillagerState = null,
-	advance_gate: Callable = Callable()
+	advance_gate: Callable = Callable(),
+	talk_manager: VillagerTalkManager = null
 ) -> void:
 	if data == null:
 		return
@@ -149,6 +150,7 @@ func play(
 		_disconnect_runner()
 	_runner = DialogueRunner.new()
 	_runner.advance_gate = advance_gate
+	_runner.talk_manager = talk_manager
 	_runner.line_shown.connect(_on_line)
 	_runner.choices_shown.connect(_on_choices)
 	_runner.finished.connect(_on_finished)

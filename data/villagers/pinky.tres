@@ -12,6 +12,7 @@ texture_set = &"bea_10"
 personality = ExtResource("2")
 starter = true
 npc_index = 26
+catchphrase_string = 668
 wall_index = 45
 floor_index = 32
 house_type = 2

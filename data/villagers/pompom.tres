@@ -12,6 +12,7 @@ texture_set = &"duk_2"
 personality = ExtResource("2")
 starter = true
 npc_index = 71
+catchphrase_string = 139
 wall_index = 33
 floor_index = 62
 house_type = 0

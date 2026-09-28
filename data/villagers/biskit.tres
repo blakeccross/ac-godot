@@ -13,6 +13,7 @@ catchphrase = "dawg"
 personality = ExtResource("2")
 starter = true
 npc_index = 63
+catchphrase_string = 136
 wall_index = 41
 floor_index = 24
 house_type = 0

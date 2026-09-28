@@ -296,14 +296,14 @@ data tables before a category is called done.
 - [x] **Moving in**: new villager on a free SIGN plot, introduces self on first meeting (`mNpc_Grow`, `MSG_11573`) — `town_residents.gd`. GCN has no moving boxes
 - [~] **Moving out**: full town + 10 days → fewest-memories villager leaves with a goodbye letter (`mNpc_ForceRemove`) — `town_residents.gd`. The "thinking of moving" talk (`remove_animal_idx`) is picked but its dialogue isn't wired (only matters for card transfer)
 - [x] Move-in / move-out cadence tied to friendship, time played, town population (`mNpc_CheckGrow`, `mNpc_ForceRemove`)
-- [ ] **Friendship** per resident: points, best-friend at 80, decays over neglect (`Anmmem_c`, `mNpc_AddFriendship`) — `relationship.gd`, `relationship_book.gd`
+- [~] **Friendship** per resident: s8 0–127 starting at 1, best-friend at 80, moved by "Let's talk!" and message orders (`Anmmem_c`, `mNpc_AddFriendship`) — `relationship.gd`, `villager_talk_manager.gd`. Letters and quests still to come
 - [ ] Villager **memory**: last time you spoke, letters exchanged, favours done, gifts, whether you've been mean (`Anmmem_c`)
 - [ ] Nicknames: villager gives you a nickname; you can set what villagers call each other / call you; catchphrase ("hippie", etc.); you can change a villager's catchphrase
 - [ ] Greetings you can teach; greeting spreads between villagers
 - [ ] Gift-giving both ways; wrapped gifts; villager mails you a thank-you + item
 - [ ] Errands: deliver package to another villager, deliver a letter, return lost item, buy/sell an item, find furniture (`ac_quest_errand`)
-- [ ] Trading furniture / clothing with villagers; villager wants a specific item
-- [ ] Villager asks to buy something from your pockets / sell you something
+- [~] Trading furniture / clothing with villagers (chat trades: `aQMgr_order_decide_trade` / `_trade`) — `villager_talk_manager.gd`. Goods come from the shop pools, not the ROM A/B/C lists; no hand-over animation yet
+- [x] Villager asks to buy something from your pockets / sell you something (chat trade topics)
 - [ ] Villager house interiors themed by personality; changes over time with items you give
 - [ ] Sick villagers → give medicine (from Nook) → friendship boost
 - [ ] Villager games: hide and seek, "which hand", quizzes, "what am I thinking" (`ac_npc` talk minigames)

@@ -12,6 +12,7 @@ texture_set = &"wol_2"
 personality = ExtResource("2")
 starter = true
 npc_index = 186
+catchphrase_string = 127
 wall_index = 35
 floor_index = 59
 house_type = 4

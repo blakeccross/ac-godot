@@ -9,7 +9,10 @@ extends Resource
 ## `npc_draw_data` `tex_data` bank (`bul_2` for Stu): body sheet, palette and face frames.
 ## Species share one skeleton GLB (`bul_1`); empty means that GLB's own set.
 @export var texture_set: StringName = &""
+## Hand-authored override. Empty → the disc default via `catchphrase_string`.
 @export var catchphrase: String = ""
+## `npc_def_list[].catchphrase_str_idx`: index into the disc string table (`string_data`).
+@export var catchphrase_string: int = -1
 @export var personality: VillagerPersonality
 ## Optional override. Empty → personality looks table (`mNPS_schedule[looks]`).
 @export var schedule: ScheduleData
@@ -28,6 +31,15 @@ extends Resource
 ## Shape 0..4 → `obj_s_house1`..`5`; palette 0..4 → a..e (`aSTR_PAL_HOUSE1_A + pal + shape*5`).
 @export var house_type: int = 0
 @export var house_palette: int = 0
+
+
+## `mNpc_SetDefAnimalInfo` → `mString_Load_StringFromRom(catchphrase_str_idx)`.
+func default_catchphrase() -> String:
+	if catchphrase != "":
+		return catchphrase
+	if catchphrase_string >= 0:
+		return DialogueCatalog.rom_string(catchphrase_string)
+	return ""
 
 
 func outdoor_house_visual() -> StringName:

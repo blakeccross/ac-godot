@@ -45,6 +45,10 @@ var villagers: VillagerRoster = VillagerRoster.new()
 var residents: TownResidents = TownResidents.new()
 ## `mSDI_StartInitAfter` runs once per load; the world resolves several times a session.
 var _residents_session_done: bool = false
+## `mNpc_Talk_Info_c` for this session (patience, "any work?" flag). Not saved.
+var npc_talk_info: NpcTalkInfo = NpcTalkInfo.new()
+## `Private_c.hint_count`: first-job hints villagers still owe (bit 7 = all given).
+var first_job_hint_count: int = 0
 var relationships: RelationshipBook = RelationshipBook.new()
 var interiors: InteriorBook = InteriorBook.new()
 var shops: ShopBook = ShopBook.new()
@@ -518,7 +522,7 @@ func _residents_context(data: WorldData, rng: RandomNumberGenerator) -> Dictiona
 		"rng": rng,
 		"day": Clock.day_number(),
 		"minute": Clock.absolute_minute(),
-		"met": func(id: StringName) -> bool: return _player_met(id),
+		"met": func(id: StringName) -> bool: return player_met(id),
 		"letters": func(_id: StringName) -> int: return 0,
 		"field_rank": events.field_rank if events != null else EventCalendar.DEFAULT_FIELD_RANK,
 		"reserves": data.reserve_cells,
@@ -528,7 +532,7 @@ func _residents_context(data: WorldData, rng: RandomNumberGenerator) -> Dictiona
 
 ## `mNpc_GetAnimalMemoryIdx(player) != -1`: the player has a memory in this animal, made on
 ## first talk.
-func _player_met(villager_id: StringName) -> bool:
+func player_met(villager_id: StringName) -> bool:
 	return relationships.has_id(villager_id) and relationships.get_or_create(villager_id).talk_count > 0
 
 
@@ -557,6 +561,17 @@ func _villager_moved_out(villager_id: StringName, looks: int, rng: RandomNumberG
 			post.receipt_mail(mail)
 	relationships.forget(villager_id)
 	villagers.forget(villager_id)
+
+
+func _physics_process(delta: float) -> void:
+	## `mNpc_TalkInfoMove` runs every play frame.
+	if phase == Phase.PLAYING:
+		npc_talk_info.advance(delta)
+
+
+## `mFI_CheckPlayerWade(mFI_WADE_START)`.
+func notify_wade_start() -> void:
+	npc_talk_info.on_wade_start()
 
 
 func continue_game() -> void:
@@ -652,6 +667,8 @@ func reset_session() -> void:
 	villagers.book = relationships
 	residents.clear()
 	_residents_session_done = false
+	npc_talk_info.clear()
+	first_job_hint_count = 0
 	VillagerWalk.reset()
 	Fishing.reset()
 	player_position = DEFAULT_SPAWN
@@ -965,6 +982,7 @@ func to_save() -> Dictionary:
 		"weather": String(weather),
 		"weather_intensity": weather_intensity,
 		"dialogue_vars": dialogue_vars.duplicate(true),
+		"first_job_hint_count": first_job_hint_count,
 	}
 
 
@@ -1080,6 +1098,8 @@ func apply_snapshot(data: Dictionary) -> void:
 	## Saves from before the roster was stored adopt the generated starters on first resolve.
 	residents.apply_snapshot(data.get("residents", {}))
 	_residents_session_done = false
+	npc_talk_info.clear()
+	first_job_hint_count = clampi(int(data.get("first_job_hint_count", 0)), 0, 0xFF)
 	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
 	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))
 	player_gender = IntroSequence.normalize_gender(data.get("player_gender", DEFAULT_PLAYER_GENDER))

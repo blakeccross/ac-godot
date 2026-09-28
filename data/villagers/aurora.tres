@@ -12,6 +12,7 @@ texture_set = &"pgn_2"
 personality = ExtResource("2")
 starter = true
 npc_index = 145
+catchphrase_string = 43
 wall_index = 15
 floor_index = 29
 house_type = 4
