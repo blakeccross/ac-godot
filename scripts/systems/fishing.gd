@@ -246,9 +246,8 @@ static func last_outcome() -> Outcome:
 	return _last
 
 
-## Where the bobber is: the landing spot, and then wherever the current has carried it. The
-## leash measures from here, so a headless session with no scene still drops the line when
-## the caster walks off.
+## Where the bobber is: the landing spot, and then wherever the current (or a struck fish)
+## has carried it. The player turns to face it and the warp guard measures from it.
 static func anchor() -> Vector3:
 	return _anchor
 
