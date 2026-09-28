@@ -34,8 +34,6 @@ class Puff:
 	## GX per 30 fps frame, like `FishShadow.speed`.
 	var speed: float = 0.0
 	var body: WaterBodies.Body = null
-	## `wall_flag`: the puff already turned off one bank.
-	var wall_turned: bool = false
 
 	func alpha() -> float:
 		return FishSize.puff_alpha(age)
@@ -229,13 +227,13 @@ func _tick_puffs() -> void:
 		if puff.done():
 			continue
 		kept.append(puff)
-		if blocked and not puff.wall_turned:
-			## `aGYO_KAGE_Wall_Check`: a quarter turn off the bank, once, and no slowing that tick.
-			puff.wall_turned = true
+		if blocked:
+			## `aGYO_KAGE_Wall_Check`: a quarter turn off the bank on every tick it runs into
+			## one, toward the side that is still water. The `wall_flag == FALSE` guard after
+			## it can never pass (the check has just set the flag), so it slows regardless.
 			var left: float = puff.yaw + PI * 0.5
 			var probe: Vector3 = puff.position + Vector3(sin(left), 0.0, cos(left)) * FishSize.GX * 4.0
 			puff.yaw = wrapf(left if puff.body.contains(_grid.world_to_cell(probe)) else puff.yaw - PI * 0.5, -PI, PI)
-			continue
 		puff.speed = move_toward(puff.speed, 0.0, FishSize.ESCAPE_DECAY_GX)
 	puffs = kept
 

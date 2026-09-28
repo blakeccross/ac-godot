@@ -384,6 +384,33 @@ func test_a_scared_fish_leaves_a_puff_darting_south() -> void:
 	assert_bool(shadow.finished).is_true()
 
 
+func test_a_puff_turns_off_the_bank_and_keeps_slowing() -> void:
+	## `aGYO_KAGE_actor_move`: blocked by a bank it turns a quarter off it rather than going
+	## through, and `chase_f(speed, 0, 0.02)` still runs that tick.
+	var school := FishSchool.new()
+	school.configure(_grid, 0.0)
+	school.auto_spawn = false
+	var shadow: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), _pond, _at(Vector2i(8, 11)))
+	var sense := FishShadow.Sense.new()
+	sense.player_position = _at(Vector2i(10, 11))
+	sense.player_dashing = true
+	school.tick(STEP, sense)
+	assert_int(school.puffs.size()).is_equal(1)
+	var puff: FishSchool.Puff = school.puffs[0]
+	sense.player_dashing = false
+	var turned: bool = false
+	for _i in 100:
+		var speed: float = puff.speed
+		school.tick(STEP, sense)
+		if school.puffs.is_empty():
+			break
+		assert_bool(_pond.contains(_grid.world_to_cell(puff.position))).is_true()
+		assert_float(puff.speed).is_less(speed)
+		if not is_zero_approx(puff.yaw):
+			turned = true
+	assert_bool(turned).is_true()
+
+
 func test_a_claimed_bobber_is_invisible_to_the_other_shadow() -> void:
 	## `bite_check`: once one shadow is closing on the bobber (`gyo_flags & 2`), every
 	## shadow's `gyo_flags & 1` is up and `aGTT_search_Uki` looks straight through it.
