@@ -32,5 +32,17 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):
 		return false
 	PlayerSe.scoop_rock(self)
+	_strike_bugs(ctx)
 	Game.post_notice("You dig around the rock.")
 	return true
+
+
+## `aINS_PL_ACT_REFLECT_SCOOP` on this unit: a pill bug hiding under the rock pops out.
+func _strike_bugs(ctx: InteractionContext) -> void:
+	if ctx == null or ctx.world == null:
+		return
+	var field: BugField = ctx.world.get("bugs") as BugField
+	var grid: WorldGrid = ctx.world.get("grid") as WorldGrid
+	if field == null or grid == null:
+		return
+	field.notify_field_action(BugActor.PlAct.REFLECT_SCOOP, grid.world_to_cell(global_position))
