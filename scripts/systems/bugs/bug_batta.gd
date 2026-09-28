@@ -2,12 +2,16 @@ class_name BugBatta
 extends BugProgram
 
 ## `ac_ins_batta.c` — locusts (long / migratory) and crickets (field / grasshopper /
-## bell / pine). Ground hoppers: wait on the ground turning to face the player, hop
-## to reposition, and on a scare hop away in a burst. Locusts hop far and often;
-## crickets mostly sit and chirp.
+## bell / pine). Ground hoppers: pick a heading roughly back over the shoulder whose
+## landing spot (53 GX, migratory 218) is dry and within 40 GX of their height, ease
+## round to it, wait 2·(120 + game_frame % 240) frames, then hop (locusts outside the
+## first 20 frames of each 200-frame window, crickets only inside it). A stopped net or
+## a dig within 70 GX sends them hopping away from the player every 8 frames until
+## patience drops under 85; outside 240 GX of the acre centre they hop back toward it.
+## Released ones start 40 GX over the player and leap off the player's facing ±60°.
 ##
-## Ground height / water / wall come from `sense.bg`; with none, flat ground at the
-## spawn plane and no water.
+## Ground height / water come from `sense.bg`; with none, flat ground at the spawn
+## plane and no water.
 
 enum { AVOID, LET_ESCAPE, CHANGE_DIRECTION, WAIT, JUMP, DROWN }
 
@@ -18,6 +22,9 @@ const TURN_RANGE := [
 ]
 ## `aIBT_chk_active_range`: 240 GX from acre centre (57600 = 240²).
 const ACTIVE_RANGE_SQ := 57600.0
+
+## The field the acre centre is measured on (the latest frame's sense).
+var _range_sense: BugActor.Sense = null
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -33,11 +40,10 @@ func actor_init(a: BugActor, released: bool) -> void:
 		T_BELL_CRICKET: a.item = 17
 		T_PINE_CRICKET: a.item = 18
 	if not released:
-		## Acre centre in world GX (`BkNum2WposXZ + 320`).
-		a.f32_work[2] = a.home.x
-		a.f32_work[3] = a.home.z
 		setup_action(a, CHANGE_DIRECTION)
 	else:
+		if a.has_player_info:
+			a.pos.y = a.player_pos.y + 40.0
 		setup_action(a, LET_ESCAPE)
 
 
@@ -86,11 +92,11 @@ func _noop(_a: BugActor, _s: BugActor.Sense) -> void:
 func _avoid_init(a: BugActor) -> void:
 	a.gravity = 0.2
 	a.timer = 0
-	if a._last_player_gx != Vector3.INF:
-		var to: float = BugProgram.atans(
-			a._last_player_gx.z - a.pos.z, a._last_player_gx.x - a.pos.x
+	## Away from the player ±45°.
+	if a.has_player_info:
+		a.angle_y = wrapf(
+			a.player_angle_y + PI + a._rng.randf_range(-1.0, 1.0) * (8192.0 * MLib.S16), -PI, PI
 		)
-		a.angle_y = to + PI + a._rng.randf_range(-1.0, 1.0) * (8192.0 * MLib.S16)
 		a.rot.y = a.angle_y
 
 
@@ -102,8 +108,7 @@ func _let_escape_init(a: BugActor) -> void:
 	a.speed = 5.0
 	a.pos_speed.y = 3.0
 	## Off the player's facing (`shape_info.rotation.y + 21845·(rand − 0.5)`), not toward them.
-	if a._last_player_gx != Vector3.INF:
-		a.angle_y = a.f32_work[1] + (a._rng.randf() - 0.5) * (21845.0 * MLib.S16)
+	if BugProgram.heading_from_player_facing(a, 21845.0 * MLib.S16):
 		a.rot.y = a.angle_y
 	a.f_no_catch = true
 	a.f_bit2 = true
@@ -113,7 +118,7 @@ func _wait_init(a: BugActor) -> void:
 	if not _in_active_range(a):
 		a.timer = 60
 	else:
-		a.timer = int(2.0 * (120.0 + a._rng.randi_range(0, 239)))
+		a.timer = int(2.0 * (120.0 + float(a.game_frame % 240)))
 
 
 # ---- actions ----------------------------------------------------
@@ -125,9 +130,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.f_scared and not a.f_bit2:
 		setup_action(a, LET_ESCAPE)
 		return
-	## The player's facing, for `let_escape_init` (a released hopper leaps the way they face).
-	if sense.has_player():
-		a.f32_work[1] = sense.player_yaw
+	_range_sense = sense
 	if a.action_proc.is_valid():
 		a.action_proc.call(a, sense)
 
@@ -218,13 +221,9 @@ func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 	var ang: float = float(home[1])
 	if bool(home[0]):
 		ang = a.rot.y
-		if sense.has_player():
-			ang = BugProgram.angle_to(a.pos, sense.player_position / BugActor.GX_M) + PI
-	## `chk_avoid_jump_angle`: wall hit → flip ±90°.
-	if sense != null and sense.bg.is_valid() and bool(sense.bg.call(a.pos).get("hit_wall_front", false)):
-		ang = a.angle_y + (PI * 0.5 if a._rng.randi_range(0, 1) == 1 else -PI * 0.5)
-	a.angle_y = ang
-	a.rot.y = ang
+		if a.has_player_info:
+			ang = a.player_angle_y + PI
+	_jump_angle(a, sense, ang)
 	_set_avoid_jump_spd(a, sense)
 
 
@@ -242,8 +241,16 @@ func _let_escape(a: BugActor, sense: BugActor.Sense) -> void:
 		a.speed = 0.0
 		return
 	a.timer = 8
-	a.rot.y = a.angle_y
+	_jump_angle(a, sense, a.angle_y)
 	_set_avoid_jump_spd(a, sense)
+
+
+## `aIBT_chk_avoid_jump_angle`: a front wall turns the hop ±90° off the current heading.
+func _jump_angle(a: BugActor, sense: BugActor.Sense, ang: float) -> void:
+	if BugProgram.wall_front(a, sense):
+		ang = a.angle_y + (PI * 0.5 if a._rng.randi_range(0, 1) == 1 else -PI * 0.5)
+	a.angle_y = wrapf(ang, -PI, PI)
+	a.rot.y = a.angle_y
 
 
 func _set_avoid_jump_spd(a: BugActor, sense: BugActor.Sense = null) -> void:
@@ -266,9 +273,13 @@ func _set_avoid_jump_spd(a: BugActor, sense: BugActor.Sense = null) -> void:
 
 # ---- helpers ---------------------------------------------------
 
+## `aIBT_chk_active_range`: within 240 GX of the acre centre. Out of range the original
+## leaves its `angle` out-parameter unwritten (stack garbage); the port heads back to
+## the centre instead.
 func _range_angle(a: BugActor) -> Array:
-	var dx: float = a.f32_work[2] - a.pos.x
-	var dz: float = a.f32_work[3] - a.pos.z
+	var c: Vector2 = BugProgram.acre_center(a, _range_sense)
+	var dx: float = c.x - a.pos.x
+	var dz: float = c.y - a.pos.z
 	if dx * dx + dz * dz >= ACTIVE_RANGE_SQ:
 		return [false, BugProgram.atans(dz, dx)]
 	return [true, 0.0]
@@ -306,11 +317,10 @@ func _in_water(a: BugActor, sense: BugActor.Sense) -> bool:
 	return false
 
 
+## `aIBT_check_patience`: a stopped net (not the one holding it) or a dig within 70 GX.
 func _check_patience(a: BugActor, sense: BugActor.Sense) -> bool:
-	if sense.net_swing_active and sense.net_swing_origin != Vector3.INF:
-		if BugProgram.dist_xz(a.pos, sense.net_swing_origin / BugActor.GX_M) < 70.0:
-			a.patience = 100.0
-	if sense.player_swung_tool and sense.has_player():
-		if BugProgram.dist_xz(a.pos, sense.player_position / BugActor.GX_M) < 70.0:
-			a.patience = 100.0
+	if not a.caught and BugProgram.near_xz(a, BugProgram.net_stop_pos(sense), 70.0):
+		a.patience = 100.0
+	elif BugProgram.near_xz(a, BugProgram.scoop_pos(sense), 70.0):
+		a.patience = 100.0
 	return a.patience >= 90.0

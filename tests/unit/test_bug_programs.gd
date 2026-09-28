@@ -683,3 +683,36 @@ func test_crawling_pill_bug_dives_into_water_ahead_and_drowns() -> void:
 			break
 	assert_bool(dived).is_true()
 	assert_bool(a.finished).is_true()
+
+
+func test_hopper_waits_by_the_play_clock_and_hops_home_from_the_acre_edge() -> void:
+	var s := _field_sense()
+	s.game_frame = 250   ## % 240 = 10 → 2·(120 + 10)
+	var mid: Vector3 = s.grid.cell_to_world(Vector2i(7, 7))   ## 30 GX off the acre centre
+	var a := _make(&"grasshopper", BugData.Habitat.GROUND, mid)
+	a.frame(s)
+	assert_int(a.action).is_equal(BugBatta.WAIT)
+	assert_int(a.timer).is_between(258, 260)
+	## 60 GX from the west edge = 260 GX from the acre centre (x 320 GX): out of range.
+	var edge: Vector3 = s.grid.cell_to_world(Vector2i(1, 7))
+	var b := _make(&"grasshopper", BugData.Habitat.GROUND, edge)
+	b.frame(s)
+	assert_int(b.action).is_equal(BugBatta.WAIT)
+	assert_int(b.timer).is_between(58, 60)
+	assert_float(absf(wrapf(b.angle_y - PI * 0.5, -PI, PI))).is_less(0.2)
+
+
+func test_hopper_flees_a_stopped_net_but_not_a_swing_nearby() -> void:
+	var s := _field_sense()
+	var at: Vector3 = s.grid.cell_to_world(Vector2i(7, 7))
+	var a := _make(&"cricket", BugData.Habitat.GROUND, at)
+	s.player_position = at + Vector3(0.0, 0.0, 8.0)
+	a.frame(s)
+	s.player_swung_tool = true
+	a.frame(s)
+	assert_int(a.action).is_not_equal(BugBatta.AVOID)
+	s.player_swung_tool = false
+	s.net_swing_active = true
+	s.net_swing_origin = at + Vector3(3.0, 0.0, 0.0)   ## 60 GX
+	a.frame(s)
+	assert_int(a.action).is_equal(BugBatta.AVOID)
