@@ -182,6 +182,38 @@ static func water_y(a: BugActor, sense: BugActor.Sense) -> float:
 	return float(sense.bg.call(a.pos).get("water_y", -1e9))
 
 
+# ---- tree trunks (`init_posY` / `init_posZ` of SEMI / KABUTO / GOKI) ----------
+
+## Climb above the unit's keep height and Z offset for [broadleaf, cedar].
+const TRUNK_CLIMB := [35.0, 30.0]
+const TRUNK_Z := [-2.0, 8.0]
+
+
+## Place a trunk-clinging insect for a broadleaf tree at init (the FG is not known yet).
+static func cling_to_trunk(a: BugActor) -> void:
+	a.pos.y = a.home.y + TRUNK_CLIMB[0]
+	a.pos.z += TRUNK_Z[0]
+	a.home = a.pos
+
+
+## First frame with the field: a plain grown cedar (`*fg == CEDAR_TREE`) holds its insect
+## 5 GX lower and 10 GX further south. Returns true when it moved.
+static func settle_on_cedar(a: BugActor, sense: BugActor.Sense) -> bool:
+	if sense == null or sense.layout == null:
+		return false
+	if not BugBg.is_cedar(sense.layout, unit_of(sense, a.home)):
+		return false
+	a.pos.y += TRUNK_CLIMB[1] - TRUNK_CLIMB[0]
+	a.pos.z += TRUNK_Z[1] - TRUNK_Z[0]
+	a.home = a.pos
+	a.last_pos = a.pos
+	return true
+
+
+static func raining() -> bool:
+	return Game != null and Game.weather == &"rain"
+
+
 # ---- player tool checks (`mPlib_Check_*`) --------------------------------
 
 ## `mPlib_Check_StopNet(&pos)`: the net's position (GX) on the tick a swing stops, else INF.

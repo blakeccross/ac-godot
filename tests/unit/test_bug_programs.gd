@@ -408,3 +408,69 @@ func test_red_dragonfly_perches_on_a_reserved_unit() -> void:
 	assert_bool(seen.has(BugTonbo.FLY_ON_NOTICE)).is_true()
 	assert_int(a.action).is_equal(BugTonbo.REST_ON_NOTICE)
 	assert_float(a.pos.y).is_equal_approx(20.0, 3.0)
+
+
+# ---- SEMI / KABUTO / GOKI on trunks -------------------------------------
+
+func test_trunk_insect_on_a_cedar_sits_lower_and_further_south() -> void:
+	## `init_posY` / `init_posZ` = {35, 30} / {−2, 8} for {tree, CEDAR_TREE}.
+	var s := _field_sense()
+	_put(s.layout, &"tree", Vector2i(4, 4), &"TREE")
+	_put(s.layout, &"tree", Vector2i(8, 4), &"CEDAR_TREE")
+	var oak := _make(&"drone_beetle", BugData.Habitat.TREE, s.grid.cell_to_world(Vector2i(4, 4)))
+	var cedar := _make(&"drone_beetle", BugData.Habitat.TREE, s.grid.cell_to_world(Vector2i(8, 4)))
+	var base_z: float = s.grid.cell_to_world(Vector2i(4, 4)).z / BugActor.GX_M
+	oak.frame(s)
+	cedar.frame(s)
+	assert_float(oak.pos.y).is_equal_approx(35.0, 0.01)
+	assert_float(oak.pos.z - base_z).is_equal_approx(-2.0, 0.01)
+	assert_float(cedar.pos.y).is_equal_approx(30.0, 0.01)
+	assert_float(cedar.pos.z - base_z).is_equal_approx(8.0, 0.01)
+
+
+func test_swaying_beetle_is_still_netted_from_the_south() -> void:
+	## Only `shape_info.rotation.y` sways; `world.angle.y` keeps 0, which the catch-range
+	## facing test uses — the player nets it from the south (camera) side of the trunk.
+	var b := _make(&"drone_beetle", BugData.Habitat.TREE, Vector3(9.0, 0.0, 13.0))
+	_run(b, 200, BugActor.Sense.new())
+	assert_float(b.net_catch_range_gx(b.position + Vector3(0.0, 0.0, 1.0))).is_equal(24.0)
+	assert_float(b.net_catch_range_gx(b.position + Vector3(0.0, 0.0, -1.0))).is_equal(0.0)
+
+
+func test_scared_beetle_flies_off_the_way_the_player_faces() -> void:
+	var b := _make(&"drone_beetle", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
+	var s := _tree_shaken_sense(Vector2i(4, 6))
+	s.player_position = b.position + Vector3(0.0, 0.0, 1.0)
+	s.player_yaw = PI  ## facing the trunk (north)
+	b.frame(s)
+	assert_int(b.action).is_equal(BugKabuto.AVOID)
+	assert_float(absf(angle_difference(b.angle_y, PI))).is_less_equal(deg_to_rad(60.5))
+
+
+func test_cicada_ignores_a_dig_forty_gx_away_but_not_twenty() -> void:
+	## `aISM_SCOOP_SCARE_DIST` 30 GX.
+	var s := _field_sense()
+	var cell := Vector2i(6, 6)
+	var c := _make(&"robust_cicada", BugData.Habitat.TREE, s.grid.cell_to_world(cell))
+	c.frame(s)
+	s.player_action = BugActor.PlAct.DIG_SCOOP
+	s.player_action_cell = cell + Vector2i(1, 0)
+	c.frame(s)
+	assert_int(c.action).is_equal(BugSemi.WAIT)
+	s.player_action_cell = cell
+	c.frame(s)
+	assert_int(c.action).is_equal(BugSemi.AVOID)
+
+
+func test_beetle_scared_by_an_axe_hit_in_its_acre_within_150_gx() -> void:
+	## `mPlib_Check_VibUnit_OneFrame` (an axe hit in the same acre) and `player_distance_xz < 150`.
+	var s := _field_sense()
+	var b := _make(&"drone_beetle", BugData.Habitat.TREE, s.grid.cell_to_world(Vector2i(6, 6)))
+	b.frame(s)
+	s.player_swung_tool = true
+	s.player_position = b.position + Vector3(9.0, 0.0, 0.0)  ## 180 GX east
+	b.frame(s)
+	assert_int(b.action).is_equal(BugKabuto.WAIT)
+	s.player_position = b.position + Vector3(6.0, 0.0, 0.0)  ## 120 GX east
+	b.frame(s)
+	assert_int(b.action).is_equal(BugKabuto.AVOID)
