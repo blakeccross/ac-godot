@@ -566,3 +566,21 @@ func test_snail_only_leaves_once_its_flower_is_gone() -> void:
 	s.layout.objects.erase(f)
 	a.frame(s)
 	assert_int(a.action).is_equal(BugTentou.AVOID_MAIMAI)
+
+
+func test_pond_skater_never_skates_off_its_pond() -> void:
+	var s := _field_sense()
+	for x in range(4, 7):
+		for z in range(4, 7):
+			s.grid.set_terrain(Vector2i(x, z), WorldGrid.Terrain.WATER)
+	var at: Vector3 = s.grid.cell_to_world(Vector2i(5, 5))
+	var a := _make(&"pond_skater", BugData.Habitat.WATER, at)
+	assert_float(a.pos.y).is_equal_approx(at.y / BugActor.GX_M + 14.0, 0.01)
+	var moved := false
+	for i in 900:
+		a.frame(s)
+		assert_bool(BugBg.water_at(s.grid, a.pos)) \
+			.append_failure_message("left the pond at %s (frame %d)" % [a.pos, i]).is_true()
+		if BugProgram.dist_xz(a.pos, a.home) > 5.0:
+			moved = true
+	assert_bool(moved).is_true()
