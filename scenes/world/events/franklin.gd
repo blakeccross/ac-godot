@@ -45,5 +45,5 @@ func make_talk() -> BankTalk:
 
 
 func think(_delta: float) -> void:
-	if not _spoke and not talking and player_distance() <= CALL_RANGE:
+	if not _spoke and can_call_out() and player_distance() <= CALL_RANGE:
 		begin_talk(player_node())

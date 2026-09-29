@@ -436,3 +436,29 @@ func test_franklin_trades_his_knife_and_fork_for_a_present() -> void:
 	## Never the same present twice until all twelve are given.
 	for _i: int in 20:
 		assert_int(FranklinTalk.decide_present(area, rng)).is_not_equal(t.present_idx)
+
+
+func test_trick_or_treat_candy_and_tricks() -> void:
+	if not FtrCatalog.available():
+		return
+	var inv := Inventory.new()
+	inv.add(ItemCatalog.get_item(&"candy"), 1)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2
+	var jack := TrickOrTreatTalk.new(true, 0, inv, rng)
+	assert_int(jack.start_msg()).is_equal(TrickOrTreatTalk.MSG_TRICK_OR_TREAT)
+	jack.current_msg = TrickOrTreatTalk.MSG_TRICK_OR_TREAT
+	assert_int(int(jack.next_step()["msg"])).is_equal(TrickOrTreatTalk.JACK_ASK)
+	assert_str(str(jack.pick_step(TrickOrTreatTalk.JACK_ASK, 0)["hand"]["mode"])).is_equal("take")
+	assert_int(int(jack.hand_result(&"candy")["msg"])).is_equal(TrickOrTreatTalk.JACK_CANDY)
+	assert_int(inv.count_of(&"candy")).is_equal(0)
+	jack.current_msg = TrickOrTreatTalk.JACK_CANDY
+	assert_int(int(jack.next_step()["msg"])).is_equal(TrickOrTreatTalk.JACK_BYE)
+	## A costumed villager (looks 2) with no candy: the empty-hand line, then a trick.
+	var npc := TrickOrTreatTalk.new(false, 2, inv, rng)
+	npc.current_msg = TrickOrTreatTalk.MSG_TRICK_OR_TREAT
+	assert_int(int(npc.next_step()["msg"])).is_equal(TrickOrTreatTalk.NPC_ASK + 12)
+	assert_int(int(npc.hand_result(&"")["msg"])).is_equal(TrickOrTreatTalk.NPC_EMPTY + 12)
+	npc.current_msg = TrickOrTreatTalk.NPC_EMPTY + 12
+	assert_int(int(npc.next_step()["msg"])).is_equal(TrickOrTreatTalk.NPC_TRICKED + 12)
+	assert_bool(npc.tricked_cloth or npc.tricked_item != &"").is_true()

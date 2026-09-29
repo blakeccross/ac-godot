@@ -142,7 +142,7 @@ func _tick_term() -> bool:
 		_data = _data.duplicate()
 		_data["clips"] = ["npc_1_wait_ki1"]
 		return false
-	if slot == 0 and player_distance() < 16.0 and not talking:
+	if slot == 0 and player_distance() < 16.0 and can_call_out():
 		begin_talk(player_node(), BankTalk.Fixed.new(FestivalCrowd.countdown_force_msg(_looks(), term)))
 		return true
 	return false

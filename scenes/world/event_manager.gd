@@ -66,6 +66,7 @@ const PRESENTERS: Dictionary = {
 	&"groundhog_day": "res://scripts/systems/events/festival_presenter.gd",
 	&"meteor_shower": "res://scripts/systems/events/festival_presenter.gd",
 	&"harvest_festival_franklin": "res://scripts/systems/events/franklin_presenter.gd",
+	&"halloween": "res://scripts/systems/events/halloween_presenter.gd",
 }
 
 ## A show owns the music (`mBGMPsComp_make_ps_demo`): the field keeps its hands off.

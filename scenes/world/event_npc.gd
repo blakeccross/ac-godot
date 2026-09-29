@@ -181,6 +181,18 @@ func player_node() -> Node3D:
 	return Player.find(get_tree()) as Node3D if get_tree() != null else null
 
 
+## Whether this NPC may start a talk itself (`mDemo_TYPE_SPEAK` requests wait for a free
+## window and a player who isn't in the middle of something).
+func can_call_out() -> bool:
+	if talking or get_tree() == null:
+		return false
+	var ui := DialogueOverlay.find(get_tree())
+	if ui == null or ui.is_open():
+		return false
+	var p := player_node() as Player
+	return p != null and not p.is_busy()
+
+
 func player_distance() -> float:
 	var p: Node3D = player_node()
 	if p == null:

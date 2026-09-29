@@ -34,7 +34,7 @@ func make_talk() -> BankTalk:
 
 
 func think(_delta: float) -> void:
-	if talking or Clock.now_sec() < EVENT_SEC or Game == null or Game.events == null:
+	if not can_call_out() or Clock.now_sec() < EVENT_SEC or Game == null or Game.events == null:
 		return
 	var area: Dictionary = Game.events.area(&"groundhog_day")
 	var today: String = Game.events.day_key()
