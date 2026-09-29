@@ -2113,6 +2113,14 @@ func _refresh_item_detail(inv: Inventory) -> void:
 		_desc.text = "A wrapped gift."
 	elif sel.item.condition == InventoryItem.Condition.QUEST:
 		_name.text = "%s (quest)" % data.display_name
+		## `mQst_GetToFromName` on the item tag: who it's for, who it's from.
+		var names: Dictionary = Game.quests.to_from_for_pocket(inv, inv.selected_index) if Game.quests != null else {}
+		if not names.is_empty():
+			var to: VillagerData = VillagerCatalog.get_villager(names["to"])
+			var from: VillagerData = VillagerCatalog.get_villager(names["from"])
+			_desc.text = "To: %s\nFrom: %s" % [
+				to.display_name if to != null else "?", from.display_name if from != null else "?"
+			]
 
 
 func _refresh_mail_detail(inv: Inventory) -> void:

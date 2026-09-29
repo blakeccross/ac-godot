@@ -208,9 +208,22 @@ func _exit_tree() -> void:
 ## paint the mannequin's design over the cloth surfaces, or put the villager's own
 ## shirt back when they stop wearing one.
 func _apply_design_wear() -> void:
-	if _visual == null or state == null or Game == null or Game.designs == null:
+	if _visual == null or state == null or Game == null:
+		return
+	if Game.designs == null and state.cloth_design >= 0:
 		return
 	var idx: int = state.cloth_design
+	## A shirt they were given or picked up (`Animal_c.cloth` other than their own).
+	if idx < 0 and state.cloth_id != &"":
+		var cloth: ItemData = ItemCatalog.get_item(state.cloth_id)
+		var cloth_index: int = cloth.cloth_index if cloth != null else -1
+		if cloth_index < 0 and String(state.cloth_id).begins_with("shirt_"):
+			cloth_index = int(String(state.cloth_id).substr(6))
+		if cloth_index >= 0 and (data == null or cloth_index != data.default_cloth):
+			if _own_cloth.is_empty():
+				_own_cloth = _cloth_overrides(_visual)
+			VisualCloth.apply_cloth(_visual, cloth_index)
+			return
 	if idx < 0:
 		if not _own_cloth.is_empty():
 			for entry: Array in _own_cloth:
@@ -884,6 +897,10 @@ func _on_talk_action(action: Dictionary, ui: DialogueOverlay, player: Node3D) ->
 func _on_talk_closed() -> void:
 	TalkCamera.end(get_tree())
 	ai.end_talk()
+	## `Common_Set(npc_chg_cloth, …)`: a shirt handed over in the talk goes on.
+	if state != null and _cloth_key() != _drawn_cloth:
+		_apply_design_wear()
+		_drawn_cloth = _cloth_key()
 	if Game != null and Game.first_job != null and Game.first_job.kind == FirstJob.Kind.OPEN and Game.first_job.chore_finished():
 		Game.set_interact_prompt("Talk to Tom Nook")
 	## `mNpc_TalkEndMove` (from `aQMgr_move_talk` when the talk demo ends).
