@@ -59,6 +59,8 @@ const ANIM_CLAP := "npc_1_clap1"
 @export var data: VillagerData
 ## Indoor `ac_npc2` stand-in: always visible while the player is in this house.
 @export var indoor_resident: bool = false
+## Met as an event guest (`&"kamakura"`, `&"camper"`): their own greetings and trade lists.
+@export var guest: StringName = &""
 
 var state: VillagerState
 var schedule: VillagerSchedule = VillagerSchedule.new()
@@ -320,6 +322,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if await _try_first_job_talk(ctx):
 		return true
 	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
+	talk_ctx.guest = guest
 	var ui := DialogueOverlay.find(get_tree())
 	if ui != null:
 		if ui.is_open():

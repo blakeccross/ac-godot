@@ -199,6 +199,13 @@ func _init(p_villager: VillagerData, p_state: VillagerState, p_ctx: DialogueCont
 	cloth_at_start = worn_cloth(villager, state)
 
 
+## `aQMgr_talk_start_kamakura` / `_summercamp`: an event guest's talk skips the quest
+## menu and runs straight on the greeting game's demo orders (`aQMgr_talk_normal_kamakura`).
+func as_guest() -> void:
+	_normal = true
+	step = Step.NORMAL
+
+
 ## The greeting (or the last message) ended on a continue.
 func next_step() -> Dictionary:
 	if _normal:
@@ -683,6 +690,15 @@ func _goods(cat: StringName) -> StringName:
 	match cat:
 		&"furniture":
 			pool = ShopGoods.furniture_pool()
+			## A guest's trades: 10% from the snow cabin's list, 20% from the tent's.
+			var guest: StringName = context.guest if context != null else &""
+			var roll: int = _rand(100)
+			if guest == &"kamakura" and roll >= 90:
+				pool = FtrCatalog.named_list("ftr", "Kamakura")
+			elif guest == &"camper" and roll >= 80:
+				pool = FtrCatalog.named_list("ftr", "Tent")
+			if pool.is_empty():
+				pool = ShopGoods.furniture_pool()
 		&"carpet":
 			pool = ShopGoods.category_pool(ItemData.Category.FLOOR)
 		&"wallpaper":

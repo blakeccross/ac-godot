@@ -494,3 +494,19 @@ func test_jingle_wish_list_and_shirt_trick() -> void:
 	assert_int(talk.call(Vector2i(6, 1), &"shirt_000").start_msg()).is_between(JingleTalk.MSG_SAME_PLAYER, JingleTalk.MSG_SAME_PLAYER + 2)
 	assert_int(talk.call(Vector2i(7, 1), &"shirt_005").start_msg()).is_equal(JingleTalk.MSG_ALMOST)
 	assert_int(talk.call(Vector2i(8, 1), &"shirt_005").start_msg()).is_equal(JingleTalk.MSG_PRESENT2)
+
+
+func test_guest_greetings_follow_the_greeting_game() -> void:
+	var ctx := DialogueContext.new()
+	ctx.rng = RandomNumberGenerator.new()
+	ctx.hour = 12
+	var inv := Inventory.new()
+	ctx.inventory = inv
+	## Nothing to play for: the plain line.
+	assert_int(DialogueGreeting.guest_hello(&"kamakura", 2, DialogueGreeting.MEET_TODAY, ctx)).is_equal(6358)
+	inv.set_wallet(5000)
+	assert_int(DialogueGreeting.guest_hello(&"kamakura", 2, DialogueGreeting.MEET_TODAY, ctx)).is_equal(6358 + 1)
+	## The camper introduces itself as a stranger the first time.
+	var first: int = DialogueGreeting.guest_hello(&"camper", 0, DialogueGreeting.MEET_FIRST, ctx)
+	assert_int(first).is_between(15930, 15930 + 11)
+	assert_int(DialogueGreeting.guest_hello(&"kamakura", 0, DialogueGreeting.MEET_FIRST, ctx)).is_equal(-1)

@@ -329,6 +329,9 @@ func _spawn_player() -> void:
 
 func _spawn_resident(room: Room) -> void:
 	## Indoor `ac_npc2`: show the homeowner when awake at home.
+	if room != null and (room.kind == Room.Kind.KAMAKURA or room.kind == Room.Kind.TENT):
+		_spawn_guest(room)
+		return
 	if room == null or room.kind != Room.Kind.NPC:
 		return
 	var occupant: StringName = &""
@@ -350,6 +353,28 @@ func _spawn_resident(room: Room) -> void:
 	villager.set("data", data)
 	villager.set("indoor_resident", true)
 	villager.name = "Resident"
+	$Characters.add_child(villager)
+	if villager is Node3D:
+		var stand: Vector3 = VillagerHome.indoor_stand(session)
+		stand.y = 0.1
+		(villager as Node3D).global_position = stand
+		(villager as Node3D).rotation.y = WorldGrid.yaw_for_facing(WorldGrid.Facing.SOUTH)
+
+
+## The snow cabin's resident (`mNpc_AddNpc_inKamakura`) or the summer camper, talking as
+## an event guest.
+func _spawn_guest(room: Room) -> void:
+	var event: StringName = &"kamakura" if room.kind == Room.Kind.KAMAKURA else &"summer_camper"
+	if Game == null or Game.events == null or not Game.events.is_active(event):
+		return
+	var data: VillagerData = VillagerCatalog.get_villager(GuestHousePresenter.guest_of(event))
+	if data == null:
+		return
+	var villager: Node = VILLAGER_SCENE.instantiate()
+	villager.set("data", data)
+	villager.set("indoor_resident", true)
+	villager.set("guest", GuestHousePresenter.guest_kind(event))
+	villager.name = "Guest"
 	$Characters.add_child(villager)
 	if villager is Node3D:
 		var stand: Vector3 = VillagerHome.indoor_stand(session)

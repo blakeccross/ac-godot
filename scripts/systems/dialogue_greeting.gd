@@ -33,6 +33,12 @@ const ANGRY := [3315, 3320, 3325, 3330, 3335, 3340]
 const SAD := [3345, 3350, 3355, 3360, 3365, 3370]
 const SLEEPY := [3375, 3380, 3385, 3390, 3395, 3400]
 const PITFALL := 8327
+## `aQMgr_get_hello_msg_no_kamakura` / `_summercamp` tables by looks, and the camper's
+## first greeting (`MSG_15930`).
+const KAMAKURA_HELLO := [6367, 6376, 6358, 6385, 6394, 6403]
+const CAMPER_HELLO := [16002, 16032, 16063, 16093, 16123, 16153]
+const CAMPER_FIRST := 15930
+const GREETING_GAME_BELL_MIN := 3000
 
 
 static func conversation(villager: VillagerData, state: VillagerState, ctx: DialogueContext = null) -> DialogueData:
@@ -54,6 +60,10 @@ static func hello_msg_no(villager: VillagerData, state: VillagerState, ctx: Dial
 	_ensure_rng(ctx)
 	var looks: int = _looks(villager)
 	var meet: int = meet_type(state, ctx)
+	if ctx.guest != &"":
+		var guest: int = guest_hello(ctx.guest, looks, meet, ctx)
+		if guest >= 0:
+			return guest
 	if ctx.mood == VillagerState.Mood.PITFALL:
 		return _random_looks(PITFALL, looks, KIND, ctx)
 	if meet != MEET_FIRST:
@@ -87,6 +97,39 @@ static func hello_msg_no(villager: VillagerData, state: VillagerState, ctx: Dial
 		"snow":
 			table = SNOW
 	return _hello_offset(int(table[meet]), looks, ctx.hour, KIND, ctx)
+
+
+## `aQMgr_get_hello_msg_no_kamakura` / `_summercamp`: the guest's greeting game. Money (a
+## free pocket and 3,000 Bells) and/or goods (furniture, carpet or wallpaper in the pockets)
+## pick the line; both → either. First meetings use the usual introductions — the camper,
+## a stranger, has its own (`MSG_15930`). -1 falls through to the usual table.
+static func guest_hello(guest: StringName, looks: int, meet: int, ctx: DialogueContext) -> int:
+	var table: Array = KAMAKURA_HELLO if guest == &"kamakura" else CAMPER_HELLO
+	if meet == MEET_FIRST:
+		if guest == &"camper":
+			return msg_offset(CAMPER_FIRST, looks, ctx.hour, _roll(KIND, ctx), KIND)
+		return -1
+	var hello_type: int = 0
+	var inv: Inventory = ctx.inventory
+	if inv != null and inv.has_space(1) and inv.wallet >= GREETING_GAME_BELL_MIN:
+		hello_type |= 1
+	if inv != null and _has_goods(inv):
+		hello_type |= 2
+	if hello_type == 3:
+		return 1 + int(table[looks]) + _roll(2, ctx)
+	return int(table[looks]) + hello_type
+
+
+## `aQMgr_check_possession_item`: furniture, a carpet or wallpaper (not wrapped / quest).
+static func _has_goods(inv: Inventory) -> bool:
+	for i: int in Inventory.POCKET_SLOTS:
+		var s: InventorySlot = inv.slot_at(i)
+		if s == null or s.is_empty() or s.item.condition != InventoryItem.Condition.NORMAL:
+			continue
+		var data: ItemData = ItemCatalog.get_item(s.item.item_id)
+		if data != null and data.category in [ItemData.Category.FURNITURE, ItemData.Category.FLOOR, ItemData.Category.WALL]:
+			return true
+	return false
 
 
 static func msg_offset(base_msg: int, looks: int, hour: int, variant: int, kind_count: int = KIND) -> int:

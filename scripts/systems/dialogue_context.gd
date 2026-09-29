@@ -33,6 +33,8 @@ var voice_mode: int = DialogueVoice.Mode.ANIMALESE
 ## `VOICE_STATUS_*`; -1 → derive from `mood`.
 var voice_status: int = -1
 var islander: bool = false
+## A villager met as an event guest: `&"kamakura"` (the snow cabin) or `&"camper"` (the tent).
+var guest: StringName = &""
 var days_since_talk: int = -1
 var inventory: Inventory
 var vars: Dictionary = {}

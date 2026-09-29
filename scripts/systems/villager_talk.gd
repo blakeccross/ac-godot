@@ -44,10 +44,13 @@ static func manager(villager: VillagerData, state: VillagerState, ctx: DialogueC
 	if Game.first_job != null and Game.first_job.is_active() and not Game.first_job.open_quest:
 		return null
 	var slot: int = Game.residents.slot_of(villager.id)
-	if slot < 0:
+	var guest: bool = ctx != null and ctx.guest != &""
+	if slot < 0 and not guest:
 		return null
 	var m := VillagerTalkManager.new(villager, state, ctx)
 	m.slot = slot
+	if guest:
+		m.as_guest()
 	m.hint_count_get = func() -> int: return Game.first_job_hint_count
 	m.hint_count_set = func(v: int) -> void: Game.first_job_hint_count = v
 	m.show_letter = func(letter: Dictionary) -> void: _show_letter(villager, letter)
