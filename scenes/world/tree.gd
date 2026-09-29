@@ -29,6 +29,9 @@ const YOUNG_PIVOT_CEDAR_GX := 15.0
 @export var place_kind: WorldGrid.PlaceKind = WorldGrid.PlaceKind.PLANT
 @export var visual_id: StringName = &"TREE_APPLE_FRUIT"
 
+## `mPlib_Check_tree_shaken_big` / `_little`: a full shake, or the player bumping it.
+signal shaken(big: bool)
+
 var _use: TreeUse
 var _motion: Tween
 var _felling: bool = false
@@ -95,6 +98,7 @@ func can_bump() -> bool:
 ## med / large / full trees only (`IS_ITEM_SHAKEABLE_TREE`).
 func bump() -> void:
 	_play_shake(false)
+	shaken.emit(false)
 	if _ensure_use().size != TreeUse.Size.S0:
 		PlayerSe.tree_touch(self)
 
@@ -106,6 +110,7 @@ func _on_shake(use: TreeUse, ctx: InteractionContext) -> bool:
 	if ctx != null and ctx.actor != null and ctx.actor.has_method("note_big_tree_shake"):
 		ctx.actor.call("note_big_tree_shake", _cell())
 	PlayerSe.tree_yurasu(self)
+	shaken.emit(true)
 	_stress_bugs_at(ctx)
 	var had_drops: bool = not out.drops.is_empty() or out.dropped_fruit > 0
 	_emit_drops(out, ctx)
@@ -238,6 +243,56 @@ func _ensure_use() -> TreeUse:
 		PlantGrowth.shake_content_of(rec)
 	)
 	return _use
+
+
+## `aFSN_moving`'s FG check: a grown tree with nothing on it (`TREE`, `*_NOFRUIT_*`,
+## `CEDAR_TREE`, `GOLD_TREE`) is where a balloon snags.
+func can_catch_balloon() -> bool:
+	if _felling or Game.is_stump(_persist()):
+		return false
+	var use: TreeUse = _ensure_use()
+	return use.size == TreeUse.Size.FULL and use.stage == TreeUse.Stage.BARE
+
+
+## Where a snagged balloon's present sits (GX from the unit centre): cedars higher and further forward.
+func balloon_perch() -> Vector3:
+	var gx: Vector3 = Vector3(0.0, 100.0, 20.0) if _family() == PlantData.Family.CEDAR else Vector3(-2.5, 97.5, 7.5)
+	var world := World.find(get_tree())
+	var base: Vector3 = global_position
+	if world != null and world.grid != null:
+		base = world.grid.cell_to_world(_cell())
+		base.y = global_position.y
+	return base + gx * FieldCatalog.GX_TO_METERS
+
+
+## `fruit_set(ITM_PRESENT)`: the balloon's present falls out like fruit (top of the crown).
+func drop_present(item: ItemData) -> void:
+	var world := World.find(get_tree())
+	if world == null or world.grid == null or item == null:
+		return
+	var objects: Node = world.get_node_or_null("Objects")
+	if objects == null:
+		return
+	var grid: WorldGrid = world.grid
+	var origin: Vector2i = grid.world_to_cell(global_position)
+	var cells: Array[Vector2i] = TreeUse.pick_drop_cells(origin, grid, 1, false)
+	var cell: Vector2i = cells[0] if not cells.is_empty() else origin
+	var pickup: Node3D = PICKUP_SCENE.instantiate() as Node3D
+	var drop_id := StringName("%s_balloon_%d" % [String(_persist()), Time.get_ticks_msec()])
+	pickup.set("item", item)
+	pickup.set("wrapped", true)
+	pickup.set("persist_id", drop_id)
+	pickup.set("occupant_id", drop_id)
+	objects.add_child(pickup)
+	var land: Vector3 = grid.cell_to_world(cell)
+	if world.layout != null:
+		land.y = FieldCollision.ground_y(world.layout, cell, FieldCollision.FG_GROUND_DIST)
+	var crown: Vector3 = global_position + TreeUse.crown_offset(2, false, false)
+	if pickup.has_method("begin_fall"):
+		pickup.call("begin_fall", crown, land, TreeUse.drop_duration(2, false, false), false)
+	else:
+		pickup.global_position = land
+	grid.place(drop_id, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM)
 
 
 func _persist() -> StringName:

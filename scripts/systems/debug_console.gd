@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"clear"
+	"balloon", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -54,6 +54,8 @@ func execute(raw: String) -> String:
 			return _cmd_bug(args)
 		"shop":
 			return _cmd_shop(args)
+		"balloon":
+			return _cmd_balloon(args)
 		"clear":
 			return "__clear__"
 		_:
@@ -177,6 +179,23 @@ func _cmd_help() -> String:
 
 ## Spawns field insects a few metres ahead of the player, on the ground there, in the bug's
 ## first habitat — for watching a program without waiting on `aSOI_insect_set`.
+## `balloon` launches a present balloon now; `balloon near` starts it just upwind of you.
+func _cmd_balloon(args: PackedStringArray) -> String:
+	var tree: SceneTree = Game.get_tree()
+	var sky := tree.get_first_node_in_group("balloon_sky") as BalloonSky
+	if sky == null:
+		return "Balloons need the outdoor field."
+	if sky.balloon != null:
+		return "A balloon is already out."
+	var b: Balloon = sky.launch()
+	if args.size() > 0 and String(args[0]).to_lower() == "near":
+		var player := Player.find(tree)
+		if player != null:
+			var yaw: float = Wind.yaw()
+			b.start_near(player.global_position - Vector3(sin(yaw), 0.0, cos(yaw)) * 8.0)
+	return "Balloon launched (wind %d°, power %.2f)." % [int(rad_to_deg(Wind.yaw())), Wind.power()]
+
+
 func _cmd_bug(args: PackedStringArray) -> String:
 	if args.is_empty():
 		return "Usage: bug <id> [count], e.g. bug grasshopper 3"

@@ -10,6 +10,9 @@ extends Node3D
 @export var grid_facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH
 @export var occupy_grid: bool = true
 @export var place_kind: WorldGrid.PlaceKind = WorldGrid.PlaceKind.ITEM
+## Picked up wrapped (`mPr_ITEM_COND_PRESENT`): a balloon's `ITM_PRESENT` holds its real
+## item and shows the present model on the ground.
+@export var wrapped: bool = false
 
 var _fall: Tween
 var _pocket_pulling: bool = false
@@ -28,7 +31,7 @@ func _apply_visual() -> void:
 	if item == null:
 		return
 	## Prefer the disc item card (`obj_item_apple` etc.) over the sphere placeholder.
-	var visual: StringName = FieldCatalog.item_visual(item.id)
+	var visual: StringName = &"obj_item_present" if wrapped else FieldCatalog.item_visual(item.id)
 	if visual != &"" and GeneratedVisual.attach(self, visual) != null:
 		return
 	VisualCloth.apply_item_albedo(self, item.id)
@@ -52,13 +55,14 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if ctx.inventory == null or not ctx.inventory.has_space_for(item, 1):
 		Game.post_notice("Pockets full")
 		return false
-	if ctx.inventory.add(item, 1) != 0:
+	var cond: InventoryItem.Condition = InventoryItem.Condition.PRESENT if wrapped else InventoryItem.Condition.NORMAL
+	if ctx.inventory.add(item, 1, cond) != 0:
 		Game.post_notice("Pockets full")
 		return false
 	Game.mark_interactable_removed(persist_id)
 	var id: StringName = persist_id if persist_id != &"" else occupant_id
 	ctx.release_occupant(id)
-	Game.post_notice("Picked up %s" % item.display_name)
+	Game.post_notice("Picked up %s" % ("a present" if wrapped else item.display_name))
 	_pocket_pulling = true
 	## Shrink into the left hand while the rest of PICKUP1 plays (`Set_Item_Pickup`).
 	await PocketPull.run(self, PocketPull.hand_from_context(ctx, global_position))

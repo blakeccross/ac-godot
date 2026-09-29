@@ -142,7 +142,7 @@ data tables before a category is called done.
 - [ ] **Shovel** — dig holes, bury items, dig fossils/gyroids/pitfalls, hit rocks, plant trees, whack villagers, reflect off stone (`m_player_item_scoop`, `dig_scoop`, `fill_scoop`, `reflect_scoop`) — `hole_use.gd`, `buried_use.gd` _(partial)_
 - [ ] **Axe** — chop trees (multi-hit → stump), break on overuse, golden axe never breaks (`m_player_item_axe`, `swing_axe`, `broken_axe`, `ef_break_axe`) — `tree_use.gd` _(partial)_
 - [ ] **Fishing rod / net / axe / shovel** durability & the **golden** variants (golden axe from perfect town, golden rod/net/shovel from milestones) (`demo_get_golden_item`)
-- [ ] **Slingshot** — shoot floating presents/balloons out of the sky (`ac_balloon`, `ac_fuusen`, `m_fuusen`)
+- [ ] **Slingshot** — _not in the GameCube game_ (balloons snag in trees instead; see §33 balloons)
 - [ ] **Watering can** — _not in GCN_ (villagers water flowers themselves; skip)
 - [~] **Umbrella** — held in rain/snow, twirl, many designs (`m_player_item_umbrella`, `rotate_umbrella`) — `HeldUmbrella` + 32 `ToolData` umbrellas (`data/items/umbrellas/`, ROM names/prices): opens out of the hand (`UMB_OPEN1`, handle/canopy scale tables), right arm holds `ply_1_umbrella1` over walk/idle (`PART_TABLE_NET`), A twirls (`UMB_ROT1` + SE 0x432), folds away through doors / on unequip (`UMB_CLOSE1`), switches the rain loop to the under-umbrella one; Nook stocks one a day on the umbrella stand; title demo 2 carries the gelato umbrella. Missing: design umbrellas (`ITM_MY_ORG_UMBRELLA0-7`), the `KASAMIZU` twirl spray (no effect system)
 - [ ] **Fan / uchiwa** (festival), **timer**, **party popper / clacker**, **handbill**, **pitfall seed** as usable items (`m_player_item_fan`, `ac_t_utiwa`, `ef_clacker`)
@@ -628,7 +628,8 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [ ] Blob shadows under actors & items (`m_actor_shadow`) — `actor_blob_shadow.gd`
 - [ ] Effects library: dust, splash, sparkle, coins, leaves, sweat, music notes, impact stars, hearts, "?"/"!" etc. (`ef_*`, ~130 effects)
 - [ ] Object draw sorting, XLU passes (water, footprints, shadows), acre culling
-- [ ] Balloon presents drift across the sky on windy days; slingshot to drop (`ac_balloon`, `ac_fuusen`)
+- [x] Balloon presents (`m_fuusen`, `ac_fuusen`) — `BalloonSky` rolls at :x3 every five minutes (5% start, +2.5–5% per miss, goods / bad luck, +25% after one got away near you); `Balloon` is born on the wind's map edge, drifts downwind 110 GX up, turns toward a bare grown tree and snags in its crown; a full shake drops the wrapped present (80% C-list furniture, else a foreign fruit), a bump wobbles it; it escapes after 10 minutes snagged or at the map edge / station. `/balloon [near]` launches one. Missing: town rank term (0), the snag sound (SE 0x402 not in the converted bank), wind gusts; drifting uses a cliff check in place of full wall collision
+- [~] Wind (`m_kankyo_weather`: daily calm / normal / strong range by season, 10-minute drift, Koinobori day) — `Wind`; drives balloons only so far
 - [ ] Airplane / helicopter flyover (`ac_airplane`)
 - [ ] Message-in-a-bottle on the beach (`ac_mbg` beach spawns) — random letter/pattern _(verify GCN)_
 - [ ] The lighthouse light sweeps at night; switch it (`ac_toudai`, `ac_lighthouse_switch`)
