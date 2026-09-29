@@ -164,3 +164,32 @@ func test_gulliver_gives_a_keepsake_once_awake() -> void:
 	## Afterwards he just chats.
 	var chat := GulliverTalk.new(GulliverTalk.Mode.WANDER, area, inv)
 	assert_int(chat.start_msg()).is_between(GulliverTalk.MSG_CHAT, GulliverTalk.MSG_CHAT + 5)
+
+
+func test_redd_stock_and_sale() -> void:
+	if not FtrCatalog.available():
+		return
+	var area: Dictionary = {}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	ReddStock.roll(area, rng)
+	var items: Array[StringName] = ReddStock.items(area)
+	assert_int(items.size()).is_equal(3)
+	assert_int(ReddStock.left(area)).is_equal(3)
+	var inv := Inventory.new()
+	inv.set_wallet(99999)
+	var t := ReddTalk.new(ReddTalk.Kind.OFFER, area, inv, rng)
+	t.item_id = items[0]
+	var runner := _start(t, t.start_msg())
+	_run(runner)
+	## "What do you say?" → yes.
+	runner.choose(0)
+	_run(runner)
+	assert_int(t.current_msg).is_equal(ReddTalk.MSG_SOLD)
+	assert_int(inv.count_of(items[0])).is_equal(1)
+	assert_int(inv.wallet).is_equal(99999 - ReddStock.price(items[0]))
+	assert_that(ReddStock.bought(area)).is_equal(items[0])
+	assert_int(ReddStock.left(area)).is_equal(2)
+	## Outside afterwards he congratulates the purchase.
+	var out := ReddTalk.new(ReddTalk.Kind.OUTSIDE, area, inv, rng)
+	assert_int(out.start_msg()).is_equal(ReddTalk.MSG_OUT_BOUGHT)

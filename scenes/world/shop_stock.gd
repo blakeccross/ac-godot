@@ -29,6 +29,8 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 	## Raffle day: the prizes sit on the shelves (`aSD_MakeLotteryGoodsFg`); A asks Nook.
 	if lottery_prize:
 		return [Interaction.of(Interaction.TALK, "Raffle prize: %s" % data.display_name, 10)]
+	if shop_id == &"broker_shop":
+		return [Interaction.of(Interaction.BUY, "Look at %s" % data.display_name, 10)]
 	var price: int = ShopBook.buy_price(data)
 	return [Interaction.of(Interaction.BUY, "Buy %s (%d)" % [data.display_name, price], 10)]
 
@@ -37,7 +39,8 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if action == null or (action.id != Interaction.BUY and action.id != Interaction.TALK):
 		return false
 	## Nook comes over and names the price (`aNSC_set_talk_info_sell_item`).
-	var nook: Node = get_tree().get_first_node_in_group("tom_nook") if get_tree() != null else null
+	var seller_group: StringName = &"broker_redd" if shop_id == &"broker_shop" else &"tom_nook"
+	var nook: Node = get_tree().get_first_node_in_group(seller_group) if get_tree() != null else null
 	if nook != null and nook.has_method("offer_item") and bool(nook.call("offer_item", item_id, ctx)):
 		return true
 	if lottery_prize:

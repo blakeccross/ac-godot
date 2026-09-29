@@ -53,7 +53,8 @@ static func add_redd(root: Node3D, interior: IndoorSession) -> void:
 	var redd := StaticBody3D.new()
 	redd.set_script(load("res://scenes/world/interiors/redd.gd"))
 	redd.name = "Redd"
-	redd.position = interior.grid.cell_to_world(interior.room.counter_cell())
+	## `aEBR2_search_player2` stands him at (60, 100) GX in the tent.
+	redd.position = MuseumDisplay.gx_to_world(interior.grid, Vector3(60.0, 0.0, 100.0))
 	root.add_child(redd)
 
 

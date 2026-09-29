@@ -1,120 +1,97 @@
-extends StaticBody3D
+extends EventNpc
 
-## Crazy Redd in the tent (`ac_npc_black`). Talk, then browse the art if he's open today.
+## Crazy Redd inside his tent (`ac_ev_broker2`, `SP_NPC_EV_BROKER2`). He greets you as you
+## come in (0x078B), keeps turning to face you, and names his price when you press A in
+## front of one of the three pieces on the floor (`broker_design` at units (2,2), (4,2),
+## (2,4)); `ReddTalk` runs the sale. The pieces are `ShopStock` props with shop id
+## `broker_shop` that call `offer_item` here.
 
 const SHOP_ID := &"broker_shop"
+const STOCK_SCENE := preload("res://scenes/world/shop_stock.tscn")
+## `item_ux` / `item_uz`.
+const WARE_UNITS: Array[Vector2i] = [Vector2i(2, 2), Vector2i(4, 2), Vector2i(2, 4)]
+## `aEBR2_search_player2` zone point (GX).
+const STAND_GX := Vector3(60.0, 0.0, 100.0)
 
-var _model: Node3D
-var _talking: bool = false
-var _listener: Node3D = null
+var _greeted: bool = false
+var _pending_item: StringName = &""
 
 
-func _ready() -> void:
-	add_to_group("interactable")
+func _init() -> void:
+	species = &"fox"
+	display_name = "Redd"
+
+
+func setup() -> void:
+	add_to_group("broker_redd")
 	add_to_group("broker_set")
-	collision_layer = 1
-	collision_mask = 0
-	_ensure_collision()
-	_ensure_visual()
-	_ensure_interact()
+	var area: Dictionary = _area()
+	## `aEBR2_say_hello_init`: remember they came in; the Redd outside stays hidden.
+	area["entered"] = true
+	area["hide_npc"] = true
+	call_deferred("_place_wares")
+	call_deferred("_say_hello")
 
 
-func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
-	var out: Array[Interaction] = [Interaction.of(Interaction.TALK, "Talk to Redd", 20)]
-	if Game != null and Game.redd != null and Game.redd.is_open_today():
-		out.append(Interaction.of(Interaction.BUY, "Browse the art", 22))
-	return out
+func _area() -> Dictionary:
+	return Game.events.area(&"broker_sale") if Game != null and Game.events != null else {}
 
 
-func interact(action: Interaction, ctx: InteractionContext) -> bool:
-	if action == null or Game == null:
+func _place_wares() -> void:
+	var interior: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
+	var grid: WorldGrid = interior.get("grid") as WorldGrid if interior != null and "grid" in interior else null
+	var items: Array[StringName] = ReddStock.items(_area())
+	for i: int in mini(items.size(), WARE_UNITS.size()):
+		if items[i] == &"":
+			continue
+		var node: Node3D = STOCK_SCENE.instantiate() as Node3D
+		node.name = "ReddWare_%d" % i
+		node.set("shop_id", SHOP_ID)
+		node.set("item_id", items[i])
+		node.set("occupant_id", StringName("redd_ware_%d" % i))
+		node.position = grid.cell_to_world(WARE_UNITS[i]) if grid != null else global_position + Vector3(i * 2.0, 0, -2)
+		get_parent().add_child(node)
+
+
+func _say_hello() -> void:
+	if _greeted:
+		return
+	_greeted = true
+	begin_talk(player_node(), ReddTalk.new(ReddTalk.Kind.HELLO, _area(), Game.inventory if Game != null else null, rng()))
+
+
+func make_talk() -> BankTalk:
+	return ReddTalk.new(ReddTalk.Kind.CHAT, _area(), Game.inventory if Game != null else null, rng())
+
+
+## Called by a `ShopStock` in the tent (`aEBR2_message_ctrl`, A in front of a piece).
+func offer_item(item_id: StringName, ctx: InteractionContext) -> bool:
+	if talking:
 		return false
-	_listener = ctx.actor as Node3D if ctx != null else _listener
-	match action.id:
-		Interaction.TALK:
-			return _talk()
-		Interaction.BUY, Interaction.SHOP:
-			return Game.open_shop(SHOP_ID, Interaction.BUY)
-		_:
-			return false
+	var t := ReddTalk.new(ReddTalk.Kind.OFFER, _area(), Game.inventory if Game != null else null, rng())
+	t.item_id = item_id
+	t.explained = get_meta("explained", {})
+	_pending_item = item_id
+	return begin_talk(ctx.actor as Node3D if ctx != null else player_node(), t)
 
 
-func _talk() -> bool:
-	var open: bool = Game.redd != null and Game.redd.is_open_today()
-	var line: String = (
-		"Step in, step in. Fine art, cheap prices, no questions. Take a look around."
-		if open
-		else "Tent's closed, friend. Come back another day."
-	)
-	_say(line)
-	return true
+func talk_ended(script: BankTalk) -> void:
+	var t := script as ReddTalk
+	if t != null and t.kind == ReddTalk.Kind.OFFER:
+		set_meta("explained", t.explained)
+		if t.sold_now:
+			for n: Node in get_tree().get_nodes_in_group("shop_set"):
+				if n.name.begins_with("ReddWare_") and StringName(str(n.get("item_id"))) == _pending_item:
+					n.queue_free()
+					break
+	_pending_item = &""
 
 
-func _say(text: String) -> void:
-	var ui := DialogueOverlay.find(get_tree())
-	if ui != null:
-		if ui.is_open():
-			ui.close()
-		if _listener != null:
-			TalkCamera.begin(_listener, self, get_tree())
-		if not ui.closed.is_connected(_on_closed):
-			ui.closed.connect(_on_closed, CONNECT_ONE_SHOT)
-		ui.say(text, "Redd")
-		_talking = true
-	elif Game != null:
-		Game.post_notice("Redd: %s" % text)
-
-
-func _on_closed() -> void:
-	_talking = false
-	TalkCamera.end(get_tree())
-
-
-func _ensure_collision() -> void:
-	if get_node_or_null("CollisionShape3D") != null:
+func think(delta: float) -> void:
+	## `aEBR2_search_player`: keep facing the customer.
+	var p: Node3D = player_node()
+	if p == null:
 		return
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(1.0, 1.8, 1.0)
-	shape.shape = box
-	shape.position = Vector3(0.0, 0.9, 0.0)
-	add_child(shape)
-
-
-func _ensure_interact() -> void:
-	if get_node_or_null("InteractVolume") != null:
-		return
-	var volume := Area3D.new()
-	volume.name = "InteractVolume"
-	volume.collision_layer = 8
-	volume.collision_mask = 0
-	volume.monitoring = false
-	volume.monitorable = true
-	volume.set_script(load("res://scenes/world/interact_volume.gd"))
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(1.6, 2.0, 1.6)
-	shape.shape = box
-	shape.position = Vector3(0.0, 1.0, 0.0)
-	volume.add_child(shape)
-	add_child(volume)
-
-
-func _ensure_visual() -> void:
-	if get_node_or_null("Model") != null:
-		return
-	_model = Node3D.new()
-	_model.name = "Model"
-	add_child(_model)
-	var vis: Node3D = GeneratedVisual.attach_villager(_model, &"fox")
-	if vis == null:
-		var mesh := MeshInstance3D.new()
-		var capsule := CapsuleMesh.new()
-		capsule.radius = 0.32
-		capsule.height = 1.4
-		mesh.mesh = capsule
-		mesh.position.y = 0.9
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(0.72, 0.36, 0.22)
-		mesh.material_override = mat
-		_model.add_child(mesh)
+	var to: Vector3 = p.global_position - global_position
+	if to.length_squared() > 0.01:
+		turn_to(atan2(to.x, to.z), delta)

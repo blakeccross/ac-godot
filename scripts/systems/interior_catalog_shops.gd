@@ -58,7 +58,8 @@ static func register() -> void:
 	)
 	broker.wall_id = &""
 	broker.floor_id = &""
-	broker.shell_ids = PackedStringArray(["rom_tent"])
+	## `SCENE_BROKER_SHOP` draws the `grd_yamishop` room.
+	broker.shell_ids = PackedStringArray(["grd_yamishop"])
 	InteriorCatalog.put_room(broker)
 	InteriorCatalog.put_house(&"shop", &"", &"acre_shop", [&"shop0"])
 	InteriorCatalog.put_house(&"broker_shop", &"", &"broker_shop", [&"broker_shop"])

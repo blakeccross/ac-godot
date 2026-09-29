@@ -25,6 +25,7 @@ const PRESENTERS: Dictionary = {
 	&"kabu_peddler": "res://scripts/systems/events/joan_presenter.gd",
 	&"kk_slider": "res://scripts/systems/events/kk_presenter.gd",
 	&"dozaemon": "res://scripts/systems/events/gulliver_presenter.gd",
+	&"broker_sale": "res://scripts/systems/events/redd_presenter.gd",
 }
 
 ## A show owns the music (`mBGMPsComp_make_ps_demo`): the field keeps its hands off.
@@ -36,6 +37,7 @@ var world: World
 var blocks: Dictionary = {}
 var _running: Dictionary = {}
 var _nodes: Dictionary = {}
+var _structures: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
 
 
@@ -164,6 +166,47 @@ func add_actor(id: StringName, node: Node3D, cell: Vector2i, yaw: float = 0.0, i
 	return node
 
 
+const BUILDING_SCENE := "res://scenes/world/building.tscn"
+
+
+## `mFI_SetFGStructure_common`: an event structure (Redd's tent, the fortune tent, the
+## designer's car, the camper's tent) centred on `cell`, taking a 3×3 block of units, with
+## a door into `interior_id` when it has one.
+func spawn_structure(
+	id: StringName, visual: StringName, cell: Vector2i, interior_id: StringName = &"",
+	label: String = "", size: Vector2i = Vector2i(3, 3)
+) -> Node3D:
+	var packed: PackedScene = load(BUILDING_SCENE) as PackedScene
+	if packed == null:
+		return null
+	var node: Node3D = packed.instantiate() as Node3D
+	var occupant := StringName("event_%s" % id)
+	node.set("occupant_id", interior_id if interior_id != &"" else occupant)
+	node.set("visual_id", visual)
+	node.set("footprint", size)
+	node.set("label", label)
+	if interior_id == &"":
+		var door: Node = node.get_node_or_null("Door")
+		if door != null:
+			node.remove_child(door)
+			door.free()
+	var anchor: Vector2i = cell - Vector2i(size.x / 2, size.y / 2)
+	var pos: Vector3 = world.grid.footprint_center(anchor, size, WorldGrid.Facing.SOUTH)
+	if world.layout != null and world.layout.is_in_bounds(cell):
+		pos.y = FieldCollision.ground_y(world.layout, cell)
+	node.position = pos
+	var parent: Node = world.get_node_or_null("Buildings")
+	if parent == null:
+		parent = world
+	parent.add_child(node)
+	world.grid.place(occupant, anchor, size, WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.BUILDING)
+	var list: Array = _nodes.get(id, [])
+	list.append(node)
+	_nodes[id] = list
+	_structures[id] = occupant
+	return node
+
+
 func actors(id: StringName) -> Array:
 	var out: Array = []
 	for n: Variant in _nodes.get(id, []):
@@ -178,6 +221,9 @@ func despawn(id: StringName) -> void:
 		if is_instance_valid(n):
 			(n as Node).queue_free()
 	_nodes.erase(id)
+	if _structures.has(id):
+		world.grid.remove(_structures[id])
+		_structures.erase(id)
 
 
 func cell_position(cell: Vector2i) -> Vector3:
