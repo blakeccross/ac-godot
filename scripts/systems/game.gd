@@ -49,6 +49,8 @@ var _residents_session_done: bool = false
 var npc_talk_info: NpcTalkInfo = NpcTalkInfo.new()
 ## `Private_c.hint_count`: first-job hints villagers still owe (bit 7 = all given).
 var first_job_hint_count: int = 0
+## Year the Valentine's letters went out (`event_save_common.valentines_day_date`).
+var valentine_year: int = 0
 var relationships: RelationshipBook = RelationshipBook.new()
 var interiors: InteriorBook = InteriorBook.new()
 var shops: ShopBook = ShopBook.new()
@@ -514,6 +516,11 @@ func _resolve_residents(data: WorldData) -> void:
 		var report: Dictionary = residents.start_session(_residents_context(data, rng))
 		if report.get("moved_in", &"") != &"":
 			villagers.get_or_create(report["moved_in"] as StringName)
+		## `mNpc_Remail`.
+		VillagerLetters.send_replies(
+			residents, relationships, Clock.day_number(), player_name, rng, _deliver_villager_mail
+		)
+		_check_valentines(rng)
 	WorldGenerator.apply_residents(data, residents)
 
 
@@ -533,7 +540,7 @@ func _residents_context(data: WorldData, rng: RandomNumberGenerator) -> Dictiona
 ## `mNpc_GetAnimalMemoryIdx(player) != -1`: the player has a memory in this animal, made on
 ## first talk.
 func player_met(villager_id: StringName) -> bool:
-	return relationships.has_id(villager_id) and relationships.get_or_create(villager_id).talk_count > 0
+	return relationships.has_id(villager_id) and relationships.get_or_create(villager_id).has_memory
 
 
 ## `mNpc_ForceRemove`: goodbye letter to the player (`mNpc_SetGoodbyMailData`, mail
@@ -572,6 +579,24 @@ func _physics_process(delta: float) -> void:
 ## `mFI_CheckPlayerWade(mFI_WADE_START)`.
 func notify_wade_start() -> void:
 	npc_talk_info.on_wade_start()
+
+
+## `vt_wt_mail_check`: Valentine's letters once, on February 14th.
+func _check_valentines(rng: RandomNumberGenerator) -> void:
+	if Clock.month != 2 or Clock.day != 14 or valentine_year == Clock.year:
+		return
+	valentine_year = Clock.year
+	VillagerLetters.send_valentines(
+		residents, relationships, player_gender == &"female", player_name, rng,
+		func(mail: MailData) -> bool: return inventory.add_received_mail(mail) >= 0
+	)
+
+
+## A villager's letter to the player: the mailbox, else the post office keeps it.
+func _deliver_villager_mail(mail: MailData) -> bool:
+	if inventory.add_received_mail(mail) >= 0:
+		return true
+	return post != null and post.receipt_mail(mail)
 
 
 func continue_game() -> void:
@@ -669,6 +694,7 @@ func reset_session() -> void:
 	_residents_session_done = false
 	npc_talk_info.clear()
 	first_job_hint_count = 0
+	valentine_year = 0
 	VillagerWalk.reset()
 	Fishing.reset()
 	player_position = DEFAULT_SPAWN
@@ -983,6 +1009,7 @@ func to_save() -> Dictionary:
 		"weather_intensity": weather_intensity,
 		"dialogue_vars": dialogue_vars.duplicate(true),
 		"first_job_hint_count": first_job_hint_count,
+		"valentine_year": valentine_year,
 	}
 
 
@@ -1100,6 +1127,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	_residents_session_done = false
 	npc_talk_info.clear()
 	first_job_hint_count = clampi(int(data.get("first_job_hint_count", 0)), 0, 0xFF)
+	valentine_year = int(data.get("valentine_year", 0))
 	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
 	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))
 	player_gender = IntroSequence.normalize_gender(data.get("player_gender", DEFAULT_PLAYER_GENDER))
@@ -1298,6 +1326,9 @@ func refresh_police_set() -> void:
 
 func _on_field_renewed(days: int) -> void:
 	shops.renew(days)
+	var vt_rng := RandomNumberGenerator.new()
+	vt_rng.randomize()
+	_check_valentines(vt_rng)
 	HouseGoki.save_play_time(interiors.player_house())
 	refresh_shop_set()
 	## `mAGrw_RenewalFgItem` tops the lost and found up once per renewal, however many

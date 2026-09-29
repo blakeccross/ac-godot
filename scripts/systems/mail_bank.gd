@@ -26,6 +26,15 @@ static func text(bank: String, index: int) -> String:
 	return str(rows[index])
 
 
+## Raw byte size of an entry (the `mHandbillz` 192-byte body check counts control codes).
+static func size_of(bank: String, index: int) -> int:
+	_ensure()
+	var rows: Array = _banks.get(bank + "_size", []) as Array
+	if index < 0 or index >= rows.size():
+		return 0
+	return int(rows[index])
+
+
 ## `mNpc_LoadMailDataCommon2`: header/body/footer for `mail_no`, with `{name}` (header name
 ## slot, `header_back_start`) set to the recipient and `{freeN}` (`mHandbill_Set_free_str`)
 ## from `free`. Footer padding collapses to a single space.

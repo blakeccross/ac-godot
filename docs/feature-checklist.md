@@ -300,7 +300,7 @@ data tables before a category is called done.
 - [ ] Villager **memory**: last time you spoke, letters exchanged, favours done, gifts, whether you've been mean (`Anmmem_c`)
 - [ ] Nicknames: villager gives you a nickname; you can set what villagers call each other / call you; catchphrase ("hippie", etc.); you can change a villager's catchphrase
 - [ ] Greetings you can teach; greeting spreads between villagers
-- [ ] Gift-giving both ways; wrapped gifts; villager mails you a thank-you + item
+- [~] Gift-giving both ways: letters with presents (+3), villager replies with a present half the time, Valentine's letters with gifts (`mNpc_SendMailtoNpc`, `mNpc_Remail`, `mNpc_SendVtdayMail`) — `villager_letters.gd`. Handing gifts in person and villagers wearing gifted shirts still to come
 - [ ] Errands: deliver package to another villager, deliver a letter, return lost item, buy/sell an item, find furniture (`ac_quest_errand`)
 - [~] Trading furniture / clothing with villagers (chat trades: `aQMgr_order_decide_trade` / `_trade`) — `villager_talk_manager.gd`. Goods come from the shop pools, not the ROM A/B/C lists; no hand-over animation yet
 - [x] Villager asks to buy something from your pockets / sell you something (chat trade topics)

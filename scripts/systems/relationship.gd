@@ -37,6 +37,18 @@ var gift_count: int = 0
 var talks: Array[Dictionary] = []
 var gifts: Array[Dictionary] = []
 var milestones: Array[StringName] = []
+## The memory exists (`mNpc_CheckFreeAnimalMemory` is FALSE): made on first talk, or by the
+## player's first letter (`mNpc_SendMailtoNpc` → `mNpc_ForceGetFreeAnimalMemoryIdx`).
+var has_memory: bool = false
+## `Anmmem_c.letter_info` + `.letter`: the last letter this player sent.
+var letter_exists: bool = false
+## `mNpc_LETTER_RANK_*` of that letter (0 bad, 1 good).
+var letter_cond: int = 0
+var send_reply: bool = false
+## Day number the letter arrived (`letter.date`); -1 = none.
+var letter_day: int = -1
+## header / body / footer / present / paper_type of the saved letter.
+var letter: Dictionary = {}
 
 
 func talked_on(day_key: String) -> bool:
@@ -54,7 +66,8 @@ func record_talk(day_key: String) -> int:
 	talk_count += 1
 	last_spoke_day = day_key
 	_push_talk(day_key, kind)
-	if first_ever:
+	if not has_memory:
+		has_memory = true
 		set_friendship(TALK_FIRST)
 		return TALK_FIRST
 	return TALK_REPEAT
@@ -104,6 +117,12 @@ func to_save() -> Dictionary:
 		"talks": talks.duplicate(true),
 		"gifts": gifts.duplicate(true),
 		"milestones": marks,
+		"has_memory": has_memory,
+		"letter_exists": letter_exists,
+		"letter_cond": letter_cond,
+		"send_reply": send_reply,
+		"letter_day": letter_day,
+		"letter": letter.duplicate(true),
 	}
 
 
@@ -116,6 +135,13 @@ func apply_snapshot(data: Dictionary) -> void:
 	gift_count = maxi(0, int(data.get("gift_count", 0)))
 	talks = _dict_list(data.get("talks", []))
 	gifts = _dict_list(data.get("gifts", []))
+	has_memory = bool(data.get("has_memory", talk_count > 0))
+	letter_exists = bool(data.get("letter_exists", false))
+	letter_cond = int(data.get("letter_cond", 0))
+	send_reply = bool(data.get("send_reply", false))
+	letter_day = int(data.get("letter_day", -1))
+	var saved: Variant = data.get("letter", {})
+	letter = (saved as Dictionary).duplicate(true) if typeof(saved) == TYPE_DICTIONARY else {}
 	milestones.clear()
 	var raw: Variant = data.get("milestones", [])
 	if typeof(raw) == TYPE_ARRAY:

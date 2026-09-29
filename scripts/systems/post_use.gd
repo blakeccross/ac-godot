@@ -99,11 +99,27 @@ static func send_mail_at(index: int) -> String:
 		return "The desk is full — we can't take more mail."
 	Game.inventory.remove_mail(index)
 	_refresh_mail_piles()
+	_deliver_to_villager(copy)
 	if Game.first_job != null and Game.first_job.is_active():
 		Game.first_job.note_letter_mailed(copy.recipient_id)
 		if Game.first_job.chore_finished():
 			Game.set_interact_prompt("Talk to Tom Nook")
 	return "We'll deliver your letter to %s!" % copy.recipient_name
+
+
+## `mPO_receipt_check_mail` → `mNpc_SendMailtoNpc`: a letter to a resident reaches them now.
+## During the first job the letter is kept but moves no friendship (`mEv_CheckFirstJob`).
+static func _deliver_to_villager(mail: MailData) -> void:
+	if mail.recipient_type != MailData.NameType.NPC or Game.residents == null:
+		return
+	if not Game.residents.has_resident(mail.recipient_id):
+		return
+	var bond: Relationship = Game.relationships.get_or_create(mail.recipient_id)
+	var before: int = bond.friendship
+	VillagerLetters.receive(bond, mail, Clock.day_number())
+	if Game.first_job != null and Game.first_job.is_active():
+		bond.set_friendship(before)
+		bond.send_reply = false
 
 
 static func save_mail_at(index: int) -> String:

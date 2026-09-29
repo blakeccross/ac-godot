@@ -551,14 +551,33 @@ def mail_text(raw: bytes, header: bool = False) -> str:
     return text.rstrip()
 
 
+## `mHandbillz` pieces are concatenated raw (`mHandbillz_mail_load`), so they keep their
+## padding and carry their byte size for the 192-byte body check.
+RAW_BANKS = ("maila", "mailb", "mailc")
+
+
+def mail_raw_text(raw: bytes) -> str:
+    parts: list[str] = []
+    for tok in decode_tokens(raw):
+        if tok["type"] == "text":
+            parts.append(tok["text"])
+        elif tok["name"] in SUBS:
+            parts.append(SUBS[tok["name"]])
+    return "".join(parts)
+
+
 def convert_mail(cfg: PipelineConfig) -> dict[str, Any]:
-    banks: dict[str, list[str]] = {}
+    banks: dict[str, Any] = {}
     for stem in MAIL_BANKS:
         pair = find_pair(cfg, f"{stem}_data")
         if pair is None:
             continue
         raws = decode_table(pair[0].read_bytes(), pair[1].read_bytes())
-        banks[stem] = [mail_text(r, stem in HEADER_BANKS) if r else "" for r in raws]
+        if stem in RAW_BANKS:
+            banks[stem] = [mail_raw_text(r) if r else "" for r in raws]
+        else:
+            banks[stem] = [mail_text(r, stem in HEADER_BANKS) if r else "" for r in raws]
+        banks[f"{stem}_size"] = [len(r) for r in raws]
     if "mail" not in banks:
         return {"error": "mail_data.bin not found", "converted": 0}
     out_dir = cfg.godot_generated / "dialogue"
@@ -566,7 +585,47 @@ def convert_mail(cfg: PipelineConfig) -> dict[str, Any]:
     (out_dir / "mail.json").write_text(
         json.dumps(banks, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
     )
-    return {"converted": sum(len(v) for v in banks.values()), "banks": sorted(banks)}
+    check = convert_mail_check(cfg)
+    return {
+        "converted": sum(len(v) for k, v in banks.items() if not k.endswith("_size")),
+        "banks": sorted(k for k in banks if not k.endswith("_size")),
+        "mail_check": check.get("tables", 0),
+    }
+
+
+## `m_mail_check_ovl`: the 26 `str_?_table` syllable tables. The US build dropped their
+## 0x7F terminators, so `mMck_cmp_key` keeps reading pairs into whatever follows until a
+## pair starts with 0x7F; each letter's full scan range is saved. Pointer words in that
+## range are the REL's self-relocated values (data section at 0), not runtime RAM addresses.
+MAIL_CHECK_SCAN_MAX = 0x4000
+
+
+def convert_mail_check(cfg: PipelineConfig) -> dict[str, Any]:
+    from .mapfile import index_by_name, parse_map
+    from .rel import RelData
+
+    rel_path = getattr(cfg, "rel_path", None)
+    map_path = getattr(cfg, "map_path", None)
+    if rel_path is None or map_path is None or not Path(rel_path).is_file() or not Path(map_path).is_file():
+        return {"tables": 0}
+    rel = RelData(Path(rel_path))
+    by_name = index_by_name(parse_map(Path(map_path)))
+    tables: dict[str, list[int]] = {}
+    for letter in "abcdefghijklmnopqrstuvwxyz":
+        sym = by_name.get(f"str_{letter}_table")
+        if sym is None:
+            return {"tables": 0}
+        blob = rel.slice_at(sym.address, MAIL_CHECK_SCAN_MAX)
+        end = len(blob) - (len(blob) % 2)
+        for i in range(0, len(blob) - 1, 2):
+            if blob[i] == 0x7F:
+                end = i
+                break
+        tables[letter] = list(blob[:end])
+    out = {"tables": tables, "char_map": char_map()}
+    out_dir = cfg.godot_generated / "dialogue"
+    (out_dir / "mail_check.json").write_text(json.dumps(out, ensure_ascii=False) + "\n", encoding="utf-8")
+    return {"tables": len(tables)}
 
 
 def convert_dialogue(cfg: PipelineConfig) -> dict[str, Any]:
