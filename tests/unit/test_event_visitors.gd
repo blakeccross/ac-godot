@@ -392,3 +392,19 @@ func test_miko_fortune_costs_50_and_sends_a_letter() -> void:
 	var broke := MikoTalk.new(inv)
 	broke.context = DialogueContext.new()
 	assert_int(broke.picked(MikoTalk.MSG_ASK, 0)).is_equal(MikoTalk.MSG_BROKE)
+
+
+func test_festival_terms_pick_countdown_and_groundhog_lines() -> void:
+	var rng := RandomNumberGenerator.new()
+	assert_int(FestivalCrowd.countdown_term(23 * 3600 + 56 * 60)).is_equal(FestivalCrowd.Countdown.FIVE)
+	assert_int(FestivalCrowd.countdown_term(5)).is_equal(FestivalCrowd.Countdown.NEW_YEAR)
+	assert_int(FestivalCrowd.countdown_term(3600)).is_equal(FestivalCrowd.Countdown.AFTER)
+	## `aCD1_set_talk_info`: term * 4, +17 after midnight.
+	var n: int = FestivalCrowd.talk_msg(&"countdown", 0, 2, rng, false, FestivalCrowd.Countdown.TEN)
+	assert_int(n).is_between(7528 + 8, 7528 + 10)
+	assert_int(FestivalCrowd.talk_msg(&"countdown", 0, 2, rng, false, FestivalCrowd.Countdown.AFTER)).is_between(7528 + 17, 7528 + 19)
+	assert_int(FestivalCrowd.countdown_force_msg(0, FestivalCrowd.Countdown.TEN)).is_equal(7531 + 4)
+	## `aGH0_set_norm_talk_info`: the last minute shares the 5-minute lines.
+	assert_int(FestivalCrowd.groundhog_term(7 * 3600 + 59 * 60)).is_equal(FestivalCrowd.Groundhog.ONE)
+	var g: int = FestivalCrowd.talk_msg(&"groundhog", 0, 1, rng, false, FestivalCrowd.Groundhog.ONE)
+	assert_int(g).is_between(15698 + 9, 15698 + 11)

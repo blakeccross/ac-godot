@@ -48,9 +48,10 @@ const FAMILIES: Dictionary = {
 		"alt": [0x3F46, 0x3F55, 0x3F37, 0x3F64, 0x3F73, 0x3F82], "alt_event": &"meteor_shower",
 		"mode": Mode.CYCLE, "clips": ["npc_1_wait1", "npc_1_wait1", "npc_1_kuisinbo1"],
 	},
-	## `ac_countdown_npc0/1`: party poppers ready (`term` 0 before the last minute).
+	## `ac_countdown_npc0/1`: party poppers ready; the lines follow `aCD0_get_now_term`.
 	&"countdown": {
-		"msg": [7528, 7549, 7507, 7570, 7591, 7612], "rand": 3, "step": 0,
+		"msg": [7528, 7549, 7507, 7570, 7591, 7612], "rand": 3, "step": 0, "term": &"countdown",
+		"force": [7531, 7552, 7510, 7573, 7594, 7615],
 		"mode": Mode.CYCLE, "clips": ["npc_1_cracker_wait1"],
 	},
 	## `ac_turi_npc0` (`aTR0_set_talk_info`): rod out by the pond.
@@ -97,9 +98,9 @@ const FAMILIES: Dictionary = {
 		"msg": [0x3CA4, 0x3CC3, 0x3C47, 0x3C66, 0x3C85, 0x3CE2], "rand": 3, "step": 0,
 		"mode": Mode.CYCLE, "clips": ["npc_1_wait1", "npc_1_wait1", "npc_1_clap1"],
 	},
-	## `ac_groundhog_npc0`: listening to the speech (`now_term` 0 before it starts).
+	## `ac_groundhog_npc0`: waiting for the 8:00 speech (`aGHC_get_now_term`).
 	&"groundhog": {
-		"msg": [15698, 15729, 15605, 15636, 15667, 15760], "rand": 3, "step": 0,
+		"msg": [15698, 15729, 15605, 15636, 15667, 15760], "rand": 3, "step": 0, "term": &"groundhog",
 		"mode": Mode.CYCLE, "clips": ["npc_1_wait1", "npc_1_wait1", "npc_1_clap1"],
 	},
 }
@@ -162,6 +163,63 @@ const PROPS: Dictionary = {
 }
 
 
+## `aCD0_TERM_*`: 1 h, 30 min, 10 min, 5 min, 1 min before midnight, the new year (first
+## 10 s), after.
+enum Countdown { HOUR, HALF, TEN, FIVE, ONE, NEW_YEAR, AFTER }
+## `aGHC_TERM_*`: 1 h, 30, 15, 5, 1 min before 8:00, then the event.
+enum Groundhog { HOUR, HALF, QUARTER, FIVE, ONE, EVENT }
+
+
+## `aCD0_get_now_term` (seconds since midnight).
+static func countdown_term(sec: int) -> int:
+	if sec > 23 * 3600 + 59 * 60:
+		return Countdown.ONE
+	if sec > 23 * 3600 + 55 * 60:
+		return Countdown.FIVE
+	if sec > 23 * 3600 + 50 * 60:
+		return Countdown.TEN
+	if sec > 23 * 3600 + 30 * 60:
+		return Countdown.HALF
+	if sec > 23 * 3600:
+		return Countdown.HOUR
+	if sec < 10:
+		return Countdown.NEW_YEAR
+	return Countdown.AFTER
+
+
+## `aGHC_get_now_term`.
+static func groundhog_term(sec: int) -> int:
+	if sec >= 8 * 3600:
+		return Groundhog.EVENT
+	if sec >= 7 * 3600 + 59 * 60:
+		return Groundhog.ONE
+	if sec >= 7 * 3600 + 55 * 60:
+		return Groundhog.FIVE
+	if sec >= 7 * 3600 + 45 * 60:
+		return Groundhog.QUARTER
+	if sec >= 7 * 3600 + 30 * 60:
+		return Groundhog.HALF
+	return Groundhog.HOUR
+
+
+## The term a family's lines follow now, or -1.
+static func term_of(family: StringName, sec: int) -> int:
+	match StringName(FAMILIES.get(family, {}).get("term", &"")):
+		&"countdown":
+			return countdown_term(sec)
+		&"groundhog":
+			return groundhog_term(sec)
+	return -1
+
+
+## `aCD0_set_force_talk_info`: npc0 calls out each new term.
+static func countdown_force_msg(looks: int, term: int) -> int:
+	var base: int = int(FAMILIES[&"countdown"]["force"][clampi(looks, 0, 5)])
+	if term >= Countdown.NEW_YEAR:
+		return base + 13
+	return base + (term - 1) * 4
+
+
 static func family_of(actor: String) -> StringName:
 	var entry: Array = ACTORS.get(actor, [])
 	return entry[0] if not entry.is_empty() else &""
@@ -173,13 +231,25 @@ static func slot_of(actor: String) -> int:
 
 
 ## `set_talk_info`: the message for a villager of `looks` in `slot`.
-static func talk_msg(family: StringName, looks: int, slot: int, rng: RandomNumberGenerator, alt: bool = false) -> int:
+static func talk_msg(
+	family: StringName, looks: int, slot: int, rng: RandomNumberGenerator, alt: bool = false, term: int = -1
+) -> int:
 	var data: Dictionary = FAMILIES.get(family, {})
 	if data.is_empty():
 		return -1
 	var bases: Array = data["alt"] if alt and data.has("alt") else data["msg"]
 	var base: int = int(bases[clampi(looks, 0, bases.size() - 1)])
 	var step: int = int(data.get("step", 0)) * (slot - int(data.get("slot_from", 0)))
+	match StringName(data.get("term", &"")):
+		&"countdown":
+			## `aCD1_set_talk_info`: +17 from the new year on, else term * 4.
+			step = 17 if term >= Countdown.NEW_YEAR else maxi(term, 0) * 4
+		&"groundhog":
+			## `aGH0_set_norm_talk_info`: the 1-minute term shares the 5-minute lines.
+			var t: int = maxi(term, 0)
+			if t >= Groundhog.ONE:
+				t -= 1
+			step = t * 3
 	var n: int = maxi(1, int(data.get("rand", 1)))
 	return base + step + (rng.randi_range(0, n - 1) if rng != null else 0)
 

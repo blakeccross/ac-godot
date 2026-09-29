@@ -11,6 +11,7 @@ var _data: Dictionary = {}
 var _home: Vector3
 var _pause: float = 0.0
 var _seq: int = 0
+var _term: int = -1
 
 
 ## Before `_ready`: copy the villager's looks onto the event actor.
@@ -64,7 +65,8 @@ func make_context() -> DialogueContext:
 func make_talk() -> BankTalk:
 	var alt_event: StringName = _data.get("alt_event", &"")
 	var alt: bool = alt_event != &"" and Game != null and Game.events != null and Game.events.is_active(alt_event)
-	var n: int = FestivalCrowd.talk_msg(family, _looks(), slot, rng(), alt)
+	var term: int = FestivalCrowd.term_of(family, Clock.now_sec())
+	var n: int = FestivalCrowd.talk_msg(family, _looks(), slot, rng(), alt, term)
 	return BankTalk.Fixed.new(n) if n >= 0 else null
 
 
@@ -75,6 +77,8 @@ func talk_ended(script: BankTalk) -> void:
 
 func think(delta: float) -> void:
 	if _data.is_empty():
+		return
+	if _data.has("term") and _tick_term():
 		return
 	_pause -= delta
 	if _pause > 0.0 and not clip_done():
@@ -119,3 +123,26 @@ func _wander() -> void:
 		return
 	move_to(target, WALK_SPEED * 0.6, str(_data.get("walk", "npc_1_walk1")))
 	_pause = rng().randf_range(2.0, 5.0)
+
+
+## `aCD0_set_term`: a new term. At midnight everyone pulls their party popper; npc0 calls out
+## each earlier term to a player in the pond acre (`aCD0_force_talk_request`).
+func _tick_term() -> bool:
+	var term: int = FestivalCrowd.term_of(family, Clock.now_sec())
+	if term == _term:
+		return false
+	var first: bool = _term < 0
+	_term = term
+	if family != &"countdown" or first:
+		return false
+	if term == FestivalCrowd.Countdown.NEW_YEAR:
+		_pause = play_clip("npc_1_cracker_fire1", false)
+		return true
+	if term == FestivalCrowd.Countdown.AFTER:
+		_data = _data.duplicate()
+		_data["clips"] = ["npc_1_wait_ki1"]
+		return false
+	if slot == 0 and player_distance() < 16.0 and not talking:
+		begin_talk(player_node(), BankTalk.Fixed.new(FestivalCrowd.countdown_force_msg(_looks(), term)))
+		return true
+	return false

@@ -14,6 +14,7 @@ const SPECIALS: Dictionary = {
 	"SP_NPC_EV_YOMISE2": "res://scenes/world/events/yomise.tscn",
 	"SP_NPC_ANGLER": "res://scenes/world/events/angler.tscn",
 	"SP_NPC_EV_MIKO": "res://scenes/world/events/miko.tscn",
+	"SP_NPC_EV_SPEECH_SONCHO": "res://scenes/world/events/speech_tortimer.tscn",
 }
 ## The props a seated / standing guest faces, if one is this close (cells).
 const FACE_PROP_RANGE := 4.0
