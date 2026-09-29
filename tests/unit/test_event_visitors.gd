@@ -462,3 +462,35 @@ func test_trick_or_treat_candy_and_tricks() -> void:
 	npc.current_msg = TrickOrTreatTalk.NPC_EMPTY + 12
 	assert_int(int(npc.next_step()["msg"])).is_equal(TrickOrTreatTalk.NPC_TRICKED + 12)
 	assert_bool(npc.tricked_cloth or npc.tricked_item != &"").is_true()
+
+
+func test_jingle_wish_list_and_shirt_trick() -> void:
+	if not FtrCatalog.available():
+		return
+	var area: Dictionary = {}
+	var inv := Inventory.new()
+	var rng := RandomNumberGenerator.new()
+	var talk := func(block: Vector2i, cloth: StringName) -> JingleTalk:
+		var t := JingleTalk.new(area, inv, rng)
+		t.block = block
+		t.cloth = cloth
+		return t
+	assert_int(talk.call(Vector2i(1, 1), &"shirt_000").start_msg()).is_equal(JingleTalk.MSG_HELLO)
+	assert_int(talk.call(Vector2i(1, 1), &"shirt_000").start_msg()).is_between(JingleTalk.MSG_SAME_ACRE, JingleTalk.MSG_SAME_ACRE + 2)
+	var t1: JingleTalk = talk.call(Vector2i(2, 1), &"shirt_000")
+	assert_int(t1.start_msg()).is_equal(JingleTalk.MSG_CHECK_1ST)
+	t1.picked(JingleTalk.MSG_CHECK_1ST, 1)
+	var t2: JingleTalk = talk.call(Vector2i(3, 1), &"shirt_000")
+	assert_int(t2.start_msg()).is_equal(JingleTalk.MSG_CHECK_2ND)
+	t2.picked(JingleTalk.MSG_CHECK_2ND, 0)
+	## 1st answer "no" (bit 0), 2nd "yes": clothing.
+	var t3: JingleTalk = talk.call(Vector2i(4, 1), &"shirt_000")
+	assert_int(t3.start_msg()).is_equal(JingleTalk.MSG_CHECK_FINAL[JingleTalk.Wish.CLOTH])
+	t3.picked(JingleTalk.MSG_CHECK_FINAL[JingleTalk.Wish.CLOTH], 0)
+	var t4: JingleTalk = talk.call(Vector2i(5, 1), &"shirt_000")
+	assert_int(t4.start_msg()).is_equal(JingleTalk.MSG_PRESENT)
+	assert_bool(FtrCatalog.named_list("cloth", "Christmas").has(t4.gift)).is_true()
+	## Same shirt: recognised. New shirt twice in a row: another present.
+	assert_int(talk.call(Vector2i(6, 1), &"shirt_000").start_msg()).is_between(JingleTalk.MSG_SAME_PLAYER, JingleTalk.MSG_SAME_PLAYER + 2)
+	assert_int(talk.call(Vector2i(7, 1), &"shirt_005").start_msg()).is_equal(JingleTalk.MSG_ALMOST)
+	assert_int(talk.call(Vector2i(8, 1), &"shirt_005").start_msg()).is_equal(JingleTalk.MSG_PRESENT2)
