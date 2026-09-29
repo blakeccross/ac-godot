@@ -528,19 +528,21 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 
 ## 30. Special visitors & recurring NPCs
 
-- [ ] **K.K. Slider** — Saturdays 20:00–23:59 at the train station; request a song by name or get a random one; take home a bootleg (aircheck); **55 songs** (`ac_npc_totakeke`, `mEv_EVENT_KK_SLIDER`, `m_music_ovl`, `m_mscore_ovl`)
-- [ ] **Crazy Redd** — travelling black-market tent (needs Nook's referral card); furniture (some rare), carpets/wallpaper, and forged/real paintings; stock rotates (`ac_ev_broker`, `ac_ev_broker2`, `ac_br_shop`)
-- [ ] **Saharah** — camel rug peddler; sells randomly, buys your old carpets; exclusive carpets/wallpaper (`ac_ev_gypsy`, `ac_ev_carpetPeddler`)
-- [ ] **Wendell** — hungry walrus artist; give him food → free design pattern (`ac_ev_designer`, `ac_ev_artist`)
-- [ ] **Gracie** — giraffe fashion designer with a car; assesses your outfit → gives Gracie-brand furniture/clothing if you pass; wash the car errand (`ac_s_car`, `ac_buggy`, `m_player_main_wash_car`, `ac_ev_castaway`?)
-- [ ] **Gulliver** — seagull washed up (drunk) on the beach; wake him repeatedly → he flies off → mails a foreign item days later (`ac_ev_dokutu`? / castaway)
-- [ ] **Wisp / Genie** — ghost you free from a bottle/lamp at night → wish granted (item or town favour) (`ac_ev_ghost`, `mEv_EVENT_GHOST`)
-- [ ] **Sow Joan** — turnip seller, Sunday mornings (`ac_ev_kabuPeddler`, `ac_yomise`)
-- [ ] **Katrina** the fortune teller — present in GCN as the gypsy fortune event; fortune reading costs 50 bells (`ac_ev_gypsy`, `mEv_EVENT_GYPSY`)
-- [ ] **Jingle** — reindeer, Toy Day (Dec 24); collects/gives presents (`ac_ev_santa`, `mEv_EVENT_TOY_DAY_*`)
-- [ ] **Franklin** — turkey chef, Harvest Festival (US Thanksgiving); hides from villagers; fetch ingredients → furniture (`ac_ev_turkey`, `ac_harvest_npc*`, `mEv_EVENT_HARVEST_FESTIVAL`)
+Event NPCs are `EventNpc` scenes placed by `EventManager` presenters (`scenes/world/event_manager.gd`, `scripts/systems/events/`); their talks are `BankTalk` scripts over the disc messages. See [events](decomp_notes/events.md).
+
+- [x] **K.K. Slider** — Saturday nights at the station; request a song by exact title, a random uncollected one, or a made-up tune; the show (quiet, live BGM, staff roll, weather cues) and the aircheck (`ac_npc_totakeke`, `KkTalk`). Missing: staff-roll lights/camera, exact strum/beat sync
+- [x] **Crazy Redd** — tent on an empty lot, three wares at 4× price, sales talk (`ac_ev_broker`, `ac_ev_broker2`, `ReddStock` / `ReddTalk`). Missing: goodbye walk on exit
+- [x] **Saharah** — trades a carpet for yours at 3000 × 2^n (`ac_ev_carpetPeddler`, `SaharahTalk`)
+- [x] **Wendell** — fish for an event wallpaper (`ac_ev_artist`, `WendellTalk`)
+- [x] **Gracie** — car on a lot, fashion check, car-wash minigame, Event / group-A clothing (`ac_ev_designer`, `GracieTalk`)
+- [x] **Gulliver** — on the beach, wake him, Jonason gift (`ac_ev_dozaemon`, `GulliverTalk`). Missing: the foreign-item letter days later
+- [ ] **Wisp** — spirits scattered at night, catch five for a wish (weeds / roof colour / item) (`ac_ev_ghost`, `mEv_EVENT_GHOST`). Needs the spirit field actors; row still in `EventSchedule.UNSUPPORTED`
+- [x] **Joan** — Sunday mornings, turnips (`ac_ev_kabuPeddler`, `JoanTalk`). Her give order is simplified (take → give → lines)
+- [x] **Katrina** — fortune tent (50 Bells, destiny) (`ac_ev_gypsy`, `KatrinaTalk`) and the New Year's shrine lottery (fortune letter + destiny) (`ac_ev_miko`, `MikoTalk`). Destiny effects on villagers / luck are not wired
+- [x] **Jingle** — Toy Day: wish questions in a new acre each time, a Christmas present; new shirts fool him (`ac_ev_santa`, `JingleTalk`)
+- [x] **Franklin** — hides on Harvest Festival day; his knife and fork by the feast table buys one of 12 harvest presents (`ac_ev_turkey`, `FranklinTalk`)
 - [ ] **Pavé / dancers** — _later games_ (skip)
-- [ ] **Chip** — beaver, fishing tourney host & judge (`ac_ev_angler`, `ac_turi_npc0`)
+- [x] **Chip** — bass tourney judge: measures, keeps the day's record (villagers can beat it), A/B/C prize (`ac_ev_angler`, `AnglerTalk`)
 - [ ] **Nat** — _not GCN_ (skip)
 - [ ] **Dr. Shrunk** — _not GCN_ (skip; emotions come from villagers)
 - [ ] **Mr. Resetti / Don Resetti** (§1)
@@ -548,47 +550,42 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [ ] **Porter** — station master monkey (`ac_npc_station_master`)
 - [ ] **Kapp'n** — boat to the island (`ac_npc_sendo`, `ac_boat`, `ac_boat_demo`)
 - [ ] **Tom Nook**, **Timmy & Tommy**, **Blathers**, **Pelly & Phyllis**, **Copper & Booker**, **Sable & Mabel**, **Tortimer**, **Wishy**, **Joan**
-- [ ] **Countdown NPCs** for New Year's Eve (`ac_countdown_npc0/1`)
-- [ ] **Mask salesman** on weekdays (`ac_npc_mask_cat`, `mEv_EVENT_MASK_NPC`)
-- [ ] **The shrine miko / hatsumōde** priest (`ac_ev_miko`, `ac_hatumode_control`) — _(JP; verify in GAFE)_
+- [x] **Countdown NPCs** for New Year's Eve — lines by minutes to midnight, the leader calls out each term, party poppers and fireworks at midnight (`ac_countdown_npc0/1`)
+- [ ] **Blanca / mask cat** (`ac_npc_mask_cat`, `mEv_EVENT_MASK_NPC`) — needs the face-drawing editor; row still unsupported
+- [x] **Night-stall Redd** at the fireworks: fans / pinwheels / balloons, 8 colours a night (`ac_ev_yomise`, `YomiseTalk`)
 
 ## 31. Holidays & seasonal events
 
 From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table rows). Localised USA set:
 
-- [~] Event scheduler: every row resolved per date/hour, weekly visitor, special-visit roll, weather override, `/event` debug commands — `event_calendar.gd`, `event_schedule.gd`, `data/events/schedule.json` ([events](decomp_notes/events.md)). **Presenters (the things that actually appear in town) are not built**, so the entries below stay unchecked.
+- [x] Event scheduler: every row resolved per date/hour, weekly visitor, special-visit roll, weather override, `/event` debug commands — `event_calendar.gd`, `event_schedule.gd`, `data/events/schedule.json` ([events](decomp_notes/events.md))
+- [x] Festival presenter: props, residents in their map slots (`data/events/event_map.json`, `FestivalCrowd`) with their slot's animations and talk, hidden from the field meanwhile
 
-- [ ] New Year's Day (Jan 1) — countdown the night before, Tortimer speech, party poppers
-- [ ] Groundhog Day (Feb 2)
+- [x] New Year's Day — shrine crowd, Katrina's lottery, Tortimer. Missing: the hatsumōde queue choreography (`ac_hatumode_control`)
+- [x] Groundhog Day — crowd lines by minutes to 8:00, Tortimer's 8:00 speech and weather verdict. Missing: the groundhog pop-up demo
 - [ ] Valentine's Day (Feb 14) — chocolate from a villager
-- [ ] Snowman season / Kamakura (Dec–Feb) — build snowmen
-- [ ] Spring Equinox / **Spring Sports Fair** (calculated vernal equinox day, usually Mar 19–21) — aerobics, foot race, ball toss, tug-of-war
+- [~] Snowman season / Kamakura — snow cabin with a resident guest (greeting game, Kamakura trade list). Missing: snowman balls event (`snowman_start`)
+- [~] Spring / Fall **Sports Fair** — residents in gym clothes at their stations with their lines; Tortimer. Missing: the foot race / ball toss / tug-of-war games themselves
 - [ ] April Fools' Day (Apr 1)
-- [ ] Cherry Blossom Festival & petals (festival dates Apr 5–7; broader visual petal window verify)
-- [ ] Nature Day (Apr 22)
-- [ ] Spring Cleaning (May 1)
-- [ ] Mother's Day (2nd Sun May), Father's Day (3rd Sun Jun)
-- [ ] Fishing Tourney (June & November Sundays)
-- [ ] Summer Camper / Graduation Day (June)
-- [ ] Fireworks Show (Jul 4) — Tortimer sets them off in the plaza
-- [ ] Town Day / Founders' Day (town-specific July date; Aug 21)
-- [ ] Morning Aerobics (Jul 25 – Aug 31, 06:00 daily)
-- [ ] Meteor Shower (Aug 12) — wish on shooting stars
-- [ ] Labor Day (1st Mon Sep)
-- [ ] Autumn Equinox / **Fall Sports Fair** (calculated autumnal equinox day, usually Sep 21–23)
-- [ ] Explorers' Day (2nd Mon Oct)
+- [x] Cherry Blossom Festival — picnic mats, seated / dancing residents, Tortimer
+- [x] Nature Day, Spring Cleaning, Mother's / Father's Day, Graduation, Town / Founders' / Labor / Explorers' / Officers' / Mayor's / Sale / Snow Day — Tortimer at the wishing well with his calendar trophy (`ac_ev_soncho2`, `TortimerHoliday`)
+- [x] Fishing Tourney — anglers at the pond, Chip, weigh stand
+- [x] Summer Camper — tent on an empty lot, an out-of-town villager inside (greeting game, Tent trade list)
+- [x] Fireworks Show — crowd with fans, Redd's stall, fireworks over the pond (bigger sets in the last hour)
+- [~] Morning Aerobics — residents doing the routine by the radio. Missing: Copper and Tortimer's radio exercise card (`mSC_Radio_*`)
+- [~] Meteor Shower — moon-viewing crowd with meteor lines. Missing: shooting-star effect (`eEC_EFFECT_SHOOTING_SET`)
+- [x] Harvest Moon — moon-viewing crowd
 - [ ] Mushroom season (mid-Oct)
-- [ ] **Halloween** (Oct 31, 18:00–24:00) — wear a mask, trick-or-treat villagers, Jack the pumpkin king, candy, lollipops, spooky furniture (`ac_halloween_npc`, `ef_halloween`, `ac_ev_pumpkin`)
-- [ ] Officers' Day (Nov 11), Mayor's Day
-- [ ] **Harvest Festival** (4th Thu Nov) — Franklin
+- [x] **Halloween** — Jack (moves acre after each talk), residents in costume chase the player; candy → present, else a trick (pocket swap or shirt) (`ac_ev_pumpkin`, `ac_halloween_npc`, `TrickOrTreatTalk`)
+- [x] **Harvest Festival** — seated feast crowd, Tortimer; Franklin (separate row)
 - [~] The day after — **Sale Day** at Nook's — grab bags (`mSP_Chk_HukubukuroSail`); see §21
 - [ ] Snow Day (Dec 1) — snow begins
-- [ ] **Toy Day** (Dec 24) — Jingle, presents, Toy Day furniture; Tortimer Dec 23
-- [ ] **New Year's Eve** (Dec 31 23:00) — countdown, fireworks, party
+- [x] **Toy Day** — Jingle
+- [x] **New Year's Eve** — countdown crowd, party poppers, fireworks at midnight
 - [ ] Weekly: K.K. (Sat night), turnips (Sun AM), Tortimer/mayor rounds
 - [~] Monthly: bank interest, HRA report, lottery (last day), Nook stock reshuffle — raffle + monthly prize reshuffle done
 - [ ] "Rumor" pre-event villager chatter for each holiday (`mEv_EVENT_RUMOR_*`)
-- [ ] Tortimer "soncho" variant appearances for each holiday (`mEv_EVENT_SONCHO_*`)
+- [x] Tortimer "soncho" variant appearances for each holiday (`mEv_EVENT_SONCHO_*`) — except the January / February vacations and the bridge
 - [ ] Player Birthday party — villagers throw a party at your house or theirs, cake, presents
 - [ ] Weather overrides for events (clear for fireworks, snow for Toy Day) (`mEv_EVENT_WEATHER_*`)
 - [ ] La-di-day / other minor JP holidays present in code — _(verify which survive in GAFE01)_
