@@ -245,3 +245,58 @@ func test_talk_info_patience_and_request_flag() -> void:
 	assert_int(info.patience(3, 0)).is_equal(NpcTalkInfo.Patience.NORMAL)
 	info.set_quest_request_off(3, 0)
 	assert_bool(info.quest_request(3)).is_false()
+
+
+func test_rumour_topic_uses_the_event_rumor_table_slot() -> void:
+	var m: VillagerTalkManager = _manager(2)
+	## 2001-12-27: new year's day and new year's eve rumours both run.
+	Clock.apply_snapshot({"year": 2001, "month": 12, "day": 27, "hour": 10, "minute": 0, "second": 0})
+	Game.events.sync(EventCalendar.date_from_clock())
+	var seen: Dictionary = {}
+	for i: int in 40:
+		m.context.rng.seed = i
+		var msg: int = m._decide_calendar_ev()
+		seen[msg] = true
+		var base: int = VillagerTalkManager.EV_CAL[2]
+		## Whatever is live today, at its `event_rumor_table` slot × 2 (+0/1).
+		var slot: int = (msg - base) / 2
+		assert_bool(slot >= 0 and slot < VillagerTalkManager.RUMOR_TABLE.size()).is_true()
+		assert_bool(VillagerTalkManager.RUMOR_TABLE[slot] in Game.events.active_rumors()).is_true()
+	assert_int(seen.size()).is_greater(1)
+	## Moon dates are always set for the message.
+	assert_str(m.context.frees[16]).is_not_empty()
+
+
+func test_kamakura_rumour_is_winter_only() -> void:
+	var m: VillagerTalkManager = _manager(0)
+	Clock.apply_snapshot({"year": 2001, "month": 7, "day": 10, "hour": 10, "minute": 0, "second": 0})
+	Game.events.force(&"rumor_kamakura")
+	Game.events.sync(EventCalendar.date_from_clock())
+	for i: int in 20:
+		m.context.rng.seed = i
+		var msg: int = m._decide_calendar_ev()
+		assert_bool(msg == -1 or msg < VillagerTalkManager.EV_CAL[0] + 2 or msg >= VillagerTalkManager.EV_CAL[0] + 4).is_true()
+
+
+func test_special_visitor_topic_before_the_visit() -> void:
+	var m: VillagerTalkManager = _manager(3)
+	Clock.apply_snapshot({"year": 2001, "month": 5, "day": 3, "hour": 9, "minute": 0, "second": 0})
+	Game.events.special_type = &"gypsy"
+	Game.events.special_year = 2001
+	Game.events.special_dates = {"special0": EventDates.md(5, 1), "special1": EventDates.md(5, 6), "special2": EventDates.md(5, 7), "special3": 6}
+	var msg: int = m._decide_special_ev()
+	var base: int = VillagerTalkManager.EV_SPECIAL[3] + 5 * 3
+	assert_int(msg).is_between(base, base + 2)
+	## After the visit day it's old news.
+	Clock.apply_snapshot({"year": 2001, "month": 5, "day": 7, "hour": 9, "minute": 0, "second": 0})
+	assert_int(m._decide_special_ev()).is_equal(-1)
+	## On the day itself it still comes up.
+	Clock.apply_snapshot({"year": 2001, "month": 5, "day": 6, "hour": 22, "minute": 0, "second": 0})
+	assert_int(m._decide_special_ev()).is_between(base, base + 2)
+
+
+func test_lunar_dates_are_near_the_harvest_moon() -> void:
+	var moon: Vector2i = VillagerTalkManager.moon_dates(2001)
+	assert_int(moon.x).is_equal(1001)
+	assert_int(moon.y).is_equal(1029)
+	assert_int(VillagerTalkManager.lunar_today(2001, 10, 1)).is_equal(815)

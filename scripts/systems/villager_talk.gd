@@ -51,12 +51,39 @@ static func manager(villager: VillagerData, state: VillagerState, ctx: DialogueC
 	m.hint_count_get = func() -> int: return Game.first_job_hint_count
 	m.hint_count_set = func(v: int) -> void: Game.first_job_hint_count = v
 	m.show_letter = func(letter: Dictionary) -> void: _show_letter(villager, letter)
+	m.edit_catchphrase = func() -> void: _edit_catchphrase(villager, state)
 	m.send_mail = Game.deliver_to_mailbox
 	m.field_counts = Game.field_counts
 	if state != null:
 		## `mNpc_GetOverImpatient` for the greeting.
 		state.patience = Game.npc_talk_info.patience(slot, m.looks) as VillagerState.Patience
 	return m
+
+
+## `aQMgr_order_change_gobi` → `aQMgr_talk_normal_open_gobi`: the message window goes away,
+## the phrase editor (`mSM_OVL_LEDIT`, `mLE_TYPE_EPHRASE`, 10 characters) opens on their
+## current catchphrase, and the message comes back once it closes.
+const CATCHPHRASE_LEN := 10
+
+
+static func _edit_catchphrase(villager: VillagerData, state: VillagerState) -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or state == null:
+		return
+	var board := tree.get_first_node_in_group("letter_writer_ui")
+	var ui := DialogueOverlay.find(tree)
+	if board == null or not board.has_method("open_board") or bool(board.call("is_open")):
+		return
+	if ui != null:
+		ui.set_suspended(true)
+	board.call(
+		"open_board", catchphrase_of(villager, state), 1, CATCHPHRASE_LEN,
+		func(text: String) -> void: state.catchphrase = text.strip_edges()
+	)
+	var resume := func() -> void:
+		if ui != null and is_instance_valid(ui):
+			ui.set_suspended(false)
+	board.connect("closed", resume, CONNECT_ONE_SHOT)
 
 
 ## `aQMgr_talk_normal_open_letter`: the letter the topic talked about, on the read board.

@@ -53,6 +53,26 @@ const NORMAL3_WEATHER_TIME: Array[int] = [0x13A6, 0x1D08, 0x1F81, 0x1FA0, 0x2A9A
 const NORMAL3_WEATHER: Array[int] = [0x1FC1, 0x1D29, 0x206C, 0x20AA, 0x2A38, 0x0F2C]
 const NORMAL3_SEASON: Array[int] = [0x1FD7, 0x1D41, 0x1F55, 0x1F6B, 0x2A13, 0x0F4A]
 const SEASON_ADD: Array[int] = [10, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+## `event_rumor_table[]` order: the rumour's index is its message offset.
+const RUMOR_TABLE: Array[StringName] = [
+	&"rumor_new_years_day", &"rumor_kamakura", &"rumor_valentines_day", &"rumor_groundhog_day",
+	&"rumor_aprilfools_day", &"rumor_cherry_blossom_festival", &"rumor_spring_sports_fair",
+	&"rumor_harvest_festival", &"", &"rumor_fishing_tourney_1", &"talk_fishing_tourney_1",
+	&"rumor_morning_aerobics", &"talk_morning_aerobics", &"rumor_fireworks_show", &"",
+	&"rumor_meteor_shower", &"rumor_harvest_moon_day", &"rumor_fall_sports_fair",
+	&"rumor_mushroom_season", &"talk_mushroom_season", &"rumor_halloween",
+	&"rumor_fishing_tourney_2", &"talk_fishing_tourney_2", &"rumor_toy_day",
+	&"rumor_new_years_eve_countdown",
+]
+## `mEv_RUMOR_*` values the calendar topic checks (the enum's names, the table's slots).
+const RUMOR_KAMAKURA := 1
+const RUMOR_CHERRY_BLOSSOM := 5
+const RUMOR_SUNDAY: Array[int] = [9, 10, 21, 22]
+const RUMOR_FIREWORKS := 13
+## `mString_MONTH_START` / `mString_DAY_START`; `0x55D` "furniture" for the sale topic.
+const MONTH_STR := 0x66D
+const DAY_STR := 0x64E
+const SALE_KIND_STR := 0x55D
 ## `aQMgr_change_NG_msg` (first-job hint phase only).
 const HINT_NG_MSG: Array[int] = [0x0F12, 0x0F91, 0x152E, 0x2586, 0x262E, 0x29F0, 0x29F9, 0x2A76]
 const HINT_NG_BASE: Array[int] = [0x0F12, 0x0F8C, 0x1526, 0x257E, 0x262D, 0x29F0, 0x29F0, 0x2A76]
@@ -368,10 +388,109 @@ func _decide_game() -> int:
 	## `aQMgr_decide_msg_game_ev`: the animal picked to move talks about it.
 	if Game != null and Game.residents != null and slot >= 0 and Game.residents.remove_idx == slot:
 		return REMOVE_YES[looks] + _rand(3)
-	## `aQMgr_decide_msg_ev`: special visitors and calendar rumours aren't tracked yet, so
-	## both come back -1 and the hint line is left.
-	decide_idx_prob_table(EV_PROB)
-	return GAME_HINT[looks] + _rand(5)
+	return _decide_msg_ev()
+
+
+## `aQMgr_decide_msg_ev`: a coming special visitor or a calendar rumour, else the hint.
+func _decide_msg_ev() -> int:
+	var msg: int = -1
+	match decide_idx_prob_table(EV_PROB):
+		0:
+			msg = _decide_special_ev()
+		1:
+			msg = _decide_calendar_ev()
+	if msg == -1:
+		msg = _decide_special_ev()
+	if msg == -1:
+		msg = GAME_HINT[looks] + _rand(5)
+	return msg
+
+
+## `aQMgr_decide_msg_special_ev`: before the visitor's start (on its day too, or until the
+## sale ends), `l_ev_special + subtype × 3`, with the start month / day in FREE12 / FREE13.
+func _decide_special_ev() -> int:
+	if Game == null or Game.events == null:
+		return -1
+	var cal: EventCalendar = Game.events
+	var sub: int = EventCalendar.SPECIAL_POOL.find(cal.special_type)
+	if sub < 0:
+		return -1
+	var start_md: int = int(cal.special_dates.get("special1", 0))
+	var start_year: int = cal.special_year
+	var start_ord: int = EventDates.ordinal(start_year, EventDates.md_month(start_md), EventDates.md_day(start_md))
+	var start_at: int = start_ord * 24 + int(cal.special_dates.get("special3", 0))
+	var today_ord: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
+	var now_at: int = today_ord * 24 + Clock.hour
+	var talk: bool = now_at < start_at
+	if cal.special_type == &"shop_sale":
+		var end_md: int = int(cal.special_dates.get("special2", 0))
+		var end_year: int = start_year + (1 if start_md > end_md else 0)
+		var end_at: int = (
+			EventDates.ordinal(end_year, EventDates.md_month(end_md), EventDates.md_day(end_md)) * 24
+			+ int(EventCalendar.SPECIAL_END_HOUR.get(&"shop_sale", 23))
+		)
+		talk = talk or now_at < end_at
+	else:
+		talk = talk or today_ord == start_ord
+	if not talk:
+		return -1
+	var msg: int = EV_SPECIAL[looks] + sub * 3 + _rand(3)
+	if cal.special_type == &"shop_sale":
+		## The first bargain's kind (`0x55D` furniture …); Nook's sale stock is furniture.
+		_set_free(11, DialogueCatalog.rom_string(SALE_KIND_STR))
+	_set_free(12, DialogueCatalog.rom_string(MONTH_STR + EventDates.md_month(start_md) - 1))
+	_set_free(13, DialogueCatalog.rom_string(DAY_STR + EventDates.md_day(start_md) - 1))
+	return msg
+
+
+## `aQMgr_decide_msg_calendar_ev`: one of today's rumours (`mEv_get_rumor`),
+## `l_ev_cal + rumour × 2 + rand 2`, with the tourney / fireworks day and the moon dates.
+func _decide_calendar_ev() -> int:
+	var rumor: int = -1
+	if Game != null and Game.events != null:
+		var live: Array[int] = []
+		for id: StringName in Game.events.active_rumors():
+			var idx: int = RUMOR_TABLE.find(id)
+			if idx >= 0:
+				live.append(idx)
+		if not live.is_empty():
+			rumor = live[_rand(live.size())]
+	var msg: int = -1
+	if rumor != -1:
+		msg = EV_CAL[looks] + rumor * 2 + _rand(2)
+	if (rumor == RUMOR_CHERRY_BLOSSOM and Clock.term_idx() != 4) or (
+		rumor == RUMOR_KAMAKURA and Clock.season() != Clock.Season.WINTER
+	):
+		msg = -1
+	elif rumor in RUMOR_SUNDAY:
+		_set_free(14, DialogueCatalog.rom_string(DAY_STR + _next_weekday_day(0) - 1))
+	elif rumor == RUMOR_FIREWORKS:
+		_set_free(15, DialogueCatalog.rom_string(DAY_STR + _next_weekday_day(6) - 1))
+	var moon: Vector2i = moon_dates(Clock.year)
+	_set_free(16, DialogueCatalog.rom_string(MONTH_STR + moon.x / 100 - 1))
+	_set_free(17, DialogueCatalog.rom_string(DAY_STR + moon.x % 100 - 1))
+	_set_free(18, DialogueCatalog.rom_string(MONTH_STR + moon.y / 100 - 1))
+	_set_free(19, DialogueCatalog.rom_string(DAY_STR + moon.y % 100 - 1))
+	return msg
+
+
+## `mEv_get_next_weekday`: day of the month of the next `weekday` (today counts), wrapped
+## past the month's last day.
+func _next_weekday_day(weekday: int) -> int:
+	var today: int = Clock.weekday()
+	var d: int = Clock.day + (weekday - today if weekday >= today else 7 - (today - weekday))
+	var last: int = EventDates.days_in_month(Clock.year, Clock.month)
+	if d > last:
+		d -= last
+	return d
+
+
+## `lbRk_ToSeiyouReki` for lunar 8/15 and 9/13 as month×100+day. 8/15 is the harvest-moon
+## table; 9/13 is approximated as 28 days later (one lunar month less two days).
+static func moon_dates(year: int) -> Vector2i:
+	var hm: Vector2i = EventDates.HARVEST_MOON.get(year, Vector2i(9, 21))
+	var at: Vector3i = EventDates.from_ordinal(EventDates.ordinal(year, hm.x, hm.y) + 28)
+	return Vector2i(hm.x * 100 + hm.y, at.y * 100 + at.z)
 
 
 ## `aQMgr_get_msg_weather_time`.
@@ -652,18 +771,33 @@ func _give_money() -> void:
 	inventory.changed.emit()
 
 
-## `aQMgr_order_set_calendar`: lunar-calendar dates (harvest moon 8/15, 9/13 and today's
-## lunar date). `lbRk_ToSeiyouReki` isn't ported; the lunar dates stay as the raw month/day.
+## `aQMgr_order_set_calendar`: the western dates of lunar 8/15 and 9/13 (FREE11–14) and
+## today's lunar date (FREE15/16), as month and day strings. `lb_reki`'s tables aren't ported:
+## the moon dates come from `moon_dates`, and today's lunar date counts 29.53-day months from
+## the harvest moon's lunar 8/1.
 func _order_set_calendar(value: int) -> void:
 	if value != 1:
 		return
-	_set_free(11, _month_name(8))
-	_set_free(12, str(15))
-	_set_free(13, _month_name(9))
-	_set_free(14, str(13))
-	if context != null:
-		_set_free(15, _month_name(context.month))
-		_set_free(16, str(context.day))
+	var moon: Vector2i = moon_dates(Clock.year)
+	_set_md(11, 12, moon.x)
+	_set_md(13, 14, moon.y)
+	_set_md(15, 16, lunar_today(Clock.year, Clock.month, Clock.day))
+
+
+func _set_md(month_free: int, day_free: int, md: int) -> void:
+	_set_free(month_free, DialogueCatalog.rom_string(MONTH_STR + clampi(md / 100, 1, 12) - 1))
+	_set_free(day_free, DialogueCatalog.rom_string(DAY_STR + clampi(md % 100, 1, 31) - 1))
+
+
+## Approximate `lbRk_ToKyuuReki` (month×100+day).
+static func lunar_today(year: int, month: int, day: int) -> int:
+	var hm: Vector2i = EventDates.HARVEST_MOON.get(year, Vector2i(9, 21))
+	var first: int = EventDates.ordinal(year, hm.x, hm.y) - 14
+	var d: float = float(EventDates.ordinal(year, month, day) - first)
+	var months: int = floori(d / 29.53)
+	var lunar_month: int = posmod(8 - 1 + months, 12) + 1
+	var lunar_day: int = int(d - float(months) * 29.53) + 1
+	return lunar_month * 100 + clampi(lunar_day, 1, 30)
 
 
 ## `aQMgr_order_set_string`: 1–4 fill the item strings with random words from the string
