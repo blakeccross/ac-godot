@@ -140,7 +140,7 @@ func play(
 	ctx: DialogueContext,
 	state: VillagerState = null,
 	advance_gate: Callable = Callable(),
-	talk_manager: VillagerTalkManager = null
+	talk_manager: BankTalk = null
 ) -> void:
 	if data == null:
 		return

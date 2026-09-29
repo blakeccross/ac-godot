@@ -873,25 +873,7 @@ func _unbind_talk() -> void:
 ## The quest talk wants the pockets opened or an item passed across
 ## (`aQMgr_TALK_SUB_STATE_HAND_ITEM_WAIT`, `aQMgr_talk_common_set_npc_takeout_*`).
 func _on_talk_action(action: Dictionary, ui: DialogueOverlay, player: Node3D) -> void:
-	var runner: DialogueRunner = ui.runner() if ui != null else null
-	if runner == null:
-		return
-	ui.set_suspended(true)
-	if action.has("hand"):
-		var hand: Dictionary = action["hand"]
-		Game.request_quest_handover(int(hand.get("pocket", -1)), str(hand.get("mode", "quest")))
-		var picked: Array = await Game.quest_handover_resolved
-		ui.set_suspended(false)
-		runner.resolve_action({"item": picked[0], "pocket": picked[1]})
-		return
-	var anim: Dictionary = action.get("anim", {})
-	if player != null and is_instance_valid(player):
-		if anim.has("give"):
-			await HandOver.npc_gives_to_player(self, player, anim["give"])
-		elif anim.has("take"):
-			await HandOver.player_gives_to_npc(player, self, anim["take"])
-	ui.set_suspended(false)
-	runner.resolve_action({})
+	await TalkActions.handle(action, ui, self, player)
 
 
 func _on_talk_closed() -> void:

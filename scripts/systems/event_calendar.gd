@@ -40,6 +40,12 @@ var special_type: StringName = &""
 var special_year: int = 0
 var special_dates: Dictionary = {"special0": 0, "special1": 0, "special2": 0, "special3": 6}
 
+## `event_save_data` / `mEv_area_c`: payload owned by whichever visitor or festival is on
+## (Joan's "already spoke", Redd's stock, the artist's gifts, …), keyed by event id.
+var save_areas: Dictionary = {}
+## `mEv_STATUS_TALK` for today's events: someone already spoke to the visitor.
+var _talked: Dictionary = {}
+
 var _forced: Dictionary = {}
 var _hours: Dictionary = {}
 var _active: Dictionary = {}
@@ -57,6 +63,8 @@ func clear() -> void:
 	special_type = &""
 	special_year = 0
 	special_dates = {"special0": 0, "special1": 0, "special2": 0, "special3": 6}
+	save_areas.clear()
+	_talked.clear()
 	_forced.clear()
 	_hours.clear()
 	_active.clear()
@@ -224,6 +232,7 @@ func sync(now: Dictionary) -> void:
 	var new_day: bool = key != _day_key
 	if new_day:
 		_day_key = key
+		_talked.clear()
 		_init_weekly(now)
 	var special_changed: bool = _init_special(now)
 	if new_day or special_changed:
@@ -573,6 +582,39 @@ func _join(ids: Array[StringName]) -> String:
 	return ", ".join(names)
 
 
+# --- per-event state -------------------------------------------------------------------
+
+
+## `mEv_get_save_area` / `mEv_reserve_save_area`: the event's saved payload (created empty).
+func area(id: StringName) -> Dictionary:
+	var key := String(id)
+	if not save_areas.has(key):
+		save_areas[key] = {}
+	return save_areas[key]
+
+
+func has_area(id: StringName) -> bool:
+	return save_areas.has(String(id))
+
+
+## `mEv_clear_save_area`.
+func clear_area(id: StringName) -> void:
+	save_areas.erase(String(id))
+
+
+func mark_talked(id: StringName) -> void:
+	_talked[id] = true
+
+
+func has_talked(id: StringName) -> bool:
+	return _talked.has(id)
+
+
+## Today's date key (`year-month-day`).
+func day_key() -> String:
+	return _day_key
+
+
 # --- save ------------------------------------------------------------------------------
 
 
@@ -586,6 +628,7 @@ func to_save() -> Dictionary:
 		"special_type": String(special_type),
 		"special_year": special_year,
 		"special_dates": special_dates.duplicate(),
+		"areas": save_areas.duplicate(true),
 	}
 
 
@@ -602,3 +645,6 @@ func apply_snapshot(data: Dictionary) -> void:
 	if typeof(dates) == TYPE_DICTIONARY:
 		for slot: String in ["special0", "special1", "special2", "special3"]:
 			special_dates[slot] = int((dates as Dictionary).get(slot, special_dates[slot]))
+	var areas: Variant = data.get("areas", {})
+	if typeof(areas) == TYPE_DICTIONARY:
+		save_areas = (areas as Dictionary).duplicate(true)

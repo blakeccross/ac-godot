@@ -63,6 +63,9 @@ func _ready() -> void:
 	_apply_time_of_day()
 	_play_outdoor_bgm()
 	_spawn_player()
+	var event_mgr: EventManager = get_node_or_null("EventManager") as EventManager
+	if event_mgr != null:
+		event_mgr.setup(self)
 	if Game.intro_station_active:
 		var director: Node = load("res://scenes/world/intro_station_director.gd").new()
 		add_child(director)

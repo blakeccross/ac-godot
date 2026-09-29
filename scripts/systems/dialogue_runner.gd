@@ -27,9 +27,10 @@ var last_choice_index: int = -1
 var events_this_step: Array[Dictionary] = []
 ## Optional `(from_node, to_node) -> bool` gate; return false to block Continue.
 var advance_gate: Callable
-## Villager quest manager (`VillagerTalkManager`): picks the next message when one ends,
-## answers its own menus and receives the messages' quest demo orders.
-var talk_manager: VillagerTalkManager
+## Message-bank script (`BankTalk`; the villager quest manager is one): picks the next
+## message when one ends, answers its own menus, hears in-message choices and the
+## messages' demo orders.
+var talk_manager: BankTalk
 
 var _state: VillagerState
 var _prompt_next: StringName = &""
@@ -148,6 +149,11 @@ func choose(index: int) -> void:
 	waiting_choice = false
 	choices.clear()
 	var next_id := StringName(str(opt.get("goto", "")))
+	if talk_manager != null and _is_bank_message():
+		## `mChoice_Get_ChoseNum` → `mMsg_Set_continue_msg_num`.
+		var redirect: int = talk_manager.picked(talk_manager.current_msg, index)
+		if redirect >= 0:
+			next_id = StringName("msg_%d" % redirect)
 	if next_id == &"":
 		_finish()
 		return
@@ -184,7 +190,19 @@ func _goto(to: StringName) -> void:
 			_finish()
 			return
 	node_id = to
+	_note_message()
 	_settle()
+
+
+## Tell the bank script which message is up (`mMsg_Get_msg_num`) before its first page.
+func _note_message() -> void:
+	if talk_manager == null or not _is_bank_message():
+		return
+	var n: int = int(String(conversation.id).substr(4))
+	if n == talk_manager.current_msg:
+		return
+	talk_manager.current_msg = n
+	talk_manager.entered(n)
 
 
 func _settle() -> void:
@@ -455,6 +473,8 @@ func _demo_order(event: Dictionary) -> void:
 	if target == "quest" and talk_manager != null and value != 0:
 		talk_manager.order(order_slot, value)
 		return
+	if talk_manager != null and target != "quest":
+		talk_manager.npc_order(target, order_slot, value)
 	if target != "npc0" or _state == null:
 		return
 	match order_slot:
@@ -564,6 +584,10 @@ func resolve_action(result: Dictionary) -> void:
 			talk_manager.hand_result(StringName(str(result.get("item", ""))), int(result.get("pocket", -1)))
 		)
 		return
+	if step.has("then"):
+		## Several demos in a row (`{"anim": …, "then": {…}}`).
+		_run_manager_step(step["then"])
+		return
 	step["_anim_done"] = true
 	_run_manager_step(step)
 
@@ -609,6 +633,8 @@ func _finish() -> void:
 	waiting_choice = false
 	waiting_prompt = false
 	_prompt_next = &""
+	if talk_manager != null:
+		talk_manager.finish()
 	finished.emit()
 
 

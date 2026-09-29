@@ -1,5 +1,5 @@
 class_name VillagerTalkManager
-extends RefCounted
+extends BankTalk
 
 ## What a villager says after the greeting (`ac_quest_manager.c`, `ac_quest_talk_init.c`,
 ## `ac_quest_talk_normal_init.c`). `DialogueRunner` asks `next_step` when a message ends on
@@ -127,7 +127,6 @@ static var last_strings := PackedInt32Array([255, 255, 255, 255, 255, 255, 255])
 
 var villager: VillagerData
 var state: VillagerState
-var context: DialogueContext
 var inventory: Inventory
 var looks: int = 0
 var slot: int = -1
