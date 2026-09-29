@@ -2,13 +2,15 @@ class_name NeedleworkPresenter
 extends RefCounted
 
 ## Furnishes the Able Sisters interior: the animated sewing machine + fabric, the
-## 4 clothing mannequins + 4 umbrella stands, Mabel & Sable, the back-wall clock,
-## and solid hulls for the shell's baked west counter / east fabric boxes.
+## 4 clothing mannequins + 4 umbrella stands, Mabel & Sable, the back-wall clock, the
+## two window sunbeams, and solid hulls for the shell's baked west counter / east
+## fabric boxes.
 ##
 ## Decomp: `ac_needlework_indoor.c` (`manekin_pos` / `umbrella_pos`),
 ## `ac_npc_needlework.c` (sisters), `ac_misin.c` (machine + dustcloth),
-## `HOUSE_CLOCK` / `obj_clock_tailor`. The static machine body / table / register /
-## boxes are baked into the `rom_tailor` shell.
+## `HOUSE_CLOCK` / `obj_clock_tailor`, `ef_room_sunshine.c` (window beams, placed by
+## `WindowSunshine`). The static machine body / table / register / boxes are baked into
+## the `rom_tailor` shell.
 
 const ABLE_FIXTURE_SCENE := preload("res://scenes/world/interiors/able_fixture.tscn")
 const MABEL_SCENE := preload("res://scenes/world/interiors/mabel.tscn")
@@ -42,9 +44,10 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 	if root == null or interior == null or interior.grid == null:
 		return
 	var grid: WorldGrid = interior.grid
-	_furniture_collision(root)
+	_furniture_collision(root, grid)
 	_sewing_machine(root, grid)
 	_clock(root, grid)
+	WindowSunshine.add(root, grid, interior.room)
 	for i in MANNEQUIN_GX.size():
 		if root.get_node_or_null("Mannequin_%d" % i) != null:
 			continue
@@ -92,28 +95,18 @@ static func set_machine_running(root: Node, on: bool) -> void:
 		cloth.set("running", on)
 
 
-## Solid hulls for the `rom_tailor` shell's baked furniture — the blocked FG-cell
-## runs in `rom_tailor.col.json` (cells (1-2, 1-6) west, cell (8, 6) south-east).
-## `_add_shell_collision` only builds the floor slab + perimeter walls.
-func _furniture_collision(root: Node3D) -> void:
-	if root.get_node_or_null("NeedleworkFurnitureCol") != null:
-		return
-	var box := StaticBody3D.new()
-	box.name = "NeedleworkFurnitureCol"
-	box.collision_layer = 1
-	box.collision_mask = 0
-	root.add_child(box)
-	var slabs := [
-		[Vector3(2.0, 1.1, 6.0), Vector3(-12.0, 1.1, -8.0)],   ## west counter run
-		[Vector3(1.0, 0.9, 1.0), Vector3(1.0, 0.9, -3.0)],     ## south-east fabric boxes
-	]
-	for slab: Array in slabs:
-		var shape := CollisionShape3D.new()
-		var b := BoxShape3D.new()
-		b.size = (slab[0] as Vector3) * 2.0
-		shape.shape = b
-		shape.position = slab[1]
-		box.add_child(shape)
+## Solid hulls for the `rom_tailor` BG's raised units: the counter, the sewing-machine
+## table and fabric boxes along the west wall, and the boxes at (8,6). The units between
+## them stay walkable, as in the original (Sable works from (2,2)).
+func _furniture_collision(root: Node3D, grid: WorldGrid) -> void:
+	InteriorUnitCollision.add_hulls(root, grid, "NeedleworkFurnitureCol", blocked_units())
+
+
+## `rom_tailor.col.json` inside the shop floor (1,1)+(8,6): unit → height in GX.
+static func blocked_units() -> Dictionary:
+	return InteriorUnitCollision.blocked_from_bg(
+		&"rom_tailor", FieldCatalog.LAND_COUNTS, FieldCatalog.HEIGHT_MAX, Rect2i(1, 1, 8, 6)
+	)
 
 
 ## `ac_misin.c`: `obj_misin` verts are drawn `Matrix_translate(0) * Matrix_scale(0.01)`

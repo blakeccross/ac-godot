@@ -10,7 +10,6 @@ field_prompt = "Cast"
 field_anim = &"ply_1_sao_swing1"
 field_priority = 12
 field_require = 1
-field_notice = "You cast into the water."
 visual_id = &"tol_sao_1"
 hold_anim = &"ply_1_sao1"
 carry_part = 1

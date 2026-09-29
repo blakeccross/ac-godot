@@ -92,6 +92,18 @@ func _paint_sample(data: ItemData) -> void:
 				VisualCloth.paint_albedo(self, tex)
 
 
+## Floor goods block the way the original registers them (`ShopDisplay.CRANNY_SLOTS`
+## `half_gx`): square in XZ, standing on the floor.
+func set_footprint_gx(half_gx: float) -> void:
+	if _collision == null or not (_collision.shape is BoxShape3D):
+		return
+	var side: float = half_gx * 2.0 * FieldCatalog.GX_TO_METERS
+	var box := BoxShape3D.new()
+	box.size = Vector3(side, 0.8, side)
+	_collision.shape = box
+	_collision.position.y = 0.4
+
+
 func _fit_placeholder() -> void:
 	var w: float = 0.7
 	var d: float = 0.7

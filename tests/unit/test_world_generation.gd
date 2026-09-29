@@ -552,8 +552,9 @@ func test_builder_instances_lighthouse_scene() -> void:
 	WorldBuilder.new().build(world, data, grid)
 	var lighthouse: Node = world.get_node_or_null("Buildings/lighthouse")
 	assert_that(lighthouse).is_not_null()
-	assert_that(lighthouse.get_node_or_null("LighthouseSwitch")).is_not_null()
 	assert_that(lighthouse.get_node_or_null("Beacon")).is_not_null()
+	## The switch is `ac_lighthouse_switch` in the tower's room, not on the field.
+	assert_that(lighthouse.get_node_or_null("LighthouseSwitch")).is_null()
 
 
 func test_builder_places_generated_acre_meshes() -> void:

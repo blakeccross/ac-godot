@@ -211,7 +211,9 @@ static func placement_for_item(item_id: int) -> Dictionary:
 				"building": &"building",
 				"visual": &"obj_s_toudai",
 				"label": "Lighthouse",
-				"foot": Vector2i(3, 3),
+				## `aTOU_set_bgOffset` raises the 2×2 units NW of the FG unit; `aTOU_actor_ct`
+				## draws the tower at their shared corner (unit centre −20, −20 GX).
+				"foot": Vector2i(2, 2),
 				"nw_off": Vector2i(-1, -1),
 			}
 		ITEM_MUSEUM:

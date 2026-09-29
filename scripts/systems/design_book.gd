@@ -205,11 +205,19 @@ func buy_shop_into_player(shop_idx: int, player_slot: int) -> void:
 
 
 ## Swap two display-order entries (`mNW_swap_image_no`). Reorders without touching
-## design contents.
+## design contents. The worn shirt names a stored design (`cloth.idx`), not a list
+## position, so the worn display slot follows it.
 func swap_player_order(a: int, b: int) -> void:
 	var t := player_order[a & 7]
 	player_order[a & 7] = player_order[b & 7]
 	player_order[b & 7] = t
+	var game: Node = Engine.get_main_loop().root.get_node_or_null("Game") if Engine.get_main_loop() is SceneTree else null
+	if game != null and game.get("designs") == self:
+		var worn: int = int(game.get("worn_design_slot"))
+		if worn == (a & 7):
+			game.set("worn_design_slot", b & 7)
+		elif worn == (b & 7):
+			game.set("worn_design_slot", a & 7)
 	changed.emit()
 
 

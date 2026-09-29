@@ -77,6 +77,10 @@ const SUNSHINE_R_GX := Vector3(360.0, 0.0, 200.0)
 const SUNSHINE_VISUAL := &"obj_koban_shine"
 
 const SHELL_ID := &"police_indoor"
+## `aHC_position_data` SCENE_POLICE_BOX: back-wall clock (`obj_clock_koban`). y is 0 —
+## the skeleton carries the mounting height.
+const CLOCK_GX := Vector3(200.0, 0.0, 30.0)
+const CLOCK_VISUAL := &"obj_clock_koban"
 
 
 static func gx_to_world(grid: WorldGrid, gx: Vector3) -> Vector3:
@@ -269,3 +273,12 @@ static func _s16(v: int) -> int:
 ## `setup_mode_Ef_Room_Sunshine_Police`: sun window colour 04:00–20:00, else moon.
 static func sunshine_uses_sun(now_sec: int) -> bool:
 	return now_sec >= 14400 and now_sec < 72000
+
+
+## Units of the `police_indoor` BG that block inside the room: `Vector2i` unit → height
+## above the floor in GX. Shelves (20 GX), phone desk, locker, and the wall either side of
+## the entrance strip. Empty when the pipeline's `.col.json` is not generated.
+static func blocked_units() -> Dictionary:
+	return InteriorUnitCollision.blocked_from_bg(
+		SHELL_ID, FieldCatalog.LAND_COUNTS, FieldCatalog.HEIGHT_MAX, Rect2i(INNER_ORIGIN, INNER_SIZE)
+	)

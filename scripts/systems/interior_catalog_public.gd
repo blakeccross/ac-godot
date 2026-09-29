@@ -66,15 +66,21 @@ static func register() -> void:
 	needle.spawn_cell = Vector2i(4, 6)
 	## The table / sewing machine / register / boxes are baked into the shell.
 	InteriorCatalog.put_room(needle)
-	## `rom_toudai` (decomp `rom_toudai.c`): baked interior shell, now that it's converted.
-	## Door/spawn cells aren't overridden — `InteriorBuilder` derives them from the shell's
-	## own collision gaps (`rom_toudai.col.json`), same as `tent`/`kamakura` below.
+	## `SCENE_LIGHTHOUSE` on `rom_toudai` (acre origin): the switch room at the foot of the
+	## tower. The door is the `EXIT_DOOR` pair on the north rim (`FG_TYPE_ROM_TOUDAI`).
 	var lighthouse := InteriorCatalog.make_room(
-		&"lighthouse", Room.Kind.LIGHTHOUSE, "Lighthouse", Vector2i(6, 6), Vector2i(4, 4), {}
+		&"lighthouse",
+		Room.Kind.LIGHTHOUSE,
+		"Lighthouse",
+		LighthouseRoom.INNER_ORIGIN,
+		LighthouseRoom.INNER_SIZE,
+		{}
 	)
 	lighthouse.wall_id = &""
 	lighthouse.floor_id = &""
-	lighthouse.shell_ids = PackedStringArray(["rom_toudai"])
+	lighthouse.door_cell = LighthouseRoom.DOOR_CELL
+	lighthouse.spawn_cell = LighthouseRoom.SPAWN_CELL
+	lighthouse.shell_ids = PackedStringArray([String(LighthouseRoom.SHELL_ID)])
 	InteriorCatalog.put_room(lighthouse)
 	var tent := InteriorCatalog.make_room(&"tent", Room.Kind.TENT, "Tent", Vector2i(5, 5), Vector2i(6, 6), {})
 	tent.wall_id = &""

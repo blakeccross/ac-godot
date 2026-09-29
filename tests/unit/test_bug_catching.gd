@@ -133,6 +133,47 @@ func test_life_time_default_is_two_game_hours() -> void:
 	assert_int(BugActor.LIFE_TIME_FRAMES).is_equal(216000)
 
 
+## Starts a wade into `cell` and runs the set manager's wait out.
+func _wade_into(field: BugField, grid: WorldGrid, sense: BugActor.Sense, cell: Vector2i) -> void:
+	sense.wade_end = grid.cell_to_world(cell)
+	for _i: int in BugField.SET_WAIT_FRAMES + 1:
+		field.tick(STEP, sense)
+	sense.wade_end = Vector3.INF
+	sense.player_position = grid.cell_to_world(cell)
+	field.tick(STEP, sense)
+
+
+func test_no_spawn_without_an_acre_crossing() -> void:
+	## `aSOI_insect_set` only runs from the set manager on a wade: loading into an acre or
+	## standing in it births nothing.
+	var layout: WorldData = WorldGenerator.authored_test_town()
+	var grid := WorldGrid.new()
+	grid.configure_from_world(layout)
+	var field := BugField.new()
+	field.configure(grid, layout)
+	field.seed_rng(1)
+	var sense := BugActor.Sense.new()
+	sense.player_position = grid.cell_to_world(Vector2i(8, 8))
+	for _i: int in 60:
+		field.tick(STEP, sense)
+	assert_int(field.actor_count()).is_equal(0)
+	assert_that(field._spawned_acre).is_equal(Vector2i(-999, -999))
+
+
+func test_set_waits_for_the_set_manager_timer() -> void:
+	var world: Array = _open_layout()
+	var field := BugField.new()
+	field.configure(world[1], world[0])
+	var sense := BugActor.Sense.new()
+	sense.player_position = (world[1] as WorldGrid).cell_to_world(Vector2i(8, 8))
+	sense.wade_end = (world[1] as WorldGrid).cell_to_world(Vector2i(9, 8))
+	for _i: int in BugField.SET_WAIT_FRAMES - 1:
+		field.tick(STEP, sense)
+	assert_that(field._spawned_acre).is_equal(Vector2i(-999, -999))
+	field.tick(STEP, sense)
+	assert_that(field._spawned_acre).is_not_equal(Vector2i(-999, -999))
+
+
 func test_auto_spawn_is_once_per_acre_and_skips_occupied() -> void:
 	var layout: WorldData = WorldGenerator.authored_test_town()
 	var grid := WorldGrid.new()
@@ -145,7 +186,7 @@ func test_auto_spawn_is_once_per_acre_and_skips_occupied() -> void:
 	Clock.hour = 12
 	var sense := BugActor.Sense.new()
 	sense.player_position = grid.cell_to_world(Vector2i(8, 8))
-	field.tick(STEP, sense)
+	_wade_into(field, grid, sense, Vector2i(8, 8))
 	var after_first: int = field.actor_count()
 	assert_int(after_first).is_less_equal(BugField.MAX_FIELD_SPAWNS)
 	field.tick(STEP, sense)
@@ -174,12 +215,11 @@ func test_auto_spawn_retries_on_new_acre() -> void:
 	Clock.month = 6
 	Clock.hour = 12
 	var sense := BugActor.Sense.new()
-	sense.player_position = grid.cell_to_world(Vector2i(4, 8))
-	field.tick(STEP, sense)
+	sense.player_position = grid.cell_to_world(Vector2i(20, 8))
+	_wade_into(field, grid, sense, Vector2i(4, 8))
 	var first_acre: Vector2i = field._spawned_acre
 	assert_that(first_acre).is_equal(Vector2i(1, 1))
-	sense.player_position = grid.cell_to_world(Vector2i(20, 8))
-	field.tick(STEP, sense)
+	_wade_into(field, grid, sense, Vector2i(20, 8))
 	assert_that(field._spawned_acre).is_equal(Vector2i(2, 1))
 	assert_that(field._spawned_acre).is_not_equal(first_acre)
 
@@ -339,29 +379,298 @@ func test_scheduler_pool_includes_ant_and_cockroach_additions() -> void:
 	assert_bool(pairs.has([28, 9])).is_true()   ## cockroach on trash
 
 
-func test_scheduler_blends_previous_month_early_in_the_month() -> void:
-	Clock.month = 9
-	Clock.day = 1
+func test_spawn_table_uses_decomp_spawn_area_enum() -> void:
+	## `l_insect_m_other_t`: PILL_BUG UNDER_ROCK (10), MOLE_CRICKET UNDERGROUND (11),
+	## BAGWORM ON_TREE (0) — 8 / 9 are ON_CANDY / ON_TRASH, which only the additions use.
+	var pairs: Array = []
+	for e: BugSpawnEntry in BugSpawnTable.entries_for(1, 12):
+		pairs.append([e.type_index, e.spawn_area])
+	assert_array(pairs).contains_exactly_in_any_order([[36, 10], [33, 11], [35, 0]])
+	for month: int in range(1, 13):
+		for hour: int in [0, 6, 12, 16, 18, 20]:
+			for e: BugSpawnEntry in BugSpawnTable.entries_for(month, hour):
+				assert_bool(e.spawn_area == 8 or e.spawn_area == 9).is_false()
+	assert_int(BugData.habitat_from_spawn_area(10)).is_equal(BugData.Habitat.ROCK)
+	assert_int(BugData.habitat_from_spawn_area(11)).is_equal(BugData.Habitat.UNDERGROUND)
+	assert_int(BugData.habitat_from_spawn_area(9)).is_equal(BugData.Habitat.GROUND)
+
+
+func _pool_weight(pool: Array[BugSpawnEntry], type_index: int) -> float:
+	var w: float = 0.0
+	for e: BugSpawnEntry in pool:
+		if e.type_index == type_index:
+			w += e.weight
+	return w
+
+
+func test_scheduler_blends_next_month_in_before_it_starts() -> void:
+	## Saved term = September (0-based 8), offset 5: the window runs Aug 27 – Aug 31. On
+	## Aug 30 (day 3 of it) August weighs 2/6 and September 4/6.
+	Clock.year = 2002
+	Clock.month = 8
+	Clock.day = 30
 	Clock.hour = 12
-	Game.insect_term_month = 9        ## already rolled; pin the offset to 0
+	Game.insect_term_month = 8
+	Game.insect_term_offset = 5
+	var pool: Array[BugSpawnEntry] = BugSpawnScheduler.build_pool(null)
+	var aug: float = _pool_weight(BugSpawnTable.entries_for(8, 12), 4)
+	var sep: float = _pool_weight(BugSpawnTable.entries_for(9, 12), 4)
+	assert_float(_pool_weight(pool, 4)).is_equal_approx(aug * 2.0 / 6.0 + sep * 4.0 / 6.0, 0.001)
+	assert_int(Game.insect_term_month).is_equal(8)
+
+
+func test_scheduler_no_blend_before_the_window() -> void:
+	Clock.year = 2002
+	Clock.month = 8
+	Clock.day = 20
+	Clock.hour = 12
+	Game.insect_term_month = 8
+	Game.insect_term_offset = 5
+	var pool: Array[BugSpawnEntry] = BugSpawnScheduler.build_pool(null)
+	assert_float(_pool_weight(pool, 4)).is_equal_approx(
+		_pool_weight(BugSpawnTable.entries_for(8, 12), 4), 0.001
+	)
+
+
+func test_scheduler_is_pure_new_month_once_it_starts() -> void:
+	## Offset 0: the window starts on Sep 1 itself, where both halves are September.
+	Clock.year = 2002
+	Clock.month = 9
+	Clock.day = 2
+	Clock.hour = 12
+	Game.insect_term_month = 8
 	Game.insect_term_offset = 0
 	var pool: Array[BugSpawnEntry] = BugSpawnScheduler.build_pool(null)
-	var months := {"aug_only": false, "sep_only": false}
-	for e: BugSpawnEntry in pool:
-		if e.type_index == 4:        ## robust cicada — in Aug noon table, not Sep
-			months["aug_only"] = true
-		if e.type_index == 13:       ## long locust — Sep noon table
-			months["sep_only"] = true
-	assert_bool(months["aug_only"]).append_failure_message("no Aug bugs in the Sep-day-1 blend").is_true()
-	assert_bool(months["sep_only"]).is_true()
+	assert_float(_pool_weight(pool, 13)).is_equal_approx(
+		_pool_weight(BugSpawnTable.entries_for(9, 12), 13), 0.001
+	)
 
 
-func test_scheduler_no_blend_mid_month() -> void:
+func test_scheduler_renews_the_term_after_the_window() -> void:
+	Clock.year = 2002
 	Clock.month = 9
 	Clock.day = 20
 	Clock.hour = 12
-	Game.insect_term_month = 9
+	Game.insect_term_month = 8
 	Game.insect_term_offset = 0
-	var pool: Array[BugSpawnEntry] = BugSpawnScheduler.build_pool(null)
-	for e: BugSpawnEntry in pool:
-		assert_int(e.type_index).append_failure_message("Aug cicada leaked into mid-Sep").is_not_equal(4)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	BugSpawnScheduler.build_pool(rng)
+	assert_int(Game.insect_term_month).is_equal(9)   ## October, 0-based
+	assert_int(Game.insect_term_offset).is_between(0, 5)
+
+
+func _entry(type_index: int, area: int, weight: float) -> BugSpawnEntry:
+	var e := BugSpawnEntry.new()
+	e.type_index = type_index
+	e.spawn_area = area
+	e.weight = weight
+	return e
+
+
+func _open_layout() -> Array:
+	var layout := WorldData.new()
+	layout.columns = 16
+	layout.rows = 16
+	layout.bake()
+	for x: int in 16:
+		for z: int in 16:
+			layout.set_terrain_cell(Vector2i(x, z), WorldGrid.Terrain.GRASS)
+	var grid := WorldGrid.new()
+	grid.configure_from_world(layout)
+	return [layout, grid]
+
+
+func _place(layout: WorldData, kind: StringName, cell: Vector2i, payload: Resource = null) -> void:
+	var obj := ObjectPlacement.new()
+	obj.id = StringName("%s_%d_%d" % [kind, cell.x, cell.y])
+	obj.kind = kind
+	obj.cell = cell
+	obj.occupy_grid = false
+	obj.payload = payload
+	layout.objects.append(obj)
+
+
+func test_flying_near_flowers_falls_back_to_flying_without_flowers() -> void:
+	## `aSOI_ins_change_how_to_make`: no flower → FLYING, weight kept.
+	var world: Array = _open_layout()
+	var one: Array[BugSpawnEntry] = [_entry(0, 12, 30.0)]
+	var info: Array[BugSpawnEntry] = BugSpawnScheduler.limit(
+		one, world[0], world[1], Vector2i(-1, -1), false
+	)
+	assert_int(info[0].spawn_area).is_equal(BugHabitats.AREA_FLYING)
+	assert_float(info[0].weight).is_equal(30.0)
+	_place(world[0], &"flower", Vector2i(6, 6))
+	info = BugSpawnScheduler.limit(one, world[0], world[1], Vector2i(-1, -1), false)
+	assert_int(info[0].spawn_area).is_equal(BugHabitats.AREA_ON_FLOWER)
+	assert_float(info[0].weight).is_equal(30.0)
+
+
+func test_rain_clears_flower_entries_and_keeps_rain_ones() -> void:
+	var world: Array = _open_layout()
+	_place(world[0], &"flower", Vector2i(6, 6))
+	var pool: Array[BugSpawnEntry] = [_entry(0, 12, 30.0), _entry(3, 1, 5.0), _entry(32, 2, 4.0)]
+	var info: Array[BugSpawnEntry] = BugSpawnScheduler.limit(pool, world[0], world[1], Vector2i(-1, -1), true)
+	assert_float(info[0].weight).is_equal(0.0)
+	assert_float(info[1].weight).is_equal(0.0)
+	assert_float(info[2].weight).is_equal(4.0)
+	info = BugSpawnScheduler.limit(pool, world[0], world[1], Vector2i(-1, -1), false)
+	assert_float(info[2].weight).is_equal(0.0)
+
+
+func test_candy_on_the_ground_limits_the_pool_to_ants() -> void:
+	## `aSOI_ins_limit_insect_data`: with candy lying there only the ON_CANDY entries keep
+	## weight, and rocks no longer read as bait (their area is UNDER_ROCK, 10).
+	var world: Array = _open_layout()
+	_place(world[0], &"rock", Vector2i(5, 5))
+	Game.weather = &"clear"
+	var pool: Array[BugSpawnEntry] = [_entry(36, 10, 5.0)]
+	for a: Dictionary in BugSpawnScheduler.ADDITIONS:
+		pool.append(_entry(int(a["type_index"]), int(a["spawn_area"]), float(a["weight"])))
+	var info: Array[BugSpawnEntry] = BugSpawnScheduler.limit(pool, world[0], world[1], Vector2i(-1, -1), false)
+	assert_float(info[0].weight).is_equal(5.0)
+	for i: int in range(1, info.size()):
+		assert_float(info[i].weight).is_equal(0.0)
+	_place(world[0], &"item", Vector2i(7, 7), ItemCatalog.get_item(&"candy"))
+	info = BugSpawnScheduler.limit(pool, world[0], world[1], Vector2i(-1, -1), false)
+	assert_float(info[0].weight).is_equal(0.0)   ## pill bug
+	assert_float(info[1].weight).is_equal(1.0)   ## ant on candy
+	assert_float(info[2].weight).is_equal(0.0)   ## ant on trash (no turnip)
+	assert_float(info[3].weight).is_equal(0.0)
+	Game.weather = &"snow"
+	info = BugSpawnScheduler.limit(pool, world[0], world[1], Vector2i(-1, -1), false)
+	assert_float(info[0].weight).is_equal(5.0)   ## candy ignored in snow
+	assert_float(info[1].weight).is_equal(0.0)
+
+
+func test_get_idx_rolls_against_100_below_100_total() -> void:
+	var info: Array[BugSpawnEntry] = [_entry(0, 3, 10.0)]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var hits: int = 0
+	for _i: int in 2000:
+		if BugSpawnScheduler.get_idx(info, false, rng) == 0:
+			hits += 1
+	assert_int(hits).is_between(120, 280)   ## ~10 %
+	for _i: int in 50:
+		assert_int(BugSpawnScheduler.get_idx(info, true, rng)).is_equal(0)
+
+
+func test_acre_entry_is_spent_even_with_every_slot_full() -> void:
+	var layout := WorldData.new()
+	layout.columns = 32
+	layout.rows = 16
+	layout.bake()
+	var grid := WorldGrid.new()
+	grid.configure_from_world(layout)
+	var world: Array = [layout, grid]
+	var field := BugField.new()
+	field.configure(grid, layout)
+	var bug: BugData = BugCatalog.get_by_type(0)
+	## Eight insects parked just over the border in the next acre (not culled: < 600 GX).
+	for i: int in BugField.MAX_FIELD_SPAWNS:
+		field.spawn(bug, BugData.Habitat.FLYING, grid.cell_to_world(Vector2i(17, 4 + i)))
+	var sense := BugActor.Sense.new()
+	sense.player_position = grid.cell_to_world(Vector2i(17, 8))
+	_wade_into(field, grid, sense, Vector2i(14, 8))
+	assert_that(field._spawned_acre).is_equal(
+		BugHabitats.acre_of_world_pos(world[1], sense.player_position)
+	)
+	assert_int(field.field_slots_used()).is_equal(BugField.MAX_FIELD_SPAWNS)
+
+
+func test_spawn_pool_is_kept_until_the_term_changes() -> void:
+	var field := BugField.new()
+	Clock.month = 7
+	Clock.hour = 9
+	var first: Array[BugSpawnEntry] = field.spawn_pool()
+	Clock.hour = 10
+	assert_bool(field.spawn_pool() == first).is_true()
+	Clock.hour = 16
+	assert_bool(field.spawn_pool() == first).is_false()
+
+
+func _two_acre_field() -> Array:
+	var layout := WorldData.new()
+	layout.columns = 48
+	layout.rows = 16
+	layout.bake()
+	var grid := WorldGrid.new()
+	grid.configure_from_world(layout)
+	var field := BugField.new()
+	field.configure(grid, layout)
+	return [layout, grid, field]
+
+
+func test_cull_needs_off_screen_distance_and_another_block() -> void:
+	## `aINS_cull_check`: > 600 GX away and born in another block than the player's.
+	var w: Array = _two_acre_field()
+	var grid: WorldGrid = w[1]
+	var field: BugField = w[2]
+	var bug: BugData = BugCatalog.get_by_type(0)
+	var sense := BugActor.Sense.new()
+	sense.player_position = grid.cell_to_world(Vector2i(40, 8))
+	field.tick(STEP, sense)   ## player block = acre 3
+	var far_other: BugActor = field.spawn(bug, BugData.Habitat.FLYING, grid.cell_to_world(Vector2i(2, 8)))
+	far_other.block = Vector2i(1, 1)
+	var far_same: BugActor = field.spawn(bug, BugData.Habitat.FLYING, grid.cell_to_world(Vector2i(3, 8)))
+	far_same.block = Vector2i(3, 1)
+	sense.on_screen = func(_p: Vector3) -> bool: return true
+	field.tick(STEP * 2.0, sense)
+	assert_bool(far_other.finished).is_false()
+	sense.on_screen = Callable()
+	field.tick(STEP * 2.0, sense)
+	assert_bool(far_other.finished).is_true()
+	assert_bool(far_same.finished).is_false()
+
+
+func test_released_insect_is_culled_once_off_screen() -> void:
+	var w: Array = _two_acre_field()
+	var grid: WorldGrid = w[1]
+	var field: BugField = w[2]
+	var sense := BugActor.Sense.new()
+	sense.player_position = grid.cell_to_world(Vector2i(8, 8))
+	sense.on_screen = func(_p: Vector3) -> bool: return true
+	var freed: BugActor = field.spawn(
+		BugCatalog.get_by_type(0), BugData.Habitat.FLYING, grid.cell_to_world(Vector2i(8, 8)), true
+	)
+	field.tick(STEP * 2.0, sense)
+	assert_bool(freed.finished).is_false()
+	sense.on_screen = func(_p: Vector3) -> bool: return false
+	field.tick(STEP * 2.0, sense)
+	assert_bool(freed.finished).is_true()
+
+
+func test_live_insect_check_uses_the_birth_block() -> void:
+	## `aINS_chk_live_insect` reads `actor.block_x/z` (set at birth), not where it is now.
+	var w: Array = _two_acre_field()
+	var grid: WorldGrid = w[1]
+	var field: BugField = w[2]
+	var a: BugActor = field.spawn(BugCatalog.get_by_type(0), BugData.Habitat.FLYING, grid.cell_to_world(Vector2i(20, 8)))
+	a.block = Vector2i(1, 1)
+	assert_bool(field._acre_has_insect(Vector2i(1, 1))).is_true()
+	assert_bool(field._acre_has_insect(Vector2i(2, 1))).is_false()
+
+
+func test_a_walking_villager_stresses_an_insect_like_the_player() -> void:
+	## `aINS_get_stress` reads the NPC actor list as well as the player: a villager
+	## walking 4 GX per 30 Hz frame (2 GX a 60 Hz tick) 50 GX away adds
+	## 2 × calc_table[idx] × 0.5 patience, idx = (radius − 40 − (50 − 40)) / 20.
+	var bug: BugData = BugCatalog.get_bug(&"common_butterfly")
+	var at := Vector3(0.0, 0.5, 0.0)
+	var actor: BugActor = BugActor.create(bug, BugData.Habitat.FLYING, at, RandomNumberGenerator.new())
+	actor.patience = 0.0
+	var radius: float = actor.stress_radius_gx()
+	var idx: int = int(radius - BugActor.UNIT_GX - 10.0) / 20
+	var sense := BugActor.Sense.new()
+	sense.npc_positions.append(at + Vector3(50.0 * FieldCatalog.GX_TO_METERS, 0.0, 0.0))
+	sense.npc_moves_gx.append(4.0)
+	assert_float(actor._calc_stress(sense)).is_equal_approx(2.0 * BugActor.STRESS_CALC_TABLE[idx], 0.0001)
+	actor._calc_patience(sense)
+	assert_float(actor.patience).is_equal_approx(2.0 * BugActor.STRESS_CALC_TABLE[idx] * 0.5, 0.0001)
+	## A standing villager, or one past the stress radius, does nothing.
+	sense.npc_moves_gx[0] = 0.0
+	assert_float(actor._calc_stress(sense)).is_equal(0.0)
+	sense.npc_moves_gx[0] = 4.0
+	sense.npc_positions[0] = at + Vector3((radius + 10.0) * FieldCatalog.GX_TO_METERS, 0.0, 0.0)
+	assert_float(actor._calc_stress(sense)).is_equal(0.0)

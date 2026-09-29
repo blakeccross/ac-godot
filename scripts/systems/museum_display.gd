@@ -187,6 +187,27 @@ const BLATHERS_FACING := WorldGrid.Facing.SOUTH
 ## mesh floats. We keep joint XZ and snap the AABB to the floor.
 const CLOCK_GX := Vector3(240.0, 0.0, 150.0)
 const CLOCK_VISUAL := &"obj_clock_museum1"
+
+## Window beams. `MUSEUM_ENTRANCE_actor_data` lists four `ef_room_sunshine_museum`
+## actors (arg 2 west, arg 3 east) under the stained-glass windows; `MUSEUM_INSECT_actor_data`
+## two `ef_room_sunshine_minsect` ones. Both effects share the police box beam's timing,
+## alpha and mirrored east beam, and neither culls by camera.
+const ENTRANCE_SUNSHINE_GX: Array[Vector3] = [
+	Vector3(123, 0, 180), Vector3(360, 0, 180), Vector3(123, 0, 380), Vector3(360, 0, 380),
+]
+const ENTRANCE_SUNSHINE_VISUAL := &"obj_museum1_shine"
+const INSECT_SUNSHINE_GX: Array[Vector3] = [Vector3(40, 0, 280), Vector3(520, 0, 280)]
+const INSECT_SUNSHINE_VISUAL := &"obj_museum4_shine"
+
+
+## `Ef_Room_Sunshine_Museum_actor_ct`: the police box anchor (X −2 west / +0 east,
+## `1 + BgY − 40`). `Ef_Room_Sunshine_Minsect` moves Y back to the actor's own 0 every
+## frame, one GX lower.
+static func sunshine_anchor_gx(actor_gx: Vector3, left: bool, insect: bool) -> Vector3:
+	var anchor: Vector3 = PoliceDisplay.sunshine_anchor_gx(actor_gx, left)
+	if insect:
+		anchor.y = actor_gx.y - 40.0
+	return anchor
 ## `aMP_DrawOneArt` hang height (GX).
 const ART_HANG_Y_GX := 40.0
 

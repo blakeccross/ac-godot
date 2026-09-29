@@ -1,10 +1,12 @@
 class_name BugGoki
 extends BugProgram
 
-## `ac_ins_goki.c` — cockroach. Scurries on a flower (box wander, like the ladybug),
-## on a tree trunk (leg-shuffle sway, like the beetle), or on a dropped spoiled
-## turnip. Any scare → flies straight up and away. On a tree the net catch range is
-## angular (`flag == 4`).
+## `ac_ins_goki.c` — cockroach. Scurries a 30 GX box 25 GX up a flower (0.4 GX/frame,
+## 90–300-frame runs, 90–180-frame rests), sways on a tree trunk (35 GX up, 30 on a
+## cedar) like a beetle, or sits on a spoiled turnip. A shaken tree / axe hit in the acre
+## within 150 GX (trunk only), a stopped net within 70 GX or a dig within 30 GX sends it
+## flying off within ±67.5° of south; released ones leave off the player's facing ±60°.
+## On a tree the net catch range is angular (`flag == 4`).
 
 enum {
 	AVOID, LET_ESCAPE, WAIT_ON_FLOWER, MOVE_ON_FLOWER,
@@ -22,32 +24,41 @@ const REF_ANGL := [
 	deg_to_rad(90.0), deg_to_rad(90.0), deg_to_rad(-90.0), 0.0,
 ]
 const SWAY := deg_to_rad(4.21875)
+const NET_SCARE := 70.0
+const SCOOP_SCARE := 30.0
+const VIB_SCARE := 150.0
+
+var _placed: bool = false
 
 
 func actor_init(a: BugActor, released: bool) -> void:
 	a.item = 28
 	a.bg_range = 6.0
 	if released:
+		_placed = true
 		setup_action(a, LET_ESCAPE)
 		return
 	match a.habitat:
 		BugData.Habitat.TREE:
-			a.pos.y = a.home.y + 35.0
-			a.pos.z += -2.0
-			a.home = a.pos
+			BugProgram.cling_to_trunk(a)
 			a.rot.y = -BugActor.TREE_FACE_YAW
 			a.rot.x = PI * 0.5
 			a.flag = PLACE_TREE
 			setup_action(a, WAIT_ON_TREE)
 		BugData.Habitat.GROUND, BugData.Habitat.UNDERGROUND:
-			a.pos.y = a.home.y + 5.0
+			## `5 + GetBgY_OnlyCenter_FromWpos2(pos, −2)`.
+			_placed = true
+			a.pos.y = a.home.y + 7.0
 			a.home = a.pos
 			a.rot.y = -BugActor.TREE_FACE_YAW
 			a.rot.x = deg_to_rad(45.0)
 			a.flag = PLACE_ITEM
 			setup_action(a, WAIT_ON_ITEM)
 		_:
-			a.pos.y = a.home.y + 6.0
+			## `6 + GetBgY_OnlyCenter_FromWpos(pos, −19)`: on the flower head.
+			_placed = true
+			a.bg_type = 2
+			a.pos.y = a.home.y + 25.0
 			a.home = a.pos
 			a.flag = PLACE_FLOWER
 			setup_action(a, WAIT_ON_FLOWER)
@@ -86,9 +97,8 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.gravity = 0.06
 			a.rot.x = 0.0
 			a.pos_speed.y = 0.0
-			if a._last_player_gx != Vector3.INF:
-				a.rot.y = BugProgram.angle_to(a._last_player_gx, a.pos) + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(90.0)
-				a.angle_y = a.rot.y
+			if BugProgram.heading_from_player_facing(a, deg_to_rad(120.0)):
+				a.rot.y = a.angle_y
 			a.f_no_catch = true
 			a.f_bit2 = true
 		WAIT_ON_FLOWER:
@@ -113,6 +123,9 @@ func setup_action(a: BugActor, action: int) -> void:
 
 
 func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
+	if not _placed:
+		_placed = true
+		BugProgram.settle_on_cedar(a, sense)
 	if a.caught:
 		setup_action(a, LET_ESCAPE)
 		return
@@ -158,9 +171,8 @@ func _move_on_flower(a: BugActor, sense: BugActor.Sense) -> void:
 		a.timer = 10
 		setup_action(a, WAIT_ON_FLOWER)
 	else:
-		var done: bool = is_equal_approx(a.angle_y, a.s32_work[0] * MLib.S16)
 		a.angle_y = BugProgram.chase_angle(a.angle_y, a.s32_work[0] * MLib.S16, deg_to_rad(8.4375))
-		if done:
+		if BugProgram.angle_reached(a.angle_y, a.s32_work[0] * MLib.S16):
 			a.s32_work[0] = int((a.angle_y + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(90.0)) / MLib.S16)
 		a.rot.y = a.angle_y
 
@@ -189,23 +201,26 @@ func _move_on_tree(a: BugActor, sense: BugActor.Sense) -> void:
 			a.s32_work[2] = 30
 
 
-func _avoid(a: BugActor, _sense: BugActor.Sense) -> void:
+func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 	a.anime0 += 0.5
 	if a.anime0 >= 2.0:
 		a.anime0 -= 2.0
 	a.gravity = minf(a.gravity * 1.1, 12.0)
 	## `aIGK_avoid`: ground / wall collision switches on once it has flown off its home unit.
-	if a.bg_type == 0 and BugProgram.left_home_unit(a):
+	if a.bg_type == 0 and BugProgram.unit_of(sense, a.home) != BugProgram.unit_of(sense, a.pos):
 		a.bg_type = 1
 
 
+## `aIGK_check_patience`: (on a trunk) shaken tree / axe hit in the acre within 150 GX
+## → stopped net within 70 GX → dig within 30 GX; scared at 90.
 func _check_patience(a: BugActor, sense: BugActor.Sense) -> bool:
-	if a.flag == PLACE_TREE and sense.tree_shaken_at(a.position):
+	if a.flag == PLACE_TREE and (
+		sense.tree_shaken_at(a.position)
+		or (BugProgram.vib_unit(a, sense) and a.player_distance_xz < VIB_SCARE)
+	):
 		a.patience = 100.0
-	if sense.net_swing_active and sense.net_swing_origin != Vector3.INF:
-		if BugProgram.dist_xz(a.pos, sense.net_swing_origin / BugActor.GX_M) < 70.0:
-			a.patience = 100.0
-	if sense.player_swung_tool and sense.has_player():
-		if BugProgram.dist_xz(a.pos, sense.player_position / BugActor.GX_M) < 60.0:
-			a.patience = 100.0
+	elif not a.caught and BugProgram.near_xz(a, BugProgram.net_stop_pos(sense), NET_SCARE):
+		a.patience = 100.0
+	elif BugProgram.near_xz(a, BugProgram.scoop_pos(sense), SCOOP_SCARE):
+		a.patience = 100.0
 	return a.patience >= 90.0

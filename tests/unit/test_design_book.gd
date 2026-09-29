@@ -123,3 +123,17 @@ func test_game_persists_designs_and_worn_slot() -> void:
 	assert_int(Game.worn_design_slot).is_equal(2)
 	Game.designs.clear()
 	Game.worn_design_slot = -1
+
+
+func test_reordering_keeps_the_worn_design() -> void:
+	## `cloth.idx` names the stored design; re-sorting the list does not change the shirt.
+	Game.designs.clear()
+	Game.designs.player[2].name = "Worn"
+	Game.worn_design_slot = 2
+	Game.designs.swap_player_order(2, 5)
+	assert_int(Game.worn_design_slot).is_equal(5)
+	assert_str(Game.designs.resolved(Game.worn_design_slot).name).is_equal("Worn")
+	Game.designs.swap_player_order(0, 5)
+	assert_str(Game.designs.resolved(Game.worn_design_slot).name).is_equal("Worn")
+	Game.designs.clear()
+	Game.worn_design_slot = -1

@@ -1,19 +1,22 @@
 class_name BugMino
 extends BugProgram
 
-## `ac_ins_mino.c` — bagworm (minomushi) and spider. Hidden inside the tree until
-## the player shakes it, then drops on a silk thread, hangs and sways, and either
-## climbs back up, falls when the tree is felled, or crawls off (and can dive into
-## water). Movement while on the thread uses a custom `position_move`.
-##
-## `sense.player_action == SHAKE_TREE` with `player_action_cell` matching the bug's
-## tree cell is the APPEAR trigger. `sense.bg` supplies cut-tree / water / ground.
+## `ac_ins_mino.c` — bagworm (minomushi) and spider. Hidden 65 GX up its tree until
+## that tree's unit is shaken; then it drops on a thread (along the 47.8° thread line)
+## on the side away from the player — 30 GX east, 18 north when the player is west of
+## the tree, else 30 west, 25 north and 6 lower — bounces to a stop at 41 / 47 GX down,
+## and hangs for 1200 frames. Shaking the tree again swings it like a pendulum (50 GX
+## arm, damped by half each swing); once still after the timer it climbs back in. A
+## felled tree drops it to the ground, where it crawls off the player's facing ±60°
+## (bagworm 0.75, spider 1.5 GX/frame), sliding along walls, and drowns in water.
 
 enum { AVOID, LET_ESCAPE, HIDE, APPEAR, APPEAR_STOP, WAIT, DISAPPEAR, DIVE, DROWN, FALL }
 
 ## `shape_info.rotation.x` for the thread line.
 const THREAD_PITCH := deg_to_rad(47.8125)
 const MOVE_RANGE := [-41.0, -47.0]
+const HANG_Y := 65.0          ## `5 + GetBgY_OnlyCenter_FromWpos2(pos, −60)`
+const SHAKE_ARM := 50.0
 
 var _tree_cell: Vector2i = Vector2i(-1, -1)
 
@@ -24,8 +27,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 	a.item = 35 if a.type == T_BAGWORM else 37
 	a.move_proc = _position_move
 	if not released:
-		## 60 GX up the trunk, then + 5.
-		a.pos.y = a.home.y + 60.0 + 5.0
+		a.pos.y = a.home.y + HANG_Y
 		a.rot.x = THREAD_PITCH
 		a.rot.y = BugActor.TREE_FACE_YAW
 		a.angle_y = a.rot.y
@@ -57,9 +59,9 @@ func on_release(a: BugActor) -> void:
 func _position_move(a: BugActor) -> void:
 	a.last_pos = a.pos
 	a.speed = BugProgram.chase_f(a.speed, a.target_speed, a.speed_step * 0.5)
-	a.f32_work[0] += a.speed * 0.5           ## counter
-	a.pos.y = a.home.y + cos(a.rot.x) * a.f32_work[0]
-	a.pos.z = a.f32_work[3] - sin(a.rot.x) * a.f32_work[0]
+	a.f32_work[0] += a.speed * 0.5           ## counter (along the thread, `world.angle.x`)
+	a.pos.y = a.home.y + cos(THREAD_PITCH) * a.f32_work[0]
+	a.pos.z = a.f32_work[3] - sin(THREAD_PITCH) * a.f32_work[0]
 
 
 # ---- setupAction --------------------------------------------------
@@ -115,8 +117,7 @@ func _let_escape_init(a: BugActor) -> void:
 	a.rot.x = 0.0
 	a.rot.z = 0.0
 	a.move_proc = Callable()   ## back to the shared mover
-	if a.f32_work[2] != 0.0 or a._last_player_gx != Vector3.INF:
-		a.angle_y = a.f32_work[2] + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(120.0)
+	BugProgram.heading_from_player_facing(a, deg_to_rad(120.0))
 	if a.type == T_BAGWORM:
 		a.target_speed = 0.75
 		a.speed_step = 0.15
@@ -143,15 +144,25 @@ func _hide_init(a: BugActor) -> void:
 
 
 func _appear_init(a: BugActor) -> void:
-	## Descend on the thread from a side offset chosen by which side the player is.
-	a.f32_work[0] = 0.0
+	## Drop on the side of the tree away from the player.
+	if a.has_player_info:
+		if a.player_pos.x < a.home.x:
+			a.pos.x = a.home.x + 30.0
+			a.pos.z = a.home.z - 18.0
+			a.f32_work[0] = 0.0
+			a.flag = 0
+		else:
+			a.pos.x = a.home.x - 30.0
+			a.pos.z = a.home.z - 25.0
+			a.pos.y = a.home.y - 6.0
+			a.f32_work[0] = -6.0
+			a.flag = 1
 	a.f32_work[3] = a.pos.z
 	a.speed = 0.0
 	a.target_speed = -20.0
 	a.speed_step = 2.0
 	a.drawn = true
 	a.f_no_catch = false
-	a.flag = 0
 
 
 func _wait_init(a: BugActor) -> void:
@@ -184,6 +195,8 @@ func _fall_init(a: BugActor) -> void:
 # ---- actions ----------------------------------------------------
 
 func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
+	if _tree_cell.x < 0:
+		_tree_cell = BugProgram.unit_of(sense, a.home)
 	if a.caught:
 		a.alpha0 = 255
 		a.rot.y = BugActor.TREE_FACE_YAW
@@ -260,16 +273,18 @@ func _fall(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _dive(a: BugActor, sense: BugActor.Sense) -> void:
-	var w: float = _water_y(a, sense)
-	if a.pos.y <= w:
+	if a.pos.y <= BugProgram.water_y(a, sense):
 		setup_action(a, DROWN)
 
 
 func _let_escape(a: BugActor, sense: BugActor.Sense) -> void:
-	if _water_ahead(a, sense):
+	if BugProgram.water_ahead(a, sense):
 		setup_action(a, DIVE)
 		return
 	_calc_direction(a, sense)
+	if (sense == null or not sense.ground.is_valid()) and a.pos.y < a.home.y:
+		a.pos.y = a.home.y   ## no field: the ground it fell to
+		a.pos_speed.y = 0.0
 
 
 # ---- helpers --------------------------------------------------
@@ -279,55 +294,59 @@ func _twist(a: BugActor) -> void:
 	a.rot.z = sin(a.continue_timer * MLib.S16) * deg_to_rad(22.5)
 
 
+## `aIMN_calc_shake_angl`: a damped pendulum hanging 50 GX under its pivot. The s16
+## yaw gains half the swing speed each frame; each time it crosses due south the target
+## swing flips and halves, and under 16 it snaps still facing south. The body rides the
+## arm: x = pivot − 50·sin(yaw), y = pivot + 50 + 50·cos(yaw).
 func _shake_angle(a: BugActor) -> void:
-	## `aIMN_calc_shake_angl`: decaying yaw wobble; snap back to south when tiny.
+	var ang: int = _s16(roundi(a.rot.y / MLib.S16))
 	var cur: int = a.s32_work[0]
 	var tgt: int = a.s32_work[3]
-	if tgt * int(a.rot.y * 100.0) < 0:
+	if tgt * ang < 0:
 		tgt = int(-(tgt * 0.5))
 		if absi(tgt) < 16:
 			tgt = 0
 			cur = 0
-			a.rot.y = BugActor.TREE_FACE_YAW
+			ang = -0x8000
 		a.s32_work[3] = tgt
-	cur = int(BugProgram.chase_angle(float(cur) * MLib.S16, float(tgt) * MLib.S16, 16 * MLib.S16) / MLib.S16)
+	cur = roundi(BugProgram.chase_angle(cur * MLib.S16, tgt * MLib.S16, 16 * MLib.S16) / MLib.S16)
 	a.s32_work[0] = cur
-	a.rot.y = wrapf(BugActor.TREE_FACE_YAW + (cur * 0.5) * MLib.S16, -PI, PI)
+	ang = _s16(ang + int(cur * 0.5))
+	a.rot.y = ang * MLib.S16
+	a.pos.x = a.f32_work[1] - SHAKE_ARM * sin(a.rot.y)
+	a.pos.y = a.f32_work[2] + SHAKE_ARM + SHAKE_ARM * cos(a.rot.y)
 
 
+static func _s16(v: int) -> int:
+	return ((v + 0x8000) & 0xFFFF) - 0x8000
+
+
+## `aIMN_calc_direction_angl`: the bagworm turns along a front wall; the spider (which
+## walks backwards) along a wall behind it. The shape chases the heading (spider: +180°).
 func _calc_direction(a: BugActor, sense: BugActor.Sense) -> void:
-	var probe: Dictionary = _bg(a, sense)
-	if bool(probe.get("hit_wall", false)):
-		a.angle_y = wrapf(a.angle_y + PI * 0.5, -PI, PI)
+	var probe_yaw: float = a.angle_y if a.type == T_BAGWORM else a.angle_y + PI
+	if sense != null and sense.grid != null and BugBg.wall_front(sense.grid, sense.layout, a.pos, probe_yaw, maxf(a.bg_range, 1.0)):
+		a.angle_y = wrapf(BugProgram.wall_normal(a) + PI * 0.5, -PI, PI)
 	var target: float = a.angle_y if a.type == T_BAGWORM else a.angle_y + PI
 	a.rot.y = BugProgram.chase_angle(a.rot.y, target, 0x800 * MLib.S16)
 
 
-func _bg(a: BugActor, sense: BugActor.Sense) -> Dictionary:
-	if sense != null and sense.bg.is_valid():
-		return sense.bg.call(a.pos)
-	return {}
-
-
+## `aIMN_check_cut_tree`: the home unit holds no tree any more, or a stump.
 func _tree_cut(a: BugActor, sense: BugActor.Sense) -> bool:
-	return bool(_bg(a, sense).get("tree_cut", false))
+	if sense == null or sense.layout == null:
+		return false
+	return BugBg.tree_cut(sense.layout, BugProgram.unit_of(sense, a.home))
 
 
+## `aIMN_check_shake_tree`: a shake on its tree's unit.
 func _shaken(_a: BugActor, sense: BugActor.Sense) -> bool:
 	if sense == null or sense.player_action != BugActor.PlAct.SHAKE_TREE:
 		return false
-	if _tree_cell.x < 0:
-		return true
 	return sense.player_action_cell == _tree_cell
 
 
+## `mCoBG_GetBgY_AngleS_FromWpos` under it (without a field: 65 GX under its hang point).
 func _ground_y(a: BugActor, sense: BugActor.Sense) -> float:
-	return float(_bg(a, sense).get("ground_y", a.home.y - 60.0))
-
-
-func _water_y(a: BugActor, sense: BugActor.Sense) -> float:
-	return float(_bg(a, sense).get("water_y", -1e9))
-
-
-func _water_ahead(a: BugActor, sense: BugActor.Sense) -> bool:
-	return bool(_bg(a, sense).get("water_ahead", false))
+	if sense != null and sense.ground.is_valid():
+		return float(sense.ground.call(a.pos).get("ground_y", a.home.y - HANG_Y))
+	return a.home.y - HANG_Y

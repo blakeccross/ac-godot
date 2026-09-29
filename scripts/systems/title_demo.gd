@@ -66,6 +66,7 @@ const SAFE_VERBS: Array[StringName] = [
 	Interaction.SWING_NET,
 	Interaction.CAST,
 	Interaction.AIR_AXE,
+	Interaction.AIR_ROD,
 	Interaction.HOOK,
 	## `Player_actor_CheckController_forUmbrella` reads the demo's A too.
 	&"twirl_umbrella",

@@ -12,10 +12,6 @@ static func apply_actor_scale(pivot: Node3D, visual_id: StringName = &"") -> voi
 
 
 static func fit(pivot: Node3D, visual_id: StringName) -> void:
-	if VisualStructureMaterials.is_light_shaft_visual(visual_id):
-		## Skylight shafts are authored in acre space alongside the museum shell.
-		fit_acre(pivot)
-		return
 	if FieldCatalog.is_acre(visual_id) or visual_id == &"obj_museum5":
 		## `obj_museum5` draws with field `Matrix_scale(0.0625)` and no translate —
 		## verts share the acre datum with `rom_museum5` (floor at authored Y=40 GX).
@@ -125,6 +121,7 @@ static func shell_keeps_acre_origin(visual_id: StringName) -> bool:
 		or id == "rom_tailor"
 		or id == "police_indoor"
 		or id == "grd_post_office"
+		or id == "rom_toudai"
 	)
 
 

@@ -8,9 +8,11 @@ extends Node3D
 ## nodes rather than the MultiMesh the footprint pool needs.
 
 const SHADER := "res://shaders/fish_shadow.gdshader"
-## `aGYO_shadow_scale` is measured to the shadow art's edge, so the quad is padded to give
-## the soft rim and the tail sway somewhere to live.
-const QUAD_PADDING := 1.45
+## `FishSize.shadow_size` is the original quad; its tiles fill `SILHOUETTE_FILL` of it. The
+## shader's SDF body spans `2 * body_radii.y` (0.8) of the node, so the node is scaled up
+## until that body is the tiles' silhouette, which also leaves the tail sway its margin.
+const SHADER_BODY_SPAN := 0.8
+const QUAD_PADDING := FishSize.SILHOUETTE_FILL / SHADER_BODY_SPAN
 ## `mCoBG_GetWaterHeight` - 8 GX puts the fish under the surface; the quad has to sit just
 ## above the water plane instead or it z-fights with it. River/ocean sheets also add a
 ## `ground_lift` of 0.5–1.0 GX in their vertex shader — sit above that or the opaque depth
@@ -24,6 +26,8 @@ var _school: FishSchool = null
 var _material: ShaderMaterial = null
 var _mesh: QuadMesh = null
 var _shadow_nodes: Array[MeshInstance3D] = []
+## One mover tick at a time, so the bobber and the shadows take turns the way the actors do.
+var _steps := FrameStepper.new(DecompTime.TICK_HZ, 30.0)
 var _puff_nodes: Array[MeshInstance3D] = []
 
 
@@ -58,9 +62,11 @@ func _process(delta: float) -> void:
 		_bind_school()
 		if _school == null:
 			return
-	var sense: FishShadow.Sense = _make_sense()
-	_school.tick(delta, sense)
-	Fishing.tick(delta, _school)
+	_steps.add(delta)
+	while _steps.next():
+		var sense: FishShadow.Sense = _make_sense()
+		_school.tick(DecompTime.TICK_SEC, sense)
+		Fishing.tick(DecompTime.TICK_SEC, _school)
 	_sync()
 
 
@@ -78,7 +84,14 @@ func _sync() -> void:
 	_fit(_shadow_nodes, _school.shadows.size())
 	for i: int in _school.shadows.size():
 		var shadow: FishShadow = _school.shadows[i]
-		_place(_shadow_nodes[i], shadow.position, shadow.yaw, shadow.shadow_extent(), 1.0, shadow.body_blend())
+		_place(
+			_shadow_nodes[i],
+			shadow.position,
+			shadow.yaw,
+			shadow.shadow_extent(),
+			FishSize.shadow_alpha(shadow.size),
+			shadow.body_blend()
+		)
 	_fit(_puff_nodes, _school.puffs.size())
 	for i: int in _school.puffs.size():
 		var puff: FishSchool.Puff = _school.puffs[i]

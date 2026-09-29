@@ -80,6 +80,9 @@ static func attach(host: Node3D, visual_id: StringName) -> Node3D:
 	## Swap field/tree albedos from the seasons pack (autumn grass, winter snow).
 	VisualSeasons.apply(pivot)
 	VisualBlobShadow.attach(host, visual_id)
+	## Building hosts light their windows by their own rule from the first frame.
+	if VisualWindowLight.host_lights_on(host) != null:
+		VisualWindowLight.refresh_window_lights(host)
 	return pivot
 
 

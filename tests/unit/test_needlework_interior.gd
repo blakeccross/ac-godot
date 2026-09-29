@@ -123,3 +123,51 @@ func test_design_texture_renders_32x32_rgba() -> void:
 	assert_int(img.get_width()).is_equal(32)
 	assert_int(img.get_height()).is_equal(32)
 	assert_float(img.get_pixel(0, 0).a).is_equal(1.0)
+
+
+func test_blocked_units_match_the_rom_tailor_bg() -> void:
+	var blocked: Dictionary = NeedleworkPresenter.blocked_units()
+	if blocked.is_empty():
+		return  ## `rom_tailor.col.json` not generated (no disc)
+	## `rom_tailor` raises only these units inside the shop floor.
+	var want: Array[Vector2i] = [
+		Vector2i(1, 1), Vector2i(2, 1), Vector2i(1, 3), Vector2i(2, 3),
+		Vector2i(2, 5), Vector2i(2, 6), Vector2i(8, 6),
+	]
+	assert_int(blocked.size()).is_equal(want.size())
+	for cell: Vector2i in want:
+		assert_bool(blocked.has(cell)).is_true()
+	## Sable's spot beside the machine is floor.
+	assert_bool(blocked.has(Vector2i(2, 2))).is_false()
+
+
+
+func test_window_sunbeams_follow_ef_room_sunshine() -> void:
+	## `ROOM_SUNSHINE` arg 2 / 3: the constructor nets −2 / 0 X and lifts 1.1 GX.
+	assert_vector(WindowSunshine.anchor_gx(WindowSunshine.NEEDLEWORK[0], true)) \
+		.is_equal(Vector3(38.0, 1.1, 160.0))
+	assert_vector(WindowSunshine.anchor_gx(WindowSunshine.NEEDLEWORK[1], false)) \
+		.is_equal(Vector3(360.0, 1.1, 160.0))
+	## Morning: only the east beam, reaching full length (1.5) at 04:00.
+	assert_float(WindowSunshine.stretch(8 * 3600, true)).is_equal(0.0)
+	assert_float(WindowSunshine.stretch(4 * 3600, false)).is_equal_approx(1.5, 0.001)
+	assert_float(WindowSunshine.stretch(8 * 3600, false)).is_greater(0.0)
+	## Afternoon: only the west beam, growing from noon.
+	assert_float(WindowSunshine.stretch(15 * 3600, false)).is_equal(0.0)
+	assert_float(WindowSunshine.stretch(15 * 3600, true)).is_greater(0.0)
+
+
+func test_present_adds_both_window_sunbeams() -> void:
+	var session := IndoorSession.new()
+	session.bind(InteriorCatalog.room_template(&"needlework"))
+	var root := Node3D.new()
+	auto_free(root)
+	add_child(root)
+	NeedleworkPresenter.new().present(root, session)
+	var left: Node3D = root.get_node_or_null("SunshineL") as Node3D
+	var right: Node3D = root.get_node_or_null("SunshineR") as Node3D
+	assert_object(left).is_not_null()
+	assert_object(right).is_not_null()
+	assert_bool(left.get("left")).is_true()
+	assert_bool(right.get("left")).is_false()
+	assert_float(right.position.x).is_greater(left.position.x)

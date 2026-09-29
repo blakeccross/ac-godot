@@ -1,0 +1,11 @@
+{
+  "id": "nook_shop_goodbye",
+  "speaker_id": "tom_nook",
+  "start": "bye",
+  "nodes": {
+    "bye": {
+      "type": "line",
+      "text": "Thank you for coming!\nDo stop by again soon, yes?"
+    }
+  }
+}

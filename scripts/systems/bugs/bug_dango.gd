@@ -1,17 +1,29 @@
 class_name BugDango
 extends BugProgram
 
-## `ac_ins_dango.c` — pill bug (and ant). The pill bug hides under a rock
-## (`sense.player_action == REFLECT_AXE / REFLECT_SCOOP` on its cell strikes it out),
-## pops up (`APPEAR`), then rolls around (`AVOID`); when scared while settled it
-## curls into a ball (`STOP`). Strays out of range → retires (fades). Ants skip the
-## hide and just crawl.
+## `ac_ins_dango.c` — pill bug (and ant). The pill bug hides under its rock until the
+## player strikes that rock's unit (`REFLECT_AXE` / `REFLECT_SCOOP`), pops up 12 GX/frame
+## (`APPEAR`), curls on landing (`STOP`), then crawls off at 1.5 GX/frame along the
+## player's facing ±60° (`AVOID`), sliding along walls. Only once it has crawled off the
+## rock's unit does it scare — a stopped net, a dig or an axe hit within 70 GX curls it
+## up again until patience falls under 50. Water ahead makes it dive and drown; 400 GX
+## from its acre centre it retires (fades). Released ones crawl off the same way.
+##
+## In the original an ant is its own actor (`ac_ant.c`) that only becomes a dango-program
+## insect once netted; here an ant simply crawls like a pill bug that is already out.
 
 enum { AVOID, LET_ESCAPE, STOP, HIDE, APPEAR, DIVE, DROWN, RETIRE }
 
-const ACTIVE_RANGE_SQ := 160000.0   ## 400²
+const ACTIVE_RANGE := 400.0
+const SCARE := 70.0          ## net / scoop / axe, 4900 = 70²
+## `21845 × (rand − 0.5)`: ±60° (a third of the circle) about the player's facing.
+const HEADING_SPREAD := 21845.0 * MLib.S16
 
+## The unit it spawned on (its rock); `(-1, -1)` once it has crawled off (`ut_x/z = −1`).
 var _rock_cell: Vector2i = Vector2i(-1, -1)
+var _cell_known: bool = false
+## The crawl heading waits for the player's facing (no player on the spawn frame).
+var _heading_pending: bool = false
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -24,16 +36,18 @@ func actor_init(a: BugActor, released: bool) -> void:
 		a.drawn = true
 		setup_action(a, LET_ESCAPE)
 		return
-	a.f32_work[2] = a.home.x
-	a.f32_work[3] = a.home.z
 	if a.type == T_ANT:
-		setup_action(a, AVOID)     ## ants walk, no rock to hide under
+		_cell_known = true   ## already off any rock
+		a.bg_type = 2
+		setup_action(a, AVOID)
 	else:
 		setup_action(a, HIDE)
 
 
+## Set by `BugField.spawn` to the spawn cell.
 func set_rock_cell(cell: Vector2i) -> void:
 	_rock_cell = cell
+	_cell_known = true
 
 
 func pose_index(a: BugActor) -> int:
@@ -50,13 +64,7 @@ func setup_action(a: BugActor, action: int) -> void:
 	match action:
 		AVOID:
 			a.action_proc = _avoid
-			a.speed = 1.5
-			a.target_speed = 1.5
-			a.speed_step = 0.3
-			a.anime0 = 1.0
-			if a._last_player_gx != Vector3.INF:
-				a.angle_y = BugProgram.angle_to(a._last_player_gx, a.pos) + a._rng.randf_range(-1.0, 1.0) * (21845.0 * 0.5 * MLib.S16)
-				a.rot.y = a.angle_y
+			_avoid_init(a)
 		LET_ESCAPE:
 			a.action_proc = _let_escape
 			a.life_time = 0
@@ -65,12 +73,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.bg_type = 2
 			a.gravity = 2.0
 			a.max_velocity_y = -20.0
-			a.speed = 1.5
-			a.target_speed = 1.5
-			a.speed_step = 0.3
-			if a._last_player_gx != Vector3.INF:
-				a.angle_y = BugProgram.angle_to(a._last_player_gx, a.pos) + a._rng.randf_range(-1.0, 1.0) * (21845.0 * 0.5 * MLib.S16)
-				a.rot.y = a.angle_y
+			_avoid_init(a)
 			a.f_no_catch = true
 			a.f_bit2 = true
 		STOP:
@@ -81,22 +84,17 @@ func setup_action(a: BugActor, action: int) -> void:
 		HIDE:
 			a.action_proc = _hide
 			a.bg_type = 4
+			a.gravity = 2.0
+			a.max_velocity_y = -20.0
 			a.drawn = false
 			a.move_proc = BugProgram.freeze_move
 		APPEAR:
 			a.action_proc = _appear
 			a.move_proc = Callable()
-			a.gravity = 2.0
-			a.max_velocity_y = -20.0
-			a.speed = 1.5
-			a.target_speed = 1.5
-			a.speed_step = 0.3
+			_avoid_init(a)
 			a.drawn = true
 			a.anime0 = 0.0
 			a.pos_speed.y = 12.0
-			if a._last_player_gx != Vector3.INF:
-				a.angle_y = BugProgram.angle_to(a._last_player_gx, a.pos) + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(120.0)
-				a.rot.y = a.angle_y
 		DIVE:
 			a.action_proc = _dive
 			a.speed = 1.5
@@ -107,6 +105,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.f_no_catch = true
 		DROWN:
 			a.action_proc = _noop
+			a.f_no_catch = true
 			a.f_destruct = true
 			a.finished = true
 		RETIRE:
@@ -119,105 +118,125 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.f_bit2 = true
 
 
+## `aIDG_avoid_init`: crawl 1.5 GX/frame off the player's facing ±60°.
+func _avoid_init(a: BugActor) -> void:
+	a.speed = 1.5
+	a.target_speed = 1.5
+	a.speed_step = 0.3
+	a.anime0 = 1.0
+	_heading_pending = not BugProgram.heading_from_player_facing(a, HEADING_SPREAD)
+	if not _heading_pending:
+		a.rot.y = a.angle_y
+
+
 func _noop(_a: BugActor, _s: BugActor.Sense) -> void:
 	pass
 
 
 func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
+	if not _cell_known:
+		_cell_known = true
+		_rock_cell = BugProgram.unit_of(sense, a.home)
+	if _heading_pending and a.has_player_info:
+		_heading_pending = false
+		BugProgram.heading_from_player_facing(a, HEADING_SPREAD)
+		a.rot.y = a.angle_y
 	if a.caught:
 		a.alpha0 = 255
 		setup_action(a, LET_ESCAPE)
 		return
 	if a.action_proc.is_valid():
 		a.action_proc.call(a, sense)
+	_hold_without_ground(a, sense)
 
 
+## `aIDG_check_strike_stone`: a rock strike on the unit it is under.
 func _hide(a: BugActor, sense: BugActor.Sense) -> void:
 	if sense == null:
 		return
 	if sense.player_action != BugActor.PlAct.REFLECT_AXE and sense.player_action != BugActor.PlAct.REFLECT_SCOOP:
 		return
-	if _rock_cell.x < 0 or sense.player_action_cell == _rock_cell:
+	if sense.player_action_cell == BugProgram.unit_of(sense, a.pos) or sense.player_action_cell == _rock_cell:
 		setup_action(a, APPEAR)
 
 
 func _appear(a: BugActor, sense: BugActor.Sense) -> void:
-	if a.pos.y <= _ground_y(a, sense) and a.pos_speed.y <= 0.0:
-		a.pos.y = _ground_y(a, sense)
-		a.pos_speed.y = 0.0
+	if _on_ground(a, sense):
 		setup_action(a, STOP)
 
 
 func _stop(a: BugActor, sense: BugActor.Sense) -> void:
-	if not _water_ahead(a, sense) and a.patience < 50.0:
+	if _water_check(a, sense):
+		return
+	if a.patience < 50.0:
 		setup_action(a, AVOID)
 
 
 func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
-	if _water_ahead(a, sense):
-		setup_action(a, DIVE)
+	if _water_check(a, sense):
 		return
-	var dx: float = a.f32_work[2] - a.pos.x
-	var dz: float = a.f32_work[3] - a.pos.z
-	if dx * dx + dz * dz >= ACTIVE_RANGE_SQ:
+	var c: Vector2 = BugProgram.acre_center(a, sense)
+	if Vector2(c.x - a.pos.x, c.y - a.pos.z).length_squared() >= ACTIVE_RANGE * ACTIVE_RANGE:
 		setup_action(a, RETIRE)
 		return
 	_calc_direction(a, sense)
-	_ground_clamp(a, sense)
-	if _check_patience(a, sense):
+	if a.bg_type == 4:
+		## Still on the rock's unit: no scares until it crawls off it.
+		if BugProgram.unit_of(sense, a.pos) != _rock_cell:
+			_rock_cell = Vector2i(-1, -1)
+			a.bg_type = 2
+	elif _check_patience(a, sense):
 		setup_action(a, STOP)
 
 
 func _let_escape(a: BugActor, sense: BugActor.Sense) -> void:
-	if _water_ahead(a, sense):
-		setup_action(a, DIVE)
-		return
-	_calc_direction(a, sense)
-	_ground_clamp(a, sense)
+	if not _water_check(a, sense):
+		_calc_direction(a, sense)
 
 
 func _dive(a: BugActor, sense: BugActor.Sense) -> void:
-	if a.pos.y <= _water_y(a, sense):
+	if a.pos.y <= BugProgram.water_y(a, sense):
 		setup_action(a, DROWN)
 
 
+## `aIDG_chk_water_attr`: on the ground with water `bg_range + speed` ahead → DIVE.
+func _water_check(a: BugActor, sense: BugActor.Sense) -> bool:
+	if BugProgram.water_ahead(a, sense):
+		setup_action(a, DIVE)
+		return true
+	return false
+
+
+## `aIDG_calc_direction_angl`: a front wall turns it to run along the wall; the shape
+## follows at 0x800.
 func _calc_direction(a: BugActor, sense: BugActor.Sense) -> void:
-	if sense != null and sense.bg.is_valid() and bool(sense.bg.call(a.pos).get("hit_wall_front", false)):
-		a.angle_y = wrapf(a.angle_y + deg_to_rad(90.0), -PI, PI)
+	if BugProgram.wall_front(a, sense):
+		a.angle_y = wrapf(BugProgram.wall_normal(a) + PI * 0.5, -PI, PI)
 	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * MLib.S16)
 
 
+## `aIDG_check_patience`: off the rock only — stopped net, dig, axe hit within 70 GX.
 func _check_patience(a: BugActor, sense: BugActor.Sense) -> bool:
-	## Only once it has left its rock unit (`ut_x/z == -1`); we approximate with
-	## "has been in AVOID a while" — always allow the net/scoop scare here.
-	if sense.net_swing_active and sense.net_swing_origin != Vector3.INF:
-		if BugProgram.dist_xz(a.pos, sense.net_swing_origin / BugActor.GX_M) < 70.0:
-			a.patience = 100.0
-	if sense.player_swung_tool and sense.has_player():
-		if BugProgram.dist_xz(a.pos, sense.player_position / BugActor.GX_M) < 70.0:
-			a.patience = 100.0
+	if _rock_cell.x != -1 or _rock_cell.y != -1:
+		return false
+	if BugProgram.near_xz(a, BugProgram.net_stop_pos(sense), SCARE):
+		a.patience = 100.0
+	elif BugProgram.near_xz(a, BugProgram.scoop_pos(sense), SCARE):
+		a.patience = 100.0
+	elif BugProgram.near_xz(a, BugProgram.axe_hit_pos(sense), SCARE):
+		a.patience = 100.0
 	return a.patience > 90.0
 
 
-func _ground_clamp(a: BugActor, sense: BugActor.Sense) -> void:
-	var g: float = _ground_y(a, sense)
-	if a.pos.y < g:
-		a.pos.y = g
+func _on_ground(a: BugActor, sense: BugActor.Sense) -> bool:
+	if sense != null and sense.ground.is_valid():
+		return a.bg_on_ground
+	return a.pos.y <= a.home.y and a.pos_speed.y <= 0.0
+
+
+## Without a ground sampler (no field) keep it on its spawn height.
+func _hold_without_ground(a: BugActor, sense: BugActor.Sense) -> void:
+	if (sense == null or not sense.ground.is_valid()) and a.drawn and a.pos.y < a.home.y:
+		a.pos.y = a.home.y
 		if a.pos_speed.y < 0.0:
 			a.pos_speed.y = 0.0
-
-
-func _ground_y(a: BugActor, sense: BugActor.Sense) -> float:
-	if sense != null and sense.bg.is_valid():
-		return float(sense.bg.call(a.pos).get("ground_y", a.home.y))
-	return a.home.y
-
-
-func _water_y(a: BugActor, sense: BugActor.Sense) -> float:
-	if sense != null and sense.bg.is_valid():
-		return float(sense.bg.call(a.pos).get("water_y", -1e9))
-	return -1e9
-
-
-func _water_ahead(a: BugActor, sense: BugActor.Sense) -> bool:
-	return sense != null and sense.bg.is_valid() and bool(sense.bg.call(a.pos).get("water_ahead", false))

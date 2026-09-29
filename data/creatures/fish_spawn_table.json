@@ -7947,34 +7947,10 @@
     ]
    },
    "pond": {
-    "0": [
-     {
-      "type_index": 32,
-      "spawn_area": 6,
-      "weight": 20
-     }
-    ],
-    "1": [
-     {
-      "type_index": 32,
-      "spawn_area": 6,
-      "weight": 20
-     }
-    ],
-    "2": [
-     {
-      "type_index": 32,
-      "spawn_area": 6,
-      "weight": 20
-     }
-    ],
-    "3": [
-     {
-      "type_index": 32,
-      "spawn_area": 6,
-      "weight": 20
-     }
-    ]
+    "0": [],
+    "1": [],
+    "2": [],
+    "3": []
    }
   },
   "18": {

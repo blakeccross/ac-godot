@@ -50,6 +50,7 @@ var police: PoliceBook = PoliceBook.new()
 var post: PostBook = PostBook.new()
 var farway: FarwayBook = FarwayBook.new()
 var redd: ReddBook = ReddBook.new()
+var lighthouse: LighthouseBook = LighthouseBook.new()
 ## Every catalog item the player has owned + Nook mail orders (`m_catalog_ovl`).
 var catalog: CatalogBook = CatalogBook.new()
 ## `Save_Get(fruit)`: the town's native fruit. Other fruit sells to Nook at the foreign price.
@@ -91,6 +92,8 @@ var destiny_type: int = Destiny.NORMAL
 var destiny_date: Vector3i = Vector3i.ZERO
 ## Worn original design display slot (`cloth.idx >= CLOTH_NUM+1`). -1 = normal shirt.
 var worn_design_slot: int = -1
+## A 06:00 lost-and-found top-up that came due while the player was in the police box.
+var _police_topup_pending: bool = false
 ## Town map unlocked after first-job furniture delivery (`Common.map_flag`).
 var has_map: bool = false
 ## `Save_Get(num_statues)` — how many Nook house statues the town has built (0..3, gold →
@@ -105,13 +108,14 @@ var weather: StringName = &"clear"
 ## False until `sync_events` has adopted the clock for this session.
 var _events_ready: bool = false
 
-## `Save_Get(insect_term)` / `insect_term_transition_offset` — the month whose
-## insect spawn table is currently "settled in" and a per-month random 0-5 day
-## offset for the cross-month blend (`aSOI_ins_chk_term_info`). Session-scoped.
+## `Save_Get(insect_term)` / `insect_term_transition_offset` — the 0-based month the
+## insect spawn table is heading into and how many days (0-5) before its 1st the
+## cross-month blend starts (`aSOI_ins_chk_term_info`). Session-scoped.
 var insect_term_month: int = 0
 var insect_term_offset: int = 0
-## `Save_Get(gyoei_term)` / `gyoei_term_transition_offset` — same, for fish, but keyed
-## to the 24 half-month terms (`aSOG_gyoei_chk_term_info`).
+## `Save_Get(gyoei_term)` / `gyoei_term_transition_offset` — for fish: the *next* of the
+## 24 half-month terms and how many days (0–5) before it starts its list ramps in
+## (`aSOG_gyoei_chk_term_info`). Saved with the town.
 var gyoei_term: int = 0
 var gyoei_term_offset: int = 0
 ## `mEnv_WEATHER_INTENSITY_*` (none/light/normal/heavy).
@@ -178,6 +182,8 @@ func _ready() -> void:
 	ReddBook.ensure_art_items()
 	if not Clock.field_renewed.is_connected(_on_field_renewed):
 		Clock.field_renewed.connect(_on_field_renewed)
+	if not Clock.day_changed.is_connected(_on_day_changed):
+		Clock.day_changed.connect(_on_day_changed)
 	if not Clock.time_changed.is_connected(sync_events):
 		Clock.time_changed.connect(sync_events)
 	if not events.event_started.is_connected(_on_event_started):
@@ -627,6 +633,10 @@ func reset_session() -> void:
 		redd = ReddBook.new()
 	else:
 		redd.clear()
+	if lighthouse == null:
+		lighthouse = LighthouseBook.new()
+	else:
+		lighthouse.clear()
 	if catalog == null:
 		catalog = CatalogBook.new()
 	else:
@@ -639,6 +649,7 @@ func reset_session() -> void:
 	else:
 		designs.clear()
 	worn_design_slot = -1
+	_police_topup_pending = false
 	set_interact_prompt("")
 
 
@@ -869,6 +880,7 @@ func to_save() -> Dictionary:
 		"post": post.to_save(),
 		"farway": farway.to_save(),
 		"redd": redd.to_save(),
+		"lighthouse": lighthouse.to_save(),
 		"catalog": catalog.to_save(),
 		"town_fruit": String(town_fruit),
 		"events": events.to_save(),
@@ -893,6 +905,7 @@ func to_save() -> Dictionary:
 		"first_job": first_job.to_save() if first_job != null else {},
 		"weather": String(weather),
 		"weather_intensity": weather_intensity,
+		"gyoei_term": {"term": gyoei_term, "offset": gyoei_term_offset},
 		"dialogue_vars": dialogue_vars.duplicate(true),
 	}
 
@@ -980,6 +993,9 @@ func apply_snapshot(data: Dictionary) -> void:
 	if redd == null:
 		redd = ReddBook.new()
 	redd.apply_snapshot(data.get("redd", {}))
+	if lighthouse == null:
+		lighthouse = LighthouseBook.new()
+	lighthouse.apply_snapshot(data.get("lighthouse", {}))
 	if catalog == null:
 		catalog = CatalogBook.new()
 	catalog.apply_snapshot(data.get("catalog", {}))
@@ -1031,6 +1047,10 @@ func apply_snapshot(data: Dictionary) -> void:
 		weather_intensity = int(unpacked["intensity"])
 	else:
 		weather_intensity = int(Weather.default_intensity_for(Weather.kind_from_name(weather)))
+	## `Save_Get(gyoei_term)`: the fish ramp's next term and its 0–5 day lead.
+	var fish_term: Dictionary = data.get("gyoei_term", {})
+	gyoei_term = clampi(int(fish_term.get("term", 0)), 0, 23)
+	gyoei_term_offset = clampi(int(fish_term.get("offset", 0)), 0, 5)
 	dialogue_vars.clear()
 	var vars_raw: Variant = data.get("dialogue_vars", {})
 	if typeof(vars_raw) == TYPE_DICTIONARY:
@@ -1082,6 +1102,21 @@ func try_enter_interior(
 			outdoor_return_yaw = player_yaw
 	close_shop()
 	current_room_id = room_id
+	prepare_interior_spawn(room_id, spawn_gx, spawn_yaw)
+	block_auto_enter_doors = true
+	var stage: Node = _museum_complete_stage()
+	if stage != null and stage.has_method("switch_wing"):
+		return stage.call("switch_wing", room_id) as bool
+	_change_scene(INTERIOR_SCENE)
+	return true
+
+
+## Where the player lands in `room_id` (door data per building, or an explicit stand).
+## `interior.tscn` reads these when it spawns the player.
+func prepare_interior_spawn(
+	room_id: StringName, spawn_gx: Variant = null, spawn_yaw: Variant = null
+) -> void:
+	var room: Room = interiors.room(room_id)
 	play_door_arrive = false
 	if spawn_gx is Vector3:
 		interior_spawn_gx = spawn_gx as Vector3
@@ -1099,8 +1134,8 @@ func try_enter_interior(
 		## Museum: wipe to spawn facing north — no post-load walk.
 		play_door_arrive = false
 	elif ShopDisplay.nook_is_shop_room(room_id):
-		## `aSHOP_shop_door_data` GX {160,0,300}, `mSc_DIRECT_NORTH` (all Nook levels).
-		interior_spawn_gx = ShopDisplay.CRANNY_SPAWN_GX
+		## The building's `Door_data_c` (`aSHOP_` … `aDPT_depart_door_data`), `mSc_DIRECT_NORTH`.
+		interior_spawn_gx = ShopDisplay.nook_spawn_gx(room_id)
 		interior_spawn_yaw = WorldGrid.yaw_for_facing(ShopDisplay.CRANNY_SPAWN_FACING)
 		has_interior_spawn = true
 		spawn_at_room_door = false
@@ -1123,6 +1158,12 @@ func try_enter_interior(
 		interior_spawn_yaw = WorldGrid.yaw_for_facing(InteriorCatalog.ABLE_SPAWN_FACING)
 		has_interior_spawn = true
 		spawn_at_room_door = false
+	elif room_id == &"lighthouse":
+		## `aTOU_door_data` GX {120,0,100}, `mSc_DIRECT_SOUTH` (just inside the north door).
+		interior_spawn_gx = LighthouseRoom.SPAWN_GX
+		interior_spawn_yaw = WorldGrid.yaw_for_facing(LighthouseRoom.SPAWN_FACING)
+		has_interior_spawn = true
+		spawn_at_room_door = false
 	elif room.kind == Room.Kind.NPC:
 		## `aHUS_npc_house_door_data` — not walkable-south `door_cell - 1`.
 		interior_spawn_gx = InteriorCatalog.NPC_HOUSE_SPAWN_GX
@@ -1138,12 +1179,6 @@ func try_enter_interior(
 	else:
 		has_interior_spawn = false
 		spawn_at_room_door = true
-	block_auto_enter_doors = true
-	var stage: Node = _museum_complete_stage()
-	if stage != null and stage.has_method("switch_wing"):
-		return stage.call("switch_wing", room_id) as bool
-	_change_scene(INTERIOR_SCENE)
-	return true
 
 
 func _is_museum_room_id(room_id: StringName) -> bool:
@@ -1202,14 +1237,31 @@ func refresh_police_set() -> void:
 		host.call("refresh_shop_set")
 
 
+func _in_police_box() -> bool:
+	if not is_indoors():
+		return false
+	var room: Room = interiors.room(current_room_id)
+	return room != null and room.kind == Room.Kind.POLICE
+
+
+## `mTM_*` time step: `Kabu_manager` runs when the date changes (midnight, not 06:00).
+func _on_day_changed() -> void:
+	shops.kabu.update(Clock.year, Clock.month, Clock.day)
+
+
 func _on_field_renewed(days: int) -> void:
 	shops.renew(days)
 	HouseGoki.save_play_time(interiors.player_house())
 	refresh_shop_set()
 	## `mAGrw_RenewalFgItem` tops the lost and found up once per renewal, however many
 	## days were skipped.
+	## It runs on field make, so while the player is inside the police box the new item
+	## waits for them to leave (after Booker packs the list), never landing mid-visit.
 	if police != null:
-		police.force_set_keep_item()
+		if _in_police_box():
+			_police_topup_pending = true
+		else:
+			police.force_set_keep_item()
 	refresh_police_set()
 	_deliver_farway_mail()
 	_deliver_shop_mail()
@@ -1282,6 +1334,9 @@ func exit_interior() -> bool:
 	if leaving != null and leaving.kind == Room.Kind.POLICE and police != null:
 		## `aPOL2_player_getout_check` → `mPB_copy_itemBuf`: close the claimed gaps.
 		police.copy_item_buf()
+		if _police_topup_pending:
+			_police_topup_pending = false
+			police.force_set_keep_item()
 	last_room_id = current_room_id
 	var room: Room = leaving
 	if room != null and room.parent_room_id != &"":

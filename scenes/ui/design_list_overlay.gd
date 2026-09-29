@@ -6,7 +6,8 @@ extends CanvasLayer
 ##   PICK_EDIT   — choose a slot to open in the editor (`aNNW_talk_design_which`).
 ##   PICK_TRADE  — choose a slot for the current trade op (`aNNW_talk_trade_which*`).
 ##   MANAGE      — reorder designs (`mNW_swap_image_no`): space picks up, space
-##                 again on another slot swaps; opens the editor on a set slot.
+##                 again on another slot swaps. The pocket page only reorders and
+##                 wears; the editor opens from Mabel's "Design a pattern" (350 Bells).
 ##
 ## `open(mode, callback)` — callback receives the chosen display slot (0-7), or -1
 ## if cancelled. MANAGE passes no callback.
@@ -87,10 +88,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_UP, KEY_W: _sel = _wrap(_sel - COLS); Audio.play_se(&"cursol")
 		KEY_DOWN, KEY_S: _sel = _wrap(_sel + COLS); Audio.play_se(&"cursol")
 		KEY_SPACE, KEY_ENTER, KEY_KP_ENTER: _activate()
-		KEY_E:
-			if _mode == ListMode.MANAGE:
-				_edit_selected()
-				return
 		KEY_C:
 			if _mode == ListMode.MANAGE:
 				_wear_selected()
@@ -105,14 +102,6 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _wrap(i: int) -> int:
 	return wrapi(i, 0, COLS * ROWS)
-
-
-func _edit_selected() -> void:
-	var editor: Node = get_tree().get_first_node_in_group("design_ui")
-	if editor != null and editor.has_method("open"):
-		var s := _sel
-		close(-1)
-		editor.call("open", s)
 
 
 ## `cloth.idx >= CLOTH_NUM + 1` — wear this design as a shirt, or take it off if
@@ -139,13 +128,9 @@ func _activate() -> void:
 				_held = _sel
 				Audio.play_se(&"cursol")
 			elif _held == _sel:
-				## drop on itself → open the editor on this slot
-				var editor: Node = get_tree().get_first_node_in_group("design_ui")
+				## Dropped back where it was picked up.
 				_held = -1
-				if editor != null and editor.has_method("open"):
-					close(-1)
-					editor.call("open", _sel)
-					return
+				Audio.play_se(&"cursol")
 			else:
 				Game.designs.swap_player_order(_held, _sel)
 				_held = -1
@@ -192,7 +177,7 @@ func _refresh() -> void:
 	_name.text = d.name if d != null else ""
 	if _mode == ListMode.MANAGE:
 		var worn := Game.worn_design_slot if Game != null else -1
-		_hint.text = "space swap  ·  E edit  ·  C %s  ·  B/Esc close%s" % [
+		_hint.text = "space swap  ·  C %s  ·  B/Esc close%s" % [
 			"take off" if worn == _sel else "wear",
 			"   (wearing \"%s\")" % Game.designs.player[Game.designs.resolved_index(worn)].name if worn >= 0 else ""]
 	else:

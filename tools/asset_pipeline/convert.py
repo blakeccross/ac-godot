@@ -228,7 +228,7 @@ KANBAN_SIGN_GFX: dict[str, list[str]] = {
 }
 
 ## Statics whose only DL is the XLU `{prefix}_modelT` (no `_model` to infer from).
-XLU_ONLY_STATICS: frozenset[str] = frozenset({"obj_koban_shine"})
+XLU_ONLY_STATICS: frozenset[str] = frozenset({"obj_koban_shine", "obj_yubinkyoku_shine"})
 
 ## Dropped FG item cards (`bg_item` / `handOverItem`). Vtx is `obj_item_*_v`; DLs are either a
 ## combined `*_modelT` or a `*_DL_mode` + `*_DL_vtx` pair (no `*_gfx_model` to infer).
@@ -251,6 +251,22 @@ WEATHER_RAIN_GFX: dict[str, list[str]] = {
     "ef_ame02_02": ["ef_ame02_setmode", "ef_ame02_02_modelT"],
     "ef_ame02_03": ["ef_ame02_setmode", "ef_ame02_03_modelT"],
     "ef_ame02_04": ["ef_ame02_setmode", "ef_ame02_04_modelT"],
+}
+
+## Able Sisters window beams (`ef_room_sunshine`). Each side is its own mesh: a textured
+## floor patch (`light_floor01_mode`, I4 `light_window`) then the PRIM×SHADE shaft
+## (`light_shine01_mode`). The vtx arrays have no `*_model` to infer from. The floor mode's
+## `gsSPLoadGeometryMode` (unlit, shade) carries into every DL after it.
+ROOM_SUNSHINE_GFX: dict[str, list[str]] = {
+    "room_lightL": ["light_floor01_mode", "light_floorL01_vtx", "light_shine01_mode", "light_shineL01_vtx"],
+    "room_lightR": ["light_floor01_mode", "light_floorR01_vtx", "light_shine01_mode", "light_shineR01_vtx"],
+}
+
+## Museum entrance skylight beam (`ef_room_sunshine_museum`): the shaft then the floor
+## patch, in the effect's draw order. Inference from `*_model` alone drops the patch.
+## The shaft keeps both of its textures (`museum_sunshine.gdshader` fades by the second).
+MUSEUM_SUNSHINE_GFX: dict[str, list[str]] = {
+    "obj_museum1_shine": ["obj_museum1_shine_model", "obj_museum1_shine_modelT"],
 }
 
 ## Legacy prefix list kept for tests / callers. `--kind water` uses
@@ -806,6 +822,10 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
             gfx_names = ITEM_CARD_GFX.get(prefix)
         if gfx_names is None:
             gfx_names = WEATHER_RAIN_GFX.get(prefix)
+        if gfx_names is None:
+            gfx_names = ROOM_SUNSHINE_GFX.get(prefix)
+        if gfx_names is None:
+            gfx_names = MUSEUM_SUNSHINE_GFX.get(prefix)
         if gfx_names is not None:
             if symbol.name in seen_vtx:
                 continue
@@ -820,6 +840,8 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
                     "gfx": list(gfx_names),
                     "output": f"{folder}/{prefix}.glb",
                     "confident_name": True,
+                    **({"share_geometry_mode": True} if prefix in ROOM_SUNSHINE_GFX else {}),
+                    **({"classic_two_tile": True} if prefix in MUSEUM_SUNSHINE_GFX else {}),
                 }
             )
             continue
@@ -851,7 +873,8 @@ def _static_jobs(symbols: list) -> list[dict[str, Any]]:
             if model_t in names:
                 model_names.append(model_t)
         ## Feel / particle cards are often XLU-only (`ef_warau01_00_modelT`, `ef_ha01_00_modelT`),
-        ## as are the room sunshine beams (`obj_koban_shine_modelT`, `ef_room_sunshine_police`).
+        ## as are the room sunshine beams (`obj_koban_shine_modelT`, `ef_room_sunshine_police`;
+        ## `obj_yubinkyoku_shine_modelT`, `ef_room_sunshine_posthouse`).
         if not model_names and (prefix.startswith("ef_") or prefix in XLU_ONLY_STATICS):
             model_t = f"{prefix}_modelT"
             if model_t in names:
@@ -1141,6 +1164,8 @@ def _convert_static(
             cfg.scale,
             bank=bank,
             mat_override=item.get("mat"),
+            share_geometry_mode=bool(item.get("share_geometry_mode")),
+            classic_two_tile=bool(item.get("classic_two_tile")),
         )
         if _is_bit_shadow(parts):
             parts = _blob_shadow_parts(parts)

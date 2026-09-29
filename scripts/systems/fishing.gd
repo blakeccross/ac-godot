@@ -25,6 +25,7 @@ const CAST_PROBE_METERS := 10.0 * FieldCatalog.GX_TO_METERS
 ## 30 Hz dwell values, so 50 is already at 60 Hz. The parabola is built to reach the landing
 ## point in exactly that span and `aUKI_cast` ends it the moment the bobber touches water.
 const CAST_SECONDS := 50.0 / DecompTime.TICK_HZ
+const CAST_TICKS := 50
 ## `Player_actor_request_proc_index_fromReady_rod` fires once the swing reaches animation
 ## frame 10, and `cast_rod` gives the bobber its cast command on its very first frame. So the
 ## line leaves the rod a third of the way through the swing, not after it — the rest of the
@@ -32,12 +33,56 @@ const CAST_SECONDS := 50.0 / DecompTime.TICK_HZ
 const CAST_RELEASE_FRAME := 10.0
 ## How high the parabola peaks, as a fraction of the throw distance.
 const CAST_ARC := 0.35
-## Walking away drops the line. The original locks the player through the whole cast
-## instead, which we cannot do without holding the A-button loop hostage. Has to stay clear
-## of `CAST_METERS` or the line would go slack the instant the bobber landed.
-const LEASH_METERS := CAST_METERS + 3.0
 ## How long a nibble visibly pulls the bobber under.
 const DIP_SECONDS := 0.22
+## `aUKI_set_proc_cast`: `cast_timer = 40`, counted down only once the bobber is floating.
+## Until it runs out no fish can see the bobber (`aGTT_search_Uki`) or start nibbling.
+const SETTLE_TICKS := 40
+## `aUKI_set_proc_wait` / `_touch`: `frame_timer = 12`. Pressing A with nothing on the hook
+## stops the bobber and reels it in once this runs out, so a fish that commits in the
+## meantime is still caught.
+const EMPTY_REEL_TICKS := 12
+## `aUKI_set_proc_bite`'s `timer[size] * 2`: how long `vib_rod` fights a hooked fish before
+## `fly_rod` lifts it out. Trash is a flat 26 ticks.
+const FIGHT_FRAMES: Array[int] = [26, 39, 39, 39, 52, 65, 78, 78]
+const FIGHT_TRASH_TICKS := 26
+## `aUKI_movement`: within 130 GX of the player the bobber drifts with the current at
+## `chase_f(speed, 0.45, 0.1)` (half that while a fish is nibbling); past it, it is towed
+## back toward the player at 0.8. GX per frame, moved `0.5 *` that a tick.
+const DRIFT_RADIUS_GX := 130.0
+const DRIFT_SPEED_GX := 0.45
+const DRIFT_TOUCH_SPEED_GX := 0.225
+const DRIFT_ACCEL_GX := 0.1
+const TOW_SPEED_GX := 0.8
+## The caster cannot walk away: `relax_rod` and `vib_rod` brake the player and turn them to
+## face the bobber (`Player_actor_SetPlayerAngle_forUki`), and A is the only way out. What
+## is left is a silent guard for a caster moved by something else — a warp or a scene
+## change — which the original answers with `uki->command = 8`. It sits well past the
+## 130 GX tow radius, so the drift can never trip it.
+const LEASH_METERS := DRIFT_RADIUS_GX * 2.0 * FieldCatalog.GX_TO_METERS
+## `aUKI_BGcheck`: the bobber keeps 12 GX off the bank while settling, then `range` eases
+## out to 40 GX at 0.05 a tick.
+const BANK_RANGE_START_GX := 12.0
+const BANK_RANGE_GX := 40.0
+const BANK_RANGE_STEP_GX := 0.05
+## `aUKI_set_spd_relations_in_water` with `gyo_command == 2`: once a fish has it the bobber
+## is pulled 7.5 GX under the surface (vertical speed chased to 1.5 by 0.5 a tick), and once
+## struck it is yanked 7.5 GX above it (2.0 by 1.0). Having got there it hangs about that
+## height, chasing 0.3 by 0.1. GX per frame, like every `Actor_position_move` speed.
+const BITE_DEPTH_GX := 7.5
+const BITE_SINK_SPEED_GX := 1.5
+const BITE_SINK_ACCEL_GX := 0.5
+const STRUCK_RISE_SPEED_GX := 2.0
+const STRUCK_RISE_ACCEL_GX := 1.0
+const BITE_HOLD_SPEED_GX := 0.3
+const BITE_HOLD_ACCEL_GX := 0.1
+## `aUKI_bite` once struck: the bobber runs in a circle, turning half of `angl[size]` a tick
+## at `spd[size]` — small fish whip round fast and tight, big ones pull wide.
+const STRUCK_TURN_DEG: Array[float] = [
+	10.1513671875, 9.4647216796875, 8.778076171875, 8.778076171875,
+	8.0914306640625, 7.40478515625, 7.03125, 7.03125,
+]
+const STRUCK_SPEED_GX: Array[float] = [0.1, 0.2, 0.3, 0.3, 0.4, 0.6, 0.8, 0.8]
 
 ## Reel-in clips. The original spends a whole player state on each beat: `vib_rod` pulls
 ## the rod over (`TURI_HIKI1`) while the rod itself flexes, `fly_rod` swings the catch up
@@ -54,6 +99,9 @@ const ROD_EMPTY := &"not_sao_swing1"
 ## no matching rod clip — `tol_sao_1` has no `sao_get_t2` — so the rod keeps the pose it
 ## finished the lift in.
 const REEL_SHOW := &"ply_1_get_t2"
+## `air_rod`: the cast found no water, so `ready_rod` hands over to `NOT_SAO_SWING1` at the
+## frame it checked (10) and the swing finishes empty.
+const REEL_AIR := &"ply_1_not_sao_swing1"
 
 ## `putaway_rod`, which `notice_rod` requests once the catch report is dismissed.
 const PUTAWAY := &"ply_1_putaway_t1"
@@ -77,6 +125,9 @@ class Outcome:
 	## than posted because `notice_rod` shows the report over the show-off pose and holds the
 	## pose until it is dismissed, so it belongs to that beat and not to the button press.
 	var catch_msg: int = 0
+	## `mSM_CHECK_LAST_FISH_GET`: this catch is the one species the record was missing.
+	## The report becomes 0x1349 (naming the fish), then 0x134A over a `YATTA2`.
+	var completes_record: bool = false
 
 	func caught() -> bool:
 		return fish != null and not pockets_full
@@ -96,6 +147,11 @@ class ReelBeat:
 	var pockets_full: bool = false
 	## Put in the free hand for the length of the beat. Null on an empty line.
 	var fish: FishData = null
+	## `already_collected`: follow the report with 0x134A and `YATTA2`.
+	var completes_record: bool = false
+	## 30 fps frame the clip starts from. `air_rod` picks up `NOT_SAO_SWING1` where
+	## `SAO_SWING1` left off rather than from the top.
+	var start_frame: float = 0.0
 
 	func _init(
 		p_player: StringName = &"",
@@ -125,23 +181,73 @@ static var _actor: Node3D = null
 static var _bobber: Node3D = null
 static var _golden_rod: bool = false
 static var _inventory: Inventory = null
-static var _cast_elapsed: float = 0.0
+static var _cast_ticks: int = 0
 static var _dip: float = 0.0
 static var _splash_pending: bool = false
 static var _nibbles: int = 0
 static var _reel: Array[ReelBeat] = []
+static var _steps := FrameStepper.new()
+## `cast_timer`: ticks left before fish may notice the bobber.
+static var _settle: int = 0
+## `uki->proc == aUKI_PROC_TOUCH` (`gyo_status == 2`): a fish has started nibbling, so no
+## other fish may start and the nibbling one may now commit.
+static var _touching: bool = false
+## `uki->command == 6`: A was pressed and the line is coming in.
+static var _reeling: bool = false
+## `frame_timer` while reeling: ticks until the bobber comes up.
+static var _reel_ticks: int = 0
+## The shadow that has the bobber (`uki->child_actor`) and how long it fights once struck.
+static var _hooked: FishShadow = null
+static var _fight_ticks: int = 0
+static var _drift_speed: float = 0.0
+## `uki->world.angle.y`: which way the current (or the tow) last moved the bobber, and the
+## heading it circles from once struck.
+static var _heading: float = 0.0
+## `gyo_status == 4`: A was pressed while the fish had it.
+static var _struck: bool = false
+## The bobber's height against the surface while a fish has it (GX), its vertical speed, and
+## whether it has reached the hold height (`touch_timer` 5 / 6).
+static var _rise_gx: float = 0.0
+static var _rise_speed: float = 0.0
+static var _rise_held: bool = false
+static var _bank_range: float = BANK_RANGE_START_GX
+static var _ctx: InteractionContext = null
+static var _last: Outcome = null
+## Set by an `air_rod` swing: the rest of the cast swing is cut and the beat takes over.
+static var _cut_swing: bool = false
 
 
 static func is_active() -> bool:
 	return _state != State.IDLE
 
 
+## True while `actor` has the line out: the player brakes to a stop and cannot walk.
+static func holds(actor: Node) -> bool:
+	return is_active() and actor != null and _actor == actor
+
+
+## `relax_rod` / `vib_rod` turn the caster toward the bobber; `cast_rod` only brakes.
+static func faces_bobber(actor: Node) -> bool:
+	return holds(actor) and _state != State.CAST
+
+
 static func state() -> State:
 	return _state
 
 
-## Where the line went in. The leash measures from here, not from the bobber node, so a
-## headless session with no scene still drops the line when the caster walks off.
+## A was pressed and the line has not come up yet. The player holds its pose until this
+## clears, then plays whatever `take_reel_beats` hands it.
+static func is_reeling() -> bool:
+	return _reeling and is_active()
+
+
+## What the last reel-in brought up. Null until one has resolved.
+static func last_outcome() -> Outcome:
+	return _last
+
+
+## Where the bobber is: the landing spot, and then wherever the current (or a struck fish)
+## has carried it. The player turns to face it and the warp guard measures from it.
 static func anchor() -> Vector3:
 	return _anchor
 
@@ -152,7 +258,7 @@ static func cast_progress() -> float:
 		return 0.0
 	if _state != State.CAST:
 		return 1.0
-	return clampf(_cast_elapsed / CAST_SECONDS, 0.0, 1.0)
+	return clampf(float(_cast_ticks) / float(CAST_TICKS), 0.0, 1.0)
 
 
 ## How far under the surface a nibble is currently pulling the bobber, 0–1.
@@ -164,14 +270,25 @@ static func dip() -> float:
 	return clampf(_dip / DIP_SECONDS, 0.0, 1.0)
 
 
+## Metres above (+) or below (−) the surface the bobber sits while a fish has it.
+static func rise() -> float:
+	return _rise_gx * FieldCatalog.GX_TO_METERS if _state == State.BITE else 0.0
+
+
+## True once A has struck a fish that had the bobber — it is being fought.
+static func is_struck() -> bool:
+	return _struck and _state == State.BITE
+
+
 static func nibble_count() -> int:
 	return _nibbles
 
 
-## Verb offered while a line is out. No player animation: the hook has to resolve on the
-## frame the button is pressed, and `_play_action` would spend the bite window animating.
+## Verb offered while a line is out. No player animation: the strike has to land on the
+## tick the button is pressed. Nothing is offered while the bobber is still in the air
+## (the player is still in `cast_rod`) or once the line is already coming in.
 static func field_action() -> Interaction:
-	if not is_active():
+	if not is_active() or _state == State.CAST or _reeling:
 		return null
 	var prompt: String = "Reel in!" if _state == State.BITE else "Reel in"
 	return Interaction.of(Interaction.HOOK, prompt, 14)
@@ -193,12 +310,12 @@ static func cast(ctx: InteractionContext, point: Vector3) -> bool:
 	var actor := ctx.actor as Node3D
 	if actor == null:
 		return false
+	_end()
 	_state = State.CAST
 	_actor = actor
-	_cast_elapsed = 0.0
-	_dip = 0.0
-	_nibbles = 0
-	_splash_pending = false
+	_ctx = ctx
+	_last = null
+	_settle = SETTLE_TICKS
 	_inventory = ctx.inventory
 	_golden_rod = ctx.inventory != null and ctx.inventory.equipment_id in GOLDEN_ROD_IDS
 	_anchor = point
@@ -215,25 +332,13 @@ static func tick(delta: float, school: FishSchool = null) -> void:
 	if _actor == null or not is_instance_valid(_actor):
 		_end(school)
 		return
-	if _actor.global_position.distance_to(_anchor) > LEASH_METERS:
-		Game.post_notice("Your line went slack.")
+	if not _reeling and _actor.global_position.distance_to(_anchor) > LEASH_METERS:
 		_end(school)
 		return
 	_dip = maxf(_dip - delta, 0.0)
-	if _state == State.CAST:
-		_cast_elapsed += delta
-		if _cast_elapsed >= CAST_SECONDS:
-			_state = State.FLOAT
-			## `uki->hit_water_flag`: one frame of splash, which nearby fish react to.
-			_splash_pending = true
-			if _bobber != null and is_instance_valid(_bobber):
-				PlayerSe.bobber_splash(_bobber)
-			elif _actor != null and is_instance_valid(_actor):
-				PlayerSe.bobber_splash(_actor)
-		return
-	if school == null:
-		return
-	_observe(school)
+	_steps.add(delta)
+	while is_active() and _steps.next():
+		_step(school)
 
 
 ## Fills in the bobber half of a sense snapshot. The caller adds the player half.
@@ -241,77 +346,77 @@ static func fill_sense(sense: FishShadow.Sense) -> void:
 	if not is_active():
 		return
 	sense.bobber_position = _anchor
-	sense.bobber_settled = _state != State.CAST
 	sense.bobber_splashed = _splash_pending
-	## A fish already has it; a second one must not start nibbling.
-	sense.accepts_nibble = _state == State.FLOAT
-	sense.accepts_bite = _state == State.FLOAT
+	## `cast_timer == 0`, and not while the line is coming in.
+	sense.bobber_settled = _state != State.CAST and _settle <= 0
+	## `gyo_status`: 1 while nothing has it, 2 once a fish is nibbling.
+	sense.accepts_nibble = _state == State.FLOAT and not _touching
+	sense.accepts_bite = _state == State.FLOAT and _touching
 	sense.rod = FishSize.ROD_GOLDEN if _golden_rod else FishSize.ROD_NORMAL
 	sense.has_pocket_space = _inventory == null or _inventory.has_space(1)
 
 
-## Resolves on the frame the button is pressed, then leaves the reel-in performance behind
-## for the player to play. The animation cannot come first: `_play_action` awaits the clip,
-## and the bite window would be gone by the time the hook landed.
-static func hook(ctx: InteractionContext, school: FishSchool = null) -> Outcome:
-	if not is_active():
-		return Outcome.new()
-	var out: Outcome = _resolve_hook(ctx, school)
-	_reel = reel_beats(out)
-	return out
+## `Player_actor_request_proc_index_fromRelax_rod`: A sets the bobber's command to 6. What
+## comes up is decided a few ticks later by the bobber, not on the press — a hooked fish is
+## fought for `FIGHT_FRAMES`, and an empty press still lands a fish that commits within the
+## next `EMPTY_REEL_TICKS`. Returns false when there is nothing to reel.
+static func hook(ctx: InteractionContext, school: FishSchool = null) -> bool:
+	if not is_active() or _state == State.CAST or _reeling:
+		return false
+	_reeling = true
+	_last = null
+	if ctx != null:
+		_ctx = ctx
+		_inventory = ctx.inventory
+	if _state == State.BITE:
+		_strike()
+	else:
+		_reel_ticks = EMPTY_REEL_TICKS
+	## A test or a paused world may not tick again; resolve straight away if the bobber
+	## would have come up with no ticks to spare.
+	if school == null and _state != State.BITE:
+		_reel_empty(school)
+	return true
 
 
-## What the reel-in looks like for an outcome: `vib_rod` pulls the rod over, `fly_rod` swings
-## the catch up out of the water, and `notice_rod` holds it up to the camera. A fish on the
-## end gets all three even when pockets are full — you see the catch before it is refused.
-## An empty line is the single `collect_rod` beat, with nothing to show off.
+## What the reel-in looks like for an outcome: `fly_rod` swings the catch up out of the
+## water and `notice_rod` holds it up to the camera. A fish on the end gets both even when
+## pockets are full — you see the catch before it is refused. An empty line is the single
+## `collect_rod` beat, with nothing to show off. `vib_rod`'s pull (`REEL_PULL`) is not a beat:
+## it plays for as long as the fight lasts, while `is_reeling` holds.
 static func reel_beats(out: Outcome) -> Array[ReelBeat]:
 	if out != null and out.fish != null:
-		return [
-			ReelBeat.new(REEL_PULL, ROD_PULL),
-			ReelBeat.new(REEL_LAND, ROD_LAND),
-			ReelBeat.new(
-				REEL_SHOW, ROD_LAND, true, SHOW_HOLD_SECONDS, out.catch_msg, out.fish, out.pockets_full
-			),
-		]
+		var show := ReelBeat.new(
+			REEL_SHOW, ROD_LAND, true, SHOW_HOLD_SECONDS, out.catch_msg, out.fish, out.pockets_full
+		)
+		show.completes_record = out.completes_record
+		return [ReelBeat.new(REEL_LAND, ROD_LAND), show]
 	return [ReelBeat.new(REEL_EMPTY, ROD_EMPTY)]
 
 
-## Drained by the player once the action has been applied. Empty unless a hook just landed.
+## `air_rod`: A with nothing but land (or a far bank) 100 GX out. The swing goes over into
+## `NOT_SAO_SWING1` from frame 10 and the bobber flies out and straight back; no session.
+static func air_cast() -> void:
+	if is_active():
+		return
+	var beat := ReelBeat.new(REEL_AIR, ROD_EMPTY)
+	beat.start_frame = CAST_RELEASE_FRAME
+	_reel = [beat]
+	_cut_swing = true
+
+
+## True once after `air_cast`: the player drops the tail of the cast swing.
+static func take_cut_swing() -> bool:
+	var cut: bool = _cut_swing
+	_cut_swing = false
+	return cut
+
+
+## Drained by the player once the line is in. Empty unless a reel just resolved.
 static func take_reel_beats() -> Array[ReelBeat]:
 	var beats: Array[ReelBeat] = _reel
 	_reel = []
 	return beats
-
-
-static func _resolve_hook(ctx: InteractionContext, school: FishSchool = null) -> Outcome:
-	var out := Outcome.new()
-	var shadow: FishShadow = school.hooked_shadow() if school != null else null
-	if _state != State.BITE or shadow == null:
-		out.too_early = true
-		Game.post_notice("You reel in an empty hook.")
-		_end(school)
-		return out
-	var fish: FishData = shadow.fish
-	if fish == null:
-		out.escaped = true
-		Game.post_notice("It got away.")
-		_end(school)
-		return out
-	out.fish = fish
-	var inventory: Inventory = ctx.inventory if ctx != null else null
-	if inventory == null or not inventory.has_space_for(fish, 1) or inventory.add(fish, 1) != 0:
-		out.pockets_full = true
-		out.catch_msg = fish.catch_msg
-		_end(school)
-		return out
-	shadow.reel_in()
-	out.catch_msg = fish.catch_msg
-	## `mSM_CHECK_LAST_FISH_GET` → shorter report once the species is already in the museum.
-	if Game != null and Game.museum != null and Game.museum.has_fish_id(fish.id):
-		out.catch_msg = MuseumDisplay.FISH_ALREADY_MSG
-	_end(school)
-	return out
 
 
 static func cancel(school: FishSchool = null) -> void:
@@ -322,43 +427,250 @@ static func cancel(school: FishSchool = null) -> void:
 
 static func reset(school: FishSchool = null) -> void:
 	_end(school)
+	_last = null
+	_cut_swing = false
 
 
-static func _observe(school: FishSchool) -> void:
-	## The shadows have already seen the splash by the time this runs — the caller builds the
-	## sense snapshot before ticking them — so one frame of it is spent and it clears here.
+# --- one bobber tick ---------------------------------------------------------------------
+
+
+static func _step(school: FishSchool) -> void:
+	match _state:
+		State.CAST:
+			_cast_ticks += 1
+			if _cast_ticks >= CAST_TICKS:
+				_land()
+		State.FLOAT:
+			_float(school)
+		State.BITE:
+			_bite(school)
+
+
+## `aUKI_cast`: the tick the bobber touches water. `hit_water_flag` is up for this tick only.
+static func _land() -> void:
+	_state = State.FLOAT
+	_splash_pending = true
+	_bank_range = BANK_RANGE_START_GX
+	if _bobber != null and is_instance_valid(_bobber):
+		PlayerSe.bobber_splash(_bobber)
+	elif _actor != null and is_instance_valid(_actor):
+		PlayerSe.bobber_splash(_actor)
+
+
+## `aUKI_wait` / `aUKI_touch`: float, drift, and wait for a fish or the player.
+static func _float(school: FishSchool) -> void:
 	_splash_pending = false
-	## The shadows decide; the session only reacts to what they did this frame.
-	var hooked: FishShadow = school.hooked_shadow()
-	if _state == State.FLOAT:
+	if _settle > 0:
+		_settle -= 1
+	var toucher: FishShadow = null
+	var biter: FishShadow = null
+	if school != null:
 		for shadow: FishShadow in school.shadows:
 			if shadow.nibbled:
 				_nibbles += 1
 				_dip = DIP_SECONDS
-		if hooked != null:
-			_state = State.BITE
+			if shadow.finished:
+				continue
+			if shadow.action == FishShadow.Action.TOUCH:
+				toucher = shadow
+			elif shadow.action == FishShadow.Action.BITE:
+				biter = shadow
+	if biter != null:
+		## `gyo_command == 2`: `aUKI_set_proc_bite`.
+		_state = State.BITE
+		_hooked = biter
+		_rise_gx = 0.0
+		_rise_speed = 0.0
+		_rise_held = false
+		_fight_ticks = FIGHT_TRASH_TICKS if biter.fish != null and biter.fish.is_trash else FIGHT_FRAMES[int(biter.size)] * 2
+		if _reeling:
+			_strike()
 		return
-	if _state == State.BITE and hooked == null:
-		## The fish held on for its species' `aGYO_bite_time` and let go.
-		Game.post_notice("It got away.")
-		_end(school)
+	if not _touching and toucher != null and _settle <= 0:
+		## `aUKI_set_proc_touch`: `frame_timer = 12` again, even mid-reel.
+		_touching = true
+		_reel_ticks = EMPTY_REEL_TICKS
+	if _reeling:
+		## `aUKI_clear_spd`: the bobber stops dead while the line tightens.
+		_drift_speed = 0.0
+		_reel_ticks -= 1
+		if _reel_ticks <= 0:
+			_reel_empty(school)
+		return
+	_drift(school, toucher != null)
+
+
+## `aUKI_bite`: the fish has it. It holds on for its own `aGYO_bite_time`; if that runs out
+## the bobber pops back up and floats on with the line still out.
+static func _bite(school: FishSchool) -> void:
+	if _hooked == null or _hooked.finished or not _hooked.is_hooked():
+		_hooked = null
+		## `aUKI_set_proc_wait`: `gyo_status = 1`, ready for the next fish.
+		_state = State.FLOAT
+		_touching = false
+		_struck = false
+		_rise_gx = 0.0
+		_rise_speed = 0.0
+		_reel_ticks = EMPTY_REEL_TICKS
+		return
+	_bob_on_line()
+	if not _reeling:
+		return
+	_reel_ticks -= 1
+	if _reel_ticks <= 0:
+		_reel_catch(school)
+		return
+	if _struck:
+		_circle()
+
+
+## The vertical spring under a hooked bobber: down to 7.5 GX under while the fish has it,
+## up to 7.5 GX over once struck, then hanging about there.
+static func _bob_on_line() -> void:
+	var target: float = BITE_DEPTH_GX if _struck else -BITE_DEPTH_GX
+	var max_speed: float = BITE_HOLD_SPEED_GX
+	var accel: float = BITE_HOLD_ACCEL_GX
+	if not _rise_held:
+		max_speed = STRUCK_RISE_SPEED_GX if _struck else BITE_SINK_SPEED_GX
+		accel = STRUCK_RISE_ACCEL_GX if _struck else BITE_SINK_ACCEL_GX
+	var goal: float = max_speed if _rise_gx < target else -max_speed
+	_rise_speed = move_toward(_rise_speed, goal, accel)
+	_rise_gx += _rise_speed * FishShadow.MOVE_PER_TICK
+	if not _rise_held:
+		_rise_held = _rise_gx >= target if _struck else _rise_gx < target
+
+
+## `aUKI_bite` with `command == 6`: the struck fish drags the bobber round in a circle.
+static func _circle() -> void:
+	var size: int = clampi(int(_hooked.size), 0, STRUCK_TURN_DEG.size() - 1) if _hooked != null else 0
+	_heading = wrapf(_heading + deg_to_rad(STRUCK_TURN_DEG[size]) * 0.5, -PI, PI)
+	var step: float = STRUCK_SPEED_GX[size] * FishShadow.MOVE_PER_TICK * FieldCatalog.GX_TO_METERS
+	_anchor += Vector3(sin(_heading), 0.0, cos(_heading)) * step
+
+
+## `gyo_status = 4`: struck while the fish had it. It stays on until the fight is over.
+static func _strike() -> void:
+	_reel_ticks = _fight_ticks
+	_struck = true
+	## `touch_timer` is no longer 6, so the fast spring takes it up out of the water.
+	_rise_held = false
+	if _hooked != null:
+		_hooked.hook()
+
+
+static func _drift(school: FishSchool, nibbling: bool) -> void:
+	if _settle <= 0:
+		_bank_range = move_toward(_bank_range, BANK_RANGE_GX, BANK_RANGE_STEP_GX)
+	var to_player := Vector2(_actor.global_position.x - _anchor.x, _actor.global_position.z - _anchor.z)
+	var dir: float = 0.0
+	if to_player.length() < DRIFT_RADIUS_GX * FieldCatalog.GX_TO_METERS:
+		var target: float = DRIFT_TOUCH_SPEED_GX if nibbling else DRIFT_SPEED_GX
+		_drift_speed = move_toward(_drift_speed, target, DRIFT_ACCEL_GX)
+		var flow: Vector2 = school.water_flow(_anchor) if school != null else Vector2.ZERO
+		dir = FishShadow.flow_angle(flow)
+	else:
+		_drift_speed = TOW_SPEED_GX
+		dir = atan2(to_player.x, to_player.y)
+	_heading = dir
+	var ahead := Vector3(sin(dir), 0.0, cos(dir))
+	var step: float = _drift_speed * FishShadow.MOVE_PER_TICK * FieldCatalog.GX_TO_METERS
+	var next: Vector3 = _anchor + ahead * step
+	## `mCoBG_BgCheckControll` with `range`: the bobber stops that far short of the bank.
+	if school != null and not school.is_water(next + ahead * _bank_range * FieldCatalog.GX_TO_METERS):
+		return
+	_anchor = next
+
+
+static func _reel_empty(school: FishSchool) -> void:
+	var out := Outcome.new()
+	out.too_early = true
+	_finish(out, school)
+
+
+## `aUKI_hit` with `gyo_status == 5`: the fish comes up with the line.
+static func _reel_catch(school: FishSchool) -> void:
+	var out := Outcome.new()
+	var shadow: FishShadow = _hooked
+	var fish: FishData = shadow.fish if shadow != null else null
+	if fish == null:
+		out.escaped = true
+		_finish(out, school)
+		return
+	out.fish = fish
+	## `setup_main_Notice_rod`: pockets first, then the record check, then the record —
+	## whether or not the fish fit.
+	out.completes_record = completes_record(fish)
+	out.catch_msg = MuseumDisplay.FISH_ALREADY_MSG if out.completes_record else fish.catch_msg
+	var inventory: Inventory = _inventory
+	if inventory == null or not inventory.has_space_for(fish, 1) or inventory.add(fish, 1) != 0:
+		## `notice_rod` → `release_creature`: shown, then thrown back.
+		out.pockets_full = true
+	if Game != null and Game.species_log != null:
+		## `mSM_COLLECT_FISH_SET`. `Inventory.add` already did it for a banked fish.
+		Game.species_log.record(fish.id)
+	shadow.reel_in()
+	if fish.is_trash:
+		## `aGTT_comeback` → `aGTT_kage_make_actor(gyo, 1)`: junk leaves a fish's shadow
+		## swimming off as it comes up — the one that was really nibbling.
+		shadow.puffed = true
+	_finish(out, school)
+
+
+## `mSM_CHECK_LAST_FISH_GET`: every other fish is on the catch record and this one is not.
+## Not "already in the museum" — it is true exactly once, for the catch that completes it.
+static func completes_record(fish: FishData) -> bool:
+	if fish == null or fish.is_trash or Game == null or Game.species_log == null:
+		return false
+	var log: SpeciesLog = Game.species_log
+	if log.has(fish.id):
+		return false
+	var total: int = log.page_total(&"fish")
+	return total > 0 and log.page_count(&"fish") == total - 1
+
+
+static func _finish(out: Outcome, school: FishSchool) -> void:
+	if _bobber != null and is_instance_valid(_bobber):
+		PlayerSe.line_out_of_water(_bobber)
+	elif _actor != null and is_instance_valid(_actor):
+		PlayerSe.line_out_of_water(_actor)
+	_end(school)
+	_last = out
+	## `_end` clears the queue, so the beats go in after it.
+	_reel = reel_beats(out)
 
 
 static func _end(school: FishSchool = null) -> void:
-	if school != null:
-		var hooked: FishShadow = school.hooked_shadow()
-		if hooked != null and not hooked.finished:
-			hooked.release()
+	## Only a fish still fighting is let go; one being lifted out (`COMEBACK`) stays pinned
+	## until it is gone, and a real fish leaves no puff.
+	var holder: FishShadow = _hooked
+	if school != null and holder == null:
+		holder = school.hooked_shadow()
+	if holder != null and not holder.finished and holder.action == FishShadow.Action.BITE:
+		holder.release()
 	_state = State.IDLE
 	_anchor = Vector3.ZERO
 	_actor = null
-	_cast_elapsed = 0.0
+	_ctx = null
+	_cast_ticks = 0
 	_dip = 0.0
 	_nibbles = 0
 	_splash_pending = false
 	_golden_rod = false
 	_inventory = null
-	## `hook` fills this in after `_end` runs, so dropping the line never leaves a reel queued.
+	_settle = 0
+	_touching = false
+	_reeling = false
+	_reel_ticks = 0
+	_hooked = null
+	_fight_ticks = 0
+	_drift_speed = 0.0
+	_heading = 0.0
+	_struck = false
+	_rise_gx = 0.0
+	_rise_speed = 0.0
+	_rise_held = false
+	_bank_range = BANK_RANGE_START_GX
+	_steps.reset()
 	_reel = []
 	if _bobber != null and is_instance_valid(_bobber):
 		_bobber.queue_free()

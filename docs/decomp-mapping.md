@@ -58,7 +58,7 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | `m_museum_display` / `ac_museum_*` | Town donation bits; fossil/art/fish/insect wing displays | `MuseumBook` + `MuseumDisplay` + `MuseumPresenter`; fish/insect actors flap in tanks/cases ([museum](decomp_notes/museum.md)) |
 | `mSM_CHECK_LAST_FISH_GET` → msg `0x1349` | A shorter report once a species is already collected | `MuseumBook.has_fish_id` / `has_insect_type` swaps catch msg to `MuseumDisplay.FISH_ALREADY_MSG` / `BUG_ALREADY_MSG` |
 | `mMsg_Set_continue_msg_num(win, 0x1348)` | Chains "But my pockets are full!" plus a swap-or-discard choice onto the report | `ReelBeat.pockets_full` shows the line; the choice is not offered |
-| Fish sell prices | — | **Not in the decomp.** `sell_price` is our own formula over size class and rarity |
+| `fish_price_table` / `insect_price_table` (`mSP_ItemNo2ItemPrice`) | Fish and bug base prices, indexed by type | `FishData` / `BugData.sell_price`; Nook pays a quarter (`ShopBook.sell_price`) |
 | `ac_gyo_test.c` `aGTT_*` action procs | Fish shadow AI: wait / swim / near / touch / bite / comeback / escape | `FishShadow`; the bite comes from a shadow committing, not a timer |
 | `aGTT_speed`, `_back_speed`, `_touch_count`, `_touch_distance`, `aGYO_shadow_scale`, `aGYO_search_area` / `_angle`, `aGYO_bite_time` | Per-size and per-species movement, detection and hold-time tables | `FishSize`, indexed by `FishData.SizeClass` / `search_area` / `bite_time`; normal-rod rows only |
 | `GYOEI_ACTOR` ctrl array, `aGYO_MAX_GYOEI`, `aGYO_cull_check` | At most two live shadows, culled by player distance | `FishSchool`, owned by the world scene next to `WorldGrid` |

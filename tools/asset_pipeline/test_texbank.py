@@ -336,6 +336,30 @@ class ClassicGbiTests(unittest.TestCase):
         ## Same bytes as RGB5A3 are a different color — proves the museum path matters.
         self.assertNotEqual(lin.getpixel((0, 0)), gx.getpixel((0, 0)))
 
+    def test_classic_settimg_reads_n64_row_major_texels(self) -> None:
+        from asset_pipeline.bti import decode_n64_linear
+        from asset_pipeline.gfx import _apply_settimg
+        from asset_pipeline.texbank import TextureState
+
+        class _Bank:
+            segment_images: dict = {}
+
+        ## `gsDPSetTextureImage(G_IM_FMT_I, G_IM_SIZ_16b, 1, tex)`: no height → N64 layout.
+        state = TextureState()
+        _apply_settimg(0xFD900000, 0x00379948, _Bank(), state)
+        self.assertTrue(state.n64_linear)
+        ## `gsDPSetTextureImage_Dolphin` carries a height → GX blocks.
+        _apply_settimg(0xFD84_3C1F, 0x00379948, _Bank(), state)
+        self.assertFalse(state.n64_linear)
+        ## A 16×2 I4 ramp: every row reads 0..15 left to right (`obj_museum1_shine_3`).
+        row = bytes([0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF])
+        img = decode_n64_linear(row * 2, 16, 2, 4, 0)
+        self.assertEqual([img.getpixel((x, 1))[0] for x in (0, 1, 15)], [0, 17, 255])
+        ## IA4 is `IIIA`; RGBA16 is 5551.
+        ia = decode_n64_linear(bytes([0xF0]), 2, 1, 3, 0)
+        self.assertEqual(ia.getpixel((0, 0)), (255, 255, 255, 255))
+        self.assertEqual(ia.getpixel((1, 0))[3], 0)
+
     def test_shop_clock_tlut_is_n64_rgba5551_not_rgb5a3(self) -> None:
         from asset_pipeline.texbank import palette_from_rgb5a3, palette_from_rgba5551
 

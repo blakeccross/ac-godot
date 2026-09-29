@@ -2,22 +2,22 @@ class_name BugKabuto
 extends BugProgram
 
 ## `ac_ins_kabuto.c` — beetles (drone / dynastid / stag / jewel / longhorn / saw /
-## mountain / giant). Clings to a tree trunk facing south, shuffles its legs
-## (`aIKB_wait`), and on any scare flies straight up and away (`aIKB_avoid`, also
-## the LET_ESCAPE proc).
+## mountain / giant). Clings 35 GX up a tree trunk (30 on a cedar) facing the trunk,
+## shuffles ±4.2° (`aIKB_wait`), and on a shaken tree / an axe hit in the acre within
+## 150 GX / a stopped net within 70 GX / a dig within 30 GX flies off the player's facing
+## ±60° at 4 GX/frame, climbing ever faster (`aIKB_avoid`, also the LET_ESCAPE proc).
 
 enum { AVOID, LET_ESCAPE, WAIT }
 
 ## `angle_table` — ±175.78125° from north == ±4.21875° either side of due south.
 const SWAY := deg_to_rad(4.21875)
-## `init_posY` / `init_posZ` for [tree, cedar]: climb 35/30 GX, offset −2/+8 GX on Z.
-const CLIMB_GX := [35.0, 30.0]
-const OFFSET_Z_GX := [-2.0, 8.0]
 const BALL_SCARE := 60.0
 const NET_SCARE := 70.0
 const SCOOP_SCARE := 30.0
 const VIB_SCARE := 150.0
 const MAX_PATIENCE := 90.0
+
+var _placed: bool = false
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -31,25 +31,17 @@ func actor_init(a: BugActor, released: bool) -> void:
 		T_MOUNTAIN_BEETLE: a.item = 30
 		T_GIANT_BEETLE: a.item = 31
 	if not released:
-		var cedar: bool = a.habitat == BugData.Habitat.TREE and _is_cedar(a)
-		var it: int = 1 if cedar else 0
-		## `GetBgY_OnlyCenter_FromWpos2(pos, -climb)` puts us `climb` GX up the trunk.
-		a.pos.y = a.home.y + CLIMB_GX[it]
-		a.pos.z += OFFSET_Z_GX[it]
-		a.home = a.pos
+		## `GetBgY_OnlyCenter_FromWpos2(pos, -climb)` puts us `climb` GX up the trunk; the
+		## cedar variant is settled on the first frame, once the FG is known.
+		BugProgram.cling_to_trunk(a)
 		a.rot.x = PI * 0.5           ## `shape_info.rotation.x = 90°`
 		a.rot.y = -BugActor.TREE_FACE_YAW
-		a.angle_y = a.rot.y
+		a.angle_y = 0.0  ## `world.angle.y` keeps its spawn 0: netted from the south side
 		a.s32_work[3] = 0
 		setup_action(a, WAIT)
 	else:
+		_placed = true
 		setup_action(a, LET_ESCAPE)
-
-
-func _is_cedar(_a: BugActor) -> bool:
-	## Cedar vs broadleaf changes the climb/offset only; without an FG probe assume
-	## broadleaf (the common case). Wired in Phase 3.
-	return false
 
 
 func pose_index(a: BugActor) -> int:
@@ -76,24 +68,24 @@ func _avoid_init(a: BugActor) -> void:
 	a.max_velocity_y = 12.0
 	a.speed = 4.0
 	a.rot.x = 0.0
-	if a._last_player_gx != Vector3.INF:
-		var pyaw: float = a.f32_work[3]  ## stored player yaw (see _wait)
-		a.rot.y = pyaw + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(60.0)
-	else:
-		a.rot.y += PI
-	a.angle_y = a.rot.y
+	## `player->shape_info.rotation.y + (rand − 0.5)·120°`, scared or released alike.
+	if BugProgram.heading_from_player_facing(a, deg_to_rad(120.0)):
+		a.rot.y = a.angle_y
 	a.f_no_catch = true
 	a.f_bit2 = true
 
 
 func _wait_init(a: BugActor) -> void:
+	## Only the shape turns: `world.angle.y` stays 0, the catch-range facing.
 	a.rot.y = -BugActor.TREE_FACE_YAW
-	a.angle_y = a.rot.y
 
 
 # ---- actions -----------------------------------------------------
 
 func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
+	if not _placed:
+		_placed = true
+		BugProgram.settle_on_cedar(a, sense)
 	if a.caught:
 		setup_action(a, LET_ESCAPE)
 		return
@@ -105,17 +97,14 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _wait(a: BugActor, sense: BugActor.Sense) -> void:
-	## Remember player yaw for the escape heading.
-	if sense.has_player():
-		a.f32_work[3] = BugProgram.angle_to(a.pos, sense.player_position / BugActor.GX_M)
 	if _check_patience(a, sense):
 		setup_action(a, AVOID)
 		return
 	## `aIKB_wait` leg-shuffle: chase ±4.2° a few times, hold 30f, pause 20-40f.
 	if a.s32_work[0] == 0:
-		var target: float = -BugActor.TREE_FACE_YAW + (SWAY if (a.s32_work[1] & 1) == 0 else -SWAY)
+		## `angle_table[timer1 & 1]`: +175.78125°, −175.78125°.
+		var target: float = (PI - SWAY) if (a.s32_work[1] & 1) == 0 else (-PI + SWAY)
 		a.rot.y = BugProgram.chase_angle(a.rot.y, target, 128 * MLib.S16)
-		a.angle_y = a.rot.y
 		if a.s32_work[2] == 0:
 			if a.s32_work[1] == 0:
 				a.s32_work[0] = int((10.0 + a._rng.randf() * 10.0) * 2.0)
@@ -129,25 +118,25 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 		a.s32_work[0] -= 1
 
 
-func _avoid(a: BugActor, _sense: BugActor.Sense) -> void:
+func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 	a.anime0 += 0.5
 	if a.anime0 >= 2.0:
 		a.anime0 -= 2.0
 	a.gravity = minf(a.gravity * 1.1, 12.0)
 	## `aIKB_avoid`: ground / wall collision switches on once it has flown off its home unit.
-	if a.bg_type != 2 and BugProgram.left_home_unit(a):
+	if a.bg_type != 2 and BugProgram.unit_of(sense, a.home) != BugProgram.unit_of(sense, a.pos):
 		a.bg_type = 2
 
 
+## `aIKB_check_patience`: shaken tree → axe hit in the acre within 150 GX → stopped net
+## within 70 GX → dig within 30 GX; scared over 90.
 func _check_patience(a: BugActor, sense: BugActor.Sense) -> bool:
-	## tree shake / dig vibration / thrown ball / stopped net / dig scoop.
 	if sense.tree_shaken_at(a.position):
 		a.patience = 100.0
-	if sense.player_swung_tool and sense.has_player():
-		var d: float = BugProgram.dist_xz(a.pos, sense.player_position / BugActor.GX_M)
-		if d < VIB_SCARE:
-			a.patience = 100.0
-	if sense.net_swing_active and sense.net_swing_origin != Vector3.INF:
-		if BugProgram.dist_xz(a.pos, sense.net_swing_origin / BugActor.GX_M) < NET_SCARE:
-			a.patience = 100.0
+	elif BugProgram.vib_unit(a, sense) and a.player_distance_xz < VIB_SCARE:
+		a.patience = 100.0
+	elif not a.caught and BugProgram.near_xz(a, BugProgram.net_stop_pos(sense), NET_SCARE):
+		a.patience = 100.0
+	elif BugProgram.near_xz(a, BugProgram.scoop_pos(sense), SCOOP_SCARE):
+		a.patience = 100.0
 	return a.patience > MAX_PATIENCE

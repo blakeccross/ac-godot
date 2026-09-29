@@ -8,15 +8,16 @@ extends RefCounted
 ## - Lineup rerolls at 06:00 (`ShopGoods.roll`); sold listings stay empty until then.
 ## - `level` is stored (`shop_info.shop_level`). Sales (`mSP_PlusSales`) cap at the next
 ##   threshold, and once they reach it a two-day renovation is booked (`aSL_JudgeRenewShop`):
-##   closed from opening time the day before, reopening upgraded on the booked day.
+##   closed all of the day before, upgraded at any hour of the booked day.
 ##   Nookington's also needs a visitor from another town (`visitor_flag`).
 ## - Hours by level; the last day of the month is raffle day (opens at 10, no goods).
 ## - Buying: bags in the pockets make up a short wallet (`mSP_money_check`); furniture,
 ##   clothes, wallpaper, carpet and umbrellas come with a raffle ticket (mailed if the
 ##   pockets are full); paint repaints the roof instead of going in the pockets.
-## - Selling: catalog / 4 (`SELL_BUY_RATIO`), foreign fruit 2000 / 4, turnips at the
-##   Stalk Market price (not on Sundays); worthless items are taken for free; quest items
-##   are refused; wallet overflow becomes 30,000-bell bags. Sales earn half of what Nook pays.
+## - Selling: catalog / 4 (`SELL_BUY_RATIO`, fish and bugs too), foreign fruit 2000 / 4,
+##   turnips at the Stalk Market price (not on Sundays); worthless items are taken for free;
+##   quest items and money bags are refused; wallet overflow becomes 30,000-bell bags. Sales
+##   earn half of what Nook pays.
 ## - Catalog orders (5 slots) arrive by mail the next morning.
 
 enum Status { PRE, END, OPEN, RENEW }
@@ -74,9 +75,35 @@ func shop(shop_id: StringName) -> Dictionary:
 	return _shops[shop_id] as Dictionary
 
 
+## What is still on the shelves.
 func goods(shop_id: StringName) -> Array[StringName]:
-	var row: Dictionary = shop(shop_id)
-	return _string_names(row.get("goods", []))
+	var out: Array[StringName] = []
+	var sold: Array[int] = sold_slots(shop_id)
+	var listed: Array[StringName] = lineup(shop_id)
+	for i: int in listed.size():
+		if not sold.has(i):
+			out.append(listed[i])
+	return out
+
+
+## The whole day's list, sold goods included: each keeps its reserve point until 06:00.
+func lineup(shop_id: StringName) -> Array[StringName]:
+	return _string_names(shop(shop_id).get("goods", []))
+
+
+## Indices into `lineup` bought today (`mSP_ShopSaleReport` turns them `RSV_SHOP_SOLD_*`).
+func sold_slots(shop_id: StringName) -> Array[int]:
+	var out: Array[int] = []
+	var raw: Variant = shop(shop_id).get("sold", [])
+	if typeof(raw) == TYPE_ARRAY:
+		for entry: Variant in raw as Array:
+			out.append(int(entry))
+	return out
+
+
+## Today's rare furniture (`Shop_c.rare_item`), "" when none.
+func rare_item(shop_id: StringName = NOOK_ID) -> StringName:
+	return StringName(str(shop(shop_id).get("rare", "")))
 
 
 func allows_sell(shop_id: StringName) -> bool:
@@ -121,14 +148,19 @@ static func sell_price(item: ItemData) -> int:
 		return 0
 	if item.id in FRUITS and item.id != town_fruit():
 		return FOREIGN_FRUIT_PRICE / SELL_RATIO
-	match item.category:
-		ItemData.Category.FRUIT, ItemData.Category.FISH, ItemData.Category.BUG:
-			return maxi(item.sell_price, 0)
-		_:
-			var unit: int = item.buy_price if item.buy_price > 0 else maxi(item.sell_price, 0)
-			if item.id == ShopGoods.SIGNBOARD:
-				unit = SIGNBOARD_PRICE
-			return unit / SELL_RATIO
+	## Fruit data holds Nook's price already; fish and bugs hold `fish_price_table` /
+	## `insect_price_table` and pay a quarter like everything else.
+	if item.category == ItemData.Category.FRUIT:
+		return maxi(item.sell_price, 0)
+	var unit: int = item.buy_price if item.buy_price > 0 else maxi(item.sell_price, 0)
+	if item.id == ShopGoods.SIGNBOARD:
+		unit = SIGNBOARD_PRICE
+	return unit / SELL_RATIO
+
+
+## `mSM_check_item_for_sell`: money bags never show up in the sell menu.
+static func can_sell(item: ItemData) -> bool:
+	return item != null and item.bell_value <= 0
 
 
 static func town_fruit() -> StringName:
@@ -219,19 +251,14 @@ func renewal_day() -> int:
 	return int(_nook().get("renewal", -1))
 
 
-## `mSP_InRenewal`: from opening time the day before the booked day until it lands.
+## `mSP_InRenewal`: the whole day before the booked day (date match), until it lands.
 func in_renewal() -> bool:
 	_ensure_row(NOOK_ID)
 	_judge_renewal()
 	var booked: int = renewal_day()
 	if booked < 0:
 		return false
-	var today: int = _today()
-	if today < booked - 1:
-		return false
-	if today == booked - 1:
-		return Clock.hour >= OPEN_HOURS[clampi(int(_nook().get("level", 0)), 0, 3)]
-	return true
+	return _today() >= booked - 1
 
 
 ## `mSP_ShopOpen`.
@@ -290,7 +317,7 @@ func _judge_renewal() -> void:
 	_queue_mail({"kind": "renovation", "level": int(row.get("level", 0)), "day": today + 2})
 
 
-## `aSL_RenewShop`: on the booked day from the new building's opening hour.
+## `aSL_RenewShop`: at any hour once the booked date arrives (date match, not the hour).
 func _apply_due_renewal() -> void:
 	var row: Dictionary = _nook()
 	var booked: int = int(row.get("renewal", -1))
@@ -298,7 +325,7 @@ func _apply_due_renewal() -> void:
 		return
 	var today: int = _today()
 	var target: int = real_level()
-	if today < booked or (today == booked and Clock.hour < OPEN_HOURS[target]):
+	if today < booked:
 		return
 	row["renewal"] = -1
 	if target > int(row.get("level", 0)):
@@ -328,6 +355,7 @@ func restock(shop_id: StringName) -> void:
 	_ensure_row(shop_id)
 	var row: Dictionary = _shops[shop_id]
 	row["renew"] = Clock.renew_index()
+	row["sold"] = []
 	if shop_id != NOOK_ID:
 		## Able Sisters is a design/pattern shop, not a clothing store — it holds no
 		## Bell-priced stock. Designs are traded through Mabel (`ac_npc_needlework`).
@@ -357,7 +385,6 @@ func renew(_days: int = 1) -> void:
 			_apply_due_renewal()
 			_judge_renewal()
 		restock(shop_id)
-	kabu.update(Clock.year, Clock.month, Clock.day)
 
 
 # --- Buying ------------------------------------------------------------------------------
@@ -426,8 +453,11 @@ func buy_result(shop_id: StringName, item_id: StringName, inv: Inventory) -> Dic
 	var data: ItemData = ItemCatalog.get_item(item_id)
 	if data == null or inv == null:
 		return {"code": Buy.NOT_FOR_SALE, "msg": "That's not for sale."}
-	var listed: Array[StringName] = goods(shop_id)
-	var slot: int = listed.find(item_id)
+	## Door hours (`mSP_ShopOpen`) also bound the counter: nothing is sold once Nook is shut.
+	if shop_id == NOOK_ID and not nook_is_open():
+		return {"code": Buy.CLOSED, "msg": closed_notice()}
+	var sold: Array[int] = sold_slots(shop_id)
+	var slot: int = _unsold_slot(lineup(shop_id), sold, item_id)
 	if slot < 0:
 		return {"code": Buy.SOLD_OUT, "msg": "That's sold out."}
 	var price: int = buy_price(data)
@@ -437,7 +467,8 @@ func buy_result(shop_id: StringName, item_id: StringName, inv: Inventory) -> Dic
 		return {"code": Buy.NO_MONEY, "msg": "Not enough Bells."}
 	var paint: bool = is_paint(item_id)
 	var count: int = ShopGoods.pack_count(item_id)
-	if not paint and not inv.has_space_for(data, count):
+	## `mPr_GetPossessionItemIdx(EMPTY_NO)`: a truly empty pocket, never a matching stack.
+	if not paint and inv.empty_slot_count() <= 0:
 		return {"code": Buy.POCKETS_FULL, "msg": "Pockets are full."}
 	pay(inv, price)
 	var out: Dictionary = {"code": Buy.OK, "price": price, "ticket": ""}
@@ -452,12 +483,13 @@ func buy_result(shop_id: StringName, item_id: StringName, inv: Inventory) -> Dic
 			data.display_name.trim_suffix(" Paint").to_lower()
 		)
 	else:
-		inv.add(data, count)
+		inv.add_to_empty_slot(data, count)
 		out["msg"] = "Bought %s for %d Bells." % [data.display_name, price]
 		if earns_ticket(data):
 			out["ticket"] = _give_ticket(inv)
-	listed.remove_at(slot)
-	_set_goods(shop_id, listed)
+	## `mSP_ShopSaleReport`: the slot turns `RSV_SHOP_SOLD_*`, the other goods stay put.
+	sold.append(slot)
+	(_shops[shop_id] as Dictionary)["sold"] = sold
 	if shop_id == NOOK_ID:
 		plus_sales(price)
 	return out
@@ -498,6 +530,8 @@ func sell_quote(item_id: StringName, inv: Inventory, count: int = -1) -> Diction
 	if have <= 0:
 		var quest: bool = inv.count_of(item_id) > 0
 		return {"code": Sell.QUEST if quest else Sell.NOTHING, "count": 0, "total": 0}
+	if not can_sell(data):
+		return {"code": Sell.REFUSED, "count": 0, "total": 0}
 	var n: int = have if count < 0 else mini(count, have)
 	if KabuMarket.is_turnip(item_id):
 		if item_id == KabuMarket.SPOILED:
@@ -517,7 +551,7 @@ func sell_quote(item_id: StringName, inv: Inventory, count: int = -1) -> Diction
 static func bags_needed(inv: Inventory, amount: int) -> int:
 	var total: int = inv.wallet + amount
 	var bags: int = 0
-	while total > Inventory.WALLET_MAX:
+	while total >= Inventory.WALLET_MAX:
 		total -= 30000
 		bags += 1
 	return bags
@@ -540,6 +574,8 @@ func sell_result(shop_id: StringName, item_id: StringName, inv: Inventory, count
 			return {"code": code, "msg": "You don't have that."}
 		Sell.QUEST:
 			return {"code": code, "msg": "Nook won't take something you're delivering."}
+		Sell.REFUSED:
+			return {"code": code, "msg": "Nook doesn't buy that."}
 		Sell.SUNDAY_TURNIPS:
 			return {"code": code, "msg": "Nook doesn't buy turnips on Sundays."}
 	var n: int = int(quote["count"])
@@ -714,6 +750,8 @@ func apply_snapshot(data: Variant) -> void:
 		(_shops[NOOK_ID] as Dictionary)["level"] = real_level()
 	for shop_id: StringName in SHOP_IDS:
 		ensure_today(shop_id)
+	## `m_start_data_init`: `Kabu_manager` at game start.
+	kabu.update(Clock.year, Clock.month, Clock.day)
 
 
 # --- Internals -----------------------------------------------------------------------------
@@ -740,9 +778,11 @@ func _today() -> int:
 	return EventDates.ordinal(Clock.year, Clock.month, Clock.day)
 
 
-func _set_goods(shop_id: StringName, listed: Array[StringName]) -> void:
-	_ensure_row(shop_id)
-	(_shops[shop_id] as Dictionary)["goods"] = _as_strings(listed)
+static func _unsold_slot(listed: Array[StringName], sold: Array[int], item_id: StringName) -> int:
+	for i: int in listed.size():
+		if listed[i] == item_id and not sold.has(i):
+			return i
+	return -1
 
 
 func _as_strings(listed: Array[StringName]) -> Array:

@@ -14,6 +14,8 @@ const INTERACT_REACH := 1.1
 
 ## `notice_rod` chains message 0x1348 onto the fish catch report when pockets are full.
 const POCKETS_FULL_MSG_ID := &"msg_4936"
+## `notice_rod`'s follow-up to 0x1349 when the catch completes the fish record.
+const FISH_RECORD_DONE_MSG := 0x134A
 
 const ANIM_WAIT := "ply_1_wait1"
 const ANIM_WALK := "ply_1_walk1"
@@ -102,6 +104,10 @@ var _demo_walk_goal: Vector3 = Vector3.ZERO
 var _demo_walk_speed: float = 0.0
 var _demo_walk_arrive: float = 0.0
 var _motor: PlayerLocomotion = PlayerLocomotion.new()
+## `Player_actor_SetPlayerAngle_forUki`'s clamps, and its own tick clock.
+const UKI_TURN_MAX := 13.73291015625 * PI / 180.0
+const UKI_TURN_MIN := 0.274658203125 * PI / 180.0
+var _uki_turn := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _busy: bool = false
 ## Station intro ride / guided walk — stage owns XZ/Y; skip snap + move_and_slide.
@@ -233,6 +239,12 @@ func insect_stress_move_gx() -> float:
 
 
 ## `mPlayer_INDEX_DASH`: fish bolt from a dashing player but ignore a walking one.
+## `Get_WadeEndPos_proc`: where the running acre crossing lands (world metres), or
+## `Vector3.INF` when not wading. The set manager reads it to pick the acre it spawns in.
+func wade_end_position() -> Vector3:
+	return _wade.get("end", Vector3.INF) if not _wade.is_empty() else Vector3.INF
+
+
 func is_dashing() -> bool:
 	return _motor.gait() == PlayerLocomotion.Gait.DASH
 
@@ -376,6 +388,12 @@ func _physics_process(delta: float) -> void:
 		if scripted_input != null and scripted_input.consume_a_pressed():
 			_try_interact()
 
+	## `cast_rod` / `relax_rod` / `vib_rod`: `Movement_Base_Braking_common`, stick ignored.
+	var rod_locked: bool = Fishing.holds(self)
+	if rod_locked:
+		wish = Vector3.ZERO
+		stick = 0.0
+		input_dir = Vector2.ZERO
 	var sprint: bool = (
 		scripted_input == null and not is_demo_walking() and Input.is_action_pressed("sprint")
 	)
@@ -393,9 +411,12 @@ func _physics_process(delta: float) -> void:
 	if _net.is_active():
 		planar = _tick_net(delta, input_dir, wish, stick, menu_open)
 	else:
-		planar = _motor.tick(delta, wish, stick, sprint and not menu_open, _busy or menu_open)
+		planar = _motor.tick(
+			delta, wish, stick, sprint and not menu_open, _busy or menu_open or rod_locked
+		)
 	velocity.x = planar.x
 	velocity.z = planar.z
+	_face_bobber(delta)
 	_tick_talk_face(delta)
 	_mesh.rotation.y = _motor.body_yaw
 	_mesh.rotation.x = _motor.lean
@@ -1149,6 +1170,22 @@ func _group_open(group: String) -> bool:
 	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
 
 
+## `Player_actor_SetPlayerAngle_forUki`: one `add_calc_short_angle2(1−√½, 13.73°, 0.27°)`
+## a tick toward the bobber while the line is out.
+func _face_bobber(delta: float) -> void:
+	if not Fishing.faces_bobber(self):
+		_uki_turn.reset()
+		return
+	var to_uki: Vector3 = Fishing.anchor() - global_position
+	_uki_turn.add(delta)
+	while _uki_turn.next():
+		if is_zero_approx(to_uki.x) and is_zero_approx(to_uki.z):
+			continue
+		_motor.facing = MLib.short_angle2(
+			_motor.facing, atan2(to_uki.x, to_uki.z), MLib.HALF_FRACTION, UKI_TURN_MAX, UKI_TURN_MIN
+		)
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if scripted_input != null or _busy or _menu_open() or is_demo_walking() or _net.is_active():
 		return
@@ -1656,6 +1693,8 @@ func _run_interact(hit: InteractionQuery) -> void:
 	else:
 		ToolUse.apply_field(hit.action, ctx)
 	var spent: float = float(Time.get_ticks_msec() - t0) / 1000.0
+	if Fishing.take_cut_swing():
+		tail = 0.0
 	await _finish_action(maxf(0.0, tail - spent))
 	await _play_reel()
 	_busy = false
@@ -1723,11 +1762,39 @@ func _finish_action(tail: float) -> void:
 ## resolve on the button frame or the bite window is spent animating. `Fishing` picks the
 ## beats from what came up on the line.
 func _play_reel() -> void:
+	await _wait_for_line()
 	for beat: Fishing.ReelBeat in Fishing.take_reel_beats():
 		if beat.face_camera or beat.hold > 0.0:
 			await _play_show(beat)
 		else:
-			await _play_clip(beat.player_anim, beat.tool_anim)
+			await _play_clip(beat.player_anim, beat.tool_anim, beat.start_frame)
+
+
+## Between A and the line coming up. `relax_rod` holds its pose until the bobber reports
+## `aUKI_STATUS_VIB`, and from then `vib_rod` loops `TURI_HIKI1` against the fish for as long
+## as the fight lasts (`FIGHT_FRAMES`); an empty line just waits out the bobber's 12 ticks.
+func _wait_for_line() -> void:
+	## The longest fight is 156 ticks; anything past this means nothing is ticking the line.
+	var budget: float = 5.0
+	var pulling: bool = false
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	while Fishing.is_reeling() and budget > 0.0:
+		if not pulling and Fishing.state() == Fishing.State.BITE:
+			pulling = true
+			var clip := _resolve_clip(String(Fishing.REEL_PULL))
+			if _anim != null and not clip.is_empty():
+				var res: Animation = _anim.get_animation(clip)
+				if res != null:
+					res.loop_mode = Animation.LOOP_LINEAR
+				_anim.speed_scale = 1.0
+				_anim.play(clip, 0.08)
+			HeldTool.play(skeleton, Fishing.ROD_PULL, true)
+		await get_tree().process_frame
+		budget -= get_process_delta_time()
+	if Fishing.is_reeling():
+		Fishing.cancel(Fishing.school_of(_make_context()))
+	if pulling:
+		HeldTool.play(skeleton, _tool_hold_anim, true)
 
 
 ## `m_player_main_notice_rod`: hold the catch up and turn square-on to the camera, then put
@@ -1771,7 +1838,7 @@ func _play_show(beat: Fishing.ReelBeat) -> void:
 		if held < length:
 			await get_tree().create_timer(length - held).timeout
 	else:
-		await _report_catch(beat.catch_msg, beat.pockets_full)
+		await _report_catch(beat.catch_msg, beat.pockets_full, beat.fish, beat.completes_record)
 	_motor.facing = entry_yaw
 	await _play_putaway(skeleton)
 
@@ -2122,7 +2189,9 @@ func _net_wait_closed(ui: DialogueOverlay) -> void:
 ## species and the extracted bank has the line, pun and all. The rare three (stringfish,
 ## coelacanth, arapaima) run to two pages, which is why this plays a conversation through the
 ## runner instead of pushing a single string.
-func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
+func _report_catch(
+	catch_msg: int, pockets_full: bool = false, fish: FishData = null, completes_record: bool = false
+) -> void:
 	if catch_msg == 0:
 		return
 	var ui := DialogueOverlay.find(get_tree())
@@ -2131,11 +2200,23 @@ func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
 	if ui == null:
 		Game.post_notice(fallback)
 		return
+	## 0x1349 names the fish (`mMsg_Set_item_str_art(win, mMsg_ITEM_STR0, …)`).
+	var ctx := DialogueContext.from_game()
+	ctx.item0 = fish.display_name if fish != null else ""
 	if data != null:
-		ui.play(data, null)
+		ui.play(data, ctx)
 	else:
 		ui.say(fallback)
 	await ui.closed
+	if completes_record:
+		## `MessageControl_Notice_rod` states 1–2: 0x134A continues the report over `YATTA2`.
+		_play_body_once(Netting.ANIM_YATTA)
+		var more: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % FISH_RECORD_DONE_MSG))
+		if more != null:
+			ui.play(more, ctx)
+		else:
+			ui.say(FishCatalog.catch_text(FISH_RECORD_DONE_MSG))
+		await ui.closed
 	if not pockets_full:
 		return
 	var text: String = FishCatalog.first_line(DialogueCatalog.conversation(POCKETS_FULL_MSG_ID))
@@ -2145,7 +2226,7 @@ func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
 	await ui.closed
 
 
-func _play_clip(clip_name: StringName, tool_clip: StringName) -> void:
+func _play_clip(clip_name: StringName, tool_clip: StringName, start_frame: float = 0.0) -> void:
 	if clip_name == &"":
 		return
 	var clip := _resolve_clip(String(clip_name))
@@ -2155,6 +2236,8 @@ func _play_clip(clip_name: StringName, tool_clip: StringName) -> void:
 	_anim.speed_scale = 1.0
 	HeldTool.play(HeldTool.find_skeleton(_mesh), tool_clip, false)
 	_anim.play(clip, 0.08)
+	if start_frame > 0.0:
+		_anim.seek(start_frame / DecompTime.FRAME_HZ, true)
 	PlayerSe.schedule_clip(self, clip_name)
 	await _anim.animation_finished
 	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)

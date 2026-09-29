@@ -75,9 +75,6 @@ static func _apply_node(node: Node, as_decal: bool, mouth_river: bool, visual_id
 				elif VisualStructureMaterials.is_museum_art_surface(mesh_instance, i, src, visual_id):
 					VisualStructureMaterials.apply_museum_art_material(std)
 					mesh_instance.set_surface_override_material(i, std)
-				elif VisualStructureMaterials.is_light_shaft_visual(visual_id):
-					VisualStructureMaterials.apply_light_shaft_surface(std)
-					mesh_instance.set_surface_override_material(i, std)
 				elif VisualStructureMaterials.is_fish_tank_visual(visual_id):
 					VisualStructureMaterials.apply_fish_tank_surface(std, VisualSurface.surface_label(mesh_instance, i, src))
 					mesh_instance.set_surface_override_material(i, std)

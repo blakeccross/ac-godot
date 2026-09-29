@@ -1,18 +1,22 @@
 class_name BugHitodama
 extends BugProgram
 
-## `ac_ins_hitodama.c` — the spirit / Wisp. Drifts very slowly (`FLY`, 0.3 GX/frame)
-## in wide lazy curves toward an acre corner, bobbing gently (`fuwafuwa`). When
-## caught or the ghost event ends it rises away (`AVOID` / LET_ESCAPE). Type 40 is
-## level-Y, so the program drives `pos_speed.y`.
+## `ac_ins_hitodama.c` — the spirit / Wisp. Floats 40 GX over the ground (or water)
+## and drifts at 0.3 GX/frame in lazy circles (turning 40–104 s16 a frame, flipping the
+## turn on a 240–600-frame play-clock timer), bobbing (`fuwafuwa`). More than 160 GX
+## from its acre centre it flips its turn whenever it heads within 22.5° of straight
+## away, so it curls back in. When caught or the ghost event ends it rises away off
+## the player's facing ±60° (`AVOID` / LET_ESCAPE). Type 40 is level-Y, so the program
+## drives `pos_speed.y`.
 
 enum { AVOID, LET_ESCAPE, FLY }
 
-const RANGE := 8.0 * 20.0        ## 8 units
+const RANGE := 8.0 * UNIT_GX     ## 8 units: 320 GX (corner + 320 = acre centre)
+const HOVER := UNIT_GX           ## over the ground / water surface
 const ANGL_ADD := [40.0, 56.0, 80.0, 104.0]
 const MOVE_TIM := [240, 360, 480, 600]
 
-var _frame: int = 0
+var _placed: bool = false
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -20,16 +24,17 @@ func actor_init(a: BugActor, released: bool) -> void:
 	a.bg_range = 20.0
 	a.item = -1
 	if not released:
-		a.pos.y = a.home.y
+		## `GetBgY_OnlyCenter_FromWpos(pos, −40)` (water: surface + 40); settled on the
+		## first frame once the field is known.
+		a.pos.y = a.home.y + HOVER
 		a.home.y = a.pos.y
 		a.angle_y = a._rng.randf_range(-PI, PI)
 		_set_move_info(a)
 		a.s32_work[3] = a._rng.randi_range(0, 65535)   ## bob angle
 		a.continue_timer = a._rng.randi_range(0, 4)
-		a.f32_work[0] = a.home.x + RANGE               ## target corner
-		a.f32_work[1] = a.home.z + RANGE
 		setup_action(a, FLY)
 	else:
+		_placed = true
 		setup_action(a, AVOID)
 
 
@@ -50,8 +55,8 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.alpha_time = 80
 			a.rot.x = 0.0
 			a.speed = 1.5
-			if not a.f_no_catch and a._last_player_gx != Vector3.INF:
-				a.angle_y = BugProgram.angle_to(a._last_player_gx, a.pos) + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(60.0)
+			if not a.f_no_catch and BugProgram.heading_from_player_facing(a, deg_to_rad(120.0)):
+				a.home.y = a.pos.y
 			a.s32_work[3] = 0
 			a.f_no_catch = true
 			if action == LET_ESCAPE:
@@ -62,16 +67,21 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.rot.x = 0.0
 
 
+## `aIHD_set_move_info`: turn rate and timer from the frame counter; the turn flips
+## direction each time.
 func _set_move_info(a: BugActor) -> void:
-	_frame += 1
-	var add: float = ANGL_ADD[_frame & 3]
+	var frame: int = a.game_frame
+	var add: float = ANGL_ADD[frame & 3]
 	if a.s32_work[1] > 0:
 		add = -add
 	a.s32_work[1] = int(add)
-	a.s32_work[2] = MOVE_TIM[(_frame >> 2) & 3]
+	a.s32_work[2] = MOVE_TIM[(frame >> 2) & 3]
 
 
 func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
+	if not _placed:
+		_placed = true
+		_settle(a, sense)
 	a.anime0 += 0.5
 	if a.anime0 >= 2.0:
 		a.anime0 -= 2.0
@@ -94,15 +104,31 @@ func _fuwafuwa(a: BugActor, hard: bool) -> void:
 	a.pos_speed.y = a.gravity + (now - last)
 
 
-func _fly(a: BugActor, _sense: BugActor.Sense) -> void:
+## Hover height over the unit centre, or over the water surface.
+func _settle(a: BugActor, sense: BugActor.Sense) -> void:
+	if sense == null or sense.grid == null:
+		return
+	var base: float = BugProgram.center_y(sense, a.pos, a.pos.y - HOVER)
+	if BugBg.water_at(sense.grid, a.pos):
+		var wy: float = BugProgram.water_y(a, sense)
+		if wy > -1e8:
+			base = wy
+	a.pos.y = base + HOVER
+	a.home.y = a.pos.y
+
+
+func _fly(a: BugActor, sense: BugActor.Sense) -> void:
 	a.target_speed = 0.3
 	a.speed_step = 0.1
 	_fuwafuwa(a, false)
-	## `calc_move_drt`: curve toward the corner; re-roll turn info near it / on approach.
-	var d: float = BugProgram.dist_xz(a.pos, Vector3(a.f32_work[0], a.pos.y, a.f32_work[1]))
+	## `calc_move_drt`: beyond 160 GX of the acre centre, heading within 22.5° of straight
+	## away from it flips the turn; nearer in, the turn flips when its timer runs out.
+	var c: Vector2 = BugProgram.acre_center(a, sense)
+	var centre := Vector3(c.x, a.pos.y, c.y)
+	var d: float = BugProgram.dist_xz(a.pos, centre)
 	if d > RANGE * 0.5:
-		var to: float = BugProgram.angle_to(a.pos, Vector3(a.f32_work[0], a.pos.y, a.f32_work[1]))
-		if absf(wrapf(a.angle_y - to, -PI, PI)) < deg_to_rad(22.5):
+		var away: float = BugProgram.angle_to(centre, a.pos)
+		if absf(wrapf(a.angle_y - away, -PI, PI)) < deg_to_rad(22.5):
 			_set_move_info(a)
 	else:
 		a.s32_work[2] -= 1

@@ -2132,6 +2132,44 @@ class VertexShadeTests(unittest.TestCase):
                 _r, _g, _b, alpha = struct.unpack_from("<4f", blob, start + i * 16)
                 self.assertAlmostEqual(alpha, 1.0)
 
+    def test_room_sunshine_shaft_keeps_shade_alpha_untextured(self) -> None:
+        ## `light_floor01_mode` (textured floor patch) then `light_shine01_mode` (texture
+        ## off, A = SHADE × PRIM) across two DLs: geometry mode and the texture switch carry
+        ## over through `RenderState`, and only the shaft keeps its vertex alpha.
+        from asset_pipeline.gfx import (
+            G_ENDDL,
+            G_GEOMETRYMODE,
+            G_TRI1,
+            G_VTX,
+            RenderState,
+            combine_alpha_uses_shade,
+            parse_gfx,
+            parse_vtx_blob,
+        )
+
+        self.assertTrue(combine_alpha_uses_shade(0xFCFFC7FF, 0xFF8DFEFF))
+        self.assertFalse(combine_alpha_uses_shade(0xFCFF97FF, 0xFF2DFEFF))
+        vtx = b""
+        for x, y, alpha in ((0, 78, 255), (78, 0, 0), (0, 0, 152)):
+            vtx += struct.pack(">hhhHhhBBBB", x, y, 0, 0, 0, 0, 255, 255, 255, alpha)
+        verts = parse_vtx_blob(vtx, scale=0.001)
+        render = RenderState(geometry_mode=0)
+        mode = b""
+        mode += struct.pack(">II", (G_GEOMETRYMODE << 24) | 0x000000, 0x00200405)
+        mode += struct.pack(">II", 0xFCFFC7FF, 0xFF8DFEFF)
+        mode += struct.pack(">II", 0xD7000000, 0xFFFFFFFF)
+        mode += struct.pack(">II", G_ENDDL << 24, 0)
+        self.assertEqual(parse_gfx("light_shine01_mode", mode, verts, render=render), [])
+        dl = b""
+        dl += struct.pack(">II", (G_VTX << 24) | (3 << 12) | (3 << 1), 0)
+        dl += struct.pack(">II", (G_TRI1 << 24) | (0 << 16) | (2 << 8) | 4, 0)
+        dl += struct.pack(">II", G_ENDDL << 24, 0)
+        parts = parse_gfx("light_shineL01_vtx", dl, verts, render=render)
+        self.assertEqual(len(parts), 1)
+        self.assertFalse(parts[0].uses_lighting)
+        self.assertTrue(parts[0].shade_alpha)
+        self.assertIsNone(parts[0].texture_png)
+
     def test_default_lighting_keeps_normals_only(self) -> None:
         from asset_pipeline.gfx import G_ENDDL, G_TRI1, G_VTX, parse_gfx, parse_vtx_blob
 

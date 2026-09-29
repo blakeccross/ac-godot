@@ -38,6 +38,15 @@ static func field_action(ctx: InteractionContext) -> Interaction:
 	## A line already out replaces the cast verb, and survives the player turning away.
 	if tool.field_verb == Interaction.CAST and Fishing.is_active():
 		return Fishing.field_action()
+	if tool.field_verb == Interaction.CAST and not _field_ok(tool, ctx):
+		## `ready_rod` swings whatever is in front; only at frame 10 does it look for water,
+		## and without it `air_rod` takes over. Lowest priority, so anything else in front of
+		## the player (a villager, a sign) still gets A first.
+		if ctx == null or ctx.actor == null:
+			return null
+		return Interaction.of(
+			Interaction.AIR_ROD, "Cast", 0, tool.field_anim, Fishing.CAST_RELEASE_FRAME
+		)
 	if not _field_ok(tool, ctx):
 		return null
 	var prompt: String = tool.field_prompt
@@ -57,6 +66,14 @@ static func field_action(ctx: InteractionContext) -> Interaction:
 ## Prefer a higher-priority field verb (net swing, rod cast) over a weaker host.
 static func resolve(hit: InteractionQuery, ctx: InteractionContext) -> InteractionQuery:
 	var field: Interaction = field_action(ctx)
+	## `relax_rod`: with the line out, A goes to the bobber and nothing else — no talking,
+	## no picking up. While the line is flying or coming in, A does nothing at all.
+	if Fishing.holds(ctx.actor if ctx != null else null):
+		if field == null:
+			return null
+		var reel := InteractionQuery.new()
+		reel.action = field
+		return reel
 	if field == null:
 		return hit
 	if hit == null or hit.action == null or field.priority > hit.action.priority:
@@ -113,12 +130,16 @@ static func _apply_rod(tool: ToolData, action: Interaction, ctx: InteractionCont
 	if Fishing.is_active():
 		if action.id != Interaction.HOOK:
 			return false
-		Fishing.hook(ctx, Fishing.school_of(ctx))
+		return Fishing.hook(ctx, Fishing.school_of(ctx))
+	if action.id == Interaction.AIR_ROD:
+		Fishing.air_cast()
+		PlayerSe.rod_stroke(ctx.actor if ctx != null else null, true)
 		return true
 	if action.id != tool.field_verb or not _field_ok(tool, ctx):
 		return false
 	if not Fishing.cast(ctx, cast_point(ctx)):
 		return false
+	PlayerSe.rod_stroke(ctx.actor, false)
 	if tool.field_notice != "":
 		Game.post_notice(tool.field_notice)
 	return true

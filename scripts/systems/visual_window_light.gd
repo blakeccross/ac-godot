@@ -15,8 +15,40 @@ const _WINDOW_SPILL_SHADER := preload("res://shaders/window_ground_spill.gdshade
 
 
 static func refresh_window_lights(root: Node) -> void:
-	## `mEnv_NPC_LIGHTS_*`: panes and ground spill 18:00–05:00.
+	## `mEnv_NPC_LIGHTS_*`: panes and ground spill 18:00–05:00, unless a building
+	## host on the way down has its own `*_ctrl_light` rule.
 	_set_window_lights(root, _window_lights_on())
+
+
+## A building host's own `*_ctrl_light`, or null when `node` isn't one (the caller's
+## state carries on). Hosts are the field `Building` / `House` / `Shop` nodes.
+static func host_lights_on(node: Node) -> Variant:
+	if node == null or not ("visual_id" in node and "occupant_id" in node):
+		return null
+	var night := _window_lights_on()
+	var vis := StringName(node.get("visual_id"))
+	if HostCollision.is_police(vis) or HostCollision.is_post_office(vis):
+		return night  ## `aPBOX_ctrl_light` / `aPOFF_ctrl_light`
+	if HostCollision.is_museum(vis):
+		return Clock != null and Clock.in_hour_window(18, 6)  ## `aMsm_ctrl_light`
+	var entry := StringName(node.get("occupant_id"))
+	var room_id: StringName = InteriorCatalog.resolve_entry(entry) if entry != &"" else &""
+	var room: Room = InteriorCatalog.room_template(room_id) if room_id != &"" else null
+	if room == null:
+		return night
+	match room.kind:
+		Room.Kind.SHOP:
+			if Game == null or Game.shops == null:
+				return night
+			## `aSHOP_ctrl_light`: the Cranny lights at night while open; Nook 'n' Go and
+			## up (`aCNV` / `aSPR` / `aDPT`) whenever they're open.
+			var open: bool = Game.shops.nook_is_open()
+			return open if Game.shops.nook_level() >= 1 else open and night
+		Room.Kind.NEEDLEWORK:
+			return night and InteriorCatalog.is_open_now(room)  ## `aNW_ctrl_light`
+		Room.Kind.NPC:
+			return night and VillagerHome.lights_on(entry)  ## `aHUS_ctrl_light`
+	return night
 
 
 static func refresh_room_prim(root: Node, color: Color = Color.WHITE) -> void:
@@ -196,6 +228,9 @@ static func _set_room_prim_fills(node: Node, color: Color) -> void:
 
 
 static func _set_window_lights(node: Node, on: bool) -> void:
+	var own: Variant = host_lights_on(node)
+	if own != null:
+		on = bool(own)
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
 		var surface_count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 1

@@ -69,8 +69,14 @@ func _run() -> void:
 		stand = grid.cell_to_world(school.bodies[0].cells[0])
 	var sense := FishShadow.Sense.new()
 	sense.player_position = stand
-	for _i in 40:
+	## One `aSOG_gyoei_set` roll per acre entry, and a roll can come up empty: re-enter
+	## the acre with fresh seeds until it stocks.
+	for i in 40:
 		school.tick(0.5, sense)
+		if school.shadow_count() > 0:
+			break
+		school.clear()
+		school.seed_rng(i + 2)
 	print("spawned_shadows=%d at %s" % [school.shadow_count(), stand])
 	for shadow: FishShadow in school.shadows:
 		print(
@@ -121,13 +127,14 @@ func _shoot(shot_name: String, with_water: bool, priority: int) -> Dictionary:
 	var mat := ShaderMaterial.new()
 	mat.shader = FISH_SHADOW
 	mat.render_priority = priority
-	mat.set_shader_parameter("alpha", 1.0)
+	mat.set_shader_parameter("alpha", FishSize.shadow_alpha(FishData.SizeClass.L))
 	mat.set_shader_parameter("body_flex", 0.0)
 	mat.set_shader_parameter("aspect", FishSize.SHADOW_ASPECT)
 	shadow.material_override = mat
 	shadow.rotation = Vector3(-PI * 0.5, 0.0, 0.0)
 	var extent: Vector2 = FishSize.shadow_size(FishData.SizeClass.L)
-	shadow.scale = Vector3(extent.x * 1.45, extent.y * 1.45, 1.0)
+	var padding: float = FishSize.SILHOUETTE_FILL / 0.8  ## `FishShadows.QUAD_PADDING`
+	shadow.scale = Vector3(extent.x * padding, extent.y * padding, 1.0)
 	## Match `FishShadows.SURFACE_LIFT` so the proof uses the same clearance over water.
 	shadow.position = Vector3(0.0, FieldCatalog.GX_TO_METERS * 2.0, 0.0)
 	viewport.add_child(shadow)

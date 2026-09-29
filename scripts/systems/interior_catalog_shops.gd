@@ -28,6 +28,7 @@ static func register() -> void:
 	shop1.wall_id = ShopDisplay.nook_wall_id(1)
 	shop1.floor_id = ShopDisplay.nook_floor_id(1)
 	shop1.shell_ids = PackedStringArray(["rom_shop2f", "rom_shop2w"])
+	ShopDisplay.apply_room_bounds(shop1)
 	InteriorCatalog.put_room(shop1)
 	var shop2 := InteriorCatalog.make_public_room(
 		&"shop2", Room.Kind.SHOP, "Nookway", Vector2i(3, 3), Vector2i(10, 10), 9, 22
@@ -35,6 +36,7 @@ static func register() -> void:
 	shop2.wall_id = ShopDisplay.nook_wall_id(2)
 	shop2.floor_id = ShopDisplay.nook_floor_id(2)
 	shop2.shell_ids = PackedStringArray(["rom_shop3f", "rom_shop3w"])
+	ShopDisplay.apply_room_bounds(shop2)
 	InteriorCatalog.put_room(shop2)
 	var shop3_1 := InteriorCatalog.make_public_room(
 		&"shop3_1", Room.Kind.SHOP, "Nookington's", Vector2i(3, 3), Vector2i(10, 10), 9, 22
@@ -43,6 +45,7 @@ static func register() -> void:
 	shop3_1.floor_id = ShopDisplay.nook_floor_id(3)
 	shop3_1.linked_rooms = [&"shop3_2"]
 	shop3_1.shell_ids = PackedStringArray(["rom_shop4_1"])
+	ShopDisplay.apply_room_bounds(shop3_1)
 	InteriorCatalog.put_room(shop3_1)
 	var shop3_2 := InteriorCatalog.make_public_room(
 		&"shop3_2", Room.Kind.SHOP, "Nookington's Annex", Vector2i(3, 3), Vector2i(10, 10), 9, 22
@@ -51,6 +54,7 @@ static func register() -> void:
 	shop3_2.floor_id = &"floor_70"
 	shop3_2.parent_room_id = &"shop3_1"
 	shop3_2.shell_ids = PackedStringArray(["rom_shop4_2f", "rom_shop4_2w"])
+	ShopDisplay.apply_room_bounds(shop3_2)
 	InteriorCatalog.put_room(shop3_2)
 	## Broker is event-gated outdoors, not clock hours (`aBRS_open_check`).
 	var broker := InteriorCatalog.make_room(

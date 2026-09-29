@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/museum/museum_entrance.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/world/museum/museum_wing_shell.gd" id="2"]
@@ -6,7 +6,6 @@
 [ext_resource type="PackedScene" uid="uid://dgg4xho8jqr2y" path="res://assets/generated/environment/interiors/rom_museum1.glb" id="4"]
 [ext_resource type="Script" path="res://scenes/world/museum/museum_blathers.gd" id="5"]
 [ext_resource type="Script" path="res://scenes/world/museum/museum_clock.gd" id="6"]
-[ext_resource type="Script" path="res://scenes/world/museum/museum_light_shaft.gd" id="7"]
 
 [node name="museum_entrance" type="Node3D"]
 script = ExtResource("1")
@@ -31,10 +30,6 @@ script = ExtResource("5")
 [node name="MuseumClock" type="Node3D" parent="Furniture"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 7.5)
 script = ExtResource("6")
-
-[node name="LightShaft" type="Node3D" parent="Furniture"]
-script = ExtResource("7")
-shine_visual = &"obj_museum1_shine"
 
 [node name="Doors" type="Node3D" parent="."]
 

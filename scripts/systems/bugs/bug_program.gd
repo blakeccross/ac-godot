@@ -91,6 +91,214 @@ func flees_at_ninety(_a: BugActor) -> bool:
 	return false
 
 
+# ---- field units / acres (`mFI_*`) ---------------------------------------
+
+const UNIT_GX := BugActor.UNIT_GX
+const ACRE_GX := BugActor.ACRE_GX
+const ACRE_UNITS := 16
+## Without a grid, units are laid out like the default one-acre `WorldGrid` (origin −320 GX).
+const NO_GRID_ORIGIN_GX := -0.5 * ACRE_GX
+
+
+## `mFI_Wpos2UtNum`: the field unit (grid cell) under `pos_gx`.
+static func unit_of(sense: BugActor.Sense, pos_gx: Vector3) -> Vector2i:
+	if sense != null and sense.grid != null:
+		return sense.grid.world_to_cell(pos_gx * BugActor.GX_M)
+	return Vector2i(
+		floori((pos_gx.x - NO_GRID_ORIGIN_GX) / UNIT_GX),
+		floori((pos_gx.z - NO_GRID_ORIGIN_GX) / UNIT_GX)
+	)
+
+
+## `mFI_Wpos2UtNum_inBlock`: the unit's 0..15 index inside its acre.
+static func unit_in_block(cell: Vector2i) -> Vector2i:
+	return Vector2i(posmod(cell.x, ACRE_UNITS), posmod(cell.y, ACRE_UNITS))
+
+
+## `mFI_UtNum2CenterWpos`: centre of a unit, GX (y = 0).
+static func unit_center(sense: BugActor.Sense, cell: Vector2i) -> Vector3:
+	if sense != null and sense.grid != null:
+		var w: Vector3 = sense.grid.cell_to_world(cell) / BugActor.GX_M
+		return Vector3(w.x, 0.0, w.z)
+	return Vector3(
+		NO_GRID_ORIGIN_GX + (float(cell.x) + 0.5) * UNIT_GX,
+		0.0,
+		NO_GRID_ORIGIN_GX + (float(cell.y) + 0.5) * UNIT_GX
+	)
+
+
+## `mFI_BkNum2WposXZ(block) + mFI_BK_WORLDSIZE_HALF`: centre of the acre the insect was
+## born in (`actor->block_x/z` never changes), cached on the actor once a grid is known.
+static func acre_center(a: BugActor, sense: BugActor.Sense) -> Vector2:
+	if a.acre_center_gx != Vector2.INF:
+		return a.acre_center_gx
+	var cell: Vector2i = unit_of(sense, a.home)
+	var corner := Vector2i(
+		floori(float(cell.x) / ACRE_UNITS) * ACRE_UNITS, floori(float(cell.y) / ACRE_UNITS) * ACRE_UNITS
+	)
+	var c: Vector3 = unit_center(sense, corner)
+	var out: Vector2 = Vector2(c.x, c.z) + Vector2.ONE * (0.5 * ACRE_GX - 0.5 * UNIT_GX)
+	if sense != null and sense.grid != null:
+		a.acre_center_gx = out  ## only cache once the field grid is known
+	return out
+
+
+## `mFI_GetUnitFG` owner: same acre as the spawn (`actor->block_x/z == block_table`).
+static func in_home_acre(a: BugActor, sense: BugActor.Sense, pos_gx: Vector3) -> bool:
+	var c: Vector2 = acre_center(a, sense)
+	return absf(pos_gx.x - c.x) < 0.5 * ACRE_GX and absf(pos_gx.z - c.y) < 0.5 * ACRE_GX
+
+
+## `mCoBG_GetBgY_OnlyCenter_FromWpos(pos, 0)` — unit centre height, GX.
+static func center_y(sense: BugActor.Sense, pos_gx: Vector3, fallback: float) -> float:
+	if sense == null:
+		return fallback
+	return BugBg.unit_center_y(sense.grid, sense.layout, pos_gx, fallback)
+
+
+## Front wall along the insect's travel heading within its `bg_range`.
+static func wall_front(a: BugActor, sense: BugActor.Sense, range_gx: float = -1.0) -> bool:
+	if sense == null or sense.grid == null:
+		return false
+	var r: float = a.bg_range if range_gx < 0.0 else range_gx
+	return BugBg.wall_front(sense.grid, sense.layout, a.pos, a.angle_y, maxf(r, 1.0))
+
+
+## `wall_info[i].angleY` of the front wall, estimated from the heading: units are square,
+## so the wall faces back along the dominant axis of travel (toward this unit).
+static func wall_normal(a: BugActor) -> float:
+	var fwd := Vector2(sin(a.angle_y), cos(a.angle_y))
+	if absf(fwd.x) >= absf(fwd.y):
+		return atan2(-signf(fwd.x), 0.0)
+	return atan2(0.0, -signf(fwd.y))
+
+
+## `mFI_GetUnitFG` is a flower (`IS_ITEM_FLOWER`); off the field (NULL) or with no layout
+## known it counts as one.
+static func on_flower(a: BugActor, sense: BugActor.Sense) -> bool:
+	if sense == null or sense.grid == null or sense.layout == null:
+		return true
+	var cell: Vector2i = unit_of(sense, a.pos)
+	if not sense.grid.is_in_bounds(cell):
+		return true
+	return BugBg.has_kind(sense.layout, cell, &"flower")
+
+
+## `*_chk_water_attr`: on the ground and the point `bg_range + speed` ahead is water.
+static func water_ahead(a: BugActor, sense: BugActor.Sense) -> bool:
+	if sense == null or sense.grid == null:
+		return false
+	if sense.ground.is_valid() and not a.bg_on_ground:
+		return false
+	var d: float = a.bg_range + a.speed
+	var ahead: Vector3 = a.pos + Vector3(sin(a.angle_y) * d, 0.0, cos(a.angle_y) * d)
+	return BugBg.water_at(sense.grid, ahead)
+
+
+## `mCoBG_GetWaterHeight`: the water surface at the insect, or −1e9 on dry land.
+static func water_y(a: BugActor, sense: BugActor.Sense) -> float:
+	if sense == null or not sense.bg.is_valid():
+		return -1e9
+	return float(sense.bg.call(a.pos).get("water_y", -1e9))
+
+
+# ---- tree trunks (`init_posY` / `init_posZ` of SEMI / KABUTO / GOKI) ----------
+
+## Climb above the unit's keep height and Z offset for [broadleaf, cedar].
+const TRUNK_CLIMB := [35.0, 30.0]
+const TRUNK_Z := [-2.0, 8.0]
+
+
+## Place a trunk-clinging insect for a broadleaf tree at init (the FG is not known yet).
+static func cling_to_trunk(a: BugActor) -> void:
+	a.pos.y = a.home.y + TRUNK_CLIMB[0]
+	a.pos.z += TRUNK_Z[0]
+	a.home = a.pos
+
+
+## First frame with the field: a plain grown cedar (`*fg == CEDAR_TREE`) holds its insect
+## 5 GX lower and 10 GX further south. Returns true when it moved.
+static func settle_on_cedar(a: BugActor, sense: BugActor.Sense) -> bool:
+	if sense == null or sense.layout == null:
+		return false
+	if not BugBg.is_cedar(sense.layout, unit_of(sense, a.home)):
+		return false
+	a.pos.y += TRUNK_CLIMB[1] - TRUNK_CLIMB[0]
+	a.pos.z += TRUNK_Z[1] - TRUNK_Z[0]
+	a.home = a.pos
+	a.last_pos = a.pos
+	return true
+
+
+static func raining() -> bool:
+	return Game != null and Game.weather == &"rain"
+
+
+# ---- player tool checks (`mPlib_Check_*`) --------------------------------
+
+## `mPlib_Check_StopNet(&pos)`: the net's position (GX) on the tick a swing stops, else INF.
+static func net_stop_pos(sense: BugActor.Sense) -> Vector3:
+	if sense == null or not sense.net_swing_active or sense.net_swing_origin == Vector3.INF:
+		return Vector3.INF
+	return sense.net_swing_origin / BugActor.GX_M
+
+
+## `mPlib_Check_DigScoop(&pos)`: the unit the shovel is digging / striking (GX), else INF.
+static func scoop_pos(sense: BugActor.Sense) -> Vector3:
+	if sense == null or sense.player_action_cell.x < 0:
+		return Vector3.INF
+	match sense.player_action:
+		BugActor.PlAct.DIG_SCOOP, BugActor.PlAct.REFLECT_SCOOP:
+			return unit_center(sense, sense.player_action_cell)
+	return Vector3.INF
+
+
+## `mPlib_Check_HitAxe(&pos)`: a tool swing that is not a scoop — the unit in front of
+## the player (GX), else INF.
+static func axe_hit_pos(sense: BugActor.Sense) -> Vector3:
+	if sense == null or not sense.player_swung_tool or not sense.has_player():
+		return Vector3.INF
+	if scoop_pos(sense) != Vector3.INF:
+		return Vector3.INF
+	var p: Vector3 = sense.player_position / BugActor.GX_M
+	return p + Vector3(sin(sense.player_yaw), 0.0, cos(sense.player_yaw)) * UNIT_GX
+
+
+## `mPlib_Check_VibUnit_OneFrame(&pos)`: an axe hit anywhere in the insect's acre.
+static func vib_unit(a: BugActor, sense: BugActor.Sense) -> bool:
+	var hit: Vector3 = axe_hit_pos(sense)
+	if hit == Vector3.INF:
+		return false
+	var c: Vector2 = acre_center(a, sense)
+	var ha: Vector2 = Vector2(floorf((hit.x - c.x) / ACRE_GX + 0.5), floorf((hit.z - c.y) / ACRE_GX + 0.5))
+	var pa: Vector2 = Vector2(floorf((a.pos.x - c.x) / ACRE_GX + 0.5), floorf((a.pos.z - c.y) / ACRE_GX + 0.5))
+	return ha == pa
+
+
+## `SQ(dx) + SQ(dz) < SQ(r)` against a tool position (INF never matches).
+static func near_xz(a: BugActor, p: Vector3, r: float) -> bool:
+	if p == Vector3.INF:
+		return false
+	return Vector2(p.x - a.pos.x, p.z - a.pos.z).length_squared() < r * r
+
+
+# ---- player-relative headings -------------------------------------------
+
+## `RANDOM_CENTER_F(range)` / `(fqrand() - 0.5f) * range`.
+static func rand_center(a: BugActor, range_rad: float) -> float:
+	return (a._rng.randf() - 0.5) * range_rad
+
+
+## `player->shape_info.rotation.y + RANDOM_CENTER_F(spread)`: the escape heading most
+## overlays take (a released / caught insect goes the way the player faces). False while
+## no player is known — the released init reruns once one is (`BugActor.frame`).
+static func heading_from_player_facing(a: BugActor, spread_rad: float) -> bool:
+	if not a.has_player_info:
+		return false
+	a.angle_y = wrapf(a.player_yaw + rand_center(a, spread_rad), -PI, PI)
+	return true
+
+
 # ---- shared math (libultra / m_lib analogs) --------------------------------
 
 ## `chase_f`: move `cur` toward `target` by at most `step` (>= 0).
@@ -111,6 +319,27 @@ static func chase_angle(cur: float, target: float, step: float) -> float:
 	if absf(diff) <= step:
 		return wrapf(target, -PI, PI)
 	return wrapf(cur + signf(diff) * step, -PI, PI)
+
+
+## `add_calc`: move `cur` by `fraction` of the gap, clamped to `max_step`, at least
+## `min_step`, never past `target` (not frame-scaled).
+static func add_calc(cur: float, target: float, fraction: float, max_step: float, min_step: float = 0.0) -> float:
+	if cur == target:
+		return cur
+	var step: float = fraction * (target - cur)
+	if step <= -min_step or min_step <= step:
+		step = clampf(step, -max_step, max_step)
+	else:
+		step = min_step if step > 0.0 else -min_step
+	var out: float = cur + step
+	if (step > 0.0 and out > target) or (step <= 0.0 and out < target):
+		out = target
+	return out
+
+
+## `chase_angle`'s return value: TRUE once `cur` has reached `target`.
+static func angle_reached(cur: float, target: float) -> bool:
+	return absf(wrapf(target - cur, -PI, PI)) < 0.5 * MLib.S16
 
 
 ## `search_position_angleY(from, to)` — yaw that points from `from` toward `to`.

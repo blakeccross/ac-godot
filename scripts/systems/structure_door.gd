@@ -51,6 +51,10 @@ const ABLE_EXIT_GX := Vector2(-64.0, 64.0)
 const SHOP_EXIT_GX := Vector2(-68.29, 68.29)
 const POLICE_EXIT_GX := Vector2(60.0, 60.0)
 const NPC_HOUSE_EXIT_GX := Vector2(0.0, 60.0)
+## `aTOU_rewrite_door`: leave 70 GX north of the tower, facing north (`exit_orientation` 4).
+const LIGHTHOUSE_EXIT_GX := Vector2(0.0, -70.0)
+## `mPlib_request_main_door_type1` at the tower −60 GX Z: the INTO_S1 walk-in stand.
+const LIGHTHOUSE_APPROACH_GX := Vector2(0.0, -60.0)
 ## `wait_door_start` walk stands (GX). Player: size 0 → 20·√2 ≈ 28.28 on the porch
 ## diagonal (`mSc_NE`/`NW` raw index → SE/SW demo vector). Villager: size 40 → +40 Z.
 const PLAYER_APPROACH_GX := Vector2(-28.28, 28.28)
@@ -238,6 +242,8 @@ static func approach_offset_gx(visual_id: StringName) -> Vector2:
 		return HostCollision.SHOP_DOOR_GX
 	if HostCollision.is_able_sisters(visual_id) or HostCollision.is_post_office(visual_id):
 		return HostCollision.ABLE_DOOR_GX
+	if HostCollision.is_lighthouse(visual_id):
+		return LIGHTHOUSE_APPROACH_GX
 	return Vector2.ZERO
 
 
@@ -267,6 +273,8 @@ static func exit_offset_gx(visual_id: StringName) -> Vector2:
 		return SHOP_EXIT_GX
 	if HostCollision.is_police(visual_id):
 		return POLICE_EXIT_GX
+	if HostCollision.is_lighthouse(visual_id):
+		return LIGHTHOUSE_EXIT_GX
 	if HostCollision.is_player_house(visual_id):
 		## `aMHS_rewrite_pl_out_data`: local SW; west plots rotate with mesh.
 		return Vector2(-HostCollision.PLAYER_DOOR_GX, HostCollision.PLAYER_DOOR_GX)

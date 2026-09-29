@@ -19,9 +19,12 @@ const LIFE_TIME_FRAMES := 216000
 const BG_RANGE_DEFAULT := 12.0
 ## `mCoBG_GroundCheck`: river / pond units put the surface 20 GX over the bed.
 const WATER_DEPTH_GX := 20.0
-## `aINS_MAX_STRESS_DIST` = 3 units ; `mFI_UNIT_BASE_SIZE_F` = 20 GX.
-const UNIT_GX := 20.0
+## `aINS_MAX_STRESS_DIST` = 3 units ; `mFI_UNIT_BASE_SIZE_F` = 40 GX (one field unit,
+## one `WorldGrid` cell).
+const UNIT_GX := 40.0
 const MAX_STRESS_DIST_GX := 3.0 * UNIT_GX
+## `mFI_BK_WORLDSIZE_X_F`: an acre (block) is 16 units.
+const ACRE_GX := 16.0 * UNIT_GX
 ## `aINS_PATIENCE_STEP`.
 const PATIENCE_STEP := 0.5
 const PATIENCE_MAX := 100.0
@@ -52,11 +55,17 @@ const TREE_FACE_YAW := PI
 
 class Sense:
 	var player_position: Vector3 = Vector3.INF
-	## Player planar move this 30 Hz frame, GX (`world - last_world_position`).
+	## Player planar speed as GX per 30 Hz decomp frame (`Player.insect_stress_move_gx`).
+	## Stress uses the per-60 Hz-tick move (`world - last_world_position`); this is only
+	## the fallback when no move is observed between ticks, halved to that unit.
 	var player_move_gx: float = 0.0
 	var player_dashing: bool = false
 	var player_yaw: float = 0.0
 	var player_swung_tool: bool = false
+	## `aINS_get_stress` also reads the NPC actor list: every villager on the field (metres)
+	## and how far it moved this 30 Hz frame (GX), index-aligned.
+	var npc_positions: PackedVector3Array = PackedVector3Array()
+	var npc_moves_gx: PackedFloat32Array = PackedFloat32Array()
 	## `mPlib_Check_StopNet`: true for the one frame the player's swing stops or pulls in,
 	## with `net_swing_origin` the net's position (metres).
 	var net_swing_origin: Vector3 = Vector3.INF
@@ -64,6 +73,11 @@ class Sense:
 	## Cell the player just acted on (shovel / axe / tree shake).
 	var player_action_cell: Vector2i = Vector2i(-1, -1)
 	var player_action: int = 0  ## aINS_PL_ACT_*
+	## `Get_WadeEndPos_proc` while the player is crossing into another acre, else INF.
+	var wade_end: Vector3 = Vector3.INF
+	## `Actor_draw_actor_no_culling_check`: Callable(world_m: Vector3) -> bool, true while
+	## the point is on screen. Unset → everything is off screen.
+	var on_screen: Callable = Callable()
 	## Optional BG probe. Callable(pos_gx: Vector3) -> Dictionary (walls, flowers, perches…).
 	var bg: Callable = Callable()
 	## Ground-only sampler for the per-frame `aINS_BGcheck` (`BugBg.make_ground`):
@@ -136,6 +150,23 @@ var bg_in_water: bool = false
 var bg_ground_y: float = 0.0
 var block: Vector2i = Vector2i(-1, -1)
 
+# ---- aINS_set_player_info (refreshed every frame before the program) ----
+var has_player_info: bool = false
+## `player_distance_xz` / `player_distance_y` (player − insect) / `player_angle_y` (insect → player).
+var player_distance_xz: float = 0.0
+var player_distance_y: float = 0.0
+var player_angle_y: float = 0.0
+## Player position (GX) and `shape_info.rotation.y` (facing) for the escape headings.
+var player_pos: Vector3 = Vector3.INF
+var player_yaw: float = 0.0
+## The play clock (`play->game_frame`) as of this frame, for inits that read it.
+var game_frame: int = 0
+## Cached `mFI_BkNum2WposXZ(block) + half an acre` of the spawn acre (see `BugProgram.acre_center`).
+var acre_center_gx: Vector2 = Vector2.INF
+## Released (`aINS_MAKE_EXIST`) inits read the player's facing; a net release is created
+## before any frame, so `frame()` reruns the program init once the player is known.
+var _init_waits_for_player: bool = false
+
 # ---- flags (insect_flags) --------------------------------------------
 var f_destruct: bool = false
 var f_no_catch: bool = false   ## bit_1 — do not register a net catch target
@@ -186,6 +217,7 @@ static func create(
 	a.bg_range = BG_RANGE_DEFAULT
 	a._prog = BugProgram.create(p_bug.program if p_bug != null else BugData.Program.CHOU)
 	a._prog.actor_init(a, p_released)
+	a._init_waits_for_player = p_released
 	return a
 
 
@@ -293,12 +325,20 @@ func frame(sense: Sense) -> void:
 	## `aINS_actor_move` body for one slot (already gated on exist + not-culled).
 	if finished:
 		return
+	if _init_waits_for_player and sense != null and sense.has_player():
+		## First frame of a released insect: rerun `*_actor_init` with the player's facing
+		## available, as the decomp does at construction. Nothing has moved yet.
+		_init_waits_for_player = false
+		_set_player_info(sense)
+		f_no_catch = false
+		f_bit2 = false
+		_prog.actor_init(self, true)
 	## move_proc (default `aINS_position_move`).
 	if move_proc.is_valid():
 		move_proc.call(self)
 	else:
 		_position_move()
-	## aINS_set_player_info handled implicitly (Sense carries player pos).
+	_set_player_info(sense)
 	_bg_check(sense)
 	_calc_patience(sense)
 	_calc_life_time()
@@ -312,6 +352,25 @@ func frame(sense: Sense) -> void:
 
 func xyz_move_last() -> void:
 	last_pos = pos
+
+
+## `aINS_set_player_info`: distances and angle to the player, plus the player's facing.
+func _set_player_info(sense: Sense) -> void:
+	if sense == null:
+		return
+	game_frame = sense.game_frame
+	if not sense.has_player():
+		has_player_info = false
+		player_distance_xz = 0.0
+		player_distance_y = 0.0
+		player_angle_y = 0.0
+		return
+	has_player_info = true
+	player_pos = sense.player_position / GX_M
+	player_yaw = sense.player_yaw
+	player_distance_xz = Vector2(player_pos.x - pos.x, player_pos.z - pos.z).length()
+	player_distance_y = player_pos.y - pos.y
+	player_angle_y = atan2(player_pos.x - pos.x, player_pos.z - pos.z)
 
 
 # ---- aINS_BGcheck ------------------------------------------------------
@@ -377,19 +436,29 @@ func stress_radius_gx() -> float:
 
 
 func _calc_stress(sense: Sense) -> float:
-	if not sense.has_player():
-		return 0.0
-	var player_gx: Vector3 = sense.player_position / GX_M
-	var d: float = pos.distance_to(player_gx)
+	## `aINS_get_stress`: the largest stress any moving player / NPC actor puts on it.
+	var stress: float = 0.0
+	if sense.has_player():
+		stress = _stress_from(sense.player_position / GX_M, _player_frame_move_gx(sense))
+	## `npc_moves_gx` is per 30 Hz frame; the decomp's frame move is per 60 Hz tick.
+	for i: int in mini(sense.npc_positions.size(), sense.npc_moves_gx.size()):
+		var move: float = sense.npc_moves_gx[i] / DecompTime.TICKS_PER_FRAME
+		stress = maxf(stress, _stress_from(sense.npc_positions[i] / GX_M, move))
+	return stress
+
+
+## `aINS_get_stress_sub` for one actor at `at_gx` that moved `move_gx` this frame.
+func _stress_from(at_gx: Vector3, move_gx: float) -> float:
+	var d: float = pos.distance_to(at_gx)
 	var min_dist: float = stress_radius_gx()
 	if d >= min_dist:
 		return 0.0
 	var tmp0: float = maxf(d - UNIT_GX, 0.0)
-	var idx: int = int((min_dist - UNIT_GX - tmp0) / 20.0)
+	## `(int)((min_dist - 40) - tmp0) / 20` — the table steps every 20 GX.
+	var idx: int = int(min_dist - UNIT_GX - tmp0) / 20
 	idx = clampi(idx, 0, STRESS_CALC_TABLE.size() - 1)
-	## `calc_stress = |player frame move| * calc_table[idx]`.
-	var move: float = _player_frame_move_gx(sense)
-	return move * STRESS_CALC_TABLE[idx]
+	## `calc_stress = |frame move| * calc_table[idx]`.
+	return move_gx * STRESS_CALC_TABLE[idx]
 
 
 var _last_player_gx: Vector3 = Vector3.INF
@@ -403,7 +472,7 @@ func _player_frame_move_gx(sense: Sense) -> float:
 			sense.player_position.z / GX_M - _last_player_gx.z
 		).length()
 	if observed <= 0.0 and sense.player_move_gx > 0.0:
-		observed = sense.player_move_gx
+		observed = sense.player_move_gx / DecompTime.TICKS_PER_FRAME
 	return observed
 
 

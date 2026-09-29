@@ -93,7 +93,8 @@ func test_cast_needs_water_and_arcs_before_it_floats() -> void:
 	## `aUKI_STATUS_CAST`: the bobber is still in the air, so nothing can bite yet.
 	assert_that(Fishing.state()).is_equal(Fishing.State.CAST)
 	assert_float(Fishing.cast_progress()).is_less(1.0)
-	assert_bool("You cast into the water." in _heard).is_true()
+	## `cast_rod` says nothing; the splash is the whole announcement.
+	assert_array(_heard).is_empty()
 	_tick(ctx, Fishing.CAST_SECONDS + STEP)
 	assert_that(Fishing.state()).is_equal(Fishing.State.FLOAT)
 	assert_float(Fishing.cast_progress()).is_equal_approx(1.0, 0.001)
@@ -203,13 +204,18 @@ func test_show_off_pose_waits_for_the_catch_report() -> void:
 func test_cast_is_refused_away_from_water() -> void:
 	var ctx: InteractionContext = _at_water()
 	(ctx.actor as _FacingActor).yaw = -PI * 0.5
-	assert_object(ToolUse.field_action(ctx)).is_null()
+	## `air_rod`: A still swings, but nothing goes in the water.
+	assert_str(String(ToolUse.field_action(ctx).id)).is_equal(String(Interaction.AIR_ROD))
 	assert_bool(Fishing.is_active()).is_false()
 
 
 func test_line_survives_turning_away_and_offers_the_hook_verb() -> void:
 	var ctx: InteractionContext = _at_water()
 	_cast(ctx)
+	## `cast_rod` only hands over to `relax_rod` once the bobber is floating, so there is
+	## nothing to press while it is still in the air.
+	assert_object(ToolUse.field_action(ctx)).is_null()
+	_settle(ctx)
 	(ctx.actor as _FacingActor).yaw = -PI * 0.5
 	var action: Interaction = ToolUse.field_action(ctx)
 	assert_that(action).is_not_null()
@@ -239,7 +245,7 @@ func test_hook_during_bite_lands_the_fish_that_bit() -> void:
 	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
 	assert_that(Fishing.state()).is_equal(Fishing.State.BITE)
 	var before: int = ctx.inventory.count_of_occupied()
-	var out: Fishing.Outcome = Fishing.hook(ctx, _school(ctx))
+	var out: Fishing.Outcome = _reel(ctx)
 	assert_bool(out.caught()).is_true()
 	## The catch is the shadow that bit, not a fresh roll off the catalog.
 	assert_that(out.fish).is_same(shadow.fish)
@@ -253,7 +259,7 @@ func test_hooking_with_nothing_on_the_line_yields_nothing() -> void:
 	_cast(ctx)
 	_settle(ctx)
 	var before: int = ctx.inventory.count_of_occupied()
-	var out: Fishing.Outcome = Fishing.hook(ctx, _school(ctx))
+	var out: Fishing.Outcome = _reel(ctx)
 	assert_bool(out.too_early).is_true()
 	assert_object(out.fish).is_null()
 	assert_bool(Fishing.is_active()).is_false()
@@ -267,11 +273,21 @@ func test_missing_the_bite_window_lets_the_fish_escape() -> void:
 	var shadow: FishShadow = _stock(ctx, &"crucian_carp")
 	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
 	var before: int = ctx.inventory.count_of_occupied()
+	_heard.clear()
 	## `aGYO_bite_time`: the fish holds on for its own species' window and then lets go.
 	_tick(ctx, FishSize.bite_seconds(shadow.fish.bite_time) + 0.1)
-	assert_bool(Fishing.is_active()).is_false()
-	assert_bool("It got away." in _heard).is_true()
+	## `aGTT_bite` → `aGTT_kage_make_actor`: the fish is gone in a puff, and `aUKI_bite` drops
+	## back to `aUKI_wait` — the line stays out for the next fish, and nothing is said.
+	assert_bool(shadow.finished).is_true()
+	assert_bool(Fishing.is_active()).is_true()
+	assert_that(Fishing.state()).is_equal(Fishing.State.FLOAT)
+	assert_int(_school(ctx).puffs.size()).is_equal(1)
+	assert_array(_heard).is_empty()
 	assert_int(ctx.inventory.count_of_occupied()).is_equal(before)
+	## And the next fish can have it.
+	var next: FishShadow = _stock(ctx, &"crucian_carp")
+	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
+	assert_bool(next.is_hooked()).is_true()
 
 
 func test_full_pockets_cannot_keep_the_catch() -> void:
@@ -281,7 +297,7 @@ func test_full_pockets_cannot_keep_the_catch() -> void:
 	_stock(ctx, &"crucian_carp")
 	_fill_pockets(ctx.inventory)
 	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
-	var out: Fishing.Outcome = Fishing.hook(ctx, _school(ctx))
+	var out: Fishing.Outcome = _reel(ctx)
 	assert_bool(out.pockets_full).is_true()
 	assert_bool(out.caught()).is_false()
 	assert_int(ctx.inventory.count_of(out.fish.id)).is_equal(0)
@@ -294,26 +310,23 @@ func test_landing_a_fish_queues_a_pull_then_a_lift() -> void:
 	_settle(ctx)
 	_stock(ctx, &"crucian_carp")
 	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
-	var out: Fishing.Outcome = Fishing.hook(ctx, _school(ctx))
+	var out: Fishing.Outcome = _reel(ctx)
 	assert_bool(out.caught()).is_true()
-	## `vib_rod`, `fly_rod`, `notice_rod`: pull the rod over, swing the fish up out of the
-	## water, then hold it up to the camera.
+	## `fly_rod`, `notice_rod`: swing the fish up out of the water, then hold it up to the
+	## camera. `vib_rod`'s pull is the fight itself, played while `is_reeling` holds.
 	var beats: Array[Fishing.ReelBeat] = Fishing.take_reel_beats()
-	assert_int(beats.size()).is_equal(3)
-	assert_str(String(beats[0].player_anim)).is_equal(String(Fishing.REEL_PULL))
-	assert_str(String(beats[0].tool_anim)).is_equal(String(Fishing.ROD_PULL))
-	assert_str(String(beats[1].player_anim)).is_equal(String(Fishing.REEL_LAND))
-	assert_str(String(beats[1].tool_anim)).is_equal(String(Fishing.ROD_LAND))
-	assert_str(String(beats[2].player_anim)).is_equal(String(Fishing.REEL_SHOW))
+	assert_int(beats.size()).is_equal(2)
+	assert_str(String(beats[0].player_anim)).is_equal(String(Fishing.REEL_LAND))
+	assert_str(String(beats[0].tool_anim)).is_equal(String(Fishing.ROD_LAND))
+	assert_str(String(beats[1].player_anim)).is_equal(String(Fishing.REEL_SHOW))
 	## Only the show-off beat turns and only it outlasts its own clip.
 	assert_bool(beats[0].face_camera).is_false()
-	assert_bool(beats[1].face_camera).is_false()
-	assert_bool(beats[2].face_camera).is_true()
-	assert_float(beats[2].hold).is_equal_approx(Fishing.SHOW_HOLD_SECONDS, 0.0001)
+	assert_bool(beats[1].face_camera).is_true()
+	assert_float(beats[1].hold).is_equal_approx(Fishing.SHOW_HOLD_SECONDS, 0.0001)
 	## The catch report rides on the show-off beat rather than being posted on the button
 	## frame, because the pose has to stay up for as long as the text does.
-	assert_int(beats[2].catch_msg).is_equal(FishCatalog.get_fish(&"crucian_carp").catch_msg)
-	assert_bool(_heard.has(FishCatalog.catch_text(beats[2].catch_msg))).is_false()
+	assert_int(beats[1].catch_msg).is_equal(FishCatalog.get_fish(&"crucian_carp").catch_msg)
+	assert_bool(_heard.has(FishCatalog.catch_text(beats[1].catch_msg))).is_false()
 	## Draining is one-shot, so the reel cannot replay on the next interaction.
 	assert_int(Fishing.take_reel_beats().size()).is_equal(0)
 
@@ -322,7 +335,7 @@ func test_empty_line_queues_a_single_empty_reel() -> void:
 	var ctx: InteractionContext = _at_water()
 	_cast(ctx)
 	_settle(ctx)
-	Fishing.hook(ctx, _school(ctx))
+	_reel(ctx)
 	var beats: Array[Fishing.ReelBeat] = Fishing.take_reel_beats()
 	assert_int(beats.size()).is_equal(1)
 	assert_str(String(beats[0].player_anim)).is_equal(String(Fishing.REEL_EMPTY))
@@ -336,16 +349,16 @@ func test_full_pockets_still_lift_the_fish_into_view() -> void:
 	_stock(ctx, &"crucian_carp")
 	_fill_pockets(ctx.inventory)
 	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
-	var out: Fishing.Outcome = Fishing.hook(ctx, _school(ctx))
+	var out: Fishing.Outcome = _reel(ctx)
 	assert_bool(out.pockets_full).is_true()
 	## You landed it, so you watch it come up and get held up before it is refused.
 	var beats: Array[Fishing.ReelBeat] = Fishing.take_reel_beats()
-	assert_int(beats.size()).is_equal(3)
-	assert_bool(beats[2].face_camera).is_true()
+	assert_int(beats.size()).is_equal(2)
+	assert_bool(beats[1].face_camera).is_true()
 	## The report is still the species line; `notice_rod` chains the pockets-full message
 	## onto it rather than replacing it.
-	assert_int(beats[2].catch_msg).is_equal(FishCatalog.get_fish(&"crucian_carp").catch_msg)
-	assert_bool(beats[2].pockets_full).is_true()
+	assert_int(beats[1].catch_msg).is_equal(FishCatalog.get_fish(&"crucian_carp").catch_msg)
+	assert_bool(beats[1].pockets_full).is_true()
 
 
 func test_dropping_the_line_queues_no_reel() -> void:
@@ -355,7 +368,7 @@ func test_dropping_the_line_queues_no_reel() -> void:
 	Fishing.cancel(_school(ctx))
 	assert_int(Fishing.take_reel_beats().size()).is_equal(0)
 	## Hooking with no session open is a no-op, not an empty reel.
-	Fishing.hook(ctx, _school(ctx))
+	assert_bool(Fishing.hook(ctx, _school(ctx))).is_false()
 	assert_int(Fishing.take_reel_beats().size()).is_equal(0)
 
 
@@ -669,7 +682,11 @@ func test_the_rare_fish_reports_run_to_two_pages() -> void:
 		assert_str(String(first.get("next", ""))).override_failure_message(
 			"%s's report is a single page" % id
 		).is_not_empty()
-	assert_str(FishCatalog.catch_text(FishCatalog.get_fish(&"arapaima").catch_msg)).contains("WOW")
+	## The arapaima's "WOW!!!" is drawn letter by letter at shrinking sizes, so the size
+	## codes (`{s:64}W{s:60}O…`) sit between the letters.
+	var wow: String = FishCatalog.catch_text(FishCatalog.get_fish(&"arapaima").catch_msg)
+	var codes := RegEx.create_from_string("\\{[^}]*\\}")
+	assert_str(codes.sub(wow, "", true)).contains("WOW")
 
 
 ## The show-off beat has to carry the fish, or the pose has nothing to hold up.
@@ -679,11 +696,10 @@ func test_the_show_off_beat_carries_the_fish() -> void:
 	out.fish = carp
 	out.catch_msg = carp.catch_msg
 	var beats: Array[Fishing.ReelBeat] = Fishing.reel_beats(out)
-	assert_int(beats.size()).is_equal(3)
-	assert_that(beats[2].fish).is_equal(carp)
-	## The earlier beats are the rod coming up out of the water; nothing is in hand yet.
+	assert_int(beats.size()).is_equal(2)
+	assert_that(beats[1].fish).is_equal(carp)
+	## The lift is the rod coming up out of the water; nothing is in hand yet.
 	assert_that(beats[0].fish).is_null()
-	assert_that(beats[1].fish).is_null()
 	## And an empty line holds nothing at all.
 	assert_that(Fishing.reel_beats(Fishing.Outcome.new())[0].fish).is_null()
 
@@ -789,14 +805,68 @@ func test_casting_on_top_of_a_fish_scares_it_off() -> void:
 	assert_that(shadow.action).is_equal(FishShadow.Action.ESCAPE)
 
 
-func test_walking_away_drops_the_line() -> void:
+func test_a_warped_caster_drops_the_line_without_a_word() -> void:
+	## The original never lets you walk off (`relax_rod` brakes); only a warp takes the line
+	## (`uki->command = 8`), and it says nothing. The guard sits past the 130 GX tow radius.
+	assert_float(Fishing.LEASH_METERS).is_greater(
+		Fishing.DRIFT_RADIUS_GX * FieldCatalog.GX_TO_METERS
+	)
 	var ctx: InteractionContext = _at_water()
 	_cast(ctx)
 	var actor := ctx.actor as _FacingActor
 	actor.global_position += Vector3(0.0, 0.0, -Fishing.LEASH_METERS - 2.0)
 	Fishing.tick(0.1, _school(ctx))
 	assert_bool(Fishing.is_active()).is_false()
-	assert_bool("Your line went slack." in _heard).is_true()
+	assert_array(_heard).is_empty()
+
+
+func test_the_line_holds_the_caster_and_a_goes_to_the_bobber() -> void:
+	var ctx: InteractionContext = _at_water()
+	assert_bool(Fishing.holds(ctx.actor)).is_false()
+	_cast(ctx)
+	assert_bool(Fishing.holds(ctx.actor)).is_true()
+	## `cast_rod` only brakes; `relax_rod` turns to the bobber as well.
+	assert_bool(Fishing.faces_bobber(ctx.actor)).is_false()
+	## While it flies, A does nothing — not even a villager in front of you.
+	var talk := InteractionQuery.new()
+	talk.host = Node3D.new()
+	talk.action = Interaction.of(&"talk", "Talk", 99)
+	assert_that(ToolUse.resolve(talk, ctx)).is_null()
+	_settle(ctx)
+	assert_bool(Fishing.faces_bobber(ctx.actor)).is_true()
+	var hit: InteractionQuery = ToolUse.resolve(talk, ctx)
+	assert_that(hit).is_not_null()
+	assert_that(hit.host).is_null()
+	assert_str(String(hit.action.id)).is_equal(String(Interaction.HOOK))
+	talk.host.free()
+
+
+func test_the_player_cannot_walk_off_and_turns_to_the_bobber() -> void:
+	## `Player_actor_Movement_Relax_rod`: `SetPlayerAngle_forUki` + braking — the stick does
+	## nothing, and the body eases round to face the float.
+	var player: Player = auto_free(load("res://scenes/actors/player.tscn").instantiate()) as Player
+	add_child(player)
+	await get_tree().process_frame
+	var ctx := InteractionContext.new()
+	ctx.actor = player
+	var start: Vector3 = player.global_position
+	## Bobber off to the player's right (+X); the player faces +Z.
+	player.apply_facing(0.0)
+	assert_bool(Fishing.cast(ctx, start + Vector3(5.0, 0.0, 0.0))).is_true()
+	Fishing.tick(Fishing.CAST_SECONDS + 0.1)
+	assert_bool(Fishing.faces_bobber(player)).is_true()
+	Input.action_press(&"move_back")
+	var yaws: Array[float] = []
+	for _i in 30:
+		await get_tree().physics_frame
+		yaws.append(player._motor.facing)
+	Input.action_release(&"move_back")
+	var moved: Vector3 = player.global_position - start
+	assert_float(Vector2(moved.x, moved.z).length()).is_less(0.01)
+	## First tick is clamped to 13.73°; it ends up looking at the bobber (yaw +90°).
+	assert_float(absf(yaws[0])).is_less_equal(Player.UKI_TURN_MAX * 2.0 + 0.0001)
+	assert_float(yaws[-1]).is_equal_approx(PI * 0.5, 0.02)
+	Fishing.reset()
 
 
 func test_authored_town_river_is_castable_near_spawn() -> void:
@@ -942,17 +1012,14 @@ func test_world_owns_a_school_and_an_effects_node_that_finds_it() -> void:
 	var effects: Node = world.get_node_or_null("Effects/FishShadows")
 	assert_that(effects).is_not_null()
 	assert_that(effects.call("school")).is_same(school)
-	## Driven by hand rather than by frames: a headless delta is not wall clock, so waiting
-	## on `_process` to cover `SPAWN_INTERVAL` would be a coin flip.
-	var sense := FishShadow.Sense.new()
+	## A shadow placed in the field's own river lives in the world's school. (Whether the
+	## spawner stocks this acre by itself is `test_fish_spawn_probe`'s business.)
 	var grid: WorldGrid = world.grid
-	sense.player_position = grid.cell_to_world(school.bodies[0].cells[0])
-	for _i: int in 60:
-		school.tick(0.1, sense)
-	assert_int(school.shadow_count()).is_equal(FishSchool.MAX_SHADOWS)
-	for shadow: FishShadow in school.shadows:
-		assert_that(shadow.fish).is_not_null()
-		assert_float(shadow.shadow_extent().y).is_greater(0.0)
+	var at: Vector3 = grid.cell_to_world(school.bodies[0].cells[0])
+	var shadow: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), school.bodies[0], at)
+	assert_that(shadow).is_not_null()
+	assert_bool(school.shadows.has(shadow)).is_true()
+	assert_float(shadow.shadow_extent().y).is_greater(0.0)
 
 
 func test_fishing_is_not_an_autoload() -> void:
@@ -961,6 +1028,250 @@ func test_fishing_is_not_an_autoload() -> void:
 	assert_bool("fish_catalog.gd" in src).is_false()
 	assert_bool("fish_school.gd" in src).is_false()
 	assert_bool("fish_shadow.gd" in src).is_false()
+
+
+func test_fish_only_see_the_bobber_once_it_settles() -> void:
+	## `cast_timer = 40` at the cast, counted down by `aUKI_wait` once the bobber floats.
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	var ticks: int = 0
+	while Fishing.state() == Fishing.State.CAST:
+		_tick(ctx, STEP)
+		ticks += 1
+	assert_int(ticks).is_equal(Fishing.CAST_TICKS)
+	var sense := FishShadow.Sense.new()
+	Fishing.fill_sense(sense)
+	## The landing tick splashes and nothing can see it yet.
+	assert_bool(sense.bobber_splashed).is_true()
+	assert_bool(sense.bobber_settled).is_false()
+	var settle: int = 0
+	while not sense.bobber_settled and settle < 100:
+		_tick(ctx, STEP)
+		settle += 1
+		sense = FishShadow.Sense.new()
+		Fishing.fill_sense(sense)
+		assert_bool(sense.bobber_splashed).is_false()
+	assert_int(settle).is_equal(Fishing.SETTLE_TICKS)
+
+
+func test_a_struck_fish_is_fought_for_its_size() -> void:
+	## `aUKI_set_proc_bite`: `timer[size] * 2` ticks of `vib_rod` before `fly_rod` lifts it.
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	var shadow: FishShadow = _stock(ctx, &"crucian_carp")
+	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
+	assert_bool(Fishing.hook(ctx, _school(ctx))).is_true()
+	assert_bool(Fishing.is_reeling()).is_true()
+	## Nothing more to press while the line is coming in.
+	assert_object(ToolUse.field_action(ctx)).is_null()
+	var ticks: int = 0
+	while Fishing.is_reeling() and ticks < 400:
+		## Held on the hook: the fish's own bite window no longer runs out.
+		assert_bool(shadow.is_hooked()).is_true()
+		_tick(ctx, STEP)
+		ticks += 1
+	assert_int(ticks).is_equal(Fishing.FIGHT_FRAMES[int(shadow.size)] * 2)
+	assert_bool(Fishing.last_outcome().caught()).is_true()
+
+
+func test_a_bite_pulls_the_bobber_under_and_a_strike_yanks_it_up_and_round() -> void:
+	## `aUKI_set_spd_relations_in_water`: 7.5 GX under while the fish has it, 7.5 GX over once
+	## struck, and `aUKI_bite` drags it round in a circle at `spd[size]`.
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	var shadow: FishShadow = _stock(ctx, &"crucian_carp")
+	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
+	var depth: float = Fishing.BITE_DEPTH_GX * FieldCatalog.GX_TO_METERS
+	var lowest: float = 0.0
+	for _i in 12:
+		_tick(ctx, STEP)
+		lowest = minf(lowest, Fishing.rise())
+	assert_float(lowest).is_less_equal(-depth)
+	assert_bool(Fishing.is_struck()).is_false()
+	assert_that(Fishing.state()).is_equal(Fishing.State.BITE)
+	assert_bool(Fishing.hook(ctx, _school(ctx))).is_true()
+	assert_bool(Fishing.is_struck()).is_true()
+	var before: Vector3 = Fishing.anchor()
+	var highest: float = -INF
+	var headings: Array[float] = []
+	for _i in 20:
+		_tick(ctx, STEP)
+		highest = maxf(highest, Fishing.rise())
+		headings.append(Fishing._heading)
+	assert_float(highest).is_greater_equal(depth)
+	## Round in a circle: the heading turns half of `angl[size]` every tick.
+	var turn: float = deg_to_rad(Fishing.STRUCK_TURN_DEG[int(shadow.size)]) * 0.5
+	assert_float(wrapf(headings[1] - headings[0], -PI, PI)).is_equal_approx(turn, 0.0001)
+	var step: float = Fishing.STRUCK_SPEED_GX[int(shadow.size)] * 0.5 * FieldCatalog.GX_TO_METERS
+	assert_float(Fishing.anchor().distance_to(before)).is_less_equal(step * 20.0 + 0.0001)
+	assert_float(Fishing.anchor().distance_to(before)).is_greater(0.0)
+
+
+func test_the_bobber_turns_blue_under_water_and_white_above() -> void:
+	## `aUKI_color`: past 3 GX under, (100, 100, 128); `aUKI_chase_color` steps 26 / 26 / 21.
+	var script: GDScript = load("res://scenes/world/bobber.gd")
+	var rgb := Vector3i(255, 255, 255)
+	rgb = script.chase_color(rgb, true)
+	assert_that(rgb).is_equal(Vector3i(229, 229, 234))
+	for _i in 10:
+		rgb = script.chase_color(rgb, true)
+	assert_that(rgb).is_equal(Vector3i(100, 100, 128))
+	for _i in 10:
+		rgb = script.chase_color(rgb, false)
+	assert_that(rgb).is_equal(Vector3i(255, 255, 255))
+
+
+func test_an_empty_press_reels_in_after_twelve_ticks() -> void:
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	assert_bool(Fishing.hook(ctx, _school(ctx))).is_true()
+	var start: Vector3 = Fishing.anchor()
+	var ticks: int = 0
+	while Fishing.is_reeling() and ticks < 100:
+		## `aUKI_clear_spd`: the bobber stops drifting while the line tightens.
+		assert_that(Fishing.anchor()).is_equal(start)
+		_tick(ctx, STEP)
+		ticks += 1
+	assert_int(ticks).is_equal(Fishing.EMPTY_REEL_TICKS)
+	assert_bool(Fishing.last_outcome().too_early).is_true()
+	## `collect_rod` says nothing either.
+	assert_bool("You reel in an empty hook." in _heard).is_false()
+
+
+func test_a_press_during_the_nibbles_still_lands_a_fish_that_commits() -> void:
+	## A sets `command = 6`, but the bobber only comes up after its 12-tick `frame_timer`. A
+	## fish that commits inside that is struck the moment it bites, and fought as usual.
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	var shadow: FishShadow = _stock(ctx, &"crucian_carp")
+	_drive_until(ctx, func() -> bool: return Fishing.nibble_count() > 0)
+	assert_that(shadow.action).is_equal(FishShadow.Action.TOUCH)
+	assert_bool(Fishing.hook(ctx, _school(ctx))).is_true()
+	## Force its next approach to commit, right on the bobber.
+	shadow.position = Fishing.anchor()
+	shadow._timer = 1.0
+	shadow._nibbles_left = 1
+	_tick(ctx, STEP * 2.0)
+	assert_that(Fishing.state()).is_equal(Fishing.State.BITE)
+	assert_bool(shadow.is_landed()).is_true()
+	var out: Fishing.Outcome = _reel_out(ctx)
+	assert_bool(out.caught()).is_true()
+	assert_that(out.fish).is_same(shadow.fish)
+
+
+func test_a_press_during_the_nibbles_frightens_the_fish_off() -> void:
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	var shadow: FishShadow = _stock(ctx, &"crucian_carp")
+	_drive_until(ctx, func() -> bool: return Fishing.nibble_count() > 0)
+	## Hold it off committing for the whole reel.
+	shadow._timer = 999.0
+	var out: Fishing.Outcome = _reel(ctx)
+	assert_bool(out.too_early).is_true()
+	## `aGTT_touch`: `uki->status == 6` → splash and puff.
+	_tick(ctx, STEP)
+	assert_bool(shadow.finished).is_true()
+	assert_int(_school(ctx).puffs.size()).is_equal(1)
+
+
+func test_the_bobber_drifts_and_is_towed_back_past_130_units() -> void:
+	## `aUKI_movement`: still water has zero flow, which `atans_table` reads as +Z, so a pond
+	## bobber drifts south; once 130 GX from the player it is pulled back toward them.
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	var landed: Vector3 = Fishing.anchor()
+	_tick(ctx, 1.0)
+	assert_float(Fishing.anchor().z).is_greater(landed.z)
+	assert_float(absf(Fishing.anchor().x - landed.x)).is_less(0.0001)
+	var actor := ctx.actor as Node3D
+	var furthest: float = 0.0
+	for _i: int in 600:
+		_tick(ctx, STEP)
+		var d: float = Vector2(Fishing.anchor().x - actor.global_position.x, Fishing.anchor().z - actor.global_position.z).length()
+		furthest = maxf(furthest, d)
+	var radius: float = Fishing.DRIFT_RADIUS_GX * FieldCatalog.GX_TO_METERS
+	assert_float(furthest).is_greater(radius - 0.05)
+	assert_float(furthest).is_less(radius + 0.05)
+	assert_bool(Fishing.is_active()).is_true()
+
+
+func test_the_bobber_stops_short_of_the_bank() -> void:
+	## `aUKI_BGcheck`: `range` eases out to 40 GX, and the bobber keeps that far off a wall.
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	var grid: WorldGrid = ctx.world.grid
+	## Stand the player right over the south bank so the tow never kicks in.
+	(ctx.actor as Node3D).global_position = Fishing.anchor() + Vector3(0.0, 0.0, 6.0)
+	_tick(ctx, 20.0)
+	var clearance: float = Fishing.BANK_RANGE_GX * FieldCatalog.GX_TO_METERS
+	var ahead: Vector3 = Fishing.anchor() + Vector3(0.0, 0.0, clearance)
+	assert_that(grid.terrain_at(grid.world_to_cell(ahead))).is_not_equal(WorldGrid.Terrain.WATER)
+	assert_that(grid.terrain_at(grid.world_to_cell(Fishing.anchor()))).is_equal(WorldGrid.Terrain.WATER)
+
+
+func test_only_the_last_missing_fish_gets_the_record_report() -> void:
+	## `mSM_CHECK_LAST_FISH_GET` is not "already caught" or "already donated": it is true
+	## only when every other fish is on the record and this one is not.
+	var carp: FishData = FishCatalog.get_fish(&"crucian_carp")
+	assert_bool(Fishing.completes_record(carp)).is_false()
+	for row: Dictionary in EncyclopediaCatalog.page(&"fish"):
+		if StringName(row["id"]) != carp.id:
+			Game.species_log.record(StringName(row["id"]))
+	assert_bool(Fishing.completes_record(carp)).is_true()
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	_stock(ctx, &"crucian_carp")
+	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
+	var out: Fishing.Outcome = _reel(ctx)
+	assert_bool(out.completes_record).is_true()
+	assert_int(out.catch_msg).is_equal(MuseumDisplay.FISH_ALREADY_MSG)
+	var beats: Array[Fishing.ReelBeat] = Fishing.take_reel_beats()
+	assert_bool(beats[1].completes_record).is_true()
+	## Caught once, it never completes the record again.
+	assert_bool(Fishing.completes_record(carp)).is_false()
+
+
+func test_a_species_already_caught_keeps_its_own_report() -> void:
+	var carp: FishData = FishCatalog.get_fish(&"crucian_carp")
+	Game.species_log.record(carp.id)
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	_stock(ctx, &"crucian_carp")
+	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
+	var out: Fishing.Outcome = _reel(ctx)
+	assert_int(out.catch_msg).is_equal(carp.catch_msg)
+	assert_bool(out.completes_record).is_false()
+
+
+func test_a_fish_thrown_back_from_full_pockets_still_goes_on_the_record() -> void:
+	## `mSM_COLLECT_FISH_SET` runs whether or not `Player_actor_putin_item` did.
+	var ctx: InteractionContext = _at_water()
+	_cast(ctx)
+	_settle(ctx)
+	_stock(ctx, &"crucian_carp")
+	_fill_pockets(ctx.inventory)
+	_drive_until(ctx, func() -> bool: return Fishing.state() == Fishing.State.BITE)
+	var out: Fishing.Outcome = _reel(ctx)
+	assert_bool(out.pockets_full).is_true()
+	assert_bool(Game.species_log.has(&"crucian_carp")).is_true()
+
+
+func test_rod_sounds_land_on_their_own_beats() -> void:
+	## `ROD_STROKE` is `cast_rod`'s (and `_small` is `air_rod`'s), and `NA_SE_10C` is the
+	## bobber leaving the water at `aUKI_set_proc_hit` — not the start of the fight.
+	assert_bool(PlayerSe.CLIP_MARKS.has(&"ply_1_sao_swing1")).is_false()
+	assert_bool(PlayerSe.CLIP_MARKS.has(Fishing.REEL_PULL)).is_false()
+	var src: String = FileAccess.get_file_as_string("res://scripts/systems/fishing.gd")
+	assert_str(src).contains("PlayerSe.line_out_of_water(")
 
 
 ## Pumps frames until `check` passes or the clock runs out. The reel beats wait on real-time
@@ -1047,6 +1358,23 @@ func _tick(ctx: InteractionContext, seconds: float) -> void:
 		school.tick(STEP, sense)
 		Fishing.tick(STEP, school)
 		elapsed += STEP
+
+
+## Press A and run the bobber until the line is in. Returns what came up.
+func _reel(ctx: InteractionContext) -> Fishing.Outcome:
+	assert_bool(Fishing.hook(ctx, _school(ctx))).is_true()
+	return _reel_out(ctx)
+
+
+func _reel_out(ctx: InteractionContext) -> Fishing.Outcome:
+	var ticks: int = 0
+	while Fishing.is_reeling() and ticks < 400:
+		_tick(ctx, STEP)
+		ticks += 1
+	assert_bool(Fishing.is_active()).is_false()
+	var out: Fishing.Outcome = Fishing.last_outcome()
+	assert_that(out).is_not_null()
+	return out
 
 
 func _drive_until(ctx: InteractionContext, done: Callable) -> void:

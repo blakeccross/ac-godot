@@ -15,8 +15,9 @@ const FURNITURE_SCENE := preload("res://scenes/world/furniture.tscn")
 ## adds them to the `"authored_fixture"` group.
 const AUTHORED_FIXTURE_NAMES: Array[StringName] = [
 	&"TomNook", &"NookClock", &"PostGirl", &"PostDesk", &"PostTerminal", &"Booker",
-	&"Blathers", &"MuseumClock", &"LightShaft", &"Redd", &"Mabel", &"Sable",
+	&"Blathers", &"MuseumClock", &"Redd", &"Mabel", &"Sable",
 	&"NeedleworkFurnitureCol", &"SewingMachine", &"SewingCloth", &"NeedleworkClock",
+	&"NookFurnitureCol", &"PoliceFurnitureCol", &"PoliceClock",
 ]
 
 
@@ -48,6 +49,9 @@ static func build(root: Node3D, interior: IndoorSession) -> void:
 	InteriorDoorBuilder.add_linked_doors(doors_root, grid, room)
 	InteriorDoorBuilder.add_stair_doors(doors_root, grid, room)
 	add_player_steps(terrain, grid, room)
+	## Villager homes and the player's floors (`ROOM_SUNSHINE` in their scene actor lists).
+	var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+	WindowSunshine.add(terrain, grid, room, house)
 
 
 ## `aMI_DrawMyStep`: `obj_myhome_step_{down,up}` at the size anchor. Their Y is authored against

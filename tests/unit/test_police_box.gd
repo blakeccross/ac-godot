@@ -182,6 +182,32 @@ func test_renew_tops_up_once_per_renewal() -> void:
 	assert_int(Game.police.keep_item_sum() - before).is_less_equal(1)
 
 
+func test_renew_waits_while_in_the_police_box() -> void:
+	## `mAGrw_RenewalFgItem_ovl` runs on field make: a claim's gap is packed on exit
+	## before the new item lands, so no kept item is overwritten mid-visit.
+	Game.police.clear()
+	for id: StringName in [&"net", &"axe", &"shovel"]:
+		Game.police.keep_item(id)
+	assert_int(Game.police.claim_result(0, Inventory.new())).is_equal(PoliceBook.Claim.OK)
+	Game.current_room_id = &"police_box"
+	Game._on_field_renewed(1)
+	assert_array(Game.police.keep_items().slice(0, 3)).is_equal([&"", &"axe", &"shovel"])
+	assert_bool(Game._police_topup_pending).is_true()
+	Game.exit_interior()
+	assert_bool(Game._police_topup_pending).is_false()
+	assert_that(Game.police.item_at(0)).is_equal(&"axe")
+	assert_that(Game.police.item_at(1)).is_equal(&"shovel")
+
+
+func test_start_box_shirts_are_different() -> void:
+	## `mSP_SelectRandomItem_New` rejects duplicates.
+	for seed: int in 40:
+		var book := PoliceBook.new()
+		book.rng.seed = seed
+		book.init_town()
+		assert_that(book.item_at(1)).is_not_equal(book.item_at(2))
+
+
 func test_legacy_save_without_police_inits() -> void:
 	var snap: Dictionary = Game.to_save()
 	snap.erase("police")
@@ -237,6 +263,41 @@ func test_presenter_places_one_card_per_kept_item() -> void:
 	)
 	assert_float(card.position.x).is_equal_approx(want.x, 0.001)
 	assert_float(card.position.z).is_equal_approx(want.z, 0.001)
+
+
+func test_blocked_units_match_the_police_indoor_bg() -> void:
+	var blocked: Dictionary = PoliceDisplay.blocked_units()
+	if blocked.is_empty():
+		return  ## `police_indoor.col.json` not generated (no disc)
+	## Every lost-and-found unit sits on a shelf 20 GX above the floor.
+	for cell: Vector2i in PoliceDisplay.lost_found_cells():
+		assert_float(float(blocked.get(cell, 0.0))).is_equal(20.0)
+	## Walkways between the shelf rows and Booker's stand stay open.
+	assert_bool(blocked.has(Vector2i(4, 2))).is_false()
+	assert_bool(blocked.has(PoliceDisplay.BOOKER_STAND_UT)).is_false()
+	## Only the two-unit entrance strip is open south of the room (rows 9–10).
+	for z: int in [9, 10]:
+		for x: int in range(1, 9):
+			assert_bool(blocked.has(Vector2i(x, z))).is_equal(x != 4 and x != 5)
+
+
+func test_presenter_adds_shelf_hulls_and_clock() -> void:
+	if PoliceDisplay.blocked_units().is_empty():
+		return
+	var room: Room = InteriorCatalog.room_template(&"police_box")
+	var session := IndoorSession.new()
+	session.bind(room)
+	var root := Node3D.new()
+	auto_free(root)
+	add_child(root)
+	PolicePresenter.new().present(root, session)
+	var col: StaticBody3D = root.get_node_or_null("PoliceFurnitureCol") as StaticBody3D
+	assert_object(col).is_not_null()
+	## Back shelf row: one 8-unit hull, 1 m tall.
+	var back: BoxShape3D = (col.get_child(0) as CollisionShape3D).shape as BoxShape3D
+	assert_vector(back.size).is_equal(Vector3(16.0, 1.0, 2.0))
+	if not FieldCatalog.mesh_paths(PoliceDisplay.CLOCK_VISUAL).is_empty():
+		assert_object(root.get_node_or_null("PoliceClock")).is_not_null()
 
 
 # --- Booker (`ac_npc_police2`) ----------------------------------------------------------
@@ -419,6 +480,17 @@ func test_copper_talk_graph() -> void:
 			assert_bool(runner.waiting_choice).is_true()
 			runner.choose(1)
 			assert_str(runner.line).contains(str(Game.police.keep_item_sum()))
+
+
+func test_copper_is_away_on_aerobics_mornings() -> void:
+	## `aPOL_actor_ct` deletes him while MORNING_AEROBICS / SPORTS_FAIR_AEROBICS is on.
+	var copper_script: GDScript = load("res://scenes/world/copper.gd")
+	assert_bool(copper_script.away_for_event()).is_false()
+	Game.events.force(&"morning_aerobics")
+	Game.events._refresh_active(6)
+	assert_bool(copper_script.away_for_event()).is_true()
+	Game.events.unforce(&"morning_aerobics")
+	Game.events._refresh_active(6)
 
 
 func test_copper_stands_two_units_east_of_the_station() -> void:

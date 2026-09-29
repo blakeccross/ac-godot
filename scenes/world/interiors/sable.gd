@@ -110,8 +110,10 @@ func _advance_story() -> void:
 			mabel.call("chime_in", self)
 		TalkCamera.begin(mabel, self, get_tree(), false)
 	else:
+		## Every talk with Sable bumps Mabel to `aNNW_THINK_AINOTE`: she turns to watch
+		## her sister until the story ends, one-part stories included.
 		if mabel != null and mabel.has_method("chime_in"):
-			mabel.call("chime_in", self if now > 0 else null)
+			mabel.call("chime_in", self)
 		if now == 2 and _story_row == NeedleworkTalk.STORY_TURN_TO_PLAYER and player != null:
 			_face_toward(player.global_position)
 		if player != null:

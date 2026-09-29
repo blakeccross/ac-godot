@@ -1,0 +1,16 @@
+{
+  "id": "nook_lottery_shelf",
+  "speaker_id": "tom_nook",
+  "start": "l0",
+  "nodes": {
+    "l0": {
+      "type": "line",
+      "text": "Those are today's raffle\nprizes, I'm afraid. Nothing is\nfor sale on raffle day.",
+      "next": "l1"
+    },
+    "l1": {
+      "type": "line",
+      "text": "Come back tomorrow if\nyou'd like to shop, yes?"
+    }
+  }
+}

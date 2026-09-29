@@ -36,6 +36,20 @@ const MAIL_PILE_X_GX: Array[float] = [80.0, 120.0, 160.0, 200.0, 240.0]
 const DESK_CENTER_GX := Vector3(160.0, 0.0, 140.0)
 const DESK_HALF_GX := Vector3(100.0, 45.0, 22.0)
 
+## `POST_OFFICE_actor_data` window beams (`ef_room_sunshine_posthouse`): arg 2 (west) and
+## arg 3 (east). The police box effect with its own model, a 0.05 scale and no camera cull.
+const SUNSHINE_L_GX := Vector3(40.0, 0.0, 160.0)
+const SUNSHINE_R_GX := Vector3(280.0, 0.0, 160.0)
+const SUNSHINE_VISUAL := &"obj_yubinkyoku_shine"
+
+
+## `Ef_Room_Sunshine_Posthouse_actor_ct`: the police anchor (net −2 / 0 X) without the
+## police box's −40 Y: the beam stands `1 + BgY` on the floor.
+static func sunshine_anchor_gx(actor_gx: Vector3, left: bool) -> Vector3:
+	var x: float = actor_gx.x - 1.0 + (-1.0 if left else 1.0)
+	return Vector3(x, actor_gx.y + 1.0, actor_gx.z)
+
+
 ## `POST_OFFICE_actor_data` PTerminal GX {60,0,240}; talk probe near {60,40,220}.
 const PTERMINAL_GX := Vector3(60.0, 0.0, 240.0)
 const PTERMINAL_HALF_GX := Vector3(28.0, 50.0, 28.0)

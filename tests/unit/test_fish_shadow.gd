@@ -57,6 +57,12 @@ func test_bigger_fish_cast_bigger_shadows_and_swim_faster() -> void:
 	var xxs: Vector2 = FishSize.shadow_size(FishData.SizeClass.XXS)
 	var xxl: Vector2 = FishSize.shadow_size(FishData.SizeClass.XXL)
 	assert_float(xxl.y / xxs.y).is_equal_approx(4.0, 0.01)
+	## The quad is ±1000 GX at `scale * 0.02`: an S shadow's quad is 20 GX long, 8 wide,
+	## and the fish inside it 7/8 of that (17.5 GX).
+	var s: Vector2 = FishSize.shadow_size(FishData.SizeClass.S)
+	assert_float(s.y).is_equal_approx(20.0 * FishSize.GX, 0.0001)
+	assert_float(s.x).is_equal_approx(8.0 * FishSize.GX, 0.0001)
+	assert_float(s.y * FishSize.SILHOUETTE_FILL).is_equal_approx(17.5 * FishSize.GX, 0.0001)
 
 
 func test_search_cone_and_bite_window_come_from_the_species_row() -> void:
@@ -85,6 +91,15 @@ func test_swim_animation_holds_each_of_twenty_frames_for_two() -> void:
 	assert_that(FishSize.tile_pair(0)).is_equal(Vector2i(0, 3))
 	assert_that(FishSize.tile_pair(5)).is_equal(Vector2i(2, 3))
 	assert_that(FishSize.tile_pair(19)).is_equal(Vector2i(0, 1))
+
+
+func test_shadow_alpha_is_120_and_the_whale_50() -> void:
+	## `aGYO_setupActor`: prim alpha 120 (whale 50), multiplied into the tile lerp.
+	assert_float(FishSize.shadow_alpha(FishData.SizeClass.M)).is_equal_approx(120.0 / 255.0, 0.0001)
+	assert_float(FishSize.shadow_alpha(FishData.SizeClass.XXL)).is_equal_approx(120.0 / 255.0, 0.0001)
+	assert_float(FishSize.shadow_alpha(FishData.SizeClass.WHALE)).is_equal_approx(50.0 / 255.0, 0.0001)
+	## The puff starts darker than the fish it came from: (100 * 0.5 - 10) * 6 = 240.
+	assert_float(FishSize.puff_alpha(0.0)).is_greater(FishSize.shadow_alpha(FishData.SizeClass.M))
 
 
 func test_whale_shadow_never_wiggles() -> void:
@@ -271,24 +286,19 @@ func test_a_dashing_player_scares_a_fish_into_a_puff() -> void:
 	assert_int(school.puffs.size()).is_equal(0)
 
 
-func test_school_stocks_water_up_to_two_shadows() -> void:
+func test_school_stocks_the_acre_the_player_enters_once() -> void:
 	var school := FishSchool.new()
 	school.configure(_grid, 0.0)
 	school.seed_rng(11)
 	assert_bool(school.has_water()).is_true()
 	var sense := FishShadow.Sense.new()
 	sense.player_position = _at(Vector2i(8, 8))
-	## `aGYO_MAX_GYOEI`: two at once and no more, however long it runs.
+	## `aSOG_gyoei_set` runs on acre entry: one attempt, one fish at most per acre.
 	for _i: int in 400:
 		school.tick(STEP * 4.0, sense)
-		assert_int(school.shadow_count()).is_less_equal(FishSchool.MAX_SHADOWS)
-	assert_int(school.shadow_count()).is_equal(FishSchool.MAX_SHADOWS)
+		assert_int(school.shadow_count()).is_less_equal(1)
 	for shadow: FishShadow in school.shadows:
 		assert_that(shadow.fish).is_not_null()
-		## Nothing spawns that the pond is too small to hold.
-		assert_int(int(shadow.fish.size_class)).is_less_equal(
-			int(WaterBodies.size_ceiling(shadow.body))
-		)
 		## Shadows ride under the surface, not on it.
 		assert_float(shadow.position.y).is_equal_approx(-FishSize.depth(), 0.001)
 
@@ -304,6 +314,153 @@ func test_a_school_with_no_water_never_spawns() -> void:
 	for _i: int in 100:
 		school.tick(STEP * 4.0, sense)
 	assert_int(school.shadow_count()).is_equal(0)
+
+
+func test_shadows_move_half_their_speed_a_tick() -> void:
+	## `Actor_position_move` adds `0.5 * speed` a tick: `aGTT_speed` is GX per 30 fps frame.
+	var at: Vector3 = _at(Vector2i(8, 8))
+	var shadow: FishShadow = _shadow(FishData.SizeClass.M, 4, 1, at)
+	var sense: FishShadow.Sense = _bobber_sense(at + Vector3(0.0, 0.0, 1.5))
+	shadow._set_angle(0.0)
+	shadow._enter(FishShadow.Action.NEAR)
+	shadow.step(sense)
+	var moved: float = shadow.position.distance_to(at)
+	assert_float(moved).is_equal_approx(FishSize.SPEED_GX[FishData.SizeClass.M] * 0.5 * FishSize.GX, 0.0001)
+
+
+func test_a_pond_fish_holds_station_facing_north_and_a_river_fish_upstream() -> void:
+	## `aGTT_Get_flow_angle_rv`: still water has no flow and `atans_table(0, 0)` is +Z, so the
+	## fish faces -Z. `RIVER_N` flows toward -Z, so its fish face +Z.
+	var still: FishShadow = _shadow(FishData.SizeClass.M, 2, 1, _at(Vector2i(8, 8)))
+	assert_float(absf(still.yaw)).is_equal_approx(PI, 0.0001)
+	var river_flow: Vector2 = FishSchool.flow_for_attr(14)
+	assert_that(river_flow).is_equal(Vector2(0.0, -0.5))
+	var fish := FishData.new()
+	fish.size_class = FishData.SizeClass.M
+	var shadow := FishShadow.new()
+	shadow.fish = fish
+	shadow.flow_lookup = func(_p: Vector3) -> Vector2: return river_flow
+	assert_float(shadow._upstream_yaw()).is_equal_approx(0.0, 0.0001)
+	## `aGTT_flow_direction`: 0x400 a tick while more than a quarter turn off, then 0x100.
+	shadow._set_angle(PI)
+	shadow._rng = RandomNumberGenerator.new()
+	shadow._enter(FishShadow.Action.WAIT)
+	shadow.step(FishShadow.Sense.new())
+	assert_float(absf(wrapf(shadow.yaw - PI, -PI, PI))).is_equal_approx(FishShadow.FLOW_TURN_FAST, 0.0001)
+
+
+func test_an_escape_runs_a_hundred_ticks_then_holds_station() -> void:
+	var shadow: FishShadow = _shadow(FishData.SizeClass.M, 0, 1, _at(Vector2i(8, 6)))
+	shadow._set_angle(0.0)
+	shadow._enter(FishShadow.Action.ESCAPE)
+	var sense := FishShadow.Sense.new()
+	for _i: int in 99:
+		shadow.step(sense)
+	assert_that(shadow.action).is_equal(FishShadow.Action.ESCAPE)
+	## Eased off by 0.02 a tick from 2.0.
+	assert_float(shadow.speed).is_equal_approx(FishSize.ESCAPE_SPEED_GX - 0.02 * 99.0, 0.0001)
+	shadow.step(sense)
+	assert_that(shadow.action).is_equal(FishShadow.Action.WAIT)
+
+
+func test_a_scared_fish_leaves_a_puff_darting_south() -> void:
+	## `aGTT_kage_make_actor` makes the `GYO_KAGE` with a zero rotation, so the puff always
+	## heads +Z at 2.0 GX a frame whichever way the fish was going.
+	var school := FishSchool.new()
+	school.configure(_grid, 0.0)
+	school.auto_spawn = false
+	var shadow: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), _pond, _at(Vector2i(8, 8)))
+	var sense := FishShadow.Sense.new()
+	sense.player_position = _at(Vector2i(10, 8))
+	sense.player_dashing = true
+	school.tick(STEP, sense)
+	assert_int(school.puffs.size()).is_equal(1)
+	var puff: FishSchool.Puff = school.puffs[0]
+	var start: Vector3 = puff.position
+	sense.player_dashing = false
+	school.tick(STEP * 10.0, sense)
+	assert_float(puff.position.z - start.z).is_greater(0.0)
+	assert_float(absf(puff.position.x - start.x)).is_less(0.0001)
+	assert_bool(shadow.finished).is_true()
+
+
+func test_speeds_convert_at_half_a_speed_per_tick() -> void:
+	## `Actor_position_move`: `0.5 * speed` GX a 60 Hz tick is `speed` GX a 30 fps frame.
+	assert_float(FishSize.gx_per_frame_to_mps(1.0)).is_equal_approx(
+		FieldCatalog.GX_TO_METERS * 30.0, 0.0001
+	)
+	assert_float(FishSize.escape_speed()).is_equal_approx(2.0 * 0.05 * 30.0, 0.0001)
+
+
+func test_a_puff_turns_off_the_bank_and_keeps_slowing() -> void:
+	## `aGYO_KAGE_actor_move`: blocked by a bank it turns a quarter off it rather than going
+	## through, and `chase_f(speed, 0, 0.02)` still runs that tick.
+	var school := FishSchool.new()
+	school.configure(_grid, 0.0)
+	school.auto_spawn = false
+	var shadow: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), _pond, _at(Vector2i(8, 11)))
+	var sense := FishShadow.Sense.new()
+	sense.player_position = _at(Vector2i(10, 11))
+	sense.player_dashing = true
+	school.tick(STEP, sense)
+	assert_int(school.puffs.size()).is_equal(1)
+	var puff: FishSchool.Puff = school.puffs[0]
+	sense.player_dashing = false
+	var turned: bool = false
+	for _i in 100:
+		var speed: float = puff.speed
+		school.tick(STEP, sense)
+		if school.puffs.is_empty():
+			break
+		assert_bool(_pond.contains(_grid.world_to_cell(puff.position))).is_true()
+		assert_float(puff.speed).is_less(speed)
+		if not is_zero_approx(puff.yaw):
+			turned = true
+	assert_bool(turned).is_true()
+
+
+func test_a_claimed_bobber_is_invisible_to_the_other_shadow() -> void:
+	## `bite_check`: once one shadow is closing on the bobber (`gyo_flags & 2`), every
+	## shadow's `gyo_flags & 1` is up and `aGTT_search_Uki` looks straight through it.
+	var school := FishSchool.new()
+	school.configure(_grid, 0.0)
+	school.auto_spawn = false
+	var bobber: Vector3 = _at(Vector2i(8, 8))
+	var first: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), _pond, bobber + Vector3(1.0, 0.0, 0.0))
+	var second: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), _pond, bobber + Vector3(-1.0, 0.0, 0.0))
+	first._enter(FishShadow.Action.NEAR)
+	## A 180° cone on the second, so only the claim can stop it seeing the bobber.
+	second.fish = second.fish.duplicate()
+	second.fish.search_area = 4
+	var sense: FishShadow.Sense = _bobber_sense(bobber)
+	sense.accepts_bite = false
+	for _i: int in 20:
+		school.tick(STEP, sense)
+		assert_bool(second.is_engaged()).is_false()
+	assert_bool(first.is_engaged()).is_true()
+
+
+func test_a_shadow_far_off_in_another_acre_is_culled() -> void:
+	## `aGYO_cull_check`: past 600 GX and outside the player's acre, the shadow is simply
+	## destroyed (no puff), which is what lets the school restock near the player.
+	var grid := WorldGrid.new()
+	grid.configure(64, 16, 2.0, Vector3.ZERO)
+	for x: int in range(2, 6):
+		for z: int in range(4, 8):
+			grid.set_terrain(Vector2i(x, z), WorldGrid.Terrain.WATER)
+	var school := FishSchool.new()
+	school.configure(grid, 0.0)
+	school.auto_spawn = false
+	var shadow: FishShadow = school.spawn(FishCatalog.get_fish(&"crucian_carp"), school.bodies[0], grid.cell_to_world(Vector2i(3, 5)))
+	var sense := FishShadow.Sense.new()
+	sense.player_position = grid.cell_to_world(Vector2i(8, 5))
+	school.tick(STEP, sense)
+	assert_int(school.shadow_count()).is_equal(1)
+	sense.player_position = grid.cell_to_world(Vector2i(60, 5))
+	school.tick(STEP, sense)
+	assert_int(school.shadow_count()).is_equal(0)
+	assert_bool(school.shadows.has(shadow)).is_false()
+	assert_int(school.puffs.size()).is_equal(0)
 
 
 func _at(cell: Vector2i) -> Vector3:

@@ -138,16 +138,13 @@ func test_shop_id_from_room_kind() -> void:
 	assert_that(nook.floor_id).is_equal(ShopDisplay.nook_floor_id(0))
 
 
-func test_tom_nook_offers_talk_buy_sell() -> void:
+func test_tom_nook_offers_talk_only() -> void:
+	## Sell / order go through his menu; goods are bought at the shelf.
 	Game.current_room_id = &"shop0"
 	var nook: Node = auto_free(load("res://scenes/world/interiors/tom_nook.tscn").instantiate())
 	var actions: Array[Interaction] = nook.get_interactions(InteractionContext.new())
-	var ids: PackedStringArray = PackedStringArray()
-	for action: Interaction in actions:
-		ids.append(String(action.id))
-	assert_bool(ids.has(String(Interaction.TALK))).is_true()
-	assert_bool(ids.has(String(Interaction.BUY))).is_true()
-	assert_bool(ids.has(String(Interaction.SELL))).is_true()
+	assert_int(actions.size()).is_equal(1)
+	assert_str(String(actions[0].id)).is_equal(String(Interaction.TALK))
 	Game.current_room_id = &""
 
 
@@ -168,6 +165,31 @@ func test_cranny_stock_maps_to_rsv_cells() -> void:
 			saw_floor = true
 	assert_bool(saw_shelf).is_true()
 	assert_bool(saw_floor).is_true()
+
+
+func test_cranny_sapling_uses_its_own_shelf_cell() -> void:
+	## `FG_TYPE_ROM_SHOP1`: saplings sit on `RSV_SHOP_HALLOWEEN` (6,4), not a seed-bag cell.
+	var goods: Array[StringName] = [&"sapling", &"white_pansy_bag", &"purple_pansy_bag"]
+	var cells: Array[Vector2i] = ShopDisplay.stock_cells_for_goods(goods)
+	assert_that(cells[0]).is_equal(Vector2i(6, 4))
+	assert_that(cells[1]).is_equal(Vector2i(4, 4))
+	assert_that(cells[2]).is_equal(Vector2i(5, 4))
+	assert_int(ShopDisplay.CRANNY_SLOTS.size()).is_equal(11)
+
+
+func test_cranny_blocks_room01_walls_and_the_goods_tables() -> void:
+	var blocked: Dictionary = ShopDisplay.cranny_blocked_units()
+	for slot: Dictionary in ShopDisplay.CRANNY_SLOTS:
+		var cell: Vector2i = slot["cell"] as Vector2i
+		assert_bool(blocked.has(cell)).is_equal(float(slot["y_gx"]) > 0.0)
+	if InteriorUnitCollision.bg_counts(ShopDisplay.CRANNY_BG_ID).is_empty():
+		return  ## `room01.col.json` not generated (no disc)
+	## South wall either side of the door, the east column; the door and Nook stay open.
+	for x: int in range(1, 8):
+		assert_bool(blocked.has(Vector2i(x, 7))).is_equal(x != 3 and x != 4)
+	for z: int in range(1, 8):
+		assert_bool(blocked.has(Vector2i(7, z))).is_true()
+	assert_bool(blocked.has(ShopDisplay.NOOK_STAND_UT[0])).is_false()
 
 
 func test_tom_nook_model_follows_shop_level() -> void:
@@ -297,3 +319,132 @@ func test_counter_offers_shop_verb() -> void:
 	for entry: Interaction in actions:
 		ids.append(String(entry.id))
 	assert_bool(ids.has(String(Interaction.SELL))).is_true()
+
+
+func _nook_at(sales: int) -> void:
+	Game.shops.apply_snapshot(
+		{"shop0": {"id": "shop0", "goods": [], "sales": sales, "renew": -1, "visitor": true}}
+	)
+
+
+func _present_stock(room_id: StringName) -> Node3D:
+	var session := IndoorSession.new()
+	session.bind(InteriorCatalog.room_template(room_id))
+	var root := Node3D.new()
+	auto_free(root)
+	add_child(root)
+	ShopPresenter.new().present(root, session)
+	return root
+
+
+func _stock_positions(root: Node3D) -> Dictionary:
+	var out: Dictionary = {}
+	for child: Node in root.get_children():
+		if child.name.begins_with("ShopStock_"):
+			out[String(child.name)] = (child as Node3D).position
+	return out
+
+
+func test_goods_keep_their_slot_after_a_purchase() -> void:
+	## `mSP_ShopSaleReport`: the sold slot turns `RSV_SHOP_SOLD_*`; nothing else moves.
+	Game.inventory.set_wallet(99999)
+	Game.shops.ensure_today(ShopBook.NOOK_ID)
+	var before: Dictionary = _stock_positions(_present_stock(&"shop0"))
+	var lineup: Array[StringName] = Game.shops.lineup(ShopBook.NOOK_ID)
+	assert_int(before.size()).is_equal(lineup.size())
+	assert_str(Game.shops.buy(ShopBook.NOOK_ID, lineup[0], Game.inventory)).contains("Bought")
+	assert_that(Game.shops.lineup(ShopBook.NOOK_ID)).is_equal(lineup)
+	assert_that(Game.shops.sold_slots(ShopBook.NOOK_ID)).is_equal([0] as Array[int])
+	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(lineup.size() - 1)
+	var after: Dictionary = _stock_positions(_present_stock(&"shop0"))
+	assert_bool(after.has("ShopStock_0")).is_false()
+	assert_int(after.size()).is_equal(before.size() - 1)
+	for key: String in after:
+		assert_vector(after[key]).is_equal(before[key])
+	## Save/load keeps the empty slot.
+	var snap: Dictionary = Game.to_save()
+	Game.reset_session()
+	Game.apply_snapshot(snap)
+	assert_that(Game.shops.sold_slots(ShopBook.NOOK_ID)).is_equal([0] as Array[int])
+	assert_that(_stock_positions(_present_stock(&"shop0"))).is_equal(after)
+	## 06:00 restock clears the sold marks.
+	Clock.advance_minutes(18 * 60)
+	assert_int(Game.shops.sold_slots(ShopBook.NOOK_ID).size()).is_equal(0)
+
+
+func test_buying_a_duplicate_good_marks_one_slot() -> void:
+	Game.inventory.set_wallet(99999)
+	Game.shops.apply_snapshot({"shop0": {"goods": ["shovel", "shovel"], "renew": Clock.renew_index()}})
+	Game.shops.buy(ShopBook.NOOK_ID, &"shovel", Game.inventory)
+	assert_that(Game.shops.sold_slots(ShopBook.NOOK_ID)).is_equal([0] as Array[int])
+	Game.shops.buy(ShopBook.NOOK_ID, &"shovel", Game.inventory)
+	assert_that(Game.shops.sold_slots(ShopBook.NOOK_ID)).is_equal([0, 1] as Array[int])
+	var again: Dictionary = Game.shops.buy_result(ShopBook.NOOK_ID, &"shovel", Game.inventory)
+	assert_int(int(again["code"])).is_equal(ShopBook.Buy.SOLD_OUT)
+
+
+func test_reserve_points_match_fg_templates() -> void:
+	## `RSV_SHOP_*` (`m_name_table.h`) → slot kind; the tables must equal the disc FG.
+	var kinds: Dictionary = {
+		0xFE00: &"paper", 0xFE01: &"cloth", 0xFE02: &"furniture", 0xFE03: &"floor",
+		0xFE04: &"wall", 0xFE05: &"sapling", 0xFE06: &"tool", 0xFE08: &"plant",
+		0xFE09: &"rare", 0xFE0A: &"umbrella", 0xFE0B: &"paint", 0xFE0C: &"sign",
+	}
+	var on_floor: Array[StringName] = [&"furniture", &"rare", &"cloth", &"umbrella"]
+	for room_id: StringName in ShopDisplay.STOCK_FG_TYPES:
+		var slots: Array[Dictionary] = ShopDisplay.stock_slots(room_id)
+		assert_int(slots.size()).is_greater(0)
+		for slot: Dictionary in slots:
+			var y: float = float(slot["y_gx"])
+			assert_float(y).is_equal(0.0 if on_floor.has(slot["kind"]) else ShopDisplay.SHELF)
+		if not FgCatalog.has_catalog():
+			continue
+		var items: PackedInt32Array = FgCatalog.items(int(ShopDisplay.STOCK_FG_TYPES[room_id]))
+		var expected: Array = []
+		for i: int in items.size():
+			if kinds.has(items[i]):
+				expected.append([kinds[items[i]], Vector2i(i % 16, i / 16)])
+		var got: Array = []
+		for slot: Dictionary in slots:
+			got.append([slot["kind"], slot["cell"]])
+		assert_that(got).is_equal(expected)
+
+
+func test_every_nook_level_puts_its_goods_on_reserve_points() -> void:
+	## Level → the floors that lay out its list (Nookington's has two).
+	var floors: Array = [[&"shop0"], [&"shop1"], [&"shop2"], [&"shop3_1", &"shop3_2"]]
+	var sales: Array[int] = [0, ShopBook.COMBINI_SUM, ShopBook.SUPER_SUM, ShopBook.DSUPER_SUM]
+	for level: int in floors.size():
+		_nook_at(sales[level])
+		assert_int(Game.shops.nook_level()).is_equal(level)
+		var lineup: Array[StringName] = Game.shops.lineup(ShopBook.NOOK_ID)
+		var rare: StringName = Game.shops.rare_item()
+		var shown: Dictionary = {}
+		for room_id: StringName in floors[level]:
+			var room: Room = InteriorCatalog.room_template(room_id)
+			var rows: Array[Dictionary] = ShopDisplay.stock_placements_for_goods(lineup, room_id, rare)
+			for row: Dictionary in rows:
+				assert_bool(room.is_inner(row["cell"] as Vector2i)).is_true()
+				assert_bool(shown.has(row["index"])).is_false()
+				shown[row["index"]] = true
+			## Presented stock sits on the placements only (no free-cell fallback).
+			assert_int(_stock_positions(_present_stock(room_id)).size()).is_equal(rows.size())
+		## Nook 'n' Go stocks three tools on two tool points (`l_conbini_goods`).
+		assert_int(shown.size()).is_greater_equal(lineup.size() - (1 if level == 1 else 0))
+
+
+func test_nookingtons_upstairs_shows_its_own_goods() -> void:
+	_nook_at(ShopBook.DSUPER_SUM)
+	var lineup: Array[StringName] = Game.shops.lineup(ShopBook.NOOK_ID)
+	var rare: StringName = Game.shops.rare_item()
+	var up: Array[Dictionary] = ShopDisplay.stock_placements_for_goods(lineup, &"shop3_2", rare)
+	var down: Array[Dictionary] = ShopDisplay.stock_placements_for_goods(lineup, &"shop3_1", rare)
+	assert_int(up.size()).is_greater(0)
+	assert_int(_stock_positions(_present_stock(&"shop3_2")).size()).is_equal(up.size())
+	var upstairs: Array = [ItemData.Category.CLOTH, ItemData.Category.WALL, ItemData.Category.FLOOR]
+	for row: Dictionary in up:
+		var data: ItemData = ItemCatalog.get_item(lineup[int(row["index"])])
+		assert_bool(data is FurnitureData or upstairs.has(data.category)).is_true()
+	for row: Dictionary in down:
+		var data: ItemData = ItemCatalog.get_item(lineup[int(row["index"])])
+		assert_bool(data is FurnitureData or upstairs.has(data.category)).is_false()

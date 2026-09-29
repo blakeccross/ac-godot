@@ -46,7 +46,14 @@ var _home_yaw: float = 0.0
 var _rng := RandomNumberGenerator.new()
 
 
+## `aPOL_actor_ct`: Copper is not spawned while a morning aerobics event is on.
+const AWAY_EVENTS: Array[StringName] = [&"morning_aerobics", &"sports_fair_aerobics"]
+
+
 func _ready() -> void:
+	if away_for_event():
+		queue_free()
+		return
 	add_to_group("interactable")
 	collision_layer = 1
 	collision_mask = 0
@@ -71,7 +78,7 @@ func _physics_process(delta: float) -> void:
 		_face_player()
 		return
 	var player: Node3D = Player.find(get_tree()) if get_tree() != null else null
-	if _wants_exit_greeting() and _player_free(player):
+	if _wants_exit_greeting() and _player_free(player) and _same_block(player):
 		_exit_greeted = true
 		_begin_talk(player, true)
 		return
@@ -174,6 +181,24 @@ func _player_dist_gx(player: Node3D) -> float:
 
 func _wants_exit_greeting() -> bool:
 	return not _exit_greeted and Game != null and Game.last_room_id == &"police_box" and not Game.is_indoors()
+
+
+static func away_for_event() -> bool:
+	if Game == null or Game.events == null:
+		return false
+	for id: StringName in AWAY_EVENTS:
+		if Game.events.is_active(id):
+			return true
+	return false
+
+
+## `in_initial_block`: the walk-out greeting only fires while the player is still in
+## the police box's acre.
+func _same_block(player: Node3D) -> bool:
+	if player == null:
+		return false
+	var mine := TownSpace.block_of(TownSpace.world_to_gx(global_position))
+	return TownSpace.block_of(TownSpace.world_to_gx(player.global_position)) == mine
 
 
 func _player_free(player: Node3D) -> bool:

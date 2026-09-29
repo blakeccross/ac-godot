@@ -5,6 +5,7 @@ extends RefCounted
 ## Fossils rewrite FG furniture; fish/insects are live actors; paintings swap art/frame.
 
 const PLAQUE_SCENE := preload("res://scenes/world/museum_plaque.tscn")
+const SUNSHINE_SCENE := preload("res://scenes/world/interiors/police_sunshine.tscn")
 
 
 func present(root: Node3D, interior: IndoorSession) -> void:
@@ -15,7 +16,7 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 		return
 	match room.id:
 		&"museum_entrance":
-			add_light_shaft(root, interior, &"obj_museum1_shine")
+			present_sunshine(root, interior)
 		&"museum_fossil":
 			present_fossils(root, interior)
 		&"museum_painting":
@@ -24,24 +25,42 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 			present_fish(root, interior)
 		&"museum_insect":
 			present_insects(root, interior)
+			present_sunshine(root, interior)
 		_:
 			pass
 	if String(room.id).begins_with("museum_"):
 		_add_wing_hotkeys(root)
 
 
-## Skylight god-ray mesh (`ac_museum` shine actor). Authored in acre space.
-func add_light_shaft(root: Node3D, interior: IndoorSession, visual_id: StringName) -> void:
-	if FieldCatalog.mesh_paths(visual_id).is_empty():
+## Window beams for the entrance hall and the insect wing (`MuseumDisplay.*_SUNSHINE_GX`),
+## one `police_sunshine.tscn` per actor, even actors west. Idempotent; they survive a
+## re-populate as authored fixtures.
+func present_sunshine(root: Node3D, interior: IndoorSession) -> void:
+	if root == null or interior == null or interior.room == null or interior.grid == null:
 		return
-	if root.get_node_or_null("LightShaft") != null:
-		return
-	var host := Node3D.new()
-	host.name = "LightShaft"
-	host.add_to_group("museum_set")
-	host.position = Vector3(interior.grid.origin.x, 0.0, interior.grid.origin.z)
-	root.add_child(host)
-	GeneratedVisual.attach(host, visual_id)
+	var insect: bool = interior.room.id == &"museum_insect"
+	var actors: Array[Vector3] = (
+		MuseumDisplay.INSECT_SUNSHINE_GX if insect else MuseumDisplay.ENTRANCE_SUNSHINE_GX
+	)
+	for i: int in actors.size():
+		var left: bool = i % 2 == 0
+		var node_name := "Sunshine_%d" % i
+		var node: Node3D = root.get_node_or_null(node_name) as Node3D
+		if node == null:
+			node = SUNSHINE_SCENE.instantiate() as Node3D
+			node.name = node_name
+			node.add_to_group("authored_fixture")
+			node.set("left", left)
+			node.set("cull", false)
+			if insect:
+				node.set("visual", MuseumDisplay.INSECT_SUNSHINE_VISUAL)
+			else:
+				node.set("visual", MuseumDisplay.ENTRANCE_SUNSHINE_VISUAL)
+				node.set("stained_glass", true)
+			root.add_child(node)
+		node.position = MuseumDisplay.gx_to_world(
+			interior.grid, MuseumDisplay.sunshine_anchor_gx(actors[i], left, insect)
+		)
 
 
 func _add_wing_hotkeys(root: Node3D) -> void:

@@ -21,6 +21,9 @@ const CAST := &"cast"
 ## `mPlayer_INDEX_AIR_AXE`: with the axe held A always swings; a tree is the chop, anything else
 ## (no tree, no rock) is this whiff.
 const AIR_AXE := &"air_axe"
+## `mPlayer_INDEX_AIR_ROD`: with the rod held A always swings; water 100 GX out is the cast,
+## anything else is this swing into the air, and the bobber comes straight back.
+const AIR_ROD := &"air_rod"
 const HOOK := &"hook"
 const PLACE := &"place"
 const ROTATE := &"rotate"

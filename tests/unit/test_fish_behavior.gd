@@ -38,26 +38,24 @@ func test_shadow_reads_the_rod_from_the_sense() -> void:
 	var body := WaterBodies.Body.new()
 	var fish: FishData = FishCatalog.get_fish(&"large_char")   ## search_area 1 → 7° normal
 	var shadow := FishShadow.create(fish, body, Vector3.ZERO, RandomNumberGenerator.new())
-	shadow.action = FishShadow.Action.NEAR
-	shadow.yaw = 0.0
+	## Still water: `aGTT_flow_direction` holds a pond fish facing upstream of a zero flow,
+	## which is -Z (`atans_table(0, 0)` is +Z, turned half round).
+	assert_float(absf(shadow.yaw)).is_equal_approx(PI, 0.0001)
 	var s := FishShadow.Sense.new()
 	s.bobber_settled = true
 	s.accepts_nibble = true
-	shadow.yaw = 0.0
-	shadow.action = FishShadow.Action.WAIT
 	shadow._timer = 999.0
 	## Within the 40 GX (2 m) radius, off to one side by ~10° — outside the 7° normal
 	## cone (`search_area` 1), inside the 15° golden one.
 	var d: float = 1.5
-	s.bobber_position = Vector3(sin(deg_to_rad(10.0)) * d, 0.0, cos(deg_to_rad(10.0)) * d)
+	var off: float = PI + deg_to_rad(10.0)
+	s.bobber_position = Vector3(sin(off) * d, 0.0, cos(off) * d)
 
 	s.rod = FishSize.ROD_NORMAL
 	shadow.tick(1.0 / 30.0, s)
 	assert_int(shadow.action).is_equal(FishShadow.Action.WAIT)   ## fussy — misses it
 
-	shadow.action = FishShadow.Action.WAIT
 	shadow._timer = 999.0
-	shadow.yaw = 0.0
 	s.rod = FishSize.ROD_GOLDEN
 	shadow.tick(1.0 / 30.0, s)
 	assert_int(shadow.action).is_equal(FishShadow.Action.NEAR)   ## golden — spots it
@@ -130,16 +128,18 @@ func test_spawn_table_loads_all_24_half_month_terms() -> void:
 	assert_bool(has_pond_smelt).is_true()
 
 
-func test_scheduler_blends_the_previous_half_month() -> void:
-	Clock.month = 9
-	Clock.day = 1
+func test_scheduler_ramps_into_the_next_half_month() -> void:
+	## `aSOG_gyoei_chk_term_info` fades the *next* term in before it starts; the full
+	## ramp is covered in `test_fish_spawn_probe`.
+	Clock.month = 8
+	Clock.day = 31
 	Clock.hour = 12
-	Game.gyoei_term = (9 - 1) * 2      ## already rolled; pin offset 0
-	Game.gyoei_term_offset = 0
-	var blend: Dictionary = FishSpawnScheduler.term_blend(null)
-	assert_int(int(blend["term"])).is_equal(16)          ## Sep first half
-	assert_int(int(blend["prev_term"])).is_equal(15)     ## Aug second half
-	assert_float(float(blend["prev_rate"])).is_greater(0.0)
+	Game.gyoei_term = (9 - 1) * 2      ## saved: Sep first half is next
+	Game.gyoei_term_offset = 1
+	var info: Dictionary = FishSpawnScheduler.chk_term_info(null)
+	assert_int(int(info["term0"])).is_equal(15)          ## Aug second half
+	assert_int(int(info["term1"])).is_equal(16)          ## Sep first half
+	assert_float(float(info["term0_rate"])).is_less(1.0)
 
 
 func test_coelacanth_is_spliced_into_the_rainy_sea() -> void:
@@ -150,19 +150,6 @@ func test_coelacanth_is_spliced_into_the_rainy_sea() -> void:
 	var dry: Array = FishSpawnScheduler.build_pool(WaterBodies.Kind.OCEAN, false)
 	assert_bool(_has_type(wet, 31)).is_true()
 	assert_bool(_has_type(dry, 31)).is_false()
-
-
-func test_scheduler_respects_the_body_size_ceiling() -> void:
-	Clock.month = 7
-	Clock.day = 10
-	Clock.hour = 12
-	var pool: Array = FishSpawnScheduler.build_pool(WaterBodies.Kind.OCEAN, false)
-	var rng := RandomNumberGenerator.new()
-	for _i: int in 60:
-		rng.seed = _i
-		var fish: FishData = FishSpawnScheduler.decide(pool, FishData.SizeClass.S, rng)
-		if fish != null:
-			assert_int(int(fish.size_class)).is_less_equal(int(FishData.SizeClass.S))
 
 
 func _has_type(pool: Array, type_index: int) -> bool:

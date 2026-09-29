@@ -1,7 +1,8 @@
 extends CanvasLayer
 
-## Counter paper UI. Buy today's goods; sell pockets at Nook only (`ShopBook.sell_result`);
-## order from the catalog at Nook (`ShopUse.ORDER`, `m_catalog_ovl`).
+## Counter paper UI. At Nook it is only the sell / catalog paper opened from his menu: a
+## picked row goes back to him to quote and ask Yes/No (`aNSC_msg_win_open_wait`,
+## `aNSC_msg_win_open_wait2`); shelf goods are bought at the shelf. Other shops list goods to buy.
 
 @onready var _root: Control = %Root
 @onready var _paper: PanelContainer = %Paper
@@ -44,10 +45,11 @@ func open(shop_id: StringName, mode: StringName = Interaction.BUY) -> void:
 		return
 	_shop_id = shop_id
 	_mode = Interaction.BUY
-	if mode == Interaction.SELL and Game.shops.allows_sell(shop_id):
-		_mode = Interaction.SELL
-	elif mode == ShopUse.ORDER and shop_id == ShopBook.NOOK_ID:
+	if mode == ShopUse.ORDER and shop_id == ShopBook.NOOK_ID:
 		_mode = ShopUse.ORDER
+	elif shop_id == ShopBook.NOOK_ID or (mode == Interaction.SELL and Game.shops.allows_sell(shop_id)):
+		## No buy tab at Nook: goods are bought at the shelf (`aNSC_set_talk_info_sell_item`).
+		_mode = Interaction.SELL
 	_open = true
 	_tag_mode = false
 	_cursor = 0
@@ -87,13 +89,6 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("ui_down") or event.is_action_pressed("move_back"):
 		_move_cursor(1)
 		get_viewport().set_input_as_handled()
-	elif _mode != ShopUse.ORDER and (event.is_action_pressed("ui_left") or event.is_action_pressed("move_left")):
-		_set_mode(Interaction.BUY)
-		get_viewport().set_input_as_handled()
-	elif _mode != ShopUse.ORDER and (event.is_action_pressed("ui_right") or event.is_action_pressed("move_right")):
-		if Game.shops.allows_sell(_shop_id):
-			_set_mode(Interaction.SELL)
-		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
 		_activate()
 		get_viewport().set_input_as_handled()
@@ -117,15 +112,6 @@ func _handle_tag_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-func _set_mode(mode: StringName) -> void:
-	if _mode == mode:
-		return
-	_mode = mode
-	_cursor = 0
-	_tag_mode = false
-	_refresh()
-
-
 func _move_cursor(delta: int) -> void:
 	if _rows.is_empty():
 		_cursor = 0
@@ -139,6 +125,8 @@ func _activate() -> void:
 		return
 	if _mode == ShopUse.ORDER:
 		var order_id: StringName = _rows[_cursor].get("id", &"") as StringName
+		if _hand_to_nook(&"quote_order", [order_id]):
+			return
 		Game.post_notice(Game.shops.order(order_id, Game.inventory, Game.catalog))
 		_refresh()
 		return
@@ -177,8 +165,24 @@ func _sell(count: int) -> void:
 	if _rows.is_empty() or _cursor < 0 or _cursor >= _rows.size():
 		return
 	var item_id: StringName = _rows[_cursor].get("id", &"") as StringName
+	if _hand_to_nook(&"quote_sell", [item_id, count]):
+		return
 	var msg: String = Game.shops.sell(_shop_id, item_id, Game.inventory, count)
 	Game.post_notice(msg)
+
+
+## Close the paper and let Nook name the price and ask (`aNSC_buy_check`, `aNSC_order_check`).
+## False when there is no Nook to talk to; the paper then trades directly.
+func _hand_to_nook(method: StringName, args: Array) -> bool:
+	if _shop_id != ShopBook.NOOK_ID or get_tree() == null:
+		return false
+	var nook: Node = get_tree().get_first_node_in_group("tom_nook")
+	if nook == null or not nook.has_method(method):
+		return false
+	if not bool(nook.callv(method, args)):
+		return false
+	close()
+	return true
 
 
 func _on_row_pressed(index: int) -> void:
@@ -240,8 +244,8 @@ func _refresh() -> void:
 		_tags.text = ""
 		if _mode == ShopUse.ORDER:
 			_hint.text = "↑↓ list  E order  Esc close"
-		elif Game.shops.allows_sell(_shop_id):
-			_hint.text = "↑↓ list  ← Buy  → Sell  E confirm  Esc close"
+		elif _mode == Interaction.SELL:
+			_hint.text = "↑↓ list  E sell  Esc close"
 		else:
 			_hint.text = "↑↓ list  E buy  Esc close"
 
