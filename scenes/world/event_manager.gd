@@ -50,6 +50,21 @@ const PRESENTERS: Dictionary = {
 	&"soncho_sale_day": "res://scripts/systems/events/tortimer_presenter.gd",
 	&"soncho_snow_day": "res://scripts/systems/events/tortimer_presenter.gd",
 	&"soncho_toy_day": "res://scripts/systems/events/tortimer_presenter.gd",
+	&"fireworks_show": "res://scripts/systems/events/festival_presenter.gd",
+	&"cherry_blossom_festival": "res://scripts/systems/events/festival_presenter.gd",
+	&"sports_fair_foot_race": "res://scripts/systems/events/festival_presenter.gd",
+	&"sports_fair_aerobics": "res://scripts/systems/events/festival_presenter.gd",
+	&"sports_fair_ball_toss": "res://scripts/systems/events/festival_presenter.gd",
+	&"sports_fair_tug_of_war": "res://scripts/systems/events/festival_presenter.gd",
+	&"new_years_day": "res://scripts/systems/events/festival_presenter.gd",
+	&"fishing_tourney_1": "res://scripts/systems/events/festival_presenter.gd",
+	&"fishing_tourney_2": "res://scripts/systems/events/festival_presenter.gd",
+	&"morning_aerobics": "res://scripts/systems/events/festival_presenter.gd",
+	&"harvest_moon_festival": "res://scripts/systems/events/festival_presenter.gd",
+	&"harvest_festival": "res://scripts/systems/events/festival_presenter.gd",
+	&"new_years_eve_countdown": "res://scripts/systems/events/festival_presenter.gd",
+	&"groundhog_day": "res://scripts/systems/events/festival_presenter.gd",
+	&"meteor_shower": "res://scripts/systems/events/festival_presenter.gd",
 }
 
 ## A show owns the music (`mBGMPsComp_make_ps_demo`): the field keeps its hands off.
@@ -198,13 +213,14 @@ const BUILDING_SCENE := "res://scenes/world/building.tscn"
 ## a door into `interior_id` when it has one.
 func spawn_structure(
 	id: StringName, visual: StringName, cell: Vector2i, interior_id: StringName = &"",
-	label: String = "", size: Vector2i = Vector2i(3, 3)
+	label: String = "", size: Vector2i = Vector2i(3, 3), tag: String = ""
 ) -> Node3D:
 	var packed: PackedScene = load(BUILDING_SCENE) as PackedScene
 	if packed == null:
 		return null
 	var node: Node3D = packed.instantiate() as Node3D
-	var occupant := StringName("event_%s" % id)
+	## `tag` tells apart the props of one event (`event_fireworks_show_FIREWORKS_STALL1`).
+	var occupant := StringName("event_%s" % id if tag.is_empty() else "event_%s_%s" % [id, tag])
 	node.name = String(occupant)
 	node.set("occupant_id", interior_id if interior_id != &"" else occupant)
 	node.set("visual_id", visual)
@@ -228,7 +244,9 @@ func spawn_structure(
 	var list: Array = _nodes.get(id, [])
 	list.append(node)
 	_nodes[id] = list
-	_structures[id] = occupant
+	var occupants: Array = _structures.get(id, [])
+	occupants.append(occupant)
+	_structures[id] = occupants
 	return node
 
 
@@ -244,11 +262,15 @@ func actors(id: StringName) -> Array:
 func despawn(id: StringName) -> void:
 	for n: Variant in _nodes.get(id, []):
 		if is_instance_valid(n):
-			(n as Node).queue_free()
+			## Out of the tree now so a restart can reuse the node name.
+			var node := n as Node
+			if node.get_parent() != null:
+				node.get_parent().remove_child(node)
+			node.queue_free()
 	_nodes.erase(id)
-	if _structures.has(id):
-		world.grid.remove(_structures[id])
-		_structures.erase(id)
+	for occupant: Variant in _structures.get(id, []):
+		world.grid.remove(occupant)
+	_structures.erase(id)
 
 
 func cell_position(cell: Vector2i) -> Vector3:

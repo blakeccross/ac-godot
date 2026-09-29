@@ -299,3 +299,47 @@ func test_tortimer_holiday_gives_the_trophy_once() -> void:
 	again.prepare()
 	assert_int(again.start_msg()).is_between(again.msg_for(6), again.msg_for(8))
 	assert_int(TortimerHoliday.new(TortimerHoliday.HARVEST_FESTIVAL, {}, inv).msg_for(0)).is_equal(TortimerHoliday.MSG_HARVEST_FESTIVAL)
+
+
+func test_festival_crowd_talk_follows_looks_and_slot() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	## `aHN1_set_talk_info`: base[looks] + RANDOM(3) + npc_idx * 3, npc_idx from HANABI_1.
+	var n: int = FestivalCrowd.talk_msg(&"hanabi1", VillagerPersonality.Looks.LAZY, 3, rng)
+	assert_int(n).is_between(5699 + 6, 5699 + 8)
+	## Meteor shower swaps the moon-viewing lines.
+	var alt: int = FestivalCrowd.talk_msg(&"tukimi1", VillagerPersonality.Looks.NORMAL, 0, rng, true)
+	assert_int(alt).is_between(0x3F46, 0x3F48)
+	assert_str(String(FestivalCrowd.family_of("SP_NPC_EV_HANAMI_4"))).is_equal("hanami1")
+	var ids: Array[StringName] = [&"a", &"b", &"c", &"d"]
+	var picked: Array[StringName] = FestivalCrowd.pick_villagers(ids, 2, "x", func(v: StringName) -> bool: return v == &"c")
+	assert_int(picked.size()).is_equal(2)
+	assert_str(String(picked[0])).is_equal("c")
+	assert_array(FestivalCrowd.pick_villagers(ids, 2, "x")).is_equal(FestivalCrowd.pick_villagers(ids, 2, "x"))
+
+
+func test_yomise_sells_tonights_goods() -> void:
+	var inv := Inventory.new()
+	inv.set_wallet(1000)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var area: Dictionary = {}
+	var t := YomiseTalk.new(area, inv, rng)
+	t.context = DialogueContext.new()
+	assert_int(t.start_msg()).is_equal(YomiseTalk.MSG_PITCH[t.kind()])
+	var menu: Dictionary = t.pick_step(t.start_msg(), 0)
+	assert_int(int(menu["msg"])).is_equal(YomiseTalk.MSG_PICK)
+	assert_int((menu["choices"] as Array).size()).is_equal(4)
+	assert_int(int(t.choose(0)["msg"])).is_equal(YomiseTalk.MSG_BOUGHT)
+	assert_int(inv.wallet).is_equal(1000 - YomiseTalk.PRICE[t.kind()])
+	t.current_msg = YomiseTalk.MSG_BOUGHT
+	assert_int(int(t.next_step()["msg"])).is_equal(YomiseTalk.MSG_ANOTHER)
+	assert_int(t.left_from(0)).is_equal(7)
+	## "I don't want it!" on a full page → "anything else?", then the next three.
+	t.pick_step(YomiseTalk.MSG_MORE, 0)
+	assert_int(int(t.choose(3)["msg"])).is_equal(YomiseTalk.MSG_MORE)
+	## Out of Bells.
+	var broke := Inventory.new()
+	var t2 := YomiseTalk.new(area, broke, rng)
+	t2.pick_step(YomiseTalk.MSG_PITCH[t2.kind()], 0)
+	assert_int(int(t2.choose(0)["msg"])).is_equal(YomiseTalk.MSG_BROKE)

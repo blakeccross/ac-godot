@@ -130,6 +130,8 @@ var _talk_manager: VillagerTalkManager
 var _visual: Node3D
 ## Cloth-surface overrides from before an Able design was painted on: `[mesh, surface, material]`.
 var _own_cloth: Array = []
+## Out at a festival as an event NPC (`mNpc_SetEventNpc`): the field copy stays hidden.
+var event_away: bool = false
 
 @onready var _model: Node3D = $Model
 @onready var _placeholder: MeshInstance3D = $Model/PlaceholderMesh
@@ -186,7 +188,7 @@ func _ready() -> void:
 
 
 func _sync_from_clock() -> void:
-	if indoor_resident:
+	if indoor_resident or event_away:
 		return
 	ai.sync(current_activity(), _hints())
 	_apply_presence(ai.is_present())
@@ -598,6 +600,18 @@ func _set_is_home(value: bool) -> void:
 	_ensure_bound()
 	if state != null:
 		state.is_home = value
+
+
+## `EventManager` borrows this villager for a festival (or hands them back).
+func set_event_away(away: bool) -> void:
+	if event_away == away:
+		return
+	event_away = away
+	set_physics_process(not away)
+	if away:
+		_apply_presence(false)
+	else:
+		_sync_from_clock()
 
 
 func _apply_presence(present: bool) -> void:

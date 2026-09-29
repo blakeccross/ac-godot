@@ -228,7 +228,8 @@ KANBAN_SIGN_GFX: dict[str, list[str]] = {
 }
 
 ## Statics whose only DL is the XLU `{prefix}_modelT` (no `_model` to infer from).
-XLU_ONLY_STATICS: frozenset[str] = frozenset({"obj_koban_shine"})
+## The fishing-tourney weigh stand (`ac_turi_draw`) is drawn from `*_modelT` alone too.
+XLU_ONLY_STATICS: frozenset[str] = frozenset({"obj_koban_shine", "obj_e_turi_l", "obj_e_turi_r"})
 
 ## Dropped FG item cards (`bg_item` / `handOverItem`). Vtx is `obj_item_*_v`; DLs are either a
 ## combined `*_modelT` or a `*_DL_mode` + `*_DL_vtx` pair (no `*_gfx_model` to infer).

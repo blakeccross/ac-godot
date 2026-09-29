@@ -18,6 +18,10 @@ var event_id: StringName = &""
 var place_index: int = 0
 ## Skeleton / species GLB prefix (`boa`, `end`, `seg`, …).
 var species: StringName = &""
+## Villager texture set (`squ01`, …) for villagers borrowed by a festival; empty for specials.
+var texture_set: StringName = &""
+## A shirt to wear (`cloth_index`, e.g. the sports-fair gym clothes); -1 keeps the model's own.
+var cloth_index: int = -1
 var display_name: String = ""
 ## Message-window voice (`aNPC_draw_data_c.voice_type` stands in as a sound spec).
 var sound_spec: int = 4
@@ -26,6 +30,8 @@ var talk_label: String = ""
 var home_yaw: float = 0.0
 var talking: bool = false
 var talk: BankTalk
+## Whether the body turns to the player while talking (`aNPC_TALK_TURN_HEAD` keeps it still).
+var talk_turn: bool = true
 
 var _model: Node3D
 var _body_anim: AnimationPlayer
@@ -89,7 +95,8 @@ func _process(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	_clip_timer -= delta
 	if talking:
-		_turn_towards_player(delta)
+		if talk_turn:
+			_turn_towards_player(delta)
 		if not _manpu_clip.is_empty() and _clip_timer <= 0.0 and _clip == _manpu_clip:
 			_manpu_clip = ""
 			play_clip(talk_clip(), true)
@@ -351,7 +358,11 @@ func _ensure_visual() -> void:
 		_model.add_child(mesh)
 	else:
 		_body_anim = VisualAnimation.find_animation_player(vis)
-		_face.bind(vis, species)
+		if texture_set != &"":
+			VillagerTextures.apply(vis, texture_set)
+		if cloth_index >= 0:
+			VisualCloth.apply_cloth(vis, cloth_index)
+		_face.bind(vis, species, texture_set)
 	_feel = NpcFeelGlyphs.new()
 	_feel.name = "Feel"
 	add_child(_feel)
