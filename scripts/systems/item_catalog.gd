@@ -61,12 +61,19 @@ static func furniture_for_visual(visual_id: StringName) -> FurnitureData:
 	var existing: ItemData = _by_id.get(visual_id) as ItemData
 	if existing is FurnitureData:
 		return existing as FurnitureData
+	## Authored pieces first. Disc catalog rows (`ftr_<n>`, `FtrCatalog.register_items`) only
+	## lend their name and price: rooms and code refer to FG furniture by model id.
+	var disc: FurnitureData = null
 	for value: Variant in _by_id.values():
 		if value is FurnitureData and (value as FurnitureData).visual_id == visual_id:
-			return value as FurnitureData
+			if not (value as FurnitureData).from_disc:
+				return value as FurnitureData
+			if disc == null:
+				disc = value as FurnitureData
 	var data := FurnitureData.new()
 	data.id = visual_id
-	data.display_name = _display_from_visual(visual_id)
+	data.display_name = disc.display_name if disc != null else _display_from_visual(visual_id)
+	data.buy_price = disc.buy_price if disc != null else 0
 	data.visual_id = visual_id
 	data.footprint = Vector2i(1, 1)
 	data.infer_from_visual()
