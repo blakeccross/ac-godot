@@ -21,10 +21,15 @@ func start() -> bool:
 	var cell: Vector2i = mgr.place_once(id, 0, pick_cell)
 	if cell.x < 0:
 		return false
-	var node: Node3D = mgr.spawn(id, scene_path, cell, face_yaw(cell), 0)
+	var packed: PackedScene = load(scene_path) as PackedScene
+	var node: Node3D = packed.instantiate() as Node3D if packed != null else null
+	if node == null:
+		return false
+	configure(node)
+	mgr.add_actor(id, node, cell, face_yaw(cell), 0)
 	npc = node as EventNpc
 	placed(node)
-	return node != null
+	return true
 
 
 ## Seed stand-in for `ctrl->type + ev_name + id` (the acre roll also mixes in the clock).
@@ -52,6 +57,11 @@ func pick_cell() -> Vector2i:
 
 func face_yaw(_cell: Vector2i) -> float:
 	return yaw
+
+
+## Before the node enters the tree (species, flags `_ready` reads).
+func configure(_node: Node3D) -> void:
+	pass
 
 
 ## After the node is in town.

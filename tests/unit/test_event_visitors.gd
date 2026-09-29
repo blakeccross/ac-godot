@@ -277,3 +277,25 @@ func test_katrina_reading_costs_50_and_sets_a_destiny() -> void:
 	var broke := KatrinaTalk.new(KatrinaTalk.Destiny.NORMAL, false, inv)
 	broke.context = DialogueContext.new()
 	assert_int(broke.picked(KatrinaTalk.MSG_ASK, 0)).is_equal(KatrinaTalk.MSG_BROKE)
+
+
+func test_tortimer_holiday_gives_the_trophy_once() -> void:
+	var record: Dictionary = {}
+	var inv := Inventory.new()
+	var ev: int = TortimerHoliday.event_index(&"soncho_nature_day")
+	assert_int(ev).is_greater_equal(0)
+	var t := TortimerHoliday.new(ev, record, inv)
+	t.context = DialogueContext.new()
+	t.prepare()
+	var first: int = t.start_msg()
+	assert_int(first).is_equal(t.msg_for(0))
+	t.current_msg = first
+	var step: Dictionary = t.next_step()
+	assert_int(int(step["msg"])).is_equal(t.msg_for(3))
+	assert_int(inv.count_of(t.item)).is_equal(1)
+	## Same year, trophy owned: one of the chat lines.
+	var again := TortimerHoliday.new(ev, record, inv)
+	again.context = DialogueContext.new()
+	again.prepare()
+	assert_int(again.start_msg()).is_between(again.msg_for(6), again.msg_for(8))
+	assert_int(TortimerHoliday.new(TortimerHoliday.HARVEST_FESTIVAL, {}, inv).msg_for(0)).is_equal(TortimerHoliday.MSG_HARVEST_FESTIVAL)
