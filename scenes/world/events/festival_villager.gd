@@ -125,6 +125,23 @@ func _wander() -> void:
 	_pause = rng().randf_range(2.0, 5.0)
 
 
+## `eEC_EFFECT_HANABI_SWITCH` at midnight (`aCD0_set_term`): one volley over the pond.
+func _new_year_fireworks() -> void:
+	var mgr: EventManager = EventManager.find(get_tree())
+	if mgr == null:
+		return
+	var block: Vector2i = mgr.block_of("pool")
+	if block.x < 0:
+		return
+	var center: Vector2i = EventManager.block_unit_to_cell(block, Vector2i(8, 8))
+	var fw := Fireworks.new()
+	fw.name = "Fireworks"
+	fw.pond_center = Fireworks.pond_land(mgr, block)
+	fw.looping = false
+	fw.finale = true
+	mgr.add_actor(event_id, fw, center, 0.0, 0)
+
+
 ## `aCD0_set_term`: a new term. At midnight everyone pulls their party popper; npc0 calls out
 ## each earlier term to a player in the pond acre (`aCD0_force_talk_request`).
 func _tick_term() -> bool:
@@ -137,6 +154,8 @@ func _tick_term() -> bool:
 		return false
 	if term == FestivalCrowd.Countdown.NEW_YEAR:
 		_pause = play_clip("npc_1_cracker_fire1", false)
+		if slot == 0:
+			_new_year_fireworks()
 		return true
 	if term == FestivalCrowd.Countdown.AFTER:
 		_data = _data.duplicate()

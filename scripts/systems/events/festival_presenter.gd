@@ -68,8 +68,34 @@ func start() -> bool:
 			if "anglers" in special:
 				special.set("anglers", _names(chosen))
 			mgr.add_actor(id, special, e["cell"], _face(e["cell"], props, center), 0)
+	if id == &"fireworks_show":
+		_add_fireworks()
 	_set_away(true)
 	return true
+
+
+## `fireworks_start` → `ef_hanabi_switch` over the pond; the last hour plays the big sets.
+func _add_fireworks() -> void:
+	var block: Vector2i = mgr.block_of("pool")
+	if block.x < 0:
+		return
+	var center: Vector2i = EventManager.block_unit_to_cell(block, Vector2i(8, 8))
+	var fw := Fireworks.new()
+	fw.name = "Fireworks"
+	fw.pond_center = Fireworks.pond_land(mgr, block)
+	var last: int = Game.events.last_hour(id) if Game != null and Game.events != null else -1
+	fw.finale = last >= 0 and Clock.hour >= last
+	mgr.add_actor(id, fw, center, 0.0, 0)
+
+
+func tick(_delta: float) -> void:
+	## The finale starts on the hour (`eHanabiSet_ct` reads the clock per set).
+	if id != &"fireworks_show" or Game == null or Game.events == null:
+		return
+	for n: Variant in mgr.actors(id):
+		if n is Fireworks:
+			var last: int = Game.events.last_hour(id)
+			(n as Fireworks).finale = last >= 0 and Clock.hour >= last
 
 
 func stop() -> void:

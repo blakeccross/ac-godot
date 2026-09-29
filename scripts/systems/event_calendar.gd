@@ -243,6 +243,15 @@ func sync(now: Dictionary) -> void:
 	_refresh_active(int(now["hour"]))
 
 
+## `mEv_get_end_time`: the last hour an event runs today, or -1.
+func last_hour(id: StringName) -> int:
+	var mask: int = int(_hours.get(id, 0))
+	for h: int in range(23, -1, -1):
+		if (mask >> h) & 1:
+			return h
+	return -1
+
+
 func _refresh_active(hour: int) -> void:
 	var next: Dictionary = {}
 	for id: Variant in _hours:
