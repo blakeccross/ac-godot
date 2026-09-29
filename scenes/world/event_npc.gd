@@ -220,6 +220,7 @@ func begin_talk(listener: Node3D, script: BankTalk = null, turn_player: bool = t
 		return false
 	var ctx: DialogueContext = make_context()
 	talk.context = ctx
+	talk.prepare()
 	var first: int = talk.start_msg()
 	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % first)) if first >= 0 else null
 	if data == null:

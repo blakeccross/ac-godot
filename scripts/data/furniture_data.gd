@@ -31,6 +31,9 @@ enum Contact { NONE, CHAIR_FRONT, CHAIR_ANY, SOFA, BED_SINGLE, BED_DOUBLE }
 const KEEP_SLOTS := 3
 
 @export var visual_id: StringName = &""
+## `mRmTp_birth_type` for disc furniture (`FtrCatalog`): the list that gives it out.
+## Empty for authored pieces.
+@export var birth: String = ""
 @export var footprint: Vector2i = Vector2i(1, 1)
 @export var shape: Shape = Shape.TYPE_A
 @export var can_rotate: bool = true

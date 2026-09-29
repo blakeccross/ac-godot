@@ -21,6 +21,7 @@ static func ensure_loaded() -> void:
 	_load_dir(CREATURES_DIR)
 	_loaded = true
 	MinidiskCatalog.register_items()
+	FtrCatalog.register_items()
 	VillagerQuests.register_items()
 
 

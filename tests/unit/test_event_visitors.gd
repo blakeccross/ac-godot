@@ -104,3 +104,63 @@ func test_event_map_has_the_festival_layouts() -> void:
 	assert_int((fireworks.get("maps", []) as Array).size()).is_equal(7)
 	var new_year: Dictionary = EventManager.event_map(&"new_years_day")
 	assert_int(int(new_year.get("joint_npcs"))).is_equal(4)
+
+
+func test_kk_intro_then_hello_then_again() -> void:
+	var show: Dictionary = {}
+	var player: Dictionary = {}
+	var t := KkTalk.new(show, player)
+	t.in_front = false
+	assert_int(t.start_msg()).is_equal(KkTalk.MSG_FRONT_ROW)
+	t.in_front = true
+	assert_int(t.start_msg()).is_equal(KkTalk.MSG_INTRO)
+	assert_int(t.start_msg()).is_equal(KkTalk.MSG_HELLO)
+	## "Want me to jam?" → yes: the request question.
+	assert_int(t.picked(KkTalk.MSG_HELLO, 0)).is_equal(KkTalk.MSG_REQUEST)
+	assert_int(t.start_msg()).is_equal(KkTalk.MSG_AGAIN)
+
+
+func test_kk_request_by_exact_title() -> void:
+	var inv := Inventory.new()
+	var t := KkTalk.new({}, {}, inv)
+	t.context = DialogueContext.new()
+	var title: String = MinidiskCatalog.song_name(5)
+	var step: Dictionary = t.text_result(title)
+	assert_int(int(step["msg"])).is_equal(KkTalk.MSG_FAR_OUT)
+	assert_int(t.song).is_equal(5)
+	assert_int(inv.count_of(MinidiskCatalog.item_id(5))).is_equal(1)
+	assert_int(t.after_show_msg()).is_equal(KkTalk.MSG_AIRCHECK)
+	## Already got tonight's aircheck.
+	assert_int(t.picked(KkTalk.MSG_AGAIN, 0)).is_equal(KkTalk.MSG_ALREADY)
+	## Unknown title: one of his made-up tunes, no aircheck.
+	var u := KkTalk.new({}, {}, inv)
+	u.context = DialogueContext.new()
+	assert_int(int(u.text_result("not a song")["msg"])).is_equal(KkTalk.MSG_MADE_UP)
+	assert_int(u.song).is_between(KkTalk.MADE_UP_FIRST, KkTalk.MADE_UP_FIRST + 2)
+	assert_int(u.after_show_msg()).is_equal(KkTalk.MSG_NOT_MY_BAG)
+
+
+func test_kk_random_pick_skips_collected() -> void:
+	var player: Dictionary = {"collected": (1 << KkTalk.GOOD_SONGS) - 1 - (1 << 7)}
+	var t := KkTalk.new({}, player, Inventory.new())
+	assert_int(t.random_song()).is_equal(7)
+
+
+func test_gulliver_gives_a_keepsake_once_awake() -> void:
+	var inv := Inventory.new()
+	var area: Dictionary = {}
+	var g := GulliverTalk.new(GulliverTalk.Mode.WOKEN, area, inv)
+	var first: int = g.start_msg()
+	assert_int(first).is_between(GulliverTalk.MSG_WAKE, GulliverTalk.MSG_WAKE + 5)
+	assert_bool(bool(area["wakeup"])).is_true()
+	g.current_msg = first
+	assert_int(int(g.next_step()["msg"])).is_equal(GulliverTalk.MSG_GIFT)
+	g.current_msg = GulliverTalk.MSG_GIFT
+	var step: Dictionary = g.next_step()
+	assert_int(int(step["msg"])).is_equal(GulliverTalk.MSG_BYE_FIRST)
+	assert_bool(bool(area["give"])).is_true()
+	if FtrCatalog.available():
+		assert_int(inv.count_of(g.gift)).is_equal(1)
+	## Afterwards he just chats.
+	var chat := GulliverTalk.new(GulliverTalk.Mode.WANDER, area, inv)
+	assert_int(chat.start_msg()).is_between(GulliverTalk.MSG_CHAT, GulliverTalk.MSG_CHAT + 5)

@@ -616,6 +616,48 @@ def convert_mail(cfg: PipelineConfig) -> dict[str, Any]:
 MAIL_CHECK_SCAN_MAX = 0x4000
 
 
+## `mIN_copy_name_str`: 16-byte names, one table per `ITEM1` category (`itemName_table[]`
+## order) plus the two furniture tables indexed by `(ftr_no / 4) & 0x3FF`.
+ITEM_NAME_TABLES = [
+    "itemName_paper", "itemName_money", "itemName_tool", "itemName_fish", "itemName_cloth",
+    "itemName_etc", "itemName_carpet", "itemName_wall", "itemName_fruit", "itemName_plant",
+    "itemName_minidisk", "itemName_dummy", "itemName_ticket", "itemName_insect",
+    "itemName_hukubukuro", "itemName_kabu", "ftrName_table", "ftrName2_table",
+]
+ITEM_NAME_LEN = 16
+
+
+def convert_item_names(cfg: PipelineConfig) -> dict[str, Any]:
+    from .mapfile import index_by_name, parse_map
+    from .rel import RelData
+
+    rel_path = getattr(cfg, "rel_path", None)
+    map_path = getattr(cfg, "map_path", None)
+    if rel_path is None or map_path is None or not Path(rel_path).is_file() or not Path(map_path).is_file():
+        return {"names": 0}
+    rel = RelData(Path(rel_path))
+    by_name = index_by_name(parse_map(Path(map_path)))
+    cmap = char_map()
+    tables: dict[str, list[str]] = {}
+    count = 0
+    for name in ITEM_NAME_TABLES:
+        sym = by_name.get(name)
+        if sym is None:
+            continue
+        blob = rel.slice_at(sym.address, sym.size)
+        rows = []
+        for i in range(0, len(blob) - ITEM_NAME_LEN + 1, ITEM_NAME_LEN):
+            rows.append("".join(cmap[b] for b in blob[i : i + ITEM_NAME_LEN]).rstrip())
+        tables[name] = rows
+        count += len(rows)
+    out_dir = cfg.godot_generated / "dialogue"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "item_names.json").write_text(
+        json.dumps(tables, ensure_ascii=False, indent=0) + "\n", encoding="utf-8"
+    )
+    return {"names": count}
+
+
 def convert_mail_check(cfg: PipelineConfig) -> dict[str, Any]:
     from .mapfile import index_by_name, parse_map
     from .rel import RelData
@@ -722,7 +764,13 @@ def convert_dialogue(cfg: PipelineConfig) -> dict[str, Any]:
         json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     mail = convert_mail(cfg)
+    names = convert_item_names(cfg)
+    from .ftr_catalog import convert_ftr_catalog
+
+    ftr = convert_ftr_catalog(cfg)
     return {
+        "ftr_catalog": ftr.get("converted", 0),
+        "item_names": names.get("names", 0),
         "converted": len(conversations),
         "mail_strings": mail.get("converted", 0),
         "output": str(out_dir),

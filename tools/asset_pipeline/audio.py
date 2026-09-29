@@ -408,7 +408,22 @@ def _load_bgm_ids(decomp: Optional[Path]) -> dict[str, int]:
     path = decomp / "include" / "audio_defs.h"
     if not path.is_file():
         return {}
-    return parse_bgm_ids(path.read_text(encoding="utf-8", errors="replace"))
+    return with_live_songs(parse_bgm_ids(path.read_text(encoding="utf-8", errors="replace")))
+
+
+## K.K.'s live versions: `BGM_TOTAKEKE_LIVE0 + song` (`aMKBC_clip_bgm_no`) for the 55 records
+## plus the three made-up songs (`0x37 + RANDOM(3)`); only LIVE0 is named in the enum.
+TOTAKEKE_LIVE_COUNT = 58
+
+
+def with_live_songs(bgm_ids: dict[str, int]) -> dict[str, int]:
+    base = bgm_ids.get("totakeke_live0", -1)
+    if base < 0:
+        return bgm_ids
+    out = dict(bgm_ids)
+    for n in range(1, TOTAKEKE_LIVE_COUNT):
+        out.setdefault(f"totakeke_live{n}", base + n)
+    return out
 
 
 def _load_se_ids(decomp: Optional[Path]) -> dict[str, int]:

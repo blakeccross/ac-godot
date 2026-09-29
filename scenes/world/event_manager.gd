@@ -23,8 +23,12 @@ const BLOCK_Z_MAX := 6
 ## `schedule_event[]` rows that have a presenter here, `id → script`.
 const PRESENTERS: Dictionary = {
 	&"kabu_peddler": "res://scripts/systems/events/joan_presenter.gd",
+	&"kk_slider": "res://scripts/systems/events/kk_presenter.gd",
+	&"dozaemon": "res://scripts/systems/events/gulliver_presenter.gd",
 }
 
+## A show owns the music (`mBGMPsComp_make_ps_demo`): the field keeps its hands off.
+static var demo_bgm: StringName = &""
 static var _places: Dictionary = {}
 static var _places_day: String = ""
 

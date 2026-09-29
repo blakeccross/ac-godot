@@ -227,7 +227,7 @@ static func umbrella_pool() -> Array[StringName]:
 static func furniture_pool() -> Array[StringName]:
 	var out: Array[StringName] = []
 	for item: ItemData in ItemCatalog.all_items():
-		if item is FurnitureData and not item.shop_rare and ShopBook.buy_price(item) > 0:
+		if item is FurnitureData and (item as FurnitureData).birth == "" and not item.shop_rare and ShopBook.buy_price(item) > 0:
 			out.append(item.id)
 	out.sort_custom(_by_name)
 	return out
@@ -236,7 +236,7 @@ static func furniture_pool() -> Array[StringName]:
 static func _rare_pool() -> Array[StringName]:
 	var out: Array[StringName] = []
 	for item: ItemData in ItemCatalog.all_items():
-		if item is FurnitureData and item.shop_rare and ShopBook.buy_price(item) > 0:
+		if item is FurnitureData and (item as FurnitureData).birth == "" and item.shop_rare and ShopBook.buy_price(item) > 0:
 			out.append(item.id)
 	out.sort_custom(_by_name)
 	return out

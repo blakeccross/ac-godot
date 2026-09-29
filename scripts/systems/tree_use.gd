@@ -239,8 +239,9 @@ func _fruit_items(count: int) -> Array[ItemData]:
 
 static func _random_furniture() -> ItemData:
 	var picks: Array[FurnitureData] = []
+	## Disc furniture only from Nook's A/B/C lists (the shop's `mSP_LISTTYPE_ABC`).
 	for item: ItemData in ItemCatalog.all_items():
-		if item is FurnitureData:
+		if item is FurnitureData and (item as FurnitureData).birth in ["", "grp_a", "grp_b", "grp_c"]:
 			picks.append(item as FurnitureData)
 	if picks.is_empty():
 		return null

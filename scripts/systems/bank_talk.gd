@@ -27,12 +27,28 @@ func start_msg() -> int:
 	return -1
 
 
+## The context is set; fill strings the first page needs.
+func prepare() -> void:
+	pass
+
+
 func entered(_msg_no: int) -> void:
 	pass
 
 
 func picked(_msg_no: int, _index: int) -> int:
 	return -1
+
+
+## A choice that opens a demo instead of a message (`{"hand"|"text"|"anim": …}`).
+func pick_step(_msg_no: int, _index: int) -> Dictionary:
+	return {}
+
+
+## The text editor closed after a `{"text": {"initial", "lines", "len"}}` step
+## (`mSM_OVL_LEDIT`).
+func text_result(_text: String) -> Dictionary:
+	return {}
 
 
 func next_step() -> Dictionary:
@@ -101,3 +117,23 @@ static func give(item: StringName) -> Dictionary:
 
 static func take(item: StringName) -> Dictionary:
 	return {"anim": {"take": item}}
+
+
+## One message and whatever it chains to by itself (`aNTT_set_force_talk_info` and co.).
+class Fixed:
+	extends BankTalk
+
+	var first: int = -1
+	## `mMsg_Set_item_str` slots to fill before the first page, `{n: text}`.
+	var item_strs: Dictionary = {}
+
+	func _init(msg_no: int, p_items: Dictionary = {}) -> void:
+		first = msg_no
+		item_strs = p_items
+
+	func start_msg() -> int:
+		return first
+
+	func prepare() -> void:
+		for n: Variant in item_strs:
+			context.set_item_str(int(n), str(item_strs[n]))

@@ -39,6 +39,8 @@ var weekly_date: int = 0
 var special_type: StringName = &""
 var special_year: int = 0
 var special_dates: Dictionary = {"special0": 0, "special1": 0, "special2": 0, "special3": 6}
+## `event_save_common.dozaemon_completed`: Gulliver gave his gift this week.
+var dozaemon_completed: bool = false
 
 ## `event_save_data` / `mEv_area_c`: payload owned by whichever visitor or festival is on
 ## (Joan's "already spoke", Redd's stock, the artist's gifts, …), keyed by event id.
@@ -64,6 +66,7 @@ func clear() -> void:
 	special_year = 0
 	special_dates = {"special0": 0, "special1": 0, "special2": 0, "special3": 6}
 	save_areas.clear()
+	dozaemon_completed = false
 	_talked.clear()
 	_forced.clear()
 	_hours.clear()
@@ -474,6 +477,9 @@ func _init_weekly(now: Dictionary) -> void:
 				var offset: int = 1 + (today + int(now["hour"])) % 5
 				weekly_date = EventDates.after_n_day(year, today, offset - wd)
 				weekly_type = &"dozaemon"
+				## `dozaemon_completed = FALSE` and a fresh `mEv_dozaemon_c` for the new week.
+				dozaemon_completed = false
+				clear_area(&"dozaemon")
 
 
 # --- special NPC visit -----------------------------------------------------------------
@@ -629,6 +635,7 @@ func to_save() -> Dictionary:
 		"special_year": special_year,
 		"special_dates": special_dates.duplicate(),
 		"areas": save_areas.duplicate(true),
+		"dozaemon_completed": dozaemon_completed,
 	}
 
 
@@ -645,6 +652,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	if typeof(dates) == TYPE_DICTIONARY:
 		for slot: String in ["special0", "special1", "special2", "special3"]:
 			special_dates[slot] = int((dates as Dictionary).get(slot, special_dates[slot]))
+	dozaemon_completed = bool(data.get("dozaemon_completed", false))
 	var areas: Variant = data.get("areas", {})
 	if typeof(areas) == TYPE_DICTIONARY:
 		save_areas = (areas as Dictionary).duplicate(true)

@@ -150,6 +150,11 @@ func choose(index: int) -> void:
 	choices.clear()
 	var next_id := StringName(str(opt.get("goto", "")))
 	if talk_manager != null and _is_bank_message():
+		## A pick that opens a demo (the pockets, a text box) instead of a message.
+		var step: Dictionary = talk_manager.pick_step(talk_manager.current_msg, index)
+		if not step.is_empty():
+			_run_manager_step(step)
+			return
 		## `mChoice_Get_ChoseNum` → `mMsg_Set_continue_msg_num`.
 		var redirect: int = talk_manager.picked(talk_manager.current_msg, index)
 		if redirect >= 0:
@@ -584,6 +589,12 @@ func resolve_action(result: Dictionary) -> void:
 			talk_manager.hand_result(StringName(str(result.get("item", ""))), int(result.get("pocket", -1)))
 		)
 		return
+	if step.has("text"):
+		if talk_manager == null:
+			_finish()
+			return
+		_run_manager_step(talk_manager.text_result(str(result.get("text", ""))))
+		return
 	if step.has("then"):
 		## Several demos in a row (`{"anim": …, "then": {…}}`).
 		_run_manager_step(step["then"])
@@ -598,10 +609,16 @@ func _is_bank_message() -> bool:
 
 
 func _run_manager_step(step: Dictionary) -> void:
-	if step.has("hand") or (step.has("anim") and not step.has("_anim_done")):
+	if step.has("hand") or step.has("text") or (step.has("anim") and not step.has("_anim_done")):
 		_pending_action = step
 		waiting_action = true
-		var ask: Dictionary = {"hand": step["hand"]} if step.has("hand") else {"anim": step["anim"]}
+		var ask: Dictionary = {}
+		if step.has("hand"):
+			ask = {"hand": step["hand"]}
+		elif step.has("text"):
+			ask = {"text": step["text"]}
+		else:
+			ask = {"anim": step["anim"]}
 		if action_requested.get_connections().is_empty():
 			resolve_action({})
 			return
