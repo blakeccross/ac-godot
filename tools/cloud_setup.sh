@@ -146,6 +146,11 @@ for kind in fg seasons inventory-ui design-ui map-ui message-ui clock-ui title d
 done
 # Import what the side kinds wrote so the editor and tests see it.
 "$GODOT_BIN" --headless --path . --import >/dev/null 2>&1 || log "godot --import reported errors"
+# The bake rewrites the tracked acre scenes with this build's material hashes
+# (no ACHD here), so they differ from the committed ones. Hide that local-only
+# diff from git so agents don't commit it; `git update-index --no-skip-worktree`
+# undoes it.
+git ls-files -z scenes/world/acres | xargs -0 git update-index --skip-worktree
 
 date -u +%FT%TZ >"$STAMP"
 [ "$status" = 0 ] && log "assets generated" || log "assets generated with per-asset errors (see output above)"
