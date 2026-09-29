@@ -583,6 +583,8 @@ def uv_samples_transparent(
 _STRUCTURE_PALETTE_ALIASES = {
     "yubinkyoku": "post_office",
     "kouban": "police_box",
+    ## Katrina's fortune tent (`ac_buggy`, `aSTR_PAL_BUGGY`).
+    "uranai": "buggy",
 }
 
 ## Museum wall canvases (`obj_art*_art_tex`) use different CI4 than house FTR

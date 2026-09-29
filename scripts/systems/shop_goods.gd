@@ -245,7 +245,7 @@ static func _rare_pool() -> Array[StringName]:
 static func category_pool(category: ItemData.Category) -> Array[StringName]:
 	var out: Array[StringName] = []
 	for item: ItemData in ItemCatalog.all_items():
-		if item is FurnitureData or item.category != category or item.shop_rare:
+		if item is FurnitureData or item.category != category or item.shop_rare or item.from_disc:
 			continue
 		if ShopBook.buy_price(item) > 0:
 			out.append(item.id)

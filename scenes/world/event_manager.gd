@@ -26,6 +26,10 @@ const PRESENTERS: Dictionary = {
 	&"kk_slider": "res://scripts/systems/events/kk_presenter.gd",
 	&"dozaemon": "res://scripts/systems/events/gulliver_presenter.gd",
 	&"broker_sale": "res://scripts/systems/events/redd_presenter.gd",
+	&"carpet_peddler": "res://scripts/systems/events/saharah_presenter.gd",
+	&"artist": "res://scripts/systems/events/wendell_presenter.gd",
+	&"designer": "res://scripts/systems/events/gracie_presenter.gd",
+	&"gypsy": "res://scripts/systems/events/katrina_presenter.gd",
 }
 
 ## A show owns the music (`mBGMPsComp_make_ps_demo`): the field keeps its hands off.
@@ -181,6 +185,7 @@ func spawn_structure(
 		return null
 	var node: Node3D = packed.instantiate() as Node3D
 	var occupant := StringName("event_%s" % id)
+	node.name = String(occupant)
 	node.set("occupant_id", interior_id if interior_id != &"" else occupant)
 	node.set("visual_id", visual)
 	node.set("footprint", size)

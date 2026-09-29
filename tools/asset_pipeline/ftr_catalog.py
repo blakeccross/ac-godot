@@ -8,8 +8,14 @@ Each furniture index `i` is, in the game:
 - a "birth type" in `mRmTp_birth_type[]` (`m_room_type.c`): which list hands it out —
   Nook's A/B/C groups, events, Halloween, Jingle, Gulliver (JONASON), the lottery, …
 
+Also the other listable goods (`itemName_carpet` / `_wall` / `_cloth` with their
+`*_price_table`s) and the shop's named lists (`ftr_listA`, `carpet_listEvent`,
+`ftr_listJonason`, …) that `mSP_SelectRandomItem_New` draws from, as indices.
+
 Written to the gitignored `assets/generated/items/ftr_catalog.json`:
-`{"items": [{"index", "visual", "name", "price", "birth"}, …]}`.
+`{"items": [{"index", "visual", "name", "price", "birth"}, …],
+  "carpet"|"wall"|"cloth": [{"index", "name", "price"}, …],
+  "lists": {"ftr"|"carpet"|"wall"|"cloth": {"A": [index, …], "Event": […], …}}}`.
 """
 
 from __future__ import annotations
@@ -117,8 +123,55 @@ def convert_ftr_catalog(cfg: PipelineConfig) -> dict[str, Any]:
             "price": prices[i] if i < len(prices) else 0,
             "birth": births[i] if i < len(births) else "",
         })
+    def u16s(symbol: str) -> list[int]:
+        sym = by_name.get(symbol)
+        if sym is None:
+            return []
+        blob = rel.slice_at(sym.address, sym.size)
+        return list(struct.unpack(">%dH" % (len(blob) // 2), blob[: len(blob) // 2 * 2]))
+
+    def goods(kind: str, count_names: str, price_table: str) -> list[dict[str, Any]]:
+        names_k = names(count_names)
+        prices_k = u16s(price_table)
+        if 0xFFFF in prices_k:
+            prices_k = prices_k[: prices_k.index(0xFFFF)]
+        return [
+            {"index": i, "name": n, "price": prices_k[i] if i < len(prices_k) else 0}
+            for i, n in enumerate(names_k)
+        ]
+
+    ranges = {"carpet": 0x2600, "wall": 0x2700, "cloth": 0x2400}
+
+    def to_index(kind: str, item: int) -> int:
+        if kind == "ftr":
+            if 0x1000 <= item < 0x2000:
+                return (item - 0x1000) >> 2
+            if 0x3000 <= item < 0x4000:
+                return FTR0_NAMES + ((item - 0x3000) >> 2)
+            return -1
+        return item - ranges[kind]
+
+    lists: dict[str, dict[str, list[int]]] = {}
+    for kind in ("ftr", "carpet", "wall", "cloth"):
+        found: dict[str, list[int]] = {}
+        for name in by_name:
+            if not name.startswith(f"{kind}_list"):
+                continue
+            label = name[len(kind) + 5 :]
+            if not label or not label[0].isupper():
+                continue
+            values = [v for v in u16s(name) if v not in (0, 0xFFFF)]
+            found[label] = [i for i in (to_index(kind, v) for v in values) if i >= 0]
+        lists[kind] = found
+
     out_dir = cfg.godot_generated / "items"
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / "ftr_catalog.json"
-    path.write_text(json.dumps({"items": items}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    path.write_text(json.dumps({
+        "items": items,
+        "carpet": goods("carpet", "itemName_carpet", "carpet_price_table"),
+        "wall": goods("wall", "itemName_wall", "wall_price_table"),
+        "cloth": goods("cloth", "itemName_cloth", "cloth_price_table"),
+        "lists": lists,
+    }, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
     return {"converted": len(items), "path": str(path)}

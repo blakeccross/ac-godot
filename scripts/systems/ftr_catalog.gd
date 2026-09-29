@@ -13,6 +13,8 @@ const PATH := "res://assets/generated/items/ftr_catalog.json"
 const ID_PREFIX := "ftr_"
 
 static var _rows: Array = []
+static var _goods: Dictionary = {}
+static var _lists: Dictionary = {}
 static var _loaded: bool = false
 
 
@@ -27,7 +29,11 @@ static func _ensure() -> void:
 		return
 	var parsed: Variant = JSON.parse_string(f.get_as_text())
 	if typeof(parsed) == TYPE_DICTIONARY:
-		_rows = (parsed as Dictionary).get("items", [])
+		var d: Dictionary = parsed
+		_rows = d.get("items", [])
+		for kind: String in ["carpet", "wall", "cloth"]:
+			_goods[kind] = d.get(kind, [])
+		_lists = d.get("lists", {})
 
 
 static func available() -> bool:
@@ -84,9 +90,67 @@ static func pick(birth: String, rng: RandomNumberGenerator, exclude: Array = [])
 	return open[rng.randi_range(0, open.size() - 1)]
 
 
+## Item id for entry `index` of `kind`: furniture `ftr_<n>`, carpet `floor_NN` / wallpaper
+## `wall_NN` (the room style ids), clothing `shirt_NNN`.
+static func goods_id(kind: String, index: int) -> StringName:
+	match kind:
+		"ftr":
+			return item_id(index)
+		"carpet":
+			return InteriorStyleCatalog.floor_style_id(index)
+		"wall":
+			return InteriorStyleCatalog.wall_style_id(index)
+		"cloth":
+			return StringName("shirt_%03d" % index)
+	return &""
+
+
+## A named shop list (`ftr_listJonason`, `carpet_listEvent`, …) as item ids.
+static func named_list(kind: String, label: String) -> Array[StringName]:
+	_ensure()
+	var out: Array[StringName] = []
+	for i: Variant in (_lists.get(kind, {}) as Dictionary).get(label, []):
+		out.append(goods_id(kind, int(i)))
+	return out
+
+
+## `mSP_SelectRandomItem_New(kind, list)`: one id from the named list, avoiding `exclude`.
+static func pick_named(kind: String, label: String, rng: RandomNumberGenerator, exclude: Array = []) -> StringName:
+	var pool: Array[StringName] = named_list(kind, label)
+	if pool.is_empty():
+		return &""
+	var open: Array[StringName] = []
+	for id: StringName in pool:
+		if not exclude.has(id):
+			open.append(id)
+	if open.is_empty():
+		open = pool
+	return open[rng.randi_range(0, open.size() - 1)]
+
+
 ## Called from `ItemCatalog.ensure_loaded`.
 static func register_items() -> void:
 	_ensure()
+	var categories: Dictionary = {
+		"carpet": ItemData.Category.FLOOR, "wall": ItemData.Category.WALL, "cloth": ItemData.Category.CLOTH,
+	}
+	for kind: String in categories:
+		for r: Variant in _goods.get(kind, []):
+			var g: Dictionary = r
+			var gid: StringName = goods_id(kind, int(g["index"]))
+			var existing: ItemData = ItemCatalog.get_item(gid)
+			if existing != null and not existing.from_disc:
+				## Authored entry wins.
+				continue
+			var data := ItemData.new()
+			data.id = gid
+			data.display_name = str(g.get("name", ""))
+			data.category = categories[kind]
+			data.buy_price = int(g.get("price", 0))
+			data.from_disc = true
+			if kind == "cloth":
+				data.cloth_index = int(g["index"])
+			ItemCatalog.remember(data)
 	for r: Variant in _rows:
 		var d: Dictionary = r
 		var data := FurnitureData.new()
@@ -96,6 +160,7 @@ static func register_items() -> void:
 		data.category = ItemData.Category.FURNITURE
 		data.buy_price = int(d.get("price", 0))
 		data.birth = str(d.get("birth", ""))
+		data.from_disc = true
 		data.footprint = Vector2i.ZERO
 		data.infer_from_visual()
 		ItemCatalog.remember(data)

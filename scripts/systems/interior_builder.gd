@@ -120,6 +120,8 @@ static func furnish_fallback(furniture_root: Node3D, interior: IndoorSession) ->
 			PolicePresenter.new().present(furniture_root, interior)
 		Room.Kind.BROKER:
 			MuseumInteriorBuilder.add_redd(furniture_root, interior)
+		Room.Kind.DUMP:
+			MuseumInteriorBuilder.add_katrina(furniture_root, interior)
 		_:
 			pass
 

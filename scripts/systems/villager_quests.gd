@@ -518,7 +518,7 @@ static func _carpet_or_wall(rng: RandomNumberGenerator) -> Array[StringName]:
 static func _rare(category: int) -> Array[StringName]:
 	var out: Array[StringName] = []
 	for item: ItemData in ItemCatalog.all_items():
-		if item is FurnitureData or item.category != category or not item.shop_rare:
+		if item is FurnitureData or item.category != category or not item.shop_rare or item.from_disc:
 			continue
 		out.append(item.id)
 	out.sort_custom(func(a: StringName, b: StringName) -> bool: return String(a) < String(b))

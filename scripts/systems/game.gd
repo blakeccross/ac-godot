@@ -634,6 +634,9 @@ func quest_handover_allows(pocket: int) -> bool:
 			var data: ItemData = ItemCatalog.get_item(s.item.item_id)
 			var want: int = ItemData.Category.FISH if quest_handover_mode == "fish" else ItemData.Category.BUG
 			return data != null and data.category == want
+		"take":
+			## `mSM_IV_OPEN_TAKE`: any pocket (the peddler checks what it is).
+			return true
 	return pocket == quest_handover_pocket
 
 

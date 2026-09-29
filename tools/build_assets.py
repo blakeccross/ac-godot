@@ -289,6 +289,10 @@ def main() -> int:
                     "obj_w_yubinkyoku",
                     "obj_s_station",
                     "obj_w_station",
+                    "obj_s_uranai",
+                    "obj_w_uranai",
+                    "obj_s_yamishop",
+                    "obj_w_yamishop",
                 )
                 pal_report = convert_villager_house_palettes(cfg)
                 report["results"].extend(pal_report.get("results", []))

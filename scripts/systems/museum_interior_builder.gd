@@ -58,6 +58,19 @@ static func add_redd(root: Node3D, interior: IndoorSession) -> void:
 	root.add_child(redd)
 
 
+## Katrina in her tent (`SCENE_BUGGY`, the player comes in at (160, 260) GX facing her).
+static func add_katrina(root: Node3D, interior: IndoorSession) -> void:
+	if root == null or interior == null or interior.grid == null:
+		return
+	if root.get_node_or_null("Katrina") != null:
+		return
+	var katrina := StaticBody3D.new()
+	katrina.set_script(load("res://scenes/world/interiors/katrina.gd"))
+	katrina.name = "Katrina"
+	katrina.position = MuseumDisplay.gx_to_world(interior.grid, Vector3(160.0, 0.0, 140.0))
+	root.add_child(katrina)
+
+
 ## Blathers in the entrance hall (talk / donate).
 static func add_blathers(root: Node3D, interior: IndoorSession) -> void:
 	if root == null or interior == null or interior.grid == null:

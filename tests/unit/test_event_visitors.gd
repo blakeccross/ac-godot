@@ -193,3 +193,87 @@ func test_redd_stock_and_sale() -> void:
 	## Outside afterwards he congratulates the purchase.
 	var out := ReddTalk.new(ReddTalk.Kind.OUTSIDE, area, inv, rng)
 	assert_int(out.start_msg()).is_equal(ReddTalk.MSG_OUT_BOUGHT)
+
+
+func test_saharah_prices_double_and_needs_a_carpet() -> void:
+	if not FtrCatalog.available():
+		return
+	var area: Dictionary = {"used": 2}
+	var inv := Inventory.new()
+	inv.set_wallet(20000)
+	var t := SaharahTalk.new(area, inv)
+	t.context = DialogueContext.new()
+	t.prepare()
+	assert_int(t.price).is_equal(12000)
+	assert_str(t.context.frees[0]).is_equal("12000")
+	## No carpet in the pockets.
+	assert_int(t.picked(SaharahTalk.MSG_OFFER, 0)).is_equal(SaharahTalk.MSG_NO_CARPET)
+	var floor_item: ItemData = ItemCatalog.get_item(InteriorStyleCatalog.floor_style_id(3))
+	inv.add(floor_item, 1)
+	assert_int(t.picked(SaharahTalk.MSG_OFFER, 0)).is_equal(SaharahTalk.MSG_CHOOSE)
+	var step: Dictionary = t.hand_result(floor_item.id)
+	assert_int(int(step["then"]["msg"])).is_equal(SaharahTalk.MSG_TRADE)
+	assert_int(inv.wallet).is_equal(8000)
+	assert_int(inv.count_of(t.carpet)).is_equal(1)
+	assert_int(int(area["used"])).is_equal(3)
+
+
+func test_wendell_gives_wallpaper_for_fish() -> void:
+	if not FtrCatalog.available():
+		return
+	var area: Dictionary = {}
+	var inv := Inventory.new()
+	var t := WendellTalk.new(area, inv)
+	assert_int(t.start_msg()).is_equal(WendellTalk.MSG_HUNGRY)
+	var fish: ItemData = null
+	for it: ItemData in ItemCatalog.all_items():
+		if it.category == ItemData.Category.FISH:
+			fish = it
+			break
+	if fish == null:
+		return
+	inv.add(fish, 1)
+	assert_int(int(t.hand_result(fish.id)["msg"])).is_equal(WendellTalk.MSG_FISH)
+	assert_int(inv.count_of(fish.id)).is_equal(0)
+	t.current_msg = WendellTalk.MSG_FISH
+	assert_int(int(t.next_step()["msg"])).is_equal(WendellTalk.MSG_THANKS)
+	assert_int(inv.count_of(t.present)).is_equal(1)
+	assert_int(WendellTalk.new(area, inv).start_msg()).is_equal(WendellTalk.MSG_FULL)
+
+
+func test_gracie_wash_results() -> void:
+	if not FtrCatalog.available():
+		return
+	var area: Dictionary = {}
+	var inv := Inventory.new()
+	var t := GracieTalk.new(GracieTalk.Kind.NORMAL, area, inv)
+	t.female = true
+	var first: int = t.start_msg()
+	assert_int(first).is_between(GracieTalk.MSG_NOT_WEARING[4], GracieTalk.MSG_NOT_WEARING[7])
+	t.current_msg = first
+	assert_int(int(t.next_step()["msg"])).is_equal(GracieTalk.MSG_NOT_WEARING[19])
+	assert_bool(t.wants_wash).is_true()
+	var r := GracieTalk.new(GracieTalk.Kind.RESULT, area, inv)
+	r.result = 0
+	r.current_msg = r.start_msg()
+	assert_int(int(r.next_step()["msg"])).is_equal(GracieTalk.MSG_NOT_WEARING[12])
+	assert_bool(FtrCatalog.named_list("cloth", "Event").has(r.present)).is_true()
+	assert_int(inv.count_of(r.present)).is_equal(1)
+
+
+func test_katrina_reading_costs_50_and_sets_a_destiny() -> void:
+	var inv := Inventory.new()
+	inv.set_wallet(60)
+	var t := KatrinaTalk.new(KatrinaTalk.Destiny.NORMAL, false, inv)
+	t.context = DialogueContext.new()
+	assert_int(t.start_msg()).is_equal(KatrinaTalk.MSG_ASK)
+	assert_int(t.picked(KatrinaTalk.MSG_ASK, 0)).is_equal(KatrinaTalk.MSG_READING)
+	assert_int(inv.wallet).is_equal(10)
+	t.current_msg = KatrinaTalk.MSG_READING
+	var n: int = int(t.next_step()["msg"])
+	assert_int(n).is_between(KatrinaTalk.MSG_RESULT, KatrinaTalk.MSG_RESULT + 5)
+	assert_int(t.destiny).is_equal(n - KatrinaTalk.MSG_RESULT)
+	## Out of Bells now.
+	var broke := KatrinaTalk.new(KatrinaTalk.Destiny.NORMAL, false, inv)
+	broke.context = DialogueContext.new()
+	assert_int(broke.picked(KatrinaTalk.MSG_ASK, 0)).is_equal(KatrinaTalk.MSG_BROKE)
