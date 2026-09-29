@@ -343,3 +343,52 @@ func test_yomise_sells_tonights_goods() -> void:
 	var t2 := YomiseTalk.new(area, broke, rng)
 	t2.pick_step(YomiseTalk.MSG_PITCH[t2.kind()], 0)
 	assert_int(int(t2.choose(0)["msg"])).is_equal(YomiseTalk.MSG_BROKE)
+
+
+func test_angler_measures_bass_and_keeps_the_record() -> void:
+	var inv := Inventory.new()
+	var bass: ItemData = ItemCatalog.get_item(&"large_bass")
+	if bass == null:
+		return
+	inv.add(bass, 1)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var area: Dictionary = {}
+	var t := AnglerTalk.new(area, inv, rng, 10)
+	t.context = DialogueContext.new()
+	assert_int(t.start_msg()).is_equal(AnglerTalk.MSG_RULES)
+	assert_int(AnglerTalk.new(area, inv, rng, 10).start_msg()).is_equal(AnglerTalk.MSG_CAUGHT_ONE)
+	assert_int(AnglerTalk.new(area, inv, rng, 19).start_msg()).is_equal(AnglerTalk.MSG_CLOSED)
+	t.current_msg = AnglerTalk.MSG_HAND_IT_OVER
+	assert_str(str(t.next_step()["hand"]["mode"])).is_equal("take")
+	var step: Dictionary = t.hand_result(&"large_bass")
+	assert_int(int(step["msg"])).is_equal(0x111A)
+	## `mFR_fish_rndsize(LARGE)`: 50–70 cm.
+	assert_int(t.size).is_between(19, 27)
+	t.current_msg = 0x111A
+	var after: Dictionary = t.next_step()
+	assert_int(int(after["msg"])).is_equal(0x111A + 2)
+	assert_int(inv.count_of(&"large_bass")).is_equal(0)
+	assert_bool(bool(area["top_player"])).is_true()
+	assert_int(int(area["size"])).is_equal(t.size)
+	## A villager's catch can only raise the record.
+	AnglerTalk.roll_npc_record(area, 8, ["Rosie"], rng)
+	assert_int(int(area["size"])).is_greater_equal(t.size)
+
+
+func test_miko_fortune_costs_50_and_sends_a_letter() -> void:
+	var inv := Inventory.new()
+	inv.set_wallet(80)
+	var t := MikoTalk.new(inv)
+	t.context = DialogueContext.new()
+	assert_int(t.start_msg()).is_equal(MikoTalk.MSG_ASK)
+	assert_int(t.picked(MikoTalk.MSG_ASK, 0)).is_equal(-1)
+	t.current_msg = MikoTalk.MSG_CHANT
+	var n: int = int(t.next_step()["msg"])
+	assert_int(n).is_between(MikoTalk.MSG_READING, MikoTalk.MSG_READING + 3)
+	assert_int(inv.wallet).is_equal(30)
+	t.entered(MikoTalk.MSG_HERE)
+	assert_int(inv.received_mail_count()).is_equal(1)
+	var broke := MikoTalk.new(inv)
+	broke.context = DialogueContext.new()
+	assert_int(broke.picked(MikoTalk.MSG_ASK, 0)).is_equal(MikoTalk.MSG_BROKE)

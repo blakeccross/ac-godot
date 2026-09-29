@@ -148,6 +148,7 @@ const PROPS: Dictionary = {
 	"SAKURA_TABLE0": ["obj_e_hanami_a", Vector2i(2, 2)],
 	"SAKURA_TABLE1": ["obj_e_hanami_b", Vector2i(2, 2)],
 	"AEROBICS_RADIO": ["obj_e_radio", Vector2i(1, 1)],
+	"NEWYEAR_TABLE": ["obj_e_mikuji", Vector2i(3, 1)],
 	"NEWYEAR_COUNTDOWN0": ["obj_e_count01", Vector2i(2, 1)],
 	"NEWYEAR_COUNTDOWN1": ["obj_e_count02_cl", Vector2i(2, 1)],
 	"SPORTSFAIR_BASKET_RED": ["obj_e_kago_r", Vector2i(1, 1)],

@@ -12,6 +12,8 @@ const TORTIMER_ACTORS: Array[String] = ["SP_NPC_EV_SONCHO2"]
 const SPECIALS: Dictionary = {
 	"SP_NPC_EV_YOMISE": "res://scenes/world/events/yomise.tscn",
 	"SP_NPC_EV_YOMISE2": "res://scenes/world/events/yomise.tscn",
+	"SP_NPC_ANGLER": "res://scenes/world/events/angler.tscn",
+	"SP_NPC_EV_MIKO": "res://scenes/world/events/miko.tscn",
 }
 ## The props a seated / standing guest faces, if one is this close (cells).
 const FACE_PROP_RANGE := 4.0
@@ -59,6 +61,8 @@ func start() -> bool:
 			_add_tortimer(e["cell"], _face(e["cell"], props, center))
 		elif SPECIALS.has(actor):
 			var special: Node3D = (load(SPECIALS[actor]) as PackedScene).instantiate() as Node3D
+			if "anglers" in special:
+				special.set("anglers", _names(chosen))
 			mgr.add_actor(id, special, e["cell"], _face(e["cell"], props, center), 0)
 	_set_away(true)
 	return true
@@ -77,6 +81,15 @@ func _pick(count: int) -> Array[StringName]:
 	var residents: Array[StringName] = Game.residents.resident_ids()
 	var today: String = Game.events.day_key() if Game.events != null else ""
 	return FestivalCrowd.pick_villagers(residents, count, "%s:%s" % [id, today], Game.player_met)
+
+
+func _names(ids: Array[StringName]) -> Array:
+	var out: Array = []
+	for v: StringName in ids:
+		var data: VillagerData = VillagerCatalog.get_villager(v)
+		if data != null:
+			out.append(data.display_name)
+	return out
 
 
 func _cloth(name: String) -> int:
