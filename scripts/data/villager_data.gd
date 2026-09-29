@@ -15,6 +15,8 @@ extends Resource
 @export var catchphrase_string: int = -1
 ## `npc_def_list[].cloth`: the `ITM_CLOTH` number the villager wears by default; -1 unknown.
 @export var default_cloth: int = -1
+## `npc_def_list[].umbrella`: the umbrella tool (`TOOL_UMBRELLA0 + n`) carried in the rain.
+@export var default_umbrella: int = -1
 @export var personality: VillagerPersonality
 ## Optional override. Empty → personality looks table (`mNPS_schedule[looks]`).
 @export var schedule: ScheduleData

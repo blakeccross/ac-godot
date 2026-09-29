@@ -111,6 +111,9 @@ var _anim: AnimationPlayer
 var _gait: PlayerLocomotion.Gait = PlayerLocomotion.Gait.WAIT
 var _placeholder_bob: float = 0.0
 var _hold_anim: StringName = &""
+## `mPlib_check_player_actor_main_index_catch_insect` / `_catch_fish`: pulling in and showing
+## a bug or fish — villagers nearby clap (`aNPC_check_clap`).
+var catch_showing: bool = false
 ## The umbrella in hand (`player->umbrella_actor`).
 var _umbrella: HeldUmbrella = null
 ## The item's carry pose layered on the arms (`BOY_part_data` / anim1).
@@ -1724,11 +1727,17 @@ func _finish_action(tail: float) -> void:
 ## resolve on the button frame or the bite window is spent animating. `Fishing` picks the
 ## beats from what came up on the line.
 func _play_reel() -> void:
-	for beat: Fishing.ReelBeat in Fishing.take_reel_beats():
+	var beats: Array = Fishing.take_reel_beats()
+	for beat: Fishing.ReelBeat in beats:
+		## `FLY_ROD` → `NOTICE_ROD` → `PUTAWAY_ROD`: a fish is coming out of the water.
+		if beat.fish != null:
+			catch_showing = true
+	for beat: Fishing.ReelBeat in beats:
 		if beat.face_camera or beat.hold > 0.0:
 			await _play_show(beat)
 		else:
 			await _play_clip(beat.player_anim, beat.tool_anim)
+	catch_showing = false
 
 
 ## `m_player_main_notice_rod`: hold the catch up and turn square-on to the camera, then put
@@ -1974,6 +1983,8 @@ func _run_net_catch() -> void:
 	var field: BugField = Netting.field_of(ctx)
 	var catch_: Netting.Catch = Netting.begin_catch(caught)
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	## `PULL_NET` / `NOTICE_NET` / `PUTAWAY_NET`: showing off a bug.
+	catch_showing = catch_ != null
 	if catch_ != null:
 		var ui: DialogueOverlay = DialogueOverlay.find(get_tree())
 		await _net_pull(catch_, skeleton, ui)
@@ -1993,6 +2004,7 @@ func _run_net_catch() -> void:
 	if _anim != null:
 		_anim.speed_scale = 1.0
 	HeldTool.play(skeleton, _tool_hold_anim, true)
+	catch_showing = false
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()

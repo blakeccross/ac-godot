@@ -46,6 +46,12 @@ const ANNOY_MOOD_SECONDS := 60.0
 enum React { NONE = -1, SURPRISE, SURPRISE2, SURPRISE_UZAI, LOOK_PLAYER }
 const REACT_CLIPS: Array[String] = ["npc_1_gyafun1", "npc_1_gyafun2", "npc_1_gyafun2", ANIM_WAIT]
 const REACT_LOOK_SECONDS := 5.0
+## Outdoor acts that stop the walk (`aNPC_ACT_UMB_OPEN` / `UMB_CLOSE` / `CLAP`).
+enum Act { NONE, UMB_OPEN, UMB_CLOSE, CLAP }
+const ANIM_UMB_OPEN := "npc_1_umb_open1"
+const ANIM_UMB_CLOSE := "npc_1_umb_close1"
+const ANIM_UMBRELLA := "npc_1_umbrella1"
+const ANIM_CLAP := "npc_1_clap1"
 
 @export var data: VillagerData
 ## Indoor `ac_npc2` stand-in: always visible while the player is in this house.
@@ -94,6 +100,16 @@ var _talk_look: Vector3 = Vector3.ZERO
 var _face: NpcFace = NpcFace.new()
 var _head_look: NpcHeadLook = NpcHeadLook.new()
 var _face_mood: int = -1
+var _act: Act = Act.NONE
+## The umbrella in the right hand (`right_hand.item_type == UMBRELLA`) and its arm pose
+## (`aNPC_SUB_ANIM_UMBRELLA`).
+var _umbrella: HeldUmbrella = null
+var _umb_carry: ToolCarry = null
+var _outdoor_rng := RandomNumberGenerator.new()
+## `aNPC_ACT_CHASE_INSECT` / `CHASE_GYOEI`: what's being watched, and for how much longer.
+var _chase: Object = null
+var _chase_fish: bool = false
+var _chase_left: float = 0.0
 ## Quest manager for the conversation in progress (`VillagerTalkManager`).
 var _talk_manager: VillagerTalkManager
 var _visual: Node3D
@@ -131,6 +147,9 @@ func _ready() -> void:
 	_visual = vis
 	if vis != null:
 		_body_anim = VisualAnimation.find_animation_player(vis)
+		if _body_anim != null:
+			## Before the head look binds, so the head override lands on top of the arm pose.
+			_body_anim.mixer_applied.connect(_apply_sub_anim)
 		_play_clip(ANIM_WAIT, true)
 		var texture_set: StringName = data.texture_set if data else &""
 		VillagerTextures.apply(vis, texture_set)
@@ -144,6 +163,9 @@ func _ready() -> void:
 		_motor.facing = rotation.y
 	else:
 		_sync_from_clock()
+		## `aNPC_check_force_use_umbrella`: out in the rain from the start, umbrella up.
+		if state != null and not state.is_home and Game != null and Game.weather == &"rain":
+			_take_out_umbrella(true)
 
 
 func _sync_from_clock() -> void:
@@ -372,6 +394,15 @@ func _physics_process(delta: float) -> void:
 	if _react != React.NONE:
 		_tick_react(delta)
 		return
+	if _umbrella != null:
+		_umbrella.tick(delta)
+	if _umb_carry != null:
+		_umb_carry.advance(delta)
+	if _act != Act.NONE:
+		_tick_act(delta)
+		return
+	if _start_outdoor_act():
+		return
 	if not _spawn_unstuck:
 		_unstick_spawn()
 	var on_bg: bool = _snap_to_bg()
@@ -550,6 +581,8 @@ func _apply_presence(present: bool) -> void:
 
 
 func _steer_ai() -> void:
+	if ai.is_wandering() and _tick_chase():
+		return
 	if ai.is_wandering():
 		if _travel_stand != Vector3.INF:
 			## Relocating: walk to the next acre's entry unit (walk row, no circle clamp).
@@ -1248,6 +1281,196 @@ func _play_annoyance_scold() -> void:
 	if player != null:
 		TalkCamera.begin(player, self, get_tree())
 	ui.play(talk_data, talk_ctx, state)
+
+
+## ---------------------------------------------------------------- outdoor acts
+
+## `aNPC_think_chk_interrupt_proc`: umbrella (`aNPC_ctrl_umbrella` + `aNPC_chk_right_hand`),
+## then a clap while the player shows a catch.
+func _start_outdoor_act() -> bool:
+	if Game == null or Game.title_demo_active:
+		return false
+	var raining: bool = Game.weather == &"rain"
+	if raining and _umbrella == null:
+		var now: float = Time.get_ticks_msec() / 1000.0
+		if VillagerOutdoor.claim_umbrella(self, now, _outdoor_rng):
+			if _take_out_umbrella(false):
+				return true
+			VillagerOutdoor.release_umbrella(self, now, _outdoor_rng)
+	elif not raining and _umbrella != null and current_activity() != VillagerActivity.SLEEP:
+		_put_away_umbrella()
+		return true
+	var player := get_tree().get_first_node_in_group("player") as Node3D if get_tree() != null else null
+	if player != null and _motor.gait != VillagerWalk.ACT_RUN:
+		var catching: bool = bool(player.get("catch_showing"))
+		if VillagerOutdoor.wants_clap(global_position, _motor.facing, player.global_position, catching, _mood_normal()):
+			_act = Act.CLAP
+			_motor.arrive()
+			_play_clip(ANIM_CLAP, true)
+			return true
+	return false
+
+
+func _mood_normal() -> bool:
+	return state == null or state.mood == VillagerState.Mood.NORMAL
+
+
+## `aNPC_takeout_right_item` → `aNPC_ACT_UMB_OPEN`. `instant` is `aTOL_ACTION_S_TAKEOUT`:
+## already open, no clip.
+func _take_out_umbrella(instant: bool) -> bool:
+	var visual_id: StringName = VillagerOutdoor.umbrella_visual(data, state)
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_visual)
+	if visual_id == &"" or skeleton == null:
+		return false
+	var attach: Node3D = HeldTool.bind(skeleton, visual_id)
+	if attach == null or attach.get_child_count() == 0:
+		return false
+	_umbrella = HeldUmbrella.new()
+	_umbrella.setup(
+		attach.get_child(0) as Node3D,
+		HeldUmbrella.Action.OPEN_NOW if instant else HeldUmbrella.Action.TAKEOUT_BEFORE
+	)
+	_umb_carry = ToolCarry.build_part(_body_anim, skeleton, ANIM_UMBRELLA, VillagerOutdoor.SUB_ANIM_JOINTS)
+	if instant:
+		return true
+	_act = Act.UMB_OPEN
+	_motor.arrive()
+	_play_clip(ANIM_UMB_OPEN, false)
+	return true
+
+
+## `aNPC_putaway_right_item` → `aNPC_ACT_UMB_CLOSE`.
+func _put_away_umbrella() -> void:
+	if _umbrella == null:
+		return
+	_umbrella.set_action(HeldUmbrella.Action.PUTAWAY)
+	_act = Act.UMB_CLOSE
+	_motor.arrive()
+	_play_clip(ANIM_UMB_CLOSE, false)
+
+
+func _drop_umbrella() -> void:
+	HeldTool.unbind(HeldTool.find_skeleton(_visual))
+	_umbrella = null
+	_umb_carry = null
+
+
+## The act runs in place like the react (`mv_angl` pinned).
+func _tick_act(delta: float) -> void:
+	var on_bg: bool = _snap_to_bg()
+	if on_bg:
+		velocity.y = 0.0
+	elif not is_on_floor():
+		velocity.y -= _gravity * delta
+	velocity.x = 0.0
+	velocity.z = 0.0
+	move_and_slide()
+	var clip_done: bool = (
+		_body_anim == null or not _body_anim.is_playing() or _body_anim.current_animation != _clip
+	)
+	match _act:
+		Act.UMB_OPEN:
+			if clip_done:
+				VillagerOutdoor.release_umbrella(self, Time.get_ticks_msec() / 1000.0, _outdoor_rng)
+				_act = Act.NONE
+		Act.UMB_CLOSE:
+			if clip_done and (_umbrella == null or _umbrella.is_closed()):
+				_drop_umbrella()
+				_act = Act.NONE
+		Act.CLAP:
+			## `aNPC_act_clap_main_proc`: until the player puts the catch away.
+			var player := get_tree().get_first_node_in_group("player") as Node3D
+			if player != null:
+				_motor.turn_toward(delta, global_position, player.global_position)
+				if _model != null:
+					_model.rotation.y = _motor.facing
+			if player == null or not bool(player.get("catch_showing")):
+				_act = Act.NONE
+	if _act == Act.NONE:
+		_play_clip(ANIM_WAIT, true)
+	_tick_annoyance(delta)
+
+
+## `aNPC_anime_proc` part table: the sub-animation drives the right arm and head root over
+## every main clip except the umbrella's own.
+func _apply_sub_anim() -> void:
+	if _umb_carry == null or _act == Act.UMB_OPEN or _act == Act.UMB_CLOSE:
+		return
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_visual)
+	if skeleton != null:
+		_umb_carry.apply(skeleton)
+
+
+## `aNPC_check_insect_and_gyoei` (while walking) and `aNPC_act_chase_insect` (up to a
+## minute): walk / run over, then watch. True while it owns the steering.
+func _tick_chase() -> bool:
+	if _chase == null:
+		var walking: bool = _motor.has_target and _motor.gait != VillagerWalk.ACT_WAIT
+		if not walking or not _mood_normal() or _resting:
+			return false
+		var found: Dictionary = VillagerOutdoor.chase_target(global_position, _fish_pairs(), _bug_pairs())
+		if found.is_empty():
+			return false
+		_chase = found["target"]
+		_chase_fish = bool(found["fish"])
+		_chase_left = VillagerOutdoor.CHASE_SECONDS
+	var target_pos: Vector3 = _chase_position()
+	var delta: float = get_physics_process_delta_time()
+	_chase_left -= delta
+	if target_pos == Vector3.INF or _chase_left <= 0.0 or not _mood_normal():
+		_chase = null
+		_motor.arrive()
+		return false
+	match VillagerOutdoor.chase_step(global_position, _motor.facing, target_pos, _chase_fish):
+		VillagerOutdoor.ChaseStep.WAIT:
+			if _motor.has_target:
+				_motor.arrive()
+		VillagerOutdoor.ChaseStep.TURN:
+			if _motor.has_target:
+				_motor.arrive()
+			_motor.turn_toward(delta, global_position, target_pos)
+		VillagerOutdoor.ChaseStep.WALK:
+			_motor.set_target(target_pos, VillagerWalk.ACT_WALK, VillagerOutdoor.INSECT_NEAR * 0.5, global_position, _motor.facing)
+		VillagerOutdoor.ChaseStep.RUN:
+			_motor.set_target(target_pos, VillagerWalk.ACT_RUN, VillagerOutdoor.INSECT_NEAR * 0.5, global_position, _motor.facing)
+	return true
+
+
+func _chase_position() -> Vector3:
+	if _chase == null or not is_instance_valid(_chase):
+		return Vector3.INF
+	if _chase_fish:
+		var shadow := _chase as FishShadow
+		return shadow.position if shadow != null and not shadow.finished else Vector3.INF
+	var bug := _chase as BugActor
+	for pair: Array in _bug_pairs():
+		if pair[0] == bug:
+			return pair[1]
+	return Vector3.INF
+
+
+func _fish_pairs() -> Array:
+	var out: Array = []
+	var host: Node = get_tree().get_first_node_in_group("fish_shadows") if get_tree() != null else null
+	var school: FishSchool = host.call("school") as FishSchool if host != null else null
+	if school == null:
+		return out
+	for shadow: FishShadow in school.shadows:
+		if shadow != null and not shadow.finished:
+			out.append([shadow, shadow.position])
+	return out
+
+
+func _bug_pairs() -> Array:
+	var out: Array = []
+	var host: Node = get_tree().get_first_node_in_group("bug_actors") if get_tree() != null else null
+	var field: BugField = host.call("field") as BugField if host != null else null
+	if field == null:
+		return out
+	for bug: BugActor in field.actors:
+		if bug != null:
+			out.append([bug, bug.position])
+	return out
 
 
 func _looks() -> VillagerPersonality.Looks:

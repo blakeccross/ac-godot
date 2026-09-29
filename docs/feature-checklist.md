@@ -223,7 +223,7 @@ data tables before a category is called done.
 
 ## 13. Bug catching
 
-- [~] Net swing hitbox, timing, whiff, bug flees (`ac_insect`, `ac_npc_act_chase_insect`) — `aINS_set_catch_range` (24 / 8 GX, facing gate from insect → player angle) + one-frame `Check_StopNet` panic — `net_swing.gd`, `bug_field.gd`, `bug_actor.gd`. Villagers chasing insects not done
+- [~] Net swing hitbox, timing, whiff, bug flees (`ac_insect`, `ac_npc_act_chase_insect`) — `aINS_set_catch_range` (24 / 8 GX, facing gate from insect → player angle) + one-frame `Check_StopNet` panic — `net_swing.gd`, `bug_field.gd`, `bug_actor.gd`. Villagers chase bugs and fish shadows (`aNPC_ACT_CHASE_INSECT`, `VillagerOutdoor`)
 - [~] Bug spawn tables by month / time / habitat (tree trunk, flying, on flowers, on the ground, in the ground (mole cricket), by water, tree stumps, rotten food, street lamps at night) (`ac_set_ovl_insect`, `ac_insect_data`) — `bug_catalog.gd`, `bug_habitats.gd`
 - [ ] **40 individual insect types** (`aINS_INSECT_TYPE_NUM`): butterflies, cicadas, bees/wasps, dragonflies, locusts, crickets, beetles, ladybugs, mantis, tarantula, firefly, cockroach, snail, mole cricket, pond skater, bagworm, pill bug, spider, ant, and mosquito (`ac_insect_h.h`, `ac_insect_data.c_inc`)
 - [ ] Bee swarm from a shaken tree chases you; hide indoors or net them; sting → swollen face (`ac_bee`, `bee_swarm.gd`)
@@ -288,10 +288,10 @@ data tables before a category is called done.
 - [~] Face: texture-swap eyes & mouth; blink bursts; emotion holds; mouth flap while talking (`ac_npc_anime`, `aNPC_check_kutipaku`) — `npc_face.gd`, `npc_face_anim.gd`
 - [~] Feel glyphs (manpu) above head: laugh cards, shock, "!", lightbulb, sweat, anger, sleep-Zzz, love hearts (`ef_warau`, `ef_shock`, `ef_ha`, `ef_hirameki`, `ef_lovelove`, …) — `npc_manpu.gd`, `npc_feel_glyphs`
 - [ ] Full manpu set: `KONPU`, `PUN_YUGE`, `DOYON`, `GIMONHU`, `KANTANHU`, `NAMIDA`, `NEBOKE`, `MUKA`, etc.
-- [ ] Activities villagers do: sit and think, fish, catch bugs, water flowers, sing, exercise, read, talk to each other, shop, deliver mail for you, clap (`ac_npc_act_*`)
+- [~] Activities villagers do (`ac_npc_act_*`): clap when you show off a catch, chase bugs / watch fish shadows (`VillagerOutdoor`). The GCN field villager has no fishing / singing / reading acts of its own. Missing: talking to each other (`aNPC_ACT_GREETING`), running after the ball
 - [ ] Villager catches a bug/fish and shows it off; asks you to catch something
-- [ ] Umbrella open/close in rain (`ac_npc_act_umb_open/close`) — player side done; villagers still walk in the rain without one
-- [ ] Villager falls in your pitfall; you dig them out; anger/forgiveness (`ac_npc_act_pitfall`)
+- [x] Umbrella open/close in rain (`ac_npc_act_umb_open/close`, `aNPC_ctrl_umbrella`) — their own `npc_def_list` umbrella, one opening at a time, `UMBRELLA1` arm pose. Missing: Able-design umbrellas in hand
+- [ ] Villager falls in your pitfall; you dig them out; anger/forgiveness (`ac_npc_act_pitfall`) — blocked on pitfall seeds
 - [ ] Hitting a villager with the net/axe/shovel → anger, "watch it!" (`m_watch_my_step`)
 - [x] **Moving in**: new villager on a free SIGN plot, introduces self on first meeting (`mNpc_Grow`, `MSG_11573`) — `town_residents.gd`. GCN has no moving boxes
 - [~] **Moving out**: full town + 10 days → fewest-memories villager leaves with a goodbye letter (`mNpc_ForceRemove`) — `town_residents.gd`. The "thinking of moving" talk (`remove_animal_idx`) is picked but its dialogue isn't wired (only matters for card transfer)

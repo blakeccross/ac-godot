@@ -761,6 +761,7 @@ func reset_session() -> void:
 	first_job_hint_count = 0
 	valentine_year = 0
 	VillagerWalk.reset()
+	VillagerOutdoor.reset()
 	Fishing.reset()
 	player_position = DEFAULT_SPAWN
 	player_yaw = 0.0

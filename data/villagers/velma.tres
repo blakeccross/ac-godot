@@ -14,6 +14,7 @@ starter = false
 npc_index = 96
 catchphrase_string = 625
 default_cloth = 240
+default_umbrella = 4
 wall_index = 58
 floor_index = 2
 house_type = 4

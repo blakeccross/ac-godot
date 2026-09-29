@@ -80,7 +80,7 @@ func _capture_date(date: String) -> void:
 	if target != "scene":
 		var focus: Variant = _resolve_focus(root, target)
 		## Insects spawn over time: keep looking for up to `wait` frames.
-		if focus == null and target.begins_with("bug:"):
+		if focus == null and (target.begins_with("bug:") or target.begins_with("villager:")):
 			for _i: int in int(_args.get("wait", "20")):
 				await get_tree().process_frame
 				focus = _resolve_focus(root, target)
@@ -143,6 +143,22 @@ func _resolve_focus(root: Node, target: String) -> Variant:
 		"visual":
 			var hit := _find_visual(root, value)
 			return hit.global_position if hit != null else null
+		"villager":
+			## First visible villager, or the one whose data id is `value`.
+			for node: Node in root.get_tree().get_nodes_in_group("villagers"):
+				var villager_ai: Variant = node.get("ai")
+				if node is Node3D and villager_ai != null and villager_ai.is_present():
+					var vd: Variant = node.get("data")
+					if value.is_empty() or (vd != null and String(vd.id) == value):
+						return (node as Node3D).global_position
+			## Everyone is still at home: walk the player over to the first house so it
+			## spawns them (`aSNMgr_set_npc_regular`); the wait loop looks again.
+			var player := root.get_tree().get_first_node_in_group("player") as Node3D
+			for node: Node in root.get_tree().get_nodes_in_group("villagers"):
+				if player != null and node is Node3D:
+					player.global_position = (node as Node3D).global_position + Vector3(0, 0, 8)
+					break
+			return null
 		"bug":
 			for node: Node in root.find_children("*", "BugActorVisual", true, false):
 				var bug := node as BugActorVisual

@@ -133,6 +133,7 @@ def parse_roster(decomp: Path) -> list[dict[str, Any]]:
                 "catchphrase": CATCHPHRASES.get(vid, ""),
                 "catchphrase_string": defaults[i]["catchphrase"] if i < len(defaults) else -1,
                 "default_cloth": defaults[i]["cloth"] if i < len(defaults) else -1,
+                "default_umbrella": defaults[i]["umbrella"] if i < len(defaults) else -1,
                 "wall_index": int(house.get("wall", 0)),
                 "floor_index": int(house.get("floor", 0)),
                 "house_type": int(house.get("type", 0)),
@@ -332,6 +333,7 @@ def _write_tres(path: Path, entry: dict[str, Any]) -> None:
     lines.append(f"npc_index = {int(entry.get('npc_idx', -1))}")
     lines.append(f"catchphrase_string = {int(entry.get('catchphrase_string', -1))}")
     lines.append(f"default_cloth = {int(entry.get('default_cloth', -1))}")
+    lines.append(f"default_umbrella = {int(entry.get('default_umbrella', -1))}")
     lines.append(f"wall_index = {int(entry.get('wall_index', 0))}")
     lines.append(f"floor_index = {int(entry.get('floor_index', 0))}")
     lines.append(f"house_type = {int(entry.get('house_type', 0))}")
