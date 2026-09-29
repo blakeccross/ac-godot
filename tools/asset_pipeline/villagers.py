@@ -132,6 +132,7 @@ def parse_roster(decomp: Path) -> list[dict[str, Any]]:
                 "islander": grow_kind == "islander",
                 "catchphrase": CATCHPHRASES.get(vid, ""),
                 "catchphrase_string": defaults[i]["catchphrase"] if i < len(defaults) else -1,
+                "default_cloth": defaults[i]["cloth"] if i < len(defaults) else -1,
                 "wall_index": int(house.get("wall", 0)),
                 "floor_index": int(house.get("floor", 0)),
                 "house_type": int(house.get("type", 0)),
@@ -199,7 +200,17 @@ def _parse_default_list(path: Path) -> list[dict[str, int]]:
         return []
     text = path.read_text(encoding="utf-8", errors="replace")
     rows = re.findall(r"\{\s*([A-Z_0-9]+),\s*(0x[0-9a-fA-F]+|\d+),\s*(-?0x[0-9a-fA-F]+|-?\d+)\s*\}", text)
-    return [{"catchphrase": int(r[1], 0), "umbrella": int(r[2], 0)} for r in rows]
+    out: list[dict[str, int]] = []
+    for r in rows:
+        cloth = re.match(r"ITM_CLOTH(\d+)$", r[0])
+        out.append(
+            {
+                "cloth": int(cloth.group(1)) if cloth else -1,
+                "catchphrase": int(r[1], 0),
+                "umbrella": int(r[2], 0),
+            }
+        )
+    return out
 
 
 def _parse_house_list(path: Path) -> list[dict[str, int]]:
@@ -320,6 +331,7 @@ def _write_tres(path: Path, entry: dict[str, Any]) -> None:
     lines.append(f"starter = {'true' if entry['starter'] else 'false'}")
     lines.append(f"npc_index = {int(entry.get('npc_idx', -1))}")
     lines.append(f"catchphrase_string = {int(entry.get('catchphrase_string', -1))}")
+    lines.append(f"default_cloth = {int(entry.get('default_cloth', -1))}")
     lines.append(f"wall_index = {int(entry.get('wall_index', 0))}")
     lines.append(f"floor_index = {int(entry.get('floor_index', 0))}")
     lines.append(f"house_type = {int(entry.get('house_type', 0))}")

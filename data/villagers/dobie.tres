@@ -14,6 +14,7 @@ islander = true
 starter = false
 npc_index = 224
 catchphrase_string = 1831
+default_cloth = 27
 wall_index = 16
 floor_index = 9
 house_type = 0

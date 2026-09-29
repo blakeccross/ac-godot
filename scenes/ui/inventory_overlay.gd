@@ -1123,6 +1123,8 @@ func close() -> void:
 		Game.cancel_museum_donation()
 	if Game.storage_putin_pending:
 		Game.cancel_storage_putin()
+	if Game.quest_handover_pending:
+		Game.cancel_quest_handover()
 	if _hand_root != null:
 		_hand_root.visible = false
 	if _portrait_viewport != null:
@@ -1671,6 +1673,11 @@ func _run_tag(tag: String) -> void:
 					Game.set_interact_prompt("Talk to Tom Nook")
 				close()
 		"Hand over":
+			if Game.quest_handover_pending:
+				## A villager's quest — the talk plays the hand-over.
+				Game.take_quest_handover(idx)
+				close()
+				return
 			## Intro down payment — Nook's director plays the hand-over and books it.
 			Game.notify_intro_payment_made()
 			close()

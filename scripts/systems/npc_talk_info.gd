@@ -34,6 +34,9 @@ var _talk_num := PackedInt32Array()
 var _quest_request := PackedByteArray()
 var _unlock := PackedInt32Array()
 var _reset := PackedInt32Array()
+## `mNpc_NpcList_c.quest_info`: a quest this villager offered but the player couldn't take
+## (pockets full) or turned down; they offer the same kind again next time.
+var _client_quest: Array[Dictionary] = []
 var _tick_accum: float = 0.0
 
 
@@ -49,6 +52,9 @@ func clear() -> void:
 	_reset = _zeros()
 	_quest_request.resize(SLOTS)
 	_quest_request.fill(1)
+	_client_quest.clear()
+	for i: int in SLOTS:
+		_client_quest.append(VillagerQuests.new_base())
 	_tick_accum = 0.0
 
 
@@ -123,6 +129,22 @@ func set_quest_request_off(slot: int, looks: int) -> void:
 	if _quest_request[slot] == 1 and looks >= 0 and looks < TEMPER.size():
 		_set_unlock(slot, looks)
 	_quest_request[slot] = 0
+
+
+func client_quest(slot: int) -> Dictionary:
+	return _client_quest[slot] if _valid(slot) else VillagerQuests.new_base()
+
+
+## `aQMgr_actor_set_client_quest_info`.
+func set_client_quest(slot: int, info: Dictionary) -> void:
+	if _valid(slot):
+		VillagerQuests.copy_base(_client_quest[slot], info)
+
+
+## `aQMgr_actor_clear_client_quest_info`.
+func clear_client_quest(slot: int) -> void:
+	if _valid(slot):
+		VillagerQuests.clear_base(_client_quest[slot])
 
 
 func talk_num(slot: int) -> int:

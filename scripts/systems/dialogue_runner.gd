@@ -7,6 +7,10 @@ signal finished
 signal line_shown(text: String)
 signal choices_shown(options: Array)
 signal event_fired(event: Dictionary)
+## The quest manager wants the pockets opened (`{"hand": …}`) or a hand-over played
+## (`{"anim": …}`); answer with `resolve_action`. Unanswered (no listener), a hand-over
+## counts as the pockets closing empty and an animation is skipped.
+signal action_requested(action: Dictionary)
 
 var conversation: DialogueData
 var context: DialogueContext
@@ -37,6 +41,8 @@ var _pending_choices: Array[String] = []
 var _feel_minutes: int = 0
 var _pending_feel: int = 0
 var _manager_choice: bool = false
+var waiting_action: bool = false
+var _pending_action: Dictionary = {}
 
 
 func start(
@@ -67,7 +73,7 @@ func start(
 
 
 func advance() -> void:
-	if done or waiting_choice or waiting_prompt or waiting_stage:
+	if done or waiting_choice or waiting_prompt or waiting_stage or waiting_action:
 		return
 	var rec: Dictionary = _current()
 	var next_id := StringName(str(rec.get("next", "")))
@@ -97,7 +103,7 @@ func release_stage_wait() -> void:
 
 
 func is_continue_blocked() -> bool:
-	return waiting_stage or not _advance_allowed(node_id, _peek_next_node())
+	return waiting_stage or waiting_action or not _advance_allowed(node_id, _peek_next_node())
 
 
 func _peek_next_node() -> StringName:
@@ -235,7 +241,7 @@ func _settle() -> void:
 					_stage_wait_next = next_id
 					return
 				if next_id == &"":
-					_finish()
+					_message_end()
 					return
 				if not _advance_allowed(node_id, next_id):
 					waiting_stage = true
@@ -518,6 +524,15 @@ func _current() -> Dictionary:
 ## A message ran out of pages: show the manager's pending menu, or let it pick the next
 ## message (`mMsg_Set_continue_msg_num`), or end.
 func _message_end() -> void:
+	var rec: Dictionary = _current()
+	if talk_manager != null and _is_bank_message() and not rec.has("cont") and not rec.has("open_choice"):
+		## `MSGEND`: the window closes and the talk demo ends (`aQMgr_move_talk`).
+		_pending_choices.clear()
+		_finish()
+		return
+	if not _pending_choices.is_empty() and _is_bank_message() and not _current().has("open_choice"):
+		## Only a message that opens a choice window shows the manager's menu.
+		_pending_choices.clear()
 	if not _pending_choices.is_empty():
 		var labels: Array[String] = _pending_choices.duplicate()
 		_pending_choices.clear()
@@ -534,7 +549,40 @@ func _message_end() -> void:
 	_finish()
 
 
+## The pockets closed (`{"item", "pocket"}`) or the hand-over animation finished.
+func resolve_action(result: Dictionary) -> void:
+	if not waiting_action or done:
+		return
+	waiting_action = false
+	var step: Dictionary = _pending_action
+	_pending_action = {}
+	if step.has("hand"):
+		if talk_manager == null:
+			_finish()
+			return
+		_run_manager_step(
+			talk_manager.hand_result(StringName(str(result.get("item", ""))), int(result.get("pocket", -1)))
+		)
+		return
+	step["_anim_done"] = true
+	_run_manager_step(step)
+
+
+## Imported disc messages carry their terminator (`cont`); authored graphs don't.
+func _is_bank_message() -> bool:
+	return conversation != null and String(conversation.id).begins_with("msg_")
+
+
 func _run_manager_step(step: Dictionary) -> void:
+	if step.has("hand") or (step.has("anim") and not step.has("_anim_done")):
+		_pending_action = step
+		waiting_action = true
+		var ask: Dictionary = {"hand": step["hand"]} if step.has("hand") else {"anim": step["anim"]}
+		if action_requested.get_connections().is_empty():
+			resolve_action({})
+			return
+		action_requested.emit(ask)
+		return
 	if step.is_empty() or int(step.get("msg", -1)) < 0:
 		_finish()
 		return

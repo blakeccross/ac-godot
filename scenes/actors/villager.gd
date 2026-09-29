@@ -278,6 +278,9 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 			TalkCamera.begin(player, self, get_tree())
 		_talk_manager = VillagerTalk.manager(data, state, talk_ctx)
 		ui.play(VillagerTalk.conversation(data, state), talk_ctx, state, Callable(), _talk_manager)
+		var runner: DialogueRunner = ui.runner()
+		if runner != null and _talk_manager != null:
+			runner.action_requested.connect(_on_talk_action.bind(ui, player))
 	else:
 		_face_towards(_talk_look)
 		var line: String = VillagerTalk.greeting(data, state)
@@ -314,13 +317,8 @@ func _try_first_job_talk(ctx: InteractionContext) -> bool:
 		if state != null:
 			state.record_talk(VillagerTalk.day_key())
 		return true
-	if job.kind == FirstJob.Kind.OPEN and job.progress == FirstJob.PROGRESS_ACTIVE:
-		job.mark_open_finished()
-		_play_first_job_line(&"nook_job_open_villager", who, player)
-		Game.set_interact_prompt("Talk to Tom Nook")
-		if state != null:
-			state.record_talk(VillagerTalk.day_key())
-		return true
+	## The "ask around for work" chore finishes in the quest talk ("Need any help?",
+	## `aQMgr_talk_quest_finish_firstjob_open_quest`).
 	return false
 
 
@@ -806,9 +804,35 @@ func _unbind_talk() -> void:
 		ai.end_talk()
 
 
+## The quest talk wants the pockets opened or an item passed across
+## (`aQMgr_TALK_SUB_STATE_HAND_ITEM_WAIT`, `aQMgr_talk_common_set_npc_takeout_*`).
+func _on_talk_action(action: Dictionary, ui: DialogueOverlay, player: Node3D) -> void:
+	var runner: DialogueRunner = ui.runner() if ui != null else null
+	if runner == null:
+		return
+	ui.set_suspended(true)
+	if action.has("hand"):
+		var hand: Dictionary = action["hand"]
+		Game.request_quest_handover(int(hand.get("pocket", -1)), str(hand.get("mode", "quest")))
+		var picked: Array = await Game.quest_handover_resolved
+		ui.set_suspended(false)
+		runner.resolve_action({"item": picked[0], "pocket": picked[1]})
+		return
+	var anim: Dictionary = action.get("anim", {})
+	if player != null and is_instance_valid(player):
+		if anim.has("give"):
+			await HandOver.npc_gives_to_player(self, player, anim["give"])
+		elif anim.has("take"):
+			await HandOver.player_gives_to_npc(player, self, anim["take"])
+	ui.set_suspended(false)
+	runner.resolve_action({})
+
+
 func _on_talk_closed() -> void:
 	TalkCamera.end(get_tree())
 	ai.end_talk()
+	if Game != null and Game.first_job != null and Game.first_job.kind == FirstJob.Kind.OPEN and Game.first_job.chore_finished():
+		Game.set_interact_prompt("Talk to Tom Nook")
 	## `mNpc_TalkEndMove` (from `aQMgr_move_talk` when the talk demo ends).
 	if _talk_manager != null and Game != null and data != null:
 		Game.npc_talk_info.talk_end(_talk_manager.slot, _talk_manager.looks)

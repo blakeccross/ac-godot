@@ -54,9 +54,12 @@ func test_after_greeting_offers_the_three_choices() -> void:
 
 func test_choices_route_like_no_or_normal() -> void:
 	var m: VillagerTalkManager = _manager(0)
+	## Not asking for anything (`mNpc_CheckQuestRequest` off) → NO_OR_NORMAL.
+	m.talk_info.set_quest_request_off(m.slot, m.looks)
 	m.next_step()
 	assert_int(int(m.choose(0)["msg"])).is_between(0x282, 0x282 + 2)
 	m = _manager(5)
+	m.talk_info.set_quest_request_off(m.slot, m.looks)
 	m.next_step()
 	assert_int(int(m.choose(2)["msg"])).is_between(0x254A + 15, 0x254A + 17)
 
@@ -97,6 +100,8 @@ func test_happy_villager_uses_the_ki_table() -> void:
 
 func test_friendship_order_counts_values_over_100_as_losses() -> void:
 	var m: VillagerTalkManager = _manager()
+	## Quest demo orders only reach the everyday chat.
+	m._normal = true
 	m.state.relationship.set_friendship(50)
 	m.order(5, 3)
 	assert_int(m.state.friendship).is_equal(53)
@@ -108,6 +113,8 @@ func test_friendship_order_counts_values_over_100_as_losses() -> void:
 
 func test_trade_buys_the_players_furniture_for_goods() -> void:
 	var m: VillagerTalkManager = _manager()
+	## Quest demo orders only reach the everyday chat.
+	m._normal = true
 	var ftr: StringName = &""
 	for id: StringName in ShopGoods.furniture_pool():
 		ftr = id
@@ -130,6 +137,8 @@ func test_trade_buys_the_players_furniture_for_goods() -> void:
 
 func test_trade_pays_bells_over_the_wallet_cap_in_bags() -> void:
 	var m: VillagerTalkManager = _manager()
+	## Quest demo orders only reach the everyday chat.
+	m._normal = true
 	m.inventory.set_wallet(Inventory.WALLET_MAX - 50)
 	m.order(2, 17)
 	assert_int(m.pay).is_between(100, 999)
@@ -141,6 +150,8 @@ func test_trade_pays_bells_over_the_wallet_cap_in_bags() -> void:
 
 func test_set_string_fills_item_strings_from_the_rom_table() -> void:
 	var m: VillagerTalkManager = _manager()
+	## Quest demo orders only reach the everyday chat.
+	m._normal = true
 	m.order(9, 3)
 	if DialogueCatalog.rom_string(0x464) == "":
 		return

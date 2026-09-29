@@ -38,7 +38,9 @@ static func conversation(villager: VillagerData, state: VillagerState) -> Dialog
 static func manager(villager: VillagerData, state: VillagerState, ctx: DialogueContext) -> VillagerTalkManager:
 	if villager == null or villager.dialogue != null or Game == null or Game.residents == null:
 		return null
-	if Game.first_job != null and Game.first_job.is_active():
+	## During the first job villagers only take quest talk once Nook says to ask around
+	## (`mEv_SAVED_FJOPENQUEST`); the rest of the job is scripted.
+	if Game.first_job != null and Game.first_job.is_active() and not Game.first_job.open_quest:
 		return null
 	var slot: int = Game.residents.slot_of(villager.id)
 	if slot < 0:
@@ -48,6 +50,8 @@ static func manager(villager: VillagerData, state: VillagerState, ctx: DialogueC
 	m.hint_count_get = func() -> int: return Game.first_job_hint_count
 	m.hint_count_set = func(v: int) -> void: Game.first_job_hint_count = v
 	m.show_letter = func(letter: Dictionary) -> void: _show_letter(villager, letter)
+	m.send_mail = Game.deliver_to_mailbox
+	m.field_counts = Game.field_counts
 	if state != null:
 		## `mNpc_GetOverImpatient` for the greeting.
 		state.patience = Game.npc_talk_info.patience(slot, m.looks) as VillagerState.Patience

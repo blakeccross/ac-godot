@@ -296,12 +296,12 @@ data tables before a category is called done.
 - [x] **Moving in**: new villager on a free SIGN plot, introduces self on first meeting (`mNpc_Grow`, `MSG_11573`) — `town_residents.gd`. GCN has no moving boxes
 - [~] **Moving out**: full town + 10 days → fewest-memories villager leaves with a goodbye letter (`mNpc_ForceRemove`) — `town_residents.gd`. The "thinking of moving" talk (`remove_animal_idx`) is picked but its dialogue isn't wired (only matters for card transfer)
 - [x] Move-in / move-out cadence tied to friendship, time played, town population (`mNpc_CheckGrow`, `mNpc_ForceRemove`)
-- [~] **Friendship** per resident: s8 0–127 starting at 1, best-friend at 80, moved by "Let's talk!" and message orders (`Anmmem_c`, `mNpc_AddFriendship`) — `relationship.gd`, `villager_talk_manager.gd`. Letters and quests still to come
+- [~] **Friendship** per resident: s8 0–127 starting at 1, best-friend at 80, moved by "Let's talk!", message orders, letters and quests (`Anmmem_c`, `mNpc_AddFriendship`) — `relationship.gd`, `villager_talk_manager.gd`
 - [ ] Villager **memory**: last time you spoke, letters exchanged, favours done, gifts, whether you've been mean (`Anmmem_c`)
 - [ ] Nicknames: villager gives you a nickname; you can set what villagers call each other / call you; catchphrase ("hippie", etc.); you can change a villager's catchphrase
 - [ ] Greetings you can teach; greeting spreads between villagers
 - [~] Gift-giving both ways: letters with presents (+3), villager replies with a present half the time, Valentine's letters with gifts (`mNpc_SendMailtoNpc`, `mNpc_Remail`, `mNpc_SendVtdayMail`) — `villager_letters.gd`. Handing gifts in person and villagers wearing gifted shirts still to come
-- [ ] Errands: deliver package to another villager, deliver a letter, return lost item, buy/sell an item, find furniture (`ac_quest_errand`)
+- [~] **Villager quests** — deliveries (clothes / lost items), errand chains (fetch what they lent), contests (fruit, fish, bug, flowers, letter; ball and snowman offered but not completable), deadlines, give-up, rewards (`m_quest.c`, `ac_quest_talk_init.c`, `ac_quest_manager.c`) — `villager_quests.gd`, `villager_talk_manager.gd`. Missing: wishing well disposal, quest item tag names, ball / snowman actors
 - [~] Trading furniture / clothing with villagers (chat trades: `aQMgr_order_decide_trade` / `_trade`) — `villager_talk_manager.gd`. Goods come from the shop pools, not the ROM A/B/C lists; no hand-over animation yet
 - [x] Villager asks to buy something from your pockets / sell you something (chat trade topics)
 - [ ] Villager house interiors themed by personality; changes over time with items you give

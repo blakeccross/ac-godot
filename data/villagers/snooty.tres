@@ -13,6 +13,7 @@ personality = ExtResource("2")
 starter = false
 npc_index = 17
 catchphrase_string = 653
+default_cloth = 133
 wall_index = 31
 floor_index = 36
 house_type = 2

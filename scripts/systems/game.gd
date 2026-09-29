@@ -47,6 +47,15 @@ var residents: TownResidents = TownResidents.new()
 var _residents_session_done: bool = false
 ## `mNpc_Talk_Info_c` for this session (patience, "any work?" flag). Not saved.
 var npc_talk_info: NpcTalkInfo = NpcTalkInfo.new()
+## Deliveries, errands and villager contests (`Private_c.deliveries/errands`,
+## `Animal_c.contest_quest`).
+var quests: VillagerQuests = VillagerQuests.new()
+## A villager asked for an item (`mSM_IV_OPEN_QUEST` / `_TAKE`): `quest_handover_pocket` is the
+## only pocket offered, or with `quest_handover_mode` "fish" / "insect" any fish / bug.
+var quest_handover_pending: bool = false
+var quest_handover_pocket: int = -1
+var quest_handover_mode: String = "quest"
+signal quest_handover_resolved(item_id: StringName, pocket: int)
 ## `Private_c.hint_count`: first-job hints villagers still owe (bit 7 = all given).
 var first_job_hint_count: int = 0
 ## Year the Valentine's letters went out (`event_save_common.valentines_day_date`).
@@ -592,6 +601,60 @@ func _check_valentines(rng: RandomNumberGenerator) -> void:
 	)
 
 
+## `mQst_SendRemail`: the contest-letter reply goes to the home mailbox only.
+func deliver_to_mailbox(mail: MailData) -> bool:
+	return inventory.add_received_mail(mail) >= 0
+
+
+## Open the pockets so the player hands a villager their item. `quest_handover_resolved`
+## fires with the item and pocket, or `&""` when the pockets close without one.
+func request_quest_handover(pocket: int, mode: String = "quest") -> void:
+	quest_handover_pending = true
+	quest_handover_pocket = pocket
+	quest_handover_mode = mode
+	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui") if get_tree() != null else null
+	if inv_ui != null and inv_ui.has_method("open"):
+		inv_ui.call("open")
+	else:
+		cancel_quest_handover()
+
+
+## May this pocket be handed over right now?
+func quest_handover_allows(pocket: int) -> bool:
+	if not quest_handover_pending or inventory == null:
+		return false
+	var s: InventorySlot = inventory.slot_at(pocket)
+	if s == null or s.is_empty():
+		return false
+	match quest_handover_mode:
+		"fish", "insect":
+			var data: ItemData = ItemCatalog.get_item(s.item.item_id)
+			var want: int = ItemData.Category.FISH if quest_handover_mode == "fish" else ItemData.Category.BUG
+			return data != null and data.category == want
+	return pocket == quest_handover_pocket
+
+
+func take_quest_handover(pocket: int) -> void:
+	if not quest_handover_pending:
+		return
+	quest_handover_pending = false
+	var s: InventorySlot = inventory.slot_at(pocket)
+	var item: StringName = s.item.item_id if s != null and not s.is_empty() else &""
+	quest_handover_resolved.emit(item, pocket)
+
+
+func cancel_quest_handover() -> void:
+	if not quest_handover_pending:
+		return
+	quest_handover_pending = false
+	quest_handover_resolved.emit(&"", -1)
+
+
+## `mQst_GetFlowerSeedNum` / `mQst_GetFlowerNum` / `mQst_GetNullNoNum` for a home acre.
+func field_counts(block: Vector2i) -> Dictionary:
+	return QuestField.counts(get_tree(), block)
+
+
 ## A villager's letter to the player: the mailbox, else the post office keeps it.
 func _deliver_villager_mail(mail: MailData) -> bool:
 	if inventory.add_received_mail(mail) >= 0:
@@ -693,6 +756,8 @@ func reset_session() -> void:
 	residents.clear()
 	_residents_session_done = false
 	npc_talk_info.clear()
+	quests.clear()
+	quest_handover_pending = false
 	first_job_hint_count = 0
 	valentine_year = 0
 	VillagerWalk.reset()
@@ -1010,6 +1075,7 @@ func to_save() -> Dictionary:
 		"dialogue_vars": dialogue_vars.duplicate(true),
 		"first_job_hint_count": first_job_hint_count,
 		"valentine_year": valentine_year,
+		"quests": quests.to_save(),
 	}
 
 
@@ -1126,6 +1192,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	residents.apply_snapshot(data.get("residents", {}))
 	_residents_session_done = false
 	npc_talk_info.clear()
+	quests.apply_snapshot(data.get("quests", {}))
 	first_job_hint_count = clampi(int(data.get("first_job_hint_count", 0)), 0, 0xFF)
 	valentine_year = int(data.get("valentine_year", 0))
 	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))

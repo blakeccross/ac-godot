@@ -120,6 +120,15 @@ static func _deliver_to_villager(mail: MailData) -> void:
 	if Game.first_job != null and Game.first_job.is_active():
 		bond.set_friendship(before)
 		bond.send_reply = false
+		return
+	## `mQst_SetReceiveLetter`: the letter a letter contest was waiting for gets the contest's
+	## reply instead of an ordinary one.
+	var slot: int = Game.residents.slot_of(mail.recipient_id)
+	if slot != -1 and Game.quests.occured_contest_idx(VillagerQuests.CONTEST_LETTER) == slot:
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		Game.quests.receive_letter(slot, mail.body, mail.present_item_id, Game.player_name, rng)
+		bond.send_reply = false
 
 
 static func save_mail_at(index: int) -> String:

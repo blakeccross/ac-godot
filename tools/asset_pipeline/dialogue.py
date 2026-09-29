@@ -31,6 +31,8 @@ SUBS = {
     "STR_ITEM4": "{item4}",
     "STR_DETERMINATION": "{ok}",
     "STR_MAIL": "{mail}",
+    ## Drops the article of the string that follows (`mMsg` CUT_ARTICLE).
+    "CUTARTICLE": "{cutart}",
 }
 for _i in range(20):
     SUBS[f"STR_FREE{_i}"] = "{free%d}" % _i
@@ -357,6 +359,9 @@ def tokens_to_conversation(
     next_random: list[str] = []
     choice_ids: list[int] = []
     open_choice = False
+    ## `MSGCONTINUE` at the end hands control back to whoever set the continue message
+    ## (`mMsg_Check_MainNormalContinue`); `MSGEND` closes the window and ends the talk.
+    terminator = ""
 
     def flush() -> None:
         nonlocal page_tokens, page_events
@@ -370,17 +375,23 @@ def tokens_to_conversation(
     for tok in tokens:
         if tok["type"] == "text":
             page_tokens.append(tok)
+            if str(tok["text"]).strip() != "":
+                terminator = ""
             continue
         name = str(tok["name"])
         args: list[int] = list(tok.get("args") or [])
         if name in SUBS:
             page_tokens.append(tok)
+            terminator = ""
             continue
         if name in PAGE_BREAKS:
             flush()
+            if name == "MSGCONTINUE":
+                terminator = name
             continue
         if name in END_CMDS:
             flush()
+            terminator = name
             break
         event = _page_event_from_token(name, args)
         if event is not None:
@@ -434,7 +445,12 @@ def tokens_to_conversation(
         nodes[nid] = node
     last_id = f"p{len(pages) - 1}"
     last = nodes[last_id]
+    if terminator == "MSGCONTINUE":
+        last["cont"] = True
     labels = _choice_labels(choice_ids, select)
+    if open_choice and not labels:
+        ## The choices come from code (`mChoice_Set_choice_data`), e.g. the quest manager.
+        last["open_choice"] = True
     if open_choice and labels:
         options = []
         for i, label in enumerate(labels):

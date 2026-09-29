@@ -34,6 +34,9 @@ var cloth_design: int = -1
 var umbrella_design: int = -1
 ## `Animal_c.catchphrase` once the player changed it (`aQMgr_order_change_gobi`); empty = default.
 var catchphrase: String = ""
+## Shirt the villager was given and changed into (`Animal_c.cloth` after `npc_chg_cloth`);
+## empty = their own (`VillagerData.default_cloth`).
+var cloth_id: StringName = &""
 
 var friendship: int:
 	get:
@@ -111,6 +114,7 @@ func to_save() -> Dictionary:
 		"cloth_design": cloth_design,
 		"umbrella_design": umbrella_design,
 		"catchphrase": catchphrase,
+		"cloth_id": String(cloth_id),
 		"relationship": _bond().to_save(),
 	}
 
@@ -126,6 +130,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	cloth_design = clampi(int(data.get("cloth_design", -1)), -1, 3)
 	umbrella_design = clampi(int(data.get("umbrella_design", -1)), -1, 3)
 	catchphrase = str(data.get("catchphrase", ""))
+	cloth_id = StringName(str(data.get("cloth_id", "")))
 	var nested: Variant = data.get("relationship", {})
 	if typeof(nested) == TYPE_DICTIONARY and not (nested as Dictionary).is_empty():
 		_bond().apply_snapshot(nested as Dictionary)

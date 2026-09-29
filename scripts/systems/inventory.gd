@@ -708,6 +708,12 @@ func tags_for_slot(index: int) -> PackedStringArray:
 	var data: ItemData = ItemCatalog.get_item(slot.item.item_id)
 	if data == null:
 		return tags
+	## A villager is waiting for their item (`mSM_IV_OPEN_QUEST` / `mSM_IV_OPEN_TAKE`): only
+	## what they asked for can be picked.
+	if Game != null and Game.quest_handover_pending:
+		if Game.quest_handover_allows(index):
+			tags.append("Hand over")
+		return tags
 	if slot.item.condition == InventoryItem.Condition.PRESENT:
 		tags.append("Open")
 		return tags
