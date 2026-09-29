@@ -6,6 +6,7 @@ extends EventPresenter
 
 const VILLAGER_SCENE := "res://scenes/world/events/festival_villager.tscn"
 const TORTIMER_SCENE := "res://scenes/world/events/tortimer_holiday.tscn"
+const PICKUP_SCENE := "res://scenes/world/item_pickup.tscn"
 ## Map actors that are Tortimer (`SP_NPC_EV_SONCHO2`, the aerobics leader `SP_NPC_SONCHO_D078`).
 const TORTIMER_ACTORS: Array[String] = ["SP_NPC_EV_SONCHO2"]
 ## Event specials that stand at their map unit: actor → scene.
@@ -34,6 +35,8 @@ func start() -> bool:
 			var prop: Array = FestivalCrowd.PROPS[actor]
 			mgr.spawn_structure(id, StringName(prop[0]), e["cell"], &"", "", prop[1], actor)
 			props.append(e["cell"])
+			if actor == "HTABLE2":
+				_set_fork(e["cell"] + Vector2i(1, 1))
 	var center: Vector2 = Vector2.ZERO
 	for e: Dictionary in entries:
 		center += Vector2(e["cell"])
@@ -82,6 +85,22 @@ func _pick(count: int) -> Array[StringName]:
 	var residents: Array[StringName] = Game.residents.resident_ids()
 	var today: String = Game.events.day_key() if Game.events != null else ""
 	return FestivalCrowd.pick_villagers(residents, count, "%s:%s" % [id, today], Game.player_met)
+
+
+## `aHTBL_SetFork`: Franklin's knife and fork by the third table, unless they're in the pockets.
+func _set_fork(cell: Vector2i) -> void:
+	if Game == null or Game.inventory == null or Game.inventory.count_of(FranklinTalk.FORK) > 0:
+		return
+	var fork: ItemData = ItemCatalog.get_item(FranklinTalk.FORK)
+	if fork == null:
+		return
+	var node: Node3D = (load(PICKUP_SCENE) as PackedScene).instantiate() as Node3D
+	var tag := StringName("harvest_fork_%s" % Game.events.day_key())
+	node.set("item", fork)
+	node.set("persist_id", tag)
+	node.set("occupant_id", tag)
+	node.set("occupy_grid", false)
+	mgr.add_actor(id, node, cell, 0.0, 0)
 
 
 func _names(ids: Array[StringName]) -> Array:

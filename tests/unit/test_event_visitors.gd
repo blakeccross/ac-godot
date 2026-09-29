@@ -408,3 +408,31 @@ func test_festival_terms_pick_countdown_and_groundhog_lines() -> void:
 	assert_int(FestivalCrowd.groundhog_term(7 * 3600 + 59 * 60)).is_equal(FestivalCrowd.Groundhog.ONE)
 	var g: int = FestivalCrowd.talk_msg(&"groundhog", 0, 1, rng, false, FestivalCrowd.Groundhog.ONE)
 	assert_int(g).is_between(15698 + 9, 15698 + 11)
+
+
+func test_franklin_trades_his_knife_and_fork_for_a_present() -> void:
+	if not FtrCatalog.available():
+		return
+	var area: Dictionary = {}
+	var inv := Inventory.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var t := FranklinTalk.new(area, inv, rng)
+	t.context = DialogueContext.new()
+	assert_int(t.start_msg()).is_equal(FranklinTalk.MSG_STORY)
+	t.current_msg = FranklinTalk.MSG_STORY
+	assert_int(int(t.next_step()["msg"])).is_equal(FranklinTalk.MSG_STORY + 1)
+	t.current_msg = FranklinTalk.MSG_STORY_LAST
+	assert_int(int(t.next_step()["msg"])).is_between(FranklinTalk.MSG_PLEA, FranklinTalk.MSG_PLEA + 2)
+	inv.add(ItemCatalog.get_item(FranklinTalk.FORK), 1)
+	var again := FranklinTalk.new(area, inv, rng, t.present_idx)
+	again.context = DialogueContext.new()
+	assert_int(again.start_msg()).is_equal(FranklinTalk.MSG_AGAIN + t.present_idx)
+	again.current_msg = FranklinTalk.MSG_AGAIN + t.present_idx
+	var step: Dictionary = again.next_step()
+	assert_int(int(step["then"]["msg"])).is_equal(FranklinTalk.MSG_THANKS + t.present_idx)
+	assert_int(inv.count_of(FranklinTalk.FORK)).is_equal(0)
+	assert_int(inv.count_of(FranklinTalk.presents()[t.present_idx])).is_equal(1)
+	## Never the same present twice until all twelve are given.
+	for _i: int in 20:
+		assert_int(FranklinTalk.decide_present(area, rng)).is_not_equal(t.present_idx)
