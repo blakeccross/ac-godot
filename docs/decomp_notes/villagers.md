@@ -116,3 +116,29 @@ Move-out: `removing`, `remove_animal_idx` on save, minimum days before force rem
   - **Valentine's Day** (`mNpc_SendVtdayMail`, once on Feb 14 at load or the 06:00 renew): each other-sex resident with a memory writes, best friends (≥ 80) first — mail `0x60 + looks×3 + type`, with rare / uncommon furniture or common clothing. With one player the middle "fond, but someone else is the best friend" type never happens.
   - Not yet: birthday cards (the port has no player birthday), present shirts the villager then wears (`mNpc_SetPresentCloth`, friendship > 30), letters to villagers in other towns, shop-list stationery.
 
+
+## Known gaps (villagers)
+
+What the decomp does that the port still doesn't, and why:
+
+| Gap | Decomp | Blocked on |
+|---|---|---|
+| Falling into a pitfall, struggling, being pulled out (`REVIVE`) | `aNPC_chk_pitfall`, `ac_npc_act_pitfall`, `ac_npc_think_pitfall` | pitfall seeds / buried pitfalls |
+| Soccer contest and running after the ball | `aNPC_check_ball`, `mQst_NextSoccer` | a ball actor |
+| Snowman contest completion | `mQst_NextSnowman` / `BackSnowman` | snowman actors |
+| Avoiding / following the player, "unpopular" greeting | `aNPC_chk_friendship` via `over_friendship`, `MSG_1869` | fortunes (`mPr_DESTINY_*`) |
+| Wishing well talk: town status, disposing stranded quest items | `ac_shrine_move.c_inc` | town rating (`mFAs_*`) and a well interaction |
+| Remembered town tune in chat (order 6) | `aQMgr_order_play_memory_melody` | town tune |
+| Birthday entry in chat (order 8) and birthday greetings | `aQMgr_order_input_birthday` | player birthday input |
+| Exact lunar dates | `lbRk_ToSeiyouReki` / `ToKyuuReki` | `lb_reki` tables (approximated from the harvest-moon table) |
+| Quest pay scaled by feng shui | `mPr_GetMoneyPower` | feng shui (money power is 0) |
+| Foreign / departed-villager deliveries | `DELIVERY_KIND_FOREIGN` / `REMOVE` | other towns / card transfer (never occur on one save) |
+| Able-design umbrellas in villagers' hands | `TOOL_ORG_UMBRELLA0..7` | design umbrella visuals |
+| Shop list tiers for rewards / presents | `mSP_LISTTYPE_ABC` / `RARE` | shop list types (pools are approximate) |
+| Quest item names | `itemName_etc` | item name table from the disc (placeholders now) |
+| Island villager talk, kamakura / summer camp talks | `ac_quest_talk_island.c`, kamakura / summercamp steps | the island and those events |
+| Quest / wear SE (`0x12E`, `0x12F`, `NA_SE_WEAR`) | `sAdo_SysTrgStart` | SE ids not mapped |
+| Stepping aside at the player's door | `aNPC_check_entrance` | — |
+| Memories of other players | `Anmmem_c[7]` | single player only |
+
+Related oddity: `rumor_harvest_festival` decodes as active into December in `EventCalendar`, so villagers can mention it then.
