@@ -47,7 +47,10 @@ enum React { NONE = -1, SURPRISE, SURPRISE2, SURPRISE_UZAI, LOOK_PLAYER }
 const REACT_CLIPS: Array[String] = ["npc_1_gyafun1", "npc_1_gyafun2", "npc_1_gyafun2", ANIM_WAIT]
 const REACT_LOOK_SECONDS := 5.0
 ## Outdoor acts that stop the walk (`aNPC_ACT_UMB_OPEN` / `UMB_CLOSE` / `CLAP`).
-enum Act { NONE, UMB_OPEN, UMB_CLOSE, CLAP }
+enum Act { NONE, UMB_OPEN, UMB_CLOSE, CLAP, GREET }
+## `aNPC_ACT_GREETING_STEP_*` (turn, approach, wait for the partner, bow, change clothes,
+## wait for the partner to finish changing).
+enum Greet { TURN, APPROACH, WAIT, BOW, CHANGE, HOLD }
 const ANIM_UMB_OPEN := "npc_1_umb_open1"
 const ANIM_UMB_CLOSE := "npc_1_umb_close1"
 const ANIM_UMBRELLA := "npc_1_umbrella1"
@@ -110,6 +113,18 @@ var _outdoor_rng := RandomNumberGenerator.new()
 var _chase: Object = null
 var _chase_fish: bool = false
 var _chase_left: float = 0.0
+## `palActor` / `palActorIgnoreTimer`: the villager this one is greeting.
+var _pal: Node3D = null
+var _pal_ignore: float = 0.0
+var _greet: Greet = Greet.TURN
+## `condition_info.greeting_flag`: 1 rolled the reaction, 2 didn't, 3 / 4 / 5 changes
+## clothes / umbrella / both.
+var _greet_flag: int = 0
+var _greet_timer: float = 0.0
+## What the model has on (`draw.cloth_no` / `org_idx`, `right_hand.umbrella_type`).
+var _drawn_cloth: String = ""
+var _drawn_umb: int = -1
+static var _pair_frame: int = -1
 ## Quest manager for the conversation in progress (`VillagerTalkManager`).
 var _talk_manager: VillagerTalkManager
 var _visual: Node3D
@@ -163,6 +178,8 @@ func _ready() -> void:
 		_motor.facing = rotation.y
 	else:
 		_sync_from_clock()
+		_drawn_cloth = _cloth_key()
+		_drawn_umb = state.umbrella_design if state != null else -1
 		## `aNPC_check_force_use_umbrella`: out in the rain from the start, umbrella up.
 		if state != null and not state.is_home and Game != null and Game.weather == &"rain":
 			_take_out_umbrella(true)
@@ -299,7 +316,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		if player != null:
 			TalkCamera.begin(player, self, get_tree())
 		_talk_manager = VillagerTalk.manager(data, state, talk_ctx)
-		ui.play(VillagerTalk.conversation(data, state), talk_ctx, state, Callable(), _talk_manager)
+		ui.play(VillagerTalk.conversation(data, state, talk_ctx), talk_ctx, state, Callable(), _talk_manager)
 		var runner: DialogueRunner = ui.runner()
 		if runner != null and _talk_manager != null:
 			runner.action_requested.connect(_on_talk_action.bind(ui, player))
@@ -394,6 +411,9 @@ func _physics_process(delta: float) -> void:
 	if _react != React.NONE:
 		_tick_react(delta)
 		return
+	if _pal_ignore > 0.0:
+		_pal_ignore = maxf(_pal_ignore - delta, 0.0)
+	_pair_greetings()
 	if _umbrella != null:
 		_umbrella.tick(delta)
 	if _umb_carry != null:
@@ -1290,6 +1310,9 @@ func _play_annoyance_scold() -> void:
 func _start_outdoor_act() -> bool:
 	if Game == null or Game.title_demo_active:
 		return false
+	## `aNPC_chk_talk_start`: a partner found this frame comes first.
+	if _pal != null:
+		return _begin_greeting()
 	var raining: bool = Game.weather == &"rain"
 	if raining and _umbrella == null:
 		var now: float = Time.get_ticks_msec() / 1000.0
@@ -1377,6 +1400,9 @@ func _tick_act(delta: float) -> void:
 			if clip_done and (_umbrella == null or _umbrella.is_closed()):
 				_drop_umbrella()
 				_act = Act.NONE
+		Act.GREET:
+			_tick_greeting(delta)
+			return
 		Act.CLAP:
 			## `aNPC_act_clap_main_proc`: until the player puts the catch away.
 			var player := get_tree().get_first_node_in_group("player") as Node3D
@@ -1389,6 +1415,204 @@ func _tick_act(delta: float) -> void:
 	if _act == Act.NONE:
 		_play_clip(ANIM_WAIT, true)
 	_tick_annoyance(delta)
+
+
+## ---------------------------------------------------------------- greetings
+
+## May this villager be paired up (`aNPC_check_cond_to_greeting`)? Only the ones wandering
+## outdoors get the think interrupt that starts the greeting.
+func free_to_greet() -> bool:
+	return (
+		not indoor_resident and ai.is_present() and ai.is_wandering() and not ai.is_talking()
+		and _pal == null and _pal_ignore <= 0.0 and _act == Act.NONE and _react == React.NONE
+		and VillagerGreeting.can_greet(state)
+	)
+
+
+## `aNPC_greeting_area_check`, once a physics frame for everyone.
+func _pair_greetings() -> void:
+	var frame: int = Engine.get_physics_frames()
+	if _pair_frame == frame or get_tree() == null:
+		return
+	_pair_frame = frame
+	var free: Array = []
+	for node: Node in get_tree().get_nodes_in_group("villagers"):
+		if node is Node3D and node.has_method("free_to_greet") and bool(node.call("free_to_greet")):
+			free.append(node)
+	for pair: Array in VillagerGreeting.pair_up(free):
+		pair[0].set("_pal", pair[1])
+		pair[1].set("_pal", pair[0])
+
+
+func _greet_info(v: Node) -> Dictionary:
+	var vd: VillagerData = v.get("data")
+	var slot: int = Game.residents.slot_of(vd.id) if vd != null and Game != null and Game.residents != null else -1
+	return {"state": v.get("state"), "data": vd, "slot": slot}
+
+
+## `aNPC_act_greeting_init_proc` / `aNPC_act_greeting_reaction`.
+func _begin_greeting() -> bool:
+	var pal: Node3D = _pal
+	if pal == null or not is_instance_valid(pal) or pal.get("_pal") != self:
+		_pal = null
+		return false
+	if ai.is_talking() or (pal.get("ai") as VillagerAI).is_talking():
+		## `mDemo_IS_ACTOR_TALKING`: someone is talking to the player — call it off.
+		_pal = null
+		pal.set("_pal", null)
+		return false
+	var flag: int = 2
+	var pal_flag: int = int(pal.get("_greet_flag"))
+	if pal_flag not in [1, 3, 4, 5]:
+		var rng := _outdoor_rng
+		VillagerGreeting.react(_greet_info(self), _greet_info(pal), _around_npcs(pal), Game.residents, rng)
+		flag = 1
+	if state != null:
+		if _cloth_key() != _drawn_cloth:
+			flag = 3
+		if state.umbrella_design != _drawn_umb:
+			flag = 5 if flag == 3 else 4
+	_greet_flag = flag
+	_act = Act.GREET
+	_greet = Greet.TURN
+	_motor.arrive()
+	_play_clip(ANIM_WAIT, true)
+	return true
+
+
+## `aNPC_make_aroundNpcInfoList`: residents one acre away (not these two) that have met the
+## player, friendliest first.
+func _around_npcs(pal: Node3D) -> Array:
+	var out: Array = []
+	if Game == null or Game.residents == null:
+		return out
+	var here: Vector2i = _current_block()
+	var nodes: Dictionary = {}
+	for node: Node in get_tree().get_nodes_in_group("villagers"):
+		var vd: VillagerData = node.get("data")
+		if vd != null:
+			nodes[vd.id] = node
+	for id: StringName in Game.residents.resident_ids():
+		if (data != null and id == data.id) or (pal.get("data") != null and id == (pal.get("data") as VillagerData).id):
+			continue
+		var node: Node3D = nodes.get(id) as Node3D
+		var block: Vector2i
+		if node != null:
+			block = VillagerWalk.block_from_cell(_grid_cell(node.global_position))
+		else:
+			block = VillagerWalk.block_from_cell(Game.residents.home_of(Game.residents.slot_of(id)))
+		if absi(block.x - here.x) + absi(block.y - here.y) != 1:
+			continue
+		var st: VillagerState = Game.villagers.get_or_create(id)
+		if st.relationship == null or not st.relationship.has_memory:
+			continue
+		out.append({
+			"state": st, "data": VillagerCatalog.get_villager(id), "friendship": st.friendship,
+			"loaded": node != null and (node.get("ai") as VillagerAI).is_present(),
+		})
+	VillagerGreeting.sort_around(out)
+	return out
+
+
+func _grid_cell(pos: Vector3) -> Vector2i:
+	var bg: Array = _bg()
+	if bg.size() == 2:
+		return (bg[1] as WorldGrid).world_to_cell(pos)
+	return Vector2i.ZERO
+
+
+func _cloth_key() -> String:
+	if state == null:
+		return ""
+	return "%d:%s" % [state.cloth_design, String(VillagerTalkManager.worn_cloth(data, state))]
+
+
+func _tick_greeting(delta: float) -> void:
+	var pal: Node3D = _pal
+	if pal == null or not is_instance_valid(pal) or pal.get("_pal") != self:
+		_pal = null
+		_end_greeting()
+		return
+	var to: Vector3 = pal.global_position - global_position
+	to.y = 0.0
+	var clip_done: bool = (
+		_body_anim == null or not _body_anim.is_playing() or _body_anim.current_animation != _clip
+	)
+	match _greet:
+		Greet.TURN:
+			_motor.turn_toward(delta, global_position, pal.global_position)
+			if absf(angle_difference(_motor.facing, atan2(to.x, to.z))) < deg_to_rad(10.0):
+				if to.length() < VillagerGreeting.APPROACH_NEAR:
+					_greet = Greet.WAIT
+				else:
+					_greet = Greet.APPROACH
+					_greet_timer = VillagerGreeting.APPROACH_SECONDS
+					_play_clip(ANIM_WALK, true)
+		Greet.APPROACH:
+			## `aNPC_act_greeting_approach`: walk over for at most 80 frames.
+			_greet_timer -= delta
+			_motor.turn_toward(delta, global_position, pal.global_position)
+			var step: Vector3 = Vector3(sin(_motor.facing), 0.0, cos(_motor.facing)) * _motor.walk_speed
+			velocity.x = step.x
+			velocity.z = step.z
+			move_and_slide()
+			velocity.x = 0.0
+			velocity.z = 0.0
+			if to.length() < VillagerGreeting.APPROACH_NEAR or _greet_timer <= 0.0 or get_slide_collision_count() > 0:
+				_greet = Greet.WAIT
+				_play_clip(ANIM_WAIT, true)
+		Greet.WAIT:
+			## `aNPC_act_greeting_wait`: bow together once both are waiting.
+			if int(pal.get("_greet")) == Greet.WAIT and int(pal.get("_act")) == Act.GREET:
+				pal.call("_start_bow")
+				_start_bow()
+		Greet.BOW:
+			if clip_done:
+				if _greet_flag >= 3:
+					## `NA_SE_WEAR`, then `GET_CHANGE1`.
+					_greet = Greet.CHANGE
+					_play_clip(VillagerGreeting.CHANGE_CLIP, false)
+				else:
+					_greeting_end()
+		Greet.CHANGE:
+			if clip_done:
+				_drawn_cloth = _cloth_key()
+				_drawn_umb = state.umbrella_design if state != null else -1
+				_apply_design_wear()
+				_greet_flag = 0
+				_greeting_end()
+		Greet.HOLD:
+			pass
+	if _model != null:
+		_model.rotation.y = _motor.facing
+
+
+func _start_bow() -> void:
+	_greet = Greet.BOW
+	var looks: int = clampi(int(_looks()), 0, VillagerGreeting.GREETING_CLIPS.size() - 1)
+	_play_clip(VillagerGreeting.GREETING_CLIPS[looks], false)
+
+
+## `aNPC_setup_greeting_end`: wait while the partner is still changing, else both finish.
+func _greeting_end() -> void:
+	var pal: Node3D = _pal
+	if pal != null and is_instance_valid(pal) and int(pal.get("_greet_flag")) >= 3 and int(pal.get("_act")) == Act.GREET:
+		_greet = Greet.HOLD
+		_play_clip(ANIM_WAIT, true)
+		return
+	if pal != null and is_instance_valid(pal) and pal.get("_pal") == self:
+		pal.call("_end_greeting")
+	_end_greeting()
+
+
+## `aNPC_setup_greeting_end_sub`.
+func _end_greeting() -> void:
+	_pal = null
+	_pal_ignore = VillagerGreeting.IGNORE_SECONDS
+	_greet_flag = 0
+	if _act == Act.GREET:
+		_act = Act.NONE
+		_play_clip(ANIM_WAIT, true)
 
 
 ## `aNPC_anime_proc` part table: the sub-animation drives the right arm and head root over

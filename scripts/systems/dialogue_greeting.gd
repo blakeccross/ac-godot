@@ -7,6 +7,8 @@ extends RefCounted
 const KIND := 3
 ## `MSG_11573`: new-arrival first greeting, 3 variants × 4 times × 6 looks.
 const MOVED_IN_HELLO := 11573
+## `MSG_11770`: "you gave me this shirt" (the giver is this player).
+const THANKS_CLOTH := 11770
 const FALLBACK_ID := &"looks_greeting"
 
 const MEET_FIRST := 0
@@ -61,6 +63,13 @@ static func hello_msg_no(villager: VillagerData, state: VillagerState, ctx: Dial
 			return SAD[looks] + _roll(5, ctx)
 		if ctx.mood == VillagerState.Mood.SLEEPY:
 			return SLEEPY[looks] + _roll(5, ctx)
+	## `aQMgr_get_thanks_cloth_msg`: wearing the shirt the player mailed — thanks, once.
+	if meet != MEET_FIRST and state != null and state.wearing_present_cloth:
+		var cloth: ItemData = ItemCatalog.get_item(state.present_cloth)
+		ctx.item0 = PoliceTalk.with_article(cloth.display_name) if cloth != null else ""
+		state.wearing_present_cloth = false
+		state.present_cloth = &""
+		return THANKS_CLOTH + looks * 3 + _roll(3, ctx)
 	## `aQMgr_get_hello_msg_how_do_you_do`: a villager who moved in (`Animal_c.moved_in`)
 	## introduces themself as the new neighbour on first meeting.
 	if meet == MEET_FIRST and villager != null and Game != null and Game.residents != null:

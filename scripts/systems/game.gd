@@ -525,6 +525,9 @@ func _resolve_residents(data: WorldData) -> void:
 		var report: Dictionary = residents.start_session(_residents_context(data, rng))
 		if report.get("moved_in", &"") != &"":
 			villagers.get_or_create(report["moved_in"] as StringName)
+		## `mNpc_ChangePresentCloth`.
+		for id: StringName in residents.resident_ids():
+			villagers.get_or_create(id).wear_present_cloth()
 		## `mNpc_Remail`.
 		VillagerLetters.send_replies(
 			residents, relationships, Clock.day_number(), player_name, rng, _deliver_villager_mail
@@ -1408,19 +1411,9 @@ func _on_field_renewed(days: int) -> void:
 	_deliver_shop_mail()
 	if redd != null:
 		redd.check_unlock()
-	_spread_able_designs(days)
 	## One roll for the current date after renew (`mEnv_DecideWeather` / `aWeather_ChangeWeatherTime0`).
 	apply_weather_roll(Weather.roll())
 	apply_event_weather()
-
-
-## Villagers pass Able Sisters designs around as they greet (`NeedleworkTrend`).
-func _spread_able_designs(days: int) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.randomize()
-	NeedleworkTrend.daily_greetings(NeedleworkTrend.town_states(), rng, maxi(days, 1))
-	if designs != null:
-		designs.changed.emit()
 
 
 ## Farway Museum returns identified fossils (+ the one-time intro letter) each morning.

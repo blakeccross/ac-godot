@@ -12,8 +12,8 @@ extends RefCounted
 ## `aNNW_trend_delete_*` puts wearers back in their default clothes when the design on
 ## that display is replaced.
 ##
-## The port has no villager-to-villager greetings yet, so `daily_greetings` stands in:
-## each renewal every resident greets one random neighbour. Wear lives on
+## Live greetings run in `VillagerGreeting`; `daily_greetings` is the old once-a-day
+## stand-in, kept for tests. Wear lives on
 ## `VillagerState.cloth_design` / `umbrella_design` (-1 = not wearing one, else 0-3).
 
 enum React {

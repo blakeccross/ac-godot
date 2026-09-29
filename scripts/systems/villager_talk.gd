@@ -27,10 +27,11 @@ static func catchphrase_of(villager: VillagerData, state: VillagerState) -> Stri
 	return villager.default_catchphrase() if villager != null else ""
 
 
-static func conversation(villager: VillagerData, state: VillagerState) -> DialogueData:
+## `ctx` is the context the talk will run with, so strings the greeting sets reach it.
+static func conversation(villager: VillagerData, state: VillagerState, ctx: DialogueContext = null) -> DialogueData:
 	if villager != null and villager.dialogue != null:
 		return villager.dialogue
-	return DialogueGreeting.conversation(villager, state)
+	return DialogueGreeting.conversation(villager, state, ctx)
 
 
 ## The quest manager for a talk with a town villager, or null when the talk is a scripted

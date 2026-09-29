@@ -116,6 +116,8 @@ static func _deliver_to_villager(mail: MailData) -> void:
 		return
 	var bond: Relationship = Game.relationships.get_or_create(mail.recipient_id)
 	var before: int = bond.friendship
+	if bond.has_memory and mail.present_item_id != &"" and Game.villagers != null:
+		Game.villagers.get_or_create(mail.recipient_id).receive_present_cloth(mail.present_item_id)
 	VillagerLetters.receive(bond, mail, Clock.day_number())
 	if Game.first_job != null and Game.first_job.is_active():
 		bond.set_friendship(before)

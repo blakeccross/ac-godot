@@ -37,6 +37,12 @@ var catchphrase: String = ""
 ## Shirt the villager was given and changed into (`Animal_c.cloth` after `npc_chg_cloth`);
 ## empty = their own (`VillagerData.default_cloth`).
 var cloth_id: StringName = &""
+## `Animal_c.present_cloth` + the memory's `has_present_cloth` / `wearing_present_cloth`: a
+## shirt the player mailed them (friendship over 30). They put it on at the next game start
+## (`mNpc_ChangePresentCloth`) and thank the player for it in the next greeting.
+var present_cloth: StringName = &""
+var has_present_cloth: bool = false
+var wearing_present_cloth: bool = false
 
 var friendship: int:
 	get:
@@ -96,6 +102,27 @@ func tick_feel(ticks: int) -> void:
 		mood = Mood.NORMAL
 
 
+## `mNpc_SetPresentCloth`: a shirt in a letter from someone they know well enough.
+func receive_present_cloth(item_id: StringName) -> bool:
+	var data: ItemData = ItemCatalog.get_item(item_id)
+	if data == null or data.category != ItemData.Category.CLOTH or friendship <= 30:
+		return false
+	present_cloth = item_id
+	has_present_cloth = true
+	wearing_present_cloth = false
+	return true
+
+
+## `mNpc_ChangePresentCloth` (game start): the mailed shirt goes on.
+func wear_present_cloth() -> void:
+	if present_cloth == &"" or not has_present_cloth:
+		return
+	cloth_id = present_cloth
+	cloth_design = -1
+	wearing_present_cloth = true
+	has_present_cloth = false
+
+
 func add_friendship(amount: int) -> void:
 	_bond().add_friendship(amount)
 
@@ -115,6 +142,9 @@ func to_save() -> Dictionary:
 		"umbrella_design": umbrella_design,
 		"catchphrase": catchphrase,
 		"cloth_id": String(cloth_id),
+		"present_cloth": String(present_cloth),
+		"has_present_cloth": has_present_cloth,
+		"wearing_present_cloth": wearing_present_cloth,
 		"relationship": _bond().to_save(),
 	}
 
@@ -131,6 +161,9 @@ func apply_snapshot(data: Dictionary) -> void:
 	umbrella_design = clampi(int(data.get("umbrella_design", -1)), -1, 3)
 	catchphrase = str(data.get("catchphrase", ""))
 	cloth_id = StringName(str(data.get("cloth_id", "")))
+	present_cloth = StringName(str(data.get("present_cloth", "")))
+	has_present_cloth = bool(data.get("has_present_cloth", false))
+	wearing_present_cloth = bool(data.get("wearing_present_cloth", false))
 	var nested: Variant = data.get("relationship", {})
 	if typeof(nested) == TYPE_DICTIONARY and not (nested as Dictionary).is_empty():
 		_bond().apply_snapshot(nested as Dictionary)
