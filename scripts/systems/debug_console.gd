@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -63,6 +63,14 @@ func execute(raw: String) -> String:
 			return "Rainbow %s." % ("on" if on else "off")
 		"tune":
 			return _cmd_tune(args)
+		"map":
+			## Open the town map (`mSM_OVL_MAP`) as the sight-map board does.
+			var map_tree := Engine.get_main_loop() as SceneTree
+			var map_ui: Node = map_tree.get_first_node_in_group("map_ui") if map_tree != null else null
+			if map_ui == null:
+				return "No map UI in this scene."
+			map_ui.call("open", true)
+			return "Map open."
 		"board":
 			## Open the community board's posts (`mSM_OVL_NOTICE`).
 			var tree := Engine.get_main_loop() as SceneTree

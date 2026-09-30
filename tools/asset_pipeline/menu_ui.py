@@ -352,6 +352,77 @@ def _bake_mscore(rel: RelData, symbols, textures: TextureCache, scale: int, cfg:
 	return results
 
 
+MAP_DIR = "map_screen"
+MAP_MARK = (-16.0, 16.0, 32.0, 32.0)
+## `mMP_set_win_dl`: segment 10's label frame by label count (0, 1, 2, 3, 4).
+_MP_FRAMES = ["kan_waku_w1T_model", "kan_win_wakuT_model", "kan_waku_w2T_model", "kan_waku_w3T_model",
+	"kan_waku_w4T_model"]
+_MP_NUMS = [f"kan_win_suuji{n}_tex_rgb_ia8" for n in range(1, 6)]
+_MP_LETTERS = [f"kan_win_{c}_tex_rgb_ia8" for c in "abcdef"]
+## Label icons (`mMP_label_data`) and field marks, drawn at the origin.
+_MP_MARKS = ["kan_win_npcT_1_model", "kan_win_npcT_2_model", "kan_win_npcT_3_model", "kan_win_playerT_model",
+	"kan_win_omiseT_model", "kan_win_koubanT_model", "kan_win_yuuT_model", "kan_win_yashiroT_model",
+	"kan_win_ekiT_model", "kan_win_gomiT_model", "kan_win_mu_model", "kan_win_ta_model", "kan_win_funeT_model",
+	"kan_win_npc2T_1_model", "kan_win_npc2T_2_model", "kan_win_npc2T_3_model", "kan_win_genzaiT_model"]
+
+
+def _bake_map_screen(rel: RelData, symbols, textures: TextureCache, scale: int, cfg: PipelineConfig) -> list[dict[str, Any]]:
+	"""`mMP_set_dl`: the window (per colour set), the second window without its acre number
+	and letter (per label frame), the numbers and letters on their own, and the marks."""
+	out_dir = cfg.godot_generated / "ui" / MAP_DIR
+	stage_dir = cfg.converted / "ui" / MAP_DIR
+	out_dir.mkdir(parents=True, exist_ok=True)
+	stage_dir.mkdir(parents=True, exist_ok=True)
+	results: list[dict[str, Any]] = []
+
+	def emit(name: str, make) -> None:
+		rec: dict[str, Any] = {"asset_id": name, "output_path": f"ui/{MAP_DIR}/{name}.png", "error": None}
+		try:
+			_save(make(), name, stage_dir, out_dir, cfg.project_root)
+			rec["status"] = "converted"
+		except Exception as exc:  # noqa: BLE001
+			rec["status"] = "error"
+			rec["error"] = f"{type(exc).__name__}: {exc}"
+		results.append(rec)
+
+	probe = UiWalker(rel, symbols)
+	num_addr = {probe.symbol(n).address: i for i, n in enumerate(_MP_NUMS)}
+	let_addr = {probe.symbol(n).address: i for i, n in enumerate(_MP_LETTERS)}
+
+	def win_batches(color: int, frame: int, num: int = 0, let: int = 0):
+		seg = {8: _MP_NUMS[num], 9: _MP_LETTERS[let], 10: _MP_FRAMES[frame], 11: f"kan_win_color{color}_mode"}
+		return UiWalker(rel, symbols).run([Op("kan_win_model", segments=seg, draw=False), Op("kan_win_model2", segments=seg)])
+
+	def is_num(b) -> bool:
+		return b.tex0 is not None and b.tex0.addr in num_addr
+
+	def is_let(b) -> bool:
+		return b.tex0 is not None and b.tex0.addr in let_addr
+
+	for color in (0, 1):
+		seg = {11: f"kan_win_color{color}_mode"}
+		emit(f"mp_base{color}", lambda seg=seg: bake_layer(UiWalker(rel, symbols), textures, [Op("kan_win_model", segments=seg)], SCREEN, scale))
+		for frame in range(len(_MP_FRAMES)):
+			emit(f"mp_win{color}_{frame}", lambda c=color, f=frame: rasterize(
+				[b for b in win_batches(c, f) if not is_num(b) and not is_let(b)], textures, SCREEN, scale))
+	for i in range(len(_MP_NUMS)):
+		emit(f"mp_num{i + 1}", lambda i=i: rasterize([b for b in win_batches(0, 0, num=i) if is_num(b)], textures, SCREEN, scale))
+	for i in range(len(_MP_LETTERS)):
+		emit(f"mp_let{'abcdef'[i]}", lambda i=i: rasterize([b for b in win_batches(0, 0, let=i) if is_let(b)], textures, SCREEN, scale))
+	for m in _MP_MARKS:
+		name = "mp_" + m.removeprefix("kan_win_").removesuffix("_model")
+		emit(name, lambda m=m: bake_layer(UiWalker(rel, symbols), textures,
+			[Op("kan_win_mode", segments={11: "kan_win_color0_mode"}), Op(m)], MAP_MARK, scale))
+	emit("mp_cursor", lambda: bake_layer(UiWalker(rel, symbols), textures,
+		[Op("kan_win_mode", segments={11: "kan_win_color0_mode"}), Op("kan_win_cursorT_model", prim=(255, 255, 255, 255))],
+		MAP_MARK, scale))
+	meta = {"scale": scale, "screen": SCREEN, "mark": MAP_MARK}
+	data = json.dumps(meta, indent=2).encode()
+	for folder in (stage_dir, out_dir):
+		(folder / "map_screen.json").write_bytes(data)
+	return results
+
+
 def extract_menu_ui(cfg: PipelineConfig) -> dict[str, Any]:
 	out_dir = cfg.godot_generated / "ui" / OUT_DIR_NAME
 	stage_dir = cfg.converted / "ui" / OUT_DIR_NAME
@@ -443,6 +514,7 @@ def extract_menu_ui(cfg: PipelineConfig) -> dict[str, Any]:
 
 	results.extend(_bake_catalog(rel, symbols, textures, scale, cfg))
 	results.extend(_bake_mscore(rel, symbols, textures, scale, cfg))
+	results.extend(_bake_map_screen(rel, symbols, textures, scale, cfg))
 
 	catalog = {"scale": scale, "screen": SCREEN, "achd_hits": textures.hits, "results": results}
 	data = json.dumps(catalog, indent=2).encode()

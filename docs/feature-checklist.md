@@ -71,7 +71,7 @@ data tables before a category is called done.
 - [ ] River mouth, river forks, round pond, waterfall placement rules
 - [ ] Beach along the south edge; tide; ocean horizon; rocks in surf
 - [ ] Acre-edge scroll / camera hand-off between acres
-- [~] Town map generated and shown from the held map item / sight-map boards (`m_map_ovl`) — `town_map.gd`, `scenes/ui/map_overlay.tscn`, slides in from the top. Missing: the original map screen art
+- [x] Town map from the held map item (blue) or the sight-map boards (yellow), drawn like `mMP_set_dl` from the disc's `kan_win` / `kan_tizu` art: acre tiles, the selected acre's letter and number, the label frame sized to its labels, building names or residents (the player plus "free" plots; villagers by name with their house marks tinted by ground height), you-are-here mark, the easing, pulsing cursor (`m_map_ovl`) — `map_overlay.gd`, layers from `menu_ui.py` (`ui/map_screen/`); `map` console command
 - [ ] Bridge(s) across the river; town can gain a second bridge (`ac_bridge_a`, `mEv_EVENT_BRIDGE_MAKE`)
 - [ ] Building slots: player houses ×4, Nook's, Able Sisters, Museum, Town Hall, Post Office, Police Station, Wishing Well, Train Station, Dump, Lighthouse
 - [ ] Villager house plots (up to ~15 villager homes) with reserved lots (`ac_reserve`)

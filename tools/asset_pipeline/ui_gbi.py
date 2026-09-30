@@ -18,6 +18,8 @@ of ops into one RGBA image covering `bounds`.
 
 from __future__ import annotations
 
+import bisect
+
 import io
 import struct
 from dataclasses import dataclass, field
@@ -186,6 +188,22 @@ class UiWalker:
 				del batches[start:]
 		return batches
 
+	def _dl_at(self, addr: int) -> bytes | None:
+		"""The list at `addr`: a symbol's start, or a jump into one (`anime_4_txt + 0x48`
+		runs the rest of the bound list from that command)."""
+		sym = self.by_addr.get(addr)
+		if sym is not None:
+			return self.rel.slice_at(sym.address, sym.size)
+		if not hasattr(self, "_starts"):
+			self._starts = sorted(a for a, s in self.by_addr.items() if s.size)
+		i = bisect.bisect_right(self._starts, addr) - 1
+		if i < 0:
+			return None
+		sym = self.by_addr[self._starts[i]]
+		if addr >= sym.address + sym.size:
+			return None
+		return self.rel.slice_at(addr, sym.address + sym.size - addr)
+
 	def _resolve(self, addr: int, segs: dict[int, int]) -> int | None:
 		seg = addr >> 24
 		if seg in segs:
@@ -304,9 +322,9 @@ class UiWalker:
 						self._img_bound = True
 				elif cmd == G_DL:
 					target = self._resolve(w1, segs)
-					sym = self.by_addr.get(target) if target is not None else None
-					if sym is not None:
-						self._walk(self.rel.slice_at(sym.address, sym.size), segs, offset, out, depth + 1)
+					sub = self._dl_at(target) if target is not None else None
+					if sub is not None:
+						self._walk(sub, segs, offset, out, depth + 1)
 					if (w0 >> 16) & 0xFF:  # branch: no return
 						break
 		flush()
