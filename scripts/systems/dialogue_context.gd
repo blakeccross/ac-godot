@@ -213,6 +213,7 @@ func set_item_str(n: int, text: String) -> void:
 
 func substitute(text: String) -> String:
 	var out: String = MessageWindowChrome._normalize_punct(text)
+	out = _capitalize_slots(out)
 	out = _cut_articles(out)
 	var used: PackedStringArray = slot_keys_in(out)
 	out = out.replace("{player}", player_name)
@@ -257,6 +258,27 @@ func substitute(text: String) -> String:
 			search_from = end + 1
 	_report_empty_slots(used)
 	_report_leftover_slots(out)
+	return out
+
+
+## `CAPTIALIZE`: the string that follows starts with a capital (`mFont_small_to_capital`).
+func _capitalize_slots(text: String) -> String:
+	var out: String = text
+	var guard: int = 0
+	while guard < 16:
+		guard += 1
+		var at: int = out.find("{cap}")
+		if at < 0:
+			break
+		var tag_start: int = at + 5
+		var tag_end: int = out.find("}", tag_start)
+		if tag_end < 0 or tag_start >= out.length() or out[tag_start] != "{":
+			out = out.substr(0, at) + out.substr(tag_start)
+			continue
+		var value: String = substitute(out.substr(tag_start, tag_end - tag_start + 1))
+		if value != "":
+			value = value[0].to_upper() + value.substr(1)
+		out = out.substr(0, at) + value + out.substr(tag_end + 1)
 	return out
 
 

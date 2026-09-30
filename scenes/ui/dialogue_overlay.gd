@@ -12,10 +12,13 @@ signal event_fired(event: Dictionary)
 const APPEAR_FRAMES := 18.0
 ## `mChoice` appear/disappear duration.
 const CHOICE_APPEAR_FRAMES := 10.2
-## Every other frame (`mMsg_STATUS_FLAG_NOT_PAUSE_FRAME`).
-const CHARS_PER_SEC := DecompTime.TICK_HZ * 0.5
-## `mMsg_STATUS_FLAG_FAST_TEXT` clears the pause frame → one glyph per frame.
-const FAST_CHARS_PER_SEC := DecompTime.TICK_HZ
+## `mMsg_Main_Cursol_ControlCursol` runs once a frame: a glyph every other frame
+## (`mMsg_STATUS_FLAG_NOT_PAUSE_FRAME`), every frame with `mMsg_STATUS_FLAG_FAST_TEXT`,
+## which also drops PAUSE waits unless `SETCURSORJUST` holds the timing.
+## PAUSE counts 30 Hz frames (`mMsg_Get_CursolSetTimeCode` doubles it).
+const PAUSE_FRAME_MULT := 2
+## `mMsg_sound_sound_trg_sys`: SNDTRGSYS slots → system SE (3 and 4 are silent).
+const TRG_SYS_SE := [0x1050, 0x012e, 0x012f, 0x0130, 0x0131, 0x0427, 0x0428]
 
 enum Phase { HIDDEN, APPEARING, OPEN, DISAPPEARING }
 enum ChoicePhase { HIDDEN, APPEARING, OPEN, DISAPPEARING }
@@ -35,6 +38,15 @@ var _visible_len: int = 0
 var _cursor: int = 0
 var _type_accum: float = 0.0
 var _fast_text: bool = false
+## Typewriter state for the page on screen.
+var _marks: Array[Dictionary] = []
+var _mark_i: int = 0
+var _pause_frames: int = 0
+var _just: bool = false
+var _odd_frame: bool = false
+## `auto` (MSGCLEAR carries on), `time_end` (frames), `quiet` (no page SE).
+var _page: Dictionary = {}
+var _end_timer: int = -1
 var _choice_index: int = 0
 var _buttons: Array[Button] = []
 var _pending_choice: int = -1
@@ -99,12 +111,14 @@ func is_awaiting_input() -> bool:
 		return true
 	if _runner.done:
 		return false
-	return _cursor >= _visible_len and _visible_len > 0
+	if bool(_page.get("auto", false)) or _page.has("time_end"):
+		return false
+	return _cursor >= _visible_len and _visible_len > 0 and _mark_i >= _marks.size() and _pause_frames == 0
 
 
 ## `mMsg_Check_NowUtter`: text is still being laid in. Drives NPC mouth flap.
 func is_uttering() -> bool:
-	return _open and not _suspended and _phase == Phase.OPEN and _cursor < _visible_len
+	return _open and not _suspended and _phase == Phase.OPEN and _cursor < _visible_len and _pause_frames == 0
 
 
 func runner() -> DialogueRunner:
@@ -122,17 +136,24 @@ func fast_advance() -> void:
 	if _runner.waiting_choice and not _buttons.is_empty():
 		_pick(_choice_index)
 		return
-	if _cursor < _visible_len:
-		_cursor = _visible_len
-		_voice_at = _cursor
-		_chrome.set_body_visible_chars(_cursor)
-		_show_continue()
+	if _cursor < _visible_len or _mark_i < _marks.size() or _pause_frames > 0:
+		_dump_page()
 		return
 	if _runner == null:
 		return
 	_runner.advance()
 	if _runner.done:
 		close()
+
+
+## Everything on the page at once: pauses and timing marks are dropped.
+func _dump_page() -> void:
+	_cursor = _visible_len
+	_voice_at = _cursor
+	_mark_i = _marks.size()
+	_pause_frames = 0
+	_chrome.set_body_visible_chars(_cursor)
+	_show_continue()
 
 
 func play(
@@ -198,6 +219,7 @@ func close(immediate: bool = false) -> void:
 
 func _begin_open(speaker: String, sex: MessageWindowChrome.SpeakerSex) -> void:
 	_open = true
+	_just = false
 	_phase = Phase.APPEARING
 	_anim_t = 0.0
 	_fast_text = false
@@ -285,23 +307,84 @@ func _process(delta: float) -> void:
 		return
 	if _runner != null and _runner.waiting_choice:
 		return
-	if _cursor >= _visible_len:
-		return
-	var rate := FAST_CHARS_PER_SEC if _fast_text else CHARS_PER_SEC
 	if Input.is_action_pressed("interact") or Input.is_action_pressed("ui_accept"):
 		_fast_text = true
-		rate = FAST_CHARS_PER_SEC
-	_type_accum += rate * delta
-	var step := int(_type_accum)
-	if step <= 0:
+	_type_accum += delta * DecompTime.TICK_HZ
+	var guard: int = 0
+	while _type_accum >= 1.0 and guard < 8 and _open and _phase == Phase.OPEN:
+		_type_accum -= 1.0
+		guard += 1
+		_type_tick()
+
+
+## One frame of `mMsg_Main_Cursol_ControlCursol` + the page end.
+func _type_tick() -> void:
+	if _runner != null and _runner.waiting_choice:
 		return
-	_type_accum -= float(step)
-	var prev: int = _cursor
-	_cursor = mini(_visible_len, _cursor + step)
-	_utter_range(prev, _cursor)
-	_chrome.set_body_visible_chars(_cursor)
-	if _cursor >= _visible_len:
+	var fast: bool = _fast_text and not _just
+	if _pause_frames > 0:
+		_pause_frames = 0 if fast else _pause_frames - 1
+		return
+	## Codes sitting before the next glyph (or after the last one).
+	while _mark_i < _marks.size() and int(_marks[_mark_i]["at"]) <= _cursor:
+		var mark: Dictionary = _marks[_mark_i]
+		_mark_i += 1
+		match str(mark["kind"]):
+			"p":
+				if not fast:
+					_pause_frames = int(mark["value"]) * PAUSE_FRAME_MULT
+			"se":
+				var slot: int = int(mark["value"])
+				if slot >= 0 and slot < TRG_SYS_SE.size() and slot != 3 and slot != 4:
+					Audio.play_se(StringName("%x" % TRG_SYS_SE[slot]))
+			"just":
+				_just = true
+			"unjust":
+				_just = false
+		if _pause_frames > 0:
+			return
+	if _cursor < _visible_len:
+		_odd_frame = not _odd_frame
+		if not fast and _odd_frame:
+			return
+		var prev: int = _cursor
+		_cursor += 1
+		_utter_range(prev, _cursor)
+		_chrome.set_body_visible_chars(_cursor)
+		return
+	_page_end_tick()
+
+
+## The page is fully out: MSGCLEAR pages go on by themselves, MSGTIMEEND ones after
+## their timer (`mMsg_Main_Normal` `end_timer`), the rest wait for A with the mark.
+func _page_end_tick() -> void:
+	if _runner == null:
+		if not _chrome_continue_shown:
+			_show_continue()
+		return
+	if _runner.waiting_choice or _runner.is_continue_blocked():
+		return
+	if bool(_page.get("auto", false)):
+		_turn_page(false)
+	elif _page.has("time_end"):
+		if _end_timer < 0:
+			_end_timer = int(_page["time_end"])
+		_end_timer -= 1
+		if _end_timer <= 0:
+			_turn_page(false)
+	elif not _chrome_continue_shown:
 		_show_continue()
+
+
+func _turn_page(with_se: bool) -> void:
+	if _runner == null:
+		close()
+		return
+	if with_se and not bool(_page.get("quiet", false)):
+		Audio.play_se(&"page_okuri")
+	_runner.advance()
+	if _runner != null and _runner.done:
+		close()
 
 
 func _utter_range(from_idx: int, to_idx: int) -> void:
@@ -367,8 +450,15 @@ func _finish_choice_disappear() -> void:
 		close()
 
 
+var _chrome_continue_shown: bool = false
+
+
 func _show_continue() -> void:
 	var blocked: bool = _runner != null and _runner.is_continue_blocked()
+	## Pages that turn by themselves never show the mark.
+	if bool(_page.get("auto", false)) or _page.has("time_end") or _cursor < _visible_len:
+		blocked = true
+	_chrome_continue_shown = not blocked
 	_chrome.set_continue_visible(not blocked)
 
 
@@ -395,21 +485,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
 		get_viewport().set_input_as_handled()
-		if _cursor < _visible_len:
-			## Cancelable dump / A-to-complete page.
-			_cursor = _visible_len
-			_voice_at = _cursor
-			_chrome.set_body_visible_chars(_cursor)
-			_show_continue()
+		if _cursor < _visible_len or _mark_i < _marks.size() or _pause_frames > 0:
+			## Cancelable dump / A-to-complete page; SETCURSORJUST keeps its timing.
+			if not _just:
+				_dump_page()
 			return
-		if _runner == null:
-			close()
+		if bool(_page.get("auto", false)) or _page.has("time_end"):
 			return
 		## `mMsg_sound_PAGE_OKURI` when the player advances past a finished page.
-		Audio.play_se(&"page_okuri")
-		_runner.advance()
-		if _runner != null and _runner.done:
-			close()
+		_turn_page(true)
 
 
 func _choice_input(event: InputEvent) -> void:
@@ -431,9 +515,16 @@ func _choice_input(event: InputEvent) -> void:
 
 
 func _on_line(text: String) -> void:
-	_shown = text
 	_chrome.set_body(text)
+	_shown = _chrome.body_glyph_text()
 	_visible_len = _chrome.body_visible_char_count()
+	_marks = _chrome.body_marks()
+	_mark_i = 0
+	_pause_frames = 0
+	_odd_frame = false
+	_end_timer = -1
+	_page = _runner.current_record() if _runner != null else {}
+	_chrome_continue_shown = false
 	_cursor = 0
 	_voice_at = 0
 	_voice.reset_line()

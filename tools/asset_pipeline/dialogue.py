@@ -121,9 +121,15 @@ def _style_tag_scale(scale: int) -> str:
 def tokens_to_styled_text(tokens: list[dict[str, Any]]) -> str:
     """Flatten tokens to text, keeping TEXTCOLOR / CHARSCALE / COLORCHARS / LINESCALE.
 
-    Markup (expanded by `MessageWindowChrome` at draw time):
+    Markup (expanded by `MessageBody` at draw time / read by the typewriter):
     - `{c:r,g,b}` sticky colour until the next colour tag
     - `{s:n}` sticky scale (`n/32`) until the next scale tag
+    - `{y:n}` LINEOFS: the rest of the page drawn `n` units lower (arg - 128)
+    - `{lt:n}` LINETYPE: scaled glyphs grow from the line's top / centre / bottom
+    - `{p:n}` PAUSE: the cursor waits `n` (30 Hz) frames
+    - `{se:n}` SNDTRGSYS: a system sound as the cursor passes
+    - `{just}` / `{unjust}` SETCURSORJUST / CLRCUSRORJUST: pauses B can't skip
+    - `{cap}` CAPTIALIZE: the next substituted string starts with a capital
     """
     parts: list[str] = []
     color: Optional[tuple[int, int, int]] = None
@@ -190,6 +196,27 @@ def tokens_to_styled_text(tokens: list[dict[str, Any]]) -> str:
             line_scale = max(1, int(args[0]))
             pending_char_scale = None
             set_scale(line_scale)
+            continue
+        if name == "PAUSE" and args:
+            parts.append("{p:%d}" % int(args[0]))
+            continue
+        if name == "LINEOFS" and args:
+            parts.append("{y:%d}" % (int(args[0]) - 128))
+            continue
+        if name == "LINETYPE" and args:
+            parts.append("{lt:%d}" % int(args[0]))
+            continue
+        if name == "SNDTRGSYS" and args:
+            parts.append("{se:%d}" % int(args[0]))
+            continue
+        if name == "SETCURSORJUST":
+            parts.append("{just}")
+            continue
+        if name == "CLRCUSRORJUST":
+            parts.append("{unjust}")
+            continue
+        if name == "CAPTIALIZE":
+            parts.append("{cap}")
             continue
         if name == "COLORCHARS" and len(args) >= 4:
             saved_color = color
@@ -363,14 +390,23 @@ def tokens_to_conversation(
     ## (`mMsg_Check_MainNormalContinue`); `MSGEND` closes the window and ends the talk.
     terminator = ""
 
-    def flush() -> None:
-        nonlocal page_tokens, page_events
+    ## How each page ends (`mMsg_Main_Cursol_*`): BTN waits for A with the turn mark;
+    ## BTN2 / SNDNOPAGE turn the page without its sound; a bare MSGCLEAR clears and
+    ## carries on by itself; MSGTIMEEND closes after (n-1)*4+1 frames.
+    page_flags: dict[str, Any] = {}
+
+    def flush(end: dict[str, Any] | None = None) -> None:
+        nonlocal page_tokens, page_events, page_flags
         text = tokens_to_styled_text(page_tokens).strip("\n")
         events = list(page_events)
+        flags = dict(page_flags)
+        if end:
+            flags.update(end)
         page_tokens = []
         page_events = []
+        page_flags = {}
         if text != "" or events:
-            pages.append((text, events))
+            pages.append((text, events, flags))
 
     for tok in tokens:
         if tok["type"] == "text":
@@ -385,12 +421,23 @@ def tokens_to_conversation(
             terminator = ""
             continue
         if name in PAGE_BREAKS:
-            flush()
+            if name == "MSGCLEAR":
+                flush({"auto": True})
+            elif name == "BTN2":
+                flush({"quiet": True})
+            else:
+                flush()
             if name == "MSGCONTINUE":
                 terminator = name
             continue
+        if name == "SNDNOPAGE":
+            page_flags["quiet"] = True
+            continue
         if name in END_CMDS:
-            flush()
+            if name == "MSGTIMEEND" and args:
+                flush({"time_end": (max(int(args[0]), 1) - 1) * 4 + 1})
+            else:
+                flush()
             terminator = name
             break
         event = _page_event_from_token(name, args)
@@ -421,17 +468,18 @@ def tokens_to_conversation(
         if name == "SPACE" and args:
             page_tokens.append(tok)
             continue
-        if name in ("TEXTCOLOR", "CHARSCALE", "LINESCALE", "COLORCHARS"):
+        if name in ("TEXTCOLOR", "CHARSCALE", "LINESCALE", "COLORCHARS", "PAUSE", "LINEOFS", "LINETYPE",
+                "SNDTRGSYS", "SETCURSORJUST", "CLRCUSRORJUST", "CAPTIALIZE"):
             page_tokens.append(tok)
             continue
 
     flush()
     if not pages:
-        pages = [("", [])]
+        pages = [("", [], {})]
 
     nodes: dict[str, Any] = {}
     start = "p0"
-    for i, (page, events) in enumerate(pages):
+    for i, (page, events, flags) in enumerate(pages):
         nid = f"p{i}"
         if page == "" and events:
             ## Demo codes between pages (e.g. smile right before OPENCHOICE).
@@ -440,6 +488,7 @@ def tokens_to_conversation(
             node = {"type": "line", "text": page.replace("\r", "")}
             if events:
                 node["events"] = events
+            node.update(flags)
         if i + 1 < len(pages):
             node["next"] = f"p{i + 1}"
         nodes[nid] = node

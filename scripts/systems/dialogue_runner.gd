@@ -540,6 +540,11 @@ func _mood_from(name: String) -> VillagerState.Mood:
 			return VillagerState.Mood.NORMAL
 
 
+## The node on screen (a line's page flags: `auto`, `time_end`, `quiet`).
+func current_record() -> Dictionary:
+	return _current()
+
+
 func _current() -> Dictionary:
 	if conversation == null:
 		return {}

@@ -53,16 +53,13 @@ const NAME_BG_FEMALE := Color(235.0 / 255.0, 140.0 / 255.0, 210.0 / 255.0, 1.0)
 const NAME_TEXT_FEMALE := Color(45.0 / 255.0, 0.0, 30.0 / 255.0, 1.0)
 const NAME_BG_OTHER := Color(185.0 / 255.0, 1.0, 0.0, 1.0)
 const NAME_TEXT_OTHER := Color(0.0, 30.0 / 255.0, 0.0, 1.0)
-## `default_color` for `BodyLabel` is set in `dialogue_overlay.tscn` (same value).
+## `default_color` for `BodyLabel` (`MessageBody`) is set in `dialogue_overlay.tscn` (same value).
 const CHOICE_TEXT := Color(180.0 / 255.0, 150.0 / 255.0, 110.0 / 255.0, 1.0)
 const CHOICE_TEXT_SELECTED := Color(120.0 / 255.0, 50.0 / 255.0, 50.0 / 255.0, 1.0)
 
 ## `mFont_TEX_CHAR_HEIGHT` — body + name draw at 1.0 scale.
 const BODY_FONT_PX := 16.0
 const NAME_FONT_PX := 16.0
-## `mFont` CHARSCALE / LINESCALE unit: 32 = 1.0.
-const FONT_SCALE_UNIT := 32.0
-const _STYLE_TAG_RE := "\\{([cs]):([0-9,]+)\\}"
 
 enum SpeakerSex { MALE, FEMALE, OTHER }
 
@@ -80,7 +77,7 @@ static func sex_from_int(value: int) -> SpeakerSex:
 @onready var _cloud: TextureRect = %Cloud
 @onready var _name_plate: TextureRect = %NamePlate
 @onready var _name: Label = %NameLabel
-@onready var _body: RichTextLabel = %BodyLabel
+@onready var _body: MessageBody = %BodyLabel
 @onready var _arrow: MessageContinueArrow = %ContinueArrow
 @onready var _choice_panel: Panel = %ChoicePanel
 @onready var _choices: VBoxContainer = %ChoiceList
@@ -103,7 +100,7 @@ func _ready() -> void:
 	## Textures, theme colors/fonts, and the choice panel style are all authored on
 	## the nodes in `dialogue_overlay.tscn` — this just reads the font back for the
 	## layout/wrapping math below, which needs an actual `Font` to measure with.
-	_font = _body.get_theme_font("normal_font")
+	_font = _body.font
 	set_window_color(WINDOW_COLOR_DEFAULT)
 	_apply_name_colors()
 	_choice_panel.visible = false
@@ -158,10 +155,8 @@ func set_speaker(speaker: String, sex: SpeakerSex = SpeakerSex.OTHER) -> void:
 func set_body(text: String) -> void:
 	if not is_node_ready():
 		return
-	_body.clear()
 	var normalized := _normalize_punct(text)
-	var wrapped := _wrap_body_lines(normalized)
-	_body.append_text(_to_bbcode(wrapped))
+	_body.set_text(_wrap_body_lines(normalized))
 
 
 ## Disc bank punctuation is ASCII-ish (`.` / `,` / `"` / `-`). Map typographic
@@ -237,7 +232,7 @@ func _wrap_body_lines(text: String) -> String:
 func _measure_body(s: String) -> float:
 	if s.is_empty():
 		return 0.0
-	## Style tags `{c:…}` / `{s:…}` become BBCode and must not count toward width.
+	## Markup tags take no width.
 	var visible := _strip_style_tags(s)
 	if visible.is_empty():
 		return 0.0
@@ -246,21 +241,9 @@ func _measure_body(s: String) -> float:
 	return float(visible.length()) * 6.0
 
 
+## Markup (`{c:}`, `{s:}`, `{p:}`, …) takes no width.
 static func _strip_style_tags(text: String) -> String:
-	var out := ""
-	var i := 0
-	var re := RegEx.new()
-	re.compile(_STYLE_TAG_RE)
-	while i < text.length():
-		var m: RegExMatch = re.search(text, i)
-		if m == null:
-			out += text.substr(i)
-			break
-		var start: int = m.get_start()
-		if start > i:
-			out += text.substr(i, start - i)
-		i = m.get_end()
-	return out
+	return MessageBody.strip_tags(text)
 
 
 ## Visible glyph count for typewriter (`RichTextLabel.visible_characters`).
@@ -273,8 +256,17 @@ func set_body_visible_chars(count: int) -> void:
 func body_visible_char_count() -> int:
 	if not is_node_ready():
 		return 0
-	## `get_total_character_count` ignores BBCode tags.
-	return _body.get_total_character_count()
+	return _body.glyph_count()
+
+
+## The glyphs in order (no markup, no line breaks), for the voice.
+func body_glyph_text() -> String:
+	return _body.glyph_text() if is_node_ready() else ""
+
+
+## Typewriter marks (`{p:}` pauses, `{se:}` sounds, `{just}` / `{unjust}`) by glyph index.
+func body_marks() -> Array[Dictionary]:
+	return _body.marks() if is_node_ready() else ([] as Array[Dictionary])
 
 
 func set_continue_visible(show: bool) -> void:
@@ -340,59 +332,6 @@ func _ensure_choice_mark(btn: Button, selected: bool, mark_w: float, pitch: floa
 	mark.size = Vector2(mark_w, mark_w)
 
 
-func _to_bbcode(raw: String) -> String:
-	## Expand `{c:r,g,b}` / `{s:n}` from the dialogue converter into BBCode.
-	var base_px := maxi(1, int(round(BODY_FONT_PX * _ui_scale)))
-	var out := ""
-	var i := 0
-	var open_color := false
-	var open_scale := false
-	var re := RegEx.new()
-	re.compile(_STYLE_TAG_RE)
-	while i < raw.length():
-		var m: RegExMatch = re.search(raw, i)
-		if m == null:
-			out += _bb_escape(raw.substr(i))
-			break
-		var start: int = m.get_start()
-		if start > i:
-			out += _bb_escape(raw.substr(i, start - i))
-		var kind: String = m.get_string(1)
-		var payload: String = m.get_string(2)
-		if kind == "c":
-			var rgb: PackedStringArray = payload.split(",")
-			if rgb.size() >= 3:
-				if open_color:
-					out += "[/color]"
-				var hex := "%02x%02x%02x" % [
-					clampi(int(rgb[0]), 0, 255),
-					clampi(int(rgb[1]), 0, 255),
-					clampi(int(rgb[2]), 0, 255),
-				]
-				out += "[color=#%s]" % hex
-				open_color = true
-		elif kind == "s":
-			var unit := maxi(1, int(payload))
-			var px := maxi(1, int(round(float(base_px) * float(unit) / FONT_SCALE_UNIT)))
-			if open_scale:
-				out += "[/font_size]"
-			if unit == int(FONT_SCALE_UNIT):
-				open_scale = false
-			else:
-				out += "[font_size=%d]" % px
-				open_scale = true
-		i = m.get_end()
-	if open_scale:
-		out += "[/font_size]"
-	if open_color:
-		out += "[/color]"
-	return out
-
-
-func _bb_escape(text: String) -> String:
-	return text.replace("[", "[lb]")
-
-
 func _apply_name_colors() -> void:
 	var bg := NAME_BG_DEFAULT
 	var fg := NAME_TEXT_DEFAULT
@@ -440,8 +379,6 @@ func _layout() -> void:
 	_apply_font(_name, NAME_FONT_PX * ui_scale * win_s, 0.0)
 
 	var body_full := full_pos + BODY_UV * full_size
-	var body_font_px := BODY_FONT_PX * ui_scale * win_s
-	var pitch := BODY_LINE_PITCH_V * full_size.y * win_s
 	var body_size := Vector2(
 		full_size.x * (ARROW_UV.position.x - BODY_UV.x) * win_s,
 		BODY_LINE_PITCH_V * full_size.y * float(MAX_BODY_LINES) * win_s,
@@ -451,7 +388,7 @@ func _layout() -> void:
 		BODY_LINE_PITCH_V * full_size.y * float(MAX_BODY_LINES),
 	) * 0.5
 	var body_pos := center + (body_center - center) * win_s - body_size * 0.5
-	_apply_rich_font(_body, body_font_px, pitch)
+	_body.units_px = ui_scale * win_s
 	_body.position = body_pos
 	_body.size = body_size
 
@@ -521,15 +458,6 @@ func _apply_font(label: Label, font_px: float, pitch: float) -> void:
 	label.add_theme_constant_override("line_spacing", int(round(pitch - line_h)))
 
 
-func _apply_rich_font(label: RichTextLabel, font_px: float, pitch: float) -> void:
-	var size_px := maxi(1, int(round(font_px)))
-	label.add_theme_font_size_override("normal_font_size", size_px)
-	if pitch <= 0.0:
-		return
-	var line_h: float = _font.get_height(size_px) if _font != null else float(size_px)
-	label.add_theme_constant_override("line_separation", int(round(pitch - line_h)))
-
-
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
 		if is_node_ready():
@@ -548,7 +476,7 @@ func _apply_editor_preview() -> void:
 	_arrow.visible = true
 	_speaker_sex = SpeakerSex.FEMALE
 	_apply_name_colors()
-	if _body.get_total_character_count() == 0:
+	if _body.glyph_count() == 0:
 		set_body("Whoa! You look so weird!\nAnd not weird in a hip way,\neither. More like, \"weird\"\nas in \"makes me wanna barf.\"")
 	if _name.text.is_empty() or _name.text == "Villager":
 		_name.text = "Cheri"
