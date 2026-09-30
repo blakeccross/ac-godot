@@ -30,14 +30,28 @@ func refresh_seasonal_visual() -> void:
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
+	if _board_ui() != null:
+		return [Interaction.of(Interaction.READ, "Read the board", 8 if _needs_first_job_notice() else 6)]
 	if _needs_first_job_notice():
 		return [Interaction.of(Interaction.READ, "Post a notice", 8)]
 	return [Interaction.of(Interaction.READ, "Read sign", 6)]
 
 
+## The community board opens its posts (`mSM_OVL_NOTICE`); posting there finishes the
+## first-job chore.
+func _board_ui() -> Node:
+	if not is_notice_board() or not is_inside_tree():
+		return null
+	return get_tree().get_first_node_in_group("notice_ui")
+
+
 func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.READ:
 		return false
+	var board_ui: Node = _board_ui()
+	if board_ui != null:
+		board_ui.call("open")
+		return true
 	if _needs_first_job_notice():
 		return _post_first_job_notice()
 	Game.post_notice(message)

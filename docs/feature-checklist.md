@@ -125,7 +125,7 @@ data tables before a category is called done.
 - [~] Pick up dropped items / fruit / shells off the ground (`m_player_main_pickup`) — partial
 - [~] Talk to villagers & special NPCs (`m_player_main_talk`) — partial
 - [~] Shake trees (fruit, furniture, bells, bees, wasp nest) (`m_player_main_shake_tree`) — `tree_use.gd`
-- [~] Push signs to read; read bulletin board; read gravestones/signposts (`ac_sign`) — community board (`MESSAGE_BOARD0`, `obj_*_notice`) is placed from the FG templates and hosts the first-job "post a notice" chore (posted text is one message; the multi-post notice list `m_notice_ovl` is missing). Sight-map boards (`MAP_BOARD0`) open the town map without needing the item; tune boards (`MUSIC_BOARD0`) open the town tune editor; fences (`FENCE0` / `WOOD_FENCE`) are solid props; the station statue (`DOUZOU`) is placed and shows once a house reaches the statue (§26)
+- [~] Push signs to read; read bulletin board; read gravestones/signposts (`ac_sign`) — community board (`MESSAGE_BOARD0`, `obj_*_notice`) is placed from the FG templates and hosts the first-job "post a notice" chore and opens the board's posts (`NoticeBoardOverlay`, §26). Sight-map boards (`MAP_BOARD0`) open the town map without needing the item; tune boards (`MUSIC_BOARD0`) open the town tune editor; fences (`FENCE0` / `WOOD_FENCE`) are solid props; the station statue (`DOUZOU`) is placed and shows once a house reaches the statue (§26)
 - [~] Knock on villager doors (`m_player_main_knock_door`)
 - [~] Enter/exit buildings: step-in animation, door swing, screen wipe (`m_player_main_door`) — `structure_door.gd`, `scene_transition.gd`
 - [ ] Hand an item to a villager / receive an item (give / recieve animations) (`m_player_main_give`, `recieve`, `ac_handOverItem`)
@@ -321,7 +321,7 @@ data tables before a category is called done.
 - [ ] Full message-bank coverage: villagers (per personality × mood × topic), special NPCs, signs, letters, system prompts
 - [x] Text effects from the message codes: colour (`TEXTCOLOR` / `COLORCHARS`), size about the line type's pivot (`CHARSCALE` / `LINESCALE` / `LINETYPE`), `LINEOFS`, `PAUSE`, `SNDTRGSYS` sounds, `CAPTIALIZE`, `CUTARTICLE`, player / town / catchphrase / item / free-string substitution; pages that turn themselves (`MSGCLEAR`) or on a timer (`MSGTIMEEND`). GCN has no shake code; icon glyphs are font cells
 - [ ] **Animalese** voice synthesis per syllable, pitch by speaker (`jaudio` seqs 243–245) — `dialogue_voice.gd` _(partial)_
-- [~] Keyboard entry (`m_editor_ovl` pad keyboard, `KeyboardPanel`): letters and the gyroid board (`LetterWriterOverlay`), names — design / album folder / catchphrase / song request (`NameEntryOverlay`). the town tune editor (`TownTuneOverlay`). Missing: the notice board posts (`m_notice_ovl`)
+- [~] Keyboard entry (`m_editor_ovl` pad keyboard, `KeyboardPanel`): letters and the gyroid board (`LetterWriterOverlay`), names — design / album folder / catchphrase / song request (`NameEntryOverlay`). the town tune editor (`TownTuneOverlay`), the community board's posts (`NoticeBoardOverlay`)
 - [ ] Word-filter / bad-word list for user text (`m_editEndChk_ovl`)
 - [~] "..." silent responses; scrolling long letters; page-turn SE — page-turn SE (`page_okuri`, skipped on `BTN2` / `SNDNOPAGE` pages) and the letter board's roll while writing (`mBD_roll_control`)
 
@@ -494,7 +494,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [x] Player statue by the station (`ac_douzou`) once a house's loan ends in the statue: owner's figure and face (winter set in winter), rank sets size and gold / silver / bronze / jade colours, plaque reads `MSG_DOZOU` in a red window — `Statue`, `statue_metal.gdshader`, face textures from `weather_sprites.py`; `house statue built [rank]` console command. Missing: the sparkle effect (`ef_douzou_light`)
 - [x] Wishy the Star: not on the GameCube; the wishing well (`ac_shrine`) is scenery plus Tortimer's holiday spot
 - [x] Recycle bin: not on the GameCube (`ac_reserve` is the plot / dock sign); the dump (`ac_dump`) is the closest thing
-- [ ] Bulletin board in the plaza: town notices, event announcements, villager birthday posts, player messages (`m_board_ovl`, `m_hboard_ovl`, `ac_htable`)
+- [~] Community board: 15 dated posts from the disc's `kei_win` art, seeded with the four starter handbills, page turning and jumps, writing a post on the keyboard with "Is this OK?"; 41 seasonal notices post themselves as their dates pass (sports fairs and daylight saving move with the year), the latest five after an absence (`m_notice`, `m_notice_ovl`) — `NoticeBoard`, `NoticeBoardOverlay`; `board` console command. Missing: Chip's tourney results and villagers' buried-treasure tips (their systems are not built)
 - [ ] Signboards / signposts around town naming acres, warning of cliffs, advertising (`ac_sign`)
 - [~] The plaza / town square as the event stage (K.K., fireworks, Tortimer speeches) — festival crowds stand in their event-map slots, fireworks go up over the pond; K.K. plays at the station
 

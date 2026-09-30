@@ -77,6 +77,8 @@ var town_fruit: StringName = &"apple"
 var events: EventCalendar = EventCalendar.new()
 ## The waterfall rainbow after rain (`mEnv_rainbow_*`).
 var rainbow: Rainbow = Rainbow.new()
+## The community board's posts (`m_notice`).
+var notice_board: NoticeBoard = NoticeBoard.new()
 var _rainbow_accum: float = 0.0
 var designs: DesignBook = DesignBook.new()
 var first_job: FirstJob = FirstJob.new()
@@ -864,6 +866,8 @@ func reset_session() -> void:
 	else:
 		catalog.clear()
 	rainbow = Rainbow.new()
+	notice_board = NoticeBoard.new()
+	notice_board.seed(Clock.year, Clock.month, Clock.day, Clock.hour, Clock.minute)
 	town_fruit = &"apple"
 	events.clear()
 	_events_ready = false
@@ -1133,6 +1137,7 @@ func to_save() -> Dictionary:
 		"valentine_year": valentine_year,
 		"quests": quests.to_save(),
 		"rainbow": rainbow.to_save(),
+		"notice_board": notice_board.to_save(),
 	}
 
 
@@ -1251,6 +1256,11 @@ func apply_snapshot(data: Dictionary) -> void:
 	npc_talk_info.clear()
 	quests.apply_snapshot(data.get("quests", {}))
 	rainbow.apply_snapshot(data.get("rainbow", {}))
+	notice_board = NoticeBoard.new()
+	if data.has("notice_board"):
+		notice_board.apply_snapshot(data["notice_board"])
+	else:
+		notice_board.seed(Clock.year, Clock.month, Clock.day, Clock.hour, Clock.minute)
 	first_job_hint_count = clampi(int(data.get("first_job_hint_count", 0)), 0, 0xFF)
 	valentine_year = int(data.get("valentine_year", 0))
 	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
@@ -1449,6 +1459,12 @@ func refresh_police_set() -> void:
 		host.call("refresh_shop_set")
 
 
+## `mNtc_set_auto_nwrite_data`: seasonal notices whose day has come.
+func update_notice_board() -> void:
+	notice_board.auto_write(Clock.year, Clock.month, Clock.day, Clock.hour,
+		NoticeBoard.common_free(town_name, shops.nook_level() if shops != null else 0))
+
+
 func _on_field_renewed(days: int) -> void:
 	shops.renew(days)
 	var vt_rng := RandomNumberGenerator.new()
@@ -1471,6 +1487,7 @@ func _on_field_renewed(days: int) -> void:
 	apply_event_weather()
 	## Fine after rain or snow: a rainbow over the falls today (`mEnv_PreRainNowFine_Init`).
 	rainbow.note_weather_change(previous_weather, weather, Clock.month, Clock.day)
+	update_notice_board()
 
 
 ## Farway Museum returns identified fossils (+ the one-time intro letter) each morning.

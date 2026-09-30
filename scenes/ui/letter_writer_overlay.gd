@@ -39,6 +39,12 @@ var _prompt: bool = false
 var _max_lines: int = MAX_LINES
 var _max_len: int = -1
 var _board_cb: Callable = Callable()
+## Board mode's text origin / colour, whether it draws the gyroid frame, and its prompt
+## (`open_board`'s `style`; the notice board draws its own page underneath).
+var _board_text: Vector2 = HBOARD_TEXT
+var _board_color: Color = HBOARD_COLOR
+var _board_frame: bool = true
+var _board_prompt: int = EditEndPrompt.Kind.BOARD
 ## `mBD_roll_control`.
 var _center_line: int = 2
 var _roll_speed: float = 1.0
@@ -97,14 +103,22 @@ func _is_hboard() -> bool:
 
 
 ## Edit a free text block in place (`m_hboard_ovl`): `initial` split on newlines, capped at
-## `lines` lines / `max_len` characters. `callback(text: String)` runs on Save.
-func open_board(initial: String, lines: int, max_len: int, callback: Callable, paper_type: int = 0) -> void:
+## `lines` lines / `max_len` characters. `callback(text: String)` runs on Save. `style` may
+## set `text` (origin), `color`, `frame` (false: the caller draws the page) and `prompt`
+## (an `EditEndPrompt.Kind`).
+func open_board(
+	initial: String, lines: int, max_len: int, callback: Callable, paper_type: int = 0, style: Dictionary = {}
+) -> void:
 	if _open:
 		return
 	open({}, paper_type)
 	_max_lines = lines
 	_max_len = max_len
 	_board_cb = callback
+	_board_text = style.get("text", HBOARD_TEXT)
+	_board_color = style.get("color", HBOARD_COLOR)
+	_board_frame = bool(style.get("frame", true))
+	_board_prompt = int(style.get("prompt", EditEndPrompt.Kind.BOARD))
 	_lines = PackedStringArray(initial.split("\n")) if initial != "" else PackedStringArray([""])
 	while _lines.size() > _max_lines:
 		_lines.remove_at(_lines.size() - 1)
@@ -259,7 +273,7 @@ func _backspace() -> void:
 
 func _open_prompt() -> void:
 	_prompt = true
-	_promptbox.open(EditEndPrompt.Kind.BOARD)
+	_promptbox.open(_board_prompt if _is_hboard() else EditEndPrompt.Kind.BOARD)
 	Audio.play_se(&"cursol")
 
 
@@ -315,7 +329,7 @@ func _refresh() -> void:
 		return
 	var hb := _is_hboard()
 	_board.visible = not hb
-	_hboard.visible = hb
+	_hboard.visible = hb and _board_frame
 	_keyboard.show_ink = true
 	_keyboard.ink = clampf(float("".join(_lines).length()) / float(_max_len if _max_len > 0 else 192), 0.0, 1.0)
 	if not hb:
@@ -365,10 +379,10 @@ func _draw_marks() -> void:
 		var asc := font.get_ascent(FONT_PX)
 		for i in _lines.size():
 			if _lines[i] != "":
-				_marks.draw_string(font, HBOARD_TEXT + Vector2(0, 16 * i + asc), _lines[i],
-					HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX, HBOARD_COLOR)
-		x0 = HBOARD_TEXT.x
-		top = HBOARD_TEXT.y + 16 * last
+				_marks.draw_string(font, _board_text + Vector2(0, 16 * i + asc), _lines[i],
+					HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX, _board_color)
+		x0 = _board_text.x
+		top = _board_text.y + 16 * last
 	else:
 		x0 = LetterBoard.TEXT_X
 		top = _board.body_line_top(last)

@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "clear"
+	"balloon", "rainbow", "tune", "board", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -63,6 +63,14 @@ func execute(raw: String) -> String:
 			return "Rainbow %s." % ("on" if on else "off")
 		"tune":
 			return _cmd_tune(args)
+		"board":
+			## Open the community board's posts (`mSM_OVL_NOTICE`).
+			var tree := Engine.get_main_loop() as SceneTree
+			var ui: Node = tree.get_first_node_in_group("notice_ui") if tree != null else null
+			if ui == null:
+				return "No notice board UI in this scene."
+			ui.call("open")
+			return "%d posts on the board." % Game.notice_board.count()
 		"clear":
 			return "__clear__"
 		_:

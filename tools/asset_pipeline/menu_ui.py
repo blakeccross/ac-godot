@@ -121,6 +121,14 @@ LAYERS: dict[str, list[Op]] = {
 	# `mED_endCode_draw`: the end-of-text mark after the last character, at the origin.
 	"kb_end": [Op("lat_end_cordT_model")],
 	**{f"ledit_{w}": [Op("ledit_common_mode"), Op(f"{w}_win_mode"), Op(f"{w}_win_model")] for w in LEDIT_WINDOWS},
+	# `m_notice_ovl.c`: the community board's page (`kei_win`), key hints (`kei_hyouji`),
+	# page arrows and the C-stick in each of its six poses (`kei_win_st_tex_tbl`).
+	"nt_win": [Op("kei_win_model")],
+	"nt_keys": [Op("kei_hyouji_model")],
+	"nt_next": [Op("kei_hyouji_model", draw=False), Op("kei_win_yaji1T_mode"), Op("kei_win_yaji1T_model")],
+	"nt_prev": [Op("kei_hyouji_model", draw=False), Op("kei_win_yaji1T_mode"), Op("kei_win_yaji2T_model")],
+	**{f"nt_st{n}": [Op("kei_hyouji_model", draw=False), Op("kei_win_stT_model", segments={8: f"kei_win_st{n}_tex_rgb_ia8"})]
+		for n in range(1, 7)},
 }
 
 ADDRESS_MAX_ENTRIES = 8
