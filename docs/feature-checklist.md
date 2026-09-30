@@ -45,7 +45,7 @@ data tables before a category is called done.
 - [~] 18 calendar terms, years 2001–2030 (`lb_rtc`)
 - [ ] Seasons: snow cover Dec–Feb, cherry-blossom trees early April, coloured foliage in autumn, bare trees in winter
 - [ ] Season affects grass colour / acre visuals, tree models, river ice? (no — but snow ground)
-- [ ] Weekday tracking; shop closed days; K.K. on Saturday night
+- [~] Weekday tracking; shop closed days; K.K. on Saturday night — K.K. on Saturday night and Joan on Sunday morning come through the event manager (§30); Nook closes for renovations
 - [ ] "Played days" counter, first-day flags, "haven't played in a while" reactions
 - [ ] Birthday stored per resident; birthday event
 
@@ -71,7 +71,7 @@ data tables before a category is called done.
 - [ ] River mouth, river forks, round pond, waterfall placement rules
 - [ ] Beach along the south edge; tide; ocean horizon; rocks in surf
 - [ ] Acre-edge scroll / camera hand-off between acres
-- [ ] Town map generated and shown in pause menu / held map item (`m_map_ovl`) — `town_map.gd`, `scenes/ui/map_overlay.tscn`
+- [~] Town map generated and shown from the held map item / sight-map boards (`m_map_ovl`) — `town_map.gd`, `scenes/ui/map_overlay.tscn`, slides in from the top. Missing: the original map screen art
 - [ ] Bridge(s) across the river; town can gain a second bridge (`ac_bridge_a`, `mEv_EVENT_BRIDGE_MAKE`)
 - [ ] Building slots: player houses ×4, Nook's, Able Sisters, Museum, Town Hall, Post Office, Police Station, Wishing Well, Train Station, Dump, Lighthouse
 - [ ] Villager house plots (up to ~15 villager homes) with reserved lots (`ac_reserve`)
@@ -314,16 +314,16 @@ data tables before a category is called done.
 
 ## 17. Dialogue & text
 
-- [~] Message window: cloud lobes + nameplate, NES I4 font atlas, 18-frame scale in/out, continue-mark triangle-wave alpha (`m_msg`, `m_msg_draw_window`) — `message_window_chrome.gd`, dialogue overlay
-- [~] Typewriter reveal (15 / 30 glyphs per sec), speaker-sex nameplate colour (`m_msg_draw_font`) — `message_window_chrome.gd`
-- [~] Choice panel: mid-right teal, cyan mark, scale in/out (`m_choice`) — `choice_panel`, `message_choice_mark.gd`
+- [x] Message window: cloud and nameplate rasterised from `con_kaiwa2_modelT` / `con_kaiwaname_modelT` and tinted (235, 255, 235) like `mMsg_DrawWindowBody`, NES I4 font atlas, 18-frame scale in/out, the disc's `FONT_nes_tex_next` turn mark in blue with the triangle-wave alpha (`m_msg`, `m_msg_draw_window`) — `message_window_chrome.gd`, `MessageBody`, dialogue overlay
+- [x] Typewriter per frame like `mMsg_Main_Cursol_ControlCursol` (a glyph every other frame, fast text, PAUSE waits, SETCURSORJUST timing), speaker-sex nameplate colour (`m_msg_draw_font`) — `dialogue_overlay.gd`
+- [x] Choice panel: `con_waku_swaku3` window, the disc's `FONT_nes_tex_choice` mark in (0, 195, 185), scale in/out (`m_choice`) — `choice_panel`, `message_choice_mark.gd`
 - [~] Dialogue data + runner + conditions; greeting picks opening line (`m_string`, `DialogueGreeting`) — `dialogue_runner.gd`, `dialogue_catalog.gd`
 - [ ] Full message-bank coverage: villagers (per personality × mood × topic), special NPCs, signs, letters, system prompts
-- [ ] Text effects: shake, colour, size, pause, icon inserts (item/bell/leaf glyphs), player-name / town-name / catchphrase substitution
+- [x] Text effects from the message codes: colour (`TEXTCOLOR` / `COLORCHARS`), size about the line type's pivot (`CHARSCALE` / `LINESCALE` / `LINETYPE`), `LINEOFS`, `PAUSE`, `SNDTRGSYS` sounds, `CAPTIALIZE`, `CUTARTICLE`, player / town / catchphrase / item / free-string substitution; pages that turn themselves (`MSGCLEAR`) or on a timer (`MSGTIMEEND`). GCN has no shake code; icon glyphs are font cells
 - [ ] **Animalese** voice synthesis per syllable, pitch by speaker (`jaudio` seqs 243–245) — `dialogue_voice.gd` _(partial)_
-- [ ] Keyboard entry: letters, item names, town tune, patterns, sign text, character names (on-screen keyboard)
+- [~] Keyboard entry (`m_editor_ovl` pad keyboard, `KeyboardPanel`): letters and the gyroid board (`LetterWriterOverlay`), names — design / album folder / catchphrase / song request (`NameEntryOverlay`). Missing: the town tune editor (`m_mscore_ovl`), the notice board posts (`m_notice_ovl`)
 - [ ] Word-filter / bad-word list for user text (`m_editEndChk_ovl`)
-- [ ] "..." silent responses; scrolling long letters; page-turn SE
+- [~] "..." silent responses; scrolling long letters; page-turn SE — page-turn SE (`page_okuri`, skipped on `BTN2` / `SNDNOPAGE` pages) and the letter board's roll while writing (`mBD_roll_control`)
 
 ## 18. Player house & interiors
 
@@ -391,7 +391,7 @@ data tables before a category is called done.
 - [x] Stock rotates at 06:00; sells out; sold-out slot shows empty
 - [x] Sell items to Nook (he names a price, you confirm); can't sell some things — counter menu "I want to sell" opens the pockets in sell mode (`mSM_IV_OPEN_SELL`: "Sell", or "Sell all" on marked items), then Nook quotes the total and asks (`aNSC_buy_sum_check`, `nook_shop_sell`, `ShopBook.sell_result`, §11)
 - [x] Nook buys turnips at fluctuating price (§11) — `KabuMarket`
-- [x] Catalog ordering; items delivered by mail next day — "Order from the catalog" (5 order slots, `CatalogBook`)
+- [x] Catalog ordering; items delivered by mail next day — "Order from the catalog" opens the original catalog (`CatalogOverlay`: nine tabbed pages in `m_catalog_ovl_data.c_inc` order, turning preview, price or Not for Sale, star on complete pages); Nook quotes the pick (5 order slots, `CatalogBook`, `CatalogPages`)
 - [~] Sale days, the flooring/wallpaper wall — Sale Day grab bags, sale-event balloon gift on the first talk (`aNSC_check_present_balloon`); missing: the bargain-event FG layout (`mSP_GetNowShopFgNum` event kinds), wallpaper/carpet preview on the shop walls (`change_wall_proc`)
 - [ ] Nook gives you your first job (§29) and the initial furniture set
 - [x] Nook's hours (`mSP_GetShopOpenTime`): Cranny / Nookway / Nookington's 9–22, Nook 'n' Go 7–23, raffle day opens at 10, forced open during the part-time job; the door says why it's closed (renovations / opening hour)
@@ -487,7 +487,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 ## 26. Town Hall & civic
 
 - [ ] Town Hall building + interior; **Tortimer** the mayor; **Pelly** also works the Town Hall desk in some builds _(verify GCN — Town Hall has Pelly + Tortimer)_ (`m_soncho`, `ac_soncho`, `ac_douzou`)
-- [ ] Tortimer hands out event items & hosts most holidays (`ac_ev_soncho`, `ac_ev_speech_soncho`)
+- [~] Tortimer hands out event items & hosts most holidays (`ac_ev_soncho`, `ac_ev_speech_soncho`) — holiday speeches and the wishing-well visits with his calendar trophies (§31); the Town Hall itself is not built
 - [ ] Town Hall services: recycling bin (free items left by others / the game), donations, environment info, set the town tune _(verify which desk)_
 - [ ] **Town tune** editor: 16 notes, played on the hour by the town / hummed by villagers (`m_melody`, seq 248) 
 - [ ] Change town flag? / town name is fixed after creation
@@ -496,7 +496,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [ ] Recycle bin (`ac_reserve`? / recycling) — items rotate daily, free to take
 - [ ] Bulletin board in the plaza: town notices, event announcements, villager birthday posts, player messages (`m_board_ovl`, `m_hboard_ovl`, `ac_htable`)
 - [ ] Signboards / signposts around town naming acres, warning of cliffs, advertising (`ac_sign`)
-- [ ] The plaza / town square as the event stage (K.K., fireworks, Tortimer speeches)
+- [~] The plaza / town square as the event stage (K.K., fireworks, Tortimer speeches) — festival crowds stand in their event-map slots, fireworks go up over the pond; K.K. plays at the station
 
 ## 27. Train station & travel
 
@@ -504,7 +504,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [~] Arrival by train on a new game: Rover on the train, get off, Porter greets, walk to Nook (`ac_train0/1`, `ac_intro_demo`) — `intro_train_stage.gd`, `intro_station_stage.gd`
 - [ ] The train as the transition when a **friend visits from another Memory Card / town** (co-op): guest arrives at the station, explores your town, can trade/patterns; final Nookington's upgrade trigger (`m_train_control`, `ac_train_window`)
 - [ ] Send a villager away / villager arrives by moving truck vs. train
-- [ ] Gulliver? _(GCN Gulliver washes up on the **beach**, not the train)_
+- [x] Gulliver washes up on the **beach**, not the train — see §30
 - [ ] Flag on the flagpole outside the station (`ac_flag`)
 - [ ] Train departure/arrival animation, whistle, `ef_kisha_kemuri` smoke
 
@@ -591,9 +591,9 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [ ] Snow Day (Dec 1) — snow begins
 - [x] **Toy Day** — Jingle
 - [x] **New Year's Eve** — countdown crowd, party poppers, fireworks at midnight
-- [ ] Weekly: K.K. (Sat night), turnips (Sun AM), Tortimer/mayor rounds
+- [~] Weekly: K.K. (Sat night), turnips (Sun AM), Tortimer/mayor rounds — K.K. and Joan are placed by the event manager; Tortimer only appears on holidays
 - [~] Monthly: bank interest, HRA report, lottery (last day), Nook stock reshuffle — raffle + monthly prize reshuffle done
-- [ ] "Rumor" pre-event villager chatter for each holiday (`mEv_EVENT_RUMOR_*`)
+- [~] "Rumor" pre-event villager chatter for each holiday (`mEv_EVENT_RUMOR_*`) — villagers bring up coming visitors and live rumours with their dates (`aQMgr_decide_msg_special_ev` / `_calendar_ev`)
 - [x] Tortimer "soncho" variant appearances for each holiday (`mEv_EVENT_SONCHO_*`) — except the January / February vacations and the bridge
 - [ ] Player Birthday party — villagers throw a party at your house or theirs, cake, presents
 - [ ] Weather overrides for events (clear for fireworks, snow for Toy Day) (`mEv_EVENT_WEATHER_*`)
@@ -623,8 +623,8 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [ ] Options: text speed, TV/audio mode (mono/stereo/surround), rumble, screen position, brightness (`initial_menu.c`)
 - [ ] Rumble / vibration on tool use, catches, bumps (`m_vibctl`, `m_player_vibration`)
 - [ ] "Copying data" / autosave indicator
-- [ ] The **name entry keyboard** for all text input
-- [~] Nook catalog browser UI, shop buy/sell UI, bank UI, HRA letter viewer, letter writer UI — selling now goes through the pockets like the original; the shop paper still covers catalog order and non-shelf buying (placeholder list UI, not the ROM catalog pages, `m_catalog_ovl`)
+- [~] The **name entry keyboard** for text input — see §17 keyboard entry
+- [~] Nook catalog browser UI, shop buy/sell UI, bank UI, HRA letter viewer, letter writer UI — the catalog is the original `m_catalog_ovl` screen, goods come off the shelves, selling goes through the pockets, letters use the original board / address book / Is-this-OK prompt; all menus slide in and out like `mSM_move_Move` (`MenuSlide`). Missing: the bank's own screen (`m_bank_ovl`), HRA report viewer
 - [ ] Photo / no screenshot feature (GCN has none)
 - [~] Trademark / logo / attract-mode title demo loop (`m_titledemo`, `m_trademark`, `ac_animal_logo`) — logo actor, 5 recorded demos, the demo loop, the fixed FG table, fixed villagers, apple tree and start chime landed; Nintendo logo stage skipped on purpose; gelato umbrella landed with the umbrella tool (demo 2) ([title](decomp_notes/title.md))
 - [ ] Debug menus & dev overlays — _explicitly out of scope_ (`m_debug*`)
