@@ -52,12 +52,12 @@ data tables before a category is called done.
 ## 3. Weather & environment
 
 - [~] Rain / snow / clear by term probability tables (`m_kankyo_weather.c_inc`) — `weather.gd`
-- [ ] Rain intensity: drizzle vs. downpour; snow: flurry vs. heavy
+- [x] Rain intensity: drizzle vs. downpour; snow: flurry vs. heavy — `Weather.Intensity` from `mEnv_RandomWeather`, stepped levels in `WeatherFx` (`aWeather_RenewWeatherLevel`)
 - [~] Weather particles + puddles / wet sand shader — `WeatherFx`, `beach_wet.gdshader`
 - [x] Snow flakes and cherry petals drawn with the disc's `ef_yuki01` / `ef_hanabira01` cards, with the decomp's spawn box, fall speed, wobble, wind drift, floor reset and petal tumble (`ac_weather_snow`, `ac_weather_sakura`) — `WeatherFx`, `weather_sprites.py`
 - [x] Falling leaves: not ambient on the GameCube; `mEnv_WEATHER_LEAVES` is only used by the K.K. show (no work needed)
 - [x] Rainbow after rain: a clear/sakura day after rain/snow reserves it; it fades in 9:00–15:00 in summer and fades out slowly, drawn at the waterfall as `obj_fallS_rainbowT_model` billboarded about the fall with its two-texture combiner (`mEnv_PreRainNowFine_Init`, `mEnv_rainbow_power_calc`, `ac_fallS`) — `Rainbow`, `waterfall.gd`, `fall_rainbow.gdshader`; `rainbow` console command
-- [ ] Fog / haze mornings
+- [x] Fog: distance fog follows the per-time `kcolor` tables (`mEnv_SetFog`) — `Clock.outdoor_light()`; the GameCube has no separate foggy-morning weather
 - [ ] Rain changes indoor & outdoor BGM; more fish/bugs (coelacanth, frogs, snails, etc.)
 - [~] Lightning flashes in storms — `WeatherFx._tick_lightning` (approximate). No aurora on the GameCube
 - [ ] Shooting stars (`eEC_EFFECT_SHOOTING_SET`): only on the Meteor Shower event on the GameCube, not on ordinary clear nights
