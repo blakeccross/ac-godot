@@ -12,14 +12,31 @@ extends CanvasLayer
 ## album back, discard restores everything as it was when the album opened.
 ##
 ## `open(callback)` — callback() runs after the album closes either way.
+##
+## Drawn like the original screen: the folder window (`sav_win1`, baked by
+## `design_ui.py`) with its per-folder cloth and colours, 3x4 wells, the stacked folder
+## tabs down its right edge (the open one raised, `sav_sentaku_taguT`) and the folder
+## name on its plate; the 8-slot book (`inv_original2`) sits to its left. The hand
+## points at the selection; a picked-up design pulses green (`sav_mark_winT`).
 
 signal closed
 
 enum Region { ALBUM, MINE }
 
-const ALBUM_COLS := 6
-const ALBUM_ROWS := 2
-const MINE_COLS := 8
+const ALBUM_COLS := 3
+const ALBUM_ROWS := 4
+const MINE_COLS := 2
+const MINE_ROWS := 4
+
+## `m_cporiginal_ovl.c` per-folder colours.
+const TAB_PRIM := [0xCDC36E, 0xCDA55F, 0xC3914B, 0xAF7D37, 0x9B6923, 0x875F14, 0x735519, 0x5F2D14]
+const TAB_ENV := [0xC3B964, 0xC39B5A, 0xB98746, 0xA57332, 0x915F1E, 0x7D550A, 0x694B14, 0x552D0A]
+const SEL_TAB_PRIM := [0x91875F, 0x8C6E4B, 0x7D694B, 0x7D5F4B, 0x735F41, 0x73552D, 0x5F4B37, 0x5F4128]
+const ENV := [0xFFF5A0, 0xFFD796, 0xF5C382, 0xE1AF6E, 0xCD9B5A, 0xB98746, 0xA57332, 0x9B5F28]
+const RIM_PRIM := [0xA5875A, 0x9B7D50, 0x917346, 0x87693C, 0x826437, 0x785A2D, 0x735528, 0x6E5023]
+const RIM_ENV := [0xEBD7AF, 0xE1CDA5, 0xD7C39B, 0xCDB991, 0xC3AF87, 0xB9A57D, 0xAF9B73, 0xA59169]
+const PLATE_PRIM := [0x695046, 0x3C3223, 0x4B372D, 0x4B372D, 0x412D0F, 0x413719, 0x412D1E, 0x413732]
+const TEXT_COLOR := [0x503232, 0x503232, 0x503232, 0x463232, 0x463232, 0x3C2828, 0x3C2828, 0x321E1E]
 
 var _open: bool = false
 var _cb: Callable = Callable()
@@ -32,13 +49,18 @@ var _confirm: bool = false
 var _backup: Dictionary = {}
 var _worn_before: PackedByteArray = PackedByteArray()
 
+var _thumbs: Dictionary = {}
+
 @onready var _root: Control = $Root
-@onready var _tabs: Control = $Root/Frame/Box/Tabs
-@onready var _album: Control = $Root/Frame/Box/Album
-@onready var _mine: Control = $Root/Frame/Box/Mine
-@onready var _title: Label = $Root/Frame/Box/Header/Title
-@onready var _name: Label = $Root/Frame/Box/Footer/DesignName
-@onready var _hint: Label = $Root/Frame/Box/Footer/Hint
+@onready var _screen: Control = $Root/Screen
+@onready var _book: Control = $Root/Screen/Book
+@onready var _album: Control = $Root/Screen/Album
+@onready var _book_slots: Control = $Root/Screen/Book/Slots
+@onready var _album_slots: Control = $Root/Screen/Album/Slots
+@onready var _folder_name: Label = $Root/Screen/Album/FolderName
+@onready var _name: Label = $Root/Screen/Name
+@onready var _prompt: PanelContainer = $Root/Screen/Prompt
+@onready var _hand: HandCursor = $Root/Hand
 
 
 func _ready() -> void:
@@ -46,10 +68,56 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("design_album_ui")
 	_root.visible = false
-	_tabs.draw.connect(_draw_tabs)
-	_album.draw.connect(_draw_album)
-	_mine.draw.connect(_draw_mine)
+	_book_slots.draw.connect(_draw_mine)
+	_album_slots.draw.connect(_draw_album)
+	_book.gui_input.connect(_on_input.bind(Region.MINE))
+	_album.gui_input.connect(_on_input.bind(Region.ALBUM))
+	_root.resized.connect(_fit_screen)
+	for pair: Array in [[_book, "Cloth", "book2_mask"], [_book, "Under", "book2_under"], [_book, "Over", "book2_over"],
+			[_album, "Cloth", "album_mask"], [_album, "Under", "album_under"], [_album, "Over", "album_over"],
+			[_album, "Kage", "album_kage"], [_album, "Rim", "album_rim_raw"], [_album, "Plate", "album_name_raw"]]:
+		((pair[0] as Node).get_node(pair[1]) as TextureRect).texture = _design_tex(pair[2])
+	(_book.get_node("Cloth").material as ShaderMaterial).set_shader_parameter("paper_tex", _design_tex("book_cloth"))
+	var tab_tex := _design_tex("ctl_win_tagu2_tex")
+	var mark_shader: Shader = (_album.get_node("Rim").material as ShaderMaterial).shader
+	for i in DesignBook.ALBUM_PAGES:
+		var tab := _album.get_node("Tab%d" % i) as TextureRect
+		tab.texture = tab_tex
+		var mat := ShaderMaterial.new()
+		mat.shader = mark_shader
+		mat.set_shader_parameter("prim", _rgb(TAB_PRIM[i]))
+		mat.set_shader_parameter("env", _rgb(TAB_ENV[i]))
+		tab.material = mat
+	(_album.get_node("SelTab") as TextureRect).texture = _design_tex("ctl_win_tagu3_tex")
+	_fit_screen()
+	set_process(false)
 	set_process_unhandled_input(false)
+
+
+static func _rgb(v: int) -> Color:
+	return Color8((v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF)
+
+
+func _design_tex(name: String) -> Texture2D:
+	var path := "res://assets/generated/ui/design/%s.png" % name
+	return load(path) if ResourceLoader.exists(path) else null
+
+
+func _fit_screen() -> void:
+	var sz := _root.size
+	if sz.x <= 0.0 or sz.y <= 0.0:
+		return
+	var k := minf(sz.x / 320.0, sz.y / 240.0)
+	_screen.scale = Vector2(k, k)
+	_screen.position = (sz - Vector2(320, 240) * k) * 0.5
+	_hand.size = Vector2(36, 36) * k
+	_point_hand(false)
+
+
+func _process(_delta: float) -> void:
+	if not _held.is_empty():
+		_book_slots.queue_redraw()
+		_album_slots.queue_redraw()
 
 
 func is_open() -> bool:
@@ -69,6 +137,8 @@ func open(callback: Callable = Callable()) -> void:
 	_confirm = false
 	_open = true
 	_root.visible = true
+	_hand.visible = true
+	set_process(true)
 	set_process_unhandled_input(true)
 	Audio.play_se(&"cursol")
 	_refresh()
@@ -88,6 +158,8 @@ func close(keep: bool = true) -> void:
 		Game.design_changed.emit()
 	_open = false
 	_root.visible = false
+	_hand.visible = false
+	set_process(false)
 	set_process_unhandled_input(false)
 	_backup = {}
 	var cb := _cb
@@ -129,24 +201,22 @@ func _unhandled_input(event: InputEvent) -> void:
 	_refresh()
 
 
+## The book's 2x4 wells sit left of the album's 3x4: stepping off one side's edge
+## lands on the other at the same row.
 func _move(dx: int, dy: int) -> void:
 	Audio.play_se(&"cursol")
-	if _region == Region.ALBUM:
-		var c: int = _sel % ALBUM_COLS
-		var r: int = _sel / ALBUM_COLS
-		if dy > 0 and r == ALBUM_ROWS - 1:
-			_region = Region.MINE
-			_sel = clampi(roundi(float(c) * (MINE_COLS - 1) / (ALBUM_COLS - 1)), 0, MINE_COLS - 1)
-			return
-		c = wrapi(c + dx, 0, ALBUM_COLS)
-		r = clampi(r + dy, 0, ALBUM_ROWS - 1)
-		_sel = r * ALBUM_COLS + c
+	var cols: int = ALBUM_COLS if _region == Region.ALBUM else MINE_COLS
+	var c: int = _sel % cols + dx
+	var r: int = clampi(_sel / cols + dy, 0, ALBUM_ROWS - 1)
+	if _region == Region.ALBUM and c < 0:
+		_region = Region.MINE
+		c = MINE_COLS - 1
+	elif _region == Region.MINE and c >= MINE_COLS:
+		_region = Region.ALBUM
+		c = 0
 	else:
-		if dy < 0:
-			_region = Region.ALBUM
-			_sel = (ALBUM_ROWS - 1) * ALBUM_COLS + clampi(roundi(float(_sel) * (ALBUM_COLS - 1) / (MINE_COLS - 1)), 0, ALBUM_COLS - 1)
-			return
-		_sel = wrapi(_sel + dx, 0, MINE_COLS)
+		c = clampi(c, 0, cols - 1)
+	_sel = r * (ALBUM_COLS if _region == Region.ALBUM else MINE_COLS) + c
 
 
 ## Bring another folder to the front (`mCO_change_up_folder`).
@@ -197,10 +267,12 @@ func _rename_folder() -> void:
 	var page := _page
 	## The name entry sits above this layer; hide the album until it's done.
 	_root.visible = false
+	_hand.visible = false
 	set_process_unhandled_input(false)
 	name_ui.call("open", Game.designs.album_names[page].strip_edges(), func(text: String) -> void:
 		Game.designs.set_folder_name(page, text)
 		_root.visible = _open
+		_hand.visible = _open
 		set_process_unhandled_input(_open)
 		_refresh())
 
@@ -222,61 +294,121 @@ func _folder_label(page: int) -> String:
 	return nm if nm != "" else "Folder %d" % (page + 1)
 
 
+## `sav_v` wells: 24x24 at x -12 + 32j, top 56 - 29k (album units, y up), in
+## Album-local pixels (window left -62, top 86).
+static func album_slot_rect(i: int) -> Rect2:
+	var j := i % ALBUM_COLS
+	var k := i / ALBUM_COLS
+	return Rect2(-12.0 + 32.0 * j + 62.0, 86.0 - (56.0 - 29.0 * k), 24.0, 24.0)
+
+
+## `inv_original2_mb1-8_model`: 24x24 at x -100 / -68, top 57 - 29k, in Book-local
+## pixels (window left -139, top 81).
+static func mine_slot_rect(i: int) -> Rect2:
+	var x0: float = -100.0 if i % MINE_COLS == 0 else -68.0
+	return Rect2(x0 + 139.0, 81.0 - (57.0 - 29.0 * float(i / MINE_COLS)), 24.0, 24.0)
+
+
+func _on_input(event: InputEvent, region: int) -> void:
+	if not _open or _confirm or not (event is InputEventMouse):
+		return
+	var p := (event as InputEventMouse).position
+	var count: int = ALBUM_COLS * ALBUM_ROWS if region == Region.ALBUM else MINE_COLS * MINE_ROWS
+	var hit := -1
+	for i in count:
+		var r := album_slot_rect(i) if region == Region.ALBUM else mine_slot_rect(i)
+		if r.grow(3.0).has_point(p):
+			hit = i
+			break
+	if region == Region.ALBUM and hit < 0 and event is InputEventMouseButton \
+			and (event as InputEventMouseButton).pressed:
+		for page in DesignBook.ALBUM_PAGES:
+			var off := (page * 29) / 2
+			if Rect2(152, 26 + off, 30, 14).has_point(p) and page != _page:
+				flip_page(page - _page)
+				_refresh()
+				return
+	if hit < 0:
+		return
+	if event is InputEventMouseMotion and (hit != _sel or region != _region):
+		_region = region
+		_sel = hit
+		_refresh()
+	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
+			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		_region = region
+		_sel = hit
+		activate()
+		_refresh()
+
+
 func _refresh() -> void:
 	if not _open:
 		return
-	_title.text = "Design album — %s" % _folder_label(_page)
+	_thumbs.clear()
 	var d := _design_at(_region, _page, _sel)
-	_name.text = d.name if d != null and d.flag_set else ("(empty)" if _region == Region.ALBUM else d.name)
+	_name.text = d.name if d != null and (d.flag_set or _region == Region.MINE) else ""
+	_folder_name.text = _folder_label(_page)
+	_folder_name.add_theme_color_override("font_color", _rgb(TEXT_COLOR[_page]))
+	_prompt.visible = _confirm
 	if _confirm:
-		_hint.text = "Save changes to the album?   Y/space keep  ·  N discard  ·  Esc back"
-	elif not _held.is_empty():
-		_hint.text = "space drop here to swap  ·  Esc put back"
-	else:
-		_hint.text = "arrows move  ·  space pick up  ·  Q/E folder  ·  R rename folder  ·  Esc done"
-	_tabs.queue_redraw()
-	_album.queue_redraw()
-	_mine.queue_redraw()
+		(_prompt.get_node("Text") as Label).text = "Keep the changes to the album?\nY / space  keep      N  put it all back"
+	(_album.get_node("Cloth").material as ShaderMaterial).set_shader_parameter(
+		"paper_tex", _design_tex("album_cloth%d" % _page))
+	_set_lerp(_album.get_node("Rim"), RIM_PRIM[_page], RIM_ENV[_page])
+	_set_lerp(_album.get_node("Plate"), PLATE_PRIM[_page], ENV[_page])
+	var sel_tab := _album.get_node("SelTab") as TextureRect
+	_set_lerp(sel_tab, SEL_TAB_PRIM[_page], ENV[_page])
+	## `mCO_set_frame_tagT_dl`: the open folder's tab, raised at (105, 52 - page*29/2).
+	sel_tab.position.y = 26.0 + float((_page * 29) / 2)
+	for i in DesignBook.ALBUM_PAGES:
+		(_album.get_node("Tab%d" % i) as CanvasItem).visible = i != _page
+	_book_slots.queue_redraw()
+	_album_slots.queue_redraw()
+	_point_hand(true)
 
 
-func _draw_tabs() -> void:
-	var w := _tabs.size.x / float(DesignBook.ALBUM_PAGES)
-	var font := _tabs.get_theme_default_font()
-	for p in DesignBook.ALBUM_PAGES:
-		var r := Rect2(p * w + 2, 0, w - 4, _tabs.size.y)
-		var on := p == _page
-		_tabs.draw_rect(r, Color(0.98, 0.92, 0.78) if on else Color(0.78, 0.66, 0.5))
-		_tabs.draw_rect(r, Color(0.45, 0.32, 0.2), false, 1.5)
-		_tabs.draw_string(font, Vector2(r.position.x + 4, r.position.y + r.size.y - 6), _folder_label(p),
-			HORIZONTAL_ALIGNMENT_CENTER, r.size.x - 8, 11, Color(0.25, 0.18, 0.12))
+## Textures must outlive the draw call that uses them, so thumbnails are kept until the
+## next refresh.
+func _thumb(dp: DesignPattern) -> Texture2D:
+	if not _thumbs.has(dp):
+		_thumbs[dp] = ImageTexture.create_from_image(DesignTexture.image(dp))
+	return _thumbs[dp]
+
+
+func _set_lerp(node: Node, prim: int, env: int) -> void:
+	var mat := (node as CanvasItem).material as ShaderMaterial
+	if mat != null:
+		mat.set_shader_parameter("prim", _rgb(prim))
+		mat.set_shader_parameter("env", _rgb(env))
+
+
+func _point_hand(animate: bool) -> void:
+	if _hand == null or not _open:
+		return
+	var host: Control = _album if _region == Region.ALBUM else _book
+	var r := album_slot_rect(_sel) if _region == Region.ALBUM else mine_slot_rect(_sel)
+	var tip := host.position + r.position + r.size * Vector2(0.55, 0.45)
+	_hand.point_at(_screen.position + tip * _screen.scale, animate)
 
 
 func _draw_album() -> void:
-	_draw_cells(_album, Region.ALBUM, ALBUM_COLS, ALBUM_ROWS)
+	for i in ALBUM_COLS * ALBUM_ROWS:
+		_draw_slot(_album_slots, album_slot_rect(i), Region.ALBUM, i)
 
 
 func _draw_mine() -> void:
-	_draw_cells(_mine, Region.MINE, MINE_COLS, 1)
+	for i in MINE_COLS * MINE_ROWS:
+		_draw_slot(_book_slots, mine_slot_rect(i), Region.MINE, i)
 
 
-func _draw_cells(host: Control, region: int, cols: int, rows: int) -> void:
-	var cw := host.size.x / float(cols)
-	var chh := host.size.y / float(rows)
-	var font := host.get_theme_default_font()
-	for i in cols * rows:
-		var cx := (i % cols) * cw
-		var cy := int(i / cols) * chh
-		var pad := 6.0
-		var cell := Rect2(cx + pad, cy + pad, cw - pad * 2, chh - pad * 2 - 12)
-		var dp := _design_at(region, _page, i)
-		host.draw_rect(cell, Color(1, 1, 1, 1))
-		if dp != null and (dp.flag_set or region == Region.MINE):
-			host.draw_texture_rect(ImageTexture.create_from_image(DesignTexture.image(dp)), cell, false)
-		host.draw_rect(cell, Color(0.5, 0.4, 0.3, 1), false, 1.5)
-		if region == Region.MINE and Game.worn_design_slot == i:
-			host.draw_string(font, Vector2(cx + pad, cy + pad + 11), "WORN",
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.1, 0.45, 0.1))
-		if _held == _spot(region, i):
-			host.draw_rect(Rect2(cx + 2, cy + 2, cw - 4, chh - 4), Color(1, 0.8, 0.1, 1), false, 3.0)
-		if region == _region and i == _sel:
-			host.draw_rect(Rect2(cx + 3, cy + 3, cw - 6, chh - 6), Color(1, 0.2, 0.2, 1), false, 3.0)
+func _draw_slot(host: Control, r: Rect2, region: int, i: int) -> void:
+	var dp := _design_at(region, _page, i)
+	if dp != null and (dp.flag_set or region == Region.MINE):
+		host.draw_texture_rect(_thumb(dp), r, false)
+	if _held == _spot(region, i):
+		## `mNW_draw_sav_mark_before`: a 40-frame green pulse.
+		var g := int(Time.get_ticks_msec() / 1000.0 * 60.0) % 40
+		if g > 20:
+			g = 40 - g
+		host.draw_rect(r.grow(1.5), Color8(g * 3, 150 + g * 4, g * 3), false, 2.0)

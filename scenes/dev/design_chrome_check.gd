@@ -55,5 +55,18 @@ func _ready() -> void:
 	await get_tree().create_timer(0.2).timeout
 	get_viewport().get_texture().get_image().save_png("user://design_chrome_4_pallet.png")
 
+	editor.close()
+	var album: CanvasLayer = load("res://scenes/ui/design_album_overlay.tscn").instantiate()
+	add_child(album)
+	await get_tree().process_frame
+	album.open()
+	album.flip_page(2)
+	album._region = album.Region.ALBUM
+	album._sel = 4
+	album._refresh()
+	await get_tree().create_timer(0.3).timeout
+	get_viewport().get_texture().get_image().save_png("user://design_chrome_5_album.png")
+	album.close(false)
+
 	print("design_chrome_check: done")
 	get_tree().quit()

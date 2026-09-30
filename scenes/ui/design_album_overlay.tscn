@@ -1,22 +1,42 @@
 [gd_scene format=3 uid="uid://cdalbumovl001"]
 
 [ext_resource type="Script" path="res://scenes/ui/design_album_overlay.gd" id="1"]
+[ext_resource type="Shader" path="res://shaders/inventory_shell_paper.gdshader" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hand_cursor.tscn" id="3"]
+[ext_resource type="Shader" path="res://scenes/ui/design_mark.gdshader" id="4"]
 
-[sub_resource type="StyleBoxFlat" id="frame"]
-bg_color = Color(0.36, 0.25, 0.17, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.22, 0.14, 0.09, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-content_margin_left = 22.0
-content_margin_top = 16.0
-content_margin_right = 22.0
-content_margin_bottom = 16.0
+[sub_resource type="ShaderMaterial" id="book_cloth"]
+shader = ExtResource("2")
+shader_parameter/paper_px_per_shell_px = 0.410256
+
+[sub_resource type="ShaderMaterial" id="album_cloth"]
+shader = ExtResource("2")
+shader_parameter/paper_px_per_shell_px = 0.410256
+
+[sub_resource type="ShaderMaterial" id="rim"]
+shader = ExtResource("4")
+
+[sub_resource type="ShaderMaterial" id="plate"]
+shader = ExtResource("4")
+
+[sub_resource type="ShaderMaterial" id="sel_tab"]
+shader = ExtResource("4")
+
+[sub_resource type="StyleBoxFlat" id="prompt"]
+bg_color = Color(0.98, 0.95, 0.85, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.28, 0.2, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+content_margin_left = 8.0
+content_margin_top = 4.0
+content_margin_right = 8.0
+content_margin_bottom = 4.0
 
 [node name="DesignAlbumOverlay" type="CanvasLayer"]
 script = ExtResource("1")
@@ -34,61 +54,225 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 color = Color(0, 0, 0, 0.5)
 
-[node name="Frame" type="PanelContainer" parent="Root"]
+[node name="Screen" type="Control" parent="Root"]
+layout_mode = 0
+offset_right = 320.0
+offset_bottom = 240.0
+mouse_filter = 2
+
+[node name="Book" type="Control" parent="Root/Screen"]
+layout_mode = 0
+offset_left = 21.0
+offset_top = 39.0
+offset_right = 153.0
+offset_bottom = 197.0
+
+[node name="Cloth" type="TextureRect" parent="Root/Screen/Book"]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -360.0
-offset_top = -260.0
-offset_right = 360.0
-offset_bottom = 260.0
-theme_override_styles/panel = SubResource("frame")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1
+material = SubResource("book_cloth")
+[node name="Under" type="TextureRect" parent="Root/Screen/Book"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1
 
-[node name="Box" type="VBoxContainer" parent="Root/Frame"]
-layout_mode = 2
-theme_override_constants/separation = 8
+[node name="Slots" type="Control" parent="Root/Screen/Book"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
 
-[node name="Header" type="HBoxContainer" parent="Root/Frame/Box"]
-layout_mode = 2
+texture_filter = 1
+[node name="Over" type="TextureRect" parent="Root/Screen/Book"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1
 
-[node name="Title" type="Label" parent="Root/Frame/Box/Header"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Design album"
-theme_override_colors/font_color = Color(0.97, 0.92, 0.78, 1)
-theme_override_font_sizes/font_size = 18
+[node name="Album" type="Control" parent="Root/Screen"]
+layout_mode = 0
+offset_left = 98.0
+offset_top = 34.0
+offset_right = 292.0
+offset_bottom = 197.0
 
-[node name="Tabs" type="Control" parent="Root/Frame/Box"]
-custom_minimum_size = Vector2(660, 26)
-layout_mode = 2
+[node name="Cloth" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1
+material = SubResource("album_cloth")
+[node name="Under" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1
 
-[node name="Album" type="Control" parent="Root/Frame/Box"]
-custom_minimum_size = Vector2(660, 230)
-layout_mode = 2
-size_flags_vertical = 3
+[node name="Slots" type="Control" parent="Root/Screen/Album"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
 
-[node name="MineLabel" type="Label" parent="Root/Frame/Box"]
-layout_mode = 2
-text = "Your designs"
-theme_override_colors/font_color = Color(0.97, 0.92, 0.78, 1)
-theme_override_font_sizes/font_size = 13
+texture_filter = 1
+[node name="Over" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1
 
-[node name="Mine" type="Control" parent="Root/Frame/Box"]
-custom_minimum_size = Vector2(660, 96)
-layout_mode = 2
+[node name="Tab7" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 0
+offset_left = 152.0
+offset_top = 127.0
+offset_right = 182.0
+offset_bottom = 142.0
+mouse_filter = 2
+expand_mode = 1
+[node name="Tab6" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 0
+offset_left = 152.0
+offset_top = 113.0
+offset_right = 182.0
+offset_bottom = 128.0
+mouse_filter = 2
+expand_mode = 1
+[node name="Tab5" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 0
+offset_left = 152.0
+offset_top = 98.0
+offset_right = 182.0
+offset_bottom = 113.0
+mouse_filter = 2
+expand_mode = 1
+[node name="Tab4" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 0
+offset_left = 152.0
+offset_top = 84.0
+offset_right = 182.0
+offset_bottom = 99.0
+mouse_filter = 2
+expand_mode = 1
+[node name="Tab3" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 0
+offset_left = 152.0
+offset_top = 69.0
+offset_right = 182.0
+offset_bottom = 84.0
+mouse_filter = 2
+expand_mode = 1
+[node name="Tab2" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 0
+offset_left = 152.0
+offset_top = 55.0
+offset_right = 182.0
+offset_bottom = 70.0
+mouse_filter = 2
+expand_mode = 1
+[node name="Tab1" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 0
+offset_left = 152.0
+offset_top = 40.0
+offset_right = 182.0
+offset_bottom = 55.0
+mouse_filter = 2
+expand_mode = 1
+[node name="Tab0" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 0
+offset_left = 152.0
+offset_top = 26.0
+offset_right = 182.0
+offset_bottom = 41.0
+mouse_filter = 2
+expand_mode = 1
+[node name="Kage" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1
 
-[node name="Footer" type="VBoxContainer" parent="Root/Frame/Box"]
+[node name="Rim" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1
+material = SubResource("rim")
+[node name="Plate" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+expand_mode = 1
+material = SubResource("plate")
+[node name="SelTab" type="TextureRect" parent="Root/Screen/Album"]
+layout_mode = 0
+offset_left = 152.0
+offset_top = 26.0
+offset_right = 182.0
+offset_bottom = 42.0
+mouse_filter = 2
+material = SubResource("sel_tab")
+expand_mode = 1
+[node name="FolderName" type="Label" parent="Root/Screen/Album"]
+layout_mode = 0
+offset_left = 36.0
+offset_top = 6.0
+offset_right = 156.0
+offset_bottom = 20.0
+mouse_filter = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_font_sizes/font_size = 9
+[node name="Name" type="Label" parent="Root/Screen"]
+layout_mode = 0
+offset_left = 60.0
+offset_top = 214.0
+offset_right = 260.0
+offset_bottom = 230.0
+mouse_filter = 2
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.98, 0.95, 0.85, 1)
+theme_override_colors/font_outline_color = Color(0.24, 0.16, 0.12, 1)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 9
+[node name="Prompt" type="PanelContainer" parent="Root/Screen"]
+layout_mode = 0
+offset_left = 70.0
+offset_top = 100.0
+offset_right = 250.0
+offset_bottom = 140.0
+mouse_filter = 2
+visible = false
+theme_override_styles/panel = SubResource("prompt")
+[node name="Text" type="Label" parent="Root/Screen/Prompt"]
 layout_mode = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+theme_override_colors/font_color = Color(0.25, 0.17, 0.12, 1)
+theme_override_font_sizes/font_size = 9
 
-[node name="DesignName" type="Label" parent="Root/Frame/Box/Footer"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.97, 0.92, 0.78, 1)
-theme_override_font_sizes/font_size = 14
-
-[node name="Hint" type="Label" parent="Root/Frame/Box/Footer"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.86, 0.78, 0.6, 1)
-theme_override_font_sizes/font_size = 11
+[node name="Hand" parent="Root" instance=ExtResource("3")]
+visible = false
