@@ -193,7 +193,7 @@ data tables before a category is called done.
 - [x] **Post Office bank (ABD)**: the clerk's deposit line opens the terminal from the disc's `tyo_win` art — Cash (wallet plus money bags), a six-digit amount picked digit by digit, Balance to 999,999,999, Deposit / Withdrawal lit by direction; settling spends bags first and pays cash over the wallet cap as 30,000-bell bags; she then reads out the balance (`m_bank_ovl`, `aPG_deposit_*`) — `BankOverlay`, `BankTerminal`; `abd` console command. No interest on the GameCube: the post office mails a gift at 1M / 10M / 100M / 999,999,999 Bells, one per game start (`mMl_send_postoffice_mail`)
 - [ ] **Tom Nook home loan**: 4 (or 5) escalating amounts; pay any amount; statue/"paid off" reward; house expands on payoff (`m_repay_ovl`, `mQst` house upgrade)
 - [ ] House sizes: small house (4×4) → medium (6×6) → large (8×8) → upper floor (2nd floor); basement is a separate unlock, and no side/back rooms or mansion exist in GCN (`m_home`, `m_house`, room types)
-- [ ] **HRA — Happy Room Academy**: weekly letter scoring your house layout; feng shui, sets, matching series, gyroids, furniture count; rank letters (`m_huusui_room`, `mark_room`)
+- [x] **HRA — Happy Room Academy**: welcome letter, then at game start a scored letter the day after the layout changes (or a 2-in-10 tip otherwise): points by origin, necessities, base / theme / set series with matching wallpaper and carpet, lucky pieces, facing the wall, theme obstacles; rewards at 70,000 / 100,000 (house and manor models); wing paper (`m_mark_room`, `m_mark_room_ovl`) — `HappyRoomAcademy`, tables from `hra.py`. Missing: the clutter rule's loose items (rooms don't hold loose items yet). Feng shui (`m_huusui_room`) only feeds money / goods luck and isn't built
 - [ ] Feng shui: colour-by-direction bonuses (`m_huusui_room_ovl`)
 - [~] Selling: Nook buys almost anything at set prices; fish/bugs/fossils/paintings prices; foreign fruit premium — `ShopBook.sell_result`: catalog price / 4, foreign fruit 2000 / 4 (`Game.town_fruit`), worthless items taken for free, quest items refused, 30,000-bell bags when the wallet overflows (refused with no room), half the payout counts toward Nook's sales. Missing: shell / fossil / painting price data
 - [~] Turnip market (**Stalk Market**): Sow Joan sells turnips Sunday AM; Nook buys at fluctuating daily price; turnips rot after a week; spoiled-turnip uses (`m_kabu_manager`, `ac_ev_kabuPeddler`, `ac_yomise`) — `KabuMarket` ports `Kabu_manager` (Sunday price 70–129, spike ×8 / random / falling trends with the decomp's transition odds; one price per day, not AM/PM, in GCN); Nook quotes it under "Other things" and buys 10/50/100 bundles (never on Sunday), spoiled turnips as junk. Missing: Joan, turnips spoiling on the ground (`mAGrw_SpoilKabu`)
@@ -340,14 +340,14 @@ data tables before a category is called done.
 - [~] House exterior model changes with size; door mat; roof — `obj_{s,w}_myhome1..4` by size, fish weathervane / insect plaque via `CompleteTalk`; palette recolour not rendered
 - [ ] Move house location? _(GCN: no)_
 - [~] Cockroaches spawn if you don't play for weeks; house dusty — `HouseGoki` / `house_goki.gd`: 6-day rule, up to 3 out, furniture flushes, startle, stomp; missing: death puff, cottage, dust
-- [ ] HRA judges the main room only (§11)
+- [x] HRA judges the main room, and the upper floor in part (origins, sets, luck, facing, clutter); never the basement (§11)
 - [ ] Other residents' houses in your town enterable? _(only the one you play; others are just exteriors + villager homes)_
 
 ## 19. Furniture & collectibles
 
 - [ ] Full furniture DB with series/sets, sizes, HRA points, feng-shui colour, sell price (`ac_furniture_data`, `f_furniture.c`)
 - [ ] Series: e.g. Classic, Modern, Regal, Ranch, Cabin/Cabana, Exotic, Blue, Green, Kiddie, Lovely, Snowman, Mushroom, Robo, Spooky, Harvest, Jingle/Festive, Space, Pavé? _(verify GCN series list)_
-- [ ] Themed sets award HRA bonus when all present + matching wallpaper/carpet
+- [x] Themed sets award HRA bonus when all present + matching wallpaper/carpet — `HappyRoomAcademy`
 - [ ] Special/rare: Nintendo items (famicom, N64, GameCube, Mario/Zelda/Metroid themed), Trophies, King Tut mask, models, instruments
 - [ ] **NES/Famicom consoles as furniture** → playable games (see §26)
 - [ ] Gyroid furniture (§14): the giant collection; each has an on/off wind state and a sound
@@ -592,7 +592,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [x] **Toy Day** — Jingle
 - [x] **New Year's Eve** — countdown crowd, party poppers, fireworks at midnight
 - [~] Weekly: K.K. (Sat night), turnips (Sun AM), Tortimer/mayor rounds — K.K. and Joan are placed by the event manager; Tortimer only appears on holidays
-- [~] Monthly: bank interest, HRA report, lottery (last day), Nook stock reshuffle — raffle + monthly prize reshuffle done
+- [~] Monthly: lottery (last day), Nook stock reshuffle — raffle + monthly prize reshuffle done. No bank interest on the GameCube (balance gifts instead); the HRA writes daily after changes, not monthly
 - [~] "Rumor" pre-event villager chatter for each holiday (`mEv_EVENT_RUMOR_*`) — villagers bring up coming visitors and live rumours with their dates (`aQMgr_decide_msg_special_ev` / `_calendar_ev`)
 - [x] Tortimer "soncho" variant appearances for each holiday (`mEv_EVENT_SONCHO_*`) — except the January / February vacations and the bridge
 - [ ] Player Birthday party — villagers throw a party at your house or theirs, cake, presents

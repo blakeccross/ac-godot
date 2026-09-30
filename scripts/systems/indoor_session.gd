@@ -115,10 +115,12 @@ func place(
 	if data.needs_surface() and _table_at(cell) != null:
 		entry.layer = 1
 		room.placements.append(entry)
+		_report_change()
 		return entry
 	if not grid.place(entry.id, cell, entry.resolved_footprint(data), facing, WorldGrid.PlaceKind.FURNITURE):
 		return null
 	room.placements.append(entry)
+	_report_change()
 	return entry
 
 
@@ -131,6 +133,7 @@ func rotate(placement_id: StringName, steps: int = 1) -> bool:
 		return false
 	if entry.layer > 0:
 		entry.facing = grid.rotate_facing(entry.facing, steps)
+		_report_change()
 		return true
 	var size: Vector2i = entry.resolved_footprint(data)
 	var next_facing: WorldGrid.Facing = grid.rotate_facing(entry.facing, steps)
@@ -138,7 +141,10 @@ func rotate(placement_id: StringName, steps: int = 1) -> bool:
 		return false
 	grid.remove(entry.id)
 	entry.facing = next_facing
-	return grid.place(entry.id, entry.cell, size, next_facing, WorldGrid.PlaceKind.FURNITURE)
+	var ok: bool = grid.place(entry.id, entry.cell, size, next_facing, WorldGrid.PlaceKind.FURNITURE)
+	if ok:
+		_report_change()
+	return ok
 
 
 ## Slide a floor piece by whole cells (`aMR_PlacePush/PullFurniture`). Everything resting on it
@@ -163,6 +169,7 @@ func move_placement(placement_id: StringName, delta: Vector2i) -> bool:
 		return false
 	for rider: FurniturePlacement in riders:
 		rider.cell += delta
+	_report_change()
 	return true
 
 
@@ -228,10 +235,20 @@ func rotate_about(
 	for i: int in riders.size():
 		riders[i].cell = rider_cells[i]
 		riders[i].facing = grid.rotate_facing(riders[i].facing, steps)
+	_report_change()
 	return true
 
 
 const NO_CELL := Vector2i(-99, -99)
+
+
+## `mMkRm_ReportChangePlayerRoom`: a change to the player's main or upper room (not the
+## basement) marks the house for the HRA's next day.
+func _report_change() -> void:
+	if room == null or Game == null or Game.hra == null:
+		return
+	if room.id == PlayerHouse.MAIN or room.id == PlayerHouse.UPPER:
+		Game.hra.report_change(Clock.year, Clock.month, Clock.day)
 
 
 func pick_up(placement_id: StringName) -> StringName:
@@ -244,6 +261,7 @@ func pick_up(placement_id: StringName) -> StringName:
 	if entry.layer == 0:
 		grid.remove(entry.id)
 	room.placements.erase(entry)
+	_report_change()
 	return furniture_id
 
 
@@ -253,6 +271,7 @@ func decorate_wall(wall_id: StringName) -> bool:
 	if not InteriorStyleCatalog.has_wall(wall_id):
 		return false
 	room.wall_id = wall_id
+	_report_change()
 	return true
 
 
@@ -262,6 +281,7 @@ func decorate_floor(floor_id: StringName) -> bool:
 	if not InteriorStyleCatalog.has_floor(floor_id):
 		return false
 	room.floor_id = floor_id
+	_report_change()
 	return true
 
 

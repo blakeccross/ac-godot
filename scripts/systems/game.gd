@@ -79,6 +79,8 @@ var events: EventCalendar = EventCalendar.new()
 var rainbow: Rainbow = Rainbow.new()
 ## The community board's posts (`m_notice`).
 var notice_board: NoticeBoard = NoticeBoard.new()
+## The Happy Room Academy's membership and marks (`m_mark_room`).
+var hra: HappyRoomAcademy = HappyRoomAcademy.new()
 var _rainbow_accum: float = 0.0
 var designs: DesignBook = DesignBook.new()
 var first_job: FirstJob = FirstJob.new()
@@ -726,6 +728,7 @@ func continue_game() -> void:
 	## `mMl_start_send_mail` / `mNtc_set_auto_nwrite_data` at game start.
 	send_postoffice_gift()
 	update_notice_board()
+	mark_room()
 	if current_room_id != &"":
 		_change_scene(INTERIOR_SCENE)
 	else:
@@ -874,6 +877,7 @@ func reset_session() -> void:
 	rainbow = Rainbow.new()
 	notice_board = NoticeBoard.new()
 	notice_board.seed(Clock.year, Clock.month, Clock.day, Clock.hour, Clock.minute)
+	hra = HappyRoomAcademy.new()
 	town_fruit = &"apple"
 	events.clear()
 	_events_ready = false
@@ -1145,6 +1149,7 @@ func to_save() -> Dictionary:
 		"quests": quests.to_save(),
 		"rainbow": rainbow.to_save(),
 		"notice_board": notice_board.to_save(),
+		"hra": hra.to_save(),
 	}
 
 
@@ -1263,6 +1268,8 @@ func apply_snapshot(data: Dictionary) -> void:
 	npc_talk_info.clear()
 	quests.apply_snapshot(data.get("quests", {}))
 	rainbow.apply_snapshot(data.get("rainbow", {}))
+	hra = HappyRoomAcademy.new()
+	hra.apply_snapshot(data.get("hra", {}))
 	notice_board = NoticeBoard.new()
 	if data.has("notice_board"):
 		notice_board.apply_snapshot(data["notice_board"])
@@ -1476,6 +1483,22 @@ func send_postoffice_gift() -> void:
 		return
 	if inventory.add_received_mail(BankTerminal.gift_letter(gift, town_name, player_name)) >= 0:
 		bank_gift_flags |= int(gift["flag"])
+
+
+## `mMkRm_MarkRoom` at game start: the HRA's welcome, grade or tip, into the mailbox.
+func mark_room() -> void:
+	if interiors == null or inventory == null:
+		return
+	var house: House = interiors.player_house()
+	if house == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var busy: bool = first_job != null and first_job.is_active()
+	var letter: MailData = hra.mark(house, interiors.room(PlayerHouse.MAIN), interiors.room(PlayerHouse.UPPER),
+		Vector3i(Clock.year, Clock.month, Clock.day), busy, player_name, rng)
+	if letter != null:
+		inventory.add_received_mail(letter)
 
 
 ## `mNtc_set_auto_nwrite_data`: seasonal notices whose day has come.

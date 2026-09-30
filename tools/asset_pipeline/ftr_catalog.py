@@ -201,4 +201,6 @@ def convert_ftr_catalog(cfg: PipelineConfig) -> dict[str, Any]:
         "lists": lists,
         "catalog": _catalog_pages(decomp),
     }, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
-    return {"converted": len(items), "path": str(path)}
+    from .hra import export_hra
+    hra = export_hra(decomp, out_dir)
+    return {"converted": len(items), "path": str(path), "hra": hra}
