@@ -1881,13 +1881,14 @@ func _present_on_mail(idx: int) -> void:
 		Game.post_notice("Took back %s." % data.display_name)
 
 
-## `mTG_write_proc` → `mSM_OVL_ADDRESS` — the real flow starts with the address book,
-## not a dialogue-tree popup (`m_address_ovl.c`).
+## `mTG_write_proc` → `mSM_OVL_BOARD` on the stationery, with the address book over it
+## (`m_board_ovl.c` / `m_address_ovl.c`). With no stationery items in the port, the
+## paper is picked first.
 func _open_write_letter() -> void:
-	var address: Node = get_tree().get_first_node_in_group("letter_address_ui")
-	if address == null or not address.has_method("open"):
+	var picker: Node = get_tree().get_first_node_in_group("letter_paper_picker_ui")
+	if picker == null or not picker.has_method("open"):
 		return
-	address.call("open")
+	picker.call("open")
 
 
 func _drop_selected() -> void:

@@ -110,7 +110,6 @@ var _last_paint := Vector2i(-1, -1)
 
 ## Save prompt (`mSM_OVL_EDITENDCHK`).
 var _prompt: bool = false
-var _prompt_idx: int = 0
 
 var _on_done: Callable = Callable()
 
@@ -122,7 +121,7 @@ var _on_done: Callable = Callable()
 @onready var _color_mark: Control = $Root/Screen/ColorMark
 @onready var _pal_mark: Control = $Root/Screen/PalMark
 @onready var _cursor_view: Control = $Root/Screen/Cursor
-@onready var _promptbox: PanelContainer = $Root/Prompt
+@onready var _promptbox: EditEndPrompt = $Root/Screen/Prompt
 
 var _tex_cache: Dictionary = {}
 
@@ -139,6 +138,7 @@ func _ready() -> void:
 	_pal_mark.draw.connect(_draw_pal_mark)
 	_cursor_view.draw.connect(_draw_cursor)
 	_screen.gui_input.connect(_on_screen_input)
+	_promptbox.answered.connect(_resolve_prompt)
 	_root.resized.connect(_fit_screen)
 	_fit_screen()
 	set_process_unhandled_input(false)
@@ -207,7 +207,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if _prompt:
-		_prompt_key(k.keycode)
+		if not k.echo:
+			_promptbox.handle_key(k)
 		return
 
 	match k.keycode:
@@ -329,23 +330,6 @@ func _move_cursor_key(kc: int) -> bool:
 	if _waku_armed:
 		Audio.play_se(&"cursol")
 	return true
-
-
-func _prompt_key(kc: int) -> void:
-	match kc:
-		KEY_LEFT, KEY_A, KEY_UP, KEY_W:
-			_prompt_idx = wrapi(_prompt_idx - 1, 0, 3)
-			Audio.play_se(&"cursol")
-			_refresh()
-		KEY_RIGHT, KEY_D, KEY_DOWN, KEY_S:
-			_prompt_idx = wrapi(_prompt_idx + 1, 0, 3)
-			Audio.play_se(&"cursol")
-			_refresh()
-		KEY_SPACE, KEY_ENTER, KEY_KP_ENTER:
-			_resolve_prompt(_prompt_idx)
-		KEY_ESCAPE, KEY_B:
-			_prompt = false
-			_promptbox.visible = false
 
 
 # --- mouse ---------------------------------------------------------------
@@ -698,17 +682,19 @@ func _cycle_mode(dir: int) -> void:
 
 # --- save prompt ----------------------------------------------------
 
+## `mSM_OVL_EDITENDCHK` / `mEE_TYPE_ORIGINAL_DESIGN`: "Is this OK?" Yes / Rewrite /
+## Throw it out.
 func _open_prompt() -> void:
 	_prompt = true
-	_prompt_idx = 0
 	_drawing = false
-	_promptbox.visible = true
+	_promptbox.open(EditEndPrompt.Kind.ORIGINAL_DESIGN)
 	Audio.play_se(&"cursol")
 	_refresh()
 
 
-## 0 Save, 1 Keep editing, 2 Discard, 3 (wrap of -1) also Discard-cancel.
+## 0 Save, 1 Keep editing (also B), 2 Discard.
 func _resolve_prompt(idx: int) -> void:
+	_promptbox.close()
 	match idx:
 		0:
 			_design.palette = _palette_no
@@ -723,7 +709,6 @@ func _resolve_prompt(idx: int) -> void:
 			close()
 		1:
 			_prompt = false
-			_promptbox.visible = false
 			_refresh()
 		_:
 			Audio.play_se(&"cursol")
@@ -805,11 +790,6 @@ func _refresh() -> void:
 	if pm != null:
 		pm.set_shader_parameter("prim", Color8(255, 80, 80))
 		pm.set_shader_parameter("env", Color8(30, 30, 30))
-	_promptbox.visible = _prompt
-	if _prompt:
-		var opts := ["Save it", "Keep editing", "Throw it out"]
-		var pl: Label = _promptbox.get_node("V/Options")
-		pl.text = "   ".join(range(3).map(func(i): return ("▶ " if i == _prompt_idx else "  ") + opts[i]))
 	for n: CanvasItem in [_chrome, _tools, _marks, _color_mark, _pal_mark, _cursor_view]:
 		n.queue_redraw()
 

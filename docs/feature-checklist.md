@@ -171,10 +171,10 @@ data tables before a category is called done.
   Dropped "item info popup" from this line — decomp's pockets screen has no such panel either
   (`inventory_overlay.gd` already hides the invented Detail block for the same reason).
 - [x] "Read a letter" opens the real board window (`m_board_ovl.c`, `mSM_BD_OPEN_READ`), not a
-  text toast — the letter's actual stationery art (all 64 `lat_letterNN` designs, baked flat
-  from the already-converted 3D models by `scenes/dev/letter_paper_bake.gd`) with
-  header/body/footer text in the sender's ink color (`letter_color[]`), sliding in like every
-  other submenu — `letter_reader_overlay.tscn`, `LetterChrome`. Read-only (decomp confirms
+  text toast — the letter's actual stationery art (all 64 `lat_letterNN` display lists with
+  their ruled lines, baked by `menu_ui.py`) with header/body/footer text in the sender's ink
+  colour (`letter_color[]`) at the board's own offsets, dropping in from the top —
+  `letter_reader_overlay.tscn`, `LetterBoard`, `LetterChrome`. Read-only (decomp confirms
   `mBD_roll_control`/pagination/caret are write-mode-only, dead code for reading).
 - [~] **Catalog** of every item you've ever owned/received; order from catalog at Nook's (`m_catalog_ovl`) — `CatalogBook`: furniture / clothing / wallpaper / carpet / stationery / umbrellas register as they reach the pockets (`mSP_CollectCheck`); Nook takes up to 5 paid orders that arrive enclosed in a letter the next morning (`mPO_delivery_mail_with_order_ftr`). Missing: the catalog browser pages (orders use the shop paper list), non-orderable flags beyond "rare"
 - [ ] Item data tables: furniture, clothing, wallpaper, carpet, umbrellas, tools, stationery, fruit, shells, fossils, gyroids, paintings, music, misc (`m_item_name`, `ac_furniture_data`)
@@ -448,7 +448,7 @@ were dropped. See [shops](decomp_notes/shops.md) § Able Sisters.
   picks any of the 64 real paper designs when writing, rather than being limited to a
   stationery stack they own; header/footer are auto-filled, not separately editable.
 - [x] Stationery types — all 64 designs' real art render in both the read window and the
-  write-time picker (`LetterChrome`/`letter_paper_bake.gd`), `MailData.paper_type`
+  write-time picker (`LetterChrome`, baked by `menu_ui.py`), `MailData.paper_type`
   round-trips through save. Missing (separate, smaller gaps): specific papers awarded
   by events/villagers, and letter paper affecting villager reaction.
 - [~] Your mailbox at your house: receive letters, gifts, HRA reports, bank interest, event mail, catalog deliveries (`ac_mailbox`) — `scenes/world/mailbox.tscn` + received-mail path, flag raises/lowers on unread mail in every season, lid opens/closes around the Letters menu with the cursor seeded on the last-used slot (`aMBX_pl_open`/`_pl_close`, `mMB_get_last_mail_idx`); Museum fossil-identification replies land here (`FarwayBook` — the in-code name predates confirming decomp's actual address-book contact is just called "Museum", `mPr_CheckMuseumAddress`). Missing: the player's walk-up/hop before the lid opens (`aMBX_pl_wait`/`Player_actor_*_Mail_jump`); villager/event/bank mail not wired yet

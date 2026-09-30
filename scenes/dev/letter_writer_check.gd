@@ -22,41 +22,44 @@ func _ready() -> void:
 	var writer: CanvasLayer = load("res://scenes/ui/letter_writer_overlay.tscn").instantiate()
 	add_child(writer)
 
+	for v: StringName in [&"filbert", &"rolf", &"bitty", &"tank"]:
+		Game.villagers.get_or_create(v).record_talk("day1")
 	await get_tree().process_frame
-	address.open()
-	await get_tree().create_timer(0.3).timeout
-	var img: Image = get_viewport().get_texture().get_image()
-	img.save_png("user://letter_writer_1_address.png")
-	print("letter_writer_check: wrote 1_address")
-	address.close()
-
-	await get_tree().process_frame
-	picker.open({"id": "filbert", "name": "Filbert"})
+	picker.open()
 	picker._sel = 20
 	picker._refresh()
 	await get_tree().create_timer(0.3).timeout
-	img = get_viewport().get_texture().get_image()
-	img.save_png("user://letter_writer_2_paper.png")
-	print("letter_writer_check: wrote 2_paper")
-	picker.close()
-
-	await get_tree().process_frame
-	writer.open({"id": "filbert", "name": "Filbert"}, 20)
-	for ch in "Hi Filbert! Hope you are having a wonderful day today.":
-		if ch == " ":
-			writer._type(" ")
-		else:
-			writer._type(ch)
+	_shot("1_paper")
+	picker._confirm()
 	await get_tree().create_timer(0.3).timeout
-	img = get_viewport().get_texture().get_image()
-	img.save_png("user://letter_writer_3_compose.png")
-	print("letter_writer_check: wrote 3_compose")
-
+	_shot("2_address_title")
+	address._choosing = true
+	address._sel = 1
+	address._page = 1
+	address._screen.queue_redraw()
+	await get_tree().create_timer(0.2).timeout
+	_shot("3_address")
+	address._confirm()
+	for ch in "Hi Filbert! Hope you are having a wonderful day today. See you at the museum soon!":
+		writer._type(ch)
+	await get_tree().create_timer(0.6).timeout
+	_shot("4_compose")
 	writer._open_prompt()
+	writer._promptbox.handle_key(_key(KEY_SPACE))
 	await get_tree().create_timer(0.3).timeout
-	img = get_viewport().get_texture().get_image()
-	img.save_png("user://letter_writer_4_prompt.png")
-	print("letter_writer_check: wrote 4_prompt")
+	_shot("5_prompt")
 
 	print("letter_writer_check: done")
 	get_tree().quit()
+
+
+func _shot(name: String) -> void:
+	get_viewport().get_texture().get_image().save_png("user://letter_writer_%s.png" % name)
+	print("letter_writer_check: wrote ", name)
+
+
+func _key(code: Key) -> InputEventKey:
+	var k := InputEventKey.new()
+	k.keycode = code
+	k.pressed = true
+	return k

@@ -48,9 +48,6 @@ func _ready() -> void:
 	_root.resized.connect(_fit_screen)
 	_keyboard.typed.connect(_append)
 	_keyboard.erased.connect(_erase)
-	_keyboard.finished.connect(func() -> void:
-		Audio.play_se(&"cursol")
-		_finish(false))
 	for path: String in KeyboardPanel.FONT_PATHS:
 		if ResourceLoader.exists(path):
 			_font = load(path)
@@ -120,9 +117,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	get_viewport().set_input_as_handled()
 	var k := event as InputEventKey
-	if k.keycode == KEY_ESCAPE:
-		_finish(true)
-		return
+	match k.keycode:
+		KEY_ESCAPE:
+			_finish(true)
+			return
+		KEY_ENTER, KEY_KP_ENTER:
+			if not k.shift_pressed:
+				## START: done.
+				Audio.play_se(&"cursol")
+				_finish(false)
+				return
 	_keyboard.handle_key(k)
 
 

@@ -1,22 +1,28 @@
 extends CanvasLayer
 
-## Stationery picker — step 2 of writing a letter. Decomp ties the paper design to
-## whichever stationery *item* you own and select (`mTG_write_proc`); this port has no
-## stationery-item economy, so the player instead freely picks any of the 64 real
-## designs `LetterChrome` already renders — a deliberate, approved simplification (see
-## the plan doc), not a missing feature.
+## Stationery picker — the first step of writing a letter. The original writes on the
+## stationery item chosen in the pockets (`mTG_write_proc`); this port has no
+## stationery items, so the player flips through all 64 papers instead, shown full-size
+## on the board (`LetterBoard`) as they will be written on, with the question in the
+## address book's message window. An approved simplification, not a missing feature.
+##
+## Left / right flip a paper, up / down eight; A (Space / Enter) takes it; B / Esc backs out.
 
-const COLS := 8
-const ROWS := 8
 const PAPER_COUNT := LetterChrome.PAPER_COUNT
+const TITLE := "Which stationery?"
+const TITLE_COLOR := Color8(80, 80, 230)
+## The message window sits under the paper (`lat_mes_winT_model` is 216x40 at the origin).
+const TITLE_Y := -98.0
 
 var _open: bool = false
 var _recipient: Dictionary = {}
 var _sel: int = 0
+var _mes: Texture2D = null
 
 @onready var _root: Control = $Root
-@onready var _grid: Control = $Root/Frame/Box/Grid
-@onready var _hint: Label = $Root/Frame/Box/Hint
+@onready var _screen: Control = $Root/Screen
+@onready var _board: LetterBoard = $Root/Screen/Board
+@onready var _title: Control = $Root/Screen/Title
 
 
 func _ready() -> void:
@@ -24,16 +30,30 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("letter_paper_picker_ui")
 	_root.visible = false
-	_grid.draw.connect(_draw_grid)
-	_grid.gui_input.connect(_on_grid_input)
+	_title.draw.connect(_draw_title)
+	_root.resized.connect(_fit_screen)
+	var path := "res://assets/generated/ui/menu/adr_mes.png"
+	_mes = load(path) if ResourceLoader.exists(path) else null
+	_fit_screen()
 	set_process_unhandled_input(false)
+
+
+func _fit_screen() -> void:
+	var sz := _root.size
+	if sz.x <= 0.0 or sz.y <= 0.0:
+		return
+	var k := minf(sz.x / 320.0, sz.y / 240.0)
+	_screen.scale = Vector2(k, k)
+	_screen.position = (sz - Vector2(320, 240) * k) * 0.5
 
 
 func is_open() -> bool:
 	return _open
 
 
-func open(recipient: Dictionary) -> void:
+## Without a recipient the board opens next with the address book over it (the
+## original order: paper, then board + address book).
+func open(recipient: Dictionary = {}) -> void:
 	if _open:
 		return
 	_recipient = recipient
@@ -58,44 +78,21 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	get_viewport().set_input_as_handled()
 	match (event as InputEventKey).keycode:
-		KEY_LEFT, KEY_A: _sel = wrapi(_sel - 1, 0, PAPER_COUNT); Audio.play_se(&"cursol")
-		KEY_RIGHT, KEY_D: _sel = wrapi(_sel + 1, 0, PAPER_COUNT); Audio.play_se(&"cursol")
-		KEY_UP, KEY_W: _sel = wrapi(_sel - COLS, 0, PAPER_COUNT); Audio.play_se(&"cursol")
-		KEY_DOWN, KEY_S: _sel = wrapi(_sel + COLS, 0, PAPER_COUNT); Audio.play_se(&"cursol")
+		KEY_LEFT, KEY_A: _step(-1)
+		KEY_RIGHT, KEY_D: _step(1)
+		KEY_UP, KEY_W: _step(-8)
+		KEY_DOWN, KEY_S: _step(8)
 		KEY_SPACE, KEY_ENTER, KEY_KP_ENTER:
 			_confirm()
-			return
 		KEY_ESCAPE, KEY_B:
+			Audio.play_se(&"cursol")
 			close()
-			return
+
+
+func _step(d: int) -> void:
+	_sel = wrapi(_sel + d, 0, PAPER_COUNT)
+	Audio.play_se(&"cursol")
 	_refresh()
-
-
-func _on_grid_input(event: InputEvent) -> void:
-	if not _open:
-		return
-	var idx := _cell_at(event)
-	if event is InputEventMouseMotion and idx >= 0:
-		_sel = idx
-		_refresh()
-	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
-			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT and idx >= 0:
-		_sel = idx
-		_confirm()
-
-
-func _cell_at(event: InputEvent) -> int:
-	if not (event is InputEventMouse):
-		return -1
-	var p: Vector2 = (event as InputEventMouse).position
-	var cw := _grid.size.x / float(COLS)
-	var chh := _grid.size.y / float(ROWS)
-	var cx := int(p.x / cw)
-	var cy := int(p.y / chh)
-	if cx < 0 or cx >= COLS or cy < 0 or cy >= ROWS:
-		return -1
-	var idx := cy * COLS + cx
-	return idx if idx < PAPER_COUNT else -1
 
 
 func _confirm() -> void:
@@ -103,29 +100,27 @@ func _confirm() -> void:
 	Audio.play_se(&"cursol")
 	close()
 	var writer: Node = get_tree().get_first_node_in_group("letter_writer_ui")
-	if writer != null and writer.has_method("open"):
+	if writer == null:
+		return
+	if _recipient.is_empty() and writer.has_method("open_letter"):
+		writer.call("open_letter", paper_type)
+	elif writer.has_method("open"):
 		writer.call("open", _recipient, paper_type)
 
 
 func _refresh() -> void:
 	if not _open:
 		return
-	_hint.text = "arrows choose  ·  space confirm  ·  B/Esc cancel"
-	_grid.queue_redraw()
+	_board.paper_type = _sel
+	_title.queue_redraw()
 
 
-func _draw_grid() -> void:
-	var cw := _grid.size.x / float(COLS)
-	var chh := _grid.size.y / float(ROWS)
-	for i in PAPER_COUNT:
-		var cx := (i % COLS) * cw
-		var cy := int(i / COLS) * chh
-		var pad := 3.0
-		var cell := Rect2(cx + pad, cy + pad, cw - pad * 2, chh - pad * 2)
-		var tex: Texture2D = LetterChrome.paper_texture(i)
-		if tex != null:
-			_grid.draw_texture_rect(tex, cell, false)
-		else:
-			_grid.draw_rect(cell, Color(1, 1, 1, 1))
-		if i == _sel:
-			_grid.draw_rect(cell, Color(1, 0.2, 0.2, 1), false, 3.0)
+func _draw_title() -> void:
+	var font := _board.font()
+	var off := Vector2(0, -TITLE_Y)
+	if _mes != null:
+		_title.draw_texture_rect(_mes, Rect2(off, Vector2(320, 240)), false)
+	var text := "%s   %d / %d" % [TITLE, _sel + 1, PAPER_COUNT]
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	_title.draw_string(font, Vector2(160 - w * 0.5, 120 - TITLE_Y - 8 + font.get_ascent(16)), text,
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 16, TITLE_COLOR)

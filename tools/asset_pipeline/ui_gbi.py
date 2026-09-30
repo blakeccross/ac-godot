@@ -104,8 +104,14 @@ class Op:
 	dl: str
 	prim: tuple[int, int, int, int] | None = None
 	env: tuple[int, int, int, int] | None = None
-	## `gSPSegment(seg, symbol)` bindings, e.g. {8: "kai_sousa_button1a_tex_rgb_ia8"}.
-	segments: dict[int, str] = field(default_factory=dict)
+	## `gSPSegment(seg, symbol)` bindings, e.g. {8: "kai_sousa_button1a_tex_rgb_ia8"}, or
+	## (symbol, byte offset) for a pointer into an array.
+	segments: dict[int, str | tuple[str, int]] = field(default_factory=dict)
+	## Vertex y overrides, (array symbol, vertex index) -> y, for C code that edits a
+	## model's vertices before drawing it (`mAD_address_draw_init`).
+	vtx_y: dict[tuple[str, int], int] = field(default_factory=dict)
+	## False: walk the list only for the state it leaves (texture, colours, vertices).
+	draw: bool = True
 	## `Matrix_translate` in screen units.
 	offset: tuple[float, float] = (0.0, 0.0)
 
@@ -130,6 +136,8 @@ class UiWalker:
 		self._img_bound = True
 		self._classic_tile: tuple[int, int, int, int] | None = None
 		self._classic_tlut = 0
+		self._vtx_y: dict[int, int] = {}
+		self._vcache: list[Vtx | None] = [None] * 32
 
 	def symbol(self, name: str) -> MapSymbol:
 		sym = self.by_name.get(name)
@@ -144,21 +152,31 @@ class UiWalker:
 				self.prim = op.prim
 			if op.env is not None:
 				self.env = op.env
-			segs = {seg: self.symbol(name).address for seg, name in op.segments.items()}
+			segs = {}
+			for seg, ref in op.segments.items():
+				name, extra = (ref, 0) if isinstance(ref, str) else ref
+				segs[seg] = self.symbol(name).address + extra
+			self._vtx_y = {self.symbol(name).address + 16 * idx: y for (name, idx), y in op.vtx_y.items()}
 			sym = self.symbol(op.dl)
+			start = len(batches)
 			self._walk(self.rel.slice_at(sym.address, sym.size), segs, op.offset, batches, 0)
+			if not op.draw:
+				del batches[start:]
 		return batches
 
-	def _resolve(self, addr: int, segs: dict[int, int]) -> int:
+	def _resolve(self, addr: int, segs: dict[int, int]) -> int | None:
 		seg = addr >> 24
 		if seg in segs:
 			return segs[seg] + (addr & 0xFFFFFF)
+		if 0x08 <= seg <= 0x0F:
+			return None  # segment the caller never bound: nothing to draw
 		return addr
 
 	def _walk(self, dl: bytes, segs: dict[int, int], offset: tuple[float, float], out: list[Batch], depth: int) -> None:
 		if depth > 8:
 			return
-		cache: list[Vtx | None] = [None] * 32
+		# The vertex buffer persists across lists, like the RSP's.
+		cache = self._vcache
 		i = 0
 		extra = 0
 		pending: list[tuple[int, int, int]] = []
@@ -198,9 +216,15 @@ class UiWalker:
 				n = _bits(w0, 12, 8)
 				v0 = _bits(w0, 1, 7) - n
 				addr = self._resolve(w1, segs)
+				if addr is None:
+					for k in range(n):
+						if 0 <= v0 + k < 32:
+							cache[v0 + k] = None
+					continue
 				blob = self.rel.slice_at(addr, 16 * n)
 				for k in range(n):
 					x, y, _z, _f, s, t, r, g, b, a = struct.unpack_from(">hhhHhhBBBB", blob, 16 * k)
+					y = self._vtx_y.get(addr + 16 * k, y)
 					if 0 <= v0 + k < 32:
 						cache[v0 + k] = Vtx(x + offset[0], y + offset[1], s / 32.0, t / 32.0, (r, g, b, a))
 			elif cmd in (G_TRIN, G_TRIN_INDEPEND):
@@ -223,12 +247,15 @@ class UiWalker:
 					self.combine = (w0 & 0xFFFFFF, w1)
 				elif cmd == G_SETTIMG:
 					fmt, siz, width, height, addr = parse_settimg(w0, w1)
-					self._img = (fmt, siz, width, height, self._resolve(addr, segs))
+					resolved = self._resolve(addr, segs)
+					self._img = (fmt, siz, width, height, resolved) if resolved is not None else None
 					self._img_bound = False
 				elif cmd == G_LOADTLUT:
 					if is_dolphin_loadtlut(w0):
 						slot, _count, addr = parse_loadtlut(w0, w1)
-						self.tluts[slot] = self._resolve(addr, segs)
+						resolved = self._resolve(addr, segs)
+						if resolved is not None:
+							self.tluts[slot] = resolved
 					elif self._img is not None:
 						# `gsDPLoadTLUT_pal16`: the palette is the preceding SetTextureImage.
 						self._classic_tlut = self._img[4]
@@ -255,7 +282,7 @@ class UiWalker:
 						self._img_bound = True
 				elif cmd == G_DL:
 					target = self._resolve(w1, segs)
-					sym = self.by_addr.get(target)
+					sym = self.by_addr.get(target) if target is not None else None
 					if sym is not None:
 						self._walk(self.rel.slice_at(sym.address, sym.size), segs, offset, out, depth + 1)
 					if (w0 >> 16) & 0xFF:  # branch: no return

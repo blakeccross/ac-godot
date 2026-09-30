@@ -30,6 +30,9 @@ from .ui_gbi import Op, TextureCache, UiWalker, bake_layer
 OUT_DIR_NAME = "menu"
 SCREEN = (-160.0, 120.0, 320.0, 240.0)
 _NATIVE_SCALE = 3
+## Stationery models span x -124..124, y -86..100 (screen units, centred).
+PAPER_BOUNDS = (-124.0, 100.0, 248.0, 186.0)
+PAPER_COUNT = 64
 _HD_SCALE = 6
 
 
@@ -101,8 +104,58 @@ LAYERS: dict[str, list[Op]] = {
 	"kb_y1": _kb_y(1),
 	"kb_y2": _kb_y(2),
 	"kb_ink": _KB_INK,
+	# `m_editEndChk_ovl.c`: the "Is this OK?" plate (its text plate pulses blue at
+	# runtime) and the 2- and 3-answer windows with their selection mark, all baked at
+	# the origin; the runtime offsets them by `win_data`.
+	"ee_q": [Op("lat_kakunin_DL_mode"), Op("lat_kakunin_wakuT_model")],
+	"ee_q_c": [Op("lat_kakunin_DL_mode"), Op("lat_kakunin_c_model", prim=(0, 0, 255, 255))],
+	"ee_a2": [Op("lat_kakunin_DL_mode"), Op("lat_sentaku2_winT_model")],
+	"ee_a2_c": [Op("lat_kakunin_DL_mode"), Op("lat_sentaku2_c_model")],
+	"ee_a3": [Op("lat_kakunin_DL_mode"), Op("lat_sentaku_winT_model")],
+	"ee_a3_c": [Op("lat_kakunin_DL_mode"), Op("lat_sentaku_c_model")],
+	# `mAD_set_first_tag`: the "Choose an addressee." window, at the origin.
+	"adr_mes": [Op("lat_mes_winT_model")],
+	# `mHB_set_frame_dl`: the house gyroid's message board.
+	"hboard": [Op("hni_den_model")],
+	# `mED_endCode_draw`: the end-of-text mark after the last character, at the origin.
+	"kb_end": [Op("lat_end_cordT_model")],
 	**{f"ledit_{w}": [Op("ledit_common_mode"), Op(f"{w}_win_mode"), Op(f"{w}_win_model")] for w in LEDIT_WINDOWS},
 }
+
+ADDRESS_MAX_ENTRIES = 8
+
+
+def _address_card_ops(rel: RelData, symbols, count: int, part: str) -> list[Op]:
+	"""`mAD_address_draw_init` for one page's vertices (page 0's; all three match)."""
+	import struct
+
+	sym = UiWalker(rel, symbols).symbol("lat_atena_v")
+	blob = rel.slice_at(sym.address, 16 * 16)
+
+	def y_of(i: int) -> int:
+		return struct.unpack_from(">h", blob, 16 * i + 2)[0]
+
+	ofs = int((count - 1) * (90.0 / (ADDRESS_MAX_ENTRIES - 1)))
+	ys: dict[int, int] = {}
+	ys[12] = y_of(9) - ofs
+	ys[13] = y_of(11) - ofs
+	ys[14] = ys[12] - 17
+	ys[15] = ys[13] - 17
+	ys[0] = y_of(4) - ofs
+	ys[2] = y_of(5) - ofs
+	ys[1] = ys[0] - 17
+	ys[3] = ys[2] - 17
+	vtx_y = {("lat_atena_v", i): y for i, y in ys.items()}
+	segs = {8: ("lat_atena_v", 8 * 16), 9: ("lat_atena_v", 0)}
+	shadow = Op("lat_atena_model", segments=segs, vtx_y=vtx_y)
+	if part == "shadow":
+		return [shadow]
+	# The card samples the texture the shadow list loads: walk it for state only.
+	return [
+		Op("lat_atena_model", segments=segs, vtx_y=vtx_y, draw=False),
+		Op("lat_atena_winT_model", prim=(255, 255, 255, 255), segments=segs, vtx_y=vtx_y),
+	]
+
 
 def extract_menu_ui(cfg: PipelineConfig) -> dict[str, Any]:
 	out_dir = cfg.godot_generated / "ui" / OUT_DIR_NAME
@@ -144,6 +197,49 @@ def extract_menu_ui(cfg: PipelineConfig) -> dict[str, Any]:
 			alpha = Image.fromarray((arr[..., 3] * 255 + 0.5).astype("uint8"), "L")
 			white = Image.new("L", alpha.size, 255)
 			_save(Image.merge("RGBA", (white, white, white, alpha)), out_name, stage_dir, out_dir, cfg.project_root)
+			rec["status"] = "converted"
+		except Exception as exc:  # noqa: BLE001
+			rec["status"] = "error"
+			rec["error"] = f"{type(exc).__name__}: {exc}"
+		results.append(rec)
+
+	# Address cards (`mAD_set_addressSel_tag_field`): `mAD_address_draw_init` stretches
+	# the card to its page's entry count by moving vertices, so one card per count
+	# (1-8), at the origin: the shadow as drawn and the card in white for the runtime
+	# to tint with the page's PRIM (the card is PRIM x texel).
+	for count in range(1, ADDRESS_MAX_ENTRIES + 1):
+		for part in ("shadow", "card"):
+			name = f"adr_{part}_{count}"
+			rec = {"asset_id": name, "output_path": f"ui/{OUT_DIR_NAME}/{name}.png", "error": None}
+			try:
+				ops = _address_card_ops(rel, symbols, count, part)
+				image = bake_layer(UiWalker(rel, symbols), textures, ops, SCREEN, scale)
+				_save(image, name, stage_dir, out_dir, cfg.project_root)
+				rec["status"] = "converted"
+			except Exception as exc:  # noqa: BLE001
+				rec["status"] = "error"
+				rec["error"] = f"{type(exc).__name__}: {exc}"
+			results.append(rec)
+
+	# Stationery (`mBD_set_frame_dl`): the paper model and, where it has one, its ruled
+	# lines (`paper_disp_sen_model`), into `ui/letter/paperNN.png` for `LetterChrome`.
+	letter_dir = cfg.godot_generated / "ui" / "letter"
+	letter_stage = cfg.converted / "ui" / "letter"
+	letter_dir.mkdir(parents=True, exist_ok=True)
+	letter_stage.mkdir(parents=True, exist_ok=True)
+	for n in range(1, PAPER_COUNT + 1):
+		name = f"paper{n:02d}"
+		rec = {"asset_id": name, "output_path": f"ui/letter/{name}.png", "error": None}
+		try:
+			walker = UiWalker(rel, symbols)
+			model = "lat_letter63_win_model" if n == 63 else f"lat_letter{n:02d}_model"
+			ops = [Op("lat_letter_mode"), Op(model)]
+			for sen in (f"lat_letter{n:02d}_sen_model", f"lat_letter{n:02d}_senT_model"):
+				if sen in walker.by_name:
+					ops += [Op("lat_letter_sen_mode"), Op(sen)]
+					break
+			image = bake_layer(walker, textures, ops, PAPER_BOUNDS, scale)
+			_save(image, name, letter_stage, letter_dir, cfg.project_root)
 			rec["status"] = "converted"
 		except Exception as exc:  # noqa: BLE001
 			rec["status"] = "error"

@@ -1,11 +1,11 @@
 class_name LetterChrome
 extends RefCounted
 
-## Stationery art + ink color for the "Read a letter" board overlay (`m_board_ovl.c`).
-## Paper art is baked per design by `scenes/dev/letter_paper_bake.gd` (orthographic
-## render of the already-converted `lat_letterNN.glb` models — see that script for why
-## a render is used instead of grabbing a texture by name/size) into
-## `assets/generated/ui/letter/paper{01..64}.png`. Ink colors are `letter_color[]`
+## Stationery art + ink color for the letter board (`m_board_ovl.c`). Paper art is each
+## design's own display list (`paper_disp_model` + its ruled lines,
+## `paper_disp_sen_model`) rasterised by `tools/asset_pipeline/menu_ui.py`
+## (`--kind menu-ui`) into `assets/generated/ui/letter/paper{01..64}.png`, 248x186
+## screen units (x -124..124, y -86..100). Ink colors are `letter_color[]`
 ## transcribed verbatim from `m_board_ovl.c:643-708` — used only for header/body/footer
 ## text color, never to tint the paper (`m_board_ovl.c:1220-1235`).
 

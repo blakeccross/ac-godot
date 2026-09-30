@@ -7,13 +7,13 @@ extends Control
 ## `menu_ui.py`; the 10x4 key caps, their characters, the character shown on the A
 ## button and the SP glyph are drawn here, like the C code draws them.
 ##
-## Keys (pad → keyboard): arrows move, Space = A (type the key), Backspace = B,
-## Tab = Y (letters / punctuation / icons), Shift = L (caps), Enter = START. Printable
-## hardware keys type directly.
+## Keys (pad → keyboard): printable keys, Space included, type directly (R is the
+## space key); arrows move the highlight and Shift+Enter or a click types the
+## highlighted key (A); Backspace = B; Tab = Y (letters / punctuation / icons);
+## Caps Lock = L. Enter and Escape are left to the owner (START / newline).
 
 signal typed(ch: String)
 signal erased
-signal finished
 
 enum InputMode { LETTER, SIGN, MARK }
 
@@ -123,7 +123,9 @@ func handle_key(k: InputEventKey) -> bool:
 		KEY_RIGHT: _move(1, 0)
 		KEY_UP: _move(0, -1)
 		KEY_DOWN: _move(0, 1)
-		KEY_SPACE:
+		KEY_ENTER, KEY_KP_ENTER:
+			if not k.shift_pressed:
+				return false
 			var ch := key_at(col, row)
 			if ch != "":
 				typed.emit(ch)
@@ -132,14 +134,12 @@ func handle_key(k: InputEventKey) -> bool:
 		KEY_TAB:
 			mode = wrapi(mode + 1, 0, 3)
 			Audio.play_se(&"cursol")
-		KEY_SHIFT:
+		KEY_CAPSLOCK:
 			if mode == InputMode.LETTER:
 				caps = not caps
 				Audio.play_se(&"cursol")
-		KEY_ENTER, KEY_KP_ENTER:
-			finished.emit()
 		_:
-			if k.unicode >= 33 and not k.echo:
+			if k.unicode >= 32:
 				typed.emit(char(k.unicode))
 			else:
 				return false

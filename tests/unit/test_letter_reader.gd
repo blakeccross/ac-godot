@@ -27,18 +27,17 @@ func test_open_shows_paper_art_and_ink_color_for_paper_type() -> void:
 	var mail := _received_mail(9)
 	r.open(mail)
 	assert_bool(r.is_open()).is_true()
-	assert_object(r._paper.texture).is_equal(LetterChrome.paper_texture(9))
-	assert_bool(r._header.has_theme_color_override("font_color")).is_true()
-	assert_that(r._header.get_theme_color("font_color")).is_equal(LetterChrome.ink_color(9))
+	assert_int(r._board.paper_type).is_equal(9)
+	assert_that(r._board.ink()).is_equal(LetterChrome.ink_color(9))
 
 
 func test_open_populates_header_body_footer_from_mail() -> void:
 	var r := _reader()
 	var mail := _received_mail()
 	r.open(mail)
-	assert_str(r._header.text).is_equal(mail.header)
-	assert_str(r._body.text).is_equal(mail.body)
-	assert_str(r._footer.text).is_equal(mail.footer)
+	assert_str(r._board.header).is_equal(mail.header)
+	assert_str(" ".join(r._board.body_lines)).is_equal(mail.body)
+	assert_str(r._board.footer).is_equal(mail.footer)
 
 
 func test_open_marks_a_received_letter_read_exactly_once() -> void:
@@ -63,7 +62,7 @@ func test_close_emits_closed_and_can_reopen() -> void:
 	var mail2 := _received_mail(3)
 	r.open(mail2)
 	assert_bool(r.is_open()).is_true()
-	assert_str(r._header.text).is_equal(mail2.header)
+	assert_str(r._board.header).is_equal(mail2.header)
 
 
 func test_ignores_open_while_already_open() -> void:
@@ -72,7 +71,7 @@ func test_ignores_open_while_already_open() -> void:
 	r.open(mail)
 	var mail2 := _received_mail(5)
 	r.open(mail2)
-	assert_str(r._header.text).is_equal(mail.header)
+	assert_str(r._board.header).is_equal(mail.header)
 
 
 func test_ink_color_and_paper_texture_clamp_out_of_range_paper_type() -> void:
