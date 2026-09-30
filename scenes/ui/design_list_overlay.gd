@@ -85,7 +85,9 @@ func is_open() -> bool:
 	return _open
 
 
-func open(mode: String, callback: Callable = Callable()) -> void:
+## `beside_inventory`: opened from the pockets' pencil tab (`mNW_OPEN_INV`) — the book
+## sits 46 right of centre over the pockets' letter column instead of 10, with no dim.
+func open(mode: String, callback: Callable = Callable(), beside_inventory: bool = false) -> void:
 	if _open:
 		return
 	if Game == null or Game.designs == null:
@@ -95,6 +97,11 @@ func open(mode: String, callback: Callable = Callable()) -> void:
 		"pick_trade": _mode = ListMode.PICK_TRADE
 		_: _mode = ListMode.MANAGE
 	_cb = callback
+	_book.position.x = 160.0 + (46.0 if beside_inventory else 10.0) - BOOK_SIZE.x * 0.5
+	var dim := _root.get_node("Dim") as ColorRect
+	dim.color.a = 0.0 if beside_inventory else 0.5
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE if beside_inventory else Control.MOUSE_FILTER_STOP
+	_root.mouse_filter = dim.mouse_filter
 	_sel = 0
 	_held = -1
 	_open = true

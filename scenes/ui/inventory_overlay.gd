@@ -273,11 +273,29 @@ func _on_side_tab_gui(event: InputEvent, tab: Panel) -> void:
 		Audio.play_se(&"cursol")
 		var list_ui: Node = get_tree().get_first_node_in_group("design_list_ui") if get_tree() != null else null
 		if list_ui != null and list_ui.has_method("open"):
-			list_ui.call("open", "manage", Callable())
+			## `mSM_OVL_NEEDLEWORK` / `mNW_OPEN_INV`: the book opens over the right half of
+			## the pockets, which stay up with the letters hidden (`mIV_set_mail_dl`
+			## skips them while the needlework menu is next).
+			list_ui.call("open", "manage", Callable(), true)
+			if list_ui.is_open() and list_ui.has_signal("closed"):
+				_set_design_book_open(true)
+				list_ui.closed.connect(_set_design_book_open.bind(false), CONNECT_ONE_SHOT)
 		else:
 			Game.post_notice("The design book isn't available here.")
 	else:
 		_select_side_tab(page)
+
+
+func _set_design_book_open(on: bool) -> void:
+	for btn: Button in _mail_buttons:
+		btn.visible = not on
+	if _letters_label != null:
+		_letters_label.visible = not on and _side_tab == SideTab.POCKETS
+	if _hand_root != null:
+		if on:
+			_hand_root.visible = false
+		else:
+			_update_hand_cursor(false)
 
 
 func _cycle_side_tab(delta: int) -> void:

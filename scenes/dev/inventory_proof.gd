@@ -114,3 +114,17 @@ func _extra_checks() -> void:
 	img = get_viewport().get_texture().get_image()
 	img.save_png("user://inventory_proof_7_letter.png")
 	print("inventory_proof: wrote 7_letter")
+	_letter_reader.close()
+
+	## Pencil tab: the design book opens beside the pockets (`mNW_OPEN_INV`).
+	var list_ui: CanvasLayer = load("res://scenes/ui/design_list_overlay.tscn").instantiate()
+	add_child(list_ui)
+	await get_tree().process_frame
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	_overlay._on_side_tab_gui(click, _overlay._tab_design)
+	await get_tree().create_timer(0.45).timeout
+	img = get_viewport().get_texture().get_image()
+	img.save_png("user://inventory_proof_8_design_book.png")
+	print("inventory_proof: wrote 8_design_book")
