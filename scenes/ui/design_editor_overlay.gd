@@ -12,10 +12,14 @@ extends CanvasLayer
 ## 5-row icon picker. `L` / `R` cycle the mode tabs, `Start` opens the
 ## save / keep-editing / discard prompt (`mSM_OVL_EDITENDCHK`).
 ##
-## Window frame is the real `des_win_shitaT_model` 8-piece border, baked to
-## `ui/design/window_shell.png` by `tools/asset_pipeline/design_ui.py`
-## (`--kind design-ui`). Controls are keyboard + mouse; the decomp C-stick / D-pad /
-## C-button bindings map to arrows, `[` `]`, `Tab`, `Z`, `,` `.` and number keys.
+## Presentation follows the original screen: the `des_win_shitaT_model` board (baked to
+## `ui/design/window_shell.png`), the four mode areas, the 1:1 preview, the canvas,
+## the 15-colour column with the palette switch and number, the tool icons and the
+## per-tool cursor, all at their `des_win` / `des_tool` coordinates. Textures come
+## from `tools/asset_pipeline/design_ui.py` (`--kind design-ui`).
+##
+## Controls are keyboard + mouse; the decomp C-stick / D-pad / C-button bindings map to
+## arrows, `[` `]`, `Tab`, `Z`, `,` `.` and number keys.
 
 signal closed
 
@@ -71,14 +75,6 @@ const MARK_SQUARE := [
 ]
 
 const TOOL_ROWS := [3, 6, 5, 4, 1]  ## columns per tool row (pen/nuri/waku/mark/undo)
-const TOOL_LABELS := [
-	["1px", "2x2", "3x3"],
-	["Fill", "V-bands", "H-bands", "Grid", "Polka", "All"],
-	["Rect", "Ellipse", "Rect fill", "Ellipse fill", "Line"],
-	["Heart", "Star", "Circle", "Square"],
-	["Undo"],
-]
-const TOOL_NAMES := ["Pen", "Fill", "Shape", "Stamp", "Undo"]
 
 var _open: bool = false
 var _slot: int = -1
@@ -119,13 +115,16 @@ var _prompt_idx: int = 0
 var _on_done: Callable = Callable()
 
 @onready var _root: Control = $Root
-@onready var _canvas: Control = $Root/Frame/Box/Middle/Canvas
-@onready var _title: Label = $Root/Frame/Box/Header/Title
-@onready var _status: Label = $Root/Frame/Box/Footer/Status
-@onready var _hint: Label = $Root/Frame/Box/Footer/Hint
-@onready var _swatches: Control = $Root/Frame/Box/Middle/Side/SwatchRow/Swatches
-@onready var _panel: Control = $Root/Frame/Box/Middle/Side/SwatchRow/Panel
+@onready var _screen: Control = $Root/Screen
+@onready var _chrome: Control = $Root/Screen/Chrome
+@onready var _tools: Control = $Root/Screen/Tools
+@onready var _marks: Control = $Root/Screen/Marks
+@onready var _color_mark: Control = $Root/Screen/ColorMark
+@onready var _pal_mark: Control = $Root/Screen/PalMark
+@onready var _cursor_view: Control = $Root/Screen/Cursor
 @onready var _promptbox: PanelContainer = $Root/Prompt
+
+var _tex_cache: Dictionary = {}
 
 
 func _ready() -> void:
@@ -133,10 +132,15 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("design_ui")
 	_root.visible = false
-	_canvas.draw.connect(_draw_canvas)
-	_swatches.draw.connect(_draw_swatches)
-	_panel.draw.connect(_draw_panel)
-	_canvas.gui_input.connect(_on_canvas_input)
+	_chrome.draw.connect(_draw_chrome)
+	_tools.draw.connect(_draw_tools)
+	_marks.draw.connect(_draw_marks)
+	_color_mark.draw.connect(_draw_color_mark)
+	_pal_mark.draw.connect(_draw_pal_mark)
+	_cursor_view.draw.connect(_draw_cursor)
+	_screen.gui_input.connect(_on_screen_input)
+	_root.resized.connect(_fit_screen)
+	_fit_screen()
 	set_process_unhandled_input(false)
 
 
@@ -346,49 +350,102 @@ func _prompt_key(kc: int) -> void:
 
 # --- mouse ---------------------------------------------------------------
 
-func _on_canvas_input(event: InputEvent) -> void:
-	if not _open or _prompt or _mode != Mode.MAIN:
+## Mouse maps onto the regions the pad cursor visits: the canvas (MAIN), the colour
+## column and palette switch (PALLET), the 1:1 preview (GRID), the tool icons (TOOL)
+## and the Start / Quit buttons.
+func _on_screen_input(event: InputEvent) -> void:
+	if not _open or _prompt or not (event is InputEventMouse):
 		return
-	var cell := _cell_from_local(event)
+	var u := _units((event as InputEventMouse).position)
+	var cell := _cell_at(u)
 	if event is InputEventMouseMotion:
-		if cell.x >= 0:
+		if cell.x >= 0 and _mode == Mode.MAIN:
 			_cursor = cell
 			if _drawing and _tool == Tool.PEN:
 				_stroke_to(cell)
 			_refresh()
 		return
-	if event is InputEventMouseButton:
-		var mb := event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
-			_step_paint(1); _refresh(); return
-		if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
-			_step_paint(-1); _refresh(); return
-		if mb.button_index == MOUSE_BUTTON_RIGHT and mb.pressed:
-			if cell.x >= 0:
-				_paint = _pal_at(cell.x, cell.y)
-				_refresh()
-			return
-		if mb.button_index != MOUSE_BUTTON_LEFT:
-			return
-		if mb.pressed and cell.x >= 0:
-			_cursor = cell
-			_apply_tool_press()
-		elif not mb.pressed:
+	var mb := event as InputEventMouseButton
+	if mb == null:
+		return
+	if not mb.pressed:
+		if mb.button_index == MOUSE_BUTTON_LEFT:
 			_drawing = false
 			_last_paint = Vector2i(-1, -1)
-		_refresh()
+		return
+	match mb.button_index:
+		MOUSE_BUTTON_WHEEL_UP:
+			_step_paint(-1)
+		MOUSE_BUTTON_WHEEL_DOWN:
+			_step_paint(1)
+		MOUSE_BUTTON_RIGHT:
+			if cell.x >= 0:
+				_paint = _pal_at(cell.x, cell.y)
+			elif KIRIKAE.has_point(u):
+				_palette_no = wrapi(_palette_no - 1, 0, 16)
+				Audio.play_se(&"cursol")
+		MOUSE_BUTTON_LEFT:
+			_click(u, cell)
+		_:
+			return
+	_refresh()
 
 
-func _cell_from_local(event: InputEvent) -> Vector2i:
-	var pos: Vector2 = _canvas.get_local_mouse_position()
-	if event is InputEventMouse:
-		pos = (event as InputEventMouse).position
-	var sz := _canvas.size
-	var px := int(pos.x / (sz.x / float(W)))
-	var py := int(pos.y / (sz.y / float(H)))
-	if px < 0 or px >= W or py < 0 or py >= H:
+func _click(u: Vector2, cell: Vector2i) -> void:
+	if cell.x >= 0:
+		if _mode != Mode.MAIN:
+			_mode = Mode.MAIN
+			_waku_armed = false
+		_cursor = cell
+		_apply_tool_press()
+		return
+	if KIRIKAE.has_point(u):
+		_mode = Mode.PALLET
+		_pal_row = 0
+		_palette_no = wrapi(_palette_no + 1, 0, 16)
+		Audio.play_se(&"cursol")
+		return
+	if SWATCH_COLUMN.has_point(u):
+		_paint = clampi(1 + int((SWATCH_COLUMN.end.y - u.y) / 10.0), 1, 15)
+		_mode = Mode.MAIN
+		Audio.play_se(&"cursol")
+		return
+	if (AREAS[Mode.GRID] as Rect2).has_point(u):
+		_grid_on = not _grid_on
+		Audio.play_se(&"cursol")
+		return
+	if START_BUTTON.has_point(u) or QUIT_BUTTON.has_point(u):
+		_open_prompt()
+		return
+	var hit := _tool_at(u)
+	if hit.x >= 0:
+		_tool_row = hit.x
+		_tool_col = hit.y if _mode == Mode.TOOL else int([_pen_size, _fill_mode, _shape, _stamp, 0][hit.x])
+		_commit_tool_pick()
+
+
+## Screen-local pixels (320x240, top-left origin) → design-window units (centre, y up).
+func _units(local: Vector2) -> Vector2:
+	return Vector2(local.x - 160.0, 120.0 - local.y)
+
+
+func _cell_at(u: Vector2) -> Vector2i:
+	if not CANVAS.has_point(u):
 		return Vector2i(-1, -1)
-	return Vector2i(px, py)
+	var px := int((u.x - CANVAS.position.x) / 5.0)
+	var py := int((CANVAS.end.y - u.y) / 5.0)
+	return Vector2i(clampi(px, 0, W - 1), clampi(py, 0, H - 1))
+
+
+## (row, col) of the tool icon under `u`, or (-1, -1). Only column 0 shows outside TOOL
+## mode (`des_tool_*1T_model`).
+func _tool_at(u: Vector2) -> Vector2i:
+	for row in 5:
+		var cols: int = int(TOOL_ROWS[row]) if _mode == Mode.TOOL else 1
+		for col in range(cols - 1, -1, -1):
+			if _tool_rect(row, col).has_point(u):
+				return Vector2i(row, col)
+	return Vector2i(-1, -1)
 
 
 # --- tool application (mirror m_design_ovl.c) ---------------------------
@@ -674,37 +731,87 @@ func _resolve_prompt(idx: int) -> void:
 
 
 # --- rendering ------------------------------------------------------
+#
+# Layout is `des_win.c` / `des_tool.c` / `des_suuji.c` / `des_marking.c` / `des_cursor.c`
+# in their own 320x240 screen units (centre origin, y up); `Screen` is that space scaled
+# to fit. Rects below are (min corner, size) in those units.
+
+const CANVAS := Rect2(-81, -80, 160, 160)  ## `des_win_main_model`
+const PREVIEW := Rect2(-128, 48, 32, 32)  ## `des_win_toubai_model` (1:1)
+const KIRIKAE := Rect2(97, 58, 26, 26)  ## palette switch
+const SWATCH_COLUMN := Rect2(98, -92, 24, 150)  ## `des_win_waku2_model`
+const START_BUTTON := Rect2(38, -101, 18, 18)
+const QUIT_BUTTON := Rect2(55, -98, 28, 14)
+## `area_table` in `mDE_set_frame_main_dl`, indexed by Mode (area1, area2, area4, area3).
+const AREAS := [Rect2(-87, -86, 172, 172), Rect2(90, -101, 40, 200), Rect2(-132, 44, 40, 40), Rect2(-130, -98, 36, 132)]
+const AREA_ACTIVE := Color(40 / 255.0, 235 / 255.0, 160 / 255.0, 180 / 255.0)
+const AREA_IDLE := Color(90 / 255.0, 70 / 255.0, 40 / 255.0, 180 / 255.0)
+## `des_win_waku_model`: frames behind the canvas and the preview.
+const WAKU := [Rect2(-82, -81, 162, 162), Rect2(-129, 47, 34, 34)]
+const DARK := Color(60 / 255.0, 60 / 255.0, 60 / 255.0)
+const GRID_DOTS := Color(0, 0, 0, 100 / 255.0)
+## `des_win_grid2_model`: centre cross on the canvas and the preview.
+const GRID2 := [Rect2(-1, -80, 2, 160), Rect2(-81, -1, 160, 2), Rect2(-113, 48, 2, 32), Rect2(-128, 63, 32, 2)]
+const GRID2_COLOR := Color(60 / 255.0, 85 / 255.0, 70 / 255.0, 120 / 255.0)
+const SUUJI_PALLET := Color(215 / 255.0, 30 / 255.0, 30 / 255.0, 1.0)
+const SUUJI_IDLE := Color(1.0, 245 / 255.0, 215 / 255.0, 180 / 255.0)
+const MARK_TOOL := Color(185 / 255.0, 50 / 255.0, 50 / 255.0)
+const MARK_IDLE := Color(215 / 255.0, 195 / 255.0, 195 / 255.0)
+const CURSOR_PRIM := Color(60 / 255.0, 70 / 255.0, 60 / 255.0)
+## Tool icon UVs run -1.34..33.34 over a 26-unit quad (clamped edges).
+const ICON_SRC := Rect2(-1.34375, -1.34375, 34.6875, 34.6875)
+const TOOL_TEX := ["des_tool_pen%d_tex_rgb_ia8", "des_tool_nuri%d_tex_rgb_ia8", "des_tool_waku%d_tex_rgb_ia8", "des_tool_mark%d_tex_rgb_ia8"]
+
+
+func _fit_screen() -> void:
+	var sz := _root.size
+	if sz.x <= 0.0 or sz.y <= 0.0:
+		return
+	var k := minf(sz.x / 320.0, sz.y / 240.0)
+	_screen.scale = Vector2(k, k)
+	_screen.position = (sz - Vector2(320, 240) * k) * 0.5
+
+
+func _tex(name: String) -> Texture2D:
+	if _tex_cache.has(name):
+		return _tex_cache[name]
+	var path := "res://assets/generated/ui/design/%s.png" % name
+	var t: Texture2D = load(path) if ResourceLoader.exists(path) else null
+	_tex_cache[name] = t
+	return t
+
+
+## Units rect → Screen-local pixels.
+func _px(r: Rect2) -> Rect2:
+	return Rect2(r.position.x + 160.0, 120.0 - r.end.y, r.size.x, r.size.y)
+
+
+func _at(center: Vector2, size: Vector2) -> Rect2:
+	return _px(Rect2(center - size * 0.5, size))
+
+
+func _tool_rect(row: int, col: int) -> Rect2:
+	return Rect2(-125 + 24 * col, 3 - 24 * row, 26, 26)
+
 
 func _refresh() -> void:
 	if not _open:
 		return
-	_title.text = "Design  —  %s" % (_design.name if _design != null else "?")
-	var tn: String = TOOL_NAMES[_tool]
-	var sub := ""
-	match _tool:
-		Tool.PEN: sub = TOOL_LABELS[0][_pen_size]
-		Tool.NURI: sub = TOOL_LABELS[1][_fill_mode]
-		Tool.WAKU: sub = TOOL_LABELS[2][_shape]
-		Tool.MARK: sub = TOOL_LABELS[3][_stamp]
-	var mode_names := ["MAIN", "PALETTE", "GRID", "TOOL"]
-	_status.text = "%s  |  %s %s  |  colour %d  |  palette %d  |  (%d,%d)" % [
-		mode_names[_mode], tn, sub, _paint, _palette_no, _cursor.x, _cursor.y]
-	if _tool == Tool.WAKU and _waku_armed:
-		_hint.text = "space set the far corner  ·  B cancel  ·  [ ] tabs  ·  enter save"
-	elif _mode == Mode.PALLET:
-		_hint.text = "↑↓ row  ·  space pick / next palette  ·  B prev palette  ·  [ ] tabs"
-	elif _mode == Mode.TOOL:
-		_hint.text = "arrows move  ·  space choose  ·  [ ] tabs"
-	else:
-		_hint.text = "arrows move  ·  space paint  ·  B eyedrop  ·  Z undo  ·  Tab grid  ·  , . colour  ·  1-5 tool  ·  [ ] tabs  ·  enter save"
+	var cm := _color_mark.material as ShaderMaterial
+	if cm != null:
+		cm.set_shader_parameter("prim", Color8(235, 235, 235) if _mode == Mode.PALLET else Color8(205, 185, 185))
+		cm.set_shader_parameter("env", Color8(105, 85, 115))
+	var pm := _pal_mark.material as ShaderMaterial
+	if pm != null:
+		pm.set_shader_parameter("prim", Color8(255, 80, 80))
+		pm.set_shader_parameter("env", Color8(30, 30, 30))
 	_promptbox.visible = _prompt
 	if _prompt:
 		var opts := ["Save it", "Keep editing", "Throw it out"]
 		var pl: Label = _promptbox.get_node("V/Options")
 		pl.text = "   ".join(range(3).map(func(i): return ("▶ " if i == _prompt_idx else "  ") + opts[i]))
-	_canvas.queue_redraw()
-	_swatches.queue_redraw()
-	_panel.queue_redraw()
+	for n: CanvasItem in [_chrome, _tools, _marks, _color_mark, _pal_mark, _cursor_view]:
+		n.queue_redraw()
 
 
 func _preview_work() -> PackedByteArray:
@@ -719,77 +826,145 @@ func _preview_work() -> PackedByteArray:
 	return _work
 
 
-func _draw_canvas() -> void:
-	var sz := _canvas.size
-	var cw := sz.x / float(W)
-	var ch := sz.y / float(H)
+## `mDE_set_frame_main_dl`: board areas, buttons, frames, preview, canvas, colours, grid;
+## then `mDE_set_frame_suuji_dl`'s palette number.
+func _draw_chrome() -> void:
+	var ci := _chrome
+	for m in AREAS.size():
+		ci.draw_rect(_px(AREAS[m]), AREA_ACTIVE if m == _mode else AREA_IDLE)
+	var start := _tex("des_win_start_tex")
+	if start != null:
+		ci.draw_texture_rect(start, _px(START_BUTTON), false)
+	var quit := _tex("kei_win_quit_tex")
+	if quit != null:
+		ci.draw_texture_rect(quit, _px(QUIT_BUTTON), false)
+	for r: Rect2 in WAKU:
+		ci.draw_rect(_px(r), DARK)
 	var pal := NeedleworkPalettes.colors(_palette_no)
 	var px := _preview_work()
+	_draw_pixels(ci, _px(PREVIEW), px, pal)
+	_draw_pixels(ci, _px(CANVAS), px, pal)
+
+	var swatch := _tex("des_win_color_tex")
+	for i in 15:
+		var r := _px(Rect2(98, 48 - 10 * i, 24, 10))
+		if swatch != null:
+			ci.draw_texture_rect_region(swatch, r, Rect2(0, 0, 32, 16), pal[i + 1])
+		else:
+			ci.draw_rect(r, pal[i + 1])
+	var cwaku := _tex("des_win_cwaku_tex")
+	if cwaku != null:
+		ci.draw_texture_rect_region(cwaku, _px(SWATCH_COLUMN), Rect2(0, 0, 32, 240), DARK)
+
+	if _grid_on:
+		var sen := _tex("des_win_sen_tex")
+		if sen != null:
+			ci.draw_texture_rect_region(sen, _px(CANVAS), Rect2(0, 0, 512, 512), GRID_DOTS)
+		for r: Rect2 in GRID2:
+			ci.draw_rect(_px(r), GRID2_COLOR)
+
+	var prim := SUUJI_PALLET if _mode == Mode.PALLET else SUUJI_IDLE
+	var slash := PackedVector2Array()
+	for p: Vector2 in [Vector2(112, 96), Vector2(110, 96), Vector2(108, 87), Vector2(110, 87)]:
+		slash.append(Vector2(p.x + 160.0, 120.0 - p.y))
+	ci.draw_colored_polygon(slash, prim)
+	var no := _palette_no + 1
+	if no >= 10:
+		_draw_digit(ci, 1, 93, prim)
+		_draw_digit(ci, no % 10, 100, prim)
+	else:
+		_draw_digit(ci, no, 98, prim)
+	_draw_digit(ci, 1, 113, prim)
+	_draw_digit(ci, 6, 120, prim)
+
+
+func _draw_digit(ci: CanvasItem, d: int, x0: float, prim: Color) -> void:
+	var t := _tex("des_win_suuji%d_tex_rgb_i4" % d)
+	if t != null:
+		ci.draw_texture_rect_region(t, _px(Rect2(x0, 87, 7, 12)), Rect2(1.59375, 0, 11.21875, 16), prim)
+
+
+func _draw_pixels(ci: CanvasItem, r: Rect2, px: PackedByteArray, pal: PackedColorArray) -> void:
+	var cw := r.size.x / float(W)
+	var ch := r.size.y / float(H)
 	for y in H:
 		for x in W:
-			_canvas.draw_rect(Rect2(x * cw, y * ch, cw + 1.0, ch + 1.0), pal[px[y * W + x] & 0xF])
-	if _grid_on:
-		var gc := Color(0, 0, 0, 0.18)
-		for i in range(1, W):
-			var lw := 1.5 if i % 4 == 0 else 0.6
-			_canvas.draw_line(Vector2(i * cw, 0), Vector2(i * cw, sz.y), gc, lw)
-			_canvas.draw_line(Vector2(0, i * ch), Vector2(sz.x, i * ch), gc, lw)
-	# cursor / brush rect
-	var bs := Vector2i(1, 1)
-	if _tool == Tool.PEN and _pen_size == 1: bs = Vector2i(2, 2)
-	elif _tool == Tool.PEN and _pen_size == 2: bs = Vector2i(3, 3)
-	elif _tool == Tool.MARK: bs = Vector2i(12, 12)
-	var c0 := _cursor
-	if _tool == Tool.MARK: c0 -= Vector2i(5, 6)
-	elif _tool == Tool.PEN and _pen_size >= 1: c0 -= Vector2i(1, 1)
-	_canvas.draw_rect(Rect2(c0.x * cw, c0.y * ch, bs.x * cw, bs.y * ch), Color(1, 1, 1, 0.9), false, 2.0)
-	_canvas.draw_rect(Rect2(_cursor.x * cw, _cursor.y * ch, cw, ch), Color(1, 0.2, 0.2, 1), false, 2.0)
-	if _tool == Tool.WAKU and _waku_armed:
-		_canvas.draw_rect(Rect2(_waku_anchor.x * cw, _waku_anchor.y * ch, cw, ch), Color(0.2, 0.8, 1, 1), false, 2.0)
+			ci.draw_rect(Rect2(r.position.x + x * cw, r.position.y + y * ch, cw + 0.02, ch + 0.02), pal[px[y * W + x] & 0xF])
 
 
-func _draw_swatches() -> void:
-	var pal := NeedleworkPalettes.colors(_palette_no)
-	var n := NeedleworkPalettes.COLOR_COUNT
-	var h := _swatches.size.y / float(n)
-	for i in n:
-		var r := Rect2(0, i * h, _swatches.size.x, h - 1.0)
-		_swatches.draw_rect(r, pal[i])
-		var sel := (i == _paint) or (_mode == Mode.PALLET and i == _pal_row)
-		if sel:
-			_swatches.draw_rect(r, Color(1, 1, 1, 1), false, 2.0)
-		if i == _paint:
-			_swatches.draw_rect(Rect2(r.position, Vector2(4, r.size.y)), Color(1, 0.85, 0.1, 1))
+## `mDE_set_frame_tool_dl`: every variant in TOOL mode, otherwise each row's current one.
+func _draw_tools() -> void:
+	var ci := _tools
+	var kirikae := _tex("des_win_kirikae_tex")
+	if kirikae != null:
+		ci.draw_texture_rect_region(kirikae, _px(KIRIKAE), ICON_SRC)
+	var current := [_pen_size, _fill_mode, _shape, _stamp]
+	for row in 4:
+		var cols: int = int(TOOL_ROWS[row]) if _mode == Mode.TOOL else 1
+		for col in cols:
+			var variant: int = col if _mode == Mode.TOOL else int(current[row])
+			var t := _tex(TOOL_TEX[row] % (variant + 1))
+			if t == null:
+				continue
+			var src := Rect2(0, 0, 32, 32) if (row == 1 and col == 5) else ICON_SRC
+			ci.draw_texture_rect_region(t, _px(_tool_rect(row, col)), src)
+	var undo := _tex("des_tool_undo_tex")
+	if undo != null:
+		ci.draw_texture_rect_region(undo, _px(_tool_rect(4, 0)), ICON_SRC)
 
 
-func _draw_panel() -> void:
-	var font := _panel.get_theme_default_font()
-	var fs := 13
-	var y := 16.0
-	var col := Color(0.97, 0.92, 0.78)
-	_panel.draw_string(font, Vector2(6, y), "PALETTE %d" % _palette_no, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
-	y += 22
+## `mDE_set_frame_mark_dl`: the tool frame and the palette-switch frame.
+func _draw_marks() -> void:
+	var t := _tex("des_win_marking_tex")
+	if t == null:
+		return
+	var c := Vector2(-112, 16 - _tool * 24)
+	var col := MARK_IDLE
 	if _mode == Mode.TOOL:
-		for row in 5:
-			_panel.draw_string(font, Vector2(6, y), TOOL_NAMES[row], HORIZONTAL_ALIGNMENT_LEFT, -1, fs,
-				Color(0.9, 0.4, 0.1) if row == _tool_row else col)
-			y += 16
-			var labels: Array = TOOL_LABELS[row]
-			for c in labels.size():
-				var mark := "▶" if (row == _tool_row and c == _tool_col) else "  "
-				_panel.draw_string(font, Vector2(16, y), "%s %s" % [mark, labels[c]], HORIZONTAL_ALIGNMENT_LEFT, -1, 11, col)
-				y += 13
-			y += 4
-	else:
-		var lines := [
-			"[ / ]  mode tab",
-			"1-5    tool",
-			"Tab    grid " + ("on" if _grid_on else "off"),
-			", .    colour",
-			"B      eyedropper",
-			"Z      undo/redo",
-			"Enter  save / exit",
-		]
-		for s in lines:
-			_panel.draw_string(font, Vector2(6, y), s, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, col)
-			y += 15
+		c = Vector2(-112 + _tool_col * 24, 16 - _tool_row * 24)
+		col = MARK_TOOL
+	_marks.draw_texture_rect_region(t, _at(c, Vector2(28, 28)), Rect2(0, 0, 32, 32), col)
+	if _mode == Mode.PALLET and _pal_row == 0:
+		_marks.draw_texture_rect_region(t, _at(Vector2(110, 71), Vector2(28, 28)), Rect2(0, 0, 32, 32), MARK_TOOL)
+
+
+func _draw_color_mark() -> void:
+	var t := _tex("des_win_marking3_tex")
+	if t != null:
+		_color_mark.draw_texture_rect_region(t, _at(Vector2(110, 63 - _paint * 10), Vector2(26, 12)), Rect2(0, 0, 32, 16))
+
+
+func _draw_pal_mark() -> void:
+	var t := _tex("des_win_marking3_tex")
+	if t != null and _mode == Mode.PALLET and _pal_row > 0:
+		_pal_mark.draw_texture_rect_region(t, _at(Vector2(110, 63 - _pal_row * 10), Vector2(26, 12)), Rect2(0, 0, 32, 16))
+
+
+## `mDE_set_frame_cursor_dl` (MAIN only): the tool's cursor sprite, offset from the
+## cell so the pencil tip / bucket spout / stamp sits on it.
+func _draw_cursor() -> void:
+	if _mode != Mode.MAIN or _prompt:
+		return
+	var base := Vector2(_cursor.x * 5 - 75, 75 - _cursor.y * 5)
+	match _tool:
+		Tool.PEN:
+			_cursor_sprite("des_cursor_pen_tex", base + Vector2(8, 13), 22, Rect2(0, 0, 32, 32), Color.WHITE)
+		Tool.NURI:
+			_cursor_sprite("des_cursor_nuri_tex", base + Vector2(1, 11), 20, Rect2(0, 0, 32, 32), Color.WHITE)
+		Tool.WAKU:
+			if _waku_armed:
+				var anchor := Vector2(_waku_anchor.x * 5 - 75, 75 - _waku_anchor.y * 5)
+				_cursor_sprite("des_cursor_sen_tex", anchor + Vector2(-3, 10), 16, Rect2(0, 0, 32, 32), Color.WHITE)
+				_cursor_sprite("des_cursor_waku_tex", base + Vector2(-4, 3), 16, Rect2(0, 32, 32, 32), Color.WHITE)
+			else:
+				_cursor_sprite("des_cursor_waku_tex", base + Vector2(-3, 2), 16, Rect2(0, 0, 32, 32), Color.WHITE)
+		Tool.MARK:
+			_cursor_sprite("des_cursor_mark%d_tex" % (_stamp + 1), base + Vector2(-1, 8), 20, Rect2(0, 0, 32, 32), CURSOR_PRIM)
+		Tool.UNDO:
+			_cursor_sprite("des_cursor_undo_tex", base + Vector2(-1, 8), 20, Rect2(0, 0, 32, 32), CURSOR_PRIM)
+
+
+func _cursor_sprite(name: String, center: Vector2, size: float, src: Rect2, tint: Color) -> void:
+	var t := _tex(name)
+	if t != null:
+		_cursor_view.draw_texture_rect_region(t, _at(center, Vector2(size, size)), src, tint)

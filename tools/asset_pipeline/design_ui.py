@@ -55,18 +55,55 @@ class TexSpec:
 	fmt: int
 	siz: int
 	out_name: str | None = None
+	## `LERP(PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT)` baked with fixed colours.
+	prim: tuple[int, int, int, int] | None = None
+	env: tuple[int, int, int, int] | None = None
+	## I-format coverage masks (`PRIMITIVE` colour, `TEXEL0` alpha): white RGB, alpha = I,
+	## tinted at runtime with the caller's `gDPSetPrimColor`.
+	mask: bool = False
 
 
 ## Plain chrome pieces — decoded as-is, no geometry baking. Sizes/formats transcribed
 ## from `des_win.c`'s `gsDPSetTextureImage_Dolphin` calls and `des_marking.c`.
+_TOOL_PRIM = (70, 80, 50, 255)  # `des_tool.c` icon PRIM/ENV
+_TOOL_ENV = (235, 205, 145, 255)
+_CURSOR_PRIM = (60, 70, 60, 255)  # `des_cursor.c`
+_CURSOR_ENV = (235, 235, 225, 255)
+
+
+def _i4(name: str, w: int = 16, h: int = 16) -> TexSpec:
+	return TexSpec(name, w, h, G_IM_FMT_I, G_IM_SIZ_4b, mask=True)
+
+
+def _ia8(name: str, prim, env, w: int = 32, h: int = 32) -> TexSpec:
+	return TexSpec(name, w, h, G_IM_FMT_IA, G_IM_SIZ_8b, prim=prim, env=env)
+
+
 CHROME: list[TexSpec] = [
-	TexSpec("des_win_sen_tex", 16, 16, G_IM_FMT_I, G_IM_SIZ_4b),
-	TexSpec("des_win_kirikae_tex", 32, 32, G_IM_FMT_IA, G_IM_SIZ_8b),
-	TexSpec("des_win_cwaku_tex", 16, 16, G_IM_FMT_I, G_IM_SIZ_4b),
-	TexSpec("des_win_color_tex", 16, 16, G_IM_FMT_I, G_IM_SIZ_4b),
-	TexSpec("des_win_start_tex", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b),
-	TexSpec("des_win_marking_tex", 16, 16, G_IM_FMT_I, G_IM_SIZ_4b),
+	_i4("des_win_sen_tex"),
+	_i4("des_win_cwaku_tex"),
+	_i4("des_win_color_tex"),
+	_i4("des_win_marking_tex"),
+	# `des_win_marking2T_model`: PRIM/ENV change per mode, so raw IA (lerp at runtime).
 	TexSpec("des_win_marking3_tex", 16, 16, G_IM_FMT_IA, G_IM_SIZ_8b),
+	_ia8("des_win_kirikae_tex", (80, 80, 60, 255), (195, 185, 165, 255)),
+	_ia8("des_win_start_tex", (225, 225, 205, 255), (30, 30, 20, 255), 16, 16),
+	_ia8("kei_win_quit_tex", (225, 205, 225, 255), (115, 40, 95, 255), 32, 16),
+	*[_i4(f"des_win_suuji{i}_tex_rgb_i4") for i in range(10)],
+	*[_ia8(f"des_tool_pen{i}_tex_rgb_ia8", _TOOL_PRIM, _TOOL_ENV) for i in range(1, 4)],
+	*[_ia8(f"des_tool_nuri{i}_tex_rgb_ia8", _TOOL_PRIM, _TOOL_ENV) for i in range(1, 7)],
+	*[_ia8(f"des_tool_waku{i}_tex_rgb_ia8", _TOOL_PRIM, _TOOL_ENV) for i in range(1, 6)],
+	*[_ia8(f"des_tool_mark{i}_tex_rgb_ia8", _TOOL_PRIM, _TOOL_ENV) for i in range(1, 5)],
+	_ia8("des_tool_undo_tex", _TOOL_PRIM, _TOOL_ENV),
+	_ia8("des_cursor_pen_tex", (61, 70, 60, 255), _CURSOR_ENV),
+	_ia8("des_cursor_nuri_tex", _CURSOR_PRIM, _CURSOR_ENV),
+	_ia8("des_cursor_waku_tex", _CURSOR_PRIM, _CURSOR_ENV),
+	_ia8("des_cursor_sen_tex", _CURSOR_PRIM, (225, 235, 225, 255)),
+	_i4("des_cursor_mark1_tex", 16, 32),
+	_i4("des_cursor_mark2_tex", 16, 32),
+	_i4("des_cursor_mark3_tex"),
+	_i4("des_cursor_mark4_tex"),
+	_i4("des_cursor_undo_tex", 32, 32),
 ]
 
 ## The 8 border tiles + their native size (`des_win.c:194-227`). All GX_MIRROR.
@@ -172,6 +209,12 @@ def _extract_plain(
 		data = rel.slice_at(sym.address, sym.size)
 		gx = gbi_to_gx(spec.fmt, spec.siz)
 		image = decode_gbi_texture(data, spec.width, spec.height, spec.fmt, spec.siz, b"")
+		if spec.prim is not None and spec.env is not None:
+			image = _ia_prim_env(image, spec.prim, spec.env)
+		elif spec.mask:
+			intensity = image.convert("RGBA").split()[0]
+			white = Image.new("L", image.size, 255)
+			image = Image.merge("RGBA", (white, white, white, intensity))
 		if save:
 			png = image_png_bytes(image)
 			for folder in (stage_dir, out_dir):
