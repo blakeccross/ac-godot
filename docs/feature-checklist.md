@@ -361,11 +361,20 @@ data tables before a category is called done.
 
 - [x] 32×32 pixel pattern editor, 16-colour palette (16 preset palettes), full tool set
   (PEN/NURI-fill/WAKU-shapes/MARK-stamps/UNDO), 8-slot design book (`m_design_ovl`) —
-  `design_editor_overlay.tscn`, `design_list_overlay.tscn`, `design_book.gd`. Real
-  `des_win_shitaT_model` window chrome (was Godot-drawn) baked by
-  `tools/asset_pipeline/design_ui.py` (`--kind design-ui`); the 5-row tool-variant
-  icons and 2-digit palette-number readout still use text/hand-drawn glyphs rather
-  than the real `des_tool_*`/`des_win_suuji*` ROM art.
+  `design_editor_overlay.tscn`, `design_list_overlay.tscn`, `design_book.gd`. All three
+  design screens draw like the original from ROM art baked by
+  `tools/asset_pipeline/design_ui.py` (`--kind design-ui`):
+  - Editor: the `des_win` board, mode areas, 1:1 preview, grid, the 15-colour column
+    with its palette number, the `des_tool` icons and per-tool `des_cursor` sprites,
+    all at their original screen coordinates.
+  - Book (`inv_original`): scrolling cloth, 2x4 wells, the pointing hand
+    (`HandCursor`). From the pockets' pencil tab it opens beside the pockets
+    (`mNW_OPEN_INV`).
+  - Album (`sav_win1` + `inv_original2`): per-folder cloth and colours, stacked tabs.
+
+  Not done: the menus' slide-in animation, the waku rubber-band rotation of the
+  shape cursor, and the Start-button prompt still uses a plain panel rather than
+  the message window.
 - [~] Apply patterns as: shirt, hat, umbrella, wallpaper?, or place on the ground / as signboards / hung on walls — shirt (design book "C" wear, `cloth.idx >= CLOTH_NUM + 1`) and the house-door design (§1 gyroid) work; design umbrellas (`ITM_MY_ORG_UMBRELLA0-7`, dragging a design onto the umbrella slot) not yet
 - [x] The **Able Sisters** design display board: put your design on a mannequin / stand, take a copy of one, or swap (§22); villagers pick the displayed designs up (§22 trends)
 - [ ] "Pro" designs? _(GCN: no pro designs)_
