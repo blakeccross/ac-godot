@@ -50,6 +50,8 @@ var frees: PackedStringArray = PackedStringArray()
 ## `mMsg_Set_mail_str`: a player-written block dropped in with `{mail}` (the house gyroid's
 ## message for visitors).
 var mail_text: String = ""
+## `mDemo_Set_talk_window_color`; alpha 0 keeps the default cloud colour.
+var window_color: Color = Color(0, 0, 0, 0)
 var milestones: Array[StringName] = []
 var gifted_items: Array[StringName] = []
 

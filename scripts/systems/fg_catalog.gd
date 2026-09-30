@@ -55,8 +55,8 @@ const ITEM_POLICE_STATION := 0x580C
 const ITEM_SIGN00 := 0x5810
 const ITEM_SIGN20 := 0x5824
 const ITEM_WISHING_WELL := 0x5825
-## `LOTUS`, `STRUCTURE_START` + 65. `DOUZOU` (0x5843, station statue) is deliberately not placed:
-## `aDOU_set_check` draws it only for a player whose house reached `mHm_HOMESIZE_STATUE`.
+## `LOTUS`, `STRUCTURE_START` + 65. `DOUZOU` (0x5843, station statue) is placed by
+## `WorldGenerator` as a `Statue` host that shows only once a house reaches the statue.
 const ITEM_LOTUS := 0x5841
 ## `TOUDAI` (`STRUCTURE_START + 68`, `m_name_table.h`).
 const ITEM_LIGHTHOUSE := 0x5844

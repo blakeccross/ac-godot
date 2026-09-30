@@ -327,7 +327,7 @@ data tables before a category is called done.
 
 ## 18. Player house & interiors
 
-- [~] Small house on day 1 (4×4 interior); upgrades via Nook loans to medium (6×6), large (8×8), and upper floor (2nd floor, 6×6); basement is a separate unlock (49,800 bells). The statue is a reward state, not a room size; no side/back rooms, mansion, or attic exist in GCN — `PlayerHouse` / `HouseUpgrade` / `NookHouseTalk`: next-day builds, loans (148k / 398k / 798k / 49.8k), statue offer. Missing: roof colour recolour, statue actor
+- [~] Small house on day 1 (4×4 interior); upgrades via Nook loans to medium (6×6), large (8×8), and upper floor (2nd floor, 6×6); basement is a separate unlock (49,800 bells). The statue is a reward state, not a room size; no side/back rooms, mansion, or attic exist in GCN — `PlayerHouse` / `HouseUpgrade` / `NookHouseTalk`: next-day builds, loans (148k / 398k / 798k / 49.8k), statue offer, statue actor (§26). Missing: roof colour recolour
 - [ ] Room = grid; place furniture on floor, against walls, on tables (`ac_arrange_room`, `ac_arrange_ftr`)
 - [ ] Wallpaper + carpet per room; ceiling? (no)
 - [~] Furniture rotate (4 or 8 orientations), stack on surfaces, put items on tables (`m_player_main_rotate_furniture`, `rotate_octagon`) — `FurnitureGrip`: A-grip + stick push / pull / turn about the held end, B pick-up, sit / lie by walking in, per-floor furniture cap; missing: bubu puff, bed rolling, octagon (gyroid) rotation
@@ -486,14 +486,14 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 
 ## 26. Town Hall & civic
 
-- [ ] Town Hall building + interior; **Tortimer** the mayor; **Pelly** also works the Town Hall desk in some builds _(verify GCN — Town Hall has Pelly + Tortimer)_ (`m_soncho`, `ac_soncho`, `ac_douzou`)
-- [~] Tortimer hands out event items & hosts most holidays (`ac_ev_soncho`, `ac_ev_speech_soncho`) — holiday speeches and the wishing-well visits with his calendar trophies (§31); the Town Hall itself is not built
-- [ ] Town Hall services: recycling bin (free items left by others / the game), donations, environment info, set the town tune _(verify which desk)_
+- [x] No Town Hall on the GameCube (it arrives in Wild World): Tortimer only appears at events, and Pelly / Phyllis work the post office (§ post office)
+- [~] Tortimer hands out event items & hosts most holidays (`ac_ev_soncho`, `ac_ev_speech_soncho`) — holiday speeches and the wishing-well visits with his calendar trophies (§31)
+- [x] Town Hall services (recycling, donations, environment rating): not on the GameCube; the town tune is set at the melody board by the station (`m_mscore_ovl`)
 - [ ] **Town tune** editor: 16 notes, played on the hour by the town / hummed by villagers (`m_melody`, seq 248) 
 - [ ] Change town flag? / town name is fixed after creation
-- [ ] Tortimer statue in the plaza (`ac_douzou`) on loan payoff / founders' day
-- [ ] Wishing Well: talk to the well spirit **Wishy the Star**; wish for a nice town; environment feedback (`ac_shrine`? / well)
-- [ ] Recycle bin (`ac_reserve`? / recycling) — items rotate daily, free to take
+- [x] Player statue by the station (`ac_douzou`) once a house's loan ends in the statue: owner's figure and face (winter set in winter), rank sets size and gold / silver / bronze / jade colours, plaque reads `MSG_DOZOU` in a red window — `Statue`, `statue_metal.gdshader`, face textures from `weather_sprites.py`; `house statue built [rank]` console command. Missing: the sparkle effect (`ef_douzou_light`)
+- [x] Wishy the Star: not on the GameCube; the wishing well (`ac_shrine`) is scenery plus Tortimer's holiday spot
+- [x] Recycle bin: not on the GameCube (`ac_reserve` is the plot / dock sign); the dump (`ac_dump`) is the closest thing
 - [ ] Bulletin board in the plaza: town notices, event announcements, villager birthday posts, player messages (`m_board_ovl`, `m_hboard_ovl`, `ac_htable`)
 - [ ] Signboards / signposts around town naming acres, warning of cliffs, advertising (`ac_sign`)
 - [~] The plaza / town square as the event stage (K.K., fireworks, Tortimer speeches) — festival crowds stand in their event-map slots, fireworks go up over the pond; K.K. plays at the station

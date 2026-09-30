@@ -172,7 +172,7 @@ func _cmd_help() -> String:
 		"  give <item_id> [count]",
 		"  time [+1h|+1d|HH|HH:MM]",
 		"  bells <amount>",
-		"  house [size <small|medium|large|upper> | basement | build | loan <n> | statue | goki [n] | neglect [days]]",
+		"  house [size <small|medium|large|upper> | basement | build | loan <n> | statue [built [rank]] | goki [n] | neglect [days]]",
 		"  event [list | start <id> | stop [id] | goto <id> | special <id>]",
 		"  fortune [normal|popular|unpopular|bad_luck|money_luck|goods_luck]",
 		"  bug <id> [count]  (spawn insects in front of the player)",
@@ -496,6 +496,14 @@ func _cmd_house(args: PackedStringArray) -> String:
 			HouseGoki.decide_family_count(house)
 			return "Away %d days: %d cockroaches waiting." % [days, house.goki_count]
 		"statue":
+			if args.size() >= 2 and String(args[1]).to_lower() == "built":
+				house.next_size_tier = House.SizeTier.STATUE
+				house.statue_rank = clampi(int(args[2]), 0, 3) if args.size() >= 3 else 0
+				var tree := Engine.get_main_loop() as SceneTree
+				if tree != null:
+					for node: Node in tree.get_nodes_in_group(Statue.GROUP):
+						(node as Statue).refresh()
+				return "The statue stands by the station (rank %d)." % house.statue_rank
 			house.size_tier = House.SizeTier.UPPER
 			house.next_size_tier = House.SizeTier.UPPER
 			Game.inventory.set_loan(0)

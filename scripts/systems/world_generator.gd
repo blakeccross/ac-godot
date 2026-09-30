@@ -21,6 +21,8 @@ const SHOP0_UT := Vector2i(10, 10)
 const SHOP0_UT_SH1 := Vector2i(10, 9)
 ## TRAIN_STATION is (8, 5) on every `FG_TYPE_GRD_S_T_ST1_*`. `aSTA_actor_ct` is −20 X only.
 const STATION_UT := Vector2i(8, 5)
+## `DOUZOU` on the station acre templates, one unit west of the station.
+const STATUE_UT := Vector2i(7, 5)
 ## NEEDLEWORK_SHOP is (9, 4) on `grd_s_m_ta_1`/`_2` and (9, 5) on `_3`.
 ## `aNW_actor_ct` is −20 X, +20 Z — same 2×2 as the shop (`nw_off` (−1, 0)).
 const NEEDLEWORK_UT := Vector2i(9, 4)
@@ -419,6 +421,8 @@ static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray)
 					_place_structure_item(data, origin, _shop0_unit(data, bx, bz), FgCatalog.ITEM_SHOP0)
 				TownFieldGenerator.T_TRACKS_STATION:
 					_place_structure_item(data, origin, STATION_UT, FgCatalog.ITEM_TRAIN_STATION)
+					## `ac_douzou` stays hidden until a house reaches the statue (`Statue`).
+					data.objects.append(_object(&"statue", &"statue", origin + STATUE_UT, null, &"obj_s_douzou"))
 				TownFieldGenerator.T_TRACKS_POST:
 					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_POST_OFFICE)
 				TownFieldGenerator.T_MUSEUM:

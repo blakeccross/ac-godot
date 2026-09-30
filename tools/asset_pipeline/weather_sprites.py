@@ -2,7 +2,9 @@
 the two-texture effects whose converted GLB keeps only one tile: the waterfall rainbow
 (`obj_fallS_rainbowT_model`: RGBA16 colour bands in tile 0, the I4 fade mask in tile 1)
 and the Harvest Moon's pond reflection (`ef_moon01_01_modelT`: I4 moon disc in tile 0,
-the I4 ripple the evw anime scrolls in tile 1).
+the I4 ripple the evw anime scrolls in tile 1). Also the station statue's eyes and mouths
+(`ac_douzou`: `eye_tbl` / `mouth_tbl` bound on segments 8 / 9 of the face / mouth lists),
+saved under `assets/generated/environment/douzou/` by symbol.
 
 Each is one small card whose colour and texture come from its `*_setmode` list, so the
 display-list walker rasterises setmode + model flat (the card lies in the model's XY
@@ -42,6 +44,29 @@ TILE_EXPORTS: list[tuple[str, int, str]] = [
 	("ef_moon01_01_modelT", 1, "ef_moon01_ripple"),
 ]
 
+## (model, segment, symbols): per-player textures `ac_douzou` binds before drawing a model.
+DOUZOU_DIR = "environment/douzou"
+DOUZOU_FACE_EXPORTS: list[tuple[str, int, list[str]]] = [
+	(f"obj_{season}_douzou_boy_face_model", 8,
+		[f"obj_{season}_douzou_{sex}{n}_tex_pic_i4" for sex in "bg" for n in range(1, 9)])
+	for season in "sw"
+] + [
+	(f"obj_{season}_douzou_boy_mouth_model", 9,
+		[f"obj_{season}_douzou_{m}_tex_pic_i4" for m in ("bm1", "bm2", "gm1", "gm2")])
+	for season in "sw"
+]
+
+
+def _save_tile(textures: TextureCache, walker: UiWalker, tile_no: int, path, project_root) -> bool:
+	tile: Tile | None = walker.tiles.get(tile_no)
+	if tile is None:
+		return False
+	arr = textures.get(tile)
+	image = Image.fromarray((arr * 255 + 0.5).clip(0, 255).astype("uint8"), "RGBA")
+	path.write_bytes(image_png_bytes(image))
+	write_import_sidecar(path, project_root)
+	return True
+
 
 def export_weather_sprites(cfg: PipelineConfig) -> dict[str, Any]:
 	try:
@@ -67,12 +92,15 @@ def export_weather_sprites(cfg: PipelineConfig) -> dict[str, Any]:
 	for model, tile_no, name in TILE_EXPORTS:
 		walker = UiWalker(rel, symbols)
 		walker.run([Op(model, draw=False)])
-		tile: Tile | None = walker.tiles.get(tile_no)
-		if tile is None:
-			continue
-		arr = textures.get(tile)
-		image = Image.fromarray((arr * 255 + 0.5).clip(0, 255).astype("uint8"), "RGBA")
-		(out_dir / f"{name}.png").write_bytes(image_png_bytes(image))
-		write_import_sidecar(out_dir / f"{name}.png", cfg.project_root)
-		written += 1
+		written += _save_tile(textures, walker, tile_no, out_dir / f"{name}.png", cfg.project_root)
+	douzou_dir = cfg.godot_generated / DOUZOU_DIR
+	douzou_dir.mkdir(parents=True, exist_ok=True)
+	for model, segment, syms in DOUZOU_FACE_EXPORTS:
+		for sym in syms:
+			## `eye_tbl` reuses b7 for the seventh girl face; there is no g7.
+			if not any(s.name == sym for s in symbols):
+				continue
+			walker = UiWalker(rel, symbols)
+			walker.run([Op(model, draw=False, segments={segment: sym})])
+			written += _save_tile(textures, walker, 0, douzou_dir / f"{sym}.png", cfg.project_root)
 	return {"ok": True, "written": written, "out": str(out_dir)}

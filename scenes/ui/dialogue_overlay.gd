@@ -178,6 +178,8 @@ func play(
 	_runner.event_fired.connect(_on_runner_event)
 	_apply_voice_from_ctx(ctx)
 	_begin_open(ctx.speaker_name if ctx != null else "", _sex_from_ctx(ctx))
+	if ctx != null and ctx.window_color.a > 0.0:
+		_chrome.set_window_color(ctx.window_color)
 	_runner.start(data, ctx, state)
 	if _runner != null and _runner.done:
 		close(true)
@@ -227,6 +229,7 @@ func _begin_open(speaker: String, sex: MessageWindowChrome.SpeakerSex) -> void:
 	_root.visible = true
 	_chrome.set_window_scale(0.0)
 	_chrome.set_choice_scale(0.0)
+	_chrome.set_window_color(MessageWindowChrome.WINDOW_COLOR_DEFAULT)
 	_chrome.set_speaker(speaker, sex)
 	_chrome.set_continue_visible(false)
 	_clear_choices_immediate()
