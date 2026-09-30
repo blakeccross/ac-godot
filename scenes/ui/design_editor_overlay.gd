@@ -126,10 +126,15 @@ var _on_done: Callable = Callable()
 var _tex_cache: Dictionary = {}
 
 
+## `m_design_ovl.c`: in from the top, out through the bottom.
+var _slide: MenuSlide = null
+
+
 func _ready() -> void:
 	layer = 26
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("design_ui")
+	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_chrome.draw.connect(_draw_chrome)
 	_tools.draw.connect(_draw_tools)
@@ -175,6 +180,7 @@ func open(slot: int, on_done: Callable = Callable()) -> void:
 	_drawing = false
 	_open = true
 	_root.visible = true
+	_slide.slide_in(MenuSlide.Dir.IN_TOP)
 	set_process_unhandled_input(true)
 	Audio.play_se(&"cursol")
 	_refresh()
@@ -184,7 +190,7 @@ func close() -> void:
 	if not _open:
 		return
 	_open = false
-	_root.visible = false
+	_slide.slide_out(MenuSlide.Dir.OUT_BOTTOM, _on_slid_out)
 	set_process_unhandled_input(false)
 	var saved := _slot >= 0 and _design != null and _design.flag_set
 	var slot := _slot
@@ -197,6 +203,12 @@ func close() -> void:
 
 
 # --- input ----------------------------------------------------------------
+
+
+func _on_slid_out() -> void:
+	if not _open:
+		_root.visible = false
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _open or not (event is InputEventKey) or not event.pressed:

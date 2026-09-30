@@ -37,10 +37,15 @@ var _font: Font = null
 @onready var _keyboard: KeyboardPanel = $Root/Screen/Keyboard
 
 
+## `m_ledit_ovl.c`: in from the top, out to the top.
+var _slide: MenuSlide = null
+
+
 func _ready() -> void:
 	layer = 27
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("name_entry_ui")
+	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_text_view.draw.connect(_draw_text)
 	_root.resized.connect(_fit_screen)
@@ -88,6 +93,7 @@ func open(initial: String, callback: Callable = Callable(), kind: StringName = &
 	_keyboard.refresh()
 	_open = true
 	_root.visible = true
+	_slide.slide_in(MenuSlide.Dir.IN_TOP)
 	set_process(true)
 	set_process_unhandled_input(true)
 	Audio.play_se(&"cursol")
@@ -97,7 +103,7 @@ func _finish(cancelled: bool) -> void:
 	if not _open:
 		return
 	_open = false
-	_root.visible = false
+	_slide.slide_out(MenuSlide.Dir.OUT_TOP, _on_slid_out)
 	set_process(false)
 	set_process_unhandled_input(false)
 	var result := _text.strip_edges()
@@ -108,6 +114,11 @@ func _finish(cancelled: bool) -> void:
 	closed.emit()
 	if cb.is_valid():
 		cb.call(result.substr(0, NAME_LEN))
+
+
+func _on_slid_out() -> void:
+	if not _open:
+		_root.visible = false
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -75,6 +75,7 @@ var _music_timer: int = 60
 var _font: Font = null
 var _tex: Dictionary = {}
 var _layer_scale: float = 3.0
+var _slide: MenuSlide = null
 
 @onready var _root: Control = $Root
 @onready var _screen: Control = $Root/Screen
@@ -130,6 +131,7 @@ func _ready() -> void:
 	_tag_shadow.texture = InventoryChrome.load_tex("tag_shadow")
 	_tag_arrow.texture = InventoryChrome.load_tex("tag_arrow")
 	_preview.texture = _viewport.get_texture()
+	_slide = MenuSlide.attach(self)
 	_root.resized.connect(_fit_screen)
 	_fit_screen()
 	set_process(false)
@@ -185,6 +187,8 @@ func open(book: CatalogBook = null) -> void:
 	_tag.visible = false
 	set_process(true)
 	set_process_unhandled_input(true)
+	## `mCL_catalog_ovl_init`: `mSM_MOVE_IN_RIGHT`.
+	_slide.slide_in(MenuSlide.Dir.IN_RIGHT)
 	_refresh()
 	_point_hand(false)
 
@@ -193,12 +197,20 @@ func close(item_id: StringName = &"") -> void:
 	if not _open:
 		return
 	_open = false
-	_root.visible = false
 	_hand_node.visible = false
-	set_process(false)
+	_tag.visible = false
 	set_process_unhandled_input(false)
-	_clear_preview()
+	## `mTG_close_window`: `mSM_MOVE_OUT_RIGHT`, then the menu is gone.
+	_slide.slide_out(MenuSlide.Dir.OUT_RIGHT, _on_slid_out)
 	closed.emit(item_id)
+
+
+func _on_slid_out() -> void:
+	if _open:
+		return
+	_root.visible = false
+	set_process(false)
+	_clear_preview()
 
 
 ## The entry the hand is on (&"" on an empty page).
@@ -221,7 +233,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var k := event as InputEventKey
 	get_viewport().set_input_as_handled()
-	if _page_timer > 0:
+	if _page_timer > 0 or _slide.is_moving():
 		return
 	if _tag_open:
 		_tag_input(k)
@@ -394,6 +406,8 @@ func _tick() -> void:
 			_flip = 0.0
 			_prev_item = &""
 			_point_hand(true)
+	if _open and not _hand_node.visible and _page_timer == 0 and not _slide.is_moving():
+		_point_hand(false)
 	_turn = fmod(_turn + TURN_DEG, 360.0)
 	_music_timer -= 1
 	if _pivot != null:
@@ -684,7 +698,7 @@ func _hand_tip() -> Vector2:
 func _point_hand(animate: bool) -> void:
 	if not _open:
 		return
-	_hand_node.visible = _page_timer == 0
+	_hand_node.visible = _page_timer == 0 and not _slide.is_moving()
 	_hand_node.point_at(_screen.position + _hand_tip() * _screen.scale, animate)
 
 

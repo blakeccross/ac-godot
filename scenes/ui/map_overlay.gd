@@ -44,11 +44,14 @@ var _sel: Vector2i = Vector2i.ZERO
 var _player_fg: Vector2i = Vector2i.ZERO
 var _cursor_frame: int = 0
 var _layout: WorldData = null
+## `m_map_ovl.c`: in from the top, out to the top.
+var _slide: MenuSlide = null
 
 
 func _ready() -> void:
 	layer = 21
 	add_to_group("map_ui")
+	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_size_grid()
 	_apply_chrome()
@@ -72,6 +75,7 @@ func open(force: bool = false) -> void:
 	_open = true
 	Audio.play_se(&"17c")
 	_root.visible = true
+	_slide.slide_in(MenuSlide.Dir.IN_TOP)
 	_refresh()
 
 
@@ -80,7 +84,12 @@ func close() -> void:
 		return
 	Audio.play_se(&"17d")
 	_open = false
-	_root.visible = false
+	_slide.slide_out(MenuSlide.Dir.OUT_TOP, _on_slid_out)
+
+
+func _on_slid_out() -> void:
+	if not _open:
+		_root.visible = false
 
 
 func toggle() -> void:

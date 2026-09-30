@@ -23,6 +23,9 @@ func _ready() -> void:
 	add_child(ui)
 	await get_tree().process_frame
 	ui.open(book)
+	for _i in 3:
+		await get_tree().process_frame
+	_shot("0_sliding_in")
 	await _wait(0.8)
 	_shot("1_furniture")
 	for _i in 8:

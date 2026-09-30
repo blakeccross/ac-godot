@@ -41,10 +41,16 @@ var _cb: Callable = Callable()
 var _thumbs: Array[Texture2D] = []
 
 
+## `m_needlework_ovl.c`: in from the right (from the left beside the pockets), out the same way.
+var _slide: MenuSlide = null
+var _slide_left: bool = false
+
+
 func _ready() -> void:
 	layer = 26
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("design_list_ui")
+	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_slots.draw.connect(_draw_slots)
 	_book.gui_input.connect(_on_book_input)
@@ -113,6 +119,8 @@ func open(mode: String, callback: Callable = Callable(), beside_inventory: bool 
 	_held = -1
 	_open = true
 	_root.visible = true
+	_slide_left = beside_inventory
+	_slide.slide_in(MenuSlide.Dir.IN_LEFT if beside_inventory else MenuSlide.Dir.IN_RIGHT)
 	_hand.visible = true
 	set_process(true)
 	set_process_unhandled_input(true)
@@ -124,7 +132,7 @@ func close(chosen: int = -1) -> void:
 	if not _open:
 		return
 	_open = false
-	_root.visible = false
+	_slide.slide_out((MenuSlide.Dir.OUT_LEFT if _slide_left else MenuSlide.Dir.OUT_RIGHT), _on_slid_out)
 	_hand.visible = false
 	set_process(false)
 	set_process_unhandled_input(false)
@@ -133,6 +141,11 @@ func close(chosen: int = -1) -> void:
 	closed.emit()
 	if cb.is_valid():
 		cb.call(chosen)
+
+
+func _on_slid_out() -> void:
+	if not _open:
+		_root.visible = false
 
 
 func _unhandled_input(event: InputEvent) -> void:

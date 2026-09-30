@@ -55,10 +55,15 @@ var _choosing_address: bool = false
 @onready var _promptbox: EditEndPrompt = $Root/Screen/Prompt
 
 
+## `m_board_ovl.c`: the board comes down from the top and goes back up.
+var _slide: MenuSlide = null
+
+
 func _ready() -> void:
 	layer = 27
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("letter_writer_ui")
+	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_marks.draw.connect(_draw_marks)
 	_keyboard.typed.connect(_type)
@@ -148,6 +153,7 @@ func open(recipient: Dictionary, paper_type: int) -> void:
 	_roll_speed = 1.0
 	_open = true
 	_root.visible = true
+	_slide.slide_in(MenuSlide.Dir.IN_TOP)
 	_promptbox.close()
 	_board.paper_type = _paper_type
 	_board.position_y = 0.0
@@ -168,11 +174,16 @@ func close() -> void:
 	if not _open:
 		return
 	_open = false
-	_root.visible = false
+	_slide.slide_out(MenuSlide.Dir.OUT_TOP, _on_slid_out)
 	set_process(false)
 	set_process_unhandled_input(false)
 	_board_cb = Callable()
 	closed.emit()
+
+
+func _on_slid_out() -> void:
+	if not _open:
+		_root.visible = false
 
 
 func _unhandled_input(event: InputEvent) -> void:

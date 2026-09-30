@@ -45,6 +45,8 @@ func _ready() -> void:
 	await get_tree().create_timer(0.6).timeout
 	_shot("4_compose")
 	writer._open_prompt()
+	## The prompt rises from the bottom first (`mSM_MOVE_IN_BOTTOM`).
+	await get_tree().create_timer(0.5).timeout
 	writer._promptbox.handle_key(_key(KEY_SPACE))
 	await get_tree().create_timer(0.3).timeout
 	_shot("5_prompt")

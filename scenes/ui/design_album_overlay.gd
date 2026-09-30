@@ -63,10 +63,15 @@ var _thumbs: Dictionary = {}
 @onready var _hand: HandCursor = $Root/Hand
 
 
+## `m_cporiginal_ovl.c`: in from the right, out to the right.
+var _slide: MenuSlide = null
+
+
 func _ready() -> void:
 	layer = 26
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("design_album_ui")
+	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_book_slots.draw.connect(_draw_mine)
 	_album_slots.draw.connect(_draw_album)
@@ -137,6 +142,7 @@ func open(callback: Callable = Callable()) -> void:
 	_confirm = false
 	_open = true
 	_root.visible = true
+	_slide.slide_in(MenuSlide.Dir.IN_RIGHT)
 	_hand.visible = true
 	set_process(true)
 	set_process_unhandled_input(true)
@@ -157,7 +163,7 @@ func close(keep: bool = true) -> void:
 	if Game.worn_design_slot >= 0 and _worn_pixels() != _worn_before:
 		Game.design_changed.emit()
 	_open = false
-	_root.visible = false
+	_slide.slide_out(MenuSlide.Dir.OUT_RIGHT, _on_slid_out)
 	_hand.visible = false
 	set_process(false)
 	set_process_unhandled_input(false)
@@ -167,6 +173,11 @@ func close(keep: bool = true) -> void:
 	closed.emit()
 	if cb.is_valid():
 		cb.call()
+
+
+func _on_slid_out() -> void:
+	if not _open:
+		_root.visible = false
 
 
 func _unhandled_input(event: InputEvent) -> void:

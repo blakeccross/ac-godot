@@ -6,6 +6,9 @@ extends Control
 ## frame) and the red mark picks an answer. Pieces are baked by `menu_ui.py` at the
 ## origin and placed at the type's `win_data` offsets.
 ##
+## It rises from the bottom (`mSM_MOVE_IN_BOTTOM`) and drops back out before answering
+## (`mSM_MOVE_OUT_BOTTOM`), riding a `MenuSlide` that moves this Control.
+##
 ## `answered(idx)`: 0 Yes, 1 Rewrite, 2 Throw it out. B answers Rewrite.
 
 signal answered(idx: int)
@@ -34,10 +37,15 @@ var _scale: float = 0.0
 var _pulse_step: int = 0
 var _font: Font = null
 var _tex: Dictionary = {}
+var _slide: MenuSlide = null
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_slide = MenuSlide.new()
+	_slide.name = "MenuSlide"
+	add_child(_slide)
+	_slide.moved.connect(func(p: Vector2) -> void: position = Vector2(p.x, -p.y))
 	_font = LetterBoard.load_font()
 	for n: String in ["ee_q", "ee_q_c", "ee_a2", "ee_a2_c", "ee_a3", "ee_a3_c"]:
 		var path := "res://assets/generated/ui/menu/%s.png" % n
@@ -53,12 +61,18 @@ func open(prompt_kind: int) -> void:
 	_pulse_step = 0
 	visible = true
 	set_process(true)
+	_slide.slide_in(MenuSlide.Dir.IN_BOTTOM)
 	queue_redraw()
 
 
 func close() -> void:
 	visible = false
 	set_process(false)
+	_slide.settle()
+
+
+func _answer(idx: int) -> void:
+	_slide.slide_out(MenuSlide.Dir.OUT_BOTTOM, func() -> void: answered.emit(idx))
 
 
 func _process(_delta: float) -> void:
@@ -70,6 +84,8 @@ func _process(_delta: float) -> void:
 
 
 func handle_key(k: InputEventKey) -> void:
+	if _slide.is_moving():
+		return
 	var data: Array = WIN_DATA[kind]
 	match k.keycode:
 		KEY_UP, KEY_W:
@@ -87,10 +103,10 @@ func handle_key(k: InputEventKey) -> void:
 				Audio.play_se(&"cursol")
 			else:
 				Audio.play_se(&"cursol")
-				answered.emit(selected)
+				_answer(selected)
 		KEY_ESCAPE, KEY_B, KEY_BACKSPACE:
 			Audio.play_se(&"cursol")
-			answered.emit(1)
+			_answer(1)
 
 
 func _draw() -> void:

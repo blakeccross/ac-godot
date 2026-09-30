@@ -104,7 +104,8 @@ var _hand_viewport: SubViewport = null
 var _hand_anim: AnimationPlayer = null
 var _hand_tween: Tween = null
 var _hand_ready: bool = false
-var _open_tween: Tween = null
+## `mSM_move_Move`: the pockets slide in from the right and out to the right.
+var _slide: MenuSlide = null
 ## Fish / insect encyclopedia page (`mIV_set_collect_dl`): one 8×5 grid, reused.
 var _collect_root: Control = null
 var _collect_slots: Array[TextureRect] = []
@@ -154,6 +155,7 @@ var _ui_font: Font = null
 func _ready() -> void:
 	layer = 20
 	add_to_group("inventory_ui")
+	_slide = MenuSlide.attach(self)
 	_load_ui_font()
 	_wire_slot_buttons()
 	_wire_side_tabs()
@@ -1069,10 +1071,7 @@ func open() -> void:
 	_show_page(SideTab.POCKETS)
 	Audio.play_se(&"menu_pause")
 	_root.visible = true
-	_root.modulate = Color(1, 1, 1, 0)
-	if _shell_stack != null:
-		_shell_stack.scale = Vector2(0.94, 0.94)
-		_shell_stack.pivot_offset = _shell_stack.size * 0.5
+	_slide.slide_in(MenuSlide.Dir.IN_RIGHT)
 	if _portrait_viewport != null:
 		_portrait_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	if _hand_viewport != null:
@@ -1083,15 +1082,6 @@ func open() -> void:
 	_play_hand_clip("hnd_sasu", true)
 	_refresh()
 	_update_hand_cursor(false)
-	if _open_tween != null:
-		_open_tween.kill()
-	_open_tween = create_tween()
-	_open_tween.set_parallel(true)
-	_open_tween.tween_property(_root, "modulate:a", 1.0, 0.14)
-	if _shell_stack != null:
-		_open_tween.tween_property(_shell_stack, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(
-			Tween.EASE_OUT
-		)
 	get_tree().paused = false
 
 
@@ -1149,14 +1139,18 @@ func close() -> void:
 		_hand_root.visible = false
 	if _portrait_viewport != null:
 		_portrait_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	Game.inventory.clear_hand()
+	## `mTG_close_window`: `mSM_MOVE_OUT_RIGHT`; the viewports stop once it is gone.
+	_slide.slide_out(MenuSlide.Dir.OUT_RIGHT, _on_slid_out)
+	_refresh()
+
+
+func _on_slid_out() -> void:
+	if _open:
+		return
+	_root.visible = false
 	if _hand_viewport != null:
 		_hand_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	Game.inventory.clear_hand()
-	_root.visible = false
-	_root.modulate = Color.WHITE
-	if _shell_stack != null:
-		_shell_stack.scale = Vector2.ONE
-	_refresh()
 
 
 func toggle() -> void:
