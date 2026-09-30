@@ -32,7 +32,8 @@ from .godot_import import write_import_sidecar
 from .map_ui import _draw_textured_triangle, _ia_prim_env, _mirror_tile, _parse_ui_vtx, _pick_symbol
 from .mapfile import MapSymbol, parse_map
 from .rel import RelData
-from .texbank import G_IM_FMT_I, G_IM_FMT_IA, G_IM_SIZ_4b, G_IM_SIZ_8b, decode_gbi_texture, gbi_to_gx, image_png_bytes
+from .gfx import RenderState, parse_gfx, parse_vtx_blob
+from .texbank import G_IM_FMT_CI, G_IM_FMT_I, G_IM_FMT_IA, TextureBank, TextureState, G_IM_SIZ_4b, G_IM_SIZ_8b, decode_gbi_texture, gbi_to_gx, image_png_bytes
 
 OUT_DIR_NAME = "design"
 
@@ -176,6 +177,7 @@ def extract_design_ui(cfg: PipelineConfig) -> dict[str, Any]:
 
 	shell = _bake_border_shell(rel, by_name, border_tiles, stage_dir, out_dir, cfg.project_root)
 	results.append(shell)
+	results.extend(_bake_design_book(cfg, rel, symbols, by_name, stage_dir, out_dir))
 
 	converted = sum(1 for r in results if r.get("status") == "converted")
 	catalog = {"results": [{k: v for k, v in r.items() if k != "_image"} for r in results]}
@@ -318,3 +320,133 @@ def _bake_border_shell(
 		record["status"] = "error"
 		record["error"] = f"{type(exc).__name__}: {exc}"
 	return record
+
+
+## ---- Design book (`m_needlework_ovl.c` `mNW_set_frame_dl`, `inv_original.c`) ----------
+##
+## The 8-slot "original designs" window: a scrolling cloth fill cut by the `tw*` CI4
+## shapes (TEXEL0 = cloth, alpha = TEXEL1), the `ueT` rim (PRIM/ENV lerp), the
+## `sav_win_waku` slot wells, the eight design quads (`mb1-8`, drawn at runtime) and
+## the `futa2` frame over them. Baked as layers so the slots can go between:
+## `book_mask` (cloth alpha), `book_under` (rim + wells), `book_over` (frame) and
+## `book_cloth` (the fill texture, scrolled by `inventory_shell_paper.gdshader`).
+BOOK_BOUNDS = (-75.0, 90.0, 150.0, 180.0)  # left, top, width, height in window units
+_BOOK_SCALE = 3
+## name -> (width, height, fmt, siz, has TLUT)
+_BOOK_TEX: dict[str, tuple[int, int, int, int]] = {
+	"inv_ori_tw1_tex_rgb_ci4": (64, 32, G_IM_FMT_CI, G_IM_SIZ_4b),
+	"inv_ori_tw2_tex_rgb_ci4": (32, 32, G_IM_FMT_CI, G_IM_SIZ_4b),
+	"inv_ori_tw3_tex_rgb_ci4": (32, 64, G_IM_FMT_CI, G_IM_SIZ_4b),
+	"inv_ori_tw4_tex_rgb_ci4": (16, 16, G_IM_FMT_CI, G_IM_SIZ_4b),
+	"inv_ori_w1_tex": (64, 32, G_IM_FMT_IA, G_IM_SIZ_8b),
+	"inv_ori_w2_tex": (32, 32, G_IM_FMT_IA, G_IM_SIZ_8b),
+	"inv_ori_w3_tex": (32, 64, G_IM_FMT_IA, G_IM_SIZ_8b),
+	"inv_ori_w4_tex": (16, 16, G_IM_FMT_IA, G_IM_SIZ_8b),
+	"sav_win_waku_tex": (32, 32, G_IM_FMT_I, G_IM_SIZ_4b),
+	"inv_original_futa2_tex": (32, 32, G_IM_FMT_I, G_IM_SIZ_4b),
+	"inv_original_cloth_tex_rgb_ci4": (32, 32, G_IM_FMT_CI, G_IM_SIZ_4b),
+}
+_BOOK_UE_PRIM = (70, 40, 50, 255)  # `inv_original_ueT_model`
+_BOOK_UE_ENV = (165, 145, 95, 255)
+_BOOK_WAKU_PRIM = (165, 120, 70, 255)  # `inv_original_waku_model`
+_BOOK_FUTA_PRIM = (60, 40, 30, 255)  # `inv_original_f_model`
+## (layer, display lists) in draw order.
+_BOOK_LAYERS: list[tuple[str, list[str]]] = [
+	("book_mask", ["inv_original_w_model_before"] + [f"inv_original_w{i}T_model" for i in range(1, 9)] + ["inv_original_w9_model"]),
+	("book_under", ["inv_original_ueT_model", "inv_original_waku_model"]),
+	("book_over", ["inv_original_f_model"]),
+]
+
+
+def _book_texture(rel: RelData, by_name: dict[str, list[MapSymbol]], name: str) -> Image.Image:
+	w, h, fmt, siz = _BOOK_TEX[name]
+	sym = _pick_symbol(by_name, name)
+	pal = b""
+	if fmt == G_IM_FMT_CI:
+		pal_sym = _pick_symbol(by_name, f"{name}_pal")
+		pal = rel.slice_at(pal_sym.address, pal_sym.size)
+	image = decode_gbi_texture(rel.slice_at(sym.address, sym.size), w, h, fmt, siz, pal).convert("RGBA")
+	if name.startswith("inv_ori_tw"):
+		# TEXEL1 only supplies coverage.
+		white = Image.new("L", image.size, 255)
+		return Image.merge("RGBA", (white, white, white, image.split()[3]))
+	if name.startswith("inv_ori_w"):
+		return _ia_prim_env(image, _BOOK_UE_PRIM, _BOOK_UE_ENV)
+	if name == "sav_win_waku_tex":
+		return _prim_i_alpha(image, _BOOK_WAKU_PRIM)
+	if name == "inv_original_futa2_tex":
+		return _prim_i_alpha(image, _BOOK_FUTA_PRIM)
+	return image
+
+
+def _prim_i_alpha(image: Image.Image, prim: tuple[int, int, int, int]) -> Image.Image:
+	"""`PRIMITIVE` colour, `TEXEL0` alpha on an I texture (intensity decodes into R)."""
+	intensity = image.split()[0]
+	solid = [Image.new("L", image.size, c) for c in prim[:3]]
+	return Image.merge("RGBA", (*solid, intensity))
+
+
+def _bake_design_book(
+	cfg: PipelineConfig,
+	rel: RelData,
+	symbols: list[MapSymbol],
+	by_name: dict[str, list[MapSymbol]],
+	stage_dir: Path,
+	out_dir: Path,
+) -> list[dict[str, Any]]:
+	records: list[dict[str, Any]] = []
+	try:
+		bank = TextureBank(rel, symbols, cfg.extracted_archives)
+		vtx_sym = _pick_symbol(by_name, "inv_original_v")
+		verts = parse_vtx_blob(rel.slice_at(vtx_sym.address, vtx_sym.size), 1.0)
+		textures = {name: _book_texture(rel, by_name, name) for name in _BOOK_TEX}
+	except Exception as exc:  # noqa: BLE001
+		return [{"asset_id": "design_book", "status": "error", "error": f"{type(exc).__name__}: {exc}"}]
+
+	left, top, width, height = BOOK_BOUNDS
+
+	def to_px(v) -> tuple[float, float]:
+		return ((v.x - left) * _BOOK_SCALE, (top - v.y) * _BOOK_SCALE)
+
+	tex_state = TextureState()
+	render = RenderState()
+	for layer, dls in _BOOK_LAYERS:
+		record: dict[str, Any] = {
+			"asset_id": layer,
+			"source": ", ".join(dls),
+			"output_path": f"ui/{OUT_DIR_NAME}/{layer}.png",
+			"status": "pending",
+			"error": None,
+		}
+		try:
+			image = Image.new("RGBA", (int(width * _BOOK_SCALE), int(height * _BOOK_SCALE)), (0, 0, 0, 0))
+			for dl in dls:
+				sym = _pick_symbol(by_name, dl)
+				parts = parse_gfx(dl, rel.slice_at(sym.address, sym.size), verts, bank=bank, state=tex_state,
+					vtx_base_addr=vtx_sym.address, render=render)
+				for part in parts:
+					tex = textures.get(part.texture_name)
+					if tex is None or not part.triangles:
+						continue
+					for i0, i1, i2 in part.triangles:
+						a, b, c = part.vertices[i0], part.vertices[i1], part.vertices[i2]
+						_draw_textured_triangle(image, tex, to_px(a), to_px(b), to_px(c),
+							(a.s, a.t), (b.s, b.t), (c.s, c.t), mode="mirror")
+			png = image_png_bytes(image)
+			for folder in (stage_dir, out_dir):
+				(folder / f"{layer}.png").write_bytes(png)
+			write_import_sidecar(out_dir / f"{layer}.png", cfg.project_root)
+			record["status"] = "converted"
+		except Exception as exc:  # noqa: BLE001
+			record["status"] = "error"
+			record["error"] = f"{type(exc).__name__}: {exc}"
+		records.append(record)
+
+	cloth = {"asset_id": "book_cloth", "source": "inv_original_cloth_tex_rgb_ci4",
+		"output_path": f"ui/{OUT_DIR_NAME}/book_cloth.png", "status": "converted", "error": None}
+	png = image_png_bytes(textures["inv_original_cloth_tex_rgb_ci4"])
+	for folder in (stage_dir, out_dir):
+		(folder / "book_cloth.png").write_bytes(png)
+	write_import_sidecar(out_dir / "book_cloth.png", cfg.project_root)
+	records.append(cloth)
+	return records
