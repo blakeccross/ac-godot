@@ -190,7 +190,7 @@ data tables before a category is called done.
 ## 11. Economy
 
 - [ ] Bells as currency; wallet cap; 30k bags
-- [ ] **Post Office bank (ABD)**: deposit, withdraw, interest paid by mail monthly (`m_bank_ovl`)
+- [x] **Post Office bank (ABD)**: the clerk's deposit line opens the terminal from the disc's `tyo_win` art — Cash (wallet plus money bags), a six-digit amount picked digit by digit, Balance to 999,999,999, Deposit / Withdrawal lit by direction; settling spends bags first and pays cash over the wallet cap as 30,000-bell bags; she then reads out the balance (`m_bank_ovl`, `aPG_deposit_*`) — `BankOverlay`, `BankTerminal`; `abd` console command. No interest on the GameCube: the post office mails a gift at 1M / 10M / 100M / 999,999,999 Bells, one per game start (`mMl_send_postoffice_mail`)
 - [ ] **Tom Nook home loan**: 4 (or 5) escalating amounts; pay any amount; statue/"paid off" reward; house expands on payoff (`m_repay_ovl`, `mQst` house upgrade)
 - [ ] House sizes: small house (4×4) → medium (6×6) → large (8×8) → upper floor (2nd floor); basement is a separate unlock, and no side/back rooms or mansion exist in GCN (`m_home`, `m_house`, room types)
 - [ ] **HRA — Happy Room Academy**: weekly letter scoring your house layout; feng shui, sets, matching series, gyroids, furniture count; rank letters (`m_huusui_room`, `mark_room`)
@@ -455,7 +455,7 @@ were dropped. See [shops](decomp_notes/shops.md) § Able Sisters.
 - [ ] Mailbox full (10 items) → Post Office holds overflow; retrieve there
 - [ ] Villagers send you letters (with gifts if friendship high); reply to build friendship
 - [ ] Send a gift to a villager by mail → thank-you letter + item back
-- [ ] **ABD bank** terminal (§11): deposit/withdraw, balance, monthly interest by mail
+- [x] **ABD bank** terminal (§11) — `BankOverlay`; balance gifts by mail instead of interest
 - [ ] Pay Tom Nook's loan from the Post Office? _(GCN: pay at Nook's)_
 - [ ] Parcel / package pickup; forwarding
 - [ ] Post office closed hours & knock; Pelly/Phyllis moods (Phyllis is grumpy)

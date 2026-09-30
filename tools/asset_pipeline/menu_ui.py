@@ -121,6 +121,17 @@ LAYERS: dict[str, list[Op]] = {
 	# `mED_endCode_draw`: the end-of-text mark after the last character, at the origin.
 	"kb_end": [Op("lat_end_cordT_model")],
 	**{f"ledit_{w}": [Op("ledit_common_mode"), Op(f"{w}_win_mode"), Op(f"{w}_win_model")] for w in LEDIT_WINDOWS},
+	# `m_bank_ovl.c`: the post office ABD and its Deposit / Withdrawal captions, lit (the
+	# direction cash is moving, or no change) or dimmed (`mBN_set_frame_dl`).
+	"bk_win": [Op("tyo_win_mode"), Op("tyo_win_model")],
+	"bk_dep_on": [Op("tyo_win_mode"), Op("tyo_win_model", draw=False),
+		Op("tyo_win_moji2T_model", prim=(165, 50, 50, 255), env=(255, 255, 255, 255))],
+	"bk_dep_off": [Op("tyo_win_mode"), Op("tyo_win_model", draw=False),
+		Op("tyo_win_moji2T_model", prim=(100, 80, 80, 255), env=(165, 155, 155, 255))],
+	"bk_wd_on": [Op("tyo_win_mode"), Op("tyo_win_model", draw=False), Op("tyo_win_moji2T_model", draw=False),
+		Op("tyo_win_moji3T_model", prim=(20, 205, 20, 255), env=(255, 255, 255, 255))],
+	"bk_wd_off": [Op("tyo_win_mode"), Op("tyo_win_model", draw=False), Op("tyo_win_moji2T_model", draw=False),
+		Op("tyo_win_moji3T_model", prim=(70, 95, 70, 255), env=(155, 165, 155, 255))],
 	# `m_notice_ovl.c`: the community board's page (`kei_win`), key hints (`kei_hyouji`),
 	# page arrows and the C-stick in each of its six poses (`kei_win_st_tex_tbl`).
 	"nt_win": [Op("kei_win_model")],

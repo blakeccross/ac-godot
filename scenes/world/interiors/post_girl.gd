@@ -171,7 +171,7 @@ func _on_talk_closed() -> void:
 	_pending = Pending.NONE
 	match next:
 		Pending.BANK:
-			_open_followup(PostUse.bank_menu_conversation(_species))
+			_open_bank()
 		Pending.SEND:
 			_open_followup(PostUse.send_mail_conversation())
 		Pending.SAVE:
@@ -182,6 +182,21 @@ func _on_talk_closed() -> void:
 			_open_followup(PostUse.farway_send_conversation())
 		_:
 			pass
+
+
+## `aPG_deposit_menu_close_wait`: the ABD opens; once it closes she reads out the balance
+## (0x2DE2 + draw type, `{free3}`). Without the terminal the authored menu stands in.
+func _open_bank() -> void:
+	var bank: Node = get_tree().get_first_node_in_group("bank_ui")
+	if bank == null or not bank.has_method("open"):
+		_open_followup(PostUse.bank_menu_conversation(_species))
+		return
+	bank.connect("closed", func(_committed: bool) -> void:
+		var after: DialogueData = DialogueCatalog.conversation(
+			StringName("msg_%d" % (PostUse.BANK_AFTER_MSG + PostDisplay.draw_type(_species))))
+		if after != null:
+			_open_followup(after), CONNECT_ONE_SHOT)
+	bank.call("open")
 
 
 func _open_followup(data: DialogueData) -> void:

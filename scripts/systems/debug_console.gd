@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -71,6 +71,14 @@ func execute(raw: String) -> String:
 				return "No map UI in this scene."
 			map_ui.call("open", true)
 			return "Map open."
+		"abd":
+			## Open the post office bank terminal (`mSM_OVL_BANK`).
+			var abd_tree := Engine.get_main_loop() as SceneTree
+			var abd: Node = abd_tree.get_first_node_in_group("bank_ui") if abd_tree != null else null
+			if abd == null:
+				return "No bank UI in this scene."
+			abd.call("open")
+			return "Bank terminal open."
 		"board":
 			## Open the community board's posts (`mSM_OVL_NOTICE`).
 			var tree := Engine.get_main_loop() as SceneTree

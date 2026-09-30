@@ -4,6 +4,8 @@ extends RefCounted
 ## Post office desk ops (`ac_npc_post_girl` send / save / bank / repay).
 
 const PRESET_CHUNK := 1000
+## `aPG_deposit_menu_close_wait`: "Your balance is now…" (plus the clerk's draw type).
+const BANK_AFTER_MSG := 0x2DE2
 ## `mPr_CheckMuseumAddress` — the synthetic "Museum" address-book contact used only
 ## for mailing a raw fossil in for identification (`m_museum.c`'s `mMsm_SendResultMail`).
 const MUSEUM_RECIPIENT_ID := &"museum"
@@ -200,7 +202,7 @@ static func fill_bank_frees(ctx: DialogueContext) -> void:
 	ctx.frees[0] = ""
 	ctx.frees[1] = str(loan)
 	ctx.frees[2] = ""
-	ctx.frees[3] = str(savings)
+	ctx.frees[3] = BankOverlay.with_commas(savings)
 
 
 static func bank_menu_conversation(species: StringName = &"") -> DialogueData:

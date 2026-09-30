@@ -120,6 +120,8 @@ var has_map: bool = false
 ## `Save_Get(num_statues)` — how many Nook house statues the town has built (0..3, gold →
 ## jade); the next one takes the following rank.
 var num_statues: int = 0
+## `mPr_FLAG_POSTOFFICE_GIFT0..3`: balance milestones already rewarded (`BankTerminal.GIFTS`).
+var bank_gift_flags: int = 0
 ## `Save_Get(melody)`: the town tune (`TownTune`), set at the tune board.
 var town_tune: PackedByteArray = TownTune.default_notes()
 ## `Private_c.complete_fish_insect_flags` — see `CompleteTalk`.
@@ -721,6 +723,9 @@ func continue_game() -> void:
 	if SaveService.load_game() != OK:
 		start_new_game()
 		return
+	## `mMl_start_send_mail` / `mNtc_set_auto_nwrite_data` at game start.
+	send_postoffice_gift()
+	update_notice_board()
 	if current_room_id != &"":
 		_change_scene(INTERIOR_SCENE)
 	else:
@@ -829,6 +834,7 @@ func reset_session() -> void:
 	cloth_id = FirstJob.DEFAULT_CLOTH_ID
 	has_map = false
 	num_statues = 0
+	bank_gift_flags = 0
 	town_tune = TownTune.default_notes()
 	complete_flags = 0
 	goki_shocked = false
@@ -1127,6 +1133,7 @@ func to_save() -> Dictionary:
 		"destiny": {"type": int(destiny_type), "y": destiny_date.x, "m": destiny_date.y, "d": destiny_date.z},
 		"has_map": has_map,
 		"num_statues": num_statues,
+		"bank_gift_flags": bank_gift_flags,
 		"town_tune": Array(town_tune),
 		"complete_flags": complete_flags,
 		"first_job": first_job.to_save() if first_job != null else {},
@@ -1275,6 +1282,7 @@ func apply_snapshot(data: Dictionary) -> void:
 		cloth_id = FirstJob.DEFAULT_CLOTH_ID
 	has_map = bool(data.get("has_map", false))
 	num_statues = clampi(int(data.get("num_statues", 0)), 0, 3)
+	bank_gift_flags = int(data.get("bank_gift_flags", 0)) & 0xF
 	town_tune = TownTune.sanitize(data.get("town_tune", null))
 	complete_flags = int(data.get("complete_flags", 0)) & 0xF
 	if first_job == null:
@@ -1457,6 +1465,17 @@ func refresh_police_set() -> void:
 		host.call("refresh_public_set")
 	elif host != null and host.has_method("refresh_shop_set"):
 		host.call("refresh_shop_set")
+
+
+## `mMl_send_postoffice_mail`: a balance milestone's gift by mail, one per game start.
+func send_postoffice_gift() -> void:
+	if inventory == null:
+		return
+	var gift: Dictionary = BankTerminal.due_gift(inventory.savings, bank_gift_flags)
+	if gift.is_empty():
+		return
+	if inventory.add_received_mail(BankTerminal.gift_letter(gift, town_name, player_name)) >= 0:
+		bank_gift_flags |= int(gift["flag"])
 
 
 ## `mNtc_set_auto_nwrite_data`: seasonal notices whose day has come.
