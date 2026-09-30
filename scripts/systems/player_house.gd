@@ -286,7 +286,7 @@ static func plot_building(idx: int) -> String:
 ## `aMHS_actor_draw_before`: the fish weathervane (`kazamiA` / `kazamiB`, joints 3 / 5) and the
 ## insect plaque (`fuda`, joint 1) only draw once a villager has congratulated the player on
 ## the finished collection. Only the joint's own mesh is dropped — the plaque joint parents
-## the rest of the house. The weathervane does not turn with the wind yet.
+## the rest of the house. The shown weathervane turns with the wind (`HouseWeathervane`).
 static func apply_exterior_decorations(host: Node3D) -> void:
 	if host == null or not is_owned_node(String(host.name)):
 		return
@@ -296,6 +296,9 @@ static func apply_exterior_decorations(host: Node3D) -> void:
 	_apply_decoration(visual, "_kazamiA_model", CompleteTalk.talked(CompleteTalk.FISH))
 	_apply_decoration(visual, "_kazamiB_model", CompleteTalk.talked(CompleteTalk.FISH))
 	_apply_decoration(visual, "_fuda_model", CompleteTalk.talked(CompleteTalk.INSECT))
+	if CompleteTalk.talked(CompleteTalk.FISH):
+		var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+		HouseWeathervane.attach(visual, tier_of(house), plot_of(String(host.name)))
 	apply_door_pattern(visual)
 
 

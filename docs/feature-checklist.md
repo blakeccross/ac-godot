@@ -62,7 +62,7 @@ data tables before a category is called done.
 - [~] Lightning flashes in storms — `WeatherFx._tick_lightning` (approximate). No aurora on the GameCube
 - [ ] Shooting stars (`eEC_EFFECT_SHOOTING_SET`): only on the Meteor Shower event on the GameCube, not on ordinary clear nights
 - [x] Harvest Moon reflection on the pond: glides east to west 18:00–21:00, sways and ripples, with its disc/ripple combiner (`ef_night13_moon`, `ef_moon01_01_modelT`) — `PondMoon`, `pond_moon.gdshader`
-- [ ] Wind affects grass, flags, windmills, balloons (`ef_kaze`, `ac_windmill`, `ac_flag`, `ac_koinobori`)
+- [~] Wind: balloons drift with it, the house's fish weathervane points into it and its propeller spins with its power (`aMHS_actor_draw_before`) — `Wind`, `HouseWeathervane`. The GameCube grass does not sway; `ac_windmill` / `ac_koinobori` only loop their animation; `ac_flag` (speed from wind power) is not placed yet
 
 ## 4. Town generation & geography
 
