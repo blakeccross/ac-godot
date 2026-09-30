@@ -1,7 +1,8 @@
 extends Node3D
 
 ## Outdoor weather particles (`ac_weather_*`). Camera-centered pool of 100 privs —
-## rain streaks + splashes from `ef_ame02_*`, snow/sakura placeholders. Center follows
+## rain streaks + splashes from `ef_ame02_*`, snow flakes (`ef_yuki01`) and cherry petals
+## (`ef_hanabira01`) as sprites baked from their setmode + model. Center follows
 ## the look-at (player), not the camera eye — original uses `Camera2_getCenterPos_p()`.
 ##
 ## Simulation is fixed at 60 Hz (`GAME_FRAME`), matching decomp priv timers / GX-per-frame
@@ -45,10 +46,24 @@ const SNOW_Z_NEG := 200.0 * GX
 const SNOW_Z_POS := 180.0 * GX
 const SNOW_HEIGHT := 230.0 * GX
 const SNOW_LIFE_FRAMES := 280
+## `aWeatherSnow_make`: speed.y = -0.5 + RANDOM_F(-2); sakura -0.8 + RANDOM_F(-0.1).
 const SNOW_SPEED_GX_MIN := -2.5
 const SNOW_SPEED_GX_MAX := -0.5
-const SNOW_DRIFT_MPS := 0.35
-const SAKURA_FALL_EXTRA_GX := -0.4
+const SAKURA_SPEED_GX_MIN := -0.9
+const SAKURA_SPEED_GX_MAX := -0.8
+## `aWeatherSakura_SetWind2Sakura`: petals drift +x 0.45 GX a frame.
+const SAKURA_DRIFT_GX := 0.45
+## Wobble radius and angle step (s16 units a frame, 156.5 + RANDOM_F(260.5)).
+const WOBBLE_GX := 6.0
+const WOBBLE_STEP_MIN := 156.5
+const WOBBLE_STEP_RANGE := 260.5
+## Snow shrinks away in the last 20 GX above `40 + player y`; the card is ±1000 × 0.00196.
+const SNOW_FLOOR_GX := 40.0
+const SNOW_SIZE_GX := 2000.0 * 0.00196
+## Petal card ±100 × 0.05, tumbling by (0x474, 0x8DC, 0x474)-a-frame angles.
+const PETAL_SIZE_GX := 200.0 * 0.05
+const SNOW_SPRITE := "res://assets/generated/effects/ef_yuki01_sprite.png"
+const PETAL_SPRITE := "res://assets/generated/effects/ef_hanabira01_sprite.png"
 
 const SPLASH_VISUALS: Array[StringName] = [
 	&"ef_ame02_00",
@@ -83,6 +98,9 @@ var _kind: Weather.Kind = Weather.Kind.CLEAR
 var _rain_mmi: MultiMeshInstance3D
 var _splash_mmi: Array[MultiMeshInstance3D] = []
 var _float_mmi: MultiMeshInstance3D
+## Sprite pools for snow / petals; null falls back to `_float_mmi`'s placeholder quads.
+var _snow_mmi: MultiMeshInstance3D
+var _petal_mmi: MultiMeshInstance3D
 var _rain_ready: bool = false
 
 
@@ -149,6 +167,8 @@ func _setup_meshes() -> void:
 		add_child(_rain_mmi)
 	_float_mmi = _make_float_mmi()
 	add_child(_float_mmi)
+	_snow_mmi = _make_sprite_mmi("Snow", SNOW_SPRITE)
+	_petal_mmi = _make_sprite_mmi("Petals", PETAL_SPRITE)
 	_hide_all_slots()
 
 
@@ -276,6 +296,34 @@ func _make_procedural_rain_mmi() -> MultiMeshInstance3D:
 	return mmi
 
 
+func _make_sprite_mmi(node_name: String, path: String) -> MultiMeshInstance3D:
+	if not ResourceLoader.exists(path):
+		return null
+	var mmi := MultiMeshInstance3D.new()
+	mmi.name = node_name
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mmi.extra_cull_margin = 32.0
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1.0, 1.0)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = load(path) as Texture2D
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	mat.render_priority = 4
+	quad.material = mat
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.instance_count = POOL_SIZE
+	mm.visible_instance_count = POOL_SIZE
+	mm.mesh = quad
+	mmi.multimesh = mm
+	add_child(mmi)
+	return mmi
+
+
 func _make_float_mmi() -> MultiMeshInstance3D:
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = "Floaters"
@@ -304,8 +352,9 @@ func _process(delta: float) -> void:
 		_rain_mmi.custom_aabb = aabb
 	for mmi: MultiMeshInstance3D in _splash_mmi:
 		mmi.custom_aabb = aabb
-	if _float_mmi != null:
-		_float_mmi.custom_aabb = aabb
+	for mmi: MultiMeshInstance3D in [_float_mmi, _snow_mmi, _petal_mmi]:
+		if mmi != null:
+			mmi.custom_aabb = aabb
 	## Fixed 60 Hz sim so spawn density and GX/frame speeds match decomp at any render FPS.
 	_steps.add(delta)
 	while _steps.next():
@@ -378,7 +427,9 @@ func _spawn_tick() -> void:
 			if (_frame & Weather.snow_spawn_mask(_intensity)) == 0:
 				_spawn_floater(PartKind.SNOW)
 		Weather.Kind.SAKURA:
-			if (_frame & Weather.snow_spawn_mask(_intensity)) == 0:
+			## `aWeatherSakura_DecideMakeSakuraCount`: level 1 every 8th frame, else every 4th.
+			var mask: int = 7 if _intensity == Weather.Intensity.LIGHT else 3
+			if (_frame & mask) == 0:
 				_spawn_floater(PartKind.SAKURA)
 		_:
 			pass
@@ -409,6 +460,7 @@ func _spawn_rain() -> void:
 	})
 
 
+## `aWeatherSnow_make` / `aWeatherSakura_make`: a flake 230 GX up somewhere in the box.
 func _spawn_floater(kind: PartKind) -> void:
 	var id: int = _take_slot()
 	if id < 0:
@@ -418,22 +470,22 @@ func _spawn_floater(kind: PartKind) -> void:
 		SNOW_HEIGHT,
 		_rng.randf_range(-SNOW_Z_NEG, SNOW_Z_POS)
 	)
-	var fall_gx: float = _rng.randf_range(SNOW_SPEED_GX_MIN, SNOW_SPEED_GX_MAX)
-	if kind == PartKind.SAKURA:
-		fall_gx += SAKURA_FALL_EXTRA_GX
+	var fall_gx: float = (
+		_rng.randf_range(SAKURA_SPEED_GX_MIN, SAKURA_SPEED_GX_MAX) if kind == PartKind.SAKURA
+		else _rng.randf_range(SNOW_SPEED_GX_MIN, SNOW_SPEED_GX_MAX)
+	)
 	_active.append({
 		"id": id,
 		"kind": kind,
 		"pos": _center + offset,
-		"vel": Vector3(
-			SNOW_DRIFT_MPS * DecompTime.TICK_SEC,
-			fall_gx * GX,
-			SNOW_DRIFT_MPS * 0.35 * DecompTime.TICK_SEC
-		),
+		"vel": Vector3(0.0, fall_gx * GX, 0.0),
+		"top": _center.y + SNOW_HEIGHT,
 		"life": SNOW_LIFE_FRAMES,
 		"max_life": SNOW_LIFE_FRAMES,
-		"phase": _rng.randf() * TAU,
-		"spin": _rng.randf_range(1.5, 4.0) * DecompTime.TICK_SEC,
+		"wobble": 0.0,
+		"wobble_step": WOBBLE_STEP_MIN + _rng.randf() * WOBBLE_STEP_RANGE,
+		## `aWeatherSakura_ct`: three random tumble angles (s16).
+		"rot": Vector3(_rng.randf() * 65535.0, _rng.randf() * 65535.0, _rng.randf() * 65535.0),
 	})
 
 
@@ -475,18 +527,32 @@ func _move_tick() -> void:
 				_free_slot(int(part["id"]))
 				continue
 		else:
+			## `aWeatherSnow_move` / `aWeatherSakura_move`.
 			pos += vel
-			part["phase"] = float(part.get("phase", 0.0)) + float(part.get("spin", 0.05))
-			pos.x += sin(float(part["phase"])) * 0.3 * DecompTime.TICK_SEC * 6.0
-			pos.z += cos(float(part["phase"])) * 0.3 * DecompTime.TICK_SEC * 6.0
+			part["wobble"] = fmod(float(part["wobble"]) + float(part["wobble_step"]), 65536.0)
+			if kind == PartKind.SAKURA:
+				pos.x += SAKURA_DRIFT_GX * GX
+				var rot: Vector3 = part["rot"]
+				part["rot"] = Vector3(fmod(rot.x + 0x474, 65536.0), fmod(rot.y + 0x8DC, 65536.0),
+					fmod(rot.z + 0x200, 65536.0))
+			else:
+				## `aWeatherSnow_SetWind2Snow`: the day's wind carries the flakes.
+				var wind := Vector3(sin(Wind.yaw()), 0.0, cos(Wind.yaw())) * Wind.power() * 0.5 * GX
+				pos += wind
 			part["pos"] = pos
 			_wrap_floater_inplace(part)
 			pos = part["pos"] as Vector3
-			if life <= 0 or pos.y < _center.y - 1.0:
-				pos.y = _center.y + SNOW_HEIGHT
+			## Below the floor: back to the top, keeping its place in the fall.
+			var floor_y: float = _center.y + (SNOW_FLOOR_GX * GX if kind == PartKind.SNOW else 0.0)
+			if pos.y < floor_y:
+				var top: float = _center.y + SNOW_HEIGHT
+				pos.y = top + (pos.y - float(part["top"]))
+				part["top"] = top
 				part["pos"] = pos
-				life = int(part["max_life"])
 			part["life"] = life
+			if life <= 0:
+				_free_slot(int(part["id"]))
+				continue
 		keep.append(part)
 	_active = keep
 
@@ -519,15 +585,21 @@ func _draw() -> void:
 				_draw_rain(id, pos)
 			PartKind.SPLASH:
 				_draw_splash(id, pos, life_t)
-			PartKind.SNOW:
-				var scale: float = lerpf(0.2, 0.4, life_t)
-				_set_float(id, _billboard(pos, Vector3(scale, scale, scale)), kind, life_t)
-			PartKind.SAKURA:
-				var scale_s: float = lerpf(0.22, 0.45, life_t)
-				var ph: float = float(part.get("phase", 0.0))
-				var xform := Transform3D(Basis.from_euler(Vector3(ph * 0.4, ph, ph * 0.2)), pos)
-				xform.basis = xform.basis.scaled(Vector3(scale_s, scale_s * 0.7, scale_s))
-				_set_float(id, xform, kind, life_t)
+			PartKind.SNOW, PartKind.SAKURA:
+				var w: float = float(part["wobble"]) * MLib.S16
+				var at: Vector3 = pos + Vector3(sin(w), 0.0, cos(w)) * WOBBLE_GX * GX
+				if kind == PartKind.SNOW:
+					## `aWeatherSnow_draw`: shrinks over the last 20 GX above the floor.
+					var s: float = clampf((at.y - (_center.y + SNOW_FLOOR_GX * GX)) / (20.0 * GX), 0.0, 1.0)
+					var size: float = SNOW_SIZE_GX * GX * s
+					_set_sprite(_snow_mmi, id, _full_billboard(at, Vector3(size, size, size)), kind, life_t)
+				else:
+					var rot: Vector3 = part["rot"]
+					## `suMtxMakeSRT(0.05, rot2, rot1, rot2)`.
+					var basis := Basis.from_euler(Vector3(rot.z, rot.y, rot.z) * MLib.S16)
+					var size_p: float = PETAL_SIZE_GX * GX
+					_set_sprite(_petal_mmi, id, Transform3D(basis.scaled(Vector3(size_p, size_p, size_p)), at), kind,
+						life_t)
 
 
 func _draw_rain(id: int, pos: Vector3) -> void:
@@ -558,6 +630,13 @@ func _draw_splash(id: int, pos: Vector3, life_t: float) -> void:
 			mm.set_instance_transform(id, xform)
 		else:
 			mm.set_instance_transform(id, _hidden_xform())
+
+
+func _set_sprite(mmi: MultiMeshInstance3D, id: int, xform: Transform3D, kind: int, life_t: float) -> void:
+	if mmi == null or mmi.multimesh == null:
+		_set_float(id, xform, kind, life_t)
+		return
+	mmi.multimesh.set_instance_transform(id, xform)
 
 
 func _set_float(id: int, xform: Transform3D, kind: int, life_t: float) -> void:
@@ -676,6 +755,9 @@ func _hide_slot(id: int) -> void:
 	if _float_mmi != null and _float_mmi.multimesh != null:
 		_float_mmi.multimesh.set_instance_transform(id, far)
 		_float_mmi.multimesh.set_instance_custom_data(id, Color(-1.0, 0.0, 0.0, 0.0))
+	for mmi: MultiMeshInstance3D in [_snow_mmi, _petal_mmi]:
+		if mmi != null and mmi.multimesh != null:
+			mmi.multimesh.set_instance_transform(id, far)
 
 
 func _hide_all_slots() -> void:

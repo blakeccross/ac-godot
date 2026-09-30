@@ -70,6 +70,8 @@ func start() -> bool:
 			mgr.add_actor(id, special, e["cell"], _face(e["cell"], props, center), 0)
 	if id == &"fireworks_show":
 		_add_fireworks()
+	elif id == &"harvest_moon_festival":
+		_add_pond_moon()
 	_set_away(true)
 	return true
 
@@ -86,6 +88,17 @@ func _add_fireworks() -> void:
 	var last: int = Game.events.last_hour(id) if Game != null and Game.events != null else -1
 	fw.finale = last >= 0 and Clock.hour >= last
 	mgr.add_actor(id, fw, center, 0.0, 0)
+
+
+## `harvestmoon_start` → `ef_night13_moon`, the moon's reflection on the pond.
+func _add_pond_moon() -> void:
+	var block: Vector2i = mgr.block_of("pool")
+	if block.x < 0:
+		return
+	var moon := PondMoon.new()
+	moon.name = "PondMoon"
+	moon.pond_center = PondMoon.pond_base(mgr, block)
+	mgr.add_actor(id, moon, EventManager.block_unit_to_cell(block, Vector2i(8, 8)), 0.0, 0)
 
 
 func tick(_delta: float) -> void:

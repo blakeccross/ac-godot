@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "clear"
+	"balloon", "rainbow", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -56,6 +56,11 @@ func execute(raw: String) -> String:
 			return _cmd_shop(args)
 		"balloon":
 			return _cmd_balloon(args)
+		"rainbow":
+			## Show the waterfall rainbow now (`rainbow_opacity` 1), or `rainbow off`.
+			var on: bool = args.is_empty() or String(args[0]).to_lower() != "off"
+			Game.rainbow.opacity = 1.0 if on else 0.0
+			return "Rainbow %s." % ("on" if on else "off")
 		"clear":
 			return "__clear__"
 		_:

@@ -75,6 +75,9 @@ var catalog: CatalogBook = CatalogBook.new()
 var town_fruit: StringName = &"apple"
 ## Holidays, weekly visitors and the special-NPC schedule (`m_event`); see `EventCalendar`.
 var events: EventCalendar = EventCalendar.new()
+## The waterfall rainbow after rain (`mEnv_rainbow_*`).
+var rainbow: Rainbow = Rainbow.new()
+var _rainbow_accum: float = 0.0
 var designs: DesignBook = DesignBook.new()
 var first_job: FirstJob = FirstJob.new()
 ## The town train (`m_train_control`), run for the whole session.
@@ -619,6 +622,12 @@ func _physics_process(delta: float) -> void:
 	## `mNpc_TalkInfoMove` runs every play frame.
 	if phase == Phase.PLAYING:
 		npc_talk_info.advance(delta)
+		## `mEnv_rainbow_power_calc` runs in field (FG) scenes only.
+		if current_room_id == &"":
+			_rainbow_accum += delta * DecompTime.TICK_HZ
+			while _rainbow_accum >= 1.0:
+				_rainbow_accum -= 1.0
+				rainbow.tick(Clock.month, Clock.day, Clock.now_sec(), Clock.season() == Clock.Season.SUMMER)
 
 
 ## `mFI_CheckPlayerWade(mFI_WADE_START)`.
@@ -851,6 +860,7 @@ func reset_session() -> void:
 		catalog = CatalogBook.new()
 	else:
 		catalog.clear()
+	rainbow = Rainbow.new()
 	town_fruit = &"apple"
 	events.clear()
 	_events_ready = false
@@ -1118,6 +1128,7 @@ func to_save() -> Dictionary:
 		"first_job_hint_count": first_job_hint_count,
 		"valentine_year": valentine_year,
 		"quests": quests.to_save(),
+		"rainbow": rainbow.to_save(),
 	}
 
 
@@ -1235,6 +1246,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	_residents_session_done = false
 	npc_talk_info.clear()
 	quests.apply_snapshot(data.get("quests", {}))
+	rainbow.apply_snapshot(data.get("rainbow", {}))
 	first_job_hint_count = clampi(int(data.get("first_job_hint_count", 0)), 0, 0xFF)
 	valentine_year = int(data.get("valentine_year", 0))
 	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
@@ -1449,8 +1461,11 @@ func _on_field_renewed(days: int) -> void:
 	if redd != null:
 		redd.check_unlock()
 	## One roll for the current date after renew (`mEnv_DecideWeather` / `aWeather_ChangeWeatherTime0`).
+	var previous_weather: StringName = weather
 	apply_weather_roll(Weather.roll())
 	apply_event_weather()
+	## Fine after rain or snow: a rainbow over the falls today (`mEnv_PreRainNowFine_Init`).
+	rainbow.note_weather_change(previous_weather, weather, Clock.month, Clock.day)
 
 
 ## Farway Museum returns identified fossils (+ the one-time intro letter) each morning.

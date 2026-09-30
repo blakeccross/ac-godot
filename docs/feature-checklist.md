@@ -43,8 +43,8 @@ data tables before a category is called done.
 - [~] Day / night with 8 lighting windows, per-term colour tables (`m_kankyo` `klight_chg_tim`) — `Clock.outdoor_light()`
 - [~] Daily renewal at **06:00** (weeds spread, stock rotates, plants grow, villager moves resolve) — `field_renewed`
 - [~] 18 calendar terms, years 2001–2030 (`lb_rtc`)
-- [ ] Seasons: snow cover Dec–Feb, cherry-blossom trees early April, coloured foliage in autumn, bare trees in winter
-- [ ] Season affects grass colour / acre visuals, tree models, river ice? (no — but snow ground)
+- [x] Seasons: snow cover Dec–Feb, cherry-blossom trees early April, coloured foliage in autumn, bare trees in winter — `VisualSeasons`, `Acre.apply_season`
+- [x] Season affects grass colour / acre visuals, tree models (no river ice; snow ground) — `Clock.season`, seasonal textures from the pipeline's `seasons` kind
 - [~] Weekday tracking; shop closed days; K.K. on Saturday night — K.K. on Saturday night and Joan on Sunday morning come through the event manager (§30); Nook closes for renovations
 - [ ] "Played days" counter, first-day flags, "haven't played in a while" reactions
 - [ ] Birthday stored per resident; birthday event
@@ -54,14 +54,14 @@ data tables before a category is called done.
 - [~] Rain / snow / clear by term probability tables (`m_kankyo_weather.c_inc`) — `weather.gd`
 - [ ] Rain intensity: drizzle vs. downpour; snow: flurry vs. heavy
 - [~] Weather particles + puddles / wet sand shader — `WeatherFx`, `beach_wet.gdshader`
-- [ ] Cherry-blossom petal fall / festival window (festival dates: Apr 5–7; visual petal window still verify) (`ac_weather_sakura`, `ev_cherry_manager`, `m_calendar_ovl.c`)
-- [ ] Falling leaves in autumn (`ac_weather_leaf`)
-- [ ] Rainbow after rain
+- [x] Snow flakes and cherry petals drawn with the disc's `ef_yuki01` / `ef_hanabira01` cards, with the decomp's spawn box, fall speed, wobble, wind drift, floor reset and petal tumble (`ac_weather_snow`, `ac_weather_sakura`) — `WeatherFx`, `weather_sprites.py`
+- [x] Falling leaves: not ambient on the GameCube; `mEnv_WEATHER_LEAVES` is only used by the K.K. show (no work needed)
+- [x] Rainbow after rain: a clear/sakura day after rain/snow reserves it; it fades in 9:00–15:00 in summer and fades out slowly, drawn at the waterfall as `obj_fallS_rainbowT_model` billboarded about the fall with its two-texture combiner (`mEnv_PreRainNowFine_Init`, `mEnv_rainbow_power_calc`, `ac_fallS`) — `Rainbow`, `waterfall.gd`, `fall_rainbow.gdshader`; `rainbow` console command
 - [ ] Fog / haze mornings
 - [ ] Rain changes indoor & outdoor BGM; more fish/bugs (coelacanth, frogs, snails, etc.)
-- [ ] Lightning flashes; aurora (northern lights) on winter nights
-- [ ] Shooting stars on clear nights → wish (`ef_flash` / meteor)
-- [ ] Full-moon / moon phase art (`ef_night13_moon`, `ef_night15_moon`)
+- [~] Lightning flashes in storms — `WeatherFx._tick_lightning` (approximate). No aurora on the GameCube
+- [ ] Shooting stars (`eEC_EFFECT_SHOOTING_SET`): only on the Meteor Shower event on the GameCube, not on ordinary clear nights
+- [x] Harvest Moon reflection on the pond: glides east to west 18:00–21:00, sways and ripples, with its disc/ripple combiner (`ef_night13_moon`, `ef_moon01_01_modelT`) — `PondMoon`, `pond_moon.gdshader`
 - [ ] Wind affects grass, flags, windmills, balloons (`ef_kaze`, `ac_windmill`, `ac_flag`, `ac_koinobori`)
 
 ## 4. Town generation & geography

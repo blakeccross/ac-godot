@@ -33,6 +33,7 @@ from asset_pipeline.bake import bake_acre_scenes  # noqa: E402
 from asset_pipeline.dialogue import convert_dialogue  # noqa: E402
 from asset_pipeline.villagers import generate_villagers  # noqa: E402
 from asset_pipeline.seasons import export_seasonal_textures  # noqa: E402
+from asset_pipeline.weather_sprites import export_weather_sprites  # noqa: E402
 from asset_pipeline.extract import extract_archives, extract_disc  # noqa: E402
 from asset_pipeline.design_ui import extract_design_ui  # noqa: E402
 from asset_pipeline.menu_ui import extract_menu_ui  # noqa: E402
@@ -360,6 +361,12 @@ def main() -> int:
                         f"wrote {season_report['written']} seasonal textures "
                         f"-> {season_report.get('out', '')}"
                     )
+                sprites = export_weather_sprites(cfg)
+                if not sprites.get("ok"):
+                    print(f"weather sprites: {sprites.get('error')}")
+                    failed = True
+                else:
+                    print(f"wrote {sprites['written']} weather sprites -> {sprites['out']}")
                     if season_report.get("missing"):
                         print(f"  missing: {', '.join(season_report['missing'][:20])}")
                 report = None
