@@ -1139,6 +1139,8 @@ func close() -> void:
 		Game.notify_intro_payment_declined()
 	if Game.museum_donate_pending:
 		Game.cancel_museum_donation()
+	if Game.shop_sell_pending:
+		Game.cancel_shop_sell()
 	if Game.storage_putin_pending:
 		Game.cancel_storage_putin()
 	if Game.quest_handover_pending:
@@ -1704,6 +1706,14 @@ func _run_tag(tag: String) -> void:
 			var putin_slot: InventorySlot = inv.slot_at(idx)
 			if putin_slot != null and not putin_slot.is_empty():
 				Game.take_storage_putin(putin_slot.item.item_id)
+			close()
+		"Sell":
+			Game.take_shop_sell([idx] as Array[int])
+			close()
+		"Sell all":
+			var picked: Array[int] = inv.marked_indices()
+			inv.clear_marks()
+			Game.take_shop_sell(picked)
 			close()
 		"Donate":
 			## Blathers is waiting — book the outcome and let his dialogue respond.

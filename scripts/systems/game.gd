@@ -175,6 +175,11 @@ var title_demo_index: int = 0
 var museum_donate_pending: bool = false
 var museum_donate_result: Dictionary = {}
 signal museum_donate_resolved(donated: bool)
+## Nook's "I want to sell" (`mSM_IV_OPEN_SELL`): the pockets are open for picking what to sell.
+var shop_sell_pending: bool = false
+## Pocket slots picked by "Sell" / "Sell all".
+var shop_sell_slots: Array[int] = []
+signal shop_sell_resolved(picked: bool)
 ## A drawer / music player asked for an item from the pockets (`mSM_IV_OPEN_PUTIN_FTR` /
 ## `mSM_IV_OPEN_MINIDISK`). `storage_putin_filter` is `&"any"` or `&"minidisk"`.
 var storage_putin_pending: bool = false
@@ -364,6 +369,34 @@ func cancel_museum_donation() -> void:
 	museum_donate_pending = false
 	museum_donate_result = {}
 	museum_donate_resolved.emit(false)
+
+
+## Nook opens the pockets in sell mode (`aNSC_buy_menu_close_wait_init`). Picking
+## "Sell" / "Sell all" or closing resolves `shop_sell_resolved`.
+func request_shop_sell() -> void:
+	shop_sell_pending = true
+	shop_sell_slots = []
+	if get_tree() == null:
+		return
+	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui")
+	if inv_ui != null and inv_ui.has_method("open"):
+		inv_ui.call("open")
+
+
+func take_shop_sell(slots: Array[int]) -> void:
+	if not shop_sell_pending:
+		return
+	shop_sell_pending = false
+	shop_sell_slots = slots
+	shop_sell_resolved.emit(not slots.is_empty())
+
+
+func cancel_shop_sell() -> void:
+	if not shop_sell_pending:
+		return
+	shop_sell_pending = false
+	shop_sell_slots = []
+	shop_sell_resolved.emit(false)
 
 
 ## Open the pockets so the player picks something to put away. `storage_putin_resolved` fires
@@ -804,6 +837,8 @@ func reset_session() -> void:
 	title_demo_active = false
 	museum_donate_pending = false
 	museum_donate_result = {}
+	shop_sell_pending = false
+	shop_sell_slots = []
 	if farway == null:
 		farway = FarwayBook.new()
 	else:

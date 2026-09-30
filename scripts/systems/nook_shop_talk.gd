@@ -10,6 +10,10 @@ extends RefCounted
 const MENU_ID := &"nook_shop_menu"
 const OFFER_ID := &"nook_shop_offer"
 const LOTTERY_ID := &"nook_lottery"
+## After the pockets close in sell mode (`aNSC_buy_sum_check` / `aNSC_buy_check`).
+const SELL_ID := &"nook_shop_sell"
+const VAR_SELL := "shop_sell"
+const VAR_SELL_DONE := "shop_sell_done"
 const OP := "nook_shop"
 
 ## Context vars the graphs branch on.
@@ -68,6 +72,46 @@ static func fill_lottery(ctx: DialogueContext) -> void:
 	_set_free(ctx, 1, str(Game.shops.ticket_count(Game.inventory)))
 
 
+## What the picked pocket slots add up to, per item: {item_id: count}.
+static func sell_selection(slots: Array[int]) -> Dictionary:
+	var out: Dictionary = {}
+	for idx: int in slots:
+		var slot: InventorySlot = Game.inventory.slot_at(idx)
+		if slot == null or slot.is_empty():
+			continue
+		var id: StringName = slot.item.item_id
+		out[id] = int(out.get(id, 0)) + maxi(slot.item.count, 1)
+	return out
+
+
+## `aNSC_buy_check_init`: free0 = the total, item0 = the item (one kind) or "these";
+## `shop_sell` = ok / junk (worth nothing) / sunday (turnips) / refused.
+static func fill_sell(ctx: DialogueContext, selection: Dictionary) -> void:
+	if ctx == null:
+		return
+	var total: int = 0
+	var state: String = "junk"
+	for id: StringName in selection:
+		var quote: Dictionary = Game.shops.sell_quote(id, Game.inventory, int(selection[id]))
+		match int(quote["code"]):
+			ShopBook.Sell.OK:
+				state = "ok"
+				total += int(quote["total"])
+			ShopBook.Sell.SUNDAY_TURNIPS:
+				if state == "junk":
+					state = "sunday"
+			ShopBook.Sell.QUEST, ShopBook.Sell.NOTHING:
+				if state == "junk":
+					state = "refused"
+	_set_free(ctx, 0, str(total))
+	if selection.size() == 1:
+		var data: ItemData = ItemCatalog.get_item(selection.keys()[0] as StringName)
+		ctx.item0 = data.display_name if data != null else ""
+	else:
+		ctx.item0 = "these"
+	ctx.set_var(VAR_SELL, state)
+
+
 ## Handle one `{op:"nook_shop"}` event. Returns {notice, open} where `open` is
 ## &"sell" / &"order" when a paper should open after the talk.
 static func apply_event(event: Dictionary, ctx: DialogueContext) -> Dictionary:
@@ -87,6 +131,18 @@ static func apply_event(event: Dictionary, ctx: DialogueContext) -> Dictionary:
 				ctx.set_var(VAR_ORDER, state)
 			if state == "ok":
 				out["open"] = &"order"
+		"sell_confirm":
+			var selection: Dictionary = sell_selection(Game.shop_sell_slots)
+			var done: String = "ok"
+			var paid: int = 0
+			for id: StringName in selection:
+				var res: Dictionary = Game.shops.sell_result(ShopBook.NOOK_ID, id, Game.inventory, int(selection[id]))
+				if int(res.get("code", -1)) == ShopBook.Sell.OVERFLOW:
+					done = "full"
+				paid += int(res.get("paid", 0))
+			Game.shop_sell_slots = []
+			if ctx != null:
+				ctx.set_var(VAR_SELL_DONE, done)
 		"try_on":
 			var item_id := StringName(str(ctx.get_var("shop_offer_item", "")) if ctx != null else "")
 			out["try_on"] = item_id

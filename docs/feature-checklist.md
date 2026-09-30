@@ -389,7 +389,7 @@ data tables before a category is called done.
 - [ ] Nookington's has a second floor with Timmy & Tommy; requires a friend from another town to visit to trigger the final upgrade — `shop3_2` room exists; Timmy & Tommy (`ac_npc_mamedanuki`, they share the shop-master code) not yet placed
 - [x] Daily stock (`mSP_MakeGoodsList`, `ac_shop_goods`) — `ShopGoods.roll`: per-level counts (`l_zakka/conbini/super/dsuper_goods`), Cranny tools unlocked by sales (net 3k / rod 8k / axe 12k), Nookway+ paint (colour rotates each restock) + signboard + cedar sapling + rare-furniture slot (`ItemData.shop_rare`), stationery as a 4-sheet pad, distinct flower-seed bags, one umbrella, Halloween candy (Oct 16–30), Sale Day grab bags priced at the year (open with three free slots: rare goods or a pinwheel). Missing: the ABC rarity lists (`mSP_GetGoodsPercent`), which need the full ROM item lists; seed bags plant pansies until flower species exist
 - [x] Stock rotates at 06:00; sells out; sold-out slot shows empty
-- [x] Sell items to Nook (he names a price, you confirm); can't sell some things — counter menu "I want to sell" opens the sell paper (`ShopBook.sell_result`, §11)
+- [x] Sell items to Nook (he names a price, you confirm); can't sell some things — counter menu "I want to sell" opens the pockets in sell mode (`mSM_IV_OPEN_SELL`: "Sell", or "Sell all" on marked items), then Nook quotes the total and asks (`aNSC_buy_sum_check`, `nook_shop_sell`, `ShopBook.sell_result`, §11)
 - [x] Nook buys turnips at fluctuating price (§11) — `KabuMarket`
 - [x] Catalog ordering; items delivered by mail next day — "Order from the catalog" (5 order slots, `CatalogBook`)
 - [~] Sale days, the flooring/wallpaper wall — Sale Day grab bags, sale-event balloon gift on the first talk (`aNSC_check_present_balloon`); missing: the bargain-event FG layout (`mSP_GetNowShopFgNum` event kinds), wallpaper/carpet preview on the shop walls (`change_wall_proc`)
@@ -624,7 +624,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [ ] Rumble / vibration on tool use, catches, bumps (`m_vibctl`, `m_player_vibration`)
 - [ ] "Copying data" / autosave indicator
 - [ ] The **name entry keyboard** for all text input
-- [~] Nook catalog browser UI, shop buy/sell UI, bank UI, HRA letter viewer, letter writer UI — shop paper covers buy / sell / catalog order (placeholder list UI, not the ROM catalog pages)
+- [~] Nook catalog browser UI, shop buy/sell UI, bank UI, HRA letter viewer, letter writer UI — selling now goes through the pockets like the original; the shop paper still covers catalog order and non-shelf buying (placeholder list UI, not the ROM catalog pages, `m_catalog_ovl`)
 - [ ] Photo / no screenshot feature (GCN has none)
 - [~] Trademark / logo / attract-mode title demo loop (`m_titledemo`, `m_trademark`, `ac_animal_logo`) — logo actor, 5 recorded demos, the demo loop, the fixed FG table, fixed villagers, apple tree and start chime landed; Nintendo logo stage skipped on purpose; gelato umbrella landed with the umbrella tool (demo 2) ([title](decomp_notes/title.md))
 - [ ] Debug menus & dev overlays — _explicitly out of scope_ (`m_debug*`)

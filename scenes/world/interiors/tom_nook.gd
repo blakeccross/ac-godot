@@ -473,11 +473,39 @@ func _on_talk_closed() -> void:
 		Game.set_cloth(_try_on_restore)
 		_try_on_restore = &""
 	TalkCamera.end(get_tree())
-	if _open_after != &"":
-		var mode: StringName = Interaction.SELL if _open_after == &"sell" else ShopUse.ORDER
+	if _open_after == &"sell":
 		_open_after = &""
-		Game.open_shop(ShopBook.NOOK_ID, mode)
+		_start_sell()
+		return
+	if _open_after != &"":
+		_open_after = &""
+		Game.open_shop(ShopBook.NOOK_ID, ShopUse.ORDER)
 	await _apply_pending_after()
+
+
+## "I want to sell": the pockets open in sell mode (`mSM_IV_OPEN_SELL`); what's picked
+## comes back to Nook, who names the total and asks (`aNSC_buy_sum_check`).
+func _start_sell() -> void:
+	Game.request_shop_sell()
+	var picked: bool = await Game.shop_sell_resolved
+	if not picked:
+		return
+	var data: DialogueData = DialogueCatalog.conversation(NookShopTalk.SELL_ID)
+	var ui := DialogueOverlay.find(get_tree())
+	if data == null or ui == null:
+		return
+	var listener: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var talk_ctx: DialogueContext = DialogueContext.from_game()
+	talk_ctx.speaker_name = "Tom Nook"
+	NookShopTalk.fill_sell(talk_ctx, NookShopTalk.sell_selection(Game.shop_sell_slots))
+	if ui.is_open():
+		ui.close()
+	_shop_talk = true
+	_start_talk_session(listener)
+	_bind_talk_end(ui)
+	if not ui.event_fired.is_connected(_on_shop_event):
+		ui.event_fired.connect(_on_shop_event)
+	ui.play(data, talk_ctx)
 
 
 func _apply_pending_after() -> void:

@@ -714,6 +714,12 @@ func tags_for_slot(index: int) -> PackedStringArray:
 		if Game.quest_handover_allows(index):
 			tags.append("Hand over")
 		return tags
+	## Nook is buying (`mSM_IV_OPEN_SELL`): "Sell", or "Sell all" on a marked item
+	## (`mTG_TYPE_SELL_ITEM` / `mTG_TYPE_SELL_ALL_ITEM`).
+	if Game != null and Game.shop_sell_pending:
+		if slot.item.condition != InventoryItem.Condition.QUEST:
+			tags.append("Sell all" if is_marked(index) and marked_indices().size() > 1 else "Sell")
+		return tags
 	if slot.item.condition == InventoryItem.Condition.PRESENT:
 		tags.append("Open")
 		return tags

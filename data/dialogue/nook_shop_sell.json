@@ -1,0 +1,28 @@
+{
+  "id": "nook_shop_sell",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {"type": "branch", "when": [
+      {"if": {"var_eq": {"name": "shop_sell", "value": "ok"}}, "goto": "quote"},
+      {"if": {"var_eq": {"name": "shop_sell", "value": "sunday"}}, "goto": "sunday"},
+      {"if": {"var_eq": {"name": "shop_sell", "value": "refused"}}, "goto": "refused"},
+      {"goto": "junk"}
+    ]},
+    "quote": {"type": "choice", "prompt": "I'll give you {free0} Bells\nfor {item0}. Sound good?", "options": [
+      {"text": "Sure!", "goto": "confirm"},
+      {"text": "No way!", "goto": "declined"}
+    ]},
+    "confirm": {"type": "event", "events": [{"op": "nook_shop", "action": "sell_confirm"}], "next": "done_branch"},
+    "done_branch": {"type": "branch", "when": [
+      {"if": {"var_eq": {"name": "shop_sell_done", "value": "full"}}, "goto": "full"},
+      {"goto": "thanks"}
+    ]},
+    "thanks": {"type": "line", "text": "Thank you! Pleasure doing\nbusiness with you!"},
+    "full": {"type": "line", "text": "Oh my, you can't carry\nthat many Bells! Make some\nroom and come back, yes?"},
+    "declined": {"type": "line", "text": "Oh, I see... Well, let me\nknow if you change your mind."},
+    "junk": {"type": "line", "text": "Hmm, I'm afraid that's not\nworth anything. I'll take it\noff your hands, though!", "next": "confirm"},
+    "sunday": {"type": "line", "text": "I don't buy turnips on\nSundays. That's when Joan\ncomes by to sell them!"},
+    "refused": {"type": "line", "text": "Hm? I can't take that\none, I'm afraid."}
+  }
+}

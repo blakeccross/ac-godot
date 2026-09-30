@@ -468,8 +468,37 @@ func test_offer_talk_buys_and_reports_ticket() -> void:
 	assert_that(res["open"]).is_equal(&"order")
 
 
+func test_sell_mode_pockets_offer_sell_and_sell_all() -> void:
+	var inv: Inventory = Game.inventory
+	inv.add(ItemCatalog.get_item(&"wood_chair"), 1)
+	inv.add(ItemCatalog.get_item(&"wood_table"), 1)
+	Game.shop_sell_pending = true
+	assert_array(Array(inv.tags_for_slot(0))).contains_exactly(["Sell"])
+	inv.toggle_mark(0)
+	inv.toggle_mark(1)
+	assert_array(Array(inv.tags_for_slot(0))).contains_exactly(["Sell all"])
+	Game.take_shop_sell(inv.marked_indices())
+	assert_bool(Game.shop_sell_pending).is_false()
+	assert_int(Game.shop_sell_slots.size()).is_equal(2)
+
+
+func test_sell_quote_then_confirm_pays_the_total() -> void:
+	var inv: Inventory = Game.inventory
+	inv.add(ItemCatalog.get_item(&"wood_chair"), 1)
+	Game.shop_sell_slots = [0] as Array[int]
+	var ctx := DialogueContext.new()
+	NookShopTalk.fill_sell(ctx, NookShopTalk.sell_selection(Game.shop_sell_slots))
+	assert_str(str(ctx.get_var(NookShopTalk.VAR_SELL))).is_equal("ok")
+	assert_str(ctx.frees[0]).is_equal("80")
+	NookShopTalk.apply_event({"op": "nook_shop", "action": "sell_confirm"}, ctx)
+	assert_int(inv.wallet).is_equal(80)
+	assert_int(inv.count_of(&"wood_chair")).is_equal(0)
+	assert_str(str(ctx.get_var(NookShopTalk.VAR_SELL_DONE))).is_equal("ok")
+
+
 func test_store_dialogues_load() -> void:
-	for conv_id: StringName in [NookShopTalk.MENU_ID, NookShopTalk.OFFER_ID, NookShopTalk.LOTTERY_ID]:
+	for conv_id: StringName in [NookShopTalk.MENU_ID, NookShopTalk.OFFER_ID, NookShopTalk.LOTTERY_ID,
+			NookShopTalk.SELL_ID]:
 		assert_that(DialogueCatalog.conversation(conv_id)).is_not_null()
 
 
