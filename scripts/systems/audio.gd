@@ -23,6 +23,14 @@ var _arm_fade: Tween
 ## Level ids are their own table: rain 7 / 8 / 9 are not the door trigger SEs 7 / 8 / 9.
 var _syslev_player: AudioStreamPlayer
 var _syslev_id: int = 0
+## `sAdo_Inst`: a 16-step town tune on the note SEs, one step per `MELODY_STEP_SEC`.
+## The step length is an estimate (the instrument sequence is not decoded).
+const MELODY_STEP_SEC := 0.25
+var _melody: PackedByteArray = PackedByteArray()
+var _melody_step: int = -1
+var _melody_t: float = 0.0
+var _melody_player: AudioStreamPlayer
+var _melody_rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
@@ -33,6 +41,55 @@ func _ready() -> void:
 	_syslev_player = AudioStreamPlayer.new()
 	_syslev_player.bus = SFX_BUS
 	add_child(_syslev_player)
+	_melody_player = AudioStreamPlayer.new()
+	_melody_player.bus = SFX_BUS
+	add_child(_melody_player)
+	set_process(false)
+
+
+## `sAdo_Inst`: play a town tune (`TownTune` values). Restarts one already playing.
+func play_melody(notes: PackedByteArray) -> void:
+	_melody = TownTune.sanitize(notes)
+	_melody_step = -1
+	_melody_t = MELODY_STEP_SEC
+	set_process(true)
+
+
+## `sAdo_InstCountGet`: the step playing, or −1 when no tune is.
+func melody_step() -> int:
+	return _melody_step
+
+
+func stop_melody() -> void:
+	_melody_step = -1
+	_melody_player.stop()
+	set_process(false)
+
+
+func _process(delta: float) -> void:
+	_melody_t += delta
+	while _melody_t >= MELODY_STEP_SEC:
+		_melody_t -= MELODY_STEP_SEC
+		_melody_step += 1
+		if _melody_step >= TownTune.LENGTH:
+			_melody_step = -1
+			set_process(false)
+			return
+		_sound_step(int(_melody[_melody_step]))
+
+
+func _sound_step(note: int) -> void:
+	match note:
+		TownTune.TIE:
+			return
+		TownTune.REST:
+			_melody_player.stop()
+			return
+		TownTune.RANDOM:
+			note = _melody_rng.randi_range(0, TownTune.HIGHEST)
+	_melody_player.stream = SeCatalog.stream_for(TownTune.note_se(note))
+	if _melody_player.stream != null:
+		_melody_player.play()
 
 
 func play_sfx(stream: AudioStream, at: Node = self, pitch_scale: float = 1.0, volume_db: float = 0.0) -> void:

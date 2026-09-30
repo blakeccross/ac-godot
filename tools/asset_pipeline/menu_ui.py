@@ -263,6 +263,87 @@ def _bake_catalog(rel: RelData, symbols, textures: TextureCache, scale: int, cfg
 	return results
 
 
+MSCORE_DIR = "mscore"
+MSCORE_NOTE = (-12.0, 22.0, 24.0, 44.0)
+MSCORE_MARK = (-8.0, 8.0, 16.0, 16.0)
+MSCORE_SEN = (-70.0, 60.0, 140.0, 120.0)
+## `onp_win_*`: the X / Y / START / R caps on segments 8-11, released.
+_MS_BUTTONS = {8: "onp__x_tex_rgb_ia8", 9: "onp__y_tex_rgb_ia8", 10: "start_tex_rgb_ia8", 11: "onp_win_rbutton_tex_rgb_ia8"}
+## `note_frame`: model and the idle / playing texture on segment 8.
+_MS_FRAMES = [
+	("onp_hyouji_waku1T_model", ("onp_win_test1_tex_rgb_ia8", "onp_win_test2_tex_rgb_ia8")),
+	("onp_hyouji_waku2T_model", ("onp_win_test2_tex_rgb_ia8", "onp_win_test3_tex_rgb_ia8")),
+	("onp_hyouji_waku3T_model", ("onp_win_test5_tex_rgb_ia8", "onp_win_shimari_tex_rgb_ia8")),
+	("onp_hyouji_waku4T_model", ("onp_win_test10_tex_rgb_ia8", "onp_win_test11_tex_rgb_ia8")),
+]
+## `note_moji`: frame, letter, PRIM, ENV for notes 0-15 (G low … E, random, rest, off).
+_MS_NORMAL, _MS_REST, _MS_OFF, _MS_RANDOM = 0, 1, 2, 3
+MSCORE_NOTES: list[tuple[int, str, tuple[int, int, int], tuple[int, int, int]]] = [
+	(_MS_NORMAL, "g", (0, 10, 0), (70, 155, 255)), (_MS_NORMAL, "a", (0, 10, 0), (0, 200, 205)),
+	(_MS_NORMAL, "b", (0, 20, 0), (0, 225, 150)), (_MS_NORMAL, "c", (0, 40, 0), (20, 235, 0)),
+	(_MS_NORMAL, "d", (0, 40, 0), (90, 245, 0)), (_MS_NORMAL, "e", (0, 40, 0), (130, 255, 0)),
+	(_MS_NORMAL, "f", (0, 50, 0), (155, 255, 0)), (_MS_NORMAL, "g", (0, 50, 0), (175, 255, 0)),
+	(_MS_NORMAL, "a", (0, 60, 0), (195, 255, 0)), (_MS_NORMAL, "b", (0, 60, 0), (225, 255, 0)),
+	(_MS_NORMAL, "c", (0, 60, 0), (255, 235, 0)), (_MS_NORMAL, "d", (0, 60, 0), (255, 215, 0)),
+	(_MS_NORMAL, "e", (0, 70, 0), (255, 175, 0)), (_MS_RANDOM, "q", (70, 60, 30), (255, 110, 110)),
+	(_MS_REST, "z", (10, 10, 0), (165, 100, 255)), (_MS_OFF, "onpu8", (60, 0, 60), (255, 50, 255)),
+]
+
+
+def _mscore_layers() -> dict[str, tuple[list[Op], tuple[float, float, float, float]]]:
+	"""`mMS_set_dl` pieces: the window in place, the rest at the origin for the runtime."""
+	win = ["onp_win_model", "onp_win_mojiT_model", "onp_win_zT_model", "onp_win_rT_model", "onp_win_sT_model",
+		"onp_win_rmoji_model"]
+	layers: dict[str, tuple[list[Op], tuple[float, float, float, float]]] = {
+		"ms_win": ([Op(m, segments=dict(_MS_BUTTONS)) for m in win], SCREEN),
+		## END, after the window lists so their state carries over (the text is PRIM).
+		"ms_owari_on": ([*(Op(m, segments=dict(_MS_BUTTONS), draw=False) for m in win),
+			Op("onp_win_owariT_model", prim=(255, 0, 0, 255))], SCREEN),
+		"ms_owari_off": ([*(Op(m, segments=dict(_MS_BUTTONS), draw=False) for m in win),
+			Op("onp_win_owariT_model", prim=(0, 0, 255, 255))], SCREEN),
+		## The stick takes the PRIM left by END (blue while the cursor is on a step); baked white.
+		"ms_bou": ([Op("onp_hyouji_moji_mode"), Op("onp_hyouji_bouT_model", prim=(255, 255, 255, 255))], MSCORE_MARK),
+		"ms_sen": ([Op("sen_item2_DL_mode"), Op("sen_win_wakuT_model", prim=(225, 255, 175, 255), env=(0, 255, 40, 255))],
+			MSCORE_SEN),
+		"ms_sen_cursor": ([Op("sen_item2_DL_mode"), Op("sen_win_cursor_model", prim=(235, 60, 60, 255))], MSCORE_MARK),
+	}
+	for n, (frame, _moji, prim, env) in enumerate(MSCORE_NOTES):
+		model, texs = _MS_FRAMES[frame]
+		for playing, tex in enumerate(texs):
+			layers[f"ms_note{n}_{playing}"] = (
+				[Op("onp_hyouji_waku_mode"), Op(model, prim=(*prim, 255), env=(*env, 255), segments={8: tex})],
+				MSCORE_NOTE)
+	for moji in sorted({m for _f, m, _p, _e in MSCORE_NOTES}):
+		layers[f"ms_moji_{moji}"] = (
+			[Op("onp_hyouji_moji_mode"), Op("onp_hyouji_moji1T_model", prim=(255, 255, 255, 255),
+				segments={9: f"onp_win_{moji}_tex_rgb_i4"})],
+			MSCORE_MARK)
+	return layers
+
+
+def _bake_mscore(rel: RelData, symbols, textures: TextureCache, scale: int, cfg: PipelineConfig) -> list[dict[str, Any]]:
+	out_dir = cfg.godot_generated / "ui" / MSCORE_DIR
+	stage_dir = cfg.converted / "ui" / MSCORE_DIR
+	out_dir.mkdir(parents=True, exist_ok=True)
+	stage_dir.mkdir(parents=True, exist_ok=True)
+	results: list[dict[str, Any]] = []
+	for name, (ops, bounds) in _mscore_layers().items():
+		rec: dict[str, Any] = {"asset_id": name, "output_path": f"ui/{MSCORE_DIR}/{name}.png", "error": None}
+		try:
+			image = bake_layer(UiWalker(rel, symbols), textures, ops, bounds, scale)
+			_save(image, name, stage_dir, out_dir, cfg.project_root)
+			rec["status"] = "converted"
+		except Exception as exc:  # noqa: BLE001
+			rec["status"] = "error"
+			rec["error"] = f"{type(exc).__name__}: {exc}"
+		results.append(rec)
+	meta = {"scale": scale, "screen": SCREEN, "note": MSCORE_NOTE, "mark": MSCORE_MARK, "sen": MSCORE_SEN}
+	data = json.dumps(meta, indent=2).encode()
+	for folder in (stage_dir, out_dir):
+		(folder / "mscore.json").write_bytes(data)
+	return results
+
+
 def extract_menu_ui(cfg: PipelineConfig) -> dict[str, Any]:
 	out_dir = cfg.godot_generated / "ui" / OUT_DIR_NAME
 	stage_dir = cfg.converted / "ui" / OUT_DIR_NAME
@@ -353,6 +434,7 @@ def extract_menu_ui(cfg: PipelineConfig) -> dict[str, Any]:
 		results.append(rec)
 
 	results.extend(_bake_catalog(rel, symbols, textures, scale, cfg))
+	results.extend(_bake_mscore(rel, symbols, textures, scale, cfg))
 
 	catalog = {"scale": scale, "screen": SCREEN, "achd_hits": textures.hits, "results": results}
 	data = json.dumps(catalog, indent=2).encode()

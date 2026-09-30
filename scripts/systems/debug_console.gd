@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "clear"
+	"balloon", "rainbow", "tune", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -61,10 +61,30 @@ func execute(raw: String) -> String:
 			var on: bool = args.is_empty() or String(args[0]).to_lower() != "off"
 			Game.rainbow.opacity = 1.0 if on else 0.0
 			return "Rainbow %s." % ("on" if on else "off")
+		"tune":
+			return _cmd_tune(args)
 		"clear":
 			return "__clear__"
 		_:
 			return "Unknown command '%s'. Type help." % cmd
+
+
+## Town tune: `tune` plays it, `tune open` opens the editor, `tune reset` restores the default.
+func _cmd_tune(args: PackedStringArray) -> String:
+	var sub: String = String(args[0]).to_lower() if not args.is_empty() else "play"
+	match sub:
+		"open":
+			var tree := Engine.get_main_loop() as SceneTree
+			var ui: Node = tree.get_first_node_in_group("town_tune_ui") if tree != null else null
+			if ui == null:
+				return "No tune editor in this scene."
+			ui.call("open")
+			return "Tune editor open."
+		"reset":
+			Game.town_tune = TownTune.default_notes()
+			return "Town tune reset to the default."
+	Audio.play_melody(Game.town_tune)
+	return "Playing the town tune."
 
 
 ## Completions for the token under the cursor (Minecraft-style Tab).

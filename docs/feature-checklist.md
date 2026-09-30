@@ -125,7 +125,7 @@ data tables before a category is called done.
 - [~] Pick up dropped items / fruit / shells off the ground (`m_player_main_pickup`) — partial
 - [~] Talk to villagers & special NPCs (`m_player_main_talk`) — partial
 - [~] Shake trees (fruit, furniture, bells, bees, wasp nest) (`m_player_main_shake_tree`) — `tree_use.gd`
-- [~] Push signs to read; read bulletin board; read gravestones/signposts (`ac_sign`) — community board (`MESSAGE_BOARD0`, `obj_*_notice`) is placed from the FG templates and hosts the first-job "post a notice" chore (posted text is one message; the multi-post notice list `m_notice_ovl` is missing). Sight-map boards (`MAP_BOARD0`) open the town map without needing the item; tune boards (`MUSIC_BOARD0`) and fences (`FENCE0` / `WOOD_FENCE`) are solid props; the station statue (`DOUZOU`) is intentionally absent until the loan-payoff statue state exists
+- [~] Push signs to read; read bulletin board; read gravestones/signposts (`ac_sign`) — community board (`MESSAGE_BOARD0`, `obj_*_notice`) is placed from the FG templates and hosts the first-job "post a notice" chore (posted text is one message; the multi-post notice list `m_notice_ovl` is missing). Sight-map boards (`MAP_BOARD0`) open the town map without needing the item; tune boards (`MUSIC_BOARD0`) open the town tune editor; fences (`FENCE0` / `WOOD_FENCE`) are solid props; the station statue (`DOUZOU`) is placed and shows once a house reaches the statue (§26)
 - [~] Knock on villager doors (`m_player_main_knock_door`)
 - [~] Enter/exit buildings: step-in animation, door swing, screen wipe (`m_player_main_door`) — `structure_door.gd`, `scene_transition.gd`
 - [ ] Hand an item to a villager / receive an item (give / recieve animations) (`m_player_main_give`, `recieve`, `ac_handOverItem`)
@@ -321,7 +321,7 @@ data tables before a category is called done.
 - [ ] Full message-bank coverage: villagers (per personality × mood × topic), special NPCs, signs, letters, system prompts
 - [x] Text effects from the message codes: colour (`TEXTCOLOR` / `COLORCHARS`), size about the line type's pivot (`CHARSCALE` / `LINESCALE` / `LINETYPE`), `LINEOFS`, `PAUSE`, `SNDTRGSYS` sounds, `CAPTIALIZE`, `CUTARTICLE`, player / town / catchphrase / item / free-string substitution; pages that turn themselves (`MSGCLEAR`) or on a timer (`MSGTIMEEND`). GCN has no shake code; icon glyphs are font cells
 - [ ] **Animalese** voice synthesis per syllable, pitch by speaker (`jaudio` seqs 243–245) — `dialogue_voice.gd` _(partial)_
-- [~] Keyboard entry (`m_editor_ovl` pad keyboard, `KeyboardPanel`): letters and the gyroid board (`LetterWriterOverlay`), names — design / album folder / catchphrase / song request (`NameEntryOverlay`). Missing: the town tune editor (`m_mscore_ovl`), the notice board posts (`m_notice_ovl`)
+- [~] Keyboard entry (`m_editor_ovl` pad keyboard, `KeyboardPanel`): letters and the gyroid board (`LetterWriterOverlay`), names — design / album folder / catchphrase / song request (`NameEntryOverlay`). the town tune editor (`TownTuneOverlay`). Missing: the notice board posts (`m_notice_ovl`)
 - [ ] Word-filter / bad-word list for user text (`m_editEndChk_ovl`)
 - [~] "..." silent responses; scrolling long letters; page-turn SE — page-turn SE (`page_okuri`, skipped on `BTN2` / `SNDNOPAGE` pages) and the letter board's roll while writing (`mBD_roll_control`)
 
@@ -489,7 +489,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [x] No Town Hall on the GameCube (it arrives in Wild World): Tortimer only appears at events, and Pelly / Phyllis work the post office (§ post office)
 - [~] Tortimer hands out event items & hosts most holidays (`ac_ev_soncho`, `ac_ev_speech_soncho`) — holiday speeches and the wishing-well visits with his calendar trophies (§31)
 - [x] Town Hall services (recycling, donations, environment rating): not on the GameCube; the town tune is set at the melody board by the station (`m_mscore_ovl`)
-- [ ] **Town tune** editor: 16 notes, played on the hour by the town / hummed by villagers (`m_melody`, seq 248) 
+- [x] **Town tune** editor at the tune board: 16 frog steps (G low … E, random, rest, tie), play, erase-all prompt, "Is this OK?" (save / rewrite / keep the old tune), plays as it opens; saved with the town (`m_mscore_ovl`, `ac_mscore_control`, `m_melody`) — `TownTuneOverlay`, `TownTune`, art from `menu_ui.py` (`ui/mscore/`); `tune [open|reset]` console command. The e-Reader button only closes
 - [ ] Change town flag? / town name is fixed after creation
 - [x] Player statue by the station (`ac_douzou`) once a house's loan ends in the statue: owner's figure and face (winter set in winter), rank sets size and gold / silver / bronze / jade colours, plaque reads `MSG_DOZOU` in a red window — `Statue`, `statue_metal.gdshader`, face textures from `weather_sprites.py`; `house statue built [rank]` console command. Missing: the sparkle effect (`ef_douzou_light`)
 - [x] Wishy the Star: not on the GameCube; the wishing well (`ac_shrine`) is scenery plus Tortimer's holiday spot
@@ -607,7 +607,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [ ] **K.K. Slider songs** (~50) with vocal/animalese arrangements; the in-house "music box" playback vs. the live Saturday performance (`m_mscore_ovl`)
 - [ ] SFX bank (seq 242): footsteps by surface, tools, UI, doors, water, digging, tree, bells jingle, item get fanfare
 - [ ] **Animalese** speech (seqs 243–245), pitch per speaker sex/personality
-- [ ] Town tune (16 notes) played on the hour and by clocks (`m_melody`, seq 248)
+- [~] Town tune played on the hour outdoors as the time signal (`mBGMTime_signal_melody`) — `Audio.play_melody` on the note SEs; the step length (0.25 s) is an estimate, and clocks / villager humming don't use it yet
 - [ ] Gyroid hums layered onto room music (`ac_my_room_melody`)
 - [ ] Ambient: birds (day), crickets/owls (night), cicadas (summer day), ocean waves, river, waterfall, wind, rain, thunder
 - [ ] Stereo/positional audio for sound sources (villagers, water, bug/insect calls)

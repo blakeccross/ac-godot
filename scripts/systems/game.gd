@@ -118,6 +118,8 @@ var has_map: bool = false
 ## `Save_Get(num_statues)` — how many Nook house statues the town has built (0..3, gold →
 ## jade); the next one takes the following rank.
 var num_statues: int = 0
+## `Save_Get(melody)`: the town tune (`TownTune`), set at the tune board.
+var town_tune: PackedByteArray = TownTune.default_notes()
 ## `Private_c.complete_fish_insect_flags` — see `CompleteTalk`.
 var complete_flags: int = 0
 ## `goki_shocked_flag`: the first roach of a session startles the player, once.
@@ -825,6 +827,7 @@ func reset_session() -> void:
 	cloth_id = FirstJob.DEFAULT_CLOTH_ID
 	has_map = false
 	num_statues = 0
+	town_tune = TownTune.default_notes()
 	complete_flags = 0
 	goki_shocked = false
 	if first_job == null:
@@ -1120,6 +1123,7 @@ func to_save() -> Dictionary:
 		"destiny": {"type": int(destiny_type), "y": destiny_date.x, "m": destiny_date.y, "d": destiny_date.z},
 		"has_map": has_map,
 		"num_statues": num_statues,
+		"town_tune": Array(town_tune),
 		"complete_flags": complete_flags,
 		"first_job": first_job.to_save() if first_job != null else {},
 		"weather": String(weather),
@@ -1261,6 +1265,7 @@ func apply_snapshot(data: Dictionary) -> void:
 		cloth_id = FirstJob.DEFAULT_CLOTH_ID
 	has_map = bool(data.get("has_map", false))
 	num_statues = clampi(int(data.get("num_statues", 0)), 0, 3)
+	town_tune = TownTune.sanitize(data.get("town_tune", null))
 	complete_flags = int(data.get("complete_flags", 0)) & 0xF
 	if first_job == null:
 		first_job = FirstJob.new()

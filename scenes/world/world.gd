@@ -104,6 +104,10 @@ func _exit_tree() -> void:
 
 func _on_hour_changed(_hour: int) -> void:
 	_play_outdoor_bgm()
+	## `mBGMTime_signal_melody`: the town tune on the hour, outdoors, not in the title
+	## demo or the first arrival.
+	if not Game.title_demo_active and not Game.intro_station_active and Game.current_room_id == &"":
+		Audio.play_melody(Game.town_tune)
 
 
 func _on_weather_changed(_weather: StringName) -> void:

@@ -16,6 +16,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/clock_widget.tscn" id="14"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_overlay.tscn" id="15"]
 [ext_resource type="PackedScene" uid="uid://cdalbumovl001" path="res://scenes/ui/design_album_overlay.tscn" id="16"]
+[ext_resource type="PackedScene" path="res://scenes/ui/town_tune_overlay.tscn" id="17"]
 
 [node name="ClockHud" type="CanvasLayer" unique_id=464119557]
 script = ExtResource("1")
@@ -27,6 +28,8 @@ script = ExtResource("1")
 [node name="DialogueOverlay" parent="." unique_id=1832348790 instance=ExtResource("3")]
 
 [node name="CatalogOverlay" parent="." unique_id=1539548450 instance=ExtResource("4")]
+
+[node name="TownTuneOverlay" parent="." instance=ExtResource("17")]
 
 [node name="DebugConsole" parent="." unique_id=1737995488 instance=ExtResource("6")]
 
