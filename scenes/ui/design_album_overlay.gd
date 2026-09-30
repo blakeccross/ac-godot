@@ -27,15 +27,15 @@ const ALBUM_COLS := 3
 const ALBUM_ROWS := 4
 const MINE_COLS := 2
 const MINE_ROWS := 4
+const ALBUM_WIDTH := 194.0
+const BOOK2_WIDTH := 132.0
+const CLOTH_TEXELS_PER_UNIT := 64.0 / 52.0
 
 ## `m_cporiginal_ovl.c` per-folder colours.
 const TAB_PRIM := [0xCDC36E, 0xCDA55F, 0xC3914B, 0xAF7D37, 0x9B6923, 0x875F14, 0x735519, 0x5F2D14]
 const TAB_ENV := [0xC3B964, 0xC39B5A, 0xB98746, 0xA57332, 0x915F1E, 0x7D550A, 0x694B14, 0x552D0A]
 const SEL_TAB_PRIM := [0x91875F, 0x8C6E4B, 0x7D694B, 0x7D5F4B, 0x735F41, 0x73552D, 0x5F4B37, 0x5F4128]
 const ENV := [0xFFF5A0, 0xFFD796, 0xF5C382, 0xE1AF6E, 0xCD9B5A, 0xB98746, 0xA57332, 0x9B5F28]
-const RIM_PRIM := [0xA5875A, 0x9B7D50, 0x917346, 0x87693C, 0x826437, 0x785A2D, 0x735528, 0x6E5023]
-const RIM_ENV := [0xEBD7AF, 0xE1CDA5, 0xD7C39B, 0xCDB991, 0xC3AF87, 0xB9A57D, 0xAF9B73, 0xA59169]
-const PLATE_PRIM := [0x695046, 0x3C3223, 0x4B372D, 0x4B372D, 0x412D0F, 0x413719, 0x412D1E, 0x413732]
 const TEXT_COLOR := [0x503232, 0x503232, 0x503232, 0x463232, 0x463232, 0x3C2828, 0x3C2828, 0x321E1E]
 
 var _open: bool = false
@@ -75,11 +75,11 @@ func _ready() -> void:
 	_root.resized.connect(_fit_screen)
 	for pair: Array in [[_book, "Cloth", "book2_mask"], [_book, "Under", "book2_under"], [_book, "Over", "book2_over"],
 			[_album, "Cloth", "album_mask"], [_album, "Under", "album_under"], [_album, "Over", "album_over"],
-			[_album, "Kage", "album_kage"], [_album, "Rim", "album_rim_raw"], [_album, "Plate", "album_name_raw"]]:
+			[_album, "Kage", "album_kage"]]:
 		((pair[0] as Node).get_node(pair[1]) as TextureRect).texture = _design_tex(pair[2])
-	(_book.get_node("Cloth").material as ShaderMaterial).set_shader_parameter("paper_tex", _design_tex("book_cloth"))
+	_set_cloth(_book.get_node("Cloth"), _design_tex("book_cloth"), BOOK2_WIDTH)
 	var tab_tex := _design_tex("ctl_win_tagu2_tex")
-	var mark_shader: Shader = (_album.get_node("Rim").material as ShaderMaterial).shader
+	var mark_shader: Shader = (_album.get_node("SelTab").material as ShaderMaterial).shader
 	for i in DesignBook.ALBUM_PAGES:
 		var tab := _album.get_node("Tab%d" % i) as TextureRect
 		tab.texture = tab_tex
@@ -353,10 +353,10 @@ func _refresh() -> void:
 	_prompt.visible = _confirm
 	if _confirm:
 		(_prompt.get_node("Text") as Label).text = "Keep the changes to the album?\nY / space  keep      N  put it all back"
-	(_album.get_node("Cloth").material as ShaderMaterial).set_shader_parameter(
-		"paper_tex", _design_tex("album_cloth%d" % _page))
-	_set_lerp(_album.get_node("Rim"), RIM_PRIM[_page], RIM_ENV[_page])
-	_set_lerp(_album.get_node("Plate"), PLATE_PRIM[_page], ENV[_page])
+	_set_cloth(_album.get_node("Cloth"), _design_tex("album_cloth%d" % _page), ALBUM_WIDTH)
+	## Rim and name plate in the folder's colours, baked per folder.
+	(_album.get_node("Rim") as TextureRect).texture = _design_tex("album_rim%d" % _page)
+	(_album.get_node("Plate") as TextureRect).texture = _design_tex("album_name%d" % _page)
 	var sel_tab := _album.get_node("SelTab") as TextureRect
 	_set_lerp(sel_tab, SEL_TAB_PRIM[_page], ENV[_page])
 	## `mCO_set_frame_tagT_dl`: the open folder's tab, raised at (105, 52 - page*29/2).
@@ -374,6 +374,18 @@ func _thumb(dp: DesignPattern) -> Texture2D:
 	if not _thumbs.has(dp):
 		_thumbs[dp] = ImageTexture.create_from_image(DesignTexture.image(dp))
 	return _thumbs[dp]
+
+
+## The cloth scrolls under the window's mask at its own texel scale: 64 texels per 52
+## window units (`sav_win1` / `inv_original2` quads), whatever the bake or ACHD size.
+func _set_cloth(rect: TextureRect, cloth: Texture2D, window_width: float) -> void:
+	var mat := rect.material as ShaderMaterial
+	if mat == null or cloth == null or rect.texture == null:
+		return
+	var shell_px_per_unit := rect.texture.get_width() / window_width
+	var cloth_px_per_unit := CLOTH_TEXELS_PER_UNIT * cloth.get_width() / 32.0
+	mat.set_shader_parameter("paper_tex", cloth)
+	mat.set_shader_parameter("paper_px_per_shell_px", cloth_px_per_unit / shell_px_per_unit)
 
 
 func _set_lerp(node: Node, prim: int, env: int) -> void:

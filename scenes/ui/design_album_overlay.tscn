@@ -13,12 +13,6 @@ shader_parameter/paper_px_per_shell_px = 0.410256
 shader = ExtResource("2")
 shader_parameter/paper_px_per_shell_px = 0.410256
 
-[sub_resource type="ShaderMaterial" id="rim"]
-shader = ExtResource("4")
-
-[sub_resource type="ShaderMaterial" id="plate"]
-shader = ExtResource("4")
-
 [sub_resource type="ShaderMaterial" id="sel_tab"]
 shader = ExtResource("4")
 
@@ -146,6 +140,7 @@ offset_right = 182.0
 offset_bottom = 142.0
 mouse_filter = 2
 expand_mode = 1
+
 [node name="Tab6" type="TextureRect" parent="Root/Screen/Album"]
 layout_mode = 0
 offset_left = 152.0
@@ -154,6 +149,7 @@ offset_right = 182.0
 offset_bottom = 128.0
 mouse_filter = 2
 expand_mode = 1
+
 [node name="Tab5" type="TextureRect" parent="Root/Screen/Album"]
 layout_mode = 0
 offset_left = 152.0
@@ -162,6 +158,7 @@ offset_right = 182.0
 offset_bottom = 113.0
 mouse_filter = 2
 expand_mode = 1
+
 [node name="Tab4" type="TextureRect" parent="Root/Screen/Album"]
 layout_mode = 0
 offset_left = 152.0
@@ -170,6 +167,7 @@ offset_right = 182.0
 offset_bottom = 99.0
 mouse_filter = 2
 expand_mode = 1
+
 [node name="Tab3" type="TextureRect" parent="Root/Screen/Album"]
 layout_mode = 0
 offset_left = 152.0
@@ -178,6 +176,7 @@ offset_right = 182.0
 offset_bottom = 84.0
 mouse_filter = 2
 expand_mode = 1
+
 [node name="Tab2" type="TextureRect" parent="Root/Screen/Album"]
 layout_mode = 0
 offset_left = 152.0
@@ -186,6 +185,7 @@ offset_right = 182.0
 offset_bottom = 70.0
 mouse_filter = 2
 expand_mode = 1
+
 [node name="Tab1" type="TextureRect" parent="Root/Screen/Album"]
 layout_mode = 0
 offset_left = 152.0
@@ -194,6 +194,7 @@ offset_right = 182.0
 offset_bottom = 55.0
 mouse_filter = 2
 expand_mode = 1
+
 [node name="Tab0" type="TextureRect" parent="Root/Screen/Album"]
 layout_mode = 0
 offset_left = 152.0
@@ -202,6 +203,7 @@ offset_right = 182.0
 offset_bottom = 41.0
 mouse_filter = 2
 expand_mode = 1
+
 [node name="Kage" type="TextureRect" parent="Root/Screen/Album"]
 layout_mode = 1
 anchors_preset = 15
@@ -217,7 +219,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 expand_mode = 1
-material = SubResource("rim")
+
 [node name="Plate" type="TextureRect" parent="Root/Screen/Album"]
 layout_mode = 1
 anchors_preset = 15
@@ -225,7 +227,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 expand_mode = 1
-material = SubResource("plate")
+
 [node name="SelTab" type="TextureRect" parent="Root/Screen/Album"]
 layout_mode = 0
 offset_left = 152.0
@@ -235,6 +237,7 @@ offset_bottom = 42.0
 mouse_filter = 2
 material = SubResource("sel_tab")
 expand_mode = 1
+
 [node name="FolderName" type="Label" parent="Root/Screen/Album"]
 layout_mode = 0
 offset_left = 36.0

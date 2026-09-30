@@ -766,6 +766,21 @@ func _tex(name: String) -> Texture2D:
 	return t
 
 
+## A texel-space source rect (native size `native`) in `tex`'s own pixels, so ACHD
+## textures at 2x, 4x, ... sample the same region.
+func _src(tex: Texture2D, native: Vector2, r: Rect2) -> Rect2:
+	var k := tex.get_size() / native
+	return Rect2(r.position * k, r.size * k)
+
+
+func _cursor_native(name: String) -> Vector2:
+	if name.begins_with("des_cursor_mark1") or name.begins_with("des_cursor_mark2"):
+		return Vector2(16, 32)
+	if name.begins_with("des_cursor_mark"):
+		return Vector2(16, 16)
+	return Vector2(32, 32)
+
+
 ## Units rect → Screen-local pixels.
 func _px(r: Rect2) -> Rect2:
 	return Rect2(r.position.x + 160.0, 120.0 - r.end.y, r.size.x, r.size.y)
@@ -829,17 +844,17 @@ func _draw_chrome() -> void:
 	for i in 15:
 		var r := _px(Rect2(98, 48 - 10 * i, 24, 10))
 		if swatch != null:
-			ci.draw_texture_rect_region(swatch, r, Rect2(0, 0, 32, 16), pal[i + 1])
+			ci.draw_texture_rect_region(swatch, r, _src(swatch, Vector2(16, 16), Rect2(0, 0, 32, 16)), pal[i + 1])
 		else:
 			ci.draw_rect(r, pal[i + 1])
 	var cwaku := _tex("des_win_cwaku_tex")
 	if cwaku != null:
-		ci.draw_texture_rect_region(cwaku, _px(SWATCH_COLUMN), Rect2(0, 0, 32, 240), DARK)
+		ci.draw_texture_rect_region(cwaku, _px(SWATCH_COLUMN), _src(cwaku, Vector2(16, 16), Rect2(0, 0, 32, 240)), DARK)
 
 	if _grid_on:
 		var sen := _tex("des_win_sen_tex")
 		if sen != null:
-			ci.draw_texture_rect_region(sen, _px(CANVAS), Rect2(0, 0, 512, 512), GRID_DOTS)
+			ci.draw_texture_rect_region(sen, _px(CANVAS), _src(sen, Vector2(16, 16), Rect2(0, 0, 512, 512)), GRID_DOTS)
 		for r: Rect2 in GRID2:
 			ci.draw_rect(_px(r), GRID2_COLOR)
 
@@ -861,7 +876,7 @@ func _draw_chrome() -> void:
 func _draw_digit(ci: CanvasItem, d: int, x0: float, prim: Color) -> void:
 	var t := _tex("des_win_suuji%d_tex_rgb_i4" % d)
 	if t != null:
-		ci.draw_texture_rect_region(t, _px(Rect2(x0, 87, 7, 12)), Rect2(1.59375, 0, 11.21875, 16), prim)
+		ci.draw_texture_rect_region(t, _px(Rect2(x0, 87, 7, 12)), _src(t, Vector2(16, 16), Rect2(1.59375, 0, 11.21875, 16)), prim)
 
 
 func _draw_pixels(ci: CanvasItem, r: Rect2, px: PackedByteArray, pal: PackedColorArray) -> void:
@@ -877,7 +892,7 @@ func _draw_tools() -> void:
 	var ci := _tools
 	var kirikae := _tex("des_win_kirikae_tex")
 	if kirikae != null:
-		ci.draw_texture_rect_region(kirikae, _px(KIRIKAE), ICON_SRC)
+		ci.draw_texture_rect_region(kirikae, _px(KIRIKAE), _src(kirikae, Vector2(32, 32), ICON_SRC))
 	var current := [_pen_size, _fill_mode, _shape, _stamp]
 	for row in 4:
 		var cols: int = int(TOOL_ROWS[row]) if _mode == Mode.TOOL else 1
@@ -887,10 +902,10 @@ func _draw_tools() -> void:
 			if t == null:
 				continue
 			var src := Rect2(0, 0, 32, 32) if (row == 1 and col == 5) else ICON_SRC
-			ci.draw_texture_rect_region(t, _px(_tool_rect(row, col)), src)
+			ci.draw_texture_rect_region(t, _px(_tool_rect(row, col)), _src(t, Vector2(32, 32), src))
 	var undo := _tex("des_tool_undo_tex")
 	if undo != null:
-		ci.draw_texture_rect_region(undo, _px(_tool_rect(4, 0)), ICON_SRC)
+		ci.draw_texture_rect_region(undo, _px(_tool_rect(4, 0)), _src(undo, Vector2(32, 32), ICON_SRC))
 
 
 ## `mDE_set_frame_mark_dl`: the tool frame and the palette-switch frame.
@@ -903,21 +918,21 @@ func _draw_marks() -> void:
 	if _mode == Mode.TOOL:
 		c = Vector2(-112 + _tool_col * 24, 16 - _tool_row * 24)
 		col = MARK_TOOL
-	_marks.draw_texture_rect_region(t, _at(c, Vector2(28, 28)), Rect2(0, 0, 32, 32), col)
+	_marks.draw_texture_rect_region(t, _at(c, Vector2(28, 28)), _src(t, Vector2(16, 16), Rect2(0, 0, 32, 32)), col)
 	if _mode == Mode.PALLET and _pal_row == 0:
-		_marks.draw_texture_rect_region(t, _at(Vector2(110, 71), Vector2(28, 28)), Rect2(0, 0, 32, 32), MARK_TOOL)
+		_marks.draw_texture_rect_region(t, _at(Vector2(110, 71), Vector2(28, 28)), _src(t, Vector2(16, 16), Rect2(0, 0, 32, 32)), MARK_TOOL)
 
 
 func _draw_color_mark() -> void:
 	var t := _tex("des_win_marking3_tex")
 	if t != null:
-		_color_mark.draw_texture_rect_region(t, _at(Vector2(110, 63 - _paint * 10), Vector2(26, 12)), Rect2(0, 0, 32, 16))
+		_color_mark.draw_texture_rect_region(t, _at(Vector2(110, 63 - _paint * 10), Vector2(26, 12)), _src(t, Vector2(16, 16), Rect2(0, 0, 32, 16)))
 
 
 func _draw_pal_mark() -> void:
 	var t := _tex("des_win_marking3_tex")
 	if t != null and _mode == Mode.PALLET and _pal_row > 0:
-		_pal_mark.draw_texture_rect_region(t, _at(Vector2(110, 63 - _pal_row * 10), Vector2(26, 12)), Rect2(0, 0, 32, 16))
+		_pal_mark.draw_texture_rect_region(t, _at(Vector2(110, 63 - _pal_row * 10), Vector2(26, 12)), _src(t, Vector2(16, 16), Rect2(0, 0, 32, 16)))
 
 
 ## `mDE_set_frame_cursor_dl` (MAIN only): the tool's cursor sprite, offset from the
@@ -947,4 +962,4 @@ func _draw_cursor() -> void:
 func _cursor_sprite(name: String, center: Vector2, size: float, src: Rect2, tint: Color) -> void:
 	var t := _tex(name)
 	if t != null:
-		_cursor_view.draw_texture_rect_region(t, _at(center, Vector2(size, size)), src, tint)
+		_cursor_view.draw_texture_rect_region(t, _at(center, Vector2(size, size)), _src(t, _cursor_native(name), src), tint)

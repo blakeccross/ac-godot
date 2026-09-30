@@ -52,9 +52,16 @@ func _ready() -> void:
 	for layer_name: String in ["Cloth:book_mask", "Under:book_under", "Over:book_over"]:
 		var parts := layer_name.split(":")
 		(_book.get_node(parts[0]) as TextureRect).texture = _design_tex(parts[1])
-	var cloth := _book.get_node("Cloth").material as ShaderMaterial
-	if cloth != null:
-		cloth.set_shader_parameter("paper_tex", _design_tex("book_cloth"))
+	## The cloth scrolls under the mask at 64 texels per 60 window units (`w1T` quads),
+	## whatever the bake or ACHD size.
+	var cloth_rect := _book.get_node("Cloth") as TextureRect
+	var cloth := _design_tex("book_cloth")
+	var mat := cloth_rect.material as ShaderMaterial
+	if mat != null and cloth != null and cloth_rect.texture != null:
+		var shell_px_per_unit := cloth_rect.texture.get_width() / BOOK_SIZE.x
+		var cloth_px_per_unit := (64.0 / 60.0) * cloth.get_width() / 32.0
+		mat.set_shader_parameter("paper_tex", cloth)
+		mat.set_shader_parameter("paper_px_per_shell_px", cloth_px_per_unit / shell_px_per_unit)
 	_fit_screen()
 	set_process(false)
 	set_process_unhandled_input(false)

@@ -166,10 +166,7 @@ def main() -> int:
             else:
                 converted = report["converted"]
                 errors = [r for r in report["results"] if r.get("status") == "error"]
-                print(f"wrote {converted} design UI assets -> {report['output']}")
-                shell_info = report.get("window_shell")
-                if shell_info:
-                    print(f"  window_shell {shell_info.get('width')}x{shell_info.get('height')} status={shell_info.get('status')}")
+                print(f"wrote {converted} design UI assets -> {report['output']} (ACHD hits {report['achd_hits']})")
                 for err in errors[:40]:
                     print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
                 if errors:
