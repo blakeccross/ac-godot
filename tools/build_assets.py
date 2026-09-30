@@ -35,6 +35,7 @@ from asset_pipeline.villagers import generate_villagers  # noqa: E402
 from asset_pipeline.seasons import export_seasonal_textures  # noqa: E402
 from asset_pipeline.extract import extract_archives, extract_disc  # noqa: E402
 from asset_pipeline.design_ui import extract_design_ui  # noqa: E402
+from asset_pipeline.menu_ui import extract_menu_ui  # noqa: E402
 from asset_pipeline.inventory_ui import extract_inventory_ui  # noqa: E402
 from asset_pipeline.map_ui import extract_map_ui  # noqa: E402
 from asset_pipeline.clock_ui import extract_clock_ui  # noqa: E402
@@ -55,7 +56,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--kind",
-        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "design-ui", "map-ui", "message-ui", "clock-ui", "title", "dialogue", "villagers", "villager-textures", "faces", "audio", "water", "fish", "bugs", "seasons"],
+        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "design-ui", "menu-ui", "map-ui", "message-ui", "clock-ui", "title", "dialogue", "villagers", "villager-textures", "faces", "audio", "water", "fish", "bugs", "seasons"],
         default="all",
         help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory/map UI chrome, dialogue banks, villager roster from decomp tables, per-villager body texture sets, NPC eye/mouth face frames, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
     )
@@ -169,6 +170,18 @@ def main() -> int:
                 shell_info = report.get("window_shell")
                 if shell_info:
                     print(f"  window_shell {shell_info.get('width')}x{shell_info.get('height')} status={shell_info.get('status')}")
+                for err in errors[:40]:
+                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+                if errors:
+                    failed = True
+        elif args.kind == "menu-ui":
+            report = extract_menu_ui(cfg)
+            if report.get("error"):
+                print(f"menu-ui: {report['error']}")
+                failed = True
+            else:
+                errors = [r for r in report["results"] if r.get("status") == "error"]
+                print(f"wrote {report['converted']} menu UI layers -> {report['output']} (ACHD hits {report['achd_hits']})")
                 for err in errors[:40]:
                     print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
                 if errors:
