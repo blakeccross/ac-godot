@@ -138,16 +138,13 @@ func test_shop_id_from_room_kind() -> void:
 	assert_that(nook.floor_id).is_equal(ShopDisplay.nook_floor_id(0))
 
 
-func test_tom_nook_offers_talk_buy_sell() -> void:
+## Selling and the catalog are on his counter menu; goods come off the shelves.
+func test_tom_nook_only_talks() -> void:
 	Game.current_room_id = &"shop0"
 	var nook: Node = auto_free(load("res://scenes/world/interiors/tom_nook.tscn").instantiate())
 	var actions: Array[Interaction] = nook.get_interactions(InteractionContext.new())
-	var ids: PackedStringArray = PackedStringArray()
-	for action: Interaction in actions:
-		ids.append(String(action.id))
-	assert_bool(ids.has(String(Interaction.TALK))).is_true()
-	assert_bool(ids.has(String(Interaction.BUY))).is_true()
-	assert_bool(ids.has(String(Interaction.SELL))).is_true()
+	assert_int(actions.size()).is_equal(1)
+	assert_str(String(actions[0].id)).is_equal(String(Interaction.TALK))
 	Game.current_room_id = &""
 
 
@@ -283,17 +280,3 @@ func test_authored_public_interior_scenes_exist() -> void:
 	assert_str(WorldObjectRegistry.scene_for_building(&"post_office", &"building")).contains(
 		"post_office.tscn"
 	)
-
-
-func test_counter_offers_shop_verb() -> void:
-	var counter: Node = auto_free(load("res://scenes/world/shop_counter.tscn").instantiate())
-	counter.set("shop_id", ShopBook.NOOK_ID)
-	var actions: Array[Interaction] = ShopUse.actions(counter, InteractionContext.new())
-	var action: Interaction = Interaction.primary(actions)
-	assert_that(action).is_not_null()
-	assert_str(String(action.id)).is_equal(String(Interaction.BUY))
-	assert_str(action.prompt).is_equal("Buy")
-	var ids: PackedStringArray = PackedStringArray()
-	for entry: Interaction in actions:
-		ids.append(String(entry.id))
-	assert_bool(ids.has(String(Interaction.SELL))).is_true()

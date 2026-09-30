@@ -35,6 +35,7 @@ from .texbank import (
 	G_IM_FMT_I,
 	GX_CLAMP,
 	GX_MIRROR,
+	GX_REPEAT,
 	decode_gbi_texture,
 	is_dolphin_loadtlut,
 	parse_settile,
@@ -114,6 +115,23 @@ class Op:
 	draw: bool = True
 	## `Matrix_translate` in screen units.
 	offset: tuple[float, float] = (0.0, 0.0)
+	## Tiles the caller loads before the list (`gDPLoadTLUT_Dolphin` +
+	## `gDPSetTextureImage_Dolphin` + `gDPSetTile_Dolphin`): tile -> TexRef.
+	tiles: dict[int, "TexRef"] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class TexRef:
+	"""A texture the C code binds by symbol: `symbol` data, `tlut` palette symbol for CI."""
+
+	symbol: str
+	width: int
+	height: int
+	fmt: int
+	siz: int
+	tlut: str | None = None
+	wrap_s: int = GX_REPEAT
+	wrap_t: int = GX_REPEAT
 
 
 class UiWalker:
@@ -152,6 +170,10 @@ class UiWalker:
 				self.prim = op.prim
 			if op.env is not None:
 				self.env = op.env
+			for tile, ref in op.tiles.items():
+				tlut = self.symbol(ref.tlut).address if ref.tlut else 0
+				self.tiles[tile] = Tile(self.symbol(ref.symbol).address, ref.width, ref.height, ref.fmt,
+					ref.siz, tlut, ref.wrap_s, ref.wrap_t)
 			segs = {}
 			for seg, ref in op.segments.items():
 				name, extra = (ref, 0) if isinstance(ref, str) else ref

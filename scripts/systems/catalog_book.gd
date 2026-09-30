@@ -2,8 +2,9 @@ class_name CatalogBook
 extends RefCounted
 
 ## The player's catalog (`m_catalog_ovl`, `mSP_CollectCheck`): every furniture, clothing,
-## wallpaper, carpet, stationery and umbrella that has ever reached the pockets, plus the
-## Nook mail-order queue (`Private_c.catalog_orders`, `mPr_CATALOG_ORDER_NUM` = 5).
+## wallpaper, carpet, stationery, umbrella and K.K. record that has ever reached the
+## pockets, plus the Nook mail-order queue (`Private_c.catalog_orders`,
+## `mPr_CATALOG_ORDER_NUM` = 5).
 ## Orders are paid at the counter and arrive enclosed in a letter at the next 06:00
 ## (`mPO_delivery_mail_with_order_ftr`). Owned by `Game`.
 
@@ -34,7 +35,8 @@ static func is_catalog_item(data: ItemData) -> bool:
 	match data.category:
 		ItemData.Category.CLOTH, ItemData.Category.WALL, ItemData.Category.FLOOR:
 			return true
-	return data.id == ShopGoods.PAPER
+	## K.K. records have their own page (`music_collected_bitfield`).
+	return data.id == ShopGoods.PAPER or MinidiskCatalog.is_disc(data.id)
 
 
 ## Catalog pages keep the item even after it leaves the pockets.
@@ -85,7 +87,9 @@ func owned_ids() -> Array[StringName]:
 
 ## `aNSC_msg_win_open_wait2`: a catalog page with no order slot is "not for sale".
 static func is_orderable(data: ItemData) -> bool:
-	return is_catalog_item(data) and ShopBook.buy_price(data) > 0 and not data.shop_rare
+	## Records are never for sale (`mCL_music_init` price 0).
+	return (is_catalog_item(data) and ShopBook.buy_price(data) > 0 and not data.shop_rare
+		and not MinidiskCatalog.is_disc(data.id))
 
 
 func orders() -> Array[Dictionary]:

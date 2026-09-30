@@ -5,13 +5,18 @@ extends RefCounted
 ## the counter menu (sell / catalog order / other → turnip price), the shelf offer
 ## ("That's X. N Bells. Want it?", with try-on for clothes), and the raffle-day drawing.
 ## Hosts fill the context, forward `{op:"nook_shop"}` events here and act on the returned
-## follow-up (open the sell / order paper after the talk closes).
+## follow-up (open the pockets to sell / the catalog after the talk closes).
 
 const MENU_ID := &"nook_shop_menu"
 const OFFER_ID := &"nook_shop_offer"
 const LOTTERY_ID := &"nook_lottery"
 ## After the pockets close in sell mode (`aNSC_buy_sum_check` / `aNSC_buy_check`).
 const SELL_ID := &"nook_shop_sell"
+const ORDER_ID := &"nook_shop_order"
+## What came back from the catalog: offer / unavailable / cancel.
+const VAR_ORDER_PICK := "shop_order_pick"
+const VAR_ORDER_DONE := "shop_order_done"
+const VAR_ORDER_ITEM := "shop_order_item"
 const VAR_SELL := "shop_sell"
 const VAR_SELL_DONE := "shop_sell_done"
 const OP := "nook_shop"
@@ -113,7 +118,7 @@ static func fill_sell(ctx: DialogueContext, selection: Dictionary) -> void:
 
 
 ## Handle one `{op:"nook_shop"}` event. Returns {notice, open} where `open` is
-## &"sell" / &"order" when a paper should open after the talk.
+## &"sell" / &"order" when the pockets / catalog should open after the talk.
 static func apply_event(event: Dictionary, ctx: DialogueContext) -> Dictionary:
 	var out: Dictionary = {"notice": "", "open": &""}
 	if str(event.get("op", "")) != OP or Game == null:
@@ -122,15 +127,18 @@ static func apply_event(event: Dictionary, ctx: DialogueContext) -> Dictionary:
 		"sell":
 			out["open"] = &"sell"
 		"order":
-			var state: String = "ok"
-			if not Game.catalog.has_free_order():
-				state = "full"
-			elif _orderable_count() == 0:
-				state = "empty"
+			## `aNSC_request_Q_answer_wait`: a full order sheet, else the catalog.
+			var state: String = "ok" if Game.catalog.has_free_order() else "full"
 			if ctx != null:
 				ctx.set_var(VAR_ORDER, state)
 			if state == "ok":
 				out["open"] = &"order"
+		"order_confirm":
+			var item_id := StringName(str(ctx.get_var(VAR_ORDER_ITEM, "")) if ctx != null else "")
+			var code: int = Game.shops.order_result(item_id, Game.inventory, Game.catalog)
+			if ctx != null:
+				ctx.set_var(VAR_ORDER_DONE, "ok" if code == ShopBook.Order.OK
+					else ("no_money" if code == ShopBook.Order.NO_MONEY else "full"))
 		"sell_confirm":
 			var selection: Dictionary = sell_selection(Game.shop_sell_slots)
 			var done: String = "ok"
@@ -177,12 +185,19 @@ static func apply_event(event: Dictionary, ctx: DialogueContext) -> Dictionary:
 	return out
 
 
-static func _orderable_count() -> int:
-	var n: int = 0
-	for item_id: StringName in Game.catalog.owned_ids():
-		if CatalogBook.is_orderable(ItemCatalog.get_item(item_id)):
-			n += 1
-	return n
+## `aNSC_msg_win_open_wait2` + `aNSC_order_check_init`: item1 = the pick, free3 = its
+## price; `shop_order_pick` = offer / unavailable (not for sale) / cancel (nothing picked).
+static func fill_order(ctx: DialogueContext, item_id: StringName) -> void:
+	if ctx == null:
+		return
+	var data: ItemData = ItemCatalog.get_item(item_id)
+	ctx.set_var(VAR_ORDER_ITEM, String(item_id))
+	if data == null:
+		ctx.set_var(VAR_ORDER_PICK, "cancel")
+		return
+	ctx.item0 = data.display_name
+	_set_free(ctx, 0, str(ShopBook.buy_price(data)))
+	ctx.set_var(VAR_ORDER_PICK, "offer" if CatalogBook.is_orderable(data) else "unavailable")
 
 
 static func _buy_code_name(code: int) -> String:

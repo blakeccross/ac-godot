@@ -103,31 +103,17 @@
           "goto": "order_full"
         },
         {
-          "if": {
-            "var_eq": {
-              "name": "shop_order",
-              "value": "empty"
-            }
-          },
-          "goto": "order_empty"
-        },
-        {
           "goto": "order_line"
         }
       ]
     },
     "order_line": {
       "type": "line",
-      "text": "Our catalog, yes, yes!\nPick something and I'll\nmail it to you tomorrow."
+      "text": "This is your very own\ncatalog, yes? Just pick\nwhatever you'd like to order!"
     },
     "order_full": {
       "type": "line",
       "text": "Hm, you already have five\norders on the way. Let's wait\nuntil those arrive, shall we?",
-      "next": "menu"
-    },
-    "order_empty": {
-      "type": "line",
-      "text": "Your catalog is still empty!\nItems you own get added\nto it automatically.",
       "next": "menu"
     },
     "other": {

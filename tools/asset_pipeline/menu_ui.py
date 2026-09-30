@@ -25,7 +25,8 @@ from .godot_import import write_import_sidecar
 from .mapfile import parse_map
 from .rel import RelData
 from .texbank import image_png_bytes
-from .ui_gbi import Op, TextureCache, UiWalker, bake_layer
+from .texbank import G_IM_FMT_CI, G_IM_SIZ_4b
+from .ui_gbi import Op, TexRef, TextureCache, UiWalker, bake_layer, rasterize
 
 OUT_DIR_NAME = "menu"
 SCREEN = (-160.0, 120.0, 320.0, 240.0)
@@ -157,6 +158,111 @@ def _address_card_ops(rel: RelData, symbols, count: int, part: str) -> list[Op]:
 	]
 
 
+## `m_catalog_ovl.c`. Page units are screen units about the menu position (y up). The
+## page is laid out so its left edge (-143) is where the paper pattern's s = 0 falls
+## (`clg_win_waku1T_model`), which lets the runtime scroll the pattern in texels.
+CATALOG_DIR = "catalog"
+CATALOG_PAGE = (-143.0, 97.0, 280.0, 201.0)
+CATALOG_MARK = (-8.0, 8.0, 16.0, 16.0)
+## `mCL_win_data`: per page, the paper pattern and the tab models (`sel_gfx0/1`).
+CATALOG_PAGES = (
+	("ha", "ha", "haniwa"),
+	("kabe", "kabe", "kabe"),
+	("jyuutan", "jyuutan", "jyuutan"),
+	("fuku", "fuku", "fuku"),
+	("kasa", "kasa", "kasa"),
+	("tegami", "tegami", "tegami"),
+	("hani", "haniwa", "haniwa"),
+	("hone", "hone", "hone"),
+	("onpu", "onpu", "onpu"),
+)
+
+
+def _clg_pattern(tex: str) -> TexRef:
+	return TexRef(f"clg_win_{tex}_tex_rgb_ci4", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b, f"clg_win_{tex}_tex_rgb_ci4_pal")
+
+
+## `clg_mwin1_model` opens with 13 `clg_win_wakuNT_model` pieces: colour = the page's
+## paper pattern (tile 0, `gDPLoadTLUT_Dolphin(14, win_pal)`), alpha = the frame mask.
+_CLG_FILL_BATCHES = 13
+_CLG_MWIN = [Op("clg_mwin_mode", tiles={0: _clg_pattern("ha")}), Op("clg_mwin1_model")]
+_CLG_NAME_STATE = [*_CLG_MWIN[:1], Op("clg_mwin1_model", draw=False), Op("clg_name_mode")]
+
+
+def _catalog_layers() -> dict[str, tuple[list[Op], tuple[float, float, float, float], slice | None]]:
+	"""name -> (ops, bounds, batch slice) for `mCL_set_page_dl` / `mCL_set_wchange_dl`."""
+	out: dict[str, tuple[list[Op], tuple[float, float, float, float], slice | None]] = {
+		"clg_fill": (_CLG_MWIN, CATALOG_PAGE, slice(0, _CLG_FILL_BATCHES)),
+		"clg_frame": (_CLG_MWIN, CATALOG_PAGE, slice(_CLG_FILL_BATCHES, None)),
+		"clg_info": ([*_CLG_NAME_STATE, Op("clg_mwin2_model"), Op("clg_win_cbT_model")], CATALOG_PAGE, None),
+		"clg_bell": ([*_CLG_NAME_STATE, Op("clg_win_beruT_model")], CATALOG_PAGE, None),
+		# PRIM (0, 50, 255, alpha) x texel: white here, the runtime tints and pulses it.
+		"clg_arrow": ([*_CLG_NAME_STATE, Op("clg_win_shirushi1T_model", prim=(255, 255, 255, 255))], CATALOG_MARK,
+			None),
+		"clg_star": ([Op("mCL_lat_letter_mode"), Op("clg_win_hoshiT_model")], CATALOG_MARK, None),
+		"clg_music": ([Op("mCL_lat_letter_mode"), Op("mCL_music_model")], (-40.0, 40.0, 80.0, 80.0), None),
+	}
+	# Name rows (`clg_win_na1T_model`..`na7T`): the selected one red, the rest navy.
+	for row in range(7):
+		for on in (True, False):
+			prim = (205, 0, 0, 255) if on else (10, 10, 50, 255)
+			out[f"clg_slot{row}_{'on' if on else 'off'}"] = (
+				[*_CLG_NAME_STATE, Op(f"clg_win_na{row + 1}T_model", prim=prim)], CATALOG_PAGE, None)
+	for i, (_pat, tab, _pic) in enumerate(CATALOG_PAGES):
+		for on in (True, False):
+			win_prim, win_env, pic_prim = (((0, 20, 110, 255), (50, 50, 255, 255), (255, 255, 255, 255)) if on
+				else ((0, 0, 0, 255), (50, 50, 125, 255), (145, 145, 205, 255)))
+			ops = [Op("clg_mwin_mode"), Op("clg_tag_win_mode", prim=win_prim, env=win_env),
+				Op(f"clg_win_{tab}T_model"), Op("clg_tag_picture_mode", prim=pic_prim), Op(f"clg_win_{tab}2T_model")]
+			out[f"clg_tab{i}_{'on' if on else 'off'}"] = (ops, CATALOG_PAGE, None)
+	return out
+
+
+def _bake_catalog(rel: RelData, symbols, textures: TextureCache, scale: int, cfg: PipelineConfig) -> list[dict[str, Any]]:
+	out_dir = cfg.godot_generated / "ui" / CATALOG_DIR
+	stage_dir = cfg.converted / "ui" / CATALOG_DIR
+	out_dir.mkdir(parents=True, exist_ok=True)
+	stage_dir.mkdir(parents=True, exist_ok=True)
+	results: list[dict[str, Any]] = []
+	for name, (ops, bounds, part) in _catalog_layers().items():
+		rec: dict[str, Any] = {"asset_id": name, "output_path": f"ui/{CATALOG_DIR}/{name}.png", "error": None}
+		try:
+			batches = UiWalker(rel, symbols).run(ops)
+			if part is not None:
+				batches = batches[part]
+			image = rasterize(batches, textures, bounds, scale)
+			_save(image, name, stage_dir, out_dir, cfg.project_root)
+			rec["status"] = "converted"
+		except Exception as exc:  # noqa: BLE001
+			rec["status"] = "error"
+			rec["error"] = f"{type(exc).__name__}: {exc}"
+		results.append(rec)
+	# The paper patterns on their own (32x32 CI4, ACHD-sized when the pack has them) for
+	# the runtime's scrolling fill.
+	walker = UiWalker(rel, symbols)
+	for i, (pat, _tab, _pic) in enumerate(CATALOG_PAGES):
+		name = f"clg_pattern{i}"
+		rec = {"asset_id": name, "output_path": f"ui/{CATALOG_DIR}/{name}.png", "error": None}
+		try:
+			ref = _clg_pattern(pat)
+			from .ui_gbi import Tile
+			tile = Tile(walker.symbol(ref.symbol).address, 32, 32, ref.fmt, ref.siz, walker.symbol(ref.tlut).address,
+				ref.wrap_s, ref.wrap_t)
+			arr = textures.get(tile)
+			image = Image.fromarray((arr * 255 + 0.5).clip(0, 255).astype("uint8"), "RGBA")
+			_save(image, name, stage_dir, out_dir, cfg.project_root)
+			rec["status"] = "converted"
+		except Exception as exc:  # noqa: BLE001
+			rec["status"] = "error"
+			rec["error"] = f"{type(exc).__name__}: {exc}"
+		results.append(rec)
+	meta = {"scale": scale, "page": CATALOG_PAGE, "mark": CATALOG_MARK, "music": (-40.0, 40.0, 80.0, 80.0)}
+	data = json.dumps(meta, indent=2).encode()
+	for folder in (stage_dir, out_dir):
+		(folder / "catalog.json").write_bytes(data)
+	return results
+
+
 def extract_menu_ui(cfg: PipelineConfig) -> dict[str, Any]:
 	out_dir = cfg.godot_generated / "ui" / OUT_DIR_NAME
 	stage_dir = cfg.converted / "ui" / OUT_DIR_NAME
@@ -245,6 +351,8 @@ def extract_menu_ui(cfg: PipelineConfig) -> dict[str, Any]:
 			rec["status"] = "error"
 			rec["error"] = f"{type(exc).__name__}: {exc}"
 		results.append(rec)
+
+	results.extend(_bake_catalog(rel, symbols, textures, scale, cfg))
 
 	catalog = {"scale": scale, "screen": SCREEN, "achd_hits": textures.hits, "results": results}
 	data = json.dumps(catalog, indent=2).encode()

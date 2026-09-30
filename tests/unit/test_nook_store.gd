@@ -496,9 +496,62 @@ func test_sell_quote_then_confirm_pays_the_total() -> void:
 	assert_str(str(ctx.get_var(NookShopTalk.VAR_SELL_DONE))).is_equal("ok")
 
 
+func test_catalog_pick_quote_then_confirm_places_the_order() -> void:
+	var inv: Inventory = Game.inventory
+	inv.add(ItemCatalog.get_item(&"wood_table"), 1)
+	inv.set_wallet(5000)
+	var ctx := DialogueContext.new()
+	NookShopTalk.fill_order(ctx, &"wood_table")
+	assert_str(str(ctx.get_var(NookShopTalk.VAR_ORDER_PICK))).is_equal("offer")
+	var price: int = ShopBook.buy_price(ItemCatalog.get_item(&"wood_table"))
+	assert_str(ctx.frees[0]).is_equal(str(price))
+	NookShopTalk.apply_event({"op": "nook_shop", "action": "order_confirm"}, ctx)
+	assert_str(str(ctx.get_var(NookShopTalk.VAR_ORDER_DONE))).is_equal("ok")
+	assert_int(inv.wallet).is_equal(5000 - price)
+	assert_int(Game.catalog.orders().size()).is_equal(1)
+	## Backing out of the catalog picks nothing; Nook says so.
+	var cancel := DialogueContext.new()
+	NookShopTalk.fill_order(cancel, &"")
+	assert_str(str(cancel.get_var(NookShopTalk.VAR_ORDER_PICK))).is_equal("cancel")
+
+
+func test_catalog_order_needs_the_bells_up_front() -> void:
+	Game.inventory.add(ItemCatalog.get_item(&"wood_table"), 1)
+	Game.inventory.set_wallet(0)
+	var ctx := DialogueContext.new()
+	NookShopTalk.fill_order(ctx, &"wood_table")
+	NookShopTalk.apply_event({"op": "nook_shop", "action": "order_confirm"}, ctx)
+	assert_str(str(ctx.get_var(NookShopTalk.VAR_ORDER_DONE))).is_equal("no_money")
+	assert_int(Game.catalog.orders().size()).is_equal(0)
+
+
+## `mCL_catalog_ovl_init`: the disc lists order each page; unlisted owned items follow.
+func test_catalog_pages_follow_the_disc_lists() -> void:
+	var book := CatalogBook.new()
+	var bed: StringName = FtrCatalog.item_id(0xD6)
+	var cabinet: StringName = FtrCatalog.item_id(0x0C)
+	book.record(cabinet)
+	book.record(bed)
+	book.record(&"wood_table")
+	book.record(InteriorStyleCatalog.wall_style_id(1))
+	book.record(MinidiskCatalog.item_id(0))
+	var pages := CatalogPages.build(book)
+	if FtrCatalog.catalog_page("ftr").is_empty():
+		return  # needs the pipeline's ftr_catalog.json
+	var ftr: Array = pages.page(CatalogPages.Page.FTR)
+	## The blue bed comes before the blue cabinet on the disc list, whatever the pickup order.
+	assert_int(ftr.find(bed)).is_less(ftr.find(cabinet))
+	assert_that(ftr.back()).is_equal(&"wood_table")
+	assert_array(pages.page(CatalogPages.Page.WALL)).contains([InteriorStyleCatalog.wall_style_id(1)])
+	assert_array(pages.page(CatalogPages.Page.MUSIC)).contains([MinidiskCatalog.item_id(0)])
+	assert_bool(pages.completed(CatalogPages.Page.MUSIC)).is_false()
+	## Records are never for sale.
+	assert_int(CatalogPages.price_of(MinidiskCatalog.item_id(0))).is_equal(0)
+
+
 func test_store_dialogues_load() -> void:
 	for conv_id: StringName in [NookShopTalk.MENU_ID, NookShopTalk.OFFER_ID, NookShopTalk.LOTTERY_ID,
-			NookShopTalk.SELL_ID]:
+			NookShopTalk.SELL_ID, NookShopTalk.ORDER_ID]:
 		assert_that(DialogueCatalog.conversation(conv_id)).is_not_null()
 
 

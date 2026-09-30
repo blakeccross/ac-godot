@@ -7,8 +7,7 @@ extends Control
 
 const SHOTS := [
 	["name_entry", "res://scenes/ui/name_entry_overlay.tscn"],
-	["shop_buy", "res://scenes/ui/shop_overlay.tscn"],
-	["shop_sell", "res://scenes/ui/shop_overlay.tscn"],
+	["catalog", "res://scenes/ui/catalog_overlay.tscn"],
 	["map", "res://scenes/ui/map_overlay.tscn"],
 	["pause", "res://scenes/ui/pause_overlay.tscn"],
 ]
@@ -30,8 +29,6 @@ func _ready() -> void:
 		await get_tree().process_frame
 		match shot[0]:
 			"name_entry": ui.open("Folder")
-			"shop_buy": ui.open(ShopBook.NOOK_ID, Interaction.BUY)
-			"shop_sell": ui.open(ShopBook.NOOK_ID, Interaction.SELL)
 			"map": ui.open(true)
 			_: ui.open()
 		await get_tree().create_timer(0.5).timeout

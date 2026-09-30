@@ -3,12 +3,11 @@ extends RefCounted
 
 ## Furnishes a Nook shop (`shop0`..`shop3_2`): Tom Nook at his stand, the wall
 ## clock, and the day's stock as shelf props (`shop0N_actable`, `HOUSE_CLOCK`,
-## `ShopBook.goods`). Non-Nook counter shops fall back to a generic `ShopCounter`.
+## `ShopBook.goods`). Able Sisters stocks nothing and gets only the shelf pass.
 ##
 ## Stock nodes join the `"shop_set"` group so `interior.gd.refresh_shop_set` can
 ## rebuild them after a purchase without touching Nook or the clock.
 
-const COUNTER_SCENE := preload("res://scenes/world/shop_counter.tscn")
 const STOCK_SCENE := preload("res://scenes/world/shop_stock.tscn")
 const TOM_NOOK_SCENE := preload("res://scenes/world/interiors/tom_nook.tscn")
 
@@ -24,12 +23,6 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 	if room.kind == Room.Kind.SHOP:
 		_tom_nook(root, interior)
 		_clock(root, interior)
-	elif root.get_node_or_null("ShopCounter") == null:
-		var counter: Node3D = COUNTER_SCENE.instantiate() as Node3D
-		counter.name = "ShopCounter"
-		counter.set("shop_id", shop_id)
-		counter.position = interior.grid.cell_to_world(room.counter_cell())
-		root.add_child(counter)
 	_stock(root, interior, shop_id)
 
 

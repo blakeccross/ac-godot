@@ -1391,20 +1391,19 @@ func _museum_complete_stage() -> Node:
 	return stages[0] if not stages.is_empty() else null
 
 
-func open_shop(shop_id: StringName, mode: StringName = Interaction.BUY) -> bool:
-	if shop_id == &"":
-		return false
-	shops.ensure_today(shop_id)
+## Nook's "See my catalog" (`aNSC_order_select_menu_close_wait_init` opens
+## `mSM_OVL_CATALOG`). Returns the overlay to await `closed(item_id)` on, or null.
+func open_catalog() -> CatalogOverlay:
 	if get_tree() == null:
-		return false
+		return null
 	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui")
 	if inv_ui != null and inv_ui.has_method("close"):
 		inv_ui.call("close")
-	var ui: Node = get_tree().get_first_node_in_group("shop_ui")
-	if ui == null or not ui.has_method("open"):
-		return false
-	ui.call("open", shop_id, mode)
-	return true
+	var ui := get_tree().get_first_node_in_group("catalog_ui") as CatalogOverlay
+	if ui == null:
+		return null
+	ui.open(catalog)
+	return ui
 
 
 func close_shop() -> void:

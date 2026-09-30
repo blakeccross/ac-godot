@@ -71,6 +71,32 @@ def _birth_types(decomp: Path) -> list[str]:
     return [m.lower() for m in re.findall(r"mRmTp_BIRTH_TYPE_([A-Z0-9_]+)", body)]
 
 
+## `m_catalog_ovl_data.c_inc`: each catalog page's entries in page order. Furniture,
+## clothing, umbrellas, gyroids and fossils are furniture indices (they share
+## `furniture_collected_bitfield`); wallpaper / carpet / stationery / music index their own
+## item ranges.
+CATALOG_PAGES = ("ftr", "wall", "carpet", "cloth", "umbrella", "paper", "haniwa", "fossil", "music")
+
+
+def _catalog_pages(decomp: Path) -> dict[str, list[int]]:
+    path = decomp / "src" / "game" / "m_catalog_ovl_data.c_inc"
+    if not path.is_file():
+        return {}
+    text = path.read_text(errors="replace")
+    out: dict[str, list[int]] = {}
+    start = text.find("mCL_furniture_list[]")
+    if start >= 0:
+        body = text[start : text.find("};", start)]
+        out["ftr"] = [int(m, 16) for m in re.findall(r"\{\s*0x([0-9A-Fa-f]+)\s*,", body)]
+    for page in CATALOG_PAGES[1:]:
+        start = text.find(f"mCL_{page}_idx_list[]")
+        if start < 0:
+            continue
+        body = text[text.find("{", start) : text.find("};", start)]
+        out[page] = [int(m, 16) for m in re.findall(r"0x([0-9A-Fa-f]+)", body)]
+    return out
+
+
 def convert_ftr_catalog(cfg: PipelineConfig) -> dict[str, Any]:
     from .dialogue import char_map
     from .mapfile import index_by_name, parse_map
@@ -173,5 +199,6 @@ def convert_ftr_catalog(cfg: PipelineConfig) -> dict[str, Any]:
         "wall": goods("wall", "itemName_wall", "wall_price_table"),
         "cloth": goods("cloth", "itemName_cloth", "cloth_price_table"),
         "lists": lists,
+        "catalog": _catalog_pages(decomp),
     }, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
     return {"converted": len(items), "path": str(path)}

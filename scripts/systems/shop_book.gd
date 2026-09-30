@@ -22,6 +22,7 @@ extends RefCounted
 enum Status { PRE, END, OPEN, RENEW }
 enum Buy { OK, SOLD_OUT, NOT_FOR_SALE, POCKETS_FULL, NO_MONEY, CLOSED }
 enum Sell { OK, JUNK, REFUSED, QUEST, SUNDAY_TURNIPS, NOTHING, OVERFLOW }
+enum Order { OK, NOT_OWNED, UNAVAILABLE, FULL, NO_MONEY }
 
 const NOOK_ID := &"shop0"
 const ABLE_ID := &"needlework"
@@ -566,21 +567,36 @@ func sell_result(shop_id: StringName, item_id: StringName, inv: Inventory, count
 
 
 ## `aNSC_order_check`: pay now, delivered by tomorrow's mail.
-func order(item_id: StringName, inv: Inventory, catalog: CatalogBook) -> String:
+## `aNSC_order_check`: pay now, the order goes in the queue (`aNSC_set_ftr_order`).
+func order_result(item_id: StringName, inv: Inventory, catalog: CatalogBook) -> Order:
 	var data: ItemData = ItemCatalog.get_item(item_id)
 	if data == null or catalog == null or inv == null or not catalog.has(item_id):
-		return "That's not in your catalog."
+		return Order.NOT_OWNED
 	if not CatalogBook.is_orderable(data):
-		return "Sorry, that item can't be ordered."
+		return Order.UNAVAILABLE
 	if not catalog.has_free_order():
-		return "You already have five orders waiting."
+		return Order.FULL
 	var price: int = buy_price(data)
 	if not can_afford(inv, price):
-		return "Not enough Bells."
+		return Order.NO_MONEY
 	pay(inv, price)
 	catalog.add_order(item_id, nook_level())
 	plus_sales(price)
-	return "Ordered %s for %d Bells. It arrives by mail tomorrow." % [data.display_name, price]
+	return Order.OK
+
+
+func order(item_id: StringName, inv: Inventory, catalog: CatalogBook) -> String:
+	var data: ItemData = ItemCatalog.get_item(item_id)
+	match order_result(item_id, inv, catalog):
+		Order.NOT_OWNED:
+			return "That's not in your catalog."
+		Order.UNAVAILABLE:
+			return "Sorry, that item can't be ordered."
+		Order.FULL:
+			return "You already have five orders waiting."
+		Order.NO_MONEY:
+			return "Not enough Bells."
+	return "Ordered %s for %d Bells. It arrives by mail tomorrow." % [data.display_name, buy_price(data)]
 
 
 # --- Raffle --------------------------------------------------------------------------------

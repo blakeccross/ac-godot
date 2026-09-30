@@ -84,13 +84,10 @@ func _process(delta: float) -> void:
 		_face_player()
 
 
-func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
-	var out: Array[Interaction] = [Interaction.of(Interaction.TALK, "Talk to Tom Nook", 20)]
-	## During first-job chores, goods / buy / sell stay locked (`aNRG2_goods_talk`).
-	if Game != null and Game.first_job != null and Game.first_job.is_active():
-		return out
-	out.append_array(ShopUse.actions(self, ctx))
-	return out
+## Talking is all there is: selling and the catalog are on his counter menu, and the
+## goods are bought off the shelves (`offer_item`).
+func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
+	return [Interaction.of(Interaction.TALK, "Talk to Tom Nook", 20)]
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
@@ -99,10 +96,6 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	match action.id:
 		Interaction.TALK:
 			return _begin_talk(ctx)
-		Interaction.BUY, Interaction.SELL, Interaction.SHOP:
-			if Game.first_job != null and Game.first_job.is_active():
-				return _play_job_line(JOB_GOODS_BLOCK, JOB_GOODS_BLOCK_FALLBACK, null, _listener(ctx))
-			return ShopUse.apply(action, self, ctx)
 		_:
 			return false
 
@@ -424,6 +417,9 @@ func offer_item(item_id: StringName, ctx: InteractionContext) -> bool:
 	var ui := DialogueOverlay.find(get_tree())
 	if data == null or ui == null or Game == null:
 		return false
+	## During first-job chores the goods stay locked (`aNRG2_goods_talk`).
+	if Game.first_job != null and Game.first_job.is_active():
+		return _play_job_line(JOB_GOODS_BLOCK, JOB_GOODS_BLOCK_FALLBACK, null, _listener(ctx))
 	if Game.shops.is_lottery_day():
 		return _begin_talk(ctx)
 	var listener: Node3D = _listener(ctx)
@@ -477,9 +473,10 @@ func _on_talk_closed() -> void:
 		_open_after = &""
 		_start_sell()
 		return
-	if _open_after != &"":
+	if _open_after == &"order":
 		_open_after = &""
-		Game.open_shop(ShopBook.NOOK_ID, ShopUse.ORDER)
+		_start_order()
+		return
 	await _apply_pending_after()
 
 
@@ -498,6 +495,31 @@ func _start_sell() -> void:
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = "Tom Nook"
 	NookShopTalk.fill_sell(talk_ctx, NookShopTalk.sell_selection(Game.shop_sell_slots))
+	if ui.is_open():
+		ui.close()
+	_shop_talk = true
+	_start_talk_session(listener)
+	_bind_talk_end(ui)
+	if not ui.event_fired.is_connected(_on_shop_event):
+		ui.event_fired.connect(_on_shop_event)
+	ui.play(data, talk_ctx)
+
+
+## "See my catalog": the catalog opens over the counter (`mSM_OVL_CATALOG`); what's
+## picked comes back to Nook, who quotes it and asks (`aNSC_msg_win_open_wait2`).
+func _start_order() -> void:
+	var catalog: CatalogOverlay = Game.open_catalog()
+	if catalog == null:
+		return
+	var item_id: StringName = await catalog.closed
+	var data: DialogueData = DialogueCatalog.conversation(NookShopTalk.ORDER_ID)
+	var ui := DialogueOverlay.find(get_tree())
+	if data == null or ui == null:
+		return
+	var listener: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var talk_ctx: DialogueContext = DialogueContext.from_game()
+	talk_ctx.speaker_name = "Tom Nook"
+	NookShopTalk.fill_order(talk_ctx, item_id)
 	if ui.is_open():
 		ui.close()
 	_shop_talk = true

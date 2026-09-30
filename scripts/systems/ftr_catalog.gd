@@ -15,6 +15,7 @@ const ID_PREFIX := "ftr_"
 static var _rows: Array = []
 static var _goods: Dictionary = {}
 static var _lists: Dictionary = {}
+static var _catalog: Dictionary = {}
 static var _loaded: bool = false
 
 
@@ -34,6 +35,7 @@ static func _ensure() -> void:
 		for kind: String in ["carpet", "wall", "cloth"]:
 			_goods[kind] = d.get(kind, [])
 		_lists = d.get("lists", {})
+		_catalog = d.get("catalog", {})
 
 
 static func available() -> bool:
@@ -126,6 +128,16 @@ static func pick_named(kind: String, label: String, rng: RandomNumberGenerator, 
 	if open.is_empty():
 		open = pool
 	return open[rng.randi_range(0, open.size() - 1)]
+
+
+## `m_catalog_ovl_data.c_inc`: catalog page `page` (`ftr`, `wall`, `carpet`, `cloth`,
+## `umbrella`, `paper`, `haniwa`, `fossil`, `music`) in page order, as the disc indices.
+static func catalog_page(page: String) -> Array[int]:
+	_ensure()
+	var out: Array[int] = []
+	for i: Variant in _catalog.get(page, []):
+		out.append(int(i))
+	return out
 
 
 ## Called from `ItemCatalog.ensure_loaded`.

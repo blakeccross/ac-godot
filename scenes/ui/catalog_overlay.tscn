@@ -1,0 +1,143 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/ui/catalog_overlay.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hand_cursor.tscn" id="2"]
+
+[sub_resource type="Environment" id="PreviewEnv"]
+background_mode = 1
+background_color = Color(0, 0, 0, 0)
+ambient_light_source = 2
+ambient_light_color = Color(0.41, 0.35, 0.35, 1)
+
+[sub_resource type="World3D" id="PreviewWorld"]
+environment = SubResource("PreviewEnv")
+
+[node name="CatalogOverlay" type="CanvasLayer"]
+script = ExtResource("1")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Screen" type="Control" parent="Root"]
+layout_mode = 0
+offset_right = 320.0
+offset_bottom = 240.0
+mouse_filter = 2
+
+[node name="Back" type="Control" parent="Root/Screen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Fill" type="TextureRect" parent="Root/Screen/Back"]
+layout_mode = 0
+mouse_filter = 2
+expand_mode = 1
+texture_filter = 2
+
+[node name="Body" type="Control" parent="Root/Screen/Back"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+texture_filter = 2
+
+[node name="Front" type="Control" parent="Root/Screen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Fill" type="TextureRect" parent="Root/Screen/Front"]
+layout_mode = 0
+mouse_filter = 2
+expand_mode = 1
+texture_filter = 2
+
+[node name="Body" type="Control" parent="Root/Screen/Front"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+texture_filter = 2
+
+[node name="Preview" type="TextureRect" parent="Root/Screen/Front"]
+visible = false
+layout_mode = 0
+mouse_filter = 2
+expand_mode = 1
+texture_filter = 2
+
+[node name="Tabs" type="Control" parent="Root/Screen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+texture_filter = 2
+
+[node name="Tag" type="Control" parent="Root/Screen"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+
+[node name="Shadow" type="NinePatchRect" parent="Root/Screen/Tag"]
+self_modulate = Color(1, 1, 1, 0.6)
+layout_mode = 0
+mouse_filter = 2
+patch_margin_left = 16
+patch_margin_top = 8
+patch_margin_right = 16
+patch_margin_bottom = 8
+
+[node name="Frame" type="NinePatchRect" parent="Root/Screen/Tag"]
+layout_mode = 0
+mouse_filter = 2
+texture_filter = 2
+patch_margin_left = 16
+patch_margin_top = 8
+patch_margin_right = 16
+patch_margin_bottom = 8
+
+[node name="Arrow" type="TextureRect" parent="Root/Screen/Tag"]
+layout_mode = 0
+mouse_filter = 2
+expand_mode = 1
+texture_filter = 2
+
+[node name="Text" type="Control" parent="Root/Screen/Tag"]
+layout_mode = 0
+mouse_filter = 2
+
+[node name="Hand" parent="Root" instance=ExtResource("2")]
+visible = false
+
+[node name="PreviewViewport" type="SubViewport" parent="Root"]
+own_world_3d = true
+world_3d = SubResource("PreviewWorld")
+transparent_bg = true
+size = Vector2i(256, 256)
+render_target_update_mode = 4
+
+[node name="World" type="Node3D" parent="Root/PreviewViewport"]
+
+[node name="Camera" type="Camera3D" parent="Root/PreviewViewport/World"]
+fov = 20.0
+
+[node name="Light" type="DirectionalLight3D" parent="Root/PreviewViewport/World"]
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 0, 0)
+light_color = Color(1, 1, 0.96, 1)
+
+[node name="Pivot" type="Node3D" parent="Root/PreviewViewport/World"]
