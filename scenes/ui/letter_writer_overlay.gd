@@ -28,7 +28,6 @@ const HBOARD_LEN := 128
 const HBOARD_TEXT := Vector2(46, 54)
 const HBOARD_COLOR := Color8(30, 0, 0)
 const FONT_PX := 16
-const CURSOR_COLOR := Color8(195, 80, 80)
 
 var _open: bool = false
 var _recipient: Dictionary = {}
@@ -364,9 +363,4 @@ func _draw_marks() -> void:
 		top = _board.body_line_top(last)
 	if _end_tex != null:
 		_marks.draw_texture_rect(_end_tex, Rect2(Vector2(x0 + line_w + 1.0 - 160.0, top - 120.0), Vector2(320, 240)), false)
-	var step := int(Time.get_ticks_msec() / 1000.0 * 60.0) % 35
-	if step > 17:
-		step = 35 - step
-	var cursor := CURSOR_COLOR
-	cursor.a = float(17 - step) / 17.0
-	_marks.draw_rect(Rect2(x0 + line_w, top + 1, 2, 14), cursor)
+	FontMark.draw_cursor(_marks, Vector2(x0 + line_w, top))

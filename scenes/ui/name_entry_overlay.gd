@@ -7,7 +7,7 @@ extends CanvasLayer
 ##
 ## The window is the purpose's own `*_win_model` baked by `menu_ui.py`; its title and
 ## the typed text draw at that window's `mLE_win_data` offsets and colours, with the
-## blinking red cursor (`mED_cursol_draw`).
+## blinking red cursor mark (`mED_cursol_draw`, `FontMark.draw_cursor`).
 ##
 ## `open(initial, callback, kind)` — callback receives the final name string (unchanged
 ## `initial` if cancelled).
@@ -23,8 +23,6 @@ const WINDOWS := {
 	&"design": ["dna", "Enter a name.", Vector2(142, 37), 0.875, Vector2(82, 69), Color8(50, 40, 50)],
 }
 const FONT_PX := 16
-## `mED_cursol_draw`: the cursor fades over a 35-frame cycle, colour (195, 80, 80).
-const CURSOR_COLOR := Color8(195, 80, 80)
 
 var _open: bool = false
 var _text: String = ""
@@ -159,10 +157,5 @@ func _draw_text() -> void:
 	var edit_pos: Vector2 = win[4]
 	_text_view.draw_string(_font, edit_pos + Vector2(0, _font.get_ascent(FONT_PX)), _text,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX, win[5])
-	var step := int(Time.get_ticks_msec() / 1000.0 * 60.0) % 35
-	if step > 17:
-		step = 35 - step
-	var cursor := CURSOR_COLOR
-	cursor.a = float(17 - step) / 17.0
 	var x := edit_pos.x + _font.get_string_size(_text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX).x
-	_text_view.draw_rect(Rect2(x, edit_pos.y + 1, 2, 14), cursor)
+	FontMark.draw_cursor(_text_view, Vector2(x, edit_pos.y))

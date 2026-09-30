@@ -24,7 +24,7 @@ func _ready() -> void:
 	ctx.speaker_name = "Mabel"
 	overlay.play(data, ctx)
 
-	for _i in 120:
+	for _i in 285:
 		await get_tree().process_frame
 	_shot(OUT_GREET)
 

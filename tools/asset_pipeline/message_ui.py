@@ -115,6 +115,11 @@ CHROME: list[TexSpec] = [
     TexSpec("con_namefuti_TXT", 64, 32, MSG_NAME_PRIM, "msg_nameplate", True),
     ## `mChoice` lobed window silhouette (`con_waku_swaku3_tex`), 128x64 I4.
     TexSpec("con_waku_swaku3_tex", 128, 64, MSG_CHOICE_PRIM, "msg_choice_window", True),
+    ## `mFont_SetMarkChar` marks: 16x16 I4 drawn with `mFont_CC_FONT` (colour PRIM,
+    ## alpha PRIM x TEXEL0), so white+alpha and the runtime tints them.
+    TexSpec("FONT_nes_tex_next", 16, 16, MSG_CHOICE_PRIM, "msg_mark_next", True),
+    TexSpec("FONT_nes_tex_choice", 16, 16, MSG_CHOICE_PRIM, "msg_mark_choice", True),
+    TexSpec("FONT_nes_tex_cursor", 16, 16, MSG_CHOICE_PRIM, "msg_mark_cursor", True),
 ]
 
 ## `con_kaiwa2_modelT` triangle batches from `m_msg_data.c_inc`.
@@ -173,6 +178,7 @@ def extract_message_ui(cfg: PipelineConfig) -> dict[str, Any]:
         rel, by_name, out_dir, stage_dir, cfg.project_root, tile_native=tile_native
     )
     results.extend(bake_results)
+    results.extend(_bake_exact_shapes(cfg, rel, parse_map(cfg.map_path), achd, out_dir, stage_dir))
     results.append(
         _extract_nes_font(rel, by_name, stage_dir, out_dir, cfg.project_root, achd=achd)
     )
@@ -550,6 +556,44 @@ def _bake_message_shapes(
                 "bounds": bounds,
                 "bake_scale": bake_scale,
             }
+        except Exception as exc:  # noqa: BLE001
+            record["status"] = "error"
+            record["error"] = f"{type(exc).__name__}: {exc}"
+        records.append(record)
+    return records
+
+
+## `mMsg_DrawWindowBody`: the talk cloud and nameplate as the game draws them —
+## `mMsg_init_disp`'s combiner (PRIM colour, TEXEL0 alpha) over `con_kaiwa2_modelT` /
+## `con_kaiwaname_modelT` — rasterised by `ui_gbi` in white so the runtime tints them
+## with the window / name colour exactly. Model units are 1/16 px (the draw scales by
+## 16). These replace the tile-assembled `msg_window_cloud` / `msg_nameplate_cloud`.
+_EXACT_SHAPES = (
+    ("msg_window_cloud", "con_kaiwa2_modelT", (-123.0, 52.0, 260.0, 104.0)),
+    ("msg_nameplate_cloud", "con_kaiwaname_modelT", (-112.0, 62.0, 98.0, 28.0)),
+)
+
+
+def _bake_exact_shapes(cfg: PipelineConfig, rel: RelData, symbols, achd, out_dir: Path,
+        stage_dir: Path) -> list[dict[str, Any]]:
+    from .ui_gbi import Op, TextureCache, UiWalker, bake_layer
+
+    textures = TextureCache(rel, achd)
+    px_per_unit = 8 if achd is not None else 4
+    records: list[dict[str, Any]] = []
+    for out_stem, model, (left, top, width, height) in _EXACT_SHAPES:
+        record: dict[str, Any] = {"asset_id": out_stem, "source": model,
+            "output_path": f"ui/message/{out_stem}.png", "error": None}
+        try:
+            ops = [Op("mMsg_init_disp"), Op(model, prim=(255, 255, 255, 255))]
+            bounds = (left * 16, top * 16, width * 16, height * 16)
+            image = bake_layer(UiWalker(rel, symbols), textures, ops, bounds, px_per_unit / 16)
+            png = image_png_bytes(image)
+            for folder in (stage_dir, out_dir):
+                (folder / f"{out_stem}.png").write_bytes(png)
+            write_import_sidecar(out_dir / f"{out_stem}.png", cfg.project_root)
+            record["status"] = "converted"
+            record["meta"] = {"width": image.width, "height": image.height, "px_per_unit": px_per_unit}
         except Exception as exc:  # noqa: BLE001
             record["status"] = "error"
             record["error"] = f"{type(exc).__name__}: {exc}"

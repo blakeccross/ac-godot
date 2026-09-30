@@ -19,7 +19,8 @@ const MIN_NAMEPLATE_SIZE := Vector2(98.0, 28.0)
 const NAME_UV := Rect2(0.0423, -0.0962, 0.3769, 0.2692)
 const BODY_UV := Vector2(0.103846, 0.192308)
 const BODY_LINE_PITCH_V := 16.0 / 104.0
-const ARROW_UV := Rect2(0.84615, 0.6923, 0.03077, 0.07692)
+## The 16x16 `FONT_nes_tex_next` cell, top-left at `mMsg_DrawWindowTurnButton` (257, 136).
+const ARROW_UV := Rect2(0.84615, 0.6923, 0.061538, 0.153846)
 ## Choice window sits mid-right (`mChoice` center begin 242,169); line pitch 16.
 ## Pad is generous so text clears the lobed `con_waku_swaku3` silhouette edges.
 const CHOICE_PAD := Vector2(30.0, 18.0)
@@ -37,6 +38,11 @@ const CHOICE_LINE_PITCH := 16.0
 ## (texture + tint) is `ChoicePanel`'s own `theme_override_styles/panel` resource in
 ## `dialogue_overlay.tscn` — edit it there, not here. (A `.tscn` takes no `##` comments:
 ## one inside that sub-resource once dropped its `texture` and hid the window.)
+
+## `mDemo_WINDOW_COLOR` (`m_demo.h`): the talk window's PRIM unless an actor sets its own
+## (`mDemo_Set_talk_window_color`). The cloud is baked white (alpha = texel), so this
+## tint is exactly the game's `PRIMITIVE` colour.
+const WINDOW_COLOR_DEFAULT := Color8(235, 255, 235)
 
 ## `mMsg_init` defaults / `m_msg_appear` sex branches.
 const NAME_BG_DEFAULT := Color(160.0 / 255.0, 215.0 / 255.0, 30.0 / 255.0, 1.0)
@@ -98,11 +104,18 @@ func _ready() -> void:
 	## the nodes in `dialogue_overlay.tscn` — this just reads the font back for the
 	## layout/wrapping math below, which needs an actual `Font` to measure with.
 	_font = _body.get_theme_font("normal_font")
+	set_window_color(WINDOW_COLOR_DEFAULT)
 	_apply_name_colors()
 	_choice_panel.visible = false
 	_layout()
 	if Engine.is_editor_hint():
 		_apply_editor_preview()
+
+
+## `mDemo_Set_talk_window_color`: the cloud's PRIM.
+func set_window_color(color: Color) -> void:
+	if is_node_ready():
+		_cloud.modulate = color
 
 
 ## `window_scale` / `text_scale` from `m_msg_appear` / `m_msg_disappear`.
