@@ -151,3 +151,43 @@ static func bed_exit_spot(session: IndoorSession, approach: Vector3) -> Dictiona
 static func _clear(session: IndoorSession, spot: Vector3) -> bool:
 	var cell: Vector2i = session.grid.world_to_cell(spot)
 	return session.room.is_inner(cell) and session.grid.occupant_at(cell) == &""
+
+
+enum BedAction { NONE, ROLL, OUT }
+
+
+## `Player_actor_request_proc_index_fromWait_bed` + `aMR_GetBedAction`: a stick within 15°
+## of either long side rolls onto the next unit when it is still bed (this one, or another
+## bed lying the same way), or gets out when that unit is clear floor. Along the bed: nothing.
+static func bed_action(session: IndoorSession, rest: Dictionary, player_pos: Vector3, stick: Vector2) -> Dictionary:
+	var out := {"action": BedAction.NONE, "side": WorldGrid.Facing.SOUTH, "cell": Vector2i(-1, -1)}
+	if session == null or stick.length() < 0.5:
+		return out
+	var grid: WorldGrid = session.grid
+	var head: WorldGrid.Facing = rest.get("head", WorldGrid.Facing.SOUTH) as WorldGrid.Facing
+	var here: Vector2i = grid.world_to_cell(player_pos)
+	for turn: int in [1, -1]:
+		var side: WorldGrid.Facing = grid.rotate_facing(head, turn)
+		var dir: Vector2i = grid.step(Vector2i.ZERO, side)
+		if stick.normalized().dot(Vector2(float(dir.x), float(dir.y))) < SIT_COS:
+			continue
+		var next: Vector2i = here + dir
+		out["side"] = side
+		out["cell"] = next
+		var occupant: StringName = grid.occupant_at(next)
+		var bed_id: StringName = rest.get("id", &"") as StringName
+		if occupant != &"" and (occupant == bed_id or _aligned_bed(session, occupant, bed_id)):
+			out["action"] = BedAction.ROLL
+		elif session.room.is_inner(next) and occupant == &"":
+			out["action"] = BedAction.OUT
+		return out
+	return out
+
+
+static func _aligned_bed(session: IndoorSession, other_id: StringName, bed_id: StringName) -> bool:
+	var a: FurniturePlacement = session.room.placement_by_id(other_id)
+	var b: FurniturePlacement = session.room.placement_by_id(bed_id)
+	if a == null or b == null:
+		return false
+	var data: FurnitureData = session.furniture_of(a.furniture_id)
+	return data != null and data.is_bed() and a.facing == b.facing

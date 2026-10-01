@@ -51,6 +51,9 @@ const ANIM_INBED_R1 := "ply_1_inbed_R1"
 const ANIM_BED_WAIT1 := "ply_1_bed_wait1"
 const ANIM_OUTBED_L1 := "ply_1_outbed_L1"
 const ANIM_OUTBED_R1 := "ply_1_outbed_R1"
+## `mPlayer_ANIM_NEGAERI_L1` / `R1`: rolling over in bed (`Roll_bed`).
+const ANIM_NEGAERI_L1 := "ply_1_negaeri_L1"
+const ANIM_NEGAERI_R1 := "ply_1_negaeri_R1"
 ## `m_player_main_stung_bee` (`HATI1` → `HATI2`) then `notice_bee` (`HATI3` + the report).
 const ANIM_HATI1 := "ply_1_hati1"
 const ANIM_HATI2 := "ply_1_hati2"
@@ -777,8 +780,41 @@ func _tick_rest(delta: float) -> void:
 	var lying: bool = int(_rest["kind"]) == FurnitureSeat.Rest.LIE
 	var phase: StringName = _rest["phase"] as StringName
 	if phase == &"wait":
-		if _grip_stick().length() > REST_STAND_STICK:
-			_begin_stand(lying)
+		var stick: Vector2 = _grip_stick()
+		if not lying:
+			if stick.length() > REST_STAND_STICK:
+				_begin_stand(false)
+			return
+		## `wait_bed.flags`: the stick has to come back before the next roll.
+		if stick.length() <= 0.5:
+			_rest["armed"] = true
+			return
+		if not bool(_rest.get("armed", false)):
+			return
+		var act: Dictionary = FurnitureSeat.bed_action(Game.interior_session, _rest, global_position, stick)
+		match int(act["action"]):
+			FurnitureSeat.BedAction.ROLL:
+				_begin_roll(act["side"] as WorldGrid.Facing)
+			FurnitureSeat.BedAction.OUT:
+				_begin_stand(true, act["side"] as WorldGrid.Facing)
+		return
+	if phase == &"roll":
+		if _clip_running(str(_rest.get("clip", ""))):
+			return
+		## `settle_main_Roll_bed` (`AnimationMove_dt`): the clip's sideways travel becomes the
+		## player's position, and the bed wait picks up from there without a blend.
+		var before: Vector3 = _root_joint_position()
+		var wait := _resolve_clip(ANIM_BED_WAIT1)
+		if _anim != null and not wait.is_empty():
+			_ensure_loop(wait)
+			_anim.play(wait, 0.0)
+			_anim.seek(0.0, true)
+		var after: Vector3 = _root_joint_position()
+		if before != Vector3.INF and after != Vector3.INF:
+			global_position += Vector3(before.x - after.x, 0.0, before.z - after.z)
+		_rest["pos"] = global_position
+		_rest["phase"] = &"wait"
+		_rest["armed"] = false
 		return
 	var t: float = minf(float(_rest["t"]) + delta, float(_rest["dur"]))
 	_rest["t"] = t
@@ -795,14 +831,22 @@ func _tick_rest(delta: float) -> void:
 		_end_rest()
 
 
-func _begin_stand(lying: bool) -> void:
+func _begin_stand(lying: bool, side: int = -1) -> void:
 	var session: IndoorSession = Game.interior_session
 	if session == null:
 		_end_rest()
 		return
 	var seat_pos: Vector3 = _rest["pos"] as Vector3
 	var spot: Dictionary
-	if lying:
+	var exit_left: bool = bool(_rest.get("from_left", true))
+	if lying and side >= 0:
+		## Out on the side the stick pushed: `OUTBED_L1` undoes `INBED_L1`, whose approach is
+		## the side a quarter-turn back from the pillow.
+		var grid: WorldGrid = session.grid
+		var exit_cell: Vector2i = grid.step(grid.world_to_cell(global_position), side as WorldGrid.Facing)
+		spot = FurnitureSeat.bed_exit_spot(session, grid.cell_to_world(exit_cell))
+		exit_left = grid.rotate_facing(_rest.get("head", WorldGrid.Facing.SOUTH) as WorldGrid.Facing, -1) == side
+	elif lying:
 		spot = FurnitureSeat.bed_exit_spot(session, _rest["approach"] as Vector3)
 	else:
 		spot = FurnitureSeat.stand_spot(session, seat_pos, _rest["yaw_facing"] as WorldGrid.Facing)
@@ -810,13 +854,47 @@ func _begin_stand(lying: bool) -> void:
 		return
 	var leaf: String = ANIM_STANDUP1
 	if lying:
-		leaf = ANIM_OUTBED_L1 if bool(_rest.get("from_left", true)) else ANIM_OUTBED_R1
+		leaf = ANIM_OUTBED_L1 if exit_left else ANIM_OUTBED_R1
 	_rest["phase"] = &"out"
 	_rest["t"] = 0.0
 	_rest["dur"] = _clip_seconds(leaf, 0.8)
 	_rest["from"] = global_position
 	_rest["to"] = spot["pos"] as Vector3
 	_play_grip_clip(leaf, false)
+
+
+## `Roll_bed`: `NEGAERI_L1` / `R1`, whichever carries the body toward `side` (the original
+## picks it from the facing and stick quadrant; the clip's own root travel says the same).
+func _begin_roll(side: WorldGrid.Facing) -> void:
+	var session: IndoorSession = Game.interior_session
+	if session == null:
+		return
+	var step: Vector2i = session.grid.step(Vector2i.ZERO, side)
+	var want := Vector3(float(step.x), 0.0, float(step.y))
+	var leaf: String = ANIM_NEGAERI_R1
+	var travel: Vector3 = _clip_root_travel(ANIM_NEGAERI_R1)
+	if travel != Vector3.ZERO and travel.dot(want) < 0.0:
+		leaf = ANIM_NEGAERI_L1
+	var clip: String = _start_one_shot(leaf, 0.0)
+	Audio.play_se(&"bed_negaeri", self)
+	_rest["phase"] = &"roll"
+	_rest["clip"] = clip
+	_rest["armed"] = false
+
+
+## World-space XZ the clip's joint_0 travels from first to last key, turned by the facing.
+func _clip_root_travel(leaf: String) -> Vector3:
+	var clip: String = _resolve_clip(leaf)
+	if clip.is_empty() or _anim == null:
+		return Vector3.ZERO
+	var res: Animation = _anim.get_animation(clip)
+	var track: int = _find_joint0_position_track(res) if res != null else -1
+	if track < 0 or res.track_get_key_count(track) < 2:
+		return Vector3.ZERO
+	var a: Vector3 = res.track_get_key_value(track, 0) as Vector3
+	var b: Vector3 = res.track_get_key_value(track, res.track_get_key_count(track) - 1) as Vector3
+	var d := Vector3(b.x - a.x, 0.0, b.z - a.z)
+	return d.rotated(Vector3.UP, _motor.facing)
 
 
 func _end_rest() -> void:
