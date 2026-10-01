@@ -18,8 +18,8 @@ const SPECIAL_END_HOUR: Dictionary = {
 	&"designer": 5, &"artist": 5, &"carpet_peddler": 5, &"gypsy": 20, &"broker_sale": 17,
 	&"shop_sale": 23,
 }
-## `mFAs_FIELDRANK_SIX`. The rank widens or narrows the gap between special visits; there is
-## no town-rating system yet, so `field_rank` stays at a middling constant.
+## `mFAs_FIELDRANK_SIX`. The rank widens or narrows the gap between special visits; `Game`
+## copies the town's rating (`TownAssessment`) in whenever it rates the town.
 const FIELD_RANK_MAX := 6
 const DEFAULT_FIELD_RANK := 3
 const SLOT_NAMES: Array[String] = [

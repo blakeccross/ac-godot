@@ -77,7 +77,7 @@ data tables before a category is called done.
 - [ ] Villager house plots (up to ~15 villager homes) with reserved lots (`ac_reserve`)
 - [ ] Named landmarks / the town gate & train tracks (`ac_station`, `ac_train_door`)
 - [ ] Cliffs block movement; only ramps/stairs connect elevations
-- [~] "Perfect town" / environment assessment: trees, weeds, litter, flowers → rating per acre and town rank, daily perfect streak; the wishing well names the worst acre and, after 15 perfect days, its spirit hands over the golden axe (`m_field_assessment`, `ac_shrine`, `ac_npc_hem`) — `TownAssessment`, `WishingWellTalk`, `WellSpirit`. Missing: special music, Jacob's-ladder spawn, rank feeding balloons / spawns
+- [~] "Perfect town" / environment assessment: trees, weeds, litter, flowers → rating per acre and town rank, daily perfect streak; the wishing well names the worst acre and, after 15 perfect days, its spirit hands over the golden axe (`m_field_assessment`, `ac_shrine`, `ac_npc_hem`) — `TownAssessment`, `WishingWellTalk`, `WellSpirit`. The rank sets bug / fish rarity and the gap between special visitors. Missing: special music, Jacob's-ladder spawn
 
 ## 5. Player character
 
@@ -132,7 +132,7 @@ data tables before a category is called done.
 - [ ] Refuse / decline prompt (`m_player_main_refuse`)
 - [ ] Pick fruit vs. shake whole tree distinction
 - [x] Pluck weeds (`m_player_main_remove_grass`) — A on a weed: `ZASSOU1`, out on frame 17 with `zassou_nuku`, flies off over the shoulder (`weed.tscn`)
-- [ ] Pick / dig up flowers; pick mushrooms (`m_mushroom`)
+- [~] Pick / dig up flowers; pick mushrooms (`m_mushroom`) — mushrooms are ground items (`MushroomUse`)
 - [ ] Talk to your own reflection / gyroids / pets? (gyroid greeting)
 
 ## 9. Tools
@@ -242,7 +242,7 @@ data tables before a category is called done.
 - [x] Bury an item in a hole; dig it back up (`mTG_TYPE_FIELD_DEFAULT_BURY`, `bIT_common_hole_throw`) — pockets "Bury" → `BuriedUse.bury` (`KIND_ITEM` shows the crack)
 - [ ] Buried "X" marks / glowing spot: one per day → **fossil** or **bells** or **gyroid** or (after rain) more gyroids (`ac_gyo_kaseki` naming aside — fossils via FG)
 - [ ] Money spot: dig up 100 bells, replant bells (100–30,000) → money tree grows bags of bells once (`m_all_grow` money tree)
-- [ ] **Rock**: one random rock per day yields bells when hit with the shovel (up to ~8 hits, escalating, timed, must not be blocked from behind) — the "money rock"
+- [x] **Rock**: the money rock — a random rock, re-picked once spent, pays a bag per shovel hit inside a ~13 s window (100 ×3, 1,000 ×3, then 10,000; money-luck fortune one tier up), only onto a free unit beside it (`mAGrw_SetMoneyStone`, `bIT_actor_ten_coin_entryR`) — `MoneyRock`, `rock.gd` (`ply_1_not_dig1` bounce)
 - [ ] Rocks are otherwise immovable obstacles; fake rock? _(GCN: no)_
 - [x] **Pitfall**: bury a pitfall seed in a hole → invisible trap; player/villager falls in (`BURIED_PITFALL_HOLE`, `bIT_actor_pit_*`, `m_player_main_*_pitfall`) — the pit opens under them and closes after
 - [ ] **Gyroids**: ~127 gyroid variants _(verify)_, dug up after rain, wind up as playable furniture that hums/beats with room music (`ac_my_room_melody`, `m_melody`)
@@ -269,7 +269,7 @@ data tables before a category is called done.
 - [ ] Dandelions → puff stage → blow away; four-leaf clovers rare pickup
 - [~] Weeds: five per renewal day since the last one on free grass units (`mAGrw_SetGrass`, `mCoBG_PLANT4`), so a long absence brings many; pulled for nothing — `WeedUse`; renewals crossed indoors or while away are banked and sown when the field loads. Rating / complaints with the town assessment
 - [ ] Pull-all-weeds errand / Nature Day
-- [ ] Mushrooms: appear in autumn (mid-Oct) around trees/stumps; common + rare + rare furniture; some poisonous-looking (`m_mushroom`, `mEv_EVENT_MUSHROOM_SEASON`)
+- [x] Mushrooms (Oct 15–25): up to five set at 8:00–9:15 beside grown trees, away from the player's acre row and column, then one goes every quarter hour; sell for 5,000 (`m_mushroom`, `mEv_EVENT_MUSHROOM_SEASON`) — `MushroomUse`. The GameCube has the one mushroom item, no rare kinds
 - [ ] "Jacob's ladder" & "lily of the valley" spawn only in a perfect-rated town
 - [~] Lotus / water lilies in ponds (`ac_lotus`) — FG `LOTUS` places `lotus.tscn`: leaf sway on the baked clip, flower drawn May 26 – Aug 25. Pad / flower colours are placeholders (palette is `aLOT_obj_0N_lotus_pal` per term, not baked); no bobber shake. Lotus as an item still missing
 - [ ] Coconut palms on the beach; coconuts plantable only on the beach
@@ -584,7 +584,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [~] Morning Aerobics — residents doing the routine by the radio. Missing: Copper and Tortimer's radio exercise card (`mSC_Radio_*`)
 - [~] Meteor Shower — moon-viewing crowd with meteor lines. Missing: shooting-star effect (`eEC_EFFECT_SHOOTING_SET`)
 - [x] Harvest Moon — moon-viewing crowd
-- [ ] Mushroom season (mid-Oct)
+- [x] Mushroom season (Oct 15–25) — `MushroomUse`
 - [x] **Halloween** — Jack (moves acre after each talk), residents in costume chase the player; candy → present, else a trick (pocket swap or shirt) (`ac_ev_pumpkin`, `ac_halloween_npc`, `TrickOrTreatTalk`)
 - [x] **Harvest Festival** — seated feast crowd, Tortimer; Franklin (separate row)
 - [~] The day after — **Sale Day** at Nook's — grab bags (`mSP_Chk_HukubukuroSail`); see §21

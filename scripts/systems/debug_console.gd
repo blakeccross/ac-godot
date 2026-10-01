@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -137,6 +137,36 @@ func execute(raw: String) -> String:
 				int(r["rank"]), int(r["score"]), int(r["perfect"]), int(r["good"]), int(r["condition"]),
 				r["block"], int(r["trees"]), int(r["flowers"]), int(r["weeds"]), int(r["dust"]), Game.perfect_streak,
 			]
+		"moneyrock":
+			## Where today's money rock is (`moneyrock new` picks another now).
+			var mr_tree := Engine.get_main_loop() as SceneTree
+			var mr_world := World.find(mr_tree) if mr_tree != null else null
+			if mr_world == null:
+				return "The money rock needs the outdoor field."
+			if not args.is_empty() and String(args[0]).to_lower() == "new":
+				Game.money_rock = ""
+				Game.money_rock_day = -1
+				var mr_rng := RandomNumberGenerator.new()
+				mr_rng.randomize()
+				MoneyRock.renew(mr_world, mr_rng, Clock.day_number())
+			if Game.money_rock == "":
+				return "No money rock today."
+			var mr_rocks: Dictionary = MoneyRock.field_rocks(mr_world)
+			return "Money rock: %s in acre %s." % [Game.money_rock, mr_rocks.get(StringName(Game.money_rock), "?")]
+		"mushrooms":
+			## Set N mushrooms under trees now (`mMsr_SetMushroomNum`), or `mushrooms clear`.
+			var ms_tree := Engine.get_main_loop() as SceneTree
+			var ms_world := World.find(ms_tree) if ms_tree != null else null
+			if ms_world == null:
+				return "Mushrooms need the outdoor field."
+			var ms_rng := RandomNumberGenerator.new()
+			ms_rng.randomize()
+			if not args.is_empty() and String(args[0]).to_lower() == "clear":
+				MushroomUse.clear(ms_world, Game.mushrooms.size(), Vector2i(-1, -1), ms_rng)
+				return "Mushrooms cleared."
+			var ms_n: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else MushroomUse.NUM
+			var ms_set: int = MushroomUse.grow(ms_world, ms_n, Vector2i(-1, -1), ms_rng)
+			return "%d mushrooms set (%d in town)." % [ms_set, Game.mushrooms.size()]
 		"weeds":
 			## Sow N weeds now (`mAGrw_SetGrass`), or `weeds clear`.
 			var wd_tree := Engine.get_main_loop() as SceneTree

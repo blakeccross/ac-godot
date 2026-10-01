@@ -187,6 +187,18 @@ var perfect_streak_day: int = -1
 var dust_flag: bool = false
 ## `mSC_TROPHY_GOLDEN_AXE`: the wishing well has given the golden axe. Saved.
 var golden_axe_got: bool = false
+## `allgrow_ss_pos_info.stone_pos`: the rock that pays out Bells ("" none or spent). Saved.
+var money_rock: String = ""
+## The day the money rock was last picked (−1 never), so a spent one waits for tomorrow. Saved.
+var money_rock_day: int = -1
+## `ITM_FOOD_MUSHROOM` on the field: `mushroom_<x>_<z>` → 1. Saved.
+var mushrooms: Dictionary = {}
+## `Save.mushroom_time`: when mushrooms were last set or cleared (`Clock.absolute_minute`, −1
+## never) and `active`: a new day has started, so the 8 AM crop may grow. Saved.
+var mushroom_minute: int = -1
+var mushroom_active: bool = false
+## `mMsr_FirstClearMushroom` has run for this play session (not saved).
+var mushrooms_session_cleared: bool = false
 var plant_states: Dictionary = {}
 ## Buried dig spots: persist_id → {kind, item_id, cell_x, cell_z} (`mFI` deposit / shine).
 var buried_deposits: Dictionary = {}
@@ -621,7 +633,7 @@ func _residents_context(data: WorldData, rng: RandomNumberGenerator) -> Dictiona
 		"minute": Clock.absolute_minute(),
 		"met": func(id: StringName) -> bool: return player_met(id),
 		"letters": func(_id: StringName) -> int: return 0,
-		"field_rank": events.field_rank if events != null else EventCalendar.DEFAULT_FIELD_RANK,
+		"field_rank": field_rank,
 		"reserves": data.reserve_cells,
 		"on_goodbye": func(id: StringName, looks: int) -> void: _villager_moved_out(id, looks, rng),
 	}
@@ -825,6 +837,8 @@ func rate_town(world: Node, rng: RandomNumberGenerator = null, at_well: bool = f
 		else:
 			dust_flag = false
 	field_rank = int(result["rank"])
+	if events != null:
+		events.field_rank = field_rank
 	if at_well and int(result["condition"]) != TownAssessment.Condition.NO_CASE:
 		perfect_streak = 0
 		perfect_streak_day = -1
@@ -843,11 +857,6 @@ func perfect_town_long_enough() -> bool:
 func take_weed_days() -> int:
 	var days: int = weed_days_pending
 	weed_days_pending = 0
-	field_rank = 0
-	perfect_streak = 0
-	perfect_streak_day = -1
-	dust_flag = false
-	golden_axe_got = false
 	return days
 
 
@@ -953,6 +962,18 @@ func reset_session() -> void:
 	weeds.clear()
 	clear_grass = false
 	weed_days_pending = 0
+	field_rank = 0
+	perfect_streak = 0
+	perfect_streak_day = -1
+	dust_flag = false
+	golden_axe_got = false
+	money_rock = ""
+	money_rock_day = -1
+	MoneyRock.reset()
+	mushrooms_session_cleared = false
+	mushrooms.clear()
+	mushroom_minute = -1
+	mushroom_active = false
 	plant_states.clear()
 	buried_deposits.clear()
 	player_name = DEFAULT_PLAYER_NAME
@@ -1011,6 +1032,7 @@ func reset_session() -> void:
 	hra = HappyRoomAcademy.new()
 	town_fruit = &"apple"
 	events.clear()
+	events.field_rank = field_rank
 	_events_ready = false
 	if designs == null:
 		designs = DesignBook.new()
@@ -1240,6 +1262,11 @@ func to_save() -> Dictionary:
 		"perfect_streak_day": perfect_streak_day,
 		"dust_flag": dust_flag,
 		"golden_axe_got": golden_axe_got,
+		"money_rock": money_rock,
+		"money_rock_day": money_rock_day,
+		"mushrooms": mushrooms.duplicate(),
+		"mushroom_minute": mushroom_minute,
+		"mushroom_active": mushroom_active,
 		"plants": plant_states.duplicate(true),
 		"buried": buried_deposits.duplicate(true),
 		"world_mode": int(world_mode),
@@ -1331,6 +1358,16 @@ func apply_snapshot(data: Dictionary) -> void:
 	perfect_streak_day = int(data.get("perfect_streak_day", -1))
 	dust_flag = bool(data.get("dust_flag", false))
 	golden_axe_got = bool(data.get("golden_axe_got", false))
+	money_rock = str(data.get("money_rock", ""))
+	money_rock_day = int(data.get("money_rock_day", -1))
+	mushrooms_session_cleared = false
+	mushrooms.clear()
+	var saved_mushrooms: Variant = data.get("mushrooms", {})
+	if typeof(saved_mushrooms) == TYPE_DICTIONARY:
+		for key: Variant in saved_mushrooms:
+			mushrooms[str(key)] = 1
+	mushroom_minute = int(data.get("mushroom_minute", -1))
+	mushroom_active = bool(data.get("mushroom_active", false))
 	hole_interactables.clear()
 	var holes: Variant = data.get("hole_interactables", [])
 	if typeof(holes) == TYPE_ARRAY:
@@ -1398,6 +1435,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	catalog.record_inventory(inventory)
 	town_fruit = StringName(str(data.get("town_fruit", "apple")))
 	events.apply_snapshot(data.get("events", {}))
+	events.field_rank = field_rank
 	_events_ready = false
 	if designs == null:
 		designs = DesignBook.new()

@@ -15,6 +15,7 @@ extends Node3D
 ##   date=Y-M-D[,…]    One capture per date (default 2001-07-15). time=HH:MM (12:00).
 ##   target=…          visual:<id or glob> | node:<path under world> | acre:<name> |
 ##                     bug:<id or glob> (a live field insect, e.g. bug:*grasshopper*) |
+##                     group:<name> (the first node in a group, e.g. group:mushroom) |
 ##                     pos:x,y,z | scene (keep the scene's own camera). Default: scene
 ##                     camera for scene=, else the town centre.
 ##   console=cmd,args  Debug-console command run once the scene is up, commas for spaces
@@ -147,6 +148,9 @@ func _resolve_focus(root: Node, target: String) -> Variant:
 			if acre == null:
 				return null
 			return acre.global_position + Vector3(8.0, 0.0, 8.0)
+		"group":
+			var member := get_tree().get_first_node_in_group(value) as Node3D
+			return member.global_position if member != null else null
 		"visual":
 			var hit := _find_visual(root, value)
 			return hit.global_position if hit != null else null

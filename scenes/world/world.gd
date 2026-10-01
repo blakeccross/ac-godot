@@ -46,6 +46,7 @@ func _ready() -> void:
 	HoleUse.restore(self, grid)
 	BuriedUse.restore(self, grid)
 	WeedUse.restore(self, grid)
+	MushroomUse.restore(self, grid)
 	PlantGrowth.restore(self, grid)
 	PlantGrowth.assign_special_trees(self)
 	## First outdoor load seeds dig spots like `mAGrw_GROW_FIRST` deposit.
@@ -53,6 +54,7 @@ func _ready() -> void:
 		BuriedUse.renew(self, grid)
 	_sow_weeds()
 	if not Game.title_demo_active and not Game.intro_station_active:
+		_renew_money_rock()
 		Game.rate_town(self)
 	fish.configure(grid, WorldBuilder.water_surface_y(), layout)
 	bugs.configure(grid, layout)
@@ -60,6 +62,7 @@ func _ready() -> void:
 		bugs.seed_trees()
 	_build_navigation()
 	Clock.time_changed.connect(_apply_time_of_day)
+	Clock.time_changed.connect(_tick_mushrooms)
 	Clock.field_renewed.connect(_on_field_renewed)
 	Clock.hour_changed.connect(_on_hour_changed)
 	Clock.season_changed.connect(_on_season_changed)
@@ -67,6 +70,11 @@ func _ready() -> void:
 	_apply_time_of_day()
 	_play_outdoor_bgm()
 	_spawn_player()
+	if not Game.title_demo_active and not Game.intro_station_active:
+		if not Game.mushrooms_session_cleared:
+			Game.mushrooms_session_cleared = true
+			MushroomUse.first_clear(self, Clock.absolute_minute(), _field_rng())
+		_tick_mushrooms()
 	## `ac_reset_demo`: the last session ended without saving.
 	if Game.reset_flag and not Game.intro_station_active and not Game.title_demo_active:
 		load("res://scenes/world/resetti.gd").spawn($Characters, Player.find(get_tree()))
@@ -247,6 +255,7 @@ func _on_field_renewed(_days: int) -> void:
 	PlantGrowth.cull_dead_flowers(self, grid)
 	BuriedUse.renew(self, grid)
 	_sow_weeds()
+	_renew_money_rock()
 	## `mFAs_SetFieldRank` at the end of every growth pass.
 	Game.rate_town(self)
 
@@ -262,6 +271,28 @@ func _sow_weeds() -> void:
 	var weed_rng := RandomNumberGenerator.new()
 	weed_rng.randomize()
 	WeedUse.grow(self, grid, layout, WeedUse.amount_for(days), weed_rng)
+
+
+## `mAGrw_SetMoneyStone`: a fresh money rock once the last one is spent, once a day.
+func _renew_money_rock() -> void:
+	MoneyRock.renew(self, _field_rng(), Clock.day_number())
+
+
+## `mFI_FieldMove` → `mMsr_SetMushroom`, once a game minute while out on the field.
+func _tick_mushrooms() -> void:
+	if Game.title_demo_active or Game.intro_station_active or Game.current_room_id != &"":
+		return
+	var player: Node3D = Player.find(get_tree())
+	var block := Vector2i(-1, -1)
+	if player != null:
+		block = grid.world_to_cell(player.global_position) / 16
+	MushroomUse.tick(self, Clock.absolute_minute(), Clock.hour, Clock.minute, block, _field_rng())
+
+
+func _field_rng() -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	return rng
 
 
 func _on_season_changed(_season: Clock.Season) -> void:

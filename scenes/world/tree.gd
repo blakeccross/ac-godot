@@ -245,6 +245,22 @@ func _ensure_use() -> TreeUse:
 	return _use
 
 
+## `mMsr_CheckAroundTree`: a grown tree with nothing hidden in it, and fruit trees only while
+## the fruit is on (`TREE`, `TREE_*_FRUIT`, money trees, `CEDAR_TREE`, `GOLD_TREE`).
+func can_host_mushroom() -> bool:
+	if plant == null or plant.kind == PlantData.Kind.FLOWER or _felling:
+		return false
+	var use: TreeUse = _ensure_use()
+	if use.size != TreeUse.Size.FULL or use.stage == TreeUse.Stage.STUMP:
+		return false
+	match use.content:
+		TreeUse.Content.BELLS, TreeUse.Content.BEES, TreeUse.Content.FURNITURE:
+			return false
+	if plant.fruit != null or use.palm_fruit:
+		return use.stage == TreeUse.Stage.FRUITING
+	return true
+
+
 ## `aFSN_moving`'s FG check: a grown tree with nothing on it (`TREE`, `*_NOFRUIT_*`,
 ## `CEDAR_TREE`, `GOLD_TREE`) is where a balloon snags.
 func can_catch_balloon() -> bool:

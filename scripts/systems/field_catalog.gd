@@ -1088,6 +1088,8 @@ static func item_visual(item_id: StringName) -> StringName:
 			return &"obj_item_peach"
 		&"orange":
 			return &"obj_item_orange"
+		&"mushroom":
+			return &"obj_item_matutake"
 		&"money_100", &"money_1000", &"money_10000", &"money_30000":
 			return &"obj_item_bag"
 		&"flower":

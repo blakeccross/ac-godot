@@ -242,6 +242,7 @@ ITEM_CARD_GFX: dict[str, list[str]] = {
     "obj_item_bag": ["bag_DL_mode", "bag_DL_vtx"],
     "obj_item_leaf": ["leaf_DL_mode", "leaf_DL_vtx"],
     "obj_item_present": ["present_DL_mode", "present_DL_vtx"],
+    "obj_item_matutake": ["matutake_DL_mode", "matutake_DL_vtx"],
 }
 
 ## Rain streaks / ground splash (`ac_weather_rain`). Texture + PRIM/ENV live on shared

@@ -51,8 +51,9 @@ static func reload() -> void:
 	ensure_loaded()
 
 
+## Town field rank (`mFAs_GetFieldRank`, `TownAssessment`).
 static func field_rank() -> int:
-	return 3  ## no town-assessment system yet — `env_rate` 1.0
+	return Game.field_rank
 
 
 static func env_rate() -> float:
