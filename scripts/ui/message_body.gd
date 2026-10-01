@@ -10,13 +10,13 @@ extends Control
 ##
 ## Markup from the dialogue converter:
 ## - `{c:r,g,b}` colour, `{s:n}` scale n/32, `{y:n}` offset, `{lt:n}` line type
-## - `{p:n}` pause, `{se:n}` sound, `{just}` / `{unjust}`: timing marks for the
+## - `{p:n}` pause, `{se:n}` sound, `{just}` / `{unjust}`, `{btn}` (wait for A): timing marks for the
 ##   typewriter, reported by `marks()` against the glyph they precede.
 
 const CELL := 16.0
 const SCALE_UNIT := 32.0
 const DEFAULT_COLOR := Color8(50, 60, 50)
-const TAG_RE := "\\{(c|s|y|lt|p|se|just|unjust|cap)(?::(-?[0-9,]+))?\\}"
+const TAG_RE := "\\{(c|s|y|lt|p|se|just|unjust|cap|btn)(?::(-?[0-9,]+))?\\}"
 ## `mFont_LineType_*` pivots within the 16-unit cell.
 const LINE_PIVOT := [0.0, 8.0, 16.0]
 
@@ -90,7 +90,7 @@ func set_text(text: String) -> void:
 				pivot = float(LINE_PIVOT[clampi(int(arg), 0, LINE_PIVOT.size() - 1)])
 			"p", "se":
 				_marks.append({"at": _glyphs.size(), "kind": m.get_string(1), "value": int(arg)})
-			"just", "unjust":
+			"just", "unjust", "btn":
 				_marks.append({"at": _glyphs.size(), "kind": m.get_string(1), "value": 0})
 		i = m.get_end()
 	queue_redraw()

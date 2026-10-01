@@ -323,7 +323,7 @@ data tables before a category is called done.
 - [ ] **Animalese** voice synthesis per syllable, pitch by speaker (`jaudio` seqs 243–245) — `dialogue_voice.gd` _(partial)_
 - [~] Keyboard entry (`m_editor_ovl` pad keyboard, `KeyboardPanel`): letters and the gyroid board (`LetterWriterOverlay`), names — design / album folder / catchphrase / song request (`NameEntryOverlay`). the town tune editor (`TownTuneOverlay`), the community board's posts (`NoticeBoardOverlay`)
 - [ ] Word-filter / bad-word list for user text (`m_editEndChk_ovl`)
-- [~] "..." silent responses; scrolling long letters; page-turn SE — page-turn SE (`page_okuri`, skipped on `BTN2` / `SNDNOPAGE` pages) and the letter board's roll while writing (`mBD_roll_control`)
+- [~] "..." silent responses; scrolling long letters; page-turn SE — page-turn SE (`page_okuri`, skipped on `BTN2` / `SNDNOPAGE` pages); a mid-page `BTN` stops with the turn mark and A writes on in the same page (`{btn}`) and the letter board's roll while writing (`mBD_roll_control`)
 
 ## 18. Player house & interiors
 
@@ -391,7 +391,7 @@ data tables before a category is called done.
 - [x] Stock rotates at 06:00; sells out; sold-out slot shows empty
 - [x] Sell items to Nook (he names a price, you confirm); can't sell some things — counter menu "I want to sell" opens the pockets in sell mode (`mSM_IV_OPEN_SELL`: "Sell", or "Sell all" on marked items), then Nook quotes the total and asks (`aNSC_buy_sum_check`, `nook_shop_sell`, `ShopBook.sell_result`, §11)
 - [x] Nook buys turnips at fluctuating price (§11) — `KabuMarket`
-- [x] Catalog ordering; items delivered by mail next day — "Order from the catalog" opens the original catalog (`CatalogOverlay`: nine tabbed pages in `m_catalog_ovl_data.c_inc` order, turning preview, price or Not for Sale, star on complete pages); Nook quotes the pick (5 order slots, `CatalogBook`, `CatalogPages`)
+- [x] Catalog ordering; items delivered by mail next day — "Order from the catalog" opens the original catalog (`CatalogOverlay`: nine tabbed pages in `m_catalog_ovl_data.c_inc` order, turning preview, wallpaper / carpet drawn on the room-corner model `mCL_rom_myhome1_*` with their own pages, price or Not for Sale, star on complete pages); Nook quotes the pick (5 order slots, `CatalogBook`, `CatalogPages`)
 - [~] Sale days, the flooring/wallpaper wall — Sale Day grab bags, sale-event balloon gift on the first talk (`aNSC_check_present_balloon`); missing: the bargain-event FG layout (`mSP_GetNowShopFgNum` event kinds), wallpaper/carpet preview on the shop walls (`change_wall_proc`)
 - [ ] Nook gives you your first job (§29) and the initial furniture set
 - [x] Nook's hours (`mSP_GetShopOpenTime`): Cranny / Nookway / Nookington's 9–22, Nook 'n' Go 7–23, raffle day opens at 10, forced open during the part-time job; the door says why it's closed (renovations / opening hour)
@@ -624,7 +624,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [ ] Rumble / vibration on tool use, catches, bumps (`m_vibctl`, `m_player_vibration`)
 - [ ] "Copying data" / autosave indicator
 - [~] The **name entry keyboard** for text input — see §17 keyboard entry
-- [~] Nook catalog browser UI, shop buy/sell UI, bank UI, HRA letter viewer, letter writer UI — the catalog is the original `m_catalog_ovl` screen, goods come off the shelves, selling goes through the pockets, letters use the original board / address book / Is-this-OK prompt; all menus slide in and out like `mSM_move_Move` (`MenuSlide`). Missing: the bank's own screen (`m_bank_ovl`), HRA report viewer
+- [~] Nook catalog browser UI, shop buy/sell UI, bank UI, HRA letter viewer, letter writer UI — the catalog is the original `m_catalog_ovl` screen, goods come off the shelves, selling goes through the pockets, letters use the original board / address book / Is-this-OK prompt; all menus slide in and out like `mSM_move_Move` (`MenuSlide`). the bank's ABD screen (`BankOverlay`). HRA reports are ordinary letters on the GameCube (no viewer)
 - [ ] Photo / no screenshot feature (GCN has none)
 - [~] Trademark / logo / attract-mode title demo loop (`m_titledemo`, `m_trademark`, `ac_animal_logo`) — logo actor, 5 recorded demos, the demo loop, the fixed FG table, fixed villagers, apple tree and start chime landed; Nintendo logo stage skipped on purpose; gelato umbrella landed with the umbrella tool (demo 2) ([title](decomp_notes/title.md))
 - [ ] Debug menus & dev overlays — _explicitly out of scope_ (`m_debug*`)

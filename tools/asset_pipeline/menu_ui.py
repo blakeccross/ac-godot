@@ -237,6 +237,34 @@ def _catalog_layers() -> dict[str, tuple[list[Op], tuple[float, float, float, fl
 	return out
 
 
+## `mCL_wall_draw` / `mCL_carpet_draw`: the room sample's model and which segment each
+## surface samples (wallpaper pages on 8 / 9, carpet pages on 8–B; the palettes ride
+## segment A / D). Placeholder symbols stand in for the pages so batches can be told apart.
+_CLG_ROOM_PAGES = [f"kan_win_suuji{n}_tex_rgb_ia8" for n in range(1, 5)]
+
+
+def _catalog_room_meshes(rel: RelData, symbols) -> dict[str, list]:
+	"""Each room sample as triangles: [page, [x, y, u, v, r, g, b, a] x 3], at the origin."""
+	probe = UiWalker(rel, symbols)
+	page_of = {probe.symbol(n).address: i for i, n in enumerate(_CLG_ROOM_PAGES)}
+	out: dict[str, list] = {}
+	for kind, model, pal_seg in (("wall", "mCL_rom_myhome1_wall_model", 0xA), ("floor", "mCL_rom_myhome1_floor_model", 0xD)):
+		segs: dict[int, str] = {8 + i: n for i, n in enumerate(_CLG_ROOM_PAGES)}
+		if kind == "wall":
+			segs[pal_seg] = "kan_win_suuji5_tex_rgb_ia8"
+		else:
+			segs[pal_seg] = "kan_win_suuji5_tex_rgb_ia8"
+		tris: list = []
+		for batch in UiWalker(rel, symbols).run([Op("mCL_lat_letter_mode"), Op(model, segments=segs)]):
+			tile = batch.tex0
+			if tile is None or tile.addr not in page_of:
+				continue
+			for tri in batch.tris:
+				tris.append([page_of[tile.addr], [[v.x, v.y, v.s / tile.width, v.t / tile.height, *v.rgba] for v in tri]])
+		out[kind] = tris
+	return out
+
+
 def _bake_catalog(rel: RelData, symbols, textures: TextureCache, scale: int, cfg: PipelineConfig) -> list[dict[str, Any]]:
 	out_dir = cfg.godot_generated / "ui" / CATALOG_DIR
 	stage_dir = cfg.converted / "ui" / CATALOG_DIR
@@ -275,7 +303,8 @@ def _bake_catalog(rel: RelData, symbols, textures: TextureCache, scale: int, cfg
 			rec["status"] = "error"
 			rec["error"] = f"{type(exc).__name__}: {exc}"
 		results.append(rec)
-	meta = {"scale": scale, "page": CATALOG_PAGE, "mark": CATALOG_MARK, "music": (-40.0, 40.0, 80.0, 80.0)}
+	meta = {"scale": scale, "page": CATALOG_PAGE, "mark": CATALOG_MARK, "music": (-40.0, 40.0, 80.0, 80.0),
+		"room": _catalog_room_meshes(rel, symbols)}
 	data = json.dumps(meta, indent=2).encode()
 	for folder in (stage_dir, out_dir):
 		(folder / "catalog.json").write_bytes(data)

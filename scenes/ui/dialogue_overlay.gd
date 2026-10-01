@@ -136,6 +136,9 @@ func fast_advance() -> void:
 	if _runner.waiting_choice and not _buttons.is_empty():
 		_pick(_choice_index)
 		return
+	if _btn_wait:
+		_release_btn()
+		return
 	if _cursor < _visible_len or _mark_i < _marks.size() or _pause_frames > 0:
 		_dump_page()
 		return
@@ -146,14 +149,35 @@ func fast_advance() -> void:
 		close()
 
 
-## Everything on the page at once: pauses and timing marks are dropped.
+## Everything on the page at once, up to its next `{btn}`: pauses and timing marks
+## before it are dropped.
 func _dump_page() -> void:
-	_cursor = _visible_len
+	if _btn_wait:
+		return
+	var stop: int = _visible_len
+	var stop_mark: int = _marks.size()
+	for i: int in range(_mark_i, _marks.size()):
+		if str(_marks[i]["kind"]) == "btn":
+			stop = int(_marks[i]["at"])
+			stop_mark = i
+			break
+	_cursor = maxi(_cursor, stop)
 	_voice_at = _cursor
-	_mark_i = _marks.size()
+	_mark_i = stop_mark
 	_pause_frames = 0
 	_chrome.set_body_visible_chars(_cursor)
+	if stop_mark < _marks.size():
+		## Land on the BTN: it takes over (mark shown, A writes on).
+		_type_tick()
+		return
 	_show_continue()
+
+
+func _release_btn() -> void:
+	_btn_wait = false
+	_chrome_continue_shown = false
+	_chrome.set_continue_visible(false)
+	Audio.play_se(&"page_okuri")
 
 
 func play(
@@ -324,6 +348,8 @@ func _process(delta: float) -> void:
 func _type_tick() -> void:
 	if _runner != null and _runner.waiting_choice:
 		return
+	if _btn_wait:
+		return
 	var fast: bool = _fast_text and not _just
 	if _pause_frames > 0:
 		_pause_frames = 0 if fast else _pause_frames - 1
@@ -344,6 +370,13 @@ func _type_tick() -> void:
 				_just = true
 			"unjust":
 				_just = false
+			"btn":
+				## `mMsg_Main_Cursol_Button`: wait for A on this page, then write on.
+				_btn_wait = true
+				_fast_text = false
+				_chrome_continue_shown = true
+				_chrome.set_continue_visible(true)
+				return
 		if _pause_frames > 0:
 			return
 	if _cursor < _visible_len:
@@ -454,6 +487,8 @@ func _finish_choice_disappear() -> void:
 
 
 var _chrome_continue_shown: bool = false
+## Stopped at a mid-page BTN (`{btn}`): the turn mark shows; A writes on.
+var _btn_wait: bool = false
 
 
 func _show_continue() -> void:
@@ -488,6 +523,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
 		get_viewport().set_input_as_handled()
+		if _btn_wait:
+			_release_btn()
+			return
 		if _cursor < _visible_len or _mark_i < _marks.size() or _pause_frames > 0:
 			## Cancelable dump / A-to-complete page; SETCURSORJUST keeps its timing.
 			if not _just:
@@ -523,6 +561,7 @@ func _on_line(text: String) -> void:
 	_visible_len = _chrome.body_visible_char_count()
 	_marks = _chrome.body_marks()
 	_mark_i = 0
+	_btn_wait = false
 	_pause_frames = 0
 	_odd_frame = false
 	_end_timer = -1

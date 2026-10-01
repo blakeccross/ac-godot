@@ -31,6 +31,19 @@ class DialogueCodecTests(unittest.TestCase):
         self.assertEqual(conv["id"], "msg_7")
         self.assertEqual(conv["nodes"]["p0"]["text"], "Hi")
 
+    def test_btn_mid_page_keeps_writing_the_same_page(self) -> None:
+        def text(t: str) -> list:
+            return [{"type": "text", "text": ch} for ch in t]
+
+        def cmd(name: str) -> dict:
+            return {"type": "cmd", "name": name, "args": []}
+
+        tokens = text("Hm.") + [cmd("BTN")] + text("\nOK!") + [cmd("BTN"), cmd("MSGCLEAR")] + text("Bye") + [cmd("MSGEND")]
+        conv = tokens_to_conversation(9, tokens)
+        nodes = conv["nodes"]
+        self.assertEqual(nodes["p0"]["text"], "Hm.{btn}\nOK!")
+        self.assertEqual(nodes["p1"]["text"], "Bye")
+
     def test_player_name_and_choice_next(self) -> None:
         cmap = char_map()
         cmds = commands()

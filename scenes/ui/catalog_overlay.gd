@@ -39,6 +39,9 @@ const PRICE_COLOR := Color8(205, 0, 0)
 ## `gDPSetPrimColor(0, 50, 255, alpha)` on the scroll arrows.
 const ARROW_COLOR := Color8(0, 50, 255)
 const NOT_FOR_SALE := "Not for Sale"
+## `mCL_wall_init` / `mCL_carpet_init`: scale 0.54.
+const ROOM_SAMPLE_SCALE := 0.54
+static var _room_mesh_cache: Dictionary = {}
 ## The preview ring (`clg_mwin2_model`'s `inv_mwin_3Dma_tex`): x -116..-48, y -28..40.
 const RING_RECT := Rect2(-116.0, 40.0, 68.0, 68.0)
 ## `mCL_item_move`: 1.25 degrees a frame.
@@ -123,6 +126,9 @@ func _ready() -> void:
 		var mat := ShaderMaterial.new()
 		mat.shader = load("res://shaders/inventory_shell_paper.gdshader")
 		f.material = mat
+	## Carpet samples repeat their pages (`mCL_rom_myhome1_floor_model` UVs reach 2).
+	_front_body.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	_back_body.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	_back_body.draw.connect(_draw_page.bind(_back_body, false))
 	_front_body.draw.connect(_draw_page.bind(_front_body, true))
 	_tabs.draw.connect(_draw_tabs)
@@ -219,6 +225,19 @@ func current_item() -> StringName:
 	var ids: Array = _pages.page(p) if _pages != null else []
 	var i: int = _top[p] + _row[p] if not _top.is_empty() else 0
 	return ids[i] as StringName if i >= 0 and i < ids.size() else &""
+
+
+## Bring `page` to the front at once (debug / tests; the tab hand animates it in play).
+func show_page(page: int) -> void:
+	if not _open or page < 0 or page >= PAGE_COUNT:
+		return
+	_page_no = page
+	_order.erase(page)
+	_order.push_front(page)
+	_page_timer = 0
+	_flip = 0.0
+	_set_item(page)
+	_refresh()
 
 
 func front_page() -> int:
@@ -564,29 +583,59 @@ func _draw_item(canvas: Control, item: StringName, origin: Vector2, is_front: bo
 			var top_left := _u(base + Vector2(0.0, drop) + Vector2(-124.0, 100.0) * scale)
 			canvas.draw_texture_rect(flat, Rect2(top_left, Vector2(248.0, 186.0) * scale), false)
 		return
-	flat = _tex.get(_style_path(data), null) as Texture2D
-	if flat != null:
-		## The room sample fills the ring (`mCL_rom_myhome1_*_model` at 0.54).
-		var side := 44.0
-		var c2 := _u(base + Vector2(0.0, drop + 6.0))
-		canvas.draw_texture_rect(flat, Rect2(c2 - Vector2(side, side) * 0.5, Vector2(side, side)), false)
+	_draw_room_sample(canvas, data, base + Vector2(0.0, drop))
 
 
-static func _style_path(data: ItemData) -> String:
+## `mCL_wall_draw` / `mCL_carpet_draw`: the corner-of-a-room model (`mCL_rom_myhome1_*`)
+## at 0.54, its surfaces sampling the item's own pages, shaded per vertex.
+func _draw_room_sample(canvas: Control, data: ItemData, at: Vector2) -> void:
+	var kind: String = "wall" if data.category == ItemData.Category.WALL else "floor"
+	if data.category != ItemData.Category.WALL and data.category != ItemData.Category.FLOOR:
+		return
+	var tris: Array = _room_meshes().get(kind, [])
+	for tri: Array in tris:
+		var tex: Texture2D = _tex.get(_style_path(data, int(tri[0])), null) as Texture2D
+		if tex == null:
+			continue
+		var pts := PackedVector2Array()
+		var uvs := PackedVector2Array()
+		var cols := PackedColorArray()
+		for v: Array in tri[1]:
+			pts.append(_u(at + Vector2(float(v[0]), float(v[1])) * ROOM_SAMPLE_SCALE))
+			uvs.append(Vector2(float(v[2]), float(v[3])))
+			cols.append(Color8(int(v[4]), int(v[5]), int(v[6]), 255))
+		canvas.draw_polygon(pts, cols, uvs, tex)
+
+
+static func _room_meshes() -> Dictionary:
+	if _room_mesh_cache.is_empty():
+		var path := TEX_DIR % "catalog"
+		path = path.get_basename() + ".json"
+		if FileAccess.file_exists(path):
+			var meta: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+			if meta is Dictionary:
+				_room_mesh_cache = (meta as Dictionary).get("room", {})
+	return _room_mesh_cache
+
+
+static func _style_path(data: ItemData, page: int = 0) -> String:
 	match data.category:
 		ItemData.Category.WALL:
-			return InteriorStyleCatalog.wall_texture_path(data.id)
+			return InteriorStyleCatalog.wall_texture_path(data.id, page)
 		ItemData.Category.FLOOR:
-			return InteriorStyleCatalog.floor_texture_path(data.id)
+			return InteriorStyleCatalog.floor_texture_path(data.id, page)
 	return ""
 
 
-## Wallpaper / carpet samples load when the entry is picked, not while drawing.
+## Wallpaper / carpet pages load when the entry is picked, not while drawing.
 func _cache_style(item: StringName) -> void:
 	var data: ItemData = ItemCatalog.get_item(item)
-	var path: String = _style_path(data) if data != null else ""
-	if path != "" and not _tex.has(path) and ResourceLoader.exists(path):
-		_tex[path] = load(path)
+	if data == null:
+		return
+	for page: int in 4:
+		var path: String = _style_path(data, page)
+		if path != "" and not _tex.has(path) and ResourceLoader.exists(path):
+			_tex[path] = load(path)
 
 
 func _layer(canvas: Control, name: String, rect: Rect2) -> void:

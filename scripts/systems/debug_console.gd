@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -71,6 +71,23 @@ func execute(raw: String) -> String:
 				return "No map UI in this scene."
 			map_ui.call("open", true)
 			return "Map open."
+		"catalog":
+			## Open the catalog, optionally on page 0-8 (1 wallpaper, 2 carpet).
+			var clg_tree := Engine.get_main_loop() as SceneTree
+			var clg: Node = clg_tree.get_first_node_in_group("catalog_ui") if clg_tree != null else null
+			if clg == null:
+				return "No catalog UI in this scene."
+			if args.size() >= 2 and String(args[1]).to_lower() == "fill" and Game.catalog != null:
+				## Every wallpaper and carpet as if collected.
+				for kind: String in ["wall", "carpet"]:
+					for i: int in 67:
+						var goods: StringName = FtrCatalog.goods_id(kind, i)
+						if goods != &"":
+							Game.catalog.record(goods)
+			clg.call("open")
+			if not args.is_empty() and String(args[0]).is_valid_int():
+				clg.call("show_page", int(args[0]))
+			return "Catalog open."
 		"abd":
 			## Open the post office bank terminal (`mSM_OVL_BANK`).
 			var abd_tree := Engine.get_main_loop() as SceneTree

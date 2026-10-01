@@ -129,6 +129,7 @@ def tokens_to_styled_text(tokens: list[dict[str, Any]]) -> str:
     - `{p:n}` PAUSE: the cursor waits `n` (30 Hz) frames
     - `{se:n}` SNDTRGSYS: a system sound as the cursor passes
     - `{just}` / `{unjust}` SETCURSORJUST / CLRCUSRORJUST: pauses B can't skip
+    - `{btn}` BTN mid-page: wait for A with the turn mark, then keep writing the same page
     - `{cap}` CAPTIALIZE: the next substituted string starts with a capital
     """
     parts: list[str] = []
@@ -211,6 +212,9 @@ def tokens_to_styled_text(tokens: list[dict[str, Any]]) -> str:
             continue
         if name == "SETCURSORJUST":
             parts.append("{just}")
+            continue
+        if name == "BTN":
+            parts.append("{btn}")
             continue
         if name == "CLRCUSRORJUST":
             parts.append("{unjust}")
@@ -375,6 +379,22 @@ def _page_event_from_token(name: str, args: list[int]) -> Optional[dict[str, Any
     }
 
 
+def _btn_continues_page(tokens: list[dict[str, Any]], start: int) -> bool:
+    """True when what follows a BTN draws more on the same page: text or a substituted
+    string before any page break, end, or choice (demo / style codes are skipped)."""
+    for tok in tokens[start:]:
+        if tok["type"] == "text":
+            if str(tok["text"]).strip() != "":
+                return True
+            continue
+        name = str(tok["name"])
+        if name in SUBS:
+            return True
+        if name in PAGE_BREAKS or name in END_CMDS or name == "OPENCHOICE":
+            return False
+    return False
+
+
 def tokens_to_conversation(
     msg_no: int, tokens: list[dict[str, Any]], select: Optional[list[str]] = None
 ) -> dict[str, Any]:
@@ -408,7 +428,7 @@ def tokens_to_conversation(
         if text != "" or events:
             pages.append((text, events, flags))
 
-    for tok in tokens:
+    for at, tok in enumerate(tokens):
         if tok["type"] == "text":
             page_tokens.append(tok)
             if str(tok["text"]).strip() != "":
@@ -419,6 +439,10 @@ def tokens_to_conversation(
         if name in SUBS:
             page_tokens.append(tok)
             terminator = ""
+            continue
+        if name == "BTN" and _btn_continues_page(tokens, at + 1):
+            ## `mMsg_Main_Cursol_Button`: A carries on writing; only MSGCLEAR clears.
+            page_tokens.append(tok)
             continue
         if name in PAGE_BREAKS:
             if name == "MSGCLEAR":

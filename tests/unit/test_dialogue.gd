@@ -406,3 +406,21 @@ func _line(data: DialogueData, ctx: DialogueContext) -> String:
 	var runner := DialogueRunner.new()
 	runner.start(data, ctx, null)
 	return runner.line
+
+
+## `mMsg_Main_Cursol_Button`: a mid-page BTN stops with the turn mark; A writes on, and
+## the page stays the same one.
+func test_mid_page_btn_waits_then_writes_on() -> void:
+	var overlay := _open_line("Hm.{btn}OK", {"next": "b"})
+	for _i in 20:
+		overlay._type_tick()
+	assert_int(overlay._cursor).is_equal(3)
+	assert_bool(overlay._btn_wait).is_true()
+	## A dump stops at the BTN too.
+	overlay._dump_page()
+	assert_int(overlay._cursor).is_equal(3)
+	overlay._release_btn()
+	for _i in 20:
+		overlay._type_tick()
+	assert_int(overlay._cursor).is_equal(5)
+	assert_str(String(overlay.runner().node_id)).is_equal("a")
