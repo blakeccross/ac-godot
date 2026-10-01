@@ -55,6 +55,12 @@ func next_step() -> Dictionary:
 	return {}
 
 
+## A `cont` page is about to move on (`mMsg_SET_LOCKCONTINUE`): return `{"anim": {...}}`
+## to play a demo first, or `{}`.
+func lock_continue() -> Dictionary:
+	return {}
+
+
 ## Answer to a menu `next_step` put up with `{"msg", "choices"}`.
 func choose(_index: int) -> Dictionary:
 	return {}

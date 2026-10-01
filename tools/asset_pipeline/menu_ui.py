@@ -145,6 +145,14 @@ LAYERS: dict[str, list[Op]] = {
 	# (the runtime draws the second 194 and the third 358 units lower), the month tab
 	# (`dia_win_tukiT_model` over the month's 64×16 IA8 word) and the month caption, all at the
 	# origin.
+	# `mBR_set_dl` (`m_birthday_ovl.c`): the window, and the month (`brt_win_month_model` on the
+	# month's I4 word, segment 8) in red when picked, blue otherwise.
+	"br_win": [Op("birthday_win_mode"), Op("birthday_win_model")],
+	**{f"br_m{i + 1}_{state}": [Op("birthday_win_mode"), Op("birthday_win_model", draw=False),
+		Op("brt_win_month_model", prim=prim, segments={8: f"tim_win_{m}_tex_rgb_i4"})]
+		for i, m in enumerate(("january", "february", "march", "april", "may", "june", "july", "august",
+			"september", "october", "november", "december"))
+		for state, prim in (("on", (195, 0, 0, 255)), ("off", (70, 145, 225, 255)))},
 	"dia_w1": [Op("dia_init_mode_letter"), Op("dia_win_wT_model"), Op("dia_win_fusenT_model")],
 	"dia_w2": [Op("dia_init_mode_letter"), Op("dia_win2_wT_model"), Op("dia_win2_fusenT_model")],
 	"dia_w3": [Op("dia_init_mode_letter"), Op("dia_win3_wT_model"), Op("dia_win3_fusenT_model")],

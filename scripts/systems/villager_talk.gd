@@ -55,6 +55,7 @@ static func manager(villager: VillagerData, state: VillagerState, ctx: DialogueC
 	m.hint_count_set = func(v: int) -> void: Game.first_job_hint_count = v
 	m.show_letter = func(letter: Dictionary) -> void: _show_letter(villager, letter)
 	m.edit_catchphrase = func() -> void: _edit_catchphrase(villager, state)
+	m.edit_birthday = _edit_birthday
 	m.send_mail = Game.deliver_to_mailbox
 	m.field_counts = Game.field_counts
 	if state != null:
@@ -87,6 +88,24 @@ static func _edit_catchphrase(villager: VillagerData, state: VillagerState) -> v
 		if ui != null and is_instance_valid(ui):
 			ui.set_suspended(false)
 	board.connect("closed", resume, CONNECT_ONE_SHOT)
+
+
+## `aQMgr_talk_normal_open_birthday`: the window drops in over the paused conversation.
+static func _edit_birthday() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	var picker := tree.get_first_node_in_group("birthday_ui")
+	var ui := DialogueOverlay.find(tree)
+	if picker == null or bool(picker.call("is_open")):
+		return
+	if ui != null:
+		ui.set_suspended(true)
+	picker.call("open")
+	var resume := func() -> void:
+		if ui != null and is_instance_valid(ui):
+			ui.set_suspended(false)
+	picker.connect("closed", resume, CONNECT_ONE_SHOT)
 
 
 ## `aQMgr_talk_normal_open_letter`: the letter the topic talked about, on the read board.

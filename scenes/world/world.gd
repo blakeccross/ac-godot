@@ -14,6 +14,9 @@ var fish: FishSchool = FishSchool.new()
 ## Live insects for this field. Read by `Netting` and ticked by `BugActors`.
 var bugs: BugField = BugField.new()
 var _lightning_flash: bool = false
+## Where a continued game walks out of the house (`Vector3.INF` otherwise).
+var _door_stand: Vector3 = Vector3.INF
+var _door_yaw: float = 0.0
 
 @onready var _sun: DirectionalLight3D = $Sun
 @onready var _moon: DirectionalLight3D = $Moon
@@ -78,8 +81,15 @@ func _ready() -> void:
 			Game.mushrooms_session_cleared = true
 			MushroomUse.first_clear(self, Clock.absolute_minute(), _field_rng())
 		_tick_mushrooms()
-	## `ac_reset_demo`: the last session ended without saving.
-	if Game.reset_flag and not Game.intro_station_active and not Game.title_demo_active:
+	## `aNPS2_make_door_data`: someone with a present outside the door, else Resetti
+	## (`ac_reset_demo`) when the last session ended without saving.
+	var present: int = PresentVisit.Kind.NONE
+	if _door_stand != Vector3.INF and not Game.intro_station_active and not Game.title_demo_active:
+		present = PresentVisit.decide_now()
+		if present != PresentVisit.Kind.NONE:
+			load("res://scenes/world/present_npc.gd").spawn($Characters, present, _door_stand, _door_yaw)
+	if (present == PresentVisit.Kind.NONE and Game.reset_flag
+			and not Game.intro_station_active and not Game.title_demo_active):
 		load("res://scenes/world/resetti.gd").spawn($Characters, Player.find(get_tree()))
 	var event_mgr: EventManager = get_node_or_null("EventManager") as EventManager
 	if event_mgr != null:
@@ -162,6 +172,8 @@ func _spawn_player() -> void:
 			pos = StructureDoor.exit_stand(house)
 			yaw = StructureDoor.leave_yaw(house, pos)
 			Game.emerge_from_door = true
+			_door_stand = pos
+			_door_yaw = yaw
 	player.apply_spawn(pos, yaw)
 	if Game.intro_station_active and _camera.has_method("suspend"):
 		## Station demo framing — do not snap-follow the house spawn first.

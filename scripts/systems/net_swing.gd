@@ -44,9 +44,11 @@ const FRAME_SPEED := 0.5
 const CATCH_AFTER_FRAME := 6.0
 
 ## `Player_actor_Item_CheckLocalCapture_forNet`: the net's reach added to the insect's own
-## catch range (21 for the golden net, which is not in the game yet). `net_top_col_pos` and
+## catch range (21 for the golden net). `net_top_col_pos` and
 ## `net_bot_col_pos` are the same point, so the capsule test reduces to a sphere.
 const CATCH_REACH_GX := 15.0
+const GOLDEN_REACH_GX := 21.0
+const GOLDEN_NET := &"golden_net"
 
 ## `Player_actor_Item_draw_net`: the net's points, off the hand matrix after
 ## `Matrix_rotateXYZ(0, 3000, 0)`, at these model-space Z offsets × the player's 0.01 scale.
@@ -174,7 +176,8 @@ static func net_point(hand: Transform3D, along_gx: float) -> Vector3:
 
 ## `Player_actor_Item_CheckLocalCapture_forNet` with coincident top and bottom points.
 static func in_reach(net_pos: Vector3, target: Vector3, range_gx: float) -> bool:
-	var reach: float = (CATCH_REACH_GX + range_gx) * FieldCatalog.GX_TO_METERS
+	var golden: bool = Game != null and Game.inventory != null and Game.inventory.equipment_id == GOLDEN_NET
+	var reach: float = ((GOLDEN_REACH_GX if golden else CATCH_REACH_GX) + range_gx) * FieldCatalog.GX_TO_METERS
 	return net_pos.distance_squared_to(target) <= reach * reach
 
 

@@ -47,7 +47,7 @@ data tables before a category is called done.
 - [x] Season affects grass colour / acre visuals, tree models (no river ice; snow ground) — `Clock.season`, seasonal textures from the pipeline's `seasons` kind
 - [~] Weekday tracking; shop closed days; K.K. on Saturday night — K.K. on Saturday night and Joan on Sunday morning come through the event manager (§30); Nook closes for renovations
 - [ ] "Played days" counter, first-day flags, "haven't played in a while" reactions
-- [ ] Birthday stored per resident; birthday event
+- [~] The player's birthday: a villager asks for it (the cake date picker, `m_birthday_ovl`) and uses it for star-sign lines; on the day, when continuing from the house, the villager who likes you most waits outside with a wrapped Famicom (`ac_present_demo`, `ac_present_npc`); every other villager who remembers you mails a card with a present once the date has passed (`mNpc_SendEventBirthdayCard2`) — `BirthdayOverlay`, `PresentVisit`. Missing: villagers' own birthdays, birthday lines in everyday talk, the rain umbrella on the visitor
 
 ## 3. Weather & environment
 
@@ -137,11 +137,11 @@ data tables before a category is called done.
 
 ## 9. Tools
 
-- [~] **Net** — hold A to ready, creep, skid out of a dash, release to swing; tick-exact catch sphere from keyframe 6; wall / ground / villager strike cuts the swing (`AMI_HIT`); empty swing → `STOP_NET` (`m_player_item_net`, `m_player_main_{ready,ready_walk,slip,swing,stop}_net`) — `net_swing.gd`, `netting.gd`. Missing: catching the bee swarm, golden net, swing effects
+- [~] **Net** — hold A to ready, creep, skid out of a dash, release to swing; tick-exact catch sphere from keyframe 6; wall / ground / villager strike cuts the swing (`AMI_HIT`); empty swing → `STOP_NET` (`m_player_item_net`, `m_player_main_{ready,ready_walk,slip,swing,stop}_net`) — `net_swing.gd`, `netting.gd`. Missing: catching the bee swarm, swing effects. The golden net reaches further (21 GX)
 - [~] **Fishing rod** — see §13 (`m_player_item_rod`) — `fishing.gd` (substantial)
 - [ ] **Shovel** — dig holes, bury items, dig fossils/gyroids/pitfalls, hit rocks, plant trees, whack villagers, reflect off stone (`m_player_item_scoop`, `dig_scoop`, `fill_scoop`, `reflect_scoop`) — `hole_use.gd`, `buried_use.gd` _(partial)_
 - [ ] **Axe** — chop trees (multi-hit → stump), break on overuse, golden axe never breaks (`m_player_item_axe`, `swing_axe`, `broken_axe`, `ef_break_axe`) — `tree_use.gd` _(partial)_
-- [ ] **Fishing rod / net / axe / shovel** durability & the **golden** variants (golden axe from perfect town, golden rod/net/shovel from milestones) (`demo_get_golden_item`)
+- [~] **Fishing rod / net / axe / shovel** durability & the **golden** variants — the golden axe from the wishing well; Tortimer waits outside the house with the golden rod once every fish is caught and the golden net once every insect is (`aPRD_setup_present`, `PresentVisit`). Missing: the hold-it-up `demo_get_golden_item` pose, the golden shovel (Wild World on)
 - [ ] **Slingshot** — _not in the GameCube game_ (balloons snag in trees instead; see §33 balloons)
 - [ ] **Watering can** — _not in GCN_ (villagers water flowers themselves; skip)
 - [~] **Umbrella** — held in rain/snow, twirl, many designs (`m_player_item_umbrella`, `rotate_umbrella`) — `HeldUmbrella` + 32 `ToolData` umbrellas (`data/items/umbrellas/`, ROM names/prices): opens out of the hand (`UMB_OPEN1`, handle/canopy scale tables), right arm holds `ply_1_umbrella1` over walk/idle (`PART_TABLE_NET`), A twirls (`UMB_ROT1` + SE 0x432), folds away through doors / on unequip (`UMB_CLOSE1`), switches the rain loop to the under-umbrella one; Nook stocks one a day on the umbrella stand; title demo 2 carries the gelato umbrella. Missing: design umbrellas (`ITM_MY_ORG_UMBRELLA0-7`), the `KASAMIZU` twirl spray (no effect system)

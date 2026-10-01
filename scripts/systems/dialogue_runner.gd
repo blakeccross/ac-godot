@@ -87,6 +87,14 @@ func advance() -> void:
 			_stage_wait_key = "advance_gate"
 			_stage_wait_next = next_id
 		return
+	## `mMsg_SET_LOCKCONTINUE`: the speaker holds a continue page for a demo (an item
+	## changing hands) and lets it go on afterwards.
+	if talk_manager != null and _is_bank_message() and rec.has("cont"):
+		var lock: Dictionary = talk_manager.lock_continue()
+		if lock.has("anim"):
+			lock["_then_goto"] = next_id
+			_run_manager_step(lock)
+			return
 	_goto(next_id)
 
 
@@ -599,6 +607,9 @@ func resolve_action(result: Dictionary) -> void:
 			_finish()
 			return
 		_run_manager_step(talk_manager.text_result(str(result.get("text", ""))))
+		return
+	if step.has("_then_goto"):
+		_goto(StringName(str(step["_then_goto"])))
 		return
 	if step.has("then"):
 		## Several demos in a row (`{"anim": …, "then": {…}}`).

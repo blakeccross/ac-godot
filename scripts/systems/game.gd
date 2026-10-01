@@ -62,6 +62,12 @@ signal quest_handover_resolved(item_id: StringName, pocket: int)
 var first_job_hint_count: int = 0
 ## Year the Valentine's letters went out (`event_save_common.valentines_day_date`).
 var valentine_year: int = 0
+## `Private_c.celebrated_birthday_year` / `birthday_present_npc`: the year the birthday
+## visit came, and who brought it (left out of that year's cards).
+var celebrated_birthday_year: int = 0
+var birthday_present_npc: StringName = &""
+## `EventDates.ordinal` of the last birthday-card check (the last play date).
+var birthday_card_day: int = 0
 var relationships: RelationshipBook = RelationshipBook.new()
 var interiors: InteriorBook = InteriorBook.new()
 var shops: ShopBook = ShopBook.new()
@@ -716,6 +722,29 @@ func _check_valentines(rng: RandomNumberGenerator) -> void:
 	)
 
 
+## Birthday cards once the birthday has passed since the last check
+## (`mNpc_SendEventBirthdayCard2`). On the day itself the villager who will bring the present
+## is picked now, so their card doesn't come as well.
+func _check_birthday_cards(rng: RandomNumberGenerator) -> void:
+	var today: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
+	var last: int = birthday_card_day
+	birthday_card_day = today
+	var bd: Vector2i = VillagerTalkManager.birthday()
+	if not PresentVisit.birthday_passed(bd, last, today):
+		return
+	if celebrated_birthday_year != Clock.year:
+		birthday_present_npc = (
+			PresentVisit.birthday_npc(residents, relationships)
+			if bd == Vector2i(Clock.month, Clock.day) else &""
+		)
+	var sent: int = PresentVisit.send_cards(
+		residents, relationships, birthday_present_npc, player_name, rng,
+		func(mail: MailData) -> bool: return inventory.add_received_mail(mail) >= 0 or post.receipt_mail(mail)
+	)
+	if sent > 0:
+		post_notice("You've got mail!")
+
+
 ## `mQst_SendRemail`: the contest-letter reply goes to the home mailbox only.
 func deliver_to_mailbox(mail: MailData) -> bool:
 	return inventory.add_received_mail(mail) >= 0
@@ -986,6 +1015,9 @@ func reset_session() -> void:
 	quest_handover_pending = false
 	first_job_hint_count = 0
 	valentine_year = 0
+	celebrated_birthday_year = 0
+	birthday_present_npc = &""
+	birthday_card_day = 0
 	VillagerWalk.reset()
 	VillagerOutdoor.reset()
 	Fishing.reset()
@@ -1363,6 +1395,9 @@ func to_save() -> Dictionary:
 		"dialogue_vars": dialogue_vars.duplicate(true),
 		"first_job_hint_count": first_job_hint_count,
 		"valentine_year": valentine_year,
+		"celebrated_birthday_year": celebrated_birthday_year,
+		"birthday_present_npc": String(birthday_present_npc),
+		"birthday_card_day": birthday_card_day,
 		"quests": quests.to_save(),
 		"rainbow": rainbow.to_save(),
 		"notice_board": notice_board.to_save(),
@@ -1549,6 +1584,9 @@ func apply_snapshot(data: Dictionary) -> void:
 		notice_board.seed(Clock.year, Clock.month, Clock.day, Clock.hour, Clock.minute)
 	first_job_hint_count = clampi(int(data.get("first_job_hint_count", 0)), 0, 0xFF)
 	valentine_year = int(data.get("valentine_year", 0))
+	celebrated_birthday_year = int(data.get("celebrated_birthday_year", 0))
+	birthday_present_npc = StringName(str(data.get("birthday_present_npc", "")))
+	birthday_card_day = int(data.get("birthday_card_day", 0))
 	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
 	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))
 	player_gender = IntroSequence.normalize_gender(data.get("player_gender", DEFAULT_PLAYER_GENDER))
@@ -1788,6 +1826,7 @@ func _on_field_renewed(days: int) -> void:
 	var vt_rng := RandomNumberGenerator.new()
 	vt_rng.randomize()
 	_check_valentines(vt_rng)
+	_check_birthday_cards(vt_rng)
 	HouseGoki.save_play_time(interiors.player_house())
 	refresh_shop_set()
 	## `mAGrw_RenewalFgItem` tops the lost and found up once per renewal, however many

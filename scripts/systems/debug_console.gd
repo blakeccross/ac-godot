@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -159,6 +159,38 @@ func execute(raw: String) -> String:
 			var fs_cut: Vector2i = ShopGoods.tier_cutoffs(Game.goods_power)
 			return "Money power %d, goods power %d (Nook: rare %d%%, uncommon %d%%)." % [
 				Game.money_power, Game.goods_power, fs_cut.x, fs_cut.y - fs_cut.x]
+		"birthday":
+			## `birthday` opens the "When's your birthday?" picker; `birthday visit [rod|net]`
+			## sends the present visitor to the player now; `birthday cards` mails the cards.
+			var bd_tree := Engine.get_main_loop() as SceneTree
+			var bd_sub: String = String(args[0]).to_lower() if not args.is_empty() else ""
+			if bd_sub == "cards":
+				var bd_rng := RandomNumberGenerator.new()
+				bd_rng.randomize()
+				var bd_sent: int = PresentVisit.send_cards(Game.residents, Game.relationships, &"",
+					Game.player_name, bd_rng, Game.deliver_to_mailbox)
+				return "%d birthday card(s) sent." % bd_sent
+			if bd_sub == "visit":
+				var bd_kind: int = PresentVisit.Kind.BIRTHDAY
+				if args.size() > 1:
+					bd_kind = PresentVisit.Kind.GOLDEN_NET if String(args[1]) == "net" else PresentVisit.Kind.GOLDEN_ROD
+				else:
+					Game.birthday_present_npc = PresentVisit.birthday_npc(Game.residents, Game.relationships)
+					if Game.birthday_present_npc == &"" and not Game.residents.resident_ids().is_empty():
+						Game.birthday_present_npc = Game.residents.resident_ids()[0]
+				var bd_player := Player.find(bd_tree) as Node3D if bd_tree != null else null
+				var bd_world: Node = World.find(bd_tree) if bd_tree != null else null
+				if bd_player == null or bd_world == null:
+					return "No field here."
+				var bd_yaw: float = float(bd_player.call("facing_yaw"))
+				var bd_npc: Node3D = load("res://scenes/world/present_npc.gd").spawn(
+					bd_world.get_node("Characters"), bd_kind, bd_player.global_position, bd_yaw)
+				return "Present visit." if bd_npc != null else "Nobody to send."
+			var bd_ui: Node = bd_tree.get_first_node_in_group("birthday_ui") if bd_tree != null else null
+			if bd_ui == null:
+				return "No birthday screen here."
+			bd_ui.call("open")
+			return "Birthday: pick a date."
 		"diary":
 			## Open the diary on a month (`diary 4`), or write a line into one first
 			## (`diary 4 Went fishing all day.`).

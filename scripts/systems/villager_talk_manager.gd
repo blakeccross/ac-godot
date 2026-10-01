@@ -147,6 +147,8 @@ var give_item: StringName = &""
 var show_letter: Callable
 ## Called for `aQMgr_order_change_gobi` (catchphrase editor).
 var edit_catchphrase: Callable
+## `mSM_OVL_BIRTHDAY`: asks the player's birthday (order 8).
+var edit_birthday: Callable
 ## First-job hint counter (`Private_c.hint_count`), read and written through these.
 var hint_count_get: Callable
 var hint_count_set: Callable
@@ -564,10 +566,14 @@ func order(order_type: int, value: int) -> void:
 				state.add_friendship(amount)
 		7:
 			_order_set_calendar(value)
+		8:
+			## `aQMgr_order_input_birthday`: the message steps aside for the date picker.
+			if edit_birthday.is_valid():
+				edit_birthday.call()
 		9:
 			_order_set_string(value)
 		_:
-			## 6 plays a remembered town tune, 8 opens the birthday entry: not ported yet.
+			## 6 plays a remembered town tune: not ported yet.
 			pass
 
 
@@ -836,10 +842,12 @@ func _order_set_string(value: int) -> void:
 					last_strings[i] = _random_string(i, [0x458, 0x494][i], 11, last)
 				else:
 					last_strings[i] = _random_string(i, [0x458, 0x494][i], 12, -1)
-			## Unset birthday reads as January 1st (`mPr_birthday_c` zeroed → month clamps to 1).
-			_set_item_text(2, DialogueCatalog.rom_string(0x494 + posmod(-3, 12)))
-			_set_item_text(3, _month_name(1))
-			_set_item_text(4, str(1))
+			## The player's sign, month and day; unset reads as January 1st (`mPr_birthday_c`
+			## cleared to 0xFF → the month and day clamp to 1).
+			var bd: Vector2i = birthday()
+			_set_item_text(2, DialogueCatalog.rom_string(0x494 + posmod(constellation(bd.x, bd.y) - 3, 12)))
+			_set_item_text(3, _month_name(bd.x if bd.x >= 1 and bd.x <= 12 else 1))
+			_set_item_text(4, str(bd.y if bd.y >= 1 and bd.y <= 31 else 1))
 		_:
 			var bases: Array[int] = [0x6A1, 0x679, 0x334, 0x314, 0x414]
 			var maxes: Array[int] = [40, 40, 32, 32, 32]
@@ -849,6 +857,29 @@ func _order_set_string(value: int) -> void:
 					last_strings[2 + i] = _random_string(i, bases[i], maxes[i] - 1, last)
 				else:
 					last_strings[2 + i] = _random_string(i, bases[i], maxes[i], -1)
+
+
+## `constellation_table`: the last day of each sign, January's first; later dates (and an
+## unset birthday) count as the first.
+const CONSTELLATION_ENDS: Array[Vector2i] = [
+	Vector2i(1, 19), Vector2i(2, 18), Vector2i(3, 20), Vector2i(4, 19), Vector2i(5, 20), Vector2i(6, 21),
+	Vector2i(7, 22), Vector2i(8, 22), Vector2i(9, 22), Vector2i(10, 23), Vector2i(11, 21), Vector2i(12, 21),
+]
+
+
+static func constellation(month: int, day: int) -> int:
+	for i: int in CONSTELLATION_ENDS.size():
+		var e: Vector2i = CONSTELLATION_ENDS[i]
+		if month < e.x or (month == e.x and day <= e.y):
+			return i
+	return 0
+
+
+## The player's birthday (month, day), or (0, 0) unset.
+static func birthday() -> Vector2i:
+	if Game == null or Game.events == null or Game.events.birthday_md == 0:
+		return Vector2i.ZERO
+	return Vector2i(EventDates.md_month(Game.events.birthday_md), EventDates.md_day(Game.events.birthday_md))
 
 
 ## `aQMgr_set_random_string`.
