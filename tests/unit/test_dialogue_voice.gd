@@ -31,7 +31,9 @@ func test_letter_maps_to_phoneme() -> void:
 	assert_that(DialogueVoice.raw_voice_code("A")).is_equal(0x5D)
 	assert_that(DialogueVoice.raw_voice_code("a")).is_equal(0x5D)
 	assert_that(DialogueVoice.phoneme_for_char("A")).is_equal(0x01)
-	assert_that(DialogueVoice.phoneme_for_char("E")).is_equal(0x14)
+	## `Sou_TanboinHenkan`: E (0x61) → 0x0A, I (0x65) → 0x14.
+	assert_that(DialogueVoice.phoneme_for_char("E")).is_equal(0x0A)
+	assert_that(DialogueVoice.phoneme_for_char("I")).is_equal(0x14)
 	assert_that(DialogueVoice.phoneme_for_char(" ")).is_equal(-1)
 	assert_that(DialogueVoice.phoneme_for_char(".")).is_equal(-1)
 
