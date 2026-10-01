@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -153,6 +153,15 @@ func execute(raw: String) -> String:
 				return "No money rock today."
 			var mr_rocks: Dictionary = MoneyRock.field_rocks(mr_world)
 			return "Money rock: %s in acre %s." % [Game.money_rock, mr_rocks.get(StringName(Game.money_rock), "?")]
+		"tan":
+			## Set the sunburn rank 0–8 (`mPr_sunburn_c`) and repaint the face.
+			if args.is_empty() or not String(args[0]).is_valid_int():
+				return "Tan rank %d (hold %d days)." % [int(Game.sunburn.get("rank", 0)), int(Game.sunburn.get("hold", 0))]
+			Game.sunburn["rank"] = clampi(int(args[0]), 0, Sunburn.MAX_RANK)
+			Game.sunburn["changed"] = Clock.day_number()
+			Game.sunburn["hold"] = Sunburn.HOLD_DAYS if int(Game.sunburn["rank"]) > 0 else 0
+			Game.face_changed.emit()
+			return "Tan rank %d." % int(Game.sunburn["rank"])
 		"snowballs":
 			## The body and head balls a few units ahead of the player, at size 0–1
 			## (`snowballs 0.5`; default 0.4, big enough to push).

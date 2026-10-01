@@ -207,6 +207,8 @@ var snowman_built_minute: int = -1
 var snowman_msg_id: int = 0
 ## The snowman-season balls (`mEv` common place / area): part → {cell [x, z], dist}. Saved.
 var snowballs: Dictionary = {}
+## `Private.sunburn`: {rank 0–8, changed (day number of the last change), hold (days)}.
+var sunburn: Dictionary = {"rank": 0, "changed": -1, "hold": 0}
 var plant_states: Dictionary = {}
 ## Buried dig spots: persist_id → {kind, item_id, cell_x, cell_z} (`mFI` deposit / shine).
 var buried_deposits: Dictionary = {}
@@ -998,6 +1000,8 @@ func reset_session() -> void:
 	snowman_built_minute = -1
 	snowman_msg_id = randi_range(0, 2)
 	snowballs.clear()
+	sunburn = {"rank": 0, "changed": -1, "hold": 0}
+	Sunburn.reset_session()
 	plant_states.clear()
 	buried_deposits.clear()
 	player_name = DEFAULT_PLAYER_NAME
@@ -1294,6 +1298,7 @@ func to_save() -> Dictionary:
 		"snowmen": snowmen.duplicate(true),
 		"snowman_built_minute": snowman_built_minute,
 		"snowballs": snowballs.duplicate(true),
+		"sunburn": sunburn.duplicate(),
 		"plants": plant_states.duplicate(true),
 		"buried": buried_deposits.duplicate(true),
 		"world_mode": int(world_mode),
@@ -1410,6 +1415,13 @@ func apply_snapshot(data: Dictionary) -> void:
 			if typeof(saved_balls[key]) == TYPE_DICTIONARY:
 				snowballs[int(key)] = (saved_balls[key] as Dictionary).duplicate(true)
 	snowman_msg_id = randi_range(0, 2)
+	var saved_tan: Variant = data.get("sunburn", {})
+	sunburn = {"rank": 0, "changed": -1, "hold": 0}
+	if typeof(saved_tan) == TYPE_DICTIONARY:
+		sunburn["rank"] = clampi(int((saved_tan as Dictionary).get("rank", 0)), 0, Sunburn.MAX_RANK)
+		sunburn["changed"] = int((saved_tan as Dictionary).get("changed", -1))
+		sunburn["hold"] = clampi(int((saved_tan as Dictionary).get("hold", 0)), 0, Sunburn.HOLD_DAYS)
+	Sunburn.reset_session()
 	hole_interactables.clear()
 	var holes: Variant = data.get("hole_interactables", [])
 	if typeof(holes) == TYPE_ARRAY:

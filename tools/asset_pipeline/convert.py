@@ -29,6 +29,7 @@ from .rel import RelData
 from .test_set import TEST_SKELETONS, TEST_STATIC
 from .texbank import (
     GX_CLAMP,
+    palette_from_rgb5a3,
     G_IM_FMT_CI,
     G_IM_FMT_I,
     G_IM_FMT_IA,
@@ -1258,6 +1259,7 @@ def _convert_player_bins(cfg: PipelineConfig) -> list[dict[str, Any]]:
                         pal,
                     )
                 )
+        results.append(_write_player_face_palettes(cfg, face))
     tex_path = data / "tex_boy.bin"
     pal_path = data / "pallet_boy.bin"
     if tex_path.is_file() and pal_path.is_file():
@@ -1521,6 +1523,57 @@ def _convert_actor_tlut_rows(cfg: PipelineConfig, rel: RelData, symbols: list) -
                 _png_record(cfg, dest_rel, f"{tex_name}:{table}[{i}]", data, dims[0], dims[1], pal)
             )
     return results
+
+
+## `mPlib_Get_UseFacePalletRom_p`: sunburn palettes follow the last face set (set 63's
+## palette slot), one per `rank + face * 8 + sex * 64 + swell * 128`.
+PLAYER_FACE_SET_SIZE = 0xE20
+PLAYER_FACE_SETS = 64
+PLAYER_TAN_BASE = 63 * PLAYER_FACE_SET_SIZE + 0xE00
+PLAYER_TAN_COUNT = 256
+
+
+def player_face_palettes(face: bytes) -> dict[str, Any]:
+    """Each face set's own palette and the sunburn table, as `#rrggbbaa` lists."""
+
+    def hexes(blob: bytes) -> list[str]:
+        return ["#%02x%02x%02x%02x" % c for c in palette_from_rgb5a3(blob)]
+
+    sets = []
+    for i in range(PLAYER_FACE_SETS):
+        base = i * PLAYER_FACE_SET_SIZE + 0xE00
+        if base + 0x20 > len(face):
+            break
+        sets.append(hexes(face[base : base + 0x20]))
+    tan = []
+    for i in range(PLAYER_TAN_COUNT):
+        base = PLAYER_TAN_BASE + i * 0x20
+        if base + 0x20 > len(face):
+            break
+        tan.append(hexes(face[base : base + 0x20]))
+    return {"sets": sets, "tan": tan}
+
+
+def _write_player_face_palettes(cfg: PipelineConfig, face: bytes) -> dict[str, Any]:
+    dest_rel = "textures/player/faces/palettes.json"
+    record: dict[str, Any] = {
+        "asset_id": "player_face_palettes",
+        "source": "face_boy.bin",
+        "output_path": dest_rel,
+        "status": "pending",
+        "error": None,
+    }
+    try:
+        text = json.dumps(player_face_palettes(face))
+        for root in (cfg.converted, cfg.godot_generated):
+            dest = root / dest_rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(text)
+        record["status"] = "converted"
+    except Exception as exc:  # noqa: BLE001
+        record["status"] = "error"
+        record["error"] = f"{type(exc).__name__}: {exc}"
+    return record
 
 
 def _png_record(

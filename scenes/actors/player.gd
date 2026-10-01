@@ -212,6 +212,7 @@ var move_intent: Vector3 = Vector3.ZERO
 ## The snowball being pushed (`mPlayer_INDEX_PUSH_SNOWBALL`), or null.
 var _snowball: Node3D = null
 var _snowball_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
+var _sun_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 ## Leaf clip → Animation of scaled joint_0 deltas (meters, model space): XZ from the origin,
 ## Y from the 1000-unit base height (`base_shape_trs` y). Filled once.
 static var _door_root_xz: Dictionary = {}
@@ -240,6 +241,9 @@ func _ready() -> void:
 	if Game != null and not Game.face_changed.is_connected(_apply_face):
 		Game.face_changed.connect(_apply_face)
 	_apply_worn_cloth()
+	## `Player_actor_Check_player_sunburn_for_ct`: a tan earned or faded shows on set-up.
+	if Game != null and not Game.title_demo_active:
+		Sunburn.on_setup(Game.sunburn, Clock.day_number())
 	_apply_face()
 	Game.inventory.equipment_changed.connect(_on_equipment_changed)
 	_on_equipment_changed(Game.inventory.equipment_id)
@@ -424,6 +428,7 @@ func apply_facing(yaw: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_tick_sunburn(delta)
 	if _mesh != null:
 		_mesh.rotation.x = _motor.lean
 	if _umbrella != null:
@@ -618,6 +623,9 @@ func _tick_wade(delta: float) -> void:
 	if scripted_input != null:
 		scripted_input.consume_a_pressed()
 	var t: float = float(_wade["t"]) + delta * DecompTime.TICK_HZ
+	## `Player_actor_ChangeFace_for_Wade`: on tick 18 of the crossing the tan catches up.
+	if float(_wade["t"]) < 18.0 and t >= 18.0 and Sunburn.settle(Game.sunburn, Clock.day_number()):
+		_apply_face()
 	_wade["t"] = t
 	var start: Vector3 = _wade["start"]
 	var end: Vector3 = _wade["end"]
@@ -2754,11 +2762,30 @@ func _try_load_generated_visual() -> void:
 	_apply_worn_cloth()
 
 
-## `mPlib_change_player_face`: the chosen face type, swollen after a bee sting.
+## `mPlib_change_player_face`: the chosen face type, swollen after a bee sting, tanned.
 func _apply_face() -> void:
 	if Game == null or _mesh == null:
 		return
-	PlayerFace.apply(_mesh, Game.player_gender == IntroSequence.GENDER_FEMALE, Game.player_face, Game.bee_swell)
+	PlayerFace.apply(
+		_mesh, Game.player_gender == IntroSequence.GENDER_FEMALE, Game.player_face, Game.bee_swell,
+		int(Game.sunburn.get("rank", 0))
+	)
+
+
+## `Player_actor_Check_player_sunburn_for_main`, every tick out in town.
+func _tick_sunburn(delta: float) -> void:
+	var ticks: int = _sun_steps.take(delta)
+	if ticks <= 0 or Game == null or Game.title_demo_active or not TownSpace.is_outdoor_town():
+		return
+	var today: int = Clock.day_number()
+	Sunburn.change_day(Game.sunburn, today)
+	Sunburn.rankdown_interval(Game.sunburn, today)
+	Sunburn.check_rankdown(Game.sunburn, today)
+	var exposed: bool = (
+		not Game.intro_station_active and Game.weather == &"clear" and _umbrella == null
+	)
+	for _i: int in ticks:
+		Sunburn.sun_tick(Game.sunburn, exposed, Clock.month, Clock.day, Clock.hour)
 
 
 func _on_cloth_changed(_cloth_id: StringName) -> void:

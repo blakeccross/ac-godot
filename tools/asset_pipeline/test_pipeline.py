@@ -2197,5 +2197,29 @@ class EffectFrameFormatTests(unittest.TestCase):
         self.assertNotIn("ef_dust01_anime_ptn", out)
 
 
+
+class PlayerFacePaletteTests(unittest.TestCase):
+    def test_sets_and_sunburn_table(self) -> None:
+        from asset_pipeline.convert import (
+            PLAYER_FACE_SET_SIZE,
+            PLAYER_TAN_BASE,
+            player_face_palettes,
+        )
+
+        blob = bytearray(PLAYER_TAN_BASE + 256 * 0x20)
+        ## Set 1's first colour: opaque RGB555 pure red (`0x8000 | 31 << 10`).
+        struct.pack_into(">H", blob, PLAYER_FACE_SET_SIZE + 0xE00, 0x8000 | (31 << 10))
+        ## Sunburn entry 9 (male face 1, rank 1): opaque pure blue.
+        struct.pack_into(">H", blob, PLAYER_TAN_BASE + 9 * 0x20, 0x8000 | 31)
+        out = player_face_palettes(bytes(blob))
+        self.assertEqual(len(out["sets"]), 64)
+        self.assertEqual(len(out["tan"]), 256)
+        self.assertEqual(len(out["sets"][1]), 16)
+        self.assertEqual(out["sets"][1][0], "#ff0000ff")
+        self.assertEqual(out["tan"][9][0], "#0000ffff")
+        ## The table starts in set 63's palette slot.
+        self.assertEqual(out["tan"][0], out["sets"][63])
+
+
 if __name__ == "__main__":
     unittest.main()

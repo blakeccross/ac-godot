@@ -82,7 +82,7 @@ data tables before a category is called done.
 ## 5. Player character
 
 - [~] Body model, head model, face texture set (from Rover Q&A), skin/tan state (`m_player`, `m_player_draw`) — `scenes/actors/player.tscn`
-- [ ] Suntan / sunburn from staying out in summer; fades over time
+- [x] Suntan: fifteen minutes in the midday sun (10:00–16:59, Jul 16 – Sep 15, clear sky, no umbrella) earns a rank up to 8, shown on the next scene change or acre crossing by swapping the face palette (face and skin); it holds two days, then fades a rank a day (`Player_actor_Check_player_sunburn_*`, `mPlib_Get_UseFacePalletRom_p`) — `Sunburn`, `PlayerFace`. The island's five-minute rate waits on the island
 - [ ] Hair style / colour set by creation questions (no salon in GCN)
 - [ ] Clothing: equipped shirt shows on model; hats; accessories/glasses; umbrella held in rain (`m_player_item_umbrella`) — umbrella done (see Umbrella)
 - [x] Change clothes anywhere from pockets — "Wear" swaps inside the menu (`Game.wear_cloth_from_slot`). `m_player_main_change_cloth` / `ef_kigae` is the shop try-on and the Halloween prank, not the pockets
