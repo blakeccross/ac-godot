@@ -13,7 +13,7 @@ Also the other listable goods (`itemName_carpet` / `_wall` / `_cloth` with their
 `ftr_listJonason`, …) that `mSP_SelectRandomItem_New` draws from, as indices.
 
 Written to the gitignored `assets/generated/items/ftr_catalog.json`:
-`{"items": [{"index", "visual", "name", "price", "birth"}, …],
+`{"items": [{"index", "visual", "name", "price", "birth", "huusui", "face"}, …],
   "carpet"|"wall"|"cloth": [{"index", "name", "price"}, …],
   "lists": {"ftr"|"carpet"|"wall"|"cloth": {"A": [index, …], "Event": […], …}}}`.
 """
@@ -97,6 +97,17 @@ def _catalog_pages(decomp: Path) -> dict[str, list[int]]:
     return out
 
 
+## `mHsRm_ftr_info` → `mMkRm_ftr_info` in `m_huusui_room_ovl.o` (a second table of that name
+## belongs to `m_mark_room_ovl.o`): per furniture, the feng shui colour
+## (`mHsRm_HUUSUI_NONE`, YELLOW, RED, ORANGE, GREEN, LUCKY) and whether it has a face.
+def _huusui_info(rel: Any, symbols: list) -> list[tuple[int, bool]]:
+    for sym in symbols:
+        if sym.name == "mMkRm_ftr_info" and sym.obj == "m_huusui_room_ovl.o":
+            blob = rel.slice_at(sym.address, sym.size)
+            return [(blob[i], blob[i + 1] != 0) for i in range(0, len(blob) - 1, 2)]
+    return []
+
+
 def convert_ftr_catalog(cfg: PipelineConfig) -> dict[str, Any]:
     from .dialogue import char_map
     from .mapfile import index_by_name, parse_map
@@ -132,6 +143,7 @@ def convert_ftr_catalog(cfg: PipelineConfig) -> dict[str, Any]:
         prices = list(struct.unpack(">%dH" % (len(blob) // 2), blob[: len(blob) // 2 * 2]))
         if 0xFFFF in prices:
             prices = prices[: prices.index(0xFFFF)]
+    huusui = _huusui_info(rel, parse_map(Path(map_path)))
     profiles = _profiles(decomp)
     births = _birth_types(decomp)
     files = _profile_files(decomp)
@@ -148,6 +160,8 @@ def convert_ftr_catalog(cfg: PipelineConfig) -> dict[str, Any]:
             "name": name,
             "price": prices[i] if i < len(prices) else 0,
             "birth": births[i] if i < len(births) else "",
+            "huusui": huusui[i][0] if i < len(huusui) else 0,
+            "face": huusui[i][1] if i < len(huusui) else False,
         })
     def u16s(symbol: str) -> list[int]:
         sym = by_name.get(symbol)

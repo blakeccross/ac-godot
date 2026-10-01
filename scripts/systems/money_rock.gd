@@ -32,9 +32,9 @@ static func is_money_rock(id: StringName) -> bool:
 	return id != &"" and String(id) == Game.money_rock
 
 
-## `mPr_GetMoneyPower`: no feng shui yet, so only the day's fortune moves it.
+## `mPr_GetMoneyPower`: the house's feng shui, moved by the day's fortune.
 static func money_power() -> int:
-	var power: int = 0
+	var power: int = Game.money_power
 	match Game.destiny():
 		Game.Destiny.MONEY_LUCK:
 			power += 100

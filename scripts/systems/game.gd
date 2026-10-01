@@ -211,6 +211,10 @@ var snowballs: Dictionary = {}
 var sunburn: Dictionary = {"rank": 0, "changed": -1, "hold": 0}
 ## The diary (`mCD_keep_diary_c`): month 1–12 → that month's page. Saved.
 var diary: Dictionary = {}
+## `Common.money_power` / `goods_power`: the house's feng shui (`FengShui`), recomputed on
+## the way out to the field. Not saved.
+var money_power: int = 0
+var goods_power: int = 0
 var plant_states: Dictionary = {}
 ## Buried dig spots: persist_id → {kind, item_id, cell_x, cell_z} (`mFI` deposit / shine).
 var buried_deposits: Dictionary = {}
@@ -865,6 +869,13 @@ func perfect_town_long_enough() -> bool:
 	return perfect_streak >= TownAssessment.PERFECT_STREAK_MAX
 
 
+## `mHsRm_GetHuusuiRoom`.
+func refresh_feng_shui() -> void:
+	var p: Vector2i = FengShui.evaluate()
+	money_power = p.x
+	goods_power = p.y
+
+
 ## `mSN_MeltSnowman` at each renewal: a day older and smaller; gone after three days or once
 ## winter ends. The field drops the ones that melted when it next loads.
 func melt_snowmen(days: int) -> void:
@@ -1005,6 +1016,8 @@ func reset_session() -> void:
 	sunburn = {"rank": 0, "changed": -1, "hold": 0}
 	Sunburn.reset_session()
 	diary.clear()
+	money_power = 0
+	goods_power = 0
 	plant_states.clear()
 	buried_deposits.clear()
 	player_name = DEFAULT_PLAYER_NAME

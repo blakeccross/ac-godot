@@ -55,6 +55,8 @@ func _ready() -> void:
 		BuriedUse.renew(self, grid)
 	_sow_weeds()
 	if not Game.title_demo_active and not Game.intro_station_active:
+		## `mHsRm_GetHuusuiRoom` as the last scene let go (`play_dt`).
+		Game.refresh_feng_shui()
 		_renew_money_rock()
 		Game.rate_town(self)
 	fish.configure(grid, WorldBuilder.water_surface_y(), layout)

@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -153,6 +153,12 @@ func execute(raw: String) -> String:
 				return "No money rock today."
 			var mr_rocks: Dictionary = MoneyRock.field_rocks(mr_world)
 			return "Money rock: %s in acre %s." % [Game.money_rock, mr_rocks.get(StringName(Game.money_rock), "?")]
+		"fengshui":
+			## The house's feng shui now (`mHsRm_GetHuusuiRoom`) and Nook's tier odds from it.
+			Game.refresh_feng_shui()
+			var fs_cut: Vector2i = ShopGoods.tier_cutoffs(Game.goods_power)
+			return "Money power %d, goods power %d (Nook: rare %d%%, uncommon %d%%)." % [
+				Game.money_power, Game.goods_power, fs_cut.x, fs_cut.y - fs_cut.x]
 		"diary":
 			## Open the diary on a month (`diary 4`), or write a line into one first
 			## (`diary 4 Went fishing all day.`).

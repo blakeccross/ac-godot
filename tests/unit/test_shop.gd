@@ -104,7 +104,9 @@ func test_sold_out_does_not_restock_until_six() -> void:
 	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(0)
 	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(0)
 	Clock.advance_minutes(18 * 60)
-	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(10)
+	## A full shelf again (`l_zakka_goods`); the sales just made can unlock a second tool
+	## (`mSP_NET_SALES_SUM`), so at least as much as the first day.
+	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_greater_equal(listed.size())
 	assert_int(Game.shops.sales_sum(ShopBook.NOOK_ID)).is_greater(0)
 
 

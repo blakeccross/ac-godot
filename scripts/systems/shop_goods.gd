@@ -6,10 +6,26 @@ extends RefCounted
 ## `mSP_Chk_HukubukuroSail`, `mSP_CheckHallowinDay`). Pure functions over a level, a sales
 ## sum and a date — `ShopBook` owns the state.
 ##
-## Not modelled: the ABC priority lists (`mSP_GetGoodsPercent`), which only matter once
-## the furniture/clothing catalog holds the full ROM lists.
+## Furniture, clothing, carpet, wallpaper and diaries come from the disc's A / B / C lists
+## (`mSP_SelectRandomItem_New`, `FtrCatalog.named_list`). Each kind's lists are dealt the
+## common / uncommon / rare tiers at random every play session (`mSP_DecideUniqueCommonList`),
+## and a pick from "ABC" rolls the tier against the house's goods power
+## (`mSP_GetItemList`, feng shui). Without the disc catalog the authored items stand in.
 
 enum Kind { PAPER, CLOTH, FTR, RARE_FTR, CARPET, WALL, SAPLING, TOOL, PLANT }
+enum Tier { COMMON, UNCOMMON, RARE }
+
+const LIST_LABELS: Array[String] = ["A", "B", "C"]
+## `mSP_DecideUniqueCommonList` `priority_candidate`: the tier of lists A, B and C.
+const TIER_ORDERS: Array = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [2, 0, 1], [2, 1, 0], [1, 2, 0]]
+## `diary_listA` … `C` (`ITM_DIARY01`, 04, … as notebook indices 1087 + n).
+const DIARY_LISTS: Dictionary = {"A": [1, 4, 7, 10, 13], "B": [2, 5, 8, 11, 14], "C": [3, 6, 9, 12, 15, 0]}
+const DIARY_FTR_FIRST := 1087
+## The kinds with A / B / C lists, as `FtrCatalog` names them.
+const ABC_KINDS: Array[String] = ["ftr", "cloth", "carpet", "wall", "diary"]
+
+## Each kind's tiers for lists A, B, C this session.
+static var priorities: Dictionary = {}
 
 ## `l_zakka_goods` / `l_conbini_goods` / `l_super_goods` / `l_dsuper_goods`.
 const COUNTS: Array[Dictionary] = [
@@ -85,8 +101,10 @@ static func pack_count(item_id: StringName) -> int:
 ## `"paint_index"` is the next one to store.
 static func roll(
 	level: int, sales: int, year: int, month: int, day: int, paint_index: int,
-	rng: RandomNumberGenerator
+	rng: RandomNumberGenerator, goods_power: int = 0
 ) -> Dictionary:
+	if has_disc_lists():
+		return _roll_abc(level, sales, year, month, day, paint_index, rng, goods_power)
 	var out: Dictionary = {"goods": [] as Array[StringName], "rare": &"", "paint_index": paint_index}
 	if is_lottery_day(year, month, day):
 		return out
@@ -109,6 +127,58 @@ static func roll(
 	goods.append_array(_pick(category_pool(ItemData.Category.CLOTH), int(counts[Kind.CLOTH]), rng))
 	goods.append_array(_pick(category_pool(ItemData.Category.FLOOR), int(counts[Kind.CARPET]), rng))
 	goods.append_array(_pick(category_pool(ItemData.Category.WALL), int(counts[Kind.WALL]), rng))
+	if grab_bags:
+		bag_count += int(counts[Kind.TOOL]) + int(counts[Kind.PLANT]) + int(counts[Kind.SAPLING])
+		if lv >= 2:
+			bag_count += 2
+		for _i: int in bag_count:
+			goods.append(GRAB_BAG)
+		return _finish(out, goods)
+	goods.append_array(tools(lv, sales, int(counts[Kind.TOOL]), rng))
+	if lv >= 2:
+		goods.append(PAINTS[posmod(paint_index, PAINTS.size())])
+		out["paint_index"] = posmod(paint_index + 1, PAINTS.size())
+		goods.append(SIGNBOARD)
+	goods.append_array(_pick(umbrella_pool(), 1, rng))
+	goods.append_array(
+		plants(lv, int(counts[Kind.PLANT]), int(counts[Kind.SAPLING]), is_halloween_stock(month, day), rng)
+	)
+	return _finish(out, goods)
+
+
+## `mSP_MakeRandomGoodsList` over the disc lists: the rare piece from the rare list, then
+## furniture, stationery (and a diary from the Nookway up), clothing, carpets and wallpaper
+## by the ABC roll; tools, paint, umbrella and plants as before.
+static func _roll_abc(
+	level: int, sales: int, year: int, month: int, day: int, paint_index: int,
+	rng: RandomNumberGenerator, goods_power: int
+) -> Dictionary:
+	var out: Dictionary = {"goods": [] as Array[StringName], "rare": &"", "paint_index": paint_index}
+	if is_lottery_day(year, month, day):
+		return out
+	var lv: int = clampi(level, 0, COUNTS.size() - 1)
+	var counts: Dictionary = COUNTS[lv]
+	var goods: Array[StringName] = []
+	var grab_bags: bool = is_grab_bag_day(year, month, day)
+	var avoid: Array = []
+	if int(counts[Kind.RARE_FTR]) > 0:
+		var rare: Array[StringName] = select("ftr", 1, Tier.RARE, goods_power, rng)
+		if not rare.is_empty():
+			out["rare"] = rare[0]
+			goods.append(rare[0])
+			avoid.append(rare[0])
+	goods.append_array(select("ftr", int(counts[Kind.FTR]), -1, goods_power, rng, avoid))
+	var bag_count: int = 0
+	if grab_bags:
+		bag_count += int(counts[Kind.PAPER]) + (1 if lv >= 2 else 0)
+	else:
+		for _i: int in int(counts[Kind.PAPER]):
+			goods.append(PAPER)
+		if lv >= 2:
+			goods.append_array(select("diary", 1, -1, goods_power, rng))
+	goods.append_array(select("cloth", int(counts[Kind.CLOTH]), -1, goods_power, rng))
+	goods.append_array(select("carpet", int(counts[Kind.CARPET]), -1, goods_power, rng))
+	goods.append_array(select("wall", int(counts[Kind.WALL]), -1, goods_power, rng))
 	if grab_bags:
 		bag_count += int(counts[Kind.TOOL]) + int(counts[Kind.PLANT]) + int(counts[Kind.SAPLING])
 		if lv >= 2:
@@ -223,8 +293,94 @@ static func umbrella_pool() -> Array[StringName]:
 	return out
 
 
-## Furniture Nook can stock: authored FTR with a price that isn't on the rare list.
+## `mSP_DecideGoodsCommonList`, at game start.
+static func deal_priorities(rng: RandomNumberGenerator) -> void:
+	priorities.clear()
+	for kind: String in ABC_KINDS:
+		priorities[kind] = TIER_ORDERS[rng.randi_range(0, TIER_ORDERS.size() - 1)]
+
+
+static func priorities_of(kind: String) -> Array:
+	if not priorities.has(kind):
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		priorities[kind] = TIER_ORDERS[rng.randi_range(0, TIER_ORDERS.size() - 1)]
+	return priorities[kind]
+
+
+## `mSP_GetItemList` (ABC) / `mSP_GetGoodsPercent`: rare and rare + uncommon cut-offs out of
+## 100 for a goods power.
+static func tier_cutoffs(goods_power: int) -> Vector2i:
+	if goods_power < 0:
+		return Vector2i(5, goods_power + 40)
+	return Vector2i(goods_power + 5, goods_power + 40)
+
+
+static func roll_tier(goods_power: int, rng: RandomNumberGenerator) -> int:
+	var cut: Vector2i = tier_cutoffs(goods_power)
+	var roll: int = rng.randi_range(0, 99)
+	if roll < cut.x:
+		return Tier.RARE
+	if roll < cut.y:
+		return Tier.UNCOMMON
+	return Tier.COMMON
+
+
+## The disc list (as item ids) holding `tier` for `kind` this session.
+static func tier_list(kind: String, tier: int) -> Array[StringName]:
+	var order: Array = priorities_of(kind)
+	var idx: int = order.find(tier)
+	return abc_list(kind, LIST_LABELS[idx if idx >= 0 else 0])
+
+
+static func abc_list(kind: String, label: String) -> Array[StringName]:
+	var out: Array[StringName] = []
+	if kind == "diary":
+		for n: Variant in DIARY_LISTS.get(label, []):
+			out.append(FtrCatalog.item_id(DIARY_FTR_FIRST + int(n)))
+		return out
+	for item_id: StringName in FtrCatalog.named_list(kind, label):
+		if kind != "ftr" or _has_model(item_id):
+			out.append(item_id)
+	return out
+
+
+static func _has_model(item_id: StringName) -> bool:
+	var data := ItemCatalog.get_item(item_id) as FurnitureData
+	return data != null and data.visual_id != &"" and not FieldCatalog.mesh_paths(data.visual_id).is_empty()
+
+
+static func has_disc_lists() -> bool:
+	return not FtrCatalog.named_list("ftr", "A").is_empty()
+
+
+## `mSP_SelectRandomItem_New`: `count` picks, each from the tier `tier` (or a rolled one for
+## -1, "ABC"), no repeats while the lists allow, never `avoid`.
+static func select(
+	kind: String, count: int, tier: int, goods_power: int, rng: RandomNumberGenerator, avoid: Array = []
+) -> Array[StringName]:
+	var out: Array[StringName] = []
+	var guard: int = 0
+	while out.size() < count and guard < count * 20:
+		guard += 1
+		var t: int = tier if tier >= 0 else roll_tier(goods_power, rng)
+		var pool: Array[StringName] = []
+		for item_id: StringName in tier_list(kind, t):
+			if ItemCatalog.get_item(item_id) != null:
+				pool.append(item_id)
+		if pool.is_empty():
+			continue
+		var pick: StringName = pool[rng.randi_range(0, pool.size() - 1)]
+		if (out.has(pick) or avoid.has(pick)) and pool.size() > out.size() + avoid.size():
+			continue
+		out.append(pick)
+	return out
+
+
+## Furniture Nook can stock: the disc's A / B / C lists, else authored FTR off the rare list.
 static func furniture_pool() -> Array[StringName]:
+	if has_disc_lists():
+		return _abc_union("ftr")
 	var out: Array[StringName] = []
 	for item: ItemData in ItemCatalog.all_items():
 		if item is FurnitureData and (item as FurnitureData).birth == "" and not item.shop_rare and ShopBook.buy_price(item) > 0:
@@ -234,6 +390,8 @@ static func furniture_pool() -> Array[StringName]:
 
 
 static func _rare_pool() -> Array[StringName]:
+	if has_disc_lists():
+		return tier_list("ftr", Tier.RARE)
 	var out: Array[StringName] = []
 	for item: ItemData in ItemCatalog.all_items():
 		if item is FurnitureData and (item as FurnitureData).birth == "" and item.shop_rare and ShopBook.buy_price(item) > 0:
@@ -243,12 +401,25 @@ static func _rare_pool() -> Array[StringName]:
 
 
 static func category_pool(category: ItemData.Category) -> Array[StringName]:
+	var kind: String = {ItemData.Category.CLOTH: "cloth", ItemData.Category.FLOOR: "carpet", ItemData.Category.WALL: "wall"}.get(category, "")
+	if kind != "" and has_disc_lists():
+		return _abc_union(kind)
 	var out: Array[StringName] = []
 	for item: ItemData in ItemCatalog.all_items():
 		if item is FurnitureData or item.category != category or item.shop_rare or item.from_disc:
 			continue
 		if ShopBook.buy_price(item) > 0:
 			out.append(item.id)
+	out.sort_custom(_by_name)
+	return out
+
+
+static func _abc_union(kind: String) -> Array[StringName]:
+	var out: Array[StringName] = []
+	for label: String in LIST_LABELS:
+		for item_id: StringName in abc_list(kind, label):
+			if ItemCatalog.get_item(item_id) != null and not out.has(item_id):
+				out.append(item_id)
 	out.sort_custom(_by_name)
 	return out
 
