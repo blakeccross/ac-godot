@@ -137,7 +137,7 @@ data tables before a category is called done.
 
 ## 9. Tools
 
-- [~] **Net** — hold A to ready, creep, skid out of a dash, release to swing; tick-exact catch sphere from keyframe 6; wall / ground / villager strike cuts the swing (`AMI_HIT`); empty swing → `STOP_NET` (`m_player_item_net`, `m_player_main_{ready,ready_walk,slip,swing,stop}_net`) — `net_swing.gd`, `netting.gd`. Missing: catching bees (`ac_bee` is still a placeholder), golden net, swing effects
+- [~] **Net** — hold A to ready, creep, skid out of a dash, release to swing; tick-exact catch sphere from keyframe 6; wall / ground / villager strike cuts the swing (`AMI_HIT`); empty swing → `STOP_NET` (`m_player_item_net`, `m_player_main_{ready,ready_walk,slip,swing,stop}_net`) — `net_swing.gd`, `netting.gd`. Missing: catching the bee swarm, golden net, swing effects
 - [~] **Fishing rod** — see §13 (`m_player_item_rod`) — `fishing.gd` (substantial)
 - [ ] **Shovel** — dig holes, bury items, dig fossils/gyroids/pitfalls, hit rocks, plant trees, whack villagers, reflect off stone (`m_player_item_scoop`, `dig_scoop`, `fill_scoop`, `reflect_scoop`) — `hole_use.gd`, `buried_use.gd` _(partial)_
 - [ ] **Axe** — chop trees (multi-hit → stump), break on overuse, golden axe never breaks (`m_player_item_axe`, `swing_axe`, `broken_axe`, `ef_break_axe`) — `tree_use.gd` _(partial)_
@@ -225,8 +225,8 @@ data tables before a category is called done.
 
 - [~] Net swing hitbox, timing, whiff, bug flees (`ac_insect`, `ac_npc_act_chase_insect`) — `aINS_set_catch_range` (24 / 8 GX, facing gate from insect → player angle) + one-frame `Check_StopNet` panic — `net_swing.gd`, `bug_field.gd`, `bug_actor.gd`. Villagers chase bugs and fish shadows (`aNPC_ACT_CHASE_INSECT`, `VillagerOutdoor`)
 - [~] Bug spawn tables by month / time / habitat (tree trunk, flying, on flowers, on the ground, in the ground (mole cricket), by water, tree stumps, rotten food, street lamps at night) (`ac_set_ovl_insect`, `ac_insect_data`) — `bug_catalog.gd`, `bug_habitats.gd`
-- [ ] **40 individual insect types** (`aINS_INSECT_TYPE_NUM`): butterflies, cicadas, bees/wasps, dragonflies, locusts, crickets, beetles, ladybugs, mantis, tarantula, firefly, cockroach, snail, mole cricket, pond skater, bagworm, pill bug, spider, ant, and mosquito (`ac_insect_h.h`, `ac_insect_data.c_inc`)
-- [ ] Bee swarm from a shaken tree chases you; hide indoors or net them; sting → swollen face (`ac_bee`, `bee_swarm.gd`)
+- [x] **40 individual insect types** (`aINS_INSECT_TYPE_NUM`): butterflies, cicadas, bees/wasps, dragonflies, locusts, crickets, beetles, ladybugs, mantis, tarantula, firefly, cockroach, snail, mole cricket, pond skater, bagworm, pill bug, spider, ant, and mosquito (`ac_insect_h.h`, `ac_insect_data.c_inc`) — all 40 in `data/creatures`, moved by 16 behaviour families (`scripts/systems/bugs/`)
+- [~] Bee swarm from a shaken tree chases you and stings → swollen face; going indoors loses them (`ac_bee`) — `BeeSwarm`. Missing: netting the swarm
 - [ ] Wasp nest drops from tree; getting stung (`ac_bee` variant)
 - [ ] Tarantula aggressive chase behaviour at night
 - [ ] Firefly glow at night near water in summer
@@ -554,7 +554,7 @@ Event NPCs are `EventNpc` scenes placed by `EventManager` presenters (`scenes/wo
 - [x] **Chip** — bass tourney judge: measures, keeps the day's record (villagers can beat it), A/B/C prize (`ac_ev_angler`, `AnglerTalk`)
 - [ ] **Nat** — _not GCN_ (skip)
 - [ ] **Dr. Shrunk** — _not GCN_ (skip; emotions come from villagers)
-- [ ] **Mr. Resetti / Don Resetti** (§1)
+- [x] **Mr. Resetti / Don Resetti** (§1), and Resetti as Groundhog Day's groundhog (§Events)
 - [ ] **Rover** — cat on the train (new game + occasional visits) (`ac_npc_guide`)
 - [ ] **Porter** — station master monkey (`ac_npc_station_master`)
 - [ ] **Kapp'n** — boat to the island (`ac_npc_sendo`, `ac_boat`, `ac_boat_demo`)
@@ -641,7 +641,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [~] Wind (`m_kankyo_weather`: daily calm / normal / strong range by season, 10-minute drift, Koinobori day) — `Wind`; drives balloons only so far
 - [x] Airplane: not in a GameCube town. `ac_airplane` is a paper glider the player throws (hold Z, flick the stick), placed only in the debug fields `fd1` / `fd2`
 - [ ] Message-in-a-bottle on the beach (`ac_mbg` beach spawns) — random letter/pattern _(verify GCN)_
-- [ ] The lighthouse light sweeps at night; switch it (`ac_toudai`, `ac_lighthouse_switch`)
+- [x] The lighthouse light sweeps at night and its switch turns it on and off (`ac_toudai`, `ac_lighthouse_switch`) — `lighthouse_beacon.gd`, `lighthouse_switch.gd`. The mayor's lighthouse quest period is out of scope
 - [x] Windmill: not in a GameCube town. `ac_windmill` (`WINDMILL0`–`4`) exists, but no acre template on the disc places one
 
 ## 35. Multiplayer / multi-town
