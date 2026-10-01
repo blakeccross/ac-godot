@@ -32,10 +32,10 @@ data tables before a category is called done.
 - [~] Save + return to title on quit (`save_menu.c`, `m_save`) — `save_service.gd`
 - [x] **House gyroid** outside each house plot is the save point (`ac_haniwa`, `ACTOR_PROP_HANIWA0`–`3`) — `scenes/world/haniwa.tscn` + `HaniwaTalk` + `HaniwaStore`: FG placement two units south of every house, `hnw_move` bob / dance speeds and turn-to-player, empty-plot freeze facing front, first-job "need a friend" line; owner menu: **Save** (walk to the door → door opens → save → title), **Store an item** (4-slot consignment table in the pockets: free / display only / for sale with a 5-digit price, take back), **Other things** → **About the door** (post one of your designs on the front door / remove it) and **Set message** (4-line visitor message, ROM default text); sale **proceeds** collected on the next talk (wallet, then 30 000-bell bags); **visitor** flow (read the message, pay and take) is in place but can't trigger in a one-resident town. `BGM_ENTER_HOUSE` is a plain BGM swap rather than a pushed demo track
 - [ ] Memory Card management, copy, "the game was not saved correctly" recovery (`save_check.c_inc`, `m_flashrom`, `s_cpak`)
-- [ ] **Mr. Resetti** appears at spawn if you reset without saving; escalating lectures; **Don Resetti** on repeat offences (`ac_npc_restart`)
+- [x] **Mr. Resetti** appears if you quit without saving; escalating lectures by reset count; **Don** on the fifth (`mCD_SetResetInfo`, `ac_reset_demo`, `ac_npc_majin*`) — the save carries a `reset_code` set at load and cleared by a proper save; `ResettiVisit` picks the visitor and opening message (9+ cycle 6–8), `scenes/world/resetti.tscn` pops up (`APPEAR1`), lectures, waits to be spoken to on the fourth, digs back down (`GO_UG1`), with his helmet light at night. The typing test of the sixth follows the messages' own default branch
 - [ ] `zurumode` / cheat-detection "gnat" bug swarm anti-tamper behaviour (`zurumode.c`)
 - [ ] RTC read, clock-not-set prompt, clock-was-changed detection & penalty (weeds, villager anger) (`lb_rtc.c`, `ac_npc_rtc`)
-- [ ] "Continue where you left off" spawn point (last outdoor position / in bed)
+- [x] Continue: the game starts with you walking out of your own house (`mSDI_StartInitFrom` → `SCENE_FG`); a save made indoors reopens in that room
 
 ## 2. Time, calendar, seasons
 

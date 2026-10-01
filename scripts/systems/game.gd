@@ -100,6 +100,8 @@ var interior_spawn_yaw: float = 0.0
 var block_auto_enter_doors: bool = false
 ## After indoor leave, world plays structure leave + player GO_OUT (`mPlayer_INDEX_OUTDOOR`).
 var emerge_from_door: bool = false
+## Set by `continue_game` for an outdoor save: the world spawns the player at their own door.
+var continue_from_house: bool = false
 ## After spawn, walk INTO_S1 past the door (museum entrance / wing links).
 var play_door_arrive: bool = false
 ## `Common_Get(last_scene_no)`: the room the player last walked out of (Copper greets
@@ -140,6 +142,10 @@ var bee_chase: bool = false
 ## `npclist[].conversation_flags.beesting`, inverted: villagers who have greeted the player
 ## since the sting and so no longer remark on the face.
 var bee_greeted: Dictionary = {}
+## `Private_c.reset_count`: sessions ended without saving (saved).
+var reset_count: int = 0
+## `Common_Get(reset_flag)`: this session follows one of those — Mr. Resetti is waiting.
+var reset_flag: bool = false
 ## Session weather (`mEnv_WEATHER_*`). Rolled by `Weather` on `field_renewed`.
 var weather: StringName = &"clear"
 ## False until `sync_events` has adopted the clock for this session.
@@ -735,6 +741,8 @@ func continue_game() -> void:
 	if SaveService.load_game() != OK:
 		start_new_game()
 		return
+	note_reset(SaveService.last_reset_code)
+	SaveService.mark_session_open(reset_count)
 	## `mMl_start_send_mail` / `mNtc_set_auto_nwrite_data` at game start.
 	send_postoffice_gift()
 	update_notice_board()
@@ -742,6 +750,7 @@ func continue_game() -> void:
 	if current_room_id != &"":
 		_change_scene(INTERIOR_SCENE)
 	else:
+		continue_from_house = not intro_station_active
 		_change_scene(WORLD_SCENE)
 
 
@@ -767,6 +776,14 @@ func notify_world_ready() -> void:
 func notify_title_ready() -> void:
 	_set_phase(Phase.TITLE)
 	set_interact_prompt("")
+
+
+## `mCD_SetResetInfo`: the save was still marked open, so the last session ended without
+## saving.
+func note_reset(reset_code: int) -> void:
+	reset_flag = reset_code != 0
+	if reset_flag:
+		reset_count += 1
 
 
 ## `Stung_bee` frame 21 of `HATI2`: the face swells (`mPlib_change_player_face`) and, on the
@@ -869,6 +886,8 @@ func reset_session() -> void:
 	cloth_id = FirstJob.DEFAULT_CLOTH_ID
 	has_map = false
 	num_statues = 0
+	reset_count = 0
+	reset_flag = false
 	bank_gift_flags = 0
 	town_tune = TownTune.default_notes()
 	complete_flags = 0
@@ -1172,6 +1191,7 @@ func to_save() -> Dictionary:
 		"destiny": {"type": int(destiny_type), "y": destiny_date.x, "m": destiny_date.y, "d": destiny_date.z},
 		"has_map": has_map,
 		"num_statues": num_statues,
+		"reset_count": reset_count,
 		"bank_gift_flags": bank_gift_flags,
 		"town_tune": Array(town_tune),
 		"complete_flags": complete_flags,
@@ -1327,6 +1347,7 @@ func apply_snapshot(data: Dictionary) -> void:
 		cloth_id = FirstJob.DEFAULT_CLOTH_ID
 	has_map = bool(data.get("has_map", false))
 	num_statues = clampi(int(data.get("num_statues", 0)), 0, 3)
+	reset_count = maxi(int(data.get("reset_count", 0)), 0)
 	bank_gift_flags = int(data.get("bank_gift_flags", 0)) & 0xF
 	town_tune = TownTune.sanitize(data.get("town_tune", null))
 	complete_flags = int(data.get("complete_flags", 0)) & 0xF

@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -122,6 +122,17 @@ func execute(raw: String) -> String:
 			PlayerSe.bee_sting(who)
 			who.run_stung_bee()
 			return "Ouch."
+		"resetti":
+			## Mr. Resetti now, as after reset number N (1-8; default the next one).
+			var rs_tree := Engine.get_main_loop() as SceneTree
+			var rs_player := rs_tree.get_first_node_in_group(Player.GROUP) as Node3D if rs_tree != null else null
+			var rs_world := World.find(rs_tree) if rs_tree != null else null
+			if rs_player == null or rs_world == null:
+				return "Resetti needs the outdoor field."
+			Game.reset_count = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else Game.reset_count + 1
+			Game.reset_flag = true
+			load("res://scenes/world/resetti.gd").spawn(rs_world.get_node("Characters"), rs_player)
+			return "Reset #%d." % Game.reset_count
 		"exercise":
 			## Play radio exercise move 0-17 (`mPlayer_RADIO_EXERCISE_CMD*`).
 			var ex_tree := Engine.get_main_loop() as SceneTree
@@ -292,6 +303,7 @@ func _cmd_help() -> String:
 		"  bug <id> [count]  (spawn insects in front of the player)",
 		"  shop [status | sales <n> | visitor | restock | turnips]",
 		"  sting [on|off|mosquito]  (bee sting, set the swollen face, or a mosquito bite)",
+		"  resetti [1-8]  (Mr. Resetti, as after that many resets)",
 		"  exercise <0-17>  (a radio exercise move)",
 		"  pitfall [auto|villager]  (bury one under the player, or the nearest villager)",
 		"  clear / help",

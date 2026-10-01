@@ -63,6 +63,9 @@ func _ready() -> void:
 	_apply_time_of_day()
 	_play_outdoor_bgm()
 	_spawn_player()
+	## `ac_reset_demo`: the last session ended without saving.
+	if Game.reset_flag and not Game.intro_station_active and not Game.title_demo_active:
+		load("res://scenes/world/resetti.gd").spawn($Characters, Player.find(get_tree()))
 	var event_mgr: EventManager = get_node_or_null("EventManager") as EventManager
 	if event_mgr != null:
 		event_mgr.setup(self)
@@ -135,7 +138,16 @@ func _spawn_player() -> void:
 	var pos := Game.player_position
 	if pos.is_equal_approx(Game.DEFAULT_SPAWN):
 		pos = _spawn.global_position
-	player.apply_spawn(pos, Game.player_yaw)
+	var yaw: float = Game.player_yaw
+	## `mSDI_StartInitFrom` → `SCENE_FG`: a continued game starts walking out of your house.
+	if Game.continue_from_house:
+		Game.continue_from_house = false
+		var house := find_child(String(PlayerHouse.owned_building_id()), true, false) as Node3D
+		if house != null:
+			pos = StructureDoor.exit_stand(house)
+			yaw = StructureDoor.leave_yaw(house, pos)
+			Game.emerge_from_door = true
+	player.apply_spawn(pos, yaw)
 	if Game.intro_station_active and _camera.has_method("suspend"):
 		## Station demo framing — do not snap-follow the house spawn first.
 		_camera.call("suspend")
