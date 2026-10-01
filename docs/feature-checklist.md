@@ -77,7 +77,7 @@ data tables before a category is called done.
 - [ ] Villager house plots (up to ~15 villager homes) with reserved lots (`ac_reserve`)
 - [ ] Named landmarks / the town gate & train tracks (`ac_station`, `ac_train_door`)
 - [ ] Cliffs block movement; only ramps/stairs connect elevations
-- [ ] "Perfect town" / environment assessment: trees, weeds, litter, flowers, permanent residents → rating; golden axe reward; special music; Jacob's-ladder / lily-of-the-valley spawn (`m_field_assessment`)
+- [~] "Perfect town" / environment assessment: trees, weeds, litter, flowers → rating per acre and town rank, daily perfect streak; the wishing well names the worst acre and, after 15 perfect days, its spirit hands over the golden axe (`m_field_assessment`, `ac_shrine`, `ac_npc_hem`) — `TownAssessment`, `WishingWellTalk`, `WellSpirit`. Missing: special music, Jacob's-ladder spawn, rank feeding balloons / spawns
 
 ## 5. Player character
 
@@ -301,7 +301,7 @@ data tables before a category is called done.
 - [ ] Nicknames: villager gives you a nickname; you can set what villagers call each other / call you; catchphrase ("hippie", etc.); you can change a villager's catchphrase
 - [ ] Greetings you can teach; greeting spreads between villagers
 - [~] Gift-giving both ways: letters with presents (+3), villager replies with a present half the time, Valentine's letters with gifts (`mNpc_SendMailtoNpc`, `mNpc_Remail`, `mNpc_SendVtdayMail`) — `villager_letters.gd`. Handing gifts in person and villagers wearing gifted shirts still to come
-- [~] **Villager quests** — deliveries (clothes / lost items), errand chains (fetch what they lent), contests (fruit, fish, bug, flowers, letter; ball and snowman offered but not completable), deadlines, give-up, rewards (`m_quest.c`, `ac_quest_talk_init.c`, `ac_quest_manager.c`) — `villager_quests.gd`, `villager_talk_manager.gd`. Missing: wishing well disposal, ball / snowman actors
+- [~] **Villager quests** — deliveries (clothes / lost items), errand chains (fetch what they lent), contests (fruit, fish, bug, flowers, letter; ball and snowman offered but not completable), deadlines, give-up, rewards (`m_quest.c`, `ac_quest_talk_init.c`, `ac_quest_manager.c`) — `villager_quests.gd`, `villager_talk_manager.gd`. Wishing-well disposal of quest items (`aSHR_talk` apologize). Missing: ball / snowman actors
 - [~] Trading furniture / clothing with villagers (chat trades: `aQMgr_order_decide_trade` / `_trade`) — `villager_talk_manager.gd`. Goods come from the shop pools, not the ROM A/B/C lists; no hand-over animation yet
 - [x] Villager asks to buy something from your pockets / sell you something (chat trade topics)
 - [ ] Villager house interiors themed by personality; changes over time with items you give
@@ -492,7 +492,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [x] **Town tune** editor at the tune board: 16 frog steps (G low … E, random, rest, tie), play, erase-all prompt, "Is this OK?" (save / rewrite / keep the old tune), plays as it opens; saved with the town (`m_mscore_ovl`, `ac_mscore_control`, `m_melody`) — `TownTuneOverlay`, `TownTune`, art from `menu_ui.py` (`ui/mscore/`); `tune [open|reset]` console command. The e-Reader button only closes
 - [ ] Change town flag? / town name is fixed after creation
 - [x] Player statue by the station (`ac_douzou`) once a house's loan ends in the statue: owner's figure and face (winter set in winter), rank sets size and gold / silver / bronze / jade colours, plaque reads `MSG_DOZOU` in a red window — `Statue`, `statue_metal.gdshader`, face textures from `weather_sprites.py`; `house statue built [rank]` console command. Missing: the sparkle effect (`ef_douzou_light`)
-- [x] Wishy the Star: not on the GameCube; the wishing well (`ac_shrine`) is scenery plus Tortimer's holiday spot
+- [x] Wishy the Star: not on the GameCube; the wishing well (`ac_shrine`) rates the town, takes quest items off your hands and is Tortimer's holiday spot
 - [x] Recycle bin: not on the GameCube (`ac_reserve` is the plot / dock sign); the dump (`ac_dump`) is the closest thing
 - [~] Community board: 15 dated posts from the disc's `kei_win` art, seeded with the four starter handbills, page turning and jumps, writing a post on the keyboard with "Is this OK?"; 41 seasonal notices post themselves as their dates pass (sports fairs and daylight saving move with the year), the latest five after an absence (`m_notice`, `m_notice_ovl`) — `NoticeBoard`, `NoticeBoardOverlay`; `board` console command. Missing: Chip's tourney results and villagers' buried-treasure tips (their systems are not built)
 - [ ] Signboards / signposts around town naming acres, warning of cliffs, advertising (`ac_sign`)

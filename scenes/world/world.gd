@@ -52,6 +52,8 @@ func _ready() -> void:
 	if Game.buried_deposits.is_empty():
 		BuriedUse.renew(self, grid)
 	_sow_weeds()
+	if not Game.title_demo_active and not Game.intro_station_active:
+		Game.rate_town(self)
 	fish.configure(grid, WorldBuilder.water_surface_y(), layout)
 	bugs.configure(grid, layout)
 	if layout.mode == WorldData.Mode.TEST:
@@ -245,6 +247,8 @@ func _on_field_renewed(_days: int) -> void:
 	PlantGrowth.cull_dead_flowers(self, grid)
 	BuriedUse.renew(self, grid)
 	_sow_weeds()
+	## `mFAs_SetFieldRank` at the end of every growth pass.
+	Game.rate_town(self)
 
 
 ## `mAGrw_SetGrass` for every renewal since the field last saw one (after the deposits are

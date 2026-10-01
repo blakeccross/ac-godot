@@ -178,6 +178,15 @@ var weeds: Dictionary = {}
 var clear_grass: bool = false
 ## Renewals not yet sown with weeds (crossed indoors or while the game was off). Saved.
 var weed_days_pending: int = 0
+## `mFAs_GetFieldRank`: the town's rating 0–6 from the last assessment.
+var field_rank: int = 0
+## `Save.good_field`: days in a row at rank 6 and the day last counted (−1 none). Saved.
+var perfect_streak: int = 0
+var perfect_streak_day: int = -1
+## `Save.dust_flag`: trash pushed the rating to nothing; it stays there until it is all gone.
+var dust_flag: bool = false
+## `mSC_TROPHY_GOLDEN_AXE`: the wishing well has given the golden axe. Saved.
+var golden_axe_got: bool = false
 var plant_states: Dictionary = {}
 ## Buried dig spots: persist_id → {kind, item_id, cell_x, cell_z} (`mFI` deposit / shine).
 var buried_deposits: Dictionary = {}
@@ -712,6 +721,9 @@ func quest_handover_allows(pocket: int) -> bool:
 		"take":
 			## `mSM_IV_OPEN_TAKE`: any pocket (the peddler checks what it is).
 			return true
+		"shrine":
+			## `mSM_IV_OPEN_SHRINE`: only quest items can go down the wishing well.
+			return s.item.condition == InventoryItem.Condition.QUEST
 	return pocket == quest_handover_pocket
 
 
@@ -794,10 +806,48 @@ func resume_clock(elapsed: int) -> void:
 		cheated_flag = true
 
 
+## `mFAs_GetFieldRank_Condition` / `mFAs_SetFieldRank`: rate the town now, keep the rank and
+## the perfect-day streak. Returns the assessment ({rank, condition, block, …}).
+## `at_well`: asked at the wishing well, where any remark at all also restarts the streak.
+func rate_town(world: Node, rng: RandomNumberGenerator = null, at_well: bool = false) -> Dictionary:
+	var roll := rng
+	if roll == null:
+		roll = RandomNumberGenerator.new()
+		roll.randomize()
+	var result: Dictionary = TownAssessment.evaluate(TownAssessment.survey(world), roll)
+	## `dust_flag`: once trash sank the town, any trash left keeps it at nothing.
+	if int(result["dust"]) >= TownAssessment.DUST_OVER_NUM:
+		dust_flag = true
+	elif dust_flag:
+		if int(result["dust"]) > 0:
+			result["rank"] = 0
+			result["condition"] = TownAssessment.Condition.DUST_OVER
+		else:
+			dust_flag = false
+	field_rank = int(result["rank"])
+	if at_well and int(result["condition"]) != TownAssessment.Condition.NO_CASE:
+		perfect_streak = 0
+		perfect_streak_day = -1
+	var next: Vector2i = TownAssessment.next_streak(field_rank, perfect_streak, perfect_streak_day, Clock.day_number())
+	perfect_streak = next.x
+	perfect_streak_day = next.y
+	return result
+
+
+## `mFAs_CheckGoodField`: fifteen perfect days in a row.
+func perfect_town_long_enough() -> bool:
+	return perfect_streak >= TownAssessment.PERFECT_STREAK_MAX
+
+
 ## The renewals waiting for weeds, handed to the field once (`World` sows them).
 func take_weed_days() -> int:
 	var days: int = weed_days_pending
 	weed_days_pending = 0
+	field_rank = 0
+	perfect_streak = 0
+	perfect_streak_day = -1
+	dust_flag = false
+	golden_axe_got = false
 	return days
 
 
@@ -1185,6 +1235,11 @@ func to_save() -> Dictionary:
 		"weeds": weeds.duplicate(),
 		"clear_grass": clear_grass,
 		"weed_days_pending": weed_days_pending,
+		"field_rank": field_rank,
+		"perfect_streak": perfect_streak,
+		"perfect_streak_day": perfect_streak_day,
+		"dust_flag": dust_flag,
+		"golden_axe_got": golden_axe_got,
 		"plants": plant_states.duplicate(true),
 		"buried": buried_deposits.duplicate(true),
 		"world_mode": int(world_mode),
@@ -1271,6 +1326,11 @@ func apply_snapshot(data: Dictionary) -> void:
 			weeds[str(key)] = clampi(int(saved_weeds[key]), 0, 2)
 	clear_grass = bool(data.get("clear_grass", false))
 	weed_days_pending = maxi(int(data.get("weed_days_pending", 0)), 0)
+	field_rank = clampi(int(data.get("field_rank", 0)), 0, TownAssessment.RANK_PERFECT)
+	perfect_streak = clampi(int(data.get("perfect_streak", 0)), 0, TownAssessment.PERFECT_STREAK_MAX)
+	perfect_streak_day = int(data.get("perfect_streak_day", -1))
+	dust_flag = bool(data.get("dust_flag", false))
+	golden_axe_got = bool(data.get("golden_axe_got", false))
 	hole_interactables.clear()
 	var holes: Variant = data.get("hole_interactables", [])
 	if typeof(holes) == TYPE_ARRAY:

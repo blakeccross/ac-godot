@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -122,6 +122,21 @@ func execute(raw: String) -> String:
 			PlayerSe.bee_sting(who)
 			who.run_stung_bee()
 			return "Ouch."
+		"town":
+			## The town assessment now (`mFAs_GetFieldRank_Condition`); `town perfect` also sets
+			## fifteen perfect days so the well's spirit can come.
+			var tw_tree := Engine.get_main_loop() as SceneTree
+			var tw_world := World.find(tw_tree) if tw_tree != null else null
+			if tw_world == null:
+				return "The assessment needs the outdoor field."
+			if not args.is_empty() and String(args[0]).to_lower() == "perfect":
+				Game.perfect_streak = TownAssessment.PERFECT_STREAK_MAX
+				Game.perfect_streak_day = Clock.day_number()
+			var r: Dictionary = Game.rate_town(tw_world)
+			return "Rank %d (score %d: %d perfect, %d good acres); condition %d at %s; trees %d, flowers %d, weeds %d, trash %d; streak %d." % [
+				int(r["rank"]), int(r["score"]), int(r["perfect"]), int(r["good"]), int(r["condition"]),
+				r["block"], int(r["trees"]), int(r["flowers"]), int(r["weeds"]), int(r["dust"]), Game.perfect_streak,
+			]
 		"weeds":
 			## Sow N weeds now (`mAGrw_SetGrass`), or `weeds clear`.
 			var wd_tree := Engine.get_main_loop() as SceneTree
@@ -317,6 +332,7 @@ func _cmd_help() -> String:
 		"  bug <id> [count]  (spawn insects in front of the player)",
 		"  shop [status | sales <n> | visitor | restock | turnips]",
 		"  sting [on|off|mosquito]  (bee sting, set the swollen face, or a mosquito bite)",
+		"  town [perfect]  (rate the town now)",
 		"  weeds [n|clear]  (sow weeds now, or clear them all)",
 		"  resetti [1-8]  (Mr. Resetti, as after that many resets)",
 		"  exercise <0-17>  (a radio exercise move)",
