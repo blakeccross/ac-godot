@@ -33,6 +33,9 @@ const ANGRY := [3315, 3320, 3325, 3330, 3335, 3340]
 const SAD := [3345, 3350, 3355, 3360, 3365, 3370]
 const SLEEPY := [3375, 3380, 3385, 3390, 3395, 3400]
 const PITFALL := 8327
+## `MSG_10988`: "Bees!" while a swarm chases the player; `MSG_6987`: the swollen face.
+const BEE_CHASE := 10988
+const BEE_STUNG := 6987
 ## `aQMgr_get_hello_msg_no_kamakura` / `_summercamp` tables by looks, and the camper's
 ## first greeting (`MSG_15930`).
 const KAMAKURA_HELLO := [6367, 6376, 6358, 6385, 6394, 6403]
@@ -45,8 +48,10 @@ static func conversation(villager: VillagerData, state: VillagerState, ctx: Dial
 	var snap: DialogueContext = ctx if ctx != null else DialogueContext.from_game(villager, state)
 	_ensure_rng(snap)
 	var msg_no: int = hello_msg_no(villager, state, snap)
+	if villager != null and Game != null:
+		Game.note_bee_greeting(villager.id)
 	## A finished fish / insect collection is worth a word — once per villager per collection.
-	if snap.mood != VillagerState.Mood.PITFALL and meet_type(state, snap) != MEET_FIRST:
+	if snap.mood != VillagerState.Mood.PITFALL and not snap.bee_chase and meet_type(state, snap) != MEET_FIRST:
 		var congrats: int = CompleteTalk.try_greeting(_looks(villager), state, snap.rng)
 		if congrats >= 0:
 			msg_no = congrats
@@ -66,6 +71,10 @@ static func hello_msg_no(villager: VillagerData, state: VillagerState, ctx: Dial
 			return guest
 	if ctx.mood == VillagerState.Mood.PITFALL:
 		return _random_looks(PITFALL, looks, KIND, ctx)
+	if ctx.bee_chase:
+		return _random_looks(BEE_CHASE, looks, KIND, ctx)
+	if meet != MEET_FIRST and ctx.bee_stung:
+		return msg_offset(BEE_STUNG, looks, ctx.hour, _roll(KIND, ctx), KIND)
 	if meet != MEET_FIRST:
 		if ctx.mood == VillagerState.Mood.ANGRY:
 			return ANGRY[looks] + _roll(5, ctx)

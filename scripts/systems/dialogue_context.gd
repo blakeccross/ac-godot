@@ -50,6 +50,9 @@ var frees: PackedStringArray = PackedStringArray()
 ## `mMsg_Set_mail_str`: a player-written block dropped in with `{mail}` (the house gyroid's
 ## message for visitors).
 var mail_text: String = ""
+## `player_bee_chase_flag` / the villager's `conversation_flags.beesting` (`Game.bee_*`).
+var bee_chase: bool = false
+var bee_stung: bool = false
 ## `mDemo_Set_talk_window_color`; alpha 0 keeps the default cloud colour.
 var window_color: Color = Color(0, 0, 0, 0)
 var milestones: Array[StringName] = []
@@ -95,7 +98,9 @@ static func from_game(villager: VillagerData = null, state: VillagerState = null
 	ctx.vars = Game.dialogue_vars
 	if Game.inventory != null:
 		ctx.held_item = Game.inventory.equipment_id
+	ctx.bee_chase = Game.bee_chase
 	if villager != null:
+		ctx.bee_stung = Game.bee_remark_pending(villager.id)
 		ctx.speaker_name = villager.display_name
 		ctx.catchphrase = VillagerTalk.catchphrase_of(villager, state)
 		ctx.species = String(villager.species)

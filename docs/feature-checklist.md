@@ -88,15 +88,15 @@ data tables before a category is called done.
 - [ ] Change clothes anywhere from pockets (`m_player_main_change_cloth`, `ef_kigae`)
 - [x] Pockets = **15 item slots** + separate wallet (`m_private` `mPr_POCKETS_SLOT_COUNT`) — `inventory.gd` (duplicate of the line below, kept in sync)
 - [ ] Carrying a piece of furniture / large item in hands (walk slower) (`m_player_main_hold`, `pickup_furniture`)
-- [ ] Trip / stumble when running into things or on ants (`m_player_main_tumble`, `stung`)
+- [x] Trip / stumble when running into things or on ants (`m_player_main_tumble`, `stung`) — `player.gd` `TUMBLE` gaits + `_tumble_events`
 - [ ] Fall in a pitfall; struggle out (`m_player_main_fall_pitfall`, `struggle_pitfall`, `climbup_pitfall`)
-- [ ] Get stung by bees → swollen face for the day; villagers react; medicine cures (`m_player_main_stung_bee`)
+- [x] Get stung by bees → swollen face; villagers react (`m_player_main_stung_bee`, `notice_bee`, `mNpc_SetTalkBee`) — `Player.run_stung_bee`, `PlayerFace`, `Game.bee_*`, `DialogueGreeting` `BEE_STUNG` / `BEE_CHASE`. The swell lasts until the game is reset (common data); GCN has no medicine
 - [ ] Mosquito bites in summer (`ac_ins_ka`, `stung_mosquito`)
 - [ ] Tired / sleepy animations late at night (`m_player_main_tired`, `ef_ikigire`, `ef_neboke`)
-- [ ] Push / pull furniture and snowballs (`m_player_main_push`, `push_snowball`)
-- [ ] Sit on the ground, on benches/chairs (`m_player_main_sitdown`)
-- [ ] Lie in bed / roll in bed / stand up from bed → save (`m_player_main_lie_bed`, `roll_bed`)
-- [ ] Wade in shallow water; can't swim (`m_player_main_wade`)
+- [~] Push / pull furniture and snowballs (`m_player_main_push`, `push_snowball`) — furniture done (`FurnitureGrip`); snowballs not yet
+- [x] Sit on benches/chairs (`m_player_main_sitdown`) — `FurnitureSeat`
+- [~] Lie in bed / roll in bed / stand up from bed → save (`m_player_main_lie_bed`, `roll_bed`) — in/out of bed and the bed wait done; rolling not yet
+- [x] Wade across acre borders (`m_player_main_wade`) — `AcreWade`, `Player._begin_wade`
 - [ ] Radio-exercise / morning aerobics participation (`m_player_main_radio_exercise`)
 - [ ] Emotions / reactions system — expressions triggered from a menu (`ef_warau`, `ef_naku`, `ef_pun`, manpu) — _(GCN set, verify list)_
 

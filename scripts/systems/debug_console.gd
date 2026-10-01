@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -104,6 +104,21 @@ func execute(raw: String) -> String:
 				return "No notice board UI in this scene."
 			ui.call("open")
 			return "%d posts on the board." % Game.notice_board.count()
+		"sting":
+			## Bee sting: `sting` plays it, `sting off` / `sting on` sets the swollen face.
+			var sting_tree := Engine.get_main_loop() as SceneTree
+			var mode: String = String(args[0]).to_lower() if not args.is_empty() else ""
+			if mode == "off" or mode == "on":
+				Game.bee_swell = mode == "on"
+				Game.bee_greeted.clear()
+				Game.face_changed.emit()
+				return "Face %s." % ("swollen" if Game.bee_swell else "normal")
+			var who := sting_tree.get_first_node_in_group(Player.GROUP) as Player if sting_tree != null else null
+			if who == null:
+				return "No player in this scene."
+			PlayerSe.bee_sting(who)
+			who.run_stung_bee()
+			return "Ouch."
 		"clear":
 			return "__clear__"
 		_:
@@ -238,6 +253,7 @@ func _cmd_help() -> String:
 		"  fortune [normal|popular|unpopular|bad_luck|money_luck|goods_luck]",
 		"  bug <id> [count]  (spawn insects in front of the player)",
 		"  shop [status | sales <n> | visitor | restock | turnips]",
+		"  sting [on|off]  (bee sting, or set the swollen face)",
 		"  clear / help",
 		"Tab completes. Up/Down recall history.",
 	])

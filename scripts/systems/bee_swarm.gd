@@ -10,7 +10,8 @@ enum Phase { APPEAR, FLY, ATTACK, DISAPPEAR }
 const ATTACK_GX := 30.0
 const CHASE_HEIGHT_GX := 50.0
 const APPEAR_SEC := 0.45
-const STING_LOCK_SEC := 1.2
+## `BGM_BEE_CHASE` (`mBGMPsComp_make_ps_happening` from the shake's `shock`).
+const CHASE_BGM := &"bee_chase"
 
 var phase: Phase = Phase.APPEAR
 var attackable: bool = false
@@ -46,6 +47,21 @@ func _ready() -> void:
 	add_child(_mesh)
 	phase = Phase.APPEAR
 	_elapsed = 0.0
+	## `aBEE_appear_init`.
+	Game.bee_chase = true
+	if EventManager.demo_bgm == &"":
+		EventManager.demo_bgm = CHASE_BGM
+		Audio.play_bgm(CHASE_BGM)
+
+
+func _exit_tree() -> void:
+	## Gone (stung, or the scene changed): the chase is over, and so is its music.
+	Game.bee_chase = false
+	if EventManager.demo_bgm == CHASE_BGM:
+		EventManager.demo_bgm = &""
+		var world: World = World.find(get_tree())
+		if world != null and is_instance_valid(world) and not world.is_queued_for_deletion():
+			world.call("_play_outdoor_bgm")
 
 
 ## Called near the end of the shake clip (`STATUS_FOR_BEE_ATTACK` at frame 29.5).
@@ -61,8 +77,11 @@ func _process(delta: float) -> void:
 			_mesh.scale = Vector3.ONE * lerpf(0.15, 1.0, t)
 			if t >= 1.0:
 				phase = Phase.FLY
-		Phase.FLY, Phase.ATTACK:
+		Phase.FLY:
 			_chase(delta)
+		Phase.ATTACK:
+			## `aBEE_attack`: hang about until `mPlib_Check_end_stung_bee`.
+			_hover(delta)
 		Phase.DISAPPEAR:
 			var fade: float = clampf(1.0 - _elapsed / 0.5, 0.0, 1.0)
 			_mesh.scale = Vector3.ONE * fade
@@ -88,17 +107,26 @@ func _chase(delta: float) -> void:
 		_sting()
 
 
-func _sting() -> void:
-	phase = Phase.DISAPPEAR
-	_elapsed = 0.0
-	PlayerSe.bee_sting(self)
-	Game.post_notice("You've been stung by bees!")
+func _hover(delta: float) -> void:
 	var player := _player as Player if is_instance_valid(_player) else null
-	if player != null:
-		player.set_busy(true)
-		get_tree().create_timer(STING_LOCK_SEC).timeout.connect(
-			func() -> void:
-				if is_instance_valid(player):
-					player.set_busy(false),
-			CONNECT_ONE_SHOT
-		)
+	if player == null or not player.stung:
+		phase = Phase.DISAPPEAR
+		_elapsed = 0.0
+		return
+	var target: Vector3 = player.global_position
+	target.y += CHASE_HEIGHT_GX * FieldCatalog.GX_TO_METERS
+	global_position = global_position.lerp(target, clampf(delta * 3.0, 0.0, 1.0))
+	global_position.y += sin(Time.get_ticks_msec() * 0.02) * 0.02
+
+
+## `mPlib_request_main_stung_bee_type1` → `aBEE_ACT_ATTACK`.
+func _sting() -> void:
+	PlayerSe.bee_sting(self)
+	var player := _player as Player if is_instance_valid(_player) else null
+	if player == null:
+		Game.sting_by_bee()
+		phase = Phase.DISAPPEAR
+		_elapsed = 0.0
+		return
+	phase = Phase.ATTACK
+	player.run_stung_bee()

@@ -51,6 +51,18 @@ const ANIM_INBED_R1 := "ply_1_inbed_R1"
 const ANIM_BED_WAIT1 := "ply_1_bed_wait1"
 const ANIM_OUTBED_L1 := "ply_1_outbed_L1"
 const ANIM_OUTBED_R1 := "ply_1_outbed_R1"
+## `m_player_main_stung_bee` (`HATI1` → `HATI2`) then `notice_bee` (`HATI3` + the report).
+const ANIM_HATI1 := "ply_1_hati1"
+const ANIM_HATI2 := "ply_1_hati2"
+const ANIM_HATI3 := "ply_1_hati3"
+## `SearchAnimation_Stung_bee`: the face swells on `HATI2` frame 21.
+const STUNG_SWELL_FRAME := 21.0
+## `Movement_Stung_bee` turns to face the camera after 94 ticks; at 252 → `notice_bee`.
+const STUNG_TURN_TICKS := 94.0
+const STUNG_NOTICE_TICKS := 252.0
+## `Player_actor_Notice_bee_demo_ct`: `0x17B4` in a lilac report window.
+const BEE_NOTICE_MSG := 0x17B4
+const BEE_NOTICE_COLOR := Color8(225, 165, 255)
 ## Any stick past this gets you up (`Player_actor_GetController_move_percentX/Y`).
 const REST_STAND_STICK := 0.1
 ## `furniture_push` / `furniture_pull` cKF at half speed: 24 frames of 30 Hz.
@@ -114,6 +126,8 @@ var _hold_anim: StringName = &""
 ## `mPlib_check_player_actor_main_index_catch_insect` / `_catch_fish`: pulling in and showing
 ## a bug or fish — villagers nearby clap (`aNPC_check_clap`).
 var catch_showing: bool = false
+## Inside `Stung_bee` / `Notice_bee` (`mPlib_Check_end_stung_bee` is its fall).
+var stung: bool = false
 ## The umbrella in hand (`player->umbrella_actor`).
 var _umbrella: HeldUmbrella = null
 ## The item's carry pose layered on the arms (`BOY_part_data` / anim1).
@@ -192,7 +206,10 @@ func _ready() -> void:
 		Game.cloth_changed.connect(_on_cloth_changed)
 	if Game != null and not Game.design_changed.is_connected(_on_design_changed):
 		Game.design_changed.connect(_on_design_changed)
+	if Game != null and not Game.face_changed.is_connected(_apply_face):
+		Game.face_changed.connect(_apply_face)
 	_apply_worn_cloth()
+	_apply_face()
 	Game.inventory.equipment_changed.connect(_on_equipment_changed)
 	_on_equipment_changed(Game.inventory.equipment_id)
 
@@ -2158,6 +2175,97 @@ func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
 	await ui.closed
 
 
+## `Stung_bee` → `Notice_bee`. The music goes quiet, `HATI1` flinches into `HATI2`, whose
+## frame 21 swells the face; from tick 94 the player turns their back to the camera (angle
+## 0x8000), and at tick 252 `HATI3` spins round to show the face under the "stung by a bee"
+## report with the bee-stung jingle.
+func run_stung_bee() -> void:
+	if stung:
+		return
+	stung = true
+	var was_busy: bool = _busy
+	_busy = true
+	## Holds `HATI2`'s last frame between clips rather than dropping to the wait.
+	set_cutscene_driven(true)
+	## `mBGMPsComp_make_ps_quiet` (and the chase music goes with it).
+	EventManager.demo_bgm = &"_quiet"
+	Audio.stop_bgm()
+	var ticks: float = 0.0
+	var swelled := false
+	var clip: String = _start_one_shot(ANIM_HATI1)
+	var on_hati2: bool = clip.is_empty()
+	var hati2_t: float = 0.0
+	var turn_steps := FrameStepper.new()
+	while ticks <= STUNG_NOTICE_TICKS:
+		await get_tree().process_frame
+		var delta: float = get_process_delta_time()
+		ticks += delta * DecompTime.TICK_HZ
+		if not on_hati2 and (_anim == null or not _anim.is_playing() or _anim.current_animation != clip):
+			on_hati2 = true
+			_start_one_shot(ANIM_HATI2)
+		elif on_hati2:
+			hati2_t += delta
+		if on_hati2 and not swelled and hati2_t >= STUNG_SWELL_FRAME / DecompTime.FRAME_HZ:
+			swelled = true
+			Game.sting_by_bee()
+		if ticks > STUNG_TURN_TICKS:
+			turn_steps.add(delta)
+			while turn_steps.next():
+				_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW + PI)
+				_mesh.rotation.y = _motor.facing
+	if not swelled:
+		Game.sting_by_bee()
+	await _notice_bee()
+	stung = false
+	EventManager.demo_bgm = &""
+	var world: World = World.find(get_tree())
+	if world != null:
+		world.call("_play_outdoor_bgm")
+	set_cutscene_driven(false)
+	_busy = was_busy
+
+
+## `Notice_bee`: `HATI3` and the report; both have to finish before the wait.
+func _notice_bee() -> void:
+	var clip: String = _start_one_shot(ANIM_HATI3)
+	EventManager.demo_bgm = &"bee_stung"
+	Audio.play_bgm(&"bee_stung")
+	var ui := DialogueOverlay.find(get_tree())
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % BEE_NOTICE_MSG))
+	if ui != null and data != null:
+		var ctx: DialogueContext = DialogueContext.from_game()
+		ctx.speaker_name = ""
+		ctx.voice_mode = DialogueVoice.Mode.CLICK
+		ctx.window_color = BEE_NOTICE_COLOR
+		ui.play(data, ctx)
+		await ui.closed
+	else:
+		Game.post_notice("You've been stung by bees!")
+	while not clip.is_empty() and _anim != null and _anim.is_playing() and _anim.current_animation == clip:
+		await get_tree().process_frame
+	## `settle_main_Notice_bee`: `HATI3`'s half-turn lives on joint_0 here (the original moves
+	## it onto the actor with `AnimationMove` ROT_Y), so hand it to the facing and cut to the
+	## wait without a blend — the pose reads the same either side of the swap.
+	_motor.reset(Fishing.SHOW_YAW)
+	_mesh.rotation.y = _motor.facing
+	var wait := _resolve_clip(ANIM_WAIT)
+	if _anim != null and not wait.is_empty():
+		_gait = PlayerLocomotion.Gait.WAIT
+		_anim.play(wait, 0.0)
+
+
+func _start_one_shot(leaf: String) -> String:
+	var clip := _resolve_clip(leaf)
+	if _anim == null or clip.is_empty():
+		return ""
+	var res: Animation = _anim.get_animation(clip)
+	if res != null:
+		res.loop_mode = Animation.LOOP_NONE
+	_anim.speed_scale = 1.0
+	_anim.play(clip, 0.08)
+	return clip
+
+
 func _play_clip(clip_name: StringName, tool_clip: StringName) -> void:
 	if clip_name == &"":
 		return
@@ -2219,6 +2327,13 @@ func _try_load_generated_visual() -> void:
 			_ensure_loop(wait_clip)
 			_anim.play(wait_clip)
 	_apply_worn_cloth()
+
+
+## `mPlib_change_player_face`: the chosen face type, swollen after a bee sting.
+func _apply_face() -> void:
+	if Game == null or _mesh == null:
+		return
+	PlayerFace.apply(_mesh, Game.player_gender == IntroSequence.GENDER_FEMALE, Game.player_face, Game.bee_swell)
 
 
 func _on_cloth_changed(_cloth_id: StringName) -> void:

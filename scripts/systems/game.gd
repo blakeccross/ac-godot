@@ -34,6 +34,8 @@ signal notice_posted(text: String)
 signal weather_changed(weather: StringName)
 signal cloth_changed(cloth_id: StringName)
 signal design_changed
+## The player's face texture changed (`mPlib_change_player_face`): bee swelling.
+signal face_changed
 
 const DEFAULT_PLAYER_NAME := "Player"
 const DEFAULT_TOWN_NAME := "Town"
@@ -130,6 +132,14 @@ var town_tune: PackedByteArray = TownTune.default_notes()
 var complete_flags: int = 0
 ## `goki_shocked_flag`: the first roach of a session startles the player, once.
 var goki_shocked: bool = false
+## `player_bee_swell_flag`: stung by bees — the swollen face lasts until the game is reset
+## (common data, never saved).
+var bee_swell: bool = false
+## `player_bee_chase_flag`: a swarm is out after the player (villagers cry "Bees!").
+var bee_chase: bool = false
+## `npclist[].conversation_flags.beesting`, inverted: villagers who have greeted the player
+## since the sting and so no longer remark on the face.
+var bee_greeted: Dictionary = {}
 ## Session weather (`mEnv_WEATHER_*`). Rolled by `Weather` on `field_renewed`.
 var weather: StringName = &"clear"
 ## False until `sync_events` has adopted the clock for this session.
@@ -759,6 +769,28 @@ func notify_title_ready() -> void:
 	set_interact_prompt("")
 
 
+## `Stung_bee` frame 21 of `HATI2`: the face swells (`mPlib_change_player_face`) and, on the
+## first sting only, every villager gets a remark ready (`mNpc_SetTalkBee`).
+func sting_by_bee() -> void:
+	bee_chase = false
+	if bee_swell:
+		return
+	bee_swell = true
+	bee_greeted.clear()
+	face_changed.emit()
+
+
+## Whether `villager_id` still has the swollen-face remark to make.
+func bee_remark_pending(villager_id: StringName) -> bool:
+	return bee_swell and villager_id != &"" and not bee_greeted.has(villager_id)
+
+
+## Any greeting spends the remark (`conversation_flags.beesting = FALSE`).
+func note_bee_greeting(villager_id: StringName) -> void:
+	if bee_swell and villager_id != &"":
+		bee_greeted[villager_id] = true
+
+
 ## `mDemo_Copy_change_player_destiny`: record the fortune and the day it was received.
 func set_destiny(kind: int) -> void:
 	destiny_type = kind
@@ -841,6 +873,9 @@ func reset_session() -> void:
 	town_tune = TownTune.default_notes()
 	complete_flags = 0
 	goki_shocked = false
+	bee_swell = false
+	bee_chase = false
+	bee_greeted.clear()
 	if first_job == null:
 		first_job = FirstJob.new()
 	else:
@@ -1212,6 +1247,9 @@ func apply_snapshot(data: Dictionary) -> void:
 	check_rehouse_order()
 	CompleteTalk.start_set_info()
 	goki_shocked = false
+	bee_swell = false
+	bee_chase = false
+	bee_greeted.clear()
 	HouseGoki.decide_family_count(interiors.player_house())
 	shops.apply_snapshot(data.get("shops", {}))
 	if museum == null:
