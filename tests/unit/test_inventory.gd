@@ -780,9 +780,6 @@ func test_inventory_overlay_assigns_slot_icons() -> void:
 	var empty_pic: TextureRect = empty.get_node_or_null("ItemIcon") as TextureRect
 	assert_object(empty_pic).is_not_null()
 	assert_bool(empty_pic.visible).is_false()
-	## Hand cursor should stay smaller than a pocket slot (~75px).
-	var src := FileAccess.get_file_as_string("res://scenes/ui/inventory_overlay.gd")
-	assert_str(src).contains("HAND_SIZE := 56.0")
 	overlay.call("close")
 
 

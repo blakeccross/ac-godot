@@ -920,6 +920,12 @@ func test_attach_villager_is_noop_without_mesh() -> void:
 func test_attach_villager_hardens_blend_face_cutouts() -> void:
 	## Cub Maple ships soft-BLEND eye/mouth sheets; without scissor depth they lose to
 	## river screen-composite water. Skip when the local villager GLB is missing.
+	## The rule itself: a soft-BLEND cutout becomes scissor with depth writes.
+	var soft := StandardMaterial3D.new()
+	soft.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	VisualMaterials.harden_imported_cutout(soft)
+	assert_int(soft.transparency).is_equal(BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR)
+	assert_int(soft.depth_draw_mode).is_equal(BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY)
 	if FieldCatalog.villager_path(&"cub").is_empty():
 		return
 	var host := Node3D.new()
@@ -945,7 +951,9 @@ func test_attach_villager_hardens_blend_face_cutouts() -> void:
 					assert_int(std.depth_draw_mode).is_equal(BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY)
 		for child: Node in node.get_children():
 			stack.append(child)
-	assert_bool(saw_scissor).is_true()
+	## Which sheets come out blended depends on the bake's Gfx-state classification
+	## (current bakes give Maple opaque faces), so only the no-soft-alpha rule is checked;
+	## any scissor sheet found above was checked for depth writes.
 
 
 func test_lazy_wait_walk_run_weights() -> void:

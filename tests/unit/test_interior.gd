@@ -542,7 +542,7 @@ func test_floor_atlas_retile_mirrors_odd_cells() -> void:
 	var tex := ImageTexture.create_from_image(img)
 	var mirrored: Texture2D = VisualAtlas.tile_to_atlas(tex, Vector2i(4, 4), true, true)
 	var out: Image = mirrored.get_image()
-	assert_that(out.get_pixel(0, 0)).is_equal(Color.RED)
+	assert_bool(out.get_pixel(0, 0).is_equal_approx(Color.RED)).is_true()
 	assert_that(out.get_pixel(1, 0)).is_equal(Color.GREEN)
 	assert_that(out.get_pixel(2, 0)).is_equal(Color.GREEN) ## flip_x of row0
 	assert_that(out.get_pixel(3, 0)).is_equal(Color.RED)
@@ -554,19 +554,19 @@ func test_floor_atlas_retile_mirrors_odd_cells() -> void:
 func test_season_grass_retile_uses_atlas_cell_not_season_px() -> void:
 	## Native wrap-bake: 16×32px cells → 512². Season ACHD tile is 128².
 	## Blitting 128 into 512 without resize yields 4×4 (4× oversized grass).
+	## Every cell is the same 32² tile (a wrap-bake repeats it), patterned inside so no
+	## smaller period fits.
 	var atlas := Image.create(512, 512, false, Image.FORMAT_RGBA8)
-	for ty: int in 16:
-		for tx: int in 16:
-			var c := Color(float(tx) / 16.0, float(ty) / 16.0, 0.25, 1.0)
-			for y: int in 32:
-				for x: int in 32:
-					atlas.set_pixel(tx * 32 + x, ty * 32 + y, c)
+	for y: int in 512:
+		for x: int in 512:
+			atlas.set_pixel(x, y, Color(float(x % 32) / 32.0, float(y % 32) / 32.0, 0.25, 1.0))
 	var atlas_tex := ImageTexture.create_from_image(atlas)
 	assert_int(VisualAtlas.infer_tile_size(atlas_tex, 0)).is_equal(32)
 
 	var season := Image.create(128, 128, false, Image.FORMAT_RGBA8)
 	season.fill(Color(0.2, 0.8, 0.3, 1.0))
-	season.set_pixel(0, 0, Color.RED)
+	## The 4×4 block that becomes one pixel after the 128 → 32 resize.
+	season.fill_rect(Rect2i(0, 0, 4, 4), Color.RED)
 	var season_tex := ImageTexture.create_from_image(season)
 	var cell: int = VisualAtlas.infer_tile_size(atlas_tex, 0)
 	var tiled: Texture2D = VisualAtlas.tile_to_atlas(
@@ -575,9 +575,10 @@ func test_season_grass_retile_uses_atlas_cell_not_season_px() -> void:
 	var out: Image = tiled.get_image()
 	assert_that(out.get_size()).is_equal(Vector2i(512, 512))
 	## 16 cells of 32px: red marker at each cell origin after resize+tile.
+	## RGBA8 storage: compare to the nearest 1/255 step.
 	assert_that(out.get_pixel(0, 0)).is_equal(Color.RED)
-	assert_that(out.get_pixel(31, 0)).is_equal(Color(0.2, 0.8, 0.3, 1.0))
-	assert_that(out.get_pixel(32, 0)).is_equal(Color.RED)
+	assert_bool(out.get_pixel(31, 0).is_equal_approx(Color8(51, 204, 76))).is_true()
+	assert_bool(out.get_pixel(32, 0).is_equal_approx(Color.RED)).is_true()
 
 
 func test_indoor_grid_uses_world_grid() -> void:
