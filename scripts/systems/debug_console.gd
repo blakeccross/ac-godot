@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -153,6 +153,47 @@ func execute(raw: String) -> String:
 				return "No money rock today."
 			var mr_rocks: Dictionary = MoneyRock.field_rocks(mr_world)
 			return "Money rock: %s in acre %s." % [Game.money_rock, mr_rocks.get(StringName(Game.money_rock), "?")]
+		"snowballs":
+			## The body and head balls a few units ahead of the player, at size 0–1
+			## (`snowballs 0.5`; default 0.4, big enough to push).
+			var sb_tree := Engine.get_main_loop() as SceneTree
+			var sb_world := World.find(sb_tree) if sb_tree != null else null
+			var sb_player := Player.find(sb_tree) if sb_tree != null else null
+			if sb_world == null or sb_player == null:
+				return "Snowballs need the outdoor field."
+			var sb_collide: bool = not args.is_empty() and String(args[0]).to_lower() == "collide"
+			var sb_args: PackedStringArray = args.slice(1) if sb_collide else args
+			var sb_n: float = clampf(float(sb_args[0]), 0.0, 1.0) if not sb_args.is_empty() and String(sb_args[0]).is_valid_float() else 0.4
+			var sb_cell: Vector2i = sb_world.grid.world_to_cell(sb_player.global_position)
+			var sb_fwd := Vector3(sin(sb_player.facing_yaw()), 0.0, cos(sb_player.facing_yaw()))
+			var sb_dir := Vector2i(roundi(sb_fwd.x), roundi(sb_fwd.z))
+			if sb_dir == Vector2i.ZERO:
+				sb_dir = Vector2i(0, 1)
+			var sb_side := Vector2i(-sb_dir.y, sb_dir.x)
+			SnowmanUse.spawn_ball(sb_world, SnowmanRules.PART_BODY, sb_cell + sb_dir * 2, sb_n * SnowmanRules.MOVE_DIST_MAX)
+			## `snowballs collide`: the head starts against the body, rolling into it.
+			var sb_gap: int = 1 if sb_collide else 3
+			var sb_head: Node3D = SnowmanUse.spawn_ball(sb_world, SnowmanRules.PART_HEAD, sb_cell + sb_dir * 2 + sb_side * sb_gap, sb_n * 0.85 * SnowmanRules.MOVE_DIST_MAX)
+			if sb_collide and sb_head != null:
+				sb_head.set("vel", Vector2(-sb_side.x, -sb_side.y) * 1.0)
+			return "Two snowballs at size %.2f%s." % [sb_n, ", the head rolling in" if sb_collide else ""]
+		"snowman":
+			## A finished snowman two units ahead (`snowman [score 0-3]`).
+			var sm_tree := Engine.get_main_loop() as SceneTree
+			var sm_world := World.find(sm_tree) if sm_tree != null else null
+			var sm_player := Player.find(sm_tree) if sm_tree != null else null
+			if sm_world == null or sm_player == null:
+				return "A snowman needs the outdoor field."
+			var sm_score: int = clampi(int(args[0]), 0, 3) if not args.is_empty() and String(args[0]).is_valid_int() else 0
+			var sm_fwd := Vector3(sin(sm_player.facing_yaw()), 0.0, cos(sm_player.facing_yaw()))
+			var sm_cell: Vector2i = SnowmanUse.fg_cell(sm_world, sm_world.grid.world_to_cell(sm_player.global_position + sm_fwd * 4.0))
+			if sm_cell.x < 0:
+				return "No room for a snowman there."
+			var sm_slot: int = SnowmanRules.free_slot(Game.snowmen)
+			if sm_slot >= 0:
+				Game.snowmen[sm_slot] = {"head": 0.6, "body": 0.7, "score": sm_score, "cell": [sm_cell.x, sm_cell.y], "age": 0}
+			SnowmanUse.spawn_snowman(sm_world, sm_slot, sm_cell, 0.6, 0.7, sm_score)
+			return "Snowman (score %d) in slot %d." % [sm_score, sm_slot]
 		"mushrooms":
 			## Set N mushrooms under trees now (`mMsr_SetMushroomNum`), or `mushrooms clear`.
 			var ms_tree := Engine.get_main_loop() as SceneTree

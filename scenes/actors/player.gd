@@ -39,6 +39,7 @@ const ANIM_PUTAWAY1 := "ply_1_putaway1"
 ## `mPlayer_INDEX_HOLD` / `PUSH` / `PULL` / `ROTATE_FURNITURE` clips (`FurnitureGrip`).
 const ANIM_HOLD_WAIT1 := "ply_1_hold_wait1"
 const ANIM_PUSH1 := "ply_1_push1"
+const ANIM_PUSH_YUKI1 := "ply_1_push_yuki1"
 const ANIM_PULL1 := "ply_1_pull1"
 const ANIM_LTURN1 := "ply_1_Lturn1"
 const ANIM_RTURN1 := "ply_1_Rturn1"
@@ -206,6 +207,11 @@ var _rest: Dictionary = {}
 ## Crossing into the next acre (`mPlayer_INDEX_WADE`): `{start, end, t}` (world metres,
 ## ticks); empty when not wading. See `AcreWade`.
 var _wade: Dictionary = {}
+## Stick direction × strength on the ground plane, last physics frame (snowballs read it).
+var move_intent: Vector3 = Vector3.ZERO
+## The snowball being pushed (`mPlayer_INDEX_PUSH_SNOWBALL`), or null.
+var _snowball: Node3D = null
+var _snowball_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 ## Leaf clip → Animation of scaled joint_0 deltas (meters, model space): XZ from the origin,
 ## Y from the 1000-unit base height (`base_shape_trs` y). Filled once.
 static var _door_root_xz: Dictionary = {}
@@ -326,6 +332,58 @@ func is_busy() -> bool:
 	return _busy
 
 
+## `mPlib_request_main_push_snowball_type1`: the ball leads, the player keeps behind it.
+func begin_snowball_push(ball: Node3D) -> bool:
+	if _busy or _gripping or _snowball != null or not _wade.is_empty() or _menu_open():
+		return false
+	_snowball = ball
+	if ball is PhysicsBody3D:
+		add_collision_exception_with(ball)
+	_play_grip_clip(ANIM_PUSH_YUKI1, true)
+	return true
+
+
+## `mPlib_request_main_push_snowball_end_type1`.
+func end_snowball_push() -> void:
+	var ball: Node3D = _snowball
+	_snowball = null
+	if is_instance_valid(ball):
+		if ball is PhysicsBody3D:
+			remove_collision_exception_with(ball)
+		if ball.has_method("end_push"):
+			ball.call("end_push")
+	velocity = Vector3.ZERO
+
+
+func is_pushing_snowball() -> bool:
+	return _snowball != null
+
+
+## `Player_actor_main_Push_snowball`: the ball steps each tick and hands back where the
+## player stands (`mPlib_SetParam_for_push_snowball`).
+func _tick_snowball_push(delta: float, wish: Vector3, stick: float, dash: bool) -> void:
+	if not is_instance_valid(_snowball):
+		end_snowball_push()
+		return
+	_snowball_steps.add(delta)
+	var last: Dictionary = {}
+	while _snowball_steps.next():
+		last = _snowball.call("push_tick", wish, stick, dash, self)
+		if last.is_empty():
+			end_snowball_push()
+			return
+	if last.is_empty():
+		return
+	var aim: Vector3 = last["aim"]
+	global_position = Vector3(aim.x, global_position.y, aim.z)
+	_snap_to_bg()
+	set_facing(float(last["yaw"]))
+	_motor.body_yaw = _motor.facing
+	velocity = Vector3.ZERO
+	if _anim != null:
+		_anim.speed_scale = clampf(float(last["speed"]) / 1.5, 0.2, 2.0)
+
+
 func play_wait_anim() -> void:
 	play_wait_idle()
 
@@ -426,6 +484,12 @@ func _physics_process(delta: float) -> void:
 	var sprint: bool = (
 		scripted_input == null and not is_demo_walking() and Input.is_action_pressed("sprint")
 	)
+	move_intent = wish * stick
+	if _snowball != null:
+		_tick_snowball_push(delta, wish, stick, sprint and not menu_open)
+		if _snowball == null:
+			_update_animation(delta)
+		return
 	_motor.position = global_position
 	## `mEv_IsNotTitleDemo() && destiny == BAD_LUCK` gates the dash trip.
 	_motor.bad_luck = scripted_input == null and Game.destiny() == Game.Destiny.BAD_LUCK

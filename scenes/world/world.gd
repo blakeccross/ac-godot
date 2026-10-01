@@ -47,6 +47,7 @@ func _ready() -> void:
 	BuriedUse.restore(self, grid)
 	WeedUse.restore(self, grid)
 	MushroomUse.restore(self, grid)
+	SnowmanUse.restore(self)
 	PlantGrowth.restore(self, grid)
 	PlantGrowth.assign_special_trees(self)
 	## First outdoor load seeds dig spots like `mAGrw_GROW_FIRST` deposit.

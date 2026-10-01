@@ -454,6 +454,22 @@ func to_from_for_pocket(inventory: Inventory, pocket: int) -> Dictionary:
 
 ## ---------------------------------------------------------------- contests
 
+## `mQst_NextSnowman` / `mQst_BackSnowman`: a snowman built (or broken) in the acre of the
+## resident who asked for one counts for (or against) the player. `block` is the field acre.
+func note_snowman(block: Vector2i, residents: TownResidents, built: bool) -> bool:
+	var i: int = occured_contest_idx(CONTEST_SNOWMAN)
+	if i < 0 or residents == null:
+		return false
+	var c: Dictionary = contests[i]
+	if int(c.get("progress", 0)) != 1:
+		return false
+	var home: Vector2i = residents.home_of(i)
+	if home == TownResidents.NO_HOME or home / 16 != block:
+		return false
+	c["player"] = built
+	return true
+
+
 ## `mQst_GetMailRank`: longer letters, a good letter and a present all rank higher.
 static func letter_rank(body: String, present: StringName) -> int:
 	var length: int = LetterCheck._strlen_new(LetterCheck.encode(body), LetterCheck.BODY_LEN)

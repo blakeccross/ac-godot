@@ -947,6 +947,9 @@ func test_world_owns_a_school_and_an_effects_node_that_finds_it() -> void:
 	var sense := FishShadow.Sense.new()
 	var grid: WorldGrid = world.grid
 	sense.player_position = grid.cell_to_world(school.bodies[0].cells[0])
+	## The field rates itself on load; a bare test town can rate low enough to halve the
+	## spawn rate (`env_rate`). Pin the middling rank this fill was written against.
+	Game.field_rank = 3
 	for _i: int in 60:
 		school.tick(0.1, sense)
 	assert_int(school.shadow_count()).is_equal(FishSchool.MAX_SHADOWS)

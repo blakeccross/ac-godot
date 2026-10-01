@@ -69,6 +69,7 @@ const PRESENTERS: Dictionary = {
 	&"halloween": "res://scripts/systems/events/halloween_presenter.gd",
 	&"toy_day_jingle": "res://scripts/systems/events/jingle_presenter.gd",
 	&"kamakura": "res://scripts/systems/events/guest_house_presenter.gd",
+	&"snowman_season": "res://scripts/systems/events/snowman_presenter.gd",
 	&"summer_camper": "res://scripts/systems/events/guest_house_presenter.gd",
 }
 

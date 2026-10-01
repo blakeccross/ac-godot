@@ -93,7 +93,7 @@ data tables before a category is called done.
 - [x] Get stung by bees → swollen face; villagers react (`m_player_main_stung_bee`, `notice_bee`, `mNpc_SetTalkBee`) — `Player.run_stung_bee`, `PlayerFace`, `Game.bee_*`, `DialogueGreeting` `BEE_STUNG` / `BEE_CHASE`. The swell lasts until the game is reset (common data); GCN has no medicine
 - [x] Mosquito bites in summer (`ac_ins_ka`, `stung_mosquito`, `notice_mosquito`) — `BugKa` bite → `BugField.take_bite` → `Player.run_stung_mosquito` (`MSG_12387`)
 - [ ] ~~Tired / sleepy animations late at night~~ — GCN `m_player_main_tired` only follows `wash_car`; there is no late-night tiredness
-- [~] Push / pull furniture and snowballs (`m_player_main_push`, `push_snowball`) — furniture done (`FurnitureGrip`); snowballs wait on the snowman (no snowball actor yet)
+- [x] Push / pull furniture and snowballs (`m_player_main_push`, `push_snowball`) — furniture (`FurnitureGrip`); snowballs (`ply_1_push_yuki1`, the ball leads and the player keeps behind it, `Player.begin_snowball_push`). Missing: carrying a pushed ball across an acre border (`wade_snowball`)
 - [x] Sit on benches/chairs (`m_player_main_sitdown`) — `FurnitureSeat`
 - [x] Lie in bed / roll in bed / stand up from bed (`m_player_main_lie_bed`, `roll_bed`, `aMR_GetBedAction`) — sideways stick rolls across a double bed or aligned beds, or gets out on that side (`FurnitureSeat.bed_action`). GCN beds do not save
 - [x] Wade across acre borders (`m_player_main_wade`) — `AcreWade`, `Player._begin_wade`
@@ -301,7 +301,7 @@ data tables before a category is called done.
 - [ ] Nicknames: villager gives you a nickname; you can set what villagers call each other / call you; catchphrase ("hippie", etc.); you can change a villager's catchphrase
 - [ ] Greetings you can teach; greeting spreads between villagers
 - [~] Gift-giving both ways: letters with presents (+3), villager replies with a present half the time, Valentine's letters with gifts (`mNpc_SendMailtoNpc`, `mNpc_Remail`, `mNpc_SendVtdayMail`) — `villager_letters.gd`. Handing gifts in person and villagers wearing gifted shirts still to come
-- [~] **Villager quests** — deliveries (clothes / lost items), errand chains (fetch what they lent), contests (fruit, fish, bug, flowers, letter; ball and snowman offered but not completable), deadlines, give-up, rewards (`m_quest.c`, `ac_quest_talk_init.c`, `ac_quest_manager.c`) — `villager_quests.gd`, `villager_talk_manager.gd`. Wishing-well disposal of quest items (`aSHR_talk` apologize). Missing: ball / snowman actors
+- [~] **Villager quests** — deliveries (clothes / lost items), errand chains (fetch what they lent), contests (fruit, fish, bug, flowers, letter, snowman; ball offered but not completable), deadlines, give-up, rewards (`m_quest.c`, `ac_quest_talk_init.c`, `ac_quest_manager.c`) — `villager_quests.gd`, `villager_talk_manager.gd`. Wishing-well disposal of quest items (`aSHR_talk` apologize). A snowman built in the asker's acre counts (`mQst_NextSnowman`). Missing: the ball actor
 - [~] Trading furniture / clothing with villagers (chat trades: `aQMgr_order_decide_trade` / `_trade`) — `villager_talk_manager.gd`. Goods come from the shop pools, not the ROM A/B/C lists; no hand-over animation yet
 - [x] Villager asks to buy something from your pockets / sell you something (chat trade topics)
 - [ ] Villager house interiors themed by personality; changes over time with items you give
@@ -352,7 +352,7 @@ data tables before a category is called done.
 - [ ] **NES/Famicom consoles as furniture** → playable games (see §26)
 - [ ] Gyroid furniture (§14): the giant collection; each has an on/off wind state and a sound
 - [ ] Musical instruments you can play? _(GCN: no free-play)_
-- [ ] Snowman series: build a perfect snowman → mails you a Snowman-series item over the following days (`ac_snowman`, `ac_psnowman`, `m_snowman`)
+- [x] Snowmen: two snowballs each snowman season (Dec 25 – Feb 17) that grow on snow and shrink off it; roll the body and head together and the faster jumps on top. Graded on head ÷ body against 0.85, with lines to match; a perfect one mails a Snowman-series piece. Up to three stand, melting over three days. Walk into one to knock it down (`ac_snowman`, `ac_psnowman`, `m_snowman`) — `SnowmanRules`, `SnowmanUse`, `snowball.gd`, `snowman.gd`
 - [ ] Feng-shui / lucky items
 - [ ] Furniture obtained from: Nook's shop, catalog order, villagers, events, HRA, balloons, fishing/bug tourneys, lost-and-found, Redd, Saharah (carpets/wallpaper), fortune (Katrina n/a in GCN)
 - [ ] Wallpaper & carpet catalog; special ones (mosaic wall, etc.)
@@ -573,7 +573,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [x] New Year's Day — shrine crowd, Katrina's lottery, Tortimer. Missing: the hatsumōde queue choreography (`ac_hatumode_control`)
 - [x] Groundhog Day — crowd lines by minutes to 8:00, Tortimer's 8:00 speech and weather verdict. Missing: the groundhog pop-up demo
 - [ ] Valentine's Day (Feb 14) — chocolate from a villager
-- [~] Snowman season / Kamakura — snow cabin with a resident guest (greeting game, Kamakura trade list). Missing: snowman balls event (`snowman_start`)
+- [x] Snowman season / Kamakura — snow cabin with a resident guest (greeting game, Kamakura trade list); the snowman balls (`snowman_start`, `SnowmanPresenter`)
 - [~] Spring / Fall **Sports Fair** — residents in gym clothes at their stations with their lines; Tortimer. Missing: the foot race / ball toss / tug-of-war games themselves
 - [ ] April Fools' Day (Apr 1)
 - [x] Cherry Blossom Festival — picnic mats, seated / dancing residents, Tortimer

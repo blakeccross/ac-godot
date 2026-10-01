@@ -199,6 +199,14 @@ var mushroom_minute: int = -1
 var mushroom_active: bool = false
 ## `mMsr_FirstClearMushroom` has run for this play session (not saved).
 var mushrooms_session_cleared: bool = false
+## `Save.snowmen`: three slots, each {} or {head, body (sizes 0–1), score, cell [x, z], age}.
+var snowmen: Array = [{}, {}, {}]
+## `Save.snowman_year…hour` as `Clock.absolute_minute` (−1 never): no new balls until 6 AM.
+var snowman_built_minute: int = -1
+## `Common.snowman_msg_id` (`mSN_decide_msg`): rolled each play session, not saved.
+var snowman_msg_id: int = 0
+## The snowman-season balls (`mEv` common place / area): part → {cell [x, z], dist}. Saved.
+var snowballs: Dictionary = {}
 var plant_states: Dictionary = {}
 ## Buried dig spots: persist_id → {kind, item_id, cell_x, cell_z} (`mFI` deposit / shine).
 var buried_deposits: Dictionary = {}
@@ -853,6 +861,18 @@ func perfect_town_long_enough() -> bool:
 	return perfect_streak >= TownAssessment.PERFECT_STREAK_MAX
 
 
+## `mSN_MeltSnowman` at each renewal: a day older and smaller; gone after three days or once
+## winter ends. The field drops the ones that melted when it next loads.
+func melt_snowmen(days: int) -> void:
+	var winter: bool = Clock.season() == Clock.Season.WINTER
+	for i: int in snowmen.size():
+		var e: Dictionary = snowmen[i]
+		if e.is_empty():
+			continue
+		if not SnowmanRules.melt(e, days, winter):
+			snowmen[i] = {}
+
+
 ## The renewals waiting for weeds, handed to the field once (`World` sows them).
 func take_weed_days() -> int:
 	var days: int = weed_days_pending
@@ -974,6 +994,10 @@ func reset_session() -> void:
 	mushrooms.clear()
 	mushroom_minute = -1
 	mushroom_active = false
+	snowmen = [{}, {}, {}]
+	snowman_built_minute = -1
+	snowman_msg_id = randi_range(0, 2)
+	snowballs.clear()
 	plant_states.clear()
 	buried_deposits.clear()
 	player_name = DEFAULT_PLAYER_NAME
@@ -1267,6 +1291,9 @@ func to_save() -> Dictionary:
 		"mushrooms": mushrooms.duplicate(),
 		"mushroom_minute": mushroom_minute,
 		"mushroom_active": mushroom_active,
+		"snowmen": snowmen.duplicate(true),
+		"snowman_built_minute": snowman_built_minute,
+		"snowballs": snowballs.duplicate(true),
 		"plants": plant_states.duplicate(true),
 		"buried": buried_deposits.duplicate(true),
 		"world_mode": int(world_mode),
@@ -1368,6 +1395,21 @@ func apply_snapshot(data: Dictionary) -> void:
 			mushrooms[str(key)] = 1
 	mushroom_minute = int(data.get("mushroom_minute", -1))
 	mushroom_active = bool(data.get("mushroom_active", false))
+	snowmen = [{}, {}, {}]
+	var saved_snowmen: Variant = data.get("snowmen", [])
+	if typeof(saved_snowmen) == TYPE_ARRAY:
+		for i: int in mini((saved_snowmen as Array).size(), SnowmanRules.SAVE_COUNT):
+			var e: Variant = saved_snowmen[i]
+			if typeof(e) == TYPE_DICTIONARY and not (e as Dictionary).is_empty():
+				snowmen[i] = (e as Dictionary).duplicate(true)
+	snowman_built_minute = int(data.get("snowman_built_minute", -1))
+	snowballs.clear()
+	var saved_balls: Variant = data.get("snowballs", {})
+	if typeof(saved_balls) == TYPE_DICTIONARY:
+		for key: Variant in saved_balls:
+			if typeof(saved_balls[key]) == TYPE_DICTIONARY:
+				snowballs[int(key)] = (saved_balls[key] as Dictionary).duplicate(true)
+	snowman_msg_id = randi_range(0, 2)
 	hole_interactables.clear()
 	var holes: Variant = data.get("hole_interactables", [])
 	if typeof(holes) == TYPE_ARRAY:
@@ -1706,6 +1748,7 @@ func update_notice_board() -> void:
 func _on_field_renewed(days: int) -> void:
 	shops.renew(days)
 	weed_days_pending += maxi(days, 0)
+	melt_snowmen(days)
 	var vt_rng := RandomNumberGenerator.new()
 	vt_rng.randomize()
 	_check_valentines(vt_rng)
