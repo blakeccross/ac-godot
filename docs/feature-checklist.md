@@ -34,7 +34,7 @@ data tables before a category is called done.
 - [ ] Memory Card management, copy, "the game was not saved correctly" recovery (`save_check.c_inc`, `m_flashrom`, `s_cpak`)
 - [x] **Mr. Resetti** appears if you quit without saving; escalating lectures by reset count; **Don** on the fifth (`mCD_SetResetInfo`, `ac_reset_demo`, `ac_npc_majin*`) — the save carries a `reset_code` set at load and cleared by a proper save; `ResettiVisit` picks the visitor and opening message (9+ cycle 6–8), `scenes/world/resetti.tscn` pops up (`APPEAR1`), lectures, waits to be spoken to on the fourth, digs back down (`GO_UG1`), with his helmet light at night. The typing test of the sixth follows the messages' own default branch
 - [ ] `zurumode` / cheat-detection "gnat" bug swarm anti-tamper behaviour (`zurumode.c`)
-- [ ] RTC read, clock-not-set prompt, clock-was-changed detection & penalty (weeds, villager anger) (`lb_rtc.c`, `ac_npc_rtc`)
+- [~] RTC read, clock-was-changed detection (`lb_rtc.c`, `aNPS2_game_start_wait`) — the save stamps the wall clock and loading moves the game clock on by the real time away (`Clock.resume_after`, renewals catch up); a clock set behind the last save sets `cheated_flag` (GCN's only penalty: no birthday surprise, returning card visitors sent home). The time-set prompt at player select isn't built; the game follows the system clock
 - [x] Continue: the game starts with you walking out of your own house (`mSDI_StartInitFrom` → `SCENE_FG`); a save made indoors reopens in that room
 
 ## 2. Time, calendar, seasons

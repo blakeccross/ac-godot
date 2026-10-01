@@ -49,3 +49,22 @@ func test_an_open_session_counts_as_a_reset() -> void:
 	Game.note_reset(SaveService.last_reset_code)
 	assert_bool(Game.reset_flag).is_false()
 	assert_int(Game.reset_count).is_equal(2)
+
+
+## The RTC ran while the game was off (`lbRTC_GetTime` at start); a clock behind the last save
+## marks `cheated_flag` (`aNPS2_game_start_wait`).
+func test_time_passes_while_away() -> void:
+	Clock.set_datetime(2001, 7, 15, 12, 0)
+	var renewed: Array[int] = []
+	var hook := func(days: int) -> void: renewed.append(days)
+	Clock.field_renewed.connect(hook)
+	assert_bool(Clock.resume_after(2 * 86400 + 3600)).is_true()
+	Clock.field_renewed.disconnect(hook)
+	assert_int(Clock.day).is_equal(17)
+	assert_int(Clock.hour).is_equal(13)
+	assert_int(renewed.size()).is_equal(1)
+	assert_int(renewed[0]).is_equal(2)
+	Game.resume_clock(-86400)
+	assert_bool(Game.cheated_flag).is_true()
+	assert_int(Clock.day).is_equal(16)
+	Clock.reset_to_default()

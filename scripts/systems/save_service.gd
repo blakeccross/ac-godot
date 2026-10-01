@@ -8,6 +8,8 @@ const DEFAULT_PATH := "user://save.json"
 ## `Private_c.reset_code` read by the last `load_game`: non-zero means the session it was
 ## written for ended without a save (`mCD_CheckResetCode`).
 var last_reset_code: int = 0
+## Real seconds between the last save and this load (negative: the system clock went back).
+var last_elapsed: int = 0
 
 
 func has_save(path: String = DEFAULT_PATH) -> bool:
@@ -19,6 +21,8 @@ func save_game(path: String = DEFAULT_PATH) -> Error:
 	var payload: Dictionary = {
 		"version": SAVE_VERSION,
 		"clock": Clock.to_dict(),
+		## Wall-clock moment of the save, so time keeps passing while the game is off.
+		"os_time": int(Time.get_unix_time_from_system()),
 		"inventory": Game.inventory.to_save(),
 		"world": Game.to_save(),
 		## `mCD_ClearResetCode`: a proper save closes the session.
@@ -43,6 +47,9 @@ func load_game(path: String = DEFAULT_PATH) -> Error:
 	var data: Dictionary = parsed
 	last_reset_code = int(data.get("reset_code", 0))
 	Clock.apply_snapshot(data.get("clock", {}))
+	last_elapsed = 0
+	if data.has("os_time"):
+		last_elapsed = int(Time.get_unix_time_from_system()) - int(data["os_time"])
 	var bags: Variant = data.get("inventory", {})
 	if typeof(bags) == TYPE_DICTIONARY or typeof(bags) == TYPE_ARRAY:
 		Game.inventory.from_save(bags)

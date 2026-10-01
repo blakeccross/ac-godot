@@ -146,6 +146,9 @@ var bee_greeted: Dictionary = {}
 var reset_count: int = 0
 ## `Common_Get(reset_flag)`: this session follows one of those — Mr. Resetti is waiting.
 var reset_flag: bool = false
+## `Save.cheated_flag` / `npc_force_go_home`: the clock was found earlier than the last save
+## (`aNPS2_game_start_wait`). Saved; it bars the birthday surprise.
+var cheated_flag: bool = false
 ## Session weather (`mEnv_WEATHER_*`). Rolled by `Weather` on `field_renewed`.
 var weather: StringName = &"clear"
 ## False until `sync_events` has adopted the clock for this session.
@@ -742,6 +745,7 @@ func continue_game() -> void:
 		start_new_game()
 		return
 	note_reset(SaveService.last_reset_code)
+	resume_clock(SaveService.last_elapsed)
 	SaveService.mark_session_open(reset_count)
 	## `mMl_start_send_mail` / `mNtc_set_auto_nwrite_data` at game start.
 	send_postoffice_gift()
@@ -776,6 +780,12 @@ func notify_world_ready() -> void:
 func notify_title_ready() -> void:
 	_set_phase(Phase.TITLE)
 	set_interact_prompt("")
+
+
+## The real-time clock ran on while the game was off; a clock set back marks the save.
+func resume_clock(elapsed: int) -> void:
+	if not Clock.resume_after(elapsed):
+		cheated_flag = true
 
 
 ## `mCD_SetResetInfo`: the save was still marked open, so the last session ended without
@@ -888,6 +898,7 @@ func reset_session() -> void:
 	num_statues = 0
 	reset_count = 0
 	reset_flag = false
+	cheated_flag = false
 	bank_gift_flags = 0
 	town_tune = TownTune.default_notes()
 	complete_flags = 0
@@ -1192,6 +1203,7 @@ func to_save() -> Dictionary:
 		"has_map": has_map,
 		"num_statues": num_statues,
 		"reset_count": reset_count,
+		"cheated_flag": cheated_flag,
 		"bank_gift_flags": bank_gift_flags,
 		"town_tune": Array(town_tune),
 		"complete_flags": complete_flags,
@@ -1348,6 +1360,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	has_map = bool(data.get("has_map", false))
 	num_statues = clampi(int(data.get("num_statues", 0)), 0, 3)
 	reset_count = maxi(int(data.get("reset_count", 0)), 0)
+	cheated_flag = bool(data.get("cheated_flag", false))
 	bank_gift_flags = int(data.get("bank_gift_flags", 0)) & 0xF
 	town_tune = TownTune.sanitize(data.get("town_tune", null))
 	complete_flags = int(data.get("complete_flags", 0)) & 0xF

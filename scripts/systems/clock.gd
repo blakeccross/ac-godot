@@ -201,6 +201,28 @@ func advance_seconds(amount: int) -> void:
 	_emit_time(true)
 
 
+## The console's real-time clock kept running while the game was off: move the loaded
+## time on by `elapsed` real seconds (backwards too, when the system clock was set back),
+## crossing renewals as it goes. Returns false when the time went backwards.
+func resume_after(elapsed: int) -> bool:
+	if elapsed == 0:
+		return true
+	var here: int = Time.get_unix_time_from_datetime_dict(to_dict())
+	var dt: Dictionary = Time.get_datetime_dict_from_unix_time(here + elapsed)
+	var p_year: int = clampi(int(dt["year"]), MIN_YEAR, MAX_YEAR)
+	rtc_override = true
+	_os_follow_seeded = false
+	year = p_year
+	month = int(dt["month"])
+	day = int(dt["day"])
+	hour = int(dt["hour"])
+	minute = int(dt["minute"])
+	second = int(dt["second"])
+	_accum = 0.0
+	_emit_time(elapsed > 0)
+	return elapsed > 0
+
+
 func now_sec() -> int:
 	return hour * 3600 + minute * 60 + second
 
