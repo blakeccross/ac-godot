@@ -18,6 +18,7 @@ extends Node3D
 ## separated form — see the header above) still spins on its own simple loop; it does not
 ## need bone-perfect sync to read as "the light is sweeping."
 
+## Summer clip; winter swaps the model to `obj_w_toudai`, whose clip carries that name.
 const ANIMATION_NAME := &"obj_s_toudai"
 const SPIN_SPEED := 1.6 ## rad/s, supplementary glow orbit — independent of the real clip's rate.
 
@@ -52,13 +53,26 @@ func _apply_light() -> void:
 		_light.visible = on
 
 
+## The sweep clip of whichever seasonal tower is attached.
+func clip_name() -> StringName:
+	if _anim == null:
+		return &""
+	if _anim.has_animation(ANIMATION_NAME):
+		return ANIMATION_NAME
+	for name: StringName in _anim.get_animation_list():
+		if String(name).ends_with("_toudai"):
+			return name
+	return &""
+
+
 func _apply_animation() -> void:
-	if _anim == null or not _anim.has_animation(ANIMATION_NAME):
+	var clip: StringName = clip_name()
+	if clip == &"":
 		return
 	if on:
-		_anim.get_animation(ANIMATION_NAME).loop_mode = Animation.LOOP_LINEAR
-		if _anim.current_animation != ANIMATION_NAME or not _anim.is_playing():
-			_anim.play(ANIMATION_NAME)
+		_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
+		if _anim.current_animation != clip or not _anim.is_playing():
+			_anim.play(clip)
 	else:
 		_anim.stop()
 		_anim.seek(0.0, true) ## Rest pose, not wherever the sweep happened to stop.

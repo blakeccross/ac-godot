@@ -72,7 +72,9 @@ func test_beacon_drives_the_real_decomp_sweep_animation() -> void:
 		if anim != null:
 			break
 	assert_object(anim).is_not_null()
-	assert_bool(anim.has_animation(&"obj_s_toudai")).is_true()
+	## Summer or winter tower, whichever the clock picked.
+	var clip: StringName = beacon.call("clip_name")
+	assert_bool(anim.has_animation(clip)).is_true()
 
 	beacon.set("on", false)
 	assert_bool(anim.is_playing()).is_false()
@@ -80,8 +82,8 @@ func test_beacon_drives_the_real_decomp_sweep_animation() -> void:
 
 	beacon.set("on", true)
 	assert_bool(anim.is_playing()).is_true()
-	assert_str(anim.current_animation).is_equal("obj_s_toudai")
-	assert_that(anim.get_animation(&"obj_s_toudai").loop_mode).is_equal(Animation.LOOP_LINEAR)
+	assert_str(anim.current_animation).is_equal(String(clip))
+	assert_that(anim.get_animation(clip).loop_mode).is_equal(Animation.LOOP_LINEAR)
 
 	beacon.set("on", false)
 	assert_bool(anim.is_playing()).is_false()
@@ -100,3 +102,24 @@ func test_beacon_head_spins_only_when_on() -> void:
 	beacon.set("on", true)
 	beacon._process(1.0)
 	assert_float(head.rotation.y).is_greater(0.0)
+
+
+## Winter swaps in `obj_w_toudai`; its own clip has to sweep too.
+func test_winter_tower_sweeps_its_own_clip() -> void:
+	Clock.set_datetime(2001, 1, 20, 21, 0)
+	var node: Node3D = _lighthouse()
+	var beacon: Node = node.get_node("Beacon")
+	var anim: AnimationPlayer = null
+	for _i in 10:
+		await get_tree().process_frame
+		anim = node.get_node("GeneratedVisual").find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if anim != null:
+			break
+	Clock.reset_to_default()
+	if anim == null:
+		return
+	var clip: StringName = beacon.call("clip_name")
+	assert_str(String(clip)).is_not_empty()
+	beacon.set("on", true)
+	assert_bool(anim.is_playing()).is_true()
+	assert_str(anim.current_animation).is_equal(String(clip))
