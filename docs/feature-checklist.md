@@ -639,10 +639,10 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [ ] Object draw sorting, XLU passes (water, footprints, shadows), acre culling
 - [x] Balloon presents (`m_fuusen`, `ac_fuusen`) — `BalloonSky` rolls at :x3 every five minutes (5% start, +2.5–5% per miss, goods / bad luck, +25% after one got away near you); `Balloon` is born on the wind's map edge, drifts downwind 110 GX up, turns toward a bare grown tree and snags in its crown; a full shake drops the wrapped present (80% C-list furniture, else a foreign fruit), a bump wobbles it; it escapes after 10 minutes snagged or at the map edge / station. `/balloon [near]` launches one. Missing: town rank term (0), the snag sound (SE 0x402 not in the converted bank), wind gusts; drifting uses a cliff check in place of full wall collision
 - [~] Wind (`m_kankyo_weather`: daily calm / normal / strong range by season, 10-minute drift, Koinobori day) — `Wind`; drives balloons only so far
-- [ ] Airplane / helicopter flyover (`ac_airplane`)
+- [x] Airplane: not in a GameCube town. `ac_airplane` is a paper glider the player throws (hold Z, flick the stick), placed only in the debug fields `fd1` / `fd2`
 - [ ] Message-in-a-bottle on the beach (`ac_mbg` beach spawns) — random letter/pattern _(verify GCN)_
 - [ ] The lighthouse light sweeps at night; switch it (`ac_toudai`, `ac_lighthouse_switch`)
-- [ ] Windmill turning in wind (`ac_windmill`)
+- [x] Windmill: not in a GameCube town. `ac_windmill` (`WINDMILL0`–`4`) exists, but no acre template on the disc places one
 
 ## 35. Multiplayer / multi-town
 
