@@ -89,7 +89,7 @@ data tables before a category is called done.
 - [x] Pockets = **15 item slots** + separate wallet (`m_private` `mPr_POCKETS_SLOT_COUNT`) — `inventory.gd` (duplicate of the line below, kept in sync)
 - [ ] Carrying a piece of furniture / large item in hands (walk slower) (`m_player_main_hold`, `pickup_furniture`)
 - [x] Trip / stumble when running into things or on ants (`m_player_main_tumble`, `stung`) — `player.gd` `TUMBLE` gaits + `_tumble_events`
-- [ ] Fall in a pitfall; struggle out (`m_player_main_fall_pitfall`, `struggle_pitfall`, `climbup_pitfall`)
+- [x] Fall in a pitfall; struggle out (`m_player_main_fall_pitfall`, `struggle_pitfall`, `climbup_pitfall`) — `Player.run_pitfall`; seeds are buried with the pockets' "Bury" (shovel + hole, `mTG_TYPE_FIELD_DEFAULT_BURY`) into `BuriedUse` `KIND_PITFALL`; villagers fall in too and climb out when talked to (`aNPC_act_pitfall` / `revive`)
 - [x] Get stung by bees → swollen face; villagers react (`m_player_main_stung_bee`, `notice_bee`, `mNpc_SetTalkBee`) — `Player.run_stung_bee`, `PlayerFace`, `Game.bee_*`, `DialogueGreeting` `BEE_STUNG` / `BEE_CHASE`. The swell lasts until the game is reset (common data); GCN has no medicine
 - [ ] Mosquito bites in summer (`ac_ins_ka`, `stung_mosquito`)
 - [ ] Tired / sleepy animations late at night (`m_player_main_tired`, `ef_ikigire`, `ef_neboke`)
@@ -239,12 +239,12 @@ data tables before a category is called done.
 ## 14. Digging, buried items, rocks
 
 - [~] Dig a hole on empty ground; fill a hole (`DIG_SCOOP`, `FILL_SCOOP`, `HOLE00`–`HOLE24`) — `hole_use.gd`, `scenes/world/hole.tscn`
-- [~] Bury an item in a hole; dig it back up (`PUTIN_SCOOP`, `buried_use.gd`)
+- [x] Bury an item in a hole; dig it back up (`mTG_TYPE_FIELD_DEFAULT_BURY`, `bIT_common_hole_throw`) — pockets "Bury" → `BuriedUse.bury` (`KIND_ITEM` shows the crack)
 - [ ] Buried "X" marks / glowing spot: one per day → **fossil** or **bells** or **gyroid** or (after rain) more gyroids (`ac_gyo_kaseki` naming aside — fossils via FG)
 - [ ] Money spot: dig up 100 bells, replant bells (100–30,000) → money tree grows bags of bells once (`m_all_grow` money tree)
 - [ ] **Rock**: one random rock per day yields bells when hit with the shovel (up to ~8 hits, escalating, timed, must not be blocked from behind) — the "money rock"
 - [ ] Rocks are otherwise immovable obstacles; fake rock? _(GCN: no)_
-- [ ] **Pitfall**: plant a pitfall seed → invisible trap; player/villager falls in (`ac_ghog`? / pitfall FG, `m_player_main_*_pitfall`)
+- [x] **Pitfall**: bury a pitfall seed in a hole → invisible trap; player/villager falls in (`BURIED_PITFALL_HOLE`, `bIT_actor_pit_*`, `m_player_main_*_pitfall`) — the pit opens under them and closes after
 - [ ] **Gyroids**: ~127 gyroid variants _(verify)_, dug up after rain, wind up as playable furniture that hums/beats with room music (`ac_my_room_melody`, `m_melody`)
 - [ ] **Fossils**: dig up unidentified → Blathers assesses → real fossil (donate or sell); fossil groups (T. rex, mammoth, etc.) _(verify count, ~25 items)_
 - [ ] Shovel reflects with a clang off stone / the museum wall / certain FG (`reflect_scoop`)
@@ -291,7 +291,7 @@ data tables before a category is called done.
 - [~] Activities villagers do (`ac_npc_act_*`): clap when you show off a catch, chase bugs / watch fish shadows (`VillagerOutdoor`). The GCN field villager has no fishing / singing / reading acts of its own. greet each other in passing (`aNPC_ACT_GREETING`, `VillagerGreeting`) with the trend / catchphrase / mood reactions. Missing: running after the ball
 - [ ] Villager catches a bug/fish and shows it off; asks you to catch something
 - [x] Umbrella open/close in rain (`ac_npc_act_umb_open/close`, `aNPC_ctrl_umbrella`) — their own `npc_def_list` umbrella, one opening at a time, `UMBRELLA1` arm pose. Missing: Able-design umbrellas in hand
-- [ ] Villager falls in your pitfall; you dig them out; anger/forgiveness (`ac_npc_act_pitfall`) — blocked on pitfall seeds
+- [x] Villager falls in your pitfall; talking to them gets them out (`ac_npc_act_pitfall`, `aNPC_act_revive`, feel `PITFALL` → `MSG_8327`)
 - [ ] Hitting a villager with the net/axe/shovel → anger, "watch it!" (`m_watch_my_step`)
 - [x] **Moving in**: new villager on a free SIGN plot, introduces self on first meeting (`mNpc_Grow`, `MSG_11573`) — `town_residents.gd`. GCN has no moving boxes
 - [~] **Moving out**: full town + 10 days → fewest-memories villager leaves with a goodbye letter (`mNpc_ForceRemove`) — `town_residents.gd`. The "thinking of moving" talk (`remove_animal_idx`) is picked but its dialogue isn't wired (only matters for card transfer)

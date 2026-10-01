@@ -55,6 +55,14 @@ const ANIM_UMB_OPEN := "npc_1_umb_open1"
 const ANIM_UMB_CLOSE := "npc_1_umb_close1"
 const ANIM_UMBRELLA := "npc_1_umbrella1"
 const ANIM_CLAP := "npc_1_clap1"
+## `aNPC_think_pitfall` → `aNPC_act_pitfall` (totter, drop, struggle) → `aNPC_act_revive`.
+enum Pit { NONE, TOTTER, FALL, STRUGGLE, REVIVE }
+const ANIM_GURATUKU := "npc_1_guratuku1"
+const ANIM_OTIRU := "npc_1_otiru1"
+const ANIM_MOGAKU := "npc_1_mogaku1"
+const ANIM_DERU := "npc_1_deru1"
+## `aNPC_act_pitfall_totter`: `chase_f(…, 1.5)` per frame toward the unit centre.
+const PIT_TOTTER_GX_PER_FRAME := 1.5
 
 @export var data: VillagerData
 ## Indoor `ac_npc2` stand-in: always visible while the player is in this house.
@@ -105,6 +113,11 @@ var _talk_look: Vector3 = Vector3.ZERO
 var _face: NpcFace = NpcFace.new()
 var _head_look: NpcHeadLook = NpcHeadLook.new()
 var _face_mood: int = -1
+var _pit: Pit = Pit.NONE
+var _pit_cell := Vector2i(-1, -1)
+var _pit_center := Vector3.ZERO
+var _pit_clip: String = ""
+var _pit_model_rest := Vector3.ZERO
 var _act: Act = Act.NONE
 ## The umbrella in the right hand (`right_hand.item_type == UMBRELLA`) and its arm pose
 ## (`aNPC_SUB_ANIM_UMBRELLA`).
@@ -424,7 +437,15 @@ func _physics_process(delta: float) -> void:
 	if ai.is_talking():
 		_react = React.NONE
 		_head_look.fast = false
+		if _pit != Pit.NONE:
+			## `talk_info.turn = NONE`: they keep struggling, facing where they fell.
+			velocity = Vector3.ZERO
+			ai.step(delta)
+			return
 		_hold_talk(delta)
+		return
+	if _pit != Pit.NONE:
+		_tick_pit(delta)
 		return
 	if _react != React.NONE:
 		_tick_react(delta)
@@ -503,6 +524,7 @@ func _physics_process(delta: float) -> void:
 	_tick_fatigue(delta, Vector3(velocity.x, 0.0, velocity.z))
 	_tick_annoyance(delta)
 	ai.step(delta)
+	_check_pitfall()
 
 
 func _tick_indoor(delta: float) -> void:
@@ -896,6 +918,9 @@ func _on_talk_action(action: Dictionary, ui: DialogueOverlay, player: Node3D) ->
 func _on_talk_closed() -> void:
 	TalkCamera.end(get_tree())
 	ai.end_talk()
+	## `aNPC_think_pitfall_main_proc`: a talk in the pit ends with `aNPC_ACT_REVIVE`.
+	if _pit == Pit.STRUGGLE:
+		_begin_revive()
 	## `Common_Set(npc_chg_cloth, …)`: a shirt handed over in the talk goes on.
 	if state != null and _cloth_key() != _drawn_cloth:
 		_apply_design_wear()
@@ -1348,6 +1373,123 @@ func _start_outdoor_act() -> bool:
 			_play_clip(ANIM_CLAP, true)
 			return true
 	return false
+
+
+## `aNPC_chk_pitfall`: a normal villager on a unit holding a buried pitfall falls in.
+func _check_pitfall() -> void:
+	if _pit != Pit.NONE or guest != &"" or indoor_resident:
+		return
+	var bg: Array = _bg()
+	if bg.size() != 2:
+		return
+	var grid := bg[1] as WorldGrid
+	var cell: Vector2i = grid.world_to_cell(global_position)
+	if not grid.is_in_bounds(cell) or not BuriedUse.is_pitfall(grid.occupant_at(cell)):
+		return
+	var world := World.find(get_tree())
+	if BuriedUse.spring_pitfall(world, grid, cell) == null and not Game.is_hole(HoleUse.persist_id(cell)):
+		return
+	_pit = Pit.TOTTER
+	_pit_cell = cell
+	_pit_center = grid.cell_corner(cell) + Vector3(grid.cell_size, 0.0, grid.cell_size) * 0.5
+	_pit_center.y = global_position.y
+	_pit_model_rest = _model.position if _model != null else Vector3.ZERO
+	## `aNPC_think_pitfall_init_proc`: immovable, feel `PITFALL` until they are out.
+	if state != null:
+		state.mood = VillagerState.Mood.PITFALL
+		state.feel_ticks = 0
+	_motor.arrive()
+	velocity = Vector3.ZERO
+	_pit_clip = _pit_one_shot(ANIM_GURATUKU)
+
+
+func in_pitfall() -> bool:
+	return _pit != Pit.NONE
+
+
+func _tick_pit(delta: float) -> void:
+	velocity = Vector3.ZERO
+	match _pit:
+		Pit.TOTTER:
+			var step: float = PIT_TOTTER_GX_PER_FRAME * FieldCatalog.GX_TO_METERS * delta * DecompTime.FRAME_HZ
+			var to := Vector3(_pit_center.x - global_position.x, 0.0, _pit_center.z - global_position.z)
+			if to.length() > step:
+				global_position += to.normalized() * step
+			else:
+				global_position.x = _pit_center.x
+				global_position.z = _pit_center.z
+				if not _pit_playing():
+					_pit = Pit.FALL
+					_pit_clip = _pit_chain(ANIM_OTIRU)
+		Pit.FALL:
+			if not _pit_playing():
+				_pit = Pit.STRUGGLE
+				_pit_clip = _pit_chain(ANIM_MOGAKU, true)
+		Pit.REVIVE:
+			if not _pit_playing():
+				_end_pit()
+	ai.step(delta)
+
+
+func _begin_revive() -> void:
+	_pit = Pit.REVIVE
+	BuriedUse.close_pit(World.find(get_tree()), _pit_cell)
+	_pit_clip = _pit_chain(ANIM_DERU)
+
+
+func _end_pit() -> void:
+	_pit = Pit.NONE
+	_pit_cell = Vector2i(-1, -1)
+	if _model != null:
+		_model.position = _pit_model_rest
+	if state != null and state.mood == VillagerState.Mood.PITFALL:
+		state.set_feel(0, 0)
+	_clip = ""
+	_play_clip(ANIM_WAIT, true)
+	if _body_anim != null:
+		_body_anim.play(_resolve_clip(ANIM_WAIT), 0.0)
+
+
+func _pit_playing() -> bool:
+	return _body_anim != null and _body_anim.is_playing() and _body_anim.current_animation == _pit_clip
+
+
+func _pit_one_shot(leaf: String, loop: bool = false, blend: float = 0.12) -> String:
+	var clip := _resolve_clip(leaf)
+	if clip.is_empty() or _body_anim == null:
+		return ""
+	_clip = clip
+	_ensure_loop(clip, loop)
+	_body_anim.speed_scale = 1.0
+	_body_anim.play(clip, blend)
+	return clip
+
+
+## Like the player's pit: each clip's root travel (`AnimationMove`) is carried on the model so
+## the next clip starts where the last one left the body.
+func _pit_chain(leaf: String, loop: bool = false) -> String:
+	var before: Vector3 = _pit_root()
+	var clip: String = _pit_one_shot(leaf, loop, 0.0)
+	if clip.is_empty() or _model == null:
+		return clip
+	_body_anim.seek(0.0, true)
+	var after: Vector3 = _pit_root()
+	if before != Vector3.INF and after != Vector3.INF:
+		_model.position += before - after
+	return clip
+
+
+func _pit_root() -> Vector3:
+	if _model == null:
+		return Vector3.INF
+	var skeletons: Array[Node] = _model.find_children("*", "Skeleton3D", true, false)
+	if skeletons.is_empty():
+		return Vector3.INF
+	var skeleton := skeletons[0] as Skeleton3D
+	var bone: int = skeleton.find_bone("joint_0")
+	if bone < 0:
+		return Vector3.INF
+	return to_local(skeleton.global_transform * skeleton.get_bone_global_pose(bone).origin)
 
 
 func _mood_normal() -> bool:

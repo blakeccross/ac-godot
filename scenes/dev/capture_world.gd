@@ -18,7 +18,9 @@ extends Node3D
 ##                     pos:x,y,z | scene (keep the scene's own camera). Default: scene
 ##                     camera for scene=, else the town centre.
 ##   console=cmd,args  Debug-console command run once the scene is up, commas for spaces
-##                     (`console=bug,grasshopper,3`).
+##                     (`console=bug,grasshopper,3`). With console_delay=N it runs N frames
+##                     after the target is found instead (villagers only turn up near
+##                     the player, which the `villager:` lookup arranges).
 ##   cam=dx,dy,dz      Camera offset from the focus in metres (default 0,4,7).
 ##   look=dx,dy,dz     Offset added to the focus point (default 0,1,0).
 ##   fov=50  size=960x540  wait=20 (frames before the grab)
@@ -73,7 +75,8 @@ func _capture_date(date: String) -> void:
 	add_child(root)
 	for _i: int in 10:
 		await get_tree().process_frame
-	if _args.has("console"):
+	var late_console: bool = _args.has("console_delay")
+	if _args.has("console") and not late_console:
 		print("CONSOLE ", DebugConsole.new().execute(str(_args["console"]).replace(",", " ")))
 	var target := str(_args.get("target", "scene" if not scene_path.is_empty() else "town"))
 	var cam: Camera3D = null
@@ -99,6 +102,10 @@ func _capture_date(date: String) -> void:
 		var look_at: Vector3 = (focus as Vector3) + _vec3(str(_args.get("look", "0,1,0")), Vector3(0, 1, 0))
 		cam.global_position = look_at + _vec3(str(_args.get("cam", "0,4,7")), Vector3(0, 4, 7))
 		cam.look_at(look_at)
+	if _args.has("console") and late_console:
+		for _i: int in int(_args.get("console_delay", "0")):
+			await get_tree().process_frame
+		print("CONSOLE ", DebugConsole.new().execute(str(_args["console"]).replace(",", " ")))
 	for _i: int in int(_args.get("wait", "20")):
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw

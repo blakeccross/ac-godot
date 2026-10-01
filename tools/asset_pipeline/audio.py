@@ -71,6 +71,10 @@ EXTRA_SE_NUMS: dict[str, int] = {
     ## `Player_actor_sound_slip`: `set_sound_common2(actor, 0x4129)` — dash skid
     ## (`turn_dash`) and net slip.
     "4129": 0x4129,
+    ## `bIT_actor_pit_move`: a pitfall opening under someone (0x13C) and closing after they
+    ## climb out (0x15B).
+    "13c": 0x13C,
+    "15b": 0x15B,
 }
 
 ## Level (looping, positional) SEs, played by level id rather than SE number

@@ -1077,6 +1077,7 @@ func open() -> void:
 	if _hand_viewport != null:
 		_hand_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	Game.inventory.clear_hand()
+	Game.inventory.bury_ready = PlantGrowth.scoop_plant_ready(_field_context())
 	_sync_portrait_equipment(true)
 	_sync_portrait_cloth()
 	_play_hand_clip("hnd_sasu", true)
@@ -1733,6 +1734,23 @@ func _run_tag(tag: String) -> void:
 				var msg: String = inv.use_slot(idx)
 				if msg != "":
 					Game.post_notice(msg)
+		"Bury":
+			## `mTG_TYPE_FIELD_DEFAULT_BURY`: put it in the hole and scoop it shut.
+			var bury_ctx: InteractionContext = _field_context()
+			var bury_cell: Vector2i = ToolUse.facing_cell(bury_ctx)
+			var bury_slot: InventorySlot = inv.slot_at(idx)
+			if bury_slot == null or bury_slot.is_empty():
+				return
+			var buried_id: StringName = bury_slot.item.item_id
+			var buried: ItemData = ItemCatalog.get_item(buried_id)
+			inv.remove_from_slot(idx, 1)
+			close()
+			if BuriedUse.bury(bury_ctx, bury_cell, buried_id):
+				Audio.play_se(&"scoop_umeru")
+				Game.post_notice("Buried %s." % (buried.display_name if buried != null else "it"))
+			elif buried != null:
+				inv.add(buried, 1)
+				Game.post_notice("Can't bury it here.")
 		"Plant":
 			## `mTG_plant_proc`: shovel+hole → putin scoop; else throw-put on the facing unit.
 			var taken: Dictionary = PlantGrowth.take_plant_from_slot(_field_context(), idx)

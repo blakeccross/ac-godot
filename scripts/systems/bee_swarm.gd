@@ -12,6 +12,8 @@ const CHASE_HEIGHT_GX := 50.0
 const APPEAR_SEC := 0.45
 ## `BGM_BEE_CHASE` (`mBGMPsComp_make_ps_happening` from the shake's `shock`).
 const CHASE_BGM := &"bee_chase"
+## `Player_actor_Check_end_stung_bee`: the swarm leaves once the stung timer passes 162.
+const ATTACK_END_TICKS := 162.0
 
 var phase: Phase = Phase.APPEAR
 var attackable: bool = false
@@ -109,7 +111,7 @@ func _chase(delta: float) -> void:
 
 func _hover(delta: float) -> void:
 	var player := _player as Player if is_instance_valid(_player) else null
-	if player == null or not player.stung:
+	if player == null or not player.stung or _elapsed * DecompTime.TICK_HZ > ATTACK_END_TICKS:
 		phase = Phase.DISAPPEAR
 		_elapsed = 0.0
 		return
@@ -129,4 +131,5 @@ func _sting() -> void:
 		_elapsed = 0.0
 		return
 	phase = Phase.ATTACK
+	_elapsed = 0.0
 	player.run_stung_bee()

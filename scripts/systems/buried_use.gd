@@ -13,6 +13,16 @@ const KEY_CELL_X := "cell_x"
 const KEY_CELL_Z := "cell_z"
 const KIND_FOSSIL := &"fossil"
 const KIND_SHINE := &"shine"
+## Something the player buried in a hole (`mFI_Wpos2DepositON`): crack mark, digs back up.
+const KIND_ITEM := &"item"
+## `BURIED_PITFALL_HOLE00`+: a pitfall seed in a hole. Nothing shows above ground.
+const KIND_PITFALL := &"pitfall"
+const PITFALL_ITEM := &"pitfall"
+## `Player_actor_check_pitfall`: within 19 GX of the unit centre.
+const PITFALL_REACH_GX := 19.0
+const PIT_OPEN_TICKS := 26.0
+const PIT_SE_TICK := 6.0
+const PIT_CLOSE_TICKS := 14.0
 const VISUAL_CRACK := &"BURIED_CRACK"
 const VISUAL_SHINE := &"SHINE_SPOT"
 
@@ -88,6 +98,79 @@ static func restore(world: Node, grid: WorldGrid) -> void:
 		_instance(world, grid, cell, pid, kind)
 
 
+## `mTG_TYPE_FIELD_DEFAULT_BURY` → `bIT_common_hole_throw`: an item put into the facing hole
+## fills it; a pitfall seed becomes a hidden pitfall, anything else a marked deposit.
+static func bury(ctx: InteractionContext, cell: Vector2i, item_id: StringName) -> bool:
+	var grid: WorldGrid = _grid(ctx)
+	if grid == null or not grid.is_in_bounds(cell) or item_id == &"":
+		return false
+	var hole: StringName = grid.occupant_at(cell)
+	if not Game.is_hole(hole):
+		return false
+	var host: Node = _host_for(ctx.world if ctx != null else null, hole)
+	if host != null:
+		HoleUse.fill(host, ctx)
+	else:
+		Game.clear_hole(hole)
+		grid.remove(hole)
+	var kind: StringName = KIND_PITFALL if item_id == PITFALL_ITEM else KIND_ITEM
+	return _deposit(ctx.world if ctx != null else null, grid, _layout(ctx.world if ctx != null else null), cell, kind, item_id, true)
+
+
+static func is_pitfall(persist_id: StringName) -> bool:
+	return kind_of(persist_id) == KIND_PITFALL
+
+
+## `bIT_actor_pit_fall` → `pit` mode 3: the seed is used up and a hole opens under the
+## victim, growing in over 26 ticks with the `OTOSIANA` thud (0x13C) at tick 6.
+static func spring_pitfall(world: Node, grid: WorldGrid, cell: Vector2i) -> Node3D:
+	if grid == null or not grid.is_in_bounds(cell):
+		return null
+	var pid: StringName = grid.occupant_at(cell)
+	if not is_pitfall(pid):
+		return null
+	_remove(world, grid, pid, cell)
+	var ctx := InteractionContext.new()
+	ctx.world = world
+	if not HoleUse.dig(ctx, cell, false):
+		return null
+	var hole := _host_for(world, HoleUse.persist_id(cell)) as Node3D
+	if hole == null:
+		return null
+	hole.scale = Vector3.ZERO
+	var tw: Tween = hole.create_tween()
+	tw.tween_property(hole, "scale", Vector3.ONE, PIT_OPEN_TICKS * DecompTime.TICK_SEC)
+	hole.set_meta(&"pit_tween", tw)
+	hole.get_tree().create_timer(PIT_SE_TICK * DecompTime.TICK_SEC).timeout.connect(
+		func() -> void:
+			if is_instance_valid(hole):
+				Audio.play_se(&"13c", hole)
+	)
+	return hole
+
+
+## `bIT_actor_pit_exit` → `pit` mode 4: the hole shrinks away over 14 ticks (0x15B) and the
+## unit is plain ground again.
+static func close_pit(world: Node, cell: Vector2i) -> void:
+	var pid: StringName = HoleUse.persist_id(cell)
+	var hole := _host_for(world, pid) as Node3D
+	var ctx := InteractionContext.new()
+	ctx.world = world
+	if hole == null:
+		Game.clear_hole(pid)
+		var grid: WorldGrid = _grid(ctx)
+		if grid != null:
+			grid.remove(pid)
+		return
+	Audio.play_se(&"15b", hole)
+	var opening: Variant = hole.get_meta(&"pit_tween", null)
+	if opening is Tween and (opening as Tween).is_valid():
+		(opening as Tween).kill()
+	var tw: Tween = hole.create_tween()
+	tw.tween_property(hole, "scale", Vector3.ZERO, PIT_CLOSE_TICKS * DecompTime.TICK_SEC)
+	tw.tween_callback(func() -> void: HoleUse.fill(hole, ctx))
+
+
 static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 	## `mFI_CheckDigGetItem` when deposit / shine is present.
 	var grid: WorldGrid = _grid(ctx)
@@ -113,6 +196,8 @@ static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 		PlayerSe.buried_dig(ctx.actor)
 	if kind == KIND_SHINE:
 		Game.post_notice("You dug up bells!")
+	elif kind == KIND_ITEM or kind == KIND_PITFALL:
+		Game.post_notice("You dug up %s!" % (item.display_name if item != null else "something"))
 	else:
 		Game.post_notice("You dug up a fossil!")
 		## First fossil triggers the Farway Museum's introductory letter (`mMsm` mail-in).
@@ -170,9 +255,11 @@ static func _deposit(
 	layout: WorldData,
 	cell: Vector2i,
 	kind: StringName,
-	item_id: StringName
+	item_id: StringName,
+	into_hole: bool = false
 ) -> bool:
-	if not _can_deposit(grid, cell, layout, kind == KIND_SHINE):
+	## A filled hole was diggable already; `_can_deposit` would refuse the unit it vacated.
+	if not into_hole and not _can_deposit(grid, cell, layout, kind == KIND_SHINE):
 		return false
 	var pid: StringName = persist_id(cell)
 	if not grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT):
@@ -202,7 +289,7 @@ static func _remove(world: Node, grid: WorldGrid, pid: StringName, cell: Vector2
 static func _instance(
 	world: Node, grid: WorldGrid, cell: Vector2i, pid: StringName, kind: StringName
 ) -> void:
-	if world == null:
+	if world == null or kind == KIND_PITFALL:
 		return
 	var packed: PackedScene = load(SCENE) as PackedScene
 	if packed == null:
@@ -297,3 +384,15 @@ static func _grid(ctx: InteractionContext) -> WorldGrid:
 	if ctx == null or ctx.world == null:
 		return null
 	return ctx.world.get("grid") as WorldGrid
+
+
+static func _host_for(world: Node, pid: StringName) -> Node:
+	if world == null or pid == &"":
+		return null
+	var objects: Node = world.get_node_or_null("Objects")
+	if objects == null:
+		return null
+	for child: Node in objects.get_children():
+		if child.get("persist_id") == pid and not child.is_queued_for_deletion():
+			return child
+	return null

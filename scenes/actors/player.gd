@@ -63,6 +63,16 @@ const STUNG_NOTICE_TICKS := 252.0
 ## `Player_actor_Notice_bee_demo_ct`: `0x17B4` in a lilac report window.
 const BEE_NOTICE_MSG := 0x17B4
 const BEE_NOTICE_COLOR := Color8(225, 165, 255)
+## `READY_PITFALL` → `FALL_PITFALL` → `STRUGGLE_PITFALL` → `CLIMBUP_PITFALL`.
+const ANIM_GURATUKU1 := "ply_1_guratuku1"
+const ANIM_OTIRU1 := "ply_1_otiru1"
+const ANIM_MOGAKU1 := "ply_1_mogaku1"
+const ANIM_DERU1 := "ply_1_deru1"
+## `ControlAnimationSpeed_Struggle_pitfall`: 20 presses' worth of A and stick wiggling.
+const STRUGGLE_PRESSES := 20.0
+const STRUGGLE_SPEED_MIN := 0.5
+const STRUGGLE_SPEED_DECAY := 0.00435
+const STRUGGLE_SPEED_EASE := 0.10875
 ## Any stick past this gets you up (`Player_actor_GetController_move_percentX/Y`).
 const REST_STAND_STICK := 0.1
 ## `furniture_push` / `furniture_pull` cKF at half speed: 24 frames of 30 Hz.
@@ -128,6 +138,10 @@ var _hold_anim: StringName = &""
 var catch_showing: bool = false
 ## Inside `Stung_bee` / `Notice_bee` (`mPlib_Check_end_stung_bee` is its fall).
 var stung: bool = false
+## Between stepping on a pitfall and climbing out of it.
+var in_pitfall: bool = false
+## Scripted struggle (tests, captures): added to the press count every tick.
+var struggle_assist: float = 0.0
 ## The umbrella in hand (`player->umbrella_actor`).
 var _umbrella: HeldUmbrella = null
 ## The item's carry pose layered on the arms (`BOY_part_data` / anim1).
@@ -366,6 +380,7 @@ func _physics_process(delta: float) -> void:
 		_tick_rest(delta)
 	elif not _busy and scripted_input == null and not _net.is_active():
 		_poll_furniture_pickup()
+		_poll_pitfall()
 		_poll_rest(delta)
 	var bg: Array = _bg()
 	var on_bg: bool = _snap_to_bg()
@@ -2175,6 +2190,143 @@ func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
 	await ui.closed
 
 
+## `Player_actor_check_pitfall` (walk / run / wait states): standing within 19 GX of the
+## centre of a unit holding a buried pitfall springs it.
+func _poll_pitfall() -> void:
+	if in_pitfall:
+		return
+	var bg: Array = _bg()
+	if bg.is_empty():
+		return
+	var grid := bg[1] as WorldGrid
+	var cell: Vector2i = grid.world_to_cell(global_position)
+	if not grid.is_in_bounds(cell) or not BuriedUse.is_pitfall(grid.occupant_at(cell)):
+		return
+	var center: Vector3 = grid.cell_corner(cell) + Vector3(grid.cell_size, 0.0, grid.cell_size) * 0.5
+	var reach: float = BuriedUse.PITFALL_REACH_GX * FieldCatalog.GX_TO_METERS
+	if Vector2(center.x - global_position.x, center.z - global_position.z).length() > reach:
+		return
+	center.y = global_position.y
+	run_pitfall(cell, center)
+
+
+## The pitfall states. `GURATUKU1` totters onto the pit centre, `OTIRU1` drops in,
+## `MOGAKU1` struggles until A presses and stick wiggles add up to 20 (faster struggling
+## speeds the clip up), then `DERU1` climbs out as the pit closes behind. The original moves
+## the actor by each clip's root (`AnimationMove`); here the drop rides on the mesh pivot.
+func run_pitfall(cell: Vector2i, center: Vector3) -> void:
+	if in_pitfall:
+		return
+	in_pitfall = true
+	var was_busy: bool = _busy
+	_busy = true
+	set_cutscene_driven(true)
+	var world := World.find(get_tree())
+	var grid: WorldGrid = world.grid if world != null else null
+	BuriedUse.spring_pitfall(world, grid, cell)
+	var start: Vector3 = global_position
+	var clip: String = _start_one_shot(ANIM_GURATUKU1)
+	var length: float = _clip_length(clip)
+	var t: float = 0.0
+	while _clip_running(clip):
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		global_position = start.lerp(center, clampf(t / maxf(length, 0.001), 0.0, 1.0))
+	global_position = center
+	clip = _chain_clip(ANIM_OTIRU1)
+	while _clip_running(clip):
+		await get_tree().process_frame
+	_chain_clip(ANIM_MOGAKU1, true)
+	await _struggle()
+	## `setup_main_Climbup_pitfall` → `pit_exit_proc`.
+	BuriedUse.close_pit(world, cell)
+	clip = _chain_clip(ANIM_DERU1)
+	while _clip_running(clip):
+		await get_tree().process_frame
+	_mesh.position = Vector3.ZERO
+	var wait := _resolve_clip(ANIM_WAIT)
+	if _anim != null and not wait.is_empty():
+		_gait = PlayerLocomotion.Gait.WAIT
+		_anim.speed_scale = 1.0
+		_anim.play(wait, 0.0)
+	set_cutscene_driven(false)
+	_busy = was_busy
+	in_pitfall = false
+	struggle_assist = 0.0
+
+
+## `Struggle_pitfall`: count A presses and stick motion until 20, easing the clip speed
+## toward a target that presses raise and time lowers (0.5–1.0).
+func _struggle() -> void:
+	var presses: float = 0.0
+	var target: float = STRUGGLE_SPEED_MIN
+	var speed: float = STRUGGLE_SPEED_MIN
+	var old_stick := Vector2.ZERO
+	var steps := FrameStepper.new()
+	var pressed := false
+	while presses < STRUGGLE_PRESSES:
+		await get_tree().process_frame
+		if Input.is_action_just_pressed("interact") and not _menu_open():
+			pressed = true
+		steps.add(get_process_delta_time())
+		while steps.next() and presses < STRUGGLE_PRESSES:
+			var stick: Vector2 = _read_stick() if scripted_input == null else scripted_input.move
+			var add: float = 1.0 if pressed else 0.0
+			pressed = false
+			add += absf(old_stick.length() - stick.length()) * 0.5
+			if old_stick.length() > 0.0 and stick.length() > 0.0:
+				## `s16` move-angle change × 0.00002.
+				add += absf(wrapf(stick.angle() - old_stick.angle(), -PI, PI)) * 65536.0 / TAU * 0.00002
+			add += struggle_assist
+			old_stick = stick
+			presses += add
+			target = clampf(target + add * 0.25 - STRUGGLE_SPEED_DECAY, STRUGGLE_SPEED_MIN, 1.0)
+			speed += (target - speed) * STRUGGLE_SPEED_EASE
+		if _anim != null:
+			_anim.speed_scale = speed
+	if _anim != null:
+		_anim.speed_scale = 1.0
+
+
+## Start `leaf` from the pose the last clip ended in: whatever joint_0 travelled is handed to
+## the mesh pivot so the body does not jump (`cKF_SkeletonInfo_R_AnimationMove_dt`).
+func _chain_clip(leaf: String, loop: bool = false) -> String:
+	var before: Vector3 = _root_joint_position()
+	var clip: String = _start_one_shot(leaf, 0.0)
+	if clip.is_empty():
+		return clip
+	if loop:
+		var res: Animation = _anim.get_animation(clip)
+		if res != null:
+			res.loop_mode = Animation.LOOP_LINEAR
+	_anim.seek(0.0, true)
+	var after: Vector3 = _root_joint_position()
+	if before != Vector3.INF and after != Vector3.INF:
+		_mesh.position += before - after
+	return clip
+
+
+func _root_joint_position() -> Vector3:
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	if skeleton == null:
+		return Vector3.INF
+	var bone: int = skeleton.find_bone("joint_0")
+	if bone < 0:
+		return Vector3.INF
+	return to_local(skeleton.global_transform * skeleton.get_bone_global_pose(bone).origin)
+
+
+func _clip_running(clip: String) -> bool:
+	return not clip.is_empty() and _anim != null and _anim.is_playing() and _anim.current_animation == clip
+
+
+func _clip_length(clip: String) -> float:
+	if clip.is_empty() or _anim == null:
+		return 0.0
+	var res: Animation = _anim.get_animation(clip)
+	return res.length if res != null else 0.0
+
+
 ## `Stung_bee` → `Notice_bee`. The music goes quiet, `HATI1` flinches into `HATI2`, whose
 ## frame 21 swells the face; from tick 94 the player turns their back to the camera (angle
 ## 0x8000), and at tick 252 `HATI3` spins round to show the face under the "stung by a bee"
@@ -2254,7 +2406,7 @@ func _notice_bee() -> void:
 		_anim.play(wait, 0.0)
 
 
-func _start_one_shot(leaf: String) -> String:
+func _start_one_shot(leaf: String, blend: float = 0.08) -> String:
 	var clip := _resolve_clip(leaf)
 	if _anim == null or clip.is_empty():
 		return ""
@@ -2262,7 +2414,7 @@ func _start_one_shot(leaf: String) -> String:
 	if res != null:
 		res.loop_mode = Animation.LOOP_NONE
 	_anim.speed_scale = 1.0
-	_anim.play(clip, 0.08)
+	_anim.play(clip, blend)
 	return clip
 
 

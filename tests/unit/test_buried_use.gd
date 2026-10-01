@@ -128,3 +128,77 @@ func test_deposit_skips_occupied_and_water() -> void:
 	assert_bool(BuriedUse._can_deposit(world.grid, Vector2i(5, 5))).is_false()
 	assert_bool(BuriedUse._can_deposit(world.grid, Vector2i(6, 6))).is_false()
 	assert_bool(BuriedUse._can_deposit(world.grid, Vector2i(7, 7))).is_true()
+
+
+func _hole_world() -> _GridWorld:
+	var world: _GridWorld = auto_free(_GridWorld.new())
+	world.grid.configure(16, 16, 2.0, Vector3(-16, 0, -16))
+	for z: int in 16:
+		for x: int in 16:
+			world.grid.set_terrain(Vector2i(x, z), WorldGrid.Terrain.GRASS)
+	var objects := Node3D.new()
+	objects.name = "Objects"
+	world.add_child(objects)
+	add_child(world)
+	return world
+
+
+## `bIT_common_bury_after`: a pitfall seed in a hole is a hidden trap; anything else a
+## marked deposit that digs back up.
+func test_bury_into_a_hole_only() -> void:
+	var world := _hole_world()
+	var ctx := InteractionContext.new()
+	ctx.world = world
+	var cell := Vector2i(5, 5)
+	assert_bool(BuriedUse.bury(ctx, cell, BuriedUse.PITFALL_ITEM)).is_false()
+	assert_bool(HoleUse.dig(ctx, cell, false)).is_true()
+	assert_bool(BuriedUse.bury(ctx, cell, BuriedUse.PITFALL_ITEM)).is_true()
+	var pid: StringName = world.grid.occupant_at(cell)
+	assert_bool(BuriedUse.is_pitfall(pid)).is_true()
+	assert_bool(Game.is_hole(HoleUse.persist_id(cell))).is_false()
+	## Nothing marks a pitfall above ground.
+	await get_tree().process_frame
+	for child: Node in world.get_node("Objects").get_children():
+		assert_bool(child.is_queued_for_deletion() or child.get("persist_id") != pid).is_true()
+	var other := Vector2i(7, 5)
+	HoleUse.dig(ctx, other, false)
+	assert_bool(BuriedUse.bury(ctx, other, &"apple")).is_true()
+	var deposit: StringName = world.grid.occupant_at(other)
+	assert_str(String(BuriedUse.kind_of(deposit))).is_equal(String(BuriedUse.KIND_ITEM))
+	assert_str(str(BuriedUse.record(deposit).get(BuriedUse.KEY_ITEM))).is_equal("apple")
+
+
+## `bIT_actor_pit_fall` / `pit_exit`: the trap opens into a hole, then closes to bare ground.
+func test_pitfall_springs_open_then_closes() -> void:
+	var world := _hole_world()
+	var ctx := InteractionContext.new()
+	ctx.world = world
+	var cell := Vector2i(6, 6)
+	HoleUse.dig(ctx, cell, false)
+	BuriedUse.bury(ctx, cell, BuriedUse.PITFALL_ITEM)
+	var hole: Node3D = BuriedUse.spring_pitfall(world, world.grid, cell)
+	assert_object(hole).is_not_null()
+	assert_bool(Game.is_hole(HoleUse.persist_id(cell))).is_true()
+	assert_bool(BuriedUse.is_pitfall(world.grid.occupant_at(cell))).is_false()
+	## Sprung once only.
+	assert_object(BuriedUse.spring_pitfall(world, world.grid, cell)).is_null()
+	BuriedUse.close_pit(world, cell)
+	await await_millis(int(BuriedUse.PIT_CLOSE_TICKS * DecompTime.TICK_SEC * 1000.0) + 400)
+	assert_bool(Game.is_hole(HoleUse.persist_id(cell))).is_false()
+	assert_bool(world.grid.is_occupied(cell)).is_false()
+
+
+func test_bury_tag_needs_a_hole_and_a_scoop() -> void:
+	var inv: Inventory = Game.inventory
+	inv.add(ItemCatalog.get_item(BuriedUse.PITFALL_ITEM), 1)
+	var idx: int = -1
+	for i: int in Inventory.POCKET_SLOTS:
+		var s: InventorySlot = inv.slot_at(i)
+		if s != null and not s.is_empty() and s.item.item_id == BuriedUse.PITFALL_ITEM:
+			idx = i
+	assert_int(idx).is_greater_equal(0)
+	inv.bury_ready = false
+	assert_bool(inv.tags_for_slot(idx).has("Bury")).is_false()
+	inv.bury_ready = true
+	assert_bool(inv.tags_for_slot(idx).has("Bury")).is_true()
+	inv.bury_ready = false

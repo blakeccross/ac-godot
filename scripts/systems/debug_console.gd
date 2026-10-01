@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -119,6 +119,32 @@ func execute(raw: String) -> String:
 			PlayerSe.bee_sting(who)
 			who.run_stung_bee()
 			return "Ouch."
+		"pitfall":
+			## Bury a pitfall under the player; `pitfall auto` also struggles for you.
+			var pit_tree := Engine.get_main_loop() as SceneTree
+			var pit_player := pit_tree.get_first_node_in_group(Player.GROUP) as Player if pit_tree != null else null
+			var pit_world := World.find(pit_tree) if pit_tree != null else null
+			if pit_player == null or pit_world == null:
+				return "Pitfalls need the outdoor field."
+			var pit_ctx := InteractionContext.new()
+			pit_ctx.world = pit_world
+			pit_ctx.actor = pit_player
+			var pit_at: Vector3 = pit_player.global_position
+			if not args.is_empty() and String(args[0]).to_lower() == "villager":
+				var best: Node3D = null
+				for v: Node in pit_tree.get_nodes_in_group("villagers"):
+					var v3 := v as Node3D
+					if v3 != null and v3.is_visible_in_tree() and (best == null or v3.global_position.distance_to(pit_at) < best.global_position.distance_to(pit_at)):
+						best = v3
+				if best == null:
+					return "No villager nearby."
+				pit_at = best.global_position
+			var pit_cell: Vector2i = pit_world.grid.world_to_cell(pit_at)
+			if not HoleUse.dig(pit_ctx, pit_cell, false) or not BuriedUse.bury(pit_ctx, pit_cell, BuriedUse.PITFALL_ITEM):
+				return "Can't bury a pitfall here."
+			if not args.is_empty() and String(args[0]).to_lower() == "auto":
+				pit_player.struggle_assist = 0.1
+			return "Pitfall buried at %s." % pit_cell
 		"clear":
 			return "__clear__"
 		_:
@@ -254,6 +280,7 @@ func _cmd_help() -> String:
 		"  bug <id> [count]  (spawn insects in front of the player)",
 		"  shop [status | sales <n> | visitor | restock | turnips]",
 		"  sting [on|off]  (bee sting, or set the swollen face)",
+		"  pitfall [auto|villager]  (bury one under the player, or the nearest villager)",
 		"  clear / help",
 		"Tab completes. Up/Down recall history.",
 	])
