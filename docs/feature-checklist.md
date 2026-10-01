@@ -242,7 +242,7 @@ data tables before a category is called done.
 - [x] Bury an item in a hole; dig it back up (`mTG_TYPE_FIELD_DEFAULT_BURY`, `bIT_common_hole_throw`) — pockets "Bury" → `BuriedUse.bury` (`KIND_ITEM` shows the crack)
 - [ ] Buried "X" marks / glowing spot: one per day → **fossil** or **bells** or **gyroid** or (after rain) more gyroids (`ac_gyo_kaseki` naming aside — fossils via FG)
 - [ ] Money spot: dig up 100 bells, replant bells (100–30,000) → money tree grows bags of bells once (`m_all_grow` money tree)
-- [x] **Rock**: the money rock — a random rock, re-picked once spent, pays a bag per shovel hit inside a ~13 s window (100 ×3, 1,000 ×3, then 10,000; money-luck fortune one tier up), only onto a free unit beside it (`mAGrw_SetMoneyStone`, `bIT_actor_ten_coin_entryR`) — `MoneyRock`, `rock.gd` (`ply_1_not_dig1` bounce)
+- [x] **Rock**: the money rock — a random rock, re-picked once spent, pays a bag per shovel hit inside a ~6.4 s window (386 ticks) (100 ×3, 1,000 ×3, then 10,000; money-luck fortune one tier up), only onto a free unit beside it (`mAGrw_SetMoneyStone`, `bIT_actor_ten_coin_entryR`) — `MoneyRock`, `rock.gd` (`ply_1_not_dig1` bounce)
 - [ ] Rocks are otherwise immovable obstacles; fake rock? _(GCN: no)_
 - [x] **Pitfall**: bury a pitfall seed in a hole → invisible trap; player/villager falls in (`BURIED_PITFALL_HOLE`, `bIT_actor_pit_*`, `m_player_main_*_pitfall`) — the pit opens under them and closes after
 - [ ] **Gyroids**: ~127 gyroid variants _(verify)_, dug up after rain, wind up as playable furniture that hums/beats with room music (`ac_my_room_melody`, `m_melody`)

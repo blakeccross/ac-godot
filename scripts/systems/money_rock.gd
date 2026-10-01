@@ -4,7 +4,8 @@ extends RefCounted
 ## The money rock (`mAGrw_SetMoneyStone`, `bIT_actor_ten_coin_entryR`). At each renewal, if
 ## the town has no money rock, one ordinary rock becomes one: a random field acre that has
 ## rocks, then a random rock in it. It looks like any other rock. The first shovel hit starts a
-## window of `386 + money power × 0.6` frames (`left_frames`); every hit inside it knocks a
+## window of `386 + money power × 0.6` ticks (`left_frames`, counted down once per 60 Hz
+## play-loop tick: about 6.4 s); every hit inside it knocks a
 ## bag of Bells onto a free unit next to the rock, worth more as the hits go on (100 for hits
 ## 1–3, 1,000 for 4–6, then 10,000). With no free unit around, the hit drops nothing. When the
 ## window runs out the rock is ordinary again until the next renewal picks a new one.
@@ -42,7 +43,7 @@ static func money_power() -> int:
 	return maxi(power, POWER_MIN)
 
 
-## `left_frames`. The money-luck line subtracts the bonus straight back off (`@BUG`).
+## `left_frames` in ticks. The money-luck line subtracts the bonus straight back off (`@BUG`).
 static func window_frames(power: int, money_luck: bool) -> float:
 	var swing: int = power - (100 if money_luck else 0)
 	return WINDOW_FRAMES + float(mini(swing, POWER_MAX)) * POWER_FRAMES
@@ -123,7 +124,7 @@ static func hit(id: StringName, now_msec: int = -1) -> ItemData:
 		_active_id = id
 		_hits = 0
 		var frames: float = window_frames(money_power(), luck)
-		_ends_msec = now + int(frames / DecompTime.FRAME_HZ * 1000.0)
+		_ends_msec = now + int(DecompTime.ticks_to_sec(frames) * 1000.0)
 	else:
 		_hits += 1
 	return ItemCatalog.get_item(payout(_hits, luck))

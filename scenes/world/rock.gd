@@ -79,7 +79,9 @@ func _pay_out(ctx: InteractionContext) -> void:
 ## `ten_coin_move`: once `left_frames` runs out the rock is plain again.
 func _arm_window_end() -> void:
 	var id: StringName = occupant_id
-	var wait: float = MoneyRock.window_frames(MoneyRock.money_power(), Game.destiny() == Game.Destiny.MONEY_LUCK) / DecompTime.FRAME_HZ
+	var wait: float = DecompTime.ticks_to_sec(
+		MoneyRock.window_frames(MoneyRock.money_power(), Game.destiny() == Game.Destiny.MONEY_LUCK)
+	)
 	get_tree().create_timer(wait).timeout.connect(
 		func() -> void:
 			if MoneyRock.is_money_rock(id) and not MoneyRock.window_open():

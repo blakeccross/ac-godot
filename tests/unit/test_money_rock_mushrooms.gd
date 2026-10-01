@@ -57,7 +57,7 @@ func test_money_rock_pays_more_as_the_hits_go_on() -> void:
 	assert_object(MoneyRock.hit(&"rock_3", 0)).is_null()
 	var bags: Array[StringName] = []
 	for i: int in 8:
-		bags.append(MoneyRock.hit(&"rock_4", i * 1000).id)
+		bags.append(MoneyRock.hit(&"rock_4", i * 700).id)
 	assert_str(String(bags[0])).is_equal("money_100")
 	assert_str(String(bags[4])).is_equal("money_1000")
 	assert_str(String(bags[7])).is_equal("money_10000")
