@@ -675,6 +675,19 @@ static func is_sea_attr(attr: int) -> bool:
 	return attr == 24
 
 
+## `l_attribute_action_info[attr] & 7` (`mCoBG_Attribute2CheckPlant`): how far a plant may grow
+## on the unit — 0–4 stages, 7 `mCoBG_KILL_PLANT`. Weeds only take 4 (`mCoBG_PLANT4`).
+const PLANT_CLASS: Array[int] = [
+	4, 2, 0, 7, 4, 2, 0, 7, 7, 7, 0, 0, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0, 0, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 0, 0, 0, 7, 7, 7, 7, 0, 0, 0, 0, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0, 0, 0, 7, 0,
+]
+const PLANT_FULL := 4
+
+
+static func plant_class(attr: int) -> int:
+	return PLANT_CLASS[attr & 0x3F]
+
+
 static func attr_allows_npc(attr: int) -> bool:
 	## `mCoBG_Attr2CheckPlaceNpc` — bit 4 of `l_attribute_action_info[attr]`.
 	## Water / most banks / wave units are false; grass, soil, sand, bridges true.

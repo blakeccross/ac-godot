@@ -131,7 +131,7 @@ data tables before a category is called done.
 - [ ] Hand an item to a villager / receive an item (give / recieve animations) (`m_player_main_give`, `recieve`, `ac_handOverItem`)
 - [ ] Refuse / decline prompt (`m_player_main_refuse`)
 - [ ] Pick fruit vs. shake whole tree distinction
-- [ ] Pluck weeds (`m_player_main_remove_grass`)
+- [x] Pluck weeds (`m_player_main_remove_grass`) — A on a weed: `ZASSOU1`, out on frame 17 with `zassou_nuku`, flies off over the shoulder (`weed.tscn`)
 - [ ] Pick / dig up flowers; pick mushrooms (`m_mushroom`)
 - [ ] Talk to your own reflection / gyroids / pets? (gyroid greeting)
 
@@ -267,7 +267,7 @@ data tables before a category is called done.
 - [ ] Flower breeding: adjacent flowers spawn a new flower, sometimes a **hybrid** colour (black/blue/purple roses, etc.)
 - [ ] Trampled flowers (running) wilt; wilted flowers revive with water or die
 - [ ] Dandelions → puff stage → blow away; four-leaf clovers rare pickup
-- [ ] Weeds: spread daily, faster if you don't play; pull for nothing (or sell tiny); too many → poor rating & villager complaints
+- [~] Weeds: five per renewal day since the last one on free grass units (`mAGrw_SetGrass`, `mCoBG_PLANT4`), so a long absence brings many; pulled for nothing — `WeedUse`; renewals crossed indoors or while away are banked and sown when the field loads. Rating / complaints with the town assessment
 - [ ] Pull-all-weeds errand / Nature Day
 - [ ] Mushrooms: appear in autumn (mid-Oct) around trees/stumps; common + rare + rare furniture; some poisonous-looking (`m_mushroom`, `mEv_EVENT_MUSHROOM_SEASON`)
 - [ ] "Jacob's ladder" & "lily of the valley" spawn only in a perfect-rated town

@@ -172,6 +172,12 @@ var player_yaw: float = 0.0
 var removed_interactables: Array[String] = []
 var stump_interactables: Array[String] = []
 var hole_interactables: Array[String] = []
+## Weeds in the field (`GRASS_A`–`GRASS_C`): `weed_<x>_<z>` → variant 0–2. Saved.
+var weeds: Dictionary = {}
+## `Save.clear_grass`: a wish has cleared the town of weeds; none grow back (saved).
+var clear_grass: bool = false
+## Renewals not yet sown with weeds (crossed indoors or while the game was off). Saved.
+var weed_days_pending: int = 0
 var plant_states: Dictionary = {}
 ## Buried dig spots: persist_id → {kind, item_id, cell_x, cell_z} (`mFI` deposit / shine).
 var buried_deposits: Dictionary = {}
@@ -788,6 +794,13 @@ func resume_clock(elapsed: int) -> void:
 		cheated_flag = true
 
 
+## The renewals waiting for weeds, handed to the field once (`World` sows them).
+func take_weed_days() -> int:
+	var days: int = weed_days_pending
+	weed_days_pending = 0
+	return days
+
+
 ## `mCD_SetResetInfo`: the save was still marked open, so the last session ended without
 ## saving.
 func note_reset(reset_code: int) -> void:
@@ -887,6 +900,9 @@ func reset_session() -> void:
 	removed_interactables.clear()
 	stump_interactables.clear()
 	hole_interactables.clear()
+	weeds.clear()
+	clear_grass = false
+	weed_days_pending = 0
 	plant_states.clear()
 	buried_deposits.clear()
 	player_name = DEFAULT_PLAYER_NAME
@@ -1166,6 +1182,9 @@ func to_save() -> Dictionary:
 		"removed_interactables": removed_interactables.duplicate(),
 		"stump_interactables": stump_interactables.duplicate(),
 		"hole_interactables": hole_interactables.duplicate(),
+		"weeds": weeds.duplicate(),
+		"clear_grass": clear_grass,
+		"weed_days_pending": weed_days_pending,
 		"plants": plant_states.duplicate(true),
 		"buried": buried_deposits.duplicate(true),
 		"world_mode": int(world_mode),
@@ -1245,6 +1264,13 @@ func apply_snapshot(data: Dictionary) -> void:
 			var key := str(entry)
 			if not removed_interactables.has(key):
 				stump_interactables.append(key)
+	weeds.clear()
+	var saved_weeds: Variant = data.get("weeds", {})
+	if typeof(saved_weeds) == TYPE_DICTIONARY:
+		for key: Variant in saved_weeds:
+			weeds[str(key)] = clampi(int(saved_weeds[key]), 0, 2)
+	clear_grass = bool(data.get("clear_grass", false))
+	weed_days_pending = maxi(int(data.get("weed_days_pending", 0)), 0)
 	hole_interactables.clear()
 	var holes: Variant = data.get("hole_interactables", [])
 	if typeof(holes) == TYPE_ARRAY:
@@ -1581,6 +1607,7 @@ func update_notice_board() -> void:
 
 func _on_field_renewed(days: int) -> void:
 	shops.renew(days)
+	weed_days_pending += maxi(days, 0)
 	var vt_rng := RandomNumberGenerator.new()
 	vt_rng.randomize()
 	_check_valentines(vt_rng)

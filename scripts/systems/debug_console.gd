@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -122,6 +122,20 @@ func execute(raw: String) -> String:
 			PlayerSe.bee_sting(who)
 			who.run_stung_bee()
 			return "Ouch."
+		"weeds":
+			## Sow N weeds now (`mAGrw_SetGrass`), or `weeds clear`.
+			var wd_tree := Engine.get_main_loop() as SceneTree
+			var wd_world := World.find(wd_tree) if wd_tree != null else null
+			if wd_world == null:
+				return "Weeds need the outdoor field."
+			if not args.is_empty() and String(args[0]).to_lower() == "clear":
+				WeedUse.clear_all(wd_world, wd_world.grid)
+				return "Weeds cleared."
+			var wd_rng := RandomNumberGenerator.new()
+			wd_rng.randomize()
+			var wd_n: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else WeedUse.PER_DAY
+			var grown: int = WeedUse.grow(wd_world, wd_world.grid, wd_world.layout, wd_n, wd_rng)
+			return "%d weeds sown (%d in town)." % [grown, WeedUse.count()]
 		"resetti":
 			## Mr. Resetti now, as after reset number N (1-8; default the next one).
 			var rs_tree := Engine.get_main_loop() as SceneTree
@@ -303,6 +317,7 @@ func _cmd_help() -> String:
 		"  bug <id> [count]  (spawn insects in front of the player)",
 		"  shop [status | sales <n> | visitor | restock | turnips]",
 		"  sting [on|off|mosquito]  (bee sting, set the swollen face, or a mosquito bite)",
+		"  weeds [n|clear]  (sow weeds now, or clear them all)",
 		"  resetti [1-8]  (Mr. Resetti, as after that many resets)",
 		"  exercise <0-17>  (a radio exercise move)",
 		"  pitfall [auto|villager]  (bury one under the player, or the nearest villager)",

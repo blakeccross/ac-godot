@@ -45,11 +45,13 @@ func _ready() -> void:
 	WorldBuilder.new().build(self, layout, grid)
 	HoleUse.restore(self, grid)
 	BuriedUse.restore(self, grid)
+	WeedUse.restore(self, grid)
 	PlantGrowth.restore(self, grid)
 	PlantGrowth.assign_special_trees(self)
 	## First outdoor load seeds dig spots like `mAGrw_GROW_FIRST` deposit.
 	if Game.buried_deposits.is_empty():
 		BuriedUse.renew(self, grid)
+	_sow_weeds()
 	fish.configure(grid, WorldBuilder.water_surface_y(), layout)
 	bugs.configure(grid, layout)
 	if layout.mode == WorldData.Mode.TEST:
@@ -242,6 +244,20 @@ func _on_field_renewed(_days: int) -> void:
 	PlantGrowth.refresh_world(self)
 	PlantGrowth.cull_dead_flowers(self, grid)
 	BuriedUse.renew(self, grid)
+	_sow_weeds()
+
+
+## `mAGrw_SetGrass` for every renewal since the field last saw one (after the deposits are
+## laid, so weeds never sit on a dig spot).
+func _sow_weeds() -> void:
+	if Game.title_demo_active or Game.intro_station_active:
+		return
+	var days: int = Game.take_weed_days()
+	if days <= 0:
+		return
+	var weed_rng := RandomNumberGenerator.new()
+	weed_rng.randomize()
+	WeedUse.grow(self, grid, layout, WeedUse.amount_for(days), weed_rng)
 
 
 func _on_season_changed(_season: Clock.Season) -> void:
