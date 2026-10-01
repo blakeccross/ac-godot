@@ -617,7 +617,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 ## 33. UI, menus, misc systems
 
 - [ ] Start / pause menu: map, inventory, diary?, options
-- [ ] **Diary** — auto-written daily log of notable events (`m_diary`, `m_diary_ovl`)
+- [~] **Diary** — the player writes it: a page per month (31 lines, 992 characters) on the disc's three-sheet page with the month tab, scrolled while reading and rolled to the line while writing, opened by "Read" on any of the sixteen notebooks in your own rooms (`m_diary_ovl`, `aMR_CheckDiaryOnMe`) — `DiaryOverlay`. Missing: the calendar page it opens through (`m_calendar_ovl`), and the notebook having to sit on a table
 - [ ] Held **map** item / pause map with acre labels, building icons, your house
 - [ ] HUD clock (optional), bells display when relevant
 - [ ] Options: text speed, TV/audio mode (mono/stereo/surround), rumble, screen position, brightness (`initial_menu.c`)

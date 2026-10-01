@@ -26,6 +26,7 @@ from .mapfile import parse_map
 from .rel import RelData
 from .texbank import image_png_bytes
 from .texbank import G_IM_FMT_CI, G_IM_SIZ_4b
+from .texbank import G_IM_FMT_IA as _IA, G_IM_SIZ_8b as _8B, GX_MIRROR as _MIRROR
 from .ui_gbi import Op, TexRef, TextureCache, UiWalker, bake_layer, rasterize
 
 OUT_DIR_NAME = "menu"
@@ -140,6 +141,18 @@ LAYERS: dict[str, list[Op]] = {
 	"nt_prev": [Op("kei_hyouji_model", draw=False), Op("kei_win_yaji1T_mode"), Op("kei_win_yaji2T_model")],
 	**{f"nt_st{n}": [Op("kei_hyouji_model", draw=False), Op("kei_win_stT_model", segments={8: f"kei_win_st{n}_tex_rgb_ia8"})]
 		for n in range(1, 7)},
+	# `mDI_set_frame_dl` (`m_diary_ovl.c`): the diary is three sheets stacked down the page
+	# (the runtime draws the second 194 and the third 358 units lower), the month tab
+	# (`dia_win_tukiT_model` over the month's 64×16 IA8 word) and the month caption, all at the
+	# origin.
+	"dia_w1": [Op("dia_init_mode_letter"), Op("dia_win_wT_model"), Op("dia_win_fusenT_model")],
+	"dia_w2": [Op("dia_init_mode_letter"), Op("dia_win2_wT_model"), Op("dia_win2_fusenT_model")],
+	"dia_w3": [Op("dia_init_mode_letter"), Op("dia_win3_wT_model"), Op("dia_win3_fusenT_model")],
+	"dia_moji": [Op("dia_init_mode_letter"), Op("dia_win_moji_model")],
+	**{f"dia_m{i + 1}": [Op("dia_init_mode_letter"), Op("dia_win_tukiT_model", tiles={0: TexRef(
+		f"dia_win_{m}_tex_rgb_ia8", 64, 16, _IA, _8B, wrap_s=_MIRROR, wrap_t=_MIRROR)})]
+		for i, m in enumerate(("january", "february", "march", "april", "may", "june", "july", "august",
+			"september", "october", "november", "december"))},
 }
 
 ADDRESS_MAX_ENTRIES = 8

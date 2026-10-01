@@ -45,6 +45,11 @@ var _board_text: Vector2 = HBOARD_TEXT
 var _board_color: Color = HBOARD_COLOR
 var _board_frame: bool = true
 var _board_prompt: int = EditEndPrompt.Kind.BOARD
+## Board mode on a tall page (the diary): the text rolls like the letter paper
+## (`mBD_roll_control`) and `_board_roll_cb(offset)` hears where to, so the caller's
+## page underneath moves with it.
+var _board_roll_cb: Callable = Callable()
+var _board_roll: float = 0.0
 ## `mBD_roll_control`.
 var _center_line: int = 2
 var _roll_speed: float = 1.0
@@ -119,6 +124,10 @@ func open_board(
 	_board_color = style.get("color", HBOARD_COLOR)
 	_board_frame = bool(style.get("frame", true))
 	_board_prompt = int(style.get("prompt", EditEndPrompt.Kind.BOARD))
+	_board_roll_cb = style.get("roll", Callable())
+	_board_roll = 0.0
+	_center_line = 2
+	_roll_speed = 1.0
 	_lines = PackedStringArray(initial.split("\n")) if initial != "" else PackedStringArray([""])
 	while _lines.size() > _max_lines:
 		_lines.remove_at(_lines.size() - 1)
@@ -158,6 +167,7 @@ func open(recipient: Dictionary, paper_type: int) -> void:
 	_max_lines = MAX_LINES
 	_max_len = -1
 	_board_cb = Callable()
+	_board_roll_cb = Callable()
 	_recipient = recipient
 	_paper_type = LetterChrome.clamp_paper_type(paper_type)
 	_lines = PackedStringArray([""])
@@ -192,6 +202,7 @@ func close() -> void:
 	set_process(false)
 	set_process_unhandled_input(false)
 	_board_cb = Callable()
+	_board_roll_cb = Callable()
 	closed.emit()
 
 
@@ -342,8 +353,17 @@ func _refresh() -> void:
 ## the paper chases `(center - 2) * 16`, doubling speed (max 4) while far away.
 func _process(_delta: float) -> void:
 	if _is_hboard():
+		if _board_roll_cb.is_valid():
+			_board_roll = _rolled(_board_roll)
+			_board_roll_cb.call(_board_roll)
 		_marks.queue_redraw()
 		return
+	_board.position_y = _rolled(_board.position_y)
+	_marks.queue_redraw()
+
+
+## One step of `mBD_roll_control` from `position`.
+func _rolled(position: float) -> float:
 	var line := _lines.size() - 1 + 2
 	var dist := line - _center_line
 	if dist < -2:
@@ -353,16 +373,14 @@ func _process(_delta: float) -> void:
 		_center_line = line - 2
 		_roll_speed = 1.0
 	var target := float((_center_line - 2) * 16)
-	var gap := absf(target - _board.position_y)
+	var gap := absf(target - position)
 	if gap > 0.1:
 		if gap > 9.0:
 			_roll_speed = minf(_roll_speed * 2.0, 4.0)
 		elif gap < 7.0:
 			_roll_speed = maxf(_roll_speed * 0.5, 1.0)
-		_board.position_y = move_toward(_board.position_y, target, _roll_speed)
-	else:
-		_board.position_y = target
-	_marks.queue_redraw()
+		return move_toward(position, target, _roll_speed)
+	return target
 
 
 ## Cursor (`mBD_set_cursol` / `mED_cursol_draw`) and the end mark (`mED_endCode_draw`)
@@ -377,12 +395,14 @@ func _draw_marks() -> void:
 	var x0: float
 	if _is_hboard():
 		var asc := font.get_ascent(FONT_PX)
+		var roll: float = _board_roll if _board_roll_cb.is_valid() else 0.0
 		for i in _lines.size():
-			if _lines[i] != "":
-				_marks.draw_string(font, _board_text + Vector2(0, 16 * i + asc), _lines[i],
+			var y: float = _board_text.y + 16 * i - roll
+			if _lines[i] != "" and y > -16.0 and y < 240.0:
+				_marks.draw_string(font, Vector2(_board_text.x, y + asc), _lines[i],
 					HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX, _board_color)
 		x0 = _board_text.x
-		top = _board_text.y + 16 * last
+		top = _board_text.y + 16 * last - roll
 	else:
 		x0 = LetterBoard.TEXT_X
 		top = _board.body_line_top(last)

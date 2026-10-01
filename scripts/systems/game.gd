@@ -209,6 +209,8 @@ var snowman_msg_id: int = 0
 var snowballs: Dictionary = {}
 ## `Private.sunburn`: {rank 0–8, changed (day number of the last change), hold (days)}.
 var sunburn: Dictionary = {"rank": 0, "changed": -1, "hold": 0}
+## The diary (`mCD_keep_diary_c`): month 1–12 → that month's page. Saved.
+var diary: Dictionary = {}
 var plant_states: Dictionary = {}
 ## Buried dig spots: persist_id → {kind, item_id, cell_x, cell_z} (`mFI` deposit / shine).
 var buried_deposits: Dictionary = {}
@@ -1002,6 +1004,7 @@ func reset_session() -> void:
 	snowballs.clear()
 	sunburn = {"rank": 0, "changed": -1, "hold": 0}
 	Sunburn.reset_session()
+	diary.clear()
 	plant_states.clear()
 	buried_deposits.clear()
 	player_name = DEFAULT_PLAYER_NAME
@@ -1299,6 +1302,7 @@ func to_save() -> Dictionary:
 		"snowman_built_minute": snowman_built_minute,
 		"snowballs": snowballs.duplicate(true),
 		"sunburn": sunburn.duplicate(),
+		"diary": diary.duplicate(),
 		"plants": plant_states.duplicate(true),
 		"buried": buried_deposits.duplicate(true),
 		"world_mode": int(world_mode),
@@ -1422,6 +1426,13 @@ func apply_snapshot(data: Dictionary) -> void:
 		sunburn["changed"] = int((saved_tan as Dictionary).get("changed", -1))
 		sunburn["hold"] = clampi(int((saved_tan as Dictionary).get("hold", 0)), 0, Sunburn.HOLD_DAYS)
 	Sunburn.reset_session()
+	diary.clear()
+	var saved_diary: Variant = data.get("diary", {})
+	if typeof(saved_diary) == TYPE_DICTIONARY:
+		for key: Variant in saved_diary:
+			var m: int = int(key)
+			if m >= 1 and m <= 12:
+				diary[m] = DiaryOverlay.clip(str(saved_diary[key]))
 	hole_interactables.clear()
 	var holes: Variant = data.get("hole_interactables", [])
 	if typeof(holes) == TYPE_ARRAY:

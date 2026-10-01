@@ -22,6 +22,8 @@ static func actions(host: Node, ctx: InteractionContext) -> Array[Interaction]:
 		var powered: bool = entry == null or entry.on
 		var verb: String = "Turn off %s" if powered else "Turn on %s"
 		out.append(Interaction.of(Interaction.TOGGLE, verb % label, 7))
+	if data != null and is_diary(data) and _diary_open_here():
+		out.append(Interaction.of(Interaction.READ, "Read %s" % label, 9))
 	if data != null and _can_take(data, entry):
 		out.append(Interaction.of(Interaction.TAKE, "Take from %s" % label, 10))
 	elif data != null and _can_display(data, ctx):
@@ -44,6 +46,8 @@ static func apply(action: Interaction, host: Node, ctx: InteractionContext) -> b
 	match action.id:
 		Interaction.OPEN:
 			return await FurnitureTalk.run(host, ctx)
+		Interaction.READ:
+			return open_diary(host)
 		Interaction.TOGGLE:
 			return toggle(pid)
 		Interaction.DISPLAY:
@@ -56,6 +60,25 @@ static func apply(action: Interaction, host: Node, ctx: InteractionContext) -> b
 			return Game.rotate_furniture(pid)
 		_:
 			return false
+
+
+## `ITM_DIARY00`–`15`: the notebooks (`ftr_diary` list, `mRmTp_*` FTR_NOG_COLLEGENOTE…).
+static func is_diary(data: FurnitureData) -> bool:
+	return data != null and FtrCatalog.list("ftr_diary").has(data.id)
+
+
+## `aMR_CheckDiaryOnMe`: only in one of the player's own rooms.
+static func _diary_open_here() -> bool:
+	var session: IndoorSession = Game.interior_session
+	return session != null and session.room != null and PlayerHouse.is_player_room(session.room.id)
+
+
+static func open_diary(host: Node) -> bool:
+	var ui: Node = host.get_tree().get_first_node_in_group("diary_ui") if host != null and host.get_tree() != null else null
+	if ui == null or not ui.has_method("open") or bool(ui.call("is_open")):
+		return false
+	ui.call("open")
+	return true
 
 
 static func _from_front(ctx: InteractionContext) -> bool:

@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -153,6 +153,18 @@ func execute(raw: String) -> String:
 				return "No money rock today."
 			var mr_rocks: Dictionary = MoneyRock.field_rocks(mr_world)
 			return "Money rock: %s in acre %s." % [Game.money_rock, mr_rocks.get(StringName(Game.money_rock), "?")]
+		"diary":
+			## Open the diary on a month (`diary 4`), or write a line into one first
+			## (`diary 4 Went fishing all day.`).
+			var di_tree := Engine.get_main_loop() as SceneTree
+			var di_ui: Node = di_tree.get_first_node_in_group("diary_ui") if di_tree != null else null
+			if di_ui == null:
+				return "No diary screen here."
+			var di_month: int = clampi(int(args[0]), 1, 12) if not args.is_empty() and String(args[0]).is_valid_int() else Clock.month
+			if args.size() > 1:
+				Game.diary[di_month] = DiaryOverlay.clip(" ".join(args.slice(1)))
+			di_ui.call("open", di_month)
+			return "Diary: month %d." % di_month
 		"tan":
 			## Set the sunburn rank 0–8 (`mPr_sunburn_c`) and repaint the face.
 			if args.is_empty() or not String(args[0]).is_valid_int():
