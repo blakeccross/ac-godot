@@ -248,7 +248,7 @@ data tables before a category is called done.
 - [ ] **Gyroids**: ~127 gyroid variants _(verify)_, dug up after rain, wind up as playable furniture that hums/beats with room music (`ac_my_room_melody`, `m_melody`)
 - [ ] **Fossils**: dig up unidentified → Blathers assesses → real fossil (donate or sell); fossil groups (T. rex, mammoth, etc.) _(verify count, ~25 items)_
 - [ ] Shovel reflects with a clang off stone / the museum wall / certain FG (`reflect_scoop`)
-- [ ] Groundhog Day: dig near the shrine? (`ac_groundhog_control`, `ac_ghog`)
+- [x] Groundhog Day: no digging. `ac_ghog` is the shrine-acre stand and Resetti the groundhog (see §Events)
 
 ## 15. Plants & flora
 
@@ -571,7 +571,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [x] Festival presenter: props, residents in their map slots (`data/events/event_map.json`, `FestivalCrowd`) with their slot's animations and talk, hidden from the field meanwhile
 
 - [x] New Year's Day — shrine crowd, Katrina's lottery, Tortimer. Missing: the hatsumōde queue choreography (`ac_hatumode_control`)
-- [x] Groundhog Day — crowd lines by minutes to 8:00, Tortimer's 8:00 speech and weather verdict. Missing: the groundhog pop-up demo
+- [x] Groundhog Day — crowd lines by minutes to 8:00; ten seconds after 8:00 the "groundhog", Mr. Resetti, pops up on the shrine acre with his weather line (`ac_ev_majin`, `aGHC_birth_reset`), then Tortimer's speech and weather verdict — `GroundhogResetti`, `SpeechTortimer`. Missing: the event title card and BGM handoff
 - [ ] Valentine's Day (Feb 14) — chocolate from a villager
 - [x] Snowman season / Kamakura — snow cabin with a resident guest (greeting game, Kamakura trade list); the snowman balls (`snowman_start`, `SnowmanPresenter`)
 - [~] Spring / Fall **Sports Fair** — residents in gym clothes at their stations with their lines; Tortimer. Missing: the foot race / ball toss / tug-of-war games themselves
