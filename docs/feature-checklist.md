@@ -85,20 +85,20 @@ data tables before a category is called done.
 - [ ] Suntan / sunburn from staying out in summer; fades over time
 - [ ] Hair style / colour set by creation questions (no salon in GCN)
 - [ ] Clothing: equipped shirt shows on model; hats; accessories/glasses; umbrella held in rain (`m_player_item_umbrella`) — umbrella done (see Umbrella)
-- [ ] Change clothes anywhere from pockets (`m_player_main_change_cloth`, `ef_kigae`)
+- [x] Change clothes anywhere from pockets — "Wear" swaps inside the menu (`Game.wear_cloth_from_slot`). `m_player_main_change_cloth` / `ef_kigae` is the shop try-on and the Halloween prank, not the pockets
 - [x] Pockets = **15 item slots** + separate wallet (`m_private` `mPr_POCKETS_SLOT_COUNT`) — `inventory.gd` (duplicate of the line below, kept in sync)
 - [ ] Carrying a piece of furniture / large item in hands (walk slower) (`m_player_main_hold`, `pickup_furniture`)
 - [x] Trip / stumble when running into things or on ants (`m_player_main_tumble`, `stung`) — `player.gd` `TUMBLE` gaits + `_tumble_events`
 - [x] Fall in a pitfall; struggle out (`m_player_main_fall_pitfall`, `struggle_pitfall`, `climbup_pitfall`) — `Player.run_pitfall`; seeds are buried with the pockets' "Bury" (shovel + hole, `mTG_TYPE_FIELD_DEFAULT_BURY`) into `BuriedUse` `KIND_PITFALL`; villagers fall in too and climb out when talked to (`aNPC_act_pitfall` / `revive`)
 - [x] Get stung by bees → swollen face; villagers react (`m_player_main_stung_bee`, `notice_bee`, `mNpc_SetTalkBee`) — `Player.run_stung_bee`, `PlayerFace`, `Game.bee_*`, `DialogueGreeting` `BEE_STUNG` / `BEE_CHASE`. The swell lasts until the game is reset (common data); GCN has no medicine
-- [ ] Mosquito bites in summer (`ac_ins_ka`, `stung_mosquito`)
-- [ ] Tired / sleepy animations late at night (`m_player_main_tired`, `ef_ikigire`, `ef_neboke`)
+- [x] Mosquito bites in summer (`ac_ins_ka`, `stung_mosquito`, `notice_mosquito`) — `BugKa` bite → `BugField.take_bite` → `Player.run_stung_mosquito` (`MSG_12387`)
+- [ ] ~~Tired / sleepy animations late at night~~ — GCN `m_player_main_tired` only follows `wash_car`; there is no late-night tiredness
 - [~] Push / pull furniture and snowballs (`m_player_main_push`, `push_snowball`) — furniture done (`FurnitureGrip`); snowballs not yet
 - [x] Sit on benches/chairs (`m_player_main_sitdown`) — `FurnitureSeat`
 - [~] Lie in bed / roll in bed / stand up from bed → save (`m_player_main_lie_bed`, `roll_bed`) — in/out of bed and the bed wait done; rolling not yet
 - [x] Wade across acre borders (`m_player_main_wade`) — `AcreWade`, `Player._begin_wade`
-- [ ] Radio-exercise / morning aerobics participation (`m_player_main_radio_exercise`)
-- [ ] Emotions / reactions system — expressions triggered from a menu (`ef_warau`, `ef_naku`, `ef_pun`, manpu) — _(GCN set, verify list)_
+- [x] Radio-exercise / morning aerobics participation (`m_player_main_radio_exercise`) — `RadioExercise` C-stick patterns (right stick or I/J/K/L) → `Player.run_radio_exercise`, on the shrine acre during aerobics or by the aerobics radio
+- [ ] ~~Emotions menu~~ — GCN has no player emotion menu (later games); `ef_warau` / `ef_naku` / `ef_pun` are villager manpu, done with dialogue
 
 ## 6. Camera
 

@@ -47,6 +47,8 @@ var _field_action: Dictionary = {"kind": 0, "cell": Vector2i(-1, -1)}
 const TOOL_SWING_SECONDS := 0.25
 
 
+var _bite_pending: bool = false
+
 func configure(grid: WorldGrid, layout: WorldData) -> void:
 	_grid = grid
 	_layout = layout
@@ -105,6 +107,13 @@ func take_field_action() -> Dictionary:
 	return out
 
 
+## `mPlib_request_main_stung_mosquito_type1`: a mosquito bit the player this tick.
+func take_bite() -> bool:
+	var bit: bool = _bite_pending
+	_bite_pending = false
+	return bit
+
+
 func tick(delta: float, sense: BugActor.Sense) -> void:
 	if _tool_swing > 0.0:
 		sense.player_swung_tool = true
@@ -130,6 +139,9 @@ func _frame(sense: BugActor.Sense) -> void:
 	for actor: BugActor in actors:
 		if not actor.finished:
 			actor.frame(sense)
+			if actor.flag == BugKa.BIT:
+				actor.flag = 0
+				_bite_pending = true
 	_cull_distant(sense)
 	var kept: Array[BugActor] = []
 	for actor: BugActor in actors:

@@ -31,6 +31,10 @@ func _physics_process(delta: float) -> void:
 			return
 	var sense: BugActor.Sense = _make_sense()
 	_field.tick(delta, sense)
+	if _field.take_bite():
+		var player := Player.find(get_tree())
+		if player != null:
+			player.run_stung_mosquito()
 	_sync(delta)
 
 

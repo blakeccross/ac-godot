@@ -73,6 +73,10 @@ const STRUGGLE_PRESSES := 20.0
 const STRUGGLE_SPEED_MIN := 0.5
 const STRUGGLE_SPEED_DECAY := 0.00435
 const STRUGGLE_SPEED_EASE := 0.10875
+## `m_player_main_stung_mosquito` (`MOSQUITO1`) → `notice_mosquito` (`MOSQUITO2` + report).
+const ANIM_MOSQUITO1 := "ply_1_mosquito1"
+const ANIM_MOSQUITO2 := "ply_1_mosquito2"
+const MOSQUITO_NOTICE_MSG := 0x3063
 ## Any stick past this gets you up (`Player_actor_GetController_move_percentX/Y`).
 const REST_STAND_STICK := 0.1
 ## `furniture_push` / `furniture_pull` cKF at half speed: 24 frames of 30 Hz.
@@ -136,6 +140,10 @@ var _hold_anim: StringName = &""
 ## `mPlib_check_player_actor_main_index_catch_insect` / `_catch_fish`: pulling in and showing
 ## a bug or fish — villagers nearby clap (`aNPC_check_clap`).
 var catch_showing: bool = false
+var _radio := RadioExercise.new()
+var _radio_steps := FrameStepper.new()
+## Doing a radio exercise (`mPlayer_INDEX_RADIO_EXERCISE`).
+var exercising: bool = false
 ## Inside `Stung_bee` / `Notice_bee` (`mPlib_Check_end_stung_bee` is its fall).
 var stung: bool = false
 ## Between stepping on a pitfall and climbing out of it.
@@ -381,6 +389,7 @@ func _physics_process(delta: float) -> void:
 	elif not _busy and scripted_input == null and not _net.is_active():
 		_poll_furniture_pickup()
 		_poll_pitfall()
+		_poll_radio_exercise(delta)
 		_poll_rest(delta)
 	var bg: Array = _bg()
 	var on_bg: bool = _snap_to_bg()
@@ -2188,6 +2197,128 @@ func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
 		return
 	ui.say(text)
 	await ui.closed
+
+
+## `Stung_mosquito` → `Notice_mosquito`: slap at the bite (`MOSQUITO1`), then scratch it
+## (`MOSQUITO2`) turning to the camera under the "Yow!" report and the bee-stung jingle.
+## Not while busy or in a demo (`Player_actor_Check_is_demo_mode`).
+func run_stung_mosquito() -> void:
+	if _busy or stung or in_pitfall or _door_entering or Game.title_demo_active:
+		return
+	stung = true
+	_busy = true
+	set_cutscene_driven(true)
+	var clip: String = _start_one_shot(ANIM_MOSQUITO1)
+	while _clip_running(clip):
+		await get_tree().process_frame
+	_start_one_shot(ANIM_MOSQUITO2)
+	var turning := true
+	var steps := FrameStepper.new()
+	var ui := DialogueOverlay.find(get_tree())
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % MOSQUITO_NOTICE_MSG))
+	var prior_bgm: StringName = EventManager.demo_bgm
+	EventManager.demo_bgm = &"bee_stung"
+	Audio.play_bgm(&"bee_stung")
+	if ui != null and data != null:
+		var ctx: DialogueContext = DialogueContext.from_game()
+		ctx.speaker_name = ""
+		ctx.voice_mode = DialogueVoice.Mode.CLICK
+		ctx.window_color = BEE_NOTICE_COLOR
+		ui.play(data, ctx)
+		while ui.is_open():
+			await get_tree().process_frame
+			if turning:
+				steps.add(get_process_delta_time())
+				while steps.next():
+					_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW)
+					_mesh.rotation.y = _motor.facing
+	else:
+		Game.post_notice("You got bitten by a mosquito!")
+	EventManager.demo_bgm = prior_bgm if prior_bgm != &"bee_stung" else &""
+	var world: World = World.find(get_tree())
+	if world != null:
+		world.call("_play_outdoor_bgm")
+	set_cutscene_driven(false)
+	play_wait_idle()
+	_busy = false
+	stung = false
+
+
+## `m_player_main_wait`: the C-stick is logged every tick while standing (the right stick,
+## or I / J / K / L), and a finished pattern starts that exercise.
+func _poll_radio_exercise(delta: float) -> void:
+	if exercising:
+		return
+	_radio_steps.add(delta)
+	var standing: bool = _motor.gait() == PlayerLocomotion.Gait.WAIT
+	while _radio_steps.next():
+		_radio.log_command(RadioExercise.direction(_c_stick()) if standing and _radio_able() else -1)
+		var start: int = _radio.step(standing)
+		if start >= 0:
+			run_radio_exercise(start)
+			return
+
+
+## `Player_actor_Check_AbleRadioExercise`: empty hands, and either the aerobics event on the
+## shrine acre or (only when no such event runs) the aerobics radio playing in this room.
+func _radio_able() -> bool:
+	if Game.inventory != null and Game.inventory.equipment_id != &"":
+		return false
+	var manager := EventManager.find(get_tree())
+	if manager != null and (manager.is_running(&"morning_aerobics") or manager.is_running(&"sports_fair_aerobics")):
+		var bg: Array = _bg()
+		if bg.is_empty():
+			return false
+		var cell: Vector2i = (bg[1] as WorldGrid).world_to_cell(global_position)
+		return FieldCollision.acre_type_at(bg[0] as WorldData, cell) == TownFieldGenerator.T_SHRINE
+	var session: IndoorSession = Game.interior_session
+	return session != null and session.room != null \
+		and FurnitureMusic.active_bgm(session.room) == FurnitureMusic.AEROBICS_BGM
+
+
+## The GameCube C-stick, y up: the right stick, or I / J / K / L.
+func _c_stick() -> Vector2:
+	var v := Vector2(Input.get_joy_axis(0, JOY_AXIS_RIGHT_X), -Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y))
+	var keys := Vector2(
+		float(Input.is_physical_key_pressed(KEY_L)) - float(Input.is_physical_key_pressed(KEY_J)),
+		float(Input.is_physical_key_pressed(KEY_I)) - float(Input.is_physical_key_pressed(KEY_K))
+	)
+	if keys != Vector2.ZERO:
+		return keys.normalized()
+	return v
+
+
+## `Radio_exercise`: play the move at its speed, keep logging the stick, and from 24 frames
+## before the end pick up the next move; one waiting when the clip ends follows straight on.
+func run_radio_exercise(cmd: int) -> void:
+	if exercising or cmd < 0 or cmd >= RadioExercise.CLIPS.size():
+		return
+	exercising = true
+	_busy = true
+	set_cutscene_driven(true)
+	while cmd >= 0:
+		_radio.begin()
+		var clip: String = _start_one_shot(RadioExercise.CLIPS[cmd], 0.12)
+		if clip.is_empty():
+			break
+		## cKF frames per tick → clip rate (the bake runs at 30 fps = 0.5 per tick).
+		_anim.speed_scale = RadioExercise.SPEED[cmd] / 0.5
+		var length: float = _clip_length(clip)
+		var steps := FrameStepper.new()
+		while _clip_running(clip):
+			await get_tree().process_frame
+			steps.add(get_process_delta_time())
+			var left_frames: float = (length - _anim.current_animation_position) * DecompTime.FRAME_HZ
+			while steps.next():
+				_radio.log_command(RadioExercise.direction(_c_stick()) if _radio_able() else -1)
+				if left_frames <= 24.0:
+					_radio.step(false)
+		cmd = _radio.pending if _radio.pending >= 0 and _radio.pending_timer <= 0.0 else -1
+	_anim.speed_scale = 1.0
+	set_cutscene_driven(false)
+	play_wait_idle()
+	_busy = false
+	exercising = false
 
 
 ## `Player_actor_check_pitfall` (walk / run / wait states): standing within 19 GX of the

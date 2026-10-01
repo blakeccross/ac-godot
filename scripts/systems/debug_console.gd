@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -116,9 +116,21 @@ func execute(raw: String) -> String:
 			var who := sting_tree.get_first_node_in_group(Player.GROUP) as Player if sting_tree != null else null
 			if who == null:
 				return "No player in this scene."
+			if mode == "mosquito":
+				who.run_stung_mosquito()
+				return "Itchy."
 			PlayerSe.bee_sting(who)
 			who.run_stung_bee()
 			return "Ouch."
+		"exercise":
+			## Play radio exercise move 0-17 (`mPlayer_RADIO_EXERCISE_CMD*`).
+			var ex_tree := Engine.get_main_loop() as SceneTree
+			var ex_player := ex_tree.get_first_node_in_group(Player.GROUP) as Player if ex_tree != null else null
+			if ex_player == null:
+				return "No player in this scene."
+			var ex_cmd: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else 0
+			ex_player.run_radio_exercise(ex_cmd)
+			return "Exercise %d." % ex_cmd
 		"pitfall":
 			## Bury a pitfall under the player; `pitfall auto` also struggles for you.
 			var pit_tree := Engine.get_main_loop() as SceneTree
@@ -279,7 +291,8 @@ func _cmd_help() -> String:
 		"  fortune [normal|popular|unpopular|bad_luck|money_luck|goods_luck]",
 		"  bug <id> [count]  (spawn insects in front of the player)",
 		"  shop [status | sales <n> | visitor | restock | turnips]",
-		"  sting [on|off]  (bee sting, or set the swollen face)",
+		"  sting [on|off|mosquito]  (bee sting, set the swollen face, or a mosquito bite)",
+		"  exercise <0-17>  (a radio exercise move)",
 		"  pitfall [auto|villager]  (bury one under the player, or the nearest villager)",
 		"  clear / help",
 		"Tab completes. Up/Down recall history.",
