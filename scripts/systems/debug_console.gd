@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -159,6 +159,31 @@ func execute(raw: String) -> String:
 			var fs_cut: Vector2i = ShopGoods.tier_cutoffs(Game.goods_power)
 			return "Money power %d, goods power %d (Nook: rare %d%%, uncommon %d%%)." % [
 				Game.money_power, Game.goods_power, fs_cut.x, fs_cut.y - fs_cut.x]
+		"mom":
+			## Mom writes now: today's dated letter if there is one, else an everyday letter
+			## (`mom 0x151` for a given one).
+			var mm_rng := RandomNumberGenerator.new()
+			mm_rng.randomize()
+			var mm_pick: Dictionary = MotherMail.dated(Clock.month, Clock.day, VillagerTalkManager.birthday(),
+				MotherMail.holiday(Clock.year, Clock.month, Clock.day), mm_rng)
+			if not args.is_empty():
+				var mm_no: int = String(args[0]).hex_to_int() if String(args[0]).begins_with("0x") else int(args[0])
+				var mm_idx: int = mm_no - MotherMail.MSG_NORMAL
+				mm_pick = {"msg": mm_no, "present": MotherMail.normal_present(mm_idx, mm_rng) if mm_idx >= 0 and mm_idx < MotherMail.NORMAL_COUNT else &""}
+			elif mm_pick.is_empty():
+				var mm_left: Array[int] = MotherMail.normal_left(Game.mother_mail)
+				var mm_n: int = mm_left[mm_rng.randi_range(0, mm_left.size() - 1)] if not mm_left.is_empty() else 0
+				mm_pick = {"msg": MotherMail.MSG_NORMAL + mm_n, "present": MotherMail.normal_present(mm_n, mm_rng)}
+			var mm_mail: MailData = MotherMail.letter(int(mm_pick["msg"]), StringName(mm_pick["present"]),
+				MotherMail.paper(Clock.month, Clock.day, VillagerTalkManager.birthday()), Game.player_name)
+			if mm_mail == null or not Game.deliver_to_mailbox(mm_mail):
+				return "Mom couldn't write (no mail bank or the mailbox is full)."
+			var mm_tree := Engine.get_main_loop() as SceneTree
+			var mm_reader: Node = mm_tree.get_first_node_in_group("letter_reader_ui") if mm_tree != null else null
+			if mm_reader != null:
+				mm_reader.call("open", mm_mail)
+			return "Letter 0x%X from Mom in the mailbox%s." % [int(mm_pick["msg"]),
+				(" with %s" % mm_mail.present_item_id) if mm_mail.present_item_id != &"" else ""]
 		"birthday":
 			## `birthday` opens the "When's your birthday?" picker; `birthday visit [rod|net]`
 			## sends the present visitor to the player now; `birthday cards` mails the cards.

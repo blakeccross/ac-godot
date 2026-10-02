@@ -533,7 +533,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [~] Uniform shirt (`shirt_016`) worn during the job — `first_job.gd`
 - [ ] Post-job: Nook thanks you, explains the loan, catalog, stock
 - [ ] Tutorial letters from Tortimer / mom (starting items, "welcome to town")
-- [ ] Mom & Dad send letters + gifts periodically (birthday, holidays, first month)
+- [x] Mom (and once a year Dad) write (`mPr_SendMailFromMother`): on the birthday with a cake, on 1/1 … 12/12, April Fools', Mother's / Father's Day and Christmas Eve; otherwise a 1-in-5 chance a day of one of 56 everyday letters, some with a present, and a seasonal letter once those run out — on the month's own paper — `MotherMail`
 
 ## 30. Special visitors & recurring NPCs
 

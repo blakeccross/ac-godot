@@ -68,6 +68,8 @@ var celebrated_birthday_year: int = 0
 var birthday_present_npc: StringName = &""
 ## `EventDates.ordinal` of the last birthday-card check (the last play date).
 var birthday_card_day: int = 0
+## Mom's letters (`mPr_mother_mail_info_c`): the last day checked and which went out. Saved.
+var mother_mail: Dictionary = MotherMail.new_state()
 var relationships: RelationshipBook = RelationshipBook.new()
 var interiors: InteriorBook = InteriorBook.new()
 var shops: ShopBook = ShopBook.new()
@@ -745,6 +747,18 @@ func _check_birthday_cards(rng: RandomNumberGenerator) -> void:
 		post_notice("You've got mail!")
 
 
+## `mPr_SendMailFromMother`: Mom writes, at most once a day.
+func _check_mother_mail(rng: RandomNumberGenerator) -> void:
+	var holiday: StringName = MotherMail.holiday(Clock.year, Clock.month, Clock.day)
+	var sent: int = MotherMail.check(
+		mother_mail, EventDates.ordinal(Clock.year, Clock.month, Clock.day), VillagerTalkManager.birthday(),
+		holiday, player_name, rng,
+		func(mail: MailData) -> bool: return inventory.add_received_mail(mail) >= 0 or post.receipt_mail(mail)
+	)
+	if sent >= 0:
+		post_notice("You've got mail!")
+
+
 ## `mQst_SendRemail`: the contest-letter reply goes to the home mailbox only.
 func deliver_to_mailbox(mail: MailData) -> bool:
 	return inventory.add_received_mail(mail) >= 0
@@ -1018,6 +1032,7 @@ func reset_session() -> void:
 	celebrated_birthday_year = 0
 	birthday_present_npc = &""
 	birthday_card_day = 0
+	mother_mail = MotherMail.new_state()
 	VillagerWalk.reset()
 	VillagerOutdoor.reset()
 	Fishing.reset()
@@ -1398,6 +1413,7 @@ func to_save() -> Dictionary:
 		"celebrated_birthday_year": celebrated_birthday_year,
 		"birthday_present_npc": String(birthday_present_npc),
 		"birthday_card_day": birthday_card_day,
+		"mother_mail": mother_mail.duplicate(),
 		"quests": quests.to_save(),
 		"rainbow": rainbow.to_save(),
 		"notice_board": notice_board.to_save(),
@@ -1587,6 +1603,11 @@ func apply_snapshot(data: Dictionary) -> void:
 	celebrated_birthday_year = int(data.get("celebrated_birthday_year", 0))
 	birthday_present_npc = StringName(str(data.get("birthday_present_npc", "")))
 	birthday_card_day = int(data.get("birthday_card_day", 0))
+	mother_mail = MotherMail.new_state()
+	var saved_mom: Variant = data.get("mother_mail", {})
+	if typeof(saved_mom) == TYPE_DICTIONARY:
+		for key: String in ["date", "normal", "monthly"]:
+			mother_mail[key] = int((saved_mom as Dictionary).get(key, 0))
 	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
 	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))
 	player_gender = IntroSequence.normalize_gender(data.get("player_gender", DEFAULT_PLAYER_GENDER))
@@ -1827,6 +1848,7 @@ func _on_field_renewed(days: int) -> void:
 	vt_rng.randomize()
 	_check_valentines(vt_rng)
 	_check_birthday_cards(vt_rng)
+	_check_mother_mail(vt_rng)
 	HouseGoki.save_play_time(interiors.player_house())
 	refresh_shop_set()
 	## `mAGrw_RenewalFgItem` tops the lost and found up once per renewal, however many
