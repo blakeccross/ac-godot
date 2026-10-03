@@ -167,7 +167,7 @@ static func _roll_abc(
 			out["rare"] = rare[0]
 			goods.append(rare[0])
 			avoid.append(rare[0])
-	goods.append_array(select("ftr", int(counts[Kind.FTR]), -1, goods_power, rng, avoid))
+	goods.append_array(season_ftr(select("ftr", int(counts[Kind.FTR]), -1, goods_power, rng, avoid), month, day, rng))
 	var bag_count: int = 0
 	if grab_bags:
 		bag_count += int(counts[Kind.PAPER]) + (1 if lv >= 2 else 0)
@@ -374,6 +374,26 @@ static func select(
 		if (out.has(pick) or avoid.has(pick)) and pool.size() > out.size() + avoid.size():
 			continue
 		out.append(pick)
+	return out
+
+
+## `mSP_SetSeasonFTR`: in December the first furniture slots go to the festive trees
+## (`FTR_NOG_XTREE`, `FTR_KON_XTREE02`) up to the 24th, then the festive candle and flag
+## (`FTR_YAZ_CANDLE`, `FTR_YOS_KFLAG`) from the 26th; one slot gets either at random.
+const SEASON_FTR_XMAS: Array[int] = [943, 930]
+const SEASON_FTR_NEW_YEAR: Array[int] = [1190, 1183]
+
+
+static func season_ftr(picks: Array[StringName], month: int, day: int, rng: RandomNumberGenerator) -> Array[StringName]:
+	if picks.is_empty() or month != 12 or day == 25:
+		return picks
+	var pair: Array[int] = SEASON_FTR_XMAS if day <= 24 else SEASON_FTR_NEW_YEAR
+	var out: Array[StringName] = picks.duplicate()
+	if out.size() > 1:
+		out[0] = FtrCatalog.item_id(pair[0])
+		out[1] = FtrCatalog.item_id(pair[1])
+	else:
+		out[0] = FtrCatalog.item_id(pair[0] if rng.randf() < 0.5 else pair[1])
 	return out
 
 

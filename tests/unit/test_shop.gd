@@ -282,3 +282,20 @@ func test_authored_public_interior_scenes_exist() -> void:
 	assert_str(WorldObjectRegistry.scene_for_building(&"post_office", &"building")).contains(
 		"post_office.tscn"
 	)
+
+
+## `mSP_SetSeasonFTR`: festive trees until Christmas Eve, the candle and flag after it.
+func test_december_puts_festive_furniture_first() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var picks: Array[StringName] = [&"a", &"b", &"c"]
+	var xmas: Array[StringName] = ShopGoods.season_ftr(picks, 12, 10, rng)
+	assert_str(String(xmas[0])).is_equal(String(FtrCatalog.item_id(943)))
+	assert_str(String(xmas[1])).is_equal(String(FtrCatalog.item_id(930)))
+	assert_str(String(xmas[2])).is_equal("c")
+	var new_year: Array[StringName] = ShopGoods.season_ftr(picks, 12, 27, rng)
+	assert_str(String(new_year[0])).is_equal(String(FtrCatalog.item_id(1190)))
+	assert_that(ShopGoods.season_ftr(picks, 12, 25, rng)).is_equal(picks)
+	assert_that(ShopGoods.season_ftr(picks, 11, 30, rng)).is_equal(picks)
+	var one: Array[StringName] = ShopGoods.season_ftr([&"a"] as Array[StringName], 12, 1, rng)
+	assert_bool(String(one[0]) in [String(FtrCatalog.item_id(943)), String(FtrCatalog.item_id(930))]).is_true()
