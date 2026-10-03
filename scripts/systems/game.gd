@@ -74,6 +74,11 @@ var mother_mail: Dictionary = MotherMail.new_state()
 var calendar: Dictionary = CalendarBook.new_state()
 ## The fishing tourney's records (`Save_Get(fishRecord)`), `FishRecord`. Saved.
 var fish_records: Array = []
+## `treasure_buried_time` / `treasure_checked_time` as ordinals (0 never). Saved.
+var treasure_buried_day: int = 0
+var treasure_checked_day: int = 0
+## The last board check wrote no seasonal notice, so a villager may bury treasure.
+var treasure_due: bool = false
 var relationships: RelationshipBook = RelationshipBook.new()
 var interiors: InteriorBook = InteriorBook.new()
 var shops: ShopBook = ShopBook.new()
@@ -1044,6 +1049,9 @@ func reset_session() -> void:
 	mother_mail = MotherMail.new_state()
 	calendar = CalendarBook.new_state()
 	fish_records.clear()
+	treasure_buried_day = 0
+	treasure_checked_day = 0
+	treasure_due = false
 	VillagerWalk.reset()
 	VillagerOutdoor.reset()
 	Fishing.reset()
@@ -1427,6 +1435,8 @@ func to_save() -> Dictionary:
 		"mother_mail": mother_mail.duplicate(),
 		"calendar": calendar.duplicate(true),
 		"fish_records": fish_records.duplicate(true),
+		"treasure_buried_day": treasure_buried_day,
+		"treasure_checked_day": treasure_checked_day,
 		"quests": quests.to_save(),
 		"rainbow": rainbow.to_save(),
 		"notice_board": notice_board.to_save(),
@@ -1616,6 +1626,8 @@ func apply_snapshot(data: Dictionary) -> void:
 	celebrated_birthday_year = int(data.get("celebrated_birthday_year", 0))
 	birthday_present_npc = StringName(str(data.get("birthday_present_npc", "")))
 	birthday_card_day = int(data.get("birthday_card_day", 0))
+	treasure_buried_day = int(data.get("treasure_buried_day", 0))
+	treasure_checked_day = int(data.get("treasure_checked_day", 0))
 	fish_records.clear()
 	var saved_fish: Variant = data.get("fish_records", [])
 	if typeof(saved_fish) == TYPE_ARRAY:
@@ -1869,7 +1881,7 @@ func update_notice_board() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	var names: Array = fishing_names()
-	notice_board.auto_write(Clock.year, Clock.month, Clock.day, Clock.hour,
+	var written: int = notice_board.auto_write(Clock.year, Clock.month, Clock.day, Clock.hour,
 		NoticeBoard.common_free(town_name, shops.nook_level() if shops != null else 0),
 		func(ordinal: int) -> Dictionary: return FishRecord.holder(fish_records, ordinal, names, rng))
 	## `mFR_fishmail`: right after the board.
@@ -1878,6 +1890,19 @@ func update_notice_board() -> void:
 		func(mail: MailData) -> bool: return inventory.add_received_mail(mail) >= 0 or post.receipt_mail(mail))
 	if sent > 0:
 		post_notice("You've got mail!")
+	## `mNtc_check_treasure` when nothing seasonal went up.
+	treasure_due = written == 0
+	try_treasure(World.find(get_tree()) if get_tree() != null else null)
+
+
+## A villager may bury treasure once the field is up (`BuriedTreasure`).
+func try_treasure(world: Node) -> void:
+	if not treasure_due or world == null or world.get("grid") == null:
+		return
+	treasure_due = false
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	BuriedTreasure.check(world, rng)
 
 
 ## `mEvMN_GetJointEventRandomNpc`: the residents who could be out fishing.

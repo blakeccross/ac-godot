@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -159,6 +159,20 @@ func execute(raw: String) -> String:
 			var fs_cut: Vector2i = ShopGoods.tier_cutoffs(Game.goods_power)
 			return "Money power %d, goods power %d (Nook: rare %d%%, uncommon %d%%)." % [
 				Game.money_power, Game.goods_power, fs_cut.x, fs_cut.y - fs_cut.x]
+		"treasure":
+			## A villager buries something now and posts where (`mNtc_check_treasure`).
+			var tr_tree := Engine.get_main_loop() as SceneTree
+			var tr_world: World = World.find(tr_tree) if tr_tree != null else null
+			if tr_world == null:
+				return "No field here."
+			var tr_rng := RandomNumberGenerator.new()
+			tr_rng.randomize()
+			var tr_cell: Vector2i = BuriedTreasure.check(tr_world, tr_rng, true)
+			if tr_cell.x < 0:
+				return "Nothing buried."
+			var tr_rec: Dictionary = BuriedUse.record(BuriedUse.persist_id(tr_cell))
+			return "%s buried at %s (acre %s): %s" % [tr_rec.get("item_id", "?"), tr_cell,
+				VillagerWalk.block_from_cell(tr_cell), str(Game.notice_board.posts[-1]["text"]).replace("\n", " ")]
 		"calendar":
 			## The calendar (`calendar day 31` opens on a day); `calendar played 2026-9-14` /
 			## `calendar tortimer 2026-9-14` mark a day.

@@ -16,7 +16,8 @@ extends RefCounted
 ## Each fishing tourney (June and November Sundays) posts its winner once the day ends at
 ## 18:00 (`mNtc_get_fishing_day`, handbill 0x242, `FishRecord`), among the same five.
 ##
-## Not here: villagers' buried-treasure tips (`mNtc_check_treasure`).
+## A check that writes nothing seasonal may bring a villager's buried-treasure post
+## (`mNtc_check_treasure`, `BuriedTreasure`).
 
 const POST_COUNT := 15
 const BODY_LEN := 192

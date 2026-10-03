@@ -78,6 +78,7 @@ func _ready() -> void:
 	_spawn_player()
 	if not Game.title_demo_active and not Game.intro_station_active:
 		Game.note_played_today()
+		Game.try_treasure(self)
 		if not Game.mushrooms_session_cleared:
 			Game.mushrooms_session_cleared = true
 			MushroomUse.first_clear(self, Clock.absolute_minute(), _field_rng())

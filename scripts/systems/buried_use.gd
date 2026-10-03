@@ -208,6 +208,19 @@ static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 	return true
 
 
+## A free diggable unit something could be buried in (`mMsm_GetDepositAbleNum`).
+static func can_bury(grid: WorldGrid, cell: Vector2i, layout: WorldData = null) -> bool:
+	return _can_deposit(grid, cell, layout, false)
+
+
+## Buries `item_id` under a crack mark at `cell` (`mMsm_DepositItemBlock`).
+static func bury_item(world: Node, cell: Vector2i, item_id: StringName) -> bool:
+	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
+	if grid == null:
+		return false
+	return _deposit(world, grid, _layout(world), cell, KIND_ITEM, item_id)
+
+
 static func _top_up_fossils(
 	world: Node, grid: WorldGrid, layout: WorldData, rng: RandomNumberGenerator
 ) -> void:
