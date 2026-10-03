@@ -26,7 +26,12 @@ func area() -> Dictionary:
 
 
 func setup() -> void:
-	AnglerTalk.roll_npc_record(area(), Clock.hour, anglers, rng())
+	var a: Dictionary = area()
+	var had: int = int(a.get("size", 0))
+	AnglerTalk.roll_npc_record(a, Clock.hour, anglers, rng())
+	if Game != null and int(a.get("size", 0)) > had and not bool(a.get("top_player", false)):
+		FishRecord.set_record(Game.fish_records, str(a.get("top", "")), false, int(a["size"]),
+			EventDates.ordinal(Clock.year, Clock.month, Clock.day), Clock.hour * 60 + Clock.minute)
 
 
 func make_talk() -> BankTalk:

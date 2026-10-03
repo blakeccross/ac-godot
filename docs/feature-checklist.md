@@ -47,7 +47,7 @@ data tables before a category is called done.
 - [x] Seasons: snow cover Dec–Feb, cherry-blossom trees early April, coloured foliage in autumn, bare trees in winter — `VisualSeasons`, `Acre.apply_season`
 - [x] Season affects grass colour / acre visuals, tree models (no river ice; snow ground) — `Clock.season`, seasonal textures from the pipeline's `seasons` kind
 - [~] Weekday tracking; shop closed days; K.K. on Saturday night — K.K. on Saturday night and Joan on Sunday morning come through the event manager (§30); Nook closes for renovations
-- [ ] "Played days" counter, first-day flags, "haven't played in a while" reactions
+- [x] Played days and long absences: the calendar marks every day played over the last twelve months (`CalendarBook`); villagers greet a player they haven't spoken to in two weeks or two months with the "long time" lines (`aQMgr_get_meet_time`, `DialogueGreeting.meet_type`)
 - [~] The player's birthday: a villager asks for it (the cake date picker, `m_birthday_ovl`) and uses it for star-sign lines; on the day, when continuing from the house, the villager who likes you most waits outside with a wrapped Famicom (`ac_present_demo`, `ac_present_npc`); every other villager who remembers you mails a card with a present once the date has passed (`mNpc_SendEventBirthdayCard2`) — `BirthdayOverlay`, `PresentVisit`. Missing: villagers' own birthdays, birthday lines in everyday talk, the rain umbrella on the visitor
 
 ## 3. Weather & environment
@@ -219,8 +219,8 @@ data tables before a category is called done.
 - [ ] Coelacanth only while raining/snowing, in the sea, outside the day slot (`aSOG_add_kaseki_range_data`)
 - [ ] Non-fish catches: boot, tire, tin can, seaweed? _(verify GCN junk list)_
 - [ ] Trash items (boot/can/tire) as furniture-less junk, sellable to Nook
-- [ ] Fishing tourney (June & November Sundays), Chip judges, biggest fish wins furniture (`mEv_EVENT_FISHING_TOURNEY_1/2`, `ac_turi_npc0`, `ac_ev_angler`)
-- [ ] Fish records board / "biggest catch" tracking (`m_fishrecord`)
+- [x] Fishing tourney (June & November Sundays): Chip measures your bass and hands over a prize for each new record (`ac_ev_angler`, `AnglerTalk`); the day's record is kept (`m_fishrecord`), villagers keep fishing until 17:50, and a player still on top gets Chip's letter with lottery or event furniture they don't own — `FishRecord`
+- [x] Fish records (`m_fishrecord`): up to five tourney days kept, the winner posted on the community board after 18:00 — `FishRecord`
 
 ## 13. Bug catching
 
@@ -495,7 +495,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [x] Player statue by the station (`ac_douzou`) once a house's loan ends in the statue: owner's figure and face (winter set in winter), rank sets size and gold / silver / bronze / jade colours, plaque reads `MSG_DOZOU` in a red window — `Statue`, `statue_metal.gdshader`, face textures from `weather_sprites.py`; `house statue built [rank]` console command. Missing: the sparkle effect (`ef_douzou_light`)
 - [x] Wishy the Star: not on the GameCube; the wishing well (`ac_shrine`) rates the town, takes quest items off your hands and is Tortimer's holiday spot
 - [x] Recycle bin: not on the GameCube (`ac_reserve` is the plot / dock sign); the dump (`ac_dump`) is the closest thing
-- [~] Community board: 15 dated posts from the disc's `kei_win` art, seeded with the four starter handbills, page turning and jumps, writing a post on the keyboard with "Is this OK?"; 41 seasonal notices post themselves as their dates pass (sports fairs and daylight saving move with the year), the latest five after an absence (`m_notice`, `m_notice_ovl`) — `NoticeBoard`, `NoticeBoardOverlay`; `board` console command. Missing: Chip's tourney results and villagers' buried-treasure tips (their systems are not built)
+- [~] Community board: 15 dated posts from the disc's `kei_win` art, seeded with the four starter handbills, page turning and jumps, writing a post on the keyboard with "Is this OK?"; 41 seasonal notices post themselves as their dates pass (sports fairs and daylight saving move with the year), the latest five after an absence (`m_notice`, `m_notice_ovl`) — `NoticeBoard`, `NoticeBoardOverlay`; `board` console command. Each tourney's champion goes up at 18:00 (handbill 0x242). Missing: villagers' buried-treasure tips
 - [ ] Signboards / signposts around town naming acres, warning of cliffs, advertising (`ac_sign`)
 - [~] The plaza / town square as the event stage (K.K., fireworks, Tortimer speeches) — festival crowds stand in their event-map slots, fireworks go up over the pond; K.K. plays at the station
 

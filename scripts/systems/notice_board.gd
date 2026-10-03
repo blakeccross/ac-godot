@@ -13,8 +13,10 @@ extends RefCounted
 ## dated at 06:00 of their day. `{free0}` is the town, `{free1}` the shop, `{free2}` the
 ## harvest moon's date and `{free4}` the autumnal equinox's.
 ##
-## Not here: Chip's fishing tourney results (`0x242`) and villagers' buried-treasure tips
-## (`mNtc_check_treasure`), whose systems are not built.
+## Each fishing tourney (June and November Sundays) posts its winner once the day ends at
+## 18:00 (`mNtc_get_fishing_day`, handbill 0x242, `FishRecord`), among the same five.
+##
+## Not here: villagers' buried-treasure tips (`mNtc_check_treasure`).
 
 const POST_COUNT := 15
 const BODY_LEN := 192
@@ -93,12 +95,13 @@ static func auto_dates(year: int) -> Array:
 
 
 static func _stamp(year: int, month: int, day: int, hour: int) -> int:
-	return ((year * 13 + month) * 32 + day) * 2 + (1 if hour >= RENEW_HOUR else 0)
+	return ((year * 13 + month) * 32 + day) * 24 + clampi(hour, 0, 23)
 
 
 ## Posts every notice whose date passed since the last check (the latest five), then
-## records now as checked. Returns how many were written.
-func auto_write(year: int, month: int, day: int, hour: int, free: Dictionary = {}) -> int:
+## records now as checked. `fishing` gives a tourney day's winner (`FishRecord.holder`,
+## by ordinal); without it no results go up. Returns how many were written.
+func auto_write(year: int, month: int, day: int, hour: int, free: Dictionary = {}, fishing: Callable = Callable()) -> int:
 	if checked.x == 0:
 		checked = Vector4i(year, month, day, hour)
 		return 0
@@ -114,12 +117,24 @@ func auto_write(year: int, month: int, day: int, hour: int, free: Dictionary = {
 		for row: Array in auto_dates(y):
 			var at: int = _stamp(y, int(row[1]), int(row[2]), RENEW_HOUR)
 			if at > from and at <= to:
-				due.append([y, row])
+				due.append([y, row, at])
+		if fishing.is_valid():
+			for m: int in [6, 11]:
+				for d: int in range(1, EventDates.days_in_month(y, m) + 1):
+					var end: int = _stamp(y, m, d, FishRecord.END_HOUR)
+					if FishRecord.is_tourney_day(y, m, d) and end > from and end <= to:
+						due.append([y, [-1, m, d], end])
+	due.sort_custom(func(a: Array, b: Array) -> bool: return int(a[2]) < int(b[2]))
 	if due.size() > AUTO_WRITE_MAX:
 		due = due.slice(due.size() - AUTO_WRITE_MAX)
 	for entry: Array in due:
 		var y: int = entry[0]
 		var row: Array = entry[1]
+		if int(row[0]) < 0:
+			var winner: Dictionary = fishing.call(EventDates.ordinal(y, int(row[1]), int(row[2])))
+			write(_post(FishRecord.notice_text(y, int(row[1]), int(row[2]), winner), y, int(row[1]), int(row[2]),
+				FishRecord.END_HOUR, 0))
+			continue
 		var slots: Dictionary = free.duplicate()
 		slots[2] = day_string(EventDates.harvest_moon(y).x, EventDates.harvest_moon(y).y)
 		slots[4] = day_string(9, EventDates.autumnal_equinox_day(y))

@@ -72,6 +72,8 @@ var birthday_card_day: int = 0
 var mother_mail: Dictionary = MotherMail.new_state()
 ## The calendar's played days and Tortimer days (`mCD_player_calendar_c`). Saved.
 var calendar: Dictionary = CalendarBook.new_state()
+## The fishing tourney's records (`Save_Get(fishRecord)`), `FishRecord`. Saved.
+var fish_records: Array = []
 var relationships: RelationshipBook = RelationshipBook.new()
 var interiors: InteriorBook = InteriorBook.new()
 var shops: ShopBook = ShopBook.new()
@@ -1041,6 +1043,7 @@ func reset_session() -> void:
 	birthday_card_day = 0
 	mother_mail = MotherMail.new_state()
 	calendar = CalendarBook.new_state()
+	fish_records.clear()
 	VillagerWalk.reset()
 	VillagerOutdoor.reset()
 	Fishing.reset()
@@ -1423,6 +1426,7 @@ func to_save() -> Dictionary:
 		"birthday_card_day": birthday_card_day,
 		"mother_mail": mother_mail.duplicate(),
 		"calendar": calendar.duplicate(true),
+		"fish_records": fish_records.duplicate(true),
 		"quests": quests.to_save(),
 		"rainbow": rainbow.to_save(),
 		"notice_board": notice_board.to_save(),
@@ -1612,6 +1616,15 @@ func apply_snapshot(data: Dictionary) -> void:
 	celebrated_birthday_year = int(data.get("celebrated_birthday_year", 0))
 	birthday_present_npc = StringName(str(data.get("birthday_present_npc", "")))
 	birthday_card_day = int(data.get("birthday_card_day", 0))
+	fish_records.clear()
+	var saved_fish: Variant = data.get("fish_records", [])
+	if typeof(saved_fish) == TYPE_ARRAY:
+		for r: Variant in saved_fish:
+			if typeof(r) == TYPE_DICTIONARY:
+				var rec: Dictionary = r
+				fish_records.append({"name": str(rec.get("name", "")), "player": bool(rec.get("player", false)),
+					"size": int(rec.get("size", 0)), "ordinal": int(rec.get("ordinal", 0)),
+					"minute": int(rec.get("minute", 0)), "settled": bool(rec.get("settled", false))})
 	calendar = CalendarBook.new_state()
 	var saved_cal: Variant = data.get("calendar", {})
 	if typeof(saved_cal) == TYPE_DICTIONARY:
@@ -1853,8 +1866,28 @@ func mark_room() -> void:
 
 ## `mNtc_set_auto_nwrite_data`: seasonal notices whose day has come.
 func update_notice_board() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var names: Array = fishing_names()
 	notice_board.auto_write(Clock.year, Clock.month, Clock.day, Clock.hour,
-		NoticeBoard.common_free(town_name, shops.nook_level() if shops != null else 0))
+		NoticeBoard.common_free(town_name, shops.nook_level() if shops != null else 0),
+		func(ordinal: int) -> Dictionary: return FishRecord.holder(fish_records, ordinal, names, rng))
+	## `mFR_fishmail`: right after the board.
+	var sent: int = FishRecord.send_mail(fish_records, EventDates.ordinal(Clock.year, Clock.month, Clock.day),
+		Clock.hour, names, catalog.owned_ids() if catalog != null else [], player_name, rng,
+		func(mail: MailData) -> bool: return inventory.add_received_mail(mail) >= 0 or post.receipt_mail(mail))
+	if sent > 0:
+		post_notice("You've got mail!")
+
+
+## `mEvMN_GetJointEventRandomNpc`: the residents who could be out fishing.
+func fishing_names() -> Array:
+	var out: Array = []
+	for id: StringName in residents.resident_ids():
+		var v: VillagerData = VillagerCatalog.get_villager(id)
+		if v != null:
+			out.append(v.display_name)
+	return out
 
 
 func _on_field_renewed(days: int) -> void:
