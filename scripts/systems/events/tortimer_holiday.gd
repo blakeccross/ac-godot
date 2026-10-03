@@ -109,6 +109,8 @@ func start_msg() -> int:
 	var cal: Dictionary = record.get("calendar", {})
 	cal[str(event)] = Clock.year
 	record["calendar"] = cal
+	if Game != null:
+		CalendarBook.event_on(Game.calendar, EventDates.ordinal(Clock.year, Clock.month, Clock.day))
 	if _has_trophy():
 		_first_idx = 6 + rng.randi_range(0, 2) if marked else 5
 	else:

@@ -25,7 +25,7 @@ from .godot_import import write_import_sidecar
 from .mapfile import parse_map
 from .rel import RelData
 from .texbank import image_png_bytes
-from .texbank import G_IM_FMT_CI, G_IM_SIZ_4b
+from .texbank import G_IM_FMT_CI, G_IM_FMT_I as _I, G_IM_SIZ_4b, GX_REPEAT as _REPEAT
 from .texbank import G_IM_FMT_IA as _IA, G_IM_SIZ_8b as _8B, GX_MIRROR as _MIRROR
 from .ui_gbi import Op, TexRef, TextureCache, UiWalker, bake_layer, rasterize
 
@@ -162,6 +162,83 @@ LAYERS: dict[str, list[Op]] = {
 		for i, m in enumerate(("january", "february", "march", "april", "may", "june", "july", "august",
 			"september", "october", "november", "december"))},
 }
+
+## `mCD_set_base_dl` / `mCD_set_hyoji_dl` / `mCD_set_hyoji2_dl` (`m_calendar_ovl.c`): the
+## calendar page with its month's backdrop (one CI4 pattern for January, another for the rest,
+## each month its own palette), the year's digits (four places, `cal_win_nen_table` from the
+## ones up), the month word, the day boxes in each day type's colours, the day numbers (white,
+## tinted at runtime), the played / Tortimer marks, the cursor, the event plate and the key
+## hints. Day cells sit at the first slot; the runtime moves them 32 across and 20 down.
+## (`gDPLoadTextureBlock_8b_Dolphin` here passes height before width: the month words are
+## 128×32 and the event plate 64×32.)
+CAL_MONTHS = ("january", "february", "march", "april", "may", "june", "july", "august",
+	"september", "october", "november", "december")
+CAL_BOX_PRIM = ((120, 120, 95), (225, 195, 100), (245, 205, 165), (255, 245, 185), (185, 215, 185))
+CAL_BOX_ENV = ((0x46, 0x46, 0x28), (0x69, 0x3C, 0x32), (0x69, 0x41, 0x41), (0x7D, 0x55, 0x55), (0x4B, 0x32, 0x3C))
+CAL_MARK_PRIM = ((0x5F, 0x3C, 0x3C), (0xB9, 0x32, 0x32))
+## `mCD_set_base_dl`'s order: later models reuse vertices and state the earlier ones leave.
+_CAL_ORDER = ("needlework_before_model", "cal_win_tuki_model", "cal_win_shita_model", "cal_win_futi_model",
+	"cal_win_nitiyouT_model", "cal_win_doyouT_model", "cal_win_hijituT_model", "cal_win_eventT_model",
+	"cal_win_nen_before", "cal_win_nen4_model", "cal_win_nen3_model", "cal_win_nen2_model", "cal_win_nen1_model",
+	"cal_win_monthT_model", "cal_win_boxT_model", "cal_win_suuji_model", "cal_icon_mark_model",
+	"cal_icon_cursor_model", "cal_icon_sakana_model", "cal_icon_yajirushi_model")
+
+
+def _cal_pre(model: str) -> list[Op]:
+	"""Everything `mCD_set_base_dl` runs before `model`, for its state only."""
+	return [Op(dl, draw=False) for dl in _CAL_ORDER[: _CAL_ORDER.index(model)]]
+
+
+def _cal_tex(symbol: str, w: int, h: int, fmt: int, siz: int) -> dict[int, TexRef]:
+	return {0: TexRef(symbol, w, h, fmt, siz, wrap_s=_MIRROR, wrap_t=_MIRROR)}
+
+
+def _cal_layers() -> dict[str, list[Op]]:
+	out: dict[str, list[Op]] = {}
+	for i in range(12):
+		back = TexRef("cal_win_tuki1_tex" if i == 0 else "cal_win_tuki2_tex", 32, 32, G_IM_FMT_CI, G_IM_SIZ_4b,
+			f"cal_win_tuki{i + 1}_pal", _REPEAT, _REPEAT)
+		out[f"cal_base_m{i + 1}"] = [Op("needlework_before_model"), Op("cal_win_tuki_model", tiles={0: back}),
+			Op("cal_win_shita_model"), Op("cal_win_futi_model"), Op("cal_win_nitiyouT_model"),
+			Op("cal_win_doyouT_model"), Op("cal_win_hijituT_model")]
+		out[f"cal_month_m{i + 1}"] = [*_cal_pre("cal_win_monthT_model"), Op("cal_win_monthT_model",
+			tiles=_cal_tex(f"cal_win_{CAL_MONTHS[i]}_tex_rgb_ia8", 128, 32, _IA, _8B))]
+	for t, (prim, env) in enumerate(zip(CAL_BOX_PRIM, CAL_BOX_ENV)):
+		out[f"cal_event_t{t}"] = [*_cal_pre("cal_win_eventT_model"), Op("cal_win_eventT_model", prim=(*prim, 255),
+			env=(*env, 255), tiles=_cal_tex("cal_win_event_tex", 64, 32, _IA, _8B))]
+		for name, tex in (("box", "cal_win_box_tex_rgb_ia8"), ("box2", "cal_win_box2_tex_rgb_ia8")):
+			out[f"cal_{name}_t{t}"] = [*_cal_pre("cal_win_boxT_model"), Op("cal_win_boxT_model", prim=(*prim, 255),
+				env=(*env, 255), tiles=_cal_tex(tex, 32, 32, _IA, _8B))]
+	for place, model in enumerate(("cal_win_nen4_model", "cal_win_nen3_model", "cal_win_nen2_model", "cal_win_nen1_model")):
+		for digit in range(10):
+			out[f"cal_nen_p{place}_d{digit}"] = [*_cal_pre(model),
+				Op(model, tiles=_cal_tex(f"cal_win_nen{digit}_tex_rgb_i4", 16, 16, _I, G_IM_SIZ_4b))]
+	for day in range(1, 32):
+		out[f"cal_num{day}"] = [*_cal_pre("cal_win_suuji_model"), Op("cal_win_suuji_model", prim=(255, 255, 255, 255),
+			tiles=_cal_tex(f"cal_win_suuji{day}_tex_rgb_i4", 16, 16, _I, G_IM_SIZ_4b))]
+	for k, prim in enumerate(CAL_MARK_PRIM):
+		out[f"cal_mark{k + 1}"] = [*_cal_pre("cal_icon_mark_model"), Op("cal_icon_mark_model", prim=(*prim, 255))]
+	out["cal_cursor"] = [*_cal_pre("cal_icon_cursor_model"), Op("cal_icon_cursor_model")]
+	out["cal_sakana"] = [*_cal_pre("cal_icon_sakana_model"), Op("cal_icon_sakana_model")]
+	for name, gfx in (("cal_yaji_a", "cal_icon_yajirushi_gfx"), ("cal_yaji_b", "cal_icon_yajirushi_gfx2")):
+		out[name] = [*_cal_pre("cal_icon_yajirushi_model"),
+			Op("cal_icon_yajirushi_model", prim=(0, 0, 255, 255)), Op(gfx)]
+	out["cal_hy"] = [Op("cal_hyouji_3DT_model"), Op("cal_hyouji_shitaT_model"), Op("cal_hyouji_b2_model"),
+		Op("cal_hyouji_amojiT_model")]
+	_hy = [Op(dl, draw=False) for dl in ("cal_hyouji_3DT_model", "cal_hyouji_shitaT_model", "cal_hyouji_b2_model",
+		"cal_hyouji_amojiT_model")]
+	out["cal_hy_y"] = [*_hy, Op("cal_hyoji_yaji1T_model")]
+	out["cal_hy_ya"] = [*_hy, Op("cal_hyoji_yaji1T_model", draw=False), Op("cal_hyoji_yajiA_gfx")]
+	out["cal_hy_yb"] = [*_hy, Op("cal_hyoji_yaji1T_model", draw=False), Op("cal_hyoji_yajiB_gfx")]
+	for n in (1, 5):
+		out[f"cal_hy_st{n}"] = [*_hy, Op("cal_hyoji_yaji1T_model", draw=False), Op("cal_hyouji_stT_model",
+			tiles=_cal_tex(f"cal_hyouji_st{n}_tex_rgb_ia8", 64, 64, _IA, _8B))]
+	out["cal_hy2"] = [Op("cal_hyouji2_shitaT_model"), Op("cal_hyouji2_bt_model"), Op("cal_hyouji2_b2_model"),
+		Op("cal_hyouji2_bmojiT_model"), Op("cal_hyouji2_amojiT_model")]
+	return out
+
+
+LAYERS.update(_cal_layers())
 
 ADDRESS_MAX_ENTRIES = 8
 

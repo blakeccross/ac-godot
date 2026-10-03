@@ -19,7 +19,7 @@ extends Node3D
 ##                     pos:x,y,z | scene (keep the scene's own camera). Default: scene
 ##                     camera for scene=, else the town centre.
 ##   console=cmd,args  Debug-console command run once the scene is up, commas for spaces
-##                     (`console=bug,grasshopper,3`). With console_delay=N it runs N frames
+##                     (`console=bug,grasshopper,3`); `;` runs several in turn. With console_delay=N it runs N frames
 ##                     after the target is found instead (villagers only turn up near
 ##                     the player, which the `villager:` lookup arranges).
 ##   cam=dx,dy,dz      Camera offset from the focus in metres (default 0,4,7).
@@ -78,7 +78,7 @@ func _capture_date(date: String) -> void:
 		await get_tree().process_frame
 	var late_console: bool = _args.has("console_delay")
 	if _args.has("console") and not late_console:
-		print("CONSOLE ", DebugConsole.new().execute(str(_args["console"]).replace(",", " ")))
+		_run_console()
 	var target := str(_args.get("target", "scene" if not scene_path.is_empty() else "town"))
 	var cam: Camera3D = null
 	if target != "scene":
@@ -106,7 +106,7 @@ func _capture_date(date: String) -> void:
 	if _args.has("console") and late_console:
 		for _i: int in int(_args.get("console_delay", "0")):
 			await get_tree().process_frame
-		print("CONSOLE ", DebugConsole.new().execute(str(_args["console"]).replace(",", " ")))
+		_run_console()
 	for _i: int in int(_args.get("wait", "20")):
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
@@ -231,3 +231,9 @@ static func _vec2i(text: String, fallback: Vector2i) -> Vector2i:
 	if p.size() != 2:
 		return fallback
 	return Vector2i(int(p[0]), int(p[1]))
+
+
+func _run_console() -> void:
+	var console := DebugConsole.new()
+	for line: String in str(_args["console"]).split(";", false):
+		print("CONSOLE ", console.execute(line.replace(",", " ")))

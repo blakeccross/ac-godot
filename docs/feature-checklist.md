@@ -43,6 +43,7 @@ data tables before a category is called done.
 - [~] Day / night with 8 lighting windows, per-term colour tables (`m_kankyo` `klight_chg_tim`) — `Clock.outdoor_light()`
 - [~] Daily renewal at **06:00** (weeds spread, stock rotates, plants grow, villager moves resolve) — `field_renewed`
 - [~] 18 calendar terms, years 2001–2030 (`lb_rtc`)
+- [x] The calendar screen (`m_calendar_ovl`, `m_calendar`): month pages eleven months either side, each day boxed by type (Sunday, holiday, today), footprints on the days played and red ones where Tortimer was met in the last twelve months, the day's holidays named on the plate with a badge for those taken part in; picking a day opens the diary on that month — `CalendarOverlay`, `CalendarBook`
 - [x] Seasons: snow cover Dec–Feb, cherry-blossom trees early April, coloured foliage in autumn, bare trees in winter — `VisualSeasons`, `Acre.apply_season`
 - [x] Season affects grass colour / acre visuals, tree models (no river ice; snow ground) — `Clock.season`, seasonal textures from the pipeline's `seasons` kind
 - [~] Weekday tracking; shop closed days; K.K. on Saturday night — K.K. on Saturday night and Joan on Sunday morning come through the event manager (§30); Nook closes for renovations
@@ -617,7 +618,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 ## 33. UI, menus, misc systems
 
 - [ ] Start / pause menu: map, inventory, diary?, options
-- [~] **Diary** — the player writes it: a page per month (31 lines, 992 characters) on the disc's three-sheet page with the month tab, scrolled while reading and rolled to the line while writing, opened by "Read" on any of the sixteen notebooks in your own rooms (`m_diary_ovl`, `aMR_CheckDiaryOnMe`) — `DiaryOverlay`. Missing: the calendar page it opens through (`m_calendar_ovl`), and the notebook having to sit on a table
+- [~] **Diary** — the player writes it: a page per month (31 lines, 992 characters) on the disc's three-sheet page with the month tab, scrolled while reading and rolled to the line while writing, opened by "Read" on any of the sixteen notebooks in your own rooms (`m_diary_ovl`, `aMR_CheckDiaryOnMe`) — `DiaryOverlay`. It opens through the calendar. Missing: the notebook having to sit on a table
 - [ ] Held **map** item / pause map with acre labels, building icons, your house
 - [ ] HUD clock (optional), bells display when relevant
 - [ ] Options: text speed, TV/audio mode (mono/stereo/surround), rumble, screen position, brightness (`initial_menu.c`)

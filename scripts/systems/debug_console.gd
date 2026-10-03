@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -159,6 +159,32 @@ func execute(raw: String) -> String:
 			var fs_cut: Vector2i = ShopGoods.tier_cutoffs(Game.goods_power)
 			return "Money power %d, goods power %d (Nook: rare %d%%, uncommon %d%%)." % [
 				Game.money_power, Game.goods_power, fs_cut.x, fs_cut.y - fs_cut.x]
+		"calendar":
+			## The calendar (`calendar day 31` opens on a day); `calendar played 2026-9-14` /
+			## `calendar tortimer 2026-9-14` mark a day.
+			var ca_tree := Engine.get_main_loop() as SceneTree
+			if args.size() > 1 and String(args[0]) == "day":
+				var ca_day_ui: Node = ca_tree.get_first_node_in_group("calendar_ui") if ca_tree != null else null
+				if ca_day_ui == null:
+					return "No calendar here."
+				ca_day_ui.call("open_on_day", int(args[1]))
+				return "Calendar on day %s." % args[1]
+			if args.size() > 1:
+				var ca_d: PackedStringArray = String(args[1]).split("-")
+				if ca_d.size() != 3:
+					return "Date as Y-M-D."
+				var ca_n: int = EventDates.ordinal(int(ca_d[0]), int(ca_d[1]), int(ca_d[2]))
+				var ca_today: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
+				CalendarBook.trim(Game.calendar, ca_today)
+				var ca_key: String = "events" if String(args[0]) == "tortimer" else "played"
+				if not (Game.calendar[ca_key] as Array).has(ca_n):
+					(Game.calendar[ca_key] as Array).append(ca_n)
+				return "Marked %s as %s." % [args[1], ca_key]
+			var ca_ui: Node = ca_tree.get_first_node_in_group("calendar_ui") if ca_tree != null else null
+			if ca_ui == null:
+				return "No calendar here."
+			ca_ui.call("open")
+			return "Calendar."
 		"mom":
 			## Mom writes now: today's dated letter if there is one, else an everyday letter
 			## (`mom 0x151` for a given one).

@@ -73,12 +73,21 @@ static func _diary_open_here() -> bool:
 	return session != null and session.room != null and PlayerHouse.is_player_room(session.room.id)
 
 
+## The calendar comes up first; picking a day opens the diary on its month
+## (`mSM_OVL_CALENDAR` → `mSM_OVL_DIARY`). Without one, the diary opens straight away.
 static func open_diary(host: Node) -> bool:
-	var ui: Node = host.get_tree().get_first_node_in_group("diary_ui") if host != null and host.get_tree() != null else null
-	if ui == null or not ui.has_method("open") or bool(ui.call("is_open")):
+	var tree: SceneTree = host.get_tree() if host != null else null
+	if tree == null:
 		return false
-	ui.call("open")
-	return true
+	for group: String in ["calendar_ui", "diary_ui"]:
+		var ui: Node = tree.get_first_node_in_group(group)
+		if ui == null or not ui.has_method("open"):
+			continue
+		if bool(ui.call("is_open")):
+			return false
+		ui.call("open")
+		return true
+	return false
 
 
 static func _from_front(ctx: InteractionContext) -> bool:

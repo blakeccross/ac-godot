@@ -7,8 +7,8 @@ extends CanvasLayer
 ## mode scrolls the page with ↑/↓, ←/→ turn to the month before or after, Space / Enter (A)
 ## writes: the keyboard types onto the page and the page rolls to keep the line in view
 ## (`mDI_roll_control`), then "Is this OK?" (`mEE_TYPE_BOARD`). Escape / Backspace leaves.
-## The GameCube opens it from the calendar (`m_calendar_ovl.c`) on a diary in the player's
-## room; here it opens straight onto the current month.
+## It opens from the calendar (`CalendarOverlay`, `m_calendar_ovl.c`) on a diary in the
+## player's room, on the month of the day picked there.
 
 signal closed
 

@@ -70,6 +70,8 @@ var birthday_present_npc: StringName = &""
 var birthday_card_day: int = 0
 ## Mom's letters (`mPr_mother_mail_info_c`): the last day checked and which went out. Saved.
 var mother_mail: Dictionary = MotherMail.new_state()
+## The calendar's played days and Tortimer days (`mCD_player_calendar_c`). Saved.
+var calendar: Dictionary = CalendarBook.new_state()
 var relationships: RelationshipBook = RelationshipBook.new()
 var interiors: InteriorBook = InteriorBook.new()
 var shops: ShopBook = ShopBook.new()
@@ -747,6 +749,11 @@ func _check_birthday_cards(rng: RandomNumberGenerator) -> void:
 		post_notice("You've got mail!")
 
 
+## `mCD_calendar_wellcome_on`: today goes on the calendar.
+func note_played_today() -> void:
+	CalendarBook.played_on(calendar, EventDates.ordinal(Clock.year, Clock.month, Clock.day))
+
+
 ## `mPr_SendMailFromMother`: Mom writes, at most once a day.
 func _check_mother_mail(rng: RandomNumberGenerator) -> void:
 	var holiday: StringName = MotherMail.holiday(Clock.year, Clock.month, Clock.day)
@@ -1033,6 +1040,7 @@ func reset_session() -> void:
 	birthday_present_npc = &""
 	birthday_card_day = 0
 	mother_mail = MotherMail.new_state()
+	calendar = CalendarBook.new_state()
 	VillagerWalk.reset()
 	VillagerOutdoor.reset()
 	Fishing.reset()
@@ -1414,6 +1422,7 @@ func to_save() -> Dictionary:
 		"birthday_present_npc": String(birthday_present_npc),
 		"birthday_card_day": birthday_card_day,
 		"mother_mail": mother_mail.duplicate(),
+		"calendar": calendar.duplicate(true),
 		"quests": quests.to_save(),
 		"rainbow": rainbow.to_save(),
 		"notice_board": notice_board.to_save(),
@@ -1603,6 +1612,14 @@ func apply_snapshot(data: Dictionary) -> void:
 	celebrated_birthday_year = int(data.get("celebrated_birthday_year", 0))
 	birthday_present_npc = StringName(str(data.get("birthday_present_npc", "")))
 	birthday_card_day = int(data.get("birthday_card_day", 0))
+	calendar = CalendarBook.new_state()
+	var saved_cal: Variant = data.get("calendar", {})
+	if typeof(saved_cal) == TYPE_DICTIONARY:
+		for key: String in ["played", "events"]:
+			var days: Array = []
+			for n: Variant in (saved_cal as Dictionary).get(key, []):
+				days.append(int(n))
+			calendar[key] = days
 	mother_mail = MotherMail.new_state()
 	var saved_mom: Variant = data.get("mother_mail", {})
 	if typeof(saved_mom) == TYPE_DICTIONARY:
@@ -1849,6 +1866,7 @@ func _on_field_renewed(days: int) -> void:
 	_check_valentines(vt_rng)
 	_check_birthday_cards(vt_rng)
 	_check_mother_mail(vt_rng)
+	note_played_today()
 	HouseGoki.save_play_time(interiors.player_house())
 	refresh_shop_set()
 	## `mAGrw_RenewalFgItem` tops the lost and found up once per renewal, however many
