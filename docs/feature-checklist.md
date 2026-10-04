@@ -246,7 +246,7 @@ data tables before a category is called done.
 - [~] **Gyroids**: house gyroids are the save point (§1). Missing: the ~127 gyroid items dug up after rain and their room hum (`ac_my_room_melody`)
 - [x] **Pitfall**: bury a pitfall seed in a hole → invisible trap; player/villager falls in (`BURIED_PITFALL_HOLE`, `bIT_actor_pit_*`, `m_player_main_*_pitfall`) — the pit opens under them and closes after
 - [x] **Fossils**: 25 dug up unidentified → mailed to the museum or shown to Blathers → identified, donated or sold; skeleton groups — `FossilCatalog`, `FarwayBook`, `MuseumDialogue`
-- [ ] Shovel reflects with a clang off stone / the museum wall / certain FG (`reflect_scoop`)
+- [x] ~~Fake rocks~~ — rocks are fixed obstacles on the GameCube (one is the money rock)
 - [ ] Shovel reflects with a clang off stone / the museum wall / certain FG (`reflect_scoop`)
 - [x] Groundhog Day: no digging. `ac_ghog` is the shrine-acre stand and Resetti the groundhog (see §Events)
 
@@ -304,13 +304,13 @@ data tables before a category is called done.
 - [~] **Villager quests** — deliveries (clothes / lost items), errand chains (fetch what they lent), contests (fruit, fish, bug, flowers, letter, snowman; ball offered but not completable), deadlines, give-up, rewards (`m_quest.c`, `ac_quest_talk_init.c`, `ac_quest_manager.c`) — `villager_quests.gd`, `villager_talk_manager.gd`. Wishing-well disposal of quest items (`aSHR_talk` apologize). A snowman built in the asker's acre counts (`mQst_NextSnowman`). Missing: the ball actor
 - [~] Trading furniture / clothing with villagers (chat trades: `aQMgr_order_decide_trade` / `_trade`) — `villager_talk_manager.gd`. Goods come from the shop's A / B / C lists; no hand-over animation yet
 - [x] Villager asks to buy something from your pockets / sell you something (chat trade topics)
-- [ ] Villager sings K.K. songs / hums the town tune
+- [~] Villager house interiors from the disc's room tables, themed per villager (`InteriorCatalogNpc`, `VillagerHome`). Missing: rooms changing with the items you give
 - [x] ~~Sick villagers → medicine~~ — not in the GameCube game (Wild World on)
 - [~] Villager reactions to your appearance: bee-stung face, new shirt (`DialogueGreeting`). GCN has no haircuts
 - [~] Villager comments on weeds, holidays, weather, time of day, your birthday — the disc's greeting and rumour banks (`DialogueGreeting`, `VillagerTalkManager`)
 - [x] ~~Cranky mellows / Snooty warms~~ — GCN personalities only change lines with friendship tiers, which `DialogueGreeting` follows
 - [x] Villager games: GCN chat "games" are the quiz / trade / contest topics (`VillagerTalkManager`); no hide and seek
-- [ ] Special personality: **Cranky→mellows**, **Snooty→warms** as friendship rises
+- [ ] Villager sings K.K. songs / hums the town tune
 
 ## 17. Dialogue & text
 
@@ -418,8 +418,8 @@ were dropped. See [shops](decomp_notes/shops.md) § Able Sisters.
 - [x] **Sable** at the sewing machine (`SP_NPC_NEEDLEWORK1`, `aNNW_THINK_MISIN_WAIT`) — `sable.gd`: the machine and fabric stop while she talks and start again after (`misin_clip` stop / move); she only looks up at you once `nw_visitor.days >= 5`
 - [x] Sable's story arc (`aNNW_get_make_sister_message`, `aNNW_message_table`): the visit-day counter ticks once per real day she's spoken to, capped at 10 (`aNNW_day_day`); the row is picked from the count *before* today's tick, so the first talk of days 4–7 tells that day's chapter (`aNNW_story_first_table` 5/9/13/17) and later talks a follow-up; ≥8 days she's at ease. Three-part rows play Sable → Mabel (turned to face her, `aNNW_THINK_AINOTE`) → Sable; story 9 ends with Sable turning to you (`aNNW_talk_ane_3`). **No free pattern** — the GCN arc has no gift (nothing in `ac_npc_needlework_talk.c_inc` hands one over; that's later games)
 - [ ] ROM text: the greeting, menu-lead, story and explanation lines are authored stand-ins until the message banks (`0x2FD1`–`0x3035`, `0x3012+`) and the design-name strings (`0x6DF`/`0x6E7`) are extracted; `NeedleworkTalk` prefers the ROM line when the bank is present
+- [ ] **Other things** → GBA design tool / upload / e-Reader cards (`ac_npc_needlework_gba.c_inc`, `aNNW_TALK_GBA_*`, `CARD_E_*`): the menu is there and answers "no Game Boy Advance connected" (0x3008); the link itself is §28
 - [~] April Fool's lines for both sisters (`aprilfool_control_clip`) — April Fools' rumours and mail exist; the sisters' own clips are not wired
-- [ ] April Fool's lines for both sisters (`aprilfool_control_clip`) — no April Fool's system yet
 - [ ] Foreign-player rules (`mPr_FOREIGNER`: no album, Sable's arc stuck at day 0) — no visiting players yet
 
 ## 23. Museum
@@ -524,8 +524,8 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
   - [ ] ~15–19 built-in NES titles playable in your house on a Famicom console _(verify list & count)_
   - [ ] Save state per game; some obtained only via e-Reader / events (e.g. Punch-Out, Zelda)
   - [ ] Playable on GBA when downloaded
-- [ ] Memory Card A/B, GBA, e-Reader, second controller detection & menus
-- [ ] Broadband/modem adapter — _not used_ (skip)
+- [ ] GBA / e-Reader detection & menus (no Memory Cards here; saves are files)
+- [x] ~~Broadband/modem adapter~~ — _not used_
 
 ## 29. First job / new-player onboarding
 
