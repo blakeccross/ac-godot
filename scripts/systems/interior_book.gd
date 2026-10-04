@@ -55,6 +55,31 @@ func refresh_player_rooms() -> void:
 			PlayerHouse.configure_room(_rooms[room_id] as Room, record)
 
 
+## The player-house part of the book, `{rooms: {id: …}, house: …}` (`PlayerRoster`).
+func player_house_save() -> Dictionary:
+	var rooms_out := {}
+	for room_id: StringName in [PlayerHouse.MAIN, PlayerHouse.UPPER, PlayerHouse.BASEMENT]:
+		if _rooms.has(room_id):
+			rooms_out[String(room_id)] = (_rooms[room_id] as Room).to_save()
+	return {"rooms": rooms_out, "house": player_house().to_save()}
+
+
+## Put another resident's house in place of the player's (or a fresh one for empty data).
+func replace_player_house(rooms_data: Variant, house_data: Variant) -> void:
+	for room_id: StringName in [PlayerHouse.MAIN, PlayerHouse.UPPER, PlayerHouse.BASEMENT]:
+		_rooms.erase(room_id)
+	_houses.erase(InteriorCatalog.PLAYER_HOUSE_ID)
+	var record: House = player_house()
+	if record != null and typeof(house_data) == TYPE_DICTIONARY and not (house_data as Dictionary).is_empty():
+		record.apply_snapshot(house_data)
+	if typeof(rooms_data) == TYPE_DICTIONARY:
+		for key: Variant in (rooms_data as Dictionary).keys():
+			var copy: Room = room(StringName(str(key)))
+			if copy != null:
+				copy.apply_runtime((rooms_data as Dictionary)[key])
+	refresh_player_rooms()
+
+
 func to_save() -> Dictionary:
 	var rooms_out := {}
 	for key: Variant in _rooms.keys():

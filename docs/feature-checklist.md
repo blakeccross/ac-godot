@@ -25,9 +25,9 @@ data tables before a category is called done.
 
 - [~] Title screen: New Game / Continue (`m_scene`, `m_start_data_init`) — `scenes/ui/title.tscn` (attract-mode town + animated logo; see [title](decomp_notes/title.md))
 - [~] New town vs. load-existing branch (`mSDI_StartInitNew`)
-- [ ] Up to **4 human residents** per town; pick which one you play each session (`player_select.c`)
+- [x] Up to **4 human residents** per town, picked at K.K.'s player select (`ac_npc_p_sel2`): the disc's talk from `MSG_5106` — "Shall we get started?", the residents' names plus "I'm new" (four names, no newcomer, in a full town), then "That's right!" and the town loads for them, or a newcomer rides Rover's train in and gets a vacant house from Nook ("That house has already been taken, by…" on the others) — `PlayerRoster`, `PlayerSelectTalk`, `Game.start_player_select` / `start_new_resident`. The save is the town plus four private parts (`SaveService` version 2; older saves are resident 1). Missing: K.K.'s own word ending, the sound / rumble options do nothing
 - [~] Character creation flow driven by Rover Q&A (`ac_npc_guide` / intro train) — `intro_train_stage.gd`
-- [ ] Delete a resident / delete the town (`save_menu.c`)
+- [x] Delete a resident ("Demolish a house", two names a page with "Someone else." in a full town; never the last house) or the whole town ("Build a new town") from K.K.'s "Other things" (`aNPS2_chk_clr_pl_data*`, `aNPS2_chk_clr_village_data_cartridge`)
 - [~] Save + return to title on quit (`save_menu.c`, `m_save`) — `save_service.gd`
 - [x] **House gyroid** outside each house plot is the save point (`ac_haniwa`, `ACTOR_PROP_HANIWA0`–`3`) — `scenes/world/haniwa.tscn` + `HaniwaTalk` + `HaniwaStore`: FG placement two units south of every house, `hnw_move` bob / dance speeds and turn-to-player, empty-plot freeze facing front, first-job "need a friend" line; owner menu: **Save** (walk to the door → door opens → save → title), **Store an item** (4-slot consignment table in the pockets: free / display only / for sale with a 5-digit price, take back), **Other things** → **About the door** (post one of your designs on the front door / remove it) and **Set message** (4-line visitor message, ROM default text); sale **proceeds** collected on the next talk (wallet, then 30 000-bell bags); **visitor** flow (read the message, pay and take) is in place but can't trigger in a one-resident town. `BGM_ENTER_HOUSE` is a plain BGM swap rather than a pushed demo track
 - [x] ~~Memory Card management, copy, "not saved correctly" recovery~~ — no Memory Card here; saves are files (`SaveService`), and quitting without saving is Mr. Resetti's job (below)
@@ -340,7 +340,7 @@ data tables before a category is called done.
 - [x] ~~Move house location~~ — not in GCN
 - [~] Cockroaches spawn if you don't play for weeks; house dusty — `HouseGoki` / `house_goki.gd`: 6-day rule, up to 3 out, furniture flushes, startle, stomp; missing: death puff, cottage, dust
 - [x] HRA judges the main room, and the upper floor in part (origins, sets, luck, facing, clutter); never the basement (§11)
-- [x] ~~Other residents' houses enterable~~ — only your own (and villagers' homes)
+- [x] Other residents' houses can be entered (`ac_my_house` has no owner check): their rooms stand in for yours while you are inside (`Game.enter_resident_house`). Missing: the diary there opening the owner's calendar
 
 ## 19. Furniture & collectibles
 
@@ -645,9 +645,9 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 
 ## 35. Multiplayer / multi-town
 
-- [ ] 4 residents share one town, one Memory Card; play one at a time (couch "multiplayer")
-- [ ] Each resident: own house, pockets, catalog, friendships, loan, HRA score
-- [ ] Residents leave letters / gifts / patterns for each other; can enter each other's houses? _(GCN: no — only your own)_
+- [x] 4 residents share one town and one save; one plays at a time — see §1
+- [x] Each resident: own house and rooms, pockets, mailbox, catalogue, encyclopedia, own designs, friendships and errands, loan, HRA, diary and calendar (`PlayerRoster.PRIVATE_KEYS`). Their plots outdoors show their house size and their gyroid runs the visitor path (buy from their store, read their message)
+- [~] Residents write to each other: the other residents share the address book's first page with the Museum, and a posted letter goes straight to their mailbox (`PostUse.resident_candidates`, `PlayerRoster.deliver_mail`). Missing: the post office holding it until a delivery time
 - [ ] Visiting another town via a second Memory Card + the train: guest walks around, trades, copies patterns, shops; triggers Nookington's
 - [ ] Item/bell/pattern transfer rules & anti-duplication
 

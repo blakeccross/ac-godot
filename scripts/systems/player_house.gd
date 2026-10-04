@@ -241,10 +241,25 @@ static func entry_room(_house: House) -> StringName:
 ## `obj_{s,w}_myhome1..4` by size; the season half is resolved by `FieldCatalog.mesh_paths`.
 ## Other plots (and every non-player house) keep the visual they were generated with.
 static func exterior_visual(node_name: String, fallback: StringName) -> StringName:
-	if not is_owned_node(node_name) or not String(fallback).begins_with("obj_s_myhome"):
+	if not String(fallback).begins_with("obj_s_myhome"):
 		return fallback
-	var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+	var house: House = resident_house(node_name)
+	if house == null:
+		return fallback
 	return StringName("obj_s_myhome%d" % (tier_of(house) + 1))
+
+
+## Roster slot of whoever lives on plot `node_name` (the player or another resident), or -1.
+static func resident_slot(node_name: String) -> int:
+	if Game == null or Game.roster == null or not node_name.begins_with(String(DEFAULT_PLOT)):
+		return -1
+	return Game.roster.slot_on_plot(StringName(node_name))
+
+
+## The house record of whoever lives on plot `node_name`, or null for a vacant plot.
+static func resident_house(node_name: String) -> House:
+	var slot: int = resident_slot(node_name)
+	return Game.roster.house_of(slot) if slot >= 0 else null
 
 
 ## Outdoor house node the player lives in (`mHS_get_arrange_idx`): the intro pick while

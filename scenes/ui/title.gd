@@ -146,7 +146,8 @@ func _on_new_game_pressed() -> void:
 
 
 func _on_continue_pressed() -> void:
-	_choose(_continue_saved_game)
+	## K.K.'s player select: pick a resident, a newcomer, or the town options (`ac_npc_p_sel2`).
+	_choose(Game.start_player_select)
 
 
 func _on_generated_town_pressed() -> void:
@@ -156,11 +157,6 @@ func _on_generated_town_pressed() -> void:
 
 func _on_intro_station_pressed() -> void:
 	_choose(Game.start_intro_station)
-
-
-func _continue_saved_game() -> void:
-	await SceneTransition.play_wipe_out(SceneTransition.Style.FADE)
-	Game.continue_game()
 
 
 func _choose(action: Callable) -> void:

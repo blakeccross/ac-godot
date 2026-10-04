@@ -70,6 +70,15 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if entry_id == &"":
 		Game.post_notice("The door is locked.")
 		return true
+	## Player plots: your own house, another resident's (their rooms stand in while you are
+	## inside), or a vacant one, which stays shut.
+	if String(name).begins_with(String(PlayerHouse.DEFAULT_PLOT)):
+		var slot: int = Game.roster.slot_on_plot(StringName(name))
+		if slot < 0:
+			Game.post_notice("The door is locked.")
+			return true
+		if slot != Game.roster.current:
+			Game.enter_resident_house(slot)
 	## Villager homes: `aHUS_odekake_check` — sleep / not home / enter.
 	var gate: String = VillagerHome.door_notice(entry_id)
 	if gate != "":
@@ -87,4 +96,5 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if Game.try_enter_interior(entry_id):
 		return true
 	StructureDoor.end_enter(self)
+	Game.leave_resident_house()
 	return false

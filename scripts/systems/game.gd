@@ -84,6 +84,9 @@ var treasure_checked_day: int = 0
 var treasure_due: bool = false
 var relationships: RelationshipBook = RelationshipBook.new()
 var interiors: InteriorBook = InteriorBook.new()
+## The town's human residents and which one is playing (`PlayerRoster`). Read from the save at
+## Continue; a fresh town starts with an empty roster and the new resident in slot 0.
+var roster: PlayerRoster = PlayerRoster.new()
 var shops: ShopBook = ShopBook.new()
 var museum: MuseumBook = MuseumBook.new()
 var species_log: SpeciesLog = SpeciesLog.new()
@@ -244,6 +247,15 @@ var world_seed: int = WorldGenerator.DEFAULT_SEED
 ## Town grass motif (`bg_tex_idx`): 0 triangle, 1 square, 2 circle.
 var grass_pattern: int = WorldData.GrassPattern.TRIANGLE
 ## Station arrival (`ac_intro_demo`) runs inside the generated world, not a test acre.
+## K.K.'s scene runs the player select of an existing town (`ac_npc_p_sel2`) rather than the
+## first-time opening (`ac_npc_p_sel`).
+var player_select_mode: bool = false
+## The roster slot a newcomer to an existing town takes (`aNPS2_TALK_START_TYPE3`), or -1
+## for a brand-new town.
+var joining_slot: int = -1
+## Another resident whose house the player is inside (their rooms are swapped in), or -1.
+var visiting_slot: int = -1
+var _own_house_stash: Dictionary = {}
 var intro_station_active: bool = false
 ## After Porter until debt/job finish — vacant myhome doors are enterable for the pick.
 var intro_station_can_pick_house: bool = false
@@ -409,6 +421,57 @@ func _begin_station_arrival(seed_value: int, identity: Dictionary, sync_clock: b
 	intro_payment_pending = false
 	_set_phase(Phase.INTRO)
 	_change_scene(WORLD_SCENE)
+
+
+## A newcomer's arrival in the saved town (`mCD_START_COND_2`): the town as it is, an empty
+## resident in `joining_slot`, then the same station arrival — Porter, Nook, a vacant house.
+func _begin_resident_arrival(identity: Dictionary) -> void:
+	var slot: int = joining_slot
+	joining_slot = -1
+	reset_session()
+	if SaveService.load_game(SaveService.DEFAULT_PATH, slot) != OK:
+		var seed_value: int = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
+		_begin_station_arrival(seed_value, identity, false)
+		return
+	resume_clock(SaveService.last_elapsed)
+	var town: String = town_name
+	_apply_identity(identity)
+	town_name = town
+	intro_station_active = true
+	intro_station_can_pick_house = false
+	intro_station_resume_debt = false
+	intro_station_house_id = &""
+	intro_pending_house_id = &""
+	_grant_intro_start_items()
+	intro_payment_pending = false
+	_set_phase(Phase.INTRO)
+	_change_scene(WORLD_SCENE)
+
+
+## Walk into another resident's house: their rooms and house record stand in for the
+## player's own until they come back out (`aMHS_goto_next_pl_scene` to that house's scene).
+func enter_resident_house(slot: int) -> void:
+	if slot < 0 or slot == roster.current or visiting_slot == slot:
+		return
+	if visiting_slot >= 0:
+		leave_resident_house()
+	_own_house_stash = PlayerRoster.capture_house(interiors)
+	PlayerRoster.restore_house(interiors, roster.slots[slot])
+	visiting_slot = slot
+
+
+## Back outside from another resident's house: their rooms go back to their slot.
+func leave_resident_house() -> void:
+	if visiting_slot < 0:
+		return
+	var theirs: Dictionary = PlayerRoster.capture_house(interiors)
+	var priv: Dictionary = roster.slots[visiting_slot]
+	priv[PlayerRoster.KEY_ROOMS] = theirs[PlayerRoster.KEY_ROOMS]
+	priv[PlayerRoster.KEY_HOUSE] = theirs[PlayerRoster.KEY_HOUSE]
+	roster.forget_house(visiting_slot)
+	PlayerRoster.restore_house(interiors, _own_house_stash)
+	_own_house_stash = {}
+	visiting_slot = -1
 
 
 func _grant_intro_start_items() -> void:
@@ -579,7 +642,10 @@ func notify_intro_ready() -> void:
 func finish_intro_sequence(identity: Dictionary) -> void:
 	## Rover's train pulls into town (`aNGD_scene_change_wait_init`): make the new town
 	## and continue straight into the outdoor station arrival, keeping the clock the
-	## player set on the train.
+	## player set on the train. A newcomer to a saved town arrives in that town instead.
+	if joining_slot >= 0:
+		_begin_resident_arrival(identity)
+		return
 	var seed_value: int = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
 	_begin_station_arrival(seed_value, identity, false)
 
@@ -843,11 +909,29 @@ func _deliver_villager_mail(mail: MailData) -> bool:
 	return post != null and post.receipt_mail(mail)
 
 
-func continue_game() -> void:
+## Title → K.K.'s player select for the saved town (`SCENE_PLAYERSELECT`).
+func start_player_select() -> void:
+	await SceneTransition.play_wipe_out(SceneTransition.Style.FADE)
+	reset_session()
+	player_select_mode = true
+	_set_phase(Phase.INTRO)
+	_change_scene(INTRO_KK_SCENE)
+
+
+## K.K. readies the town for a newcomer (`aNPS2_TALK_START_TYPE3`): Rover's train, then the
+## station and a vacant house, in the saved town.
+func start_new_resident(slot: int) -> void:
+	player_select_mode = false
+	joining_slot = slot
+	advance_intro_to_train()
+
+
+func continue_game(slot: int = -1) -> void:
 	## Every real entry point starts clean; without this the title's attract-demo flag survived
 	## into the loaded game and `notify_world_ready` kept the phase on TITLE (no Esc, no events).
 	reset_session()
-	if SaveService.load_game() != OK:
+	player_select_mode = false
+	if SaveService.load_game(SaveService.DEFAULT_PATH, slot) != OK:
 		start_new_game()
 		return
 	note_reset(SaveService.last_reset_code)
@@ -999,6 +1083,9 @@ func destiny() -> int:
 
 
 func reset_session() -> void:
+	roster = PlayerRoster.new()
+	visiting_slot = -1
+	_own_house_stash = {}
 	destiny_type = Destiny.NORMAL
 	destiny_date = Vector3i.ZERO
 	inventory.clear()
@@ -2012,6 +2099,7 @@ func exit_interior() -> bool:
 		return try_enter_interior(room.parent_room_id)
 	current_room_id = &""
 	interior_session = null
+	leave_resident_house()
 	spawn_at_room_door = false
 	has_interior_spawn = false
 	play_door_arrive = false

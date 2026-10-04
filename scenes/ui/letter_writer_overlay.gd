@@ -326,6 +326,8 @@ func _save() -> void:
 		&"player"
 	)
 	mail.paper_type = _paper_type
+	if PostUse.resident_slot_of(mail.recipient_id) >= 0:
+		mail.recipient_type = MailData.NameType.PLAYER
 	if inv.add_mail(mail) < 0:
 		Game.post_notice("Your letter slots are full.")
 		close()

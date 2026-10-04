@@ -13,6 +13,8 @@ const DIALOGUE_ID := &"kk_opening"
 var _stage: IntroKkStage = IntroKkStage.new()
 var _finishing: bool = false
 var _dialogue_started: bool = false
+## The saved town's player select (`ac_npc_p_sel2`) when there is one.
+var _select: PlayerSelectTalk
 var auto_advance_dialogue: bool = false
 var _auto_advance_timer: float = 0.0
 
@@ -141,10 +143,35 @@ func _on_ready_for_talk() -> void:
 		_stage.begin_fade()
 		return
 	_dialogue_started = true
+	if Game.player_select_mode and _begin_player_select():
+		return
 	var ctx := DialogueContext.new()
 	ctx.vars = Game.dialogue_vars
 	ctx.speaker_name = "K.K."
 	_dialogue.play(data, ctx)
+
+
+func _begin_player_select() -> bool:
+	var roster: PlayerRoster = SaveService.read_roster()
+	if roster.count() == 0:
+		return false
+	_select = PlayerSelectTalk.new(roster, SaveService.read_town_name())
+	var ctx := DialogueContext.new()
+	ctx.speaker_name = "K.K."
+	Clock.sync_from_os()
+	ctx.hour = Clock.hour
+	ctx.minute = Clock.minute
+	ctx.month = Clock.month
+	ctx.day = Clock.day
+	ctx.year = Clock.year
+	_select.context = ctx
+	_select.prepare()
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % _select.start_msg()))
+	if data == null:
+		_select = null
+		return false
+	_dialogue.play(data, ctx, null, Callable(), _select)
+	return true
 
 
 func _on_dialogue_event(event: Dictionary) -> void:
@@ -177,7 +204,27 @@ func _on_fade_finished() -> void:
 	if _finishing:
 		return
 	_finishing = true
+	if _select != null:
+		_finish_player_select()
+		return
 	Game.advance_intro_to_train()
+
+
+## `aNPS2_setup_game_start` / `aNPS2_return_title`.
+func _finish_player_select() -> void:
+	if not _select.demolished.is_empty():
+		SaveService.write_roster(_select.roster)
+	match _select.result:
+		PlayerSelectTalk.Result.LOAD:
+			Game.continue_game(_select.chosen)
+		PlayerSelectTalk.Result.NEW:
+			Game.start_new_resident(_select.chosen)
+		PlayerSelectTalk.Result.NEW_TOWN:
+			## `mCD_EraseLand_bg`, then back to the title for a fresh start.
+			SaveService.delete_save()
+			Game.abort_intro_sequence()
+		_:
+			Game.abort_intro_sequence()
 
 
 func _cmdline_has(flag: String) -> bool:

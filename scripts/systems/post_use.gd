@@ -9,6 +9,8 @@ const BANK_AFTER_MSG := 0x2DE2
 ## `mPr_CheckMuseumAddress` — the synthetic "Museum" address-book contact used only
 ## for mailing a raw fossil in for identification (`m_museum.c`'s `mMsm_SendResultMail`).
 const MUSEUM_RECIPIENT_ID := &"museum"
+## Recipient ids for the town's other human residents: `resident_<roster slot>`.
+const RESIDENT_PREFIX := "resident_"
 const MUSEUM_RECIPIENT_NAME := "Museum"
 ## Debug/test-only canned bodies (`give_test_tools`, `test_post_police.gd`) — the
 ## interactive pockets "Write" flow types a real body now (`letter_writer_overlay.gd`),
@@ -94,6 +96,14 @@ static func send_mail_at(index: int) -> String:
 		Game.inventory.remove_mail(index)
 		_refresh_mail_piles()
 		return "We'll send it to the Museum. Expect a reply tomorrow."
+	## `mPO_receipt_proc` for a housemate: it goes to their mailbox (`homes[].mailbox`).
+	var resident: int = resident_slot_of(letter.recipient_id)
+	if resident >= 0:
+		if not Game.roster.deliver_mail(resident, letter.duplicate_mail()):
+			return "%s's mailbox is full." % letter.recipient_name
+		Game.inventory.remove_mail(index)
+		_refresh_mail_piles()
+		return "We'll deliver your letter to %s!" % letter.recipient_name
 	if Game.post.is_desk_full():
 		return "The desk is full — we can't take more mail."
 	var copy: MailData = letter.duplicate_mail()
@@ -172,6 +182,28 @@ static func write_letter(to_id: StringName, body_index: int = 0) -> String:
 ## Address-book villager list (`m_address_ovl.c`'s `mAD_make_npc_address`): only
 ## villagers with a "memory" of you — `mNpc_GetAnimalMemoryIdx` — appear, not the whole
 ## town. `Relationship.MET` is this port's equivalent milestone.
+## The town's other human residents (`mPr_*` address entries for `private_data[]`).
+static func resident_candidates() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if Game == null or Game.roster == null:
+		return out
+	for slot: int in Game.roster.resident_slots():
+		if slot != Game.roster.current:
+			out.append({"id": StringName("%s%d" % [RESIDENT_PREFIX, slot]), "name": Game.roster.name_of(slot)})
+	return out
+
+
+## Roster slot a recipient id names (`resident_<n>`), or -1.
+static func resident_slot_of(recipient_id: StringName) -> int:
+	var raw := String(recipient_id)
+	if not raw.begins_with(RESIDENT_PREFIX) or not raw.substr(RESIDENT_PREFIX.length()).is_valid_int():
+		return -1
+	var slot: int = int(raw.substr(RESIDENT_PREFIX.length()))
+	if Game == null or Game.roster == null or slot < 0 or slot >= PlayerRoster.MAX:
+		return -1
+	return slot if PlayerRoster.is_resident(Game.roster.slots[slot]) else -1
+
+
 static func met_villager_candidates() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if Game == null or Game.villagers == null:

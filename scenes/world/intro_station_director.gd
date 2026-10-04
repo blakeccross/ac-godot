@@ -12,6 +12,8 @@ const NOOK_INTRO_DIALOGUE_FALLBACK := &"nook_station_greeting"
 const NOOK_HOUSES_DIALOGUE := &"msg_2017"
 const NOOK_HOUSES_DIALOGUE_FALLBACK := &"nook_show_houses"
 const NOOK_HOUSE_LOOK_DIALOGUE := &"msg_2020"
+## `0x07E3`: a newcomer tries a house another resident lives in.
+const NOOK_HOUSE_TAKEN_DIALOGUE := &"msg_2019"
 const NOOK_HOUSE_LOOK_DIALOGUE_FALLBACK := &"nook_house_look"
 const NOOK_DEBT_DIALOGUE := &"msg_2022"
 const NOOK_DEBT_DIALOGUE_FALLBACK := &"nook_house_debt"
@@ -53,6 +55,8 @@ var _finishing: bool = false
 var _resume_debt: bool = false
 var _last_dialogue_id: StringName = &""
 var _pending_look_house_id: StringName = &""
+## Name of the resident whose house Nook just turned the newcomer away from (`msg_2019`).
+var _taken_owner: String = ""
 var _entering_look_house: bool = false
 var _nook_face: NpcFace = NpcFace.new()
 var _nook_feel: NpcFeelGlyphs
@@ -496,6 +500,17 @@ func _on_nook_show_houses() -> void:
 
 
 func _on_intro_house_look(house_id: StringName) -> void:
+	## A house someone already lives in (`aID_STATE_*` from `homes[].ownerID`): Nook says so
+	## and the pick goes on. The quick look inside he allows is not offered here.
+	var owner_slot: int = Game.roster.slot_on_plot(house_id)
+	if owner_slot >= 0 and owner_slot != Game.roster.current:
+		_taken_owner = Game.roster.name_of(owner_slot)
+		if _player != null:
+			_player.set_busy(true)
+		_nook_play_wait()
+		_begin_demo_talk(_nook, false, false)
+		_play_dialogue(NOOK_HOUSE_TAKEN_DIALOGUE, "Tom Nook")
+		return
 	## `msg_2020` / `0x07E4` before the door — NORMAL cam, turn off.
 	_pending_look_house_id = house_id
 	if _player != null:
@@ -544,6 +559,8 @@ func _play_dialogue(id: StringName, speaker: String, fallback: StringName = &"")
 	ctx.player_name = Game.player_name
 	ctx.town_name = Game.town_name
 	_fill_shop_acre_frees(ctx)
+	if id == NOOK_HOUSE_TAKEN_DIALOGUE:
+		ctx.frees = PackedStringArray([_taken_owner])
 	_dialogue.play(data, ctx, null, _payment_gate)
 
 
@@ -621,6 +638,14 @@ func _on_dialogue_closed() -> void:
 	if _norm_talk:
 		_norm_talk = false
 		_end_demo_talk()
+		return
+	if _taken_owner != "":
+		_taken_owner = ""
+		_end_demo_talk()
+		if _player != null:
+			_player.set_busy(false)
+		Game.intro_pending_house_id = &""
+		Game.intro_station_can_pick_house = true
 		return
 	## After `msg_2020`, claim the plot and walk through the door.
 	if _pending_look_house_id != &"" and not _entering_look_house:

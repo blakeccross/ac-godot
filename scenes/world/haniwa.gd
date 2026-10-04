@@ -55,6 +55,11 @@ func refresh_seasonal_visual() -> void:
 ## and `mHS_get_pl_no(house_idx) == player_no`). The other three plots are empty in a
 ## one-player town, and all four are while the station intro is still picking.
 func has_owner() -> bool:
+	return Game != null and PlayerHouse.resident_slot(PlayerHouse.plot_building(house_idx)) >= 0
+
+
+## The owner is the resident playing (not another resident whose plot this is).
+func owner_is_player() -> bool:
 	return Game != null and PlayerHouse.is_owned_node(PlayerHouse.plot_building(house_idx))
 
 
@@ -145,12 +150,14 @@ func _step_frame(ticks: float) -> void:
 func _talk(listener: Node3D) -> bool:
 	var ui := DialogueOverlay.find(get_tree())
 	var owned: bool = has_owner()
-	## One resident per town: the owner is always the player (`OTHER_OWNER` is the visitor path).
-	var owner_is_player: bool = owned
-	var house: House = Game.interiors.player_house() if Game.interiors != null else null
+	## Another resident's gyroid runs the visitor path (`OTHER_OWNER`): their message and goods.
+	var is_mine: bool = owner_is_player()
+	var house: House = PlayerHouse.resident_house(PlayerHouse.plot_building(house_idx))
+	if house == null:
+		house = Game.interiors.player_house() if Game.interiors != null else null
 	var msg: HaniwaTalk.Msg = HaniwaTalk.decide_msg(
 		owned,
-		owner_is_player,
+		is_mine,
 		house != null and house.has_saved,
 		Game.first_job != null and Game.first_job.is_active(),
 		Game.relationships.friend_count() if Game.relationships != null else 0,

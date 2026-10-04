@@ -3,8 +3,8 @@ extends CanvasLayer
 ## Address book (`m_address_ovl.c`), opened over the letter board once the paper is on
 ## it. Lists "Museum" (`mPr_CheckMuseumAddress`, for mailing a fossil in) on the first
 ## page, then every villager who remembers the player (`mNpc_GetAnimalMemoryIdx`,
-## `Relationship.MET` — `PostUse.met_villager_candidates()`) eight to a page. Other
-## player-residents are a memory-card feature this port doesn't have.
+## `Relationship.MET` — `PostUse.met_villager_candidates()`) eight to a page. The town's other
+## human residents share the first page with the Museum (`PostUse.resident_candidates()`).
 ##
 ## Drawn like the original: "Choose an addressee." in the message window
 ## (`mAD_set_first_tag`) until A, then the pages as stacked address cards
@@ -87,10 +87,12 @@ func open(on_pick: Callable = Callable(), anchor_x: float = -56.0) -> void:
 		return
 	_on_pick = on_pick
 	_anchor_x = anchor_x
-	_entries = [{"id": PostUse.MUSEUM_RECIPIENT_ID, "name": PostUse.MUSEUM_RECIPIENT_NAME}]
+	var first: Array[Dictionary] = [{"id": PostUse.MUSEUM_RECIPIENT_ID, "name": PostUse.MUSEUM_RECIPIENT_NAME}]
+	first.append_array(PostUse.resident_candidates())
+	_entries = first.duplicate()
 	_entries.append_array(PostUse.met_villager_candidates())
-	_pages = [[_entries[0]]]
-	var villagers := _entries.slice(1)
+	_pages = [first]
+	var villagers := _entries.slice(first.size())
 	for i in range(0, villagers.size(), MAX_ENTRIES):
 		_pages.append(villagers.slice(i, i + MAX_ENTRIES))
 	_page = 0
