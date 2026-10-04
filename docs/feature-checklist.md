@@ -26,12 +26,11 @@ data tables before a category is called done.
 - [~] Title screen: New Game / Continue (`m_scene`, `m_start_data_init`) — `scenes/ui/title.tscn` (attract-mode town + animated logo; see [title](decomp_notes/title.md))
 - [~] New town vs. load-existing branch (`mSDI_StartInitNew`)
 - [ ] Up to **4 human residents** per town; pick which one you play each session (`player_select.c`)
-- [ ] Create-a-character on the train (name, town name, face is derived from Rover's questions) (`ac_npc_guide`)
 - [~] Character creation flow driven by Rover Q&A (`ac_npc_guide` / intro train) — `intro_train_stage.gd`
 - [ ] Delete a resident / delete the town (`save_menu.c`)
 - [~] Save + return to title on quit (`save_menu.c`, `m_save`) — `save_service.gd`
 - [x] **House gyroid** outside each house plot is the save point (`ac_haniwa`, `ACTOR_PROP_HANIWA0`–`3`) — `scenes/world/haniwa.tscn` + `HaniwaTalk` + `HaniwaStore`: FG placement two units south of every house, `hnw_move` bob / dance speeds and turn-to-player, empty-plot freeze facing front, first-job "need a friend" line; owner menu: **Save** (walk to the door → door opens → save → title), **Store an item** (4-slot consignment table in the pockets: free / display only / for sale with a 5-digit price, take back), **Other things** → **About the door** (post one of your designs on the front door / remove it) and **Set message** (4-line visitor message, ROM default text); sale **proceeds** collected on the next talk (wallet, then 30 000-bell bags); **visitor** flow (read the message, pay and take) is in place but can't trigger in a one-resident town. `BGM_ENTER_HOUSE` is a plain BGM swap rather than a pushed demo track
-- [ ] Memory Card management, copy, "the game was not saved correctly" recovery (`save_check.c_inc`, `m_flashrom`, `s_cpak`)
+- [x] ~~Memory Card management, copy, "not saved correctly" recovery~~ — no Memory Card here; saves are files (`SaveService`), and quitting without saving is Mr. Resetti's job (below)
 - [x] **Mr. Resetti** appears if you quit without saving; escalating lectures by reset count; **Don** on the fifth (`mCD_SetResetInfo`, `ac_reset_demo`, `ac_npc_majin*`) — the save carries a `reset_code` set at load and cleared by a proper save; `ResettiVisit` picks the visitor and opening message (9+ cycle 6–8), `scenes/world/resetti.tscn` pops up (`APPEAR1`), lectures, waits to be spoken to on the fourth, digs back down (`GO_UG1`), with his helmet light at night. The typing test of the sixth follows the messages' own default branch
 - [ ] `zurumode` / cheat-detection "gnat" bug swarm anti-tamper behaviour (`zurumode.c`)
 - [~] RTC read, clock-was-changed detection (`lb_rtc.c`, `aNPS2_game_start_wait`) — the save stamps the wall clock and loading moves the game clock on by the real time away (`Clock.resume_after`, renewals catch up); a clock set behind the last save sets `cheated_flag` (GCN's only penalty: no birthday surprise, returning card visitors sent home). The time-set prompt at player select isn't built; the game follows the system clock
@@ -59,7 +58,7 @@ data tables before a category is called done.
 - [x] Falling leaves: not ambient on the GameCube; `mEnv_WEATHER_LEAVES` is only used by the K.K. show (no work needed)
 - [x] Rainbow after rain: a clear/sakura day after rain/snow reserves it; it fades in 9:00–15:00 in summer and fades out slowly, drawn at the waterfall as `obj_fallS_rainbowT_model` billboarded about the fall with its two-texture combiner (`mEnv_PreRainNowFine_Init`, `mEnv_rainbow_power_calc`, `ac_fallS`) — `Rainbow`, `waterfall.gd`, `fall_rainbow.gdshader`; `rainbow` console command
 - [x] Fog: distance fog follows the per-time `kcolor` tables (`mEnv_SetFog`) — `Clock.outdoor_light()`; the GameCube has no separate foggy-morning weather
-- [ ] Rain changes indoor & outdoor BGM; more fish/bugs (coelacanth, frogs, snails, etc.)
+- [~] Rain: the field plays the rain BGM (`BgmCatalog`), the coelacanth joins the sea list while it rains (`FishSpawnScheduler`), rain-only bugs (snail) come out. Missing: the indoor rain arrangement
 - [~] Lightning flashes in storms — `WeatherFx._tick_lightning` (approximate). No aurora on the GameCube
 - [ ] Shooting stars (`eEC_EFFECT_SHOOTING_SET`): only on the Meteor Shower event on the GameCube, not on ordinary clear nights
 - [x] Harvest Moon reflection on the pond: glides east to west 18:00–21:00, sways and ripples, with its disc/ripple combiner (`ef_night13_moon`, `ef_moon01_01_modelT`) — `PondMoon`, `pond_moon.gdshader`
@@ -69,56 +68,56 @@ data tables before a category is called done.
 
 - [~] Procedural town: 5×6 acre grid, cliffs/terraces (3 elevations), river, waterfalls, ponds, sea + beach (`m_random_field`, `m_field_make`) — `town_field_generator.gd`
 - [ ] Fixed known-seed towns (A–D style) selectable — `REFERENCE` world mode reserved
-- [ ] River mouth, river forks, round pond, waterfall placement rules
+- [~] River mouth, river forks, round pond, waterfall placement rules — `TownFieldGenerator` picks the disc's acre templates by block kind (river, bridge, pond, waterfall, mouth); `WaterBodies` splits sea from river
 - [ ] Beach along the south edge; tide; ocean horizon; rocks in surf
 - [ ] Acre-edge scroll / camera hand-off between acres
 - [x] Town map from the held map item (blue) or the sight-map boards (yellow), drawn like `mMP_set_dl` from the disc's `kan_win` / `kan_tizu` art: acre tiles, the selected acre's letter and number, the label frame sized to its labels, building names or residents (the player plus "free" plots; villagers by name with their house marks tinted by ground height), you-are-here mark, the easing, pulsing cursor (`m_map_ovl`) — `map_overlay.gd`, layers from `menu_ui.py` (`ui/map_screen/`); `map` console command
-- [ ] Bridge(s) across the river; town can gain a second bridge (`ac_bridge_a`, `mEv_EVENT_BRIDGE_MAKE`)
-- [ ] Building slots: player houses ×4, Nook's, Able Sisters, Museum, Town Hall, Post Office, Police Station, Wishing Well, Train Station, Dump, Lighthouse
-- [ ] Villager house plots (up to ~15 villager homes) with reserved lots (`ac_reserve`)
-- [ ] Named landmarks / the town gate & train tracks (`ac_station`, `ac_train_door`)
-- [ ] Cliffs block movement; only ramps/stairs connect elevations
+- [~] Bridge(s) across the river (`ac_bridge_a`) — the river's bridge acre comes from the generator. Missing: the second bridge Tortimer builds (`mEv_EVENT_BRIDGE_MAKE`)
+- [x] Building slots: player houses, Nook's, Able Sisters, Museum, Post Office, Police Station, Wishing Well, Train Station, Dump, Lighthouse — block kinds placed by `TownFieldGenerator` (no Town Hall on the GameCube)
+- [x] Villager house plots (up to 15) with reserved lots (`ac_reserve`) — `TownResidents` moves villagers onto free SIGN plots
+- [x] The station and train tracks along the top row (`ac_station`, `ac_train_door`) — `TrainControl`, `TrainCars`, `VisualTrain`
+- [x] Cliffs block movement; only ramps / slopes connect elevations — `FieldCollision`
 - [~] "Perfect town" / environment assessment: trees, weeds, litter, flowers → rating per acre and town rank, daily perfect streak; the wishing well names the worst acre and, after 15 perfect days, its spirit hands over the golden axe (`m_field_assessment`, `ac_shrine`, `ac_npc_hem`) — `TownAssessment`, `WishingWellTalk`, `WellSpirit`. The rank sets bug / fish rarity and the gap between special visitors. Missing: special music, Jacob's-ladder spawn
 
 ## 5. Player character
 
 - [~] Body model, head model, face texture set (from Rover Q&A), skin/tan state (`m_player`, `m_player_draw`) — `scenes/actors/player.tscn`
 - [x] Suntan: fifteen minutes in the midday sun (10:00–16:59, Jul 16 – Sep 15, clear sky, no umbrella) earns a rank up to 8, shown on the next scene change or acre crossing by swapping the face palette (face and skin); it holds two days, then fades a rank a day (`Player_actor_Check_player_sunburn_*`, `mPlib_Get_UseFacePalletRom_p`) — `Sunburn`, `PlayerFace`. The island's five-minute rate waits on the island
-- [ ] Hair style / colour set by creation questions (no salon in GCN)
-- [ ] Clothing: equipped shirt shows on model; hats; accessories/glasses; umbrella held in rain (`m_player_item_umbrella`) — umbrella done (see Umbrella)
+- [x] ~~Hair style / colour~~ — the GCN player has no separate hair; the face set comes from Rover's questions (see the line above)
+- [~] Clothing: the equipped shirt shows on the model (`VisualCloth`), umbrella held in rain (see Umbrella). Missing: hats and accessories (not in the GCN player either — the cap is part of the head model)
 - [x] Change clothes anywhere from pockets — "Wear" swaps inside the menu (`Game.wear_cloth_from_slot`). `m_player_main_change_cloth` / `ef_kigae` is the shop try-on and the Halloween prank, not the pockets
 - [x] Pockets = **15 item slots** + separate wallet (`m_private` `mPr_POCKETS_SLOT_COUNT`) — `inventory.gd` (duplicate of the line below, kept in sync)
-- [ ] Carrying a piece of furniture / large item in hands (walk slower) (`m_player_main_hold`, `pickup_furniture`)
+- [~] Carrying a held item in hand while walking (`ToolCarry`, part tables per tool). The GCN player never carries furniture: it is pushed and pulled (`FurnitureGrip`)
 - [x] Trip / stumble when running into things or on ants (`m_player_main_tumble`, `stung`) — `player.gd` `TUMBLE` gaits + `_tumble_events`
 - [x] Fall in a pitfall; struggle out (`m_player_main_fall_pitfall`, `struggle_pitfall`, `climbup_pitfall`) — `Player.run_pitfall`; seeds are buried with the pockets' "Bury" (shovel + hole, `mTG_TYPE_FIELD_DEFAULT_BURY`) into `BuriedUse` `KIND_PITFALL`; villagers fall in too and climb out when talked to (`aNPC_act_pitfall` / `revive`)
 - [x] Get stung by bees → swollen face; villagers react (`m_player_main_stung_bee`, `notice_bee`, `mNpc_SetTalkBee`) — `Player.run_stung_bee`, `PlayerFace`, `Game.bee_*`, `DialogueGreeting` `BEE_STUNG` / `BEE_CHASE`. The swell lasts until the game is reset (common data); GCN has no medicine
 - [x] Mosquito bites in summer (`ac_ins_ka`, `stung_mosquito`, `notice_mosquito`) — `BugKa` bite → `BugField.take_bite` → `Player.run_stung_mosquito` (`MSG_12387`)
-- [ ] ~~Tired / sleepy animations late at night~~ — GCN `m_player_main_tired` only follows `wash_car`; there is no late-night tiredness
+- [x] ~~Tired / sleepy animations late at night~~ — GCN `m_player_main_tired` only follows `wash_car`; there is no late-night tiredness
 - [x] Push / pull furniture and snowballs (`m_player_main_push`, `push_snowball`) — furniture (`FurnitureGrip`); snowballs (`ply_1_push_yuki1`, the ball leads and the player keeps behind it, `Player.begin_snowball_push`). Missing: carrying a pushed ball across an acre border (`wade_snowball`)
 - [x] Sit on benches/chairs (`m_player_main_sitdown`) — `FurnitureSeat`
 - [x] Lie in bed / roll in bed / stand up from bed (`m_player_main_lie_bed`, `roll_bed`, `aMR_GetBedAction`) — sideways stick rolls across a double bed or aligned beds, or gets out on that side (`FurnitureSeat.bed_action`). GCN beds do not save
 - [x] Wade across acre borders (`m_player_main_wade`) — `AcreWade`, `Player._begin_wade`
 - [x] Radio-exercise / morning aerobics participation (`m_player_main_radio_exercise`) — `RadioExercise` C-stick patterns (right stick or I/J/K/L) → `Player.run_radio_exercise`, on the shrine acre during aerobics or by the aerobics radio
-- [ ] ~~Emotions menu~~ — GCN has no player emotion menu (later games); `ef_warau` / `ef_naku` / `ef_pun` are villager manpu, done with dialogue
+- [x] ~~Emotions menu~~ — GCN has no player emotion menu (later games); `ef_warau` / `ef_naku` / `ef_pun` are villager manpu, done with dialogue
 
 ## 6. Camera
 
 - [~] 3/4 fixed-angle follow camera, ~20° FOV, ~45°, focus distance 620 (`m_camera2`) — `follow_camera` / `FollowCamera`
-- [ ] Camera rotates 90° per acre / snaps to acre orientation
+- [x] ~~Camera rotates 90° per acre~~ — the GCN camera keeps one heading; acre crossings only re-aim the follow (`AcreCamera`)
 - [~] Special cameras: door enter/exit, talking, sitting, fishing show-off, demos — `door_camera.gd`, `talk_camera.gd`
 - [ ] C-stick / look controls (if any); pause zoom
-- [ ] Cutscene / `m_demo` director for events (`m_demo.c`)
+- [~] Cutscene direction for events (`m_demo.c`) — each event drives its own camera and actors (door, talk, intro train, K.K., Resetti, present visit); there is no shared demo director
 
 ## 7. Movement & locomotion
 
 - [~] Analog walk (~4.875 u/frame) and run (~7.5 u/frame); B / L / R to dash (`m_player_main_walk`, `run`, `dash`) — `player_locomotion.gd`
 - [~] Turn-in-place, dash turn, skid (`turn_dash`) — partial
-- [ ] Trample flowers when running through them (they wilt); walking is safe
+- [x] Trample flowers when dashing through them; walking is safe — `PlantGrowth.trample_flower`, `StepFx` petal burst (`eHanatiri_ct`)
 - [~] Grass wears into dirt paths where you walk repeatedly; regrows slowly (`ac_field_draw` wear) — _(check)_
 - [~] Per-foot footprints on sand/snow, slope-fit, ~160-frame fade (`ef_footprint`) — `footprint_marks.gd`
-- [ ] Slip on ice / banana peels (`m_player_main_slip_net`? / ice)
+- [x] ~~Slip on ice / banana peels~~ — no ice or peels in GCN; `slip_net` is the net's skid (see Net)
 - [ ] Bump / knock-back off buildings, signs, rocks; slide along cliff & water edges
-- [ ] Fall off a cliff edge → short drop (`m_player_main_fall`)
+- [x] ~~Fall off a cliff edge~~ — GCN cliffs are walls; `m_player_main_fall` is the pitfall drop (done)
 
 ## 8. Interaction system (Field A button)
 
@@ -129,28 +128,28 @@ data tables before a category is called done.
 - [~] Push signs to read; read bulletin board; read gravestones/signposts (`ac_sign`) — community board (`MESSAGE_BOARD0`, `obj_*_notice`) is placed from the FG templates and hosts the first-job "post a notice" chore and opens the board's posts (`NoticeBoardOverlay`, §26). Sight-map boards (`MAP_BOARD0`) open the town map without needing the item; tune boards (`MUSIC_BOARD0`) open the town tune editor; fences (`FENCE0` / `WOOD_FENCE`) are solid props; the station statue (`DOUZOU`) is placed and shows once a house reaches the statue (§26)
 - [~] Knock on villager doors (`m_player_main_knock_door`)
 - [~] Enter/exit buildings: step-in animation, door swing, screen wipe (`m_player_main_door`) — `structure_door.gd`, `scene_transition.gd`
-- [ ] Hand an item to a villager / receive an item (give / recieve animations) (`m_player_main_give`, `recieve`, `ac_handOverItem`)
+- [x] Hand an item to a villager / receive an item (give / receive animations) (`m_player_main_give`, `recieve`, `ac_handOverItem`) — `HandOver`, `HandOverItem`
 - [ ] Refuse / decline prompt (`m_player_main_refuse`)
-- [ ] Pick fruit vs. shake whole tree distinction
+- [x] Pick fruit vs. shake whole tree — GCN only shakes; fruit falls and is picked up off the ground (`TreeUse`)
 - [x] Pluck weeds (`m_player_main_remove_grass`) — A on a weed: `ZASSOU1`, out on frame 17 with `zassou_nuku`, flies off over the shoulder (`weed.tscn`)
 - [~] Pick / dig up flowers; pick mushrooms (`m_mushroom`) — mushrooms are ground items (`MushroomUse`)
-- [ ] Talk to your own reflection / gyroids / pets? (gyroid greeting)
+- [x] Talk to gyroids — house gyroids (`HaniwaTalk`); GCN has no pets or reflections
 
 ## 9. Tools
 
 - [~] **Net** — hold A to ready, creep, skid out of a dash, release to swing; tick-exact catch sphere from keyframe 6; wall / ground / villager strike cuts the swing (`AMI_HIT`); empty swing → `STOP_NET` (`m_player_item_net`, `m_player_main_{ready,ready_walk,slip,swing,stop}_net`) — `net_swing.gd`, `netting.gd`. Missing: catching the bee swarm, swing effects. The golden net reaches further (21 GX)
 - [~] **Fishing rod** — see §13 (`m_player_item_rod`) — `fishing.gd` (substantial)
-- [ ] **Shovel** — dig holes, bury items, dig fossils/gyroids/pitfalls, hit rocks, plant trees, whack villagers, reflect off stone (`m_player_item_scoop`, `dig_scoop`, `fill_scoop`, `reflect_scoop`) — `hole_use.gd`, `buried_use.gd` _(partial)_
-- [ ] **Axe** — chop trees (multi-hit → stump), break on overuse, golden axe never breaks (`m_player_item_axe`, `swing_axe`, `broken_axe`, `ef_break_axe`) — `tree_use.gd` _(partial)_
+- [~] **Shovel** — dig and fill holes, bury items and pitfall seeds, dig up fossils and shine spots, hit the money rock, plant saplings (`hole_use.gd`, `buried_use.gd`, `MoneyRock`). Missing: digging up gyroids, the clang off stone (`reflect_scoop`)
+- [~] **Axe** — chop trees (multi-hit → stump), the golden axe (`tree_use.gd`). Missing: the axe breaking with use (`broken_axe`, `ef_break_axe`)
 - [~] **Fishing rod / net / axe / shovel** durability & the **golden** variants — the golden axe from the wishing well; Tortimer waits outside the house with the golden rod once every fish is caught and the golden net once every insect is (`aPRD_setup_present`, `PresentVisit`). Once Tortimer has gone, or the well spirit has given the axe, the player holds the golden tool up (`YATTA1`) and says so in a green report (`demo_get_golden_item`, `Player.get_golden_item`). Each plays its jingle (all insects, all fish, the chores tune for the axe). Missing: the golden shovel (Wild World on)
-- [ ] **Slingshot** — _not in the GameCube game_ (balloons snag in trees instead; see §33 balloons)
-- [ ] **Watering can** — _not in GCN_ (villagers water flowers themselves; skip)
+- [x] ~~Slingshot~~ — _not in the GameCube game_ (balloons snag in trees instead; see §34 balloons)
+- [x] ~~Watering can~~ — _not in GCN_ (flowers don't need water on the GameCube)
 - [~] **Umbrella** — held in rain/snow, twirl, many designs (`m_player_item_umbrella`, `rotate_umbrella`) — `HeldUmbrella` + 32 `ToolData` umbrellas (`data/items/umbrellas/`, ROM names/prices): opens out of the hand (`UMB_OPEN1`, handle/canopy scale tables), right arm holds `ply_1_umbrella1` over walk/idle (`PART_TABLE_NET`), A twirls (`UMB_ROT1` + SE 0x432), folds away through doors / on unequip (`UMB_CLOSE1`), switches the rain loop to the under-umbrella one; Nook stocks one a day on the umbrella stand; title demo 2 carries the gelato umbrella. Missing: design umbrellas (`ITM_MY_ORG_UMBRELLA0-7`), the `KASAMIZU` twirl spray (no effect system)
 - [ ] **Fan / uchiwa** (festival), **timer**, **party popper / clacker**, **handbill**, **pitfall seed** as usable items (`m_player_item_fan`, `ac_t_utiwa`, `ef_clacker`)
 - [~] **Bug / fish held up** show-off pose + species report (`m_player_main_notice_net`, `notice_rod`) — net: pull (`GET_M1`, report at 50 ticks, turn past keyframe 17), notice (pockets + catch record, collection-complete 0xA4E/0xA4F + `YATTA2`, full-pockets 0xA4D), put-away (`PUTAWAY_M1`, shrink to keyframe 17). The catch jingle (0x28) runs under the report, the collection-complete one (0x4B) under the follow-up. Missing: exchange inventory, release clip, the rod's own collection-complete follow-up (0x4C)
-- [ ] Held tool renders on the right hand with its own animation clips (`Player_actor_Item_draw`, `mPlayer_JOINT_HAND`) — `held_tool.gd`
-- [ ] Tool ready ↔ put-away transitions and SE for every tool (`putaway_*`, `ready_*`)
-- [ ] Wetsuit / diving — _not in GCN_ (skip)
+- [x] Held tool renders on the right hand with its own animation clips (`Player_actor_Item_draw`, `mPlayer_JOINT_HAND`) — `held_tool.gd`, `ToolCarry`
+- [~] Tool ready ↔ put-away transitions and SE — net, rod and umbrella have theirs; shovel and axe swap straight
+- [x] ~~Wetsuit / diving~~ — _not in GCN_
 
 ## 10. Inventory, items, catalog
 
@@ -178,11 +177,11 @@ data tables before a category is called done.
   `letter_reader_overlay.tscn`, `LetterBoard`, `LetterChrome`. Read-only (decomp confirms
   `mBD_roll_control`/pagination/caret are write-mode-only, dead code for reading).
 - [~] **Catalog** of every item you've ever owned/received; order from catalog at Nook's (`m_catalog_ovl`) — `CatalogBook`: furniture / clothing / wallpaper / carpet / stationery / umbrellas register as they reach the pockets (`mSP_CollectCheck`); Nook takes up to 5 paid orders that arrive enclosed in a letter the next morning (`mPO_delivery_mail_with_order_ftr`). Missing: the catalog browser pages (orders use the shop paper list), non-orderable flags beyond "rare"
-- [ ] Item data tables: furniture, clothing, wallpaper, carpet, umbrellas, tools, stationery, fruit, shells, fossils, gyroids, paintings, music, misc (`m_item_name`, `ac_furniture_data`)
-- [ ] Fruit: native fruit per town + non-native (apple, orange, peach, pear, cherry); coconut on beach palms
-- [ ] Perfect fruit? _(not in GCN — skip)_
+- [~] Item data tables: tools, fruit, fossils, umbrellas, tickets, turnips, stationery and money as `.tres`; furniture, clothing, wallpaper and carpet from the disc (`FtrCatalog`, `ItemCatalog`). Missing: shells, paintings as items
+- [x] Fruit: native fruit per town + foreign fruit (apple, orange, peach, pear, cherry); coconuts on beach palms — `Game.town_fruit`, `TreeUse`
+- [x] ~~Perfect fruit~~ — _not in GCN_
 - [ ] Sea shells wash up on the beach on a timer; sell to Nook / Tommy (`ac_mbg` beach items) — shell prices are in `mSP_ItemNo2ItemPrice` (160/80/600/120/240/1800/1400/1000) for when the items exist
-- [ ] Furniture "in hand" vs. "as item" states; wallpaper/carpet items
+- [x] Furniture "in hand" vs. "as item": furniture is a pocket item until placed; wallpaper / carpet are pocket items used on a room — `FurnitureUse`, `VisualRoomPaint`
 - [~] Wrapping paper — wrap/unwrap a droppable item as a present (`Inventory.wrap_slot`, the
   "Wrap" tag) works; attaching a wrapped gift to outgoing mail depends on the mail-writer UI
   and isn't wired up yet (`ac_present_demo`)
@@ -190,17 +189,17 @@ data tables before a category is called done.
 
 ## 11. Economy
 
-- [ ] Bells as currency; wallet cap; 30k bags
+- [x] Bells as currency; wallet cap 99,999; 30,000-bell bags — `Inventory`
 - [x] **Post Office bank (ABD)**: the clerk's deposit line opens the terminal from the disc's `tyo_win` art — Cash (wallet plus money bags), a six-digit amount picked digit by digit, Balance to 999,999,999, Deposit / Withdrawal lit by direction; settling spends bags first and pays cash over the wallet cap as 30,000-bell bags; she then reads out the balance (`m_bank_ovl`, `aPG_deposit_*`) — `BankOverlay`, `BankTerminal`; `abd` console command. No interest on the GameCube: the post office mails a gift at 1M / 10M / 100M / 999,999,999 Bells, one per game start (`mMl_send_postoffice_mail`)
-- [ ] **Tom Nook home loan**: 4 (or 5) escalating amounts; pay any amount; statue/"paid off" reward; house expands on payoff (`m_repay_ovl`, `mQst` house upgrade)
-- [ ] House sizes: small house (4×4) → medium (6×6) → large (8×8) → upper floor (2nd floor); basement is a separate unlock, and no side/back rooms or mansion exist in GCN (`m_home`, `m_house`, room types)
+- [x] **Tom Nook home loan**: each size has its loan, paid any amount at the counter; the next upgrade is offered once it is paid off; the last ends in the statue (`m_repay_ovl`) — `HouseUpgrade`, `NookHouseTalk`, `Statue`
+- [x] House sizes: small → medium → large → upper floor, basement as a separate order (`m_home`) — `HouseUpgrade` (duplicate of §18)
 - [x] **HRA — Happy Room Academy**: welcome letter, then at game start a scored letter the day after the layout changes (or a 2-in-10 tip otherwise): points by origin, necessities, base / theme / set series with matching wallpaper and carpet, lucky pieces, facing the wall, theme obstacles; rewards at 70,000 / 100,000 (house and manor models); wing paper (`m_mark_room`, `m_mark_room_ovl`) — `HappyRoomAcademy`, tables from `hra.py`. Missing: the clutter rule's loose items (rooms don't hold loose items yet). Feng shui is its own score (see Feng shui)
 - [x] Feng shui: each piece's colour from the disc (`mMkRm_ftr_info`) pays on its side — yellow west (money), red east (goods), orange north and green south (both), lucky anywhere — with the face-to-the-wall penalty, over every room of the house when you head out (`m_huusui_room_ovl`) — `FengShui`. Money power lengthens the money rock; goods power raises Nook's rare / uncommon odds
 - [~] Selling: Nook buys almost anything at set prices; fish/bugs/fossils/paintings prices; foreign fruit premium — `ShopBook.sell_result`: catalog price / 4, foreign fruit 2000 / 4 (`Game.town_fruit`), worthless items taken for free, quest items refused, 30,000-bell bags when the wallet overflows (refused with no room), half the payout counts toward Nook's sales. Missing: shell / fossil / painting price data
 - [~] Turnip market (**Stalk Market**): Sow Joan sells turnips Sunday AM; Nook buys at fluctuating daily price; turnips rot after a week; spoiled-turnip uses (`m_kabu_manager`, `ac_ev_kabuPeddler`, `ac_yomise`) — `KabuMarket` ports `Kabu_manager` (Sunday price 70–129, spike ×8 / random / falling trends with the decomp's transition odds; one price per day, not AM/PM, in GCN); Nook quotes it under "Other things" and buys 10/50/100 bundles (never on Sunday), spoiled turnips as junk. Missing: Joan, turnips spoiling on the ground (`mAGrw_SpoilKabu`)
 - [x] Lottery / raffle at Nook's on the last day of the month (`mEv_EVENT_LOTTERY`) — see §21
 - [x] Nook's point card / "Nook Points" — _not in GCN_ (`m_shop.c` has only raffle tickets); skip
-- [ ] Flea market? — _not in GCN_ (skip)
+- [x] ~~Flea market~~ — _not in GCN_
 
 ## 12. Fishing (§ of tools, detailed)
 
@@ -213,12 +212,12 @@ data tables before a category is called done.
 - [~] Reel-in beats: pull / swing up / reel empty, per-beat player + rod clips (`vib_rod`, `fly_rod`, `collect_rod`) — `fishing.gd` `reel_beats`
 - [~] Show-off pose, turn square to camera, catch report at frame 42 (`m_player_main_notice_rod`) — `held_catch.gd`, `held_fish.gd`
 - [~] Species report dialogue; shorter report if already donated; "pockets full → toss back / swap" (`Get_sakana_msg_num`, `0x1348`) — partial
-- [ ] **45 fish types** plus **5 extended fishing catches** (whale, empty can, boot, old tire, salmon2), with month × time-of-day × water-type availability + rarity (`aGYO_TYPE_NUM`, `aGYO_TYPE_EXTENDED_NUM`, `ac_set_ovl_gyoei`, `ac_gyoei_type.c_inc`)
-- [ ] Half-month term split + transition ramp for spawn weights (`gyoei_term`)
-- [ ] Water types: river, river mouth, pond, waterfall pool, sea, island (`aSOG_RANGE_PROC_*`)
-- [ ] Coelacanth only while raining/snowing, in the sea, outside the day slot (`aSOG_add_kaseki_range_data`)
-- [ ] Non-fish catches: boot, tire, tin can, seaweed? _(verify GCN junk list)_
-- [ ] Trash items (boot/can/tire) as furniture-less junk, sellable to Nook
+- [x] **40 fish** plus the junk catches (empty can, boot, old tire), with month × time × water availability and rarity from the disc tables (`ac_set_ovl_gyoei`, `ac_gyoei_type.c_inc`) — `data/creatures/*.tres`, `fish_spawn_table.json`, `FishSpawnScheduler`
+- [x] Half-month term split + transition ramp for spawn weights (`gyoei_term`) — `FishSpawnScheduler.term_blend`
+- [~] Water types: river, pond, sea (`WaterBodies`). Missing: the waterfall pool and river mouth sub-areas (`aSOG_RANGE_PROC_*` needs block kinds); the island waits on the island
+- [x] Coelacanth only while raining/snowing, in the sea, outside the day slot (`aSOG_add_kaseki_range_data`) — `FishSpawnScheduler`
+- [x] Non-fish catches: boot, tire, empty can — `FishCatalog` by shadow size
+- [x] Trash items (boot / can / tire) as junk, sellable to Nook for nothing
 - [x] Fishing tourney (June & November Sundays): Chip measures your bass and hands over a prize for each new record (`ac_ev_angler`, `AnglerTalk`); the day's record is kept (`m_fishrecord`), villagers keep fishing until 17:50, and a player still on top gets Chip's letter with lottery or event furniture they don't own — `FishRecord`
 - [x] Fish records (`m_fishrecord`): up to five tourney days kept, the winner posted on the community board after 18:00 — `FishRecord`
 
@@ -228,26 +227,26 @@ data tables before a category is called done.
 - [~] Bug spawn tables by month / time / habitat (tree trunk, flying, on flowers, on the ground, in the ground (mole cricket), by water, tree stumps, rotten food, street lamps at night) (`ac_set_ovl_insect`, `ac_insect_data`) — `bug_catalog.gd`, `bug_habitats.gd`
 - [x] **40 individual insect types** (`aINS_INSECT_TYPE_NUM`): butterflies, cicadas, bees/wasps, dragonflies, locusts, crickets, beetles, ladybugs, mantis, tarantula, firefly, cockroach, snail, mole cricket, pond skater, bagworm, pill bug, spider, ant, and mosquito (`ac_insect_h.h`, `ac_insect_data.c_inc`) — all 40 in `data/creatures`, moved by 16 behaviour families (`scripts/systems/bugs/`)
 - [~] Bee swarm from a shaken tree chases you and stings → swollen face; going indoors loses them (`ac_bee`) — `BeeSwarm`. Missing: netting the swarm
-- [ ] Wasp nest drops from tree; getting stung (`ac_bee` variant)
-- [ ] Tarantula aggressive chase behaviour at night
-- [ ] Firefly glow at night near water in summer
-- [ ] Cicada shells on trees; cicadas fly off when you approach
-- [ ] Bug sounds are directional and time-gated (crickets at night, cicadas by day)
-- [ ] Ants swarm on dropped rotten food / candy (`ac_ant`)
+- [x] Wasp nest = the bee swarm from a shaken tree (see above); getting stung — `BeeSwarm`, `Player.run_stung_bee`
+- [x] ~~Tarantula~~ — not in the GameCube game (the spider hangs from trees, `bug_mino`)
+- [x] Firefly glow at night near water in summer — `bug_hotaru.gd`
+- [x] ~~Cicada shells~~ — not in the GameCube game; cicadas sit on trunks and fly off when approached (`bug_semi.gd`)
+- [~] Bug sounds are time-gated and positional (cicada cries, crickets) through `Ongen`. Missing: the full insect SE set
+- [~] Ants come out on dropped candy / trash (spawn area 8, `BugSpawnScheduler`). Missing: the separate `ac_ant` actor
 - [x] Cockroaches in a house left closed too long; stomp them (`m_cockroach`, `ac_house_goki`) — see §18
-- [ ] Bug-off / bug tourney? _(GCN has no dedicated bug tourney — verify; fishing only)_
+- [x] ~~Bug-off~~ — GCN has no bug tourney (fishing only)
 
 ## 14. Digging, buried items, rocks
 
 - [~] Dig a hole on empty ground; fill a hole (`DIG_SCOOP`, `FILL_SCOOP`, `HOLE00`–`HOLE24`) — `hole_use.gd`, `scenes/world/hole.tscn`
 - [x] Bury an item in a hole; dig it back up (`mTG_TYPE_FIELD_DEFAULT_BURY`, `bIT_common_hole_throw`) — pockets "Bury" → `BuriedUse.bury` (`KIND_ITEM` shows the crack)
-- [ ] Buried "X" marks / glowing spot: one per day → **fossil** or **bells** or **gyroid** or (after rain) more gyroids (`ac_gyo_kaseki` naming aside — fossils via FG)
-- [ ] Money spot: dig up 100 bells, replant bells (100–30,000) → money tree grows bags of bells once (`m_all_grow` money tree)
+- [~] Daily dig spots: fossils (crack mark, up to 5) and a shine spot of bells (`mMsm_DepositFossil`, `mAGrw_SetDigItem`) — `BuriedUse`. Missing: gyroids dug up after rain
+- [~] Money spot: the daily shine spot digs up a bag of bells (`mAGrw_SetDigItem`) — `BuriedUse`; bare trees can hold bells when shaken (`TreeUse`). Missing: burying bells in the shine hole to grow a money tree (`TREE_1000BELLS_SAPLING`…)
 - [x] **Rock**: the money rock — a random rock, re-picked once spent, pays a bag per shovel hit inside a ~6.4 s window (386 ticks) (100 ×3, 1,000 ×3, then 10,000; money-luck fortune one tier up), only onto a free unit beside it (`mAGrw_SetMoneyStone`, `bIT_actor_ten_coin_entryR`) — `MoneyRock`, `rock.gd` (`ply_1_not_dig1` bounce)
-- [ ] Rocks are otherwise immovable obstacles; fake rock? _(GCN: no)_
+- [~] **Gyroids**: house gyroids are the save point (§1). Missing: the ~127 gyroid items dug up after rain and their room hum (`ac_my_room_melody`)
 - [x] **Pitfall**: bury a pitfall seed in a hole → invisible trap; player/villager falls in (`BURIED_PITFALL_HOLE`, `bIT_actor_pit_*`, `m_player_main_*_pitfall`) — the pit opens under them and closes after
-- [ ] **Gyroids**: ~127 gyroid variants _(verify)_, dug up after rain, wind up as playable furniture that hums/beats with room music (`ac_my_room_melody`, `m_melody`)
-- [ ] **Fossils**: dig up unidentified → Blathers assesses → real fossil (donate or sell); fossil groups (T. rex, mammoth, etc.) _(verify count, ~25 items)_
+- [x] **Fossils**: 25 dug up unidentified → mailed to the museum or shown to Blathers → identified, donated or sold; skeleton groups — `FossilCatalog`, `FarwayBook`, `MuseumDialogue`
+- [ ] Shovel reflects with a clang off stone / the museum wall / certain FG (`reflect_scoop`)
 - [ ] Shovel reflects with a clang off stone / the museum wall / certain FG (`reflect_scoop`)
 - [x] Groundhog Day: no digging. `ac_ghog` is the shrine-acre stand and Resetti the groundhog (see §Events)
 
@@ -257,60 +256,60 @@ data tables before a category is called done.
 - [~] Daily growth resolves at 06:00 (`planted_renew`) — `Game.plant_states`
 - [~] Shake tree: fruit (3), or furniture/bells/bag (non-fruit trees, 1/day), or bees (`shake_content`) — `tree_use.gd`
 - [~] Chop tree with axe → multi-hit → falls → stump; stumps can grow mushrooms / be sat on; dig up stump (`bg_item` cut) — `tree_use.gd`
-- [ ] Fruit trees: apple, orange, peach, pear, cherry, coconut (beach), + native designation
-- [ ] Plant fruit → fruit tree; plant a sapling item → tree; plant money → money tree
-- [ ] Cedar/pine trees (conifers) vs. hardwoods; cedar only grows in certain acres; Christmas-tree lights in December
-- [ ] Cherry-blossom bloom skin on hardwoods Apr 1–10ish
-- [ ] Tree count affects environment rating; too many/too few penalised
-- [ ] **Flowers**: red/white/yellow tulips, pansies, roses, cosmos, dandelions, sunflowers _(verify GCN species)_
-- [ ] Flowers from Nook (bags of seeds), Tortimer, HRA, events, or dug up
-- [ ] Flowers wilt without water; villagers & the player? water them; rain waters all
+- [x] Fruit trees: apple, orange, peach, pear, cherry, coconut (beach), with a native fruit per town — `TreeUse`, `PlantGrowth`
+- [~] Plant fruit → fruit tree; plant a sapling → tree — `PlantGrowth`. Missing: money trees (see §14)
+- [~] Cedars and palms vs. hardwoods (`mNT_TREE_TYPE_CEDAR` / `PALM`), placed by the acre templates. Missing: the December lights on cedars
+- [x] Cherry-blossom bloom on hardwoods in early April — `VisualSeasons` (duplicate of §2)
+- [x] Tree count affects the environment rating — `TownAssessment` (§4)
+- [x] **Flowers**: tulips, pansies, cosmos in three colours each (`FLOWER_NUM` 9) — `data/plants/`
+- [~] Flowers from Nook (seed bags), the lost and found and quests. Missing: flowers from Tortimer
+- [x] ~~Flowers wilt without water~~ — GCN flowers need no water; only `KILL_PLANT` units clear them (our watering is an extension)
 - [x] ~~Flower breeding / hybrids~~ — not in the GameCube game (hybrids arrive in Wild World)
-- [ ] Trampled flowers (running) wilt; wilted flowers revive with water or die
-- [ ] Dandelions → puff stage → blow away; four-leaf clovers rare pickup
+- [x] Trampled flowers when dashing — see §7
+- [x] ~~Dandelions, four-leaf clovers~~ — not in the GameCube game
 - [~] Weeds: five per renewal day since the last one on free grass units (`mAGrw_SetGrass`, `mCoBG_PLANT4`), so a long absence brings many; pulled for nothing — `WeedUse`; renewals crossed indoors or while away are banked and sown when the field loads. Rating / complaints with the town assessment
-- [ ] Pull-all-weeds errand / Nature Day
+- [x] Pull-all-weeds: weeds are plucked for nothing (`WeedUse`); the Wisp's wish clears them
 - [x] Mushrooms (Oct 15–25): up to five set at 8:00–9:15 beside grown trees, away from the player's acre row and column, then one goes every quarter hour; sell for 5,000 (`m_mushroom`, `mEv_EVENT_MUSHROOM_SEASON`) — `MushroomUse`. The GameCube has the one mushroom item, no rare kinds
-- [ ] "Jacob's ladder" & "lily of the valley" spawn only in a perfect-rated town
+- [x] ~~Jacob's ladder / lily of the valley~~ — not in the GameCube game (`FLOWER_NUM` 9)
 - [~] Lotus / water lilies in ponds (`ac_lotus`) — FG `LOTUS` places `lotus.tscn`: leaf sway on the baked clip, flower drawn May 26 – Aug 25. Pad / flower colours are placeholders (palette is `aLOT_obj_0N_lotus_pal` per term, not baked); no bobber shake. Lotus as an item still missing
-- [ ] Coconut palms on the beach; coconuts plantable only on the beach
-- [ ] Cherry / persimmon / other decorative? _(verify)_
+- [x] Coconut palms on the beach — acre templates and `TreeUse`
+- [x] ~~Other decorative trees~~ — GCN has hardwoods, cedars and palms only
 
 ## 16. Villagers (animal residents)
 
 - [~] One NPC actor, behaviour driven by "looks"/personality tables (`m_npc`, `ac_npc`) — `villager.tscn`, `villager_ai.gd`
 - [x] Up to **15 villagers** (starts at 6, one move-in per day at most); 236 animals in the GCN roster
-- [ ] Personalities: **Normal, Peppy, Snooty, Cranky, Lazy, Jock** (6); + Big Sister/Uchi? — _no, GCN is 6_ — `personalities/`
-- [ ] Species models: cat, dog, rabbit, squirrel, bear, cub, pig, cow, bull, horse, sheep, goat, wolf, dog, duck, chicken, ostrich, penguin, eagle, elephant, rhino, hippo, gorilla, monkey, koala, kangaroo, anteater, alligator, frog, octopus, deer, mouse, hamster, tiger, lion, chameleon? _(verify GCN species list)_ — `generated_visual.attach_villager`
+- [x] Personalities: Normal, Peppy, Snooty, Cranky, Lazy, Jock (6) — `data/personalities/`
+- [x] Species models: the full GCN roster's skeletons and textures from the disc — `VillagerCatalog`, `VillagerTextures`
 - [~] Daily schedules per personality: wake, wander acres, visit shops, go to specific acres (shrine / friend's house / own house), sleep (`m_npc_schedule`, `ac_npc_schedule_*`) — `villager_schedule.gd`
 - [~] Field roam: pathing between goal acres, walker cap (`m_npc_walk`) — `villager_walk.gd`, `villager_motor.gd`
 - [~] Appear indoors when awake at home; asleep = off the map (`ac_npc_think_sleep`) — `villager_home.gd`
 - [~] Head/eyes track the player when near (`ac_npc_head`) — `npc_head_look.gd`
 - [~] Face: texture-swap eyes & mouth; blink bursts; emotion holds; mouth flap while talking (`ac_npc_anime`, `aNPC_check_kutipaku`) — `npc_face.gd`, `npc_face_anim.gd`
 - [~] Feel glyphs (manpu) above head: laugh cards, shock, "!", lightbulb, sweat, anger, sleep-Zzz, love hearts (`ef_warau`, `ef_shock`, `ef_ha`, `ef_hirameki`, `ef_lovelove`, …) — `npc_manpu.gd`, `npc_feel_glyphs`
-- [ ] Full manpu set: `KONPU`, `PUN_YUGE`, `DOYON`, `GIMONHU`, `KANTANHU`, `NAMIDA`, `NEBOKE`, `MUKA`, etc.
+- [~] Manpu set: `NpcManpu` plays the reaction clips and feel glyphs the messages call for (`aNPC_check_manpu_demoCode`). Missing: some rarer glyphs
 - [~] Activities villagers do (`ac_npc_act_*`): clap when you show off a catch, chase bugs / watch fish shadows (`VillagerOutdoor`). The GCN field villager has no fishing / singing / reading acts of its own. greet each other in passing (`aNPC_ACT_GREETING`, `VillagerGreeting`) with the trend / catchphrase / mood reactions. Missing: running after the ball
-- [ ] Villager catches a bug/fish and shows it off; asks you to catch something
+- [~] Villagers chase bugs and watch fish shadows (`VillagerOutdoor`); fishing / bug contests ask you to catch something (`VillagerQuests`)
 - [x] Umbrella open/close in rain (`ac_npc_act_umb_open/close`, `aNPC_ctrl_umbrella`) — their own `npc_def_list` umbrella, one opening at a time, `UMBRELLA1` arm pose. Missing: Able-design umbrellas in hand
 - [x] Villager falls in your pitfall; talking to them gets them out (`ac_npc_act_pitfall`, `aNPC_act_revive`, feel `PITFALL` → `MSG_8327`)
-- [ ] Hitting a villager with the net/axe/shovel → anger, "watch it!" (`m_watch_my_step`)
+- [x] Hitting a villager with the net or a tool → they jump, and get annoyed when it repeats (`aNPC_check_uzai`, `aNPC_ACT_REACT_TOOL`) — `villager.gd`
 - [x] **Moving in**: new villager on a free SIGN plot, introduces self on first meeting (`mNpc_Grow`, `MSG_11573`) — `town_residents.gd`. GCN has no moving boxes
 - [~] **Moving out**: full town + 10 days → fewest-memories villager leaves with a goodbye letter (`mNpc_ForceRemove`) — `town_residents.gd`. The "thinking of moving" talk (`remove_animal_idx`) is picked but its dialogue isn't wired (only matters for card transfer)
 - [x] Move-in / move-out cadence tied to friendship, time played, town population (`mNpc_CheckGrow`, `mNpc_ForceRemove`)
 - [~] **Friendship** per resident: s8 0–127 starting at 1, best-friend at 80, moved by "Let's talk!", message orders, letters and quests (`Anmmem_c`, `mNpc_AddFriendship`) — `relationship.gd`, `villager_talk_manager.gd`
-- [ ] Villager **memory**: last time you spoke, letters exchanged, favours done, gifts, whether you've been mean (`Anmmem_c`)
-- [ ] Nicknames: villager gives you a nickname; you can set what villagers call each other / call you; catchphrase ("hippie", etc.); you can change a villager's catchphrase
-- [ ] Greetings you can teach; greeting spreads between villagers
+- [~] Villager **memory**: last talk, letters, favours, gifts, met days (`Anmmem_c`) — `Relationship`, `VillagerState`
+- [~] Catchphrase: you can change a villager's catchphrase (`aQMgr_order_change_gobi`). Nicknames and taught greetings are later games
+- [x] ~~Greetings you can teach~~ — later games
 - [~] Gift-giving both ways: letters with presents (+3), villager replies with a present half the time, Valentine's letters with gifts (`mNpc_SendMailtoNpc`, `mNpc_Remail`, `mNpc_SendVtdayMail`) — `villager_letters.gd`. Handing gifts in person and villagers wearing gifted shirts still to come
 - [~] **Villager quests** — deliveries (clothes / lost items), errand chains (fetch what they lent), contests (fruit, fish, bug, flowers, letter, snowman; ball offered but not completable), deadlines, give-up, rewards (`m_quest.c`, `ac_quest_talk_init.c`, `ac_quest_manager.c`) — `villager_quests.gd`, `villager_talk_manager.gd`. Wishing-well disposal of quest items (`aSHR_talk` apologize). A snowman built in the asker's acre counts (`mQst_NextSnowman`). Missing: the ball actor
 - [~] Trading furniture / clothing with villagers (chat trades: `aQMgr_order_decide_trade` / `_trade`) — `villager_talk_manager.gd`. Goods come from the shop's A / B / C lists; no hand-over animation yet
 - [x] Villager asks to buy something from your pockets / sell you something (chat trade topics)
-- [ ] Villager house interiors themed by personality; changes over time with items you give
-- [x] ~~Sick villagers → medicine~~ — not in the GameCube game (Wild World on)
-- [ ] Villager games: hide and seek, "which hand", quizzes, "what am I thinking" (`ac_npc` talk minigames)
 - [ ] Villager sings K.K. songs / hums the town tune
-- [ ] Villager reactions to your appearance: bee-stung face, bad haircut (n/a), new shirt, holding furniture, being naked, wearing a hat/mask
-- [ ] Villager comments on weeds, litter, flowers, your house, the town rating, holidays, weather, time of day, your birthday
+- [x] ~~Sick villagers → medicine~~ — not in the GameCube game (Wild World on)
+- [~] Villager reactions to your appearance: bee-stung face, new shirt (`DialogueGreeting`). GCN has no haircuts
+- [~] Villager comments on weeds, holidays, weather, time of day, your birthday — the disc's greeting and rumour banks (`DialogueGreeting`, `VillagerTalkManager`)
+- [x] ~~Cranky mellows / Snooty warms~~ — GCN personalities only change lines with friendship tiers, which `DialogueGreeting` follows
+- [x] Villager games: GCN chat "games" are the quiz / trade / contest topics (`VillagerTalkManager`); no hide and seek
 - [ ] Special personality: **Cranky→mellows**, **Snooty→warms** as friendship rises
 
 ## 17. Dialogue & text
@@ -319,44 +318,44 @@ data tables before a category is called done.
 - [x] Typewriter per frame like `mMsg_Main_Cursol_ControlCursol` (a glyph every other frame, fast text, PAUSE waits, SETCURSORJUST timing), speaker-sex nameplate colour (`m_msg_draw_font`) — `dialogue_overlay.gd`
 - [x] Choice panel: `con_waku_swaku3` window, the disc's `FONT_nes_tex_choice` mark in (0, 195, 185), scale in/out (`m_choice`) — `choice_panel`, `message_choice_mark.gd`
 - [~] Dialogue data + runner + conditions; greeting picks opening line (`m_string`, `DialogueGreeting`) — `dialogue_runner.gd`, `dialogue_catalog.gd`
-- [ ] Full message-bank coverage: villagers (per personality × mood × topic), special NPCs, signs, letters, system prompts
+- [~] Message-bank coverage: the disc banks are extracted and played (`DialogueCatalog`); authored stand-ins remain for a few menus
 - [x] Text effects from the message codes: colour (`TEXTCOLOR` / `COLORCHARS`), size about the line type's pivot (`CHARSCALE` / `LINESCALE` / `LINETYPE`), `LINEOFS`, `PAUSE`, `SNDTRGSYS` sounds, `CAPTIALIZE`, `CUTARTICLE`, player / town / catchphrase / item / free-string substitution; pages that turn themselves (`MSGCLEAR`) or on a timer (`MSGTIMEEND`). GCN has no shake code; icon glyphs are font cells
-- [ ] **Animalese** voice synthesis per syllable, pitch by speaker (`jaudio` seqs 243–245) — `dialogue_voice.gd` _(partial)_
+- [~] **Animalese** voice per syllable, pitch by speaker (`jaudio` seqs 243–245) — `DialogueVoice`, `VoiceCatalog`
 - [~] Keyboard entry (`m_editor_ovl` pad keyboard, `KeyboardPanel`): letters and the gyroid board (`LetterWriterOverlay`), names — design / album folder / catchphrase / song request (`NameEntryOverlay`). the town tune editor (`TownTuneOverlay`), the community board's posts (`NoticeBoardOverlay`)
-- [ ] Word-filter / bad-word list for user text (`m_editEndChk_ovl`)
+- [~] Word filter for user text (`m_editEndChk_ovl`) — `EditEndPrompt` runs the end check on letters and design names
 - [~] "..." silent responses; scrolling long letters; page-turn SE — page-turn SE (`page_okuri`, skipped on `BTN2` / `SNDNOPAGE` pages); a mid-page `BTN` stops with the turn mark and A writes on in the same page (`{btn}`) and the letter board's roll while writing (`mBD_roll_control`)
 
 ## 18. Player house & interiors
 
 - [~] Small house on day 1 (4×4 interior); upgrades via Nook loans to medium (6×6), large (8×8), and upper floor (2nd floor, 6×6); basement is a separate unlock (49,800 bells). The statue is a reward state, not a room size; no side/back rooms, mansion, or attic exist in GCN — `PlayerHouse` / `HouseUpgrade` / `NookHouseTalk`: next-day builds, loans (148k / 398k / 798k / 49.8k), statue offer, statue actor (§26). Missing: roof colour recolour
-- [ ] Room = grid; place furniture on floor, against walls, on tables (`ac_arrange_room`, `ac_arrange_ftr`)
-- [ ] Wallpaper + carpet per room; ceiling? (no)
+- [x] Room grid; place furniture on the floor and against walls (`ac_arrange_room`, `ac_arrange_ftr`) — `InteriorBook`, `FurnitureGrip`
+- [x] Wallpaper + carpet per room — `VisualRoomPaint`
 - [~] Furniture rotate (4 or 8 orientations), stack on surfaces, put items on tables (`m_player_main_rotate_furniture`, `rotate_octagon`) — `FurnitureGrip`: A-grip + stick push / pull / turn about the held end, B pick-up, sit / lie by walking in, per-floor furniture cap; missing: bubu puff, bed rolling, octagon (gyroid) rotation
-- [ ] Wall-mounted items (paintings, clocks, wall clock ticking `ac_house_clock`); rugs
+- [~] Wall-mounted items and clocks; rugs are carpets. Missing: the ticking wall clock (`ac_house_clock`)
 - [~] Interior editing mode / catalog reorder; "store in Nook's" / storage — dresser / wardrobe / closet conversations (`FurnitureStorage`)
 - [~] Music player furniture (stereo/radio/etc.) plays a chosen K.K. song; gyroids beat along (`ac_radio`, `ac_my_room_melody`) — `FurnitureMusic` / `MinidiskCatalog`: discs, music box, one player at a time, aerobics radio, gyroid hop; missing: song titles, K.K. as the disc source, gyroid voices
-- [ ] Lighting: lamps light up at night; some furniture is interactive (sit, lie, TV static `famicom_emu`, fireplace, fountain, toilet, bath `ef_furo_yuge`)
+- [~] Lit lamps at night, sit and lie (`FurnitureSeat`), music players (`FurnitureMusic`), storage (`FurnitureStorage`). Missing: the Famicom (§28), fireplace / fountain / bath effects
 - [ ] Doorplate / house nameplate (`ac_nameplate`)
 - [~] Basement = free storage room once unlocked — orderable at Nook's after the medium loan; decorates like any floor
 - [~] House exterior model changes with size; door mat; roof — `obj_{s,w}_myhome1..4` by size, fish weathervane / insect plaque via `CompleteTalk`; palette recolour not rendered
-- [ ] Move house location? _(GCN: no)_
+- [x] ~~Move house location~~ — not in GCN
 - [~] Cockroaches spawn if you don't play for weeks; house dusty — `HouseGoki` / `house_goki.gd`: 6-day rule, up to 3 out, furniture flushes, startle, stomp; missing: death puff, cottage, dust
 - [x] HRA judges the main room, and the upper floor in part (origins, sets, luck, facing, clutter); never the basement (§11)
-- [ ] Other residents' houses in your town enterable? _(only the one you play; others are just exteriors + villager homes)_
+- [x] ~~Other residents' houses enterable~~ — only your own (and villagers' homes)
 
 ## 19. Furniture & collectibles
 
-- [ ] Full furniture DB with series/sets, sizes, HRA points, feng-shui colour, sell price (`ac_furniture_data`, `f_furniture.c`)
-- [ ] Series: e.g. Classic, Modern, Regal, Ranch, Cabin/Cabana, Exotic, Blue, Green, Kiddie, Lovely, Snowman, Mushroom, Robo, Spooky, Harvest, Jingle/Festive, Space, Pavé? _(verify GCN series list)_
+- [x] Furniture DB with sizes, HRA points, feng-shui colour, series and sell price from the disc — `FtrCatalog`, `HappyRoomAcademy`, `FengShui`
+- [x] Series and themes from the HRA tables — `hra.py`
 - [x] Themed sets award HRA bonus when all present + matching wallpaper/carpet — `HappyRoomAcademy`
-- [ ] Special/rare: Nintendo items (famicom, N64, GameCube, Mario/Zelda/Metroid themed), Trophies, King Tut mask, models, instruments
-- [ ] **NES/Famicom consoles as furniture** → playable games (see §26)
-- [ ] Gyroid furniture (§14): the giant collection; each has an on/off wind state and a sound
-- [ ] Musical instruments you can play? _(GCN: no free-play)_
+- [~] Special / rare furniture is in the item tables (`FtrCatalog`); the Famicom only works as furniture once §28's emulator exists
+- [ ] **NES/Famicom consoles as furniture** → playable games (see §28)
+- [ ] Gyroid furniture (§14): the collection; each hums with the room music
+- [x] ~~Musical instruments you can play~~ — GCN: no free-play
 - [x] Snowmen: two snowballs each snowman season (Dec 25 – Feb 17) that grow on snow and shrink off it; roll the body and head together and the faster jumps on top. Graded on head ÷ body against 0.85, with lines to match; a perfect one mails a Snowman-series piece. Up to three stand, melting over three days. Walk into one to knock it down (`ac_snowman`, `ac_psnowman`, `m_snowman`) — `SnowmanRules`, `SnowmanUse`, `snowball.gd`, `snowman.gd`
 - [x] Feng-shui / lucky items (see Feng shui)
-- [ ] Furniture obtained from: Nook's shop, catalog order, villagers, events, HRA, balloons, fishing/bug tourneys, lost-and-found, Redd, Saharah (carpets/wallpaper), fortune (Katrina n/a in GCN)
-- [ ] Wallpaper & carpet catalog; special ones (mosaic wall, etc.)
+- [x] Furniture comes from Nook's, the catalogue, villagers, events, HRA, balloons, tourneys, the lost and found, Redd, Saharah, the Wisp
+- [x] Wallpaper & carpet catalogue pages — `CatalogOverlay`
 
 ## 20. Design / pattern tool
 
@@ -378,8 +377,8 @@ data tables before a category is called done.
   the message window.
 - [~] Apply patterns as: shirt, hat, umbrella, wallpaper?, or place on the ground / as signboards / hung on walls — shirt (design book "C" wear, `cloth.idx >= CLOTH_NUM + 1`) and the house-door design (§1 gyroid) work; design umbrellas (`ITM_MY_ORG_UMBRELLA0-7`, dragging a design onto the umbrella slot) not yet
 - [x] The **Able Sisters** design display board: put your design on a mannequin / stand, take a copy of one, or swap (§22); villagers pick the displayed designs up (§22 trends)
-- [ ] "Pro" designs? _(GCN: no pro designs)_
-- [ ] Wendell / Saharah / gypsy hand you free patterns (`ac_ev_designer`, `ac_broker_design`)
+- [x] ~~Pro designs~~ — not in GCN
+- [x] ~~Free patterns from visitors~~ — GCN visitors don't hand out designs (Gracie sells clothes); `ac_broker_design` is the e-Reader card path (§28)
 - [x] Design storage (`m_cporiginal_ovl`): the Able Sisters design album, 8 folders × 12 (§22). `m_cpedit_ovl` is the Memory Card copy/edit shell around it — no Memory Card layer in the port
 - [ ] Town flag design (on the flagpole at the station) (`ac_flag`)
 - [ ] e-Reader design cards import (§28)
@@ -387,17 +386,17 @@ data tables before a category is called done.
 ## 21. Nook's store
 
 - [x] 4 building types over time + purchase volume: **Nook's Cranny → Nook 'n' Go → Nookway → Nookington's**; upgrades at 25,000 / 90,000 / 240,000 bells, with Nookington's also requiring a visiting foreign player (`ac_shop_level`, `m_shop`) — `ShopBook`: stored level (`shop_info.shop_level`), sales capped at the next threshold until the upgrade lands (`mSP_PlusSales`), a renovation booked two days out once earned (`aSL_JudgeRenewShop`, never across raffle day or Sale Day, cancelled if the clock runs backwards), closed for renovations from opening time the day before, reopening upgraded at the new building's opening hour; renovation-notice and grand-opening letters; `visitor` flag gates Nookington's (`shop visitor` debug command until multi-town visits exist). `shop0`–`shop3` interiors
-- [ ] Nookington's has a second floor with Timmy & Tommy; requires a friend from another town to visit to trigger the final upgrade — `shop3_2` room exists; Timmy & Tommy (`ac_npc_mamedanuki`, they share the shop-master code) not yet placed
+- [~] Nookington's second floor (`shop3_2`) is built. Missing: Timmy & Tommy (`ac_npc_mamedanuki`), and the final upgrade needs a visitor from another town (§35)
 - [x] Daily stock (`mSP_MakeGoodsList`, `ac_shop_goods`) — `ShopGoods.roll`: per-level counts (`l_zakka/conbini/super/dsuper_goods`), Cranny tools unlocked by sales (net 3k / rod 8k / axe 12k), Nookway+ paint (colour rotates each restock) + signboard + cedar sapling + rare-furniture slot (`ItemData.shop_rare`), stationery as a 4-sheet pad, distinct flower-seed bags, one umbrella, Halloween candy (Oct 16–30), Sale Day grab bags priced at the year (open with three free slots: rare goods or a pinwheel). Furniture, clothing, carpets, wallpaper and (Nookway+) a diary come from the disc's A / B / C lists, dealt common / uncommon / rare each session and rolled against goods power (`mSP_GetItemList`). In December the first furniture slots hold the festive trees until the 24th and the festive candle and flag from the 26th (`mSP_SetSeasonFTR`). Missing: seed bags plant pansies until flower species exist
 - [x] Stock rotates at 06:00; sells out; sold-out slot shows empty
 - [x] Sell items to Nook (he names a price, you confirm); can't sell some things — counter menu "I want to sell" opens the pockets in sell mode (`mSM_IV_OPEN_SELL`: "Sell", or "Sell all" on marked items), then Nook quotes the total and asks (`aNSC_buy_sum_check`, `nook_shop_sell`, `ShopBook.sell_result`, §11)
 - [x] Nook buys turnips at fluctuating price (§11) — `KabuMarket`
 - [x] Catalog ordering; items delivered by mail next day — "Order from the catalog" opens the original catalog (`CatalogOverlay`: nine tabbed pages in `m_catalog_ovl_data.c_inc` order, turning preview, wallpaper / carpet drawn on the room-corner model `mCL_rom_myhome1_*` with their own pages, price or Not for Sale, star on complete pages); Nook quotes the pick (5 order slots, `CatalogBook`, `CatalogPages`)
 - [~] Sale days, the flooring/wallpaper wall — Sale Day grab bags, sale-event balloon gift on the first talk (`aNSC_check_present_balloon`); missing: the bargain-event FG layout (`mSP_GetNowShopFgNum` event kinds), wallpaper/carpet preview on the shop walls (`change_wall_proc`)
-- [ ] Nook gives you your first job (§29) and the initial furniture set
+- [x] Nook gives you your first job (§29)
 - [x] Nook's hours (`mSP_GetShopOpenTime`): Cranny / Nookway / Nookington's 9–22, Nook 'n' Go 7–23, raffle day opens at 10, forced open during the part-time job; the door says why it's closed (renovations / opening hour)
 - [~] Tom Nook talk (`ac_npc_shop_common`): house business first, then the counter menu — sell / catalog order / other (turnip price) — and shelf offers ("That's X, N Bells") with try-on for clothes (`aNSC_show_item_check`); `NookShopTalk`. Missing: Timmy & Tommy, April Fool's lines, HRA talk, the password (code) options
-- [ ] Emotion/Redd membership card sold by Nook — _not found in the decomp's shop-master code (`ac_npc_shop_common`)_; verify where the referral lives before building
+- [x] ~~Emotion / Redd membership card~~ — not in the GameCube shop code
 - [x] Raffle tickets & end-of-month drawing (`ac_npc_shop_mastersp`): furniture / clothes / wallpaper / carpet / umbrella purchases each earn a month ticket (stack of 5; mailed next morning when the pockets are full, `aNSC_setup_ticket_remain`); on the last day Nook shows three prizes (the first one you don't own), five same-month tickets per spin, 5% / 10% / 20% for 1st / 2nd / 3rd, each prize won once
 - [x] Roof paint sold at Nookway+: no pocket item, the roof changes at the next game start (`next_outlook_pal`)
 - [ ] Nook's secret codes / passwords (make a code for a friend, enter a code for a gift, 3 a day) (`m_passwordMake_ovl`, `m_passwordChk_ovl`) — see §28
@@ -419,7 +418,7 @@ were dropped. See [shops](decomp_notes/shops.md) § Able Sisters.
 - [x] **Sable** at the sewing machine (`SP_NPC_NEEDLEWORK1`, `aNNW_THINK_MISIN_WAIT`) — `sable.gd`: the machine and fabric stop while she talks and start again after (`misin_clip` stop / move); she only looks up at you once `nw_visitor.days >= 5`
 - [x] Sable's story arc (`aNNW_get_make_sister_message`, `aNNW_message_table`): the visit-day counter ticks once per real day she's spoken to, capped at 10 (`aNNW_day_day`); the row is picked from the count *before* today's tick, so the first talk of days 4–7 tells that day's chapter (`aNNW_story_first_table` 5/9/13/17) and later talks a follow-up; ≥8 days she's at ease. Three-part rows play Sable → Mabel (turned to face her, `aNNW_THINK_AINOTE`) → Sable; story 9 ends with Sable turning to you (`aNNW_talk_ane_3`). **No free pattern** — the GCN arc has no gift (nothing in `ac_npc_needlework_talk.c_inc` hands one over; that's later games)
 - [ ] ROM text: the greeting, menu-lead, story and explanation lines are authored stand-ins until the message banks (`0x2FD1`–`0x3035`, `0x3012+`) and the design-name strings (`0x6DF`/`0x6E7`) are extracted; `NeedleworkTalk` prefers the ROM line when the bank is present
-- [ ] **Other things** → GBA design tool / upload / e-Reader cards (`ac_npc_needlework_gba.c_inc`, `aNNW_TALK_GBA_*`, `CARD_E_*`): the menu is there and answers "no Game Boy Advance connected" (0x3008); the link itself is §28
+- [~] April Fool's lines for both sisters (`aprilfool_control_clip`) — April Fools' rumours and mail exist; the sisters' own clips are not wired
 - [ ] April Fool's lines for both sisters (`aprilfool_control_clip`) — no April Fool's system yet
 - [ ] Foreign-player rules (`mPr_FOREIGNER`: no album, Sable's arc stuck at day 0) — no visiting players yet
 
@@ -428,13 +427,13 @@ were dropped. See [shops](decomp_notes/shops.md) § Able Sisters.
 - [~] Building + 4 wings; **Blathers** the owl curator (nocturnal, sleepy by day) (`ac_museum`, `ac_npc_curator`) — `museum/*`, `museum_book.gd`
 - [~] Donate fish / insect / fossil / painting; one-per-species; assessment dialogue (`m_museum_display`) — `museum_display.gd`, `museum_presenter.gd`; rejections play the full `HandOver.player_offers_npc_rejects` GET+examine+RETURN sequence and fossil-piece acknowledgment for incomplete skeletons lands (see [museum.md](decomp_notes/museum.md)). Missing vs. decomp: GET/PUTAWAY hand-over split for *accepted* donations specifically, the 40-entry insect-only extra trivia table, museum-complete mail
 - [~] Fish tanks with the species swimming; insect terrariums/cases; each donated species animates (`ac_museum_fish_*`, `ac_museum_insect_*`) — `museum_fish_actor.gd`, `museum_insect_actor.gd`
-- [ ] Fossil hall with skeleton mounts assembled from fossil groups (`ac_museum_fossil`)
-- [ ] Art gallery: paintings on the walls; Redd sells real + forged art; forgeries rejected by Blathers (`ac_museum_picture`, `ac_mural`)
-- [ ] Blathers gives species facts/trivia on donation and when examined
-- [ ] Museum completion tracking; "first donation of a species today" shorter path
-- [ ] Museum shop / observatory / café — _not in GCN_ (skip)
-- [ ] Rooftop / second floor — _GCN: no_
-- [ ] Museum is open 24h; Blathers present but drowsy in daytime
+- [~] Fossil hall with the skeleton mounts from fossil groups (`ac_museum_fossil`) — `museum_fossil.tscn`, `MuseumDisplay`
+- [x] Art gallery: paintings on the walls (`museum_painting.tscn`); Redd's forgeries are rejected by Blathers (`MuseumBook`)
+- [x] Blathers gives species facts on donation — `MuseumDialogue` trivia
+- [x] Museum completion tracking; per-species "already donated" path — `MuseumBook`
+- [x] ~~Museum shop / observatory / café~~ — not in GCN
+- [x] ~~Rooftop / second floor~~ — not in GCN
+- [x] Museum is open 24h; Blathers drowsy 06:00–18:00 — `museum_blathers.gd`
 
 ## 24. Post Office
 
@@ -453,15 +452,15 @@ were dropped. See [shops](decomp_notes/shops.md) § Able Sisters.
   round-trips through save. Missing (separate, smaller gaps): specific papers awarded
   by events/villagers, and letter paper affecting villager reaction.
 - [~] Your mailbox at your house: receive letters, gifts, HRA reports, bank interest, event mail, catalog deliveries (`ac_mailbox`) — `scenes/world/mailbox.tscn` + received-mail path, flag raises/lowers on unread mail in every season, lid opens/closes around the Letters menu with the cursor seeded on the last-used slot (`aMBX_pl_open`/`_pl_close`, `mMB_get_last_mail_idx`); Museum fossil-identification replies land here (`FarwayBook` — the in-code name predates confirming decomp's actual address-book contact is just called "Museum", `mPr_CheckMuseumAddress`). Missing: the player's walk-up/hop before the lid opens (`aMBX_pl_wait`/`Player_actor_*_Mail_jump`); villager/event/bank mail not wired yet
-- [ ] Mailbox full (10 items) → Post Office holds overflow; retrieve there
-- [ ] Villagers send you letters (with gifts if friendship high); reply to build friendship
-- [ ] Send a gift to a villager by mail → thank-you letter + item back
+- [~] Post office desk holds letters for delivery (`PostBook`, 5 slots). Missing: holding mail for a full mailbox
+- [x] Villagers send you letters (with gifts if friendship is high); replies build friendship — `VillagerLetters`
+- [x] Send a gift to a villager by mail → thank-you letter and sometimes a present back — `VillagerLetters`
 - [x] **ABD bank** terminal (§11) — `BankOverlay`; balance gifts by mail instead of interest
-- [ ] Pay Tom Nook's loan from the Post Office? _(GCN: pay at Nook's)_
-- [ ] Parcel / package pickup; forwarding
+- [x] ~~Pay the loan at the Post Office~~ — GCN: pay at Nook's
+- [x] ~~Parcels / forwarding~~ — not in GCN beyond catalogue deliveries by letter
 - [ ] Post office closed hours & knock; Pelly/Phyllis moods (Phyllis is grumpy)
 - [ ] Pelly's storyline / the pigeon romance (`ac_npc_conv_master` engineer)
-- [ ] Password / secret-code redemption at the Post Office (`m_mail_password_check`, `m_passwordChk_ovl`)
+- [ ] Password / secret-code redemption at the Post Office (`m_mail_password_check`, `m_passwordChk_ovl`) — see §28
 
 ## 25. Police Station
 
@@ -491,7 +490,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [~] Tortimer hands out event items & hosts most holidays (`ac_ev_soncho`, `ac_ev_speech_soncho`) — holiday speeches and the wishing-well visits with his calendar trophies (§31)
 - [x] Town Hall services (recycling, donations, environment rating): not on the GameCube; the town tune is set at the melody board by the station (`m_mscore_ovl`)
 - [x] **Town tune** editor at the tune board: 16 frog steps (G low … E, random, rest, tie), play, erase-all prompt, "Is this OK?" (save / rewrite / keep the old tune), plays as it opens; saved with the town (`m_mscore_ovl`, `ac_mscore_control`, `m_melody`) — `TownTuneOverlay`, `TownTune`, art from `menu_ui.py` (`ui/mscore/`); `tune [open|reset]` console command. The e-Reader button only closes
-- [ ] Change town flag? / town name is fixed after creation
+- [x] Town name is fixed after creation
 - [x] Player statue by the station (`ac_douzou`) once a house's loan ends in the statue: owner's figure and face (winter set in winter), rank sets size and gold / silver / bronze / jade colours, plaque reads `MSG_DOZOU` in a red window — `Statue`, `statue_metal.gdshader`, face textures from `weather_sprites.py`; `house statue built [rank]` console command. Missing: the sparkle effect (`ef_douzou_light`)
 - [x] Wishy the Star: not on the GameCube; the wishing well (`ac_shrine`) rates the town, takes quest items off your hands and is Tortimer's holiday spot
 - [x] Recycle bin: not on the GameCube (`ac_reserve` is the plot / dock sign); the dump (`ac_dump`) is the closest thing
@@ -532,8 +531,8 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 
 - [~] Nook gives a job in exchange for the house: change into the uniform, plant a tree/flowers, deliver furniture & a letter, meet a villager, write on the bulletin board, then the shop opens; get an axe; final notice (`ac_npc_rcn_guide2`, `mQst_SetFirstJob*`) — `first_job.gd`, `tom_nook.tscn`
 - [~] Uniform shirt (`shirt_016`) worn during the job — `first_job.gd`
-- [ ] Post-job: Nook thanks you, explains the loan, catalog, stock
-- [ ] Tutorial letters from Tortimer / mom (starting items, "welcome to town")
+- [~] Post-job: Nook explains the loan; see §21's house business
+- [x] Starting letters — mom's (`MotherMail`) and the museum's intro (`FarwayBook`)
 - [x] Mom (and once a year Dad) write (`mPr_SendMailFromMother`): on the birthday with a cake, on 1/1 … 12/12, April Fools', Mother's / Father's Day and Christmas Eve; otherwise a 1-in-5 chance a day of one of 56 everyday letters, some with a present, and a seasonal letter once those run out — on the month's own paper — `MotherMail`
 
 ## 30. Special visitors & recurring NPCs
@@ -551,15 +550,15 @@ Event NPCs are `EventNpc` scenes placed by `EventManager` presenters (`scenes/wo
 - [x] **Katrina** — fortune tent (50 Bells, destiny) (`ac_ev_gypsy`, `KatrinaTalk`) and the New Year's shrine lottery (fortune letter + destiny) (`ac_ev_miko`, `MikoTalk`). Destiny effects on villagers / luck are not wired
 - [x] **Jingle** — Toy Day: wish questions in a new acre each time, a Christmas present; new shirts fool him (`ac_ev_santa`, `JingleTalk`)
 - [x] **Franklin** — hides on Harvest Festival day; his knife and fork by the feast table buys one of 12 harvest presents (`ac_ev_turkey`, `FranklinTalk`)
-- [ ] **Pavé / dancers** — _later games_ (skip)
+- [x] ~~Pavé / dancers~~ — later games
 - [x] **Chip** — bass tourney judge: measures, keeps the day's record (villagers can beat it), A/B/C prize (`ac_ev_angler`, `AnglerTalk`)
-- [ ] **Nat** — _not GCN_ (skip)
-- [ ] **Dr. Shrunk** — _not GCN_ (skip; emotions come from villagers)
+- [x] ~~Nat~~ — not GCN
+- [x] ~~Dr. Shrunk~~ — not GCN
 - [x] **Mr. Resetti / Don Resetti** (§1), and Resetti as Groundhog Day's groundhog (§Events)
-- [ ] **Rover** — cat on the train (new game + occasional visits) (`ac_npc_guide`)
-- [ ] **Porter** — station master monkey (`ac_npc_station_master`)
+- [~] **Rover** — on the train in the intro (`intro_train_stage.gd`). Missing: his later visits
+- [~] **Porter** — greets you off the train (`intro_station_stage.gd`)
 - [ ] **Kapp'n** — boat to the island (`ac_npc_sendo`, `ac_boat`, `ac_boat_demo`)
-- [ ] **Tom Nook**, **Timmy & Tommy**, **Blathers**, **Pelly & Phyllis**, **Copper & Booker**, **Sable & Mabel**, **Tortimer**, **Wishy**, **Joan**
+- [x] **Tom Nook**, **Blathers**, **Pelly & Phyllis**, **Copper & Booker**, **Sable & Mabel**, **Tortimer**, **Joan** — see their sections. Timmy & Tommy: see §21
 - [x] **Countdown NPCs** for New Year's Eve — lines by minutes to midnight, the leader calls out each term, party poppers and fireworks at midnight (`ac_countdown_npc0/1`)
 - [ ] **Blanca / mask cat** (`ac_npc_mask_cat`, `mEv_EVENT_MASK_NPC`) — needs the face-drawing editor; row still unsupported
 - [x] **Night-stall Redd** at the fireworks: fans / pinwheels / balloons, 8 colours a night (`ac_ev_yomise`, `YomiseTalk`)
@@ -573,10 +572,10 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 
 - [x] New Year's Day — shrine crowd, Katrina's lottery, Tortimer. Missing: the hatsumōde queue choreography (`ac_hatumode_control`)
 - [x] Groundhog Day — crowd lines by minutes to 8:00; ten seconds after 8:00 the "groundhog", Mr. Resetti, pops up on the shrine acre with his weather line (`ac_ev_majin`, `aGHC_birth_reset`), then Tortimer's speech and weather verdict — `GroundhogResetti`, `SpeechTortimer`. Missing: the event title card and BGM handoff
-- [ ] Valentine's Day (Feb 14) — chocolate from a villager
+- [x] Valentine's Day — villagers send letters with chocolate (`VillagerLetters.send_valentines`)
 - [x] Snowman season / Kamakura — snow cabin with a resident guest (greeting game, Kamakura trade list); the snowman balls (`snowman_start`, `SnowmanPresenter`)
 - [~] Spring / Fall **Sports Fair** — residents in gym clothes at their stations with their lines; Tortimer. Missing: the foot race / ball toss / tug-of-war games themselves
-- [ ] April Fools' Day (Apr 1)
+- [~] April Fools' Day — rumours, mom's letter, the calendar. Missing: villagers' April Fools' lines and Booker / the sisters' clips
 - [x] Cherry Blossom Festival — picnic mats, seated / dancing residents, Tortimer
 - [x] Nature Day, Spring Cleaning, Mother's / Father's Day, Graduation, Town / Founders' / Labor / Explorers' / Officers' / Mayor's / Sale / Snow Day — Tortimer at the wishing well with his calendar trophy (`ac_ev_soncho2`, `TortimerHoliday`)
 - [x] Fishing Tourney — anglers at the pond, Chip, weigh stand
@@ -589,29 +588,29 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [x] **Halloween** — Jack (moves acre after each talk), residents in costume chase the player; candy → present, else a trick (pocket swap or shirt) (`ac_ev_pumpkin`, `ac_halloween_npc`, `TrickOrTreatTalk`)
 - [x] **Harvest Festival** — seated feast crowd, Tortimer; Franklin (separate row)
 - [~] The day after — **Sale Day** at Nook's — grab bags (`mSP_Chk_HukubukuroSail`); see §21
-- [ ] Snow Day (Dec 1) — snow begins
+- [x] Snow Day — Tortimer at the well (see the holiday line above); snow follows the weather tables
 - [x] **Toy Day** — Jingle
 - [x] **New Year's Eve** — countdown crowd, party poppers, fireworks at midnight
 - [~] Weekly: K.K. (Sat night), turnips (Sun AM), Tortimer/mayor rounds — K.K. and Joan are placed by the event manager; Tortimer only appears on holidays
 - [~] Monthly: lottery (last day), Nook stock reshuffle — raffle + monthly prize reshuffle done. No bank interest on the GameCube (balance gifts instead); the HRA writes daily after changes, not monthly
 - [~] "Rumor" pre-event villager chatter for each holiday (`mEv_EVENT_RUMOR_*`) — villagers bring up coming visitors and live rumours with their dates (`aQMgr_decide_msg_special_ev` / `_calendar_ev`)
 - [x] Tortimer "soncho" variant appearances for each holiday (`mEv_EVENT_SONCHO_*`) — except the January / February vacations and the bridge
-- [ ] Player Birthday party — villagers throw a party at your house or theirs, cake, presents
-- [ ] Weather overrides for events (clear for fireworks, snow for Toy Day) (`mEv_EVENT_WEATHER_*`)
+- [x] ~~Player birthday party~~ — GCN: the present visit and cards instead (§2)
+- [~] Weather overrides for events — the event scheduler applies `mEv_EVENT_WEATHER_*` rows (`EventCalendar`)
 - [ ] La-di-day / other minor JP holidays present in code — _(verify which survive in GAFE01)_
 
 ## 32. Audio
 
 - [~] Sequenced BGM engine (`jaudio_NES`, `m_bgm`, `audiorom.img`) — `audio.gd`, `bgm_catalog.gd`
-- [ ] **24 hourly field themes**; different arrangement for rain; seasonal? (no); title, train, K.K. intro, shop, museum, post office, police, house (by size/wallpaper), Able's, Town Hall, island
+- [~] **24 hourly field themes**, rain theme, title, train, shops, museum, post office, police, house, Able's (`BgmCatalog`). Missing: the island
 - [ ] Music crossfades on the hour; muffled when indoors; stops in caves? (n/a)
-- [ ] **K.K. Slider songs** (~50) with vocal/animalese arrangements; the in-house "music box" playback vs. the live Saturday performance (`m_mscore_ovl`)
-- [ ] SFX bank (seq 242): footsteps by surface, tools, UI, doors, water, digging, tree, bells jingle, item get fanfare
-- [ ] **Animalese** speech (seqs 243–245), pitch per speaker sex/personality
+- [~] **K.K. Slider songs** — the Saturday show and aircheck music players (§30, `FurnitureMusic`)
+- [~] SFX bank (seq 242): footsteps by surface (`FootstepSe`), tools, UI, doors, catches (`SeCatalog`). Gaps where the converted bank lacks an SE
+- [~] **Animalese** speech — see §17
 - [~] Town tune played on the hour outdoors as the time signal (`mBGMTime_signal_melody`) — `Audio.play_melody` on the note SEs; the step length (0.25 s) is an estimate, and clocks / villager humming don't use it yet
-- [ ] Gyroid hums layered onto room music (`ac_my_room_melody`)
+- [ ] Gyroid hums layered onto room music (`ac_my_room_melody`) — waits on gyroid items
 - [ ] Ambient: birds (day), crickets/owls (night), cicadas (summer day), ocean waves, river, waterfall, wind, rain, thunder
-- [ ] Stereo/positional audio for sound sources (villagers, water, bug/insect calls)
+- [~] Positional audio for sound sources (train, insects) through `Ongen` (`Na_OngenPos`)
 - [ ] NES game audio via the Famicom APU emulation (`ks_nes_core`)
 - [~] Fanfares (`mBGMPsComp_make_ps_fanfare`): the pre-rendered jingle sequences play on their own layer over the music, which stops and starts over when they come off (`Audio.push_fanfare` / `pop_fanfare`) — net and rod catches, collection complete, golden tools. Missing: digging something up and the loan paid off (both show a toast here, not the report the jingle runs under)
 
@@ -619,29 +618,29 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 
 - [ ] Start / pause menu: map, inventory, diary?, options
 - [~] **Diary** — the player writes it: a page per month (31 lines, 992 characters) on the disc's three-sheet page with the month tab, scrolled while reading and rolled to the line while writing, opened by "Read" on any of the sixteen notebooks in your own rooms (`m_diary_ovl`, `aMR_CheckDiaryOnMe`) — `DiaryOverlay`. It opens through the calendar. Missing: the notebook having to sit on a table
-- [ ] Held **map** item / pause map with acre labels, building icons, your house
-- [ ] HUD clock (optional), bells display when relevant
+- [x] Held **map** item / sight-map boards — `MapOverlay` (§4)
+- [x] ~~HUD clock~~ — GCN has no HUD; the time shows on the pockets screen
 - [ ] Options: text speed, TV/audio mode (mono/stereo/surround), rumble, screen position, brightness (`initial_menu.c`)
 - [ ] Rumble / vibration on tool use, catches, bumps (`m_vibctl`, `m_player_vibration`)
 - [ ] "Copying data" / autosave indicator
 - [~] The **name entry keyboard** for text input — see §17 keyboard entry
 - [~] Nook catalog browser UI, shop buy/sell UI, bank UI, HRA letter viewer, letter writer UI — the catalog is the original `m_catalog_ovl` screen, goods come off the shelves, selling goes through the pockets, letters use the original board / address book / Is-this-OK prompt; all menus slide in and out like `mSM_move_Move` (`MenuSlide`). the bank's ABD screen (`BankOverlay`). HRA reports are ordinary letters on the GameCube (no viewer)
-- [ ] Photo / no screenshot feature (GCN has none)
+- [x] ~~Photo feature~~ — GCN has none
 - [~] Trademark / logo / attract-mode title demo loop (`m_titledemo`, `m_trademark`, `ac_animal_logo`) — logo actor, 5 recorded demos, the demo loop, the fixed FG table, fixed villagers, apple tree and start chime landed; Nintendo logo stage skipped on purpose; gelato umbrella landed with the umbrella tool (demo 2) ([title](decomp_notes/title.md))
-- [ ] Debug menus & dev overlays — _explicitly out of scope_ (`m_debug*`)
+- [x] ~~Debug menus~~ — _out of scope_ (`m_debug*`); a dev console exists for testing
 
 ## 34. Simulation glue / world objects
 
-- [ ] FG (foreground) object system: trees, rocks, flowers, weeds, signs, holes, buried marks, dropped items, structures, villager plot reserves (`m_bg_item`, `WorldObjectRegistry`) — `world_object_registry.gd`
-- [ ] Daily FG renewal: weeds spread, flowers breed/wilt, plants grow, buried spot relocates, rock resets, shells respawn, recycle bin rotates, shop restocks
-- [ ] Collision: heightfield, cliff/bank walls, 45° diagonals, water slide-off, structure footprints, plant caps (`m_collision_bg`) — `field_collision.gd`
-- [ ] Blob shadows under actors & items (`m_actor_shadow`) — `actor_blob_shadow.gd`
-- [ ] Effects library: dust, splash, sparkle, coins, leaves, sweat, music notes, impact stars, hearts, "?"/"!" etc. (`ef_*`, ~130 effects)
-- [ ] Object draw sorting, XLU passes (water, footprints, shadows), acre culling
+- [~] FG object system: trees, rocks, flowers, weeds, signs, holes, buried marks, dropped items, structures, plot reserves (`m_bg_item`) — `WorldObjectRegistry`, `FgCatalog`
+- [~] Daily FG renewal: weeds spread, plants grow, buried spots move, the money rock resets, shop restocks — `field_renewed`. Missing: shells
+- [~] Collision: heightfield, cliff / bank walls, water, structure footprints (`m_collision_bg`) — `FieldCollision`
+- [x] Blob shadows under actors & items (`m_actor_shadow`) — `ActorBlobShadow`
+- [~] Effects: dust, splash, petals, footprints, manpu, weather (`StepFx`, `FieldFx`). Missing: most of the ~130 `ef_*` effects
+- [~] XLU passes (water, footprints, shadows) and acre culling — `GeneratedVisual`
 - [x] Balloon presents (`m_fuusen`, `ac_fuusen`) — `BalloonSky` rolls at :x3 every five minutes (5% start, +2.5–5% per miss, goods / bad luck, +25% after one got away near you); `Balloon` is born on the wind's map edge, drifts downwind 110 GX up, turns toward a bare grown tree and snags in its crown; a full shake drops the wrapped present (80% C-list furniture, else a foreign fruit), a bump wobbles it; it escapes after 10 minutes snagged or at the map edge / station. `/balloon [near]` launches one. Missing: town rank term (0), the snag sound (SE 0x402 not in the converted bank), wind gusts; drifting uses a cliff check in place of full wall collision
 - [~] Wind (`m_kankyo_weather`: daily calm / normal / strong range by season, 10-minute drift, Koinobori day) — `Wind`; drives balloons only so far
 - [x] Airplane: not in a GameCube town. `ac_airplane` is a paper glider the player throws (hold Z, flick the stick), placed only in the debug fields `fd1` / `fd2`
-- [ ] Message-in-a-bottle on the beach (`ac_mbg` beach spawns) — random letter/pattern _(verify GCN)_
+- [x] ~~Message-in-a-bottle~~ — not in GCN (`ac_mbg` is a debug model)
 - [x] The lighthouse light sweeps at night and its switch turns it on and off (`ac_toudai`, `ac_lighthouse_switch`) — `lighthouse_beacon.gd`, `lighthouse_switch.gd`. The mayor's lighthouse quest period is out of scope
 - [x] Windmill: not in a GameCube town. `ac_windmill` (`WINDMILL0`–`4`) exists, but no acre template on the disc places one
 
