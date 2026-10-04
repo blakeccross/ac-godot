@@ -142,12 +142,12 @@ data tables before a category is called done.
 - [~] **Fishing rod** — see §13 (`m_player_item_rod`) — `fishing.gd` (substantial)
 - [ ] **Shovel** — dig holes, bury items, dig fossils/gyroids/pitfalls, hit rocks, plant trees, whack villagers, reflect off stone (`m_player_item_scoop`, `dig_scoop`, `fill_scoop`, `reflect_scoop`) — `hole_use.gd`, `buried_use.gd` _(partial)_
 - [ ] **Axe** — chop trees (multi-hit → stump), break on overuse, golden axe never breaks (`m_player_item_axe`, `swing_axe`, `broken_axe`, `ef_break_axe`) — `tree_use.gd` _(partial)_
-- [~] **Fishing rod / net / axe / shovel** durability & the **golden** variants — the golden axe from the wishing well; Tortimer waits outside the house with the golden rod once every fish is caught and the golden net once every insect is (`aPRD_setup_present`, `PresentVisit`). Once Tortimer has gone, or the well spirit has given the axe, the player holds the golden tool up (`YATTA1`) and says so in a green report (`demo_get_golden_item`, `Player.get_golden_item`). Missing: the fanfare jingle; the golden shovel (Wild World on)
+- [~] **Fishing rod / net / axe / shovel** durability & the **golden** variants — the golden axe from the wishing well; Tortimer waits outside the house with the golden rod once every fish is caught and the golden net once every insect is (`aPRD_setup_present`, `PresentVisit`). Once Tortimer has gone, or the well spirit has given the axe, the player holds the golden tool up (`YATTA1`) and says so in a green report (`demo_get_golden_item`, `Player.get_golden_item`). Each plays its jingle (all insects, all fish, the chores tune for the axe). Missing: the golden shovel (Wild World on)
 - [ ] **Slingshot** — _not in the GameCube game_ (balloons snag in trees instead; see §33 balloons)
 - [ ] **Watering can** — _not in GCN_ (villagers water flowers themselves; skip)
 - [~] **Umbrella** — held in rain/snow, twirl, many designs (`m_player_item_umbrella`, `rotate_umbrella`) — `HeldUmbrella` + 32 `ToolData` umbrellas (`data/items/umbrellas/`, ROM names/prices): opens out of the hand (`UMB_OPEN1`, handle/canopy scale tables), right arm holds `ply_1_umbrella1` over walk/idle (`PART_TABLE_NET`), A twirls (`UMB_ROT1` + SE 0x432), folds away through doors / on unequip (`UMB_CLOSE1`), switches the rain loop to the under-umbrella one; Nook stocks one a day on the umbrella stand; title demo 2 carries the gelato umbrella. Missing: design umbrellas (`ITM_MY_ORG_UMBRELLA0-7`), the `KASAMIZU` twirl spray (no effect system)
 - [ ] **Fan / uchiwa** (festival), **timer**, **party popper / clacker**, **handbill**, **pitfall seed** as usable items (`m_player_item_fan`, `ac_t_utiwa`, `ef_clacker`)
-- [~] **Bug / fish held up** show-off pose + species report (`m_player_main_notice_net`, `notice_rod`) — net: pull (`GET_M1`, report at 50 ticks, turn past keyframe 17), notice (pockets + catch record, collection-complete 0xA4E/0xA4F + `YATTA2`, full-pockets 0xA4D), put-away (`PUTAWAY_M1`, shrink to keyframe 17). Missing: exchange inventory, fanfares, release clip
+- [~] **Bug / fish held up** show-off pose + species report (`m_player_main_notice_net`, `notice_rod`) — net: pull (`GET_M1`, report at 50 ticks, turn past keyframe 17), notice (pockets + catch record, collection-complete 0xA4E/0xA4F + `YATTA2`, full-pockets 0xA4D), put-away (`PUTAWAY_M1`, shrink to keyframe 17). The catch jingle (0x28) runs under the report, the collection-complete one (0x4B) under the follow-up. Missing: exchange inventory, release clip, the rod's own collection-complete follow-up (0x4C)
 - [ ] Held tool renders on the right hand with its own animation clips (`Player_actor_Item_draw`, `mPlayer_JOINT_HAND`) — `held_tool.gd`
 - [ ] Tool ready ↔ put-away transitions and SE for every tool (`putaway_*`, `ready_*`)
 - [ ] Wetsuit / diving — _not in GCN_ (skip)
@@ -613,7 +613,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [ ] Ambient: birds (day), crickets/owls (night), cicadas (summer day), ocean waves, river, waterfall, wind, rain, thunder
 - [ ] Stereo/positional audio for sound sources (villagers, water, bug/insect calls)
 - [ ] NES game audio via the Famicom APU emulation (`ks_nes_core`)
-- [ ] Fanfares: new species, fossil, loan paid, HRA rank up, birthday
+- [~] Fanfares (`mBGMPsComp_make_ps_fanfare`): the pre-rendered jingle sequences play on their own layer over the music, which stops and starts over when they come off (`Audio.push_fanfare` / `pop_fanfare`) — net and rod catches, collection complete, golden tools. Missing: digging something up and the loan paid off (both show a toast here, not the report the jingle runs under)
 
 ## 33. UI, menus, misc systems
 

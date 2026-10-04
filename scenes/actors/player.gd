@@ -2184,6 +2184,8 @@ func _run_net_catch() -> void:
 		_motor.facing = Netting.SHOW_YAW
 		_mesh.rotation.y = Netting.SHOW_YAW
 		await _net_notice(catch_, skeleton, ui)
+		## `settle_main_Notice_net`.
+		Audio.pop_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_COMPLETE if catch_.completes_record else Netting.FANFARE_CATCH))
 		if catch_.banked:
 			await _net_putaway(skeleton)
 		else:
@@ -2228,6 +2230,7 @@ func _net_pull(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay)
 			timer = minf(timer + 1.0, Netting.PULL_REPORT_TICKS)
 			if timer >= Netting.PULL_REPORT_TICKS and not reported:
 				_net_say(ui, catch_.report_msg(), catch_.bug)
+				Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_CATCH))
 				reported = true
 			if stopped >= 2 and reported:
 				return
@@ -2241,6 +2244,10 @@ const GOLDEN_YATTA := &"ply_1_yatta1"
 const GOLDEN_REPORT_FRAMES := 42
 const GOLDEN_WINDOW := Color8(185, 245, 80)
 const GOLDEN_MSG: Dictionary = {&"golden_net": 0x306D, &"golden_fishing_rod": 0x306E, &"golden_axe": 0x306F}
+## `Player_actor_sound_Get_bgm_num_forDemoGetGoldenItem`: `BGM_ALL_INSECTS`, `BGM_ALL_FISH`,
+## `BGM_INTRO_CHORES_COMPLETE`, else `BGM_DEBT_PAID`.
+const GOLDEN_FANFARE: Dictionary = {&"golden_net": 0x4B, &"golden_fishing_rod": 0x4C, &"golden_axe": 0x49}
+const GOLDEN_FANFARE_OTHER := 0x4A
 
 
 func get_golden_item(item_id: StringName) -> void:
@@ -2255,6 +2262,8 @@ func get_golden_item(item_id: StringName) -> void:
 		## Only the net has a clip of its own for this (`yatta_m1`); other tools just stay put.
 		HeldTool.play(skeleton, Netting.TOOL_YATTA, false)
 	_play_body_once(GOLDEN_YATTA)
+	var jingle: StringName = BgmCatalog.id_for_num(int(GOLDEN_FANFARE.get(item_id, GOLDEN_FANFARE_OTHER)))
+	Audio.push_fanfare(jingle)
 	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 8.0)
 	var frames: int = 0
 	while frames < GOLDEN_REPORT_FRAMES and is_inside_tree():
@@ -2272,6 +2281,7 @@ func get_golden_item(item_id: StringName) -> void:
 		ctx.window_color = GOLDEN_WINDOW
 		ui.play(data, ctx)
 		await _net_wait_closed(ui)
+	Audio.pop_fanfare(jingle)
 	if not is_inside_tree():
 		return
 	_motor.reset(_motor.facing)
@@ -2289,6 +2299,8 @@ func _net_notice(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverla
 	if catch_.completes_record:
 		HeldTool.play(skeleton, Netting.TOOL_YATTA, false)
 		_play_body_once(Netting.ANIM_YATTA)
+		Audio.pop_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_CATCH))
+		Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_COMPLETE))
 		_net_say(ui, Netting.LAST_GET_CONTINUE_MSG, catch_.bug)
 		await _net_wait_closed(ui)
 	if not catch_.banked:
@@ -2388,14 +2400,17 @@ func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
 		ui.play(data, null)
 	else:
 		ui.say(fallback)
+	## `Player_actor_Notice_rod_demo_ct` → `settle_main_Notice_rod`: the catch jingle runs
+	## under the report.
+	var jingle: StringName = BgmCatalog.id_for_num(Netting.FANFARE_CATCH)
+	Audio.push_fanfare(jingle)
 	await ui.closed
-	if not pockets_full:
-		return
-	var text: String = FishCatalog.first_line(DialogueCatalog.conversation(POCKETS_FULL_MSG_ID))
-	if text.is_empty():
-		return
-	ui.say(text)
-	await ui.closed
+	if pockets_full:
+		var text: String = FishCatalog.first_line(DialogueCatalog.conversation(POCKETS_FULL_MSG_ID))
+		if not text.is_empty():
+			ui.say(text)
+			await ui.closed
+	Audio.pop_fanfare(jingle)
 
 
 ## `Stung_mosquito` → `Notice_mosquito`: slap at the bite (`MOSQUITO1`), then scratch it

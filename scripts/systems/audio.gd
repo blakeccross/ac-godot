@@ -31,6 +31,13 @@ var _melody_step: int = -1
 var _melody_t: float = 0.0
 var _melody_player: AudioStreamPlayer
 var _melody_rng := RandomNumberGenerator.new()
+## `mBGM_KATEGORIE_FANFARE` (`mBGMPsComp_make_ps_fanfare` / `delete_ps_fanfare`): a jingle on
+## top of the music. Its sequence is a short phrase and then a quiet loop that plays under the
+## report until the fanfare is taken off; the music under it stops meanwhile and starts over
+## afterwards. Music asked for while one plays waits for it (`_fanfare_base`).
+var _fanfare_player: AudioStreamPlayer
+var _fanfare_id: StringName = &""
+var _fanfare_base: StringName = &""
 
 
 func _ready() -> void:
@@ -38,6 +45,7 @@ func _ready() -> void:
 	_ensure_bus(SFX_BUS)
 	_players = [_make_player(), _make_player()]
 	_arm_player = _make_player()
+	_fanfare_player = _make_player()
 	_syslev_player = AudioStreamPlayer.new()
 	_syslev_player.bus = SFX_BUS
 	add_child(_syslev_player)
@@ -191,6 +199,9 @@ func sync_rain_syslev(
 
 
 func play_bgm(id: StringName) -> void:
+	if _fanfare_id != &"":
+		_fanfare_base = id
+		return
 	if id == current_id:
 		return
 	if id == &"":
@@ -224,6 +235,9 @@ func play_bgm(id: StringName) -> void:
 
 
 func stop_bgm() -> void:
+	if _fanfare_id != &"":
+		_fanfare_base = &""
+		return
 	if current_id == &"" and not _any_playing():
 		_stop_arm(true)
 		return
@@ -243,6 +257,41 @@ func stop_bgm() -> void:
 			_fade.tween_property(_arm_player, "volume_db", ARM_MUTE_DB, fade_sec)
 		_fade.chain().tween_callback(_stop_all)
 	current_id = &""
+
+
+## `mBGMPsComp_make_ps_fanfare`: put the jingle `id` (a `BgmCatalog` id) over the music.
+func push_fanfare(id: StringName) -> void:
+	var stream: AudioStream = BgmCatalog.stream_for(id)
+	if stream == null or id == _fanfare_id:
+		return
+	if _fanfare_id == &"":
+		_fanfare_base = current_id
+		_kill_fade()
+		for player: AudioStreamPlayer in _players:
+			player.stop()
+			player.volume_db = 0.0
+		_stop_arm(true)
+		current_id = &""
+	_fanfare_id = id
+	_fanfare_player.stream = stream
+	_fanfare_player.volume_db = 0.0
+	_fanfare_player.play()
+
+
+## `mBGMPsComp_delete_ps_fanfare`: take `id` off; the music it covered starts again.
+func pop_fanfare(id: StringName) -> void:
+	if _fanfare_id == &"" or id != _fanfare_id:
+		return
+	_fanfare_player.stop()
+	_fanfare_id = &""
+	var base: StringName = _fanfare_base
+	_fanfare_base = &""
+	if base != &"":
+		play_bgm(base)
+
+
+func fanfare_id() -> StringName:
+	return _fanfare_id
 
 
 ## `Na_TTKK_ARM`: mute guitar stem while K.K. looks up / is not strumming.
