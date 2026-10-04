@@ -77,7 +77,7 @@ data tables before a category is called done.
 - [x] Villager house plots (up to 15) with reserved lots (`ac_reserve`) — `TownResidents` moves villagers onto free SIGN plots
 - [x] The station and train tracks along the top row (`ac_station`, `ac_train_door`) — `TrainControl`, `TrainCars`, `VisualTrain`
 - [x] Cliffs block movement; only ramps / slopes connect elevations — `FieldCollision`
-- [~] "Perfect town" / environment assessment: trees, weeds, litter, flowers → rating per acre and town rank, daily perfect streak; the wishing well names the worst acre and, after 15 perfect days, its spirit hands over the golden axe (`m_field_assessment`, `ac_shrine`, `ac_npc_hem`) — `TownAssessment`, `WishingWellTalk`, `WellSpirit`. The rank sets bug / fish rarity and the gap between special visitors. Missing: special music, Jacob's-ladder spawn
+- [~] "Perfect town" / environment assessment: trees, weeds, litter, flowers → rating per acre and town rank, daily perfect streak; the wishing well names the worst acre and, after 15 perfect days, its spirit hands over the golden axe (`m_field_assessment`, `ac_shrine`, `ac_npc_hem`) — `TownAssessment`, `WishingWellTalk`, `WellSpirit`. The rank sets bug / fish rarity and the gap between special visitors. Missing: special music (GCN has no Jacob's ladder)
 
 ## 5. Player character
 
@@ -162,10 +162,9 @@ data tables before a category is called done.
   from scope rather than built.
 - [x] Pockets ↔ Fish/Insect encyclopedia pages (`mIV_PAGE_*`, 8×5 grid, right-edge folder tabs); caught-once registry `SpeciesLog` — `encyclopedia_catalog.gd`, `species_log.gd`; page-flip sine swing (`page_move_timer`) matches decomp's 40-frame transition
 - [x] Portrait player animations: walk-in-place default + `CHANGE`/`EAT`/`CATCH` one-shots (`mIV_ANIM_*`) — `inventory_overlay.gd`
-- [~] Wallet (bells) separate; 30,000-bell bag stacks — withdraw (`mTG_select_tag_decide_money`
+- [x] Wallet (bells) separate; 30,000-bell bag stacks — withdraw (`mTG_select_tag_decide_money`
   affordability-gated denomination picker) and deposit (drop a bag on the wallet slot, or the
-  pre-existing "Use" verb) both work. Missing: an actual bank/ABD terminal UI — `deposit_savings`/
-  `withdraw_savings` exist on `Inventory` but nothing in-scene calls them yet.
+  pre-existing "Use" verb) both work. The ABD terminal at the post office is `BankOverlay` (§11).
 - [x] "Throw away" confirmation — mail only (Yes/No, `mTG_dump_mail`), matching decomp: ordinary
   pocket items never had an in-menu discard, only mail and a couple of special items did.
   Dropped "item info popup" from this line — decomp's pockets screen has no such panel either
@@ -176,7 +175,7 @@ data tables before a category is called done.
   colour (`letter_color[]`) at the board's own offsets, dropping in from the top —
   `letter_reader_overlay.tscn`, `LetterBoard`, `LetterChrome`. Read-only (decomp confirms
   `mBD_roll_control`/pagination/caret are write-mode-only, dead code for reading).
-- [~] **Catalog** of every item you've ever owned/received; order from catalog at Nook's (`m_catalog_ovl`) — `CatalogBook`: furniture / clothing / wallpaper / carpet / stationery / umbrellas register as they reach the pockets (`mSP_CollectCheck`); Nook takes up to 5 paid orders that arrive enclosed in a letter the next morning (`mPO_delivery_mail_with_order_ftr`). Missing: the catalog browser pages (orders use the shop paper list), non-orderable flags beyond "rare"
+- [~] **Catalog** of every item you've ever owned/received; order from catalog at Nook's (`m_catalog_ovl`) — `CatalogBook`: furniture / clothing / wallpaper / carpet / stationery / umbrellas register as they reach the pockets (`mSP_CollectCheck`); Nook takes up to 5 paid orders that arrive enclosed in a letter the next morning (`mPO_delivery_mail_with_order_ftr`). The browser is `CatalogOverlay` (§21). Missing: non-orderable flags beyond "rare"
 - [~] Item data tables: tools, fruit, fossils, umbrellas, tickets, turnips, stationery and money as `.tres`; furniture, clothing, wallpaper and carpet from the disc (`FtrCatalog`, `ItemCatalog`). Missing: shells, paintings as items
 - [x] Fruit: native fruit per town + foreign fruit (apple, orange, peach, pear, cherry); coconuts on beach palms — `Game.town_fruit`, `TreeUse`
 - [x] ~~Perfect fruit~~ — _not in GCN_
@@ -196,7 +195,7 @@ data tables before a category is called done.
 - [x] **HRA — Happy Room Academy**: welcome letter, then at game start a scored letter the day after the layout changes (or a 2-in-10 tip otherwise): points by origin, necessities, base / theme / set series with matching wallpaper and carpet, lucky pieces, facing the wall, theme obstacles; rewards at 70,000 / 100,000 (house and manor models); wing paper (`m_mark_room`, `m_mark_room_ovl`) — `HappyRoomAcademy`, tables from `hra.py`. Missing: the clutter rule's loose items (rooms don't hold loose items yet). Feng shui is its own score (see Feng shui)
 - [x] Feng shui: each piece's colour from the disc (`mMkRm_ftr_info`) pays on its side — yellow west (money), red east (goods), orange north and green south (both), lucky anywhere — with the face-to-the-wall penalty, over every room of the house when you head out (`m_huusui_room_ovl`) — `FengShui`. Money power lengthens the money rock; goods power raises Nook's rare / uncommon odds
 - [~] Selling: Nook buys almost anything at set prices; fish/bugs/fossils/paintings prices; foreign fruit premium — `ShopBook.sell_result`: catalog price / 4, foreign fruit 2000 / 4 (`Game.town_fruit`), worthless items taken for free, quest items refused, 30,000-bell bags when the wallet overflows (refused with no room), half the payout counts toward Nook's sales. Missing: shell / fossil / painting price data
-- [~] Turnip market (**Stalk Market**): Sow Joan sells turnips Sunday AM; Nook buys at fluctuating daily price; turnips rot after a week; spoiled-turnip uses (`m_kabu_manager`, `ac_ev_kabuPeddler`, `ac_yomise`) — `KabuMarket` ports `Kabu_manager` (Sunday price 70–129, spike ×8 / random / falling trends with the decomp's transition odds; one price per day, not AM/PM, in GCN); Nook quotes it under "Other things" and buys 10/50/100 bundles (never on Sunday), spoiled turnips as junk. Missing: Joan, turnips spoiling on the ground (`mAGrw_SpoilKabu`)
+- [~] Turnip market (**Stalk Market**): Sow Joan sells turnips Sunday AM; Nook buys at fluctuating daily price; turnips rot after a week; spoiled-turnip uses (`m_kabu_manager`, `ac_ev_kabuPeddler`, `ac_yomise`) — `KabuMarket` ports `Kabu_manager` (Sunday price 70–129, spike ×8 / random / falling trends with the decomp's transition odds; one price per day, not AM/PM, in GCN); Nook quotes it under "Other things" and buys 10/50/100 bundles (never on Sunday), spoiled turnips as junk. Joan sells them on Sunday mornings (§30). Missing: turnips spoiling on the ground (`mAGrw_SpoilKabu`)
 - [x] Lottery / raffle at Nook's on the last day of the month (`mEv_EVENT_LOTTERY`) — see §21
 - [x] Nook's point card / "Nook Points" — _not in GCN_ (`m_shop.c` has only raffle tickets); skip
 - [x] ~~Flea market~~ — _not in GCN_
@@ -451,7 +450,7 @@ were dropped. See [shops](decomp_notes/shops.md) § Able Sisters.
   write-time picker (`LetterChrome`, baked by `menu_ui.py`), `MailData.paper_type`
   round-trips through save. Missing (separate, smaller gaps): specific papers awarded
   by events/villagers, and letter paper affecting villager reaction.
-- [~] Your mailbox at your house: receive letters, gifts, HRA reports, bank interest, event mail, catalog deliveries (`ac_mailbox`) — `scenes/world/mailbox.tscn` + received-mail path, flag raises/lowers on unread mail in every season, lid opens/closes around the Letters menu with the cursor seeded on the last-used slot (`aMBX_pl_open`/`_pl_close`, `mMB_get_last_mail_idx`); Museum fossil-identification replies land here (`FarwayBook` — the in-code name predates confirming decomp's actual address-book contact is just called "Museum", `mPr_CheckMuseumAddress`). Missing: the player's walk-up/hop before the lid opens (`aMBX_pl_wait`/`Player_actor_*_Mail_jump`); villager/event/bank mail not wired yet
+- [~] Your mailbox at your house: receive letters, gifts, HRA reports, bank interest, event mail, catalog deliveries (`ac_mailbox`) — `scenes/world/mailbox.tscn` + received-mail path, flag raises/lowers on unread mail in every season, lid opens/closes around the Letters menu with the cursor seeded on the last-used slot (`aMBX_pl_open`/`_pl_close`, `mMB_get_last_mail_idx`); Museum fossil-identification replies land here (`FarwayBook` — the in-code name predates confirming decomp's actual address-book contact is just called "Museum", `mPr_CheckMuseumAddress`). Missing: the player's walk-up/hop before the lid opens (`aMBX_pl_wait`/`Player_actor_*_Mail_jump`); villager letters, mom's letters, bank gifts and event mail all arrive
 - [~] Post office desk holds letters for delivery (`PostBook`, 5 slots). Missing: holding mail for a full mailbox
 - [x] Villagers send you letters (with gifts if friendship is high); replies build friendship — `VillagerLetters`
 - [x] Send a gift to a villager by mail → thank-you letter and sometimes a present back — `VillagerLetters`
