@@ -215,6 +215,12 @@ func _tick_spawn(sense: BugActor.Sense) -> void:
 
 func _try_spawn_in_acre(acre: Vector2i) -> void:
 	var raining: bool = Game.weather == &"rain"
+	## `aSOI_SPAWN_TYPE_SPIRIT`: a Wisp's spirit waits here, and nothing else comes out.
+	if WispEvent.spirit_in_acre(acre):
+		var spirit: BugData = BugCatalog.get_by_type(WispEvent.TYPE_SPIRIT)
+		if spirit != null and not _has_live(WispEvent.TYPE_SPIRIT):
+			_spawn_one_in_acre(spirit, 3, acre, raining)  ## `INSECT_SPAWN(SPIRIT, FLYING, 100)`
+		return
 	## `aSOI_ins_make_range_data` + `aSOI_ins_decide_insect` + `aSOI_ins_get_idx`.
 	var pool: Array[BugSpawnEntry] = BugSpawnScheduler.build_pool(_rng)
 	var entry: BugSpawnEntry = BugSpawnScheduler.decide(
@@ -232,6 +238,13 @@ func _try_spawn_in_acre(acre: Vector2i) -> void:
 			return
 		if not _spawn_one_in_acre(bug, entry.spawn_area, acre, raining):
 			return
+
+
+func _has_live(type_index: int) -> bool:
+	for a: BugActor in actors:
+		if a.bug != null and a.bug.type_index == type_index:
+			return true
+	return false
 
 
 func _spawn_one_in_acre(bug: BugData, spawn_area: int, acre: Vector2i, raining: bool) -> bool:

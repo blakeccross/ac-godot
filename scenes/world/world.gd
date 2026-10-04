@@ -285,6 +285,11 @@ func _sow_weeds() -> void:
 	var days: int = Game.take_weed_days()
 	if days <= 0:
 		return
+	## `mAGrw_ClearGrass`: a wish to the Wisp clears every weed, and none grow that once.
+	if Game.clear_grass:
+		WeedUse.clear_all(self, grid)
+		Game.clear_grass = false
+		return
 	var weed_rng := RandomNumberGenerator.new()
 	weed_rng.randomize()
 	WeedUse.grow(self, grid, layout, WeedUse.amount_for(days), weed_rng)

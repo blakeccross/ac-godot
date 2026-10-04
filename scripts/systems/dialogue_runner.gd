@@ -87,9 +87,9 @@ func advance() -> void:
 			_stage_wait_key = "advance_gate"
 			_stage_wait_next = next_id
 		return
-	## `mMsg_SET_LOCKCONTINUE`: the speaker holds a continue page for a demo (an item
-	## changing hands) and lets it go on afterwards.
-	if talk_manager != null and _is_bank_message() and rec.has("cont"):
+	## `mMsg_SET_LOCKCONTINUE`: the speaker holds a page for a demo (an item changing hands)
+	## and lets it go on afterwards.
+	if talk_manager != null and _is_bank_message():
 		var lock: Dictionary = talk_manager.lock_continue()
 		if lock.has("anim"):
 			lock["_then_goto"] = next_id
@@ -153,6 +153,8 @@ func choose(index: int) -> void:
 		_run_manager_step(talk_manager.choose(index))
 		return
 	var opt: Dictionary = choices[index]
+	if context != null:
+		context.determination = str(opt.get("text", ""))
 	_fire_list(opt.get("events", []))
 	waiting_choice = false
 	choices.clear()

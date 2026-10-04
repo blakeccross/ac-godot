@@ -9,7 +9,7 @@ const PATH := "res://data/events/schedule.json"
 ## Event ids that only make sense once another system exists. Their rows stay in the data
 ## but `EventCalendar` will not schedule them (they can still be forced with `/event start`).
 const UNSUPPORTED: Array[StringName] = [
-	&"bridge_make", &"soncho_bridge_make", &"mask_npc", &"ghost",
+	&"bridge_make", &"soncho_bridge_make", &"mask_npc",
 	&"soncho_vacation_january", &"soncho_vacation_february",
 ]
 
@@ -17,7 +17,7 @@ const UNSUPPORTED: Array[StringName] = [
 const LABELS: Dictionary = {
 	&"shop_sale": "Shop sale", &"designer": "Designer visit", &"broker_sale": "Crazy Redd",
 	&"artist": "Artist visit", &"carpet_peddler": "Carpet peddler", &"gypsy": "Fortune teller",
-	&"kabu_peddler": "Joan's turnips", &"kk_slider": "K.K. Slider", &"dozaemon": "Gulliver",
+	&"kabu_peddler": "Joan's turnips", &"kk_slider": "K.K. Slider", &"dozaemon": "Gulliver", &"ghost": "Wisp",
 	&"toy_day_jingle": "Jingle", &"toy_day_soncho": "Toy Day", &"fireworks_show": "Fireworks show",
 	&"aprilfools_day": "April Fools' Day", &"mothers_day": "Mother's Day",
 	&"fathers_day": "Father's Day", &"valentines_day": "Valentine's Day",
@@ -61,7 +61,8 @@ static func label(id: StringName) -> String:
 
 
 static func announces(id: StringName) -> bool:
-	if id in UNSUPPORTED:
+	## The Wisp is a secret until someone bumps into him.
+	if id in UNSUPPORTED or id == &"ghost":
 		return false
 	var text: String = String(id)
 	for prefix: String in QUIET_PREFIXES:

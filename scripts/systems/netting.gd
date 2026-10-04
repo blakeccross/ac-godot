@@ -73,8 +73,12 @@ class Catch:
 	var completes_record: bool = false
 	## `main_notice->not_full_pocket`.
 	var banked: bool = false
+	## The Wisp's spirits already in the pockets when this one was caught, or -1.
+	var spirits_before: int = -1
 
 	func report_msg() -> int:
+		if spirits_before >= 0:
+			return WispEvent.catch_msg(spirits_before)
 		return LAST_GET_MSG if completes_record else Netting.mushi_msg(bug.type_index if bug != null else 0)
 
 
@@ -100,6 +104,10 @@ static func begin_catch(caught: Object) -> Catch:
 	out.actor = actor
 	out.bug = actor.bug
 	out.completes_record = completes_record(actor.bug.type_index)
+	if actor.bug.type_index == WispEvent.TYPE_SPIRIT:
+		## `Player_actor_Pull_net_demo_ct`: the count, and its acre is empty from now on.
+		out.spirits_before = WispEvent.spirit_count(Game.inventory if Game != null else null)
+		WispEvent.caught_in(actor.block)
 	actor.catch()
 	return out
 
@@ -123,7 +131,7 @@ static func bank(catch_: Catch, inventory: Inventory) -> bool:
 		and inventory.has_space_for(catch_.bug, 1)
 		and inventory.add(catch_.bug, 1) == 0
 	)
-	if Game != null and Game.catalog != null:
+	if Game != null and Game.catalog != null and catch_.spirits_before < 0:
 		Game.catalog.record_insect(catch_.bug.type_index)
 	return catch_.banked
 

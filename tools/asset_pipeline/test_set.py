@@ -983,6 +983,8 @@ _BUG_MODEL_BASES = [
     "act_m_kumo",
     "act_m_ari",
     "act_m_ka",
+    ## The Wisp's spirits (`aINS_hitodama_dl`: a, a, b, b).
+    "act_m_hitodama",
 ]
 
 # `aINS_*_dl` pose pairs from `ac_insect_data.c_inc`. Draw submits indices
@@ -1071,6 +1073,7 @@ _BUG_POSE_GFX: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
         ("act_m_amenbo1T_model", "act_m_amenbo2T_model"),
     ),
     "act_m_dango": (("act_m_dango2T_model",), ("act_m_dango1T_model",)),
+    "act_m_hitodama": (("act_m_hitodama_a_model",), ("act_m_hitodama_b_model",)),
 }
 
 

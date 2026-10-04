@@ -523,7 +523,8 @@ class PrefixOwnershipTests(unittest.TestCase):
         from asset_pipeline.test_set import TEST_STATIC
 
         bugs = {i["asset_id"]: i for i in TEST_STATIC if i["asset_id"].startswith("act_m_")}
-        self.assertEqual(len(BUG_STATIC_NEEDLES), 80)
+        ## 40 insects and the Wisp's spirit, two poses each.
+        self.assertEqual(len(BUG_STATIC_NEEDLES), 82)
         self.assertEqual(bugs["act_m_hirata_a"]["vtx"], "act_m_hirata_v")
         self.assertEqual(bugs["act_m_hirata_a"]["gfx"], ["act_m_hirata1T_model"])
         self.assertEqual(bugs["act_m_hirata_b"]["vtx"], "act_m_hirata_v")

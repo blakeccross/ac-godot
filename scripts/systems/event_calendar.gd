@@ -34,6 +34,11 @@ var field_rank: int = DEFAULT_FIELD_RANK
 var birthday_md: int = 0
 ## `weekly_event`: which weekly visitor owns today, and the date Gulliver was rolled for.
 var weekly_type: StringName = &""
+## `event_save_common.ghost_day` (an `EventDates.ordinal`): the night the Wisp first comes.
+## He turns up every night from then until the date falls a week behind, or until his
+## spirits are back (`WispTalk` clears it). `ghost_tonight`: `ghost_event_type == GHOST`.
+var ghost_day: int = 0
+var ghost_tonight: bool = false
 var weekly_date: int = 0
 ## `special_event`: the one scheduled special visit and its dates (`dates[SPECIAL0..3]`).
 var special_type: StringName = &""
@@ -61,6 +66,8 @@ func clear() -> void:
 	field_rank = DEFAULT_FIELD_RANK
 	birthday_md = 0
 	weekly_type = &""
+	ghost_day = 0
+	ghost_tonight = false
 	weekly_date = 0
 	special_type = &""
 	special_year = 0
@@ -237,6 +244,7 @@ func sync(now: Dictionary) -> void:
 		_day_key = key
 		_talked.clear()
 		_init_weekly(now)
+		_init_ghost(now)
 	var special_changed: bool = _init_special(now)
 	if new_day or special_changed:
 		_hours = resolve_day(now, true)
@@ -336,6 +344,8 @@ func _row_gated_off(id: StringName) -> bool:
 		return special_type != &"broker_sale"
 	if id == &"kk_slider" or id == &"kabu_peddler" or id == &"dozaemon":
 		return weekly_type != id
+	if id == &"ghost":
+		return not ghost_tonight
 	return false
 
 
@@ -489,6 +499,18 @@ func _init_weekly(now: Dictionary) -> void:
 				## `dozaemon_completed = FALSE` and a fresh `mEv_dozaemon_c` for the new week.
 				dozaemon_completed = false
 				clear_area(&"dozaemon")
+
+
+## `init_weekly_event`'s Wisp part: keep `ghost_day` while it lies between a week ago and
+## four days ahead, else roll it 2–4 days out; he comes while it is between a week ago and
+## today.
+func _init_ghost(now: Dictionary) -> void:
+	var today: int = EventDates.ordinal(int(now["year"]), int(now["month"]), int(now["day"]))
+	if ghost_day == 0 or ghost_day < today - 7 or ghost_day > today + 4:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = (town_seed & 0x00FFFFFF) + today * 7 + 3
+		ghost_day = today + 2 + rng.randi_range(0, 2)
+	ghost_tonight = ghost_day >= today - 7 and ghost_day <= today
 
 
 # --- special NPC visit -----------------------------------------------------------------
@@ -645,6 +667,7 @@ func to_save() -> Dictionary:
 		"special_dates": special_dates.duplicate(),
 		"areas": save_areas.duplicate(true),
 		"dozaemon_completed": dozaemon_completed,
+		"ghost_day": ghost_day,
 	}
 
 
@@ -655,6 +678,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	birthday_md = int(data.get("birthday", 0))
 	weekly_type = StringName(String(data.get("weekly_type", "")))
 	weekly_date = int(data.get("weekly_date", 0))
+	ghost_day = int(data.get("ghost_day", 0))
 	special_type = StringName(String(data.get("special_type", "")))
 	special_year = int(data.get("special_year", 0))
 	var dates: Variant = data.get("special_dates", {})

@@ -265,7 +265,7 @@ data tables before a category is called done.
 - [ ] **Flowers**: red/white/yellow tulips, pansies, roses, cosmos, dandelions, sunflowers _(verify GCN species)_
 - [ ] Flowers from Nook (bags of seeds), Tortimer, HRA, events, or dug up
 - [ ] Flowers wilt without water; villagers & the player? water them; rain waters all
-- [ ] Flower breeding: adjacent flowers spawn a new flower, sometimes a **hybrid** colour (black/blue/purple roses, etc.)
+- [x] ~~Flower breeding / hybrids~~ — not in the GameCube game (hybrids arrive in Wild World)
 - [ ] Trampled flowers (running) wilt; wilted flowers revive with water or die
 - [ ] Dandelions → puff stage → blow away; four-leaf clovers rare pickup
 - [~] Weeds: five per renewal day since the last one on free grass units (`mAGrw_SetGrass`, `mCoBG_PLANT4`), so a long absence brings many; pulled for nothing — `WeedUse`; renewals crossed indoors or while away are banked and sown when the field loads. Rating / complaints with the town assessment
@@ -306,7 +306,7 @@ data tables before a category is called done.
 - [~] Trading furniture / clothing with villagers (chat trades: `aQMgr_order_decide_trade` / `_trade`) — `villager_talk_manager.gd`. Goods come from the shop's A / B / C lists; no hand-over animation yet
 - [x] Villager asks to buy something from your pockets / sell you something (chat trade topics)
 - [ ] Villager house interiors themed by personality; changes over time with items you give
-- [ ] Sick villagers → give medicine (from Nook) → friendship boost
+- [x] ~~Sick villagers → medicine~~ — not in the GameCube game (Wild World on)
 - [ ] Villager games: hide and seek, "which hand", quizzes, "what am I thinking" (`ac_npc` talk minigames)
 - [ ] Villager sings K.K. songs / hums the town tune
 - [ ] Villager reactions to your appearance: bee-stung face, bad haircut (n/a), new shirt, holding furniture, being naked, wearing a hat/mask
@@ -546,7 +546,7 @@ Event NPCs are `EventNpc` scenes placed by `EventManager` presenters (`scenes/wo
 - [x] **Wendell** — fish for an event wallpaper (`ac_ev_artist`, `WendellTalk`)
 - [x] **Gracie** — car on a lot, fashion check, car-wash minigame, Event / group-A clothing (`ac_ev_designer`, `GracieTalk`)
 - [x] **Gulliver** — on the beach, wake him, Jonason gift (`ac_ev_dozaemon`, `GulliverTalk`). Missing: the foreign-item letter days later
-- [ ] **Wisp** — spirits scattered at night, catch five for a wish (weeds / roof colour / item) (`ac_ev_ghost`, `mEv_EVENT_GHOST`). Needs the spirit field actors; row still in `EventSchedule.UNSUPPORTED`
+- [x] **Wisp** — one night in a week (rolled 2–4 days ahead), 0:00–3:59, in a town with eight or more weeds: invisible until you bump into him ("Excuse me…", then "Thank you for noticing me!"), then half-seen and wandering; five spirits each in their own acre come out as you enter it and stack in one pocket slot; all five back buys a wish — no weeds, a new roof colour (four pages of three) or something the catalogue lacks; at 4:00 "It's 4 o'clock!" and he spins away (`ac_ev_ghost`, `ac_ins_hitodama`) — `WispEvent`, `WispTalk`, `wisp.gd`
 - [x] **Joan** — Sunday mornings, turnips (`ac_ev_kabuPeddler`, `JoanTalk`). Her give order is simplified (take → give → lines)
 - [x] **Katrina** — fortune tent (50 Bells, destiny) (`ac_ev_gypsy`, `KatrinaTalk`) and the New Year's shrine lottery (fortune letter + destiny) (`ac_ev_miko`, `MikoTalk`). Destiny effects on villagers / luck are not wired
 - [x] **Jingle** — Toy Day: wish questions in a new acre each time, a Christmas present; new shirts fool him (`ac_ev_santa`, `JingleTalk`)

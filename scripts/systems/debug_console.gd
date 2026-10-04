@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -159,6 +159,25 @@ func execute(raw: String) -> String:
 			var fs_cut: Vector2i = ShopGoods.tier_cutoffs(Game.goods_power)
 			return "Money power %d, goods power %d (Nook: rare %d%%, uncommon %d%%)." % [
 				Game.money_power, Game.goods_power, fs_cut.x, fs_cut.y - fs_cut.x]
+		"wisp":
+			## The Wisp's night: `wisp` brings him out, `wisp found` as if he had been found,
+			## `wisp spirits 5` puts spirits in the pockets.
+			var wi_state: Dictionary = WispEvent.state()
+			var wi_sub: String = String(args[0]) if not args.is_empty() else ""
+			if wi_sub == "found":
+				wi_state["found"] = true
+				wi_state["active"] = true
+				return "Wisp found; spirits in acres %s." % [wi_state.get("acres", [])]
+			if wi_sub == "spirits":
+				var wi_n: int = clampi(int(args[1]) if args.size() > 1 else WispEvent.SPIRITS, 1, WispEvent.SPIRITS)
+				var wi_bug: ItemData = BugCatalog.get_by_type(WispEvent.TYPE_SPIRIT)
+				if wi_bug == null or Game.inventory.add(wi_bug, wi_n) != 0:
+					return "No room for spirits."
+				return "%d spirit(s) in the pockets." % wi_n
+			Game.events.ghost_tonight = true
+			Game.events.force(&"ghost")
+			_sync_events()
+			return "The Wisp is out tonight."
 		"golden":
 			## Hold up a golden tool (`golden net|rod|axe`), as after Tortimer's visit or the well.
 			var go_ids: Dictionary = {"net": &"golden_net", "rod": &"golden_fishing_rod", "axe": &"golden_axe"}

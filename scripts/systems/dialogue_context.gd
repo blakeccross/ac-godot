@@ -55,6 +55,8 @@ var bee_chase: bool = false
 var bee_stung: bool = false
 ## `mDemo_Set_talk_window_color`; alpha 0 keeps the default cloud colour.
 var window_color: Color = Color(0, 0, 0, 0)
+## `STR_DETERMINATION` (`{ok}`): the answer last picked in a choice window.
+var determination: String = ""
 var milestones: Array[StringName] = []
 var gifted_items: Array[StringName] = []
 
@@ -238,6 +240,7 @@ func substitute(text: String) -> String:
 	out = out.replace("{weekday}", ClockService.WEEKDAYS[weekday] if weekday >= 0 and weekday < 7 else "")
 	out = out.replace("{ampm}", "AM" if hour < 12 else "PM")
 	out = out.replace("{item0}", item0)
+	out = out.replace("{ok}", determination)
 	for i: int in 4:
 		out = out.replace("{item%d}" % (i + 1), item_strs[i] if i < item_strs.size() else "")
 	out = out.replace("{item}", item0)
