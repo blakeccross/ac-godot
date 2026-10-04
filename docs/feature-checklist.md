@@ -139,7 +139,7 @@ data tables before a category is called done.
 
 - [~] **Net** — hold A to ready, creep, skid out of a dash, release to swing; tick-exact catch sphere from keyframe 6; wall / ground / villager strike cuts the swing (`AMI_HIT`); empty swing → `STOP_NET` (`m_player_item_net`, `m_player_main_{ready,ready_walk,slip,swing,stop}_net`) — `net_swing.gd`, `netting.gd`. Missing: catching the bee swarm, swing effects. The golden net reaches further (21 GX)
 - [~] **Fishing rod** — see §13 (`m_player_item_rod`) — `fishing.gd` (substantial)
-- [~] **Shovel** — dig and fill holes, bury items and pitfall seeds, dig up fossils and shine spots, hit the money rock, plant saplings (`hole_use.gd`, `buried_use.gd`, `MoneyRock`). Missing: digging up gyroids, the clang off stone (`reflect_scoop`)
+- [~] **Shovel** — dig and fill holes, bury items and pitfall seeds, dig up fossils, gyroids and shine spots, hit the money rock, plant saplings (`hole_use.gd`, `buried_use.gd`, `MoneyRock`). Missing: the clang off stone (`reflect_scoop`)
 - [~] **Axe** — chop trees (multi-hit → stump), the golden axe (`tree_use.gd`). Missing: the axe breaking with use (`broken_axe`, `ef_break_axe`)
 - [~] **Fishing rod / net / axe / shovel** durability & the **golden** variants — the golden axe from the wishing well; Tortimer waits outside the house with the golden rod once every fish is caught and the golden net once every insect is (`aPRD_setup_present`, `PresentVisit`). Once Tortimer has gone, or the well spirit has given the axe, the player holds the golden tool up (`YATTA1`) and says so in a green report (`demo_get_golden_item`, `Player.get_golden_item`). Each plays its jingle (all insects, all fish, the chores tune for the axe). Missing: the golden shovel (Wild World on)
 - [x] ~~Slingshot~~ — _not in the GameCube game_ (balloons snag in trees instead; see §34 balloons)
@@ -239,10 +239,10 @@ data tables before a category is called done.
 
 - [~] Dig a hole on empty ground; fill a hole (`DIG_SCOOP`, `FILL_SCOOP`, `HOLE00`–`HOLE24`) — `hole_use.gd`, `scenes/world/hole.tscn`
 - [x] Bury an item in a hole; dig it back up (`mTG_TYPE_FIELD_DEFAULT_BURY`, `bIT_common_hole_throw`) — pockets "Bury" → `BuriedUse.bury` (`KIND_ITEM` shows the crack)
-- [~] Daily dig spots: fossils (crack mark, up to 5) and a shine spot of bells (`mMsm_DepositFossil`, `mAGrw_SetDigItem`) — `BuriedUse`. Missing: gyroids dug up after rain
+- [x] Daily dig spots: fossils (crack mark, up to 5), a shine spot of bells, and three gyroids after rain (`mMsm_DepositFossil`, `mAGrw_SetDigItem`, `mAGrw_SetHaniwa`) — `BuriedUse`
 - [~] Money spot: the daily shine spot digs up a bag of bells (`mAGrw_SetDigItem`) — `BuriedUse`; bare trees can hold bells when shaken (`TreeUse`). Missing: burying bells in the shine hole to grow a money tree (`TREE_1000BELLS_SAPLING`…)
 - [x] **Rock**: the money rock — a random rock, re-picked once spent, pays a bag per shovel hit inside a ~6.4 s window (386 ticks) (100 ×3, 1,000 ×3, then 10,000; money-luck fortune one tier up), only onto a free unit beside it (`mAGrw_SetMoneyStone`, `bIT_actor_ten_coin_entryR`) — `MoneyRock`, `rock.gd` (`ply_1_not_dig1` bounce)
-- [~] **Gyroids**: house gyroids are the save point (§1). Missing: the ~127 gyroid items dug up after rain and their room hum (`ac_my_room_melody`)
+- [~] **Gyroids**: the 127 gyroids, each its own model. A day that turns fine after rain or snow orders three different ones for the next growth, each under a crack mark in its own acre (`mEnv_PreRainNowFine_Init`, `mAGrw_SetHaniwa`) — `BuriedUse.bury_gyroids`, `Game.haniwa_scheduled`. In a room, a switched-on gyroid poses its own clip by the rhythm counter, the six fast ones twice a step and the plinkoids over two (`ac_hnw_common.c`) — `GyroidRhythm`, `gyroid_dance.tscn`. Missing: their voices (the rhythm sequence 246 needs the engine's rhythm callbacks in the offline renderer) and following the room music's tempo (fixed at the rhythm group's 120 BPM)
 - [x] **Pitfall**: bury a pitfall seed in a hole → invisible trap; player/villager falls in (`BURIED_PITFALL_HOLE`, `bIT_actor_pit_*`, `m_player_main_*_pitfall`) — the pit opens under them and closes after
 - [x] **Fossils**: 25 dug up unidentified → mailed to the museum or shown to Blathers → identified, donated or sold; skeleton groups — `FossilCatalog`, `FarwayBook`, `MuseumDialogue`
 - [x] ~~Fake rocks~~ — rocks are fixed obstacles on the GameCube (one is the money rock)
@@ -349,7 +349,7 @@ data tables before a category is called done.
 - [x] Themed sets award HRA bonus when all present + matching wallpaper/carpet — `HappyRoomAcademy`
 - [~] Special / rare furniture is in the item tables (`FtrCatalog`); the Famicom only works as furniture once §28's emulator exists
 - [ ] **NES/Famicom consoles as furniture** → playable games (see §28)
-- [ ] Gyroid furniture (§14): the collection; each hums with the room music
+- [~] Gyroid furniture: place, switch on and off, dance — see §14. Missing: their sounds
 - [x] ~~Musical instruments you can play~~ — GCN: no free-play
 - [x] Snowmen: two snowballs each snowman season (Dec 25 – Feb 17) that grow on snow and shrink off it; roll the body and head together and the faster jumps on top. Graded on head ÷ body against 0.85, with lines to match; a perfect one mails a Snowman-series piece. Up to three stand, melting over three days. Walk into one to knock it down (`ac_snowman`, `ac_psnowman`, `m_snowman`) — `SnowmanRules`, `SnowmanUse`, `snowball.gd`, `snowman.gd`
 - [x] Feng-shui / lucky items (see Feng shui)
@@ -607,7 +607,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [~] SFX bank (seq 242): footsteps by surface (`FootstepSe`), tools, UI, doors, catches (`SeCatalog`). Gaps where the converted bank lacks an SE
 - [~] **Animalese** speech — see §17
 - [~] Town tune played on the hour outdoors as the time signal (`mBGMTime_signal_melody`) — `Audio.play_melody` on the note SEs; the step length (0.25 s) is an estimate, and clocks / villager humming don't use it yet
-- [ ] Gyroid hums layered onto room music (`ac_my_room_melody`) — waits on gyroid items
+- [ ] Gyroid voices layered onto room music (`ac_my_room_melody`, seq 246 rhythm group) — gyroids dance silently for now
 - [ ] Ambient: birds (day), crickets/owls (night), cicadas (summer day), ocean waves, river, waterfall, wind, rain, thunder
 - [~] Positional audio for sound sources (train, insects) through `Ongen` (`Na_OngenPos`)
 - [ ] NES game audio via the Famicom APU emulation (`ks_nes_core`)
@@ -661,7 +661,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 | Insects | 40 individual types | `aINS_INSECT_TYPE_NUM`, `ac_insect_data.c_inc`, `ac_set_ovl_insect.c` |
 | Fossils | ~25 items / ~13 skeletons | `ac_museum_fossil.c` |
 | Paintings | 15 | `ac_museum_picture.c` |
-| Gyroids | ~127 | `m_melody.c`, `ac_my_room_melody.c_inc` |
+| Gyroids | 127 | `m_melody.c`, `ac_my_room_melody.c_inc` |
 | Furniture | ~1000+ | `ac_furniture_data.c_inc`, `f_furniture.c` |
 | Wallpaper / carpet | ~90 each | `m_item_name.c` |
 | Clothing (shirts) | ~230 | `m_item_name.c` |

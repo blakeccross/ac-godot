@@ -76,6 +76,9 @@ var calendar: Dictionary = CalendarBook.new_state()
 var fish_records: Array = []
 ## `treasure_buried_time` / `treasure_checked_time` as ordinals (0 never). Saved.
 var treasure_buried_day: int = 0
+## `Save_Get(haniwa_scheduled)`: fine weather after rain orders gyroids for the next growth
+## (`mAGrw_OrderSetHaniwa`); `BuriedUse.renew` buries them and clears it.
+var haniwa_scheduled: bool = false
 var treasure_checked_day: int = 0
 ## The last board check wrote no seasonal notice, so a villager may bury treasure.
 var treasure_due: bool = false
@@ -1050,6 +1053,7 @@ func reset_session() -> void:
 	calendar = CalendarBook.new_state()
 	fish_records.clear()
 	treasure_buried_day = 0
+	haniwa_scheduled = false
 	treasure_checked_day = 0
 	treasure_due = false
 	VillagerWalk.reset()
@@ -1436,6 +1440,7 @@ func to_save() -> Dictionary:
 		"calendar": calendar.duplicate(true),
 		"fish_records": fish_records.duplicate(true),
 		"treasure_buried_day": treasure_buried_day,
+		"haniwa_scheduled": haniwa_scheduled,
 		"treasure_checked_day": treasure_checked_day,
 		"quests": quests.to_save(),
 		"rainbow": rainbow.to_save(),
@@ -1627,6 +1632,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	birthday_present_npc = StringName(str(data.get("birthday_present_npc", "")))
 	birthday_card_day = int(data.get("birthday_card_day", 0))
 	treasure_buried_day = int(data.get("treasure_buried_day", 0))
+	haniwa_scheduled = bool(data.get("haniwa_scheduled", false))
 	treasure_checked_day = int(data.get("treasure_checked_day", 0))
 	fish_records.clear()
 	var saved_fish: Variant = data.get("fish_records", [])
@@ -1940,8 +1946,11 @@ func _on_field_renewed(days: int) -> void:
 	var previous_weather: StringName = weather
 	apply_weather_roll(Weather.roll())
 	apply_event_weather()
-	## Fine after rain or snow: a rainbow over the falls today (`mEnv_PreRainNowFine_Init`).
+	## Fine after rain or snow: a rainbow over the falls today and gyroids in the ground
+	## with the next growth (`mEnv_PreRainNowFine_Init`).
 	rainbow.note_weather_change(previous_weather, weather, Clock.month, Clock.day)
+	if Rainbow.pre_rain_now_fine(previous_weather, weather):
+		haniwa_scheduled = true
 	update_notice_board()
 
 

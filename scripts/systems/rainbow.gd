@@ -26,11 +26,16 @@ func reserve(on_month: int, on_day: int) -> void:
 	day = on_day
 
 
-## Called when the day's weather is decided: fine after rain or snow reserves today.
-func note_weather_change(previous: StringName, now: StringName, on_month: int, on_day: int) -> void:
+## `mEnv_PreRainNowFine_Init`'s test: the day's weather is fine after rain or snow.
+static func pre_rain_now_fine(previous: StringName, now: StringName) -> bool:
 	var was_wet: bool = previous == &"rain" or previous == &"snow"
 	var is_fine: bool = now == &"clear" or now == &"sakura"
-	if was_wet and is_fine:
+	return was_wet and is_fine
+
+
+## Called when the day's weather is decided: fine after rain or snow reserves today.
+func note_weather_change(previous: StringName, now: StringName, on_month: int, on_day: int) -> void:
+	if pre_rain_now_fine(previous, now):
 		reserve(on_month, on_day)
 
 

@@ -24,6 +24,9 @@ const PIT_OPEN_TICKS := 26.0
 const PIT_SE_TICK := 6.0
 const PIT_CLOSE_TICKS := 14.0
 const VISUAL_CRACK := &"BURIED_CRACK"
+## `mAGrw_HANIWA_NUM`, and the furniture list they come from (`HANIWA_START`…`HANIWA_END`).
+const HANIWA_NUM := 3
+const HANIWA_BIRTH := "haniwa"
 const VISUAL_SHINE := &"SHINE_SPOT"
 
 
@@ -75,6 +78,9 @@ static func renew(world: Node, grid: WorldGrid, rng: RandomNumberGenerator = nul
 	_clear_shine(world, grid)
 	_top_up_fossils(world, grid, layout, roll)
 	_place_shine(world, grid, layout, roll)
+	if Game.haniwa_scheduled:
+		bury_gyroids(world, grid, roll)
+		Game.haniwa_scheduled = false
 
 
 static func restore(world: Node, grid: WorldGrid) -> void:
@@ -219,6 +225,42 @@ static func bury_item(world: Node, cell: Vector2i, item_id: StringName) -> bool:
 	if grid == null:
 		return false
 	return _deposit(world, grid, _layout(world), cell, KIND_ITEM, item_id)
+
+
+## `mAGrw_SetHaniwa`: three different gyroids (`mSP_RandomHaniwaSelect`), each under a
+## crack mark in its own random acre with room. Returns the cells used.
+static func bury_gyroids(world: Node, grid: WorldGrid, rng: RandomNumberGenerator) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var layout: WorldData = _layout(world)
+	var by_block: Dictionary = {}
+	for z: int in grid.rows:
+		for x: int in grid.columns:
+			var cell := Vector2i(x, z)
+			var block: Vector2i = VillagerWalk.block_from_cell(cell)
+			if VillagerWalk.is_fg_block(block) and _can_deposit(grid, cell, layout, false):
+				if not by_block.has(block):
+					by_block[block] = []
+				(by_block[block] as Array).append(cell)
+	var blocks: Array = by_block.keys()
+	blocks.sort()
+	var picked: Array[StringName] = []
+	for i: int in HANIWA_NUM:
+		if blocks.is_empty():
+			break
+		var id: StringName = FtrCatalog.pick(HANIWA_BIRTH, rng, picked)
+		if id == &"":
+			break
+		picked.append(id)
+		## One gyroid an acre while more than one acre is left (`block_candidates[0] > 1`).
+		var bi: int = rng.randi_range(0, blocks.size() - 1)
+		var cells: Array = by_block[blocks[bi]]
+		var cell: Vector2i = cells[rng.randi_range(0, cells.size() - 1)]
+		if blocks.size() > 1:
+			blocks.remove_at(bi)
+		if _deposit(world, grid, layout, cell, KIND_ITEM, id):
+			out.append(cell)
+			cells.erase(cell)
+	return out
 
 
 static func _top_up_fossils(

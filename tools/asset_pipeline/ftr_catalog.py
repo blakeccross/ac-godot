@@ -50,6 +50,16 @@ def _profile_files(decomp: Path) -> dict[str, str]:
     return out
 
 
+def _ftr_visual(index: int, prof: str, text: str, glbs: set[str]) -> str:
+    """Every gyroid shares the `hnw_common` profile; `ac_hnw_common.c` draws
+    `int_hnw001`…`int_hnw127` by the furniture number less `FTR_HNW_COMMON000`."""
+    if prof == "hnw_common":
+        from .npc_rooms import _visual_for_iam
+
+        return _visual_for_iam(prof, index)
+    return _visual_for(prof, text, glbs)
+
+
 def _visual_for(prof: str, text: str, glbs: set[str]) -> str:
     """The converted model: `int_<profile>` when it exists, else the first `int_*` model or
     skeleton the profile's file draws (`cKF_bs_r_int_sum_clchest01`, `int_x_model`)."""
@@ -156,7 +166,7 @@ def convert_ftr_catalog(cfg: PipelineConfig) -> dict[str, Any]:
         )
         items.append({
             "index": i,
-            "visual": _visual_for(prof, files.get(prof, ""), glbs),
+            "visual": _ftr_visual(i, prof, files.get(prof, ""), glbs),
             "name": name,
             "price": prices[i] if i < len(prices) else 0,
             "birth": births[i] if i < len(births) else "",
