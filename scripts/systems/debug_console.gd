@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -159,6 +159,16 @@ func execute(raw: String) -> String:
 			var fs_cut: Vector2i = ShopGoods.tier_cutoffs(Game.goods_power)
 			return "Money power %d, goods power %d (Nook: rare %d%%, uncommon %d%%)." % [
 				Game.money_power, Game.goods_power, fs_cut.x, fs_cut.y - fs_cut.x]
+		"golden":
+			## Hold up a golden tool (`golden net|rod|axe`), as after Tortimer's visit or the well.
+			var go_ids: Dictionary = {"net": &"golden_net", "rod": &"golden_fishing_rod", "axe": &"golden_axe"}
+			var go_id: StringName = go_ids.get(String(args[0]) if not args.is_empty() else "rod", &"golden_fishing_rod")
+			var go_tree := Engine.get_main_loop() as SceneTree
+			var go_player := Player.find(go_tree) as Player if go_tree != null else null
+			if go_player == null:
+				return "No player here."
+			go_player.get_golden_item(go_id)
+			return "Holding up %s." % go_id
 		"treasure":
 			## A villager buries something now and posts where (`mNtc_check_treasure`).
 			var tr_tree := Engine.get_main_loop() as SceneTree

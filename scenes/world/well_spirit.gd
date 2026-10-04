@@ -41,8 +41,12 @@ func think(_delta: float) -> void:
 		_vanish()
 
 
+## `mDemo_Set_talk_return_get_golden_axe_demo`: the player holds the axe up as it goes.
 func talk_ended(_script: BankTalk) -> void:
 	_vanish()
+	var p := player_node() as Player
+	if p != null:
+		p.get_golden_item(GOLDEN_AXE)
 
 
 func _vanish() -> void:

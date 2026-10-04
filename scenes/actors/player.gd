@@ -2233,6 +2233,55 @@ func _net_pull(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay)
 				return
 
 
+## `mPlayer_INDEX_DEMO_GET_GOLDEN_ITEM(2)`: the golden tool held up in the hand with
+## `YATTA1`, turning to face the camera, and 42 frames in the player's own green report
+## ("YESSSSS!!!!! I got the Golden Rod!", 0x306D–0x306F); then back to waiting with the
+## equipped tool again. Tortimer's golden rod / net visit and the well spirit's axe end here.
+const GOLDEN_YATTA := &"ply_1_yatta1"
+const GOLDEN_REPORT_FRAMES := 42
+const GOLDEN_WINDOW := Color8(185, 245, 80)
+const GOLDEN_MSG: Dictionary = {&"golden_net": 0x306D, &"golden_fishing_rod": 0x306E, &"golden_axe": 0x306F}
+
+
+func get_golden_item(item_id: StringName) -> void:
+	if _busy or not is_inside_tree():
+		return
+	_busy = true
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	var tool := ItemCatalog.get_item(item_id) as ToolData
+	HeldTool.unbind(skeleton)
+	if tool != null and tool.visual_id != &"":
+		HeldTool.bind(skeleton, tool.visual_id)
+		## Only the net has a clip of its own for this (`yatta_m1`); other tools just stay put.
+		HeldTool.play(skeleton, Netting.TOOL_YATTA, false)
+	_play_body_once(GOLDEN_YATTA)
+	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 8.0)
+	var frames: int = 0
+	while frames < GOLDEN_REPORT_FRAMES and is_inside_tree():
+		await get_tree().physics_frame
+		steps.add(get_physics_process_delta_time())
+		while steps.next():
+			frames += 1
+			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Netting.SHOW_YAW)
+			_mesh.rotation.y = _motor.facing
+	var ui: DialogueOverlay = DialogueOverlay.find(get_tree()) if is_inside_tree() else null
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % int(GOLDEN_MSG.get(item_id, 0x3070))))
+	if ui != null and data != null:
+		var ctx := DialogueContext.from_game()
+		ctx.speaker_name = ""
+		ctx.window_color = GOLDEN_WINDOW
+		ui.play(data, ctx)
+		await _net_wait_closed(ui)
+	if not is_inside_tree():
+		return
+	_motor.reset(_motor.facing)
+	_motor.mode_changed = true
+	_bind_equipped_tool(not _tool_hidden())
+	_busy = false
+	_gait = PlayerLocomotion.Gait.WAIT
+	_update_focus()
+
+
 ## `main_Notice_net`'s message states: the collection-complete follow-up with `YATTA2`, or the
 ## pockets-full swap question, then wait for the report to close.
 func _net_notice(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay) -> void:

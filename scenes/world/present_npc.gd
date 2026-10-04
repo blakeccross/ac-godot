@@ -54,11 +54,22 @@ func think(delta: float) -> void:
 		Think.EXIT:
 			_exit_time -= delta
 			if _exit_time <= 0.0 or not is_moving():
+				_retire()
 				queue_free()
 
 
 func talk_ended(_script: BankTalk) -> void:
 	_leave()
+
+
+## `aPRD_retire_npc_wait`: once Tortimer has gone, the player holds up the golden rod or
+## net (`mPlib_request_main_demo_get_golden_item2_type1`).
+func _retire() -> void:
+	if kind != PresentVisit.Kind.GOLDEN_ROD and kind != PresentVisit.Kind.GOLDEN_NET:
+		return
+	var p := player_node() as Player
+	if p != null:
+		p.get_golden_item(PresentVisit.present_for(kind))
 
 
 ## Away from the door, the way it came.
