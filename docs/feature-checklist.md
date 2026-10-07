@@ -334,7 +334,7 @@ data tables before a category is called done.
 - [~] Interior editing mode / catalog reorder; "store in Nook's" / storage — dresser / wardrobe / closet conversations (`FurnitureStorage`)
 - [~] Music player furniture (stereo/radio/etc.) plays a chosen K.K. song; gyroids beat along (`ac_radio`, `ac_my_room_melody`) — `FurnitureMusic` / `MinidiskCatalog`: discs, music box, one player at a time, aerobics radio, gyroid hop; missing: song titles, K.K. as the disc source, gyroid voices
 - [~] Lit lamps at night, sit and lie (`FurnitureSeat`), music players (`FurnitureMusic`), storage (`FurnitureStorage`). Missing: the Famicom (§28), fireplace / fountain / bath effects
-- [ ] Doorplate / house nameplate (`ac_nameplate`)
+- [x] Doorplate / house nameplate (`ac_nameplate`): the sign on the south-west unit of a villager's plot reads "{name}'s house" in an orange window from the south — `house.gd`
 - [~] Basement = free storage room once unlocked — orderable at Nook's after the medium loan; decorates like any floor
 - [~] House exterior model changes with size; door mat; roof — `obj_{s,w}_myhome1..4` by size, fish weathervane / insect plaque via `CompleteTalk`; palette recolour not rendered
 - [x] ~~Move house location~~ — not in GCN

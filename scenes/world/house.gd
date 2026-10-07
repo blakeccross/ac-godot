@@ -44,11 +44,68 @@ func refresh_seasonal_visual() -> void:
 	PlayerHouse.apply_exterior_decorations(self)
 
 
-func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
+## `ac_nameplate`: the signboard on the south-west unit of a villager's 3×3 plot
+## (`mNpc_BuildHouseBeforeFieldct`, `ACTOR_PROP_VILLAGER_SIGNBOARD`), read from the south.
+const NAMEPLATE_MSG := 4969
+const NAMEPLATE_COLOR := Color8(205, 120, 0)
+
+
+func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
+	if _facing_nameplate(ctx):
+		return [Interaction.of(Interaction.READ, "Read sign", 13)]
 	return [Interaction.of(Interaction.ENTER, "Enter house", 12)]
 
 
+func nameplate_cell(grid: WorldGrid) -> Vector2i:
+	if grid == null or not String(name).begins_with("npc_house_"):
+		return Vector2i(-1, -1)
+	var cells: Array[Vector2i] = grid.cells_of(StringName(name))
+	if cells.is_empty():
+		cells = grid.cells_of(occupant_id)
+	if cells.is_empty():
+		return Vector2i(-1, -1)
+	var corner := Vector2i(cells[0].x, cells[0].y)
+	for c: Vector2i in cells:
+		corner.x = mini(corner.x, c.x)
+		corner.y = maxi(corner.y, c.y)
+	return corner
+
+
+## `aNP_actor_move`: the player south of the sign, within 45° of straight in front.
+func _facing_nameplate(ctx: InteractionContext) -> bool:
+	if ctx == null or ctx.actor == null or ctx.world == null or not "grid" in ctx.world:
+		return false
+	var grid: WorldGrid = ctx.world.get("grid") as WorldGrid
+	var plate: Vector2i = nameplate_cell(grid)
+	if plate.x < 0 or ToolUse.facing_cell(ctx) != plate:
+		return false
+	var to_player: Vector3 = (ctx.actor as Node3D).global_position - grid.cell_to_world(plate)
+	return to_player.z >= 0.0 and absf(atan2(to_player.x, to_player.z)) < PI / 4.0
+
+
+func _read_nameplate() -> bool:
+	var entry: StringName = occupant_id if occupant_id != &"" else StringName(name)
+	var villager: VillagerData = VillagerCatalog.get_villager(VillagerHome.villager_of(entry))
+	var who: String = villager.display_name if villager != null else ""
+	if who == "":
+		return false
+	var ui := DialogueOverlay.find(get_tree())
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % NAMEPLATE_MSG))
+	if ui == null or data == null:
+		Game.post_notice("%s's house" % who)
+		return true
+	var ctx: DialogueContext = DialogueContext.from_game()
+	ctx.speaker_name = ""
+	ctx.voice_mode = DialogueVoice.Mode.CLICK
+	ctx.window_color = NAMEPLATE_COLOR
+	ctx.frees = PackedStringArray([who])
+	ui.play(data, ctx)
+	return true
+
+
 func interact(action: Interaction, _ctx: InteractionContext) -> bool:
+	if action != null and action.id == Interaction.READ:
+		return _read_nameplate()
 	if action == null or action.id != Interaction.ENTER:
 		return false
 	var entry_id: StringName = occupant_id

@@ -51,6 +51,11 @@ static func indoor_stand(session: IndoorSession) -> Vector3:
 	return session.grid.cell_to_world(cell)
 
 
+## Whose home a house or entry id is (`&""` when nobody's).
+static func villager_of(entry: StringName) -> StringName:
+	return _resolve_villager(entry)
+
+
 static func _resolve_villager(entry: StringName) -> StringName:
 	if entry == &"":
 		return &""
