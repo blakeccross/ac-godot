@@ -900,6 +900,24 @@ func note_played_today() -> void:
 	CalendarBook.played_on(calendar, EventDates.ordinal(Clock.year, Clock.month, Clock.day))
 
 
+## `mPO_business_proc`: the 9:00 and 17:00 rounds, and the first one of a session
+## (`mPO_first_work`). Held letters reach the mailbox they are addressed to.
+func _deliver_post(session_start: bool) -> void:
+	if post == null or foreigner:
+		return
+	post.deliver(Clock.absolute_minute(), _post_to_resident, session_start)
+
+
+func _post_to_resident(mail: MailData) -> bool:
+	if mail.recipient_name == player_name:
+		return inventory.add_received_mail(mail) >= 0
+	for slot: int in PlayerRoster.MAX:
+		if slot != roster.current and roster.name_of(slot) == mail.recipient_name:
+			return roster.deliver_mail(slot, mail)
+	## Nobody here by that name any more (`mMl_hunt_for_send_address` −1): it is dropped.
+	return true
+
+
 ## `mPr_SendMailFromMother`: Mom writes, at most once a day.
 func _check_mother_mail(rng: RandomNumberGenerator) -> void:
 	var holiday: StringName = MotherMail.holiday(Clock.year, Clock.month, Clock.day)
@@ -1347,6 +1365,7 @@ func sync_events() -> void:
 	if first and events.town_seed == 0:
 		events.assign_town(world_seed)
 	events.sync(EventCalendar.date_from_clock())
+	_deliver_post(first)
 	if first:
 		apply_event_weather()
 

@@ -451,14 +451,14 @@ were dropped. See [shops](decomp_notes/shops.md) § Able Sisters.
   round-trips through save. Missing (separate, smaller gaps): specific papers awarded
   by events/villagers, and letter paper affecting villager reaction.
 - [~] Your mailbox at your house: receive letters, gifts, HRA reports, bank interest, event mail, catalog deliveries (`ac_mailbox`) — `scenes/world/mailbox.tscn` + received-mail path, flag raises/lowers on unread mail in every season, lid opens/closes around the Letters menu with the cursor seeded on the last-used slot (`aMBX_pl_open`/`_pl_close`, `mMB_get_last_mail_idx`); Museum fossil-identification replies land here (`FarwayBook` — the in-code name predates confirming decomp's actual address-book contact is just called "Museum", `mPr_CheckMuseumAddress`). Missing: the player's walk-up/hop before the lid opens (`aMBX_pl_wait`/`Player_actor_*_Mail_jump`); villager letters, mom's letters, bank gifts and event mail all arrive
-- [~] Post office desk holds letters for delivery (`PostBook`, 5 slots). Missing: holding mail for a full mailbox
+- [x] Post office desk holds letters for delivery (`PostBook`, 5 slots): rounds at 9:00 and 17:00 and once at the start of a session (`mPO_delivery_proc`, `mPO_first_work`) carry held letters to a mailbox with room; letters to villagers leave the desk
 - [x] Villagers send you letters (with gifts if friendship is high); replies build friendship — `VillagerLetters`
 - [x] Send a gift to a villager by mail → thank-you letter and sometimes a present back — `VillagerLetters`
 - [x] **ABD bank** terminal (§11) — `BankOverlay`; balance gifts by mail instead of interest
 - [x] ~~Pay the loan at the Post Office~~ — GCN: pay at Nook's
 - [x] ~~Parcels / forwarding~~ — not in GCN beyond catalogue deliveries by letter
-- [ ] Post office closed hours & knock; Pelly/Phyllis moods (Phyllis is grumpy)
-- [ ] Pelly's storyline / the pigeon romance (`ac_npc_conv_master` engineer)
+- [x] ~~Closed hours & knock~~ — the GameCube post office never closes: Pelly by day, Phyllis by night with her own (grumpier) lines, `draw_type` +1 (`PostDisplay`)
+- [x] ~~Pelly's storyline~~ — no storyline on the GameCube: Pete's unrequited love is villager chat, and the date is an April Fools' lie (15277/15278)
 - [ ] Password / secret-code redemption at the Post Office (`m_mail_password_check`, `m_passwordChk_ovl`) — see §28
 
 ## 25. Police Station
