@@ -123,3 +123,19 @@ func test_design_texture_renders_32x32_rgba() -> void:
 	assert_int(img.get_width()).is_equal(32)
 	assert_int(img.get_height()).is_equal(32)
 	assert_float(img.get_pixel(0, 0).a).is_equal(1.0)
+
+
+## `mPr_FOREIGNER`: Sable treats a visitor as a stranger and doesn't count the day.
+func test_sable_keeps_her_count_for_residents_only() -> void:
+	var sable: Node = auto_free(load("res://scenes/world/interiors/sable.tscn").instantiate())
+	add_child(sable)
+	Game.designs.sable_days = 6
+	Game.designs.sable_last_date = ""
+	Game.foreigner = true
+	sable.call("_begin_talk", InteractionContext.new())
+	assert_int(Game.designs.sable_days).is_equal(6)
+	assert_int(int(sable.get("_story_row"))).is_less(5)
+	assert_bool(bool(sable.get("_turns_to_player"))).is_false()
+	sable.call("_end_talk")
+	Game.foreigner = false
+	Game.reset_session()

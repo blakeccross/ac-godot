@@ -385,6 +385,10 @@ func _flow_design_check() -> void:
 ## (`mSM_OVL_NEEDLEWORK` with `mNW_OPEN_CPORIGINAL`). The GC kept it on the Memory
 ## Card; here it's `DesignBook.album` in the save.
 func _flow_save_pattern() -> void:
+	## `aNNW_set_6_ways`: a visitor gets 0x2FEE and the menu again.
+	if Game.foreigner:
+		_line_then_menu(NeedleworkTalk.TEXT_ALBUM_VISITOR)
+		return
 	_line_queue = [{"text": "OK, then, tell me how you'd\nlike to save it.", "speaker": "Mabel"}]
 	_after_queue = Callable(self, "_run_act").bind("open_album")
 	_flush_queue()

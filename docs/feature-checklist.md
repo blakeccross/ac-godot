@@ -419,7 +419,7 @@ were dropped. See [shops](decomp_notes/shops.md) § Able Sisters.
 - [ ] ROM text: the greeting, menu-lead, story and explanation lines are authored stand-ins until the message banks (`0x2FD1`–`0x3035`, `0x3012+`) and the design-name strings (`0x6DF`/`0x6E7`) are extracted; `NeedleworkTalk` prefers the ROM line when the bank is present
 - [ ] **Other things** → GBA design tool / upload / e-Reader cards (`ac_npc_needlework_gba.c_inc`, `aNNW_TALK_GBA_*`, `CARD_E_*`): the menu is there and answers "no Game Boy Advance connected" (0x3008); the link itself is §28
 - [~] April Fool's lines for both sisters (`aprilfool_control_clip`) — April Fools' rumours and mail exist; the sisters' own clips are not wired
-- [ ] Foreign-player rules (`mPr_FOREIGNER`: no album, Sable's arc stuck at day 0) — no visiting players yet
+- [x] Foreign-player rules (`mPr_FOREIGNER`): a visitor gets 0x2FEE instead of the album, and Sable treats them as day 0 — no tick, no look up (`mabel.gd`, `sable.gd`)
 
 ## 23. Museum
 

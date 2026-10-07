@@ -140,6 +140,8 @@ const TEXT_DESIGN_NAMED := "\"%s\"! What a great name.\nThat'll be 350 Bells.\nT
 const TEXT_NO_MONEY := "Oh, no! %s...\nYou don't have enough money!\nDid you leave your cash in\nanother outfit or something?"
 ## 0x2FF0 — back from the design album.
 const TEXT_ALBUM_DONE := "All done? Keep your designs\nsafe and sound in there."
+## 0x2FEE — a visitor (`mPr_FOREIGNER`) asks to save a pattern: the album is the town's.
+const TEXT_ALBUM_VISITOR := "Oh, I'm sorry! The design\nalbum is only for folks who\nlive here in town."
 ## 0x2FF5 — the trade list was closed without a pick.
 const TEXT_TRADE_CANCEL := "Oh? Never mind, then."
 ## 0x3008 — the GBA branches: no Game Boy Advance is linked.
