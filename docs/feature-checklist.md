@@ -374,7 +374,7 @@ data tables before a category is called done.
   Not done: the menus' slide-in animation, the waku rubber-band rotation of the
   shape cursor, and the Start-button prompt still uses a plain panel rather than
   the message window.
-- [~] Apply patterns as: shirt, hat, umbrella, wallpaper?, or place on the ground / as signboards / hung on walls — shirt (design book "C" wear, `cloth.idx >= CLOTH_NUM + 1`) and the house-door design (§1 gyroid) work; design umbrellas (`ITM_MY_ORG_UMBRELLA0-7`, dragging a design onto the umbrella slot) not yet
+- [~] Apply patterns as: shirt, hat, umbrella, wallpaper?, or place on the ground / as signboards / hung on walls — shirt (design book "C" wear, `cloth.idx >= CLOTH_NUM + 1`) the house-door design (§1 gyroid) and signboards (`SignboardUse`) work; design umbrellas (`ITM_MY_ORG_UMBRELLA0-7`, dragging a design onto the umbrella slot) not yet
 - [x] The **Able Sisters** design display board: put your design on a mannequin / stand, take a copy of one, or swap (§22); villagers pick the displayed designs up (§22 trends)
 - [x] ~~Pro designs~~ — not in GCN
 - [x] ~~Free patterns from visitors~~ — GCN visitors don't hand out designs (Gracie sells clothes); `ac_broker_design` is the e-Reader card path (§28)
@@ -494,7 +494,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [x] Wishy the Star: not on the GameCube; the wishing well (`ac_shrine`) rates the town, takes quest items off your hands and is Tortimer's holiday spot
 - [x] Recycle bin: not on the GameCube (`ac_reserve` is the plot / dock sign); the dump (`ac_dump`) is the closest thing
 - [~] Community board: 15 dated posts from the disc's `kei_win` art, seeded with the four starter handbills, page turning and jumps, writing a post on the keyboard with "Is this OK?"; 41 seasonal notices post themselves as their dates pass (sports fairs and daylight saving move with the year), the latest five after an absence (`m_notice`, `m_notice_ovl`) — `NoticeBoard`, `NoticeBoardOverlay`; `board` console command. Each tourney's champion goes up at 18:00 (handbill 0x242). On a check with nothing seasonal, at most once a day and three days apart, a resident who knows you may bury a pitfall seed or lottery / event furniture in a random acre and post where (40%, `mNtc_check_treasure`, `BuriedTreasure`)
-- [ ] Signboards / signposts around town naming acres, warning of cliffs, advertising (`ac_sign`)
+- [x] Signboards (`ac_sign`): Nookway sells them; put down outside one stands up as a white sign, talked to it posts one of your designs (12388; visitors get 12389), and it can be picked up again — `SignboardUse`, `signboard.tscn`. The GameCube has no acre-naming signposts
 - [~] The plaza / town square as the event stage (K.K., fireworks, Tortimer speeches) — festival crowds stand in their event-map slots, fireworks go up over the pond; K.K. plays at the station
 
 ## 27. Train station & travel

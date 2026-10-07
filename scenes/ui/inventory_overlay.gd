@@ -1922,6 +1922,15 @@ func _drop_selected() -> void:
 	if data == null:
 		return
 	close()
+	## `aSIGN_set_white_sign`: a signboard stands up where it is put.
+	if data.id == SignboardUse.ITEM_ID:
+		var sign_ctx: InteractionContext = _field_context()
+		if Game.current_room_id != &"" or not SignboardUse.place(sign_ctx.world, ToolUse.facing_cell(sign_ctx)):
+			inv.add(data, removed.count, removed.condition)
+			Game.post_notice("Can't put it here")
+			return
+		Audio.play_se(&"item_horidashi")
+		return
 	if not _spawn_pickup(data):
 		inv.add(data, removed.count, removed.condition)
 		Game.post_notice("Can't drop here")

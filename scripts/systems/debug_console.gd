@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -373,6 +373,24 @@ func execute(raw: String) -> String:
 			var ms_n: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else MushroomUse.NUM
 			var ms_set: int = MushroomUse.grow(ms_world, ms_n, Vector2i(-1, -1), ms_rng)
 			return "%d mushrooms set (%d in town)." % [ms_set, Game.mushrooms.size()]
+		"signboard":
+			## Put up a signboard in front of the player, showing design slot N if given.
+			var sb_tree := Engine.get_main_loop() as SceneTree
+			var sb_world := World.find(sb_tree) if sb_tree != null else null
+			var sb_player: Node3D = sb_tree.get_first_node_in_group("player") as Node3D if sb_tree != null else null
+			if sb_world == null or sb_player == null:
+				return "Signboards need the outdoor field."
+			var sb_ctx := InteractionContext.new()
+			sb_ctx.world = sb_world
+			sb_ctx.actor = sb_player
+			var sb_cell: Vector2i = ToolUse.facing_cell(sb_ctx)
+			if not SignboardUse.place(sb_world, sb_cell):
+				return "Can't put a signboard there."
+			if not args.is_empty() and String(args[0]).is_valid_int() and Game.designs != null:
+				SignboardUse.post(SignboardUse.persist_id(sb_cell), Game.designs.player[clampi(int(args[0]), 0, 7)])
+				for n: Node in sb_tree.get_nodes_in_group(SignboardUse.GROUP):
+					n.call("refresh_design")
+			return "Signboard up at %s." % sb_cell
 		"meteor":
 			## Send a shooting star across the pond now (Meteor Shower only, `ef_shooting`).
 			var mt_tree := Engine.get_main_loop() as SceneTree

@@ -228,6 +228,8 @@ var mushroom_minute: int = -1
 var mushroom_active: bool = false
 ## `mMsr_FirstClearMushroom` has run for this play session (not saved).
 var mushrooms_session_cleared: bool = false
+## Signboards the residents put up (`SignboardUse`): `signboard_<x>_<z>` → `{design}`. Saved.
+var signboards: Dictionary = {}
 ## Sea shells on the beach (`ShellUse`): `shell_<x>_<z>` → item id. Saved.
 var shells: Dictionary = {}
 ## Shells still to wash up: twenty when a session starts (`mFI_SetFirstSetShell`).
@@ -1269,6 +1271,7 @@ func reset_session() -> void:
 	shells.clear()
 	shells_owed = ShellUse.FIRST_NUM
 	shell_minute_counted = false
+	signboards.clear()
 	mushroom_minute = -1
 	mushroom_active = false
 	snowmen = [{}, {}, {}]
@@ -1574,6 +1577,7 @@ func to_save() -> Dictionary:
 		"money_rock_day": money_rock_day,
 		"mushrooms": mushrooms.duplicate(),
 		"shells": shells.duplicate(),
+		"signboards": signboards.duplicate(true),
 		"mushroom_minute": mushroom_minute,
 		"mushroom_active": mushroom_active,
 		"snowmen": snowmen.duplicate(true),
@@ -1689,6 +1693,10 @@ func apply_snapshot(data: Dictionary) -> void:
 	golden_shovel_shown = bool(data.get("golden_shovel_shown", false))
 	money_rock = str(data.get("money_rock", ""))
 	money_rock_day = int(data.get("money_rock_day", -1))
+	signboards.clear()
+	var saved_signs: Variant = data.get("signboards", {})
+	if typeof(saved_signs) == TYPE_DICTIONARY:
+		signboards = (saved_signs as Dictionary).duplicate(true)
 	shells.clear()
 	var saved_shells: Variant = data.get("shells", {})
 	if typeof(saved_shells) == TYPE_DICTIONARY:

@@ -55,6 +55,7 @@ func _ready() -> void:
 	WeedUse.restore(self, grid)
 	MushroomUse.restore(self, grid)
 	ShellUse.restore(self, grid)
+	SignboardUse.restore(self, grid)
 	SnowmanUse.restore(self)
 	PlantGrowth.restore(self, grid)
 	PlantGrowth.assign_special_trees(self)
