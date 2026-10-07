@@ -25,6 +25,7 @@ const PRESENTERS: Dictionary = {
 	&"kabu_peddler": "res://scripts/systems/events/joan_presenter.gd",
 	&"kk_slider": "res://scripts/systems/events/kk_presenter.gd",
 	&"dozaemon": "res://scripts/systems/events/gulliver_presenter.gd",
+	&"mask_npc": "res://scripts/systems/events/blanca_presenter.gd",
 	&"ghost": "res://scripts/systems/events/wisp_presenter.gd",
 	&"broker_sale": "res://scripts/systems/events/redd_presenter.gd",
 	&"carpet_peddler": "res://scripts/systems/events/saharah_presenter.gd",

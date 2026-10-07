@@ -257,6 +257,12 @@ var town_id: int = 0
 var foreigner: bool = false
 ## Come in on the train (a visitor, or a traveller back home): start on the platform.
 var arrive_by_train: bool = false
+## Blanca's face and painter in this town (`Save_Get(mask_cat)`, `MaskCat`).
+var mask_cat: Dictionary = {}
+## The resident has met Blanca on a train before (`mPr_FLAG_1`: 0x33F3, not 0x33F2).
+var met_blanca: bool = false
+## `mPr_FLAG_MASK_CAT_SCHEDULED`: she rode the last trip home, so not this one.
+var mask_cat_scheduled: bool = false
 ## The roster slot a newcomer to an existing town takes (`aNPS2_TALK_START_TYPE3`), or -1
 ## for a brand-new town.
 var joining_slot: int = -1
@@ -1143,6 +1149,9 @@ func destiny() -> int:
 func reset_session() -> void:
 	roster = PlayerRoster.new()
 	town_id = Travel.new_town_id()
+	mask_cat = {}
+	met_blanca = false
+	mask_cat_scheduled = false
 	foreigner = false
 	arrive_by_train = false
 	visiting_slot = -1
@@ -1589,6 +1598,9 @@ func to_save() -> Dictionary:
 		"fish_records": fish_records.duplicate(true),
 		"treasure_buried_day": treasure_buried_day,
 		"town_id": town_id,
+		"mask_cat": mask_cat.duplicate(true),
+		"met_blanca": met_blanca,
+		"mask_cat_scheduled": mask_cat_scheduled,
 		"haniwa_scheduled": haniwa_scheduled,
 		"treasure_checked_day": treasure_checked_day,
 		"quests": quests.to_save(),
@@ -1782,6 +1794,9 @@ func apply_snapshot(data: Dictionary) -> void:
 	birthday_card_day = int(data.get("birthday_card_day", 0))
 	treasure_buried_day = int(data.get("treasure_buried_day", 0))
 	town_id = int(data.get("town_id", 0))
+	mask_cat = (data.get("mask_cat", {}) as Dictionary).duplicate(true) if typeof(data.get("mask_cat")) == TYPE_DICTIONARY else {}
+	met_blanca = bool(data.get("met_blanca", false))
+	mask_cat_scheduled = bool(data.get("mask_cat_scheduled", false))
 	if town_id == 0:
 		town_id = Travel.new_town_id()
 	haniwa_scheduled = bool(data.get("haniwa_scheduled", false))

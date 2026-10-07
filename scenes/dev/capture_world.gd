@@ -84,7 +84,7 @@ func _capture_date(date: String) -> void:
 	if target != "scene":
 		var focus: Variant = _resolve_focus(root, target)
 		## Insects spawn over time: keep looking for up to `wait` frames.
-		if focus == null and (target.begins_with("bug:") or target.begins_with("villager:")):
+		if focus == null and (target.begins_with("bug:") or target.begins_with("villager:") or target.begins_with("group:")):
 			for _i: int in int(_args.get("wait", "20")):
 				await get_tree().process_frame
 				focus = _resolve_focus(root, target)

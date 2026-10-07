@@ -34,6 +34,8 @@ var field_rank: int = DEFAULT_FIELD_RANK
 var birthday_md: int = 0
 ## `weekly_event`: which weekly visitor owns today, and the date Gulliver was rolled for.
 var weekly_type: StringName = &""
+## `weekly_event.flags`: Blanca takes the slot on days Gulliver isn't due (`mMC_check_birth`).
+var weekly_flag: StringName = &""
 ## `event_save_common.ghost_day` (an `EventDates.ordinal`): the night the Wisp first comes.
 ## He turns up every night from then until the date falls a week behind, or until his
 ## spirits are back (`WispTalk` clears it). `ghost_tonight`: `ghost_event_type == GHOST`.
@@ -344,6 +346,8 @@ func _row_gated_off(id: StringName) -> bool:
 		return special_type != &"broker_sale"
 	if id == &"kk_slider" or id == &"kabu_peddler" or id == &"dozaemon":
 		return weekly_type != id
+	if id == &"mask_npc":
+		return weekly_flag != id
 	if id == &"ghost":
 		return not ghost_tonight
 	return false
@@ -475,8 +479,18 @@ func _saved_md(slot: String, now: Dictionary) -> int:
 
 
 ## `init_weekly_event`: Joan on Sunday, K.K. on Saturday, Gulliver once Monday–Friday. The
-## bridge, Blanca and the wisp are not modelled yet.
+## bridge is not modelled yet; Blanca takes `weekly_flag` while she has a face, except on
+## Gulliver's day.
 func _init_weekly(now: Dictionary) -> void:
+	_init_weekly_type(now)
+	var today: int = EventDates.md(int(now["month"]), int(now["day"]))
+	var gulliver_today: bool = weekly_type == &"dozaemon" and weekly_date == today
+	if Game != null:
+		MaskCat.check_delete(EventDates.ordinal(int(now["year"]), int(now["month"]), int(now["day"])))
+	weekly_flag = &"mask_npc" if not gulliver_today and Game != null and MaskCat.check_birth() else &""
+
+
+func _init_weekly_type(now: Dictionary) -> void:
 	var year: int = int(now["year"])
 	var wd: int = int(now["weekday"])
 	var today: int = EventDates.md(int(now["month"]), int(now["day"]))

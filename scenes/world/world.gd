@@ -6,6 +6,7 @@ extends Node3D
 
 const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
 const PORTER_SCENE := preload("res://scenes/world/station_porter.tscn")
+const BLANCA_SCENE := preload("res://scenes/world/events/blanca.tscn")
 
 var grid: WorldGrid = WorldGrid.new()
 var layout: WorldData
@@ -115,9 +116,30 @@ func _place_station_porter() -> void:
 	porter.name = "Porter"
 	$Characters.add_child(porter)
 	porter.place_in_town(_platform(StationPorter.TOWN_GX))
-	if _train_arrival and not Game.foreigner:
-		_train_arrival = false
-		porter.call_deferred("say", PorterTalk.WELCOME_HOME)
+	if not _train_arrival:
+		return
+	_train_arrival = false
+	## `Scene_ct`: Blanca or Rover rides the travel train (`mPr_FLAG_MASK_CAT_SCHEDULED`).
+	var out: Dictionary = {}
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var blanca_rides: bool = MaskCat.rides_train(Game.foreigner, Game.mask_cat_scheduled, rng.randf(), out)
+	Game.mask_cat_scheduled = bool(out.get("scheduled", Game.mask_cat_scheduled))
+	var welcome: Callable = func() -> void:
+		if not Game.foreigner:
+			porter.say(PorterTalk.WELCOME_HOME)
+	if blanca_rides:
+		## `mSP_SelectRandomItem_New(…, mSP_KIND_CLOTH, mSP_LISTTYPE_ABC)`: her shirt for the trip.
+		var shirt := String(FtrCatalog.pick_named("cloth", ["A", "B", "C"][rng.randi_range(0, 2)], rng))
+		Game.mask_cat["cloth"] = int(shirt.trim_prefix("shirt_")) if shirt.begins_with("shirt_") else -1
+		var blanca: EventNpc = BLANCA_SCENE.instantiate()
+		blanca.set("on_train", true)
+		blanca.position = _platform(StationPorter.ARRIVE_GX + Vector3(-40.0, 0.0, 0.0))
+		blanca.home_yaw = PI * 0.5
+		$Characters.add_child(blanca)
+		blanca.connect("done", welcome, CONNECT_ONE_SHOT)
+	else:
+		welcome.call_deferred()
 
 
 ## A platform spot (GX) on the ground.

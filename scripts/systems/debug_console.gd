@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -178,6 +178,18 @@ func execute(raw: String) -> String:
 			Game.events.force(&"ghost")
 			_sync_events()
 			return "The Wisp is out tonight."
+		"blanca":
+			## Blanca in town with a test face (a smile) from "Tester".
+			var bl_face := MaskCat.blank_face()
+			for bl_i: int in 32:
+				bl_face.pixels[8 * 32 + bl_i] = 1
+				bl_face.pixels[22 * 32 + bl_i] = 1
+				bl_face.pixels[bl_i * 32 + 8] = 4
+				bl_face.pixels[bl_i * 32 + 23] = 4
+			MaskCat.store(bl_face, "Tester", EventDates.ordinal(Clock.year, Clock.month, Clock.day))
+			Game.events.force(&"mask_npc")
+			_sync_events()
+			return "Blanca is in town."
 		"golden":
 			## Hold up a golden tool (`golden net|rod|axe`), as after Tortimer's visit or the well.
 			var go_ids: Dictionary = {"net": &"golden_net", "rod": &"golden_fishing_rod", "axe": &"golden_axe"}

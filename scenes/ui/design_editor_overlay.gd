@@ -112,6 +112,8 @@ var _last_paint := Vector2i(-1, -1)
 var _prompt: bool = false
 
 var _on_done: Callable = Callable()
+## Editing a pattern handed in by `open_pattern`, not a player slot.
+var _external: bool = false
 
 @onready var _root: Control = $Root
 @onready var _screen: Control = $Root/Screen
@@ -159,9 +161,25 @@ func open(slot: int, on_done: Callable = Callable()) -> void:
 		return
 	if Game == null or Game.designs == null:
 		return
+	_begin(slot, Game.designs.resolved(slot), on_done)
+
+
+## `SCENE_START_DEMO3` / `GETREG(NMREG, 0x5f)`: draw on a pattern that is not one of the
+## player's (Blanca's face, `mDE_maskcat_init`). `on_done(saved: bool)`.
+func open_pattern(pattern: DesignPattern, on_done: Callable = Callable()) -> void:
+	if _open or pattern == null:
+		return
+	_external = true
+	_begin(-1, pattern, func(_slot_unused: int, saved: bool) -> void:
+		if on_done.is_valid():
+			on_done.call(saved)
+	)
+
+
+func _begin(slot: int, design: DesignPattern, on_done: Callable) -> void:
 	_slot = slot
 	_on_done = on_done
-	_design = Game.designs.resolved(slot)
+	_design = design
 	_work = _design.pixels.duplicate()
 	_undo = _work.duplicate()
 	_redo_toggle = false
@@ -192,7 +210,8 @@ func close() -> void:
 	_open = false
 	_slide.slide_out(MenuSlide.Dir.OUT_BOTTOM, _on_slid_out)
 	set_process_unhandled_input(false)
-	var saved := _slot >= 0 and _design != null and _design.flag_set
+	var saved := (_slot >= 0 or _external) and _design != null and _design.flag_set
+	_external = false
 	var slot := _slot
 	_slot = -1
 	var cb := _on_done

@@ -559,7 +559,7 @@ Event NPCs are `EventNpc` scenes placed by `EventManager` presenters (`scenes/wo
 - [ ] **Kapp'n** — boat to the island (`ac_npc_sendo`, `ac_boat`, `ac_boat_demo`)
 - [x] **Tom Nook**, **Blathers**, **Pelly & Phyllis**, **Copper & Booker**, **Sable & Mabel**, **Tortimer**, **Joan** — see their sections. Timmy & Tommy: see §21
 - [x] **Countdown NPCs** for New Year's Eve — lines by minutes to midnight, the leader calls out each term, party poppers and fireworks at midnight (`ac_countdown_npc0/1`)
-- [ ] **Blanca / mask cat** (`ac_npc_mask_cat`, `mEv_EVENT_MASK_NPC`) — needs the face-drawing editor; row still unsupported
+- [x] **Blanca** (`ac_npc_mask_cat`, `ac_npc_mask_cat2`, `mEv_EVENT_MASK_NPC`): she meets the traveller off the train (always when visiting, every other trip home), asks for a face (0x33F2 / 0x33F3) and the design editor opens on her blank face (palette 15); a face back gets her verdict (0x31E1–3), a blank one "Shaky fingers!" (0x321A) and another go. The town keeps the face and the painter; she then takes the weekly slot on days Gulliver isn't due, her story moving on with the first talk each day (0x31E4 + 4·n), until ten talks or a week — `MaskCat`, `BlancaTalk`, `blanca.tscn` (`mka_1`, face on the face quad). Missing: the train interior scene she sits in (she waits on the platform)
 - [x] **Night-stall Redd** at the fireworks: fans / pinwheels / balloons, 8 colours a night (`ac_ev_yomise`, `YomiseTalk`)
 
 ## 31. Holidays & seasonal events

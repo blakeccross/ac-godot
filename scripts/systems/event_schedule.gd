@@ -9,7 +9,7 @@ const PATH := "res://data/events/schedule.json"
 ## Event ids that only make sense once another system exists. Their rows stay in the data
 ## but `EventCalendar` will not schedule them (they can still be forced with `/event start`).
 const UNSUPPORTED: Array[StringName] = [
-	&"bridge_make", &"soncho_bridge_make", &"mask_npc",
+	&"bridge_make", &"soncho_bridge_make",
 	&"soncho_vacation_january", &"soncho_vacation_february",
 ]
 
