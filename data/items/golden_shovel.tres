@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ToolData" format=3]
+
+[ext_resource type="Script" uid="uid://0ptunytwyd4b" path="res://scripts/data/tool_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+kind = 1
+field_verb = &"dig"
+field_prompt = "Dig"
+field_anim = &"ply_1_dig1"
+field_require = 2
+field_notice = "You dig a hole."
+hold_anim = &"ply_1_scoop1"
+carry_part = 1
+visual_id = &"tol_scoop_2"
+id = &"golden_shovel"
+display_name = "Golden Shovel"
+description = "A shiny golden shovel."
+category = 0
+sell_price = 500
+equippable = true
+icon_color = Color(0.9, 0.75, 0.2, 1)

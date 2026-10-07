@@ -79,6 +79,8 @@ var treasure_buried_day: int = 0
 ## `Save_Get(haniwa_scheduled)`: fine weather after rain orders gyroids for the next growth
 ## (`mAGrw_OrderSetHaniwa`); `BuriedUse.renew` buries them and clears it.
 var haniwa_scheduled: bool = false
+## `HOLE_SHINE`: the hole the day's shine spot left (`bIT_common_bury_after`).
+var shine_hole: StringName = &""
 var treasure_checked_day: int = 0
 ## The last board check wrote no seasonal notice, so a villager may bury treasure.
 var treasure_due: bool = false
@@ -210,6 +212,8 @@ var perfect_streak_day: int = -1
 var dust_flag: bool = false
 ## `mSC_TROPHY_GOLDEN_AXE`: the wishing well has given the golden axe. Saved.
 var golden_axe_got: bool = false
+## `mPlib_Check_golden_item_get_demo_end(SHOVEL)`: the golden shovel's fanfare has played.
+var golden_shovel_shown: bool = false
 ## `allgrow_ss_pos_info.stone_pos`: the rock that pays out Bells ("" none or spent). Saved.
 var money_rock: String = ""
 ## The day the money rock was last picked (−1 never), so a spent one waits for tomorrow. Saved.
@@ -1211,6 +1215,7 @@ func reset_session() -> void:
 	fish_records.clear()
 	treasure_buried_day = 0
 	haniwa_scheduled = false
+	shine_hole = &""
 	treasure_checked_day = 0
 	treasure_due = false
 	VillagerWalk.reset()
@@ -1229,6 +1234,7 @@ func reset_session() -> void:
 	perfect_streak_day = -1
 	dust_flag = false
 	golden_axe_got = false
+	golden_shovel_shown = false
 	money_rock = ""
 	money_rock_day = -1
 	MoneyRock.reset()
@@ -1533,6 +1539,7 @@ func to_save() -> Dictionary:
 		"perfect_streak_day": perfect_streak_day,
 		"dust_flag": dust_flag,
 		"golden_axe_got": golden_axe_got,
+		"golden_shovel_shown": golden_shovel_shown,
 		"money_rock": money_rock,
 		"money_rock_day": money_rock_day,
 		"mushrooms": mushrooms.duplicate(),
@@ -1602,6 +1609,7 @@ func to_save() -> Dictionary:
 		"met_blanca": met_blanca,
 		"mask_cat_scheduled": mask_cat_scheduled,
 		"haniwa_scheduled": haniwa_scheduled,
+		"shine_hole": String(shine_hole),
 		"treasure_checked_day": treasure_checked_day,
 		"quests": quests.to_save(),
 		"rainbow": rainbow.to_save(),
@@ -1647,6 +1655,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	perfect_streak_day = int(data.get("perfect_streak_day", -1))
 	dust_flag = bool(data.get("dust_flag", false))
 	golden_axe_got = bool(data.get("golden_axe_got", false))
+	golden_shovel_shown = bool(data.get("golden_shovel_shown", false))
 	money_rock = str(data.get("money_rock", ""))
 	money_rock_day = int(data.get("money_rock_day", -1))
 	mushrooms_session_cleared = false
@@ -1800,6 +1809,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	if town_id == 0:
 		town_id = Travel.new_town_id()
 	haniwa_scheduled = bool(data.get("haniwa_scheduled", false))
+	shine_hole = StringName(str(data.get("shine_hole", "")))
 	treasure_checked_day = int(data.get("treasure_checked_day", 0))
 	fish_records.clear()
 	var saved_fish: Variant = data.get("fish_records", [])

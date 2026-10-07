@@ -8,7 +8,7 @@ enum Size { S0, S1, S2, FULL }
 enum Stage { FRUITING, BARE, STUMP }
 ## Hidden contents on bare mature trees (`TREE_BELLS` / `TREE_BEES` / `TREE_FTR`
 ## and planted money denominations). Fruit uses `Stage.FRUITING` instead.
-enum Content { NONE, BELLS, BEES, FURNITURE, MONEY_100, MONEY_1000, MONEY_10000, MONEY_30000 }
+enum Content { NONE, BELLS, BEES, FURNITURE, MONEY_100, MONEY_1000, MONEY_10000, MONEY_30000, GOLDEN_SHOVEL }
 
 const DROP_OFFSETS: Array[Vector2i] = [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 1)]
 ## `fruit_set` crown offsets (GX) for standard drops / honeycomb / coconut.
@@ -95,6 +95,8 @@ static func content_from_id(id: StringName) -> Content:
 			return Content.MONEY_10000
 		&"money_30000":
 			return Content.MONEY_30000
+		&"golden_shovel":
+			return Content.GOLDEN_SHOVEL
 		_:
 			return Content.NONE
 
@@ -115,6 +117,8 @@ static func content_id(c: Content) -> StringName:
 			return &"money_10000"
 		Content.MONEY_30000:
 			return &"money_30000"
+		Content.GOLDEN_SHOVEL:
+			return &"golden_shovel"
 		_:
 			return &""
 
@@ -207,6 +211,10 @@ func _apply_drops(out: Outcome) -> void:
 		stage = Stage.BARE
 		fruit_count = 0
 		return
+	## A money or golden sapling keeps what it holds until it is grown (`TREE_*BELLS` and
+	## `GOLD_TREE_SHOVEL` are the full-size FG ids).
+	if size != Size.FULL:
+		return
 	match content:
 		Content.BELLS, Content.MONEY_100, Content.MONEY_1000, Content.MONEY_10000, Content.MONEY_30000:
 			var bag: ItemData = ItemCatalog.get_item(MONEY_IDS.get(content, &"money_100") as StringName)
@@ -223,6 +231,11 @@ func _apply_drops(out: Outcome) -> void:
 			var ftr: ItemData = _random_furniture()
 			if ftr != null:
 				out.drops.append(ftr)
+		Content.GOLDEN_SHOVEL:
+			## `GOLD_TREE_SHOVEL` → `ITM_GOLDEN_SHOVEL`, then a plain golden tree.
+			var shovel: ItemData = ItemCatalog.get_item(&"golden_shovel")
+			if shovel != null:
+				out.drops.append(shovel)
 		_:
 			pass
 	content = Content.NONE

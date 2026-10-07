@@ -113,14 +113,41 @@ static func bury(ctx: InteractionContext, cell: Vector2i, item_id: StringName) -
 	var hole: StringName = grid.occupant_at(cell)
 	if not Game.is_hole(hole):
 		return false
+	if hole == Game.shine_hole:
+		var planted: bool = _plant_in_shine_hole(ctx, cell, item_id)
+		if planted:
+			Game.shine_hole = &""
+			return true
 	var host: Node = _host_for(ctx.world if ctx != null else null, hole)
 	if host != null:
 		HoleUse.fill(host, ctx)
 	else:
 		Game.clear_hole(hole)
 		grid.remove(hole)
+	if hole == Game.shine_hole:
+		Game.shine_hole = &""
 	var kind: StringName = KIND_PITFALL if item_id == PITFALL_ITEM else KIND_ITEM
 	return _deposit(ctx.world if ctx != null else null, grid, _layout(ctx.world if ctx != null else null), cell, kind, item_id, true)
+
+
+## Money bag or the shovel into the shine spot's hole (`bIT_common_bury_after`). True when
+## something was planted (the hole is gone then).
+static func _plant_in_shine_hole(ctx: InteractionContext, cell: Vector2i, item_id: StringName) -> bool:
+	var money: Dictionary = {
+		&"money_100": TreeUse.Content.MONEY_100, &"money_1000": TreeUse.Content.MONEY_1000,
+		&"money_10000": TreeUse.Content.MONEY_10000, &"money_30000": TreeUse.Content.MONEY_30000,
+	}
+	if money.has(item_id):
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		var luck: bool = Game.destiny_type == Game.Destiny.MONEY_LUCK
+		var content: TreeUse.Content = TreeUse.Content.NONE
+		if PlantGrowth.money_tree_takes(rng.randf(), Game.money_power, luck):
+			content = money[item_id]
+		return PlantGrowth.plant_special(ctx, cell, content, false) != &""
+	if item_id == &"shovel":
+		return PlantGrowth.plant_special(ctx, cell, TreeUse.Content.GOLDEN_SHOVEL, true) != &""
+	return false
 
 
 static func is_pitfall(persist_id: StringName) -> bool:
@@ -202,6 +229,8 @@ static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 		PlayerSe.buried_dig(ctx.actor)
 	if kind == KIND_SHINE:
 		Game.post_notice("You dug up bells!")
+		## `HOLE_SHINE`: what goes back into this hole can grow (`bIT_common_bury_after`).
+		Game.shine_hole = HoleUse.persist_id(cell)
 	elif kind == KIND_ITEM or kind == KIND_PITFALL:
 		Game.post_notice("You dug up %s!" % (item.display_name if item != null else "something"))
 	else:

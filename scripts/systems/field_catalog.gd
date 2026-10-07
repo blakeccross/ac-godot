@@ -1102,7 +1102,7 @@ static func item_visual(item_id: StringName) -> StringName:
 			return &"obj_item_net"
 		&"fishing_rod":
 			return &"obj_item_rod"
-		&"shovel":
+		&"shovel", &"golden_shovel":
 			return &"obj_item_shovel"
 		&"floor_tile":
 			return &"obj_item_carpet"

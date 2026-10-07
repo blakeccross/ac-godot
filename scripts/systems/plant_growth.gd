@@ -12,6 +12,10 @@ const KEY_PLANTED := "planted_renew"
 const KEY_WATERED := "last_watered_renew"
 const KEY_FRUIT := "fruit_taken_renew"
 const KEY_CONTENT := "shake_content"
+## A golden tree (`GOLD_TREE_*`, drawn with `golden_tree_pal`).
+const KEY_GOLD := "gold"
+## `golden_tree_pal` stand-in: the leaves and trunk tinted gold.
+const GOLD_TINT := Color(1.0, 0.82, 0.32)
 const KEY_CELL_X := "cell_x"
 const KEY_CELL_Z := "cell_z"
 ## Bloom color visual for grown flowers (`FLOWER_PANSIES0` white / `1` purple / `2` yellow).
@@ -232,6 +236,32 @@ static func plant(ctx: InteractionContext, plant: PlantData, cell: Vector2i) -> 
 		return &""
 	_instance(ctx.world if ctx != null else null, grid, cell, pid, plant)
 	return pid
+
+
+## `bIT_common_bury_after` for the shine spot's hole: a money bag grows a money tree
+## (`TREE_*BELLS_SAPLING`, its three bags once grown) or, failing the roll, a plain sapling;
+## the shovel grows the golden tree (`GOLD_TREE_SAPLING` → `GOLD_TREE_SHOVEL`).
+static func plant_special(ctx: InteractionContext, cell: Vector2i, content: TreeUse.Content, gold: bool) -> StringName:
+	var plant: PlantData = plant_data(&"hardwood_tree")
+	var pid: StringName = plant(ctx, plant, cell)
+	if pid == &"":
+		return pid
+	var rec: Dictionary = record(pid)
+	if content != TreeUse.Content.NONE:
+		rec[KEY_CONTENT] = String(TreeUse.content_id(content))
+	if gold:
+		rec[KEY_GOLD] = true
+	_store(pid, rec)
+	return pid
+
+
+static func is_gold(persist_id: StringName) -> bool:
+	return bool(record(persist_id).get(KEY_GOLD, false))
+
+
+## `bIT_common_moneytree_check`: 50% plus half the money power, or always with Money Luck.
+static func money_tree_takes(roll: float, money_power: int, money_luck: bool) -> bool:
+	return money_luck or roll * 100.0 <= 50.0 + float(money_power) * 0.5
 
 
 static func can_plant(ctx: InteractionContext, plant: PlantData, cell: Vector2i) -> bool:

@@ -761,8 +761,11 @@ func tags_for_slot(index: int) -> PackedStringArray:
 		tags.append("Plant")
 	elif data.usable:
 		tags.append(data.use_verb if data.use_verb != "" else "Use")
-	if bury_ready and data.plant_id == &"" and data.category != ItemData.Category.BUG \
-			and data.category != ItemData.Category.TOOL:
+	## Tools go in too (`ITEM1_CAT_TOOL` is `FIELD_DEFAULT`): a spare shovel in the shine
+	## spot's hole grows the golden tree. Not the one in hand.
+	var in_hand: bool = data.category == ItemData.Category.TOOL and slot.item.item_id == equipment_id \
+			and count_of(slot.item.item_id) <= 1
+	if bury_ready and data.plant_id == &"" and data.category != ItemData.Category.BUG and not in_hand:
 		tags.append("Bury")
 	if data is FurnitureData and Game.is_decorating():
 		tags.append("Place")

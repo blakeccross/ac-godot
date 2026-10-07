@@ -69,6 +69,10 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	## Shrink into the left hand while the rest of PICKUP1 plays (`Set_Item_Pickup`).
 	await PocketPull.run(self, PocketPull.hand_from_context(ctx, global_position))
 	_pocket_pulling = false
+	## `mTG` on the pockets closing: the first golden shovel gets the golden-item demo.
+	if item.id == &"golden_shovel" and not Game.golden_shovel_shown and ctx.actor is Player:
+		Game.golden_shovel_shown = true
+		(ctx.actor as Player).get_golden_item(&"golden_shovel")
 	queue_free()
 	return true
 

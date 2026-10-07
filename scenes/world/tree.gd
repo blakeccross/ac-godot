@@ -219,9 +219,26 @@ func refresh_seasonal_visual() -> void:
 func _present_live_visual() -> void:
 	GeneratedVisual.detach(self)
 	var vis: Node3D = GeneratedVisual.attach(self, visual_id)
+	if vis != null and PlantGrowth.is_gold(_persist()):
+		_tint_gold(vis)
 	var pivot := get_node_or_null("VisualPivot") as Node3D
 	if vis != null and pivot != null and is_inside_tree():
 		vis.reparent(pivot)
+
+
+## `golden_tree_pal`: the golden tree draws the hardwood with its own palette.
+func _tint_gold(vis: Node) -> void:
+	for node: Node in vis.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if mesh.mesh == null:
+			continue
+		for i: int in mesh.mesh.get_surface_count():
+			var mat := mesh.get_active_material(i) as StandardMaterial3D
+			if mat == null:
+				continue
+			var own := mat.duplicate() as StandardMaterial3D
+			own.albedo_color = own.albedo_color * PlantGrowth.GOLD_TINT
+			mesh.set_surface_override_material(i, own)
 
 
 func _ensure_use() -> TreeUse:
