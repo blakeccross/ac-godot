@@ -214,6 +214,8 @@ var dust_flag: bool = false
 var golden_axe_got: bool = false
 ## `mPlib_Check_golden_item_get_demo_end(SHOVEL)`: the golden shovel's fanfare has played.
 var golden_shovel_shown: bool = false
+## `mFI_GetDigStatus`'s `old_pos`: where the golden shovel last dug (session only).
+var golden_last_dig: Vector2i = Vector2i(-1, -1)
 ## `allgrow_ss_pos_info.stone_pos`: the rock that pays out Bells ("" none or spent). Saved.
 var money_rock: String = ""
 ## The day the money rock was last picked (−1 never), so a spent one waits for tomorrow. Saved.
@@ -1258,6 +1260,7 @@ func reset_session() -> void:
 	dust_flag = false
 	golden_axe_got = false
 	golden_shovel_shown = false
+	golden_last_dig = Vector2i(-1, -1)
 	money_rock = ""
 	money_rock_day = -1
 	MoneyRock.reset()

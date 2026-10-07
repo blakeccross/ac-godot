@@ -92,6 +92,18 @@ static func scoop_rock(at: Node) -> void:
 	_play_now(at, &"scoop_hit")
 
 
+## `Player_actor_SetSound_Reflect_scoop` (frame 13): stone `scoop_hit`, wood `scoop_tree_hit`,
+## a bush `scoop_shigemi`.
+static func scoop_reflect(at: Node, outcome: int) -> void:
+	match outcome:
+		ToolUse.Scoop.HIT_WOOD:
+			_play_now(at, &"scoop_tree_hit")
+		ToolUse.Scoop.HIT_BUSH:
+			_play_now(at, &"scoop_shigemi")
+		_:
+			_play_now(at, &"scoop_hit")
+
+
 static func scoop_tree(at: Node) -> void:
 	_play_now(at, &"scoop_tree_hit")
 

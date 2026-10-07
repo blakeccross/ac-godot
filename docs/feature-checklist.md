@@ -139,7 +139,7 @@ data tables before a category is called done.
 
 - [~] **Net** — hold A to ready, creep, skid out of a dash, release to swing; tick-exact catch sphere from keyframe 6; wall / ground / villager strike cuts the swing (`AMI_HIT`); empty swing → `STOP_NET` (`m_player_item_net`, `m_player_main_{ready,ready_walk,slip,swing,stop}_net`) — `net_swing.gd`, `netting.gd`. Missing: catching the bee swarm, swing effects. The golden net reaches further (21 GX)
 - [~] **Fishing rod** — see §13 (`m_player_item_rod`) — `fishing.gd` (substantial)
-- [~] **Shovel** — dig and fill holes, bury items and pitfall seeds, dig up fossils, gyroids and shine spots, hit the money rock, plant saplings (`hole_use.gd`, `buried_use.gd`, `MoneyRock`). Missing: the clang off stone (`reflect_scoop`)
+- [x] **Shovel** — dig and fill holes, bury items and pitfall seeds, dig up fossils, gyroids and shine spots, hit the money rock, plant saplings, bounce off stone (`hole_use.gd`, `buried_use.gd`, `MoneyRock`, `ToolUse`). The golden shovel turns up 100 Bells one new hole in ten
 - [~] **Axe** — chop trees (multi-hit → stump), the golden axe (`tree_use.gd`). Missing: the axe breaking with use (`broken_axe`, `ef_break_axe`)
 - [~] **Fishing rod / net / axe / shovel** durability & the **golden** variants — the golden axe from the wishing well; Tortimer waits outside the house with the golden rod once every fish is caught and the golden net once every insect is (`aPRD_setup_present`, `PresentVisit`). Once Tortimer has gone, or the well spirit has given the axe, the player holds the golden tool up (`YATTA1`) and says so in a green report (`demo_get_golden_item`, `Player.get_golden_item`). Each plays its jingle (all insects, all fish, the chores tune for the axe). The golden shovel grows on the golden tree from a shovel buried in the shine spot's hole (`GOLD_TREE_SHOVEL`); its first pickup gets the same demo
 - [x] ~~Slingshot~~ — _not in the GameCube game_ (balloons snag in trees instead; see §34 balloons)
@@ -246,7 +246,7 @@ data tables before a category is called done.
 - [x] **Pitfall**: bury a pitfall seed in a hole → invisible trap; player/villager falls in (`BURIED_PITFALL_HOLE`, `bIT_actor_pit_*`, `m_player_main_*_pitfall`) — the pit opens under them and closes after
 - [x] **Fossils**: 25 dug up unidentified → mailed to the museum or shown to Blathers → identified, donated or sold; skeleton groups — `FossilCatalog`, `FarwayBook`, `MuseumDialogue`
 - [x] ~~Fake rocks~~ — rocks are fixed obstacles on the GameCube (one is the money rock)
-- [ ] Shovel reflects with a clang off stone / the museum wall / certain FG (`reflect_scoop`)
+- [~] Shovel bounces off ground it can't dig (`REFLECT_SCOOP`, `ply_1_not_dig1`): stone clangs, wood thuds, a bush rustles; water is an air swing — `ToolUse.scoop_outcome`. Missing: the step back and the dust (`eEC_EFFECT_DIG_SCOOP`)
 - [x] Groundhog Day: no digging. `ac_ghog` is the shrine-acre stand and Resetti the groundhog (see §Events)
 
 ## 15. Plants & flora

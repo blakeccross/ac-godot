@@ -242,3 +242,22 @@ func _equip(ctx: InteractionContext, item_id: StringName) -> void:
 	assert_bool(ctx.inventory.equip_slot(0)).is_true()
 
 
+
+
+## `mPlib_Get_scoop_request_index`: dig, air over water, or a bounce with its clang.
+func test_shovel_outcome_by_ground() -> void:
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.GRASS, 0)).is_equal(ToolUse.Scoop.DIG)
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.SAND, FieldCatalog.SAND_ATTR)).is_equal(ToolUse.Scoop.DIG)
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.WATER, 12)).is_equal(ToolUse.Scoop.AIR)
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.STONE, 7)).is_equal(ToolUse.Scoop.HIT_STONE)
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.PATH, 31)).is_equal(ToolUse.Scoop.HIT_WOOD)
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.BLOCKED, ToolUse.ATTR_BUSH)).is_equal(ToolUse.Scoop.HIT_BUSH)
+	## No collision data: the terrain decides.
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.STONE, -1)).is_equal(ToolUse.Scoop.HIT_STONE)
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.SOIL, -1)).is_equal(ToolUse.Scoop.DIG)
+
+
+func test_golden_shovel_finds_bells_away_from_the_last_hole() -> void:
+	assert_bool(ToolUse.golden_finds_bells(Vector2i(3, 3), Vector2i(1, 1), 1)).is_true()
+	assert_bool(ToolUse.golden_finds_bells(Vector2i(3, 3), Vector2i(1, 1), 0)).is_false()
+	assert_bool(ToolUse.golden_finds_bells(Vector2i(3, 3), Vector2i(3, 3), 1)).is_false()
