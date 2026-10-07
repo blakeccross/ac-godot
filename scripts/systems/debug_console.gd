@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -373,6 +373,14 @@ func execute(raw: String) -> String:
 			var ms_n: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else MushroomUse.NUM
 			var ms_set: int = MushroomUse.grow(ms_world, ms_n, Vector2i(-1, -1), ms_rng)
 			return "%d mushrooms set (%d in town)." % [ms_set, Game.mushrooms.size()]
+		"meteor":
+			## Send a shooting star across the pond now (Meteor Shower only, `ef_shooting`).
+			var mt_tree := Engine.get_main_loop() as SceneTree
+			var mt_node: Node = mt_tree.get_first_node_in_group(MeteorShower.GROUP) if mt_tree != null else null
+			if mt_node == null:
+				return "No meteor shower tonight (event meteor_shower)."
+			(mt_node as MeteorShower).launch_now()
+			return "Shooting star."
 		"shells":
 			## Wash N shells up on the beach now (`mFI_SetShellWave`), with free wave units per acre.
 			var sh_tree := Engine.get_main_loop() as SceneTree

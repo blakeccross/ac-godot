@@ -72,6 +72,8 @@ func start() -> bool:
 		_add_fireworks()
 	elif id == &"harvest_moon_festival":
 		_add_pond_moon()
+	elif id == &"meteor_shower":
+		_add_meteor_shower()
 	_set_away(true)
 	return true
 
@@ -99,6 +101,17 @@ func _add_pond_moon() -> void:
 	moon.name = "PondMoon"
 	moon.pond_center = PondMoon.pond_base(mgr, block)
 	mgr.add_actor(id, moon, EventManager.block_unit_to_cell(block, Vector2i(8, 8)), 0.0, 0)
+
+
+## `meteor_shower_viewing_start` → `ef_shooting_set` over the pond.
+func _add_meteor_shower() -> void:
+	var block: Vector2i = mgr.block_of("pool")
+	if block.x < 0:
+		return
+	var shower := MeteorShower.new()
+	shower.name = "MeteorShower"
+	shower.pond_center = PondMoon.pond_base(mgr, block)
+	mgr.add_actor(id, shower, EventManager.block_unit_to_cell(block, Vector2i(8, 8)), 0.0, 0)
 
 
 func tick(_delta: float) -> void:

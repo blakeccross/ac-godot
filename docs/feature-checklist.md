@@ -60,7 +60,7 @@ data tables before a category is called done.
 - [x] Fog: distance fog follows the per-time `kcolor` tables (`mEnv_SetFog`) — `Clock.outdoor_light()`; the GameCube has no separate foggy-morning weather
 - [~] Rain: the field plays the rain BGM (`BgmCatalog`), the coelacanth joins the sea list while it rains (`FishSpawnScheduler`), rain-only bugs (snail) come out. Missing: the indoor rain arrangement
 - [~] Lightning flashes in storms — `WeatherFx._tick_lightning` (approximate). No aurora on the GameCube
-- [ ] Shooting stars (`eEC_EFFECT_SHOOTING_SET`): only on the Meteor Shower event on the GameCube, not on ordinary clear nights
+- [x] Shooting stars (`eEC_EFFECT_SHOOTING_SET`): only at the Meteor Shower, as streaks reflected on the pond while the player is there, quickening towards 19:30, each led by a sparkle (`ef_shooting`, `ef_shooting_kira`) — `MeteorShower`
 - [x] Harvest Moon reflection on the pond: glides east to west 18:00–21:00, sways and ripples, with its disc/ripple combiner (`ef_night13_moon`, `ef_moon01_01_modelT`) — `PondMoon`, `pond_moon.gdshader`
 - [~] Wind: balloons drift with it, the house's fish weathervane points into it and its propeller spins with its power (`aMHS_actor_draw_before`) — `Wind`, `HouseWeathervane`. The GameCube grass does not sway; `ac_windmill` / `ac_koinobori` only loop their animation; `ac_flag` (speed from wind power) is not placed yet
 
@@ -581,7 +581,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [x] Summer Camper — tent on an empty lot, an out-of-town villager inside (greeting game, Tent trade list)
 - [x] Fireworks Show — crowd with fans, Redd's stall, fireworks over the pond (bigger sets in the last hour)
 - [~] Morning Aerobics — residents doing the routine by the radio. Missing: Copper and Tortimer's radio exercise card (`mSC_Radio_*`)
-- [~] Meteor Shower — moon-viewing crowd with meteor lines. Missing: shooting-star effect (`eEC_EFFECT_SHOOTING_SET`)
+- [x] Meteor Shower — moon-viewing crowd with meteor lines, shooting stars on the pond (`MeteorShower`)
 - [x] Harvest Moon — moon-viewing crowd
 - [x] Mushroom season (Oct 15–25) — `MushroomUse`
 - [x] **Halloween** — Jack (moves acre after each talk), residents in costume chase the player; candy → present, else a trick (pocket swap or shirt) (`ac_ev_pumpkin`, `ac_halloween_npc`, `TrickOrTreatTalk`)
