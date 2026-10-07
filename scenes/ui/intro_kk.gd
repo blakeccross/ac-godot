@@ -155,7 +155,11 @@ func _begin_player_select() -> bool:
 	var roster: PlayerRoster = SaveService.read_roster()
 	if roster.count() == 0:
 		return false
-	_select = PlayerSelectTalk.new(roster, SaveService.read_town_name())
+	_select = PlayerSelectTalk.new(
+		roster, SaveService.read_town_name(), maxi(SaveService.slot_of(SaveService.current_path), 0)
+	)
+	_select.passport = Travel.read_passport()
+	_select.town_id = SaveService.read_town_id()
 	var ctx := DialogueContext.new()
 	ctx.speaker_name = "K.K."
 	Clock.sync_from_os()
@@ -219,6 +223,10 @@ func _finish_player_select() -> void:
 			Game.continue_game(_select.chosen)
 		PlayerSelectTalk.Result.NEW:
 			Game.start_new_resident(_select.chosen)
+		PlayerSelectTalk.Result.VISIT:
+			Game.start_visit()
+		PlayerSelectTalk.Result.RETURN:
+			Game.start_return()
 		PlayerSelectTalk.Result.NEW_TOWN:
 			## `mCD_EraseLand_bg`, then back to the title for a fresh start.
 			SaveService.delete_save()

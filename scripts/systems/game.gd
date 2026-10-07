@@ -250,6 +250,13 @@ var grass_pattern: int = WorldData.GrassPattern.TRIANGLE
 ## K.K.'s scene runs the player select of an existing town (`ac_npc_p_sel2`) rather than the
 ## first-time opening (`ac_npc_p_sel`).
 var player_select_mode: bool = false
+## This town's identity, so a passport knows its home (`mLd_CheckThisLand`). Random per town.
+var town_id: int = 0
+## Playing as a visitor from another town (`mPr_FOREIGNER`): no house here, and the only way
+## out is Porter at the station, who saves the town and the passport.
+var foreigner: bool = false
+## Come in on the train (a visitor, or a traveller back home): start on the platform.
+var arrive_by_train: bool = false
 ## The roster slot a newcomer to an existing town takes (`aNPS2_TALK_START_TYPE3`), or -1
 ## for a brand-new town.
 var joining_slot: int = -1
@@ -315,7 +322,10 @@ func _ready() -> void:
 
 
 func has_continue() -> bool:
-	return SaveService.has_save()
+	for path: String in SaveService.slot_paths:
+		if SaveService.has_save(path):
+			return true
+	return false
 
 
 func start_new_game(
@@ -423,13 +433,58 @@ func _begin_station_arrival(seed_value: int, identity: Dictionary, sync_clock: b
 	_change_scene(WORLD_SCENE)
 
 
+## K.K. found a passport from another town (`aNPS2_TALK_START_TYPE2`): arrive by train as a
+## visitor.
+func start_visit() -> void:
+	reset_session()
+	player_select_mode = false
+	if SaveService.load_visitor(Travel.read_passport()) != OK:
+		abort_intro_sequence()
+		return
+	resume_clock(SaveService.last_elapsed)
+	_arrive_by_train()
+
+
+## K.K. found this town's own traveller's passport (`aNPS2_TALK_START_TYPE1`): copy them back
+## into their slot and come home on the train.
+func start_return() -> void:
+	var slot: int = Travel.adopt_passport()
+	if slot < 0:
+		abort_intro_sequence()
+		return
+	reset_session()
+	player_select_mode = false
+	if SaveService.load_game("", slot) != OK:
+		abort_intro_sequence()
+		return
+	resume_clock(SaveService.last_elapsed)
+	SaveService.mark_session_open(reset_count)
+	_arrive_by_train()
+
+
+func _arrive_by_train() -> void:
+	arrive_by_train = true
+	current_room_id = &""
+	continue_from_house = false
+	update_notice_board()
+	_set_phase(Phase.PLAYING)
+	_change_scene(WORLD_SCENE)
+
+
+## Porter saw the traveller off (`aSTM_game_end_init`): the train leaves for the title.
+func depart_by_train() -> void:
+	await SceneTransition.play_wipe_out(SceneTransition.Style.FADE)
+	_set_phase(Phase.TITLE)
+	_change_scene(TITLE_SCENE)
+
+
 ## A newcomer's arrival in the saved town (`mCD_START_COND_2`): the town as it is, an empty
 ## resident in `joining_slot`, then the same station arrival — Porter, Nook, a vacant house.
 func _begin_resident_arrival(identity: Dictionary) -> void:
 	var slot: int = joining_slot
 	joining_slot = -1
 	reset_session()
-	if SaveService.load_game(SaveService.DEFAULT_PATH, slot) != OK:
+	if SaveService.load_game("", slot) != OK:
 		var seed_value: int = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
 		_begin_station_arrival(seed_value, identity, false)
 		return
@@ -931,7 +986,7 @@ func continue_game(slot: int = -1) -> void:
 	## into the loaded game and `notify_world_ready` kept the phase on TITLE (no Esc, no events).
 	reset_session()
 	player_select_mode = false
-	if SaveService.load_game(SaveService.DEFAULT_PATH, slot) != OK:
+	if SaveService.load_game("", slot) != OK:
 		start_new_game()
 		return
 	note_reset(SaveService.last_reset_code)
@@ -950,7 +1005,10 @@ func continue_game(slot: int = -1) -> void:
 
 func return_to_title() -> void:
 	capture_player_from_tree()
-	SaveService.save_game()
+	## A visitor can't save here (`save_menu_data_save_from`, `SAVE_ERROR_FLASHROM`): only Porter
+	## sends them home with their things. Quitting drops this visit.
+	if not foreigner:
+		SaveService.save_game()
 	_set_phase(Phase.TITLE)
 	_change_scene(TITLE_SCENE)
 
@@ -1084,6 +1142,9 @@ func destiny() -> int:
 
 func reset_session() -> void:
 	roster = PlayerRoster.new()
+	town_id = Travel.new_town_id()
+	foreigner = false
+	arrive_by_train = false
 	visiting_slot = -1
 	_own_house_stash = {}
 	destiny_type = Destiny.NORMAL
@@ -1527,6 +1588,7 @@ func to_save() -> Dictionary:
 		"calendar": calendar.duplicate(true),
 		"fish_records": fish_records.duplicate(true),
 		"treasure_buried_day": treasure_buried_day,
+		"town_id": town_id,
 		"haniwa_scheduled": haniwa_scheduled,
 		"treasure_checked_day": treasure_checked_day,
 		"quests": quests.to_save(),
@@ -1719,6 +1781,9 @@ func apply_snapshot(data: Dictionary) -> void:
 	birthday_present_npc = StringName(str(data.get("birthday_present_npc", "")))
 	birthday_card_day = int(data.get("birthday_card_day", 0))
 	treasure_buried_day = int(data.get("treasure_buried_day", 0))
+	town_id = int(data.get("town_id", 0))
+	if town_id == 0:
+		town_id = Travel.new_town_id()
 	haniwa_scheduled = bool(data.get("haniwa_scheduled", false))
 	treasure_checked_day = int(data.get("treasure_checked_day", 0))
 	fish_records.clear()
@@ -1823,6 +1888,9 @@ func try_enter_interior(
 			outdoor_return_yaw = player_yaw
 	close_shop()
 	current_room_id = room_id
+	## `ac_shop_design` → `mSP_SetNewVisitor`: a visitor from another town shopped here.
+	if foreigner and room.kind == Room.Kind.SHOP and shops != null:
+		shops.set_visitor()
 	play_door_arrive = false
 	if spawn_gx is Vector3:
 		interior_spawn_gx = spawn_gx as Vector3

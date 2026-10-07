@@ -195,6 +195,12 @@ func _goto(to: StringName) -> void:
 		_finish()
 		return
 	if conversation == null or not conversation.has_node(to):
+		## `mMsg_Set_continue_msg_num`: the bank script may send a chained message elsewhere.
+		if talk_manager != null and _is_bank_message() and String(to).begins_with("msg_"):
+			var chained: int = int(String(to).substr(4))
+			var instead: int = talk_manager.continue_to(talk_manager.current_msg, chained)
+			if instead != chained:
+				to = StringName("msg_%d" % instead)
 		var other: DialogueData = DialogueCatalog.conversation(to)
 		if other != null and other != conversation:
 			conversation = other
@@ -431,6 +437,10 @@ func _apply_event(event: Dictionary) -> void:
 				var day_key := "%04d-%02d-%02d" % [context.year, context.month, context.day]
 				_state.relationship.record_gift(item_id, day_key)
 				_sync_bond_context(_state.relationship)
+		"give_map":
+			## `mPr_SetNewMap`: Copper's map for a visitor (`aPOL_check_select2`).
+			if Game != null:
+				Game.unlock_map()
 		"give_item":
 			if context != null and context.inventory != null:
 				var data: ItemData = ItemCatalog.get_item(StringName(str(event.get("item", ""))))

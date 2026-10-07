@@ -14,7 +14,9 @@ extends Node3D
 ## (`INTERRUPT_MOVE`, `aNPC_ACT_WALK` to `x + 40`), then turns back to the player and looks
 ## after them from there (`THINK_4`, `aSTM_talk_wait`) — the unit normal play puts him on.
 ##
-## Normal play (`fd_npc_land_actable`, with his talk and train-calling) is not modelled yet.
+## Normal play (`fd_npc_land_actable`): one unit east of the title spot, looking after the
+## player; talking to him is the way to travel (`PorterTalk`). The train itself does not pull
+## in for the departure here — the scene fades out on "Farewell!".
 
 const SKELETON := &"mnk_1"
 const WAIT_CLIP := "npc_1_wait1"
@@ -29,6 +31,10 @@ const LOOK_CONE := deg_to_rad(67.5)
 const INTRO_YAW := -PI * 0.5
 ## `aSTM_interrupt_*_init`: one unit (`mFI_UT_WORLDSIZE_X_F`) east of where he stands.
 const STEP_EAST_GX := 40.0
+## Normal play: the title spot, one unit east (`mEv_IsNotTitleDemo`).
+const TOWN_GX := TITLE_GX + Vector3(STEP_EAST_GX, 0.0, 0.0)
+## Where a traveller steps off the train: the platform two units west of him.
+const ARRIVE_GX := TOWN_GX + Vector3(-80.0, 0.0, 0.0)
 
 enum Mode { LOOK, TURN_EAST, WALK_EAST }
 
@@ -58,6 +64,54 @@ func _ready() -> void:
 	visible = false
 	_body.process_mode = Node.PROCESS_MODE_DISABLED
 	set_physics_process(false)
+
+
+## Normal play: stand on the platform and take the travel talk.
+func place_in_town(world: Vector3) -> void:
+	place(world)
+	talk_handler = _town_talk
+
+
+## `aSTM_norm_talk_request` → `PorterTalk`; "Farewell!" sends the traveller off.
+func _town_talk() -> void:
+	var ui := DialogueOverlay.find(get_tree())
+	if ui == null:
+		return
+	var house: House = Game.interiors.player_house() if Game.interiors != null else null
+	var talk := PorterTalk.new(Game.foreigner, house != null and house.has_saved)
+	var ctx := _context()
+	talk.context = ctx
+	talk.prepare()
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % talk.start_msg()))
+	if data == null:
+		return
+	speaking = true
+	ui.play(data, ctx, null, Callable(), talk)
+	await ui.closed
+	speaking = false
+	if talk.result == PorterTalk.Result.DEPART:
+		await say(PorterTalk.FAREWELL)
+		Game.depart_by_train()
+
+
+## One of his force-talks (`aSTM_force_talk_request`): "Welcome home", "Farewell!".
+func say(msg_no: int) -> void:
+	var ui := DialogueOverlay.find(get_tree())
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % msg_no))
+	if ui == null or data == null:
+		return
+	speaking = true
+	ui.play(data, _context())
+	await ui.closed
+	speaking = false
+
+
+func _context() -> DialogueContext:
+	var ctx := DialogueContext.new()
+	ctx.speaker_name = "Porter"
+	ctx.player_name = Game.player_name
+	ctx.town_name = Game.town_name
+	return ctx
 
 
 ## Stand at `world` (ground height) facing south (NPC default angle 0), then start looking.

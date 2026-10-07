@@ -269,6 +269,9 @@ static func resident_house(node_name: String) -> House:
 static func owned_building_id() -> StringName:
 	if Game == null:
 		return DEFAULT_PLOT
+	## A visitor from another town has no house here.
+	if Game.foreigner:
+		return &""
 	if Game.intro_station_house_id != &"":
 		return Game.intro_station_house_id
 	if Game.intro_station_active:

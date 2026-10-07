@@ -5,26 +5,40 @@ extends Node
 ## 2: the town and up to four residents (`PlayerRoster`); 1 was one flat resident.
 const SAVE_VERSION := 2
 const DEFAULT_PATH := "user://save.json"
+## The second town (the other Memory Card slot, `mCD` slot B).
+const SLOT_B_PATH := "user://save_b.json"
+## The two town files (tests point these elsewhere).
+var slot_paths: Array[String] = [DEFAULT_PATH, SLOT_B_PATH]
+
+## The town being played (or picked at the title): which file a call without a path uses.
+var current_path: String = ""
 
 ## `Private_c.reset_code` read by the last `load_game`: non-zero means the session it was
 ## written for ended without a save (`mCD_CheckResetCode`).
 var last_reset_code: int = 0
 ## Real seconds between the last save and this load (negative: the system clock went back).
 var last_elapsed: int = 0
+## The resident's part of the last `save_game` (a visitor's goes into the passport).
+var last_private: Dictionary = {}
 
 
-func has_save(path: String = DEFAULT_PATH) -> bool:
+func has_save(path: String = "") -> bool:
+	path = _path(path)
 	return FileAccess.file_exists(path)
 
 
-func save_game(path: String = DEFAULT_PATH) -> Error:
+func save_game(path: String = "") -> Error:
+	path = _path(path)
 	## Inside another resident's house: their rooms go home first.
 	Game.leave_resident_house()
 	Game.capture_player_from_tree()
 	var world: Dictionary = Game.to_save()
 	var priv: Dictionary = PlayerRoster.split(world)
 	priv[PlayerRoster.KEY_INVENTORY] = Game.inventory.to_save()
-	Game.roster.slots[Game.roster.current] = priv
+	last_private = priv
+	## A visitor's own part travels in the passport, never in this town (`mPr_FOREIGNER`).
+	if not Game.foreigner:
+		Game.roster.slots[Game.roster.current] = priv
 	world["roster"] = Game.roster.to_save()
 	var payload: Dictionary = {
 		"version": SAVE_VERSION,
@@ -44,7 +58,8 @@ func save_game(path: String = DEFAULT_PATH) -> Error:
 
 ## Load the town and resident `slot` (-1: the one played last). An empty slot loads the town
 ## with a fresh resident, for a newcomer (`aNPS2_TALK_START_TYPE3`).
-func load_game(path: String = DEFAULT_PATH, slot: int = -1) -> Error:
+func load_game(path: String = "", slot: int = -1) -> Error:
+	path = _path(path)
 	var data: Dictionary = _read(path)
 	if data.is_empty():
 		return ERR_FILE_NOT_FOUND if not FileAccess.file_exists(path) else ERR_INVALID_DATA
@@ -69,14 +84,48 @@ func load_game(path: String = DEFAULT_PATH, slot: int = -1) -> Error:
 	return OK
 
 
+## A visitor from another town (`mCD_START_COND_INCOMING_FOREIGNER`): this town as it is, with
+## the traveller's own part from their passport and no slot of their own.
+func load_visitor(passport: Dictionary, path: String = "") -> Error:
+	path = _path(path)
+	var data: Dictionary = _read(path)
+	if data.is_empty():
+		return ERR_FILE_NOT_FOUND
+	last_reset_code = 0
+	Clock.apply_snapshot(data.get("clock", {}))
+	last_elapsed = 0
+	if data.has("os_time"):
+		last_elapsed = int(Time.get_unix_time_from_system()) - int(data["os_time"])
+	Game.roster = roster_of(data)
+	Game.roster.current = -1
+	Game.foreigner = true
+	var priv: Dictionary = passport.get("private", {}) if typeof(passport.get("private")) == TYPE_DICTIONARY else {}
+	Game.inventory.from_save(priv.get(PlayerRoster.KEY_INVENTORY, {}))
+	## No house here: the traveller's house record stays at home.
+	var visiting: Dictionary = priv.duplicate(true)
+	visiting.erase(PlayerRoster.KEY_HOUSE)
+	visiting.erase(PlayerRoster.KEY_ROOMS)
+	Game.apply_snapshot(PlayerRoster.merge(town_of(data), visiting))
+	return OK
+
+
 ## The roster in a save, without loading it (K.K.'s player select).
-func read_roster(path: String = DEFAULT_PATH) -> PlayerRoster:
+func read_roster(path: String = "") -> PlayerRoster:
+	path = _path(path)
 	var data: Dictionary = _read(path)
 	return roster_of(data) if not data.is_empty() else PlayerRoster.new()
 
 
+## The town's id in a save (`Game.town_id`), or 0.
+func read_town_id(path: String = "") -> int:
+	path = _path(path)
+	var data: Dictionary = _read(path)
+	return int(town_of(data).get("town_id", 0)) if not data.is_empty() else 0
+
+
 ## The town's name in a save, or "".
-func read_town_name(path: String = DEFAULT_PATH) -> String:
+func read_town_name(path: String = "") -> String:
+	path = _path(path)
 	var data: Dictionary = _read(path)
 	return str(town_of(data).get("town_name", "")) if not data.is_empty() else ""
 
@@ -104,6 +153,15 @@ static func town_of(data: Dictionary) -> Dictionary:
 	return world
 
 
+func _path(path: String) -> String:
+	return path if path != "" else current_path
+
+
+## Slot index (0 = A, 1 = B) of a town file, or -1.
+func slot_of(path: String) -> int:
+	return slot_paths.find(path)
+
+
 func _read(path: String) -> Dictionary:
 	if not FileAccess.file_exists(path):
 		return {}
@@ -115,7 +173,8 @@ func _read(path: String) -> Dictionary:
 
 
 ## Write the save with `roster` and `world` replaced (demolishing a house). The rest stays.
-func write_roster(roster: PlayerRoster, path: String = DEFAULT_PATH) -> Error:
+func write_roster(roster: PlayerRoster, path: String = "") -> Error:
+	path = _path(path)
 	var data: Dictionary = _read(path)
 	if data.is_empty():
 		return ERR_FILE_NOT_FOUND
@@ -133,7 +192,8 @@ func write_roster(roster: PlayerRoster, path: String = DEFAULT_PATH) -> Error:
 
 ## `mCD_SetResetCode` at load: stamp the file as an open session (and keep the reset count
 ## just raised), so quitting without saving is caught on the next load.
-func mark_session_open(reset_count: int, path: String = DEFAULT_PATH) -> Error:
+func mark_session_open(reset_count: int, path: String = "") -> Error:
+	path = _path(path)
 	var data: Dictionary = _read(path)
 	if data.is_empty():
 		return ERR_FILE_NOT_FOUND
@@ -156,6 +216,7 @@ func mark_session_open(reset_count: int, path: String = DEFAULT_PATH) -> Error:
 	return OK
 
 
-func delete_save(path: String = DEFAULT_PATH) -> void:
+func delete_save(path: String = "") -> void:
+	path = _path(path)
 	if FileAccess.file_exists(path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

@@ -40,6 +40,12 @@ func picked(_msg_no: int, _index: int) -> int:
 	return -1
 
 
+## A message is about to chain to `to_msg` by itself: return another number to go there
+## instead (`mMsg_Set_continue_msg_num` set while the message was up).
+func continue_to(_from_msg: int, to_msg: int) -> int:
+	return to_msg
+
+
 ## A choice that opens a demo instead of a message (`{"hand"|"text"|"anim": …}`).
 func pick_step(_msg_no: int, _index: int) -> Dictionary:
 	return {}

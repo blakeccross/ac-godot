@@ -28,6 +28,7 @@ var _menu_open: bool = false
 @onready var _fade: ColorRect = %Fade
 @onready var _new_game: Button = %NewGameButton
 @onready var _continue: Button = %ContinueButton
+@onready var _slot_buttons: Array[Button] = [%SlotAButton, %SlotBButton]
 
 
 func _enter_tree() -> void:
@@ -142,12 +143,49 @@ func _release_player() -> void:
 
 func _on_new_game_pressed() -> void:
 	## Full opening, like the original: K.K. player select → Rover's train → station arrival.
+	## A new town goes on a card without one; with a town on both, K.K.'s "Build a new town"
+	## erases one first.
+	var free: int = _free_slot()
+	if free < 0:
+		Game.post_notice("Both slots hold a town. Erase one at K.K.'s \"Other things\" first.")
+		return
+	SaveService.current_path = SaveService.slot_paths[free]
 	_choose(Game.start_intro_sequence)
 
 
 func _on_continue_pressed() -> void:
 	## K.K.'s player select: pick a resident, a newcomer, or the town options (`ac_npc_p_sel2`).
+	## With a town in each slot, which card's town first.
+	var towns: Array[int] = _town_slots()
+	if towns.size() == 1:
+		SaveService.current_path = SaveService.slot_paths[towns[0]]
+		_choose(Game.start_player_select)
+		return
+	for i: int in _slot_buttons.size():
+		var path: String = SaveService.slot_paths[i]
+		_slot_buttons[i].text = "%s: %s" % [Travel.slot_name(path), SaveService.read_town_name(path)]
+		_slot_buttons[i].visible = towns.has(i)
+	_slot_buttons[towns[0]].grab_focus()
+
+
+func _on_slot_pressed(slot: int) -> void:
+	SaveService.current_path = SaveService.slot_paths[slot]
 	_choose(Game.start_player_select)
+
+
+func _town_slots() -> Array[int]:
+	var out: Array[int] = []
+	for i: int in SaveService.slot_paths.size():
+		if SaveService.has_save(SaveService.slot_paths[i]):
+			out.append(i)
+	return out
+
+
+func _free_slot() -> int:
+	for i: int in SaveService.slot_paths.size():
+		if not SaveService.has_save(SaveService.slot_paths[i]):
+			return i
+	return -1
 
 
 func _on_generated_town_pressed() -> void:

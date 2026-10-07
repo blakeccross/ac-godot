@@ -57,6 +57,22 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 22
 text = "Continue"
 
+[node name="SlotAButton" type="Button" parent="Menu/Center/VBox"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(280, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Slot A"
+
+[node name="SlotBButton" type="Button" parent="Menu/Center/VBox"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(280, 44)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Slot B"
+
 [node name="DevLabel" type="Label" parent="Menu/Center/VBox"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
@@ -85,5 +101,7 @@ horizontal_alignment = 1
 
 [connection signal="pressed" from="Menu/Center/VBox/NewGameButton" to="." method="_on_new_game_pressed"]
 [connection signal="pressed" from="Menu/Center/VBox/ContinueButton" to="." method="_on_continue_pressed"]
+[connection signal="pressed" from="Menu/Center/VBox/SlotAButton" to="." method="_on_slot_pressed" binds= [0]]
+[connection signal="pressed" from="Menu/Center/VBox/SlotBButton" to="." method="_on_slot_pressed" binds= [1]]
 [connection signal="pressed" from="Menu/Center/VBox/GeneratedTownButton" to="." method="_on_generated_town_pressed"]
 [connection signal="pressed" from="Menu/Center/VBox/IntroStationButton" to="." method="_on_intro_station_pressed"]

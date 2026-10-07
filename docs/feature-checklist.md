@@ -385,7 +385,7 @@ data tables before a category is called done.
 ## 21. Nook's store
 
 - [x] 4 building types over time + purchase volume: **Nook's Cranny → Nook 'n' Go → Nookway → Nookington's**; upgrades at 25,000 / 90,000 / 240,000 bells, with Nookington's also requiring a visiting foreign player (`ac_shop_level`, `m_shop`) — `ShopBook`: stored level (`shop_info.shop_level`), sales capped at the next threshold until the upgrade lands (`mSP_PlusSales`), a renovation booked two days out once earned (`aSL_JudgeRenewShop`, never across raffle day or Sale Day, cancelled if the clock runs backwards), closed for renovations from opening time the day before, reopening upgraded at the new building's opening hour; renovation-notice and grand-opening letters; `visitor` flag gates Nookington's (`shop visitor` debug command until multi-town visits exist). `shop0`–`shop3` interiors
-- [~] Nookington's second floor (`shop3_2`) is built. Missing: Timmy & Tommy (`ac_npc_mamedanuki`), and the final upgrade needs a visitor from another town (§35)
+- [~] Nookington's second floor (`shop3_2`) is built, and a visitor from another town walking into the shop sets the flag it needs (`mSP_SetNewVisitor`). Missing: Timmy & Tommy (`ac_npc_mamedanuki`)
 - [x] Daily stock (`mSP_MakeGoodsList`, `ac_shop_goods`) — `ShopGoods.roll`: per-level counts (`l_zakka/conbini/super/dsuper_goods`), Cranny tools unlocked by sales (net 3k / rod 8k / axe 12k), Nookway+ paint (colour rotates each restock) + signboard + cedar sapling + rare-furniture slot (`ItemData.shop_rare`), stationery as a 4-sheet pad, distinct flower-seed bags, one umbrella, Halloween candy (Oct 16–30), Sale Day grab bags priced at the year (open with three free slots: rare goods or a pinwheel). Furniture, clothing, carpets, wallpaper and (Nookway+) a diary come from the disc's A / B / C lists, dealt common / uncommon / rare each session and rolled against goods power (`mSP_GetItemList`). In December the first furniture slots hold the festive trees until the 24th and the festive candle and flag from the 26th (`mSP_SetSeasonFTR`). Missing: seed bags plant pansies until flower species exist
 - [x] Stock rotates at 06:00; sells out; sold-out slot shows empty
 - [x] Sell items to Nook (he names a price, you confirm); can't sell some things — counter menu "I want to sell" opens the pockets in sell mode (`mSM_IV_OPEN_SELL`: "Sell", or "Sell all" on marked items), then Nook quotes the total and asks (`aNSC_buy_sum_check`, `nook_shop_sell`, `ShopBook.sell_result`, §11)
@@ -478,7 +478,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [~] Window sunshine (`ef_room_sunshine_police`): left/right beams stretched by time of day, sun/moon window colour, rain × 0.6, camera-side culling, `windowlight_alpha` ramp (05:00–18:00, incl. the noon and `s16`-wrap blinks) — `police_sunshine.tscn`. Needs `obj_koban_shine` from the pipeline (`XLU_ONLY_STATICS`); not yet seen rendered
 - [~] **Copper** (`ac_npc_police`, `copper.tscn`): stands two units east of the station facing south; walk-out greeting (0x0771) after leaving the police box; time-of-day menu (0x0772–0x0775) → event hint / lost-and-found count (0x0782 / 0x0783) / never mind (0x0777); 06:00–07:00 exercises (5%, fair weather) and 02:00–04:00 dozing (5%). Missing: removed during morning-aerobics events (`mEv_EVENT_MORNING_AEROBICS`); items under his unit sent to the lost and found on spawn
 - [~] Copper's event hint (`aPOL_get_hint_msg_no`): first-job hint, none / later / today / running per special visitor. A running visit other than the sale needs the visitor's acre (`mEv_get_event_place`); no visitor is placed in town yet, so that answers "nothing" like the original's not-found path
-- [ ] Ask for a town map — GCN: only a *foreign* player gets the extra "map" option (`aPOL_check_select2` → `mPr_SetNewMap`); needs visiting between towns
+- [x] Ask for a town map — a visitor from another town gets Copper's map option first (`aPOL_check_select2` → `mPr_SetNewMap`, 0x18CA)
 - [x] ~~Ask about a villager's location / who's moved in / who's moving out~~ — not in GCN (Copper's menu is the three options above)
 - [x] Every town has the police station from day 1 (`mRF_BLOCKKIND_POLICE` block)
 - [x] Lost & found also holds forgotten umbrellas etc. (umbrella / tool / flower-bag top-up rolls)
@@ -501,7 +501,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 
 - [~] Station building; **Porter** the monkey stationmaster (`ac_station`, `ac_npc_station_master`) — `intro_station_stage.gd`
 - [~] Arrival by train on a new game: Rover on the train, get off, Porter greets, walk to Nook (`ac_train0/1`, `ac_intro_demo`) — `intro_train_stage.gd`, `intro_station_stage.gd`
-- [ ] The train as the transition when a **friend visits from another Memory Card / town** (co-op): guest arrives at the station, explores your town, can trade/patterns; final Nookington's upgrade trigger (`m_train_control`, `ac_train_window`)
+- [x] Travelling by train: Porter on the platform asks "Are you planning on going on a trip?" (0x0943), checks there is another town and no other passport out (0x0946 / 0x095E), saves the passport and the town (0x094F) and sees you off (0x0965) — `PorterTalk`, `Travel`. The other slot's K.K. welcomes the visitor (0x5130) and they get off on that town's platform; leaving, Porter saves that town and the passport (0x095C / 0x0955); back home K.K. copies them in (0x5128) and Porter says "Welcome home" (0x0966). Missing: the train pulling in and out on screen for these trips
 - [ ] Send a villager away / villager arrives by moving truck vs. train
 - [x] Gulliver washes up on the **beach**, not the train — see §30
 - [ ] Flag on the flagpole outside the station (`ac_flag`)
@@ -555,7 +555,7 @@ Event NPCs are `EventNpc` scenes placed by `EventManager` presenters (`scenes/wo
 - [x] ~~Dr. Shrunk~~ — not GCN
 - [x] **Mr. Resetti / Don Resetti** (§1), and Resetti as Groundhog Day's groundhog (§Events)
 - [~] **Rover** — on the train in the intro (`intro_train_stage.gd`). Missing: his later visits
-- [~] **Porter** — greets you off the train (`intro_station_stage.gd`)
+- [x] **Porter** — greets you off the train in the intro, stands on the platform in normal play and handles trips (`StationPorter`, `PorterTalk`)
 - [ ] **Kapp'n** — boat to the island (`ac_npc_sendo`, `ac_boat`, `ac_boat_demo`)
 - [x] **Tom Nook**, **Blathers**, **Pelly & Phyllis**, **Copper & Booker**, **Sable & Mabel**, **Tortimer**, **Joan** — see their sections. Timmy & Tommy: see §21
 - [x] **Countdown NPCs** for New Year's Eve — lines by minutes to midnight, the leader calls out each term, party poppers and fireworks at midnight (`ac_countdown_npc0/1`)
@@ -648,8 +648,8 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [x] 4 residents share one town and one save; one plays at a time — see §1
 - [x] Each resident: own house and rooms, pockets, mailbox, catalogue, encyclopedia, own designs, friendships and errands, loan, HRA, diary and calendar (`PlayerRoster.PRIVATE_KEYS`). Their plots outdoors show their house size and their gyroid runs the visitor path (buy from their store, read their message)
 - [~] Residents write to each other: the other residents share the address book's first page with the Museum, and a posted letter goes straight to their mailbox (`PostUse.resident_candidates`, `PlayerRoster.deliver_mail`). Missing: the post office holding it until a delivery time
-- [ ] Visiting another town via a second Memory Card + the train: guest walks around, trades, copies patterns, shops; triggers Nookington's
-- [ ] Item/bell/pattern transfer rules & anti-duplication
+- [x] Visiting another town: two town slots (Slot A / Slot B, picked at the title), the traveller's own part in a passport; a visitor has no house there, can shop (Nookington's), gets a map from Copper, and can only leave through Porter (quitting drops the visit, like `save_menu` refusing a foreigner). The Wisp stays away from visitors
+- [x] Transfer rules: pockets and cash travel in the passport and the home copy keeps none ("you took all your items and cash with you", 0x5135); a passport is used once (copied home, then deleted); someone else's passport must be overwritten at Porter's (0x095E)
 
 ---
 

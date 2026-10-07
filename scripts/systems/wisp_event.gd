@@ -81,6 +81,9 @@ static func boss_name(s: Dictionary) -> String:
 
 ## The Wisp stays away from a well-kept town until he has been found (`aEGH_actor_ct`).
 static func shows_up(s: Dictionary, weeds: int) -> bool:
+	## `aEGH_actor_ct`: never for a visitor from another town.
+	if Game != null and Game.foreigner:
+		return false
 	if bool(s.get("returned", false)):
 		return false
 	return bool(s.get("found", false)) or weeds >= MIN_WEEDS

@@ -5,6 +5,7 @@ extends Node3D
 ## Layout comes from WorldData (test town or generator), not a catalog in this .tscn.
 
 const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
+const PORTER_SCENE := preload("res://scenes/world/station_porter.tscn")
 
 var grid: WorldGrid = WorldGrid.new()
 var layout: WorldData
@@ -22,6 +23,8 @@ var _door_yaw: float = 0.0
 @onready var _moon: DirectionalLight3D = $Moon
 @onready var _world_env: WorldEnvironment = $WorldEnvironment
 @onready var _spawn: Marker3D = $Characters/PlayerSpawn
+## This load began with the player stepping off the train.
+var _train_arrival: bool = false
 @onready var _camera: Camera3D = $FollowCamera
 @onready var _navigation: NavigationRegion3D = $Navigation
 
@@ -93,6 +96,8 @@ func _ready() -> void:
 	if (present == PresentVisit.Kind.NONE and Game.reset_flag
 			and not Game.intro_station_active and not Game.title_demo_active):
 		load("res://scenes/world/resetti.gd").spawn($Characters, Player.find(get_tree()))
+	if not Game.title_demo_active and not Game.intro_station_active:
+		_place_station_porter()
 	var event_mgr: EventManager = get_node_or_null("EventManager") as EventManager
 	if event_mgr != null:
 		event_mgr.setup(self)
@@ -101,6 +106,27 @@ func _ready() -> void:
 		add_child(director)
 		if director.has_method("setup"):
 			director.call("setup", self)
+
+
+## Porter on the platform in normal play (`fd_npc_land_actable`). A resident back from a trip
+## hears "Now arriving in {town}! Welcome home" (`aSTM_THINK_3`, 0x0966).
+func _place_station_porter() -> void:
+	var porter := PORTER_SCENE.instantiate() as StationPorter
+	porter.name = "Porter"
+	$Characters.add_child(porter)
+	porter.place_in_town(_platform(StationPorter.TOWN_GX))
+	if _train_arrival and not Game.foreigner:
+		_train_arrival = false
+		porter.call_deferred("say", PorterTalk.WELCOME_HOME)
+
+
+## A platform spot (GX) on the ground.
+func _platform(gx: Vector3) -> Vector3:
+	var pos: Vector3 = TitleDemo.gx_to_world(layout, gx)
+	var y: float = FieldCollision.ground_y_at(layout, grid, pos, 0.0, false)
+	if FieldCollision.has_floor(y):
+		pos.y = y
+	return pos
 
 
 func release_occupant(occupant_id: StringName) -> void:
@@ -166,6 +192,12 @@ func _spawn_player() -> void:
 	if pos.is_equal_approx(Game.DEFAULT_SPAWN):
 		pos = _spawn.global_position
 	var yaw: float = Game.player_yaw
+	## Off the train (`RIDE_OFF_DEMO`): a visitor, or a resident back from a trip.
+	if Game.arrive_by_train:
+		Game.arrive_by_train = false
+		_train_arrival = true
+		pos = _platform(StationPorter.ARRIVE_GX)
+		yaw = 0.0
 	## `mSDI_StartInitFrom` → `SCENE_FG`: a continued game starts walking out of your house.
 	if Game.continue_from_house:
 		Game.continue_from_house = false
