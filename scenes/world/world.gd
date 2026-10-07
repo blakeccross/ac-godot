@@ -54,6 +54,7 @@ func _ready() -> void:
 	BuriedUse.restore(self, grid)
 	WeedUse.restore(self, grid)
 	MushroomUse.restore(self, grid)
+	ShellUse.restore(self, grid)
 	SnowmanUse.restore(self)
 	PlantGrowth.restore(self, grid)
 	PlantGrowth.assign_special_trees(self)
@@ -354,15 +355,16 @@ func _renew_money_rock() -> void:
 	MoneyRock.renew(self, _field_rng(), Clock.day_number())
 
 
-## `mFI_FieldMove` → `mMsr_SetMushroom`, once a game minute while out on the field.
+## `mFI_FieldMove` → `mMsr_SetMushroom` and `mFI_SetShell`, once a game minute while out on the field.
 func _tick_mushrooms() -> void:
 	if Game.title_demo_active or Game.intro_station_active or Game.current_room_id != &"":
 		return
 	var player: Node3D = Player.find(get_tree())
 	var block := Vector2i(-1, -1)
 	if player != null:
-		block = grid.world_to_cell(player.global_position) / 16
+		block = TownSpace.block_of_cell(grid.world_to_cell(player.global_position))
 	MushroomUse.tick(self, Clock.absolute_minute(), Clock.hour, Clock.minute, block, _field_rng())
+	ShellUse.tick(self, Clock.minute, block, _field_rng())
 
 
 func _field_rng() -> RandomNumberGenerator:

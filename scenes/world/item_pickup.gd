@@ -59,8 +59,9 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if ctx.inventory.add(item, 1, cond) != 0:
 		Game.post_notice("Pockets full")
 		return false
-	## Mushrooms come and go by cell (`MushroomUse`); everything else stays picked.
-	if not MushroomUse.picked(persist_id):
+	## Mushrooms and shells come and go by cell (`MushroomUse`, `ShellUse`); everything else
+	## stays picked.
+	if not MushroomUse.picked(persist_id) and not ShellUse.picked(persist_id):
 		Game.mark_interactable_removed(persist_id)
 	var id: StringName = persist_id if persist_id != &"" else occupant_id
 	ctx.release_occupant(id)

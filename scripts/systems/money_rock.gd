@@ -103,7 +103,7 @@ static func field_rocks(world: Node) -> Dictionary:
 		var id: StringName = node.get("occupant_id") as StringName
 		if id == &"":
 			continue
-		var block: Vector2i = grid.world_to_cell((node as Node3D).global_position) / 16
+		var block: Vector2i = TownSpace.block_of_cell(grid.world_to_cell((node as Node3D).global_position))
 		if block.x >= 1 and block.x <= TownAssessment.FG_BLOCK_X and block.y >= 1 and block.y <= TownAssessment.FG_BLOCK_Z:
 			out[id] = block
 	return out

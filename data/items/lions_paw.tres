@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" uid="uid://dw0fb5nquabwf" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"lions_paw"
+display_name = "Lion's Paw"
+description = "A sturdy, ribbed shell."
+category = 5
+sell_price = 160
+droppable = true
+icon_color = Color(0.95, 0.85, 0.75, 1)

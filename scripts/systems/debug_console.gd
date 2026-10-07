@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -373,6 +373,20 @@ func execute(raw: String) -> String:
 			var ms_n: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else MushroomUse.NUM
 			var ms_set: int = MushroomUse.grow(ms_world, ms_n, Vector2i(-1, -1), ms_rng)
 			return "%d mushrooms set (%d in town)." % [ms_set, Game.mushrooms.size()]
+		"shells":
+			## Wash N shells up on the beach now (`mFI_SetShellWave`), with free wave units per acre.
+			var sh_tree := Engine.get_main_loop() as SceneTree
+			var sh_world := World.find(sh_tree) if sh_tree != null else null
+			if sh_world == null:
+				return "Shells need the outdoor field."
+			var sh_rng := RandomNumberGenerator.new()
+			sh_rng.randomize()
+			var sh_n: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else ShellUse.FIRST_NUM
+			var sh_free: Array[String] = []
+			for b: Vector2i in ShellUse.beach_blocks():
+				sh_free.append("%d,%d:%d" % [b.x, b.y, ShellUse.free_cells(sh_world, sh_world.grid, b).size()])
+			var sh_set: int = ShellUse.wash_up(sh_world, sh_n, Vector2i(-1, -1), sh_rng)
+			return "%d shells set (%d on the beach; free %s)." % [sh_set, Game.shells.size(), " ".join(sh_free)]
 		"weeds":
 			## Sow N weeds now (`mAGrw_SetGrass`), or `weeds clear`.
 			var wd_tree := Engine.get_main_loop() as SceneTree

@@ -1090,6 +1090,13 @@ static func item_visual(item_id: StringName) -> StringName:
 			return &"obj_item_orange"
 		&"mushroom":
 			return &"obj_item_matutake"
+		## `item1_5_tableNo` for `ITM_SHELL0`–`7`: `SHELLA` / `SHELLB` / `SHELLC`.
+		&"wentletrap", &"venus_comb", &"porceletta", &"conch":
+			return &"obj_item_shellA"
+		&"lions_paw", &"sand_dollar", &"white_scallop":
+			return &"obj_item_shellB"
+		&"coral":
+			return &"obj_item_shellC"
 		&"money_100", &"money_1000", &"money_10000", &"money_30000":
 			return &"obj_item_bag"
 		&"flower":

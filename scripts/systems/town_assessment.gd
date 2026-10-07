@@ -184,14 +184,14 @@ static func survey(world: Node) -> Array:
 			if acre != null:
 				acre.dust += 1
 	for key: Variant in Game.weeds:
-		var acre := by_block.get(WeedUse.cell_from_persist(StringName(str(key))) / 16) as AcreTally
+		var acre := by_block.get(TownSpace.block_of_cell(WeedUse.cell_from_persist(StringName(str(key))))) as AcreTally
 		if acre != null:
 			acre.weeds += 1
 	return acres
 
 
 static func _block_of(grid: WorldGrid, pos: Vector3) -> Vector2i:
-	return grid.world_to_cell(pos) / 16
+	return TownSpace.block_of_cell(grid.world_to_cell(pos))
 
 
 static func _acre_type(layout: WorldData, block: Vector2i) -> int:

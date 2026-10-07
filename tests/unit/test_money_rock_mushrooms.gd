@@ -94,8 +94,8 @@ func test_mushroom_crop_by_the_quarter_hour() -> void:
 func test_mushrooms_grow_under_trees_then_go() -> void:
 	var world := _world()
 	## Hosts in field acres (1,1) and (2,2); the player stands in acre (1,3).
+	_tree(world, Vector2i(4, 4))
 	_tree(world, Vector2i(20, 20))
-	_tree(world, Vector2i(36, 36))
 	Game.events.force(MushroomUse.SEASON_EVENT)
 	Game.events.sync(EventCalendar.make_date(2002, 10, 16, 8))
 	assert_bool(MushroomUse.in_season()).is_true()
@@ -109,7 +109,7 @@ func test_mushrooms_grow_under_trees_then_go() -> void:
 	assert_int(Game.mushrooms.size()).is_equal(5)
 	for key: Variant in Game.mushrooms:
 		var cell: Vector2i = MushroomUse.cell_from_persist(StringName(str(key)))
-		assert_that(cell / 16).is_equal(Vector2i(2, 2))
+		assert_that(TownSpace.block_of_cell(cell)).is_equal(Vector2i(2, 2))
 	assert_bool(Game.mushroom_active).is_false()
 	## Same quarter: nothing changes. Half an hour on: two have gone.
 	MushroomUse.tick(world, day + 8 * 60 + 10, 8, 10, Vector2i(1, 3), rng)

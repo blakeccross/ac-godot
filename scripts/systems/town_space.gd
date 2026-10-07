@@ -27,6 +27,11 @@ static func block_of(gx: Vector3) -> Vector2i:
 	return Vector2i(floori(gx.x / BLOCK_GX), floori(gx.z / BLOCK_GX))
 
 
+## The decomp block a `WorldGrid` cell is in: our grid starts at FG block (1, 1).
+static func block_of_cell(cell: Vector2i) -> Vector2i:
+	return Vector2i(floori(cell.x / 16.0), floori(cell.y / 16.0)) + Vector2i.ONE
+
+
 ## `mFI_BkNum2WposXZ`: the block's north-west corner.
 static func block_base(block: Vector2i) -> Vector2:
 	return Vector2(block.x * BLOCK_GX, block.y * BLOCK_GX)

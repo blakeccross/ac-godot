@@ -106,7 +106,7 @@ static func hosts(world: Node) -> Dictionary:
 		if not bool(node.call("can_host_mushroom")):
 			continue
 		var cell: Vector2i = grid.world_to_cell((node as Node3D).global_position)
-		var block: Vector2i = cell / 16
+		var block: Vector2i = TownSpace.block_of_cell(cell)
 		if block.x < 1 or block.x > TownAssessment.FG_BLOCK_X or block.y < 1 or block.y > TownAssessment.FG_BLOCK_Z:
 			continue
 		## `ut_x < UT_X_NUM - 1 && ut_z < UT_Z_NUM - 1`.
@@ -168,7 +168,7 @@ static func clear(world: Node, amount: int, player_block: Vector2i, rng: RandomN
 	var candidates: Array = []
 	for key: Variant in Game.mushrooms.keys():
 		var cell: Vector2i = cell_from_persist(StringName(str(key)))
-		if cell.x < 0 or cell / 16 == player_block:
+		if cell.x < 0 or TownSpace.block_of_cell(cell) == player_block:
 			continue
 		candidates.append(String(key))
 	candidates.sort()

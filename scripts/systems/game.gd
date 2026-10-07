@@ -226,6 +226,11 @@ var mushroom_minute: int = -1
 var mushroom_active: bool = false
 ## `mMsr_FirstClearMushroom` has run for this play session (not saved).
 var mushrooms_session_cleared: bool = false
+## Sea shells on the beach (`ShellUse`): `shell_<x>_<z>` → item id. Saved.
+var shells: Dictionary = {}
+## Shells still to wash up: twenty when a session starts (`mFI_SetFirstSetShell`).
+var shells_owed: int = ShellUse.FIRST_NUM
+var shell_minute_counted: bool = false
 ## `Save.snowmen`: three slots, each {} or {head, body (sizes 0–1), score, cell [x, z], age}.
 var snowmen: Array = [{}, {}, {}]
 ## `Save.snowman_year…hour` as `Clock.absolute_minute` (−1 never): no new balls until 6 AM.
@@ -1240,6 +1245,9 @@ func reset_session() -> void:
 	MoneyRock.reset()
 	mushrooms_session_cleared = false
 	mushrooms.clear()
+	shells.clear()
+	shells_owed = ShellUse.FIRST_NUM
+	shell_minute_counted = false
 	mushroom_minute = -1
 	mushroom_active = false
 	snowmen = [{}, {}, {}]
@@ -1543,6 +1551,7 @@ func to_save() -> Dictionary:
 		"money_rock": money_rock,
 		"money_rock_day": money_rock_day,
 		"mushrooms": mushrooms.duplicate(),
+		"shells": shells.duplicate(),
 		"mushroom_minute": mushroom_minute,
 		"mushroom_active": mushroom_active,
 		"snowmen": snowmen.duplicate(true),
@@ -1658,6 +1667,13 @@ func apply_snapshot(data: Dictionary) -> void:
 	golden_shovel_shown = bool(data.get("golden_shovel_shown", false))
 	money_rock = str(data.get("money_rock", ""))
 	money_rock_day = int(data.get("money_rock_day", -1))
+	shells.clear()
+	var saved_shells: Variant = data.get("shells", {})
+	if typeof(saved_shells) == TYPE_DICTIONARY:
+		for key: Variant in saved_shells:
+			shells[str(key)] = str(saved_shells[key])
+	shells_owed = ShellUse.FIRST_NUM
+	shell_minute_counted = false
 	mushrooms_session_cleared = false
 	mushrooms.clear()
 	var saved_mushrooms: Variant = data.get("mushrooms", {})
