@@ -379,7 +379,7 @@ data tables before a category is called done.
 - [x] ~~Pro designs~~ — not in GCN
 - [x] ~~Free patterns from visitors~~ — GCN visitors don't hand out designs (Gracie sells clothes); `ac_broker_design` is the e-Reader card path (§28)
 - [x] Design storage (`m_cporiginal_ovl`): the Able Sisters design album, 8 folders × 12 (§22). `m_cpedit_ovl` is the Memory Card copy/edit shell around it — no Memory Card layer in the port
-- [ ] Town flag design (on the flagpole at the station) (`ac_flag`)
+- [x] ~~Town flag design~~ — `ac_flag` is the Animal Island flag (`island.flag_design`), part of the GBA island (§28); the GameCube town has no flagpole
 - [ ] e-Reader design cards import (§28)
 
 ## 21. Nook's store
@@ -502,10 +502,10 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [~] Station building; **Porter** the monkey stationmaster (`ac_station`, `ac_npc_station_master`) — `intro_station_stage.gd`
 - [~] Arrival by train on a new game: Rover on the train, get off, Porter greets, walk to Nook (`ac_train0/1`, `ac_intro_demo`) — `intro_train_stage.gd`, `intro_station_stage.gd`
 - [x] Travelling by train: Porter on the platform asks "Are you planning on going on a trip?" (0x0943), checks there is another town and no other passport out (0x0946 / 0x095E), saves the passport and the town (0x094F) and sees you off (0x0965) — `PorterTalk`, `Travel`. The other slot's K.K. welcomes the visitor (0x5130) and they get off on that town's platform; leaving, Porter saves that town and the passport (0x095C / 0x0955); back home K.K. copies them in (0x5128) and Porter says "Welcome home" (0x0966). Missing: the train pulling in and out on screen for these trips
-- [ ] Send a villager away / villager arrives by moving truck vs. train
+- [x] ~~Send a villager away / moving truck~~ — not on the GameCube: a newcomer's house simply appears and a leaver's goes (`m_npc` move in / out, §17); the player can only talk a villager out of leaving
 - [x] Gulliver washes up on the **beach**, not the train — see §30
-- [ ] Flag on the flagpole outside the station (`ac_flag`)
-- [ ] Train departure/arrival animation, whistle, `ef_kisha_kemuri` smoke
+- [x] ~~Flag on the flagpole outside the station~~ — island only (`ac_flag`, §28)
+- [x] Train departure/arrival animation, whistle, `ef_kisha_kemuri` smoke — `TrainService`, `FieldTrain`, `FieldFx`
 
 ## 28. Peripherals & connectivity
 
