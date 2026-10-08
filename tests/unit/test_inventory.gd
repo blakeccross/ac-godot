@@ -208,8 +208,9 @@ func test_inventory_drop_arcs_item_after_close() -> void:
 	var src := FileAccess.get_file_as_string("res://scenes/ui/inventory_overlay.gd")
 	assert_str(src).contains("begin_fall")
 	assert_str(src).contains("50.0 * FieldCatalog.GX_TO_METERS")
-	assert_str(src).contains("FieldCollision.FG_GROUND_DIST")
 	assert_str(src).contains("close()")
+	## The item lands on its unit (`FieldItems`), at GetBgY(..., −1 GX).
+	assert_str(FileAccess.get_file_as_string("res://scripts/systems/field_items.gd")).contains("FieldCollision.FG_GROUND_DIST")
 
 
 func test_inventory_plant_closes_then_putin_or_ground() -> void:

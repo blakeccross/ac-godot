@@ -232,6 +232,8 @@ var mushroom_active: bool = false
 var mushrooms_session_cleared: bool = false
 ## Signboards the residents put up (`SignboardUse`): `signboard_<x>_<z>` → `{design}`. Saved.
 var signboards: Dictionary = {}
+## Things lying on the field (`FieldItems`): `fitem_<x>_<z>` → {id, wrapped}. Saved.
+var field_items: Dictionary = {}
 ## Sea shells on the beach (`ShellUse`): `shell_<x>_<z>` → item id. Saved.
 var shells: Dictionary = {}
 ## Shells still to wash up: twenty when a session starts (`mFI_SetFirstSetShell`).
@@ -1275,6 +1277,7 @@ func reset_session() -> void:
 	shells_owed = ShellUse.FIRST_NUM
 	shell_minute_counted = false
 	signboards.clear()
+	field_items.clear()
 	mushroom_minute = -1
 	mushroom_active = false
 	snowmen = [{}, {}, {}]
@@ -1581,6 +1584,7 @@ func to_save() -> Dictionary:
 		"mushrooms": mushrooms.duplicate(),
 		"shells": shells.duplicate(),
 		"signboards": signboards.duplicate(true),
+		"field_items": field_items.duplicate(true),
 		"mushroom_minute": mushroom_minute,
 		"mushroom_active": mushroom_active,
 		"snowmen": snowmen.duplicate(true),
@@ -1700,6 +1704,10 @@ func apply_snapshot(data: Dictionary) -> void:
 	var saved_signs: Variant = data.get("signboards", {})
 	if typeof(saved_signs) == TYPE_DICTIONARY:
 		signboards = (saved_signs as Dictionary).duplicate(true)
+	field_items.clear()
+	var saved_items: Variant = data.get("field_items", {})
+	if typeof(saved_items) == TYPE_DICTIONARY:
+		field_items = (saved_items as Dictionary).duplicate(true)
 	shells.clear()
 	var saved_shells: Variant = data.get("shells", {})
 	if typeof(saved_shells) == TYPE_DICTIONARY:
@@ -2154,6 +2162,8 @@ func _on_field_renewed(days: int) -> void:
 	shops.renew(days)
 	weed_days_pending += maxi(days, 0)
 	melt_snowmen(days)
+	## `mAGrw_ClearSpoiledKabu` / `mAGrw_SpoilKabu` / `mAGrw_SpoilAllPossession`.
+	FieldItems.renew(FieldItems.sunday_passed(Clock.year, Clock.month, Clock.day, days), inventory, get_tree())
 	var vt_rng := RandomNumberGenerator.new()
 	vt_rng.randomize()
 	_check_valentines(vt_rng)

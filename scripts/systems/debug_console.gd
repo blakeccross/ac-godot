@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "drop", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -49,6 +49,22 @@ func execute(raw: String) -> String:
 				if eq_slot != null and not eq_slot.is_empty() and eq_slot.item.item_id == eq_id:
 					return "%s Equipped: %s." % [eq_msg, Game.inventory.equip_slot(i)]
 			return eq_msg
+		"drop":
+			## Lay an item on the unit in front of the player (`drop turnips_10`), as dropping does.
+			var dr_tree := Engine.get_main_loop() as SceneTree
+			var dr_world: Node = World.find(dr_tree) if dr_tree != null else null
+			var dr_player: Node3D = Player.find(dr_tree) if dr_tree != null else null
+			if dr_world == null or dr_player == null or args.is_empty():
+				return "Usage: drop <item_id> (outdoors)."
+			var dr_ctx := InteractionContext.new()
+			dr_ctx.actor = dr_player
+			dr_ctx.world = dr_world
+			var dr_grid: WorldGrid = dr_world.get("grid") as WorldGrid
+			var dr_front: Vector2i = ToolUse.facing_cell(dr_ctx)
+			var dr_cell: Vector2i = FieldItems.drop_cell(dr_grid, dr_front, dr_front - dr_grid.world_to_cell(dr_player.global_position))
+			if dr_cell.x < 0 or FieldItems.put(dr_world, dr_cell, StringName(String(args[0]).to_lower())) == null:
+				return "Can't drop here."
+			return "Dropped %s at %s." % [args[0], dr_cell]
 		"axebreak":
 			## Hold a seventh-stage axe one hit from breaking, and break it now (`BROKEN_AXE`).
 			_cmd_give(["axe_use_7"])

@@ -27,6 +27,13 @@ func _ready() -> void:
 	_apply_visual()
 
 
+## The item changed where it lies (turnips spoiling, `FieldItems.renew`).
+func set_item(next: ItemData) -> void:
+	item = next
+	GeneratedVisual.detach(self)
+	_apply_visual()
+
+
 func _apply_visual() -> void:
 	if item == null:
 		return
@@ -59,9 +66,9 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if ctx.inventory.add(item, 1, cond) != 0:
 		Game.post_notice("Pockets full")
 		return false
-	## Mushrooms and shells come and go by cell (`MushroomUse`, `ShellUse`); everything else
-	## stays picked.
-	if not MushroomUse.picked(persist_id) and not ShellUse.picked(persist_id):
+	## Mushrooms, shells and dropped things come and go by cell (`MushroomUse`, `ShellUse`,
+	## `FieldItems`); everything else stays picked.
+	if not MushroomUse.picked(persist_id) and not ShellUse.picked(persist_id) and not FieldItems.picked(persist_id):
 		Game.mark_interactable_removed(persist_id)
 	var id: StringName = persist_id if persist_id != &"" else occupant_id
 	ctx.release_occupant(id)

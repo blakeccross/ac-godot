@@ -3,7 +3,6 @@ extends StaticBody3D
 ## Outdoor tree. Shake / chop / stump rules live in TreeUse; this scene presents them.
 ## Shake timing matches `mPlayer_ANIM_SHAKE1` frame 10; sway matches EffectBG shakeL/S.
 
-const PICKUP_SCENE := preload("res://scenes/world/item_pickup.tscn")
 const STUMP_VISUAL := &"TREE_STUMP004"
 ## `mCoBG_MakeOneColumnCollisionData`: a grown stump (`TREE_STUMP004`) is an 18 GX column
 ## (the `*_STUMP001` saplings' stumps would be 10). Trees are 19 (`HostCollision`).
@@ -310,23 +309,17 @@ func drop_present(item: ItemData) -> void:
 	var grid: WorldGrid = world.grid
 	var origin: Vector2i = grid.world_to_cell(global_position)
 	var cells: Array[Vector2i] = TreeUse.pick_drop_cells(origin, grid, 1, false)
-	var cell: Vector2i = cells[0] if not cells.is_empty() else origin
-	var pickup: Node3D = PICKUP_SCENE.instantiate() as Node3D
-	var drop_id := StringName("%s_balloon_%d" % [String(_persist()), Time.get_ticks_msec()])
-	pickup.set("item", item)
-	pickup.set("wrapped", true)
-	pickup.set("persist_id", drop_id)
-	pickup.set("occupant_id", drop_id)
-	objects.add_child(pickup)
-	var land: Vector3 = grid.cell_to_world(cell)
-	if world.layout != null:
-		land.y = FieldCollision.ground_y(world.layout, cell, FieldCollision.FG_GROUND_DIST)
+	if cells.is_empty():
+		return
+	var pickup: Node3D = FieldItems.put(world, cells[0], item.id, true)
+	if pickup == null:
+		return
+	var land: Vector3 = pickup.global_position
 	var crown: Vector3 = global_position + TreeUse.crown_offset(2, false, false)
 	if pickup.has_method("begin_fall"):
 		pickup.call("begin_fall", crown, land, TreeUse.drop_duration(2, false, false), false)
 	else:
 		pickup.global_position = land
-	grid.place(drop_id, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM)
 
 
 func _persist() -> StringName:
@@ -366,17 +359,11 @@ func _emit_drops(out: TreeUse.Outcome, ctx: InteractionContext) -> void:
 		var cell: Vector2i = cells[i] if i < cells.size() else origin
 		var is_honey: bool = data.id == &"honeycomb"
 		var is_ftr: bool = data is FurnitureData
-		var pickup: Node3D = PICKUP_SCENE.instantiate() as Node3D
-		pickup.set("item", data)
-		var drop_id := StringName("%s_drop_%d" % [String(_persist()), i])
-		pickup.set("persist_id", drop_id)
-		pickup.set("occupant_id", drop_id)
-		objects.add_child(pickup)
-		var land: Vector3 = grid.cell_to_world(cell)
-		if "layout" in ctx.world and ctx.world.layout != null:
-			land.y = FieldCollision.ground_y(
-				ctx.world.layout, cell, FieldCollision.FG_GROUND_DIST
-			)
+		## What lands stays on the field (`FieldItems`); no free unit, nothing lands.
+		var pickup: Node3D = FieldItems.put(ctx.world, cell, data.id)
+		if pickup == null:
+			continue
+		var land: Vector3 = pickup.global_position
 		var crown: Vector3 = global_position + TreeUse.crown_offset(i, is_honey, is_palm)
 		var duration: float = TreeUse.drop_duration(i, is_honey, is_ftr)
 		if pickup.has_method("begin_fall"):
@@ -390,9 +377,6 @@ func _emit_drops(out: TreeUse.Outcome, ctx: InteractionContext) -> void:
 				)
 		else:
 			pickup.global_position = land
-		grid.place(
-			drop_id, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM
-		)
 
 
 func _arm_bees(ctx: InteractionContext) -> void:

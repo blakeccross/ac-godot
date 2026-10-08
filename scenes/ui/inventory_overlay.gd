@@ -8,7 +8,6 @@ extends CanvasLayer
 ## `aMBX_pl_close` waits for this to play the mailbox's closing beat.
 signal closed
 
-const ITEM_SCENE := "res://scenes/world/item_pickup.tscn"
 const PLAYER_GLB := "res://assets/generated/characters/player/boy_1.glb"
 const HND_GLB := "res://assets/generated/characters/other/hnd.glb"
 const HAND_SIZE := 100.0
@@ -113,7 +112,6 @@ var _collect_banner: TextureRect = null
 var _collect_title: Label = null
 var _collect_count: Label = null
 var _pocket_chrome: Array[CanvasItem] = []
-var _drop_pid_seq: int = 0
 ## Mail slot index awaiting a Yes/No discard confirmation, or -1 when none is pending.
 var _pending_mail_discard: int = -1
 ## `mTG_TABLE_MONEY`: the wallet's own verb popup (denomination picker), not an item slot.
@@ -1931,7 +1929,7 @@ func _drop_selected() -> void:
 			return
 		Audio.play_se(&"item_horidashi")
 		return
-	if not _spawn_pickup(data):
+	if not _spawn_pickup(data, 0.0, removed.condition == InventoryItem.Condition.PRESENT):
 		inv.add(data, removed.count, removed.condition)
 		Game.post_notice("Can't drop here")
 		return
@@ -1961,7 +1959,7 @@ func _drop_all_marked() -> void:
 		var data: ItemData = ItemCatalog.get_item(item.item_id)
 		if data == null:
 			continue
-		if _spawn_pickup(data, (float(i) - float(removed.size() - 1) * 0.5) * 0.6):
+		if _spawn_pickup(data, 0.0, item.condition == InventoryItem.Condition.PRESENT):
 			dropped += 1
 		else:
 			inv.add(data, item.count, item.condition)
@@ -1971,52 +1969,29 @@ func _drop_all_marked() -> void:
 		Game.post_notice("Can't drop here")
 
 
-func _spawn_pickup(item: ItemData, lateral_offset: float = 0.0) -> bool:
+## Lay the item on the unit in front, or the nearest free one (`FieldItems`), dropped from the
+## player's hands. `_lateral_offset` is unused: each item finds its own unit.
+func _spawn_pickup(item: ItemData, _lateral_offset: float = 0.0, wrapped: bool = false) -> bool:
 	var tree := get_tree()
 	if tree == null:
 		return false
 	var player := Player.find(tree)
 	var world := World.find(tree)
-	if player == null or world == null:
+	if player == null or world == null or not (world.grid is WorldGrid):
 		return false
-	var packed: PackedScene = load(ITEM_SCENE) as PackedScene
-	if packed == null:
+	var grid: WorldGrid = world.grid
+	var ctx: InteractionContext = _field_context()
+	var front: Vector2i = ToolUse.facing_cell(ctx)
+	var cell: Vector2i = FieldItems.drop_cell(grid, front, front - grid.world_to_cell(player.global_position))
+	if cell.x < 0:
 		return false
-	var node: Node = packed.instantiate()
-	if not (node is Node3D):
-		node.queue_free()
+	var pickup: Node3D = FieldItems.put(world, cell, item.id, wrapped)
+	if pickup == null:
 		return false
-	var pickup := node as Node3D
-	pickup.set("item", item)
-	_drop_pid_seq += 1
-	## `Time.get_ticks_msec()` alone can repeat across a same-frame "Drop All" burst —
-	## the counter guarantees each spawned pickup still gets a distinct `persist_id`.
-	var pid := StringName("drop_%s_%d_%d" % [String(item.id), Time.get_ticks_msec(), _drop_pid_seq])
-	pickup.set("persist_id", pid)
-	pickup.set("occupy_grid", false)
-	var objects: Node = world.get_node_or_null("Objects")
-	if objects == null:
-		world.add_child(pickup)
-	else:
-		objects.add_child(pickup)
-	var yaw: float = 0.0
-	yaw = player.facing_yaw()
-	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
-	var side := Vector3(cos(yaw), 0.0, -sin(yaw))
-	var land: Vector3 = player.global_position + forward * 1.1 + side * lateral_offset
-	var layout: Variant = world.layout
-	var grid: Variant = world.grid
-	if layout is WorldData and grid is WorldGrid:
-		land.y = FieldCollision.ground_y_at(
-			layout as WorldData, grid as WorldGrid, land, FieldCollision.FG_GROUND_DIST
-		)
-	else:
-		land.y = player.global_position.y + FieldCatalog.GX_TO_METERS
+	var land: Vector3 = pickup.global_position
 	var start: Vector3 = player.global_position + Vector3(0.0, 50.0 * FieldCatalog.GX_TO_METERS, 0.0)
 	if pickup.has_method("begin_fall"):
 		pickup.call("begin_fall", start, land, 0.55)
-	else:
-		pickup.global_position = land
 	return true
 
 
