@@ -69,8 +69,8 @@ data tables before a category is called done.
 - [~] Procedural town: 5×6 acre grid, cliffs/terraces (3 elevations), river, waterfalls, ponds, sea + beach (`m_random_field`, `m_field_make`) — `town_field_generator.gd`
 - [ ] Fixed known-seed towns (A–D style) selectable — `REFERENCE` world mode reserved
 - [~] River mouth, river forks, round pond, waterfall placement rules — `TownFieldGenerator` picks the disc's acre templates by block kind (river, bridge, pond, waterfall, mouth); `WaterBodies` splits sea from river
-- [ ] Beach along the south edge; tide; ocean horizon; rocks in surf
-- [ ] Acre-edge scroll / camera hand-off between acres
+- [x] Beach along the south edge with the sea and its horizon (beach / ocean acres from the disc, wave units, surf sound, shells) — the GameCube has no tide
+- [x] ~~Acre-edge scroll~~ — the GameCube camera follows continuously across acres (`AcreCamera`)
 - [x] Town map from the held map item (blue) or the sight-map boards (yellow), drawn like `mMP_set_dl` from the disc's `kan_win` / `kan_tizu` art: acre tiles, the selected acre's letter and number, the label frame sized to its labels, building names or residents (the player plus "free" plots; villagers by name with their house marks tinted by ground height), you-are-here mark, the easing, pulsing cursor (`m_map_ovl`) — `map_overlay.gd`, layers from `menu_ui.py` (`ui/map_screen/`); `map` console command
 - [~] Bridge(s) across the river (`ac_bridge_a`) — the river's bridge acre comes from the generator. Missing: the second bridge Tortimer builds (`mEv_EVENT_BRIDGE_MAKE`)
 - [x] Building slots: player houses, Nook's, Able Sisters, Museum, Post Office, Police Station, Wishing Well, Train Station, Dump, Lighthouse — block kinds placed by `TownFieldGenerator` (no Town Hall on the GameCube)
@@ -105,7 +105,7 @@ data tables before a category is called done.
 - [~] 3/4 fixed-angle follow camera, ~20° FOV, ~45°, focus distance 620 (`m_camera2`) — `follow_camera` / `FollowCamera`
 - [x] ~~Camera rotates 90° per acre~~ — the GCN camera keeps one heading; acre crossings only re-aim the follow (`AcreCamera`)
 - [~] Special cameras: door enter/exit, talking, sitting, fishing show-off, demos — `door_camera.gd`, `talk_camera.gd`
-- [ ] C-stick / look controls (if any); pause zoom
+- [x] ~~C-stick / look controls~~ — `m_camera2` reads no input; there is no look or pause zoom
 - [~] Cutscene direction for events (`m_demo.c`) — each event drives its own camera and actors (door, talk, intro train, K.K., Resetti, present visit); there is no shared demo director
 
 ## 7. Movement & locomotion
@@ -602,7 +602,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 
 - [~] Sequenced BGM engine (`jaudio_NES`, `m_bgm`, `audiorom.img`) — `audio.gd`, `bgm_catalog.gd`
 - [~] **24 hourly field themes**, rain theme, title, train, shops, museum, post office, police, house, Able's (`BgmCatalog`). Missing: the island
-- [ ] Music crossfades on the hour; muffled when indoors; stops in caves? (n/a)
+- [x] Music crossfades on the hour (`mBGMPs_FLAG_CROSSFADE` → `Audio.play_bgm` fade); rooms play their own music — no caves on the GameCube
 - [~] **K.K. Slider songs** — the Saturday show and aircheck music players (§30, `FurnitureMusic`)
 - [~] SFX bank (seq 242): footsteps by surface (`FootstepSe`), tools, UI, doors, catches (`SeCatalog`). Gaps where the converted bank lacks an SE
 - [~] **Animalese** speech — see §17
@@ -615,7 +615,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 
 ## 33. UI, menus, misc systems
 
-- [ ] Start / pause menu: map, inventory, diary?, options
+- [x] ~~Start / pause menu~~ — the GameCube has none: the pockets, map and letters open straight from the field; options live on the title screen
 - [~] **Diary** — the player writes it: a page per month (31 lines, 992 characters) on the disc's three-sheet page with the month tab, scrolled while reading and rolled to the line while writing, opened by "Read" on any of the sixteen notebooks in your own rooms (`m_diary_ovl`, `aMR_CheckDiaryOnMe`) — `DiaryOverlay`. It opens through the calendar. Missing: the notebook having to sit on a table
 - [x] Held **map** item / sight-map boards — `MapOverlay` (§4)
 - [x] ~~HUD clock~~ — GCN has no HUD; the time shows on the pockets screen
