@@ -21,7 +21,15 @@ const WINDOWS := {
 	&"catchphrase": ["ephrase", "Enter something!", Vector2(134, 45), 0.875, Vector2(100, 76), Color8(235, 75, 0)],
 	&"song": ["req", "Request a song!", Vector2(138, 41), 0.875, Vector2(82, 76), Color8(50, 50, 235)],
 	&"design": ["dna", "Enter a name.", Vector2(142, 37), 0.875, Vector2(82, 69), Color8(50, 40, 50)],
+	## Secret codes (`m_passwordChk_ovl`, `m_passwordMake_ovl`). Their own windows aren't baked;
+	## these borrow the design-name window.
+	&"password": ["dna", "Tell me the password.", Vector2(110, 37), 0.875, Vector2(70, 62), Color8(225, 30, 215)],
+	&"pw_town": ["dna", "Town name?", Vector2(142, 37), 0.875, Vector2(82, 69), Color8(50, 40, 50)],
+	&"pw_player": ["dna", "Player name?", Vector2(138, 37), 0.875, Vector2(82, 69), Color8(50, 40, 50)],
 }
+## Longest entry per kind; the rest take `NAME_LEN`. A password draws as two rows of 14.
+const MAX_LEN := {&"password": SecretCode.STR_LEN, &"pw_town": SecretCode.NAME_LEN, &"pw_player": SecretCode.NAME_LEN}
+const ROW_LEN := 14
 const FONT_PX := 16
 
 var _open: bool = false
@@ -82,9 +90,9 @@ func is_open() -> bool:
 func open(initial: String, callback: Callable = Callable(), kind: StringName = &"design") -> void:
 	if _open:
 		return
-	_text = initial.substr(0, NAME_LEN)
 	_cb = callback
 	_kind = kind if WINDOWS.has(kind) else &"design"
+	_text = initial.substr(0, _max_len())
 	var win: Array = WINDOWS[_kind]
 	var path := "res://assets/generated/ui/menu/ledit_%s.png" % win[0]
 	_window.texture = load(path) if ResourceLoader.exists(path) else null
@@ -107,13 +115,20 @@ func _finish(cancelled: bool) -> void:
 	set_process(false)
 	set_process_unhandled_input(false)
 	var result := _text.strip_edges()
-	if cancelled or result.is_empty():
+	if MAX_LEN.has(_kind):
+		## A code or an address: cancelled is empty, nothing is filled in for the player.
+		result = "" if cancelled else _text
+	elif cancelled or result.is_empty():
 		result = _text if not _text.strip_edges().is_empty() else "design"
 	var cb := _cb
 	_cb = Callable()
 	closed.emit()
 	if cb.is_valid():
-		cb.call(result.substr(0, NAME_LEN))
+		cb.call(result.substr(0, _max_len()))
+
+
+func _max_len() -> int:
+	return int(MAX_LEN.get(_kind, NAME_LEN))
 
 
 func _on_slid_out() -> void:
@@ -140,7 +155,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _append(ch: String) -> void:
-	if _text.length() >= NAME_LEN:
+	if _text.length() >= _max_len():
 		Audio.play_se(&"cursol")
 		return
 	_text += ch
@@ -166,7 +181,15 @@ func _draw_text() -> void:
 	_text_view.draw_string(_font, title_pos + Vector2(0, _font.get_ascent(title_px)), win[1],
 		HORIZONTAL_ALIGNMENT_LEFT, -1, title_px, Color.WHITE)
 	var edit_pos: Vector2 = win[4]
-	_text_view.draw_string(_font, edit_pos + Vector2(0, _font.get_ascent(FONT_PX)), _text,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX, win[5])
-	var x := edit_pos.x + _font.get_string_size(_text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX).x
-	FontMark.draw_cursor(_text_view, Vector2(x, edit_pos.y))
+	var rows: Array[String] = [_text]
+	if _kind == &"password":
+		rows = [_text.substr(0, ROW_LEN), _text.substr(ROW_LEN)]
+	var y: float = edit_pos.y
+	for line: String in rows:
+		_text_view.draw_string(_font, Vector2(edit_pos.x, y + _font.get_ascent(FONT_PX)), line,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX, win[5])
+		y += FONT_PX + 2
+	var row: int = 1 if rows.size() > 1 and _text.length() >= ROW_LEN else 0
+	var cursor_y: float = edit_pos.y + (FONT_PX + 2) * row
+	var x := edit_pos.x + _font.get_string_size(rows[row], HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX).x
+	FontMark.draw_cursor(_text_view, Vector2(x, cursor_y))

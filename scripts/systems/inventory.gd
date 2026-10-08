@@ -789,6 +789,8 @@ static func putin_allowed(data: ItemData, filter: StringName) -> bool:
 		return false
 	if filter == &"minidisk":
 		return MinidiskCatalog.is_disc(data.id)
+	if filter == &"code_gift":
+		return CodeItems.giftable(data)
 	return true
 
 

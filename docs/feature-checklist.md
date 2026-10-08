@@ -398,7 +398,7 @@ data tables before a category is called done.
 - [x] ~~Emotion / Redd membership card~~ — not in the GameCube shop code
 - [x] Raffle tickets & end-of-month drawing (`ac_npc_shop_mastersp`): furniture / clothes / wallpaper / carpet / umbrella purchases each earn a month ticket (stack of 5; mailed next morning when the pockets are full, `aNSC_setup_ticket_remain`); on the last day Nook shows three prizes (the first one you don't own), five same-month tickets per spin, 5% / 10% / 20% for 1st / 2nd / 3rd, each prize won once
 - [x] Roof paint sold at Nookway+: no pocket item, the roof changes at the next game start (`next_outlook_pal`)
-- [ ] Nook's secret codes / passwords (make a code for a friend, enter a code for a gift, 3 a day) (`m_passwordMake_ovl`, `m_passwordChk_ovl`) — see §28
+- [x] Nook's secret codes (`m_mail_password_check`, `m_passwordMake_ovl`, `m_passwordChk_ovl`): "Hear code" trades a pocket item for a code addressed to a friend's town and name; "Say code" takes a code and hands over its item wrapped, three a session, at home only — the GameCube algorithm byte for byte (`SecretCode`, checked against the decomp's encoder), so real codes work. Items map through `CodeItems`. Missing: the password windows' own art (the design-name window stands in)
 
 ## 22. Able Sisters (Nook's neighbour)
 
@@ -459,7 +459,7 @@ were dropped. See [shops](decomp_notes/shops.md) § Able Sisters.
 - [x] ~~Parcels / forwarding~~ — not in GCN beyond catalogue deliveries by letter
 - [x] ~~Closed hours & knock~~ — the GameCube post office never closes: Pelly by day, Phyllis by night with her own (grumpier) lines, `draw_type` +1 (`PostDisplay`)
 - [x] ~~Pelly's storyline~~ — no storyline on the GameCube: Pete's unrequited love is villager chat, and the date is an April Fools' lie (15277/15278)
-- [ ] Password / secret-code redemption at the Post Office (`m_mail_password_check`, `m_passwordChk_ovl`) — see §28
+- [~] Codes mailed to villagers (`mNpc_ReceiveHPMail`): not yet — Nook redeems them (§ shop)
 
 ## 25. Police Station
 
@@ -518,7 +518,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [ ] **e-Reader** card support (`m_card`, `ac_broker_design`, password systems)
   - [ ] Character/villager cards, item cards, NES game cards, town-tune cards, design cards, special-character cards
   - [ ] Villagers you scan in can move to town
-- [ ] **Secret codes / passwords**: villagers & Nook trade codes for items; Tom Nook / Post Office redemption (`m_passwordMake_ovl`, `m_passwordChk_ovl`, `m_mail_password_check`)
+- [~] **Secret codes / passwords**: Tom Nook makes and redeems them (`SecretCode`, `CodeItems`). Missing: codes mailed to villagers (Famicom / popularity / e-Card types)
 - [ ] **NES / Famicom games as furniture** (`famicom_emu.c`, `src/static/Famicom`, `src/static/jaudio_NES`)
   - [ ] ~15–19 built-in NES titles playable in your house on a Famicom console _(verify list & count)_
   - [ ] Save state per game; some obtained only via e-Reader / events (e.g. Punch-Out, Zelda)

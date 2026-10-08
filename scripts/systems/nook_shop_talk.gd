@@ -20,6 +20,15 @@ const VAR_ORDER_ITEM := "shop_order_item"
 const VAR_SELL := "shop_sell"
 const VAR_SELL_DONE := "shop_sell_done"
 const OP := "nook_shop"
+## Secret codes (`aNSC_request_Q_answer_wait2`, `aNSC_pc_*`, `aNSC_pw_*`): what Nook says about
+## a code told to him or one he makes.
+const CODE_ID := &"nook_shop_code"
+const VAR_CODE := "shop_code"
+const VAR_CODE_RESULT := "shop_code_result"
+## `Common_Get(unk_nook_present_count)`: three code presents a session.
+const CODE_GIFTS_MAX := 3
+## `hit_rate_magazine`: the chance a magazine code wins, by its hit rate.
+const MAGAZINE_ODDS: Array[float] = [80.0, 60.0, 30.0, 0.0, 100.0]
 
 ## Context vars the graphs branch on.
 const VAR_AGAIN := "shop_again"
@@ -151,6 +160,28 @@ static func apply_event(event: Dictionary, ctx: DialogueContext) -> Dictionary:
 			Game.shop_sell_slots = []
 			if ctx != null:
 				ctx.set_var(VAR_SELL_DONE, done)
+		"code_say":
+			## Say code: a visitor collects at home, three a session, room in the pockets.
+			var say: String = "ask"
+			if Game.foreigner:
+				say = "foreign"
+			elif Game.nook_code_gifts >= CODE_GIFTS_MAX:
+				say = "out"
+			elif Game.inventory.empty_slot_count() <= 0:
+				say = "full"
+			if ctx != null:
+				ctx.set_var(VAR_CODE, say)
+			if say == "ask":
+				out["open"] = &"code_say"
+		"code_hear":
+			## Hear code: only with something in the pockets that can be traded in.
+			var hear: String = "ask" if Game.inventory.has_putin_candidates(&"code_gift") else "none"
+			if ctx != null:
+				ctx.set_var(VAR_CODE, hear)
+			if hear == "ask":
+				out["open"] = &"code_hear"
+		"code_retry":
+			out["open"] = &"code_say"
 		"try_on":
 			var item_id := StringName(str(ctx.get_var("shop_offer_item", "")) if ctx != null else "")
 			out["try_on"] = item_id
@@ -183,6 +214,44 @@ static func apply_event(event: Dictionary, ctx: DialogueContext) -> Dictionary:
 					"yes" if left >= ShopBook.TICKETS_PER_DRAW and prizes_left else "no"
 				)
 	return out
+
+
+## `aNSC_pc_check_password`: what a code told to Nook comes to. `{result, item}` — result is
+## `good` (the item is for this player), `magazine_miss`, `carde` (to be mailed to a villager),
+## `bad` (someone else's) or `wrong` (not a code, or nothing the port has).
+static func redeem(code: String, player: String, town: String, rng: RandomNumberGenerator) -> Dictionary:
+	var f: Dictionary = SecretCode.decode(code)
+	if f.is_empty() or SecretCode.tampered(f):
+		return {"result": "wrong", "item": &""}
+	var item: StringName = CodeItems.id_of(int(f["item"]))
+	if item == &"":
+		return {"result": "wrong", "item": &""}
+	var mine: bool = SecretCode.for_player(f, player, town)
+	var hit: int = int(f["hit_rate"])
+	var result: String = "wrong"
+	match int(f["type"]):
+		SecretCode.Type.FAMICOM, SecretCode.Type.USER:
+			if hit == 1:
+				result = "good" if mine else "bad"
+		SecretCode.Type.POPULAR:
+			if hit == 1 and int(f["npc_code"]) >= 0:
+				result = "good" if mine else "bad"
+		SecretCode.Type.CARD_E:
+			result = "carde"
+		SecretCode.Type.MAGAZINE:
+			if hit <= 4:
+				result = "good" if rng.randf() * 100.0 < MAGAZINE_ODDS[hit] else "magazine_miss"
+		SecretCode.Type.CARD_E_MINI:
+			if hit == 1:
+				result = "good"
+	return {"result": result, "item": item}
+
+
+## `aNSC_pw_*`: the code Nook makes so `player` in `town` can pick up `item_id` (type USER).
+static func make_code(player: String, town: String, item_id: StringName) -> String:
+	return SecretCode.make(
+		SecretCode.Type.USER, 1, SecretCode.name_bytes(player), SecretCode.name_bytes(town), CodeItems.number_of(item_id)
+	)
 
 
 ## `aNSC_msg_win_open_wait2` + `aNSC_order_check_init`: item1 = the pick, free3 = its

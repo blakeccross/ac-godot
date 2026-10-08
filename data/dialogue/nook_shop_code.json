@@ -1,0 +1,171 @@
+{
+  "id": "nook_shop_code",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "good"
+            }
+          },
+          "goto": "good"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "magazine_miss"
+            }
+          },
+          "goto": "miss"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "carde"
+            }
+          },
+          "goto": "carde"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "bad"
+            }
+          },
+          "goto": "bad"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "same_town"
+            }
+          },
+          "goto": "same_town"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "made"
+            }
+          },
+          "goto": "made"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "no_item"
+            }
+          },
+          "goto": "no_item"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "cancel"
+            }
+          },
+          "goto": "cancel"
+        },
+        {
+          "goto": "wrong"
+        }
+      ]
+    },
+    "good": {
+      "type": "line",
+      "text": "I see, I see. A {item0} has\narrived for you. Here you go.\nThank you much!"
+    },
+    "miss": {
+      "type": "line",
+      "text": "Now, this IS regrettable...\nIt seems you are NOT a winner.\nBut thank you much for trying!"
+    },
+    "carde": {
+      "type": "line",
+      "text": "Eh? I'm sorry, but that\npassword isn't valid here.\nTry sending it to one of the\nanimals living in town."
+    },
+    "wrong": {
+      "type": "choice",
+      "prompt": "Now that's odd... I think\nthere's something the matter\nwith your password. Tell it to\nme again?",
+      "options": [
+        {
+          "text": "Yes.",
+          "goto": "retry"
+        },
+        {
+          "text": "Never mind...",
+          "goto": "decline"
+        }
+      ]
+    },
+    "bad": {
+      "type": "choice",
+      "prompt": "Oh?! You can't use that\npassword! Don't try to trick me\nwith someone else's! Do you\nhave another one?",
+      "options": [
+        {
+          "text": "Yes.",
+          "goto": "retry"
+        },
+        {
+          "text": "Never mind...",
+          "goto": "decline"
+        }
+      ]
+    },
+    "retry": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "code_retry"
+        }
+      ],
+      "next": "retry_line"
+    },
+    "retry_line": {
+      "type": "line",
+      "text": "Then tell me the password."
+    },
+    "decline": {
+      "type": "line",
+      "text": "You don't want to pick up\nyour present just yet?\nCome back any time."
+    },
+    "same_town": {
+      "type": "line",
+      "text": "I'm terribly sorry, but I can't\nsend goods to towns with the\nsame name as our own town."
+    },
+    "no_item": {
+      "type": "line",
+      "text": "What's going on? If you don't\ngive me an item, I can't\nteach you the password."
+    },
+    "cancel": {
+      "type": "line",
+      "text": "Oh, you don't want to give\nthis away? Come back any time."
+    },
+    "made": {
+      "type": "line",
+      "text": "All righty. Here's the password\nso {free3} in {free2} can\npick up the {item0}. Don't\nforget to write it down.",
+      "next": "made_code"
+    },
+    "made_code": {
+      "type": "line",
+      "text": "{free0}\n{free1}",
+      "next": "made_end"
+    },
+    "made_end": {
+      "type": "line",
+      "text": "Did you jot that down? Now,\njust tell {free3} the\npassword! Thank you much!"
+    }
+  }
+}

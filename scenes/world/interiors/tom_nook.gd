@@ -477,6 +477,14 @@ func _on_talk_closed() -> void:
 		_open_after = &""
 		_start_order()
 		return
+	if _open_after == &"code_say":
+		_open_after = &""
+		_start_code_say()
+		return
+	if _open_after == &"code_hear":
+		_open_after = &""
+		_start_code_hear()
+		return
 	await _apply_pending_after()
 
 
@@ -520,6 +528,88 @@ func _start_order() -> void:
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = "Tom Nook"
 	NookShopTalk.fill_order(talk_ctx, item_id)
+	if ui.is_open():
+		ui.close()
+	_shop_talk = true
+	_start_talk_session(listener)
+	_bind_talk_end(ui)
+	if not ui.event_fired.is_connected(_on_shop_event):
+		ui.event_fired.connect(_on_shop_event)
+	ui.play(data, talk_ctx)
+
+
+## "Say code" (`aNSC_pc_*`): the code goes in on the keyboard (`mSM_OVL_PASSWORDCHK`); a
+## good one hands over its item wrapped (`aNSC_pc_present_trans_takeout`).
+func _start_code_say() -> void:
+	var code: String = await _ask_text(&"password")
+	if code.strip_edges().is_empty():
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var res: Dictionary = NookShopTalk.redeem(code, Game.player_name, Game.town_name, rng)
+	var item: ItemData = ItemCatalog.get_item(res.get("item", &"") as StringName)
+	if str(res["result"]) == "good" and item != null:
+		Game.inventory.add(item, 1, InventoryItem.Condition.PRESENT)
+		Game.nook_code_gifts += 1
+	_play_code_result(str(res["result"]), item, {})
+
+
+## "Hear code" (`aNSC_pw_*`): the friend's town and name (`mSM_OVL_PASSWORDMAKE`), then the
+## item from the pockets, and Nook reads out the code (also put on the clipboard).
+func _start_code_hear() -> void:
+	var town: String = (await _ask_text(&"pw_town")).strip_edges()
+	if town.is_empty():
+		_play_code_result("cancel", null, {})
+		return
+	var who: String = (await _ask_text(&"pw_player")).strip_edges()
+	if who.is_empty():
+		_play_code_result("cancel", null, {})
+		return
+	if town == Game.town_name:
+		_play_code_result("same_town", null, {})
+		return
+	Game.request_storage_putin(&"code_gift")
+	var picked: StringName = await Game.storage_putin_resolved
+	var item: ItemData = ItemCatalog.get_item(picked)
+	if item == null:
+		_play_code_result("no_item", null, {})
+		return
+	for i: int in Inventory.POCKET_SLOTS:
+		var slot: InventorySlot = Game.inventory.slot_at(i)
+		if slot != null and not slot.is_empty() and slot.item.item_id == picked:
+			Game.inventory.remove_from_slot(i, 1)
+			break
+	var code: String = NookShopTalk.make_code(who, town, picked)
+	DisplayServer.clipboard_set(code)
+	_play_code_result("made", item, {0: code.substr(0, 14), 1: code.substr(14), 2: town, 3: who})
+
+
+func _ask_text(kind: StringName) -> String:
+	var entry: Node = get_tree().get_first_node_in_group("name_entry_ui")
+	if entry == null or not entry.has_method("open"):
+		return ""
+	var box: Array[String] = [""]
+	entry.call("open", "", func(text: String) -> void: box[0] = text, kind)
+	await entry.closed
+	## The callback runs right after `closed`.
+	await get_tree().process_frame
+	return box[0]
+
+
+func _play_code_result(result: String, item: ItemData, frees: Dictionary) -> void:
+	var data: DialogueData = DialogueCatalog.conversation(NookShopTalk.CODE_ID)
+	var ui := DialogueOverlay.find(get_tree())
+	if data == null or ui == null:
+		return
+	var listener: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var talk_ctx: DialogueContext = DialogueContext.from_game()
+	talk_ctx.speaker_name = "Tom Nook"
+	talk_ctx.set_var(NookShopTalk.VAR_CODE_RESULT, result)
+	talk_ctx.item0 = item.display_name if item != null else ""
+	for k: Variant in frees:
+		while talk_ctx.frees.size() <= int(k):
+			talk_ctx.frees.append("")
+		talk_ctx.frees[int(k)] = str(frees[k])
 	if ui.is_open():
 		ui.close()
 	_shop_talk = true

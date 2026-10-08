@@ -118,15 +118,23 @@
     },
     "other": {
       "type": "choice",
-      "prompt": "What is it?",
+      "prompt": "As far as other things go,\nthis is all I have to offer.",
       "options": [
         {
           "text": "Turnip prices?",
           "goto": "turnip_branch"
         },
         {
-          "text": "Never mind.",
-          "goto": "bye"
+          "text": "Hear code",
+          "goto": "code_hear"
+        },
+        {
+          "text": "Say code",
+          "goto": "code_say"
+        },
+        {
+          "text": "Umm, hang on!",
+          "goto": "menu"
         }
       ]
     },
@@ -160,6 +168,106 @@
     "bye": {
       "type": "line",
       "text": "Please come again!"
+    },
+    "code_hear": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "code_hear"
+        }
+      ],
+      "next": "code_hear_branch"
+    },
+    "code_hear_branch": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code",
+              "value": "none"
+            }
+          },
+          "goto": "code_hear_none"
+        },
+        {
+          "goto": "code_hear_ask"
+        }
+      ]
+    },
+    "code_hear_none": {
+      "type": "line",
+      "text": "But you don't have anything\nI could make a password for.\nPlease try again later.",
+      "next": "menu"
+    },
+    "code_hear_ask": {
+      "type": "line",
+      "text": "OK. Now just tell me the\ntown name and player name of\nthe person this password is for."
+    },
+    "code_say": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "code_say"
+        }
+      ],
+      "next": "code_say_branch"
+    },
+    "code_say_branch": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code",
+              "value": "foreign"
+            }
+          },
+          "goto": "code_say_foreign"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code",
+              "value": "out"
+            }
+          },
+          "goto": "code_say_out"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code",
+              "value": "full"
+            }
+          },
+          "goto": "code_say_full"
+        },
+        {
+          "goto": "code_say_ask"
+        }
+      ]
+    },
+    "code_say_foreign": {
+      "type": "line",
+      "text": "I'm terribly sorry, but you\nhave to pick up presents at\nthe shop in your own town.",
+      "next": "menu"
+    },
+    "code_say_out": {
+      "type": "line",
+      "text": "Hmm... I don't have any more\npresents to hand out for\npasswords. Please come back later.",
+      "next": "menu"
+    },
+    "code_say_full": {
+      "type": "line",
+      "text": "But you can't carry anything\nelse. Come back after you\nclean out your pockets.",
+      "next": "menu"
+    },
+    "code_say_ask": {
+      "type": "line",
+      "text": "Then tell me the password."
     }
   }
 }
