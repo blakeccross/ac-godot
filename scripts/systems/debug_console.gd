@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -49,6 +49,20 @@ func execute(raw: String) -> String:
 				if eq_slot != null and not eq_slot.is_empty() and eq_slot.item.item_id == eq_id:
 					return "%s Equipped: %s." % [eq_msg, Game.inventory.equip_slot(i)]
 			return eq_msg
+		"axebreak":
+			## Hold a seventh-stage axe one hit from breaking, and break it now (`BROKEN_AXE`).
+			_cmd_give(["axe_use_7"])
+			for i: int in Inventory.POCKET_SLOTS:
+				var ab_slot: InventorySlot = Game.inventory.slot_at(i)
+				if ab_slot != null and not ab_slot.is_empty() and ab_slot.item.item_id == &"axe_use_7":
+					Game.inventory.equip_slot(i)
+			AxeWear.damage = AxeWear.LIMIT - 1
+			var ab_tree := Engine.get_main_loop() as SceneTree
+			var ab_player: Node = Player.find(ab_tree) if ab_tree != null else null
+			if ab_player != null and AxeWear.apply(Game.inventory, false, ab_player) == &"":
+				ab_player.call("broken_axe")
+				return "The axe broke."
+			return "Axe at stage 7, one swing from breaking."
 		"time":
 			return _cmd_time(args)
 		"bells":

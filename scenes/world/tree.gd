@@ -137,6 +137,7 @@ func _on_chop(use: TreeUse, ctx: InteractionContext) -> bool:
 	if not out.shook and not out.felled:
 		return false
 	PlayerSe.axe_cut(self)
+	ToolUse.wear_axe(ctx, false)
 	_emit_drops(out, ctx)
 	if out.dropped_fruit > 0:
 		PlantGrowth.take_fruit(_persist())

@@ -25,6 +25,9 @@ func refresh_seasonal_visual() -> void:
 
 
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
+	## `Player_actor_Check_axe_after`: an axe swung at a rock bounces off (`REFLECT_AXE`).
+	if ToolUse.has(ctx, ToolData.Kind.AXE):
+		return [Interaction.of(Interaction.AIR_AXE, "Hit rock", 8, ToolUse.ANIM_AXE_HANE, ToolUse.AXE_HIT_FRAME)]
 	if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):
 		return []
 	return [Interaction.of(Interaction.DIG, "Hit rock", 8, &"ply_1_not_dig1", HIT_FRAME)]
@@ -35,6 +38,10 @@ func is_rock() -> bool:
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
+	if action != null and action.id == Interaction.AIR_AXE and ToolUse.has(ctx, ToolData.Kind.AXE):
+		PlayerSe.axe_hit(self)
+		ToolUse.wear_axe(ctx, true)
+		return true
 	if action == null or action.id != Interaction.DIG:
 		return false
 	if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):

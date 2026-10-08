@@ -18,6 +18,11 @@ const NOT_DIG_FRAME := 13.0
 ## `mPlib_Get_scoop_request_index` on a free unit: dig, swing at air (`AIR_SCOOP`, water) or
 ## bounce off (`REFLECT_SCOOP`) with the clang for what it hit.
 enum Scoop { DIG, AIR, HIT_STONE, HIT_WOOD, HIT_BUSH }
+## `mPlayer_ANIM_AXE_HANE1`: the axe bounces off a rock or a bank, contact on frame 15.
+const ANIM_AXE_HANE := &"ply_1_axe_hane1"
+const AXE_HIT_FRAME := 15.0
+## `Player_actor_Check_axe_after`: a unit 31 GX or more above the feet is a bank.
+const AXE_BANK_GX := 31.0
 ## `mCoBG_ATTRIBUTE_BUSH` / `_WOOD` (`mCoBG_WoodSoundEffect` also takes the wood bridge).
 const ATTR_BUSH := 9
 const ATTR_WOOD := 23
@@ -68,6 +73,8 @@ static func field_action(ctx: InteractionContext) -> Interaction:
 			if outcome == Scoop.AIR:
 				## `AIR_SCOOP`: nothing to hit, the swing just finishes.
 				effect_frame = -1.0
+	elif tool.field_verb == Interaction.AIR_AXE and axe_hits_bank(ctx):
+		return Interaction.of(tool.field_verb, prompt, tool.field_priority, ANIM_AXE_HANE, AXE_HIT_FRAME)
 	return Interaction.of(
 		tool.field_verb, prompt, tool.field_priority, tool.field_anim, effect_frame
 	)
@@ -101,6 +108,13 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 		return false
 	## `ROTATE_UMBRELLA`: the twirl is the whole verb (clip + SE on the player).
 	if tool.kind == ToolData.Kind.UMBRELLA:
+		return true
+	if tool.field_verb == Interaction.AIR_AXE and axe_hits_bank(ctx):
+		## `REFLECT_AXE` with no actor: `AXE_HIT` and the hard rumble.
+		PlayerSe.axe_hit(ctx.actor if ctx != null else null)
+		wear_axe(ctx, true)
+		_scare_fish(ctx)
+		_stress_bugs(ctx)
 		return true
 	if tool.field_require == ToolData.FieldRequire.EMPTY_GROUND:
 		var actor: Node = ctx.actor if ctx != null else null
@@ -207,6 +221,28 @@ static func _facing_empty_ground(ctx: InteractionContext) -> bool:
 		return false
 	var cell: Vector2i = facing_cell(ctx)
 	return grid.is_in_bounds(cell) and not grid.is_occupied(cell)
+
+
+## A bank in front: the unit ahead stands `AXE_BANK_GX` above the player's feet.
+static func axe_hits_bank(ctx: InteractionContext) -> bool:
+	var grid: WorldGrid = _grid(ctx)
+	if grid == null or ctx == null or ctx.actor == null or not ("layout" in ctx.world):
+		return false
+	var layout: WorldData = ctx.world.get("layout") as WorldData
+	var cell: Vector2i = facing_cell(ctx)
+	if layout == null or not grid.is_in_bounds(cell):
+		return false
+	var y: float = FieldCollision.ground_y(layout, cell)
+	return y - (ctx.actor as Node3D).global_position.y >= AXE_BANK_GX * FieldCatalog.GX_TO_METERS
+
+
+## `Player_actor_ChangeItemNo_axe_common`: the hit wears the axe in hand (`AxeWear`); when it
+## gives out, the player plays `BROKEN_AXE`.
+static func wear_axe(ctx: InteractionContext, reflected: bool) -> void:
+	if ctx == null or ctx.inventory == null or not AxeWear.is_worn_axe(ctx.inventory.equipment_id):
+		return
+	if AxeWear.apply(ctx.inventory, reflected, ctx.actor) == &"" and ctx.actor != null and ctx.actor.has_method("broken_axe"):
+		ctx.actor.call("broken_axe")
 
 
 static func scoop_outcome(ctx: InteractionContext) -> Scoop:

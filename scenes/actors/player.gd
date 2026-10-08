@@ -1434,7 +1434,7 @@ func _tumble_events(before: float, now: float) -> void:
 	var bg: Array = _bg()
 	var attr: int = _unit_attr(bg)
 	if before < 10.0 and now >= 10.0:
-		Input.start_joy_vibration(0, 0.6, 1.0, 17.0 / DecompTime.TICK_HZ)
+		GameConfig.rumble(GameConfig.TUMBLE)
 	if before < 15.0 and now >= 15.0:
 		StepFx.tumble(bg, global_position, _motor.facing, attr, 1)
 	if before < 17.0 and now >= 17.0:
@@ -2078,8 +2078,6 @@ func _net_events() -> void:
 				PlayerSe.net_get(self)
 			&"hit":
 				PlayerSe.net_hit(self)
-				## `Player_actor_set_viblation_Swing_net`: 2 attack + 4 sustain frames.
-				Input.start_joy_vibration(0, 1.0, 1.0, 6.0 / DecompTime.TICK_HZ)
 			&"slip":
 				var bg: Array = _bg()
 				Audio.play_se(SE_SLIP, self)
@@ -2291,6 +2289,58 @@ func get_golden_item(item_id: StringName) -> void:
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()
+
+
+## `mPlayer_INDEX_BROKEN_AXE`: the axe gave out on the last swing. `AXE_BREAK1`, then
+## `AXE_BREAKWAIT1`; 80 frames on the report (0x3067) opens in its lilac window.
+func broken_axe() -> void:
+	while _busy and is_inside_tree():
+		await get_tree().physics_frame
+	if not is_inside_tree():
+		return
+	_busy = true
+	HeldTool.unbind(HeldTool.find_skeleton(_mesh))
+	_play_body_once(AxeWear.ANIM_BREAK)
+	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 8.0)
+	var frames: float = 0.0
+	var waiting: bool = false
+	while frames < AxeWear.REPORT_DELAY_FRAMES and is_inside_tree():
+		await get_tree().physics_frame
+		steps.add(get_physics_process_delta_time())
+		while steps.next():
+			frames += 1.0
+		if not waiting and _anim != null and not _anim.is_playing():
+			waiting = true
+			_play_body_loop(AxeWear.ANIM_BREAK_WAIT)
+	var ui: DialogueOverlay = DialogueOverlay.find(get_tree()) if is_inside_tree() else null
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % AxeWear.MSG_BROKEN))
+	if ui != null and data != null:
+		var ctx := DialogueContext.from_game()
+		ctx.speaker_name = ""
+		ctx.window_color = AxeWear.BROKEN_WINDOW
+		ui.play(data, ctx)
+		await _net_wait_closed(ui)
+	if not is_inside_tree():
+		return
+	_motor.reset(_motor.facing)
+	_motor.mode_changed = true
+	_bind_equipped_tool(not _tool_hidden())
+	_busy = false
+	_gait = PlayerLocomotion.Gait.WAIT
+	_update_focus()
+
+
+func _play_body_loop(clip_name: StringName) -> void:
+	if _anim == null:
+		return
+	var clip := _resolve_clip(String(clip_name))
+	if clip.is_empty():
+		return
+	var res: Animation = _anim.get_animation(clip)
+	if res != null:
+		res.loop_mode = Animation.LOOP_LINEAR
+	_anim.speed_scale = 1.0
+	_anim.play(clip, MORPH_5)
 
 
 ## `main_Notice_net`'s message states: the collection-complete follow-up with `YATTA2`, or the

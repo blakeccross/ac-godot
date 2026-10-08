@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ToolData" format=3]
+
+[ext_resource type="Script" uid="uid://0ptunytwyd4b" path="res://scripts/data/tool_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+kind = 4
+field_verb = &"air_axe"
+field_prompt = "Swing axe"
+field_anim = &"ply_1_axe_suka1"
+visual_id = &"tol_axe_1_b"
+hold_anim = &"ply_1_axe1"
+carry_part = 1
+id = &"axe_use_2"
+display_name = "Axe"
+description = "For chopping wood."
+category = 0
+sell_price = 400
+equippable = true
+icon_color = Color(0.55, 0.4, 0.25, 1)

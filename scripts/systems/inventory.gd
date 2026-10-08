@@ -503,6 +503,37 @@ func unequip() -> void:
 	changed.emit()
 
 
+## `Player_actor_Set_ItemNoSubmenu`: the tool in hand becomes another (a worn axe's next
+## stage), or nothing (`EMPTY_NO`: it broke and is gone). The pocket it came from changes with it.
+func swap_equipped(new_id: StringName) -> bool:
+	if equipment_id == &"":
+		return false
+	var at: int = -1
+	for i: int in POCKET_SLOTS:
+		var slot: InventorySlot = _slots[i]
+		if not slot.is_empty() and slot.item.item_id == equipment_id and slot.item.condition == InventoryItem.Condition.NORMAL:
+			at = i
+			break
+	if at < 0:
+		return false
+	if new_id == &"":
+		remove_from_slot(at, 1)
+		unequip()
+		return true
+	var slot: InventorySlot = _slots[at]
+	if slot.item.count > 1:
+		slot.item.count -= 1
+		if add_to_empty_slot(ItemCatalog.get_item(new_id), 1) < 0:
+			slot.item.count += 1
+			return false
+	else:
+		slot.item.item_id = new_id
+	equipment_id = new_id
+	equipment_changed.emit(equipment_id)
+	changed.emit()
+	return true
+
+
 ## Decomp `backgound_texture`: any owned shirt (`Category.CLOTH`) reskins the pockets
 ## backdrop with its real pattern, independent of what the player is currently
 ## wearing (`mHD_open_end_proc_item_type4`); empty id clears it back to the default.

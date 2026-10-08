@@ -103,7 +103,7 @@ static func _item_icon_stem(data: ItemData) -> String:
 	## Prefer `obj_item_*` field cards — `inv_mwin_*` encyclopedia icons often bake
 	## the wrong CI palette (green apple, blue disc, etc.).
 	match String(data.id):
-		"axe":
+		"axe", "axe_use_1", "axe_use_2", "axe_use_3", "axe_use_4", "axe_use_5", "axe_use_6", "axe_use_7":
 			return "item_axe"
 		"shovel":
 			return "item_shovel"

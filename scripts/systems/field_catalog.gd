@@ -1112,7 +1112,7 @@ static func item_visual(item_id: StringName) -> StringName:
 			return &"obj_item_seed"
 		&"paper":
 			return &"obj_item_paper"
-		&"axe":
+		&"axe", &"axe_use_1", &"axe_use_2", &"axe_use_3", &"axe_use_4", &"axe_use_5", &"axe_use_6", &"axe_use_7":
 			return &"obj_item_axe"
 		&"net":
 			return &"obj_item_net"
