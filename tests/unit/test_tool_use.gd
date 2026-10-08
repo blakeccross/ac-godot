@@ -261,3 +261,26 @@ func test_golden_shovel_finds_bells_away_from_the_last_hole() -> void:
 	assert_bool(ToolUse.golden_finds_bells(Vector2i(3, 3), Vector2i(1, 1), 1)).is_true()
 	assert_bool(ToolUse.golden_finds_bells(Vector2i(3, 3), Vector2i(1, 1), 0)).is_false()
 	assert_bool(ToolUse.golden_finds_bells(Vector2i(3, 3), Vector2i(3, 3), 1)).is_false()
+
+
+## `m_player_item_windmill`: still air and standing still lets the pinwheel stop; walking or
+## wind spins it up.
+func test_pinwheel_spins_with_movement_and_wind() -> void:
+	assert_float(HeldPinwheel.target_speed(0.0, 0.0)).is_equal(0.0)
+	assert_float(HeldPinwheel.target_speed(5.0, 0.0)).is_equal(40.0)
+	assert_float(HeldPinwheel.target_speed(0.0, 0.5)).is_equal(5.0)
+	var s: float = 0.0
+	for _i: int in 200:
+		s = HeldPinwheel.ease_speed(s, 5.0, 1.0)
+	assert_float(s).is_equal_approx(5.0, 0.01)
+	for _i: int in 400:
+		s = HeldPinwheel.ease_speed(s, 0.0, 1.0)
+	assert_float(s).is_equal(0.0)
+
+
+func test_festival_toys_are_held_tools() -> void:
+	for id: StringName in [&"red_pinwheel", &"blue_balloon", &"leaf_fan"]:
+		var tool := ItemCatalog.get_item(id) as ToolData
+		assert_object(tool).is_not_null()
+		assert_bool(tool.equippable).is_true()
+		assert_str(String(tool.hold_anim)).is_not_empty()

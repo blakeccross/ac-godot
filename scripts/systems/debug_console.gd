@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -40,6 +40,15 @@ func execute(raw: String) -> String:
 			return _cmd_season(args)
 		"give":
 			return _cmd_give(args)
+		"equip":
+			## Give a tool and hold it (`equip red_pinwheel`).
+			var eq_msg: String = _cmd_give(args)
+			var eq_id := StringName(String(args[0]).to_lower()) if not args.is_empty() else &""
+			for i: int in Inventory.POCKET_SLOTS:
+				var eq_slot: InventorySlot = Game.inventory.slot_at(i)
+				if eq_slot != null and not eq_slot.is_empty() and eq_slot.item.item_id == eq_id:
+					return "%s Equipped: %s." % [eq_msg, Game.inventory.equip_slot(i)]
+			return eq_msg
 		"time":
 			return _cmd_time(args)
 		"bells":

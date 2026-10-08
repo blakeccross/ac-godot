@@ -433,6 +433,7 @@ func _physics_process(delta: float) -> void:
 		_mesh.rotation.x = _motor.lean
 	if _umbrella != null:
 		_umbrella.tick(delta)
+	_tick_pinwheel(delta)
 	if _carry != null:
 		_carry.advance(delta)
 	if _door_entering:
@@ -3016,6 +3017,29 @@ func _apply_carry_pose() -> void:
 
 func _tool_hidden() -> bool:
 	return _tool_stowed or Game.is_indoors()
+
+
+## `Player_actor_Item_windmill_CulcRotationSpeed`: the pinwheel turns as fast as the player
+## carries it through the air (8 × GX moved a frame) plus the wind (10 × its power), easing
+## toward that like `add_calc`.
+var _pin_last: Vector3 = Vector3.INF
+var _pin_speed: float = 0.0
+
+
+func _tick_pinwheel(delta: float) -> void:
+	var tool: ToolData = _equipped_tool()
+	if tool == null or not tool.is_pinwheel() or _tool_hidden():
+		_pin_last = Vector3.INF
+		return
+	var anim: AnimationPlayer = HeldTool.animation_player(HeldTool.find_skeleton(_mesh))
+	if anim == null:
+		return
+	var frames: float = maxf(delta * DecompTime.FRAME_HZ, 0.0001)
+	var moved: float = 0.0 if _pin_last == Vector3.INF else global_position.distance_to(_pin_last)
+	_pin_last = global_position
+	var target: float = HeldPinwheel.target_speed(moved / FieldCatalog.GX_TO_METERS / frames, Wind.power())
+	_pin_speed = HeldPinwheel.ease_speed(_pin_speed, target, frames)
+	anim.speed_scale = _pin_speed
 
 
 func _bind_equipped_tool(

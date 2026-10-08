@@ -1,12 +1,17 @@
-[gd_resource type="Resource" script_class="ItemData" format=3]
+[gd_resource type="Resource" script_class="ToolData" format=3]
 
-[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+[ext_resource type="Script" uid="uid://0ptunytwyd4b" path="res://scripts/data/tool_data.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
+kind = 7
+visual_id = &"tol_fan5"
+hold_anim = &"ply_1_utiwa_wait1"
+carry_part = 2
 id = &"maple_fan"
 display_name = "Maple Fan"
 description = "A summer fan from the fireworks stall."
-category = 5
+category = 0
 buy_price = 780
+equippable = true
 icon_color = Color(0.45, 0.6, 0.9, 1)

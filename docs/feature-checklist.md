@@ -129,7 +129,7 @@ data tables before a category is called done.
 - [~] Knock on villager doors (`m_player_main_knock_door`)
 - [~] Enter/exit buildings: step-in animation, door swing, screen wipe (`m_player_main_door`) — `structure_door.gd`, `scene_transition.gd`
 - [x] Hand an item to a villager / receive an item (give / receive animations) (`m_player_main_give`, `recieve`, `ac_handOverItem`) — `HandOver`, `HandOverItem`
-- [ ] Refuse / decline prompt (`m_player_main_refuse`)
+- [x] ~~Refuse / decline prompt~~ — `m_player_main_refuse` is only a brake-to-standstill state (the paper-airplane catch, a room message); the port stops the player there
 - [x] Pick fruit vs. shake whole tree — GCN only shakes; fruit falls and is picked up off the ground (`TreeUse`)
 - [x] Pluck weeds (`m_player_main_remove_grass`) — A on a weed: `ZASSOU1`, out on frame 17 with `zassou_nuku`, flies off over the shoulder (`weed.tscn`)
 - [~] Pick / dig up flowers; pick mushrooms (`m_mushroom`) — mushrooms are ground items (`MushroomUse`)
@@ -145,7 +145,7 @@ data tables before a category is called done.
 - [x] ~~Slingshot~~ — _not in the GameCube game_ (balloons snag in trees instead; see §34 balloons)
 - [x] ~~Watering can~~ — _not in GCN_ (flowers don't need water on the GameCube)
 - [~] **Umbrella** — held in rain/snow, twirl, many designs (`m_player_item_umbrella`, `rotate_umbrella`) — `HeldUmbrella` + 32 `ToolData` umbrellas (`data/items/umbrellas/`, ROM names/prices): opens out of the hand (`UMB_OPEN1`, handle/canopy scale tables), right arm holds `ply_1_umbrella1` over walk/idle (`PART_TABLE_NET`), A twirls (`UMB_ROT1` + SE 0x432), folds away through doors / on unequip (`UMB_CLOSE1`), switches the rain loop to the under-umbrella one; Nook stocks one a day on the umbrella stand; title demo 2 carries the gelato umbrella. Missing: design umbrellas (`ITM_MY_ORG_UMBRELLA0-7`), the `KASAMIZU` twirl spray (no effect system)
-- [ ] **Fan / uchiwa** (festival), **timer**, **party popper / clacker**, **handbill**, **pitfall seed** as usable items (`m_player_item_fan`, `ac_t_utiwa`, `ef_clacker`)
+- [~] **Fans, pinwheels, balloons** — held in hand like tools (`m_player_item_fan` / `_windmill` / `_balloon`): fans on `UTIWA_WAIT1`, pinwheels and balloons on `KAZA1`, each on its `tol_*` model; the pinwheel spins with your movement and the wind (`HeldPinwheel`); the seven later pinwheels and balloons share the first one's clip. Missing: the balloon's string sway (`m_player_item_balloon`). The party popper / timer / handbill aren't GameCube items; the pitfall seed is buried (§ Shovel)
 - [~] **Bug / fish held up** show-off pose + species report (`m_player_main_notice_net`, `notice_rod`) — net: pull (`GET_M1`, report at 50 ticks, turn past keyframe 17), notice (pockets + catch record, collection-complete 0xA4E/0xA4F + `YATTA2`, full-pockets 0xA4D), put-away (`PUTAWAY_M1`, shrink to keyframe 17). The catch jingle (0x28) runs under the report, the collection-complete one (0x4B) under the follow-up. Missing: exchange inventory, release clip, the rod's own collection-complete follow-up (0x4C)
 - [x] Held tool renders on the right hand with its own animation clips (`Player_actor_Item_draw`, `mPlayer_JOINT_HAND`) — `held_tool.gd`, `ToolCarry`
 - [~] Tool ready ↔ put-away transitions and SE — net, rod and umbrella have theirs; shovel and axe swap straight

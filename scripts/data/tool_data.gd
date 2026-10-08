@@ -3,7 +3,7 @@ extends ItemData
 
 ## Equippable field tool. Kind selects host verbs; field_* is the empty-tile A-button.
 
-enum Kind { NONE, SHOVEL, FISHING_ROD, NET, AXE, WATERING_CAN, UMBRELLA }
+enum Kind { NONE, SHOVEL, FISHING_ROD, NET, AXE, WATERING_CAN, UMBRELLA, FAN, PINWHEEL, BALLOON }
 enum FieldRequire { NONE, WATER, EMPTY_GROUND }
 ## `mPlayer_PART_TABLE_*` for the carry clip: which joints it drives (`ToolCarry`).
 enum CarryPart { NONE, AXE, NET }
@@ -38,3 +38,8 @@ func _init() -> void:
 ## Umbrellas open out of and fold into the hand instead of just appearing.
 func is_umbrella() -> bool:
 	return kind == Kind.UMBRELLA
+
+
+## `m_player_item_windmill`: spins with movement and wind.
+func is_pinwheel() -> bool:
+	return kind == Kind.PINWHEEL

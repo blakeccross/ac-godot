@@ -40,6 +40,7 @@ static func bind(skeleton: Skeleton3D, visual_id: StringName) -> Node3D:
 	skeleton.add_child(attach)
 	attach.bone_name = bone
 	attach.add_child(visual)
+	attach.set_meta(&"visual_id", visual_id)
 	var anim: AnimationPlayer = _find_animation_player(visual)
 	if anim != null:
 		anim.autoplay = ""
@@ -80,15 +81,63 @@ static func play(skeleton: Skeleton3D, clip_name: StringName, loop: bool = true)
 	if attach == null:
 		return
 	var anim: AnimationPlayer = _find_animation_player(attach)
-	if anim == null:
-		return
 	var clip := _resolve_clip(anim, String(clip_name))
+	if clip.is_empty():
+		anim = _borrow_clip(attach, clip_name)
+		clip = _resolve_clip(anim, String(clip_name))
 	if clip.is_empty():
 		return
 	var animation: Animation = anim.get_animation(clip)
 	if animation != null:
 		animation.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
 	anim.play(clip, 0.08)
+
+
+## Sibling tools share one clip (`tol_kaza2`…`8` turn on `tol_kaza1_wait`): copy it from the
+## visual the clip is named after and point its tracks at this tool's joints.
+static func _borrow_clip(attach: Node, clip_name: StringName) -> AnimationPlayer:
+	var target := String(attach.get_meta(&"visual_id", &""))
+	var source := String(clip_name).get_slice("_", 0) + "_" + String(clip_name).get_slice("_", 1)
+	if target.is_empty() or source == target or attach.get_child_count() == 0:
+		return null
+	var donor: Node3D = GeneratedVisual.instantiate_raw(StringName(source))
+	if donor == null:
+		return null
+	var donor_anim: AnimationPlayer = _find_animation_player(donor)
+	var donor_clip := _resolve_clip(donor_anim, String(clip_name))
+	if donor_clip.is_empty():
+		donor.free()
+		return null
+	var animation: Animation = donor_anim.get_animation(donor_clip).duplicate(true)
+	for t: int in animation.get_track_count():
+		animation.track_set_path(t, NodePath(String(animation.track_get_path(t)).replace(source, target)))
+	var visual: Node = attach.get_child(0)
+	var anim: AnimationPlayer = _find_animation_player(visual)
+	if anim == null:
+		anim = AnimationPlayer.new()
+		anim.name = "AnimationPlayer"
+		## Same place in the tree as the donor's, so the relative track paths hold.
+		var donor_parent: Node = donor_anim.get_parent()
+		var host: Node = visual
+		if donor_parent != donor:
+			host = visual.get_node_or_null(NodePath(String(donor.get_path_to(donor_parent)).replace(source, target)))
+			if host == null:
+				host = visual
+		host.add_child(anim)
+		anim.root_node = donor_anim.root_node
+	var lib: AnimationLibrary = anim.get_animation_library(&"") if anim.has_animation_library(&"") else null
+	if lib == null:
+		lib = AnimationLibrary.new()
+		anim.add_animation_library(&"", lib)
+	lib.add_animation(StringName(String(clip_name)), animation)
+	donor.free()
+	return anim
+
+
+## The bound tool's own `AnimationPlayer` (a pinwheel's spin), or null.
+static func animation_player(skeleton: Skeleton3D) -> AnimationPlayer:
+	var attach: Node = skeleton.get_node_or_null(ATTACH_NAME) if skeleton != null else null
+	return _find_animation_player(attach) if attach != null else null
 
 
 static func _hand_bone_name(skeleton: Skeleton3D) -> String:
