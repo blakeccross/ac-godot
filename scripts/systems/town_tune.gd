@@ -70,5 +70,14 @@ static func step_up(note: int) -> int:
 
 
 ## The SE `mMS_move_Play` sounds for a step value (rests and ties are silent).
+## Semitones above the lowest note (G) for 0–12: G A B C D E F G A B C D E.
+const NOTE_SEMITONES: Array[int] = [0, 2, 4, 5, 7, 9, 10, 12, 14, 16, 17, 19, 21]
+
+
+## A note sung rather than chimed, as a pitch scale against the low G.
+static func note_pitch(note: int) -> float:
+	return pow(2.0, float(NOTE_SEMITONES[clampi(note, 0, HIGHEST)]) / 12.0)
+
+
 static func note_se(note: int) -> StringName:
 	return NOTE_SE[note] if note >= 0 and note < NOTE_SE.size() else &""

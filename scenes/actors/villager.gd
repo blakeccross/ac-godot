@@ -347,6 +347,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		if player != null:
 			TalkCamera.begin(player, self, get_tree())
 		_talk_manager = VillagerTalk.manager(data, state, talk_ctx)
+		_sing_town_tune(talk_ctx)
 		ui.play(VillagerTalk.conversation(data, state, talk_ctx), talk_ctx, state, Callable(), _talk_manager)
 		var runner: DialogueRunner = ui.runner()
 		if runner != null and _talk_manager != null:
@@ -412,6 +413,7 @@ func _play_first_job_line(conv_id: StringName, who: String, player: Node3D) -> v
 		_bind_talk_end(ui)
 		if player != null:
 			TalkCamera.begin(player, self, get_tree())
+		_sing_town_tune(talk_ctx)
 		ui.play(talk_data, talk_ctx, state)
 	else:
 		Game.post_notice("%s: Thanks!" % who)
@@ -891,6 +893,12 @@ func _dialogue_uttering() -> bool:
 	return DialogueOverlay.uttering_in(get_tree())
 
 
+## `mMld_ActorMakeMelody` as a talk starts: the town tune in this villager's voice.
+func _sing_town_tune(talk_ctx: DialogueContext) -> void:
+	if Game != null and talk_ctx != null:
+		Audio.play_melody(Game.town_tune, DialogueVoice.melody_voice(talk_ctx.sound_spec))
+
+
 func _bind_talk_end(ui: DialogueOverlay) -> void:
 	if ui == null:
 		return
@@ -1341,6 +1349,7 @@ func _play_annoyance_scold() -> void:
 	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
 	if player != null:
 		TalkCamera.begin(player, self, get_tree())
+	_sing_town_tune(talk_ctx)
 	ui.play(talk_data, talk_ctx, state)
 
 

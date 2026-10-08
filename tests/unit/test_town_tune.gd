@@ -74,3 +74,12 @@ func _key(ui: TownTuneOverlay, code: Key) -> void:
 	ev.keycode = code
 	ev.pressed = true
 	ui._play_input(ev)
+
+
+## `Na_Inst` with a villager's voice: the notes sing a G-major-ish scale above low G.
+func test_sung_notes_rise_by_scale_steps() -> void:
+	assert_float(TownTune.note_pitch(0)).is_equal(1.0)
+	assert_float(TownTune.note_pitch(7)).is_equal_approx(2.0, 0.0001)
+	assert_float(TownTune.note_pitch(3)).is_equal_approx(pow(2.0, 5.0 / 12.0), 0.0001)
+	var v: Dictionary = DialogueVoice.melody_voice(1)
+	assert_bool(v.has("spec") and v.has("phoneme") and v.has("pitch")).is_true()

@@ -31,6 +31,9 @@ var _melody_step: int = -1
 var _melody_t: float = 0.0
 var _melody_player: AudioStreamPlayer
 var _melody_rng := RandomNumberGenerator.new()
+## `Na_Inst` with a villager's `melody_inst` (their voice): `{spec, phoneme, pitch, volume_db}`,
+## empty for the chime notes.
+var _melody_voice: Dictionary = {}
 ## `mBGM_KATEGORIE_FANFARE` (`mBGMPsComp_make_ps_fanfare` / `delete_ps_fanfare`): a jingle on
 ## top of the music. Its sequence is a short phrase and then a quiet loop that plays under the
 ## report until the fanfare is taken off; the music under it stops meanwhile and starts over
@@ -56,7 +59,8 @@ func _ready() -> void:
 
 
 ## `sAdo_Inst`: play a town tune (`TownTune` values). Restarts one already playing.
-func play_melody(notes: PackedByteArray) -> void:
+func play_melody(notes: PackedByteArray, voice: Dictionary = {}) -> void:
+	_melody_voice = voice
 	_melody = TownTune.sanitize(notes)
 	_melody_step = -1
 	_melody_t = MELODY_STEP_SEC
@@ -95,6 +99,12 @@ func _sound_step(note: int) -> void:
 			return
 		TownTune.RANDOM:
 			note = _melody_rng.randi_range(0, TownTune.HIGHEST)
+	if not _melody_voice.is_empty():
+		play_voice(
+			int(_melody_voice["spec"]), int(_melody_voice["phoneme"]),
+			float(_melody_voice["pitch"]) * TownTune.note_pitch(note), float(_melody_voice["volume_db"])
+		)
+		return
 	_melody_player.stream = SeCatalog.stream_for(TownTune.note_se(note))
 	if _melody_player.stream != null:
 		_melody_player.play()

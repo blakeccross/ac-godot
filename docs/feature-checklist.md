@@ -309,7 +309,7 @@ data tables before a category is called done.
 - [~] Villager comments on weeds, holidays, weather, time of day, your birthday — the disc's greeting and rumour banks (`DialogueGreeting`, `VillagerTalkManager`)
 - [x] ~~Cranky mellows / Snooty warms~~ — GCN personalities only change lines with friendship tiers, which `DialogueGreeting` follows
 - [x] Villager games: GCN chat "games" are the quiz / trade / contest topics (`VillagerTalkManager`); no hide and seek
-- [ ] Villager sings K.K. songs / hums the town tune
+- [x] Villagers sing the town tune in their own voice as a talk starts (`mMld_ActorMakeMelody`, `melody_inst = voice_type`) — the animalese "a" pitched along the tune (`DialogueVoice.melody_voice`, `Audio.play_melody`); K.K. songs are K.K.'s alone
 
 ## 17. Dialogue & text
 
