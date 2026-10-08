@@ -3,7 +3,7 @@ extends EventNpc
 ## The visitor with a present outside the house (`ac_present_npc`). Waits until the player
 ## has stepped out (`aPST_wait`), speaks on its own (`aPST_talk_request`), hands the present
 ## over during the talk, then turns away and runs off (`aPST_exit_turn`, `aPST_exit`). A
-## birthday villager carries an umbrella in the rain in the original; not here.
+## villager comes under their umbrella when it rains (`aPST_make_umbrella`).
 
 enum Think { WAIT, TALK, EXIT }
 
@@ -16,6 +16,43 @@ var kind: int = PresentVisit.Kind.NONE
 var villager: VillagerData
 var think_state: Think = Think.WAIT
 var _exit_time: float = 0.0
+var _umbrella: HeldUmbrella
+var _umb_carry: ToolCarry
+
+
+func _ready() -> void:
+	super._ready()
+	if villager != null and Game.weather == &"rain":
+		_open_umbrella()
+
+
+func _process(delta: float) -> void:
+	super._process(delta)
+	if _umbrella != null:
+		_umbrella.tick(delta)
+	if _umb_carry != null:
+		_umb_carry.advance(delta)
+
+
+## `aTOL_ACTION_S_TAKEOUT`: already open, the arm on `aNPC_SUB_ANIM_UMBRELLA`.
+func _open_umbrella() -> void:
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(model())
+	var visual_id: StringName = VillagerOutdoor.umbrella_visual(villager, null)
+	if skeleton == null or visual_id == &"" or _body_anim == null:
+		return
+	var attach: Node3D = HeldTool.bind(skeleton, visual_id)
+	if attach == null or attach.get_child_count() == 0:
+		return
+	_umbrella = HeldUmbrella.new()
+	_umbrella.setup(attach.get_child(0) as Node3D, HeldUmbrella.Action.OPEN_NOW)
+	_umb_carry = ToolCarry.build_part(_body_anim, skeleton, Villager.ANIM_UMBRELLA, VillagerOutdoor.SUB_ANIM_JOINTS)
+	_body_anim.mixer_applied.connect(_apply_umbrella_arm)
+
+
+func _apply_umbrella_arm() -> void:
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(model())
+	if _umb_carry != null and skeleton != null:
+		_umb_carry.apply(skeleton)
 
 
 ## Before `_ready`: who comes, and their looks.
