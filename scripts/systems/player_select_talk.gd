@@ -4,8 +4,8 @@ extends BankTalk
 ## K.K.'s player select for a town that already exists (`ac_npc_p_sel2_talk.c_inc`). He asks
 ## "Shall we get started?"; "Yes!" asks the player's name from the residents plus "I'm new"
 ## (`aNPS2_set_choice_str`, four names and no newcomer once the town is full), then gets the
-## town ready for them or for a newcomer. "Before I go..." opens the options: sound and rumble
-## (acknowledged; this port has no such settings), and "Other things" — demolish a house
+## town ready for them or for a newcomer. "Before I go..." opens the options: sound output, then
+## how animals speak, and rumble (`GameConfig`), and "Other things" — demolish a house
 ## (`aNPS2_chk_clr_pl_data*`, two names a page with "Someone else." when there are four), build
 ## a new town (erases it) or set the clock (the game follows the system clock). Messages are
 ## `MSG_5106` on (`base_msg_table[looks]`; K.K. has one).
@@ -45,6 +45,7 @@ const BACK_ALREADY := 35
 const BACK_COPY := 36
 const BACK_KEEP := 37
 const RUMBLE := 26
+const VOICE := 27
 const OTHER_THINGS := 32
 const DEMOLISH_OTHER := 34
 ## `select_data` choice strings (`mChoice_Load_ChoseStringFromRom`).
@@ -64,6 +65,9 @@ var _menu: int = Menu.NONE
 var _options: Array[int] = []
 var _page: int = 0
 var _target: int = -1
+## `aNPS2_TALK_SETUP_VOICE`: the first pick in the voice message is the voice, the second
+## the "Is this what you want?".
+var _voice_set: bool = false
 ## A passport on the other card (`mCD_CheckPassportFile`) and this town's id.
 var passport: Dictionary = {}
 var town_id: int = 0
@@ -96,6 +100,8 @@ func entered(msg_no: int) -> void:
 		_target = -1
 	elif msg_no == at(NEW_TOWN_GONE):
 		result = Result.NEW_TOWN
+	elif msg_no == at(VOICE):
+		_voice_set = false
 
 
 func pick_step(msg_no: int, index: int) -> Dictionary:
@@ -117,6 +123,14 @@ func pick_step(msg_no: int, index: int) -> Dictionary:
 
 func picked(msg_no: int, index: int) -> int:
 	match msg_no - BASE:
+		SOUND:
+			GameConfig.set_sound(index)
+		VOICE:
+			if not _voice_set:
+				_voice_set = true
+				GameConfig.set_voice(index)
+		RUMBLE:
+			GameConfig.set_rumble(index == 0)
 		SHALL_WE:
 			return at(OPTIONS)
 		OPTIONS:

@@ -42,6 +42,9 @@ var _pending_choices: Array[String] = []
 var _feel_minutes: int = 0
 var _pending_feel: int = 0
 var _manager_choice: bool = false
+## A pick inside a message that set where it continues (`mMsg_Set_continue_msg_num`): the
+## rest of the message still shows, then this message follows.
+var _continue_override: StringName = &""
 var waiting_action: bool = false
 var _pending_action: Dictionary = {}
 
@@ -62,6 +65,7 @@ func start(
 	advance_gate = Callable()
 	_pending_choices.clear()
 	_manager_choice = false
+	_continue_override = &""
 	last_choice_index = -1
 	line = ""
 	choices.clear()
@@ -167,7 +171,9 @@ func choose(index: int) -> void:
 			return
 		## `mChoice_Get_ChoseNum` → `mMsg_Set_continue_msg_num`.
 		var redirect: int = talk_manager.picked(talk_manager.current_msg, index)
-		if redirect >= 0:
+		if redirect >= 0 and conversation != null and conversation.has_node(next_id) and not String(next_id).begins_with("msg_"):
+			_continue_override = StringName("msg_%d" % redirect)
+		elif redirect >= 0:
 			next_id = StringName("msg_%d" % redirect)
 	if next_id == &"":
 		_finish()
@@ -191,6 +197,9 @@ func current_kind() -> StringName:
 
 
 func _goto(to: StringName) -> void:
+	if _continue_override != &"" and (to == &"" or String(to).begins_with("msg_")) and (conversation == null or not conversation.has_node(to)):
+		to = _continue_override
+		_continue_override = &""
 	if to == &"":
 		_finish()
 		return
@@ -592,6 +601,9 @@ func _message_end() -> void:
 		_manager_choice = true
 		waiting_choice = true
 		choices_shown.emit(choices)
+		return
+	if _continue_override != &"":
+		_goto(_continue_override)
 		return
 	if talk_manager != null:
 		_run_manager_step(talk_manager.next_step())

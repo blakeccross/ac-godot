@@ -426,7 +426,9 @@ func _turn_page(with_se: bool) -> void:
 func _utter_range(from_idx: int, to_idx: int) -> void:
 	if _shown.is_empty() or to_idx <= from_idx:
 		return
-	var mode := _voice_mode as DialogueVoice.Mode
+	## `Save_Get(config).voice_mode` (`GameConfig`) replaces Animalese for every animal.
+	var mode := GameConfig.voice_for(_voice_mode) as DialogueVoice.Mode
+	_voice.mode = mode
 	## Click mode: one beep per reveal burst (not per glyph).
 	if mode == DialogueVoice.Mode.CLICK:
 		_voice.utter_glyph(".", "", "", self)

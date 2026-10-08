@@ -335,8 +335,10 @@ static func _observe(school: FishSchool) -> void:
 			if shadow.nibbled:
 				_nibbles += 1
 				_dip = DIP_SECONDS
+				GameConfig.fish_touch(shadow.size)
 		if hooked != null:
 			_state = State.BITE
+			GameConfig.fish_bite(hooked.size)
 		return
 	if _state == State.BITE and hooked == null:
 		## The fish held on for its species' `aGYO_bite_time` and let go.

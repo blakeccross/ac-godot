@@ -406,6 +406,9 @@ def tokens_to_conversation(
     next_random: list[str] = []
     choice_ids: list[int] = []
     open_choice = False
+    ## Each labelled `OPENCHOICE` and the page count when it opened: one with text pages
+    ## after it opens mid-message, and the message carries on after the pick.
+    opened: list[tuple[int, list[int]]] = []
     ## `MSGCONTINUE` at the end hands control back to whoever set the continue message
     ## (`mMsg_Check_MainNormalContinue`); `MSGEND` closes the window and ends the talk.
     terminator = ""
@@ -469,7 +472,13 @@ def tokens_to_conversation(
             page_events.append(event)
             continue
         if name == "OPENCHOICE":
-            open_choice = True
+            if not choice_ids:
+                open_choice = True
+            else:
+                if "".join(str(t.get("text", "")) for t in page_tokens).strip() != "" or page_events:
+                    flush()
+                opened.append((len(pages), choice_ids))
+                choice_ids = []
             continue
         if name == "SETFORCEMSG":
             n = _u16(args)
@@ -501,6 +510,14 @@ def tokens_to_conversation(
     if not pages:
         pages = [("", [], {})]
 
+    mid: list[tuple[int, list[int]]] = []
+    if opened:
+        for at_page, ids in opened:
+            if any(text != "" for text, _e, _f in pages[at_page:]):
+                mid.append((at_page, ids))
+            else:
+                choice_ids = ids
+                open_choice = True
     nodes: dict[str, Any] = {}
     start = "p0"
     for i, (page, events, flags) in enumerate(pages):
@@ -516,6 +533,17 @@ def tokens_to_conversation(
         if i + 1 < len(pages):
             node["next"] = f"p{i + 1}"
         nodes[nid] = node
+    for n, (at_page, ids) in enumerate(mid):
+        mid_labels = _choice_labels(ids, select)
+        cid = f"c{n}"
+        nodes[cid] = {
+            "type": "choice",
+            "options": [{"text": label, "goto": f"p{at_page}"} for label in mid_labels],
+        }
+        if at_page == 0:
+            start = cid
+        else:
+            nodes[f"p{at_page - 1}"]["next"] = cid
     last_id = f"p{len(pages) - 1}"
     last = nodes[last_id]
     if terminator == "MSGCONTINUE":
@@ -528,10 +556,17 @@ def tokens_to_conversation(
         options = []
         for i, label in enumerate(labels):
             dest = next_by_choice[i] if i < len(next_by_choice) else ""
-            opt: dict[str, Any] = {"text": label, "goto": dest or next_force}
+            ## `SETNEXTMSGRND*` + `FORCENEXT` after a choice: any pick rolls the next one.
+            fallback = next_force or ("rng" if next_random else "")
+            opt: dict[str, Any] = {"text": label, "goto": dest or fallback}
             options.append(opt)
         nodes["choice"] = {"type": "choice", "options": options}
         last["next"] = "choice"
+        if next_random and not next_force:
+            nodes["rng"] = {
+                "type": "random",
+                "options": [{"goto": dest, "weight": 1} for dest in next_random],
+            }
     elif next_random:
         nodes["rng"] = {
             "type": "random",

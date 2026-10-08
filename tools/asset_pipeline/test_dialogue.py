@@ -44,6 +44,29 @@ class DialogueCodecTests(unittest.TestCase):
         self.assertEqual(nodes["p0"]["text"], "Hm.{btn}\nOK!")
         self.assertEqual(nodes["p1"]["text"], "Bye")
 
+    def test_a_choice_inside_a_message_carries_on_after_the_pick(self) -> None:
+        def text(t: str) -> list:
+            return [{"type": "text", "text": ch} for ch in t]
+
+        def cmd(name: str, args: list | None = None) -> dict:
+            return {"type": "cmd", "name": name, "args": args or []}
+
+        select = ["Yes", "No", "Stereo", "Mono"]
+        tokens = (
+            text("Which?") + [cmd("SETSELSTR2", [0, 2, 0, 3]), cmd("BTN"), cmd("OPENCHOICE")]
+            + text("\n") + [cmd("MSGCLEAR")] + text("{ok} it is. Sure?")
+            + [cmd("SETSELSTR2", [0, 0, 0, 1]), cmd("BTN"), cmd("OPENCHOICE"), cmd("SETNEXTMSG0", [0, 5]),
+               cmd("SETNEXTMSG1", [0, 6])]
+            + text("\n") + [cmd("MSGCONTINUE")]
+        )
+        nodes = tokens_to_conversation(4, tokens, select)["nodes"]
+        self.assertEqual(nodes["p0"]["next"], "c0")
+        self.assertEqual([o["text"] for o in nodes["c0"]["options"]], ["Stereo", "Mono"])
+        self.assertEqual({o["goto"] for o in nodes["c0"]["options"]}, {"p1"})
+        self.assertEqual(nodes["p1"]["next"], "choice")
+        self.assertEqual([o["goto"] for o in nodes["choice"]["options"]], [msg_id(5), msg_id(6)])
+        self.assertNotIn("open_choice", nodes["p1"])
+
     def test_player_name_and_choice_next(self) -> None:
         cmap = char_map()
         cmds = commands()

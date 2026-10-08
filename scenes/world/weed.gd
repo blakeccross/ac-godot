@@ -32,6 +32,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if not WeedUse.pull(self, ctx):
 		return false
 	Audio.play_se(&"zassou_nuku", self)
+	GameConfig.rumble(GameConfig.REMOVE_GRASS)
 	var yaw: float = 0.0
 	if ctx != null and ctx.actor != null and ctx.actor.has_method("facing_yaw"):
 		yaw = float(ctx.actor.call("facing_yaw"))

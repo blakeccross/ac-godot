@@ -59,6 +59,8 @@ static func fill(host: Node, ctx: InteractionContext) -> bool:
 	if host == null:
 		return false
 	## `scoop_umeru` is scheduled from the fill clip; host is the SE anchor if needed.
+	## `Player_actor_set_viblation_Fill_scoop`.
+	GameConfig.rumble(GameConfig.FILL)
 	var pid: StringName = _host_persist(host)
 	Game.clear_hole(pid)
 	var grid: WorldGrid = _grid(ctx)
