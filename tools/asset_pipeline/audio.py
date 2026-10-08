@@ -112,6 +112,13 @@ LEV_SE_NUMS: dict[str, int] = {
     "lev_a3": 0xA3,
     "lev_a8": 0xA8,
     "lev_cf": 0xCF,
+    ## `aFD_OperateWaterSound` / `Bg_Draw_Actor_move`: the nearest two field sound sources —
+    ## river and waterfall units (0x0B) inland, the surf (0x1C) on the beach acres — plus the
+    ## pond's water (0x16) and its frogs on summer evenings and mornings (0xA1).
+    "lev_b": 0x0B,
+    "lev_1c": 0x1C,
+    "lev_16": 0x16,
+    "lev_a1": 0xA1,
 }
 
 CATALOG_DIR = "audio"

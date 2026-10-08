@@ -608,7 +608,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [~] **Animalese** speech — see §17
 - [~] Town tune played on the hour outdoors as the time signal (`mBGMTime_signal_melody`) — `Audio.play_melody` on the note SEs; the step length (0.25 s) is an estimate, and clocks / villager humming don't use it yet
 - [ ] Gyroid voices layered onto room music (`ac_my_room_melody`, seq 246 rhythm group) — gyroids dance silently for now
-- [ ] Ambient: birds (day), crickets/owls (night), cicadas (summer day), ocean waves, river, waterfall, wind, rain, thunder
+- [~] Ambient: the surf on the beach acres and rivers / waterfalls inland from each acre's bg sound sources, the pond's water and its summer frogs (`aFD_OperateWaterSound`, `FieldAmbience`); rain is the weather loop, cicadas and crickets come from the insects. No birds or owls on the GameCube. Missing: panning, and the frog loop renders silent from the bank
 - [~] Positional audio for sound sources (train, insects) through `Ongen` (`Na_OngenPos`)
 - [ ] NES game audio via the Famicom APU emulation (`ks_nes_core`)
 - [~] Fanfares (`mBGMPsComp_make_ps_fanfare`): the pre-rendered jingle sequences play on their own layer over the music, which stops and starts over when they come off (`Audio.push_fanfare` / `pop_fanfare`) — net and rod catches, collection complete, golden tools. Missing: digging something up and the loan paid off (both show a toast here, not the report the jingle runs under)

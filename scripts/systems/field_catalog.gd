@@ -810,6 +810,15 @@ static func unit_at(visual_id: StringName, ux: int, uz: int) -> Dictionary:
 	}
 
 
+## `mFI_GetSoundSourcePBlockNum`: `[kind, ut_x, ut_z]` triples for an acre (see `AcreGrid.sounds`).
+static func acre_sounds(visual_id: StringName) -> PackedInt32Array:
+	var grid_path := acre_grid_path(String(visual_id))
+	if visual_id == &"" or not ResourceLoader.exists(grid_path):
+		return PackedInt32Array()
+	var grid := load(grid_path) as AcreGrid
+	return grid.sounds if grid != null else PackedInt32Array()
+
+
 static func _load_acre_units(id: String) -> PackedByteArray:
 	## The acre scene's own `AcreGrid`. Empty for a filler acre or one with no table.
 	var grid_path := acre_grid_path(id)
