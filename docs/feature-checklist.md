@@ -32,7 +32,7 @@ data tables before a category is called done.
 - [x] **House gyroid** outside each house plot is the save point (`ac_haniwa`, `ACTOR_PROP_HANIWA0`–`3`) — `scenes/world/haniwa.tscn` + `HaniwaTalk` + `HaniwaStore`: FG placement two units south of every house, `hnw_move` bob / dance speeds and turn-to-player, empty-plot freeze facing front, first-job "need a friend" line; owner menu: **Save** (walk to the door → door opens → save → title), **Store an item** (4-slot consignment table in the pockets: free / display only / for sale with a 5-digit price, take back), **Other things** → **About the door** (post one of your designs on the front door / remove it) and **Set message** (4-line visitor message, ROM default text); sale **proceeds** collected on the next talk (wallet, then 30 000-bell bags); **visitor** flow (read the message, pay and take) is in place but can't trigger in a one-resident town. `BGM_ENTER_HOUSE` is a plain BGM swap rather than a pushed demo track
 - [x] ~~Memory Card management, copy, "not saved correctly" recovery~~ — no Memory Card here; saves are files (`SaveService`), and quitting without saving is Mr. Resetti's job (below)
 - [x] **Mr. Resetti** appears if you quit without saving; escalating lectures by reset count; **Don** on the fifth (`mCD_SetResetInfo`, `ac_reset_demo`, `ac_npc_majin*`) — the save carries a `reset_code` set at load and cleared by a proper save; `ResettiVisit` picks the visitor and opening message (9+ cycle 6–8), `scenes/world/resetti.tscn` pops up (`APPEAR1`), lectures, waits to be spoken to on the fourth, digs back down (`GO_UG1`), with his helmet light at night. The typing test of the sixth follows the messages' own default branch
-- [ ] `zurumode` / cheat-detection "gnat" bug swarm anti-tamper behaviour (`zurumode.c`)
+- [x] ~~`zurumode`~~ — the developer debug mode (`zurumode.c`), not a player feature; the player-facing anti-cheat is the clock check below and the codes' checksum (`SecretCode.tampered`)
 - [~] RTC read, clock-was-changed detection (`lb_rtc.c`, `aNPS2_game_start_wait`) — the save stamps the wall clock and loading moves the game clock on by the real time away (`Clock.resume_after`, renewals catch up); a clock set behind the last save sets `cheated_flag` (GCN's only penalty: no birthday surprise, returning card visitors sent home). The time-set prompt at player select isn't built; the game follows the system clock
 - [x] Continue: the game starts with you walking out of your own house (`mSDI_StartInitFrom` → `SCENE_FG`); a save made indoors reopens in that room
 
@@ -303,7 +303,7 @@ data tables before a category is called done.
 - [~] **Villager quests** — deliveries (clothes / lost items), errand chains (fetch what they lent), contests (fruit, fish, bug, flowers, letter, snowman; ball offered but not completable), deadlines, give-up, rewards (`m_quest.c`, `ac_quest_talk_init.c`, `ac_quest_manager.c`) — `villager_quests.gd`, `villager_talk_manager.gd`. Wishing-well disposal of quest items (`aSHR_talk` apologize). A snowman built in the asker's acre counts (`mQst_NextSnowman`). Missing: the ball actor
 - [~] Trading furniture / clothing with villagers (chat trades: `aQMgr_order_decide_trade` / `_trade`) — `villager_talk_manager.gd`. Goods come from the shop's A / B / C lists; no hand-over animation yet
 - [x] Villager asks to buy something from your pockets / sell you something (chat trade topics)
-- [~] Villager house interiors from the disc's room tables, themed per villager (`InteriorCatalogNpc`, `VillagerHome`). Missing: rooms changing with the items you give
+- [x] Villager house interiors from the disc's room tables, themed per villager (`InteriorCatalogNpc`, `VillagerHome`) — on the GameCube only the island villager's room takes gifted furniture (`mNpc_SetIslandFtr`, GBA)
 - [x] ~~Sick villagers → medicine~~ — not in the GameCube game (Wild World on)
 - [~] Villager reactions to your appearance: bee-stung face, new shirt (`DialogueGreeting`). GCN has no haircuts
 - [~] Villager comments on weeds, holidays, weather, time of day, your birthday — the disc's greeting and rumour banks (`DialogueGreeting`, `VillagerTalkManager`)
@@ -596,7 +596,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [x] Tortimer "soncho" variant appearances for each holiday (`mEv_EVENT_SONCHO_*`) — except the January / February vacations and the bridge
 - [x] ~~Player birthday party~~ — GCN: the present visit and cards instead (§2)
 - [~] Weather overrides for events — the event scheduler applies `mEv_EVENT_WEATHER_*` rows (`EventCalendar`)
-- [ ] La-di-day / other minor JP holidays present in code — _(verify which survive in GAFE01)_
+- [x] Minor holidays: the calendar is the disc's own GAFE01 event table (`data/events/schedule.json`), so only the US release's days run
 
 ## 32. Audio
 
