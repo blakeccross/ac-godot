@@ -19,6 +19,8 @@ const BEE_SPAWN_DELAY := 5.0 / DecompTime.FRAME_HZ
 const YOUNG_PIVOT_PALM_GX := 5.0
 const YOUNG_PIVOT_CEDAR_GX := 15.0
 
+const XMAS_TREE_LIGHTS := &"obj_x_tree5_light"
+const XMAS_CEDAR_LIGHTS := &"obj_x_ceder5_light"
 @export var plant: PlantData
 @export var occupant_id: StringName = &""
 @export var persist_id: StringName = &""
@@ -221,9 +223,24 @@ func _present_live_visual() -> void:
 	var vis: Node3D = GeneratedVisual.attach(self, visual_id)
 	if vis != null and PlantGrowth.is_gold(_persist()):
 		_tint_gold(vis)
+	if vis != null and PlantGrowth.has_lights(PlantGrowth.record(_persist())):
+		_add_lights(vis)
 	var pivot := get_node_or_null("VisualPivot") as Node3D
 	if vis != null and pivot != null and is_inside_tree():
 		vis.reparent(pivot)
+
+
+## `tree4_light_list` / `cedar5_light_list`: the December lights, drawn in the tree's own
+## frame (same scale and origin).
+func _add_lights(vis: Node3D) -> void:
+	var id: StringName = XMAS_CEDAR_LIGHTS if plant != null and plant.id == &"cedar_tree" else XMAS_TREE_LIGHTS
+	var lights: Node3D = GeneratedVisual.instantiate_raw(id)
+	if lights == null:
+		return
+	lights.name = "XmasLights"
+	vis.add_child(lights)
+	var cell: Vector2i = _cell()
+	XmasLights.attach(lights, cell.x * 7 + cell.y * 13)
 
 
 ## `golden_tree_pal`: the golden tree draws the hardwood with its own palette.

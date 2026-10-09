@@ -63,6 +63,7 @@ func _ready() -> void:
 	SnowmanUse.restore(self)
 	PlantGrowth.restore(self, grid)
 	PlantGrowth.assign_special_trees(self)
+	PlantGrowth.set_xmas_trees(Clock.month, Clock.day, _field_rng(), self)
 	## First outdoor load seeds dig spots like `mAGrw_GROW_FIRST` deposit.
 	if Game.buried_deposits.is_empty():
 		BuriedUse.renew(self, grid)

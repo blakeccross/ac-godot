@@ -258,7 +258,7 @@ data tables before a category is called done.
 - [~] Chop tree with axe → multi-hit → falls → stump; stumps can grow mushrooms / be sat on; dig up stump (`bg_item` cut) — `tree_use.gd`
 - [x] Fruit trees: apple, orange, peach, pear, cherry, coconut (beach), with a native fruit per town — `TreeUse`, `PlantGrowth`
 - [x] Plant fruit → fruit tree; plant a sapling → tree; money and golden trees from the shine hole (see §14) — `PlantGrowth`
-- [~] Cedars and palms vs. hardwoods (`mNT_TREE_TYPE_CEDAR` / `PALM`), placed by the acre templates. Missing: the December lights on cedars
+- [x] Cedars and palms vs. hardwoods (`mNT_TREE_TYPE_CEDAR` / `PALM`), placed by the acre templates. December 10–25, up to three plain grown hardwoods or cedars an acre wear twinkling lights (`mAGrw_SetXmasTree`, `obj_x_tree5_light` / `obj_x_ceder5_light`, tints stepping every 32 frames) — `PlantGrowth.set_xmas_trees`, `XmasLights`
 - [x] Cherry-blossom bloom on hardwoods in early April — `VisualSeasons` (duplicate of §2)
 - [x] Tree count affects the environment rating — `TownAssessment` (§4)
 - [x] **Flowers**: tulips, pansies, cosmos in three colours each (`FLOWER_NUM` 9) — `data/plants/`

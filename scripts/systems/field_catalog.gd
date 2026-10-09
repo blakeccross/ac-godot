@@ -354,6 +354,9 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 			paths = _existing(["furniture/%sB.glb" % id])
 		return paths
 	match visual_id:
+		&"obj_x_tree5_light", &"obj_x_ceder5_light":
+			## December lights (`TREE_LIGHTS` / `CEDAR_TREE_LIGHTS`), drawn over the tree.
+			return _existing(["environment/trees/%s.glb" % id])
 		&"obj_s_tree1", &"TREE_S0":
 			return _tree_size_paths(1)
 		&"obj_s_tree2", &"TREE_S1":

@@ -12,6 +12,11 @@ const KEY_PLANTED := "planted_renew"
 const KEY_WATERED := "last_watered_renew"
 const KEY_FRUIT := "fruit_taken_renew"
 const KEY_CONTENT := "shake_content"
+## `TREE_LIGHTS` / `CEDAR_TREE_LIGHTS` (`mAGrw_SetXmasTree`).
+const KEY_LIGHTS := "xmas_lights"
+## `mAGrw_XMAS_LIGHTS_MAX_BLOCK`.
+const XMAS_LIGHTS_PER_ACRE := 3
+const XMAS_UNIT := 16
 ## A golden tree (`GOLD_TREE_*`, drawn with `golden_tree_pal`).
 const KEY_GOLD := "gold"
 ## `golden_tree_pal` stand-in: the leaves and trunk tinted gold.
@@ -399,6 +404,70 @@ static func _assign_content(
 			remaining.append(pid)
 	candidates.clear()
 	candidates.append_array(remaining)
+
+
+## `mAGrw_CheckPutXmasTree`: December 10 to 25.
+static func xmas_season(month: int, day: int) -> bool:
+	return month == 12 and day >= 10 and day <= 25
+
+
+static func has_lights(rec: Dictionary) -> bool:
+	return bool(rec.get(KEY_LIGHTS, false))
+
+
+## A plain grown hardwood or cedar (`TREE` / `CEDAR_TREE`): no fruit kind, nothing in it,
+## not golden.
+static func can_hold_lights(persist_id: StringName, rec: Dictionary, plant: PlantData) -> bool:
+	if plant == null or not (plant.id in [&"hardwood_tree", &"cedar_tree"]):
+		return false
+	if pipeline(rec, plant) != Pipeline.HARVESTABLE or is_gold(persist_id):
+		return false
+	return shake_content_of(rec) == TreeUse.Content.NONE
+
+
+## `mAGrw_SetXmasTreeBlock` / `ClearXmasTreeBlock` over the field: in season each acre gets
+## lights on up to three of its plain trees (keeping any already lit); out of season they
+## all come down.
+static func set_xmas_trees(month: int, day: int, rng: RandomNumberGenerator, world: Node = null) -> void:
+	var season: bool = xmas_season(month, day)
+	var by_acre: Dictionary = {}
+	for key: Variant in Game.plant_states.keys():
+		var pid := StringName(str(key))
+		var rec: Dictionary = record(pid)
+		if rec.is_empty():
+			continue
+		if not season or Game.is_interactable_removed(pid) or Game.is_stump(pid):
+			if has_lights(rec):
+				rec.erase(KEY_LIGHTS)
+				_store(pid, rec)
+			continue
+		var plant: PlantData = plant_data(StringName(str(rec.get(KEY_PLANT, ""))))
+		var lit: bool = has_lights(rec)
+		if lit and not can_hold_lights(pid, rec, plant):
+			rec.erase(KEY_LIGHTS)
+			_store(pid, rec)
+			lit = false
+		if not lit and not can_hold_lights(pid, rec, plant):
+			continue
+		var acre := Vector2i(int(rec.get(KEY_CELL_X, 0)) / XMAS_UNIT, int(rec.get(KEY_CELL_Z, 0)) / XMAS_UNIT)
+		var bucket: Dictionary = by_acre.get(acre, {"lit": 0, "free": []})
+		if lit:
+			bucket["lit"] = int(bucket["lit"]) + 1
+		else:
+			(bucket["free"] as Array).append(pid)
+		by_acre[acre] = bucket
+	if season:
+		for acre: Variant in by_acre:
+			var bucket: Dictionary = by_acre[acre]
+			var free: Array = bucket["free"]
+			var want: int = mini(XMAS_LIGHTS_PER_ACRE - int(bucket["lit"]), free.size())
+			for _i: int in want:
+				var pid: StringName = free.pop_at(rng.randi_range(0, free.size() - 1))
+				var rec: Dictionary = record(pid)
+				rec[KEY_LIGHTS] = true
+				_store(pid, rec)
+	if world != null:
+		refresh_hosts(world)
 
 
 static func refresh_hosts(world: Node) -> void:

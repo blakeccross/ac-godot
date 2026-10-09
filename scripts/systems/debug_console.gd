@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "digup", "ball", "drop", "bridge", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "digup", "ball", "xmas", "drop", "bridge", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -85,6 +85,18 @@ func execute(raw: String) -> String:
 			if dr_cell.x < 0 or FieldItems.put(dr_world, dr_cell, StringName(String(args[0]).to_lower())) == null:
 				return "Can't drop here."
 			return "Dropped %s at %s." % [args[0], dr_cell]
+		"xmas":
+			## Walk up to a tree with December lights (Dec 10–25).
+			var xm_tree := Engine.get_main_loop() as SceneTree
+			var xm_player := xm_tree.get_first_node_in_group(Player.GROUP) as Player if xm_tree != null else null
+			if xm_player == null:
+				return "No player in this scene."
+			for xm_node: Node in xm_tree.get_nodes_in_group("plant"):
+				if xm_node.find_child("XmasLights", true, false) != null:
+					var xm_pos: Vector3 = (xm_node as Node3D).global_position
+					xm_player.global_position = xm_pos + Vector3(0.0, 0.0, 2.5)
+					return "Lit tree at %s." % xm_pos
+			return "No lit trees."
 		"ball":
 			## Bring the town's ball in front of the player (`ball`), or kick it (`ball kick`).
 			var bl_tree := Engine.get_main_loop() as SceneTree

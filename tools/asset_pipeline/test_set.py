@@ -196,6 +196,24 @@ TEST_SKELETONS = [
 # Static Gfx models (no cKF skeleton). Paths keep original identifiers.
 TEST_STATIC = [
     {
+        ## December lights on a cedar (`cedar5_light_list` → `obj_x_ceder5_lightT_gfx_model`).
+        ## It draws from the hardwood lights' vtx, so per-vtx inference keeps only one; the
+        ## hardwood row below wins `TEST_STATIC_BY_VTX` and this one is added back.
+        "asset_id": "obj_x_ceder5_light",
+        "vtx": "obj_x_tree5_light_v",
+        "gfx": ["obj_x_ceder5_lightT_gfx_model"],
+        "output": "environment/trees/obj_x_ceder5_light.glb",
+        "confident_name": True,
+    },
+    {
+        ## December lights on a hardwood (`tree4_light_list` → `obj_x_tree5_lightT_gfx_model`).
+        "asset_id": "obj_x_tree5_light",
+        "vtx": "obj_x_tree5_light_v",
+        "gfx": ["obj_x_tree5_lightT_gfx_model"],
+        "output": "environment/trees/obj_x_tree5_light.glb",
+        "confident_name": True,
+    },
+    {
         ## `ef_dust01_modelT` (dust / tumble dust): vtx is `ef_dust01_00_v`, so the
         ## name-paired job inference misses it. Frames come from `ef_dust01_0..3`.
         "asset_id": "ef_dust01",

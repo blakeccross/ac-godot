@@ -338,3 +338,43 @@ func test_dash_trample_clears_a_flower_cell_only() -> void:
 	assert_bool(PlantGrowth.trample_flower(null, grid, cell)).is_true()
 	assert_str(String(grid.occupant_at(cell))).is_empty()
 	assert_bool(PlantGrowth.has_record(pid)).is_false()
+
+
+## `mAGrw_SetXmasTree`: December 10–25, three plain trees an acre get lights; after, none.
+func test_december_lights_three_an_acre_then_down() -> void:
+	Clock.apply_snapshot({"year": 2001, "month": 12, "day": 12, "hour": 12, "minute": 0})
+	var hardwood: PlantData = load("res://data/plants/hardwood_tree.tres")
+	var apple: PlantData = load("res://data/plants/apple_tree.tres")
+	for i: int in 6:
+		var cell := Vector2i(i, 1)
+		PlantGrowth.ensure(PlantGrowth.persist_id(cell), hardwood, &"TREE", cell)
+	## A second acre with one tree, and a fruit tree that never gets lights.
+	PlantGrowth.ensure(PlantGrowth.persist_id(Vector2i(20, 1)), hardwood, &"TREE", Vector2i(20, 1))
+	PlantGrowth.ensure(PlantGrowth.persist_id(Vector2i(21, 1)), apple, &"TREE_APPLE_FRUIT", Vector2i(21, 1))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	PlantGrowth.set_xmas_trees(12, 12, rng)
+	var lit_first := 0
+	for i: int in 6:
+		if PlantGrowth.has_lights(PlantGrowth.record(PlantGrowth.persist_id(Vector2i(i, 1)))):
+			lit_first += 1
+	assert_int(lit_first).is_equal(3)
+	assert_bool(PlantGrowth.has_lights(PlantGrowth.record(PlantGrowth.persist_id(Vector2i(20, 1))))).is_true()
+	assert_bool(PlantGrowth.has_lights(PlantGrowth.record(PlantGrowth.persist_id(Vector2i(21, 1))))).is_false()
+	## Loading again keeps the same three.
+	PlantGrowth.set_xmas_trees(12, 13, rng)
+	var again := 0
+	for i: int in 6:
+		if PlantGrowth.has_lights(PlantGrowth.record(PlantGrowth.persist_id(Vector2i(i, 1)))):
+			again += 1
+	assert_int(again).is_equal(3)
+	PlantGrowth.set_xmas_trees(12, 26, rng)
+	for key: Variant in Game.plant_states.keys():
+		assert_bool(PlantGrowth.has_lights(PlantGrowth.record(StringName(str(key))))).is_false()
+
+
+func test_december_light_tints_step_every_32_frames() -> void:
+	assert_bool(PlantGrowth.xmas_season(12, 10)).is_true()
+	assert_bool(PlantGrowth.xmas_season(12, 9)).is_false()
+	assert_int(XmasLights.tint_index(0, 0)).is_equal(XmasLights.tint_index(31, 0))
+	assert_int(XmasLights.tint_index(32, 0)).is_not_equal(XmasLights.tint_index(31, 0))
