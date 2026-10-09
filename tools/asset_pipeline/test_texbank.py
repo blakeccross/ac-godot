@@ -16,7 +16,6 @@ from asset_pipeline.texbank import (
     is_house_clock_texture,
     is_image_symbol,
     is_indoor_mado_texture,
-    is_museum_clock_texture,
     is_museum_plate_texture,
     museum_art_house_twin,
     museum_dummy_wood_twin,
@@ -160,8 +159,6 @@ class ClassicGbiTests(unittest.TestCase):
         self.assertTrue(is_indoor_mado_texture("rom_museum1_mado1_tex"))
         self.assertTrue(is_indoor_mado_texture("rom_museum1_mado2_tex"))
         self.assertTrue(is_house_clock_texture("obj_clock_museum1_front_tex_txt"))
-        self.assertTrue(is_museum_clock_texture("obj_clock_museum1_front_tex_txt"))
-        self.assertFalse(is_museum_clock_texture("obj_clock_tailor_1_tex_txt"))
         self.assertTrue(skips_achd_texture("rom_museum1_mado1_tex"))
         self.assertTrue(skips_achd_texture("obj_clock_museum1_dai_tex_txt"))
         self.assertTrue(skips_achd_texture("obj_art01_name_tex"))
@@ -466,3 +463,35 @@ class LoadTlutFallbackTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClassicLoadLayoutTests(unittest.TestCase):
+    def test_loadblock_marks_the_image_row_major_until_the_next_settimg(self) -> None:
+        from asset_pipeline.gfx import apply_texture_commands
+        from asset_pipeline.texbank import TextureState
+
+        settimg = bytes.fromhex("FD500000") + (0x00945000).to_bytes(4, "big")
+        loadblock = bytes.fromhex("F3000000") + bytes.fromhex("070FF800")
+        enddl = bytes.fromhex("DF000000") + bytes(4)
+        state = TextureState()
+        apply_texture_commands(settimg + loadblock + enddl, _NullBank(), state)
+        self.assertTrue(state.n64_layout)
+        apply_texture_commands(settimg + enddl, _NullBank(), state)
+        self.assertFalse(state.n64_layout)
+
+    def test_n64_linear_ci4_reads_rows_in_order(self) -> None:
+        from asset_pipeline.bti import decode_n64_linear
+
+        ## 8×2 CI4: row 0 is 0..7, row 1 is 7..0.
+        data = bytes([0x01, 0x23, 0x45, 0x67, 0x76, 0x54, 0x32, 0x10])
+        palette = [(i * 30, 0, 0, 255) for i in range(16)]
+        img = decode_n64_linear(data, 8, 2, 2, 0, palette)
+        self.assertEqual(img.getpixel((3, 0)), (90, 0, 0, 255))
+        self.assertEqual(img.getpixel((0, 1)), (210, 0, 0, 255))
+
+
+class _NullBank:
+    segment_images: dict = {}
+
+    def load_palette(self, addr: int, count: int):
+        return None

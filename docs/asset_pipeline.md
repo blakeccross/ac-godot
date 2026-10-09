@@ -329,6 +329,7 @@ Writes deterministic JSON to `work_root/manifests/assets.json` (`sort_keys`, sor
 | `game_files must be a disc image or ... files/` | Wrong `game_files` path |
 | `REL slice out of range` | Not `GAFE01_00`, or REL not decompressed |
 | `KeyError: ..._v` | Prefix does not match `{skeleton without cKF_bs_r_}_v` |
+| A texture reads as striped neon noise (building clocks, paintings) | It came in through a classic N64 load (`gsDPLoadBlock` / `gsDPLoadTile`): the texels are row-major and a classic `gsDPLoadTLUT_pal16` palette is RGBA5551 (emu64 converts them at draw time). The walker marks `TextureState.n64_layout` / `n64_tlut` from those commands; Dolphin loads (`*_Dolphin`) stay GX-tiled RGB5A3 |
 | `No mesh parts decoded` | GBI walker missed triangles, listed DLs are material-only, or the `*_v` name is duplicated in `foresta.map` and the by-name lookup picked the copy the display list does not point at (`_vtx_sym_for_gfx` now follows `G_VTX`) |
 | Player looks like stacked parts along +X | Bind bake missing the +90° Z stand-up (`ckf_bind_to_godot`) |
 | Player is exploded shards / rainbow | Old GPU-skin export mixed joints and used lighting normals as vertex colors |

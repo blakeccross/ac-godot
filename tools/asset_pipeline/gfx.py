@@ -58,6 +58,9 @@ G_ENDDL = 0xDF
 G_SETOTHERMODE_L = 0xE2
 G_SETOTHERMODE_H = 0xE3
 G_LOADTLUT = 0xF0
+## Classic N64 texture loads: the image they bring in is row-major (`TextureState.n64_layout`).
+G_LOADBLOCK = 0xF3
+G_LOADTILE = 0xF4
 G_SETTILESIZE = 0xF2
 G_SETTILE = 0xF5
 G_SETTIMG = 0xFD
@@ -604,6 +607,8 @@ def apply_texture_commands(blob: bytes, bank: TextureBank, state: TextureState, 
             _apply_settimg(w0, w1, bank, state)
         elif cmd == G_LOADTLUT:
             _apply_loadtlut(w0, w1, bank, state)
+        elif cmd in (G_LOADBLOCK, G_LOADTILE):
+            state.n64_layout = True
         elif cmd == G_SETTILE:
             _apply_settile(w0, w1, state)
         elif cmd == G_SETTILESIZE:
@@ -625,6 +630,7 @@ def _apply_settimg(w0: int, w1: int, bank: TextureBank, state: TextureState) -> 
     state.fmt = fmt
     state.siz = siz
     state.img_addr = addr
+    state.n64_layout = False
     ## New image: drop prior tile size so UVs follow this SETTIMG until SETTILESIZE.
     state.tile_w = 0
     state.tile_h = 0
@@ -652,6 +658,7 @@ def _apply_loadtlut(w0: int, w1: int, bank: TextureBank, state: TextureState) ->
         mapped = tmem_palette_slot(state.tmem)
         slot = mapped if mapped is not None else state.pal_slot
     pal = bank.load_palette(addr, count or 16)
+    state.n64_tlut = not dolphin
     if pal and slot >= 0:
         state.palettes[slot] = pal
         state.pal_slot = slot
@@ -1300,6 +1307,8 @@ def parse_gfx(
                     flush()
                     current_key = None
                 _apply_settimg(w0, w1, bank, tex_state)
+            elif cmd in (G_LOADBLOCK, G_LOADTILE) and bank is not None:
+                tex_state.n64_layout = True
             elif cmd == G_LOADTLUT and bank is not None:
                 # Skin/horn tris often sit in the buffer when the next TLUT (shirt) arrives.
                 if triangles:

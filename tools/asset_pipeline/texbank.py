@@ -22,7 +22,7 @@ from .bti import (
 	_rgb5a3,
 	_rgba5551,
 	decode_gx_image,
-	decode_linear_rgba5551,
+	decode_n64_linear,
 )
 from .mapfile import MapSymbol, index_by_name
 from .rel import RelData
@@ -678,11 +678,6 @@ def is_house_clock_texture(tex_name: str) -> bool:
     return tex_name.startswith("obj_clock_")
 
 
-def is_museum_clock_texture(tex_name: str) -> bool:
-    """`obj_clock_museum1_*` is N64 linear RGBA5551, not GX-tiled RGB5A3."""
-    return tex_name.startswith("obj_clock_museum1_")
-
-
 def is_train_structure_texture(tex_name: str) -> bool:
     """Outdoor train CI4 (`obj_train1_t*_tex_txt`). ACHD hashes need the live
     structure TLUT (`obj_train1_a1/a2_pal`); wrong-pal lookups paint magenta."""
@@ -1101,6 +1096,12 @@ class TextureState:
     ## G_SETTILE_DOLPHIN tile 0 / tile 1 before the next SETTIMG overwrites img_addr.
     tile0: dict | None = None
     tile1: dict | None = None
+    ## A classic `gsDPLoadBlock` / `gsDPLoadTile` brought this image in: its texels are N64
+    ## row-major, not GX-tiled (emu64 converts them at draw time). Cleared by SETTIMG.
+    n64_layout: bool = False
+    ## The palette came through a classic `G_LOADTLUT` (`gsDPLoadTLUT_pal16`): N64 RGBA5551
+    ## words (`G_TT_RGBA16`), not GX RGB5A3.
+    n64_tlut: bool = False
 
 
 class TextureBank:
@@ -1801,6 +1802,8 @@ class TextureBank:
             state.prim,
             use_achd,
             self.water_surface,
+            state.n64_layout,
+            state.n64_tlut,
         )
         cached = self._png_cache.get(key)
         if cached is not None:
@@ -1890,15 +1893,14 @@ class TextureBank:
                 if cached is not None:
                     return cached[0], name, cached[1]
         try:
-            if is_museum_clock_texture(name):
-                ## REL keeps N64 row-major RGBA5551; GX 4×4 RGB5A3 reads as neon noise.
-                image = decode_linear_rgba5551(data, state.width, state.height)
-            elif is_house_clock_texture(name) and state.fmt == G_IM_FMT_CI:
-                ## Shop/house CI clocks ship N64 RGBA16 TLUTs (`obj_shop1_clock_pal`).
-                ## RGB5A3 misreads them as cyan/purple instead of wood.
-                image = decode_gbi_texture(
-                    data, state.width, state.height, state.fmt, state.siz, pal, n64_tlut=True
-                )
+            if state.n64_layout:
+                ## Classic loads (`gsDPLoadBlock`): row-major texels, and with a classic TLUT
+                ## RGBA5551 colours; read GX-tiled / RGB5A3 they are neon noise.
+                palette = None
+                if pal:
+                    palette = palette_from_rgba5551(pal) if state.n64_tlut else palette_from_rgb5a3(pal)
+                needed = image_byte_size(state.width, state.height, state.siz)
+                image = decode_n64_linear(data[:needed], state.width, state.height, state.fmt, state.siz, palette)
             else:
                 image = decode_gbi_texture(data, state.width, state.height, state.fmt, state.siz, pal)
             image = apply_prim(image, state.prim)
