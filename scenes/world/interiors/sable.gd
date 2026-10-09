@@ -70,6 +70,22 @@ func _begin_talk(ctx: InteractionContext) -> bool:
 	var listener: Node3D = ctx.actor as Node3D if ctx != null else null
 	_story_row = 0
 	_story_ids = []
+	_story_index = 0
+	## `aNNW_set_ane_msg`: April Fools' Day's trick instead of her story (`aNNW_TALK_ANE_2`).
+	var trick: DialogueData = AprilFools.conversation(&"sable")
+	if trick != null:
+		NeedleworkPresenter.set_machine_running(get_parent(), false)
+		if _body_anim != null:
+			_body_anim.speed_scale = 0.5
+		_start_talk_session(listener)
+		var ui := DialogueOverlay.find(get_tree())
+		if ui != null:
+			_bind_next(ui)
+			ui.play(trick, _make_ctx())
+		else:
+			_end_talk()
+		_talked_today = true
+		return true
 	if Game.designs != null:
 		var first := Game.designs.sable_last_date != _today()
 		## A visitor (`mPr_FOREIGNER`) is always a stranger: day 0, no tick, no look.

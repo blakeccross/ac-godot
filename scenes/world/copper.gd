@@ -224,6 +224,11 @@ func _begin_talk(listener: Node3D, exit_greeting: bool) -> bool:
 	ctx.speaker_name = "Copper"
 	CopperTalk.fill(ctx, exit_greeting)
 	var data: DialogueData = CopperTalk.conversation(exit_greeting)
+	## `aPOL_set_norm_talk_info_talk_request`: April Fools' Day's trick comes first.
+	if not exit_greeting:
+		var trick: DialogueData = AprilFools.conversation(&"copper")
+		if trick != null:
+			data = trick
 	var ui := DialogueOverlay.find(get_tree())
 	if ui == null or data == null:
 		return false

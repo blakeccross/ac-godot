@@ -166,6 +166,11 @@ func _open_talk(msg_no: int, player: Node3D) -> void:
 	if msg_no == PoliceTalk.MSG_CLAIM and Game != null and Game.police != null:
 		PoliceTalk.fill_claim(ctx, Game.police.item_at(_item_idx))
 	var data: DialogueData = PoliceTalk.conversation(msg_no, ctx)
+	## `aPOL2_set_norm_talk_info_message_ctrl`: April Fools' Day's trick instead of the desk talk.
+	if msg_no == PoliceTalk.MSG_TALK_ITEMS or msg_no == PoliceTalk.MSG_TALK_EMPTY:
+		var trick: DialogueData = AprilFools.conversation(&"booker")
+		if trick != null:
+			data = trick
 	var ui := DialogueOverlay.find(get_tree())
 	var p: Player = player as Player
 	if p != null:

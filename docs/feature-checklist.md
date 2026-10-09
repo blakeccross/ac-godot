@@ -394,7 +394,7 @@ data tables before a category is called done.
 - [~] Sale days, the flooring/wallpaper wall — Sale Day grab bags, sale-event balloon gift on the first talk (`aNSC_check_present_balloon`); missing: the bargain-event FG layout (`mSP_GetNowShopFgNum` event kinds), wallpaper/carpet preview on the shop walls (`change_wall_proc`)
 - [x] Nook gives you your first job (§29)
 - [x] Nook's hours (`mSP_GetShopOpenTime`): Cranny / Nookway / Nookington's 9–22, Nook 'n' Go 7–23, raffle day opens at 10, forced open during the part-time job; the door says why it's closed (renovations / opening hour)
-- [~] Tom Nook talk (`ac_npc_shop_common`): house business first, then the counter menu — sell / catalog order / other (turnip price) — and shelf offers ("That's X, N Bells") with try-on for clothes (`aNSC_show_item_check`); `NookShopTalk`. Timmy & Tommy upstairs at Nookington's and the password options are in. Missing: April Fool's lines, HRA talk
+- [~] Tom Nook talk (`ac_npc_shop_common`): house business first, then the counter menu — sell / catalog order / other (turnip price) — and shelf offers ("That's X, N Bells") with try-on for clothes (`aNSC_show_item_check`); `NookShopTalk`. Timmy & Tommy upstairs at Nookington's and the password options are in. April Fools' Day's trick on the first talk (`AprilFools`). Missing: HRA talk
 - [x] ~~Emotion / Redd membership card~~ — not in the GameCube shop code
 - [x] Raffle tickets & end-of-month drawing (`ac_npc_shop_mastersp`): furniture / clothes / wallpaper / carpet / umbrella purchases each earn a month ticket (stack of 5; mailed next morning when the pockets are full, `aNSC_setup_ticket_remain`); on the last day Nook shows three prizes (the first one you don't own), five same-month tickets per spin, 5% / 10% / 20% for 1st / 2nd / 3rd, each prize won once
 - [x] Roof paint sold at Nookway+: no pocket item, the roof changes at the next game start (`next_outlook_pal`)
@@ -418,7 +418,7 @@ were dropped. See [shops](decomp_notes/shops.md) § Able Sisters.
 - [x] Sable's story arc (`aNNW_get_make_sister_message`, `aNNW_message_table`): the visit-day counter ticks once per real day she's spoken to, capped at 10 (`aNNW_day_day`); the row is picked from the count *before* today's tick, so the first talk of days 4–7 tells that day's chapter (`aNNW_story_first_table` 5/9/13/17) and later talks a follow-up; ≥8 days she's at ease. Three-part rows play Sable → Mabel (turned to face her, `aNNW_THINK_AINOTE`) → Sable; story 9 ends with Sable turning to you (`aNNW_talk_ane_3`). **No free pattern** — the GCN arc has no gift (nothing in `ac_npc_needlework_talk.c_inc` hands one over; that's later games)
 - [ ] ROM text: the greeting, menu-lead, story and explanation lines are authored stand-ins until the message banks (`0x2FD1`–`0x3035`, `0x3012+`) and the design-name strings (`0x6DF`/`0x6E7`) are extracted; `NeedleworkTalk` prefers the ROM line when the bank is present
 - [ ] **Other things** → GBA design tool / upload / e-Reader cards (`ac_npc_needlework_gba.c_inc`, `aNNW_TALK_GBA_*`, `CARD_E_*`): the menu is there and answers "no Game Boy Advance connected" (0x3008); the link itself is §28
-- [~] April Fool's lines for both sisters (`aprilfool_control_clip`) — April Fools' rumours and mail exist; the sisters' own clips are not wired
+- [x] April Fool's lines for both sisters (`aprilfool_control_clip`, `AprilFools`): Mable's trick instead of the menu, Sable's instead of her story
 - [x] Foreign-player rules (`mPr_FOREIGNER`): a visitor gets 0x2FEE instead of the album, and Sable treats them as day 0 — no tick, no look up (`mabel.gd`, `sable.gd`)
 
 ## 23. Museum
@@ -574,7 +574,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [x] Valentine's Day — villagers send letters with chocolate (`VillagerLetters.send_valentines`)
 - [x] Snowman season / Kamakura — snow cabin with a resident guest (greeting game, Kamakura trade list); the snowman balls (`snowman_start`, `SnowmanPresenter`)
 - [x] Spring / Fall **Sports Fair** — residents in gym clothes at their stations with their lines; Tortimer. The games run: tug-of-war on a shared rope with a flag-waving referee (`TugOfWar`), ball toss into the baskets with cheers (`BallToss`, `TossBall`), and the four-lap foot race round the shrine with warm-up, starter's pistol, trips, finish and team swap (`FootRace`)
-- [~] April Fools' Day — rumours, mom's letter, the calendar. Missing: villagers' April Fools' lines and Booker / the sisters' clips
+- [x] April Fools' Day — rumours, mom's letter, the calendar; villagers' first hello of the day is an April Fools' line (`MSG_15236`, islanders `MSG_15254`), as Spring Cleaning's is (`MSG_15297`); Porter, Tom Nook, Blathers, Mable, Sable, Copper, Booker, Pelly and Phyllis each try one trick on every resident (`ac_aprilfool_control`, `AprilFools`; Pete and Kapp'n aren't in town)
 - [x] Cherry Blossom Festival — picnic mats, seated / dancing residents, Tortimer
 - [x] Nature Day, Spring Cleaning, Mother's / Father's Day, Graduation, Town / Founders' / Labor / Explorers' / Officers' / Mayor's / Sale / Snow Day — Tortimer at the wishing well with his calendar trophy (`ac_ev_soncho2`, `TortimerHoliday`)
 - [x] Fishing Tourney — anglers at the pond, Chip, weigh stand

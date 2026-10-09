@@ -55,6 +55,10 @@ func begin_talk(ctx: InteractionContext) -> bool:
 	var speaker: String = PostDisplay.post_girl_name(_species)
 	var desk_full: bool = Game.post != null and Game.post.is_desk_full()
 	var data: DialogueData = PostDisplay.talk_conversation(_species, desk_full)
+	## `aPG_set_talk_info`: April Fools' Day's trick instead of the counter.
+	var trick: DialogueData = AprilFools.conversation(&"phyllis" if _species == PostDisplay.PHYLLIS_SPECIES else &"pelly")
+	if trick != null:
+		data = trick
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = speaker
 	talk_ctx.already_talked = _talked_today

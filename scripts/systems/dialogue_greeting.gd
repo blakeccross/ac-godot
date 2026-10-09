@@ -42,6 +42,12 @@ const KAMAKURA_HELLO := [6367, 6376, 6358, 6385, 6394, 6403]
 const CAMPER_HELLO := [16002, 16032, 16063, 16093, 16123, 16153]
 const CAMPER_FIRST := 15930
 const GREETING_GAME_BELL_MIN := 3000
+## The first hello of the day on Spring Cleaning / April Fools' Day (`MSG_15297` / `MSG_15236`;
+## islanders `MSG_15315` / `MSG_15254`): 3 lines a looks.
+const SPRING_CLEANING_HELLO := 15297
+const APRIL_FOOLS_HELLO := 15236
+const ISLAND_SPRING_CLEANING_HELLO := 15315
+const ISLAND_APRIL_FOOLS_HELLO := 15254
 
 
 static func conversation(villager: VillagerData, state: VillagerState, ctx: DialogueContext = null) -> DialogueData:
@@ -94,6 +100,10 @@ static func hello_msg_no(villager: VillagerData, state: VillagerState, ctx: Dial
 	if meet == MEET_FIRST and villager != null and Game != null and Game.residents != null:
 		if Game.residents.moved_in(villager.id):
 			return msg_offset(MOVED_IN_HELLO, looks, ctx.hour, _roll(KIND, ctx), KIND)
+	if meet == MEET_TODAY:
+		var holiday: int = holiday_hello(villager != null and villager.islander)
+		if holiday >= 0:
+			return _random_looks(holiday, looks, KIND, ctx)
 	if ctx.mood == VillagerState.Mood.HAPPY:
 		return _hello_offset(GRAD[meet], looks, ctx.hour, KIND, ctx)
 	if villager != null and villager.islander:
@@ -106,6 +116,17 @@ static func hello_msg_no(villager: VillagerData, state: VillagerState, ctx: Dial
 		"snow":
 			table = SNOW
 	return _hello_offset(int(table[meet]), looks, ctx.hour, KIND, ctx)
+
+
+## The holiday first-hello base for today, or -1 (`aQMgr_get_hello_msg_npc_feel_normal`).
+static func holiday_hello(islander: bool) -> int:
+	if Game == null or Game.events == null:
+		return -1
+	if Game.events.is_active(&"spring_cleaning"):
+		return ISLAND_SPRING_CLEANING_HELLO if islander else SPRING_CLEANING_HELLO
+	if Game.events.is_active(&"aprilfools_day"):
+		return ISLAND_APRIL_FOOLS_HELLO if islander else APRIL_FOOLS_HELLO
+	return -1
 
 
 ## `aQMgr_get_hello_msg_no_kamakura` / `_summercamp`: the guest's greeting game. Money (a

@@ -78,6 +78,13 @@ func _town_talk() -> void:
 	if ui == null:
 		return
 	var house: House = Game.interiors.player_house() if Game.interiors != null else null
+	var trick: DialogueData = AprilFools.conversation(&"porter")
+	if trick != null:
+		speaking = true
+		ui.play(trick, _context())
+		await ui.closed
+		speaking = false
+		return
 	var talk := PorterTalk.new(Game.foreigner, house != null and house.has_saved)
 	var ctx := _context()
 	talk.context = ctx

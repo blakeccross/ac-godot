@@ -184,6 +184,9 @@ func _begin_normal_talk(listener: Node3D) -> bool:
 		NookHouseTalk.fill_context(talk_ctx, house_plan)
 		if house_plan.has("statues_built"):
 			Game.num_statues = int(house_plan["statues_built"])
+	elif clerk < 0 and AprilFools.pending(&"tom_nook"):
+		## `aNSC_set_talk_info_message_ctrl_aprilfool`: a trick before the counter.
+		data = AprilFools.conversation(&"tom_nook")
 	elif clerk < 0 and Game.shops.is_lottery_day() and DialogueCatalog.conversation(NookShopTalk.LOTTERY_ID) != null:
 		## Raffle day: Nook runs the drawing instead of the counter (`ac_npc_shop_mastersp`).
 		data = DialogueCatalog.conversation(NookShopTalk.LOTTERY_ID)

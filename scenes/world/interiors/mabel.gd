@@ -219,6 +219,16 @@ func _begin_talk(ctx: InteractionContext = null) -> bool:
 		return _auto_greet(listener)
 	## `aNNW_set_norm_talk_info`: 0x2FD4 (WHAT_HAPPEN_FIRST) until "What's this?" has
 	## been picked once (`needlework_first_talk_flags & 0x40`), 0x3005 after.
+	## April Fools' Day's trick instead of the menu (`aNNW_TALK_END_WAIT`).
+	var trick: DialogueData = AprilFools.conversation(&"mable")
+	if trick != null:
+		var ui := DialogueOverlay.find(get_tree())
+		if ui != null:
+			_start_talk_session(listener)
+			_bind_end(ui)
+			ui.play(trick, _make_ctx())
+		_talked_today = true
+		return true
 	var lead: String = NeedleworkTalk.TEXT_MENU
 	if Game.designs != null and not Game.designs.listened_flag:
 		lead = NeedleworkTalk.TEXT_MENU_FIRST
