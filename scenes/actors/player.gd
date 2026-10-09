@@ -379,7 +379,9 @@ func is_pushing_snowball() -> bool:
 
 ## `Player_actor_main_Push_snowball`: the ball steps each tick and hands back where the
 ## player stands (`mPlib_SetParam_for_push_snowball`).
-func _tick_snowball_push(delta: float, wish: Vector3, stick: float, dash: bool) -> void:
+func _tick_snowball_push(
+	delta: float, wish: Vector3, stick: float, dash: bool, input_dir: Vector2 = Vector2.ZERO, bg: Array = []
+) -> void:
 	if not is_instance_valid(_snowball):
 		end_snowball_push()
 		return
@@ -393,11 +395,14 @@ func _tick_snowball_push(delta: float, wish: Vector3, stick: float, dash: bool) 
 	if last.is_empty():
 		return
 	var aim: Vector3 = last["aim"]
+	var before: Vector3 = global_position
 	global_position = Vector3(aim.x, global_position.y, aim.z)
 	_snap_to_bg()
 	set_facing(float(last["yaw"]))
 	_motor.body_yaw = _motor.facing
 	velocity = Vector3.ZERO
+	if bg.size() == 2 and TownSpace.is_outdoor_town() and _snowball_border(before, input_dir, bg):
+		return
 	if _anim != null:
 		_anim.speed_scale = clampf(float(last["speed"]) / 1.5, 0.2, 2.0)
 
@@ -507,7 +512,7 @@ func _physics_process(delta: float) -> void:
 	)
 	move_intent = wish * stick
 	if _snowball != null:
-		_tick_snowball_push(delta, wish, stick, sprint and not menu_open)
+		_tick_snowball_push(delta, wish, stick, sprint and not menu_open, input_dir, bg)
 		if _snowball == null:
 			_update_animation(delta)
 		return
@@ -636,6 +641,38 @@ func _can_land(pos_gx: Vector3, dir: AcreWade.Dir, bg: Array) -> bool:
 	return true
 
 
+## `aSMAN_player_push_scroll_request`: pushing, the player is walled in the acre too
+## (`mCoBG_UniqueWallCheck`). At the wall with the stick across and the body within 5°,
+## the player and the ball wade together (`WADE_SNOWBALL`); otherwise the push lets go.
+func _snowball_border(before: Vector3, input_dir: Vector2, bg: Array) -> bool:
+	var old_gx: Vector3 = TownSpace.world_to_gx(before)
+	var now_gx: Vector3 = TownSpace.world_to_gx(global_position)
+	var held: Vector3 = AcreWade.confine(old_gx, now_gx)
+	if held.x == now_gx.x and held.z == now_gx.z:
+		return false
+	var back: Vector3 = TownSpace.gx_to_world(held)
+	global_position.x = back.x
+	global_position.z = back.z
+	_snap_to_bg()
+	var pos_gx: Vector3 = TownSpace.world_to_gx(global_position)
+	var dir: AcreWade.Dir = AcreWade.direction(
+		pos_gx, _motor.facing, Vector2(input_dir.x, -input_dir.y),
+		func(d: AcreWade.Dir) -> bool: return _can_land(pos_gx, d, bg),
+		0.0, unable_wade, AcreWade.SNOWBALL_ANGLE_RANGE,
+	)
+	if dir == AcreWade.Dir.NONE or unable_wade:
+		end_snowball_push()
+		return true
+	var ball: Node3D = _snowball
+	var ofs: Vector3 = ball.global_position - global_position
+	_begin_wade(pos_gx, dir)
+	_wade["ball"] = ball
+	_wade["ball_ofs"] = ofs
+	## Still leaning on it through the scroll (`Wade_snowball` keeps the push pose).
+	_play_grip_clip(ANIM_PUSH_YUKI1, true)
+	return true
+
+
 func _begin_wade(pos_gx: Vector3, dir: AcreWade.Dir) -> void:
 	var end: Vector3 = TownSpace.gx_to_world(AcreWade.end_pos(pos_gx, dir))
 	end.y = global_position.y
@@ -667,6 +704,9 @@ func _tick_wade(delta: float) -> void:
 	)
 	_snap_to_bg()
 	_mesh.rotation.y = _motor.facing
+	var ball: Variant = _wade.get("ball")
+	if ball != null and is_instance_valid(ball):
+		(ball as Node3D).call("carry_to", global_position + (_wade["ball_ofs"] as Vector3))
 	if t > AcreWade.TICKS:
 		_wade = {}
 

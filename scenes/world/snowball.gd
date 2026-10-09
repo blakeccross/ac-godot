@@ -329,6 +329,15 @@ func push_tick(wish: Vector3, stick: float, dash: bool, player: Node3D) -> Dicti
 	return {"aim": aim, "yaw": player_angle, "speed": _push_speed}
 
 
+## `aSMAN_process_player_push_scroll`: carried across an acre border at the player's side
+## (`mPlib_GetSnowballPos_forWadeSnowball`), rolling as it goes.
+func carry_to(at: Vector3) -> void:
+	var step := Vector2(at.x - global_position.x, at.z - global_position.z)
+	global_position = Vector3(at.x, global_position.y, at.z)
+	_snap_ground()
+	_spin(step)
+
+
 func _release() -> Dictionary:
 	_pushing = false
 	_lean_ticks = 0
