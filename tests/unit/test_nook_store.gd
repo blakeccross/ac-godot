@@ -568,3 +568,8 @@ func test_shop_state_round_trips() -> void:
 	assert_bool(Game.shops.has_visitor()).is_true()
 	assert_int(Game.shops.kabu.price_on(0)).is_equal(sunday)
 	assert_bool(Game.catalog.has(&"wood_table")).is_true()
+
+
+func test_an_unassessed_fossil_is_taken_for_nothing() -> void:
+	## `mSP_ItemNo2ItemPrice(ITM_FOSSIL)`: the ETC category has no price table.
+	assert_int(ItemCatalog.get_item(&"fossil").sell_price).is_equal(0)
