@@ -16,6 +16,8 @@ const UPPER := &"player_upper"
 const BASEMENT := &"player_basement"
 
 const GX_UNIT := 40.0
+## `obj_s_myhome_a_pal` … `_l_pal` by `outlook_pal`.
+const ROOF_LETTERS := "abcdefghijkl"
 
 ## `aMI_size_dsp_table` shells per house tier (S, M, L, UPPER = LL1).
 const MAIN_SHELLS: Array[Array] = [
@@ -247,6 +249,22 @@ static func exterior_visual(node_name: String, fallback: StringName) -> StringNa
 	if house == null:
 		return fallback
 	return StringName("obj_s_myhome%d" % (tier_of(house) + 1))
+
+
+## The roof colour picked at Nook's (`aSTR_PAL_MYHOME_A + outlook_pal`): the house model
+## baked with that palette (`obj_s_myhome2_c`), or `visual` itself for the first set or
+## when that bake is missing. Door clips and collision keep using `visual`.
+static func roof_visual(node_name: String, visual: StringName) -> StringName:
+	if not String(visual).begins_with("obj_s_myhome"):
+		return visual
+	var house: House = resident_house(node_name)
+	if house == null:
+		return visual
+	var pal: int = clampi(house.outlook_pal, 0, ROOF_LETTERS.length() - 1)
+	if pal == 0:
+		return visual
+	var painted := StringName("%s_%s" % [visual, ROOF_LETTERS[pal]])
+	return painted if not FieldCatalog.mesh_paths(painted).is_empty() else visual
 
 
 ## Roster slot of whoever lives on plot `node_name` (the player or another resident), or -1.

@@ -732,6 +732,11 @@ def museum_dummy_wood_twin(tex_name: str) -> tuple[str, str] | None:
     return None
 
 
+## Palette letters a structure can take: villager homes `a`..`e`, the player's `a`..`l`
+## (`aSTR_PAL_MYHOME_A + outlook_pal`).
+STRUCTURE_PAL_LETTERS = "abcdefghijkl"
+
+
 def structure_palette_names(prefix: str, letter: str | None = None) -> list[str]:
     """Candidate `structure_pal` symbols for a cKF/static structure prefix.
 
@@ -741,7 +746,7 @@ def structure_palette_names(prefix: str, letter: str | None = None) -> list[str]
     Trains: `obj_train1_1`/`_2` → `obj_train1_a1_pal` (TRAIN0); caboose `_3` →
     `obj_train1_a2_pal` (TRAIN1) — see `ac_structure_clip` / `aSTR_PAL_TRAIN1_*`.
     Villager homes: optional `letter` (`a`..`e`) prefers `obj_s_house1_b_pal`
-    (`aSTR_PAL_HOUSE1_A + pal + shape*5`).
+    (`aSTR_PAL_HOUSE1_A + pal + shape*5`); the player's (`a`..`l`) `obj_s_myhome_b_pal`.
     """
     names: list[str] = []
 
@@ -751,7 +756,7 @@ def structure_palette_names(prefix: str, letter: str | None = None) -> list[str]
                 names.append(name)
 
     pal_letter = (letter or "").lower()
-    if pal_letter in "abcde":
+    if pal_letter in STRUCTURE_PAL_LETTERS:
         add(f"{prefix}_{pal_letter}_pal")
     add(f"{prefix}_a_pal", f"{prefix}_pal")
     train = re.match(r"^obj_train1_(\d+)$", prefix)
@@ -766,12 +771,12 @@ def structure_palette_names(prefix: str, letter: str | None = None) -> list[str]
     if not m:
         return names
     season, rest = m.group(1), m.group(2)
-    if pal_letter in "abcde":
+    if pal_letter in STRUCTURE_PAL_LETTERS:
         add(f"obj_{rest}_{pal_letter}_pal", f"obj_{season}_{rest}_{pal_letter}_pal")
     add(f"obj_{rest}_pal", f"obj_{rest}_a_pal")
     destaged = re.sub(r"\d+$", "", rest)
     if destaged and destaged != rest:
-        if pal_letter in "abcde":
+        if pal_letter in STRUCTURE_PAL_LETTERS:
             add(
                 f"obj_{season}_{destaged}_{pal_letter}_pal",
                 f"obj_{destaged}_{pal_letter}_pal",

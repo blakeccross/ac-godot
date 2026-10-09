@@ -22,6 +22,7 @@ from asset_pipeline.convert import (  # noqa: E402
     convert_static_prefixes,
     convert_test_static_needles,
     convert_villager_house_palettes,
+    convert_player_house_palettes,
     convert_villager_texture_sets,
     convert_water_acres,
 )
@@ -307,6 +308,8 @@ def main() -> int:
                 )
                 pal_report = convert_villager_house_palettes(cfg)
                 report["results"].extend(pal_report.get("results", []))
+                roof_report = convert_player_house_palettes(cfg)
+                report["results"].extend(roof_report.get("results", []))
                 static_report = convert_static_prefixes(
                     cfg, ["obj_s_museum", "obj_w_museum", "obj_s_kouban", "obj_w_kouban", "obj_s_shrine", "obj_w_shrine"]
                 )

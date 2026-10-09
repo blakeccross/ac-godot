@@ -327,7 +327,7 @@ data tables before a category is called done.
 
 ## 18. Player house & interiors
 
-- [~] Small house on day 1 (4×4 interior); upgrades via Nook loans to medium (6×6), large (8×8), and upper floor (2nd floor, 6×6); basement is a separate unlock (49,800 bells). The statue is a reward state, not a room size; no side/back rooms, mansion, or attic exist in GCN — `PlayerHouse` / `HouseUpgrade` / `NookHouseTalk`: next-day builds, loans (148k / 398k / 798k / 49.8k), statue offer, statue actor (§26). Missing: roof colour recolour
+- [x] Small house on day 1 (4×4 interior); upgrades via Nook loans to medium (6×6), large (8×8), and upper floor (2nd floor, 6×6); basement is a separate unlock (49,800 bells). The statue is a reward state, not a room size; no side/back rooms, mansion, or attic exist in GCN — `PlayerHouse` / `HouseUpgrade` / `NookHouseTalk`: next-day builds, loans (148k / 398k / 798k / 49.8k), statue offer, statue actor (§26). The roof colour picked at Nook's lands with the next build: the house is drawn in that palette (`aSTR_PAL_MYHOME_A + outlook_pal`, `obj_{s,w}_myhome{1-4}_{b-l}` baked by `convert_player_house_palettes`; `house roof N`)
 - [x] Room grid; place furniture on the floor and against walls (`ac_arrange_room`, `ac_arrange_ftr`) — `InteriorBook`, `FurnitureGrip`
 - [x] Wallpaper + carpet per room — `VisualRoomPaint`
 - [~] Furniture rotate (4 or 8 orientations), stack on surfaces, put items on tables (`m_player_main_rotate_furniture`, `rotate_octagon`) — `FurnitureGrip`: A-grip + stick push / pull / turn about the held end, B pick-up, sit / lie by walking in, per-floor furniture cap; missing: bubu puff, bed rolling, octagon (gyroid) rotation

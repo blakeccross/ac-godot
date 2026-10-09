@@ -530,6 +530,37 @@ def convert_villager_house_palettes(cfg: PipelineConfig) -> dict[str, Any]:
     return {"results": results, "converted": sum(1 for r in results if r["status"] == "converted")}
 
 
+def convert_player_house_palettes(cfg: PipelineConfig) -> dict[str, Any]:
+    """Bake `obj_{s,w}_myhome{1-4}_{b-l}.glb`, one per roof colour.
+
+    Decomp `aMHS_actor_ct`: `structure_pal = aSTR_PAL_MYHOME_A + outlook_pal` (12 sets,
+    picked at Nook's). The base `obj_s_myhome1.glb` is palette a.
+    """
+    results: list[dict[str, Any]] = []
+    rel, symbols = _rel_and_map(cfg)
+    bank = _texture_bank(cfg, rel, symbols)
+    names = {s.name for s in symbols}
+    jobs: list[tuple[str, str, str]] = []
+    for season in ("s", "w"):
+        for size in range(1, 5):
+            stem = f"obj_{season}_myhome{size}"
+            skel = f"cKF_bs_r_{stem}"
+            if skel not in names:
+                continue
+            for letter in "bcdefghijkl":
+                jobs.append((stem, skel, letter))
+    for i, (stem, skel, letter) in enumerate(jobs, 1):
+        item = _skeleton_job(skel, names)
+        item["asset_id"] = f"{stem}_{letter}"
+        item["output"] = f"environment/{stem}_{letter}.glb"
+        bank.structure_palette_letter = letter
+        record = _convert_ckf(cfg, rel, symbols, item, bank)
+        results.append(record)
+        print(f"  roof-pal {i}/{len(jobs)} {item['asset_id']} {record['status']}")
+    bank.structure_palette_letter = None
+    return {"results": results, "converted": sum(1 for r in results if r["status"] == "converted")}
+
+
 def convert_static_prefixes(cfg: PipelineConfig, needles: list[str]) -> dict[str, Any]:
     """Reconvert static Gfx whose asset_id contains any needle (e.g. palm, cedar)."""
     rel, symbols = _rel_and_map(cfg)

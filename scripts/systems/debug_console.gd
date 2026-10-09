@@ -10,7 +10,7 @@ const COMMANDS: PackedStringArray = [
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
-const HOUSE_ARGS: PackedStringArray = ["size", "basement", "build", "loan", "statue", "goki", "neglect"]
+const HOUSE_ARGS: PackedStringArray = ["size", "basement", "build", "loan", "statue", "goki", "neglect", "roof"]
 const HOUSE_SIZES: PackedStringArray = ["small", "medium", "large", "upper"]
 const WEATHER_KINDS: PackedStringArray = ["clear", "rain", "snow", "sakura"]
 const INTENSITY_NAMES: PackedStringArray = ["none", "light", "normal", "heavy"]
@@ -1059,8 +1059,18 @@ func _cmd_house(args: PackedStringArray) -> String:
 			house.next_size_tier = House.SizeTier.UPPER
 			Game.inventory.set_loan(0)
 			return "House is at its final size with no loan. Talk to Tom Nook about the statue."
+		"roof":
+			house.outlook_pal = clampi(int(args[1]), 0, PlayerHouse.ROOF_LETTERS.length() - 1) if args.size() >= 2 else 0
+			house.next_outlook_pal = house.outlook_pal
+			house.ordered_outlook_pal = house.outlook_pal
+			var roof_tree := Engine.get_main_loop() as SceneTree
+			if roof_tree != null:
+				var plot: Node = roof_tree.root.find_child(String(PlayerHouse.owned_building_id()), true, false)
+				if plot != null and plot.has_method("refresh_seasonal_visual"):
+					plot.call("refresh_seasonal_visual")
+			return "Roof colour %d." % house.outlook_pal
 		_:
-			return "Usage: house [size|basement|build|loan|statue]"
+			return "Usage: house [size|basement|build|loan|statue|roof N]"
 
 
 func _item_label(data: ItemData) -> String:

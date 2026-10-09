@@ -310,6 +310,10 @@ class ClassicGbiTests(unittest.TestCase):
         )
         self.assertIn("obj_s_house2_a_pal", structure_palette_names("obj_s_house2", "c"))
 
+    def test_player_house_roof_palette_letter(self) -> None:
+        self.assertIn("obj_s_myhome_k_pal", structure_palette_names("obj_s_myhome3", "k"))
+        self.assertIn("obj_w_myhome_l_pal", structure_palette_names("obj_w_myhome1", "l"))
+
     def test_train_structure_palette_and_skip_achd(self) -> None:
         self.assertIn("obj_train1_a1_pal", structure_palette_names("obj_train1_1"))
         self.assertIn("obj_train1_a1_pal", structure_palette_names("obj_train1_2"))
