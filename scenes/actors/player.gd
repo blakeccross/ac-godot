@@ -13,7 +13,7 @@ const LOOK_HEIGHT := 0.85
 const INTERACT_REACH := 1.1
 
 ## `notice_rod` chains message 0x1348 onto the fish catch report when pockets are full.
-const POCKETS_FULL_MSG_ID := &"msg_4936"
+const POCKETS_FULL_MSG := 4936
 
 const ANIM_WAIT := "ply_1_wait1"
 const ANIM_WALK := "ply_1_walk1"
@@ -1973,7 +1973,7 @@ func _play_show(beat: Fishing.ReelBeat) -> void:
 		if held < length:
 			await get_tree().create_timer(length - held).timeout
 	else:
-		await _report_catch(beat.catch_msg, beat.pockets_full)
+		await _report_catch(beat.catch_msg, beat.pockets_full, beat.fish)
 	_motor.facing = entry_yaw
 	await _play_putaway(skeleton)
 
@@ -2354,11 +2354,10 @@ func _net_notice(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverla
 		Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_COMPLETE))
 		_net_say(ui, Netting.LAST_GET_CONTINUE_MSG, catch_.bug)
 		await _net_wait_closed(ui)
-	if not catch_.banked:
-		## 0xA4D asks whether to swap something out. The exchange inventory
-		## (`mSM_IV_OPEN_EXCHANGE`) is not built yet, so either answer lets it go.
-		_net_say(ui, Netting.POCKETS_FULL_MSG, catch_.bug)
-		await _net_wait_closed(ui)
+	if not catch_.banked and catch_.bug != null:
+		## 0xA4D: "Swap" trades a pocket for it (`mSM_IV_OPEN_EXCHANGE`), else it goes.
+		if await _ask_swap(Netting.POCKETS_FULL_MSG) and await exchange_into_pockets(catch_.bug.id):
+			catch_.banked = true
 
 
 ## `main_Putaway_net`: `PUTAWAY_M1` with `GASAGOSO`; the insect shrinks each tick until
@@ -2438,7 +2437,7 @@ func _net_wait_closed(ui: DialogueOverlay) -> void:
 ## species and the extracted bank has the line, pun and all. The rare three (stringfish,
 ## coelacanth, arapaima) run to two pages, which is why this plays a conversation through the
 ## runner instead of pushing a single string.
-func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
+func _report_catch(catch_msg: int, pockets_full: bool = false, fish: FishData = null) -> void:
 	if catch_msg == 0:
 		return
 	var ui := DialogueOverlay.find(get_tree())
@@ -2457,11 +2456,50 @@ func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
 	Audio.push_fanfare(jingle)
 	await ui.closed
 	if pockets_full:
-		var text: String = FishCatalog.first_line(DialogueCatalog.conversation(POCKETS_FULL_MSG_ID))
-		if not text.is_empty():
-			ui.say(text)
-			await ui.closed
+		## "Swap" trades a pocket for the fish (`putaway_rod` → `mSM_IV_OPEN_EXCHANGE`).
+		if await _ask_swap(POCKETS_FULL_MSG) and fish != null:
+			await exchange_into_pockets(fish.id)
 	Audio.pop_fanfare(jingle)
+
+
+## A pockets-full question (Swap / let it go); true when "Swap" was taken.
+func _ask_swap(msg_no: int) -> bool:
+	var ui := DialogueOverlay.find(get_tree())
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % msg_no))
+	if ui == null or data == null:
+		return false
+	var talk := BankTalk.Fixed.new(msg_no)
+	var dctx := DialogueContext.from_game()
+	dctx.speaker_name = ""
+	talk.context = dctx
+	ui.play(data, dctx, null, Callable(), talk)
+	await ui.closed
+	return talk.chosen == 0
+
+
+## `mSM_IV_OPEN_EXCHANGE`: the pockets open, and the one picked goes on the ground in front
+## to make room for `item_id`. False when nothing was picked or there's nowhere to put it.
+func exchange_into_pockets(item_id: StringName) -> bool:
+	var inv: Inventory = Game.inventory
+	var data: ItemData = ItemCatalog.get_item(item_id)
+	var world := World.find(get_tree())
+	if inv == null or data == null or world == null or not (world.grid is WorldGrid):
+		return false
+	Game.request_quest_handover(-1, "take")
+	var picked: Array = await Game.quest_handover_resolved
+	var pocket: int = int(picked[1])
+	var slot: InventorySlot = inv.slot_at(pocket) if pocket >= 0 else null
+	if slot == null or slot.is_empty() or slot.item.count > 1:
+		return false
+	var grid: WorldGrid = world.grid
+	var front: Vector2i = ToolUse.facing_cell(_make_context())
+	var cell: Vector2i = FieldItems.drop_cell(grid, front, front - grid.world_to_cell(global_position))
+	if cell.x < 0:
+		return false
+	var out: InventoryItem = inv.remove_from_slot(pocket, 1)
+	inv.add(data, 1)
+	FieldItems.put(world, cell, out.item_id, out.condition == InventoryItem.Condition.PRESENT)
+	return true
 
 
 ## `COMPLETE_PAYMENT`: `YATTA1` facing the camera under the debt-paid (or chores-done) jingle,

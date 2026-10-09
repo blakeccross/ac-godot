@@ -143,8 +143,15 @@ class Fixed:
 		first = msg_no
 		item_strs = p_items
 
+	## The last choice taken in it (`mChoice_Get_ChoseNum`), or -1.
+	var chosen: int = -1
+
 	func start_msg() -> int:
 		return first
+
+	func picked(_msg_no: int, index: int) -> int:
+		chosen = index
+		return -1
 
 	func prepare() -> void:
 		for n: Variant in item_strs:
