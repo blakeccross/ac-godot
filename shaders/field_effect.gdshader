@@ -9,6 +9,7 @@ render_mode blend_mix, depth_draw_never, cull_disabled, diffuse_lambert, specula
 //   2 mix(PRIM, 1, T) + ENV     (koke_yuki / yukihane: `(1−PRIM)·T + PRIM`, then +ENV)
 //   3 (NOISE − T)·PRIM + ENV    (sunahane)
 //   4 TEXEL rgb                 (hanabira: palette colour)
+//   5 PRIM + ENV                (turi_hamon: `PRIM·SHADE + ENV`)
 // I4 frames decode with α = intensity; IA8 keep their own α.
 
 uniform int mode = 0;
@@ -21,6 +22,9 @@ uniform float lod_frac = 0.0;
 uniform bool billboard = false;
 // I4 frames export opaque RGB; the GX I4 texel's alpha *is* its intensity.
 uniform bool intensity_alpha = false;
+// turi_hamon: the texture is one quarter of the ring and `GX_MIRROR` folds it out to the
+// whole quad, whose UVs (0–1 here) cover two tiles each way.
+uniform bool mirror_uv = false;
 
 void vertex() {
 	if (billboard) {
@@ -40,8 +44,9 @@ float hash(vec2 p) {
 }
 
 void fragment() {
-	vec4 t0 = texture(tex0, UV);
-	vec4 t1 = texture(tex1, UV);
+	vec2 uv = mirror_uv ? 1.0 - abs(mod(UV * 2.0, 2.0) - 1.0) : UV;
+	vec4 t0 = texture(tex0, uv);
+	vec4 t1 = texture(tex1, uv);
 	if (intensity_alpha) {
 		t0.a = t0.r;
 		t1.a = t1.r;
@@ -59,6 +64,8 @@ void fragment() {
 		rgb = clamp((vec3(noise) - t0.rgb) * prim_color.rgb + env_color.rgb, 0.0, 1.0);
 	} else if (mode == 4) {
 		rgb = t0.rgb;
+	} else if (mode == 5) {
+		add = env_color.rgb;
 	}
 	ALBEDO = rgb;
 	EMISSION = add;

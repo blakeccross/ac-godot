@@ -24,6 +24,8 @@ var _school: FishSchool = null
 var _material: ShaderMaterial = null
 var _mesh: QuadMesh = null
 var _shadow_nodes: Array[MeshInstance3D] = []
+## `aGYO_KAGE`'s own ring at `delete_timer == 96`, four ticks in.
+const KAGE_RIPPLE_SEC := 4.0 / DecompTime.TICK_HZ
 var _puff_nodes: Array[MeshInstance3D] = []
 
 
@@ -82,6 +84,7 @@ func _sync() -> void:
 	_fit(_puff_nodes, _school.puffs.size())
 	for i: int in _school.puffs.size():
 		var puff: FishSchool.Puff = _school.puffs[i]
+		_puff_ripples(puff)
 		_place(
 			_puff_nodes[i],
 			puff.position,
@@ -90,6 +93,19 @@ func _sync() -> void:
 			puff.alpha(),
 			FishSize.body_blend(FishSize.anim_frame(puff.age))
 		)
+
+
+func _puff_ripples(puff: FishSchool.Puff) -> void:
+	var on_water := Vector3(puff.position.x, _school.surface_at(puff.position), puff.position.z)
+	if puff.ripples == 0:
+		puff.ripples = 1
+		if puff.birth_ripple >= 0:
+			StepFx.ripple(on_water, puff.birth_ripple)
+	if puff.ripples == 1 and puff.age >= KAGE_RIPPLE_SEC:
+		puff.ripples = 2
+		var arg: int = puff.kage_ripple()
+		if arg >= 0:
+			StepFx.ripple(on_water, arg)
 
 
 func _place(

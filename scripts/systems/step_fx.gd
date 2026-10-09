@@ -149,6 +149,26 @@ static func net_splash(bg: Array, at: Vector3, yaw: float) -> bool:
 	return true
 
 
+## `ef_turi_hamon`: a ring on the water at `at` (y on the surface), drifting along the
+## river's flow (`mCoBG_GetWaterFlow`; still water gives angle 0, as on the disc).
+static func ripple(at: Vector3, arg: int) -> FieldFx:
+	var host := _bind([])
+	if host == null:
+		return null
+	return FieldFx.spawn(host, FieldFx.Kind.HAMON, at, flow_yaw(at), arg, 0)
+
+
+## The flow direction of the water body under `at`, or 0 for still water.
+static func flow_yaw(at: Vector3) -> float:
+	if _world == null or _world.grid == null or _world.fish == null:
+		return 0.0
+	var cell: Vector2i = _world.grid.world_to_cell(at)
+	for body: WaterBodies.Body in _world.fish.bodies:
+		if body.flows and body.contains(cell):
+			return body.flow_yaw
+	return 0.0
+
+
 ## `eDashAsimoto_ct` — dash foot plants.
 static func dash_step(bg: Array, pos: Vector3, yaw: float, attr: int) -> void:
 	var host := _bind(bg)

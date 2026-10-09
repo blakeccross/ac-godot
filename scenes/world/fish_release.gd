@@ -3,8 +3,8 @@ extends Node3D
 
 ## A fish let go from the pockets, flying into the water (`ac_gyo_release`). It arcs from
 ## the player's feet to the water point, noses over flat as it falls, and on reaching the
-## surface leaves a fading shadow swimming on (`GYO_KAGE`) with the splash SE 0x437. The
-## splash ring (`TURI_HAMON`) is not drawn: fishing has no ripple effect yet either.
+## surface leaves a ring (`TURI_HAMON` 3) and a fading shadow swimming on (`GYO_KAGE`) with
+## the splash SE 0x437.
 
 const SCENE_PATH := "res://scenes/world/fish_release.tscn"
 const SPLASH_SE := &"437"
@@ -106,6 +106,7 @@ func position_gx() -> Vector3:
 ## `aGYR_in_water_move`.
 func _enter_water() -> void:
 	Audio.play_se(SPLASH_SE, self)
+	StepFx.ripple(_pos_gx * FieldCatalog.GX_TO_METERS, 3)
 	if school != null and fish != null:
 		school.add_puff_at(_pos_gx * FieldCatalog.GX_TO_METERS, _yaw, fish.size_class)
 	_finish()

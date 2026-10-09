@@ -139,6 +139,8 @@ static var _golden_rod: bool = false
 static var _inventory: Inventory = null
 static var _cast_elapsed: float = 0.0
 static var _dip: float = 0.0
+## `aGTT_random_check(10.0f)` a tick, while the session ticks once a frame.
+const BITE_RIPPLE_CHANCE := 0.1
 static var _splash_pending: bool = false
 static var _nibbles: int = 0
 static var _reel: Array[ReelBeat] = []
@@ -238,6 +240,8 @@ static func tick(delta: float, school: FishSchool = null) -> void:
 			_state = State.FLOAT
 			## `uki->hit_water_flag`: one frame of splash, which nearby fish react to.
 			_splash_pending = true
+			## `aUKI_effect_hamon(…, 1)` as it settles on the surface.
+			StepFx.ripple(_anchor, 1)
 			if _bobber != null and is_instance_valid(_bobber):
 				PlayerSe.bobber_splash(_bobber)
 			elif _actor != null and is_instance_valid(_actor):
@@ -349,11 +353,16 @@ static func _observe(school: FishSchool) -> void:
 			if shadow.nibbled:
 				_nibbles += 1
 				_dip = DIP_SECONDS
+				## `aUKI_effect_hamon(…, 2)` on each touch.
+				StepFx.ripple(_anchor, 2)
 				GameConfig.fish_touch(shadow.size)
 		if hooked != null:
 			_state = State.BITE
 			GameConfig.fish_bite(hooked.size)
 		return
+	## `aGTT_bite`: while it has the hook, one tick in ten throws a small ring.
+	if _state == State.BITE and hooked != null and randf() < BITE_RIPPLE_CHANCE:
+		StepFx.ripple(_anchor, 0)
 	if _state == State.BITE and hooked == null:
 		## The fish held on for its species' `aGYO_bite_time` and let go.
 		Game.post_notice("It got away.")

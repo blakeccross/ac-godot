@@ -4,13 +4,14 @@ extends Node3D
 ## One effect-controller particle for the player's step / skid / tumble effects:
 ## `ef_dust`, `ef_tumble_dust`, `ef_sandsplash`, `ef_mizutama`, `ef_yukidama`,
 ## `ef_yukihane`, `ef_sibuki`, `ef_hanabira`, `ef_turn_footprint`, `ef_tumble_bodyprint`,
-## and the locomotive's `ef_kisha_kemuri` (smoke) / `ef_steam` (piston steam).
+## the locomotive's `ef_kisha_kemuri` (smoke) / `ef_steam` (piston steam), and the water
+## ring `ef_turi_hamon`.
 ## Each ticks at the controller's 60 Hz: `*_mv`, then `timer--`, dead at 0. State is GX
 ## (40 GX = 2 m); the node itself lives in metres. `StepFx` decides which to spawn.
 
 enum Kind {
 	DUST, TUMBLE_DUST, SAND, MIZUTAMA, YUKIDAMA, YUKIHANE, SIBUKI, PETAL, TURN_PRINT, BODY_PRINT,
-	KISHA_KEMURI, STEAM,
+	KISHA_KEMURI, STEAM, HAMON,
 }
 
 const GX := FieldCatalog.GX_TO_METERS
@@ -67,6 +68,9 @@ const STEAM_LOD: Array[int] = [
 ## `eKishaK_dw`: `gDPSetPrimColor(0, 128, 30, 30, 30, alpha)`.
 const KEMURI_PRIM := Color8(30, 30, 30)
 const KEMURI_LOD := 128.0 / 255.0
+## `eTH_ct`: ring size per `arg0` (5 and up grow with `arg1`).
+const HAMON_SIZE: Array[float] = [0.036, 0.032, 0.024, 0.02, 0.014]
+const HAMON_ENV := Color8(0, 50, 50)
 ## `ef_hanabira_model_tbl` by `arg0 / 3`; colour `arg0 % 3` → `flowerK_pal`.
 const PETAL_MODELS: Array[String] = ["ef_hana01_pa_a", "ef_hana01_co_a", "ef_hana01_tu_a", "ef_hana01_ha_a"]
 ## `mFM_SetFGPal` `flower_pal_idx_table[term]`.
@@ -134,6 +138,12 @@ static func random_first_speed(y: float, max_z: float, max_x: float) -> Vector3:
 	return v
 
 
+## `add_calc2`: move `fraction` of the way to `target`, at most `max_step`.
+static func add_calc2(value: float, target: float, fraction: float, max_step: float) -> float:
+	var step: float = clampf((target - value) * fraction, -max_step, max_step)
+	return value + step
+
+
 ## `eEL_CalcAdjust`.
 static func calc_adjust(now: float, start: float, end: float, a: float, b: float) -> float:
 	if start == end or now <= start:
@@ -190,6 +200,8 @@ func _construct() -> bool:
 			timer = 12
 		Kind.PETAL:
 			_ct_petal()
+		Kind.HAMON:
+			_ct_hamon()
 		Kind.KISHA_KEMURI:
 			## `eKishaK_ct`: scale 0, 80 frames, ±2.5 GX jitter; `arg0 == 1` drifts by `arg1`.
 			scale_gx = Vector3.ZERO
@@ -316,6 +328,33 @@ func _ct_drop(table: Array[Vector4], gravity: float) -> void:
 	offset.y = _ground(pos_gx) + 3.0
 
 
+## `eTH_ct`: `arg0` 0–4 pick the ring's size (5+ scale with `arg1`); 4 is the slow wide
+## one (52 ticks), 6 a slow drift; the rest live 32 ticks. Big rings start at alpha 200,
+## small ones at 150. `angle` is the flow it drifts along.
+func _ct_hamon() -> void:
+	if arg0 >= 0 and arg0 < HAMON_SIZE.size():
+		vel.x = HAMON_SIZE[arg0]
+	else:
+		vel.x = float(arg1) / 100.0 * 0.06 + 0.02
+	spec[3] = 200.0 if vel.x > 0.03 else 150.0
+	spec[0] = spec[3]
+	match arg0:
+		6:
+			timer = 52
+			scale_gx = Vector3.ONE * 0.001
+			vel.y = 0.05
+		4:
+			timer = 52
+			scale_gx = Vector3.ONE * 0.003
+			vel.y = 0.35
+		_:
+			timer = 32
+			scale_gx = Vector3.ONE * 0.001
+			vel.y = 0.125
+	vel.z = 1.0 / float(timer)
+	spec[1] = timer
+
+
 func _ct_petal() -> void:
 	## `eHanabira_ct`: model `arg0 / 3`, colour `arg0 % 3`.
 	spec[0] = float(arg0 / 3)
@@ -400,6 +439,12 @@ func _move() -> void:
 			scale_gx = Vector3.ONE * calc_adjust(timer, 0, 16, offset.y, offset.x)
 		Kind.MIZUTAMA, Kind.YUKIDAMA:
 			_move_drop()
+		Kind.HAMON:
+			## `eTH_mv`: the ring eases out to its size, fades with the timer, and drifts
+			## along the flow at `velocity.y`.
+			scale_gx = Vector3.ONE * add_calc2(scale_gx.x, vel.x, 1.0 - sqrt(1.0 - vel.z), 0.005)
+			spec[0] = calc_adjust(timer, 0, spec[1], 0.0, spec[3])
+			pos_gx += Vector3(sin(angle), 0.0, cos(angle)) * vel.y
 		Kind.YUKIHANE:
 			vel += acc
 			pos_gx += vel
@@ -484,6 +529,8 @@ func _model_id() -> String:
 			return "ef_kisha_kemuri01"
 		Kind.STEAM:
 			return "ef_dust01"
+		Kind.HAMON:
+			return "ef_turi_hamon01_00"
 		_:
 			return "ef_bodyprint01_00"
 
@@ -504,6 +551,8 @@ func _frame_names() -> Array[String]:
 			return _numbered("ef_yukihane01_%d_inta_ia8", 0, 3)
 		Kind.SIBUKI:
 			return _numbered("ef_sibuki01_%d_int_i4", 1, 4)
+		Kind.HAMON:
+			return ["ef_turi_hamon01_0"]
 		Kind.PETAL:
 			## `mFM_obj_a_01_flower_pal[K * 9 + flower_pal_idx]` rows (pipeline `_pNN`).
 			var row: int = int(spec[1]) * 9 + FLOWER_PAL_IDX[clampi(Clock.term_idx(), 0, 17)]
@@ -629,6 +678,10 @@ func _draw() -> void:
 			f0 = sidx - 2
 			basis = Basis(Vector3.RIGHT, deg_to_rad(-30.0))
 			prim = Color8(200, 255, 255, 155 if arg0 == 0 else 235)
+		Kind.HAMON:
+			prim = Color(1, 1, 1, spec[0] / 255.0)
+			env = HAMON_ENV
+			mode = 5
 		Kind.PETAL:
 			global_position = (pos_gx + offset) * GX
 			basis = Basis.from_euler(Vector3(spec[2], 0.0, spec[3]), EULER_ORDER_ZXY)
@@ -655,9 +708,10 @@ func _draw() -> void:
 	_holder.basis = basis * Basis.from_scale(s)
 	_mat.set_shader_parameter(&"intensity_alpha", kind in [
 		Kind.DUST, Kind.TUMBLE_DUST, Kind.MIZUTAMA, Kind.SIBUKI, Kind.TURN_PRINT, Kind.BODY_PRINT,
-		Kind.KISHA_KEMURI, Kind.STEAM,
+		Kind.KISHA_KEMURI, Kind.STEAM, Kind.HAMON,
 	])
 	_mat.set_shader_parameter(&"mode", mode)
+	_mat.set_shader_parameter(&"mirror_uv", kind == Kind.HAMON)
 	_mat.set_shader_parameter(&"billboard", billboard)
 	_mat.set_shader_parameter(&"prim_color", prim)
 	_mat.set_shader_parameter(&"env_color", env)
