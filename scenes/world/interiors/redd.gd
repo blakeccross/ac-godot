@@ -4,7 +4,8 @@ extends EventNpc
 ## come in (0x078B), keeps turning to face you, and names his price when you press A in
 ## front of one of the three pieces on the floor (`broker_design` at units (2,2), (4,2),
 ## (2,4)); `ReddTalk` runs the sale. The pieces are `ShopStock` props with shop id
-## `broker_shop` that call `offer_item` here.
+## `broker_shop` that call `offer_item` here. Facing the way out, he sees you off and you
+## leave (`aEBR2_message_ctrl` → `aEBR2_goodbye_wait`).
 
 const SHOP_ID := &"broker_shop"
 const STOCK_SCENE := preload("res://scenes/world/shop_stock.tscn")
@@ -12,9 +13,13 @@ const STOCK_SCENE := preload("res://scenes/world/shop_stock.tscn")
 const WARE_UNITS: Array[Vector2i] = [Vector2i(2, 2), Vector2i(4, 2), Vector2i(2, 4)]
 ## `aEBR2_search_player2` zone point (GX).
 const STAND_GX := Vector3(60.0, 0.0, 100.0)
+const MABEL := preload("res://scenes/world/interiors/mabel.gd")
 
 var _greeted: bool = false
 var _pending_item: StringName = &""
+## `sell_flag`.
+var _sold_visit: bool = false
+var _bye_said: bool = false
 
 
 func _init() -> void:
@@ -80,15 +85,52 @@ func talk_ended(script: BankTalk) -> void:
 	if t != null and t.kind == ReddTalk.Kind.OFFER:
 		set_meta("explained", t.explained)
 		if t.sold_now:
+			_sold_visit = true
 			for n: Node in get_tree().get_nodes_in_group("shop_set"):
 				if n.name.begins_with("ReddWare_") and StringName(str(n.get("item_id"))) == _pending_item:
 					n.queue_free()
 					break
 	_pending_item = &""
+	if t != null and t.kind == ReddTalk.Kind.GOODBYE:
+		_leave()
+
+
+## `aEBR2_message_ctrl`: the player at the exit strip, facing it (`EXIT_DOOR1`).
+func _check_goodbye() -> bool:
+	if _bye_said or talking or Game == null or Game.block_auto_enter_doors:
+		return false
+	var ui := DialogueOverlay.find(get_tree())
+	if ui != null and ui.is_open():
+		return false
+	var player := Player.find(get_tree())
+	var session: IndoorSession = Game.interior_session
+	if player == null or player.is_busy() or session == null or session.grid == null or session.room == null:
+		return false
+	if not MABEL.facing_exit(session, player.global_position, player.facing_yaw()):
+		return false
+	var t := ReddTalk.new(ReddTalk.Kind.GOODBYE, _area(), Game.inventory, rng())
+	t.sold_visit = _sold_visit
+	_bye_said = true
+	player.stop_for_door()
+	## `mDemo_Set_camera(CAMERA2_PROCESS_NORMAL)`: no talk camera turn.
+	if not begin_talk(null, t, false):
+		_leave()
+	return true
+
+
+## `aEBR2_exit_wait`: out of the tent once the window has gone.
+func _leave() -> void:
+	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
+	if host != null and host.has_method("leave_through_exit"):
+		host.call("leave_through_exit")
+	elif Game != null:
+		Game.exit_interior()
 
 
 func think(delta: float) -> void:
 	## `aEBR2_search_player`: keep facing the customer.
+	if _check_goodbye():
+		return
 	var p: Node3D = player_node()
 	if p == null:
 		return

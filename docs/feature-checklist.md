@@ -540,11 +540,11 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 Event NPCs are `EventNpc` scenes placed by `EventManager` presenters (`scenes/world/event_manager.gd`, `scripts/systems/events/`); their talks are `BankTalk` scripts over the disc messages. See [events](decomp_notes/events.md).
 
 - [x] **K.K. Slider** — Saturday nights at the station; request a song by exact title, a random uncollected one, or a made-up tune; the show (quiet, live BGM, staff roll, weather cues) and the aircheck (`ac_npc_totakeke`, `KkTalk`). Missing: staff-roll lights/camera, exact strum/beat sync
-- [x] **Crazy Redd** — tent on an empty lot, three wares at 4× price, sales talk (`ac_ev_broker`, `ac_ev_broker2`, `ReddStock` / `ReddTalk`). Missing: goodbye walk on exit
+- [x] **Crazy Redd** — tent on an empty lot, three wares at 4× price, sales talk (`ac_ev_broker`, `ac_ev_broker2`, `ReddStock` / `ReddTalk`); facing the way out he sees you off (0x0791, or 0x0792 after a sale) and you leave the tent
 - [x] **Saharah** — trades a carpet for yours at 3000 × 2^n (`ac_ev_carpetPeddler`, `SaharahTalk`)
 - [x] **Wendell** — fish for an event wallpaper (`ac_ev_artist`, `WendellTalk`)
 - [x] **Gracie** — car on a lot, fashion check, car-wash minigame, Event / group-A clothing (`ac_ev_designer`, `GracieTalk`)
-- [x] **Gulliver** — on the beach, wake him, Jonason gift (`ac_ev_dozaemon`, `GulliverTalk`). Missing: the foreign-item letter days later
+- [x] **Gulliver** — on the beach, wake him, Jonason gift (`ac_ev_dozaemon`, `GulliverTalk`); with full pockets he keeps it until you come back to him the same day (no letter on the GameCube)
 - [x] **Wisp** — one night in a week (rolled 2–4 days ahead), 0:00–3:59, in a town with eight or more weeds: invisible until you bump into him ("Excuse me…", then "Thank you for noticing me!"), then half-seen and wandering; five spirits each in their own acre come out as you enter it and stack in one pocket slot; all five back buys a wish — no weeds, a new roof colour (four pages of three) or something the catalogue lacks; at 4:00 "It's 4 o'clock!" and he spins away (`ac_ev_ghost`, `ac_ins_hitodama`) — `WispEvent`, `WispTalk`, `wisp.gd`
 - [x] **Joan** — Sunday mornings, turnips (`ac_ev_kabuPeddler`, `JoanTalk`). Her give order is simplified (take → give → lines)
 - [x] **Katrina** — fortune tent (50 Bells, destiny) (`ac_ev_gypsy`, `KatrinaTalk`) and the New Year's shrine lottery (fortune letter + destiny) (`ac_ev_miko`, `MikoTalk`). Destiny effects on villagers / luck are not wired

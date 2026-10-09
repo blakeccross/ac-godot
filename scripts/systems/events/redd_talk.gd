@@ -8,9 +8,10 @@ extends BankTalk
 ## Inside: 0x078B as you come in. A in front of a piece: he names it and its price (first
 ## look 0x0793–0x0797, again 0x07A1); yes → 0x0798–0x079C then the purse / pockets:
 ## 0x07A0 short of Bells, 0x079F no room, 0x079E sold. No → 0x079D. Talking to him: sold out
-## 0x07A2, else (half the time) about your purchase 0x078C, else 0x078D–0x078F.
+## 0x07A2, else (half the time) about your purchase 0x078C, else 0x078D–0x078F. Facing the
+## way out: 0x0792 if you bought this visit, else 0x0791, and you leave.
 
-enum Kind { OUTSIDE, HELLO, CHAT, OFFER }
+enum Kind { OUTSIDE, HELLO, CHAT, OFFER, GOODBYE }
 
 const MSG_OUT_FIRST := 0x0788
 const MSG_OUT_AGAIN := 0x0789
@@ -19,6 +20,8 @@ const MSG_HELLO := 0x078B
 const MSG_ABOUT_BUY := 0x078C
 const MSG_CHAT := 0x078D
 const MSG_OTHER_BUYER := 0x0790
+const MSG_BYE := 0x0791
+const MSG_BYE_SOLD := 0x0792
 const MSG_OFFER := 0x0793
 const MSG_YES := 0x0798
 const MSG_NO := 0x079D
@@ -37,6 +40,8 @@ var item_id: StringName = &""
 var explained: Dictionary = {}
 var been_inside: bool = false
 var sold_now: bool = false
+## `sell_flag`: a piece was bought on this visit.
+var sold_visit: bool = false
 
 
 func _init(p_kind: Kind, p_area: Dictionary, p_inventory: Inventory = null, p_rng: RandomNumberGenerator = null) -> void:
@@ -70,6 +75,9 @@ func start_msg() -> int:
 			return MSG_OUT_AGAIN if been_inside else MSG_OUT_FIRST
 		Kind.HELLO:
 			return MSG_HELLO
+		Kind.GOODBYE:
+			## `aEBR2_set_talk_info_goodbye_wait`.
+			return MSG_BYE_SOLD if sold_visit else MSG_BYE
 		Kind.OFFER:
 			if explained.has(item_id):
 				return MSG_OFFER_AGAIN
