@@ -21,7 +21,10 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 		return
 	Game.shops.ensure_today(shop_id)
 	if room.kind == Room.Kind.SHOP:
-		_tom_nook(root, interior)
+		if room.id == &"shop3_2":
+			_twins(root, interior)
+		else:
+			_tom_nook(root, interior)
 		_clock(root, interior)
 	_stock(root, interior, shop_id)
 
@@ -67,6 +70,26 @@ func _add_stock(
 	node.set("occupant_id", StringName("shop_stock_%d" % i))
 	node.position = pos
 	root.add_child(node)
+
+
+## Nookington's upstairs: Timmy at unit (7, 4) and Tommy at (8, 4) (`shop04_2` mvactor data).
+func _twins(root: Node3D, interior: IndoorSession) -> void:
+	if interior.grid == null:
+		return
+	for i: int in ShopDisplay.TWINS_UT.size():
+		var node_name: String = "Twin%d" % i
+		var ut: Vector2i = ShopDisplay.TWINS_UT[i]
+		var pos: Vector3 = ShopDisplay.gx_to_world(interior.grid, Vector3(ut.x * 40.0 + 20.0, 0.0, ut.y * 40.0 + 20.0))
+		var existing: Node3D = root.get_node_or_null(node_name) as Node3D
+		if existing != null:
+			existing.position = pos
+			continue
+		var twin: Node3D = TOM_NOOK_SCENE.instantiate() as Node3D
+		twin.name = node_name
+		twin.set("clerk", i)
+		twin.position = pos
+		twin.rotation.y = WorldGrid.yaw_for_facing(ShopDisplay.NOOK_FACING)
+		root.add_child(twin)
 
 
 func _tom_nook(root: Node3D, interior: IndoorSession) -> void:

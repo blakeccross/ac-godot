@@ -1,0 +1,273 @@
+{
+  "id": "twins_shop_menu",
+  "speaker_id": "timmy",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_balloon",
+              "value": "yes"
+            }
+          },
+          "goto": "balloon"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_again",
+              "value": "yes"
+            }
+          },
+          "goto": "again"
+        },
+        {
+          "goto": "welcome"
+        }
+      ]
+    },
+    "welcome": {
+      "type": "line",
+      "text": "Welcome, welcome to\n{free0}!\nWhat would you like? {c:25,140,220}...like?{c:50,60,50}",
+      "next": "menu"
+    },
+    "again": {
+      "type": "line",
+      "text": "Something more?\nWe are listening! {c:25,140,220}...listening!{c:50,60,50}",
+      "next": "menu"
+    },
+    "balloon": {
+      "type": "line",
+      "text": "Big sale today! Please,\ntake this {item0}.\nA gift from us! {c:25,140,220}...us!{c:50,60,50}",
+      "next": "menu"
+    },
+    "menu": {
+      "type": "choice",
+      "prompt": "How may we help?",
+      "options": [
+        {
+          "text": "I want to sell.",
+          "goto": "sell"
+        },
+        {
+          "text": "Order from the catalog.",
+          "goto": "order"
+        },
+        {
+          "text": "Other things.",
+          "goto": "other"
+        },
+        {
+          "text": "Never mind.",
+          "goto": "bye"
+        }
+      ]
+    },
+    "sell": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "sell"
+        }
+      ],
+      "next": "sell_line"
+    },
+    "sell_line": {
+      "type": "line",
+      "text": "Selling? Please show us\nwhat you have! {c:25,140,220}...have!{c:50,60,50}"
+    },
+    "order": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "order"
+        }
+      ],
+      "next": "order_branch"
+    },
+    "order_branch": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_order",
+              "value": "full"
+            }
+          },
+          "goto": "order_full"
+        },
+        {
+          "goto": "order_line"
+        }
+      ]
+    },
+    "order_line": {
+      "type": "line",
+      "text": "Your catalog! Pick anything\nand we will order it.\n{c:25,140,220}...order it.{c:50,60,50}"
+    },
+    "order_full": {
+      "type": "line",
+      "text": "Five orders are already\ncoming. Please wait for\nthose first! {c:25,140,220}...first!{c:50,60,50}",
+      "next": "menu"
+    },
+    "other": {
+      "type": "choice",
+      "prompt": "Other things? We can\noffer only this.",
+      "options": [
+        {
+          "text": "Turnip prices?",
+          "goto": "turnip_branch"
+        },
+        {
+          "text": "Hear code",
+          "goto": "code_hear"
+        },
+        {
+          "text": "Say code",
+          "goto": "code_say"
+        },
+        {
+          "text": "Umm, hang on!",
+          "goto": "menu"
+        }
+      ]
+    },
+    "turnip_branch": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_sunday",
+              "value": "yes"
+            }
+          },
+          "goto": "turnip_sunday"
+        },
+        {
+          "goto": "turnip_price"
+        }
+      ]
+    },
+    "turnip_price": {
+      "type": "line",
+      "text": "Turnips today are\n{free1} Bells apiece. {c:25,140,220}...apiece.{c:50,60,50}",
+      "next": "menu"
+    },
+    "turnip_sunday": {
+      "type": "line",
+      "text": "No turnips on Sunday!\nJoan sells them then. {c:25,140,220}...then.{c:50,60,50}",
+      "next": "menu"
+    },
+    "bye": {
+      "type": "line",
+      "text": "Thanks much! Come again!\n{c:25,140,220}...again!{c:50,60,50}"
+    },
+    "code_hear": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "code_hear"
+        }
+      ],
+      "next": "code_hear_branch"
+    },
+    "code_hear_branch": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code",
+              "value": "none"
+            }
+          },
+          "goto": "code_hear_none"
+        },
+        {
+          "goto": "code_hear_ask"
+        }
+      ]
+    },
+    "code_hear_none": {
+      "type": "line",
+      "text": "You have nothing we can\nmake a password for.\nPlease come back later! {c:25,140,220}...later!{c:50,60,50}",
+      "next": "menu"
+    },
+    "code_hear_ask": {
+      "type": "line",
+      "text": "Please tell us the town\nand player this password\nis for. {c:25,140,220}...for.{c:50,60,50}"
+    },
+    "code_say": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "code_say"
+        }
+      ],
+      "next": "code_say_branch"
+    },
+    "code_say_branch": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code",
+              "value": "foreign"
+            }
+          },
+          "goto": "code_say_foreign"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code",
+              "value": "out"
+            }
+          },
+          "goto": "code_say_out"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code",
+              "value": "full"
+            }
+          },
+          "goto": "code_say_full"
+        },
+        {
+          "goto": "code_say_ask"
+        }
+      ]
+    },
+    "code_say_foreign": {
+      "type": "line",
+      "text": "Sorry! Presents are picked\nup at the shop in your\nown town. {c:25,140,220}...town.{c:50,60,50}",
+      "next": "menu"
+    },
+    "code_say_out": {
+      "type": "line",
+      "text": "No more presents for\npasswords just now. Please\ncome back later! {c:25,140,220}...later!{c:50,60,50}",
+      "next": "menu"
+    },
+    "code_say_full": {
+      "type": "line",
+      "text": "Your pockets are full!\nPlease make room first. {c:25,140,220}...first.{c:50,60,50}",
+      "next": "menu"
+    },
+    "code_say_ask": {
+      "type": "line",
+      "text": "Please, tell us\nthe password. {c:25,140,220}...password.{c:50,60,50}"
+    }
+  }
+}

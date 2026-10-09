@@ -299,3 +299,21 @@ func test_december_puts_festive_furniture_first() -> void:
 	assert_that(ShopGoods.season_ftr(picks, 11, 30, rng)).is_equal(picks)
 	var one: Array[StringName] = ShopGoods.season_ftr([&"a"] as Array[StringName], 12, 1, rng)
 	assert_bool(String(one[0]) in [String(FtrCatalog.item_id(943)), String(FtrCatalog.item_id(930))]).is_true()
+
+
+func test_timmy_and_tommy_keep_nookingtons_upstairs() -> void:
+	var room: Room = InteriorCatalog.room_template(&"shop3_2")
+	var session := IndoorSession.new()
+	session.bind(room)
+	var root := Node3D.new()
+	auto_free(root)
+	add_child(root)
+	InteriorBuilder.build(root, session)
+	assert_object(root.get_node_or_null("Furniture/TomNook")).is_null()
+	var timmy: Node = root.get_node_or_null("Furniture/Twin0")
+	var tommy: Node = root.get_node_or_null("Furniture/Twin1")
+	assert_object(timmy).is_not_null()
+	assert_object(tommy).is_not_null()
+	assert_str(String(timmy.call("clerk_name"))).is_equal("Timmy")
+	assert_str(String(tommy.call("clerk_name"))).is_equal("Tommy")
+	assert_object(DialogueCatalog.conversation(&"twins_shop_menu")).is_not_null()

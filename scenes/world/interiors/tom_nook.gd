@@ -48,6 +48,13 @@ const JOB_NOTICE := &"nook_job_notice"
 const JOB_NOTICE_HINT := &"nook_job_notice_hint"
 const JOB_ALL_DONE := &"nook_job_all_done"
 
+## −1 Tom Nook; 0 Timmy and 1 Tommy (`SP_NPC_MAMEDANUKI0/1`, `ac_npc_mamedanuki`), the twins
+## behind Nookington's upstairs counter. They run the same counter (`ac_npc_shop_common` built
+## with `aNSC_MAMEDANUKI`) in their own lines (`twins_shop_*`), with no house business.
+@export var clerk: int = -1
+const CLERK_NAMES: Array[String] = ["Timmy", "Tommy"]
+const CLERK_SPECIES := &"rcf"
+
 var _model: Node3D
 var _body_anim: AnimationPlayer
 var _face: NpcFace = NpcFace.new()
@@ -87,7 +94,7 @@ func _process(delta: float) -> void:
 ## Talking is all there is: selling and the catalog are on his counter menu, and the
 ## goods are bought off the shelves (`offer_item`).
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
-	return [Interaction.of(Interaction.TALK, "Talk to Tom Nook", 20)]
+	return [Interaction.of(Interaction.TALK, "Talk to %s" % clerk_name(), 20)]
 
 
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
@@ -102,7 +109,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 
 func _maybe_force_greet() -> void:
 	## `aNRG2_think_init` force-talk on first shop visit during FIRSTJOB_START.
-	if Game == null:
+	if Game == null or clerk >= 0:
 		return
 	if Game.first_job == null or not Game.first_job.is_active():
 		## Chores done: he only opens the conversation himself when the house needs him.
@@ -139,10 +146,23 @@ func _greet_after_frames() -> void:
 	_begin_talk(ctx)
 
 
+func clerk_name() -> String:
+	return CLERK_NAMES[clerk] if clerk >= 0 and clerk < CLERK_NAMES.size() else "Tom Nook"
+
+
+## The twins' own version of a counter graph, when there is one.
+func _graph(id: StringName) -> DialogueData:
+	if clerk >= 0:
+		var twins: DialogueData = DialogueCatalog.conversation(StringName(String(id).replace("nook_", "twins_")))
+		if twins != null:
+			return twins
+	return DialogueCatalog.conversation(id)
+
+
 func _begin_talk(ctx: InteractionContext) -> bool:
 	var listener: Node3D = _listener(ctx)
 	_face_toward(listener.global_position if listener != null else global_position)
-	if Game != null and Game.first_job != null and Game.first_job.is_active():
+	if clerk < 0 and Game != null and Game.first_job != null and Game.first_job.is_active():
 		return _begin_first_job_talk(listener)
 	return _begin_normal_talk(listener)
 
@@ -150,12 +170,12 @@ func _begin_talk(ctx: InteractionContext) -> bool:
 func _begin_normal_talk(listener: Node3D) -> bool:
 	var data: DialogueData = DialogueCatalog.conversation(GREETING_ID)
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
-	talk_ctx.speaker_name = "Tom Nook"
+	talk_ctx.speaker_name = clerk_name()
 	talk_ctx.already_talked = _talked_today
 	## House business first (`aNSC_set_talk_info_start_wait*`): a landed build, the statue, or
 	## an upgrade offer replaces the plain greeting.
 	var house: House = Game.interiors.player_house() if Game.interiors != null else null
-	var house_plan: Dictionary = NookHouseTalk.plan(house, Game.inventory, Game.num_statues)
+	var house_plan: Dictionary = NookHouseTalk.plan(house, Game.inventory, Game.num_statues) if clerk < 0 else {}
 	var house_data: DialogueData = (
 		DialogueCatalog.conversation(NookHouseTalk.DIALOGUE_ID) if not house_plan.is_empty() else null
 	)
@@ -164,13 +184,13 @@ func _begin_normal_talk(listener: Node3D) -> bool:
 		NookHouseTalk.fill_context(talk_ctx, house_plan)
 		if house_plan.has("statues_built"):
 			Game.num_statues = int(house_plan["statues_built"])
-	elif Game.shops.is_lottery_day() and DialogueCatalog.conversation(NookShopTalk.LOTTERY_ID) != null:
+	elif clerk < 0 and Game.shops.is_lottery_day() and DialogueCatalog.conversation(NookShopTalk.LOTTERY_ID) != null:
 		## Raffle day: Nook runs the drawing instead of the counter (`ac_npc_shop_mastersp`).
 		data = DialogueCatalog.conversation(NookShopTalk.LOTTERY_ID)
 		NookShopTalk.fill_lottery(talk_ctx)
 		_shop_talk = true
-	elif DialogueCatalog.conversation(NookShopTalk.MENU_ID) != null:
-		data = DialogueCatalog.conversation(NookShopTalk.MENU_ID)
+	elif _graph(NookShopTalk.MENU_ID) != null:
+		data = _graph(NookShopTalk.MENU_ID)
 		## `aNSC_check_present_balloon`: a sale-event gift on the first talk.
 		var balloon: StringName = Game.shops.take_sale_balloon(Game.inventory)
 		NookShopTalk.fill_menu(talk_ctx, _talked_today, balloon)
@@ -364,7 +384,7 @@ func _play_job_line(
 
 func _play_data(data: DialogueData, listener: Node3D) -> bool:
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
-	talk_ctx.speaker_name = "Tom Nook"
+	talk_ctx.speaker_name = clerk_name()
 	var play_data: DialogueData = data
 	if (
 		Game != null
@@ -413,7 +433,7 @@ func _on_house_event(event: Dictionary) -> void:
 ## A shelf good was picked (`aNSC_message_ctrl_talk_request_normal_day`): Nook names the
 ## price and asks. Returns false when there is no dialogue to run it.
 func offer_item(item_id: StringName, ctx: InteractionContext) -> bool:
-	var data: DialogueData = DialogueCatalog.conversation(NookShopTalk.OFFER_ID)
+	var data: DialogueData = _graph(NookShopTalk.OFFER_ID)
 	var ui := DialogueOverlay.find(get_tree())
 	if data == null or ui == null or Game == null:
 		return false
@@ -425,7 +445,7 @@ func offer_item(item_id: StringName, ctx: InteractionContext) -> bool:
 	var listener: Node3D = _listener(ctx)
 	_face_toward(listener.global_position if listener != null else global_position)
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
-	talk_ctx.speaker_name = "Tom Nook"
+	talk_ctx.speaker_name = clerk_name()
 	NookShopTalk.fill_offer(talk_ctx, item_id)
 	if ui.is_open():
 		ui.close()
@@ -495,13 +515,13 @@ func _start_sell() -> void:
 	var picked: bool = await Game.shop_sell_resolved
 	if not picked:
 		return
-	var data: DialogueData = DialogueCatalog.conversation(NookShopTalk.SELL_ID)
+	var data: DialogueData = _graph(NookShopTalk.SELL_ID)
 	var ui := DialogueOverlay.find(get_tree())
 	if data == null or ui == null:
 		return
 	var listener: Node3D = get_tree().get_first_node_in_group("player") as Node3D
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
-	talk_ctx.speaker_name = "Tom Nook"
+	talk_ctx.speaker_name = clerk_name()
 	NookShopTalk.fill_sell(talk_ctx, NookShopTalk.sell_selection(Game.shop_sell_slots))
 	if ui.is_open():
 		ui.close()
@@ -520,13 +540,13 @@ func _start_order() -> void:
 	if catalog == null:
 		return
 	var item_id: StringName = await catalog.closed
-	var data: DialogueData = DialogueCatalog.conversation(NookShopTalk.ORDER_ID)
+	var data: DialogueData = _graph(NookShopTalk.ORDER_ID)
 	var ui := DialogueOverlay.find(get_tree())
 	if data == null or ui == null:
 		return
 	var listener: Node3D = get_tree().get_first_node_in_group("player") as Node3D
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
-	talk_ctx.speaker_name = "Tom Nook"
+	talk_ctx.speaker_name = clerk_name()
 	NookShopTalk.fill_order(talk_ctx, item_id)
 	if ui.is_open():
 		ui.close()
@@ -597,13 +617,13 @@ func _ask_text(kind: StringName) -> String:
 
 
 func _play_code_result(result: String, item: ItemData, frees: Dictionary) -> void:
-	var data: DialogueData = DialogueCatalog.conversation(NookShopTalk.CODE_ID)
+	var data: DialogueData = _graph(NookShopTalk.CODE_ID)
 	var ui := DialogueOverlay.find(get_tree())
 	if data == null or ui == null:
 		return
 	var listener: Node3D = get_tree().get_first_node_in_group("player") as Node3D
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
-	talk_ctx.speaker_name = "Tom Nook"
+	talk_ctx.speaker_name = clerk_name()
 	talk_ctx.set_var(NookShopTalk.VAR_CODE_RESULT, result)
 	talk_ctx.item0 = item.display_name if item != null else ""
 	for k: Variant in frees:
@@ -732,7 +752,7 @@ func _ensure_visual() -> void:
 	_model = Node3D.new()
 	_model.name = "Model"
 	add_child(_model)
-	var species: StringName = ShopDisplay.nook_species(_nook_level())
+	var species: StringName = CLERK_SPECIES if clerk >= 0 else ShopDisplay.nook_species(_nook_level())
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, species)
 	if vis == null:
 		var mesh := MeshInstance3D.new()

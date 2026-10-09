@@ -1,0 +1,171 @@
+{
+  "id": "twins_shop_code",
+  "speaker_id": "timmy",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "good"
+            }
+          },
+          "goto": "good"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "magazine_miss"
+            }
+          },
+          "goto": "miss"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "carde"
+            }
+          },
+          "goto": "carde"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "bad"
+            }
+          },
+          "goto": "bad"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "same_town"
+            }
+          },
+          "goto": "same_town"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "made"
+            }
+          },
+          "goto": "made"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "no_item"
+            }
+          },
+          "goto": "no_item"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_code_result",
+              "value": "cancel"
+            }
+          },
+          "goto": "cancel"
+        },
+        {
+          "goto": "wrong"
+        }
+      ]
+    },
+    "good": {
+      "type": "line",
+      "text": "A {item0} has come for\nyou! Here you are! {c:25,140,220}...are!{c:50,60,50}"
+    },
+    "miss": {
+      "type": "line",
+      "text": "So sorry! This password\nis not a winner. Thanks\nfor trying! {c:25,140,220}...trying!{c:50,60,50}"
+    },
+    "carde": {
+      "type": "line",
+      "text": "That password is not for\nus! Try telling it to an\nanimal in town. {c:25,140,220}...town.{c:50,60,50}"
+    },
+    "wrong": {
+      "type": "choice",
+      "prompt": "Hm? Something is wrong\nwith that password.\nTell us again?",
+      "options": [
+        {
+          "text": "Yes.",
+          "goto": "retry"
+        },
+        {
+          "text": "Never mind...",
+          "goto": "decline"
+        }
+      ]
+    },
+    "bad": {
+      "type": "choice",
+      "prompt": "That password is someone\nelse's! Do you have\nanother one?",
+      "options": [
+        {
+          "text": "Yes.",
+          "goto": "retry"
+        },
+        {
+          "text": "Never mind...",
+          "goto": "decline"
+        }
+      ]
+    },
+    "retry": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "code_retry"
+        }
+      ],
+      "next": "retry_line"
+    },
+    "retry_line": {
+      "type": "line",
+      "text": "Please, tell us\nthe password. {c:25,140,220}...password.{c:50,60,50}"
+    },
+    "decline": {
+      "type": "line",
+      "text": "Not picking it up yet?\nCome back anytime! {c:25,140,220}...anytime!{c:50,60,50}"
+    },
+    "same_town": {
+      "type": "line",
+      "text": "We cannot send goods to a\ntown with the same name\nas ours! {c:25,140,220}...ours!{c:50,60,50}"
+    },
+    "no_item": {
+      "type": "line",
+      "text": "No item, no password!\n{c:25,140,220}...password!{c:50,60,50}"
+    },
+    "cancel": {
+      "type": "line",
+      "text": "Keeping it? Come back\nanytime! {c:25,140,220}...anytime!{c:50,60,50}"
+    },
+    "made": {
+      "type": "line",
+      "text": "Here is the password so\n{free3} in {free2} can pick\nup the {item0}. Write it down!\n{c:25,140,220}...down!{c:50,60,50}",
+      "next": "made_code"
+    },
+    "made_code": {
+      "type": "line",
+      "text": "{free0}\n{free1}",
+      "next": "made_end"
+    },
+    "made_end": {
+      "type": "line",
+      "text": "Written down? Now tell\n{free3} the password!\nThanks much! {c:25,140,220}...much!{c:50,60,50}"
+    }
+  }
+}
