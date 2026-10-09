@@ -78,6 +78,11 @@ const PRESENTERS: Dictionary = {
 
 ## A show owns the music (`mBGMPsComp_make_ps_demo`): the field keeps its hands off.
 static var demo_bgm: StringName = &""
+## A title card is on screen (`event_title_flags`).
+var _titling: bool = false
+## Seconds until a card held back by a busy player is tried again (0 = none waiting).
+var _title_retry: float = 0.0
+const TITLE_RETRY_SEC := 0.5
 static var _places: Dictionary = {}
 static var _places_day: String = ""
 
@@ -129,6 +134,11 @@ func _on_hour(_hour: int) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _title_retry > 0.0 and not _titling:
+		_title_retry -= delta
+		if _title_retry <= 0.0:
+			_title_retry = 0.0
+			refresh()
 	for id: Variant in _running:
 		(_running[id] as EventPresenter).tick(delta)
 
@@ -138,6 +148,10 @@ func refresh() -> void:
 	if world == null or Game == null or Game.events == null:
 		return
 	_roll_day()
+	if _titling:
+		return
+	if _title_due():
+		return
 	for id: Variant in PRESENTERS:
 		var sid: StringName = id
 		var active: bool = Game.events.is_active(sid)
@@ -148,6 +162,48 @@ func refresh() -> void:
 		elif not active and _running.has(sid):
 			(_running[sid] as EventPresenter).stop()
 			_running.erase(sid)
+
+
+## `title_fade`: the first festival due a title card plays it (and starts or stops under
+## the black); the rest of `refresh` waits for it. Not before the player is free.
+func _title_due() -> bool:
+	if Game.title_demo_active or Game.intro_station_active:
+		return false
+	var keep: Dictionary = Game.events.area(EventTitle.KEEP_AREA)
+	for id: Variant in EventTitle.TITLE_NO:
+		var sid: StringName = id
+		var step: int = EventTitle.due(sid, Game.events.is_active(sid), keep, Game.events.day_key())
+		if step == 0:
+			continue
+		if not _player_free():
+			_title_retry = TITLE_RETRY_SEC
+			return false
+		_titling = true
+		_run_title(sid, step > 0, keep)
+		return true
+	return false
+
+
+func _player_free() -> bool:
+	var player := Player.find(get_tree())
+	var ui := DialogueOverlay.find(get_tree())
+	return (
+		player != null and not player.is_busy() and (ui == null or not ui.is_open())
+		and SceneTransition.is_clear()
+	)
+
+
+func _run_title(sid: StringName, opening: bool, keep: Dictionary) -> void:
+	if opening:
+		keep[String(sid)] = Game.events.day_key()
+	else:
+		keep.erase(String(sid))
+	await EventTitle.play(get_tree(), EventTitle.message(sid, opening), func() -> void:
+		_titling = false
+		refresh()
+		_titling = true)
+	_titling = false
+	refresh()
 
 
 func is_running(id: StringName) -> bool:

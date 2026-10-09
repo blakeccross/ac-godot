@@ -44,3 +44,24 @@ func test_groundhog_day_quiets_the_shrine() -> void:
 
 func test_no_event_no_override() -> void:
 	assert_bool(EventBgm.pick(func(_e: StringName) -> bool: return false, SHRINE, _blocks).is_empty()).is_true()
+
+
+func test_title_card_opens_once_and_closes_the_same_day() -> void:
+	## `title_fade` / `mEv_set_keep`.
+	var keep: Dictionary = {}
+	assert_int(EventTitle.due(&"groundhog_day", true, keep, "2002-02-02")).is_equal(1)
+	keep["groundhog_day"] = "2002-02-02"
+	assert_int(EventTitle.due(&"groundhog_day", true, keep, "2002-02-02")).is_equal(0)
+	assert_int(EventTitle.due(&"groundhog_day", false, keep, "2002-02-02")).is_equal(-1)
+	## Kept from another day: dropped without a closing card.
+	assert_int(EventTitle.due(&"groundhog_day", false, keep, "2002-02-03")).is_equal(0)
+	assert_bool(keep.has("groundhog_day")).is_false()
+	## Visitors have no card.
+	assert_int(EventTitle.due(&"kk_slider", true, {}, "x")).is_equal(0)
+
+
+func test_title_messages_follow_get_title_no() -> void:
+	assert_int(EventTitle.message(&"groundhog_day", true)).is_equal(0x1743 + 14)
+	assert_int(EventTitle.message(&"groundhog_day", false)).is_equal(0x1799 + 14)
+	assert_int(EventTitle.message(&"fireworks_show", true)).is_equal(0x1743)
+	assert_object(DialogueCatalog.conversation(&"msg_5969")).is_not_null()

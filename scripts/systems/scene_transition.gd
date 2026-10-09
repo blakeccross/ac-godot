@@ -96,6 +96,15 @@ func hold_black() -> void:
 	_set_alpha(1.0)
 
 
+## Nothing on screen and nothing about to wipe: the field is in view.
+func is_clear() -> bool:
+	if wipe_in_pending or _wipe_in_waiting:
+		return false
+	if _tween != null and _tween.is_running():
+		return false
+	return _rect == null or _rect.color.a <= 0.001
+
+
 func play_wipe_in() -> void:
 	wipe_in_pending = false
 	await _fade_to(0.0)
