@@ -573,7 +573,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [x] Groundhog Day — crowd lines by minutes to 8:00; ten seconds after 8:00 the "groundhog", Mr. Resetti, pops up on the shrine acre with his weather line (`ac_ev_majin`, `aGHC_birth_reset`), then Tortimer's speech and weather verdict — `GroundhogResetti`, `SpeechTortimer`. Missing: the event title card and BGM handoff
 - [x] Valentine's Day — villagers send letters with chocolate (`VillagerLetters.send_valentines`)
 - [x] Snowman season / Kamakura — snow cabin with a resident guest (greeting game, Kamakura trade list); the snowman balls (`snowman_start`, `SnowmanPresenter`)
-- [~] Spring / Fall **Sports Fair** — residents in gym clothes at their stations with their lines; Tortimer. Missing: the foot race / ball toss / tug-of-war games themselves
+- [x] Spring / Fall **Sports Fair** — residents in gym clothes at their stations with their lines; Tortimer. The games run: tug-of-war on a shared rope with a flag-waving referee (`TugOfWar`), ball toss into the baskets with cheers (`BallToss`, `TossBall`), and the four-lap foot race round the shrine with warm-up, starter's pistol, trips, finish and team swap (`FootRace`)
 - [~] April Fools' Day — rumours, mom's letter, the calendar. Missing: villagers' April Fools' lines and Booker / the sisters' clips
 - [x] Cherry Blossom Festival — picnic mats, seated / dancing residents, Tortimer
 - [x] Nature Day, Spring Cleaning, Mother's / Father's Day, Graduation, Town / Founders' / Labor / Explorers' / Officers' / Mayor's / Sale / Snow Day — Tortimer at the wishing well with his calendar trophy (`ac_ev_soncho2`, `TortimerHoliday`)

@@ -21,6 +21,14 @@ var _toss_clock: float = 0.0
 var _toss_released: bool = false
 var _basket: Vector3 = Vector3.INF
 var _cheer_spot: int = 0
+## Foot race (`FootRace`): the phase last seen, the angle round the shrine, a trip in progress.
+var _race_phase: int = -1
+var _race_angle: float = 0.0
+var _race_trip: int = 0
+var _race_center: Vector3 = Vector3.INF
+var _race_to_finish: bool = false
+## `aNPC` run (≈6 GX a frame) is the field's 4.5 m/s.
+const RACE_MPS_PER_GX := 0.75
 
 
 ## Before `_ready`: copy the villager's looks onto the event actor.
@@ -60,6 +68,10 @@ func setup() -> void:
 		_setup_tug()
 	elif family == &"tamaire":
 		_setup_toss()
+	elif family == &"tokyoso":
+		if slot == 0:
+			FootRace.reset()
+		_race_center = _block_unit_pos(FootRace.CENTER_UNIT)
 	_home = global_position
 	_pause = rng().randf_range(0.5, 3.0)
 
@@ -92,6 +104,115 @@ func _exit_tree() -> void:
 	if family == &"tamaire" and slot == 0 and get_tree() != null:
 		for ball: Node in get_tree().get_nodes_in_group(&"toss_ball"):
 			ball.queue_free()
+
+
+func _block_unit_pos(unit: Vector2i) -> Vector3:
+	var mgr: EventManager = EventManager.find(get_tree())
+	if mgr == null or mgr.world == null:
+		return Vector3.INF
+	var block: Vector2i = TownSpace.block_of_cell(mgr.world.grid.world_to_cell(global_position))
+	return mgr.cell_position(EventManager.block_unit_to_cell(block, unit))
+
+
+## One frame of the foot race (`aTKN0_*` for the starter, `aTKN1_*` for the runners).
+func _race(delta: float) -> void:
+	FootRace.advance(delta)
+	var phase: int = FootRace.phase
+	var entered: bool = phase != _race_phase
+	_race_phase = phase
+	if slot == 0:
+		_race_starter(phase, entered, delta)
+		return
+	if not FootRace.racing(slot):
+		if entered and phase == FootRace.Phase.RACE:
+			play_clip(FootRace.CLIP_CLAP, true)
+		elif entered and phase == FootRace.Phase.WARMUP:
+			if global_position.distance_to(_home) > 0.5:
+				move_to(_home, WALK_SPEED)
+			else:
+				play_clip("npc_1_wait1", true)
+		return
+	var lane: int = FootRace.lane_of(slot)
+	match phase:
+		FootRace.Phase.WARMUP:
+			if entered:
+				if global_position.distance_to(_home) > 0.5:
+					move_to(_home, WALK_SPEED)
+				else:
+					play_clip(FootRace.CLIP_WARMUP, true)
+			elif not is_moving() and clip_done():
+				play_clip(FootRace.CLIP_WARMUP, true)
+		FootRace.Phase.READY:
+			if entered:
+				move_to(_race_point(FootRace.finish_offset(lane)), 3.0, FootRace.CLIP_RUN)
+			elif not is_moving() and clip_done():
+				turn_to(PI * 0.5, delta)
+				play_clip(FootRace.CLIP_READY, true)
+		FootRace.Phase.RACE:
+			if entered:
+				var to: Vector3 = global_position - _race_center
+				_race_angle = atan2(-to.z, to.x)
+				_race_to_finish = false
+				_race_trip = 0
+			if FootRace.finish[lane] != 0 or is_moving():
+				return
+			if _race_trip == 1:
+				if clip_done():
+					_race_trip = 2
+					play_clip(FootRace.CLIP_GETUP, false)
+				return
+			if _race_trip == 2:
+				if not clip_done():
+					return
+				_race_trip = 0
+			if _race_to_finish:
+				FootRace.cross(lane)
+				play_clip("npc_1_wait1", true)
+				return
+			if FootRace.done_laps(lane):
+				_race_to_finish = true
+				move_to(_race_point(FootRace.finish_offset(lane)), 3.0, FootRace.CLIP_RUN)
+				return
+			if rng().randf() < FootRace.TRIP_CHANCE:
+				_race_trip = 1
+				play_clip(FootRace.CLIP_TRIP, false)
+				return
+			var leg: Array = FootRace.next_leg(lane, _race_angle, rng())
+			_race_angle = float(leg[1])
+			move_to(_race_point(leg[0] as Vector2), float(leg[2]) * RACE_MPS_PER_GX, FootRace.CLIP_RUN)
+		FootRace.Phase.GOAL:
+			if entered or (not is_moving() and clip_done()):
+				play_clip(FootRace.CLIP_WIN if FootRace.finish[lane] == 1 else FootRace.CLIP_LOSE, true)
+
+
+## Between legs a runner keeps running; the next leg starts this frame.
+func arrived() -> void:
+	if family == &"tokyoso" and FootRace.phase == FootRace.Phase.RACE and FootRace.racing(slot) and not _race_to_finish:
+		return
+	super.arrived()
+
+
+func _race_point(offset_gx: Vector2) -> Vector3:
+	return _race_center + Vector3(offset_gx.x, 0.0, offset_gx.y) * FieldCatalog.GX_TO_METERS
+
+
+## `aTKN0`: load and raise the pistol while they take the line, fire, then watch the leader.
+func _race_starter(phase: int, entered: bool, delta: float) -> void:
+	match phase:
+		FootRace.Phase.READY:
+			if entered:
+				play_clip(FootRace.CLIP_LOAD, false)
+			elif clip_done():
+				play_clip(FootRace.CLIP_SET, true)
+		FootRace.Phase.RACE:
+			if entered:
+				play_clip(FootRace.CLIP_FIRE, false)
+				Audio.play_se(&"53", self)
+			elif clip_done():
+				play_clip("npc_1_wait1", true)
+		_:
+			if entered:
+				play_clip("npc_1_wait1", true)
 
 
 func _basket_at(team: int) -> Vector3:
@@ -242,6 +363,9 @@ func think(delta: float) -> void:
 		return
 	if family == &"tamaire" and not talking:
 		_toss(delta)
+		return
+	if family == &"tokyoso" and not talking:
+		_race(delta)
 		return
 	if _data.is_empty():
 		return

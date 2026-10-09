@@ -55,3 +55,43 @@ func test_ball_toss_teams_and_spots_round_their_basket() -> void:
 	var rise: float = BallToss.launch_rise(rng)
 	assert_float(rise).is_between(deg_to_rad(67.5), deg_to_rad(84.0))
 	assert_float(BallToss.launch_speed(rng)).is_between(4.9, 6.4)
+
+
+func test_the_foot_race_warms_up_lines_up_races_and_swaps_pairs() -> void:
+	FootRace.reset()
+	assert_bool(FootRace.racing(1)).is_true()
+	assert_bool(FootRace.racing(3)).is_false()
+	for i: int in FootRace.WARMUP_FRAMES:
+		FootRace.step()
+	assert_int(FootRace.phase).is_equal(FootRace.Phase.READY)
+	for i: int in FootRace.READY_FRAMES:
+		FootRace.step()
+	assert_int(FootRace.phase).is_equal(FootRace.Phase.RACE)
+	FootRace.cross(1)
+	FootRace.cross(0)
+	assert_int(FootRace.finish[1]).is_equal(1)
+	assert_int(FootRace.finish[0]).is_equal(2)
+	FootRace.step()
+	assert_int(FootRace.phase).is_equal(FootRace.Phase.GOAL)
+	for i: int in FootRace.GOAL_FRAMES:
+		FootRace.step()
+	assert_int(FootRace.phase).is_equal(FootRace.Phase.WARMUP)
+	assert_bool(FootRace.racing(3)).is_true()
+	assert_bool(FootRace.racing(1)).is_false()
+
+
+func test_legs_go_round_the_shrine_and_four_laps_finish() -> void:
+	FootRace.reset()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var angle: float = 0.0
+	var legs: int = 0
+	while not FootRace.done_laps(1) and legs < 200:
+		var leg: Array = FootRace.next_leg(1, angle, rng)
+		var r: float = (leg[0] as Vector2).length()
+		assert_float(r).is_between(125.0, 145.0)
+		assert_float(float(leg[1]) - angle).is_between(FootRace.LEG_ANGLE, FootRace.LEG_ANGLE * 2.0)
+		angle = float(leg[1])
+		legs += 1
+	assert_bool(FootRace.done_laps(1)).is_true()
+	assert_int(legs).is_between(30, 70)
