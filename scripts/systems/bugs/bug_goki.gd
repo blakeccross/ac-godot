@@ -141,6 +141,7 @@ func _move_on_flower(a: BugActor, sense: BugActor.Sense) -> void:
 		return
 	a.s32_work[2] -= 1
 	if a.s32_work[2] <= 0:
+		a.ongen = 0xA8  ## `NA_SE_GOKI_MOVE`
 		a.timer = int(2.0 * (90.0 + a._rng.randf() * 90.0))
 		setup_action(a, WAIT_ON_FLOWER)
 		return
@@ -194,6 +195,7 @@ func _avoid(a: BugActor, _sense: BugActor.Sense) -> void:
 	if a.anime0 >= 2.0:
 		a.anime0 -= 2.0
 	a.gravity = minf(a.gravity * 1.1, 12.0)
+	a.ongen = 0x26
 	## `aIGK_avoid`: ground / wall collision switches on once it has flown off its home unit.
 	if a.bg_type == 0 and BugProgram.left_home_unit(a):
 		a.bg_type = 1

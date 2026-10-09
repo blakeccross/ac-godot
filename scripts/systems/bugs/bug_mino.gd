@@ -93,6 +93,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			_dive_init(a)
 		DROWN:
 			a.action_proc = _noop
+			a.trg_se.append(&"438")
 			a.f_destruct = true
 			a.finished = true
 		FALL:

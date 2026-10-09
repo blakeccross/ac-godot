@@ -64,6 +64,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.s32_work[1] = 0
 		ATTACK:
 			a.action_proc = _attack
+			a.trg_se.append(&"6a")
 			a.speed = 0.0
 			a.target_speed = 0.0
 			a.speed_step = 0.0
@@ -79,6 +80,8 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.caught:
 		setup_action(a, LET_ESCAPE)
 		return
+	if a.action != ATTACK:
+		a.ongen = 0xCF  ## `NA_SE_KA_BUZZ`
 	if a.f_scared and not a.f_bit2 and a.action != LET_ESCAPE:
 		setup_action(a, LET_ESCAPE)
 		return

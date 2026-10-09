@@ -88,6 +88,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.f_no_catch = true
 		DROWN:
 			a.action_proc = _noop
+			a.trg_se.append(&"438")
 			a.f_destruct = true
 			a.finished = true
 		DUG:
@@ -121,6 +122,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 
 func _hide(a: BugActor, sense: BugActor.Sense) -> void:
 	if sense == null or sense.player_action != BugActor.PlAct.DIG_SCOOP:
+		a.ongen = 0x44  ## `NA_SE_MOLE_CRICKET_HIDE`: chirring underground
 		return
 	if _dig_cell.x < 0 or sense.player_action_cell == _dig_cell:
 		if a._last_player_gx != Vector3.INF:
@@ -151,6 +153,7 @@ func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 		setup_action(a, DUG if _on_hole(a, sense) else LET_ESCAPE)
 		return
 	_calc_direction(a, sense)
+	a.ongen = 0x45  ## `NA_SE_MOLE_CRICKET_OUT`
 	_ground_clamp(a, sense)
 
 
@@ -159,6 +162,7 @@ func _let_escape(a: BugActor, sense: BugActor.Sense) -> void:
 		setup_action(a, DIVE)
 		return
 	_calc_direction(a, sense)
+	a.ongen = 0x45
 	_ground_clamp(a, sense)
 
 
@@ -170,6 +174,7 @@ func _dive(a: BugActor, sense: BugActor.Sense) -> void:
 
 func _dug(a: BugActor, _sense: BugActor.Sense) -> void:
 	a.rot.x = BugProgram.chase_angle(a.rot.x, deg_to_rad(157.5), 0x300 * MLib.S16)
+	a.ongen = 0x45
 
 
 func _calc_direction(a: BugActor, sense: BugActor.Sense) -> void:

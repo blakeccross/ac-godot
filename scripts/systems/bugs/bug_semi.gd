@@ -13,6 +13,8 @@ const NET_SCARE := 70.0
 const SCOOP_SCARE := 30.0
 const AXE_SCARE := 150.0
 const CRY_TIMER := 60
+## `semi_sound_data`: robust, walker, evening and brown cicada cries.
+const CRY_SE: Array[int] = [0x9B, 0x9A, 0x98, 0x97]
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -30,6 +32,8 @@ func actor_init(a: BugActor, released: bool) -> void:
 		a.rot.x = PI * 0.5
 		setup_action(a, WAIT)
 	else:
+		if a.type != T_BEE:
+			a.trg_se.append(&"semi_escape")
 		setup_action(a, LET_ESCAPE)
 
 
@@ -95,6 +99,8 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 		a.f32_work[3] = sense.player_position.y  ## dummy to mark "seen player"
 		a.f32_work[3] = BugProgram.angle_to(a.pos, sense.player_position / BugActor.GX_M)
 	if _check_patience(a, sense):
+		if a.type != T_BEE:
+			a.trg_se.append(&"semi_escape")
 		setup_action(a, AVOID)
 		return
 	if a.type == T_BEE or a.s32_work[0] != 0:
@@ -102,8 +108,9 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	## Cicada cry cadence + a sub-GX X twitch.
 	if a.patience < 50.0:
 		a.timer -= 1
-		if a.timer < 0:
+		if a.timer < 0 and not sense.raining:
 			a.timer = 0
+			a.ongen = CRY_SE[a.type - T_ROBUST_CICADA]
 			a.pos.x = a.home.x + a._rng.randf() * 0.4
 	else:
 		a.timer = CRY_TIMER
@@ -114,6 +121,8 @@ func _avoid(a: BugActor, _sense: BugActor.Sense) -> void:
 	if a.anime0 >= 2.0:
 		a.anime0 -= 2.0
 	a.gravity = minf(a.gravity * 1.1, 12.0)
+	if a.type == T_BEE:
+		a.ongen = 0x26
 	## `aISM_avoid`: ground / wall collision switches on once it has flown off its home unit.
 	if a.bg_type == 0 and BugProgram.left_home_unit(a):
 		a.bg_type = 2

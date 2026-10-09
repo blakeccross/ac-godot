@@ -71,6 +71,8 @@ class Sense:
 	var ground: Callable = Callable()
 	## `play->game_frame`: play frames since the field loaded (`BugField` advances it).
 	var game_frame: int = 0
+	## `Common_Get(weather) == mEnv_WEATHER_RAIN`: cicadas hush in the rain.
+	var raining: bool = false
 	## `mPlib_Check_tree_shaken`: units whose tree the player is shaking or has just bumped
 	## (the player's shake-table entries still running). Cell → true, in `grid`'s cells.
 	var shaken_cells: Dictionary = {}
@@ -137,6 +139,11 @@ var bg_ground_y: float = 0.0
 var block: Vector2i = Vector2i(-1, -1)
 
 # ---- flags (insect_flags) --------------------------------------------
+## `sAdo_OngenPos`: the level SE (`lev_<hex>`) this bug holds this tick, -1 for none. Reset
+## every tick, so a sound lasts exactly as long as the program keeps asking for it.
+var ongen: int = -1
+## `sAdo_OngenTrgStart`: one-shot SE ids raised since `BugSounds` last drained them.
+var trg_se: Array[StringName] = []
 var f_destruct: bool = false
 var f_no_catch: bool = false   ## bit_1 — do not register a net catch target
 var f_bit2: bool = false       ## bit_2 — terminal (let_escape); skip re-scare
@@ -293,6 +300,7 @@ func frame(sense: Sense) -> void:
 	## `aINS_actor_move` body for one slot (already gated on exist + not-culled).
 	if finished:
 		return
+	ongen = -1
 	## move_proc (default `aINS_position_move`).
 	if move_proc.is_valid():
 		move_proc.call(self)

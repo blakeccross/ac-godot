@@ -29,6 +29,8 @@ const BIRTH_SUM: Array[Vector2i] = [
 ]
 
 var actors: Array[BugActor] = []
+## `[se_id, position_m]` one-shots of insects removed this frame, for `BugSounds`.
+var gone_se: Array = []
 var auto_spawn: bool = true
 
 var _grid: WorldGrid = null
@@ -133,6 +135,7 @@ func tick(delta: float, sense: BugActor.Sense) -> void:
 func _frame(sense: BugActor.Sense) -> void:
 	_game_frame += 1
 	sense.game_frame = _game_frame
+	sense.raining = Weather.is_raining()
 	sense.net_swing_active = _stop_net_pending
 	sense.net_swing_origin = _stop_net_pos if _stop_net_pending else Vector3.INF
 	_stop_net_pending = false
@@ -147,6 +150,10 @@ func _frame(sense: BugActor.Sense) -> void:
 	for actor: BugActor in actors:
 		if not actor.finished:
 			kept.append(actor)
+		elif not actor.trg_se.is_empty():
+			## A drowning insect leaves this frame; its splash still has to sound.
+			for id: StringName in actor.trg_se:
+				gone_se.append([id, actor.position])
 	actors = kept
 
 

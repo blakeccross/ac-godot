@@ -28,6 +28,7 @@ from asset_pipeline.audio_bank import (
 )
 from asset_pipeline.audio_seq import (
     SeqRenderer,
+    lev_port,
     render_se,
     render_sequence,
     se_port_values,
@@ -575,6 +576,15 @@ class SeqAliasTests(unittest.TestCase):
         self.assertEqual(resolve_seq_alias(65, entries), 64)
         self.assertEqual(resolve_seq_alias(66, entries), 66)
         self.assertEqual(resolve_seq_alias(-1, entries), -1)
+
+
+
+class LevPortTest(unittest.TestCase):
+    def test_level_ids_from_0x80_drop_the_echo_bit(self) -> None:
+        ## `Sou_LevSet`: `v1 & 0x7f` to port 0; 0x80 is the echo request.
+        self.assertEqual(lev_port(0x25), 0x25)
+        self.assertEqual(lev_port(0x97), 0x17)
+        self.assertEqual(lev_port(0xCF), 0x4F)
 
 
 if __name__ == "__main__":

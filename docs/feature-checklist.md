@@ -232,7 +232,7 @@ data tables before a category is called done.
 - [x] ~~Tarantula~~ — not in the GameCube game (the spider hangs from trees, `bug_mino`)
 - [x] Firefly glow at night near water in summer — `bug_hotaru.gd`
 - [x] ~~Cicada shells~~ — not in the GameCube game; cicadas sit on trunks and fly off when approached (`bug_semi.gd`)
-- [~] Bug sounds are time-gated and positional (cicada cries, crickets) through `Ongen`. Missing: the full insect SE set
+- [x] Insect sounds (`BugSounds`): each program raises its `sAdo_OngenPos` level SE — cicada and cricket cries (cicadas hush in rain), locusts whirring mid-leap, the mosquito's whine, mole crickets chirring underground and running, cockroach scuttles, beetles, ladybugs and bees flying off — and its one-shots (cicada escape shriek, mosquito bite, drowning splash). The nearest four loops play at `Ongen.volume` from the field mic. The pipeline now renders every `lev_*` loop (the port-0 value is `id & 0x7F`), which also brings in the pond frogs
 - [~] Ants come out on dropped candy / trash (spawn area 8, `BugSpawnScheduler`). Missing: the separate `ac_ant` actor
 - [x] Cockroaches in a house left closed too long; stomp them (`m_cockroach`, `ac_house_goki`) — see §18
 - [x] ~~Bug-off~~ — GCN has no bug tourney (fishing only)

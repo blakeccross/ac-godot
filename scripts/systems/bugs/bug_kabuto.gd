@@ -134,6 +134,7 @@ func _avoid(a: BugActor, _sense: BugActor.Sense) -> void:
 	if a.anime0 >= 2.0:
 		a.anime0 -= 2.0
 	a.gravity = minf(a.gravity * 1.1, 12.0)
+	a.ongen = 0x25
 	## `aIKB_avoid`: ground / wall collision switches on once it has flown off its home unit.
 	if a.bg_type != 2 and BugProgram.left_home_unit(a):
 		a.bg_type = 2

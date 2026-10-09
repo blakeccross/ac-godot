@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scenes/world/event_manager.gd" id="15_evmgr"]
 [ext_resource type="Script" path="res://scenes/world/balloon_sky.gd" id="16_balloons"]
 [ext_resource type="Script" path="res://scenes/world/field_ambience.gd" id="17_ambience"]
+[ext_resource type="Script" path="res://scenes/world/bug_sounds.gd" id="17_bugsounds"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color(0.35, 0.58, 0.88, 1)
@@ -101,6 +102,9 @@ script = ExtResource("16_balloons")
 
 [node name="FieldAmbience" type="Node" parent="."]
 script = ExtResource("17_ambience")
+
+[node name="BugSounds" type="Node" parent="."]
+script = ExtResource("17_bugsounds")
 
 [node name="Navigation" type="NavigationRegion3D" parent="." unique_id=577136201]
 

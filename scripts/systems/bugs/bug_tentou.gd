@@ -169,6 +169,8 @@ func _avoid(a: BugActor, _sense: BugActor.Sense) -> void:
 	if a.anime0 >= 2.0:
 		a.anime0 -= 2.0
 	a.gravity = minf(a.gravity * 1.1, 12.0)
+	if a.type == T_LADYBUG or a.type == T_SPOTTED_LADYBUG or a.type == T_MANTIS:
+		a.ongen = 0x26
 
 
 func _avoid_maimai(a: BugActor, sense: BugActor.Sense) -> void:
