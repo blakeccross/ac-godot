@@ -1022,7 +1022,14 @@ def parse_gfx(
                         if er + eg + eb > 0:
                             ## Cloud DL sets ENV (127,127,100); bake as baseColorFactor.
                             base_color = (er / 255.0, eg / 255.0, eb / 255.0, 1.0)
-                    elif coverage == "xlu" and png:
+                    elif (
+                        ## Glass (`*_mado*`): the second cycle lifts alpha by PRIM_LOD_FRAC,
+                        ## so colored texels stored with A≈0 still show. Without that lift
+                        ## (`ef_tamaire` balls) A≈0 is simply clear.
+                        coverage == "xlu"
+                        and png
+                        and combine_alpha_scaled_by_prim_lod_frac(combine_w0, combine_w1)
+                    ):
                         image = Image.open(io.BytesIO(png)).convert("RGBA")
                         if needs_stained_glass_revive(image):
                             png = image_png_bytes(revive_stained_glass_alpha(image))
