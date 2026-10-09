@@ -468,7 +468,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 `ac_npc_police*`, `bg_police_item*` and `ef_room_sunshine_police.c`; details in
 [post / police](decomp_notes/post_police.md). Tests: `tests/unit/test_police_box.gd`.
 
-- [~] Building exterior (`ac_police_box`) — `police_station.tscn`: shell, 3×3 plus-offset hull, door (`INTO_S1`, triforce wipe), exit stand `+60,+60`, window lights 18:00–05:00. Missing: the 320-per-frame env-colour fade between on/off (lights snap)
+- [x] Building exterior (`ac_police_box`) — `police_station.tscn`: shell, 3×3 plus-offset hull, door (`INTO_S1`, triforce wipe), exit stand `+60,+60`, window lights 18:00–05:00, fading on and off over about 51 ticks like every lit facade (`aPBOX_actor_move`'s 320-a-tick chase, `VisualWindowLight.step_window_lights`)
 - [~] Interior (`SCENE_POLICE_BOX`) — `police_box.tscn`: `police_indoor` shell, enter `{200,0,380}` north, exit `EXIT_DOOR1`, BGM. Unverified against a real render in this pass (no generated assets in the container)
 - [x] Lost-and-found storage rules (`PoliceBox_c`, `police_book.gd`): 20 slots; new town gets 1 furniture + 2 shirts once (never refilled when emptied); `keep_item` appends at the occupied count and drops the oldest when full; ITEM1/FTR only; claimed gaps packed when you walk out (`mPB_copy_itemBuf`); `keep_all_item_in_block` batch rules
 - [x] 06:00 top-up (`mPB_force_set_keep_item`): once per renewal, only with ≤ 5 kept, 50% roll; goods 86% (furniture 36 / stationery 23 / clothing 30 / carpet 6 / wallpaper 5), tools & saplings 5%, flower bags 5% (first 8 bags), umbrella 4%
