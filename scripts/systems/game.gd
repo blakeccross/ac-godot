@@ -256,6 +256,8 @@ var snowman_built_minute: int = -1
 var snowman_msg_id: int = 0
 ## The snowman-season balls (`mEv` common place / area): part → {cell [x, z], dist}. Saved.
 var snowballs: Dictionary = {}
+## The town's ball (`Common_Get(ball_pos)` / `ball_type`), `BallUse`. Saved.
+var ball: Dictionary = {}
 ## `Private.sunburn`: {rank 0–8, changed (day number of the last change), hold (days)}.
 var sunburn: Dictionary = {"rank": 0, "changed": -1, "hold": 0}
 ## The diary (`mCD_keep_diary_c`): month 1–12 → that month's page. Saved.
@@ -1295,6 +1297,7 @@ func reset_session() -> void:
 	snowmen = [{}, {}, {}]
 	snowman_built_minute = -1
 	snowman_msg_id = randi_range(0, 2)
+	ball = {}
 	snowballs.clear()
 	sunburn = {"rank": 0, "changed": -1, "hold": 0}
 	Sunburn.reset_session()
@@ -1603,6 +1606,7 @@ func to_save() -> Dictionary:
 		"snowmen": snowmen.duplicate(true),
 		"snowman_built_minute": snowman_built_minute,
 		"snowballs": snowballs.duplicate(true),
+		"ball": ball.duplicate(),
 		"sunburn": sunburn.duplicate(),
 		"diary": diary.duplicate(),
 		"plants": plant_states.duplicate(true),
@@ -1750,6 +1754,7 @@ func apply_snapshot(data: Dictionary) -> void:
 			if typeof(e) == TYPE_DICTIONARY and not (e as Dictionary).is_empty():
 				snowmen[i] = (e as Dictionary).duplicate(true)
 	snowman_built_minute = int(data.get("snowman_built_minute", -1))
+	ball = (data.get("ball", {}) as Dictionary).duplicate() if typeof(data.get("ball", {})) == TYPE_DICTIONARY else {}
 	snowballs.clear()
 	var saved_balls: Variant = data.get("snowballs", {})
 	if typeof(saved_balls) == TYPE_DICTIONARY:

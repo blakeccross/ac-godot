@@ -5,6 +5,8 @@ extends CharacterBody3D
 ## Spatial: Model, Collision, NavigationAgent3D, InteractionArea, Animation.
 ## Behavior: VillagerSchedule + VillagerAI + VillagerWalk (goal acres) + VillagerMotor.
 
+## `mQst_NextSoccer`: "Hey! It's a ball!", by looks.
+const SOCCER_CALL_MSG := 0x0D8B
 const IDLE_SPEED := 0.08
 ## Fraction of intended XZ step that must stick after BG revise; else front-wall.
 ## Absolute meters-per-frame thresholds break at 60 Hz (walk ≈ 0.025 m/tick).
@@ -1353,6 +1355,30 @@ func _play_annoyance_scold() -> void:
 	ui.play(talk_data, talk_ctx, state)
 
 
+## `mQst_NextSoccer`: the ball the resident asked for reached them — they call the player
+## over (`force_call_req_proc`, 0x0D8B + looks). True when the ball should stop dead.
+func take_soccer_ball() -> bool:
+	if Game == null or Game.quests == null or Game.residents == null or data == null or get_tree() == null:
+		return false
+	var slot: int = Game.residents.slot_of(data.id)
+	if not Game.quests.soccer_target(slot):
+		return false
+	var ui := DialogueOverlay.find(get_tree())
+	var looks: int = int(data.personality.looks) if data.personality != null else 0
+	var talk_data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % (SOCCER_CALL_MSG + looks)))
+	if ui == null or talk_data == null or ui.is_open():
+		return false
+	Game.quests.next_soccer(slot, Game.player_name)
+	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
+	ai.begin_talk()
+	_bind_talk_end(ui)
+	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	if player != null:
+		TalkCamera.begin(player, self, get_tree())
+	ui.play(talk_data, talk_ctx, state)
+	return true
+
+
 ## ---------------------------------------------------------------- outdoor acts
 
 ## `aNPC_think_chk_interrupt_proc`: umbrella (`aNPC_ctrl_umbrella` + `aNPC_chk_right_hand`),
@@ -1799,12 +1825,21 @@ func _tick_chase() -> bool:
 		var walking: bool = _motor.has_target and _motor.gait != VillagerWalk.ACT_WAIT
 		if not walking or not _mood_normal() or _resting:
 			return false
-		var found: Dictionary = VillagerOutdoor.chase_target(global_position, _fish_pairs(), _bug_pairs())
-		if found.is_empty():
-			return false
-		_chase = found["target"]
-		_chase_fish = bool(found["fish"])
-		_chase_left = VillagerOutdoor.CHASE_SECONDS
+		## `aNPC_check_ball` comes first: the ball ahead is run after.
+		var ball: FieldBall = FieldBall.find(get_tree())
+		if ball != null and ball.chaseable() and FieldBall.chase_from(global_position, ball.global_position):
+			_chase = ball
+			_chase_fish = false
+			_chase_left = VillagerOutdoor.CHASE_SECONDS
+		else:
+			var found: Dictionary = VillagerOutdoor.chase_target(global_position, _fish_pairs(), _bug_pairs())
+			if found.is_empty():
+				return false
+			_chase = found["target"]
+			_chase_fish = bool(found["fish"])
+			_chase_left = VillagerOutdoor.CHASE_SECONDS
+	if _chase is FieldBall:
+		return _tick_ball_chase(_chase as FieldBall)
 	var target_pos: Vector3 = _chase_position()
 	var delta: float = get_physics_process_delta_time()
 	_chase_left -= delta
@@ -1824,6 +1859,26 @@ func _tick_chase() -> bool:
 			_motor.set_target(target_pos, VillagerWalk.ACT_WALK, VillagerOutdoor.INSECT_NEAR * 0.5, global_position, _motor.facing)
 		VillagerOutdoor.ChaseStep.RUN:
 			_motor.set_target(target_pos, VillagerWalk.ACT_RUN, VillagerOutdoor.INSECT_NEAR * 0.5, global_position, _motor.facing)
+	return true
+
+
+## `aNPC_ACT_RUN` / `aNPC_ACT_TYPE_SEARCH` at the ball: run into it (the kick is the ball's).
+func _tick_ball_chase(ball: FieldBall) -> bool:
+	_chase_left -= get_physics_process_delta_time()
+	if not is_instance_valid(ball) or not ball.chaseable() or _chase_left <= 0.0 or not _mood_normal():
+		_chase = null
+		_motor.arrive()
+		return false
+	var to := Vector2(ball.global_position.x - global_position.x, ball.global_position.z - global_position.z)
+	if to.length() >= FieldBall.CHASE_GX * FieldBall.gx() * 1.5:
+		_chase = null
+		_motor.arrive()
+		return false
+	if to.length() < FieldCollision.ACTOR_RADIUS:
+		_chase = null
+		_motor.arrive()
+		return false
+	_motor.set_target(ball.global_position, VillagerWalk.ACT_RUN, 0.05, global_position, _motor.facing)
 	return true
 
 

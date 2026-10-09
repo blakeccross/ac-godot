@@ -470,6 +470,23 @@ func note_snowman(block: Vector2i, residents: TownResidents, built: bool) -> boo
 	return true
 
 
+## `mQst_CheckSoccerTarget`: the resident in `slot` asked for the ball and is waiting for it.
+func soccer_target(slot: int) -> bool:
+	var i: int = occured_contest_idx(CONTEST_SOCCER)
+	return i >= 0 and i == slot and int(contests[i].get("progress", 0)) == 2
+
+
+## `mQst_NextSoccer`: the ball reached them; the reward talk is next.
+func next_soccer(slot: int, player_name: String) -> bool:
+	if not soccer_target(slot):
+		return false
+	var c: Dictionary = contests[slot]
+	c["progress"] = 1
+	c["player"] = true
+	c["player_name"] = player_name
+	return true
+
+
 ## `mQst_GetMailRank`: longer letters, a good letter and a present all rank higher.
 static func letter_rank(body: String, present: StringName) -> int:
 	var length: int = LetterCheck._strlen_new(LetterCheck.encode(body), LetterCheck.BODY_LEN)

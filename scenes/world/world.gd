@@ -57,6 +57,7 @@ func _ready() -> void:
 	ShellUse.restore(self, grid)
 	SignboardUse.restore(self, grid)
 	FieldItems.restore(self, grid)
+	BallUse.restore(self, layout, grid)
 	SecondBridge.build_if_due(EventDates.ordinal(Clock.year, Clock.month, Clock.day), Clock.hour)
 	SecondBridge.restore(self, layout, grid)
 	SnowmanUse.restore(self)

@@ -66,6 +66,8 @@ static func field_action(ctx: InteractionContext) -> Interaction:
 	elif tool.field_verb == Interaction.DIG:
 		## Scoop dig SE / hole write at frame 15 (`Player_actor_SetSound_Dig_scoop`).
 		effect_frame = 15.0
+		if ball_ahead(ctx) != null:
+			return Interaction.of(tool.field_verb, prompt, tool.field_priority, ANIM_NOT_DIG, NOT_DIG_FRAME)
 		if tool.field_require == ToolData.FieldRequire.EMPTY_GROUND:
 			var outcome: Scoop = scoop_outcome(ctx)
 			if outcome >= Scoop.HIT_STONE:
@@ -73,7 +75,7 @@ static func field_action(ctx: InteractionContext) -> Interaction:
 			if outcome == Scoop.AIR:
 				## `AIR_SCOOP`: nothing to hit, the swing just finishes.
 				effect_frame = -1.0
-	elif tool.field_verb == Interaction.AIR_AXE and axe_hits_bank(ctx):
+	elif tool.field_verb == Interaction.AIR_AXE and (axe_hits_bank(ctx) or ball_ahead(ctx) != null):
 		return Interaction.of(tool.field_verb, prompt, tool.field_priority, ANIM_AXE_HANE, AXE_HIT_FRAME)
 	return Interaction.of(
 		tool.field_verb, prompt, tool.field_priority, tool.field_anim, effect_frame
@@ -108,6 +110,16 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 		return false
 	## `ROTATE_UMBRELLA`: the twirl is the whole verb (clip + SE on the player).
 	if tool.kind == ToolData.Kind.UMBRELLA:
+		return true
+	## `REFLECT_SCOOP` / `REFLECT_AXE` on the ball (`aBALL_STATE_PLAYER_HIT_*`).
+	var ball: FieldBall = ball_ahead(ctx)
+	if ball != null and (tool.field_verb == Interaction.DIG or tool.field_verb == Interaction.AIR_AXE):
+		var who := ctx.actor as Node3D
+		var yaw: float = facing_yaw(ctx)
+		if tool.field_verb == Interaction.DIG:
+			ball.hit_by_shovel(who.global_position, yaw)
+		else:
+			ball.hit_by_axe(who.global_position, yaw)
 		return true
 	if tool.field_verb == Interaction.AIR_AXE and axe_hits_bank(ctx):
 		## `REFLECT_AXE` with no actor: `AXE_HIT` and the hard rumble.
@@ -223,6 +235,17 @@ static func _facing_empty_ground(ctx: InteractionContext) -> bool:
 	return grid.is_in_bounds(cell) and not grid.is_occupied(cell)
 
 
+## The ball within the tool's reach in front of the player, or null.
+static func ball_ahead(ctx: InteractionContext) -> FieldBall:
+	var who := ctx.actor as Node3D if ctx != null else null
+	if who == null or not who.is_inside_tree():
+		return null
+	var ball: FieldBall = FieldBall.find(who.get_tree())
+	if ball == null or ball.dead or not ball.in_front_of(who.global_position, facing_yaw(ctx)):
+		return null
+	return ball
+
+
 ## A bank in front: the unit ahead stands `AXE_BANK_GX` above the player's feet.
 static func axe_hits_bank(ctx: InteractionContext) -> bool:
 	var grid: WorldGrid = _grid(ctx)
@@ -295,6 +318,12 @@ static func _golden_bells(ctx: InteractionContext, cell: Vector2i) -> void:
 ## `mFI_CheckDigDiffPosArea(wpos, old_pos) && RANDOM(10) == 1`.
 static func golden_finds_bells(cell: Vector2i, last: Vector2i, roll: int) -> bool:
 	return cell != last and roll == 1
+
+
+static func facing_yaw(ctx: InteractionContext) -> float:
+	if ctx == null or ctx.actor == null or not ctx.actor.has_method("facing_yaw"):
+		return 0.0
+	return float(ctx.actor.call("facing_yaw"))
 
 
 static func _facing_point(ctx: InteractionContext, distance: float) -> Vector3:

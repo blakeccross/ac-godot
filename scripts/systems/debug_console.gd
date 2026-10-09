@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "digup", "drop", "bridge", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "digup", "ball", "drop", "bridge", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -85,6 +85,22 @@ func execute(raw: String) -> String:
 			if dr_cell.x < 0 or FieldItems.put(dr_world, dr_cell, StringName(String(args[0]).to_lower())) == null:
 				return "Can't drop here."
 			return "Dropped %s at %s." % [args[0], dr_cell]
+		"ball":
+			## Bring the town's ball in front of the player (`ball`), or kick it (`ball kick`).
+			var bl_tree := Engine.get_main_loop() as SceneTree
+			var bl_player := bl_tree.get_first_node_in_group(Player.GROUP) as Player if bl_tree != null else null
+			var bl_ball: FieldBall = FieldBall.find(bl_tree)
+			if bl_player == null or bl_ball == null:
+				return "No ball here."
+			var bl_yaw: float = bl_player.facing_yaw()
+			if not args.is_empty() and String(args[0]) == "kick":
+				bl_ball.kick(Vector2(sin(bl_yaw), cos(bl_yaw)), Vector2(sin(bl_yaw), cos(bl_yaw)) * 7.5)
+				return "Kicked."
+			bl_ball.in_hole = false
+			bl_ball.dead = false
+			bl_ball.global_position = bl_player.global_position + Vector3(sin(bl_yaw), 0.0, cos(bl_yaw)) * 2.0
+			bl_ball.call("_snap_ground")
+			return "Ball at %s." % bl_ball.global_position
 		"digup":
 			## Play the dig-up report for an item (`digup conch`), or the loan cheer (`digup paid`).
 			var du_tree := Engine.get_main_loop() as SceneTree
