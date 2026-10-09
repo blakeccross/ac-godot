@@ -476,7 +476,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 - [x] **Booker** (`ac_npc_police2`, `booker.gd`): greets you on walk-in (0x0784 empty / 0x0785 items); talk 0x077D / 0x0786 / 0x0787; tails the player through the 4×5 zone grid (stop < ~50 GX, walk < ~70 GX, run beyond; waypoint routing round the shelves; turn-in-place past 90°; 11.25°/frame turns; walk 1.0 / run 4.0 speeds); turns to you before every talk
 - [~] Booker / Copper lines: the disc bank's own text plays when the dialogue bank has been generated (`msg_<n>`); otherwise authored stand-ins in `booker_talk.json` / `copper_talk.json`. The claim confirm and Copper's menu always use the authored graph (choices). April Fools' lines (`aprilfool_control`) not wired
 - [~] Window sunshine (`ef_room_sunshine_police`): left/right beams stretched by time of day, sun/moon window colour, rain × 0.6, camera-side culling, `windowlight_alpha` ramp (05:00–18:00, incl. the noon and `s16`-wrap blinks) — `police_sunshine.tscn`. Needs `obj_koban_shine` from the pipeline (`XLU_ONLY_STATICS`); not yet seen rendered
-- [~] **Copper** (`ac_npc_police`, `copper.tscn`): stands two units east of the station facing south; walk-out greeting (0x0771) after leaving the police box; time-of-day menu (0x0772–0x0775) → event hint / lost-and-found count (0x0782 / 0x0783) / never mind (0x0777); 06:00–07:00 exercises (5%, fair weather) and 02:00–04:00 dozing (5%). Missing: removed during morning-aerobics events (`mEv_EVENT_MORNING_AEROBICS`); items under his unit sent to the lost and found on spawn
+- [~] **Copper** (`ac_npc_police`, `copper.tscn`): stands two units east of the station facing south; walk-out greeting (0x0771) after leaving the police box; time-of-day menu (0x0772–0x0775) → event hint / lost-and-found count (0x0782 / 0x0783) / never mind (0x0777); 06:00–07:00 exercises (5%, fair weather) and 02:00–04:00 dozing (5%). Gone from his post while either aerobics event runs, leading the routine at the shrine instead (`AerobicsLeader`). Missing: items under his unit sent to the lost and found on spawn
 - [~] Copper's event hint (`aPOL_get_hint_msg_no`): first-job hint, none / later / today / running per special visitor. A running visit other than the sale needs the visitor's acre (`mEv_get_event_place`); no visitor is placed in town yet, so that answers "nothing" like the original's not-found path
 - [x] Ask for a town map — a visitor from another town gets Copper's map option first (`aPOL_check_select2` → `mPr_SetNewMap`, 0x18CA)
 - [x] ~~Ask about a villager's location / who's moved in / who's moving out~~ — not in GCN (Copper's menu is the three options above)
@@ -580,7 +580,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [x] Fishing Tourney — anglers at the pond, Chip, weigh stand
 - [x] Summer Camper — tent on an empty lot, an out-of-town villager inside (greeting game, Tent trade list)
 - [x] Fireworks Show — crowd with fans, Redd's stall, fireworks over the pond (bigger sets in the last hour)
-- [~] Morning Aerobics — residents doing the routine by the radio. Missing: Copper and Tortimer's radio exercise card (`mSC_Radio_*`)
+- [x] Morning Aerobics — residents doing the routine by the radio, Copper out front calling it and Tortimer exercising behind (`AerobicsLeader`). Tortimer's exercise card (`mSC_Radio_*`, `RadioCard`): a one-stamp card on the first visit, one stamp a day, a lost card remembered and replaced, old cards taken back, no new cards from August 19, and the aerobics radio on the fourteenth stamp
 - [x] Meteor Shower — moon-viewing crowd with meteor lines, shooting stars on the pond (`MeteorShower`)
 - [x] Harvest Moon — moon-viewing crowd
 - [x] Mushroom season (Oct 15–25) — `MushroomUse`
@@ -631,7 +631,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 ## 34. Simulation glue / world objects
 
 - [~] FG object system: trees, rocks, flowers, weeds, signs, holes, buried marks, dropped items, structures, plot reserves (`m_bg_item`) — `WorldObjectRegistry`, `FgCatalog`
-- [~] Daily FG renewal: weeds spread, plants grow, buried spots move, the money rock resets, shop restocks — `field_renewed`. Missing: shells
+- [x] Daily FG renewal: weeds spread, plants grow, buried spots move, the money rock resets, shop restocks, turnips on the ground spoil — `field_renewed`. Shells wash up per session and every tenth minute instead (`ShellUse`, see above)
 - [~] Collision: heightfield, cliff / bank walls, water, structure footprints (`m_collision_bg`) — `FieldCollision`
 - [x] Blob shadows under actors & items (`m_actor_shadow`) — `ActorBlobShadow`
 - [~] Effects: dust, splash, petals, footprints, manpu, weather (`StepFx`, `FieldFx`). Missing: most of the ~130 `ef_*` effects

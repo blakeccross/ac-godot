@@ -67,6 +67,11 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	var away: bool = aerobics_running() and not _talking
+	if away == visible:
+		_set_away(away)
+	if away:
+		return
 	if _talking:
 		_face_player()
 		return
@@ -104,6 +109,21 @@ func _physics_process(delta: float) -> void:
 		Mode.GYAFUN:
 			if _timer <= 0.0:
 				_set_mode(Mode.WAIT)
+
+
+## `aPOL_actor_ct`: Copper leads the aerobics at the shrine instead (`SP_NPC_EV_TAISOU_0`),
+## so the one at the station is gone while either aerobics event runs.
+static func aerobics_running() -> bool:
+	if Game == null or Game.events == null:
+		return false
+	return Game.events.is_active(&"morning_aerobics") or Game.events.is_active(&"sports_fair_aerobics")
+
+
+func _set_away(away: bool) -> void:
+	visible = not away
+	collision_layer = 0 if away else 1
+	if not away:
+		_set_mode(Mode.WAIT)
 
 
 ## `aPOL_think_main_proc`, at the end of each action.
@@ -187,6 +207,8 @@ func _player_free(player: Node3D) -> bool:
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
+	if not visible:
+		return []
 	return [Interaction.of(Interaction.TALK, "Talk to Copper", 20)]
 
 

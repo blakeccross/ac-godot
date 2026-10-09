@@ -7,8 +7,12 @@ extends EventPresenter
 const VILLAGER_SCENE := "res://scenes/world/events/festival_villager.tscn"
 const TORTIMER_SCENE := "res://scenes/world/events/tortimer_holiday.tscn"
 const PICKUP_SCENE := "res://scenes/world/item_pickup.tscn"
-## Map actors that are Tortimer (`SP_NPC_EV_SONCHO2`, the aerobics leader `SP_NPC_SONCHO_D078`).
+## Map actors that are Tortimer at his holiday spot (`SP_NPC_EV_SONCHO2`).
 const TORTIMER_ACTORS: Array[String] = ["SP_NPC_EV_SONCHO2"]
+## Out front of the aerobics: actor → species (`ac_taisou_npc0`: Copper leads facing the
+## line, Tortimer exercises behind it facing the same way as everyone).
+const AEROBICS_LEADERS: Dictionary = {"SP_NPC_EV_TAISOU_0": &"plc", "SP_NPC_SONCHO_D078": &"ttl"}
+const AEROBICS_LEADER_SCENE := "res://scenes/world/events/aerobics_leader.tscn"
 ## Event specials that stand at their map unit: actor → scene.
 const SPECIALS: Dictionary = {
 	"SP_NPC_EV_YOMISE": "res://scenes/world/events/yomise.tscn",
@@ -63,6 +67,8 @@ func start() -> bool:
 		var actor: String = e["actor"]
 		if actor in TORTIMER_ACTORS:
 			_add_tortimer(e["cell"], _face(e["cell"], props, center))
+		elif AEROBICS_LEADERS.has(actor):
+			_add_aerobics_leader(actor, e["cell"])
 		elif SPECIALS.has(actor):
 			var special: Node3D = (load(SPECIALS[actor]) as PackedScene).instantiate() as Node3D
 			if "anglers" in special:
@@ -188,6 +194,16 @@ func _add_tortimer(cell: Vector2i, yaw: float) -> void:
 	var node: Node3D = (load(TORTIMER_SCENE) as PackedScene).instantiate() as Node3D
 	node.set("holiday", TortimerHoliday.event_index(soncho_event()))
 	mgr.add_actor(id, node, cell, yaw, 0)
+
+
+## `aTS0_schedule_init_proc` `def_angle`: Copper faces north to the line, Tortimer south.
+func _add_aerobics_leader(actor: String, cell: Vector2i) -> void:
+	var node: Node3D = (load(AEROBICS_LEADER_SCENE) as PackedScene).instantiate() as Node3D
+	var leader: StringName = AEROBICS_LEADERS[actor]
+	node.set("leader", leader)
+	node.set("holiday", TortimerHoliday.event_index(soncho_event()))
+	var facing: WorldGrid.Facing = WorldGrid.Facing.NORTH if leader == &"plc" else WorldGrid.Facing.SOUTH
+	mgr.add_actor(id, node, cell, WorldGrid.yaw_for_facing(facing), 0)
 
 
 ## Tortimer's calendar entry for this festival (`mSC_get_soncho_event`).

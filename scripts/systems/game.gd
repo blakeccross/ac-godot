@@ -70,6 +70,8 @@ var birthday_present_npc: StringName = &""
 var birthday_card_day: int = 0
 ## Mom's letters (`mPr_mother_mail_info_c`): the last day checked and which went out. Saved.
 var mother_mail: Dictionary = MotherMail.new_state()
+## Tortimer's exercise card (`mPr_day_day_c radiocard`): last stamp date and stamps. Saved.
+var radio_card: Dictionary = RadioCard.new_state()
 ## The calendar's played days and Tortimer days (`mCD_player_calendar_c`). Saved.
 var calendar: Dictionary = CalendarBook.new_state()
 ## The fishing tourney's records (`Save_Get(fishRecord)`), `FishRecord`. Saved.
@@ -1244,6 +1246,7 @@ func reset_session() -> void:
 	birthday_present_npc = &""
 	birthday_card_day = 0
 	mother_mail = MotherMail.new_state()
+	radio_card = RadioCard.new_state()
 	calendar = CalendarBook.new_state()
 	fish_records.clear()
 	treasure_buried_day = 0
@@ -1647,6 +1650,7 @@ func to_save() -> Dictionary:
 		"birthday_present_npc": String(birthday_present_npc),
 		"birthday_card_day": birthday_card_day,
 		"mother_mail": mother_mail.duplicate(),
+		"radio_card": radio_card.duplicate(),
 		"calendar": calendar.duplicate(true),
 		"fish_records": fish_records.duplicate(true),
 		"treasure_buried_day": treasure_buried_day,
@@ -1894,6 +1898,7 @@ func apply_snapshot(data: Dictionary) -> void:
 			for n: Variant in (saved_cal as Dictionary).get(key, []):
 				days.append(int(n))
 			calendar[key] = days
+	radio_card = RadioCard.from_save(data.get("radio_card", {}))
 	mother_mail = MotherMail.new_state()
 	var saved_mom: Variant = data.get("mother_mail", {})
 	if typeof(saved_mom) == TYPE_DICTIONARY:
