@@ -129,17 +129,26 @@ static func mouth_hold_for(name: String) -> int:
 	return -1
 
 
-## Floating feel glyph for the manpu clip (`eEC_EFFECT_WARAU` / `SHOCK` / `HA` / `HIRAMEKI_DEN`).
+## Floating feel glyph for the manpu clip: each `npc_1_*` clip's own `feel_effect`
+## (`smile` → `WARAU`, `gaaan` / `kiduku1` → `SHOCK`, `ha` → `HA`, `hirameki` →
+## `HIRAMEKI_DEN`, `hate` → `GIMONHU`, `a` → `KANTANHU`, `aseru` / `kiduku2` → `ASE2`).
+## `niko`, `musu`, `komari` and `lovelove` have none.
 static func feel_for(name: String) -> StringName:
 	var key := name.strip_edges().to_lower()
 	if is_reset(name) or key.is_empty():
 		return &""
-	if "smile" in key or "niko" in key or "happy" in key or "love" in key:
+	if key.begins_with("smile") or key.begins_with("sitdown_clap"):
 		return &"warau"
-	if "hirameki" in key:
+	if key.begins_with("hirameki"):
 		return &"hirameki"
-	if "gaaan" in key:
+	if key.begins_with("gaaan") or key == "kiduku1":
 		return &"shock"
-	if "ha_" in key or key.ends_with("ha1") or key.ends_with("ha_d1") or key == "ha1":
+	if key.begins_with("ha_") or key == "ha1":
 		return &"ha"
+	if key.begins_with("hate"):
+		return &"gimonhu"
+	if key == "a1" or key == "a_f1" or key == "a_r1":
+		return &"kantanhu"
+	if key.begins_with("aseru") or key == "kiduku2":
+		return &"ase"
 	return &""

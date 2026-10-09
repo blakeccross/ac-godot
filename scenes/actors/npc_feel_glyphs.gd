@@ -37,6 +37,26 @@ const HIRAMEKI_LIFE_FRAMES := 72
 const HIRAMEKI_HIKARI_FRAMES := 12
 const HIRAMEKI_Y_GX := 24.0
 
+## `eGM_*` / `eKT_*`: the question and exclamation marks pop in through this squash table
+## (two ticks a row, rows past the sixth 1:1), hold to tick 64 and fade by 72.
+const POP_SCALE: Array[Vector2] = [
+	Vector2(0.5, 0.5), Vector2(0.5, 1.2), Vector2(0.5, 2.0), Vector2(1.2, 1.4), Vector2(2.0, 0.7),
+	Vector2(1.5, 0.8),
+]
+const POP_MATRIX_SCALE := 0.008
+const POP_LIFE := 72
+const POP_FADE_FROM := 64
+const POP_HOLD := 50
+const GIMONHU_VISUAL := &"ef_gimonhu01_00"
+const KANTANHU_VISUAL := &"ef_kantanhu01_00"
+## `eGM_init` / `eKT_init` offsets (GX, NPC frame).
+const GIMONHU_AT := Vector3(0.0, 15.0, 7.0)
+const KANTANHU_AT := Vector3(0.0, 15.0, -3.0)
+## `eAS2_*`: four sweat cards, a new one every four ticks, while the clip runs.
+const ASE_VISUALS: Array[StringName] = [&"ef_ase02_00", &"ef_ase02_01", &"ef_ase02_02", &"ef_ase02_03"]
+const ASE_MATRIX_SCALE := 0.006
+const ASE_LIFE := 52
+
 var _kind: StringName = &""
 var _frame: float = 0.0
 var _cycle: int = 0
@@ -69,6 +89,10 @@ func _process(delta: float) -> void:
 			_tick_ha()
 		&"hirameki":
 			_tick_hirameki()
+		&"gimonhu", &"kantanhu":
+			_tick_pop()
+		&"ase":
+			_tick_ase()
 		_:
 			clear()
 
@@ -101,6 +125,14 @@ func play(kind: StringName) -> void:
 			_tint_mesh(Color(1.0, 1.0, 0.39))
 			_set_glow_visual(HIRAMEKI_HIKARI_VISUAL, HIRAMEKI_HIKARI_MATRIX_SCALE)
 			_glow_host.position = _mesh_host.position
+		&"gimonhu", &"kantanhu":
+			var question: bool = kind == &"gimonhu"
+			_set_visual(GIMONHU_VISUAL if question else KANTANHU_VISUAL, POP_MATRIX_SCALE)
+			_mesh_host.position = (GIMONHU_AT if question else KANTANHU_AT) * FieldCatalog.GX_TO_METERS
+			Audio.play_se(&"2f" if question else &"14b", self)
+			_tick_pop()
+		&"ase":
+			_set_visual(ASE_VISUALS[0], ASE_MATRIX_SCALE)
 		_:
 			_kind = &""
 
@@ -202,6 +234,27 @@ func _tick_hirameki() -> void:
 			else:
 				ha = clampf(1.0 - float(t - 4) / 8.0, 0.0, 1.0)
 			_set_mesh_alpha_node(_glow_host, ha)
+
+
+## `eGM_dw` / `eKT_dw`.
+func _tick_pop() -> void:
+	var t: int = int(_frame)
+	if t >= POP_LIFE:
+		clear()
+		return
+	var row: int = mini(t, POP_HOLD) >> 1
+	var sq: Vector2 = POP_SCALE[row] if row < POP_SCALE.size() else Vector2.ONE
+	var s: float = _node_scale_for(POP_MATRIX_SCALE)
+	_mesh_host.scale = Vector3(sq.x * s, sq.y * s, s)
+	_set_mesh_alpha(1.0 - clampf(float(t - POP_FADE_FROM) / float(POP_LIFE - POP_FADE_FROM), 0.0, 1.0))
+
+
+func _tick_ase() -> void:
+	var t: int = int(_frame)
+	if t >= ASE_LIFE:
+		clear()
+		return
+	_set_visual(ASE_VISUALS[(t & 12) >> 2], ASE_MATRIX_SCALE)
 
 
 func _show_warau_frame(card: int) -> void:
