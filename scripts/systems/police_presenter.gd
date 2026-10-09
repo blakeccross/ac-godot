@@ -18,6 +18,7 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 	_sunshine(root, interior, "SunshineL", PoliceDisplay.SUNSHINE_L_GX, true)
 	_sunshine(root, interior, "SunshineR", PoliceDisplay.SUNSHINE_R_GX, false)
 	_lost_and_found(root, interior)
+	_clock(root, interior)
 
 
 func _booker(root: Node3D, interior: IndoorSession) -> void:
@@ -71,3 +72,15 @@ func _lost_and_found(root: Node3D, interior: IndoorSession) -> void:
 		node.set("item_id", item_id)
 		node.position = PoliceDisplay.gx_to_world(interior.grid, PoliceDisplay.unit_center_gx(cells[i]))
 		root.add_child(node)
+
+
+## `HOUSE_CLOCK` (`aHC_position_data`).
+func _clock(root: Node3D, interior: IndoorSession) -> void:
+	if root.get_node_or_null("HouseClock") != null or FieldCatalog.mesh_paths(&"obj_clock_koban").is_empty():
+		return
+	var clock := HouseClock.new()
+	clock.name = "HouseClock"
+	clock.visual = &"obj_clock_koban"
+	var gx: Vector3 = HouseClock.POLICE_BOX_GX
+	clock.position = PoliceDisplay.gx_to_world(interior.grid, Vector3(gx.x, 0.0, gx.z)) + Vector3(0.0, gx.y * FieldCatalog.GX_TO_METERS, 0.0)
+	root.add_child(clock)

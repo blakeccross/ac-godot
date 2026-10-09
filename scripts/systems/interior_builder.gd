@@ -16,7 +16,7 @@ const FURNITURE_SCENE := preload("res://scenes/world/furniture.tscn")
 const AUTHORED_FIXTURE_NAMES: Array[StringName] = [
 	&"TomNook", &"NookClock", &"PostGirl", &"PostDesk", &"PostTerminal", &"Booker",
 	&"Blathers", &"MuseumClock", &"LightShaft", &"Redd", &"Mabel", &"Sable",
-	&"NeedleworkFurnitureCol", &"SewingMachine", &"SewingCloth", &"NeedleworkClock",
+	&"NeedleworkFurnitureCol", &"SewingMachine", &"SewingCloth", &"NeedleworkClock", &"HouseClock",
 ]
 
 

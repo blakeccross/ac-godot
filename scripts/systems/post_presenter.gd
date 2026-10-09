@@ -19,6 +19,7 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 	_desk(root, interior)
 	_terminal(root, interior)
 	_mail_piles(root, interior)
+	_clock(root, interior)
 
 
 func _post_girl(root: Node3D, interior: IndoorSession) -> void:
@@ -93,3 +94,15 @@ func _mail_piles(root: Node3D, interior: IndoorSession) -> void:
 		box.material_override = mat
 		box.position.y = 0.04
 		host.add_child(box)
+
+
+## `HOUSE_CLOCK` (`aHC_position_data`).
+func _clock(root: Node3D, interior: IndoorSession) -> void:
+	if root.get_node_or_null("HouseClock") != null or FieldCatalog.mesh_paths(&"obj_clock_yub").is_empty():
+		return
+	var clock := HouseClock.new()
+	clock.name = "HouseClock"
+	clock.visual = &"obj_clock_yub"
+	var gx: Vector3 = HouseClock.POST_OFFICE_GX
+	clock.position = PostDisplay.gx_to_world(interior.grid, Vector3(gx.x, 0.0, gx.z)) + Vector3(0.0, gx.y * FieldCatalog.GX_TO_METERS, 0.0)
+	root.add_child(clock)

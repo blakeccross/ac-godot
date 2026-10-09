@@ -102,12 +102,10 @@ func _clock(root: Node3D, interior: IndoorSession) -> void:
 	var visual: StringName = ShopDisplay.nook_clock_visual(Game.shops.nook_level())
 	if FieldCatalog.mesh_paths(visual).is_empty():
 		return
-	var host := Node3D.new()
+	var host := HouseClock.new()
 	host.name = "NookClock"
+	host.visual = visual
 	host.position = ShopDisplay.gx_to_world(
 		interior.grid, Vector3(ShopDisplay.CLOCK_GX.x, 0.0, ShopDisplay.CLOCK_GX.z)
-	)
+	) + Vector3(0.0, ShopDisplay.CLOCK_GX.y * FieldCatalog.GX_TO_METERS, 0.0)
 	root.add_child(host)
-	var pivot: Node3D = GeneratedVisual.attach(host, visual)
-	if pivot != null:
-		VisualFit.align_actor_to_height_gx(pivot, ShopDisplay.CLOCK_GX.y)

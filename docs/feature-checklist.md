@@ -116,7 +116,7 @@ data tables before a category is called done.
 - [~] Grass wears into dirt paths where you walk repeatedly; regrows slowly (`ac_field_draw` wear) — _(check)_
 - [~] Per-foot footprints on sand/snow, slope-fit, ~160-frame fade (`ef_footprint`) — `footprint_marks.gd`
 - [x] ~~Slip on ice / banana peels~~ — no ice or peels in GCN; `slip_net` is the net's skid (see Net)
-- [ ] Bump / knock-back off buildings, signs, rocks; slide along cliff & water edges
+- [x] Bump / knock-back off buildings, signs, rocks; slide along cliff & water edges — walls and banks slide the player along (`FieldCollision.revise_xz`, the `mCoBG` wall revise); the GameCube has no knock-back (its only fall is the bad-luck trip while dashing, `TUMBLE`)
 - [x] ~~Fall off a cliff edge~~ — GCN cliffs are walls; `m_player_main_fall` is the pitfall drop (done)
 
 ## 8. Interaction system (Field A button)
@@ -330,7 +330,7 @@ data tables before a category is called done.
 - [x] Room grid; place furniture on the floor and against walls (`ac_arrange_room`, `ac_arrange_ftr`) — `InteriorBook`, `FurnitureGrip`
 - [x] Wallpaper + carpet per room — `VisualRoomPaint`
 - [~] Furniture rotate (4 or 8 orientations), stack on surfaces, put items on tables (`m_player_main_rotate_furniture`, `rotate_octagon`) — `FurnitureGrip`: A-grip + stick push / pull / turn about the held end, B pick-up, sit / lie by walking in, per-floor furniture cap; missing: bubu puff, bed rolling, octagon (gyroid) rotation
-- [~] Wall-mounted items and clocks; rugs are carpets. Missing: the ticking wall clock (`ac_house_clock`)
+- [x] Wall-mounted items and clocks; rugs are carpets. The buildings' clocks (`ac_house_clock`: Nook's, the post office, the police box, the museum, Able's) turn their hands to the time — `HouseClock`
 - [~] Interior editing mode / catalog reorder; "store in Nook's" / storage — dresser / wardrobe / closet conversations (`FurnitureStorage`)
 - [~] Music player furniture (stereo/radio/etc.) plays a chosen K.K. song; gyroids beat along (`ac_radio`, `ac_my_room_melody`) — `FurnitureMusic` / `MinidiskCatalog`: discs, music box, one player at a time, aerobics radio, gyroid hop; missing: song titles, K.K. as the disc source, gyroid voices
 - [~] Lit lamps at night, sit and lie (`FurnitureSeat`), music players (`FurnitureMusic`), storage (`FurnitureStorage`). Missing: the Famicom (§28), fireplace / fountain / bath effects
@@ -621,7 +621,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [x] ~~HUD clock~~ — GCN has no HUD; the time shows on the pockets screen
 - [x] Options: K.K.'s "Before I go..." menu sets the sound (stereo / mono / headphones; mono folds the master bus), how animals speak (Animalese / Bebebese / silence) and rumble, kept in `user://config.cfg` (`Config_c`, `aNPS2_setup_*_option`) — `GameConfig`. The GameCube has no text-speed, screen-position or brightness options
 - [x] Rumble / vibration on tool use, catches, bumps (`m_vibctl`, `m_player_vibration`): dig, fill, stump, shovel and axe bounces, axe cuts, net hits, tree shakes, weed pulls, tumbles, the bobber landing and fish nibbles / bites by size, through `Input.start_joy_vibration`; off when K.K.'s rumble option is off — `GameConfig.rumble`
-- [ ] "Copying data" / autosave indicator
+- [x] "Copying data" / autosave indicator — n/a: the GameCube saves only when you quit, and that talk carries its own "Do not turn the power off" lines; the port writes its save file then
 - [~] The **name entry keyboard** for text input — see §17 keyboard entry
 - [~] Nook catalog browser UI, shop buy/sell UI, bank UI, HRA letter viewer, letter writer UI — the catalog is the original `m_catalog_ovl` screen, goods come off the shelves, selling goes through the pockets, letters use the original board / address book / Is-this-OK prompt; all menus slide in and out like `mSM_move_Move` (`MenuSlide`). the bank's ABD screen (`BankOverlay`). HRA reports are ordinary letters on the GameCube (no viewer)
 - [x] ~~Photo feature~~ — GCN has none
