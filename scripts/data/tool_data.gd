@@ -27,6 +27,8 @@ enum CarryPart { NONE, AXE, NET }
 @export var visual_use_anim: StringName = &""
 ## Umbrellas (`ITM_UMBRELLA00`…): `tool_name` index into `ac_t_umbrella`'s `draw_dt` (0-31).
 @export var umbrella_index: int = -1
+## `ITM_MY_ORG_UMBRELLA0-7`: the player's own design `n` on the plain canopy (`tol_umb_w`).
+@export var design_slot: int = -1
 
 
 func _init() -> void:
@@ -38,6 +40,12 @@ func _init() -> void:
 ## Umbrellas open out of and fold into the hand instead of just appearing.
 func is_umbrella() -> bool:
 	return kind == Kind.UMBRELLA
+
+
+## One of the 32 shop umbrellas (`ITM_UMBRELLA00-31`), not a design one: what the catalog,
+## the shop's stand and the stock draw from.
+func is_stock_umbrella() -> bool:
+	return kind == Kind.UMBRELLA and design_slot < 0
 
 
 ## `m_player_item_balloon`: sways on its string.

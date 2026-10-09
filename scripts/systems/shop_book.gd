@@ -375,7 +375,7 @@ static func earns_ticket(data: ItemData) -> bool:
 	if data is FurnitureData:
 		return true
 	if data is ToolData:
-		return (data as ToolData).kind == ToolData.Kind.UMBRELLA
+		return (data as ToolData).is_stock_umbrella()
 	return data.category in [ItemData.Category.CLOTH, ItemData.Category.WALL, ItemData.Category.FLOOR]
 
 

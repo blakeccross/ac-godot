@@ -66,11 +66,25 @@ static func _window(rng: RandomNumberGenerator) -> float:
 
 ## The umbrella a villager carries: an Able design (`ITM_MY_ORG_UMBRELLA`) isn't drawn yet, so
 ## that falls back to their own.
-static func umbrella_visual(villager: VillagerData, _state: VillagerState) -> StringName:
+static func umbrella_visual(villager: VillagerData, state: VillagerState) -> StringName:
+	## A design umbrella picked up at the Able Sisters' stands (`TOOL_ORG_UMBRELLA0 + n`).
+	if state != null and state.umbrella_design >= 0:
+		return &"tol_umb_w"
 	var idx: int = villager.default_umbrella if villager != null else -1
 	if idx < 0 or idx >= UMBRELLA_NUM:
 		return &""
 	return StringName("tol_umb_%02d" % (idx + 1))
+
+
+## `aTUMB_actor_draw` for a villager's design umbrella: the shop's umbrella stand
+## `design & 3` (`Able_Sisters_Umbrella_Design_Get`, shop slots 4-7).
+static func umbrella_design_texture(state: VillagerState) -> Texture2D:
+	if state == null or state.umbrella_design < 0 or Game == null or Game.designs == null:
+		return null
+	var slot: int = DesignBook.CLOTH_SLOTS + (state.umbrella_design & 3)
+	if slot >= Game.designs.shop.size():
+		return null
+	return DesignTexture.build(Game.designs.shop[slot])
 
 
 ## `aNPC_check_clap`.

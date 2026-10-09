@@ -31,7 +31,7 @@ static func build(book: CatalogBook) -> CatalogPages:
 	var out := CatalogPages.new()
 	var umbrellas: Dictionary = {}
 	for item: ItemData in ItemCatalog.all_items():
-		if item is ToolData and (item as ToolData).kind == ToolData.Kind.UMBRELLA:
+		if item is ToolData and (item as ToolData).is_stock_umbrella():
 			umbrellas[(item as ToolData).umbrella_index] = item.id
 	var placed: Dictionary = {}
 	for page: int in PAGE_KEYS.size():
@@ -82,7 +82,7 @@ static func page_for(data: ItemData) -> int:
 	if data is FurnitureData:
 		return Page.HANIWA if (data as FurnitureData).kind == FurnitureData.Kind.GYROID else Page.FTR
 	if data is ToolData:
-		return Page.UMBRELLA if (data as ToolData).kind == ToolData.Kind.UMBRELLA else -1
+		return Page.UMBRELLA if (data as ToolData).is_stock_umbrella() else -1
 	if MinidiskCatalog.is_disc(data.id):
 		return Page.MUSIC
 	match data.category:

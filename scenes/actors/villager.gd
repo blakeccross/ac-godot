@@ -1603,6 +1603,7 @@ func _take_out_umbrella(instant: bool) -> bool:
 		attach.get_child(0) as Node3D,
 		HeldUmbrella.Action.OPEN_NOW if instant else HeldUmbrella.Action.TAKEOUT_BEFORE
 	)
+	HeldUmbrella.paint_canopy(attach.get_child(0) as Node3D, VillagerOutdoor.umbrella_design_texture(state))
 	_umb_carry = ToolCarry.build_part(_body_anim, skeleton, ANIM_UMBRELLA, VillagerOutdoor.SUB_ANIM_JOINTS)
 	if instant:
 		return true

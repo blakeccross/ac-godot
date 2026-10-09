@@ -31,7 +31,7 @@ static func is_catalog_item(data: ItemData) -> bool:
 	if data is FurnitureData:
 		return true
 	if data is ToolData:
-		return (data as ToolData).kind == ToolData.Kind.UMBRELLA
+		return (data as ToolData).is_stock_umbrella()
 	match data.category:
 		ItemData.Category.CLOTH, ItemData.Category.WALL, ItemData.Category.FLOOR:
 			return true

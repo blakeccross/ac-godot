@@ -963,6 +963,7 @@ func _sync_portrait_equipment(force: bool = false) -> void:
 		## `mIV_umbrella_data`: the doll holds the umbrella open (handle + canopy split).
 		if tool.kind == ToolData.Kind.UMBRELLA and attach != null and attach.get_child_count() > 0:
 			HeldUmbrella.new().setup(attach.get_child(0) as Node3D, HeldUmbrella.Action.OPEN_NOW)
+			HeldUmbrella.paint_canopy(attach.get_child(0) as Node3D, HeldUmbrella.design_texture(tool))
 	## `mIV_pl_check_anm_change`: an equip swap plays CHANGE1, everything else rests.
 	if equip_changed:
 		_set_portrait_anim(PortraitAnim.CHANGE)

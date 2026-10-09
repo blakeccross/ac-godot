@@ -165,6 +165,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_C:
 			if _mode == ListMode.MANAGE:
 				_wear_selected()
+		KEY_U:
+			if _mode == ListMode.MANAGE:
+				_umbrella_selected()
 		KEY_ESCAPE, KEY_B:
 			if _held >= 0:
 				_held = -1
@@ -194,6 +197,16 @@ func _wear_selected() -> void:
 	Game.worn_design_slot = -1 if Game.worn_design_slot == _sel else _sel
 	Game.design_changed.emit()
 	Audio.play_se(&"cursol")
+	_refresh()
+
+
+## `mTG_nw_st_umbrella_proc`: this design as an umbrella (`ITM_MY_ORG_UMBRELLA0 + n`).
+func _umbrella_selected() -> void:
+	if Game == null or Game.inventory == null:
+		return
+	var msg: String = DesignUmbrella.make(Game.inventory, _sel)
+	if msg != "":
+		Game.post_notice(msg)
 	_refresh()
 
 

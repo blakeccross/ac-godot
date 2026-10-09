@@ -3433,6 +3433,7 @@ func _bind_equipped_tool(
 		if tool.is_umbrella() and attach != null and attach.get_child_count() > 0:
 			_umbrella = HeldUmbrella.new()
 			_umbrella.setup(attach.get_child(0) as Node3D, umbrella_start)
+			HeldUmbrella.paint_canopy(attach.get_child(0) as Node3D, HeldUmbrella.design_texture(tool))
 		_hold_anim = tool.hold_anim
 		_tool_hold_anim = tool.visual_hold_anim
 		_tool_use_anim = tool.visual_use_anim

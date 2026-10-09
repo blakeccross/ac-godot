@@ -287,7 +287,7 @@ static func open_grab_bag(rng: RandomNumberGenerator) -> Array[StringName]:
 static func umbrella_pool() -> Array[StringName]:
 	var out: Array[StringName] = []
 	for item: ItemData in ItemCatalog.all_items():
-		if item is ToolData and (item as ToolData).kind == ToolData.Kind.UMBRELLA:
+		if item is ToolData and (item as ToolData).is_stock_umbrella():
 			out.append(item.id)
 	out.sort_custom(_by_name)
 	return out
