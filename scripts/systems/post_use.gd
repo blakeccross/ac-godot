@@ -76,6 +76,8 @@ static func repay_amount(amount: int) -> String:
 	if paid <= 0:
 		return "Nothing to repay."
 	if inv.loan <= 0:
+		## `aPG_ACTION_REPAY_*`: the cheer comes on walking back out (`COMPLETE_PAYMENT_TYPE_HOUSE`).
+		Game.complete_payment = Game.PAYMENT_HOUSE
 		return "Paid off %d Bells. Your loan is clear!" % paid
 	return "Paid %d Bells. Still owing %d." % [paid, inv.loan]
 

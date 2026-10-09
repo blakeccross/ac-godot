@@ -70,6 +70,11 @@ var birthday_present_npc: StringName = &""
 var birthday_card_day: int = 0
 ## Mom's letters (`mPr_mother_mail_info_c`): the last day checked and which went out. Saved.
 var mother_mail: Dictionary = MotherMail.new_state()
+## `Common_Get(complete_payment_type)`: a paid-off loan or the end of Nook's chores, cheered
+## the next time the player walks out of a door (`m_player_main_complete_payment`).
+const PAYMENT_HOUSE := &"house"
+const PAYMENT_ARBEIT := &"arbeit"
+var complete_payment: StringName = &""
 ## Tortimer's exercise card (`mPr_day_day_c radiocard`): last stamp date and stamps. Saved.
 var radio_card: Dictionary = RadioCard.new_state()
 ## The calendar's played days and Tortimer days (`mCD_player_calendar_c`). Saved.
@@ -1247,6 +1252,7 @@ func reset_session() -> void:
 	birthday_card_day = 0
 	mother_mail = MotherMail.new_state()
 	radio_card = RadioCard.new_state()
+	complete_payment = &""
 	calendar = CalendarBook.new_state()
 	fish_records.clear()
 	treasure_buried_day = 0

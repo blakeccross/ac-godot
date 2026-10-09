@@ -39,7 +39,10 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	var grid: WorldGrid = world.grid if world != null else null
 	if grid == null:
 		return false
-	return BuriedUse.dig(ctx, grid.world_to_cell(global_position))
+	if not BuriedUse.dig(ctx, grid.world_to_cell(global_position)):
+		return false
+	await BuriedUse.report(ctx)
+	return true
 
 
 func _apply_visual() -> void:

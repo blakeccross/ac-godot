@@ -204,6 +204,10 @@ static func close_pit(world: Node, cell: Vector2i) -> void:
 	tw.tween_callback(func() -> void: HoleUse.fill(hole, ctx))
 
 
+## What the last `dig` turned up: `{item, banked, cell}`.
+static var last_find: Dictionary = {}
+
+
 static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 	## `mFI_CheckDigGetItem` when deposit / shine is present.
 	var grid: WorldGrid = _grid(ctx)
@@ -220,27 +224,42 @@ static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 	elif item_id == &"":
 		item_id = &"fossil"
 	var item: ItemData = ItemCatalog.get_item(item_id)
-	if item != null and ctx != null and ctx.inventory != null:
-		if ctx.inventory.add(item, 1) != 0:
-			Game.post_notice("Pockets are full.")
-			return false
+	## `setup_main_Get_scoop`: into the pockets if there's room; either way it comes up.
+	var banked: bool = item == null or ctx == null or ctx.inventory == null or ctx.inventory.add(item, 1) == 0
 	_remove(ctx.world if ctx != null else null, grid, occupant, cell)
 	if ctx != null and ctx.actor != null:
 		PlayerSe.buried_dig(ctx.actor)
 	if kind == KIND_SHINE:
-		Game.post_notice("You dug up bells!")
 		## `HOLE_SHINE`: what goes back into this hole can grow (`bIT_common_bury_after`).
 		Game.shine_hole = HoleUse.persist_id(cell)
-	elif kind == KIND_ITEM or kind == KIND_PITFALL:
-		Game.post_notice("You dug up %s!" % (item.display_name if item != null else "something"))
-	else:
-		Game.post_notice("You dug up a fossil!")
+	elif kind != KIND_ITEM and kind != KIND_PITFALL:
 		## First fossil triggers the Farway Museum's introductory letter (`mMsm` mail-in).
 		if Game.farway != null:
 			Game.farway.request_intro_letter()
 	## Digging a buried spot leaves an open hole (`DIG_SCOOP` after get).
 	HoleUse.dig(ctx, cell, false)
+	last_find = {"item": item_id, "banked": banked, "cell": cell}
 	return true
+
+
+## After `dig`: the find held up and reported (`GET_SCOOP`) by whoever dug, or a notice.
+## With the pockets full it goes back in the hole unless something is swapped for it.
+static func report(ctx: InteractionContext) -> void:
+	var find: Dictionary = last_find
+	last_find = {}
+	if find.is_empty():
+		return
+	var item_id: StringName = find["item"]
+	var cell: Vector2i = find["cell"]
+	if ctx != null and ctx.actor is Player:
+		await (ctx.actor as Player).run_dig_get(item_id, bool(find["banked"]), cell, ctx)
+		return
+	var item: ItemData = ItemCatalog.get_item(item_id)
+	if not bool(find["banked"]):
+		bury(ctx, cell, item_id)
+		Game.post_notice("Pockets are full.")
+	else:
+		Game.post_notice("You dug up %s!" % (item.display_name if item != null else "something"))
 
 
 ## A free diggable unit something could be buried in (`mMsm_GetDepositAbleNum`).

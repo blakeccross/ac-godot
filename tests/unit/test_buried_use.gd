@@ -202,3 +202,41 @@ func test_bury_tag_needs_a_hole_and_a_scoop() -> void:
 	inv.bury_ready = true
 	assert_bool(inv.tags_for_slot(idx).has("Bury")).is_true()
 	inv.bury_ready = false
+
+
+## `setup_main_Get_scoop`: full pockets still dig it up; with no one to swap, it goes back in.
+func test_full_pockets_dig_it_up_then_bury_it_again() -> void:
+	var world := _hole_world()
+	var ctx := InteractionContext.new()
+	ctx.world = world
+	ctx.inventory = Inventory.new()
+	var fork: ItemData = ItemCatalog.get_item(&"knife_and_fork")
+	for i: int in Inventory.POCKET_SLOTS:
+		ctx.inventory.add_to_empty_slot(fork, 1)
+	var cell := Vector2i(5, 5)
+	HoleUse.dig(ctx, cell, false)
+	BuriedUse.bury(ctx, cell, &"conch")
+	assert_bool(BuriedUse.dig(ctx, cell)).is_true()
+	assert_bool(bool(BuriedUse.last_find["banked"])).is_false()
+	assert_bool(Game.is_hole(HoleUse.persist_id(cell))).is_true()
+	await BuriedUse.report(ctx)
+	var deposit: StringName = world.grid.occupant_at(cell)
+	assert_str(str(BuriedUse.record(deposit).get(BuriedUse.KEY_ITEM))).is_equal("conch")
+
+
+func test_dig_report_asks_to_swap_when_full() -> void:
+	var t := DigReport.new(&"apple", false)
+	t.current_msg = DigReport.MSG_GOT
+	assert_int(int(t.next_step()["msg"])).is_equal(DigReport.MSG_FULL)
+	t.picked(DigReport.MSG_FULL, 0)
+	assert_bool(t.swap).is_true()
+	var ok := DigReport.new(&"apple", true)
+	ok.current_msg = DigReport.MSG_GOT
+	assert_bool(ok.next_step().is_empty()).is_true()
+
+
+func test_paying_off_the_loan_queues_the_cheer() -> void:
+	Game.inventory.set_loan(100)
+	Game.inventory.set_wallet(500)
+	PostUse.repay_amount(-1)
+	assert_str(String(Game.complete_payment)).is_equal(String(Game.PAYMENT_HOUSE))

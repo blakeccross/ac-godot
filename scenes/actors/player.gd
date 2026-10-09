@@ -2464,6 +2464,91 @@ func _report_catch(catch_msg: int, pockets_full: bool = false) -> void:
 	Audio.pop_fanfare(jingle)
 
 
+## `COMPLETE_PAYMENT`: `YATTA1` facing the camera under the debt-paid (or chores-done) jingle,
+## then "YESSSSS!!!" once 42 ticks are up.
+const PAYMENT_MSG_HOUSE := 0x17B7
+const PAYMENT_MSG_ARBEIT := 0x17B6
+const PAYMENT_FANFARE_HOUSE := 0x4A
+const PAYMENT_FANFARE_ARBEIT := 0x49
+const PAYMENT_REPORT_TICKS := 42
+
+
+func run_complete_payment() -> void:
+	var kind: StringName = Game.complete_payment
+	if kind == &"" or _busy:
+		return
+	Game.complete_payment = &""
+	_busy = true
+	_motor.facing = Netting.SHOW_YAW
+	_mesh.rotation.y = Netting.SHOW_YAW
+	_start_one_shot(GOLDEN_YATTA)
+	var arbeit: bool = kind == Game.PAYMENT_ARBEIT
+	var jingle: StringName = BgmCatalog.id_for_num(PAYMENT_FANFARE_ARBEIT if arbeit else PAYMENT_FANFARE_HOUSE)
+	Audio.push_fanfare(jingle)
+	await get_tree().create_timer(float(PAYMENT_REPORT_TICKS) / DecompTime.TICK_HZ).timeout
+	var ui := DialogueOverlay.find(get_tree())
+	var data: DialogueData = DialogueCatalog.conversation(
+		StringName("msg_%d" % (PAYMENT_MSG_ARBEIT if arbeit else PAYMENT_MSG_HOUSE)))
+	if ui != null and data != null:
+		var dctx := DialogueContext.from_game()
+		dctx.speaker_name = ""
+		dctx.window_color = GOLDEN_WINDOW
+		ui.play(data, dctx)
+		await ui.closed
+	Audio.pop_fanfare(jingle)
+	_busy = false
+
+
+## `GET_SCOOP` (`m_player_main_get_scoop`): the find comes up in the hand (`GET_D1`), the
+## report and its jingle follow 86 ticks later, then `PUTAWAY_SCOOP`. Pockets full: "Swap"
+## opens the pockets (`mSM_IV_OPEN_EXCHANGE`) and the pocket picked goes into the hole for
+## it; otherwise the find goes back in (`PUTIN_SCOOP`).
+func run_dig_get(item_id: StringName, banked: bool, cell: Vector2i, ctx: InteractionContext) -> void:
+	_busy = true
+	_start_one_shot(DigReport.ANIM_GET)
+	var prop: HandOverItem = HandOverItem.spawn(get_parent(), item_id)
+	if prop != null:
+		prop.set_master(self)
+		prop.begin_mode(HandOverItem.Mode.TRANS_WAIT)
+	await get_tree().create_timer(float(DigReport.REPORT_TICKS) / DecompTime.TICK_HZ).timeout
+	var talk := DigReport.new(item_id, banked)
+	var ui := DialogueOverlay.find(get_tree())
+	var jingle: StringName = BgmCatalog.id_for_num(DigReport.FANFARE)
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % DigReport.MSG_GOT))
+	if ui != null and data != null:
+		var dctx := DialogueContext.from_game()
+		dctx.speaker_name = ""
+		dctx.window_color = GOLDEN_WINDOW
+		talk.context = dctx
+		talk.prepare()
+		Audio.push_fanfare(jingle)
+		ui.play(data, dctx, null, Callable(), talk)
+		await ui.closed
+		Audio.pop_fanfare(jingle)
+	if prop != null and is_instance_valid(prop):
+		prop.finish()
+	if not banked:
+		await _dig_swap_or_bury(item_id, talk.swap, cell, ctx)
+	_busy = false
+
+
+## `PUTAWAY_SCOOP` with `submenu_flag` → the exchange pockets, or `PUTIN_SCOOP` with the find.
+func _dig_swap_or_bury(item_id: StringName, swap: bool, cell: Vector2i, ctx: InteractionContext) -> void:
+	if swap and Game.inventory != null:
+		Game.request_quest_handover(-1, "take")
+		var picked: Array = await Game.quest_handover_resolved
+		var pocket: int = int(picked[1])
+		if pocket >= 0:
+			var out: InventoryItem = Game.inventory.remove_from_slot(pocket, Game.inventory.slot_at(pocket).item.count)
+			var find: ItemData = ItemCatalog.get_item(item_id)
+			if find != null:
+				Game.inventory.add(find, 1)
+			if out != null:
+				BuriedUse.bury(ctx, cell, out.item_id)
+			return
+	BuriedUse.bury(ctx, cell, item_id)
+
+
 ## `Stung_mosquito` → `Notice_mosquito`: slap at the bite (`MOSQUITO1`), then scratch it
 ## (`MOSQUITO2`) turning to the camera under the "Yow!" report and the bee-stung jingle.
 ## Not while busy or in a demo (`Player_actor_Check_is_demo_mode`).

@@ -246,3 +246,12 @@ func test_save_roundtrip() -> void:
 	assert_that(Game.first_job.kind).is_equal(FirstJob.Kind.CHANGE_CLOTH)
 	assert_int(Game.first_job.progress).is_equal(2)
 	assert_that(Game.first_job.recipient_id).is_equal(&"filbert")
+
+
+func test_finishing_the_chores_queues_the_cheer() -> void:
+	var job := FirstJob.new()
+	job.kind = FirstJob.Kind.CHANGE_CLOTH
+	Game.complete_payment = &""
+	job.finish()
+	assert_str(String(Game.complete_payment)).is_equal(String(Game.PAYMENT_ARBEIT))
+	Game.complete_payment = &""

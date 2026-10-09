@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "drop", "bridge", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "digup", "drop", "bridge", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -85,6 +85,19 @@ func execute(raw: String) -> String:
 			if dr_cell.x < 0 or FieldItems.put(dr_world, dr_cell, StringName(String(args[0]).to_lower())) == null:
 				return "Can't drop here."
 			return "Dropped %s at %s." % [args[0], dr_cell]
+		"digup":
+			## Play the dig-up report for an item (`digup conch`), or the loan cheer (`digup paid`).
+			var du_tree := Engine.get_main_loop() as SceneTree
+			var du_player := du_tree.get_first_node_in_group(Player.GROUP) as Player if du_tree != null else null
+			if du_player == null:
+				return "No player in this scene."
+			if not args.is_empty() and String(args[0]) == "paid":
+				Game.complete_payment = Game.PAYMENT_HOUSE
+				du_player.run_complete_payment()
+				return "Debt paid."
+			var du_item := StringName(String(args[0]) if not args.is_empty() else "conch")
+			du_player.run_dig_get(du_item, true, Vector2i(-1, -1), null)
+			return "Dug up %s." % du_item
 		"axebreak":
 			## Hold a seventh-stage axe one hit from breaking, and break it now (`BROKEN_AXE`).
 			_cmd_give(["axe_use_7"])

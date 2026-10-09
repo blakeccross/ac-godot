@@ -611,7 +611,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [~] Ambient: the surf on the beach acres and rivers / waterfalls inland from each acre's bg sound sources, the pond's water and its summer frogs (`aFD_OperateWaterSound`, `FieldAmbience`); rain is the weather loop, cicadas and crickets come from the insects. No birds or owls on the GameCube. Missing: panning, and the frog loop renders silent from the bank
 - [~] Positional audio for sound sources (train, insects) through `Ongen` (`Na_OngenPos`)
 - [ ] NES game audio via the Famicom APU emulation (`ks_nes_core`)
-- [~] Fanfares (`mBGMPsComp_make_ps_fanfare`): the pre-rendered jingle sequences play on their own layer over the music, which stops and starts over when they come off (`Audio.push_fanfare` / `pop_fanfare`) — net and rod catches, collection complete, golden tools. Missing: digging something up and the loan paid off (both show a toast here, not the report the jingle runs under)
+- [x] Fanfares (`mBGMPsComp_make_ps_fanfare`): the pre-rendered jingle sequences play on their own layer over the music, which stops and starts over when they come off (`Audio.push_fanfare` / `pop_fanfare`) — net and rod catches, collection complete, golden tools, digging something up (held up with "Check it out!"; pockets full: swap a pocket into the hole or bury it again, `DigReport`), the loan paid off and Nook's chores done (`YATTA1` and "YESSSSS!!!" on walking back out, `run_complete_payment`)
 
 ## 33. UI, menus, misc systems
 
