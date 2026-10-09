@@ -438,6 +438,7 @@ func _physics_process(delta: float) -> void:
 	if _umbrella != null:
 		_umbrella.tick(delta)
 	_tick_pinwheel(delta)
+	_tick_balloon(delta)
 	if _carry != null:
 		_carry.advance(delta)
 	if _door_entering:
@@ -3219,6 +3220,37 @@ var _pin_last: Vector3 = Vector3.INF
 var _pin_speed: float = 0.0
 
 
+## `Player_actor_Item_Movement_balloon_normal`, a frame at a time, then the sway is put on
+## the model hanging off the hand.
+var _balloon: HeldBalloon = null
+var _balloon_hand: Vector3 = Vector3.INF
+var _balloon_steps := FrameStepper.new(DecompTime.FRAME_HZ, 8.0)
+
+
+func _tick_balloon(delta: float) -> void:
+	if _balloon == null or _tool_hidden():
+		return
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	var attach := skeleton.get_node_or_null(HeldTool.ATTACH_NAME) as Node3D if skeleton != null else null
+	if attach == null:
+		return
+	var hand: Vector3 = attach.global_position
+	if _balloon_hand == Vector3.INF:
+		_balloon_hand = hand
+	_balloon_steps.add(delta)
+	var frames: int = 0
+	while _balloon_steps.next():
+		frames += 1
+	if frames > 0:
+		var moved: Vector3 = (hand - _balloon_hand) / FieldCatalog.GX_TO_METERS / float(frames)
+		var walking: bool = _motor.gait() == PlayerLocomotion.Gait.WALK or _motor.gait() == PlayerLocomotion.Gait.RUN
+		var speed_gx: float = Vector2(velocity.x, velocity.z).length() / FieldCatalog.GX_TO_METERS / DecompTime.FRAME_HZ
+		for _i: int in frames:
+			_balloon.step(moved, _motor.facing, walking, speed_gx)
+		_balloon_hand = hand
+	_balloon.apply(_motor.facing)
+
+
 func _tick_pinwheel(delta: float) -> void:
 	var tool: ToolData = _equipped_tool()
 	if tool == null or not tool.is_pinwheel() or _tool_hidden():
@@ -3241,6 +3273,7 @@ func _bind_equipped_tool(
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
 	HeldTool.unbind(skeleton)
 	_umbrella = null
+	_balloon = null
 	_carry = null
 	_hold_anim = &""
 	_tool_hold_anim = &""
@@ -3249,6 +3282,10 @@ func _bind_equipped_tool(
 	if show_tool and tool != null and tool.visual_id != &"":
 		var attach: Node3D = HeldTool.bind(skeleton, tool.visual_id)
 		_carry = ToolCarry.build(_anim, skeleton, tool)
+		if tool.is_balloon() and attach != null and attach.get_child_count() > 0:
+			_balloon = HeldBalloon.new()
+			_balloon.setup(attach.get_child(0) as Node3D)
+			_balloon_hand = Vector3.INF
 		if tool.is_umbrella() and attach != null and attach.get_child_count() > 0:
 			_umbrella = HeldUmbrella.new()
 			_umbrella.setup(attach.get_child(0) as Node3D, umbrella_start)

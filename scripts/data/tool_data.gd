@@ -40,6 +40,11 @@ func is_umbrella() -> bool:
 	return kind == Kind.UMBRELLA
 
 
+## `m_player_item_balloon`: sways on its string.
+func is_balloon() -> bool:
+	return kind == Kind.BALLOON
+
+
 ## `m_player_item_windmill`: spins with movement and wind.
 func is_pinwheel() -> bool:
 	return kind == Kind.PINWHEEL
