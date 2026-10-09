@@ -346,7 +346,7 @@ func _row_gated_off(id: StringName) -> bool:
 		return special_type != &"broker_sale"
 	if id == &"kk_slider" or id == &"kabu_peddler" or id == &"dozaemon":
 		return weekly_type != id
-	if id == &"mask_npc":
+	if id == &"mask_npc" or id == &"soncho_bridge_make":
 		return weekly_flag != id
 	if id == &"ghost":
 		return not ghost_tonight
@@ -478,8 +478,9 @@ func _saved_md(slot: String, now: Dictionary) -> int:
 # --- weekly visitor ------------------------------------------------------------------
 
 
-## `init_weekly_event`: Joan on Sunday, K.K. on Saturday, Gulliver once Monday–Friday. The
-## bridge is not modelled yet; Blanca takes `weekly_flag` while she has a face, except on
+## `init_weekly_event`: Joan on Sunday, K.K. on Saturday, Gulliver once Monday–Friday.
+## Tortimer takes `weekly_flag` for the second bridge once the town is full
+## (`SecondBridge.tortimer_due`); otherwise Blanca does while she has a face, except on
 ## Gulliver's day.
 func _init_weekly(now: Dictionary) -> void:
 	_init_weekly_type(now)
@@ -487,7 +488,13 @@ func _init_weekly(now: Dictionary) -> void:
 	var gulliver_today: bool = weekly_type == &"dozaemon" and weekly_date == today
 	if Game != null:
 		MaskCat.check_delete(EventDates.ordinal(int(now["year"]), int(now["month"]), int(now["day"])))
-	weekly_flag = &"mask_npc" if not gulliver_today and Game != null and MaskCat.check_birth() else &""
+	weekly_flag = &""
+	if Game != null and Game.residents != null and SecondBridge.tortimer_due(int(now["weekday"]), gulliver_today,
+			Game.residents.animal_num() >= TownResidents.ANIMAL_NUM_MAX, Game.foreigner):
+		weekly_flag = &"soncho_bridge_make"
+		SecondBridge.note_day(EventDates.ordinal(int(now["year"]), int(now["month"]), int(now["day"])))
+	elif not gulliver_today and Game != null and MaskCat.check_birth():
+		weekly_flag = &"mask_npc"
 
 
 func _init_weekly_type(now: Dictionary) -> void:

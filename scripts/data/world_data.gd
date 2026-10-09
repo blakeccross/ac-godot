@@ -32,6 +32,9 @@ const GRASS_PATTERN_COUNT := 3
 ## SIGN reserve cells a villager house fits on (`mNT_IS_RESERVE`), in FG order. Houses are
 ## rebuilt from `TownResidents`, which assigns new arrivals to the free ones.
 @export var reserve_cells: Array[Vector2i] = []
+## `RSV_BRIDGE0` / `RSV_BRIDGE1` units of the FG templates: where a second bridge may go,
+## `(x, z, 0|1)` (`BRIDGE_A0` runs north–south, `A1` turned −90°).
+@export var bridge_spots: Array[Vector3i] = []
 ## Original acre mesh (`BG_TYPE_GRD_S_F_1` → `grd_s_f_1`). Empty keeps the placeholder plane.
 @export var acre_visual: StringName = &"grd_s_f_1"
 ## Full 7×10 `mFM_BLOCK_TYPE_*` grid from TownFieldGenerator (70 bytes). Empty for test town.

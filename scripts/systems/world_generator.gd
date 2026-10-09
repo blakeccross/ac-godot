@@ -709,6 +709,9 @@ static func _place_from_fg_templates(
 				for uz: int in UT:
 					for ux: int in UT:
 						var item_id: int = items[uz * UT + ux]
+						if mode != 2 and (item_id == FgCatalog.RSV_BRIDGE0 or item_id == FgCatalog.RSV_BRIDGE1):
+							var spot: Vector2i = origin + Vector2i(ux, uz)
+							data.bridge_spots.append(Vector3i(spot.x, spot.y, item_id - FgCatalog.RSV_BRIDGE0))
 						var place: Dictionary = FgCatalog.placement_for_item(item_id)
 						if (
 							place.is_empty()

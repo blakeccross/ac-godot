@@ -72,7 +72,7 @@ data tables before a category is called done.
 - [x] Beach along the south edge with the sea and its horizon (beach / ocean acres from the disc, wave units, surf sound, shells) — the GameCube has no tide
 - [x] ~~Acre-edge scroll~~ — the GameCube camera follows continuously across acres (`AcreCamera`)
 - [x] Town map from the held map item (blue) or the sight-map boards (yellow), drawn like `mMP_set_dl` from the disc's `kan_win` / `kan_tizu` art: acre tiles, the selected acre's letter and number, the label frame sized to its labels, building names or residents (the player plus "free" plots; villagers by name with their house marks tinted by ground height), you-are-here mark, the easing, pulsing cursor (`m_map_ovl`) — `map_overlay.gd`, layers from `menu_ui.py` (`ui/map_screen/`); `map` console command
-- [~] Bridge(s) across the river (`ac_bridge_a`) — the river's bridge acre comes from the generator. Missing: the second bridge Tortimer builds (`mEv_EVENT_BRIDGE_MAKE`)
+- [x] Bridge(s) across the river (`ac_bridge_a`) — the river's bridge acre comes from the generator. Once fifteen villagers live in town, Tortimer stands by the river Monday–Saturday (not on Gulliver's day), an acre further upstream each day among those with a bridge spot (`RSV_BRIDGE0/1`); "Here is good!" orders the bridge there and it stands from 6:00 the next day: `obj_s/w_bridgeA` with its deck raised over the water (`aBridgeA_set_BgOffset`) — `SecondBridge`, `TortimerBridgeTalk`. The river acres are ordered north to south rather than traced (`river_stream`), and the deck does not sway underfoot
 - [x] Building slots: player houses, Nook's, Able Sisters, Museum, Post Office, Police Station, Wishing Well, Train Station, Dump, Lighthouse — block kinds placed by `TownFieldGenerator` (no Town Hall on the GameCube)
 - [x] Villager house plots (up to 15) with reserved lots (`ac_reserve`) — `TownResidents` moves villagers onto free SIGN plots
 - [x] The station and train tracks along the top row (`ac_station`, `ac_train_door`) — `TrainControl`, `TrainCars`, `VisualTrain`
@@ -486,7 +486,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 ## 26. Town Hall & civic
 
 - [x] No Town Hall on the GameCube (it arrives in Wild World): Tortimer only appears at events, and Pelly / Phyllis work the post office (§ post office)
-- [~] Tortimer hands out event items & hosts most holidays (`ac_ev_soncho`, `ac_ev_speech_soncho`) — holiday speeches and the wishing-well visits with his calendar trophies (§31)
+- [~] Tortimer hands out event items & hosts most holidays (`ac_ev_soncho`, `ac_ev_speech_soncho`) — holiday speeches and the wishing-well visits with his calendar trophies (§31), and the second bridge (§ Bridges)
 - [x] Town Hall services (recycling, donations, environment rating): not on the GameCube; the town tune is set at the melody board by the station (`m_mscore_ovl`)
 - [x] **Town tune** editor at the tune board: 16 frog steps (G low … E, random, rest, tie), play, erase-all prompt, "Is this OK?" (save / rewrite / keep the old tune), plays as it opens; saved with the town (`m_mscore_ovl`, `ac_mscore_control`, `m_melody`) — `TownTuneOverlay`, `TownTune`, art from `menu_ui.py` (`ui/mscore/`); `tune [open|reset]` console command. The e-Reader button only closes
 - [x] Town name is fixed after creation
@@ -590,7 +590,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [x] Snow Day — Tortimer at the well (see the holiday line above); snow follows the weather tables
 - [x] **Toy Day** — Jingle
 - [x] **New Year's Eve** — countdown crowd, party poppers, fireworks at midnight
-- [~] Weekly: K.K. (Sat night), turnips (Sun AM), Tortimer/mayor rounds — K.K. and Joan are placed by the event manager; Tortimer only appears on holidays
+- [~] Weekly: K.K. (Sat night), turnips (Sun AM), Tortimer/mayor rounds — K.K. and Joan are placed by the event manager; Tortimer comes on holidays and, in a full town, about the second bridge
 - [~] Monthly: lottery (last day), Nook stock reshuffle — raffle + monthly prize reshuffle done. No bank interest on the GameCube (balance gifts instead); the HRA writes daily after changes, not monthly
 - [~] "Rumor" pre-event villager chatter for each holiday (`mEv_EVENT_RUMOR_*`) — villagers bring up coming visitors and live rumours with their dates (`aQMgr_decide_msg_special_ev` / `_calendar_ev`)
 - [x] Tortimer "soncho" variant appearances for each holiday (`mEv_EVENT_SONCHO_*`) — except the January / February vacations and the bridge

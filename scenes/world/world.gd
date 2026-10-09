@@ -57,6 +57,8 @@ func _ready() -> void:
 	ShellUse.restore(self, grid)
 	SignboardUse.restore(self, grid)
 	FieldItems.restore(self, grid)
+	SecondBridge.build_if_due(EventDates.ordinal(Clock.year, Clock.month, Clock.day), Clock.hour)
+	SecondBridge.restore(self, layout, grid)
 	SnowmanUse.restore(self)
 	PlantGrowth.restore(self, grid)
 	PlantGrowth.assign_special_trees(self)
@@ -330,6 +332,9 @@ func _on_field_renewed(_days: int) -> void:
 	BuriedUse.renew(self, grid)
 	_sow_weeds()
 	_renew_money_rock()
+	## `bridge_make_in`: the ordered bridge stands from 6:00 on its day.
+	if SecondBridge.build_if_due(EventDates.ordinal(Clock.year, Clock.month, Clock.day), Clock.hour):
+		SecondBridge.restore(self, layout, grid)
 	## `mFAs_SetFieldRank` at the end of every growth pass.
 	Game.rate_town(self)
 

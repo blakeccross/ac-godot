@@ -232,6 +232,8 @@ var mushroom_active: bool = false
 var mushrooms_session_cleared: bool = false
 ## Signboards the residents put up (`SignboardUse`): `signboard_<x>_<z>` → `{design}`. Saved.
 var signboards: Dictionary = {}
+## The second bridge Tortimer builds (`SecondBridge`, `Save_Get(bridge)`). Saved.
+var bridge: Dictionary = {}
 ## Things lying on the field (`FieldItems`): `fitem_<x>_<z>` → {id, wrapped}. Saved.
 var field_items: Dictionary = {}
 ## Sea shells on the beach (`ShellUse`): `shell_<x>_<z>` → item id. Saved.
@@ -1278,6 +1280,7 @@ func reset_session() -> void:
 	shell_minute_counted = false
 	signboards.clear()
 	field_items.clear()
+	bridge = {}
 	mushroom_minute = -1
 	mushroom_active = false
 	snowmen = [{}, {}, {}]
@@ -1585,6 +1588,7 @@ func to_save() -> Dictionary:
 		"shells": shells.duplicate(),
 		"signboards": signboards.duplicate(true),
 		"field_items": field_items.duplicate(true),
+		"bridge": bridge.duplicate(true),
 		"mushroom_minute": mushroom_minute,
 		"mushroom_active": mushroom_active,
 		"snowmen": snowmen.duplicate(true),
@@ -1704,6 +1708,11 @@ func apply_snapshot(data: Dictionary) -> void:
 	var saved_signs: Variant = data.get("signboards", {})
 	if typeof(saved_signs) == TYPE_DICTIONARY:
 		signboards = (saved_signs as Dictionary).duplicate(true)
+	bridge = {}
+	var saved_bridge: Variant = data.get("bridge", {})
+	if typeof(saved_bridge) == TYPE_DICTIONARY and not (saved_bridge as Dictionary).is_empty():
+		bridge = SecondBridge.new_state()
+		bridge.merge(saved_bridge as Dictionary, true)
 	field_items.clear()
 	var saved_items: Variant = data.get("field_items", {})
 	if typeof(saved_items) == TYPE_DICTIONARY:

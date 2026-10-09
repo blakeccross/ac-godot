@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "drop", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "drop", "bridge", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -49,6 +49,26 @@ func execute(raw: String) -> String:
 				if eq_slot != null and not eq_slot.is_empty() and eq_slot.item.item_id == eq_id:
 					return "%s Equipped: %s." % [eq_msg, Game.inventory.equip_slot(i)]
 			return eq_msg
+		"bridge":
+			## `bridge` sends Tortimer to the river for the second bridge; `bridge build` puts it
+			## up now in the first river acre with a spot.
+			var br_tree := Engine.get_main_loop() as SceneTree
+			var br_world: World = World.find(br_tree) if br_tree != null else null
+			if br_world == null:
+				return "No field here."
+			if not args.is_empty() and String(args[0]) == "build":
+				var br_blocks: Array[Vector2i] = SecondBridge.blocks(br_world.layout)
+				if br_blocks.is_empty():
+					return "No bridge spot in this town."
+				var br_today: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
+				SecondBridge.order(br_blocks[br_blocks.size() - 1], br_today - 1)
+				SecondBridge.build_if_due(br_today, Clock.hour)
+				SecondBridge.restore(br_world, br_world.layout, br_world.grid)
+				return "Bridge built in acre %s." % br_blocks[br_blocks.size() - 1]
+			SecondBridge.note_day(EventDates.ordinal(Clock.year, Clock.month, Clock.day))
+			Game.events.force(&"soncho_bridge_make")
+			_sync_events()
+			return "Tortimer is by the river (%d acres with a bridge spot)." % SecondBridge.blocks(br_world.layout).size()
 		"drop":
 			## Lay an item on the unit in front of the player (`drop turnips_10`), as dropping does.
 			var dr_tree := Engine.get_main_loop() as SceneTree

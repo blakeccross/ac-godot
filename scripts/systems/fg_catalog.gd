@@ -40,6 +40,9 @@ const ITEM_MESSAGE_BOARD0 := 0x0007
 const ITEM_MAP_BOARD0 := 0x000C
 const ITEM_MUSIC_BOARD0 := 0x000E
 const ITEM_WOOD_FENCE := 0x0010
+## Where a second bridge may be built (`RSV_BRIDGE0` / `RSV_BRIDGE1`).
+const RSV_BRIDGE0 := 0xFE1D
+const RSV_BRIDGE1 := 0xFE1E
 const ITEM_EMPTY := 0x0000
 const ITEM_NONE := 0xFFFF
 const FG_TYPE_EMPTY := 0x00CB
