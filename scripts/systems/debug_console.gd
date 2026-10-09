@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -137,6 +137,28 @@ func execute(raw: String) -> String:
 			var du_item := StringName(String(args[0]) if not args.is_empty() else "conch")
 			du_player.run_dig_get(du_item, true, Vector2i(-1, -1), null)
 			return "Dug up %s." % du_item
+		"manpu":
+			## `manpu <clip|code>`: the villager nearest the camera reacts as if a talk line
+			## called for it.
+			var mp_tree := Engine.get_main_loop() as SceneTree
+			var mp_cam: Camera3D = mp_tree.root.get_viewport().get_camera_3d() if mp_tree != null else null
+			if mp_cam == null or args.is_empty():
+				return "Usage: manpu <clip|code>"
+			var mp_best: Node3D = null
+			for v: Node in mp_tree.get_nodes_in_group("villagers"):
+				if not (v is Node3D and v.has_method("cue_manpu") and (v as Node3D).is_visible_in_tree()):
+					continue
+				var mp_d: float = (v as Node3D).global_position.distance_to(mp_cam.global_position)
+				if mp_best == null or mp_d < mp_best.global_position.distance_to(mp_cam.global_position):
+					mp_best = v as Node3D
+			if mp_best == null:
+				return "No villager."
+			## Reactions only come in a talk: hold the villager still as a talk would.
+			var mp_ai: Variant = mp_best.get("ai")
+			if mp_ai != null and not mp_ai.is_talking():
+				mp_ai.begin_talk()
+			mp_best.call("cue_manpu", str(args[0]))
+			return "%s: %s" % [mp_best.name, NpcManpu.clip_for(str(args[0]))]
 		"axebreak":
 			## Hold a seventh-stage axe one hit from breaking, and break it now (`BROKEN_AXE`).
 			_cmd_give(["axe_use_7"])

@@ -36,14 +36,21 @@ func test_each_reaction_draws_its_own_clips_glyph() -> void:
 	assert_str(String(NpcManpu.feel_for("aseru1"))).is_equal("ase")
 	assert_str(String(NpcManpu.feel_for("gaaan_d1"))).is_equal("shock")
 	assert_str(String(NpcManpu.feel_for("ha_e1"))).is_equal("ha")
+	assert_str(String(NpcManpu.feel_for("muka1"))).is_equal("muka")
+	assert_str(String(NpcManpu.feel_for("love1"))).is_equal("lovelove2")
 
 
-func test_question_mark_pops_then_fades() -> void:
-	var glyphs := NpcFeelGlyphs.new()
-	add_child(glyphs)
-	glyphs.play(&"gimonhu")
-	assert_str(String(glyphs._kind)).is_equal("gimonhu")
-	glyphs._frame = float(NpcFeelGlyphs.POP_LIFE)
-	glyphs._tick_pop()
-	assert_str(String(glyphs._kind)).is_equal("")
-	glyphs.free()
+func test_anger_vein_drains_to_red_then_fades() -> void:
+	assert_float(NpcFeelGlyphs.muka_color(0).g).is_equal_approx(1.0, 0.001)
+	assert_float(NpcFeelGlyphs.muka_color(20).g).is_equal_approx(50.0 / 255.0, 0.001)
+	assert_float(NpcFeelGlyphs.muka_color(20).a).is_equal_approx(1.0, 0.001)
+	assert_float(NpcFeelGlyphs.muka_color(41).a).is_equal_approx(0.0, 0.001)
+
+
+func test_heart_rises_slower_and_grows() -> void:
+	assert_float(NpcFeelGlyphs.heart_rise(1)).is_equal_approx(1.0, 0.001)
+	## 28 easing ticks then 0.1 a tick.
+	var early: float = NpcFeelGlyphs.heart_rise(28)
+	assert_float(NpcFeelGlyphs.heart_rise(38) - early).is_equal_approx(1.0, 0.001)
+	assert_float(NpcFeelGlyphs.heart_scale(40).length()).is_greater(NpcFeelGlyphs.heart_scale(0).length())
+

@@ -56,7 +56,21 @@ const KANTANHU_AT := Vector3(0.0, 15.0, -3.0)
 const ASE_VISUALS: Array[StringName] = [&"ef_ase02_00", &"ef_ase02_01", &"ef_ase02_02", &"ef_ase02_03"]
 const ASE_MATRIX_SCALE := 0.006
 const ASE_LIFE := 52
+## `eMK_*`: anger vein beside the head (side picked from the camera), green and red
+## draining over 20 ticks, fading out by 41.
+const MUKA_VISUAL := &"ef_muka01_00"
+const MUKA_MATRIX_SCALE := 0.0075
+const MUKA_LIFE := 40
+const MUKA_AT := Vector3(10.0, 9.0, 23.0)
+## `eLL2_*`: heart that rises (1.0 → 0.1 GX a tick over 28 ticks), grows over 30 and
+## wobbles x/y out of phase, fading 96 → 112.
+const HEART_VISUAL := &"ef_lovelove02_00"
+const HEART_LIFE := 112
+const HEART_Y_GX := 16.0
+const HEART_SPIN := 10.55
 
+## Set by the owner before `play`: the NPC is turned toward the camera (`eMK_ct` side).
+var faces_camera: bool = true
 var _kind: StringName = &""
 var _frame: float = 0.0
 var _cycle: int = 0
@@ -93,6 +107,10 @@ func _process(delta: float) -> void:
 			_tick_pop()
 		&"ase":
 			_tick_ase()
+		&"muka":
+			_tick_muka()
+		&"lovelove2":
+			_tick_heart()
 		_:
 			clear()
 
@@ -133,6 +151,16 @@ func play(kind: StringName) -> void:
 			_tick_pop()
 		&"ase":
 			_set_visual(ASE_VISUALS[0], ASE_MATRIX_SCALE)
+		&"muka":
+			_set_visual(MUKA_VISUAL, MUKA_MATRIX_SCALE)
+			_mesh_host.position = MUKA_AT * FieldCatalog.GX_TO_METERS
+			Audio.play_se(&"137", self)
+			_tick_muka()
+		&"lovelove2":
+			_set_visual(HEART_VISUAL, 0.003)
+			_mesh_host.position = Vector3(0.0, HEART_Y_GX * FieldCatalog.GX_TO_METERS, 0.0)
+			Audio.play_se(&"118", self)
+			_tick_heart()
 		_:
 			_kind = &""
 
@@ -257,6 +285,59 @@ func _tick_ase() -> void:
 	_set_visual(ASE_VISUALS[(t & 12) >> 2], ASE_MATRIX_SCALE)
 
 
+## Vein tint at tick `t`: prim (255, g, 50) with g 255 → 50 and the env red 255 → 100.
+static func muka_color(t: int) -> Color:
+	var k: float = clampf(float(t) / 20.0, 0.0, 1.0)
+	var a: float = clampf(1.0 - float(t - 20) / 21.0, 0.0, 1.0)
+	return Color(1.0, lerpf(255.0, 50.0, k) / 255.0, 50.0 / 255.0, a)
+
+
+func _tick_muka() -> void:
+	var t: int = int(_frame)
+	if t >= MUKA_LIFE:
+		clear()
+		return
+	## `eMK_ct`: screen right of the head while the NPC faces the camera, left otherwise.
+	var side: float = 1.0 if faces_camera else -1.0
+	_mesh_host.position = Vector3(MUKA_AT.x * side, MUKA_AT.y, MUKA_AT.z) * FieldCatalog.GX_TO_METERS
+	var c: Color = muka_color(t)
+	_tint_mesh(c)
+	_set_mesh_alpha(c.a)
+
+
+## Heart (x, y) matrix scale at tick `t` (`eLL2_dw`).
+static func heart_scale(t: int) -> Vector2:
+	var k: float = clampf(float(t) / 30.0, 0.0, 1.0)
+	var base: float = lerpf(0.003, 0.014, k)
+	var hi: float = lerpf(1.0125, 0.6375, k)
+	var lo: float = lerpf(0.037499964, 0.412499964, k)
+	var angle: float = deg_to_rad(HEART_SPIN) * float(t + 1)
+	return Vector2(
+		base * (lo + (sin(angle) + 1.0) * 0.5 * (hi - lo)),
+		base * (lo + (cos(angle) + 1.0) * 0.5 * (hi - lo))
+	)
+
+
+## Total GX the heart has risen by tick `t`.
+static func heart_rise(t: int) -> float:
+	var y: float = 0.0
+	for i: int in t:
+		y += lerpf(1.0, 0.1, clampf(float(i) / 28.0, 0.0, 1.0))
+	return y
+
+
+func _tick_heart() -> void:
+	var t: int = int(_frame)
+	if t >= HEART_LIFE:
+		clear()
+		return
+	var sc: Vector2 = heart_scale(t)
+	var unit: float = _node_scale_for(1.0)
+	_mesh_host.scale = Vector3(sc.x * unit, sc.y * unit, lerpf(0.003, 0.014, clampf(float(t) / 30.0, 0.0, 1.0)) * unit)
+	_mesh_host.position.y = (HEART_Y_GX + heart_rise(t)) * FieldCatalog.GX_TO_METERS
+	_set_mesh_alpha(1.0 - clampf(float(t - 96) / 16.0, 0.0, 1.0))
+
+
 func _show_warau_frame(card: int) -> void:
 	_set_visual(WARAU_VISUALS[card], WARAU_MATRIX_SCALE)
 	_mesh_host.position = Vector3.ZERO
@@ -322,7 +403,9 @@ func _billboard() -> void:
 	to.y = 0.0
 	if to.length_squared() < 0.0001:
 		return
-	look_at(global_position + to.normalized(), Vector3.UP)
+	## +Z toward the camera and +X screen right, as the GX billboard matrix: offsets and
+	## cards read the right way round.
+	look_at(global_position - to.normalized(), Vector3.UP)
 
 
 func _make_unshaded(root: Node) -> void:

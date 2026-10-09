@@ -212,6 +212,10 @@ class ClassicGbiTests(unittest.TestCase):
         self.assertEqual(coverage_from_render_mode(0xC8112078), COVERAGE_OPA)
         self.assertEqual(coverage_from_render_mode(0xC8113078), COVERAGE_TEX_EDGE)
         self.assertEqual(coverage_from_render_mode(0xC8104A50), COVERAGE_XLU)
+        ## `G_RM_FOG_SHADE_A, G_RM_XLU_SURF2`: no Z compare, still blended (feel glyphs).
+        self.assertEqual(coverage_from_render_mode(0xC8104240), COVERAGE_XLU)
+        ## `G_RM_FOG_SHADE_A, G_RM_AA_OPA_SURF2` blends coverage over memory, not 1−α.
+        self.assertEqual(coverage_from_render_mode(0xC8112048), COVERAGE_OPA)
 
     def test_uv_samples_transparent_footprint(self) -> None:
         from asset_pipeline.gfx import Vertex

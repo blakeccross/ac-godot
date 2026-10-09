@@ -413,6 +413,10 @@ COVERAGE_TEX_EDGE = "tex_edge"
 COVERAGE_XLU = "xlu"
 
 _CVG_X_ALPHA = 0x1000
+_FORCE_BL = 0x4000
+## Blender `GBL_c1` / `GBL_c2` m2a (`G_BL_CLR_MEM` = 1) and m2b (`G_BL_1MA` = 0).
+_BL_CLR_MEM = 1
+_BL_1MA = 0
 _ZMODE_XLU = 0x800
 _ZMODE_DEC = 0xC00
 _ZMODE_MASK = 0xC00
@@ -424,9 +428,21 @@ def coverage_from_render_mode(mode: int) -> str:
     zmode = mode & _ZMODE_MASK
     if zmode in (_ZMODE_XLU, _ZMODE_DEC):
         return COVERAGE_XLU
+    ## `G_RM_XLU_SURF` / `CLD_SURF` (no Z compare, so ZMODE_OPA): still a forced
+    ## blend of the input over memory by 1−α — the feel glyph cards and 2D windows.
+    if mode & _FORCE_BL and _blends_over_memory(mode):
+        return COVERAGE_XLU
     if mode & _CVG_X_ALPHA:
         return COVERAGE_TEX_EDGE
     return COVERAGE_OPA
+
+
+def _blends_over_memory(mode: int) -> bool:
+    """True when either blender cycle is ``(…, …, CLR_MEM, 1MA)``."""
+    for m2a_shift, m2b_shift in ((22, 18), (20, 16)):
+        if (mode >> m2a_shift) & 3 == _BL_CLR_MEM and (mode >> m2b_shift) & 3 == _BL_1MA:
+            return True
+    return False
 
 
 def coverage_from_othermode_l(othermode_l: int) -> str:

@@ -24,7 +24,8 @@ extends Node3D
 ##                     the player, which the `villager:` lookup arranges).
 ##   cam=dx,dy,dz      Camera offset from the focus in metres (default 0,4,7).
 ##   look=dx,dy,dz     Offset added to the focus point (default 0,1,0).
-##   fov=50  size=960x540  wait=20 (frames before the grab)
+##   fov=50  size=960x540  wait=20 (frames before the grab; also bounds a target search)
+##   after=N (frames between a console command and the grab; defaults to wait)
 ##   out=path          Directory or .png path (default res://.tmp_captures/, gitignored).
 ##   name=label        File stem (default from target + date).
 ## Prints one `CAPTURE <absolute path>` line per image, `CAPTURE_ERROR <msg>` on failure.
@@ -107,7 +108,8 @@ func _capture_date(date: String) -> void:
 		for _i: int in int(_args.get("console_delay", "0")):
 			await get_tree().process_frame
 		_run_console()
-	for _i: int in int(_args.get("wait", "20")):
+	## `after` frames past the console (defaults to `wait`, which also bounds the target search).
+	for _i: int in int(_args.get("after", _args.get("wait", "20"))):
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var path := _out_path(target, date)

@@ -144,6 +144,11 @@ var _drawn_umb: int = -1
 static var _pair_frame: int = -1
 ## Quest manager for the conversation in progress (`VillagerTalkManager`).
 var _talk_manager: VillagerTalkManager
+## `aNPC_check_manpu_demoCode`: the reaction clip a talk line called for, held until it ends.
+var _manpu_clip: String = ""
+var _feel: NpcFeelGlyphs
+## Where the feel glyphs sit: about a villager's head height.
+const FEEL_HEAD_LIFT := 1.15
 var _visual: Node3D
 ## Cloth-surface overrides from before an Able design was painted on: `[mesh, surface, material]`.
 var _own_cloth: Array = []
@@ -189,6 +194,11 @@ func _ready() -> void:
 		VillagerTextures.apply(vis, texture_set)
 		_face.bind(vis, data.species if data else &"", texture_set)
 		_head_look.bind(vis, self)
+		if _feel == null:
+			_feel = NpcFeelGlyphs.new()
+			_feel.name = "Feel"
+			add_child(_feel)
+			_feel.set_head_lift(FEEL_HEAD_LIFT)
 		_sync_face_mood(true)
 		_apply_design_wear()
 		if Game != null and Game.designs != null and not Game.designs.changed.is_connected(_apply_design_wear):
@@ -907,6 +917,8 @@ func _bind_talk_end(ui: DialogueOverlay) -> void:
 	if ui.closed.is_connected(_on_talk_closed):
 		ui.closed.disconnect(_on_talk_closed)
 	ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
+	if not ui.event_fired.is_connected(_on_talk_event):
+		ui.event_fired.connect(_on_talk_event)
 
 
 func _unbind_talk() -> void:
@@ -914,6 +926,9 @@ func _unbind_talk() -> void:
 		var ui := DialogueOverlay.find(get_tree())
 		if ui != null and ui.closed.is_connected(_on_talk_closed):
 			ui.closed.disconnect(_on_talk_closed)
+		if ui != null and ui.event_fired.is_connected(_on_talk_event):
+			ui.event_fired.disconnect(_on_talk_event)
+	_end_manpu()
 	if ai.is_talking():
 		TalkCamera.end(get_tree())
 		ai.end_talk()
@@ -925,9 +940,45 @@ func _on_talk_action(action: Dictionary, ui: DialogueOverlay, player: Node3D) ->
 	await TalkActions.handle(action, ui, self, player)
 
 
+func _on_talk_event(event: Dictionary) -> void:
+	if not ai.is_talking() or str(event.get("op", "")) != "manpu":
+		return
+	cue_manpu(str(event.get("name", event.get("code", ""))))
+
+
+## `aNPC_check_manpu_demoCode`: a talk line's reaction clip, its face and its feel glyph.
+func cue_manpu(key: String) -> void:
+	if NpcManpu.is_reset(key):
+		_end_manpu()
+		_play_clip(ANIM_WAIT, true)
+		return
+	_face.set_emote(NpcManpu.emote_for(key), NpcManpu.mouth_hold_for(key))
+	var clip: String = NpcManpu.clip_for(key)
+	if _resolve_clip(clip).is_empty():
+		return
+	_play_clip(clip, false)
+	_manpu_clip = _clip
+	if _feel != null:
+		var cam := get_viewport().get_camera_3d()
+		if cam != null:
+			var to_cam: Vector3 = cam.global_position - global_position
+			_feel.faces_camera = Vector3(sin(_motor.facing), 0.0, cos(_motor.facing)).dot(to_cam) >= 0.0
+		_feel.play_for_manpu(key)
+
+
+func _end_manpu() -> void:
+	_manpu_clip = ""
+	_sync_face_mood(true)
+
+
 func _on_talk_closed() -> void:
 	TalkCamera.end(get_tree())
 	ai.end_talk()
+	if get_tree() != null:
+		var ui := DialogueOverlay.find(get_tree())
+		if ui != null and ui.event_fired.is_connected(_on_talk_event):
+			ui.event_fired.disconnect(_on_talk_event)
+	_end_manpu()
 	## `aNPC_think_pitfall_main_proc`: a talk in the pit ends with `aNPC_ACT_REVIVE`.
 	if _pit == Pit.STRUGGLE:
 		_begin_revive()
@@ -974,6 +1025,11 @@ func _update_animation(delta: float, planar: Vector3) -> void:
 		_update_placeholder_anim(delta, planar)
 		return
 	var moving: bool = planar.length() > IDLE_SPEED
+	## A one-shot reaction plays out before the talk hold comes back.
+	if not _manpu_clip.is_empty():
+		if _clip == _manpu_clip and _body_anim.is_playing():
+			return
+		_manpu_clip = ""
 	var want: String = _clip_for(ai.kind(), moving)
 	var clip := _resolve_clip(want)
 	if clip.is_empty():

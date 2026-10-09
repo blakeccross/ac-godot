@@ -1529,3 +1529,20 @@ func _plot_with_house() -> WorldData:
 	house.occupy_grid = true
 	data.buildings.append(house)
 	return data
+
+
+func test_talk_line_reaction_plays_clip_and_glyph() -> void:
+	## `aNPC_check_manpu_demoCode`: a line's manpu code plays the reaction clip and its
+	## feel glyph; a reset code goes back to the talk hold.
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
+	Game.villagers.get_or_create(&"filbert").is_home = false
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	add_child(villager)
+	await get_tree().process_frame
+	if villager.animation_player() == null:
+		return
+	villager.cue_manpu("muka1")
+	assert_str(villager._manpu_clip).contains("muka1")
+	assert_str(String(villager._feel._kind)).is_equal("muka")
+	villager.cue_manpu("reset")
+	assert_str(villager._manpu_clip).is_empty()
