@@ -22,6 +22,8 @@ const ANIM_BREAK := &"ply_1_axe_break1"
 const ANIM_BREAK_WAIT := &"ply_1_axe_breakwait1"
 ## `Player_actor_MessageControl_Broken_axe`: the report waits 80 frames.
 const REPORT_DELAY_FRAMES := 80.0
+## `Player_actor_SetEffect_Broken_axe`: `AXE_BREAK1` frame the pieces fly off.
+const PIECES_FRAME := 15.0
 
 static var damage: int = 0
 

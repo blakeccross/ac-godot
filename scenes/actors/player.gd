@@ -2316,7 +2316,8 @@ func get_golden_item(item_id: StringName) -> void:
 
 
 ## `mPlayer_INDEX_BROKEN_AXE`: the axe gave out on the last swing. `AXE_BREAK1`, then
-## `AXE_BREAKWAIT1`; 80 frames on the report (0x3067) opens in its lilac window.
+## `AXE_BREAKWAIT1`; 80 frames on the report (0x3067) opens in its lilac window. The
+## halves fly off at frame 15 (`BrokenAxePiece`).
 func broken_axe() -> void:
 	while _busy and is_inside_tree():
 		await get_tree().physics_frame
@@ -2328,11 +2329,18 @@ func broken_axe() -> void:
 	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 8.0)
 	var frames: float = 0.0
 	var waiting: bool = false
+	var thrown: bool = false
 	while frames < AxeWear.REPORT_DELAY_FRAMES and is_inside_tree():
 		await get_tree().physics_frame
 		steps.add(get_physics_process_delta_time())
 		while steps.next():
 			frames += 1.0
+		## `Player_actor_SetEffect_Broken_axe`: the halves fly at frame 15.
+		if not thrown and frames >= AxeWear.PIECES_FRAME:
+			thrown = true
+			var rng := RandomNumberGenerator.new()
+			rng.randomize()
+			BrokenAxePiece.spawn_pair(get_parent(), global_position, facing_yaw(), rng)
 		if not waiting and _anim != null and not _anim.is_playing():
 			waiting = true
 			_play_body_loop(AxeWear.ANIM_BREAK_WAIT)
