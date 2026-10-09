@@ -648,7 +648,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 
 - [x] 4 residents share one town and one save; one plays at a time — see §1
 - [x] Each resident: own house and rooms, pockets, mailbox, catalogue, encyclopedia, own designs, friendships and errands, loan, HRA, diary and calendar (`PlayerRoster.PRIVATE_KEYS`). Their plots outdoors show their house size and their gyroid runs the visitor path (buy from their store, read their message)
-- [~] Residents write to each other: the other residents share the address book's first page with the Museum, and a posted letter goes straight to their mailbox (`PostUse.resident_candidates`, `PlayerRoster.deliver_mail`). Missing: the post office holding it until a delivery time
+- [x] Residents write to each other: the other residents share the address book's first page with the Museum, and a posted letter waits on the post office desk for the next round (9:00 / 17:00, `mPO_delivery_proc`) and arrives in their mailbox as unread mail (`PostUse.resident_candidates`, `PostBook.deliver`, `PlayerRoster.deliver_mail`)
 - [x] Visiting another town: two town slots (Slot A / Slot B, picked at the title), the traveller's own part in a passport; a visitor has no house there, can shop (Nookington's), gets a map from Copper, and can only leave through Porter (quitting drops the visit, like `save_menu` refusing a foreigner). The Wisp stays away from visitors
 - [x] Transfer rules: pockets and cash travel in the passport and the home copy keeps none ("you took all your items and cash with you", 0x5135); a passport is used once (copied home, then deleted); someone else's passport must be overwritten at Porter's (0x095E)
 

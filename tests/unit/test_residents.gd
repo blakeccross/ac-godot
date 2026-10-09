@@ -213,3 +213,25 @@ func test_the_disc_talk_runs_from_hello_to_loading_a_resident() -> void:
 	assert_bool(runner.done).is_true()
 	assert_int(talk.result).is_equal(PlayerSelectTalk.Result.LOAD)
 	assert_int(talk.chosen).is_equal(1)
+
+
+## `mPO_receipt_proc` → `mPO_delivery_proc`: a letter to a housemate waits on the desk for
+## the next round.
+func test_a_posted_letter_to_a_housemate_waits_for_the_round() -> void:
+	_two_residents()
+	Game.reset_session()
+	assert_int(SaveService.load_game(PATH, 0)).is_equal(OK)
+	Game.post.clear()
+	var id := StringName(str(PostUse.resident_candidates()[0]["id"]))
+	var mail := MailData.make_send(id, "Bob", "See you!", "Ann", &"player")
+	var idx: int = Game.inventory.add_mail(mail)
+	assert_int(idx).is_greater_equal(0)
+	assert_str(PostUse.send_mail_at(idx)).contains("deliver")
+	assert_int(Game.post.occupied_count()).is_equal(1)
+	var bob := Inventory.new()
+	bob.from_save(Game.roster.slots[1].get(PlayerRoster.KEY_INVENTORY, {}))
+	assert_int(bob.received_mail_count()).is_equal(0)
+	Game.post.deliver(Clock.absolute_minute(), Game._post_to_resident, true)
+	bob.from_save(Game.roster.slots[1].get(PlayerRoster.KEY_INVENTORY, {}))
+	assert_int(bob.received_mail_count()).is_equal(1)
+	assert_int(Game.post.occupied_count()).is_equal(0)

@@ -98,11 +98,18 @@ static func send_mail_at(index: int) -> String:
 		Game.inventory.remove_mail(index)
 		_refresh_mail_piles()
 		return "We'll send it to the Museum. Expect a reply tomorrow."
-	## `mPO_receipt_proc` for a housemate: it goes to their mailbox (`homes[].mailbox`).
+	## `mPO_receipt_proc` for a housemate: it waits on the desk for the next round
+	## (`mPO_delivery_proc`, 9:00 / 17:00), which takes it to their mailbox.
 	var resident: int = resident_slot_of(letter.recipient_id)
 	if resident >= 0:
-		if not Game.roster.deliver_mail(resident, letter.duplicate_mail()):
-			return "%s's mailbox is full." % letter.recipient_name
+		if Game.post.is_desk_full():
+			return "The desk is full — we can't take more mail."
+		var to_home: MailData = letter.duplicate_mail()
+		to_home.recipient_type = MailData.NameType.PLAYER
+		## It arrives as unread mail (`mMl_set_mail_font` on receipt), with or without a present.
+		to_home.font = MailData.LetterFont.RECV_PRESENT if to_home.present_item_id != &"" else MailData.LetterFont.RECV
+		if not Game.post.receipt_mail(to_home):
+			return "The desk is full — we can't take more mail."
 		Game.inventory.remove_mail(index)
 		_refresh_mail_piles()
 		return "We'll deliver your letter to %s!" % letter.recipient_name
