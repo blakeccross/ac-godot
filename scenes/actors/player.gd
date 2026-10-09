@@ -20,6 +20,10 @@ const POCKETS_FULL_MSG := 4936
 
 const ANIM_WAIT := "ply_1_wait1"
 ## `Player_actor_request_proc_index_fromRelease_creature` / `Look_Release_creature` timers.
+## `mPlayer_ANIM_SAISEN1` / `OMAIRI_US1`: the New Year coin toss and prayer at the well.
+const ANIM_SAISEN := &"ply_1_saisen1"
+const ANIM_OMAIRI := &"ply_1_omairi_us1"
+const SHRINE_STEP_FRAMES := 5.0
 ## `mPlayer_ANIM_CONFIRM1`: the mailbox hop and landing.
 const ANIM_CONFIRM := &"ply_1_confirm1"
 ## `cKF_SkeletonInfo_R_AnimationMove_ct_base(…, 8.0f, …)`.
@@ -2303,6 +2307,50 @@ func mail_jump(to: Vector3, yaw: float) -> void:
 		global_position = Vector3(lerpf(from.x, to.x, k), global_position.y, lerpf(from.z, to.z, k))
 		set_facing(lerp_angle(from_yaw, yaw, k))
 	_motor.reset(yaw)
+
+
+## `Player_actor_setup_main_Throw_money` → `_Pray`: step onto `to` turned to `yaw` over 5
+## frames, toss the coin (`SAISEN1`: the purse rustles at keyframe 9, the coin flies at
+## 33), then pray (`OMAIRI_US1`). `toss` false is a wish without money: the prayer only.
+func shrine_visit(to: Vector3, yaw: float, toss: bool, base_y: float) -> void:
+	_busy = true
+	var from: Vector3 = global_position
+	var from_yaw: float = _motor.facing
+	_motor.reset(from_yaw)
+	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 4.0)
+	var frame: float = 0.0
+	if toss:
+		_play_body_once(ANIM_SAISEN)
+	else:
+		_play_body_once(ANIM_OMAIRI)
+	var rustled: bool = false
+	var thrown: bool = false
+	while is_inside_tree():
+		await get_tree().physics_frame
+		steps.add(get_physics_process_delta_time())
+		while steps.next():
+			frame += 1.0
+		var k: float = clampf(frame / SHRINE_STEP_FRAMES, 0.0, 1.0)
+		global_position = Vector3(lerpf(from.x, to.x, k), global_position.y, lerpf(from.z, to.z, k))
+		set_facing(lerp_angle(from_yaw, yaw, k))
+		if toss and not rustled and frame >= 9.0:
+			rustled = true
+			Audio.play_se(&"coin_gasagoso", self)
+		if toss and not thrown and frame >= 33.0:
+			thrown = true
+			var rng := RandomNumberGenerator.new()
+			rng.randomize()
+			WellCoin.toss(get_parent(), global_position, base_y, rng)
+		if _anim == null or not _anim.is_playing():
+			break
+	_motor.reset(yaw)
+	if toss:
+		_play_body_once(ANIM_OMAIRI)
+		while is_inside_tree() and _anim != null and _anim.is_playing():
+			await get_tree().process_frame
+	play_wait_idle()
+	_busy = false
+	_gait = PlayerLocomotion.Gait.WAIT
 
 
 ## `Player_actor_setup_main_Mail_land`: `CONFIRM1` again at half speed as the box shuts,

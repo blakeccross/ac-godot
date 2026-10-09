@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -195,6 +195,18 @@ func execute(raw: String) -> String:
 				return "No player."
 			StepFx.umbrella_spray(tw_player.global_position, tw_player.facing_yaw())
 			return "Twirled."
+		"wish":
+			## The New Year's visit at the wishing well, coin and all (no question asked).
+			var ws_tree := Engine.get_main_loop() as SceneTree
+			var ws_player := Player.find(ws_tree)
+			var ws_well := ws_tree.get_first_node_in_group("wishing_well") as Node3D if ws_tree != null else null
+			if ws_player == null or ws_well == null:
+				return "No well."
+			var ws_stand: Array = ws_well.call("visit_stand")
+			var ws_at: Vector3 = ws_stand[0]
+			ws_player.global_position = ws_at
+			ws_player.shrine_visit(ws_at, float(ws_stand[1]), true, ws_well.global_position.y)
+			return "Wishing."
 		"manpu":
 			## `manpu <clip|code>`: the villager nearest the camera reacts as if a talk line
 			## called for it.

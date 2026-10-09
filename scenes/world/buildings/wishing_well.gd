@@ -19,6 +19,21 @@ const FRONT_CONE := deg_to_rad(22.5)
 @export var door_verb: StringName = &""
 
 var _talk: WishingWellTalk
+## Busy with a New Year's visit (`ac_hatumode_control`).
+var _visiting: bool = false
+
+const NEW_YEAR := &"new_years_day"
+## `aHTC_request`: "Will you throw money into the wishing well?" with 50 Bells, else
+## straight to "That is acceptable…"; Yes → "Thank you." (`mSP_get_sell_price(50)`).
+const MSG_ASK := 4396
+const MSG_THANKS := 4397
+const MSG_NO_MONEY := 4398
+const OFFERING := 50
+## `aHTC_set_talk_info_local`: no name, a red window.
+const NEW_YEAR_WINDOW := Color8(255, 60, 40)
+## `aHTC_inori` / `aHTC_saisen`: the player stands 20 GX across and 85 out from the well's
+## anchor unit — the middle of its front, 65 GX out from the centre — facing it.
+const VISIT_STAND_GX := 65.0
 
 
 func _ready() -> void:
@@ -45,6 +60,8 @@ func _in_front(actor: Node3D) -> bool:
 
 
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
+	if _visiting:
+		return []
 	if _talk != null or (ctx != null and not _in_front(ctx.actor as Node3D)):
 		return []
 	return [Interaction.of(Interaction.TALK, "Talk to the wishing well", 14)]
@@ -56,6 +73,8 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	var ui := DialogueOverlay.find(get_tree())
 	if ui == null:
 		return false
+	if Game.events != null and Game.events.is_active(NEW_YEAR):
+		return await _new_year_visit(ui, ctx)
 	var world: Node = ctx.world if ctx != null and ctx.world != null else World.find(get_tree())
 	_talk = WishingWellTalk.new(world, Game.inventory)
 	var dctx: DialogueContext = DialogueContext.from_game()
@@ -83,3 +102,45 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if summon:
 		WellSpirit.appear(self, player)
 	return true
+
+
+## Where the player stands to make a New Year's wish, and the way they face.
+func visit_stand() -> Array:
+	var fwd := Vector3(sin(global_rotation.y), 0.0, cos(global_rotation.y))
+	var stand: Vector3 = global_position + fwd * VISIT_STAND_GX * FieldCatalog.GX_TO_METERS
+	return [stand, atan2(-fwd.x, -fwd.z)]
+
+
+## `ac_hatumode_control`: the New Year's offering. With 50 Bells the well asks; paying throws
+## a coin in before the prayer, declining (or too little) prays without.
+func _new_year_visit(ui: DialogueOverlay, ctx: InteractionContext) -> bool:
+	_visiting = true
+	var inv: Inventory = Game.inventory
+	var can_pay: bool = inv != null and inv.wallet >= OFFERING
+	var dctx: DialogueContext = DialogueContext.from_game()
+	dctx.speaker_name = ""
+	dctx.voice_mode = DialogueVoice.Mode.CLICK
+	dctx.window_color = NEW_YEAR_WINDOW
+	var data: DialogueData = DialogueCatalog.conversation(
+		StringName("msg_%d" % (MSG_ASK if can_pay else MSG_NO_MONEY))
+	)
+	if data == null:
+		_visiting = false
+		return false
+	if ui.is_open():
+		ui.close()
+	ui.play(data, dctx)
+	var runner: DialogueRunner = ui.runner()
+	await ui.closed
+	var toss: bool = can_pay and runner != null and runner.last_choice_index == 0
+	if toss:
+		inv.set_wallet(inv.wallet - OFFERING)
+	var player := ctx.actor as Player if ctx != null else null
+	if player != null and is_instance_valid(player):
+		var stand: Array = visit_stand()
+		var at: Vector3 = stand[0]
+		at.y = player.global_position.y
+		await player.shrine_visit(at, float(stand[1]), toss, global_position.y)
+	_visiting = false
+	return true
+
