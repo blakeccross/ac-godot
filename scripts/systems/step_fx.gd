@@ -109,6 +109,46 @@ static func walk_step(bg: Array, pos: Vector3, yaw: float, attr: int) -> void:
 	_bush(host, at, 2, 0, winter)
 
 
+## `eSwing_Net_init` arg1 0 at `Player_actor_SetEffect_Swing_net`: 50 GX ahead, two petals
+## off a flower there, and through a bush (net low enough) five leaves, four snow puffs in
+## winter.
+static func swing_net(bg: Array, pos: Vector3, yaw: float) -> void:
+	var host := _bind(bg)
+	if host == null:
+		return
+	var at := _ahead(pos, yaw, 50.0)
+	var flower: int = flower_index(at)
+	if flower >= 0:
+		for _i: int in 2:
+			_fx(host, FieldFx.Kind.PETAL, at, 0.0, flower, 2)
+	if _data == null or _grid == null or FieldCollision.unit_attr_at(_data, _grid, at) != ATTR_BUSH:
+		return
+	var ground: float = FieldCollision.ground_y_at(_data, _grid, at)
+	if FieldCollision.has_floor(ground) and pos.y >= ground + 10.0 * GX:
+		return
+	for _i: int in 5:
+		TreeFx.bush_leaf(host, at, 3)
+	if Clock.season() == Clock.Season.WINTER:
+		for _i: int in 4:
+			TreeFx.bush_snow(host, at)
+
+
+## `eSwing_Net_init` arg1 1 on water: eight drops thrown out in a ring from 13 GX behind the
+## net (`MIZUTAMA`, speed set 5); true when it was water. `at` is the net head on the surface.
+static func net_splash(bg: Array, at: Vector3, yaw: float) -> bool:
+	var host := _bind(bg)
+	if host == null or _data == null or _grid == null:
+		return false
+	var attr: int = FieldCollision.unit_attr_at(_data, _grid, at)
+	if not (FieldCatalog.is_water_attr(attr) or attr == ATTR_WAVE):
+		return false
+	var drop := at + Vector3(sin(yaw), 0.0, cos(yaw)) * -13.0 * GX + Vector3(0.0, 5.0 * GX, 0.0)
+	for i: int in 8:
+		var a: float = deg_to_rad(45.0 * i + randf_range(-40.0, 40.0))
+		_fx(host, FieldFx.Kind.MIZUTAMA, drop, a, attr, 0x5000)
+	return true
+
+
 ## `eDashAsimoto_ct` — dash foot plants.
 static func dash_step(bg: Array, pos: Vector3, yaw: float, attr: int) -> void:
 	var host := _bind(bg)

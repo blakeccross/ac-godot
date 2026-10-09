@@ -114,10 +114,13 @@ var caught: Object = null
 var swing_timer: float = 0.0
 ## Everything this tick asked the scene to do, in order: `&"furi"` (swing whoosh),
 ## `&"get"` (catch SE), `&"hit"` (`AMI_HIT` + rumble), `&"splash"` (net dipped in water),
-## `&"stop_net"` (`Check_StopNet` fires for bugs and fish), `&"slip"` (skid SE + dust).
+## `&"stop_net"` (`Check_StopNet` fires for bugs and fish), `&"slip"` (skid SE + dust),
+## `&"swing_fx"` (leaves / petals 50 GX ahead, `Player_actor_SetEffect_Swing_net`).
 var events: Array[StringName] = []
 ## The actor the net hit when the swing was cut short (`Player_actor_CheckAndSet_UZAI_forNpc`).
 var hit_actor: Object = null
+## The net has already splashed this swing (one burst, not one a tick).
+var splashed: bool = false
 
 var _anim_stopped: bool = false
 
@@ -232,6 +235,7 @@ func _tick_slip(a_held: bool) -> void:
 
 func _begin_swing() -> void:
 	_set_state(State.SWING)
+	splashed = false
 	frame = 1.0
 	frame_speed = FRAME_SPEED
 	_anim_stopped = false
@@ -245,12 +249,16 @@ func _tick_swing(probe: Probe) -> void:
 	## Both checks read the keyframe before this tick advances it.
 	var hit: bool = false
 	var hit_by: Object = null
+	## `Player_actor_SetEffect_Swing_net`: once, as the keyframe passes 8.5–9.
+	if frame > 8.5 and frame <= 9.0:
+		events.append(&"swing_fx")
 	if frame > CATCH_AFTER_FRAME:
 		if probe.hit_actor != null:
 			hit = true
 			hit_by = probe.hit_actor
 		else:
-			if probe.line_bits & (LINE_WATER | LINE_UNDERWATER):
+			if probe.line_bits & (LINE_WATER | LINE_UNDERWATER) and not splashed:
+				splashed = true
 				events.append(&"splash")
 			if probe.line_bits & (LINE_WALL | LINE_GROUND):
 				hit = true

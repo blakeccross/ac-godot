@@ -2102,6 +2102,17 @@ func _net_events() -> void:
 				PlayerSe.net_get(self)
 			&"hit":
 				PlayerSe.net_hit(self)
+			&"swing_fx":
+				StepFx.swing_net(_bg(), global_position, _net.yaw)
+			&"splash":
+				var splash_bg: Array = _bg()
+				var head: Vector3 = _net_pos
+				if splash_bg.size() == 2:
+					var surface: float = FieldCollision.ground_y_at(splash_bg[0] as WorldData, splash_bg[1] as WorldGrid, head)
+					if FieldCollision.has_floor(surface):
+						head.y = surface
+				if StepFx.net_splash(splash_bg, head, _net.yaw):
+					Audio.play_se(&"ami_hit_water", self)
 			&"slip":
 				var bg: Array = _bg()
 				Audio.play_se(SE_SLIP, self)

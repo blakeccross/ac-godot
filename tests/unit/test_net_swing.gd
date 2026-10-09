@@ -269,3 +269,17 @@ func test_the_bee_swarm_is_netted_as_a_bee() -> void:
 	assert_str(String(catch_.bug.id)).is_equal("bee")
 	assert_int(swarm.phase).is_equal(BeeSwarm.Phase.DISAPPEAR)
 	swarm.queue_free()
+
+
+func test_the_swing_effect_fires_once_as_the_net_comes_down() -> void:
+	var net := NetSwing.new()
+	net.begin(false, 0.0, 0.0)
+	net._begin_swing()
+	var fired: int = 0
+	for i: int in 20:
+		net.events.clear()
+		net._tick_swing(NetSwing.Probe.new())
+		fired += net.events.count(&"swing_fx")
+		if net.state != NetSwing.State.SWING:
+			break
+	assert_int(fired).is_equal(1)
