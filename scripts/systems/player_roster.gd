@@ -20,7 +20,7 @@ const PRIVATE_KEYS: Array[String] = [
 	"first_job_hint_count", "valentine_year", "celebrated_birthday_year",
 	"birthday_present_npc", "birthday_card_day", "mother_mail", "radio_card", "calendar", "relationships",
 	"quests", "hra", "farway", "bank_gift_flags", "met_blanca", "mask_cat_scheduled",
-	"golden_shovel_shown",
+	"golden_shovel_shown", "museum_comp_mail",
 ]
 ## `DesignBook` keys that are the resident's own eight designs (`my_org`).
 const PRIVATE_DESIGN_KEYS: Array[String] = ["player", "order"]

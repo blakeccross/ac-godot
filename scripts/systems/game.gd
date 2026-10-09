@@ -221,6 +221,8 @@ var dust_flag: bool = false
 var golden_axe_got: bool = false
 ## `mPlib_Check_golden_item_get_demo_end(SHOVEL)`: the golden shovel's fanfare has played.
 var golden_shovel_shown: bool = false
+## `mPr_FLAG_MUSEUM_COMP_HANDBILL_*`: the museum-complete letter (`MuseumCompMail`). Saved.
+var museum_comp_mail: int = 0
 ## `mFI_GetDigStatus`'s `old_pos`: where the golden shovel last dug (session only).
 var golden_last_dig: Vector2i = Vector2i(-1, -1)
 ## `unk_nook_present_count`: presents Nook has handed over for codes this session.
@@ -1048,6 +1050,7 @@ func continue_game(slot: int = -1) -> void:
 	send_postoffice_gift()
 	update_notice_board()
 	mark_room()
+	MuseumCompMail.send()
 	if current_room_id != &"":
 		_change_scene(INTERIOR_SCENE)
 	else:
@@ -1279,6 +1282,7 @@ func reset_session() -> void:
 	dust_flag = false
 	golden_axe_got = false
 	golden_shovel_shown = false
+	museum_comp_mail = 0
 	golden_last_dig = Vector2i(-1, -1)
 	nook_code_gifts = 0
 	money_rock = ""
@@ -1594,6 +1598,7 @@ func to_save() -> Dictionary:
 		"dust_flag": dust_flag,
 		"golden_axe_got": golden_axe_got,
 		"golden_shovel_shown": golden_shovel_shown,
+		"museum_comp_mail": museum_comp_mail,
 		"money_rock": money_rock,
 		"money_rock_day": money_rock_day,
 		"mushrooms": mushrooms.duplicate(),
@@ -1716,6 +1721,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	dust_flag = bool(data.get("dust_flag", false))
 	golden_axe_got = bool(data.get("golden_axe_got", false))
 	golden_shovel_shown = bool(data.get("golden_shovel_shown", false))
+	museum_comp_mail = int(data.get("museum_comp_mail", 0))
 	money_rock = str(data.get("money_rock", ""))
 	money_rock_day = int(data.get("money_rock_day", -1))
 	signboards.clear()
@@ -2363,6 +2369,8 @@ func donate_museum_result(item_id: StringName, player_no: int = 0) -> Dictionary
 		out["set_name"] = MuseumDisplay.fossil_set_name(index)
 	out["completed_collection"] = _museum_collection_complete(category)
 	out["completed_museum"] = museum.is_complete()
+	if out["completed_museum"]:
+		MuseumCompMail.schedule()
 	out["message"] = _donate_message(out)
 	return out
 
