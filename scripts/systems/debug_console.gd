@@ -164,7 +164,8 @@ func execute(raw: String) -> String:
 			ui.call("open")
 			return "%d posts on the board." % Game.notice_board.count()
 		"sting":
-			## Bee sting: `sting` plays it, `sting off` / `sting on` sets the swollen face.
+			## Bee sting: `sting` plays it, `sting off` / `sting on` sets the swollen face,
+			## `sting swarm` lets a swarm loose.
 			var sting_tree := Engine.get_main_loop() as SceneTree
 			var mode: String = String(args[0]).to_lower() if not args.is_empty() else ""
 			if mode == "off" or mode == "on":
@@ -175,6 +176,9 @@ func execute(raw: String) -> String:
 			var who := sting_tree.get_first_node_in_group(Player.GROUP) as Player if sting_tree != null else null
 			if who == null:
 				return "No player in this scene."
+			if mode == "swarm":
+				BeeSwarm.spawn(who.get_parent(), who.global_position + Vector3(4.0, 2.5, 4.0), who)
+				return "A swarm is after you."
 			if mode == "mosquito":
 				who.run_stung_mosquito()
 				return "Itchy."
