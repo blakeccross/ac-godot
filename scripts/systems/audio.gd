@@ -15,6 +15,8 @@ var current_id: StringName = &""
 var arm_muted: bool = false
 
 var _players: Array[AudioStreamPlayer] = []
+## The playing track's level (`play_bgm`'s `level_db`).
+var bgm_trim_db: float = 0.0
 var _front: int = 0
 var _fade: Tween
 var _arm_player: AudioStreamPlayer
@@ -210,12 +212,16 @@ func sync_rain_syslev(
 	start_syslev(id, linear_to_db(Weather.syslev_volume(id, indoors)))
 
 
-func play_bgm(id: StringName) -> void:
+## `level_db` is `ps_comp->volume.ps_volume` (0 full; an event heard from the next acre
+## plays at half), and changes in place when the track is already playing.
+func play_bgm(id: StringName, level_db: float = 0.0) -> void:
 	if _fanfare_id != &"":
 		_fanfare_base = id
 		return
 	if id == current_id:
+		_set_bgm_trim(level_db)
 		return
+	bgm_trim_db = level_db
 	if id == &"":
 		stop_bgm()
 		return
@@ -229,21 +235,38 @@ func play_bgm(id: StringName) -> void:
 	var next_player: AudioStreamPlayer = _players[incoming]
 	var prev_player: AudioStreamPlayer = _players[_front]
 	next_player.stream = stream
-	next_player.volume_db = -40.0 if fade_sec > 0.0 else 0.0
+	next_player.volume_db = -40.0 if fade_sec > 0.0 else bgm_trim_db
 	next_player.play()
 	_kill_fade()
 	if fade_sec <= 0.0 or not prev_player.playing:
 		prev_player.stop()
-		next_player.volume_db = 0.0
+		next_player.volume_db = bgm_trim_db
 	else:
 		_fade = create_tween()
 		_fade.set_parallel(true)
-		_fade.tween_property(next_player, "volume_db", 0.0, fade_sec)
+		_fade.tween_property(next_player, "volume_db", bgm_trim_db, fade_sec)
 		_fade.tween_property(prev_player, "volume_db", -40.0, fade_sec)
 		_fade.chain().tween_callback(prev_player.stop)
 	_front = incoming
 	current_id = id
 	_start_arm_stem(id, next_player.volume_db)
+
+
+## `mBGMPsComp_volume_change_fieldSchedEv`: move the music's level (dB) without restarting it.
+func _set_bgm_trim(db: float) -> void:
+	if is_equal_approx(db, bgm_trim_db):
+		return
+	bgm_trim_db = db
+	if _players.is_empty() or not _players[_front].playing:
+		return
+	## Mid crossfade: leave it be — the level lands with the next change.
+	if _fade != null and _fade.is_running():
+		return
+	if fade_sec <= 0.0:
+		_players[_front].volume_db = db
+		return
+	_fade = create_tween()
+	_fade.tween_property(_players[_front], "volume_db", db, fade_sec)
 
 
 func stop_bgm() -> void:

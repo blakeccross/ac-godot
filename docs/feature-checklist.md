@@ -572,7 +572,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 - [x] Festival presenter: props, residents in their map slots (`data/events/event_map.json`, `FestivalCrowd`) with their slot's animations and talk, hidden from the field meanwhile
 
 - [x] New Year's Day — shrine crowd, Katrina's lottery, Tortimer. Missing: the hatsumōde queue choreography (`ac_hatumode_control`)
-- [x] Groundhog Day — crowd lines by minutes to 8:00; ten seconds after 8:00 the "groundhog", Mr. Resetti, pops up on the shrine acre with his weather line (`ac_ev_majin`, `aGHC_birth_reset`), then Tortimer's speech and weather verdict — `GroundhogResetti`, `SpeechTortimer`. Missing: the event title card and BGM handoff
+- [x] Groundhog Day — crowd lines by minutes to 8:00; ten seconds after 8:00 the "groundhog", Mr. Resetti, pops up on the shrine acre with his weather line (`ac_ev_majin`, `aGHC_birth_reset`), then Tortimer's speech and weather verdict — `GroundhogResetti`, `SpeechTortimer`. The shrine acre goes quiet for it (`EventBgm`). Missing: the event title card (msg 0x1743 + 14 / 0x1799 + 14)
 - [x] Valentine's Day — villagers send letters with chocolate (`VillagerLetters.send_valentines`)
 - [x] Snowman season / Kamakura — snow cabin with a resident guest (greeting game, Kamakura trade list); the snowman balls (`snowman_start`, `SnowmanPresenter`)
 - [x] Spring / Fall **Sports Fair** — residents in gym clothes at their stations with their lines; Tortimer. The games run: tug-of-war on a shared rope with a flag-waving referee (`TugOfWar`), ball toss into the baskets with cheers (`BallToss`, `TossBall`), and the four-lap foot race round the shrine with warm-up, starter's pistol, trips, finish and team swap (`FootRace`)
@@ -604,6 +604,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 
 - [~] Sequenced BGM engine (`jaudio_NES`, `m_bgm`, `audiorom.img`) — `audio.gd`, `bgm_catalog.gd`
 - [~] **24 hourly field themes**, rain theme, title, train, shops, museum, post office, police, house, Able's (`BgmCatalog`). Missing: the island
+- [x] Event music by acre (`mBGMFieldSchedEv`, `mbgm_event_data`): festivals play their track on their acre (shrine or pond) and at half volume one acre away, Halloween and Toy Day town-wide; Groundhog Day, the harvest festival and the meteor shower quiet their acre (codes 250+ are not sequences) — `EventBgm`, `Audio.play_bgm(id, level_db)`. The New Year countdown rows are not covered
 - [x] Music crossfades on the hour (`mBGMPs_FLAG_CROSSFADE` → `Audio.play_bgm` fade); rooms play their own music — no caves on the GameCube
 - [~] **K.K. Slider songs** — the Saturday show and aircheck music players (§30, `FurnitureMusic`)
 - [~] SFX bank (seq 242): footsteps by surface (`FootstepSe`), tools, UI, doors, catches (`SeCatalog`). Gaps where the converted bank lacks an SE

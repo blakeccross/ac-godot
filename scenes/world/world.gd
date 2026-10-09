@@ -39,6 +39,12 @@ static func find(tree: SceneTree) -> World:
 	return tree.get_first_node_in_group(GROUP) as World if tree != null else null
 
 
+## How often the event music checks which acre the player is in.
+const BGM_CHECK_SEC := 0.5
+var _bgm_check: float = 0.0
+var _event_bgm_now: Dictionary = {}
+
+
 func _process(delta: float) -> void:
 	## Windows fade on at 18:00 and off at 05:00 (`aPBOX_actor_move`'s 320-a-tick chase).
 	_light_steps.add(delta)
@@ -46,6 +52,13 @@ func _process(delta: float) -> void:
 	while _light_steps.next():
 		ticks += 1
 	VisualWindowLight.step_window_lights(self, ticks)
+	## `mBGMFieldSchedEv_move`: event music follows the player from acre to acre.
+	_bgm_check -= delta
+	if _bgm_check <= 0.0:
+		_bgm_check = BGM_CHECK_SEC
+		var want: Dictionary = _event_bgm()
+		if want != _event_bgm_now:
+			_play_outdoor_bgm()
 
 
 func _ready() -> void:
@@ -221,7 +234,23 @@ func _play_outdoor_bgm() -> void:
 	## Fresh station arrival owns `intro_arrive`; after a house exit we keep field BGM.
 	if Game.intro_station_active and not Game.intro_station_resume_debt:
 		return
+	var ev: Dictionary = _event_bgm()
+	_event_bgm_now = ev
+	if not ev.is_empty():
+		Audio.play_bgm(ev["id"] as StringName, float(ev["db"]))
+		return
 	Audio.play_bgm(BgmCatalog.outdoor_id(Clock.hour, Game.weather))
+
+
+## `mbgm_event_data` for where the player stands now ({} = the field's own music).
+func _event_bgm() -> Dictionary:
+	var mgr: EventManager = get_node_or_null("EventManager") as EventManager
+	var player := Player.find(get_tree())
+	if mgr == null or player == null or grid == null or Game.events == null:
+		return {}
+	var block: Vector2i = EventManager.cell_to_block(grid.world_to_cell(player.global_position))
+	return EventBgm.pick(Game.events.is_active, block, func(kind: String) -> Vector2i:
+		return mgr.block_of(kind) if mgr.has_block(kind) else Vector2i(-1, -1))
 
 
 func _spawn_player() -> void:
