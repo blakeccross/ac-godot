@@ -132,7 +132,7 @@ static func mouth_hold_for(name: String) -> int:
 ## Floating feel glyph for the manpu clip: each `npc_1_*` clip's own `feel_effect`
 ## (`smile` → `WARAU`, `gaaan` / `kiduku1` → `SHOCK`, `ha` → `HA`, `hirameki` →
 ## `HIRAMEKI_DEN`, `hate` → `GIMONHU`, `a` → `KANTANHU`, `aseru` / `kiduku2` → `ASE2`).
-## `muka` → `MUKA`, `love` → `LOVELOVE2`.
+## `muka` → `MUKA`, `love` → `LOVELOVE2`, `shituren` → `SITUREN`.
 ## `niko`, `musu`, `komari` and `lovelove` have none.
 static func feel_for(name: String) -> StringName:
 	var key := name.strip_edges().to_lower()
@@ -154,6 +154,8 @@ static func feel_for(name: String) -> StringName:
 		return &"ase"
 	if key.begins_with("muka"):
 		return &"muka"
+	if key.begins_with("shituren"):
+		return &"situren"
 	if key == "love1" or key == "love_i1":
 		return &"lovelove2"
 	return &""

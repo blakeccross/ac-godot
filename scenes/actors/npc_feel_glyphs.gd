@@ -68,9 +68,17 @@ const HEART_VISUAL := &"ef_lovelove02_00"
 const HEART_LIFE := 112
 const HEART_Y_GX := 16.0
 const HEART_SPIN := 10.55
+## `eSN_*`: heartbreak card set (0,10,7) in front of the NPC, rising 1.6 GX a tick for 8
+## ticks; whole → cracking (tick 60) → split, wobbling like the heart, fading 108 → 128.
+const SITUREN_VISUALS: Array[StringName] = [&"ef_situren01_00", &"ef_situren01_01", &"ef_situren01_02"]
+const SITUREN_LIFE := 128
+const SITUREN_AT := Vector3(0.0, 10.0, 7.0)
+const SITUREN_SPIN := 30.94
 
 ## Set by the owner before `play`: the NPC is turned toward the camera (`eMK_ct` side).
 var faces_camera: bool = true
+## The NPC's yaw (radians, Godot +Z forward) for effects placed in front of it (`eSN_init`).
+var npc_yaw: float = 0.0
 var _kind: StringName = &""
 var _frame: float = 0.0
 var _cycle: int = 0
@@ -111,6 +119,8 @@ func _process(delta: float) -> void:
 			_tick_muka()
 		&"lovelove2":
 			_tick_heart()
+		&"situren":
+			_tick_situren()
 		_:
 			clear()
 
@@ -161,6 +171,10 @@ func play(kind: StringName) -> void:
 			_mesh_host.position = Vector3(0.0, HEART_Y_GX * FieldCatalog.GX_TO_METERS, 0.0)
 			Audio.play_se(&"118", self)
 			_tick_heart()
+		&"situren":
+			_set_visual(SITUREN_VISUALS[0], 0.0)
+			Audio.play_se(&"13d", self)
+			_tick_situren()
 		_:
 			_kind = &""
 
@@ -336,6 +350,45 @@ func _tick_heart() -> void:
 	_mesh_host.scale = Vector3(sc.x * unit, sc.y * unit, lerpf(0.003, 0.014, clampf(float(t) / 30.0, 0.0, 1.0)) * unit)
 	_mesh_host.position.y = (HEART_Y_GX + heart_rise(t)) * FieldCatalog.GX_TO_METERS
 	_set_mesh_alpha(1.0 - clampf(float(t - 96) / 16.0, 0.0, 1.0))
+
+
+## Heartbreak card (0 whole, 1 cracking, 2 split) at tick `t`.
+static func situren_card(t: int) -> int:
+	if t == 60:
+		return 1
+	return 2 if t > 60 else 0
+
+
+## Heartbreak (x, y) matrix scale at tick `t` (`eSN_dw`).
+static func situren_scale(t: int) -> Vector2:
+	var base: float = lerpf(0.0, 0.0075, clampf(float(t) / 6.0, 0.0, 1.0))
+	var k: float = clampf(float(t) / 42.0, 0.0, 1.0)
+	var hi: float = lerpf(1.4, 1.0, k)
+	var lo: float = lerpf(0.6, 1.0, k)
+	var angle: float = deg_to_rad(SITUREN_SPIN) * float(t + 1)
+	return Vector2(
+		base * (lo + (sin(angle) + 1.0) * 0.5 * (hi - lo)),
+		base * (lo + (cos(angle) + 1.0) * 0.5 * (hi - lo))
+	)
+
+
+func _tick_situren() -> void:
+	var t: int = int(_frame)
+	if t >= SITUREN_LIFE:
+		clear()
+		return
+	_set_visual(SITUREN_VISUALS[situren_card(t)], 0.0075)
+	var sc: Vector2 = situren_scale(t)
+	var unit: float = _node_scale_for(1.0)
+	_mesh_host.scale = Vector3(sc.x * unit, sc.y * unit, 0.0075 * unit)
+	## World-space offset in front of the NPC, carried into the billboard's frame.
+	var rise: float = 1.6 * float(mini(t, 8))
+	var world := Vector3(
+		sin(npc_yaw) * SITUREN_AT.z, SITUREN_AT.y + rise, cos(npc_yaw) * SITUREN_AT.z
+	) * FieldCatalog.GX_TO_METERS
+	_mesh_host.position = global_basis.orthonormalized().inverse() * world
+	_tint_mesh(Color(1.0, 200.0 / 255.0, 1.0))
+	_set_mesh_alpha(1.0 - clampf(float(t - 108) / 20.0, 0.0, 1.0))
 
 
 func _show_warau_frame(card: int) -> void:

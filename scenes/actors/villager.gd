@@ -963,6 +963,7 @@ func cue_manpu(key: String) -> void:
 		if cam != null:
 			var to_cam: Vector3 = cam.global_position - global_position
 			_feel.faces_camera = Vector3(sin(_motor.facing), 0.0, cos(_motor.facing)).dot(to_cam) >= 0.0
+		_feel.npc_yaw = _motor.facing
 		_feel.play_for_manpu(key)
 
 
