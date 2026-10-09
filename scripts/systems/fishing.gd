@@ -77,9 +77,19 @@ class Outcome:
 	## than posted because `notice_rod` shows the report over the show-off pose and holds the
 	## pose until it is dismissed, so it belongs to that beat and not to the button press.
 	var catch_msg: int = 0
+	## `mSM_CHECK_LAST_FISH_GET`: this was the one species the fish page was missing.
+	var completes_record: bool = false
 
 	func caught() -> bool:
 		return fish != null and not pockets_full
+
+
+## `mSM_CHECK_LAST_FISH_GET`: every other fish is on the page and this one is not.
+static func completes_record(fish_id: StringName) -> bool:
+	var log: SpeciesLog = Game.species_log if Game != null else null
+	if log == null or log.has(fish_id) or EncyclopediaCatalog.kind_of(fish_id) != &"fish":
+		return false
+	return log.page_count(&"fish") == log.page_total(&"fish") - 1
 
 
 ## One beat of the reel-in: a player clip and the rod clip that plays under it.
@@ -96,6 +106,8 @@ class ReelBeat:
 	var pockets_full: bool = false
 	## Put in the free hand for the length of the beat. Null on an empty line.
 	var fish: FishData = null
+	## The catch finishes the fish page: 0x134A, `YATTA2` and the 0x4C jingle follow.
+	var completes_record: bool = false
 
 	func _init(
 		p_player: StringName = &"",
@@ -267,13 +279,11 @@ static func hook(ctx: InteractionContext, school: FishSchool = null) -> Outcome:
 ## An empty line is the single `collect_rod` beat, with nothing to show off.
 static func reel_beats(out: Outcome) -> Array[ReelBeat]:
 	if out != null and out.fish != null:
-		return [
-			ReelBeat.new(REEL_PULL, ROD_PULL),
-			ReelBeat.new(REEL_LAND, ROD_LAND),
-			ReelBeat.new(
-				REEL_SHOW, ROD_LAND, true, SHOW_HOLD_SECONDS, out.catch_msg, out.fish, out.pockets_full
-			),
-		]
+		var show := ReelBeat.new(
+			REEL_SHOW, ROD_LAND, true, SHOW_HOLD_SECONDS, out.catch_msg, out.fish, out.pockets_full
+		)
+		show.completes_record = out.completes_record
+		return [ReelBeat.new(REEL_PULL, ROD_PULL), ReelBeat.new(REEL_LAND, ROD_LAND), show]
 	return [ReelBeat.new(REEL_EMPTY, ROD_EMPTY)]
 
 
@@ -299,8 +309,12 @@ static func _resolve_hook(ctx: InteractionContext, school: FishSchool = null) ->
 		_end(school)
 		return out
 	out.fish = fish
+	out.completes_record = completes_record(fish.id)
 	var inventory: Inventory = ctx.inventory if ctx != null else null
 	if inventory == null or not inventory.has_space_for(fish, 1) or inventory.add(fish, 1) != 0:
+		## `mSM_COLLECT_FISH_SET` whether or not it fit.
+		if Game != null and Game.species_log != null:
+			Game.species_log.record(fish.id)
 		out.pockets_full = true
 		out.catch_msg = fish.catch_msg
 		_end(school)

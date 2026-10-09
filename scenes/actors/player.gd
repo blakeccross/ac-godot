@@ -13,6 +13,9 @@ const LOOK_HEIGHT := 0.85
 const INTERACT_REACH := 1.1
 
 ## `notice_rod` chains message 0x1348 onto the fish catch report when pockets are full.
+## `notice_rod`: the fish page finished (0x134A) under its own jingle (0x4C).
+const ROD_COMPLETE_MSG := 0x134A
+const ROD_COMPLETE_FANFARE := 0x4C
 const POCKETS_FULL_MSG := 4936
 
 const ANIM_WAIT := "ply_1_wait1"
@@ -1994,7 +1997,7 @@ func _play_show(beat: Fishing.ReelBeat) -> void:
 		if held < length:
 			await get_tree().create_timer(length - held).timeout
 	else:
-		await _report_catch(beat.catch_msg, beat.pockets_full, beat.fish)
+		await _report_catch(beat.catch_msg, beat.pockets_full, beat.fish, beat.completes_record)
 	_motor.facing = entry_yaw
 	await _play_putaway(skeleton)
 
@@ -2458,7 +2461,9 @@ func _net_wait_closed(ui: DialogueOverlay) -> void:
 ## species and the extracted bank has the line, pun and all. The rare three (stringfish,
 ## coelacanth, arapaima) run to two pages, which is why this plays a conversation through the
 ## runner instead of pushing a single string.
-func _report_catch(catch_msg: int, pockets_full: bool = false, fish: FishData = null) -> void:
+func _report_catch(
+	catch_msg: int, pockets_full: bool = false, fish: FishData = null, completes: bool = false
+) -> void:
 	if catch_msg == 0:
 		return
 	var ui := DialogueOverlay.find(get_tree())
@@ -2476,6 +2481,17 @@ func _report_catch(catch_msg: int, pockets_full: bool = false, fish: FishData = 
 	var jingle: StringName = BgmCatalog.id_for_num(Netting.FANFARE_CATCH)
 	Audio.push_fanfare(jingle)
 	await ui.closed
+	## `MessageControl_Notice_rod` states 1–2: the last fish of the page — "I've caught
+	## them all!", then `YATTA2` as the jingle turns to the collection-complete one (0x4C).
+	if completes:
+		var all: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % ROD_COMPLETE_MSG))
+		if all != null:
+			ui.play(all, null)
+			await ui.closed
+		_play_body_once(Netting.ANIM_YATTA)
+		Audio.pop_fanfare(jingle)
+		jingle = BgmCatalog.id_for_num(ROD_COMPLETE_FANFARE)
+		Audio.push_fanfare(jingle)
 	if pockets_full:
 		## "Swap" trades a pocket for the fish (`putaway_rod` → `mSM_IV_OPEN_EXCHANGE`).
 		if await _ask_swap(POCKETS_FULL_MSG) and fish != null:
