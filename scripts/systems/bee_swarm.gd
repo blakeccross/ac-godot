@@ -2,7 +2,10 @@ class_name BeeSwarm
 extends Node3D
 
 ## Bee nest swarm (`ac_bee`). Appears after a bee-tree shake, chases the player,
-## and stings once in range when the player is attackable.
+## and stings once in range when the player is attackable. Two seconds into the chase the net
+## can take it (`catch_delay_frames`): a swing under way within 40 GX catches it outright,
+## otherwise the net has to come within 24 GX; caught, it is a bee in the net
+## (`aBEE_caught`, `aINS_INSECT_TYPE_BEE`).
 
 enum Phase { APPEAR, FLY, ATTACK, DISAPPEAR }
 
@@ -14,13 +17,38 @@ const APPEAR_SEC := 0.45
 const CHASE_BGM := &"bee_chase"
 ## `Player_actor_Check_end_stung_bee`: the swarm leaves once the stung timer passes 162.
 const ATTACK_END_TICKS := 162.0
+## `aBEE_fly_init`: frames before the net can take it.
+const CATCH_DELAY_FRAMES := 60
+## `Set_Item_net_catch_request_force_proc` / `_table_proc` reaches.
+const FORCE_CATCH_GX := 40.0
+const NET_RANGE_GX := 24.0
+const BEE_ID := &"bee"
 
 var phase: Phase = Phase.APPEAR
 var attackable: bool = false
 
 var _player: Node3D
 var _elapsed: float = 0.0
+var _fly_time: float = 0.0
 var _mesh: MeshInstance3D
+
+
+static func find(tree: SceneTree) -> BeeSwarm:
+	if tree == null:
+		return null
+	return tree.get_first_node_in_group("bee_swarm") as BeeSwarm
+
+
+## Chasing and past `catch_delay_frames`: the net can take it.
+func netable() -> bool:
+	return phase == Phase.FLY and _fly_time * DecompTime.FRAME_HZ >= CATCH_DELAY_FRAMES
+
+
+## `aBEE_ACT_CAUGHT` → `DISAPPEAR`: the swarm is the bee in the net now.
+func caught() -> void:
+	phase = Phase.DISAPPEAR
+	_elapsed = 0.0
+	visible = false
 
 
 static func spawn(parent: Node, at: Vector3, player: Node3D) -> BeeSwarm:
@@ -80,6 +108,7 @@ func _process(delta: float) -> void:
 			if t >= 1.0:
 				phase = Phase.FLY
 		Phase.FLY:
+			_fly_time += delta
 			_chase(delta)
 		Phase.ATTACK:
 			## `aBEE_attack`: hang about until `mPlib_Check_end_stung_bee`.

@@ -78,6 +78,9 @@ class Probe:
 	var line_bits: int = 0
 	## `Player_actor_Check_OBJtoLine_forItem_net`: the actor the net's triangle touched.
 	var hit_actor: Object = null
+	## `Set_Item_net_catch_request_force_proc`: taken by any swing already under way (the
+	## bee swarm close by), whatever the net's reach.
+	var forced: Object = null
 	## `item_net_catch_*_request_table`: what registered this tick, in registration order.
 	var candidates: Array[Candidate] = []
 
@@ -283,6 +286,10 @@ func _catch_check(probe: Probe) -> int:
 	swing_timer += 0.5
 	if caught != null:
 		return 2
+	if probe.forced != null and swing_timer > 0.5:
+		caught = probe.forced
+		events.append(&"get")
+		return 1
 	for candidate: Candidate in probe.candidates:
 		if candidate == null or candidate.target == null:
 			continue

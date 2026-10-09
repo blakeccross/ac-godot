@@ -137,7 +137,7 @@ data tables before a category is called done.
 
 ## 9. Tools
 
-- [~] **Net** — hold A to ready, creep, skid out of a dash, release to swing; tick-exact catch sphere from keyframe 6; wall / ground / villager strike cuts the swing (`AMI_HIT`); empty swing → `STOP_NET` (`m_player_item_net`, `m_player_main_{ready,ready_walk,slip,swing,stop}_net`) — `net_swing.gd`, `netting.gd`. Missing: catching the bee swarm, swing effects. The golden net reaches further (21 GX)
+- [~] **Net** — hold A to ready, creep, skid out of a dash, release to swing; tick-exact catch sphere from keyframe 6; wall / ground / villager strike cuts the swing (`AMI_HIT`); empty swing → `STOP_NET` (`m_player_item_net`, `m_player_main_{ready,ready_walk,slip,swing,stop}_net`) — `net_swing.gd`, `netting.gd`. The bee swarm can be netted (see §bees). Missing: swing effects. The golden net reaches further (21 GX)
 - [~] **Fishing rod** — see §13 (`m_player_item_rod`) — `fishing.gd` (substantial)
 - [x] **Shovel** — dig and fill holes, bury items and pitfall seeds, dig up fossils, gyroids and shine spots, hit the money rock, plant saplings, bounce off stone (`hole_use.gd`, `buried_use.gd`, `MoneyRock`, `ToolUse`). The golden shovel turns up 100 Bells one new hole in ten
 - [x] **Axe** — chop trees (multi-hit → stump), the golden axe (`tree_use.gd`). It bounces off rocks and banks (`REFLECT_AXE`, `AXE_HANE1`) and wears out: 9 damage a stage, 1 a tree, 3 a bounce, seven chipped stages (`ITM_AXE_USE_1-7`, heads `tol_axe_1_b` / `_c`, `TOOL_BROKEN1-3`), then it breaks (`BROKEN_AXE`, report 0x3067) — `AxeWear`. Missing: the `ef_break_axe` pieces
@@ -225,7 +225,7 @@ data tables before a category is called done.
 - [~] Net swing hitbox, timing, whiff, bug flees (`ac_insect`, `ac_npc_act_chase_insect`) — `aINS_set_catch_range` (24 / 8 GX, facing gate from insect → player angle) + one-frame `Check_StopNet` panic — `net_swing.gd`, `bug_field.gd`, `bug_actor.gd`. Villagers chase bugs and fish shadows (`aNPC_ACT_CHASE_INSECT`, `VillagerOutdoor`)
 - [~] Bug spawn tables by month / time / habitat (tree trunk, flying, on flowers, on the ground, in the ground (mole cricket), by water, tree stumps, rotten food, street lamps at night) (`ac_set_ovl_insect`, `ac_insect_data`) — `bug_catalog.gd`, `bug_habitats.gd`
 - [x] **40 individual insect types** (`aINS_INSECT_TYPE_NUM`): butterflies, cicadas, bees/wasps, dragonflies, locusts, crickets, beetles, ladybugs, mantis, tarantula, firefly, cockroach, snail, mole cricket, pond skater, bagworm, pill bug, spider, ant, and mosquito (`ac_insect_h.h`, `ac_insect_data.c_inc`) — all 40 in `data/creatures`, moved by 16 behaviour families (`scripts/systems/bugs/`)
-- [~] Bee swarm from a shaken tree chases you and stings → swollen face; going indoors loses them (`ac_bee`) — `BeeSwarm`. Missing: netting the swarm
+- [x] Bee swarm from a shaken tree chases you and stings → swollen face; going indoors loses them (`ac_bee`) — `BeeSwarm`. Two seconds into the chase the net takes them: any swing under way within 40 GX, else the net's reach within 24 GX; netted, they're a bee to show off and pocket (`aBEE_caught`)
 - [x] Wasp nest = the bee swarm from a shaken tree (see above); getting stung — `BeeSwarm`, `Player.run_stung_bee`
 - [x] ~~Tarantula~~ — not in the GameCube game (the spider hangs from trees, `bug_mino`)
 - [x] Firefly glow at night near water in summer — `bug_hotaru.gd`
