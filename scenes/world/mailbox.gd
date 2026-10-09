@@ -27,6 +27,9 @@ const ANIM_FLAG_UP_WAIT := "obj_s_post_flag_on_wait1"
 const ANIM_FLAG_LOWER := "obj_s_post_flag_off1"
 const ANIM_OPEN := "obj_s_post_open1"
 
+## `aMBX_pl_wait` `posX` / `pos.z`.
+const STAND_GX := 24.0
+
 var _has_mesh: bool = false
 var _anim: AnimationPlayer
 var _flag_up: bool = false
@@ -93,11 +96,17 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 ## `aMBX_pl_open` / `aMBX_pl_close`: the lid finishes opening (its own multi-frame beat)
 ## before the Letters menu appears, and plays the same clip in reverse once that menu
 ## closes — the box is never mid-open while the player is browsing mail.
-func interact(action: Interaction, _ctx: InteractionContext) -> bool:
+func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if not is_owned() or action == null or action.id != Interaction.READ or Game == null or _checking:
 		return false
 	_checking = true
 	var inv: Inventory = Game.inventory
+	## `aMBX_pl_wait` → `aMBX_pl_open`: the player hops to the front corner of the box and
+	## turns to it, and the lid starts opening as the hop does.
+	var player: Player = ctx.actor as Player if ctx != null else null
+	if player != null:
+		var spot: Array = stand_spot(player.global_position)
+		player.mail_jump(spot[0] as Vector3, float(spot[1]))
 	await _play_clip(ANIM_OPEN)
 	if not is_instance_valid(self):
 		return true
@@ -113,11 +122,29 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 			Game.post_notice("You have %d letter(s). Check your Letters page." % inv.received_mail_count())
 	if not is_instance_valid(self):
 		return true
+	## `Player_actor_setup_main_Mail_land` runs as the menu closes, under the lid shutting.
+	if player != null and is_instance_valid(player):
+		player.mail_land()
 	await _play_clip(ANIM_OPEN, true)
 	if is_instance_valid(self):
 		_sync_flag(true)
 		_checking = false
 	return true
+
+
+## `aMBX_pl_wait`: 24 GX out in front and 24 to the side (right for even plots, left for
+## odd), facing back at the box. "In front" is whichever side of the box `from` is on.
+func stand_spot(from: Vector3) -> Array:
+	var to: Vector3 = from - global_position
+	var front := Vector3(signf(to.x), 0.0, 0.0) if absf(to.x) > absf(to.z) else Vector3(0.0, 0.0, signf(to.z))
+	if front == Vector3.ZERO:
+		front = Vector3.BACK
+	var right := Vector3(front.z, 0.0, -front.x)
+	var side: float = 1.0 if PlayerHouse.plot_of(String(occupant_id)) % 2 == 0 else -1.0
+	var spot: Vector3 = global_position + (front + right * side) * STAND_GX * FieldCatalog.GX_TO_METERS
+	spot.y = from.y
+	var back: Vector3 = global_position - spot
+	return [spot, atan2(back.x, back.z)]
 
 
 ## Delivered/read mail raises or lowers the flag (`ACTOR_PROP_MAILBOX0` flag SE), even

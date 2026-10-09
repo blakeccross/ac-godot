@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -173,6 +173,21 @@ func execute(raw: String) -> String:
 					tf_player.release_from_pocket(tf_fish, w)
 					return "Threw %s." % tf_fish.display_name
 			return "No bank found."
+		"mailbox":
+			## Walk up to the player's own mailbox and check it, as the A button would.
+			var mb_tree := Engine.get_main_loop() as SceneTree
+			var mb_player := Player.find(mb_tree) if mb_tree != null else null
+			if mb_player == null:
+				return "No player."
+			for node: Node in mb_tree.get_nodes_in_group("interactable"):
+				if node.has_method("stand_spot") and bool(node.call("is_owned")):
+					var mb_box := node as Node3D
+					mb_player.global_position = mb_box.global_position + Vector3(0.3, 0.0, 1.6)
+					var mb_ctx := InteractionContext.new()
+					mb_ctx.actor = mb_player
+					mb_box.call("interact", Interaction.of(Interaction.READ, "Check mailbox"), mb_ctx)
+					return "Checking the mailbox."
+			return "No mailbox."
 		"manpu":
 			## `manpu <clip|code>`: the villager nearest the camera reacts as if a talk line
 			## called for it.

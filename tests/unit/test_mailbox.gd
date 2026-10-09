@@ -197,3 +197,19 @@ func test_house_pick_survives_save_and_load() -> void:
 	assert_that(PlayerHouse.owned_building_id()).is_equal(&"player_house_3")
 	assert_bool(PlayerHouse.is_owned_node("player_house_3")).is_true()
 	assert_bool(PlayerHouse.is_owned_node("player_house")).is_false()
+
+
+func test_player_hops_to_the_front_corner_facing_the_box() -> void:
+	## `aMBX_pl_wait`: 24 GX out and 24 to the side, turned back at the box (±135°).
+	var box: Node3D = auto_free(load("res://scenes/world/mailbox.tscn").instantiate()) as Node3D
+	add_child(box)
+	box.global_position = Vector3.ZERO
+	var gx: float = FieldCatalog.GX_TO_METERS
+	var spot: Array = box.call("stand_spot", Vector3(0.1, 0.0, 2.0))
+	var at: Vector3 = spot[0] as Vector3
+	assert_float(at.z / gx).is_equal_approx(24.0, 0.001)
+	assert_float(absf(at.x) / gx).is_equal_approx(24.0, 0.001)
+	assert_float(absf(rad_to_deg(float(spot[1])))).is_equal_approx(135.0, 0.01)
+	## From the other side of the box the spot follows the player round.
+	var east: Array = box.call("stand_spot", Vector3(2.0, 0.0, 0.0))
+	assert_float((east[0] as Vector3).x / gx).is_equal_approx(24.0, 0.001)

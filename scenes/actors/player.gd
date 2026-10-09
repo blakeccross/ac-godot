@@ -20,6 +20,10 @@ const POCKETS_FULL_MSG := 4936
 
 const ANIM_WAIT := "ply_1_wait1"
 ## `Player_actor_request_proc_index_fromRelease_creature` / `Look_Release_creature` timers.
+## `mPlayer_ANIM_CONFIRM1`: the mailbox hop and landing.
+const ANIM_CONFIRM := &"ply_1_confirm1"
+## `cKF_SkeletonInfo_R_AnimationMove_ct_base(…, 8.0f, …)`.
+const MAIL_JUMP_FRAMES := 8
 const RELEASE_TICKS := 84
 const RELEASE_LOOK_TICKS := 60
 const ANIM_WALK := "ply_1_walk1"
@@ -2239,6 +2243,41 @@ func _run_net_catch() -> void:
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()
+
+
+## `Player_actor_setup_main_Mail_jump`: `CONFIRM1` while sliding onto `to` and turning to
+## `yaw` over its first 8 frames; the clip holds its last frame while the box is open.
+func mail_jump(to: Vector3, yaw: float) -> void:
+	var from: Vector3 = global_position
+	var from_yaw: float = _motor.facing
+	_motor.reset(from_yaw)
+	_play_body_once(ANIM_CONFIRM)
+	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 4.0)
+	var frame: int = 0
+	while frame < MAIL_JUMP_FRAMES and is_inside_tree():
+		await get_tree().physics_frame
+		steps.add(get_physics_process_delta_time())
+		while steps.next() and frame < MAIL_JUMP_FRAMES:
+			frame += 1
+		var k: float = float(frame) / float(MAIL_JUMP_FRAMES)
+		global_position = Vector3(lerpf(from.x, to.x, k), global_position.y, lerpf(from.z, to.z, k))
+		set_facing(lerp_angle(from_yaw, yaw, k))
+	_motor.reset(yaw)
+
+
+## `Player_actor_setup_main_Mail_land`: `CONFIRM1` again at half speed as the box shuts,
+## then the wait.
+func mail_land() -> void:
+	_play_body_once(ANIM_CONFIRM)
+	if _anim == null:
+		return
+	_anim.speed_scale = 0.5
+	var clip: StringName = _anim.current_animation
+	while is_inside_tree() and _anim.is_playing() and _anim.current_animation == clip:
+		await get_tree().process_frame
+	_anim.speed_scale = 1.0
+	if is_inside_tree() and not _anim.is_playing():
+		play_wait_idle()
 
 
 ## `mTG_release_proc` → `setup_main_Release_creature`: a bug from the pockets is let go
