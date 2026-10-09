@@ -66,6 +66,7 @@ func _ready() -> void:
 				own.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 				own.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 				own.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+				own.billboard_keep_scale = true
 				mi.set_surface_override_material(i, own)
 				_materials.append(own)
 	_draw()
