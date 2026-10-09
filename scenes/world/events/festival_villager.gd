@@ -12,6 +12,15 @@ var _home: Vector3
 var _pause: float = 0.0
 var _seq: int = 0
 var _term: int = -1
+var _rope: Node3D
+var _rope_home: Vector3
+## Ball toss (`BallToss`): what this thrower is doing, the balls in hand, its basket.
+var _toss_step: int = BallToss.Step.LOOK
+var _toss_left: int = 0
+var _toss_clock: float = 0.0
+var _toss_released: bool = false
+var _basket: Vector3 = Vector3.INF
+var _cheer_spot: int = 0
 
 
 ## Before `_ready`: copy the villager's looks onto the event actor.
@@ -47,8 +56,160 @@ func idle_clip() -> String:
 
 
 func setup() -> void:
+	if family == &"tunahiki":
+		_setup_tug()
+	elif family == &"tamaire":
+		_setup_toss()
 	_home = global_position
 	_pause = rng().randf_range(0.5, 3.0)
+
+
+## `aTNN0_birth` / `aTNN1_think_init_proc`: the referee steps aside and lays the rope; the
+## pullers take their places along it, facing in.
+func _setup_tug() -> void:
+	var gx := FieldCatalog.GX_TO_METERS
+	if slot == 0:
+		TugOfWar.reset()
+		_rope = Node3D.new()
+		_rope.name = "TugRope"
+		get_parent().add_child(_rope)
+		_rope_home = global_position + Vector3(TugOfWar.ROPE_OFS_GX.x, 0.0, TugOfWar.ROPE_OFS_GX.y) * gx
+		_rope.global_position = _rope_home
+		GeneratedVisual.attach(_rope, &"tol_rope_1")
+		global_position += Vector3(TugOfWar.REFEREE_OFS_GX.x, 0.0, TugOfWar.REFEREE_OFS_GX.y) * gx
+		play_clip(TugOfWar.CLIP_REFEREE, true)
+		return
+	var ofs: Vector2 = TugOfWar.puller_offset(slot)
+	global_position += Vector3(ofs.x, 0.0, ofs.y) * gx
+	home_yaw = deg_to_rad(90.0 * float(TugOfWar.dir_of(slot)))
+	rotation.y = home_yaw
+
+
+func _exit_tree() -> void:
+	if _rope != null and is_instance_valid(_rope):
+		_rope.queue_free()
+	## The cheerleader clears the balls away when the ball toss ends.
+	if family == &"tamaire" and slot == 0 and get_tree() != null:
+		for ball: Node in get_tree().get_nodes_in_group(&"toss_ball"):
+			ball.queue_free()
+
+
+func _basket_at(team: int) -> Vector3:
+	var mgr: EventManager = EventManager.find(get_tree())
+	if mgr == null or mgr.world == null:
+		return Vector3.INF
+	var block: Vector2i = TownSpace.block_of_cell(mgr.world.grid.world_to_cell(global_position))
+	return mgr.cell_position(EventManager.block_unit_to_cell(block, BallToss.BASKET_UNITS[team]))
+
+
+func _setup_toss() -> void:
+	_basket = _basket_at(BallToss.team_of(slot)) if slot > 0 else Vector3.INF
+	_toss_step = BallToss.Step.LOOK
+	_toss_clock = rng().randf_range(0.5, 3.0)
+	play_clip(BallToss.CLIP_LOOK if slot > 0 else BallToss.CLIP_CLAP, true)
+
+
+## One frame of the ball toss (`aTMN1_*` for throwers, `aTMN0_*` for the cheerleader).
+func _toss(delta: float) -> void:
+	if slot == 0:
+		_cheer(delta)
+		return
+	if _basket == Vector3.INF:
+		return
+	match _toss_step:
+		BallToss.Step.RUN:
+			if not is_moving():
+				_toss_step = BallToss.Step.PICK
+				play_clip(BallToss.CLIP_PICK, false)
+		BallToss.Step.PICK:
+			if clip_done():
+				_toss_left = BallToss.BALLS
+				_toss_step = BallToss.Step.TURN
+		BallToss.Step.TURN:
+			var to: Vector3 = _basket - global_position
+			if turn_to(atan2(to.x, to.z), delta):
+				_throw()
+		BallToss.Step.THROW:
+			_toss_clock += delta
+			if not _toss_released and _toss_clock >= BallToss.RELEASE_FRAME / DecompTime.FRAME_HZ:
+				_toss_released = true
+				_release_ball()
+			if clip_done():
+				_toss_left -= 1
+				if _toss_left > 0:
+					_throw()
+				else:
+					_toss_step = BallToss.Step.WATCH
+					_toss_clock = BallToss.WATCH_FRAMES / DecompTime.FRAME_HZ
+					play_clip("npc_1_wait1", true)
+		BallToss.Step.WATCH:
+			_toss_clock -= delta
+			if _toss_clock <= 0.0:
+				_toss_step = BallToss.Step.LOOK
+				_toss_clock = BallToss.LOOK_FRAMES / DecompTime.FRAME_HZ
+				play_clip(BallToss.CLIP_LOOK, true)
+		BallToss.Step.LOOK:
+			_toss_clock -= delta
+			if _toss_clock <= 0.0:
+				var spot: Vector2 = BallToss.next_spot(
+					Vector2(_basket.x, _basket.z) / FieldCatalog.GX_TO_METERS,
+					Vector2(global_position.x, global_position.z) / FieldCatalog.GX_TO_METERS, rng())
+				_toss_step = BallToss.Step.RUN
+				move_to(Vector3(spot.x, 0.0, spot.y) * FieldCatalog.GX_TO_METERS + Vector3(0.0, global_position.y, 0.0), 3.0, BallToss.CLIP_RUN)
+
+
+func _throw() -> void:
+	_toss_step = BallToss.Step.THROW
+	_toss_clock = 0.0
+	_toss_released = false
+	play_clip(BallToss.CLIP_THROW, false)
+
+
+## Frame 15 of `TAMANAGE1`: a ball leaves the hand (`eEC_EFFECT_TAMAIRE`).
+func _release_ball() -> void:
+	var ball := TossBall.new()
+	ball.team = BallToss.team_of(slot)
+	ball.basket = _basket
+	ball.add_to_group(&"toss_ball")
+	get_parent().add_child(ball)
+	var to: Vector3 = _basket - global_position
+	ball.global_position = global_position + Vector3(0.0, 40.0 * FieldCatalog.GX_TO_METERS, 0.0)
+	ball.launch(atan2(to.x, to.z), BallToss.launch_rise(rng()), BallToss.launch_speed(rng()))
+
+
+## `aTMN0`: the cheerleader walks between the teams and claps at each stop.
+func _cheer(delta: float) -> void:
+	_toss_clock -= delta
+	if is_moving() or _toss_clock > 0.0:
+		return
+	if _toss_step == BallToss.Step.RUN:
+		_toss_step = BallToss.Step.LOOK
+		_toss_clock = rng().randf_range(2.0, 4.0)
+		play_clip(BallToss.CLIP_CLAP, true)
+		return
+	var red: Vector3 = _basket_at(0)
+	var white: Vector3 = _basket_at(1)
+	if red == Vector3.INF:
+		return
+	var mid: Vector3 = (red + white) * 0.5
+	var spots: Array[Vector3] = [mid + Vector3(0.0, 0.0, 3.0), white + Vector3(-1.5, 0.0, 1.5), mid + Vector3(0.0, 0.0, 3.0), red + Vector3(1.5, 0.0, 1.5)]
+	_cheer_spot = (_cheer_spot + 1) % spots.size()
+	_toss_step = BallToss.Step.RUN
+	move_to(spots[_cheer_spot], WALK_SPEED)
+
+
+## One frame of the tug: the shared rope moves, the pullers move with it and pick their next
+## heave when a clip ends; the referee keeps the rope where it is pulled to.
+func _tug(delta: float) -> void:
+	TugOfWar.advance(delta, rng())
+	var gx := FieldCatalog.GX_TO_METERS
+	if slot == 0:
+		if _rope != null:
+			_rope.global_position = _rope_home + Vector3(TugOfWar.rope * gx, 0.0, 0.0)
+		return
+	global_position.x = _home.x + TugOfWar.rope_base * gx
+	if clip_done():
+		play_clip(TugOfWar.clip_for(TugOfWar.dir_of(slot)), false)
 
 
 func make_context() -> DialogueContext:
@@ -76,6 +237,12 @@ func talk_ended(script: BankTalk) -> void:
 
 
 func think(delta: float) -> void:
+	if family == &"tunahiki" and not talking:
+		_tug(delta)
+		return
+	if family == &"tamaire" and not talking:
+		_toss(delta)
+		return
 	if _data.is_empty():
 		return
 	if _data.has("term") and _tick_term():
