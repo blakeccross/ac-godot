@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -188,6 +188,13 @@ func execute(raw: String) -> String:
 					mb_box.call("interact", Interaction.of(Interaction.READ, "Check mailbox"), mb_ctx)
 					return "Checking the mailbox."
 			return "No mailbox."
+		"twirl":
+			## The umbrella twirl's spray at the player (`ef_kasamizu`; drops only in rain).
+			var tw_player := Player.find(Engine.get_main_loop() as SceneTree)
+			if tw_player == null:
+				return "No player."
+			StepFx.umbrella_spray(tw_player.global_position, tw_player.facing_yaw())
+			return "Twirled."
 		"manpu":
 			## `manpu <clip|code>`: the villager nearest the camera reacts as if a talk line
 			## called for it.

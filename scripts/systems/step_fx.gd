@@ -149,6 +149,15 @@ static func net_splash(bg: Array, at: Vector3, yaw: float) -> bool:
 	return true
 
 
+## `setup_main_Rotate_umbrella` → `ef_kasamizu`: 24 ticks of spray off the twirled canopy
+## (drops only fly while it rains).
+static func umbrella_spray(pos: Vector3, yaw: float) -> FieldFx:
+	var host := _bind([])
+	if host == null:
+		return null
+	return FieldFx.spawn(host, FieldFx.Kind.KASAMIZU, pos, yaw)
+
+
 ## `ef_turi_hamon`: a ring on the water at `at` (y on the surface), drifting along the
 ## river's flow (`mCoBG_GetWaterFlow`; still water gives angle 0, as on the disc).
 static func ripple(at: Vector3, arg: int) -> FieldFx:

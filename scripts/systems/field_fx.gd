@@ -4,14 +4,14 @@ extends Node3D
 ## One effect-controller particle for the player's step / skid / tumble effects:
 ## `ef_dust`, `ef_tumble_dust`, `ef_sandsplash`, `ef_mizutama`, `ef_yukidama`,
 ## `ef_yukihane`, `ef_sibuki`, `ef_hanabira`, `ef_turn_footprint`, `ef_tumble_bodyprint`,
-## the locomotive's `ef_kisha_kemuri` (smoke) / `ef_steam` (piston steam), and the water
-## ring `ef_turi_hamon`.
+## the locomotive's `ef_kisha_kemuri` (smoke) / `ef_steam` (piston steam), the water
+## ring `ef_turi_hamon`, and the umbrella twirl's spray (`ef_kasamizu` / `ef_kasamizutama`).
 ## Each ticks at the controller's 60 Hz: `*_mv`, then `timer--`, dead at 0. State is GX
 ## (40 GX = 2 m); the node itself lives in metres. `StepFx` decides which to spawn.
 
 enum Kind {
 	DUST, TUMBLE_DUST, SAND, MIZUTAMA, YUKIDAMA, YUKIHANE, SIBUKI, PETAL, TURN_PRINT, BODY_PRINT,
-	KISHA_KEMURI, STEAM, HAMON,
+	KISHA_KEMURI, STEAM, HAMON, KASAMIZU, KASAMIZUTAMA,
 }
 
 const GX := FieldCatalog.GX_TO_METERS
@@ -71,6 +71,10 @@ const KEMURI_LOD := 128.0 / 255.0
 ## `eTH_ct`: ring size per `arg0` (5 and up grow with `arg1`).
 const HAMON_SIZE: Array[float] = [0.036, 0.032, 0.024, 0.02, 0.014]
 const HAMON_ENV := Color8(0, 50, 50)
+## `eKasamizu_ct`: the spray leaves 45 GX up and 20 behind; a drop every other tick in rain.
+const KASAMIZU_FROM := Vector3(0.0, 45.0, -20.0)
+## `eKasamizutama_scale_table` (× 0.005), one row per two ticks.
+const KASAMIZUTAMA_SCALE: Array[float] = [0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0, 0.9, 0.7, 0.5]
 ## `ef_hanabira_model_tbl` by `arg0 / 3`; colour `arg0 % 3` → `flowerK_pal`.
 const PETAL_MODELS: Array[String] = ["ef_hana01_pa_a", "ef_hana01_co_a", "ef_hana01_tu_a", "ef_hana01_ha_a"]
 ## `mFM_SetFGPal` `flower_pal_idx_table[term]`.
@@ -202,6 +206,20 @@ func _construct() -> bool:
 			_ct_petal()
 		Kind.HAMON:
 			_ct_hamon()
+		Kind.KASAMIZU:
+			pos_gx += rot_y(KASAMIZU_FROM, angle)
+			timer = 24
+		Kind.KASAMIZUTAMA:
+			## `eKasamizutama_ct`: flung out 2.5 GX a tick, 45–90° off straight up about a
+			## random heading, the whole fan leaning 45° back from the player's facing.
+			var tilt: float = deg_to_rad(45.0 + randf() * 45.0)
+			var heading: float = randf() * TAU
+			var v := Vector3(
+				2.5 * sin(tilt) * sin(heading), 2.5 * cos(tilt), 2.5 * sin(tilt) * cos(heading)
+			)
+			vel = Basis(Vector3.UP, angle) * Basis(Vector3.RIGHT, deg_to_rad(-45.0)) * v
+			acc = Vector3(0.0, -0.105, 0.0)
+			timer = 20
 		Kind.KISHA_KEMURI:
 			## `eKishaK_ct`: scale 0, 80 frames, ±2.5 GX jitter; `arg0 == 1` drifts by `arg1`.
 			scale_gx = Vector3.ZERO
@@ -439,6 +457,14 @@ func _move() -> void:
 			scale_gx = Vector3.ONE * calc_adjust(timer, 0, 16, offset.y, offset.x)
 		Kind.MIZUTAMA, Kind.YUKIDAMA:
 			_move_drop()
+		Kind.KASAMIZU:
+			## `eKasamizu_mv`: rain only, `game_frame & 1`.
+			spec[0] += 1.0
+			if Weather.is_raining() and int(spec[0]) % 2 == 1 and get_parent() != null:
+				FieldFx.spawn(get_parent(), Kind.KASAMIZUTAMA, pos_gx * GX, angle)
+		Kind.KASAMIZUTAMA:
+			vel += acc
+			pos_gx += vel
 		Kind.HAMON:
 			## `eTH_mv`: the ring eases out to its size, fades with the timer, and drifts
 			## along the flow at `velocity.y`.
@@ -531,6 +557,10 @@ func _model_id() -> String:
 			return "ef_dust01"
 		Kind.HAMON:
 			return "ef_turi_hamon01_00"
+		Kind.KASAMIZU:
+			return ""
+		Kind.KASAMIZUTAMA:
+			return "ef_koke_suiteki01_00"
 		_:
 			return "ef_bodyprint01_00"
 
@@ -553,6 +583,8 @@ func _frame_names() -> Array[String]:
 			return _numbered("ef_sibuki01_%d_int_i4", 1, 4)
 		Kind.HAMON:
 			return ["ef_turi_hamon01_0"]
+		Kind.KASAMIZUTAMA:
+			return ["ef_koke_suiteki01_0_int_i4"]
 		Kind.PETAL:
 			## `mFM_obj_a_01_flower_pal[K * 9 + flower_pal_idx]` rows (pipeline `_pNN`).
 			var row: int = int(spec[1]) * 9 + FLOWER_PAL_IDX[clampi(Clock.term_idx(), 0, 17)]
@@ -678,6 +710,12 @@ func _draw() -> void:
 			f0 = sidx - 2
 			basis = Basis(Vector3.RIGHT, deg_to_rad(-30.0))
 			prim = Color8(200, 255, 255, 155 if arg0 == 0 else 235)
+		Kind.KASAMIZUTAMA:
+			var row: int = clampi((20 - timer) >> 1, 0, KASAMIZUTAMA_SCALE.size() - 1)
+			s = Vector3.ONE * KASAMIZUTAMA_SCALE[row] * 0.005 * GX / FieldCatalog.PIPELINE_SCALE
+			billboard = true
+			## `ef_koke_suiteki01_00_modelT`'s own `SetPrimColor`.
+			prim = Color8(200, 255, 255, 200)
 		Kind.HAMON:
 			prim = Color(1, 1, 1, spec[0] / 255.0)
 			env = HAMON_ENV
@@ -708,7 +746,7 @@ func _draw() -> void:
 	_holder.basis = basis * Basis.from_scale(s)
 	_mat.set_shader_parameter(&"intensity_alpha", kind in [
 		Kind.DUST, Kind.TUMBLE_DUST, Kind.MIZUTAMA, Kind.SIBUKI, Kind.TURN_PRINT, Kind.BODY_PRINT,
-		Kind.KISHA_KEMURI, Kind.STEAM, Kind.HAMON,
+		Kind.KISHA_KEMURI, Kind.STEAM, Kind.HAMON, Kind.KASAMIZUTAMA,
 	])
 	_mat.set_shader_parameter(&"mode", mode)
 	_mat.set_shader_parameter(&"mirror_uv", kind == Kind.HAMON)

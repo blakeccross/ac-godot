@@ -73,3 +73,31 @@ func test_a_fleeing_shadow_rings_by_size() -> void:
 	assert_int(puff.kage_ripple()).is_equal(0)
 	puff.size = FishData.SizeClass.XXL
 	assert_int(puff.kage_ripple()).is_equal(-1)
+
+
+func test_umbrella_twirl_sprays_only_in_rain() -> void:
+	## `eKasamizu_mv`: a drop every other tick of its 24 while it rains, from 45 GX up and
+	## 20 behind the twirler.
+	var host := Node3D.new()
+	add_child(host)
+	var was: StringName = Game.weather
+	Game.weather = &"rain"
+	var spray: FieldFx = FieldFx.spawn(host, FieldFx.Kind.KASAMIZU, Vector3.ZERO, 0.0)
+	assert_int(spray.timer).is_equal(24)
+	assert_float(spray.pos_gx.y).is_equal(45.0)
+	assert_float(spray.pos_gx.z).is_equal(-20.0)
+	for i: int in 24:
+		spray._move()
+	assert_int(host.get_child_count()).is_equal(1 + 12)
+	var drop := host.get_child(1) as FieldFx
+	assert_int(drop.timer).is_equal(20)
+	assert_float(drop.acc.y).is_equal_approx(-0.105, 0.00001)
+	assert_float(drop.vel.length()).is_equal_approx(2.5, 0.0001)
+	Game.weather = &"clear"
+	var dry: FieldFx = FieldFx.spawn(host, FieldFx.Kind.KASAMIZU, Vector3.ZERO, 0.0)
+	var before: int = host.get_child_count()
+	for i: int in 24:
+		dry._move()
+	assert_int(host.get_child_count()).is_equal(before)
+	Game.weather = was
+	host.queue_free()

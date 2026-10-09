@@ -110,8 +110,12 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 		return false
 	if not _field_ok(tool, ctx):
 		return false
-	## `ROTATE_UMBRELLA`: the twirl is the whole verb (clip + SE on the player).
+	## `ROTATE_UMBRELLA`: the twirl is the whole verb (clip + SE on the player), and in rain
+	## it flings water off the canopy (`ef_kasamizu`).
 	if tool.kind == ToolData.Kind.UMBRELLA:
+		var twirler := ctx.actor as Node3D
+		if twirler != null:
+			StepFx.umbrella_spray(twirler.global_position, facing_yaw(ctx))
 		return true
 	## `REFLECT_SCOOP` / `REFLECT_AXE` on the ball (`aBALL_STATE_PLAYER_HIT_*`).
 	var ball: FieldBall = ball_ahead(ctx)
