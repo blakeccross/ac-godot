@@ -97,3 +97,28 @@ func test_first_job_skips_the_academy() -> void:
 	var rng := RandomNumberGenerator.new()
 	assert_object(hra.mark(House.new(), Room.new(), null, Vector3i(2001, 7, 15), true, "Pat", rng)).is_null()
 	assert_bool(hra.member).is_false()
+
+
+func test_nook_brings_up_the_academy_the_day_after_the_first_job() -> void:
+	var hra := HappyRoomAcademy.new()
+	hra.first_job_done()
+	assert_bool(hra.take_nook_talk()).is_false()
+	hra.renew_day()
+	assert_int(hra.talk).is_equal(HappyRoomAcademy.Talk.DUE)
+	var saved: Dictionary = hra.to_save()
+	var back := HappyRoomAcademy.new()
+	back.apply_snapshot(saved)
+	assert_bool(back.take_nook_talk()).is_true()
+	assert_bool(back.take_nook_talk()).is_false()
+
+
+func test_no_marks_until_nook_has_told_you() -> void:
+	if not HappyRoomAcademy.available():
+		return
+	var hra := HappyRoomAcademy.new()
+	hra.first_job_done()
+	var rng := RandomNumberGenerator.new()
+	assert_object(hra.mark(House.new(), Room.new(), null, Vector3i(2002, 1, 2), false, "Ann", rng)).is_null()
+	hra.renew_day()
+	hra.take_nook_talk()
+	assert_object(hra.mark(House.new(), Room.new(), null, Vector3i(2002, 1, 2), false, "Ann", rng)).is_not_null()

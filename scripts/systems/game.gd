@@ -2195,6 +2195,8 @@ func _on_field_renewed(days: int) -> void:
 	melt_snowmen(days)
 	## `mAGrw_ClearSpoiledKabu` / `mAGrw_SpoilKabu` / `mAGrw_SpoilAllPossession`.
 	FieldItems.renew(FieldItems.sunday_passed(Clock.year, Clock.month, Clock.day, days), inventory, get_tree())
+	if hra != null and days > 0:
+		hra.renew_day()
 	var vt_rng := RandomNumberGenerator.new()
 	vt_rng.randomize()
 	_check_valentines(vt_rng)

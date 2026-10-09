@@ -179,7 +179,13 @@ func _begin_normal_talk(listener: Node3D) -> bool:
 	var house_data: DialogueData = (
 		DialogueCatalog.conversation(NookHouseTalk.DIALOGUE_ID) if not house_plan.is_empty() else null
 	)
-	if house_data != null:
+	var hra_data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % HappyRoomAcademy.NOOK_TALK)) \
+		if clerk < 0 and Game.hra != null and Game.hra.talk == HappyRoomAcademy.Talk.DUE and not Game.foreigner else null
+	if hra_data != null and Game.hra.take_nook_talk():
+		## `aNSC_WAIT_TYPE_HRATALK` comes before any house business.
+		data = hra_data
+		house_data = null
+	elif house_data != null:
 		data = house_data
 		NookHouseTalk.fill_context(talk_ctx, house_plan)
 		if house_plan.has("statues_built"):

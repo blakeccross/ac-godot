@@ -76,6 +76,13 @@ var mark_date: Vector3i = Vector3i.ZERO
 var hint_bits: int = 0
 var reward0: bool = false
 var reward1: bool = false
+## `mEv_SAVED_HRAWAIT` / `HRATALK`: the first job done, Nook tells you about the Academy the
+## next day; no marks until he has.
+var talk: int = Talk.NONE
+
+enum Talk { NONE, WAIT, DUE }
+## Nook's introduction (`aNSC_set_talk_info_start_wait4`, `aNSC_get_msg_no(-1)`).
+const NOOK_TALK := 0x082A
 
 static var _data: Dictionary = {}
 static var _visual_index: Dictionary = {}
@@ -414,7 +421,7 @@ func report_change(year: int, month: int, day: int) -> void:
 ## `mMkRm_MarkRoom` at game start: the letter to send, or null.
 func mark(house: House, main: Room, upper: Room, today: Vector3i, first_job: bool,
 		player: String, rng: RandomNumberGenerator) -> MailData:
-	if first_job or not available():
+	if first_job or talk != Talk.NONE or not available():
 		return null
 	if not member:
 		member = true
@@ -498,7 +505,7 @@ static func _letter(no: int, player: String, free: Dictionary, present: StringNa
 
 func to_save() -> Dictionary:
 	return {"member": member, "updated": updated, "date": [mark_date.x, mark_date.y, mark_date.z],
-		"hints": hint_bits, "reward0": reward0, "reward1": reward1}
+		"hints": hint_bits, "reward0": reward0, "reward1": reward1, "talk": talk}
 
 
 func apply_snapshot(d: Dictionary) -> void:
@@ -509,3 +516,23 @@ func apply_snapshot(d: Dictionary) -> void:
 	hint_bits = int(d.get("hints", 0))
 	reward0 = bool(d.get("reward0", false))
 	reward1 = bool(d.get("reward1", false))
+	talk = clampi(int(d.get("talk", Talk.NONE)), Talk.NONE, Talk.DUE)
+
+
+## `mEv_UnSetFirstJob`: the chores are done; Nook will bring up the Academy tomorrow.
+func first_job_done() -> void:
+	talk = Talk.WAIT
+
+
+## `mEv_RenewalDataEveryDay`.
+func renew_day() -> void:
+	if talk == Talk.WAIT:
+		talk = Talk.DUE
+
+
+## `aNSC_start_wait` / `aSHM_happy_academy2_init`: Nook's turn to tell you; once.
+func take_nook_talk() -> bool:
+	if talk != Talk.DUE:
+		return false
+	talk = Talk.NONE
+	return true
