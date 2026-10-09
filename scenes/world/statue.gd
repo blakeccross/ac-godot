@@ -8,6 +8,7 @@ extends StaticBody3D
 ## (`eye_tbl` / `mouth_tbl`, winter set in winter), and the house's `statue_rank` the
 ## size (`scltbl` on joint 2) and PRIM / ENV colours (gold, silver, bronze, jade). Reading
 ## it facing north within 50 GX plays `MSG_DOZOU` in a red window with the owner's name.
+## Glints twinkle over it now and then (`aDOU_setEffect`, `StatueSparkle`).
 
 const OFFSET_X_GX: Array[float] = [0.0, 200.0, -40.0, 160.0]
 const OFFSET_Z_GX: Array[float] = [200.0, 200.0, 280.0, 280.0]
@@ -42,12 +43,35 @@ const FEMALE_BONES: Array[String] = ["_girl_model", "_girl_face_model", "_girl_m
 var house_no: int = -1
 var _anchor := Vector3.ZERO
 var _model: Node3D = null
+## `arg0_f`…: ticks to the next glint.
+var _glint_wait: int = 0
+var _glint_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
+var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
 	add_to_group(GROUP)
 	_anchor = position
+	_rng.randomize()
 	refresh()
+
+
+func _process(delta: float) -> void:
+	if house_no < 0 or _model == null:
+		return
+	_glint_steps.add(delta)
+	while _glint_steps.next():
+		if _glint_wait > 0:
+			_glint_wait -= 1
+			continue
+		var rank: int = clampi(_rank(), 0, 3)
+		_glint_wait = StatueSparkle.next_wait(rank, _rng)
+		StatueSparkle.spawn(get_parent(), global_position, rank, _rng)
+
+
+func _rank() -> int:
+	var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+	return house.statue_rank if house != null else 0
 
 
 func apply_grid_yaw(_facing: WorldGrid.Facing) -> void:
