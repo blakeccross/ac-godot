@@ -247,7 +247,7 @@ data tables before a category is called done.
 - [x] **Pitfall**: bury a pitfall seed in a hole → invisible trap; player/villager falls in (`BURIED_PITFALL_HOLE`, `bIT_actor_pit_*`, `m_player_main_*_pitfall`) — the pit opens under them and closes after
 - [x] **Fossils**: 25 dug up unidentified → mailed to the museum or shown to Blathers → identified, donated or sold; skeleton groups — `FossilCatalog`, `FarwayBook`, `MuseumDialogue`
 - [x] ~~Fake rocks~~ — rocks are fixed obstacles on the GameCube (one is the money rock)
-- [~] Shovel bounces off ground it can't dig (`REFLECT_SCOOP`, `ply_1_not_dig1`): stone clangs, wood thuds, a bush rustles; water is an air swing — `ToolUse.scoop_outcome`. Missing: the step back and the dust (`eEC_EFFECT_DIG_SCOOP`)
+- [x] Shovel bounces off ground it can't dig (`REFLECT_SCOOP`, `ply_1_not_dig1`): stone clangs, wood thuds, a bush rustles; water is an air swing — `ToolUse.scoop_outcome`. The player steps back (4.8 GX a frame, braking 0.326 a tick, as the axe does off a bank) and two impact stars fly from the strike (`eEC_EFFECT_DIG_SCOOP` → `ef_impact_star`, `ImpactStar`)
 - [x] Groundhog Day: no digging. `ac_ghog` is the shrine-acre stand and Resetti the groundhog (see §Events)
 
 ## 15. Plants & flora

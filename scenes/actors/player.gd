@@ -133,6 +133,10 @@ var _demo_walk_speed: float = 0.0
 var _demo_walk_arrive: float = 0.0
 var _motor: PlayerLocomotion = PlayerLocomotion.new()
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
+## `Player_actor_Movement_Base_Braking_common(actor, 0.32625002f)`.
+const RECOIL_BRAKE := 0.32625002
+var _recoil_speed: float = 0.0
+var _recoil_yaw: float = 0.0
 var _busy: bool = false
 ## Station intro ride / guided walk — stage owns XZ/Y; skip snap + move_and_slide.
 var _cutscene_driven: bool = false
@@ -511,6 +515,7 @@ func _physics_process(delta: float) -> void:
 		planar = _tick_net(delta, input_dir, wish, stick, menu_open)
 	else:
 		planar = _motor.tick(delta, wish, stick, sprint and not menu_open, _busy or menu_open)
+	planar += _tick_recoil(delta)
 	velocity.x = planar.x
 	velocity.z = planar.z
 	_tick_talk_face(delta)
@@ -535,6 +540,21 @@ func _physics_process(delta: float) -> void:
 	_tick_tree_bump(delta)
 	_clear_auto_enter_block()
 	_try_auto_enter()
+
+
+## `SetAngleSpeedF_Reflect_scoop` / `_Reflect_axe`: knocked back at `speed_gx` (GX per
+## frame) the way the player faces, braking 0.32625 a tick (`Movement_axe_common`).
+func recoil(speed_gx: float) -> void:
+	_recoil_speed = speed_gx
+	_recoil_yaw = _motor.facing + PI
+
+
+func _tick_recoil(delta: float) -> Vector3:
+	if _recoil_speed <= 0.0:
+		return Vector3.ZERO
+	var v: float = _recoil_speed * 0.5 * FieldCatalog.GX_TO_METERS * DecompTime.TICK_HZ
+	_recoil_speed = maxf(_recoil_speed - RECOIL_BRAKE * delta * DecompTime.TICK_HZ, 0.0)
+	return Vector3(sin(_recoil_yaw), 0.0, cos(_recoil_yaw)) * v
 
 
 ## `Player_actor_CorrectWadeBlockBorder` then `Player_actor_Set_ScrollDemo_forWade` (walk /

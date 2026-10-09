@@ -20,6 +20,8 @@ const NOT_DIG_FRAME := 13.0
 enum Scoop { DIG, AIR, HIT_STONE, HIT_WOOD, HIT_BUSH }
 ## `mPlayer_ANIM_AXE_HANE1`: the axe bounces off a rock or a bank, contact on frame 15.
 const ANIM_AXE_HANE := &"ply_1_axe_hane1"
+## `SetAngleSpeedF_Reflect_*`: the knock-back speed (GX per frame).
+const REFLECT_STEP_BACK := 4.8
 const AXE_HIT_FRAME := 15.0
 ## `Player_actor_Check_axe_after`: a unit 31 GX or more above the feet is a bank.
 const AXE_BANK_GX := 31.0
@@ -118,12 +120,15 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 		var yaw: float = facing_yaw(ctx)
 		if tool.field_verb == Interaction.DIG:
 			ball.hit_by_shovel(who.global_position, yaw)
+			_reflect_scoop_fx(ctx)
 		else:
 			ball.hit_by_axe(who.global_position, yaw)
 		return true
 	if tool.field_verb == Interaction.AIR_AXE and axe_hits_bank(ctx):
 		## `REFLECT_AXE` with no actor: `AXE_HIT` and the hard rumble.
 		PlayerSe.axe_hit(ctx.actor if ctx != null else null)
+		if ctx != null and ctx.actor != null and ctx.actor.has_method("recoil"):
+			ctx.actor.call("recoil", REFLECT_STEP_BACK)
 		wear_axe(ctx, true)
 		_scare_fish(ctx)
 		_stress_bugs(ctx)
@@ -133,6 +138,7 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 		var outcome: Scoop = scoop_outcome(ctx)
 		if outcome >= Scoop.HIT_STONE:
 			PlayerSe.scoop_reflect(actor, outcome)
+			_reflect_scoop_fx(ctx)
 			_scare_fish(ctx)
 			_stress_bugs(ctx)
 			return true
@@ -233,6 +239,27 @@ static func _facing_empty_ground(ctx: InteractionContext) -> bool:
 		return false
 	var cell: Vector2i = facing_cell(ctx)
 	return grid.is_in_bounds(cell) and not grid.is_occupied(cell)
+
+
+## `Player_actor_SetEffectHit_Reflect_scoop` at frame 13: the player steps back (4.8) and two
+## impact stars fly from 37 GX ahead, 11 GX up (`eDig_Scoop_init` with `arg1` 1).
+static func _reflect_scoop_fx(ctx: InteractionContext) -> void:
+	var who := ctx.actor as Node3D if ctx != null else null
+	if who == null or not who.is_inside_tree():
+		return
+	if who.has_method("recoil"):
+		who.call("recoil", REFLECT_STEP_BACK)
+	var yaw: float = facing_yaw(ctx)
+	var gx: float = FieldCatalog.GX_TO_METERS
+	var hit: Vector3 = who.global_position + Vector3(37.0 * sin(yaw) + 2.0 * cos(yaw), 0.0, 37.0 * cos(yaw) - 2.0 * sin(yaw)) * gx
+	## `eDig_Scoop_init`: halfway between the strike and 30 GX ahead of the player.
+	var ahead: Vector3 = who.global_position + Vector3(sin(yaw), 0.0, cos(yaw)) * 30.0 * gx
+	var at := Vector3((hit.x + ahead.x) * 0.5, who.global_position.y + 11.0 * gx, (hit.z + ahead.z) * 0.5)
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var host: Node = who.get_parent()
+	for i: int in 2:
+		ImpactStar.spawn(host, at, yaw + deg_to_rad(22.5), i, rng)
 
 
 ## The ball within the tool's reach in front of the player, or null.
