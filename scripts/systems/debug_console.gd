@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -137,6 +137,42 @@ func execute(raw: String) -> String:
 			var du_item := StringName(String(args[0]) if not args.is_empty() else "conch")
 			du_player.run_dig_get(du_item, true, Vector2i(-1, -1), null)
 			return "Dug up %s." % du_item
+		"throwfish":
+			## `throwfish [fish id]`: stand at the nearest bank facing the water and let a fish go.
+			var tf_tree := Engine.get_main_loop() as SceneTree
+			var tf_player := Player.find(tf_tree) if tf_tree != null else null
+			var tf_world := World.find(tf_tree) if tf_tree != null else null
+			if tf_player == null or tf_world == null:
+				return "No field."
+			var tf_fish := ItemCatalog.get_item(StringName(str(args[0])) if args.size() >= 1 else &"crucian_carp") as FishData
+			if tf_fish == null:
+				return "No such fish."
+			var tf_is_water := func(at: Vector3) -> bool:
+				var attr: int = FieldCollision.unit_attr_at(tf_world.layout, tf_world.grid, at)
+				return attr >= 0 and FieldCatalog.is_water_attr(attr)
+			var tf_cells: Array[Vector2i] = []
+			for body: WaterBodies.Body in tf_world.fish.bodies:
+				tf_cells.append_array(body.cells)
+			var tf_from: Vector2i = tf_world.grid.world_to_cell(tf_player.global_position)
+			tf_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.distance_squared_to(tf_from) < b.distance_squared_to(tf_from))
+			for cell: Vector2i in tf_cells.slice(0, 80):
+				for dir: Vector2i in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+					var stand: Vector3 = tf_world.grid.cell_to_world(cell - dir * 2)
+					if tf_is_water.call(stand):
+						continue
+					var yaw: float = atan2(float(dir.x), float(dir.y))
+					var water: Variant = CreatureRelease.search_water(tf_is_water, stand, yaw)
+					if water == null:
+						continue
+					var ground: float = FieldCollision.ground_y_at(tf_world.layout, tf_world.grid, stand)
+					stand.y = ground if FieldCollision.has_floor(ground) else tf_player.global_position.y
+					tf_player.global_position = stand
+					tf_player.set_facing(yaw)
+					var w: Vector3 = water as Vector3
+					w.y = tf_world.fish.surface_at(w)
+					tf_player.release_from_pocket(tf_fish, w)
+					return "Threw %s." % tf_fish.display_name
+			return "No bank found."
 		"manpu":
 			## `manpu <clip|code>`: the villager nearest the camera reacts as if a talk line
 			## called for it.

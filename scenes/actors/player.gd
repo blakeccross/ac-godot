@@ -2241,6 +2241,33 @@ func _run_net_catch() -> void:
 	_update_focus()
 
 
+## `mTG_release_proc` → `setup_main_Release_creature`: a bug from the pockets is let go
+## 7 GX ahead and 13 up and flies off; a fish is thrown at `water` (`ac_gyo_release`).
+## Then the player stands and watches it go.
+func release_from_pocket(data: ItemData, water: Variant) -> void:
+	if data == null or _busy:
+		return
+	var freed: Object = null
+	var yaw: float = _motor.facing
+	if data is BugData:
+		var field: BugField = Netting.field_of(_make_context())
+		var bug := data as BugData
+		var habitat: BugData.Habitat = (bug.habitats[0] as BugData.Habitat) if not bug.habitats.is_empty() else BugData.Habitat.FLYING
+		var at: Vector3 = global_position + Vector3(
+			sin(yaw) * CreatureRelease.BUG_AHEAD_GX, CreatureRelease.BUG_UP_GX, cos(yaw) * CreatureRelease.BUG_AHEAD_GX
+		) * FieldCatalog.GX_TO_METERS
+		freed = field.spawn(bug, habitat, at, true) if field != null else null
+	elif data is FishData and water != null:
+		var host: Node = get_parent() if get_parent() != null else self
+		freed = FishRelease.throw(host, data as FishData, global_position, water as Vector3)
+	_busy = true
+	await _watch_release(freed, HeldTool.find_skeleton(_mesh))
+	_motor.reset(_motor.facing)
+	_motor.mode_changed = true
+	_busy = false
+	_gait = PlayerLocomotion.Gait.WAIT
+
+
 ## `main_Release_creature`: `WAIT1` for 84 ticks while the head follows what was let go
 ## for the first 60 (`Player_actor_Look_Release_creature`); it snaps back as the wait ends.
 func _watch_release(target: Object, skeleton: Skeleton3D) -> void:
@@ -2266,11 +2293,15 @@ func _watch_release(target: Object, skeleton: Skeleton3D) -> void:
 
 
 ## Where the released thing is now, or null once it is gone (`insect_flags.destruct`).
-static func _release_target_pos(target: Object) -> Variant:
-	if target == null or not is_instance_valid(target):
+static func _release_target_pos(target: Variant) -> Variant:
+	## A thrown fish frees itself in the water: test before anything reads its class.
+	if not is_instance_valid(target):
 		return null
 	if target is BugActor:
 		return null if (target as BugActor).f_destruct else (target as BugActor).position
+	if target is FishRelease:
+		var thrown := target as FishRelease
+		return thrown.global_position if thrown.exist and thrown.is_inside_tree() else null
 	if target is Node3D and (target as Node3D).is_inside_tree():
 		return (target as Node3D).global_position
 	return null

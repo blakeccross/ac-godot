@@ -150,6 +150,17 @@ func _tick_puffs(delta: float) -> void:
 	puffs = kept
 
 
+## `aGYR_in_water_move`: a fish thrown back leaves the same fading shadow, swimming on the
+## way it was thrown.
+func add_puff_at(at: Vector3, yaw: float, size: FishData.SizeClass) -> void:
+	var puff := Puff.new()
+	puff.position = Vector3(at.x, surface_at(at) - FishSize.depth(), at.z)
+	puff.yaw = yaw
+	puff.size = size
+	puff.speed = FishSize.escape_speed()
+	puffs.append(puff)
+
+
 func _add_puff(shadow: FishShadow) -> void:
 	var puff := Puff.new()
 	puff.position = shadow.position

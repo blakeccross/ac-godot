@@ -46,6 +46,10 @@ var equipment_id: StringName = &""
 ## `inv_ovl->shovel_flag` with a scoop held: the pockets opened facing a hole, so items
 ## can be buried (`mTG_TYPE_FIELD_DEFAULT_BURY`). Set by the pockets overlay on open.
 var bury_ready: bool = false
+## Set as the pockets open on the field (`inv_ovl->release_flag` / `release_pos`): bugs can be
+## let go outdoors; fish only with water ahead.
+var release_outdoors: bool = false
+var release_water: Variant = null
 ## Pockets-menu backdrop (`Now_Private->backgound_texture`, `mTG_TABLE_BG`). "" = default.
 var background_id: StringName = &""
 var selected_index: int = 0
@@ -796,6 +800,9 @@ func tags_for_slot(index: int) -> PackedStringArray:
 	## spot's hole grows the golden tree. Not the one in hand.
 	var in_hand: bool = data.category == ItemData.Category.TOOL and slot.item.item_id == equipment_id \
 			and count_of(slot.item.item_id) <= 1
+	## `mTG_TYPE_FIELD_RELEASE`: grab / let go / quit.
+	if CreatureRelease.can_release(data, release_outdoors, release_water != null):
+		tags.append("Release")
 	if bury_ready and data.plant_id == &"" and data.category != ItemData.Category.BUG and not in_hand:
 		tags.append("Bury")
 	if data is FurnitureData and Game.is_decorating():

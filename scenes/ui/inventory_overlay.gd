@@ -1076,6 +1076,7 @@ func open() -> void:
 		_hand_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	Game.inventory.clear_hand()
 	Game.inventory.bury_ready = PlantGrowth.scoop_plant_ready(_field_context())
+	_find_release_water()
 	_sync_portrait_equipment(true)
 	_sync_portrait_cloth()
 	_play_hand_clip("hnd_sasu", true)
@@ -1732,6 +1733,18 @@ func _run_tag(tag: String) -> void:
 				var msg: String = inv.use_slot(idx)
 				if msg != "":
 					Game.post_notice(msg)
+		"Release":
+			## `mTG_release_proc`: out of the pockets, then the player lets it go.
+			var rel_slot: InventorySlot = inv.slot_at(idx)
+			if rel_slot == null or rel_slot.is_empty():
+				return
+			var rel_data: ItemData = ItemCatalog.get_item(rel_slot.item.item_id)
+			var rel_water: Variant = inv.release_water
+			var rel_player: Player = Player.find(get_tree())
+			inv.remove_from_slot(idx, 1)
+			close()
+			if rel_player != null:
+				rel_player.release_from_pocket(rel_data, rel_water)
 		"Bury":
 			## `mTG_TYPE_FIELD_DEFAULT_BURY`: put it in the hole and scoop it shut.
 			var bury_ctx: InteractionContext = _field_context()
@@ -1993,6 +2006,28 @@ func _spawn_pickup(item: ItemData, _lateral_offset: float = 0.0, wrapped: bool =
 	if pickup.has_method("begin_fall"):
 		pickup.call("begin_fall", start, land, 0.55)
 	return true
+
+
+## `mSM_IV_OPEN_NORMAL`: on the field, look for water ahead of the player for a fish.
+func _find_release_water() -> void:
+	var inv: Inventory = Game.inventory
+	var ctx: InteractionContext = _field_context()
+	var world: World = ctx.world as World
+	var player: Player = ctx.actor as Player
+	inv.release_outdoors = world != null and player != null
+	inv.release_water = null
+	if not inv.release_outdoors:
+		return
+	var layout: WorldData = world.layout
+	var grid: WorldGrid = world.grid
+	var found: Variant = CreatureRelease.search_water(func(at: Vector3) -> bool:
+		var attr: int = FieldCollision.unit_attr_at(layout, grid, at)
+		return attr >= 0 and FieldCatalog.is_water_attr(attr),
+		player.global_position, player.facing_yaw())
+	if found != null:
+		var water: Vector3 = found as Vector3
+		water.y = world.fish.surface_at(water)
+		inv.release_water = water
 
 
 func _field_context() -> InteractionContext:

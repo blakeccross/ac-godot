@@ -32,6 +32,8 @@ var _steps := FrameStepper.new()
 var _index: int = 0
 var _scale: float = 1.0
 var _lift: float = 0.0
+## Off for a fish thrown back (`aGYR_actor_draw` sets its own rotation).
+var billboard: bool = true
 
 
 static func create(fish: FishData) -> HeldFish:
@@ -88,6 +90,8 @@ func _ready() -> void:
 	## The hold is written in world terms, so the local scale has to undo the rig's own. Done
 	## here as well as in `_billboard` so the first drawn frame is already the right size,
 	## rather than the rig's scale showing through until the fish first sees a camera.
+	if not billboard:
+		return
 	var hand: Node3D = get_parent_node_3d()
 	var rig: float = hand.global_transform.basis.get_scale().y if hand != null else 1.0
 	if rig > 0.0:
@@ -153,6 +157,8 @@ func _show(pose: int) -> void:
 
 ## `Matrix_mult(&play->billboard_matrix)` — the fish faces the camera, not the hand it is in.
 func _billboard() -> void:
+	if not billboard:
+		return
 	var camera: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
 	if camera == null:
 		return
