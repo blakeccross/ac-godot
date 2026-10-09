@@ -19,6 +19,9 @@ const ROD_COMPLETE_FANFARE := 0x4C
 const POCKETS_FULL_MSG := 4936
 
 const ANIM_WAIT := "ply_1_wait1"
+## `Player_actor_request_proc_index_fromRelease_creature` / `Look_Release_creature` timers.
+const RELEASE_TICKS := 84
+const RELEASE_LOOK_TICKS := 60
 const ANIM_WALK := "ply_1_walk1"
 const ANIM_RUN := "ply_1_run1"
 const ANIM_DASH := "ply_1_dash1"
@@ -2223,9 +2226,10 @@ func _run_net_catch() -> void:
 		if catch_.banked:
 			await _net_putaway(skeleton)
 		else:
-			## `release_creature`: let it go from the hand.
-			Netting.release(catch_, field, left_hand_global())
+			## `release_creature`: let it go from the hand, then stand and watch it go.
+			var freed: BugActor = Netting.release(catch_, field, left_hand_global())
 			HeldCatch.unbind(skeleton)
+			await _watch_release(freed, skeleton)
 	_motor.reset(_motor.facing)
 	_motor.mode_changed = true
 	if _anim != null:
@@ -2235,6 +2239,41 @@ func _run_net_catch() -> void:
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()
+
+
+## `main_Release_creature`: `WAIT1` for 84 ticks while the head follows what was let go
+## for the first 60 (`Player_actor_Look_Release_creature`); it snaps back as the wait ends.
+func _watch_release(target: Object, skeleton: Skeleton3D) -> void:
+	var look := PlayerHeadLook.new()
+	look.bind(skeleton, _anim)
+	_play_body_loop(StringName(ANIM_WAIT))
+	var steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
+	var ticks: int = 0
+	while ticks < RELEASE_TICKS and is_inside_tree():
+		await get_tree().physics_frame
+		steps.add(get_physics_process_delta_time())
+		while steps.next() and ticks < RELEASE_TICKS:
+			ticks += 1
+			var want := Vector2.ZERO
+			var at: Variant = _release_target_pos(target)
+			if ticks <= RELEASE_LOOK_TICKS and at != null:
+				want = PlayerHeadLook.want(global_position + Vector3(0.0, PlayerHeadLook.EYE_GX * FieldCatalog.GX_TO_METERS, 0.0),
+					_motor.facing, at as Vector3)
+			look.body_yaw = _motor.facing
+			look.step(want)
+	look.angle = Vector2.ZERO
+	look.unbind()
+
+
+## Where the released thing is now, or null once it is gone (`insect_flags.destruct`).
+static func _release_target_pos(target: Object) -> Variant:
+	if target == null or not is_instance_valid(target):
+		return null
+	if target is BugActor:
+		return null if (target as BugActor).f_destruct else (target as BugActor).position
+	if target is Node3D and (target as Node3D).is_inside_tree():
+		return (target as Node3D).global_position
+	return null
 
 
 ## `main_Pull_net`: `GET_M1` plays out; the insect shows in the left hand past keyframe 15,

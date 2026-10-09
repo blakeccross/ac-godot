@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -151,6 +151,22 @@ func execute(raw: String) -> String:
 				ab_player.call("broken_axe")
 				return "The axe broke."
 			return "Axe at stage 7, one swing from breaking."
+		"release":
+			## Watch something drift off up and to the left, as after letting a bug go.
+			var rl_tree := Engine.get_main_loop() as SceneTree
+			var rl_player := Player.find(rl_tree) if rl_tree != null else null
+			if rl_player == null:
+				return "No player."
+			## Parented to the player so it keeps its offset wherever the player is put.
+			var mark := Node3D.new()
+			rl_player.add_child(mark)
+			var rl_yaw: float = rl_player.facing_yaw()
+			## `release [turn° [height m]]`: where the thing goes, from the player's facing.
+			var rl_turn: float = deg_to_rad(float(args[0]) if args.size() >= 1 else 50.0)
+			var rl_up: float = float(args[1]) if args.size() >= 2 else 3.0
+			mark.position = Vector3(sin(rl_yaw + rl_turn), 0.0, cos(rl_yaw + rl_turn)) * 2.5 + Vector3(0.0, rl_up, 0.0)
+			rl_player.call("_watch_release", mark, HeldTool.find_skeleton(rl_player.get("_mesh")))
+			return "Watching."
 		"time":
 			return _cmd_time(args)
 		"bells":
