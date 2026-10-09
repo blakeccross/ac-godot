@@ -1459,6 +1459,9 @@ _GX_SIZ = {"G_IM_SIZ_4b": 0, "G_IM_SIZ_8b": 1, "G_IM_SIZ_16b": 2, "G_IM_SIZ_32b"
 _SETTIMG_RE = re.compile(
     r"gsDPSetTextureImage_Dolphin\(\s*(G_IM_FMT_\w+)\s*,\s*(G_IM_SIZ_\w+)\s*,\s*\d+\s*,\s*\d+\s*,\s*(\w+)\s*\)"
 )
+_SETTIMG_DIMS_RE = re.compile(
+    r"gsDPSetTextureImage_Dolphin\(\s*G_IM_FMT_\w+\s*,\s*G_IM_SIZ_\w+\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\w+)\s*\)"
+)
 ## Texture banks are `u8 sym[] … = { #include "assets/….inc" }`; inline tables (evw anime
 ## patterns) are not textures.
 _U8_SYMBOL_RE = re.compile(r"\bu8\s+(ef_\w+)\s*\[\][^=]*=\s*\{\s*#include")
@@ -1486,6 +1489,39 @@ def effect_dl_frame_formats(model_sources: dict[str, str]) -> dict[str, tuple[in
     return out
 
 
+def effect_dl_frame_dims(model_sources: dict[str, str]) -> dict[str, list[tuple[int, int]]]:
+    """Texture prefix → the (width, height) loads of the `ef_*` model files it belongs to.
+
+    A frame bank swapped onto `anime_N_txt` is not named in any model DL, so its size comes
+    from the loads of the model file whose stem (less its trailing `_NN`) it shares:
+    `ef_buruburu01_00.c` loads `anime_1_txt` 32×16, so `ef_buruburu01_0_int_i4` is 32×16.
+    Directly loaded textures are keyed by their own name."""
+    out: dict[str, list[tuple[int, int]]] = {}
+    for fname, text in model_sources.items():
+        prefix = Path(fname).stem.rsplit("_", 1)[0] + "_"
+        for w, h, sym in _SETTIMG_DIMS_RE.findall(text):
+            dims = (int(w), int(h))
+            key = prefix if sym.startswith("anime_") else sym
+            if dims not in out.setdefault(key, []):
+                out[key].append(dims)
+    return out
+
+
+def effect_frame_size(name: str, pixels: int, dl_dims: dict[str, list[tuple[int, int]]]) -> tuple[int, int] | None:
+    """A frame's size: square when its pixel count is, else a model load it matches."""
+    side = int(round(pixels ** 0.5))
+    if side * side == pixels:
+        return side, side
+    candidates = list(dl_dims.get(name, []))
+    for key, dims in dl_dims.items():
+        if key.endswith("_") and name.startswith(key):
+            candidates.extend(dims)
+    for w, h in candidates:
+        if w * h == pixels:
+            return w, h
+    return None
+
+
 def _effect_model_sources(cfg: PipelineConfig) -> dict[str, str]:
     from .fgdata import _guess_decomp
 
@@ -1501,9 +1537,11 @@ def _effect_model_sources(cfg: PipelineConfig) -> dict[str, str]:
 
 
 def _convert_effect_frames(cfg: PipelineConfig, rel: RelData, symbols: list) -> list[dict[str, Any]]:
-    """Square effect frame textures → `textures/rel/{symbol}.png` (native decode)."""
+    """Effect frame textures → `textures/rel/{symbol}.png` (native decode)."""
     results: list[dict[str, Any]] = []
-    dl_formats = effect_dl_frame_formats(_effect_model_sources(cfg))
+    sources = _effect_model_sources(cfg)
+    dl_formats = effect_dl_frame_formats(sources)
+    dl_dims = effect_dl_frame_dims(sources)
     for symbol in symbols:
         name = symbol.name
         fmt_siz = dl_formats.get(name)
@@ -1517,13 +1555,13 @@ def _convert_effect_frames(cfg: PipelineConfig, rel: RelData, symbols: list) -> 
         fmt, siz = fmt_siz
         bits = {0: 4, 1: 8, 2: 16, 3: 32}[siz]
         pixels = symbol.size * 8 // bits
-        side = int(round(pixels ** 0.5))
-        if side * side != pixels:
+        size = effect_frame_size(name, pixels, dl_dims)
+        if size is None:
             continue
         data = rel.slice_at(symbol.address, symbol.size)
         results.append(
             _png_record(
-                cfg, f"textures/rel/{name}.png", name, data, side, side, b"", fmt=fmt, siz=siz,
+                cfg, f"textures/rel/{name}.png", name, data, size[0], size[1], b"", fmt=fmt, siz=siz,
                 allow_achd=False,
             )
         )

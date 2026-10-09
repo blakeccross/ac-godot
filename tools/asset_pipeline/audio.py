@@ -75,6 +75,8 @@ EXTRA_SE_NUMS: dict[str, int] = {
     ## climb out (0x15B).
     "13c": 0x13C,
     "15b": 0x15B,
+    ## `eTM_mv`: a villager's scheming smirk (`ef_takurami`) starts on 0x117.
+    "117": 0x117,
 }
 
 ## Level (looping, positional) SEs, played by level id rather than SE number
@@ -119,6 +121,14 @@ LEV_SE_NUMS: dict[str, int] = {
     "lev_1c": 0x1C,
     "lev_16": 0x16,
     "lev_a1": 0xA1,
+    ## Villager feel effects held while their clip plays: the happy glow (14,
+    ## `ef_siawase_hikari`), shivering (0x2D, `ef_buruburu`), sobbing (0x2E, `ef_naku`),
+    ## the thinking bubbles (0x58, `ef_kangaeru`) and the gloom cloud (0x59, `ef_otikomi`).
+    "lev_e": 0x0E,
+    "lev_2d": 0x2D,
+    "lev_2e": 0x2E,
+    "lev_58": 0x58,
+    "lev_59": 0x59,
 }
 
 CATALOG_DIR = "audio"

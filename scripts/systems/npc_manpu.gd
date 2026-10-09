@@ -72,6 +72,21 @@ static func clip_for(name: String) -> String:
 	return "npc_1_%s" % key
 
 
+## `eff_idx2`: the clip a reaction moves on to once its first clip stops — the matching
+## `*2` loop, while the quiet faces (`niko`, `musu`, `komari`, `keirei`) hold their first.
+static func follow_clip(clip: String) -> String:
+	var key: String = clip.strip_edges().to_lower()
+	var bare: String = key.trim_prefix("npc_1_")
+	for held: String in ["niko", "musu", "komari", "keirei"]:
+		if bare.begins_with(held):
+			return clip
+	if bare == "a2_r1":
+		return "npc_1_a_r2"
+	if key.ends_with("1"):
+		return key.left(-1) + "2"
+	return clip
+
+
 static func is_reset(name: String) -> bool:
 	var key := name.strip_edges().to_lower()
 	return key == String(RESET) or key == String(RESET_SIT) or key == "reset_sitdown" or key == "254" or key == "255" or key == "0xfe" or key == "0xff"
@@ -132,7 +147,10 @@ static func mouth_hold_for(name: String) -> int:
 ## Floating feel glyph for the manpu clip: each `npc_1_*` clip's own `feel_effect`
 ## (`smile` → `WARAU`, `gaaan` / `kiduku1` → `SHOCK`, `ha` → `HA`, `hirameki` →
 ## `HIRAMEKI_DEN`, `hate` → `GIMONHU`, `a` → `KANTANHU`, `aseru` / `kiduku2` → `ASE2`).
-## `muka` → `MUKA`, `love` → `LOVELOVE2`, `shituren` → `SITUREN`.
+## `muka` → `MUKA`, `love` → `LOVELOVE2`, `shituren` → `SITUREN`. The clip-long ones
+## (`NpcFeelMoods`): `punpun` → `PUN`, `happy` → `SIAWASE_HIKARI`, `muuuuu` → `KANGAERU`,
+## `warudakumi` → `TAKURAMI`, `goukyu` → `NAKU`, `buruburu` → `BURUBURU`, `hyuuu` → `KAZE`,
+## `otikomu` → `OTIKOMI`, `neboke` → `NEBOKE`.
 ## `niko`, `musu`, `komari` and `lovelove` have none.
 static func feel_for(name: String) -> StringName:
 	var key := name.strip_edges().to_lower()
@@ -158,4 +176,22 @@ static func feel_for(name: String) -> StringName:
 		return &"situren"
 	if key == "love1" or key == "love_i1":
 		return &"lovelove2"
+	if key.begins_with("punpun"):
+		return &"pun"
+	if key.begins_with("happy"):
+		return &"siawase"
+	if key.begins_with("muuuuu"):
+		return &"kangaeru"
+	if key.begins_with("warudakumi"):
+		return &"takurami"
+	if key.begins_with("goukyu"):
+		return &"naku"
+	if key.begins_with("buruburu"):
+		return &"buruburu"
+	if key.begins_with("hyuuu"):
+		return &"kaze"
+	if key.begins_with("otikomu"):
+		return &"otikomi"
+	if key.begins_with("neboke"):
+		return &"neboke"
 	return &""

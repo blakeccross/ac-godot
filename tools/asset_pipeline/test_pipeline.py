@@ -2197,6 +2197,17 @@ class EffectFrameFormatTests(unittest.TestCase):
         self.assertEqual(out["ef_dust01_1"], (4, 0))
         self.assertNotIn("ef_dust01_anime_ptn", out)
 
+    def test_non_square_frames_take_their_model_load_size(self) -> None:
+        from asset_pipeline.convert import effect_dl_frame_dims, effect_frame_size
+
+        buru = "gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 32, 16, anime_1_txt),\n"
+        otikomi = "gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 64, 32, ef_otikomi_us1_int_i4),\n"
+        dims = effect_dl_frame_dims({"ef_buruburu01_00.c": buru, "ef_otikomi_us2.c": otikomi})
+        self.assertEqual(effect_frame_size("ef_buruburu01_1_int_i4", 512, dims), (32, 16))
+        self.assertEqual(effect_frame_size("ef_otikomi_us1_int_i4", 2048, dims), (64, 32))
+        self.assertEqual(effect_frame_size("ef_dust01_0", 256, dims), (16, 16))
+        self.assertIsNone(effect_frame_size("ef_other_0", 512, dims))
+
 
 
 class PlayerFacePaletteTests(unittest.TestCase):

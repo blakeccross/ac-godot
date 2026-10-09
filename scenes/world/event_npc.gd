@@ -99,6 +99,8 @@ func _physics_process(delta: float) -> void:
 			_turn_towards_player(delta)
 		if not _manpu_clip.is_empty() and _clip_timer <= 0.0 and _clip == _manpu_clip:
 			_manpu_clip = ""
+			if _feel != null:
+				_feel.release()
 			play_clip(talk_clip(), true)
 		return
 	if _turning_home:
@@ -297,6 +299,8 @@ func cue_manpu(key: String) -> void:
 func _on_talk_closed() -> void:
 	talking = false
 	_manpu_clip = ""
+	if _feel != null:
+		_feel.release()
 	TalkCamera.end(get_tree())
 	var ui := DialogueOverlay.find(get_tree())
 	if ui != null and ui.event_fired.is_connected(_on_talk_event):

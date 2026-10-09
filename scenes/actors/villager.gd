@@ -146,6 +146,8 @@ static var _pair_frame: int = -1
 var _talk_manager: VillagerTalkManager
 ## `aNPC_check_manpu_demoCode`: the reaction clip a talk line called for, held until it ends.
 var _manpu_clip: String = ""
+## The loop the reaction settled into after its first clip.
+var _manpu_follow: String = ""
 var _feel: NpcFeelGlyphs
 ## Where the feel glyphs sit: about a villager's head height.
 const FEEL_HEAD_LIFT := 1.15
@@ -199,6 +201,8 @@ func _ready() -> void:
 			_feel.name = "Feel"
 			add_child(_feel)
 			_feel.set_head_lift(FEEL_HEAD_LIFT)
+		var skeletons: Array[Node] = vis.find_children("*", "Skeleton3D", true, false)
+		_feel.bind_feel_joint(skeletons[0] as Skeleton3D if not skeletons.is_empty() else null)
 		_sync_face_mood(true)
 		_apply_design_wear()
 		if Game != null and Game.designs != null and not Game.designs.changed.is_connected(_apply_design_wear):
@@ -956,8 +960,11 @@ func cue_manpu(key: String) -> void:
 	var clip: String = NpcManpu.clip_for(key)
 	if _resolve_clip(clip).is_empty():
 		return
+	if _feel != null and not _manpu_clip.is_empty():
+		_feel.release()
 	_play_clip(clip, false)
 	_manpu_clip = _clip
+	_manpu_follow = ""
 	if _feel != null:
 		var cam := get_viewport().get_camera_3d()
 		if cam != null:
@@ -969,6 +976,9 @@ func cue_manpu(key: String) -> void:
 
 func _end_manpu() -> void:
 	_manpu_clip = ""
+	_manpu_follow = ""
+	if _feel != null:
+		_feel.release()
 	_sync_face_mood(true)
 
 
@@ -1026,11 +1036,17 @@ func _update_animation(delta: float, planar: Vector3) -> void:
 		_update_placeholder_anim(delta, planar)
 		return
 	var moving: bool = planar.length() > IDLE_SPEED
-	## A one-shot reaction plays out before the talk hold comes back.
+	## `aNPC_check_manpu_demoCode`: a reaction's first clip plays once, then its second
+	## (`eff_idx2`) loops — or the first holds its last frame — until the talk resets it.
 	if not _manpu_clip.is_empty():
-		if _clip == _manpu_clip and _body_anim.is_playing():
+		if _body_anim.is_playing() and (_clip == _manpu_clip or _clip == _manpu_follow):
 			return
-		_manpu_clip = ""
+		if _clip == _manpu_clip and _manpu_follow.is_empty():
+			var follow: String = NpcManpu.follow_clip(_manpu_clip)
+			if follow != _manpu_clip and not _resolve_clip(follow).is_empty():
+				_play_clip(follow, true)
+				_manpu_follow = _clip
+		return
 	var want: String = _clip_for(ai.kind(), moving)
 	var clip := _resolve_clip(want)
 	if clip.is_empty():

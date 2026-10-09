@@ -86,6 +86,15 @@ var _mesh_host: Node3D
 var _glow_host: Node3D
 var _active_visual: StringName = &""
 var _head_lift: float = 1.15
+## The clip-long feel effects (`NpcFeelMoods.KINDS`), stepped at 60 Hz.
+var _moods: NpcFeelMoods = null
+const MOOD_MAX_TICKS := 600
+var _mood_steps := FrameStepper.new()
+var _ongen_player: AudioStreamPlayer
+## The skeleton bone the clip-long effects start from (`aNPC_set_feel_eff` runs on the
+## last joint, at the top of the head). Unset, they start at the glyph point.
+var feel_skeleton: Skeleton3D = null
+var feel_bone: int = -1
 
 
 func _ready() -> void:
@@ -101,6 +110,9 @@ func _process(delta: float) -> void:
 	if _kind == &"":
 		return
 	_billboard()
+	if _moods != null:
+		_tick_moods(delta)
+		return
 	_frame += delta * DecompTime.TICK_HZ
 	match _kind:
 		&"warau":
@@ -133,6 +145,12 @@ func play(kind: StringName) -> void:
 	_kind = kind
 	_frame = 0.0
 	_cycle = 0
+	if NpcFeelMoods.KINDS.has(kind):
+		_billboard()
+		_moods = NpcFeelMoods.new(self, kind, npc_yaw, view_diff_deg())
+		_mood_steps = FrameStepper.new()
+		_tick_moods(0.0)
+		return
 	match kind:
 		&"warau":
 			_show_warau_frame(0)
@@ -183,7 +201,73 @@ func play_for_manpu(manpu_name: String) -> void:
 	play(NpcManpu.feel_for(manpu_name))
 
 
+## The reaction clip has ended (`effect_kill_proc`): clip-long effects vanish, fade out or
+## play on as their profile says; the one-shot glyphs run their own course.
+func release() -> void:
+	if _moods != null:
+		_moods.release()
+
+
+## `angle − (getCamera2AngleY + 0x8000)` in degrees, 0..360: 0 while the NPC faces the
+## camera, 90 turned to screen right.
+func view_diff_deg() -> float:
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam == null:
+		return 0.0
+	var to: Vector3 = cam.global_position - global_position
+	return fposmod(rad_to_deg(npc_yaw - atan2(to.x, to.z)), 360.0)
+
+
+func _tick_moods(delta: float) -> void:
+	if feel_skeleton != null and is_instance_valid(feel_skeleton) and feel_bone >= 0:
+		var at: Vector3 = (feel_skeleton.global_transform * feel_skeleton.get_bone_global_pose(feel_bone)).origin
+		_moods.origin = global_transform.affine_inverse() * at
+	_mood_steps.add(delta)
+	var first: bool = delta == 0.0
+	while first or _mood_steps.next():
+		first = false
+		## A caller that never says the clip ended (the intro's scripted NPCs) still gets
+		## its effect back after a long reaction.
+		if _moods.t >= MOOD_MAX_TICKS:
+			_moods.release()
+		if not _moods.tick():
+			clear()
+			return
+		for id: StringName in _moods.trg_se:
+			Audio.play_se(id, self)
+		_moods.trg_se.clear()
+	_hold_ongen(_moods.ongen)
+
+
+## `sAdo_OngenPos`: the effect's level SE, loud as `Ongen.volume` from the field mic.
+func _hold_ongen(id: StringName) -> void:
+	if id == &"":
+		if _ongen_player != null:
+			_ongen_player.stop()
+		return
+	if _ongen_player == null:
+		_ongen_player = AudioStreamPlayer.new()
+		_ongen_player.bus = Audio.SFX_BUS
+		add_child(_ongen_player)
+	if _ongen_player.get_meta(&"se", &"") != id:
+		_ongen_player.stop()
+		_ongen_player.stream = Ongen.looped(SeCatalog.stream_for(id))
+		_ongen_player.set_meta(&"se", id)
+	var mic: Vector3 = Ongen.field_mic_gx(get_tree())
+	var vol: float = Ongen.BASE_VOLUME
+	if mic != Vector3.INF:
+		vol = Ongen.volume(mic.distance_to(TownSpace.world_to_gx(global_position)))
+	_ongen_player.volume_db = linear_to_db(maxf(vol, 0.0001))
+	if _ongen_player.stream != null and not _ongen_player.playing:
+		_ongen_player.play()
+
+
 func clear() -> void:
+	if _moods != null:
+		_moods.clear()
+		_moods = null
+	if _ongen_player != null:
+		_ongen_player.stop()
 	_kind = &""
 	_frame = 0.0
 	_cycle = 0
@@ -198,6 +282,16 @@ func clear() -> void:
 			child.free()
 		_glow_host.position = Vector3.ZERO
 		_glow_host.scale = Vector3.ONE
+
+
+## Follow `skeleton`'s last bone (the NPC feel joint) for the clip-long effects.
+func bind_feel_joint(skeleton: Skeleton3D) -> void:
+	feel_skeleton = skeleton
+	feel_bone = -1
+	if skeleton != null:
+		feel_bone = skeleton.find_bone("joint_25")
+		if feel_bone < 0:
+			feel_bone = skeleton.get_bone_count() - 1
 
 
 func set_head_lift(meters: float) -> void:
