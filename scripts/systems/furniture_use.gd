@@ -22,7 +22,7 @@ static func actions(host: Node, ctx: InteractionContext) -> Array[Interaction]:
 		var powered: bool = entry == null or entry.on
 		var verb: String = "Turn off %s" if powered else "Turn on %s"
 		out.append(Interaction.of(Interaction.TOGGLE, verb % label, 7))
-	if data != null and is_diary(data) and _diary_open_here():
+	if data != null and is_diary(data) and _diary_open_here(entry):
 		out.append(Interaction.of(Interaction.READ, "Read %s" % label, 9))
 	if data != null and _can_take(data, entry):
 		out.append(Interaction.of(Interaction.TAKE, "Take from %s" % label, 10))
@@ -67,10 +67,17 @@ static func is_diary(data: FurnitureData) -> bool:
 	return data != null and FtrCatalog.list("ftr_diary").has(data.id)
 
 
-## `aMR_CheckDiaryOnMe`: only in one of the player's own rooms.
-static func _diary_open_here() -> bool:
+## `aMR_CheckDiaryOnMe`: a notebook set down on a table, in a resident's house.
+static func _diary_open_here(entry: FurniturePlacement = null) -> bool:
 	var session: IndoorSession = Game.interior_session
+	if entry != null and entry.layer != 1:
+		return false
 	return session != null and session.room != null and PlayerHouse.is_player_room(session.room.id)
+
+
+## `mHS_get_pl_no_detail`: whose house the notebook is in (−1 for the player's own).
+static func diary_owner() -> int:
+	return Game.visiting_slot if Game != null else -1
 
 
 ## The calendar comes up first; picking a day opens the diary on its month
@@ -85,7 +92,7 @@ static func open_diary(host: Node) -> bool:
 			continue
 		if bool(ui.call("is_open")):
 			return false
-		ui.call("open")
+		ui.call("open", diary_owner())
 		return true
 	return false
 

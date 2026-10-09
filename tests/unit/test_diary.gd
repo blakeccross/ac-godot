@@ -37,3 +37,20 @@ func test_the_notebooks_are_diaries() -> void:
 	var chair := FurnitureData.new()
 	chair.id = &"wood_chair"
 	assert_bool(FurnitureUse.is_diary(chair)).is_false()
+
+
+func test_a_notebook_on_the_floor_is_not_read() -> void:
+	var floor_note := FurniturePlacement.new()
+	floor_note.layer = 0
+	assert_bool(FurnitureUse._diary_open_here(floor_note)).is_false()
+
+
+func test_a_housemates_diary_reads_from_their_saved_pages() -> void:
+	Game.roster.current = 0
+	Game.diary[4] = "Mine."
+	Game.roster.slots[1] = {"player_name": "Ann", "diary": {"4": "Ann's page."}}
+	assert_str(DiaryOverlay.entry(4, 1)).is_equal("Ann's page.")
+	assert_str(DiaryOverlay.entry(4, 0)).is_equal("Mine.")
+	assert_str(DiaryOverlay.entry(4)).is_equal("Mine.")
+	Game.visiting_slot = 1
+	assert_int(FurnitureUse.diary_owner()).is_equal(1)

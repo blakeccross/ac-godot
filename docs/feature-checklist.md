@@ -341,7 +341,7 @@ data tables before a category is called done.
 - [x] ~~Move house location~~ — not in GCN
 - [~] Cockroaches spawn if you don't play for weeks; house dusty — `HouseGoki` / `house_goki.gd`: 6-day rule, up to 3 out, furniture flushes, startle, stomp; missing: death puff, cottage, dust
 - [x] HRA judges the main room, and the upper floor in part (origins, sets, luck, facing, clutter); never the basement (§11)
-- [x] Other residents' houses can be entered (`ac_my_house` has no owner check): their rooms stand in for yours while you are inside (`Game.enter_resident_house`). Missing: the diary there opening the owner's calendar
+- [x] Other residents' houses can be entered (`ac_my_house` has no owner check): their rooms stand in for yours while you are inside (`Game.enter_resident_house`); a notebook on a table there opens the owner's calendar, and their diary to read only (`mSM_OVL_CALENDAR`'s player, `mSM_OVL_DIARY` arg 1)
 
 ## 19. Furniture & collectibles
 
@@ -617,7 +617,7 @@ From `m_event_schedule.c_inc` (117 unique event IDs across 134 schedule-table ro
 ## 33. UI, menus, misc systems
 
 - [x] ~~Start / pause menu~~ — the GameCube has none: the pockets, map and letters open straight from the field; options live on the title screen
-- [~] **Diary** — the player writes it: a page per month (31 lines, 992 characters) on the disc's three-sheet page with the month tab, scrolled while reading and rolled to the line while writing, opened by "Read" on any of the sixteen notebooks in your own rooms (`m_diary_ovl`, `aMR_CheckDiaryOnMe`) — `DiaryOverlay`. It opens through the calendar. Missing: the notebook having to sit on a table
+- [x] **Diary** — the player writes it: a page per month (31 lines, 992 characters) on the disc's three-sheet page with the month tab, scrolled while reading and rolled to the line while writing, opened by "Read" on any of the sixteen notebooks set down on a table in your rooms (`m_diary_ovl`, `aMR_CheckDiaryOnMe`) — `DiaryOverlay`. It opens through the calendar
 - [x] Held **map** item / sight-map boards — `MapOverlay` (§4)
 - [x] ~~HUD clock~~ — GCN has no HUD; the time shows on the pockets screen
 - [x] Options: K.K.'s "Before I go..." menu sets the sound (stereo / mono / headphones; mono folds the master bus), how animals speak (Animalese / Bebebese / silence) and rumble, kept in `user://config.cfg` (`Config_c`, `aNPS2_setup_*_option`) — `GameConfig`. The GameCube has no text-speed, screen-position or brightness options

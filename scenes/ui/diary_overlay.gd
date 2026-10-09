@@ -32,6 +32,8 @@ const MONTH_ADJUST: Array[float] = [-26, -16, -40, -52, -57, -52, -57, -32, 0, -
 var month: int = 1
 var scroll: float = 0.0
 var writing: bool = false
+## Another resident's diary, open to read only (`mSM_OVL_DIARY` arg 1); −1 for your own.
+var owner_slot: int = -1
 
 var _open: bool = false
 var _tex: Dictionary = {}
@@ -78,9 +80,10 @@ func is_open() -> bool:
 
 
 ## `mDI_diary_ovl_init`: in from the left on `p_month`'s page (1–12).
-func open(p_month: int = -1) -> void:
+func open(p_month: int = -1, p_owner: int = -1) -> void:
 	if _open:
 		return
+	owner_slot = p_owner if Game != null and Game.roster != null and p_owner != Game.roster.current else -1
 	month = clampi(p_month if p_month > 0 else Clock.month, 1, 12)
 	scroll = 0.0
 	writing = false
@@ -110,8 +113,16 @@ func _on_slid_out() -> void:
 	set_process(false)
 
 
-static func entry(m: int) -> String:
-	return str(Game.diary.get(m, "")) if Game != null else ""
+static func entry(m: int, slot: int = -1) -> String:
+	if Game == null:
+		return ""
+	if slot >= 0 and Game.roster != null and slot < PlayerRoster.MAX and slot != Game.roster.current:
+		var book: Variant = Game.roster.slots[slot].get("diary", {})
+		if typeof(book) != TYPE_DICTIONARY:
+			return ""
+		## Saved keys come back as strings.
+		return str((book as Dictionary).get(m, (book as Dictionary).get(str(m), "")))
+	return str(Game.diary.get(m, ""))
 
 
 ## Up to 31 lines and 992 characters, as the editor hands them back.
@@ -148,7 +159,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_RIGHT, KEY_D:
 			_turn(1)
 		KEY_SPACE, KEY_ENTER, KEY_KP_ENTER:
-			if not k.echo:
+			if not k.echo and owner_slot < 0:
 				_write()
 		KEY_ESCAPE, KEY_BACKSPACE, KEY_B:
 			if not k.echo:
@@ -175,7 +186,7 @@ func _write() -> void:
 			scroll = clampf(offset, 0.0, MAX_SCROLL)
 			_canvas.queue_redraw(),
 	}
-	writer.call("open_board", entry(month), LINES, ENTRY_SIZE, _on_written, 0, style)
+	writer.call("open_board", entry(month, owner_slot), LINES, ENTRY_SIZE, _on_written, 0, style)
 	if writer.has_signal("closed") and not writer.is_connected("closed", _on_writer_closed):
 		writer.connect("closed", _on_writer_closed, CONNECT_ONE_SHOT)
 	_canvas.queue_redraw()
@@ -217,7 +228,7 @@ func _draw_canvas() -> void:
 	if writing or _font == null:
 		return
 	var asc: float = _font.get_ascent(FONT_PX)
-	var lines: PackedStringArray = entry(month).split("\n")
+	var lines: PackedStringArray = entry(month, owner_slot).split("\n")
 	for i: int in mini(lines.size(), LINES):
 		var y: float = TEXT_ORIGIN.y + 16.0 * i + top
 		if lines[i] != "" and y > -16.0 and y < 240.0:

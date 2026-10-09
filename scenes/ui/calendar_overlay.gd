@@ -43,6 +43,8 @@ enum Mode { MONTHS, TURN, TO_DAY, DAY, TO_MONTHS, DIARY }
 
 ## Months from this one (−11 … +11) and the picked cell.
 var month_off: int = 0
+## Whose calendar (`mSM_OVL_CALENDAR`'s player): −1 for your own, else a housemate's slot.
+var owner_slot: int = -1
 var cell: int = 0
 var event_idx: int = 0
 var mode: int = Mode.MONTHS
@@ -100,11 +102,12 @@ func is_open() -> bool:
 
 
 ## `mCD_calendar_ovl_init`: in from the top on this month, today noted as played.
-func open() -> void:
+func open(p_owner: int = -1) -> void:
 	if _open:
 		return
+	owner_slot = p_owner if Game != null and Game.roster != null and p_owner != Game.roster.current else -1
 	_today = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
-	if Game != null:
+	if Game != null and owner_slot < 0:
 		CalendarBook.played_on(Game.calendar, _today)
 	_pages.clear()
 	month_off = 0
@@ -156,10 +159,21 @@ static func month_at(year: int, month: int, off: int) -> Vector2i:
 func page(off: int) -> Dictionary:
 	if not _pages.has(off):
 		var ym: Vector2i = month_at(Clock.year, Clock.month, off)
-		var state: Dictionary = Game.calendar if Game != null else CalendarBook.new_state()
+		var state: Dictionary = _state()
 		var town_day: int = Game.events.town_day if Game != null and Game.events != null else 15
-		_pages[off] = CalendarBook.page(ym.x, ym.y, state, _today, town_day, VillagerTalkManager.birthday())
+		var born: Vector2i = VillagerTalkManager.birthday() if owner_slot < 0 else Vector2i.ZERO
+		_pages[off] = CalendarBook.page(ym.x, ym.y, state, _today, town_day, born)
 	return _pages[off]
+
+
+func _state() -> Dictionary:
+	if Game == null:
+		return CalendarBook.new_state()
+	if owner_slot >= 0:
+		var saved: Variant = Game.roster.slots[owner_slot].get("calendar", {})
+		return saved as Dictionary if typeof(saved) == TYPE_DICTIONARY and not (saved as Dictionary).is_empty() \
+			else CalendarBook.new_state()
+	return Game.calendar
 
 
 ## The day's events, or [].
@@ -307,7 +321,7 @@ func _open_diary() -> void:
 	Audio.play_se(&"5f")
 	mode = Mode.DIARY
 	_root.visible = false
-	diary.call("open", month_at(Clock.year, Clock.month, month_off).y)
+	diary.call("open", month_at(Clock.year, Clock.month, month_off).y, owner_slot)
 	if diary.has_signal("closed"):
 		diary.connect("closed", _on_diary_closed, CONNECT_ONE_SHOT)
 
