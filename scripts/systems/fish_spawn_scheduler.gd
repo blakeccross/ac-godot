@@ -10,9 +10,9 @@ extends RefCounted
 ##  - the coelacanth splice into the sea list while it rains (`aSOG_add_kaseki_range_data`)
 ##  - `env_rate` weighting by town rank and the weighted roll (`aSOG_gyoei_get_idx`)
 ##
-## `place_check` for the WATERFALL / POOL / RIVER_MOUTH sub-areas needs acre block-kind
-## flags the `WaterBodies` model does not carry, so those entries are accepted in any
-## matching water body — a river-pool fish can bite anywhere in the river system.
+##  - `aSOG_gyoei_place_check`: a roll that lands on a waterfall- or pool-only fish in an
+##    acre without a waterfall or a pool gives no fish at all (river-mouth fish only need a
+##    river acre on the US disc; the Australian one also wants the sea).
 
 const TABLE_PATH := "res://data/creatures/fish_spawn_table.json"
 
@@ -23,6 +23,14 @@ const PREV_RATE := [1.0 / 6.0, 2.0 / 6.0, 3.0 / 6.0, 4.0 / 6.0, 5.0 / 6.0]
 ## `aGYO_TYPE_COELACANTH`.
 const COELACANTH_TYPE := 31
 const COELACANTH_WEIGHT := 5
+## `aSOG_SPAWN_AREA_*`.
+enum Area { POOL, WATERFALL, RIVER_MOUTH, OFFING, SEA, RIVER, POND }
+## `mRF_BLOCKKIND_*` bits the place check reads.
+const BLOCK_RIVER := 1
+const BLOCK_POOL := 2
+const BLOCK_WATERFALL := 4
+## Unknown acre: every area passes.
+const BLOCK_ANY := -1
 
 static var _terms: Dictionary = {}
 static var _event: Dictionary = {}
@@ -100,7 +108,7 @@ static func build_pool(water_kind: int, raining: bool) -> Array:
 ## `aSOG_gyoei_get_idx`: weighted roll with `env_rate`, capped to the body's size ceiling.
 ## Returns a `FishData`, or null (no fish this attempt).
 static func decide(
-	pool: Array, ceiling: FishData.SizeClass, rng: RandomNumberGenerator
+	pool: Array, ceiling: FishData.SizeClass, rng: RandomNumberGenerator, block_kind: int = BLOCK_ANY
 ) -> FishData:
 	if pool.is_empty():
 		return null
@@ -110,7 +118,7 @@ static func decide(
 		var fish: FishData = FishCatalog.get_by_type(int(e["type_index"]))
 		if fish == null or int(fish.size_class) > int(ceiling):
 			continue
-		live.append({"fish": fish, "weight": float(e["weight"])})
+		live.append({"fish": fish, "weight": float(e["weight"]), "area": int(e.get("spawn_area", -1))})
 		total += float(e["weight"])
 	if total <= 0.0:
 		return null
@@ -122,8 +130,36 @@ static func decide(
 		if acc < 0.0:
 			return null
 		if sel >= acc:
-			return e["fish"]
+			return e["fish"] if place_check(int(e["area"]), block_kind) else null
 	return null
+
+
+## `aSOG_gyoei_place_check` (US rules).
+static func place_check(area: int, block_kind: int) -> bool:
+	if block_kind == BLOCK_ANY:
+		return true
+	match area:
+		Area.WATERFALL:
+			return block_kind & BLOCK_WATERFALL != 0
+		Area.POOL:
+			return block_kind & BLOCK_POOL != 0
+		Area.RIVER_MOUTH:
+			return block_kind & BLOCK_RIVER != 0
+	return true
+
+
+## The place-check bits of an acre type (`mRF_BLOCKKIND_*`; pool acres are river acres too).
+static func block_kind_of(acre_type: int) -> int:
+	if acre_type < 0:
+		return BLOCK_ANY
+	var kind: int = 0
+	if TownFieldGenerator.is_riverish(acre_type) or TownFieldGenerator.is_pool(acre_type):
+		kind |= BLOCK_RIVER
+	if TownFieldGenerator.is_pool(acre_type):
+		kind |= BLOCK_POOL
+	if TownFieldGenerator.is_waterfall_block(acre_type):
+		kind |= BLOCK_WATERFALL
+	return kind
 
 
 # ---- helpers -------------------------------------------------------

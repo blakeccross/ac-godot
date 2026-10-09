@@ -175,11 +175,22 @@ func _tick_spawn(delta: float, sense: FishShadow.Sense) -> void:
 	## `aSOG_gyoei_make_range_data` + `aSOG_gyoei_get_idx`.
 	var weighted: Array = FishSpawnScheduler.build_pool(body.kind, Weather.is_raining())
 	var fish: FishData = FishSpawnScheduler.decide(
-		weighted, WaterBodies.size_ceiling(body), _rng
+		weighted, WaterBodies.size_ceiling(body), _rng, _block_kind(cell)
 	)
 	if fish == null:
 		return
 	spawn(fish, body, _grid.cell_to_world(cell))
+
+
+## `mRF_BLOCKKIND_*` of the acre holding `cell` (`aSOG_gyoei_place_check`).
+func _block_kind(cell: Vector2i) -> int:
+	if _layout == null or _layout.acre_types.is_empty():
+		return FishSpawnScheduler.BLOCK_ANY
+	var block := Vector2i(cell.x / EventManager.UT + 1, cell.y / EventManager.UT + 1)
+	var idx: int = block.y * TownFieldGenerator.BLOCK_X + block.x
+	if idx < 0 or idx >= _layout.acre_types.size():
+		return FishSpawnScheduler.BLOCK_ANY
+	return FishSpawnScheduler.block_kind_of(int(_layout.acre_types[idx]))
 
 
 ## A water cell in the band around the player where a shadow is worth having.

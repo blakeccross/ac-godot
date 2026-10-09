@@ -170,3 +170,33 @@ func _has_type(pool: Array, type_index: int) -> bool:
 		if int(e["type_index"]) == type_index:
 			return true
 	return false
+
+
+## `aSOG_gyoei_place_check`: a waterfall-only roll outside a waterfall acre gives no fish.
+func test_waterfall_fish_only_bite_by_the_waterfall() -> void:
+	var char_type: int = FishData.TYPE_IDS.find(&"large_char")
+	var pool: Array = [{"type_index": char_type, "spawn_area": FishSpawnScheduler.Area.WATERFALL, "weight": 100.0}]
+	var rng := RandomNumberGenerator.new()
+	var plain_river: int = FishSpawnScheduler.block_kind_of(TownFieldGenerator.T_RIVER_S)
+	var waterfall: int = FishSpawnScheduler.block_kind_of(TownFieldGenerator.T_WF_H)
+	var got_plain := 0
+	var got_fall := 0
+	for i: int in 40:
+		rng.seed = i
+		if FishSpawnScheduler.decide(pool, FishData.SizeClass.WHALE, rng, plain_river) != null:
+			got_plain += 1
+		rng.seed = i
+		if FishSpawnScheduler.decide(pool, FishData.SizeClass.WHALE, rng, waterfall) != null:
+			got_fall += 1
+	assert_int(got_plain).is_equal(0)
+	assert_int(got_fall).is_greater(0)
+
+
+func test_place_check_follows_the_us_rules() -> void:
+	var river: int = FishSpawnScheduler.block_kind_of(TownFieldGenerator.T_RIVER_S)
+	var pool_acre: int = FishSpawnScheduler.block_kind_of(70)
+	assert_bool(FishSpawnScheduler.place_check(FishSpawnScheduler.Area.RIVER_MOUTH, river)).is_true()
+	assert_bool(FishSpawnScheduler.place_check(FishSpawnScheduler.Area.POOL, river)).is_false()
+	assert_bool(FishSpawnScheduler.place_check(FishSpawnScheduler.Area.POOL, pool_acre)).is_true()
+	assert_bool(FishSpawnScheduler.place_check(FishSpawnScheduler.Area.RIVER, river)).is_true()
+	assert_bool(FishSpawnScheduler.place_check(FishSpawnScheduler.Area.WATERFALL, FishSpawnScheduler.BLOCK_ANY)).is_true()

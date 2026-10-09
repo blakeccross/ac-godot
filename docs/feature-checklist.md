@@ -214,7 +214,7 @@ data tables before a category is called done.
 - [~] Species report dialogue; shorter report if already donated; "pockets full → toss back / swap" (`Get_sakana_msg_num`, `0x1348`) — partial
 - [x] **40 fish** plus the junk catches (empty can, boot, old tire), with month × time × water availability and rarity from the disc tables (`ac_set_ovl_gyoei`, `ac_gyoei_type.c_inc`) — `data/creatures/*.tres`, `fish_spawn_table.json`, `FishSpawnScheduler`
 - [x] Half-month term split + transition ramp for spawn weights (`gyoei_term`) — `FishSpawnScheduler.term_blend`
-- [~] Water types: river, pond, sea (`WaterBodies`). Missing: the waterfall pool and river mouth sub-areas (`aSOG_RANGE_PROC_*` needs block kinds); the island waits on the island
+- [x] Water types: river, pond, sea (`WaterBodies`); waterfall- and pool-only fish bite only in acres with a waterfall or a pool, river-mouth fish in river acres (`aSOG_gyoei_place_check`, US rules). The island's water waits on the island
 - [x] Coelacanth only while raining/snowing, in the sea, outside the day slot (`aSOG_add_kaseki_range_data`) — `FishSpawnScheduler`
 - [x] Non-fish catches: boot, tire, empty can — `FishCatalog` by shadow size
 - [x] Trash items (boot / can / tire) as junk, sellable to Nook for nothing
@@ -262,7 +262,7 @@ data tables before a category is called done.
 - [x] Cherry-blossom bloom on hardwoods in early April — `VisualSeasons` (duplicate of §2)
 - [x] Tree count affects the environment rating — `TownAssessment` (§4)
 - [x] **Flowers**: tulips, pansies, cosmos in three colours each (`FLOWER_NUM` 9) — `data/plants/`
-- [~] Flowers from Nook (seed bags), the lost and found and quests. Missing: flowers from Tortimer
+- [x] Flowers from Nook (seed bags), the lost and found and quests. Tortimer's only flowers are Groundhog Day's potted-flower furniture (`0x4DE + RANDOM(9)`, `TortimerHoliday`)
 - [x] ~~Flowers wilt without water~~ — GCN flowers need no water; only `KILL_PLANT` units clear them (our watering is an extension)
 - [x] ~~Flower breeding / hybrids~~ — not in the GameCube game (hybrids arrive in Wild World)
 - [x] Trampled flowers when dashing — see §7
@@ -555,7 +555,7 @@ Event NPCs are `EventNpc` scenes placed by `EventManager` presenters (`scenes/wo
 - [x] ~~Nat~~ — not GCN
 - [x] ~~Dr. Shrunk~~ — not GCN
 - [x] **Mr. Resetti / Don Resetti** (§1), and Resetti as Groundhog Day's groundhog (§Events)
-- [~] **Rover** — on the train in the intro (`intro_train_stage.gd`). Missing: his later visits
+- [x] **Rover** — on the train in the intro (`intro_train_stage.gd`), for the first resident and every newcomer (`ac_npc_guide` / `ac_npc_guide2`). The GameCube has no later Rover visits
 - [x] **Porter** — greets you off the train in the intro, stands on the platform in normal play and handles trips (`StationPorter`, `PorterTalk`)
 - [ ] **Kapp'n** — boat to the island (`ac_npc_sendo`, `ac_boat`, `ac_boat_demo`)
 - [x] **Tom Nook**, **Blathers**, **Pelly & Phyllis**, **Copper & Booker**, **Sable & Mabel**, **Tortimer**, **Joan** — see their sections. Timmy & Tommy: see §21
