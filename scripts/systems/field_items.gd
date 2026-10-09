@@ -114,7 +114,8 @@ static func sunday_passed(year: int, month: int, day: int, days: int) -> bool:
 
 
 ## `mAGrw_ClearSpoiledKabu` then `mAGrw_SpoilKabu` over the field; with `spoil`, the turnips
-## in the pockets too (`mAGrw_SpoilAllPossession`). Live ground items follow.
+## in everyone's pockets, houses and gyroids too (`mAGrw_SpoilAllPossession`). Live ground
+## items follow.
 static func renew(spoil: bool, inventory: Inventory = null, tree: SceneTree = null) -> void:
 	for key: Variant in Game.field_items.keys():
 		var rec: Dictionary = Game.field_items[key]
@@ -127,6 +128,73 @@ static func renew(spoil: bool, inventory: Inventory = null, tree: SceneTree = nu
 			_refresh_node(tree, StringName(str(key)))
 	if spoil and inventory != null:
 		spoil_pockets(inventory)
+	if spoil:
+		spoil_elsewhere()
+
+
+## `mAGrw_SpoilAllPossession`, past the player's own pockets: the other residents' pockets,
+## turnips set down in any resident's house, and the house gyroids' storage.
+static func spoil_elsewhere() -> int:
+	if Game == null:
+		return 0
+	var n: int = 0
+	if Game.roster != null:
+		for slot: int in PlayerRoster.MAX:
+			if slot == Game.roster.current or not PlayerRoster.is_resident(Game.roster.slots[slot]):
+				continue
+			var priv: Dictionary = Game.roster.slots[slot]
+			var inv := Inventory.new()
+			inv.from_save(priv.get(PlayerRoster.KEY_INVENTORY, {}))
+			var spoiled: int = spoil_pockets(inv)
+			if spoiled > 0:
+				priv[PlayerRoster.KEY_INVENTORY] = inv.to_save()
+				n += spoiled
+			n += spoil_saved_rooms(priv.get(PlayerRoster.KEY_ROOMS, {}))
+			n += spoil_haniwa(Game.roster.house_of(slot))
+	if Game.interiors != null:
+		for room_id: StringName in [PlayerHouse.MAIN, PlayerHouse.UPPER, PlayerHouse.BASEMENT]:
+			n += spoil_room(Game.interiors.room(room_id))
+		n += spoil_haniwa(Game.interiors.player_house())
+	return n
+
+
+static func spoil_room(room: Room) -> int:
+	var n: int = 0
+	if room == null:
+		return 0
+	for entry: FurniturePlacement in room.placements:
+		if entry != null and KabuMarket.bundle_size(entry.furniture_id) > 0:
+			entry.furniture_id = KabuMarket.SPOILED
+			n += 1
+	return n
+
+
+## A housemate's rooms as they are saved (`Room.to_save`), changed in place.
+static func spoil_saved_rooms(rooms: Variant) -> int:
+	var n: int = 0
+	if typeof(rooms) != TYPE_DICTIONARY:
+		return 0
+	for key: Variant in (rooms as Dictionary).keys():
+		var room: Variant = (rooms as Dictionary)[key]
+		if typeof(room) != TYPE_DICTIONARY:
+			continue
+		for item: Variant in (room as Dictionary).get("placements", []):
+			if typeof(item) == TYPE_DICTIONARY and KabuMarket.bundle_size(StringName(str((item as Dictionary).get("furniture_id", "")))) > 0:
+				(item as Dictionary)["furniture_id"] = String(KabuMarket.SPOILED)
+				n += 1
+	return n
+
+
+static func spoil_haniwa(house: House) -> int:
+	var n: int = 0
+	if house == null:
+		return 0
+	HaniwaStore.ensure(house)
+	for slot: Dictionary in house.haniwa_items:
+		if KabuMarket.bundle_size(StringName(str(slot.get("item", "")))) > 0:
+			slot["item"] = KabuMarket.SPOILED
+			n += 1
+	return n
 
 
 static func spoil_pockets(inventory: Inventory) -> int:

@@ -92,3 +92,30 @@ func test_turnips_spoil_once_a_sunday_comes_round() -> void:
 	assert_str(String(FieldItems.item_at(Vector2i(3, 1)))).is_equal("apple")
 	assert_int(inv.count_of(&"spoiled_turnips")).is_equal(1)
 	assert_int(inv.count_of(&"turnips_50")).is_equal(0)
+
+
+func test_sunday_spoils_turnips_in_houses_gyroids_and_housemates_pockets() -> void:
+	Game.roster.current = 0
+	var mate_inv := Inventory.new()
+	mate_inv.add(ItemCatalog.get_item(&"turnips_10"), 1)
+	Game.roster.slots[1] = {
+		"player_name": "Ann",
+		PlayerRoster.KEY_INVENTORY: mate_inv.to_save(),
+		PlayerRoster.KEY_ROOMS: {"player_main": {"placements": [{"furniture_id": "turnips_50"}, {"furniture_id": "apple"}]}},
+	}
+	var main: Room = Game.interiors.room(PlayerHouse.MAIN)
+	var fp := FurniturePlacement.new()
+	fp.furniture_id = &"turnips_100"
+	main.placements.append(fp)
+	var house: House = Game.interiors.player_house()
+	HaniwaStore.ensure(house)
+	house.haniwa_items[0]["item"] = &"turnips_10"
+	FieldItems.renew(true, Inventory.new())
+	var after := Inventory.new()
+	after.from_save(Game.roster.slots[1][PlayerRoster.KEY_INVENTORY])
+	assert_int(after.count_of(KabuMarket.SPOILED)).is_equal(1)
+	var saved: Array = Game.roster.slots[1][PlayerRoster.KEY_ROOMS]["player_main"]["placements"]
+	assert_str(str(saved[0]["furniture_id"])).is_equal(String(KabuMarket.SPOILED))
+	assert_str(str(saved[1]["furniture_id"])).is_equal("apple")
+	assert_str(String(fp.furniture_id)).is_equal(String(KabuMarket.SPOILED))
+	assert_str(str(house.haniwa_items[0]["item"])).is_equal(String(KabuMarket.SPOILED))
