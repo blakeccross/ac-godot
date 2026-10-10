@@ -115,7 +115,9 @@ class StartChimeTests(unittest.TestCase):
         entries = {e["id"]: e for e in _sfx_catalog_entries({})}
         self.assertEqual(entries["44d"]["se_num"], 0x44D)
         self.assertEqual(entries["44d"]["path"], "sfx/44d.ogg")
-        self.assertEqual(set(EXTRA_SE_NUMS), {"44d", "3f", "73", "2b", "139", "10e", "4129", "13c", "15b", "117"})
+        self.assertTrue({"44d", "3f", "73", "2b", "139", "10e", "4129", "13c", "15b", "117"} <= set(EXTRA_SE_NUMS))
+        for key, num in EXTRA_SE_NUMS.items():
+            self.assertEqual(key, f"{num:x}")
 
 
 ACRE_SCENES_H = """

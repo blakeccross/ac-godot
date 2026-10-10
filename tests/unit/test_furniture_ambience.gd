@@ -94,3 +94,13 @@ func test_steam_rises_and_thins() -> void:
 		fx._move()
 	assert_float(fx.pos_gx.y).is_greater(y0)
 	assert_float(Vector2(fx.pos_gx.x, fx.pos_gx.z).length()).is_equal_approx(10.0, 0.01)
+
+
+func test_a_gong_sounds_when_struck_and_the_piggy_bank_needs_bells() -> void:
+	var gong := _piece(&"int_nog_gong")
+	assert_bool(FurnitureAmbience.switchable(gong)).is_true()
+	assert_str(String(FurnitureAmbience.press_se(gong, 0))).is_equal("174")
+	var pig := _piece(&"int_ike_pst_pig01")
+	assert_str(String(FurnitureAmbience.press_se(pig, 0))).is_equal("")
+	assert_str(String(FurnitureAmbience.press_se(pig, 100))).is_equal("7c")
+	assert_str(String(FurnitureAmbience.press_se(_piece(&"int_sum_tv01"), 0))).is_equal("")

@@ -77,6 +77,28 @@ EXTRA_SE_NUMS: dict[str, int] = {
     "15b": 0x15B,
     ## `eTM_mv`: a villager's scheming smirk (`ef_takurami`) starts on 0x117.
     "117": 0x117,
+    ## Furniture one-shots (`sAdo_OngenTrgStart` in `src/furniture/ac_*.c`), mostly on the
+    ## switch (`switch_changed_flag`): the Japanese dolls (0x7A rosia, 0x7B hariko), piggy
+    ## bank (0x7C), gong (0x174), sandbag / punching bag (0x175 / 0x176), Mario pipe, mushroom,
+    ## coin, flower, block, flag and shell (0x178, 0x179, 0x17A, 0x17B, 0x17F, 0x44E, 0x464),
+    ## jack-in-the-box (0x144), tumbler doll (0x145) and noise maker (0x46A). `SE_SINGLETON`
+    ## (0x8000) only limits how many play at once and is dropped.
+    "7a": 0x7A,
+    "7b": 0x7B,
+    "7c": 0x7C,
+    "174": 0x174,
+    "175": 0x175,
+    "176": 0x176,
+    "178": 0x178,
+    "179": 0x179,
+    "17a": 0x17A,
+    "17b": 0x17B,
+    "17f": 0x17F,
+    "44e": 0x44E,
+    "464": 0x464,
+    "144": 0x144,
+    "145": 0x145,
+    "46a": 0x46A,
 }
 
 ## Level (looping, positional) SEs, played by level id rather than SE number

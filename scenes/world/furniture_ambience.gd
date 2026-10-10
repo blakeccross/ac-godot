@@ -52,6 +52,28 @@ const STEAM := {
 	&"int_nog_nabe": [18.0, 6, 0, 10, 20, When.OFF],
 }
 
+## Pieces that sound once when A switches them (`switch_changed_flag` →
+## `sAdo_OngenTrgStart`): visual id → SE.
+const PRESS := {
+	&"int_ike_jny_rosia01": &"7a",
+	&"int_ike_jny_hariko01": &"7b",
+	## `fIPP_mv`: the piggy bank rattles only with bells in the wallet.
+	&"int_ike_pst_pig01": &"7c",
+	&"int_nog_gong": &"174",
+	&"int_ike_prores_sandbag01": &"175",
+	&"int_ike_prores_punch01": &"176",
+	&"int_iku_mario_dokan": &"178",
+	&"int_hos_mario_kinoko": &"179",
+	&"int_iku_mario_coin": &"17a",
+	&"int_yaz_mario_flower": &"17b",
+	&"int_iku_mario_hatena": &"17f",
+	&"int_hos_mario_hata": &"44e",
+	&"int_iku_mario_koura": &"464",
+	&"int_sum_hal_box01": &"144",
+	&"int_sum_okiagari01": &"145",
+	&"int_tak_noise": &"46a",
+}
+
 ## Pieces that click on and off themselves (`sAdo_OngenTrgStart(0x16 / 0x17)` on
 ## `switch_changed_flag`); lamps already do through `Kind.TOGGLE`.
 const CLICKS: Array[StringName] = [
@@ -84,8 +106,19 @@ func _ready() -> void:
 static func switchable(data: FurnitureData) -> bool:
 	if data == null:
 		return false
+	if PRESS.has(data.visual_id):
+		return true
 	var rule: Variant = LOOPS.get(data.visual_id)
 	return rule != null and int(rule[1]) != When.ALWAYS
+
+
+## The one-shot a piece plays when switched, or `&""`.
+static func press_se(data: FurnitureData, wallet: int) -> StringName:
+	if data == null:
+		return &""
+	if data.visual_id == &"int_ike_pst_pig01" and wallet == 0:
+		return &""
+	return PRESS.get(data.visual_id, &"")
 
 
 static func clicks(data: FurnitureData) -> bool:

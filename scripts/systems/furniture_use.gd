@@ -21,6 +21,8 @@ static func actions(host: Node, ctx: InteractionContext) -> Array[Interaction]:
 	if data != null and (data.is_toggleable() or FurnitureAmbience.switchable(data)) and not data.is_music_player() and (not data.radio_aerobics or _from_front(ctx)):
 		var powered: bool = entry == null or entry.on
 		var verb: String = "Turn off %s" if powered else "Turn on %s"
+		if FurnitureAmbience.PRESS.has(data.visual_id):
+			verb = "Use %s"
 		out.append(Interaction.of(Interaction.TOGGLE, verb % label, 7))
 	if data != null and is_diary(data) and _diary_open_here(entry):
 		out.append(Interaction.of(Interaction.READ, "Read %s" % label, 9))
@@ -115,11 +117,15 @@ static func toggle(placement_id: StringName) -> bool:
 		entry.on = not entry.on
 	if data != null and (data.kind == FurnitureData.Kind.TOGGLE or data.radio_aerobics or FurnitureAmbience.clicks(data)):
 		Audio.play_se(&"light_on" if entry.on else &"light_off")
+	var press: StringName = FurnitureAmbience.press_se(data, Game.inventory.wallet if Game.inventory != null else 0)
+	if press != &"":
+		Audio.play_se(press)
 	if data != null and data.kind == FurnitureData.Kind.GYROID:
 		_hop(pid_node(placement_id))
 	if data != null and data.radio_aerobics:
 		FurnitureTalk.refresh_room_bgm()
-	Game.post_notice("Turned %s." % ("on" if entry.on else "off"))
+	if data == null or not FurnitureAmbience.PRESS.has(data.visual_id):
+		Game.post_notice("Turned %s." % ("on" if entry.on else "off"))
 	return true
 
 
