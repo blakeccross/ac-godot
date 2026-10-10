@@ -95,6 +95,11 @@ var _ongen_player: AudioStreamPlayer
 ## last joint, at the top of the head). Unset, they start at the glyph point.
 var feel_skeleton: Skeleton3D = null
 var feel_bone: int = -1
+## Mood pose effects (`NpcManpu.MOOD_POSE_EFFECTS`), independent of the reaction glyphs.
+var _pose: String = ""
+var _pose_counter: float = 0.0
+var _pose_steps := FrameStepper.new()
+var _ambient: NpcFeelMoods = null
 
 
 func _ready() -> void:
@@ -107,9 +112,11 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if _kind != &"" or _ambient != null or NpcManpu.MOOD_POSE_EFFECTS.has(_pose):
+		_billboard()
+	_tick_pose(delta)
 	if _kind == &"":
 		return
-	_billboard()
 	if _moods != null:
 		_tick_moods(delta)
 		return
@@ -201,6 +208,48 @@ func play_for_manpu(manpu_name: String) -> void:
 	play(NpcManpu.feel_for(manpu_name))
 
 
+## The mood pose now playing (`aNPC_Animation_init` → `draw.feel_effect`): its effects fire
+## on the pose's own counter.
+func set_pose(clip: String) -> void:
+	var key: String = clip.strip_edges().to_lower()
+	if key == _pose:
+		return
+	_pose = key
+	_pose_counter = 0.0
+
+
+func _tick_pose(delta: float) -> void:
+	var data: Array = NpcManpu.MOOD_POSE_EFFECTS.get(_pose, [])
+	if data.is_empty() and _ambient == null:
+		return
+	if _ambient == null:
+		_ambient = NpcFeelMoods.new(self, &"ambient", npc_yaw, view_diff_deg())
+	_ambient.origin = _feel_origin()
+	_pose_steps.add(delta)
+	while _pose_steps.next():
+		if not data.is_empty():
+			var top: float = float(data[1])
+			for at: Variant in data[2]:
+				var gap: float = float(at) - _pose_counter
+				if gap >= 0.0 and gap < 0.5:
+					_ambient._npc_yaw = npc_yaw
+					_ambient.pulse(data[0])
+			_pose_counter += 0.5
+			while _pose_counter > top:
+				_pose_counter -= top
+		_ambient.tick()
+		for id: StringName in _ambient.trg_se:
+			Audio.play_se(id, self)
+		_ambient.trg_se.clear()
+
+
+func _feel_origin() -> Vector3:
+	if feel_skeleton != null and is_instance_valid(feel_skeleton) and feel_bone >= 0:
+		var at: Vector3 = (feel_skeleton.global_transform * feel_skeleton.get_bone_global_pose(feel_bone)).origin
+		return global_transform.affine_inverse() * at
+	return Vector3.ZERO
+
+
 ## The reaction clip has ended (`effect_kill_proc`): clip-long effects vanish, fade out or
 ## play on as their profile says; the one-shot glyphs run their own course.
 func release() -> void:
@@ -219,9 +268,7 @@ func view_diff_deg() -> float:
 
 
 func _tick_moods(delta: float) -> void:
-	if feel_skeleton != null and is_instance_valid(feel_skeleton) and feel_bone >= 0:
-		var at: Vector3 = (feel_skeleton.global_transform * feel_skeleton.get_bone_global_pose(feel_bone)).origin
-		_moods.origin = global_transform.affine_inverse() * at
+	_moods.origin = _feel_origin()
 	_mood_steps.add(delta)
 	var first: bool = delta == 0.0
 	while first or _mood_steps.next():

@@ -72,6 +72,31 @@ static func clip_for(name: String) -> String:
 	return "npc_1_%s" % key
 
 
+## `aNPC_wait_action` / `aNPC_walk_action` / `aNPC_run_action` through `aNPC_animeSeqNoTable`:
+## a villager's mood picks its idle, walk and run poses (a happy, angry or sad run is the
+## matching walk at running speed; sleepy has only its own idle). Talking, `talk_def_anime`
+## keeps a happy villager on the plain idle.
+const MOOD_WAIT: Array[String] = ["npc_1_wait1", "npc_1_wait_ki1", "npc_1_wait_do1", "npc_1_wait_ai1", "npc_1_wait_nemu1", "npc_1_wait1"]
+const MOOD_TALK: Array[String] = ["npc_1_wait1", "npc_1_wait1", "npc_1_wait_do1", "npc_1_wait_ai1", "npc_1_wait_nemu1", "npc_1_wait1"]
+const MOOD_WALK: Array[String] = ["npc_1_walk1", "npc_1_walk_ki1", "npc_1_walk_do1", "npc_1_walk_ai1", "npc_1_walk1", "npc_1_walk1"]
+const MOOD_RUN: Array[String] = ["npc_1_run1", "npc_1_walk_ki1", "npc_1_walk_do1", "npc_1_walk_ai1", "npc_1_run1", "npc_1_run1"]
+## `aNPC_feel_effect_c` on the mood poses: the effect, the counter's wrap (`max`) and the
+## counter values it fires at (`set_p`); the counter steps 0.5 a tick
+## (`aNPC_set_feel_effect`).
+const MOOD_POSE_EFFECTS := {
+	"npc_1_wait_ki1": [&"konpu", 15, [15]],
+	"npc_1_wait_do1": [&"pun_yuge", 20, [20]],
+	"npc_1_walk_do1": [&"pun_yuge", 20, [20]],
+	"npc_1_wait_ai1": [&"doyon", 10, [10]],
+	"npc_1_walk_ai1": [&"doyon", 10, [10]],
+	"npc_1_wait_nemu1": [&"neboke_awa", 60, [7, 14]],
+}
+
+
+static func mood_clip(table: Array[String], mood: int) -> String:
+	return table[clampi(mood, 0, table.size() - 1)]
+
+
 ## `eff_idx2`: the clip a reaction moves on to once its first clip stops — the matching
 ## `*2` loop, while the quiet faces (`niko`, `musu`, `komari`, `keirei`) hold their first.
 static func follow_clip(clip: String) -> String:

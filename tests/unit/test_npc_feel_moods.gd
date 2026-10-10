@@ -167,3 +167,39 @@ func test_glyph_node_runs_and_releases_a_mood() -> void:
 	g.release()
 	g._tick_moods(1.0 / 60.0)
 	assert_object(g._moods).is_null()
+
+
+func test_moods_pick_their_poses() -> void:
+	var M := VillagerState.Mood
+	assert_str(NpcManpu.mood_clip(NpcManpu.MOOD_WAIT, M.HAPPY)).is_equal("npc_1_wait_ki1")
+	assert_str(NpcManpu.mood_clip(NpcManpu.MOOD_WALK, M.ANGRY)).is_equal("npc_1_walk_do1")
+	assert_str(NpcManpu.mood_clip(NpcManpu.MOOD_RUN, M.SAD)).is_equal("npc_1_walk_ai1")
+	assert_str(NpcManpu.mood_clip(NpcManpu.MOOD_WALK, M.SLEEPY)).is_equal("npc_1_walk1")
+	assert_str(NpcManpu.mood_clip(NpcManpu.MOOD_WAIT, M.SLEEPY)).is_equal("npc_1_wait_nemu1")
+	## Talking, a happy villager keeps the plain idle (`talk_def_anime`).
+	assert_str(NpcManpu.mood_clip(NpcManpu.MOOD_TALK, M.HAPPY)).is_equal("npc_1_wait1")
+	assert_str(NpcManpu.mood_clip(NpcManpu.MOOD_TALK, M.ANGRY)).is_equal("npc_1_wait_do1")
+
+
+func test_mood_poses_give_off_their_effects() -> void:
+	var m := _moods(&"ambient")
+	assert_bool(m.alive).is_false()
+	for e: StringName in [&"konpu", &"pun_yuge", &"doyon", &"neboke_awa"]:
+		m.pulse(e)
+	assert_int(m.parts.size()).is_equal(4)
+	assert_array(m.trg_se).contains([&"43f", &"pun_yuge", &"doyon"])
+	_run(m, 80)
+	assert_int(m.parts.size()).is_equal(0)
+
+
+func test_a_pose_fires_on_its_counter() -> void:
+	var g: NpcFeelGlyphs = auto_free(NpcFeelGlyphs.new())
+	_host.add_child(g)
+	g.set_pose("npc_1_wait_ai1")
+	## Counter 0.5 a tick, firing at 10, wrapping past 10: every 20 ticks.
+	g._tick_pose(1.0 / 60.0 * 21.0)
+	assert_object(g._ambient).is_not_null()
+	assert_int(g._ambient.parts.size()).is_equal(1)
+	g.set_pose("npc_1_walk1")
+	g._tick_pose(1.0 / 60.0 * 200.0)
+	assert_int(g._ambient.parts.size()).is_equal(0)

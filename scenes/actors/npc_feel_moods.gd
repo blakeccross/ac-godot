@@ -162,6 +162,7 @@ func _init(host: Node3D, p_kind: StringName, npc_yaw: float, view_diff_deg: floa
 		&"neboke":
 			_start(112, 120, IMMEDIATE_DEATH)
 		_:
+			## `&"ambient"`: no emitter, only the mood poses' `pulse`s.
 			alive = false
 
 
@@ -365,6 +366,76 @@ func _tick_gloom() -> void:
 
 
 # ---- children ------------------------------------------------------
+
+## `aNPC_set_feel_effect`: one effect of a mood pose (happy notes, angry steam, a sad
+## cloud, a sleepy bubble).
+func pulse(effect: StringName) -> void:
+	match effect:
+		&"konpu":
+			_spawn_note()
+		&"pun_yuge":
+			_spawn_pun_yuge()
+		&"doyon":
+			_spawn_doyon()
+		&"neboke_awa":
+			_spawn_zzz()
+
+
+## `eKONP` (arg 0): a musical note rising from the mouth, wobbling as it swells.
+const NOTE_PRIM: Array[Color] = [
+	Color8(255, 255, 0), Color8(255, 150, 255), Color8(0, 255, 0), Color8(100, 120, 255), Color8(255, 100, 50),
+]
+const NOTE_ENV: Array[Color] = [
+	Color8(100, 50, 0), Color8(150, 0, 150), Color8(0, 70, 0), Color8(0, 0, 200), Color8(150, 0, 0),
+]
+
+
+func _spawn_note() -> void:
+	var p := _part(StringName("ef_onpu01_%02d" % _rng.randi_range(0, 2)), _rot_y(Vector3(0.0, 6.0, 13.0), _npc_yaw), Vector3.ZERO, 72)
+	var v := _rot_z(Vector3(0.0, 0.435, 0.0), deg_to_rad(_rng.randf() * 30.0 - 15.0))
+	p.vel = _rot_x(v, deg_to_rad(_rng.randf() * 30.0 - 15.0))
+	p.acc = Vector3(0.0, 0.006, 0.0)
+	p.data["wobble"] = 0
+	var c: int = _rng.randi_range(0, 4)
+	p.data["prim"] = NOTE_PRIM[c]
+	p.set_param(&"env_color", NOTE_ENV[c])
+	p.node.rotation.z = deg_to_rad(_rng.randf() * 60.0 - 30.0)
+	p.step = func(q: Part) -> void:
+		q.data["wobble"] = int(q.data["wobble"]) + 2047
+		q.vel += q.acc
+		q.pos += q.vel
+		var e: int = q.t
+		var a: float = MLib.s16_to_rad(int(q.data["wobble"]))
+		var size: float = _adjust(e, 0, 18, 0.00156, 0.0078)
+		var hi: float = _adjust(e, 0, 30, 1.35, 0.85)
+		var lo: float = _adjust(e, 0, 30, 0.05, 0.55)
+		_scale(q, size * (lo + (sin(a) + 1.0) * 0.5 * (hi - lo)), size * (lo + (sin(a - PI) + 1.0) * 0.5 * (hi - lo)), size)
+		var col: Color = q.data["prim"]
+		col.a = _adjust(e, 60, 72, 255.0, 0.0) / 255.0
+		q.set_param(&"prim_color", col)
+	trg_se.append(&"43f")
+
+
+## `eDoyon`: a little dark cloud drifting off the head and swirling as it slows.
+func _spawn_doyon() -> void:
+	var ang: float = (_rng.randf() * 2.0 - 1.0) * PI * 0.75
+	var p := _part(&"ef_doyon01_00", Vector3(10.0 * sin(ang), 10.0 * cos(ang), 0.0), Vector3(0.0, 0.0, 20.0), 60)
+	p.vel = Vector3(sin(ang) * 0.5, cos(ang) * 0.5, 0.0)
+	p.data["spin"] = 0.0
+	p.set_param(&"env_color", _c(100, 100, 255, 255))
+	p.step = func(q: Part) -> void:
+		var timer: int = 60 - q.t
+		var progress: float = _adjust(timer, 0, 60, 0.0, 5.0)
+		q.pos += q.vel
+		q.data["spin"] = float(q.data["spin"]) + deg_to_rad(5.625)
+		var sp: float = q.data["spin"]
+		q.vel.x *= sqrt(0.95)
+		q.vel.y *= sqrt(0.95)
+		var size: float = float(q.t) * 0.00065 if timer > 50 else 0.0065
+		_scale(q, size * (1.0 + 0.2 * cos(sp)), size * (1.0 + 0.2 * sin(sp)), 0.1)
+		q.ofs = Vector3(progress * cos(sp), progress * sin(sp), 20.0)
+		q.set_param(&"prim_color", _c(40, 30, 40, int(_adjust(timer, 0, 8, 0.0, 220.0))))
+	trg_se.append(&"doyon")
 
 ## `ePunYuge`: a puff of steam over the head, swelling as its frames cross-fade.
 func _spawn_pun_yuge() -> void:

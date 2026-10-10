@@ -6,7 +6,7 @@ extends RefCounted
 
 const COMMANDS: PackedStringArray = [
 	"help", "weather", "season", "give", "time", "bells", "house", "event", "fortune", "bug", "shop",
-	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
+	"balloon", "rainbow", "tune", "board", "map", "abd", "catalog", "sting", "pitfall", "exercise", "resetti", "weeds", "town", "moneyrock", "mushrooms", "shells", "snowballs", "snowman", "tan", "diary", "fengshui", "birthday", "mom", "calendar", "treasure", "golden", "wisp", "blanca", "meteor", "signboard", "equip", "axebreak", "release", "throwfish", "mailbox", "twirl", "wish", "feel", "manpu", "digup", "ball", "xmas", "reflect", "drop", "bridge", "clear"
 ]
 const SHOP_ARGS: PackedStringArray = ["status", "sales", "visitor", "restock", "turnips"]
 const EVENT_ARGS: PackedStringArray = ["list", "start", "stop", "goto", "special"]
@@ -218,6 +218,25 @@ func execute(raw: String) -> String:
 			ws_player.global_position = ws_at
 			ws_player.shrine_visit(ws_at, float(ws_stand[1]), true, ws_well.global_position.y)
 			return "Wishing."
+		"feel":
+			## `feel <happy|angry|sad|sleepy|normal>`: the villager nearest the camera falls into
+			## that mood for an hour (`mNpc_FEEL_*`).
+			var fl_tree := Engine.get_main_loop() as SceneTree
+			var fl_cam: Camera3D = fl_tree.root.get_viewport().get_camera_3d() if fl_tree != null else null
+			var fl_names: PackedStringArray = ["normal", "happy", "angry", "sad", "sleepy"]
+			if fl_cam == null or args.is_empty() or not fl_names.has(args[0]):
+				return "Usage: feel <normal|happy|angry|sad|sleepy>"
+			var fl_best: Node3D = null
+			for v: Node in fl_tree.get_nodes_in_group("villagers"):
+				if not (v is Node3D and v.get("state") != null and (v as Node3D).is_visible_in_tree()):
+					continue
+				var fl_d: float = (v as Node3D).global_position.distance_to(fl_cam.global_position)
+				if fl_best == null or fl_d < fl_best.global_position.distance_to(fl_cam.global_position):
+					fl_best = v as Node3D
+			if fl_best == null:
+				return "No villager."
+			(fl_best.get("state") as VillagerState).set_feel(fl_names.find(args[0]), 60)
+			return "%s feels %s." % [fl_best.name, args[0]]
 		"manpu":
 			## `manpu <clip|code>`: the villager nearest the camera reacts as if a talk line
 			## called for it.

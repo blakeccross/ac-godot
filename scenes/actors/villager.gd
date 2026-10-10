@@ -1072,17 +1072,26 @@ func _update_animation(delta: float, planar: Vector3) -> void:
 
 
 func _clip_for(_kind: StringName, moving: bool) -> String:
+	var mood: int = int(state.mood) if state != null else 0
 	if moving:
 		if _motor.gait == VillagerWalk.ACT_RUN:
-			return ANIM_RUN
-		return ANIM_WALK
+			return _mood_or(NpcManpu.mood_clip(NpcManpu.MOOD_RUN, mood), ANIM_RUN)
+		return _mood_or(NpcManpu.mood_clip(NpcManpu.MOOD_WALK, mood), ANIM_WALK)
 	match _kind:
 		ActivityKind.SIT:
 			return ANIM_SIT
 		ActivityKind.FISH:
 			return ANIM_FISH
 		_:
-			return ANIM_WAIT
+			var table: Array[String] = NpcManpu.MOOD_TALK if ai.is_talking() else NpcManpu.MOOD_WAIT
+			return _mood_or(NpcManpu.mood_clip(table, mood), ANIM_WAIT)
+
+
+## A mood pose when this villager's clips have it, else the plain one.
+func _mood_or(clip: String, plain: String) -> String:
+	if clip == plain or _body_anim == null:
+		return plain
+	return clip if _body_anim.has_animation(clip) or not _resolve_clip(clip).is_empty() else plain
 
 
 func play_wait_anim() -> void:
@@ -1101,6 +1110,8 @@ func _play_clip(suffix: String, loop: bool) -> void:
 	_ensure_loop(clip, loop)
 	_body_anim.speed_scale = 1.0
 	_body_anim.play(clip, 0.12)
+	if _feel != null:
+		_feel.set_pose(suffix)
 
 
 func _resolve_clip(suffix: String) -> String:
