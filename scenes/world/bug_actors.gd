@@ -90,10 +90,10 @@ func _sync(delta: float) -> void:
 	for i: int in _field.actors.size():
 		var actor: BugActor = _field.actors[i]
 		var visual: BugActorVisual = _nodes[i]
-		if visual.bug_id != actor.bug.id:
+		if visual.bug_id != actor.bug.id or visual.swarm != actor.is_swarm():
 			remove_child(visual)
 			visual.free()
-			visual = BugActorVisual.create(actor.bug)
+			visual = BugActorVisual.create(actor.bug, actor.is_swarm())
 			add_child(visual)
 			_nodes[i] = visual
 		visual.sync(actor, delta)

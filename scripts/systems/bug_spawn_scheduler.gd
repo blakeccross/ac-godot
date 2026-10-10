@@ -16,17 +16,19 @@ extends RefCounted
 
 ## `aSOI_ins_add_range_info` — {type_index, spawn_area, weight}. Always appended.
 const ADDITIONS := [
-	{"type_index": 38, "spawn_area": 8, "weight": 1.0},   ## ANT on candy
-	{"type_index": 38, "spawn_area": 9, "weight": 1.0},   ## ANT on trash
-	{"type_index": 28, "spawn_area": 9, "weight": 1.0},   ## COCKROACH on trash
+	{"type_index": 38, "spawn_area": 13, "weight": 1.0},  ## ANT on candy
+	{"type_index": 38, "spawn_area": 14, "weight": 1.0},  ## ANT on trash
+	{"type_index": 28, "spawn_area": 14, "weight": 1.0},  ## COCKROACH on trash
 ]
 ## `env_rate_table[mFAs_FIELDRANK_*]` — town-environment weighting.
 const ENV_RATE := [0.5, 0.75, 0.875, 1.0, 1.0, 1.0, 1.0]
 ## `aSOI_ins_chk_term_info` `rate[]` — previous-month weight over the transition.
 const PREV_RATE := [1.0 / 6.0, 2.0 / 6.0, 3.0 / 6.0, 4.0 / 6.0, 5.0 / 6.0]
 
-const AREA_ON_CANDY := 8
-const AREA_ON_TRASH := 9
+## Past the data table's areas (0..12): the decomp numbers these 8 / 9, which the
+## project's table uses for rocks and underground.
+const AREA_ON_CANDY := 13
+const AREA_ON_TRASH := 14
 const AREA_FLYING := 3
 const AREA_ON_FLOWER := 1
 const AREA_FLYING_NEAR_FLOWERS := 12

@@ -192,6 +192,8 @@ static func create(
 	a.f_bit4 = true
 	a.bg_range = BG_RANGE_DEFAULT
 	a._prog = BugProgram.create(p_bug.program if p_bug != null else BugData.Program.CHOU)
+	if a.type == BugAnt.TYPE and not p_released:
+		a._prog = BugAnt.new()  ## the swarm on the food (`ac_ant`); caught, it is the ant
 	a._prog.actor_init(a, p_released)
 	return a
 
@@ -223,6 +225,11 @@ var alpha: float:
 	get: return clampf(float(alpha0) / 255.0, 0.0, 1.0)
 
 
+## The ant swarm on food (`ac_ant`), drawn as a crawling patch.
+func is_swarm() -> bool:
+	return _prog is BugAnt
+
+
 func pose_index() -> int:
 	return _prog.pose_index(self) if _prog != null else 0
 
@@ -252,6 +259,8 @@ func net_catch_range_gx(player_position_m: Vector3) -> float:
 	match type:
 		0, 1:  ## common / yellow butterfly
 			return 24.0
+		BugAnt.TYPE:  ## the swarm on food (`aANT_actor_move`: 24)
+			return 24.0 if is_swarm() else 8.0
 		4, 5, 6, 7, 8, 19, 20, 21, 22, 23, 29, 30, 31:  ## cicadas, bee, beetles
 			return _angular_catch(player_position_m)
 		28:  ## cockroach only once it has stopped (`flag == 4`)

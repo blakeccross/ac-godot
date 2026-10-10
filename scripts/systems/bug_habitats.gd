@@ -6,6 +6,10 @@ extends RefCounted
 ## Decomp places insects in the player's **entered acre** (`next_bx` / `next_bz`), not a
 ## radius around the player.
 
+## Units in from the acre's edge that bait must lie (`aSOI_ins_chk_candy`).
+const BAIT_EDGE := 2
+
+
 class Site:
 	var cell: Vector2i = Vector2i(-1, -1)
 	var spawn_area: int = -1
@@ -70,6 +74,12 @@ static func sites_for_spawn_area(
 			return _filter_open(_rock_sites(layout, grid, acre), occupied)
 		9:
 			return _filter_open(_underground_sites(layout, grid, acre), occupied)
+		BugSpawnScheduler.AREA_ON_CANDY:
+			return _filter_open(_bait_sites(layout, grid, acre, &"candy", resolved, raining), occupied)
+		BugSpawnScheduler.AREA_ON_TRASH:
+			return _filter_open(
+				_bait_sites(layout, grid, acre, &"spoiled_turnips", resolved, raining), occupied
+			)
 		_:
 			return []
 
@@ -259,6 +269,35 @@ static func _underground_sites(layout: WorldData, grid: WorldGrid, acre: Vector2
 		site.cell = cell
 		site.spawn_area = 9
 		site.habitat = BugData.Habitat.UNDERGROUND
+		site.anchor = at
+		out.append(site)
+	return out
+
+
+## `aSOI_ins_chk_candy` / `aSOI_ins_chk_trash`: candy or a spoiled turnip lying in the acre,
+## away from its 2-unit edge, in dry weather (`free_without_rain_and_snow`).
+static func _bait_sites(
+	layout: WorldData, grid: WorldGrid, acre: Vector2i, item: StringName, spawn_area: int, raining: bool
+) -> Array[Site]:
+	var out: Array[Site] = []
+	if layout == null or grid == null or raining or Game.weather == &"snow":
+		return out
+	var bounds: Rect2i = _acre_cell_bounds(layout, acre).grow(-BAIT_EDGE)
+	for key: Variant in Game.field_items:
+		var rec: Variant = Game.field_items[key]
+		if typeof(rec) != TYPE_DICTIONARY or bool((rec as Dictionary).get("wrapped", false)):
+			continue
+		if StringName(str((rec as Dictionary).get("id", ""))) != item:
+			continue
+		var cell: Vector2i = FieldItems.cell_from_persist(StringName(str(key)))
+		if not bounds.has_point(cell):
+			continue
+		var at: Vector3 = grid.cell_to_world(cell)
+		at.y = FieldCollision.ground_y(layout, cell)
+		var site := Site.new()
+		site.cell = cell
+		site.spawn_area = spawn_area
+		site.habitat = BugData.Habitat.GROUND
 		site.anchor = at
 		out.append(site)
 	return out

@@ -2175,6 +2175,22 @@ class JointTextureInheritanceTests(unittest.TestCase):
 
 
 
+class ModelTextureLoadTests(unittest.TestCase):
+    def test_non_ci_loads_come_from_the_model_dl(self) -> None:
+        from asset_pipeline.convert import model_dl_texture_loads
+
+        ant = "gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 32, 32, act_ant_tex),\n" * 2
+        tree = "gsDPSetTextureImage_Dolphin(G_IM_FMT_CI, G_IM_SIZ_4b, 32, 32, obj_tree_tex),\n"
+        mixed = (
+            "gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 32, 32, shared_tex),\n"
+            "gsDPSetTextureImage_Dolphin(G_IM_FMT_IA, G_IM_SIZ_8b, 32, 16, shared_tex),\n"
+        )
+        out = model_dl_texture_loads({"a.c": ant, "t.c": tree, "m.c": mixed})
+        self.assertEqual(out["act_ant_tex"], (4, 0, 32, 32))
+        self.assertNotIn("obj_tree_tex", out)  ## CI keeps its palette path
+        self.assertNotIn("shared_tex", out)  ## ambiguous
+
+
 class EffectFrameFormatTests(unittest.TestCase):
     def test_formats_come_from_the_effect_dls(self) -> None:
         from asset_pipeline.convert import effect_dl_frame_formats

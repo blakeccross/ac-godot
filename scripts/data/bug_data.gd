@@ -169,6 +169,8 @@ static func habitat_from_spawn_area(spawn_area: int, prefer_flower: bool = true)
 			return Habitat.ROCK
 		9:
 			return Habitat.UNDERGROUND
+		13, 14:
+			return Habitat.GROUND  ## candy / spoiled turnip
 		12:
 			return Habitat.FLOWER if prefer_flower else Habitat.FLYING
 		_:

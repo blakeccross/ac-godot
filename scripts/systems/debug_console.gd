@@ -901,6 +901,8 @@ func _cmd_bug(args: PackedStringArray) -> String:
 	var player := Player.find(tree)
 	if world == null or player == null or world.layout == null:
 		return "Bugs need the outdoor field."
+	if bug.type_index == BugAnt.TYPE:
+		return _cmd_ants(bug, world, player)
 	var count: int = clampi(int(args[1]) if args.size() > 1 else 1, 1, BugField.MAX_ACTORS)
 	var habitat: BugData.Habitat = (
 		bug.habitats[0] as BugData.Habitat if not bug.habitats.is_empty() else BugData.Habitat.GROUND
@@ -915,6 +917,19 @@ func _cmd_bug(args: PackedStringArray) -> String:
 		if world.bugs.spawn(bug, habitat, at) != null:
 			spawned += 1
 	return "Spawned %d %s." % [spawned, bug.id]
+
+
+## Ants swarm on food: on the candy or spoiled turnip lying in the player's acre
+## (`drop candy` first).
+func _cmd_ants(bug: BugData, world: Node, player: Node3D) -> String:
+	var acre: Vector2i = BugHabitats.acre_of_world_pos(world.grid, player.global_position)
+	for area: int in [BugSpawnScheduler.AREA_ON_CANDY, BugSpawnScheduler.AREA_ON_TRASH]:
+		var sites: Array[BugHabitats.Site] = BugHabitats.sites_for_spawn_area(
+			area, world.layout, world.grid, acre, func(_c: Vector2i) -> bool: return false, false
+		)
+		if not sites.is_empty() and world.bugs.spawn(bug, BugData.Habitat.GROUND, sites[0].anchor) != null:
+			return "Ants on the food at %s." % sites[0].cell
+	return "Ants need candy or a spoiled turnip on the ground here (drop candy)."
 
 
 ## Today's `Private_c.destiny` — normally set by Katrina / the New Year shrine (not built

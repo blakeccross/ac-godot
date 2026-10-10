@@ -1378,9 +1378,28 @@ def _infer_ci4_size(nbytes: int) -> tuple[int, int] | None:
     return None
 
 
+def model_dl_texture_loads(model_sources: dict[str, str]) -> dict[str, tuple[int, int, int, int]]:
+    """Texture symbol → (fmt, siz, width, height) for the non-CI textures a model DL loads by
+    name (`gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 32, 32, act_ant_tex)`).
+    A symbol loaded more than one way is left out."""
+    loads: dict[str, set[tuple[int, int, int, int]]] = {}
+    for text in model_sources.values():
+        for fmt, siz, w, h, sym in _SETTIMG_FULL_RE.findall(text):
+            if fmt not in _GX_FMT or siz not in _GX_SIZ:
+                continue
+            loads.setdefault(sym, set()).add((_GX_FMT[fmt], _GX_SIZ[siz], int(w), int(h)))
+    return {
+        sym: next(iter(found))
+        for sym, found in loads.items()
+        if len(found) == 1 and next(iter(found))[0] != G_IM_FMT_CI
+    }
+
+
 def _convert_rel_textures(cfg: PipelineConfig, rel: RelData, symbols: list, bank: TextureBank) -> list[dict[str, Any]]:
-    """Decode named REL textures: CI4 with nearby palettes, plus known IA field waves."""
+    """Decode named REL textures: the format a model DL loads them in when it names them,
+    else CI4 with nearby palettes, plus known IA field waves."""
     results: list[dict[str, Any]] = []
+    dl_loads = model_dl_texture_loads(_model_sources(cfg, "*.c"))
     pals = [s for s in symbols if s.name.endswith("_pal") and s.size >= 32]
     pals.sort(key=lambda s: s.address)
     pal_i = 0
@@ -1418,6 +1437,24 @@ def _convert_rel_textures(cfg: PipelineConfig, rel: RelData, symbols: list, bank
                     }
                 )
             continue
+        load = dl_loads.get(symbol.name)
+        if load is not None:
+            fmt, siz, w, h = load
+            if w * h * {0: 4, 1: 8, 2: 16, 3: 32}[siz] // 8 == symbol.size:
+                try:
+                    data = rel.slice_at(symbol.address, symbol.size)
+                    results.append(_png_record(cfg, dest_rel, symbol.name, data, w, h, b"", fmt=fmt, siz=siz))
+                except Exception as exc:  # noqa: BLE001
+                    results.append(
+                        {
+                            "asset_id": symbol.name,
+                            "source": symbol.name,
+                            "output_path": dest_rel,
+                            "status": "error",
+                            "error": f"{type(exc).__name__}: {exc}",
+                        }
+                    )
+                continue
         dims = _infer_ci4_size(symbol.size)
         if dims is None:
             continue
@@ -1458,6 +1495,9 @@ _GX_FMT = {"G_IM_FMT_RGBA": 0, "G_IM_FMT_YUV": 1, "G_IM_FMT_CI": 2, "G_IM_FMT_IA
 _GX_SIZ = {"G_IM_SIZ_4b": 0, "G_IM_SIZ_8b": 1, "G_IM_SIZ_16b": 2, "G_IM_SIZ_32b": 3}
 _SETTIMG_RE = re.compile(
     r"gsDPSetTextureImage_Dolphin\(\s*(G_IM_FMT_\w+)\s*,\s*(G_IM_SIZ_\w+)\s*,\s*\d+\s*,\s*\d+\s*,\s*(\w+)\s*\)"
+)
+_SETTIMG_FULL_RE = re.compile(
+    r"gsDPSetTextureImage_Dolphin\(\s*(G_IM_FMT_\w+)\s*,\s*(G_IM_SIZ_\w+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\w+)\s*\)"
 )
 _SETTIMG_DIMS_RE = re.compile(
     r"gsDPSetTextureImage_Dolphin\(\s*G_IM_FMT_\w+\s*,\s*G_IM_SIZ_\w+\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\w+)\s*\)"
@@ -1523,6 +1563,10 @@ def effect_frame_size(name: str, pixels: int, dl_dims: dict[str, list[tuple[int,
 
 
 def _effect_model_sources(cfg: PipelineConfig) -> dict[str, str]:
+    return _model_sources(cfg, "ef_*.c")
+
+
+def _model_sources(cfg: PipelineConfig, pattern: str) -> dict[str, str]:
     from .fgdata import _guess_decomp
 
     root = cfg.decomp_root or _guess_decomp(cfg)
@@ -1532,7 +1576,7 @@ def _effect_model_sources(cfg: PipelineConfig) -> dict[str, str]:
     if not model_dir.is_dir():
         return {}
     return {
-        p.name: p.read_text(encoding="utf-8", errors="replace") for p in sorted(model_dir.glob("ef_*.c"))
+        p.name: p.read_text(encoding="utf-8", errors="replace") for p in sorted(model_dir.glob(pattern))
     }
 
 
