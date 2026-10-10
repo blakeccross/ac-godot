@@ -29,6 +29,22 @@ var _race_center: Vector3 = Vector3.INF
 var _race_to_finish: bool = false
 ## `aNPC` run (≈6 GX a frame) is the field's 4.5 m/s.
 const RACE_MPS_PER_GX := 0.75
+## New Year's queue (`ShrineQueue`): where this villager is on its column's round.
+enum Shrine { WALK, FRONT, SAISEN, OMAIRI, AFTER, BOW, BACK }
+var _well: Node3D
+var _sq_leg: int = 0
+var _sq_state: int = Shrine.WALK
+var _sq_timer: float = 0.0
+var _sq_coin: bool = false
+## This villager let the player in (`aHN0_talk_saisen_suru` Yes) and walks them up.
+var _sq_let_in: bool = false
+var _sq_thanked: bool = false
+## The player passes through the line while they're in it (the walk-up threads between the
+## columns).
+var _sq_excepted: bool = false
+var _sq_offer: BankTalk.Fixed = null
+## `SAISEN1`: the coin leaves the paw at frame 33.
+const SAISEN_COIN_SEC := 33.0 / 30.0
 
 
 ## Before `_ready`: copy the villager's looks onto the event actor.
@@ -72,6 +88,8 @@ func setup() -> void:
 		if slot == 0:
 			FootRace.reset()
 		_race_center = _block_unit_pos(FootRace.CENTER_UNIT)
+	elif family == &"hatumode":
+		_setup_shrine()
 	_home = global_position
 	_pause = rng().randf_range(0.5, 3.0)
 
@@ -98,6 +116,10 @@ func _setup_tug() -> void:
 
 
 func _exit_tree() -> void:
+	if _well != null:
+		ShrineQueue.members -= 1
+		if ShrineQueue.members <= 0:
+			ShrineQueue.reset()
 	if _rope != null and is_instance_valid(_rope):
 		_rope.queue_free()
 	## The cheerleader clears the balls away when the ball toss ends.
@@ -187,6 +209,9 @@ func _race(delta: float) -> void:
 
 ## Between legs a runner keeps running; the next leg starts this frame.
 func arrived() -> void:
+	if _well != null:
+		_arrive_leg()
+		return
 	if family == &"tokyoso" and FootRace.phase == FootRace.Phase.RACE and FootRace.racing(slot) and not _race_to_finish:
 		return
 	super.arrived()
@@ -345,6 +370,12 @@ func make_context() -> DialogueContext:
 
 
 func make_talk() -> BankTalk:
+	if _well != null:
+		_sq_offer = null
+		if _sq_state == Shrine.FRONT and ShrineQueue.can_offer(slot):
+			_sq_offer = BankTalk.Fixed.new(ShrineQueue.offer_msg(_looks()))
+			return _sq_offer
+		return BankTalk.Fixed.new(ShrineQueue.talk_msg(_looks(), slot, rng()))
 	var alt_event: StringName = _data.get("alt_event", &"")
 	var alt: bool = alt_event != &"" and Game != null and Game.events != null and Game.events.is_active(alt_event)
 	var term: int = FestivalCrowd.term_of(family, Clock.now_sec())
@@ -354,10 +385,193 @@ func make_talk() -> BankTalk:
 
 func talk_ended(script: BankTalk) -> void:
 	super.talk_ended(script)
+	if _well != null:
+		if _sq_offer != null and script == _sq_offer and _sq_offer.chosen == 0:
+			ShrineQueue.queue_player(slot)
+			_sq_let_in = true
+		_sq_offer = null
+		if _sq_state == Shrine.SAISEN or _sq_state == Shrine.OMAIRI or _sq_state == Shrine.BOW:
+			return
 	play_clip(idle_clip(), true)
 
 
+func can_talk() -> bool:
+	if _well != null:
+		return visible and (_sq_state == Shrine.FRONT or _sq_state == Shrine.BACK or _sq_state == Shrine.AFTER)
+	return super.can_talk()
+
+
+## --- New Year's queue (`ac_hatumode_npc0`) ---------------------------------------------
+
+
+func _setup_shrine() -> void:
+	_well = get_tree().get_first_node_in_group("wishing_well") as Node3D if get_tree() != null else null
+	if _well == null:
+		return
+	if ShrineQueue.members <= 0:
+		ShrineQueue.reset()
+	ShrineQueue.members += 1
+	_sq_leg = ShrineQueue.start_leg(slot)
+	if _sq_leg == ShrineQueue.LEG_FRONT:
+		ShrineQueue.take_front(slot)
+	elif _sq_leg == ShrineQueue.LEG_OFFER:
+		ShrineQueue.step_up(slot)
+		ShrineQueue.turn = ShrineQueue.column_of(slot)
+	global_position = _sq_world(_sq_leg)
+	_arrive_leg()
+
+
+func _sq_world(leg: int) -> Vector3:
+	var at: Vector3 = ShrineQueue.to_world(_well, ShrineQueue.point_of(ShrineQueue.column_of(slot), leg))
+	var world: World = World.find(get_tree()) if get_tree() != null else null
+	at.y = _well.global_position.y
+	if world != null and world.layout != null:
+		var cell: Vector2i = world.grid.world_to_cell(at)
+		if world.layout.is_in_bounds(cell):
+			at.y = FieldCollision.ground_y(world.layout, cell)
+	return at
+
+
+## `aHN0_move_init`: run to the next point of the round.
+func _sq_go(leg: int) -> void:
+	_sq_leg = leg
+	_sq_state = Shrine.WALK
+	if leg == ShrineQueue.LEG_FRONT:
+		ShrineQueue.take_front(slot)
+	elif leg == ShrineQueue.LEG_OFFER:
+		ShrineQueue.step_up(slot)
+	move_to(_sq_world(leg), ShrineQueue.RUN_SPEED, ShrineQueue.CLIP_RUN)
+
+
+func _arrive_leg() -> void:
+	match _sq_leg:
+		ShrineQueue.LEG_OFFER:
+			## `aHN0_saisen_init`: a coin, then the prayer, facing the well.
+			rotation.y = ShrineQueue.facing_well(_well)
+			_sq_state = Shrine.SAISEN
+			_sq_coin = false
+			_sq_timer = 0.0
+			play_clip(ShrineQueue.CLIP_SAISEN, false)
+		ShrineQueue.LEG_BACK:
+			## `aHN0_turn_aisatu_init`: turn to the other column and bow.
+			var across: Vector3 = ShrineQueue.to_world(_well, Vector2(0.0, 180.0)) - global_position
+			rotation.y = atan2(across.x, across.z)
+			_sq_state = Shrine.BOW
+			var bow: String = ShrineQueue.BOW_CLIPS[clampi(_looks(), 0, 5)]
+			if bow.is_empty() or play_clip(bow, false) <= 0.0:
+				_sq_state = Shrine.BACK
+				play_clip("npc_1_wait1", true)
+		ShrineQueue.LEG_FRONT:
+			_sq_state = Shrine.FRONT
+			play_clip("npc_1_wait1", true)
+		_:
+			_sq_go(ShrineQueue.next_leg(_sq_leg))
+
+
+func _shrine(delta: float) -> void:
+	_sq_let_through()
+	if is_moving():
+		return
+	_sq_timer += delta
+	match _sq_state:
+		Shrine.SAISEN:
+			if not _sq_coin and _sq_timer >= SAISEN_COIN_SEC:
+				_sq_coin = true
+				WellCoin.toss(get_parent(), global_position, _well.global_position.y, rng())
+			if clip_done():
+				_sq_state = Shrine.OMAIRI
+				play_clip(ShrineQueue.CLIP_OMAIRI, false)
+		Shrine.OMAIRI:
+			if clip_done():
+				_sq_state = Shrine.AFTER
+				_sq_timer = 0.0
+				play_clip("npc_1_wait1", true)
+		Shrine.AFTER:
+			if _sq_timer >= ShrineQueue.AFTER_SEC:
+				ShrineQueue.step_down(slot)
+				_sq_go(ShrineQueue.next_leg(ShrineQueue.LEG_OFFER))
+		Shrine.BOW:
+			if clip_done():
+				_sq_state = Shrine.BACK
+				play_clip("npc_1_wait1", true)
+		Shrine.BACK:
+			if ShrineQueue.can_take_front(slot):
+				_sq_go(ShrineQueue.LEG_FRONT)
+		Shrine.FRONT:
+			turn_to(ShrineQueue.facing_well(_well), delta)
+			if _sq_let_in:
+				_lead_player()
+			elif ShrineQueue.may_step_up(slot):
+				_sq_go(ShrineQueue.LEG_OFFER)
+
+
+## `aHN0_player_move` / `aHN0_kasasimai` / `aHN0_sanpai_wait`: walk the player to wait behind
+## the well, up to it when their turn comes, then — once they've prayed — thank them and go
+## round without praying.
+func _lead_player() -> void:
+	var player := player_node() as Player
+	match ShrineQueue.player_state:
+		ShrineQueue.PlayerState.QUEUED:
+			if player == null:
+				return
+			if ShrineQueue.player_may_step_up():
+				ShrineQueue.offering_by = ShrineQueue.PLAYER
+				ShrineQueue.player_state = ShrineQueue.PlayerState.UP
+				_player_offering(player)
+				return
+			var wait: Vector3 = ShrineQueue.to_world(_well, ShrineQueue.PLAYER_WAIT)
+			wait.y = player.global_position.y
+			player.begin_demo_walk(wait, ShrineQueue.PLAYER_WALK_SPEED, 0.05)
+		ShrineQueue.PlayerState.DONE:
+			if not _sq_thanked:
+				if not can_call_out():
+					return
+				_sq_thanked = true
+				begin_talk(player, BankTalk.Fixed.new(ShrineQueue.thanks_msg(_looks(), rng())))
+				return
+			_sq_let_in = false
+			ShrineQueue.front_by[ShrineQueue.column_of(slot)] = -1
+			_sq_go(ShrineQueue.next_leg(ShrineQueue.LEG_OFFER))
+
+
+func _sq_let_through() -> void:
+	var player := player_node() as Player
+	if player == null:
+		return
+	var want: bool = ShrineQueue.player_state == ShrineQueue.PlayerState.QUEUED \
+		or ShrineQueue.player_state == ShrineQueue.PlayerState.UP
+	if want == _sq_excepted:
+		return
+	_sq_excepted = want
+	if want:
+		player.add_collision_exception_with(self)
+	else:
+		player.remove_collision_exception_with(self)
+
+
+func _player_offering(player: Player) -> void:
+	var stand: Array = _well.call("visit_stand")
+	var at: Vector3 = stand[0]
+	at.y = player.global_position.y
+	player.begin_demo_walk(at, ShrineQueue.PLAYER_WALK_SPEED, 0.05)
+	while is_inside_tree() and is_instance_valid(player):
+		var to: Vector3 = at - player.global_position
+		if Vector2(to.x, to.z).length() <= 0.08:
+			break
+		await get_tree().physics_frame
+	if is_instance_valid(player):
+		player.end_demo_walk()
+	var ui := DialogueOverlay.find(get_tree()) if is_inside_tree() else null
+	if ui != null and is_instance_valid(player) and is_instance_valid(_well):
+		await _well.call("offer_wish", ui, player)
+	ShrineQueue.step_down(ShrineQueue.PLAYER)
+	ShrineQueue.player_state = ShrineQueue.PlayerState.DONE
+
+
 func think(delta: float) -> void:
+	if _well != null and not talking:
+		_shrine(delta)
+		return
 	if family == &"tunahiki" and not talking:
 		_tug(delta)
 		return

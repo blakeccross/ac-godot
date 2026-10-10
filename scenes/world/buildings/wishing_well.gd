@@ -62,6 +62,10 @@ func _in_front(actor: Node3D) -> bool:
 func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
 	if _visiting:
 		return []
+	## With villagers queueing, a wish is made by taking a place in the line
+	## (`aHTC_wait` only starts on the queue's signal).
+	if ShrineQueue.members > 0 and Game.events != null and Game.events.is_active(NEW_YEAR):
+		return []
 	if _talk != null or (ctx != null and not _in_front(ctx.actor as Node3D)):
 		return []
 	return [Interaction.of(Interaction.TALK, "Talk to the wishing well", 14)]
@@ -114,6 +118,12 @@ func visit_stand() -> Array:
 ## `ac_hatumode_control`: the New Year's offering. With 50 Bells the well asks; paying throws
 ## a coin in before the prayer, declining (or too little) prays without.
 func _new_year_visit(ui: DialogueOverlay, ctx: InteractionContext) -> bool:
+	return await offer_wish(ui, ctx.actor as Player if ctx != null else null)
+
+
+## `aHTC_request` … `aHTC_inori_end` for `player` standing at the well (also the queue's
+## turn for a player let in by a villager).
+func offer_wish(ui: DialogueOverlay, player: Player) -> bool:
 	_visiting = true
 	var inv: Inventory = Game.inventory
 	var can_pay: bool = inv != null and inv.wallet >= OFFERING
@@ -135,7 +145,6 @@ func _new_year_visit(ui: DialogueOverlay, ctx: InteractionContext) -> bool:
 	var toss: bool = can_pay and runner != null and runner.last_choice_index == 0
 	if toss:
 		inv.set_wallet(inv.wallet - OFFERING)
-	var player := ctx.actor as Player if ctx != null else null
 	if player != null and is_instance_valid(player):
 		var stand: Array = visit_stand()
 		var at: Vector3 = stand[0]
