@@ -111,9 +111,9 @@ data tables before a category is called done.
 ## 7. Movement & locomotion
 
 - [~] Analog walk (~4.875 u/frame) and run (~7.5 u/frame); B / L / R to dash (`m_player_main_walk`, `run`, `dash`) — `player_locomotion.gd`
-- [~] Turn-in-place, dash turn, skid (`turn_dash`) — partial
+- [x] Turn-in-place, dash turn, skid (`turn_dash`) — `PlayerLocomotion` `Gait.TURN_DASH`: a dash turned ≥ 100° off the stick brakes 0.261 a frame and swings the body round
 - [x] Trample flowers when dashing through them; walking is safe — `PlantGrowth.trample_flower`, `StepFx` petal burst (`eHanatiri_ct`)
-- [~] Grass wears into dirt paths where you walk repeatedly; regrows slowly (`ac_field_draw` wear) — _(check)_
+- [x] ~~Grass wears into dirt paths~~ — not on the GameCube (no wear in `ac_field_draw` or the BG code; that is Wild World onward)
 - [~] Per-foot footprints on sand/snow, slope-fit, ~160-frame fade (`ef_footprint`) — `footprint_marks.gd`
 - [x] ~~Slip on ice / banana peels~~ — no ice or peels in GCN; `slip_net` is the net's skid (see Net)
 - [x] Bump / knock-back off buildings, signs, rocks; slide along cliff & water edges — walls and banks slide the player along (`FieldCollision.revise_xz`, the `mCoBG` wall revise); the GameCube has no knock-back (its only fall is the bad-luck trip while dashing, `TUMBLE`)
@@ -123,7 +123,7 @@ data tables before a category is called done.
 
 - [~] Context verb chosen from nearby actor + equipment: pick up, talk, shake, sit, read, open door, dig, etc. (`m_player` Field A) — `interaction.gd`, `interaction_query.gd`
 - [x] Pick up dropped items / fruit / shells off the ground (`m_player_main_pickup`) — `item_pickup.gd`. What is dropped, shaken from trees or brought down off a balloon stays on its unit and is saved (`FieldItems`)
-- [~] Talk to villagers & special NPCs (`m_player_main_talk`) — partial
+- [x] Talk to villagers & special NPCs (`m_player_main_talk`) — villagers, shopkeepers, visitors, event NPCs and gyroids all talk through `DialogueOverlay` (see §15–§17)
 - [~] Shake trees (fruit, furniture, bells, bees, wasp nest) (`m_player_main_shake_tree`) — `tree_use.gd`
 - [~] Push signs to read; read bulletin board; read gravestones/signposts (`ac_sign`) — community board (`MESSAGE_BOARD0`, `obj_*_notice`) is placed from the FG templates and hosts the first-job "post a notice" chore and opens the board's posts (`NoticeBoardOverlay`, §26). Sight-map boards (`MAP_BOARD0`) open the town map without needing the item; tune boards (`MUSIC_BOARD0`) open the town tune editor; fences (`FENCE0` / `WOOD_FENCE`) are solid props; the station statue (`DOUZOU`) is placed and shows once a house reaches the statue (§26)
 - [~] Knock on villager doors (`m_player_main_knock_door`)
@@ -212,7 +212,7 @@ data tables before a category is called done.
 - [x] Water rings (`ef_turi_hamon`): the bobber landing (1), each nibble (2), one tick in ten while a fish has the hook (0), a bolting shadow (3 small / 2 big) and its fading shadow 4 ticks on (by size), and a fish thrown back (3). The ring eases out to its size, fades with its timer and drifts along the river's flow — `FieldFx.Kind.HAMON`, `StepFx.ripple`. The reel-in wake far out (4) is not drawn
 - [~] Reel-in beats: pull / swing up / reel empty, per-beat player + rod clips (`vib_rod`, `fly_rod`, `collect_rod`) — `fishing.gd` `reel_beats`
 - [~] Show-off pose, turn square to camera, catch report at frame 42 (`m_player_main_notice_rod`) — `held_catch.gd`, `held_fish.gd`
-- [~] Species report dialogue; shorter report if already donated; "pockets full → toss back / swap" (`Get_sakana_msg_num`, `0x1348`) — partial
+- [x] Species report dialogue; shorter report if already donated; "pockets full → toss back / swap" (`Get_sakana_msg_num`, `0x1348`) — the per-species report (`0x1327 + type`, `0x2FA9 +` past 0x20), `0x1348` chained on full pockets with the toss-back / swap; the rod always reports in full (`notice_rod` clears `already_collected`)
 - [x] **40 fish** plus the junk catches (empty can, boot, old tire), with month × time × water availability and rarity from the disc tables (`ac_set_ovl_gyoei`, `ac_gyoei_type.c_inc`) — `data/creatures/*.tres`, `fish_spawn_table.json`, `FishSpawnScheduler`
 - [x] Half-month term split + transition ramp for spawn weights (`gyoei_term`) — `FishSpawnScheduler.term_blend`
 - [x] Water types: river, pond, sea (`WaterBodies`); waterfall- and pool-only fish bite only in acres with a waterfall or a pool, river-mouth fish in river acres (`aSOG_gyoei_place_check`, US rules). The island's water waits on the island
@@ -470,7 +470,7 @@ Behaviour ported from `m_police_box.c`, `ac_police_box.c`, `ac_npc_police2*`,
 [post / police](decomp_notes/post_police.md). Tests: `tests/unit/test_police_box.gd`.
 
 - [x] Building exterior (`ac_police_box`) — `police_station.tscn`: shell, 3×3 plus-offset hull, door (`INTO_S1`, triforce wipe), exit stand `+60,+60`, window lights 18:00–05:00, fading on and off over about 51 ticks like every lit facade (`aPBOX_actor_move`'s 320-a-tick chase, `VisualWindowLight.step_window_lights`)
-- [~] Interior (`SCENE_POLICE_BOX`) — `police_box.tscn`: `police_indoor` shell, enter `{200,0,380}` north, exit `EXIT_DOOR1`, BGM. Unverified against a real render in this pass (no generated assets in the container)
+- [x] Interior (`SCENE_POLICE_BOX`) — `police_box.tscn`: `police_indoor` shell, enter `{200,0,380}` north, exit `EXIT_DOOR1`, BGM. Checked against a render: shell, counter and Booker's walk-in greeting
 - [x] Lost-and-found storage rules (`PoliceBox_c`, `police_book.gd`): 20 slots; new town gets 1 furniture + 2 shirts once (never refilled when emptied); `keep_item` appends at the occupied count and drops the oldest when full; ITEM1/FTR only; claimed gaps packed when you walk out (`mPB_copy_itemBuf`); `keep_all_item_in_block` batch rules
 - [x] 06:00 top-up (`mPB_force_set_keep_item`): once per renewal, only with ≤ 5 kept, 50% roll; goods 86% (furniture 36 / stationery 23 / clothing 30 / carpet 6 / wallpaper 5), tools & saplings 5%, flower bags 5% (first 8 bags), umbrella 4%
 - [~] Lost-and-found display (`bg_police_item`): each kept item drawn as its field card (`obj_item_*`) at its `RSV_POLICE_ITEM_N` unit centre on the BG under it. Units read from `FG_TYPE_POLICE_INDOOR` (0xCE) in the generated FG catalog; the authored fallback table is unverified. The furniture/cloth pools are the shop's A / B / C lists (`ShopGoods`)
