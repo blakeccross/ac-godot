@@ -74,6 +74,14 @@ const PRESS := {
 	&"int_tak_noise": &"46a",
 }
 
+## Pieces that sound on a frame of their idle loop (`current_frame == n` in the move proc):
+## visual id → [[frame, SE], …]. Frames count from 1 at 30 a second.
+const FRAME_SE := {
+	&"int_kon_sisiodosi": [[20.0, &"18"]],
+	&"int_sum_mizunomi": [[19.0, &"12a"]],
+	&"int_kon_cracker": [[8.0, &"12c"], [24.0, &"12c"]],
+}
+
 ## Pieces that click on and off themselves (`sAdo_OngenTrgStart(0x16 / 0x17)` on
 ## `switch_changed_flag`); lamps already do through `Kind.TOGGLE`.
 const CLICKS: Array[StringName] = [
@@ -91,6 +99,8 @@ var _steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _tick: int = 0
 ## Placement id → ticks left before the next random puff.
 var _puff_wait: Dictionary = {}
+## Placement id → the clip frame seen last tick.
+var _last_frame: Dictionary = {}
 
 
 func _ready() -> void:
@@ -185,6 +195,7 @@ func _process(delta: float) -> void:
 	while _steps.next():
 		_tick += 1
 		_steam(host, session)
+	_frame_sounds(host, session)
 	var mic_m: Vector3 = player.global_position + Ongen.MIC_OFFSET_GX * FieldCatalog.GX_TO_METERS
 	var heard: Array = []
 	for src: Array in sources(session):
@@ -238,6 +249,34 @@ func _steam(host: Node, session: IndoorSession) -> void:
 		var rule: Array = STEAM[data.visual_id]
 		var at: Vector3 = node.global_position + Vector3(0.0, float(rule[0]) * FieldCatalog.GX_TO_METERS, 0.0)
 		FieldFx.spawn(host, FieldFx.Kind.SOBA_YUGE, at, 0.0, int(rule[1]), 0)
+
+
+## Whether a looping clip passed `frame` between two reads (`prev` → `now`, wrapping).
+static func crossed(prev: float, now: float, frame: float) -> bool:
+	if prev < 0.0:
+		return false
+	if now >= prev:
+		return prev < frame and frame <= now
+	return frame > prev or frame <= now
+
+
+func _frame_sounds(host: Node, session: IndoorSession) -> void:
+	if session.room == null or not ACTOR_ROOMS.has(int(session.room.kind)):
+		return
+	for entry: FurniturePlacement in session.room.placements:
+		var data: FurnitureData = session.furniture_of(entry.furniture_id)
+		if data == null or not FRAME_SE.has(data.visual_id):
+			continue
+		var node: Node = host.call("furniture_node", entry.id)
+		var anim: AnimationPlayer = VisualAnimation.find_animation_player(node)
+		if anim == null or not anim.is_playing():
+			continue
+		var now: float = 1.0 + anim.current_animation_position * DecompTime.FRAME_HZ
+		var prev: float = float(_last_frame.get(entry.id, -1.0))
+		_last_frame[entry.id] = now
+		for row: Array in FRAME_SE[data.visual_id]:
+			if crossed(prev, now, float(row[0])):
+				Audio.play_se(row[1] as StringName)
 
 
 func _drive(p: AudioStreamPlayer, h: Array) -> void:

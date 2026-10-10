@@ -81,8 +81,10 @@ EXTRA_SE_NUMS: dict[str, int] = {
     ## switch (`switch_changed_flag`): the Japanese dolls (0x7A rosia, 0x7B hariko), piggy
     ## bank (0x7C), gong (0x174), sandbag / punching bag (0x175 / 0x176), Mario pipe, mushroom,
     ## coin, flower, block, flag and shell (0x178, 0x179, 0x17A, 0x17B, 0x17F, 0x44E, 0x464),
-    ## jack-in-the-box (0x144), tumbler doll (0x145) and noise maker (0x46A). `SE_SINGLETON`
-    ## (0x8000) only limits how many play at once and is dropped.
+    ## jack-in-the-box (0x144), tumbler doll (0x145) and noise maker (0x46A); and on a frame of
+    ## their idle loop, the shishi-odoshi's knock (0x18), the drinking bird's dip (0x12A) and
+    ## the cracker's pop (0x12C). `SE_SINGLETON` (0x8000) only limits how many play at once
+    ## and is dropped.
     "7a": 0x7A,
     "7b": 0x7B,
     "7c": 0x7C,
@@ -99,6 +101,9 @@ EXTRA_SE_NUMS: dict[str, int] = {
     "144": 0x144,
     "145": 0x145,
     "46a": 0x46A,
+    "18": 0x18,
+    "12a": 0x12A,
+    "12c": 0x12C,
 }
 
 ## Level (looping, positional) SEs, played by level id rather than SE number

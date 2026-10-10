@@ -41,6 +41,19 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(sorted(row["contact"]), ["BED_DOUBLE", "BED_SINGLE"])
         self.assertEqual(row["interaction"], ["MUSIC_DISK", "TOGGLE"])
 
+    def test_rig_means_an_idle_loop(self) -> None:
+        body = """
+	NULL, NULL, NULL, NULL, NULL, NULL, &aSumRaigyo_key_anime_data, NULL,
+	40.0f, 0.01f, aFTR_SHAPE_TYPEA, mCoBG_FTR_TYPEA, 0, 0, 0, aFTR_INTERACTION_FISH, NULL,"""
+        row = parse_profile_body(body)
+        assert row is not None
+        self.assertEqual(row["rig"], 1)
+        closet = parse_profile_body("""
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	40.0f, 0.01f, aFTR_SHAPE_TYPEA, mCoBG_FTR_TYPEA, 0, 0, 0, 0, NULL,""")
+        assert closet is not None
+        self.assertEqual(closet["rig"], 0)
+
     def test_rejects_non_profile(self) -> None:
         self.assertIsNone(parse_profile_body("1, 2, 3"))
 

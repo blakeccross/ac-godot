@@ -104,3 +104,20 @@ func test_a_gong_sounds_when_struck_and_the_piggy_bank_needs_bells() -> void:
 	assert_str(String(FurnitureAmbience.press_se(pig, 0))).is_equal("")
 	assert_str(String(FurnitureAmbience.press_se(pig, 100))).is_equal("7c")
 	assert_str(String(FurnitureAmbience.press_se(_piece(&"int_sum_tv01"), 0))).is_equal("")
+
+
+func test_a_looping_clip_sounds_as_it_passes_its_frame() -> void:
+	assert_bool(FurnitureAmbience.crossed(19.5, 20.5, 20.0)).is_true()
+	assert_bool(FurnitureAmbience.crossed(20.0, 21.0, 20.0)).is_false()
+	## Wrapping from the clip's end to its start.
+	assert_bool(FurnitureAmbience.crossed(39.0, 2.0, 1.0)).is_true()
+	assert_bool(FurnitureAmbience.crossed(39.0, 2.0, 20.0)).is_false()
+	## Nothing on the first read.
+	assert_bool(FurnitureAmbience.crossed(-1.0, 20.0, 20.0)).is_false()
+
+
+func test_fish_tanks_and_cages_loop_their_clips() -> void:
+	if not FurnitureProfiles.available():
+		return
+	assert_bool(FurnitureData.loops_idle(&"int_sum_raigyo")).is_true()
+	assert_bool(FurnitureData.loops_idle(&"int_sum_chair01")).is_false()

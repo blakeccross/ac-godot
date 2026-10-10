@@ -138,6 +138,13 @@ func accepts_display(item: ItemData) -> bool:
 
 ## Apply the disc profile (`FurnitureProfiles`): footprint, contact and interaction come from
 ## the game's own tables rather than the visual's name.
+## `aFTR_PROFILE.rig`: the piece loops its own clip at half speed the whole time it is
+## out (`aMR_SystemAnimeCt_UniqueCt`, then `cKF_SkeletonInfo_R_play` every room frame) —
+## the fish in a tank, insects in a cage, the shishi-odoshi tipping.
+static func loops_idle(p_visual_id: StringName) -> bool:
+	return int(FurnitureProfiles.profile_for(p_visual_id).get("rig", 0)) != 0
+
+
 func apply_profile(profile: Dictionary) -> void:
 	var shape_name: String = str(profile.get("shape", "TYPEA"))
 	if shape_name == "TYPEC":
