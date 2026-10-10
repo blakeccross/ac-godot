@@ -18,7 +18,7 @@ static func actions(host: Node, ctx: InteractionContext) -> Array[Interaction]:
 			out.append(Interaction.of(Interaction.OPEN, "Use %s" % label, 9))
 		else:
 			out.append(Interaction.of(Interaction.OPEN, "Open %s" % label, 9, _open_clip(data)))
-	if data != null and data.is_toggleable() and not data.is_music_player() and (not data.radio_aerobics or _from_front(ctx)):
+	if data != null and (data.is_toggleable() or FurnitureAmbience.switchable(data)) and not data.is_music_player() and (not data.radio_aerobics or _from_front(ctx)):
 		var powered: bool = entry == null or entry.on
 		var verb: String = "Turn off %s" if powered else "Turn on %s"
 		out.append(Interaction.of(Interaction.TOGGLE, verb % label, 7))
@@ -113,7 +113,7 @@ static func toggle(placement_id: StringName) -> bool:
 		FurnitureMusic.set_switch(Game.interior_session, entry, not entry.on)
 	else:
 		entry.on = not entry.on
-	if data != null and (data.kind == FurnitureData.Kind.TOGGLE or data.radio_aerobics):
+	if data != null and (data.kind == FurnitureData.Kind.TOGGLE or data.radio_aerobics or FurnitureAmbience.clicks(data)):
 		Audio.play_se(&"light_on" if entry.on else &"light_off")
 	if data != null and data.kind == FurnitureData.Kind.GYROID:
 		_hop(pid_node(placement_id))

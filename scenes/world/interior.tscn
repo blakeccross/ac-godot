@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/interior.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/ui/clock_hud.tscn" id="2"]
 [ext_resource type="Script" path="res://scenes/world/follow_camera.gd" id="3"]
+[ext_resource type="Script" path="res://scenes/world/furniture_ambience.gd" id="4"]
 
 [sub_resource type="Environment" id="Env"]
 background_mode = 1
@@ -54,3 +55,6 @@ fov = 20.0
 script = ExtResource("3")
 
 [node name="ClockHud" parent="." instance=ExtResource("2")]
+
+[node name="FurnitureAmbience" type="Node" parent="."]
+script = ExtResource("4")

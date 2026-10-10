@@ -129,6 +129,34 @@ LEV_SE_NUMS: dict[str, int] = {
     "lev_2e": 0x2E,
     "lev_58": 0x58,
     "lev_59": 0x59,
+    ## Furniture that sounds while it is out (`sAdo_OngenPos(ftr_actor, n, …)` in each
+    ## `src/furniture/ac_*.c` move proc): the fan (1), slot machine (2), toy train (3), TVs
+    ## (4, 5, 6, 0x2B, 0x5E), fireplace (0x46), lion fountain (0x4A), shoji lamp (0x4B),
+    ## the pot (0x50), ice-cream maker (0x51), island box (0x52), stew (0x54), barbecue
+    ## (0x55), hamster wheel (0x56), torch (0x57), sprinkler (0x5B), campfires (0x5C / 0x5D)
+    ## and the Super Star (0x5F).
+    "lev_1": 0x01,
+    "lev_2": 0x02,
+    "lev_3": 0x03,
+    "lev_4": 0x04,
+    "lev_5": 0x05,
+    "lev_6": 0x06,
+    "lev_2b": 0x2B,
+    "lev_46": 0x46,
+    "lev_4a": 0x4A,
+    "lev_4b": 0x4B,
+    "lev_50": 0x50,
+    "lev_51": 0x51,
+    "lev_52": 0x52,
+    "lev_54": 0x54,
+    "lev_55": 0x55,
+    "lev_56": 0x56,
+    "lev_57": 0x57,
+    "lev_5b": 0x5B,
+    "lev_5c": 0x5C,
+    "lev_5d": 0x5D,
+    "lev_5e": 0x5E,
+    "lev_5f": 0x5F,
 }
 
 CATALOG_DIR = "audio"

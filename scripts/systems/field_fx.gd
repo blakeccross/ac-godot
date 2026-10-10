@@ -5,13 +5,14 @@ extends Node3D
 ## `ef_dust`, `ef_tumble_dust`, `ef_sandsplash`, `ef_mizutama`, `ef_yukidama`,
 ## `ef_yukihane`, `ef_sibuki`, `ef_hanabira`, `ef_turn_footprint`, `ef_tumble_bodyprint`,
 ## the locomotive's `ef_kisha_kemuri` (smoke) / `ef_steam` (piston steam), the water
-## ring `ef_turi_hamon`, and the umbrella twirl's spray (`ef_kasamizu` / `ef_kasamizutama`).
+## ring `ef_turi_hamon`, the umbrella twirl's spray (`ef_kasamizu` / `ef_kasamizutama`) and
+## the steam off hot food in a room (`ef_soba_yuge`).
 ## Each ticks at the controller's 60 Hz: `*_mv`, then `timer--`, dead at 0. State is GX
 ## (40 GX = 2 m); the node itself lives in metres. `StepFx` decides which to spawn.
 
 enum Kind {
 	DUST, TUMBLE_DUST, SAND, MIZUTAMA, YUKIDAMA, YUKIHANE, SIBUKI, PETAL, TURN_PRINT, BODY_PRINT,
-	KISHA_KEMURI, STEAM, HAMON, KASAMIZU, KASAMIZUTAMA,
+	KISHA_KEMURI, STEAM, HAMON, KASAMIZU, KASAMIZUTAMA, SOBA_YUGE,
 }
 
 const GX := FieldCatalog.GX_TO_METERS
@@ -65,6 +66,14 @@ const STEAM_TILES: Array[Vector2i] = [
 const STEAM_LOD: Array[int] = [
 	0x00, 0x40, 0x80, 0xC0, 0xFF, 0xC0, 0x80, 0x40, 0x00, 0x40, 0x80, 0xC0, 0xFF, 0xFF, 0xFF
 ]
+## `eSoba_Yuge_2tile_texture_idx` / `eSoba_Yuge_prim_f`, one row per two ticks of 44.
+const YUGE_TILES: Array[Vector2i] = [
+	Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0), Vector2i(0, 0),
+	Vector2i(0, 1), Vector2i(0, 1), Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, 2), Vector2i(1, 2),
+	Vector2i(1, 2), Vector2i(2, 2), Vector2i(2, 3), Vector2i(2, 3), Vector2i(2, 3), Vector2i(3, 3),
+	Vector2i(3, 3), Vector2i(3, 3), Vector2i(3, 3), Vector2i(3, 3),
+]
+const YUGE_LOD: Array[int] = [0, 0, 0, 0, 0, 0, 64, 128, 192, 0, 64, 128, 192, 0, 64, 128, 192, 0, 0, 0, 0, 0]
 ## `eKishaK_dw`: `gDPSetPrimColor(0, 128, 30, 30, 30, alpha)`.
 const KEMURI_PRIM := Color8(30, 30, 30)
 const KEMURI_LOD := 128.0 / 255.0
@@ -237,6 +246,13 @@ func _construct() -> bool:
 			vel = Vector3(sin(angle) * speed, -randf() * 3.0 - 1.5, cos(angle) * speed)
 			acc = Vector3(0.0, 0.125, 0.0)
 			timer = 30
+		Kind.SOBA_YUGE:
+			## `eSoba_Yuge_ct`: 1 GX up, `arg0` GX out on a random heading, rising on 0.017.
+			var heading: float = randf() * TAU
+			pos_gx += Vector3(float(arg0) * sin(heading), 1.0, float(arg0) * cos(heading))
+			scale_gx = Vector3.ONE * 0.001
+			acc = Vector3(0.0, 0.017, 0.0)
+			timer = 44
 		Kind.TURN_PRINT:
 			return _ct_turn_print()
 		Kind.BODY_PRINT:
@@ -455,6 +471,10 @@ func _move() -> void:
 			pos_gx += vel
 			vel *= sqrt(0.8)
 			scale_gx = Vector3.ONE * calc_adjust(timer, 0, 16, offset.y, offset.x)
+		Kind.SOBA_YUGE:
+			vel += acc
+			pos_gx += vel
+			vel.y *= 0.95
 		Kind.MIZUTAMA, Kind.YUKIDAMA:
 			_move_drop()
 		Kind.KASAMIZU:
@@ -553,7 +573,7 @@ func _model_id() -> String:
 			return "ef_turn_footprint"
 		Kind.KISHA_KEMURI:
 			return "ef_kisha_kemuri01"
-		Kind.STEAM:
+		Kind.STEAM, Kind.SOBA_YUGE:
 			return "ef_dust01"
 		Kind.HAMON:
 			return "ef_turi_hamon01_00"
@@ -567,7 +587,7 @@ func _model_id() -> String:
 
 func _frame_names() -> Array[String]:
 	match kind:
-		Kind.DUST, Kind.TUMBLE_DUST, Kind.STEAM:
+		Kind.DUST, Kind.TUMBLE_DUST, Kind.STEAM, Kind.SOBA_YUGE:
 			return ["ef_dust01_0", "ef_dust01_1", "ef_dust01_2", "ef_dust01_3"]
 		Kind.KISHA_KEMURI:
 			return ["ef_kisha_kemuri01_0", "ef_kisha_kemuri01_1"]
@@ -679,6 +699,20 @@ func _draw() -> void:
 			lod = STEAM_LOD[si] / 255.0
 			mode = 1
 			billboard = true
+		Kind.SOBA_YUGE:
+			## `eSoba_Yuge_dw`: grows 0.001 → 0.005 (0.01 for the stew's warm puff, `arg1`)
+			## and thins 130 → 10 alpha (190 → 10) over its 44 ticks.
+			var yt: int = 44 - timer
+			var yi: int = clampi(yt >> 1, 0, YUGE_TILES.size() - 1)
+			f0 = YUGE_TILES[yi].x
+			f1 = YUGE_TILES[yi].y
+			var big: float = 0.005 if arg1 == 0 else 0.01
+			s = Vector3.ONE * calc_adjust(yt, 0, 44, 0.001, big) * GX / FieldCatalog.PIPELINE_SCALE
+			var tint: Color = Color.WHITE if arg1 == 0 else Color8(255, 200, 130)
+			prim = Color(tint, calc_adjust(yt, 0, 44, 130.0 if arg1 == 0 else 190.0, 10.0) / 255.0)
+			lod = YUGE_LOD[yi] / 255.0
+			mode = 1
+			billboard = true
 		Kind.SAND:
 			f0 = clampi((16 - timer) >> 1, 0, 7) >> 1
 			basis = Basis(Vector3.RIGHT, deg_to_rad(-45.0))
@@ -746,7 +780,7 @@ func _draw() -> void:
 	_holder.basis = basis * Basis.from_scale(s)
 	_mat.set_shader_parameter(&"intensity_alpha", kind in [
 		Kind.DUST, Kind.TUMBLE_DUST, Kind.MIZUTAMA, Kind.SIBUKI, Kind.TURN_PRINT, Kind.BODY_PRINT,
-		Kind.KISHA_KEMURI, Kind.STEAM, Kind.HAMON, Kind.KASAMIZUTAMA,
+		Kind.KISHA_KEMURI, Kind.STEAM, Kind.HAMON, Kind.KASAMIZUTAMA, Kind.SOBA_YUGE,
 	])
 	_mat.set_shader_parameter(&"mode", mode)
 	_mat.set_shader_parameter(&"mirror_uv", kind == Kind.HAMON)
