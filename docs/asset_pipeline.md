@@ -59,7 +59,7 @@ Set `achd_enabled: true` and `achd_root` to a Dolphin ACHD / Load/Textures tree.
 | Talk-window kaiwa tiles | ~~ACHD is grey/white~~ **Uses ACHD** — grey I4 masks × mint PRIM at extract |
 | Dialogue font | **Uses ACHD** 8× `FONT_nes_tex_font1` when enabled |
 | Museum plates / stained glass / house clocks / train CI | Hash collisions pull wrong art |
-| K.K. opening acre (`rom_open_*`) | Tiny tiles; HD is a near-identical upscale |
+| K.K. opening acre (`rom_open_*`) | **Uses ACHD** — floor 512², spotlight and curtain 256×512. The scrolling grain (`rom_open_spot2`) is not drawn |
 
 Inventory and town-map UI chrome (`--kind inventory-ui` / `map-ui`) prefer ACHD when hashes match; window-shell bakes rescale native ST into the HD sheet.
 

@@ -156,5 +156,9 @@ func _ensure_visual() -> void:
 		return
 	_body_anim = VisualAnimation.find_animation_player(vis)
 	_face.bind(vis, &"ttl")
+	## Imported `npc_1_wait1` is a one-shot. Without a loop he sways once, then freezes.
 	if _body_anim != null and _body_anim.has_animation(ANIM_WAIT):
+		var animation: Animation = _body_anim.get_animation(ANIM_WAIT)
+		if animation != null:
+			animation.loop_mode = Animation.LOOP_LINEAR
 		_body_anim.play(ANIM_WAIT)

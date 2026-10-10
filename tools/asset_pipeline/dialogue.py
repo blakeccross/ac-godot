@@ -118,30 +118,51 @@ def _style_tag_scale(scale: int) -> str:
     return "{s:%d}" % scale
 
 
-def tokens_to_styled_text(tokens: list[dict[str, Any]]) -> str:
-    """Flatten tokens to text, keeping TEXTCOLOR / CHARSCALE / COLORCHARS / LINESCALE.
+## `mMsg_init_FontColor`: each line starts (50, 60, 50) until its own TEXTCOLOR.
+_DEFAULT_COLOR = (50, 60, 50)
+## `VOICE_STATUS_*` (`audio.h`), in enum order.
+_VOICE_STATUS = {
+    "MSGCONTENTS_NORMAL": 0,
+    "MSGCONTENTS_ANGRY": 1,
+    "MSGCONTENTS_SAD": 2,
+    "MSGCONTENTS_FUN": 3,
+    "MSGCONTENTS_SLEEPY": 4,
+    "MSGCONTENTS_GLOOMY": 5,
+}
 
-    Markup (expanded by `MessageBody` at draw time / read by the typewriter):
-    - `{c:r,g,b}` sticky colour until the next colour tag
-    - `{s:n}` sticky scale (`n/32`) until the next scale tag
-    - `{y:n}` LINEOFS: the rest of the page drawn `n` units lower (arg - 128)
+
+def tokens_to_styled_text(tokens: list[dict[str, Any]]) -> str:
+    """Flatten tokens to text, keeping the font control codes `mFontSentence` draws.
+
+    Each line is its own sentence (`mMsg_draw_font`), so colour, line scale, line type
+    and line offset reset at `\\n`. CHARSCALE is one glyph (`char.scale * line_scale`).
+
+    Markup (expanded by `MessageBody` / the typewriter):
+    - `{c:r,g,b}` colour until the next colour tag or the next line
+    - `{s:n}` scale (`n/32`) until the next scale tag or the next line
+    - `{y:n}` LINEOFS: the rest of this line drawn `n` units lower (arg - 128)
     - `{lt:n}` LINETYPE: scaled glyphs grow from the line's top / centre / bottom
     - `{p:n}` PAUSE: the cursor waits `n` (30 Hz) frames
     - `{se:n}` SNDTRGSYS: a system sound as the cursor passes
     - `{just}` / `{unjust}` SETCURSORJUST / CLRCUSRORJUST: pauses B can't skip
     - `{btn}` BTN mid-page: wait for A with the turn mark, then keep writing the same page
     - `{cap}` CAPTIALIZE: the next substituted string starts with a capital
+    - `{vs:n}` MSGCONTENTS: animalese emotion (`VOICE_STATUS_*`) from this glyph on
+    - `{cut:1}` / `{cut:0}` SNDCUT: voice replaced by the cut click, then restored
+    - `{can}` / `{nocan}` ABLECANCEL / UNABLECANCEL: A or B may dump the rest of the page
     """
     parts: list[str] = []
     color: Optional[tuple[int, int, int]] = None
     ## Drawn scale for the open `{s:}` run.
     scale = _DEFAULT_SCALE
-    ## LINESCALE is sticky for the sentence; CHARSCALE overrides one glyph then falls back.
+    ## LINESCALE sticks for this line only; CHARSCALE multiplies it for one glyph.
     line_scale = _DEFAULT_SCALE
     pending_char_scale: Optional[int] = None
     colorchars_left = 0
     colorchars_rgb: Optional[tuple[int, int, int]] = None
     saved_color: Optional[tuple[int, int, int]] = None
+    y_ofs = 0
+    line_type = 0
 
     def set_color(rgb: Optional[tuple[int, int, int]]) -> None:
         nonlocal color
@@ -159,17 +180,42 @@ def tokens_to_styled_text(tokens: list[dict[str, Any]]) -> str:
         scale = val
         parts.append(_style_tag_scale(val))
 
+    def reset_sentence() -> None:
+        """A newline starts a new `mFontSentence` (default colour, scale, type, offset)."""
+        nonlocal line_scale, pending_char_scale, colorchars_left, colorchars_rgb, saved_color
+        nonlocal y_ofs, line_type, color
+        pending_char_scale = None
+        colorchars_left = 0
+        colorchars_rgb = None
+        saved_color = None
+        if color not in (None, _DEFAULT_COLOR):
+            set_color(_DEFAULT_COLOR)
+        color = None
+        line_scale = _DEFAULT_SCALE
+        set_scale(_DEFAULT_SCALE)
+        if y_ofs != 0:
+            parts.append("{y:0}")
+            y_ofs = 0
+        if line_type != 0:
+            parts.append("{lt:0}")
+            line_type = 0
+
     def write_text(ch: str) -> None:
         nonlocal pending_char_scale, colorchars_left, colorchars_rgb, saved_color
-        use_scale = pending_char_scale if pending_char_scale is not None else line_scale
+        if ch == "\n":
+            reset_sentence()
+            parts.append("\n")
+            return
+        ## `mFontChar_total_scale`: char scale (32 = 1) times the line scale.
+        char_scale = pending_char_scale if pending_char_scale is not None else _DEFAULT_SCALE
         pending_char_scale = None
-        set_scale(use_scale)
+        set_scale(max(1, (char_scale * line_scale + _DEFAULT_SCALE // 2) // _DEFAULT_SCALE))
         if colorchars_left > 0 and colorchars_rgb is not None:
             set_color(colorchars_rgb)
             parts.append(ch)
             colorchars_left -= 1
             if colorchars_left == 0:
-                set_color(saved_color if saved_color is not None else (50, 60, 50))
+                set_color(saved_color if saved_color is not None else _DEFAULT_COLOR)
                 colorchars_rgb = None
                 saved_color = None
             return
@@ -202,10 +248,12 @@ def tokens_to_styled_text(tokens: list[dict[str, Any]]) -> str:
             parts.append("{p:%d}" % int(args[0]))
             continue
         if name == "LINEOFS" and args:
-            parts.append("{y:%d}" % (int(args[0]) - 128))
+            y_ofs = int(args[0]) - 128
+            parts.append("{y:%d}" % y_ofs)
             continue
         if name == "LINETYPE" and args:
-            parts.append("{lt:%d}" % int(args[0]))
+            line_type = int(args[0])
+            parts.append("{lt:%d}" % line_type)
             continue
         if name == "SNDTRGSYS" and args:
             parts.append("{se:%d}" % int(args[0]))
@@ -226,6 +274,20 @@ def tokens_to_styled_text(tokens: list[dict[str, Any]]) -> str:
             saved_color = color
             colorchars_rgb = (int(args[0]), int(args[1]), int(args[2]))
             colorchars_left = max(0, int(args[3]))
+            continue
+        status = _VOICE_STATUS.get(name)
+        if status is not None:
+            parts.append("{vs:%d}" % status)
+            continue
+        if name == "SNDCUT" and args:
+            ## Nonzero clears the cut; 0 replaces the voice with SE 0x54.
+            parts.append("{cut:%d}" % (0 if int(args[0]) else 1))
+            continue
+        if name == "ABLECANCEL":
+            parts.append("{can}")
+            continue
+        if name == "UNABLECANCEL":
+            parts.append("{nocan}")
             continue
 
     if scale != _DEFAULT_SCALE:
@@ -417,17 +479,26 @@ def tokens_to_conversation(
     ## BTN2 / SNDNOPAGE turn the page without its sound; a bare MSGCLEAR clears and
     ## carries on by itself; MSGTIMEEND closes after (n-1)*4+1 frames.
     page_flags: dict[str, Any] = {}
+    ## `FORCENEXT` on this page: when the cursor finishes, NORMAL advances with no A and no page SE.
+    page_force = False
+    ## `SELNOB` / `SELNOBCLOSE`: B picks the last choice (`mChoice_no_b_flag`).
+    pending_b_last = False
+    ## `MALEFEMALECHK`: continue message for a male / female player. Later `SETFORCEMSG` wins.
+    sex_next: Optional[tuple[str, str]] = None
 
     def flush(end: dict[str, Any] | None = None) -> None:
-        nonlocal page_tokens, page_events, page_flags
+        nonlocal page_tokens, page_events, page_flags, page_force
         text = tokens_to_styled_text(page_tokens).strip("\n")
         events = list(page_events)
         flags = dict(page_flags)
+        if page_force:
+            flags["force_next"] = True
         if end:
             flags.update(end)
         page_tokens = []
         page_events = []
         page_flags = {}
+        page_force = False
         if text != "" or events:
             pages.append((text, events, flags))
 
@@ -470,6 +541,23 @@ def tokens_to_conversation(
         event = _page_event_from_token(name, args)
         if event is not None:
             page_events.append(event)
+            ## Voice emotion is also a cursor mark (`{vs:n}`); the face event stays for talk hosts.
+            if name in _CONTENTS_EMOTE:
+                page_tokens.append(tok)
+            continue
+        if name == "FORCENEXT":
+            page_force = True
+            continue
+        if name in ("SELNOB", "SELNOBCLOSE"):
+            pending_b_last = True
+            continue
+        if name == "MALEFEMALECHK" and len(args) >= 4:
+            male = _u16(args, 0)
+            female = _u16(args, 2)
+            sex_next = (
+                "" if male == 0xFFFF else msg_id(male),
+                "" if female == 0xFFFF else msg_id(female),
+            )
             continue
         if name == "OPENCHOICE":
             if not choice_ids:
@@ -481,6 +569,8 @@ def tokens_to_conversation(
                 choice_ids = []
             continue
         if name == "SETFORCEMSG":
+            ## Later than `MALEFEMALECHK`: this continue id replaces the sex pair.
+            sex_next = None
             n = _u16(args)
             if n != 0xFFFF:
                 next_force = msg_id(n)
@@ -502,7 +592,8 @@ def tokens_to_conversation(
             page_tokens.append(tok)
             continue
         if name in ("TEXTCOLOR", "CHARSCALE", "LINESCALE", "COLORCHARS", "PAUSE", "LINEOFS", "LINETYPE",
-                "SNDTRGSYS", "SETCURSORJUST", "CLRCUSRORJUST", "CAPTIALIZE"):
+                "SNDTRGSYS", "SETCURSORJUST", "CLRCUSRORJUST", "CAPTIALIZE",
+                "SNDCUT", "ABLECANCEL", "UNABLECANCEL") or name in _VOICE_STATUS:
             page_tokens.append(tok)
             continue
 
@@ -540,6 +631,9 @@ def tokens_to_conversation(
             "type": "choice",
             "options": [{"text": label, "goto": f"p{at_page}"} for label in mid_labels],
         }
+        if pending_b_last:
+            nodes[cid]["b_last"] = True
+            pending_b_last = False
         if at_page == 0:
             start = cid
         else:
@@ -561,6 +655,9 @@ def tokens_to_conversation(
             opt: dict[str, Any] = {"text": label, "goto": dest or fallback}
             options.append(opt)
         nodes["choice"] = {"type": "choice", "options": options}
+        if pending_b_last:
+            nodes["choice"]["b_last"] = True
+            pending_b_last = False
         last["next"] = "choice"
         if next_random and not next_force:
             nodes["rng"] = {
@@ -577,6 +674,12 @@ def tokens_to_conversation(
         last["next"] = next_force
     elif any(next_by_choice):
         last["next"] = next(dest for dest in next_by_choice if dest)
+    if sex_next is not None:
+        male, female = sex_next
+        if male:
+            last["next_male"] = male
+        if female:
+            last["next_female"] = female
 
     return {
         "id": msg_id(msg_no),

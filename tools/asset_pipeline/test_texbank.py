@@ -163,9 +163,9 @@ class ClassicGbiTests(unittest.TestCase):
         self.assertTrue(skips_achd_texture("obj_clock_museum1_dai_tex_txt"))
         self.assertTrue(skips_achd_texture("obj_art01_name_tex"))
         self.assertFalse(skips_achd_texture("obj_art01_art_tex"))
-        self.assertTrue(skips_achd_texture("rom_open_spot_tex"))
-        self.assertTrue(skips_achd_texture("rom_open_floor_tex"))
-        self.assertTrue(skips_achd_texture("rom_open_shade_tex"))
+        self.assertFalse(skips_achd_texture("rom_open_spot_tex"))
+        self.assertFalse(skips_achd_texture("rom_open_floor_tex"))
+        self.assertFalse(skips_achd_texture("rom_open_shade_tex"))
         self.assertFalse(skips_achd_texture("grd_s_f_1_gfx_model"))
 
     def test_resolve_alpha_mode_from_coverage(self) -> None:

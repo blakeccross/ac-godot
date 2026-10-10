@@ -31,6 +31,12 @@ static func draw(canvas: CanvasItem, kind: StringName, rect: Rect2, color: Color
 	var tex := texture(kind)
 	if tex != null:
 		canvas.draw_texture_rect(tex, rect, false, color)
+	elif kind == NEXT:
+		## `FONT_nes_tex_next`: a downward triangle in the middle of the 16×16 cell.
+		var top_l := rect.position + rect.size * Vector2(0.25, 0.1875)
+		var top_r := rect.position + rect.size * Vector2(0.75, 0.1875)
+		var tip := rect.position + rect.size * Vector2(0.5, 0.75)
+		canvas.draw_colored_polygon(PackedVector2Array([top_l, top_r, tip]), color)
 	else:
 		canvas.draw_rect(Rect2(rect.position + rect.size * Vector2(0.375, 0.0625),
 			rect.size * Vector2(0.1875, 0.9375)), color)

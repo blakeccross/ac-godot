@@ -18,6 +18,8 @@ var node_id: StringName = &""
 var line: String = ""
 var choices: Array[Dictionary] = []
 var waiting_choice: bool = false
+## `SELNOB`: B picks the last option (`mChoice` `no_b_flag`).
+var choice_b_last: bool = false
 ## Intro modals (`prompt_name` / `prompt_town` / `prompt_clock`) pause here.
 var waiting_prompt: bool = false
 ## Intro train: hold until `IntroTrainStage` reports `stage_wait_met`.
@@ -81,7 +83,7 @@ func advance() -> void:
 	if done or waiting_choice or waiting_prompt or waiting_stage or waiting_action:
 		return
 	var rec: Dictionary = _current()
-	var next_id := StringName(str(rec.get("next", "")))
+	var next_id := _next_id(rec)
 	if next_id == &"":
 		_message_end()
 		return
@@ -122,8 +124,7 @@ func is_continue_blocked() -> bool:
 func _peek_next_node() -> StringName:
 	if done or waiting_choice or waiting_prompt or waiting_stage:
 		return &""
-	var rec: Dictionary = _current()
-	return StringName(str(rec.get("next", "")))
+	return _next_id(_current())
 
 
 func _advance_allowed(from_node: StringName, to_node: StringName) -> bool:
@@ -310,18 +311,30 @@ func _settle() -> void:
 	_finish()
 
 
+## `MALEFEMALECHK` stores `next_male` / `next_female`; otherwise `next`.
+func _next_id(rec: Dictionary) -> StringName:
+	if rec.has("next_male") or rec.has("next_female"):
+		var female := context != null and context.player_female
+		var picked := str(rec.get("next_female" if female else "next_male", ""))
+		if picked != "":
+			return StringName(picked)
+	return StringName(str(rec.get("next", "")))
+
+
 func _enter_line(rec: Dictionary) -> void:
 	waiting_choice = false
+	choice_b_last = false
 	choices.clear()
 	_fire_list(rec.get("events", []))
 	if waiting_prompt:
-		_prompt_next = StringName(str(rec.get("next", "")))
+		_prompt_next = _next_id(rec)
 		return
 	line = context.substitute(str(rec.get("text", ""))) if context != null else str(rec.get("text", ""))
 	line_shown.emit(line)
 
 
 func _enter_choice(rec: Dictionary) -> void:
+	choice_b_last = bool(rec.get("b_last", false))
 	_fire_list(rec.get("events", []))
 	choices.clear()
 	var raw: Variant = rec.get("options", [])

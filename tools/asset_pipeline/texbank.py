@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 from .bti import (
 	CI4,
@@ -311,8 +311,14 @@ def bake_player_select_spot_png(
     """Bake spotlight XLU: `(PRIM-ENV)*I+ENV`, A ≈ I × PRIM_LOD_FRAC.
 
     GC pairs this with scrolling spot2 via RDP combine + EVW — we bake the cone only.
+
+    The ACHD cone keeps flat blocks in the falloff. On a translucent ground quad
+    those blocks read as pixels, so blur the HD mask before the tint. Native
+    tiles stay exact (the 2×1 bake test).
     """
     image = Image.open(io.BytesIO(png)).convert("RGBA")
+    if image.width >= 128 and image.height >= 128:
+        image = image.filter(ImageFilter.GaussianBlur(radius=4))
     pr, pg, pb, _pa = prim
     er, eg, eb = env
     lod = max(0, min(255, int(lod_frac))) / 255.0
@@ -700,12 +706,6 @@ def is_train_structure_texture(tex_name: str) -> bool:
     return tex_name.startswith("obj_train1_t") and "_tex" in tex_name
 
 
-def is_player_select_stage_texture(tex_name: str) -> bool:
-    """K.K. opening acre (`rom_open_*`). ACHD is a near-identical upscale of the
-    tiny I/CI tiles — keep native so the stage matches the GC look."""
-    return "rom_open_" in (tex_name or "").lower()
-
-
 def is_museum_tank_texture(tex_name: str) -> bool:
     """Fish-tank glass + water (`obj_suisou1_*`, `obj_museum5_*`): tiny CI4 glass
     and I4 caustics scrolled at runtime (`obj_suisou1_evw_anime` SCROLL2). ACHD
@@ -729,7 +729,6 @@ def skips_achd_texture(tex_name: str) -> bool:
         or is_indoor_mado_texture(tex_name)
         or is_house_clock_texture(tex_name)
         or is_train_structure_texture(tex_name)
-        or is_player_select_stage_texture(tex_name)
         or is_museum_tank_texture(tex_name)
     )
 

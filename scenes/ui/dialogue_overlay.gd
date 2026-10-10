@@ -38,6 +38,10 @@ var _visible_len: int = 0
 var _cursor: int = 0
 var _type_accum: float = 0.0
 var _fast_text: bool = false
+## `ABLECANCEL`: A or B dumps the rest of this cursor run. Off until that code.
+var _cancelable: bool = false
+## `SNDCUT`: animalese is replaced by system SE 0x54.
+var _sound_cut: bool = false
 ## Typewriter state for the page on screen.
 var _marks: Array[Dictionary] = []
 var _mark_i: int = 0
@@ -249,6 +253,8 @@ func _begin_open(speaker: String, sex: MessageWindowChrome.SpeakerSex) -> void:
 	_phase = Phase.APPEARING
 	_anim_t = 0.0
 	_fast_text = false
+	_cancelable = false
+	_sound_cut = false
 	_type_accum = 0.0
 	_root.visible = true
 	_chrome.set_window_scale(0.0)
@@ -334,8 +340,6 @@ func _process(delta: float) -> void:
 		return
 	if _runner != null and _runner.waiting_choice:
 		return
-	if Input.is_action_pressed("interact") or Input.is_action_pressed("ui_accept"):
-		_fast_text = true
 	_type_accum += delta * DecompTime.TICK_HZ
 	var guard: int = 0
 	while _type_accum >= 1.0 and guard < 8 and _open and _phase == Phase.OPEN:
@@ -370,6 +374,14 @@ func _type_tick() -> void:
 				_just = true
 			"unjust":
 				_just = false
+			"vs":
+				_voice.set_status(int(mark["value"]) as DialogueVoice.Status)
+			"cut":
+				_sound_cut = int(mark["value"]) != 0
+			"can":
+				_cancelable = true
+			"nocan":
+				_cancelable = false
 			"btn":
 				## `mMsg_Main_Cursol_Button`: wait for A on this page, then write on.
 				_btn_wait = true
@@ -400,7 +412,8 @@ func _page_end_tick() -> void:
 		return
 	if _runner.waiting_choice or _runner.is_continue_blocked():
 		return
-	if bool(_page.get("auto", false)):
+	if bool(_page.get("auto", false)) or bool(_page.get("force_next", false)):
+		## `MSGCLEAR` and `FORCENEXT` both leave NORMAL without a button or the page SE.
 		_turn_page(false)
 	elif _page.has("time_end"):
 		if _end_timer < 0:
@@ -432,6 +445,12 @@ func _utter_range(from_idx: int, to_idx: int) -> void:
 	## Click mode: one beep per reveal burst (not per glyph).
 	if mode == DialogueVoice.Mode.CLICK:
 		_voice.utter_glyph(".", "", "", self)
+		_voice_at = to_idx
+		return
+	if _sound_cut:
+		## `mMsg_sound_CodeVoice` with `SOUND_CUT`: SE 0x54 instead of the voice.
+		for _i in range(maxi(from_idx, _voice_at), to_idx):
+			Audio.play_se(&"54", self)
 		_voice_at = to_idx
 		return
 	var start: int = maxi(from_idx, _voice_at)
@@ -496,7 +515,7 @@ var _btn_wait: bool = false
 func _show_continue() -> void:
 	var blocked: bool = _runner != null and _runner.is_continue_blocked()
 	## Pages that turn by themselves never show the mark.
-	if bool(_page.get("auto", false)) or _page.has("time_end") or _cursor < _visible_len:
+	if bool(_page.get("auto", false)) or bool(_page.get("force_next", false)) or _page.has("time_end") or _cursor < _visible_len:
 		blocked = true
 	_chrome_continue_shown = not blocked
 	_chrome.set_continue_visible(not blocked)
@@ -514,33 +533,59 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _runner != null and _runner.waiting_prompt:
 		get_viewport().set_input_as_handled()
 		return
-	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause_menu"):
-		get_viewport().set_input_as_handled()
-		return
 	if _runner != null and _runner.waiting_choice:
 		_choice_input(event)
 		return
 	if _runner != null and _runner.is_continue_blocked():
 		get_viewport().set_input_as_handled()
 		return
-	if event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
+	if _is_b(event) or _is_a(event):
 		get_viewport().set_input_as_handled()
-		if _btn_wait:
-			_release_btn()
-			return
-		if _cursor < _visible_len or _mark_i < _marks.size() or _pause_frames > 0:
-			## Cancelable dump / A-to-complete page; SETCURSORJUST keeps its timing.
-			if not _just:
-				_dump_page()
-			return
-		if bool(_page.get("auto", false)) or _page.has("time_end"):
-			return
-		## `mMsg_sound_PAGE_OKURI` when the player advances past a finished page.
-		_turn_page(true)
+		_press_page(_is_b(event))
+
+
+func _is_a(event: InputEvent) -> bool:
+	return event.is_action_pressed("interact") or event.is_action_pressed("ui_accept")
+
+
+func _is_b(event: InputEvent) -> bool:
+	## GameCube B is `sprint` (pad button 1); keyboard uses cancel / the pause key.
+	return (
+		event.is_action_pressed("ui_cancel")
+		or event.is_action_pressed("pause_menu")
+		or event.is_action_pressed("sprint")
+	)
+
+
+func _still_typing() -> bool:
+	return _cursor < _visible_len or _mark_i < _marks.size() or _pause_frames > 0
+
+
+## A confirms a finished page. B (`chkTrigger(BUTTON_B)`) turns fast text on for the
+## rest of this cursor run, and also confirms. Neither dumps the line unless
+## `ABLECANCEL` set `_cancelable` (`mMsg_Check_CancelOrder`).
+func _press_page(is_b: bool) -> void:
+	if _btn_wait:
+		_release_btn()
+		return
+	if _still_typing():
+		if is_b and not _just:
+			_fast_text = true
+		if _cancelable and not _just:
+			_dump_page()
+		return
+	if bool(_page.get("auto", false)) or bool(_page.get("force_next", false)) or _page.has("time_end"):
+		return
+	_turn_page(true)
 
 
 func _choice_input(event: InputEvent) -> void:
 	if _choice_phase != ChoicePhase.OPEN or _buttons.is_empty():
+		return
+	if _is_b(event):
+		get_viewport().set_input_as_handled()
+		if _runner != null and _runner.choice_b_last:
+			_pick(_buttons.size() - 1)
 		return
 	if event.is_action_pressed("ui_up") or event.is_action_pressed("move_forward"):
 		_choice_index = posmod(_choice_index - 1, _buttons.size())

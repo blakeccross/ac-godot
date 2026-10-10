@@ -260,6 +260,81 @@ func test_auto_pages_turn_without_input() -> void:
 	assert_str(String(waits.runner().node_id)).is_equal("a")
 
 
+## `FORCENEXT`: the page leaves NORMAL by itself, with no page-turn sound.
+func test_force_next_turns_without_input() -> void:
+	var overlay := _open_line("Hi", {"force_next": true, "next": "b"})
+	for _i in 10:
+		overlay._type_tick()
+	assert_str(String(overlay.runner().node_id)).is_equal("b")
+
+
+## A does not dump a line. B turns on fast text. `ABLECANCEL` lets A dump it.
+func test_a_waits_and_b_speeds_unless_cancelable() -> void:
+	var overlay := _open_line("Hello")
+	overlay._type_tick()
+	var at: int = overlay._cursor
+	overlay._press_page(false)
+	assert_int(overlay._cursor).is_equal(at)
+	assert_bool(overlay._fast_text).is_false()
+	overlay._press_page(true)
+	assert_bool(overlay._fast_text).is_true()
+	var sped := overlay._cursor
+	overlay._type_tick()
+	assert_int(overlay._cursor).is_equal(sped + 1)
+	overlay._cancelable = true
+	overlay._press_page(false)
+	assert_int(overlay._cursor).is_equal(overlay._visible_len)
+
+
+## `MSGCONTENTS_*` sets the animalese emotion when the cursor reaches it.
+func test_voice_status_mark() -> void:
+	var overlay := _open_line("{vs:2}Hi")
+	for _i in 4:
+		overlay._type_tick()
+	assert_int(int(overlay._voice.status)).is_equal(DialogueVoice.Status.SAD)
+
+
+## `MALEFEMALECHK` continues to a different message for each player sex.
+func test_gender_picks_the_continue_message() -> void:
+	var data := DialogueData.from_dict({
+		"id": "g",
+		"start": "a",
+		"nodes": {
+			"a": {"type": "line", "text": "I", "next_male": "m", "next_female": "f"},
+			"m": {"type": "line", "text": "sir"},
+			"f": {"type": "line", "text": "maam"},
+		},
+	})
+	var ctx := DialogueContext.new()
+	var runner := DialogueRunner.new()
+	runner.start(data, ctx)
+	runner.advance()
+	assert_str(runner.line).is_equal("sir")
+	ctx.player_female = true
+	runner.start(data, ctx)
+	runner.advance()
+	assert_str(runner.line).is_equal("maam")
+
+
+## `SELNOB`: the choice remembers that B picks the last option.
+func test_choice_b_picks_the_last_option() -> void:
+	var data := DialogueData.from_dict({
+		"id": "c",
+		"start": "c",
+		"nodes": {
+			"c": {
+				"type": "choice",
+				"b_last": true,
+				"options": [{"text": "Yes"}, {"text": "No"}],
+			},
+		},
+	})
+	var runner := DialogueRunner.new()
+	runner.start(data, DialogueContext.new())
+	assert_bool(runner.waiting_choice).is_true()
+	assert_bool(runner.choice_b_last).is_true()
+
+
 ## `mFontSentence`: a Top-line glyph grows down from the cell top, a Bottom one up.
 func test_message_body_scales_glyphs_about_the_line_pivot() -> void:
 	var body: MessageBody = auto_free(MessageBody.new())

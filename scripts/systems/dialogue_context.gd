@@ -4,6 +4,8 @@ extends RefCounted
 ## Snapshot the runner evaluates. Built from Clock / Game / villager; tests can fill it.
 
 var player_name: String = "Player"
+## `Common_Get(now_private)->gender` (`mPr_SEX_FEMALE`). `MALEFEMALECHK` branches on this.
+var player_female: bool = false
 var town_name: String = "Town"
 var speaker_name: String = ""
 ## `mNpc_GetLooks2Sex`: 0 male, 1 female, 2 other → nameplate tint in `m_msg_appear`.
@@ -86,6 +88,7 @@ const SLOT_KEYS := [
 static func from_game(villager: VillagerData = null, state: VillagerState = null) -> DialogueContext:
 	var ctx := DialogueContext.new()
 	ctx.player_name = Game.player_name
+	ctx.player_female = Game.player_gender == IntroSequence.GENDER_FEMALE
 	ctx.town_name = Game.town_name
 	ctx.hour = Clock.hour
 	ctx.weekday = Clock.weekday()

@@ -49,7 +49,7 @@ source_file="%s"
 [params]
 
 compress/mode=0
-mipmaps/generate=false
+mipmaps/generate=%s
 process/fix_alpha_border=false
 detect_3d/compress_to=0
 """
@@ -237,7 +237,8 @@ func _externalize_material(mat: Material) -> Material:
 		var tex: Variant = _get_texture(copy, prop_name)
 		if tex is Texture2D:
 			var prefix := "water/%s_%s" % [water, prop_name.trim_prefix("shader_parameter/")] if not water.is_empty() else ""
-			var ext: Texture2D = _externalize_texture(tex as Texture2D, prefix)
+			var mipmaps := copy.has_meta("player_select_spot") or copy.has_meta("player_select_shade")
+			var ext: Texture2D = _externalize_texture(tex as Texture2D, prefix, mipmaps)
 			if ext != null:
 				_set_texture(copy, prop_name, ext)
 	if _write_textures:
@@ -292,7 +293,7 @@ func _set_texture(mat: Material, prop_name: String, tex: Texture2D) -> void:
 
 ## `prefix` (e.g. `water/river_water1`) names a water layer so it can be found and replaced;
 ## other textures are named by content hash.
-func _externalize_texture(tex: Texture2D, prefix: String) -> Texture2D:
+func _externalize_texture(tex: Texture2D, prefix: String, mipmaps: bool = false) -> Texture2D:
 	var img: Image = VisualAtlas.texture_image(tex)
 	if img == null:
 		push_error("texture has no readable image (%s)" % tex.resource_path)
@@ -302,12 +303,18 @@ func _externalize_texture(tex: Texture2D, prefix: String) -> Texture2D:
 		OUT_DIR, "%s_%s" % [prefix, digest.substr(0, 8)] if not prefix.is_empty() else digest.substr(0, 12)
 	]
 	if _write_textures:
+		var sidecar_text := PNG_IMPORT_PARAMS % [path, "true" if mipmaps else "false"]
 		if not FileAccess.file_exists(path):
 			_ensure_dir(path)
 			img.save_png(path)
 			var sidecar := FileAccess.open(path + ".import", FileAccess.WRITE)
-			sidecar.store_string(PNG_IMPORT_PARAMS % path)
+			sidecar.store_string(sidecar_text)
 			_written["png"] += 1
+		elif mipmaps and not FileAccess.get_file_as_string(path + ".import").contains("mipmaps/generate=true"):
+			## Existing sheet was imported without mips. Rewrite the stub so the
+			## import between passes rebuilds it; a soft alpha fade aliases without them.
+			var sidecar := FileAccess.open(path + ".import", FileAccess.WRITE)
+			sidecar.store_string(sidecar_text)
 		return null
 	if not _tex_cache.has(path):
 		_tex_cache[path] = load(path) as Texture2D

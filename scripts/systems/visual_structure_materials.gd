@@ -178,7 +178,8 @@ static func apply_player_select_spot_material(std: StandardMaterial3D) -> void:
 	std.vertex_color_use_as_albedo = false
 	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	## Soft alpha on a floor quad. Linear-without-mips stair-steps the fade.
+	std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	std.texture_repeat = false
 	std.set_meta("player_select_spot", true)
 
@@ -189,6 +190,6 @@ static func apply_player_select_shade_material(std: StandardMaterial3D) -> void:
 	std.vertex_color_use_as_albedo = false
 	std.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	std.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	std.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	std.texture_repeat = false
 	std.set_meta("player_select_shade", true)
