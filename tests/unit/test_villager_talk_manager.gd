@@ -135,6 +135,50 @@ func test_trade_buys_the_players_furniture_for_goods() -> void:
 	assert_that(inv.slot_at(0).item.item_id).is_equal(m.trade_items[1])
 
 
+func test_each_trade_order_changes_hands_on_screen() -> void:
+	var items: Array[StringName] = [&"mine", &"g1", &"g2", &"g3", &"g4"]
+	assert_that(VillagerTalkManager.trade_hand(3, items)).is_equal({"give": &"g3"})
+	assert_that(VillagerTalkManager.trade_hand(6, items)).is_equal({"take": &"mine"})
+	assert_that(VillagerTalkManager.trade_hand(10, items)).is_equal({"take": &"money_30000"})
+	assert_that(VillagerTalkManager.trade_hand(13, items)).is_equal({"take": &"mine"})
+	assert_that(VillagerTalkManager.trade_hand(23, items)).is_equal({"take": &"mine"})
+	assert_that(VillagerTalkManager.trade_hand(15, items)).is_equal({"give": &"g2"})
+	assert_that(VillagerTalkManager.trade_hand(21, items)).is_equal({"give": &"g4"})
+	assert_that(VillagerTalkManager.trade_hand(22, items)).is_equal({"give": &"money_30000"})
+	assert_that(VillagerTalkManager.trade_hand(0, items)).is_equal({})
+	var m: VillagerTalkManager = _manager()
+	m._normal = true
+	m.trade_items = items
+	assert_that(m.lock_continue()).is_equal({})
+	m.order(3, 1)
+	assert_that(m.lock_continue()).is_equal({"anim": {"give": &"g1"}})
+	assert_that(m.lock_continue()).is_equal({})
+
+
+## `msg_7309` ends on the gift: the window stays up for the hand-over, then closes.
+func test_the_runner_hands_a_gift_over_before_the_talk_ends() -> void:
+	if DialogueCatalog.conversation(&"msg_7309") == null:
+		return
+	var m: VillagerTalkManager = _manager()
+	m._normal = true
+	m.trade_items = [&"", &"g1", &"", &"", &""]
+	var runner := DialogueRunner.new()
+	runner.talk_manager = m
+	var asked: Array = []
+	runner.action_requested.connect(func(a: Dictionary) -> void: asked.append(a))
+	runner.start(DialogueCatalog.conversation(&"msg_7309"), m.context)
+	var guard := 0
+	while not runner.waiting_action and not runner.done and guard < 40:
+		guard += 1
+		if runner.waiting_choice:
+			break
+		runner.advance()
+	assert_bool(runner.waiting_action).is_true()
+	assert_that(asked.back()).is_equal({"anim": {"give": &"g1"}})
+	runner.resolve_action({})
+	assert_bool(runner.done).is_true()
+
+
 func test_trade_pays_bells_over_the_wallet_cap_in_bags() -> void:
 	var m: VillagerTalkManager = _manager()
 	## Quest demo orders only reach the everyday chat.

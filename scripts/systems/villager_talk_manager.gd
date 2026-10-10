@@ -137,6 +137,9 @@ var _normal: bool = false
 var _talk_action: int = -1
 ## `l_normal_info`.
 var trade_items: Array[StringName] = [&"", &"", &"", &"", &""]
+## The hand-over a trade order holds the page for (`mMsg_SET_LOCKCONTINUE` with
+## `aQMgr_TALK_SUB_STATE_ITEM_PLAYER_WAIT` / `ITEM_WAIT_END`): `{"give"|"take": item}`.
+var _trade_hand: Dictionary = {}
 var pay: int = 0
 var item_idx: int = -1
 var free_idx: int = -1
@@ -723,8 +726,11 @@ func _goods(cat: StringName) -> StringName:
 	return live[_rand(live.size())]
 
 
-## `aQMgr_order_trade`: values 1–23 move the goods and bells.
+## `aQMgr_order_trade`: values 1–23 move the goods and bells, and the page waits while they
+## change hands: the villager takes out what it gives (`SET_NPC_TAKEOUT_ITEM`), the player
+## hands over their item or a bag of bells (`mPlib_request_main_give_type1`).
 func _order_trade(value: int) -> void:
+	_trade_hand = trade_hand(value, trade_items)
 	match value:
 		1, 2, 3, 4:
 			## `aQMgr_order_move_trade_no_term`: a gift into the free pocket.
@@ -745,6 +751,42 @@ func _order_trade(value: int) -> void:
 			_give_to_pocket(value - 17, free_idx)
 		22:
 			_give_money()
+
+
+## The hand-over for trade order `value`: `{"give": item}` villager to player, `{"take": item}`
+## player to villager, `{}` for none.
+static func trade_hand(value: int, items: Array[StringName]) -> Dictionary:
+	var item: StringName = &""
+	var kind: String = ""
+	if value >= 1 and value <= 4:
+		item = items[value]
+		kind = "give"
+	elif (value >= 5 and value <= 8) or value == 13 or value == 23:
+		item = items[0]
+		kind = "take"
+	elif value >= 9 and value <= 12:
+		item = MONEY_30000
+		kind = "take"
+	elif value >= 14 and value <= 17:
+		item = items[value - 13]
+		kind = "give"
+	elif value >= 18 and value <= 21:
+		item = items[value - 17]
+		kind = "give"
+	elif value == 22:
+		item = MONEY_30000
+		kind = "give"
+	if item == &"" or kind.is_empty():
+		return {}
+	return {kind: item}
+
+
+func lock_continue() -> Dictionary:
+	if _trade_hand.is_empty():
+		return {}
+	var out: Dictionary = {"anim": _trade_hand}
+	_trade_hand = {}
+	return out
 
 
 func _give_to_pocket(trade_idx: int, pocket: int) -> void:

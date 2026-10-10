@@ -583,6 +583,18 @@ func _current() -> Dictionary:
 ## A message ran out of pages: show the manager's pending menu, or let it pick the next
 ## message (`mMsg_Set_continue_msg_num`), or end.
 func _message_end() -> void:
+	## A lock set on the last page (a trade's goods changing hands) holds the window open
+	## until the hand-over is done.
+	if talk_manager != null and _is_bank_message():
+		var lock: Dictionary = talk_manager.lock_continue()
+		if lock.has("anim"):
+			lock["_then_end"] = true
+			_run_manager_step(lock)
+			return
+	_message_end_unlocked()
+
+
+func _message_end_unlocked() -> void:
 	var rec: Dictionary = _current()
 	if talk_manager != null and _is_bank_message() and not rec.has("cont") and not rec.has("open_choice"):
 		## `MSGEND`: the window closes and the talk demo ends (`aQMgr_move_talk`).
@@ -634,6 +646,9 @@ func resolve_action(result: Dictionary) -> void:
 		return
 	if step.has("_then_goto"):
 		_goto(StringName(str(step["_then_goto"])))
+		return
+	if step.has("_then_end"):
+		_message_end_unlocked()
 		return
 	if step.has("then"):
 		## Several demos in a row (`{"anim": …, "then": {…}}`).
