@@ -71,6 +71,11 @@ static func trend_line(design_name: String, count: int, is_umbrella: bool) -> St
 
 ## Trade result line (`aNNW_talk_trade_close*` msg swap: 0x2FF8 / 0x2FF9 / 0x2FFA).
 static func trade_result_line(kind: String) -> String:
+	var msg: int = {"display": MSG_TRADE_PUT_ON_MANNEQUIN, "buy": MSG_TRADE_BUY_DESIGN, "exchange": MSG_TRADE_EXCHANGE}.get(kind, MSG_TRADE_WRONG_ITEM)
+	return pages(msg, _authored_trade_line(kind))[0]
+
+
+static func _authored_trade_line(kind: String) -> String:
 	match kind:
 		"display":
 			return "Wow! That's so nice!\nAnd who knows? Maybe it'll\nbe the new must-have style\nnext season!"
@@ -116,6 +121,63 @@ static func force_greeting(rng: RandomNumberGenerator) -> int:
 ## `DialogueData` for a single ROM message id, or null.
 static func line(msg_id: int) -> DialogueData:
 	return DialogueCatalog.conversation(StringName("msg_%d" % msg_id))
+
+
+## The pages of ROM message `msg_id` up to its first choice or event (`[fallback]` when
+## the bank is not generated). Mabel's own menu, not the message's, answers the choice.
+static func pages(msg_id: int, fallback: String) -> Array[String]:
+	var out: Array[String] = []
+	var data: DialogueData = line(msg_id)
+	if data != null:
+		data.ensure_loaded()
+		var id: StringName = data.start
+		var seen: Dictionary = {}
+		while id != &"" and not seen.has(id):
+			seen[id] = true
+			var node: Dictionary = data.node(id)
+			if str(node.get("type", "")) != "line":
+				break
+			var text: String = str(node.get("text", ""))
+			if text.strip_edges() != "":
+				out.append(text)
+			id = StringName(str(node.get("next", "")))
+	if out.is_empty():
+		out.append(fallback)
+	return out
+
+
+## "Any tips?" (`aNNW_TALK_LISTEN_SISTER`…`4`): Mabel's 0x2FD7, Sable's 0x2FF1, Mabel's
+## 0x2FD8 — the name plate swaps on each `demo_order` between them. `[speaker, page]` rows;
+## the authored `LISTEN_LINES` without the bank.
+static func listen_pages() -> Array:
+	if line(MSG_LISTEN_MABEL) == null:
+		return LISTEN_LINES
+	var out: Array = []
+	for part: Array in [["Mabel", MSG_LISTEN_MABEL], ["Sable", MSG_LISTEN_SABLE], ["Mabel", MSG_LISTEN_MABEL2]]:
+		for page: String in pages(int(part[1]), ""):
+			if page != "":
+				out.append([part[0], page])
+	return out
+
+
+const MSG_LISTEN_MABEL := 0x2FD7
+const MSG_LISTEN_SABLE := 0x2FF1
+const MSG_LISTEN_MABEL2 := 0x2FD8
+
+
+## The talk's message ids (`aNNW_*` in `ac_npc_needlework_talk.c_inc`).
+const MSG_WELCOME_FIRST := 0x2FD1
+const MSG_WELCOME := 0x2FD2
+const MSG_BYE := 0x2FD3
+const MSG_LISTEN_NO := 0x2FE4
+const MSG_DESIGN_CHECK := 0x2FE5
+const MSG_DESIGN_CHANGED_MIND := 0x2FE6
+const MSG_OTHER := 0x2FE2
+const MSG_SAVE_PATTERN := 0x2FEC
+const MSG_ALBUM_VISITOR := 0x2FEE
+const MSG_ALBUM_DONE := 0x2FF0
+const MSG_CHECK_LISTEN := 0x2FD6
+const MSG_MENU_AGAIN := 0x3006
 
 
 # --- authored text ------------------------------------------------------------

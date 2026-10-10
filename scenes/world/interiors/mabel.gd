@@ -166,7 +166,7 @@ func _say_goodbye() -> void:
 	_talking = true
 	if not ui.closed.is_connected(_on_goodbye_closed):
 		ui.closed.connect(_on_goodbye_closed, CONNECT_ONE_SHOT)
-	ui.play(_one_line("mabel_bye", NeedleworkTalk.TEXT_BYE), _make_ctx())
+	ui.play(_pages_data("mabel_bye", NeedleworkTalk.pages(NeedleworkTalk.MSG_BYE, NeedleworkTalk.TEXT_BYE)), _make_ctx())
 
 
 func _on_goodbye_closed() -> void:
@@ -229,9 +229,9 @@ func _begin_talk(ctx: InteractionContext = null) -> bool:
 			ui.play(trick, _make_ctx())
 		_talked_today = true
 		return true
-	var lead: String = NeedleworkTalk.TEXT_MENU
+	var lead: Array[String] = NeedleworkTalk.pages(NeedleworkTalk.GREETING_REPEAT, NeedleworkTalk.TEXT_MENU)
 	if Game.designs != null and not Game.designs.listened_flag:
-		lead = NeedleworkTalk.TEXT_MENU_FIRST
+		lead = NeedleworkTalk.pages(NeedleworkTalk.GREETING_FIRST, NeedleworkTalk.TEXT_MENU_FIRST)
 	_play_menu(lead)
 	_talked_today = true
 	return true
@@ -243,26 +243,32 @@ func _auto_greet(listener: Node3D) -> bool:
 	var first := Game.designs != null and not Game.designs.first_talk_done
 	if Game.designs != null:
 		Game.designs.first_talk_done = true
-	var line := ("Hi there! Come on in.\nWelcome to Able Sisters,\nwhere YOU are the famous\nfashion designer!"
-		if first else "Oh, hi! Come on in!")
+	var said: Array[String] = (
+		NeedleworkTalk.pages(NeedleworkTalk.MSG_WELCOME_FIRST, "Hi there! Come on in.\nWelcome to Able Sisters,\nwhere YOU are the famous\nfashion designer!")
+		if first else NeedleworkTalk.pages(NeedleworkTalk.MSG_WELCOME, "Oh, hi! Come on in!")
+	)
+	var line: String = said[0]
 	var ui := DialogueOverlay.find(get_tree())
 	if ui != null:
 		_start_talk_session(listener)
 		_bind_end(ui)
-		ui.play(_one_line("mabel_welcome", line), _make_ctx())
+		ui.play(_pages_data("mabel_welcome", said), _make_ctx())
 	elif Game != null:
 		Game.post_notice("Mabel: %s" % line.replace("\n", " "))
 	_talked_today = true
 	return true
 
 
-## The 6-way menu (`aNNW_set_6_ways`) led by `lead`. Options come from `mabel_menu`.
-func _play_menu(lead: String) -> void:
+## The 6-way menu (`aNNW_set_6_ways`) led by `lead` (a line, or the pages of a ROM
+## message whose last page is the prompt). Options come from `mabel_menu`.
+func _play_menu(lead: Variant) -> void:
+	var leads: Array = lead if lead is Array else [lead]
+	var last: String = str(leads[leads.size() - 1])
 	var base: DialogueData = DialogueCatalog.conversation(MENU_ID)
 	var ui := DialogueOverlay.find(get_tree())
 	if ui == null:
 		if Game != null:
-			Game.post_notice("Mabel: %s" % lead.replace("\n", " "))
+			Game.post_notice("Mabel: %s" % last.replace("\n", " "))
 		return
 	var menu: Dictionary = {}
 	var bye: Dictionary = {}
@@ -271,22 +277,39 @@ func _play_menu(lead: String) -> void:
 		menu = base.node(&"menu").duplicate(true)
 		bye = base.node(&"bye").duplicate(true)
 	if menu.is_empty():
-		_say_line(lead)
+		_say_line(last)
 		return
-	menu["prompt"] = lead
-	var nodes := {"lead": {"type": "line", "text": lead, "next": "menu"}, "menu": menu}
+	menu["prompt"] = last
+	var nodes := {"menu": menu}
+	for i: int in leads.size():
+		nodes["lead%d" % i] = {"type": "line", "text": str(leads[i]), "next": "lead%d" % (i + 1) if i + 1 < leads.size() else "menu"}
 	if not bye.is_empty():
 		nodes["bye"] = bye
 	_start_talk_session(_player_node())
 	_bind_session(ui)
-	ui.play(DialogueData.from_dict({"id": "mabel_menu_live", "start": "lead", "nodes": nodes}), _make_ctx())
+	ui.play(DialogueData.from_dict({"id": "mabel_menu_live", "start": "lead0", "nodes": nodes}), _make_ctx())
 
 
 ## A result line, then back to the 6-way (`mMsg_Set_continue_msg_num` + WHAT_HAPPEN).
-func _line_then_menu(text: String) -> void:
-	_line_queue = [{"text": text, "speaker": "Mabel"}]
-	_after_queue = Callable(self, "_play_menu").bind(NeedleworkTalk.TEXT_MENU_AGAIN)
+func _line_then_menu(text: Variant) -> void:
+	_line_queue = []
+	for page: Variant in (text if text is Array else [text]):
+		_line_queue.append({"text": str(page), "speaker": "Mabel"})
+	_after_queue = Callable(self, "_play_menu").bind(_menu_again())
 	_flush_queue()
+
+
+func _menu_again() -> Array[String]:
+	return NeedleworkTalk.pages(NeedleworkTalk.MSG_MENU_AGAIN, NeedleworkTalk.TEXT_MENU_AGAIN)
+
+
+## A ROM message that ends on Mabel's 6-way: its pages lead straight into the menu.
+func _rom_menu(msg_id: int, fallback: String) -> void:
+	var said: Array[String] = NeedleworkTalk.pages(msg_id, fallback)
+	if NeedleworkTalk.line(msg_id) == null:
+		_line_then_menu(said)
+		return
+	_play_menu(said)
 
 
 func _make_ctx(speaker: String = "Mabel") -> DialogueContext:
@@ -299,6 +322,15 @@ func _make_ctx(speaker: String = "Mabel") -> DialogueContext:
 	## `aNNW_talk_init`: FREE_STR0 / 1 = "Mabel" / "Sable" (strings 0x6D5 / 0x6D6).
 	c.frees = PackedStringArray(["Mabel", "Sable"])
 	return c
+
+
+static func _pages_data(id: String, said: Array[String]) -> DialogueData:
+	var nodes := {}
+	for i: int in said.size():
+		nodes["l%d" % i] = {"type": "line", "text": said[i]}
+		if i + 1 < said.size():
+			nodes["l%d" % i]["next"] = "l%d" % (i + 1)
+	return DialogueData.from_dict({"id": id, "start": "l0", "nodes": nodes})
 
 
 static func _one_line(id: String, text: String) -> DialogueData:
@@ -378,17 +410,25 @@ func _play_dialogue(dict: Dictionary) -> void:
 ## `aNNW_talk_design_check` — msg `0x2FE5`: cost + 8-slot warning, then
 ## "That's fine!" / "That won't do!" (back to the menu).
 func _flow_design_check() -> void:
-	_play_dialogue({
-		"id": "mabel_design_check", "start": "l0",
-		"nodes": {
-			"l0": {"type": "line", "text": "Oh, you want to create your\nown design? Great! It'll cost\n350 Bells for materials,\nof course. That's OK, right?", "next": "l1"},
-			"l1": {"type": "line", "text": "Oh, and you can only keep\neight designs, so you'll have\nto give up one of the patterns\nyou have now. Is that OK?", "next": "menu"},
-			"menu": {"type": "choice", "prompt": "Oh, and you can only keep\neight designs, so you'll have\nto give up one of the patterns\nyou have now. Is that OK?", "options": [
-				{"text": "That's fine!", "events": [{"op": "needlework_act", "act": "make_design"}]},
-				{"text": "That won't do!", "events": [{"op": "needlework_act", "act": "menu"}]},
-			]},
-		},
-	})
+	_play_dialogue(_rom_choice("mabel_design_check", NeedleworkTalk.MSG_DESIGN_CHECK, [
+		"Oh, you want to create your\nown design? Great! It'll cost\n350 Bells for materials,\nof course. That's OK, right?",
+		"Oh, and you can only keep\neight designs, so you'll have\nto give up one of the patterns\nyou have now. Is that OK?",
+	], [
+		{"text": "That's fine!", "events": [{"op": "needlework_act", "act": "make_design"}]},
+		{"text": "That won't do!", "events": [{"op": "needlework_act", "act": "menu"}]},
+	]))
+
+
+## A ROM message's pages (or `fallback` pages without the bank) ending on a choice of
+## `options`; extra nodes (`goto` targets) ride along in `extra`.
+func _rom_choice(id: String, msg_id: int, fallback: Array, options: Array, extra: Dictionary = {}) -> Dictionary:
+	var said: Array = NeedleworkTalk.pages(msg_id, "") if NeedleworkTalk.line(msg_id) != null else fallback
+	var nodes := {}
+	for i: int in said.size():
+		nodes["l%d" % i] = {"type": "line", "text": str(said[i]), "next": "l%d" % (i + 1) if i + 1 < said.size() else "menu"}
+	nodes["menu"] = {"type": "choice", "prompt": str(said[said.size() - 1]), "options": options}
+	nodes.merge(extra)
+	return {"id": id, "start": "l0", "nodes": nodes}
 
 
 ## `aNNW_talk_cporiginal0-2` — msg `0x2FEC`, then the design album
@@ -397,9 +437,9 @@ func _flow_design_check() -> void:
 func _flow_save_pattern() -> void:
 	## `aNNW_set_6_ways`: a visitor gets 0x2FEE and the menu again.
 	if Game.foreigner:
-		_line_then_menu(NeedleworkTalk.TEXT_ALBUM_VISITOR)
+		_line_then_menu(NeedleworkTalk.pages(NeedleworkTalk.MSG_ALBUM_VISITOR, NeedleworkTalk.TEXT_ALBUM_VISITOR))
 		return
-	_line_queue = [{"text": "OK, then, tell me how you'd\nlike to save it.", "speaker": "Mabel"}]
+	_line_queue = [{"text": NeedleworkTalk.pages(NeedleworkTalk.MSG_SAVE_PATTERN, "OK, then, tell me how you'd\nlike to save it.")[0], "speaker": "Mabel"}]
 	_after_queue = Callable(self, "_run_act").bind("open_album")
 	_flush_queue()
 
@@ -407,51 +447,42 @@ func _flow_save_pattern() -> void:
 ## `0x2FD6` (`CHECK_LISTEN`) — the "custom designs" pitch + "Any tips?" /
 ## "I know already.".
 func _flow_whats_this() -> void:
-	_play_dialogue({
-		"id": "mabel_whats_this", "start": "l0",
-		"nodes": {
-			"l0": {"type": "line", "text": "OK, OK, check this out. Ahem!\nBrand-name clothing is nice,", "next": "l1"},
-			"l1": {"type": "line", "text": "but wouldn't you just love to\nwear outfits YOU designed?", "next": "l2"},
-			"l2": {"type": "line", "text": "Oh, come on! Admit it!\nI'm sure you've thought the\nsame thing at least once,\nmaybe even twice.", "next": "l3"},
-			"l3": {"type": "line", "text": "Well, I know you'll find this\nhard to believe, but the\nAble Sisters can turn your\ndesigning dreams into reality!", "next": "l4"},
-			"l4": {"type": "line", "text": "I know, I know, it sounds\ntoo good to be true, huh?\nDon't you just feel the need\nto hear more about it?", "next": "menu"},
-			"menu": {"type": "choice", "prompt": "I know, I know, it sounds\ntoo good to be true, huh?\nDon't you just feel the need\nto hear more about it?", "options": [
-				{"text": "Any tips?", "events": [{"op": "needlework_act", "act": "listen"}]},
-				{"text": "I know already.", "goto": "bye"},
-			]},
-			"bye": {"type": "line", "text": "Oh, are you sure? OK.\nDon't hesitate to ask if\nthere's anything I can help\nyou with!"},
-		},
-	})
+	_play_dialogue(_rom_choice("mabel_whats_this", NeedleworkTalk.MSG_CHECK_LISTEN, [
+		"OK, OK, check this out. Ahem!\nBrand-name clothing is nice,",
+		"but wouldn't you just love to\nwear outfits YOU designed?",
+		"Oh, come on! Admit it!\nI'm sure you've thought the\nsame thing at least once,\nmaybe even twice.",
+		"Well, I know you'll find this\nhard to believe, but the\nAble Sisters can turn your\ndesigning dreams into reality!",
+		"I know, I know, it sounds\ntoo good to be true, huh?\nDon't you just feel the need\nto hear more about it?",
+	], [
+		{"text": "Any tips?", "events": [{"op": "needlework_act", "act": "listen"}]},
+		{"text": "I know already.", "goto": "bye"},
+	], {"bye": {"type": "line", "text": NeedleworkTalk.pages(NeedleworkTalk.MSG_LISTEN_NO, "Oh, are you sure? OK.\nDon't hesitate to ask if\nthere's anything I can help\nyou with!")[0]}}))
 
 
 ## `0x2FE2` (`OTHER_HAPPEN`) — the GBA / e-Reader 5-way. Every branch needs a linked
 ## Game Boy Advance (`aNNW_check_GBA` → NOT_CONNECTED → 0x3008 → menu).
 func _flow_other_things() -> void:
-	_play_dialogue({
-		"id": "mabel_other", "start": "l0",
-		"nodes": {
-			"l0": {"type": "line", "text": "When you say \"other things,\"\nwhat exactly do you mean?", "next": "menu"},
-			"menu": {"type": "choice", "prompt": "When you say \"other things,\"\nwhat exactly do you mean?", "options": [
-				{"text": "Download tool", "events": [{"op": "needlework_act", "act": "gba"}]},
-				{"text": "Upload design", "events": [{"op": "needlework_act", "act": "gba"}]},
-				{"text": "Read card", "events": [{"op": "needlework_act", "act": "gba"}]},
-				{"text": "Prep e-Reader", "events": [{"op": "needlework_act", "act": "gba"}]},
-				{"text": "Maybe not...", "events": [{"op": "needlework_act", "act": "menu"}]},
-			]},
-		},
-	})
+	_play_dialogue(_rom_choice("mabel_other", NeedleworkTalk.MSG_OTHER, [
+		"When you say \"other things,\"\nwhat exactly do you mean?",
+	], [
+		{"text": "Download tool", "events": [{"op": "needlework_act", "act": "gba"}]},
+		{"text": "Upload design", "events": [{"op": "needlework_act", "act": "gba"}]},
+		{"text": "Read card", "events": [{"op": "needlework_act", "act": "gba"}]},
+		{"text": "Prep e-Reader", "events": [{"op": "needlework_act", "act": "gba"}]},
+		{"text": "Maybe not...", "events": [{"op": "needlework_act", "act": "menu"}]},
+	]))
 
 
 func _run_act(act: String) -> void:
 	_next_act = ""
 	match act:
 		"menu":
-			_play_menu(NeedleworkTalk.TEXT_MENU_AGAIN)
+			_play_menu(_menu_again())
 		"make_design":
 			## `mSP_money_check(aNNW_DESIGN_PRICE)` — sacks count; paid only once the
 			## design is saved and named (`aNNW_talk_design_close3`).
 			if not ShopBook.can_afford(Game.inventory, NeedleworkTalk.DESIGN_PRICE):
-				_line_then_menu(NeedleworkTalk.TEXT_NO_MONEY % _player_name())
+				_rom_menu(NeedleworkTalk.MSG_DESIGN_NO_MONEY, NeedleworkTalk.TEXT_NO_MONEY % _player_name())
 				return
 			var list_ui: Node = _grp("design_list_ui")
 			if list_ui != null and list_ui.has_method("open"):
@@ -461,11 +492,11 @@ func _run_act(act: String) -> void:
 			if album_ui != null and album_ui.has_method("open"):
 				album_ui.call("open", Callable(self, "_on_album_closed"))
 			else:
-				_line_then_menu(NeedleworkTalk.TEXT_ALBUM_DONE)
+				_rom_menu(NeedleworkTalk.MSG_ALBUM_DONE, NeedleworkTalk.TEXT_ALBUM_DONE)
 		"listen":
 			_flow_listen()
 		"gba":
-			_line_then_menu(NeedleworkTalk.TEXT_NO_GBA)
+			_rom_menu(NeedleworkTalk.MSG_GBA_NOT_CONNECTED, NeedleworkTalk.TEXT_NO_GBA)
 
 
 func _player_name() -> String:
@@ -477,7 +508,7 @@ func _player_name() -> String:
 ## `aNNW_talk_design_close`: a slot → the editor; cancelled → 0x2FE9, back to the menu.
 func _on_design_slot_chosen(slot: int) -> void:
 	if slot < 0:
-		_line_then_menu(NeedleworkTalk.TEXT_DESIGN_CANCEL)
+		_rom_menu(NeedleworkTalk.MSG_DESIGN_CHANGED_MIND, NeedleworkTalk.TEXT_DESIGN_CANCEL)
 		return
 	_edit_slot = slot
 	var editor: Node = _grp("design_ui")
@@ -490,9 +521,9 @@ func _on_design_slot_chosen(slot: int) -> void:
 func _on_editor_done(slot: int, saved: bool) -> void:
 	if not saved or slot < 0 or Game.designs == null:
 		_edit_slot = -1
-		_line_then_menu(NeedleworkTalk.TEXT_DESIGN_CANCEL)
+		_rom_menu(NeedleworkTalk.MSG_DESIGN_NOT_BLANK, NeedleworkTalk.TEXT_DESIGN_CANCEL)
 		return
-	_line_queue = [{"text": NeedleworkTalk.TEXT_DESIGN_SAVED, "speaker": "Mabel"}]
+	_line_queue = [{"text": NeedleworkTalk.pages(NeedleworkTalk.MSG_DESIGN_SAVED, NeedleworkTalk.TEXT_DESIGN_SAVED)[0], "speaker": "Mabel"}]
 	_after_queue = Callable(self, "_open_name_entry")
 	_flush_queue()
 
@@ -522,13 +553,13 @@ func _on_name_entered(text: String) -> void:
 	if Game.worn_design_slot == _edit_slot:
 		Game.design_changed.emit()
 	_edit_slot = -1
-	_line_then_menu(NeedleworkTalk.TEXT_DESIGN_NAMED % text)
+	_rom_menu(NeedleworkTalk.MSG_DESIGN_NAMED, NeedleworkTalk.TEXT_DESIGN_NAMED % text)
 
 
 ## `aNNW_talk_cporiginal2`: 0x2FF0, back to the menu (`CLOTH_CHANGE3` when the worn
 ## design moved — `design_changed` already re-dressed the player).
 func _on_album_closed() -> void:
-	_line_then_menu(NeedleworkTalk.TEXT_ALBUM_DONE)
+	_rom_menu(NeedleworkTalk.MSG_ALBUM_DONE, NeedleworkTalk.TEXT_ALBUM_DONE)
 
 
 ## `aNNW_talk_trend_cloth` — reports the most-worn shirt, then umbrella
@@ -552,7 +583,7 @@ func _flow_trend() -> void:
 func _flow_listen() -> void:
 	var sable := _sister()
 	_line_queue.clear()
-	for entry: Array in NeedleworkTalk.LISTEN_LINES:
+	for entry: Array in NeedleworkTalk.listen_pages():
 		_line_queue.append({"text": entry[1], "speaker": entry[0], "focus": sable if entry[0] == "Sable" else null})
 	_after_queue = Callable()
 	_flush_queue()
@@ -620,7 +651,7 @@ func _on_trade_slot_chosen(player_slot: int) -> void:
 	if fixture < 0 or Game.designs == null:
 		return
 	if player_slot < 0:
-		_say_line(NeedleworkTalk.TEXT_TRADE_CANCEL)
+		_say_line(NeedleworkTalk.pages(NeedleworkTalk.MSG_TRADE_WRONG_ITEM, NeedleworkTalk.TEXT_TRADE_CANCEL)[0])
 		return
 	var affected := Game.designs.resolved_index(player_slot)
 	if not apply_trade(Game.designs, act, fixture, player_slot):
