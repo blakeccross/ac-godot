@@ -688,7 +688,7 @@ def _anims_for_prefix(prefix: str, names: set[str]) -> list[str]:
         if n == f"cKF_ba_r_{prefix}" or n.startswith(f"cKF_ba_r_{prefix}_")
     ]
     hits.sort()
-    if prefix.startswith("boy_"):
+    if prefix.startswith(("boy_", "grl_", "girl_")):
         extra = [n for n in names if n.startswith("cKF_ba_r_ply_1_")]
         extra.sort()
         core = _core_anims(PLAYER_CORE_ANIMS, names)

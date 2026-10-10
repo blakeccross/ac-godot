@@ -2,13 +2,14 @@ class_name Player
 extends CharacterBody3D
 
 ## CharacterBody3D player. Locomotion feel from `m_player_main_walk`; visual from
-## generated `boy_1.glb` when the local pipeline has been run. Equipped tools
+## `boy_1.glb` or `grl_1.glb` (`mPlib_get_player_mdl_p`). Equipped tools
 ## parent to HAND (`HeldTool`). Walk physics cylinder radius matches `BgCheckControll`
 ## range (18 GX → 0.9 m) — same as `FieldCollision.ACTOR_RADIUS` / trees-rocks columns.
 ## Height keeps the OcInfo stand pipe (60 GX → 3.0 m). Cliffs/water use `revise_xz`,
 ## not this shape. OcInfo radius 20 is actor-actor CollisionCheck, not world walk.
 
-const GENERATED_PLAYER := "res://assets/generated/characters/player/boy_1.glb"
+const PLAYER_BOY_GLB := "res://assets/generated/characters/player/boy_1.glb"
+const PLAYER_GIRL_GLB := "res://assets/generated/characters/player/grl_1.glb"
 const LOOK_HEIGHT := 0.85
 const INTERACT_REACH := 1.1
 
@@ -244,6 +245,21 @@ const GROUP := &"player"
 ## The field / room player in `tree`, or null.
 static func find(tree: SceneTree) -> Player:
 	return tree.get_first_node_in_group(GROUP) as Player if tree != null else null
+
+
+## `mPlib_get_player_mdl_p`: male is `cKF_bs_r_boy_1`, anyone else is `cKF_bs_r_grl_1`.
+static func visual_path() -> String:
+	if (
+		Game != null
+		and Game.player_gender == IntroSequence.GENDER_FEMALE
+		and ResourceLoader.exists(PLAYER_GIRL_GLB)
+	):
+		return PLAYER_GIRL_GLB
+	return PLAYER_BOY_GLB
+
+
+static func visual_id() -> StringName:
+	return &"grl_1" if visual_path() == PLAYER_GIRL_GLB else &"boy_1"
 
 
 func _ready() -> void:
@@ -3206,9 +3222,10 @@ func _play_clip(clip_name: StringName, tool_clip: StringName) -> void:
 
 
 func _try_load_generated_visual() -> void:
-	if not ResourceLoader.exists(GENERATED_PLAYER):
+	var path := visual_path()
+	if not ResourceLoader.exists(path):
 		return
-	var packed: PackedScene = load(GENERATED_PLAYER) as PackedScene
+	var packed: PackedScene = load(path) as PackedScene
 	if packed == null:
 		return
 	var visual: Node = packed.instantiate()

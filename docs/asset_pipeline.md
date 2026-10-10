@@ -96,7 +96,7 @@ Godot project:
 assets/
 ├── generated/              # copies of converted/  (gitignored)
 │   ├── characters/
-│   │   ├── player/         # boy_1 (US disc has no separate girl_1 skeleton)
+│   │   ├── player/         # boy_1 and grl_1 (`mPlib_get_player_mdl_p`)
 │   │   ├── villagers/      # species skeletons + full npc_1 anim bank
 │   │   └── other/          # non-species cKF leftovers
 │   ├── effects/            # ef_*
@@ -401,7 +401,7 @@ Preview (after convert):
 
 ## 11. Known limitations
 
-- Player `boy_1.glb` is a **skinned** GLB: wait-frame-1 bind (already stands on +Y), IBMs, and every `cKF_ba_r_ply_1_*` clip. The US disc has **no** `cKF_bs_r_girl_1` / `girl_1_v` — only `boy_1` plus UI portraits (`girl1.bti`…). Girl clothing/face selection is runtime data on that shared player mesh, not a second skeleton. Models without wait use identity bind + +90° Z. Materials are `doubleSided`. Shirt and hat both sample segment `0x0A` (same 32×32 CI4); wrap/UVs differ, so they stay separate materials. Out-of-range REPEAT/MIRROR UVs are baked into a tiled PNG with UVs remapped to 0–1 (Godot cannot express per-axis wrap). Limb/chest DLs switch `G_MTX` mid-list (segment `0x0D`); seam vertices are weighted to the parent joint, not the DL owner.
+- Player `boy_1.glb` and `grl_1.glb` are **skinned** GLBs: wait-frame-1 bind (already stands on +Y), IBMs, and every `cKF_ba_r_ply_1_*` clip. `mPlib_get_player_mdl_p` picks `cKF_bs_r_boy_1` or `cKF_bs_r_grl_1` (own hair, skin, shoes, and skirt). Eyes and mouth still swap at runtime from the face bank. Models without wait use identity bind + +90° Z. Materials are `doubleSided`. Shirt and hat both sample segment `0x0A` (same 32×32 CI4); wrap/UVs differ, so they stay separate materials. Out-of-range REPEAT/MIRROR UVs are baked into a tiled PNG with UVs remapped to 0–1 (Godot cannot express per-axis wrap). Limb/chest DLs switch `G_MTX` mid-list (segment `0x0D`); seam vertices are weighted to the parent joint, not the DL owner.
 - Villager species (`cat_1`, `bev_1`, …) embed the shared `cKF_ba_r_npc_1_*` bank. Pose evaluation is cached across species (same clip tables); rest translations still differ so each GLB has its own tracks. Every `cKF_ba_r_npc_1_*` clip is baked into each species GLB.
 - Static meshes include `*_gfx_model` and plain `*_model` DLs. Room shells (`rom_*` → `environment/interiors/`) and outdoor acre tiles (`grd_*` → `environment/acres/`) come from that path. Acre DLs sample dummy segment `0x80` (grass/earth/cliff/bush); convert materializes the summer bank from `l_bg_tex_segment_rom_start_s_0` + palettes. Player-house floor/wall DLs sample segments `0x08–0x0C` from `player_room_floor.bin` / `player_room_wall.bin` (style 0). A few interiors (`rom_uranai`, `room01`) use classic N64 `G_SETTILE` / `G_SETTILESIZE` instead of `G_SETTILE_DOLPHIN`.
 - Model textures are GX CI4/CI8 with RGB5A3 palettes. Pending tris flush before `G_LOADTLUT` / prim / tile changes so the palette active at draw time is the one baked into the PNG. Segment banks use one path for every cKF prefix: REL `{prefix}_pal` / `eye1` / `mouth1` / `tmem_txt` when present, else archive `face_{species}.bin` + `tex_{species}.bin` + `pallet_{species}.bin` (shirt index 0). Unbound `anime_N_txt` SETTIMG/LOADTLUT (segments `0x08–0x0F`) resolve from same-size REL textures whose name shares the Gfx part (`leaf` → hardwood leaf tex + FG pal; `mark` → `obj_myhome_mark_*`). I4/IA are modulated by `G_SETPRIMCOLOR`; when the combiner is `(PRIM−ENV)×TEXEL+ENV` (balloon heads, etc.) convert bakes both ends into the PNG.

@@ -8,7 +8,6 @@ extends CanvasLayer
 ## `aMBX_pl_close` waits for this to play the mailbox's closing beat.
 signal closed
 
-const PLAYER_GLB := "res://assets/generated/characters/player/boy_1.glb"
 const HND_GLB := "res://assets/generated/characters/other/hnd.glb"
 const HAND_SIZE := 100.0
 ## The ROM UI font (`FONT_nes_tex_font1`, `mFont_SetLineStrings`), same as the
@@ -416,9 +415,10 @@ func _setup_player_portrait() -> void:
 	cam.fov = 20.0
 	world.add_child(cam)
 
-	if not ResourceLoader.exists(PLAYER_GLB):
+	var player_glb := Player.visual_path()
+	if not ResourceLoader.exists(player_glb):
 		return
-	var packed: PackedScene = load(PLAYER_GLB) as PackedScene
+	var packed: PackedScene = load(player_glb) as PackedScene
 	if packed == null:
 		return
 	var body: Node = packed.instantiate()
@@ -427,7 +427,7 @@ func _setup_player_portrait() -> void:
 		return
 	_portrait_pivot = body as Node3D
 	world.add_child(_portrait_pivot)
-	VisualFit.apply_actor_scale(_portrait_pivot, &"boy_1")
+	VisualFit.apply_actor_scale(_portrait_pivot, Player.visual_id())
 	GeneratedVisual.apply_preview_materials(_portrait_pivot)
 	VisualAnimation.stop_autoplay_keep_rest(_portrait_pivot)
 	_portrait_pivot.rotation.y = 0.0

@@ -1376,7 +1376,7 @@ class TextureBank:
         Same path for player, villagers, and furniture:
         - `{prefix}_pal`, `{prefix}_eye1_TA_tex_txt`, `{prefix}_mouth1_TA_tex_txt`, `{prefix}_tmem_txt`
         - archive `face_{species}.bin` / `tex_{species}.bin` / `pallet_{species}.bin` when present
-          (player eyes/mouth/shirt live there; species is prefix without trailing `_N`)
+          (player eyes/mouth/shirt live in the boy banks; both skeletons use those)
         Dummy `anime_N_txt` SETTIMG/LOADTLUT (house mark, shrine leaf, …) resolve
         later from REL symbols — see `_resolve_dummy_image` / `_resolve_dummy_palette`.
         """
@@ -1410,7 +1410,13 @@ class TextureBank:
 
         if self.archives is None:
             return
+        ## `mPlib_get_player_mdl_p` swaps the skeleton (`boy_1` / `grl_1`) but eyes,
+        ## mouth, and shirt still DMA from `face_boy.bin` / `tex_boy.bin`. Female
+        ## faces are a later index in that bank (`PlayerFace`); there is no
+        ## `face_grl.bin`.
         species = re.sub(r"_\d+$", "", prefix)
+        if prefix.startswith(("boy_", "grl_", "girl_")):
+            species = "boy"
         data = self.archives / "forest_1st" / "data"
         face_path = data / f"face_{species}.bin"
         if face_path.is_file() and 0x08 not in self.segment_images:
