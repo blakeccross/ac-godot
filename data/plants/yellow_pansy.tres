@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="PlantData" format=3]
+
+[ext_resource type="Script" uid="uid://dxcrl6i2puoka" path="res://scripts/data/plant_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"yellow_pansy"
+display_name = "Yellow Pansy"
+kind = 1
+stage_days = PackedInt32Array(0, 0, 0, 0)
+visual_seed = &"FLOWER_LEAVES_PANSIES2"
+visual_growing = &"FLOWER_LEAVES_PANSIES2"
+visual_mature = &"FLOWER_PANSIES2"
+visual_harvestable = &"FLOWER_PANSIES2"

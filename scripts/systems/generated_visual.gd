@@ -79,6 +79,7 @@ static func attach(host: Node3D, visual_id: StringName) -> Node3D:
 	VisualFit.fit(pivot, visual_id)
 	## Swap field/tree albedos from the seasons pack (autumn grass, winter snow).
 	VisualSeasons.apply(pivot)
+	VisualFlower.apply(pivot, visual_id)
 	VisualBlobShadow.attach(host, visual_id)
 	return pivot
 

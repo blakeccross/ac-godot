@@ -11,5 +11,5 @@ category = 5
 buy_price = 120
 usable = true
 use_verb = "Plant"
-plant_id = &"pansy"
+plant_id = &"blue_cosmos"
 icon_color = Color(0.8, 0.7, 0.5, 1)

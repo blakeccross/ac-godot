@@ -426,12 +426,18 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		&"dock_sign", &"DOCK_SIGN", &"obj_s_attention":
 			## `PORT_SIGN` → `ac_reserve` arg0 0x42 → `obj_{s,w}_attentionT_model` (one post).
 			return _seasonal_env_existing("obj_%s_attention")
-		&"obj_flower_a", &"FLOWER_PANSIES0", &"FLOWER_LEAVES_PANSIES0":
+		## `flower_DL_table`: the species picks the vertex set (a pansy, b cosmos, c tulip);
+		## the colour is the TLUT slot (`VisualFlower`). Leaf beds draw `obj_flower_leaf`.
+		&"obj_flower_a", &"FLOWER_PANSIES0", &"FLOWER_PANSIES1", &"FLOWER_PANSIES2":
 			return _existing(["environment/flowers/obj_flower_a.glb"])
-		&"obj_flower_b", &"FLOWER_PANSIES1", &"FLOWER_LEAVES_PANSIES1":
+		&"obj_flower_b", &"FLOWER_COSMOS0", &"FLOWER_COSMOS1", &"FLOWER_COSMOS2":
 			return _existing(["environment/flowers/obj_flower_b.glb"])
-		&"obj_flower_c", &"FLOWER_PANSIES2", &"FLOWER_LEAVES_PANSIES2":
+		&"obj_flower_c", &"FLOWER_TULIP0", &"FLOWER_TULIP1", &"FLOWER_TULIP2":
 			return _existing(["environment/flowers/obj_flower_c.glb"])
+		&"obj_flower_leaf", &"FLOWER_LEAVES_PANSIES0", &"FLOWER_LEAVES_PANSIES1", &"FLOWER_LEAVES_PANSIES2", \
+				&"FLOWER_LEAVES_COSMOS0", &"FLOWER_LEAVES_COSMOS1", &"FLOWER_LEAVES_COSMOS2", \
+				&"FLOWER_LEAVES_TULIP0", &"FLOWER_LEAVES_TULIP1", &"FLOWER_LEAVES_TULIP2":
+			return _existing(["environment/flowers/obj_flower_leaf.glb"])
 		&"obj_s_stoneA", &"ROCK_A":
 			return _seasonal_rock_existing("A")
 		&"obj_s_stoneB", &"ROCK_B":
@@ -515,6 +521,12 @@ static func is_seasonal_env_visual(visual_id: StringName) -> bool:
 		&"FLOWER_PANSIES0",
 		&"FLOWER_PANSIES1",
 		&"FLOWER_PANSIES2",
+		&"FLOWER_COSMOS0",
+		&"FLOWER_COSMOS1",
+		&"FLOWER_COSMOS2",
+		&"FLOWER_TULIP0",
+		&"FLOWER_TULIP1",
+		&"FLOWER_TULIP2",
 		&"HOLE00",
 	]
 	return ALIASES.has(visual_id)

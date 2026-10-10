@@ -134,12 +134,12 @@ static func placement_for_item(item_id: int) -> Dictionary:
 			&"FLOWER_PANSIES0",
 			&"FLOWER_PANSIES1",
 			&"FLOWER_PANSIES2",
-			&"FLOWER_PANSIES0",
-			&"FLOWER_PANSIES1",
-			&"FLOWER_PANSIES2",
-			&"FLOWER_PANSIES0",
-			&"FLOWER_PANSIES1",
-			&"FLOWER_PANSIES2",
+			&"FLOWER_COSMOS0",
+			&"FLOWER_COSMOS1",
+			&"FLOWER_COSMOS2",
+			&"FLOWER_TULIP0",
+			&"FLOWER_TULIP1",
+			&"FLOWER_TULIP2",
 		]
 		return {
 			"kind": &"flower",

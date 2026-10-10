@@ -971,6 +971,10 @@ ACTOR_TLUT_TABLES: dict[str, tuple[int, str, str, int, tuple[int, int]]] = {
     "ef_hana01_co_a": (0x08, "mFM_obj_a_01_flower_pal", "ef_hana01_co_a_tex", 1, (16, 16)),
     "ef_hana01_tu_a": (0x08, "mFM_obj_a_01_flower_pal", "ef_hana01_tu_a_tex", 1, (16, 16)),
     "ef_hana01_ha_a": (0x08, "mFM_obj_a_01_flower_pal", "ef_hana01_ha_a_tex", 1, (16, 16)),
+    ## Field flowers (`flower_DL_table`): one CI4 atlas, the species picks the vertex set
+    ## (a pansy / b cosmos / c tulip) and the colour picks TLUT slot 0–2, bound by
+    ## `mFM_SetFGPal` to `flowerK_pal` = `mFM_obj_a_01_flower_pal[K * 9 + flower_pal_idx]`.
+    "obj_flower": (0x00, "mFM_obj_a_01_flower_pal", "obj_flower_tex", 1, (128, 32)),
 }
 
 
