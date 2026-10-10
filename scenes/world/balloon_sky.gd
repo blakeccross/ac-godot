@@ -53,10 +53,11 @@ func roll() -> void:
 	chance += 0.025 + goods * 0.025 + 0.0 * 0.025 + _rng.randf() * 0.025
 
 
-## `mPr_GetGoodsPower`: ±30 for goods luck / bad luck.
+## `mPr_GetGoodsPower`: feng shui and the day's fortune.
 static func goods_power() -> float:
 	if Game == null:
 		return 0.0
+	return float(Game.goods_power_now())
 	match Game.destiny():
 		Game.Destiny.GOODS_LUCK:
 			return 30.0

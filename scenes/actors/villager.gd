@@ -148,6 +148,10 @@ var _talk_manager: VillagerTalkManager
 var _manpu_clip: String = ""
 ## The loop the reaction settled into after its first clip.
 var _manpu_follow: String = ""
+## A popular day's call-out (`force_call_timer`): seconds before calling again, and whether
+## the talk now open is one.
+var _fortune_cool: float = 0.0
+var _fortune_calling: bool = false
 var _feel: NpcFeelGlyphs
 ## Where the feel glyphs sit: about a villager's head height.
 const FEEL_HEAD_LIFT := 1.15
@@ -673,6 +677,8 @@ func _apply_presence(present: bool) -> void:
 func _steer_ai() -> void:
 	if ai.is_wandering() and _tick_chase():
 		return
+	if ai.is_wandering() and _tick_fortune():
+		return
 	if ai.is_wandering():
 		if _travel_stand != Vector3.INF:
 			## Relocating: walk to the next acre's entry unit (walk row, no circle clamp).
@@ -983,6 +989,9 @@ func _end_manpu() -> void:
 
 
 func _on_talk_closed() -> void:
+	if _fortune_calling:
+		_fortune_calling = false
+		_fortune_cool = VillagerFortune.CALL_COOLDOWN_SEC
 	TalkCamera.end(get_tree())
 	ai.end_talk()
 	if get_tree() != null:
@@ -1450,6 +1459,66 @@ func take_soccer_ball() -> bool:
 		TalkCamera.begin(player, self, get_tree())
 	ui.play(talk_data, talk_ctx, state)
 	return true
+
+
+## `aNPC_chk_friendship`: on a fortune day the villager keeps away from the player or comes
+## looking for them (`VillagerFortune`). True while it owns the steering.
+func _tick_fortune() -> bool:
+	if Game == null or Game.title_demo_active or data == null or get_tree() == null:
+		return false
+	var destiny: int = Game.destiny()
+	if destiny != Game.Destiny.POPULAR and destiny != Game.Destiny.UNPOPULAR:
+		return false
+	var player := get_tree().get_first_node_in_group("player") as Node3D
+	if player == null:
+		return false
+	var delta: float = get_physics_process_delta_time()
+	_fortune_cool = maxf(_fortune_cool - delta, 0.0)
+	var gx: float = FieldCatalog.GX_TO_METERS
+	var to: Vector3 = player.global_position - global_position
+	var dist_gx: float = Vector2(to.x, to.z).length() / gx
+	var bg: Array = _bg()
+	var same_block: bool = bg.size() == 2 and VillagerWalk.block_from_cell(
+		(bg[1] as WorldGrid).world_to_cell(player.global_position)
+	) == _current_block()
+	var looks: int = int(data.personality.looks) if data.personality != null else 0
+	var step: int = VillagerFortune.step(destiny, looks, Game.player_gender, same_block, dist_gx)
+	match step:
+		VillagerFortune.Step.NONE:
+			return false
+		VillagerFortune.Step.AVOID_RUN, VillagerFortune.Step.AVOID_WALK:
+			var gait: StringName = VillagerWalk.ACT_RUN if step == VillagerFortune.Step.AVOID_RUN else VillagerWalk.ACT_WALK
+			_motor.set_target(VillagerFortune.away_from(global_position, player.global_position), gait, 0.2, global_position, _motor.facing)
+		VillagerFortune.Step.SEEK_RUN, VillagerFortune.Step.SEEK_WALK:
+			var gait2: StringName = VillagerWalk.ACT_RUN if step == VillagerFortune.Step.SEEK_RUN else VillagerWalk.ACT_WALK
+			_motor.set_target(player.global_position, gait2, VillagerFortune.SEEK_WALK_GX * gx, global_position, _motor.facing)
+		VillagerFortune.Step.SEEK_WAIT:
+			if _motor.has_target:
+				_motor.arrive()
+			_motor.turn_toward(delta, global_position, player.global_position)
+	if step >= VillagerFortune.Step.SEEK_RUN and _fortune_cool <= 0.0 \
+			and VillagerFortune.can_call(dist_gx, to.y / gx):
+		_fortune_call(player, looks)
+	return true
+
+
+## `aNPC_force_talk_request` → `aNPC_set_talk_info_talk_request_check`: "It's really you!"
+func _fortune_call(player: Node3D, looks: int) -> void:
+	var ui := DialogueOverlay.find(get_tree())
+	if ui == null or ui.is_open() or (player is Player and (player as Player).is_busy()):
+		return
+	var talk_data: DialogueData = DialogueCatalog.conversation(
+		StringName("msg_%d" % VillagerFortune.call_msg(looks, _outdoor_rng))
+	)
+	if talk_data == null:
+		return
+	_fortune_calling = true
+	_fortune_cool = VillagerFortune.CALL_COOLDOWN_SEC
+	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
+	ai.begin_talk()
+	_bind_talk_end(ui)
+	TalkCamera.begin(player, self, get_tree())
+	ui.play(talk_data, talk_ctx, state)
 
 
 ## ---------------------------------------------------------------- outdoor acts

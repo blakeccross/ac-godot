@@ -338,7 +338,7 @@ func restock(shop_id: StringName) -> void:
 	rng.seed = _day_seed(shop_id)
 	var lineup: Dictionary = ShopGoods.roll(
 		int(row.get("level", 0)), int(row.get("sales", 0)), Clock.year, Clock.month, Clock.day,
-		int(row.get("paint", 0)), rng, Game.goods_power if Game != null else 0
+		int(row.get("paint", 0)), rng, Game.goods_power_now() if Game != null else 0
 	)
 	row["goods"] = _as_strings(lineup["goods"] as Array[StringName])
 	row["rare"] = String(lineup["rare"])

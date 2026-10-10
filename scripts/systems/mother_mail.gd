@@ -114,7 +114,7 @@ static func dated(month: int, day: int, birthday: Vector2i, holiday: StringName,
 
 
 static func _goods_power() -> int:
-	return Game.goods_power if Game != null else 0
+	return Game.goods_power_now() if Game != null else 0
 
 
 static func _bit(bits: int, i: int) -> bool:

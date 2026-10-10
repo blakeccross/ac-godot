@@ -268,6 +268,8 @@ var diary: Dictionary = {}
 ## the way out to the field. Not saved.
 var money_power: int = 0
 var goods_power: int = 0
+const GOODS_POWER_MIN := -30
+const GOODS_POWER_MAX := 50
 var plant_states: Dictionary = {}
 ## Buried dig spots: persist_id → {kind, item_id, cell_x, cell_z} (`mFI` deposit / shine).
 var buried_deposits: Dictionary = {}
@@ -1124,6 +1126,18 @@ func rate_town(world: Node, rng: RandomNumberGenerator = null, at_well: bool = f
 ## `mFAs_CheckGoodField`: fifteen perfect days in a row.
 func perfect_town_long_enough() -> bool:
 	return perfect_streak >= TownAssessment.PERFECT_STREAK_MAX
+
+
+## `mPr_GetGoodsPower`: the house's feng shui moved by the day's fortune (goods luck +30,
+## bad luck −30), held to −30…50.
+func goods_power_now() -> int:
+	var power: int = goods_power
+	match destiny():
+		Destiny.GOODS_LUCK:
+			power += 30
+		Destiny.BAD_LUCK:
+			power -= 30
+	return clampi(power, GOODS_POWER_MIN, GOODS_POWER_MAX)
 
 
 ## `mHsRm_GetHuusuiRoom`.

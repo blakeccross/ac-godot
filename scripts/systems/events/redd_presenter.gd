@@ -13,7 +13,7 @@ func start() -> bool:
 	if int(area.get("stamp", -1)) != stamp or not area.has("items"):
 		var rng := RandomNumberGenerator.new()
 		rng.randomize()
-		ReddStock.roll(area, rng)
+		ReddStock.roll(area, rng, Game.goods_power_now())
 		area["stamp"] = stamp
 	var cell: Vector2i = mgr.place_once(id, 0, func() -> Vector2i: return mgr.free_lot(absi(String(id).hash()) % 97))
 	if cell.x < 0:

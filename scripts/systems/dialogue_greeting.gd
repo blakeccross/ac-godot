@@ -36,6 +36,8 @@ const PITFALL := 8327
 ## `MSG_10988`: "Bees!" while a swarm chases the player; `MSG_6987`: the swollen face.
 const BEE_CHASE := 10988
 const BEE_STUNG := 6987
+## `MSG_1869`: the greeting on an unpopular day (`mPr_DESTINY_UNPOPULAR`).
+const UNPOPULAR_HELLO := 1869
 ## `aQMgr_get_hello_msg_no_kamakura` / `_summercamp` tables by looks, and the camper's
 ## first greeting (`MSG_15930`).
 const KAMAKURA_HELLO := [6367, 6376, 6358, 6385, 6394, 6403]
@@ -88,6 +90,9 @@ static func hello_msg_no(villager: VillagerData, state: VillagerState, ctx: Dial
 			return SAD[looks] + _roll(5, ctx)
 		if ctx.mood == VillagerState.Mood.SLEEPY:
 			return SLEEPY[looks] + _roll(5, ctx)
+	## `mPr_DESTINY_UNPOPULAR`: Katrina said nobody would like you today, and they don't.
+	if meet != MEET_FIRST and Game != null and Game.destiny() == Game.Destiny.UNPOPULAR:
+		return _random_looks(UNPOPULAR_HELLO, looks, KIND, ctx)
 	## `aQMgr_get_thanks_cloth_msg`: wearing the shirt the player mailed — thanks, once.
 	if meet != MEET_FIRST and state != null and state.wearing_present_cloth:
 		var cloth: ItemData = ItemCatalog.get_item(state.present_cloth)
