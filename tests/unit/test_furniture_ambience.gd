@@ -60,27 +60,29 @@ func test_only_rooms_with_furniture_actors_sound() -> void:
 func test_the_stew_steams_every_eight_ticks() -> void:
 	var stew := _piece(&"int_tak_stew")
 	var rng := RandomNumberGenerator.new()
-	var puffs: int = 0
-	var wait: Array = [-1]
-	for tick: int in range(1, 65):
-		if FurnitureAmbience.steams(stew, _entry(true), tick, wait, rng):
-			puffs += 1
-	assert_int(puffs).is_equal(8)
+	## Every 8 ticks from the first frame: nine puffs in 1.1 s, at 60 Hz or at 20 Hz.
+	for hz: float in [60.0, 20.0]:
+		var puffs: int = 0
+		var wait: Array = [0.0]
+		for _i: int in roundi(1.1 * hz):
+			if FurnitureAmbience.steams(stew, _entry(true), 1.0 / hz, wait, rng):
+				puffs += 1
+		assert_int(puffs).override_failure_message("%d puffs at %d Hz" % [puffs, int(hz)]).is_equal(9)
 
 
 func test_the_hot_pot_puffs_every_ten_to_thirty_ticks_while_boiling() -> void:
 	var pot := _piece(&"int_nog_nabe")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4
-	var wait: Array = [-1]
-	var at: Array[int] = []
+	var wait: Array = [0.0]
+	var at: Array[float] = []
 	for tick: int in 200:
-		if FurnitureAmbience.steams(pot, _entry(false), tick, wait, rng):
-			at.append(tick)
+		if FurnitureAmbience.steams(pot, _entry(false), 1.0 / 60.0, wait, rng):
+			at.append(tick / 60.0)
 	assert_int(at.size()).is_greater(5)
 	for i: int in range(1, at.size()):
-		assert_int(at[i] - at[i - 1]).is_between(12, 31)
-	assert_bool(FurnitureAmbience.steams(pot, _entry(true), 0, [-1], rng)).is_false()
+		assert_float(at[i] - at[i - 1]).is_between(9.5 / 60.0, 31.0 / 60.0)
+	assert_bool(FurnitureAmbience.steams(pot, _entry(true), 1.0 / 60.0, [0.0], rng)).is_false()
 
 
 func test_steam_rises_and_thins() -> void:
@@ -107,13 +109,13 @@ func test_a_gong_sounds_when_struck_and_the_piggy_bank_needs_bells() -> void:
 
 
 func test_a_looping_clip_sounds_as_it_passes_its_frame() -> void:
-	assert_bool(FurnitureAmbience.crossed(19.5, 20.5, 20.0)).is_true()
-	assert_bool(FurnitureAmbience.crossed(20.0, 21.0, 20.0)).is_false()
+	assert_bool(FurnitureAmbience.crossed(0.62, 0.66, 0.65)).is_true()
+	assert_bool(FurnitureAmbience.crossed(0.65, 0.7, 0.65)).is_false()
 	## Wrapping from the clip's end to its start.
-	assert_bool(FurnitureAmbience.crossed(39.0, 2.0, 1.0)).is_true()
-	assert_bool(FurnitureAmbience.crossed(39.0, 2.0, 20.0)).is_false()
+	assert_bool(FurnitureAmbience.crossed(1.3, 0.05, 0.0)).is_true()
+	assert_bool(FurnitureAmbience.crossed(1.3, 0.05, 0.65)).is_false()
 	## Nothing on the first read.
-	assert_bool(FurnitureAmbience.crossed(-1.0, 20.0, 20.0)).is_false()
+	assert_bool(FurnitureAmbience.crossed(-1.0, 0.65, 0.65)).is_false()
 
 
 func test_fish_tanks_and_cages_loop_their_clips() -> void:
