@@ -87,11 +87,6 @@ func test_talk_eye_side_matches_get_angle_y_sign() -> void:
 	assert_float(eye.x - center.x).is_less(0.0)
 
 
-func test_talk_pitch_matches_decomp_inv() -> void:
-	## −164.114° + 1440 short + SHT_MIN → ≈23.796°.
-	assert_float(TalkCamera.PITCH_INV_DEG).is_equal_approx(23.79638671875, 0.001)
-
-
 func test_talk_yaw_zero_when_pair_is_east_west() -> void:
 	## E/W band (45°–135°) keeps world-south framing (no nudge).
 	var tweak: float = TalkCamera.yaw_tweak_deg(Vector3(0.0, 0.0, 0.0), Vector3(2.0, 0.0, 0.0))

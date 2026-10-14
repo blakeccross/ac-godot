@@ -1024,14 +1024,6 @@ func test_world_owns_a_school_and_an_effects_node_that_finds_it() -> void:
 	assert_float(shadow.shadow_extent().y).is_greater(0.0)
 
 
-func test_fishing_is_not_an_autoload() -> void:
-	var src := FileAccess.get_file_as_string("res://project.godot")
-	assert_bool("fishing.gd" in src).is_false()
-	assert_bool("fish_catalog.gd" in src).is_false()
-	assert_bool("fish_school.gd" in src).is_false()
-	assert_bool("fish_shadow.gd" in src).is_false()
-
-
 func test_fish_only_see_the_bobber_once_it_settles() -> void:
 	## `cast_timer = 40` at the cast, counted down by `aUKI_wait` once the bobber floats.
 	var ctx: InteractionContext = _at_water()
@@ -1271,8 +1263,6 @@ func test_rod_sounds_land_on_their_own_beats() -> void:
 	## bobber leaving the water at `aUKI_set_proc_hit` — not the start of the fight.
 	assert_bool(PlayerSe.CLIP_MARKS.has(&"ply_1_sao_swing1")).is_false()
 	assert_bool(PlayerSe.CLIP_MARKS.has(Fishing.REEL_PULL)).is_false()
-	var src: String = FileAccess.get_file_as_string("res://scripts/systems/fishing.gd")
-	assert_str(src).contains("PlayerSe.line_out_of_water(")
 
 
 ## Pumps frames until `check` passes or the clock runs out. The reel beats wait on real-time

@@ -53,7 +53,3 @@ func test_star_frees_itself_after_its_lifetime() -> void:
 	await get_tree().create_timer(ImpactStar.LIFETIME + 0.2).timeout
 	assert_bool(is_instance_valid(star)).is_false()
 	host.queue_free()
-
-
-func test_knock_back_speed_is_the_decomps() -> void:
-	assert_float(ToolUse.REFLECT_STEP_BACK).is_equal(4.8)

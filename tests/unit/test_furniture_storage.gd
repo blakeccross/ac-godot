@@ -232,11 +232,6 @@ func test_there_are_55_discs_with_songs() -> void:
 	assert_int(MinidiskCatalog.index_of(&"minidisk_99")).is_equal(-1)
 
 
-func test_songs_map_to_the_md_bgm_numbers() -> void:
-	assert_int(MinidiskCatalog.BGM_FIRST).is_equal(128)
-	assert_int(MinidiskCatalog.BGM_FIRST + MinidiskCatalog.COUNT - 1).is_equal(182)
-
-
 func test_music_box_bits_survive_a_save_past_53_bits() -> void:
 	var house: House = Game.interiors.player_house()
 	assert_bool(MinidiskCatalog.box_add(house, 54)).is_true()

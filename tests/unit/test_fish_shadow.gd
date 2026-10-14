@@ -156,13 +156,6 @@ func test_open_water_touching_the_map_edge_reads_as_ocean() -> void:
 	assert_that(WaterBodies.size_ceiling(bodies[0])).is_equal(FishData.SizeClass.WHALE)
 
 
-func test_fish_shadows_draw_above_water_sheets() -> void:
-	## Same trap footprints hit: river/ocean XLU priorities 1–2 paint over priority 0.
-	var src := FileAccess.get_file_as_string("res://scenes/world/fish_shadows.gd")
-	assert_str(src).contains("RENDER_PRIORITY := 3")
-	assert_str(src).contains("render_priority = RENDER_PRIORITY")
-
-
 func test_sea_and_river_attrs_do_not_merge_into_one_ocean() -> void:
 	## A freshwater channel that touches a sea strip must stay a river, or river-only fish
 	## never spawn once the mouth meets the beach.

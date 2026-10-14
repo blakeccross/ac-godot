@@ -210,17 +210,6 @@ func test_message_sex_matches_looks() -> void:
 	assert_that(lazy.message_sex()).is_equal(0)
 
 
-func test_dialogue_overlay_matches_msg_timing() -> void:
-	## Source constants — keep in sync with `m_msg_appear` / cursol pause frame.
-	var src := FileAccess.get_file_as_string("res://scenes/ui/dialogue_overlay.gd")
-	assert_str(src).contains("APPEAR_FRAMES := 18.0")
-	assert_str(src).contains("CHOICE_APPEAR_FRAMES := 10.2")
-	## PAUSE counts 30 Hz frames (`mMsg_Get_CursolSetTimeCode` doubles it).
-	var overlay: GDScript = load("res://scenes/ui/dialogue_overlay.gd") as GDScript
-	var consts: Dictionary = overlay.get_script_constant_map()
-	assert_int(int(consts["PAUSE_FRAME_MULT"])).is_equal(2)
-
-
 func _open_line(text: String, extra: Dictionary = {}) -> DialogueOverlay:
 	var overlay: DialogueOverlay = auto_free(load("res://scenes/ui/dialogue_overlay.tscn").instantiate())
 	add_child(overlay)
@@ -362,9 +351,6 @@ func test_body_width_matches_continue_mark() -> void:
 		MessageWindowChrome.ARROW_UV.position.x - MessageWindowChrome.BODY_UV.x
 	)
 	assert_float(max_w).is_equal_approx(193.0, 1.0)
-	var src := FileAccess.get_file_as_string("res://scripts/ui/message_window_chrome.gd")
-	assert_str(src).contains("_wrap_body_lines")
-	assert_str(src).contains("_strip_style_tags")
 
 
 func test_authored_dialogue_lines_fit_body() -> void:

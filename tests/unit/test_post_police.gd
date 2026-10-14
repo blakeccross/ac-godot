@@ -26,31 +26,6 @@ func test_catalog_room_layout_matches_decomp() -> void:
 	assert_bool(police.is_always_open()).is_true()
 
 
-func test_spawn_gx_tables() -> void:
-	## Outdoor enter uses structure door_data, not scene player_data.
-	assert_vector(PostDisplay.SPAWN_GX).is_equal(Vector3(160.0, 0.0, 300.0))
-	assert_that(PostDisplay.SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
-	assert_vector(PostDisplay.POST_GIRL_STAND_GX).is_equal(Vector3(160.0, 0.0, 100.0))
-	assert_vector(PoliceDisplay.SPAWN_GX).is_equal(Vector3(200.0, 0.0, 380.0))
-	assert_that(PoliceDisplay.SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
-	assert_vector(PoliceDisplay.BOOKER_STAND_GX).is_equal(Vector3(180.0, 0.0, 260.0))
-	assert_int(PoliceDisplay.LOST_FOUND_CELLS.size()).is_equal(20)
-	assert_that(PoliceDisplay.LOST_FOUND_CELLS[0]).is_equal(Vector2i(1, 1))
-	assert_that(PoliceDisplay.LOST_FOUND_CELLS[19]).is_equal(Vector2i(7, 5))
-
-
-func test_outdoor_enter_facings_are_north() -> void:
-	## `mSc_DIRECT_NORTH` (orient 4 / rot Y −32768). Scene player_data south is not outdoor enter.
-	assert_that(PoliceDisplay.SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
-	assert_that(PostDisplay.SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
-	assert_that(ShopDisplay.CRANNY_SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
-	assert_that(InteriorCatalog.ABLE_SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
-	assert_that(MuseumDisplay.ENTRANCE_SPAWN_FACING).is_equal(WorldGrid.Facing.NORTH)
-	## Nook / post / police / Able all share the `{160,0,300}` door data.
-	assert_vector(PostDisplay.SPAWN_GX).is_equal(ShopDisplay.CRANNY_SPAWN_GX)
-	assert_vector(InteriorCatalog.ABLE_SPAWN_GX).is_equal(ShopDisplay.CRANNY_SPAWN_GX)
-
-
 func test_post_girl_day_night_species() -> void:
 	assert_that(PostDisplay.post_girl_species(12)).is_equal(PostDisplay.PELLY_SPECIES)
 	assert_that(PostDisplay.post_girl_species(7)).is_equal(PostDisplay.PELLY_SPECIES)

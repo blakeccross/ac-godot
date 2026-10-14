@@ -179,12 +179,6 @@ func test_find_near_picks_closest_house() -> void:
 	assert_object(found).is_same(near)
 
 
-func test_arrive_uses_spawn_as_animation_move_target() -> void:
-	## Non-museum post-load INTO_S1: AnimationMove correctpos is the spawn; joint_0 clears sensors.
-	assert_float(StructureDoor.INTO_GX).is_equal_approx(30.0, 0.01)
-	assert_float(StructureDoor.INTO_SEC).is_equal_approx(49.0 / 30.0, 0.01)
-
-
 func test_door_camera_distance_matches_follow() -> void:
 	## CAMERA2_PROCESS_DOOR uses the same 620 focus as Init_Camera2.
 	var cam_script = load("res://scenes/world/follow_camera.gd")

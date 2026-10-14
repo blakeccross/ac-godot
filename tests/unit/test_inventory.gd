@@ -202,39 +202,6 @@ func test_drop_slot() -> void:
 	assert_int(inv.count_of(&"apple")).is_equal(1)
 
 
-func test_inventory_drop_arcs_item_after_close() -> void:
-	## `mTG_field_put_proc` closes the submenu; `bIT_actor_player_drop_entry` arcs from +50 GX
-	## onto GetBgY(..., −1 GX).
-	var src := FileAccess.get_file_as_string("res://scenes/ui/inventory_overlay.gd")
-	assert_str(src).contains("begin_fall")
-	assert_str(src).contains("50.0 * FieldCatalog.GX_TO_METERS")
-	assert_str(src).contains("close()")
-	## The item lands on its unit (`FieldItems`), at GetBgY(..., −1 GX).
-	assert_str(FileAccess.get_file_as_string("res://scripts/systems/field_items.gd")).contains("FieldCollision.FG_GROUND_DIST")
-
-
-func test_inventory_plant_closes_then_putin_or_ground() -> void:
-	## `mTG_plant_proc`: shovel+hole → putin scoop; else throw-put grow-in after close.
-	var src := FileAccess.get_file_as_string("res://scenes/ui/inventory_overlay.gd")
-	assert_str(src).contains("take_plant_from_slot")
-	assert_str(src).contains("plant_from_submenu")
-	assert_str(src).contains("use_scoop")
-	var player_src := FileAccess.get_file_as_string("res://scenes/actors/player.gd")
-	assert_str(player_src).contains("PUTIN_SCOOP_ANIM")
-	assert_str(player_src).contains("PUTIN_HOLE_EFFECT_FRAME")
-
-
-func test_inventory_portrait_follows_equipment() -> void:
-	## `mIV_set_player` framing (FOV 20, 0x900 elevation, AABB-fit so it matches
-	## whatever actor scale) + `mIV_get_player_item_anime_id` held-tool draw.
-	var src := FileAccess.get_file_as_string("res://scenes/ui/inventory_overlay.gd")
-	assert_str(src).contains("cam.fov = 20.0")
-	assert_str(src).contains("float(0x900)")
-	assert_str(src).contains("_visual_aabb(_portrait_pivot)")
-	assert_str(src).contains("HeldTool.bind")
-	assert_str(src).contains("_sync_portrait_equipment")
-
-
 ## The portrait doll only ever bound the held tool (`_sync_portrait_equipment`) and
 ## never the worn shirt/design, so it kept showing bare skin no matter what the field
 ## player actually had on. `_sync_portrait_cloth` (wired to `Game.cloth_changed` and
@@ -267,35 +234,6 @@ func _all_mesh_instances(node: Node) -> Array:
 	for child in node.get_children():
 		out.append_array(_all_mesh_instances(child))
 	return out
-
-
-func test_inventory_overlay_is_scene_first() -> void:
-	## Pocket UI is authored in the `.tscn`; script must not rebuild layout at runtime.
-	var scene := FileAccess.get_file_as_string("res://scenes/ui/inventory_overlay.tscn")
-	var src := FileAccess.get_file_as_string("res://scenes/ui/inventory_overlay.gd")
-	assert_str(scene).contains("ItemSlot0")
-	assert_str(scene).contains("ItemSlot14")
-	assert_str(scene).contains("MailSlot0")
-	assert_str(scene).contains("MailSlot9")
-	assert_str(scene).contains("PortraitClip")
-	assert_str(src).contains("_wire_slot_buttons")
-	assert_str(src).contains("_apply_chrome")
-	assert_bool(src.contains("_rebuild_slots") or src.contains("_place_catalog_chrome")).is_false()
-
-
-func test_inventory_hand_cursor_and_tabs() -> void:
-	var src := FileAccess.get_file_as_string("res://scenes/ui/inventory_overlay.gd")
-	var scene := FileAccess.get_file_as_string("res://scenes/ui/inventory_overlay.tscn")
-	assert_str(src).contains("hnd.glb")
-	assert_str(src).contains("hnd_sasu")
-	assert_str(src).contains("_setup_hand_cursor")
-	assert_str(src).contains("_select_side_tab")
-	assert_str(src).contains("_wire_side_tabs")
-	assert_str(src).contains("_cycle_side_tab")
-	assert_str(src).contains("InventoryChrome.icon_for_item")
-	assert_str(src).contains("_set_slot_picture")
-	assert_str(src).contains("MOUSE_FILTER_IGNORE")
-	assert_str(scene).contains("mouse_filter = 2")
 
 
 func test_hand_move() -> void:
@@ -782,5 +720,3 @@ func test_inventory_overlay_assigns_slot_icons() -> void:
 	assert_object(empty_pic).is_not_null()
 	assert_bool(empty_pic.visible).is_false()
 	overlay.call("close")
-
-

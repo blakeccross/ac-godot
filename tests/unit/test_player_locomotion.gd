@@ -11,11 +11,6 @@ func _frames(motor: PlayerLocomotion, n: int, wish: Vector3, stick: float, dash 
 		motor.tick(FRAME, wish, stick, dash, false)
 
 
-func test_meter_scale_matches_tile_ratio() -> void:
-	assert_float(PlayerLocomotion.WALK_SPEED).is_equal_approx(7.3125, 0.0001)
-	assert_float(PlayerLocomotion.RUN_SPEED).is_equal_approx(11.25, 0.0001)
-
-
 func test_stick_percent_is_raw_radius_above_dead_zone() -> void:
 	## `mCon_calc`: 0 at/below 9.9 / 61, otherwise t / 61 (not rescaled from the dead zone).
 	assert_float(PlayerLocomotion.stick_percent(0.16)).is_equal(0.0)

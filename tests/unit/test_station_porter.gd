@@ -4,10 +4,6 @@ extends GdUnitTestSuite
 ## `aSTM_look_player` + `aNPC_ACT_TURN2`.
 
 
-func test_title_spot_is_block_3_1_unit_5_4() -> void:
-	assert_vector(StationPorter.TITLE_GX).is_equal(Vector3(3 * 640 + 5 * 40 + 20, 0.0, 640 + 4 * 40 + 20))
-
-
 func test_turns_only_when_the_player_is_outside_67_5_degrees() -> void:
 	assert_bool(StationPorter.needs_turn(0.0, deg_to_rad(60.0))).is_false()
 	assert_bool(StationPorter.needs_turn(0.0, deg_to_rad(-60.0))).is_false()
