@@ -306,6 +306,23 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
   - Save version 3: `SaveService.RENAMED_KEYS` moves the old keys (`gyoei_term`, `farway`, `haniwa_*`, `_kabu`) to their new names on load.
   - The full rename list is in [decomp-mapping.md](decomp-mapping.md#renamed-from-decomp-style-names). Item, catalog and event ids that come from the disc (`haniwa`, `kabu_peddler`) keep their names.
 
+- **Phase 3 done.** Creatures, NPCs and interior fixtures are scenes, with these differences from the plan:
+  - **Bugs:** `bug.tscn` (`Bug` → `Model` with a `Placeholder`, and `CatchArea` on the `creatures` layer) is one live insect. `BugSpawner` adds and frees one per `BugActor`. `Netting.bugs_in_reach` queries a sphere of the net's reach against that layer; two spheres overlap exactly when the decomp's reach-plus-range test passes.
+    - There are no per-species inherited scenes. A species' behavior is a `BugProgram` and its tuning lives in its `BugData`, so a scene per species would hold nothing.
+    - The behavior stays on `BugActor`, which is a record, rather than a `Behavior` node.
+  - **Fish:** `fish.tscn` is one shadow or escape puff, with its shader material local to the instance. `FishSpawner` keeps one per `FishShadow`.
+    - The bobber keeps its cone math. The decomp tests strictly inside an angular cone within a distance, and no overlap shape expresses that exactly.
+  - **Museum:** a donated insect is `bug.tscn` in display mode (`setup_display`). Tank fish keep their own models, because in the field a fish is only a shadow and there is no shared scene to reuse.
+  - **NPCs:**
+    - Nook, the sisters, Booker, the clerk, Copper, Tortimer and Blathers author their body, `InteractVolume`, `Model/Placeholder` and layers in their `.tscn`.
+    - The 24 event and visitor NPCs inherit `event_npc.tscn`.
+    - Katrina, Redd's tent and the well spirit have scenes of their own.
+  - **Interiors:** the shops, post office, police box and Able Sisters author their fixed fixtures at the decomp positions: shopkeepers, clocks, window beams, counters, the e-Terminal, mail piles, displays, the sewing machine and blob shadows.
+    - The presenters keep what depends on data or the day: stock, lost-and-found, how many mail piles show, hulls read from the shell's collision, and beams from room data.
+    - `populate_authored` keeps every `Furniture` child the room scene owns.
+  - **Layers:** `project.godot` names `creatures`, `pickups`, `water` and `triggers`, and `PhysicsLayers` holds their bits. Layers set in code now are presence toggles (an NPC that leaves or hides) and bodies built from data (hulls, shell collision).
+  - **Still built in code:** the museum's tank and exhibit collisions and the hull helpers. Both come from per-room data, not a fixed layout.
+
 Lessons from the weather particles:
 
 - **Stay inside what the Compatibility renderer does.** Headless captures run there, and some players may too. It silently skips these:
