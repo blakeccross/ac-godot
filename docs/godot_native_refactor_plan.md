@@ -244,6 +244,21 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
 
 ---
 
+## Progress
+
+- **Phase 0 done:** the conventions, testing and `AGENTS.md` rules, plus `Motion`.
+- **Phase 2 pilot done:** `ImpactStar` and `TreeFx` run on seconds and metres, with no `FrameStepper`.
+
+Lessons from the pilot, to apply to every later conversion:
+
+- **Prefer closed form over stepping.**
+  - `ImpactStar` has one `Tween` animate `age`; position, size and opacity are pure functions of it.
+  - `TreeFx` integrates constant acceleration exactly (`p += v·dt + ½·a·dt²`) and drag exactly (`(kᵗ − 1) / ln k`).
+  - Plain `v += a·dt; p += v·dt` drifted 22 cm between 60 Hz and 15 Hz on a falling leaf.
+- **Split the step at phase changes.** A leaf switches from rising to falling at the instant its upward speed reaches zero, not on whichever frame notices. Without the split, the switch lands on a different frame at each frame rate.
+- **Convert where the constant is written.** Keep the decomp value visible (`80.0 / 60.0`, `0.125 * GX * 3600.0`) and cite it in a comment, and use small `_speed` / `_accel` helpers where launch values are rolled in decomp units.
+- **Test the frame-rate independence directly.** Run the same scenario at 60 Hz and 15 Hz and assert the results agree within 1 cm.
+
 ## 4. What not to change
 
 - **The asset pipeline (`tools/`, Python).** It converts disc assets and is not runtime code. Its "classify from Gfx state" rules stay. Animation events get added *after* import (Phase 4), not in `convert.py`.
