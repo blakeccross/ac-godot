@@ -1,8 +1,8 @@
 [gd_scene load_steps=7 format=3]
 
-[ext_resource type="Script" path="res://scripts/systems/field_puff.gd" id="1_script"]
-[ext_resource type="Shader" path="res://shaders/field_puff_motion.gdshader" id="2_motion"]
-[ext_resource type="Shader" path="res://shaders/field_puff.gdshader" id="3_draw"]
+[ext_resource type="Script" path="res://scripts/systems/field_particle.gd" id="1_script"]
+[ext_resource type="Shader" path="res://shaders/field_particle_motion.gdshader" id="2_motion"]
+[ext_resource type="Shader" path="res://shaders/field_particle.gdshader" id="3_draw"]
 
 [sub_resource type="ShaderMaterial" id="Motion"]
 shader = ExtResource("2_motion")
@@ -14,7 +14,7 @@ shader = ExtResource("3_draw")
 [sub_resource type="QuadMesh" id="CardMesh"]
 material = SubResource("Card")
 
-[node name="FieldPuff" type="GPUParticles3D"]
+[node name="FieldParticle" type="GPUParticles3D"]
 emitting = false
 amount = 1
 lifetime = 0.3

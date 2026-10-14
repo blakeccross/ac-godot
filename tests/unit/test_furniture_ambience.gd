@@ -87,12 +87,12 @@ func test_the_hot_pot_puffs_every_ten_to_thirty_ticks_while_boiling() -> void:
 
 func test_steam_rises_and_thins() -> void:
 	var at: Array[Vector3] = [Vector3.ZERO]
-	var style: FieldPuff.Style = FieldPuff.style_for(FieldFx.Kind.SOBA_YUGE, 0.0, 10, 0, at)
+	var style: FieldParticle.Style = FieldParticle.style_for(FieldFx.Kind.SOBA_YUGE, 0.0, 10, 0, at)
 	assert_float(style.lifetime).is_equal_approx(44.0 / 60.0, 0.0001)
 	## Starts 10 GX out on some heading, 1 up, then rises.
 	var out: Vector3 = at[0] / FieldCatalog.GX_TO_METERS
 	assert_float(Vector2(out.x, out.z).length()).is_equal_approx(10.0, 0.01)
-	assert_float(FieldPuff.offset_at(style, 20.0 / 60.0).y).is_greater(0.0)
+	assert_float(FieldParticle.offset_at(style, 20.0 / 60.0).y).is_greater(0.0)
 	assert_float(style.alpha_from_to.y).is_less(style.alpha_from_to.x)
 
 

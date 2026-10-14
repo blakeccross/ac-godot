@@ -44,21 +44,18 @@ func test_water_ring_grows_fades_and_drifts() -> void:
 	add_child(host)
 	var ring: FieldFx = FieldFx.spawn(host, FieldFx.Kind.HAMON, Vector3.ZERO, 0.0, 3, 0)
 	assert_object(ring).is_not_null()
-	assert_int(ring.timer).is_equal(32)
-	assert_float(ring.spec[3]).is_equal(150.0)
-	for i: int in 16:
-		ring._move()
-		ring.timer -= 1
-	assert_float(ring.scale_gx.x).is_greater(0.001)
-	assert_float(ring.scale_gx.x).is_less_equal(0.02)
-	## `*_mv` runs before `timer--`: the 16th move still saw 17 ticks left.
-	assert_float(ring.spec[0]).is_equal_approx(150.0 * 17.0 / 32.0, 0.01)
-	assert_float(ring.pos_gx.z).is_equal_approx(16.0 * 0.125, 0.0001)
+	assert_float(ring.lifetime).is_equal_approx(32.0 / 60.0, 0.0001)
+	assert_float(ring.ring_alpha).is_equal(150.0)
+	var half: float = 16.0 / 60.0
+	assert_float(ring.ring_scale(half)).is_between(0.0011, 0.02)
+	assert_float(ring.ring_scale(10.0)).is_equal_approx(0.02, 0.0001)
+	assert_float(ring.ring_opacity(half)).is_equal_approx(150.0 / 255.0 * 0.5, 0.001)
+	assert_float(ring.ring_offset(half).z / FieldCatalog.GX_TO_METERS).is_equal_approx(16.0 * 0.125, 0.0001)
 	## The big ones (arg 0) start brighter; arg 4 is the slow 52-tick one.
 	var big: FieldFx = FieldFx.spawn(host, FieldFx.Kind.HAMON, Vector3.ZERO, 0.0, 0, 0)
-	assert_float(big.spec[3]).is_equal(200.0)
+	assert_float(big.ring_alpha).is_equal(200.0)
 	var slow: FieldFx = FieldFx.spawn(host, FieldFx.Kind.HAMON, Vector3.ZERO, 0.0, 4, 0)
-	assert_int(slow.timer).is_equal(52)
+	assert_float(slow.lifetime).is_equal_approx(52.0 / 60.0, 0.0001)
 	host.queue_free()
 
 
@@ -83,21 +80,22 @@ func test_umbrella_twirl_sprays_only_in_rain() -> void:
 	var was: StringName = Game.weather
 	Game.weather = &"rain"
 	var spray: FieldFx = FieldFx.spawn(host, FieldFx.Kind.KASAMIZU, Vector3.ZERO, 0.0)
-	assert_int(spray.timer).is_equal(24)
-	assert_float(spray.pos_gx.y).is_equal(45.0)
-	assert_float(spray.pos_gx.z).is_equal(-20.0)
-	for i: int in 24:
-		spray._move()
+	assert_float(spray.lifetime).is_equal_approx(24.0 / 60.0, 0.0001)
+	assert_vector(spray.origin / FieldCatalog.GX_TO_METERS).is_equal_approx(Vector3(0.0, 45.0, -20.0), Vector3.ONE * 0.001)
+	for i: int in 13:
+		spray.emit_drop()
 	assert_int(host.get_child_count()).is_equal(1 + 12)
-	var drop := host.get_child(1) as FieldFx
-	assert_int(drop.timer).is_equal(20)
-	assert_float(drop.acc.y).is_equal_approx(-0.105, 0.00001)
-	assert_float(drop.vel.length()).is_equal_approx(2.5, 0.0001)
+	assert_object(host.get_child(1) as FieldParticle).is_not_null()
+	var at: Array[Vector3] = [Vector3.ZERO]
+	var drop: FieldParticle.Style = FieldParticle.style_for(FieldFx.Kind.KASAMIZUTAMA, 0.0, 0, 0, at)
+	assert_float(drop.lifetime).is_equal_approx(20.0 / 60.0, 0.0001)
+	assert_float(drop.accel.y).is_equal_approx(-0.105 * FieldCatalog.GX_TO_METERS * 3600.0, 0.0001)
+	assert_float(drop.launch.length()).is_equal_approx(2.5 * FieldCatalog.GX_TO_METERS * 60.0, 0.0001)
 	Game.weather = &"clear"
 	var dry: FieldFx = FieldFx.spawn(host, FieldFx.Kind.KASAMIZU, Vector3.ZERO, 0.0)
 	var before: int = host.get_child_count()
-	for i: int in 24:
-		dry._move()
+	for i: int in 12:
+		dry.emit_drop()
 	assert_int(host.get_child_count()).is_equal(before)
 	Game.weather = was
 	host.queue_free()

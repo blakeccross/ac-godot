@@ -1,15 +1,19 @@
-class_name FieldPuff
+class_name FieldParticle
 extends GPUParticles3D
 
-## A puff of dust, steam or smoke from the effect controller: footstep and tumble dust
-## (`ef_dust`, `ef_tumble_dust`), the locomotive's smoke and piston steam (`ef_kisha_kemuri`,
-## `ef_steam`) and the steam off hot food (`ef_soba_yuge`). Each is a one-shot
-## `GPUParticles3D` (`field_puff.tscn`) that frees itself when its puff has faded.
-## `field_puff_motion.gdshader` moves it in closed form and `field_puff.gdshader` draws its
-## cross-faded frames; a `Style` holds the numbers, converted from the decomp's GX-per-tick
+## One particle from the effect controller, as a one-shot `GPUParticles3D`
+## (`field_particle.tscn`) that frees itself when it is done:
+## - puffs: footstep and tumble dust (`ef_dust`, `ef_tumble_dust`), the locomotive's smoke
+##   and piston steam (`ef_kisha_kemuri`, `ef_steam`), steam off hot food (`ef_soba_yuge`);
+## - splashes kicked up underfoot: sand, water and snow (`ef_sandsplash`, `ef_sibuki`,
+##   `ef_yukihane`);
+## - drops: water and snow flicked up that splat where they land (`ef_mizutama`,
+##   `ef_yukidama`), and the spray off a twirled umbrella (`ef_kasamizutama`).
+## `field_particle_motion.gdshader` moves it in closed form and `field_particle.gdshader`
+## draws its frames; a `Style` holds the numbers, converted from the decomp's GX-per-tick
 ## values where they are written.
 
-const SCENE := preload("res://scenes/world/effects/field_puff.tscn")
+const SCENE := preload("res://scenes/world/effects/field_particle.tscn")
 const GX := FieldCatalog.GX_TO_METERS
 const EFFECT_DIR := "res://assets/generated/effects/%s.glb"
 const FRAME_DIR := "res://assets/generated/textures/rel/%s.png"
@@ -17,8 +21,11 @@ const DUST_FRAMES: Array[String] = ["ef_dust01_0", "ef_dust01_1", "ef_dust01_2",
 const SMOKE_FRAMES: Array[String] = ["ef_kisha_kemuri01_0", "ef_kisha_kemuri01_1"]
 const KINDS: Array[FieldFx.Kind] = [
 	FieldFx.Kind.DUST, FieldFx.Kind.TUMBLE_DUST, FieldFx.Kind.STEAM, FieldFx.Kind.SOBA_YUGE,
-	FieldFx.Kind.KISHA_KEMURI,
+	FieldFx.Kind.KISHA_KEMURI, FieldFx.Kind.SAND, FieldFx.Kind.SIBUKI, FieldFx.Kind.YUKIHANE,
+	FieldFx.Kind.MIZUTAMA, FieldFx.Kind.YUKIDAMA, FieldFx.Kind.KASAMIZUTAMA,
 ]
+## A drop lies where it lands for 14 ticks, playing its splat.
+const SPLAT_TIME := 14.0 / 60.0
 
 var kind: FieldFx.Kind = FieldFx.Kind.DUST
 
@@ -27,7 +34,7 @@ static var _atlases: Dictionary = {}
 static var _meshes: Dictionary = {}
 
 
-## Everything one puff needs, in metres, seconds and 0–1.
+## Everything one particle needs, in metres, seconds and 0–1.
 class Style:
 	var lifetime: float = 0.3
 	## Held still this long before it moves (tumble dust).
@@ -46,24 +53,38 @@ class Style:
 	var tint: Color = Color.WHITE
 	var model: String = "ef_dust01"
 	var frames: Array[String] = DUST_FRAMES
-	## Per two-tick step: the two frames, their cross-fade and an alpha multiplier.
+	## Per two-tick step: the two frames, their cross-fade, an alpha and a size multiplier.
 	var tile0: PackedInt32Array = PackedInt32Array([0])
 	var tile1: PackedInt32Array = PackedInt32Array([0])
 	var lods: PackedFloat32Array = PackedFloat32Array([0.0])
 	var alphas: PackedFloat32Array = PackedFloat32Array([1.0])
+	var sizes: PackedFloat32Array = PackedFloat32Array([1.0])
+	## Combiner (see `field_particle.gdshader`), ENV colour, billboard or a fixed lean.
+	var mode: int = 1
+	var env: Color = Color.BLACK
+	var billboard: bool = true
+	var tilt: float = 0.0
+	## I4 frames (intensity in red) or IA8 (own alpha).
+	var intensity_alpha: bool = true
+	## Seconds into its motion at which it hits the ground (−1: never).
+	var land_time: float = -1.0
 
 
 static func handles(kind: FieldFx.Kind) -> bool:
 	return KINDS.has(kind)
 
 
-## Spawns a puff of `kind` at `pos` (metres) facing `yaw`, under `host`.
-static func spawn(host: Node, kind: FieldFx.Kind, pos: Vector3, yaw: float, a0: int = 0, a1: int = 0) -> FieldPuff:
+## Spawns a particle of `kind` at `pos` (metres) facing `yaw`, under `host`. `ground`
+## (metres → ground height in metres) is where drops land.
+static func spawn(
+	host: Node, kind: FieldFx.Kind, pos: Vector3, yaw: float, a0: int = 0, a1: int = 0,
+	ground: Callable = Callable()
+) -> FieldParticle:
 	if host == null or not handles(kind):
 		return null
 	var at: Array[Vector3] = [pos]
-	var style: Style = style_for(kind, yaw, a0, a1, at)
-	var puff := SCENE.instantiate() as FieldPuff
+	var style: Style = style_for(kind, yaw, a0, a1, at, ground)
+	var puff := SCENE.instantiate() as FieldParticle
 	puff.kind = kind
 	host.add_child(puff)
 	puff.global_position = at[0]
@@ -73,7 +94,9 @@ static func spawn(host: Node, kind: FieldFx.Kind, pos: Vector3, yaw: float, a0: 
 
 ## The decomp's numbers for `kind` (`*_ct` / `*_mv` / `*_dw`). `at[0]` may be moved for
 ## kinds that start off the given point.
-static func style_for(kind: FieldFx.Kind, yaw: float, a0: int, a1: int, at: Array[Vector3]) -> Style:
+static func style_for(
+	kind: FieldFx.Kind, yaw: float, a0: int, a1: int, at: Array[Vector3], ground: Callable = Callable()
+) -> Style:
 	var s := Style.new()
 	match kind:
 		FieldFx.Kind.DUST:
@@ -86,6 +109,17 @@ static func style_for(kind: FieldFx.Kind, yaw: float, a0: int, a1: int, at: Arra
 			_food_steam(s, a0, a1, at)
 		FieldFx.Kind.KISHA_KEMURI:
 			_smoke(s, a0, a1, at)
+		FieldFx.Kind.SAND:
+			_sand(s, yaw, a0, at)
+		FieldFx.Kind.SIBUKI:
+			_splash(s, a0, at)
+		FieldFx.Kind.YUKIHANE:
+			_snow_kick(s, at)
+		FieldFx.Kind.MIZUTAMA, FieldFx.Kind.YUKIDAMA:
+			_drop(s, kind, yaw, a1, at, ground)
+		FieldFx.Kind.KASAMIZUTAMA:
+			_spray(s, yaw)
+	_even(s)
 	return s
 
 
@@ -93,6 +127,8 @@ static func style_for(kind: FieldFx.Kind, yaw: float, a0: int, a1: int, at: Arra
 ## path, for tests).
 static func offset_at(style: Style, t: float) -> Vector3:
 	var u: float = maxf(t - style.hold, 0.0)
+	if style.land_time >= 0.0:
+		u = minf(u, style.land_time)
 	var out := Vector3(
 		_axis(style.launch.x, style.accel.x, style.drag.x, style.accel_fade.x, u),
 		_axis(style.launch.y, style.accel.y, style.drag.y, style.accel_fade.y, u),
@@ -130,9 +166,11 @@ func apply(style: Style) -> void:
 	motion.set_shader_parameter("hold", style.hold)
 	motion.set_shader_parameter("size_from_to", style.size_from_to * scale_k)
 	motion.set_shader_parameter("size_window", style.size_window)
-	motion.set_shader_parameter("alpha_from_to", style.alpha_from_to)
+	motion.set_shader_parameter("alpha_from_to", style.alpha_from_to * style.tint.a)
 	motion.set_shader_parameter("alpha_window", style.alpha_window)
 	motion.set_shader_parameter("tint", Vector3(style.tint.r, style.tint.g, style.tint.b))
+	motion.set_shader_parameter("land_time", style.land_time)
+	motion.set_shader_parameter("tilt", 0.0 if style.billboard else style.tilt)
 	process_material = motion
 	var card := draw_pass_1
 	var mat := ((card as PrimitiveMesh).material if card is PrimitiveMesh else null) as ShaderMaterial
@@ -145,6 +183,12 @@ func apply(style: Style) -> void:
 		mat.set_shader_parameter("tile1", _pad_ints(style.tile1))
 		mat.set_shader_parameter("lods", _pad_floats(style.lods))
 		mat.set_shader_parameter("alphas", _pad_floats(style.alphas))
+		mat.set_shader_parameter("sizes", _pad_floats(style.sizes))
+		mat.set_shader_parameter("land_time", style.land_time)
+		mat.set_shader_parameter("mode", style.mode)
+		mat.set_shader_parameter("env", Vector3(style.env.r, style.env.g, style.env.b))
+		mat.set_shader_parameter("billboard", style.billboard)
+		mat.set_shader_parameter("intensity_alpha", style.intensity_alpha)
 		mat.set_shader_parameter("hold", style.hold)
 		var mesh: Mesh = _mesh(style.model)
 		if mesh != null:
@@ -331,6 +375,192 @@ static func _tiles(s: Style, tiles: Array[Vector2i], lods: Array[int]) -> void:
 		s.tile1.append(tiles[i].y)
 		s.lods.append(lods[i] / 255.0 if i < lods.size() else 0.0)
 		s.alphas.append(1.0)
+
+
+## Every step table as long as the longest, the shorter ones holding their last value.
+static func _even(s: Style) -> void:
+	var n: int = maxi(maxi(s.tile0.size(), s.tile1.size()), maxi(maxi(s.lods.size(), s.alphas.size()), s.sizes.size()))
+	s.tile0 = _hold_ints(s.tile0, n)
+	s.tile1 = _hold_ints(s.tile1, n)
+	s.lods = _hold_floats(s.lods, n, 0.0)
+	s.alphas = _hold_floats(s.alphas, n, 1.0)
+	s.sizes = _hold_floats(s.sizes, n, 1.0)
+
+
+static func _hold_ints(values: PackedInt32Array, n: int) -> PackedInt32Array:
+	var out := values.duplicate()
+	var last: int = out[out.size() - 1] if not out.is_empty() else 0
+	while out.size() < n:
+		out.append(last)
+	return out
+
+
+static func _hold_floats(values: PackedFloat32Array, n: int, fallback: float) -> PackedFloat32Array:
+	var out := values.duplicate()
+	var last: float = out[out.size() - 1] if not out.is_empty() else fallback
+	while out.size() < n:
+		out.append(last)
+	return out
+
+
+## Frame per two-tick step that advances every other step: 0, 0, 1, 1, … to `last`.
+static func _every_other(steps: int, last: int) -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for i: int in steps:
+		out.append(mini(i >> 1, last))
+	return out
+
+
+static func _numbered(pattern: String, from: int, to: int) -> Array[String]:
+	var out: Array[String] = []
+	for i: int in range(from, to + 1):
+		out.append(pattern % i)
+	return out
+
+
+## `eSandsplash_*` (arg0 picks the throw): a lean card of sand thrown off the step, 16 ticks.
+static func _sand(s: Style, yaw: float, arg0: int, at: Array[Vector3]) -> void:
+	at[0] += Vector3(0.0, -3.0, 5.0) * GX
+	var v := Vector3(0.0, 0.5, 0.0)
+	var a := Vector3(0.0, -0.01, 0.0)
+	if arg0 == 2:
+		v = Vector3(sin(yaw), 0.5, cos(yaw))
+		a = Vector3.ZERO
+	elif arg0 == 1:
+		v = Vector3(sin(yaw), 0.5, cos(yaw))
+		a = Vector3(0.0, -0.075, 0.0)
+	elif arg0 == 3:
+		v = Vector3(sin(yaw) * 0.25, 0.0, cos(yaw))
+		a = Vector3(0.0, -0.05, 0.0)
+	s.lifetime = _ticks(16)
+	s.launch = _speed(v)
+	s.accel = _accel(a)
+	_ground_card(s, "ef_sunahane01_00", _numbered("ef_sunahane01_%d_inta_ia8", 0, 3), deg_to_rad(-45.0), 8)
+	s.intensity_alpha = false
+	s.mode = 3
+	s.tint = Color8(20, 20, 20, 255)
+	s.env = Color8(205, 180, 140, 255)
+
+
+## `eSibuki_*`: a splash of water at the foot, shown from its third step, 12 ticks.
+static func _splash(s: Style, arg0: int, at: Array[Vector3]) -> void:
+	at[0] += Vector3(0.0, -3.0, 5.0) * GX
+	s.lifetime = _ticks(12)
+	s.billboard = false
+	s.tilt = deg_to_rad(-30.0)
+	s.model = "ef_sibuki01_00"
+	s.frames = _numbered("ef_sibuki01_%d_int_i4", 1, 4)
+	s.tile0 = PackedInt32Array([0, 0, 0, 1, 2, 3])
+	s.tile1 = s.tile0
+	s.lods = PackedFloat32Array([0.0])
+	s.alphas = PackedFloat32Array([0.0, 0.0, 1.0])
+	s.size_from_to = Vector2(0.011, 0.011)
+	s.mode = 0
+	s.tint = Color8(200, 255, 255, 155 if arg0 == 0 else 235)
+
+
+## `eYukihane_*`: a kick of snow, rising a little and falling back, 16 ticks.
+static func _snow_kick(s: Style, at: Array[Vector3]) -> void:
+	at[0].y += 0.5 * GX
+	s.lifetime = _ticks(16)
+	s.launch = _speed(Vector3(0.0, 0.5, 0.0))
+	s.accel = _accel(Vector3(0.0, -0.02, 0.0))
+	_ground_card(s, "ef_yukihane01_00", _numbered("ef_yukihane01_%d_inta_ia8", 0, 3), deg_to_rad(-45.0), 8)
+	s.size_from_to = Vector2(0.008, 0.008)
+	s.intensity_alpha = false
+	s.mode = 2
+	s.tint = Color8(50, 80, 120, 230)
+
+
+static func _ground_card(s: Style, model: String, frames: Array[String], tilt: float, steps: int) -> void:
+	s.billboard = false
+	s.tilt = tilt
+	s.model = model
+	s.frames = frames
+	s.tile0 = _every_other(steps, frames.size() - 1)
+	s.tile1 = s.tile0
+	s.lods = PackedFloat32Array([0.0])
+	s.alphas = PackedFloat32Array([1.0])
+
+
+## `eMizutama_ct` / `eYukidama_ct`: flicked up off the step (arg1 = speed set << 12 | the
+## direction), it flies until it reaches the ground 3 GX above where it started, then lies
+## there splatting for 14 ticks. 50 ticks at most.
+static func _drop(s: Style, kind: FieldFx.Kind, yaw: float, arg1: int, at: Array[Vector3], ground: Callable) -> void:
+	var water: bool = kind == FieldFx.Kind.MIZUTAMA
+	var speeds: Array[Vector4] = FieldFx.MIZU_SPEED if water else FieldFx.YUKI_SPEED
+	var speed_set: int = clampi((arg1 >> 12) & 0xF, 0, speeds.size() - 1)
+	var dir_index: int = arg1 & 0x0FFF
+	var sp: Vector4 = speeds[speed_set]
+	var v := Vector3(0.0, sp.x + randf() * sp.y, sp.z)
+	var dir: float
+	if water:
+		dir = yaw + MLib.s16_to_rad(FieldFx.MIZU_ANGLE[clampi(dir_index, 0, FieldFx.MIZU_ANGLE.size() - 1)])
+	else:
+		dir = yaw + deg_to_rad(FieldFx.YUKI_ANGLE_DEG[clampi(dir_index, 0, FieldFx.YUKI_ANGLE_DEG.size() - 1)])
+	v = FieldFx.rot_y(v, dir)
+	v.x += sin(yaw) * sp.w
+	v.z += cos(yaw) * sp.w
+	at[0] += Vector3((randf() - 0.5) * 6.0, 0.0, (randf() - 0.5) * 6.0) * GX
+	s.launch = _speed(v)
+	s.accel = _accel(Vector3(0.0, -0.375 if water else -0.3, 0.0))
+	## It lands on the ground 3 GX up (`offset.y = ground + 3`).
+	var floor_y: float = at[0].y
+	if ground.is_valid():
+		var g: float = float(ground.call(at[0]))
+		if g > FieldCollision.NO_FLOOR + 1.0:
+			floor_y = g
+	s.land_time = _landing(s.launch.y, s.accel.y, at[0].y - (floor_y + 3.0 * GX))
+	s.lifetime = minf(_ticks(50), s.land_time + SPLAT_TIME) if s.land_time >= 0.0 else _ticks(50)
+	s.model = "ef_koke_suiteki01_00" if water else "ef_koke_yuki01_00"
+	s.frames = _numbered("ef_koke_suiteki01_%d_int_i4", 0, 3) if water else _numbered("ef_koke_yuki01_%d_inta_ia8", 0, 3)
+	s.tile0 = _every_other(7, 3)
+	s.tile1 = s.tile0
+	s.lods = PackedFloat32Array([0.0])
+	if water:
+		s.size_from_to = Vector2(0.008, 0.004)
+		s.size_window = Vector2(_ticks(10), _ticks(50))
+		s.mode = 0
+		s.tint = Color8(200, 255, 255, 200)
+	else:
+		s.size_from_to = Vector2(0.007, 0.0035)
+		s.size_window = Vector2(_ticks(20), _ticks(40))
+		s.mode = 2
+		s.intensity_alpha = false
+		s.tint = Color8(100, 160, 240, 255)
+
+
+## When something launched upward at `vy` under `ay` (< 0), starting `height` above the ground,
+## comes down to it; −1 if it never does.
+static func _landing(vy: float, ay: float, height: float) -> float:
+	if ay >= 0.0:
+		return -1.0
+	## height + vy·t + ½·ay·t² = 0, the later root.
+	var disc: float = vy * vy - 2.0 * ay * height
+	if disc < 0.0:
+		return -1.0
+	return maxf((-vy - sqrt(disc)) / ay, 0.0)
+
+
+## `eKasamizutama_ct`: flung out 2.5 GX a tick, 45–90° off straight up about a random
+## heading, the whole fan leaning 45° back from the player's facing; swells and shrinks by
+## `eKasamizutama_scale_table` over 20 ticks.
+static func _spray(s: Style, yaw: float) -> void:
+	var lean: float = deg_to_rad(45.0 + randf() * 45.0)
+	var heading: float = randf() * TAU
+	var v := Vector3(2.5 * sin(lean) * sin(heading), 2.5 * cos(lean), 2.5 * sin(lean) * cos(heading))
+	s.lifetime = _ticks(20)
+	s.launch = _speed(Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, deg_to_rad(-45.0)) * v)
+	s.accel = _accel(Vector3(0.0, -0.105, 0.0))
+	s.model = "ef_koke_suiteki01_00"
+	s.frames = ["ef_koke_suiteki01_0_int_i4"]
+	s.tile0 = PackedInt32Array([0])
+	s.tile1 = s.tile0
+	s.lods = PackedFloat32Array([0.0])
+	s.sizes = PackedFloat32Array(FieldFx.KASAMIZUTAMA_SCALE)
+	s.size_from_to = Vector2(0.005, 0.005)
+	s.mode = 0
+	s.tint = Color8(200, 255, 255, 200)
 
 
 # --- art ---------------------------------------------------------------------------------

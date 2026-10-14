@@ -250,6 +250,10 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
 - **Phase 2 pilot done:** `ImpactStar` and `TreeFx` run on seconds and metres, with no `FrameStepper`.
 
 - **Converted to seconds:** statue glints, well coins, the title logo and furniture steam and clip sounds.
+- **Field effects rebuilt:** sixteen kinds, two homes.
+  - `FieldParticle` covers dust, steam, smoke, sand, water and snow kicks, drops, and umbrella spray. Each is a one-shot `GPUParticles3D` on a closed-form path. Drops solve their landing time up front.
+  - `FieldFx` covers petals, footprints, body prints, water rings and the spray source. These are nodes whose `age` is driven by a `Tween`; the spray source uses a `Timer`.
+  - Checked against the old version with `scenes/dev/field_fx_check.tscn`.
 - **Weather rebuilt as particles:** `weather_fx.tscn` holds `GPUParticles3D` emitters; snow and petals run a `shader_type particles` shader. It's verified in captures against the old pool.
 
 Lessons from the weather particles:
