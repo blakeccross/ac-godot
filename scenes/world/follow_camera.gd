@@ -35,8 +35,7 @@ var _acre_active: bool = false
 var _acre_center := Vector3.ZERO
 ## `Camera2` `direction.x` relative to the 45° base: the rail-row swing, eased.
 var _acre_pitch: float = 0.0
-var _acre_steps := FrameStepper.new()
-## `Camera2_main_Wade`: `{start, goal, t}` in GX while the player wades.
+## `Camera2_main_Wade`: `{start, goal, t}` (GX, seconds) while the player wades.
 var _acre_wade: Dictionary = {}
 
 
@@ -187,14 +186,13 @@ func _follow(snap: bool, delta: float = 0.0) -> void:
 	_move_camera(destination, look_at_point, snap, delta, follow_rate)
 
 
-## `Camera2_main_Normal` / `Camera2_main_Wade` outdoors, ticked at 30 Hz like the decomp.
+## `Camera2_main_Normal` / `Camera2_main_Wade` outdoors.
 func _follow_acre(snap: bool, delta: float) -> void:
 	var look_w: Vector3 = _look_point()
 	var eye_gx: Vector3 = TownSpace.world_to_gx(look_w)
 	var player_gx: Vector3 = TownSpace.world_to_gx(_target.global_position)
 	if snap or not _acre_active:
 		_acre_active = true
-		_acre_steps.reset()
 		_acre_wade = {}
 		if snap or not _has_look:
 			_acre_center = AcreCamera.goal(eye_gx, player_gx)
@@ -211,9 +209,7 @@ func _follow_acre(snap: bool, delta: float) -> void:
 			"t": 0.0,
 		}
 	if not snap:
-		_acre_steps.add(delta)
-		while _acre_steps.next():
-			_acre_tick(eye_gx, player_gx)
+		_acre_step(eye_gx, player_gx, delta)
 	var center_w: Vector3 = TownSpace.gx_to_world(_acre_center)
 	global_position = center_w + _swung_offset(_acre_pitch)
 	_look_current = center_w
@@ -221,20 +217,20 @@ func _follow_acre(snap: bool, delta: float) -> void:
 	look_at(center_w, Vector3.UP)
 
 
-func _acre_tick(eye_gx: Vector3, player_gx: Vector3) -> void:
+func _acre_step(eye_gx: Vector3, player_gx: Vector3, delta: float) -> void:
 	var pitch_goal: float = AcreCamera.swing(eye_gx, player_gx)
 	if _acre_wade.is_empty():
-		_acre_center = AcreCamera.ease(_acre_center, AcreCamera.goal(eye_gx, player_gx))
-		_acre_pitch = AcreCamera.ease_pitch(_acre_pitch, pitch_goal)
+		_acre_center = AcreCamera.follow(_acre_center, AcreCamera.goal(eye_gx, player_gx), delta)
+		_acre_pitch = AcreCamera.follow_pitch(_acre_pitch, pitch_goal, delta)
 		return
 	var t: float = float(_acre_wade["t"])
 	var start: Vector3 = _acre_wade["start"]
 	var goal: Vector3 = _acre_wade["goal"]
-	_acre_center = start.lerp(goal, AcreWade.percent(t))
-	_acre_pitch = AcreCamera.morph_pitch(_acre_pitch, pitch_goal, AcreWade.TICKS - t)
-	t += 1.0
+	_acre_pitch = AcreCamera.morph_pitch(_acre_pitch, pitch_goal, AcreWade.DURATION - t, delta)
+	t += delta
+	_acre_center = start.lerp(goal, AcreWade.progress(t))
 	_acre_wade["t"] = t
-	if t > AcreWade.TICKS:
+	if t >= AcreWade.DURATION:
 		_acre_wade = {}
 
 

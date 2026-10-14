@@ -30,6 +30,27 @@ static func damp_angle(current: float, target: float, half_life: float, delta: f
 	return lerp_angle(current, target, _blend(half_life, delta))
 
 
+## `damp`, with the speed held between `min_speed` and `max_speed` (units a second): the
+## `add_calc(value, target, fraction, max_step, min_step)` shape. It never overshoots, so the
+## minimum speed lands it on `target` instead of creeping forever.
+static func approach(
+	current: float, target: float, half_life: float, max_speed: float, min_speed: float, delta: float
+) -> float:
+	var gap: float = target - current
+	if gap == 0.0 or delta <= 0.0:
+		return current
+	var step: float = clampf(absf(gap) * _blend(half_life, delta), min_speed * delta, max_speed * delta)
+	return target if step >= absf(gap) else current + signf(gap) * step
+
+
+## `approach` for angles in radians, taking the short way round.
+static func approach_angle(
+	current: float, target: float, half_life: float, max_speed: float, min_speed: float, delta: float
+) -> float:
+	var gap: float = angle_difference(current, target)
+	return current + approach(0.0, gap, half_life, max_speed, min_speed, delta)
+
+
 ## True with the odds of an event that happens `rate` times a second on average landing
 ## inside this `delta` (a Poisson process), so the odds don't depend on the frame rate.
 static func happens(rate: float, delta: float, rng: RandomNumberGenerator) -> bool:

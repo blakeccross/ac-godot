@@ -4,8 +4,9 @@ extends RefCounted
 ## Outdoor `Camera2` (`m_camera2.c`), in decomp GX. The look-at centre follows the player's eye
 ## but is held inside a box in the player's current acre (`Camera2_GetBorderScale`, border size
 ## 110), so the view never shows the next acre until the player wades into it. It eases toward
-## that goal with `add_calc(0.134, max 8.75, min 0.25)` per tick. A wade moves it to the next
-## acre's box on the same 36-tick ease as the player (`Camera2_main_Wade`).
+## that goal with `add_calc(0.134, max 8.75, min 0.25)` a tick, here `Motion.approach` on
+## `delta`. A wade moves it to the next acre's box on the same 0.6 s ease as the player
+## (`Camera2_main_Wade`).
 
 const BORDER := 110.0
 const UNIT_Z := 40.0
@@ -20,6 +21,13 @@ const SWING := 250.0
 const PITCH_FRACTION := 0.051316679
 const PITCH_MAX_STEP := 11000.0 * MLib.S16
 const PITCH_MIN_STEP := 100.0 * MLib.S16
+## The same eases in seconds: GX (or radians) a second, from the per-tick steps above.
+static var HALF_LIFE: float = Motion.half_life_from_fraction(FRACTION)
+const MAX_SPEED := MAX_STEP * 60.0
+const MIN_SPEED := MIN_STEP * 60.0
+static var PITCH_HALF_LIFE: float = Motion.half_life_from_fraction(PITCH_FRACTION)
+const PITCH_MAX_SPEED := PITCH_MAX_STEP * 60.0
+const PITCH_MIN_SPEED := PITCH_MIN_STEP * 60.0
 
 
 ## `Camera2_GetBorderScale(scale 1)` for `block`: `{x_min, x_max, z_min, z_max}` of the centre.
@@ -78,10 +86,12 @@ static func wade_goal(pos: Vector3, player_gx: Vector3) -> Vector3:
 	return out
 
 
-## One tick of `add_calc` on each axis.
-static func ease(center: Vector3, target: Vector3) -> Vector3:
+## `delta` seconds of the centre's `add_calc`, axis by axis.
+static func follow(center: Vector3, target: Vector3, delta: float) -> Vector3:
 	return Vector3(
-		add_calc(center.x, target.x), add_calc(center.y, target.y), add_calc(center.z, target.z)
+		Motion.approach(center.x, target.x, HALF_LIFE, MAX_SPEED, MIN_SPEED, delta),
+		Motion.approach(center.y, target.y, HALF_LIFE, MAX_SPEED, MIN_SPEED, delta),
+		Motion.approach(center.z, target.z, HALF_LIFE, MAX_SPEED, MIN_SPEED, delta),
 	)
 
 
@@ -115,14 +125,14 @@ static func swing(eye_gx: Vector3, player_gx: Vector3) -> float:
 	return ratio * SWING * MLib.S16
 
 
-## One normal-camera frame of the pitch ease (`Camera2_MoveDirectionAngleXYZ`).
-static func ease_pitch(current: float, goal: float) -> float:
-	return MLib.short_angle2(current, goal, PITCH_FRACTION, PITCH_MAX_STEP, PITCH_MIN_STEP)
+## `delta` seconds of the pitch ease (`Camera2_MoveDirectionAngleXYZ`).
+static func follow_pitch(current: float, goal: float, delta: float) -> float:
+	return Motion.approach_angle(current, goal, PITCH_HALF_LIFE, PITCH_MAX_SPEED, PITCH_MIN_SPEED, delta)
 
 
-## One wade frame (`Camera2_MoveDirectionAngleXYZ_morph`): close `1 / remaining` of the gap,
-## so the pitch lands on the goal exactly when the scroll does.
-static func morph_pitch(current: float, goal: float, remaining: float) -> float:
-	if remaining <= 0.0:
+## `delta` seconds of a wade (`Camera2_MoveDirectionAngleXYZ_morph`): close `delta / time_left`
+## of the gap, so the pitch lands on the goal exactly when the scroll does.
+static func morph_pitch(current: float, goal: float, time_left: float, delta: float) -> float:
+	if time_left <= delta:
 		return goal
-	return current + angle_difference(current, goal) / remaining
+	return current + angle_difference(current, goal) * delta / time_left

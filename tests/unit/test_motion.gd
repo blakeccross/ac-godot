@@ -63,3 +63,12 @@ func test_rate_from_chance_round_trips_a_per_tick_roll() -> void:
 	assert_float(rate).is_equal_approx(1.008, 0.001)
 	assert_float(1.0 - exp(-rate * DecompTime.TICK_SEC)).is_equal_approx(1.0 / 60.0, 0.000001)
 	assert_float(Motion.rate_from_chance(0.0)).is_equal(0.0)
+
+
+func test_approach_keeps_add_calcs_speed_limits_and_lands() -> void:
+	## A far target moves at the cap; a near one at the floor, landing without overshoot.
+	assert_float(Motion.approach(0.0, 1000.0, 0.1, 60.0, 6.0, 0.5)).is_equal_approx(30.0, 0.0001)
+	assert_float(Motion.approach(0.0, 0.05, 0.1, 60.0, 6.0, 1.0 / 60.0)).is_equal(0.05)
+	assert_float(Motion.approach(0.0, -0.5, 0.1, 60.0, 6.0, 1.0 / 60.0)).is_equal_approx(-0.1, 0.0001)
+	## The short way round an angle.
+	assert_float(Motion.approach_angle(3.0, -3.0, 0.1, 60.0, 0.0, 10.0)).is_equal_approx(-3.0 + TAU, 0.0001)
