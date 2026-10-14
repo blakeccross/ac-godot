@@ -120,14 +120,14 @@ func test_train_demo_init_matches_decomp() -> void:
 
 
 func test_npc_point_move_run_speed_and_arrival() -> void:
-	## `aNPC_spd_data` run: max 3.0, accel 0.3 × 0.5 per frame, `0.5 · speed` GX per frame.
+	## `aNPC_spd_data` run: max 3.0 GX a frame (90 a second), accel 0.3 × 0.5 a tick.
 	var move := NpcPointMove.new()
 	move.reset(0.0)
 	var pos := Vector3.ZERO
-	pos = move.step_to(pos, Vector3(0.0, 0.0, 400.0), true)
-	assert_float(move.speed).is_equal_approx(0.15, 0.0001)
+	pos = move.step_to(1.0 / 60.0, pos, Vector3(0.0, 0.0, 400.0), true)
+	assert_float(move.frame_speed()).is_equal_approx(0.15, 0.0001)
 	for i: int in 100:
-		pos = move.step_to(pos, Vector3(0.0, 0.0, 400.0), true)
+		pos = move.step_to(1.0 / 60.0, pos, Vector3(0.0, 0.0, 400.0), true)
 	assert_float(move.speed).is_equal_approx(NpcPointMove.RUN_MAX, 0.0001)
 	assert_that(NpcPointMove.arrived(Vector3(0.0, 0.0, 391.6), Vector3(0.0, 0.0, 400.0))).is_true()
 	assert_that(NpcPointMove.arrived(Vector3(0.0, 0.0, 391.4), Vector3(0.0, 0.0, 400.0))).is_false()
@@ -137,11 +137,11 @@ func test_npc_point_move_turn_rate() -> void:
 	## `TURN` / `TALK_TURN`: 0x800 per 30 fps frame → 0x400 per 60 Hz frame.
 	var move := NpcPointMove.new()
 	move.reset(0.0)
-	var done: bool = move.step_turn(PI * 0.5)
+	var done: bool = move.step_turn(1.0 / 60.0, PI * 0.5)
 	assert_that(done).is_false()
 	assert_float(move.facing).is_equal_approx(float(0x400) * MLib.S16, 0.00001)
 	for i: int in 16:
-		done = move.step_turn(PI * 0.5)
+		done = move.step_turn(1.0 / 60.0, PI * 0.5)
 	assert_that(done).is_true()
 
 

@@ -570,8 +570,7 @@ func _play_dialogue(id: StringName, speaker: String, fallback: StringName = &"")
 func _npc_talk_turn(npc: Node3D) -> void:
 	if npc == null or _player == null or get_tree() == null:
 		return
-	var steps := FrameStepper.new()
-	var step: float = NpcPointMove.turn_step(NpcPointMove.SPIN_TURN)
+	var rate: float = NpcPointMove.turn_rate(NpcPointMove.SPIN_TURN)
 	while is_instance_valid(npc) and is_instance_valid(_player):
 		var to: Vector3 = _player.global_position - npc.global_position
 		if Vector2(to.x, to.z).length_squared() < 0.000001:
@@ -581,9 +580,7 @@ func _npc_talk_turn(npc: Node3D) -> void:
 		var yaw: float = porter.facing if porter != null else npc.rotation.y
 		if is_equal_approx(yaw, want):
 			return
-		steps.add(get_process_delta_time())
-		while steps.next():
-			yaw = NpcPointMove.chase_yaw(yaw, want, step)
+		yaw = NpcPointMove.chase_yaw(yaw, want, rate * get_process_delta_time())
 		if porter != null:
 			porter.facing = yaw
 		npc.rotation.y = yaw
