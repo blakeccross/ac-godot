@@ -172,7 +172,7 @@ Order (each line is about one PR):
 8. **NPC faces and heads:** `npc_face_anim` and the head-look systems, as `AnimationTree` blend or `Tween`s.
 9. **Player and villagers last:** `player_locomotion` and the seven player steppers, then `villager_motor` / `villager_walk`. Their feel depends on everything above, and they get the `AnimationTree` in Phase 4 at the same time.
 
-After the last item, delete `FrameStepper` and narrow `DecompTime` to authoring helpers.
+After the last item, delete `FrameStepper` and narrow `DecompTime` to authoring helpers. (Done.)
 
 ### Phase 3: creatures and props as scenes
 
@@ -281,6 +281,20 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
   - Each step sets `n`, the 60ths of a second it covers. Countdowns drop by `n` and per-tick steps scale by it (`chase_angle(…, a.n)`, `add_calc(…, ticks)`).
   - Per-tick odds go through `BugProgram.chance`, and `game_frame % k` cadences through `beat`.
   - Timers stay in ticks there, as in the mood effects, because every table that sets them is written in ticks. Countdowns that lived in the integer `s32_work` slots are now named float fields on the program.
+- **Player done:** `PlayerLocomotion` keeps speed in m/s and steps once per physics frame.
+  - Acceleration and brakes are m/s²; the speed ramp is integrated exactly and a turning step travels along its mid-step heading, so a walk and stop agree to the centimetre at 60 Hz and 15 Hz.
+  - `MLib.short_angle2` / `short_angle3` take a tick count, so `add_calc_short_angle2` turns scale with the step.
+  - `NetSwing`, the radio-exercise pattern buffer, sunburn and the held balloon take `delta`; the balloon's twist is solved as the spring it is.
+  - Every timed beat in `player.gd` (talk and bobber turns, door correction, mail hop, shrine toss, net pull and putaway, golden item, broken axe, bee sting, pitfall struggle) counts seconds.
+- **Villagers** already moved on `delta` in m/s (`VillagerMotor`, `VillagerWalk`). Their feel timer is now seconds too; it used to drop `roundi(delta * 60)` a frame, which is 0 above 120 fps.
+- **Title demo done:** the recording plays by time, blending the stick between samples.
+- **`FrameStepper` is deleted.**
+- **Hand-rolled tick loops removed** (`while _accum >= 1.0: _tick()`), which the plan's list had missed:
+  - UI: the dialogue typewriter is event driven (each glyph, pause and page turn when its wait in seconds runs out); the calendar, catalog, map, notice board, town tune and diary ease and pulse on seconds; `MenuSlide` is a quadratic ease over the original's 14 ticks in and 13 out.
+  - World: the present balloon, lighthouse lamp and switch room, the Wisp, the pond moon, fireworks, meteor showers, the waterfall rainbow and villager talk bookkeeping. The lighthouse beam is read off the curve its per-tick ramps trace; fireworks and meteor timetables stay in ticks and fire each entry on the step that crosses it.
+  - `Clock` still advances the calendar by whole real seconds; that is a seconds clock, not a decomp tick.
+
+**Phase 2 is complete.**
 
 Lessons from the weather particles:
 
