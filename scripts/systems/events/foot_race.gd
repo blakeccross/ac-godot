@@ -3,19 +3,20 @@ extends RefCounted
 
 ## The Sports Fair foot race (`ac_tokyoso_control`, `ac_tokyoso_npc0/1`). Two runners race
 ## four laps round the shrine while the other pair watch, then they swap. Each warms up
-## (`WARMUP1`, 240 frames), takes the line (`READY1`) while the starter loads and raises the
-## pistol (`TAMAKOME1`, `YOUI1` for 115 frames) and fires (`DON1`, `NA_SE_53`). A runner heads
+## (`WARMUP1`, 8 s), takes the line (`READY1`) while the starter loads and raises the
+## pistol (`TAMAKOME1`, `YOUI1` for 3.8 s) and fires (`DON1`, `NA_SE_53`). A runner heads
 ## for a point 22–44° further round (`aTKC_clip_next_run`): 160–180 GX out on the outside lane,
 ## 35 GX in on the inside, now and then tripping (`KOKERU1`, `KOKERU_GETUP1`). After the last
 ## lap it runs for the finish; the first in cheers (`BANZAI1`), the second is spent (`TIRED1`),
-## the watchers clap, and after 600 frames the other pair goes. Not an autoload.
+## the watchers clap, and after 20 s the other pair goes. Not an autoload.
 
 enum Phase { WARMUP, READY, RACE, GOAL }
 
 const LAP_NUM := 4
-const WARMUP_FRAMES := 240
-const READY_FRAMES := 115
-const GOAL_FRAMES := 600
+## 240, 115 and 600 frames at 30 fps.
+const WARMUP_TIME := 240.0 / DecompTime.FRAME_HZ
+const READY_TIME := 115.0 / DecompTime.FRAME_HZ
+const GOAL_TIME := 600.0 / DecompTime.FRAME_HZ
 ## `aTKC_ANGLE_FOR_LAP_COMPLETION` (≈22°): each leg is one to two of these.
 const LEG_ANGLE := 4000.0 / 65536.0 * TAU
 ## A trip now and then on a leg.
@@ -38,23 +39,22 @@ const CLIP_SET := "npc_1_youi1"
 const CLIP_FIRE := "npc_1_don1"
 
 static var phase: int = Phase.WARMUP
-static var timer: int = WARMUP_FRAMES
+## Seconds left in this phase.
+static var timer: float = WARMUP_TIME
 ## 0: slots 1 and 2 race; 1: slots 3 and 4.
 static var team: int = 0
 ## Per lane: angle travelled (radians), finished (0 no, 1 first, 2 second).
 static var travelled: Array[float] = [0.0, 0.0]
 static var finish: Array[int] = [0, 0]
-static var _steps := FrameStepper.new(DecompTime.FRAME_HZ, 4.0)
 static var _last_engine_frame: int = -1
 
 
 static func reset() -> void:
 	phase = Phase.WARMUP
-	timer = WARMUP_FRAMES
+	timer = WARMUP_TIME
 	team = 0
 	travelled = [0.0, 0.0]
 	finish = [0, 0]
-	_steps = FrameStepper.new(DecompTime.FRAME_HZ, 4.0)
 	_last_engine_frame = -1
 
 
@@ -77,35 +77,33 @@ static func advance(delta: float) -> void:
 	if now == _last_engine_frame:
 		return
 	_last_engine_frame = now
-	_steps.add(delta)
-	while _steps.next():
-		step()
+	step(delta)
 
 
-## One frame of `aTKC_*`.
-static func step() -> void:
+## `delta` seconds of `aTKC_*`.
+static func step(delta: float) -> void:
 	match phase:
 		Phase.WARMUP:
-			timer -= 1
-			if timer <= 0:
+			timer -= delta
+			if timer <= 0.0:
 				phase = Phase.READY
-				timer = READY_FRAMES
+				timer = READY_TIME
 		Phase.READY:
-			timer -= 1
-			if timer <= 0:
+			timer -= delta
+			if timer <= 0.0:
 				phase = Phase.RACE
 				travelled = [0.0, 0.0]
 				finish = [0, 0]
 		Phase.RACE:
 			if finish[0] != 0 and finish[1] != 0:
 				phase = Phase.GOAL
-				timer = GOAL_FRAMES
+				timer = GOAL_TIME
 		Phase.GOAL:
-			timer -= 1
-			if timer <= 0:
+			timer -= delta
+			if timer <= 0.0:
 				team = 1 - team
 				phase = Phase.WARMUP
-				timer = WARMUP_FRAMES
+				timer = WARMUP_TIME
 
 
 ## A runner reached the finish.

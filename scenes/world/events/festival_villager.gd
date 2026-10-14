@@ -347,7 +347,7 @@ func _cheer(delta: float) -> void:
 ## One frame of the tug: the shared rope moves, the pullers move with it and pick their next
 ## heave when a clip ends; the referee keeps the rope where it is pulled to.
 func _tug(delta: float) -> void:
-	TugOfWar.advance(delta, rng())
+	TugOfWar.advance_once(delta, rng())
 	var gx := FieldCatalog.GX_TO_METERS
 	if slot == 0:
 		if _rope != null:

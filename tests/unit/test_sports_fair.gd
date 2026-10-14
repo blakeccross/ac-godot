@@ -20,14 +20,26 @@ func test_the_rope_moves_only_while_they_heave_and_stays_within_ten() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	TugOfWar.next_speed = 20.0
-	for i: int in TugOfWar.HEAVE_FRAME - 1:
-		TugOfWar.step(rng)
+	TugOfWar.advance(TugOfWar.HEAVE_AT - 0.01, rng)
 	assert_float(TugOfWar.rope_base).is_equal(0.0)
-	TugOfWar.step(rng)
+	TugOfWar.advance(0.02, rng)
 	assert_bool(TugOfWar.shake).is_true()
+	## 20 a frame for 0.01 s: 0.15 GX.
+	assert_float(TugOfWar.rope_base).is_equal_approx(20.0 * TugOfWar.PULL_RATE * 0.01, 0.0001)
 	for i: int in 2000:
-		TugOfWar.step(rng)
+		TugOfWar.advance(1.0 / 30.0, rng)
 		assert_float(absf(TugOfWar.rope_base)).is_less_equal(TugOfWar.LIMIT_GX)
+
+
+func test_one_long_step_heaves_eases_and_rolls_the_next_pull() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	TugOfWar.next_speed = 20.0
+	## A 0.9 s hitch passes both marks: the rope moves for exactly the 0.6 s heave.
+	TugOfWar.advance(0.9, rng)
+	assert_bool(TugOfWar.shake).is_false()
+	assert_float(TugOfWar.rope_base).is_equal_approx(20.0 * TugOfWar.PULL_RATE * 0.6, 0.0001)
+	assert_float(TugOfWar.time).is_equal_approx(0.9, 0.0001)
 
 
 func test_a_side_being_dragged_hangs_on_and_a_winning_side_throws_its_weight() -> void:
@@ -61,20 +73,17 @@ func test_the_foot_race_warms_up_lines_up_races_and_swaps_pairs() -> void:
 	FootRace.reset()
 	assert_bool(FootRace.racing(1)).is_true()
 	assert_bool(FootRace.racing(3)).is_false()
-	for i: int in FootRace.WARMUP_FRAMES:
-		FootRace.step()
+	FootRace.step(FootRace.WARMUP_TIME)
 	assert_int(FootRace.phase).is_equal(FootRace.Phase.READY)
-	for i: int in FootRace.READY_FRAMES:
-		FootRace.step()
+	FootRace.step(FootRace.READY_TIME)
 	assert_int(FootRace.phase).is_equal(FootRace.Phase.RACE)
 	FootRace.cross(1)
 	FootRace.cross(0)
 	assert_int(FootRace.finish[1]).is_equal(1)
 	assert_int(FootRace.finish[0]).is_equal(2)
-	FootRace.step()
+	FootRace.step(1.0 / 60.0)
 	assert_int(FootRace.phase).is_equal(FootRace.Phase.GOAL)
-	for i: int in FootRace.GOAL_FRAMES:
-		FootRace.step()
+	FootRace.step(FootRace.GOAL_TIME)
 	assert_int(FootRace.phase).is_equal(FootRace.Phase.WARMUP)
 	assert_bool(FootRace.racing(3)).is_true()
 	assert_bool(FootRace.racing(1)).is_false()
