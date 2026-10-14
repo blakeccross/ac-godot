@@ -116,6 +116,15 @@ func sync(actor: BugActor, _delta: float) -> void:
 	_show(actor.pose_index())
 
 
+## A museum case insect (`MuseumInsectActor`): drawn at its own scale, never faded.
+func sync_display(actor: MuseumInsectActor) -> void:
+	visible = true
+	var basis := Basis.from_euler(Vector3(actor.pitch, actor.yaw, 0.0)).scaled(Vector3.ONE * actor.render_scale())
+	transform = Transform3D(basis, Vector3(0.0, actor.height - _lift, 0.0))
+	if _poses.size() > 1:
+		_show(actor.pose_index())
+
+
 func _apply_alpha(amount: float) -> void:
 	var fade: float = clampf(1.0 - amount, 0.0, 1.0)
 	for node: Node in get_children():

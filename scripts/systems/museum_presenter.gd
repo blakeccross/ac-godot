@@ -4,6 +4,8 @@ extends RefCounted
 ## Spawns museum wing exhibits from `Game.museum` bits when a museum room loads.
 ## Fossils rewrite FG furniture; fish/insects are live actors; paintings swap art/frame.
 
+## A donated insect in its case is the field's `Bug` scene in display mode.
+const BUG_SCENE := preload("res://scenes/world/bugs/bug.tscn")
 const PLAQUE_SCENE := preload("res://scenes/world/museum_plaque.tscn")
 const SUNSHINE_SCENE := preload("res://scenes/world/interiors/police_sunshine.tscn")
 
@@ -318,12 +320,11 @@ func present_insects(root: Node3D, interior: IndoorSession) -> void:
 		var actor: MuseumInsectActor = MuseumInsectActor.create(bug, interior.grid, rng)
 		if actor == null:
 			continue
-		var visual: MuseumInsectVisual = MuseumInsectVisual.create(actor)
-		if visual == null:
-			continue
+		var visual := BUG_SCENE.instantiate() as Bug
 		visual.name = "Insect_%02d" % i
 		visual.add_to_group("museum_set")
 		root.add_child(visual)
+		visual.setup_display(actor)
 	for gi: int in MuseumDisplay.INSECT_PLAQUE_GROUPS.size():
 		var group: Array = MuseumDisplay.INSECT_PLAQUE_GROUPS[gi] as Array
 		var lines := PackedStringArray()
