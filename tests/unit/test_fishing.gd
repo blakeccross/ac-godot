@@ -1040,7 +1040,7 @@ func test_fish_only_see_the_bobber_once_it_settles() -> void:
 	while Fishing.state() == Fishing.State.CAST:
 		_tick(ctx, STEP)
 		ticks += 1
-	assert_int(ticks).is_equal(Fishing.CAST_TICKS)
+	assert_int(ticks).is_equal(roundi(Fishing.CAST_SECONDS * 60.0))
 	var sense := FishShadow.Sense.new()
 	Fishing.fill_sense(sense)
 	## The landing tick splashes and nothing can see it yet.
@@ -1053,7 +1053,7 @@ func test_fish_only_see_the_bobber_once_it_settles() -> void:
 		sense = FishShadow.Sense.new()
 		Fishing.fill_sense(sense)
 		assert_bool(sense.bobber_splashed).is_false()
-	assert_int(settle).is_equal(Fishing.SETTLE_TICKS)
+	assert_int(settle).is_equal(roundi(Fishing.SETTLE_SECONDS * 60.0))
 
 
 func test_a_struck_fish_is_fought_for_its_size() -> void:
@@ -1136,7 +1136,7 @@ func test_an_empty_press_reels_in_after_twelve_ticks() -> void:
 		assert_that(Fishing.anchor()).is_equal(start)
 		_tick(ctx, STEP)
 		ticks += 1
-	assert_int(ticks).is_equal(Fishing.EMPTY_REEL_TICKS)
+	assert_int(ticks).is_equal(roundi(Fishing.EMPTY_REEL_SECONDS * 60.0))
 	assert_bool(Fishing.last_outcome().too_early).is_true()
 	## `collect_rod` says nothing either.
 	assert_bool("You reel in an empty hook." in _heard).is_false()
@@ -1154,7 +1154,7 @@ func test_a_press_during_the_nibbles_still_lands_a_fish_that_commits() -> void:
 	assert_bool(Fishing.hook(ctx, _school(ctx))).is_true()
 	## Force its next approach to commit, right on the bobber.
 	shadow.position = Fishing.anchor()
-	shadow._timer = 1.0
+	shadow._timer = 1.0 / 60.0
 	shadow._nibbles_left = 1
 	_tick(ctx, STEP * 2.0)
 	assert_that(Fishing.state()).is_equal(Fishing.State.BITE)
