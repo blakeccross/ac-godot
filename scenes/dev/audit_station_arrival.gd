@@ -155,11 +155,11 @@ func _log(kind: String) -> void:
 		var steam := 0
 		var top := -INF
 		for fx: Node in World.find(get_tree()).get_node("Effects").get_children():
-			if fx is FieldFx:
-				if (fx as FieldFx).kind == FieldFx.Kind.KISHA_KEMURI:
+			if fx is FieldPuff:
+				if (fx as FieldPuff).kind == FieldFx.Kind.KISHA_KEMURI:
 					smoke += 1
-					top = maxf(top, (fx as FieldFx).pos_gx.y)
-				elif (fx as FieldFx).kind == FieldFx.Kind.STEAM:
+					top = maxf(top, TownSpace.world_to_gx((fx as FieldPuff).global_position).y)
+				elif (fx as FieldPuff).kind == FieldFx.Kind.STEAM:
 					steam += 1
 		print("AUDIT fx smoke=", smoke, " steam=", steam, " smoke_top_y_gx=", top)
 	if Game.inventory != null:

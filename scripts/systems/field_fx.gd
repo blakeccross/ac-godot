@@ -119,6 +119,10 @@ static func spawn(
 ) -> FieldFx:
 	if host == null:
 		return null
+	## Dust, steam and smoke are one-shot particle puffs now.
+	if FieldPuff.handles(k):
+		FieldPuff.spawn(host, k, pos, yaw, a0, a1)
+		return null
 	var fx := FieldFx.new()
 	fx.kind = k
 	fx.arg0 = a0

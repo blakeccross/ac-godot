@@ -255,17 +255,19 @@ func test_nook_call_text_starts_the_rcn_guide_theme() -> void:
 
 
 func test_train_smoke_and_steam_effects_follow_decomp() -> void:
-	## `eKishaK_ct`: 80 frames from scale 0; `eSteam_ct`: 30 frames rising back.
-	var host := Node3D.new()
-	add_child(host)
-	var smoke: FieldFx = FieldFx.spawn(host, FieldFx.Kind.KISHA_KEMURI, Vector3.ZERO, 0.0)
-	var steam: FieldFx = FieldFx.spawn(host, FieldFx.Kind.STEAM, Vector3.ZERO, 0.0)
-	assert_int(smoke.timer).is_equal(80)
-	assert_float(smoke.scale_gx.x).is_equal(0.0)
-	assert_int(steam.timer).is_equal(30)
-	assert_float(steam.acc.y).is_equal(0.125)
-	assert_float(steam.vel.y).is_less(-1.49)
-	host.queue_free()
+	## `eKishaK_ct`: 80 frames, swelling from small; `eSteam_ct`: 30 frames, thrown down then
+	## rising back.
+	var at: Array[Vector3] = [Vector3.ZERO]
+	var smoke: FieldPuff.Style = FieldPuff.style_for(FieldFx.Kind.KISHA_KEMURI, 0.0, 0, 0, at)
+	assert_float(smoke.lifetime).is_equal_approx(80.0 / 60.0, 0.0001)
+	assert_float(smoke.size_from_to.x).is_less(smoke.size_from_to.y)
+	assert_float(FieldPuff.offset_at(smoke, 1.0).y).is_greater(0.5)
+	var steam: FieldPuff.Style = FieldPuff.style_for(FieldFx.Kind.STEAM, 0.0, 0, 0, at)
+	assert_float(steam.lifetime).is_equal_approx(0.5, 0.0001)
+	assert_float(steam.accel.y).is_equal_approx(0.125 * FieldCatalog.GX_TO_METERS * 3600.0, 0.001)
+	assert_float(steam.launch.y).is_less(-1.49 * FieldCatalog.GX_TO_METERS * 60.0)
+	## Thrown down, it dips first.
+	assert_float(FieldPuff.offset_at(steam, 0.05).y).is_less(0.0)
 
 
 func test_suspended_dialogue_ignores_input() -> void:

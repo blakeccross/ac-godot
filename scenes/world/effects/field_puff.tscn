@@ -1,0 +1,28 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/systems/field_puff.gd" id="1_script"]
+[ext_resource type="Shader" path="res://shaders/field_puff_motion.gdshader" id="2_motion"]
+[ext_resource type="Shader" path="res://shaders/field_puff.gdshader" id="3_draw"]
+
+[sub_resource type="ShaderMaterial" id="Motion"]
+shader = ExtResource("2_motion")
+
+[sub_resource type="ShaderMaterial" id="Card"]
+render_priority = 3
+shader = ExtResource("3_draw")
+
+[sub_resource type="QuadMesh" id="CardMesh"]
+material = SubResource("Card")
+
+[node name="FieldPuff" type="GPUParticles3D"]
+emitting = false
+amount = 1
+lifetime = 0.3
+one_shot = true
+explosiveness = 1.0
+fixed_fps = 0
+local_coords = false
+visibility_aabb = AABB(-4, -4, -4, 8, 8, 8)
+process_material = SubResource("Motion")
+draw_pass_1 = SubResource("CardMesh")
+script = ExtResource("1_script")
