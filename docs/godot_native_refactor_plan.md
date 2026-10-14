@@ -259,6 +259,13 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
   - Speeds are m/s and timers are seconds. Each keeps a `FRAME` constant (1 GX per 30 fps frame, in m/s) so the decomp figures stay readable beside the converted ones.
   - Formulas written in GX a frame stay in those units and convert at the edges, for example the ball's kick sums.
   - The player drives a push with `Snowball.push(delta, …)` every physics step instead of once per tick.
+- **Furniture done:** the grip's tap and push timers and the seat's hold are seconds held.
+- **Cameras and intro done:**
+  - The town camera follows with `Motion.approach`. That is `add_calc` on `delta`: `damp` with the step held between a minimum and a maximum speed.
+  - The intro train's Rover walk, camera sway and morph, lighting and window scroll all run on `delta`.
+  - So do the town train's timetable, couplings, smoke and sounds; the train's braking starts exactly at the trigger point, so it stops at the same place at any frame rate.
+  - The station arrival (Nook, the porter, `NpcPointMove`) and the window-light fade run on `delta` too.
+  - The title demo still steps its recorded pad input once per tick. It replays into the player, so it converts with the player.
 
 Lessons from the weather particles:
 
