@@ -255,6 +255,10 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
   - `FieldFx` covers petals, footprints, body prints, water rings and the spray source. These are nodes whose `age` is driven by a `Tween`; the spray source uses a `Timer`.
   - Checked against the old version with `scenes/dev/field_fx_check.tscn`.
 - **Weather rebuilt as particles:** `weather_fx.tscn` holds `GPUParticles3D` emitters; snow and petals run a `shader_type particles` shader. It's verified in captures against the old pool.
+- **Props done:** the ball, snowballs, snowmen, broken axe pieces, the bobber, thrown-back fish and held catches.
+  - Speeds are m/s and timers are seconds. Each keeps a `FRAME` constant (1 GX per 30 fps frame, in m/s) so the decomp figures stay readable beside the converted ones.
+  - Formulas written in GX a frame stay in those units and convert at the edges, for example the ball's kick sums.
+  - The player drives a push with `Snowball.push(delta, …)` every physics step instead of once per tick.
 
 Lessons from the weather particles:
 
