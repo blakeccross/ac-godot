@@ -1,7 +1,7 @@
 extends CanvasLayer
 
 ## Title logo overlay: the presentation half of `ac_animal_logo`. All timing and state live in
-## `TitleLogoState`; this node steps it at 60 Hz, scrubs the three baked skeleton clips to its
+## `TitleLogoState`; this node updates it every frame, scrubs the three baked skeleton clips to its
 ## `anim_seconds()`, and mirrors its opacities onto the backdrop, copyright line and
 ## "PRESS START". Layout is authored in `title_logo.tscn` in the original 320x240 space
 ## (`mFont_SetMatrix`: ortho +-160x120 px, y up); generated art is attached here when present.
@@ -33,7 +33,6 @@ var can_start: bool = false
 var button_ok: bool = true
 var demo_ended: bool = false
 
-var _steps := FrameStepper.new()
 var _start_latched: bool = false
 var _clips: Array[AnimationPlayer] = []
 var _back_materials: Array[ShaderMaterial] = []
@@ -59,13 +58,16 @@ func _ready() -> void:
 	_fallback.visible = not _has_models
 	get_viewport().size_changed.connect(_layout)
 	_layout()
+	state.start_chime.connect(start_chime.emit)
+	state.start_selected.connect(start_selected.emit)
 	_refresh()
 
 
 func _process(delta: float) -> void:
-	_steps.add(delta)
-	while _steps.next():
-		_tick()
+	var pressed: bool = _start_latched
+	_start_latched = false
+	state.update(delta, pressed, can_start, button_ok, demo_ended)
+	_refresh()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -75,29 +77,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-func _tick() -> void:
-	var pressed: bool = _start_latched
-	_start_latched = false
-	state.tick(pressed, can_start, button_ok, demo_ended)
-	_refresh()
-	if state.start_chime_requested:
-		start_chime.emit()
-	if state.select_requested:
-		start_selected.emit()
-
-
 func _refresh() -> void:
 	var t: float = state.anim_seconds()
 	for player: AnimationPlayer in _clips:
 		player.seek(t, true)
 	_back_root.visible = state.back_visible() and _has_models
 	for mat: ShaderMaterial in _back_materials:
-		mat.set_shader_parameter("opacity", float(state.back_opacity) / 255.0)
+		mat.set_shader_parameter("opacity", state.back_opacity)
 	_copyright.visible = state.copyright_visible()
-	_copyright.modulate.a = float(state.copyright_opacity) / 255.0
+	_copyright.modulate.a = state.copyright_opacity
 	_tm_slot.visible = state.copyright_visible() and _has_models
 	_press_start.visible = state.press_start_visible()
-	_press_start.modulate.a = state.press_start_opacity / 255.0
+	_press_start.modulate.a = state.press_start_opacity
 
 
 ## 4:3 stage, centred and scaled to the window height. The 3D logo renders into a viewport of
