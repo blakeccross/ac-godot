@@ -23,7 +23,7 @@ var _pose_frame: int = 0
 var _pose_tick: float = 0.0
 var _timer: float = 0.0
 var _draw_scale: float = 0.01
-var _program: BugData.Program = BugData.Program.CHOU
+var _program: BugData.Program = BugData.Program.BUTTERFLY
 
 
 static func create(p_bug: BugData, grid: WorldGrid, rng: RandomNumberGenerator) -> MuseumInsectActor:
@@ -48,24 +48,24 @@ static func create(p_bug: BugData, grid: WorldGrid, rng: RandomNumberGenerator) 
 
 static func _anchor_gx(bug: BugData) -> Vector3:
 	match bug.program:
-		BugData.Program.CHOU, BugData.Program.TENTOU:
+		BugData.Program.BUTTERFLY, BugData.Program.LADYBUG:
 			if bug.id == &"purple_butterfly":
 				return MuseumDisplay.INSECT_OHMURASAKI_TREE
 			var flowers: Array[Vector3] = MuseumDisplay.INSECT_FLOWER_POS
 			return flowers[abs(bug.type_index) % flowers.size()]
-		BugData.Program.SEMI, BugData.Program.KABUTO, BugData.Program.MINO:
+		BugData.Program.CICADA, BugData.Program.BEETLE, BugData.Program.BAGWORM:
 			var trees: Array[Vector3] = MuseumDisplay.INSECT_TREE_POS
 			return trees[abs(bug.type_index) % trees.size()]
-		BugData.Program.TONBO:
+		BugData.Program.DRAGONFLY:
 			var rocks: Array[Vector3] = MuseumDisplay.INSECT_ROCK_POS
 			return rocks[abs(bug.type_index) % rocks.size()] + Vector3(0.0, 40.0, 0.0)
-		BugData.Program.AMENBO:
+		BugData.Program.POND_SKATER:
 			return MuseumDisplay.INSECT_AMENBO_CENTER
-		BugData.Program.KERA:
+		BugData.Program.MOLE_CRICKET:
 			return MuseumDisplay.INSECT_OKERA_BASE
-		BugData.Program.HOTARU:
+		BugData.Program.FIREFLY:
 			return MuseumDisplay.INSECT_GENJI_BASE
-		BugData.Program.BATTA, BugData.Program.GOKI, BugData.Program.DANGO:
+		BugData.Program.GRASSHOPPER, BugData.Program.COCKROACH, BugData.Program.PILL_BUG:
 			var ground: Array[Vector3] = MuseumDisplay.INSECT_ROCK_POS
 			return ground[abs(bug.type_index) % ground.size()] + Vector3(20.0, 20.0, 0.0)
 		_:
@@ -75,13 +75,13 @@ static func _anchor_gx(bug: BugData) -> Vector3:
 
 static func _start_height(bug: BugData) -> float:
 	match bug.program:
-		BugData.Program.KABUTO, BugData.Program.SEMI:
+		BugData.Program.BEETLE, BugData.Program.CICADA:
 			return BEETLE_HEIGHT_GX * FieldCatalog.GX_TO_METERS
-		BugData.Program.MINO:
+		BugData.Program.BAGWORM:
 			return 5.0 * FieldCatalog.GX_TO_METERS
-		BugData.Program.CHOU, BugData.Program.TONBO, BugData.Program.HOTARU:
+		BugData.Program.BUTTERFLY, BugData.Program.DRAGONFLY, BugData.Program.FIREFLY:
 			return 0.4
-		BugData.Program.AMENBO:
+		BugData.Program.POND_SKATER:
 			return 0.05
 		_:
 			return 0.0
@@ -111,13 +111,13 @@ func tick(delta: float) -> void:
 	_timer -= delta
 	anim_phase += delta
 	match _program:
-		BugData.Program.CHOU, BugData.Program.TONBO, BugData.Program.HOTARU:
+		BugData.Program.BUTTERFLY, BugData.Program.DRAGONFLY, BugData.Program.FIREFLY:
 			_fly_orbit(delta)
-		BugData.Program.AMENBO:
+		BugData.Program.POND_SKATER:
 			_skate(delta)
-		BugData.Program.BATTA, BugData.Program.GOKI, BugData.Program.DANGO:
+		BugData.Program.GRASSHOPPER, BugData.Program.COCKROACH, BugData.Program.PILL_BUG:
 			_ground_wander(delta)
-		BugData.Program.KABUTO, BugData.Program.SEMI, BugData.Program.MINO:
+		BugData.Program.BEETLE, BugData.Program.CICADA, BugData.Program.BAGWORM:
 			_tree_sway(delta)
 		_:
 			_idle_bob(delta)
@@ -139,7 +139,7 @@ func _tick_pose(delta: float) -> void:
 
 
 func _fly_orbit(delta: float) -> void:
-	var radius: float = 0.35 if _program == BugData.Program.HOTARU else 0.55
+	var radius: float = 0.35 if _program == BugData.Program.FIREFLY else 0.55
 	var angle: float = anim_phase * (1.4 if active else 0.3)
 	position.x = _home.x + cos(angle + yaw) * radius
 	position.z = _home.z + sin(angle + yaw) * radius

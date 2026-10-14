@@ -234,9 +234,11 @@ static func create(
 	a.opacity = 255.0
 	a.wall_check = true
 	a.bg_range = BG_RANGE_DEFAULT
-	a._prog = BugBehavior.create(p_bug.program if p_bug != null else BugData.Program.CHOU)
+	a._prog = BugBehavior.create(p_bug.program if p_bug != null else BugData.Program.BUTTERFLY)
 	if a.type == Ant.TYPE and not p_released:
 		a._prog = Ant.new()  ## the swarm on the food (`ac_ant`); caught, it is the ant
+	elif a.type == BugBehavior.T_BEE:
+		a._prog = Bee.new()
 	a._prog.actor_init(a, p_released)
 	a._init_waits_for_player = p_released
 	return a

@@ -1,7 +1,8 @@
 class_name Cicada
 extends BugBehavior
 
-## `ac_ins_semi.c` — cicadas (robust / walker / evening / brown) and the bee.
+## `ac_ins_semi.c` — cicadas (robust / walker / evening / brown). The bee shares the
+## program; `Bee` overrides the parts that differ.
 ## Sits 35 GX up a tree trunk (30 on a cedar) facing north; calm cicadas (patience < 50)
 ## cry after 60 quiet frames and, while not raining, jitter up to 0.4 GX on X every frame
 ## they cry. A shaken tree, an axe hit in the acre within 150 GX, a stopped net within
@@ -24,20 +25,14 @@ var _netted: bool = false
 
 
 func actor_init(a: BugActor, released: bool) -> void:
-	match a.type:
-		T_ROBUST_CICADA: a.item = 4
-		T_WALKER_CICADA: a.item = 5
-		T_EVENING_CICADA: a.item = 6
-		T_BROWN_CICADA: a.item = 7
-		T_BEE: a.item = 8
+	a.item = _item(a)
 	if not released:
 		BugBehavior.cling_to_trunk(a)
 		a.rot.x = PI * 0.5
 		setup_action(a, WAIT)
 	else:
 		_placed = true
-		if a.type != T_BEE:
-			a.one_shot_sounds.append(&"semi_escape")
+		_escape_sound(a)
 		setup_action(a, LET_ESCAPE)
 
 
@@ -101,11 +96,29 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 
 func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	if _check_patience(a, sense):
-		if a.type != T_BEE:
-			a.one_shot_sounds.append(&"semi_escape")
+		_escape_sound(a)
 		setup_action(a, AVOID)
 		return
-	if a.type == T_BEE or _netted:
+	_cry(a, sense)
+
+
+## The item it is when caught.
+func _item(a: BugActor) -> int:
+	match a.type:
+		T_WALKER_CICADA: return 5
+		T_EVENING_CICADA: return 6
+		T_BROWN_CICADA: return 7
+	return 4
+
+
+## The rattle as it takes off.
+func _escape_sound(a: BugActor) -> void:
+	a.one_shot_sounds.append(&"semi_escape")
+
+
+## Calm on its trunk, it cries after a quiet spell, jittering as it does; netted, it stops.
+func _cry(a: BugActor, sense: BugActor.Sense) -> void:
+	if _netted:
 		return
 	if a.patience < 50.0:
 		a.timer -= a.n
@@ -120,11 +133,15 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 	a.anim_frame = fmod(a.anim_frame + 0.5 * a.n, 2.0)
 	a.gravity = minf(a.gravity * pow(1.1, a.n), 12.0)
-	if a.type == T_BEE:
-		a.loop_sound = 0x26
+	_flight_sound(a)
 	## Ground / wall collision switches on once it has flown off its home unit.
 	if a.terrain_mode == BugActor.TerrainMode.NONE and BugBehavior.unit_of(sense, a.home) != BugBehavior.unit_of(sense, a.pos):
 		a.terrain_mode = BugActor.TerrainMode.GROUND
+
+
+## What it sounds like in flight: nothing, for a cicada.
+func _flight_sound(_a: BugActor) -> void:
+	pass
 
 
 ## `aISM_check_patience`: shaken tree → axe hit in the acre within 150 GX → stopped net

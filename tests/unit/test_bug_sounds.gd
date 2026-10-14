@@ -119,3 +119,11 @@ func test_pick_takes_the_nearest_sounding_insects_in_range() -> void:
 func test_level_ids_name_the_lev_renders() -> void:
 	assert_str(String(BugSounds.se_id(0x9B))).is_equal("lev_9b")
 	assert_str(String(BugSounds.se_id(0xCF))).is_equal("lev_cf")
+
+
+func test_a_bee_runs_its_own_behavior() -> void:
+	var a := _make(&"bee", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
+	assert_object(a.behavior).is_instanceof(Bee)
+	assert_int(a.item).is_equal(8)
+	var cicada := _make(&"robust_cicada", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
+	assert_bool(cicada.behavior is Bee).is_false()

@@ -59,14 +59,14 @@ func test_catalog_loads_bugs_and_filters_windows() -> void:
 func test_program_table_matches_decomp_aINS_program_type() -> void:
 	## `aINS_program_type[]`: mantis + snail run the ladybug program; mosquito is KA;
 	## spider is MINO; bee is SEMI; ant is DANGO.
-	assert_int(BugCatalog.get_bug(&"mantis").program).is_equal(BugData.Program.TENTOU)
-	assert_int(BugCatalog.get_bug(&"snail").program).is_equal(BugData.Program.TENTOU)
-	assert_int(BugCatalog.get_bug(&"mosquito").program).is_equal(BugData.Program.KA)
-	assert_int(BugCatalog.get_bug(&"spider").program).is_equal(BugData.Program.MINO)
-	assert_int(BugCatalog.get_bug(&"bee").program).is_equal(BugData.Program.SEMI)
-	assert_int(BugCatalog.get_bug(&"ant").program).is_equal(BugData.Program.DANGO)
-	assert_int(BugCatalog.get_bug(&"common_butterfly").program).is_equal(BugData.Program.CHOU)
-	assert_int(BugCatalog.get_bug(&"drone_beetle").program).is_equal(BugData.Program.KABUTO)
+	assert_int(BugCatalog.get_bug(&"mantis").program).is_equal(BugData.Program.LADYBUG)
+	assert_int(BugCatalog.get_bug(&"snail").program).is_equal(BugData.Program.LADYBUG)
+	assert_int(BugCatalog.get_bug(&"mosquito").program).is_equal(BugData.Program.MOSQUITO)
+	assert_int(BugCatalog.get_bug(&"spider").program).is_equal(BugData.Program.BAGWORM)
+	assert_int(BugCatalog.get_bug(&"bee").program).is_equal(BugData.Program.CICADA)
+	assert_int(BugCatalog.get_bug(&"ant").program).is_equal(BugData.Program.PILL_BUG)
+	assert_int(BugCatalog.get_bug(&"common_butterfly").program).is_equal(BugData.Program.BUTTERFLY)
+	assert_int(BugCatalog.get_bug(&"drone_beetle").program).is_equal(BugData.Program.BEETLE)
 
 
 func test_term_for_hour_matches_decomp_buckets() -> void:

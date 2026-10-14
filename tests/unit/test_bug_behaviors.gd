@@ -723,7 +723,7 @@ func test_wisp_floats_forty_over_the_ground_and_flips_its_turn_heading_out() -> 
 	var at: Vector3 = s.grid.cell_to_world(Vector2i(4, 9))
 	var wisp := BugData.new()
 	wisp.type_index = BugBehavior.T_SPIRIT
-	wisp.program = BugData.Program.HITODAMA
+	wisp.program = BugData.Program.WISP_SPIRIT
 	var a := BugActor.create(wisp, BugData.Habitat.FLYING, at, _rng)
 	a.advance(DecompTime.TICK_SEC, s)
 	assert_float(a.home.y).is_equal_approx(40.0, 0.01)

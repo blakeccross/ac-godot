@@ -419,33 +419,33 @@ static func freeze_move(a: BugActor) -> void:
 
 static func create(program: int) -> BugBehavior:
 	match program:
-		BugData.Program.CHOU:
+		BugData.Program.BUTTERFLY:
 			return Butterfly.new()
-		BugData.Program.BATTA:
+		BugData.Program.GRASSHOPPER:
 			return Grasshopper.new()
-		BugData.Program.TONBO:
+		BugData.Program.DRAGONFLY:
 			return Dragonfly.new()
-		BugData.Program.TENTOU:
+		BugData.Program.LADYBUG:
 			return Ladybug.new()
-		BugData.Program.HOTARU:
+		BugData.Program.FIREFLY:
 			return Firefly.new()
-		BugData.Program.SEMI:
+		BugData.Program.CICADA:
 			return Cicada.new()
-		BugData.Program.KABUTO:
+		BugData.Program.BEETLE:
 			return Beetle.new()
-		BugData.Program.GOKI:
+		BugData.Program.COCKROACH:
 			return Cockroach.new()
-		BugData.Program.HITODAMA:
+		BugData.Program.WISP_SPIRIT:
 			return WispSpirit.new()
-		BugData.Program.AMENBO:
+		BugData.Program.POND_SKATER:
 			return PondSkater.new()
-		BugData.Program.KA:
+		BugData.Program.MOSQUITO:
 			return Mosquito.new()
-		BugData.Program.DANGO:
+		BugData.Program.PILL_BUG:
 			return PillBug.new()
-		BugData.Program.KERA:
+		BugData.Program.MOLE_CRICKET:
 			return MoleCricket.new()
-		BugData.Program.MINO:
+		BugData.Program.BAGWORM:
 			return Bagworm.new()
 		_:
 			return Butterfly.new()
