@@ -21,6 +21,10 @@ var _placed: bool = false
 var _turn_left: float = 0.0
 
 
+## The bob's phase (s16, `s32_work3`) and the turn, s16 a tick (`s32_work1`).
+var _bob_phase: int = 0
+var turn_rate: int = 0
+
 func actor_init(a: BugActor, released: bool) -> void:
 	a.terrain_mode = BugActor.TerrainMode.GROUND
 	a.bg_range = 20.0
@@ -32,7 +36,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 		a.home.y = a.pos.y
 		a.angle_y = a._rng.randf_range(-PI, PI)
 		_set_move_info(a)
-		a.s32_work[3] = a._rng.randi_range(0, 65535)   ## bob angle
+		_bob_phase = a._rng.randi_range(0, 65535)
 		a.continue_timer = a._rng.randi_range(0, 4)
 		setup_action(a, FLY)
 	else:
@@ -59,7 +63,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.speed = 1.5
 			if a.catchable and BugBehavior.heading_from_player_facing(a, deg_to_rad(120.0)):
 				a.home.y = a.pos.y
-			a.s32_work[3] = 0
+			_bob_phase = 0
 			a.catchable = false
 			if action == LET_ESCAPE:
 				a.escaping = true
@@ -74,9 +78,9 @@ func setup_action(a: BugActor, action: int) -> void:
 func _set_move_info(a: BugActor) -> void:
 	var frame: int = a.game_frame
 	var add: float = ANGL_ADD[frame & 3]
-	if a.s32_work[1] > 0:
+	if turn_rate > 0:
 		add = -add
-	a.s32_work[1] = int(add)
+	turn_rate = int(add)
 	_turn_left = float(MOVE_TIM[(frame >> 2) & 3])
 
 
@@ -99,9 +103,9 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 func _fuwafuwa(a: BugActor, hard: bool) -> void:
 	var dir: int = 0x400 if hard else (0x100 + a._rng.randi_range(0, 0x2FF))
 	var grav: float = 13.0 if hard else 10.0
-	var last: float = sin(a.s32_work[3] * MathUtil.S16) * 10.0
-	a.s32_work[3] = (a.s32_work[3] + roundi(dir * a.n)) & 0xFFFF
-	var now: float = grav * sin(a.s32_work[3] * MathUtil.S16)
+	var last: float = sin(_bob_phase * MathUtil.S16) * 10.0
+	_bob_phase = (_bob_phase + roundi(dir * a.n)) & 0xFFFF
+	var now: float = grav * sin(_bob_phase * MathUtil.S16)
 	a.pos_speed.y = a.gravity + (now - last) / maxf(a.n, 0.0001)
 
 
@@ -135,7 +139,7 @@ func _fly(a: BugActor, sense: BugActor.Sense) -> void:
 		_turn_left -= a.n
 		if _turn_left < 0.0:
 			_set_move_info(a)
-	a.angle_y = wrapf(a.angle_y + a.s32_work[1] * MathUtil.S16 * a.n, -PI, PI)
+	a.angle_y = wrapf(a.angle_y + turn_rate * MathUtil.S16 * a.n, -PI, PI)
 	a.rot.y = a.angle_y
 
 

@@ -12,6 +12,9 @@ enum { WAIT, LET_ESCAPE, MOVE, REST }
 
 
 
+## `HIT_WALL` (`s32_work3`): it ran into the bank and turns about next.
+var _hit_wall: bool = false
+
 func actor_init(a: BugActor, released: bool) -> void:
 	a.bg_range = UNIT_GX
 	a.bg_height = -14.0
@@ -50,7 +53,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.escaping = true
 		MOVE:
 			a.action_proc = _move
-			if a.s32_work[3] == 1:                       ## hit a wall → about-face
+			if _hit_wall:                       ## hit a wall → about-face
 				a.angle_y += PI
 			a.angle_y += a._rng.randf_range(-1.0, 1.0) * deg_to_rad(60.0)
 			a.rot.y = a.angle_y
@@ -59,12 +62,12 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.target_speed = 0.0
 			a.speed_step = 0.05 - a._rng.randf() * 0.03
 			a.speed = 2.3
-			a.s32_work[3] = 0
+			_hit_wall = false
 		REST:
 			a.action_proc = _rest
 			a.speed = 0.0
 			a.speed_step = 0.0
-			a.timer = 0 if a.s32_work[3] == 1 else int(2.0 * a._rng.randf() * 30.0)
+			a.timer = 0 if _hit_wall else int(2.0 * a._rng.randf() * 30.0)
 
 
 func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
@@ -82,7 +85,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 func _move(a: BugActor, sense: BugActor.Sense) -> void:
 	_hold_without_ground(a, sense)
 	_bg(a, sense)
-	if is_zero_approx(a.speed) or a.s32_work[3] == 1:
+	if is_zero_approx(a.speed) or _hit_wall:
 		setup_action(a, REST)
 
 
@@ -104,11 +107,11 @@ func _let_escape(a: BugActor, _sense: BugActor.Sense) -> void:
 ## `aIAB_BGcheck`: a front wall latches `HIT_WALL`. On the field the pond bank is that
 ## wall; here, any unit a unit ahead that is not water (or a real wall / column).
 func _bg(a: BugActor, sense: BugActor.Sense) -> void:
-	if a.s32_work[3] == 1 or sense == null or sense.grid == null:
+	if _hit_wall or sense == null or sense.grid == null:
 		return
 	var ahead: Vector3 = a.pos + Vector3(sin(a.angle_y), 0.0, cos(a.angle_y)) * a.bg_range
 	if BugBehavior.wall_front(a, sense) or not BugTerrain.water_at(sense.grid, ahead):
-		a.s32_work[3] = 1
+		_hit_wall = true
 
 
 ## Without a ground sampler (no field) there is no bed to land on: hold the spawn height.

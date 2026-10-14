@@ -32,6 +32,9 @@ var _placed: bool = false
 ## Ticks left of a run on the flower (`s32_work2`) and of a sway on the trunk.
 var _run_left: float = 0.0
 var _sway_left: float = 0.0
+## Where it is turning to (`s32_work0`, radians) and the trunk sways left (`s32_work1`).
+var _target_yaw: float = 0.0
+var _sways_left: int = 0
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -120,8 +123,8 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.timer = int(2.0 * (10.0 + a._rng.randf() * 10.0))
 		MOVE_ON_TREE, MOVE_ON_ITEM:
 			a.action_proc = _move_on_tree
-			a.s32_work[0] = int(deg_to_rad(175.78125) / MathUtil.S16)
-			a.s32_work[1] = 3 + a._rng.randi_range(0, 1)
+			_target_yaw = deg_to_rad(175.78125)
+			_sways_left = 3 + a._rng.randi_range(0, 1)
 			_sway_left = 30.0
 
 
@@ -147,7 +150,7 @@ func _wait_on_flower(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.timer <= 0.0:
 		setup_action(a, MOVE_ON_FLOWER)
 	else:
-		a.angle_y = BugBehavior.chase_angle(a.angle_y, a.s32_work[0] * MathUtil.S16, deg_to_rad(8.4375), a.n)
+		a.angle_y = BugBehavior.chase_angle(a.angle_y, _target_yaw, deg_to_rad(8.4375), a.n)
 		a.rot.y = a.angle_y
 
 
@@ -172,13 +175,13 @@ func _move_on_flower(a: BugActor, sense: BugActor.Sense) -> void:
 		a.pos.z = a.home.z + (-14.0 if dz < 0.0 else 14.0)
 		flag |= 4 if dz < 0.0 else 8
 	if flag != 0:
-		a.s32_work[0] = int(REF_ANGL[flag] / MathUtil.S16)
+		_target_yaw = REF_ANGL[flag]
 		a.timer = 10
 		setup_action(a, WAIT_ON_FLOWER)
 	else:
-		a.angle_y = BugBehavior.chase_angle(a.angle_y, a.s32_work[0] * MathUtil.S16, deg_to_rad(8.4375), a.n)
-		if BugBehavior.angle_reached(a.angle_y, a.s32_work[0] * MathUtil.S16):
-			a.s32_work[0] = int((a.angle_y + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(90.0)) / MathUtil.S16)
+		a.angle_y = BugBehavior.chase_angle(a.angle_y, _target_yaw, deg_to_rad(8.4375), a.n)
+		if BugBehavior.angle_reached(a.angle_y, _target_yaw):
+			_target_yaw = a.angle_y + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(90.0)
 		a.rot.y = a.angle_y
 
 
@@ -195,14 +198,14 @@ func _move_on_tree(a: BugActor, sense: BugActor.Sense) -> void:
 	if _check_patience(a, sense):
 		setup_action(a, AVOID)
 		return
-	a.rot.y = BugBehavior.chase_angle(a.rot.y, a.s32_work[0] * MathUtil.S16, 128 * MathUtil.S16, a.n)
+	a.rot.y = BugBehavior.chase_angle(a.rot.y, _target_yaw, 128 * MathUtil.S16, a.n)
 	_sway_left -= a.n
 	if _sway_left <= 0.0:
-		a.s32_work[1] -= 1
-		if a.s32_work[1] <= 0:
+		_sways_left -= 1
+		if _sways_left <= 0:
 			setup_action(a, a.action - 1)
 		else:
-			a.s32_work[0] = -a.s32_work[0]
+			_target_yaw = -_target_yaw
 			_sway_left += 30.0
 
 

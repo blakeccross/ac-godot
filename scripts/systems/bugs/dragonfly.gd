@@ -18,7 +18,7 @@ enum {
 const ONIYANMA_RANGE := 12.0 * UNIT_GX
 const OTHER_RANGE := 6.0 * UNIT_GX
 const SPEED_VAR := 2.0
-## `aITB_GET_STOP_STATE` (`s32_work0`).
+## `aITB_GET_STOP_STATE` (`s32_work0`): why it stopped flying.
 const STOP_NONE := 0
 const STOP_COLLISION := 1
 const STOP_REST := 2
@@ -36,6 +36,12 @@ var _s: BugActor.Sense = null
 var _perched: float = 0.0
 
 
+var _stop_state: int = STOP_NONE
+## Its cruising height over the ground (`f32_work0`, GX) and the height of the perch it is
+## settling onto (`f32_work1`).
+var hover_height: float = 0.0
+var _perch_y: float = 0.0
+
 func actor_init(a: BugActor, released: bool) -> void:
 	a.gravity = 0.1
 	a.terrain_mode = BugActor.TerrainMode.GROUND_WITH_ATTRIBUTES
@@ -46,7 +52,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 		T_DARNER_DRAGONFLY: a.item = 11
 		T_BANDED_DRAGONFLY: a.item = 12
 	if not released:
-		a.f32_work[0] = 52.0 + a._rng.randf() * 10.0     ## hover height over the ground
+		hover_height = 52.0 + a._rng.randf() * 10.0
 		a.pos.y = a.home.y + 20.0
 		a.angle_y = wrapf(PI - a._rng.randf() * TAU, -PI, PI)
 		a.rot.y = a.angle_y
@@ -122,7 +128,7 @@ func setup_action(a: BugActor, action: int) -> void:
 func _let_escape_init(a: BugActor) -> void:
 	a.life_time = 0
 	a.alpha_time = 80
-	a.f32_work[0] = 0.0
+	hover_height = 0.0
 	a.speed = 4.0
 	a.max_velocity_y = 12.0
 	a.gravity = 0.06
@@ -146,7 +152,7 @@ func _move_spd_set(a: BugActor) -> void:
 
 
 func _wait_init(a: BugActor) -> void:
-	if a.s32_work[0] == STOP_NONE:
+	if _stop_state == STOP_NONE:
 		var c: Vector2 = BugBehavior.acre_center(a, _s)
 		var dx: float = c.x - a.pos.x
 		var dz: float = c.y - a.pos.z
@@ -179,7 +185,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 		return
 	if a.action_proc.is_valid():
 		a.action_proc.call(a, sense)
-	if a.s32_work[0] != STOP_REST:
+	if _stop_state != STOP_REST:
 		_anime(a)
 
 
@@ -187,7 +193,7 @@ func _fly(a: BugActor, sense: BugActor.Sense) -> void:
 	_turn(a)
 	_height_ctrl(a, sense)
 	if _check_stop(a, sense):
-		setup_action(a, FLY_ON_NOTICE if a.s32_work[0] == STOP_REST else WAIT)
+		setup_action(a, FLY_ON_NOTICE if _stop_state == STOP_REST else WAIT)
 	else:
 		_fly_ctrl(a, sense)
 
@@ -208,7 +214,7 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	_turn(a)
 	_height_ctrl(a, sense)
 	if absf(wrapf(a.rot.y - a.angle_y, -PI, PI)) < deg_to_rad(2.8125):
-		a.s32_work[0] = STOP_NONE
+		_stop_state = STOP_NONE
 		setup_action(a, FLY)
 
 
@@ -253,28 +259,28 @@ func _hover_wait(a: BugActor, _sense: BugActor.Sense) -> void:
 func _fly_on_notice(a: BugActor, sense: BugActor.Sense) -> void:
 	_turn(a)
 	if a.patience < 90.0:
-		a.pos.y = BugBehavior.add_calc(a.pos.y, a.f32_work[1], 1.0 - sqrt(0.8), 0.5, 0.0, a.n)
+		a.pos.y = BugBehavior.add_calc(a.pos.y, _perch_y, 1.0 - sqrt(0.8), 0.5, 0.0, a.n)
 		var c: Vector3 = BugBehavior.unit_center(sense, BugBehavior.unit_of(sense, a.pos))
 		var d2: float = Vector2(c.x - a.pos.x, c.z - a.pos.z).length_squared()
 		if d2 > 25.0:
 			a.angle_y = BugBehavior.angle_to(a.pos, c)
-		elif absf(a.f32_work[1] - a.pos.y) < 3.0:
+		elif absf(_perch_y - a.pos.y) < 3.0:
 			setup_action(a, REST_ON_NOTICE)
 	else:
-		a.s32_work[0] = STOP_NONE
+		_stop_state = STOP_NONE
 		a.patience = 100.0
 		setup_action(a, FLY)
 
 
 func _rest_on_notice(a: BugActor, _sense: BugActor.Sense) -> void:
 	if a.timer > 0.0 and a.patience < 90.0:
-		a.pos.y = BugBehavior.add_calc(a.pos.y, a.f32_work[1], 1.0 - sqrt(0.8), 0.5, 0.0, a.n)
+		a.pos.y = BugBehavior.add_calc(a.pos.y, _perch_y, 1.0 - sqrt(0.8), 0.5, 0.0, a.n)
 		_perched += a.n
 		if _perched < 20.0:
 			_anime(a)
 		a.timer -= a.n
 	else:
-		a.s32_work[0] = STOP_NONE
+		_stop_state = STOP_NONE
 		a.patience = 100.0
 		setup_action(a, FLY)
 
@@ -296,7 +302,7 @@ func _turn(a: BugActor) -> void:
 ## `aITB_height_ctrl`: climb / sink at 1 GX/frame toward hover height over the unit centre.
 func _height_ctrl(a: BugActor, sense: BugActor.Sense) -> void:
 	var ground: float = BugBehavior.center_y(sense, a.pos, a.home.y)
-	a.max_velocity_y = 1.0 if (a.f32_work[0] + ground > a.pos.y) else -1.0
+	a.max_velocity_y = 1.0 if (hover_height + ground > a.pos.y) else -1.0
 
 
 ## `aITB_fly_ctrl`: hold cruise speed for `timer` frames, then brake to a stop; stopped →
@@ -318,18 +324,18 @@ func _fly_ctrl(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _check_stop(a: BugActor, sense: BugActor.Sense) -> bool:
-	a.s32_work[0] = STOP_NONE
+	_stop_state = STOP_NONE
 	if a.type == T_BANDED_DRAGONFLY:
 		return false
 	## `aITB_check_reserve_dummy`: a calm dragonfly over a reserved unit perches on it.
 	if a.patience < 40.0 and sense != null and sense.layout != null:
 		var cell: Vector2i = BugBehavior.unit_of(sense, a.pos)
 		if BugTerrain.is_reserve(sense.layout, cell):
-			a.s32_work[0] = STOP_REST
-			a.f32_work[1] = BugBehavior.center_y(sense, a.pos, a.home.y) + BugTerrain.COLUMN_GX
+			_stop_state = STOP_REST
+			_perch_y = BugBehavior.center_y(sense, a.pos, a.home.y) + BugTerrain.COLUMN_GX
 			return true
 	if BugBehavior.wall_front(a, sense) or a.bg_on_ground:
-		a.s32_work[0] = STOP_COLLISION
+		_stop_state = STOP_COLLISION
 		return true
 	return false
 

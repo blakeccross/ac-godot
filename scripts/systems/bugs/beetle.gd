@@ -18,9 +18,11 @@ const VIB_SCARE := 150.0
 const MAX_PATIENCE := 90.0
 
 var _placed: bool = false
-## Ticks of the shuffle's pause (`s32_work0`) and of holding each side (`s32_work2`).
+## Ticks of the shuffle's pause (`s32_work0`) and of holding each side (`s32_work2`), and
+## the sways left in this shuffle (`s32_work1`).
 var _pause_left: float = 0.0
 var _hold_left: float = 0.0
+var _sways_left: int = 0
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -40,7 +42,6 @@ func actor_init(a: BugActor, released: bool) -> void:
 		a.rot.x = PI * 0.5           ## `shape_info.rotation.x = 90°`
 		a.rot.y = -BugActor.TREE_FACE_YAW
 		a.angle_y = 0.0  ## `world.angle.y` keeps its spawn 0: netted from the south side
-		a.s32_work[3] = 0
 		setup_action(a, WAIT)
 	else:
 		_placed = true
@@ -106,14 +107,14 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	## `aIKB_wait` leg-shuffle: chase ±4.2° a few times, hold 30 ticks, pause 20–40.
 	if _pause_left <= 0.0:
 		## `angle_table[timer1 & 1]`: +175.78125°, −175.78125°.
-		var target: float = (PI - SWAY) if (a.s32_work[1] & 1) == 0 else (-PI + SWAY)
+		var target: float = (PI - SWAY) if (_sways_left & 1) == 0 else (-PI + SWAY)
 		a.rot.y = BugBehavior.chase_angle(a.rot.y, target, 128 * MathUtil.S16, a.n)
 		if _hold_left <= 0.0:
-			if a.s32_work[1] == 0:
+			if _sways_left == 0:
 				_pause_left = (10.0 + a._rng.randf() * 10.0) * 2.0
-				a.s32_work[1] = 3 + a._rng.randi_range(0, 1)
+				_sways_left = 3 + a._rng.randi_range(0, 1)
 			else:
-				a.s32_work[1] -= 1
+				_sways_left -= 1
 			_hold_left += 30.0
 		else:
 			_hold_left -= a.n

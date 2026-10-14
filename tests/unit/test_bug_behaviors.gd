@@ -449,7 +449,7 @@ func test_dragonfly_cruises_at_its_hover_height_and_stops_to_turn() -> void:
 			waited = true
 	assert_bool(waited).is_true()
 	assert_float(a.pos.y).is_between(40.0, 75.0)
-	assert_float(a.f32_work[0]).is_between(52.0, 62.0)
+	assert_float((a.behavior as Dragonfly).hover_height).is_between(52.0, 62.0)
 
 
 func test_dragonfly_turns_back_toward_the_acre_centre_past_240_gx() -> void:
@@ -571,7 +571,7 @@ func test_firefly_hovers_seventy_gx_over_the_ground() -> void:
 
 func test_stressed_firefly_veers_away_from_the_player() -> void:
 	var a := _make(&"firefly", BugData.Habitat.NEAR_WATER, Vector3(0.0, 0.0, 0.0))
-	a.f32_work[0] = a.pos.x + 100.0  ## a far target so the steering branch runs
+	(a.behavior as Firefly).target.x = a.pos.x + 100.0  ## a far target so the steering branch runs
 	a.patience = 95.0
 	var s := BugActor.Sense.new()
 	s.player_position = a.position + Vector3(0.0, 0.0, 2.0)  ## player due south
@@ -582,7 +582,7 @@ func test_stressed_firefly_veers_away_from_the_player() -> void:
 	assert_int(a.flag).is_equal(1)
 	## Target heading is `player_angle_y + 180°`, straight away from the player.
 	var away: float = BugBehavior.angle_to(s.player_position / BugActor.GX_M, a.pos)
-	assert_float(absf(angle_difference(a.s32_work[1] * MathUtil.S16, away))).is_less(deg_to_rad(2.0))
+	assert_float(absf(angle_difference((a.behavior as Firefly).target_yaw, away))).is_less(deg_to_rad(2.0))
 	assert_float(a.player_distance_xz).is_greater(60.0)
 
 
@@ -730,15 +730,15 @@ func test_wisp_floats_forty_over_the_ground_and_flips_its_turn_heading_out() -> 
 	## 260 GX west of the acre centre (x 320): heading straight away flips its turn…
 	a.pos = Vector3(60.0, a.pos.y, 320.0)
 	a.angle_y = -PI * 0.5
-	a.s32_work[1] = 40
+	(a.behavior as WispSpirit).turn_rate = 40
 	a.advance(DecompTime.TICK_SEC, s)
-	assert_int(a.s32_work[1]).is_less(0)
+	assert_int((a.behavior as WispSpirit).turn_rate).is_less(0)
 	## …heading back in does not.
 	a.pos = Vector3(60.0, a.pos.y, 320.0)
 	a.angle_y = PI * 0.5
-	a.s32_work[1] = 40
+	(a.behavior as WispSpirit).turn_rate = 40
 	a.advance(DecompTime.TICK_SEC, s)
-	assert_int(a.s32_work[1]).is_equal(40)
+	assert_int((a.behavior as WispSpirit).turn_rate).is_equal(40)
 
 
 func test_released_insect_heads_the_way_the_player_faces() -> void:

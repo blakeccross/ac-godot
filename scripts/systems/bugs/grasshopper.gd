@@ -29,6 +29,9 @@ const ACTIVE_RANGE_SQ := 57600.0
 var _range_sense: BugActor.Sense = null
 
 
+## Headings tried for a clear landing spot, each over a wider arc (`s32_work0`).
+var _turn_tries: int = 0
+
 func actor_init(a: BugActor, released: bool) -> void:
 	a.gravity = 0.2
 	a.max_velocity_y = -20.0
@@ -70,7 +73,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			_let_escape_init(a)
 		CHANGE_DIRECTION:
 			a.action_proc = _chg_direction
-			a.s32_work[0] = 0
+			_turn_tries = 0
 			a.anim_frame = 0.0
 			a.speed = 0.0
 		WAIT:
@@ -144,7 +147,7 @@ func _chg_direction(a: BugActor, sense: BugActor.Sense) -> void:
 		a.angle_y = float(back[1])
 		setup_action(a, WAIT)
 		return
-	var idx: int = clampi(a.s32_work[0], 0, TURN_RANGE.size() - 1)
+	var idx: int = clampi(_turn_tries, 0, TURN_RANGE.size() - 1)
 	var ang: float = a.rot.y + PI + TURN_RANGE[idx] * MathUtil.S16 * a._rng.randf_range(-1.0, 1.0)
 	var mod: float = 218.0 if a.type == T_MIGRATORY_LOCUST else 53.0
 	var probe: Vector3 = a.pos + Vector3(sin(ang) * mod, 0.0, cos(ang) * mod)
@@ -159,8 +162,8 @@ func _chg_direction(a: BugActor, sense: BugActor.Sense) -> void:
 		a.angle_y = ang
 		setup_action(a, WAIT)
 	else:
-		a.s32_work[0] += 1
-		if a.s32_work[0] > 15:
+		_turn_tries += 1
+		if _turn_tries > 15:
 			setup_action(a, WAIT)
 
 

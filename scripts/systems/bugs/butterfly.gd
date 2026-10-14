@@ -4,7 +4,7 @@ extends BugBehavior
 ## `ac_ins_chou.c` — butterflies (common / yellow / tiger / purple).
 ## Actions: AVOID, LET_ESCAPE, FLY, LANDING, HOVER, REST.
 ##
-## FLY loops a 20 GX square around a patrol point (`f32_work0/1`) about 30 GX over the
+## FLY loops a 20 GX square around a patrol point about 30 GX over the
 ## ground (tiger 40, purple 50), bobbing: under that height it kicks `pos_speed.y` to 2–3,
 ## otherwise it sinks at up to 2. Every lap the patrol point may hop to a neighbouring
 ## unit (`flower_search`). A common / yellow / tiger butterfly flying over a white-pansy
@@ -35,6 +35,15 @@ var _s: BugActor.Sense = null
 var _unit_resolved: bool = false
 
 
+## The unit it patrols (`s32_work1/2`) and the patrol point there (`f32_work0/1`, GX x and z),
+## the corner of its square it is flying to (`s32_work0`), ticks before a wall can turn it
+## again (`f32_work2`) and the landing cooldown (`f32_work3`, 120 down by 0.5 a tick).
+var _unit: Vector2i = Vector2i.ZERO
+var _patrol: Vector2 = Vector2.ZERO
+var _corner: int = 0
+var _wall_cooldown: float = 0.0
+var _rest_cooldown: float = 0.0
+
 func actor_init(a: BugActor, released: bool) -> void:
 	a.terrain_mode = BugActor.TerrainMode.GROUND
 	match a.type:
@@ -48,8 +57,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 		a.pos.y = a.home.y - BIRTH_DEPTH
 		a.home = a.pos
 		var cell: Vector2i = BugBehavior.unit_of(null, a.pos)
-		a.s32_work[1] = cell.x
-		a.s32_work[2] = cell.y
+		_unit = cell
 		setup_action(a, FLY)
 	else:
 		setup_action(a, LET_ESCAPE)
@@ -117,12 +125,11 @@ func _fly_init(a: BugActor, sense: BugActor.Sense) -> void:
 	a.max_velocity_y = -2.0
 	a.target_speed = 2.0
 	a.speed_step = 0.2
-	a.s32_work[0] = 0
-	a.flag = 0  ## `s32_work3`: the lap corner latch (the unit lives in s32_work1/2)
-	a.f32_work[0] = a.pos.x
-	a.f32_work[1] = a.pos.z
-	a.f32_work[2] = 0.0
-	a.f32_work[3] = 120.0
+	_corner = 0
+	a.flag = 0  ## `s32_work3`: the lap corner latch
+	_patrol = Vector2(a.pos.x, a.pos.z)
+	_wall_cooldown = 0.0
+	_rest_cooldown = 120.0
 	_flower_search(a, sense)
 
 
@@ -134,8 +141,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 		## The spawn unit was taken before the field grid was known.
 		_unit_resolved = true
 		var cell: Vector2i = BugBehavior.unit_of(sense, a.home)
-		a.s32_work[1] = cell.x
-		a.s32_work[2] = cell.y
+		_unit = cell
 	if a.caught:
 		a.opacity = 255
 		_anime(a)
@@ -193,7 +199,7 @@ func _landing(a: BugActor, sense: BugActor.Sense) -> void:
 		setup_action(a, next)
 		return
 	## Settle on a corner of the flower unit, a little under flight height.
-	var target: Vector3 = BugBehavior.unit_center(sense, Vector2i(a.s32_work[1], a.s32_work[2]))
+	var target: Vector3 = BugBehavior.unit_center(sense, _unit)
 	var off: Vector3 = REST_WAIT[a.light_flag]
 	target.x += off.x
 	target.z += off.z
@@ -237,8 +243,7 @@ func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 	_avoid_move_ctrl(a, sense)
 	if a.patience < 70.0:
 		var cell: Vector2i = BugBehavior.unit_of(sense, a.pos)
-		a.s32_work[1] = cell.x
-		a.s32_work[2] = cell.y
+		_unit = cell
 		setup_action(a, FLY)
 
 
@@ -278,9 +283,9 @@ func _ground_y_gx(a: BugActor, sense: BugActor.Sense) -> float:
 ## `aICH_loop_move_ctrl`: steer round the four corners of a 20 GX square about the patrol
 ## point, tighter (0x800) inside 15 GX of the corner; every full lap, `flower_search`.
 func _loop_move_ctrl(a: BugActor, sense: BugActor.Sense) -> void:
-	var idx: int = a.s32_work[0]
-	var x: float = a.pos.x - (a.f32_work[0] + PT_X[idx])
-	var z: float = a.pos.z - (a.f32_work[1] + PT_Z[idx])
+	var idx: int = _corner
+	var x: float = a.pos.x - (_patrol.x + PT_X[idx])
+	var z: float = a.pos.z - (_patrol.y + PT_Z[idx])
 	var sq: float = sqrt(x * x + z * z)
 	var ang: float = BugBehavior.atans(-z, -x)
 	var step: float = (0x800 if sq < 15.0 else 0x400) * MathUtil.S16
@@ -289,9 +294,9 @@ func _loop_move_ctrl(a: BugActor, sense: BugActor.Sense) -> void:
 	if x * CHK_X[idx] < 0.0 or z * CHK_Z[idx] < 0.0:
 		if a.flag == 0:
 			a.flag = 1
-			a.s32_work[0] += 1
-			if a.s32_work[0] > 3:
-				a.s32_work[0] = 0
+			_corner += 1
+			if _corner > 3:
+				_corner = 0
 				_flower_search(a, sense)
 	else:
 		a.flag = 0
@@ -315,7 +320,7 @@ func _flower_search(a: BugActor, sense: BugActor.Sense) -> void:
 ## inner 14×14; with `type != 0` the unit must take an NPC (`mFI_CheckFGNpcOn`: empty,
 ## flower, grass, sapling, item) and sit less than 20 GX above the butterfly.
 func _flower_search_sub(a: BugActor, sense: BugActor.Sense, type: int) -> bool:
-	var home_cell := Vector2i(a.s32_work[1], a.s32_work[2])
+	var home_cell := _unit
 	var home_in: Vector2i = BugBehavior.unit_in_block(home_cell)
 	var step: int = 2 if type == 2 else 1
 	var dx: int = (a._rng.randi_range(0, 2) - 1) * step
@@ -332,25 +337,23 @@ func _flower_search_sub(a: BugActor, sense: BugActor.Sense, type: int) -> bool:
 	var center: Vector3 = BugBehavior.unit_center(sense, cell)
 	center.y = BugBehavior.center_y(sense, center, a.home.y)
 	if center.y - a.pos.y < 20.0:
-		a.s32_work[1] = cell.x
-		a.s32_work[2] = cell.y
-		a.f32_work[0] = center.x
-		a.f32_work[1] = center.z
+		_unit = cell
+		_patrol = Vector2(center.x, center.z)
 		return true
 	if type != 2:
 		return _flower_search_sub(a, sense, 2)
 	return false
 
 
-## `aICH_rest_check`: after a 240-frame cooldown (`f32_work3` 120 − 0.5/frame), land when
+## `aICH_rest_check`: after a 240-frame cooldown (`f32_work3`: 120 − 0.5 a frame), land when
 ## the unit below is a white pansy (`FLOWER_PANSIES0`).
 func _rest_check(a: BugActor, sense: BugActor.Sense) -> void:
-	if is_zero_approx(a.f32_work[3]):
+	if is_zero_approx(_rest_cooldown):
 		if sense != null and sense.layout != null:
 			if BugTerrain.is_pansy0(sense.layout, BugBehavior.unit_of(sense, a.pos)):
 				setup_action(a, LANDING)
 	else:
-		a.f32_work[3] = maxf(a.f32_work[3] - 0.5 * a.n, 0.0)
+		_rest_cooldown = maxf(_rest_cooldown - 0.5 * a.n, 0.0)
 
 
 ## The flutter: a 10 GX sine on a phase that turns 0x800 a tick, its rise a tick added to the
@@ -365,11 +368,11 @@ func _chou_fuwafuwa(a: BugActor) -> void:
 ## `aICH_BGcheck`: a front wall retargets the patrol unit (tiger / purple anywhere, the
 ## others only onto open units), then waits 10 frames before trying again.
 func _bg_wall_check(a: BugActor, sense: BugActor.Sense) -> void:
-	if a.f32_work[2] <= 0.0 and BugBehavior.wall_front(a, sense):
+	if _wall_cooldown <= 0.0 and BugBehavior.wall_front(a, sense):
 		var type: int = 0 if (a.type == T_TIGER_BUTTERFLY or a.type == T_PURPLE_BUTTERFLY) else 1
 		if _flower_search_sub(a, sense, type):
-			a.f32_work[2] = 10.0
-	a.f32_work[2] = maxf(a.f32_work[2] - a.n, 0.0)
+			_wall_cooldown = 10.0
+	_wall_cooldown = maxf(_wall_cooldown - a.n, 0.0)
 
 
 ## `aICH_avoid_player`: straight away from the player, swinging ±22.5° every 32 frames.

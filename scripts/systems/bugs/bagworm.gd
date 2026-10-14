@@ -21,6 +21,15 @@ const SHAKE_ARM := 50.0
 var _tree_cell: Vector2i = Vector2i(-1, -1)
 
 
+## How far down its thread it hangs (`f32_work0`, GX) from the thread's base Z (`f32_work3`).
+var _thread_length: float = 0.0
+var _thread_base_z: float = 0.0
+## The shake's pendulum: its pivot (`f32_work1/2`, GX x and y), its swing speed and the
+## swing it eases toward (`s32_work0` / `s32_work3`, s16).
+var _pivot: Vector2 = Vector2.ZERO
+var _swing_speed: int = 0
+var _swing_target: int = 0
+
 func actor_init(a: BugActor, released: bool) -> void:
 	a.bg_range = 4.0
 	a.wall_check = false
@@ -32,7 +41,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 		a.rot.y = BugActor.TREE_FACE_YAW
 		a.angle_y = a.rot.y
 		a.home = a.pos
-		a.f32_work[3] = a.pos.z - 25.0     ## base Z
+		_thread_base_z = a.pos.z - 25.0
 		a.drawn = false
 		setup_action(a, HIDE)
 	else:
@@ -59,9 +68,9 @@ func on_release(a: BugActor) -> void:
 func _position_move(a: BugActor) -> void:
 	a.last_pos = a.pos
 	a.speed = BugBehavior.chase_f(a.speed, a.target_speed, a.speed_step * 0.5 * a.n)
-	a.f32_work[0] += a.speed * 0.5 * a.n     ## counter (along the thread, `world.angle.x`)
-	a.pos.y = a.home.y + cos(THREAD_PITCH) * a.f32_work[0]
-	a.pos.z = a.f32_work[3] - sin(THREAD_PITCH) * a.f32_work[0]
+	_thread_length += a.speed * 0.5 * a.n  ## along the thread (`world.angle.x`)
+	a.pos.y = a.home.y + cos(THREAD_PITCH) * _thread_length
+	a.pos.z = _thread_base_z - sin(THREAD_PITCH) * _thread_length
 
 
 # ---- setupAction --------------------------------------------------
@@ -138,7 +147,7 @@ func _hide_init(a: BugActor) -> void:
 	a.target_speed = 0.0
 	a.speed_step = 0.0
 	a.pos.y = a.home.y
-	a.f32_work[0] = 0.0
+	_thread_length = 0.0
 	a.anim_frame = 1.0
 	a.drawn = false
 	a.catchable = false
@@ -150,15 +159,15 @@ func _appear_init(a: BugActor) -> void:
 		if a.player_pos.x < a.home.x:
 			a.pos.x = a.home.x + 30.0
 			a.pos.z = a.home.z - 18.0
-			a.f32_work[0] = 0.0
+			_thread_length = 0.0
 			a.flag = 0
 		else:
 			a.pos.x = a.home.x - 30.0
 			a.pos.z = a.home.z - 25.0
 			a.pos.y = a.home.y - 6.0
-			a.f32_work[0] = -6.0
+			_thread_length = -6.0
 			a.flag = 1
-	a.f32_work[3] = a.pos.z
+	_thread_base_z = a.pos.z
 	a.speed = 0.0
 	a.target_speed = -20.0
 	a.speed_step = 2.0
@@ -171,8 +180,7 @@ func _wait_init(a: BugActor) -> void:
 	a.speed = 0.0
 	a.target_speed = 0.0
 	a.speed_step = 0.0
-	a.f32_work[1] = a.pos.x
-	a.f32_work[2] = a.pos.y
+	_pivot = Vector2(a.pos.x, a.pos.y)
 
 
 func _dive_init(a: BugActor) -> void:
@@ -218,7 +226,7 @@ func _appear(a: BugActor, sense: BugActor.Sense) -> void:
 	if _tree_cut(a, sense):
 		setup_action(a, FALL)
 		return
-	if a.f32_work[0] < MOVE_RANGE[a.flag]:
+	if _thread_length < MOVE_RANGE[a.flag]:
 		if a.target_speed < 0.0 and a.speed < 0.0:
 			if a.speed > -2.0:
 				setup_action(a, APPEAR_STOP)
@@ -245,11 +253,11 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 		setup_action(a, FALL)
 		return
 	if _shaken(a, sense):
-		a.s32_work[0] = 0x80
-		a.s32_work[3] = -0x80
+		_swing_speed = 0x80
+		_swing_target = -0x80
 	a.timer -= a.n
 	if a.timer <= 0.0:
-		if a.s32_work[3] == 0:
+		if _swing_target == 0:
 			setup_action(a, DISAPPEAR)
 		else:
 			a.timer = 0.0
@@ -301,21 +309,21 @@ func _twist(a: BugActor) -> void:
 ## arm: x = pivot − 50·sin(yaw), y = pivot + 50 + 50·cos(yaw).
 func _shake_angle(a: BugActor) -> void:
 	var ang: int = _s16(roundi(a.rot.y / MathUtil.S16))
-	var cur: int = a.s32_work[0]
-	var tgt: int = a.s32_work[3]
+	var cur: int = _swing_speed
+	var tgt: int = _swing_target
 	if tgt * ang < 0:
 		tgt = int(-(tgt * 0.5))
 		if absi(tgt) < 16:
 			tgt = 0
 			cur = 0
 			ang = -0x8000
-		a.s32_work[3] = tgt
+		_swing_target = tgt
 	cur = roundi(BugBehavior.chase_angle(cur * MathUtil.S16, tgt * MathUtil.S16, 16 * MathUtil.S16, a.n) / MathUtil.S16)
-	a.s32_work[0] = cur
+	_swing_speed = cur
 	ang = _s16(ang + roundi(cur * 0.5 * a.n))
 	a.rot.y = ang * MathUtil.S16
-	a.pos.x = a.f32_work[1] - SHAKE_ARM * sin(a.rot.y)
-	a.pos.y = a.f32_work[2] + SHAKE_ARM + SHAKE_ARM * cos(a.rot.y)
+	a.pos.x = _pivot.x - SHAKE_ARM * sin(a.rot.y)
+	a.pos.y = _pivot.y + SHAKE_ARM + SHAKE_ARM * cos(a.rot.y)
 
 
 static func _s16(v: int) -> int:

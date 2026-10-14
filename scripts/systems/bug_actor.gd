@@ -2,8 +2,8 @@ class_name BugActor
 extends RefCounted
 
 ## One live insect — the `aINS_INSECT_ACTOR` analog. `BugActor` holds the generic
-## actor state (the struct's `s32_work*` / `f32_work*` / `timer` / `flag` scratch
-## included) and runs the shared per-frame framework from `ac_insect_move.c_inc`
+## actor state (with the struct's `timer` / `flag` scratch; each behavior keeps what the
+## decomp held in `s32_work*` / `f32_work*` as its own named fields) and runs the shared per-frame framework from `ac_insect_move.c_inc`
 ## (`aINS_position_move`, `aINS_calc_patience`, `aINS_calc_life_time`,
 ## `aINS_calc_alpha_time`, catch-range register, cull flagging). All species
 ## behaviour lives in a `BugBehavior` (`scripts/systems/bugs/`) reached via
@@ -142,8 +142,6 @@ var alpha_time: float = 0.0
 var timer: float = 0.0
 var continue_timer: float = 0.0
 var flag: int = 0
-var s32_work: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
-var f32_work: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
 var anim_frame: float = 0.0  ## `_1E0`
 var prev_anim_frame: float = 0.0  ## `_1E4`
 var light_flag: int = 0
@@ -207,6 +205,9 @@ var drawn: bool = true         ## `actor->drawn` — MINO hides in the tree
 var move_proc: Callable = Callable()
 
 var _prog: BugBehavior = null
+## The species behavior driving this insect.
+var behavior: BugBehavior:
+	get: return _prog
 var _rng: RandomNumberGenerator = null
 
 

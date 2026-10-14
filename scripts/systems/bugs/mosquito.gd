@@ -22,6 +22,12 @@ const BIT := 99
 var _waited: float = 0.0
 
 
+## The bob (`fuwafuwa`): its phase (s16, `s32_work0`), its height re-rolled at each crest
+## (`f32_work0`, GX) and the climb under it (`f32_work1`, GX a frame).
+var _bob_phase: int = 0
+var _bob_height: float = 0.0
+var _climb: float = 0.0
+
 func actor_init(a: BugActor, released: bool) -> void:
 	a.bg_range = 6.0
 	a.bg_height = -14.0
@@ -57,7 +63,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.max_velocity_y = 12.0
 			a.speed = 4.0
 			a.rot.x = 0.0
-			a.f32_work[1] = a.pos_speed.y
+			_climb = a.pos_speed.y
 			if BugBehavior.heading_from_player_facing(a, deg_to_rad(120.0)):
 				a.rot.y = a.angle_y
 			a.catchable = false
@@ -98,15 +104,15 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 func _fuwafuwa(a: BugActor) -> void:
 	## A sine bob of 10–20 GX amplitude (re-rolled at each crest) on top of a chased climb;
 	## the phase turns 0x180 a tick.
-	var ang: int = a.s32_work[0]
+	var ang: int = _bob_phase
 	var na: int = ang + roundi(0x180 * a.n)
-	var last: float = a.f32_work[0] * sin(ang * MathUtil.S16)
-	a.s32_work[0] = na & 0xFFFF
+	var last: float = _bob_height * sin(ang * MathUtil.S16)
+	_bob_phase = na & 0xFFFF
 	if (na & 0x8000) != 0 and (ang & 0x8000) == 0:
-		a.f32_work[0] = 10.0 + a._rng.randf() * 10.0
-	var now: float = a.f32_work[0] * sin(na * MathUtil.S16)
-	a.f32_work[1] = BugBehavior.chase_f(a.f32_work[1], a.max_velocity_y, a.gravity * 0.5 * a.n)
-	a.pos_speed.y = a.f32_work[1] + (now - last) / maxf(a.n, 0.0001)
+		_bob_height = 10.0 + a._rng.randf() * 10.0
+	var now: float = _bob_height * sin(na * MathUtil.S16)
+	_climb = BugBehavior.chase_f(_climb, a.max_velocity_y, a.gravity * 0.5 * a.n)
+	a.pos_speed.y = _climb + (now - last) / maxf(a.n, 0.0001)
 
 
 ## `aIKA_check_condition`: the player is in the mosquito's acre and within 60 GX of its

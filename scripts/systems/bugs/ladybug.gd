@@ -28,6 +28,9 @@ const REF_ANGL := [
 var _turn_delay: float = 0.0
 
 
+## The heading it walks toward on its flower (`s32_work1`), radians.
+var target_yaw: float = 0.0
+
 func actor_init(a: BugActor, released: bool) -> void:
 	a.terrain_mode = BugActor.TerrainMode.GROUND
 	match a.type:
@@ -162,14 +165,14 @@ func _move(a: BugActor, sense: BugActor.Sense) -> void:
 			collision |= 8
 	a.pos.y = BugBehavior.center_y(sense, a.pos, a.home.y - FLOWER_Y) + FLOWER_Y
 	if collision != 0:
-		a.s32_work[1] = int(REF_ANGL[collision] / MathUtil.S16)
+		target_yaw = REF_ANGL[collision]
 		_turn_delay = 10.0
 		a.speed_step = 0.0
 		a.speed = 0.0
-	elif BugBehavior.angle_reached(a.angle_y, a.s32_work[1] * MathUtil.S16):
-		a.s32_work[1] = int(a.angle_y / MathUtil.S16) + int(a._rng.randf_range(-1.0, 1.0) * deg_to_rad(90.0) / MathUtil.S16)
+	elif BugBehavior.angle_reached(a.angle_y, target_yaw):
+		target_yaw = a.angle_y + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(90.0)
 	var step: float = (0x180 if a.type == T_SNAIL else 0x600) * MathUtil.S16
-	a.angle_y = BugBehavior.chase_angle(a.angle_y, a.s32_work[1] * MathUtil.S16, step, a.n)
+	a.angle_y = BugBehavior.chase_angle(a.angle_y, target_yaw, step, a.n)
 	a.rot.y = a.angle_y
 	if _turn_delay <= 0.0:
 		a.speed_step = 0.1

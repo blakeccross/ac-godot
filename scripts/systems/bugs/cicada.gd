@@ -19,6 +19,8 @@ const CRY_TIMER := 60
 const CRY_SE: Array[int] = [0x9B, 0x9A, 0x98, 0x97]
 
 var _placed: bool = false
+## `aISM_IS_CAUGHT` (`s32_work0`): a net stopped on it, so it no longer cries.
+var _netted: bool = false
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -103,8 +105,7 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 			a.one_shot_sounds.append(&"semi_escape")
 		setup_action(a, AVOID)
 		return
-	## `aISM_IS_CAUGHT` (`s32_work0`): a net stopped on this cicada silences it.
-	if a.type == T_BEE or a.s32_work[0] != 0:
+	if a.type == T_BEE or _netted:
 		return
 	if a.patience < 50.0:
 		a.timer -= a.n
@@ -145,6 +146,6 @@ func _net_scare(a: BugActor, sense: BugActor.Sense) -> bool:
 	if net == Vector3.INF:
 		return false
 	if a.caught:
-		a.s32_work[0] = 1
+		_netted = true
 		return false
 	return BugBehavior.near_xz(a, net, NET_SCARE)
