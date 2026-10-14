@@ -1,9 +1,10 @@
 class_name TrainControl
 extends RefCounted
 
-## The town train's schedule and motion (`m_train_control.c`). Pure state, stepped once per decomp
-## play frame (`mTRC_move`, 60 Hz — `x += 0.5 · speed` is the "30fps -> 60fps" step); positions
-## are absolute decomp GX on the rail row. The presentation (`FieldTrain`) and the sound (`TrainService`) read it.
+## The town train's schedule and motion (`m_train_control.c`). Pure state, advanced by `delta`
+## (`mTRC_move`); positions are absolute decomp GX on the rail row and `speed` is GX a second.
+## The decomp's speeds are GX per 1/30 s and its rates per 1/60 s tick; each constant converts
+## where it is written. The presentation (`FieldTrain`) and the sound (`TrainService`) read it.
 ##
 ## Every hour the train enters from the west edge at full speed, slows from block 2, stops at
 ## the station, waits, then pulls out and leaves east. It is due to leave the far edge at
@@ -24,7 +25,7 @@ enum Action {
 	SPEED_UP,
 }
 
-## `mTRC_KishaStatusTrg` states (−1 = no change this tick).
+## `mTRC_KishaStatusTrg` states (−1 = no change this step).
 const STATE_NONE := -1
 const STATE_DEMO := 0
 const STATE_APPROACH := 1
@@ -32,13 +33,19 @@ const STATE_STOPPED := 2
 const STATE_PULL_OUT := 3
 const STATE_GONE := 4
 
-## GAFE01_00 values (`m_train_control.h`, the `#else` branch).
-const SLOW_SPEED := 2.0
-const FAST_SPEED := 6.0
-const SLOW_RATE := 0.01
-const STOP_RATE := 0.005
-const START_RATE := 0.00345
-const SPEEDUP_RATE := 0.00345
+## One GX per 1/30 s, in GX a second; and a per-tick change of that, in GX a second².
+const PER_FRAME := DecompTime.FRAME_HZ
+const PER_TICK_RATE := DecompTime.FRAME_HZ * DecompTime.TICK_HZ
+## GAFE01_00 values (`m_train_control.h`, the `#else` branch): speeds 2 and 6, eased at
+## 0.01 / 0.005 / 0.00345 a tick.
+const SLOW_SPEED := 2.0 * PER_FRAME
+const FAST_SPEED := 6.0 * PER_FRAME
+const SLOW_RATE := 0.01 * PER_TICK_RATE
+const STOP_RATE := 0.005 * PER_TICK_RATE
+const START_RATE := 0.00345 * PER_TICK_RATE
+const SPEEDUP_RATE := 0.00345 * PER_TICK_RATE
+## `fabsf(speed) < 0.008`: stopped.
+const STOPPED_BELOW := 0.008 * PER_FRAME
 
 const RAIL_Z_GX := 740.0
 const BLOCK_GX := 640.0
@@ -53,9 +60,10 @@ const STOP_FROM_X_GX := 2165.0
 const EXIT_X_GX := 4400.0
 ## `TRAIN1` stands 250 behind the locomotive (`mTRC_trainSet`).
 const CABOOSE_BACK_GX := 250.0
-const STOPPED_SIGNAL_TICKS := 48
-const STARTING_SIGNAL_TICKS := 84
-const PULL_OUT_TICKS := 180
+## The signal and pull-out timers: 48, 84 and 180 ticks.
+const STOPPED_SIGNAL_TIME := 48.0 / DecompTime.TICK_HZ
+const STARTING_SIGNAL_TIME := 84.0 / DecompTime.TICK_HZ
+const PULL_OUT_TIME := 180.0 / DecompTime.TICK_HZ
 ## `mTRC_ACTION_SIGNAL_STOPPED` → `start_timer += 310`: how long the train stands.
 const DWELL_SEC := 310
 ## `mTRC_get_depart_time`: due at the far edge at hh:19, entry 4:10 earlier.
@@ -66,7 +74,8 @@ const DAY_SEC := 86400
 var action: Action = Action.NONE
 var speed: float = 0.0
 var x_gx: float = 0.0
-var timer: int = 0
+## Seconds left on the current signal or pull-out.
+var timer: float = 0.0
 var start_timer: int = 0
 var signal_on: bool = false
 var control_state: int = 0
@@ -79,7 +88,7 @@ func init(now_sec: int, today: int) -> void:
 	action = Action.NONE
 	speed = 0.0
 	x_gx = 0.0
-	timer = 0
+	timer = 0.0
 	signal_on = false
 	control_state = 0
 	last_control_state = 0
@@ -136,12 +145,12 @@ func caboose_x_gx() -> float:
 	return x_gx - CABOOSE_BACK_GX
 
 
-## One `mTRC_move` tick. `arbeit`: the first job is running (`mEv_CheckArbeit`), which holds
-## the timetable. `parked_demo`: title demo 1 (`mEv_TITLEDEMO_START1`). `coming_demo`:
-## `train_coming_flag == 3` this tick (consumed by the caller). Returns the
-## `KishaStatusTrg` state raised this tick, or `STATE_NONE`.
-func step(
-	now_sec: int, today: int, arbeit: bool = false, parked_demo: bool = false, coming_demo: bool = false
+## `delta` seconds of `mTRC_move`. `arbeit`: the first job is running (`mEv_CheckArbeit`),
+## which holds the timetable. `parked_demo`: title demo 1 (`mEv_TITLEDEMO_START1`).
+## `coming_demo`: `train_coming_flag == 3` now (consumed by the caller). Returns the
+## `KishaStatusTrg` state raised, or `STATE_NONE`.
+func advance(
+	delta: float, now_sec: int, today: int, arbeit: bool = false, parked_demo: bool = false, coming_demo: bool = false
 ) -> int:
 	var state: int = STATE_NONE
 	if coming_demo:
@@ -153,39 +162,54 @@ func step(
 	elif action == Action.NONE and not arbeit and now_sec >= start_timer:
 		_norm_init()
 		state = STATE_APPROACH
-	return _control(now_sec, today, state)
+	return _control(delta, now_sec, today, state)
 
 
 ## `mTRC_trainControl`.
-func _control(now_sec: int, today: int, state: int) -> int:
+func _control(delta: float, now_sec: int, today: int, state: int) -> int:
 	if day != today:
 		if start_timer >= DAY_SEC:
 			start_timer -= DAY_SEC
 		day = today
+	## Speed at the start of the step; a speed that jumps (rather than eases) resets it, so
+	## the move below uses the new speed for the whole step.
+	var was: float = speed
 	match action:
 		Action.SPAWN_MOVING:
 			speed = FAST_SPEED
+			was = speed
 			if int(x_gx / BLOCK_GX) >= 2:
 				action = Action.BEGIN_SLOWDOWN
 		Action.BEGIN_SLOWDOWN:
-			speed = chase(speed, SLOW_SPEED, SLOW_RATE)
+			speed = move_toward(speed, SLOW_SPEED, SLOW_RATE * delta)
+			var average: float = (was + speed) * 0.5
 			if x_gx > STOP_FROM_X_GX:
 				action = Action.BEGIN_STOP
 				speed = SLOW_SPEED
+				was = speed
+			elif average > 0.0 and x_gx + average * delta > STOP_FROM_X_GX:
+				## Passes the stop trigger this step: brake from the moment it does, so the
+				## train stands at the same place whatever the frame rate.
+				var to_trigger: float = (STOP_FROM_X_GX - x_gx) / average
+				x_gx = STOP_FROM_X_GX
+				action = Action.BEGIN_STOP
+				speed = SLOW_SPEED
+				return _control(delta - to_trigger, now_sec, today, state)
 		Action.BEGIN_STOP:
-			speed = chase(speed, 0.0, STOP_RATE)
-			if absf(speed) < 0.008:
+			speed = move_toward(speed, 0.0, STOP_RATE * delta)
+			if absf(speed) < STOPPED_BELOW:
 				signal_on = true
-				timer = STOPPED_SIGNAL_TICKS
+				timer = STOPPED_SIGNAL_TIME
 				action = Action.SIGNAL_STOPPED
 				state = STATE_STOPPED
 				speed = 0.0
+				was = 0.0
 		Action.SIGNAL_STOPPED:
-			if timer == 0:
+			if timer <= 0.0:
 				action = Action.WAIT_STOPPED
 				start_timer += DWELL_SEC
 			else:
-				timer -= 1
+				timer -= delta
 		Action.WAIT_STOPPED:
 			if control_state != last_control_state:
 				control_state = last_control_state
@@ -193,30 +217,36 @@ func _control(now_sec: int, today: int, state: int) -> int:
 			elif control_state == 0 and now_sec >= start_timer:
 				signal_on = false
 			if not signal_on:
-				timer = STARTING_SIGNAL_TICKS
+				timer = STARTING_SIGNAL_TIME
 				action = Action.SIGNAL_STARTING
 		Action.SIGNAL_STARTING:
-			if timer == 0:
-				timer = PULL_OUT_TICKS
+			if timer <= 0.0:
+				timer = PULL_OUT_TIME
 				action = Action.BEGIN_PULL_OUT
 				state = STATE_PULL_OUT
 			else:
-				timer -= 1
+				timer -= delta
 		Action.BEGIN_PULL_OUT:
-			speed = chase(speed, SLOW_SPEED, START_RATE)
-			if timer == 0:
+			speed = move_toward(speed, SLOW_SPEED, START_RATE * delta)
+			if timer <= 0.0:
 				action = Action.SPEED_UP
 			else:
-				timer -= 1
+				timer -= delta
 		Action.SPEED_UP:
-			speed = chase(speed, FAST_SPEED, SPEEDUP_RATE)
+			speed = move_toward(speed, FAST_SPEED, SPEEDUP_RATE * delta)
 			if x_gx > EXIT_X_GX:
 				start_timer = depart_time(now_sec)
 				action = Action.NONE
 				state = STATE_GONE
 	if action != Action.NONE:
-		x_gx += 0.5 * speed
+		x_gx += (was + speed) * 0.5 * delta
 	return state
+
+
+## `speed` in the decomp's GX per 1/30 s, for the formulas written in it (wheel rate, smoke and
+## chuff spacing).
+func frame_speed() -> float:
+	return speed / PER_FRAME
 
 
 ## `mTRC_trainSet` / `aTRC_area_check`: the train actors exist only while the locomotive is
@@ -227,7 +257,3 @@ func in_area(player_block: Vector2i) -> bool:
 	var block := Vector2i(int(x_gx / BLOCK_GX), int(RAIL_Z_GX / BLOCK_GX))
 	return absi(block.x - player_block.x) < 2 and block.y == player_block.y
 
-
-## `chase_f`: step `value` toward `target` by `step`.
-static func chase(value: float, target: float, step: float) -> float:
-	return move_toward(value, target, absf(step))

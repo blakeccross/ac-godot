@@ -806,14 +806,14 @@ func _place_porter() -> void:
 
 ## Debug acre: `mTRC_move` + `aTR0` / `aTR1` actor moves on the bound car nodes.
 func _step_own_train() -> void:
-	_control.step(Clock.now_sec(), Clock.day)
+	_control.advance(DecompTime.TICK_SEC, Clock.now_sec(), Clock.day)
 	if _control.action == TrainControl.Action.NONE:
 		return
-	var door: Dictionary = _cars.step(_control.x_gx, _control.speed, _control.action, false)
+	var door: Dictionary = _cars.advance(DecompTime.TICK_SEC, _control.x_gx, _control.speed, _control.action, false)
 	if not door.is_empty():
 		FieldTrain.apply_door(_caboose_anim, door)
 	if _loco_anim != null:
-		_loco_anim.speed_scale = loco_wheel_speed_scale(_control.speed) * DecompTime.TICKS_PER_FRAME
+		_loco_anim.speed_scale = loco_wheel_speed_scale(_control.frame_speed()) * DecompTime.TICKS_PER_FRAME
 	_place_own_train()
 
 
@@ -859,7 +859,7 @@ func _start_loco_wheels() -> void:
 	if _loco_anim == null:
 		return
 	_play_clip(_loco_anim, LOCO_WHEEL_CLIP, true)
-	_loco_anim.speed_scale = loco_wheel_speed_scale(_control.speed) * DecompTime.TICKS_PER_FRAME
+	_loco_anim.speed_scale = loco_wheel_speed_scale(_control.frame_speed()) * DecompTime.TICKS_PER_FRAME
 
 
 func _set_arrive_camera() -> void:

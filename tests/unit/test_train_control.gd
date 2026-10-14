@@ -11,7 +11,7 @@ func _run_visit(control: TrainControl, start_sec: int) -> Array[Vector2i]:
 	var sec_accum: float = 0.0
 	var now: int = start_sec
 	for tick: int in int(DecompTime.TICK_HZ) * 60 * 20:
-		var state: int = control.step(now, 1)
+		var state: int = control.advance(DecompTime.TICK_SEC, now, 1)
 		if state != TrainControl.STATE_NONE:
 			raised.append(Vector2i(state, tick))
 			if state == TrainControl.STATE_GONE:
@@ -37,7 +37,7 @@ func test_departure_table_enters_four_ten_before_the_nineteen() -> void:
 func test_no_train_before_its_time() -> void:
 	var control := TrainControl.new()
 	control.init(10 * 3600, 1)
-	assert_int(control.step(10 * 3600 + 60, 1)).is_equal(TrainControl.STATE_NONE)
+	assert_int(control.advance(DecompTime.TICK_SEC, 10 * 3600 + 60, 1)).is_equal(TrainControl.STATE_NONE)
 	assert_bool(control.is_running()).is_false()
 
 
@@ -66,12 +66,27 @@ func test_the_train_stops_just_past_the_station_trigger() -> void:
 	var now: int = control.start_timer
 	var hz := int(DecompTime.TICK_HZ)
 	for tick: int in hz * 120:
-		if control.step(now + tick / hz, 1) == TrainControl.STATE_STOPPED:
+		if control.advance(DecompTime.TICK_SEC, now + tick / hz, 1) == TrainControl.STATE_STOPPED:
 			break
 	assert_int(control.action).is_equal(TrainControl.Action.SIGNAL_STOPPED)
 	assert_float(control.x_gx).is_greater(TrainControl.STOP_FROM_X_GX)
 	## It stops on the station acre (block 3).
 	assert_int(int(control.x_gx / TrainControl.BLOCK_GX)).is_equal(3)
+
+
+func test_the_train_stops_at_the_same_place_at_any_frame_rate() -> void:
+	var stops: Array[float] = []
+	for hz: float in [60.0, 15.0]:
+		var control := TrainControl.new()
+		control.init(10 * 3600, 1)
+		var elapsed := 0.0
+		while control.action != TrainControl.Action.SIGNAL_STOPPED and elapsed < 120.0:
+			control.advance(1.0 / hz, control.start_timer + int(elapsed), 1)
+			elapsed += 1.0 / hz
+		stops.append(control.x_gx)
+	## Braking starts exactly at the 2165 trigger, so only the last step's leftover speed
+	## (under 0.24 GX a second) differs.
+	assert_float(stops[1]).is_equal_approx(stops[0], 0.5)
 
 
 func test_the_train_waits_its_dwell_before_leaving() -> void:
@@ -87,7 +102,7 @@ func test_the_train_waits_its_dwell_before_leaving() -> void:
 func test_the_first_job_holds_the_timetable() -> void:
 	var control := TrainControl.new()
 	control.init(10 * 3600, 1)
-	assert_int(control.step(control.start_timer, 1, true)).is_equal(TrainControl.STATE_NONE)
+	assert_int(control.advance(DecompTime.TICK_SEC, control.start_timer, 1, true)).is_equal(TrainControl.STATE_NONE)
 	assert_bool(control.is_running()).is_false()
 
 
@@ -95,7 +110,7 @@ func test_title_demo_one_parks_and_never_leaves() -> void:
 	var control := TrainControl.new()
 	control.init(13 * 3600, 6)
 	for tick: int in 30 * 60 * 30:
-		assert_int(control.step(13 * 3600 + tick / int(DecompTime.TICK_HZ), 6, false, true)).is_equal(TrainControl.STATE_NONE)
+		assert_int(control.advance(DecompTime.TICK_SEC, 13 * 3600 + tick / int(DecompTime.TICK_HZ), 6, false, true)).is_equal(TrainControl.STATE_NONE)
 	assert_int(control.action).is_equal(TrainControl.Action.WAIT_STOPPED)
 	assert_float(control.x_gx).is_equal(TrainControl.PARKED_X_GX)
 
@@ -104,7 +119,7 @@ func test_a_new_day_rolls_a_past_midnight_timer_back() -> void:
 	var control := TrainControl.new()
 	control.init(23 * 3600 + 30 * 60, 1)
 	assert_int(control.start_timer).is_greater(TrainControl.DAY_SEC)
-	control.step(10, 2)
+	control.advance(DecompTime.TICK_SEC, 10, 2)
 	assert_int(control.start_timer).is_equal(14 * 60 + 50)
 
 
@@ -123,7 +138,7 @@ func test_mid_and_passenger_cars_settle_on_their_couplings() -> void:
 	var cars := TrainCars.new()
 	cars.spawn(1000.0)
 	for i: int in 200:
-		cars.step(1000.0, 0.0, TrainControl.Action.WAIT_STOPPED, false)
+		cars.advance(DecompTime.TICK_SEC, 1000.0, 0.0, TrainControl.Action.WAIT_STOPPED, false)
 	assert_float(cars.mid_x).is_between(875.0, 877.0)
 	assert_float(cars.caboose_x).is_between(750.0, 754.0)
 
@@ -133,8 +148,8 @@ func test_couplings_stay_within_their_slack_while_moving() -> void:
 	var x: float = 320.0
 	cars.spawn(x)
 	for i: int in 600:
-		x += 0.5 * TrainControl.FAST_SPEED
-		cars.step(x, TrainControl.FAST_SPEED, TrainControl.Action.SPAWN_MOVING, false)
+		x += TrainControl.FAST_SPEED * DecompTime.TICK_SEC
+		cars.advance(DecompTime.TICK_SEC, x, TrainControl.FAST_SPEED, TrainControl.Action.SPAWN_MOVING, false)
 		assert_float(cars.mid_x - (x - 125.0)).is_between(0.0, 2.0)
 		assert_float(cars.caboose_x - (cars.mid_x - 125.0)).is_between(0.0, 2.0)
 
@@ -142,7 +157,7 @@ func test_couplings_stay_within_their_slack_while_moving() -> void:
 func test_title_demo_pins_the_mid_car_and_freezes_the_passenger_car() -> void:
 	var cars := TrainCars.new()
 	cars.spawn(2367.0)
-	cars.step(2367.0, 0.0, TrainControl.Action.WAIT_STOPPED, true)
+	cars.advance(DecompTime.TICK_SEC, 2367.0, 0.0, TrainControl.Action.WAIT_STOPPED, true)
 	assert_float(cars.mid_x).is_equal(2367.0 - 125.0)
 	assert_float(cars.caboose_x).is_equal(2367.0 - 250.0)
 
@@ -169,11 +184,11 @@ func test_door_table_matches_setup_action() -> void:
 func test_a_freshly_spawned_car_skips_to_the_end_quietly() -> void:
 	var cars := TrainCars.new()
 	cars.spawn(2200.0)
-	var door: Dictionary = cars.step(2200.0, 0.0, TrainControl.Action.SIGNAL_STOPPED, false)
+	var door: Dictionary = cars.advance(DecompTime.TICK_SEC, 2200.0, 0.0, TrainControl.Action.SIGNAL_STOPPED, false)
 	assert_bool(door["at_end"]).is_true()
 	assert_bool(door["sound"]).is_false()
 	## Once it has run a tick, the next open/close is heard.
-	var later: Dictionary = cars.step(2200.0, 0.0, TrainControl.Action.SIGNAL_STARTING, false)
+	var later: Dictionary = cars.advance(DecompTime.TICK_SEC, 2200.0, 0.0, TrainControl.Action.SIGNAL_STARTING, false)
 	assert_bool(later["sound"]).is_true()
 
 

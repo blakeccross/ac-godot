@@ -100,22 +100,22 @@ func test_train_demo_init_matches_decomp() -> void:
 	## `mTRC_demo_init`: slowing at 2037, due out 4:50 before now (so 20 s after the dwell).
 	var control := TrainControl.new()
 	control.init(36000, 1)
-	var state: int = control.step(36000, 1, false, false, true)
+	var state: int = control.advance(DecompTime.TICK_SEC, 36000, 1, false, false, true)
 	assert_int(state).is_equal(TrainControl.STATE_DEMO)
 	assert_int(control.action).is_equal(TrainControl.Action.BEGIN_SLOWDOWN)
 	assert_float(control.speed).is_equal(TrainControl.SLOW_SPEED)
-	assert_float(control.x_gx).is_equal(2037.0 + 0.5 * TrainControl.SLOW_SPEED)
+	assert_float(control.x_gx).is_equal_approx(2037.0 + TrainControl.SLOW_SPEED * DecompTime.TICK_SEC, 0.0001)
 	assert_int(control.start_timer).is_equal(36000 - 290)
 	## Runs through the stop into WAIT_STOPPED, then leaves once the dwell is over.
 	var frames: int = 0
 	while control.action != TrainControl.Action.WAIT_STOPPED and frames < 5000:
-		control.step(36000, 1)
+		control.advance(DecompTime.TICK_SEC, 36000, 1)
 		frames += 1
 	assert_int(control.action).is_equal(TrainControl.Action.WAIT_STOPPED)
 	assert_int(control.start_timer).is_equal(36000 + 20)
-	control.step(36019, 1)
+	control.advance(DecompTime.TICK_SEC, 36019, 1)
 	assert_int(control.action).is_equal(TrainControl.Action.WAIT_STOPPED)
-	control.step(36020, 1)
+	control.advance(DecompTime.TICK_SEC, 36020, 1)
 	assert_int(control.action).is_equal(TrainControl.Action.SIGNAL_STARTING)
 
 
