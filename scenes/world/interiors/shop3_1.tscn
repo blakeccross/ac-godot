@@ -1,8 +1,9 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/world/interiors/nook_room.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/world/interiors/public_room_shell.gd" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/world/door.tscn" id="3"]
+[ext_resource type="Script" path="res://scenes/world/interiors/house_clock.gd" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/world/interiors/tom_nook.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://assets/generated/environment/interiors/rom_shop4_1.glb" id="10"]
 
@@ -22,6 +23,12 @@ script = ExtResource("2")
 [node name="Furniture" type="Node3D" parent="."]
 
 [node name="TomNook" parent="Furniture" instance=ExtResource("4")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 7)
+
+[node name="NookClock" type="Node3D" parent="Furniture"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 2, -14)
+script = ExtResource("5")
+visual = &"obj_clock_shop4"
 
 [node name="Doors" type="Node3D" parent="."]
 
