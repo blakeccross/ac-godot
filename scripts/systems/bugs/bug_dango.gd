@@ -106,6 +106,7 @@ func setup_action(a: BugActor, action: int) -> void:
 		DROWN:
 			a.action_proc = _noop
 			a.f_no_catch = true
+			a.trg_se.append(&"438")
 			a.f_destruct = true
 			a.finished = true
 		RETIRE:

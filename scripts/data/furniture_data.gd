@@ -31,6 +31,9 @@ enum Contact { NONE, CHAIR_FRONT, CHAIR_ANY, SOFA, BED_SINGLE, BED_DOUBLE }
 const KEEP_SLOTS := 3
 
 @export var visual_id: StringName = &""
+## `mRmTp_birth_type` for disc furniture (`FtrCatalog`): the list that gives it out.
+## Empty for authored pieces.
+@export var birth: String = ""
 @export var footprint: Vector2i = Vector2i(1, 1)
 @export var shape: Shape = Shape.TYPE_A
 @export var can_rotate: bool = true
@@ -135,6 +138,20 @@ func accepts_display(item: ItemData) -> bool:
 
 ## Apply the disc profile (`FurnitureProfiles`): footprint, contact and interaction come from
 ## the game's own tables rather than the visual's name.
+## `aFTR_PROFILE.rig`: the piece loops its own clip at half speed the whole time it is
+## out (`aMR_SystemAnimeCt_UniqueCt`, then `cKF_SkeletonInfo_R_play` every room frame) —
+## the fish in a tank, insects in a cage, the shishi-odoshi tipping.
+## `aFTR_PROFILE.height` in metres: the top things put on the piece rest on (`mCoBG_LAYER1`).
+## `fallback` without generated profiles.
+static func surface_height(p_visual_id: StringName, fallback: float = 0.8) -> float:
+	var h: float = float(FurnitureProfiles.profile_for(p_visual_id).get("height", 0.0))
+	return h * FieldCatalog.GX_TO_METERS if h > 0.0 else fallback
+
+
+static func loops_idle(p_visual_id: StringName) -> bool:
+	return int(FurnitureProfiles.profile_for(p_visual_id).get("rig", 0)) != 0
+
+
 func apply_profile(profile: Dictionary) -> void:
 	var shape_name: String = str(profile.get("shape", "TYPEA"))
 	if shape_name == "TYPEC":

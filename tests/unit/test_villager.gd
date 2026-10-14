@@ -920,6 +920,12 @@ func test_attach_villager_is_noop_without_mesh() -> void:
 func test_attach_villager_hardens_blend_face_cutouts() -> void:
 	## Cub Maple ships soft-BLEND eye/mouth sheets; without scissor depth they lose to
 	## river screen-composite water. Skip when the local villager GLB is missing.
+	## The rule itself: a soft-BLEND cutout becomes scissor with depth writes.
+	var soft := StandardMaterial3D.new()
+	soft.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	VisualMaterials.harden_imported_cutout(soft)
+	assert_int(soft.transparency).is_equal(BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR)
+	assert_int(soft.depth_draw_mode).is_equal(BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY)
 	if FieldCatalog.villager_path(&"cub").is_empty():
 		return
 	var host := Node3D.new()
@@ -945,7 +951,9 @@ func test_attach_villager_hardens_blend_face_cutouts() -> void:
 					assert_int(std.depth_draw_mode).is_equal(BaseMaterial3D.DEPTH_DRAW_OPAQUE_ONLY)
 		for child: Node in node.get_children():
 			stack.append(child)
-	assert_bool(saw_scissor).is_true()
+	## Which sheets come out blended depends on the bake's Gfx-state classification
+	## (current bakes give Maple opaque faces), so only the no-soft-alpha rule is checked;
+	## any scissor sheet found above was checked for depth writes.
 
 
 func test_lazy_wait_walk_run_weights() -> void:
@@ -1521,3 +1529,20 @@ func _plot_with_house() -> WorldData:
 	house.occupy_grid = true
 	data.buildings.append(house)
 	return data
+
+
+func test_talk_line_reaction_plays_clip_and_glyph() -> void:
+	## `aNPC_check_manpu_demoCode`: a line's manpu code plays the reaction clip and its
+	## feel glyph; a reset code goes back to the talk hold.
+	Clock.apply_snapshot({ "year": 2001, "month": 1, "day": 1, "hour": 10, "minute": 0 })
+	Game.villagers.get_or_create(&"filbert").is_home = false
+	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
+	add_child(villager)
+	await get_tree().process_frame
+	if villager.animation_player() == null:
+		return
+	villager.cue_manpu("muka1")
+	assert_str(villager._manpu_clip).contains("muka1")
+	assert_str(String(villager._feel._kind)).is_equal("muka")
+	villager.cue_manpu("reset")
+	assert_str(villager._manpu_clip).is_empty()

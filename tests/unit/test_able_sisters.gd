@@ -243,3 +243,24 @@ func test_album_hand_swaps_follow_mco_swap_image() -> void:
 	ALBUM.swap([ALBUM.Region.MINE, -1, 1], [ALBUM.Region.ALBUM, 3, 4])
 	assert_str(Game.designs.resolved(1).name).is_equal(first.name)
 	Game.designs.clear()
+
+
+func test_mabel_speaks_the_rom_lines_when_the_bank_is_there() -> void:
+	var fallback := "authored"
+	assert_array(NeedleworkTalk.pages(0x7FFFFF, fallback)).is_equal([fallback])
+	if NeedleworkTalk.line(NeedleworkTalk.GREETING_REPEAT) == null:
+		return
+	## 0x3005: one page, then its event and choice (Mabel's own menu answers).
+	var lead: Array[String] = NeedleworkTalk.pages(NeedleworkTalk.GREETING_REPEAT, fallback)
+	assert_int(lead.size()).is_equal(1)
+	assert_str(lead[0]).contains("What do you need?")
+	## 0x2FE7: two pages before the menu, with the player's name tag.
+	var broke: Array[String] = NeedleworkTalk.pages(NeedleworkTalk.MSG_DESIGN_NO_MONEY, fallback)
+	assert_int(broke.size()).is_equal(2)
+	assert_str(broke[0]).contains("{player}")
+	## "Any tips?" hands the plate Mabel → Sable → Mabel.
+	var speakers: Array = []
+	for row: Array in NeedleworkTalk.listen_pages():
+		if speakers.is_empty() or speakers[-1] != row[0]:
+			speakers.append(row[0])
+	assert_array(speakers).is_equal(["Mabel", "Sable", "Mabel"])

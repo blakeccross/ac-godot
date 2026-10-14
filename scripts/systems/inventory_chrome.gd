@@ -91,6 +91,8 @@ static func _item_icon_stem(data: ItemData) -> String:
 	## below sends to the leaf placeholder. Route them to the fossil badge instead.
 	if String(data.id).begins_with("fossil_"):
 		return "item_fossil"
+	if String(data.id).begins_with(RadioCard.CARD_PREFIX):
+		return "obj_item_taisou_tex"
 	## Every caught fish/bug gets its own catalogued card (`inv_mwin_{NN}{romaji}_tex`,
 	## e.g. a bass shows the bass card, not just "a fish"). `item_turi`/`item_mushi`
 	## (below) are a different, unrelated pair of round badges for the fishing-rod and
@@ -103,7 +105,7 @@ static func _item_icon_stem(data: ItemData) -> String:
 	## Prefer `obj_item_*` field cards — `inv_mwin_*` encyclopedia icons often bake
 	## the wrong CI palette (green apple, blue disc, etc.).
 	match String(data.id):
-		"axe":
+		"axe", "axe_use_1", "axe_use_2", "axe_use_3", "axe_use_4", "axe_use_5", "axe_use_6", "axe_use_7":
 			return "item_axe"
 		"shovel":
 			return "item_shovel"

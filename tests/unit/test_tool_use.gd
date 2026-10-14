@@ -256,3 +256,45 @@ func _equip(ctx: InteractionContext, item_id: StringName) -> void:
 	assert_bool(ctx.inventory.equip_slot(0)).is_true()
 
 
+
+
+## `mPlib_Get_scoop_request_index`: dig, air over water, or a bounce with its clang.
+func test_shovel_outcome_by_ground() -> void:
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.GRASS, 0)).is_equal(ToolUse.Scoop.DIG)
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.SAND, FieldCatalog.SAND_ATTR)).is_equal(ToolUse.Scoop.DIG)
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.WATER, 12)).is_equal(ToolUse.Scoop.AIR)
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.STONE, 7)).is_equal(ToolUse.Scoop.HIT_STONE)
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.PATH, 31)).is_equal(ToolUse.Scoop.HIT_WOOD)
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.BLOCKED, ToolUse.ATTR_BUSH)).is_equal(ToolUse.Scoop.HIT_BUSH)
+	## No collision data: the terrain decides.
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.STONE, -1)).is_equal(ToolUse.Scoop.HIT_STONE)
+	assert_int(ToolUse.scoop_for(WorldGrid.Terrain.SOIL, -1)).is_equal(ToolUse.Scoop.DIG)
+
+
+func test_golden_shovel_finds_bells_away_from_the_last_hole() -> void:
+	assert_bool(ToolUse.golden_finds_bells(Vector2i(3, 3), Vector2i(1, 1), 1)).is_true()
+	assert_bool(ToolUse.golden_finds_bells(Vector2i(3, 3), Vector2i(1, 1), 0)).is_false()
+	assert_bool(ToolUse.golden_finds_bells(Vector2i(3, 3), Vector2i(3, 3), 1)).is_false()
+
+
+## `m_player_item_windmill`: still air and standing still lets the pinwheel stop; walking or
+## wind spins it up.
+func test_pinwheel_spins_with_movement_and_wind() -> void:
+	assert_float(HeldPinwheel.target_speed(0.0, 0.0)).is_equal(0.0)
+	assert_float(HeldPinwheel.target_speed(5.0, 0.0)).is_equal(40.0)
+	assert_float(HeldPinwheel.target_speed(0.0, 0.5)).is_equal(5.0)
+	var s: float = 0.0
+	for _i: int in 200:
+		s = HeldPinwheel.ease_speed(s, 5.0, 1.0)
+	assert_float(s).is_equal_approx(5.0, 0.01)
+	for _i: int in 400:
+		s = HeldPinwheel.ease_speed(s, 0.0, 1.0)
+	assert_float(s).is_equal(0.0)
+
+
+func test_festival_toys_are_held_tools() -> void:
+	for id: StringName in [&"red_pinwheel", &"blue_balloon", &"leaf_fan"]:
+		var tool := ItemCatalog.get_item(id) as ToolData
+		assert_object(tool).is_not_null()
+		assert_bool(tool.equippable).is_true()
+		assert_str(String(tool.hold_anim)).is_not_empty()

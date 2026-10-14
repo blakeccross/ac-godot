@@ -34,6 +34,21 @@ class Puff:
 	## GX per 30 fps frame, like `FishShadow.speed`.
 	var speed: float = 0.0
 	var body: WaterBodies.Body = null
+	## `aGTT_effect_hamon` as the fish bolts (3 small, 2 big), or -1 when the caller made it.
+	var birth_ripple: int = -1
+	## Rings already thrown: 1 the birth one, 2 also `aGYO_KAGE`'s own at its 4th tick.
+	var ripples: int = 0
+
+	## `aGYO_KAGE_actor_move` at `delete_timer == 96`: by size, 2 / 1 / 0.
+	func kage_ripple() -> int:
+		match size:
+			FishData.SizeClass.XXS, FishData.SizeClass.XS:
+				return 2
+			FishData.SizeClass.M:
+				return 1
+			FishData.SizeClass.S, FishData.SizeClass.L, FishData.SizeClass.XL:
+				return 0
+		return -1
 
 	func alpha() -> float:
 		return FishSize.puff_alpha(age)
@@ -238,6 +253,22 @@ func _tick_puffs() -> void:
 	puffs = kept
 
 
+## A released fish landing in the water (`aGYR_in_water_move`) leaves the same fading
+## shadow as a scared one, in whichever body it fell into.
+func add_puff_at(at: Vector3, _yaw: float, size: FishData.SizeClass) -> void:
+	var puff := Puff.new()
+	puff.position = Vector3(at.x, surface_at(at) - FishSize.depth(), at.z)
+	puff.size = size
+	puff.speed = FishSize.ESCAPE_SPEED_GX
+	if _grid != null:
+		var cell: Vector2i = _grid.world_to_cell(at)
+		for b: WaterBodies.Body in bodies:
+			if b.contains(cell):
+				puff.body = b
+				break
+	puffs.append(puff)
+
+
 func _add_puff(shadow: FishShadow) -> void:
 	var puff := Puff.new()
 	puff.position = shadow.position
@@ -245,6 +276,7 @@ func _add_puff(shadow: FishShadow) -> void:
 	puff.size = shadow.size
 	puff.speed = FishSize.ESCAPE_SPEED_GX
 	puff.body = shadow.body
+	puff.birth_ripple = 3 if shadow.size <= FishData.SizeClass.M else 2
 	puffs.append(puff)
 
 

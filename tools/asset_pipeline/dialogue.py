@@ -31,6 +31,8 @@ SUBS = {
     "STR_ITEM4": "{item4}",
     "STR_DETERMINATION": "{ok}",
     "STR_MAIL": "{mail}",
+    ## Drops the article of the string that follows (`mMsg` CUT_ARTICLE).
+    "CUTARTICLE": "{cutart}",
 }
 for _i in range(20):
     SUBS[f"STR_FREE{_i}"] = "{free%d}" % _i
@@ -116,23 +118,51 @@ def _style_tag_scale(scale: int) -> str:
     return "{s:%d}" % scale
 
 
-def tokens_to_styled_text(tokens: list[dict[str, Any]]) -> str:
-    """Flatten tokens to text, keeping TEXTCOLOR / CHARSCALE / COLORCHARS / LINESCALE.
+## `mMsg_init_FontColor`: each line starts (50, 60, 50) until its own TEXTCOLOR.
+_DEFAULT_COLOR = (50, 60, 50)
+## `VOICE_STATUS_*` (`audio.h`), in enum order.
+_VOICE_STATUS = {
+    "MSGCONTENTS_NORMAL": 0,
+    "MSGCONTENTS_ANGRY": 1,
+    "MSGCONTENTS_SAD": 2,
+    "MSGCONTENTS_FUN": 3,
+    "MSGCONTENTS_SLEEPY": 4,
+    "MSGCONTENTS_GLOOMY": 5,
+}
 
-    Markup (expanded by `MessageWindowChrome` at draw time):
-    - `{c:r,g,b}` sticky colour until the next colour tag
-    - `{s:n}` sticky scale (`n/32`) until the next scale tag
+
+def tokens_to_styled_text(tokens: list[dict[str, Any]]) -> str:
+    """Flatten tokens to text, keeping the font control codes `mFontSentence` draws.
+
+    Each line is its own sentence (`mMsg_draw_font`), so colour, line scale, line type
+    and line offset reset at `\\n`. CHARSCALE is one glyph (`char.scale * line_scale`).
+
+    Markup (expanded by `MessageBody` / the typewriter):
+    - `{c:r,g,b}` colour until the next colour tag or the next line
+    - `{s:n}` scale (`n/32`) until the next scale tag or the next line
+    - `{y:n}` LINEOFS: the rest of this line drawn `n` units lower (arg - 128)
+    - `{lt:n}` LINETYPE: scaled glyphs grow from the line's top / centre / bottom
+    - `{p:n}` PAUSE: the cursor waits `n` (30 Hz) frames
+    - `{se:n}` SNDTRGSYS: a system sound as the cursor passes
+    - `{just}` / `{unjust}` SETCURSORJUST / CLRCUSRORJUST: pauses B can't skip
+    - `{btn}` BTN mid-page: wait for A with the turn mark, then keep writing the same page
+    - `{cap}` CAPTIALIZE: the next substituted string starts with a capital
+    - `{vs:n}` MSGCONTENTS: animalese emotion (`VOICE_STATUS_*`) from this glyph on
+    - `{cut:1}` / `{cut:0}` SNDCUT: voice replaced by the cut click, then restored
+    - `{can}` / `{nocan}` ABLECANCEL / UNABLECANCEL: A or B may dump the rest of the page
     """
     parts: list[str] = []
     color: Optional[tuple[int, int, int]] = None
     ## Drawn scale for the open `{s:}` run.
     scale = _DEFAULT_SCALE
-    ## LINESCALE is sticky for the sentence; CHARSCALE overrides one glyph then falls back.
+    ## LINESCALE sticks for this line only; CHARSCALE multiplies it for one glyph.
     line_scale = _DEFAULT_SCALE
     pending_char_scale: Optional[int] = None
     colorchars_left = 0
     colorchars_rgb: Optional[tuple[int, int, int]] = None
     saved_color: Optional[tuple[int, int, int]] = None
+    y_ofs = 0
+    line_type = 0
 
     def set_color(rgb: Optional[tuple[int, int, int]]) -> None:
         nonlocal color
@@ -150,17 +180,42 @@ def tokens_to_styled_text(tokens: list[dict[str, Any]]) -> str:
         scale = val
         parts.append(_style_tag_scale(val))
 
+    def reset_sentence() -> None:
+        """A newline starts a new `mFontSentence` (default colour, scale, type, offset)."""
+        nonlocal line_scale, pending_char_scale, colorchars_left, colorchars_rgb, saved_color
+        nonlocal y_ofs, line_type, color
+        pending_char_scale = None
+        colorchars_left = 0
+        colorchars_rgb = None
+        saved_color = None
+        if color not in (None, _DEFAULT_COLOR):
+            set_color(_DEFAULT_COLOR)
+        color = None
+        line_scale = _DEFAULT_SCALE
+        set_scale(_DEFAULT_SCALE)
+        if y_ofs != 0:
+            parts.append("{y:0}")
+            y_ofs = 0
+        if line_type != 0:
+            parts.append("{lt:0}")
+            line_type = 0
+
     def write_text(ch: str) -> None:
         nonlocal pending_char_scale, colorchars_left, colorchars_rgb, saved_color
-        use_scale = pending_char_scale if pending_char_scale is not None else line_scale
+        if ch == "\n":
+            reset_sentence()
+            parts.append("\n")
+            return
+        ## `mFontChar_total_scale`: char scale (32 = 1) times the line scale.
+        char_scale = pending_char_scale if pending_char_scale is not None else _DEFAULT_SCALE
         pending_char_scale = None
-        set_scale(use_scale)
+        set_scale(max(1, (char_scale * line_scale + _DEFAULT_SCALE // 2) // _DEFAULT_SCALE))
         if colorchars_left > 0 and colorchars_rgb is not None:
             set_color(colorchars_rgb)
             parts.append(ch)
             colorchars_left -= 1
             if colorchars_left == 0:
-                set_color(saved_color if saved_color is not None else (50, 60, 50))
+                set_color(saved_color if saved_color is not None else _DEFAULT_COLOR)
                 colorchars_rgb = None
                 saved_color = None
             return
@@ -189,10 +244,50 @@ def tokens_to_styled_text(tokens: list[dict[str, Any]]) -> str:
             pending_char_scale = None
             set_scale(line_scale)
             continue
+        if name == "PAUSE" and args:
+            parts.append("{p:%d}" % int(args[0]))
+            continue
+        if name == "LINEOFS" and args:
+            y_ofs = int(args[0]) - 128
+            parts.append("{y:%d}" % y_ofs)
+            continue
+        if name == "LINETYPE" and args:
+            line_type = int(args[0])
+            parts.append("{lt:%d}" % line_type)
+            continue
+        if name == "SNDTRGSYS" and args:
+            parts.append("{se:%d}" % int(args[0]))
+            continue
+        if name == "SETCURSORJUST":
+            parts.append("{just}")
+            continue
+        if name == "BTN":
+            parts.append("{btn}")
+            continue
+        if name == "CLRCUSRORJUST":
+            parts.append("{unjust}")
+            continue
+        if name == "CAPTIALIZE":
+            parts.append("{cap}")
+            continue
         if name == "COLORCHARS" and len(args) >= 4:
             saved_color = color
             colorchars_rgb = (int(args[0]), int(args[1]), int(args[2]))
             colorchars_left = max(0, int(args[3]))
+            continue
+        status = _VOICE_STATUS.get(name)
+        if status is not None:
+            parts.append("{vs:%d}" % status)
+            continue
+        if name == "SNDCUT" and args:
+            ## Nonzero clears the cut; 0 replaces the voice with SE 0x54.
+            parts.append("{cut:%d}" % (0 if int(args[0]) else 1))
+            continue
+        if name == "ABLECANCEL":
+            parts.append("{can}")
+            continue
+        if name == "UNABLECANCEL":
+            parts.append("{nocan}")
             continue
 
     if scale != _DEFAULT_SCALE:
@@ -346,6 +441,22 @@ def _page_event_from_token(name: str, args: list[int]) -> Optional[dict[str, Any
     }
 
 
+def _btn_continues_page(tokens: list[dict[str, Any]], start: int) -> bool:
+    """True when what follows a BTN draws more on the same page: text or a substituted
+    string before any page break, end, or choice (demo / style codes are skipped)."""
+    for tok in tokens[start:]:
+        if tok["type"] == "text":
+            if str(tok["text"]).strip() != "":
+                return True
+            continue
+        name = str(tok["name"])
+        if name in SUBS:
+            return True
+        if name in PAGE_BREAKS or name in END_CMDS or name == "OPENCHOICE":
+            return False
+    return False
+
+
 def tokens_to_conversation(
     msg_no: int, tokens: list[dict[str, Any]], select: Optional[list[str]] = None
 ) -> dict[str, Any]:
@@ -357,39 +468,109 @@ def tokens_to_conversation(
     next_random: list[str] = []
     choice_ids: list[int] = []
     open_choice = False
+    ## Each labelled `OPENCHOICE` and the page count when it opened: one with text pages
+    ## after it opens mid-message, and the message carries on after the pick.
+    opened: list[tuple[int, list[int]]] = []
+    ## `MSGCONTINUE` at the end hands control back to whoever set the continue message
+    ## (`mMsg_Check_MainNormalContinue`); `MSGEND` closes the window and ends the talk.
+    terminator = ""
 
-    def flush() -> None:
-        nonlocal page_tokens, page_events
+    ## How each page ends (`mMsg_Main_Cursol_*`): BTN waits for A with the turn mark;
+    ## BTN2 / SNDNOPAGE turn the page without its sound; a bare MSGCLEAR clears and
+    ## carries on by itself; MSGTIMEEND closes after (n-1)*4+1 frames.
+    page_flags: dict[str, Any] = {}
+    ## `FORCENEXT` on this page: when the cursor finishes, NORMAL advances with no A and no page SE.
+    page_force = False
+    ## `SELNOB` / `SELNOBCLOSE`: B picks the last choice (`mChoice_no_b_flag`).
+    pending_b_last = False
+    ## `MALEFEMALECHK`: continue message for a male / female player. Later `SETFORCEMSG` wins.
+    sex_next: Optional[tuple[str, str]] = None
+
+    def flush(end: dict[str, Any] | None = None) -> None:
+        nonlocal page_tokens, page_events, page_flags, page_force
         text = tokens_to_styled_text(page_tokens).strip("\n")
         events = list(page_events)
+        flags = dict(page_flags)
+        if page_force:
+            flags["force_next"] = True
+        if end:
+            flags.update(end)
         page_tokens = []
         page_events = []
+        page_flags = {}
+        page_force = False
         if text != "" or events:
-            pages.append((text, events))
+            pages.append((text, events, flags))
 
-    for tok in tokens:
+    for at, tok in enumerate(tokens):
         if tok["type"] == "text":
             page_tokens.append(tok)
+            if str(tok["text"]).strip() != "":
+                terminator = ""
             continue
         name = str(tok["name"])
         args: list[int] = list(tok.get("args") or [])
         if name in SUBS:
             page_tokens.append(tok)
+            terminator = ""
+            continue
+        if name == "BTN" and _btn_continues_page(tokens, at + 1):
+            ## `mMsg_Main_Cursol_Button`: A carries on writing; only MSGCLEAR clears.
+            page_tokens.append(tok)
             continue
         if name in PAGE_BREAKS:
-            flush()
+            if name == "MSGCLEAR":
+                flush({"auto": True})
+            elif name == "BTN2":
+                flush({"quiet": True})
+            else:
+                flush()
+            if name == "MSGCONTINUE":
+                terminator = name
+            continue
+        if name == "SNDNOPAGE":
+            page_flags["quiet"] = True
             continue
         if name in END_CMDS:
-            flush()
+            if name == "MSGTIMEEND" and args:
+                flush({"time_end": (max(int(args[0]), 1) - 1) * 4 + 1})
+            else:
+                flush()
+            terminator = name
             break
         event = _page_event_from_token(name, args)
         if event is not None:
             page_events.append(event)
+            ## Voice emotion is also a cursor mark (`{vs:n}`); the face event stays for talk hosts.
+            if name in _CONTENTS_EMOTE:
+                page_tokens.append(tok)
+            continue
+        if name == "FORCENEXT":
+            page_force = True
+            continue
+        if name in ("SELNOB", "SELNOBCLOSE"):
+            pending_b_last = True
+            continue
+        if name == "MALEFEMALECHK" and len(args) >= 4:
+            male = _u16(args, 0)
+            female = _u16(args, 2)
+            sex_next = (
+                "" if male == 0xFFFF else msg_id(male),
+                "" if female == 0xFFFF else msg_id(female),
+            )
             continue
         if name == "OPENCHOICE":
-            open_choice = True
+            if not choice_ids:
+                open_choice = True
+            else:
+                if "".join(str(t.get("text", "")) for t in page_tokens).strip() != "" or page_events:
+                    flush()
+                opened.append((len(pages), choice_ids))
+                choice_ids = []
             continue
         if name == "SETFORCEMSG":
+            ## Later than `MALEFEMALECHK`: this continue id replaces the sex pair.
+            sex_next = None
             n = _u16(args)
             if n != 0xFFFF:
                 next_force = msg_id(n)
@@ -410,17 +591,27 @@ def tokens_to_conversation(
         if name == "SPACE" and args:
             page_tokens.append(tok)
             continue
-        if name in ("TEXTCOLOR", "CHARSCALE", "LINESCALE", "COLORCHARS"):
+        if name in ("TEXTCOLOR", "CHARSCALE", "LINESCALE", "COLORCHARS", "PAUSE", "LINEOFS", "LINETYPE",
+                "SNDTRGSYS", "SETCURSORJUST", "CLRCUSRORJUST", "CAPTIALIZE",
+                "SNDCUT", "ABLECANCEL", "UNABLECANCEL") or name in _VOICE_STATUS:
             page_tokens.append(tok)
             continue
 
     flush()
     if not pages:
-        pages = [("", [])]
+        pages = [("", [], {})]
 
+    mid: list[tuple[int, list[int]]] = []
+    if opened:
+        for at_page, ids in opened:
+            if any(text != "" for text, _e, _f in pages[at_page:]):
+                mid.append((at_page, ids))
+            else:
+                choice_ids = ids
+                open_choice = True
     nodes: dict[str, Any] = {}
     start = "p0"
-    for i, (page, events) in enumerate(pages):
+    for i, (page, events, flags) in enumerate(pages):
         nid = f"p{i}"
         if page == "" and events:
             ## Demo codes between pages (e.g. smile right before OPENCHOICE).
@@ -429,20 +620,50 @@ def tokens_to_conversation(
             node = {"type": "line", "text": page.replace("\r", "")}
             if events:
                 node["events"] = events
+            node.update(flags)
         if i + 1 < len(pages):
             node["next"] = f"p{i + 1}"
         nodes[nid] = node
+    for n, (at_page, ids) in enumerate(mid):
+        mid_labels = _choice_labels(ids, select)
+        cid = f"c{n}"
+        nodes[cid] = {
+            "type": "choice",
+            "options": [{"text": label, "goto": f"p{at_page}"} for label in mid_labels],
+        }
+        if pending_b_last:
+            nodes[cid]["b_last"] = True
+            pending_b_last = False
+        if at_page == 0:
+            start = cid
+        else:
+            nodes[f"p{at_page - 1}"]["next"] = cid
     last_id = f"p{len(pages) - 1}"
     last = nodes[last_id]
+    if terminator == "MSGCONTINUE":
+        last["cont"] = True
     labels = _choice_labels(choice_ids, select)
+    if open_choice and not labels:
+        ## The choices come from code (`mChoice_Set_choice_data`), e.g. the quest manager.
+        last["open_choice"] = True
     if open_choice and labels:
         options = []
         for i, label in enumerate(labels):
             dest = next_by_choice[i] if i < len(next_by_choice) else ""
-            opt: dict[str, Any] = {"text": label, "goto": dest or next_force}
+            ## `SETNEXTMSGRND*` + `FORCENEXT` after a choice: any pick rolls the next one.
+            fallback = next_force or ("rng" if next_random else "")
+            opt: dict[str, Any] = {"text": label, "goto": dest or fallback}
             options.append(opt)
         nodes["choice"] = {"type": "choice", "options": options}
+        if pending_b_last:
+            nodes["choice"]["b_last"] = True
+            pending_b_last = False
         last["next"] = "choice"
+        if next_random and not next_force:
+            nodes["rng"] = {
+                "type": "random",
+                "options": [{"goto": dest, "weight": 1} for dest in next_random],
+            }
     elif next_random:
         nodes["rng"] = {
             "type": "random",
@@ -453,6 +674,12 @@ def tokens_to_conversation(
         last["next"] = next_force
     elif any(next_by_choice):
         last["next"] = next(dest for dest in next_by_choice if dest)
+    if sex_next is not None:
+        male, female = sex_next
+        if male:
+            last["next_male"] = male
+        if female:
+            last["next_female"] = female
 
     return {
         "id": msg_id(msg_no),
@@ -522,6 +749,152 @@ def find_pair(cfg: PipelineConfig, stem: str) -> Optional[tuple[Path, Path]]:
         if data.is_file() and table.is_file():
             return data, table
     return None
+
+
+## Letter banks (`m_handbill`): body (`mail`), header (`super`) and signature (`ps`), plus the
+## `*z` / `maila..c` variants read through `mHandbillz`. Same table format as `message_data`.
+MAIL_BANKS = ("mail", "super", "ps", "maila", "mailb", "mailc", "superz", "psz")
+HEADER_BANKS = ("super", "superz")
+NAME_SLOT = "{name}"
+
+
+def mail_text(raw: bytes, header: bool = False) -> str:
+    """Decode one letter string. Headers keep their single line break as the name slot
+    (`mHandbill_CheckSuperStringBorderAndCopy`: exactly one `\n` marks `header_back_start`,
+    otherwise the name goes after the text)."""
+    parts: list[str] = []
+    for tok in decode_tokens(raw):
+        if tok["type"] == "text":
+            parts.append(tok["text"])
+        elif tok["name"] in SUBS:
+            parts.append(SUBS[tok["name"]])
+    text = "".join(parts)
+    if header:
+        if text.count("\n") == 1:
+            text = text.replace("\n", NAME_SLOT)
+        else:
+            text = text.replace("\n", "") + NAME_SLOT
+        return text.strip(" ")
+    return text.rstrip()
+
+
+## `mHandbillz` pieces are concatenated raw (`mHandbillz_mail_load`), so they keep their
+## padding and carry their byte size for the 192-byte body check.
+RAW_BANKS = ("maila", "mailb", "mailc")
+
+
+def mail_raw_text(raw: bytes) -> str:
+    parts: list[str] = []
+    for tok in decode_tokens(raw):
+        if tok["type"] == "text":
+            parts.append(tok["text"])
+        elif tok["name"] in SUBS:
+            parts.append(SUBS[tok["name"]])
+    return "".join(parts)
+
+
+def convert_mail(cfg: PipelineConfig) -> dict[str, Any]:
+    banks: dict[str, Any] = {}
+    for stem in MAIL_BANKS:
+        pair = find_pair(cfg, f"{stem}_data")
+        if pair is None:
+            continue
+        raws = decode_table(pair[0].read_bytes(), pair[1].read_bytes())
+        if stem in RAW_BANKS:
+            banks[stem] = [mail_raw_text(r) if r else "" for r in raws]
+        else:
+            banks[stem] = [mail_text(r, stem in HEADER_BANKS) if r else "" for r in raws]
+        banks[f"{stem}_size"] = [len(r) for r in raws]
+    if "mail" not in banks:
+        return {"error": "mail_data.bin not found", "converted": 0}
+    out_dir = cfg.godot_generated / "dialogue"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "mail.json").write_text(
+        json.dumps(banks, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
+    )
+    check = convert_mail_check(cfg)
+    return {
+        "converted": sum(len(v) for k, v in banks.items() if not k.endswith("_size")),
+        "banks": sorted(k for k in banks if not k.endswith("_size")),
+        "mail_check": check.get("tables", 0),
+    }
+
+
+## `m_mail_check_ovl`: the 26 `str_?_table` syllable tables. The US build dropped their
+## 0x7F terminators, so `mMck_cmp_key` keeps reading pairs into whatever follows until a
+## pair starts with 0x7F; each letter's full scan range is saved. Pointer words in that
+## range are the REL's self-relocated values (data section at 0), not runtime RAM addresses.
+MAIL_CHECK_SCAN_MAX = 0x4000
+
+
+## `mIN_copy_name_str`: 16-byte names, one table per `ITEM1` category (`itemName_table[]`
+## order) plus the two furniture tables indexed by `(ftr_no / 4) & 0x3FF`.
+ITEM_NAME_TABLES = [
+    "itemName_paper", "itemName_money", "itemName_tool", "itemName_fish", "itemName_cloth",
+    "itemName_etc", "itemName_carpet", "itemName_wall", "itemName_fruit", "itemName_plant",
+    "itemName_minidisk", "itemName_dummy", "itemName_ticket", "itemName_insect",
+    "itemName_hukubukuro", "itemName_kabu", "ftrName_table", "ftrName2_table",
+]
+ITEM_NAME_LEN = 16
+
+
+def convert_item_names(cfg: PipelineConfig) -> dict[str, Any]:
+    from .mapfile import index_by_name, parse_map
+    from .rel import RelData
+
+    rel_path = getattr(cfg, "rel_path", None)
+    map_path = getattr(cfg, "map_path", None)
+    if rel_path is None or map_path is None or not Path(rel_path).is_file() or not Path(map_path).is_file():
+        return {"names": 0}
+    rel = RelData(Path(rel_path))
+    by_name = index_by_name(parse_map(Path(map_path)))
+    cmap = char_map()
+    tables: dict[str, list[str]] = {}
+    count = 0
+    for name in ITEM_NAME_TABLES:
+        sym = by_name.get(name)
+        if sym is None:
+            continue
+        blob = rel.slice_at(sym.address, sym.size)
+        rows = []
+        for i in range(0, len(blob) - ITEM_NAME_LEN + 1, ITEM_NAME_LEN):
+            rows.append("".join(cmap[b] for b in blob[i : i + ITEM_NAME_LEN]).rstrip())
+        tables[name] = rows
+        count += len(rows)
+    out_dir = cfg.godot_generated / "dialogue"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "item_names.json").write_text(
+        json.dumps(tables, ensure_ascii=False, indent=0) + "\n", encoding="utf-8"
+    )
+    return {"names": count}
+
+
+def convert_mail_check(cfg: PipelineConfig) -> dict[str, Any]:
+    from .mapfile import index_by_name, parse_map
+    from .rel import RelData
+
+    rel_path = getattr(cfg, "rel_path", None)
+    map_path = getattr(cfg, "map_path", None)
+    if rel_path is None or map_path is None or not Path(rel_path).is_file() or not Path(map_path).is_file():
+        return {"tables": 0}
+    rel = RelData(Path(rel_path))
+    by_name = index_by_name(parse_map(Path(map_path)))
+    tables: dict[str, list[int]] = {}
+    for letter in "abcdefghijklmnopqrstuvwxyz":
+        sym = by_name.get(f"str_{letter}_table")
+        if sym is None:
+            return {"tables": 0}
+        blob = rel.slice_at(sym.address, MAIL_CHECK_SCAN_MAX)
+        end = len(blob) - (len(blob) % 2)
+        for i in range(0, len(blob) - 1, 2):
+            if blob[i] == 0x7F:
+                end = i
+                break
+        tables[letter] = list(blob[:end])
+    out = {"tables": tables, "char_map": char_map()}
+    out_dir = cfg.godot_generated / "dialogue"
+    (out_dir / "mail_check.json").write_text(json.dumps(out, ensure_ascii=False) + "\n", encoding="utf-8")
+    return {"tables": len(tables)}
 
 
 def convert_dialogue(cfg: PipelineConfig) -> dict[str, Any]:
@@ -601,8 +974,16 @@ def convert_dialogue(cfg: PipelineConfig) -> dict[str, Any]:
     (out_dir / "index.json").write_text(
         json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+    mail = convert_mail(cfg)
+    names = convert_item_names(cfg)
+    from .ftr_catalog import convert_ftr_catalog
+
+    ftr = convert_ftr_catalog(cfg)
     return {
+        "ftr_catalog": ftr.get("converted", 0),
+        "item_names": names.get("names", 0),
         "converted": len(conversations),
+        "mail_strings": mail.get("converted", 0),
         "output": str(out_dir),
         "files": len(files),
         "select_count": len(select),

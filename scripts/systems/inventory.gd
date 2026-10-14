@@ -43,6 +43,13 @@ var savings: int = 0
 ## House loan owed to Nook (`Private_c.inventory.loan`).
 var loan: int = 0
 var equipment_id: StringName = &""
+## `inv_ovl->shovel_flag` with a scoop held: the pockets opened facing a hole, so items
+## can be buried (`mTG_TYPE_FIELD_DEFAULT_BURY`). Set by the pockets overlay on open.
+var bury_ready: bool = false
+## Set as the pockets open on the field (`inv_ovl->release_flag` / `release_pos`): bugs can be
+## let go outdoors; fish only with water ahead.
+var release_outdoors: bool = false
+var release_water: Variant = null
 ## Pockets-menu backdrop (`Now_Private->backgound_texture`, `mTG_TABLE_BG`). "" = default.
 var background_id: StringName = &""
 var selected_index: int = 0
@@ -500,6 +507,37 @@ func unequip() -> void:
 	changed.emit()
 
 
+## `Player_actor_Set_ItemNoSubmenu`: the tool in hand becomes another (a worn axe's next
+## stage), or nothing (`EMPTY_NO`: it broke and is gone). The pocket it came from changes with it.
+func swap_equipped(new_id: StringName) -> bool:
+	if equipment_id == &"":
+		return false
+	var at: int = -1
+	for i: int in POCKET_SLOTS:
+		var slot: InventorySlot = _slots[i]
+		if not slot.is_empty() and slot.item.item_id == equipment_id and slot.item.condition == InventoryItem.Condition.NORMAL:
+			at = i
+			break
+	if at < 0:
+		return false
+	if new_id == &"":
+		remove_from_slot(at, 1)
+		unequip()
+		return true
+	var slot: InventorySlot = _slots[at]
+	if slot.item.count > 1:
+		slot.item.count -= 1
+		if add_to_empty_slot(ItemCatalog.get_item(new_id), 1) < 0:
+			slot.item.count += 1
+			return false
+	else:
+		slot.item.item_id = new_id
+	equipment_id = new_id
+	equipment_changed.emit(equipment_id)
+	changed.emit()
+	return true
+
+
 ## Decomp `backgound_texture`: any owned shirt (`Category.CLOTH`) reskins the pockets
 ## backdrop with its real pattern, independent of what the player is currently
 ## wearing (`mHD_open_end_proc_item_type4`); empty id clears it back to the default.
@@ -708,6 +746,18 @@ func tags_for_slot(index: int) -> PackedStringArray:
 	var data: ItemData = ItemCatalog.get_item(slot.item.item_id)
 	if data == null:
 		return tags
+	## A villager is waiting for their item (`mSM_IV_OPEN_QUEST` / `mSM_IV_OPEN_TAKE`): only
+	## what they asked for can be picked.
+	if Game != null and Game.quest_handover_pending:
+		if Game.quest_handover_allows(index):
+			tags.append("Hand over")
+		return tags
+	## Nook is buying (`mSM_IV_OPEN_SELL`): "Sell", or "Sell all" on a marked item
+	## (`mTG_TYPE_SELL_ITEM` / `mTG_TYPE_SELL_ALL_ITEM`).
+	if Game != null and Game.shop_sell_pending:
+		if slot.item.condition != InventoryItem.Condition.QUEST:
+			tags.append("Sell all" if is_marked(index) and marked_indices().size() > 1 else "Sell")
+		return tags
 	if slot.item.condition == InventoryItem.Condition.PRESENT:
 		tags.append("Open")
 		return tags
@@ -746,6 +796,15 @@ func tags_for_slot(index: int) -> PackedStringArray:
 		tags.append("Plant")
 	elif data.usable:
 		tags.append(data.use_verb if data.use_verb != "" else "Use")
+	## Tools go in too (`ITEM1_CAT_TOOL` is `FIELD_DEFAULT`): a spare shovel in the shine
+	## spot's hole grows the golden tree. Not the one in hand.
+	var in_hand: bool = data.category == ItemData.Category.TOOL and slot.item.item_id == equipment_id \
+			and count_of(slot.item.item_id) <= 1
+	## `mTG_TYPE_FIELD_RELEASE`: grab / let go / quit.
+	if CreatureRelease.can_release(data, release_outdoors, release_water != null):
+		tags.append("Release")
+	if bury_ready and data.plant_id == &"" and data.category != ItemData.Category.BUG and not in_hand:
+		tags.append("Bury")
 	if data is FurnitureData and Game.is_decorating():
 		tags.append("Place")
 	if data.category == ItemData.Category.WALL:
@@ -768,6 +827,8 @@ static func putin_allowed(data: ItemData, filter: StringName) -> bool:
 		return false
 	if filter == &"minidisk":
 		return MinidiskCatalog.is_disc(data.id)
+	if filter == &"code_gift":
+		return CodeItems.giftable(data)
 	return true
 
 

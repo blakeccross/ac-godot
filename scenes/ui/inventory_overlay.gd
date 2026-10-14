@@ -8,8 +8,6 @@ extends CanvasLayer
 ## `aMBX_pl_close` waits for this to play the mailbox's closing beat.
 signal closed
 
-const ITEM_SCENE := "res://scenes/world/item_pickup.tscn"
-const PLAYER_GLB := "res://assets/generated/characters/player/boy_1.glb"
 const HND_GLB := "res://assets/generated/characters/other/hnd.glb"
 const HAND_SIZE := 100.0
 ## The ROM UI font (`FONT_nes_tex_font1`, `mFont_SetLineStrings`), same as the
@@ -104,7 +102,8 @@ var _hand_viewport: SubViewport = null
 var _hand_anim: AnimationPlayer = null
 var _hand_tween: Tween = null
 var _hand_ready: bool = false
-var _open_tween: Tween = null
+## `mSM_move_Move`: the pockets slide in from the right and out to the right.
+var _slide: MenuSlide = null
 ## Fish / insect encyclopedia page (`mIV_set_collect_dl`): one 8×5 grid, reused.
 var _collect_root: Control = null
 var _collect_slots: Array[TextureRect] = []
@@ -112,7 +111,6 @@ var _collect_banner: TextureRect = null
 var _collect_title: Label = null
 var _collect_count: Label = null
 var _pocket_chrome: Array[CanvasItem] = []
-var _drop_pid_seq: int = 0
 ## Mail slot index awaiting a Yes/No discard confirmation, or -1 when none is pending.
 var _pending_mail_discard: int = -1
 ## `mTG_TABLE_MONEY`: the wallet's own verb popup (denomination picker), not an item slot.
@@ -154,6 +152,7 @@ var _ui_font: Font = null
 func _ready() -> void:
 	layer = 20
 	add_to_group("inventory_ui")
+	_slide = MenuSlide.attach(self)
 	_load_ui_font()
 	_wire_slot_buttons()
 	_wire_side_tabs()
@@ -273,11 +272,29 @@ func _on_side_tab_gui(event: InputEvent, tab: Panel) -> void:
 		Audio.play_se(&"cursol")
 		var list_ui: Node = get_tree().get_first_node_in_group("design_list_ui") if get_tree() != null else null
 		if list_ui != null and list_ui.has_method("open"):
-			list_ui.call("open", "manage", Callable())
+			## `mSM_OVL_NEEDLEWORK` / `mNW_OPEN_INV`: the book opens over the right half of
+			## the pockets, which stay up with the letters hidden (`mIV_set_mail_dl`
+			## skips them while the needlework menu is next).
+			list_ui.call("open", "manage", Callable(), true)
+			if list_ui.is_open() and list_ui.has_signal("closed"):
+				_set_design_book_open(true)
+				list_ui.closed.connect(_set_design_book_open.bind(false), CONNECT_ONE_SHOT)
 		else:
 			Game.post_notice("The design book isn't available here.")
 	else:
 		_select_side_tab(page)
+
+
+func _set_design_book_open(on: bool) -> void:
+	for btn: Button in _mail_buttons:
+		btn.visible = not on
+	if _letters_label != null:
+		_letters_label.visible = not on and _side_tab == SideTab.POCKETS
+	if _hand_root != null:
+		if on:
+			_hand_root.visible = false
+		else:
+			_update_hand_cursor(false)
 
 
 func _cycle_side_tab(delta: int) -> void:
@@ -398,9 +415,10 @@ func _setup_player_portrait() -> void:
 	cam.fov = 20.0
 	world.add_child(cam)
 
-	if not ResourceLoader.exists(PLAYER_GLB):
+	var player_glb := Player.visual_path()
+	if not ResourceLoader.exists(player_glb):
 		return
-	var packed: PackedScene = load(PLAYER_GLB) as PackedScene
+	var packed: PackedScene = load(player_glb) as PackedScene
 	if packed == null:
 		return
 	var body: Node = packed.instantiate()
@@ -409,7 +427,7 @@ func _setup_player_portrait() -> void:
 		return
 	_portrait_pivot = body as Node3D
 	world.add_child(_portrait_pivot)
-	VisualFit.apply_actor_scale(_portrait_pivot, &"boy_1")
+	VisualFit.apply_actor_scale(_portrait_pivot, Player.visual_id())
 	GeneratedVisual.apply_preview_materials(_portrait_pivot)
 	VisualAnimation.stop_autoplay_keep_rest(_portrait_pivot)
 	_portrait_pivot.rotation.y = 0.0
@@ -945,6 +963,7 @@ func _sync_portrait_equipment(force: bool = false) -> void:
 		## `mIV_umbrella_data`: the doll holds the umbrella open (handle + canopy split).
 		if tool.kind == ToolData.Kind.UMBRELLA and attach != null and attach.get_child_count() > 0:
 			HeldUmbrella.new().setup(attach.get_child(0) as Node3D, HeldUmbrella.Action.OPEN_NOW)
+			HeldUmbrella.paint_canopy(attach.get_child(0) as Node3D, HeldUmbrella.design_texture(tool))
 	## `mIV_pl_check_anm_change`: an equip swap plays CHANGE1, everything else rests.
 	if equip_changed:
 		_set_portrait_anim(PortraitAnim.CHANGE)
@@ -1051,29 +1070,19 @@ func open() -> void:
 	_show_page(SideTab.POCKETS)
 	Audio.play_se(&"menu_pause")
 	_root.visible = true
-	_root.modulate = Color(1, 1, 1, 0)
-	if _shell_stack != null:
-		_shell_stack.scale = Vector2(0.94, 0.94)
-		_shell_stack.pivot_offset = _shell_stack.size * 0.5
+	_slide.slide_in(MenuSlide.Dir.IN_RIGHT)
 	if _portrait_viewport != null:
 		_portrait_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	if _hand_viewport != null:
 		_hand_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	Game.inventory.clear_hand()
+	Game.inventory.bury_ready = PlantGrowth.scoop_plant_ready(_field_context())
+	_find_release_water()
 	_sync_portrait_equipment(true)
 	_sync_portrait_cloth()
 	_play_hand_clip("hnd_sasu", true)
 	_refresh()
 	_update_hand_cursor(false)
-	if _open_tween != null:
-		_open_tween.kill()
-	_open_tween = create_tween()
-	_open_tween.set_parallel(true)
-	_open_tween.tween_property(_root, "modulate:a", 1.0, 0.14)
-	if _shell_stack != null:
-		_open_tween.tween_property(_shell_stack, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(
-			Tween.EASE_OUT
-		)
 	get_tree().paused = false
 
 
@@ -1121,20 +1130,28 @@ func close() -> void:
 		Game.notify_intro_payment_declined()
 	if Game.museum_donate_pending:
 		Game.cancel_museum_donation()
+	if Game.shop_sell_pending:
+		Game.cancel_shop_sell()
 	if Game.storage_putin_pending:
 		Game.cancel_storage_putin()
+	if Game.quest_handover_pending:
+		Game.cancel_quest_handover()
 	if _hand_root != null:
 		_hand_root.visible = false
 	if _portrait_viewport != null:
 		_portrait_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	Game.inventory.clear_hand()
+	## `mTG_close_window`: `mSM_MOVE_OUT_RIGHT`; the viewports stop once it is gone.
+	_slide.slide_out(MenuSlide.Dir.OUT_RIGHT, _on_slid_out)
+	_refresh()
+
+
+func _on_slid_out() -> void:
+	if _open:
+		return
+	_root.visible = false
 	if _hand_viewport != null:
 		_hand_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	Game.inventory.clear_hand()
-	_root.visible = false
-	_root.modulate = Color.WHITE
-	if _shell_stack != null:
-		_shell_stack.scale = Vector2.ONE
-	_refresh()
 
 
 func toggle() -> void:
@@ -1671,6 +1688,11 @@ func _run_tag(tag: String) -> void:
 					Game.set_interact_prompt("Talk to Tom Nook")
 				close()
 		"Hand over":
+			if Game.quest_handover_pending:
+				## A villager's quest — the talk plays the hand-over.
+				Game.take_quest_handover(idx)
+				close()
+				return
 			## Intro down payment — Nook's director plays the hand-over and books it.
 			Game.notify_intro_payment_made()
 			close()
@@ -1679,6 +1701,14 @@ func _run_tag(tag: String) -> void:
 			var putin_slot: InventorySlot = inv.slot_at(idx)
 			if putin_slot != null and not putin_slot.is_empty():
 				Game.take_storage_putin(putin_slot.item.item_id)
+			close()
+		"Sell":
+			Game.take_shop_sell([idx] as Array[int])
+			close()
+		"Sell all":
+			var picked: Array[int] = inv.marked_indices()
+			inv.clear_marks()
+			Game.take_shop_sell(picked)
 			close()
 		"Donate":
 			## Blathers is waiting — book the outcome and let his dialogue respond.
@@ -1704,6 +1734,35 @@ func _run_tag(tag: String) -> void:
 				var msg: String = inv.use_slot(idx)
 				if msg != "":
 					Game.post_notice(msg)
+		"Release":
+			## `mTG_release_proc`: out of the pockets, then the player lets it go.
+			var rel_slot: InventorySlot = inv.slot_at(idx)
+			if rel_slot == null or rel_slot.is_empty():
+				return
+			var rel_data: ItemData = ItemCatalog.get_item(rel_slot.item.item_id)
+			var rel_water: Variant = inv.release_water
+			var rel_player: Player = Player.find(get_tree())
+			inv.remove_from_slot(idx, 1)
+			close()
+			if rel_player != null:
+				rel_player.release_from_pocket(rel_data, rel_water)
+		"Bury":
+			## `mTG_TYPE_FIELD_DEFAULT_BURY`: put it in the hole and scoop it shut.
+			var bury_ctx: InteractionContext = _field_context()
+			var bury_cell: Vector2i = ToolUse.facing_cell(bury_ctx)
+			var bury_slot: InventorySlot = inv.slot_at(idx)
+			if bury_slot == null or bury_slot.is_empty():
+				return
+			var buried_id: StringName = bury_slot.item.item_id
+			var buried: ItemData = ItemCatalog.get_item(buried_id)
+			inv.remove_from_slot(idx, 1)
+			close()
+			if BuriedUse.bury(bury_ctx, bury_cell, buried_id):
+				Audio.play_se(&"scoop_umeru")
+				Game.post_notice("Buried %s." % (buried.display_name if buried != null else "it"))
+			elif buried != null:
+				inv.add(buried, 1)
+				Game.post_notice("Can't bury it here.")
 		"Plant":
 			## `mTG_plant_proc`: shovel+hole → putin scoop; else throw-put on the facing unit.
 			var taken: Dictionary = PlantGrowth.take_plant_from_slot(_field_context(), idx)
@@ -1856,13 +1915,14 @@ func _present_on_mail(idx: int) -> void:
 		Game.post_notice("Took back %s." % data.display_name)
 
 
-## `mTG_write_proc` → `mSM_OVL_ADDRESS` — the real flow starts with the address book,
-## not a dialogue-tree popup (`m_address_ovl.c`).
+## `mTG_write_proc` → `mSM_OVL_BOARD` on the stationery, with the address book over it
+## (`m_board_ovl.c` / `m_address_ovl.c`). With no stationery items in the port, the
+## paper is picked first.
 func _open_write_letter() -> void:
-	var address: Node = get_tree().get_first_node_in_group("letter_address_ui")
-	if address == null or not address.has_method("open"):
+	var picker: Node = get_tree().get_first_node_in_group("letter_paper_picker_ui")
+	if picker == null or not picker.has_method("open"):
 		return
-	address.call("open")
+	picker.call("open")
 
 
 func _drop_selected() -> void:
@@ -1874,7 +1934,16 @@ func _drop_selected() -> void:
 	if data == null:
 		return
 	close()
-	if not _spawn_pickup(data):
+	## `aSIGN_set_white_sign`: a signboard stands up where it is put.
+	if data.id == SignboardUse.ITEM_ID:
+		var sign_ctx: InteractionContext = _field_context()
+		if Game.current_room_id != &"" or not SignboardUse.place(sign_ctx.world, ToolUse.facing_cell(sign_ctx)):
+			inv.add(data, removed.count, removed.condition)
+			Game.post_notice("Can't put it here")
+			return
+		Audio.play_se(&"item_horidashi")
+		return
+	if not _spawn_pickup(data, 0.0, removed.condition == InventoryItem.Condition.PRESENT):
 		inv.add(data, removed.count, removed.condition)
 		Game.post_notice("Can't drop here")
 		return
@@ -1904,7 +1973,7 @@ func _drop_all_marked() -> void:
 		var data: ItemData = ItemCatalog.get_item(item.item_id)
 		if data == null:
 			continue
-		if _spawn_pickup(data, (float(i) - float(removed.size() - 1) * 0.5) * 0.6):
+		if _spawn_pickup(data, 0.0, item.condition == InventoryItem.Condition.PRESENT):
 			dropped += 1
 		else:
 			inv.add(data, item.count, item.condition)
@@ -1914,53 +1983,69 @@ func _drop_all_marked() -> void:
 		Game.post_notice("Can't drop here")
 
 
-func _spawn_pickup(item: ItemData, lateral_offset: float = 0.0) -> bool:
+## Lay the item on the unit in front, or the nearest free one (`FieldItems`), dropped from the
+## player's hands. `_lateral_offset` is unused: each item finds its own unit.
+func _spawn_pickup(item: ItemData, _lateral_offset: float = 0.0, wrapped: bool = false) -> bool:
 	var tree := get_tree()
 	if tree == null:
 		return false
 	var player := Player.find(tree)
 	var world := World.find(tree)
-	if player == null or world == null:
+	if world == null and player != null and Game.interior_session != null:
+		return _put_down_indoors(player, item, wrapped)
+	if player == null or world == null or not (world.grid is WorldGrid):
 		return false
-	var packed: PackedScene = load(ITEM_SCENE) as PackedScene
-	if packed == null:
+	var grid: WorldGrid = world.grid
+	var ctx: InteractionContext = _field_context()
+	var front: Vector2i = ToolUse.facing_cell(ctx)
+	var cell: Vector2i = FieldItems.drop_cell(grid, front, front - grid.world_to_cell(player.global_position))
+	if cell.x < 0:
 		return false
-	var node: Node = packed.instantiate()
-	if not (node is Node3D):
-		node.queue_free()
+	var pickup: Node3D = FieldItems.put(world, cell, item.id, wrapped)
+	if pickup == null:
 		return false
-	var pickup := node as Node3D
-	pickup.set("item", item)
-	_drop_pid_seq += 1
-	## `Time.get_ticks_msec()` alone can repeat across a same-frame "Drop All" burst —
-	## the counter guarantees each spawned pickup still gets a distinct `persist_id`.
-	var pid := StringName("drop_%s_%d_%d" % [String(item.id), Time.get_ticks_msec(), _drop_pid_seq])
-	pickup.set("persist_id", pid)
-	pickup.set("occupy_grid", false)
-	var objects: Node = world.get_node_or_null("Objects")
-	if objects == null:
-		world.add_child(pickup)
-	else:
-		objects.add_child(pickup)
-	var yaw: float = 0.0
-	yaw = player.facing_yaw()
-	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
-	var side := Vector3(cos(yaw), 0.0, -sin(yaw))
-	var land: Vector3 = player.global_position + forward * 1.1 + side * lateral_offset
-	var layout: Variant = world.layout
-	var grid: Variant = world.grid
-	if layout is WorldData and grid is WorldGrid:
-		land.y = FieldCollision.ground_y_at(
-			layout as WorldData, grid as WorldGrid, land, FieldCollision.FG_GROUND_DIST
-		)
-	else:
-		land.y = player.global_position.y + FieldCatalog.GX_TO_METERS
+	var land: Vector3 = pickup.global_position
 	var start: Vector3 = player.global_position + Vector3(0.0, 50.0 * FieldCatalog.GX_TO_METERS, 0.0)
 	if pickup.has_method("begin_fall"):
 		pickup.call("begin_fall", start, land, 0.55)
-	else:
-		pickup.global_position = land
 	return true
+
+
+## In your own house the item goes on the floor in front of you, or on the table there
+## (`RoomItems`); other rooms hold nothing put down.
+func _put_down_indoors(player: Player, item: ItemData, wrapped: bool) -> bool:
+	var session: IndoorSession = Game.interior_session
+	var facing: WorldGrid.Facing = WorldGrid.facing_from_player_yaw(player.facing_yaw())
+	var front: Vector2i = session.grid.step(session.grid.world_to_cell(player.global_position), facing)
+	var entry: FurniturePlacement = RoomItems.drop(session, front, item, wrapped)
+	if entry == null:
+		return false
+	var host: Node = get_tree().get_first_node_in_group("interior")
+	if host != null and host.has_method("spawn_placement"):
+		host.call("spawn_placement", entry)
+	return true
+
+
+## `mSM_IV_OPEN_NORMAL`: on the field, look for water ahead of the player for a fish.
+func _find_release_water() -> void:
+	var inv: Inventory = Game.inventory
+	var ctx: InteractionContext = _field_context()
+	var world: World = ctx.world as World
+	var player: Player = ctx.actor as Player
+	inv.release_outdoors = world != null and player != null
+	inv.release_water = null
+	if not inv.release_outdoors:
+		return
+	var layout: WorldData = world.layout
+	var grid: WorldGrid = world.grid
+	var found: Variant = CreatureRelease.search_water(func(at: Vector3) -> bool:
+		var attr: int = FieldCollision.unit_attr_at(layout, grid, at)
+		return attr >= 0 and FieldCatalog.is_water_attr(attr),
+		player.global_position, player.facing_yaw())
+	if found != null:
+		var water: Vector3 = found as Vector3
+		water.y = world.fish.surface_at(water)
+		inv.release_water = water
 
 
 func _field_context() -> InteractionContext:
@@ -2106,6 +2191,14 @@ func _refresh_item_detail(inv: Inventory) -> void:
 		_desc.text = "A wrapped gift."
 	elif sel.item.condition == InventoryItem.Condition.QUEST:
 		_name.text = "%s (quest)" % data.display_name
+		## `mQst_GetToFromName` on the item tag: who it's for, who it's from.
+		var names: Dictionary = Game.quests.to_from_for_pocket(inv, inv.selected_index) if Game.quests != null else {}
+		if not names.is_empty():
+			var to: VillagerData = VillagerCatalog.get_villager(names["to"])
+			var from: VillagerData = VillagerCatalog.get_villager(names["from"])
+			_desc.text = "To: %s\nFrom: %s" % [
+				to.display_name if to != null else "?", from.display_name if from != null else "?"
+			]
 
 
 func _refresh_mail_detail(inv: Inventory) -> void:

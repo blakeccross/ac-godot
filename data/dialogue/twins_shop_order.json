@@ -1,0 +1,108 @@
+{
+  "id": "twins_shop_order",
+  "speaker_id": "timmy",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_order_pick",
+              "value": "offer"
+            }
+          },
+          "goto": "offer"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_order_pick",
+              "value": "unavailable"
+            }
+          },
+          "goto": "unavailable"
+        },
+        {
+          "goto": "cancel"
+        }
+      ]
+    },
+    "offer": {
+      "type": "line",
+      "text": "The {item0}!\nA fine choice! {c:25,140,220}...choice!{c:50,60,50}",
+      "next": "price"
+    },
+    "price": {
+      "type": "choice",
+      "prompt": "With delivery, {free0} Bells.\nShall we order it?",
+      "options": [
+        {
+          "text": "Order it!",
+          "goto": "confirm"
+        },
+        {
+          "text": "Never mind.",
+          "goto": "cancel"
+        }
+      ]
+    },
+    "confirm": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "order_confirm"
+        }
+      ],
+      "next": "done_branch"
+    },
+    "done_branch": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_order_done",
+              "value": "no_money"
+            }
+          },
+          "goto": "no_money"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_order_done",
+              "value": "full"
+            }
+          },
+          "goto": "full"
+        },
+        {
+          "goto": "thanks"
+        }
+      ]
+    },
+    "thanks": {
+      "type": "line",
+      "text": "Thanks much! It will come\nby mail once it reaches\nthe store! {c:25,140,220}...store!{c:50,60,50}"
+    },
+    "no_money": {
+      "type": "line",
+      "text": "Not enough Bells! Orders\nare paid up front. {c:25,140,220}...front.{c:50,60,50}"
+    },
+    "full": {
+      "type": "line",
+      "text": "The order sheet is full!\nPlease wait for those\nto come. {c:25,140,220}...come.{c:50,60,50}"
+    },
+    "unavailable": {
+      "type": "line",
+      "text": "The {item0}? Sorry, we\ncannot order that. {c:25,140,220}...that.{c:50,60,50}"
+    },
+    "cancel": {
+      "type": "line",
+      "text": "No order? That is fine!\nCome back anytime! {c:25,140,220}...anytime!{c:50,60,50}"
+    }
+  }
+}

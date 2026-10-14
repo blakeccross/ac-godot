@@ -27,6 +27,9 @@ const ACCEL := 1.1999999
 const BRAKE := 34.8
 ## `Player_actor_Search_exist_npc_inCircle_forWade` (not in the title demo).
 const NPC_CLEAR_GX := 36.0
+## `Player_actor_CheckCondition_forWadeSnowball`: pushing a ball, the body must be within 5°
+## of straight across.
+const SNOWBALL_ANGLE_RANGE := 5.0
 
 
 ## `mCoBG_UniqueWallCheck` → `mCoBG_ScopeWallCheck(block, 640, 640, 18)`: keep the new
@@ -55,18 +58,19 @@ static func direction(
 	can_land: Callable,
 	inset: float = 0.0,
 	unable: bool = false,
+	angle_range: float = ANGLE_RANGE,
 ) -> Dir:
 	var local := Vector2(fposmod(pos_gx.x, BLOCK_GX), fposmod(pos_gx.z, BLOCK_GX))
 	var deg: float = rad_to_deg(wrapf(facing, -PI, PI))
 	var near: float = EDGE_GX + inset
 	var far: float = BLOCK_GX - EDGE_GX - inset
-	if stick.x > STICK_RANGE and absf(deg - 90.0) < ANGLE_RANGE:
+	if stick.x > STICK_RANGE and absf(deg - 90.0) < angle_range:
 		return _at(Dir.RIGHT, local.x >= far, can_land, unable)
-	if stick.x < -STICK_RANGE and absf(deg + 90.0) < ANGLE_RANGE:
+	if stick.x < -STICK_RANGE and absf(deg + 90.0) < angle_range:
 		return _at(Dir.LEFT, local.x <= near, can_land, unable)
-	if stick.y > STICK_RANGE and absf(deg) > 180.0 - ANGLE_RANGE:
+	if stick.y > STICK_RANGE and absf(deg) > 180.0 - angle_range:
 		return _at(Dir.UP, local.y <= near, can_land, unable)
-	if stick.y < -STICK_RANGE and absf(deg) < ANGLE_RANGE:
+	if stick.y < -STICK_RANGE and absf(deg) < angle_range:
 		return _at(Dir.DOWN, local.y >= far, can_land, unable)
 	return Dir.NONE
 

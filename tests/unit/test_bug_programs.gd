@@ -671,7 +671,7 @@ func test_crawling_pill_bug_dives_into_water_ahead_and_drowns() -> void:
 	for z in 32:
 		s.grid.set_terrain(Vector2i(7, z), WorldGrid.Terrain.WATER)
 	var at: Vector3 = s.grid.cell_to_world(Vector2i(5, 5))
-	var a := _make(&"ant", BugData.Habitat.GROUND, at)
+	var a := _make(&"ant", BugData.Habitat.GROUND, at, true)  ## a released ant crawls; a wild one is the swarm
 	s.player_position = at + Vector3(-10.0, 0.0, 0.0)
 	s.player_yaw = PI * 0.5   ## facing east, toward the water
 	var dived := false
@@ -776,3 +776,35 @@ func test_stress_fallback_speed_counts_per_tick() -> void:
 		by_move.frame(s2)
 	assert_float(by_speed.patience).is_greater(0.0)
 	assert_float(by_speed.patience).is_equal_approx(by_move.patience, by_move.patience * 0.1 + 0.5)
+# ---- ANT (the swarm on food, `ac_ant`) -----------------------------------
+
+func test_ants_swarm_on_food_and_fade_once_it_is_gone() -> void:
+	Game.field_items.clear()
+	var grid := WorldGrid.new()
+	grid.configure_from_world(WorldGenerator.authored_test_town())
+	var cell := Vector2i(8, 8)
+	Game.field_items[String(FieldItems.persist_id(cell))] = {"id": "candy", "wrapped": false}
+	var a := _make(&"ant", BugData.Habitat.GROUND, grid.cell_to_world(cell))
+	assert_bool(a.is_swarm()).is_true()
+	assert_float(a.net_catch_range_gx(Vector3.ZERO)).is_equal(24.0)
+	var s := BugActor.Sense.new()
+	s.grid = grid
+	var at: Vector3 = a.position
+	_run(a, 300, s)
+	assert_bool(a.finished).is_false()
+	assert_int(a.action).is_equal(BugAnt.WAIT)
+	assert_vector(a.position).is_equal(at)
+	Game.field_items.clear()
+	a.frame(s)
+	assert_int(a.action).is_equal(BugAnt.DISAPPEAR)
+	assert_bool(a.f_no_catch).is_true()
+	## 255 down 15 a tick.
+	_run(a, 16, s)
+	assert_bool(a.finished).is_false()
+	_run(a, 2, s)
+	assert_bool(a.finished).is_true()
+
+
+func test_a_released_ant_is_an_ordinary_crawler() -> void:
+	var a := _make(&"ant", BugData.Habitat.GROUND, Vector3(4.0, 0.0, 4.0), true)
+	assert_bool(a.is_swarm()).is_false()

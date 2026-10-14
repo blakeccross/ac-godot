@@ -234,3 +234,52 @@ func test_net_point_follows_the_hand() -> void:
 	var moved := Transform3D(Basis(Vector3.UP, PI), Vector3(1.0, 2.0, 3.0))
 	var q: Vector3 = NetSwing.net_point(moved, NetSwing.NET_POS_GX)
 	assert_vector(q).is_equal_approx(Vector3(1.0, 2.0, 3.0) - want, Vector3.ONE * 0.0001)
+
+
+func test_a_forced_target_is_taken_by_a_swing_under_way() -> void:
+	## `Set_Item_net_catch_request_force_proc` (the bee swarm): the second checked tick, out
+	## of reach or not.
+	var net := _ready_swing()
+	_start_swing(net)
+	var target := _Target.new()
+	var caught_on: int = -1
+	var ticks: int = 0
+	while net.state == NetSwing.State.SWING:
+		var probe := _probe_with(target, Vector3(0.0, 0.0, 200.0 * GX), 24.0)
+		probe.forced = target
+		net.tick(true, 0.0, 0.0, false, probe)
+		if net.caught != null and caught_on < 0:
+			caught_on = ticks
+		ticks += 1
+	assert_int(caught_on).is_equal(12)
+	assert_object(net.caught).is_same(target)
+
+
+func test_the_bee_swarm_is_netted_as_a_bee() -> void:
+	var swarm := BeeSwarm.new()
+	add_child(swarm)
+	assert_bool(swarm.netable()).is_false()
+	swarm.phase = BeeSwarm.Phase.FLY
+	assert_bool(swarm.netable()).is_false()
+	## Two seconds of chasing (`catch_delay_frames` 60).
+	swarm.set("_fly_time", 2.0)
+	assert_bool(swarm.netable()).is_true()
+	var catch_: Netting.Catch = Netting.begin_catch(swarm)
+	assert_object(catch_).is_not_null()
+	assert_str(String(catch_.bug.id)).is_equal("bee")
+	assert_int(swarm.phase).is_equal(BeeSwarm.Phase.DISAPPEAR)
+	swarm.queue_free()
+
+
+func test_the_swing_effect_fires_once_as_the_net_comes_down() -> void:
+	var net := NetSwing.new()
+	net.begin(false, 0.0, 0.0)
+	net._begin_swing()
+	var fired: int = 0
+	for i: int in 20:
+		net.events.clear()
+		net._tick_swing(NetSwing.Probe.new())
+		fired += net.events.count(&"swing_fx")
+		if net.state != NetSwing.State.SWING:
+			break
+	assert_int(fired).is_equal(1)

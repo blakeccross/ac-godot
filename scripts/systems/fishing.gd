@@ -52,6 +52,8 @@ const FIGHT_TRASH_TICKS := 26
 const DRIFT_RADIUS_GX := 130.0
 const DRIFT_SPEED_GX := 0.45
 const DRIFT_TOUCH_SPEED_GX := 0.225
+## `aGTT_bite`: the chance a tick throws a ring while the fish has the hook.
+const BITE_RIPPLE_CHANCE := 0.1
 const DRIFT_ACCEL_GX := 0.1
 const TOW_SPEED_GX := 0.8
 ## The caster cannot walk away: `relax_rod` and `vib_rod` brake the player and turn them to
@@ -451,6 +453,8 @@ static func _land() -> void:
 	_state = State.FLOAT
 	_splash_pending = true
 	_bank_range = BANK_RANGE_START_GX
+	## `aUKI_effect_hamon(…, 1)` as it settles on the surface.
+	StepFx.ripple(_anchor, 1)
 	if _bobber != null and is_instance_valid(_bobber):
 		PlayerSe.bobber_splash(_bobber)
 	elif _actor != null and is_instance_valid(_actor):
@@ -469,6 +473,9 @@ static func _float(school: FishSchool) -> void:
 			if shadow.nibbled:
 				_nibbles += 1
 				_dip = DIP_SECONDS
+				## `aUKI_effect_hamon(…, 2)` and a short rumble on each touch.
+				StepFx.ripple(_anchor, 2)
+				GameConfig.fish_touch(shadow.size)
 			if shadow.finished:
 				continue
 			if shadow.action == FishShadow.Action.TOUCH:
@@ -479,6 +486,7 @@ static func _float(school: FishSchool) -> void:
 		## `gyo_command == 2`: `aUKI_set_proc_bite`.
 		_state = State.BITE
 		_hooked = biter
+		GameConfig.fish_bite(biter.size)
 		_rise_gx = 0.0
 		_rise_speed = 0.0
 		_rise_held = false
@@ -513,6 +521,9 @@ static func _bite(school: FishSchool) -> void:
 		_rise_speed = 0.0
 		_reel_ticks = EMPTY_REEL_TICKS
 		return
+	## `aGTT_bite`: while it has the hook, one tick in ten throws a small ring.
+	if randf() < BITE_RIPPLE_CHANCE:
+		StepFx.ripple(_anchor, 0)
 	_bob_on_line()
 	if not _reeling:
 		return

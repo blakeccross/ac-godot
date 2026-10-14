@@ -92,7 +92,20 @@ def parse_profile_body(body: str) -> dict[str, Any] | None:
         ## A non-NULL vtable means the piece has its own move / draw proc — the ones that
         ## visibly react when their switch flips (lamps, TVs, stereos, clocks, …).
         "vtable": 1 if vtable not in ("NULL", "0") else 0,
+        ## `aFTR_PROFILE.rig` (11th from the end): `aMR_SystemAnimeCt_UniqueCt` loops its clip
+        ## and the room plays it every frame at half speed — fish tanks, insect cages, the cracker.
+        "rig": 1 if len(fields) >= 11 and fields[-11] not in ("NULL", "0") else 0,
+        ## `aFTR_PROFILE.height` (9th from the end): the collision top, where anything put on
+        ## the piece rests (`mCoBG_LAYER1`).
+        "height": _float(fields[-9]) if len(fields) >= 9 else 0.0,
     }
+
+
+def _float(token: str) -> float:
+    try:
+        return float(token.rstrip("fF"))
+    except ValueError:
+        return 0.0
 
 
 def _num(token: str) -> int:

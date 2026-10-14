@@ -18,8 +18,8 @@ const SPECIAL_END_HOUR: Dictionary = {
 	&"designer": 5, &"artist": 5, &"carpet_peddler": 5, &"gypsy": 20, &"broker_sale": 17,
 	&"shop_sale": 23,
 }
-## `mFAs_FIELDRANK_SIX`. The rank widens or narrows the gap between special visits; there is
-## no town-rating system yet, so `field_rank` stays at a middling constant.
+## `mFAs_FIELDRANK_SIX`. The rank widens or narrows the gap between special visits; `Game`
+## copies the town's rating (`TownAssessment`) in whenever it rates the town.
 const FIELD_RANK_MAX := 6
 const DEFAULT_FIELD_RANK := 3
 const SLOT_NAMES: Array[String] = [
@@ -34,11 +34,26 @@ var field_rank: int = DEFAULT_FIELD_RANK
 var birthday_md: int = 0
 ## `weekly_event`: which weekly visitor owns today, and the date Gulliver was rolled for.
 var weekly_type: StringName = &""
+## `weekly_event.flags`: Blanca takes the slot on days Gulliver isn't due (`mMC_check_birth`).
+var weekly_flag: StringName = &""
+## `event_save_common.ghost_day` (an `EventDates.ordinal`): the night the Wisp first comes.
+## He turns up every night from then until the date falls a week behind, or until his
+## spirits are back (`WispTalk` clears it). `ghost_tonight`: `ghost_event_type == GHOST`.
+var ghost_day: int = 0
+var ghost_tonight: bool = false
 var weekly_date: int = 0
 ## `special_event`: the one scheduled special visit and its dates (`dates[SPECIAL0..3]`).
 var special_type: StringName = &""
 var special_year: int = 0
 var special_dates: Dictionary = {"special0": 0, "special1": 0, "special2": 0, "special3": 6}
+## `event_save_common.dozaemon_completed`: Gulliver gave his gift this week.
+var dozaemon_completed: bool = false
+
+## `event_save_data` / `mEv_area_c`: payload owned by whichever visitor or festival is on
+## (Joan's "already spoke", Redd's stock, the artist's gifts, …), keyed by event id.
+var save_areas: Dictionary = {}
+## `mEv_STATUS_TALK` for today's events: someone already spoke to the visitor.
+var _talked: Dictionary = {}
 
 var _forced: Dictionary = {}
 var _hours: Dictionary = {}
@@ -53,10 +68,15 @@ func clear() -> void:
 	field_rank = DEFAULT_FIELD_RANK
 	birthday_md = 0
 	weekly_type = &""
+	ghost_day = 0
+	ghost_tonight = false
 	weekly_date = 0
 	special_type = &""
 	special_year = 0
 	special_dates = {"special0": 0, "special1": 0, "special2": 0, "special3": 6}
+	save_areas.clear()
+	dozaemon_completed = false
+	_talked.clear()
 	_forced.clear()
 	_hours.clear()
 	_active.clear()
@@ -224,11 +244,22 @@ func sync(now: Dictionary) -> void:
 	var new_day: bool = key != _day_key
 	if new_day:
 		_day_key = key
+		_talked.clear()
 		_init_weekly(now)
+		_init_ghost(now)
 	var special_changed: bool = _init_special(now)
 	if new_day or special_changed:
 		_hours = resolve_day(now, true)
 	_refresh_active(int(now["hour"]))
+
+
+## `mEv_get_end_time`: the last hour an event runs today, or -1.
+func last_hour(id: StringName) -> int:
+	var mask: int = int(_hours.get(id, 0))
+	for h: int in range(23, -1, -1):
+		if (mask >> h) & 1:
+			return h
+	return -1
 
 
 func _refresh_active(hour: int) -> void:
@@ -315,6 +346,10 @@ func _row_gated_off(id: StringName) -> bool:
 		return special_type != &"broker_sale"
 	if id == &"kk_slider" or id == &"kabu_peddler" or id == &"dozaemon":
 		return weekly_type != id
+	if id == &"mask_npc" or id == &"soncho_bridge_make":
+		return weekly_flag != id
+	if id == &"ghost":
+		return not ghost_tonight
 	return false
 
 
@@ -443,9 +478,26 @@ func _saved_md(slot: String, now: Dictionary) -> int:
 # --- weekly visitor ------------------------------------------------------------------
 
 
-## `init_weekly_event`: Joan on Sunday, K.K. on Saturday, Gulliver once Monday–Friday. The
-## bridge, Blanca and the wisp are not modelled yet.
+## `init_weekly_event`: Joan on Sunday, K.K. on Saturday, Gulliver once Monday–Friday.
+## Tortimer takes `weekly_flag` for the second bridge once the town is full
+## (`SecondBridge.tortimer_due`); otherwise Blanca does while she has a face, except on
+## Gulliver's day.
 func _init_weekly(now: Dictionary) -> void:
+	_init_weekly_type(now)
+	var today: int = EventDates.md(int(now["month"]), int(now["day"]))
+	var gulliver_today: bool = weekly_type == &"dozaemon" and weekly_date == today
+	if Game != null:
+		MaskCat.check_delete(EventDates.ordinal(int(now["year"]), int(now["month"]), int(now["day"])))
+	weekly_flag = &""
+	if Game != null and Game.residents != null and SecondBridge.tortimer_due(int(now["weekday"]), gulliver_today,
+			Game.residents.animal_num() >= TownResidents.ANIMAL_NUM_MAX, Game.foreigner):
+		weekly_flag = &"soncho_bridge_make"
+		SecondBridge.note_day(EventDates.ordinal(int(now["year"]), int(now["month"]), int(now["day"])))
+	elif not gulliver_today and Game != null and MaskCat.check_birth():
+		weekly_flag = &"mask_npc"
+
+
+func _init_weekly_type(now: Dictionary) -> void:
 	var year: int = int(now["year"])
 	var wd: int = int(now["weekday"])
 	var today: int = EventDates.md(int(now["month"]), int(now["day"]))
@@ -465,6 +517,21 @@ func _init_weekly(now: Dictionary) -> void:
 				var offset: int = 1 + (today + int(now["hour"])) % 5
 				weekly_date = EventDates.after_n_day(year, today, offset - wd)
 				weekly_type = &"dozaemon"
+				## `dozaemon_completed = FALSE` and a fresh `mEv_dozaemon_c` for the new week.
+				dozaemon_completed = false
+				clear_area(&"dozaemon")
+
+
+## `init_weekly_event`'s Wisp part: keep `ghost_day` while it lies between a week ago and
+## four days ahead, else roll it 2–4 days out; he comes while it is between a week ago and
+## today.
+func _init_ghost(now: Dictionary) -> void:
+	var today: int = EventDates.ordinal(int(now["year"]), int(now["month"]), int(now["day"]))
+	if ghost_day == 0 or ghost_day < today - 7 or ghost_day > today + 4:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = (town_seed & 0x00FFFFFF) + today * 7 + 3
+		ghost_day = today + 2 + rng.randi_range(0, 2)
+	ghost_tonight = ghost_day >= today - 7 and ghost_day <= today
 
 
 # --- special NPC visit -----------------------------------------------------------------
@@ -573,6 +640,39 @@ func _join(ids: Array[StringName]) -> String:
 	return ", ".join(names)
 
 
+# --- per-event state -------------------------------------------------------------------
+
+
+## `mEv_get_save_area` / `mEv_reserve_save_area`: the event's saved payload (created empty).
+func area(id: StringName) -> Dictionary:
+	var key := String(id)
+	if not save_areas.has(key):
+		save_areas[key] = {}
+	return save_areas[key]
+
+
+func has_area(id: StringName) -> bool:
+	return save_areas.has(String(id))
+
+
+## `mEv_clear_save_area`.
+func clear_area(id: StringName) -> void:
+	save_areas.erase(String(id))
+
+
+func mark_talked(id: StringName) -> void:
+	_talked[id] = true
+
+
+func has_talked(id: StringName) -> bool:
+	return _talked.has(id)
+
+
+## Today's date key (`year-month-day`).
+func day_key() -> String:
+	return _day_key
+
+
 # --- save ------------------------------------------------------------------------------
 
 
@@ -586,6 +686,9 @@ func to_save() -> Dictionary:
 		"special_type": String(special_type),
 		"special_year": special_year,
 		"special_dates": special_dates.duplicate(),
+		"areas": save_areas.duplicate(true),
+		"dozaemon_completed": dozaemon_completed,
+		"ghost_day": ghost_day,
 	}
 
 
@@ -596,9 +699,14 @@ func apply_snapshot(data: Dictionary) -> void:
 	birthday_md = int(data.get("birthday", 0))
 	weekly_type = StringName(String(data.get("weekly_type", "")))
 	weekly_date = int(data.get("weekly_date", 0))
+	ghost_day = int(data.get("ghost_day", 0))
 	special_type = StringName(String(data.get("special_type", "")))
 	special_year = int(data.get("special_year", 0))
 	var dates: Variant = data.get("special_dates", {})
 	if typeof(dates) == TYPE_DICTIONARY:
 		for slot: String in ["special0", "special1", "special2", "special3"]:
 			special_dates[slot] = int((dates as Dictionary).get(slot, special_dates[slot]))
+	dozaemon_completed = bool(data.get("dozaemon_completed", false))
+	var areas: Variant = data.get("areas", {})
+	if typeof(areas) == TYPE_DICTIONARY:
+		save_areas = (areas as Dictionary).duplicate(true)

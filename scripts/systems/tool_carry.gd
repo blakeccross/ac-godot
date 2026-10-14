@@ -30,12 +30,17 @@ var time: float = 0.0
 static func build(anim: AnimationPlayer, skeleton: Skeleton3D, tool: ToolData) -> ToolCarry:
 	if anim == null or skeleton == null or tool == null or tool.hold_anim == &"":
 		return null
-	var joints: Array = PART_JOINTS.get(tool.carry_part, [])
-	if joints.is_empty():
+	return build_part(anim, skeleton, String(tool.hold_anim), PART_JOINTS.get(tool.carry_part, []))
+
+
+## A carry clip (`clip_suffix`) driving `joints` over whatever the body plays — also the NPC
+## sub-animation (`aNPC_part_tbl1x`, e.g. `UMBRELLA1` on the right arm).
+static func build_part(anim: AnimationPlayer, skeleton: Skeleton3D, clip_suffix: String, joints: Array) -> ToolCarry:
+	if anim == null or skeleton == null or joints.is_empty() or clip_suffix == "":
 		return null
 	var clip_name: String = ""
 	for n: String in anim.get_animation_list():
-		if n.ends_with(String(tool.hold_anim)):
+		if n.ends_with(clip_suffix):
 			clip_name = n
 			break
 	if clip_name == "":

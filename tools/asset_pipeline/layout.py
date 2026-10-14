@@ -7,8 +7,14 @@ import re
 _SPECIES_PREFIX = re.compile(r"^[a-z]{2,4}_?\d+$")
 
 
+def is_player_prefix(prefix: str) -> bool:
+    ## `cKF_bs_r_grl_1` is the girl body (`mPlib_get_player_mdl_p`). The name is
+    ## `grl_`, not `girl_`, so it would otherwise match the villager species pattern.
+    return prefix.startswith(("boy_", "girl_", "grl_"))
+
+
 def uses_shared_npc_anims(prefix: str) -> bool:
-    if prefix.startswith(("boy_", "girl_", "int_", "tol_", "obj_", "act_", "ef_", "grd_", "logo_", "clk_")):
+    if is_player_prefix(prefix) or prefix.startswith(("int_", "tol_", "obj_", "act_", "ef_", "grd_", "logo_", "clk_")):
         return False
     return bool(_SPECIES_PREFIX.fullmatch(prefix))
 
@@ -40,7 +46,7 @@ def env_subdir(prefix: str) -> str:
 
 
 def output_for_prefix(prefix: str) -> str:
-    if prefix.startswith(("boy_", "girl_")):
+    if is_player_prefix(prefix):
         return f"characters/player/{prefix}.glb"
     if prefix.startswith("int_") or prefix.startswith("clk_"):
         return f"furniture/{prefix}.glb"

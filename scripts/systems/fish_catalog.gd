@@ -127,7 +127,8 @@ static func first_line(data: DialogueData) -> String:
 static func catch_text(catch_msg: int) -> String:
 	if catch_msg == 0:
 		return ""
-	var text: String = first_line(DialogueCatalog.conversation(StringName("msg_%d" % catch_msg)))
+	## Plain text for the notice line: size / colour / pause codes stripped.
+	var text: String = MessageBody.strip_tags(first_line(DialogueCatalog.conversation(StringName("msg_%d" % catch_msg))))
 	return text if not text.is_empty() else "You caught something."
 
 

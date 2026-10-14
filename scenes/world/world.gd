@@ -5,6 +5,8 @@ extends Node3D
 ## Layout comes from WorldData (test town or generator), not a catalog in this .tscn.
 
 const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
+const PORTER_SCENE := preload("res://scenes/world/station_porter.tscn")
+const BLANCA_SCENE := preload("res://scenes/world/events/blanca.tscn")
 
 var grid: WorldGrid = WorldGrid.new()
 var layout: WorldData
@@ -14,11 +16,17 @@ var fish: FishSchool = FishSchool.new()
 ## Live insects for this field. Read by `Netting` and ticked by `BugActors`.
 var bugs: BugField = BugField.new()
 var _lightning_flash: bool = false
+var _light_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
+## Where a continued game walks out of the house (`Vector3.INF` otherwise).
+var _door_stand: Vector3 = Vector3.INF
+var _door_yaw: float = 0.0
 
 @onready var _sun: DirectionalLight3D = $Sun
 @onready var _moon: DirectionalLight3D = $Moon
 @onready var _world_env: WorldEnvironment = $WorldEnvironment
 @onready var _spawn: Marker3D = $Characters/PlayerSpawn
+## This load began with the player stepping off the train.
+var _train_arrival: bool = false
 @onready var _camera: Camera3D = $FollowCamera
 @onready var _navigation: NavigationRegion3D = $Navigation
 
@@ -29,6 +37,28 @@ const GROUP := &"world"
 ## The outdoor field in `tree`, or null.
 static func find(tree: SceneTree) -> World:
 	return tree.get_first_node_in_group(GROUP) as World if tree != null else null
+
+
+## How often the event music checks which acre the player is in.
+const BGM_CHECK_SEC := 0.5
+var _bgm_check: float = 0.0
+var _event_bgm_now: Dictionary = {}
+
+
+func _process(delta: float) -> void:
+	## Windows fade on at 18:00 and off at 05:00 (`aPBOX_actor_move`'s 320-a-tick chase).
+	_light_steps.add(delta)
+	var ticks: int = 0
+	while _light_steps.next():
+		ticks += 1
+	VisualWindowLight.step_window_lights(self, ticks)
+	## `mBGMFieldSchedEv_move`: event music follows the player from acre to acre.
+	_bgm_check -= delta
+	if _bgm_check <= 0.0:
+		_bgm_check = BGM_CHECK_SEC
+		var want: Dictionary = _event_bgm()
+		if want != _event_bgm_now:
+			_play_outdoor_bgm()
 
 
 func _ready() -> void:
@@ -45,17 +75,34 @@ func _ready() -> void:
 	WorldBuilder.new().build(self, layout, grid)
 	HoleUse.restore(self, grid)
 	BuriedUse.restore(self, grid)
+	WeedUse.restore(self, grid)
+	MushroomUse.restore(self, grid)
+	ShellUse.restore(self, grid)
+	SignboardUse.restore(self, grid)
+	FieldItems.restore(self, grid)
+	BallUse.restore(self, layout, grid)
+	SecondBridge.build_if_due(EventDates.ordinal(Clock.year, Clock.month, Clock.day), Clock.hour)
+	SecondBridge.restore(self, layout, grid)
+	SnowmanUse.restore(self)
 	PlantGrowth.restore(self, grid)
 	PlantGrowth.assign_special_trees(self)
+	PlantGrowth.set_xmas_trees(Clock.month, Clock.day, _field_rng(), self)
 	## First outdoor load seeds dig spots like `mAGrw_GROW_FIRST` deposit.
 	if Game.buried_deposits.is_empty():
 		BuriedUse.renew(self, grid)
+	_sow_weeds()
+	if not Game.title_demo_active and not Game.intro_station_active:
+		## `mHsRm_GetHuusuiRoom` as the last scene let go (`play_dt`).
+		Game.refresh_feng_shui()
+		_renew_money_rock()
+		Game.rate_town(self)
 	fish.configure(grid, WorldBuilder.water_surface_y(), layout)
 	bugs.configure(grid, layout)
 	if layout.mode == WorldData.Mode.TEST:
 		bugs.seed_trees()
 	_build_navigation()
 	Clock.time_changed.connect(_apply_time_of_day)
+	Clock.time_changed.connect(_tick_mushrooms)
 	Clock.field_renewed.connect(_on_field_renewed)
 	Clock.hour_changed.connect(_on_hour_changed)
 	Clock.season_changed.connect(_on_season_changed)
@@ -63,11 +110,75 @@ func _ready() -> void:
 	_apply_time_of_day()
 	_play_outdoor_bgm()
 	_spawn_player()
+	if not Game.title_demo_active and not Game.intro_station_active:
+		Game.note_played_today()
+		Game.try_treasure(self)
+		if not Game.mushrooms_session_cleared:
+			Game.mushrooms_session_cleared = true
+			MushroomUse.first_clear(self, Clock.absolute_minute(), _field_rng())
+		_tick_mushrooms()
+	## `aNPS2_make_door_data`: someone with a present outside the door, else Resetti
+	## (`ac_reset_demo`) when the last session ended without saving.
+	var present: int = PresentVisit.Kind.NONE
+	if _door_stand != Vector3.INF and not Game.intro_station_active and not Game.title_demo_active:
+		present = PresentVisit.decide_now()
+		if present != PresentVisit.Kind.NONE:
+			load("res://scenes/world/present_npc.gd").spawn($Characters, present, _door_stand, _door_yaw)
+	if (present == PresentVisit.Kind.NONE and Game.reset_flag
+			and not Game.intro_station_active and not Game.title_demo_active):
+		load("res://scenes/world/resetti.gd").spawn($Characters, Player.find(get_tree()))
+	if not Game.title_demo_active and not Game.intro_station_active:
+		_place_station_porter()
+	var event_mgr: EventManager = get_node_or_null("EventManager") as EventManager
+	if event_mgr != null:
+		event_mgr.setup(self)
 	if Game.intro_station_active:
 		var director: Node = load("res://scenes/world/intro_station_director.gd").new()
 		add_child(director)
 		if director.has_method("setup"):
 			director.call("setup", self)
+
+
+## Porter on the platform in normal play (`fd_npc_land_actable`). A resident back from a trip
+## hears "Now arriving in {town}! Welcome home" (`aSTM_THINK_3`, 0x0966).
+func _place_station_porter() -> void:
+	var porter := PORTER_SCENE.instantiate() as StationPorter
+	porter.name = "Porter"
+	$Characters.add_child(porter)
+	porter.place_in_town(_platform(StationPorter.TOWN_GX))
+	if not _train_arrival:
+		return
+	_train_arrival = false
+	## `Scene_ct`: Blanca or Rover rides the travel train (`mPr_FLAG_MASK_CAT_SCHEDULED`).
+	var out: Dictionary = {}
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var blanca_rides: bool = MaskCat.rides_train(Game.foreigner, Game.mask_cat_scheduled, rng.randf(), out)
+	Game.mask_cat_scheduled = bool(out.get("scheduled", Game.mask_cat_scheduled))
+	var welcome: Callable = func() -> void:
+		if not Game.foreigner:
+			porter.say(PorterTalk.WELCOME_HOME)
+	if blanca_rides:
+		## `mSP_SelectRandomItem_New(…, mSP_KIND_CLOTH, mSP_LISTTYPE_ABC)`: her shirt for the trip.
+		var shirt := String(FtrCatalog.pick_named("cloth", ["A", "B", "C"][rng.randi_range(0, 2)], rng))
+		Game.mask_cat["cloth"] = int(shirt.trim_prefix("shirt_")) if shirt.begins_with("shirt_") else -1
+		var blanca: EventNpc = BLANCA_SCENE.instantiate()
+		blanca.set("on_train", true)
+		blanca.position = _platform(StationPorter.ARRIVE_GX + Vector3(-40.0, 0.0, 0.0))
+		blanca.home_yaw = PI * 0.5
+		$Characters.add_child(blanca)
+		blanca.connect("done", welcome, CONNECT_ONE_SHOT)
+	else:
+		welcome.call_deferred()
+
+
+## A platform spot (GX) on the ground.
+func _platform(gx: Vector3) -> Vector3:
+	var pos: Vector3 = TitleDemo.gx_to_world(layout, gx)
+	var y: float = FieldCollision.ground_y_at(layout, grid, pos, 0.0, false)
+	if FieldCollision.has_floor(y):
+		pos.y = y
+	return pos
 
 
 func release_occupant(occupant_id: StringName) -> void:
@@ -101,6 +212,10 @@ func _exit_tree() -> void:
 
 func _on_hour_changed(_hour: int) -> void:
 	_play_outdoor_bgm()
+	## `mBGMTime_signal_melody`: the town tune on the hour, outdoors, not in the title
+	## demo or the first arrival.
+	if not Game.title_demo_active and not Game.intro_station_active and Game.current_room_id == &"":
+		Audio.play_melody(Game.town_tune)
 
 
 func _on_weather_changed(_weather: StringName) -> void:
@@ -114,10 +229,28 @@ func _play_outdoor_bgm() -> void:
 	if Game.title_demo_active:
 		Audio.play_bgm(&"title")
 		return
+	if EventManager.demo_bgm != &"":
+		return
 	## Fresh station arrival owns `intro_arrive`; after a house exit we keep field BGM.
 	if Game.intro_station_active and not Game.intro_station_resume_debt:
 		return
+	var ev: Dictionary = _event_bgm()
+	_event_bgm_now = ev
+	if not ev.is_empty():
+		Audio.play_bgm(ev["id"] as StringName, float(ev["db"]))
+		return
 	Audio.play_bgm(BgmCatalog.outdoor_id(Clock.hour, Game.weather))
+
+
+## `mbgm_event_data` for where the player stands now ({} = the field's own music).
+func _event_bgm() -> Dictionary:
+	var mgr: EventManager = get_node_or_null("EventManager") as EventManager
+	var player := Player.find(get_tree())
+	if mgr == null or player == null or grid == null or Game.events == null:
+		return {}
+	var block: Vector2i = EventManager.cell_to_block(grid.world_to_cell(player.global_position))
+	return EventBgm.pick(Game.events.is_active, block, func(kind: String) -> Vector2i:
+		return mgr.block_of(kind) if mgr.has_block(kind) else Vector2i(-1, -1))
 
 
 func _spawn_player() -> void:
@@ -126,7 +259,24 @@ func _spawn_player() -> void:
 	var pos := Game.player_position
 	if pos.is_equal_approx(Game.DEFAULT_SPAWN):
 		pos = _spawn.global_position
-	player.apply_spawn(pos, Game.player_yaw)
+	var yaw: float = Game.player_yaw
+	## Off the train (`RIDE_OFF_DEMO`): a visitor, or a resident back from a trip.
+	if Game.arrive_by_train:
+		Game.arrive_by_train = false
+		_train_arrival = true
+		pos = _platform(StationPorter.ARRIVE_GX)
+		yaw = 0.0
+	## `mSDI_StartInitFrom` → `SCENE_FG`: a continued game starts walking out of your house.
+	if Game.continue_from_house:
+		Game.continue_from_house = false
+		var house := find_child(String(PlayerHouse.owned_building_id()), true, false) as Node3D
+		if house != null:
+			pos = StructureDoor.exit_stand(house)
+			yaw = StructureDoor.leave_yaw(house, pos)
+			Game.emerge_from_door = true
+			_door_stand = pos
+			_door_yaw = yaw
+	player.apply_spawn(pos, yaw)
 	if Game.intro_station_active and _camera.has_method("suspend"):
 		## Station demo framing — do not snap-follow the house spawn first.
 		_camera.call("suspend")
@@ -221,6 +371,54 @@ func _on_field_renewed(_days: int) -> void:
 	PlantGrowth.refresh_world(self)
 	PlantGrowth.cull_dead_flowers(self, grid)
 	BuriedUse.renew(self, grid)
+	_sow_weeds()
+	_renew_money_rock()
+	## `bridge_make_in`: the ordered bridge stands from 6:00 on its day.
+	if SecondBridge.build_if_due(EventDates.ordinal(Clock.year, Clock.month, Clock.day), Clock.hour):
+		SecondBridge.restore(self, layout, grid)
+	## `mFAs_SetFieldRank` at the end of every growth pass.
+	Game.rate_town(self)
+
+
+## `mAGrw_SetGrass` for every renewal since the field last saw one (after the deposits are
+## laid, so weeds never sit on a dig spot).
+func _sow_weeds() -> void:
+	if Game.title_demo_active or Game.intro_station_active:
+		return
+	var days: int = Game.take_weed_days()
+	if days <= 0:
+		return
+	## `mAGrw_ClearGrass`: a wish to the Wisp clears every weed, and none grow that once.
+	if Game.clear_grass:
+		WeedUse.clear_all(self, grid)
+		Game.clear_grass = false
+		return
+	var weed_rng := RandomNumberGenerator.new()
+	weed_rng.randomize()
+	WeedUse.grow(self, grid, layout, WeedUse.amount_for(days), weed_rng)
+
+
+## `mAGrw_SetMoneyStone`: a fresh money rock once the last one is spent, once a day.
+func _renew_money_rock() -> void:
+	MoneyRock.renew(self, _field_rng(), Clock.day_number())
+
+
+## `mFI_FieldMove` → `mMsr_SetMushroom` and `mFI_SetShell`, once a game minute while out on the field.
+func _tick_mushrooms() -> void:
+	if Game.title_demo_active or Game.intro_station_active or Game.current_room_id != &"":
+		return
+	var player: Node3D = Player.find(get_tree())
+	var block := Vector2i(-1, -1)
+	if player != null:
+		block = TownSpace.block_of_cell(grid.world_to_cell(player.global_position))
+	MushroomUse.tick(self, Clock.absolute_minute(), Clock.hour, Clock.minute, block, _field_rng())
+	ShellUse.tick(self, Clock.minute, block, _field_rng())
+
+
+func _field_rng() -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	return rng
 
 
 func _on_season_changed(_season: Clock.Season) -> void:

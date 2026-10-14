@@ -19,6 +19,8 @@ extends Resource
 @export var stored: PackedStringArray = PackedStringArray()
 ## Fish, bug, umbrella, or shirt sitting on this actor.
 @export var display_id: StringName = &""
+## A loose item put down as a present (`RoomItems`).
+@export var wrapped: bool = false
 
 
 func resolved_footprint(data: FurnitureData) -> Vector2i:
@@ -53,6 +55,8 @@ func to_save() -> Dictionary:
 		bag["st"] = rows
 	if display_id != &"":
 		bag["di"] = String(display_id)
+	if wrapped:
+		bag["wr"] = 1
 	return bag
 
 
@@ -77,4 +81,5 @@ static func from_save(data: Variant) -> FurniturePlacement:
 		for row: Variant in stored_raw as Array:
 			placement.stored.append(str(row))
 	placement.display_id = StringName(str(bag.get("di", "")))
+	placement.wrapped = bool(bag.get("wr", 0))
 	return placement

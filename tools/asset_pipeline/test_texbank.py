@@ -16,7 +16,6 @@ from asset_pipeline.texbank import (
     is_house_clock_texture,
     is_image_symbol,
     is_indoor_mado_texture,
-    is_museum_clock_texture,
     is_museum_plate_texture,
     museum_art_house_twin,
     museum_dummy_wood_twin,
@@ -160,15 +159,13 @@ class ClassicGbiTests(unittest.TestCase):
         self.assertTrue(is_indoor_mado_texture("rom_museum1_mado1_tex"))
         self.assertTrue(is_indoor_mado_texture("rom_museum1_mado2_tex"))
         self.assertTrue(is_house_clock_texture("obj_clock_museum1_front_tex_txt"))
-        self.assertTrue(is_museum_clock_texture("obj_clock_museum1_front_tex_txt"))
-        self.assertFalse(is_museum_clock_texture("obj_clock_tailor_1_tex_txt"))
         self.assertTrue(skips_achd_texture("rom_museum1_mado1_tex"))
         self.assertTrue(skips_achd_texture("obj_clock_museum1_dai_tex_txt"))
         self.assertTrue(skips_achd_texture("obj_art01_name_tex"))
         self.assertFalse(skips_achd_texture("obj_art01_art_tex"))
-        self.assertTrue(skips_achd_texture("rom_open_spot_tex"))
-        self.assertTrue(skips_achd_texture("rom_open_floor_tex"))
-        self.assertTrue(skips_achd_texture("rom_open_shade_tex"))
+        self.assertFalse(skips_achd_texture("rom_open_spot_tex"))
+        self.assertFalse(skips_achd_texture("rom_open_floor_tex"))
+        self.assertFalse(skips_achd_texture("rom_open_shade_tex"))
         self.assertFalse(skips_achd_texture("grd_s_f_1_gfx_model"))
 
     def test_resolve_alpha_mode_from_coverage(self) -> None:
@@ -215,6 +212,10 @@ class ClassicGbiTests(unittest.TestCase):
         self.assertEqual(coverage_from_render_mode(0xC8112078), COVERAGE_OPA)
         self.assertEqual(coverage_from_render_mode(0xC8113078), COVERAGE_TEX_EDGE)
         self.assertEqual(coverage_from_render_mode(0xC8104A50), COVERAGE_XLU)
+        ## `G_RM_FOG_SHADE_A, G_RM_XLU_SURF2`: no Z compare, still blended (feel glyphs).
+        self.assertEqual(coverage_from_render_mode(0xC8104240), COVERAGE_XLU)
+        ## `G_RM_FOG_SHADE_A, G_RM_AA_OPA_SURF2` blends coverage over memory, not 1−α.
+        self.assertEqual(coverage_from_render_mode(0xC8112048), COVERAGE_OPA)
 
     def test_uv_samples_transparent_footprint(self) -> None:
         from asset_pipeline.gfx import Vertex
@@ -312,6 +313,10 @@ class ClassicGbiTests(unittest.TestCase):
             "obj_s_house2_c_pal",
         )
         self.assertIn("obj_s_house2_a_pal", structure_palette_names("obj_s_house2", "c"))
+
+    def test_player_house_roof_palette_letter(self) -> None:
+        self.assertIn("obj_s_myhome_k_pal", structure_palette_names("obj_s_myhome3", "k"))
+        self.assertIn("obj_w_myhome_l_pal", structure_palette_names("obj_w_myhome1", "l"))
 
     def test_train_structure_palette_and_skip_achd(self) -> None:
         self.assertIn("obj_train1_a1_pal", structure_palette_names("obj_train1_1"))
@@ -490,3 +495,22 @@ class LoadTlutFallbackTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ClassicLoadLayoutTests(unittest.TestCase):
+    def test_n64_linear_ci4_reads_rows_in_order(self) -> None:
+        from asset_pipeline.bti import decode_n64_linear
+
+        ## 8×2 CI4: row 0 is 0..7, row 1 is 7..0.
+        data = bytes([0x01, 0x23, 0x45, 0x67, 0x76, 0x54, 0x32, 0x10])
+        palette = [(i * 30, 0, 0, 255) for i in range(16)]
+        img = decode_n64_linear(data, 8, 2, 2, 0, palette)
+        self.assertEqual(img.getpixel((3, 0)), (90, 0, 0, 255))
+        self.assertEqual(img.getpixel((0, 1)), (210, 0, 0, 255))
+
+
+class _NullBank:
+    segment_images: dict = {}
+
+    def load_palette(self, addr: int, count: int):
+        return None

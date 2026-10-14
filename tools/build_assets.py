@@ -22,6 +22,7 @@ from asset_pipeline.convert import (  # noqa: E402
     convert_static_prefixes,
     convert_test_static_needles,
     convert_villager_house_palettes,
+    convert_player_house_palettes,
     convert_villager_texture_sets,
     convert_water_acres,
 )
@@ -33,8 +34,10 @@ from asset_pipeline.bake import bake_acre_scenes  # noqa: E402
 from asset_pipeline.dialogue import convert_dialogue  # noqa: E402
 from asset_pipeline.villagers import generate_villagers  # noqa: E402
 from asset_pipeline.seasons import export_seasonal_textures  # noqa: E402
+from asset_pipeline.weather_sprites import export_weather_sprites  # noqa: E402
 from asset_pipeline.extract import extract_archives, extract_disc  # noqa: E402
 from asset_pipeline.design_ui import extract_design_ui  # noqa: E402
+from asset_pipeline.menu_ui import extract_menu_ui  # noqa: E402
 from asset_pipeline.inventory_ui import extract_inventory_ui  # noqa: E402
 from asset_pipeline.map_ui import extract_map_ui  # noqa: E402
 from asset_pipeline.clock_ui import extract_clock_ui  # noqa: E402
@@ -55,7 +58,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--kind",
-        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "design-ui", "map-ui", "message-ui", "clock-ui", "title", "dialogue", "villagers", "villager-textures", "faces", "audio", "water", "fish", "bugs", "seasons"],
+        choices=["all", "static", "buildings", "plants", "furniture", "collision", "fg", "inventory-ui", "design-ui", "menu-ui", "map-ui", "message-ui", "clock-ui", "title", "dialogue", "villagers", "villager-textures", "faces", "audio", "water", "fish", "bugs", "seasons"],
         default="all",
         help="all (default), static Gfx, outdoor buildings, palm/cedar/fruit/rock/stump overlays, furniture cKF, acre collision, FG templates, inventory/map UI chrome, dialogue banks, villager roster from decomp tables, per-villager body texture sets, NPC eye/mouth face frames, audiorom BGM catalog, river/ocean acre XLU, held fish GLBs, field insect GLBs, or seasonal field/tree albedo packs",
     )
@@ -165,10 +168,19 @@ def main() -> int:
             else:
                 converted = report["converted"]
                 errors = [r for r in report["results"] if r.get("status") == "error"]
-                print(f"wrote {converted} design UI assets -> {report['output']}")
-                shell_info = report.get("window_shell")
-                if shell_info:
-                    print(f"  window_shell {shell_info.get('width')}x{shell_info.get('height')} status={shell_info.get('status')}")
+                print(f"wrote {converted} design UI assets -> {report['output']} (ACHD hits {report['achd_hits']})")
+                for err in errors[:40]:
+                    print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
+                if errors:
+                    failed = True
+        elif args.kind == "menu-ui":
+            report = extract_menu_ui(cfg)
+            if report.get("error"):
+                print(f"menu-ui: {report['error']}")
+                failed = True
+            else:
+                errors = [r for r in report["results"] if r.get("status") == "error"]
+                print(f"wrote {report['converted']} menu UI layers -> {report['output']} (ACHD hits {report['achd_hits']})")
                 for err in errors[:40]:
                     print(f"  ERROR {err.get('asset_id')}: {err.get('error')}")
                 if errors:
@@ -251,7 +263,8 @@ def main() -> int:
                     f"{report['string_count']} strings; "
                     f"{report.get('manpu_events', 0)} manpu, "
                     f"{report.get('set_emote_events', 0)} set_emote, "
-                    f"{report.get('demo_order_events', 0)} demo_order)"
+                    f"{report.get('demo_order_events', 0)} demo_order; "
+                    f"{report.get('mail_strings', 0)} letter strings)"
                 )
         elif args.kind == "audio":
             report = convert_audio(cfg)
@@ -288,9 +301,15 @@ def main() -> int:
                     "obj_w_yubinkyoku",
                     "obj_s_station",
                     "obj_w_station",
+                    "obj_s_uranai",
+                    "obj_w_uranai",
+                    "obj_s_yamishop",
+                    "obj_w_yamishop",
                 )
                 pal_report = convert_villager_house_palettes(cfg)
                 report["results"].extend(pal_report.get("results", []))
+                roof_report = convert_player_house_palettes(cfg)
+                report["results"].extend(roof_report.get("results", []))
                 static_report = convert_static_prefixes(
                     cfg, ["obj_s_museum", "obj_w_museum", "obj_s_kouban", "obj_w_kouban", "obj_s_shrine", "obj_w_shrine"]
                 )
@@ -345,6 +364,12 @@ def main() -> int:
                         f"wrote {season_report['written']} seasonal textures "
                         f"-> {season_report.get('out', '')}"
                     )
+                sprites = export_weather_sprites(cfg)
+                if not sprites.get("ok"):
+                    print(f"weather sprites: {sprites.get('error')}")
+                    failed = True
+                else:
+                    print(f"wrote {sprites['written']} weather sprites -> {sprites['out']}")
                     if season_report.get("missing"):
                         print(f"  missing: {', '.join(season_report['missing'][:20])}")
                 report = None

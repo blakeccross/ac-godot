@@ -6,11 +6,54 @@
     "start": {
       "type": "branch",
       "when": [
-        {"if": {"var_eq": {"name": "copper_entry", "value": "exit"}}, "goto": "exit_greeting"},
-        {"if": {"var_eq": {"name": "copper_time", "value": "morning"}}, "goto": "menu_morning"},
-        {"if": {"var_eq": {"name": "copper_time", "value": "day"}}, "goto": "menu_day"},
-        {"if": {"var_eq": {"name": "copper_time", "value": "evening"}}, "goto": "menu_evening"},
-        {"goto": "menu_night"}
+        {
+          "if": {
+            "var_eq": {
+              "name": "copper_entry",
+              "value": "exit"
+            }
+          },
+          "goto": "exit_greeting"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "copper_foreign",
+              "value": "yes"
+            }
+          },
+          "goto": "menu_visitor"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "copper_time",
+              "value": "morning"
+            }
+          },
+          "goto": "menu_morning"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "copper_time",
+              "value": "day"
+            }
+          },
+          "goto": "menu_day"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "copper_time",
+              "value": "evening"
+            }
+          },
+          "goto": "menu_evening"
+        },
+        {
+          "goto": "menu_night"
+        }
       ]
     },
     "exit_greeting": {
@@ -21,46 +64,116 @@
       "type": "choice",
       "prompt": "Good morning, citizen! All\nquiet on my watch. Something\nI can help you with?",
       "options": [
-        {"text": "Any events?", "goto": "hint"},
-        {"text": "Lost and found?", "goto": "lost"},
-        {"text": "Never mind.", "goto": "never_mind"}
+        {
+          "text": "Any events?",
+          "goto": "hint"
+        },
+        {
+          "text": "Lost and found?",
+          "goto": "lost"
+        },
+        {
+          "text": "Never mind.",
+          "goto": "never_mind"
+        }
       ]
     },
     "menu_day": {
       "type": "choice",
       "prompt": "Afternoon, citizen! Keeping\nthe peace as always. What\ncan I do for you?",
       "options": [
-        {"text": "Any events?", "goto": "hint"},
-        {"text": "Lost and found?", "goto": "lost"},
-        {"text": "Never mind.", "goto": "never_mind"}
+        {
+          "text": "Any events?",
+          "goto": "hint"
+        },
+        {
+          "text": "Lost and found?",
+          "goto": "lost"
+        },
+        {
+          "text": "Never mind.",
+          "goto": "never_mind"
+        }
       ]
     },
     "menu_evening": {
       "type": "choice",
       "prompt": "Evening, citizen! Getting\ndark. Is there something you\nneed?",
       "options": [
-        {"text": "Any events?", "goto": "hint"},
-        {"text": "Lost and found?", "goto": "lost"},
-        {"text": "Never mind.", "goto": "never_mind"}
+        {
+          "text": "Any events?",
+          "goto": "hint"
+        },
+        {
+          "text": "Lost and found?",
+          "goto": "lost"
+        },
+        {
+          "text": "Never mind.",
+          "goto": "never_mind"
+        }
       ]
     },
     "menu_night": {
       "type": "choice",
       "prompt": "Out this late, citizen? I'm\nstill on duty. What is it?",
       "options": [
-        {"text": "Any events?", "goto": "hint"},
-        {"text": "Lost and found?", "goto": "lost"},
-        {"text": "Never mind.", "goto": "never_mind"}
+        {
+          "text": "Any events?",
+          "goto": "hint"
+        },
+        {
+          "text": "Lost and found?",
+          "goto": "lost"
+        },
+        {
+          "text": "Never mind.",
+          "goto": "never_mind"
+        }
       ]
     },
     "hint": {
       "type": "branch",
       "when": [
-        {"if": {"var_eq": {"name": "copper_hint", "value": "first_job"}}, "goto": "hint_first_job"},
-        {"if": {"var_eq": {"name": "copper_hint", "value": "run_sale"}}, "goto": "hint_run_sale"},
-        {"if": {"var_eq": {"name": "copper_hint", "value": "today"}}, "goto": "hint_today"},
-        {"if": {"var_eq": {"name": "copper_hint", "value": "later"}}, "goto": "hint_later"},
-        {"goto": "hint_none"}
+        {
+          "if": {
+            "var_eq": {
+              "name": "copper_hint",
+              "value": "first_job"
+            }
+          },
+          "goto": "hint_first_job"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "copper_hint",
+              "value": "run_sale"
+            }
+          },
+          "goto": "hint_run_sale"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "copper_hint",
+              "value": "today"
+            }
+          },
+          "goto": "hint_today"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "copper_hint",
+              "value": "later"
+            }
+          },
+          "goto": "hint_later"
+        },
+        {
+          "goto": "hint_none"
+        }
       ]
     },
     "hint_first_job": {
@@ -86,8 +199,18 @@
     "lost": {
       "type": "branch",
       "when": [
-        {"if": {"var_eq": {"name": "copper_lost", "value": "some"}}, "goto": "lost_some"},
-        {"goto": "lost_none"}
+        {
+          "if": {
+            "var_eq": {
+              "name": "copper_lost",
+              "value": "some"
+            }
+          },
+          "goto": "lost_some"
+        },
+        {
+          "goto": "lost_none"
+        }
       ]
     },
     "lost_some": {
@@ -101,6 +224,37 @@
     "never_mind": {
       "type": "line",
       "text": "Carry on, then! Stay safe!"
+    },
+    "menu_visitor": {
+      "type": "choice",
+      "prompt": "Welcome to town, traveller!\nOfficer Copper at your service.\nHow may I help?",
+      "options": [
+        {
+          "text": "I need a map.",
+          "goto": "map"
+        },
+        {
+          "text": "Any events?",
+          "goto": "hint"
+        },
+        {
+          "text": "Lost and found?",
+          "goto": "lost"
+        },
+        {
+          "text": "Never mind.",
+          "goto": "never_mind"
+        }
+      ]
+    },
+    "map": {
+      "type": "event",
+      "events": [
+        {
+          "op": "give_map"
+        }
+      ],
+      "next": "msg_6346"
     }
   }
 }

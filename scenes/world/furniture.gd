@@ -11,6 +11,8 @@ extends StaticBody3D
 @export var visual_id: StringName = &"int_sum_chair01"
 @export var cloth_index: int = -1
 
+const GYROID_DANCE := preload("res://scenes/world/gyroid_dance.tscn")
+
 @onready var _collision: CollisionShape3D = $CollisionShape3D
 @onready var _mesh: MeshInstance3D = $MeshInstance3D
 
@@ -19,11 +21,32 @@ func _ready() -> void:
 	add_to_group("interactable")
 	if data != null and data.visual_id != &"":
 		visual_id = data.visual_id
-	GeneratedVisual.attach(self, visual_id)
+	var visual: Node3D = GeneratedVisual.attach(self, visual_id)
+	if data != null and data.kind != FurnitureData.Kind.GYROID and FurnitureData.loops_idle(visual_id):
+		play_idle_loop(visual)
+	if data != null and data.kind == FurnitureData.Kind.GYROID:
+		var dance: Node = GYROID_DANCE.instantiate()
+		add_child(dance)
+		dance.call("setup", visual, FtrCatalog.index_of(data.id))
 	if cloth_index >= 0:
 		VisualCloth.apply_cloth(self, cloth_index)
 	apply_footprint(2.0)
 	apply_grid_yaw(grid_facing)
+
+
+## Loop the model's own clip (`speed 0.5` a 60 Hz tick over 30 fps bakes: real time).
+static func play_idle_loop(visual: Node) -> bool:
+	var anim: AnimationPlayer = VisualAnimation.find_animation_player(visual)
+	if anim == null:
+		return false
+	var clips: PackedStringArray = anim.get_animation_list()
+	if clips.is_empty():
+		return false
+	var clip: Animation = anim.get_animation(clips[0])
+	if clip != null:
+		clip.loop_mode = Animation.LOOP_LINEAR
+	anim.play(clips[0])
+	return true
 
 
 func apply_grid_yaw(facing: WorldGrid.Facing) -> void:

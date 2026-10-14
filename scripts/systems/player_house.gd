@@ -16,6 +16,8 @@ const UPPER := &"player_upper"
 const BASEMENT := &"player_basement"
 
 const GX_UNIT := 40.0
+## `obj_s_myhome_a_pal` … `_l_pal` by `outlook_pal`.
+const ROOF_LETTERS := "abcdefghijkl"
 
 ## `aMI_size_dsp_table` shells per house tier (S, M, L, UPPER = LL1).
 const MAIN_SHELLS: Array[Array] = [
@@ -241,10 +243,41 @@ static func entry_room(_house: House) -> StringName:
 ## `obj_{s,w}_myhome1..4` by size; the season half is resolved by `FieldCatalog.mesh_paths`.
 ## Other plots (and every non-player house) keep the visual they were generated with.
 static func exterior_visual(node_name: String, fallback: StringName) -> StringName:
-	if not is_owned_node(node_name) or not String(fallback).begins_with("obj_s_myhome"):
+	if not String(fallback).begins_with("obj_s_myhome"):
 		return fallback
-	var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+	var house: House = resident_house(node_name)
+	if house == null:
+		return fallback
 	return StringName("obj_s_myhome%d" % (tier_of(house) + 1))
+
+
+## The roof colour picked at Nook's (`aSTR_PAL_MYHOME_A + outlook_pal`): the house model
+## baked with that palette (`obj_s_myhome2_c`), or `visual` itself for the first set or
+## when that bake is missing. Door clips and collision keep using `visual`.
+static func roof_visual(node_name: String, visual: StringName) -> StringName:
+	if not String(visual).begins_with("obj_s_myhome"):
+		return visual
+	var house: House = resident_house(node_name)
+	if house == null:
+		return visual
+	var pal: int = clampi(house.outlook_pal, 0, ROOF_LETTERS.length() - 1)
+	if pal == 0:
+		return visual
+	var painted := StringName("%s_%s" % [visual, ROOF_LETTERS[pal]])
+	return painted if not FieldCatalog.mesh_paths(painted).is_empty() else visual
+
+
+## Roster slot of whoever lives on plot `node_name` (the player or another resident), or -1.
+static func resident_slot(node_name: String) -> int:
+	if Game == null or Game.roster == null or not node_name.begins_with(String(DEFAULT_PLOT)):
+		return -1
+	return Game.roster.slot_on_plot(StringName(node_name))
+
+
+## The house record of whoever lives on plot `node_name`, or null for a vacant plot.
+static func resident_house(node_name: String) -> House:
+	var slot: int = resident_slot(node_name)
+	return Game.roster.house_of(slot) if slot >= 0 else null
 
 
 ## Outdoor house node the player lives in (`mHS_get_arrange_idx`): the intro pick while
@@ -254,6 +287,9 @@ static func exterior_visual(node_name: String, fallback: StringName) -> StringNa
 static func owned_building_id() -> StringName:
 	if Game == null:
 		return DEFAULT_PLOT
+	## A visitor from another town has no house here.
+	if Game.foreigner:
+		return &""
 	if Game.intro_station_house_id != &"":
 		return Game.intro_station_house_id
 	if Game.intro_station_active:
@@ -286,7 +322,7 @@ static func plot_building(idx: int) -> String:
 ## `aMHS_actor_draw_before`: the fish weathervane (`kazamiA` / `kazamiB`, joints 3 / 5) and the
 ## insect plaque (`fuda`, joint 1) only draw once a villager has congratulated the player on
 ## the finished collection. Only the joint's own mesh is dropped — the plaque joint parents
-## the rest of the house. The weathervane does not turn with the wind yet.
+## the rest of the house. The shown weathervane turns with the wind (`HouseWeathervane`).
 static func apply_exterior_decorations(host: Node3D) -> void:
 	if host == null or not is_owned_node(String(host.name)):
 		return
@@ -296,6 +332,9 @@ static func apply_exterior_decorations(host: Node3D) -> void:
 	_apply_decoration(visual, "_kazamiA_model", CompleteTalk.talked(CompleteTalk.FISH))
 	_apply_decoration(visual, "_kazamiB_model", CompleteTalk.talked(CompleteTalk.FISH))
 	_apply_decoration(visual, "_fuda_model", CompleteTalk.talked(CompleteTalk.INSECT))
+	if CompleteTalk.talked(CompleteTalk.FISH):
+		var house: House = Game.interiors.player_house() if Game != null and Game.interiors != null else null
+		HouseWeathervane.attach(visual, tier_of(house), plot_of(String(host.name)))
 	apply_door_pattern(visual)
 
 

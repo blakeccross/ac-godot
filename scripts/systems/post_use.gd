@@ -4,9 +4,13 @@ extends RefCounted
 ## Post office desk ops (`ac_npc_post_girl` send / save / bank / repay).
 
 const PRESET_CHUNK := 1000
+## `aPG_deposit_menu_close_wait`: "Your balance is now…" (plus the clerk's draw type).
+const BANK_AFTER_MSG := 0x2DE2
 ## `mPr_CheckMuseumAddress` — the synthetic "Museum" address-book contact used only
 ## for mailing a raw fossil in for identification (`m_museum.c`'s `mMsm_SendResultMail`).
 const MUSEUM_RECIPIENT_ID := &"museum"
+## Recipient ids for the town's other human residents: `resident_<roster slot>`.
+const RESIDENT_PREFIX := "resident_"
 const MUSEUM_RECIPIENT_NAME := "Museum"
 ## Debug/test-only canned bodies (`give_test_tools`, `test_post_police.gd`) — the
 ## interactive pockets "Write" flow types a real body now (`letter_writer_overlay.gd`),
@@ -72,6 +76,8 @@ static func repay_amount(amount: int) -> String:
 	if paid <= 0:
 		return "Nothing to repay."
 	if inv.loan <= 0:
+		## `aPG_ACTION_REPAY_*`: the cheer comes on walking back out (`COMPLETE_PAYMENT_TYPE_HOUSE`).
+		Game.complete_payment = Game.PAYMENT_HOUSE
 		return "Paid off %d Bells. Your loan is clear!" % paid
 	return "Paid %d Bells. Still owing %d." % [paid, inv.loan]
 
@@ -92,6 +98,21 @@ static func send_mail_at(index: int) -> String:
 		Game.inventory.remove_mail(index)
 		_refresh_mail_piles()
 		return "We'll send it to the Museum. Expect a reply tomorrow."
+	## `mPO_receipt_proc` for a housemate: it waits on the desk for the next round
+	## (`mPO_delivery_proc`, 9:00 / 17:00), which takes it to their mailbox.
+	var resident: int = resident_slot_of(letter.recipient_id)
+	if resident >= 0:
+		if Game.post.is_desk_full():
+			return "The desk is full — we can't take more mail."
+		var to_home: MailData = letter.duplicate_mail()
+		to_home.recipient_type = MailData.NameType.PLAYER
+		## It arrives as unread mail (`mMl_set_mail_font` on receipt), with or without a present.
+		to_home.font = MailData.LetterFont.RECV_PRESENT if to_home.present_item_id != &"" else MailData.LetterFont.RECV
+		if not Game.post.receipt_mail(to_home):
+			return "The desk is full — we can't take more mail."
+		Game.inventory.remove_mail(index)
+		_refresh_mail_piles()
+		return "We'll deliver your letter to %s!" % letter.recipient_name
 	if Game.post.is_desk_full():
 		return "The desk is full — we can't take more mail."
 	var copy: MailData = letter.duplicate_mail()
@@ -99,11 +120,38 @@ static func send_mail_at(index: int) -> String:
 		return "The desk is full — we can't take more mail."
 	Game.inventory.remove_mail(index)
 	_refresh_mail_piles()
+	_deliver_to_villager(copy)
 	if Game.first_job != null and Game.first_job.is_active():
 		Game.first_job.note_letter_mailed(copy.recipient_id)
 		if Game.first_job.chore_finished():
 			Game.set_interact_prompt("Talk to Tom Nook")
 	return "We'll deliver your letter to %s!" % copy.recipient_name
+
+
+## `mPO_receipt_check_mail` → `mNpc_SendMailtoNpc`: a letter to a resident reaches them now.
+## During the first job the letter is kept but moves no friendship (`mEv_CheckFirstJob`).
+static func _deliver_to_villager(mail: MailData) -> void:
+	if mail.recipient_type != MailData.NameType.NPC or Game.residents == null:
+		return
+	if not Game.residents.has_resident(mail.recipient_id):
+		return
+	var bond: Relationship = Game.relationships.get_or_create(mail.recipient_id)
+	var before: int = bond.friendship
+	if bond.has_memory and mail.present_item_id != &"" and Game.villagers != null:
+		Game.villagers.get_or_create(mail.recipient_id).receive_present_cloth(mail.present_item_id)
+	VillagerLetters.receive(bond, mail, Clock.day_number())
+	if Game.first_job != null and Game.first_job.is_active():
+		bond.set_friendship(before)
+		bond.send_reply = false
+		return
+	## `mQst_SetReceiveLetter`: the letter a letter contest was waiting for gets the contest's
+	## reply instead of an ordinary one.
+	var slot: int = Game.residents.slot_of(mail.recipient_id)
+	if slot != -1 and Game.quests.occured_contest_idx(VillagerQuests.CONTEST_LETTER) == slot:
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		Game.quests.receive_letter(slot, mail.body, mail.present_item_id, Game.player_name, rng)
+		bond.send_reply = false
 
 
 static func save_mail_at(index: int) -> String:
@@ -143,6 +191,28 @@ static func write_letter(to_id: StringName, body_index: int = 0) -> String:
 ## Address-book villager list (`m_address_ovl.c`'s `mAD_make_npc_address`): only
 ## villagers with a "memory" of you — `mNpc_GetAnimalMemoryIdx` — appear, not the whole
 ## town. `Relationship.MET` is this port's equivalent milestone.
+## The town's other human residents (`mPr_*` address entries for `private_data[]`).
+static func resident_candidates() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if Game == null or Game.roster == null:
+		return out
+	for slot: int in Game.roster.resident_slots():
+		if slot != Game.roster.current:
+			out.append({"id": StringName("%s%d" % [RESIDENT_PREFIX, slot]), "name": Game.roster.name_of(slot)})
+	return out
+
+
+## Roster slot a recipient id names (`resident_<n>`), or -1.
+static func resident_slot_of(recipient_id: StringName) -> int:
+	var raw := String(recipient_id)
+	if not raw.begins_with(RESIDENT_PREFIX) or not raw.substr(RESIDENT_PREFIX.length()).is_valid_int():
+		return -1
+	var slot: int = int(raw.substr(RESIDENT_PREFIX.length()))
+	if Game == null or Game.roster == null or slot < 0 or slot >= PlayerRoster.MAX:
+		return -1
+	return slot if PlayerRoster.is_resident(Game.roster.slots[slot]) else -1
+
+
 static func met_villager_candidates() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if Game == null or Game.villagers == null:
@@ -173,7 +243,7 @@ static func fill_bank_frees(ctx: DialogueContext) -> void:
 	ctx.frees[0] = ""
 	ctx.frees[1] = str(loan)
 	ctx.frees[2] = ""
-	ctx.frees[3] = str(savings)
+	ctx.frees[3] = BankOverlay.with_commas(savings)
 
 
 static func bank_menu_conversation(species: StringName = &"") -> DialogueData:

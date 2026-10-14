@@ -9,6 +9,9 @@ const S := preload("res://scripts/systems/fish_spawn_scheduler.gd")
 
 func before_test() -> void:
 	Game.reset_session()
+	## An unrated session is rank 0; these rolls assume a middling town (`env_rate` 1.0).
+	Game.field_rank = EventCalendar.DEFAULT_FIELD_RANK
+	Game.events.field_rank = EventCalendar.DEFAULT_FIELD_RANK
 	FishCatalog.reload()
 	FishSpawnScheduler.reload()
 	Clock.reset_to_default()

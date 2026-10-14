@@ -1268,6 +1268,12 @@ LEV_LOOP_TRIM_SEC = 0.5
 LEV_LOOP_XFADE_SEC = 0.25
 
 
+def lev_port(lev_id: int) -> int:
+    """`Sou_LevSet`: port 0 takes the level id's low seven bits; bit 0x80 only asks for echo
+    (`sou_lev_se._12`). Writing the whole byte left every level SE from 0x80 up silent."""
+    return int(lev_id) & 0x7F
+
+
 def render_lev_se(
     seq: bytes,
     banks: dict[int, Bank],
@@ -1279,7 +1285,7 @@ def render_lev_se(
     """Offline level SE (`Sou_LevStart` / `Na_OngenPos` index): a fixed-length render of the loop."""
     renderer = SeqRenderer(seq, banks, default_bank, seq_banks or list(SE_BANKS))
     renderer.ignore_loop_end = True
-    renderer.set_subtrack_ports(SE_LEV_SUBTRACK, {0: int(lev_id) & 0xFF})
+    renderer.set_subtrack_ports(SE_LEV_SUBTRACK, {0: lev_port(lev_id)})
     return renderer.run(max_sec=max_sec)
 
 

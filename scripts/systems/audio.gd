@@ -15,6 +15,8 @@ var current_id: StringName = &""
 var arm_muted: bool = false
 
 var _players: Array[AudioStreamPlayer] = []
+## The playing track's level (`play_bgm`'s `level_db`).
+var bgm_trim_db: float = 0.0
 var _front: int = 0
 var _fade: Tween
 var _arm_player: AudioStreamPlayer
@@ -23,16 +25,93 @@ var _arm_fade: Tween
 ## Level ids are their own table: rain 7 / 8 / 9 are not the door trigger SEs 7 / 8 / 9.
 var _syslev_player: AudioStreamPlayer
 var _syslev_id: int = 0
+## `sAdo_Inst`: a 16-step town tune on the note SEs, one step per `MELODY_STEP_SEC`.
+## The step length is an estimate (the instrument sequence is not decoded).
+const MELODY_STEP_SEC := 0.25
+var _melody: PackedByteArray = PackedByteArray()
+var _melody_step: int = -1
+var _melody_t: float = 0.0
+var _melody_player: AudioStreamPlayer
+var _melody_rng := RandomNumberGenerator.new()
+## `Na_Inst` with a villager's `melody_inst` (their voice): `{spec, phoneme, pitch, volume_db}`,
+## empty for the chime notes.
+var _melody_voice: Dictionary = {}
+## `mBGM_KATEGORIE_FANFARE` (`mBGMPsComp_make_ps_fanfare` / `delete_ps_fanfare`): a jingle on
+## top of the music. Its sequence is a short phrase and then a quiet loop that plays under the
+## report until the fanfare is taken off; the music under it stops meanwhile and starts over
+## afterwards. Music asked for while one plays waits for it (`_fanfare_base`).
+var _fanfare_player: AudioStreamPlayer
+var _fanfare_id: StringName = &""
+var _fanfare_base: StringName = &""
 
 
 func _ready() -> void:
 	_ensure_bus(MUSIC_BUS)
 	_ensure_bus(SFX_BUS)
+	## K.K.'s sound option (mono folds the master bus).
+	GameConfig.ensure_loaded()
 	_players = [_make_player(), _make_player()]
 	_arm_player = _make_player()
+	_fanfare_player = _make_player()
 	_syslev_player = AudioStreamPlayer.new()
 	_syslev_player.bus = SFX_BUS
 	add_child(_syslev_player)
+	_melody_player = AudioStreamPlayer.new()
+	_melody_player.bus = SFX_BUS
+	add_child(_melody_player)
+	set_process(false)
+
+
+## `sAdo_Inst`: play a town tune (`TownTune` values). Restarts one already playing.
+func play_melody(notes: PackedByteArray, voice: Dictionary = {}) -> void:
+	_melody_voice = voice
+	_melody = TownTune.sanitize(notes)
+	_melody_step = -1
+	_melody_t = MELODY_STEP_SEC
+	set_process(true)
+
+
+## `sAdo_InstCountGet`: the step playing, or −1 when no tune is.
+func melody_step() -> int:
+	return _melody_step
+
+
+func stop_melody() -> void:
+	_melody_step = -1
+	_melody_player.stop()
+	set_process(false)
+
+
+func _process(delta: float) -> void:
+	_melody_t += delta
+	while _melody_t >= MELODY_STEP_SEC:
+		_melody_t -= MELODY_STEP_SEC
+		_melody_step += 1
+		if _melody_step >= TownTune.LENGTH:
+			_melody_step = -1
+			set_process(false)
+			return
+		_sound_step(int(_melody[_melody_step]))
+
+
+func _sound_step(note: int) -> void:
+	match note:
+		TownTune.TIE:
+			return
+		TownTune.REST:
+			_melody_player.stop()
+			return
+		TownTune.RANDOM:
+			note = _melody_rng.randi_range(0, TownTune.HIGHEST)
+	if not _melody_voice.is_empty():
+		play_voice(
+			int(_melody_voice["spec"]), int(_melody_voice["phoneme"]),
+			float(_melody_voice["pitch"]) * TownTune.note_pitch(note), float(_melody_voice["volume_db"])
+		)
+		return
+	_melody_player.stream = SeCatalog.stream_for(TownTune.note_se(note))
+	if _melody_player.stream != null:
+		_melody_player.play()
 
 
 func play_sfx(stream: AudioStream, at: Node = self, pitch_scale: float = 1.0, volume_db: float = 0.0) -> void:
@@ -133,9 +212,16 @@ func sync_rain_syslev(
 	start_syslev(id, linear_to_db(Weather.syslev_volume(id, indoors)))
 
 
-func play_bgm(id: StringName) -> void:
-	if id == current_id:
+## `level_db` is `ps_comp->volume.ps_volume` (0 full; an event heard from the next acre
+## plays at half), and changes in place when the track is already playing.
+func play_bgm(id: StringName, level_db: float = 0.0) -> void:
+	if _fanfare_id != &"":
+		_fanfare_base = id
 		return
+	if id == current_id:
+		_set_bgm_trim(level_db)
+		return
+	bgm_trim_db = level_db
 	if id == &"":
 		stop_bgm()
 		return
@@ -149,16 +235,16 @@ func play_bgm(id: StringName) -> void:
 	var next_player: AudioStreamPlayer = _players[incoming]
 	var prev_player: AudioStreamPlayer = _players[_front]
 	next_player.stream = stream
-	next_player.volume_db = -40.0 if fade_sec > 0.0 else 0.0
+	next_player.volume_db = -40.0 if fade_sec > 0.0 else bgm_trim_db
 	next_player.play()
 	_kill_fade()
 	if fade_sec <= 0.0 or not prev_player.playing:
 		prev_player.stop()
-		next_player.volume_db = 0.0
+		next_player.volume_db = bgm_trim_db
 	else:
 		_fade = create_tween()
 		_fade.set_parallel(true)
-		_fade.tween_property(next_player, "volume_db", 0.0, fade_sec)
+		_fade.tween_property(next_player, "volume_db", bgm_trim_db, fade_sec)
 		_fade.tween_property(prev_player, "volume_db", -40.0, fade_sec)
 		_fade.chain().tween_callback(prev_player.stop)
 	_front = incoming
@@ -166,7 +252,27 @@ func play_bgm(id: StringName) -> void:
 	_start_arm_stem(id, next_player.volume_db)
 
 
+## `mBGMPsComp_volume_change_fieldSchedEv`: move the music's level (dB) without restarting it.
+func _set_bgm_trim(db: float) -> void:
+	if is_equal_approx(db, bgm_trim_db):
+		return
+	bgm_trim_db = db
+	if _players.is_empty() or not _players[_front].playing:
+		return
+	## Mid crossfade: leave it be — the level lands with the next change.
+	if _fade != null and _fade.is_running():
+		return
+	if fade_sec <= 0.0:
+		_players[_front].volume_db = db
+		return
+	_fade = create_tween()
+	_fade.tween_property(_players[_front], "volume_db", db, fade_sec)
+
+
 func stop_bgm() -> void:
+	if _fanfare_id != &"":
+		_fanfare_base = &""
+		return
 	if current_id == &"" and not _any_playing():
 		_stop_arm(true)
 		return
@@ -186,6 +292,41 @@ func stop_bgm() -> void:
 			_fade.tween_property(_arm_player, "volume_db", ARM_MUTE_DB, fade_sec)
 		_fade.chain().tween_callback(_stop_all)
 	current_id = &""
+
+
+## `mBGMPsComp_make_ps_fanfare`: put the jingle `id` (a `BgmCatalog` id) over the music.
+func push_fanfare(id: StringName) -> void:
+	var stream: AudioStream = BgmCatalog.stream_for(id)
+	if stream == null or id == _fanfare_id:
+		return
+	if _fanfare_id == &"":
+		_fanfare_base = current_id
+		_kill_fade()
+		for player: AudioStreamPlayer in _players:
+			player.stop()
+			player.volume_db = 0.0
+		_stop_arm(true)
+		current_id = &""
+	_fanfare_id = id
+	_fanfare_player.stream = stream
+	_fanfare_player.volume_db = 0.0
+	_fanfare_player.play()
+
+
+## `mBGMPsComp_delete_ps_fanfare`: take `id` off; the music it covered starts again.
+func pop_fanfare(id: StringName) -> void:
+	if _fanfare_id == &"" or id != _fanfare_id:
+		return
+	_fanfare_player.stop()
+	_fanfare_id = &""
+	var base: StringName = _fanfare_base
+	_fanfare_base = &""
+	if base != &"":
+		play_bgm(base)
+
+
+func fanfare_id() -> StringName:
+	return _fanfare_id
 
 
 ## `Na_TTKK_ARM`: mute guitar stem while K.K. looks up / is not strumming.

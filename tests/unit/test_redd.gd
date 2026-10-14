@@ -91,3 +91,10 @@ func test_one_purchase_per_visit() -> void:
 	var second: Dictionary = Game.redd.stock()[1]
 	var msg2: String = Game.redd.buy(StringName(str(second.get("item_id"))), Game.inventory)
 	assert_str(msg2).contains("customer")
+
+
+func test_he_sees_you_off_at_the_door() -> void:
+	var t := ReddTalk.new(ReddTalk.Kind.GOODBYE, {}, null, RandomNumberGenerator.new())
+	assert_int(t.start_msg()).is_equal(ReddTalk.MSG_BYE)
+	t.sold_visit = true
+	assert_int(t.start_msg()).is_equal(ReddTalk.MSG_BYE_SOLD)

@@ -24,3 +24,56 @@ func test_emote_guess_matches_reaction_family() -> void:
 	assert_str(String(NpcManpu.feel_for("hirameki_d1"))).is_equal("hirameki")
 	assert_str(String(NpcManpu.feel_for("ha_d1"))).is_equal("ha")
 	assert_str(String(NpcManpu.feel_for("reset"))).is_equal("")
+
+
+func test_each_reaction_draws_its_own_clips_glyph() -> void:
+	## `npc_1_*` `feel_effect`: only the smiling clips laugh.
+	assert_str(String(NpcManpu.feel_for("smile1"))).is_equal("warau")
+	assert_str(String(NpcManpu.feel_for("niko1"))).is_equal("")
+	assert_str(String(NpcManpu.feel_for("lovelove1"))).is_equal("")
+	assert_str(String(NpcManpu.feel_for("hate1"))).is_equal("gimonhu")
+	assert_str(String(NpcManpu.feel_for("a_r1"))).is_equal("kantanhu")
+	assert_str(String(NpcManpu.feel_for("aseru1"))).is_equal("ase")
+	assert_str(String(NpcManpu.feel_for("gaaan_d1"))).is_equal("shock")
+	assert_str(String(NpcManpu.feel_for("ha_e1"))).is_equal("ha")
+	assert_str(String(NpcManpu.feel_for("muka1"))).is_equal("muka")
+	assert_str(String(NpcManpu.feel_for("love1"))).is_equal("lovelove2")
+
+
+func test_anger_vein_drains_to_red_then_fades() -> void:
+	assert_float(NpcFeelGlyphs.muka_color(0).g).is_equal_approx(1.0, 0.001)
+	assert_float(NpcFeelGlyphs.muka_color(20).g).is_equal_approx(50.0 / 255.0, 0.001)
+	assert_float(NpcFeelGlyphs.muka_color(20).a).is_equal_approx(1.0, 0.001)
+	assert_float(NpcFeelGlyphs.muka_color(41).a).is_equal_approx(0.0, 0.001)
+
+
+func test_heart_rises_slower_and_grows() -> void:
+	assert_float(NpcFeelGlyphs.heart_rise(1)).is_equal_approx(1.0, 0.001)
+	## 28 easing ticks then 0.1 a tick.
+	var early: float = NpcFeelGlyphs.heart_rise(28)
+	assert_float(NpcFeelGlyphs.heart_rise(38) - early).is_equal_approx(1.0, 0.001)
+	assert_float(NpcFeelGlyphs.heart_scale(40).length()).is_greater(NpcFeelGlyphs.heart_scale(0).length())
+
+
+
+func test_heartbreak_cracks_at_sixty_and_wobbles() -> void:
+	assert_str(String(NpcManpu.feel_for("shituren1"))).is_equal("situren")
+	assert_int(NpcFeelGlyphs.situren_card(59)).is_equal(0)
+	assert_int(NpcFeelGlyphs.situren_card(60)).is_equal(1)
+	assert_int(NpcFeelGlyphs.situren_card(61)).is_equal(2)
+	assert_float(NpcFeelGlyphs.situren_scale(0).length()).is_less(NpcFeelGlyphs.situren_scale(6).length())
+	## Past tick 42 the wobble has settled to 1:1.
+	var settled: Vector2 = NpcFeelGlyphs.situren_scale(50)
+	assert_float(settled.x).is_equal_approx(0.0075, 0.00001)
+	assert_float(settled.y).is_equal_approx(0.0075, 0.00001)
+
+
+func test_question_mark_pops_then_fades() -> void:
+	var glyphs := NpcFeelGlyphs.new()
+	add_child(glyphs)
+	glyphs.play(&"gimonhu")
+	assert_str(String(glyphs._kind)).is_equal("gimonhu")
+	glyphs._frame = float(NpcFeelGlyphs.POP_LIFE)
+	glyphs._tick_pop()
+	assert_str(String(glyphs._kind)).is_equal("")
+	glyphs.free()

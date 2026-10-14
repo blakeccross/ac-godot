@@ -215,11 +215,137 @@ func test_dialogue_overlay_matches_msg_timing() -> void:
 	var src := FileAccess.get_file_as_string("res://scenes/ui/dialogue_overlay.gd")
 	assert_str(src).contains("APPEAR_FRAMES := 18.0")
 	assert_str(src).contains("CHOICE_APPEAR_FRAMES := 10.2")
-	## A glyph every other decomp frame (60 Hz) → 30/s; fast text every frame → 60/s.
+	## PAUSE counts 30 Hz frames (`mMsg_Get_CursolSetTimeCode` doubles it).
 	var overlay: GDScript = load("res://scenes/ui/dialogue_overlay.gd") as GDScript
 	var consts: Dictionary = overlay.get_script_constant_map()
-	assert_float(float(consts["CHARS_PER_SEC"])).is_equal(30.0)
-	assert_float(float(consts["FAST_CHARS_PER_SEC"])).is_equal(60.0)
+	assert_int(int(consts["PAUSE_FRAME_MULT"])).is_equal(2)
+
+
+func _open_line(text: String, extra: Dictionary = {}) -> DialogueOverlay:
+	var overlay: DialogueOverlay = auto_free(load("res://scenes/ui/dialogue_overlay.tscn").instantiate())
+	add_child(overlay)
+	var node := {"type": "line", "text": text}
+	node.merge(extra)
+	var data := DialogueData.from_dict({"id": "fx", "start": "a", "nodes": {"a": node, "b": {"type": "line",
+		"text": "Next."}}})
+	overlay.play(data, DialogueContext.new())
+	overlay._finish_appear()
+	return overlay
+
+
+## `mMsg_Main_Cursol_ControlCursol`: a glyph every other frame; `{p:n}` holds the
+## cursor 2n frames before the glyph that follows it.
+func test_typewriter_steps_and_pauses_like_the_cursor() -> void:
+	var overlay := _open_line("Ab{p:3}cd")
+	for _i in 4:
+		overlay._type_tick()
+	assert_int(overlay._cursor).is_equal(2)
+	for _i in 6:
+		overlay._type_tick()
+	assert_int(overlay._cursor).is_equal(2)
+	for _i in 3:
+		overlay._type_tick()
+	assert_int(overlay._cursor).is_equal(3)
+
+
+## A page ended by a bare MSGCLEAR turns by itself; a BTN page waits for A.
+func test_auto_pages_turn_without_input() -> void:
+	var overlay := _open_line("Hi", {"auto": true, "next": "b"})
+	for _i in 10:
+		overlay._type_tick()
+	assert_str(String(overlay.runner().node_id)).is_equal("b")
+	var waits := _open_line("Hi", {"next": "b"})
+	for _i in 10:
+		waits._type_tick()
+	assert_str(String(waits.runner().node_id)).is_equal("a")
+
+
+## `FORCENEXT`: the page leaves NORMAL by itself, with no page-turn sound.
+func test_force_next_turns_without_input() -> void:
+	var overlay := _open_line("Hi", {"force_next": true, "next": "b"})
+	for _i in 10:
+		overlay._type_tick()
+	assert_str(String(overlay.runner().node_id)).is_equal("b")
+
+
+## A does not dump a line. B turns on fast text. `ABLECANCEL` lets A dump it.
+func test_a_waits_and_b_speeds_unless_cancelable() -> void:
+	var overlay := _open_line("Hello")
+	overlay._type_tick()
+	var at: int = overlay._cursor
+	overlay._press_page(false)
+	assert_int(overlay._cursor).is_equal(at)
+	assert_bool(overlay._fast_text).is_false()
+	overlay._press_page(true)
+	assert_bool(overlay._fast_text).is_true()
+	var sped := overlay._cursor
+	overlay._type_tick()
+	assert_int(overlay._cursor).is_equal(sped + 1)
+	overlay._cancelable = true
+	overlay._press_page(false)
+	assert_int(overlay._cursor).is_equal(overlay._visible_len)
+
+
+## `MSGCONTENTS_*` sets the animalese emotion when the cursor reaches it.
+func test_voice_status_mark() -> void:
+	var overlay := _open_line("{vs:2}Hi")
+	for _i in 4:
+		overlay._type_tick()
+	assert_int(int(overlay._voice.status)).is_equal(DialogueVoice.Status.SAD)
+
+
+## `MALEFEMALECHK` continues to a different message for each player sex.
+func test_gender_picks_the_continue_message() -> void:
+	var data := DialogueData.from_dict({
+		"id": "g",
+		"start": "a",
+		"nodes": {
+			"a": {"type": "line", "text": "I", "next_male": "m", "next_female": "f"},
+			"m": {"type": "line", "text": "sir"},
+			"f": {"type": "line", "text": "maam"},
+		},
+	})
+	var ctx := DialogueContext.new()
+	var runner := DialogueRunner.new()
+	runner.start(data, ctx)
+	runner.advance()
+	assert_str(runner.line).is_equal("sir")
+	ctx.player_female = true
+	runner.start(data, ctx)
+	runner.advance()
+	assert_str(runner.line).is_equal("maam")
+
+
+## `SELNOB`: the choice remembers that B picks the last option.
+func test_choice_b_picks_the_last_option() -> void:
+	var data := DialogueData.from_dict({
+		"id": "c",
+		"start": "c",
+		"nodes": {
+			"c": {
+				"type": "choice",
+				"b_last": true,
+				"options": [{"text": "Yes"}, {"text": "No"}],
+			},
+		},
+	})
+	var runner := DialogueRunner.new()
+	runner.start(data, DialogueContext.new())
+	assert_bool(runner.waiting_choice).is_true()
+	assert_bool(runner.choice_b_last).is_true()
+
+
+## `mFontSentence`: a Top-line glyph grows down from the cell top, a Bottom one up.
+func test_message_body_scales_glyphs_about_the_line_pivot() -> void:
+	var body: MessageBody = auto_free(MessageBody.new())
+	body.set_text("{lt:2}{s:64}A{s:32}\nB{p:4}{se:1}")
+	assert_int(body.glyph_count()).is_equal(2)
+	assert_str(body.glyph_text()).is_equal("AB")
+	var marks: Array[Dictionary] = body.marks()
+	assert_int(marks.size()).is_equal(2)
+	assert_int(int(marks[0]["at"])).is_equal(2)
+	assert_str(str(marks[0]["kind"])).is_equal("p")
+	assert_str(MessageBody.strip_tags("{c:1,2,3}x{p:4}y{cap}")).is_equal("xy")
 
 
 func test_normalize_punct_maps_em_dash() -> void:
@@ -274,6 +400,12 @@ func test_authored_dialogue_lines_fit_body() -> void:
 						assert_int(visible.length()).is_less(36)
 		name = dir.get_next()
 	assert_int(checked).is_greater(20)
+
+
+func test_capitalize_flag_raises_the_next_string() -> void:
+	var ctx := DialogueContext.new()
+	ctx.catchphrase = "hum"
+	assert_str(ctx.substitute("Pronto! {cap}{catchphrase}!")).is_equal("Pronto! Hum!")
 
 
 func test_substitute_fills_slots_and_flags_empties() -> void:
@@ -349,3 +481,21 @@ func _line(data: DialogueData, ctx: DialogueContext) -> String:
 	var runner := DialogueRunner.new()
 	runner.start(data, ctx, null)
 	return runner.line
+
+
+## `mMsg_Main_Cursol_Button`: a mid-page BTN stops with the turn mark; A writes on, and
+## the page stays the same one.
+func test_mid_page_btn_waits_then_writes_on() -> void:
+	var overlay := _open_line("Hm.{btn}OK", {"next": "b"})
+	for _i in 20:
+		overlay._type_tick()
+	assert_int(overlay._cursor).is_equal(3)
+	assert_bool(overlay._btn_wait).is_true()
+	## A dump stops at the BTN too.
+	overlay._dump_page()
+	assert_int(overlay._cursor).is_equal(3)
+	overlay._release_btn()
+	for _i in 20:
+		overlay._type_tick()
+	assert_int(overlay._cursor).is_equal(5)
+	assert_str(String(overlay.runner().node_id)).is_equal("a")

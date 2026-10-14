@@ -3,7 +3,6 @@ extends StaticBody3D
 ## Outdoor tree. Shake / chop / stump rules live in TreeUse; this scene presents them.
 ## Shake timing matches `mPlayer_ANIM_SHAKE1` frame 10; sway matches EffectBG shakeL/S.
 
-const PICKUP_SCENE := preload("res://scenes/world/item_pickup.tscn")
 const STUMP_VISUAL := &"TREE_STUMP004"
 ## `mCoBG_MakeOneColumnCollisionData`: a grown stump (`TREE_STUMP004`) is an 18 GX column
 ## (the `*_STUMP001` saplings' stumps would be 10). Trees are 19 (`HostCollision`).
@@ -20,6 +19,8 @@ const BEE_SPAWN_DELAY := 5.0 / DecompTime.FRAME_HZ
 const YOUNG_PIVOT_PALM_GX := 5.0
 const YOUNG_PIVOT_CEDAR_GX := 15.0
 
+const XMAS_TREE_LIGHTS := &"obj_x_tree5_light"
+const XMAS_CEDAR_LIGHTS := &"obj_x_ceder5_light"
 @export var plant: PlantData
 @export var occupant_id: StringName = &""
 @export var persist_id: StringName = &""
@@ -28,6 +29,9 @@ const YOUNG_PIVOT_CEDAR_GX := 15.0
 @export var occupy_grid: bool = true
 @export var place_kind: WorldGrid.PlaceKind = WorldGrid.PlaceKind.PLANT
 @export var visual_id: StringName = &"TREE_APPLE_FRUIT"
+
+## `mPlib_Check_tree_shaken_big` / `_little`: a full shake, or the player bumping it.
+signal shaken(big: bool)
 
 var _use: TreeUse
 var _motion: Tween
@@ -95,6 +99,7 @@ func can_bump() -> bool:
 ## med / large / full trees only (`IS_ITEM_SHAKEABLE_TREE`).
 func bump() -> void:
 	_play_shake(false)
+	shaken.emit(false)
 	if _ensure_use().size != TreeUse.Size.S0:
 		PlayerSe.tree_touch(self)
 
@@ -106,6 +111,7 @@ func _on_shake(use: TreeUse, ctx: InteractionContext) -> bool:
 	if ctx != null and ctx.actor != null and ctx.actor.has_method("note_big_tree_shake"):
 		ctx.actor.call("note_big_tree_shake", _cell())
 	PlayerSe.tree_yurasu(self)
+	shaken.emit(true)
 	_stress_bugs_at(ctx)
 	var had_drops: bool = not out.drops.is_empty() or out.dropped_fruit > 0
 	_emit_drops(out, ctx)
@@ -132,6 +138,7 @@ func _on_chop(use: TreeUse, ctx: InteractionContext) -> bool:
 	if not out.shook and not out.felled:
 		return false
 	PlayerSe.axe_cut(self)
+	ToolUse.wear_axe(ctx, false)
 	_emit_drops(out, ctx)
 	if out.dropped_fruit > 0:
 		PlantGrowth.take_fruit(_persist())
@@ -214,9 +221,41 @@ func refresh_seasonal_visual() -> void:
 func _present_live_visual() -> void:
 	GeneratedVisual.detach(self)
 	var vis: Node3D = GeneratedVisual.attach(self, visual_id)
+	if vis != null and PlantGrowth.is_gold(_persist()):
+		_tint_gold(vis)
+	if vis != null and PlantGrowth.has_lights(PlantGrowth.record(_persist())):
+		_add_lights(vis)
 	var pivot := get_node_or_null("VisualPivot") as Node3D
 	if vis != null and pivot != null and is_inside_tree():
 		vis.reparent(pivot)
+
+
+## `tree4_light_list` / `cedar5_light_list`: the December lights, drawn in the tree's own
+## frame (same scale and origin).
+func _add_lights(vis: Node3D) -> void:
+	var id: StringName = XMAS_CEDAR_LIGHTS if plant != null and plant.id == &"cedar_tree" else XMAS_TREE_LIGHTS
+	var lights: Node3D = GeneratedVisual.instantiate_raw(id)
+	if lights == null:
+		return
+	lights.name = "XmasLights"
+	vis.add_child(lights)
+	var cell: Vector2i = _cell()
+	XmasLights.attach(lights, cell.x * 7 + cell.y * 13)
+
+
+## `golden_tree_pal`: the golden tree draws the hardwood with its own palette.
+func _tint_gold(vis: Node) -> void:
+	for node: Node in vis.find_children("*", "MeshInstance3D", true, false):
+		var mesh := node as MeshInstance3D
+		if mesh.mesh == null:
+			continue
+		for i: int in mesh.mesh.get_surface_count():
+			var mat := mesh.get_active_material(i) as StandardMaterial3D
+			if mat == null:
+				continue
+			var own := mat.duplicate() as StandardMaterial3D
+			own.albedo_color = own.albedo_color * PlantGrowth.GOLD_TINT
+			mesh.set_surface_override_material(i, own)
 
 
 func _ensure_use() -> TreeUse:
@@ -238,6 +277,66 @@ func _ensure_use() -> TreeUse:
 		PlantGrowth.shake_content_of(rec)
 	)
 	return _use
+
+
+## `mMsr_CheckAroundTree`: a grown tree with nothing hidden in it, and fruit trees only while
+## the fruit is on (`TREE`, `TREE_*_FRUIT`, money trees, `CEDAR_TREE`, `GOLD_TREE`).
+func can_host_mushroom() -> bool:
+	if plant == null or plant.kind == PlantData.Kind.FLOWER or _felling:
+		return false
+	var use: TreeUse = _ensure_use()
+	if use.size != TreeUse.Size.FULL or use.stage == TreeUse.Stage.STUMP:
+		return false
+	match use.content:
+		TreeUse.Content.BELLS, TreeUse.Content.BEES, TreeUse.Content.FURNITURE:
+			return false
+	if plant.fruit != null or use.palm_fruit:
+		return use.stage == TreeUse.Stage.FRUITING
+	return true
+
+
+## `aFSN_moving`'s FG check: a grown tree with nothing on it (`TREE`, `*_NOFRUIT_*`,
+## `CEDAR_TREE`, `GOLD_TREE`) is where a balloon snags.
+func can_catch_balloon() -> bool:
+	if _felling or Game.is_stump(_persist()):
+		return false
+	var use: TreeUse = _ensure_use()
+	return use.size == TreeUse.Size.FULL and use.stage == TreeUse.Stage.BARE
+
+
+## Where a snagged balloon's present sits (GX from the unit centre): cedars higher and further forward.
+func balloon_perch() -> Vector3:
+	var gx: Vector3 = Vector3(0.0, 100.0, 20.0) if _family() == PlantData.Family.CEDAR else Vector3(-2.5, 97.5, 7.5)
+	var world := World.find(get_tree())
+	var base: Vector3 = global_position
+	if world != null and world.grid != null:
+		base = world.grid.cell_to_world(_cell())
+		base.y = global_position.y
+	return base + gx * FieldCatalog.GX_TO_METERS
+
+
+## `fruit_set(ITM_PRESENT)`: the balloon's present falls out like fruit (top of the crown).
+func drop_present(item: ItemData) -> void:
+	var world := World.find(get_tree())
+	if world == null or world.grid == null or item == null:
+		return
+	var objects: Node = world.get_node_or_null("Objects")
+	if objects == null:
+		return
+	var grid: WorldGrid = world.grid
+	var origin: Vector2i = grid.world_to_cell(global_position)
+	var cells: Array[Vector2i] = TreeUse.pick_drop_cells(origin, grid, 1, false)
+	if cells.is_empty():
+		return
+	var pickup: Node3D = FieldItems.put(world, cells[0], item.id, true)
+	if pickup == null:
+		return
+	var land: Vector3 = pickup.global_position
+	var crown: Vector3 = global_position + TreeUse.crown_offset(2, false, false)
+	if pickup.has_method("begin_fall"):
+		pickup.call("begin_fall", crown, land, TreeUse.drop_duration(2, false, false), false)
+	else:
+		pickup.global_position = land
 
 
 func _persist() -> StringName:
@@ -277,17 +376,11 @@ func _emit_drops(out: TreeUse.Outcome, ctx: InteractionContext) -> void:
 		var cell: Vector2i = cells[i] if i < cells.size() else origin
 		var is_honey: bool = data.id == &"honeycomb"
 		var is_ftr: bool = data is FurnitureData
-		var pickup: Node3D = PICKUP_SCENE.instantiate() as Node3D
-		pickup.set("item", data)
-		var drop_id := StringName("%s_drop_%d" % [String(_persist()), i])
-		pickup.set("persist_id", drop_id)
-		pickup.set("occupant_id", drop_id)
-		objects.add_child(pickup)
-		var land: Vector3 = grid.cell_to_world(cell)
-		if "layout" in ctx.world and ctx.world.layout != null:
-			land.y = FieldCollision.ground_y(
-				ctx.world.layout, cell, FieldCollision.FG_GROUND_DIST
-			)
+		## What lands stays on the field (`FieldItems`); no free unit, nothing lands.
+		var pickup: Node3D = FieldItems.put(ctx.world, cell, data.id)
+		if pickup == null:
+			continue
+		var land: Vector3 = pickup.global_position
 		var crown: Vector3 = global_position + TreeUse.crown_offset(i, is_honey, is_palm)
 		var duration: float = TreeUse.drop_duration(i, is_honey, is_ftr)
 		if pickup.has_method("begin_fall"):
@@ -301,9 +394,6 @@ func _emit_drops(out: TreeUse.Outcome, ctx: InteractionContext) -> void:
 				)
 		else:
 			pickup.global_position = land
-		grid.place(
-			drop_id, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM
-		)
 
 
 func _arm_bees(ctx: InteractionContext) -> void:

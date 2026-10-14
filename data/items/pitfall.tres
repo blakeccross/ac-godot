@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"pitfall"
+display_name = "pitfall"
+description = "Bury it in a hole and wait for someone to step on it."
+category = 5
+sell_price = 100
+buy_price = 400
+droppable = true
+icon_color = Color(0.55, 0.42, 0.3, 1)

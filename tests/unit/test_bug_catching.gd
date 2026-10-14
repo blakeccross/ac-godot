@@ -379,6 +379,67 @@ func test_scheduler_pool_includes_ant_and_cockroach_additions() -> void:
 	assert_bool(pairs.has([28, 9])).is_true()   ## cockroach on trash
 
 
+func _bait_town() -> Array:
+	var layout: WorldData = WorldGenerator.authored_test_town()
+	var grid := WorldGrid.new()
+	grid.configure_from_world(layout)
+	return [layout, grid]
+
+
+func _no_cell(_c: Vector2i) -> bool:
+	return false
+
+
+func test_candy_on_the_ground_draws_ants_in_dry_weather() -> void:
+	var town: Array = _bait_town()
+	var layout: WorldData = town[0]
+	var grid: WorldGrid = town[1]
+	var acre: Vector2i = BugHabitats.acre_of_world_pos(grid, grid.cell_to_world(Vector2i(8, 8)))
+	var candy := BugSpawnScheduler.AREA_ON_CANDY
+	assert_bool(BugHabitats.has_spawn_area(candy, layout, grid, acre, _no_cell, false)).is_false()
+	Game.field_items[String(FieldItems.persist_id(Vector2i(8, 8)))] = {"id": "candy", "wrapped": false}
+	var sites: Array[BugHabitats.Site] = BugHabitats.sites_for_spawn_area(candy, layout, grid, acre, _no_cell, false)
+	assert_int(sites.size()).is_equal(1)
+	assert_that(sites[0].cell).is_equal(Vector2i(8, 8))
+	assert_int(BugData.habitat_from_spawn_area(candy)).is_equal(BugData.Habitat.GROUND)
+	## Not in the rain or snow, and a spoiled turnip is trash, not candy.
+	assert_bool(BugHabitats.has_spawn_area(candy, layout, grid, acre, _no_cell, true)).is_false()
+	Game.weather = &"snow"
+	assert_bool(BugHabitats.has_spawn_area(candy, layout, grid, acre, _no_cell, false)).is_false()
+	Game.weather = &"clear"
+	assert_bool(BugHabitats.has_spawn_area(BugSpawnScheduler.AREA_ON_TRASH, layout, grid, acre, _no_cell, false)).is_false()
+	## Nor right at the acre's edge.
+	Game.field_items.clear()
+	Game.field_items[String(FieldItems.persist_id(Vector2i(0, 0)))] = {"id": "candy", "wrapped": false}
+	assert_bool(BugHabitats.has_spawn_area(candy, layout, grid, acre, _no_cell, false)).is_false()
+
+
+func test_bait_brings_only_ants_and_roaches_and_rocks_do_not() -> void:
+	var town: Array = _bait_town()
+	var layout: WorldData = town[0]
+	var grid: WorldGrid = town[1]
+	var acre: Vector2i = BugHabitats.acre_of_world_pos(grid, grid.cell_to_world(Vector2i(8, 8)))
+	Clock.month = 7
+	Clock.hour = 12
+	Game.weather = &"clear"
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var pool: Array[BugSpawnEntry] = BugSpawnScheduler.build_pool(rng)
+	## The test town has a rock but no food: the rest of the table stays open.
+	var seen: Dictionary = {}
+	for _i: int in 60:
+		var e: BugSpawnEntry = BugSpawnScheduler.decide(pool, layout, grid, acre, false, _no_cell, rng)
+		if e != null:
+			seen[e.type_index] = true
+	assert_bool(seen.has(38)).is_false()
+	assert_int(seen.size()).is_greater(1)
+	Game.field_items[String(FieldItems.persist_id(Vector2i(8, 8)))] = {"id": "spoiled_turnips", "wrapped": false}
+	for _i: int in 30:
+		var e: BugSpawnEntry = BugSpawnScheduler.decide(pool, layout, grid, acre, false, _no_cell, rng)
+		assert_object(e).is_not_null()
+		assert_bool(e.type_index == 38 or e.type_index == 28).is_true()
+
+
 func test_spawn_table_uses_decomp_spawn_area_enum() -> void:
 	## `l_insect_m_other_t`: PILL_BUG UNDER_ROCK (10), MOLE_CRICKET UNDERGROUND (11),
 	## BAGWORM ON_TREE (0) — 8 / 9 are ON_CANDY / ON_TRASH, which only the additions use.
@@ -548,9 +609,13 @@ func test_get_idx_rolls_against_100_below_100_total() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
 	var hits: int = 0
+	## Field rank 3 (`env_rate` 1.0) so the weight is the whole chance.
+	var rank: int = Game.field_rank
+	Game.field_rank = 3
 	for _i: int in 2000:
 		if BugSpawnScheduler.get_idx(info, false, rng) == 0:
 			hits += 1
+	Game.field_rank = rank
 	assert_int(hits).is_between(120, 280)   ## ~10 %
 	for _i: int in 50:
 		assert_int(BugSpawnScheduler.get_idx(info, true, rng)).is_equal(0)

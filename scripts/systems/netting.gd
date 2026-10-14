@@ -73,8 +73,12 @@ class Catch:
 	var completes_record: bool = false
 	## `main_notice->not_full_pocket`.
 	var banked: bool = false
+	## The Wisp's spirits already in the pockets when this one was caught, or -1.
+	var spirits_before: int = -1
 
 	func report_msg() -> int:
+		if spirits_before >= 0:
+			return WispEvent.catch_msg(spirits_before)
 		return LAST_GET_MSG if completes_record else Netting.mushi_msg(bug.type_index if bug != null else 0)
 
 
@@ -93,6 +97,16 @@ static func mushi_msg(type_index: int) -> int:
 ## `setup_main_Pull_net`: the caught insect leaves the field (it is drawn off the player
 ## from here on) and whether it is the last one the record is missing is fixed now.
 static func begin_catch(caught: Object) -> Catch:
+	var swarm := caught as BeeSwarm
+	if swarm != null:
+		var bee := ItemCatalog.get_item(BeeSwarm.BEE_ID) as BugData
+		if bee == null:
+			return null
+		var out_bee := Catch.new()
+		out_bee.bug = bee
+		out_bee.completes_record = completes_record(bee.type_index)
+		swarm.caught()
+		return out_bee
 	var actor := caught as BugActor
 	if actor == null or actor.bug == null:
 		return null
@@ -100,6 +114,10 @@ static func begin_catch(caught: Object) -> Catch:
 	out.actor = actor
 	out.bug = actor.bug
 	out.completes_record = completes_record(actor.bug.type_index)
+	if actor.bug.type_index == WispEvent.TYPE_SPIRIT:
+		## `Player_actor_Pull_net_demo_ct`: the count, and its acre is empty from now on.
+		out.spirits_before = WispEvent.spirit_count(Game.inventory if Game != null else null)
+		WispEvent.caught_in(actor.block)
 	actor.catch()
 	return out
 
@@ -123,7 +141,7 @@ static func bank(catch_: Catch, inventory: Inventory) -> bool:
 		and inventory.has_space_for(catch_.bug, 1)
 		and inventory.add(catch_.bug, 1) == 0
 	)
-	if Game != null and Game.catalog != null:
+	if Game != null and Game.catalog != null and catch_.spirits_before < 0:
 		Game.catalog.record_insect(catch_.bug.type_index)
 	return catch_.banked
 
@@ -159,9 +177,24 @@ static func probe(
 	var field: BugField = field_of(ctx)
 	if field != null:
 		out.candidates = field.net_candidates(player_pos)
+	_bee_candidate(ctx, player_pos, out)
 	out.hit_actor = npc_on_line(ctx, start, end)
 	out.line_bits = line_bits(ctx, start, end)
 	return out
+
+
+## `aBEE_fly`: the swarm asks to be caught — outright within 40 GX of the player, else by
+## the net's reach.
+static func _bee_candidate(ctx: InteractionContext, player_pos: Vector3, out: NetSwing.Probe) -> void:
+	if ctx == null or ctx.actor == null or not ctx.actor.is_inside_tree():
+		return
+	var swarm: BeeSwarm = BeeSwarm.find(ctx.actor.get_tree())
+	if swarm == null or not swarm.netable():
+		return
+	var to: Vector3 = swarm.global_position - player_pos
+	if Vector2(to.x, to.z).length() < BeeSwarm.FORCE_CATCH_GX * FieldCatalog.GX_TO_METERS:
+		out.forced = swarm
+	out.candidates.append(NetSwing.Candidate.new(swarm, swarm.global_position, BeeSwarm.NET_RANGE_GX))
 
 
 ## `Player_actor_Check_OBJtoLine_forItem_net`: the net's triangle (start, end, end + 10 GX up)

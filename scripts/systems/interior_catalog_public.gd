@@ -35,12 +35,15 @@ static func register() -> void:
 	police.spawn_cell = PoliceDisplay.SPAWN_CELL
 	police.shell_ids = PackedStringArray([String(PoliceDisplay.SHELL_ID)])
 	InteriorCatalog.put_room(police)
-	InteriorCatalog.put_room(
-		InteriorCatalog.make_room(
-			&"buggy", Room.Kind.DUMP, "Dump", Vector2i(4, 4), Vector2i(8, 8),
-			{"floor": InteriorStyleCatalog.FLOOR_STONE}
-		)
+	## `SCENE_BUGGY`: Katrina's fortune tent (`FORTUNE_TENT` / `ac_buggy`), drawn by `rom_uranai`.
+	var buggy := InteriorCatalog.make_room(
+		&"buggy", Room.Kind.DUMP, "Katrina's Tent", Vector2i(4, 4), Vector2i(8, 8),
+		{"floor": InteriorStyleCatalog.FLOOR_STONE}
 	)
+	buggy.wall_id = &""
+	buggy.floor_id = &""
+	buggy.shell_ids = PackedStringArray(["rom_uranai"])
+	InteriorCatalog.put_room(buggy)
 	var snow := InteriorCatalog.make_room(
 		&"kamakura", Room.Kind.KAMAKURA, "Snow Cabin", Vector2i(5, 5), Vector2i(6, 6), {}
 	)

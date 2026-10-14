@@ -182,6 +182,7 @@ class TestDolphinHash(unittest.TestCase):
         ## Shirt/hat stay native — overwritten by GeneratedVisual.apply_cloth anyway.
         self.assertTrue(is_player_model_texture("seg_0A", "boy_1"))
         self.assertTrue(is_player_model_texture("", "boy_1"))
+        self.assertTrue(is_player_model_texture("seg_0A", "grl_1"))
         self.assertTrue(is_player_model_texture("face_boy.bin:0:3"))
         self.assertTrue(is_player_model_texture("tex_boy.bin:12"))
         self.assertFalse(is_player_model_texture("seg_0A", "cat_1"))

@@ -6,14 +6,16 @@ extends RefCounted
 signal milestone_reached(milestone: StringName)
 
 const FRIENDSHIP_MIN := 0
-## Original clamp is s8 0–127 (`mNpc_AddFriendship`). We keep the existing 0–255 range.
-const FRIENDSHIP_MAX := 255
+## `Anmmem_c.friendship` is an s8 clamped to 0–127 (`mNpc_AddFriendship`).
+const FRIENDSHIP_MAX := 127
 ## `mNpc_GetAnimalMemoryBestFriend` rejects memories below 80.
 const BEST_FRIEND_AT := 80
 ## Original friendship cap.
 const KINDRED_AT := 127
-const TALK_FIRST := 3
-const TALK_REPEAT := 1
+## `mNpc_SetAnimalMemory`: the memory made on first meeting starts at 1. Talking by itself
+## adds nothing after that — friendship moves through the talk (`VillagerTalkManager`).
+const TALK_FIRST := 1
+const TALK_REPEAT := 0
 ## Mail with a present is +3 (`mNpc` receive letter).
 const GIFT_DELTA := 3
 const HISTORY := 12
@@ -35,6 +37,18 @@ var gift_count: int = 0
 var talks: Array[Dictionary] = []
 var gifts: Array[Dictionary] = []
 var milestones: Array[StringName] = []
+## The memory exists (`mNpc_CheckFreeAnimalMemory` is FALSE): made on first talk, or by the
+## player's first letter (`mNpc_SendMailtoNpc` → `mNpc_ForceGetFreeAnimalMemoryIdx`).
+var has_memory: bool = false
+## `Anmmem_c.letter_info` + `.letter`: the last letter this player sent.
+var letter_exists: bool = false
+## `mNpc_LETTER_RANK_*` of that letter (0 bad, 1 good).
+var letter_cond: int = 0
+var send_reply: bool = false
+## Day number the letter arrived (`letter.date`); -1 = none.
+var letter_day: int = -1
+## header / body / footer / present / paper_type of the saved letter.
+var letter: Dictionary = {}
 
 
 func talked_on(day_key: String) -> bool:
@@ -49,12 +63,14 @@ func record_talk(day_key: String) -> int:
 		kind = TALK_KIND_FIRST
 	elif first_today:
 		kind = TALK_KIND_AGAIN
-	var delta: int = TALK_FIRST if first_today else TALK_REPEAT
 	talk_count += 1
 	last_spoke_day = day_key
 	_push_talk(day_key, kind)
-	add_friendship(delta)
-	return delta
+	if not has_memory:
+		has_memory = true
+		set_friendship(TALK_FIRST)
+		return TALK_FIRST
+	return TALK_REPEAT
 
 
 func record_gift(item_id: StringName, day_key: String) -> int:
@@ -101,6 +117,12 @@ func to_save() -> Dictionary:
 		"talks": talks.duplicate(true),
 		"gifts": gifts.duplicate(true),
 		"milestones": marks,
+		"has_memory": has_memory,
+		"letter_exists": letter_exists,
+		"letter_cond": letter_cond,
+		"send_reply": send_reply,
+		"letter_day": letter_day,
+		"letter": letter.duplicate(true),
 	}
 
 
@@ -113,6 +135,13 @@ func apply_snapshot(data: Dictionary) -> void:
 	gift_count = maxi(0, int(data.get("gift_count", 0)))
 	talks = _dict_list(data.get("talks", []))
 	gifts = _dict_list(data.get("gifts", []))
+	has_memory = bool(data.get("has_memory", talk_count > 0))
+	letter_exists = bool(data.get("letter_exists", false))
+	letter_cond = int(data.get("letter_cond", 0))
+	send_reply = bool(data.get("send_reply", false))
+	letter_day = int(data.get("letter_day", -1))
+	var saved: Variant = data.get("letter", {})
+	letter = (saved as Dictionary).duplicate(true) if typeof(saved) == TYPE_DICTIONARY else {}
 	milestones.clear()
 	var raw: Variant = data.get("milestones", [])
 	if typeof(raw) == TYPE_ARRAY:

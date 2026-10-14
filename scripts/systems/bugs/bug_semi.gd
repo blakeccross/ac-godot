@@ -15,6 +15,8 @@ const NET_SCARE := 70.0
 const SCOOP_SCARE := 30.0
 const AXE_SCARE := 150.0
 const CRY_TIMER := 60
+## `semi_sound_data`: robust, walker, evening and brown cicada cries.
+const CRY_SE: Array[int] = [0x9B, 0x9A, 0x98, 0x97]
 
 var _placed: bool = false
 
@@ -32,6 +34,8 @@ func actor_init(a: BugActor, released: bool) -> void:
 		setup_action(a, WAIT)
 	else:
 		_placed = true
+		if a.type != T_BEE:
+			a.trg_se.append(&"semi_escape")
 		setup_action(a, LET_ESCAPE)
 
 
@@ -95,6 +99,8 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 
 func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	if _check_patience(a, sense):
+		if a.type != T_BEE:
+			a.trg_se.append(&"semi_escape")
 		setup_action(a, AVOID)
 		return
 	## `aISM_IS_CAUGHT` (`s32_work0`): a net stopped on this cicada silences it.
@@ -102,8 +108,9 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 		return
 	if a.patience < 50.0:
 		a.timer -= 1
-		if not BugProgram.raining() and a.timer < 0:
+		if not (BugProgram.raining() or sense.raining) and a.timer < 0:
 			a.timer = 0
+			a.ongen = CRY_SE[a.type - T_ROBUST_CICADA]
 			a.pos.x = a.home.x + a._rng.randf() * 0.4
 	else:
 		a.timer = CRY_TIMER
@@ -114,6 +121,8 @@ func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.anime0 >= 2.0:
 		a.anime0 -= 2.0
 	a.gravity = minf(a.gravity * 1.1, 12.0)
+	if a.type == T_BEE:
+		a.ongen = 0x26
 	## Ground / wall collision switches on once it has flown off its home unit.
 	if a.bg_type == 0 and BugProgram.unit_of(sense, a.home) != BugProgram.unit_of(sense, a.pos):
 		a.bg_type = 2

@@ -20,6 +20,8 @@ const NOOK_STAND_UT: Array[Vector2i] = [
 	Vector2i(3, 5), Vector2i(7, 5), Vector2i(8, 9), Vector2i(7, 11)
 ]
 const NOOK_STAND_GX := Vector3(140.0, 0.0, 220.0)
+## `shop04_2` mvactor: Timmy and Tommy (`SP_NPC_MAMEDANUKI0/1`) upstairs at Nookington's.
+const TWINS_UT: Array[Vector2i] = [Vector2i(7, 4), Vector2i(8, 4)]
 const NOOK_FACING := WorldGrid.Facing.SOUTH
 ## Permanent SPNPC leaves `cloth_idx` NONE (`aNPC_actor_init_for_special`). `0x205` on
 ## `l_sp_actor_name` is the name string, not a shirt — do not paint cloth onto eyes.
@@ -313,7 +315,8 @@ static func _kind_for_item(item_id: StringName, rare: StringName = &"", hallowee
 		return &"rare"
 	if item_id == ShopGoods.SIGNBOARD:
 		return &"sign"
-	if item_id == ShopGoods.PAPER:
+	## `aSD_get_rsv_type`: diaries stand on the stationery points.
+	if item_id == ShopGoods.PAPER or ShopGoods.is_diary(item_id):
 		return &"paper"
 	if ShopGoods.PAINTS.has(item_id):
 		return &"paint"

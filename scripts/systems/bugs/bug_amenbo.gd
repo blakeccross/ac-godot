@@ -99,6 +99,7 @@ func _let_escape(a: BugActor, _sense: BugActor.Sense) -> void:
 	if a.anime0 >= 2.0:
 		a.anime0 -= 2.0
 	a.gravity = minf(a.gravity + a.gravity * 0.05, 12.0)
+	a.ongen = 0x25
 
 
 ## `aIAB_BGcheck`: a front wall latches `HIT_WALL`. On the field the pond bank is that

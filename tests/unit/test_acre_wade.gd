@@ -122,3 +122,14 @@ func test_camera_pitch_morph_lands_with_the_wade() -> void:
 	for t: int in int(AcreWade.TICKS):
 		p = AcreCamera.morph_pitch(p, goal, AcreWade.TICKS - float(t))
 	assert_float(p).is_equal_approx(goal, 0.000001)
+
+
+func test_a_pushed_snowball_wades_only_square_on() -> void:
+	## `Player_actor_CheckCondition_forWadeSnowball`: 5°, not the walk's 40°.
+	var at_east := Vector3(1920.0 - 18.0, 0.0, 1000.0)
+	var ok := Callable(self, "_land_ok")
+	var narrow: float = AcreWade.SNOWBALL_ANGLE_RANGE
+	assert_int(AcreWade.direction(at_east, deg_to_rad(93.0), Vector2(1.0, 0.0), ok, 0.0, false, narrow)).is_equal(AcreWade.Dir.RIGHT)
+	assert_int(AcreWade.direction(at_east, deg_to_rad(100.0), Vector2(1.0, 0.0), ok, 0.0, false, narrow)).is_equal(AcreWade.Dir.NONE)
+	## The same lean walks across without a ball.
+	assert_int(AcreWade.direction(at_east, deg_to_rad(100.0), Vector2(1.0, 0.0), ok)).is_equal(AcreWade.Dir.RIGHT)

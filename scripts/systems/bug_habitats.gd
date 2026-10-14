@@ -59,6 +59,10 @@ const CANDY_ITEM := &"candy"
 const TRASH_ITEM := &"spoiled_turnips"
 
 
+## Units in from the acre's edge that bait must lie (`aSOI_ins_chk_candy`).
+const BAIT_EDGE := 2
+
+
 class Site:
 	var cell: Vector2i = Vector2i(-1, -1)
 	var spawn_area: int = -1
@@ -481,6 +485,18 @@ static func _item_sites(
 			continue
 		seen[cell] = true
 		out.append(_site_at(cell, &"item", layout, grid, spawn_area, BugData.Habitat.GROUND))
+	## And the saved drops (`FieldItems`), whether or not their pickups are loaded yet; a
+	## wrapped present is not bait.
+	if Game != null:
+		for pid: Variant in Game.field_items:
+			var rec: Variant = Game.field_items[pid]
+			if not (rec is Dictionary) or StringName(str(rec.get("id", ""))) != item_id or bool(rec.get("wrapped", false)):
+				continue
+			var cell: Vector2i = FieldItems.cell_from_persist(StringName(str(pid)))
+			if seen.has(cell) or not _in_inner(cell, bounds, acre):
+				continue
+			seen[cell] = true
+			out.append(_site_at(cell, &"item", layout, grid, spawn_area, BugData.Habitat.GROUND))
 	return out
 
 

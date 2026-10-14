@@ -17,15 +17,20 @@ extends Node3D
 ##   date=Y-M-D[,…]    One capture per date (default 2001-07-15). time=HH:MM (12:00).
 ##   target=…          visual:<id or glob> | node:<path under world> | acre:<name> |
 ##                     bug:<id or glob> (a live field insect, e.g. bug:*grasshopper*) |
+##                     group:<name> (the first node in a group, e.g. group:mushroom) |
 ##                     pos:x,y,z | scene (keep the scene's own camera). Default: scene
 ##                     camera for scene=, else the town centre.
 ##   room=shop0..shop3_2  Load that Nook floor at its store level (fresh lineup);
 ##                     `buy=N` buys N goods off the shelf first.
 ##   console=cmd,args  Debug-console command run once the scene is up, commas for spaces
-##                     (`console=bug,grasshopper,3`).
+##                     (`console=bug,grasshopper,3`); `;` runs several in turn. With console_delay=N it runs N frames
+##                     after the target is found instead (villagers only turn up near
+##                     the player, which the `villager:` lookup arranges).
 ##   cam=dx,dy,dz      Camera offset from the focus in metres (default 0,4,7).
 ##   look=dx,dy,dz     Offset added to the focus point (default 0,1,0).
-##   fov=50  size=960x540  wait=20 (frames before the grab)
+##   fov=50  size=960x540  wait=20 (frames before the grab; also bounds a target search)
+##   after=N (frames between a console command and the grab; defaults to wait)
+##   ui=1              Keep the HUD / dialogue layers visible (hidden by default).
 ##   out=path          Directory or .png path (default res://.tmp_captures/, gitignored).
 ##   name=label        File stem (default from target + date).
 ## Prints one `CAPTURE <absolute path>` line per image, `CAPTURE_ERROR <msg>` on failure.
@@ -86,16 +91,19 @@ func _capture_date(date: String) -> void:
 	add_child(root)
 	for _i: int in 10:
 		await get_tree().process_frame
-	for layer: Node in get_tree().root.find_children("*", "CanvasLayer", true, false):
-		(layer as CanvasLayer).visible = false
-	if _args.has("console"):
-		print("CONSOLE ", DebugConsole.new().execute(str(_args["console"]).replace(",", " ")))
+	## HUD and overlays stay out of the shot unless `ui=1`.
+	if str(_args.get("ui", "0")) != "1":
+		for layer: Node in get_tree().root.find_children("*", "CanvasLayer", true, false):
+			(layer as CanvasLayer).visible = false
+	var late_console: bool = _args.has("console_delay")
+	if _args.has("console") and not late_console:
+		_run_console()
 	var target := str(_args.get("target", "scene" if not scene_path.is_empty() else "town"))
 	var cam: Camera3D = null
 	if target != "scene":
 		var focus: Variant = _resolve_focus(root, target)
 		## Insects spawn over time: keep looking for up to `wait` frames.
-		if focus == null and target.begins_with("bug:"):
+		if focus == null and (target.begins_with("bug:") or target.begins_with("villager:") or target.begins_with("group:")):
 			for _i: int in int(_args.get("wait", "20")):
 				await get_tree().process_frame
 				focus = _resolve_focus(root, target)
@@ -114,7 +122,12 @@ func _capture_date(date: String) -> void:
 		var look_at: Vector3 = (focus as Vector3) + _vec3(str(_args.get("look", "0,1,0")), Vector3(0, 1, 0))
 		cam.global_position = look_at + _vec3(str(_args.get("cam", "0,4,7")), Vector3(0, 4, 7))
 		cam.look_at(look_at)
-	for _i: int in int(_args.get("wait", "20")):
+	if _args.has("console") and late_console:
+		for _i: int in int(_args.get("console_delay", "0")):
+			await get_tree().process_frame
+		_run_console()
+	## `after` frames past the console (defaults to `wait`, which also bounds the target search).
+	for _i: int in int(_args.get("after", _args.get("wait", "20"))):
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var path := _out_path(target, date)
@@ -155,9 +168,28 @@ func _resolve_focus(root: Node, target: String) -> Variant:
 			if acre == null:
 				return null
 			return acre.global_position + Vector3(8.0, 0.0, 8.0)
+		"group":
+			var member := get_tree().get_first_node_in_group(value) as Node3D
+			return member.global_position if member != null else null
 		"visual":
 			var hit := _find_visual(root, value)
 			return hit.global_position if hit != null else null
+		"villager":
+			## First visible villager, or the one whose data id is `value`.
+			for node: Node in root.get_tree().get_nodes_in_group("villagers"):
+				var villager_ai: Variant = node.get("ai")
+				if node is Node3D and villager_ai != null and villager_ai.is_present():
+					var vd: Variant = node.get("data")
+					if value.is_empty() or (vd != null and String(vd.id) == value):
+						return (node as Node3D).global_position
+			## Everyone is still at home: walk the player over to the first house so it
+			## spawns them (`aSNMgr_set_npc_regular`); the wait loop looks again.
+			var player := root.get_tree().get_first_node_in_group("player") as Node3D
+			for node: Node in root.get_tree().get_nodes_in_group("villagers"):
+				if player != null and node is Node3D:
+					player.global_position = (node as Node3D).global_position + Vector3(0, 0, 8)
+					break
+			return null
 		"bug":
 			for node: Node in root.find_children("*", "BugActorVisual", true, false):
 				var bug := node as BugActorVisual
@@ -232,3 +264,7 @@ func _stock_nook(lv: int) -> void:
 	for i: int in int(_args.get("buy", "0")):
 		var g: Array[StringName] = Game.shops.goods(ShopBook.NOOK_ID)
 		print("BUY ", Game.shops.buy(ShopBook.NOOK_ID, g[mini(i * 3, g.size() - 1)], Game.inventory))
+func _run_console() -> void:
+	var console := DebugConsole.new()
+	for line: String in str(_args["console"]).split(";", false):
+		print("CONSOLE ", console.execute(line.replace(",", " ")))

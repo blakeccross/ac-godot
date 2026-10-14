@@ -196,6 +196,24 @@ TEST_SKELETONS = [
 # Static Gfx models (no cKF skeleton). Paths keep original identifiers.
 TEST_STATIC = [
     {
+        ## December lights on a cedar (`cedar5_light_list` → `obj_x_ceder5_lightT_gfx_model`).
+        ## It draws from the hardwood lights' vtx, so per-vtx inference keeps only one; the
+        ## hardwood row below wins `TEST_STATIC_BY_VTX` and this one is added back.
+        "asset_id": "obj_x_ceder5_light",
+        "vtx": "obj_x_tree5_light_v",
+        "gfx": ["obj_x_ceder5_lightT_gfx_model"],
+        "output": "environment/trees/obj_x_ceder5_light.glb",
+        "confident_name": True,
+    },
+    {
+        ## December lights on a hardwood (`tree4_light_list` → `obj_x_tree5_lightT_gfx_model`).
+        "asset_id": "obj_x_tree5_light",
+        "vtx": "obj_x_tree5_light_v",
+        "gfx": ["obj_x_tree5_lightT_gfx_model"],
+        "output": "environment/trees/obj_x_tree5_light.glb",
+        "confident_name": True,
+    },
+    {
         ## `ef_dust01_modelT` (dust / tumble dust): vtx is `ef_dust01_00_v`, so the
         ## name-paired job inference misses it. Frames come from `ef_dust01_0..3`.
         "asset_id": "ef_dust01",
@@ -983,6 +1001,8 @@ _BUG_MODEL_BASES = [
     "act_m_kumo",
     "act_m_ari",
     "act_m_ka",
+    ## The Wisp's spirits (`aINS_hitodama_dl`: a, a, b, b).
+    "act_m_hitodama",
 ]
 
 # `aINS_*_dl` pose pairs from `ac_insect_data.c_inc`. Draw submits indices
@@ -1071,6 +1091,7 @@ _BUG_POSE_GFX: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
         ("act_m_amenbo1T_model", "act_m_amenbo2T_model"),
     ),
     "act_m_dango": (("act_m_dango2T_model",), ("act_m_dango1T_model",)),
+    "act_m_hitodama": (("act_m_hitodama_a_model",), ("act_m_hitodama_b_model",)),
 }
 
 

@@ -53,8 +53,22 @@ static func add_redd(root: Node3D, interior: IndoorSession) -> void:
 	var redd := StaticBody3D.new()
 	redd.set_script(load("res://scenes/world/interiors/redd.gd"))
 	redd.name = "Redd"
-	redd.position = interior.grid.cell_to_world(interior.room.counter_cell())
+	## `aEBR2_search_player2` stands him at (60, 100) GX in the tent.
+	redd.position = MuseumDisplay.gx_to_world(interior.grid, Vector3(60.0, 0.0, 100.0))
 	root.add_child(redd)
+
+
+## Katrina in her tent (`SCENE_BUGGY`, the player comes in at (160, 260) GX facing her).
+static func add_katrina(root: Node3D, interior: IndoorSession) -> void:
+	if root == null or interior == null or interior.grid == null:
+		return
+	if root.get_node_or_null("Katrina") != null:
+		return
+	var katrina := StaticBody3D.new()
+	katrina.set_script(load("res://scenes/world/interiors/katrina.gd"))
+	katrina.name = "Katrina"
+	katrina.position = MuseumDisplay.gx_to_world(interior.grid, Vector3(160.0, 0.0, 140.0))
+	root.add_child(katrina)
 
 
 ## Blathers in the entrance hall (talk / donate).

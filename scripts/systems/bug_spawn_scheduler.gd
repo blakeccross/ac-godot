@@ -35,10 +35,9 @@ const AREA_ON_FLOWER := BugHabitats.AREA_ON_FLOWER
 const AREA_FLYING_NEAR_FLOWERS := BugHabitats.AREA_FLYING_NEAR_FLOWERS
 
 
-## Town field rank (`mFAs_GetFieldRank`). No town-assessment system yet → rank 3
-## (`env_rate` 1.0). Hook here when one lands.
+## Town field rank (`mFAs_GetFieldRank`, `TownAssessment`).
 static func field_rank() -> int:
-	return 3
+	return Game.field_rank
 
 
 static func env_rate() -> float:

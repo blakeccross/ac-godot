@@ -4,8 +4,8 @@ extends RefCounted
 ## Copper's conversations (`ac_npc_police_move.c_inc`): the greeting as you walk out of
 ## the police box (0x0771), and the time-of-day greeting menu (0x0772–0x0775) whose three
 ## answers are the special-event hint (`aPOL_get_hint_msg_no`), the lost-and-found count
-## (0x0782 / 0x0783) and "never mind" (0x0777). The foreign-player map option
-## (`aPOL_check_select2`) needs a second town and is not offered.
+## (0x0782 / 0x0783) and "never mind" (0x0777). A visitor from another town gets the map
+## option first (`aPOL_check_select2` → `mPr_SetNewMap`, 0x18CA).
 
 const CONVERSATION_ID := &"copper_talk"
 const MSG_EXIT_GREETING := 0x0771
@@ -92,6 +92,7 @@ static func fill(ctx: DialogueContext, exit_greeting: bool) -> void:
 	if ctx == null:
 		return
 	ctx.set_var(VAR_ENTRY, "exit" if exit_greeting else "menu")
+	ctx.set_var("copper_foreign", "yes" if Game != null and Game.foreigner else "no")
 	ctx.set_var(VAR_TIME, TIME_KEYS[time_index(ctx.hour)])
 	var events: EventCalendar = Game.events if Game != null else null
 	var first_job: bool = Game != null and Game.first_job != null and Game.first_job.is_active()

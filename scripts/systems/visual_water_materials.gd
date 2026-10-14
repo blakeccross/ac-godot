@@ -163,7 +163,8 @@ static func is_fall_rainbow_surface(mesh_instance: MeshInstance3D, surface: int,
 	for j: int in n:
 		if j == surface:
 			continue
-		var sibling: Material = mesh_instance.get_active_material(j)
+		## The mesh's own materials: siblings may already carry their water override.
+		var sibling: Material = mesh_instance.mesh.surface_get_material(j)
 		if sibling != null and water_kind(sibling) == "waterfall":
 			return true
 	return false

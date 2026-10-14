@@ -44,9 +44,11 @@ const FRAME_SPEED := 0.5
 const CATCH_AFTER_FRAME := 6.0
 
 ## `Player_actor_Item_CheckLocalCapture_forNet`: the net's reach added to the insect's own
-## catch range (21 for the golden net, which is not in the game yet). `net_top_col_pos` and
+## catch range (21 for the golden net). `net_top_col_pos` and
 ## `net_bot_col_pos` are the same point, so the capsule test reduces to a sphere.
 const CATCH_REACH_GX := 15.0
+const GOLDEN_REACH_GX := 21.0
+const GOLDEN_NET := &"golden_net"
 
 ## `Player_actor_Item_draw_net`: the net's points, off the hand matrix after
 ## `Matrix_rotateXYZ(0, 3000, 0)`, at these model-space Z offsets × the player's 0.01 scale.
@@ -76,6 +78,9 @@ class Probe:
 	var line_bits: int = 0
 	## `Player_actor_Check_OBJtoLine_forItem_net`: the actor the net's triangle touched.
 	var hit_actor: Object = null
+	## `Set_Item_net_catch_request_force_proc`: taken by any swing already under way (the
+	## bee swarm close by), whatever the net's reach.
+	var forced: Object = null
 	## `item_net_catch_*_request_table`: what registered this tick, in registration order.
 	var candidates: Array[Candidate] = []
 
@@ -109,10 +114,13 @@ var caught: Object = null
 var swing_timer: float = 0.0
 ## Everything this tick asked the scene to do, in order: `&"furi"` (swing whoosh),
 ## `&"get"` (catch SE), `&"hit"` (`AMI_HIT` + rumble), `&"splash"` (net dipped in water),
-## `&"stop_net"` (`Check_StopNet` fires for bugs and fish), `&"slip"` (skid SE + dust).
+## `&"stop_net"` (`Check_StopNet` fires for bugs and fish), `&"slip"` (skid SE + dust),
+## `&"swing_fx"` (leaves / petals 50 GX ahead, `Player_actor_SetEffect_Swing_net`).
 var events: Array[StringName] = []
 ## The actor the net hit when the swing was cut short (`Player_actor_CheckAndSet_UZAI_forNpc`).
 var hit_actor: Object = null
+## The net has already splashed this swing (one burst, not one a tick).
+var splashed: bool = false
 
 var _anim_stopped: bool = false
 
@@ -174,7 +182,8 @@ static func net_point(hand: Transform3D, along_gx: float) -> Vector3:
 
 ## `Player_actor_Item_CheckLocalCapture_forNet` with coincident top and bottom points.
 static func in_reach(net_pos: Vector3, target: Vector3, range_gx: float) -> bool:
-	var reach: float = (CATCH_REACH_GX + range_gx) * FieldCatalog.GX_TO_METERS
+	var golden: bool = Game != null and Game.inventory != null and Game.inventory.equipment_id == GOLDEN_NET
+	var reach: float = ((GOLDEN_REACH_GX if golden else CATCH_REACH_GX) + range_gx) * FieldCatalog.GX_TO_METERS
 	return net_pos.distance_squared_to(target) <= reach * reach
 
 
@@ -226,6 +235,7 @@ func _tick_slip(a_held: bool) -> void:
 
 func _begin_swing() -> void:
 	_set_state(State.SWING)
+	splashed = false
 	frame = 1.0
 	frame_speed = FRAME_SPEED
 	_anim_stopped = false
@@ -239,12 +249,16 @@ func _tick_swing(probe: Probe) -> void:
 	## Both checks read the keyframe before this tick advances it.
 	var hit: bool = false
 	var hit_by: Object = null
+	## `Player_actor_SetEffect_Swing_net`: once, as the keyframe passes 8.5–9.
+	if frame > 8.5 and frame <= 9.0:
+		events.append(&"swing_fx")
 	if frame > CATCH_AFTER_FRAME:
 		if probe.hit_actor != null:
 			hit = true
 			hit_by = probe.hit_actor
 		else:
-			if probe.line_bits & (LINE_WATER | LINE_UNDERWATER):
+			if probe.line_bits & (LINE_WATER | LINE_UNDERWATER) and not splashed:
+				splashed = true
 				events.append(&"splash")
 			if probe.line_bits & (LINE_WALL | LINE_GROUND):
 				hit = true
@@ -280,6 +294,10 @@ func _catch_check(probe: Probe) -> int:
 	swing_timer += 0.5
 	if caught != null:
 		return 2
+	if probe.forced != null and swing_timer > 0.5:
+		caught = probe.forced
+		events.append(&"get")
+		return 1
 	for candidate: Candidate in probe.candidates:
 		if candidate == null or candidate.target == null:
 			continue

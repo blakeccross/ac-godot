@@ -244,3 +244,38 @@ func test_save_roundtrip_books() -> void:
 	Game.apply_snapshot(snap)
 	assert_int(Game.police.keep_item_sum()).is_equal(police_sum)
 	assert_int(Game.post.get_keep_mail_sum()).is_equal(mail_sum)
+
+
+## `mPO_set_next_delivery_time`: rounds at 9:00 and 17:00.
+func test_post_rounds_at_nine_and_five() -> void:
+	var day: int = 100 * 1440
+	assert_int(PostBook.next_delivery(day + 8 * 60)).is_equal(day + 9 * 60)
+	assert_int(PostBook.next_delivery(day + 9 * 60)).is_equal(day + 17 * 60)
+	assert_int(PostBook.next_delivery(day + 20 * 60)).is_equal(day + 1440 + 9 * 60)
+
+
+## `mPO_delivery_mail_sub`: held letters reach a mailbox with room; the rest of the desk
+## (letters to villagers) has gone on its way.
+func test_post_round_empties_the_desk() -> void:
+	var book := PostBook.new()
+	var mine := MailData.make_send(&"resident_0", "Ann", "Hi")
+	mine.recipient_type = MailData.NameType.PLAYER
+	var villager := MailData.make_send(&"bob", "Bob", "Hello")
+	villager.recipient_type = MailData.NameType.NPC
+	book.receipt_mail(mine)
+	book.receipt_mail(villager)
+	var day: int = 100 * 1440
+	var got: Array[MailData] = []
+	var full := func(_m: MailData) -> bool: return false
+	var room := func(m: MailData) -> bool:
+		got.append(m)
+		return true
+	## First round of the session, mailbox full: hers waits.
+	assert_int(book.deliver(day + 8 * 60, full, true)).is_equal(0)
+	assert_int(book.occupied_count()).is_equal(1)
+	## Not due before 9:00.
+	assert_int(book.deliver(day + 8 * 60 + 30, room)).is_equal(0)
+	assert_int(book.deliver(day + 9 * 60, room)).is_equal(1)
+	assert_int(book.occupied_count()).is_equal(0)
+	assert_str(got[0].recipient_name).is_equal("Ann")
+	assert_int(book.delivery_minute).is_equal(day + 17 * 60)

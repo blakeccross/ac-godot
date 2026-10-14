@@ -30,6 +30,9 @@ enum Category { TOOL, FURNITURE, FRUIT, FISH, BUG, OTHER, WALL, FLOOR, CLOTH }
 ## Nook's rare-furniture list (`mSP_LISTTYPE_RARE`): the Nookway+ spotlight slot and
 ## Sale Day grab bags draw from items flagged here.
 @export var shop_rare: bool = false
+## Registered from the disc catalog (`FtrCatalog`), not authored; Nook's own pools skip
+## these until the shop draws from the disc lists.
+@export var from_disc: bool = false
 ## Non-empty → inventory **Plant** tag (`PlantData.id`).
 @export var plant_id: StringName = &""
 

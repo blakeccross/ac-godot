@@ -586,21 +586,6 @@ func test_shop_state_round_trips() -> void:
 # --- Counter talk flow -------------------------------------------------------------------
 
 
-## Stand-in Nook: records what the shop paper hands back to him.
-class PaperNook:
-	extends Node
-	var sold: Array = []
-	var ordered: Array = []
-
-	func quote_sell(item_id: StringName, count: int) -> bool:
-		sold.append([item_id, count])
-		return true
-
-	func quote_order(item_id: StringName) -> bool:
-		ordered.append(item_id)
-		return true
-
-
 func _run(conv_id: StringName, ctx: DialogueContext) -> DialogueRunner:
 	var runner := DialogueRunner.new()
 	runner.event_fired.connect(func(event: Dictionary) -> void: NookShopTalk.apply_event(event, ctx))
@@ -616,99 +601,16 @@ func _to_choice(runner: DialogueRunner) -> void:
 		guard += 1
 
 
-func test_selling_asks_yes_no_with_the_total_first() -> void:
-	## `aNSC_msg_win_open_wait` → `SELL_OFFER` → `aNSC_buy_check`.
-	var inv: Inventory = Game.inventory
-	inv.set_wallet(0)
-	inv.add(ItemCatalog.get_item(&"wood_chair"), 2)
-	var total: int = int(Game.shops.sell_quote(&"wood_chair", inv, 2)["total"])
-	var ctx := DialogueContext.new()
-	NookShopTalk.fill_sell(ctx, &"wood_chair", 2)
-	assert_str(str(ctx.get_var(NookShopTalk.VAR_DEAL))).is_equal("sell_many")
-	assert_str(ctx.frees[0]).is_equal(str(total))
-	var runner := _run(NookShopTalk.DEAL_ID, ctx)
-	_to_choice(runner)
-	assert_bool(runner.waiting_choice).is_true()
-	assert_int(inv.count_of(&"wood_chair")).is_equal(2)
-	runner.choose(1)
-	assert_int(inv.count_of(&"wood_chair")).is_equal(2)
-	assert_int(inv.wallet).is_equal(0)
-	runner = _run(NookShopTalk.DEAL_ID, ctx)
-	_to_choice(runner)
-	runner.choose(0)
-	assert_int(inv.count_of(&"wood_chair")).is_equal(0)
-	assert_int(inv.wallet).is_equal(total)
-	## `SELL_NORMAL`: anything else to sell?
-	_to_choice(runner)
-	assert_str(String(runner.node_id)).is_equal("sell_more")
-
-
-func test_catalog_order_asks_yes_no_first() -> void:
-	## `aNSC_msg_win_open_wait2` → `ORDER_OFFER` → `aNSC_order_check`.
-	var inv: Inventory = Game.inventory
-	inv.add(ItemCatalog.get_item(&"wood_table"), 1)
-	inv.set_wallet(5000)
-	var price: int = ShopBook.buy_price(ItemCatalog.get_item(&"wood_table"))
-	var ctx := DialogueContext.new()
-	NookShopTalk.fill_order(ctx, &"wood_table")
-	var runner := _run(NookShopTalk.DEAL_ID, ctx)
-	_to_choice(runner)
-	assert_int(Game.catalog.orders().size()).is_equal(0)
-	runner.choose(1)
-	assert_int(Game.catalog.orders().size()).is_equal(0)
-	runner = _run(NookShopTalk.DEAL_ID, ctx)
-	_to_choice(runner)
-	runner.choose(0)
-	assert_int(Game.catalog.orders().size()).is_equal(1)
-	assert_int(inv.wallet).is_equal(5000 - price)
-	## Short on Bells: refused, nothing ordered.
-	inv.set_wallet(0)
-	runner = _run(NookShopTalk.DEAL_ID, ctx)
-	_to_choice(runner)
-	runner.choose(0)
-	assert_str(str(ctx.get_var(NookShopTalk.VAR_DEAL_RESULT))).is_equal("no_money")
-	assert_int(Game.catalog.orders().size()).is_equal(1)
-
-
-func test_shop_paper_has_no_buy_tab_and_hands_picks_to_nook() -> void:
-	var paper: Node = load("res://scenes/ui/shop_overlay.tscn").instantiate()
-	add_child(paper)
-	auto_free(paper)
-	var nook := PaperNook.new()
-	nook.add_to_group("tom_nook")
-	add_child(nook)
-	auto_free(nook)
-	Game.inventory.add(ItemCatalog.get_item(&"wood_chair"), 1)
-	paper.call("open", ShopBook.NOOK_ID, Interaction.BUY)
-	assert_that(paper.get("_mode")).is_equal(Interaction.SELL)
-	paper.call("_on_row_pressed", 0)
-	## Nothing sold yet: Nook quotes and asks first.
-	assert_int(Game.inventory.count_of(&"wood_chair")).is_equal(1)
-	assert_int(nook.sold.size()).is_equal(1)
-	assert_bool(bool(paper.call("is_open"))).is_false()
-	Game.inventory.add(ItemCatalog.get_item(&"wood_table"), 1)
-	paper.call("open", ShopBook.NOOK_ID, ShopUse.ORDER)
-	paper.call("_on_row_pressed", 0)
-	assert_int(nook.ordered.size()).is_equal(1)
-	assert_int(Game.catalog.orders().size()).is_equal(0)
-
-
 func test_nook_greets_every_entry_and_offers_the_house_once_paid() -> void:
 	## `aNSC_start_wait`: `START_CALL_NORMAL`, or house business (`..._start_wait1`).
 	var house: House = Game.interiors.player_house()
 	Game.inventory.set_loan(19800)
-	var welcome: DialogueData = NookShopTalk.line(NookShopTalk.WELCOME_BANK, NookShopTalk.WELCOME_ID)
-	assert_that(welcome).is_not_null()
-	var talk: Dictionary = NookShopTalk.entry_talk(house, Game.inventory, 0)
-	assert_that(talk["data"]).is_equal(welcome)
-	## Every entry, not only the first.
-	assert_that(NookShopTalk.entry_talk(house, Game.inventory, 0)["data"]).is_equal(welcome)
+	assert_that(NookShopTalk.line(NookShopTalk.WELCOME_BANK, NookShopTalk.WELCOME_ID)).is_not_null()
+	assert_bool(NookHouseTalk.has_business(house, Game.inventory)).is_false()
 	Game.inventory.set_loan(0)
-	talk = NookShopTalk.entry_talk(house, Game.inventory, 0)
-	assert_that((talk["data"] as DialogueData).id).is_equal(NookHouseTalk.DIALOGUE_ID)
-	assert_that(talk["house"]["scene"]).is_equal(HouseUpgrade.OFFER_MEDIUM)
-	## A, by contrast, opens the counter menu.
-	assert_that(NookShopTalk.counter_talk().id).is_equal(NookShopTalk.MENU_ID)
+	assert_bool(NookHouseTalk.has_business(house, Game.inventory)).is_true()
+	var plan: Dictionary = NookHouseTalk.plan(house, Game.inventory, 0)
+	assert_that(plan["scene"]).is_equal(HouseUpgrade.OFFER_MEDIUM)
 
 
 func test_nook_says_goodbye_facing_the_shop_exit() -> void:
@@ -729,29 +631,19 @@ func test_nook_says_goodbye_facing_the_shop_exit() -> void:
 
 
 func test_raffle_day_nook_only_runs_the_raffle() -> void:
-	## `ac_npc_shop_mastersp`: no entry greeting, no house talk, prizes aren't for sale.
+	## `ac_npc_shop_mastersp`: prizes aren't for sale, and once all are won he says so.
 	_set_date(2001, 1, 31, 12)
-	Game.inventory.set_loan(0)
-	var house: House = Game.interiors.player_house()
-	assert_bool(NookShopTalk.entry_talk(house, Game.inventory, 0).is_empty()).is_true()
-	assert_that(NookShopTalk.counter_talk().id).is_equal(NookShopTalk.LOTTERY_ID)
-	var shelf: DialogueData = NookShopTalk.line(
-		NookShopTalk.LOTTERY_SHELF_BANK, NookShopTalk.LOTTERY_SHELF_ID
-	)
-	assert_that(NookShopTalk.shelf_talk()).is_equal(shelf)
-	## Every prize won: he says so instead of offering a spin.
+	assert_bool(Game.shops.is_lottery_day()).is_true()
+	assert_that(NookShopTalk.line(NookShopTalk.LOTTERY_SHELF_BANK, NookShopTalk.LOTTERY_SHELF_ID)).is_not_null()
+	assert_bool(NookShopTalk.lottery_empty()).is_false()
 	var ticket: ItemData = ItemCatalog.get_item(&"ticket_01")
 	for place: int in 3:
 		Game.inventory.add(ticket, 5)
 		Game.shops.draw_lottery(Game.inventory, [0, 10, 20][place])
 	assert_bool(NookShopTalk.lottery_empty()).is_true()
-	var empty: DialogueData = NookShopTalk.line(
-		NookShopTalk.LOTTERY_EMPTY_BANK, NookShopTalk.LOTTERY_EMPTY_ID
-	)
-	assert_that(NookShopTalk.counter_talk()).is_equal(empty)
-	## The day after, the shelf offer is back.
+	assert_that(NookShopTalk.line(NookShopTalk.LOTTERY_EMPTY_BANK, NookShopTalk.LOTTERY_EMPTY_ID)).is_not_null()
 	_set_date(2001, 2, 1, 12)
-	assert_that(NookShopTalk.shelf_talk().id).is_equal(NookShopTalk.OFFER_ID)
+	assert_bool(Game.shops.is_lottery_day()).is_false()
 
 
 func test_tool_purchase_has_its_own_line() -> void:
@@ -786,3 +678,84 @@ func test_shelf_goods_are_not_sold_after_closing() -> void:
 	_set_date(2001, 1, 10, 12)
 	res = Game.shops.buy_result(ShopBook.NOOK_ID, listed[0], Game.inventory)
 	assert_int(int(res["code"])).is_not_equal(ShopBook.Buy.CLOSED)
+
+
+func test_sell_mode_pockets_offer_sell_and_sell_all() -> void:
+	var inv: Inventory = Game.inventory
+	inv.add(ItemCatalog.get_item(&"wood_chair"), 1)
+	inv.add(ItemCatalog.get_item(&"wood_table"), 1)
+	Game.shop_sell_pending = true
+	assert_array(Array(inv.tags_for_slot(0))).contains_exactly(["Sell"])
+	inv.toggle_mark(0)
+	inv.toggle_mark(1)
+	assert_array(Array(inv.tags_for_slot(0))).contains_exactly(["Sell all"])
+	Game.take_shop_sell(inv.marked_indices())
+	assert_bool(Game.shop_sell_pending).is_false()
+	assert_int(Game.shop_sell_slots.size()).is_equal(2)
+
+func test_sell_quote_then_confirm_pays_the_total() -> void:
+	var inv: Inventory = Game.inventory
+	inv.add(ItemCatalog.get_item(&"wood_chair"), 1)
+	Game.shop_sell_slots = [0] as Array[int]
+	var ctx := DialogueContext.new()
+	NookShopTalk.fill_sell(ctx, NookShopTalk.sell_selection(Game.shop_sell_slots))
+	assert_str(str(ctx.get_var(NookShopTalk.VAR_SELL))).is_equal("ok")
+	assert_str(ctx.frees[0]).is_equal("80")
+	NookShopTalk.apply_event({"op": "nook_shop", "action": "sell_confirm"}, ctx)
+	assert_int(inv.wallet).is_equal(80)
+	assert_int(inv.count_of(&"wood_chair")).is_equal(0)
+	assert_str(str(ctx.get_var(NookShopTalk.VAR_SELL_DONE))).is_equal("ok")
+
+func test_catalog_pick_quote_then_confirm_places_the_order() -> void:
+	var inv: Inventory = Game.inventory
+	inv.add(ItemCatalog.get_item(&"wood_table"), 1)
+	inv.set_wallet(5000)
+	var ctx := DialogueContext.new()
+	NookShopTalk.fill_order(ctx, &"wood_table")
+	assert_str(str(ctx.get_var(NookShopTalk.VAR_ORDER_PICK))).is_equal("offer")
+	var price: int = ShopBook.buy_price(ItemCatalog.get_item(&"wood_table"))
+	assert_str(ctx.frees[0]).is_equal(str(price))
+	NookShopTalk.apply_event({"op": "nook_shop", "action": "order_confirm"}, ctx)
+	assert_str(str(ctx.get_var(NookShopTalk.VAR_ORDER_DONE))).is_equal("ok")
+	assert_int(inv.wallet).is_equal(5000 - price)
+	assert_int(Game.catalog.orders().size()).is_equal(1)
+	## Backing out of the catalog picks nothing; Nook says so.
+	var cancel := DialogueContext.new()
+	NookShopTalk.fill_order(cancel, &"")
+	assert_str(str(cancel.get_var(NookShopTalk.VAR_ORDER_PICK))).is_equal("cancel")
+
+func test_catalog_order_needs_the_bells_up_front() -> void:
+	Game.inventory.add(ItemCatalog.get_item(&"wood_table"), 1)
+	Game.inventory.set_wallet(0)
+	var ctx := DialogueContext.new()
+	NookShopTalk.fill_order(ctx, &"wood_table")
+	NookShopTalk.apply_event({"op": "nook_shop", "action": "order_confirm"}, ctx)
+	assert_str(str(ctx.get_var(NookShopTalk.VAR_ORDER_DONE))).is_equal("no_money")
+	assert_int(Game.catalog.orders().size()).is_equal(0)
+
+## `mCL_catalog_ovl_init`: the disc lists order each page; unlisted owned items follow.
+func test_catalog_pages_follow_the_disc_lists() -> void:
+	var book := CatalogBook.new()
+	var bed: StringName = FtrCatalog.item_id(0xD6)
+	var cabinet: StringName = FtrCatalog.item_id(0x0C)
+	book.record(cabinet)
+	book.record(bed)
+	book.record(&"wood_table")
+	book.record(InteriorStyleCatalog.wall_style_id(1))
+	book.record(MinidiskCatalog.item_id(0))
+	var pages := CatalogPages.build(book)
+	if FtrCatalog.catalog_page("ftr").is_empty():
+		return  # needs the pipeline's ftr_catalog.json
+	var ftr: Array = pages.page(CatalogPages.Page.FTR)
+	## The blue bed comes before the blue cabinet on the disc list, whatever the pickup order.
+	assert_int(ftr.find(bed)).is_less(ftr.find(cabinet))
+	assert_that(ftr.back()).is_equal(&"wood_table")
+	assert_array(pages.page(CatalogPages.Page.WALL)).contains([InteriorStyleCatalog.wall_style_id(1)])
+	assert_array(pages.page(CatalogPages.Page.MUSIC)).contains([MinidiskCatalog.item_id(0)])
+	assert_bool(pages.completed(CatalogPages.Page.MUSIC)).is_false()
+	## Records are never for sale.
+	assert_int(CatalogPages.price_of(MinidiskCatalog.item_id(0))).is_equal(0)
+
+func test_an_unassessed_fossil_is_taken_for_nothing() -> void:
+	## `mSP_ItemNo2ItemPrice(ITM_FOSSIL)`: the ETC category has no price table.
+	assert_int(ItemCatalog.get_item(&"fossil").sell_price).is_equal(0)

@@ -634,3 +634,16 @@ func test_villager_state_round_trips_the_completion_marks() -> void:
 	copy.apply_snapshot(state.to_save())
 	assert_bool(copy.fish_complete_talk).is_true()
 	assert_bool(copy.insect_complete_talk).is_false()
+
+
+func test_the_roof_colour_picks_the_painted_model() -> void:
+	var house: House = Game.interiors.player_house()
+	var plot: String = String(PlayerHouse.owned_building_id())
+	house.outlook_pal = 0
+	assert_str(String(PlayerHouse.roof_visual(plot, &"obj_s_myhome2"))).is_equal("obj_s_myhome2")
+	house.outlook_pal = 2
+	var painted: String = String(PlayerHouse.roof_visual(plot, &"obj_s_myhome2"))
+	if not FieldCatalog.mesh_paths(&"obj_s_myhome2_c").is_empty():
+		assert_str(painted).is_equal("obj_s_myhome2_c")
+	## Other structures keep their own palette.
+	assert_str(String(PlayerHouse.roof_visual(plot, &"obj_s_house1_a"))).is_equal("obj_s_house1_a")

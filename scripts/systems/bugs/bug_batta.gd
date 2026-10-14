@@ -14,6 +14,8 @@ extends BugProgram
 ## plane and no water.
 
 enum { AVOID, LET_ESCAPE, CHANGE_DIRECTION, WAIT, JUMP, DROWN }
+## `batta_sound_data`: the resting cry of the cricket, grasshopper, bell and pine crickets.
+const CRY_SE: Array[int] = [0x9F, 0x9E, 0xA0, 0x9D]
 
 ## `range[]` (`aIBT_chg_direction`) — turn spread per attempt, s16.
 const TURN_RANGE := [
@@ -81,6 +83,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.gravity = 0.7
 		DROWN:
 			a.action_proc = _noop
+			a.trg_se.append(&"438")
 			a.f_destruct = true
 			a.finished = true
 
@@ -171,10 +174,13 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	## Ease shape yaw toward the target heading:
 	## `add_calc_short_angle2(rot.y, angle.y, CALC_EASE(0.5), 0x2000, 0)` (not frame-scaled).
 	a.rot.y = MLib.short_angle2(a.rot.y, a.angle_y, MLib.HALF_FRACTION, 0x2000 * MLib.S16)
-	if a.type == T_BELL_CRICKET and _on_ground(a, sense) and a.patience < 20.0:
-		a.anime0 += 1.0
-		if a.anime0 >= 2.0:
-			a.anime0 -= 2.0
+	if a.type >= T_CRICKET and _on_ground(a, sense) and a.patience < 20.0:
+		if a.type == T_BELL_CRICKET:
+			a.anime0 += 1.0
+			if a.anime0 >= 2.0:
+				a.anime0 -= 2.0
+		if not a.caught:
+			a.ongen = CRY_SE[a.type - T_CRICKET]
 	if a.timer > 0:
 		a.timer -= 1
 		return
@@ -204,7 +210,10 @@ func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 	if _in_water(a, sense):
 		setup_action(a, DROWN)
 		return
-	if a.caught or not _on_ground(a, sense):
+	if a.caught:
+		return
+	_set_fly_se(a)
+	if not _on_ground(a, sense):
 		return
 	if a.timer > 0:
 		a.timer -= 1
@@ -235,6 +244,7 @@ func _let_escape(a: BugActor, sense: BugActor.Sense) -> void:
 		setup_action(a, DROWN)
 		return
 	if not _on_ground(a, sense):
+		_set_fly_se(a)
 		return
 	if a.timer > 0:
 		a.timer -= 1
@@ -251,6 +261,12 @@ func _jump_angle(a: BugActor, sense: BugActor.Sense, ang: float) -> void:
 		ang = a.angle_y + (PI * 0.5 if a._rng.randi_range(0, 1) == 1 else -PI * 0.5)
 	a.angle_y = wrapf(ang, -PI, PI)
 	a.rot.y = a.angle_y
+## `aIBT_set_fly_se`: locusts whirr while they leap.
+func _set_fly_se(a: BugActor) -> void:
+	if a.type == T_LONG_LOCUST:
+		a.ongen = 0xA2
+	elif a.type == T_MIGRATORY_LOCUST:
+		a.ongen = 0xA3
 
 
 func _set_avoid_jump_spd(a: BugActor, sense: BugActor.Sense = null) -> void:

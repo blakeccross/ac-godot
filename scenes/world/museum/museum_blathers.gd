@@ -105,6 +105,10 @@ func _begin_talk(ctx: InteractionContext) -> bool:
 	_pending_menu = &""
 	_face_toward(listener.global_position if listener != null else global_position)
 	var data: DialogueData = DialogueCatalog.conversation(GREETING_ID)
+	## `aCR_set_talk_info`: April Fools' Day's trick instead of the museum talk.
+	var trick: DialogueData = AprilFools.conversation(&"blathers")
+	if trick != null:
+		data = trick
 	var talk_ctx: DialogueContext = _make_talk_ctx()
 	var ui := DialogueOverlay.find(get_tree())
 	if ui != null and data != null:

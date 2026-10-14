@@ -130,7 +130,7 @@ def is_player_model_texture(name: str, prefix: str = "") -> bool:
     seaming the wrap-bake for no visible benefit.
     """
     stem = prefix.split(":")[0] if prefix else ""
-    if stem.startswith(("boy_", "girl_")) and (not name or name.lower() == "seg_0a"):
+    if stem.startswith(("boy_", "girl_", "grl_")) and (not name or name.lower() == "seg_0a"):
         return True
     if not name:
         return False

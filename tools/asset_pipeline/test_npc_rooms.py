@@ -52,5 +52,14 @@ class NpcRoomDecodeTests(unittest.TestCase):
         self.assertEqual(placements[0]["size"], 0)
 
 
+class FtrCatalogVisualTests(unittest.TestCase):
+    def test_each_gyroid_gets_its_own_model(self) -> None:
+        from asset_pipeline.ftr_catalog import _ftr_visual
+
+        self.assertEqual(_ftr_visual(FTR_HNW_COMMON000, "hnw_common", "", set()), "int_hnw001")
+        self.assertEqual(_ftr_visual(FTR_HNW_COMMON000 + 126, "hnw_common", "", set()), "int_hnw127")
+        self.assertEqual(_ftr_visual(0, "sum_chair01", "", set()), "int_sum_chair01")
+
+
 if __name__ == "__main__":
     unittest.main()

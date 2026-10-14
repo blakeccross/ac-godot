@@ -99,7 +99,12 @@ func clear() -> void:
 
 
 func finish() -> void:
-	## `mEv_UnSetFirstJob` + clear errand when chores end.
+	## `mEv_UnSetFirstJob` + clear errand when chores end; outside, the player cheers
+	## (`aID_first_job` → `mPlayer_COMPLETE_PAYMENT_TYPE_ARBEIT`).
+	if kind != Kind.DONE and Game != null:
+		Game.complete_payment = Game.PAYMENT_ARBEIT
+		if Game.hra != null:
+			Game.hra.first_job_done()
 	kind = Kind.DONE
 	progress = 0
 	wrong_cloth = false

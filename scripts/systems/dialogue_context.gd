@@ -4,6 +4,8 @@ extends RefCounted
 ## Snapshot the runner evaluates. Built from Clock / Game / villager; tests can fill it.
 
 var player_name: String = "Player"
+## `Common_Get(now_private)->gender` (`mPr_SEX_FEMALE`). `MALEFEMALECHK` branches on this.
+var player_female: bool = false
 var town_name: String = "Town"
 var speaker_name: String = ""
 ## `mNpc_GetLooks2Sex`: 0 male, 1 female, 2 other → nameplate tint in `m_msg_appear`.
@@ -33,12 +35,16 @@ var voice_mode: int = DialogueVoice.Mode.ANIMALESE
 ## `VOICE_STATUS_*`; -1 → derive from `mood`.
 var voice_status: int = -1
 var islander: bool = false
+## A villager met as an event guest: `&"kamakura"` (the snow cabin) or `&"camper"` (the tent).
+var guest: StringName = &""
 var days_since_talk: int = -1
 var inventory: Inventory
 var vars: Dictionary = {}
 var items: Dictionary = {}
 var rng: RandomNumberGenerator
 var item0: String = ""
+## `mMsg_ITEM_STR1`…`4` (trades, set-string orders). `{item0}` stays `item0`.
+var item_strs: PackedStringArray = PackedStringArray(["", "", "", ""])
 var island: String = ""
 ## Delivery / letter target for first-job (and similar) lines.
 var recipient: String = ""
@@ -46,6 +52,13 @@ var frees: PackedStringArray = PackedStringArray()
 ## `mMsg_Set_mail_str`: a player-written block dropped in with `{mail}` (the house gyroid's
 ## message for visitors).
 var mail_text: String = ""
+## `player_bee_chase_flag` / the villager's `conversation_flags.beesting` (`Game.bee_*`).
+var bee_chase: bool = false
+var bee_stung: bool = false
+## `mDemo_Set_talk_window_color`; alpha 0 keeps the default cloud colour.
+var window_color: Color = Color(0, 0, 0, 0)
+## `STR_DETERMINATION` (`{ok}`): the answer last picked in a choice window.
+var determination: String = ""
 var milestones: Array[StringName] = []
 var gifted_items: Array[StringName] = []
 
@@ -75,6 +88,7 @@ const SLOT_KEYS := [
 static func from_game(villager: VillagerData = null, state: VillagerState = null) -> DialogueContext:
 	var ctx := DialogueContext.new()
 	ctx.player_name = Game.player_name
+	ctx.player_female = Game.player_gender == IntroSequence.GENDER_FEMALE
 	ctx.town_name = Game.town_name
 	ctx.hour = Clock.hour
 	ctx.weekday = Clock.weekday()
@@ -89,9 +103,11 @@ static func from_game(villager: VillagerData = null, state: VillagerState = null
 	ctx.vars = Game.dialogue_vars
 	if Game.inventory != null:
 		ctx.held_item = Game.inventory.equipment_id
+	ctx.bee_chase = Game.bee_chase
 	if villager != null:
+		ctx.bee_stung = Game.bee_remark_pending(villager.id)
 		ctx.speaker_name = villager.display_name
-		ctx.catchphrase = villager.catchphrase
+		ctx.catchphrase = VillagerTalk.catchphrase_of(villager, state)
 		ctx.species = String(villager.species)
 		ctx.islander = villager.islander
 		if villager.personality != null:
@@ -199,8 +215,18 @@ func roll(percent: int) -> bool:
 	return rng.randi_range(0, 99) < percent
 
 
+## `mMsg_SET_ITEM_STR(n, …)`.
+func set_item_str(n: int, text: String) -> void:
+	if n == 0:
+		item0 = text
+	elif n >= 1 and n <= 4:
+		item_strs[n - 1] = text
+
+
 func substitute(text: String) -> String:
 	var out: String = MessageWindowChrome._normalize_punct(text)
+	out = _capitalize_slots(out)
+	out = _cut_articles(out)
 	var used: PackedStringArray = slot_keys_in(out)
 	out = out.replace("{player}", player_name)
 	out = out.replace("{speaker}", speaker_name)
@@ -217,6 +243,9 @@ func substitute(text: String) -> String:
 	out = out.replace("{weekday}", ClockService.WEEKDAYS[weekday] if weekday >= 0 and weekday < 7 else "")
 	out = out.replace("{ampm}", "AM" if hour < 12 else "PM")
 	out = out.replace("{item0}", item0)
+	out = out.replace("{ok}", determination)
+	for i: int in 4:
+		out = out.replace("{item%d}" % (i + 1), item_strs[i] if i < item_strs.size() else "")
 	out = out.replace("{item}", item0)
 	out = out.replace("{recipient}", recipient)
 	out = out.replace("{mail}", mail_text)
@@ -242,6 +271,52 @@ func substitute(text: String) -> String:
 			search_from = end + 1
 	_report_empty_slots(used)
 	_report_leftover_slots(out)
+	return out
+
+
+## `CAPTIALIZE`: the string that follows starts with a capital (`mFont_small_to_capital`).
+func _capitalize_slots(text: String) -> String:
+	var out: String = text
+	var guard: int = 0
+	while guard < 16:
+		guard += 1
+		var at: int = out.find("{cap}")
+		if at < 0:
+			break
+		var tag_start: int = at + 5
+		var tag_end: int = out.find("}", tag_start)
+		if tag_end < 0 or tag_start >= out.length() or out[tag_start] != "{":
+			out = out.substr(0, at) + out.substr(tag_start)
+			continue
+		var value: String = substitute(out.substr(tag_start, tag_end - tag_start + 1))
+		if value != "":
+			value = value[0].to_upper() + value.substr(1)
+		out = out.substr(0, at) + value + out.substr(tag_end + 1)
+	return out
+
+
+## `CUTARTICLE`: the string that follows drops its article ("a videotape" → "videotape").
+## Item strings are stored with their article (`mMsg_Set_free_str_art`).
+func _cut_articles(text: String) -> String:
+	var out: String = text
+	var guard: int = 0
+	while guard < 16:
+		guard += 1
+		var at: int = out.find("{cutart}")
+		if at < 0:
+			break
+		var tag_start: int = at + 8
+		var tag_end: int = out.find("}", tag_start)
+		if tag_end < 0 or tag_start >= out.length() or out[tag_start] != "{":
+			out = out.substr(0, at) + out.substr(tag_start)
+			continue
+		var tag: String = out.substr(tag_start, tag_end - tag_start + 1)
+		var value: String = substitute(tag)
+		for article: String in ["a ", "an ", "the ", "some "]:
+			if value.to_lower().begins_with(article):
+				value = value.substr(article.length())
+				break
+		out = out.substr(0, at) + value + out.substr(tag_end + 1)
 	return out
 
 

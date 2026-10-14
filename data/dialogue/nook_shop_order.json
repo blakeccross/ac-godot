@@ -1,0 +1,28 @@
+{
+  "id": "nook_shop_order",
+  "speaker_id": "tom_nook",
+  "start": "start",
+  "nodes": {
+    "start": {"type": "branch", "when": [
+      {"if": {"var_eq": {"name": "shop_order_pick", "value": "offer"}}, "goto": "offer"},
+      {"if": {"var_eq": {"name": "shop_order_pick", "value": "unavailable"}}, "goto": "unavailable"},
+      {"goto": "cancel"}
+    ]},
+    "offer": {"type": "line", "text": "Ah, the {item0}.\nAn excellent choice, yes!", "next": "price"},
+    "price": {"type": "choice", "prompt": "With delivery, that comes\nto {free0} Bells. Shall I\nplace the order?", "options": [
+      {"text": "Order it!", "goto": "confirm"},
+      {"text": "Never mind.", "goto": "cancel"}
+    ]},
+    "confirm": {"type": "event", "events": [{"op": "nook_shop", "action": "order_confirm"}], "next": "done_branch"},
+    "done_branch": {"type": "branch", "when": [
+      {"if": {"var_eq": {"name": "shop_order_done", "value": "no_money"}}, "goto": "no_money"},
+      {"if": {"var_eq": {"name": "shop_order_done", "value": "full"}}, "goto": "full"},
+      {"goto": "thanks"}
+    ]},
+    "thanks": {"type": "line", "text": "Thank you kindly! It'll come\nby mail as soon as it\nreaches my store, yes?"},
+    "no_money": {"type": "line", "text": "Oh my, you're a little short\non Bells! Orders are paid\nfor up front, I'm afraid."},
+    "full": {"type": "line", "text": "Hm, my order sheet is\nfull right now. Let's wait\nfor those to arrive, yes?"},
+    "unavailable": {"type": "line", "text": "Oh, the {item0}...\nI'm afraid that's not\nsomething I can order."},
+    "cancel": {"type": "line", "text": "No order today? That's\nfine, that's fine! Come\nback anytime, yes?"}
+  }
+}

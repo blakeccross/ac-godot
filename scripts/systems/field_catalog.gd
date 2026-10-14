@@ -354,6 +354,9 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 			paths = _existing(["furniture/%sB.glb" % id])
 		return paths
 	match visual_id:
+		&"obj_x_tree5_light", &"obj_x_ceder5_light":
+			## December lights (`TREE_LIGHTS` / `CEDAR_TREE_LIGHTS`), drawn over the tree.
+			return _existing(["environment/trees/%s.glb" % id])
 		&"obj_s_tree1", &"TREE_S0":
 			return _tree_size_paths(1)
 		&"obj_s_tree2", &"TREE_S1":
@@ -423,12 +426,18 @@ static func mesh_paths(visual_id: StringName) -> PackedStringArray:
 		&"dock_sign", &"DOCK_SIGN", &"obj_s_attention":
 			## `PORT_SIGN` → `ac_reserve` arg0 0x42 → `obj_{s,w}_attentionT_model` (one post).
 			return _seasonal_env_existing("obj_%s_attention")
-		&"obj_flower_a", &"FLOWER_PANSIES0", &"FLOWER_LEAVES_PANSIES0":
+		## `flower_DL_table`: the species picks the vertex set (a pansy, b cosmos, c tulip);
+		## the colour is the TLUT slot (`VisualFlower`). Leaf beds draw `obj_flower_leaf`.
+		&"obj_flower_a", &"FLOWER_PANSIES0", &"FLOWER_PANSIES1", &"FLOWER_PANSIES2":
 			return _existing(["environment/flowers/obj_flower_a.glb"])
-		&"obj_flower_b", &"FLOWER_PANSIES1", &"FLOWER_LEAVES_PANSIES1":
+		&"obj_flower_b", &"FLOWER_COSMOS0", &"FLOWER_COSMOS1", &"FLOWER_COSMOS2":
 			return _existing(["environment/flowers/obj_flower_b.glb"])
-		&"obj_flower_c", &"FLOWER_PANSIES2", &"FLOWER_LEAVES_PANSIES2":
+		&"obj_flower_c", &"FLOWER_TULIP0", &"FLOWER_TULIP1", &"FLOWER_TULIP2":
 			return _existing(["environment/flowers/obj_flower_c.glb"])
+		&"obj_flower_leaf", &"FLOWER_LEAVES_PANSIES0", &"FLOWER_LEAVES_PANSIES1", &"FLOWER_LEAVES_PANSIES2", \
+				&"FLOWER_LEAVES_COSMOS0", &"FLOWER_LEAVES_COSMOS1", &"FLOWER_LEAVES_COSMOS2", \
+				&"FLOWER_LEAVES_TULIP0", &"FLOWER_LEAVES_TULIP1", &"FLOWER_LEAVES_TULIP2":
+			return _existing(["environment/flowers/obj_flower_leaf.glb"])
 		&"obj_s_stoneA", &"ROCK_A":
 			return _seasonal_rock_existing("A")
 		&"obj_s_stoneB", &"ROCK_B":
@@ -512,6 +521,12 @@ static func is_seasonal_env_visual(visual_id: StringName) -> bool:
 		&"FLOWER_PANSIES0",
 		&"FLOWER_PANSIES1",
 		&"FLOWER_PANSIES2",
+		&"FLOWER_COSMOS0",
+		&"FLOWER_COSMOS1",
+		&"FLOWER_COSMOS2",
+		&"FLOWER_TULIP0",
+		&"FLOWER_TULIP1",
+		&"FLOWER_TULIP2",
 		&"HOLE00",
 	]
 	return ALIASES.has(visual_id)
@@ -681,6 +696,19 @@ static func is_sea_attr(attr: int) -> bool:
 	return attr == 24
 
 
+## `l_attribute_action_info[attr] & 7` (`mCoBG_Attribute2CheckPlant`): how far a plant may grow
+## on the unit — 0–4 stages, 7 `mCoBG_KILL_PLANT`. Weeds only take 4 (`mCoBG_PLANT4`).
+const PLANT_CLASS: Array[int] = [
+	4, 2, 0, 7, 4, 2, 0, 7, 7, 7, 0, 0, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0, 0, 7, 7, 7, 7, 7,
+	7, 7, 7, 7, 0, 0, 0, 7, 7, 7, 7, 0, 0, 0, 0, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 0, 0, 0, 7, 0,
+]
+const PLANT_FULL := 4
+
+
+static func plant_class(attr: int) -> int:
+	return PLANT_CLASS[attr & 0x3F]
+
+
 static func attr_allows_npc(attr: int) -> bool:
 	## `mCoBG_Attr2CheckPlaceNpc` — bit 4 of `l_attribute_action_info[attr]`.
 	## Water / most banks / wave units are false; grass, soil, sand, bridges true.
@@ -801,6 +829,15 @@ static func unit_at(visual_id: StringName, ux: int, uz: int) -> Dictionary:
 		"s": packed[o + 5],
 		"a": packed[o + 6],
 	}
+
+
+## `mFI_GetSoundSourcePBlockNum`: `[kind, ut_x, ut_z]` triples for an acre (see `AcreGrid.sounds`).
+static func acre_sounds(visual_id: StringName) -> PackedInt32Array:
+	var grid_path := acre_grid_path(String(visual_id))
+	if visual_id == &"" or not ResourceLoader.exists(grid_path):
+		return PackedInt32Array()
+	var grid := load(grid_path) as AcreGrid
+	return grid.sounds if grid != null else PackedInt32Array()
 
 
 static func _load_acre_units(id: String) -> PackedByteArray:
@@ -1081,19 +1118,28 @@ static func item_visual(item_id: StringName) -> StringName:
 			return &"obj_item_peach"
 		&"orange":
 			return &"obj_item_orange"
+		&"mushroom":
+			return &"obj_item_matutake"
+		## `item1_5_tableNo` for `ITM_SHELL0`–`7`: `SHELLA` / `SHELLB` / `SHELLC`.
+		&"wentletrap", &"venus_comb", &"porceletta", &"conch":
+			return &"obj_item_shellA"
+		&"lions_paw", &"sand_dollar", &"white_scallop":
+			return &"obj_item_shellB"
+		&"coral":
+			return &"obj_item_shellC"
 		&"money_100", &"money_1000", &"money_10000", &"money_30000":
 			return &"obj_item_bag"
 		&"flower":
 			return &"obj_item_seed"
 		&"paper":
 			return &"obj_item_paper"
-		&"axe":
+		&"axe", &"axe_use_1", &"axe_use_2", &"axe_use_3", &"axe_use_4", &"axe_use_5", &"axe_use_6", &"axe_use_7":
 			return &"obj_item_axe"
 		&"net":
 			return &"obj_item_net"
 		&"fishing_rod":
 			return &"obj_item_rod"
-		&"shovel":
+		&"shovel", &"golden_shovel":
 			return &"obj_item_shovel"
 		&"floor_tile":
 			return &"obj_item_carpet"

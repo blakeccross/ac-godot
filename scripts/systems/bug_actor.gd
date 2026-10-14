@@ -85,6 +85,8 @@ class Sense:
 	var ground: Callable = Callable()
 	## `play->game_frame`: play frames since the field loaded (`BugField` advances it).
 	var game_frame: int = 0
+	## `Common_Get(weather) == mEnv_WEATHER_RAIN`: cicadas hush in the rain.
+	var raining: bool = false
 	## `mPlib_Check_tree_shaken`: units whose tree the player is shaking or has just bumped
 	## (the player's shake-table entries still running). Cell → true, in `grid`'s cells.
 	var shaken_cells: Dictionary = {}
@@ -168,6 +170,11 @@ var acre_center_gx: Vector2 = Vector2.INF
 var _init_waits_for_player: bool = false
 
 # ---- flags (insect_flags) --------------------------------------------
+## `sAdo_OngenPos`: the level SE (`lev_<hex>`) this bug holds this tick, -1 for none. Reset
+## every tick, so a sound lasts exactly as long as the program keeps asking for it.
+var ongen: int = -1
+## `sAdo_OngenTrgStart`: one-shot SE ids raised since `BugSounds` last drained them.
+var trg_se: Array[StringName] = []
 var f_destruct: bool = false
 var f_no_catch: bool = false   ## bit_1 — do not register a net catch target
 var f_bit2: bool = false       ## bit_2 — terminal (let_escape); skip re-scare
@@ -216,6 +223,8 @@ static func create(
 	a.f_bit4 = true
 	a.bg_range = BG_RANGE_DEFAULT
 	a._prog = BugProgram.create(p_bug.program if p_bug != null else BugData.Program.CHOU)
+	if a.type == BugAnt.TYPE and not p_released:
+		a._prog = BugAnt.new()  ## the swarm on the food (`ac_ant`); caught, it is the ant
 	a._prog.actor_init(a, p_released)
 	a._init_waits_for_player = p_released
 	return a
@@ -248,6 +257,11 @@ var alpha: float:
 	get: return clampf(float(alpha0) / 255.0, 0.0, 1.0)
 
 
+## The ant swarm on food (`ac_ant`), drawn as a crawling patch.
+func is_swarm() -> bool:
+	return _prog is BugAnt
+
+
 func pose_index() -> int:
 	return _prog.pose_index(self) if _prog != null else 0
 
@@ -277,6 +291,8 @@ func net_catch_range_gx(player_position_m: Vector3) -> float:
 	match type:
 		0, 1:  ## common / yellow butterfly
 			return 24.0
+		BugAnt.TYPE:  ## the swarm on food (`aANT_actor_move`: 24)
+			return 24.0 if is_swarm() else 8.0
 		4, 5, 6, 7, 8, 19, 20, 21, 22, 23, 29, 30, 31:  ## cicadas, bee, beetles
 			return _angular_catch(player_position_m)
 		28:  ## cockroach only once it has stopped (`flag == 4`)
@@ -333,6 +349,7 @@ func frame(sense: Sense) -> void:
 		f_no_catch = false
 		f_bit2 = false
 		_prog.actor_init(self, true)
+	ongen = -1
 	## move_proc (default `aINS_position_move`).
 	if move_proc.is_valid():
 		move_proc.call(self)

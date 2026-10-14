@@ -31,6 +31,42 @@ class DialogueCodecTests(unittest.TestCase):
         self.assertEqual(conv["id"], "msg_7")
         self.assertEqual(conv["nodes"]["p0"]["text"], "Hi")
 
+    def test_btn_mid_page_keeps_writing_the_same_page(self) -> None:
+        def text(t: str) -> list:
+            return [{"type": "text", "text": ch} for ch in t]
+
+        def cmd(name: str) -> dict:
+            return {"type": "cmd", "name": name, "args": []}
+
+        tokens = text("Hm.") + [cmd("BTN")] + text("\nOK!") + [cmd("BTN"), cmd("MSGCLEAR")] + text("Bye") + [cmd("MSGEND")]
+        conv = tokens_to_conversation(9, tokens)
+        nodes = conv["nodes"]
+        self.assertEqual(nodes["p0"]["text"], "Hm.{btn}\nOK!")
+        self.assertEqual(nodes["p1"]["text"], "Bye")
+
+    def test_a_choice_inside_a_message_carries_on_after_the_pick(self) -> None:
+        def text(t: str) -> list:
+            return [{"type": "text", "text": ch} for ch in t]
+
+        def cmd(name: str, args: list | None = None) -> dict:
+            return {"type": "cmd", "name": name, "args": args or []}
+
+        select = ["Yes", "No", "Stereo", "Mono"]
+        tokens = (
+            text("Which?") + [cmd("SETSELSTR2", [0, 2, 0, 3]), cmd("BTN"), cmd("OPENCHOICE")]
+            + text("\n") + [cmd("MSGCLEAR")] + text("{ok} it is. Sure?")
+            + [cmd("SETSELSTR2", [0, 0, 0, 1]), cmd("BTN"), cmd("OPENCHOICE"), cmd("SETNEXTMSG0", [0, 5]),
+               cmd("SETNEXTMSG1", [0, 6])]
+            + text("\n") + [cmd("MSGCONTINUE")]
+        )
+        nodes = tokens_to_conversation(4, tokens, select)["nodes"]
+        self.assertEqual(nodes["p0"]["next"], "c0")
+        self.assertEqual([o["text"] for o in nodes["c0"]["options"]], ["Stereo", "Mono"])
+        self.assertEqual({o["goto"] for o in nodes["c0"]["options"]}, {"p1"})
+        self.assertEqual(nodes["p1"]["next"], "choice")
+        self.assertEqual([o["goto"] for o in nodes["choice"]["options"]], [msg_id(5), msg_id(6)])
+        self.assertNotIn("open_choice", nodes["p1"])
+
     def test_player_name_and_choice_next(self) -> None:
         cmap = char_map()
         cmds = commands()
@@ -91,6 +127,59 @@ class DialogueCodecTests(unittest.TestCase):
         self.assertIn("{s:16}", text)
         self.assertIn("(ok)", text)
         self.assertIn("{s:32}", text)
+
+    def test_line_style_resets_at_a_newline(self) -> None:
+        ## Each line is a new `mFontSentence`: colour and line scale do not carry over.
+        def text(t: str) -> list:
+            return [{"type": "text", "text": ch} for ch in t]
+
+        def cmd(name: str, args: list | None = None) -> dict:
+            return {"type": "cmd", "name": name, "args": args or []}
+
+        colored = tokens_to_conversation(3, [cmd("TEXTCOLOR", [150, 150, 150])] + text("A\nB") + [cmd("MSGEND")])
+        body = colored["nodes"]["p0"]["text"]
+        self.assertIn("{c:150,150,150}A", body)
+        self.assertIn("{c:50,60,50}\nB", body)
+        scaled = tokens_to_conversation(4, [cmd("LINESCALE", [64])] + text("A\nB") + [cmd("MSGEND")])
+        self.assertIn("{s:64}A{s:32}\nB", scaled["nodes"]["p0"]["text"])
+        ## CHARSCALE multiplies the line scale (16/32 * 64/32 = 1).
+        both = tokens_to_conversation(
+            5, [cmd("LINESCALE", [64]), cmd("CHARSCALE", [16])] + text("A") + [cmd("MSGEND")]
+        )
+        self.assertIn("{s:32}A", both["nodes"]["p0"]["text"])
+
+    def test_cursor_codes_become_marks_and_branches(self) -> None:
+        def text(t: str) -> list:
+            return [{"type": "text", "text": ch} for ch in t]
+
+        def cmd(name: str, args: list | None = None) -> dict:
+            return {"type": "cmd", "name": name, "args": args or []}
+
+        voiced = tokens_to_conversation(6, [cmd("MSGCONTENTS_FUN")] + text("Y") + [cmd("MSGEND")])
+        self.assertIn("{vs:3}", voiced["nodes"]["p0"]["text"])
+        self.assertEqual(voiced["nodes"]["p0"]["events"], [{"op": "set_emote", "name": "laugh"}])
+        cut = tokens_to_conversation(
+            7, [cmd("SNDCUT", [0])] + text(".") + [cmd("SNDCUT", [1]), cmd("MSGEND")]
+        )
+        self.assertEqual(cut["nodes"]["p0"]["text"], "{cut:1}.{cut:0}")
+        cancel = tokens_to_conversation(8, text("Oh") + [cmd("ABLECANCEL"), cmd("MSGEND")])
+        self.assertIn("{can}", cancel["nodes"]["p0"]["text"])
+        forced = tokens_to_conversation(9, text("Hi") + [cmd("FORCENEXT"), cmd("MSGCONTINUE")])
+        self.assertTrue(forced["nodes"]["p0"]["force_next"])
+        sex = tokens_to_conversation(
+            10, text("I") + [cmd("MALEFEMALECHK", [0, 10, 0, 11]), cmd("MSGCONTINUE")]
+        )
+        self.assertEqual(sex["nodes"]["p0"]["next_male"], msg_id(10))
+        self.assertEqual(sex["nodes"]["p0"]["next_female"], msg_id(11))
+        select = ["Yes", "No"]
+        choice = tokens_to_conversation(
+            11,
+            text("Go?") + [cmd("SETSELSTR2", [0, 0, 0, 1]), cmd("SELNOB"), cmd("OPENCHOICE"),
+                           cmd("SETNEXTMSG0", [0, 1]), cmd("SETNEXTMSG1", [0, 2]),
+                           cmd("FORCENEXT"), cmd("MSGCONTINUE")],
+            select,
+        )
+        self.assertTrue(choice["nodes"]["choice"]["b_last"])
 
     def test_demonpc0_slot0_becomes_manpu_event(self) -> None:
         cmap = char_map()
@@ -211,3 +300,25 @@ class DialogueBgmEventTests(unittest.TestCase):
         self.assertEqual(
             _page_event_from_token("BGMDELETE", [1, 1]), {"op": "bgm_delete", "bgm": 1, "stop": 1}
         )
+
+
+class MailTextTests(unittest.TestCase):
+    def _raw(self, text: str) -> bytes:
+        cmap = char_map()
+        return bytes(cmap.index(c) for c in text)
+
+    def test_header_line_break_is_the_name_slot(self) -> None:
+        from asset_pipeline.dialogue import mail_text
+
+        self.assertEqual(mail_text(self._raw("Dear \n,"), header=True), "Dear {name},")
+        self.assertEqual(mail_text(self._raw("\n, FYI:"), header=True), "{name}, FYI:")
+
+    def test_header_without_one_break_puts_the_name_last(self) -> None:
+        from asset_pipeline.dialogue import mail_text
+
+        self.assertEqual(mail_text(self._raw("Hi "), header=True), "Hi {name}")
+
+    def test_body_keeps_leading_breaks(self) -> None:
+        from asset_pipeline.dialogue import mail_text
+
+        self.assertEqual(mail_text(self._raw("\nHello  ")), "\nHello")

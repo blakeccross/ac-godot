@@ -104,7 +104,9 @@ func test_sold_out_does_not_restock_until_six() -> void:
 	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(0)
 	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(0)
 	Clock.advance_minutes(18 * 60)
-	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(10)
+	## A full shelf again (`l_zakka_goods`); the sales just made can unlock a second tool
+	## (`mSP_NET_SALES_SUM`), so at least as much as the first day.
+	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_greater_equal(listed.size())
 	assert_int(Game.shops.sales_sum(ShopBook.NOOK_ID)).is_greater(0)
 
 
@@ -307,20 +309,6 @@ func test_authored_public_interior_scenes_exist() -> void:
 	)
 
 
-func test_counter_offers_shop_verb() -> void:
-	var counter: Node = auto_free(load("res://scenes/world/shop_counter.tscn").instantiate())
-	counter.set("shop_id", ShopBook.NOOK_ID)
-	var actions: Array[Interaction] = ShopUse.actions(counter, InteractionContext.new())
-	var action: Interaction = Interaction.primary(actions)
-	assert_that(action).is_not_null()
-	assert_str(String(action.id)).is_equal(String(Interaction.BUY))
-	assert_str(action.prompt).is_equal("Buy")
-	var ids: PackedStringArray = PackedStringArray()
-	for entry: Interaction in actions:
-		ids.append(String(entry.id))
-	assert_bool(ids.has(String(Interaction.SELL))).is_true()
-
-
 func _nook_at(sales: int) -> void:
 	Game.shops.apply_snapshot(
 		{"shop0": {"id": "shop0", "goods": [], "sales": sales, "renew": -1, "visitor": true}}
@@ -445,6 +433,43 @@ func test_nookingtons_upstairs_shows_its_own_goods() -> void:
 	for row: Dictionary in up:
 		var data: ItemData = ItemCatalog.get_item(lineup[int(row["index"])])
 		assert_bool(data is FurnitureData or upstairs.has(data.category)).is_true()
+	## Diaries are furniture-numbered but stand with the stationery downstairs.
 	for row: Dictionary in down:
 		var data: ItemData = ItemCatalog.get_item(lineup[int(row["index"])])
+		if ShopGoods.is_diary(data.id):
+			continue
 		assert_bool(data is FurnitureData or upstairs.has(data.category)).is_false()
+
+
+## `mSP_SetSeasonFTR`: festive trees until Christmas Eve, the candle and flag after it.
+func test_december_puts_festive_furniture_first() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var picks: Array[StringName] = [&"a", &"b", &"c"]
+	var xmas: Array[StringName] = ShopGoods.season_ftr(picks, 12, 10, rng)
+	assert_str(String(xmas[0])).is_equal(String(FtrCatalog.item_id(943)))
+	assert_str(String(xmas[1])).is_equal(String(FtrCatalog.item_id(930)))
+	assert_str(String(xmas[2])).is_equal("c")
+	var new_year: Array[StringName] = ShopGoods.season_ftr(picks, 12, 27, rng)
+	assert_str(String(new_year[0])).is_equal(String(FtrCatalog.item_id(1190)))
+	assert_that(ShopGoods.season_ftr(picks, 12, 25, rng)).is_equal(picks)
+	assert_that(ShopGoods.season_ftr(picks, 11, 30, rng)).is_equal(picks)
+	var one: Array[StringName] = ShopGoods.season_ftr([&"a"] as Array[StringName], 12, 1, rng)
+	assert_bool(String(one[0]) in [String(FtrCatalog.item_id(943)), String(FtrCatalog.item_id(930))]).is_true()
+
+func test_timmy_and_tommy_keep_nookingtons_upstairs() -> void:
+	var room: Room = InteriorCatalog.room_template(&"shop3_2")
+	var session := IndoorSession.new()
+	session.bind(room)
+	var root := Node3D.new()
+	auto_free(root)
+	add_child(root)
+	InteriorBuilder.build(root, session)
+	assert_object(root.get_node_or_null("Furniture/TomNook")).is_null()
+	var timmy: Node = root.get_node_or_null("Furniture/Twin0")
+	var tommy: Node = root.get_node_or_null("Furniture/Twin1")
+	assert_object(timmy).is_not_null()
+	assert_object(tommy).is_not_null()
+	assert_str(String(timmy.call("clerk_name"))).is_equal("Timmy")
+	assert_str(String(tommy.call("clerk_name"))).is_equal("Tommy")
+	assert_object(DialogueCatalog.conversation(&"twins_shop_menu")).is_not_null()

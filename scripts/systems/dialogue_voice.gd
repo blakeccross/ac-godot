@@ -604,6 +604,17 @@ func _fun_mods() -> Vector2:
 			return Vector2(1.15, 1.05)
 
 
+## `talk_info.melody_inst = voice_type` (`aNPC_actor_ct`): the voice a villager sings the town
+## tune in at the start of a talk (`mMld_ActorMakeMelody`), for `Audio.play_melody`.
+static func melody_voice(sound_spec: int) -> Dictionary:
+	return {
+		"spec": voice_seq_for_spec(sound_spec),
+		"phoneme": phoneme_for_char("a"),
+		"pitch": float(SPEC_PITCH.get(sound_spec, 1.0)),
+		"volume_db": vol_scale_to_db(float(SPEC_VOL.get(sound_spec, 0.65))),
+	}
+
+
 func _play_phoneme(phoneme: int, at: Node) -> bool:
 	var base_pitch: float = float(SPEC_PITCH.get(sound_spec, 1.0))
 	var base_vol: float = float(SPEC_VOL.get(sound_spec, 0.65))

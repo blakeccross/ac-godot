@@ -158,3 +158,37 @@ func test_bed_exit_returns_to_the_side_you_came_from() -> void:
 	var spot: Dictionary = FurnitureSeat.bed_exit_spot(_session, approach)
 	assert_bool(spot.is_empty()).is_false()
 	assert_that(_session.grid.world_to_cell(spot["pos"])).is_equal(Vector2i(3, 5))
+
+
+## `aMR_GetBedAction`: across a double bed you roll; off its edge you get out; along it nothing.
+func test_bed_action_rolls_across_then_gets_out() -> void:
+	_bed.footprint = Vector2i(2, 2)
+	_bed.shape = FurnitureData.Shape.TYPE_C
+	var entry: FurniturePlacement = _session.place(_bed, Vector2i(3, 3), WorldGrid.Facing.SOUTH)
+	assert_that(entry).is_not_null()
+	var cells: Array[Vector2i] = _session.grid.cells_of(entry.id)
+	assert_int(cells.size()).is_equal(4)
+	var grid: WorldGrid = _session.grid
+	var head: WorldGrid.Facing = FurnitureSeat.head_direction(entry.facing, grid)
+	var rest := {"id": entry.id, "head": head}
+	## Pick a cell whose one side neighbour is still bed.
+	for turn: int in [1, -1]:
+		var side: WorldGrid.Facing = grid.rotate_facing(head, turn)
+		for cell: Vector2i in cells:
+			var next: Vector2i = grid.step(cell, side)
+			if not cells.has(next):
+				continue
+			var dir: Vector2i = grid.step(Vector2i.ZERO, side)
+			var stick := Vector2(float(dir.x), float(dir.y))
+			var roll: Dictionary = FurnitureSeat.bed_action(_session, rest, grid.cell_to_world(cell), stick)
+			assert_int(int(roll["action"])).is_equal(FurnitureSeat.BedAction.ROLL)
+			var out: Dictionary = FurnitureSeat.bed_action(_session, rest, grid.cell_to_world(next), stick)
+			var beyond: Vector2i = grid.step(next, side)
+			var expect: int = FurnitureSeat.BedAction.OUT if _session.room.is_inner(beyond) and grid.occupant_at(beyond) == &"" else FurnitureSeat.BedAction.NONE
+			assert_int(int(out["action"])).is_equal(expect)
+			## Toward the pillow does nothing.
+			var hd: Vector2i = grid.step(Vector2i.ZERO, head)
+			var along: Dictionary = FurnitureSeat.bed_action(_session, rest, grid.cell_to_world(cell), Vector2(float(hd.x), float(hd.y)))
+			assert_int(int(along["action"])).is_equal(FurnitureSeat.BedAction.NONE)
+			return
+	fail("no rollable cell found")

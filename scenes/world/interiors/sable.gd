@@ -70,12 +70,31 @@ func _begin_talk(ctx: InteractionContext) -> bool:
 	var listener: Node3D = ctx.actor as Node3D if ctx != null else null
 	_story_row = 0
 	_story_ids = []
+	_story_index = 0
+	## `aNNW_set_ane_msg`: April Fools' Day's trick instead of her story (`aNNW_TALK_ANE_2`).
+	var trick: DialogueData = AprilFools.conversation(&"sable")
+	if trick != null:
+		NeedleworkPresenter.set_machine_running(get_parent(), false)
+		if _body_anim != null:
+			_body_anim.speed_scale = 0.5
+		_start_talk_session(listener)
+		var ui := DialogueOverlay.find(get_tree())
+		if ui != null:
+			_bind_next(ui)
+			ui.play(trick, _make_ctx())
+		else:
+			_end_talk()
+		_talked_today = true
+		return true
 	if Game.designs != null:
 		var first := Game.designs.sable_last_date != _today()
-		_story_row = NeedleworkTalk.pick_story_row(Game.designs.sable_days, first, _rng)
+		## A visitor (`mPr_FOREIGNER`) is always a stranger: day 0, no tick, no look.
+		var days: int = 0 if Game.foreigner else Game.designs.sable_days
+		_story_row = NeedleworkTalk.pick_story_row(days, first and not Game.foreigner, _rng)
 		_story_ids = NeedleworkTalk.story_line_ids(_story_row, _rng)
-		Game.designs.tick_sable_day(_today())
-		_turns_to_player = Game.designs.sable_days >= NeedleworkTalk.SABLE_TURN_DAYS
+		if not Game.foreigner:
+			Game.designs.tick_sable_day(_today())
+		_turns_to_player = not Game.foreigner and Game.designs.sable_days >= NeedleworkTalk.SABLE_TURN_DAYS
 	else:
 		_turns_to_player = false
 	_story_index = 0

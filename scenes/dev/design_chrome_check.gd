@@ -41,5 +41,32 @@ func _ready() -> void:
 	img.save_png("user://design_chrome_2_editor.png")
 	print("design_chrome_check: wrote 2_editor")
 
+	editor._mode = editor.Mode.MAIN
+	editor._tool = editor.Tool.PEN
+	editor._cursor = Vector2i(10, 12)
+	editor._refresh()
+	await get_tree().create_timer(0.2).timeout
+	get_viewport().get_texture().get_image().save_png("user://design_chrome_3_main.png")
+
+	editor._mode = editor.Mode.PALLET
+	editor._pal_row = 4
+	editor._palette_no = 11
+	editor._refresh()
+	await get_tree().create_timer(0.2).timeout
+	get_viewport().get_texture().get_image().save_png("user://design_chrome_4_pallet.png")
+
+	editor.close()
+	var album: CanvasLayer = load("res://scenes/ui/design_album_overlay.tscn").instantiate()
+	add_child(album)
+	await get_tree().process_frame
+	album.open()
+	album.flip_page(2)
+	album._region = album.Region.ALBUM
+	album._sel = 4
+	album._refresh()
+	await get_tree().create_timer(0.3).timeout
+	get_viewport().get_texture().get_image().save_png("user://design_chrome_5_album.png")
+	album.close(false)
+
 	print("design_chrome_check: done")
 	get_tree().quit()

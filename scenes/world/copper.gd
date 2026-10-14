@@ -74,6 +74,11 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	var away: bool = aerobics_running() and not _talking
+	if away == visible:
+		_set_away(away)
+	if away:
+		return
 	if _talking:
 		_face_player()
 		return
@@ -111,6 +116,21 @@ func _physics_process(delta: float) -> void:
 		Mode.GYAFUN:
 			if _timer <= 0.0:
 				_set_mode(Mode.WAIT)
+
+
+## `aPOL_actor_ct`: Copper leads the aerobics at the shrine instead (`SP_NPC_EV_TAISOU_0`),
+## so the one at the station is gone while either aerobics event runs.
+static func aerobics_running() -> bool:
+	if Game == null or Game.events == null:
+		return false
+	return Game.events.is_active(&"morning_aerobics") or Game.events.is_active(&"sports_fair_aerobics")
+
+
+func _set_away(away: bool) -> void:
+	visible = not away
+	collision_layer = 0 if away else 1
+	if not away:
+		_set_mode(Mode.WAIT)
 
 
 ## `aPOL_think_main_proc`, at the end of each action.
@@ -212,6 +232,8 @@ func _player_free(player: Node3D) -> bool:
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
+	if not visible:
+		return []
 	return [Interaction.of(Interaction.TALK, "Talk to Copper", 20)]
 
 
@@ -227,6 +249,11 @@ func _begin_talk(listener: Node3D, exit_greeting: bool) -> bool:
 	ctx.speaker_name = "Copper"
 	CopperTalk.fill(ctx, exit_greeting)
 	var data: DialogueData = CopperTalk.conversation(exit_greeting)
+	## `aPOL_set_norm_talk_info_talk_request`: April Fools' Day's trick comes first.
+	if not exit_greeting:
+		var trick: DialogueData = AprilFools.conversation(&"copper")
+		if trick != null:
+			data = trick
 	var ui := DialogueOverlay.find(get_tree())
 	if ui == null or data == null:
 		return false

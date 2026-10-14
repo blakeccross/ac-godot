@@ -5,6 +5,8 @@ extends CharacterBody3D
 ## Spatial: Model, Collision, NavigationAgent3D, InteractionArea, Animation.
 ## Behavior: VillagerSchedule + VillagerAI + VillagerWalk (goal acres) + VillagerMotor.
 
+## `mQst_NextSoccer`: "Hey! It's a ball!", by looks.
+const SOCCER_CALL_MSG := 0x0D8B
 const IDLE_SPEED := 0.08
 ## Fraction of intended XZ step that must stick after BG revise; else front-wall.
 ## Absolute meters-per-frame thresholds break at 60 Hz (walk ≈ 0.025 m/tick).
@@ -46,10 +48,29 @@ const ANNOY_MOOD_SECONDS := 60.0
 enum React { NONE = -1, SURPRISE, SURPRISE2, SURPRISE_UZAI, LOOK_PLAYER }
 const REACT_CLIPS: Array[String] = ["npc_1_gyafun1", "npc_1_gyafun2", "npc_1_gyafun2", ANIM_WAIT]
 const REACT_LOOK_SECONDS := 5.0
+## Outdoor acts that stop the walk (`aNPC_ACT_UMB_OPEN` / `UMB_CLOSE` / `CLAP`).
+enum Act { NONE, UMB_OPEN, UMB_CLOSE, CLAP, GREET }
+## `aNPC_ACT_GREETING_STEP_*` (turn, approach, wait for the partner, bow, change clothes,
+## wait for the partner to finish changing).
+enum Greet { TURN, APPROACH, WAIT, BOW, CHANGE, HOLD }
+const ANIM_UMB_OPEN := "npc_1_umb_open1"
+const ANIM_UMB_CLOSE := "npc_1_umb_close1"
+const ANIM_UMBRELLA := "npc_1_umbrella1"
+const ANIM_CLAP := "npc_1_clap1"
+## `aNPC_think_pitfall` → `aNPC_act_pitfall` (totter, drop, struggle) → `aNPC_act_revive`.
+enum Pit { NONE, TOTTER, FALL, STRUGGLE, REVIVE }
+const ANIM_GURATUKU := "npc_1_guratuku1"
+const ANIM_OTIRU := "npc_1_otiru1"
+const ANIM_MOGAKU := "npc_1_mogaku1"
+const ANIM_DERU := "npc_1_deru1"
+## `aNPC_act_pitfall_totter`: `chase_f(…, 1.5)` per frame toward the unit centre.
+const PIT_TOTTER_GX_PER_FRAME := 1.5
 
 @export var data: VillagerData
 ## Indoor `ac_npc2` stand-in: always visible while the player is in this house.
 @export var indoor_resident: bool = false
+## Met as an event guest (`&"kamakura"`, `&"camper"`): their own greetings and trade lists.
+@export var guest: StringName = &""
 
 var state: VillagerState
 var schedule: VillagerSchedule = VillagerSchedule.new()
@@ -94,9 +115,51 @@ var _talk_look: Vector3 = Vector3.ZERO
 var _face: NpcFace = NpcFace.new()
 var _head_look: NpcHeadLook = NpcHeadLook.new()
 var _face_mood: int = -1
+var _pit: Pit = Pit.NONE
+var _pit_cell := Vector2i(-1, -1)
+var _pit_center := Vector3.ZERO
+var _pit_clip: String = ""
+var _pit_model_rest := Vector3.ZERO
+var _act: Act = Act.NONE
+## The umbrella in the right hand (`right_hand.item_type == UMBRELLA`) and its arm pose
+## (`aNPC_SUB_ANIM_UMBRELLA`).
+var _umbrella: HeldUmbrella = null
+var _umb_carry: ToolCarry = null
+var _outdoor_rng := RandomNumberGenerator.new()
+## `aNPC_ACT_CHASE_INSECT` / `CHASE_GYOEI`: what's being watched, and for how much longer.
+var _chase: Object = null
+var _chase_fish: bool = false
+var _chase_left: float = 0.0
+## `palActor` / `palActorIgnoreTimer`: the villager this one is greeting.
+var _pal: Node3D = null
+var _pal_ignore: float = 0.0
+var _greet: Greet = Greet.TURN
+## `condition_info.greeting_flag`: 1 rolled the reaction, 2 didn't, 3 / 4 / 5 changes
+## clothes / umbrella / both.
+var _greet_flag: int = 0
+var _greet_timer: float = 0.0
+## What the model has on (`draw.cloth_no` / `org_idx`, `right_hand.umbrella_type`).
+var _drawn_cloth: String = ""
+var _drawn_umb: int = -1
+static var _pair_frame: int = -1
+## Quest manager for the conversation in progress (`VillagerTalkManager`).
+var _talk_manager: VillagerTalkManager
+## `aNPC_check_manpu_demoCode`: the reaction clip a talk line called for, held until it ends.
+var _manpu_clip: String = ""
+## The loop the reaction settled into after its first clip.
+var _manpu_follow: String = ""
+## A popular day's call-out (`force_call_timer`): seconds before calling again, and whether
+## the talk now open is one.
+var _fortune_cool: float = 0.0
+var _fortune_calling: bool = false
+var _feel: NpcFeelGlyphs
+## Where the feel glyphs sit: about a villager's head height.
+const FEEL_HEAD_LIFT := 1.15
 var _visual: Node3D
 ## Cloth-surface overrides from before an Able design was painted on: `[mesh, surface, material]`.
 var _own_cloth: Array = []
+## Out at a festival as an event NPC (`mNpc_SetEventNpc`): the field copy stays hidden.
+var event_away: bool = false
 
 @onready var _model: Node3D = $Model
 @onready var _placeholder: MeshInstance3D = $Model/PlaceholderMesh
@@ -129,11 +192,21 @@ func _ready() -> void:
 	_visual = vis
 	if vis != null:
 		_body_anim = VisualAnimation.find_animation_player(vis)
+		if _body_anim != null:
+			## Before the head look binds, so the head override lands on top of the arm pose.
+			_body_anim.mixer_applied.connect(_apply_sub_anim)
 		_play_clip(ANIM_WAIT, true)
 		var texture_set: StringName = data.texture_set if data else &""
 		VillagerTextures.apply(vis, texture_set)
 		_face.bind(vis, data.species if data else &"", texture_set)
 		_head_look.bind(vis, self)
+		if _feel == null:
+			_feel = NpcFeelGlyphs.new()
+			_feel.name = "Feel"
+			add_child(_feel)
+			_feel.set_head_lift(FEEL_HEAD_LIFT)
+		var skeletons: Array[Node] = vis.find_children("*", "Skeleton3D", true, false)
+		_feel.bind_feel_joint(skeletons[0] as Skeleton3D if not skeletons.is_empty() else null)
 		_sync_face_mood(true)
 		_apply_design_wear()
 		if Game != null and Game.designs != null and not Game.designs.changed.is_connected(_apply_design_wear):
@@ -142,10 +215,15 @@ func _ready() -> void:
 		_motor.facing = rotation.y
 	else:
 		_sync_from_clock()
+		_drawn_cloth = _cloth_key()
+		_drawn_umb = state.umbrella_design if state != null else -1
+		## `aNPC_check_force_use_umbrella`: out in the rain from the start, umbrella up.
+		if state != null and not state.is_home and Game != null and Game.weather == &"rain":
+			_take_out_umbrella(true)
 
 
 func _sync_from_clock() -> void:
-	if indoor_resident:
+	if indoor_resident or event_away:
 		return
 	ai.sync(current_activity(), _hints())
 	_apply_presence(ai.is_present())
@@ -167,9 +245,22 @@ func _exit_tree() -> void:
 ## paint the mannequin's design over the cloth surfaces, or put the villager's own
 ## shirt back when they stop wearing one.
 func _apply_design_wear() -> void:
-	if _visual == null or state == null or Game == null or Game.designs == null:
+	if _visual == null or state == null or Game == null:
+		return
+	if Game.designs == null and state.cloth_design >= 0:
 		return
 	var idx: int = state.cloth_design
+	## A shirt they were given or picked up (`Animal_c.cloth` other than their own).
+	if idx < 0 and state.cloth_id != &"":
+		var cloth: ItemData = ItemCatalog.get_item(state.cloth_id)
+		var cloth_index: int = cloth.cloth_index if cloth != null else -1
+		if cloth_index < 0 and String(state.cloth_id).begins_with("shirt_"):
+			cloth_index = int(String(state.cloth_id).substr(6))
+		if cloth_index >= 0 and (data == null or cloth_index != data.default_cloth):
+			if _own_cloth.is_empty():
+				_own_cloth = _cloth_overrides(_visual)
+			VisualCloth.apply_cloth(_visual, cloth_index)
+			return
 	if idx < 0:
 		if not _own_cloth.is_empty():
 			for entry: Array in _own_cloth:
@@ -264,6 +355,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if await _try_first_job_talk(ctx):
 		return true
 	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
+	talk_ctx.guest = guest
 	var ui := DialogueOverlay.find(get_tree())
 	if ui != null:
 		if ui.is_open():
@@ -274,7 +366,12 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		var player: Node3D = ctx.actor as Node3D if ctx != null else null
 		if player != null:
 			TalkCamera.begin(player, self, get_tree())
-		ui.play(VillagerTalk.conversation(data, state), talk_ctx, state)
+		_talk_manager = VillagerTalk.manager(data, state, talk_ctx)
+		_sing_town_tune(talk_ctx)
+		ui.play(VillagerTalk.conversation(data, state, talk_ctx), talk_ctx, state, Callable(), _talk_manager)
+		var runner: DialogueRunner = ui.runner()
+		if runner != null and _talk_manager != null:
+			runner.action_requested.connect(_on_talk_action.bind(ui, player))
 	else:
 		_face_towards(_talk_look)
 		var line: String = VillagerTalk.greeting(data, state)
@@ -311,13 +408,8 @@ func _try_first_job_talk(ctx: InteractionContext) -> bool:
 		if state != null:
 			state.record_talk(VillagerTalk.day_key())
 		return true
-	if job.kind == FirstJob.Kind.OPEN and job.progress == FirstJob.PROGRESS_ACTIVE:
-		job.mark_open_finished()
-		_play_first_job_line(&"nook_job_open_villager", who, player)
-		Game.set_interact_prompt("Talk to Tom Nook")
-		if state != null:
-			state.record_talk(VillagerTalk.day_key())
-		return true
+	## The "ask around for work" chore finishes in the quest talk ("Need any help?",
+	## `aQMgr_talk_quest_finish_firstjob_open_quest`).
 	return false
 
 
@@ -341,12 +433,16 @@ func _play_first_job_line(conv_id: StringName, who: String, player: Node3D) -> v
 		_bind_talk_end(ui)
 		if player != null:
 			TalkCamera.begin(player, self, get_tree())
+		_sing_town_tune(talk_ctx)
 		ui.play(talk_data, talk_ctx, state)
 	else:
 		Game.post_notice("%s: Thanks!" % who)
 
 
 func _physics_process(delta: float) -> void:
+	## `aNPC_check_feel_tim`.
+	if state != null:
+		state.tick_feel(roundi(delta * DecompTime.TICK_HZ))
 	if indoor_resident:
 		_tick_indoor(delta)
 		return
@@ -363,10 +459,30 @@ func _physics_process(delta: float) -> void:
 	if ai.is_talking():
 		_react = React.NONE
 		_head_look.fast = false
+		if _pit != Pit.NONE:
+			## `talk_info.turn = NONE`: they keep struggling, facing where they fell.
+			velocity = Vector3.ZERO
+			ai.step(delta)
+			return
 		_hold_talk(delta)
+		return
+	if _pit != Pit.NONE:
+		_tick_pit(delta)
 		return
 	if _react != React.NONE:
 		_tick_react(delta)
+		return
+	if _pal_ignore > 0.0:
+		_pal_ignore = maxf(_pal_ignore - delta, 0.0)
+	_pair_greetings()
+	if _umbrella != null:
+		_umbrella.tick(delta)
+	if _umb_carry != null:
+		_umb_carry.advance(delta)
+	if _act != Act.NONE:
+		_tick_act(delta)
+		return
+	if _start_outdoor_act():
 		return
 	if not _spawn_unstuck:
 		_unstick_spawn()
@@ -430,6 +546,7 @@ func _physics_process(delta: float) -> void:
 	_tick_fatigue(delta, Vector3(velocity.x, 0.0, velocity.z))
 	_tick_annoyance(delta)
 	ai.step(delta)
+	_check_pitfall()
 
 
 func _tick_indoor(delta: float) -> void:
@@ -532,6 +649,18 @@ func _set_is_home(value: bool) -> void:
 		state.is_home = value
 
 
+## `EventManager` borrows this villager for a festival (or hands them back).
+func set_event_away(away: bool) -> void:
+	if event_away == away:
+		return
+	event_away = away
+	set_physics_process(not away)
+	if away:
+		_apply_presence(false)
+	else:
+		_sync_from_clock()
+
+
 func _apply_presence(present: bool) -> void:
 	visible = present
 	collision_layer = _layer_present if present else 0
@@ -546,6 +675,10 @@ func _apply_presence(present: bool) -> void:
 
 
 func _steer_ai() -> void:
+	if ai.is_wandering() and _tick_chase():
+		return
+	if ai.is_wandering() and _tick_fortune():
+		return
 	if ai.is_wandering():
 		if _travel_stand != Vector3.INF:
 			## Relocating: walk to the next acre's entry unit (walk row, no circle clamp).
@@ -782,12 +915,20 @@ func _dialogue_uttering() -> bool:
 	return DialogueOverlay.uttering_in(get_tree())
 
 
+## `mMld_ActorMakeMelody` as a talk starts: the town tune in this villager's voice.
+func _sing_town_tune(talk_ctx: DialogueContext) -> void:
+	if Game != null and talk_ctx != null:
+		Audio.play_melody(Game.town_tune, DialogueVoice.melody_voice(talk_ctx.sound_spec))
+
+
 func _bind_talk_end(ui: DialogueOverlay) -> void:
 	if ui == null:
 		return
 	if ui.closed.is_connected(_on_talk_closed):
 		ui.closed.disconnect(_on_talk_closed)
 	ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
+	if not ui.event_fired.is_connected(_on_talk_event):
+		ui.event_fired.connect(_on_talk_event)
 
 
 func _unbind_talk() -> void:
@@ -795,14 +936,82 @@ func _unbind_talk() -> void:
 		var ui := DialogueOverlay.find(get_tree())
 		if ui != null and ui.closed.is_connected(_on_talk_closed):
 			ui.closed.disconnect(_on_talk_closed)
+		if ui != null and ui.event_fired.is_connected(_on_talk_event):
+			ui.event_fired.disconnect(_on_talk_event)
+	_end_manpu()
 	if ai.is_talking():
 		TalkCamera.end(get_tree())
 		ai.end_talk()
 
 
+## The quest talk wants the pockets opened or an item passed across
+## (`aQMgr_TALK_SUB_STATE_HAND_ITEM_WAIT`, `aQMgr_talk_common_set_npc_takeout_*`).
+func _on_talk_action(action: Dictionary, ui: DialogueOverlay, player: Node3D) -> void:
+	await TalkActions.handle(action, ui, self, player)
+
+
+func _on_talk_event(event: Dictionary) -> void:
+	if not ai.is_talking() or str(event.get("op", "")) != "manpu":
+		return
+	cue_manpu(str(event.get("name", event.get("code", ""))))
+
+
+## `aNPC_check_manpu_demoCode`: a talk line's reaction clip, its face and its feel glyph.
+func cue_manpu(key: String) -> void:
+	if NpcManpu.is_reset(key):
+		_end_manpu()
+		_play_clip(ANIM_WAIT, true)
+		return
+	_face.set_emote(NpcManpu.emote_for(key), NpcManpu.mouth_hold_for(key))
+	var clip: String = NpcManpu.clip_for(key)
+	if _resolve_clip(clip).is_empty():
+		return
+	if _feel != null and not _manpu_clip.is_empty():
+		_feel.release()
+	_play_clip(clip, false)
+	_manpu_clip = _clip
+	_manpu_follow = ""
+	if _feel != null:
+		var cam := get_viewport().get_camera_3d()
+		if cam != null:
+			var to_cam: Vector3 = cam.global_position - global_position
+			_feel.faces_camera = Vector3(sin(_motor.facing), 0.0, cos(_motor.facing)).dot(to_cam) >= 0.0
+		_feel.npc_yaw = _motor.facing
+		_feel.play_for_manpu(key)
+
+
+func _end_manpu() -> void:
+	_manpu_clip = ""
+	_manpu_follow = ""
+	if _feel != null:
+		_feel.release()
+	_sync_face_mood(true)
+
+
 func _on_talk_closed() -> void:
+	if _fortune_calling:
+		_fortune_calling = false
+		_fortune_cool = VillagerFortune.CALL_COOLDOWN_SEC
 	TalkCamera.end(get_tree())
 	ai.end_talk()
+	if get_tree() != null:
+		var ui := DialogueOverlay.find(get_tree())
+		if ui != null and ui.event_fired.is_connected(_on_talk_event):
+			ui.event_fired.disconnect(_on_talk_event)
+	_end_manpu()
+	## `aNPC_think_pitfall_main_proc`: a talk in the pit ends with `aNPC_ACT_REVIVE`.
+	if _pit == Pit.STRUGGLE:
+		_begin_revive()
+	## `Common_Set(npc_chg_cloth, …)`: a shirt handed over in the talk goes on.
+	if state != null and _cloth_key() != _drawn_cloth:
+		_apply_design_wear()
+		_drawn_cloth = _cloth_key()
+	if Game != null and Game.first_job != null and Game.first_job.kind == FirstJob.Kind.OPEN and Game.first_job.chore_finished():
+		Game.set_interact_prompt("Talk to Tom Nook")
+	## `mNpc_TalkEndMove` (from `aQMgr_move_talk` when the talk demo ends).
+	if _talk_manager != null and Game != null and data != null:
+		Game.npc_talk_info.talk_end(_talk_manager.slot, _talk_manager.looks)
+	_talk_manager = null
 
 
 func _refresh_talk_look() -> void:
@@ -836,6 +1045,17 @@ func _update_animation(delta: float, planar: Vector3) -> void:
 		_update_placeholder_anim(delta, planar)
 		return
 	var moving: bool = planar.length() > IDLE_SPEED
+	## `aNPC_check_manpu_demoCode`: a reaction's first clip plays once, then its second
+	## (`eff_idx2`) loops — or the first holds its last frame — until the talk resets it.
+	if not _manpu_clip.is_empty():
+		if _body_anim.is_playing() and (_clip == _manpu_clip or _clip == _manpu_follow):
+			return
+		if _clip == _manpu_clip and _manpu_follow.is_empty():
+			var follow: String = NpcManpu.follow_clip(_manpu_clip)
+			if follow != _manpu_clip and not _resolve_clip(follow).is_empty():
+				_play_clip(follow, true)
+				_manpu_follow = _clip
+		return
 	var want: String = _clip_for(ai.kind(), moving)
 	var clip := _resolve_clip(want)
 	if clip.is_empty():
@@ -852,17 +1072,26 @@ func _update_animation(delta: float, planar: Vector3) -> void:
 
 
 func _clip_for(_kind: StringName, moving: bool) -> String:
+	var mood: int = int(state.mood) if state != null else 0
 	if moving:
 		if _motor.gait == VillagerWalk.ACT_RUN:
-			return ANIM_RUN
-		return ANIM_WALK
+			return _mood_or(NpcManpu.mood_clip(NpcManpu.MOOD_RUN, mood), ANIM_RUN)
+		return _mood_or(NpcManpu.mood_clip(NpcManpu.MOOD_WALK, mood), ANIM_WALK)
 	match _kind:
 		ActivityKind.SIT:
 			return ANIM_SIT
 		ActivityKind.FISH:
 			return ANIM_FISH
 		_:
-			return ANIM_WAIT
+			var table: Array[String] = NpcManpu.MOOD_TALK if ai.is_talking() else NpcManpu.MOOD_WAIT
+			return _mood_or(NpcManpu.mood_clip(table, mood), ANIM_WAIT)
+
+
+## A mood pose when this villager's clips have it, else the plain one.
+func _mood_or(clip: String, plain: String) -> String:
+	if clip == plain or _body_anim == null:
+		return plain
+	return clip if _body_anim.has_animation(clip) or not _resolve_clip(clip).is_empty() else plain
 
 
 func play_wait_anim() -> void:
@@ -881,6 +1110,8 @@ func _play_clip(suffix: String, loop: bool) -> void:
 	_ensure_loop(clip, loop)
 	_body_anim.speed_scale = 1.0
 	_body_anim.play(clip, 0.12)
+	if _feel != null:
+		_feel.set_pose(suffix)
 
 
 func _resolve_clip(suffix: String) -> String:
@@ -1213,7 +1444,633 @@ func _play_annoyance_scold() -> void:
 	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
 	if player != null:
 		TalkCamera.begin(player, self, get_tree())
+	_sing_town_tune(talk_ctx)
 	ui.play(talk_data, talk_ctx, state)
+
+
+## `mQst_NextSoccer`: the ball the resident asked for reached them — they call the player
+## over (`force_call_req_proc`, 0x0D8B + looks). True when the ball should stop dead.
+func take_soccer_ball() -> bool:
+	if Game == null or Game.quests == null or Game.residents == null or data == null or get_tree() == null:
+		return false
+	var slot: int = Game.residents.slot_of(data.id)
+	if not Game.quests.soccer_target(slot):
+		return false
+	var ui := DialogueOverlay.find(get_tree())
+	var looks: int = int(data.personality.looks) if data.personality != null else 0
+	var talk_data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % (SOCCER_CALL_MSG + looks)))
+	if ui == null or talk_data == null or ui.is_open():
+		return false
+	Game.quests.next_soccer(slot, Game.player_name)
+	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
+	ai.begin_talk()
+	_bind_talk_end(ui)
+	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	if player != null:
+		TalkCamera.begin(player, self, get_tree())
+	ui.play(talk_data, talk_ctx, state)
+	return true
+
+
+## `aNPC_chk_friendship`: on a fortune day the villager keeps away from the player or comes
+## looking for them (`VillagerFortune`). True while it owns the steering.
+func _tick_fortune() -> bool:
+	if Game == null or Game.title_demo_active or data == null or get_tree() == null:
+		return false
+	var destiny: int = Game.destiny()
+	if destiny != Game.Destiny.POPULAR and destiny != Game.Destiny.UNPOPULAR:
+		return false
+	var player := get_tree().get_first_node_in_group("player") as Node3D
+	if player == null:
+		return false
+	var delta: float = get_physics_process_delta_time()
+	_fortune_cool = maxf(_fortune_cool - delta, 0.0)
+	var gx: float = FieldCatalog.GX_TO_METERS
+	var to: Vector3 = player.global_position - global_position
+	var dist_gx: float = Vector2(to.x, to.z).length() / gx
+	var bg: Array = _bg()
+	var same_block: bool = bg.size() == 2 and VillagerWalk.block_from_cell(
+		(bg[1] as WorldGrid).world_to_cell(player.global_position)
+	) == _current_block()
+	var looks: int = int(data.personality.looks) if data.personality != null else 0
+	var step: int = VillagerFortune.step(destiny, looks, Game.player_gender, same_block, dist_gx)
+	match step:
+		VillagerFortune.Step.NONE:
+			return false
+		VillagerFortune.Step.AVOID_RUN, VillagerFortune.Step.AVOID_WALK:
+			var gait: StringName = VillagerWalk.ACT_RUN if step == VillagerFortune.Step.AVOID_RUN else VillagerWalk.ACT_WALK
+			_motor.set_target(VillagerFortune.away_from(global_position, player.global_position), gait, 0.2, global_position, _motor.facing)
+		VillagerFortune.Step.SEEK_RUN, VillagerFortune.Step.SEEK_WALK:
+			var gait2: StringName = VillagerWalk.ACT_RUN if step == VillagerFortune.Step.SEEK_RUN else VillagerWalk.ACT_WALK
+			_motor.set_target(player.global_position, gait2, VillagerFortune.SEEK_WALK_GX * gx, global_position, _motor.facing)
+		VillagerFortune.Step.SEEK_WAIT:
+			if _motor.has_target:
+				_motor.arrive()
+			_motor.turn_toward(delta, global_position, player.global_position)
+	if step >= VillagerFortune.Step.SEEK_RUN and _fortune_cool <= 0.0 \
+			and VillagerFortune.can_call(dist_gx, to.y / gx):
+		_fortune_call(player, looks)
+	return true
+
+
+## `aNPC_force_talk_request` → `aNPC_set_talk_info_talk_request_check`: "It's really you!"
+func _fortune_call(player: Node3D, looks: int) -> void:
+	var ui := DialogueOverlay.find(get_tree())
+	if ui == null or ui.is_open() or (player is Player and (player as Player).is_busy()):
+		return
+	var talk_data: DialogueData = DialogueCatalog.conversation(
+		StringName("msg_%d" % VillagerFortune.call_msg(looks, _outdoor_rng))
+	)
+	if talk_data == null:
+		return
+	_fortune_calling = true
+	_fortune_cool = VillagerFortune.CALL_COOLDOWN_SEC
+	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
+	ai.begin_talk()
+	_bind_talk_end(ui)
+	TalkCamera.begin(player, self, get_tree())
+	ui.play(talk_data, talk_ctx, state)
+
+
+## ---------------------------------------------------------------- outdoor acts
+
+## `aNPC_think_chk_interrupt_proc`: umbrella (`aNPC_ctrl_umbrella` + `aNPC_chk_right_hand`),
+## then a clap while the player shows a catch.
+func _start_outdoor_act() -> bool:
+	if Game == null or Game.title_demo_active:
+		return false
+	## `aNPC_chk_talk_start`: a partner found this frame comes first.
+	if _pal != null:
+		return _begin_greeting()
+	var raining: bool = Game.weather == &"rain"
+	if raining and _umbrella == null:
+		var now: float = Time.get_ticks_msec() / 1000.0
+		if VillagerOutdoor.claim_umbrella(self, now, _outdoor_rng):
+			if _take_out_umbrella(false):
+				return true
+			VillagerOutdoor.release_umbrella(self, now, _outdoor_rng)
+	elif not raining and _umbrella != null and current_activity() != VillagerActivity.SLEEP:
+		_put_away_umbrella()
+		return true
+	var player := get_tree().get_first_node_in_group("player") as Node3D if get_tree() != null else null
+	if player != null and _motor.gait != VillagerWalk.ACT_RUN:
+		var catching: bool = bool(player.get("catch_showing"))
+		if VillagerOutdoor.wants_clap(global_position, _motor.facing, player.global_position, catching, _mood_normal()):
+			_act = Act.CLAP
+			_motor.arrive()
+			_play_clip(ANIM_CLAP, true)
+			return true
+	return false
+
+
+## `aNPC_chk_pitfall`: a normal villager on a unit holding a buried pitfall falls in.
+func _check_pitfall() -> void:
+	if _pit != Pit.NONE or guest != &"" or indoor_resident:
+		return
+	var bg: Array = _bg()
+	if bg.size() != 2:
+		return
+	var grid := bg[1] as WorldGrid
+	var cell: Vector2i = grid.world_to_cell(global_position)
+	if not grid.is_in_bounds(cell) or not BuriedUse.is_pitfall(grid.occupant_at(cell)):
+		return
+	var world := World.find(get_tree())
+	if BuriedUse.spring_pitfall(world, grid, cell) == null and not Game.is_hole(HoleUse.persist_id(cell)):
+		return
+	_pit = Pit.TOTTER
+	_pit_cell = cell
+	_pit_center = grid.cell_corner(cell) + Vector3(grid.cell_size, 0.0, grid.cell_size) * 0.5
+	_pit_center.y = global_position.y
+	_pit_model_rest = _model.position if _model != null else Vector3.ZERO
+	## `aNPC_think_pitfall_init_proc`: immovable, feel `PITFALL` until they are out.
+	if state != null:
+		state.mood = VillagerState.Mood.PITFALL
+		state.feel_ticks = 0
+	_motor.arrive()
+	velocity = Vector3.ZERO
+	_pit_clip = _pit_one_shot(ANIM_GURATUKU)
+
+
+func in_pitfall() -> bool:
+	return _pit != Pit.NONE
+
+
+func _tick_pit(delta: float) -> void:
+	velocity = Vector3.ZERO
+	match _pit:
+		Pit.TOTTER:
+			var step: float = PIT_TOTTER_GX_PER_FRAME * FieldCatalog.GX_TO_METERS * delta * DecompTime.FRAME_HZ
+			var to := Vector3(_pit_center.x - global_position.x, 0.0, _pit_center.z - global_position.z)
+			if to.length() > step:
+				global_position += to.normalized() * step
+			else:
+				global_position.x = _pit_center.x
+				global_position.z = _pit_center.z
+				if not _pit_playing():
+					_pit = Pit.FALL
+					_pit_clip = _pit_chain(ANIM_OTIRU)
+		Pit.FALL:
+			if not _pit_playing():
+				_pit = Pit.STRUGGLE
+				_pit_clip = _pit_chain(ANIM_MOGAKU, true)
+		Pit.REVIVE:
+			if not _pit_playing():
+				_end_pit()
+	ai.step(delta)
+
+
+func _begin_revive() -> void:
+	_pit = Pit.REVIVE
+	BuriedUse.close_pit(World.find(get_tree()), _pit_cell)
+	_pit_clip = _pit_chain(ANIM_DERU)
+
+
+func _end_pit() -> void:
+	_pit = Pit.NONE
+	_pit_cell = Vector2i(-1, -1)
+	if _model != null:
+		_model.position = _pit_model_rest
+	if state != null and state.mood == VillagerState.Mood.PITFALL:
+		state.set_feel(0, 0)
+	_clip = ""
+	_play_clip(ANIM_WAIT, true)
+	if _body_anim != null:
+		_body_anim.play(_resolve_clip(ANIM_WAIT), 0.0)
+
+
+func _pit_playing() -> bool:
+	return _body_anim != null and _body_anim.is_playing() and _body_anim.current_animation == _pit_clip
+
+
+func _pit_one_shot(leaf: String, loop: bool = false, blend: float = 0.12) -> String:
+	var clip := _resolve_clip(leaf)
+	if clip.is_empty() or _body_anim == null:
+		return ""
+	_clip = clip
+	_ensure_loop(clip, loop)
+	_body_anim.speed_scale = 1.0
+	_body_anim.play(clip, blend)
+	return clip
+
+
+## Like the player's pit: each clip's root travel (`AnimationMove`) is carried on the model so
+## the next clip starts where the last one left the body.
+func _pit_chain(leaf: String, loop: bool = false) -> String:
+	var before: Vector3 = _pit_root()
+	var clip: String = _pit_one_shot(leaf, loop, 0.0)
+	if clip.is_empty() or _model == null:
+		return clip
+	_body_anim.seek(0.0, true)
+	var after: Vector3 = _pit_root()
+	if before != Vector3.INF and after != Vector3.INF:
+		_model.position += before - after
+	return clip
+
+
+func _pit_root() -> Vector3:
+	if _model == null:
+		return Vector3.INF
+	var skeletons: Array[Node] = _model.find_children("*", "Skeleton3D", true, false)
+	if skeletons.is_empty():
+		return Vector3.INF
+	var skeleton := skeletons[0] as Skeleton3D
+	var bone: int = skeleton.find_bone("joint_0")
+	if bone < 0:
+		return Vector3.INF
+	return to_local(skeleton.global_transform * skeleton.get_bone_global_pose(bone).origin)
+
+
+func _mood_normal() -> bool:
+	return state == null or state.mood == VillagerState.Mood.NORMAL
+
+
+## `aNPC_takeout_right_item` → `aNPC_ACT_UMB_OPEN`. `instant` is `aTOL_ACTION_S_TAKEOUT`:
+## already open, no clip.
+func _take_out_umbrella(instant: bool) -> bool:
+	var visual_id: StringName = VillagerOutdoor.umbrella_visual(data, state)
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_visual)
+	if visual_id == &"" or skeleton == null:
+		return false
+	var attach: Node3D = HeldTool.bind(skeleton, visual_id)
+	if attach == null or attach.get_child_count() == 0:
+		return false
+	_umbrella = HeldUmbrella.new()
+	_umbrella.setup(
+		attach.get_child(0) as Node3D,
+		HeldUmbrella.Action.OPEN_NOW if instant else HeldUmbrella.Action.TAKEOUT_BEFORE
+	)
+	HeldUmbrella.paint_canopy(attach.get_child(0) as Node3D, VillagerOutdoor.umbrella_design_texture(state))
+	_umb_carry = ToolCarry.build_part(_body_anim, skeleton, ANIM_UMBRELLA, VillagerOutdoor.SUB_ANIM_JOINTS)
+	if instant:
+		return true
+	_act = Act.UMB_OPEN
+	_motor.arrive()
+	_play_clip(ANIM_UMB_OPEN, false)
+	return true
+
+
+## `aNPC_putaway_right_item` → `aNPC_ACT_UMB_CLOSE`.
+func _put_away_umbrella() -> void:
+	if _umbrella == null:
+		return
+	_umbrella.set_action(HeldUmbrella.Action.PUTAWAY)
+	_act = Act.UMB_CLOSE
+	_motor.arrive()
+	_play_clip(ANIM_UMB_CLOSE, false)
+
+
+func _drop_umbrella() -> void:
+	HeldTool.unbind(HeldTool.find_skeleton(_visual))
+	_umbrella = null
+	_umb_carry = null
+
+
+## The act runs in place like the react (`mv_angl` pinned).
+func _tick_act(delta: float) -> void:
+	var on_bg: bool = _snap_to_bg()
+	if on_bg:
+		velocity.y = 0.0
+	elif not is_on_floor():
+		velocity.y -= _gravity * delta
+	velocity.x = 0.0
+	velocity.z = 0.0
+	move_and_slide()
+	var clip_done: bool = (
+		_body_anim == null or not _body_anim.is_playing() or _body_anim.current_animation != _clip
+	)
+	match _act:
+		Act.UMB_OPEN:
+			if clip_done:
+				VillagerOutdoor.release_umbrella(self, Time.get_ticks_msec() / 1000.0, _outdoor_rng)
+				_act = Act.NONE
+		Act.UMB_CLOSE:
+			if clip_done and (_umbrella == null or _umbrella.is_closed()):
+				_drop_umbrella()
+				_act = Act.NONE
+		Act.GREET:
+			_tick_greeting(delta)
+			return
+		Act.CLAP:
+			## `aNPC_act_clap_main_proc`: until the player puts the catch away.
+			var player := get_tree().get_first_node_in_group("player") as Node3D
+			if player != null:
+				_motor.turn_toward(delta, global_position, player.global_position)
+				if _model != null:
+					_model.rotation.y = _motor.facing
+			if player == null or not bool(player.get("catch_showing")):
+				_act = Act.NONE
+	if _act == Act.NONE:
+		_play_clip(ANIM_WAIT, true)
+	_tick_annoyance(delta)
+
+
+## ---------------------------------------------------------------- greetings
+
+## May this villager be paired up (`aNPC_check_cond_to_greeting`)? Only the ones wandering
+## outdoors get the think interrupt that starts the greeting.
+func free_to_greet() -> bool:
+	return (
+		not indoor_resident and ai.is_present() and ai.is_wandering() and not ai.is_talking()
+		and _pal == null and _pal_ignore <= 0.0 and _act == Act.NONE and _react == React.NONE
+		and VillagerGreeting.can_greet(state)
+	)
+
+
+## `aNPC_greeting_area_check`, once a physics frame for everyone.
+func _pair_greetings() -> void:
+	var frame: int = Engine.get_physics_frames()
+	if _pair_frame == frame or get_tree() == null:
+		return
+	_pair_frame = frame
+	var free: Array = []
+	for node: Node in get_tree().get_nodes_in_group("villagers"):
+		if node is Node3D and node.has_method("free_to_greet") and bool(node.call("free_to_greet")):
+			free.append(node)
+	for pair: Array in VillagerGreeting.pair_up(free):
+		pair[0].set("_pal", pair[1])
+		pair[1].set("_pal", pair[0])
+
+
+func _greet_info(v: Node) -> Dictionary:
+	var vd: VillagerData = v.get("data")
+	var slot: int = Game.residents.slot_of(vd.id) if vd != null and Game != null and Game.residents != null else -1
+	return {"state": v.get("state"), "data": vd, "slot": slot}
+
+
+## `aNPC_act_greeting_init_proc` / `aNPC_act_greeting_reaction`.
+func _begin_greeting() -> bool:
+	var pal: Node3D = _pal
+	if pal == null or not is_instance_valid(pal) or pal.get("_pal") != self:
+		_pal = null
+		return false
+	if ai.is_talking() or (pal.get("ai") as VillagerAI).is_talking():
+		## `mDemo_IS_ACTOR_TALKING`: someone is talking to the player — call it off.
+		_pal = null
+		pal.set("_pal", null)
+		return false
+	var flag: int = 2
+	var pal_flag: int = int(pal.get("_greet_flag"))
+	if pal_flag not in [1, 3, 4, 5]:
+		var rng := _outdoor_rng
+		VillagerGreeting.react(_greet_info(self), _greet_info(pal), _around_npcs(pal), Game.residents, rng)
+		flag = 1
+	if state != null:
+		if _cloth_key() != _drawn_cloth:
+			flag = 3
+		if state.umbrella_design != _drawn_umb:
+			flag = 5 if flag == 3 else 4
+	_greet_flag = flag
+	_act = Act.GREET
+	_greet = Greet.TURN
+	_motor.arrive()
+	_play_clip(ANIM_WAIT, true)
+	return true
+
+
+## `aNPC_make_aroundNpcInfoList`: residents one acre away (not these two) that have met the
+## player, friendliest first.
+func _around_npcs(pal: Node3D) -> Array:
+	var out: Array = []
+	if Game == null or Game.residents == null:
+		return out
+	var here: Vector2i = _current_block()
+	var nodes: Dictionary = {}
+	for node: Node in get_tree().get_nodes_in_group("villagers"):
+		var vd: VillagerData = node.get("data")
+		if vd != null:
+			nodes[vd.id] = node
+	for id: StringName in Game.residents.resident_ids():
+		if (data != null and id == data.id) or (pal.get("data") != null and id == (pal.get("data") as VillagerData).id):
+			continue
+		var node: Node3D = nodes.get(id) as Node3D
+		var block: Vector2i
+		if node != null:
+			block = VillagerWalk.block_from_cell(_grid_cell(node.global_position))
+		else:
+			block = VillagerWalk.block_from_cell(Game.residents.home_of(Game.residents.slot_of(id)))
+		if absi(block.x - here.x) + absi(block.y - here.y) != 1:
+			continue
+		var st: VillagerState = Game.villagers.get_or_create(id)
+		if st.relationship == null or not st.relationship.has_memory:
+			continue
+		out.append({
+			"state": st, "data": VillagerCatalog.get_villager(id), "friendship": st.friendship,
+			"loaded": node != null and (node.get("ai") as VillagerAI).is_present(),
+		})
+	VillagerGreeting.sort_around(out)
+	return out
+
+
+func _grid_cell(pos: Vector3) -> Vector2i:
+	var bg: Array = _bg()
+	if bg.size() == 2:
+		return (bg[1] as WorldGrid).world_to_cell(pos)
+	return Vector2i.ZERO
+
+
+func _cloth_key() -> String:
+	if state == null:
+		return ""
+	return "%d:%s" % [state.cloth_design, String(VillagerTalkManager.worn_cloth(data, state))]
+
+
+func _tick_greeting(delta: float) -> void:
+	var pal: Node3D = _pal
+	if pal == null or not is_instance_valid(pal) or pal.get("_pal") != self:
+		_pal = null
+		_end_greeting()
+		return
+	var to: Vector3 = pal.global_position - global_position
+	to.y = 0.0
+	var clip_done: bool = (
+		_body_anim == null or not _body_anim.is_playing() or _body_anim.current_animation != _clip
+	)
+	match _greet:
+		Greet.TURN:
+			_motor.turn_toward(delta, global_position, pal.global_position)
+			if absf(angle_difference(_motor.facing, atan2(to.x, to.z))) < deg_to_rad(10.0):
+				if to.length() < VillagerGreeting.APPROACH_NEAR:
+					_greet = Greet.WAIT
+				else:
+					_greet = Greet.APPROACH
+					_greet_timer = VillagerGreeting.APPROACH_SECONDS
+					_play_clip(ANIM_WALK, true)
+		Greet.APPROACH:
+			## `aNPC_act_greeting_approach`: walk over for at most 80 frames.
+			_greet_timer -= delta
+			_motor.turn_toward(delta, global_position, pal.global_position)
+			var step: Vector3 = Vector3(sin(_motor.facing), 0.0, cos(_motor.facing)) * _motor.walk_speed
+			velocity.x = step.x
+			velocity.z = step.z
+			move_and_slide()
+			velocity.x = 0.0
+			velocity.z = 0.0
+			if to.length() < VillagerGreeting.APPROACH_NEAR or _greet_timer <= 0.0 or get_slide_collision_count() > 0:
+				_greet = Greet.WAIT
+				_play_clip(ANIM_WAIT, true)
+		Greet.WAIT:
+			## `aNPC_act_greeting_wait`: bow together once both are waiting.
+			if int(pal.get("_greet")) == Greet.WAIT and int(pal.get("_act")) == Act.GREET:
+				pal.call("_start_bow")
+				_start_bow()
+		Greet.BOW:
+			if clip_done:
+				if _greet_flag >= 3:
+					## `NA_SE_WEAR`, then `GET_CHANGE1`.
+					_greet = Greet.CHANGE
+					_play_clip(VillagerGreeting.CHANGE_CLIP, false)
+				else:
+					_greeting_end()
+		Greet.CHANGE:
+			if clip_done:
+				_drawn_cloth = _cloth_key()
+				_drawn_umb = state.umbrella_design if state != null else -1
+				_apply_design_wear()
+				_greet_flag = 0
+				_greeting_end()
+		Greet.HOLD:
+			pass
+	if _model != null:
+		_model.rotation.y = _motor.facing
+
+
+func _start_bow() -> void:
+	_greet = Greet.BOW
+	var looks: int = clampi(int(_looks()), 0, VillagerGreeting.GREETING_CLIPS.size() - 1)
+	_play_clip(VillagerGreeting.GREETING_CLIPS[looks], false)
+
+
+## `aNPC_setup_greeting_end`: wait while the partner is still changing, else both finish.
+func _greeting_end() -> void:
+	var pal: Node3D = _pal
+	if pal != null and is_instance_valid(pal) and int(pal.get("_greet_flag")) >= 3 and int(pal.get("_act")) == Act.GREET:
+		_greet = Greet.HOLD
+		_play_clip(ANIM_WAIT, true)
+		return
+	if pal != null and is_instance_valid(pal) and pal.get("_pal") == self:
+		pal.call("_end_greeting")
+	_end_greeting()
+
+
+## `aNPC_setup_greeting_end_sub`.
+func _end_greeting() -> void:
+	_pal = null
+	_pal_ignore = VillagerGreeting.IGNORE_SECONDS
+	_greet_flag = 0
+	if _act == Act.GREET:
+		_act = Act.NONE
+		_play_clip(ANIM_WAIT, true)
+
+
+## `aNPC_anime_proc` part table: the sub-animation drives the right arm and head root over
+## every main clip except the umbrella's own.
+func _apply_sub_anim() -> void:
+	if _umb_carry == null or _act == Act.UMB_OPEN or _act == Act.UMB_CLOSE:
+		return
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_visual)
+	if skeleton != null:
+		_umb_carry.apply(skeleton)
+
+
+## `aNPC_check_insect_and_gyoei` (while walking) and `aNPC_act_chase_insect` (up to a
+## minute): walk / run over, then watch. True while it owns the steering.
+func _tick_chase() -> bool:
+	if _chase == null:
+		var walking: bool = _motor.has_target and _motor.gait != VillagerWalk.ACT_WAIT
+		if not walking or not _mood_normal() or _resting:
+			return false
+		## `aNPC_check_ball` comes first: the ball ahead is run after.
+		var ball: FieldBall = FieldBall.find(get_tree())
+		if ball != null and ball.chaseable() and FieldBall.chase_from(global_position, ball.global_position):
+			_chase = ball
+			_chase_fish = false
+			_chase_left = VillagerOutdoor.CHASE_SECONDS
+		else:
+			var found: Dictionary = VillagerOutdoor.chase_target(global_position, _fish_pairs(), _bug_pairs())
+			if found.is_empty():
+				return false
+			_chase = found["target"]
+			_chase_fish = bool(found["fish"])
+			_chase_left = VillagerOutdoor.CHASE_SECONDS
+	if _chase is FieldBall:
+		return _tick_ball_chase(_chase as FieldBall)
+	var target_pos: Vector3 = _chase_position()
+	var delta: float = get_physics_process_delta_time()
+	_chase_left -= delta
+	if target_pos == Vector3.INF or _chase_left <= 0.0 or not _mood_normal():
+		_chase = null
+		_motor.arrive()
+		return false
+	match VillagerOutdoor.chase_step(global_position, _motor.facing, target_pos, _chase_fish):
+		VillagerOutdoor.ChaseStep.WAIT:
+			if _motor.has_target:
+				_motor.arrive()
+		VillagerOutdoor.ChaseStep.TURN:
+			if _motor.has_target:
+				_motor.arrive()
+			_motor.turn_toward(delta, global_position, target_pos)
+		VillagerOutdoor.ChaseStep.WALK:
+			_motor.set_target(target_pos, VillagerWalk.ACT_WALK, VillagerOutdoor.INSECT_NEAR * 0.5, global_position, _motor.facing)
+		VillagerOutdoor.ChaseStep.RUN:
+			_motor.set_target(target_pos, VillagerWalk.ACT_RUN, VillagerOutdoor.INSECT_NEAR * 0.5, global_position, _motor.facing)
+	return true
+
+
+## `aNPC_ACT_RUN` / `aNPC_ACT_TYPE_SEARCH` at the ball: run into it (the kick is the ball's).
+func _tick_ball_chase(ball: FieldBall) -> bool:
+	_chase_left -= get_physics_process_delta_time()
+	if not is_instance_valid(ball) or not ball.chaseable() or _chase_left <= 0.0 or not _mood_normal():
+		_chase = null
+		_motor.arrive()
+		return false
+	var to := Vector2(ball.global_position.x - global_position.x, ball.global_position.z - global_position.z)
+	if to.length() >= FieldBall.CHASE_GX * FieldBall.gx() * 1.5:
+		_chase = null
+		_motor.arrive()
+		return false
+	if to.length() < FieldCollision.ACTOR_RADIUS:
+		_chase = null
+		_motor.arrive()
+		return false
+	_motor.set_target(ball.global_position, VillagerWalk.ACT_RUN, 0.05, global_position, _motor.facing)
+	return true
+
+
+func _chase_position() -> Vector3:
+	if _chase == null or not is_instance_valid(_chase):
+		return Vector3.INF
+	if _chase_fish:
+		var shadow := _chase as FishShadow
+		return shadow.position if shadow != null and not shadow.finished else Vector3.INF
+	var bug := _chase as BugActor
+	for pair: Array in _bug_pairs():
+		if pair[0] == bug:
+			return pair[1]
+	return Vector3.INF
+
+
+func _fish_pairs() -> Array:
+	var out: Array = []
+	var host: Node = get_tree().get_first_node_in_group("fish_shadows") if get_tree() != null else null
+	var school: FishSchool = host.call("school") as FishSchool if host != null else null
+	if school == null:
+		return out
+	for shadow: FishShadow in school.shadows:
+		if shadow != null and not shadow.finished:
+			out.append([shadow, shadow.position])
+	return out
+
+
+func _bug_pairs() -> Array:
+	var out: Array = []
+	var host: Node = get_tree().get_first_node_in_group("bug_actors") if get_tree() != null else null
+	var field: BugField = host.call("field") as BugField if host != null else null
+	if field == null:
+		return out
+	for bug: BugActor in field.actors:
+		if bug != null:
+			out.append([bug, bug.position])
+	return out
 
 
 func _looks() -> VillagerPersonality.Looks:

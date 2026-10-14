@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 from .bti import (
 	CI4,
@@ -312,8 +312,14 @@ def bake_player_select_spot_png(
     """Bake spotlight XLU: `(PRIM-ENV)*I+ENV`, A ≈ I × PRIM_LOD_FRAC.
 
     GC pairs this with scrolling spot2 via RDP combine + EVW — we bake the cone only.
+
+    The ACHD cone keeps flat blocks in the falloff. On a translucent ground quad
+    those blocks read as pixels, so blur the HD mask before the tint. Native
+    tiles stay exact (the 2×1 bake test).
     """
     image = Image.open(io.BytesIO(png)).convert("RGBA")
+    if image.width >= 128 and image.height >= 128:
+        image = image.filter(ImageFilter.GaussianBlur(radius=4))
     pr, pg, pb, _pa = prim
     er, eg, eb = env
     lod = max(0, min(255, int(lod_frac))) / 255.0
@@ -414,6 +420,10 @@ COVERAGE_TEX_EDGE = "tex_edge"
 COVERAGE_XLU = "xlu"
 
 _CVG_X_ALPHA = 0x1000
+_FORCE_BL = 0x4000
+## Blender `GBL_c1` / `GBL_c2` m2a (`G_BL_CLR_MEM` = 1) and m2b (`G_BL_1MA` = 0).
+_BL_CLR_MEM = 1
+_BL_1MA = 0
 _ZMODE_XLU = 0x800
 _ZMODE_DEC = 0xC00
 _ZMODE_MASK = 0xC00
@@ -425,9 +435,21 @@ def coverage_from_render_mode(mode: int) -> str:
     zmode = mode & _ZMODE_MASK
     if zmode in (_ZMODE_XLU, _ZMODE_DEC):
         return COVERAGE_XLU
+    ## `G_RM_XLU_SURF` / `CLD_SURF` (no Z compare, so ZMODE_OPA): still a forced
+    ## blend of the input over memory by 1−α — the feel glyph cards and 2D windows.
+    if mode & _FORCE_BL and _blends_over_memory(mode):
+        return COVERAGE_XLU
     if mode & _CVG_X_ALPHA:
         return COVERAGE_TEX_EDGE
     return COVERAGE_OPA
+
+
+def _blends_over_memory(mode: int) -> bool:
+    """True when either blender cycle is ``(…, …, CLR_MEM, 1MA)``."""
+    for m2a_shift, m2b_shift in ((22, 18), (20, 16)):
+        if (mode >> m2a_shift) & 3 == _BL_CLR_MEM and (mode >> m2b_shift) & 3 == _BL_1MA:
+            return True
+    return False
 
 
 def coverage_from_othermode_l(othermode_l: int) -> str:
@@ -584,6 +606,8 @@ def uv_samples_transparent(
 _STRUCTURE_PALETTE_ALIASES = {
     "yubinkyoku": "post_office",
     "kouban": "police_box",
+    ## Katrina's fortune tent (`ac_buggy`, `aSTR_PAL_BUGGY`).
+    "uranai": "buggy",
 }
 
 ## Museum wall canvases (`obj_art*_art_tex`) use different CI4 than house FTR
@@ -677,21 +701,10 @@ def is_house_clock_texture(tex_name: str) -> bool:
     return tex_name.startswith("obj_clock_")
 
 
-def is_museum_clock_texture(tex_name: str) -> bool:
-    """`obj_clock_museum1_*` is N64 linear RGBA5551, not GX-tiled RGB5A3."""
-    return tex_name.startswith("obj_clock_museum1_")
-
-
 def is_train_structure_texture(tex_name: str) -> bool:
     """Outdoor train CI4 (`obj_train1_t*_tex_txt`). ACHD hashes need the live
     structure TLUT (`obj_train1_a1/a2_pal`); wrong-pal lookups paint magenta."""
     return tex_name.startswith("obj_train1_t") and "_tex" in tex_name
-
-
-def is_player_select_stage_texture(tex_name: str) -> bool:
-    """K.K. opening acre (`rom_open_*`). ACHD is a near-identical upscale of the
-    tiny I/CI tiles — keep native so the stage matches the GC look."""
-    return "rom_open_" in (tex_name or "").lower()
 
 
 def is_museum_tank_texture(tex_name: str) -> bool:
@@ -717,7 +730,6 @@ def skips_achd_texture(tex_name: str) -> bool:
         or is_indoor_mado_texture(tex_name)
         or is_house_clock_texture(tex_name)
         or is_train_structure_texture(tex_name)
-        or is_player_select_stage_texture(tex_name)
         or is_museum_tank_texture(tex_name)
     )
 
@@ -736,6 +748,11 @@ def museum_dummy_wood_twin(tex_name: str) -> tuple[str, str] | None:
     return None
 
 
+## Palette letters a structure can take: villager homes `a`..`e`, the player's `a`..`l`
+## (`aSTR_PAL_MYHOME_A + outlook_pal`).
+STRUCTURE_PAL_LETTERS = "abcdefghijkl"
+
+
 def structure_palette_names(prefix: str, letter: str | None = None) -> list[str]:
     """Candidate `structure_pal` symbols for a cKF/static structure prefix.
 
@@ -745,7 +762,7 @@ def structure_palette_names(prefix: str, letter: str | None = None) -> list[str]
     Trains: `obj_train1_1`/`_2` → `obj_train1_a1_pal` (TRAIN0); caboose `_3` →
     `obj_train1_a2_pal` (TRAIN1) — see `ac_structure_clip` / `aSTR_PAL_TRAIN1_*`.
     Villager homes: optional `letter` (`a`..`e`) prefers `obj_s_house1_b_pal`
-    (`aSTR_PAL_HOUSE1_A + pal + shape*5`).
+    (`aSTR_PAL_HOUSE1_A + pal + shape*5`); the player's (`a`..`l`) `obj_s_myhome_b_pal`.
     """
     names: list[str] = []
 
@@ -755,7 +772,7 @@ def structure_palette_names(prefix: str, letter: str | None = None) -> list[str]
                 names.append(name)
 
     pal_letter = (letter or "").lower()
-    if pal_letter in "abcde":
+    if pal_letter in STRUCTURE_PAL_LETTERS:
         add(f"{prefix}_{pal_letter}_pal")
     add(f"{prefix}_a_pal", f"{prefix}_pal")
     train = re.match(r"^obj_train1_(\d+)$", prefix)
@@ -770,12 +787,12 @@ def structure_palette_names(prefix: str, letter: str | None = None) -> list[str]
     if not m:
         return names
     season, rest = m.group(1), m.group(2)
-    if pal_letter in "abcde":
+    if pal_letter in STRUCTURE_PAL_LETTERS:
         add(f"obj_{rest}_{pal_letter}_pal", f"obj_{season}_{rest}_{pal_letter}_pal")
     add(f"obj_{rest}_pal", f"obj_{rest}_a_pal")
     destaged = re.sub(r"\d+$", "", rest)
     if destaged and destaged != rest:
-        if pal_letter in "abcde":
+        if pal_letter in STRUCTURE_PAL_LETTERS:
             add(
                 f"obj_{season}_{destaged}_{pal_letter}_pal",
                 f"obj_{destaged}_{pal_letter}_pal",
@@ -954,6 +971,10 @@ ACTOR_TLUT_TABLES: dict[str, tuple[int, str, str, int, tuple[int, int]]] = {
     "ef_hana01_co_a": (0x08, "mFM_obj_a_01_flower_pal", "ef_hana01_co_a_tex", 1, (16, 16)),
     "ef_hana01_tu_a": (0x08, "mFM_obj_a_01_flower_pal", "ef_hana01_tu_a_tex", 1, (16, 16)),
     "ef_hana01_ha_a": (0x08, "mFM_obj_a_01_flower_pal", "ef_hana01_ha_a_tex", 1, (16, 16)),
+    ## Field flowers (`flower_DL_table`): one CI4 atlas, the species picks the vertex set
+    ## (a pansy / b cosmos / c tulip) and the colour picks TLUT slot 0–2, bound by
+    ## `mFM_SetFGPal` to `flowerK_pal` = `mFM_obj_a_01_flower_pal[K * 9 + flower_pal_idx]`.
+    "obj_flower": (0x00, "mFM_obj_a_01_flower_pal", "obj_flower_tex", 1, (128, 32)),
 }
 
 
@@ -1358,7 +1379,7 @@ class TextureBank:
         Same path for player, villagers, and furniture:
         - `{prefix}_pal`, `{prefix}_eye1_TA_tex_txt`, `{prefix}_mouth1_TA_tex_txt`, `{prefix}_tmem_txt`
         - archive `face_{species}.bin` / `tex_{species}.bin` / `pallet_{species}.bin` when present
-          (player eyes/mouth/shirt live there; species is prefix without trailing `_N`)
+          (player eyes/mouth/shirt live in the boy banks; both skeletons use those)
         Dummy `anime_N_txt` SETTIMG/LOADTLUT (house mark, shrine leaf, …) resolve
         later from REL symbols — see `_resolve_dummy_image` / `_resolve_dummy_palette`.
         """
@@ -1392,7 +1413,13 @@ class TextureBank:
 
         if self.archives is None:
             return
+        ## `mPlib_get_player_mdl_p` swaps the skeleton (`boy_1` / `grl_1`) but eyes,
+        ## mouth, and shirt still DMA from `face_boy.bin` / `tex_boy.bin`. Female
+        ## faces are a later index in that bank (`PlayerFace`); there is no
+        ## `face_grl.bin`.
         species = re.sub(r"_\d+$", "", prefix)
+        if prefix.startswith(("boy_", "grl_", "girl_")):
+            species = "boy"
         data = self.archives / "forest_1st" / "data"
         face_path = data / f"face_{species}.bin"
         if face_path.is_file() and 0x08 not in self.segment_images:

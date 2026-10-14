@@ -1,0 +1,108 @@
+{
+  "id": "twins_shop_sell",
+  "speaker_id": "timmy",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_sell",
+              "value": "ok"
+            }
+          },
+          "goto": "quote"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_sell",
+              "value": "sunday"
+            }
+          },
+          "goto": "sunday"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_sell",
+              "value": "refused"
+            }
+          },
+          "goto": "refused"
+        },
+        {
+          "goto": "junk"
+        }
+      ]
+    },
+    "quote": {
+      "type": "choice",
+      "prompt": "For {item0}, we give\n{free0} Bells. You will\nsell, yes?",
+      "options": [
+        {
+          "text": "Sure!",
+          "goto": "confirm"
+        },
+        {
+          "text": "No way!",
+          "goto": "declined"
+        }
+      ]
+    },
+    "confirm": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "sell_confirm"
+        }
+      ],
+      "next": "done_branch"
+    },
+    "done_branch": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_sell_done",
+              "value": "full"
+            }
+          },
+          "goto": "full"
+        },
+        {
+          "goto": "thanks"
+        }
+      ]
+    },
+    "thanks": {
+      "type": "line",
+      "text": "Thanks much! A good deal!\n{c:25,140,220}...deal!{c:50,60,50}"
+    },
+    "full": {
+      "type": "line",
+      "text": "That is too many Bells to\ncarry! Make room and\ncome back. {c:25,140,220}...back.{c:50,60,50}"
+    },
+    "declined": {
+      "type": "line",
+      "text": "No? Then tell us if you\nchange your mind. {c:25,140,220}...mind.{c:50,60,50}"
+    },
+    "junk": {
+      "type": "line",
+      "text": "That is worth nothing,\nbut we will take it\nanyway! {c:25,140,220}...anyway!{c:50,60,50}",
+      "next": "confirm"
+    },
+    "sunday": {
+      "type": "line",
+      "text": "No turnips on Sunday!\nJoan sells them then. {c:25,140,220}...then.{c:50,60,50}"
+    },
+    "refused": {
+      "type": "line",
+      "text": "Sorry! We cannot take\nthat one. {c:25,140,220}...one.{c:50,60,50}"
+    }
+  }
+}

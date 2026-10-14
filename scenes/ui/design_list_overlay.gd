@@ -11,13 +11,20 @@ extends CanvasLayer
 ##
 ## `open(mode, callback)` — callback receives the chosen display slot (0-7), or -1
 ## if cancelled. MANAGE passes no callback.
+##
+## Drawn as the original book (`mNW_set_frame_dl`): the `inv_original` window baked by
+## `design_ui.py` (scrolling cloth, rim, slot wells, frame), the eight designs in its
+## 2x4 `mb1-8` wells, the pulsing green mark on a picked-up slot (`sav_mark_winT`)
+## and the pointing hand.
 
 signal closed
 
 enum ListMode { PICK_EDIT, PICK_TRADE, MANAGE }
 
-const COLS := 4
-const ROWS := 2
+const COLS := 2
+const ROWS := 4
+## Book window in screen units, centred 10 right of the menu origin (`mNW_OPEN_DESIGN`).
+const BOOK_SIZE := Vector2(150, 180)
 
 var _open: bool = false
 var _mode: int = ListMode.PICK_EDIT
@@ -26,27 +33,75 @@ var _held: int = -1  ## MANAGE pick-up slot
 var _cb: Callable = Callable()
 
 @onready var _root: Control = $Root
-@onready var _grid: Control = $Root/Frame/Box/Grid
-@onready var _title: Label = $Root/Frame/Box/Header/Title
-@onready var _name: Label = $Root/Frame/Box/Footer/DesignName
-@onready var _hint: Label = $Root/Frame/Box/Footer/Hint
+@onready var _screen: Control = $Root/Screen
+@onready var _book: Control = $Root/Screen/Book
+@onready var _slots: Control = $Root/Screen/Book/Slots
+@onready var _name: Label = $Root/Screen/Name
+@onready var _hand: HandCursor = $Root/Hand
+
+var _thumbs: Array[Texture2D] = []
+
+
+## `m_needlework_ovl.c`: in from the right (from the left beside the pockets), out the same way.
+var _slide: MenuSlide = null
+var _slide_left: bool = false
 
 
 func _ready() -> void:
 	layer = 26
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_to_group("design_list_ui")
+	_slide = MenuSlide.attach(self)
 	_root.visible = false
-	_grid.draw.connect(_draw_grid)
-	_grid.gui_input.connect(_on_grid_input)
+	_slots.draw.connect(_draw_slots)
+	_book.gui_input.connect(_on_book_input)
+	_root.resized.connect(_fit_screen)
+	for layer_name: String in ["Cloth:book_mask", "Under:book_under", "Over:book_over"]:
+		var parts := layer_name.split(":")
+		(_book.get_node(parts[0]) as TextureRect).texture = _design_tex(parts[1])
+	## The cloth scrolls under the mask at 64 texels per 60 window units (`w1T` quads),
+	## whatever the bake or ACHD size.
+	var cloth_rect := _book.get_node("Cloth") as TextureRect
+	var cloth := _design_tex("book_cloth")
+	var mat := cloth_rect.material as ShaderMaterial
+	if mat != null and cloth != null and cloth_rect.texture != null:
+		var shell_px_per_unit := cloth_rect.texture.get_width() / BOOK_SIZE.x
+		var cloth_px_per_unit := (64.0 / 60.0) * cloth.get_width() / 32.0
+		mat.set_shader_parameter("paper_tex", cloth)
+		mat.set_shader_parameter("paper_px_per_shell_px", cloth_px_per_unit / shell_px_per_unit)
+	_fit_screen()
+	set_process(false)
 	set_process_unhandled_input(false)
+
+
+func _design_tex(name: String) -> Texture2D:
+	var path := "res://assets/generated/ui/design/%s.png" % name
+	return load(path) if ResourceLoader.exists(path) else null
+
+
+func _fit_screen() -> void:
+	var sz := _root.size
+	if sz.x <= 0.0 or sz.y <= 0.0:
+		return
+	var k := minf(sz.x / 320.0, sz.y / 240.0)
+	_screen.scale = Vector2(k, k)
+	_screen.position = (sz - Vector2(320, 240) * k) * 0.5
+	_hand.size = Vector2(40, 40) * k
+	_point_hand(false)
+
+
+func _process(_delta: float) -> void:
+	if _held >= 0:
+		_slots.queue_redraw()
 
 
 func is_open() -> bool:
 	return _open
 
 
-func open(mode: String, callback: Callable = Callable()) -> void:
+## `beside_inventory`: opened from the pockets' pencil tab (`mNW_OPEN_INV`) — the book
+## sits 46 right of centre over the pockets' letter column instead of 10, with no dim.
+func open(mode: String, callback: Callable = Callable(), beside_inventory: bool = false) -> void:
 	if _open:
 		return
 	if Game == null or Game.designs == null:
@@ -56,10 +111,19 @@ func open(mode: String, callback: Callable = Callable()) -> void:
 		"pick_trade": _mode = ListMode.PICK_TRADE
 		_: _mode = ListMode.MANAGE
 	_cb = callback
+	_book.position.x = 160.0 + (46.0 if beside_inventory else 10.0) - BOOK_SIZE.x * 0.5
+	var dim := _root.get_node("Dim") as ColorRect
+	dim.color.a = 0.0 if beside_inventory else 0.5
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE if beside_inventory else Control.MOUSE_FILTER_STOP
+	_root.mouse_filter = dim.mouse_filter
 	_sel = 0
 	_held = -1
 	_open = true
 	_root.visible = true
+	_slide_left = beside_inventory
+	_slide.slide_in(MenuSlide.Dir.IN_LEFT if beside_inventory else MenuSlide.Dir.IN_RIGHT)
+	_hand.visible = true
+	set_process(true)
 	set_process_unhandled_input(true)
 	Audio.play_se(&"cursol")
 	_refresh()
@@ -69,13 +133,20 @@ func close(chosen: int = -1) -> void:
 	if not _open:
 		return
 	_open = false
-	_root.visible = false
+	_slide.slide_out((MenuSlide.Dir.OUT_LEFT if _slide_left else MenuSlide.Dir.OUT_RIGHT), _on_slid_out)
+	_hand.visible = false
+	set_process(false)
 	set_process_unhandled_input(false)
 	var cb := _cb
 	_cb = Callable()
 	closed.emit()
 	if cb.is_valid():
 		cb.call(chosen)
+
+
+func _on_slid_out() -> void:
+	if not _open:
+		_root.visible = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -91,6 +162,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_C:
 			if _mode == ListMode.MANAGE:
 				_wear_selected()
+		KEY_U:
+			if _mode == ListMode.MANAGE:
+				_umbrella_selected()
 		KEY_ESCAPE, KEY_B:
 			if _held >= 0:
 				_held = -1
@@ -115,6 +189,16 @@ func _wear_selected() -> void:
 	_refresh()
 
 
+## `mTG_nw_st_umbrella_proc`: this design as an umbrella (`ITM_MY_ORG_UMBRELLA0 + n`).
+func _umbrella_selected() -> void:
+	if Game == null or Game.inventory == null:
+		return
+	var msg: String = DesignUmbrella.make(Game.inventory, _sel)
+	if msg != "":
+		Game.post_notice(msg)
+	_refresh()
+
+
 func _activate() -> void:
 	match _mode:
 		ListMode.PICK_EDIT:
@@ -128,20 +212,24 @@ func _activate() -> void:
 				_held = _sel
 				Audio.play_se(&"cursol")
 			elif _held == _sel:
-				## Dropped back where it was picked up.
+				## drop on itself → open the editor on this slot
+				var editor: Node = get_tree().get_first_node_in_group("design_ui")
 				_held = -1
-				Audio.play_se(&"cursol")
+				if editor != null and editor.has_method("open"):
+					close(-1)
+					editor.call("open", _sel)
+					return
 			else:
 				Game.designs.swap_player_order(_held, _sel)
 				_held = -1
 				Audio.play_se(&"cursol")
 
 
-func _on_grid_input(event: InputEvent) -> void:
-	if not _open:
+func _on_book_input(event: InputEvent) -> void:
+	if not _open or not (event is InputEventMouse):
 		return
-	var cell := _cell_at(event)
-	if event is InputEventMouseMotion and cell >= 0:
+	var cell := _slot_at((event as InputEventMouse).position)
+	if event is InputEventMouseMotion and cell >= 0 and cell != _sel:
 		_sel = cell
 		_refresh()
 	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
@@ -151,64 +239,54 @@ func _on_grid_input(event: InputEvent) -> void:
 		_refresh()
 
 
-func _cell_at(event: InputEvent) -> int:
-	if not (event is InputEventMouse):
-		return -1
-	var p: Vector2 = (event as InputEventMouse).position
-	var cw := _grid.size.x / float(COLS)
-	var chh := _grid.size.y / float(ROWS)
-	var cx := int(p.x / cw)
-	var cy := int(p.y / chh)
-	if cx < 0 or cx >= COLS or cy < 0 or cy >= ROWS:
-		return -1
-	return cy * COLS + cx
+## `inv_original_mb1-8_model`: 30x30 wells, two columns at x -34 / 4, rows 34 apart
+## from y 65 (window units, y up). Returned in Book-local pixels.
+static func slot_rect(i: int) -> Rect2:
+	var x0: float = -34.0 if i % COLS == 0 else 4.0
+	var top: float = 65.0 - 34.0 * float(i / COLS)
+	return Rect2(x0 + 75.0, 90.0 - top, 30.0, 30.0)
+
+
+func _slot_at(local: Vector2) -> int:
+	for i in COLS * ROWS:
+		if slot_rect(i).grow(2.0).has_point(local):
+			return i
+	return -1
 
 
 func _refresh() -> void:
 	if not _open:
 		return
-	var titles := {
-		ListMode.PICK_EDIT: "Which design?",
-		ListMode.PICK_TRADE: "Pick a design",
-		ListMode.MANAGE: "Design book",
-	}
-	_title.text = titles[_mode]
-	var d: DesignPattern = Game.designs.player[Game.designs.resolved_index(_sel)]
-	_name.text = d.name if d != null else ""
-	if _mode == ListMode.MANAGE:
-		var worn := Game.worn_design_slot if Game != null else -1
-		_hint.text = "space swap  ·  C %s  ·  B/Esc close%s" % [
-			"take off" if worn == _sel else "wear",
-			"   (wearing \"%s\")" % Game.designs.player[Game.designs.resolved_index(worn)].name if worn >= 0 else ""]
-	else:
-		_hint.text = "arrows choose  ·  space confirm  ·  B/Esc cancel"
-	_grid.queue_redraw()
-
-
-func _draw_grid() -> void:
-	var cw := _grid.size.x / float(COLS)
-	var chh := _grid.size.y / float(ROWS)
-	var font := _grid.get_theme_default_font()
+	_thumbs.clear()
 	for i in COLS * ROWS:
-		var cx := (i % COLS) * cw
-		var cy := int(i / COLS) * chh
-		var pad := 8.0
-		var cell := Rect2(cx + pad, cy + pad, cw - pad * 2, chh - pad * 2 - 14)
-		_grid.draw_rect(cell, Color(1, 1, 1, 1))
-		_grid.draw_rect(cell, Color(0.5, 0.4, 0.3, 1), false, 1.5)
-		var idx := Game.designs.resolved_index(i)
-		var dp: DesignPattern = Game.designs.player[idx]
-		if dp != null:
-			var img := DesignTexture.image(dp)
-			var tex := ImageTexture.create_from_image(img)
-			_grid.draw_texture_rect(tex, cell, false)
-		var label := dp.name if dp != null else "blank"
-		_grid.draw_string(font, Vector2(cx + pad, cy + chh - pad), label,
-			HORIZONTAL_ALIGNMENT_LEFT, cw - pad * 2, 11, Color(0.2, 0.15, 0.1))
-		if Game != null and Game.worn_design_slot == i:
-			_grid.draw_string(font, Vector2(cx + pad, cy + pad + 12), "WORN",
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.1, 0.45, 0.1))
+		var dp: DesignPattern = Game.designs.player[Game.designs.resolved_index(i)]
+		_thumbs.append(ImageTexture.create_from_image(DesignTexture.image(dp)) if dp != null else null)
+	var d: DesignPattern = Game.designs.player[Game.designs.resolved_index(_sel)]
+	var label := d.name if d != null else ""
+	if _mode == ListMode.MANAGE and Game != null and Game.worn_design_slot == _sel and label != "":
+		label += "  (wearing)"
+	_name.text = label
+	_slots.queue_redraw()
+	_point_hand(true)
+
+
+func _point_hand(animate: bool) -> void:
+	if _hand == null or not _open:
+		return
+	var r := slot_rect(_sel)
+	var tip_screen := _book.position + r.position + r.size * Vector2(0.55, 0.45)
+	_hand.point_at(_screen.position + tip_screen * _screen.scale, animate)
+
+
+func _draw_slots() -> void:
+	for i in COLS * ROWS:
+		var r := slot_rect(i)
+		if i < _thumbs.size() and _thumbs[i] != null:
+			_slots.draw_texture_rect(_thumbs[i], r, false)
 		if i == _held:
-			_grid.draw_rect(Rect2(cx + 2, cy + 2, cw - 4, chh - 4), Color(1, 0.8, 0.1, 1), false, 3.0)
-		if i == _sel:
-			_grid.draw_rect(Rect2(cx + 4, cy + 4, cw - 8, chh - 8), Color(1, 0.2, 0.2, 1), false, 3.0)
+			## `mNW_draw_sav_mark_before`: a 40-frame green pulse.
+			var g := int(Time.get_ticks_msec() / 1000.0 * 60.0) % 40
+			if g > 20:
+				g = 40 - g
+			var c := Color8(g * 3, 210 + g * 2, g * 3).lerp(Color8(0, 95 + g * 9 / 2, 0), 0.5)
+			_slots.draw_rect(r.grow(1.5), c, false, 2.0)

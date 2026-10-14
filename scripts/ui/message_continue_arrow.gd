@@ -2,20 +2,20 @@
 class_name MessageContinueArrow
 extends Control
 
-## `mFont_MARKTYPE_NEXT` turn mark. `mMsg_Set_display_button_turn_color` ramps the alpha
-## 0 → 1 → 0 across `mMsg_BUTTON_TURN_TIME` (60 decomp frames = 1 s), so it is a triangle
-## wave and not a hard blink.
+## `mMsg_DrawWindowTurnButton`: `mFont_MARKTYPE_NEXT` (`FONT_nes_tex_next`) in
+## `continue_button_color`, pure blue from `mMsg_init`. `mMsg_Set_display_button_turn_color`
+## ramps its alpha 0 → 1 → 0 across `mMsg_BUTTON_TURN_TIME` (60 frames = 1 s), a
+## triangle wave and not a hard blink.
 
 const PULSE_FRAMES := 60.0
-
-## `continue_button_color` is pure blue in `mMsg_init`; the GC frame reads violet/lavender.
-const ARROW_COLOR := Color(120.0 / 255.0, 100.0 / 255.0, 220.0 / 255.0)
+const ARROW_COLOR := Color8(0, 0, 255)
 
 var _timer: float = 0.0
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	visible = false
 
 
@@ -35,7 +35,4 @@ func _draw() -> void:
 	var half := PULSE_FRAMES * 0.5
 	var ramp: float = (_timer - half) / half
 	var alpha: float = clampf(1.0 + ramp if ramp <= 0.0 else 1.0 - ramp, 0.0, 1.0)
-	var points := PackedVector2Array(
-		[Vector2(0.0, 0.0), Vector2(size.x, 0.0), Vector2(size.x * 0.5, size.y)]
-	)
-	draw_colored_polygon(points, Color(ARROW_COLOR, alpha))
+	FontMark.draw(self, FontMark.NEXT, Rect2(Vector2.ZERO, size), Color(ARROW_COLOR, alpha))

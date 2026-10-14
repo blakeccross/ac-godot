@@ -7,6 +7,10 @@ signal finished
 signal line_shown(text: String)
 signal choices_shown(options: Array)
 signal event_fired(event: Dictionary)
+## The quest manager wants the pockets opened (`{"hand": …}`) or a hand-over played
+## (`{"anim": …}`); answer with `resolve_action`. Unanswered (no listener), a hand-over
+## counts as the pockets closing empty and an animation is skipped.
+signal action_requested(action: Dictionary)
 
 var conversation: DialogueData
 var context: DialogueContext
@@ -14,6 +18,8 @@ var node_id: StringName = &""
 var line: String = ""
 var choices: Array[Dictionary] = []
 var waiting_choice: bool = false
+## `SELNOB`: B picks the last option (`mChoice` `no_b_flag`).
+var choice_b_last: bool = false
 ## Intro modals (`prompt_name` / `prompt_town` / `prompt_clock`) pause here.
 var waiting_prompt: bool = false
 ## Intro train: hold until `IntroTrainStage` reports `stage_wait_met`.
@@ -23,11 +29,26 @@ var last_choice_index: int = -1
 var events_this_step: Array[Dictionary] = []
 ## Optional `(from_node, to_node) -> bool` gate; return false to block Continue.
 var advance_gate: Callable
+## Message-bank script (`BankTalk`; the villager quest manager is one): picks the next
+## message when one ends, answers its own menus, hears in-message choices and the
+## messages' demo orders.
+var talk_manager: BankTalk
 
 var _state: VillagerState
 var _prompt_next: StringName = &""
 var _stage_wait_key: String = ""
 var _stage_wait_next: StringName = &""
+## Menu the talk manager asked for, shown when the current message ends.
+var _pending_choices: Array[String] = []
+## `mDemo_ORDER_NPC0` slot 8 arrives before slot 2 on the same page.
+var _feel_minutes: int = 0
+var _pending_feel: int = 0
+var _manager_choice: bool = false
+## A pick inside a message that set where it continues (`mMsg_Set_continue_msg_num`): the
+## rest of the message still shows, then this message follows.
+var _continue_override: StringName = &""
+var waiting_action: bool = false
+var _pending_action: Dictionary = {}
 
 
 func start(
@@ -44,6 +65,9 @@ func start(
 	_stage_wait_next = &""
 	_prompt_next = &""
 	advance_gate = Callable()
+	_pending_choices.clear()
+	_manager_choice = false
+	_continue_override = &""
 	last_choice_index = -1
 	line = ""
 	choices.clear()
@@ -56,12 +80,12 @@ func start(
 
 
 func advance() -> void:
-	if done or waiting_choice or waiting_prompt or waiting_stage:
+	if done or waiting_choice or waiting_prompt or waiting_stage or waiting_action:
 		return
 	var rec: Dictionary = _current()
-	var next_id := StringName(str(rec.get("next", "")))
+	var next_id := _next_id(rec)
 	if next_id == &"":
-		_finish()
+		_message_end()
 		return
 	if not _advance_allowed(node_id, next_id):
 		if not waiting_stage:
@@ -69,6 +93,14 @@ func advance() -> void:
 			_stage_wait_key = "advance_gate"
 			_stage_wait_next = next_id
 		return
+	## `mMsg_SET_LOCKCONTINUE`: the speaker holds a page for a demo (an item changing hands)
+	## and lets it go on afterwards.
+	if talk_manager != null and _is_bank_message():
+		var lock: Dictionary = talk_manager.lock_continue()
+		if lock.has("anim"):
+			lock["_then_goto"] = next_id
+			_run_manager_step(lock)
+			return
 	_goto(next_id)
 
 
@@ -86,14 +118,13 @@ func release_stage_wait() -> void:
 
 
 func is_continue_blocked() -> bool:
-	return waiting_stage or not _advance_allowed(node_id, _peek_next_node())
+	return waiting_stage or waiting_action or not _advance_allowed(node_id, _peek_next_node())
 
 
 func _peek_next_node() -> StringName:
 	if done or waiting_choice or waiting_prompt or waiting_stage:
 		return &""
-	var rec: Dictionary = _current()
-	return StringName(str(rec.get("next", "")))
+	return _next_id(_current())
 
 
 func _advance_allowed(from_node: StringName, to_node: StringName) -> bool:
@@ -120,11 +151,31 @@ func choose(index: int) -> void:
 	if not waiting_choice or index < 0 or index >= choices.size():
 		return
 	last_choice_index = index
+	if _manager_choice:
+		_manager_choice = false
+		waiting_choice = false
+		choices.clear()
+		_run_manager_step(talk_manager.choose(index))
+		return
 	var opt: Dictionary = choices[index]
+	if context != null:
+		context.determination = str(opt.get("text", ""))
 	_fire_list(opt.get("events", []))
 	waiting_choice = false
 	choices.clear()
 	var next_id := StringName(str(opt.get("goto", "")))
+	if talk_manager != null and _is_bank_message():
+		## A pick that opens a demo (the pockets, a text box) instead of a message.
+		var step: Dictionary = talk_manager.pick_step(talk_manager.current_msg, index)
+		if not step.is_empty():
+			_run_manager_step(step)
+			return
+		## `mChoice_Get_ChoseNum` → `mMsg_Set_continue_msg_num`.
+		var redirect: int = talk_manager.picked(talk_manager.current_msg, index)
+		if redirect >= 0 and conversation != null and conversation.has_node(next_id) and not String(next_id).begins_with("msg_"):
+			_continue_override = StringName("msg_%d" % redirect)
+		elif redirect >= 0:
+			next_id = StringName("msg_%d" % redirect)
 	if next_id == &"":
 		_finish()
 		return
@@ -147,10 +198,19 @@ func current_kind() -> StringName:
 
 
 func _goto(to: StringName) -> void:
+	if _continue_override != &"" and (to == &"" or String(to).begins_with("msg_")) and (conversation == null or not conversation.has_node(to)):
+		to = _continue_override
+		_continue_override = &""
 	if to == &"":
 		_finish()
 		return
 	if conversation == null or not conversation.has_node(to):
+		## `mMsg_Set_continue_msg_num`: the bank script may send a chained message elsewhere.
+		if talk_manager != null and _is_bank_message() and String(to).begins_with("msg_"):
+			var chained: int = int(String(to).substr(4))
+			var instead: int = talk_manager.continue_to(talk_manager.current_msg, chained)
+			if instead != chained:
+				to = StringName("msg_%d" % instead)
 		var other: DialogueData = DialogueCatalog.conversation(to)
 		if other != null and other != conversation:
 			conversation = other
@@ -161,7 +221,19 @@ func _goto(to: StringName) -> void:
 			_finish()
 			return
 	node_id = to
+	_note_message()
 	_settle()
+
+
+## Tell the bank script which message is up (`mMsg_Get_msg_num`) before its first page.
+func _note_message() -> void:
+	if talk_manager == null or not _is_bank_message():
+		return
+	var n: int = int(String(conversation.id).substr(4))
+	if n == talk_manager.current_msg:
+		return
+	talk_manager.current_msg = n
+	talk_manager.entered(n)
 
 
 func _settle() -> void:
@@ -218,7 +290,7 @@ func _settle() -> void:
 					_stage_wait_next = next_id
 					return
 				if next_id == &"":
-					_finish()
+					_message_end()
 					return
 				if not _advance_allowed(node_id, next_id):
 					waiting_stage = true
@@ -239,18 +311,30 @@ func _settle() -> void:
 	_finish()
 
 
+## `MALEFEMALECHK` stores `next_male` / `next_female`; otherwise `next`.
+func _next_id(rec: Dictionary) -> StringName:
+	if rec.has("next_male") or rec.has("next_female"):
+		var female := context != null and context.player_female
+		var picked := str(rec.get("next_female" if female else "next_male", ""))
+		if picked != "":
+			return StringName(picked)
+	return StringName(str(rec.get("next", "")))
+
+
 func _enter_line(rec: Dictionary) -> void:
 	waiting_choice = false
+	choice_b_last = false
 	choices.clear()
 	_fire_list(rec.get("events", []))
 	if waiting_prompt:
-		_prompt_next = StringName(str(rec.get("next", "")))
+		_prompt_next = _next_id(rec)
 		return
 	line = context.substitute(str(rec.get("text", ""))) if context != null else str(rec.get("text", ""))
 	line_shown.emit(line)
 
 
 func _enter_choice(rec: Dictionary) -> void:
+	choice_b_last = bool(rec.get("b_last", false))
 	_fire_list(rec.get("events", []))
 	choices.clear()
 	var raw: Variant = rec.get("options", [])
@@ -329,6 +413,12 @@ func _fire_list(raw: Variant) -> void:
 		events_this_step.append(event)
 		_apply_event(event)
 		event_fired.emit(event)
+	if _pending_feel != 0 and _state != null:
+		_state.set_feel(_pending_feel, _feel_minutes)
+		if context != null:
+			context.mood = _state.mood
+	_pending_feel = 0
+	_feel_minutes = 0
 
 
 func _apply_event(event: Dictionary) -> void:
@@ -369,6 +459,10 @@ func _apply_event(event: Dictionary) -> void:
 				var day_key := "%04d-%02d-%02d" % [context.year, context.month, context.day]
 				_state.relationship.record_gift(item_id, day_key)
 				_sync_bond_context(_state.relationship)
+		"give_map":
+			## `mPr_SetNewMap`: Copper's map for a visitor (`aPOL_check_select2`).
+			if Game != null:
+				Game.unlock_map()
 		"give_item":
 			if context != null and context.inventory != null:
 				var data: ItemData = ItemCatalog.get_item(StringName(str(event.get("item", ""))))
@@ -409,10 +503,32 @@ func _apply_event(event: Dictionary) -> void:
 			var send_msg: String = PostUse.send_mail_at(int(event.get("index", -1)))
 			if send_msg != "":
 				Game.post_notice(send_msg)
+		"demo_order":
+			_demo_order(event)
 		"save_mail":
 			var save_msg: String = PostUse.save_mail_at(int(event.get("index", -1)))
 			if save_msg != "":
 				Game.post_notice(save_msg)
+
+
+## `mDemo_ORDER_QUEST` → the quest manager; `mDemo_ORDER_NPC0` slot 2 (feel) with slot 8
+## (minutes) → the villager's mood (`aNPC_check_feel_demoCode`).
+func _demo_order(event: Dictionary) -> void:
+	var target := str(event.get("target", ""))
+	var order_slot: int = int(event.get("slot", -1))
+	var value: int = int(event.get("value", 0))
+	if target == "quest" and talk_manager != null and value != 0:
+		talk_manager.order(order_slot, value)
+		return
+	if talk_manager != null and target != "quest":
+		talk_manager.npc_order(target, order_slot, value)
+	if target != "npc0" or _state == null:
+		return
+	match order_slot:
+		8:
+			_feel_minutes = value
+		2:
+			_pending_feel = value
 
 
 ## `{op:"donate_commit","item":"<id>"}` — hand the item to the museum and write the
@@ -466,10 +582,133 @@ func _mood_from(name: String) -> VillagerState.Mood:
 			return VillagerState.Mood.NORMAL
 
 
+## The node on screen (a line's page flags: `auto`, `time_end`, `quiet`).
+func current_record() -> Dictionary:
+	return _current()
+
+
 func _current() -> Dictionary:
 	if conversation == null:
 		return {}
 	return conversation.node(node_id)
+
+
+## A message ran out of pages: show the manager's pending menu, or let it pick the next
+## message (`mMsg_Set_continue_msg_num`), or end.
+func _message_end() -> void:
+	## A lock set on the last page (a trade's goods changing hands) holds the window open
+	## until the hand-over is done.
+	if talk_manager != null and _is_bank_message():
+		var lock: Dictionary = talk_manager.lock_continue()
+		if lock.has("anim"):
+			lock["_then_end"] = true
+			_run_manager_step(lock)
+			return
+	_message_end_unlocked()
+
+
+func _message_end_unlocked() -> void:
+	var rec: Dictionary = _current()
+	if talk_manager != null and _is_bank_message() and not rec.has("cont") and not rec.has("open_choice"):
+		## `MSGEND`: the window closes and the talk demo ends (`aQMgr_move_talk`).
+		_pending_choices.clear()
+		_finish()
+		return
+	if not _pending_choices.is_empty() and _is_bank_message() and not _current().has("open_choice"):
+		## Only a message that opens a choice window shows the manager's menu.
+		_pending_choices.clear()
+	if not _pending_choices.is_empty():
+		var labels: Array[String] = _pending_choices.duplicate()
+		_pending_choices.clear()
+		choices.clear()
+		for label: String in labels:
+			choices.append({"text": context.substitute(label) if context != null else label})
+		_manager_choice = true
+		waiting_choice = true
+		choices_shown.emit(choices)
+		return
+	if _continue_override != &"":
+		_goto(_continue_override)
+		return
+	if talk_manager != null:
+		_run_manager_step(talk_manager.next_step())
+		return
+	_finish()
+
+
+## The pockets closed (`{"item", "pocket"}`) or the hand-over animation finished.
+func resolve_action(result: Dictionary) -> void:
+	if not waiting_action or done:
+		return
+	waiting_action = false
+	var step: Dictionary = _pending_action
+	_pending_action = {}
+	if step.has("hand"):
+		if talk_manager == null:
+			_finish()
+			return
+		_run_manager_step(
+			talk_manager.hand_result(StringName(str(result.get("item", ""))), int(result.get("pocket", -1)))
+		)
+		return
+	if step.has("text"):
+		if talk_manager == null:
+			_finish()
+			return
+		_run_manager_step(talk_manager.text_result(str(result.get("text", ""))))
+		return
+	if step.has("_then_goto"):
+		_goto(StringName(str(step["_then_goto"])))
+		return
+	if step.has("_then_end"):
+		_message_end_unlocked()
+		return
+	if step.has("then"):
+		## Several demos in a row (`{"anim": …, "then": {…}}`).
+		_run_manager_step(step["then"])
+		return
+	step["_anim_done"] = true
+	_run_manager_step(step)
+
+
+## Imported disc messages carry their terminator (`cont`); authored graphs don't.
+func _is_bank_message() -> bool:
+	return conversation != null and String(conversation.id).begins_with("msg_")
+
+
+func _run_manager_step(step: Dictionary) -> void:
+	if step.has("hand") or step.has("text") or (step.has("anim") and not step.has("_anim_done")):
+		_pending_action = step
+		waiting_action = true
+		var ask: Dictionary = {}
+		if step.has("hand"):
+			ask = {"hand": step["hand"]}
+		elif step.has("text"):
+			ask = {"text": step["text"]}
+		else:
+			ask = {"anim": step["anim"]}
+		if action_requested.get_connections().is_empty():
+			resolve_action({})
+			return
+		action_requested.emit(ask)
+		return
+	if step.is_empty() or int(step.get("msg", -1)) < 0:
+		_finish()
+		return
+	var raw: Variant = step.get("choices", [])
+	_pending_choices.clear()
+	if typeof(raw) == TYPE_ARRAY:
+		for label: Variant in raw as Array:
+			_pending_choices.append(str(label))
+	var target := StringName("msg_%d" % int(step["msg"]))
+	if DialogueCatalog.conversation(target) == null:
+		## Bank missing: still offer the menu so the flow can go on.
+		if not _pending_choices.is_empty():
+			_message_end()
+			return
+		_finish()
+		return
+	_goto(target)
 
 
 func _finish() -> void:
@@ -479,6 +718,8 @@ func _finish() -> void:
 	waiting_choice = false
 	waiting_prompt = false
 	_prompt_next = &""
+	if talk_manager != null:
+		talk_manager.finish()
 	finished.emit()
 
 

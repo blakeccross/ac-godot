@@ -5,7 +5,7 @@ extends RefCounted
 ## added to the house's music box (`House.music_box`) and consumed; the box then plays any of its
 ## songs without a disc. Song `i` plays `BGM_MD0 + i` (bgm number 128 + i).
 ##
-## Titles are placeholders until the disc's item-name table is extracted.
+## Titles come from the disc (`itemName_minidisk`); placeholders without the pipeline.
 
 const COUNT := 55
 const ID_PREFIX := "minidisk_"
@@ -33,6 +33,9 @@ static func is_disc(item_id_: StringName) -> bool:
 
 
 static func song_name(index: int) -> String:
+	var disc: String = ItemNames.name_of("itemName_minidisk", clampi(index, 0, COUNT - 1))
+	if disc != "":
+		return disc
 	return "K.K. Song %02d" % (clampi(index, 0, COUNT - 1) + 1)
 
 

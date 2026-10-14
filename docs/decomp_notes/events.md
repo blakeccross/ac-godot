@@ -214,13 +214,29 @@ Implemented (scheduler layer, `m_event` equivalent):
 
 Debug commands: `start` forces an event on until `stop`; `goto` jumps the clock to the event's next scheduled start (date-driven events and Joan/K.K.; the special visits have no calendar date, so use `start` or `special`); `special <id>` makes a visit the scheduled special *and* forces it on now.
 
-Not implemented (deliberate, needs other systems):
-- **Presenters** (`ac_event_manager` equivalent): nothing spawns K.K., Joan, Gulliver, the mayor, Redd's tent, festival props, or the interiors keyed to scene (Kamakura, summer camper, gypsy buggy). Listen to `Game.events.event_started/ended` and use `WorldObjectRegistry`. See [world_objects](world_objects.md) for the unplaced structures.
-- Rows kept but disabled (`EventSchedule.UNSUPPORTED`): bridge, Blanca / go-home NPC, wisp, mayor's vacation.
-- Rumor plumbing: `EventCalendar.active_rumors()` exists, dialogue does not read it yet. No event mail (handbills, birthday, Christmas, Valentine's).
-- Per-event area/place save data (`mEv_area_c`, `mEv_place_c`), `TOO_SHORT` suppression, field-day state, `mFAs` field rank (`DEFAULT_FIELD_RANK` constant), player birthday (unset, so that row never fires).
+Implemented (manager layer, `ac_event_manager` equivalent):
+
+| Piece | File |
+| --- | --- |
+| Placement rules (free / empty / seaside unit, empty lot, block kinds, day-kept places), spawn/despawn, props as buildings | `scenes/world/event_manager.gd` (`EventManager`, node in `world.tscn`) |
+| One presenter per event (`PRESENTERS`), `start` / `stop` / `tick` | `scripts/systems/event_presenter.gd`, `scripts/systems/events/*_presenter.gd` |
+| Shared NPC presentation and talk plumbing | `EventNpc`, `BankTalk`, `TalkActions` |
+| Festival maps (`m_event_map_npc_data.c_inc` → JSON), crowd families, villager slots | `tools/gen_event_map.py`, `data/events/event_map.json`, `FestivalCrowd`, `festival_presenter.gd`, `festival_villager.gd` |
+| Visitors: Joan, K.K., Gulliver, Redd, Saharah, Wendell, Gracie, Katrina; holidays: Tortimer, festivals, Chip, the night stall, Katrina's lottery, the speech, Franklin, Halloween, Jingle, snow cabin, summer camper, fireworks | `scripts/systems/events/*_talk.gd`, `scenes/world/events/*.gd` |
+| Tests | `tests/unit/test_event_visitors.gd` |
+
+Gaps (behaviour that differs from the decomp or is missing):
+- Visitors appear at their spot for the whole event; the original's walk-in / walk-out at the acre edge ("show at wade") is not modelled. Jack and Jingle teleport to a new acre once the player is 20 m away.
+- Rows kept but disabled (`EventSchedule.UNSUPPORTED`): bridge, Blanca / go-home NPC, Wisp, mayor's vacations. Wisp needs the spirit (hitodama) field actors; Blanca needs the face editor.
+- Sports fair: residents stand at their stations with their lines, but the foot race, ball toss and tug-of-war games (`ac_tokyoso_*`, `ac_tamaire_*`, `ac_tunahiki_*`) are not played. Aerobics: no Copper, no Tortimer radio card (`mSC_Radio_*`). New Year's: no queue at the offering box (`ac_hatumode_control`). Groundhog: no pop-up demo.
+- Meteor shower has no shooting stars (`eEC_EFFECT_SHOOTING_SET`); the fireworks' ground flash is one omni light.
+- Handbills and event mail (birthday, Christmas, Valentine's), the bargain FG layout for Sale Day; Gulliver's foreign-item letter.
+- Destiny (Katrina, the lottery) is stored but nothing reads it yet (villager popularity, money / goods luck).
+- Held props (fans, tumblers, crackers) are animations only; no hand-held item models.
+- The snow cabin model shows an untextured grey quad at its entrance (conversion).
+- Joan's hand-over order is simplified; K.K.'s staff roll has no light / camera moves.
+- Rumor plumbing: `EventCalendar.active_rumors()` exists, dialogue reads the rumor events through `VillagerTalkManager`.
 - `town_day` is `1 + world_seed % 28` — a placeholder; the decomp's roll was not researched.
-- `ReddBook` (`scripts/systems/redd_book.gd`) is still the weekly-tent stand-in and does not read `Game.events`. **Diverges from the original**, where Redd is one draw of the six-way special event. Move it onto `broker_sale` when the tent presenter lands.
 
 Answered from the decomp while implementing: harvest moon = the 8th lunisolar month's start date + 14 days (table in `lb_reki.c`); equinox = `(int)(20.8431 + 0.242194 * (y - 1980)) - (y - 1980) / 4` (spring) / `23.2488` (autumn); the table's start *hour* for special visits is a literal per event (Redd 18, gypsy 21, others 6); only the shop-sale handbill's end hour reads `dates[SPECIAL3]`.
 

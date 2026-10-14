@@ -1393,3 +1393,20 @@ func _fill_pockets(inventory: Inventory) -> void:
 	while inventory.empty_slot_count() > 0:
 		assert_int(inventory.add(filler, filler.max_stack)).is_equal(0)
 	assert_int(inventory.empty_slot_count()).is_equal(0)
+
+
+## `mSM_CHECK_LAST_FISH_GET`: only the one species the fish page still lacks completes it.
+func test_last_missing_fish_completes_the_page() -> void:
+	Game.species_log.clear()
+	var page: Array = EncyclopediaCatalog.page(&"fish")
+	assert_int(page.size()).is_greater(1)
+	var last := FishData.new()
+	last.id = StringName(str(page[page.size() - 1]["id"]))
+	var first := FishData.new()
+	first.id = StringName(str(page[0]["id"]))
+	assert_bool(Fishing.completes_record(last)).is_false()
+	for i: int in page.size() - 1:
+		Game.species_log.record(StringName(str(page[i]["id"])))
+	assert_bool(Fishing.completes_record(last)).is_true()
+	assert_bool(Fishing.completes_record(first)).is_false()
+	Game.species_log.clear()

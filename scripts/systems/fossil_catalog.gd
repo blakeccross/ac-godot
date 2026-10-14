@@ -64,6 +64,11 @@ static func item_id_for_index(index: int) -> StringName:
 static func get_item(fossil_id: StringName) -> FurnitureData:
 	ensure_loaded()
 	var data: ItemData = ItemCatalog.get_item(fossil_id)
+	if data == null and not _rows.is_empty():
+		## `ItemCatalog.reload()` forgets the fossils registered here; put them back.
+		for row: Dictionary in _rows:
+			ItemCatalog.remember(_make_item(row))
+		data = ItemCatalog.get_item(fossil_id)
 	return data as FurnitureData
 
 

@@ -34,6 +34,8 @@ func _ready() -> void:
 		Game.weather_changed.connect(_on_weather_changed)
 	if BgmCatalog.shop_level(room) >= 0 and not Clock.time_changed.is_connected(_on_shop_clock):
 		Clock.time_changed.connect(_on_shop_clock)
+	if not Clock.time_changed.is_connected(_refresh_light):
+		Clock.time_changed.connect(_refresh_light)
 	_sync_rain_se()
 	_build_room(room)
 	_apply_indoor_light(room)
@@ -128,6 +130,7 @@ func _sync_rain_se() -> void:
 
 func _on_weather_changed(_weather: StringName) -> void:
 	_sync_rain_se()
+	_refresh_light()
 
 
 func _exit_tree() -> void:
@@ -135,6 +138,9 @@ func _exit_tree() -> void:
 		Game.weather_changed.disconnect(_on_weather_changed)
 	if Clock.time_changed.is_connected(_on_shop_clock):
 		Clock.time_changed.disconnect(_on_shop_clock)
+	if Clock.time_changed.is_connected(_refresh_light):
+		Clock.time_changed.disconnect(_refresh_light)
+	VisualWindowLight.clear_indoor_room_prim()
 	Audio.stop_syslev()
 	## Whatever is still scuttling goes back into the walls (`aMR_GokiInfoDt`).
 	if session != null and session.room != null and PlayerHouse.is_player_room(session.room.id):
@@ -310,6 +316,13 @@ func _apply_indoor_light(room: Room) -> void:
 	InteriorLighting.apply(self, _world_env, _camera, grid, room)
 
 
+func _refresh_light() -> void:
+	## Palette blends with the clock; villager-home lamps follow the owner (`m_kankyo`).
+	if session == null or session.room == null:
+		return
+	InteriorLighting.refresh_light(self, _world_env, grid, session.room)
+
+
 func _spawn_player() -> void:
 	var player: Player = PLAYER_SCENE.instantiate() as Player
 	$Characters.add_child(player)
@@ -339,6 +352,9 @@ func _spawn_player() -> void:
 
 func _spawn_resident(room: Room) -> void:
 	## Indoor `ac_npc2`: show the homeowner when awake at home.
+	if room != null and (room.kind == Room.Kind.KAMAKURA or room.kind == Room.Kind.TENT):
+		_spawn_guest(room)
+		return
 	if room == null or room.kind != Room.Kind.NPC:
 		return
 	var occupant: StringName = &""
@@ -360,6 +376,28 @@ func _spawn_resident(room: Room) -> void:
 	villager.set("data", data)
 	villager.set("indoor_resident", true)
 	villager.name = "Resident"
+	$Characters.add_child(villager)
+	if villager is Node3D:
+		var stand: Vector3 = VillagerHome.indoor_stand(session)
+		stand.y = 0.1
+		(villager as Node3D).global_position = stand
+		(villager as Node3D).rotation.y = WorldGrid.yaw_for_facing(WorldGrid.Facing.SOUTH)
+
+
+## The snow cabin's resident (`mNpc_AddNpc_inKamakura`) or the summer camper, talking as
+## an event guest.
+func _spawn_guest(room: Room) -> void:
+	var event: StringName = &"kamakura" if room.kind == Room.Kind.KAMAKURA else &"summer_camper"
+	if Game == null or Game.events == null or not Game.events.is_active(event):
+		return
+	var data: VillagerData = VillagerCatalog.get_villager(GuestHousePresenter.guest_of(event))
+	if data == null:
+		return
+	var villager: Node = VILLAGER_SCENE.instantiate()
+	villager.set("data", data)
+	villager.set("indoor_resident", true)
+	villager.set("guest", GuestHousePresenter.guest_kind(event))
+	villager.name = "Guest"
 	$Characters.add_child(villager)
 	if villager is Node3D:
 		var stand: Vector3 = VillagerHome.indoor_stand(session)

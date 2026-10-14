@@ -34,6 +34,8 @@ signal notice_posted(text: String)
 signal weather_changed(weather: StringName)
 signal cloth_changed(cloth_id: StringName)
 signal design_changed
+## The player's face texture changed (`mPlib_change_player_face`): bee swelling.
+signal face_changed
 
 const DEFAULT_PLAYER_NAME := "Player"
 const DEFAULT_TOWN_NAME := "Town"
@@ -41,8 +43,59 @@ const DEFAULT_PLAYER_GENDER := &"male"
 
 var inventory: Inventory = Inventory.new()
 var villagers: VillagerRoster = VillagerRoster.new()
+## `animals[]` slots + move-in / move-out bookkeeping (`m_npc.c`).
+var residents: TownResidents = TownResidents.new()
+## `mSDI_StartInitAfter` runs once per load; the world resolves several times a session.
+var _residents_session_done: bool = false
+## `mNpc_Talk_Info_c` for this session (patience, "any work?" flag). Not saved.
+var npc_talk_info: NpcTalkInfo = NpcTalkInfo.new()
+## Deliveries, errands and villager contests (`Private_c.deliveries/errands`,
+## `Animal_c.contest_quest`).
+var quests: VillagerQuests = VillagerQuests.new()
+## A villager asked for an item (`mSM_IV_OPEN_QUEST` / `_TAKE`): `quest_handover_pocket` is the
+## only pocket offered, or with `quest_handover_mode` "fish" / "insect" any fish / bug.
+var quest_handover_pending: bool = false
+var quest_handover_pocket: int = -1
+var quest_handover_mode: String = "quest"
+signal quest_handover_resolved(item_id: StringName, pocket: int)
+## `Private_c.hint_count`: first-job hints villagers still owe (bit 7 = all given).
+var first_job_hint_count: int = 0
+## Year the Valentine's letters went out (`event_save_common.valentines_day_date`).
+var valentine_year: int = 0
+## `Private_c.celebrated_birthday_year` / `birthday_present_npc`: the year the birthday
+## visit came, and who brought it (left out of that year's cards).
+var celebrated_birthday_year: int = 0
+var birthday_present_npc: StringName = &""
+## `EventDates.ordinal` of the last birthday-card check (the last play date).
+var birthday_card_day: int = 0
+## Mom's letters (`mPr_mother_mail_info_c`): the last day checked and which went out. Saved.
+var mother_mail: Dictionary = MotherMail.new_state()
+## `Common_Get(complete_payment_type)`: a paid-off loan or the end of Nook's chores, cheered
+## the next time the player walks out of a door (`m_player_main_complete_payment`).
+const PAYMENT_HOUSE := &"house"
+const PAYMENT_ARBEIT := &"arbeit"
+var complete_payment: StringName = &""
+## Tortimer's exercise card (`mPr_day_day_c radiocard`): last stamp date and stamps. Saved.
+var radio_card: Dictionary = RadioCard.new_state()
+## The calendar's played days and Tortimer days (`mCD_player_calendar_c`). Saved.
+var calendar: Dictionary = CalendarBook.new_state()
+## The fishing tourney's records (`Save_Get(fishRecord)`), `FishRecord`. Saved.
+var fish_records: Array = []
+## `treasure_buried_time` / `treasure_checked_time` as ordinals (0 never). Saved.
+var treasure_buried_day: int = 0
+## `Save_Get(haniwa_scheduled)`: fine weather after rain orders gyroids for the next growth
+## (`mAGrw_OrderSetHaniwa`); `BuriedUse.renew` buries them and clears it.
+var haniwa_scheduled: bool = false
+## `HOLE_SHINE`: the hole the day's shine spot left (`bIT_common_bury_after`).
+var shine_hole: StringName = &""
+var treasure_checked_day: int = 0
+## The last board check wrote no seasonal notice, so a villager may bury treasure.
+var treasure_due: bool = false
 var relationships: RelationshipBook = RelationshipBook.new()
 var interiors: InteriorBook = InteriorBook.new()
+## The town's human residents and which one is playing (`PlayerRoster`). Read from the save at
+## Continue; a fresh town starts with an empty roster and the new resident in slot 0.
+var roster: PlayerRoster = PlayerRoster.new()
 var shops: ShopBook = ShopBook.new()
 var museum: MuseumBook = MuseumBook.new()
 var species_log: SpeciesLog = SpeciesLog.new()
@@ -57,6 +110,13 @@ var catalog: CatalogBook = CatalogBook.new()
 var town_fruit: StringName = &"apple"
 ## Holidays, weekly visitors and the special-NPC schedule (`m_event`); see `EventCalendar`.
 var events: EventCalendar = EventCalendar.new()
+## The waterfall rainbow after rain (`mEnv_rainbow_*`).
+var rainbow: Rainbow = Rainbow.new()
+## The community board's posts (`m_notice`).
+var notice_board: NoticeBoard = NoticeBoard.new()
+## The Happy Room Academy's membership and marks (`m_mark_room`).
+var hra: HappyRoomAcademy = HappyRoomAcademy.new()
+var _rainbow_accum: float = 0.0
 var designs: DesignBook = DesignBook.new()
 var first_job: FirstJob = FirstJob.new()
 ## The town train (`m_train_control`), run for the whole session.
@@ -73,6 +133,8 @@ var interior_spawn_yaw: float = 0.0
 var block_auto_enter_doors: bool = false
 ## After indoor leave, world plays structure leave + player GO_OUT (`mPlayer_INDEX_OUTDOOR`).
 var emerge_from_door: bool = false
+## Set by `continue_game` for an outdoor save: the world spawns the player at their own door.
+var continue_from_house: bool = false
 ## After spawn, walk INTO_S1 past the door (museum entrance / wing links).
 var play_door_arrive: bool = false
 ## `Common_Get(last_scene_no)`: the room the player last walked out of (Copper greets
@@ -99,10 +161,29 @@ var has_map: bool = false
 ## `Save_Get(num_statues)` — how many Nook house statues the town has built (0..3, gold →
 ## jade); the next one takes the following rank.
 var num_statues: int = 0
+## `mPr_FLAG_POSTOFFICE_GIFT0..3`: balance milestones already rewarded (`BankTerminal.GIFTS`).
+var bank_gift_flags: int = 0
+## `Save_Get(melody)`: the town tune (`TownTune`), set at the tune board.
+var town_tune: PackedByteArray = TownTune.default_notes()
 ## `Private_c.complete_fish_insect_flags` — see `CompleteTalk`.
 var complete_flags: int = 0
 ## `goki_shocked_flag`: the first roach of a session startles the player, once.
 var goki_shocked: bool = false
+## `player_bee_swell_flag`: stung by bees — the swollen face lasts until the game is reset
+## (common data, never saved).
+var bee_swell: bool = false
+## `player_bee_chase_flag`: a swarm is out after the player (villagers cry "Bees!").
+var bee_chase: bool = false
+## `npclist[].conversation_flags.beesting`, inverted: villagers who have greeted the player
+## since the sting and so no longer remark on the face.
+var bee_greeted: Dictionary = {}
+## `Private_c.reset_count`: sessions ended without saving (saved).
+var reset_count: int = 0
+## `Common_Get(reset_flag)`: this session follows one of those — Mr. Resetti is waiting.
+var reset_flag: bool = false
+## `Save.cheated_flag` / `npc_force_go_home`: the clock was found earlier than the last save
+## (`aNPS2_game_start_wait`). Saved; it bars the birthday surprise.
+var cheated_flag: bool = false
 ## Session weather (`mEnv_WEATHER_*`). Rolled by `Weather` on `field_renewed`.
 var weather: StringName = &"clear"
 ## False until `sync_events` has adopted the clock for this session.
@@ -127,6 +208,72 @@ var player_yaw: float = 0.0
 var removed_interactables: Array[String] = []
 var stump_interactables: Array[String] = []
 var hole_interactables: Array[String] = []
+## Weeds in the field (`GRASS_A`–`GRASS_C`): `weed_<x>_<z>` → variant 0–2. Saved.
+var weeds: Dictionary = {}
+## `Save.clear_grass`: a wish has cleared the town of weeds; none grow back (saved).
+var clear_grass: bool = false
+## Renewals not yet sown with weeds (crossed indoors or while the game was off). Saved.
+var weed_days_pending: int = 0
+## `mFAs_GetFieldRank`: the town's rating 0–6 from the last assessment.
+var field_rank: int = 0
+## `Save.good_field`: days in a row at rank 6 and the day last counted (−1 none). Saved.
+var perfect_streak: int = 0
+var perfect_streak_day: int = -1
+## `Save.dust_flag`: trash pushed the rating to nothing; it stays there until it is all gone.
+var dust_flag: bool = false
+## `mSC_TROPHY_GOLDEN_AXE`: the wishing well has given the golden axe. Saved.
+var golden_axe_got: bool = false
+## `mPlib_Check_golden_item_get_demo_end(SHOVEL)`: the golden shovel's fanfare has played.
+var golden_shovel_shown: bool = false
+## `mPr_FLAG_MUSEUM_COMP_HANDBILL_*`: the museum-complete letter (`MuseumCompMail`). Saved.
+var museum_comp_mail: int = 0
+## `mFI_GetDigStatus`'s `old_pos`: where the golden shovel last dug (session only).
+var golden_last_dig: Vector2i = Vector2i(-1, -1)
+## `unk_nook_present_count`: presents Nook has handed over for codes this session.
+var nook_code_gifts: int = 0
+## `allgrow_ss_pos_info.stone_pos`: the rock that pays out Bells ("" none or spent). Saved.
+var money_rock: String = ""
+## The day the money rock was last picked (−1 never), so a spent one waits for tomorrow. Saved.
+var money_rock_day: int = -1
+## `ITM_FOOD_MUSHROOM` on the field: `mushroom_<x>_<z>` → 1. Saved.
+var mushrooms: Dictionary = {}
+## `Save.mushroom_time`: when mushrooms were last set or cleared (`Clock.absolute_minute`, −1
+## never) and `active`: a new day has started, so the 8 AM crop may grow. Saved.
+var mushroom_minute: int = -1
+var mushroom_active: bool = false
+## `mMsr_FirstClearMushroom` has run for this play session (not saved).
+var mushrooms_session_cleared: bool = false
+## Signboards the residents put up (`SignboardUse`): `signboard_<x>_<z>` → `{design}`. Saved.
+var signboards: Dictionary = {}
+## The second bridge Tortimer builds (`SecondBridge`, `Save_Get(bridge)`). Saved.
+var bridge: Dictionary = {}
+## Things lying on the field (`FieldItems`): `fitem_<x>_<z>` → {id, wrapped}. Saved.
+var field_items: Dictionary = {}
+## Sea shells on the beach (`ShellUse`): `shell_<x>_<z>` → item id. Saved.
+var shells: Dictionary = {}
+## Shells still to wash up: twenty when a session starts (`mFI_SetFirstSetShell`).
+var shells_owed: int = ShellUse.FIRST_NUM
+var shell_minute_counted: bool = false
+## `Save.snowmen`: three slots, each {} or {head, body (sizes 0–1), score, cell [x, z], age}.
+var snowmen: Array = [{}, {}, {}]
+## `Save.snowman_year…hour` as `Clock.absolute_minute` (−1 never): no new balls until 6 AM.
+var snowman_built_minute: int = -1
+## `Common.snowman_msg_id` (`mSN_decide_msg`): rolled each play session, not saved.
+var snowman_msg_id: int = 0
+## The snowman-season balls (`mEv` common place / area): part → {cell [x, z], dist}. Saved.
+var snowballs: Dictionary = {}
+## The town's ball (`Common_Get(ball_pos)` / `ball_type`), `BallUse`. Saved.
+var ball: Dictionary = {}
+## `Private.sunburn`: {rank 0–8, changed (day number of the last change), hold (days)}.
+var sunburn: Dictionary = {"rank": 0, "changed": -1, "hold": 0}
+## The diary (`mCD_keep_diary_c`): month 1–12 → that month's page. Saved.
+var diary: Dictionary = {}
+## `Common.money_power` / `goods_power`: the house's feng shui (`FengShui`), recomputed on
+## the way out to the field. Not saved.
+var money_power: int = 0
+var goods_power: int = 0
+const GOODS_POWER_MIN := -30
+const GOODS_POWER_MAX := 50
 var plant_states: Dictionary = {}
 ## Buried dig spots: persist_id → {kind, item_id, cell_x, cell_z} (`mFI` deposit / shine).
 var buried_deposits: Dictionary = {}
@@ -136,6 +283,28 @@ var world_seed: int = WorldGenerator.DEFAULT_SEED
 ## Town grass motif (`bg_tex_idx`): 0 triangle, 1 square, 2 circle.
 var grass_pattern: int = WorldData.GrassPattern.TRIANGLE
 ## Station arrival (`ac_intro_demo`) runs inside the generated world, not a test acre.
+## K.K.'s scene runs the player select of an existing town (`ac_npc_p_sel2`) rather than the
+## first-time opening (`ac_npc_p_sel`).
+var player_select_mode: bool = false
+## This town's identity, so a passport knows its home (`mLd_CheckThisLand`). Random per town.
+var town_id: int = 0
+## Playing as a visitor from another town (`mPr_FOREIGNER`): no house here, and the only way
+## out is Porter at the station, who saves the town and the passport.
+var foreigner: bool = false
+## Come in on the train (a visitor, or a traveller back home): start on the platform.
+var arrive_by_train: bool = false
+## Blanca's face and painter in this town (`Save_Get(mask_cat)`, `MaskCat`).
+var mask_cat: Dictionary = {}
+## The resident has met Blanca on a train before (`mPr_FLAG_1`: 0x33F3, not 0x33F2).
+var met_blanca: bool = false
+## `mPr_FLAG_MASK_CAT_SCHEDULED`: she rode the last trip home, so not this one.
+var mask_cat_scheduled: bool = false
+## The roster slot a newcomer to an existing town takes (`aNPS2_TALK_START_TYPE3`), or -1
+## for a brand-new town.
+var joining_slot: int = -1
+## Another resident whose house the player is inside (their rooms are swapped in), or -1.
+var visiting_slot: int = -1
+var _own_house_stash: Dictionary = {}
 var intro_station_active: bool = false
 ## After Porter until debt/job finish — vacant myhome doors are enterable for the pick.
 var intro_station_can_pick_house: bool = false
@@ -160,6 +329,11 @@ var title_demo_index: int = 0
 var museum_donate_pending: bool = false
 var museum_donate_result: Dictionary = {}
 signal museum_donate_resolved(donated: bool)
+## Nook's "I want to sell" (`mSM_IV_OPEN_SELL`): the pockets are open for picking what to sell.
+var shop_sell_pending: bool = false
+## Pocket slots picked by "Sell" / "Sell all".
+var shop_sell_slots: Array[int] = []
+signal shop_sell_resolved(picked: bool)
 ## A drawer / music player asked for an item from the pockets (`mSM_IV_OPEN_PUTIN_FTR` /
 ## `mSM_IV_OPEN_MINIDISK`). `storage_putin_filter` is `&"any"` or `&"minidisk"`.
 var storage_putin_pending: bool = false
@@ -192,7 +366,10 @@ func _ready() -> void:
 
 
 func has_continue() -> bool:
-	return SaveService.has_save()
+	for path: String in SaveService.slot_paths:
+		if SaveService.has_save(path):
+			return true
+	return false
 
 
 func start_new_game(
@@ -300,6 +477,102 @@ func _begin_station_arrival(seed_value: int, identity: Dictionary, sync_clock: b
 	_change_scene(WORLD_SCENE)
 
 
+## K.K. found a passport from another town (`aNPS2_TALK_START_TYPE2`): arrive by train as a
+## visitor.
+func start_visit() -> void:
+	reset_session()
+	player_select_mode = false
+	if SaveService.load_visitor(Travel.read_passport()) != OK:
+		abort_intro_sequence()
+		return
+	resume_clock(SaveService.last_elapsed)
+	_arrive_by_train()
+
+
+## K.K. found this town's own traveller's passport (`aNPS2_TALK_START_TYPE1`): copy them back
+## into their slot and come home on the train.
+func start_return() -> void:
+	var slot: int = Travel.adopt_passport()
+	if slot < 0:
+		abort_intro_sequence()
+		return
+	reset_session()
+	player_select_mode = false
+	if SaveService.load_game("", slot) != OK:
+		abort_intro_sequence()
+		return
+	resume_clock(SaveService.last_elapsed)
+	SaveService.mark_session_open(reset_count)
+	_arrive_by_train()
+
+
+func _arrive_by_train() -> void:
+	arrive_by_train = true
+	current_room_id = &""
+	continue_from_house = false
+	update_notice_board()
+	_set_phase(Phase.PLAYING)
+	_change_scene(WORLD_SCENE)
+
+
+## Porter saw the traveller off (`aSTM_game_end_init`): the train leaves for the title.
+func depart_by_train() -> void:
+	await SceneTransition.play_wipe_out(SceneTransition.Style.FADE)
+	_set_phase(Phase.TITLE)
+	_change_scene(TITLE_SCENE)
+
+
+## A newcomer's arrival in the saved town (`mCD_START_COND_2`): the town as it is, an empty
+## resident in `joining_slot`, then the same station arrival — Porter, Nook, a vacant house.
+func _begin_resident_arrival(identity: Dictionary) -> void:
+	var slot: int = joining_slot
+	joining_slot = -1
+	reset_session()
+	if SaveService.load_game("", slot) != OK:
+		var seed_value: int = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
+		_begin_station_arrival(seed_value, identity, false)
+		return
+	resume_clock(SaveService.last_elapsed)
+	var town: String = town_name
+	_apply_identity(identity)
+	town_name = town
+	intro_station_active = true
+	intro_station_can_pick_house = false
+	intro_station_resume_debt = false
+	intro_station_house_id = &""
+	intro_pending_house_id = &""
+	_grant_intro_start_items()
+	intro_payment_pending = false
+	_set_phase(Phase.INTRO)
+	_change_scene(WORLD_SCENE)
+
+
+## Walk into another resident's house: their rooms and house record stand in for the
+## player's own until they come back out (`aMHS_goto_next_pl_scene` to that house's scene).
+func enter_resident_house(slot: int) -> void:
+	if slot < 0 or slot == roster.current or visiting_slot == slot:
+		return
+	if visiting_slot >= 0:
+		leave_resident_house()
+	_own_house_stash = PlayerRoster.capture_house(interiors)
+	PlayerRoster.restore_house(interiors, roster.slots[slot])
+	visiting_slot = slot
+
+
+## Back outside from another resident's house: their rooms go back to their slot.
+func leave_resident_house() -> void:
+	if visiting_slot < 0:
+		return
+	var theirs: Dictionary = PlayerRoster.capture_house(interiors)
+	var priv: Dictionary = roster.slots[visiting_slot]
+	priv[PlayerRoster.KEY_ROOMS] = theirs[PlayerRoster.KEY_ROOMS]
+	priv[PlayerRoster.KEY_HOUSE] = theirs[PlayerRoster.KEY_HOUSE]
+	roster.forget_house(visiting_slot)
+	PlayerRoster.restore_house(interiors, _own_house_stash)
+	_own_house_stash = {}
+	visiting_slot = -1
+
+
 func _grant_intro_start_items() -> void:
 	## `m_start_data_init.c`: a new resident starts with one QUEST-flagged 1,000-bell
 	## bag in pocket slot 0 — the down payment Nook collects after the house tour.
@@ -351,6 +624,34 @@ func cancel_museum_donation() -> void:
 	museum_donate_pending = false
 	museum_donate_result = {}
 	museum_donate_resolved.emit(false)
+
+
+## Nook opens the pockets in sell mode (`aNSC_buy_menu_close_wait_init`). Picking
+## "Sell" / "Sell all" or closing resolves `shop_sell_resolved`.
+func request_shop_sell() -> void:
+	shop_sell_pending = true
+	shop_sell_slots = []
+	if get_tree() == null:
+		return
+	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui")
+	if inv_ui != null and inv_ui.has_method("open"):
+		inv_ui.call("open")
+
+
+func take_shop_sell(slots: Array[int]) -> void:
+	if not shop_sell_pending:
+		return
+	shop_sell_pending = false
+	shop_sell_slots = slots
+	shop_sell_resolved.emit(not slots.is_empty())
+
+
+func cancel_shop_sell() -> void:
+	if not shop_sell_pending:
+		return
+	shop_sell_pending = false
+	shop_sell_slots = []
+	shop_sell_resolved.emit(false)
 
 
 ## Open the pockets so the player picks something to put away. `storage_putin_resolved` fires
@@ -440,7 +741,10 @@ func notify_intro_ready() -> void:
 func finish_intro_sequence(identity: Dictionary) -> void:
 	## Rover's train pulls into town (`aNGD_scene_change_wait_init`): make the new town
 	## and continue straight into the outdoor station arrival, keeping the clock the
-	## player set on the train.
+	## player set on the train. A newcomer to a saved town arrives in that town instead.
+	if joining_slot >= 0:
+		_begin_resident_arrival(identity)
+		return
 	var seed_value: int = int(Time.get_unix_time_from_system()) ^ int(Time.get_ticks_usec())
 	_begin_station_arrival(seed_value, identity, false)
 
@@ -490,6 +794,8 @@ func resolve_world_data() -> WorldData:
 	var data: WorldData
 	if world_mode == WorldData.Mode.GENERATED:
 		data = WorldGenerator.generate(world_seed, title_demo_active)
+		if not title_demo_active:
+			_resolve_residents(data)
 	else:
 		data = WorldGenerator.authored_test_town()
 	data.grass_pattern = grass_pattern
@@ -497,22 +803,275 @@ func resolve_world_data() -> WorldData:
 	return data
 
 
-func continue_game() -> void:
+## New town: the generator's starters become the roster. Then, once per load, the
+## `mSDI_StartInitAfter` villager steps (moving candidate, move-out, move-in, new house),
+## and the houses are rebuilt from the roster.
+func _resolve_residents(data: WorldData) -> void:
+	if residents.is_empty():
+		residents.adopt_from_houses(WorldGenerator.generated_houses(data))
+	if not _residents_session_done:
+		_residents_session_done = true
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		var report: Dictionary = residents.start_session(_residents_context(data, rng))
+		if report.get("moved_in", &"") != &"":
+			villagers.get_or_create(report["moved_in"] as StringName)
+		## `mNpc_ChangePresentCloth`.
+		for id: StringName in residents.resident_ids():
+			villagers.get_or_create(id).wear_present_cloth()
+		## `mNpc_Remail`.
+		VillagerLetters.send_replies(
+			residents, relationships, Clock.day_number(), player_name, rng, _deliver_villager_mail
+		)
+		_check_valentines(rng)
+	WorldGenerator.apply_residents(data, residents)
+
+
+func _residents_context(data: WorldData, rng: RandomNumberGenerator) -> Dictionary:
+	return {
+		"rng": rng,
+		"day": Clock.day_number(),
+		"minute": Clock.absolute_minute(),
+		"met": func(id: StringName) -> bool: return player_met(id),
+		"letters": func(_id: StringName) -> int: return 0,
+		"field_rank": field_rank,
+		"reserves": data.reserve_cells,
+		"on_goodbye": func(id: StringName, looks: int) -> void: _villager_moved_out(id, looks, rng),
+	}
+
+
+## `mNpc_GetAnimalMemoryIdx(player) != -1`: the player has a memory in this animal, made on
+## first talk.
+func player_met(villager_id: StringName) -> bool:
+	return relationships.has_id(villager_id) and relationships.get_or_create(villager_id).has_memory
+
+
+## `mNpc_ForceRemove`: goodbye letter to the player (`mNpc_SetGoodbyMailData`, mail
+## `0x20E + looks × 3 + rand(3)`), then the animal's memories go with it (`mNpc_ClearAnimalInfo`).
+func _villager_moved_out(villager_id: StringName, looks: int, rng: RandomNumberGenerator) -> void:
+	var villager: VillagerData = VillagerCatalog.get_villager(villager_id)
+	var name: String = villager.display_name if villager != null else String(villager_id)
+	if looks >= 0 and looks < TownResidents.LOOKS_NUM and MailBank.has_bank():
+		var mail_no: int = 0x20E + looks * 3 + rng.randi_range(0, 2)
+		var text: Dictionary = MailBank.letter(mail_no, player_name, {0: player_name, 1: name, 3: town_name})
+		var mail := MailData.new()
+		mail.sender_id = villager_id
+		mail.sender_name = name
+		mail.sender_type = MailData.NameType.NPC
+		mail.recipient_type = MailData.NameType.PLAYER
+		mail.recipient_name = player_name
+		mail.font = MailData.LetterFont.RECV
+		mail.header = str(text["header"])
+		mail.body = str(text["body"])
+		mail.footer = str(text["footer"])
+		## `mNpc_GetPaperType`: a random stationery pick (the shop paper lists aren't ported).
+		mail.paper_type = rng.randi_range(0, MailBank.PAPER_NUM - 1)
+		## Home mailbox first, else the post office keeps it (`mNpc_SendGoodbyAnimalMailOne`).
+		if inventory.add_received_mail(mail) < 0 and post != null:
+			post.receipt_mail(mail)
+	relationships.forget(villager_id)
+	villagers.forget(villager_id)
+
+
+func _physics_process(delta: float) -> void:
+	## `mNpc_TalkInfoMove` runs every play frame.
+	if phase == Phase.PLAYING:
+		npc_talk_info.advance(delta)
+		## `mEnv_rainbow_power_calc` runs in field (FG) scenes only.
+		if current_room_id == &"":
+			_rainbow_accum += delta * DecompTime.TICK_HZ
+			while _rainbow_accum >= 1.0:
+				_rainbow_accum -= 1.0
+				rainbow.tick(Clock.month, Clock.day, Clock.now_sec(), Clock.season() == Clock.Season.SUMMER)
+
+
+## `mFI_CheckPlayerWade(mFI_WADE_START)`.
+func notify_wade_start() -> void:
+	npc_talk_info.on_wade_start()
+
+
+## `vt_wt_mail_check`: Valentine's letters once, on February 14th.
+func _check_valentines(rng: RandomNumberGenerator) -> void:
+	if Clock.month != 2 or Clock.day != 14 or valentine_year == Clock.year:
+		return
+	valentine_year = Clock.year
+	VillagerLetters.send_valentines(
+		residents, relationships, player_gender == &"female", player_name, rng,
+		func(mail: MailData) -> bool: return inventory.add_received_mail(mail) >= 0
+	)
+
+
+## Birthday cards once the birthday has passed since the last check
+## (`mNpc_SendEventBirthdayCard2`). On the day itself the villager who will bring the present
+## is picked now, so their card doesn't come as well.
+func _check_birthday_cards(rng: RandomNumberGenerator) -> void:
+	var today: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
+	var last: int = birthday_card_day
+	birthday_card_day = today
+	var bd: Vector2i = VillagerTalkManager.birthday()
+	if not PresentVisit.birthday_passed(bd, last, today):
+		return
+	if celebrated_birthday_year != Clock.year:
+		birthday_present_npc = (
+			PresentVisit.birthday_npc(residents, relationships)
+			if bd == Vector2i(Clock.month, Clock.day) else &""
+		)
+	var sent: int = PresentVisit.send_cards(
+		residents, relationships, birthday_present_npc, player_name, rng,
+		func(mail: MailData) -> bool: return inventory.add_received_mail(mail) >= 0 or post.receipt_mail(mail)
+	)
+	if sent > 0:
+		post_notice("You've got mail!")
+
+
+## `mCD_calendar_wellcome_on`: today goes on the calendar.
+func note_played_today() -> void:
+	CalendarBook.played_on(calendar, EventDates.ordinal(Clock.year, Clock.month, Clock.day))
+
+
+## `mPO_business_proc`: the 9:00 and 17:00 rounds, and the first one of a session
+## (`mPO_first_work`). Held letters reach the mailbox they are addressed to.
+func _deliver_post(session_start: bool) -> void:
+	if post == null or foreigner:
+		return
+	post.deliver(Clock.absolute_minute(), _post_to_resident, session_start)
+
+
+func _post_to_resident(mail: MailData) -> bool:
+	if mail.recipient_name == player_name:
+		return inventory.add_received_mail(mail) >= 0
+	for slot: int in PlayerRoster.MAX:
+		if slot != roster.current and roster.name_of(slot) == mail.recipient_name:
+			return roster.deliver_mail(slot, mail)
+	## Nobody here by that name any more (`mMl_hunt_for_send_address` −1): it is dropped.
+	return true
+
+
+## `mPr_SendMailFromMother`: Mom writes, at most once a day.
+func _check_mother_mail(rng: RandomNumberGenerator) -> void:
+	var holiday: StringName = MotherMail.holiday(Clock.year, Clock.month, Clock.day)
+	var sent: int = MotherMail.check(
+		mother_mail, EventDates.ordinal(Clock.year, Clock.month, Clock.day), VillagerTalkManager.birthday(),
+		holiday, player_name, rng,
+		func(mail: MailData) -> bool: return inventory.add_received_mail(mail) >= 0 or post.receipt_mail(mail)
+	)
+	if sent >= 0:
+		post_notice("You've got mail!")
+
+
+## `mQst_SendRemail`: the contest-letter reply goes to the home mailbox only.
+func deliver_to_mailbox(mail: MailData) -> bool:
+	return inventory.add_received_mail(mail) >= 0
+
+
+## Open the pockets so the player hands a villager their item. `quest_handover_resolved`
+## fires with the item and pocket, or `&""` when the pockets close without one.
+func request_quest_handover(pocket: int, mode: String = "quest") -> void:
+	quest_handover_pending = true
+	quest_handover_pocket = pocket
+	quest_handover_mode = mode
+	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui") if get_tree() != null else null
+	if inv_ui != null and inv_ui.has_method("open"):
+		inv_ui.call("open")
+	else:
+		cancel_quest_handover()
+
+
+## May this pocket be handed over right now?
+func quest_handover_allows(pocket: int) -> bool:
+	if not quest_handover_pending or inventory == null:
+		return false
+	var s: InventorySlot = inventory.slot_at(pocket)
+	if s == null or s.is_empty():
+		return false
+	match quest_handover_mode:
+		"fish", "insect":
+			var data: ItemData = ItemCatalog.get_item(s.item.item_id)
+			var want: int = ItemData.Category.FISH if quest_handover_mode == "fish" else ItemData.Category.BUG
+			return data != null and data.category == want
+		"take":
+			## `mSM_IV_OPEN_TAKE`: any pocket (the peddler checks what it is).
+			return true
+		"shrine":
+			## `mSM_IV_OPEN_SHRINE`: only quest items can go down the wishing well.
+			return s.item.condition == InventoryItem.Condition.QUEST
+	return pocket == quest_handover_pocket
+
+
+func take_quest_handover(pocket: int) -> void:
+	if not quest_handover_pending:
+		return
+	quest_handover_pending = false
+	var s: InventorySlot = inventory.slot_at(pocket)
+	var item: StringName = s.item.item_id if s != null and not s.is_empty() else &""
+	quest_handover_resolved.emit(item, pocket)
+
+
+func cancel_quest_handover() -> void:
+	if not quest_handover_pending:
+		return
+	quest_handover_pending = false
+	quest_handover_resolved.emit(&"", -1)
+
+
+## `mQst_GetFlowerSeedNum` / `mQst_GetFlowerNum` / `mQst_GetNullNoNum` for a home acre.
+func field_counts(block: Vector2i) -> Dictionary:
+	return QuestField.counts(get_tree(), block)
+
+
+## A villager's letter to the player: the mailbox, else the post office keeps it.
+func _deliver_villager_mail(mail: MailData) -> bool:
+	if inventory.add_received_mail(mail) >= 0:
+		return true
+	return post != null and post.receipt_mail(mail)
+
+
+## Title → K.K.'s player select for the saved town (`SCENE_PLAYERSELECT`).
+func start_player_select() -> void:
+	await SceneTransition.play_wipe_out(SceneTransition.Style.FADE)
+	reset_session()
+	player_select_mode = true
+	_set_phase(Phase.INTRO)
+	_change_scene(INTRO_KK_SCENE)
+
+
+## K.K. readies the town for a newcomer (`aNPS2_TALK_START_TYPE3`): Rover's train, then the
+## station and a vacant house, in the saved town.
+func start_new_resident(slot: int) -> void:
+	player_select_mode = false
+	joining_slot = slot
+	advance_intro_to_train()
+
+
+func continue_game(slot: int = -1) -> void:
 	## Every real entry point starts clean; without this the title's attract-demo flag survived
 	## into the loaded game and `notify_world_ready` kept the phase on TITLE (no Esc, no events).
 	reset_session()
-	if SaveService.load_game() != OK:
+	player_select_mode = false
+	if SaveService.load_game("", slot) != OK:
 		start_new_game()
 		return
+	note_reset(SaveService.last_reset_code)
+	resume_clock(SaveService.last_elapsed)
+	SaveService.mark_session_open(reset_count)
+	## `mMl_start_send_mail` / `mNtc_set_auto_nwrite_data` at game start.
+	send_postoffice_gift()
+	update_notice_board()
+	mark_room()
+	MuseumCompMail.send()
 	if current_room_id != &"":
 		_change_scene(INTERIOR_SCENE)
 	else:
+		continue_from_house = not intro_station_active
 		_change_scene(WORLD_SCENE)
 
 
 func return_to_title() -> void:
 	capture_player_from_tree()
-	SaveService.save_game()
+	## A visitor can't save here (`save_menu_data_save_from`, `SAVE_ERROR_FLASHROM`): only Porter
+	## sends them home with their things. Quitting drops this visit.
+	if not foreigner:
+		SaveService.save_game()
 	_set_phase(Phase.TITLE)
 	_change_scene(TITLE_SCENE)
 
@@ -534,6 +1093,115 @@ func notify_title_ready() -> void:
 	set_interact_prompt("")
 
 
+## The real-time clock ran on while the game was off; a clock set back marks the save.
+func resume_clock(elapsed: int) -> void:
+	if not Clock.resume_after(elapsed):
+		cheated_flag = true
+
+
+## `mFAs_GetFieldRank_Condition` / `mFAs_SetFieldRank`: rate the town now, keep the rank and
+## the perfect-day streak. Returns the assessment ({rank, condition, block, …}).
+## `at_well`: asked at the wishing well, where any remark at all also restarts the streak.
+func rate_town(world: Node, rng: RandomNumberGenerator = null, at_well: bool = false) -> Dictionary:
+	var roll := rng
+	if roll == null:
+		roll = RandomNumberGenerator.new()
+		roll.randomize()
+	var result: Dictionary = TownAssessment.evaluate(TownAssessment.survey(world), roll)
+	## `dust_flag`: once trash sank the town, any trash left keeps it at nothing.
+	if int(result["dust"]) >= TownAssessment.DUST_OVER_NUM:
+		dust_flag = true
+	elif dust_flag:
+		if int(result["dust"]) > 0:
+			result["rank"] = 0
+			result["condition"] = TownAssessment.Condition.DUST_OVER
+		else:
+			dust_flag = false
+	field_rank = int(result["rank"])
+	if events != null:
+		events.field_rank = field_rank
+	if at_well and int(result["condition"]) != TownAssessment.Condition.NO_CASE:
+		perfect_streak = 0
+		perfect_streak_day = -1
+	var next: Vector2i = TownAssessment.next_streak(field_rank, perfect_streak, perfect_streak_day, Clock.day_number())
+	perfect_streak = next.x
+	perfect_streak_day = next.y
+	return result
+
+
+## `mFAs_CheckGoodField`: fifteen perfect days in a row.
+func perfect_town_long_enough() -> bool:
+	return perfect_streak >= TownAssessment.PERFECT_STREAK_MAX
+
+
+## `mPr_GetGoodsPower`: the house's feng shui moved by the day's fortune (goods luck +30,
+## bad luck −30), held to −30…50.
+func goods_power_now() -> int:
+	var power: int = goods_power
+	match destiny():
+		Destiny.GOODS_LUCK:
+			power += 30
+		Destiny.BAD_LUCK:
+			power -= 30
+	return clampi(power, GOODS_POWER_MIN, GOODS_POWER_MAX)
+
+
+## `mHsRm_GetHuusuiRoom`.
+func refresh_feng_shui() -> void:
+	var p: Vector2i = FengShui.evaluate()
+	money_power = p.x
+	goods_power = p.y
+
+
+## `mSN_MeltSnowman` at each renewal: a day older and smaller; gone after three days or once
+## winter ends. The field drops the ones that melted when it next loads.
+func melt_snowmen(days: int) -> void:
+	var winter: bool = Clock.season() == Clock.Season.WINTER
+	for i: int in snowmen.size():
+		var e: Dictionary = snowmen[i]
+		if e.is_empty():
+			continue
+		if not SnowmanRules.melt(e, days, winter):
+			snowmen[i] = {}
+
+
+## The renewals waiting for weeds, handed to the field once (`World` sows them).
+func take_weed_days() -> int:
+	var days: int = weed_days_pending
+	weed_days_pending = 0
+	return days
+
+
+## `mCD_SetResetInfo`: the save was still marked open, so the last session ended without
+## saving.
+func note_reset(reset_code: int) -> void:
+	reset_flag = reset_code != 0
+	if reset_flag:
+		reset_count += 1
+
+
+## `Stung_bee` frame 21 of `HATI2`: the face swells (`mPlib_change_player_face`) and, on the
+## first sting only, every villager gets a remark ready (`mNpc_SetTalkBee`).
+func sting_by_bee() -> void:
+	bee_chase = false
+	if bee_swell:
+		return
+	bee_swell = true
+	bee_greeted.clear()
+	face_changed.emit()
+
+
+## Whether `villager_id` still has the swollen-face remark to make.
+func bee_remark_pending(villager_id: StringName) -> bool:
+	return bee_swell and villager_id != &"" and not bee_greeted.has(villager_id)
+
+
+## Any greeting spends the remark (`conversation_flags.beesting = FALSE`).
+func note_bee_greeting(villager_id: StringName) -> void:
+	if bee_swell and villager_id != &"":
+		bee_greeted[villager_id] = true
+
+
 ## `mDemo_Copy_change_player_destiny`: record the fortune and the day it was received.
 func set_destiny(kind: int) -> void:
 	destiny_type = kind
@@ -548,6 +1216,15 @@ func destiny() -> int:
 
 
 func reset_session() -> void:
+	roster = PlayerRoster.new()
+	town_id = Travel.new_town_id()
+	mask_cat = {}
+	met_blanca = false
+	mask_cat_scheduled = false
+	foreigner = false
+	arrive_by_train = false
+	visiting_slot = -1
+	_own_house_stash = {}
 	destiny_type = Destiny.NORMAL
 	destiny_date = Vector3i.ZERO
 	inventory.clear()
@@ -588,13 +1265,69 @@ func reset_session() -> void:
 	last_room_id = &""
 	villagers.clear()
 	villagers.book = relationships
+	residents.clear()
+	_residents_session_done = false
+	npc_talk_info.clear()
+	quests.clear()
+	quest_handover_pending = false
+	first_job_hint_count = 0
+	valentine_year = 0
+	celebrated_birthday_year = 0
+	birthday_present_npc = &""
+	birthday_card_day = 0
+	mother_mail = MotherMail.new_state()
+	radio_card = RadioCard.new_state()
+	complete_payment = &""
+	calendar = CalendarBook.new_state()
+	fish_records.clear()
+	treasure_buried_day = 0
+	haniwa_scheduled = false
+	shine_hole = &""
+	treasure_checked_day = 0
+	treasure_due = false
 	VillagerWalk.reset()
+	VillagerOutdoor.reset()
 	Fishing.reset()
 	player_position = DEFAULT_SPAWN
 	player_yaw = 0.0
 	removed_interactables.clear()
 	stump_interactables.clear()
 	hole_interactables.clear()
+	weeds.clear()
+	clear_grass = false
+	weed_days_pending = 0
+	field_rank = 0
+	perfect_streak = 0
+	perfect_streak_day = -1
+	dust_flag = false
+	golden_axe_got = false
+	golden_shovel_shown = false
+	museum_comp_mail = 0
+	golden_last_dig = Vector2i(-1, -1)
+	nook_code_gifts = 0
+	money_rock = ""
+	money_rock_day = -1
+	MoneyRock.reset()
+	mushrooms_session_cleared = false
+	mushrooms.clear()
+	shells.clear()
+	shells_owed = ShellUse.FIRST_NUM
+	shell_minute_counted = false
+	signboards.clear()
+	field_items.clear()
+	bridge = {}
+	mushroom_minute = -1
+	mushroom_active = false
+	snowmen = [{}, {}, {}]
+	snowman_built_minute = -1
+	snowman_msg_id = randi_range(0, 2)
+	ball = {}
+	snowballs.clear()
+	sunburn = {"rank": 0, "changed": -1, "hold": 0}
+	Sunburn.reset_session()
+	diary.clear()
+	money_power = 0
+	goods_power = 0
 	plant_states.clear()
 	buried_deposits.clear()
 	player_name = DEFAULT_PLAYER_NAME
@@ -604,8 +1337,16 @@ func reset_session() -> void:
 	cloth_id = FirstJob.DEFAULT_CLOTH_ID
 	has_map = false
 	num_statues = 0
+	reset_count = 0
+	reset_flag = false
+	cheated_flag = false
+	bank_gift_flags = 0
+	town_tune = TownTune.default_notes()
 	complete_flags = 0
 	goki_shocked = false
+	bee_swell = false
+	bee_chase = false
+	bee_greeted.clear()
 	if first_job == null:
 		first_job = FirstJob.new()
 	else:
@@ -625,6 +1366,8 @@ func reset_session() -> void:
 	title_demo_active = false
 	museum_donate_pending = false
 	museum_donate_result = {}
+	shop_sell_pending = false
+	shop_sell_slots = []
 	if farway == null:
 		farway = FarwayBook.new()
 	else:
@@ -641,8 +1384,13 @@ func reset_session() -> void:
 		catalog = CatalogBook.new()
 	else:
 		catalog.clear()
+	rainbow = Rainbow.new()
+	notice_board = NoticeBoard.new()
+	notice_board.seed(Clock.year, Clock.month, Clock.day, Clock.hour, Clock.minute)
+	hra = HappyRoomAcademy.new()
 	town_fruit = &"apple"
 	events.clear()
+	events.field_rank = field_rank
 	_events_ready = false
 	if designs == null:
 		designs = DesignBook.new()
@@ -673,6 +1421,7 @@ func sync_events() -> void:
 	if first and events.town_seed == 0:
 		events.assign_town(world_seed)
 	events.sync(EventCalendar.date_from_clock())
+	_deliver_post(first)
 	if first:
 		apply_event_weather()
 
@@ -865,12 +1614,38 @@ func to_save() -> Dictionary:
 		"removed_interactables": removed_interactables.duplicate(),
 		"stump_interactables": stump_interactables.duplicate(),
 		"hole_interactables": hole_interactables.duplicate(),
+		"weeds": weeds.duplicate(),
+		"clear_grass": clear_grass,
+		"weed_days_pending": weed_days_pending,
+		"field_rank": field_rank,
+		"perfect_streak": perfect_streak,
+		"perfect_streak_day": perfect_streak_day,
+		"dust_flag": dust_flag,
+		"golden_axe_got": golden_axe_got,
+		"golden_shovel_shown": golden_shovel_shown,
+		"museum_comp_mail": museum_comp_mail,
+		"money_rock": money_rock,
+		"money_rock_day": money_rock_day,
+		"mushrooms": mushrooms.duplicate(),
+		"shells": shells.duplicate(),
+		"signboards": signboards.duplicate(true),
+		"field_items": field_items.duplicate(true),
+		"bridge": bridge.duplicate(true),
+		"mushroom_minute": mushroom_minute,
+		"mushroom_active": mushroom_active,
+		"snowmen": snowmen.duplicate(true),
+		"snowman_built_minute": snowman_built_minute,
+		"snowballs": snowballs.duplicate(true),
+		"ball": ball.duplicate(),
+		"sunburn": sunburn.duplicate(),
+		"diary": diary.duplicate(),
 		"plants": plant_states.duplicate(true),
 		"buried": buried_deposits.duplicate(true),
 		"world_mode": int(world_mode),
 		"world_seed": world_seed,
 		"grass_pattern": grass_pattern,
 		"villagers": villagers.to_save(),
+		"residents": residents.to_save(),
 		"relationships": relationships.to_save(),
 		"interiors": interiors.to_save(),
 		"shops": shops.to_save(),
@@ -901,12 +1676,37 @@ func to_save() -> Dictionary:
 		"destiny": {"type": int(destiny_type), "y": destiny_date.x, "m": destiny_date.y, "d": destiny_date.z},
 		"has_map": has_map,
 		"num_statues": num_statues,
+		"reset_count": reset_count,
+		"cheated_flag": cheated_flag,
+		"bank_gift_flags": bank_gift_flags,
+		"town_tune": Array(town_tune),
 		"complete_flags": complete_flags,
 		"first_job": first_job.to_save() if first_job != null else {},
 		"weather": String(weather),
 		"weather_intensity": weather_intensity,
 		"gyoei_term": {"term": gyoei_term, "offset": gyoei_term_offset},
 		"dialogue_vars": dialogue_vars.duplicate(true),
+		"first_job_hint_count": first_job_hint_count,
+		"valentine_year": valentine_year,
+		"celebrated_birthday_year": celebrated_birthday_year,
+		"birthday_present_npc": String(birthday_present_npc),
+		"birthday_card_day": birthday_card_day,
+		"mother_mail": mother_mail.duplicate(),
+		"radio_card": radio_card.duplicate(),
+		"calendar": calendar.duplicate(true),
+		"fish_records": fish_records.duplicate(true),
+		"treasure_buried_day": treasure_buried_day,
+		"town_id": town_id,
+		"mask_cat": mask_cat.duplicate(true),
+		"met_blanca": met_blanca,
+		"mask_cat_scheduled": mask_cat_scheduled,
+		"haniwa_scheduled": haniwa_scheduled,
+		"shine_hole": String(shine_hole),
+		"treasure_checked_day": treasure_checked_day,
+		"quests": quests.to_save(),
+		"rainbow": rainbow.to_save(),
+		"notice_board": notice_board.to_save(),
+		"hra": hra.to_save(),
 	}
 
 
@@ -935,6 +1735,80 @@ func apply_snapshot(data: Dictionary) -> void:
 			var key := str(entry)
 			if not removed_interactables.has(key):
 				stump_interactables.append(key)
+	weeds.clear()
+	var saved_weeds: Variant = data.get("weeds", {})
+	if typeof(saved_weeds) == TYPE_DICTIONARY:
+		for key: Variant in saved_weeds:
+			weeds[str(key)] = clampi(int(saved_weeds[key]), 0, 2)
+	clear_grass = bool(data.get("clear_grass", false))
+	weed_days_pending = maxi(int(data.get("weed_days_pending", 0)), 0)
+	field_rank = clampi(int(data.get("field_rank", 0)), 0, TownAssessment.RANK_PERFECT)
+	perfect_streak = clampi(int(data.get("perfect_streak", 0)), 0, TownAssessment.PERFECT_STREAK_MAX)
+	perfect_streak_day = int(data.get("perfect_streak_day", -1))
+	dust_flag = bool(data.get("dust_flag", false))
+	golden_axe_got = bool(data.get("golden_axe_got", false))
+	golden_shovel_shown = bool(data.get("golden_shovel_shown", false))
+	museum_comp_mail = int(data.get("museum_comp_mail", 0))
+	money_rock = str(data.get("money_rock", ""))
+	money_rock_day = int(data.get("money_rock_day", -1))
+	signboards.clear()
+	var saved_signs: Variant = data.get("signboards", {})
+	if typeof(saved_signs) == TYPE_DICTIONARY:
+		signboards = (saved_signs as Dictionary).duplicate(true)
+	bridge = {}
+	var saved_bridge: Variant = data.get("bridge", {})
+	if typeof(saved_bridge) == TYPE_DICTIONARY and not (saved_bridge as Dictionary).is_empty():
+		bridge = SecondBridge.new_state()
+		bridge.merge(saved_bridge as Dictionary, true)
+	field_items.clear()
+	var saved_items: Variant = data.get("field_items", {})
+	if typeof(saved_items) == TYPE_DICTIONARY:
+		field_items = (saved_items as Dictionary).duplicate(true)
+	shells.clear()
+	var saved_shells: Variant = data.get("shells", {})
+	if typeof(saved_shells) == TYPE_DICTIONARY:
+		for key: Variant in saved_shells:
+			shells[str(key)] = str(saved_shells[key])
+	shells_owed = ShellUse.FIRST_NUM
+	shell_minute_counted = false
+	mushrooms_session_cleared = false
+	mushrooms.clear()
+	var saved_mushrooms: Variant = data.get("mushrooms", {})
+	if typeof(saved_mushrooms) == TYPE_DICTIONARY:
+		for key: Variant in saved_mushrooms:
+			mushrooms[str(key)] = 1
+	mushroom_minute = int(data.get("mushroom_minute", -1))
+	mushroom_active = bool(data.get("mushroom_active", false))
+	snowmen = [{}, {}, {}]
+	var saved_snowmen: Variant = data.get("snowmen", [])
+	if typeof(saved_snowmen) == TYPE_ARRAY:
+		for i: int in mini((saved_snowmen as Array).size(), SnowmanRules.SAVE_COUNT):
+			var e: Variant = saved_snowmen[i]
+			if typeof(e) == TYPE_DICTIONARY and not (e as Dictionary).is_empty():
+				snowmen[i] = (e as Dictionary).duplicate(true)
+	snowman_built_minute = int(data.get("snowman_built_minute", -1))
+	ball = (data.get("ball", {}) as Dictionary).duplicate() if typeof(data.get("ball", {})) == TYPE_DICTIONARY else {}
+	snowballs.clear()
+	var saved_balls: Variant = data.get("snowballs", {})
+	if typeof(saved_balls) == TYPE_DICTIONARY:
+		for key: Variant in saved_balls:
+			if typeof(saved_balls[key]) == TYPE_DICTIONARY:
+				snowballs[int(key)] = (saved_balls[key] as Dictionary).duplicate(true)
+	snowman_msg_id = randi_range(0, 2)
+	var saved_tan: Variant = data.get("sunburn", {})
+	sunburn = {"rank": 0, "changed": -1, "hold": 0}
+	if typeof(saved_tan) == TYPE_DICTIONARY:
+		sunburn["rank"] = clampi(int((saved_tan as Dictionary).get("rank", 0)), 0, Sunburn.MAX_RANK)
+		sunburn["changed"] = int((saved_tan as Dictionary).get("changed", -1))
+		sunburn["hold"] = clampi(int((saved_tan as Dictionary).get("hold", 0)), 0, Sunburn.HOLD_DAYS)
+	Sunburn.reset_session()
+	diary.clear()
+	var saved_diary: Variant = data.get("diary", {})
+	if typeof(saved_diary) == TYPE_DICTIONARY:
+		for key: Variant in saved_diary:
+			var m: int = int(key)
+			if m >= 1 and m <= 12:
+				diary[m] = DiaryOverlay.clip(str(saved_diary[key]))
 	hole_interactables.clear()
 	var holes: Variant = data.get("hole_interactables", [])
 	if typeof(holes) == TYPE_ARRAY:
@@ -969,6 +1843,9 @@ func apply_snapshot(data: Dictionary) -> void:
 	check_rehouse_order()
 	CompleteTalk.start_set_info()
 	goki_shocked = false
+	bee_swell = false
+	bee_chase = false
+	bee_greeted.clear()
 	HouseGoki.decide_family_count(interiors.player_house())
 	shops.apply_snapshot(data.get("shops", {}))
 	if museum == null:
@@ -1002,6 +1879,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	catalog.record_inventory(inventory)
 	town_fruit = StringName(str(data.get("town_fruit", "apple")))
 	events.apply_snapshot(data.get("events", {}))
+	events.field_rank = field_rank
 	_events_ready = false
 	if designs == null:
 		designs = DesignBook.new()
@@ -1022,6 +1900,57 @@ func apply_snapshot(data: Dictionary) -> void:
 		outdoor_return_yaw = 0.0
 	villagers.book = relationships
 	villagers.apply_snapshot(data.get("villagers", {}))
+	## Saves from before the roster was stored adopt the generated starters on first resolve.
+	residents.apply_snapshot(data.get("residents", {}))
+	_residents_session_done = false
+	npc_talk_info.clear()
+	quests.apply_snapshot(data.get("quests", {}))
+	rainbow.apply_snapshot(data.get("rainbow", {}))
+	hra = HappyRoomAcademy.new()
+	hra.apply_snapshot(data.get("hra", {}))
+	notice_board = NoticeBoard.new()
+	if data.has("notice_board"):
+		notice_board.apply_snapshot(data["notice_board"])
+	else:
+		notice_board.seed(Clock.year, Clock.month, Clock.day, Clock.hour, Clock.minute)
+	first_job_hint_count = clampi(int(data.get("first_job_hint_count", 0)), 0, 0xFF)
+	valentine_year = int(data.get("valentine_year", 0))
+	celebrated_birthday_year = int(data.get("celebrated_birthday_year", 0))
+	birthday_present_npc = StringName(str(data.get("birthday_present_npc", "")))
+	birthday_card_day = int(data.get("birthday_card_day", 0))
+	treasure_buried_day = int(data.get("treasure_buried_day", 0))
+	town_id = int(data.get("town_id", 0))
+	mask_cat = (data.get("mask_cat", {}) as Dictionary).duplicate(true) if typeof(data.get("mask_cat")) == TYPE_DICTIONARY else {}
+	met_blanca = bool(data.get("met_blanca", false))
+	mask_cat_scheduled = bool(data.get("mask_cat_scheduled", false))
+	if town_id == 0:
+		town_id = Travel.new_town_id()
+	haniwa_scheduled = bool(data.get("haniwa_scheduled", false))
+	shine_hole = StringName(str(data.get("shine_hole", "")))
+	treasure_checked_day = int(data.get("treasure_checked_day", 0))
+	fish_records.clear()
+	var saved_fish: Variant = data.get("fish_records", [])
+	if typeof(saved_fish) == TYPE_ARRAY:
+		for r: Variant in saved_fish:
+			if typeof(r) == TYPE_DICTIONARY:
+				var rec: Dictionary = r
+				fish_records.append({"name": str(rec.get("name", "")), "player": bool(rec.get("player", false)),
+					"size": int(rec.get("size", 0)), "ordinal": int(rec.get("ordinal", 0)),
+					"minute": int(rec.get("minute", 0)), "settled": bool(rec.get("settled", false))})
+	calendar = CalendarBook.new_state()
+	var saved_cal: Variant = data.get("calendar", {})
+	if typeof(saved_cal) == TYPE_DICTIONARY:
+		for key: String in ["played", "events"]:
+			var days: Array = []
+			for n: Variant in (saved_cal as Dictionary).get(key, []):
+				days.append(int(n))
+			calendar[key] = days
+	radio_card = RadioCard.from_save(data.get("radio_card", {}))
+	mother_mail = MotherMail.new_state()
+	var saved_mom: Variant = data.get("mother_mail", {})
+	if typeof(saved_mom) == TYPE_DICTIONARY:
+		for key: String in ["date", "normal", "monthly"]:
+			mother_mail[key] = int((saved_mom as Dictionary).get(key, 0))
 	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
 	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))
 	player_gender = IntroSequence.normalize_gender(data.get("player_gender", DEFAULT_PLAYER_GENDER))
@@ -1034,6 +1963,10 @@ func apply_snapshot(data: Dictionary) -> void:
 		cloth_id = FirstJob.DEFAULT_CLOTH_ID
 	has_map = bool(data.get("has_map", false))
 	num_statues = clampi(int(data.get("num_statues", 0)), 0, 3)
+	reset_count = maxi(int(data.get("reset_count", 0)), 0)
+	cheated_flag = bool(data.get("cheated_flag", false))
+	bank_gift_flags = int(data.get("bank_gift_flags", 0)) & 0xF
+	town_tune = TownTune.sanitize(data.get("town_tune", null))
 	complete_flags = int(data.get("complete_flags", 0)) & 0xF
 	if first_job == null:
 		first_job = FirstJob.new()
@@ -1102,6 +2035,9 @@ func try_enter_interior(
 			outdoor_return_yaw = player_yaw
 	close_shop()
 	current_room_id = room_id
+	## `ac_shop_design` → `mSP_SetNewVisitor`: a visitor from another town shopped here.
+	if foreigner and room.kind == Room.Kind.SHOP and shops != null:
+		shops.set_visitor()
 	prepare_interior_spawn(room_id, spawn_gx, spawn_yaw)
 	block_auto_enter_doors = true
 	var stage: Node = _museum_complete_stage()
@@ -1195,20 +2131,19 @@ func _museum_complete_stage() -> Node:
 	return stages[0] if not stages.is_empty() else null
 
 
-func open_shop(shop_id: StringName, mode: StringName = Interaction.BUY) -> bool:
-	if shop_id == &"":
-		return false
-	shops.ensure_today(shop_id)
+## Nook's "See my catalog" (`aNSC_order_select_menu_close_wait_init` opens
+## `mSM_OVL_CATALOG`). Returns the overlay to await `closed(item_id)` on, or null.
+func open_catalog() -> CatalogOverlay:
 	if get_tree() == null:
-		return false
+		return null
 	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui")
 	if inv_ui != null and inv_ui.has_method("close"):
 		inv_ui.call("close")
-	var ui: Node = get_tree().get_first_node_in_group("shop_ui")
-	if ui == null or not ui.has_method("open"):
-		return false
-	ui.call("open", shop_id, mode)
-	return true
+	var ui := get_tree().get_first_node_in_group("catalog_ui") as CatalogOverlay
+	if ui == null:
+		return null
+	ui.open(catalog)
+	return ui
 
 
 func close_shop() -> void:
@@ -1249,8 +2184,86 @@ func _on_day_changed() -> void:
 	shops.kabu.update(Clock.year, Clock.month, Clock.day)
 
 
+## `mMl_send_postoffice_mail`: a balance milestone's gift by mail, one per game start.
+func send_postoffice_gift() -> void:
+	if inventory == null:
+		return
+	var gift: Dictionary = BankTerminal.due_gift(inventory.savings, bank_gift_flags)
+	if gift.is_empty():
+		return
+	if inventory.add_received_mail(BankTerminal.gift_letter(gift, town_name, player_name)) >= 0:
+		bank_gift_flags |= int(gift["flag"])
+
+
+## `mMkRm_MarkRoom` at game start: the HRA's welcome, grade or tip, into the mailbox.
+func mark_room() -> void:
+	if interiors == null or inventory == null:
+		return
+	var house: House = interiors.player_house()
+	if house == null:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var busy: bool = first_job != null and first_job.is_active()
+	var letter: MailData = hra.mark(house, interiors.room(PlayerHouse.MAIN), interiors.room(PlayerHouse.UPPER),
+		Vector3i(Clock.year, Clock.month, Clock.day), busy, player_name, rng)
+	if letter != null:
+		inventory.add_received_mail(letter)
+
+
+## `mNtc_set_auto_nwrite_data`: seasonal notices whose day has come.
+func update_notice_board() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var names: Array = fishing_names()
+	var written: int = notice_board.auto_write(Clock.year, Clock.month, Clock.day, Clock.hour,
+		NoticeBoard.common_free(town_name, shops.nook_level() if shops != null else 0),
+		func(ordinal: int) -> Dictionary: return FishRecord.holder(fish_records, ordinal, names, rng))
+	## `mFR_fishmail`: right after the board.
+	var sent: int = FishRecord.send_mail(fish_records, EventDates.ordinal(Clock.year, Clock.month, Clock.day),
+		Clock.hour, names, catalog.owned_ids() if catalog != null else [], player_name, rng,
+		func(mail: MailData) -> bool: return inventory.add_received_mail(mail) >= 0 or post.receipt_mail(mail))
+	if sent > 0:
+		post_notice("You've got mail!")
+	## `mNtc_check_treasure` when nothing seasonal went up.
+	treasure_due = written == 0
+	try_treasure(World.find(get_tree()) if get_tree() != null else null)
+
+
+## A villager may bury treasure once the field is up (`BuriedTreasure`).
+func try_treasure(world: Node) -> void:
+	if not treasure_due or world == null or world.get("grid") == null:
+		return
+	treasure_due = false
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	BuriedTreasure.check(world, rng)
+
+
+## `mEvMN_GetJointEventRandomNpc`: the residents who could be out fishing.
+func fishing_names() -> Array:
+	var out: Array = []
+	for id: StringName in residents.resident_ids():
+		var v: VillagerData = VillagerCatalog.get_villager(id)
+		if v != null:
+			out.append(v.display_name)
+	return out
+
+
 func _on_field_renewed(days: int) -> void:
 	shops.renew(days)
+	weed_days_pending += maxi(days, 0)
+	melt_snowmen(days)
+	## `mAGrw_ClearSpoiledKabu` / `mAGrw_SpoilKabu` / `mAGrw_SpoilAllPossession`.
+	FieldItems.renew(FieldItems.sunday_passed(Clock.year, Clock.month, Clock.day, days), inventory, get_tree())
+	if hra != null and days > 0:
+		hra.renew_day()
+	var vt_rng := RandomNumberGenerator.new()
+	vt_rng.randomize()
+	_check_valentines(vt_rng)
+	_check_birthday_cards(vt_rng)
+	_check_mother_mail(vt_rng)
+	note_played_today()
 	HouseGoki.save_play_time(interiors.player_house())
 	refresh_shop_set()
 	## `mAGrw_RenewalFgItem` tops the lost and found up once per renewal, however many
@@ -1267,19 +2280,16 @@ func _on_field_renewed(days: int) -> void:
 	_deliver_shop_mail()
 	if redd != null:
 		redd.check_unlock()
-	_spread_able_designs(days)
 	## One roll for the current date after renew (`mEnv_DecideWeather` / `aWeather_ChangeWeatherTime0`).
+	var previous_weather: StringName = weather
 	apply_weather_roll(Weather.roll())
 	apply_event_weather()
-
-
-## Villagers pass Able Sisters designs around as they greet (`NeedleworkTrend`).
-func _spread_able_designs(days: int) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.randomize()
-	NeedleworkTrend.daily_greetings(NeedleworkTrend.town_states(), rng, maxi(days, 1))
-	if designs != null:
-		designs.changed.emit()
+	## Fine after rain or snow: a rainbow over the falls today and gyroids in the ground
+	## with the next growth (`mEnv_PreRainNowFine_Init`).
+	rainbow.note_weather_change(previous_weather, weather, Clock.month, Clock.day)
+	if Rainbow.pre_rain_now_fine(previous_weather, weather):
+		haniwa_scheduled = true
+	update_notice_board()
 
 
 ## Farway Museum returns identified fossils (+ the one-time intro letter) each morning.
@@ -1343,6 +2353,7 @@ func exit_interior() -> bool:
 		return try_enter_interior(room.parent_room_id)
 	current_room_id = &""
 	interior_session = null
+	leave_resident_house()
 	spawn_at_room_door = false
 	has_interior_spawn = false
 	play_door_arrive = false
@@ -1429,6 +2440,8 @@ func donate_museum_result(item_id: StringName, player_no: int = 0) -> Dictionary
 		out["set_name"] = MuseumDisplay.fossil_set_name(index)
 	out["completed_collection"] = _museum_collection_complete(category)
 	out["completed_museum"] = museum.is_complete()
+	if out["completed_museum"]:
+		MuseumCompMail.schedule()
 	out["message"] = _donate_message(out)
 	return out
 

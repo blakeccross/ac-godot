@@ -29,6 +29,8 @@ const BIRTH_SUM: Array[Vector2i] = [
 ]
 
 var actors: Array[BugActor] = []
+## `[se_id, position_m]` one-shots of insects removed this frame, for `BugSounds`.
+var gone_se: Array = []
 var auto_spawn: bool = true
 
 var _grid: WorldGrid = null
@@ -57,6 +59,8 @@ const TOOL_SWING_SECONDS := 0.25
 ## `aSetMgr_WAIT_TIME`: frames between the wade starting and the set overlay running.
 const SET_WAIT_FRAMES := 5
 
+
+var _bite_pending: bool = false
 
 func configure(grid: WorldGrid, layout: WorldData) -> void:
 	_grid = grid
@@ -118,6 +122,13 @@ func take_field_action() -> Dictionary:
 	return out
 
 
+## `mPlib_request_main_stung_mosquito_type1`: a mosquito bit the player this tick.
+func take_bite() -> bool:
+	var bit: bool = _bite_pending
+	_bite_pending = false
+	return bit
+
+
 func tick(delta: float, sense: BugActor.Sense) -> void:
 	if _tool_swing > 0.0:
 		sense.player_swung_tool = true
@@ -153,17 +164,25 @@ func tick(delta: float, sense: BugActor.Sense) -> void:
 func _frame(sense: BugActor.Sense) -> void:
 	_game_frame += 1
 	sense.game_frame = _game_frame
+	sense.raining = Weather.is_raining()
 	sense.net_swing_active = _stop_net_pending
 	sense.net_swing_origin = _stop_net_pos if _stop_net_pending else Vector3.INF
 	_stop_net_pending = false
 	for actor: BugActor in actors:
 		if not actor.finished:
 			actor.frame(sense)
+			if actor.flag == BugKa.BIT:
+				actor.flag = 0
+				_bite_pending = true
 	_cull_distant(sense)
 	var kept: Array[BugActor] = []
 	for actor: BugActor in actors:
 		if not actor.finished:
 			kept.append(actor)
+		elif not actor.trg_se.is_empty():
+			## A drowning insect leaves this frame; its splash still has to sound.
+			for id: StringName in actor.trg_se:
+				gone_se.append([id, actor.position])
 	actors = kept
 
 
@@ -233,6 +252,12 @@ func _tick_spawn(acre: Vector2i) -> void:
 
 func _try_spawn_in_acre(acre: Vector2i) -> void:
 	var raining: bool = Game.weather == &"rain"
+	## `aSOI_SPAWN_TYPE_SPIRIT`: a Wisp's spirit waits here, and nothing else comes out.
+	if WispEvent.spirit_in_acre(acre):
+		var spirit: BugData = BugCatalog.get_by_type(WispEvent.TYPE_SPIRIT)
+		if spirit != null and not _has_live(WispEvent.TYPE_SPIRIT):
+			_spawn_one_in_acre(spirit, 3, acre, raining)  ## `INSECT_SPAWN(SPIRIT, FLYING, 100)`
+		return
 	## `aSOI_ins_make_range_data` + `aSOI_ins_decide_insect` + `aSOI_ins_get_idx`.
 	var pool: Array[BugSpawnEntry] = spawn_pool()
 	var entry: BugSpawnEntry = BugSpawnScheduler.decide(
@@ -250,6 +275,13 @@ func _try_spawn_in_acre(acre: Vector2i) -> void:
 			return
 		if not _spawn_one_in_acre(bug, entry.spawn_area, acre, raining):
 			return
+
+
+func _has_live(type_index: int) -> bool:
+	for a: BugActor in actors:
+		if a.bug != null and a.bug.type_index == type_index:
+			return true
+	return false
 
 
 func _spawn_one_in_acre(bug: BugData, spawn_area: int, acre: Vector2i, raining: bool) -> bool:

@@ -37,7 +37,7 @@ Keep those layers separate. A tree scene should not own growth formulas. An item
 | Scene | Path |
 | --- | --- |
 | Player, Villager | `scenes/actors/` |
-| World, Tree, Rock, Flower, Hole, Furniture, ItemPickup, House, Shop, ShopCounter, ShopStock, Building, Door, Sign, Prop (fences / boards), Lotus, Mailbox, Haniwa (house gyroid / save point) | `scenes/world/` |
+| World, Tree, Rock, Flower, Hole, Furniture, ItemPickup, House, Shop, ShopStock, Building, Door, Sign, Prop (fences / boards), Lotus, Mailbox, Haniwa (house gyroid / save point) | `scenes/world/` |
 | Able Sisters, Police, Post Office (outdoor) | `scenes/world/buildings/` |
 | Nook / Able / police / post interiors; museum wings | `scenes/world/interiors/`, `scenes/world/museum/` |
 | InteractVolume | `scenes/world/interact_volume.gd` (sensor only; host implements verbs) |
@@ -60,7 +60,7 @@ Autoload scripts must not reuse the autoload name as `class_name` (`Clock` hides
 
 Prefer signals on the owning system over a global event bus unless many unrelated listeners appear.
 
-`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `VillagerRoster` is a `RefCounted` owned by `Game` (id → `VillagerState`). `RelationshipBook` is a `RefCounted` owned by `Game` (id → `Relationship`). `InteriorBook`, `ShopBook`, `MuseumBook`, `PoliceBook`, and `PostBook` are `RefCounted` owned by `Game`. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `StructureOffset`, `HostCollision`, `GeneratedVisual`, `StructureDoor`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `FurnitureUse`, `ShopUse`, `PostUse`, `TreeUse`, `HoleUse`, `PlantGrowth`, `Fishing`, `FishCatalog`, `FishSize`, `FishShadow`, and `WaterBodies` are `RefCounted` helpers, not autoloads. `FishSchool` is a `RefCounted` owned by the world scene alongside `WorldGrid`. `VillagerCatalog`, `VillagerAI`, `VillagerPlan`, `VillagerAction`, and `VillagerWalk` are `RefCounted` helpers, not autoloads. `DialogueCatalog`, `DialogueRunner`, `DialogueContext`, and `DialogueGreeting` are `RefCounted` helpers, not autoloads. `BgmCatalog` is a `RefCounted` helper, not an autoload. `Weather` is a `RefCounted` helper (roll tables + rain lighting), not an autoload; particles live in `scenes/world/weather_fx.gd`. Do not autoload fishing or events; those systems subscribe to `Clock` when they exist. `Game.weather` / `weather_intensity` are the outdoor session climate for dialogue, BGM, bugs, and fishing.
+`Inventory` is a `RefCounted` owned by `Game`, not an autoload. `VillagerRoster` is a `RefCounted` owned by `Game` (id → `VillagerState`). `RelationshipBook` is a `RefCounted` owned by `Game` (id → `Relationship`). `InteriorBook`, `ShopBook`, `MuseumBook`, `PoliceBook`, and `PostBook` are `RefCounted` owned by `Game`. `WorldGrid` is a `RefCounted` owned by the world scene, not an autoload. `TownFieldGenerator`, `WorldGenerator`, `WorldBuilder`, `WorldObjectRegistry`, `FieldCatalog`, `FieldCollision`, `StructureOffset`, `HostCollision`, `GeneratedVisual`, `StructureDoor`, and `HeldTool` are `RefCounted` helpers, not autoloads. `PlayerLocomotion` is a `RefCounted` owned by the player scene, not an autoload. `Interaction`, `InteractionContext`, `InteractionQuery`, `ToolUse`, `FurnitureUse`, `PostUse`, `TreeUse`, `HoleUse`, `PlantGrowth`, `Fishing`, `FishCatalog`, `FishSize`, `FishShadow`, and `WaterBodies` are `RefCounted` helpers, not autoloads. `FishSchool` is a `RefCounted` owned by the world scene alongside `WorldGrid`. `VillagerCatalog`, `VillagerAI`, `VillagerPlan`, `VillagerAction`, and `VillagerWalk` are `RefCounted` helpers, not autoloads. `DialogueCatalog`, `DialogueRunner`, `DialogueContext`, and `DialogueGreeting` are `RefCounted` helpers, not autoloads. `BgmCatalog` is a `RefCounted` helper, not an autoload. `Weather` is a `RefCounted` helper (roll tables + rain lighting), not an autoload; particles live in `scenes/world/weather_fx.gd`. Do not autoload fishing or events; those systems subscribe to `Clock` when they exist. `Game.weather` / `weather_intensity` are the outdoor session climate for dialogue, BGM, bugs, and fishing.
 
 ### Time system
 
@@ -90,7 +90,6 @@ Hosts duck-type two methods. There is no shared `Interactable` base: a tree is a
 | `InteractionQuery` | Walk ancestors for a host; pick the closest overlapping `InteractVolume` |
 | `ToolUse` | Equipped `ToolData` → kind, field verb, apply empty-tile use |
 | `FurnitureUse` | `FurnitureData` → sit / lie / open / toggle / display / pick / rotate |
-| `ShopUse` | Counter → buy overlay; Nook also sells |
 | `TreeUse` | Shake / multi-hit chop / stump / fruit·money·bees·ftr drops |
 | `PlantGrowth` | Seed → Growing → Mature → Harvestable from `planted_renew`; persist ids `plant_x_y` |
 | `HoleUse` | Dig / fill hole FG; persist ids `hole_x_y` |

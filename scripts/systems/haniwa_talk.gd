@@ -314,11 +314,17 @@ static func _options(msg: int, raw: Variant) -> Array:
 	return out
 
 
-## `{choice:N}` → N, or −1.
+## `{choice:N}` → N; an already-resolved label → the choice it names; else −1.
 static func _choice_id(text: String) -> int:
-	if not text.begins_with("{choice:") or not text.ends_with("}"):
-		return -1
-	return text.substr(8, text.length() - 9).to_int()
+	if text.begins_with("{choice:") and text.ends_with("}"):
+		return text.substr(8, text.length() - 9).to_int()
+	for id: int in [
+		CHOICE_SAVE, CHOICE_STORE, CHOICE_OTHER, CHOICE_NEVER_MIND, CHOICE_SAVE_YES, CHOICE_SAVE_NO,
+		CHOICE_DOOR, CHOICE_MESSAGE, CHOICE_POST_PATTERN, CHOICE_REMOVE_PATTERN, CHOICE_CHECK_ITEMS,
+	]:
+		if DialogueCatalog.choice_label(id) == text:
+			return id
+	return -1
 
 
 ## A `next` / `goto` inside message `msg`: another message's start, a node of the same

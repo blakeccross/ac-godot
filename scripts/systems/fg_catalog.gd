@@ -40,6 +40,9 @@ const ITEM_MESSAGE_BOARD0 := 0x0007
 const ITEM_MAP_BOARD0 := 0x000C
 const ITEM_MUSIC_BOARD0 := 0x000E
 const ITEM_WOOD_FENCE := 0x0010
+## Where a second bridge may be built (`RSV_BRIDGE0` / `RSV_BRIDGE1`).
+const RSV_BRIDGE0 := 0xFE1D
+const RSV_BRIDGE1 := 0xFE1E
 const ITEM_EMPTY := 0x0000
 const ITEM_NONE := 0xFFFF
 const FG_TYPE_EMPTY := 0x00CB
@@ -55,8 +58,8 @@ const ITEM_POLICE_STATION := 0x580C
 const ITEM_SIGN00 := 0x5810
 const ITEM_SIGN20 := 0x5824
 const ITEM_WISHING_WELL := 0x5825
-## `LOTUS`, `STRUCTURE_START` + 65. `DOUZOU` (0x5843, station statue) is deliberately not placed:
-## `aDOU_set_check` draws it only for a player whose house reached `mHm_HOMESIZE_STATUE`.
+## `LOTUS`, `STRUCTURE_START` + 65. `DOUZOU` (0x5843, station statue) is placed by
+## `WorldGenerator` as a `Statue` host that shows only once a house reaches the statue.
 const ITEM_LOTUS := 0x5841
 ## `TOUDAI` (`STRUCTURE_START + 68`, `m_name_table.h`).
 const ITEM_LIGHTHOUSE := 0x5844
@@ -131,12 +134,12 @@ static func placement_for_item(item_id: int) -> Dictionary:
 			&"FLOWER_PANSIES0",
 			&"FLOWER_PANSIES1",
 			&"FLOWER_PANSIES2",
-			&"FLOWER_PANSIES0",
-			&"FLOWER_PANSIES1",
-			&"FLOWER_PANSIES2",
-			&"FLOWER_PANSIES0",
-			&"FLOWER_PANSIES1",
-			&"FLOWER_PANSIES2",
+			&"FLOWER_COSMOS0",
+			&"FLOWER_COSMOS1",
+			&"FLOWER_COSMOS2",
+			&"FLOWER_TULIP0",
+			&"FLOWER_TULIP1",
+			&"FLOWER_TULIP2",
 		]
 		return {
 			"kind": &"flower",

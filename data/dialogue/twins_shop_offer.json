@@ -1,0 +1,216 @@
+{
+  "id": "twins_shop_offer",
+  "speaker_id": "timmy",
+  "start": "start",
+  "nodes": {
+    "start": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_offer_kind",
+              "value": "cloth"
+            }
+          },
+          "goto": "cloth"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_offer_kind",
+              "value": "paint"
+            }
+          },
+          "goto": "paint"
+        },
+        {
+          "goto": "offer"
+        }
+      ]
+    },
+    "offer": {
+      "type": "choice",
+      "prompt": "The {item0}! It is\n{free0} Bells. You will\nbuy it, yes?",
+      "options": [
+        {
+          "text": "I'll buy it!",
+          "goto": "buy"
+        },
+        {
+          "text": "No thanks.",
+          "goto": "decline"
+        }
+      ]
+    },
+    "cloth": {
+      "type": "choice",
+      "prompt": "The {item0}! {free0} Bells.\nTry it on first?",
+      "options": [
+        {
+          "text": "I'll buy it!",
+          "goto": "buy"
+        },
+        {
+          "text": "Let me try it on.",
+          "goto": "try_on"
+        },
+        {
+          "text": "No thanks.",
+          "goto": "decline"
+        }
+      ]
+    },
+    "try_on": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "try_on"
+        }
+      ],
+      "next": "after_try"
+    },
+    "after_try": {
+      "type": "choice",
+      "prompt": "Very nice! Will you buy it\nfor {free0} Bells?",
+      "options": [
+        {
+          "text": "I'll buy it!",
+          "goto": "buy"
+        },
+        {
+          "text": "No thanks.",
+          "goto": "decline"
+        }
+      ]
+    },
+    "paint": {
+      "type": "choice",
+      "prompt": "{item0} for your roof!\n{free0} Bells. Shall we\nhave it painted?",
+      "options": [
+        {
+          "text": "Paint my roof!",
+          "goto": "buy"
+        },
+        {
+          "text": "No thanks.",
+          "goto": "decline"
+        }
+      ]
+    },
+    "buy": {
+      "type": "event",
+      "events": [
+        {
+          "op": "nook_shop",
+          "action": "buy"
+        }
+      ],
+      "next": "result"
+    },
+    "result": {
+      "type": "branch",
+      "when": [
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_buy",
+              "value": "no_money"
+            }
+          },
+          "goto": "no_money"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_buy",
+              "value": "full"
+            }
+          },
+          "goto": "full"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_buy",
+              "value": "sold_out"
+            }
+          },
+          "goto": "sold_out"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_buy",
+              "value": "not_for_sale"
+            }
+          },
+          "goto": "sold_out"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_ticket",
+              "value": "pocket"
+            }
+          },
+          "goto": "ticket"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_ticket",
+              "value": "mail"
+            }
+          },
+          "goto": "ticket_mail"
+        },
+        {
+          "if": {
+            "var_eq": {
+              "name": "shop_ticket",
+              "value": "paint"
+            }
+          },
+          "goto": "painted"
+        },
+        {
+          "goto": "thanks"
+        }
+      ]
+    },
+    "thanks": {
+      "type": "line",
+      "text": "Thanks much! {c:25,140,220}...much!{c:50,60,50}"
+    },
+    "ticket": {
+      "type": "line",
+      "text": "Thanks much! And a raffle\nticket for you. The drawing\nis at month's end! {c:25,140,220}...end!{c:50,60,50}"
+    },
+    "ticket_mail": {
+      "type": "line",
+      "text": "Thanks much! Your pockets\nare full, so we will mail\nthe raffle ticket. {c:25,140,220}...ticket.{c:50,60,50}"
+    },
+    "painted": {
+      "type": "line",
+      "text": "We will see to it! New roof\ncolor next time you come\nto town! {c:25,140,220}...town!{c:50,60,50}"
+    },
+    "no_money": {
+      "type": "line",
+      "text": "Oh! Not enough Bells.\nPlease come back with\nmore! {c:25,140,220}...more!{c:50,60,50}"
+    },
+    "full": {
+      "type": "line",
+      "text": "Your pockets are full!\nPlease make room first. {c:25,140,220}...first.{c:50,60,50}"
+    },
+    "sold_out": {
+      "type": "line",
+      "text": "Sorry! That one is\nsold out. {c:25,140,220}...out.{c:50,60,50}"
+    },
+    "decline": {
+      "type": "line",
+      "text": "Then please, look around!\n{c:25,140,220}...around!{c:50,60,50}"
+    }
+  }
+}

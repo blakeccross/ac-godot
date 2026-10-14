@@ -13,11 +13,46 @@ const _WINDOW_SPILL_ON := Color(1.0, 1.0, 150.0 / 255.0, 120.0 / 255.0)
 const _WINDOW_SPILL_OFF := Color(1.0, 1.0, 150.0 / 255.0, 0.0)
 const _WINDOW_SPILL_SHADER := preload("res://shaders/window_ground_spill.gdshader")
 
+## `aPBOX_actor_move` / `aSHOP_actor_move`: the lit amount chases 0 ↔ 0x3FFF by 320 a tick.
+const FADE_PER_TICK := 320.0 / 16383.0
+## How lit the windows are (0 dark … 1 lit); −1 until first set.
+static var _level: float = -1.0
+
+## Room prim of the interior currently on screen (`InteriorLighting`); alpha 0 = none.
+static var _indoor_room_prim := Color(0, 0, 0, 0)
+
 
 static func refresh_window_lights(root: Node) -> void:
 	## `mEnv_NPC_LIGHTS_*`: panes and ground spill 18:00–05:00, unless a building
 	## host on the way down has its own `*_ctrl_light` rule.
-	_set_window_lights(root, _window_lights_on())
+	if _level < 0.0:
+		_level = 1.0 if _window_lights_on() else 0.0
+	_set_window_lights(root, _level)
+
+
+## `ticks` play-loop ticks of the fade toward on / off; repaints only while it moves.
+static func step_window_lights(root: Node, ticks: int) -> void:
+	var target: float = 1.0 if _window_lights_on() else 0.0
+	if _level < 0.0:
+		_level = target
+		_set_window_lights(root, _level)
+		return
+	if is_equal_approx(_level, target) or ticks <= 0:
+		return
+	_level = move_toward(_level, target, FADE_PER_TICK * ticks)
+	_set_window_lights(root, _level)
+
+
+static func lit_level() -> float:
+	return maxf(_level, 0.0) if _level >= 0.0 else (1.0 if _window_lights_on() else 0.0)
+
+
+static func pane_color(level: float) -> Color:
+	return _WINDOW_PANE_OFF.lerp(_WINDOW_PANE_ON, clampf(level, 0.0, 1.0))
+
+
+static func spill_color(level: float) -> Color:
+	return _WINDOW_SPILL_OFF.lerp(_WINDOW_SPILL_ON, clampf(level, 0.0, 1.0))
 
 
 ## A building host's own `*_ctrl_light`, or null when `node` isn't one (the caller's
@@ -116,7 +151,7 @@ static func make_window_spill_material(std: StandardMaterial3D) -> ShaderMateria
 		if img != null and img.detect_alpha() == Image.ALPHA_NONE:
 			tex = _i4_as_alpha(tex)
 	sh.set_shader_parameter("albedo_texture", tex)
-	sh.set_shader_parameter("albedo", _WINDOW_SPILL_ON if _window_lights_on() else _WINDOW_SPILL_OFF)
+	sh.set_shader_parameter("albedo", spill_color(lit_level()))
 	sh.set_shader_parameter("ground_lift", FieldCatalog.GX_TO_METERS)
 	sh.set_meta("window_spill", true)
 	return sh
@@ -160,7 +195,7 @@ static func apply_window_pane_material(std: StandardMaterial3D) -> void:
 	std.albedo_texture = null
 	std.vertex_color_use_as_albedo = false
 	std.set_meta("window_pane", true)
-	std.albedo_color = _WINDOW_PANE_ON if _window_lights_on() else _WINDOW_PANE_OFF
+	std.albedo_color = pane_color(lit_level())
 
 
 static func apply_room_prim_fill_material(std: StandardMaterial3D) -> void:
@@ -175,8 +210,19 @@ static func apply_room_prim_fill_material(std: StandardMaterial3D) -> void:
 	std.albedo_color = room_prim_color()
 
 
+static func set_indoor_room_prim(color: Color) -> void:
+	_indoor_room_prim = color
+
+
+static func clear_indoor_room_prim() -> void:
+	_indoor_room_prim = Color(0, 0, 0, 0)
+
+
 static func room_prim_color() -> Color:
-	## Fine-weather `room_color` from `l_mEnv_kcolor_fine_data` (no electric-point blend yet).
+	## Inside a room: `mEnv_GetRoomPrimColor` (palette room colour + lamp) from
+	## `InteriorLightModel`. Otherwise fine-weather `room_color` from `l_mEnv_kcolor_fine_data`.
+	if _indoor_room_prim.a > 0.0:
+		return _indoor_room_prim
 	var clock: Node = Engine.get_main_loop().root.get_node_or_null("/root/Clock")
 	if clock != null and clock.has_method("outdoor_light"):
 		var pal: Dictionary = clock.call("outdoor_light") as Dictionary
@@ -227,20 +273,18 @@ static func _set_room_prim_fills(node: Node, color: Color) -> void:
 		_set_room_prim_fills(child, color)
 
 
-static func _set_window_lights(node: Node, on: bool) -> void:
+static func _set_window_lights(node: Node, level: float) -> void:
 	var own: Variant = host_lights_on(node)
 	if own != null:
-		on = bool(own)
+		level = 1.0 if bool(own) else 0.0
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
 		var surface_count: int = mesh_instance.mesh.get_surface_count() if mesh_instance.mesh != null else 1
 		for i: int in surface_count:
 			var mat: Material = mesh_instance.get_surface_override_material(i)
 			if mat is ShaderMaterial and (mat as ShaderMaterial).has_meta("window_spill"):
-				(mat as ShaderMaterial).set_shader_parameter(
-					"albedo", _WINDOW_SPILL_ON if on else _WINDOW_SPILL_OFF
-				)
+				(mat as ShaderMaterial).set_shader_parameter("albedo", spill_color(level))
 			elif mat is StandardMaterial3D and (mat as StandardMaterial3D).has_meta("window_pane"):
-				(mat as StandardMaterial3D).albedo_color = _WINDOW_PANE_ON if on else _WINDOW_PANE_OFF
+				(mat as StandardMaterial3D).albedo_color = pane_color(level)
 	for child in node.get_children():
-		_set_window_lights(child, on)
+		_set_window_lights(child, level)

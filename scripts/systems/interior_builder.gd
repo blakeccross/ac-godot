@@ -15,8 +15,8 @@ const FURNITURE_SCENE := preload("res://scenes/world/furniture.tscn")
 ## adds them to the `"authored_fixture"` group.
 const AUTHORED_FIXTURE_NAMES: Array[StringName] = [
 	&"TomNook", &"NookClock", &"PostGirl", &"PostDesk", &"PostTerminal", &"Booker",
-	&"Blathers", &"MuseumClock", &"Redd", &"Mabel", &"Sable",
-	&"NeedleworkFurnitureCol", &"SewingMachine", &"SewingCloth", &"NeedleworkClock",
+	&"Blathers", &"MuseumClock", &"LightShaft", &"Redd", &"Mabel", &"Sable",
+	&"NeedleworkFurnitureCol", &"SewingMachine", &"SewingCloth", &"NeedleworkClock", &"HouseClock", &"Twin0", &"Twin1",
 	&"NookFurnitureCol", &"PoliceFurnitureCol", &"PoliceClock",
 ]
 
@@ -124,6 +124,8 @@ static func furnish_fallback(furniture_root: Node3D, interior: IndoorSession) ->
 			PolicePresenter.new().present(furniture_root, interior)
 		Room.Kind.BROKER:
 			MuseumInteriorBuilder.add_redd(furniture_root, interior)
+		Room.Kind.DUMP:
+			MuseumInteriorBuilder.add_katrina(furniture_root, interior)
 		_:
 			pass
 
@@ -133,6 +135,8 @@ static func add_furniture(root: Node3D, interior: IndoorSession, entry: Furnitur
 		return
 	var data: FurnitureData = interior.furniture_of(entry.furniture_id)
 	if data == null:
+		if RoomItems.is_loose(entry):
+			RoomItems.instance(root, interior, entry)
 		return
 	var footprint: Vector2i = entry.resolved_footprint(data)
 	var node: Node3D = FURNITURE_SCENE.instantiate() as Node3D
@@ -145,7 +149,7 @@ static func add_furniture(root: Node3D, interior: IndoorSession, entry: Furnitur
 	if data.visual_id != &"":
 		node.set("visual_id", data.visual_id)
 	var pos: Vector3 = interior.grid.furniture_world(entry.cell, footprint, entry.facing)
-	pos.y = 0.8 if entry.layer > 0 else 0.0
+	pos.y = interior.surface_y(entry.cell) if entry.layer > 0 else 0.0
 	node.position = pos
 	root.add_child(node)
 	if entry.cloth_index >= 0:

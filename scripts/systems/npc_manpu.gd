@@ -72,6 +72,46 @@ static func clip_for(name: String) -> String:
 	return "npc_1_%s" % key
 
 
+## `aNPC_wait_action` / `aNPC_walk_action` / `aNPC_run_action` through `aNPC_animeSeqNoTable`:
+## a villager's mood picks its idle, walk and run poses (a happy, angry or sad run is the
+## matching walk at running speed; sleepy has only its own idle). Talking, `talk_def_anime`
+## keeps a happy villager on the plain idle.
+const MOOD_WAIT: Array[String] = ["npc_1_wait1", "npc_1_wait_ki1", "npc_1_wait_do1", "npc_1_wait_ai1", "npc_1_wait_nemu1", "npc_1_wait1"]
+const MOOD_TALK: Array[String] = ["npc_1_wait1", "npc_1_wait1", "npc_1_wait_do1", "npc_1_wait_ai1", "npc_1_wait_nemu1", "npc_1_wait1"]
+const MOOD_WALK: Array[String] = ["npc_1_walk1", "npc_1_walk_ki1", "npc_1_walk_do1", "npc_1_walk_ai1", "npc_1_walk1", "npc_1_walk1"]
+const MOOD_RUN: Array[String] = ["npc_1_run1", "npc_1_walk_ki1", "npc_1_walk_do1", "npc_1_walk_ai1", "npc_1_run1", "npc_1_run1"]
+## `aNPC_feel_effect_c` on the mood poses: the effect, the counter's wrap (`max`) and the
+## counter values it fires at (`set_p`); the counter steps 0.5 a tick
+## (`aNPC_set_feel_effect`).
+const MOOD_POSE_EFFECTS := {
+	"npc_1_wait_ki1": [&"konpu", 15, [15]],
+	"npc_1_wait_do1": [&"pun_yuge", 20, [20]],
+	"npc_1_walk_do1": [&"pun_yuge", 20, [20]],
+	"npc_1_wait_ai1": [&"doyon", 10, [10]],
+	"npc_1_walk_ai1": [&"doyon", 10, [10]],
+	"npc_1_wait_nemu1": [&"neboke_awa", 60, [7, 14]],
+}
+
+
+static func mood_clip(table: Array[String], mood: int) -> String:
+	return table[clampi(mood, 0, table.size() - 1)]
+
+
+## `eff_idx2`: the clip a reaction moves on to once its first clip stops — the matching
+## `*2` loop, while the quiet faces (`niko`, `musu`, `komari`, `keirei`) hold their first.
+static func follow_clip(clip: String) -> String:
+	var key: String = clip.strip_edges().to_lower()
+	var bare: String = key.trim_prefix("npc_1_")
+	for held: String in ["niko", "musu", "komari", "keirei"]:
+		if bare.begins_with(held):
+			return clip
+	if bare == "a2_r1":
+		return "npc_1_a_r2"
+	if key.ends_with("1"):
+		return key.left(-1) + "2"
+	return clip
+
+
 static func is_reset(name: String) -> bool:
 	var key := name.strip_edges().to_lower()
 	return key == String(RESET) or key == String(RESET_SIT) or key == "reset_sitdown" or key == "254" or key == "255" or key == "0xfe" or key == "0xff"
@@ -129,17 +169,54 @@ static func mouth_hold_for(name: String) -> int:
 	return -1
 
 
-## Floating feel glyph for the manpu clip (`eEC_EFFECT_WARAU` / `SHOCK` / `HA` / `HIRAMEKI_DEN`).
+## Floating feel glyph for the manpu clip: each `npc_1_*` clip's own `feel_effect`
+## (`smile` → `WARAU`, `gaaan` / `kiduku1` → `SHOCK`, `ha` → `HA`, `hirameki` →
+## `HIRAMEKI_DEN`, `hate` → `GIMONHU`, `a` → `KANTANHU`, `aseru` / `kiduku2` → `ASE2`).
+## `muka` → `MUKA`, `love` → `LOVELOVE2`, `shituren` → `SITUREN`. The clip-long ones
+## (`NpcFeelMoods`): `punpun` → `PUN`, `happy` → `SIAWASE_HIKARI`, `muuuuu` → `KANGAERU`,
+## `warudakumi` → `TAKURAMI`, `goukyu` → `NAKU`, `buruburu` → `BURUBURU`, `hyuuu` → `KAZE`,
+## `otikomu` → `OTIKOMI`, `neboke` → `NEBOKE`.
+## `niko`, `musu`, `komari` and `lovelove` have none.
 static func feel_for(name: String) -> StringName:
 	var key := name.strip_edges().to_lower()
 	if is_reset(name) or key.is_empty():
 		return &""
-	if "smile" in key or "niko" in key or "happy" in key or "love" in key:
+	if key.begins_with("smile") or key.begins_with("sitdown_clap"):
 		return &"warau"
-	if "hirameki" in key:
+	if key.begins_with("hirameki"):
 		return &"hirameki"
-	if "gaaan" in key:
+	if key.begins_with("gaaan") or key == "kiduku1":
 		return &"shock"
-	if "ha_" in key or key.ends_with("ha1") or key.ends_with("ha_d1") or key == "ha1":
+	if key.begins_with("ha_") or key == "ha1":
 		return &"ha"
+	if key.begins_with("hate"):
+		return &"gimonhu"
+	if key == "a1" or key == "a_f1" or key == "a_r1":
+		return &"kantanhu"
+	if key.begins_with("aseru") or key == "kiduku2":
+		return &"ase"
+	if key.begins_with("muka"):
+		return &"muka"
+	if key.begins_with("shituren"):
+		return &"situren"
+	if key == "love1" or key == "love_i1":
+		return &"lovelove2"
+	if key.begins_with("punpun"):
+		return &"pun"
+	if key.begins_with("happy"):
+		return &"siawase"
+	if key.begins_with("muuuuu"):
+		return &"kangaeru"
+	if key.begins_with("warudakumi"):
+		return &"takurami"
+	if key.begins_with("goukyu"):
+		return &"naku"
+	if key.begins_with("buruburu"):
+		return &"buruburu"
+	if key.begins_with("hyuuu"):
+		return &"kaze"
+	if key.begins_with("otikomu"):
+		return &"otikomi"
+	if key.begins_with("neboke"):
+		return &"neboke"
 	return &""

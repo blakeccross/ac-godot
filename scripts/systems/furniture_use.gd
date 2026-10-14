@@ -18,10 +18,14 @@ static func actions(host: Node, ctx: InteractionContext) -> Array[Interaction]:
 			out.append(Interaction.of(Interaction.OPEN, "Use %s" % label, 9))
 		else:
 			out.append(Interaction.of(Interaction.OPEN, "Open %s" % label, 9, _open_clip(data)))
-	if data != null and data.is_toggleable() and not data.is_music_player() and (not data.radio_aerobics or _from_front(ctx)):
+	if data != null and (data.is_toggleable() or FurnitureAmbience.switchable(data)) and not data.is_music_player() and (not data.radio_aerobics or _from_front(ctx)):
 		var powered: bool = entry == null or entry.on
 		var verb: String = "Turn off %s" if powered else "Turn on %s"
+		if FurnitureAmbience.PRESS.has(data.visual_id):
+			verb = "Use %s"
 		out.append(Interaction.of(Interaction.TOGGLE, verb % label, 7))
+	if data != null and is_diary(data) and _diary_open_here(entry):
+		out.append(Interaction.of(Interaction.READ, "Read %s" % label, 9))
 	if data != null and _can_take(data, entry):
 		out.append(Interaction.of(Interaction.TAKE, "Take from %s" % label, 10))
 	elif data != null and _can_display(data, ctx):
@@ -44,6 +48,8 @@ static func apply(action: Interaction, host: Node, ctx: InteractionContext) -> b
 	match action.id:
 		Interaction.OPEN:
 			return await FurnitureTalk.run(host, ctx)
+		Interaction.READ:
+			return open_diary(host)
 		Interaction.TOGGLE:
 			return toggle(pid)
 		Interaction.DISPLAY:
@@ -56,6 +62,41 @@ static func apply(action: Interaction, host: Node, ctx: InteractionContext) -> b
 			return Game.rotate_furniture(pid)
 		_:
 			return false
+
+
+## `ITM_DIARY00`–`15`: the notebooks (`ftr_diary` list, `mRmTp_*` FTR_NOG_COLLEGENOTE…).
+static func is_diary(data: FurnitureData) -> bool:
+	return data != null and FtrCatalog.list("ftr_diary").has(data.id)
+
+
+## `aMR_CheckDiaryOnMe`: a notebook set down on a table, in a resident's house.
+static func _diary_open_here(entry: FurniturePlacement = null) -> bool:
+	var session: IndoorSession = Game.interior_session
+	if entry != null and entry.layer != 1:
+		return false
+	return session != null and session.room != null and PlayerHouse.is_player_room(session.room.id)
+
+
+## `mHS_get_pl_no_detail`: whose house the notebook is in (−1 for the player's own).
+static func diary_owner() -> int:
+	return Game.visiting_slot if Game != null else -1
+
+
+## The calendar comes up first; picking a day opens the diary on its month
+## (`mSM_OVL_CALENDAR` → `mSM_OVL_DIARY`). Without one, the diary opens straight away.
+static func open_diary(host: Node) -> bool:
+	var tree: SceneTree = host.get_tree() if host != null else null
+	if tree == null:
+		return false
+	for group: String in ["calendar_ui", "diary_ui"]:
+		var ui: Node = tree.get_first_node_in_group(group)
+		if ui == null or not ui.has_method("open"):
+			continue
+		if bool(ui.call("is_open")):
+			return false
+		ui.call("open", diary_owner())
+		return true
+	return false
 
 
 static func _from_front(ctx: InteractionContext) -> bool:
@@ -74,13 +115,17 @@ static func toggle(placement_id: StringName) -> bool:
 		FurnitureMusic.set_switch(Game.interior_session, entry, not entry.on)
 	else:
 		entry.on = not entry.on
-	if data != null and (data.kind == FurnitureData.Kind.TOGGLE or data.radio_aerobics):
+	if data != null and (data.kind == FurnitureData.Kind.TOGGLE or data.radio_aerobics or FurnitureAmbience.clicks(data)):
 		Audio.play_se(&"light_on" if entry.on else &"light_off")
+	var press: StringName = FurnitureAmbience.press_se(data, Game.inventory.wallet if Game.inventory != null else 0)
+	if press != &"":
+		Audio.play_se(press)
 	if data != null and data.kind == FurnitureData.Kind.GYROID:
 		_hop(pid_node(placement_id))
 	if data != null and data.radio_aerobics:
 		FurnitureTalk.refresh_room_bgm()
-	Game.post_notice("Turned %s." % ("on" if entry.on else "off"))
+	if data == null or not FurnitureAmbience.PRESS.has(data.visual_id):
+		Game.post_notice("Turned %s." % ("on" if entry.on else "off"))
 	return true
 
 

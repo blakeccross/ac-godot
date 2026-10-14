@@ -29,6 +29,7 @@ from .rel import RelData
 from .test_set import TEST_SKELETONS, TEST_STATIC
 from .texbank import (
     GX_CLAMP,
+    palette_from_rgb5a3,
     G_IM_FMT_CI,
     G_IM_FMT_I,
     G_IM_FMT_IA,
@@ -228,7 +229,8 @@ KANBAN_SIGN_GFX: dict[str, list[str]] = {
 }
 
 ## Statics whose only DL is the XLU `{prefix}_modelT` (no `_model` to infer from).
-XLU_ONLY_STATICS: frozenset[str] = frozenset({"obj_koban_shine", "obj_yubinkyoku_shine"})
+## The fishing-tourney weigh stand (`ac_turi_draw`) is drawn from `*_modelT` alone too.
+XLU_ONLY_STATICS: frozenset[str] = frozenset({"obj_koban_shine", "obj_yubinkyoku_shine", "obj_e_turi_l", "obj_e_turi_r"})
 
 ## Dropped FG item cards (`bg_item` / `handOverItem`). Vtx is `obj_item_*_v`; DLs are either a
 ## combined `*_modelT` or a `*_DL_mode` + `*_DL_vtx` pair (no `*_gfx_model` to infer).
@@ -241,6 +243,7 @@ ITEM_CARD_GFX: dict[str, list[str]] = {
     "obj_item_bag": ["bag_DL_mode", "bag_DL_vtx"],
     "obj_item_leaf": ["leaf_DL_mode", "leaf_DL_vtx"],
     "obj_item_present": ["present_DL_mode", "present_DL_vtx"],
+    "obj_item_matutake": ["matutake_DL_mode", "matutake_DL_vtx"],
 }
 
 ## Rain streaks / ground splash (`ac_weather_rain`). Texture + PRIM/ENV live on shared
@@ -543,6 +546,37 @@ def convert_villager_house_palettes(cfg: PipelineConfig) -> dict[str, Any]:
     return {"results": results, "converted": sum(1 for r in results if r["status"] == "converted")}
 
 
+def convert_player_house_palettes(cfg: PipelineConfig) -> dict[str, Any]:
+    """Bake `obj_{s,w}_myhome{1-4}_{b-l}.glb`, one per roof colour.
+
+    Decomp `aMHS_actor_ct`: `structure_pal = aSTR_PAL_MYHOME_A + outlook_pal` (12 sets,
+    picked at Nook's). The base `obj_s_myhome1.glb` is palette a.
+    """
+    results: list[dict[str, Any]] = []
+    rel, symbols = _rel_and_map(cfg)
+    bank = _texture_bank(cfg, rel, symbols)
+    names = {s.name for s in symbols}
+    jobs: list[tuple[str, str, str]] = []
+    for season in ("s", "w"):
+        for size in range(1, 5):
+            stem = f"obj_{season}_myhome{size}"
+            skel = f"cKF_bs_r_{stem}"
+            if skel not in names:
+                continue
+            for letter in "bcdefghijkl":
+                jobs.append((stem, skel, letter))
+    for i, (stem, skel, letter) in enumerate(jobs, 1):
+        item = _skeleton_job(skel, names)
+        item["asset_id"] = f"{stem}_{letter}"
+        item["output"] = f"environment/{stem}_{letter}.glb"
+        bank.structure_palette_letter = letter
+        record = _convert_ckf(cfg, rel, symbols, item, bank)
+        results.append(record)
+        print(f"  roof-pal {i}/{len(jobs)} {item['asset_id']} {record['status']}")
+    bank.structure_palette_letter = None
+    return {"results": results, "converted": sum(1 for r in results if r["status"] == "converted")}
+
+
 def convert_static_prefixes(cfg: PipelineConfig, needles: list[str]) -> dict[str, Any]:
     """Reconvert static Gfx whose asset_id contains any needle (e.g. palm, cedar)."""
     rel, symbols = _rel_and_map(cfg)
@@ -670,7 +704,7 @@ def _anims_for_prefix(prefix: str, names: set[str]) -> list[str]:
         if n == f"cKF_ba_r_{prefix}" or n.startswith(f"cKF_ba_r_{prefix}_")
     ]
     hits.sort()
-    if prefix.startswith("boy_"):
+    if prefix.startswith(("boy_", "grl_", "girl_")):
         extra = [n for n in names if n.startswith("cKF_ba_r_ply_1_")]
         extra.sort()
         core = _core_anims(PLAYER_CORE_ANIMS, names)
@@ -1281,6 +1315,7 @@ def _convert_player_bins(cfg: PipelineConfig) -> list[dict[str, Any]]:
                         pal,
                     )
                 )
+        results.append(_write_player_face_palettes(cfg, face))
     tex_path = data / "tex_boy.bin"
     pal_path = data / "pallet_boy.bin"
     if tex_path.is_file() and pal_path.is_file():
@@ -1368,9 +1403,28 @@ def _infer_ci4_size(nbytes: int) -> tuple[int, int] | None:
     return None
 
 
+def model_dl_texture_loads(model_sources: dict[str, str]) -> dict[str, tuple[int, int, int, int]]:
+    """Texture symbol → (fmt, siz, width, height) for the non-CI textures a model DL loads by
+    name (`gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 32, 32, act_ant_tex)`).
+    A symbol loaded more than one way is left out."""
+    loads: dict[str, set[tuple[int, int, int, int]]] = {}
+    for text in model_sources.values():
+        for fmt, siz, w, h, sym in _SETTIMG_FULL_RE.findall(text):
+            if fmt not in _GX_FMT or siz not in _GX_SIZ:
+                continue
+            loads.setdefault(sym, set()).add((_GX_FMT[fmt], _GX_SIZ[siz], int(w), int(h)))
+    return {
+        sym: next(iter(found))
+        for sym, found in loads.items()
+        if len(found) == 1 and next(iter(found))[0] != G_IM_FMT_CI
+    }
+
+
 def _convert_rel_textures(cfg: PipelineConfig, rel: RelData, symbols: list, bank: TextureBank) -> list[dict[str, Any]]:
-    """Decode named REL textures: CI4 with nearby palettes, plus known IA field waves."""
+    """Decode named REL textures: the format a model DL loads them in when it names them,
+    else CI4 with nearby palettes, plus known IA field waves."""
     results: list[dict[str, Any]] = []
+    dl_loads = model_dl_texture_loads(_model_sources(cfg, "*.c"))
     pals = [s for s in symbols if s.name.endswith("_pal") and s.size >= 32]
     pals.sort(key=lambda s: s.address)
     pal_i = 0
@@ -1408,6 +1462,24 @@ def _convert_rel_textures(cfg: PipelineConfig, rel: RelData, symbols: list, bank
                     }
                 )
             continue
+        load = dl_loads.get(symbol.name)
+        if load is not None:
+            fmt, siz, w, h = load
+            if w * h * {0: 4, 1: 8, 2: 16, 3: 32}[siz] // 8 == symbol.size:
+                try:
+                    data = rel.slice_at(symbol.address, symbol.size)
+                    results.append(_png_record(cfg, dest_rel, symbol.name, data, w, h, b"", fmt=fmt, siz=siz))
+                except Exception as exc:  # noqa: BLE001
+                    results.append(
+                        {
+                            "asset_id": symbol.name,
+                            "source": symbol.name,
+                            "output_path": dest_rel,
+                            "status": "error",
+                            "error": f"{type(exc).__name__}: {exc}",
+                        }
+                    )
+                continue
         dims = _infer_ci4_size(symbol.size)
         if dims is None:
             continue
@@ -1449,6 +1521,12 @@ _GX_SIZ = {"G_IM_SIZ_4b": 0, "G_IM_SIZ_8b": 1, "G_IM_SIZ_16b": 2, "G_IM_SIZ_32b"
 _SETTIMG_RE = re.compile(
     r"gsDPSetTextureImage_Dolphin\(\s*(G_IM_FMT_\w+)\s*,\s*(G_IM_SIZ_\w+)\s*,\s*\d+\s*,\s*\d+\s*,\s*(\w+)\s*\)"
 )
+_SETTIMG_FULL_RE = re.compile(
+    r"gsDPSetTextureImage_Dolphin\(\s*(G_IM_FMT_\w+)\s*,\s*(G_IM_SIZ_\w+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\w+)\s*\)"
+)
+_SETTIMG_DIMS_RE = re.compile(
+    r"gsDPSetTextureImage_Dolphin\(\s*G_IM_FMT_\w+\s*,\s*G_IM_SIZ_\w+\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\w+)\s*\)"
+)
 ## Texture banks are `u8 sym[] … = { #include "assets/….inc" }`; inline tables (evw anime
 ## patterns) are not textures.
 _U8_SYMBOL_RE = re.compile(r"\bu8\s+(ef_\w+)\s*\[\][^=]*=\s*\{\s*#include")
@@ -1476,7 +1554,44 @@ def effect_dl_frame_formats(model_sources: dict[str, str]) -> dict[str, tuple[in
     return out
 
 
+def effect_dl_frame_dims(model_sources: dict[str, str]) -> dict[str, list[tuple[int, int]]]:
+    """Texture prefix → the (width, height) loads of the `ef_*` model files it belongs to.
+
+    A frame bank swapped onto `anime_N_txt` is not named in any model DL, so its size comes
+    from the loads of the model file whose stem (less its trailing `_NN`) it shares:
+    `ef_buruburu01_00.c` loads `anime_1_txt` 32×16, so `ef_buruburu01_0_int_i4` is 32×16.
+    Directly loaded textures are keyed by their own name."""
+    out: dict[str, list[tuple[int, int]]] = {}
+    for fname, text in model_sources.items():
+        prefix = Path(fname).stem.rsplit("_", 1)[0] + "_"
+        for w, h, sym in _SETTIMG_DIMS_RE.findall(text):
+            dims = (int(w), int(h))
+            key = prefix if sym.startswith("anime_") else sym
+            if dims not in out.setdefault(key, []):
+                out[key].append(dims)
+    return out
+
+
+def effect_frame_size(name: str, pixels: int, dl_dims: dict[str, list[tuple[int, int]]]) -> tuple[int, int] | None:
+    """A frame's size: square when its pixel count is, else a model load it matches."""
+    side = int(round(pixels ** 0.5))
+    if side * side == pixels:
+        return side, side
+    candidates = list(dl_dims.get(name, []))
+    for key, dims in dl_dims.items():
+        if key.endswith("_") and name.startswith(key):
+            candidates.extend(dims)
+    for w, h in candidates:
+        if w * h == pixels:
+            return w, h
+    return None
+
+
 def _effect_model_sources(cfg: PipelineConfig) -> dict[str, str]:
+    return _model_sources(cfg, "ef_*.c")
+
+
+def _model_sources(cfg: PipelineConfig, pattern: str) -> dict[str, str]:
     from .fgdata import _guess_decomp
 
     root = cfg.decomp_root or _guess_decomp(cfg)
@@ -1486,14 +1601,16 @@ def _effect_model_sources(cfg: PipelineConfig) -> dict[str, str]:
     if not model_dir.is_dir():
         return {}
     return {
-        p.name: p.read_text(encoding="utf-8", errors="replace") for p in sorted(model_dir.glob("ef_*.c"))
+        p.name: p.read_text(encoding="utf-8", errors="replace") for p in sorted(model_dir.glob(pattern))
     }
 
 
 def _convert_effect_frames(cfg: PipelineConfig, rel: RelData, symbols: list) -> list[dict[str, Any]]:
-    """Square effect frame textures → `textures/rel/{symbol}.png` (native decode)."""
+    """Effect frame textures → `textures/rel/{symbol}.png` (native decode)."""
     results: list[dict[str, Any]] = []
-    dl_formats = effect_dl_frame_formats(_effect_model_sources(cfg))
+    sources = _effect_model_sources(cfg)
+    dl_formats = effect_dl_frame_formats(sources)
+    dl_dims = effect_dl_frame_dims(sources)
     for symbol in symbols:
         name = symbol.name
         fmt_siz = dl_formats.get(name)
@@ -1507,13 +1624,13 @@ def _convert_effect_frames(cfg: PipelineConfig, rel: RelData, symbols: list) -> 
         fmt, siz = fmt_siz
         bits = {0: 4, 1: 8, 2: 16, 3: 32}[siz]
         pixels = symbol.size * 8 // bits
-        side = int(round(pixels ** 0.5))
-        if side * side != pixels:
+        size = effect_frame_size(name, pixels, dl_dims)
+        if size is None:
             continue
         data = rel.slice_at(symbol.address, symbol.size)
         results.append(
             _png_record(
-                cfg, f"textures/rel/{name}.png", name, data, side, side, b"", fmt=fmt, siz=siz,
+                cfg, f"textures/rel/{name}.png", name, data, size[0], size[1], b"", fmt=fmt, siz=siz,
                 allow_achd=False,
             )
         )
@@ -1544,6 +1661,57 @@ def _convert_actor_tlut_rows(cfg: PipelineConfig, rel: RelData, symbols: list) -
                 _png_record(cfg, dest_rel, f"{tex_name}:{table}[{i}]", data, dims[0], dims[1], pal)
             )
     return results
+
+
+## `mPlib_Get_UseFacePalletRom_p`: sunburn palettes follow the last face set (set 63's
+## palette slot), one per `rank + face * 8 + sex * 64 + swell * 128`.
+PLAYER_FACE_SET_SIZE = 0xE20
+PLAYER_FACE_SETS = 64
+PLAYER_TAN_BASE = 63 * PLAYER_FACE_SET_SIZE + 0xE00
+PLAYER_TAN_COUNT = 256
+
+
+def player_face_palettes(face: bytes) -> dict[str, Any]:
+    """Each face set's own palette and the sunburn table, as `#rrggbbaa` lists."""
+
+    def hexes(blob: bytes) -> list[str]:
+        return ["#%02x%02x%02x%02x" % c for c in palette_from_rgb5a3(blob)]
+
+    sets = []
+    for i in range(PLAYER_FACE_SETS):
+        base = i * PLAYER_FACE_SET_SIZE + 0xE00
+        if base + 0x20 > len(face):
+            break
+        sets.append(hexes(face[base : base + 0x20]))
+    tan = []
+    for i in range(PLAYER_TAN_COUNT):
+        base = PLAYER_TAN_BASE + i * 0x20
+        if base + 0x20 > len(face):
+            break
+        tan.append(hexes(face[base : base + 0x20]))
+    return {"sets": sets, "tan": tan}
+
+
+def _write_player_face_palettes(cfg: PipelineConfig, face: bytes) -> dict[str, Any]:
+    dest_rel = "textures/player/faces/palettes.json"
+    record: dict[str, Any] = {
+        "asset_id": "player_face_palettes",
+        "source": "face_boy.bin",
+        "output_path": dest_rel,
+        "status": "pending",
+        "error": None,
+    }
+    try:
+        text = json.dumps(player_face_palettes(face))
+        for root in (cfg.converted, cfg.godot_generated):
+            dest = root / dest_rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(text)
+        record["status"] = "converted"
+    except Exception as exc:  # noqa: BLE001
+        record["status"] = "error"
+        record["error"] = f"{type(exc).__name__}: {exc}"
+    return record
 
 
 def _png_record(

@@ -63,7 +63,7 @@ func is_exit_cell(cell: Vector2i) -> bool:
 
 
 ## Shop / broker service-counter cell — one unit in and one unit left of the door
-## strip (`ShopCounter` / Redd's stand).
+## strip (Redd's stand); shelf stock keeps off it.
 func counter_cell() -> Vector2i:
 	return Vector2i(door_cell.x - 1, spawn_cell.y - 1)
 

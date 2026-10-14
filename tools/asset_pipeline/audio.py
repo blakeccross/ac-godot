@@ -71,6 +71,39 @@ EXTRA_SE_NUMS: dict[str, int] = {
     ## `Player_actor_sound_slip`: `set_sound_common2(actor, 0x4129)` — dash skid
     ## (`turn_dash`) and net slip.
     "4129": 0x4129,
+    ## `bIT_actor_pit_move`: a pitfall opening under someone (0x13C) and closing after they
+    ## climb out (0x15B).
+    "13c": 0x13C,
+    "15b": 0x15B,
+    ## `eTM_mv`: a villager's scheming smirk (`ef_takurami`) starts on 0x117.
+    "117": 0x117,
+    ## Furniture one-shots (`sAdo_OngenTrgStart` in `src/furniture/ac_*.c`), mostly on the
+    ## switch (`switch_changed_flag`): the Japanese dolls (0x7A rosia, 0x7B hariko), piggy
+    ## bank (0x7C), gong (0x174), sandbag / punching bag (0x175 / 0x176), Mario pipe, mushroom,
+    ## coin, flower, block, flag and shell (0x178, 0x179, 0x17A, 0x17B, 0x17F, 0x44E, 0x464),
+    ## jack-in-the-box (0x144), tumbler doll (0x145) and noise maker (0x46A); and on a frame of
+    ## their idle loop, the shishi-odoshi's knock (0x18), the drinking bird's dip (0x12A) and
+    ## the cracker's pop (0x12C). `SE_SINGLETON` (0x8000) only limits how many play at once
+    ## and is dropped.
+    "7a": 0x7A,
+    "7b": 0x7B,
+    "7c": 0x7C,
+    "174": 0x174,
+    "175": 0x175,
+    "176": 0x176,
+    "178": 0x178,
+    "179": 0x179,
+    "17a": 0x17A,
+    "17b": 0x17B,
+    "17f": 0x17F,
+    "44e": 0x44E,
+    "464": 0x464,
+    "144": 0x144,
+    "145": 0x145,
+    "46a": 0x46A,
+    "18": 0x18,
+    "12a": 0x12A,
+    "12c": 0x12C,
 }
 
 ## Level (looping, positional) SEs, played by level id rather than SE number
@@ -108,6 +141,49 @@ LEV_SE_NUMS: dict[str, int] = {
     "lev_a3": 0xA3,
     "lev_a8": 0xA8,
     "lev_cf": 0xCF,
+    ## `aFD_OperateWaterSound` / `Bg_Draw_Actor_move`: the nearest two field sound sources —
+    ## river and waterfall units (0x0B) inland, the surf (0x1C) on the beach acres — plus the
+    ## pond's water (0x16) and its frogs on summer evenings and mornings (0xA1).
+    "lev_b": 0x0B,
+    "lev_1c": 0x1C,
+    "lev_16": 0x16,
+    "lev_a1": 0xA1,
+    ## Villager feel effects held while their clip plays: the happy glow (14,
+    ## `ef_siawase_hikari`), shivering (0x2D, `ef_buruburu`), sobbing (0x2E, `ef_naku`),
+    ## the thinking bubbles (0x58, `ef_kangaeru`) and the gloom cloud (0x59, `ef_otikomi`).
+    "lev_e": 0x0E,
+    "lev_2d": 0x2D,
+    "lev_2e": 0x2E,
+    "lev_58": 0x58,
+    "lev_59": 0x59,
+    ## Furniture that sounds while it is out (`sAdo_OngenPos(ftr_actor, n, …)` in each
+    ## `src/furniture/ac_*.c` move proc): the fan (1), slot machine (2), toy train (3), TVs
+    ## (4, 5, 6, 0x2B, 0x5E), fireplace (0x46), lion fountain (0x4A), shoji lamp (0x4B),
+    ## the pot (0x50), ice-cream maker (0x51), island box (0x52), stew (0x54), barbecue
+    ## (0x55), hamster wheel (0x56), torch (0x57), sprinkler (0x5B), campfires (0x5C / 0x5D)
+    ## and the Super Star (0x5F).
+    "lev_1": 0x01,
+    "lev_2": 0x02,
+    "lev_3": 0x03,
+    "lev_4": 0x04,
+    "lev_5": 0x05,
+    "lev_6": 0x06,
+    "lev_2b": 0x2B,
+    "lev_46": 0x46,
+    "lev_4a": 0x4A,
+    "lev_4b": 0x4B,
+    "lev_50": 0x50,
+    "lev_51": 0x51,
+    "lev_52": 0x52,
+    "lev_54": 0x54,
+    "lev_55": 0x55,
+    "lev_56": 0x56,
+    "lev_57": 0x57,
+    "lev_5b": 0x5B,
+    "lev_5c": 0x5C,
+    "lev_5d": 0x5D,
+    "lev_5e": 0x5E,
+    "lev_5f": 0x5F,
 }
 
 CATALOG_DIR = "audio"
@@ -408,7 +484,22 @@ def _load_bgm_ids(decomp: Optional[Path]) -> dict[str, int]:
     path = decomp / "include" / "audio_defs.h"
     if not path.is_file():
         return {}
-    return parse_bgm_ids(path.read_text(encoding="utf-8", errors="replace"))
+    return with_live_songs(parse_bgm_ids(path.read_text(encoding="utf-8", errors="replace")))
+
+
+## K.K.'s live versions: `BGM_TOTAKEKE_LIVE0 + song` (`aMKBC_clip_bgm_no`) for the 55 records
+## plus the three made-up songs (`0x37 + RANDOM(3)`); only LIVE0 is named in the enum.
+TOTAKEKE_LIVE_COUNT = 58
+
+
+def with_live_songs(bgm_ids: dict[str, int]) -> dict[str, int]:
+    base = bgm_ids.get("totakeke_live0", -1)
+    if base < 0:
+        return bgm_ids
+    out = dict(bgm_ids)
+    for n in range(1, TOTAKEKE_LIVE_COUNT):
+        out.setdefault(f"totakeke_live{n}", base + n)
+    return out
 
 
 def _load_se_ids(decomp: Optional[Path]) -> dict[str, int]:

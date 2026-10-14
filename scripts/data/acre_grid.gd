@@ -9,6 +9,9 @@ extends Resource
 ## `FieldCatalog.UNIT_STRIDE` bytes per unit, row-major (`z * 16 + x`):
 ## center, nw, sw, se, ne heights (0–31), slate flag, attribute (0–63).
 @export var units: PackedByteArray = PackedByteArray()
+## `mFM_bg_sound_source_data_c`: `kind, ut_x, ut_z` per field sound source (kind 1 river /
+## waterfall, 2 sea) — what `aFD_OperateWaterSound` plays.
+@export var sounds: PackedInt32Array = PackedInt32Array()
 
 
 func is_valid() -> bool:
@@ -46,6 +49,11 @@ static func from_col_json(id: String) -> AcreGrid:
 		i += FieldCatalog.UNIT_STRIDE
 	if not _is_height_max_filler(id, packed):
 		grid.units = packed
+	var src: Variant = (parsed as Dictionary).get("sounds", [])
+	if typeof(src) == TYPE_ARRAY:
+		for s: Variant in src as Array:
+			if typeof(s) == TYPE_ARRAY and (s as Array).size() == 3:
+				grid.sounds.append_array(PackedInt32Array([int(s[0]), int(s[1]), int(s[2])]))
 	return grid
 
 

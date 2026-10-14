@@ -99,6 +99,7 @@ class LayoutTests(unittest.TestCase):
         self.assertTrue(uses_shared_npc_anims("xct_1"))
         self.assertTrue(uses_shared_npc_anims("kab_1"))
         self.assertFalse(uses_shared_npc_anims("boy_1"))
+        self.assertFalse(uses_shared_npc_anims("grl_1"))
         self.assertEqual(output_for_prefix("cat_1"), "characters/villagers/cat_1.glb")
         self.assertEqual(output_for_prefix("xct_1"), "characters/villagers/xct_1.glb")
         self.assertEqual(output_for_prefix("kab_1"), "characters/villagers/kab_1.glb")
@@ -107,6 +108,7 @@ class LayoutTests(unittest.TestCase):
         self.assertEqual(output_for_prefix("rcs_1"), "characters/villagers/rcs_1.glb")
         self.assertEqual(output_for_prefix("rcd_1"), "characters/villagers/rcd_1.glb")
         self.assertEqual(output_for_prefix("boy_1"), "characters/player/boy_1.glb")
+        self.assertEqual(output_for_prefix("grl_1"), "characters/player/grl_1.glb")
         self.assertEqual(output_for_prefix("int_kon_redclock"), "furniture/int_kon_redclock.glb")
         self.assertEqual(output_for_prefix("tol_net_1"), "items/tol_net_1.glb")
         self.assertEqual(output_folder_for_static("grd_s_f_1"), "environment/acres")
@@ -523,7 +525,8 @@ class PrefixOwnershipTests(unittest.TestCase):
         from asset_pipeline.test_set import TEST_STATIC
 
         bugs = {i["asset_id"]: i for i in TEST_STATIC if i["asset_id"].startswith("act_m_")}
-        self.assertEqual(len(BUG_STATIC_NEEDLES), 80)
+        ## 40 insects and the Wisp's spirit, two poses each.
+        self.assertEqual(len(BUG_STATIC_NEEDLES), 82)
         self.assertEqual(bugs["act_m_hirata_a"]["vtx"], "act_m_hirata_v")
         self.assertEqual(bugs["act_m_hirata_a"]["gfx"], ["act_m_hirata1T_model"])
         self.assertEqual(bugs["act_m_hirata_b"]["vtx"], "act_m_hirata_v")
@@ -2212,6 +2215,22 @@ class JointTextureInheritanceTests(unittest.TestCase):
 
 
 
+class ModelTextureLoadTests(unittest.TestCase):
+    def test_non_ci_loads_come_from_the_model_dl(self) -> None:
+        from asset_pipeline.convert import model_dl_texture_loads
+
+        ant = "gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 32, 32, act_ant_tex),\n" * 2
+        tree = "gsDPSetTextureImage_Dolphin(G_IM_FMT_CI, G_IM_SIZ_4b, 32, 32, obj_tree_tex),\n"
+        mixed = (
+            "gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 32, 32, shared_tex),\n"
+            "gsDPSetTextureImage_Dolphin(G_IM_FMT_IA, G_IM_SIZ_8b, 32, 16, shared_tex),\n"
+        )
+        out = model_dl_texture_loads({"a.c": ant, "t.c": tree, "m.c": mixed})
+        self.assertEqual(out["act_ant_tex"], (4, 0, 32, 32))
+        self.assertNotIn("obj_tree_tex", out)  ## CI keeps its palette path
+        self.assertNotIn("shared_tex", out)  ## ambiguous
+
+
 class EffectFrameFormatTests(unittest.TestCase):
     def test_formats_come_from_the_effect_dls(self) -> None:
         from asset_pipeline.convert import effect_dl_frame_formats
@@ -2233,6 +2252,41 @@ class EffectFrameFormatTests(unittest.TestCase):
         self.assertEqual(out["ef_dust01_0"], (4, 0))
         self.assertEqual(out["ef_dust01_1"], (4, 0))
         self.assertNotIn("ef_dust01_anime_ptn", out)
+
+    def test_non_square_frames_take_their_model_load_size(self) -> None:
+        from asset_pipeline.convert import effect_dl_frame_dims, effect_frame_size
+
+        buru = "gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 32, 16, anime_1_txt),\n"
+        otikomi = "gsDPSetTextureImage_Dolphin(G_IM_FMT_I, G_IM_SIZ_4b, 64, 32, ef_otikomi_us1_int_i4),\n"
+        dims = effect_dl_frame_dims({"ef_buruburu01_00.c": buru, "ef_otikomi_us2.c": otikomi})
+        self.assertEqual(effect_frame_size("ef_buruburu01_1_int_i4", 512, dims), (32, 16))
+        self.assertEqual(effect_frame_size("ef_otikomi_us1_int_i4", 2048, dims), (64, 32))
+        self.assertEqual(effect_frame_size("ef_dust01_0", 256, dims), (16, 16))
+        self.assertIsNone(effect_frame_size("ef_other_0", 512, dims))
+
+
+
+class PlayerFacePaletteTests(unittest.TestCase):
+    def test_sets_and_sunburn_table(self) -> None:
+        from asset_pipeline.convert import (
+            PLAYER_FACE_SET_SIZE,
+            PLAYER_TAN_BASE,
+            player_face_palettes,
+        )
+
+        blob = bytearray(PLAYER_TAN_BASE + 256 * 0x20)
+        ## Set 1's first colour: opaque RGB555 pure red (`0x8000 | 31 << 10`).
+        struct.pack_into(">H", blob, PLAYER_FACE_SET_SIZE + 0xE00, 0x8000 | (31 << 10))
+        ## Sunburn entry 9 (male face 1, rank 1): opaque pure blue.
+        struct.pack_into(">H", blob, PLAYER_TAN_BASE + 9 * 0x20, 0x8000 | 31)
+        out = player_face_palettes(bytes(blob))
+        self.assertEqual(len(out["sets"]), 64)
+        self.assertEqual(len(out["tan"]), 256)
+        self.assertEqual(len(out["sets"][1]), 16)
+        self.assertEqual(out["sets"][1][0], "#ff0000ff")
+        self.assertEqual(out["tan"][9][0], "#0000ffff")
+        ## The table starts in set 63's palette slot.
+        self.assertEqual(out["tan"][0], out["sets"][63])
 
 
 if __name__ == "__main__":

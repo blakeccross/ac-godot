@@ -2,13 +2,14 @@ class_name Player
 extends CharacterBody3D
 
 ## CharacterBody3D player. Locomotion feel from `m_player_main_walk`; visual from
-## generated `boy_1.glb` when the local pipeline has been run. Equipped tools
+## `boy_1.glb` or `grl_1.glb` (`mPlib_get_player_mdl_p`). Equipped tools
 ## parent to HAND (`HeldTool`). Walk physics cylinder radius matches `BgCheckControll`
 ## range (18 GX → 0.9 m) — same as `FieldCollision.ACTOR_RADIUS` / trees-rocks columns.
 ## Height keeps the OcInfo stand pipe (60 GX → 3.0 m). Cliffs/water use `revise_xz`,
 ## not this shape. OcInfo radius 20 is actor-actor CollisionCheck, not world walk.
 
-const GENERATED_PLAYER := "res://assets/generated/characters/player/boy_1.glb"
+const PLAYER_BOY_GLB := "res://assets/generated/characters/player/boy_1.glb"
+const PLAYER_GIRL_GLB := "res://assets/generated/characters/player/grl_1.glb"
 const LOOK_HEIGHT := 0.85
 const INTERACT_REACH := 1.1
 
@@ -16,8 +17,23 @@ const INTERACT_REACH := 1.1
 const POCKETS_FULL_MSG_ID := &"msg_4936"
 ## `notice_rod`'s follow-up to 0x1349 when the catch completes the fish record.
 const FISH_RECORD_DONE_MSG := 0x134A
+## `notice_rod`: the fish page finished (0x134A) under its own jingle (0x4C).
+const ROD_COMPLETE_MSG := 0x134A
+const ROD_COMPLETE_FANFARE := 0x4C
+const POCKETS_FULL_MSG := 4936
 
 const ANIM_WAIT := "ply_1_wait1"
+## `Player_actor_request_proc_index_fromRelease_creature` / `Look_Release_creature` timers.
+## `mPlayer_ANIM_SAISEN1` / `OMAIRI_US1`: the New Year coin toss and prayer at the well.
+const ANIM_SAISEN := &"ply_1_saisen1"
+const ANIM_OMAIRI := &"ply_1_omairi_us1"
+const SHRINE_STEP_FRAMES := 5.0
+## `mPlayer_ANIM_CONFIRM1`: the mailbox hop and landing.
+const ANIM_CONFIRM := &"ply_1_confirm1"
+## `cKF_SkeletonInfo_R_AnimationMove_ct_base(…, 8.0f, …)`.
+const MAIL_JUMP_FRAMES := 8
+const RELEASE_TICKS := 84
+const RELEASE_LOOK_TICKS := 60
 const ANIM_WALK := "ply_1_walk1"
 const ANIM_RUN := "ply_1_run1"
 const ANIM_DASH := "ply_1_dash1"
@@ -41,6 +57,7 @@ const ANIM_PUTAWAY1 := "ply_1_putaway1"
 ## `mPlayer_INDEX_HOLD` / `PUSH` / `PULL` / `ROTATE_FURNITURE` clips (`FurnitureGrip`).
 const ANIM_HOLD_WAIT1 := "ply_1_hold_wait1"
 const ANIM_PUSH1 := "ply_1_push1"
+const ANIM_PUSH_YUKI1 := "ply_1_push_yuki1"
 const ANIM_PULL1 := "ply_1_pull1"
 const ANIM_LTURN1 := "ply_1_Lturn1"
 const ANIM_RTURN1 := "ply_1_Rturn1"
@@ -53,6 +70,35 @@ const ANIM_INBED_R1 := "ply_1_inbed_R1"
 const ANIM_BED_WAIT1 := "ply_1_bed_wait1"
 const ANIM_OUTBED_L1 := "ply_1_outbed_L1"
 const ANIM_OUTBED_R1 := "ply_1_outbed_R1"
+## `mPlayer_ANIM_NEGAERI_L1` / `R1`: rolling over in bed (`Roll_bed`).
+const ANIM_NEGAERI_L1 := "ply_1_negaeri_L1"
+const ANIM_NEGAERI_R1 := "ply_1_negaeri_R1"
+## `m_player_main_stung_bee` (`HATI1` → `HATI2`) then `notice_bee` (`HATI3` + the report).
+const ANIM_HATI1 := "ply_1_hati1"
+const ANIM_HATI2 := "ply_1_hati2"
+const ANIM_HATI3 := "ply_1_hati3"
+## `SearchAnimation_Stung_bee`: the face swells on `HATI2` frame 21.
+const STUNG_SWELL_FRAME := 21.0
+## `Movement_Stung_bee` turns to face the camera after 94 ticks; at 252 → `notice_bee`.
+const STUNG_TURN_TICKS := 94.0
+const STUNG_NOTICE_TICKS := 252.0
+## `Player_actor_Notice_bee_demo_ct`: `0x17B4` in a lilac report window.
+const BEE_NOTICE_MSG := 0x17B4
+const BEE_NOTICE_COLOR := Color8(225, 165, 255)
+## `READY_PITFALL` → `FALL_PITFALL` → `STRUGGLE_PITFALL` → `CLIMBUP_PITFALL`.
+const ANIM_GURATUKU1 := "ply_1_guratuku1"
+const ANIM_OTIRU1 := "ply_1_otiru1"
+const ANIM_MOGAKU1 := "ply_1_mogaku1"
+const ANIM_DERU1 := "ply_1_deru1"
+## `ControlAnimationSpeed_Struggle_pitfall`: 20 presses' worth of A and stick wiggling.
+const STRUGGLE_PRESSES := 20.0
+const STRUGGLE_SPEED_MIN := 0.5
+const STRUGGLE_SPEED_DECAY := 0.00435
+const STRUGGLE_SPEED_EASE := 0.10875
+## `m_player_main_stung_mosquito` (`MOSQUITO1`) → `notice_mosquito` (`MOSQUITO2` + report).
+const ANIM_MOSQUITO1 := "ply_1_mosquito1"
+const ANIM_MOSQUITO2 := "ply_1_mosquito2"
+const MOSQUITO_NOTICE_MSG := 0x3063
 ## Any stick past this gets you up (`Player_actor_GetController_move_percentX/Y`).
 const REST_STAND_STICK := 0.1
 ## `furniture_push` / `furniture_pull` cKF at half speed: 24 frames of 30 Hz.
@@ -109,6 +155,10 @@ const UKI_TURN_MAX := 13.73291015625 * PI / 180.0
 const UKI_TURN_MIN := 0.274658203125 * PI / 180.0
 var _uki_turn := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
+## `Player_actor_Movement_Base_Braking_common(actor, 0.32625002f)`.
+const RECOIL_BRAKE := 0.32625002
+var _recoil_speed: float = 0.0
+var _recoil_yaw: float = 0.0
 var _busy: bool = false
 ## Station intro ride / guided walk — stage owns XZ/Y; skip snap + move_and_slide.
 var _cutscene_driven: bool = false
@@ -117,6 +167,19 @@ var _anim: AnimationPlayer
 var _gait: PlayerLocomotion.Gait = PlayerLocomotion.Gait.WAIT
 var _placeholder_bob: float = 0.0
 var _hold_anim: StringName = &""
+## `mPlib_check_player_actor_main_index_catch_insect` / `_catch_fish`: pulling in and showing
+## a bug or fish — villagers nearby clap (`aNPC_check_clap`).
+var catch_showing: bool = false
+var _radio := RadioExercise.new()
+var _radio_steps := FrameStepper.new()
+## Doing a radio exercise (`mPlayer_INDEX_RADIO_EXERCISE`).
+var exercising: bool = false
+## Inside `Stung_bee` / `Notice_bee` (`mPlib_Check_end_stung_bee` is its fall).
+var stung: bool = false
+## Between stepping on a pitfall and climbing out of it.
+var in_pitfall: bool = false
+## Scripted struggle (tests, captures): added to the press count every tick.
+var struggle_assist: float = 0.0
 ## The umbrella in hand (`player->umbrella_actor`).
 var _umbrella: HeldUmbrella = null
 ## The item's carry pose layered on the arms (`BOY_part_data` / anim1).
@@ -170,6 +233,12 @@ var _rest: Dictionary = {}
 ## Crossing into the next acre (`mPlayer_INDEX_WADE`): `{start, end, t}` (world metres,
 ## ticks); empty when not wading. See `AcreWade`.
 var _wade: Dictionary = {}
+## Stick direction × strength on the ground plane, last physics frame (snowballs read it).
+var move_intent: Vector3 = Vector3.ZERO
+## The snowball being pushed (`mPlayer_INDEX_PUSH_SNOWBALL`), or null.
+var _snowball: Node3D = null
+var _snowball_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
+var _sun_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 ## Leaf clip → Animation of scaled joint_0 deltas (meters, model space): XZ from the origin,
 ## Y from the 1000-unit base height (`base_shape_trs` y). Filled once.
 static var _door_root_xz: Dictionary = {}
@@ -185,6 +254,21 @@ static func find(tree: SceneTree) -> Player:
 	return tree.get_first_node_in_group(GROUP) as Player if tree != null else null
 
 
+## `mPlib_get_player_mdl_p`: male is `cKF_bs_r_boy_1`, anyone else is `cKF_bs_r_grl_1`.
+static func visual_path() -> String:
+	if (
+		Game != null
+		and Game.player_gender == IntroSequence.GENDER_FEMALE
+		and ResourceLoader.exists(PLAYER_GIRL_GLB)
+	):
+		return PLAYER_GIRL_GLB
+	return PLAYER_BOY_GLB
+
+
+static func visual_id() -> StringName:
+	return &"grl_1" if visual_path() == PLAYER_GIRL_GLB else &"boy_1"
+
+
 func _ready() -> void:
 	add_to_group(GROUP)
 	_motor.ground_sampler = _motor_ground_y
@@ -195,7 +279,13 @@ func _ready() -> void:
 		Game.cloth_changed.connect(_on_cloth_changed)
 	if Game != null and not Game.design_changed.is_connected(_on_design_changed):
 		Game.design_changed.connect(_on_design_changed)
+	if Game != null and not Game.face_changed.is_connected(_apply_face):
+		Game.face_changed.connect(_apply_face)
 	_apply_worn_cloth()
+	## `Player_actor_Check_player_sunburn_for_ct`: a tan earned or faded shows on set-up.
+	if Game != null and not Game.title_demo_active:
+		Sunburn.on_setup(Game.sunburn, Clock.day_number())
+	_apply_face()
 	Game.inventory.equipment_changed.connect(_on_equipment_changed)
 	_on_equipment_changed(Game.inventory.equipment_id)
 
@@ -293,6 +383,63 @@ func is_busy() -> bool:
 	return _busy
 
 
+## `mPlib_request_main_push_snowball_type1`: the ball leads, the player keeps behind it.
+func begin_snowball_push(ball: Node3D) -> bool:
+	if _busy or _gripping or _snowball != null or not _wade.is_empty() or _menu_open():
+		return false
+	_snowball = ball
+	if ball is PhysicsBody3D:
+		add_collision_exception_with(ball)
+	_play_grip_clip(ANIM_PUSH_YUKI1, true)
+	return true
+
+
+## `mPlib_request_main_push_snowball_end_type1`.
+func end_snowball_push() -> void:
+	var ball: Node3D = _snowball
+	_snowball = null
+	if is_instance_valid(ball):
+		if ball is PhysicsBody3D:
+			remove_collision_exception_with(ball)
+		if ball.has_method("end_push"):
+			ball.call("end_push")
+	velocity = Vector3.ZERO
+
+
+func is_pushing_snowball() -> bool:
+	return _snowball != null
+
+
+## `Player_actor_main_Push_snowball`: the ball steps each tick and hands back where the
+## player stands (`mPlib_SetParam_for_push_snowball`).
+func _tick_snowball_push(
+	delta: float, wish: Vector3, stick: float, dash: bool, input_dir: Vector2 = Vector2.ZERO, bg: Array = []
+) -> void:
+	if not is_instance_valid(_snowball):
+		end_snowball_push()
+		return
+	_snowball_steps.add(delta)
+	var last: Dictionary = {}
+	while _snowball_steps.next():
+		last = _snowball.call("push_tick", wish, stick, dash, self)
+		if last.is_empty():
+			end_snowball_push()
+			return
+	if last.is_empty():
+		return
+	var aim: Vector3 = last["aim"]
+	var before: Vector3 = global_position
+	global_position = Vector3(aim.x, global_position.y, aim.z)
+	_snap_to_bg()
+	set_facing(float(last["yaw"]))
+	_motor.body_yaw = _motor.facing
+	velocity = Vector3.ZERO
+	if bg.size() == 2 and TownSpace.is_outdoor_town() and _snowball_border(before, input_dir, bg):
+		return
+	if _anim != null:
+		_anim.speed_scale = clampf(float(last["speed"]) / 1.5, 0.2, 2.0)
+
+
 func play_wait_anim() -> void:
 	play_wait_idle()
 
@@ -333,10 +480,13 @@ func apply_facing(yaw: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_tick_sunburn(delta)
 	if _mesh != null:
 		_mesh.rotation.x = _motor.lean
 	if _umbrella != null:
 		_umbrella.tick(delta)
+	_tick_pinwheel(delta)
+	_tick_balloon(delta)
 	if _carry != null:
 		_carry.advance(delta)
 	if _door_entering:
@@ -358,6 +508,8 @@ func _physics_process(delta: float) -> void:
 		_tick_rest(delta)
 	elif not _busy and scripted_input == null and not _net.is_active():
 		_poll_furniture_pickup()
+		_poll_pitfall()
+		_poll_radio_exercise(delta)
 		_poll_rest(delta)
 	var bg: Array = _bg()
 	var on_bg: bool = _snap_to_bg()
@@ -397,6 +549,12 @@ func _physics_process(delta: float) -> void:
 	var sprint: bool = (
 		scripted_input == null and not is_demo_walking() and Input.is_action_pressed("sprint")
 	)
+	move_intent = wish * stick
+	if _snowball != null:
+		_tick_snowball_push(delta, wish, stick, sprint and not menu_open, input_dir, bg)
+		if _snowball == null:
+			_update_animation(delta)
+		return
 	_motor.position = global_position
 	## `mEv_IsNotTitleDemo() && destiny == BAD_LUCK` gates the dash trip.
 	_motor.bad_luck = scripted_input == null and Game.destiny() == Game.Destiny.BAD_LUCK
@@ -414,6 +572,7 @@ func _physics_process(delta: float) -> void:
 		planar = _motor.tick(
 			delta, wish, stick, sprint and not menu_open, _busy or menu_open or rod_locked
 		)
+	planar += _tick_recoil(delta)
 	velocity.x = planar.x
 	velocity.z = planar.z
 	_face_bobber(delta)
@@ -439,6 +598,21 @@ func _physics_process(delta: float) -> void:
 	_tick_tree_bump(delta)
 	_clear_auto_enter_block()
 	_try_auto_enter()
+
+
+## `SetAngleSpeedF_Reflect_scoop` / `_Reflect_axe`: knocked back at `speed_gx` (GX per
+## frame) the way the player faces, braking 0.32625 a tick (`Movement_axe_common`).
+func recoil(speed_gx: float) -> void:
+	_recoil_speed = speed_gx
+	_recoil_yaw = _motor.facing + PI
+
+
+func _tick_recoil(delta: float) -> Vector3:
+	if _recoil_speed <= 0.0:
+		return Vector3.ZERO
+	var v: float = _recoil_speed * 0.5 * FieldCatalog.GX_TO_METERS * DecompTime.TICK_HZ
+	_recoil_speed = maxf(_recoil_speed - RECOIL_BRAKE * delta * DecompTime.TICK_HZ, 0.0)
+	return Vector3(sin(_recoil_yaw), 0.0, cos(_recoil_yaw)) * v
 
 
 ## `Player_actor_CorrectWadeBlockBorder` then `Player_actor_Set_ScrollDemo_forWade` (walk /
@@ -509,10 +683,43 @@ func _can_land(pos_gx: Vector3, dir: AcreWade.Dir, bg: Array) -> bool:
 	return true
 
 
+## `aSMAN_player_push_scroll_request`: pushing, the player is walled in the acre too
+## (`mCoBG_UniqueWallCheck`). At the wall with the stick across and the body within 5°,
+## the player and the ball wade together (`WADE_SNOWBALL`); otherwise the push lets go.
+func _snowball_border(before: Vector3, input_dir: Vector2, bg: Array) -> bool:
+	var old_gx: Vector3 = TownSpace.world_to_gx(before)
+	var now_gx: Vector3 = TownSpace.world_to_gx(global_position)
+	var held: Vector3 = AcreWade.confine(old_gx, now_gx)
+	if held.x == now_gx.x and held.z == now_gx.z:
+		return false
+	var back: Vector3 = TownSpace.gx_to_world(held)
+	global_position.x = back.x
+	global_position.z = back.z
+	_snap_to_bg()
+	var pos_gx: Vector3 = TownSpace.world_to_gx(global_position)
+	var dir: AcreWade.Dir = AcreWade.direction(
+		pos_gx, _motor.facing, Vector2(input_dir.x, -input_dir.y),
+		func(d: AcreWade.Dir) -> bool: return _can_land(pos_gx, d, bg),
+		0.0, unable_wade, AcreWade.SNOWBALL_ANGLE_RANGE,
+	)
+	if dir == AcreWade.Dir.NONE or unable_wade:
+		end_snowball_push()
+		return true
+	var ball: Node3D = _snowball
+	var ofs: Vector3 = ball.global_position - global_position
+	_begin_wade(pos_gx, dir)
+	_wade["ball"] = ball
+	_wade["ball_ofs"] = ofs
+	## Still leaning on it through the scroll (`Wade_snowball` keeps the push pose).
+	_play_grip_clip(ANIM_PUSH_YUKI1, true)
+	return true
+
+
 func _begin_wade(pos_gx: Vector3, dir: AcreWade.Dir) -> void:
 	var end: Vector3 = TownSpace.gx_to_world(AcreWade.end_pos(pos_gx, dir))
 	end.y = global_position.y
 	_wade = {"start": global_position, "end": end, "t": 0.0, "dir": dir}
+	Game.notify_wade_start()
 	## `Player_actor_Movement_Base_Stop` + `mPlayer_ANIM_WAIT1`.
 	_motor.planar_speed = 0.0
 	velocity = Vector3.ZERO
@@ -527,6 +734,9 @@ func _tick_wade(delta: float) -> void:
 	if scripted_input != null:
 		scripted_input.consume_a_pressed()
 	var t: float = float(_wade["t"]) + delta * DecompTime.TICK_HZ
+	## `Player_actor_ChangeFace_for_Wade`: on tick 18 of the crossing the tan catches up.
+	if float(_wade["t"]) < 18.0 and t >= 18.0 and Sunburn.settle(Game.sunburn, Clock.day_number()):
+		_apply_face()
 	_wade["t"] = t
 	var start: Vector3 = _wade["start"]
 	var end: Vector3 = _wade["end"]
@@ -536,6 +746,9 @@ func _tick_wade(delta: float) -> void:
 	)
 	_snap_to_bg()
 	_mesh.rotation.y = _motor.facing
+	var ball: Variant = _wade.get("ball")
+	if ball != null and is_instance_valid(ball):
+		(ball as Node3D).call("carry_to", global_position + (_wade["ball_ofs"] as Vector3))
 	if t > AcreWade.TICKS:
 		_wade = {}
 
@@ -753,8 +966,41 @@ func _tick_rest(delta: float) -> void:
 	var lying: bool = int(_rest["kind"]) == FurnitureSeat.Rest.LIE
 	var phase: StringName = _rest["phase"] as StringName
 	if phase == &"wait":
-		if _grip_stick().length() > REST_STAND_STICK:
-			_begin_stand(lying)
+		var stick: Vector2 = _grip_stick()
+		if not lying:
+			if stick.length() > REST_STAND_STICK:
+				_begin_stand(false)
+			return
+		## `wait_bed.flags`: the stick has to come back before the next roll.
+		if stick.length() <= 0.5:
+			_rest["armed"] = true
+			return
+		if not bool(_rest.get("armed", false)):
+			return
+		var act: Dictionary = FurnitureSeat.bed_action(Game.interior_session, _rest, global_position, stick)
+		match int(act["action"]):
+			FurnitureSeat.BedAction.ROLL:
+				_begin_roll(act["side"] as WorldGrid.Facing)
+			FurnitureSeat.BedAction.OUT:
+				_begin_stand(true, act["side"] as WorldGrid.Facing)
+		return
+	if phase == &"roll":
+		if _clip_running(str(_rest.get("clip", ""))):
+			return
+		## `settle_main_Roll_bed` (`AnimationMove_dt`): the clip's sideways travel becomes the
+		## player's position, and the bed wait picks up from there without a blend.
+		var before: Vector3 = _root_joint_position()
+		var wait := _resolve_clip(ANIM_BED_WAIT1)
+		if _anim != null and not wait.is_empty():
+			_ensure_loop(wait)
+			_anim.play(wait, 0.0)
+			_anim.seek(0.0, true)
+		var after: Vector3 = _root_joint_position()
+		if before != Vector3.INF and after != Vector3.INF:
+			global_position += Vector3(before.x - after.x, 0.0, before.z - after.z)
+		_rest["pos"] = global_position
+		_rest["phase"] = &"wait"
+		_rest["armed"] = false
 		return
 	var t: float = minf(float(_rest["t"]) + delta, float(_rest["dur"]))
 	_rest["t"] = t
@@ -771,14 +1017,22 @@ func _tick_rest(delta: float) -> void:
 		_end_rest()
 
 
-func _begin_stand(lying: bool) -> void:
+func _begin_stand(lying: bool, side: int = -1) -> void:
 	var session: IndoorSession = Game.interior_session
 	if session == null:
 		_end_rest()
 		return
 	var seat_pos: Vector3 = _rest["pos"] as Vector3
 	var spot: Dictionary
-	if lying:
+	var exit_left: bool = bool(_rest.get("from_left", true))
+	if lying and side >= 0:
+		## Out on the side the stick pushed: `OUTBED_L1` undoes `INBED_L1`, whose approach is
+		## the side a quarter-turn back from the pillow.
+		var grid: WorldGrid = session.grid
+		var exit_cell: Vector2i = grid.step(grid.world_to_cell(global_position), side as WorldGrid.Facing)
+		spot = FurnitureSeat.bed_exit_spot(session, grid.cell_to_world(exit_cell))
+		exit_left = grid.rotate_facing(_rest.get("head", WorldGrid.Facing.SOUTH) as WorldGrid.Facing, -1) == side
+	elif lying:
 		spot = FurnitureSeat.bed_exit_spot(session, _rest["approach"] as Vector3)
 	else:
 		spot = FurnitureSeat.stand_spot(session, seat_pos, _rest["yaw_facing"] as WorldGrid.Facing)
@@ -786,13 +1040,47 @@ func _begin_stand(lying: bool) -> void:
 		return
 	var leaf: String = ANIM_STANDUP1
 	if lying:
-		leaf = ANIM_OUTBED_L1 if bool(_rest.get("from_left", true)) else ANIM_OUTBED_R1
+		leaf = ANIM_OUTBED_L1 if exit_left else ANIM_OUTBED_R1
 	_rest["phase"] = &"out"
 	_rest["t"] = 0.0
 	_rest["dur"] = _clip_seconds(leaf, 0.8)
 	_rest["from"] = global_position
 	_rest["to"] = spot["pos"] as Vector3
 	_play_grip_clip(leaf, false)
+
+
+## `Roll_bed`: `NEGAERI_L1` / `R1`, whichever carries the body toward `side` (the original
+## picks it from the facing and stick quadrant; the clip's own root travel says the same).
+func _begin_roll(side: WorldGrid.Facing) -> void:
+	var session: IndoorSession = Game.interior_session
+	if session == null:
+		return
+	var step: Vector2i = session.grid.step(Vector2i.ZERO, side)
+	var want := Vector3(float(step.x), 0.0, float(step.y))
+	var leaf: String = ANIM_NEGAERI_R1
+	var travel: Vector3 = _clip_root_travel(ANIM_NEGAERI_R1)
+	if travel != Vector3.ZERO and travel.dot(want) < 0.0:
+		leaf = ANIM_NEGAERI_L1
+	var clip: String = _start_one_shot(leaf, 0.0)
+	Audio.play_se(&"bed_negaeri", self)
+	_rest["phase"] = &"roll"
+	_rest["clip"] = clip
+	_rest["armed"] = false
+
+
+## World-space XZ the clip's joint_0 travels from first to last key, turned by the facing.
+func _clip_root_travel(leaf: String) -> Vector3:
+	var clip: String = _resolve_clip(leaf)
+	if clip.is_empty() or _anim == null:
+		return Vector3.ZERO
+	var res: Animation = _anim.get_animation(clip)
+	var track: int = _find_joint0_position_track(res) if res != null else -1
+	if track < 0 or res.track_get_key_count(track) < 2:
+		return Vector3.ZERO
+	var a: Vector3 = res.track_get_key_value(track, 0) as Vector3
+	var b: Vector3 = res.track_get_key_value(track, res.track_get_key_count(track) - 1) as Vector3
+	var d := Vector3(b.x - a.x, 0.0, b.z - a.z)
+	return d.rotated(Vector3.UP, _motor.facing)
 
 
 func _end_rest() -> void:
@@ -1275,7 +1563,7 @@ func _tumble_events(before: float, now: float) -> void:
 	var bg: Array = _bg()
 	var attr: int = _unit_attr(bg)
 	if before < 10.0 and now >= 10.0:
-		Input.start_joy_vibration(0, 0.6, 1.0, 17.0 / DecompTime.TICK_HZ)
+		GameConfig.rumble(GameConfig.TUMBLE)
 	if before < 15.0 and now >= 15.0:
 		StepFx.tumble(bg, global_position, _motor.facing, attr, 1)
 	if before < 17.0 and now >= 17.0:
@@ -1763,11 +2051,17 @@ func _finish_action(tail: float) -> void:
 ## beats from what came up on the line.
 func _play_reel() -> void:
 	await _wait_for_line()
-	for beat: Fishing.ReelBeat in Fishing.take_reel_beats():
+	var beats: Array = Fishing.take_reel_beats()
+	for beat: Fishing.ReelBeat in beats:
+		## `FLY_ROD` → `NOTICE_ROD` → `PUTAWAY_ROD`: a fish is coming out of the water.
+		if beat.fish != null:
+			catch_showing = true
+	for beat: Fishing.ReelBeat in beats:
 		if beat.face_camera or beat.hold > 0.0:
 			await _play_show(beat)
 		else:
 			await _play_clip(beat.player_anim, beat.tool_anim, beat.start_frame)
+	catch_showing = false
 
 
 ## Between A and the line coming up. `relax_rod` holds its pose until the bobber reports
@@ -1943,8 +2237,17 @@ func _net_events() -> void:
 				PlayerSe.net_get(self)
 			&"hit":
 				PlayerSe.net_hit(self)
-				## `Player_actor_set_viblation_Swing_net`: 2 attack + 4 sustain frames.
-				Input.start_joy_vibration(0, 1.0, 1.0, 6.0 / DecompTime.TICK_HZ)
+			&"swing_fx":
+				StepFx.swing_net(_bg(), global_position, _net.yaw)
+			&"splash":
+				var splash_bg: Array = _bg()
+				var head: Vector3 = _net_pos
+				if splash_bg.size() == 2:
+					var surface: float = FieldCollision.ground_y_at(splash_bg[0] as WorldData, splash_bg[1] as WorldGrid, head)
+					if FieldCollision.has_floor(surface):
+						head.y = surface
+				if StepFx.net_splash(splash_bg, head, _net.yaw):
+					Audio.play_se(&"ami_hit_water", self)
 			&"slip":
 				var bg: Array = _bg()
 				Audio.play_se(SE_SLIP, self)
@@ -2040,6 +2343,8 @@ func _run_net_catch() -> void:
 	var field: BugField = Netting.field_of(ctx)
 	var catch_: Netting.Catch = Netting.begin_catch(caught)
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	## `PULL_NET` / `NOTICE_NET` / `PUTAWAY_NET`: showing off a bug.
+	catch_showing = catch_ != null
 	if catch_ != null:
 		var ui: DialogueOverlay = DialogueOverlay.find(get_tree())
 		await _net_pull(catch_, skeleton, ui)
@@ -2048,20 +2353,169 @@ func _run_net_catch() -> void:
 		_motor.facing = Netting.SHOW_YAW
 		_mesh.rotation.y = Netting.SHOW_YAW
 		await _net_notice(catch_, skeleton, ui)
+		## `settle_main_Notice_net`.
+		Audio.pop_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_COMPLETE if catch_.completes_record else Netting.FANFARE_CATCH))
 		if catch_.banked:
 			await _net_putaway(skeleton)
 		else:
-			## `release_creature`: let it go from the hand.
-			Netting.release(catch_, field, left_hand_global())
+			## `release_creature`: let it go from the hand, then stand and watch it go.
+			var freed: BugActor = Netting.release(catch_, field, left_hand_global())
 			HeldCatch.unbind(skeleton)
+			await _watch_release(freed, skeleton)
 	_motor.reset(_motor.facing)
 	_motor.mode_changed = true
 	if _anim != null:
 		_anim.speed_scale = 1.0
 	HeldTool.play(skeleton, _tool_hold_anim, true)
+	catch_showing = false
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()
+
+
+## `Player_actor_setup_main_Mail_jump`: `CONFIRM1` while sliding onto `to` and turning to
+## `yaw` over its first 8 frames; the clip holds its last frame while the box is open.
+func mail_jump(to: Vector3, yaw: float) -> void:
+	var from: Vector3 = global_position
+	var from_yaw: float = _motor.facing
+	_motor.reset(from_yaw)
+	_play_body_once(ANIM_CONFIRM)
+	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 4.0)
+	var frame: int = 0
+	while frame < MAIL_JUMP_FRAMES and is_inside_tree():
+		await get_tree().physics_frame
+		steps.add(get_physics_process_delta_time())
+		while steps.next() and frame < MAIL_JUMP_FRAMES:
+			frame += 1
+		var k: float = float(frame) / float(MAIL_JUMP_FRAMES)
+		global_position = Vector3(lerpf(from.x, to.x, k), global_position.y, lerpf(from.z, to.z, k))
+		set_facing(lerp_angle(from_yaw, yaw, k))
+	_motor.reset(yaw)
+
+
+## `Player_actor_setup_main_Throw_money` → `_Pray`: step onto `to` turned to `yaw` over 5
+## frames, toss the coin (`SAISEN1`: the purse rustles at keyframe 9, the coin flies at
+## 33), then pray (`OMAIRI_US1`). `toss` false is a wish without money: the prayer only.
+func shrine_visit(to: Vector3, yaw: float, toss: bool, base_y: float) -> void:
+	_busy = true
+	var from: Vector3 = global_position
+	var from_yaw: float = _motor.facing
+	_motor.reset(from_yaw)
+	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 4.0)
+	var frame: float = 0.0
+	if toss:
+		_play_body_once(ANIM_SAISEN)
+	else:
+		_play_body_once(ANIM_OMAIRI)
+	var rustled: bool = false
+	var thrown: bool = false
+	while is_inside_tree():
+		await get_tree().physics_frame
+		steps.add(get_physics_process_delta_time())
+		while steps.next():
+			frame += 1.0
+		var k: float = clampf(frame / SHRINE_STEP_FRAMES, 0.0, 1.0)
+		global_position = Vector3(lerpf(from.x, to.x, k), global_position.y, lerpf(from.z, to.z, k))
+		set_facing(lerp_angle(from_yaw, yaw, k))
+		if toss and not rustled and frame >= 9.0:
+			rustled = true
+			Audio.play_se(&"coin_gasagoso", self)
+		if toss and not thrown and frame >= 33.0:
+			thrown = true
+			var rng := RandomNumberGenerator.new()
+			rng.randomize()
+			WellCoin.toss(get_parent(), global_position, base_y, rng)
+		if _anim == null or not _anim.is_playing():
+			break
+	_motor.reset(yaw)
+	if toss:
+		_play_body_once(ANIM_OMAIRI)
+		while is_inside_tree() and _anim != null and _anim.is_playing():
+			await get_tree().process_frame
+	play_wait_idle()
+	_busy = false
+	_gait = PlayerLocomotion.Gait.WAIT
+
+
+## `Player_actor_setup_main_Mail_land`: `CONFIRM1` again at half speed as the box shuts,
+## then the wait.
+func mail_land() -> void:
+	_play_body_once(ANIM_CONFIRM)
+	if _anim == null:
+		return
+	_anim.speed_scale = 0.5
+	var clip: StringName = _anim.current_animation
+	while is_inside_tree() and _anim.is_playing() and _anim.current_animation == clip:
+		await get_tree().process_frame
+	_anim.speed_scale = 1.0
+	if is_inside_tree() and not _anim.is_playing():
+		play_wait_idle()
+
+
+## `mTG_release_proc` → `setup_main_Release_creature`: a bug from the pockets is let go
+## 7 GX ahead and 13 up and flies off; a fish is thrown at `water` (`ac_gyo_release`).
+## Then the player stands and watches it go.
+func release_from_pocket(data: ItemData, water: Variant) -> void:
+	if data == null or _busy:
+		return
+	var freed: Object = null
+	var yaw: float = _motor.facing
+	if data is BugData:
+		var field: BugField = Netting.field_of(_make_context())
+		var bug := data as BugData
+		var habitat: BugData.Habitat = (bug.habitats[0] as BugData.Habitat) if not bug.habitats.is_empty() else BugData.Habitat.FLYING
+		var at: Vector3 = global_position + Vector3(
+			sin(yaw) * CreatureRelease.BUG_AHEAD_GX, CreatureRelease.BUG_UP_GX, cos(yaw) * CreatureRelease.BUG_AHEAD_GX
+		) * FieldCatalog.GX_TO_METERS
+		freed = field.spawn(bug, habitat, at, true) if field != null else null
+	elif data is FishData and water != null:
+		var host: Node = get_parent() if get_parent() != null else self
+		freed = FishRelease.throw(host, data as FishData, global_position, water as Vector3)
+	_busy = true
+	await _watch_release(freed, HeldTool.find_skeleton(_mesh))
+	_motor.reset(_motor.facing)
+	_motor.mode_changed = true
+	_busy = false
+	_gait = PlayerLocomotion.Gait.WAIT
+
+
+## `main_Release_creature`: `WAIT1` for 84 ticks while the head follows what was let go
+## for the first 60 (`Player_actor_Look_Release_creature`); it snaps back as the wait ends.
+func _watch_release(target: Object, skeleton: Skeleton3D) -> void:
+	var look := PlayerHeadLook.new()
+	look.bind(skeleton, _anim)
+	_play_body_loop(StringName(ANIM_WAIT))
+	var steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
+	var ticks: int = 0
+	while ticks < RELEASE_TICKS and is_inside_tree():
+		await get_tree().physics_frame
+		steps.add(get_physics_process_delta_time())
+		while steps.next() and ticks < RELEASE_TICKS:
+			ticks += 1
+			var want := Vector2.ZERO
+			var at: Variant = _release_target_pos(target)
+			if ticks <= RELEASE_LOOK_TICKS and at != null:
+				want = PlayerHeadLook.want(global_position + Vector3(0.0, PlayerHeadLook.EYE_GX * FieldCatalog.GX_TO_METERS, 0.0),
+					_motor.facing, at as Vector3)
+			look.body_yaw = _motor.facing
+			look.step(want)
+	look.angle = Vector2.ZERO
+	look.unbind()
+
+
+## Where the released thing is now, or null once it is gone (`insect_flags.destruct`).
+static func _release_target_pos(target: Variant) -> Variant:
+	## A thrown fish frees itself in the water: test before anything reads its class.
+	if not is_instance_valid(target):
+		return null
+	if target is BugActor:
+		return null if (target as BugActor).f_destruct else (target as BugActor).position
+	if target is FishRelease:
+		var thrown := target as FishRelease
+		return thrown.global_position if thrown.exist and thrown.is_inside_tree() else null
+	if target is Node3D and (target as Node3D).is_inside_tree():
+		return (target as Node3D).global_position
+	return null
 
 
 ## `main_Pull_net`: `GET_M1` plays out; the insect shows in the left hand past keyframe 15,
@@ -2091,9 +2545,126 @@ func _net_pull(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay)
 			timer = minf(timer + 1.0, Netting.PULL_REPORT_TICKS)
 			if timer >= Netting.PULL_REPORT_TICKS and not reported:
 				_net_say(ui, catch_.report_msg(), catch_.bug)
+				Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_CATCH))
 				reported = true
 			if stopped >= 2 and reported:
 				return
+
+
+## `mPlayer_INDEX_DEMO_GET_GOLDEN_ITEM(2)`: the golden tool held up in the hand with
+## `YATTA1`, turning to face the camera, and 42 frames in the player's own green report
+## ("YESSSSS!!!!! I got the Golden Rod!", 0x306D–0x306F); then back to waiting with the
+## equipped tool again. Tortimer's golden rod / net visit and the well spirit's axe end here.
+const GOLDEN_YATTA := &"ply_1_yatta1"
+const GOLDEN_REPORT_FRAMES := 42
+const GOLDEN_WINDOW := Color8(185, 245, 80)
+const GOLDEN_MSG: Dictionary = {&"golden_net": 0x306D, &"golden_fishing_rod": 0x306E, &"golden_axe": 0x306F}
+## `Player_actor_sound_Get_bgm_num_forDemoGetGoldenItem`: `BGM_ALL_INSECTS`, `BGM_ALL_FISH`,
+## `BGM_INTRO_CHORES_COMPLETE`, else `BGM_DEBT_PAID`.
+const GOLDEN_FANFARE: Dictionary = {&"golden_net": 0x4B, &"golden_fishing_rod": 0x4C, &"golden_axe": 0x49}
+const GOLDEN_FANFARE_OTHER := 0x4A
+
+
+func get_golden_item(item_id: StringName) -> void:
+	if _busy or not is_inside_tree():
+		return
+	_busy = true
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	var tool := ItemCatalog.get_item(item_id) as ToolData
+	HeldTool.unbind(skeleton)
+	if tool != null and tool.visual_id != &"":
+		HeldTool.bind(skeleton, tool.visual_id)
+		## Only the net has a clip of its own for this (`yatta_m1`); other tools just stay put.
+		HeldTool.play(skeleton, Netting.TOOL_YATTA, false)
+	_play_body_once(GOLDEN_YATTA)
+	var jingle: StringName = BgmCatalog.id_for_num(int(GOLDEN_FANFARE.get(item_id, GOLDEN_FANFARE_OTHER)))
+	Audio.push_fanfare(jingle)
+	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 8.0)
+	var frames: int = 0
+	while frames < GOLDEN_REPORT_FRAMES and is_inside_tree():
+		await get_tree().physics_frame
+		steps.add(get_physics_process_delta_time())
+		while steps.next():
+			frames += 1
+			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Netting.SHOW_YAW)
+			_mesh.rotation.y = _motor.facing
+	var ui: DialogueOverlay = DialogueOverlay.find(get_tree()) if is_inside_tree() else null
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % int(GOLDEN_MSG.get(item_id, 0x3070))))
+	if ui != null and data != null:
+		var ctx := DialogueContext.from_game()
+		ctx.speaker_name = ""
+		ctx.window_color = GOLDEN_WINDOW
+		ui.play(data, ctx)
+		await _net_wait_closed(ui)
+	Audio.pop_fanfare(jingle)
+	if not is_inside_tree():
+		return
+	_motor.reset(_motor.facing)
+	_motor.mode_changed = true
+	_bind_equipped_tool(not _tool_hidden())
+	_busy = false
+	_gait = PlayerLocomotion.Gait.WAIT
+	_update_focus()
+
+
+## `mPlayer_INDEX_BROKEN_AXE`: the axe gave out on the last swing. `AXE_BREAK1`, then
+## `AXE_BREAKWAIT1`; 80 frames on the report (0x3067) opens in its lilac window. The
+## halves fly off at frame 15 (`BrokenAxePiece`).
+func broken_axe() -> void:
+	while _busy and is_inside_tree():
+		await get_tree().physics_frame
+	if not is_inside_tree():
+		return
+	_busy = true
+	HeldTool.unbind(HeldTool.find_skeleton(_mesh))
+	_play_body_once(AxeWear.ANIM_BREAK)
+	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 8.0)
+	var frames: float = 0.0
+	var waiting: bool = false
+	var thrown: bool = false
+	while frames < AxeWear.REPORT_DELAY_FRAMES and is_inside_tree():
+		await get_tree().physics_frame
+		steps.add(get_physics_process_delta_time())
+		while steps.next():
+			frames += 1.0
+		## `Player_actor_SetEffect_Broken_axe`: the halves fly at frame 15.
+		if not thrown and frames >= AxeWear.PIECES_FRAME:
+			thrown = true
+			var rng := RandomNumberGenerator.new()
+			rng.randomize()
+			BrokenAxePiece.spawn_pair(get_parent(), global_position, facing_yaw(), rng)
+		if not waiting and _anim != null and not _anim.is_playing():
+			waiting = true
+			_play_body_loop(AxeWear.ANIM_BREAK_WAIT)
+	var ui: DialogueOverlay = DialogueOverlay.find(get_tree()) if is_inside_tree() else null
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % AxeWear.MSG_BROKEN))
+	if ui != null and data != null:
+		var ctx := DialogueContext.from_game()
+		ctx.speaker_name = ""
+		ctx.window_color = AxeWear.BROKEN_WINDOW
+		ui.play(data, ctx)
+		await _net_wait_closed(ui)
+	if not is_inside_tree():
+		return
+	_motor.reset(_motor.facing)
+	_motor.mode_changed = true
+	_bind_equipped_tool(not _tool_hidden())
+	_busy = false
+	_gait = PlayerLocomotion.Gait.WAIT
+	_update_focus()
+
+
+func _play_body_loop(clip_name: StringName) -> void:
+	if _anim == null:
+		return
+	var clip := _resolve_clip(String(clip_name))
+	if clip.is_empty():
+		return
+	var res: Animation = _anim.get_animation(clip)
+	if res != null:
+		res.loop_mode = Animation.LOOP_LINEAR
+	_anim.speed_scale = 1.0
+	_anim.play(clip, MORPH_5)
 
 
 ## `main_Notice_net`'s message states: the collection-complete follow-up with `YATTA2`, or the
@@ -2103,13 +2674,14 @@ func _net_notice(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverla
 	if catch_.completes_record:
 		HeldTool.play(skeleton, Netting.TOOL_YATTA, false)
 		_play_body_once(Netting.ANIM_YATTA)
+		Audio.pop_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_CATCH))
+		Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_COMPLETE))
 		_net_say(ui, Netting.LAST_GET_CONTINUE_MSG, catch_.bug)
 		await _net_wait_closed(ui)
-	if not catch_.banked:
-		## 0xA4D asks whether to swap something out. The exchange inventory
-		## (`mSM_IV_OPEN_EXCHANGE`) is not built yet, so either answer lets it go.
-		_net_say(ui, Netting.POCKETS_FULL_MSG, catch_.bug)
-		await _net_wait_closed(ui)
+	if not catch_.banked and catch_.bug != null:
+		## 0xA4D: "Swap" trades a pocket for it (`mSM_IV_OPEN_EXCHANGE`), else it goes.
+		if await _ask_swap(Netting.POCKETS_FULL_MSG) and await exchange_into_pockets(catch_.bug.id):
+			catch_.banked = true
 
 
 ## `main_Putaway_net`: `PUTAWAY_M1` with `GASAGOSO`; the insect shrinks each tick until
@@ -2207,23 +2779,504 @@ func _report_catch(
 		ui.play(data, ctx)
 	else:
 		ui.say(fallback)
+	## `Player_actor_Notice_rod_demo_ct` → `settle_main_Notice_rod`: the catch jingle runs
+	## under the report.
+	var jingle: StringName = BgmCatalog.id_for_num(Netting.FANFARE_CATCH)
+	Audio.push_fanfare(jingle)
 	await ui.closed
+	## `MessageControl_Notice_rod` states 1–2: the last fish of the page — "I've caught
+	## them all!", then `YATTA2` as the jingle turns to the collection-complete one (0x4C).
 	if completes_record:
-		## `MessageControl_Notice_rod` states 1–2: 0x134A continues the report over `YATTA2`.
-		_play_body_once(Netting.ANIM_YATTA)
-		var more: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % FISH_RECORD_DONE_MSG))
-		if more != null:
-			ui.play(more, ctx)
+		var all: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % ROD_COMPLETE_MSG))
+		if all != null:
+			ui.play(all, ctx)
 		else:
-			ui.say(FishCatalog.catch_text(FISH_RECORD_DONE_MSG))
+			ui.say(FishCatalog.catch_text(ROD_COMPLETE_MSG))
 		await ui.closed
-	if not pockets_full:
-		return
-	var text: String = FishCatalog.first_line(DialogueCatalog.conversation(POCKETS_FULL_MSG_ID))
-	if text.is_empty():
-		return
-	ui.say(text)
+		_play_body_once(Netting.ANIM_YATTA)
+		Audio.pop_fanfare(jingle)
+		jingle = BgmCatalog.id_for_num(ROD_COMPLETE_FANFARE)
+		Audio.push_fanfare(jingle)
+	if pockets_full:
+		## "Swap" trades a pocket for the fish (`putaway_rod` → `mSM_IV_OPEN_EXCHANGE`).
+		if await _ask_swap(POCKETS_FULL_MSG) and fish != null:
+			await exchange_into_pockets(fish.id)
+	Audio.pop_fanfare(jingle)
+
+
+## A pockets-full question (Swap / let it go); true when "Swap" was taken.
+func _ask_swap(msg_no: int) -> bool:
+	var ui := DialogueOverlay.find(get_tree())
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % msg_no))
+	if ui == null or data == null:
+		return false
+	var talk := BankTalk.Fixed.new(msg_no)
+	var dctx := DialogueContext.from_game()
+	dctx.speaker_name = ""
+	talk.context = dctx
+	ui.play(data, dctx, null, Callable(), talk)
 	await ui.closed
+	return talk.chosen == 0
+
+
+## `mSM_IV_OPEN_EXCHANGE`: the pockets open, and the one picked goes on the ground in front
+## to make room for `item_id`. False when nothing was picked or there's nowhere to put it.
+func exchange_into_pockets(item_id: StringName) -> bool:
+	var inv: Inventory = Game.inventory
+	var data: ItemData = ItemCatalog.get_item(item_id)
+	var world := World.find(get_tree())
+	if inv == null or data == null or world == null or not (world.grid is WorldGrid):
+		return false
+	Game.request_quest_handover(-1, "take")
+	var picked: Array = await Game.quest_handover_resolved
+	var pocket: int = int(picked[1])
+	var slot: InventorySlot = inv.slot_at(pocket) if pocket >= 0 else null
+	if slot == null or slot.is_empty() or slot.item.count > 1:
+		return false
+	var grid: WorldGrid = world.grid
+	var front: Vector2i = ToolUse.facing_cell(_make_context())
+	var cell: Vector2i = FieldItems.drop_cell(grid, front, front - grid.world_to_cell(global_position))
+	if cell.x < 0:
+		return false
+	var out: InventoryItem = inv.remove_from_slot(pocket, 1)
+	inv.add(data, 1)
+	FieldItems.put(world, cell, out.item_id, out.condition == InventoryItem.Condition.PRESENT)
+	return true
+
+
+## `COMPLETE_PAYMENT`: `YATTA1` facing the camera under the debt-paid (or chores-done) jingle,
+## then "YESSSSS!!!" once 42 ticks are up.
+const PAYMENT_MSG_HOUSE := 0x17B7
+const PAYMENT_MSG_ARBEIT := 0x17B6
+const PAYMENT_FANFARE_HOUSE := 0x4A
+const PAYMENT_FANFARE_ARBEIT := 0x49
+const PAYMENT_REPORT_TICKS := 42
+
+
+func run_complete_payment() -> void:
+	var kind: StringName = Game.complete_payment
+	if kind == &"" or _busy:
+		return
+	Game.complete_payment = &""
+	_busy = true
+	_motor.facing = Netting.SHOW_YAW
+	_mesh.rotation.y = Netting.SHOW_YAW
+	_start_one_shot(GOLDEN_YATTA)
+	var arbeit: bool = kind == Game.PAYMENT_ARBEIT
+	var jingle: StringName = BgmCatalog.id_for_num(PAYMENT_FANFARE_ARBEIT if arbeit else PAYMENT_FANFARE_HOUSE)
+	Audio.push_fanfare(jingle)
+	await get_tree().create_timer(float(PAYMENT_REPORT_TICKS) / DecompTime.TICK_HZ).timeout
+	var ui := DialogueOverlay.find(get_tree())
+	var data: DialogueData = DialogueCatalog.conversation(
+		StringName("msg_%d" % (PAYMENT_MSG_ARBEIT if arbeit else PAYMENT_MSG_HOUSE)))
+	if ui != null and data != null:
+		var dctx := DialogueContext.from_game()
+		dctx.speaker_name = ""
+		dctx.window_color = GOLDEN_WINDOW
+		ui.play(data, dctx)
+		await ui.closed
+	Audio.pop_fanfare(jingle)
+	_busy = false
+
+
+## `GET_SCOOP` (`m_player_main_get_scoop`): the find comes up in the hand (`GET_D1`), the
+## report and its jingle follow 86 ticks later, then `PUTAWAY_SCOOP`. Pockets full: "Swap"
+## opens the pockets (`mSM_IV_OPEN_EXCHANGE`) and the pocket picked goes into the hole for
+## it; otherwise the find goes back in (`PUTIN_SCOOP`).
+func run_dig_get(item_id: StringName, banked: bool, cell: Vector2i, ctx: InteractionContext) -> void:
+	_busy = true
+	_start_one_shot(DigReport.ANIM_GET)
+	var prop: HandOverItem = HandOverItem.spawn(get_parent(), item_id)
+	if prop != null:
+		prop.set_master(self)
+		prop.begin_mode(HandOverItem.Mode.TRANS_WAIT)
+	await get_tree().create_timer(float(DigReport.REPORT_TICKS) / DecompTime.TICK_HZ).timeout
+	var talk := DigReport.new(item_id, banked)
+	var ui := DialogueOverlay.find(get_tree())
+	var jingle: StringName = BgmCatalog.id_for_num(DigReport.FANFARE)
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % DigReport.MSG_GOT))
+	if ui != null and data != null:
+		var dctx := DialogueContext.from_game()
+		dctx.speaker_name = ""
+		dctx.window_color = GOLDEN_WINDOW
+		talk.context = dctx
+		talk.prepare()
+		Audio.push_fanfare(jingle)
+		ui.play(data, dctx, null, Callable(), talk)
+		await ui.closed
+		Audio.pop_fanfare(jingle)
+	if prop != null and is_instance_valid(prop):
+		prop.finish()
+	if not banked:
+		await _dig_swap_or_bury(item_id, talk.swap, cell, ctx)
+	_busy = false
+
+
+## `PUTAWAY_SCOOP` with `submenu_flag` → the exchange pockets, or `PUTIN_SCOOP` with the find.
+func _dig_swap_or_bury(item_id: StringName, swap: bool, cell: Vector2i, ctx: InteractionContext) -> void:
+	if swap and Game.inventory != null:
+		Game.request_quest_handover(-1, "take")
+		var picked: Array = await Game.quest_handover_resolved
+		var pocket: int = int(picked[1])
+		if pocket >= 0:
+			var out: InventoryItem = Game.inventory.remove_from_slot(pocket, Game.inventory.slot_at(pocket).item.count)
+			var find: ItemData = ItemCatalog.get_item(item_id)
+			if find != null:
+				Game.inventory.add(find, 1)
+			if out != null:
+				BuriedUse.bury(ctx, cell, out.item_id)
+			return
+	BuriedUse.bury(ctx, cell, item_id)
+
+
+## `Stung_mosquito` → `Notice_mosquito`: slap at the bite (`MOSQUITO1`), then scratch it
+## (`MOSQUITO2`) turning to the camera under the "Yow!" report and the bee-stung jingle.
+## Not while busy or in a demo (`Player_actor_Check_is_demo_mode`).
+func run_stung_mosquito() -> void:
+	if _busy or stung or in_pitfall or _door_entering or Game.title_demo_active:
+		return
+	stung = true
+	_busy = true
+	set_cutscene_driven(true)
+	var clip: String = _start_one_shot(ANIM_MOSQUITO1)
+	while _clip_running(clip):
+		await get_tree().process_frame
+	_start_one_shot(ANIM_MOSQUITO2)
+	var turning := true
+	var steps := FrameStepper.new()
+	var ui := DialogueOverlay.find(get_tree())
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % MOSQUITO_NOTICE_MSG))
+	var prior_bgm: StringName = EventManager.demo_bgm
+	EventManager.demo_bgm = &"bee_stung"
+	Audio.play_bgm(&"bee_stung")
+	if ui != null and data != null:
+		var ctx: DialogueContext = DialogueContext.from_game()
+		ctx.speaker_name = ""
+		ctx.voice_mode = DialogueVoice.Mode.CLICK
+		ctx.window_color = BEE_NOTICE_COLOR
+		ui.play(data, ctx)
+		while ui.is_open():
+			await get_tree().process_frame
+			if turning:
+				steps.add(get_process_delta_time())
+				while steps.next():
+					_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW)
+					_mesh.rotation.y = _motor.facing
+	else:
+		Game.post_notice("You got bitten by a mosquito!")
+	EventManager.demo_bgm = prior_bgm if prior_bgm != &"bee_stung" else &""
+	var world: World = World.find(get_tree())
+	if world != null:
+		world.call("_play_outdoor_bgm")
+	set_cutscene_driven(false)
+	play_wait_idle()
+	_busy = false
+	stung = false
+
+
+## `m_player_main_wait`: the C-stick is logged every tick while standing (the right stick,
+## or I / J / K / L), and a finished pattern starts that exercise.
+func _poll_radio_exercise(delta: float) -> void:
+	if exercising:
+		return
+	_radio_steps.add(delta)
+	var standing: bool = _motor.gait() == PlayerLocomotion.Gait.WAIT
+	while _radio_steps.next():
+		_radio.log_command(RadioExercise.direction(_c_stick()) if standing and _radio_able() else -1)
+		var start: int = _radio.step(standing)
+		if start >= 0:
+			run_radio_exercise(start)
+			return
+
+
+## `Player_actor_Check_AbleRadioExercise`: empty hands, and either the aerobics event on the
+## shrine acre or (only when no such event runs) the aerobics radio playing in this room.
+func _radio_able() -> bool:
+	if Game.inventory != null and Game.inventory.equipment_id != &"":
+		return false
+	var manager := EventManager.find(get_tree())
+	if manager != null and (manager.is_running(&"morning_aerobics") or manager.is_running(&"sports_fair_aerobics")):
+		var bg: Array = _bg()
+		if bg.is_empty():
+			return false
+		var cell: Vector2i = (bg[1] as WorldGrid).world_to_cell(global_position)
+		return FieldCollision.acre_type_at(bg[0] as WorldData, cell) == TownFieldGenerator.T_SHRINE
+	var session: IndoorSession = Game.interior_session
+	return session != null and session.room != null \
+		and FurnitureMusic.active_bgm(session.room) == FurnitureMusic.AEROBICS_BGM
+
+
+## The GameCube C-stick, y up: the right stick, or I / J / K / L.
+func _c_stick() -> Vector2:
+	var v := Vector2(Input.get_joy_axis(0, JOY_AXIS_RIGHT_X), -Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y))
+	var keys := Vector2(
+		float(Input.is_physical_key_pressed(KEY_L)) - float(Input.is_physical_key_pressed(KEY_J)),
+		float(Input.is_physical_key_pressed(KEY_I)) - float(Input.is_physical_key_pressed(KEY_K))
+	)
+	if keys != Vector2.ZERO:
+		return keys.normalized()
+	return v
+
+
+## `Radio_exercise`: play the move at its speed, keep logging the stick, and from 24 frames
+## before the end pick up the next move; one waiting when the clip ends follows straight on.
+func run_radio_exercise(cmd: int) -> void:
+	if exercising or cmd < 0 or cmd >= RadioExercise.CLIPS.size():
+		return
+	exercising = true
+	_busy = true
+	set_cutscene_driven(true)
+	while cmd >= 0:
+		_radio.begin()
+		var clip: String = _start_one_shot(RadioExercise.CLIPS[cmd], 0.12)
+		if clip.is_empty():
+			break
+		## cKF frames per tick → clip rate (the bake runs at 30 fps = 0.5 per tick).
+		_anim.speed_scale = RadioExercise.SPEED[cmd] / 0.5
+		var length: float = _clip_length(clip)
+		var steps := FrameStepper.new()
+		while _clip_running(clip):
+			await get_tree().process_frame
+			steps.add(get_process_delta_time())
+			var left_frames: float = (length - _anim.current_animation_position) * DecompTime.FRAME_HZ
+			while steps.next():
+				_radio.log_command(RadioExercise.direction(_c_stick()) if _radio_able() else -1)
+				if left_frames <= 24.0:
+					_radio.step(false)
+		cmd = _radio.pending if _radio.pending >= 0 and _radio.pending_timer <= 0.0 else -1
+	_anim.speed_scale = 1.0
+	set_cutscene_driven(false)
+	play_wait_idle()
+	_busy = false
+	exercising = false
+
+
+## `Player_actor_check_pitfall` (walk / run / wait states): standing within 19 GX of the
+## centre of a unit holding a buried pitfall springs it.
+func _poll_pitfall() -> void:
+	if in_pitfall:
+		return
+	var bg: Array = _bg()
+	if bg.is_empty():
+		return
+	var grid := bg[1] as WorldGrid
+	var cell: Vector2i = grid.world_to_cell(global_position)
+	if not grid.is_in_bounds(cell) or not BuriedUse.is_pitfall(grid.occupant_at(cell)):
+		return
+	var center: Vector3 = grid.cell_corner(cell) + Vector3(grid.cell_size, 0.0, grid.cell_size) * 0.5
+	var reach: float = BuriedUse.PITFALL_REACH_GX * FieldCatalog.GX_TO_METERS
+	if Vector2(center.x - global_position.x, center.z - global_position.z).length() > reach:
+		return
+	center.y = global_position.y
+	run_pitfall(cell, center)
+
+
+## The pitfall states. `GURATUKU1` totters onto the pit centre, `OTIRU1` drops in,
+## `MOGAKU1` struggles until A presses and stick wiggles add up to 20 (faster struggling
+## speeds the clip up), then `DERU1` climbs out as the pit closes behind. The original moves
+## the actor by each clip's root (`AnimationMove`); here the drop rides on the mesh pivot.
+func run_pitfall(cell: Vector2i, center: Vector3) -> void:
+	if in_pitfall:
+		return
+	in_pitfall = true
+	var was_busy: bool = _busy
+	_busy = true
+	set_cutscene_driven(true)
+	var world := World.find(get_tree())
+	var grid: WorldGrid = world.grid if world != null else null
+	BuriedUse.spring_pitfall(world, grid, cell)
+	var start: Vector3 = global_position
+	var clip: String = _start_one_shot(ANIM_GURATUKU1)
+	var length: float = _clip_length(clip)
+	var t: float = 0.0
+	while _clip_running(clip):
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		global_position = start.lerp(center, clampf(t / maxf(length, 0.001), 0.0, 1.0))
+	global_position = center
+	clip = _chain_clip(ANIM_OTIRU1)
+	while _clip_running(clip):
+		await get_tree().process_frame
+	_chain_clip(ANIM_MOGAKU1, true)
+	await _struggle()
+	## `setup_main_Climbup_pitfall` → `pit_exit_proc`.
+	BuriedUse.close_pit(world, cell)
+	clip = _chain_clip(ANIM_DERU1)
+	while _clip_running(clip):
+		await get_tree().process_frame
+	_mesh.position = Vector3.ZERO
+	var wait := _resolve_clip(ANIM_WAIT)
+	if _anim != null and not wait.is_empty():
+		_gait = PlayerLocomotion.Gait.WAIT
+		_anim.speed_scale = 1.0
+		_anim.play(wait, 0.0)
+	set_cutscene_driven(false)
+	_busy = was_busy
+	in_pitfall = false
+	struggle_assist = 0.0
+
+
+## `Struggle_pitfall`: count A presses and stick motion until 20, easing the clip speed
+## toward a target that presses raise and time lowers (0.5–1.0).
+func _struggle() -> void:
+	var presses: float = 0.0
+	var target: float = STRUGGLE_SPEED_MIN
+	var speed: float = STRUGGLE_SPEED_MIN
+	var old_stick := Vector2.ZERO
+	var steps := FrameStepper.new()
+	var pressed := false
+	while presses < STRUGGLE_PRESSES:
+		await get_tree().process_frame
+		if Input.is_action_just_pressed("interact") and not _menu_open():
+			pressed = true
+		steps.add(get_process_delta_time())
+		while steps.next() and presses < STRUGGLE_PRESSES:
+			var stick: Vector2 = _read_stick() if scripted_input == null else scripted_input.move
+			var add: float = 1.0 if pressed else 0.0
+			pressed = false
+			add += absf(old_stick.length() - stick.length()) * 0.5
+			if old_stick.length() > 0.0 and stick.length() > 0.0:
+				## `s16` move-angle change × 0.00002.
+				add += absf(wrapf(stick.angle() - old_stick.angle(), -PI, PI)) * 65536.0 / TAU * 0.00002
+			add += struggle_assist
+			old_stick = stick
+			presses += add
+			target = clampf(target + add * 0.25 - STRUGGLE_SPEED_DECAY, STRUGGLE_SPEED_MIN, 1.0)
+			speed += (target - speed) * STRUGGLE_SPEED_EASE
+		if _anim != null:
+			_anim.speed_scale = speed
+	if _anim != null:
+		_anim.speed_scale = 1.0
+
+
+## Start `leaf` from the pose the last clip ended in: whatever joint_0 travelled is handed to
+## the mesh pivot so the body does not jump (`cKF_SkeletonInfo_R_AnimationMove_dt`).
+func _chain_clip(leaf: String, loop: bool = false) -> String:
+	var before: Vector3 = _root_joint_position()
+	var clip: String = _start_one_shot(leaf, 0.0)
+	if clip.is_empty():
+		return clip
+	if loop:
+		var res: Animation = _anim.get_animation(clip)
+		if res != null:
+			res.loop_mode = Animation.LOOP_LINEAR
+	_anim.seek(0.0, true)
+	var after: Vector3 = _root_joint_position()
+	if before != Vector3.INF and after != Vector3.INF:
+		_mesh.position += before - after
+	return clip
+
+
+func _root_joint_position() -> Vector3:
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	if skeleton == null:
+		return Vector3.INF
+	var bone: int = skeleton.find_bone("joint_0")
+	if bone < 0:
+		return Vector3.INF
+	return to_local(skeleton.global_transform * skeleton.get_bone_global_pose(bone).origin)
+
+
+func _clip_running(clip: String) -> bool:
+	return not clip.is_empty() and _anim != null and _anim.is_playing() and _anim.current_animation == clip
+
+
+func _clip_length(clip: String) -> float:
+	if clip.is_empty() or _anim == null:
+		return 0.0
+	var res: Animation = _anim.get_animation(clip)
+	return res.length if res != null else 0.0
+
+
+## `Stung_bee` → `Notice_bee`. The music goes quiet, `HATI1` flinches into `HATI2`, whose
+## frame 21 swells the face; from tick 94 the player turns their back to the camera (angle
+## 0x8000), and at tick 252 `HATI3` spins round to show the face under the "stung by a bee"
+## report with the bee-stung jingle.
+func run_stung_bee() -> void:
+	if stung:
+		return
+	stung = true
+	var was_busy: bool = _busy
+	_busy = true
+	## Holds `HATI2`'s last frame between clips rather than dropping to the wait.
+	set_cutscene_driven(true)
+	## `mBGMPsComp_make_ps_quiet` (and the chase music goes with it).
+	EventManager.demo_bgm = &"_quiet"
+	Audio.stop_bgm()
+	var ticks: float = 0.0
+	var swelled := false
+	var clip: String = _start_one_shot(ANIM_HATI1)
+	var on_hati2: bool = clip.is_empty()
+	var hati2_t: float = 0.0
+	var turn_steps := FrameStepper.new()
+	while ticks <= STUNG_NOTICE_TICKS:
+		await get_tree().process_frame
+		var delta: float = get_process_delta_time()
+		ticks += delta * DecompTime.TICK_HZ
+		if not on_hati2 and (_anim == null or not _anim.is_playing() or _anim.current_animation != clip):
+			on_hati2 = true
+			_start_one_shot(ANIM_HATI2)
+		elif on_hati2:
+			hati2_t += delta
+		if on_hati2 and not swelled and hati2_t >= STUNG_SWELL_FRAME / DecompTime.FRAME_HZ:
+			swelled = true
+			Game.sting_by_bee()
+		if ticks > STUNG_TURN_TICKS:
+			turn_steps.add(delta)
+			while turn_steps.next():
+				_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW + PI)
+				_mesh.rotation.y = _motor.facing
+	if not swelled:
+		Game.sting_by_bee()
+	await _notice_bee()
+	stung = false
+	EventManager.demo_bgm = &""
+	var world: World = World.find(get_tree())
+	if world != null:
+		world.call("_play_outdoor_bgm")
+	set_cutscene_driven(false)
+	_busy = was_busy
+
+
+## `Notice_bee`: `HATI3` and the report; both have to finish before the wait.
+func _notice_bee() -> void:
+	var clip: String = _start_one_shot(ANIM_HATI3)
+	EventManager.demo_bgm = &"bee_stung"
+	Audio.play_bgm(&"bee_stung")
+	var ui := DialogueOverlay.find(get_tree())
+	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % BEE_NOTICE_MSG))
+	if ui != null and data != null:
+		var ctx: DialogueContext = DialogueContext.from_game()
+		ctx.speaker_name = ""
+		ctx.voice_mode = DialogueVoice.Mode.CLICK
+		ctx.window_color = BEE_NOTICE_COLOR
+		ui.play(data, ctx)
+		await ui.closed
+	else:
+		Game.post_notice("You've been stung by bees!")
+	while not clip.is_empty() and _anim != null and _anim.is_playing() and _anim.current_animation == clip:
+		await get_tree().process_frame
+	## `settle_main_Notice_bee`: `HATI3`'s half-turn lives on joint_0 here (the original moves
+	## it onto the actor with `AnimationMove` ROT_Y), so hand it to the facing and cut to the
+	## wait without a blend — the pose reads the same either side of the swap.
+	_motor.reset(Fishing.SHOW_YAW)
+	_mesh.rotation.y = _motor.facing
+	var wait := _resolve_clip(ANIM_WAIT)
+	if _anim != null and not wait.is_empty():
+		_gait = PlayerLocomotion.Gait.WAIT
+		_anim.play(wait, 0.0)
+
+
+func _start_one_shot(leaf: String, blend: float = 0.08) -> String:
+	var clip := _resolve_clip(leaf)
+	if _anim == null or clip.is_empty():
+		return ""
+	var res: Animation = _anim.get_animation(clip)
+	if res != null:
+		res.loop_mode = Animation.LOOP_NONE
+	_anim.speed_scale = 1.0
+	_anim.play(clip, blend)
+	return clip
 
 
 func _play_clip(clip_name: StringName, tool_clip: StringName, start_frame: float = 0.0) -> void:
@@ -2244,9 +3297,10 @@ func _play_clip(clip_name: StringName, tool_clip: StringName, start_frame: float
 
 
 func _try_load_generated_visual() -> void:
-	if not ResourceLoader.exists(GENERATED_PLAYER):
+	var path := visual_path()
+	if not ResourceLoader.exists(path):
 		return
-	var packed: PackedScene = load(GENERATED_PLAYER) as PackedScene
+	var packed: PackedScene = load(path) as PackedScene
 	if packed == null:
 		return
 	var visual: Node = packed.instantiate()
@@ -2289,6 +3343,32 @@ func _try_load_generated_visual() -> void:
 			_ensure_loop(wait_clip)
 			_anim.play(wait_clip)
 	_apply_worn_cloth()
+
+
+## `mPlib_change_player_face`: the chosen face type, swollen after a bee sting, tanned.
+func _apply_face() -> void:
+	if Game == null or _mesh == null:
+		return
+	PlayerFace.apply(
+		_mesh, Game.player_gender == IntroSequence.GENDER_FEMALE, Game.player_face, Game.bee_swell,
+		int(Game.sunburn.get("rank", 0))
+	)
+
+
+## `Player_actor_Check_player_sunburn_for_main`, every tick out in town.
+func _tick_sunburn(delta: float) -> void:
+	var ticks: int = _sun_steps.take(delta)
+	if ticks <= 0 or Game == null or Game.title_demo_active or not TownSpace.is_outdoor_town():
+		return
+	var today: int = Clock.day_number()
+	Sunburn.change_day(Game.sunburn, today)
+	Sunburn.rankdown_interval(Game.sunburn, today)
+	Sunburn.check_rankdown(Game.sunburn, today)
+	var exposed: bool = (
+		not Game.intro_station_active and Game.weather == &"clear" and _umbrella == null
+	)
+	for _i: int in ticks:
+		Sunburn.sun_tick(Game.sunburn, exposed, Clock.month, Clock.day, Clock.hour)
 
 
 func _on_cloth_changed(_cloth_id: StringName) -> void:
@@ -2457,12 +3537,67 @@ func _tool_hidden() -> bool:
 	return _tool_stowed or Game.is_indoors()
 
 
+## `Player_actor_Item_windmill_CulcRotationSpeed`: the pinwheel turns as fast as the player
+## carries it through the air (8 × GX moved a frame) plus the wind (10 × its power), easing
+## toward that like `add_calc`.
+var _pin_last: Vector3 = Vector3.INF
+var _pin_speed: float = 0.0
+
+
+## `Player_actor_Item_Movement_balloon_normal`, a frame at a time, then the sway is put on
+## the model hanging off the hand.
+var _balloon: HeldBalloon = null
+var _balloon_hand: Vector3 = Vector3.INF
+var _balloon_steps := FrameStepper.new(DecompTime.FRAME_HZ, 8.0)
+
+
+func _tick_balloon(delta: float) -> void:
+	if _balloon == null or _tool_hidden():
+		return
+	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
+	var attach := skeleton.get_node_or_null(HeldTool.ATTACH_NAME) as Node3D if skeleton != null else null
+	if attach == null:
+		return
+	var hand: Vector3 = attach.global_position
+	if _balloon_hand == Vector3.INF:
+		_balloon_hand = hand
+	_balloon_steps.add(delta)
+	var frames: int = 0
+	while _balloon_steps.next():
+		frames += 1
+	if frames > 0:
+		var moved: Vector3 = (hand - _balloon_hand) / FieldCatalog.GX_TO_METERS / float(frames)
+		var walking: bool = _motor.gait() == PlayerLocomotion.Gait.WALK or _motor.gait() == PlayerLocomotion.Gait.RUN
+		var speed_gx: float = Vector2(velocity.x, velocity.z).length() / FieldCatalog.GX_TO_METERS / DecompTime.FRAME_HZ
+		for _i: int in frames:
+			_balloon.step(moved, _motor.facing, walking, speed_gx)
+		_balloon_hand = hand
+	_balloon.apply(_motor.facing)
+
+
+func _tick_pinwheel(delta: float) -> void:
+	var tool: ToolData = _equipped_tool()
+	if tool == null or not tool.is_pinwheel() or _tool_hidden():
+		_pin_last = Vector3.INF
+		return
+	var anim: AnimationPlayer = HeldTool.animation_player(HeldTool.find_skeleton(_mesh))
+	if anim == null:
+		return
+	var frames: float = maxf(delta * DecompTime.FRAME_HZ, 0.0001)
+	var moved: float = 0.0 if _pin_last == Vector3.INF else global_position.distance_to(_pin_last)
+	_pin_last = global_position
+	var target: float = HeldPinwheel.target_speed(moved / FieldCatalog.GX_TO_METERS / frames, Wind.power())
+	_pin_speed = HeldPinwheel.ease_speed(_pin_speed, target, frames)
+	anim.speed_scale = _pin_speed
+
+
 func _bind_equipped_tool(
 	show_tool: bool, umbrella_start: HeldUmbrella.Action = HeldUmbrella.Action.OPEN_NOW
 ) -> void:
 	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
 	HeldTool.unbind(skeleton)
 	_umbrella = null
+	_balloon = null
 	_carry = null
 	_hold_anim = &""
 	_tool_hold_anim = &""
@@ -2471,9 +3606,14 @@ func _bind_equipped_tool(
 	if show_tool and tool != null and tool.visual_id != &"":
 		var attach: Node3D = HeldTool.bind(skeleton, tool.visual_id)
 		_carry = ToolCarry.build(_anim, skeleton, tool)
+		if tool.is_balloon() and attach != null and attach.get_child_count() > 0:
+			_balloon = HeldBalloon.new()
+			_balloon.setup(attach.get_child(0) as Node3D)
+			_balloon_hand = Vector3.INF
 		if tool.is_umbrella() and attach != null and attach.get_child_count() > 0:
 			_umbrella = HeldUmbrella.new()
 			_umbrella.setup(attach.get_child(0) as Node3D, umbrella_start)
+			HeldUmbrella.paint_canopy(attach.get_child(0) as Node3D, HeldUmbrella.design_texture(tool))
 		_hold_anim = tool.hold_anim
 		_tool_hold_anim = tool.visual_hold_anim
 		_tool_use_anim = tool.visual_use_anim

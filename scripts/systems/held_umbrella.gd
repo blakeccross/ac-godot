@@ -129,6 +129,40 @@ func _apply() -> void:
 	_handle.visible = s[0].x > 0.001 and s[0].y > 0.001
 
 
+## `aTUMB_actor_draw` for `TOOL_ORG_UMBRELLA*`: the plain canopy (`kasa_umb_w`) takes the
+## design's image and palette as its texture (segments 8 and 9).
+static func paint_canopy(visual: Node3D, design: Texture2D) -> void:
+	if visual == null or design == null:
+		return
+	var parts: Array[Node] = []
+	_collect_canopy(visual, parts)
+	for node: Node in parts:
+		var mi := node as MeshInstance3D
+		for i: int in mi.mesh.get_surface_count():
+			var base := mi.get_active_material(i) as StandardMaterial3D
+			var mat: StandardMaterial3D = base.duplicate() as StandardMaterial3D if base != null else StandardMaterial3D.new()
+			mat.albedo_texture = design
+			mat.albedo_color = Color.WHITE
+			mi.set_surface_override_material(i, mat)
+
+
+## The texture for an umbrella `tool`'s design (`Player_Design_Get`), or null for a stock one.
+static func design_texture(tool: ToolData) -> Texture2D:
+	if tool == null or tool.design_slot < 0 or Game == null or Game.designs == null:
+		return null
+	if tool.design_slot >= Game.designs.player.size():
+		return null
+	return DesignTexture.build(Game.designs.player[tool.design_slot])
+
+
+static func _collect_canopy(node: Node, out: Array[Node]) -> void:
+	for child: Node in node.get_children():
+		if child is MeshInstance3D and String(child.name).begins_with("kasa_umb"):
+			out.append(child)
+		else:
+			_collect_canopy(child, out)
+
+
 static func _safe(v: Vector3) -> Vector3:
 	return Vector3(maxf(v.x, 0.001), maxf(v.y, 0.001), maxf(v.z, 0.001))
 

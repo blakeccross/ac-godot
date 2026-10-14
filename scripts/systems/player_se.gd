@@ -74,10 +74,12 @@ static func schedule_clip(at: Node, clip_name: StringName, extra: Array = []) ->
 static func axe_cut(at: Node) -> void:
 	## Called from tree chop at effect frame 15.
 	_play_now(at, &"axe_cut")
+	GameConfig.rumble(GameConfig.AXE_CUT)
 
 
 static func axe_hit(at: Node) -> void:
 	_play_now(at, &"axe_hit")
+	GameConfig.rumble(GameConfig.REFLECT_HARD)
 
 
 static func tree_touch(at: Node) -> void:
@@ -88,30 +90,50 @@ static func tree_touch(at: Node) -> void:
 static func tree_yurasu(at: Node) -> void:
 	## Shake effect frame 10.
 	_play_now(at, &"tree_yurasu")
+	GameConfig.rumble(GameConfig.SHAKE_TREE)
 
 
 static func scoop_rock(at: Node) -> void:
 	_play_now(at, &"scoop_hit")
+	GameConfig.rumble(GameConfig.REFLECT_HARD)
+
+
+## `Player_actor_SetSound_Reflect_scoop` (frame 13): stone `scoop_hit`, wood `scoop_tree_hit`,
+## a bush `scoop_shigemi`.
+static func scoop_reflect(at: Node, outcome: int) -> void:
+	match outcome:
+		ToolUse.Scoop.HIT_WOOD:
+			_play_now(at, &"scoop_tree_hit")
+		ToolUse.Scoop.HIT_BUSH:
+			_play_now(at, &"scoop_shigemi")
+		_:
+			_play_now(at, &"scoop_hit")
+	## `Player_actor_set_viblation_Reflect_scoop_soft` / `_hard`.
+	GameConfig.rumble(GameConfig.REFLECT_SOFT if outcome == ToolUse.Scoop.HIT_BUSH else GameConfig.REFLECT_HARD)
 
 
 static func scoop_tree(at: Node) -> void:
 	_play_now(at, &"scoop_tree_hit")
+	GameConfig.rumble(GameConfig.REFLECT_HARD)
 
 
 static func scoop_dig(at: Node) -> void:
 	## Dig effect frame 15 — play immediately when interact fires.
 	_play_now(at, &"scoop1")
+	GameConfig.rumble(GameConfig.DIG)
 
 
 static func stump_dig(at: Node) -> void:
 	## Effect @15 → kiribasu_scoop now; kiribasu_out @20 (= +5 frames).
 	_play_now(at, &"kiribasu_scoop")
+	GameConfig.rumble(GameConfig.DIG_STUMP)
 	_play_at_frame(at, 5.0, &"kiribasu_out")
 
 
 static func buried_dig(at: Node) -> void:
 	## Effect @21.
 	_play_now(at, &"item_horidashi")
+	GameConfig.rumble(GameConfig.DIG)
 
 
 static func net_get(at: Node) -> void:
@@ -128,6 +150,7 @@ static func net_furi(at: Node) -> void:
 ## villager.
 static func net_hit(at: Node) -> void:
 	_play_now(at, &"ami_hit")
+	GameConfig.rumble(GameConfig.SWING_NET)
 
 
 ## `Player_actor_sound_GASAGOSO` (`NA_SE_GASAGOSO`): rummaging something into the pockets.
@@ -137,6 +160,7 @@ static func gasagoso(at: Node) -> void:
 
 static func bobber_splash(at: Node) -> void:
 	_play_now(at, &"10b")
+	GameConfig.rumble(GameConfig.BOBBER_LAND)
 
 
 ## `aUKI_set_proc_hit` / `aUKI_force_command`: `NA_SE_10C` as the bobber comes up.

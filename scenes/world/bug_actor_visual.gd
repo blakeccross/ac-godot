@@ -4,20 +4,59 @@ extends Node3D
 ## Field insect model. Pose flips come from `BugActor.pose_index()` (`aINS _1E0`).
 
 const PLACEHOLDER_COLOR := Color(0.85, 0.55, 0.2, 0.9)
+## `ac_ant`: the swarm on food is its own patch (`act_antT_model`), not the insect model.
+const SWARM_MODEL := "res://assets/generated/environment/act_ant.glb"
+const SWARM_TEXTURE := "res://assets/generated/textures/rel/act_ant_tex.png"
+const SWARM_SHADER := preload("res://shaders/ant_swarm.gdshader")
 
 var bug_id: StringName = &""
+## Drawn as the ant swarm (`BugActor.is_swarm`).
+var swarm: bool = false
 
 var _poses: Array[Node3D] = []
 var _placeholder: MeshInstance3D = null
 var _shown: int = -1
 var _lift: float = 0.0
 var _scale: float = 1.0
+var _swarm_mat: ShaderMaterial = null
+var _swarm_ticks: float = 0.0
 
 
-static func create(bug: BugData) -> BugActorVisual:
+static func create(bug: BugData, p_swarm: bool = false) -> BugActorVisual:
 	var node := BugActorVisual.new()
-	node._build(bug)
+	if p_swarm:
+		node._build_swarm(bug)
+	else:
+		node._build(bug)
 	return node
+
+
+func _build_swarm(bug: BugData) -> void:
+	_reset()
+	swarm = true
+	bug_id = bug.id if bug != null else &""
+	_scale = FieldCatalog.actor_uniform_scale()
+	var scene: PackedScene = load(SWARM_MODEL) as PackedScene if ResourceLoader.exists(SWARM_MODEL) else null
+	if scene == null:
+		_add_placeholder()
+		return
+	var visual: Node3D = scene.instantiate() as Node3D
+	_swarm_mat = ShaderMaterial.new()
+	_swarm_mat.shader = SWARM_SHADER
+	if ResourceLoader.exists(SWARM_TEXTURE):
+		_swarm_mat.set_shader_parameter(&"ants", load(SWARM_TEXTURE))
+	_set_material(visual, _swarm_mat)
+	add_child(visual)
+	_poses.append(visual)
+	_show(0)
+
+
+func _set_material(node: Node, mat: Material) -> void:
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).material_override = mat
+		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for child: Node in node.get_children():
+		_set_material(child, mat)
 
 
 func _build(bug: BugData) -> void:
@@ -67,6 +106,12 @@ func sync(actor: BugActor, _delta: float) -> void:
 		* Basis.from_euler(Vector3(actor.pitch, 0.0, 0.0))
 	)
 	global_transform = Transform3D(basis.scaled(Vector3.ONE * _scale), origin)
+	if _swarm_mat != null:
+		## `act_ant_evw_anime` scrolls per tick; PRIM alpha carries the fade.
+		_swarm_ticks = fmod(_swarm_ticks + _delta * DecompTime.TICK_HZ, 8192.0)
+		_swarm_mat.set_shader_parameter(&"ticks", _swarm_ticks)
+		_swarm_mat.set_shader_parameter(&"opacity", actor.alpha)
+		return
 	_apply_alpha(actor.alpha)
 	if _poses.size() <= 1:
 		if _shown != 0:
@@ -122,3 +167,5 @@ func _reset() -> void:
 	_placeholder = null
 	_shown = -1
 	bug_id = &""
+	swarm = false
+	_swarm_mat = null

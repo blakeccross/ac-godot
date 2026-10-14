@@ -9,13 +9,23 @@ extends Resource
 ## `npc_draw_data` `tex_data` bank (`bul_2` for Stu): body sheet, palette and face frames.
 ## Species share one skeleton GLB (`bul_1`); empty means that GLB's own set.
 @export var texture_set: StringName = &""
+## Hand-authored override. Empty → the disc default via `catchphrase_string`.
 @export var catchphrase: String = ""
+## `npc_def_list[].catchphrase_str_idx`: index into the disc string table (`string_data`).
+@export var catchphrase_string: int = -1
+## `npc_def_list[].cloth`: the `ITM_CLOTH` number the villager wears by default; -1 unknown.
+@export var default_cloth: int = -1
+## `npc_def_list[].umbrella`: the umbrella tool (`TOOL_UMBRELLA0 + n`) carried in the rain.
+@export var default_umbrella: int = -1
 @export var personality: VillagerPersonality
 ## Optional override. Empty → personality looks table (`mNPS_schedule[looks]`).
 @export var schedule: ScheduleData
 @export var dialogue: DialogueData
 ## New-town eligible (`mNpc_GROW_STARTER`). Move-in-only animals stay out of the starter pick.
 @export var starter: bool = true
+## Row in the decomp NPC tables (`npc_id & 0xFFF`): `npc_looks_table`, `npc_grow_list`,
+## the `npc_used_tbl` appeared bits. Index order drives the move-in candidate pick.
+@export var npc_index: int = -1
 ## Island-only animal (`mNpc_GROW_ISLANDER`). Greeting uses the island hello table.
 @export var islander: bool = false
 ## IndoorSession wallpaper / carpet index (`npc_house_list` / `mRmTp_CopyWallData`).
@@ -25,6 +35,15 @@ extends Resource
 ## Shape 0..4 → `obj_s_house1`..`5`; palette 0..4 → a..e (`aSTR_PAL_HOUSE1_A + pal + shape*5`).
 @export var house_type: int = 0
 @export var house_palette: int = 0
+
+
+## `mNpc_SetDefAnimalInfo` → `mString_Load_StringFromRom(catchphrase_str_idx)`.
+func default_catchphrase() -> String:
+	if catchphrase != "":
+		return catchphrase
+	if catchphrase_string >= 0:
+		return DialogueCatalog.rom_string(catchphrase_string)
+	return ""
 
 
 func outdoor_house_visual() -> StringName:

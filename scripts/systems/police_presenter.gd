@@ -59,11 +59,11 @@ func _clock(root: Node3D, interior: IndoorSession) -> void:
 		return
 	if FieldCatalog.mesh_paths(PoliceDisplay.CLOCK_VISUAL).is_empty():
 		return
-	var host := Node3D.new()
+	var host := HouseClock.new()
 	host.name = "PoliceClock"
+	host.visual = PoliceDisplay.CLOCK_VISUAL
 	host.position = PoliceDisplay.gx_to_world(interior.grid, PoliceDisplay.CLOCK_GX)
 	root.add_child(host)
-	GeneratedVisual.attach(host, PoliceDisplay.CLOCK_VISUAL)
 
 
 func _sunshine(root: Node3D, interior: IndoorSession, node_name: String, gx: Vector3, left: bool) -> void:

@@ -215,8 +215,9 @@ func test_graph_resumes_and_hands_over_proceeds() -> void:
 		lines.append(runner.line)
 		runner.advance()
 		guard += 1
-	assert_str("\n".join(lines)).contains("120000 Bells")
-	assert_str("\n".join(lines)).contains("appalling amount of cash")
+	var shown: String = MessageBody.strip_tags("\n".join(lines))
+	assert_str(shown).contains("120000 Bells")
+	assert_str(shown).contains("appalling amount of cash")
 
 
 func test_visitor_with_nothing_held_gets_the_apology() -> void:
