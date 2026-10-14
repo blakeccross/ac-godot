@@ -225,6 +225,8 @@ func test_tom_nook_stand_follows_shop_room() -> void:
 		var session := IndoorSession.new()
 		session.bind(InteriorCatalog.room_template(room_id))
 		var furniture: Node = _shop_furniture(room_id)
+		if furniture == null:
+			return
 		var nook: Node3D = furniture.get_node_or_null("TomNook") as Node3D
 		assert_that(nook).is_not_null()
 		var level: int = ShopDisplay.nook_level_for_room(room_id)
@@ -237,7 +239,10 @@ func test_every_nook_floor_hangs_its_clock() -> void:
 	for room_id: StringName in [&"shop0", &"shop1", &"shop2", &"shop3_1", &"shop3_2"]:
 		var session := IndoorSession.new()
 		session.bind(InteriorCatalog.room_template(room_id))
-		var clock: Node3D = _shop_furniture(room_id).get_node_or_null("NookClock") as Node3D
+		var furniture: Node = _shop_furniture(room_id)
+		if furniture == null:
+			return
+		var clock: Node3D = furniture.get_node_or_null("NookClock") as Node3D
 		assert_that(clock).is_not_null()
 		var level: int = ShopDisplay.nook_level_for_room(room_id)
 		assert_that(clock.get("visual")).is_equal(ShopDisplay.nook_clock_visual(level))
@@ -247,9 +252,13 @@ func test_every_nook_floor_hangs_its_clock() -> void:
 		assert_vector(clock.position).is_equal_approx(expected, Vector3.ONE * 0.05)
 
 
-## The shop scene's `Furniture`, unpopulated (positions as authored).
+## The shop scene's `Furniture`, unpopulated (positions as authored); null when the
+## shell GLBs are not generated (no disc).
 func _shop_furniture(room_id: StringName) -> Node:
-	var scene: Node = auto_free(load(InteriorCatalog.scene_path(room_id)).instantiate())
+	var path: String = InteriorCatalog.scene_path(room_id)
+	if not _deps_exist(path):
+		return null
+	var scene: Node = auto_free(load(path).instantiate())
 	return scene.get_node("Furniture")
 
 
@@ -460,6 +469,8 @@ func test_timmy_and_tommy_keep_nookingtons_upstairs() -> void:
 	var session := IndoorSession.new()
 	session.bind(InteriorCatalog.room_template(&"shop3_2"))
 	var furniture: Node = _shop_furniture(&"shop3_2")
+	if furniture == null:
+		return
 	assert_object(furniture.get_node_or_null("TomNook")).is_null()
 	var timmy: Node3D = furniture.get_node_or_null("Twin0") as Node3D
 	var tommy: Node3D = furniture.get_node_or_null("Twin1") as Node3D
@@ -474,3 +485,12 @@ func test_timmy_and_tommy_keep_nookingtons_upstairs() -> void:
 	assert_str(String(timmy.call("clerk_name"))).is_equal("Timmy")
 	assert_str(String(tommy.call("clerk_name"))).is_equal("Tommy")
 	assert_object(DialogueCatalog.conversation(&"twins_shop_menu")).is_not_null()
+
+
+## False when a dependency (the shell GLB) is not generated (no disc): Godot would
+## load the scene with later nodes cut loose from their parents.
+static func _deps_exist(path: String) -> bool:
+	for dep: String in ResourceLoader.get_dependencies(path):
+		if not ResourceLoader.exists(dep.get_slice("::", dep.get_slice_count("::") - 1)):
+			return false
+	return true

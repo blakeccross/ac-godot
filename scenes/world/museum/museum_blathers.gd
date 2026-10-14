@@ -30,13 +30,7 @@ var _was_drowsy: bool = false
 
 
 func _ready() -> void:
-	add_to_group("interactable")
-	add_to_group("museum_set")
-	collision_layer = 1
-	collision_mask = 0
-	_ensure_collision()
 	_ensure_visual()
-	_ensure_interact()
 
 
 func _process(delta: float) -> void:
@@ -321,54 +315,12 @@ func _face_toward(world_pos: Vector3) -> void:
 		rotation.y = yaw
 
 
-func _ensure_collision() -> void:
-	if get_node_or_null("CollisionShape3D") != null:
-		return
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(1.0, 1.8, 1.0)
-	shape.shape = box
-	shape.position = Vector3(0.0, 0.9, 0.0)
-	add_child(shape)
-
-
-func _ensure_interact() -> void:
-	if get_node_or_null("InteractVolume") != null:
-		return
-	var volume := Area3D.new()
-	volume.name = "InteractVolume"
-	volume.collision_layer = 8
-	volume.collision_mask = 0
-	volume.monitoring = false
-	volume.monitorable = true
-	volume.set_script(load("res://scenes/world/interact_volume.gd"))
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(1.6, 2.0, 1.6)
-	shape.shape = box
-	shape.position = Vector3(0.0, 1.0, 0.0)
-	volume.add_child(shape)
-	add_child(volume)
-
-
+## The owl model under `Model`; the scene's placeholder shows until it loads.
 func _ensure_visual() -> void:
-	if get_node_or_null("Model") != null:
-		return
-	_model = Node3D.new()
-	_model.name = "Model"
-	add_child(_model)
+	_model = $Model
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, &"owl")
+	($Model/Placeholder as Node3D).visible = vis == null
 	if vis == null:
-		var mesh := MeshInstance3D.new()
-		var capsule := CapsuleMesh.new()
-		capsule.radius = 0.35
-		capsule.height = 1.4
-		mesh.mesh = capsule
-		mesh.position.y = 0.9
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(0.55, 0.42, 0.28)
-		mesh.material_override = mat
-		_model.add_child(mesh)
 		return
 	_body_anim = VisualAnimation.find_animation_player(vis)
 	_face.bind(vis, &"owl")

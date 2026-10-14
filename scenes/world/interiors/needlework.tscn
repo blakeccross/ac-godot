@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://scenes/world/interiors/sewing_machine.tscn" id="8"]
 [ext_resource type="PackedScene" path="res://scenes/world/interiors/sewing_cloth.tscn" id="9"]
 [ext_resource type="Script" path="res://scenes/world/interiors/needlework_clock.gd" id="11"]
+[ext_resource type="PackedScene" path="res://scenes/world/interiors/umbrella_stand.tscn" id="12"]
 [ext_resource type="PackedScene" uid="uid://da2u72or1l8nv" path="res://assets/generated/environment/interiors/rom_tailor.glb" id="10"]
 
 [node name="needlework" type="Node3D" unique_id=1047244665]
@@ -77,34 +78,30 @@ slot = 3
 [node name="BlobShadow" parent="Furniture/Mannequin_3" instance=ExtResource("7")]
 transform = Transform3D(1.24, 0, 0, 0, 1, 0, 0, 0, 1.24, 0, 0.06, 0)
 
-[node name="UmbrellaStand_0" parent="Furniture" instance=ExtResource("6")]
+[node name="UmbrellaStand_0" parent="Furniture" instance=ExtResource("12")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0, -7)
 slot = 4
-kind = 1
 
 [node name="BlobShadow" parent="Furniture/UmbrellaStand_0" instance=ExtResource("7")]
 transform = Transform3D(1.4, 0, 0, 0, 1, 0, 0, 0, 1.4, 0, 0.06, 0)
 
-[node name="UmbrellaStand_1" parent="Furniture" instance=ExtResource("6")]
+[node name="UmbrellaStand_1" parent="Furniture" instance=ExtResource("12")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, -7)
 slot = 5
-kind = 1
 
 [node name="BlobShadow" parent="Furniture/UmbrellaStand_1" instance=ExtResource("7")]
 transform = Transform3D(1.4, 0, 0, 0, 1, 0, 0, 0, 1.4, 0, 0.06, 0)
 
-[node name="UmbrellaStand_2" parent="Furniture" instance=ExtResource("6")]
+[node name="UmbrellaStand_2" parent="Furniture" instance=ExtResource("12")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, -7)
 slot = 6
-kind = 1
 
 [node name="BlobShadow" parent="Furniture/UmbrellaStand_2" instance=ExtResource("7")]
 transform = Transform3D(1.4, 0, 0, 0, 1, 0, 0, 0, 1.4, 0, 0.06, 0)
 
-[node name="UmbrellaStand_3" parent="Furniture" instance=ExtResource("6")]
+[node name="UmbrellaStand_3" parent="Furniture" instance=ExtResource("12")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, -7)
 slot = 7
-kind = 1
 
 [node name="BlobShadow" parent="Furniture/UmbrellaStand_3" instance=ExtResource("7")]
 transform = Transform3D(1.4, 0, 0, 0, 1, 0, 0, 0, 1.4, 0, 0.06, 0)

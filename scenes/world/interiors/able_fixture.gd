@@ -13,17 +13,10 @@ enum Kind { CLOTH, UMBRELLA }
 @export var kind: Kind = Kind.CLOTH
 
 var _model: Node3D
-var _umbrella_fallback: bool = false
 
 
 func _ready() -> void:
-	add_to_group("interactable")
-	add_to_group("needlework_set")
-	collision_layer = 1
-	collision_mask = 0
-	_ensure_collision()
 	_ensure_visual()
-	_ensure_interact()
 	if Game != null and Game.designs != null and not Game.designs.changed.is_connected(_refresh_design):
 		Game.designs.changed.connect(_refresh_design)
 
@@ -65,55 +58,11 @@ func _refresh_design() -> void:
 		)
 
 
+## The display's model under `Model`; the scene's placeholder shows until it loads.
 func _ensure_visual() -> void:
-	if get_node_or_null("Model") != null:
-		return
-	_model = Node3D.new()
-	_model.name = "Model"
-	add_child(_model)
+	_model = $Model
 	var visual: StringName = &"obj_shop_manekin" if kind == Kind.CLOTH else &"obj_shop_umbmy"
 	var vis: Node3D = GeneratedVisual.attach(_model, visual)
-	if vis == null:
-		var mesh := MeshInstance3D.new()
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.1
-		cyl.bottom_radius = 0.2
-		cyl.height = 1.6
-		mesh.mesh = cyl
-		mesh.position.y = 0.8
-		_model.add_child(mesh)
-		return
-	_refresh_design()
-
-
-func _ensure_collision() -> void:
-	if get_node_or_null("CollisionShape3D") != null:
-		return
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	## `l_manekin_mBgData` half-extent 14.5 GX ≈ 0.72 m in XZ; an umbrella stand is
-	## much shorter than a dress form, so keep its box low.
-	var h: float = 1.7 if kind == Kind.CLOTH else 0.95
-	box.size = Vector3(1.45, h, 1.45)
-	shape.shape = box
-	shape.position = Vector3(0.0, h * 0.5, 0.0)
-	add_child(shape)
-
-
-func _ensure_interact() -> void:
-	if get_node_or_null("InteractVolume") != null:
-		return
-	var volume := Area3D.new()
-	volume.name = "InteractVolume"
-	volume.collision_layer = 8
-	volume.collision_mask = 0
-	volume.monitoring = false
-	volume.monitorable = true
-	volume.set_script(load("res://scenes/world/interact_volume.gd"))
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(1.8, 2.0, 1.8)
-	shape.shape = box
-	shape.position = Vector3(0.0, 1.0, 0.0)
-	volume.add_child(shape)
-	add_child(volume)
+	($Model/Placeholder as Node3D).visible = vis == null
+	if vis != null:
+		_refresh_design()

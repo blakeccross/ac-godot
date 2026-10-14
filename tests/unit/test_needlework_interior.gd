@@ -46,6 +46,8 @@ func test_the_scene_places_sisters_and_displays_on_the_decomp_tables() -> void:
 	var session := IndoorSession.new()
 	session.bind(InteriorCatalog.room_template(&"needlework"))
 	var grid: WorldGrid = session.grid
+	if not _deps_exist(SCENE):
+		return  ## `rom_tailor.glb` not generated (no disc)
 	var scene: Node3D = auto_free(load(SCENE).instantiate())
 	var root: Node3D = scene.get_node("Furniture")
 	var at := func(node_name: String) -> Vector3:
@@ -198,3 +200,29 @@ func test_sable_keeps_her_count_for_residents_only() -> void:
 	sable.call("_end_talk")
 	Game.foreigner = false
 	Game.reset_session()
+
+
+func test_displays_carry_their_bodies_and_reach_in_the_scene() -> void:
+	var mannequin: StaticBody3D = auto_free(load("res://scenes/world/interiors/able_fixture.tscn").instantiate())
+	var stand: StaticBody3D = auto_free(load("res://scenes/world/interiors/umbrella_stand.tscn").instantiate())
+	for display: StaticBody3D in [mannequin, stand]:
+		assert_int(display.collision_layer).is_equal(PhysicsLayers.WORLD)
+		assert_int(display.collision_mask).is_equal(0)
+		assert_bool(display.is_in_group("interactable")).is_true()
+		var reach: Area3D = display.get_node("InteractVolume") as Area3D
+		assert_int(reach.collision_layer).is_equal(PhysicsLayers.INTERACT)
+	assert_int(mannequin.get("kind")).is_equal(0)
+	assert_int(stand.get("kind")).is_equal(1)
+	## an umbrella stand is much shorter than a dress form
+	var body_h := func(display: Node) -> float:
+		return ((display.get_node("CollisionShape3D") as CollisionShape3D).shape as BoxShape3D).size.y
+	assert_float(body_h.call(stand)).is_less(body_h.call(mannequin))
+
+
+## False when a dependency (the shell GLB) is not generated (no disc): Godot would
+## load the scene with later nodes cut loose from their parents.
+static func _deps_exist(path: String) -> bool:
+	for dep: String in ResourceLoader.get_dependencies(path):
+		if not ResourceLoader.exists(dep.get_slice("::", dep.get_slice_count("::") - 1)):
+			return false
+	return true
