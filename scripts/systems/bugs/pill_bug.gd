@@ -27,7 +27,7 @@ var _heading_pending: bool = false
 
 
 func actor_init(a: BugActor, released: bool) -> void:
-	a.f_bit4 = false
+	a.wall_check = false
 	a.bg_range = 2.0
 	match a.type:
 		T_PILL_BUG: a.item = 36
@@ -38,7 +38,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 		return
 	if a.type == T_ANT:
 		_cell_known = true   ## already off any rock
-		a.bg_type = 2
+		a.terrain_mode = BugActor.TerrainMode.GROUND
 		setup_action(a, AVOID)
 	else:
 		setup_action(a, HIDE)
@@ -51,7 +51,7 @@ func set_rock_cell(cell: Vector2i) -> void:
 
 
 func pose_index(a: BugActor) -> int:
-	return int(a.anime0) & 1
+	return int(a.anim_frame) & 1
 
 
 func on_release(a: BugActor) -> void:
@@ -70,20 +70,20 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.life_time = 0
 			a.alpha_time = 80
 			a.rot.x = 0.0
-			a.bg_type = 2
+			a.terrain_mode = BugActor.TerrainMode.GROUND
 			a.gravity = 2.0
 			a.max_velocity_y = -20.0
 			_avoid_init(a)
-			a.f_no_catch = true
-			a.f_bit2 = true
+			a.catchable = false
+			a.escaping = true
 		STOP:
 			a.action_proc = _stop
 			a.target_speed = 0.0
 			a.speed_step = 0.05
-			a.anime0 = 0.0
+			a.anim_frame = 0.0
 		HIDE:
 			a.action_proc = _hide
-			a.bg_type = 4
+			a.terrain_mode = BugActor.TerrainMode.OPEN_GROUND
 			a.gravity = 2.0
 			a.max_velocity_y = -20.0
 			a.drawn = false
@@ -93,7 +93,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.move_proc = Callable()
 			_avoid_init(a)
 			a.drawn = true
-			a.anime0 = 0.0
+			a.anim_frame = 0.0
 			a.pos_speed.y = 12.0
 		DIVE:
 			a.action_proc = _dive
@@ -101,12 +101,12 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.target_speed = 1.5
 			a.speed_step = 0.3
 			a.pos_speed.y = 8.0
-			a.anime0 = 0.0
-			a.f_no_catch = true
+			a.anim_frame = 0.0
+			a.catchable = false
 		DROWN:
 			a.action_proc = _noop
-			a.f_no_catch = true
-			a.trg_se.append(&"438")
+			a.catchable = false
+			a.one_shot_sounds.append(&"438")
 			a.f_destruct = true
 			a.finished = true
 		RETIRE:
@@ -114,9 +114,9 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.life_time = 0
 			a.alpha_time = 80
 			a.rot.x = 0.0
-			a.bg_type = 2
-			a.f_no_catch = true
-			a.f_bit2 = true
+			a.terrain_mode = BugActor.TerrainMode.GROUND
+			a.catchable = false
+			a.escaping = true
 
 
 ## `aIDG_avoid_init`: crawl 1.5 GX/frame off the player's facing ±60°.
@@ -124,7 +124,7 @@ func _avoid_init(a: BugActor) -> void:
 	a.speed = 1.5
 	a.target_speed = 1.5
 	a.speed_step = 0.3
-	a.anime0 = 1.0
+	a.anim_frame = 1.0
 	_heading_pending = not BugBehavior.heading_from_player_facing(a, HEADING_SPREAD)
 	if not _heading_pending:
 		a.rot.y = a.angle_y
@@ -143,7 +143,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 		BugBehavior.heading_from_player_facing(a, HEADING_SPREAD)
 		a.rot.y = a.angle_y
 	if a.caught:
-		a.alpha0 = 255
+		a.opacity = 255
 		setup_action(a, LET_ESCAPE)
 		return
 	if a.action_proc.is_valid():
@@ -181,11 +181,11 @@ func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 		setup_action(a, RETIRE)
 		return
 	_calc_direction(a, sense)
-	if a.bg_type == 4:
+	if a.terrain_mode == BugActor.TerrainMode.OPEN_GROUND:
 		## Still on the rock's unit: no scares until it crawls off it.
 		if BugBehavior.unit_of(sense, a.pos) != _rock_cell:
 			_rock_cell = Vector2i(-1, -1)
-			a.bg_type = 2
+			a.terrain_mode = BugActor.TerrainMode.GROUND
 	elif _check_patience(a, sense):
 		setup_action(a, STOP)
 

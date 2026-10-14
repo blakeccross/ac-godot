@@ -25,7 +25,7 @@ var _waited: float = 0.0
 func actor_init(a: BugActor, released: bool) -> void:
 	a.bg_range = 6.0
 	a.bg_height = -14.0
-	a.bg_type = 1
+	a.terrain_mode = BugActor.TerrainMode.GROUND_WITH_ATTRIBUTES
 	a.item = 39
 	if not released:
 		## `GetBgY_OnlyCenter_FromWpos(pos, 30)`: 30 GX under the ground; the BG check
@@ -39,7 +39,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 
 
 func pose_index(a: BugActor) -> int:
-	return int(a.anime0) & 1
+	return int(a.anim_frame) & 1
 
 
 func on_release(a: BugActor) -> void:
@@ -60,8 +60,8 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.f32_work[1] = a.pos_speed.y
 			if BugBehavior.heading_from_player_facing(a, deg_to_rad(120.0)):
 				a.rot.y = a.angle_y
-			a.f_no_catch = true
-			a.f_bit2 = true
+			a.catchable = false
+			a.escaping = true
 		FLY:
 			a.action_proc = _fly
 			a.speed = 1.2
@@ -72,7 +72,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			_waited = 0.0
 		ATTACK:
 			a.action_proc = _attack
-			a.trg_se.append(&"6a")
+			a.one_shot_sounds.append(&"6a")
 			a.speed = 0.0
 			a.target_speed = 0.0
 			a.speed_step = 0.0
@@ -81,14 +81,14 @@ func setup_action(a: BugActor, action: int) -> void:
 
 func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.action != ATTACK:
-		a.anime0 = fmod(a.anime0 + 0.2 * a.n, 2.0)
+		a.anim_frame = fmod(a.anim_frame + 0.2 * a.n, 2.0)
 		_fuwafuwa(a)
 	if a.caught:
 		setup_action(a, LET_ESCAPE)
 		return
 	if a.action != ATTACK:
-		a.ongen = 0xCF  ## `NA_SE_KA_BUZZ`
-	if a.f_scared and not a.f_bit2 and a.action != LET_ESCAPE:
+		a.loop_sound = 0xCF  ## `NA_SE_KA_BUZZ`
+	if a.f_scared and not a.escaping and a.action != LET_ESCAPE:
 		setup_action(a, LET_ESCAPE)
 		return
 	if a.action_proc.is_valid():

@@ -60,7 +60,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 		_:
 			## `6 + GetBgY_OnlyCenter_FromWpos(pos, −19)`: on the flower head.
 			_placed = true
-			a.bg_type = 2
+			a.terrain_mode = BugActor.TerrainMode.GROUND
 			a.pos.y = a.home.y + 25.0
 			a.home = a.pos
 			a.flag = PLACE_FLOWER
@@ -68,7 +68,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 
 
 func pose_index(a: BugActor) -> int:
-	return int(a.anime0) & 1
+	return int(a.anim_frame) & 1
 
 
 func on_release(a: BugActor) -> void:
@@ -90,7 +90,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			var r: float = a._rng.randf()
 			a.rot.y = r * deg_to_rad(90.0) - deg_to_rad(45.0) + deg_to_rad(22.5) * (1.0 if r >= 0.5 else -1.0)
 			a.angle_y = a.rot.y
-			a.f_no_catch = true
+			a.catchable = false
 		LET_ESCAPE:
 			a.action_proc = _avoid
 			a.life_time = 0
@@ -102,8 +102,8 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.pos_speed.y = 0.0
 			if BugBehavior.heading_from_player_facing(a, deg_to_rad(120.0)):
 				a.rot.y = a.angle_y
-			a.f_no_catch = true
-			a.f_bit2 = true
+			a.catchable = false
+			a.escaping = true
 		WAIT_ON_FLOWER:
 			a.action_proc = _wait_on_flower
 			a.speed = 0.0
@@ -132,7 +132,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.caught:
 		setup_action(a, LET_ESCAPE)
 		return
-	if a.f_scared and not a.f_bit2:
+	if a.f_scared and not a.escaping:
 		setup_action(a, LET_ESCAPE)
 		return
 	if a.action_proc.is_valid():
@@ -158,7 +158,7 @@ func _move_on_flower(a: BugActor, sense: BugActor.Sense) -> void:
 	_run_left -= a.n
 	if _run_left <= 0.0:
 		_run_left = 0.0
-		a.ongen = 0xA8  ## `NA_SE_GOKI_MOVE`
+		a.loop_sound = 0xA8  ## `NA_SE_GOKI_MOVE`
 		a.timer = int(2.0 * (90.0 + a._rng.randf() * 90.0))
 		setup_action(a, WAIT_ON_FLOWER)
 		return
@@ -207,12 +207,12 @@ func _move_on_tree(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
-	a.anime0 = fmod(a.anime0 + 0.5 * a.n, 2.0)
+	a.anim_frame = fmod(a.anim_frame + 0.5 * a.n, 2.0)
 	a.gravity = minf(a.gravity * pow(1.1, a.n), 12.0)
-	a.ongen = 0x26
+	a.loop_sound = 0x26
 	## `aIGK_avoid`: ground / wall collision switches on once it has flown off its home unit.
-	if a.bg_type == 0 and BugBehavior.unit_of(sense, a.home) != BugBehavior.unit_of(sense, a.pos):
-		a.bg_type = 1
+	if a.terrain_mode == BugActor.TerrainMode.NONE and BugBehavior.unit_of(sense, a.home) != BugBehavior.unit_of(sense, a.pos):
+		a.terrain_mode = BugActor.TerrainMode.GROUND_WITH_ATTRIBUTES
 
 
 ## `aIGK_check_patience`: (on a trunk) shaken tree / axe hit in the acre within 150 GX

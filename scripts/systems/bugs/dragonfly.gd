@@ -38,8 +38,8 @@ var _perched: float = 0.0
 
 func actor_init(a: BugActor, released: bool) -> void:
 	a.gravity = 0.1
-	a.bg_type = 1
-	a.f_bit4 = false
+	a.terrain_mode = BugActor.TerrainMode.GROUND_WITH_ATTRIBUTES
+	a.wall_check = false
 	match a.type:
 		T_COMMON_DRAGONFLY: a.item = 9
 		T_RED_DRAGONFLY: a.item = 10
@@ -59,7 +59,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 
 
 func pose_index(a: BugActor) -> int:
-	return int(a.anime0) & 1
+	return int(a.anim_frame) & 1
 
 
 func on_release(a: BugActor) -> void:
@@ -128,8 +128,8 @@ func _let_escape_init(a: BugActor) -> void:
 	a.gravity = 0.06
 	a.rot.x = 0.0
 	a.pos_speed.y = 0.0
-	a.f_no_catch = true
-	a.f_bit2 = true
+	a.catchable = false
+	a.escaping = true
 
 
 func _move_spd_set(a: BugActor) -> void:
@@ -171,10 +171,10 @@ func _wait_init(a: BugActor) -> void:
 func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 	_s = sense
 	if a.caught:
-		a.alpha0 = 255
+		a.opacity = 255
 		setup_action(a, LET_ESCAPE)
 		return
-	if a.f_scared and not a.f_bit2:
+	if a.f_scared and not a.escaping:
 		setup_action(a, LET_ESCAPE)
 		return
 	if a.action_proc.is_valid():
@@ -282,7 +282,7 @@ func _rest_on_notice(a: BugActor, _sense: BugActor.Sense) -> void:
 # ---- helpers ---------------------------------------------
 
 func _anime(a: BugActor) -> void:
-	a.anime0 = fmod(a.anime0 + 0.5 * a.n, 2.0)
+	a.anim_frame = fmod(a.anim_frame + 0.5 * a.n, 2.0)
 
 
 func _turn(a: BugActor) -> void:

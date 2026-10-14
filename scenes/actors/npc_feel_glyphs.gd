@@ -235,9 +235,9 @@ func _tick_pose(delta: float) -> void:
 				_ambient.pulse(data[0])
 		_pose_counter = fposmod(_pose_counter + climb, top)
 	_ambient.tick(delta)
-	for id: StringName in _ambient.trg_se:
+	for id: StringName in _ambient.one_shot_sounds:
 		Audio.play_se(id, self)
-	_ambient.trg_se.clear()
+	_ambient.one_shot_sounds.clear()
 
 
 func _feel_origin() -> Vector3:
@@ -273,10 +273,10 @@ func _tick_moods(delta: float) -> void:
 	if not _moods.tick(delta):
 		clear()
 		return
-	for id: StringName in _moods.trg_se:
+	for id: StringName in _moods.one_shot_sounds:
 		Audio.play_se(id, self)
-	_moods.trg_se.clear()
-	_hold_ongen(_moods.ongen)
+	_moods.one_shot_sounds.clear()
+	_hold_ongen(_moods.loop_sound)
 
 
 ## `sAdo_OngenPos`: the effect's level SE, loud as `SoundEmitter.volume` from the field mic.

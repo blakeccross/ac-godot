@@ -32,8 +32,8 @@ var _range_sense: BugActor.Sense = null
 func actor_init(a: BugActor, released: bool) -> void:
 	a.gravity = 0.2
 	a.max_velocity_y = -20.0
-	a.bg_type = 2
-	a.f_bit4 = false
+	a.terrain_mode = BugActor.TerrainMode.GROUND
+	a.wall_check = false
 	match a.type:
 		T_LONG_LOCUST: a.item = 13
 		T_MIGRATORY_LOCUST: a.item = 14
@@ -50,7 +50,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 
 
 func pose_index(a: BugActor) -> int:
-	return int(a.anime0) & 1
+	return int(a.anim_frame) & 1
 
 
 func on_release(a: BugActor) -> void:
@@ -71,7 +71,7 @@ func setup_action(a: BugActor, action: int) -> void:
 		CHANGE_DIRECTION:
 			a.action_proc = _chg_direction
 			a.s32_work[0] = 0
-			a.anime0 = 0.0
+			a.anim_frame = 0.0
 			a.speed = 0.0
 		WAIT:
 			a.action_proc = _wait
@@ -83,7 +83,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.gravity = 0.7
 		DROWN:
 			a.action_proc = _noop
-			a.trg_se.append(&"438")
+			a.one_shot_sounds.append(&"438")
 			a.f_destruct = true
 			a.finished = true
 
@@ -113,8 +113,8 @@ func _let_escape_init(a: BugActor) -> void:
 	## Off the player's facing (`shape_info.rotation.y + 21845·(rand − 0.5)`), not toward them.
 	if BugBehavior.heading_from_player_facing(a, 21845.0 * MathUtil.S16):
 		a.rot.y = a.angle_y
-	a.f_no_catch = true
-	a.f_bit2 = true
+	a.catchable = false
+	a.escaping = true
 
 
 func _wait_init(a: BugActor) -> void:
@@ -130,7 +130,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.caught:
 		setup_action(a, LET_ESCAPE)
 		return
-	if a.f_scared and not a.f_bit2:
+	if a.f_scared and not a.escaping:
 		setup_action(a, LET_ESCAPE)
 		return
 	_range_sense = sense
@@ -178,9 +178,9 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	)
 	if a.type >= T_CRICKET and _on_ground(a, sense) and a.patience < 20.0:
 		if a.type == T_BELL_CRICKET:
-			a.anime0 = fmod(a.anime0 + a.n, 2.0)
+			a.anim_frame = fmod(a.anim_frame + a.n, 2.0)
 		if not a.caught:
-			a.ongen = CRY_SE[a.type - T_CRICKET]
+			a.loop_sound = CRY_SE[a.type - T_CRICKET]
 	if a.timer > 0.0:
 		a.timer -= a.n
 		return
@@ -204,7 +204,7 @@ func _jump(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
-	a.anime0 = fmod(a.anime0 + (1.0 if a.type == T_BELL_CRICKET else 0.3) * a.n, 2.0)
+	a.anim_frame = fmod(a.anim_frame + (1.0 if a.type == T_BELL_CRICKET else 0.3) * a.n, 2.0)
 	if _in_water(a, sense):
 		setup_action(a, DROWN)
 		return
@@ -235,7 +235,7 @@ func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _let_escape(a: BugActor, sense: BugActor.Sense) -> void:
-	a.anime0 = fmod(a.anime0 + (1.0 if a.type == T_BELL_CRICKET else 0.3) * a.n, 2.0)
+	a.anim_frame = fmod(a.anim_frame + (1.0 if a.type == T_BELL_CRICKET else 0.3) * a.n, 2.0)
 	if _in_water(a, sense):
 		setup_action(a, DROWN)
 		return
@@ -260,9 +260,9 @@ func _jump_angle(a: BugActor, sense: BugActor.Sense, ang: float) -> void:
 ## `aIBT_set_fly_se`: locusts whirr while they leap.
 func _set_fly_se(a: BugActor) -> void:
 	if a.type == T_LONG_LOCUST:
-		a.ongen = 0xA2
+		a.loop_sound = 0xA2
 	elif a.type == T_MIGRATORY_LOCUST:
-		a.ongen = 0xA3
+		a.loop_sound = 0xA3
 
 
 func _set_avoid_jump_spd(a: BugActor, sense: BugActor.Sense = null) -> void:

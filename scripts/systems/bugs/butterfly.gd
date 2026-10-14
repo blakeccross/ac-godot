@@ -36,7 +36,7 @@ var _unit_resolved: bool = false
 
 
 func actor_init(a: BugActor, released: bool) -> void:
-	a.bg_type = 2
+	a.terrain_mode = BugActor.TerrainMode.GROUND
 	match a.type:
 		T_COMMON_BUTTERFLY: a.item = 0
 		T_YELLOW_BUTTERFLY: a.item = 1
@@ -56,7 +56,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 
 
 func pose_index(a: BugActor) -> int:
-	return int(a.anime0) & 1
+	return int(a.anim_frame) & 1
 
 
 func on_release(a: BugActor) -> void:
@@ -92,7 +92,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.timer = 10
 		REST:
 			a.action_proc = _hover
-			a.anime0 = 1.0
+			a.anim_frame = 1.0
 			a.timer = int(0.5 * (30.0 + a._rng.randf() * 60.0))
 
 
@@ -107,8 +107,8 @@ func _let_escape_init(a: BugActor) -> void:
 	## `player->shape_info.rotation.y + 21845·(rand − 0.5)`: off the player's facing ±60°.
 	if BugBehavior.heading_from_player_facing(a, deg_to_rad(120.0)):
 		a.rot.y = a.angle_y
-	a.f_no_catch = true
-	a.f_bit2 = true
+	a.catchable = false
+	a.escaping = true
 
 
 func _fly_init(a: BugActor, sense: BugActor.Sense) -> void:
@@ -137,11 +137,11 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 		a.s32_work[1] = cell.x
 		a.s32_work[2] = cell.y
 	if a.caught:
-		a.alpha0 = 255
+		a.opacity = 255
 		_anime(a)
 		setup_action(a, LET_ESCAPE)
 		return
-	if a.f_scared and not a.f_bit2:
+	if a.f_scared and not a.escaping:
 		setup_action(a, LET_ESCAPE)
 		return
 	_check_block_edge(a, sense)
@@ -251,7 +251,7 @@ func _let_escape(a: BugActor, _sense: BugActor.Sense) -> void:
 # ---- helpers ------------------------------------------------------
 
 func _anime(a: BugActor) -> void:
-	a.anime0 = fmod(a.anime0 + 0.2 * a.n, 2.0)
+	a.anim_frame = fmod(a.anim_frame + 0.2 * a.n, 2.0)
 
 
 ## `aICH_jump_ctrl`: under `ground − base` (water surface over water) kick up 2–3 GX/frame,

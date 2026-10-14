@@ -6,7 +6,7 @@ extends BugBehavior
 ## more than 30 GX off it (a wall pushes the target one unit over). Stressed (patience
 ## > 90) it veers away from the player — or back toward the acre centre once 240 GX out —
 ## and, calm again (< 10), re-centres on the unit below. Caught / released / timed out it
-## rises away and its glow fades (`alpha2` ramp in `aINS_calc_alpha_time`). Type 27 is
+## rises away and its glow fades (`fade_out`, the `alpha2` ramp in `aINS_calc_alpha_time`). Type 27 is
 ## level-Y in the shared mover, so the program drives `pos_speed.y` itself.
 
 enum { AVOID, LET_ESCAPE, FLY }
@@ -20,7 +20,7 @@ const WALL_SHIFT_RANGE := 200.0
 
 
 func actor_init(a: BugActor, released: bool) -> void:
-	a.bg_type = 2
+	a.terrain_mode = BugActor.TerrainMode.GROUND
 	a.item = 27
 	if not released:
 		a.pos.y = a.home.y + HOVER_GX
@@ -35,16 +35,16 @@ func actor_init(a: BugActor, released: bool) -> void:
 		a.continue_timer = a._rng.randi_range(0, 4)
 		setup_action(a, FLY)
 	else:
-		a.anime0 = 0.0
-		a.anime1 = 0.0
-		a.alpha0 = 255
-		a.alpha1 = 255
-		a.alpha2 = 0
+		a.anim_frame = 0.0
+		a.prev_anim_frame = 0.0
+		a.opacity = 255
+		a.prev_frame_opacity = 255
+		a.fade_out = 0
 		setup_action(a, LET_ESCAPE)
 
 
 func pose_index(a: BugActor) -> int:
-	return int(a.anime0)
+	return int(a.anim_frame)
 
 
 func on_release(a: BugActor) -> void:
@@ -60,7 +60,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.action_proc = _avoid
 			_avoid_init(a)
 			if action == LET_ESCAPE:
-				a.f_bit2 = true
+				a.escaping = true
 		FLY:
 			a.action_proc = _fly
 			a.flag = 0
@@ -71,17 +71,17 @@ func _avoid_init(a: BugActor) -> void:
 	a.life_time = 0
 	a.alpha_time = 80
 	a.rot.x = 0.0
-	if not a.f_no_catch:
+	if a.catchable:
 		## Off the player's facing ±60°.
 		BugBehavior.heading_from_player_facing(a, deg_to_rad(120.0))
 	a.s32_work[2] = 0
 	a.s32_work[0] = 0
-	a.anime0 = 0.0
-	a.anime1 = 0.0
-	a.alpha0 = 255
-	a.alpha1 = 255
-	a.alpha2 = 0
-	a.f_no_catch = true
+	a.anim_frame = 0.0
+	a.prev_anim_frame = 0.0
+	a.opacity = 255
+	a.prev_frame_opacity = 255
+	a.fade_out = 0
+	a.catchable = false
 
 
 # ---- actions --------------------------------------------------
@@ -91,7 +91,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.caught:
 		setup_action(a, LET_ESCAPE)
 		return
-	if a.f_scared and not a.f_bit2:
+	if a.f_scared and not a.escaping:
 		setup_action(a, LET_ESCAPE)
 		return
 	if a.action_proc.is_valid():
@@ -103,17 +103,17 @@ func _anime(a: BugActor) -> void:
 	## pulse moves on a step.
 	if a.timer > 0.0:
 		a.timer -= a.n
-		a.alpha0 = minf(a.alpha0 + 25.0 * a.n, 255.0)
-		a.alpha1 = maxf(a.alpha1 - 25.0 * a.n, 0.0)
+		a.opacity = minf(a.opacity + 25.0 * a.n, 255.0)
+		a.prev_frame_opacity = maxf(a.prev_frame_opacity - 25.0 * a.n, 0.0)
 	else:
 		a.timer += 10.0
 		var step: int = int(a.continue_timer)
-		a.anime1 = PULSE[step]
-		a.alpha0 = 0.0
-		a.alpha1 = 255.0
+		a.prev_anim_frame = PULSE[step]
+		a.opacity = 0.0
+		a.prev_frame_opacity = 255.0
 		step = (step + 1) % PULSE.size()
 		a.continue_timer = step
-		a.anime0 = PULSE[step]
+		a.anim_frame = PULSE[step]
 
 
 ## The bob: a sine on a phase that turns a few hundred s16 a tick, the height eased half

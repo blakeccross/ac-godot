@@ -73,9 +73,9 @@ var t: float = 0.0
 var alive: bool = true
 var parts: Array[Part] = []
 ## Level SE (`sAdo_OngenPos`) the emitter holds this tick, or `&""`.
-var ongen: StringName = &""
+var loop_sound: StringName = &""
 ## One-shot SEs (`sAdo_OngenTrgStart`) raised since the host last drained them.
-var trg_se: Array[StringName] = []
+var one_shot_sounds: Array[StringName] = []
 
 var _host: Node3D
 ## The feel joint (`aNPC_set_feel_eff`, joint 25) in the host's frame, metres.
@@ -154,7 +154,7 @@ func _init(host: Node3D, p_kind: StringName, npc_yaw: float, view_diff_deg: floa
 			_body.set_param(&"lod_frac", 1.0)
 			_body.set_param(&"env_color", _c(0, 255, 255, 255))
 			_es = {"side": side}
-			trg_se.append(&"kaze")
+			one_shot_sounds.append(&"kaze")
 		&"otikomi":
 			_start(22, 100, 10)
 			var at := Vector3(0.0, 17.0, 0.0)
@@ -189,7 +189,7 @@ func release() -> void:
 
 ## `delta` seconds. False once the emitter and all its parts are gone.
 func tick(delta: float) -> bool:
-	ongen = &""
+	loop_sound = &""
 	var n: float = maxf(delta, 0.0) * DecompTime.TICK_HZ
 	if alive:
 		_emitter_step(n, delta)
@@ -264,7 +264,7 @@ func _emitter_step(n: float, delta: float) -> void:
 				_spawn_pun_yuge()
 				_spawn_pun_sekimen()
 		&"siawase":
-			ongen = &"lev_e"
+			loop_sound = &"lev_e"
 			_continuous(n)
 			var alpha: float = 150.0
 			var s: float = 0.015
@@ -286,21 +286,21 @@ func _emitter_step(n: float, delta: float) -> void:
 		&"takurami":
 			var e: float = 54.0 - timer
 			if _hits(e, n, 0.0):
-				trg_se.append(&"117")
+				one_shot_sounds.append(&"117")
 			if _hits(e, n, 10.0):
 				_spawn_kira(_es["kira_at"])
 			_scale(_body, _adjust(e, 0, 8, 0.0, 0.017), 0.02, 0.017)
 			_body.set_param(&"prim_color", _c(0, 0, 0, int(_adjust(e, 46, 54, 200.0, 0.0))))
 		&"naku":
 			_continuous(n)
-			ongen = &"lev_2e"
+			loop_sound = &"lev_2e"
 			## A tear on every odd tick of the timer.
 			for _i: int in _beats(timer, n, 2, 1):
 				_spawn_tear(int(_es["count"]) & 1)
 				_es["count"] = int(_es["count"]) + 1
 		&"buruburu":
 			_continuous(n)
-			ongen = &"lev_2d"
+			loop_sound = &"lev_2d"
 			var idx: int = (int(timer) >> 1) & 1
 			_scale(_body, [0.015, 0.016][idx], 0.01, [0.01, 0.011][idx])
 			_body.set_param(&"tex0", _rel(StringName("ef_buruburu01_%d_int_i4" % idx)))
@@ -347,7 +347,7 @@ func _tick_think(n: float) -> void:
 	if state == State.FINISHED:
 		alpha = int(_adjust(7 - timer, 0, 6, 255.0, 0.0))
 	else:
-		ongen = &"lev_58"
+		loop_sound = &"lev_58"
 	var s: float = 0.008
 	var sz: float = 0.8
 	if state == State.NORMAL:
@@ -378,9 +378,9 @@ func _tick_gloom(n: float, delta: float) -> void:
 	var lines_y: float = 0.0135
 	if state == State.NORMAL:
 		lines_y = _adjust(22 - timer, 10, 21, 0.0, 0.0135)
-		ongen = &"lev_59"
+		loop_sound = &"lev_59"
 	elif state == State.CONTINUOUS:
-		ongen = &"lev_59"
+		loop_sound = &"lev_59"
 	else:
 		alpha = _adjust(10 - timer, 0, 9, 255.0, 0.0)
 		alpha2 = _adjust(10 - timer, 0, 9, 100.0, 0.0)
@@ -439,7 +439,7 @@ func _spawn_note() -> void:
 		var col: Color = q.data["prim"]
 		col.a = _adjust(e, 60, 72, 255.0, 0.0) / 255.0
 		q.set_param(&"prim_color", col)
-	trg_se.append(&"43f")
+	one_shot_sounds.append(&"43f")
 
 
 ## `eDoyon`: a little dark cloud drifting off the head and swirling as it slows.
@@ -462,7 +462,7 @@ func _spawn_doyon() -> void:
 		_scale(q, size * (1.0 + 0.2 * cos(sp)), size * (1.0 + 0.2 * sin(sp)), 0.1)
 		q.ofs = Vector3(progress * cos(sp), progress * sin(sp), 20.0)
 		q.set_param(&"prim_color", _c(40, 30, 40, int(_adjust(timer, 0, 8, 0.0, 220.0))))
-	trg_se.append(&"doyon")
+	one_shot_sounds.append(&"doyon")
 
 ## `ePunYuge`: a puff of steam over the head, swelling as its frames cross-fade.
 func _spawn_pun_yuge() -> void:
@@ -486,7 +486,7 @@ func _spawn_pun_yuge() -> void:
 		else:
 			var s: float = _adjust(e, 10, 26, 0.00595, 0.0119)
 			_scale(q, s, s, s)
-	trg_se.append(&"pun_yuge")
+	one_shot_sounds.append(&"pun_yuge")
 
 
 ## `ePunRed`: the red flush across the face.

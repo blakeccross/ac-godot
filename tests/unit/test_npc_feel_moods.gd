@@ -50,7 +50,7 @@ func test_anger_puffs_steam_every_loop_while_the_clip_holds() -> void:
 	assert_int(m.parts.size()).is_equal(0)
 	_run(m, 1)
 	assert_int(m.parts.size()).is_equal(2)
-	assert_array(m.trg_se).contains([&"pun_yuge"])
+	assert_array(m.one_shot_sounds).contains([&"pun_yuge"])
 	_run(m, 200)
 	assert_bool(m.alive).is_true()
 	m.release()
@@ -60,7 +60,7 @@ func test_anger_puffs_steam_every_loop_while_the_clip_holds() -> void:
 func test_the_happy_glow_fades_out_after_the_clip() -> void:
 	var m := _moods(&"siawase")
 	_run(m, 60)
-	assert_str(String(m.ongen)).is_equal("lev_e")
+	assert_str(String(m.loop_sound)).is_equal("lev_e")
 	assert_int(m.parts.size()).is_greater(1)  ## the glow and its petals
 	m.release()
 	assert_int(m.state).is_equal(NpcFeelMoods.State.FINISHED)
@@ -76,10 +76,10 @@ func test_the_happy_glow_fades_out_after_the_clip() -> void:
 func test_thinking_gears_hum_and_fade_over_seven_ticks() -> void:
 	var m := _moods(&"kangaeru")
 	_run(m, 50)
-	assert_str(String(m.ongen)).is_equal("lev_58")
+	assert_str(String(m.loop_sound)).is_equal("lev_58")
 	m.release()
 	_run(m, 1)
-	assert_str(String(m.ongen)).is_equal("")
+	assert_str(String(m.loop_sound)).is_equal("")
 	_run(m, 6)
 	assert_bool(m.alive).is_false()
 
@@ -87,7 +87,7 @@ func test_thinking_gears_hum_and_fade_over_seven_ticks() -> void:
 func test_a_scheming_grin_plays_out_whatever_the_clip_does() -> void:
 	var m := _moods(&"takurami")
 	_run(m, 1)
-	assert_array(m.trg_se).contains([&"117"])
+	assert_array(m.one_shot_sounds).contains([&"117"])
 	_run(m, 10)
 	assert_int(m.parts.size()).is_equal(2)  ## the shadow and its sparkle
 	m.release()
@@ -99,7 +99,7 @@ func test_a_scheming_grin_plays_out_whatever_the_clip_does() -> void:
 func test_tears_alternate_sides() -> void:
 	var m := _moods(&"naku")
 	_run(m, 8)
-	assert_str(String(m.ongen)).is_equal("lev_2e")
+	assert_str(String(m.loop_sound)).is_equal("lev_2e")
 	assert_int(m.parts.size()).is_equal(4)
 	var xs: Array[float] = []
 	_run(m, 6)
@@ -111,7 +111,7 @@ func test_tears_alternate_sides() -> void:
 func test_wind_blows_a_leaf_across() -> void:
 	var m := _moods(&"kaze")
 	_run(m, 1)
-	assert_array(m.trg_se).contains([&"kaze"])
+	assert_array(m.one_shot_sounds).contains([&"kaze"])
 	_run(m, 36)
 	assert_int(m.parts.size()).is_equal(2)
 	_run(m, 70)
@@ -124,7 +124,7 @@ func test_the_gloom_cloud_wobbles_ever_more_gently() -> void:
 	var early: float = float(m._es["wobble"])
 	_run(m, 200)
 	assert_float(float(m._es["wobble"])).is_less(early)
-	assert_str(String(m.ongen)).is_equal("lev_59")
+	assert_str(String(m.loop_sound)).is_equal("lev_59")
 	m.release()
 	_run(m, 10)
 	assert_bool(m.alive).is_false()
@@ -144,7 +144,7 @@ func test_a_sleepy_villager_yawns_then_breathes_zs() -> void:
 func test_shivering_flicks_between_two_frames() -> void:
 	var m := _moods(&"buruburu")
 	_run(m, 1)
-	assert_str(String(m.ongen)).is_equal("lev_2d")
+	assert_str(String(m.loop_sound)).is_equal("lev_2d")
 	var widths: Array[float] = []
 	for _i: int in 4:
 		widths.append(absf(m._body.node.scale.x))
@@ -187,7 +187,7 @@ func test_mood_poses_give_off_their_effects() -> void:
 	for e: StringName in [&"konpu", &"pun_yuge", &"doyon", &"neboke_awa"]:
 		m.pulse(e)
 	assert_int(m.parts.size()).is_equal(4)
-	assert_array(m.trg_se).contains([&"43f", &"pun_yuge", &"doyon"])
+	assert_array(m.one_shot_sounds).contains([&"43f", &"pun_yuge", &"doyon"])
 	_run(m, 80)
 	assert_int(m.parts.size()).is_equal(0)
 

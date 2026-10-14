@@ -15,9 +15,14 @@ extends RefCounted
 ## change, countdown and chance by it (`BugBehavior.chance`, `beat`, the `* a.n` chases).
 ## Timers stay in ticks because every table that sets them is written in ticks.
 
+## `aINS_BG_CHECK_TYPE_*`: how the per-frame ground check treats this insect. NONE skips it;
+## the rest follow the ground, the OPEN ones ignoring unit columns (trees, rocks) and the
+## WITH_ATTRIBUTES ones also reading the unit's attribute (water and the like).
+enum TerrainMode { NONE, GROUND_WITH_ATTRIBUTES, GROUND, OPEN_GROUND_WITH_ATTRIBUTES, OPEN_GROUND }
+
 const GX_M := FieldCatalog.GX_TO_METERS
 
-## `aINS_setupActor`: life_time 216000 ticks (2 game-hours), alpha0 255, bg_range 12.
+## `aINS_setupActor`: life_time 216000 ticks (2 game-hours), opacity 255, bg_range 12.
 const LIFE_TIME_FRAMES := 216000.0
 const BG_RANGE_DEFAULT := 12.0
 ## `mCoBG_GroundCheck`: river / pond units put the surface 20 GX over the bed.
@@ -139,15 +144,14 @@ var continue_timer: float = 0.0
 var flag: int = 0
 var s32_work: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
 var f32_work: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
-var anime0: float = 0.0  ## `_1E0`
-var anime1: float = 0.0  ## `_1E4`
+var anim_frame: float = 0.0  ## `_1E0`
+var prev_anim_frame: float = 0.0  ## `_1E4`
 var light_flag: int = 0
-var alpha0: float = 255.0
-var alpha1: float = 255.0
-var alpha2: float = 0.0
-var ut_x: int = -1
-var ut_z: int = -1
-var bg_type: int = 0
+var opacity: float = 255.0
+var prev_frame_opacity: float = 255.0
+## The firefly's glow fading out as it leaves (0–255).
+var fade_out: float = 0.0
+var terrain_mode: TerrainMode = TerrainMode.NONE
 var bg_range: float = BG_RANGE_DEFAULT
 var bg_height: float = 0.0
 ## `bg_collision_check.result` after this frame's `aINS_BGcheck`.
@@ -180,14 +184,14 @@ var _init_waits_for_player: bool = false
 # ---- flags (insect_flags) --------------------------------------------
 ## `sAdo_OngenPos`: the level SE (`lev_<hex>`) this bug holds this tick, -1 for none. Reset
 ## every tick, so a sound lasts exactly as long as the program keeps asking for it.
-var ongen: int = -1
+var loop_sound: int = -1
 ## `sAdo_OngenTrgStart`: one-shot SE ids raised since `BugSounds` last drained them.
-var trg_se: Array[StringName] = []
+var one_shot_sounds: Array[StringName] = []
 var f_destruct: bool = false
-var f_no_catch: bool = false   ## bit_1 — do not register a net catch target
-var f_bit2: bool = false       ## bit_2 — terminal (let_escape); skip re-scare
+var catchable: bool = true     ## not bit_1 — registers a net catch target
+var escaping: bool = false       ## bit_2 — terminal (let_escape); skip re-scare
 var f_scared: bool = false     ## bit_3 — life_time hit 0
-var f_bit4: bool = true        ## bit_4 — unique-wall check enabled
+var wall_check: bool = true        ## bit_4 — unique-wall check enabled
 var released: bool = false     ## actor_specific == 1
 
 # ---- state machine --------------------------------------------------
@@ -226,8 +230,8 @@ static func create(
 	a.released = p_released
 	## `aINS_setupActor` defaults.
 	a.life_time = LIFE_TIME_FRAMES
-	a.alpha0 = 255.0
-	a.f_bit4 = true
+	a.opacity = 255.0
+	a.wall_check = true
 	a.bg_range = BG_RANGE_DEFAULT
 	a._prog = BugBehavior.create(p_bug.program if p_bug != null else BugData.Program.CHOU)
 	if a.type == Ant.TYPE and not p_released:
@@ -261,7 +265,7 @@ var roll: float:
 var height: float = 0.0
 
 var alpha: float:
-	get: return clampf(float(alpha0) / 255.0, 0.0, 1.0)
+	get: return clampf(float(opacity) / 255.0, 0.0, 1.0)
 
 
 ## The ant swarm on food (`ac_ant`), drawn as a crawling patch.
@@ -288,7 +292,7 @@ func release() -> void:
 	if finished:
 		return
 	released = true
-	f_no_catch = true
+	catchable = false
 	if _prog != null:
 		_prog.on_release(self)
 
@@ -321,7 +325,7 @@ func _angular_catch(player_position_m: Vector3) -> float:
 
 ## `aINS_set_catch_range`: the row this insect registers with a swinging net, or null.
 func net_candidate(player_position_m: Vector3) -> NetSwing.Candidate:
-	if finished or caught or f_no_catch:
+	if finished or caught or not catchable:
 		return null
 	var range_gx: float = net_catch_range_gx(player_position_m)
 	if is_zero_approx(range_gx):
@@ -346,10 +350,10 @@ func advance(delta: float, sense: Sense) -> void:
 		## available, as the decomp does at construction. Nothing has moved yet.
 		_init_waits_for_player = false
 		_set_player_info(sense)
-		f_no_catch = false
-		f_bit2 = false
+		catchable = true
+		escaping = false
 		_prog.actor_init(self, true)
-	ongen = -1
+	loop_sound = -1
 	## move_proc (default `aINS_position_move`).
 	if move_proc.is_valid():
 		move_proc.call(self)
@@ -395,13 +399,13 @@ func _set_player_info(sense: Sense) -> void:
 # ---- aINS_BGcheck ------------------------------------------------------
 
 ## `mCoBG_BgCheckControll` ground half (`mCoBG_GroundCheck` → `mCoBG_AdjustActorY`), every
-## frame after the move for any `bg_type`. Feet are `pos.y + bg_height`: a foot at or under
+## frame after the move unless `terrain_mode` is NONE. Feet are `pos.y + bg_height`: a foot at or under
 ## the ground is lifted onto it (`on_ground`, vertical speed zeroed); a grounded insect
 ## whose ground drops by no more than this frame's XZ step follows it down the slope.
 ## Water units floor 20 GX under the surface (`water_y − 20`) and flag `is_in_water`.
 ## Walls stay with the programs' `sense.bg` queries.
 func _bg_check(sense: Sense) -> void:
-	if bg_type == 0 or sense == null or not sense.ground.is_valid():
+	if terrain_mode == TerrainMode.NONE or sense == null or not sense.ground.is_valid():
 		return
 	var was_on_ground: bool = bg_on_ground
 	var old_ground_y: float = bg_ground_y
@@ -523,15 +527,15 @@ func _calc_alpha_time() -> void:
 	var fading: float = clampf(ALPHA_FADE_START - alpha_time, 0.0, minf(n, was - alpha_time))
 	if fading <= 0.0:
 		return
-	if type == 27:  ## firefly fades its glow (alpha2) up
-		alpha2 = minf(alpha2 + ALPHA_STEP * fading, 255.0)
-		if alpha2 >= 255.0:
-			alpha0 = 0.0
-			alpha1 = 0.0
+	if type == 27:  ## firefly fades its glow out
+		fade_out = minf(fade_out + ALPHA_STEP * fading, 255.0)
+		if fade_out >= 255.0:
+			opacity = 0.0
+			prev_frame_opacity = 0.0
 			f_destruct = true
 	else:
-		alpha0 = maxf(alpha0 - ALPHA_STEP * fading, 0.0)
-		if alpha0 <= 0.0:
+		opacity = maxf(opacity - ALPHA_STEP * fading, 0.0)
+		if opacity <= 0.0:
 			f_destruct = true
 	if f_destruct:
 		finished = true

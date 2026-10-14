@@ -1,8 +1,8 @@
 class_name TestBugSounds
 extends GdUnitTestSuite
 
-## Insect sounds: the programs' `sAdo_OngenPos` level SEs (`BugActor.ongen`) and
-## `sAdo_OngenTrgStart` one-shots (`trg_se`), and `BugSounds` picking what to play.
+## Insect sounds: the programs' `sAdo_OngenPos` level SEs (`BugActor.loop_sound`) and
+## `sAdo_OngenTrgStart` one-shots (`one_shot_sounds`), and `BugSounds` picking what to play.
 
 var _rng: RandomNumberGenerator = null
 
@@ -24,8 +24,8 @@ func _heard(a: BugActor, frames: int, s: BugActor.Sense) -> Array[int]:
 	var out: Array[int] = []
 	for _i: int in frames:
 		a.advance(DecompTime.TICK_SEC, s)
-		if a.ongen >= 0 and not out.has(a.ongen):
-			out.append(a.ongen)
+		if a.loop_sound >= 0 and not out.has(a.loop_sound):
+			out.append(a.loop_sound)
 		if a.finished:
 			break
 	return out
@@ -51,7 +51,7 @@ func test_a_startled_cicada_shrieks_once() -> void:
 	a.patience = 100.0
 	a.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
 	assert_int(a.action).is_equal(Cicada.AVOID)
-	assert_array(a.trg_se).contains_exactly([&"semi_escape"])
+	assert_array(a.one_shot_sounds).contains_exactly([&"semi_escape"])
 
 
 func test_bees_buzz_only_as_they_fly_off() -> void:
@@ -59,16 +59,16 @@ func test_bees_buzz_only_as_they_fly_off() -> void:
 	assert_array(_heard(a, 60, BugActor.Sense.new())).is_empty()
 	a.patience = 100.0
 	a.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
-	assert_array(a.trg_se).is_empty()
+	assert_array(a.one_shot_sounds).is_empty()
 	assert_array(_heard(a, 5, BugActor.Sense.new())).contains_exactly([0x26])
 
 
 func test_a_mosquito_whines_until_it_bites() -> void:
 	var a := _make(&"mosquito", BugData.Habitat.FLYING, Vector3(4.0, 1.5, 4.0))
 	a.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
-	assert_int(a.ongen).is_equal(0xCF)
+	assert_int(a.loop_sound).is_equal(0xCF)
 	Mosquito.new().setup_action(a, Mosquito.ATTACK)
-	assert_array(a.trg_se).contains_exactly([&"6a"])
+	assert_array(a.one_shot_sounds).contains_exactly([&"6a"])
 
 
 func test_resting_crickets_sing_and_locusts_whirr_in_flight() -> void:
@@ -85,7 +85,7 @@ func test_resting_crickets_sing_and_locusts_whirr_in_flight() -> void:
 func test_drowning_hoppers_splash() -> void:
 	var a := _make(&"grasshopper", BugData.Habitat.GROUND, Vector3(8.0, 0.0, 8.0))
 	Grasshopper.new().setup_action(a, Grasshopper.DROWN)
-	assert_array(a.trg_se).contains_exactly([&"438"])
+	assert_array(a.one_shot_sounds).contains_exactly([&"438"])
 
 
 func test_a_field_keeps_the_splash_of_an_insect_it_drops() -> void:
@@ -106,8 +106,8 @@ func test_pick_takes_the_nearest_sounding_insects_in_range() -> void:
 	var quiet := _make(&"cricket", BugData.Habitat.BUSH, Vector3(10.0 * gx, 0.0, 0.0))
 	var gone := _make(&"cricket", BugData.Habitat.BUSH, Vector3(600.0 * gx, 0.0, 0.0))
 	for a: BugActor in [far, near, gone]:
-		a.ongen = 0x9F
-	quiet.ongen = -1
+		a.loop_sound = 0x9F
+	quiet.loop_sound = -1
 	var picked: Array = BugSounds.pick([far, near, quiet, gone], Vector3.ZERO, 4)
 	assert_int(picked.size()).is_equal(2)
 	assert_object(picked[0][0]).is_same(near)

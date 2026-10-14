@@ -48,7 +48,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 
 
 func pose_index(a: BugActor) -> int:
-	return int(a.anime0) & 1
+	return int(a.anim_frame) & 1
 
 
 # ---- setupAction ---------------------------------------------------
@@ -74,8 +74,8 @@ func _avoid_init(a: BugActor) -> void:
 	## `player->shape_info.rotation.y + (rand − 0.5)·120°`, scared or released alike.
 	if BugBehavior.heading_from_player_facing(a, deg_to_rad(120.0)):
 		a.rot.y = a.angle_y
-	a.f_no_catch = true
-	a.f_bit2 = true
+	a.catchable = false
+	a.escaping = true
 
 
 func _wait_init(a: BugActor) -> void:
@@ -92,7 +92,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.caught:
 		setup_action(a, LET_ESCAPE)
 		return
-	if a.f_scared and not a.f_bit2:
+	if a.f_scared and not a.escaping:
 		setup_action(a, LET_ESCAPE)
 		return
 	if a.action_proc.is_valid():
@@ -122,12 +122,12 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
-	a.anime0 = fmod(a.anime0 + 0.5 * a.n, 2.0)
+	a.anim_frame = fmod(a.anim_frame + 0.5 * a.n, 2.0)
 	a.gravity = minf(a.gravity * pow(1.1, a.n), 12.0)
-	a.ongen = 0x25
+	a.loop_sound = 0x25
 	## `aIKB_avoid`: ground / wall collision switches on once it has flown off its home unit.
-	if a.bg_type != 2 and BugBehavior.unit_of(sense, a.home) != BugBehavior.unit_of(sense, a.pos):
-		a.bg_type = 2
+	if a.terrain_mode != BugActor.TerrainMode.GROUND and BugBehavior.unit_of(sense, a.home) != BugBehavior.unit_of(sense, a.pos):
+		a.terrain_mode = BugActor.TerrainMode.GROUND
 
 
 ## `aIKB_check_patience`: shaken tree → axe hit in the acre within 150 GX → stopped net

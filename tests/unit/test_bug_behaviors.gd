@@ -374,12 +374,12 @@ func test_pill_bug_curls_into_a_ball_when_scared() -> void:
 	a.patience = 30.0
 	_run(a, 2, s)
 	assert_int(a.action).is_equal(PillBug.AVOID)
-	## Scares count only once it has crawled off the rock's unit (`bg_type` 4 → 2).
+	## Scares count only once it has crawled off the rock's unit (`terrain_mode` OPEN_GROUND → GROUND).
 	for i in 120:
 		a.advance(DecompTime.TICK_SEC, s)
-		if a.bg_type == 2:
+		if a.terrain_mode == BugActor.TerrainMode.GROUND:
 			break
-	assert_int(a.bg_type).is_equal(2)
+	assert_int(a.terrain_mode).is_equal(BugActor.TerrainMode.GROUND)
 	s.net_swing_active = true
 	s.net_swing_origin = a.position
 	a.advance(DecompTime.TICK_SEC, s)
@@ -797,7 +797,7 @@ func test_ants_swarm_on_food_and_fade_once_it_is_gone() -> void:
 	Game.field_items.clear()
 	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(Ant.DISAPPEAR)
-	assert_bool(a.f_no_catch).is_true()
+	assert_bool(a.catchable).is_false()
 	## 255 down 15 a tick.
 	_run(a, 16, s)
 	assert_bool(a.finished).is_false()

@@ -22,7 +22,7 @@ var _turn_left: float = 0.0
 
 
 func actor_init(a: BugActor, released: bool) -> void:
-	a.bg_type = 2
+	a.terrain_mode = BugActor.TerrainMode.GROUND
 	a.bg_range = 20.0
 	a.item = -1
 	if not released:
@@ -41,7 +41,7 @@ func actor_init(a: BugActor, released: bool) -> void:
 
 
 func pose_index(a: BugActor) -> int:
-	return int(a.anime0) & 1
+	return int(a.anim_frame) & 1
 
 
 func on_release(a: BugActor) -> void:
@@ -57,12 +57,12 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.alpha_time = 80
 			a.rot.x = 0.0
 			a.speed = 1.5
-			if not a.f_no_catch and BugBehavior.heading_from_player_facing(a, deg_to_rad(120.0)):
+			if a.catchable and BugBehavior.heading_from_player_facing(a, deg_to_rad(120.0)):
 				a.home.y = a.pos.y
 			a.s32_work[3] = 0
-			a.f_no_catch = true
+			a.catchable = false
 			if action == LET_ESCAPE:
-				a.f_bit2 = true
+				a.escaping = true
 		FLY:
 			a.action_proc = _fly
 			a.flag = 0
@@ -84,11 +84,11 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 	if not _placed:
 		_placed = true
 		_settle(a, sense)
-	a.anime0 = fmod(a.anime0 + 0.5 * a.n, 2.0)
+	a.anim_frame = fmod(a.anim_frame + 0.5 * a.n, 2.0)
 	if a.caught:
 		setup_action(a, LET_ESCAPE)
 		return
-	if a.f_scared and not a.f_bit2:
+	if a.f_scared and not a.escaping:
 		setup_action(a, LET_ESCAPE)
 		return
 	if a.action_proc.is_valid():

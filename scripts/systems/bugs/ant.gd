@@ -34,7 +34,7 @@ func setup_action(a: BugActor, action: int) -> void:
 	a.action = action
 	if action == DISAPPEAR:
 		a.rot.x = 0.0
-		a.f_no_catch = true
+		a.catchable = false
 
 
 func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
@@ -43,9 +43,9 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 			if not on_bait(a, sense):
 				setup_action(a, DISAPPEAR)
 		DISAPPEAR:
-			a.alpha0 -= FADE_STEP * a.n
-			if a.alpha0 <= 0.0:
-				a.alpha0 = 0
+			a.opacity -= FADE_STEP * a.n
+			if a.opacity <= 0.0:
+				a.opacity = 0
 				a.finished = true
 
 

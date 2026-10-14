@@ -35,12 +35,12 @@ func actor_init(a: BugActor, released: bool) -> void:
 	else:
 		_placed = true
 		if a.type != T_BEE:
-			a.trg_se.append(&"semi_escape")
+			a.one_shot_sounds.append(&"semi_escape")
 		setup_action(a, LET_ESCAPE)
 
 
 func pose_index(a: BugActor) -> int:
-	return int(a.anime0) & 1
+	return int(a.anim_frame) & 1
 
 
 # ---- setupAction ---------------------------------------------------
@@ -54,7 +54,7 @@ func setup_action(a: BugActor, action: int) -> void:
 		LET_ESCAPE:
 			a.action_proc = _avoid
 			_avoid_init(a)
-			a.f_bit2 = true
+			a.escaping = true
 		WAIT:
 			a.action_proc = _wait
 			a.rot.y = BugActor.TREE_FACE_YAW
@@ -78,7 +78,7 @@ func _avoid_init(a: BugActor) -> void:
 		a.angle_y = a.rot.y
 	elif BugBehavior.heading_from_player_facing(a, deg_to_rad(120.0)):
 		a.rot.y = a.angle_y
-	a.f_no_catch = true
+	a.catchable = false
 
 
 # ---- actions -----------------------------------------------------
@@ -90,7 +90,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.caught:
 		setup_action(a, LET_ESCAPE)
 		return
-	if a.f_scared and not a.f_bit2:
+	if a.f_scared and not a.escaping:
 		setup_action(a, LET_ESCAPE)
 		return
 	if a.action_proc.is_valid():
@@ -100,7 +100,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	if _check_patience(a, sense):
 		if a.type != T_BEE:
-			a.trg_se.append(&"semi_escape")
+			a.one_shot_sounds.append(&"semi_escape")
 		setup_action(a, AVOID)
 		return
 	## `aISM_IS_CAUGHT` (`s32_work0`): a net stopped on this cicada silences it.
@@ -110,20 +110,20 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 		a.timer -= a.n
 		if not (BugBehavior.raining() or sense.raining) and a.timer < 0.0:
 			a.timer = 0.0
-			a.ongen = CRY_SE[a.type - T_ROBUST_CICADA]
+			a.loop_sound = CRY_SE[a.type - T_ROBUST_CICADA]
 			a.pos.x = a.home.x + a._rng.randf() * 0.4
 	else:
 		a.timer = CRY_TIMER
 
 
 func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
-	a.anime0 = fmod(a.anime0 + 0.5 * a.n, 2.0)
+	a.anim_frame = fmod(a.anim_frame + 0.5 * a.n, 2.0)
 	a.gravity = minf(a.gravity * pow(1.1, a.n), 12.0)
 	if a.type == T_BEE:
-		a.ongen = 0x26
+		a.loop_sound = 0x26
 	## Ground / wall collision switches on once it has flown off its home unit.
-	if a.bg_type == 0 and BugBehavior.unit_of(sense, a.home) != BugBehavior.unit_of(sense, a.pos):
-		a.bg_type = 2
+	if a.terrain_mode == BugActor.TerrainMode.NONE and BugBehavior.unit_of(sense, a.home) != BugBehavior.unit_of(sense, a.pos):
+		a.terrain_mode = BugActor.TerrainMode.GROUND
 
 
 ## `aISM_check_patience`: shaken tree → axe hit in the acre within 150 GX → stopped net

@@ -23,7 +23,7 @@ var _tree_cell: Vector2i = Vector2i(-1, -1)
 
 func actor_init(a: BugActor, released: bool) -> void:
 	a.bg_range = 4.0
-	a.f_bit4 = false
+	a.wall_check = false
 	a.item = 35 if a.type == T_BAGWORM else 37
 	a.move_proc = _position_move
 	if not released:
@@ -46,7 +46,7 @@ func set_tree_cell(cell: Vector2i) -> void:
 
 func pose_index(a: BugActor) -> int:
 	## `_1E0` is set to a fixed 0 / 2 per action rather than cycled.
-	return int(a.anime0) & 1
+	return int(a.anim_frame) & 1
 
 
 func on_release(a: BugActor) -> void:
@@ -95,7 +95,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			_dive_init(a)
 		DROWN:
 			a.action_proc = _noop
-			a.trg_se.append(&"438")
+			a.one_shot_sounds.append(&"438")
 			a.f_destruct = true
 			a.finished = true
 		FALL:
@@ -112,7 +112,7 @@ func _noop(_a: BugActor, _s: BugActor.Sense) -> void:
 func _let_escape_init(a: BugActor) -> void:
 	a.life_time = 0
 	a.alpha_time = 80
-	a.bg_type = 2
+	a.terrain_mode = BugActor.TerrainMode.GROUND
 	a.gravity = 2.0
 	a.max_velocity_y = -20.0
 	a.rot.x = 0.0
@@ -122,15 +122,15 @@ func _let_escape_init(a: BugActor) -> void:
 	if a.type == T_BAGWORM:
 		a.target_speed = 0.75
 		a.speed_step = 0.15
-		a.anime0 = 2.0
+		a.anim_frame = 2.0
 		a.rot.y = a.angle_y
 	else:
 		a.target_speed = 1.5
 		a.speed_step = 0.3
-		a.anime0 = 0.0
+		a.anim_frame = 0.0
 		a.rot.y = a.angle_y + PI
-	a.f_no_catch = true
-	a.f_bit2 = true
+	a.catchable = false
+	a.escaping = true
 
 
 func _hide_init(a: BugActor) -> void:
@@ -139,9 +139,9 @@ func _hide_init(a: BugActor) -> void:
 	a.speed_step = 0.0
 	a.pos.y = a.home.y
 	a.f32_work[0] = 0.0
-	a.anime0 = 1.0
+	a.anim_frame = 1.0
 	a.drawn = false
-	a.f_no_catch = true
+	a.catchable = false
 
 
 func _appear_init(a: BugActor) -> void:
@@ -163,7 +163,7 @@ func _appear_init(a: BugActor) -> void:
 	a.target_speed = -20.0
 	a.speed_step = 2.0
 	a.drawn = true
-	a.f_no_catch = false
+	a.catchable = true
 
 
 func _wait_init(a: BugActor) -> void:
@@ -180,8 +180,8 @@ func _dive_init(a: BugActor) -> void:
 	a.speed_step = 0.3
 	a.speed = a.target_speed
 	a.pos_speed.y = 8.0
-	a.anime0 = 2.0 if a.type == T_BAGWORM else 0.0
-	a.f_no_catch = true
+	a.anim_frame = 2.0 if a.type == T_BAGWORM else 0.0
+	a.catchable = false
 
 
 func _fall_init(a: BugActor) -> void:
@@ -190,7 +190,7 @@ func _fall_init(a: BugActor) -> void:
 	a.rot.z = 0.0
 	a.move_proc = Callable()
 	a.drawn = true
-	a.anime0 = 2.0 if a.type == T_BAGWORM else 0.0
+	a.anim_frame = 2.0 if a.type == T_BAGWORM else 0.0
 
 
 # ---- actions ----------------------------------------------------
@@ -199,7 +199,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 	if _tree_cell.x < 0:
 		_tree_cell = BugBehavior.unit_of(sense, a.home)
 	if a.caught:
-		a.alpha0 = 255
+		a.opacity = 255
 		a.rot.y = BugActor.TREE_FACE_YAW
 		setup_action(a, LET_ESCAPE)
 		return

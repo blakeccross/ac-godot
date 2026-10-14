@@ -179,9 +179,9 @@ func _step(delta: float, sense: BugActor.Sense) -> void:
 	for actor: BugActor in actors:
 		if not actor.finished:
 			kept.append(actor)
-		elif not actor.trg_se.is_empty():
+		elif not actor.one_shot_sounds.is_empty():
 			## A drowning insect leaves this step; its splash still has to sound.
-			for id: StringName in actor.trg_se:
+			for id: StringName in actor.one_shot_sounds:
 				gone_se.append([id, actor.position])
 	actors = kept
 

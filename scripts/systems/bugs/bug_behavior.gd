@@ -74,7 +74,7 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 ## Draw pose. `aINS_actor_draw`: `(int)insect->_1E0` (0 or 1) for most; overlays that
 ## keep a still idle return 0.
 func pose_index(a: BugActor) -> int:
-	return int(a.anime0) & 1
+	return int(a.anim_frame) & 1
 
 
 ## Net release (`aINS_make_actor` → `actor_specific = 1`). Default: mark terminal so
@@ -82,7 +82,7 @@ func pose_index(a: BugActor) -> int:
 func on_release(a: BugActor) -> void:
 	a.life_time = 0
 	a.alpha_time = 0x50
-	a.f_bit2 = true
+	a.escaping = true
 
 
 ## `*_setupAction`: switch action, install its `action_proc`, run its `*_init`.
