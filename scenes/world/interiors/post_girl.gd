@@ -20,12 +20,8 @@ var _active_ui: DialogueOverlay = null
 func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group("post_set")
-	collision_layer = 1
-	collision_mask = 0
 	_species = PostDisplay.post_girl_species()
-	_ensure_collision()
 	_ensure_visual()
-	_ensure_interact()
 
 
 func _process(delta: float) -> void:
@@ -230,57 +226,16 @@ func _face_toward(target: Vector3) -> void:
 		rotation.y = atan2(to.x, to.z)
 
 
-func _ensure_collision() -> void:
-	if get_node_or_null("CollisionShape3D") != null:
-		return
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(1.0, 1.8, 1.0)
-	shape.shape = box
-	shape.position = Vector3(0.0, 0.9, 0.0)
-	add_child(shape)
-
-
-func _ensure_interact() -> void:
-	if get_node_or_null("InteractVolume") != null:
-		return
-	var volume := Area3D.new()
-	volume.name = "InteractVolume"
-	volume.collision_layer = 8
-	volume.collision_mask = 0
-	volume.monitoring = false
-	volume.monitorable = true
-	volume.set_script(load("res://scenes/world/interact_volume.gd"))
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	## Prefer the desk volume in front; keep a small reach if the player is beside her.
-	box.size = Vector3(1.2, 2.0, 1.2)
-	shape.shape = box
-	shape.position = Vector3(0.0, 1.0, 0.0)
-	volume.add_child(shape)
-	add_child(volume)
-
-
 func _ensure_visual() -> void:
-	if get_node_or_null("Model") != null:
+	if _model != null:
 		return
-	_model = Node3D.new()
-	_model.name = "Model"
-	add_child(_model)
+	_model = $Model
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, _species)
+	($Model/Placeholder as Node3D).visible = vis == null
 	if vis == null:
-		var mesh := MeshInstance3D.new()
-		var capsule := CapsuleMesh.new()
-		capsule.radius = 0.35
-		capsule.height = 1.4
-		mesh.mesh = capsule
-		mesh.position.y = 0.9
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = (
+		(($Model/Placeholder as MeshInstance3D).material_override as StandardMaterial3D).albedo_color = (
 			Color(0.95, 0.92, 0.85) if _species == PostDisplay.PELLY_SPECIES else Color(0.55, 0.45, 0.55)
 		)
-		mesh.material_override = mat
-		_model.add_child(mesh)
 		return
 	_body_anim = VisualAnimation.find_animation_player(vis)
 	_face.bind(vis, _species)

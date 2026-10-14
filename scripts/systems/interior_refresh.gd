@@ -23,15 +23,13 @@ static func shop_set(furniture_root: Node3D, room_content: Node3D, session: Indo
 	_refurnish(furniture_root, room_content, session)
 
 
-## Rebuild post mail piles / police lost-and-found without freeing clerks.
+## Rebuild police lost-and-found and re-show post mail piles, without freeing clerks.
 static func public_set(furniture_root: Node3D, room_content: Node3D, session: IndoorSession) -> void:
 	if furniture_root == null or session == null or session.room == null:
 		return
 	var stale: Array[Node] = []
 	for child: Node in furniture_root.get_children():
 		if child.is_in_group("police_set") and child.name.begins_with("LostFound_"):
-			stale.append(child)
-		elif child.name.begins_with("MailPile_"):
 			stale.append(child)
 	for node: Node in stale:
 		furniture_root.remove_child(node)

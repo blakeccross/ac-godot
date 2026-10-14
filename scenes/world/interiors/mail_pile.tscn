@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[sub_resource type="BoxMesh" id="letters"]
+size = Vector3(0.35, 0.08, 0.25)
+
+[sub_resource type="StandardMaterial3D" id="paper"]
+albedo_color = Color(0.92, 0.88, 0.78, 1)
+
+[node name="MailPile" type="Node3D"]
+
+[node name="Letters" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.04, 0)
+mesh = SubResource("letters")
+material_override = SubResource("paper")

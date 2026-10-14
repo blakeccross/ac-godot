@@ -5,7 +5,7 @@ extends RefCounted
 ## Blathers, the entrance clock, and the painting-wing mid walls.
 ## Shell/door-gap geometry itself lives in `InteriorShellBuilder`.
 
-const BLATHERS_SCRIPT := preload("res://scenes/world/museum/museum_blathers.gd")
+const BLATHERS_SCENE := preload("res://scenes/world/museum/blathers.tscn")
 
 
 static func build_museum_stage(root: Node3D, interior: IndoorSession) -> void:
@@ -50,8 +50,7 @@ static func add_redd(root: Node3D, interior: IndoorSession) -> void:
 		return
 	if root.get_node_or_null("Redd") != null:
 		return
-	var redd := StaticBody3D.new()
-	redd.set_script(load("res://scenes/world/interiors/redd.gd"))
+	var redd: Node3D = (load("res://scenes/world/interiors/redd.tscn") as PackedScene).instantiate()
 	redd.name = "Redd"
 	## `aEBR2_search_player2` stands him at (60, 100) GX in the tent.
 	redd.position = MuseumDisplay.gx_to_world(interior.grid, Vector3(60.0, 0.0, 100.0))
@@ -64,8 +63,7 @@ static func add_katrina(root: Node3D, interior: IndoorSession) -> void:
 		return
 	if root.get_node_or_null("Katrina") != null:
 		return
-	var katrina := StaticBody3D.new()
-	katrina.set_script(load("res://scenes/world/interiors/katrina.gd"))
+	var katrina: Node3D = (load("res://scenes/world/interiors/katrina.tscn") as PackedScene).instantiate()
 	katrina.name = "Katrina"
 	katrina.position = MuseumDisplay.gx_to_world(interior.grid, Vector3(160.0, 0.0, 140.0))
 	root.add_child(katrina)
@@ -77,9 +75,7 @@ static func add_blathers(root: Node3D, interior: IndoorSession) -> void:
 		return
 	if root.get_node_or_null("Blathers") != null:
 		return
-	var blathers := StaticBody3D.new()
-	blathers.set_script(BLATHERS_SCRIPT)
-	blathers.name = "Blathers"
+	var blathers: Node3D = BLATHERS_SCENE.instantiate() as Node3D
 	blathers.position = MuseumDisplay.gx_to_world(interior.grid, MuseumDisplay.BLATHERS_STAND_GX)
 	blathers.rotation.y = WorldGrid.yaw_for_facing(MuseumDisplay.BLATHERS_FACING)
 	root.add_child(blathers)

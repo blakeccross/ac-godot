@@ -1,15 +1,21 @@
+class_name BugSpawner
 extends Node3D
 
-## Presents live insects and drives their clock. Analog of `Insect_Profile` draw/move.
+## Runs the field's insects (`BugField`, the `Insect_Profile` move) and keeps one `Bug`
+## scene in the world for each live one, adding and freeing them as insects come and go.
+
+const BUG_SCENE := preload("res://scenes/world/bugs/bug.tscn")
+const GROUP := &"bug_spawner"
 
 var _field: BugField = null
-var _nodes: Array[BugActorVisual] = []
+## `BugActor` → its `Bug` scene.
+var _bugs: Dictionary = {}
 ## Villager positions last physics tick (instance id → metres), for their frame move.
 var _npc_last: Dictionary = {}
 
 
 func _ready() -> void:
-	add_to_group("bug_actors")
+	add_to_group(GROUP)
 	_bind_field()
 
 
@@ -38,7 +44,7 @@ func _physics_process(delta: float) -> void:
 		var player := Player.find(get_tree())
 		if player != null:
 			player.run_stung_mosquito()
-	_sync(delta)
+	_sync(delta, Player.find(get_tree()))
 
 
 func _make_sense() -> BugActor.Sense:
@@ -113,24 +119,29 @@ func _layout_for() -> WorldData:
 	return null
 
 
-func _sync(delta: float) -> void:
-	_fit(_field.actors.size())
-	for i: int in _field.actors.size():
-		var actor: BugActor = _field.actors[i]
-		var visual: BugActorVisual = _nodes[i]
-		if visual.bug_id != actor.bug.id or visual.swarm != actor.is_swarm():
-			remove_child(visual)
-			visual.free()
-			visual = BugActorVisual.create(actor.bug, actor.is_swarm())
-			add_child(visual)
-			_nodes[i] = visual
-		visual.sync(actor, delta)
+func _sync(delta: float, player: Node3D) -> void:
+	var player_position: Vector3 = player.global_position if player != null else Vector3.INF
+	var live: Dictionary = {}
+	for actor: BugActor in _field.actors:
+		live[actor] = true
+		var bug: Bug = _bugs.get(actor) as Bug
+		if bug == null:
+			bug = BUG_SCENE.instantiate() as Bug
+			add_child(bug)
+			bug.setup(actor)
+			_bugs[actor] = bug
+		bug.sync(delta, player_position)
+	for actor: BugActor in _bugs.keys():
+		if not live.has(actor):
+			(_bugs[actor] as Bug).queue_free()
+			_bugs.erase(actor)
 
 
-func _fit(want: int) -> void:
-	while _nodes.size() < want:
-		var visual := BugActorVisual.create(null)
-		add_child(visual)
-		_nodes.append(visual)
-	for i: int in range(want, _nodes.size()):
-		_nodes[i].visible = false
+## The `Bug` scene showing `actor`, or null.
+func bug_for(actor: BugActor) -> Bug:
+	return _bugs.get(actor) as Bug
+
+
+## The field's spawner in `tree`, or null.
+static func find(tree: SceneTree) -> BugSpawner:
+	return tree.get_first_node_in_group(GROUP) as BugSpawner if tree != null else null

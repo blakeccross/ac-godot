@@ -1011,9 +1011,9 @@ func test_world_owns_a_school_and_an_effects_node_that_finds_it() -> void:
 	assert_that(school).is_not_null()
 	## The authored town has a river, so a fresh field always has somewhere to put fish.
 	assert_bool(school.has_water()).is_true()
-	var effects: Node = world.get_node_or_null("Effects/FishShadows")
-	assert_that(effects).is_not_null()
-	assert_that(effects.call("school")).is_same(school)
+	var spawner: FishSpawner = world.get_node_or_null("Effects/FishSpawner") as FishSpawner
+	assert_that(spawner).is_not_null()
+	assert_that(spawner.school()).is_same(school)
 	## A shadow placed in the field's own river lives in the world's school. (Whether the
 	## spawner stocks this acre by itself is `test_fish_spawn_probe`'s business.)
 	var grid: WorldGrid = world.grid

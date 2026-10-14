@@ -1,6 +1,47 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/interiors/post_girl.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="2"]
+
+[sub_resource type="BoxShape3D" id="body_shape"]
+size = Vector3(1.0, 1.8, 1.0)
+
+[sub_resource type="BoxShape3D" id="reach_shape"]
+size = Vector3(1.2, 2.0, 1.2)
+
+[sub_resource type="CapsuleMesh" id="placeholder_mesh"]
+radius = 0.35
+height = 1.4
+
+[sub_resource type="StandardMaterial3D" id="placeholder_material"]
+resource_local_to_scene = true
+albedo_color = Color(0.95, 0.92, 0.85, 1)
 
 [node name="PostGirl" type="StaticBody3D"]
 script = ExtResource("1")
+collision_layer = 1
+collision_mask = 0
+
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("body_shape")
+
+[node name="InteractVolume" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+collision_layer = 8
+collision_mask = 0
+monitoring = false
+monitorable = true
+script = ExtResource("2")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="InteractVolume"]
+shape = SubResource("reach_shape")
+
+[node name="Model" type="Node3D" parent="."]
+
+[node name="Placeholder" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+visible = false
+mesh = SubResource("placeholder_mesh")
+material_override = SubResource("placeholder_material")

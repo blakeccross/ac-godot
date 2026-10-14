@@ -4,7 +4,7 @@ extends RefCounted
 ## The rod session. Behavioral analog of the uki status chain in `ac_uki.h`
 ## (carry → ready → cast → float → vib → catch) driven by the `*_ROD` player states in
 ## `m_player.h`. Not an autoload: `ToolUse` starts and resolves it, `bobber.tscn` presents
-## it, and `fish_shadows.tscn` advances it by `delta`. The decomp's per-tick timers and
+## it, and `FishSpawner` advances it by `delta`. The decomp's per-tick timers and
 ## steps are seconds and rates here, converted where each constant is written.
 ##
 ## The bite is not a timer. A `FishShadow` has to find the bobber inside its species'

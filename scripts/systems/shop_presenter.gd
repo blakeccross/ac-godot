@@ -1,15 +1,16 @@
 class_name ShopPresenter
 extends RefCounted
 
-## Furnishes a Nook shop (`shop0`..`shop3_2`): Tom Nook at his stand, the wall
-## clock, and the day's stock as shelf props (`shop0N_actable`, `HOUSE_CLOCK`,
-## `ShopBook.goods`). Able Sisters stocks nothing and gets only the shelf pass.
+## Stocks a Nook shop (`shop0`..`shop3_2`) with the day's goods as shelf props
+## (`ShopBook.goods`). Tom Nook at his stand (or Timmy and Tommy upstairs) and the wall
+## clock are authored in each shop's `.tscn` (`shop0N_actable`, `HOUSE_CLOCK`); the
+## Cranny also gets solid hulls for its counter. Able Sisters stocks nothing and gets
+## only the shelf pass.
 ##
 ## Stock nodes join the `"shop_set"` group so `interior.gd.refresh_shop_set` can
 ## rebuild them after a purchase without touching Nook or the clock.
 
 const STOCK_SCENE := preload("res://scenes/world/shop_stock.tscn")
-const TOM_NOOK_SCENE := preload("res://scenes/world/interiors/tom_nook.tscn")
 
 
 func present(root: Node3D, interior: IndoorSession) -> void:
@@ -20,16 +21,10 @@ func present(root: Node3D, interior: IndoorSession) -> void:
 	if shop_id == &"":
 		return
 	Game.shops.ensure_today(shop_id)
-	if room.kind == Room.Kind.SHOP:
-		if room.id == &"shop3_2":
-			_twins(root, interior)
-		else:
-			_tom_nook(root, interior)
-		_clock(root, interior)
-		if room.id == &"shop0":
-			InteriorUnitCollision.add_hulls(
-				root, interior.grid, "NookFurnitureCol", ShopDisplay.cranny_blocked_units()
-			)
+	if room.kind == Room.Kind.SHOP and room.id == &"shop0":
+		InteriorUnitCollision.add_hulls(
+			root, interior.grid, "NookFurnitureCol", ShopDisplay.cranny_blocked_units()
+		)
 	_stock(root, interior, shop_id)
 
 
@@ -83,65 +78,3 @@ func _add_stock(
 	node.position = pos
 	root.add_child(node)
 	return node
-
-
-## Nookington's upstairs: Timmy at unit (7, 4) and Tommy at (8, 4) (`shop04_2` mvactor data).
-func _twins(root: Node3D, interior: IndoorSession) -> void:
-	if interior.grid == null:
-		return
-	for i: int in ShopDisplay.TWINS_UT.size():
-		var node_name: String = "Twin%d" % i
-		var ut: Vector2i = ShopDisplay.TWINS_UT[i]
-		var pos: Vector3 = ShopDisplay.gx_to_world(interior.grid, Vector3(ut.x * 40.0 + 20.0, 0.0, ut.y * 40.0 + 20.0))
-		var existing: Node3D = root.get_node_or_null(node_name) as Node3D
-		if existing != null:
-			existing.position = pos
-			continue
-		var twin: Node3D = TOM_NOOK_SCENE.instantiate() as Node3D
-		twin.name = node_name
-		twin.set("clerk", i)
-		twin.position = pos
-		twin.rotation.y = WorldGrid.yaw_for_facing(ShopDisplay.NOOK_FACING)
-		root.add_child(twin)
-
-
-func _tom_nook(root: Node3D, interior: IndoorSession) -> void:
-	## `shop0N_actable` stand by upgrade level.
-	if interior.grid == null:
-		return
-	var level: int = 0
-	if interior.room != null:
-		level = ShopDisplay.nook_level_for_room(interior.room.id)
-	elif Game != null and Game.shops != null:
-		level = Game.shops.nook_level()
-	var stand: Vector3 = ShopDisplay.nook_stand_gx(level)
-	var pos: Vector3 = ShopDisplay.gx_to_world(interior.grid, stand)
-	var yaw: float = WorldGrid.yaw_for_facing(ShopDisplay.NOOK_FACING)
-	var existing: Node3D = root.get_node_or_null("TomNook") as Node3D
-	if existing != null:
-		existing.position = pos
-		existing.rotation.y = yaw
-		return
-	var nook: Node3D = TOM_NOOK_SCENE.instantiate() as Node3D
-	nook.name = "TomNook"
-	nook.position = pos
-	nook.rotation.y = yaw
-	root.add_child(nook)
-
-
-func _clock(root: Node3D, interior: IndoorSession) -> void:
-	## `HOUSE_CLOCK` / `aHC_position_data` for Nook shop scenes.
-	if interior.grid == null or Game == null:
-		return
-	if root.get_node_or_null("NookClock") != null:
-		return
-	var visual: StringName = ShopDisplay.nook_clock_visual(Game.shops.nook_level())
-	if FieldCatalog.mesh_paths(visual).is_empty():
-		return
-	var host := HouseClock.new()
-	host.name = "NookClock"
-	host.visual = visual
-	host.position = ShopDisplay.gx_to_world(
-		interior.grid, Vector3(ShopDisplay.CLOCK_GX.x, 0.0, ShopDisplay.CLOCK_GX.z)
-	) + Vector3(0.0, ShopDisplay.CLOCK_GX.y * FieldCatalog.GX_TO_METERS, 0.0)
-	root.add_child(host)

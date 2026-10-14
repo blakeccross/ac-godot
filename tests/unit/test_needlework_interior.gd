@@ -1,6 +1,8 @@
 class_name TestNeedleworkInterior
 extends GdUnitTestSuite
 
+const SCENE := "res://scenes/world/interiors/needlework.tscn"
+
 ## Able Sisters interior build (`NeedleworkPresenter`).
 
 
@@ -40,28 +42,41 @@ func test_room_keeps_acre_origin_and_gx_positions_land_inside() -> void:
 		assert_bool(c.y < room.door_cell.y).override_failure_message("%s at cell %s not north of exit" % [gx, c]).is_true()
 
 
-func test_present_places_sisters_and_displays() -> void:
-	var room: Room = InteriorCatalog.room_template(&"needlework")
+func test_the_scene_places_sisters_and_displays_on_the_decomp_tables() -> void:
 	var session := IndoorSession.new()
-	session.bind(room)
-	var root := Node3D.new()
-	auto_free(root)
-	add_child(root)
-	NeedleworkPresenter.new().present(root, session)
-	assert_that(root.get_node_or_null("Mabel")).is_not_null()
-	assert_that(root.get_node_or_null("Sable")).is_not_null()
+	session.bind(InteriorCatalog.room_template(&"needlework"))
+	var grid: WorldGrid = session.grid
+	if not _deps_exist(SCENE):
+		return  ## `rom_tailor.glb` not generated (no disc)
+	var scene: Node3D = auto_free(load(SCENE).instantiate())
+	var root: Node3D = scene.get_node("Furniture")
+	var at := func(node_name: String) -> Vector3:
+		return (root.get_node(node_name) as Node3D).position
+	assert_vector(at.call("Sable")).is_equal_approx(
+		MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.SABLE_GX), Vector3.ONE * 0.01)
+	assert_vector(at.call("Mabel")).is_equal_approx(
+		MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.MABEL_GX), Vector3.ONE * 0.01)
+	assert_vector(at.call("NeedleworkClock")).is_equal_approx(
+		MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.CLOCK_GX), Vector3.ONE * 0.01)
 	for i in 4:
-		assert_that(root.get_node_or_null("Mannequin_%d" % i)).is_not_null()
-		assert_that(root.get_node_or_null("UmbrellaStand_%d" % i)).is_not_null()
-	## the animated `obj_misin` overlay (moving needle + belt) on the baked machine
-	var machine: Node = root.get_node_or_null("SewingMachine")
-	assert_that(machine).is_not_null()
-	var mach_anim: AnimationPlayer = _find_anim(machine)
-	assert_that(mach_anim).is_not_null()
-	assert_bool(mach_anim.is_playing()).is_true()
-	## a second pass must not duplicate
+		var mannequin: Node = root.get_node("Mannequin_%d" % i)
+		var stand: Node = root.get_node("UmbrellaStand_%d" % i)
+		assert_vector(at.call("Mannequin_%d" % i)).is_equal_approx(
+			MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.MANNEQUIN_GX[i]), Vector3.ONE * 0.01)
+		assert_vector(at.call("UmbrellaStand_%d" % i)).is_equal_approx(
+			MuseumDisplay.gx_to_world(grid, NeedleworkPresenter.UMBRELLA_GX[i]), Vector3.ONE * 0.01)
+		assert_int(mannequin.get("slot")).is_equal(i)
+		assert_int(mannequin.get("kind")).is_equal(0)
+		assert_int(stand.get("slot")).is_equal(DesignBook.CLOTH_SLOTS + i)
+		assert_int(stand.get("kind")).is_equal(1)
+		assert_object(mannequin.get_node_or_null("BlobShadow")).is_not_null()
+	## the machine overlay sits on the grid origin (its verts are acre GX from the NW corner)
+	assert_float(at.call("SewingMachine").x - grid.origin.x).is_less(1.0)
+	## the presenter only adds the hulls and beams, and a second pass adds nothing
 	NeedleworkPresenter.new().present(root, session)
-	assert_int(root.get_children().filter(func(n): return n.name == &"Mabel").size()).is_equal(1)
+	var count: int = root.get_child_count()
+	NeedleworkPresenter.new().present(root, session)
+	assert_int(root.get_child_count()).is_equal(count)
 
 
 func test_sable_sews_at_the_machine() -> void:
@@ -185,3 +200,29 @@ func test_sable_keeps_her_count_for_residents_only() -> void:
 	sable.call("_end_talk")
 	Game.foreigner = false
 	Game.reset_session()
+
+
+func test_displays_carry_their_bodies_and_reach_in_the_scene() -> void:
+	var mannequin: StaticBody3D = auto_free(load("res://scenes/world/interiors/able_fixture.tscn").instantiate())
+	var stand: StaticBody3D = auto_free(load("res://scenes/world/interiors/umbrella_stand.tscn").instantiate())
+	for display: StaticBody3D in [mannequin, stand]:
+		assert_int(display.collision_layer).is_equal(PhysicsLayers.WORLD)
+		assert_int(display.collision_mask).is_equal(0)
+		assert_bool(display.is_in_group("interactable")).is_true()
+		var reach: Area3D = display.get_node("InteractVolume") as Area3D
+		assert_int(reach.collision_layer).is_equal(PhysicsLayers.INTERACT)
+	assert_int(mannequin.get("kind")).is_equal(0)
+	assert_int(stand.get("kind")).is_equal(1)
+	## an umbrella stand is much shorter than a dress form
+	var body_h := func(display: Node) -> float:
+		return ((display.get_node("CollisionShape3D") as CollisionShape3D).shape as BoxShape3D).size.y
+	assert_float(body_h.call(stand)).is_less(body_h.call(mannequin))
+
+
+## False when a dependency (the shell GLB) is not generated (no disc): Godot would
+## load the scene with later nodes cut loose from their parents.
+static func _deps_exist(path: String) -> bool:
+	for dep: String in ResourceLoader.get_dependencies(path):
+		if not ResourceLoader.exists(dep.get_slice("::", dep.get_slice_count("::") - 1)):
+			return false
+	return true

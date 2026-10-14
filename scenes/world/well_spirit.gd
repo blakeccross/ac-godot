@@ -59,7 +59,7 @@ func _vanish() -> void:
 static func appear(well: Node3D, player: Node3D) -> Node3D:
 	if well == null or well.get_parent() == null:
 		return null
-	var spirit := WellSpirit.new()
+	var spirit := (load("res://scenes/world/well_spirit.tscn") as PackedScene).instantiate() as WellSpirit
 	var front := Vector3(sin(well.global_rotation.y), 0.0, cos(well.global_rotation.y))
 	if player != null:
 		var to: Vector3 = player.global_position - well.global_position

@@ -211,20 +211,46 @@ func test_catch_message_numbers() -> void:
 	assert_int(BugData.catch_msg_for_type(0)).is_equal(0xA2C)
 
 
-func test_net_candidates_register_catch_ranges() -> void:
+func test_the_net_finds_bugs_by_their_catch_spheres() -> void:
+	## Each live insect is a `Bug` scene whose `CatchArea` is its registered range; the net
+	## head's reach (15 GX) overlapping it is the decomp's `reach + range` test.
 	var ctx: InteractionContext = _ctx()
-	var field: BugField = ctx.world.get("bugs") as BugField
+	var world := ctx.world as Node
+	(world.get("grid") as WorldGrid).configure(16, 16, 2.0, Vector3(-16.0, 0.0, -16.0))
+	var spawner := BugSpawner.new()
+	world.add_child(spawner)
+	add_child(world)
+	world.add_child(ctx.actor)
+	var field: BugField = world.get("bugs") as BugField
 	var butterfly: BugActor = field.spawn(
 		BugCatalog.get_bug(&"common_butterfly"), BugData.Habitat.FLYING, Vector3(0.0, 1.0, 1.0)
 	)
-	var rows: Array[NetSwing.Candidate] = field.net_candidates(Vector3.ZERO)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var bug: Bug = spawner.bug_for(butterfly)
+	assert_object(bug).is_not_null()
+	assert_int(get_tree().get_nodes_in_group(Bug.GROUP).size()).is_equal(1)
+	## `aINS_get_catch_range`: butterflies register 24 GX.
+	assert_float(bug.catch_range_gx).is_equal(24.0)
+	var gx: float = FieldCatalog.GX_TO_METERS
+	## 15 + 24 = 39 GX from the butterfly is just in reach, 40 just out.
+	var rows: Array[NetSwing.Candidate] = Netting.bugs_in_reach(ctx, butterfly.position + Vector3(38.5 * gx, 0.0, 0.0))
 	assert_int(rows.size()).is_equal(1)
 	assert_object(rows[0].target).is_same(butterfly)
-	## `aINS_get_catch_range`: butterflies register 24 GX.
-	assert_float(rows[0].range_gx).is_equal(24.0)
+	assert_array(Netting.bugs_in_reach(ctx, butterfly.position + Vector3(40.0 * gx, 0.0, 0.0))).is_empty()
 	## Caught or let-go insects stop registering (`bit_1`).
 	butterfly.release()
-	assert_array(field.net_candidates(Vector3.ZERO)).is_empty()
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	assert_array(Netting.bugs_in_reach(ctx, butterfly.position)).is_empty()
+	## Gone from the field, its scene goes too.
+	field.clear()
+	await get_tree().physics_frame
+	await get_tree().process_frame
+	assert_object(spawner.bug_for(butterfly)).is_null()
+	assert_int(get_tree().get_nodes_in_group(Bug.GROUP).size()).is_equal(0)
+	remove_child(world)
+	world.free()
 
 
 func test_begin_catch_takes_bug_off_the_field() -> void:

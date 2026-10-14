@@ -221,37 +221,45 @@ func _nook_visual_named(node: Node, prefix: String) -> bool:
 
 
 func test_tom_nook_stand_follows_shop_room() -> void:
-	var room: Room = InteriorCatalog.room_template(&"shop1")
-	var session := IndoorSession.new()
-	session.bind(room)
-	var root := Node3D.new()
-	auto_free(root)
-	add_child(root)
-	ShopPresenter.new().present(root, session)
-	var nook: Node3D = root.get_node_or_null("TomNook") as Node3D
-	assert_that(nook).is_not_null()
-	var expected: Vector3 = ShopDisplay.gx_to_world(session.grid, ShopDisplay.nook_stand_gx(1))
-	assert_float(nook.position.x).is_equal_approx(expected.x, 0.05)
-	assert_float(nook.position.z).is_equal_approx(expected.z, 0.05)
+	for room_id: StringName in [&"shop0", &"shop1", &"shop2", &"shop3_1"]:
+		var session := IndoorSession.new()
+		session.bind(InteriorCatalog.room_template(room_id))
+		var furniture: Node = _shop_furniture(room_id)
+		if furniture == null:
+			return
+		var nook: Node3D = furniture.get_node_or_null("TomNook") as Node3D
+		assert_that(nook).is_not_null()
+		var level: int = ShopDisplay.nook_level_for_room(room_id)
+		var expected: Vector3 = ShopDisplay.gx_to_world(session.grid, ShopDisplay.nook_stand_gx(level))
+		assert_vector(nook.position).is_equal_approx(expected, Vector3.ONE * 0.05)
+		assert_float(nook.rotation.y).is_equal_approx(WorldGrid.yaw_for_facing(ShopDisplay.NOOK_FACING), 0.01)
 
 
-func test_nook_clock_spawns_in_cranny() -> void:
-	var room: Room = InteriorCatalog.room_template(&"shop0")
-	var session := IndoorSession.new()
-	session.bind(room)
-	var root := Node3D.new()
-	auto_free(root)
-	add_child(root)
-	InteriorBuilder.build(root, session)
-	var clock: Node3D = root.get_node_or_null("Furniture/NookClock") as Node3D
-	if FieldCatalog.mesh_paths(ShopDisplay.nook_clock_visual(0)).is_empty():
-		return
-	assert_that(clock).is_not_null()
-	var expected: Vector3 = ShopDisplay.gx_to_world(
-		session.grid, Vector3(ShopDisplay.CLOCK_GX.x, 0.0, ShopDisplay.CLOCK_GX.z)
-	)
-	assert_float(clock.position.x).is_equal_approx(expected.x, 0.05)
-	assert_float(clock.position.z).is_equal_approx(expected.z, 0.05)
+func test_every_nook_floor_hangs_its_clock() -> void:
+	for room_id: StringName in [&"shop0", &"shop1", &"shop2", &"shop3_1", &"shop3_2"]:
+		var session := IndoorSession.new()
+		session.bind(InteriorCatalog.room_template(room_id))
+		var furniture: Node = _shop_furniture(room_id)
+		if furniture == null:
+			return
+		var clock: Node3D = furniture.get_node_or_null("NookClock") as Node3D
+		assert_that(clock).is_not_null()
+		var level: int = ShopDisplay.nook_level_for_room(room_id)
+		assert_that(clock.get("visual")).is_equal(ShopDisplay.nook_clock_visual(level))
+		var expected: Vector3 = ShopDisplay.gx_to_world(
+			session.grid, Vector3(ShopDisplay.CLOCK_GX.x, 0.0, ShopDisplay.CLOCK_GX.z)
+		) + Vector3(0.0, ShopDisplay.CLOCK_GX.y * FieldCatalog.GX_TO_METERS, 0.0)
+		assert_vector(clock.position).is_equal_approx(expected, Vector3.ONE * 0.05)
+
+
+## The shop scene's `Furniture`, unpopulated (positions as authored); null when the
+## shell GLBs are not generated (no disc).
+func _shop_furniture(room_id: StringName) -> Node:
+	var path: String = InteriorCatalog.scene_path(room_id)
+	if not _deps_exist(path):
+		return null
+	var scene: Node = auto_free(load(path).instantiate())
+	return scene.get_node("Furniture")
 
 
 func test_nook_upgrades_by_sales() -> void:
@@ -458,18 +466,31 @@ func test_december_puts_festive_furniture_first() -> void:
 	assert_bool(String(one[0]) in [String(FurnitureCatalog.item_id(943)), String(FurnitureCatalog.item_id(930))]).is_true()
 
 func test_timmy_and_tommy_keep_nookingtons_upstairs() -> void:
-	var room: Room = InteriorCatalog.room_template(&"shop3_2")
 	var session := IndoorSession.new()
-	session.bind(room)
-	var root := Node3D.new()
-	auto_free(root)
-	add_child(root)
-	InteriorBuilder.build(root, session)
-	assert_object(root.get_node_or_null("Furniture/TomNook")).is_null()
-	var timmy: Node = root.get_node_or_null("Furniture/Twin0")
-	var tommy: Node = root.get_node_or_null("Furniture/Twin1")
+	session.bind(InteriorCatalog.room_template(&"shop3_2"))
+	var furniture: Node = _shop_furniture(&"shop3_2")
+	if furniture == null:
+		return
+	assert_object(furniture.get_node_or_null("TomNook")).is_null()
+	var timmy: Node3D = furniture.get_node_or_null("Twin0") as Node3D
+	var tommy: Node3D = furniture.get_node_or_null("Twin1") as Node3D
 	assert_object(timmy).is_not_null()
 	assert_object(tommy).is_not_null()
+	for i: int in ShopDisplay.TWINS_UT.size():
+		var ut: Vector2i = ShopDisplay.TWINS_UT[i]
+		var expected: Vector3 = ShopDisplay.gx_to_world(
+			session.grid, Vector3(ut.x * 40.0 + 20.0, 0.0, ut.y * 40.0 + 20.0)
+		)
+		assert_vector(([timmy, tommy][i] as Node3D).position).is_equal_approx(expected, Vector3.ONE * 0.05)
 	assert_str(String(timmy.call("clerk_name"))).is_equal("Timmy")
 	assert_str(String(tommy.call("clerk_name"))).is_equal("Tommy")
 	assert_object(DialogueCatalog.conversation(&"twins_shop_menu")).is_not_null()
+
+
+## False when a dependency (the shell GLB) is not generated (no disc): Godot would
+## load the scene with later nodes cut loose from their parents.
+static func _deps_exist(path: String) -> bool:
+	for dep: String in ResourceLoader.get_dependencies(path):
+		if not ResourceLoader.exists(dep.get_slice("::", dep.get_slice_count("::") - 1)):
+			return false
+	return true

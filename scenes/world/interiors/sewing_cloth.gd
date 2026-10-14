@@ -15,6 +15,9 @@ const CORNERS: Array[Vector2] = [Vector2(-4, 4), Vector2(-4, -4), Vector2(4, -4)
 const CORNER_M := 0.055  ## 1 decomp unit → metres
 ## target_angle_table
 const ANGLES: Array[float] = [0.0, 90.0, -180.0, -90.0]
+## `obj_misin_cloth`: the quad lies flat on the bed, its local centre lifted back down.
+const VISUAL := &"obj_misin_cloth"
+const CLOTH_SCALE := 0.34
 
 @onready var _pivot: Node3D = $Pivot
 
@@ -27,7 +30,30 @@ var running := true
 
 func _ready() -> void:
 	_base_rot_y = rotation.y
+	_attach_cloth()
 	_apply()
+
+
+## The quad under `Pivot`, wearing a checked shop pattern.
+func _attach_cloth() -> void:
+	var paths: PackedStringArray = FieldCatalog.mesh_paths(VISUAL)
+	if paths.is_empty() or _pivot.get_child_count() > 0:
+		return
+	var packed: PackedScene = load(paths[0]) as PackedScene
+	var quad: Node3D = packed.instantiate() as Node3D if packed != null else null
+	if quad == null:
+		return
+	quad.scale = Vector3.ONE * CLOTH_SCALE
+	quad.position = Vector3(0.0, -5.3 * CLOTH_SCALE, 0.0)
+	_pivot.add_child(quad)
+	var tex := DesignTexture.build(DesignPattern.generate(DesignPattern.Motif.CHECK, 8, 2, 15))
+	for mi: Node in quad.find_children("*", "MeshInstance3D", true, false):
+		var mat := StandardMaterial3D.new()
+		mat.albedo_texture = tex
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		(mi as MeshInstance3D).set_surface_override_material(0, mat)
+	VisualFit.disable_shadows(quad)
 
 
 func _process(delta: float) -> void:

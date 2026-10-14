@@ -10,14 +10,12 @@ extends RefCounted
 ## Scene-less rooms use `furnish_fallback`.
 
 const FURNITURE_SCENE := preload("res://scenes/world/furniture.tscn")
-## Authored `Furniture/*` fixtures that survive a re-populate (only data-driven
-## exhibits / stock rebuild). Each presenter names its persistent nodes here or
-## adds them to the `"authored_fixture"` group.
+## `Furniture/*` nodes that presenters build in code and that survive a re-populate.
+## Anything the room's `.tscn` authors survives too (its owner is the room), as does
+## the `"authored_fixture"` group; only the data-driven exhibits / stock rebuild.
 const AUTHORED_FIXTURE_NAMES: Array[StringName] = [
-	&"TomNook", &"NookClock", &"PostGirl", &"PostDesk", &"PostTerminal", &"Booker",
-	&"Blathers", &"MuseumClock", &"LightShaft", &"Redd", &"Mabel", &"Sable",
-	&"NeedleworkFurnitureCol", &"SewingMachine", &"SewingCloth", &"NeedleworkClock", &"HouseClock", &"Twin0", &"Twin1",
-	&"NookFurnitureCol", &"PoliceFurnitureCol", &"PoliceClock",
+	&"Blathers", &"MuseumClock", &"LightShaft", &"Redd",
+	&"NookFurnitureCol", &"PoliceFurnitureCol", &"NeedleworkFurnitureCol",
 ]
 
 
@@ -82,9 +80,9 @@ static func populate_authored(room_root: Node3D, interior: IndoorSession) -> voi
 		return
 	InteriorShellBuilder.clear_shell_colliders(terrain)
 	for child: Node in furniture_root.get_children():
-		## Keep authored fixtures (shopkeepers, clerks, curator, clocks, light shafts);
-		## only the data-driven exhibits are rebuilt on re-populate.
-		if child.name in AUTHORED_FIXTURE_NAMES or child.is_in_group("authored_fixture"):
+		## Keep authored fixtures (anything the room's `.tscn` places, plus the named
+		## presenter-built ones); only the data-driven exhibits are rebuilt on re-populate.
+		if child.owner == room_root or child.name in AUTHORED_FIXTURE_NAMES or child.is_in_group("authored_fixture"):
 			continue
 		furniture_root.remove_child(child)
 		child.free()

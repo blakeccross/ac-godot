@@ -49,13 +49,9 @@ var _rng := RandomNumberGenerator.new()
 func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group("event_npc")
-	collision_layer = 1
-	collision_mask = 0
 	_rng.randomize()
 	rotation.y = home_yaw
-	_ensure_collision()
 	_ensure_visual()
-	_ensure_interact()
 	play_clip(idle_clip(), true)
 	setup()
 
@@ -322,66 +318,20 @@ func talk_ended(_script: BankTalk) -> void:
 ## --- Presentation --------------------------------------------------------------------------
 
 
-func _ensure_collision() -> void:
-	if get_node_or_null("CollisionShape3D") != null:
-		return
-	var shape := CollisionShape3D.new()
-	shape.name = "CollisionShape3D"
-	var cyl := CylinderShape3D.new()
-	cyl.radius = 0.8
-	cyl.height = 1.8
-	shape.shape = cyl
-	shape.position = Vector3(0.0, 0.9, 0.0)
-	add_child(shape)
-
-
-func _ensure_interact() -> void:
-	if get_node_or_null("InteractVolume") != null:
-		return
-	var volume := Area3D.new()
-	volume.name = "InteractVolume"
-	volume.collision_layer = 8
-	volume.collision_mask = 0
-	volume.monitoring = false
-	volume.monitorable = true
-	volume.set_script(load("res://scenes/world/interact_volume.gd"))
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(1.8, 2.0, 1.8)
-	shape.shape = box
-	shape.position = Vector3(0.0, 1.0, 0.0)
-	volume.add_child(shape)
-	add_child(volume)
-
-
 func _ensure_visual() -> void:
-	if get_node_or_null("Model") != null:
+	if _model != null:
 		return
-	_model = Node3D.new()
-	_model.name = "Model"
-	add_child(_model)
+	_model = $Model
+	_feel = $Feel
 	var vis: Node3D = GeneratedVisual.attach_villager(_model, species) if species != &"" else null
-	if vis == null:
-		var mesh := MeshInstance3D.new()
-		var capsule := CapsuleMesh.new()
-		capsule.radius = 0.4
-		capsule.height = 1.4
-		mesh.mesh = capsule
-		mesh.position.y = 0.9
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = Color(0.7, 0.5, 0.3)
-		mesh.material_override = mat
-		_model.add_child(mesh)
-	else:
+	($Model/Placeholder as Node3D).visible = vis == null
+	if vis != null:
 		_body_anim = VisualAnimation.find_animation_player(vis)
 		if texture_set != &"":
 			VillagerTextures.apply(vis, texture_set)
 		if cloth_index >= 0:
 			VisualCloth.apply_cloth(vis, cloth_index)
 		_face.bind(vis, species, texture_set)
-	_feel = NpcFeelGlyphs.new()
-	_feel.name = "Feel"
-	add_child(_feel)
 
 
 func model() -> Node3D:

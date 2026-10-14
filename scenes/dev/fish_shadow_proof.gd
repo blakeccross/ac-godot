@@ -133,9 +133,9 @@ func _shoot(shot_name: String, with_water: bool, priority: int) -> Dictionary:
 	shadow.material_override = mat
 	shadow.rotation = Vector3(-PI * 0.5, 0.0, 0.0)
 	var extent: Vector2 = FishSize.shadow_size(FishData.SizeClass.L)
-	var padding: float = FishSize.SILHOUETTE_FILL / 0.8  ## `FishShadows.QUAD_PADDING`
+	var padding: float = FishSize.SILHOUETTE_FILL / 0.8  ## `Fish.QUAD_PADDING`
 	shadow.scale = Vector3(extent.x * padding, extent.y * padding, 1.0)
-	## Match `FishShadows.SURFACE_LIFT` so the proof uses the same clearance over water.
+	## Match `Fish.SURFACE_LIFT` so the proof uses the same clearance over water.
 	shadow.position = Vector3(0.0, FieldCatalog.GX_TO_METERS * 2.0, 0.0)
 	viewport.add_child(shadow)
 

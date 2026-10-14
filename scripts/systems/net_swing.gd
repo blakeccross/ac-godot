@@ -190,10 +190,15 @@ static func net_point(hand: Transform3D, along_gx: float) -> Vector3:
 	return hand.origin + basis * Vector3(0.0, 0.0, along_gx * FieldCatalog.GX_TO_METERS)
 
 
+## The net head's own reach, GX: 15, or 21 for the golden net.
+static func reach_gx() -> float:
+	var golden: bool = Game != null and Game.inventory != null and Game.inventory.equipment_id == GOLDEN_NET
+	return GOLDEN_REACH_GX if golden else CATCH_REACH_GX
+
+
 ## `Player_actor_Item_CheckLocalCapture_forNet` with coincident top and bottom points.
 static func in_reach(net_pos: Vector3, target: Vector3, range_gx: float) -> bool:
-	var golden: bool = Game != null and Game.inventory != null and Game.inventory.equipment_id == GOLDEN_NET
-	var reach: float = ((GOLDEN_REACH_GX if golden else CATCH_REACH_GX) + range_gx) * FieldCatalog.GX_TO_METERS
+	var reach: float = (reach_gx() + range_gx) * FieldCatalog.GX_TO_METERS
 	return net_pos.distance_squared_to(target) <= reach * reach
 
 
