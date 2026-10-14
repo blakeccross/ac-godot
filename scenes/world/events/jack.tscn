@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://scenes/world/events/jack.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/world/event_npc.tscn" id="1"]
+[ext_resource type="Script" path="res://scenes/world/events/jack.gd" id="2"]
 
-[node name="Jack" type="StaticBody3D"]
-script = ExtResource("1")
+[node name="Jack" instance=ExtResource("1")]
+script = ExtResource("2")

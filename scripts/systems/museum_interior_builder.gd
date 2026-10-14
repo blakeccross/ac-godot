@@ -50,8 +50,7 @@ static func add_redd(root: Node3D, interior: IndoorSession) -> void:
 		return
 	if root.get_node_or_null("Redd") != null:
 		return
-	var redd := StaticBody3D.new()
-	redd.set_script(load("res://scenes/world/interiors/redd.gd"))
+	var redd: Node3D = (load("res://scenes/world/interiors/redd.tscn") as PackedScene).instantiate()
 	redd.name = "Redd"
 	## `aEBR2_search_player2` stands him at (60, 100) GX in the tent.
 	redd.position = MuseumDisplay.gx_to_world(interior.grid, Vector3(60.0, 0.0, 100.0))
@@ -64,8 +63,7 @@ static func add_katrina(root: Node3D, interior: IndoorSession) -> void:
 		return
 	if root.get_node_or_null("Katrina") != null:
 		return
-	var katrina := StaticBody3D.new()
-	katrina.set_script(load("res://scenes/world/interiors/katrina.gd"))
+	var katrina: Node3D = (load("res://scenes/world/interiors/katrina.tscn") as PackedScene).instantiate()
 	katrina.name = "Katrina"
 	katrina.position = MuseumDisplay.gx_to_world(interior.grid, Vector3(160.0, 0.0, 140.0))
 	root.add_child(katrina)
