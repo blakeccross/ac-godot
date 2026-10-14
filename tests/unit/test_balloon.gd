@@ -38,5 +38,5 @@ func test_present_is_rare_furniture_or_foreign_fruit() -> void:
 		var id: StringName = Balloon.true_present(rng)
 		assert_str(String(id)).is_not_empty()
 		assert_str(String(id)).is_not_equal(String(own))
-		if FtrCatalog.available() and not id in ShopBook.FRUITS:
-			assert_bool(FtrCatalog.named_list("ftr", "C").has(id)).is_true()
+		if FurnitureCatalog.available() and not id in ShopBook.FRUITS:
+			assert_bool(FurnitureCatalog.named_list("ftr", "C").has(id)).is_true()

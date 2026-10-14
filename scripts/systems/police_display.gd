@@ -96,14 +96,14 @@ static func cell_for_slot(slot: int) -> Vector2i:
 
 ## Slot units read from `FG_TYPE_POLICE_INDOOR` when the FG catalog is generated.
 static func lost_found_cells() -> Array[Vector2i]:
-	var from_fg: Array[Vector2i] = cells_from_fg(FgCatalog.items(FG_TYPE_POLICE_INDOOR))
+	var from_fg: Array[Vector2i] = cells_from_fg(FieldObjectCatalog.items(FG_TYPE_POLICE_INDOOR))
 	return from_fg if not from_fg.is_empty() else LOST_FOUND_CELLS
 
 
 ## `RSV_POLICE_ITEM_N` → slot N. Empty unless all twenty are present.
 static func cells_from_fg(items: PackedInt32Array) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
-	if items.size() != FgCatalog.ITEMS_PER_ACRE:
+	if items.size() != FieldObjectCatalog.ITEMS_PER_ACRE:
 		return out
 	out.resize(PoliceBook.STORAGE_COUNT)
 	var found := 0

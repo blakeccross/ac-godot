@@ -66,10 +66,10 @@ const STICK_MAX := 61.0
 const STICK_DEADZONE := 0.05
 const IDLE_SPEED := 0.08
 ## s16 2500 / 50 per tick (`add_calc_short_angle2` limits).
-const TURN_MAX_RAD := 2500.0 * MLib.S16
-const TURN_MIN_RAD := 50.0 * MLib.S16
+const TURN_MAX_RAD := 2500.0 * MathUtil.S16
+const TURN_MIN_RAD := 50.0 * MathUtil.S16
 ## `Player_actor_Get_DiffWorldAngleToControllerAngle(actor) >= 18204` (100°).
-const TURN_DASH_ANGLE := 18204.0 * MLib.S16
+const TURN_DASH_ANGLE := 18204.0 * MathUtil.S16
 ## `Player_actor_CulcAnimation_Walk`: clip rate floor, and the clip rate at 30 fps.
 const ANIM_RATE_MIN := 0.22
 ## `0.59999996f` — keeps a full-stick walk (4.875) just under the dash gauge.
@@ -227,7 +227,7 @@ func _step_move(wish_yaw: float, stick: float, dashing: bool, delta: float) -> v
 	## `Player_actor_Movement_Walk` (shared by run / dash).
 	var turn_mod: float = turn_mod(stick)
 	var start_yaw: float = facing
-	facing = MLib.short_angle2(
+	facing = MathUtil.short_angle2(
 		facing, wish_yaw, 1.0 - sqrt(1.0 - turn_mod), TURN_MAX_RAD, TURN_MIN_RAD, _ticks(delta)
 	)
 	body_yaw = facing
@@ -289,8 +289,8 @@ func _step_turn_dash(delta: float) -> void:
 	## `Player_actor_main_Turn_dash`: brake 0.261 a tick along the old heading while the body
 	## spins (always the positive way, `add_calc_short_angle3`) to the stick angle.
 	_brake(TURN_DASH_BRAKE, delta)
-	body_yaw = MLib.short_angle3(
-		body_yaw, _turn_target, MLib.HALF_FRACTION, TURN_MAX_RAD, TURN_MIN_RAD, _ticks(delta)
+	body_yaw = MathUtil.short_angle3(
+		body_yaw, _turn_target, MathUtil.HALF_FRACTION, TURN_MAX_RAD, TURN_MIN_RAD, _ticks(delta)
 	)
 	anim_rate = ANIM_BASE_RATE
 	_ease_lean(0.0, delta)
@@ -329,7 +329,7 @@ func _step_tumble(delta: float) -> void:
 	anim_rate = ANIM_BASE_RATE
 	var left: float = 17.0 - clip_frame
 	if left > 0.0:
-		lean = MLib.short_angle2(
+		lean = MathUtil.short_angle2(
 			lean, 0.0, 1.0 - sqrt(1.0 - 1.0 / maxf(left, 1.0)), deg_to_rad(10.0), 0.0, _ticks(delta)
 		)
 	else:
@@ -366,7 +366,7 @@ static func _ramp_distance(start: float, target: float, delta: float) -> float:
 
 ## `Player_actor_set_lean_angle`'s `add_calc_short_angle2(…, 1−√½, 10°, 0)` over `delta`.
 func _ease_lean(target: float, delta: float) -> void:
-	lean = MLib.short_angle2(lean, target, MLib.HALF_FRACTION, LEAN_STEP_MAX, 0.0, _ticks(delta))
+	lean = MathUtil.short_angle2(lean, target, MathUtil.HALF_FRACTION, LEAN_STEP_MAX, 0.0, _ticks(delta))
 
 
 ## The 60ths of a second (decomp ticks) `delta` covers.
@@ -419,8 +419,8 @@ static func turn_mod(stick: float) -> float:
 ## (`Movement_Talk`) and show-off (`Movement_Notice_rod`, net) states, over `delta` seconds
 ## (one tick when left out).
 static func ease_turn(current: float, target: float, delta: float = DecompTime.TICK_SEC) -> float:
-	return MLib.short_angle2(
-		current, target, MLib.HALF_FRACTION, TURN_MAX_RAD, TURN_MIN_RAD, _ticks(delta)
+	return MathUtil.short_angle2(
+		current, target, MathUtil.HALF_FRACTION, TURN_MAX_RAD, TURN_MIN_RAD, _ticks(delta)
 	)
 
 
@@ -428,7 +428,7 @@ static func ease_turn(current: float, target: float, delta: float = DecompTime.T
 ## outside `tick`, e.g. the intro station follow).
 static func step_facing(current: float, target: float, stick: float, delta: float) -> float:
 	var fraction: float = 1.0 - sqrt(1.0 - turn_mod(stick))
-	return MLib.short_angle2(current, target, fraction, TURN_MAX_RAD, TURN_MIN_RAD, _ticks(delta))
+	return MathUtil.short_angle2(current, target, fraction, TURN_MAX_RAD, TURN_MIN_RAD, _ticks(delta))
 
 
 static func move_toward_speed(current: float, target: float, delta: float) -> float:

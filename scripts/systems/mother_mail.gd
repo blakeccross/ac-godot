@@ -87,7 +87,7 @@ static func holiday(year: int, month: int, day: int) -> StringName:
 ## day. `holiday` is `&"mothers_day"`, `&"fathers_day"` or `&""`.
 static func dated(month: int, day: int, birthday: Vector2i, holiday: StringName, rng: RandomNumberGenerator) -> Dictionary:
 	if birthday == Vector2i(month, day):
-		return {"msg": MSG_BIRTHDAY + rng.randi_range(0, VARIANTS - 1), "present": FtrCatalog.item_id(FTR_CAKE)}
+		return {"msg": MSG_BIRTHDAY + rng.randi_range(0, VARIANTS - 1), "present": FurnitureCatalog.item_id(FTR_CAKE)}
 	if month == day:
 		var n: int = (month - 1) * VARIANTS + rng.randi_range(0, VARIANTS - 1)
 		var present: StringName = &""
@@ -186,9 +186,9 @@ static func normal_present(idx: int, rng: RandomNumberGenerator) -> StringName:
 		12:
 			return &"money_1000"
 		37:
-			return FtrCatalog.item_id(FTR_PAPA_BEAR)
+			return FurnitureCatalog.item_id(FTR_PAPA_BEAR)
 		38:
-			return FtrCatalog.item_id(FTR_DRACAENA)
+			return FurnitureCatalog.item_id(FTR_DRACAENA)
 		40:
 			var umbrellas: Array[StringName] = ShopGoods.umbrella_pool()
 			return umbrellas[rng.randi_range(0, umbrellas.size() - 1)] if not umbrellas.is_empty() else &""

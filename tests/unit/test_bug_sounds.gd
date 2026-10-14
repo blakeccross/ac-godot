@@ -50,7 +50,7 @@ func test_a_startled_cicada_shrieks_once() -> void:
 	var a := _make(&"robust_cicada", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
 	a.patience = 100.0
 	a.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
-	assert_int(a.action).is_equal(BugSemi.AVOID)
+	assert_int(a.action).is_equal(Cicada.AVOID)
 	assert_array(a.trg_se).contains_exactly([&"semi_escape"])
 
 
@@ -67,7 +67,7 @@ func test_a_mosquito_whines_until_it_bites() -> void:
 	var a := _make(&"mosquito", BugData.Habitat.FLYING, Vector3(4.0, 1.5, 4.0))
 	a.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
 	assert_int(a.ongen).is_equal(0xCF)
-	BugKa.new().setup_action(a, BugKa.ATTACK)
+	Mosquito.new().setup_action(a, Mosquito.ATTACK)
 	assert_array(a.trg_se).contains_exactly([&"6a"])
 
 
@@ -84,14 +84,14 @@ func test_resting_crickets_sing_and_locusts_whirr_in_flight() -> void:
 
 func test_drowning_hoppers_splash() -> void:
 	var a := _make(&"grasshopper", BugData.Habitat.GROUND, Vector3(8.0, 0.0, 8.0))
-	BugBatta.new().setup_action(a, BugBatta.DROWN)
+	Grasshopper.new().setup_action(a, Grasshopper.DROWN)
 	assert_array(a.trg_se).contains_exactly([&"438"])
 
 
 func test_a_field_keeps_the_splash_of_an_insect_it_drops() -> void:
 	var field := BugField.new()
 	var a := _make(&"grasshopper", BugData.Habitat.GROUND, Vector3(8.0, 0.0, 8.0))
-	BugBatta.new().setup_action(a, BugBatta.DROWN)
+	Grasshopper.new().setup_action(a, Grasshopper.DROWN)
 	field.actors.append(a)
 	field._step(DecompTime.TICK_SEC, BugActor.Sense.new())
 	assert_array(field.actors).is_empty()

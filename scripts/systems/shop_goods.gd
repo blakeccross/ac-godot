@@ -7,7 +7,7 @@ extends RefCounted
 ## sum and a date — `ShopBook` owns the state.
 ##
 ## Furniture, clothing, carpet, wallpaper and diaries come from the disc's A / B / C lists
-## (`mSP_SelectRandomItem_New`, `FtrCatalog.named_list`). Each kind's lists are dealt the
+## (`mSP_SelectRandomItem_New`, `FurnitureCatalog.named_list`). Each kind's lists are dealt the
 ## common / uncommon / rare tiers at random every play session (`mSP_DecideUniqueCommonList`),
 ## and a pick from "ABC" rolls the tier against the house's goods power
 ## (`mSP_GetItemList`, feng shui). Without the disc catalog the authored items stand in.
@@ -21,7 +21,7 @@ const TIER_ORDERS: Array = [[0, 1, 2], [0, 2, 1], [1, 0, 2], [2, 0, 1], [2, 1, 0
 ## `diary_listA` … `C` (`ITM_DIARY01`, 04, … as notebook indices 1087 + n).
 const DIARY_LISTS: Dictionary = {"A": [1, 4, 7, 10, 13], "B": [2, 5, 8, 11, 14], "C": [3, 6, 9, 12, 15, 0]}
 const DIARY_FTR_FIRST := 1087
-## The kinds with A / B / C lists, as `FtrCatalog` names them.
+## The kinds with A / B / C lists, as `FurnitureCatalog` names them.
 const ABC_KINDS: Array[String] = ["ftr", "cloth", "carpet", "wall", "diary"]
 
 ## Each kind's tiers for lists A, B, C this session.
@@ -95,7 +95,7 @@ static func is_halloween_stock(month: int, day: int) -> bool:
 ## `ITM_DIARY00` … `ITM_DIARY15`: the notebooks, furniture indices 1087 + n.
 static func is_diary(item_id: StringName) -> bool:
 	for n: int in 16:
-		if item_id == FtrCatalog.item_id(DIARY_FTR_FIRST + n):
+		if item_id == FurnitureCatalog.item_id(DIARY_FTR_FIRST + n):
 			return true
 	return false
 
@@ -345,9 +345,9 @@ static func abc_list(kind: String, label: String) -> Array[StringName]:
 	var out: Array[StringName] = []
 	if kind == "diary":
 		for n: Variant in DIARY_LISTS.get(label, []):
-			out.append(FtrCatalog.item_id(DIARY_FTR_FIRST + int(n)))
+			out.append(FurnitureCatalog.item_id(DIARY_FTR_FIRST + int(n)))
 		return out
-	for item_id: StringName in FtrCatalog.named_list(kind, label):
+	for item_id: StringName in FurnitureCatalog.named_list(kind, label):
 		if kind != "ftr" or _has_model(item_id):
 			out.append(item_id)
 	return out
@@ -359,7 +359,7 @@ static func _has_model(item_id: StringName) -> bool:
 
 
 static func has_disc_lists() -> bool:
-	return not FtrCatalog.named_list("ftr", "A").is_empty()
+	return not FurnitureCatalog.named_list("ftr", "A").is_empty()
 
 
 ## `mSP_SelectRandomItem_New`: `count` picks, each from the tier `tier` (or a rolled one for
@@ -398,10 +398,10 @@ static func season_ftr(picks: Array[StringName], month: int, day: int, rng: Rand
 	var pair: Array[int] = SEASON_FTR_XMAS if day <= 24 else SEASON_FTR_NEW_YEAR
 	var out: Array[StringName] = picks.duplicate()
 	if out.size() > 1:
-		out[0] = FtrCatalog.item_id(pair[0])
-		out[1] = FtrCatalog.item_id(pair[1])
+		out[0] = FurnitureCatalog.item_id(pair[0])
+		out[1] = FurnitureCatalog.item_id(pair[1])
 	else:
-		out[0] = FtrCatalog.item_id(pair[0] if rng.randf() < 0.5 else pair[1])
+		out[0] = FurnitureCatalog.item_id(pair[0] if rng.randf() < 0.5 else pair[1])
 	return out
 
 

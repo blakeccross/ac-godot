@@ -63,7 +63,7 @@ static func happens(rate: float, delta: float, rng: RandomNumberGenerator) -> bo
 
 
 ## The half-life of an `add_calc` that closes `fraction` of the gap once per tick
-## (`MLib.HALF_FRACTION` closes half every two ticks: about 0.033 s).
+## (`MathUtil.HALF_FRACTION` closes half every two ticks: about 0.033 s).
 static func half_life_from_fraction(fraction: float, rate_hz: float = DecompTime.TICK_HZ) -> float:
 	var keep: float = clampf(1.0 - fraction, 0.0, 0.999999)
 	if keep <= 0.0:

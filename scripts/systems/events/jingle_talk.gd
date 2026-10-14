@@ -93,7 +93,7 @@ func _present(again: bool) -> int:
 		return MSG_FULL2 if again else MSG_FULL
 	var kinds: Array[String] = ["ftr", "cloth", "wall", "carpet"]
 	var wish: int = clampi(int(area.get("present", 0)), 0, 3)
-	gift = FtrCatalog.pick_named(kinds[wish], LIST, rng)
+	gift = FurnitureCatalog.pick_named(kinds[wish], LIST, rng)
 	var data: ItemData = ItemCatalog.get_item(gift)
 	if data != null:
 		inventory.add(data, 1, InventoryItem.Condition.PRESENT)

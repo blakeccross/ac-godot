@@ -6,7 +6,7 @@ extends Node
 ## A piece raises a held level SE every frame it sounds
 ## (`sAdo_OngenPos(ftr_actor, n, &ftr_actor->position)` in its `src/furniture/ac_*.c` move
 ## proc): fires and torches always, TVs, fans and the like only switched on, the pot only
-## with its lid off. Level sources play as `lev_*` loops at `Ongen.volume` from the room
+## with its lid off. Level sources play as `lev_*` loops at `SoundEmitter.volume` from the room
 ## mic, the nearest `VOICES` of them, in rooms whose furniture runs as actors (houses,
 ## tents); shops and the museum show models only. Not panned.
 ##
@@ -195,14 +195,14 @@ func _process(delta: float) -> void:
 		return
 	_steam(host, session, delta)
 	_frame_sounds(host, session)
-	var mic_m: Vector3 = player.global_position + Ongen.MIC_OFFSET_GX * FieldCatalog.GX_TO_METERS
+	var mic_m: Vector3 = player.global_position + SoundEmitter.MIC_OFFSET_GX * FieldCatalog.GX_TO_METERS
 	var heard: Array = []
 	for src: Array in sources(session):
 		var node: Node3D = host.call("furniture_node", src[0]) as Node3D
 		if node == null:
 			continue
 		var d: float = node.global_position.distance_to(mic_m) / FieldCatalog.GX_TO_METERS
-		if d <= Ongen.AREA:
+		if d <= SoundEmitter.AREA:
 			heard.append([src[0], src[1], d])
 	heard.sort_custom(func(x: Array, y: Array) -> bool: return float(x[2]) < float(y[2]))
 	heard = heard.slice(0, VOICES)
@@ -247,7 +247,7 @@ func _steam(host: Node, session: IndoorSession, delta: float) -> void:
 			continue
 		var rule: Array = STEAM[data.visual_id]
 		var at: Vector3 = node.global_position + Vector3(0.0, float(rule[0]) * FieldCatalog.GX_TO_METERS, 0.0)
-		FieldFx.spawn(host, FieldFx.Kind.SOBA_YUGE, at, 0.0, int(rule[1]), 0)
+		FieldEffects.spawn(host, FieldEffects.Kind.SOBA_YUGE, at, 0.0, int(rule[1]), 0)
 
 
 ## Whether a looping clip passed `at` (seconds) between two reads (`prev` → `now`, wrapping).
@@ -282,9 +282,9 @@ func _drive(p: AudioStreamPlayer, h: Array) -> void:
 	var id: StringName = BugSounds.se_id(int(h[1]))
 	if p.get_meta(&"se", &"") != id:
 		p.stop()
-		p.stream = Ongen.looped(SeCatalog.stream_for(id))
+		p.stream = SoundEmitter.looped(SeCatalog.stream_for(id))
 		p.set_meta(&"se", id)
-	p.volume_db = linear_to_db(maxf(Ongen.volume(float(h[2])), 0.0001))
+	p.volume_db = linear_to_db(maxf(SoundEmitter.volume(float(h[2])), 0.0001))
 	if p.stream != null and not p.playing:
 		p.play()
 

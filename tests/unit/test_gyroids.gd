@@ -35,7 +35,7 @@ func _town() -> _GridWorld:
 
 
 func test_three_different_gyroids_in_three_acres() -> void:
-	if FtrCatalog.list(BuriedUse.HANIWA_BIRTH).is_empty():
+	if FurnitureCatalog.list(BuriedUse.HANIWA_BIRTH).is_empty():
 		return
 	var world := _town()
 	var rng := RandomNumberGenerator.new()
@@ -53,11 +53,11 @@ func test_three_different_gyroids_in_three_acres() -> void:
 		assert_int(blocks.count(b)).is_equal(1)
 	for it: Variant in items:
 		assert_int(items.count(it)).is_equal(1)
-		assert_bool(FtrCatalog.list(BuriedUse.HANIWA_BIRTH).has(StringName(str(it)))).is_true()
+		assert_bool(FurnitureCatalog.list(BuriedUse.HANIWA_BIRTH).has(StringName(str(it)))).is_true()
 
 
 func test_renewal_buries_them_once() -> void:
-	if FtrCatalog.list(BuriedUse.HANIWA_BIRTH).is_empty():
+	if FurnitureCatalog.list(BuriedUse.HANIWA_BIRTH).is_empty():
 		return
 	var world := _town()
 	var rng := RandomNumberGenerator.new()
@@ -66,7 +66,7 @@ func test_renewal_buries_them_once() -> void:
 	BuriedUse.renew(world, world.grid, rng)
 	assert_bool(Game.haniwa_scheduled).is_false()
 	var gyroids := 0
-	var list: Array[StringName] = FtrCatalog.list(BuriedUse.HANIWA_BIRTH)
+	var list: Array[StringName] = FurnitureCatalog.list(BuriedUse.HANIWA_BIRTH)
 	for key: Variant in Game.buried_deposits.keys():
 		var rec: Dictionary = BuriedUse.record(StringName(str(key)))
 		if list.has(StringName(str(rec.get(BuriedUse.KEY_ITEM, "")))):

@@ -177,19 +177,19 @@ func _run() -> void:
 	player.global_position = session.grid.cell_to_world(Vector2i(4, 6)) + Vector3(0, 0.1, 0)
 	interior.call("_spawn_gokis", session.room)
 	await _frames(30)
-	print("goki    out=", get_tree().get_nodes_in_group("house_goki").size(), " stored=", Game.interiors.player_house().goki_count, " startled busy=", player._busy)
-	for g: Node in get_tree().get_nodes_in_group("house_goki"):
+	print("goki    out=", get_tree().get_nodes_in_group("house_cockroaches").size(), " stored=", Game.interiors.player_house().goki_count, " startled busy=", player._busy)
+	for g: Node in get_tree().get_nodes_in_group("house_cockroaches"):
 		print("goki    node ", (g as Node3D).position, " children=", g.get_child_count(), " paths=", FieldCatalog.mesh_paths(&"act_m_house_goki"))
 	await _shot("9_goki")
 	await _frames(90)
-	var target: Node3D = get_tree().get_nodes_in_group("house_goki")[0] as Node3D
+	var target: Node3D = get_tree().get_nodes_in_group("house_cockroaches")[0] as Node3D
 	player.global_position = target.global_position + Vector3(0.1, 0.1, 0.0)
 	Input.action_press("move_right")
 	await _frames(20)
 	Input.action_release("move_right")
 	await _frames(10)
 	var alive: int = 0
-	for node: Node in get_tree().get_nodes_in_group("house_goki"):
+	for node: Node in get_tree().get_nodes_in_group("house_cockroaches"):
 		if bool(node.get("alive")):
 			alive += 1
 	print("goki    alive after stomp=", alive)

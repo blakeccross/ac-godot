@@ -101,7 +101,7 @@ var museum: MuseumBook = MuseumBook.new()
 var species_log: SpeciesLog = SpeciesLog.new()
 var police: PoliceBook = PoliceBook.new()
 var post: PostBook = PostBook.new()
-var farway: FarwayBook = FarwayBook.new()
+var farway: TravelBook = TravelBook.new()
 var redd: ReddBook = ReddBook.new()
 var lighthouse: LighthouseBook = LighthouseBook.new()
 ## Every catalog item the player has owned + Nook mail orders (`m_catalog_ovl`).
@@ -1367,7 +1367,7 @@ func reset_session() -> void:
 	shop_sell_pending = false
 	shop_sell_slots = []
 	if farway == null:
-		farway = FarwayBook.new()
+		farway = TravelBook.new()
 	else:
 		farway.clear()
 	if redd == null:
@@ -1601,7 +1601,7 @@ func post_notice(text: String) -> void:
 
 func to_save() -> Dictionary:
 	## `mCkRh_SavePlayTime` runs whenever the game is saved.
-	HouseGoki.save_play_time(interiors.player_house())
+	HouseCockroaches.save_play_time(interiors.player_house())
 	return {
 		"player": {
 			"x": player_position.x,
@@ -1844,7 +1844,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	bee_swell = false
 	bee_chase = false
 	bee_greeted.clear()
-	HouseGoki.decide_family_count(interiors.player_house())
+	HouseCockroaches.decide_family_count(interiors.player_house())
 	shops.apply_snapshot(data.get("shops", {}))
 	if museum == null:
 		museum = MuseumBook.new()
@@ -1863,7 +1863,7 @@ func apply_snapshot(data: Dictionary) -> void:
 		post = PostBook.new()
 	post.apply_snapshot(data.get("post", {}))
 	if farway == null:
-		farway = FarwayBook.new()
+		farway = TravelBook.new()
 	farway.apply_snapshot(data.get("farway", {}))
 	if redd == null:
 		redd = ReddBook.new()
@@ -2262,7 +2262,7 @@ func _on_field_renewed(days: int) -> void:
 	_check_birthday_cards(vt_rng)
 	_check_mother_mail(vt_rng)
 	note_played_today()
-	HouseGoki.save_play_time(interiors.player_house())
+	HouseCockroaches.save_play_time(interiors.player_house())
 	refresh_shop_set()
 	## `mAGrw_RenewalFgItem` tops the lost and found up once per renewal, however many
 	## days were skipped.

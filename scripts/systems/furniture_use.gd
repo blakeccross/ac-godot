@@ -66,7 +66,7 @@ static func apply(action: Interaction, host: Node, ctx: InteractionContext) -> b
 
 ## `ITM_DIARY00`–`15`: the notebooks (`ftr_diary` list, `mRmTp_*` FTR_NOG_COLLEGENOTE…).
 static func is_diary(data: FurnitureData) -> bool:
-	return data != null and FtrCatalog.list("ftr_diary").has(data.id)
+	return data != null and FurnitureCatalog.list("ftr_diary").has(data.id)
 
 
 ## `aMR_CheckDiaryOnMe`: a notebook set down on a table, in a resident's house.

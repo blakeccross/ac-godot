@@ -127,7 +127,7 @@ func position_gx() -> Vector3:
 ## `aGYR_in_water_move`.
 func _enter_water() -> void:
 	Audio.play_se(SPLASH_SE, self)
-	StepFx.ripple(_pos, 3)
+	FootstepEffects.ripple(_pos, 3)
 	if school != null and fish != null:
 		school.add_puff_at(_pos, _yaw, fish.size_class)
 	_finish()

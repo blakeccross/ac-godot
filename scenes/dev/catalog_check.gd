@@ -15,7 +15,7 @@ func _ready() -> void:
 	add_child(bg)
 	var book := CatalogBook.new()
 	for i: int in [214, 215, 218, 25, 12, 216, 341, 217, 219, 2, 86, 96]:
-		book.record(FtrCatalog.item_id(i))
+		book.record(FurnitureCatalog.item_id(i))
 	for i: int in [0, 1, 2]:
 		book.record(InteriorStyleCatalog.wall_style_id(i))
 	book.record(ShopGoods.PAPER)

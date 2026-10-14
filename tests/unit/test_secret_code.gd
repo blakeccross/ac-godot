@@ -47,8 +47,8 @@ func test_item_numbers_map_both_ways() -> void:
 	assert_int(CodeItems.number_of(&"apple")).is_equal(0x2800)
 	assert_int(CodeItems.number_of(&"net")).is_equal(0x2200)
 	assert_int(CodeItems.ftr_no(0x401)).is_equal(0x3004)
-	if FtrCatalog.available() and FtrCatalog.count() > 10:
-		var ftr: StringName = FtrCatalog.item_id(10)
+	if FurnitureCatalog.available() and FurnitureCatalog.count() > 10:
+		var ftr: StringName = FurnitureCatalog.item_id(10)
 		if ItemCatalog.get_item(ftr) != null:
 			assert_str(String(CodeItems.id_of(CodeItems.number_of(ftr)))).is_equal(String(ftr))
 	assert_str(String(CodeItems.id_of(0x2206 + 40))).is_equal("")

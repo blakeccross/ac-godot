@@ -39,7 +39,7 @@ static func spoke_this_week(area: Dictionary) -> bool:
 
 
 static func _week() -> int:
-	return KabuMarket.sunday_ordinal(Clock.year, Clock.month, Clock.day)
+	return StalkMarket.sunday_ordinal(Clock.year, Clock.month, Clock.day)
 
 
 static func note_spoke(area: Dictionary) -> void:

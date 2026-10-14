@@ -6,13 +6,13 @@ extends RefCounted
 ## included) and runs the shared per-frame framework from `ac_insect_move.c_inc`
 ## (`aINS_position_move`, `aINS_calc_patience`, `aINS_calc_life_time`,
 ## `aINS_calc_alpha_time`, catch-range register, cull flagging). All species
-## behaviour lives in a `BugProgram` (`scripts/systems/bugs/`) reached via
+## behaviour lives in a `BugBehavior` (`scripts/systems/bugs/`) reached via
 ## `action_proc` each frame — this file never branches on `type`.
 ##
 ## Internally positions are GX and speeds GX per 30 fps frame, like the decomp; `position`
 ## (metres) is a view for the visual / net / spawn. Time advances by `delta`: each step sets
 ## `n`, the 60ths of a second it covers, and the framework and programs scale every per-tick
-## change, countdown and chance by it (`BugProgram.chance`, `beat`, the `* a.n` chases).
+## change, countdown and chance by it (`BugBehavior.chance`, `beat`, the `* a.n` chases).
 ## Timers stay in ticks because every table that sets them is written in ticks.
 
 const GX_M := FieldCatalog.GX_TO_METERS
@@ -83,7 +83,7 @@ class Sense:
 	var on_screen: Callable = Callable()
 	## Optional BG probe. Callable(pos_gx: Vector3) -> Dictionary (walls, flowers, perches…).
 	var bg: Callable = Callable()
-	## Ground-only sampler for the per-frame `aINS_BGcheck` (`BugBg.make_ground`):
+	## Ground-only sampler for the per-frame `aINS_BGcheck` (`BugTerrain.make_ground`):
 	## Callable(pos_gx) -> {ground_y, water, water_y}. Unset → no ground collision.
 	var ground: Callable = Callable()
 	## `play->game_frame`: play frames since the field loaded (`BugField` advances it).
@@ -166,12 +166,12 @@ var player_angle_y: float = 0.0
 var player_pos: Vector3 = Vector3.INF
 var player_yaw: float = 0.0
 ## The play clock (`play->game_frame`, ticks) as of this step and the one before, for the
-## cadences (`game_frame % n`) the programs key off (`BugProgram.beat`).
+## cadences (`game_frame % n`) the programs key off (`BugBehavior.beat`).
 var game_frame: int = 0
 var prev_game_frame: int = 0
 ## Ticks this step covers (`delta · 60`).
 var n: float = 1.0
-## Cached `mFI_BkNum2WposXZ(block) + half an acre` of the spawn acre (see `BugProgram.acre_center`).
+## Cached `mFI_BkNum2WposXZ(block) + half an acre` of the spawn acre (see `BugBehavior.acre_center`).
 var acre_center_gx: Vector2 = Vector2.INF
 ## Released (`aINS_MAKE_EXIST`) inits read the player's facing; a net release is created
 ## before any frame, so `frame()` reruns the program init once the player is known.
@@ -202,7 +202,7 @@ var drawn: bool = true         ## `actor->drawn` — MINO hides in the tree
 ## `insect->move_proc`. Default is `aINS_position_move`; MINO installs its own.
 var move_proc: Callable = Callable()
 
-var _prog: BugProgram = null
+var _prog: BugBehavior = null
 var _rng: RandomNumberGenerator = null
 
 
@@ -229,9 +229,9 @@ static func create(
 	a.alpha0 = 255.0
 	a.f_bit4 = true
 	a.bg_range = BG_RANGE_DEFAULT
-	a._prog = BugProgram.create(p_bug.program if p_bug != null else BugData.Program.CHOU)
-	if a.type == BugAnt.TYPE and not p_released:
-		a._prog = BugAnt.new()  ## the swarm on the food (`ac_ant`); caught, it is the ant
+	a._prog = BugBehavior.create(p_bug.program if p_bug != null else BugData.Program.CHOU)
+	if a.type == Ant.TYPE and not p_released:
+		a._prog = Ant.new()  ## the swarm on the food (`ac_ant`); caught, it is the ant
 	a._prog.actor_init(a, p_released)
 	a._init_waits_for_player = p_released
 	return a
@@ -266,7 +266,7 @@ var alpha: float:
 
 ## The ant swarm on food (`ac_ant`), drawn as a crawling patch.
 func is_swarm() -> bool:
-	return _prog is BugAnt
+	return _prog is Ant
 
 
 func pose_index() -> int:
@@ -298,7 +298,7 @@ func net_catch_range_gx(player_position_m: Vector3) -> float:
 	match type:
 		0, 1:  ## common / yellow butterfly
 			return 24.0
-		BugAnt.TYPE:  ## the swarm on food (`aANT_actor_move`: 24)
+		Ant.TYPE:  ## the swarm on food (`aANT_actor_move`: 24)
 			return 24.0 if is_swarm() else 8.0
 		4, 5, 6, 7, 8, 19, 20, 21, 22, 23, 29, 30, 31:  ## cicadas, bee, beetles
 			return _angular_catch(player_position_m)
@@ -438,11 +438,11 @@ func _bg_check(sense: Sense) -> void:
 
 func _position_move() -> void:
 	last_pos = pos
-	speed = BugProgram.chase_f(speed, target_speed, speed_step * 0.5 * n)
+	speed = BugBehavior.chase_f(speed, target_speed, speed_step * 0.5 * n)
 	pos_speed.x = speed * sin(angle_y)
 	pos_speed.z = speed * cos(angle_y)
 	if not (type in LEVEL_Y_TYPES):
-		pos_speed.y = BugProgram.chase_f(pos_speed.y, max_velocity_y, gravity * 0.5 * n)
+		pos_speed.y = BugBehavior.chase_f(pos_speed.y, max_velocity_y, gravity * 0.5 * n)
 	## `Actor_position_move`: half the position speed a tick ("30fps -> 60fps").
 	pos += pos_speed * 0.5 * n
 

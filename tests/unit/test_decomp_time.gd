@@ -22,9 +22,9 @@ func test_pipeline_bakes_clips_at_frame_hz() -> void:
 
 
 func test_s16_angle_helpers() -> void:
-	assert_float(MLib.s16_to_rad(0x4000)).is_equal_approx(PI * 0.5, 1e-6)
-	assert_int(MLib.rad_to_s16(PI)).is_equal(0x8000)
-	assert_int(MLib.rad_to_s16(-PI * 0.5)).is_equal(0xC000)
-	assert_int(MLib.s16_signed(0xC000)).is_equal(-0x4000)
-	assert_int(MLib.s16_signed(0x17FFF)).is_equal(0x7FFF)
-	assert_float(MLib.HALF_FRACTION).is_equal_approx(0.29289321881, 1e-9)
+	assert_float(MathUtil.s16_to_rad(0x4000)).is_equal_approx(PI * 0.5, 1e-6)
+	assert_int(MathUtil.rad_to_s16(PI)).is_equal(0x8000)
+	assert_int(MathUtil.rad_to_s16(-PI * 0.5)).is_equal(0xC000)
+	assert_int(MathUtil.s16_signed(0xC000)).is_equal(-0x4000)
+	assert_int(MathUtil.s16_signed(0x17FFF)).is_equal(0x7FFF)
+	assert_float(MathUtil.HALF_FRACTION).is_equal_approx(0.29289321881, 1e-9)

@@ -15,7 +15,7 @@ func test_dated_letters() -> void:
 	var rng := _rng(1)
 	var bday: Dictionary = MotherMail.dated(10, 1, BD, &"", rng)
 	assert_int(int(bday["msg"])).is_between(MotherMail.MSG_BIRTHDAY, MotherMail.MSG_BIRTHDAY + 1)
-	assert_str(String(bday["present"])).is_equal(String(FtrCatalog.item_id(MotherMail.FTR_CAKE)))
+	assert_str(String(bday["present"])).is_equal(String(FurnitureCatalog.item_id(MotherMail.FTR_CAKE)))
 	var jan: Dictionary = MotherMail.dated(1, 1, BD, &"", rng)
 	assert_int(int(jan["msg"])).is_between(0x164, 0x165)
 	assert_str(String(jan["present"])).is_equal("money_10000")

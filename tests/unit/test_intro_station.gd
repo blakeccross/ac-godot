@@ -139,7 +139,7 @@ func test_npc_point_move_turn_rate() -> void:
 	move.reset(0.0)
 	var done: bool = move.step_turn(1.0 / 60.0, PI * 0.5)
 	assert_that(done).is_false()
-	assert_float(move.facing).is_equal_approx(float(0x400) * MLib.S16, 0.00001)
+	assert_float(move.facing).is_equal_approx(float(0x400) * MathUtil.S16, 0.00001)
 	for i: int in 16:
 		done = move.step_turn(1.0 / 60.0, PI * 0.5)
 	assert_that(done).is_true()
@@ -258,11 +258,11 @@ func test_train_smoke_and_steam_effects_follow_decomp() -> void:
 	## `eKishaK_ct`: 80 frames, swelling from small; `eSteam_ct`: 30 frames, thrown down then
 	## rising back.
 	var at: Array[Vector3] = [Vector3.ZERO]
-	var smoke: FieldParticle.Style = FieldParticle.style_for(FieldFx.Kind.KISHA_KEMURI, 0.0, 0, 0, at)
+	var smoke: FieldParticle.Style = FieldParticle.style_for(FieldEffects.Kind.KISHA_KEMURI, 0.0, 0, 0, at)
 	assert_float(smoke.lifetime).is_equal_approx(80.0 / 60.0, 0.0001)
 	assert_float(smoke.size_from_to.x).is_less(smoke.size_from_to.y)
 	assert_float(FieldParticle.offset_at(smoke, 1.0).y).is_greater(0.5)
-	var steam: FieldParticle.Style = FieldParticle.style_for(FieldFx.Kind.STEAM, 0.0, 0, 0, at)
+	var steam: FieldParticle.Style = FieldParticle.style_for(FieldEffects.Kind.STEAM, 0.0, 0, 0, at)
 	assert_float(steam.lifetime).is_equal_approx(0.5, 0.0001)
 	assert_float(steam.accel.y).is_equal_approx(0.125 * FieldCatalog.GX_TO_METERS * 3600.0, 0.001)
 	assert_float(steam.launch.y).is_less(-1.49 * FieldCatalog.GX_TO_METERS * 60.0)

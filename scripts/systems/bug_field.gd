@@ -171,7 +171,7 @@ func _step(delta: float, sense: BugActor.Sense) -> void:
 	for actor: BugActor in actors:
 		if not actor.finished:
 			actor.advance(delta, sense)
-			if actor.flag == BugKa.BIT:
+			if actor.flag == Mosquito.BIT:
 				actor.flag = 0
 				_bite_pending = true
 	_cull_distant(sense)
@@ -199,7 +199,7 @@ func spawn(bug: BugData, habitat: BugData.Habitat, at: Vector3, released: bool =
 		)
 		## Tie the HIDE trigger to the cell it spawned on (tree / rock / dig spot).
 		var cell: Vector2i = _grid.world_to_cell(at)
-		var prog: BugProgram = actor._prog
+		var prog: BugBehavior = actor._prog
 		if prog.has_method("set_tree_cell"):
 			prog.call("set_tree_cell", cell)
 		if prog.has_method("set_dig_cell"):

@@ -413,14 +413,14 @@ func test_wallet_overflow_becomes_bags() -> void:
 
 
 func test_stalk_market_schedule() -> void:
-	var market := KabuMarket.new()
+	var market := StalkMarket.new()
 	for _i: int in 50:
 		market.decide_schedule(2001, 1, 7)
 		assert_int(market.price_on(0)).is_between(70, 129)
-		if market.trend == KabuMarket.Trend.FALLING:
+		if market.trend == StalkMarket.Trend.FALLING:
 			for d: int in range(1, 7):
 				assert_int(market.price_on(d)).is_less_equal(market.price_on(d - 1))
-		if market.trend == KabuMarket.Trend.SPIKE:
+		if market.trend == StalkMarket.Trend.SPIKE:
 			var top: int = 0
 			for d: int in range(1, 6):
 				top = maxi(top, market.price_on(d))
@@ -432,7 +432,7 @@ func test_stalk_market_schedule() -> void:
 
 ## `Kabu_get_price` is a plain read; `Kabu_manager` only runs on a date change / game start.
 func test_stalk_market_reads_do_not_reroll() -> void:
-	var market: KabuMarket = Game.shops.kabu
+	var market: StalkMarket = Game.shops.kabu
 	## 2001-01-07 is a Sunday: many reads leave the trend chain and the week alone.
 	_set_date(2001, 1, 7, 12)
 	market.clear()
@@ -471,8 +471,8 @@ func test_nook_buys_turnips_except_sundays() -> void:
 	res = Game.shops.sell_result(ShopBook.NOOK_ID, &"turnips_50", inv, 1)
 	assert_int(int(res["code"])).is_equal(ShopBook.Sell.SUNDAY_TURNIPS)
 	assert_int(inv.count_of(&"turnips_50")).is_equal(1)
-	inv.add(ItemCatalog.get_item(KabuMarket.SPOILED), 1)
-	res = Game.shops.sell_result(ShopBook.NOOK_ID, KabuMarket.SPOILED, inv, 1)
+	inv.add(ItemCatalog.get_item(StalkMarket.SPOILED), 1)
+	res = Game.shops.sell_result(ShopBook.NOOK_ID, StalkMarket.SPOILED, inv, 1)
 	assert_int(int(res["code"])).is_equal(ShopBook.Sell.JUNK)
 
 
@@ -736,15 +736,15 @@ func test_catalog_order_needs_the_bells_up_front() -> void:
 ## `mCL_catalog_ovl_init`: the disc lists order each page; unlisted owned items follow.
 func test_catalog_pages_follow_the_disc_lists() -> void:
 	var book := CatalogBook.new()
-	var bed: StringName = FtrCatalog.item_id(0xD6)
-	var cabinet: StringName = FtrCatalog.item_id(0x0C)
+	var bed: StringName = FurnitureCatalog.item_id(0xD6)
+	var cabinet: StringName = FurnitureCatalog.item_id(0x0C)
 	book.record(cabinet)
 	book.record(bed)
 	book.record(&"wood_table")
 	book.record(InteriorStyleCatalog.wall_style_id(1))
 	book.record(MinidiskCatalog.item_id(0))
 	var pages := CatalogPages.build(book)
-	if FtrCatalog.catalog_page("ftr").is_empty():
+	if FurnitureCatalog.catalog_page("ftr").is_empty():
 		return  # needs the pipeline's ftr_catalog.json
 	var ftr: Array = pages.page(CatalogPages.Page.FTR)
 	## The blue bed comes before the blue cabinet on the disc list, whatever the pickup order.

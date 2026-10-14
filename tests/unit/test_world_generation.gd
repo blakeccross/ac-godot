@@ -222,7 +222,7 @@ func test_generated_town_has_ac_structure() -> void:
 
 func test_fg_templates_place_authored_trees() -> void:
 	## Disc FG catalog: denser authored layouts + border strip (`mSDI_PullTree`).
-	if not FgCatalog.has_catalog():
+	if not FieldObjectCatalog.has_catalog():
 		return
 	var data: WorldData = WorldGenerator.generate(12345)
 	assert_int(_kind_count(data, &"tree")).is_greater(40)
@@ -475,7 +475,7 @@ func test_configure_from_world_copies_terrain() -> void:
 
 
 func test_generated_port_sign_uses_fg_port_sign_unit() -> void:
-	if not FgCatalog.has_catalog():
+	if not FieldObjectCatalog.has_catalog():
 		return
 	var data: WorldData = WorldGenerator.generate(12345)
 	var port_bx: int = 5

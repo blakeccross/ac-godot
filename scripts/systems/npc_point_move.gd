@@ -84,7 +84,7 @@ static func yaw_to(from_gx: Vector3, to_gx: Vector3) -> float:
 
 ## `chase_angle` by `add_s16` a 1/30 s frame, in radians a second.
 static func turn_rate(add_s16: int) -> float:
-	return float(add_s16) * MLib.S16 * PER_FRAME
+	return float(add_s16) * MathUtil.S16 * PER_FRAME
 
 
 static func chase_yaw(from: float, target: float, step: float) -> float:

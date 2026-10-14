@@ -34,9 +34,9 @@ func _init(p_area: Dictionary, p_inventory: Inventory = null, p_rng: RandomNumbe
 
 ## The ten harvest pieces (by catalog index), then the rug and wall 66.
 static func presents() -> Array[StringName]:
-	var out: Array[StringName] = FtrCatalog.list("harvest_festival")
-	out.append(FtrCatalog.goods_id("carpet", 66))
-	out.append(FtrCatalog.goods_id("wall", 66))
+	var out: Array[StringName] = FurnitureCatalog.list("harvest_festival")
+	out.append(FurnitureCatalog.goods_id("carpet", 66))
+	out.append(FurnitureCatalog.goods_id("wall", 66))
 	return out
 
 

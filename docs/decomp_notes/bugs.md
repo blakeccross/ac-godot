@@ -63,13 +63,13 @@ BGM ducks while collecting (`mPlayer_BGM_VOLUME_MODE_COLLECT_INSECTS`).
 
 ## Behavior
 
-All 40 species, each on its own `BugProgram` overlay (`scripts/systems/bugs/`: butterfly, dragonfly, grasshopper, cicada, beetle, firefly, water strider, mole cricket, bagworm, pillbug, mosquito, ladybug, cockroach, wisp). `BugActor` runs the shared per-insect state machine; `BugSpawnScheduler` places up to the decomp's live-slot count per acre on entry, gated by season/term/hour/weather from `BugCatalog`; `BugHabitats` maps flowers/trees/ground to valid spawn units. The net is a hold-A / release swing whose head is tested against each insect's registered catch sphere from keyframe 6 on, and a `Check_StopNet` scare when the swing ends (see [tools.md](tools.md) § Net); a catch goes to the pockets and the catch record, and full pockets offer a swap (the exchange inventory is not built, so it is let go). Museum donation and the display case are covered in [museum.md](museum.md).
+All 40 species, each on its own `BugBehavior` overlay (`scripts/systems/bugs/`: butterfly, dragonfly, grasshopper, cicada, beetle, firefly, water strider, mole cricket, bagworm, pillbug, mosquito, ladybug, cockroach, wisp). `BugActor` runs the shared per-insect state machine; `BugSpawnScheduler` places up to the decomp's live-slot count per acre on entry, gated by season/term/hour/weather from `BugCatalog`; `BugHabitats` maps flowers/trees/ground to valid spawn units. The net is a hold-A / release swing whose head is tested against each insect's registered catch sphere from keyframe 6 on, and a `Check_StopNet` scare when the swing ends (see [tools.md](tools.md) § Net); a catch goes to the pockets and the catch record, and full pockets offer a swap (the exchange inventory is not built, so it is let go). Museum donation and the display case are covered in [museum.md](museum.md).
 
-**Ground collision** (`aINS_BGcheck` → `mCoBG_BgCheckControll` → `mCoBG_AdjustActorY`): every frame, after the move and before the program, any insect with `bg_type != 0` has its feet (`pos.y + bg_height`) lifted onto the ground if at or under it (`on_ground`, vertical speed zeroed). A grounded insect whose ground drops by no more than this frame's XZ step follows it down. Water units floor 20 GX under the surface and set `is_in_water`. Ground height is `FieldCollision.ground_y_at` (the sloped surface, `mCoBG_GetBgY_AngleS_FromWpos`), via `BugBg.make_ground` → `Sense.ground` → `BugActor._bg_check`. Before 2026-09-25 this step was a stub, so waiting grasshoppers sank under the grass between hops. Cicadas, beetles, bees and cockroaches switch collision on once they fly off their home unit (`BugProgram.left_home_unit`).
+**Ground collision** (`aINS_BGcheck` → `mCoBG_BgCheckControll` → `mCoBG_AdjustActorY`): every frame, after the move and before the program, any insect with `bg_type != 0` has its feet (`pos.y + bg_height`) lifted onto the ground if at or under it (`on_ground`, vertical speed zeroed). A grounded insect whose ground drops by no more than this frame's XZ step follows it down. Water units floor 20 GX under the surface and set `is_in_water`. Ground height is `FieldCollision.ground_y_at` (the sloped surface, `mCoBG_GetBgY_AngleS_FromWpos`), via `BugTerrain.make_ground` → `Sense.ground` → `BugActor._bg_check`. Before 2026-09-25 this step was a stub, so waiting grasshoppers sank under the grass between hops. Cicadas, beetles, bees and cockroaches switch collision on once they fly off their home unit (`BugBehavior.left_home_unit`).
 
 **Grasshoppers / crickets / locusts** (`ac_ins_batta.c`): wait → change direction (probe 53 GX, 218 for migratory locusts, reject > 40 GX height change or water) → jump (4 up, 5.5 forward, gravity 0.7). The jump-or-turn choice uses the shared play clock (`game_frame % 200`: locusts jump unless in the first 20 frames, crickets only then). A scare hops them away from the player, or back toward the acre centre past 240 GX; hopping north up a slope adds `3·sin(slope)` lift. Net escapes leap off the player's facing ±60°. Debug: console `bug <id> [count]`; capture `tools/capture.sh console=bug,grasshopper,3 target=bug:grasshopper date=2001-08-20`.
 
-**Not ported:** insect sounds (`sAdo_OngenPos` chirps 157–160, locust wings 0xA2/0xA3, beetle/cicada SEs), the drown splash (`eEC_EFFECT_TURI_MIZU` + SE 0x438), attribute walls (`bg_type 1` / `mCoBG_UniqueWallCheck`) beyond `BugBg`'s coarse blocked-cell test.
+**Not ported:** insect sounds (`sAdo_OngenPos` chirps 157–160, locust wings 0xA2/0xA3, beetle/cicada SEs), the drown splash (`eEC_EFFECT_TURI_MIZU` + SE 0x438), attribute walls (`bg_type 1` / `mCoBG_UniqueWallCheck`) beyond `BugTerrain`'s coarse blocked-cell test.
 
 ## Spawning, schedule and catching (parity pass 2026-09-28)
 
@@ -97,7 +97,7 @@ Checked `ac_set_ovl_insect.c`, `ac_set_manager.c`, `ac_insect_clip.c_inc`, `ac_i
 
 Audited 2026-09-28 against the decomp, program by program. Units: 1 unit = `mFI_UNIT_BASE_SIZE_F` = **40 GX** (one 2 m `WorldGrid` cell); an acre is 16 units = 640 GX and its centre is the block corner + 320. Speeds are GX per 30 Hz frame, applied at half per 60 Hz tick (`Actor_position_move`); `chase_angle` steps are frame-scaled (halved per tick), `add_calc` is not.
 
-**Shared rules** (`BugProgram` helpers):
+**Shared rules** (`BugBehavior` helpers):
 
 - **Acre centre, not home.** Every range the decomp measures from `mFI_BkNum2WposXZ + 320` (dragonfly 240 / 480, firefly 240, hopper 240, pill bug and mole cricket 400, wisp 160) uses `acre_center`. Most programs used to measure from the spawn point.
 - **Escape heading = the player's facing.** Released, caught and most scared insects leave along `player->shape_info.rotation.y + RANDOM_CENTER_F(120°)` (±60°), or 21845·(rand − 0.5) for the ground crawlers. That is not away from the player's position. The exceptions are that cicadas and cockroaches that are scared on a tree pick a heading within ±67.5° of south, and fleeing hoppers jump away from the player. Released inits rerun on the first frame that knows the player (`BugActor._init_waits_for_player`).
@@ -106,7 +106,7 @@ Audited 2026-09-28 against the decomp, program by program. Units: 1 unit = `mFI_
   - `Check_DigScoop` (the dug or struck unit's centre) → `scoop_pos`.
   - `Check_HitAxe` (the unit in front of a swing that is not a scoop) → `axe_hit_pos`.
   - `VibUnit` (an axe hit anywhere in the acre) → `vib_unit`.
-- **Tree insects** keep `world.angle.y` = 0, the catch-range facing; only the shape (`rot.y`) turns or sways. They climb 35 GX up a broadleaf and 30 GX up a cedar, with Z −2 / +8. Cedar is `BugBg.is_cedar`, settled on the first frame.
+- **Tree insects** keep `world.angle.y` = 0, the catch-range facing; only the shape (`rot.y`) turns or sways. They climb 35 GX up a broadleaf and 30 GX up a cedar, with Z −2 / +8. Cedar is `BugTerrain.is_cedar`, settled on the first frame.
 - **Crawlers** turn along a front wall to `wall.angleY + 90°` (`wall_normal` estimates the wall facing from the unit grid). They dive when the point `bg_range + speed` ahead is water (`water_ahead`), and drown at the surface.
 - **Stress** radius is 120 GX + `catch_ME`. The index is `(int)(min_dist − 40 − max(d − 40, 0)) / 20`. It is driven by the player's per-tick move.
 
@@ -121,7 +121,7 @@ Audited 2026-09-28 against the decomp, program by program. Units: 1 unit = `mFI_
 | amenbo (pond skater) | bed + 14 (gravity to −2) | Stops and turns about when the unit a unit ahead is not water (the pond bank is its wall). Rest 0–59 frames. |
 | dango (pill bug, ant) | ground | Appears when the struck unit is its own. Scares (net / dig / axe 70) only once off the rock's unit (`bg_type` 4 → 2). Retires 400 GX from the acre centre. |
 | kera (mole cricket) | ground | Wakes on a dig of the unit it is in. Speed re-rolls ±10% every 10 frames. Past 400 GX it burrows on a hole, otherwise runs. |
-| mino (bagworm, spider) | ground + 65 | Wakes on a shake of its own tree's unit. Drops away from the player: east +30 / −18 z, or west −30 / −25 z, 6 lower. A second shake swings it as a damped 50 GX s16 pendulum. A felled tree (`BugBg.tree_cut`) drops it. The spider checks the wall behind it. |
+| mino (bagworm, spider) | ground + 65 | Wakes on a shake of its own tree's unit. Drops away from the player: east +30 / −18 z, or west −30 / −25 z, 6 lower. A second shake swings it as a damped 50 GX s16 pendulum. A felled tree (`BugTerrain.tree_cut`) drops it. The spider checks the wall behind it. |
 | batta (hoppers) | ground; released at player + 40 | Wait `2·(120 + game_frame % 240)`. Scared by a net or dig within 70. Hop turns ±90° off front walls, on release too. |
 | hitodama (wisp) | ground or water surface + 40 | Turn rate and timer from the play clock. Past 160 GX from the acre centre, heading within 22.5° of straight away flips the turn. |
 
@@ -129,7 +129,7 @@ Audited 2026-09-28 against the decomp, program by program. Units: 1 unit = `mFI_
 
 - `rock.gd` now latches `REFLECT_SCOOP` on its unit; before this, pill bugs could never appear.
 - `tree.gd` and `hole_use.gd` no longer call `BugField.notify_player_action`. That call released every insect on the cell, so hidden bagworms and mole crickets escaped instead of appearing.
-- The probe keys `water_ahead`, `water_below` and `tree_cut` never existed, and programs now use `BugProgram` / `BugBg` queries in their place. Before this, no insect ever dived, dragonflies never touched water and bagworms never fell.
+- The probe keys `water_ahead`, `water_below` and `tree_cut` never existed, and programs now use `BugBehavior` / `BugTerrain` queries in their place. Before this, no insect ever dived, dragonflies never touched water and bagworms never fell.
 
 **Deliberate deviations / not ported:**
 
@@ -138,7 +138,7 @@ Audited 2026-09-28 against the decomp, program by program. Units: 1 unit = `mFI_
 - An ant is its own actor (`ac_ant.c`) that only becomes a dango insect once netted; here it spawns crawling.
 - The mosquito sting has no player state (`mPlib_request_main_stung_mosquito_type1`): the bite flags `BIT` and the mosquito leaves at once.
 - The ball scare is not ported (there is no ball).
-- `mCoBG_CheckHole_OrgAttr` is always false (`BugBg` has no dig-hole tracking), so mole crickets never burrow.
+- `mCoBG_CheckHole_OrgAttr` is always false (`BugTerrain` has no dig-hole tracking), so mole crickets never burrow.
 - Batta's `check_live_condition` (rain, height gap and FG-type despawn in the first two frames) is left to the spawner.
 - Squash-and-stretch scales, ripples, dirt and light effects are presentation.
 - Wall facing is estimated from the unit grid, not from `wall_info[].angleY`.

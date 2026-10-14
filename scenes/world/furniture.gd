@@ -27,7 +27,7 @@ func _ready() -> void:
 	if data != null and data.kind == FurnitureData.Kind.GYROID:
 		var dance: Node = GYROID_DANCE.instantiate()
 		add_child(dance)
-		dance.call("setup", visual, FtrCatalog.index_of(data.id))
+		dance.call("setup", visual, FurnitureCatalog.index_of(data.id))
 	if cloth_index >= 0:
 		VisualCloth.apply_cloth(self, cloth_index)
 	apply_footprint(2.0)

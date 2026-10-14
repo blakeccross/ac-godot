@@ -106,7 +106,7 @@ func _redraw() -> void:
 	position = _origin + offset_at(velocity, age)
 	if _card == null:
 		return
-	## Same conversion as `FieldFx`: `Matrix_scale` over the pipeline's vertex scale.
+	## Same conversion as `FieldEffects`: `Matrix_scale` over the pipeline's vertex scale.
 	_card.scale = Vector3.ONE * size_at(age, end_size, start_size) * FieldCatalog.GX_TO_METERS / FieldCatalog.PIPELINE_SCALE
 	var c := PRIM
 	c.a = opacity_at(age)

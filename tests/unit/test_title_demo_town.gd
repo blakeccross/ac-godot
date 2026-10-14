@@ -7,7 +7,7 @@ extends GdUnitTestSuite
 
 
 func _demo_ready() -> bool:
-	return FgCatalog.has_catalog() and TitleDemo.has_data()
+	return FieldObjectCatalog.has_catalog() and TitleDemo.has_data()
 
 
 func _npc_houses(data: WorldData) -> Array[BuildingPlacement]:
@@ -22,7 +22,7 @@ func test_normal_town_is_unchanged_by_the_flag_default() -> void:
 	var plain: WorldData = WorldGenerator.generate(WorldGenerator.DEFAULT_SEED)
 	var explicit: WorldData = WorldGenerator.generate(WorldGenerator.DEFAULT_SEED, false)
 	assert_str(plain.fingerprint()).is_equal(explicit.fingerprint())
-	if FgCatalog.has_catalog():
+	if FieldObjectCatalog.has_catalog():
 		assert_int(_npc_houses(plain).size()).is_equal(WorldGenerator.STARTER_NPC_HOUSES)
 
 

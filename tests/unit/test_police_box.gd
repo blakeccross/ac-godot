@@ -221,7 +221,7 @@ func test_legacy_save_without_police_inits() -> void:
 
 func test_rsv_cells_read_from_the_fg_template() -> void:
 	var items := PackedInt32Array()
-	items.resize(FgCatalog.ITEMS_PER_ACRE)
+	items.resize(FieldObjectCatalog.ITEMS_PER_ACRE)
 	for slot: int in PoliceBook.STORAGE_COUNT:
 		## Put slot N at unit (N % 8 + 1, N / 8 * 2 + 1), in reverse scan order.
 		var cell := Vector2i(slot % 8 + 1, slot / 8 * 2 + 1)

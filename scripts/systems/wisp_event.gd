@@ -98,7 +98,7 @@ static func wish_item(owned: Array, rng: RandomNumberGenerator) -> StringName:
 		for label: String in ["A", "B", "C"]:
 			pool.append_array(ShopGoods.abc_list(kind, label))
 	for birth: String in ["event", "lottery", "haniwa"]:
-		pool.append_array(FtrCatalog.list(birth))
+		pool.append_array(FurnitureCatalog.list(birth))
 	pool.append_array(ShopGoods.umbrella_pool())
 	var fresh: Array[StringName] = []
 	for id: StringName in pool:

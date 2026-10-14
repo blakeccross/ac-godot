@@ -44,18 +44,18 @@ func test_villager_house_visual_maps_type_and_palette() -> void:
 
 func test_fg_item_trees_and_sign_reserves() -> void:
 	## `m_name_table.h` tree families + SIGN00–SIGN20.
-	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_TREE)["visual"]).is_equal(&"TREE")
-	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_TREE_SAPLING)["visual"]).is_equal(&"TREE")
-	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_TREE_APPLE_FRUIT)["visual"]).is_equal(
+	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_TREE)["visual"]).is_equal(&"TREE")
+	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_TREE_SAPLING)["visual"]).is_equal(&"TREE")
+	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_TREE_APPLE_FRUIT)["visual"]).is_equal(
 		&"TREE_APPLE_FRUIT"
 	)
-	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_CEDAR_TREE)["visual"]).is_equal(&"CEDAR_TREE")
-	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_TREE_PALM_FRUIT)["visual"]).is_equal(
+	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_CEDAR_TREE)["visual"]).is_equal(&"CEDAR_TREE")
+	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_TREE_PALM_FRUIT)["visual"]).is_equal(
 		&"TREE_PALM_FRUIT"
 	)
-	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_SIGN00)["kind"]).is_equal(&"reserve")
-	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_SIGN20)["kind"]).is_equal(&"reserve")
-	var port_sign: Dictionary = FgCatalog.placement_for_item(FgCatalog.ITEM_PORT_SIGN)
+	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_SIGN00)["kind"]).is_equal(&"reserve")
+	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_SIGN20)["kind"]).is_equal(&"reserve")
+	var port_sign: Dictionary = FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_PORT_SIGN)
 	assert_that(port_sign["kind"]).is_equal(&"sign")
 	assert_that(port_sign["visual"]).is_equal(&"DOCK_SIGN")
 	var dock_paths: PackedStringArray = FieldCatalog.mesh_paths(&"DOCK_SIGN")

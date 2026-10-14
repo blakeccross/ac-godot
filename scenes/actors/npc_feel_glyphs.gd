@@ -279,7 +279,7 @@ func _tick_moods(delta: float) -> void:
 	_hold_ongen(_moods.ongen)
 
 
-## `sAdo_OngenPos`: the effect's level SE, loud as `Ongen.volume` from the field mic.
+## `sAdo_OngenPos`: the effect's level SE, loud as `SoundEmitter.volume` from the field mic.
 func _hold_ongen(id: StringName) -> void:
 	if id == &"":
 		if _ongen_player != null:
@@ -291,12 +291,12 @@ func _hold_ongen(id: StringName) -> void:
 		add_child(_ongen_player)
 	if _ongen_player.get_meta(&"se", &"") != id:
 		_ongen_player.stop()
-		_ongen_player.stream = Ongen.looped(SeCatalog.stream_for(id))
+		_ongen_player.stream = SoundEmitter.looped(SeCatalog.stream_for(id))
 		_ongen_player.set_meta(&"se", id)
-	var mic: Vector3 = Ongen.field_mic_gx(get_tree())
-	var vol: float = Ongen.BASE_VOLUME
+	var mic: Vector3 = SoundEmitter.field_mic_gx(get_tree())
+	var vol: float = SoundEmitter.BASE_VOLUME
 	if mic != Vector3.INF:
-		vol = Ongen.volume(mic.distance_to(TownSpace.world_to_gx(global_position)))
+		vol = SoundEmitter.volume(mic.distance_to(TownSpace.world_to_gx(global_position)))
 	_ongen_player.volume_db = linear_to_db(maxf(vol, 0.0001))
 	if _ongen_player.stream != null and not _ongen_player.playing:
 		_ongen_player.play()

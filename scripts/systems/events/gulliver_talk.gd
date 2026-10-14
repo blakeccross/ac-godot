@@ -79,7 +79,7 @@ func _offer(late: bool) -> int:
 
 ## `aEDZ_ageru`: the keepsake goes straight into the pockets, then changes hands.
 func _hand_over() -> Dictionary:
-	gift = FtrCatalog.pick("jonason", rng)
+	gift = FurnitureCatalog.pick("jonason", rng)
 	var item: ItemData = ItemCatalog.get_item(gift)
 	if item != null and inventory != null:
 		inventory.add(item, 1)

@@ -123,10 +123,10 @@ static func present(rng: RandomNumberGenerator, collected: Callable = Callable()
 
 static func present_id(index: int) -> StringName:
 	if index < 10:
-		return FtrCatalog.item_id(PRESENT_FTR_FIRST + index)
+		return FurnitureCatalog.item_id(PRESENT_FTR_FIRST + index)
 	if index == 10:
-		return FtrCatalog.goods_id("carpet", 25)
-	return FtrCatalog.goods_id("wall", 25)
+		return FurnitureCatalog.goods_id("carpet", 25)
+	return FurnitureCatalog.goods_id("wall", 25)
 
 
 ## First free snowman slot (`mSN_get_free_space`), or −1.

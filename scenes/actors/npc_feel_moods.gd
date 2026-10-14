@@ -357,8 +357,8 @@ func _tick_think(n: float) -> void:
 	_scale(_body2, s, s, sz)
 	_body.data["shift"] = Vector3(-475.0 * s, 950.0 * s, 0.0)
 	_body2.data["shift"] = Vector3(475.0 * s, 0.0, 0.0)
-	_body.node.rotation.z = float(_es["big"]) * MLib.S16
-	_body2.node.rotation.z = float(_es["small"]) * MLib.S16
+	_body.node.rotation.z = float(_es["big"]) * MathUtil.S16
+	_body2.node.rotation.z = float(_es["small"]) * MathUtil.S16
 	for p: Part in [_body, _body2]:
 		p.set_param(&"prim_color", _c(255, 255, 255, alpha))
 
@@ -368,7 +368,7 @@ func _tick_think(n: float) -> void:
 func _tick_gloom(n: float, delta: float) -> void:
 	var phase: float = fmod(float(_es["phase"]) + float(_es["speed"]) * n, 65536.0)
 	_es["phase"] = phase
-	var w: float = float(_es["wobble"]) * sin(phase * MLib.S16)
+	var w: float = float(_es["wobble"]) * sin(phase * MathUtil.S16)
 	## `add_calc(…, 0.022, max, min)` a tick on the wobble and its speed.
 	_es["wobble"] = Motion.approach(float(_es["wobble"]), 0.025, GLOOM_HALF_LIFE, 0.1 * DecompTime.TICK_HZ, 0.001 * DecompTime.TICK_HZ, delta)
 	_es["speed"] = Motion.approach(float(_es["speed"]), 2000.0, GLOOM_HALF_LIFE, 6000.0 * DecompTime.TICK_HZ, 0.01 * DecompTime.TICK_HZ, delta)
@@ -431,7 +431,7 @@ func _spawn_note() -> void:
 		q.vel += q.acc * n
 		q.pos += q.vel * n
 		var e: float = q.t
-		var a: float = float(q.data["wobble"]) * MLib.S16
+		var a: float = float(q.data["wobble"]) * MathUtil.S16
 		var size: float = _adjust(e, 0, 18, 0.00156, 0.0078)
 		var hi: float = _adjust(e, 0, 30, 1.35, 0.85)
 		var lo: float = _adjust(e, 0, 30, 0.05, 0.55)

@@ -42,7 +42,7 @@ static func ftr_no(index: int) -> int:
 
 ## The item number for a port item, or −1.
 static func number_of(id: StringName) -> int:
-	var ftr: int = FtrCatalog.index_of(id)
+	var ftr: int = FurnitureCatalog.index_of(id)
 	if ftr >= 0:
 		return ftr_no(ftr)
 	var raw := String(id)
@@ -65,9 +65,9 @@ static func number_of(id: StringName) -> int:
 ## The port item for an item number, or `&""`.
 static func id_of(number: int) -> StringName:
 	if number >= FTR0_START and number < 0x2000:
-		return _known(FtrCatalog.item_id((number - FTR0_START) >> 2))
+		return _known(FurnitureCatalog.item_id((number - FTR0_START) >> 2))
 	if number >= FTR1_START and number < 0x4000:
-		return _known(FtrCatalog.item_id(0x400 + ((number - FTR1_START) >> 2)))
+		return _known(FurnitureCatalog.item_id(0x400 + ((number - FTR1_START) >> 2)))
 	if number >= CLOTH0 and number < CARPET0:
 		return _known(StringName("shirt_%03d" % (number - CLOTH0)))
 	if number >= CARPET0 and number < WALL0:

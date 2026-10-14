@@ -7,7 +7,7 @@ extends Node
 ## sea (0x1C, 175 GX further south); inland the two nearest river or waterfall sources of the
 ## 3×3 acres around the player play the river (0x0B). An acre with a pond plays its water
 ## (0x16) and, May to August at 18–21 and 4–6 o'clock, its frogs (0xA1). Loops are `lev_*`
-## renders, loud as `Ongen.volume` from the field mic. Not panned.
+## renders, loud as `SoundEmitter.volume` from the field mic. Not panned.
 
 const KIND_RIVER := 1
 const KIND_SEA := 2
@@ -91,7 +91,7 @@ func _process(_delta: float) -> void:
 		return
 	var layout: WorldData = world.layout
 	var player_gx: Vector3 = TownSpace.world_to_gx(player.global_position)
-	var mic: Vector3 = player_gx + Ongen.MIC_OFFSET_GX
+	var mic: Vector3 = player_gx + SoundEmitter.MIC_OFFSET_GX
 	var block: Vector2i = TownSpace.block_of(player_gx)
 	var sources: Array = []
 	if is_marine(layout, block):
@@ -116,13 +116,13 @@ func _process(_delta: float) -> void:
 		var id: StringName = sources[i][0]
 		var at: Vector3 = sources[i][1]
 		at.y = player_gx.y + SOURCE_LIFT_GX
-		var vol: float = Ongen.volume(mic.distance_to(at))
+		var vol: float = SoundEmitter.volume(mic.distance_to(at))
 		if vol <= 0.0:
 			p.stop()
 			continue
 		if p.get_meta(&"se", &"") != id:
 			p.stop()
-			p.stream = Ongen.looped(SeCatalog.stream_for(id))
+			p.stream = SoundEmitter.looped(SeCatalog.stream_for(id))
 			p.set_meta(&"se", id)
 		p.volume_db = linear_to_db(maxf(vol, 0.0001))
 		if p.stream != null and not p.playing:

@@ -57,7 +57,7 @@ const OUTLOOK_PAL_COUNT := 12
 @export var has_saved: bool = false
 ## `mHm_hs_c.haniwa` (`Haniwa_c`): the gyroid outside the house. Four held items, each
 ## `{ "item": StringName, "count": int, "cond": int (InventoryItem.Condition),
-## "exchange": int (HaniwaStore.Exchange), "price": int }` — an empty slot has item &"".
+## "exchange": int (GyroidStore.Exchange), "price": int }` — an empty slot has item &"".
 ## `haniwa_message` is shown to visitors (4 lines, `HANIWA_MESSAGE_LEN` 128); `haniwa_bells`
 ## is what visitors have paid and the owner has not collected yet.
 @export var haniwa_items: Array[Dictionary] = []

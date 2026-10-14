@@ -92,10 +92,10 @@ NPC houses are a different field type with a pre-arranged FTR set from villager 
 
 ## House cockroaches (`m_cockroach.c`, `ac_house_goki.c`, `ac_my_room_goki.c_inc`)
 
-- **Moving in** (`HouseGoki`): stay away more than 6 days and, when the game starts, one roach per day past the sixth moves in (a house that already has some adds the full gap), stored on `House.goki_count` (max 10) with the last-played date (`goki_year/month/day`). Playing resets the date: on every save (`Game.to_save`) and each daily renew.
+- **Moving in** (`HouseCockroaches`): stay away more than 6 days and, when the game starts, one roach per day past the sixth moves in (a house that already has some adds the full gap), stored on `House.goki_count` (max 10) with the last-played date (`goki_year/month/day`). Playing resets the date: on every save (`Game.to_save`) and each daily renew.
 - **Showing up**: entering any player floor lets up to three out (`MAX_VISIBLE`) — the first just behind the player, the rest on free floor in the first 4 / 6 / 8 cells square from unit 1 — and takes them out of the walls. The first roach of a session startles the player once (`goki_shocked_flag`, `Player.request_surprise`: a beat, then `gaaan1`, facing north). Survivors go back when you leave; the dead do not.
 - **Shoving furniture** uncovers one (`aMR_MakeGokiburi`) on a cell the piece left, while some are waiting and fewer than three are out; it fades in from alpha 30 and cannot be crushed until solid. The grip events carry `vacated` cells.
-- **The roach** (`house_goki.gd`, `ac_house_goki.c` action table): AWAY (runs from the player at 12 m/s, runs along walls, hops when cornered), JUMP_AWAY, WAIT, MOVE (dawdles), DEAD (blinks out). It dies when a moving player treads within 9 GX or when furniture lands on its cell. Speeds are the decomp's units at 30 Hz (1 unit = 1.5 m/s), timers 15 units/s.
+- **The roach** (`house_cockroach.gd`, `ac_house_goki.c` action table): AWAY (runs from the player at 12 m/s, runs along walls, hops when cornered), JUMP_AWAY, WAIT, MOVE (dawdles), DEAD (blinks out). It dies when a moving player treads within 9 GX or when furniture lands on its cell. Speeds are the decomp's units at 30 Hz (1 unit = 1.5 m/s), timers 15 units/s.
 - Debug: `/house goki [n]`, `/house neglect [days]`.
 - Not ported: the `ef_goki01` death puff and the two-frame leg animation (the pipeline merged both poses into one mesh), the door-threshold turn (`RSV_DOOR`), roaches scuttling under a piece as it moves (`aMR_CheckFtrAndGoki`), the island cottage.
 

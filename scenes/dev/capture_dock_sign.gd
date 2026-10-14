@@ -51,7 +51,7 @@ func _run() -> void:
 		return
 
 	var unit_m: float = FieldCatalog.ACRE_METERS / float(WorldGenerator.UT)
-	## `PORT_SIGN` FG unit on `grd_s_m_wf_*` (see `FgCatalog.ITEM_PORT_SIGN`).
+	## `PORT_SIGN` FG unit on `grd_s_m_wf_*` (see `FieldObjectCatalog.ITEM_PORT_SIGN`).
 	_sign_host.position = Vector3(
 		(PORT_SIGN_UT.x + 0.5) * unit_m,
 		0.0,

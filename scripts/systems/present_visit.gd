@@ -110,7 +110,7 @@ static func birthday_npc(residents: TownResidents, book: RelationshipBook) -> St
 static func present_for(kind: int) -> StringName:
 	match kind:
 		Kind.BIRTHDAY:
-			return FtrCatalog.item_id(BIRTHDAY_FTR)
+			return FurnitureCatalog.item_id(BIRTHDAY_FTR)
 		Kind.GOLDEN_ROD:
 			return GOLDEN_ROD
 		Kind.GOLDEN_NET:

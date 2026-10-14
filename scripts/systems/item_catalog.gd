@@ -21,7 +21,7 @@ static func ensure_loaded() -> void:
 	_load_dir(CREATURES_DIR)
 	_loaded = true
 	MinidiskCatalog.register_items()
-	FtrCatalog.register_items()
+	FurnitureCatalog.register_items()
 	VillagerQuests.register_items()
 
 
@@ -61,7 +61,7 @@ static func furniture_for_visual(visual_id: StringName) -> FurnitureData:
 	var existing: ItemData = _by_id.get(visual_id) as ItemData
 	if existing is FurnitureData:
 		return existing as FurnitureData
-	## Authored pieces first. Disc catalog rows (`ftr_<n>`, `FtrCatalog.register_items`) only
+	## Authored pieces first. Disc catalog rows (`ftr_<n>`, `FurnitureCatalog.register_items`) only
 	## lend their name and price: rooms and code refer to FG furniture by model id.
 	var disc: FurnitureData = null
 	for value: Variant in _by_id.values():

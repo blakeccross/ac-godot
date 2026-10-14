@@ -409,7 +409,7 @@ func _setup_player_portrait() -> void:
 	## `mIV_set_player` → `mSM_change_view(330, 25, …, angle=0x900, 256²)`: FOV 20°,
 	## eye 0x900 short-angle (~12.66°) above `y_lookAt`. `eye_dist` / `y_lookAt` are
 	## set from the player AABB below so the framing matches whatever `actor_scale` is.
-	var elev: float = float(0x900) * MLib.S16
+	var elev: float = float(0x900) * MathUtil.S16
 	var cam := Camera3D.new()
 	cam.current = true
 	cam.fov = 20.0
@@ -1091,7 +1091,7 @@ func open() -> void:
 func open_haniwa(house: House, owner: bool) -> void:
 	if house == null:
 		return
-	HaniwaStore.ensure(house)
+	GyroidStore.ensure(house)
 	open()
 	if not _open:
 		return
@@ -2230,7 +2230,7 @@ func _build_haniwa_table() -> void:
 	_haniwa_root.name = "HaniwaTable"
 	_haniwa_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	host.add_child(_haniwa_root)
-	for i: int in HaniwaStore.SLOTS:
+	for i: int in GyroidStore.SLOTS:
 		var mail_btn: Button = _mail_buttons[MAIL_ROW_OFFSET * Inventory.MAIL_COLUMNS + i]
 		var btn: Button = _slot_buttons[0].duplicate() as Button
 		btn.name = "HaniwaSlot%d" % i
@@ -2306,7 +2306,7 @@ func _activate_haniwa_cursor() -> void:
 	if house == null:
 		return
 	var inv: Inventory = Game.inventory
-	var empty: bool = HaniwaStore.is_empty_slot(house, _haniwa_sel)
+	var empty: bool = GyroidStore.is_empty_slot(house, _haniwa_sel)
 	_tag_choices = PackedStringArray()
 	_haniwa_put_pocket = -1
 	if _haniwa_owner:
@@ -2320,7 +2320,7 @@ func _activate_haniwa_cursor() -> void:
 		elif not empty:
 			## `mTG_haniwa_item`.
 			_tag_choices = PackedStringArray(["Grab", "Free", "Set price", "Display only", "Quit"])
-	elif not empty and int(HaniwaStore.item_at(house, _haniwa_sel)["exchange"]) != HaniwaStore.Exchange.DISPLAY:
+	elif not empty and int(GyroidStore.item_at(house, _haniwa_sel)["exchange"]) != GyroidStore.Exchange.DISPLAY:
 		## `mTG_haniwa_get_item`.
 		_tag_choices = PackedStringArray(["Take it", "Quit"])
 	if _tag_choices.is_empty():
@@ -2339,51 +2339,51 @@ func _run_haniwa_tag(tag: String) -> void:
 	_tag_mode = false
 	match tag:
 		"Free":
-			_haniwa_set_terms(HaniwaStore.Exchange.FREE, 0)
+			_haniwa_set_terms(GyroidStore.Exchange.FREE, 0)
 		"Display only":
-			_haniwa_set_terms(HaniwaStore.Exchange.DISPLAY, 0)
+			_haniwa_set_terms(GyroidStore.Exchange.DISPLAY, 0)
 		"Set price":
 			## `mTG_priceset_proc`: starts from the item's current price.
 			_price_mode = true
 			_price_digit = 4
-			_price = int(HaniwaStore.item_at(house, _haniwa_sel)["price"]) if _haniwa_put_pocket < 0 else 0
+			_price = int(GyroidStore.item_at(house, _haniwa_sel)["price"]) if _haniwa_put_pocket < 0 else 0
 			Audio.play_se(&"33")
 		"Grab":
-			if HaniwaStore.take_back(house, _haniwa_sel, inv):
+			if GyroidStore.take_back(house, _haniwa_sel, inv):
 				Audio.play_se(&"60")
 			else:
-				_haniwa_say(HaniwaStore.MSG_NO_ROOM)
+				_haniwa_say(GyroidStore.MSG_NO_ROOM)
 				Audio.play_se(&"3")
 		"Take it":
-			var paid: bool = int(HaniwaStore.item_at(house, _haniwa_sel)["price"]) > 0
-			match HaniwaStore.buy(house, _haniwa_sel, inv):
+			var paid: bool = int(GyroidStore.item_at(house, _haniwa_sel)["price"]) > 0
+			match GyroidStore.buy(house, _haniwa_sel, inv):
 				&"ok":
-					_haniwa_say(HaniwaStore.MSG_THANKS)
+					_haniwa_say(GyroidStore.MSG_THANKS)
 					## `NA_SE_5F` for a gift, the till for a sale.
 					Audio.play_se(&"register" if paid else &"5f")
 				&"no_room":
-					_haniwa_say(HaniwaStore.MSG_NO_ROOM)
+					_haniwa_say(GyroidStore.MSG_NO_ROOM)
 					Audio.play_se(&"3")
 				&"no_money":
-					_haniwa_say(HaniwaStore.MSG_CANT_AFFORD)
+					_haniwa_say(GyroidStore.MSG_CANT_AFFORD)
 					Audio.play_se(&"3")
 	_refresh()
 	_update_hand_cursor(true)
 
 
 ## `mTG_set_trade_cond`: put the held pocket item in on these terms, or re-term an item.
-func _haniwa_set_terms(exchange: HaniwaStore.Exchange, price: int) -> void:
+func _haniwa_set_terms(exchange: GyroidStore.Exchange, price: int) -> void:
 	var house: House = _haniwa_house
 	var inv: Inventory = Game.inventory
 	if _haniwa_put_pocket >= 0:
-		if not HaniwaStore.entrust(house, _haniwa_sel, inv, _haniwa_put_pocket, exchange, price):
+		if not GyroidStore.entrust(house, _haniwa_sel, inv, _haniwa_put_pocket, exchange, price):
 			return
 		_play_hand_clip("hnd_sasu", true)
 	else:
-		HaniwaStore.set_terms(house, _haniwa_sel, exchange, price)
+		GyroidStore.set_terms(house, _haniwa_sel, exchange, price)
 	_haniwa_put_pocket = -1
 	Audio.play_se(&"33")
-	_haniwa_say(HaniwaStore.MSG_GOT_IT)
+	_haniwa_say(GyroidStore.MSG_GOT_IT)
 
 
 ## `mTG_mv_priceSet`: left/right pick a digit, up/down step it, A sets (0 = free), B backs out.
@@ -2395,16 +2395,16 @@ func _handle_price_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
 		_price_mode = false
 		if _price == 0:
-			_haniwa_set_terms(HaniwaStore.Exchange.FREE, 0)
+			_haniwa_set_terms(GyroidStore.Exchange.FREE, 0)
 		else:
-			_haniwa_set_terms(HaniwaStore.Exchange.SALE, _price)
+			_haniwa_set_terms(GyroidStore.Exchange.SALE, _price)
 	elif event.is_action_pressed("ui_up") or event.is_action_pressed("move_forward"):
-		var up: int = HaniwaStore.step_price(_price, _price_digit, 1)
+		var up: int = GyroidStore.step_price(_price, _price_digit, 1)
 		if up != _price:
 			Audio.play_se(&"426")
 		_price = up
 	elif event.is_action_pressed("ui_down") or event.is_action_pressed("move_back"):
-		var down: int = HaniwaStore.step_price(_price, _price_digit, -1)
+		var down: int = GyroidStore.step_price(_price, _price_digit, -1)
 		if down != _price:
 			Audio.play_se(&"426")
 		_price = down
@@ -2413,7 +2413,7 @@ func _handle_price_input(event: InputEvent) -> void:
 			_price_digit -= 1
 			Audio.play_se(&"cursol")
 	elif event.is_action_pressed("ui_right") or event.is_action_pressed("move_right"):
-		if _price_digit < HaniwaStore.PRICE_STEPS.size() - 1:
+		if _price_digit < GyroidStore.PRICE_STEPS.size() - 1:
 			_price_digit += 1
 			Audio.play_se(&"cursol")
 	else:
@@ -2453,7 +2453,7 @@ func _refresh_haniwa() -> void:
 		var style: StyleBox = style_item_selected if selected else style_item
 		for key: String in ["normal", "hover", "pressed", "disabled", "focus"]:
 			btn.add_theme_stylebox_override(key, style)
-		var rec: Dictionary = HaniwaStore.item_at(house, i)
+		var rec: Dictionary = GyroidStore.item_at(house, i)
 		var id: StringName = StringName(rec.get("item", &""))
 		btn.text = ""
 		if id == &"":
@@ -2470,9 +2470,9 @@ func _refresh_haniwa() -> void:
 	var line: String = _haniwa_interrupt
 	if line == "":
 		if _price_mode:
-			line = HaniwaStore.MSG_HOW_MUCH + "\n" + _price_text()
+			line = GyroidStore.MSG_HOW_MUCH + "\n" + _price_text()
 		elif _haniwa_tag_mode:
-			line = HaniwaStore.MSG_CHOOSE_ONE
+			line = GyroidStore.MSG_CHOOSE_ONE
 		else:
-			line = HaniwaStore.status_line(house, _haniwa_sel if _focus_haniwa else -1, _haniwa_owner)
+			line = GyroidStore.status_line(house, _haniwa_sel if _focus_haniwa else -1, _haniwa_owner)
 	_haniwa_status.text = line

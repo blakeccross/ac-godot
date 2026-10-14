@@ -56,8 +56,8 @@ func _make_sense() -> BugActor.Sense:
 	var grid: Variant = _grid_for()
 	if grid is WorldGrid:
 		var layout := _layout_for()
-		sense.bg = BugBg.make_probe(grid, layout)
-		sense.ground = BugBg.make_ground(grid, layout)
+		sense.bg = BugTerrain.make_probe(grid, layout)
+		sense.ground = BugTerrain.make_ground(grid, layout)
 		sense.layout = layout
 		sense.grid = grid
 	if player != null:

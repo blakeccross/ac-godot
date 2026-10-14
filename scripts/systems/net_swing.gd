@@ -186,7 +186,7 @@ func tick(
 
 ## World position of a point on the net's shaft, from the hand joint's world transform.
 static func net_point(hand: Transform3D, along_gx: float) -> Vector3:
-	var basis: Basis = hand.basis.orthonormalized() * Basis(Vector3.UP, MLib.s16_to_rad(NET_YAW_S16))
+	var basis: Basis = hand.basis.orthonormalized() * Basis(Vector3.UP, MathUtil.s16_to_rad(NET_YAW_S16))
 	return hand.origin + basis * Vector3(0.0, 0.0, along_gx * FieldCatalog.GX_TO_METERS)
 
 
@@ -212,7 +212,7 @@ func _tick_ready_walk(
 	wall_ratio: float
 ) -> void:
 	var mod: float = PlayerLocomotion.turn_mod(stick)
-	yaw = MLib.short_angle2(
+	yaw = MathUtil.short_angle2(
 		yaw, wish_yaw, 1.0 - sqrt(1.0 - mod), PlayerLocomotion.TURN_MAX_RAD,
 		PlayerLocomotion.TURN_MIN_RAD, delta * DecompTime.TICK_HZ
 	)

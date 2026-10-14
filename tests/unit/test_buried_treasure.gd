@@ -14,8 +14,8 @@ func test_once_a_day_from_six_three_days_apart() -> void:
 func test_a_third_are_pitfalls_the_rest_rare_furniture() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 9
-	var lottery: Array[StringName] = FtrCatalog.list("lottery")
-	var events: Array[StringName] = FtrCatalog.list("event")
+	var lottery: Array[StringName] = FurnitureCatalog.list("lottery")
+	var events: Array[StringName] = FurnitureCatalog.list("event")
 	var pits: int = 0
 	for _i: int in 300:
 		var item: StringName = BuriedTreasure.pick_item(rng)

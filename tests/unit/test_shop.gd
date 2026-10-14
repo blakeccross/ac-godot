@@ -385,9 +385,9 @@ func test_reserve_points_match_fg_templates() -> void:
 		for slot: Dictionary in slots:
 			var y: float = float(slot["y_gx"])
 			assert_float(y).is_equal(0.0 if on_floor.has(slot["kind"]) else ShopDisplay.SHELF)
-		if not FgCatalog.has_catalog():
+		if not FieldObjectCatalog.has_catalog():
 			continue
-		var items: PackedInt32Array = FgCatalog.items(int(ShopDisplay.STOCK_FG_TYPES[room_id]))
+		var items: PackedInt32Array = FieldObjectCatalog.items(int(ShopDisplay.STOCK_FG_TYPES[room_id]))
 		var expected: Array = []
 		for i: int in items.size():
 			if kinds.has(items[i]):
@@ -447,15 +447,15 @@ func test_december_puts_festive_furniture_first() -> void:
 	rng.seed = 3
 	var picks: Array[StringName] = [&"a", &"b", &"c"]
 	var xmas: Array[StringName] = ShopGoods.season_ftr(picks, 12, 10, rng)
-	assert_str(String(xmas[0])).is_equal(String(FtrCatalog.item_id(943)))
-	assert_str(String(xmas[1])).is_equal(String(FtrCatalog.item_id(930)))
+	assert_str(String(xmas[0])).is_equal(String(FurnitureCatalog.item_id(943)))
+	assert_str(String(xmas[1])).is_equal(String(FurnitureCatalog.item_id(930)))
 	assert_str(String(xmas[2])).is_equal("c")
 	var new_year: Array[StringName] = ShopGoods.season_ftr(picks, 12, 27, rng)
-	assert_str(String(new_year[0])).is_equal(String(FtrCatalog.item_id(1190)))
+	assert_str(String(new_year[0])).is_equal(String(FurnitureCatalog.item_id(1190)))
 	assert_that(ShopGoods.season_ftr(picks, 12, 25, rng)).is_equal(picks)
 	assert_that(ShopGoods.season_ftr(picks, 11, 30, rng)).is_equal(picks)
 	var one: Array[StringName] = ShopGoods.season_ftr([&"a"] as Array[StringName], 12, 1, rng)
-	assert_bool(String(one[0]) in [String(FtrCatalog.item_id(943)), String(FtrCatalog.item_id(930))]).is_true()
+	assert_bool(String(one[0]) in [String(FurnitureCatalog.item_id(943)), String(FurnitureCatalog.item_id(930))]).is_true()
 
 func test_timmy_and_tommy_keep_nookingtons_upstairs() -> void:
 	var room: Room = InteriorCatalog.room_template(&"shop3_2")

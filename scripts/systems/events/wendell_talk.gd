@@ -72,7 +72,7 @@ func next_step() -> Dictionary:
 	if current_msg != MSG_FISH:
 		return {}
 	var given: Array = area.get("walls", [])
-	present = FtrCatalog.pick_named("wall", "Event", rng, given)
+	present = FurnitureCatalog.pick_named("wall", "Event", rng, given)
 	var used: int = int(area.get("used", 0))
 	if used < ENTRY_SAVE_NUM:
 		given.append(present)

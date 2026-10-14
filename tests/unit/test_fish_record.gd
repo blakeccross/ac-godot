@@ -76,8 +76,8 @@ func test_the_winner_gets_a_letter_after_six() -> void:
 
 
 func test_the_prize_is_furniture_not_yet_owned() -> void:
-	var lottery: Array[StringName] = FtrCatalog.list("lottery")
-	var events: Array[StringName] = FtrCatalog.list("event")
+	var lottery: Array[StringName] = FurnitureCatalog.list("lottery")
+	var events: Array[StringName] = FurnitureCatalog.list("event")
 	if lottery.is_empty() or events.is_empty():
 		return
 	var owned: Array = lottery.duplicate()

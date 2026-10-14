@@ -50,7 +50,7 @@ func prepare() -> void:
 	for _i: int in int(area.get("used", 0)):
 		price *= 2
 	set_free(0, number(price))
-	carpet = FtrCatalog.pick_named("carpet", "Event", rng)
+	carpet = FurnitureCatalog.pick_named("carpet", "Event", rng)
 	var data: ItemData = ItemCatalog.get_item(carpet)
 	context.set_item_str(0, PoliceTalk.with_article(data.display_name) if data != null else "")
 

@@ -128,14 +128,14 @@ static func _assign_groups() -> void:
 ## `ftr_<n>` or an authored piece's model to its disc furniture index, −1 if none.
 static func ftr_index(furniture_id: StringName) -> int:
 	var id := String(furniture_id)
-	if id.begins_with(FtrCatalog.ID_PREFIX) and id.substr(4).is_valid_int():
+	if id.begins_with(FurnitureCatalog.ID_PREFIX) and id.substr(4).is_valid_int():
 		return id.substr(4).to_int()
 	var item: ItemData = ItemCatalog.get_item(furniture_id)
 	if not (item is FurnitureData):
 		return -1
 	if _visual_index.is_empty():
-		for i: int in FtrCatalog.count():
-			_visual_index[str(FtrCatalog.row(i).get("visual", ""))] = i
+		for i: int in FurnitureCatalog.count():
+			_visual_index[str(FurnitureCatalog.row(i).get("visual", ""))] = i
 	return int(_visual_index.get(String((item as FurnitureData).visual_id), -1))
 
 
@@ -480,8 +480,8 @@ func mark(house: House, main: Room, upper: Room, today: Vector3i, first_job: boo
 static func _rec_name(rec: Dictionary) -> String:
 	if rec.is_empty() or int(rec.get("index", -1)) < 0:
 		return ""
-	var id: StringName = FtrCatalog.item_id(int(rec["index"])) if rec["kind"] == "ftr" \
-		else FtrCatalog.goods_id(str(rec["kind"]), int(rec["index"]))
+	var id: StringName = FurnitureCatalog.item_id(int(rec["index"])) if rec["kind"] == "ftr" \
+		else FurnitureCatalog.goods_id(str(rec["kind"]), int(rec["index"]))
 	var item: ItemData = ItemCatalog.get_item(id)
 	return item.display_name if item != null else ""
 

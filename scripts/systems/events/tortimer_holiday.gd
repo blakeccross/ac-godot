@@ -75,18 +75,18 @@ func trophy_item() -> StringName:
 	match event:
 		NEW_YEARS_DAY:
 			## The off-by-one keeps the 16th diary out (`RANDOM(DIARY_NUM - 1)`).
-			var diaries: Array[StringName] = FtrCatalog.list("ftr_diary")
+			var diaries: Array[StringName] = FurnitureCatalog.list("ftr_diary")
 			if diaries.size() > 1:
 				return diaries[rng.randi_range(0, diaries.size() - 2)]
 			return &"apple"
 		TOY_DAY:
-			return FtrCatalog.item_id(1065 if female else 1061)
+			return FurnitureCatalog.item_id(1065 if female else 1061)
 		TOWN_DAY:
-			return FtrCatalog.pick_named("ftr", "Train", rng)
+			return FurnitureCatalog.pick_named("ftr", "Train", rng)
 		GROUNDHOG_DAY:
-			return FtrCatalog.item_id(GROUNDHOG_FIRST + rng.randi_range(0, 8))
+			return FurnitureCatalog.item_id(GROUNDHOG_FIRST + rng.randi_range(0, 8))
 	var n: int = TROPHY_FTR[event] if event >= 0 and event < TROPHY_FTR.size() else -1
-	return FtrCatalog.item_id(n) if n >= 0 else &"apple"
+	return FurnitureCatalog.item_id(n) if n >= 0 else &"apple"
 
 
 func _has_trophy() -> bool:

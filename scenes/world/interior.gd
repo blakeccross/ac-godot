@@ -5,7 +5,7 @@ extends Node3D
 
 const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
 const VILLAGER_SCENE := preload("res://scenes/actors/villager.tscn")
-const GOKI_SCENE := preload("res://scenes/world/house_goki.tscn")
+const GOKI_SCENE := preload("res://scenes/world/house_cockroach.tscn")
 
 var grid: WorldGrid
 var session: IndoorSession
@@ -144,7 +144,7 @@ func _exit_tree() -> void:
 	Audio.stop_syslev()
 	## Whatever is still scuttling goes back into the walls (`aMR_GokiInfoDt`).
 	if session != null and session.room != null and PlayerHouse.is_player_room(session.room.id):
-		HouseGoki.return_survivors(Game.interiors.player_house(), _live_gokis())
+		HouseCockroaches.return_survivors(Game.interiors.player_house(), _live_gokis())
 	if Game.interior_session == session:
 		Game.bind_interior(null)
 
@@ -192,7 +192,7 @@ func _spawn_gokis(room: Room) -> void:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	var spawns: Array[Dictionary] = HouseGoki.entry_spawns(
+	var spawns: Array[Dictionary] = HouseCockroaches.entry_spawns(
 		session, Game.interiors.player_house(), player.global_position, rng
 	)
 	for spawn: Dictionary in spawns:
@@ -212,7 +212,7 @@ func add_goki(pos: Vector3, fade: bool) -> Node:
 
 func _live_gokis() -> int:
 	var n: int = 0
-	for node: Node in get_tree().get_nodes_in_group("house_goki") if get_tree() != null else []:
+	for node: Node in get_tree().get_nodes_in_group("house_cockroaches") if get_tree() != null else []:
 		if bool(node.get("alive")):
 			n += 1
 	return n
@@ -223,7 +223,7 @@ func on_furniture_moved(vacated: Array) -> void:
 	if session == null or session.room == null or not PlayerHouse.is_player_room(session.room.id):
 		return
 	for entry: Variant in vacated:
-		var spawn: Dictionary = HouseGoki.furniture_spawn(
+		var spawn: Dictionary = HouseCockroaches.furniture_spawn(
 			session, Game.interiors.player_house(), entry as Vector2i, _live_gokis()
 		)
 		if not spawn.is_empty():

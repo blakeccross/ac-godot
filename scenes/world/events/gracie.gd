@@ -51,7 +51,7 @@ func _fill(t: GracieTalk) -> void:
 	t.result = _result
 	if Game != null:
 		t.female = String(Game.player_gender) == "girl" or String(Game.player_gender) == "female"
-		t.wearing = FtrCatalog.named_list("cloth", "Event").has(Game.cloth_id)
+		t.wearing = FurnitureCatalog.named_list("cloth", "Event").has(Game.cloth_id)
 		t.holding_tool = Game.inventory != null and Game.inventory.equipment_id != &""
 
 

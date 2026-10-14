@@ -992,11 +992,11 @@ func test_show_off_turn_settles_facing_the_camera() -> void:
 func test_min_step_keeps_a_turn_from_stalling_short() -> void:
 	## With `minStep == 0` the proportional step rounds away and the value snaps, which is
 	## what the bobber's tilt wants.
-	assert_float(MLib.short_angle2(0.0, 1e-9, 0.5, 1.0)).is_equal(1e-9)
+	assert_float(MathUtil.short_angle2(0.0, 1e-9, 0.5, 1.0)).is_equal(1e-9)
 	## `notice_rod` passes 50, so a turn this close still moves by exactly that floor instead
 	## of creeping in ever-smaller fractions.
 	var near: float = PlayerLocomotion.TURN_MIN_RAD * 0.5
-	var stepped: float = MLib.short_angle2(
+	var stepped: float = MathUtil.short_angle2(
 		near, 0.0, 0.0001, PlayerLocomotion.TURN_MAX_RAD, PlayerLocomotion.TURN_MIN_RAD
 	)
 	## The floor overshoots what is left, so it lands on the target rather than past it.

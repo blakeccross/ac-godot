@@ -2,7 +2,7 @@ class_name TestBugCatching
 extends GdUnitTestSuite
 
 ## Framework + spawn + net-catch coverage. Program-specific movement is exercised
-## by `test_bug_programs.gd`.
+## by `test_bug_behaviors.gd`.
 
 class _FacingActor extends Node3D:
 	var yaw: float = 0.0

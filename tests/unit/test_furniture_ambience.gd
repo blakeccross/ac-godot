@@ -87,7 +87,7 @@ func test_the_hot_pot_puffs_every_ten_to_thirty_ticks_while_boiling() -> void:
 
 func test_steam_rises_and_thins() -> void:
 	var at: Array[Vector3] = [Vector3.ZERO]
-	var style: FieldParticle.Style = FieldParticle.style_for(FieldFx.Kind.SOBA_YUGE, 0.0, 10, 0, at)
+	var style: FieldParticle.Style = FieldParticle.style_for(FieldEffects.Kind.SOBA_YUGE, 0.0, 10, 0, at)
 	assert_float(style.lifetime).is_equal_approx(44.0 / 60.0, 0.0001)
 	## Starts 10 GX out on some heading, 1 up, then rises.
 	var out: Vector3 = at[0] / FieldCatalog.GX_TO_METERS

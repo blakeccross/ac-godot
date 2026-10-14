@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Feng shui (`m_huusui_room_ovl.c`): the player's rooms are scored whenever the field is
 ## left or a game starts (`mHsRm_GetHuusuiRoom`). Each piece of furniture has a colour
-## (`mMkRm_ftr_info`, from the disc via `FtrCatalog`): yellow pays money power on the west
+## (`mMkRm_ftr_info`, from the disc via `FurnitureCatalog`): yellow pays money power on the west
 ## side, red goods power on the east, orange both on the north, green both on the south;
 ## lucky items pay both anywhere. A piece counts for a side only when every unit it covers
 ## is in that side's band (one unit from the wall in a small room for 1×1 pieces, else two).
@@ -96,18 +96,18 @@ static func finish_goods(goods: int) -> int:
 static func info(data: FurnitureData) -> Vector2i:
 	if data == null:
 		return Vector2i.ZERO
-	var idx: int = FtrCatalog.index_of(data.id)
+	var idx: int = FurnitureCatalog.index_of(data.id)
 	if idx < 0:
 		if _by_visual.is_empty():
-			for i: int in FtrCatalog.count():
-				var r: Dictionary = FtrCatalog.row(i)
+			for i: int in FurnitureCatalog.count():
+				var r: Dictionary = FurnitureCatalog.row(i)
 				var v := StringName(str(r.get("visual", "")))
 				if v != &"" and not _by_visual.has(v):
 					_by_visual[v] = i
 		idx = int(_by_visual.get(data.visual_id, -1))
 	if idx < 0:
 		return Vector2i.ZERO
-	var row: Dictionary = FtrCatalog.row(idx)
+	var row: Dictionary = FurnitureCatalog.row(idx)
 	return Vector2i(int(row.get("huusui", 0)), 1 if bool(row.get("face", false)) else 0)
 
 

@@ -295,7 +295,7 @@ static func bury_gyroids(world: Node, grid: WorldGrid, rng: RandomNumberGenerato
 	for i: int in HANIWA_NUM:
 		if blocks.is_empty():
 			break
-		var id: StringName = FtrCatalog.pick(HANIWA_BIRTH, rng, picked)
+		var id: StringName = FurnitureCatalog.pick(HANIWA_BIRTH, rng, picked)
 		if id == &"":
 			break
 		picked.append(id)

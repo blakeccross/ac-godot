@@ -194,7 +194,7 @@ func execute(raw: String) -> String:
 			var tw_player := Player.find(Engine.get_main_loop() as SceneTree)
 			if tw_player == null:
 				return "No player."
-			StepFx.umbrella_spray(tw_player.global_position, tw_player.facing_yaw())
+			FootstepEffects.umbrella_spray(tw_player.global_position, tw_player.facing_yaw())
 			return "Twirled."
 		"wish":
 			## The New Year's visit at the wishing well, coin and all (no question asked).
@@ -333,7 +333,7 @@ func execute(raw: String) -> String:
 				## Every wallpaper and carpet as if collected.
 				for kind: String in ["wall", "carpet"]:
 					for i: int in 67:
-						var goods: StringName = FtrCatalog.goods_id(kind, i)
+						var goods: StringName = FurnitureCatalog.goods_id(kind, i)
 						if goods != &"":
 							Game.catalog.record(goods)
 			clg.call("open")
@@ -936,7 +936,7 @@ func _cmd_bug(args: PackedStringArray) -> String:
 	var player := Player.find(tree)
 	if world == null or player == null or world.layout == null:
 		return "Bugs need the outdoor field."
-	if bug.type_index == BugAnt.TYPE:
+	if bug.type_index == Ant.TYPE:
 		return _cmd_ants(bug, world, player)
 	var count: int = clampi(int(args[1]) if args.size() > 1 else 1, 1, BugField.MAX_ACTORS)
 	var habitat: BugData.Habitat = (
@@ -1154,7 +1154,7 @@ func _cmd_shop(args: PackedStringArray) -> String:
 			shop.kabu.price_today()
 			for d: int in 7:
 				week.append("%s %d" % [String(ClockService.WEEKDAYS[d]).substr(0, 3), shop.kabu.price_on(d)])
-			return "Turnips (%s): %s" % [KabuMarket.Trend.keys()[shop.kabu.trend], ", ".join(week)]
+			return "Turnips (%s): %s" % [StalkMarket.Trend.keys()[shop.kabu.trend], ", ".join(week)]
 		"status":
 			pass
 		_:
@@ -1221,8 +1221,8 @@ func _cmd_house(args: PackedStringArray) -> String:
 			return "Loan set to %d." % Game.inventory.loan
 		"goki":
 			if args.size() < 2 or not String(args[1]).is_valid_int():
-				return "Cockroaches waiting: %d (last played %d days ago)." % [house.goki_count, HouseGoki.days_away(house)]
-			house.goki_count = HouseGoki.clamp_count(int(args[1]))
+				return "Cockroaches waiting: %d (last played %d days ago)." % [house.goki_count, HouseCockroaches.days_away(house)]
+			house.goki_count = HouseCockroaches.clamp_count(int(args[1]))
 			return "%d cockroaches are waiting in the walls." % house.goki_count
 		"neglect":
 			var days: int = int(args[1]) if args.size() >= 2 and String(args[1]).is_valid_int() else 10
@@ -1232,7 +1232,7 @@ func _cmd_house(args: PackedStringArray) -> String:
 			house.goki_year = int(then["year"])
 			house.goki_month = int(then["month"])
 			house.goki_day = int(then["day"])
-			HouseGoki.decide_family_count(house)
+			HouseCockroaches.decide_family_count(house)
 			return "Away %d days: %d cockroaches waiting." % [days, house.goki_count]
 		"statue":
 			if args.size() >= 2 and String(args[1]).to_lower() == "built":
