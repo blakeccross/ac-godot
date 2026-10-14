@@ -22,12 +22,12 @@ func _ball() -> FieldBall:
 func test_a_walking_nudge_rolls_it_a_running_kick_lofts_it() -> void:
 	var ball := _ball()
 	## About walking pace (2 GX a frame): almost flat.
-	ball.kick(Vector2(0.0, 1.0), Vector2(0.0, 2.0))
+	ball.kick(Vector2(0.0, 1.0), Vector2(0.0, 2.0 * FieldBall.FRAME))
 	assert_float(ball.speed).is_greater(0.0)
 	assert_float(ball.vy).is_less(ball.speed)
 	var lofted := _ball()
 	## Running (7.5 GX a frame): it goes up more than along.
-	lofted.kick(Vector2(0.0, 1.0), Vector2(0.0, 7.5))
+	lofted.kick(Vector2(0.0, 1.0), Vector2(0.0, 7.5 * FieldBall.FRAME))
 	assert_float(lofted.vy).is_greater(lofted.speed)
 	assert_bool(lofted.on_ground).is_false()
 	ball.queue_free()
@@ -36,9 +36,9 @@ func test_a_walking_nudge_rolls_it_a_running_kick_lofts_it() -> void:
 
 func test_kick_is_capped_and_heads_away() -> void:
 	var ball := _ball()
-	ball.speed = 5.0
+	ball.speed = 5.0 * FieldBall.FRAME
 	ball.heading = 0.0
-	ball.kick(Vector2(1.0, 0.0), Vector2(30.0, 0.0))
+	ball.kick(Vector2(1.0, 0.0), Vector2(30.0 * FieldBall.FRAME, 0.0))
 	assert_float(ball.speed).is_less_equal(FieldBall.MAX_KICK)
 	## Pushed toward +x from the side.
 	assert_float(sin(ball.heading)).is_greater(0.0)
@@ -63,7 +63,7 @@ func test_tools_reach_it_in_front() -> void:
 	ball.in_hole = true
 	assert_bool(ball.hit_by_shovel(Vector3.ZERO, 0.0)).is_true()
 	assert_bool(ball.in_hole).is_false()
-	assert_float(ball.vy).is_equal(4.5)
+	assert_float(ball.vy).is_equal_approx(4.5 * FieldBall.FRAME, 0.0001)
 	ball.queue_free()
 
 
