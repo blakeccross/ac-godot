@@ -43,9 +43,8 @@ const FEMALE_BONES: Array[String] = ["_girl_model", "_girl_face_model", "_girl_m
 var house_no: int = -1
 var _anchor := Vector3.ZERO
 var _model: Node3D = null
-## `arg0_f`…: ticks to the next glint.
-var _glint_wait: int = 0
-var _glint_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
+## `arg0_f`…: seconds to the next glint.
+var _glint_wait: float = 0.0
 var _rng := RandomNumberGenerator.new()
 
 
@@ -59,14 +58,12 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if house_no < 0 or _model == null:
 		return
-	_glint_steps.add(delta)
-	while _glint_steps.next():
-		if _glint_wait > 0:
-			_glint_wait -= 1
-			continue
-		var rank: int = clampi(_rank(), 0, 3)
-		_glint_wait = StatueSparkle.next_wait(rank, _rng)
-		StatueSparkle.spawn(get_parent(), global_position, rank, _rng)
+	_glint_wait -= delta
+	if _glint_wait > 0.0:
+		return
+	var rank: int = clampi(_rank(), 0, 3)
+	_glint_wait = StatueSparkle.next_wait(rank, _rng)
+	StatueSparkle.spawn(get_parent(), global_position, rank, _rng)
 
 
 func _rank() -> int:

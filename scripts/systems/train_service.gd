@@ -1,14 +1,14 @@
 class_name TrainService
 extends Node
 
-## Runs the town train for the whole play session (`mTRC_init` once, `mTRC_move` every play
-## frame, indoors too; it stops while the game is paused, like `mSM_PROCESS_WAIT`). Owned by
+## Runs the town train for the whole play session (`mTRC_init` once, `mTRC_move` every physics
+## step, indoors too; it stops while the game is paused, like `mSM_PROCESS_WAIT`). Owned by
 ## `Game`. Drives the `FieldTrain` in the loaded outdoor scene and plays the train's sounds
 ## (`Na_KishaStatusTrg` / `Na_KishaStatusLevel`).
 ##
 ## Sounds are placed against the decomp "mic": the player + (0, 240, 77) GX outdoors, the exit
 ## door indoors (`mTRC_SetMicPos`). Stereo pan uses one shared panner on the `Train` bus, set
-## from the locomotive's bearing each tick (the wheel clack really comes from 250 GX behind).
+## from the locomotive's bearing each step (the wheel clack really comes from 250 GX behind).
 
 ## `train_position.y` (GAFE01_00 `mTRC_*_init`): the height the sounds use.
 const SOUND_Y_GX := 180.0
@@ -31,17 +31,20 @@ const KITEKI_MIN := 320.0
 const KITEKI_MAX := 6400.0
 
 const BUS := "Train"
+## Where in their cycles the chuff and the clack sound (`sou_shu_count == 4`, `== 10`).
+const CHUFF_AT := 3.0 / DecompTime.TICK_HZ
+const CLACK_AT := 9.0 / DecompTime.TICK_HZ
 
 var control: TrainControl = TrainControl.new()
 
 var _initialized: bool = false
-## `train_coming_flag = 3` (`aID_first_set`): the next tick runs `mTRC_demo_init`.
+## `train_coming_flag = 3` (`aID_first_set`): the next step runs `mTRC_demo_init`.
 var _coming_demo: bool = false
-var _steps := FrameStepper.new()
-## `sou_kisha_status`, `sou_shu_count`, `sou_tonton_count`.
+## `sou_kisha_status`, and seconds into the chuff and clack cycles (`sou_shu_count`,
+## `sou_tonton_count`).
 var _status: int = 0
-var _shu: int = 0
-var _tonton: int = 0
+var _shu: float = 0.0
+var _tonton: float = 0.0
 var _run_player: AudioStreamPlayer
 var _panner: AudioEffectPanner
 
@@ -59,10 +62,9 @@ func _ready() -> void:
 func reset() -> void:
 	_initialized = false
 	_coming_demo = false
-	_steps.reset()
 	_status = 0
-	_shu = 0
-	_tonton = 0
+	_shu = 0.0
+	_tonton = 0.0
 	_stop_run()
 	var train: FieldTrain = _field_train()
 	if train != null:
@@ -79,9 +81,7 @@ func _physics_process(delta: float) -> void:
 	if not _initialized:
 		control.init(Clock.now_sec(), Clock.day)
 		_initialized = true
-	_steps.add(delta)
-	while _steps.next():
-		_tick()
+	_advance(delta)
 
 
 ## `aID_first_set`: `Common_Set(train_coming_flag, 3)` — the new resident's train pulls in.
@@ -103,20 +103,20 @@ func field_train() -> FieldTrain:
 	return _field_train()
 
 
-func _tick() -> void:
+func _advance(delta: float) -> void:
 	var parked: bool = Game.title_demo_active
-	var state: int = control.step(
-		Clock.now_sec(), Clock.day, Game.first_job.is_active(), parked, _coming_demo
+	var state: int = control.advance(
+		delta, Clock.now_sec(), Clock.day, Game.first_job.is_active(), parked, _coming_demo
 	)
 	_coming_demo = false
 	var mode: int = _scene_mode()
 	var mic: Vector3 = _mic_gx()
 	var loco := Vector3(control.x_gx, SOUND_Y_GX, TrainControl.RAIL_Z_GX)
 	if control.is_running():
-		_level(mode, mic, loco)
+		_level(delta, mode, mic, loco)
 	if state != TrainControl.STATE_NONE:
 		_trigger(mode, state, mic, loco)
-	_sync_visual(parked, mode, mic)
+	_sync_visual(delta, parked, mode, mic)
 
 
 ## `Na_KishaStatusTrg`.
@@ -139,31 +139,34 @@ func _trigger(mode: int, state: int, mic: Vector3, loco: Vector3) -> void:
 			_stop_run()
 
 
-## `Na_KishaStatusLevel`: the running loop at the locomotive, a steam chuff and a wheel clack
-## on counters that speed up with the train.
-func _level(mode: int, mic: Vector3, loco: Vector3) -> void:
+## `Na_KishaStatusLevel`: the running loop at the locomotive, and a steam chuff and a wheel
+## clack on cycles that shorten as the train speeds up: `21 − 2.5·speed` and `91 − 11.5·speed`
+## ticks (`speed` in GX per 1/30 s), the chuff 4 ticks in and the clack 10.
+func _level(delta: float, mode: int, mic: Vector3, loco: Vector3) -> void:
 	var distance: float = mic.distance_to(loco)
 	_panner.pan = Ongen.pan(mic, loco)
 	if _status == 0:
 		return
 	_update_run(mode, distance)
-	var speed: float = control.speed
-	var shu_period: int = int(20.0 - 2.5 * speed)
-	var tonton_period: int = int(90.0 - 11.5 * speed)
-	if _shu == 4 and speed > 0.4:
+	var speed: float = control.frame_speed()
+	var shu_cycle: float = (int(20.0 - 2.5 * speed) + 1) / DecompTime.TICK_HZ
+	var tonton_cycle: float = (int(90.0 - 11.5 * speed) + 1) / DecompTime.TICK_HZ
+	if speed > 0.4 and _crosses(_shu, delta, shu_cycle, CHUFF_AT):
 		_play_ongen(mode, CHUFF_SE, distance)
-	if _tonton == 10 and speed > 0.4:
+	if speed > 0.4 and _crosses(_tonton, delta, tonton_cycle, CLACK_AT):
 		var caboose := Vector3(control.caboose_x_gx(), SOUND_Y_GX, TrainControl.RAIL_Z_GX)
 		_play_ongen(mode, CLACK_SE, mic.distance_to(caboose))
-	if _shu > shu_period:
-		_shu = 0
-	if _tonton > tonton_period:
-		_tonton = 0
-	_shu += 1
-	_tonton += 1
+	_shu = fmod(_shu + delta, shu_cycle)
+	_tonton = fmod(_tonton + delta, tonton_cycle)
 
 
-func _sync_visual(parked: bool, mode: int, mic: Vector3) -> void:
+## True when a cycle at `t` seconds passes the `at` mark in the next `delta` seconds.
+static func _crosses(t: float, delta: float, cycle: float, at: float) -> bool:
+	var end: float = t + delta
+	return (t <= at and end > at) or (end >= cycle and end - cycle > at)
+
+
+func _sync_visual(delta: float, parked: bool, mode: int, mic: Vector3) -> void:
 	var train: FieldTrain = _field_train()
 	if train == null:
 		return
@@ -173,7 +176,7 @@ func _sync_visual(parked: bool, mode: int, mic: Vector3) -> void:
 		return
 	if not train.is_spawned():
 		train.spawn(control)
-	var door: Dictionary = train.tick(control, parked)
+	var door: Dictionary = train.advance(delta, control, parked)
 	if bool(door.get("sound", false)):
 		var caboose := Vector3(train.cars.caboose_x, SOUND_Y_GX, TrainControl.RAIL_Z_GX)
 		_play_ongen(mode, TrainCars.DOOR_SE, mic.distance_to(caboose))

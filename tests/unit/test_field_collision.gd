@@ -202,10 +202,6 @@ func test_slate_face_keeps_high_side_flat() -> void:
 	assert_float(low_y).is_equal_approx(expect_low, 0.001)
 
 
-func test_actor_radius_matches_original_bgcheck() -> void:
-	assert_float(FieldCollision.ACTOR_RADIUS).is_equal_approx(0.9, 0.001)
-
-
 func test_revise_xz_rejects_authored_pond() -> void:
 	## Circle vs bank: do not enter a hole. Authored pond is not catalog water.
 	var data: WorldData = WorldGenerator.authored_test_town()

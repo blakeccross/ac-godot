@@ -35,13 +35,46 @@ See [architecture.md](architecture.md) § Scene-first.
 
 Do not recreate the original game's single global save blob. Split state by concern.
 
-## Decomp time
+## Time and units
 
-Decomp numbers come in two rates; use `DecompTime` rather than a local `60.0` / `30.0` constant:
+Gameplay runs on `delta`, in seconds and metres, like any Godot game. The decomp is a reference for *what* happens and roughly how fast, not a per-tick simulation to reproduce. The full migration is in [godot_native_refactor_plan.md](godot_native_refactor_plan.md).
 
-- **Tick** (`DecompTime.TICK_HZ` 60, `TICK_SEC`): one play-loop update. Per-frame steps (`add_calc*`, `chase_f`, brakes, `timer--`, per-frame `RANDOM` rolls, `0.5 · speed` moves) run once per tick through a `FrameStepper` (`add(delta)` then `while steps.next():`). Don't scale these by `delta`; the results differ.
-- **Frame** (`DecompTime.FRAME_HZ` 30): the original 30 fps frame. Clip frame numbers, `speed` in GX per frame, and `chase_angle` steps (scaled by `game_GameFrame_2F`) use it. The pipeline bakes clips at this rate (`ckf.py` `FPS`, checked by `test_decomp_time`), so animations need no conversion.
-- **Angles** come as s16 (`0x10000` = a full turn): write limits as `2500.0 * MLib.S16`, convert with `MLib.s16_to_rad` / `rad_to_s16` / `s16_signed`. The stock `add_calc` fraction `1 − √0.5` is `MLib.HALF_FRACTION`; other fractions are written as `1.0 - sqrt(k)`, not decimals. The player's fixed talk / show-off turn is `PlayerLocomotion.ease_turn`.
+- **Seconds, not ticks.** Countdowns are `float` seconds (`time_left -= delta`), a `Timer` node, or `await get_tree().create_timer(t).timeout`. Fades and one-off moves are `Tween`s. Repeating cadences are a looping `Timer` or an `AnimationPlayer` clip.
+- **Smoothing** uses `Motion.damp` / `damp_vec3` / `damp_angle` with a half-life in seconds, not a per-tick `add_calc`. Fixed-rate approach uses `move_toward(x, target, speed * delta)`; turning uses `rotate_toward(yaw, target, turn_speed * delta)`.
+- **Random events** use `Motion.happens(rate_per_second, delta, rng)`, not a roll every frame.
+- **Physics** goes in `_physics_process(delta)` and visuals or effects in `_process(delta)`. Nothing may assume a 60 Hz loop.
+- **Tuning is exported** with units: `@export_range(0.0, 5.0, 0.05, "suffix:s") var hide_delay := 1.0`.
+- **Units are metres.** GX stays only where baked data speaks it, and is converted once in the loader.
+
+### Converting a decomp number
+
+Convert once, where the constant is written, and cite the source in a comment so the trail stays searchable:
+
+```gdscript
+## `aISM_wait`: 60 frames before the first cry (2 s).
+const CRY_DELAY := 2.0
+## `add_calc(&speed, target, 0.1, …)` per tick.
+var _speed_half_life := Motion.half_life_from_fraction(0.1)
+```
+
+`DecompTime` (frame and tick rates, `frames_to_sec`) and `Motion.half_life_from_fraction` / `rate_from_chance` are **authoring helpers** for writing those constants. Animation GLBs are baked in seconds already (`tools/asset_pipeline/ckf.py` `FPS`), so clips play at the right speed with no conversion. A clip event that names a decomp frame becomes a method-call track or a time in seconds.
+
+Angles in the decomp are s16 (`0x10000` = a full turn). Convert them to radians when writing the constant (`MLib.s16_to_rad`); don't carry s16 values through gameplay code.
+
+### Legacy tick code
+
+`FrameStepper` loops (`while steps.next(): _tick()`) and integer frame counters still drive much of the game. They are being replaced system by system (plan § Phase 2). Don't add new ones. When you touch a tick-driven system for other reasons, leave it as it is unless the change is that system's conversion; a half-converted system is worse than either.
+
+## Naming
+
+Names are plain English. Decomp symbols and romaji appear **only in comments**, as citations (`## ac_insect_semi.c`, `` `aISM_wait` ``):
+
+- **Classes, files and nodes:** `Cicada` not `BugSemi`, `Gyroid` not `Haniwa`, `StalkMarket` not `KabuMarket`.
+- **Members:** say what they hold. `wing_time` not `anime1`, `catchable` not `f_no_catch`; no `s32_work[n]` scratch slots.
+- **Signals:** past-tense events, such as `caught`, `talk_finished` and `item_picked`.
+- **Dispatch:** state machines are an `enum State` with `_enter_state` / `_exit_state` (or child state nodes for large actors), not `action_proc` callables keyed by integer action codes.
+
+Existing decomp-style names are renamed in plan § Phase 1, with the old names recorded in [decomp-mapping.md](decomp-mapping.md). Renames that touch a save key ship with a `SaveService` migration.
 
 ## Typed scene references
 

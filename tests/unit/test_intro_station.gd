@@ -100,34 +100,34 @@ func test_train_demo_init_matches_decomp() -> void:
 	## `mTRC_demo_init`: slowing at 2037, due out 4:50 before now (so 20 s after the dwell).
 	var control := TrainControl.new()
 	control.init(36000, 1)
-	var state: int = control.step(36000, 1, false, false, true)
+	var state: int = control.advance(DecompTime.TICK_SEC, 36000, 1, false, false, true)
 	assert_int(state).is_equal(TrainControl.STATE_DEMO)
 	assert_int(control.action).is_equal(TrainControl.Action.BEGIN_SLOWDOWN)
 	assert_float(control.speed).is_equal(TrainControl.SLOW_SPEED)
-	assert_float(control.x_gx).is_equal(2037.0 + 0.5 * TrainControl.SLOW_SPEED)
+	assert_float(control.x_gx).is_equal_approx(2037.0 + TrainControl.SLOW_SPEED * DecompTime.TICK_SEC, 0.0001)
 	assert_int(control.start_timer).is_equal(36000 - 290)
 	## Runs through the stop into WAIT_STOPPED, then leaves once the dwell is over.
 	var frames: int = 0
 	while control.action != TrainControl.Action.WAIT_STOPPED and frames < 5000:
-		control.step(36000, 1)
+		control.advance(DecompTime.TICK_SEC, 36000, 1)
 		frames += 1
 	assert_int(control.action).is_equal(TrainControl.Action.WAIT_STOPPED)
 	assert_int(control.start_timer).is_equal(36000 + 20)
-	control.step(36019, 1)
+	control.advance(DecompTime.TICK_SEC, 36019, 1)
 	assert_int(control.action).is_equal(TrainControl.Action.WAIT_STOPPED)
-	control.step(36020, 1)
+	control.advance(DecompTime.TICK_SEC, 36020, 1)
 	assert_int(control.action).is_equal(TrainControl.Action.SIGNAL_STARTING)
 
 
 func test_npc_point_move_run_speed_and_arrival() -> void:
-	## `aNPC_spd_data` run: max 3.0, accel 0.3 × 0.5 per frame, `0.5 · speed` GX per frame.
+	## `aNPC_spd_data` run: max 3.0 GX a frame (90 a second), accel 0.3 × 0.5 a tick.
 	var move := NpcPointMove.new()
 	move.reset(0.0)
 	var pos := Vector3.ZERO
-	pos = move.step_to(pos, Vector3(0.0, 0.0, 400.0), true)
-	assert_float(move.speed).is_equal_approx(0.15, 0.0001)
+	pos = move.step_to(1.0 / 60.0, pos, Vector3(0.0, 0.0, 400.0), true)
+	assert_float(move.frame_speed()).is_equal_approx(0.15, 0.0001)
 	for i: int in 100:
-		pos = move.step_to(pos, Vector3(0.0, 0.0, 400.0), true)
+		pos = move.step_to(1.0 / 60.0, pos, Vector3(0.0, 0.0, 400.0), true)
 	assert_float(move.speed).is_equal_approx(NpcPointMove.RUN_MAX, 0.0001)
 	assert_that(NpcPointMove.arrived(Vector3(0.0, 0.0, 391.6), Vector3(0.0, 0.0, 400.0))).is_true()
 	assert_that(NpcPointMove.arrived(Vector3(0.0, 0.0, 391.4), Vector3(0.0, 0.0, 400.0))).is_false()
@@ -137,11 +137,11 @@ func test_npc_point_move_turn_rate() -> void:
 	## `TURN` / `TALK_TURN`: 0x800 per 30 fps frame → 0x400 per 60 Hz frame.
 	var move := NpcPointMove.new()
 	move.reset(0.0)
-	var done: bool = move.step_turn(PI * 0.5)
+	var done: bool = move.step_turn(1.0 / 60.0, PI * 0.5)
 	assert_that(done).is_false()
 	assert_float(move.facing).is_equal_approx(float(0x400) * MLib.S16, 0.00001)
 	for i: int in 16:
-		done = move.step_turn(PI * 0.5)
+		done = move.step_turn(1.0 / 60.0, PI * 0.5)
 	assert_that(done).is_true()
 
 
@@ -255,17 +255,19 @@ func test_nook_call_text_starts_the_rcn_guide_theme() -> void:
 
 
 func test_train_smoke_and_steam_effects_follow_decomp() -> void:
-	## `eKishaK_ct`: 80 frames from scale 0; `eSteam_ct`: 30 frames rising back.
-	var host := Node3D.new()
-	add_child(host)
-	var smoke: FieldFx = FieldFx.spawn(host, FieldFx.Kind.KISHA_KEMURI, Vector3.ZERO, 0.0)
-	var steam: FieldFx = FieldFx.spawn(host, FieldFx.Kind.STEAM, Vector3.ZERO, 0.0)
-	assert_int(smoke.timer).is_equal(80)
-	assert_float(smoke.scale_gx.x).is_equal(0.0)
-	assert_int(steam.timer).is_equal(30)
-	assert_float(steam.acc.y).is_equal(0.125)
-	assert_float(steam.vel.y).is_less(-1.49)
-	host.queue_free()
+	## `eKishaK_ct`: 80 frames, swelling from small; `eSteam_ct`: 30 frames, thrown down then
+	## rising back.
+	var at: Array[Vector3] = [Vector3.ZERO]
+	var smoke: FieldParticle.Style = FieldParticle.style_for(FieldFx.Kind.KISHA_KEMURI, 0.0, 0, 0, at)
+	assert_float(smoke.lifetime).is_equal_approx(80.0 / 60.0, 0.0001)
+	assert_float(smoke.size_from_to.x).is_less(smoke.size_from_to.y)
+	assert_float(FieldParticle.offset_at(smoke, 1.0).y).is_greater(0.5)
+	var steam: FieldParticle.Style = FieldParticle.style_for(FieldFx.Kind.STEAM, 0.0, 0, 0, at)
+	assert_float(steam.lifetime).is_equal_approx(0.5, 0.0001)
+	assert_float(steam.accel.y).is_equal_approx(0.125 * FieldCatalog.GX_TO_METERS * 3600.0, 0.001)
+	assert_float(steam.launch.y).is_less(-1.49 * FieldCatalog.GX_TO_METERS * 60.0)
+	## Thrown down, it dips first.
+	assert_float(FieldParticle.offset_at(steam, 0.05).y).is_less(0.0)
 
 
 func test_suspended_dialogue_ignores_input() -> void:

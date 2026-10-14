@@ -1,11 +1,12 @@
+class_name Snowball
 extends AnimatableBody3D
 
-## A snowman-season snowball (`ac_snowman`). It rolls at the decomp's speeds (GX per 30 fps
-## frame, moved `0.5 · speed` per 60 Hz tick), grows on snow and shrinks off it
+## A snowman-season snowball (`ac_snowman`). It rolls in m/s on `delta` (the decomp's figures
+## are GX per 30 fps frame, noted beside each constant), grows on snow and shrinks off it
 ## (`SnowmanRules.roll`). Walk into a small one to nudge it; lean on one past a fifth of full
-## size for 16 ticks and the player starts pushing (`aSMAN_Player_push_Request`,
+## size for a quarter second and the player starts pushing (`aSMAN_Player_push_Request`,
 ## `ply_1_push_yuki1`), the ball leading and the player kept behind it. It breaks when it
-## hits a wall hard, drops off a cliff or is shoved into a wall for 120 ticks, and sinks in
+## hits a wall hard, drops off a cliff or is shoved into a wall for two seconds, and sinks in
 ## water. Roll the body ball and the head ball into each other while you are in their acre
 ## and the faster one jumps on top: a snowman (`SnowmanUse.build`).
 
@@ -14,12 +15,35 @@ const VISUAL := &"act_darumaB"
 ## `GeneratedVisual` already draws actors at the usual 0.01 (`VisualFit.fit_actor`), so the
 ## ball's own scale is relative to that.
 const VISUAL_PER_SCALE := 100.0
-const PUSH_REQUEST_TICKS := 16
+## One GX per 30 fps frame (`ac_snowman`'s speed unit), in m/s.
+const FRAME := SnowmanRules.GX * 30.0
+## Leaning on it this long (16 ticks) asks to push.
+const PUSH_REQUEST_TIME := 16.0 / 60.0
 const PUSH_CONE := deg_to_rad(55.0)
-const WALL_PUSH_TICKS := 120
-const BREAK_WALL_SPEED := 5.0
+## Shoved into a wall this long (120 ticks) and it gives way.
+const WALL_PUSH_TIME := 2.0
+## Hitting a wall faster than 5 GX a frame breaks it.
+const BREAK_WALL_SPEED := 5.0 * FRAME
 const BREAK_DROP_GX := 55.0
-const COMBINE_TICKS := 60
+## The head's jump onto the body (60 ticks).
+const COMBINE_TIME := 1.0
+## Pushing only starts while it rolls under 3 GX a frame.
+const PUSH_START_MAX := 3.0 * FRAME
+## `aSMAN_set_speed_relations_norm`: brakes `0.1 − 0.05·n` GX a frame per tick.
+const BRAKE := 0.1 * 60.0 * FRAME
+const BRAKE_PER_SIZE := 0.05 * 60.0 * FRAME
+## A small ball under the player gains `0.16 − 0.14·n` GX a frame per tick of contact.
+const NUDGE := 0.16 * 60.0 * FRAME
+const NUDGE_PER_SIZE := 0.14 * 60.0 * FRAME
+## The push speed eases 0.1 GX a frame per tick toward the stick's.
+const PUSH_EASE := 0.1 * 60.0 * FRAME
+## `move_dist` gains the speed in GX a frame every tick: per metre rolled, that's 2 / GX.
+const GROWTH_PER_METRE := 2.0 / SnowmanRules.GX
+## `aSMAN_process_swim`: 0.995× a tick and 0.002 m a tick down.
+const SINK_SHRINK_RATE := 0.30075
+const SINK_SPEED := 0.12
+## The head straightens 0.2 of the way a tick as it jumps.
+const ROTATION_SETTLE_HALF_LIFE := 0.0518
 ## Slack on the 0.9 m player body for "touching".
 const CONTACT_SLACK := 0.12
 const SE_COMBINE := &"104"
@@ -28,16 +52,15 @@ const SE_SPLASH := &"27"
 
 @export var part: int = SnowmanRules.PART_BODY
 var move_dist: float = 0.0
-## Rolling velocity in GX per frame (x, z).
+## Rolling velocity in m/s (x, z).
 var vel := Vector2.ZERO
 var broken: bool = false
 ## Taken away with the season: nothing to remember.
 var discard: bool = false
 var combining: bool = false
 
-var _steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
-var _lean_ticks: int = 0
-var _wall_ticks: int = 0
+var _lean_time: float = 0.0
+var _wall_time: float = 0.0
 var _pushing: bool = false
 var _push_speed: float = 0.0
 var _sinking: bool = false
@@ -103,32 +126,36 @@ func _player() -> Player:
 
 
 func _physics_process(delta: float) -> void:
-	_steps.add(delta)
-	while _steps.next():
-		if broken or not is_inside_tree():
-			return
-		if not _combine.is_empty():
-			_tick_combine()
-		elif _sinking:
-			_tick_sink()
-		elif not _pushing:
-			_tick_free()
+	advance(delta)
+
+
+func advance(delta: float) -> void:
+	if broken or not is_inside_tree():
+		return
+	if not _combine.is_empty():
+		_combine_step(delta)
+	elif _sinking:
+		_sink_step(delta)
+	elif not _pushing:
+		_roll_free(delta)
 
 
 ## ------------------------------------------------------------------ free rolling
 
-func _tick_free() -> void:
+func _roll_free(delta: float) -> void:
 	var player := _player()
 	if player != null and not player.is_busy():
-		_touch_player(player)
+		_touch_player(player, delta)
 		if _pushing:
 			return
-	## `aSMAN_set_speed_relations_norm` on flat ground: ease to a stop.
-	var accel: float = 0.1 - normalized() * 0.05
-	var sp: float = move_toward(speed(), 0.0, accel)
-	vel = vel.normalized() * sp if speed() > 0.0001 else Vector2.ZERO
-	if sp > 0.0:
-		_move(vel)
+	## `aSMAN_set_speed_relations_norm` on flat ground: ease to a stop, speed averaged over
+	## the step.
+	var was: float = speed()
+	var sp: float = move_toward(was, 0.0, (BRAKE - normalized() * BRAKE_PER_SIZE) * delta)
+	var dir: Vector2 = vel.normalized() if was > 0.0001 else Vector2.ZERO
+	vel = dir * sp
+	if was > 0.0:
+		_move(dir * (was + sp) * 0.5, delta)
 	if broken:
 		return
 	_touch_balls()
@@ -136,7 +163,7 @@ func _tick_free() -> void:
 
 ## `aSMAN_OBJcheck` (the player nudges the ball) and `aSMAN_Player_push_Request`. The player
 ## body (0.9 m) stops at the ball, so contact is that gap and intent is the stick.
-func _touch_player(player: Player) -> void:
+func _touch_player(player: Player, delta: float) -> void:
 	var to := Vector2(global_position.x - player.global_position.x, global_position.z - player.global_position.z)
 	var dist: float = to.length()
 	var want := Vector2(player.move_intent.x, player.move_intent.z)
@@ -144,19 +171,19 @@ func _touch_player(player: Player) -> void:
 	var touching: bool = dist < radius() + FieldCollision.ACTOR_RADIUS + CONTACT_SLACK
 	var leaning: bool = touching and want.length() > 0.05 and absf(angle_difference(atan2(want.x, want.y), atan2(to.x, to.y))) < PUSH_CONE
 	if not leaning:
-		_lean_ticks = 0
+		_lean_time = 0.0
 		return
 	if n <= SnowmanRules.PUSH_MIN:
-		## Too small to push: each tick of contact knocks it along.
-		vel += want.normalized() * (0.16 - n * 0.14)
+		## Too small to push: contact knocks it along.
+		vel += want.normalized() * (NUDGE - n * NUDGE_PER_SIZE) * delta
 		return
-	_lean_ticks = mini(_lean_ticks + 1, PUSH_REQUEST_TICKS)
-	if _lean_ticks >= PUSH_REQUEST_TICKS and speed() < 3.0 and player.begin_snowball_push(self):
+	_lean_time = minf(_lean_time + delta, PUSH_REQUEST_TIME)
+	if _lean_time >= PUSH_REQUEST_TIME - 0.0001 and speed() < PUSH_START_MAX and player.begin_snowball_push(self):
 		_pushing = true
-		_wall_ticks = 0
+		_wall_time = 0.0
 		## `aSMAN_process_player_push_init`: start near the player's pace.
 		var walk: float = want.length() * PlayerLocomotion.ORIG_WALK
-		_push_speed = (1.0 - n) * (3.0 - n * 1.5) * (walk / 7.5) * 1.15
+		_push_speed = (1.0 - n) * (3.0 - n * 1.5) * (walk / 7.5) * 1.15 * FRAME
 
 
 ## Ball against ball: combine, or a shove (`aSMAN_snowman_hit_check`).
@@ -179,13 +206,13 @@ func _touch_balls() -> void:
 		_move_by(push)
 
 
-## One tick of motion at `v` (GX / frame): walls, cliffs, water, size.
-func _move(v: Vector2) -> void:
-	var step: Vector2 = v * 0.5 * SnowmanRules.GX
+## `delta` seconds of motion at `v` (m/s): walls, cliffs, water, size.
+func _move(v: Vector2, delta: float) -> void:
+	var step: Vector2 = v * delta
 	_move_by(step)
 	if broken or _sinking:
 		return
-	move_dist = SnowmanRules.roll(move_dist, v.length(), _on_snow())
+	move_dist = SnowmanRules.roll(move_dist, step.length() * GROWTH_PER_METRE, _on_snow())
 	_apply_size()
 	_spin(step)
 
@@ -287,9 +314,9 @@ func _in_water() -> bool:
 
 ## ------------------------------------------------------------------ pushing
 
-## `aSMAN_process_player_push`, called by the player once per tick while pushing. Returns
-## {aim, yaw} for the player, or {} when the push ends.
-func push_tick(wish: Vector3, stick: float, dash: bool, player: Node3D) -> Dictionary:
+## `aSMAN_process_player_push`, called by the player every physics step while pushing.
+## Returns {aim, yaw, speed} for the player, or {} when the push ends.
+func push(delta: float, wish: Vector3, stick: float, dash: bool, player: Node3D) -> Dictionary:
 	if broken or not _combine.is_empty():
 		return {}
 	var n: float = normalized()
@@ -302,25 +329,26 @@ func push_tick(wish: Vector3, stick: float, dash: bool, player: Node3D) -> Dicti
 	var diff: float = angle_difference(move_angle, player_angle)
 	if absf(diff) > PUSH_CONE:
 		return _release()
-	var base: float = stick * (3.0 - n * 1.5) * cos(diff)
+	var base: float = stick * (3.0 - n * 1.5) * cos(diff) * FRAME
 	if dash:
 		base *= 1.5
-	_push_speed = move_toward(_push_speed, base, 0.1)
+	var was: float = _push_speed
+	_push_speed = move_toward(_push_speed, base, PUSH_EASE * delta)
 	vel = move.normalized() * _push_speed
 	var before: Vector3 = global_position
-	_move(vel)
+	_move(move.normalized() * (was + _push_speed) * 0.5, delta)
 	if broken:
 		return {}
 	if _sinking:
 		return _release()
-	## Shoved into a wall for 120 ticks: it gives way (`timer > 120`).
-	if Vector2(global_position.x - before.x, global_position.z - before.z).length() < 0.25 * vel.length() * 0.5 * SnowmanRules.GX:
-		_wall_ticks += 1
-		if _wall_ticks > WALL_PUSH_TICKS:
+	## Shoved into a wall for two seconds: it gives way (`timer > 120`).
+	if Vector2(global_position.x - before.x, global_position.z - before.z).length() < 0.25 * vel.length() * delta:
+		_wall_time += delta
+		if _wall_time > WALL_PUSH_TIME:
 			smash()
 			return {}
 	else:
-		_wall_ticks = 0
+		_wall_time = 0.0
 	_touch_balls()
 	if not _combine.is_empty() or broken:
 		return {}
@@ -340,13 +368,13 @@ func carry_to(at: Vector3) -> void:
 
 func _release() -> Dictionary:
 	_pushing = false
-	_lean_ticks = 0
+	_lean_time = 0.0
 	return {}
 
 
 func end_push() -> void:
 	_pushing = false
-	_lean_ticks = 0
+	_lean_time = 0.0
 
 
 ## ------------------------------------------------------------------ endings
@@ -358,12 +386,12 @@ func _start_sink() -> void:
 
 
 ## `aSMAN_process_swim`: it shrinks away in the water.
-func _tick_sink() -> void:
+func _sink_step(delta: float) -> void:
 	if _pivot == null:
 		queue_free()
 		return
-	_pivot.scale *= 0.995
-	global_position.y -= 0.002
+	_pivot.scale *= exp(-SINK_SHRINK_RATE * delta)
+	global_position.y -= SINK_SPEED * delta
 	if _pivot.scale.x < 0.05:
 		broken = true
 		queue_free()
@@ -395,30 +423,30 @@ func _release_player() -> void:
 
 ## ------------------------------------------------------------------ combining
 
-## `aSMAN_process_combine_head_jump` / `_combine_body`: over 60 ticks the body slides to its
+## `aSMAN_process_combine_head_jump` / `_combine_body`: over a second the body slides to its
 ## unit centre and the head arcs up onto it.
 func begin_combine(as_head: bool, target: Vector3, top_y: float, done: Callable) -> void:
 	_release_player()
 	combining = true
 	vel = Vector2.ZERO
-	_combine = {"head": as_head, "from": global_position, "to": target, "top": top_y, "t": 0, "done": done}
+	_combine = {"head": as_head, "from": global_position, "to": target, "top": top_y, "t": 0.0, "done": done}
 	if as_head:
 		Audio.play_se(SE_COMBINE, self)
 
 
-func _tick_combine() -> void:
-	var t: int = int(_combine["t"]) + 1
+func _combine_step(delta: float) -> void:
+	var t: float = minf(float(_combine["t"]) + delta, COMBINE_TIME)
 	_combine["t"] = t
-	var k: float = float(t) / float(COMBINE_TICKS)
+	var k: float = t / COMBINE_TIME
 	var from: Vector3 = _combine["from"]
 	var to: Vector3 = _combine["to"]
 	var pos: Vector3 = from.lerp(to, k)
 	if bool(_combine["head"]):
 		pos.y = lerpf(from.y, float(_combine["top"]), k) + 4.0 * k * (1.0 - k) * 1.5
 		if _pivot != null:
-			_pivot.rotation = _pivot.rotation.lerp(Vector3.ZERO, 0.2)
+			_pivot.rotation = Motion.damp_vec3(_pivot.rotation, Vector3.ZERO, ROTATION_SETTLE_HALF_LIFE, delta)
 	global_position = pos
-	if t >= COMBINE_TICKS:
+	if t >= COMBINE_TIME:
 		var done: Callable = _combine["done"]
 		_combine = {}
 		if done.is_valid():

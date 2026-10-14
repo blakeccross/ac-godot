@@ -27,12 +27,13 @@ func test_a_far_throw_crosses_in_sixty_ticks() -> void:
 	## dist / 60 / 0.5 across, (dy + 450) / 60 up.
 	assert_float(vel.z).is_equal_approx(3.0, 0.0001)
 	assert_float(vel.y).is_equal_approx(440.0 / 60.0, 0.0001)
-	var pos := Vector3.ZERO
+	## Sixty ticks is one second of flight at `FishRelease`'s speed.
+	var node := (load(FishRelease.SCENE_PATH) as PackedScene).instantiate() as FishRelease
+	node.aim(Vector3.ZERO, Vector3(0.0, -10.0, 90.0) * GX)
 	for i: int in 60:
-		var moved: Array[Vector3] = CreatureRelease.step(pos, vel)
-		pos = moved[0]
-		vel = moved[1]
-	assert_float(pos.z).is_equal_approx(90.0, 0.001)
+		node.advance(1.0 / 60.0)
+	assert_float(node.position_gx().z).is_equal_approx(90.0, 0.01)
+	node.free()
 	## A near throw (inside one unit) is a short lob.
 	var near: Vector3 = CreatureRelease.launch_velocity(Vector3.ZERO, Vector3(0.0, 0.0, 30.0))
 	assert_float(near.z).is_equal_approx(2.5, 0.0001)
@@ -63,15 +64,14 @@ func test_thrown_fish_splashes_down_and_leaves_a_shadow() -> void:
 	var water := Vector3(0.0, -10.0, 90.0) * GX
 	var node := (load(FishRelease.SCENE_PATH) as PackedScene).instantiate() as FishRelease
 	node.fish = fish
-	node._vel_gx = CreatureRelease.launch_velocity(Vector3.ZERO, water / GX)
-	node._yaw = 0.0
+	node.aim(Vector3.ZERO, water)
 	node.is_water = _lake(60.0)
 	node.water_y = func(_at: Vector3) -> float: return water.y
 	node.school = school
 	add_child(node)
 	var ticks: int = 0
 	while node.exist and ticks < CreatureRelease.LIFE + 2:
-		node.tick()
+		node.advance(1.0 / 60.0)
 		ticks += 1
 	assert_bool(node.exist).is_false()
 	assert_int(ticks).is_less(CreatureRelease.LIFE)

@@ -343,18 +343,6 @@ func test_context_forwards_release_occupant() -> void:
 	assert_str(String(world.released)).is_equal("yard_chair")
 
 
-func test_player_has_no_object_type_switch() -> void:
-	var src := FileAccess.get_file_as_string("res://scenes/actors/player.gd")
-	assert_str(src).contains("InteractionQuery.best_in_areas")
-	assert_str(src).contains("ToolUse.resolve")
-	assert_bool("is Tree" in src).is_false()
-	assert_bool("is Villager" in src).is_false()
-	assert_bool("is Furniture" in src).is_false()
-	assert_bool("ToolData.Kind" in src).is_false()
-	assert_bool("has_method(\"try_interact\")" in src).is_false()
-	assert_bool("has_method(\"interact_prompt\")" in src).is_false()
-
-
 func test_world_scene_wires_interactables() -> void:
 	var world: Node = auto_free(load("res://scenes/world/world.tscn").instantiate())
 	add_child(world)

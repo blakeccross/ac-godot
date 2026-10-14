@@ -1,3 +1,4 @@
+class_name Snowman
 extends StaticBody3D
 
 ## A finished snowman (`ac_psnowman`): the body ball with the head on top at
@@ -11,6 +12,13 @@ const BREAK_AT := 200.0
 ## Scale relative to `GeneratedVisual`'s 0.01 actor draw (see `snowball.gd`).
 const VISUAL_PER_SCALE := 100.0
 const SWING_AT := 20.0
+## Leaning in at `into` GX a frame adds half that a tick (`0.5 · 60` a second).
+const PUSH_GAIN := 30.0
+## `add_calc0(push, 1 − √0.7, 10)` a tick: eases off by `1 − √0.7` a tick, at most 10.
+const PUSH_EASE_RATE := 10.7
+const PUSH_EASE_MAX := 600.0
+## The head stops swinging 0.2 of the way a tick.
+const HEAD_SETTLE_HALF_LIFE := 0.0518
 ## `mRlib_PSnowmanTouchCheck`: within one unit either way.
 const TOUCH := 40.0 * SnowmanRules.GX
 ## `aPSM_actor_draw` tilts the head forward (`0xF380`).
@@ -23,7 +31,6 @@ const HEAD_TILT := -0x0C80 * TAU / 65536.0
 @export var score: int = SnowmanRules.Result.OK
 
 var _push: float = 0.0
-var _steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _head: Node3D
 var _talking: bool = false
 var _down: bool = false
@@ -99,17 +106,15 @@ func _physics_process(delta: float) -> void:
 	var player := Player.find(get_tree())
 	if player == null:
 		return
-	_steps.add(delta)
-	while _steps.next():
-		if _break_tick(player):
-			topple()
-			return
+	if _pushed(player, delta):
+		topple()
+		return
 	if _head != null:
-		_head.rotation.z = sin(Time.get_ticks_msec() * 0.02) * 0.15 if _push > SWING_AT else lerpf(_head.rotation.z, 0.0, 0.2)
+		_head.rotation.z = sin(Time.get_ticks_msec() * 0.02) * 0.15 if _push > SWING_AT else Motion.damp(_head.rotation.z, 0.0, HEAD_SETTLE_HALF_LIFE, delta)
 
 
-## `mRlib_PSnowmanBreakCheck` for one tick.
-func _break_tick(player: Player) -> bool:
+## `mRlib_PSnowmanBreakCheck` over `delta` seconds: true once it's been pushed over.
+func _pushed(player: Player, delta: float) -> bool:
 	var d: Vector3 = global_position - player.global_position
 	if absf(d.x) < TOUCH and absf(d.z) < TOUCH and absf(d.y) < TOUCH:
 		var dir := Vector2(d.x, d.z)
@@ -117,18 +122,18 @@ func _break_tick(player: Player) -> bool:
 			var want := Vector2(player.move_intent.x, player.move_intent.z) * PlayerLocomotion.ORIG_WALK
 			var into: float = dir.normalized().dot(want)
 			if into > 0.0:
-				_push += into * 0.5
+				_push += into * PUSH_GAIN * delta
 			else:
-				_push = _calc0(_push)
+				_push = ease_off(_push, delta)
 			return _push > BREAK_AT
-	_push = _calc0(_push)
+	_push = ease_off(_push, delta)
 	return false
 
 
-## `add_calc0(speed, 1 − √0.7, 10)`.
-static func _calc0(v: float) -> float:
-	var step: float = clampf(v * (1.0 - sqrt(0.7)), -10.0, 10.0)
-	return v - step
+## The push fading back to nothing: exponential, but never faster than `PUSH_EASE_MAX` a
+## second.
+static func ease_off(v: float, delta: float) -> float:
+	return maxf(v * exp(-PUSH_EASE_RATE * delta), v - PUSH_EASE_MAX * delta)
 
 
 ## `aPSMAN_MakeBreakEffect`: it falls apart and the slot is free again.

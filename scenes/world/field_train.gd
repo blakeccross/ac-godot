@@ -33,9 +33,9 @@ var _spawned: bool = false
 var _rail_y: float = 0.0
 var _loco_anim: AnimationPlayer
 var _caboose_anim: AnimationPlayer
-## `train0->arg1` smoke countdown and `keyframe_saved_keyframe` (`aTR0_set_effect` /
+## Seconds to the next puff (`train0->arg1`) and `keyframe_saved_keyframe` (`aTR0_set_effect` /
 ## `aTR0_animation`).
-var _smoke_wait: int = 0
+var _smoke_wait: float = 0.0
 var _saved_frame: int = -1
 
 @onready var _loco: Node3D = %Loco
@@ -78,19 +78,19 @@ func despawn() -> void:
 	visible = false
 
 
-## One actor tick (`aTR0_actor_move` / `aTR1_actor_move`). Returns the door change, whose
+## `delta` seconds of `aTR0_actor_move` / `aTR1_actor_move`. Returns the door change, whose
 ## `sound` flag the caller plays.
-func tick(control: TrainControl, parked_demo: bool) -> Dictionary:
-	var door: Dictionary = cars.step(control.x_gx, control.speed, control.action, parked_demo)
+func advance(delta: float, control: TrainControl, parked_demo: bool) -> Dictionary:
+	var door: Dictionary = cars.advance(delta, control.x_gx, control.speed, control.action, parked_demo)
 	_place(_loco, control.x_gx)
 	_place(_mid, cars.mid_x)
 	_place(_caboose, cars.caboose_x)
 	_engineer.global_position = _loco.global_position + ENGINEER_OFF_GX * FieldCatalog.GX_TO_METERS
 	if _loco_anim != null:
-		_loco_anim.speed_scale = IntroStationStage.loco_wheel_speed_scale(control.speed) * DecompTime.TICKS_PER_FRAME
+		_loco_anim.speed_scale = IntroStationStage.loco_wheel_speed_scale(control.frame_speed()) * DecompTime.TICKS_PER_FRAME
 	var frame_changed: bool = _wheel_frame_changed()
 	if not is_zero_approx(control.speed) and not Game.title_demo_active:
-		_smoke(control.speed)
+		_smoke(delta, control.frame_speed())
 		if frame_changed:
 			_steam()
 	if not door.is_empty():
@@ -104,7 +104,7 @@ func tick(control: TrainControl, parked_demo: bool) -> Dictionary:
 	return door
 
 
-## `aTR0_animation`: the wheel clip's cKF frame (1-based) changed since last tick.
+## `aTR0_animation`: the wheel clip's cKF frame (1-based) changed since last call.
 func _wheel_frame_changed() -> bool:
 	if _loco_anim == null or not _loco_anim.is_playing():
 		return false
@@ -115,13 +115,14 @@ func _wheel_frame_changed() -> bool:
 	return true
 
 
-## `aTR0_set_effect`: a smoke puff from the stack (+36, +110) every `12 / speed` frames
-## (12 below speed 1). Not in the title demos.
-func _smoke(speed: float) -> void:
-	if _smoke_wait > 0:
-		_smoke_wait -= 1
+## `aTR0_set_effect`: a smoke puff from the stack (+36, +110), then a wait of `12 / speed`
+## ticks (12 below speed 1, `speed` in GX per 1/30 s) before the next. Not in the title demos.
+func _smoke(delta: float, speed: float) -> void:
+	_smoke_wait -= delta
+	if _smoke_wait > 0.0:
 		return
-	_smoke_wait = int(12.0 / speed) if speed >= 1.0 else 12
+	var wait_ticks: int = int(12.0 / speed) if speed >= 1.0 else 12
+	_smoke_wait = maxf(_smoke_wait, 0.0) + float(wait_ticks + 1) / DecompTime.TICK_HZ
 	FieldFx.spawn(_effects(), FieldFx.Kind.KISHA_KEMURI, _loco_point(SMOKE_OFF_GX), 0.0)
 
 

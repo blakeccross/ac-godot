@@ -2,17 +2,22 @@ class_name TugOfWar
 extends RefCounted
 
 ## The Sports Fair tug-of-war (`ac_tunahiki_control`, `ac_tunahiki_npc0/1`): one shared rope.
-## Each pull cycle the pullers heave at frame 6 (the rope shakes and moves at `speed`) and ease
-## off at 24, when the next pull is rolled: 45% one way, 45% the other, 10% a stand-off. The
-## rope base stays within ±10 GX; a side being dragged more than 5 GX hangs on (`YURI`), a side
-## winning by more than that throws its weight (`FURI`), otherwise they pull together (`AIKO`).
-## Not an autoload; the pullers drive it once per frame.
+## Each one-second pull cycle the pullers heave at 0.2 s (the rope shakes and moves at `speed`)
+## and ease off at 0.8 s, when the next pull is rolled: 45% one way, 45% the other, 10% a
+## stand-off. The rope base stays within ±10 GX; a side being dragged more than 5 GX hangs on
+## (`YURI`), a side winning by more than that throws its weight (`FURI`), otherwise they pull
+## together (`AIKO`). Not an autoload; the pullers drive it once per frame.
 
-const CYCLE := 30
-const HEAVE_FRAME := 6
-const EASE_FRAME := 24
+## The 30-frame cycle with its heave on frame 6 and ease-off on frame 24, in seconds.
+const CYCLE := 30.0 / DecompTime.FRAME_HZ
+const HEAVE_AT := 6.0 / DecompTime.FRAME_HZ
+const EASE_AT := 24.0 / DecompTime.FRAME_HZ
 const LIMIT_GX := 10.0
 const SHAKE_GX := 0.3
+## The shake flips side every 1/30 s frame.
+const SHAKE_HZ := DecompTime.FRAME_HZ
+## `rope_base += speed · 0.025` a frame: GX a second per unit of `speed`.
+const PULL_RATE := 0.025 * DecompTime.FRAME_HZ
 const LEAD_GX := 5.0
 ## `aTNN1_think_init_proc`: pullers stand 85 / 95 GX in from their units, 5 GX off the line.
 const PULLER_IN_GX := [0.0, 85.0, 95.0, 95.0, 85.0]
@@ -27,12 +32,12 @@ const CLIP_REFEREE := "npc_1_hatafuri1"
 
 static var rope_base: float = 0.0
 static var rope: float = 0.0
+## The pull, in the decomp's units (3–23).
 static var speed: float = 0.0
 static var next_speed: float = 0.0
 static var shake: bool = false
-static var frame: int = 0
-static var _odd: bool = false
-static var _steps := FrameStepper.new(DecompTime.FRAME_HZ, 4.0)
+## Seconds into the pull cycle.
+static var time: float = 0.0
 static var _last_engine_frame: int = -1
 
 
@@ -42,9 +47,7 @@ static func reset() -> void:
 	speed = 0.0
 	next_speed = 0.0
 	shake = false
-	frame = 0
-	_odd = false
-	_steps = FrameStepper.new(DecompTime.FRAME_HZ, 4.0)
+	time = 0.0
 	_last_engine_frame = -1
 
 
@@ -54,23 +57,40 @@ static func dir_of(slot: int) -> int:
 
 
 ## Once per engine frame, whoever calls first.
-static func advance(delta: float, rng: RandomNumberGenerator) -> void:
+static func advance_once(delta: float, rng: RandomNumberGenerator) -> void:
 	var now: int = Engine.get_process_frames()
 	if now == _last_engine_frame:
 		return
 	_last_engine_frame = now
-	_steps.add(delta)
-	while _steps.next():
-		step(rng)
+	advance(delta, rng)
 
 
-## One game frame (`aTNC_wait` + the pullers' frame checks).
-static func step(rng: RandomNumberGenerator) -> void:
-	frame = (frame + 1) % CYCLE
-	if frame == HEAVE_FRAME:
+## `delta` seconds of `aTNC_wait` and the pullers' checks, split at the heave and the ease-off.
+static func advance(delta: float, rng: RandomNumberGenerator) -> void:
+	var left: float = delta
+	while left > 0.0:
+		var mark: float = HEAVE_AT if time < HEAVE_AT else (EASE_AT if time < EASE_AT else CYCLE)
+		var dt: float = minf(left, mark - time)
+		if shake:
+			rope_base += speed * PULL_RATE * dt
+			if absf(rope_base) > LIMIT_GX:
+				rope_base = clampf(rope_base, -LIMIT_GX, LIMIT_GX)
+				speed = 0.0
+		time += dt
+		left -= dt
+		if time >= mark:
+			_reach(mark, rng)
+	var wobble: float = 0.0
+	if shake:
+		wobble = SHAKE_GX if int(time * SHAKE_HZ) % 2 == 0 else -SHAKE_GX
+	rope = rope_base + wobble
+
+
+static func _reach(mark: float, rng: RandomNumberGenerator) -> void:
+	if mark == HEAVE_AT:
 		shake = true
 		speed = next_speed
-	elif frame == EASE_FRAME:
+	elif mark == EASE_AT:
 		shake = false
 		var r: float = rng.randf()
 		if r < 0.45:
@@ -79,15 +99,8 @@ static func step(rng: RandomNumberGenerator) -> void:
 			next_speed = -(rng.randf_range(0.0, 20.0) + 3.0)
 		else:
 			next_speed = 0.0
-	_odd = not _odd
-	var wobble: float = 0.0
-	if shake:
-		wobble = SHAKE_GX if _odd else -SHAKE_GX
-		rope_base += speed * 0.025
-		if absf(rope_base) > LIMIT_GX:
-			rope_base = clampf(rope_base, -LIMIT_GX, LIMIT_GX)
-			speed = 0.0
-	rope = rope_base + wobble
+	else:
+		time = 0.0
 
 
 ## `aTNN1_aiko`'s end-of-clip choice for a puller on side `dir`.

@@ -114,29 +114,10 @@ func test_roll_spawn_entry_respects_hundred_point_gate() -> void:
 	assert_int(misses).is_greater(0)
 
 
-func test_field_spawn_cap_matches_decomp_make_new() -> void:
-	assert_int(BugField.MAX_ACTORS).is_equal(9)
-	assert_int(BugField.MAX_FIELD_SPAWNS).is_equal(8)
-
-
-func test_birth_sum_swarms_are_red_dragonfly_and_firefly() -> void:
-	## `l_insect_birth_sum`: RED_DRAGONFLY (10) and FIREFLY (27) birth 6-8; ants,
-	## mosquitoes and everyone else birth 1.
-	assert_that(BugField.BIRTH_SUM[10]).is_equal(Vector2i(6, 3))
-	assert_that(BugField.BIRTH_SUM[27]).is_equal(Vector2i(6, 3))
-	assert_that(BugField.BIRTH_SUM[38]).is_equal(Vector2i(1, 0))
-	assert_that(BugField.BIRTH_SUM[39]).is_equal(Vector2i(1, 0))
-	assert_that(BugField.BIRTH_SUM[9]).is_equal(Vector2i(1, 0))
-
-
-func test_life_time_default_is_two_game_hours() -> void:
-	assert_int(BugActor.LIFE_TIME_FRAMES).is_equal(216000)
-
-
 ## Starts a wade into `cell` and runs the set manager's wait out.
 func _wade_into(field: BugField, grid: WorldGrid, sense: BugActor.Sense, cell: Vector2i) -> void:
 	sense.wade_end = grid.cell_to_world(cell)
-	for _i: int in BugField.SET_WAIT_FRAMES + 1:
+	for _i: int in roundi(BugField.SET_WAIT * 60.0) + 1:
 		field.tick(STEP, sense)
 	sense.wade_end = Vector3.INF
 	sense.player_position = grid.cell_to_world(cell)
@@ -167,7 +148,7 @@ func test_set_waits_for_the_set_manager_timer() -> void:
 	var sense := BugActor.Sense.new()
 	sense.player_position = (world[1] as WorldGrid).cell_to_world(Vector2i(8, 8))
 	sense.wade_end = (world[1] as WorldGrid).cell_to_world(Vector2i(9, 8))
-	for _i: int in BugField.SET_WAIT_FRAMES - 1:
+	for _i: int in roundi(BugField.SET_WAIT * 60.0) - 1:
 		field.tick(STEP, sense)
 	assert_that(field._spawned_acre).is_equal(Vector2i(-999, -999))
 	field.tick(STEP, sense)

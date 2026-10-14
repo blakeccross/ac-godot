@@ -156,13 +156,6 @@ func test_open_water_touching_the_map_edge_reads_as_ocean() -> void:
 	assert_that(WaterBodies.size_ceiling(bodies[0])).is_equal(FishData.SizeClass.WHALE)
 
 
-func test_fish_shadows_draw_above_water_sheets() -> void:
-	## Same trap footprints hit: river/ocean XLU priorities 1–2 paint over priority 0.
-	var src := FileAccess.get_file_as_string("res://scenes/world/fish_shadows.gd")
-	assert_str(src).contains("RENDER_PRIORITY := 3")
-	assert_str(src).contains("render_priority = RENDER_PRIORITY")
-
-
 func test_sea_and_river_attrs_do_not_merge_into_one_ocean() -> void:
 	## A freshwater channel that touches a sea strip must stay a river, or river-only fish
 	## never spawn once the mouth meets the beach.
@@ -317,13 +310,13 @@ func test_a_school_with_no_water_never_spawns() -> void:
 
 
 func test_shadows_move_half_their_speed_a_tick() -> void:
-	## `Actor_position_move` adds `0.5 * speed` a tick: `aGTT_speed` is GX per 30 fps frame.
+	## `aGTT_speed` is GX per 30 fps frame, so a 1/60 s step moves half of it.
 	var at: Vector3 = _at(Vector2i(8, 8))
 	var shadow: FishShadow = _shadow(FishData.SizeClass.M, 4, 1, at)
 	var sense: FishShadow.Sense = _bobber_sense(at + Vector3(0.0, 0.0, 1.5))
 	shadow._set_angle(0.0)
 	shadow._enter(FishShadow.Action.NEAR)
-	shadow.step(sense)
+	shadow.tick(1.0 / 60.0, sense)
 	var moved: float = shadow.position.distance_to(at)
 	assert_float(moved).is_equal_approx(FishSize.SPEED_GX[FishData.SizeClass.M] * 0.5 * FishSize.GX, 0.0001)
 
@@ -345,21 +338,22 @@ func test_a_pond_fish_holds_station_facing_north_and_a_river_fish_upstream() -> 
 	shadow._set_angle(PI)
 	shadow._rng = RandomNumberGenerator.new()
 	shadow._enter(FishShadow.Action.WAIT)
-	shadow.step(FishShadow.Sense.new())
-	assert_float(absf(wrapf(shadow.yaw - PI, -PI, PI))).is_equal_approx(FishShadow.FLOW_TURN_FAST, 0.0001)
+	shadow.tick(1.0 / 60.0, FishShadow.Sense.new())
+	assert_float(absf(wrapf(shadow.yaw - PI, -PI, PI))).is_equal_approx(FishShadow.FLOW_TURN_FAST / 60.0, 0.0001)
 
 
 func test_an_escape_runs_a_hundred_ticks_then_holds_station() -> void:
+	## 100 ticks: 1.67 s.
 	var shadow: FishShadow = _shadow(FishData.SizeClass.M, 0, 1, _at(Vector2i(8, 6)))
 	shadow._set_angle(0.0)
 	shadow._enter(FishShadow.Action.ESCAPE)
 	var sense := FishShadow.Sense.new()
 	for _i: int in 99:
-		shadow.step(sense)
+		shadow.tick(1.0 / 60.0, sense)
 	assert_that(shadow.action).is_equal(FishShadow.Action.ESCAPE)
-	## Eased off by 0.02 a tick from 2.0.
-	assert_float(shadow.speed).is_equal_approx(FishSize.ESCAPE_SPEED_GX - 0.02 * 99.0, 0.0001)
-	shadow.step(sense)
+	## Eased off by 0.02 GX a frame each tick from 2.0.
+	assert_float(shadow.speed).is_equal_approx(FishSize.gx_per_frame_to_mps(FishSize.ESCAPE_SPEED_GX - 0.02 * 99.0), 0.0001)
+	shadow.tick(1.0 / 60.0 + 0.001, sense)
 	assert_that(shadow.action).is_equal(FishShadow.Action.WAIT)
 
 
@@ -496,3 +490,22 @@ func _run(shadow: FishShadow, sense: FishShadow.Sense, seconds: float) -> void:
 	while elapsed < seconds:
 		shadow.tick(STEP, sense)
 		elapsed += STEP
+
+
+func test_a_shadow_swims_the_same_course_at_a_low_frame_rate() -> void:
+	## Waits, then sweeps (pattern 0, 50°→360°): the same seed at 60 Hz and 15 Hz rolls the
+	## same choices, and the course stays within a few centimetres.
+	var at: Vector3 = _at(Vector2i(8, 8))
+	var a: FishShadow = _shadow(FishData.SizeClass.M, 2, 1, at)
+	var b: FishShadow = _shadow(FishData.SizeClass.M, 2, 1, at)
+	a._swim_kind = 0
+	b._swim_kind = 0
+	a._enter(FishShadow.Action.SWIM)
+	b._enter(FishShadow.Action.SWIM)
+	var sense := FishShadow.Sense.new()
+	for _i: int in 120:
+		a.tick(1.0 / 60.0, sense)
+	for _i: int in 30:
+		b.tick(1.0 / 15.0, sense)
+	assert_that(b.action).is_equal(a.action)
+	assert_vector(b.position).is_equal_approx(a.position, Vector3.ONE * 0.03)

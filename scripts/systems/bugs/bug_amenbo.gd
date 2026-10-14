@@ -89,16 +89,15 @@ func _move(a: BugActor, sense: BugActor.Sense) -> void:
 func _rest(a: BugActor, sense: BugActor.Sense) -> void:
 	_bg(a, sense)
 	_hold_without_ground(a, sense)
-	a.timer -= 1
-	if a.timer <= 0:
+	a.timer -= a.n
+	if a.timer <= 0.0:
 		setup_action(a, MOVE)
 
 
 func _let_escape(a: BugActor, _sense: BugActor.Sense) -> void:
-	a.anime0 += 0.5
-	if a.anime0 >= 2.0:
-		a.anime0 -= 2.0
-	a.gravity = minf(a.gravity + a.gravity * 0.05, 12.0)
+	a.anime0 = fmod(a.anime0 + 0.5 * a.n, 2.0)
+	## Gravity grows 5% a tick.
+	a.gravity = minf(a.gravity * pow(1.05, a.n), 12.0)
 	a.ongen = 0x25
 
 

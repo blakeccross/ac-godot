@@ -15,21 +15,21 @@ const BOB_RATE := 2.2
 const DIP_DEPTH := 0.075
 ## `aUKI_color`: more than 3 GX under the surface the float is tinted (100, 100, 128), and
 ## back above it returns to white. `aUKI_chase_color` moves each channel by half its step
-## a tick (the int of 52 * 0.5 and 43 * 0.5).
+## a tick (the int of 52 * 0.5 and 43 * 0.5): per second, out of 255.
 const UNDERWATER_GX := 3.0
-const UNDERWATER_RGB := Vector3i(100, 100, 128)
-const COLOR_STEP := Vector3i(26, 26, 21)
+const UNDERWATER_RGB := Vector3(100, 100, 128) / 255.0
+const COLOR_RATE := Vector3(26, 26, 21) * 60.0 / 255.0
 
 ## `aUKI_actor_draw` tilts the float on X only, and the model is authored upside down —
 ## every proc starts from `DEG2SHORT_ANGLE2(180.0f)`. Godot's Y is already up, so the
 ## flip is the rest pose and the proc targets below are offsets from it.
 const REST_PITCH := PI
-## Per-proc `(fraction, max_step)` pairs, straight off the `add_calc_short_angle2` calls.
-## Fractions are `1 - sqrt(k)`; steps are short angles (0x10000 = a full turn).
-const CAST_FRACTION := 1.0 - sqrt(0.95)
-const CAST_MAX_STEP := 1024.0 * MLib.S16
-const SETTLE_FRACTION := 1.0 - sqrt(0.8)
-const SETTLE_MAX_STEP := PI * 0.25
+## Per-proc tilt chases, from the `add_calc_short_angle2` calls (`1 - sqrt(k)` of the gap a
+## tick, at most `max_step` short angles a tick): as half-lives and turn rates (rad/s).
+const CAST_HALF_LIFE := 0.4504  ## Motion.half_life_from_fraction(1 − √0.95)
+const CAST_MAX_RATE := 1024.0 * MLib.S16 * 60.0
+const SETTLE_HALF_LIFE := 0.1035  ## Motion.half_life_from_fraction(1 − √0.8)
+const SETTLE_MAX_RATE := PI * 0.25 * 60.0
 ## `aUKI_PROC_CAST` / `aUKI_PROC_WAIT` while `cast_timer` runs: the float lies flat.
 const PITCH_FLAT := PI * 0.5
 ## `aUKI_PROC_BITE` with `gyo_status == 4`: yanked over toward the rod. Before the strike
@@ -40,9 +40,8 @@ var _base: Vector3 = Vector3.INF
 var _phase: float = 0.0
 var _float: Node3D
 var _pitch: float = PITCH_FLAT
-var _tilt_steps := FrameStepper.new()
-## `uki->color`, 0–255 a channel.
-var _rgb: Vector3i = Vector3i(255, 255, 255)
+## `uki->color`, 0–1 a channel.
+var _rgb: Vector3 = Vector3.ONE
 var _materials: Array[BaseMaterial3D] = []
 
 
@@ -89,8 +88,8 @@ func _tilt(delta: float, height: float) -> void:
 	if _float == null:
 		return
 	var target: float = PITCH_FLAT
-	var fraction: float = CAST_FRACTION
-	var max_step: float = CAST_MAX_STEP
+	var half_life: float = CAST_HALF_LIFE
+	var max_rate: float = CAST_MAX_RATE
 	var drawn := true
 	match Fishing.state():
 		Fishing.State.BITE:
@@ -100,17 +99,11 @@ func _tilt(delta: float, height: float) -> void:
 			## `aUKI_PROC_WAIT` once `cast_timer` has run out: stand upright, and stand up
 			## fast — this is the beat that tells you the cast has settled.
 			target = 0.0
-			fraction = SETTLE_FRACTION
-			max_step = SETTLE_MAX_STEP
-	## The draw runs once per tick and `add_calc_short_angle2` steps per call, so the tilt
-	## runs on fixed ticks rather than being scaled by `delta`.
-	_tilt_steps.add(delta)
-	while _tilt_steps.next():
-		## Every `aUKI_rotate_calc` call passes `minStep == 0`, so the tilt stops where the
-		## step rounds away rather than being floored to a minimum turn.
-		if drawn:
-			_pitch = MLib.short_angle2(_pitch, target, fraction, max_step)
-		_rgb = chase_color(_rgb, height < -UNDERWATER_GX * FieldCatalog.GX_TO_METERS)
+			half_life = SETTLE_HALF_LIFE
+			max_rate = SETTLE_MAX_RATE
+	if drawn:
+		_pitch = tilt_toward(_pitch, target, half_life, max_rate, delta)
+	_rgb = chase_color(_rgb, height < -UNDERWATER_GX * FieldCatalog.GX_TO_METERS, delta)
 	## Every proc but an unstruck bite turns the float to face the rod (`uki_angle.y`) and
 	## then tips it; an unstruck bite leaves it standing with neither.
 	var to_rod: Vector3 = _origin() - global_position if is_inside_tree() else Vector3.ZERO
@@ -119,18 +112,27 @@ func _tilt(delta: float, height: float) -> void:
 	_paint()
 
 
-## One tick of `aUKI_color`: each channel steps toward the underwater tint or back to white.
-static func chase_color(rgb: Vector3i, under: bool) -> Vector3i:
-	var goal: Vector3i = UNDERWATER_RGB if under else Vector3i(255, 255, 255)
-	return Vector3i(
-		int(move_toward(rgb.x, goal.x, COLOR_STEP.x)),
-		int(move_toward(rgb.y, goal.y, COLOR_STEP.y)),
-		int(move_toward(rgb.z, goal.z, COLOR_STEP.z)),
+## The float's pitch eased toward `target` over `delta` seconds, never turning faster than
+## `max_rate`.
+static func tilt_toward(pitch: float, target: float, half_life: float, max_rate: float, delta: float) -> float:
+	var eased: float = Motion.damp_angle(pitch, target, half_life, delta)
+	var step: float = clampf(angle_difference(pitch, eased), -max_rate * delta, max_rate * delta)
+	return pitch + step
+
+
+## `aUKI_color` over `delta` seconds: each channel heads toward the underwater tint or back
+## to white at its own rate.
+static func chase_color(rgb: Vector3, under: bool, delta: float) -> Vector3:
+	var goal: Vector3 = UNDERWATER_RGB if under else Vector3.ONE
+	return Vector3(
+		move_toward(rgb.x, goal.x, COLOR_RATE.x * delta),
+		move_toward(rgb.y, goal.y, COLOR_RATE.y * delta),
+		move_toward(rgb.z, goal.z, COLOR_RATE.z * delta),
 	)
 
 
 func tint() -> Color:
-	return Color8(_rgb.x, _rgb.y, _rgb.z)
+	return Color(_rgb.x, _rgb.y, _rgb.z)
 
 
 ## `gDPSetPrimColor` on the float: give it its own copies of its materials so tinting one

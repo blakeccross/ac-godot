@@ -1,0 +1,137 @@
+[gd_scene load_steps=16 format=3]
+
+[ext_resource type="Script" path="res://scenes/world/weather_fx.gd" id="1_script"]
+[ext_resource type="Shader" path="res://shaders/weather_rain.gdshader" id="2_rain"]
+[ext_resource type="Shader" path="res://shaders/weather_floaters.gdshader" id="3_float"]
+
+[sub_resource type="ParticleProcessMaterial" id="RainProcess"]
+emission_shape = 3
+emission_box_extents = Vector3(6.5, 0, 9)
+emission_shape_offset = Vector3(0, 0, -1)
+direction = Vector3(0, -1, 0)
+spread = 0.0
+initial_velocity_min = 34.5
+initial_velocity_max = 42.0
+gravity = Vector3(0, 0, 0)
+
+[sub_resource type="ShaderMaterial" id="RainCardMaterial"]
+render_priority = 4
+shader = ExtResource("2_rain")
+shader_parameter/card_scale = Vector3(0.015, 1.75, 0.5)
+shader_parameter/full_billboard = false
+
+[sub_resource type="QuadMesh" id="RainCard"]
+material = SubResource("RainCardMaterial")
+size = Vector2(2, 2)
+
+[sub_resource type="ParticleProcessMaterial" id="SplashProcess"]
+emission_shape = 4
+gravity = Vector3(0, 0, 0)
+spread = 0.0
+initial_velocity_min = 0.0
+initial_velocity_max = 0.0
+
+[sub_resource type="ShaderMaterial" id="SplashMaterial"]
+render_priority = 4
+shader = ExtResource("2_rain")
+shader_parameter/card_scale = Vector3(0.165, 0.165, 0.165)
+shader_parameter/full_billboard = true
+
+[sub_resource type="QuadMesh" id="SplashCard"]
+material = SubResource("SplashMaterial")
+size = Vector2(2, 2)
+
+[sub_resource type="ShaderMaterial" id="SnowProcess"]
+shader = ExtResource("3_float")
+shader_parameter/box_x = 5.0
+shader_parameter/box_z_back = 10.0
+shader_parameter/box_z_front = 9.0
+shader_parameter/top_height = 11.5
+shader_parameter/floor_height = 2.0
+shader_parameter/fall_speed = Vector2(-7.5, -1.5)
+shader_parameter/drift = Vector3(0, 0, 0)
+shader_parameter/wobble_radius = 0.3
+shader_parameter/wobble_rate = Vector2(0.9003, 1.4986)
+shader_parameter/size = 0.196
+shader_parameter/shrink_band = 1.0
+shader_parameter/tumble_rate = Vector3(0, 0, 0)
+
+[sub_resource type="StandardMaterial3D" id="SnowMaterial"]
+render_priority = 4
+transparency = 1
+shading_mode = 0
+cull_mode = 2
+depth_draw_mode = 2
+billboard_mode = 3
+billboard_keep_scale = true
+
+[sub_resource type="QuadMesh" id="SnowCard"]
+material = SubResource("SnowMaterial")
+
+[sub_resource type="ShaderMaterial" id="PetalProcess"]
+shader = ExtResource("3_float")
+shader_parameter/box_x = 5.0
+shader_parameter/box_z_back = 10.0
+shader_parameter/box_z_front = 9.0
+shader_parameter/top_height = 11.5
+shader_parameter/floor_height = 0.0
+shader_parameter/fall_speed = Vector2(-2.7, -2.4)
+shader_parameter/drift = Vector3(1.35, 0, 0)
+shader_parameter/wobble_radius = 0.3
+shader_parameter/wobble_rate = Vector2(0.9003, 1.4986)
+shader_parameter/size = 0.5
+shader_parameter/shrink_band = 0.0
+shader_parameter/tumble_rate = Vector3(6.558, 13.05, 2.945)
+
+[sub_resource type="StandardMaterial3D" id="PetalMaterial"]
+render_priority = 4
+transparency = 1
+shading_mode = 0
+cull_mode = 2
+depth_draw_mode = 2
+
+[sub_resource type="QuadMesh" id="PetalCard"]
+material = SubResource("PetalMaterial")
+
+[node name="WeatherFx" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="Rain" type="GPUParticles3D" parent="."]
+emitting = false
+amount = 30
+lifetime = 0.1667
+fixed_fps = 0
+local_coords = false
+visibility_aabb = AABB(-20, -20, -20, 40, 40, 40)
+process_material = SubResource("RainProcess")
+draw_pass_1 = SubResource("RainCard")
+
+[node name="Splash" type="GPUParticles3D" parent="."]
+emitting = false
+amount = 24
+lifetime = 0.1333
+fixed_fps = 0
+local_coords = false
+visibility_aabb = AABB(-20, -20, -20, 40, 40, 40)
+process_material = SubResource("SplashProcess")
+draw_pass_1 = SubResource("SplashCard")
+
+[node name="Snow" type="GPUParticles3D" parent="."]
+emitting = false
+amount = 140
+lifetime = 4.667
+fixed_fps = 0
+local_coords = false
+visibility_aabb = AABB(-20, -20, -20, 40, 40, 40)
+process_material = SubResource("SnowProcess")
+draw_pass_1 = SubResource("SnowCard")
+
+[node name="Petals" type="GPUParticles3D" parent="."]
+emitting = false
+amount = 70
+lifetime = 4.667
+fixed_fps = 0
+local_coords = false
+visibility_aabb = AABB(-20, -20, -20, 40, 40, 40)
+process_material = SubResource("PetalProcess")
+draw_pass_1 = SubResource("PetalCard")

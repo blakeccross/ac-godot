@@ -5,18 +5,20 @@ extends RefCounted
 ## `aMR_ManageMoveBottun`, `aMR_MngPush/PullDirectTimer`, `aMR_PlacePush/Pull/KurukuruFurniture`).
 ##
 ## Press A against a piece and the player grips it. While A stays down the stick moves it:
-## away from it pulls, into it pushes, sideways turns it. Letting go of A inside 14 ticks is a
-## tap — the ordinary "use" verb (open a drawer, toggle, …). B, from a few units back, picks a
+## away from it pulls, into it pushes, sideways turns it. Letting go of A within a quarter
+## second is a tap — the ordinary "use" verb (open a drawer, toggle, …). B, from a few units back, picks a
 ## piece up. Everything here is pure grid logic on an `IndoorSession`; the player script feeds
-## it input at 60 Hz and plays the animations the returned events name.
+## it input every frame with `delta` and plays the animations the returned events name.
 
 enum Phase { IDLE, GRIPPED, BUSY }
 enum ContactSide { FRONT, BACK, LEFT, RIGHT }
 
-## `switch_timer < 14`: a shorter A press is a tap.
-const TAP_TICKS := 14
-## `push_timer > 16` / `pull_timer > 16`.
-const MOVE_TICKS := 16
+## `switch_timer < 14`: an A press shorter than 14 ticks is a tap.
+const TAP_TIME := 14.0 / 60.0
+## `push_timer > 16` / `pull_timer > 16`: the stick held for 17 ticks moves the piece.
+const MOVE_TIME := 17.0 / 60.0
+## Slack on the timers so 60 steps of `1 / 60` still add up to a second.
+const TIME_SLACK := 0.0001
 ## `move_pR >= 0.8` and the axis component above 0.8.
 const STICK_FULL := 0.8
 ## `aMR_CheckControllerNeutral`.
@@ -32,14 +34,13 @@ var placement_id: StringName = &""
 var facing: WorldGrid.Facing = WorldGrid.Facing.NORTH
 var pivot: Vector2i = Vector2i.ZERO
 var side: ContactSide = ContactSide.FRONT
-var press_ticks: int = 0
-var push_ticks: int = 0
-var pull_ticks: int = 0
+## Seconds A has been held, the stick pushed and the stick pulled.
+var press_time: float = 0.0
+var push_time: float = 0.0
+var pull_time: float = 0.0
 var allow_rotation: bool = true
 ## After a blocked attempt the stick has to come back before the next one (`push_bubu`).
 var need_neutral: bool = false
-
-var _steps := FrameStepper.new()
 
 
 func is_active() -> bool:
@@ -49,12 +50,11 @@ func is_active() -> bool:
 func reset() -> void:
 	phase = Phase.IDLE
 	placement_id = &""
-	press_ticks = 0
-	push_ticks = 0
-	pull_ticks = 0
+	press_time = 0.0
+	push_time = 0.0
+	pull_time = 0.0
 	allow_rotation = true
 	need_neutral = false
-	_steps.reset()
 
 
 ## The floor piece the player is up against, or `{}`. `{ placement, data, pivot, side, nice_pos }`.
@@ -147,12 +147,11 @@ func press(session: IndoorSession, player_pos: Vector3, face: WorldGrid.Facing) 
 	facing = face
 	pivot = contact["pivot"] as Vector2i
 	side = contact["side"] as ContactSide
-	press_ticks = 0
-	push_ticks = 0
-	pull_ticks = 0
+	press_time = 0.0
+	push_time = 0.0
+	pull_time = 0.0
 	allow_rotation = true
 	need_neutral = false
-	_steps.reset()
 	return contact
 
 
@@ -160,8 +159,8 @@ func press(session: IndoorSession, player_pos: Vector3, face: WorldGrid.Facing) 
 func finish_busy() -> void:
 	if phase == Phase.BUSY:
 		phase = Phase.GRIPPED
-		push_ticks = 0
-		pull_ticks = 0
+		push_time = 0.0
+		pull_time = 0.0
 
 
 ## Advance by `delta` seconds. Returns events in order: `tap`, `release`, `move`, `rotate`, `bubu`.
@@ -175,23 +174,14 @@ func advance(
 	var out: Array[Dictionary] = []
 	if phase == Phase.IDLE:
 		return out
-	_steps.add(delta)
-	while phase != Phase.IDLE and _steps.next():
-		out.append_array(_tick(session, a_held, stick, player_pos))
-	return out
-
-
-func _tick(session: IndoorSession, a_held: bool, stick: Vector2, player_pos: Vector3) -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
 	if not a_held:
-		if press_ticks < TAP_TICKS and phase == Phase.GRIPPED:
+		if press_time < TAP_TIME - TIME_SLACK and phase == Phase.GRIPPED:
 			out.append({"op": "tap", "id": placement_id, "side": side})
 		else:
 			out.append({"op": "release", "id": placement_id})
 		reset()
 		return out
-	if press_ticks < TAP_TICKS:
-		press_ticks += 1
+	press_time += delta
 	if phase == Phase.BUSY:
 		return out
 	var entry: FurniturePlacement = session.room.placement_by_id(placement_id) if session.room != null else null
@@ -210,16 +200,16 @@ func _tick(session: IndoorSession, a_held: bool, stick: Vector2, player_pos: Vec
 	var pulling: bool = full and along < -STICK_FULL
 	var turning: bool = full and absf(across) > STICK_FULL
 	if need_neutral and (pushing or pulling):
-		push_ticks = 0
-		pull_ticks = 0
+		push_time = 0.0
+		pull_time = 0.0
 		return out
-	push_ticks = push_ticks + 1 if pushing else 0
-	pull_ticks = pull_ticks + 1 if pulling else 0
-	if push_ticks > MOVE_TICKS:
-		push_ticks = 0
+	push_time = push_time + delta if pushing else 0.0
+	pull_time = pull_time + delta if pulling else 0.0
+	if push_time >= MOVE_TIME - TIME_SLACK:
+		push_time = 0.0
 		out.append(_try_push(session, entry, toward, player_pos))
-	elif pull_ticks > MOVE_TICKS:
-		pull_ticks = 0
+	elif pull_time >= MOVE_TIME - TIME_SLACK:
+		pull_time = 0.0
 		out.append(_try_pull(session, entry, toward, player_pos))
 	elif turning and allow_rotation:
 		allow_rotation = false

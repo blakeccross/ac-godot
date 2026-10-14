@@ -191,7 +191,6 @@ var _rail_y_gx: float = TRACK_Y_GX
 var _getoff_t: float = 0.0
 var _getoff_from_gx: Vector3 = Vector3.ZERO
 var _awaiting_dialogue: bool = false
-var _steps := FrameStepper.new()
 var _unit_centers: PackedByteArray = PackedByteArray()
 var _motor: PlayerLocomotion = PlayerLocomotion.new()
 var _nook_move: NpcPointMove = NpcPointMove.new()
@@ -256,7 +255,6 @@ func reset() -> void:
 	action = Action.ARRIVE_SETUP
 	_getoff_t = 0.0
 	_awaiting_dialogue = false
-	_steps.reset()
 	house_idx = 0
 	_motor.reset(RIDE_YAW)
 	_nook_move.reset(0.0)
@@ -317,11 +315,9 @@ func missing_assets() -> PackedStringArray:
 
 
 func tick(delta: float) -> void:
-	_steps.add(delta)
-	while _steps.next():
-		_tick_frame()
+	_advance(delta)
 	if _player_may_move():
-		_tick_debug_player_control(delta)
+		_debug_player_control(delta)
 	## `aTR1_passenger_ctrl` runs after the train moves: re-pin every rendered frame.
 	if action == Action.TRAIN_APPROACH:
 		_snap_player_to_ride()
@@ -492,33 +488,33 @@ func ground_y_gx(x_gx: float, z_gx: float) -> float:
 	return FieldCatalog.counts_to_y(count, 0) / FieldCatalog.GX_TO_METERS
 
 
-func _tick_frame() -> void:
+func _advance(delta: float) -> void:
 	if _own_train:
-		_step_own_train()
+		_step_own_train(delta)
 	match action:
 		Action.TRAIN_APPROACH:
-			_tick_ride_train()
+			_ride_train()
 		Action.GET_OFF:
-			_tick_get_off()
+			_get_off(delta)
 		Action.WALK_ONE_UNIT:
-			_tick_walk_one_unit()
+			_walk_one_unit(delta)
 		Action.PLAYER_CONTROL:
-			_tick_go_out_of_station()
+			_go_out_of_station()
 		Action.NOOK_APPROACH:
-			_tick_nook_approach()
+			_nook_approach(delta)
 		Action.NOOK_TURN:
-			_tick_nook_turn()
+			_nook_turn(delta)
 		Action.NOOK_LEAD:
-			_tick_nook_lead()
+			_nook_lead(delta)
 		Action.NOOK_EXIT_TURN:
-			_tick_nook_exit_turn()
+			_nook_exit_turn(delta)
 		Action.NOOK_EXIT:
-			_tick_nook_exit()
+			_nook_exit(delta)
 
 
 ## `aID_ride_train`: the train stops (action 4, door opens), then `WAIT_STOPPED` (5) lets
 ## the player off.
-func _tick_ride_train() -> void:
+func _ride_train() -> void:
 	if _control == null:
 		return
 	if _control.action == TrainControl.Action.WAIT_STOPPED:
@@ -538,12 +534,12 @@ func _begin_get_off() -> void:
 
 ## `aID_ride_off_player` + `aSTM_get_off_wait`: once the player is out of GETOFF_TRAIN and
 ## the Porter's current action has ended, he force-talks (`0x07DD`).
-func _tick_get_off() -> void:
+func _get_off(delta: float) -> void:
 	if _player is Player:
 		if (_player as Player).is_door_entering():
 			return
 	else:
-		_getoff_t = minf(1.0, _getoff_t + DecompTime.TICK_SEC / GETOFF_DURATION)
+		_getoff_t = minf(1.0, _getoff_t + delta / GETOFF_DURATION)
 		var to_gx: Vector3 = _getoff_from_gx + Vector3(0.0, 0.0, GETOFF_STEP_GX)
 		to_gx.y = lerpf(_getoff_from_gx.y, ground_y_gx(to_gx.x, to_gx.z), _getoff_t)
 		_set_node_gx(_player, _getoff_from_gx.lerp(to_gx, _getoff_t))
@@ -560,13 +556,13 @@ func _tick_get_off() -> void:
 
 
 ## `aID_walk_one_unit`: keep the demo-walk goal until the player reaches z 840.
-func _tick_walk_one_unit() -> void:
+func _walk_one_unit(delta: float) -> void:
 	var arrive: float = demo_walk_arrive_gx(OFF_UT_SPEED_GX) + DEMO_WALK_SNAP_GX
 	var pos: Vector3 = _player_gx()
 	var near: bool = Vector2(OFF_UT_GX.x - pos.x, OFF_UT_GX.z - pos.z).length() <= arrive
 	if pos.z < OFF_UT_GX.z and not near:
 		if not _player is Player:
-			_debug_step_toward(OFF_UT_GX, OFF_UT_SPEED_GX)
+			_debug_step_toward(OFF_UT_GX, OFF_UT_SPEED_GX, delta)
 		return
 	## `aID_go_out_of_station_init`: `wait_type3` + `Camera2_request_main_normal`.
 	_end_demo_walk()
@@ -576,7 +572,7 @@ func _tick_walk_one_unit() -> void:
 
 
 ## `aID_go_out_of_station`: past z 970 the player is stopped and Nook is born.
-func _tick_go_out_of_station() -> void:
+func _go_out_of_station() -> void:
 	if _player_gx().z < OUT_STATION_Z_GX:
 		return
 	_stop_player()
@@ -599,8 +595,8 @@ func _spawn_nook() -> void:
 
 
 ## `aNRG_approach`: RUN to the fixed point, then INTRODUCE (`aNRG_introduce_init` → WAIT).
-func _tick_nook_approach() -> void:
-	if _step_nook_to(_nook_goal_gx, true):
+func _nook_approach(delta: float) -> void:
+	if _step_nook_to(delta, _nook_goal_gx, true):
 		_nook_move.stop()
 		_play_clip(_nook_anim, NOOK_WAIT_CLIP, true)
 		_awaiting_dialogue = true
@@ -609,9 +605,9 @@ func _tick_nook_approach() -> void:
 
 
 ## `aNRG_turn` → TAKE_WITH (`intro_demo->talk_flag` → `aID_walk_after_rcn_guide`).
-func _tick_nook_turn() -> void:
+func _nook_turn(delta: float) -> void:
 	_nook_move.facing = _nook.rotation.y
-	var done: bool = _nook_move.step_turn(NpcPointMove.yaw_to(_node_gx(_nook), _nook_turn_gx))
+	var done: bool = _nook_move.step_turn(delta, NpcPointMove.yaw_to(_node_gx(_nook), _nook_turn_gx))
 	_nook_face(_nook_move.facing)
 	_play_clip(_nook_anim, NOOK_WALK_CLIP, true)
 	if not done:
@@ -622,8 +618,8 @@ func _tick_nook_turn() -> void:
 
 
 ## `aNRG_take_with` + `aID_walk_after_rcn_guide`.
-func _tick_nook_lead() -> void:
-	if _step_nook_to(_nook_goal_gx, true):
+func _nook_lead(delta: float) -> void:
+	if _step_nook_to(delta, _nook_goal_gx, true):
 		if _nook_path >= 1:
 			## EXPLAIN: Nook's action drops to WAIT (`action.idx == 0`), so the player stops
 			## where they are (`mPlib_request_main_wait_type3`).
@@ -636,22 +632,22 @@ func _tick_nook_lead() -> void:
 			return
 		_nook_path += 1
 		_nook_goal_gx = NOOK_LEAD_GX[_nook_path]
-	_follow_nook()
+	_follow_nook(delta)
 
 
 ## `mPlib_Set_goal_player_demo_walk(rcn.x, rcn.z, rate · rcn.speed)` every frame.
-func _follow_nook() -> void:
+func _follow_nook(delta: float) -> void:
 	if _player == null or _nook == null:
 		return
 	var nook_gx: Vector3 = _node_gx(_nook)
 	var pos: Vector3 = _player_gx()
 	var dist: float = Vector2(nook_gx.x - pos.x, nook_gx.z - pos.z).length()
 	var rate: float = DEMO_FOLLOW_NEAR_RATE if dist < DEMO_FOLLOW_NEAR_GX else DEMO_FOLLOW_FAR_RATE
-	var speed: float = maxf(rate * _nook_move.speed, DEMO_WALK_MIN_SPEED_GX)
+	var speed: float = maxf(rate * _nook_move.frame_speed(), DEMO_WALK_MIN_SPEED_GX)
 	if _player is Player:
 		_demo_walk_to(nook_gx, speed)
 	else:
-		_debug_step_toward(nook_gx, speed)
+		_debug_step_toward(nook_gx, speed, delta)
 
 
 ## `aNRG_exit_turn_init`: TURN toward (2240, 1900) or (2240, 1300) by which side of z 1540
@@ -665,9 +661,9 @@ func _begin_nook_exit() -> void:
 	nook_exit_started.emit()
 
 
-func _tick_nook_exit_turn() -> void:
+func _nook_exit_turn(delta: float) -> void:
 	_nook_move.facing = _nook.rotation.y
-	var done: bool = _nook_move.step_turn(NpcPointMove.yaw_to(_node_gx(_nook), _nook_turn_gx))
+	var done: bool = _nook_move.step_turn(delta, NpcPointMove.yaw_to(_node_gx(_nook), _nook_turn_gx))
 	_nook_face(_nook_move.facing)
 	_play_clip(_nook_anim, NOOK_WALK_CLIP, true)
 	if not done:
@@ -682,8 +678,8 @@ func _tick_nook_exit_turn() -> void:
 
 ## `aNRG_exit`: each time a run ends, pick the next leave point from his z; past the last one
 ## he is deleted.
-func _tick_nook_exit() -> void:
-	if not _step_nook_to(_nook_goal_gx, true):
+func _nook_exit(delta: float) -> void:
+	if not _step_nook_to(delta, _nook_goal_gx, true):
 		return
 	var next: Vector3 = nook_exit_waypoint(_node_gx(_nook))
 	if next == Vector3.INF:
@@ -715,15 +711,15 @@ func _retire_nook() -> void:
 	finished.emit()
 
 
-## One frame of Nook's RUN / WALK toward `goal`. True when the action ends (arrival).
-func _step_nook_to(goal: Vector3, run: bool) -> bool:
+## `delta` seconds of Nook's RUN / WALK toward `goal`. True when the action ends (arrival).
+func _step_nook_to(delta: float, goal: Vector3, run: bool) -> bool:
 	if _nook == null:
 		return true
 	## `aNPC_position_move` runs every frame on the actor's speed; the action's arrival check
 	## only ends the action — a new point he is already inside is simply run past.
 	var pos: Vector3 = _node_gx(_nook)
 	_nook_move.facing = _nook.rotation.y
-	var next: Vector3 = _nook_move.step_to(pos, goal, run)
+	var next: Vector3 = _nook_move.step_to(delta, pos, goal, run)
 	_set_node_gx(_nook, _with_ground(next))
 	_nook_face(_nook_move.facing)
 	_play_clip(_nook_anim, NOOK_RUN_CLIP if run else NOOK_WALK_CLIP, true)
@@ -764,10 +760,11 @@ func _stop_player() -> void:
 		_play_clip(_player_anim, "ply_1_wait1", true)
 
 
-func _debug_step_toward(goal_gx: Vector3, speed_gx: float) -> void:
+## `speed_gx` is GX per 1/30 s, as the demo-walk speeds are written.
+func _debug_step_toward(goal_gx: Vector3, speed_gx: float, delta: float) -> void:
 	var pos: Vector3 = _player_gx()
 	var to := Vector3(goal_gx.x - pos.x, 0.0, goal_gx.z - pos.z)
-	var step: float = 0.5 * speed_gx
+	var step: float = speed_gx * DecompTime.FRAME_HZ * delta
 	if to.length() <= step:
 		_set_node_gx(_player, _with_ground(Vector3(goal_gx.x, 0.0, goal_gx.z)))
 		_play_clip(_player_anim, "ply_1_wait1", true)
@@ -779,7 +776,7 @@ func _debug_step_toward(goal_gx: Vector3, speed_gx: float) -> void:
 
 
 ## Debug acre: stick walk for the scripted `DemoPlayer` node (no player actor).
-func _tick_debug_player_control(delta: float) -> void:
+func _debug_player_control(delta: float) -> void:
 	if _player == null or _player is Player or delta <= 0.0:
 		return
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
@@ -805,15 +802,15 @@ func _place_porter() -> void:
 
 
 ## Debug acre: `mTRC_move` + `aTR0` / `aTR1` actor moves on the bound car nodes.
-func _step_own_train() -> void:
-	_control.step(Clock.now_sec(), Clock.day)
+func _step_own_train(delta: float) -> void:
+	_control.advance(delta, Clock.now_sec(), Clock.day)
 	if _control.action == TrainControl.Action.NONE:
 		return
-	var door: Dictionary = _cars.step(_control.x_gx, _control.speed, _control.action, false)
+	var door: Dictionary = _cars.advance(delta, _control.x_gx, _control.speed, _control.action, false)
 	if not door.is_empty():
 		FieldTrain.apply_door(_caboose_anim, door)
 	if _loco_anim != null:
-		_loco_anim.speed_scale = loco_wheel_speed_scale(_control.speed) * DecompTime.TICKS_PER_FRAME
+		_loco_anim.speed_scale = loco_wheel_speed_scale(_control.frame_speed()) * DecompTime.TICKS_PER_FRAME
 	_place_own_train()
 
 
@@ -859,7 +856,7 @@ func _start_loco_wheels() -> void:
 	if _loco_anim == null:
 		return
 	_play_clip(_loco_anim, LOCO_WHEEL_CLIP, true)
-	_loco_anim.speed_scale = loco_wheel_speed_scale(_control.speed) * DecompTime.TICKS_PER_FRAME
+	_loco_anim.speed_scale = loco_wheel_speed_scale(_control.frame_speed()) * DecompTime.TICKS_PER_FRAME
 
 
 func _set_arrive_camera() -> void:

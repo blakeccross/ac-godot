@@ -107,9 +107,9 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.type == T_BEE or a.s32_work[0] != 0:
 		return
 	if a.patience < 50.0:
-		a.timer -= 1
-		if not (BugProgram.raining() or sense.raining) and a.timer < 0:
-			a.timer = 0
+		a.timer -= a.n
+		if not (BugProgram.raining() or sense.raining) and a.timer < 0.0:
+			a.timer = 0.0
 			a.ongen = CRY_SE[a.type - T_ROBUST_CICADA]
 			a.pos.x = a.home.x + a._rng.randf() * 0.4
 	else:
@@ -117,10 +117,8 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
-	a.anime0 += 0.5
-	if a.anime0 >= 2.0:
-		a.anime0 -= 2.0
-	a.gravity = minf(a.gravity * 1.1, 12.0)
+	a.anime0 = fmod(a.anime0 + 0.5 * a.n, 2.0)
+	a.gravity = minf(a.gravity * pow(1.1, a.n), 12.0)
 	if a.type == T_BEE:
 		a.ongen = 0x26
 	## Ground / wall collision switches on once it has flown off its home unit.

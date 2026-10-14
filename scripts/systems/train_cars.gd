@@ -11,9 +11,11 @@ extends RefCounted
 
 const COUPLING_GX := 125.0
 const SLACK_GX := 2.0
-const CATCH_UP := 0.8
-const BOUNCE_BACK := -0.23
-const SETTLE_RATE := 0.0025
+## Speeds GX a second (the decomp's 0.8 and −0.23 GX per 1/30 s) and the settle ease (0.0025
+## of that a tick), like `TrainControl`.
+const CATCH_UP := 0.8 * TrainControl.PER_FRAME
+const BOUNCE_BACK := -0.23 * TrainControl.PER_FRAME
+const SETTLE_RATE := 0.0025 * TrainControl.PER_TICK_RATE
 
 ## `aTR1_setupAction`: per `TrainControl.Action`, which clip (0 = `obj_train1_3_open`,
 ## 1 = `obj_train1_3_close`) and its speed (cKF frames per tick). Frame 1 of `open` is closed;
@@ -45,15 +47,16 @@ func spawn(loco_x: float) -> void:
 	_fresh = true
 
 
-## One actor tick. `parked_demo` (title demo 1) pins the mid car and freezes the passenger
-## car, as `mEv_CheckTitleDemo() == START1` / `mEv_IsNotTitleDemo()` do. Returns the door
-## change as `{clip, speed, at_end, sound}`, or `{}` when the door keeps its state.
-func step(loco_x: float, loco_speed: float, action: int, parked_demo: bool) -> Dictionary:
+## `delta` seconds of both actors; `loco_speed` is GX a second. `parked_demo` (title demo 1)
+## pins the mid car and freezes the passenger car, as `mEv_CheckTitleDemo() == START1` /
+## `mEv_IsNotTitleDemo()` do. Returns the door change as `{clip, speed, at_end, sound}`, or `{}`
+## when the door keeps its state.
+func advance(delta: float, loco_x: float, loco_speed: float, action: int, parked_demo: bool) -> Dictionary:
 	if parked_demo:
 		mid_x = loco_x - COUPLING_GX
 	else:
-		_step_mid(loco_x, loco_speed)
-		_step_caboose()
+		_step_mid(delta, loco_x, loco_speed)
+		_step_caboose(delta)
 	var door: Dictionary = {}
 	if action != door_action:
 		door = door_setup(action, parked_demo or _fresh)
@@ -77,9 +80,9 @@ static func door_setup(action: int, quiet: bool) -> Dictionary:
 
 
 ## `aTR0_ctrl_back_car`.
-func _step_mid(loco_x: float, loco_speed: float) -> void:
+func _step_mid(delta: float, loco_x: float, loco_speed: float) -> void:
 	var base: float = loco_x - COUPLING_GX
-	var next: float = mid_x + 0.5 * mid_speed
+	var next: float = mid_x + mid_speed * delta
 	if next - base > SLACK_GX:
 		mid_speed = loco_speed if not is_zero_approx(loco_speed) else BOUNCE_BACK
 		mid_x = base + SLACK_GX
@@ -87,14 +90,14 @@ func _step_mid(loco_x: float, loco_speed: float) -> void:
 		mid_speed = _catch_up(mid_speed, loco_speed)
 		mid_x = base
 	else:
-		mid_speed = TrainControl.chase(mid_speed, 0.0, SETTLE_RATE)
+		mid_speed = move_toward(mid_speed, 0.0, SETTLE_RATE * delta)
 		mid_x = next
 
 
 ## `aTR1_position_move`: the same spring, behind the mid car.
-func _step_caboose() -> void:
+func _step_caboose(delta: float) -> void:
 	var base: float = mid_x - COUPLING_GX
-	var next: float = caboose_x + 0.5 * caboose_speed
+	var next: float = caboose_x + caboose_speed * delta
 	if next - base <= 0.0:
 		caboose_speed = _catch_up(caboose_speed, mid_speed)
 		caboose_x = base
@@ -102,7 +105,7 @@ func _step_caboose() -> void:
 		caboose_speed = mid_speed if not is_zero_approx(mid_speed) else BOUNCE_BACK
 		caboose_x = base + SLACK_GX
 	else:
-		caboose_speed = TrainControl.chase(caboose_speed, 0.0, SETTLE_RATE)
+		caboose_speed = move_toward(caboose_speed, 0.0, SETTLE_RATE * delta)
 		caboose_x = next
 
 

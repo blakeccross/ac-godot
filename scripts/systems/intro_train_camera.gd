@@ -2,10 +2,16 @@ class_name IntroTrainCamera
 extends RefCounted
 
 ## Intro train POV — sway, morph, and look-at (`aNGD_set_camera`).
-## Discrete state (`eye_y` / `obj_dist_ground` chase, morph counter) advances in
-## `step_logic` once per decomp frame (60 Hz); `tick` places the camera every render frame.
+## `step_logic` advances the look height and the morph by `delta`; `tick` sways and places the
+## camera.
 
-const MORPH_TICKS := 40
+## `camera_morph_counter`: 40 ticks from the aisle view onto Rover.
+const MORPH_TIME := 40.0 / DecompTime.TICK_HZ
+## `camera_move += 0xE20` a tick: the sway's phase in radians a second.
+const SWAY_RATE := IntroTrainStage.CAMERA_SWAY_STEP * MLib.S16 * DecompTime.TICK_HZ
+## `chase_f(&eye_y, max, spd · 0.5)` and `obj_dist_ground` at 0.5 a tick, in GX a second.
+const LOOK_Y_RATE_PER_SPEED := 0.5 * DecompTime.TICK_HZ
+const GROUND_RATE := 0.5 * DecompTime.TICK_HZ
 ## `mov_def_cnt[] = { 3, 0 }` indexed by `camera_move_set_counter`.
 const _MOV_DEF_CNT: Array[int] = [3, 0]
 
@@ -17,12 +23,12 @@ var camera_eyes: bool = false
 var _camera: Camera3D
 var _eye_gx: Vector3 = IntroTrainStage.CAM_EYE_GX
 var _look_gx: Vector3 = IntroTrainStage.CAM_LOOK_GX
-var _camera_move: int = 0
+## The sway's phase (`camera_move`), radians.
+var _camera_move: float = 0.0
 var _camera_move_y: float = 0.0
 var _camera_move_range: float = 0.0
 var _camera_move_cnt: int = 0
 var _camera_move_set_counter: int = 1
-var _sway_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _camera_tilt: float = 0.0
 var _camera_tilt_goal: float = 0.0
 var _camera_tilt_chase: float = IntroTrainStage.CAMERA_TILT_CHASE
@@ -30,8 +36,8 @@ var _camera_tilt_chase: float = IntroTrainStage.CAMERA_TILT_CHASE
 var eye_y_gx: float = IntroTrainStage.OBJ_LOOK_Y_NORMAL_GX
 ## `guide->obj_dist_ground`, floor-relative (decomp floor is y 40 GX; ours is 0).
 var obj_dist_ground_gx: float = 0.0
-## `camera_morph_counter` (40); only counts while Rover's speak demo is active.
-var morph_counter: int = MORPH_TICKS
+## Seconds left of `camera_morph_counter`; only counts while Rover's speak demo is active.
+var morph_time_left: float = MORPH_TIME
 var morphing: bool = false
 var _shadow_gx: Vector3 = IntroTrainStage.ROVER_START_GX
 
@@ -45,7 +51,7 @@ func setup(camera: Camera3D, eye_gx: Vector3 = IntroTrainStage.CAM_EYE_GX, look_
 	_camera.fov = IntroTrainStage.CAM_FOV
 	_camera.near = IntroTrainStage.CAM_NEAR_METERS
 	_camera.far = IntroTrainStage.CAM_FAR_GX * FieldCatalog.GX_TO_METERS
-	_camera_move = 0
+	_camera_move = 0.0
 	_camera_tilt = 0.0
 	_camera_tilt_goal = 0.0
 	tick(0.0, IntroTrainStage.ROVER_START_GX)
@@ -69,7 +75,7 @@ func begin_speak_morph() -> void:
 	if lock_camera or morphing:
 		return
 	morphing = true
-	morph_counter = MORPH_TICKS
+	morph_time_left = MORPH_TIME
 
 
 ## Park locked on Rover (seated preview helpers).
@@ -82,18 +88,18 @@ func lock_on_rover(shadow_gx: Vector3, talk: bool) -> void:
 	_shadow_gx = shadow_gx
 
 
-## One decomp frame of `aNGD_set_camera` state (`chase_f` + morph counter).
-func step_logic(shadow_gx: Vector3) -> void:
+## `delta` seconds of `aNGD_set_camera` state (`chase_f` + morph counter).
+func step_logic(delta: float, shadow_gx: Vector3) -> void:
 	_shadow_gx = shadow_gx
 	## `chase_f(&eye_y, obj_look_y_max[type], obj_look_y_spd[type] * 0.5)`.
-	eye_y_gx = move_toward(eye_y_gx, _look_y_max(look_talk), _look_y_speed(look_talk) * 0.5)
+	eye_y_gx = move_toward(eye_y_gx, _look_y_max(look_talk), _look_y_speed(look_talk) * LOOK_Y_RATE_PER_SPEED * delta)
 	## TALK uses the shadow (root-motion) height; NORMAL uses the BG floor.
 	var ground_y: float = shadow_gx.y if look_talk else 0.0
-	obj_dist_ground_gx = move_toward(obj_dist_ground_gx, ground_y, 0.5)
+	obj_dist_ground_gx = move_toward(obj_dist_ground_gx, ground_y, GROUND_RATE * delta)
 	if morphing and not lock_camera:
-		morph_counter -= 1
-		if morph_counter <= 0:
-			morph_counter = 0
+		morph_time_left -= delta
+		if morph_time_left <= 0.0:
+			morph_time_left = 0.0
 			morphing = false
 			lock_camera = true
 
@@ -104,7 +110,7 @@ func current_look_gx() -> Vector3:
 		return Vector3(ground.x, ground.y + eye_y_gx, ground.z)
 	if morphing:
 		## `r = (40 − counter) / 40`, `cKF_HermitCalc(r, 1, 0, 1, 3.2, 0)`.
-		var r: float = float(MORPH_TICKS - morph_counter) / float(MORPH_TICKS)
+		var r: float = 1.0 - morph_time_left / MORPH_TIME
 		var inter: float = hermit_morph(r)
 		var to := Vector3(ground.x, ground.y + eye_y_gx, ground.z)
 		return (to - _look_gx) * inter + _look_gx
@@ -116,11 +122,9 @@ func tick(delta: float, shadow_gx: Vector3) -> void:
 	if _camera == null:
 		return
 	_apply_sway(delta)
-	_camera_tilt = _chase_angle(
-		_camera_tilt, _camera_tilt_goal, _camera_tilt_chase * delta * DecompTime.FRAME_HZ
-	)
+	_camera_tilt = rotate_toward(_camera_tilt, _camera_tilt_goal, _camera_tilt_chase * delta * DecompTime.FRAME_HZ)
 	var tilt_sin: float = sin(_camera_tilt)
-	var move_x_gx: float = cos(MLib.s16_to_rad(_camera_move)) * 0.1
+	var move_x_gx: float = cos(_camera_move) * 0.1
 	var move_y_gx: float = _camera_move_y
 	var eye_gx := Vector3(
 		move_x_gx + tilt_sin * 20.0 + _eye_gx.x,
@@ -154,17 +158,13 @@ static func _look_y_speed(talk: bool) -> float:
 	return 2.5 if talk else 0.5
 
 
+## `aNGD_set_camera`'s bob: a sine on `camera_move` whose height drops to 0.35× at each
+## upward zero crossing, three times, before a fresh 0.3 swing (`mov_def_cnt`).
 func _apply_sway(delta: float) -> void:
-	## `aNGD_set_camera`: `camera_move += 0xE20` every frame.
-	_sway_steps.add(delta)
-	while _sway_steps.next():
-		_step_sway()
-
-
-func _step_sway() -> void:
-	var move: int = _camera_move
-	_camera_move = (_camera_move + IntroTrainStage.CAMERA_SWAY_STEP) & 0xFFFF
-	var move_y_gx: float = sin(MLib.s16_to_rad(move + IntroTrainStage.CAMERA_SWAY_STEP)) * _camera_move_range
+	if delta <= 0.0:
+		return
+	_camera_move = fmod(_camera_move + SWAY_RATE * delta, TAU)
+	var move_y_gx: float = sin(_camera_move) * _camera_move_range
 	if _camera_move_y <= 0.0 and move_y_gx >= 0.0:
 		var cnt: int = _camera_move_cnt - 1
 		if cnt < 0:
@@ -178,13 +178,3 @@ func _step_sway() -> void:
 			_camera_move_range *= 0.35
 		_camera_move_cnt = cnt
 	_camera_move_y = move_y_gx
-
-
-## `chase_angle` — fixed angular step toward target (not a lerp fraction).
-static func _chase_angle(current: float, target: float, step: float) -> float:
-	if step <= 0.0:
-		return current
-	var diff: float = wrapf(target - current, -PI, PI)
-	if absf(diff) <= step:
-		return target
-	return current + signf(diff) * step

@@ -13,8 +13,9 @@ const _WINDOW_SPILL_ON := Color(1.0, 1.0, 150.0 / 255.0, 120.0 / 255.0)
 const _WINDOW_SPILL_OFF := Color(1.0, 1.0, 150.0 / 255.0, 0.0)
 const _WINDOW_SPILL_SHADER := preload("res://shaders/window_ground_spill.gdshader")
 
-## `aPBOX_actor_move` / `aSHOP_actor_move`: the lit amount chases 0 ↔ 0x3FFF by 320 a tick.
-const FADE_PER_TICK := 320.0 / 16383.0
+## `aPBOX_actor_move` / `aSHOP_actor_move`: the lit amount chases 0 ↔ 0x3FFF by 320 a tick,
+## so a full fade takes about 0.85 s.
+const FADE_RATE := 320.0 / 16383.0 * DecompTime.TICK_HZ
 ## How lit the windows are (0 dark … 1 lit); −1 until first set.
 static var _level: float = -1.0
 
@@ -31,15 +32,15 @@ static func refresh_window_lights(root: Node) -> void:
 
 
 ## `ticks` play-loop ticks of the fade toward on / off; repaints only while it moves.
-static func step_window_lights(root: Node, ticks: int) -> void:
+static func step_window_lights(root: Node, delta: float) -> void:
 	var target: float = 1.0 if _window_lights_on() else 0.0
 	if _level < 0.0:
 		_level = target
 		_set_window_lights(root, _level)
 		return
-	if is_equal_approx(_level, target) or ticks <= 0:
+	if is_equal_approx(_level, target) or delta <= 0.0:
 		return
-	_level = move_toward(_level, target, FADE_PER_TICK * ticks)
+	_level = move_toward(_level, target, FADE_RATE * delta)
 	_set_window_lights(root, _level)
 
 

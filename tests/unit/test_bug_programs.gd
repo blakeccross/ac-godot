@@ -43,7 +43,7 @@ func _put(layout: WorldData, kind: StringName, cell: Vector2i, visual: StringNam
 
 func _run(a: BugActor, frames: int, s: BugActor.Sense) -> void:
 	for _i: int in frames:
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		if a.finished:
 			return
 
@@ -78,7 +78,7 @@ func test_common_butterfly_does_not_panic_flee_from_a_runner() -> void:
 	for i in 200:
 		s.player_position = b.position + Vector3(sin(i * 0.3) * 0.3, 0.0, cos(i * 0.3) * 0.3)
 		s.player_move_gx = 7.5
-		b.frame(s)
+		b.advance(DecompTime.TICK_SEC, s)
 		assert_int(b.action).is_not_equal(BugChou.AVOID)
 		assert_int(b.action).is_not_equal(BugChou.LET_ESCAPE)
 	assert_bool(b.finished).is_false()
@@ -87,7 +87,7 @@ func test_common_butterfly_does_not_panic_flee_from_a_runner() -> void:
 func test_tiger_butterfly_avoids_when_patience_high() -> void:
 	var b := _make(&"tiger_butterfly", BugData.Habitat.FLYING, Vector3(4.0, 0.5, 4.0))
 	b.patience = 95.0
-	b.frame(BugActor.Sense.new())
+	b.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
 	assert_int(b.action).is_equal(BugChou.AVOID)
 
 
@@ -96,9 +96,9 @@ func test_butterfly_leaving_acre_escapes_and_fades() -> void:
 	## Without a grid the acre spans −320..320 GX, so x = 300 GX is unit 15.
 	var b := _make(&"common_butterfly", BugData.Habitat.FLYING, Vector3(4.0, 0.5, 4.0))
 	b.pos = Vector3(300.0, b.pos.y, b.home.z)
-	b.frame(BugActor.Sense.new())
+	b.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
 	assert_int(b.action).is_equal(BugChou.LET_ESCAPE)
-	assert_int(b.alpha_time).is_equal(0x50)
+	assert_float(b.alpha_time).is_equal(float(0x50))
 	_run(b, 90, BugActor.Sense.new())
 	assert_bool(b.finished).is_true()
 
@@ -106,7 +106,7 @@ func test_butterfly_leaving_acre_escapes_and_fades() -> void:
 func test_butterfly_far_from_home_but_inside_the_acre_keeps_flying() -> void:
 	var b := _make(&"common_butterfly", BugData.Habitat.FLYING, Vector3(4.0, 0.5, 4.0))
 	b.pos = Vector3(-250.0, b.pos.y, 250.0)  ## unit 1 / 14 — the inner edge
-	b.frame(BugActor.Sense.new())
+	b.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
 	assert_int(b.action).is_equal(BugChou.FLY)
 
 
@@ -123,7 +123,7 @@ func test_butterfly_lands_on_a_white_pansy_after_its_cooldown() -> void:
 		if b.action == BugChou.FLY:
 			b.pos.x = at.x / BugActor.GX_M  ## hold it over the pansy
 			b.pos.z = at.z / BugActor.GX_M
-		b.frame(s)
+		b.advance(DecompTime.TICK_SEC, s)
 		seen[b.action] = true
 		if b.action == BugChou.REST:
 			break
@@ -139,7 +139,7 @@ func test_butterfly_scared_by_a_dig_within_sixty_gx() -> void:
 	b._prog.setup_action(b, BugChou.HOVER)
 	s.player_action = BugActor.PlAct.DIG_SCOOP
 	s.player_action_cell = Vector2i(6, 5)  ## next unit: 40 GX away
-	b.frame(s)
+	b.advance(DecompTime.TICK_SEC, s)
 	assert_int(b.action).is_equal(BugChou.AVOID)
 
 
@@ -172,7 +172,7 @@ func test_beetle_scared_by_tree_shake_flies_up_and_away() -> void:
 	var b := _make(&"drone_beetle", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
 	var start_y: float = b.position.y
 	var s := _tree_shaken_sense(Vector2i(4, 6))
-	b.frame(s)
+	b.advance(DecompTime.TICK_SEC, s)
 	assert_int(b.action).is_equal(BugKabuto.AVOID)
 	assert_float(b.pitch).is_equal(0.0)
 	_run(b, 40, s)
@@ -251,7 +251,7 @@ func test_every_species_ticks_without_crashing() -> void:
 		for i in 300:
 			s.player_position = a.position + Vector3(sin(i * 0.11) * 1.5, 0.0, cos(i * 0.11) * 1.5)
 			s.player_move_gx = 3.0
-			a.frame(s)
+			a.advance(DecompTime.TICK_SEC, s)
 			if a.finished:
 				break
 		assert_bool(is_nan(a.pos.x) or is_nan(a.pos.y) or is_nan(a.pos.z)) \
@@ -273,10 +273,10 @@ func test_mole_cricket_pops_out_when_its_cell_is_dug() -> void:
 	s.player_action = BugActor.PlAct.DIG_SCOOP
 	## Digging the next unit over leaves it hidden; its own unit (6 m = 120 GX → 11) wakes it.
 	s.player_action_cell = Vector2i(11, 12)
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugKera.HIDE)
 	s.player_action_cell = Vector2i(11, 11)
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugKera.APPEAR)
 	assert_float(absf(wrapf(a.angle_y - PI, -PI, PI))).is_less_equal(deg_to_rad(60.5))
 	assert_bool(a.drawn).is_true()
@@ -298,34 +298,34 @@ func test_bagworm_hides_until_the_tree_is_shaken() -> void:
 	s.player_position = at + Vector3(-3.0, 0.0, 0.0)   ## west of the tree
 	s.player_action = BugActor.PlAct.SHAKE_TREE
 	s.player_action_cell = Vector2i(6, 5)
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugMino.HIDE)
 	s.player_action_cell = tree
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugMino.APPEAR)
 	assert_bool(a.drawn).is_true()
 	## Drops on the far (east) side, 18 GX north.
 	assert_float(a.pos.x - a.home.x).is_equal_approx(30.0, 0.01)
 	s.player_action = BugActor.PlAct.NONE
 	for i in 300:
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		if a.action == BugMino.WAIT:
 			break
 	assert_int(a.action).is_equal(BugMino.WAIT)
 	var hang := Vector3(a.pos)
 	## A second shake swings it on its 50 GX arm, then it settles facing south again.
 	s.player_action = BugActor.PlAct.SHAKE_TREE
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	s.player_action = BugActor.PlAct.NONE
 	var swung := 0.0
 	for i in 400:
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		swung = maxf(swung, absf(a.pos.x - hang.x))
 	assert_float(swung).is_greater(0.5)
 	assert_float(absf(wrapf(a.rot.y - PI, -PI, PI))).is_less(0.01)
 	## After its 1200 frames it climbs back into the tree.
 	for i in 1200:
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		if a.action == BugMino.HIDE:
 			break
 	assert_int(a.action).is_equal(BugMino.HIDE)
@@ -337,15 +337,15 @@ func test_bagworm_falls_from_a_felled_tree_and_crawls_off() -> void:
 	var t := _put(s.layout, &"tree", tree)
 	var at: Vector3 = s.grid.cell_to_world(tree)
 	var a := _make(&"bagworm", BugData.Habitat.TREE, at)
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugMino.HIDE)
 	s.layout.objects.erase(t)
 	s.player_position = at + Vector3(0.0, 0.0, 6.0)
 	s.player_yaw = PI
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugMino.FALL)
 	for i in 60:
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		if a.action == BugMino.LET_ESCAPE:
 			break
 	assert_int(a.action).is_equal(BugMino.LET_ESCAPE)
@@ -363,10 +363,10 @@ func test_pill_bug_curls_into_a_ball_when_scared() -> void:
 	## A strike on a neighbouring unit does nothing.
 	s.player_action = BugActor.PlAct.REFLECT_SCOOP
 	s.player_action_cell = Vector2i(5, 6)
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugDango.HIDE)
 	s.player_action_cell = rock
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugDango.APPEAR)
 	s.player_action = BugActor.PlAct.NONE
 	s.player_action_cell = Vector2i(-1, -1)
@@ -376,13 +376,13 @@ func test_pill_bug_curls_into_a_ball_when_scared() -> void:
 	assert_int(a.action).is_equal(BugDango.AVOID)
 	## Scares count only once it has crawled off the rock's unit (`bg_type` 4 → 2).
 	for i in 120:
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		if a.bg_type == 2:
 			break
 	assert_int(a.bg_type).is_equal(2)
 	s.net_swing_active = true
 	s.net_swing_origin = a.position
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugDango.STOP)
 
 
@@ -393,7 +393,7 @@ func test_mosquito_homes_and_bites_then_leaves() -> void:
 	var bit := false
 	for i in 600:
 		s.player_position = a.position + Vector3(0.15, 0.0, 0.15)
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		if a.flag == BugKa.BIT:
 			bit = true
 			break
@@ -404,11 +404,11 @@ func test_cicada_flees_a_shaken_tree_in_its_unit() -> void:
 	var calm := _make(&"robust_cicada", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
 	var scared := _make(&"robust_cicada", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
 	var quiet := BugActor.Sense.new()
-	calm.frame(quiet)
-	scared.frame(quiet)
+	calm.advance(DecompTime.TICK_SEC, quiet)
+	scared.advance(DecompTime.TICK_SEC, quiet)
 	assert_int(scared.action).is_equal(calm.action)
-	calm.frame(quiet)
-	scared.frame(_tree_shaken_sense(Vector2i(4, 6)))
+	calm.advance(DecompTime.TICK_SEC, quiet)
+	scared.advance(DecompTime.TICK_SEC, _tree_shaken_sense(Vector2i(4, 6)))
 	assert_int(calm.action).is_not_equal(BugSemi.AVOID)
 	assert_int(scared.action).is_equal(BugSemi.AVOID)
 
@@ -431,7 +431,7 @@ func test_player_walking_two_and_a_half_units_away_stresses_an_insect() -> void:
 	var s := BugActor.Sense.new()
 	for i: int in 10:
 		s.player_position = b.position + Vector3(5.0, 0.0, 0.1 * i)
-		b.frame(s)
+		b.advance(DecompTime.TICK_SEC, s)
 	assert_float(b.patience).is_greater(0.0)
 
 
@@ -444,7 +444,7 @@ func test_dragonfly_cruises_at_its_hover_height_and_stops_to_turn() -> void:
 	var s := BugActor.Sense.new()
 	var waited := false
 	for _i: int in 600:
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		if a.action == BugTonbo.WAIT:
 			waited = true
 	assert_bool(waited).is_true()
@@ -465,10 +465,10 @@ func test_banded_dragonfly_leaves_past_480_gx() -> void:
 	var a := _make(&"banded_dragonfly", BugData.Habitat.FLYING, Vector3(0.0, 0.0, 0.0))
 	assert_int(a.action).is_equal(BugTonbo.ONIYANMA_FLY)
 	a.pos = Vector3(300.0, 60.0, 300.0)  ## 424 GX out: still patrolling
-	a.frame(BugActor.Sense.new())
+	a.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
 	assert_int(a.action).is_equal(BugTonbo.ONIYANMA_FLY)
 	a.pos = Vector3(360.0, 60.0, 360.0)  ## 509 GX out
-	a.frame(BugActor.Sense.new())
+	a.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
 	assert_int(a.action).is_equal(BugTonbo.LET_ESCAPE)
 
 
@@ -479,7 +479,7 @@ func test_red_dragonfly_perches_on_a_reserved_unit() -> void:
 	var a := _make(&"red_dragonfly", BugData.Habitat.FLYING, at)
 	var seen := {}
 	for _i: int in 400:
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		seen[a.action] = true
 		if a.action == BugTonbo.REST_ON_NOTICE:
 			break
@@ -498,8 +498,8 @@ func test_trunk_insect_on_a_cedar_sits_lower_and_further_south() -> void:
 	var oak := _make(&"drone_beetle", BugData.Habitat.TREE, s.grid.cell_to_world(Vector2i(4, 4)))
 	var cedar := _make(&"drone_beetle", BugData.Habitat.TREE, s.grid.cell_to_world(Vector2i(8, 4)))
 	var base_z: float = s.grid.cell_to_world(Vector2i(4, 4)).z / BugActor.GX_M
-	oak.frame(s)
-	cedar.frame(s)
+	oak.advance(DecompTime.TICK_SEC, s)
+	cedar.advance(DecompTime.TICK_SEC, s)
 	assert_float(oak.pos.y).is_equal_approx(35.0, 0.01)
 	assert_float(oak.pos.z - base_z).is_equal_approx(-2.0, 0.01)
 	assert_float(cedar.pos.y).is_equal_approx(30.0, 0.01)
@@ -520,7 +520,7 @@ func test_scared_beetle_flies_off_the_way_the_player_faces() -> void:
 	var s := _tree_shaken_sense(Vector2i(4, 6))
 	s.player_position = b.position + Vector3(0.0, 0.0, 1.0)
 	s.player_yaw = PI  ## facing the trunk (north)
-	b.frame(s)
+	b.advance(DecompTime.TICK_SEC, s)
 	assert_int(b.action).is_equal(BugKabuto.AVOID)
 	assert_float(absf(angle_difference(b.angle_y, PI))).is_less_equal(deg_to_rad(60.5))
 
@@ -530,13 +530,13 @@ func test_cicada_ignores_a_dig_forty_gx_away_but_not_twenty() -> void:
 	var s := _field_sense()
 	var cell := Vector2i(6, 6)
 	var c := _make(&"robust_cicada", BugData.Habitat.TREE, s.grid.cell_to_world(cell))
-	c.frame(s)
+	c.advance(DecompTime.TICK_SEC, s)
 	s.player_action = BugActor.PlAct.DIG_SCOOP
 	s.player_action_cell = cell + Vector2i(1, 0)
-	c.frame(s)
+	c.advance(DecompTime.TICK_SEC, s)
 	assert_int(c.action).is_equal(BugSemi.WAIT)
 	s.player_action_cell = cell
-	c.frame(s)
+	c.advance(DecompTime.TICK_SEC, s)
 	assert_int(c.action).is_equal(BugSemi.AVOID)
 
 
@@ -544,13 +544,13 @@ func test_beetle_scared_by_an_axe_hit_in_its_acre_within_150_gx() -> void:
 	## `mPlib_Check_VibUnit_OneFrame` (an axe hit in the same acre) and `player_distance_xz < 150`.
 	var s := _field_sense()
 	var b := _make(&"drone_beetle", BugData.Habitat.TREE, s.grid.cell_to_world(Vector2i(6, 6)))
-	b.frame(s)
+	b.advance(DecompTime.TICK_SEC, s)
 	s.player_swung_tool = true
 	s.player_position = b.position + Vector3(9.0, 0.0, 0.0)  ## 180 GX east
-	b.frame(s)
+	b.advance(DecompTime.TICK_SEC, s)
 	assert_int(b.action).is_equal(BugKabuto.WAIT)
 	s.player_position = b.position + Vector3(6.0, 0.0, 0.0)  ## 120 GX east
-	b.frame(s)
+	b.advance(DecompTime.TICK_SEC, s)
 	assert_int(b.action).is_equal(BugKabuto.AVOID)
 
 
@@ -562,7 +562,7 @@ func test_firefly_hovers_seventy_gx_over_the_ground() -> void:
 	var lo := 1e9
 	var hi := -1e9
 	for _i: int in 600:
-		a.frame(BugActor.Sense.new())
+		a.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
 		lo = minf(lo, a.pos.y)
 		hi = maxf(hi, a.pos.y)
 	assert_float(lo).is_greater(55.0)
@@ -578,7 +578,7 @@ func test_stressed_firefly_veers_away_from_the_player() -> void:
 	s.player_move_gx = 0.0
 	for _i: int in 200:
 		a.patience = 95.0
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.flag).is_equal(1)
 	## Target heading is `player_angle_y + 180°`, straight away from the player.
 	var away: float = BugProgram.angle_to(s.player_position / BugActor.GX_M, a.pos)
@@ -593,7 +593,7 @@ func test_mosquito_hovers_inside_a_half_unit_and_ignores_other_acres() -> void:
 	var entered := false
 	for i in 20:
 		s.player_position = Vector3(near.position.x + 0.8, 0.0, near.position.z)
-		near.frame(s)
+		near.advance(DecompTime.TICK_SEC, s)
 		if near.action == BugKa.ATTACK_WAIT:
 			entered = true
 			break
@@ -603,7 +603,7 @@ func test_mosquito_hovers_inside_a_half_unit_and_ignores_other_acres() -> void:
 	var s2 := _field_sense()
 	for i in 30:
 		s2.player_position = Vector3(33.5, 0.0, far.position.z)
-		far.frame(s2)
+		far.advance(DecompTime.TICK_SEC, s2)
 	assert_int(far.action).is_equal(BugKa.FLY)
 
 
@@ -623,10 +623,10 @@ func test_ladybug_sits_on_the_flower_head_and_flees_a_nearby_dig() -> void:
 	s.player_position = at + Vector3(0.0, 0.0, 6.0)
 	s.player_action = BugActor.PlAct.DIG_SCOOP
 	s.player_action_cell = Vector2i(5, 7)
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_not_equal(BugTentou.AVOID)
 	s.player_action_cell = Vector2i(5, 6)
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugTentou.AVOID)
 
 
@@ -642,7 +642,7 @@ func test_snail_only_leaves_once_its_flower_is_gone() -> void:
 	_run(a, 10, s)
 	assert_int(a.action).is_not_equal(BugTentou.AVOID_MAIMAI)
 	s.layout.objects.erase(f)
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugTentou.AVOID_MAIMAI)
 
 
@@ -656,7 +656,7 @@ func test_pond_skater_never_skates_off_its_pond() -> void:
 	assert_float(a.pos.y).is_equal_approx(at.y / BugActor.GX_M + 14.0, 0.01)
 	var moved := false
 	for i in 900:
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		assert_bool(BugBg.water_at(s.grid, a.pos)) \
 			.append_failure_message("left the pond at %s (frame %d)" % [a.pos, i]).is_true()
 		if BugProgram.dist_xz(a.pos, a.home) > 5.0:
@@ -676,7 +676,7 @@ func test_crawling_pill_bug_dives_into_water_ahead_and_drowns() -> void:
 	s.player_yaw = PI * 0.5   ## facing east, toward the water
 	var dived := false
 	for i in 400:
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		if a.action == BugDango.DIVE:
 			dived = true
 		if a.finished:
@@ -690,15 +690,15 @@ func test_hopper_waits_by_the_play_clock_and_hops_home_from_the_acre_edge() -> v
 	s.game_frame = 250   ## % 240 = 10 → 2·(120 + 10)
 	var mid: Vector3 = s.grid.cell_to_world(Vector2i(7, 7))   ## 30 GX off the acre centre
 	var a := _make(&"grasshopper", BugData.Habitat.GROUND, mid)
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugBatta.WAIT)
-	assert_int(a.timer).is_between(258, 260)
+	assert_float(a.timer).is_between(258.0, 260.0)
 	## 60 GX from the west edge = 260 GX from the acre centre (x 320 GX): out of range.
 	var edge: Vector3 = s.grid.cell_to_world(Vector2i(1, 7))
 	var b := _make(&"grasshopper", BugData.Habitat.GROUND, edge)
-	b.frame(s)
+	b.advance(DecompTime.TICK_SEC, s)
 	assert_int(b.action).is_equal(BugBatta.WAIT)
-	assert_int(b.timer).is_between(58, 60)
+	assert_float(b.timer).is_between(58.0, 60.0)
 	assert_float(absf(wrapf(b.angle_y - PI * 0.5, -PI, PI))).is_less(0.2)
 
 
@@ -707,14 +707,14 @@ func test_hopper_flees_a_stopped_net_but_not_a_swing_nearby() -> void:
 	var at: Vector3 = s.grid.cell_to_world(Vector2i(7, 7))
 	var a := _make(&"cricket", BugData.Habitat.GROUND, at)
 	s.player_position = at + Vector3(0.0, 0.0, 8.0)
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	s.player_swung_tool = true
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_not_equal(BugBatta.AVOID)
 	s.player_swung_tool = false
 	s.net_swing_active = true
 	s.net_swing_origin = at + Vector3(3.0, 0.0, 0.0)   ## 60 GX
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugBatta.AVOID)
 
 
@@ -725,19 +725,19 @@ func test_wisp_floats_forty_over_the_ground_and_flips_its_turn_heading_out() -> 
 	wisp.type_index = BugProgram.T_SPIRIT
 	wisp.program = BugData.Program.HITODAMA
 	var a := BugActor.create(wisp, BugData.Habitat.FLYING, at, _rng)
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_float(a.home.y).is_equal_approx(40.0, 0.01)
 	## 260 GX west of the acre centre (x 320): heading straight away flips its turn…
 	a.pos = Vector3(60.0, a.pos.y, 320.0)
 	a.angle_y = -PI * 0.5
 	a.s32_work[1] = 40
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.s32_work[1]).is_less(0)
 	## …heading back in does not.
 	a.pos = Vector3(60.0, a.pos.y, 320.0)
 	a.angle_y = PI * 0.5
 	a.s32_work[1] = 40
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.s32_work[1]).is_equal(40)
 
 
@@ -753,7 +753,7 @@ func test_released_insect_heads_the_way_the_player_faces() -> void:
 		var s := BugActor.Sense.new()
 		s.player_position = Vector3(2.0, 0.0, 3.0)  ## south of the bug, facing west
 		s.player_yaw = -PI * 0.5
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		assert_float(absf(angle_difference(a.angle_y, -PI * 0.5))) \
 			.append_failure_message("%s heading %f" % [id, a.angle_y]).is_less_equal(deg_to_rad(60.5))
 
@@ -770,10 +770,10 @@ func test_stress_fallback_speed_counts_per_tick() -> void:
 	for i in 8:
 		s1.player_position = at + Vector3(r, 0.0, 0.0)
 		s1.player_move_gx = 6.0
-		by_speed.frame(s1)
+		by_speed.advance(DecompTime.TICK_SEC, s1)
 		var ang: float = float(i) * 3.0 / 60.0
 		s2.player_position = at + Vector3(cos(ang) * r, 0.0, sin(ang) * r)
-		by_move.frame(s2)
+		by_move.advance(DecompTime.TICK_SEC, s2)
 	assert_float(by_speed.patience).is_greater(0.0)
 	assert_float(by_speed.patience).is_equal_approx(by_move.patience, by_move.patience * 0.1 + 0.5)
 # ---- ANT (the swarm on food, `ac_ant`) -----------------------------------
@@ -795,7 +795,7 @@ func test_ants_swarm_on_food_and_fade_once_it_is_gone() -> void:
 	assert_int(a.action).is_equal(BugAnt.WAIT)
 	assert_vector(a.position).is_equal(at)
 	Game.field_items.clear()
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(BugAnt.DISAPPEAR)
 	assert_bool(a.f_no_catch).is_true()
 	## 255 down 15 a tick.
@@ -808,3 +808,20 @@ func test_ants_swarm_on_food_and_fade_once_it_is_gone() -> void:
 func test_a_released_ant_is_an_ordinary_crawler() -> void:
 	var a := _make(&"ant", BugData.Habitat.GROUND, Vector3(4.0, 0.0, 4.0), true)
 	assert_bool(a.is_swarm()).is_false()
+
+
+func test_a_fleeing_beetle_flies_the_same_course_at_a_low_frame_rate() -> void:
+	## Released, it flies off at 4 GX a frame while its climb speeds up 10% a tick: stepped at
+	## 15 Hz it ends a second later where the 60 Hz one does.
+	var ends: Array[Vector3] = []
+	for hz: float in [60.0, 15.0]:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 11
+		var a := BugActor.create(BugCatalog.get_bug(&"drone_beetle"), BugData.Habitat.TREE, Vector3(4.0, 1.0, 4.0), rng, true)
+		var s := BugActor.Sense.new()
+		for _i: int in roundi(hz):
+			a.advance(1.0 / hz, s)
+		ends.append(a.position)
+	var travelled: float = ends[0].distance_to(Vector3(4.0, 1.0, 4.0))
+	assert_float(travelled).is_greater(1.0)
+	assert_float(ends[1].distance_to(ends[0])).is_less(travelled * 0.05)

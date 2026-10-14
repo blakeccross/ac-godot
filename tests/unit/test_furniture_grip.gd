@@ -46,7 +46,7 @@ func _stand(cell: Vector2i) -> Vector3:
 func _run(grip: FurnitureGrip, ticks: int, a_held: bool, stick: Vector2, pos: Vector3) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for _i: int in ticks:
-		out.append_array(grip.advance(TICK + 0.0001, _session, a_held, stick, pos))
+		out.append_array(grip.advance(TICK, _session, a_held, stick, pos))
 	return out
 
 
@@ -115,7 +115,7 @@ func test_a_long_press_released_is_not_a_tap() -> void:
 	var grip := FurnitureGrip.new()
 	var pos: Vector3 = _stand(Vector2i(3, 4))
 	grip.press(_session, pos, WorldGrid.Facing.NORTH)
-	_run(grip, FurnitureGrip.TAP_TICKS + 2, true, Vector2.ZERO, pos)
+	_run(grip, roundi(FurnitureGrip.TAP_TIME * 60.0) + 2, true, Vector2.ZERO, pos)
 	assert_array(_ops(_run(grip, 1, false, Vector2.ZERO, pos))).is_equal(["release"])
 
 
@@ -127,7 +127,7 @@ func test_push_waits_out_the_timer_then_slides_one_unit() -> void:
 	var grip := FurnitureGrip.new()
 	var pos: Vector3 = _stand(Vector2i(3, 4))
 	grip.press(_session, pos, WorldGrid.Facing.NORTH)
-	var early: Array[Dictionary] = _run(grip, FurnitureGrip.MOVE_TICKS, true, Vector2(0.0, -1.0), pos)
+	var early: Array[Dictionary] = _run(grip, roundi(FurnitureGrip.MOVE_TIME * 60.0) - 1, true, Vector2(0.0, -1.0), pos)
 	assert_int(early.size()).is_equal(0)
 	assert_that(chair.cell).is_equal(Vector2i(3, 3))
 	var events: Array[Dictionary] = _run(grip, 2, true, Vector2(0.0, -1.0), pos)
@@ -139,6 +139,18 @@ func test_push_waits_out_the_timer_then_slides_one_unit() -> void:
 	var player_to: Vector3 = events[0]["player_to"]
 	assert_float(player_to.z - pos.z).is_equal_approx(-_session.grid.cell_size, 0.001)
 	assert_int(grip.phase).is_equal(FurnitureGrip.Phase.BUSY)
+
+
+func test_push_lands_at_the_same_moment_at_a_low_frame_rate() -> void:
+	var chair: FurniturePlacement = _place(_chair, Vector2i(3, 3))
+	var grip := FurnitureGrip.new()
+	var pos: Vector3 = _stand(Vector2i(3, 4))
+	grip.press(_session, pos, WorldGrid.Facing.NORTH)
+	## 15 Hz: four frames is 0.267 s, short of the 17 ticks (0.283 s); the fifth moves it.
+	for _i: int in 4:
+		assert_int(grip.advance(1.0 / 15.0, _session, true, Vector2(0.0, -1.0), pos).size()).is_equal(0)
+	assert_array(_ops(grip.advance(1.0 / 15.0, _session, true, Vector2(0.0, -1.0), pos))).is_equal(["move"])
+	assert_that(chair.cell).is_equal(Vector2i(3, 2))
 
 
 func test_push_into_a_wall_puffs_and_needs_the_stick_released() -> void:

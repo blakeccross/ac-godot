@@ -23,6 +23,8 @@ const ANGLE_RANGE := 40.0
 const INTRO_INSET_GX := 40.0
 ## Ticks (1/60 s): 36 = 0.6 s.
 const TICKS := 36.0
+## The crossing in seconds.
+const DURATION := TICKS / DecompTime.TICK_HZ
 const ACCEL := 1.1999999
 const BRAKE := 34.8
 ## `Player_actor_Search_exist_npc_inCircle_forWade` (not in the title demo).
@@ -151,6 +153,11 @@ static func end_pos(pos_gx: Vector3, dir: Dir) -> Vector3:
 		_:
 			out.z = base.y + EDGE_GX + BLOCK_GX
 	return out
+
+
+## How far along a wade is after `seconds` (the 36-tick ease on the clock).
+static func progress(seconds: float) -> float:
+	return percent(seconds * DecompTime.TICK_HZ)
 
 
 ## `get_percent_forAccelBrake(now, 0, 36, 1.2, 34.8)`.

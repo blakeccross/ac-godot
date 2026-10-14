@@ -105,23 +105,48 @@ func test_add_calc_matches_the_decomp_steps() -> void:
 
 
 func test_camera_pitch_eases_toward_the_swing() -> void:
-	## `add_calc_short_angle2(…, 0.0513, 11000, 100)`: 5% of the gap, never under 100 units.
+	## `add_calc_short_angle2(…, 0.0513, 11000, 100)`: 5% of the gap a tick, never under 100
+	## units a tick.
 	var goal: float = -250.0 * TAU / 65536.0
-	var p: float = AcreCamera.ease_pitch(0.0, goal)
+	var p: float = AcreCamera.follow_pitch(0.0, goal, 1.0 / 60.0)
 	assert_float(p).is_less(0.0)
 	assert_float(p).is_greater(goal)
-	## A small gap closes by the 100-unit floor, then lands.
+	## A small gap closes at the 100-unit floor, then lands.
 	for i: int in 10:
-		p = AcreCamera.ease_pitch(p, goal)
+		p = AcreCamera.follow_pitch(p, goal, 1.0 / 60.0)
 	assert_float(p).is_equal_approx(goal, 0.0001)
 
 
+func test_camera_centre_follows_the_same_at_any_frame_rate() -> void:
+	var a := Vector3.ZERO
+	var b := Vector3.ZERO
+	var goal := Vector3(300.0, 0.0, -40.0)
+	## A far goal: x moves at the 8.75 GX-a-tick cap.
+	assert_float(AcreCamera.follow(a, goal, 1.0 / 60.0).x).is_equal_approx(8.75, 0.0001)
+	for _i: int in 30:
+		a = AcreCamera.follow(a, goal, 1.0 / 60.0)
+	for _i: int in 8:
+		b = AcreCamera.follow(b, goal, 1.0 / 16.0)
+	## Where the cap hands over to the eased gap differs a little with the step: within
+	## 5 GX (25 cm), and both settle on the goal.
+	assert_vector(b).is_equal_approx(a, Vector3.ONE * 5.0)
+	for _i: int in 90:
+		a = AcreCamera.follow(a, goal, 1.0 / 60.0)
+	for _i: int in 24:
+		b = AcreCamera.follow(b, goal, 1.0 / 16.0)
+	assert_vector(a).is_equal(goal)
+	assert_vector(b).is_equal(goal)
+
+
 func test_camera_pitch_morph_lands_with_the_wade() -> void:
-	var p := 0.0
-	var goal := -0.02
-	for t: int in int(AcreWade.TICKS):
-		p = AcreCamera.morph_pitch(p, goal, AcreWade.TICKS - float(t))
-	assert_float(p).is_equal_approx(goal, 0.000001)
+	for hz: float in [60.0, 15.0]:
+		var p := 0.0
+		var goal := -0.02
+		var t := 0.0
+		while t < AcreWade.DURATION:
+			p = AcreCamera.morph_pitch(p, goal, AcreWade.DURATION - t, 1.0 / hz)
+			t += 1.0 / hz
+		assert_float(p).is_equal_approx(goal, 0.000001)
 
 
 func test_a_pushed_snowball_wades_only_square_on() -> void:

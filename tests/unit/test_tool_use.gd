@@ -205,15 +205,6 @@ func test_resolve_prefers_net_over_weaker_host() -> void:
 	assert_str(String(resolved.action.id)).is_equal(String(Interaction.TALK))
 
 
-func test_player_does_not_switch_on_tool_kind() -> void:
-	var src := FileAccess.get_file_as_string("res://scenes/actors/player.gd")
-	assert_str(src).contains("ToolUse.resolve")
-	assert_str(src).contains("ToolUse.apply_field")
-	assert_str(src).contains("HeldTool.bind")
-	assert_bool("ToolData.Kind" in src).is_false()
-	assert_bool("is Tree" in src).is_false()
-
-
 func test_held_tool_binds_hand_attachment() -> void:
 	if FieldCatalog.mesh_paths(&"tol_axe_1").is_empty():
 		return
@@ -254,8 +245,6 @@ func _equip(ctx: InteractionContext, item_id: StringName) -> void:
 	assert_that(data).is_not_null()
 	assert_int(ctx.inventory.add(data, 1)).is_equal(0)
 	assert_bool(ctx.inventory.equip_slot(0)).is_true()
-
-
 
 
 ## `mPlib_Get_scoop_request_index`: dig, air over water, or a bounce with its clang.

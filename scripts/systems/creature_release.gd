@@ -73,12 +73,6 @@ static func launch_velocity(from_gx: Vector3, water_gx: Vector3) -> Vector3:
 	return Vector3(speed_xz * sin(yaw), speed_y, speed_xz * cos(yaw))
 
 
-## One tick of `aGYR_position_move`: gravity on the speed, half the speed onto the position.
-static func step(pos_gx: Vector3, vel_gx: Vector3) -> Array[Vector3]:
-	var vel: Vector3 = vel_gx + Vector3(0.0, GRAVITY, 0.0)
-	return [pos_gx + vel * 0.5, vel]
-
-
 ## `aGYR_check_timer`: the scale factor at tick `t` (1 until 140, then 0.89 a tick down to
 ## 0.006 / 0.0126 of the start and 0.98 a tick after).
 static func shrink(t: int) -> float:

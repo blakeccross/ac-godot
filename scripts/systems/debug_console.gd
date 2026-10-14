@@ -118,7 +118,7 @@ func execute(raw: String) -> String:
 				return "No ball here."
 			var bl_yaw: float = bl_player.facing_yaw()
 			if not args.is_empty() and String(args[0]) == "kick":
-				bl_ball.kick(Vector2(sin(bl_yaw), cos(bl_yaw)), Vector2(sin(bl_yaw), cos(bl_yaw)) * 7.5)
+				bl_ball.kick(Vector2(sin(bl_yaw), cos(bl_yaw)), Vector2(sin(bl_yaw), cos(bl_yaw)) * 7.5 * FieldBall.FRAME)
 				return "Kicked."
 			bl_ball.in_hole = false
 			bl_ball.dead = false

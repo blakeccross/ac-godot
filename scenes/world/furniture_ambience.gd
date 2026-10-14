@@ -11,7 +11,8 @@ extends Node
 ## tents); shops and the museum show models only. Not panned.
 ##
 ## Hot food steams (`eEC_EFFECT_SOBA_YUGE` from the same move procs): the stew every 8
-## ticks, the barbecue every 16, the counter-top pot and the hot pot every 20–40 / 10–30.
+## ticks, the barbecue every 16, the counter-top pot and the hot pot every 20–40 / 10–30,
+## timed here in seconds.
 
 const VOICES := 4
 
@@ -43,13 +44,13 @@ const LOOPS := {
 }
 
 ## Visual id → [GX above the piece, GX spread (`arg0`), fixed interval or 0, random
-## interval min, random span, when].
+## interval min, random span (seconds), when].
 const STEAM := {
-	&"int_tak_stew": [15.0, 10, 8, 0, 0, When.ALWAYS],
-	&"int_sugi_barbecue": [30.0, 9, 16, 0, 0, When.ALWAYS],
-	## `fIKC_mv`: `fIKC_MIN_TIME` 20 + up to 20.
-	&"int_ike_k_count01": [13.0, 6, 0, 20, 20, When.ALWAYS],
-	&"int_nog_nabe": [18.0, 6, 0, 10, 20, When.OFF],
+	&"int_tak_stew": [15.0, 10, 8.0 / 60.0, 0.0, 0.0, When.ALWAYS],
+	&"int_sugi_barbecue": [30.0, 9, 16.0 / 60.0, 0.0, 0.0, When.ALWAYS],
+	## `fIKC_mv`: `fIKC_MIN_TIME` 20 ticks + up to 20.
+	&"int_ike_k_count01": [13.0, 6, 0.0, 20.0 / 60.0, 20.0 / 60.0, When.ALWAYS],
+	&"int_nog_nabe": [18.0, 6, 0.0, 10.0 / 60.0, 20.0 / 60.0, When.OFF],
 }
 
 ## Pieces that sound once when A switches them (`switch_changed_flag` →
@@ -74,12 +75,12 @@ const PRESS := {
 	&"int_tak_noise": &"46a",
 }
 
-## Pieces that sound on a frame of their idle loop (`current_frame == n` in the move proc):
-## visual id → [[frame, SE], …]. Frames count from 1 at 30 a second.
+## Pieces that sound at a point in their idle loop (`current_frame == n` in the move proc,
+## frames counting from 1 at 30 a second): visual id → [[seconds into the clip, SE], …].
 const FRAME_SE := {
-	&"int_kon_sisiodosi": [[20.0, &"18"]],
-	&"int_sum_mizunomi": [[19.0, &"12a"]],
-	&"int_kon_cracker": [[8.0, &"12c"], [24.0, &"12c"]],
+	&"int_kon_sisiodosi": [[19.0 / 30.0, &"18"]],
+	&"int_sum_mizunomi": [[18.0 / 30.0, &"12a"]],
+	&"int_kon_cracker": [[7.0 / 30.0, &"12c"], [23.0 / 30.0, &"12c"]],
 }
 
 ## Pieces that click on and off themselves (`sAdo_OngenTrgStart(0x16 / 0x17)` on
@@ -95,12 +96,10 @@ const ACTOR_ROOMS: Array[int] = [
 ]
 
 var _players: Array[AudioStreamPlayer] = []
-var _steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
-var _tick: int = 0
-## Placement id → ticks left before the next random puff.
+## Placement id → seconds until the next puff.
 var _puff_wait: Dictionary = {}
-## Placement id → the clip frame seen last tick.
-var _last_frame: Dictionary = {}
+## Placement id → the clip position (seconds) seen last frame.
+var _last_clip_time: Dictionary = {}
 
 
 func _ready() -> void:
@@ -154,22 +153,25 @@ static func _active(when: int, entry: FurniturePlacement) -> bool:
 	return true
 
 
-## Whether a piece puffs steam on `tick`; `wait` holds its random countdown (decremented
-## here, reset to `rng`'s next interval after a puff).
-static func steams(data: FurnitureData, entry: FurniturePlacement, tick: int, wait: Array, rng: RandomNumberGenerator) -> bool:
+## Whether a piece puffs steam during the next `delta` seconds. `wait` holds its countdown
+## (start it at 0 to puff at once); after a puff it is topped up by the next interval, keeping
+## any overshoot so a fixed rhythm holds its rate at any frame rate.
+static func steams(
+	data: FurnitureData, entry: FurniturePlacement, delta: float, wait: Array, rng: RandomNumberGenerator
+) -> bool:
 	if data == null or entry == null:
 		return false
 	var rule: Variant = STEAM.get(data.visual_id)
 	if rule == null or not _active(int(rule[5]), entry):
 		return false
-	var every: int = int(rule[2])
-	if every > 0:
-		return tick % every == 0
-	if wait[0] < 0:
-		wait[0] = int(rule[3]) + rng.randi_range(0, int(rule[4]) - 1)
-		return true
-	wait[0] -= 1
-	return false
+	wait[0] = float(wait[0]) - delta
+	## A hair of slack so a puff due exactly on this frame isn't pushed to the next.
+	if float(wait[0]) > 1e-5:
+		return false
+	var every: float = float(rule[2])
+	var interval: float = every if every > 0.0 else float(rule[3]) + rng.randf() * float(rule[4])
+	wait[0] = maxf(float(wait[0]) + interval, 0.0)
+	return true
 
 
 ## Every sounding piece in the room as `[placement_id, level]`.
@@ -191,10 +193,7 @@ func _process(delta: float) -> void:
 	if player == null or session == null or not host.has_method("furniture_node"):
 		_silence()
 		return
-	_steps.add(delta)
-	while _steps.next():
-		_tick += 1
-		_steam(host, session)
+	_steam(host, session, delta)
 	_frame_sounds(host, session)
 	var mic_m: Vector3 = player.global_position + Ongen.MIC_OFFSET_GX * FieldCatalog.GX_TO_METERS
 	var heard: Array = []
@@ -231,15 +230,15 @@ func _process(delta: float) -> void:
 var _rng := RandomNumberGenerator.new()
 
 
-func _steam(host: Node, session: IndoorSession) -> void:
+func _steam(host: Node, session: IndoorSession, delta: float) -> void:
 	if session.room == null or not ACTOR_ROOMS.has(int(session.room.kind)):
 		return
 	for entry: FurniturePlacement in session.room.placements:
 		var data: FurnitureData = session.furniture_of(entry.furniture_id)
 		if data == null or not STEAM.has(data.visual_id):
 			continue
-		var wait: Array = [int(_puff_wait.get(entry.id, -1))]
-		var puff: bool = steams(data, entry, _tick, wait, _rng)
+		var wait: Array = [float(_puff_wait.get(entry.id, 0.0))]
+		var puff: bool = steams(data, entry, delta, wait, _rng)
 		_puff_wait[entry.id] = wait[0]
 		if not puff:
 			continue
@@ -251,13 +250,13 @@ func _steam(host: Node, session: IndoorSession) -> void:
 		FieldFx.spawn(host, FieldFx.Kind.SOBA_YUGE, at, 0.0, int(rule[1]), 0)
 
 
-## Whether a looping clip passed `frame` between two reads (`prev` → `now`, wrapping).
-static func crossed(prev: float, now: float, frame: float) -> bool:
+## Whether a looping clip passed `at` (seconds) between two reads (`prev` → `now`, wrapping).
+static func crossed(prev: float, now: float, at: float) -> bool:
 	if prev < 0.0:
 		return false
 	if now >= prev:
-		return prev < frame and frame <= now
-	return frame > prev or frame <= now
+		return prev < at and at <= now
+	return at > prev or at <= now
 
 
 func _frame_sounds(host: Node, session: IndoorSession) -> void:
@@ -271,9 +270,9 @@ func _frame_sounds(host: Node, session: IndoorSession) -> void:
 		var anim: AnimationPlayer = VisualAnimation.find_animation_player(node)
 		if anim == null or not anim.is_playing():
 			continue
-		var now: float = 1.0 + anim.current_animation_position * DecompTime.FRAME_HZ
-		var prev: float = float(_last_frame.get(entry.id, -1.0))
-		_last_frame[entry.id] = now
+		var now: float = anim.current_animation_position
+		var prev: float = float(_last_clip_time.get(entry.id, -1.0))
+		_last_clip_time[entry.id] = now
 		for row: Array in FRAME_SE[data.visual_id]:
 			if crossed(prev, now, float(row[0])):
 				Audio.play_se(row[1] as StringName)

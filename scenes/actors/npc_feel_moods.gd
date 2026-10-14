@@ -10,6 +10,11 @@ extends RefCounted
 ## at once, fades out over a FINISHED stretch or plays out its own life. Children (puffs,
 ## tears, petals, leaves, bubbles, sparkles) are `Part`s with their own life.
 ##
+## Advanced by `delta`. Times stay in the original's 60ths of a second (`TICK`), because every
+## keyframe in these effects is written in them: `tick(delta)` moves them on `delta · 60`, scales
+## each per-tick change by that, and fires the one-off moments (a spawn at tick 8, a petal
+## every fourth tick) when the step passes them.
+##
 ## Positions are GX. The host node is the glyph billboard at the head: +X screen right,
 ## +Y up, +Z toward the camera, so billboard offsets (`auto_matrix_xlu_offset_proc`,
 ## `Matrix_translate` after the billboard) are local as they are; world offsets
@@ -27,6 +32,7 @@ enum State { NORMAL, CONTINUOUS, FINISHED }
 ## `eEC_PROFILE_c.n_frames` specials.
 const IMMEDIATE_DEATH := -1
 const IGNORE_DEATH := -2
+static var GLOOM_HALF_LIFE: float = Motion.half_life_from_fraction(0.022)
 
 ## `ePunYuge_texture_anime_idx` / `ePunYuge_prim_f_table`, one row per two ticks.
 const PUN_YUGE_TEX: Array[Vector2i] = [
@@ -41,8 +47,10 @@ const PUN_YUGE_SCALE_Y: Array[float] = [0.00595, 0.00833, 0.014161, 0.00833, 0.0
 class Part:
 	var node: Node3D
 	var mats: Array[ShaderMaterial] = []
-	var t: int = 0
+	## Age in ticks (60ths of a second).
+	var t: float = 0.0
 	var life: int = 0
+	## `func(q: Part, n: float)`: `n` ticks of this part's own motion.
 	var step: Callable
 	## World GX offset from the head, and billboard GX offset on top of it.
 	var pos: Vector3 = Vector3.ZERO
@@ -58,9 +66,10 @@ class Part:
 
 var kind: StringName = &""
 var state: int = State.NORMAL
-var timer: int = 0
+## Ticks left in this state.
+var timer: float = 0.0
 ## Ticks since the emitter started.
-var t: int = 0
+var t: float = 0.0
 var alive: bool = true
 var parts: Array[Part] = []
 ## Level SE (`sAdo_OngenPos`) the emitter holds this tick, or `&""`.
@@ -178,21 +187,22 @@ func release() -> void:
 		timer = _death
 
 
-## One 60 Hz tick. False once the emitter and all its parts are gone.
-func tick() -> bool:
+## `delta` seconds. False once the emitter and all its parts are gone.
+func tick(delta: float) -> bool:
 	ongen = &""
+	var n: float = maxf(delta, 0.0) * DecompTime.TICK_HZ
 	if alive:
-		_emitter_step()
-		timer -= 1
-		if timer <= 0 and alive:
+		_emitter_step(n, delta)
+		timer -= n
+		if timer <= 0.0001 and alive:
 			_kill_body()
 			alive = false
 	for p: Part in parts.duplicate():
 		if p == _body or p == _body2:
 			continue
-		p.step.call(p)
-		p.t += 1
-		if p.t >= p.life:
+		p.step.call(p, n)
+		p.t += n
+		if p.t >= float(p.life) - 0.0001:
 			_free(p)
 		else:
 			_place(p)
@@ -200,8 +210,25 @@ func tick() -> bool:
 		_place(_body)
 	if _body2 != null:
 		_place(_body2)
-	t += 1
+	t += n
 	return alive or not parts.is_empty()
+
+
+## True when a moment `at` (ticks) falls in the `n` ticks starting at `from`.
+static func _hits(from: float, n: float, at: float) -> bool:
+	return at >= from - 0.0001 and at < from + maxf(n, 0.0001) - 0.0001
+
+
+## How many whole tick values `k` with `k % period == phase` the timer passes as it runs down
+## from `timer` by `n` (the values it would have shown on each tick).
+static func _beats(timer_now: float, n: float, period: int, phase: int) -> int:
+	var count: int = 0
+	var k: int = int(ceil(timer_now - n + 0.0001))
+	while float(k) <= timer_now + 0.0001:
+		if posmod(k, period) == phase:
+			count += 1
+		k += 1
+	return count
 
 
 func clear() -> void:
@@ -220,27 +247,25 @@ func _start(normal: int, cont: int, death: int) -> void:
 	_death = death
 
 
-## `eEL_SetContiniousEnv`.
-func _continuous() -> void:
+## `eEL_SetContiniousEnv`: re-armed as the state's last tick comes round.
+func _continuous(n: float) -> void:
 	if _cont <= 0:
 		return
-	if (state == State.NORMAL or state == State.CONTINUOUS) and timer <= 1:
+	if (state == State.NORMAL or state == State.CONTINUOUS) and timer <= n + 0.0001:
 		state = State.CONTINUOUS
 		timer = _cont
 
 
-func _emitter_step() -> void:
+func _emitter_step(n: float, delta: float) -> void:
 	match kind:
 		&"pun":
-			_continuous()
-			if state == State.CONTINUOUS:
-				var left: int = 44 - timer
-				if left == 8:
-					_spawn_pun_yuge()
-					_spawn_pun_sekimen()
+			_continuous(n)
+			if state == State.CONTINUOUS and _hits(44.0 - timer, n, 8.0):
+				_spawn_pun_yuge()
+				_spawn_pun_sekimen()
 		&"siawase":
 			ongen = &"lev_e"
-			_continuous()
+			_continuous(n)
 			var alpha: float = 150.0
 			var s: float = 0.015
 			if state == State.NORMAL:
@@ -252,34 +277,36 @@ func _emitter_step() -> void:
 			## `Evw_Anime` SCROLL2 {1, −4}: passed to the scroll as (1, 4), ÷ 8 texels a tick.
 			_body.set_param(&"scroll0", Vector2(1.0, 4.0) * float(t) / 8.0)
 			## `eSSHN_mv`: a petal every fourth tick while the clip plays.
-			if state != State.FINISHED and (timer & 3) == 0:
-				_spawn_petal()
+			if state != State.FINISHED:
+				for _i: int in _beats(timer, n, 4, 0):
+					_spawn_petal()
 		&"kangaeru":
-			_continuous()
-			_tick_think()
+			_continuous(n)
+			_tick_think(n)
 		&"takurami":
-			var e: int = 54 - timer
-			if e == 0:
+			var e: float = 54.0 - timer
+			if _hits(e, n, 0.0):
 				trg_se.append(&"117")
-			if e == 10:
+			if _hits(e, n, 10.0):
 				_spawn_kira(_es["kira_at"])
 			_scale(_body, _adjust(e, 0, 8, 0.0, 0.017), 0.02, 0.017)
 			_body.set_param(&"prim_color", _c(0, 0, 0, int(_adjust(e, 46, 54, 200.0, 0.0))))
 		&"naku":
-			_continuous()
+			_continuous(n)
 			ongen = &"lev_2e"
-			if (timer & 1) == 1:
+			## A tear on every odd tick of the timer.
+			for _i: int in _beats(timer, n, 2, 1):
 				_spawn_tear(int(_es["count"]) & 1)
 				_es["count"] = int(_es["count"]) + 1
 		&"buruburu":
-			_continuous()
+			_continuous(n)
 			ongen = &"lev_2d"
-			var idx: int = (timer >> 1) & 1
+			var idx: int = (int(timer) >> 1) & 1
 			_scale(_body, [0.015, 0.016][idx], 0.01, [0.01, 0.011][idx])
 			_body.set_param(&"tex0", _rel(StringName("ef_buruburu01_%d_int_i4" % idx)))
 		&"kaze":
-			var e: int = 100 - timer
-			if timer == 64:
+			var e: float = 100.0 - timer
+			if _hits(e, n, 36.0):
 				_spawn_leaf(int(_es["side"]))
 			var a: float = 150.0
 			if e <= 9:
@@ -290,34 +317,32 @@ func _emitter_step() -> void:
 			_body.set_param(&"prim_color", _c(255, 255, 255, int(a)))
 			_body.set_param(&"scroll1", Vector2(3.0, 2.0) * float(t) / 8.0)
 		&"otikomi":
-			_tick_gloom()
+			_tick_gloom(n, delta)
 		&"neboke":
-			_continuous()
+			_continuous(n)
 			if state == State.NORMAL:
-				var e: int = 112 - timer
-				if e == 16:
+				var e: float = 112.0 - timer
+				if _hits(e, n, 16.0):
 					_spawn_yawn(0)
-				elif e == 44:
+				if _hits(e, n, 44.0):
 					_spawn_yawn(1)
 			elif state == State.CONTINUOUS:
-				var e2: int = 120 - timer
-				if e2 == 46 or e2 == 74:
+				var e2: float = 120.0 - timer
+				if _hits(e2, n, 46.0) or _hits(e2, n, 74.0):
 					_spawn_zzz()
 
 
 ## `eKG_mv` / `eKG_dw`: the big bubble nods 2.5° and the small one −3.75° a tick for ten
 ## ticks of every 25, both reset when the big one comes round.
-func _tick_think() -> void:
-	var before: int = MLib.s16_signed(int(_es["big"]))
-	if int(_es["count"]) < 10:
-		_es["big"] = MLib.s16_signed(int(_es["big"]) + 455)
-		_es["small"] = MLib.s16_signed(int(_es["small"]) - 682)
-	if int(_es["big"]) >= 0 and before < 0:
-		_es["big"] = 0
-		_es["small"] = 0
-	_es["count"] = int(_es["count"]) + 1
-	if int(_es["count"]) >= 25:
-		_es["count"] = 0
+func _tick_think(n: float) -> void:
+	var before: float = float(_es["big"])
+	var nodding: float = clampf(10.0 - float(_es["count"]), 0.0, n)
+	_es["big"] = wrapf(float(_es["big"]) + 455.0 * nodding, -32768.0, 32768.0)
+	_es["small"] = wrapf(float(_es["small"]) - 682.0 * nodding, -32768.0, 32768.0)
+	if float(_es["big"]) >= 0.0 and before < 0.0:
+		_es["big"] = 0.0
+		_es["small"] = 0.0
+	_es["count"] = fmod(float(_es["count"]) + n, 25.0)
 	var alpha: int = 255
 	if state == State.FINISHED:
 		alpha = int(_adjust(7 - timer, 0, 6, 255.0, 0.0))
@@ -332,21 +357,22 @@ func _tick_think() -> void:
 	_scale(_body2, s, s, sz)
 	_body.data["shift"] = Vector3(-475.0 * s, 950.0 * s, 0.0)
 	_body2.data["shift"] = Vector3(475.0 * s, 0.0, 0.0)
-	_body.node.rotation.z = MLib.s16_to_rad(int(_es["big"]))
-	_body2.node.rotation.z = MLib.s16_to_rad(int(_es["small"]))
+	_body.node.rotation.z = float(_es["big"]) * MLib.S16
+	_body2.node.rotation.z = float(_es["small"]) * MLib.S16
 	for p: Part in [_body, _body2]:
 		p.set_param(&"prim_color", _c(255, 255, 255, alpha))
 
 
 ## `eOMN_mv` / `eOMN_dw`: a dark cloud squashing and stretching ever more gently over
 ## falling lines of gloom.
-func _tick_gloom() -> void:
-	var phase: int = int(_es["phase"]) + int(float(_es["speed"]))
+func _tick_gloom(n: float, delta: float) -> void:
+	var phase: float = fmod(float(_es["phase"]) + float(_es["speed"]) * n, 65536.0)
 	_es["phase"] = phase
-	var w: float = float(_es["wobble"]) * sin(MLib.s16_to_rad(phase))
-	_es["wobble"] = AcreCamera.add_calc(float(_es["wobble"]), 0.025, 0.022, 0.1, 0.001)
-	_es["speed"] = AcreCamera.add_calc(float(_es["speed"]), 2000.0, 0.022, 6000.0, 0.01)
-	_continuous()
+	var w: float = float(_es["wobble"]) * sin(phase * MLib.S16)
+	## `add_calc(…, 0.022, max, min)` a tick on the wobble and its speed.
+	_es["wobble"] = Motion.approach(float(_es["wobble"]), 0.025, GLOOM_HALF_LIFE, 0.1 * DecompTime.TICK_HZ, 0.001 * DecompTime.TICK_HZ, delta)
+	_es["speed"] = Motion.approach(float(_es["speed"]), 2000.0, GLOOM_HALF_LIFE, 6000.0 * DecompTime.TICK_HZ, 0.01 * DecompTime.TICK_HZ, delta)
+	_continuous(n)
 	var alpha: float = 255.0
 	var alpha2: float = 100.0
 	var lines_y: float = 0.0135
@@ -395,17 +421,17 @@ func _spawn_note() -> void:
 	var v := _rot_z(Vector3(0.0, 0.435, 0.0), deg_to_rad(_rng.randf() * 30.0 - 15.0))
 	p.vel = _rot_x(v, deg_to_rad(_rng.randf() * 30.0 - 15.0))
 	p.acc = Vector3(0.0, 0.006, 0.0)
-	p.data["wobble"] = 0
+	p.data["wobble"] = 0.0
 	var c: int = _rng.randi_range(0, 4)
 	p.data["prim"] = NOTE_PRIM[c]
 	p.set_param(&"env_color", NOTE_ENV[c])
 	p.node.rotation.z = deg_to_rad(_rng.randf() * 60.0 - 30.0)
-	p.step = func(q: Part) -> void:
-		q.data["wobble"] = int(q.data["wobble"]) + 2047
-		q.vel += q.acc
-		q.pos += q.vel
-		var e: int = q.t
-		var a: float = MLib.s16_to_rad(int(q.data["wobble"]))
+	p.step = func(q: Part, n: float) -> void:
+		q.data["wobble"] = float(q.data["wobble"]) + 2047.0 * n
+		q.vel += q.acc * n
+		q.pos += q.vel * n
+		var e: float = q.t
+		var a: float = float(q.data["wobble"]) * MLib.S16
 		var size: float = _adjust(e, 0, 18, 0.00156, 0.0078)
 		var hi: float = _adjust(e, 0, 30, 1.35, 0.85)
 		var lo: float = _adjust(e, 0, 30, 0.05, 0.55)
@@ -423,15 +449,16 @@ func _spawn_doyon() -> void:
 	p.vel = Vector3(sin(ang) * 0.5, cos(ang) * 0.5, 0.0)
 	p.data["spin"] = 0.0
 	p.set_param(&"env_color", _c(100, 100, 255, 255))
-	p.step = func(q: Part) -> void:
-		var timer: int = 60 - q.t
+	p.step = func(q: Part, n: float) -> void:
+		var timer: float = 60.0 - q.t
 		var progress: float = _adjust(timer, 0, 60, 0.0, 5.0)
-		q.pos += q.vel
-		q.data["spin"] = float(q.data["spin"]) + deg_to_rad(5.625)
+		q.pos += q.vel * n
+		q.data["spin"] = float(q.data["spin"]) + deg_to_rad(5.625) * n
 		var sp: float = q.data["spin"]
-		q.vel.x *= sqrt(0.95)
-		q.vel.y *= sqrt(0.95)
-		var size: float = float(q.t) * 0.00065 if timer > 50 else 0.0065
+		var keep: float = pow(sqrt(0.95), n)
+		q.vel.x *= keep
+		q.vel.y *= keep
+		var size: float = q.t * 0.00065 if timer > 50.0 else 0.0065
 		_scale(q, size * (1.0 + 0.2 * cos(sp)), size * (1.0 + 0.2 * sin(sp)), 0.1)
 		q.ofs = Vector3(progress * cos(sp), progress * sin(sp), 20.0)
 		q.set_param(&"prim_color", _c(40, 30, 40, int(_adjust(timer, 0, 8, 0.0, 220.0))))
@@ -442,11 +469,11 @@ func _spawn_pun_yuge() -> void:
 	var p := _part(&"ef_pun01_00", Vector3(0.0, 23.0, 0.0), Vector3(0.0, 0.0, 10.0), 26)
 	_two_tiles(p, true, true, true, true, true, 1)
 	p.set_param(&"color_t0", true)
-	p.step = func(q: Part) -> void:
-		var e: int = q.t
-		if e < 4:
-			q.ofs.y += 1.5
-		var frame: int = clampi(e >> 1, 0, 12)
+	p.step = func(q: Part, n: float) -> void:
+		var e: float = q.t
+		## Up 1.5 GX a tick for its first four ticks.
+		q.ofs.y += 1.5 * clampf(4.0 - e, 0.0, n)
+		var frame: int = clampi(int(e) >> 1, 0, 12)
 		q.set_param(&"tex0", _rel(StringName("ef_pun01_%d_int_i4" % PUN_YUGE_TEX[frame].x)))
 		q.set_param(&"tex1", _rel(StringName("ef_pun01_%d_int_i4" % PUN_YUGE_TEX[frame].y)))
 		q.set_param(&"lod_frac", float(PUN_YUGE_PRIM_F[frame]) / 255.0)
@@ -468,7 +495,7 @@ func _spawn_pun_sekimen() -> void:
 	p.set_param(&"tex0", _rel(&"ef_pun01_5_int_i4"))
 	p.set_param(&"i4_0", true)
 	p.set_param(&"env_color", _c(255, 100, 100, 255))
-	p.step = func(q: Part) -> void:
+	p.step = func(q: Part, _n: float) -> void:
 		var s: float = _adjust(q.t, 0, 16, 0.0105, 0.0189)
 		_scale(q, s, s, s)
 		q.set_param(&"prim_color", _c(255, 0, 0, int(_adjust(q.t, 8, 16, 150.0, 0.0))))
@@ -484,17 +511,17 @@ func _spawn_petal() -> void:
 	var yellow: bool = (_rng.randi_range(0, 9) & 1) == 1
 	p.data["prim"] = Vector3(255, 255, 0) if yellow else Vector3(255, 255, 255)
 	p.set_param(&"env_color", _c(255, 0, 0, 255) if yellow else _c(255, 0, 255, 255))
-	p.step = func(q: Part) -> void:
-		var e: int = q.t
-		q.acc.y = 0.01 if e >= 58 else _adjust(e, 40, 58, 0.0, 0.01)
-		q.vel += q.acc
-		q.pos += q.vel
-		q.data["spin"] = float(q.data["spin"]) + float(q.data["turn"])
+	p.step = func(q: Part, n: float) -> void:
+		var e: float = q.t
+		q.acc.y = 0.01 if e >= 58.0 else _adjust(e, 40, 58, 0.0, 0.01)
+		q.vel += q.acc * n
+		q.pos += q.vel * n
+		q.data["spin"] = float(q.data["spin"]) + float(q.data["turn"]) * n
 		q.node.rotation.z = float(q.data["spin"])
 		var s: float = _adjust(e, 40, 58, 0.0, 0.005)
 		_scale(q, s, s, s)
 		var rgb: Vector3 = q.data["prim"]
-		var alpha: float = _adjust(e, 66, 92, 255.0, 0.0) if e >= 66 else 255.0
+		var alpha: float = _adjust(e, 66, 92, 255.0, 0.0) if e >= 66.0 else 255.0
 		q.set_param(&"prim_color", _c(int(rgb.x), int(rgb.y), int(rgb.z), int(alpha)))
 
 
@@ -515,8 +542,8 @@ func _spawn_kira(at: Vector3) -> void:
 	var p := _part(&"ef_takurami01_kira", at, off, 30)
 	p.set_param(&"prim_color", _c(255, 255, 255, 255))
 	p.set_param(&"env_color", _c(255, 255, 0, 255))
-	p.step = func(q: Part) -> void:
-		var s: float = _adjust(q.t, 0, 10, 0.0, 0.009) if q.t < 10 else _adjust(q.t, 11, 29, 0.009, 0.0)
+	p.step = func(q: Part, _n: float) -> void:
+		var s: float = _adjust(q.t, 0, 10, 0.0, 0.009) if q.t < 10.0 else _adjust(q.t, 11, 29, 0.009, 0.0)
 		_scale(q, s, s, s)
 
 
@@ -533,12 +560,12 @@ func _spawn_tear(side: int) -> void:
 	p.data["base"] = p.pos
 	p.set_param(&"prim_color", _c(0, 255, 255, 155))
 	p.set_param(&"env_color", _c(255, 255, 255, 255))
-	p.step = func(q: Part) -> void:
-		q.vel += q.acc
-		var local: Vector3 = Vector3(q.data["local"]) + q.vel
+	p.step = func(q: Part, n: float) -> void:
+		q.vel += q.acc * n
+		var local: Vector3 = Vector3(q.data["local"]) + q.vel * n
 		q.data["local"] = local
 		q.pos = Vector3(q.data["base"]) + _rot_y(local, _npc_yaw)
-		var s: float = _adjust(q.t, 0, 18, 0.0, 0.0027) if q.t < 20 else _adjust(q.t, 20, 30, 0.0027, 0.0)
+		var s: float = _adjust(q.t, 0, 18, 0.0, 0.0027) if q.t < 20.0 else _adjust(q.t, 20, 30, 0.0027, 0.0)
 		_scale(q, s, s, s)
 
 
@@ -549,22 +576,22 @@ func _spawn_leaf(side: int) -> void:
 	p.set_param(&"prim_color", _c(200, 150, 0, 255))
 	p.set_param(&"env_color", _c(100, 0, 0, 255))
 	var dir: float = -1.0 if side == 1 else 1.0
-	p.step = func(q: Part) -> void:
-		var e: int = q.t
+	p.step = func(q: Part, n: float) -> void:
+		var e: float = q.t
 		var spin: float = 0.0
-		if e < 20:
-			q.vel += Vector3(dir * 0.095, -0.02875, 0.0)
-		elif e < 40:
+		## Blown along for its first 20 ticks and its last 20, tumbling in between.
+		var pushed: float = clampf(20.0 - e, 0.0, n) + clampf(e + n - 40.0, 0.0, n)
+		q.vel += Vector3(dir * 0.095, -0.02875, 0.0) * pushed
+		if e >= 20.0 and e < 40.0:
 			spin = _adjust(e, 20, 39, 0.0, 360.0)
-		else:
+		elif e >= 40.0:
 			spin = _adjust(e, 40, 59, 360.0, 450.0)
-			q.vel += Vector3(dir * 0.095, -0.02875, 0.0)
-		q.ofs += q.vel
+		q.ofs += q.vel * n
 		q.node.rotation.z = deg_to_rad(spin) * (-1.0 if side == 1 else 1.0)
 		var s: float = 0.0048
-		if e <= 10:
+		if e <= 10.0:
 			s = _adjust(e, 0, 10, 0.0, 0.0048)
-		elif e > 50:
+		elif e > 50.0:
 			s = _adjust(e, 52, 60, 0.0048, 0.0)
 		_scale(q, s, s, s)
 
@@ -581,12 +608,13 @@ func _spawn_yawn(size: int) -> void:
 	p.set_param(&"alpha_from_env", true)
 	p.set_param(&"prim_color", _c(255, 255, 255, 255))
 	p.set_param(&"env_color", _c(255, 255, 150, 255))
-	p.step = func(q: Part) -> void:
-		q.vel += q.acc
-		q.pos += q.vel
-		q.data["phase"] = float(q.data["phase"]) + deg_to_rad(11.25)
+	p.step = func(q: Part, n: float) -> void:
+		q.vel += q.acc * n
+		q.pos += q.vel * n
+		q.data["phase"] = float(q.data["phase"]) + deg_to_rad(11.25) * n
 		var s: float = _adjust(q.t, 0, 4, 0.0, float(q.data["base"]))
-		if q.t == 79:
+		## It swells as it pops, on its last tick.
+		if q.t + n >= float(q.life) - 0.0001:
 			s *= 1.2
 		var ph: float = q.data["phase"]
 		_scale(q, s * (sin(ph) * 0.2 + 1.0), s * (cos(ph) * 0.2 + 1.0), s)
@@ -603,14 +631,14 @@ func _spawn_zzz() -> void:
 	p.data["drawn"] = p.pos
 	p.data["anchor"] = p.pos
 	p.set_param(&"env_color", _c(120, 50, 255, 255))
-	p.step = func(q: Part) -> void:
-		q.data["wobble"] = float(q.data["wobble"]) + deg_to_rad(11.25)
-		q.data["sway"] = float(q.data["sway"]) + deg_to_rad(6.33)
-		q.vel += q.acc
-		q.data["anchor"] = Vector3(q.data["anchor"]) + q.vel
+	p.step = func(q: Part, n: float) -> void:
+		q.data["wobble"] = float(q.data["wobble"]) + deg_to_rad(11.25) * n
+		q.data["sway"] = float(q.data["sway"]) + deg_to_rad(6.33) * n
+		q.vel += q.acc * n
+		q.data["anchor"] = Vector3(q.data["anchor"]) + q.vel * n
 		var s: float = 0.0036
 		var alpha: int = 200
-		if q.t < 62:
+		if q.t < 62.0:
 			s = _adjust(q.t, 0, 40, 0.0, 0.003)
 			alpha = 255
 		var wob: float = q.data["wobble"]
@@ -632,7 +660,7 @@ func _part(visual: StringName, pos: Vector3, ofs: Vector3, life: int) -> Part:
 	p.life = life
 	p.pos = pos
 	p.ofs = ofs
-	p.step = func(_q: Part) -> void: pass
+	p.step = func(_q: Part, _n: float) -> void: pass
 	p.node = Node3D.new()
 	p.node.name = String(visual)
 	var paths: PackedStringArray = FieldCatalog.mesh_paths(visual)
@@ -717,13 +745,13 @@ func _rel(name: StringName) -> Texture2D:
 
 # ---- decomp math ---------------------------------------------------
 
-## `eEL_CalcAdjust`.
-static func _adjust(now: int, start: int, end: int, from: float, to: float) -> float:
+## `eEL_CalcAdjust`, at a (fractional) tick `now`.
+static func _adjust(now: float, start: int, end: int, from: float, to: float) -> float:
 	if start == end or now <= start:
 		return from
 	if now >= end:
 		return to
-	return from + float(now - start) * ((to - from) / float(end - start))
+	return from + (now - float(start)) * ((to - from) / float(end - start))
 
 
 static func _c(r: int, g: int, b: int, a: int) -> Color:

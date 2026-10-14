@@ -8,7 +8,8 @@ extends Node3D
 ## and is lost if it lands in water (`NA_SE_27`); a new one turns up somewhere else the next
 ## time the town loads (`aBALL_Random_pos_set`). Villagers out walking run after it when it
 ## lies ahead of them (`aNPC_check_ball`). A shovel lifts it out of a hole and an axe knocks
-## it away (`aBALL_status_check`). Speeds are GX per 30 fps frame, as in the decomp.
+## it away (`aBALL_status_check`). Speeds are m/s on `delta`; the decomp's per-frame figures
+## sit in the comments.
 ##
 ## `Game.ball`: `{x, y, z, type}` (metres), empty when a fresh ball is due.
 
@@ -16,16 +17,22 @@ const GROUP := &"field_ball"
 const VISUALS: Array[StringName] = [&"act_ball_b", &"act_ball_d", &"act_ball_s"]
 ## `aBALL_CoInfoData` pipe radius.
 const RADIUS_GX := 13.0
-const MAX_KICK := 11.0
-const GRAVITY := 0.3
-const FALL_MAX := -20.0
-const ROLL_DECEL := 0.06
+## `ac_ball` works in GX per 30 fps frame: one of those, in m/s.
+const FRAME := FieldCatalog.GX_TO_METERS * 30.0
+## Kicks top out at 11 GX a frame.
+const MAX_KICK := 11.0 * FRAME
+## 0.3 GX a frame per frame down, capped at 20; rolling brakes 0.06 a frame per frame.
+const GRAVITY := 0.3 * 30.0 * FRAME
+const FALL_MAX := -20.0 * FRAME
+const ROLL_DECEL := 0.06 * 30.0 * FRAME
 const BOUNCES := 3
 const BOUNCE_KEEP := 0.7
 ## `aBALL_calc_axis`: roll angle per frame per unit of speed (s16 → radians).
 const ROLL_RATE := 434.81952 * TAU / 65536.0
+## `ROLL_RATE` a frame per GX-a-frame of speed: radians per metre rolled.
+const ROLL_PER_METRE := ROLL_RATE / FieldCatalog.GX_TO_METERS
 ## `collider` stays the same one for this long (`unk20C`).
-const SAME_COLLIDER_FRAMES := 30
+const SAME_COLLIDER_TIME := 1.0
 ## `aNPC_check_ball`: within 200 GX and inside 67.5° of +z of the villager.
 const CHASE_GX := 200.0
 const CHASE_CONE := deg_to_rad(67.5)
@@ -48,10 +55,9 @@ var in_hole: bool = false
 var dead: bool = false
 var on_ground: bool = true
 
-var _steps := FrameStepper.new(DecompTime.FRAME_HZ, 8.0)
 var _bounces: int = BOUNCES
 var _collider: Node3D = null
-var _collider_left: int = 0
+var _collider_left: float = 0.0
 var _last_pos: Dictionary = {}
 var _sink: float = 0.0
 var _roll: Node3D
@@ -102,42 +108,43 @@ func _world() -> World:
 
 
 func _physics_process(delta: float) -> void:
-	_steps.add(delta)
-	while _steps.next():
-		if not is_inside_tree():
-			return
-		_frame()
+	if is_inside_tree():
+		advance(delta)
 
 
-func _frame() -> void:
+## `aBALL_actor_move` over `delta` seconds.
+func advance(delta: float) -> void:
 	if dead:
-		_sink += 1.0 / DecompTime.FRAME_HZ
-		global_position += Vector3(sin(heading), 0.0, cos(heading)) * 0.3 * gx()
+		## Drifts on 0.3 GX a frame as it sinks.
+		_sink += delta
+		global_position += Vector3(sin(heading), 0.0, cos(heading)) * 0.3 * FRAME * delta
 		_roll.position.y = lerpf(RADIUS_GX * gx(), 0.0, clampf(_sink / SINK_SECONDS, 0.0, 1.0))
 		if _sink >= SINK_SECONDS:
 			queue_free()
 		return
-	_contacts()
+	_contacts(delta)
 	if in_hole:
 		return
-	## `aBALL_position_move`: ease to a stop on the ground, fall under gravity.
+	## `aBALL_position_move`: ease to a stop on the ground, fall under gravity (exact within
+	## the frame, speeds averaged over it).
+	var was: float = speed
 	if on_ground:
-		speed = move_toward(speed, 0.0, ROLL_DECEL)
-	vy = move_toward(vy, FALL_MAX, GRAVITY)
-	var step := Vector2(sin(heading), cos(heading)) * speed * gx()
-	_move_xz(step)
-	global_position.y += vy * gx()
+		speed = move_toward(speed, 0.0, ROLL_DECEL * delta)
+	var fall: float = maxf(vy - GRAVITY * delta, FALL_MAX)
+	_move_xz(Vector2(sin(heading), cos(heading)) * (was + speed) * 0.5 * delta)
+	global_position.y += (vy + fall) * 0.5 * delta
+	vy = fall
 	_land()
 	if dead:
 		return
 	_check_hole()
-	_spin()
+	_spin(delta)
 	if Game != null and (speed > 0.0 or not on_ground):
 		Game.ball = {"x": global_position.x, "y": global_position.y, "z": global_position.z, "type": type}
 
 
 ## `aBALL_OBJcheck` against the player and the villagers.
-func _contacts() -> void:
+func _contacts(delta: float) -> void:
 	var bodies: Array[Node3D] = []
 	var player := Player.find(get_tree())
 	if player != null:
@@ -161,40 +168,42 @@ func _contacts() -> void:
 			speed = 0.0
 			vy = minf(vy, 0.0)
 			_collider = body
-			_collider_left = SAME_COLLIDER_FRAMES
+			_collider_left = SAME_COLLIDER_TIME
 			continue
 		var moved: Vector3 = body.global_position - prev
-		var body_vel := Vector2(moved.x, moved.z) / gx()
+		var body_vel := Vector2(moved.x, moved.z) / maxf(delta, 1e-4)
 		if body != _collider:
 			kick(d, body_vel)
 			_collider = body
 		else:
-			## Still against the same one: pushed out along the overlap.
-			var push: Vector2 = d.normalized() * (reach - d.length()) / gx() + _velocity()
-			speed = minf(push.length(), MAX_KICK)
+			## Still against the same one: pushed out along the overlap (`overlap` GX a frame).
+			var push: Vector2 = d.normalized() * (reach - d.length()) / gx() + _velocity() / FRAME
+			speed = minf(push.length(), MAX_KICK / FRAME) * FRAME
 			if push.length() > 0.0001:
 				heading = atan2(push.x, push.y)
-		_collider_left = SAME_COLLIDER_FRAMES
+		_collider_left = SAME_COLLIDER_TIME
 	if touched == null:
-		if _collider_left <= 0:
+		_collider_left -= delta
+		if _collider_left <= 0.0:
 			_collider = null
-		else:
-			_collider_left -= 1
 
 
 func _velocity() -> Vector2:
 	return Vector2(sin(heading), cos(heading)) * speed
 
 
-## A fresh hit from something moving at `body_vel` (GX / frame) on the side `away` points from.
+## A fresh hit from something moving at `body_vel` (m/s) on the side `away` points from.
+## `aBALL_set_spd_relations_in_ball`'s sums are in GX a frame, so they run in those units.
 func kick(away: Vector2, body_vel: Vector2) -> void:
 	var dir: Vector2 = away.normalized() if away.length() > 0.0001 else Vector2(sin(heading), cos(heading))
-	var own: float = _velocity().dot(dir)
-	var fact: float = body_vel.length()
-	var pushed: Vector2 = body_vel * ((24.0 / 180.0 * fact) * 0.9 + 0.1)
+	var vel_f: Vector2 = _velocity() / FRAME
+	var body_f: Vector2 = body_vel / FRAME
+	var own: float = vel_f.dot(dir)
+	var fact: float = body_f.length()
+	var pushed: Vector2 = body_f * ((24.0 / 180.0 * fact) * 0.9 + 0.1)
 	var hit: float = absf(own + pushed.dot(dir))
-	var after: Vector2 = _velocity() + dir * hit
-	var power: float = minf(after.length(), MAX_KICK)
+	var after: Vector2 = vel_f + dir * hit
+	var power: float = minf(after.length(), MAX_KICK / FRAME) * FRAME
 	if on_ground and is_zero_approx(speed):
 		## A ball at rest is lifted the harder it's hit.
 		var f: float = power / MAX_KICK
@@ -231,7 +240,7 @@ func _move_xz(step: Vector2) -> void:
 
 
 func _bounce_wall(normal: Vector2) -> void:
-	var v: Vector2 = _velocity()
+	var v: Vector2 = _velocity() / FRAME
 	var into: float = -v.dot(normal)
 	if into <= 0.0:
 		return
@@ -239,7 +248,7 @@ func _bounce_wall(normal: Vector2) -> void:
 		Audio.play_se(SE_WALL, self)
 	var f: float = into * 0.07 + 1.2
 	v += normal * into * f
-	speed = v.length()
+	speed = v.length() * FRAME
 	if speed > 0.0001:
 		heading = atan2(v.x, v.y)
 
@@ -263,7 +272,7 @@ func _land() -> void:
 		if not on_ground and vy < 0.0 and _bounces < BOUNCES:
 			_bounces += 1
 			vy = BOUNCE_KEEP * -vy
-			on_ground = vy <= 0.5
+			on_ground = vy <= 0.5 * FRAME
 		else:
 			vy = 0.0
 			on_ground = true
@@ -283,13 +292,13 @@ func _in_water() -> bool:
 func _lose() -> void:
 	dead = true
 	Audio.play_se(SE_SPLASH, self)
-	speed = minf(speed, 1.0)
+	speed = minf(speed, FRAME)
 
 
 ## `aBALL_process_ground` over an open hole: once slow it settles in.
 func _check_hole() -> void:
 	var world := _world()
-	if world == null or world.grid == null or not on_ground or speed >= 1.0:
+	if world == null or world.grid == null or not on_ground or speed >= FRAME:
 		return
 	var cell: Vector2i = world.grid.world_to_cell(global_position)
 	if not Game.is_hole(world.grid.occupant_at(cell)):
@@ -302,11 +311,11 @@ func _check_hole() -> void:
 	_roll.position.y = RADIUS_GX * gx() * 0.2
 
 
-func _spin() -> void:
+func _spin(delta: float) -> void:
 	if speed <= 0.0001:
 		return
 	var axis := Vector3(cos(heading), 0.0, -sin(heading))
-	_roll.rotate(axis, speed * ROLL_RATE)
+	_roll.rotate(axis, speed * delta * ROLL_PER_METRE)
 
 
 func _snap_ground() -> void:
@@ -331,8 +340,8 @@ func hit_by_shovel(pos: Vector3, yaw: float) -> bool:
 	if dead or not (in_front_of(pos, yaw) or is_zero_approx(speed)):
 		return false
 	heading = yaw
-	speed = 2.0
-	vy = 4.5
+	speed = 2.0 * FRAME
+	vy = 4.5 * FRAME
 	Audio.play_se(SE_KICK, self)
 	on_ground = false
 	_bounces = 0
@@ -347,8 +356,8 @@ func hit_by_axe(pos: Vector3, yaw: float) -> bool:
 	if dead or in_hole or not (in_front_of(pos, yaw) or is_zero_approx(speed)):
 		return false
 	heading = yaw + PI / 4.0
-	speed = 4.5
-	vy = 3.0
+	speed = 4.5 * FRAME
+	vy = 3.0 * FRAME
 	Audio.play_se(SE_KICK, self)
 	on_ground = false
 	_bounces = 0

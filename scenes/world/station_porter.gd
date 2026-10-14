@@ -24,8 +24,8 @@ const WALK_CLIP := "npc_1_walk1"
 ## Block (3, 1) unit (5, 4), unit centre: 3·640 + 5·40 + 20, 1·640 + 4·40 + 20.
 const TITLE_GX := Vector3(2140.0, 0.0, 820.0)
 ## `chase_angle` scales its step by `game_GameFrame_2F` (frame × 0.5), so a chase-angle turn is
-## `step × 30` per second at any frame rate: `0x800` → half of it per 60 Hz frame.
-const TURN_STEP := float(0x800) * MLib.S16 / DecompTime.TICKS_PER_FRAME
+## `step × 30` per second at any frame rate: `0x800`, in radians a second.
+static var TURN_RATE: float = NpcPointMove.turn_rate(NpcPointMove.SPIN_TURN)
 const LOOK_CONE := deg_to_rad(67.5)
 ## `aSTM_think_init_proc` (first intro): `rotation.y += DEG2SHORT_ANGLE2(-90)` from angle 0.
 const INTRO_YAW := -PI * 0.5
@@ -42,7 +42,6 @@ var facing: float = 0.0
 var _turning: bool = false
 var _wait_left: float = 0.0
 var _wait_len: float = 1.0
-var _steps := FrameStepper.new()
 var _built: bool = false
 var _mode: Mode = Mode.LOOK
 var _goal: Vector3 = Vector3.ZERO
@@ -166,9 +165,7 @@ func _place(world: Vector3, yaw: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	_steps.add(delta)
-	while _steps.next():
-		_tick()
+	_advance(delta)
 	rotation.y = facing
 
 
@@ -179,17 +176,17 @@ func _process(delta: float) -> void:
 	_face.tick(delta, speaking and DialogueOverlay.uttering_in(get_tree()))
 
 
-func _tick() -> void:
+func _advance(delta: float) -> void:
 	match _mode:
 		Mode.TURN_EAST:
 			var want_east: float = _yaw_to(_goal)
-			facing = turn_toward(facing, want_east)
+			facing = turn_toward(facing, want_east, delta)
 			if is_equal_approx(facing, want_east):
 				_mode = Mode.WALK_EAST
 				_play(WALK_CLIP)
 			return
 		Mode.WALK_EAST:
-			_tick_walk()
+			_walk(delta)
 			return
 	var player := Player.find(get_tree())
 	if player == null:
@@ -197,11 +194,11 @@ func _tick() -> void:
 	var to: Vector3 = player.global_position - global_position
 	var want: float = atan2(to.x, to.z)
 	if _turning:
-		facing = turn_toward(facing, want)
+		facing = turn_toward(facing, want, delta)
 		if is_equal_approx(facing, want):
 			_turning = false
 		return
-	_wait_left -= DecompTime.TICK_SEC
+	_wait_left -= delta
 	if _wait_left > 0.0:
 		return
 	## `aSTM_look_player` on action end.
@@ -212,7 +209,7 @@ func _tick() -> void:
 
 
 ## `aNPC_act_to_point_move` (WALK) for the one-unit step.
-func _tick_walk() -> void:
+func _walk(delta: float) -> void:
 	var gx: float = FieldCatalog.GX_TO_METERS
 	var pos: Vector3 = global_position / gx
 	var goal: Vector3 = _goal / gx
@@ -227,7 +224,7 @@ func _tick_walk() -> void:
 		_play(WAIT_CLIP)
 		return
 	_move.facing = facing
-	var next: Vector3 = _move.step_to(pos, goal, false)
+	var next: Vector3 = _move.step_to(delta, pos, goal, false)
 	facing = _move.facing
 	global_position.x = next.x * gx
 	global_position.z = next.z * gx
@@ -257,8 +254,8 @@ static func needs_turn(p_facing: float, toward_player: float) -> bool:
 
 
 ## One tick of `aNPC_ACT_TURN2` (`mv_add_angl` 0x800).
-static func turn_toward(p_facing: float, target: float) -> float:
-	return NpcPointMove.chase_yaw(p_facing, target, TURN_STEP)
+static func turn_toward(p_facing: float, target: float, delta: float) -> float:
+	return NpcPointMove.chase_yaw(p_facing, target, TURN_RATE * delta)
 
 
 func _play(clip: String) -> void:

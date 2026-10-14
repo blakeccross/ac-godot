@@ -8,13 +8,13 @@ extends RefCounted
 ##
 ## The original's shadow is not a creature simulation: it holds station facing upstream,
 ## sweeps a short arc, and only becomes interesting once a bobber lands in its search cone.
-## That is reproduced one mover tick (60 Hz) at a time, because every step in it is a
-## per-tick `chase_f` / `DECREMENT_TIMER`. `mCoBG` wall segments and waterfall handling are
-## not: the shadow is kept inside its `WaterBodies.Body` by cell test instead.
+## It advances by `delta`: the per-tick `chase_f` / `DECREMENT_TIMER` steps are rates and
+## timers in seconds, converted where each constant is written. `mCoBG` wall segments and
+## waterfall handling are not reproduced: the shadow is kept inside its `WaterBodies.Body` by
+## cell test instead.
 ##
-## Speeds are kept in the original's unit, GX per 30 fps frame, because that is what every
-## table and `chase_f` step is written in. `Actor_position_move` adds `0.5 * speed` a tick,
-## so a speed of 1.0 is 30 GX a second — `_advance` does that conversion and nothing else.
+## `speed` is m/s. The tables (`FishSize`) are in the original's GX per 30 fps frame and
+## convert through `FishSize.gx_per_frame_to_mps`.
 
 enum Action { WAIT, SWIM, ESCAPE, NEAR, TOUCH, BITE, COMEBACK }
 
@@ -22,27 +22,35 @@ enum Action { WAIT, SWIM, ESCAPE, NEAR, TOUCH, BITE, COMEBACK }
 const COMEBACK_SECONDS := 0.25
 
 ## `aGTT_swim_speed_check(gyo, 360/180, 5.0f, 0.5f)` / `aGTT_swim_speed_change(..., 1.0f)`:
-## peak speed of each `swim_flag` pattern, GX per frame.
+## peak speed of each `swim_flag` pattern, GX per frame (`speed` takes it in m/s).
 const SWIM_PEAK_GX: Array[float] = [0.5, 0.5, 1.0]
 ## Where each pattern's sweep starts and ends (`aGTT_swim_init` / the `target` argument).
 const SWIM_SWEEP_FROM: Array[float] = [50.0, 0.0, 0.0]
 const SWIM_SWEEP_TO: Array[float] = [360.0, 180.0, 180.0]
 ## `aGTT_swim_speed_change`: once the sweep passes `step` (5°), the body turns by
-## `(flow_rv - heading) / (target / step)` each tick.
+## `(flow_rv - heading) / (target / step)` each tick, while the sweep moves 2.5° a tick — so
+## the body turns that much per 2.5° of sweep.
 const SWIM_TURN_DIVISOR := 180.0 / 5.0
 const SWIM_TURN_START_DEG := 5.0
+## The sweep (`chase_f(&fwork3, target, 5.0f * 0.5f)`), in degrees a second.
+const SWEEP_DEG_PER_SECOND := FishSize.SWEEP_DEG_PER_FRAME * DecompTime.TICK_HZ
 ## `aGTT_swim_init`: `swim_flag` 1 sets off `RANDOM2_F(180°)` from its heading and `swim_flag` 2
 ## picks a new heading `RANDOM2_F(90°)` away. `RANDOM2_F(n)` is `fqrand2() * n`, and
 ## `fqrand2` is -0.5..0.5, so both spreads are half the named angle each way.
 const SWIM_SIDESTEP_SPREAD := PI
 const SWIM_TURN_SPREAD := PI * 0.5
-## `aGTT_chase_s_angle(gyo, swork3, 0x400)`: swim pattern 2's turn before it sets off.
-const SWIM_TURN_STEP := 0x400 * MLib.S16
+## `aGTT_chase_s_angle(gyo, swork3, 0x400)`: swim pattern 2's turn before it sets off, a tick,
+## as radians a second.
+const SWIM_TURN_RATE := 0x400 * MLib.S16 * DecompTime.TICK_HZ
 ## `aGTT_flow_direction`'s `angl_add_table`: 0x100 a tick, 0x400 when more than 90° off.
-const FLOW_TURN_SLOW := 0x100 * MLib.S16
-const FLOW_TURN_FAST := 0x400 * MLib.S16
-## `Actor_position_move`: `world.position += 0.5 * position_speed` per tick.
-const MOVE_PER_TICK := 0.5
+const FLOW_TURN_SLOW := 0x100 * MLib.S16 * DecompTime.TICK_HZ
+const FLOW_TURN_FAST := 0x400 * MLib.S16 * DecompTime.TICK_HZ
+## `chase_f(&speed, 0, 0.02)` a tick while escaping, in m/s a second.
+static var ESCAPE_DECAY: float = FishSize.gx_per_frame_to_mps(FishSize.ESCAPE_DECAY_GX) * DecompTime.TICK_HZ
+## `aGTT_escape`'s timer: 100 ticks.
+const ESCAPE_SECONDS := FishSize.ESCAPE_FRAMES / DecompTime.TICK_HZ
+## How far `aGYO_check_wall` looks to each side: four ticks at escape speed (4 GX).
+const WALL_PROBE := 4.0 * FishSize.GX
 
 
 ## Everything a shadow needs to know about the tick that it cannot see itself. The caller
@@ -89,7 +97,7 @@ var yaw: float = 0.0
 ## `world.angle.y`: where it is actually moving. Usually `yaw`; the swim patterns split
 ## them, so a shadow can slide sideways or keep going while its body swings round.
 var heading: float = 0.0
-## `actor.speed`, GX per 30 fps frame along `heading`. Negative swims tail first.
+## `actor.speed`, m/s along `heading`. Negative swims tail first.
 var speed: float = 0.0
 var action: Action = Action.WAIT
 var body: WaterBodies.Body = null
@@ -101,16 +109,16 @@ var cell_lookup: Callable = Callable()
 var flow_lookup: Callable = Callable()
 ## Set when the shadow wants to be removed: it bolted off, or it was reeled in.
 var finished: bool = false
-## Set on the tick a nibble lands, so the bobber can dip once per nibble.
+## Set on the step a nibble lands, so the bobber can dip once per nibble.
 var nibbled: bool = false
-## Set on the tick the fish commits and takes the bobber under.
+## Set on the step the fish commits and takes the bobber under.
 var bit: bool = false
 ## Set when the shadow leaves with a `GYO_KAGE` puff (scared, or it let go of the hook).
 var puffed: bool = false
 ## `aGTT_touch`: the 1-in-20 `gomi[]` swap. Tests that stock one exact species turn it off.
 var allow_trash_swap: bool = true
 
-## `work0`, in mover ticks.
+## `work0`, in seconds.
 var _timer: float = 0.0
 var _rod: int = FishSize.ROD_NORMAL
 var _nibbles_left: int = FishSize.TOUCH_TRIES
@@ -128,7 +136,6 @@ var _hit_wall: bool = false
 ## `uki->gyo_status == 4`: the player struck while the fish had it, so it stays on the hook.
 var _landed: bool = false
 var _anim_elapsed: float = 0.0
-var _steps := FrameStepper.new()
 var _rng: RandomNumberGenerator = null
 
 
@@ -176,30 +183,14 @@ func is_landed() -> bool:
 	return _landed
 
 
-## Advance by `delta` seconds, one whole mover tick at a time. `FishSchool` calls `step`
-## directly so every shadow sees the others' state from the same tick; this is for a shadow
-## driven on its own.
+## Advance by `delta` seconds. The one-step flags (`nibbled`, `bit`) are cleared first.
+## `FishSchool` steps its shadows in turn so each sees the others' state from this step.
 func tick(delta: float, sense: Sense) -> void:
 	nibbled = false
 	bit = false
-	if finished:
+	if finished or delta <= 0.0:
 		return
-	_steps.add(delta)
-	var splashed: bool = sense.bobber_splashed
-	while not finished and _steps.next():
-		_step(sense)
-		## `hit_water_flag` is a one-tick flag; only the first tick of a batch sees it.
-		sense.bobber_splashed = false
-	sense.bobber_splashed = splashed
-
-
-## Exactly one mover tick. The one-tick flags (`nibbled`, `bit`) are cleared first.
-func step(sense: Sense) -> void:
-	nibbled = false
-	bit = false
-	if finished:
-		return
-	_step(sense)
+	_step(delta, sense)
 
 
 ## The player struck while the fish had the bobber (`gyo_status` 4): it stays on the line
@@ -223,36 +214,36 @@ func release() -> void:
 	_vanish()
 
 
-# --- one mover tick ----------------------------------------------------------------------
+# --- one step ----------------------------------------------------------------------------
 
 
-func _step(sense: Sense) -> void:
+func _step(delta: float, sense: Sense) -> void:
 	_rod = sense.rod
-	_anim_elapsed += DecompTime.TICK_SEC
-	## `aGYO_actor_move`: `aGYO_position_move` runs before the action proc every tick.
-	_advance()
+	_anim_elapsed += delta
+	## `aGYO_actor_move`: `aGYO_position_move` runs before the action proc.
+	_advance(delta)
 	match action:
 		Action.WAIT:
-			_wait(sense)
+			_wait(delta, sense)
 		Action.SWIM:
-			_swim(sense)
+			_swim(delta, sense)
 		Action.ESCAPE:
-			_escape(sense)
+			_escape(delta, sense)
 		Action.NEAR:
 			_near(sense)
 		Action.TOUCH:
-			_touch(sense)
+			_touch(delta, sense)
 		Action.BITE:
-			_bite(sense)
+			_bite(delta, sense)
 		Action.COMEBACK:
-			_comeback(sense)
+			_comeback(delta, sense)
 	_hit_wall = false
 
 
-func _wait(sense: Sense) -> void:
-	## `aGTT_wait`: hold station facing upstream, drifting backwards, for 200-260 ticks.
-	_flow_direction()
-	_timer -= 1.0
+func _wait(delta: float, sense: Sense) -> void:
+	## `aGTT_wait`: hold station facing upstream, drifting backwards, for 3.3–4.3 s.
+	_flow_direction(delta)
+	_timer -= delta
 	if _timer <= 0.0:
 		## `RANDOM_F(3.0f)` into thirds.
 		_swim_kind = mini(int(_rng.randf() * 3.0), 2)
@@ -262,7 +253,7 @@ func _wait(sense: Sense) -> void:
 		_enter(Action.NEAR)
 
 
-func _swim(sense: Sense) -> void:
+func _swim(delta: float, sense: Sense) -> void:
 	## `aGTT_swim`: a wall sends the fish off at escape speed rather than stopping it.
 	if _hit_wall:
 		_turn_off_wall()
@@ -271,22 +262,26 @@ func _swim(sense: Sense) -> void:
 	var done: bool = false
 	if _swim_kind == 2 and _swim_turning:
 		## `aGTT_chase_s_angle(gyo, swork3, 0x400)`: face the new heading first.
-		_set_angle(_step_angle(heading, _swim_target, SWIM_TURN_STEP))
-		if absf(wrapf(heading - _swim_target, -PI, PI)) < SWIM_TURN_STEP:
+		_set_angle(_step_angle(heading, _swim_target, SWIM_TURN_RATE * delta))
+		if absf(wrapf(heading - _swim_target, -PI, PI)) < 0.0001:
 			_swim_turning = false
 	else:
 		## `chase_f(&fwork3, target, 5.0f * 0.5f)`: the sweep, and speed its sine.
 		var target: float = SWIM_SWEEP_TO[_swim_kind]
-		_swim_phase = move_toward(_swim_phase, target, FishSize.SWEEP_DEG_PER_FRAME)
+		var was: float = _swim_phase
+		_swim_phase = move_toward(_swim_phase, target, SWEEP_DEG_PER_SECOND * delta)
 		done = is_equal_approx(_swim_phase, target)
 		if _swim_kind == 2:
-			## `aGTT_swim_speed_change`: the body swings back past upstream while the fish
-			## keeps sliding along the heading it picked.
+			## `aGTT_swim_speed_change`: once the sweep passes 5° the body swings back past
+			## upstream, in step with the sweep, while the fish keeps sliding along the heading
+			## it picked. `_swim_turn` holds upstream until then, and the turn per degree of
+			## sweep after.
+			if was <= SWIM_TURN_START_DEG and _swim_phase > SWIM_TURN_START_DEG:
+				_swim_turn = wrapf(_swim_turn - heading, -PI, PI) / SWIM_TURN_DIVISOR / FishSize.SWEEP_DEG_PER_FRAME
 			if _swim_phase > SWIM_TURN_START_DEG:
-				yaw = wrapf(yaw + _swim_turn, -PI, PI)
-			elif is_equal_approx(_swim_phase, SWIM_TURN_START_DEG):
-				_swim_turn = wrapf(_swim_turn - heading, -PI, PI) / SWIM_TURN_DIVISOR
-		speed = SWIM_PEAK_GX[_swim_kind] * sin(deg_to_rad(_swim_phase))
+				var swept: float = _swim_phase - maxf(was, SWIM_TURN_START_DEG)
+				yaw = wrapf(yaw + _swim_turn * swept, -PI, PI)
+		speed = FishSize.gx_per_frame_to_mps(SWIM_PEAK_GX[_swim_kind] * sin(deg_to_rad(_swim_phase)))
 		if done and _swim_kind != 0:
 			## Patterns 1 and 2 hand the body's facing back to the heading at the end.
 			heading = yaw
@@ -297,7 +292,7 @@ func _swim(sense: Sense) -> void:
 		_enter(Action.NEAR)
 
 
-func _escape(sense: Sense) -> void:
+func _escape(delta: float, sense: Sense) -> void:
 	## `aGTT_escape`: bolt and ease off, but a bobber in view or a dash still counts.
 	if _flee_from_player(sense):
 		return
@@ -308,12 +303,12 @@ func _escape(sense: Sense) -> void:
 		## `aGYO_check_wall`: one quarter turn off the first bank it meets.
 		_turn_off_wall()
 		return
-	_timer -= 1.0
+	_timer -= delta
 	if _timer <= 0.0:
 		_wall_turned = false
 		_enter(Action.WAIT)
 		return
-	speed = move_toward(speed, 0.0, FishSize.ESCAPE_DECAY_GX)
+	speed = move_toward(speed, 0.0, ESCAPE_DECAY * delta)
 
 
 func _near(sense: Sense) -> void:
@@ -333,17 +328,17 @@ func _near(sense: Sense) -> void:
 			_enter(Action.WAIT)
 
 
-func _touch(sense: Sense) -> void:
+func _touch(delta: float, sense: Sense) -> void:
 	## `aGTT_touch`: the nibble loop. Back off, come in, and on each approach either commit
 	## (1 in 4) or nibble again. The fifth approach always commits — this is the bobber
 	## dipping two or three times before it goes under.
 	if not sense.has_bobber():
 		_vanish()
 		return
-	_timer = maxf(_timer - 1.0, 0.0)
+	_timer = maxf(_timer - delta, 0.0)
 	if _timer <= 0.0:
 		_set_angle(_yaw_to(sense.bobber_position))
-		speed = float(FishSize.SPEED_GX[int(size)])
+		speed = FishSize.speed(size)
 		if _planar_distance(sense.bobber_position) < FishSize.touch_distance(size):
 			if _approach(sense):
 				return
@@ -363,7 +358,7 @@ func _approach(sense: Sense) -> bool:
 		commit = _nibbles_left <= 0
 	if commit:
 		## Nothing happens until the bobber has switched over to its touch proc
-		## (`gyo_status == 2`); the fish just keeps pressing in, re-rolling every tick.
+		## (`gyo_status == 2`); the fish just keeps pressing in, re-rolling each step.
 		if not sense.accepts_bite:
 			return false
 		## `aGTT_random_check(20)` — 1 time in 20, a committing fish is really trash. Only
@@ -375,17 +370,14 @@ func _approach(sense: Sense) -> bool:
 		_enter(Action.BITE)
 		return true
 	nibbled = true
-	## `work0 = (int)((touch_count + RANDOM2_F(30)) * 2)`, then back away at
+	## `work0 = (int)((touch_count + RANDOM2_F(30)) * 2)` ticks, then back away at
 	## `back_speed + RANDOM2_F(0.2)`.
-	_timer = floorf(
-		(float(FishSize.TOUCH_FRAMES[int(size)]) + _rand2(FishSize.TOUCH_JITTER_FRAMES))
-		* FishSize.AUTHORED_TICK_SCALE
-	)
-	speed = float(FishSize.BACK_SPEED_GX[int(size)]) + _rand2(FishSize.BACK_SPEED_JITTER_GX)
+	_timer = FishSize.touch_seconds(size) + _rand2(FishSize.touch_jitter_seconds())
+	speed = FishSize.back_speed(size) + _rand2(FishSize.back_speed_jitter())
 	return false
 
 
-func _bite(sense: Sense) -> void:
+func _bite(delta: float, sense: Sense) -> void:
 	## `aGTT_bite`: the fish owns the bobber now. It sits a body-length behind it until the
 	## hold runs out, and then it is simply gone (`aGTT_kage_make_actor`) — the bobber floats
 	## back up and the line stays out for the next fish.
@@ -398,18 +390,18 @@ func _bite(sense: Sense) -> void:
 	speed = 0.0
 	if _landed:
 		return
-	_timer -= 1.0
+	_timer -= delta
 	if _timer <= 0.0:
 		_vanish()
 
 
-func _comeback(sense: Sense) -> void:
+func _comeback(delta: float, sense: Sense) -> void:
 	## `aGTT_comeback`: the fish is pinned to the bobber while the rod lifts it clear.
 	if sense.has_bobber():
 		position.x = sense.bobber_position.x
 		position.z = sense.bobber_position.z
 	speed = 0.0
-	_timer -= 1.0
+	_timer -= delta
 	if _timer <= 0.0:
 		finished = true
 
@@ -463,8 +455,8 @@ func _enter(next: Action) -> void:
 	match next:
 		Action.WAIT:
 			## `aGTT_wait_init`: `work0 = (100 + RANDOM_F(30)) * 2`, `speed = -0.15 + RANDOM2_F(0.2)`.
-			_timer = floorf(FishSize.wait_seconds(_rng.randf()) * DecompTime.TICK_HZ)
-			speed = FishSize.DRIFT_SPEED_GX + _rand2(FishSize.DRIFT_JITTER_GX)
+			_timer = FishSize.wait_seconds(_rng.randf())
+			speed = FishSize.gx_per_frame_to_mps(FishSize.DRIFT_SPEED_GX + _rand2(FishSize.DRIFT_JITTER_GX))
 		Action.SWIM:
 			_swim_phase = SWIM_SWEEP_FROM[_swim_kind]
 			_swim_turn = 0.0
@@ -480,23 +472,23 @@ func _enter(next: Action) -> void:
 					yaw = heading
 			speed = 0.0
 		Action.ESCAPE:
-			_timer = FishSize.ESCAPE_FRAMES
-			speed = FishSize.ESCAPE_SPEED_GX
+			_timer = ESCAPE_SECONDS
+			speed = FishSize.escape_speed()
 		Action.NEAR:
-			speed = float(FishSize.SPEED_GX[int(size)])
+			speed = FishSize.speed(size)
 		Action.TOUCH:
 			_timer = 0.0
 			_nibbles_left = FishSize.TOUCH_TRIES
 			speed = 0.0
 		Action.BITE:
-			_timer = FishSize.bite_seconds(_bite_time(), _rod) * DecompTime.TICK_HZ
+			_timer = FishSize.bite_seconds(_bite_time(), _rod)
 			_landed = false
 			bit = true
 			speed = 0.0
 		Action.COMEBACK:
 			## The original ends this on uki status rather than a clock. One beat of the rod
 			## lift is enough for the shadow to read as "coming with you".
-			_timer = COMEBACK_SECONDS * DecompTime.TICK_HZ
+			_timer = COMEBACK_SECONDS
 			speed = 0.0
 
 
@@ -506,12 +498,11 @@ func _vanish() -> void:
 	finished = true
 
 
-func _advance() -> void:
-	## `Actor_position_moveF`: `0.5 * speed` GX a tick along `world.angle.y`.
+func _advance(delta: float) -> void:
+	## `Actor_position_moveF`: along `world.angle.y` at `speed`.
 	if is_zero_approx(speed) or is_hooked():
 		return
-	var step_gx: float = speed * MOVE_PER_TICK
-	var next: Vector3 = position + Vector3(sin(heading), 0.0, cos(heading)) * step_gx * FishSize.GX
+	var next: Vector3 = position + Vector3(sin(heading), 0.0, cos(heading)) * speed * delta
 	if body != null and not _in_body(next):
 		## `mCoBG_BgCheckControll` holds it at the bank and flags the wall hit.
 		_hit_wall = true
@@ -524,7 +515,7 @@ func _turn_off_wall() -> void:
 	_wall_turned = true
 	var left: float = heading + PI * 0.5
 	var right: float = heading - PI * 0.5
-	var probe: float = FishSize.ESCAPE_SPEED_GX * MOVE_PER_TICK * FishSize.GX * 4.0
+	var probe: float = WALL_PROBE
 	var left_ok: bool = _in_body(position + Vector3(sin(left), 0.0, cos(left)) * probe)
 	var right_ok: bool = _in_body(position + Vector3(sin(right), 0.0, cos(right)) * probe)
 	_set_angle(right if right_ok and not left_ok else left)
@@ -542,13 +533,13 @@ func _set_angle(value: float) -> void:
 	heading = yaw
 
 
-func _flow_direction() -> void:
+func _flow_direction(delta: float) -> void:
 	## `aGTT_flow_direction`: `chase_angle` onto upstream, 0x100 a tick, 0x400 if more than
 	## a quarter turn off.
 	var target: float = _upstream_yaw()
 	var off: float = absf(wrapf(heading - target, -PI, PI))
 	var rate: float = FLOW_TURN_FAST if off > PI * 0.5 else FLOW_TURN_SLOW
-	_set_angle(_step_angle(heading, target, rate))
+	_set_angle(_step_angle(heading, target, rate * delta))
 
 
 static func _step_angle(from: float, to: float, max_step: float) -> float:

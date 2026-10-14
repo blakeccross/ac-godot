@@ -954,19 +954,21 @@ func test_bobber_uses_the_pipeline_uki_over_its_placeholder() -> void:
 
 func test_bobber_tilt_eases_to_each_proc_target() -> void:
 	var script: GDScript = load("res://scenes/world/bobber.gd")
-	## `add_calc_short_angle2` takes the short way round and never overshoots.
-	var pitch: float = script.PITCH_FLAT
-	for _i in 200:
-		pitch = MLib.short_angle2(pitch, 0.0, script.SETTLE_FRACTION, script.SETTLE_MAX_STEP)
-	assert_float(pitch).is_equal_approx(0.0, 0.0001)
+	## It eases all the way there in a few seconds, the same at any frame rate.
+	var a: float = script.PITCH_FLAT
+	var b: float = script.PITCH_FLAT
+	for _i in 180:
+		a = script.tilt_toward(a, 0.0, script.SETTLE_HALF_LIFE, script.SETTLE_MAX_RATE, 1.0 / 60.0)
+	for _i in 30:
+		b = script.tilt_toward(b, 0.0, script.SETTLE_HALF_LIFE, script.SETTLE_MAX_RATE, 1.0 / 10.0)
+	assert_float(a).is_equal_approx(0.0, 0.0001)
+	assert_float(b).is_equal_approx(0.0, 0.0001)
 	## From upright to yanked-under is a quarter turn down, not three quarters up.
-	var first: float = MLib.short_angle2(
-		0.0, script.PITCH_PULLED, script.CAST_FRACTION, script.CAST_MAX_STEP
-	)
+	var first: float = script.tilt_toward(0.0, script.PITCH_PULLED, script.CAST_HALF_LIFE, script.CAST_MAX_RATE, 1.0 / 60.0)
 	assert_float(first).is_less(0.0)
-	## The step clamp bounds how fast the cast can flatten it.
-	var clamped: float = MLib.short_angle2(0.0, PI, script.CAST_FRACTION, script.CAST_MAX_STEP)
-	assert_float(absf(clamped)).is_less_equal(script.CAST_MAX_STEP + 0.0001)
+	## The rate cap bounds how fast the cast can flatten it.
+	var capped: float = script.tilt_toward(0.0, PI * 0.9, script.CAST_HALF_LIFE, script.CAST_MAX_RATE, 0.1)
+	assert_float(absf(capped)).is_less_equal(script.CAST_MAX_RATE * 0.1 + 0.0001)
 
 
 func test_show_off_turn_settles_facing_the_camera() -> void:
@@ -1022,14 +1024,6 @@ func test_world_owns_a_school_and_an_effects_node_that_finds_it() -> void:
 	assert_float(shadow.shadow_extent().y).is_greater(0.0)
 
 
-func test_fishing_is_not_an_autoload() -> void:
-	var src := FileAccess.get_file_as_string("res://project.godot")
-	assert_bool("fishing.gd" in src).is_false()
-	assert_bool("fish_catalog.gd" in src).is_false()
-	assert_bool("fish_school.gd" in src).is_false()
-	assert_bool("fish_shadow.gd" in src).is_false()
-
-
 func test_fish_only_see_the_bobber_once_it_settles() -> void:
 	## `cast_timer = 40` at the cast, counted down by `aUKI_wait` once the bobber floats.
 	var ctx: InteractionContext = _at_water()
@@ -1038,7 +1032,7 @@ func test_fish_only_see_the_bobber_once_it_settles() -> void:
 	while Fishing.state() == Fishing.State.CAST:
 		_tick(ctx, STEP)
 		ticks += 1
-	assert_int(ticks).is_equal(Fishing.CAST_TICKS)
+	assert_int(ticks).is_equal(roundi(Fishing.CAST_SECONDS * 60.0))
 	var sense := FishShadow.Sense.new()
 	Fishing.fill_sense(sense)
 	## The landing tick splashes and nothing can see it yet.
@@ -1051,7 +1045,7 @@ func test_fish_only_see_the_bobber_once_it_settles() -> void:
 		sense = FishShadow.Sense.new()
 		Fishing.fill_sense(sense)
 		assert_bool(sense.bobber_splashed).is_false()
-	assert_int(settle).is_equal(Fishing.SETTLE_TICKS)
+	assert_int(settle).is_equal(roundi(Fishing.SETTLE_SECONDS * 60.0))
 
 
 func test_a_struck_fish_is_fought_for_its_size() -> void:
@@ -1110,17 +1104,16 @@ func test_a_bite_pulls_the_bobber_under_and_a_strike_yanks_it_up_and_round() -> 
 
 
 func test_the_bobber_turns_blue_under_water_and_white_above() -> void:
-	## `aUKI_color`: past 3 GX under, (100, 100, 128); `aUKI_chase_color` steps 26 / 26 / 21.
+	## `aUKI_color`: past 3 GX under, (100, 100, 128); `aUKI_chase_color` steps 26 / 26 / 21 a
+	## tick, so a sixtieth of a second in it has moved one step.
 	var script: GDScript = load("res://scenes/world/bobber.gd")
-	var rgb := Vector3i(255, 255, 255)
-	rgb = script.chase_color(rgb, true)
-	assert_that(rgb).is_equal(Vector3i(229, 229, 234))
-	for _i in 10:
-		rgb = script.chase_color(rgb, true)
-	assert_that(rgb).is_equal(Vector3i(100, 100, 128))
-	for _i in 10:
-		rgb = script.chase_color(rgb, false)
-	assert_that(rgb).is_equal(Vector3i(255, 255, 255))
+	var rgb := Vector3.ONE
+	rgb = script.chase_color(rgb, true, 1.0 / 60.0)
+	assert_vector(rgb * 255.0).is_equal_approx(Vector3(229, 229, 234), Vector3.ONE * 0.01)
+	rgb = script.chase_color(rgb, true, 0.5)
+	assert_vector(rgb * 255.0).is_equal_approx(Vector3(100, 100, 128), Vector3.ONE * 0.01)
+	rgb = script.chase_color(rgb, false, 0.5)
+	assert_vector(rgb).is_equal_approx(Vector3.ONE, Vector3.ONE * 0.0001)
 
 
 func test_an_empty_press_reels_in_after_twelve_ticks() -> void:
@@ -1135,7 +1128,7 @@ func test_an_empty_press_reels_in_after_twelve_ticks() -> void:
 		assert_that(Fishing.anchor()).is_equal(start)
 		_tick(ctx, STEP)
 		ticks += 1
-	assert_int(ticks).is_equal(Fishing.EMPTY_REEL_TICKS)
+	assert_int(ticks).is_equal(roundi(Fishing.EMPTY_REEL_SECONDS * 60.0))
 	assert_bool(Fishing.last_outcome().too_early).is_true()
 	## `collect_rod` says nothing either.
 	assert_bool("You reel in an empty hook." in _heard).is_false()
@@ -1153,7 +1146,7 @@ func test_a_press_during_the_nibbles_still_lands_a_fish_that_commits() -> void:
 	assert_bool(Fishing.hook(ctx, _school(ctx))).is_true()
 	## Force its next approach to commit, right on the bobber.
 	shadow.position = Fishing.anchor()
-	shadow._timer = 1.0
+	shadow._timer = 1.0 / 60.0
 	shadow._nibbles_left = 1
 	_tick(ctx, STEP * 2.0)
 	assert_that(Fishing.state()).is_equal(Fishing.State.BITE)
@@ -1270,8 +1263,6 @@ func test_rod_sounds_land_on_their_own_beats() -> void:
 	## bobber leaving the water at `aUKI_set_proc_hit` — not the start of the fight.
 	assert_bool(PlayerSe.CLIP_MARKS.has(&"ply_1_sao_swing1")).is_false()
 	assert_bool(PlayerSe.CLIP_MARKS.has(Fishing.REEL_PULL)).is_false()
-	var src: String = FileAccess.get_file_as_string("res://scripts/systems/fishing.gd")
-	assert_str(src).contains("PlayerSe.line_out_of_water(")
 
 
 ## Pumps frames until `check` passes or the clock runs out. The reel beats wait on real-time

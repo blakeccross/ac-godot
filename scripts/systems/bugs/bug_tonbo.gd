@@ -32,6 +32,8 @@ const TURN_FRACTION := 0.16333997
 const TURN_MAX := 2500.0
 
 var _s: BugActor.Sense = null
+## Ticks since it perched (`s32_work2`): the wings beat for the first 20.
+var _perched: float = 0.0
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -105,7 +107,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.patience = 0.0
 			a.continue_timer = 0
 			a.flag = 0
-			a.s32_work[2] = 0
+			_perched = 0.0
 			a.max_velocity_y = 0.0
 			a.speed = 1.0
 			a.target_speed = 2.0 + a._rng.randf() * SPEED_VAR
@@ -154,7 +156,7 @@ func _wait_init(a: BugActor) -> void:
 			a.angle_y = BugProgram.atans(dz, dx)
 	a.patience = 0.0
 	a.continue_timer = 0
-	a.s32_work[2] = 0
+	_perched = 0.0
 	a.speed = 0.0
 	a.speed_step = 0.0
 	a.timer = 0
@@ -218,7 +220,7 @@ func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _let_escape(a: BugActor, _sense: BugActor.Sense) -> void:
-	a.gravity = minf(a.gravity * 1.1, 12.0)
+	a.gravity = minf(a.gravity * pow(1.1, a.n), 12.0)
 
 
 func _touch_water(a: BugActor, _sense: BugActor.Sense) -> void:
@@ -229,16 +231,16 @@ func _touch_water(a: BugActor, _sense: BugActor.Sense) -> void:
 
 func _touch_water_reverse(a: BugActor, _sense: BugActor.Sense) -> void:
 	_turn(a)
-	if a.timer > 0:
-		a.timer -= 1
-	if a.timer == 0:
+	if a.timer > 0.0:
+		a.timer -= a.n
+	if a.timer <= 0.0:
 		setup_action(a, HOVER_WAIT_ON_WATER)
 
 
 func _hover_wait(a: BugActor, _sense: BugActor.Sense) -> void:
-	if a.timer > 0:
-		a.timer -= 1
-	if a.timer == 0:
+	if a.timer > 0.0:
+		a.timer -= a.n
+	if a.timer <= 0.0:
 		if a.flag < 2:
 			a.flag += 1
 			setup_action(a, TOUCH_WATER)
@@ -251,7 +253,7 @@ func _hover_wait(a: BugActor, _sense: BugActor.Sense) -> void:
 func _fly_on_notice(a: BugActor, sense: BugActor.Sense) -> void:
 	_turn(a)
 	if a.patience < 90.0:
-		a.pos.y = BugProgram.add_calc(a.pos.y, a.f32_work[1], 1.0 - sqrt(0.8), 0.5)
+		a.pos.y = BugProgram.add_calc(a.pos.y, a.f32_work[1], 1.0 - sqrt(0.8), 0.5, 0.0, a.n)
 		var c: Vector3 = BugProgram.unit_center(sense, BugProgram.unit_of(sense, a.pos))
 		var d2: float = Vector2(c.x - a.pos.x, c.z - a.pos.z).length_squared()
 		if d2 > 25.0:
@@ -265,13 +267,12 @@ func _fly_on_notice(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _rest_on_notice(a: BugActor, _sense: BugActor.Sense) -> void:
-	if a.timer > 0 and a.patience < 90.0:
-		a.pos.y = BugProgram.add_calc(a.pos.y, a.f32_work[1], 1.0 - sqrt(0.8), 0.5)
-		a.s32_work[2] += 1
-		if a.s32_work[2] < 20:
+	if a.timer > 0.0 and a.patience < 90.0:
+		a.pos.y = BugProgram.add_calc(a.pos.y, a.f32_work[1], 1.0 - sqrt(0.8), 0.5, 0.0, a.n)
+		_perched += a.n
+		if _perched < 20.0:
 			_anime(a)
-		if a.timer > 0:
-			a.timer -= 1
+		a.timer -= a.n
 	else:
 		a.s32_work[0] = STOP_NONE
 		a.patience = 100.0
@@ -281,14 +282,15 @@ func _rest_on_notice(a: BugActor, _sense: BugActor.Sense) -> void:
 # ---- helpers ---------------------------------------------
 
 func _anime(a: BugActor) -> void:
-	a.anime0 += 0.5
-	if a.anime0 >= 2.0:
-		a.anime0 -= 2.0
+	a.anime0 = fmod(a.anime0 + 0.5 * a.n, 2.0)
 
 
 func _turn(a: BugActor) -> void:
-	## `add_calc_short_angle2(rot.y, angle.y, 1 - sqrt(0.7), 2500, 0)` in every flying action.
-	a.rot.y = MLib.short_angle2(a.rot.y, a.angle_y, TURN_FRACTION, TURN_MAX * MLib.S16)
+	## `add_calc_short_angle2(rot.y, angle.y, 1 - sqrt(0.7), 2500, 0)` a tick in every flying
+	## action.
+	a.rot.y = MLib.short_angle2(
+		a.rot.y, a.angle_y, 1.0 - pow(1.0 - TURN_FRACTION, a.n), TURN_MAX * MLib.S16 * a.n
+	)
 
 
 ## `aITB_height_ctrl`: climb / sink at 1 GX/frame toward hover height over the unit centre.
@@ -302,8 +304,8 @@ func _height_ctrl(a: BugActor, sense: BugActor.Sense) -> void:
 func _fly_ctrl(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.speed != a.target_speed:
 		return
-	if a.timer > 0:
-		a.timer -= 1
+	if a.timer > 0.0:
+		a.timer -= a.n
 		return
 	if is_zero_approx(a.speed):
 		if a.type != T_BANDED_DRAGONFLY and _water_touch(a, sense):

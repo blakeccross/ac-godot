@@ -18,7 +18,7 @@ func _moods(kind: StringName, view_diff: float = 0.0) -> NpcFeelMoods:
 
 func _run(m: NpcFeelMoods, ticks: int) -> void:
 	for _i: int in ticks:
-		m.tick()
+		m.tick(1.0 / 60.0)
 
 
 func test_each_reaction_family_names_its_effect() -> void:
@@ -148,7 +148,7 @@ func test_shivering_flicks_between_two_frames() -> void:
 	var widths: Array[float] = []
 	for _i: int in 4:
 		widths.append(absf(m._body.node.scale.x))
-		m.tick()
+		m.tick(1.0 / 60.0)
 	assert_bool(widths.max() > widths.min()).is_true()
 
 
@@ -203,3 +203,29 @@ func test_a_pose_fires_on_its_counter() -> void:
 	g.set_pose("npc_1_walk1")
 	g._tick_pose(1.0 / 60.0 * 200.0)
 	assert_int(g._ambient.parts.size()).is_equal(0)
+
+
+func test_effects_spawn_the_same_at_a_low_frame_rate() -> void:
+	## Tears every other tick, petals every fourth, a puff 8 ticks into each loop: stepped at
+	## 15 Hz the effects still make every child, at the same moments.
+	for kind: StringName in [&"naku", &"siawase", &"pun"]:
+		var fine: NpcFeelMoods = _moods(kind)
+		var coarse: NpcFeelMoods = _moods(kind)
+		var seen_fine: Dictionary = {}
+		var seen_coarse: Dictionary = {}
+		for _i: int in 120:
+			fine.tick(1.0 / 60.0)
+			for p: NpcFeelMoods.Part in fine.parts:
+				seen_fine[p] = true
+		for _i: int in 30:
+			coarse.tick(1.0 / 15.0)
+			for p: NpcFeelMoods.Part in coarse.parts:
+				seen_coarse[p] = true
+		var made_fine: int = seen_fine.size()
+		var made_coarse: int = seen_coarse.size()
+		## The loop re-arms on the step that reaches its end, so a coarse step can gain or
+		## lose a child there: one in ten.
+		var slack: int = maxi(made_fine / 10, 1)
+		assert_int(made_coarse).override_failure_message("%s %d vs %d" % [kind, made_coarse, made_fine]).is_between(made_fine - slack, made_fine + slack)
+		fine.clear()
+		coarse.clear()

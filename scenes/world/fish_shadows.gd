@@ -2,7 +2,8 @@ extends Node3D
 
 ## Presents the field's fish shadows and drives their clock. Behavioral analog of
 ## `Gyoei_Profile`'s move + draw pair: this node owns no decisions, it builds the frame's
-## sense snapshot, ticks `FishSchool`, and pushes the results onto quads.
+## sense snapshot, advances `FishSchool` and `Fishing` by `delta`, and pushes the results onto
+## quads.
 ##
 ## One quad per shadow (`aGYO_MAX_GYOEI` is 2) plus one per escape puff, so a handful of
 ## nodes rather than the MultiMesh the footprint pool needs.
@@ -26,8 +27,6 @@ var _school: FishSchool = null
 var _material: ShaderMaterial = null
 var _mesh: QuadMesh = null
 var _shadow_nodes: Array[MeshInstance3D] = []
-## One mover tick at a time, so the bobber and the shadows take turns the way the actors do.
-var _steps := FrameStepper.new(DecompTime.TICK_HZ, 30.0)
 ## `aGYO_KAGE`'s own ring at `delete_timer == 96`, four ticks in.
 const KAGE_RIPPLE_SEC := 4.0 / DecompTime.TICK_HZ
 var _puff_nodes: Array[MeshInstance3D] = []
@@ -64,11 +63,11 @@ func _process(delta: float) -> void:
 		_bind_school()
 		if _school == null:
 			return
-	_steps.add(delta)
-	while _steps.next():
-		var sense: FishShadow.Sense = _make_sense()
-		_school.tick(DecompTime.TICK_SEC, sense)
-		Fishing.tick(DecompTime.TICK_SEC, _school)
+	## The shadows move first and the bobber reads what they did, the way the actors take
+	## turns.
+	var sense: FishShadow.Sense = _make_sense()
+	_school.tick(delta, sense)
+	Fishing.tick(delta, _school)
 	_sync()
 
 

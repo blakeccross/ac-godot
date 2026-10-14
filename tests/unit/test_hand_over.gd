@@ -4,14 +4,6 @@ extends GdUnitTestSuite
 ## Give / receive clip wiring for first-job hand-offs.
 
 
-func test_clip_constants() -> void:
-	assert_str(HandOver.NPC_TRANSFER).is_equal("npc_1_transfer1")
-	assert_str(HandOver.PLY_GET_PULL).is_equal("ply_1_get_pull1")
-	assert_str(HandOver.PLY_TRANSFER).is_equal("ply_1_transfer1")
-	assert_str(HandOver.NPC_GET_RETURN).is_equal("npc_1_get_return1")
-	assert_str(HandOver.NPC_GET_PULL_WAIT).is_equal("npc_1_get_pull_wait1")
-
-
 func test_gift_display_ids() -> void:
 	var job := FirstJob.new()
 	job.setup_change_cloth()

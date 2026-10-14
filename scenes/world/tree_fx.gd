@@ -2,9 +2,9 @@ class_name TreeFx
 extends Node3D
 
 ## Falling leaves and winter snow puffs from a shaken tree — `eEC_EFFECT_BUSH_HAPPA`
-## (`ef_bush_happa.c`) and `eEC_EFFECT_BUSH_YUKI` (`ef_bush_yuki.c`), stepped on the
-## effect controller's 60 Hz tick. Positions / speeds are GX (40 GX = 2 m); the node
-## works in metres.
+## (`ef_bush_happa.c`) and `eEC_EFFECT_BUSH_YUKI` (`ef_bush_yuki.c`). Runs on `delta` in
+## metres and seconds; the decomp's GX-per-tick numbers are converted where they are
+## written (`_speed` / `_accel`).
 
 enum Kind { LEAF, SNOW }
 
@@ -17,24 +17,40 @@ const SPREAD_CEDAR_MED_GX := 30.0
 
 ## `eBushHappa_ct` arg1 4 (6 in cherry season) = shake leaf; scale 0.0106 on authored verts.
 const LEAF_SCALE := 0.0106
-const LEAF_LIFE := 80
-const LEAF_FADE_TICKS := 28.0
+## 80 ticks, fading over the last 28.
+const LEAF_LIFE := 80.0 / 60.0
+const LEAF_FADE_TIME := 28.0 / 60.0
+## Bush leaves from a step: 60 ticks, 80 when running or tumbling.
+const BUSH_LEAF_LIFE := 60.0 / 60.0
+const BUSH_LEAF_LIFE_FAST := 80.0 / 60.0
 ## `eBushYuki_ct`: 60 ticks, scale 0.005, fades after 32.
 const SNOW_SCALE := 0.005
-const SNOW_LIFE := 60
-const SNOW_FADE_FROM := 32.0
+const SNOW_LIFE := 60.0 / 60.0
+const SNOW_FADE_FROM := 32.0 / 60.0
+## −0.125 GX/tick² on snow, −0.05 on a leaf once it starts to fall.
+const SNOW_GRAVITY := 0.125 * GX * 3600.0
+const LEAF_FALL_GRAVITY := 0.05 * GX * 3600.0
+## A falling leaf keeps √0.95 of its sideways speed a tick.
+const LEAF_DRAG_PER_SEC := 0.2146  ## 0.95 ^ 30
+## Spin while rising (`0x280` a tick) and while falling (`0x662`), sway (`0xA00`): rad/s.
+const SPIN_RISE := 0x280 * MLib.S16 * 60.0
+const SPIN_FALL := 0x662 * MLib.S16 * 60.0
+const SWAY_RATE := 0xA00 * MLib.S16 * 60.0
+## Falling leaves sway 2 GX either way.
+const SWAY_REACH := 2.0 * GX
 const SNOW_ALPHA := 200.0 / 255.0
 const CHERRY_TERM := 4
 const GOLD_TINT := Color(1.0, 0.86, 0.35)
 
 var _kind: Kind = Kind.LEAF
-var _velocity: Vector3 = Vector3.ZERO  ## GX / tick
-var _accel: Vector3 = Vector3.ZERO
-var _pos_gx: Vector3 = Vector3.ZERO
-var _timer: int = 0
-var _life: int = 0
-var _steps := FrameStepper.new()
-var _falling: bool = false
+## m/s and m/s².
+var velocity: Vector3 = Vector3.ZERO
+var acceleration: Vector3 = Vector3.ZERO
+## Where the effect is, before a falling leaf's sway is added (metres).
+var drift_position: Vector3 = Vector3.ZERO
+var time_left: float = 0.0
+var lifetime: float = 0.0
+var falling: bool = false
 var _spin_x: float = 0.0  ## radians
 var _spin_z: float = 0.0
 var _sway: float = 0.0
@@ -103,72 +119,74 @@ static func _rand2() -> float:
 
 
 func _setup_leaf(crown: Vector3, family: PlantData.Family, medium_cedar: bool) -> void:
-	var start: Vector3 = jitter(crown, medium_cedar) / GX
-	## `eBushHappa_ct`
-	var hz: float = -4.0 + _rand() * 8.0
-	start.x += hz
-	start.z += hz
-	_pos_gx = start
-	_life = LEAF_LIFE
-	_timer = _life
-	_velocity = Vector3(_rand2() * 2.0, _rand2(), _rand())
-	_accel = Vector3(0.0, 0.5 * (0.1 * -_velocity.y), 0.0)
-	_spin_x = randf() * TAU
-	_spin_z = randf() * TAU
-	_sway = randf() * TAU
+	## `eBushHappa_ct`: ±4 GX more on X and Z.
+	var hz: float = (-4.0 + _rand() * 8.0) * GX
+	drift_position = jitter(crown, medium_cedar) + Vector3(hz, 0.0, hz)
+	lifetime = LEAF_LIFE
+	_launch_leaf(Vector3(_rand2() * 2.0, _rand2(), _rand()))
 	_base_scale = LEAF_SCALE
 
 
 func _setup_bush_leaf(pos: Vector3, arg1: int) -> void:
 	## `eBushHappa_ct`: ±4 GX jitter on X and Z, 60 frames (+20 for arg1 1–3).
 	var v_speed: float = 2.5 + _rand() * 1.3
-	var hz: float = -4.0 + _rand() * 8.0
-	_pos_gx = pos / GX + Vector3(hz, 0.0, hz)
-	_life = 60
+	var hz: float = (-4.0 + _rand() * 8.0) * GX
+	drift_position = pos + Vector3(hz, 0.0, hz)
+	lifetime = BUSH_LEAF_LIFE if arg1 == 0 else BUSH_LEAF_LIFE_FAST
 	match arg1:
 		1:
-			_life += 20
 			v_speed *= 1.5
 		2:
-			_life += 20
 			v_speed *= 1.8
 		3:
-			_life += 20
 			v_speed *= 1.6
-	_timer = _life
 	var spread: float = 32.0 if arg1 == 2 or arg1 == 3 else 20.0
-	_velocity = FieldFx.random_first_speed(v_speed, spread, spread)
-	_accel = Vector3(0.0, 0.5 * (0.1 * -_velocity.y), 0.0)
-	_spin_x = randf() * TAU
-	_spin_z = randf() * TAU
-	_sway = randf() * TAU
+	_launch_leaf(FieldFx.random_first_speed(v_speed, spread, spread))
 	_base_scale = 0.010199999
 
 
 func _setup_bush_snow(pos: Vector3) -> void:
 	## `eBushYuki_ct` (arg1 0): `random_first_speed(1.5 + rand·1.5, 45, 45)`.
 	var y: float = 1.5 + _rand() * 1.5
-	var offset: float = -3.0 + 6.0 * _rand()
-	_pos_gx = pos / GX + Vector3(offset, offset, 0.0)
-	_life = SNOW_LIFE
-	_timer = _life
-	_velocity = FieldFx.random_first_speed(y, 45.0, 45.0)
-	_accel = Vector3(0.0, -0.125, 0.0)
-	_base_scale = SNOW_SCALE
+	var offset: float = (-3.0 + 6.0 * _rand()) * GX
+	drift_position = pos + Vector3(offset, offset, 0.0)
+	_launch_snow(FieldFx.random_first_speed(y, 45.0, 45.0))
 
 
 func _setup_snow(crown: Vector3, medium_cedar: bool) -> void:
-	var start: Vector3 = jitter(crown, medium_cedar) / GX
-	## `eBushYuki_ct`
-	var offset: float = -3.0 + 6.0 * _rand()
-	start.x += offset
-	start.y += offset
-	_pos_gx = start
-	_life = SNOW_LIFE
-	_timer = _life
-	_velocity = Vector3(_rand2() * 2.0, _rand(), _rand())
-	_accel = Vector3(0.0, -0.125, 0.0)
+	## `eBushYuki_ct`: ±3 GX more on X and Y.
+	var offset: float = (-3.0 + 6.0 * _rand()) * GX
+	drift_position = jitter(crown, medium_cedar) + Vector3(offset, offset, 0.0)
+	_launch_snow(Vector3(_rand2() * 2.0, _rand(), _rand()))
+
+
+## `eBushHappa_ct`: launch at `v_gx` (GX/tick), braked upward at a twentieth of the launch
+## climb until the leaf turns to fall.
+func _launch_leaf(v_gx: Vector3) -> void:
+	velocity = _speed(v_gx)
+	acceleration = _accel(Vector3(0.0, 0.5 * (0.1 * -v_gx.y), 0.0))
+	time_left = lifetime
+	_spin_x = randf() * TAU
+	_spin_z = randf() * TAU
+	_sway = randf() * TAU
+
+
+func _launch_snow(v_gx: Vector3) -> void:
+	velocity = _speed(v_gx)
+	acceleration = Vector3(0.0, -SNOW_GRAVITY, 0.0)
+	lifetime = SNOW_LIFE
+	time_left = lifetime
 	_base_scale = SNOW_SCALE
+
+
+## A decomp speed in GX per tick, as m/s.
+static func _speed(gx_per_tick: Vector3) -> Vector3:
+	return gx_per_tick * GX * 60.0
+
+
+## A decomp acceleration in GX per tick², as m/s².
+static func _accel(gx_per_tick2: Vector3) -> Vector3:
+	return gx_per_tick2 * GX * 3600.0
 
 
 func _attach_leaf_model(family: PlantData.Family) -> void:
@@ -210,52 +228,78 @@ func _load_model(id: StringName) -> Node3D:
 
 
 func _process(delta: float) -> void:
-	_steps.add(delta)
-	while _timer > 0 and _steps.next():
-		_step()
-	if _timer <= 0:
+	step(delta)
+	if time_left <= 0.0:
 		queue_free()
 		return
 	_sync()
 
 
-## One 60 Hz tick: `eBushHappa_mv` (leaf) / `eBushYuki_mv` (snow), then the controller's
-## `timer--`.
-func _step() -> void:
-	_velocity += _accel
-	_pos_gx += _velocity
+## Advances the effect by `delta` seconds (`eBushHappa_mv` / `eBushYuki_mv`). Integrates in
+## closed form, splitting the step where a leaf stops rising, so the path is the same at any
+## frame rate.
+func step(delta: float) -> void:
+	delta = minf(delta, time_left)
+	var left: float = delta
+	if _kind == Kind.LEAF and not falling:
+		var rise: float = 0.0
+		if velocity.y > 0.0 and acceleration.y < 0.0:
+			rise = minf(velocity.y / -acceleration.y, left)
+		elif velocity.y > 0.0:
+			rise = left
+		_advance(rise)
+		left -= rise
+		if velocity.y <= 0.0 or is_zero_approx(velocity.y):
+			velocity.y = minf(velocity.y, 0.0)
+			falling = true
+			acceleration.y = -LEAF_FALL_GRAVITY
+	_advance(left)
+	time_left -= delta
+
+
+func _advance(dt: float) -> void:
+	if dt <= 0.0:
+		return
+	if _kind == Kind.LEAF and falling:
+		## Sideways speed decays by `LEAF_DRAG_PER_SEC` a second; the fall is plain gravity.
+		var keep: float = pow(LEAF_DRAG_PER_SEC, dt)
+		var reach: float = (keep - 1.0) / log(LEAF_DRAG_PER_SEC)
+		drift_position.x += velocity.x * reach
+		drift_position.z += velocity.z * reach
+		velocity.x *= keep
+		velocity.z *= keep
+		drift_position.y += velocity.y * dt + 0.5 * acceleration.y * dt * dt
+		velocity.y += acceleration.y * dt
+		_spin_x += SPIN_FALL * dt
+		_spin_z += SPIN_FALL * dt
+		_sway += SWAY_RATE * dt
+		return
+	drift_position += velocity * dt + 0.5 * acceleration * dt * dt
+	velocity += acceleration * dt
 	if _kind == Kind.LEAF:
-		if _falling:
-			_velocity.x *= sqrt(0.95)
-			_velocity.z *= sqrt(0.95)
-			## `0x662` / `0xA00` on the s16 angle wheel.
-			_spin_x += 0x662 * MLib.S16
-			_spin_z += 0x662 * MLib.S16
-			_sway += 0xA00 * MLib.S16
-		else:
-			_spin_x += 0x280 * MLib.S16
-			_spin_z += 0x280 * MLib.S16
-			if _velocity.y <= 0.0:
-				_falling = true
-				_accel.y = -0.05
-	_timer -= 1
+		_spin_x += SPIN_RISE * dt
+		_spin_z += SPIN_RISE * dt
+
+
+## How opaque the effect is with `time_left` seconds to go.
+func opacity() -> float:
+	if _kind == Kind.LEAF:
+		return clampf(time_left / LEAF_FADE_TIME, 0.0, 1.0)
+	var elapsed: float = lifetime - time_left
+	return SNOW_ALPHA * clampf(1.0 - (elapsed - SNOW_FADE_FROM) / (lifetime - SNOW_FADE_FROM), 0.0, 1.0)
 
 
 func _sync() -> void:
-	var at: Vector3 = _pos_gx * GX
-	if _kind == Kind.LEAF and _falling:
-		var side: float = 2.0 * sin(_sway) * GX
+	var at: Vector3 = drift_position
+	if _kind == Kind.LEAF and falling:
+		var side: float = sin(_sway) * SWAY_REACH
 		at += Vector3(side, 0.0, -side)
 	global_position = at
-	var alpha: float = 1.0
 	if _kind == Kind.LEAF:
-		alpha = clampf(float(_timer) / LEAF_FADE_TICKS, 0.0, 1.0)
 		basis = Basis.from_euler(Vector3(_spin_x, 0.0, _spin_z))
 	else:
-		var elapsed: float = float(_life - _timer)
-		alpha = SNOW_ALPHA * clampf(1.0 - (elapsed - SNOW_FADE_FROM) / (float(_life) - SNOW_FADE_FROM), 0.0, 1.0)
 		_billboard()
-	_set_alpha(alpha)
+	_set_alpha(opacity())
 
 
 func _billboard() -> void:

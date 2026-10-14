@@ -43,8 +43,8 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 			if not on_bait(a, sense):
 				setup_action(a, DISAPPEAR)
 		DISAPPEAR:
-			a.alpha0 -= FADE_STEP
-			if a.alpha0 <= 0:
+			a.alpha0 -= FADE_STEP * a.n
+			if a.alpha0 <= 0.0:
 				a.alpha0 = 0
 				a.finished = true
 

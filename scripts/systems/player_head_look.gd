@@ -9,9 +9,11 @@ extends RefCounted
 ## cKF joint 24, named after the head mesh it draws (`head_boy_model` / `head_girl_model`).
 const HEAD_JOINT := 24
 const HEAD_PREFIX := "head_"
-## `Player_actor_add_calc_head_angle`: `add_calc_short_angle2(…, 1 − √0.5, 500, 0)`.
-const CHASE := 0.29289322
+## `Player_actor_add_calc_head_angle`: `add_calc_short_angle2(…, 1 − √0.5, 500, 0)` a tick —
+## half the gap every two ticks, at most 500 / 65536 of a turn a tick.
+static var HALF_LIFE: float = Motion.half_life_from_fraction(0.29289322)
 const MAX_STEP := 500.0 * TAU / 65536.0
+const MAX_SPEED := MAX_STEP * DecompTime.TICK_HZ
 ## Clamps against the body (`DEG2SHORT_ANGLE2(60)` / `(30)`).
 const YAW_LIMIT := deg_to_rad(60.0)
 const PITCH_LIMIT := deg_to_rad(30.0)
@@ -72,15 +74,10 @@ static func want(eye: Vector3, body_yaw: float, target: Vector3) -> Vector2:
 	return Vector2(clampf(yaw, -YAW_LIMIT, YAW_LIMIT), clampf(pitch, -PITCH_LIMIT, PITCH_LIMIT))
 
 
-## One tick toward `target`.
-func step(target: Vector2) -> void:
-	angle.x = _calc(angle.x, target.x)
-	angle.y = _calc(angle.y, target.y)
-
-
-static func _calc(now: float, goal: float) -> float:
-	var diff: float = angle_difference(now, goal) * CHASE
-	return now + clampf(diff, -MAX_STEP, MAX_STEP)
+## `delta` seconds toward `target`.
+func step(target: Vector2, delta: float) -> void:
+	angle.x = Motion.approach_angle(angle.x, target.x, HALF_LIFE, MAX_SPEED, 0.0, delta)
+	angle.y = Motion.approach_angle(angle.y, target.y, HALF_LIFE, MAX_SPEED, 0.0, delta)
 
 
 func _apply() -> void:

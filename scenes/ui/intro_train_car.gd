@@ -16,17 +16,22 @@ const TREE_TILE_S := 128.0
 const TUNNEL_TILE_S := 64.0
 const SHINE_TILE_S := 64.0
 const CLOUD_TILE_T := 64.0
-## `TreeScrollx` starts 500, += 5 per frame.
+## `TreeScrollx` starts 500, += 5 a tick: scroll units a second.
 const TREE_SCROLL_START := 500.0
-const TREE_SCROLL_STEP := 5.0
-## `aTrainWindow_DrawGoingOutTunnel`: +30 >> 1 per frame to 1000 (Single_Scrollx / Two_Scrollx1).
-const EXIT_SCROLL_STEP := 15.0
+const TREE_SCROLL_SPEED := 5.0 * DecompTime.TICK_HZ
+## `aTrainWindow_DrawGoingOutTunnel`: +30 >> 1 a tick to 1000 (Single_Scrollx / Two_Scrollx1).
+const EXIT_SCROLL_SPEED := 15.0 * DecompTime.TICK_HZ
 const EXIT_SCROLL_END := 1000.0
-## `aTrainWindow_out_cloud {0, -2}` EVW dolphin scroll: 2 units/frame = 1/4 texel in T.
-const CLOUD_TEXELS_PER_FRAME := 2.0 / 8.0
-## `window->scroll_speed` for SCENE_START_DEMO; `xlu_alpha` starts 254.
+## `aTrainWindow_out_cloud {0, -2}` EVW dolphin scroll: 2 units a tick = 1/4 texel in T.
+const CLOUD_TEXELS_PER_SECOND := 2.0 / 8.0 * DecompTime.TICK_HZ
+## `window->scroll_speed` for SCENE_START_DEMO (`add_calc` fraction a tick, max 50, min 1);
+## `xlu_alpha` starts 254.
 const XLU_ALPHA_RATE := 0.07
 const LOD_FACTOR_RATE := 0.3
+static var XLU_ALPHA_HALF_LIFE: float = Motion.half_life_from_fraction(XLU_ALPHA_RATE)
+static var LOD_FACTOR_HALF_LIFE: float = Motion.half_life_from_fraction(LOD_FACTOR_RATE)
+const FADE_MAX_SPEED := 50.0 * DecompTime.TICK_HZ
+const FADE_MIN_SPEED := 1.0 * DecompTime.TICK_HZ
 ## `aTrainWindow_GetTreePalletIdx` `till_data`: row i covers dates up to (month, day).
 const TREE_PAL_TILL: Array[Vector2i] = [
 	Vector2i(2, 3), Vector2i(2, 17), Vector2i(2, 24), Vector2i(4, 3), Vector2i(4, 8),
@@ -40,10 +45,10 @@ var _daylight: bool = false
 var _exiting_tunnel: bool = false
 var _tree_scroll: float = TREE_SCROLL_START
 var _exit_scroll: float = 0.0
-var _cloud_frames: float = 0.0
+## Cloud texels scrolled.
+var _cloud_texels: float = 0.0
 var _xlu_alpha: float = 254.0
 var _lod_factor: float = 0.0
-var _frame_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _sky_mats: Array[StandardMaterial3D] = []
 var _tunnel_mats: Array[StandardMaterial3D] = []
 var _cloud_mats: Array[StandardMaterial3D] = []
@@ -69,20 +74,18 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_frame_steps.add(delta)
-	while _frame_steps.next():
-		_step_frame()
+	advance(delta)
 	_apply_window()
 
 
-## `Train_Window_Actor_move` + the scroll half of `draw_type`, once per decomp frame.
-func _step_frame() -> void:
-	_tree_scroll = fmod(_tree_scroll + TREE_SCROLL_STEP, 2048.0) ## `x & 0x7FF`
-	_cloud_frames += 1.0
-	_xlu_alpha = AcreCamera.add_calc(_xlu_alpha, now_xlu_alpha(Clock.now_sec()), XLU_ALPHA_RATE, 50.0, 1.0)
-	_lod_factor = AcreCamera.add_calc(_lod_factor, now_lod_factor(Clock.now_sec()), LOD_FACTOR_RATE, 50.0, 1.0)
+## `Train_Window_Actor_move` + the scroll half of `draw_type`, over `delta` seconds.
+func advance(delta: float) -> void:
+	_tree_scroll = fmod(_tree_scroll + TREE_SCROLL_SPEED * delta, 2048.0) ## `x & 0x7FF`
+	_cloud_texels = fmod(_cloud_texels + CLOUD_TEXELS_PER_SECOND * delta, CLOUD_TILE_T)
+	_xlu_alpha = Motion.approach(_xlu_alpha, now_xlu_alpha(Clock.now_sec()), XLU_ALPHA_HALF_LIFE, FADE_MAX_SPEED, FADE_MIN_SPEED, delta)
+	_lod_factor = Motion.approach(_lod_factor, now_lod_factor(Clock.now_sec()), LOD_FACTOR_HALF_LIFE, FADE_MAX_SPEED, FADE_MIN_SPEED, delta)
 	if _exiting_tunnel:
-		_exit_scroll = minf(_exit_scroll + EXIT_SCROLL_STEP, EXIT_SCROLL_END)
+		_exit_scroll = minf(_exit_scroll + EXIT_SCROLL_SPEED * delta, EXIT_SCROLL_END)
 		if _exit_scroll >= EXIT_SCROLL_END:
 			## `DrawGoneOutTunnel`: exit scroll frozen at 1000.
 			_exiting_tunnel = false
@@ -163,7 +166,7 @@ func _apply_window() -> void:
 	var lod_a: float = clampf(_lod_factor, 0.0, 255.0) / 255.0
 	var tree_u: float = -(_tree_scroll / 4.0) / TREE_TILE_S
 	var exit_texels: float = _exit_scroll / 4.0
-	var cloud_v: float = -fmod(_cloud_frames * CLOUD_TEXELS_PER_FRAME, CLOUD_TILE_T) / CLOUD_TILE_T
+	var cloud_v: float = -_cloud_texels / CLOUD_TILE_T
 	for mat: StandardMaterial3D in _sky_mats:
 		mat.albedo_color = Color(prim, 1.0)
 	for mat: StandardMaterial3D in _tunnel_mats:

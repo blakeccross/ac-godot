@@ -16,7 +16,6 @@ var fish: FishSchool = FishSchool.new()
 ## Live insects for this field. Read by `Netting` and ticked by `BugActors`.
 var bugs: BugField = BugField.new()
 var _lightning_flash: bool = false
-var _light_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 ## Where a continued game walks out of the house (`Vector3.INF` otherwise).
 var _door_stand: Vector3 = Vector3.INF
 var _door_yaw: float = 0.0
@@ -47,11 +46,7 @@ var _event_bgm_now: Dictionary = {}
 
 func _process(delta: float) -> void:
 	## Windows fade on at 18:00 and off at 05:00 (`aPBOX_actor_move`'s 320-a-tick chase).
-	_light_steps.add(delta)
-	var ticks: int = 0
-	while _light_steps.next():
-		ticks += 1
-	VisualWindowLight.step_window_lights(self, ticks)
+	VisualWindowLight.step_window_lights(self, delta)
 	## `mBGMFieldSchedEv_move`: event music follows the player from acre to acre.
 	_bgm_check -= delta
 	if _bgm_check <= 0.0:

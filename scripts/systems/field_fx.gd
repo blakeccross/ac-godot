@@ -1,14 +1,16 @@
 class_name FieldFx
 extends Node3D
 
-## One effect-controller particle for the player's step / skid / tumble effects:
-## `ef_dust`, `ef_tumble_dust`, `ef_sandsplash`, `ef_mizutama`, `ef_yukidama`,
-## `ef_yukihane`, `ef_sibuki`, `ef_hanabira`, `ef_turn_footprint`, `ef_tumble_bodyprint`,
-## the locomotive's `ef_kisha_kemuri` (smoke) / `ef_steam` (piston steam), the water
-## ring `ef_turi_hamon`, the umbrella twirl's spray (`ef_kasamizu` / `ef_kasamizutama`) and
-## the steam off hot food in a room (`ef_soba_yuge`).
-## Each ticks at the controller's 60 Hz: `*_mv`, then `timer--`, dead at 0. State is GX
-## (40 GX = 2 m); the node itself lives in metres. `StepFx` decides which to spawn.
+## The effect controller's field effects (`StepFx` decides which to spawn). `spawn` is the one
+## entry point:
+## - particles (dust, steam, smoke, sand / water / snow kicks, drops, umbrella spray) go to
+##   `FieldParticle`, one-shot GPU particles;
+## - the rest are this node, run on seconds by a `Tween` on `age`: a flower petal
+##   (`ef_hanabira`), turn footprints and tumble body prints (`ef_turn_footprint`,
+##   `ef_tumble_bodyprint`), the water ring (`ef_turi_hamon`), and the umbrella twirl's
+##   spray source (`ef_kasamizu`), which flicks a drop every other tick while it rains.
+## The decomp's GX-per-tick numbers are converted where they are used. The tables here are
+## shared with `FieldParticle`.
 
 enum Kind {
 	DUST, TUMBLE_DUST, SAND, MIZUTAMA, YUKIDAMA, YUKIHANE, SIBUKI, PETAL, TURN_PRINT, BODY_PRINT,
@@ -89,42 +91,61 @@ const PETAL_MODELS: Array[String] = ["ef_hana01_pa_a", "ef_hana01_co_a", "ef_han
 ## `mFM_SetFGPal` `flower_pal_idx_table[term]`.
 const FLOWER_PAL_IDX: Array[int] = [8, 8, 8, 0, 1, 1, 1, 2, 2, 3, 4, 5, 6, 7, 8, 8, 8, 8]
 
-var kind: Kind = Kind.DUST
+var kind: Kind = Kind.PETAL
 var arg0: int = 0
 var arg1: int = 0
-var timer: int = 0
-var pos_gx: Vector3 = Vector3.ZERO
-var vel: Vector3 = Vector3.ZERO
-var acc: Vector3 = Vector3.ZERO
-var scale_gx: Vector3 = Vector3.ONE * 0.01
-var offset: Vector3 = Vector3.ZERO
 var angle: float = 0.0
-## Bounce counter / flags and spins (`effect_specific[]`).
-var spec: Array[float] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+## Seconds since it appeared; the tween runs it to `lifetime`, and setting it redraws.
+var age: float = 0.0:
+	set(value):
+		age = value
+		_redraw()
+var lifetime: float = 1.0
+## Where it started (metres) and, for a petal, its launch velocity (m/s).
+var origin: Vector3 = Vector3.ZERO
+var launch: Vector3 = Vector3.ZERO
 ## World-metre ground height sampler (`mCoBG_GetBgY_AngleS_FromWpos`).
 var ground_y: Callable = Callable()
 ## Slope tilt for prints: basis that lays the quad on the ground.
 var ground_basis: Basis = Basis.IDENTITY
+## Prints on sand rather than snow; a body print a hole has been dug through.
+var sandy: bool = false
+var wiped: bool = false
+## Water ring: size it eases out to, from where, how fast, its starting alpha, its drift.
+var ring_size: float = 0.02
+var ring_start: float = 0.001
+var ring_half_life: float = 0.1
+var ring_alpha: float = 150.0
+var ring_drift: float = 0.125 * GX * 60.0
+## Petal: spins and sway phase at launch.
+var _spin0: Vector2 = Vector2.ZERO
+var _sway0: float = 0.0
+## Umbrella spray: drops still to flick.
+var drops_left: int = 0
 
 var _holder: Node3D
 var _mat: ShaderMaterial
-var _steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _frames: Array[Texture2D] = []
+var _tween: Tween = null
 
 
-## Spawn under `host` (world `Effects` node). `pos` world metres, `yaw` radians.
+## Spawn under `host` (world `Effects` node). `pos` world metres, `yaw` radians. Particle kinds
+## go to `FieldParticle` and return null.
 static func spawn(
 	host: Node, k: Kind, pos: Vector3, yaw: float, a0: int = 0, a1: int = 0,
 	sampler: Callable = Callable(), slope: Basis = Basis.IDENTITY
 ) -> FieldFx:
 	if host == null:
 		return null
+	if FieldParticle.handles(k):
+		FieldParticle.spawn(host, k, pos, yaw, a0, a1, sampler)
+		return null
 	var fx := FieldFx.new()
 	fx.kind = k
 	fx.arg0 = a0
 	fx.arg1 = a1
 	fx.angle = yaw
-	fx.pos_gx = pos / GX
+	fx.origin = pos
 	fx.ground_y = sampler
 	fx.ground_basis = slope
 	if not fx._construct():
@@ -132,7 +153,7 @@ static func spawn(
 		return null
 	host.add_child(fx)
 	fx._attach()
-	fx._draw()
+	fx._start()
 	return fx
 
 
@@ -151,13 +172,7 @@ static func random_first_speed(y: float, max_z: float, max_x: float) -> Vector3:
 	return v
 
 
-## `add_calc2`: move `fraction` of the way to `target`, at most `max_step`.
-static func add_calc2(value: float, target: float, fraction: float, max_step: float) -> float:
-	var step: float = clampf((target - value) * fraction, -max_step, max_step)
-	return value + step
-
-
-## `eEL_CalcAdjust`.
+## `eEL_CalcAdjust`: `a` up to `start`, `b` from `end`, linear between.
 static func calc_adjust(now: float, start: float, end: float, a: float, b: float) -> float:
 	if start == end or now <= start:
 		return a
@@ -166,462 +181,196 @@ static func calc_adjust(now: float, start: float, end: float, a: float, b: float
 	return a + (now - start) * ((b - a) / (end - start))
 
 
-func _process(delta: float) -> void:
-	_steps.add(delta)
-	while _steps.next():
-		_move()
-		timer -= 1
-		if timer <= 0:
-			queue_free()
-			return
-	_draw()
+static func _ticks(n: float) -> float:
+	return n / 60.0
 
 
-func _ground(at_gx: Vector3) -> float:
+func _ground(at: Vector3) -> float:
 	if not ground_y.is_valid():
 		return -INF
-	var y: float = ground_y.call(at_gx * GX)
-	return y / GX if y > FieldCollision.NO_FLOOR + 1.0 else -INF
+	var y: float = ground_y.call(at)
+	return y if y > FieldCollision.NO_FLOOR + 1.0 else -INF
 
 
-# --- construction (`*_init` + `*_ct`) --------------------------------------------------
+# --- construction (`*_ct`) --------------------------------------------------------------
 
 func _construct() -> bool:
 	match kind:
-		Kind.DUST:
-			_ct_dust()
-		Kind.TUMBLE_DUST:
-			_ct_tumble_dust()
-		Kind.SAND:
-			_ct_sand()
-		Kind.MIZUTAMA:
-			_ct_drop(MIZU_SPEED, -0.375)
-			scale_gx = Vector3.ONE * 0.008
-		Kind.YUKIDAMA:
-			_ct_drop(YUKI_SPEED, -0.3)
-			scale_gx = Vector3.ONE * (0.007 if int(spec[2]) == 0 else 0.006)
-		Kind.YUKIHANE:
-			timer = 16
-			pos_gx.y += 0.5
-			scale_gx = Vector3.ONE * 0.008
-			vel = Vector3(0.0, 0.5, 0.0)
-			acc = Vector3(0.0, -0.02, 0.0)
-		Kind.SIBUKI:
-			pos_gx.y -= 3.0
-			pos_gx.z += 5.0
-			scale_gx = Vector3.ONE * 0.011
-			timer = 12
 		Kind.PETAL:
 			_ct_petal()
 		Kind.HAMON:
 			_ct_hamon()
 		Kind.KASAMIZU:
-			pos_gx += rot_y(KASAMIZU_FROM, angle)
-			timer = 24
-		Kind.KASAMIZUTAMA:
-			## `eKasamizutama_ct`: flung out 2.5 GX a tick, 45–90° off straight up about a
-			## random heading, the whole fan leaning 45° back from the player's facing.
-			var tilt: float = deg_to_rad(45.0 + randf() * 45.0)
-			var heading: float = randf() * TAU
-			var v := Vector3(
-				2.5 * sin(tilt) * sin(heading), 2.5 * cos(tilt), 2.5 * sin(tilt) * cos(heading)
-			)
-			vel = Basis(Vector3.UP, angle) * Basis(Vector3.RIGHT, deg_to_rad(-45.0)) * v
-			acc = Vector3(0.0, -0.105, 0.0)
-			timer = 20
-		Kind.KISHA_KEMURI:
-			## `eKishaK_ct`: scale 0, 80 frames, ±2.5 GX jitter; `arg0 == 1` drifts by `arg1`.
-			scale_gx = Vector3.ZERO
-			timer = 80
-			pos_gx.x += randf() * 5.0 - 2.5
-			pos_gx.z += randf() * 5.0 - 2.5
-			if arg0 == 1:
-				var drift: float = float(arg1) * MLib.S16
-				acc = Vector3(sin(drift) * 0.2, 0.0, cos(drift) * 0.2)
-		Kind.STEAM:
-			## `eSteam_ct`: puffs out along `angle` at 0.5…1.5, up 1.5…4.5 GX, rises back.
-			var speed: float = randf() + 0.5
-			scale_gx = Vector3.ONE * 0.005
-			offset.x = 0.02
-			vel = Vector3(sin(angle) * speed, -randf() * 3.0 - 1.5, cos(angle) * speed)
-			acc = Vector3(0.0, 0.125, 0.0)
-			timer = 30
-		Kind.SOBA_YUGE:
-			## `eSoba_Yuge_ct`: 1 GX up, `arg0` GX out on a random heading, rising on 0.017.
-			var heading: float = randf() * TAU
-			pos_gx += Vector3(float(arg0) * sin(heading), 1.0, float(arg0) * cos(heading))
-			scale_gx = Vector3.ONE * 0.001
-			acc = Vector3(0.0, 0.017, 0.0)
-			timer = 44
+			origin += rot_y(KASAMIZU_FROM, angle) * GX
+			lifetime = _ticks(24)
+			drops_left = 12
 		Kind.TURN_PRINT:
 			return _ct_turn_print()
 		Kind.BODY_PRINT:
 			return _ct_body_print()
-	return timer > 0
-
-
-func _ct_dust() -> void:
-	var v := Vector3(0.0, 1.0 if arg1 != 4 else 0.0, 0.25)
-	if arg1 == 4:
-		pos_gx.y += 5.0
-	match arg1:
-		8:
-			v.z = -2.0
-		1:
-			v.z = -1.5
-		2:
-			v.z = -1.0
-		3, 5:
-			v.z = 0.0
-		0:
-			v.z = 0.5
-			pos_gx += Vector3(15.0 * sin(angle), -15.0, 15.0 * cos(angle))
-		9:
-			v.z = 0.75
-			pos_gx += Vector3(25.0 * sin(angle), 0.0, 25.0 * cos(angle))
-	var a := Vector3(0.0, -0.05, 0.075)
-	if arg1 == 4:
-		a = Vector3(0.0, 0.1, 0.0)
-	elif arg1 == 0:
-		a = Vector3.ZERO
-	var s := 0.01
-	if arg1 == 4:
-		s = 0.015
-	elif arg1 == 0 or arg1 == 9:
-		s = 0.007
-	vel = rot_y(v, angle)
-	acc = rot_y(a, angle)
-	scale_gx = Vector3.ONE * s
-	timer = 18
-
-
-func _ct_tumble_dust() -> void:
-	var z := 3.5
-	match arg1:
-		1:
-			z = 3.75
-		5, 7, 6, 8:
-			z = 5.5
-		9:
-			z = 3.0
-	vel = rot_y(Vector3(0.0, 0.5, z), angle)
-	acc = rot_y(Vector3(0.0, 0.05, -0.05), angle)
-	scale_gx = Vector3.ONE * 0.005
-	offset.x = 0.02 if arg1 in [1, 5, 6] else 0.015
-	if arg1 == 1 or arg1 == 3:
-		timer = 32
-	elif arg1 == 0 or arg1 == 4:
-		timer = 34
-	elif arg1 == 7 or arg1 == 8:
-		timer = 36
-	else:
-		timer = 30
-
-
-func _ct_sand() -> void:
-	## `eSandsplash_init` + `_ct` (arg0 selects the throw).
-	pos_gx.y -= 3.0
-	pos_gx.z += 5.0
-	vel = Vector3(0.0, 0.5, 0.0)
-	acc = Vector3(0.0, -0.01, 0.0)
-	offset = Vector3(0.005, 0.01, 0.0)
-	if arg0 == 2:
-		vel = Vector3(sin(angle), 0.5, cos(angle))
-		acc = Vector3.ZERO
-	elif arg0 == 1:
-		vel = Vector3(sin(angle), 0.5, cos(angle))
-		acc = Vector3(0.0, -0.075, 0.0)
-		offset = Vector3(0.008, 0.012999999, 0.0)
-	elif arg0 == 3:
-		vel = Vector3(sin(angle) * 0.25, 0.0, cos(angle))
-		acc = Vector3(0.0, -0.05, 0.0)
-		offset = Vector3(0.006, 0.012, 0.0)
-	timer = 16
-
-
-func _ct_drop(table: Array[Vector4], gravity: float) -> void:
-	## `eMizutama_ct` / `eYukidama_ct`: arg1 = speed set << 12 | direction index.
-	timer = 50
-	spec[2] = float((arg1 >> 12) & 0xF)
-	spec[3] = float(arg1 & 0x0FFF)
-	spec[0] = 0.0
-	spec[1] = 1.0
-	var sp: Vector4 = table[clampi(int(spec[2]), 0, table.size() - 1)]
-	acc = Vector3(0.0, gravity, 0.0)
-	var v := Vector3(0.0, sp.x + randf() * sp.y, sp.z)
-	var dir: float
-	if kind == Kind.MIZUTAMA:
-		dir = angle + MLib.s16_to_rad(MIZU_ANGLE[clampi(int(spec[3]), 0, MIZU_ANGLE.size() - 1)])
-	else:
-		dir = angle + deg_to_rad(YUKI_ANGLE_DEG[clampi(int(spec[3]), 0, YUKI_ANGLE_DEG.size() - 1)])
-	vel = rot_y(v, dir)
-	vel.x += sin(angle) * sp.w
-	vel.z += cos(angle) * sp.w
-	pos_gx.x += (randf() - 0.5) * 6.0
-	pos_gx.z += (randf() - 0.5) * 6.0
-	offset.y = _ground(pos_gx) + 3.0
-
-
-## `eTH_ct`: `arg0` 0–4 pick the ring's size (5+ scale with `arg1`); 4 is the slow wide
-## one (52 ticks), 6 a slow drift; the rest live 32 ticks. Big rings start at alpha 200,
-## small ones at 150. `angle` is the flow it drifts along.
-func _ct_hamon() -> void:
-	if arg0 >= 0 and arg0 < HAMON_SIZE.size():
-		vel.x = HAMON_SIZE[arg0]
-	else:
-		vel.x = float(arg1) / 100.0 * 0.06 + 0.02
-	spec[3] = 200.0 if vel.x > 0.03 else 150.0
-	spec[0] = spec[3]
-	match arg0:
-		6:
-			timer = 52
-			scale_gx = Vector3.ONE * 0.001
-			vel.y = 0.05
-		4:
-			timer = 52
-			scale_gx = Vector3.ONE * 0.003
-			vel.y = 0.35
 		_:
-			timer = 32
-			scale_gx = Vector3.ONE * 0.001
-			vel.y = 0.125
-	vel.z = 1.0 / float(timer)
-	spec[1] = timer
+			return false
+	return true
 
 
+## `eHanabira_ct`: model `arg0 / 3`, colour `arg0 % 3`; thrown up at 3–3.5 GX a tick (×1.5
+## for a run), braked at a twentieth of its climb, then falling and swaying; 60 ticks.
 func _ct_petal() -> void:
-	## `eHanabira_ct`: model `arg0 / 3`, colour `arg0 % 3`.
-	spec[0] = float(arg0 / 3)
-	spec[1] = float(arg0 % 3)
-	timer = 60
+	lifetime = _ticks(60)
 	var v: float = randf() * 0.5 + 3.0
 	if arg1 == 1 or arg1 == 2 or arg1 == 3:
 		v *= 1.5
-	vel = random_first_speed(v, 32.0, 32.0)
-	acc = Vector3(0.0, -vel.y * 0.05, 0.0)
-	offset = Vector3.ZERO
-	spec[4] = randf() * TAU
-	spec[2] = randf() * TAU
-	spec[3] = randf() * TAU
-	spec[5] = 0.0
-	scale_gx = Vector3.ONE * 0.009
+	launch = random_first_speed(v, 32.0, 32.0) * GX * 60.0
+	_spin0 = Vector2(randf() * TAU, randf() * TAU)
+	_sway0 = randf() * TAU
+
+
+## `eTH_ct`: `arg0` 0–4 pick the ring's size (5+ scale with `arg1`); 4 is the slow wide one
+## (52 ticks), 6 a slow drift; the rest live 32 ticks. Big rings start at alpha 200, small
+## ones at 150. `angle` is the flow it drifts along.
+func _ct_hamon() -> void:
+	if arg0 >= 0 and arg0 < HAMON_SIZE.size():
+		ring_size = HAMON_SIZE[arg0]
+	else:
+		ring_size = float(arg1) / 100.0 * 0.06 + 0.02
+	ring_alpha = 200.0 if ring_size > 0.03 else 150.0
+	var ticks: float = 32.0
+	match arg0:
+		6:
+			ticks = 52.0
+			ring_start = 0.001
+			ring_drift = 0.05 * GX * 60.0
+		4:
+			ticks = 52.0
+			ring_start = 0.003
+			ring_drift = 0.35 * GX * 60.0
+		_:
+			ring_start = 0.001
+			ring_drift = 0.125 * GX * 60.0
+	lifetime = _ticks(ticks)
+	## `add_calc2(scale, size, 1 − √(1 − 1/life), 0.005)` a tick: never near the step cap, so
+	## the gap halves on a fixed clock.
+	ring_half_life = Motion.half_life_from_fraction(1.0 - sqrt(1.0 - 1.0 / ticks))
 
 
 func _ct_turn_print() -> bool:
 	## `eTurnFootPrint_ct`: (winter or sand/wave) and (grass or sand/wave).
 	var winter: bool = Clock.season() == Clock.Season.WINTER
-	var sandy: bool = arg0 == StepFx.ATTR_SAND or arg0 == StepFx.ATTR_WAVE
+	sandy = arg0 == StepFx.ATTR_SAND or arg0 == StepFx.ATTR_WAVE
 	if not ((winter or sandy) and (StepFx.is_grass(arg0) or sandy)):
 		return false
-	var g: float = _ground(pos_gx)
+	var g: float = _ground(origin)
 	if g > -INF:
-		pos_gx.y = g + 2.0
-	spec[3] = 1.0 if sandy else 0.0
-	timer = 160
+		origin.y = g + 2.0 * GX
+	lifetime = _ticks(160)
 	return true
 
 
 func _ct_body_print() -> bool:
 	var winter_grass: bool = Clock.season() == Clock.Season.WINTER and StepFx.is_grass(arg0)
-	var sandy: bool = arg0 == StepFx.ATTR_SAND or arg0 == StepFx.ATTR_WAVE
+	sandy = arg0 == StepFx.ATTR_SAND or arg0 == StepFx.ATTR_WAVE
 	if not (winter_grass or sandy):
 		return false
-	scale_gx = Vector3.ONE * 0.016
-	pos_gx.x += sin(angle) * 7.0
-	pos_gx.z += cos(angle) * 7.0
-	var g: float = _ground(pos_gx)
+	origin += Vector3(sin(angle), 0.0, cos(angle)) * 7.0 * GX
+	var g: float = _ground(origin)
 	if g > -INF:
-		pos_gx.y = g + 0.6
-	spec[4] = 0.0
-	if sandy:
-		timer = 600
-		spec[3] = 1.0
-	else:
-		timer = 800
-		spec[3] = 0.0
+		origin.y = g + 0.6 * GX
+	lifetime = _ticks(600 if sandy else 800)
 	return true
 
 
-# --- movement (`*_mv`) ------------------------------------------------------------------
+# --- running ----------------------------------------------------------------------------
 
-func _move() -> void:
-	match kind:
-		Kind.DUST:
-			if arg1 == 0 or arg1 == 9:
-				vel *= sqrt(0.85)
-			vel += acc
-			pos_gx += vel
-		Kind.TUMBLE_DUST:
-			if timer <= 30:
-				vel += acc
-				pos_gx += vel
-				acc.y *= sqrt(0.8)
-				vel.y *= sqrt(0.95)
-				vel.x *= sqrt(0.8)
-				vel.z *= sqrt(0.8)
-		Kind.SAND:
-			vel += acc
-			pos_gx += vel
-		Kind.KISHA_KEMURI:
-			pos_gx.y += calc_adjust(80 - timer, 0, 20, 2.2, 0.5)
-			if arg0 == 1:
-				pos_gx += Vector3(acc.x, 0.0, acc.z)
-		Kind.STEAM:
-			vel += acc
-			pos_gx += vel
-			vel *= sqrt(0.8)
-			scale_gx = Vector3.ONE * calc_adjust(timer, 0, 16, offset.y, offset.x)
-		Kind.SOBA_YUGE:
-			vel += acc
-			pos_gx += vel
-			vel.y *= 0.95
-		Kind.MIZUTAMA, Kind.YUKIDAMA:
-			_move_drop()
-		Kind.KASAMIZU:
-			## `eKasamizu_mv`: rain only, `game_frame & 1`.
-			spec[0] += 1.0
-			if Weather.is_raining() and int(spec[0]) % 2 == 1 and get_parent() != null:
-				FieldFx.spawn(get_parent(), Kind.KASAMIZUTAMA, pos_gx * GX, angle)
-		Kind.KASAMIZUTAMA:
-			vel += acc
-			pos_gx += vel
-		Kind.HAMON:
-			## `eTH_mv`: the ring eases out to its size, fades with the timer, and drifts
-			## along the flow at `velocity.y`.
-			scale_gx = Vector3.ONE * add_calc2(scale_gx.x, vel.x, 1.0 - sqrt(1.0 - vel.z), 0.005)
-			spec[0] = calc_adjust(timer, 0, spec[1], 0.0, spec[3])
-			pos_gx += Vector3(sin(angle), 0.0, cos(angle)) * vel.y
-		Kind.YUKIHANE:
-			vel += acc
-			pos_gx += vel
-		Kind.PETAL:
-			_move_petal()
-		Kind.BODY_PRINT:
-			if scale_gx.x < 0.021:
-				scale_gx.x += 0.0005
-				scale_gx.z = scale_gx.x
-			## A hole dug through the print wipes it early (`timer -= 70` per frame).
-			if spec[4] != 1.0 and StepFx.hole_at(pos_gx * GX):
-				spec[4] = 1.0
-			if spec[4] == 1.0 and timer >= 70:
-				timer -= 70
+func _start() -> void:
+	_redraw()
+	if kind == Kind.KASAMIZU:
+		## `eKasamizu_mv`: a drop every other tick while it rains (`game_frame & 1`).
+		var timer := Timer.new()
+		timer.wait_time = _ticks(2)
+		timer.timeout.connect(emit_drop)
+		add_child(timer)
+		timer.start()
+	_tween = create_tween()
+	_tween.tween_property(self, "age", lifetime, lifetime).from(0.0)
+	_tween.tween_callback(queue_free)
 
 
-func _move_drop() -> void:
-	## Bounce up to 6 times on the ground (`effect_specific[0]` counts landings).
-	if spec[0] == 0.0:
-		offset.z = offset.y
-		offset.y = _ground(pos_gx) + 3.0
-		offset.x = pos_gx.y
-		vel += acc
-		pos_gx += vel
-	var landed: bool = (
-		(pos_gx.y <= offset.y and offset.x > offset.y)
-		or (offset.y > offset.x and offset.z <= offset.x)
-	)
-	if not landed:
+func _process(_delta: float) -> void:
+	## A hole dug through a body print wipes it fast (`timer -= 70` a frame).
+	if kind == Kind.BODY_PRINT and not wiped and StepFx.hole_at(origin):
+		wiped = true
+		if _tween != null:
+			_tween.kill()
+		_tween = create_tween()
+		_tween.tween_property(self, "age", lifetime, (lifetime - age) / 70.0)
+		_tween.tween_callback(queue_free)
+
+
+## One spray drop (`ef_kasamizutama`), if it is raining.
+func emit_drop() -> void:
+	if drops_left <= 0:
 		return
-	if pos_gx.y - offset.y > vel.y:
-		pos_gx.y = offset.y
-	if spec[1] == 1.0:
-		if spec[0] < 6.0:
-			spec[0] += 1.0
-			spec[1] = 0.0
-		else:
-			timer = 0
-	else:
-		spec[1] = 1.0
+	drops_left -= 1
+	if Weather.is_raining() and get_parent() != null:
+		FieldParticle.spawn(get_parent(), Kind.KASAMIZUTAMA, origin, angle)
 
 
-func _move_petal() -> void:
-	vel += acc
-	pos_gx += vel
-	if spec[5] == 0.0:
-		spec[4] += MLib.s16_to_rad(0xA00)
-		spec[2] += MLib.s16_to_rad(0x280)
-		spec[3] += MLib.s16_to_rad(0x280)
-		if vel.y <= 0.0:
-			spec[5] = 1.0
-			acc.y = -0.05
-	else:
-		var s: float = sin(spec[4]) * 2.0
-		offset = Vector3(s, 0.0, -s)
-		spec[4] += MLib.s16_to_rad(0xA00)
-		spec[2] += MLib.s16_to_rad(0x662)
-		spec[3] += MLib.s16_to_rad(0x662)
+## Petal position relative to its start, `t` seconds in: rising while braked at a twentieth
+## of its climb, then falling at 0.05 GX/tick² (`eHanabira_mv`).
+func petal_offset(t: float) -> Vector3:
+	var rise_g: float = launch.y * 0.05 * 60.0
+	var fall_g: float = 0.05 * GX * 3600.0
+	var turn: float = launch.y / rise_g if launch.y > 0.0 else 0.0
+	var flat := Vector3(launch.x, 0.0, launch.z) * t
+	if t <= turn:
+		return flat + Vector3(0.0, launch.y * t - 0.5 * rise_g * t * t, 0.0)
+	var top: float = launch.y * turn - 0.5 * rise_g * turn * turn
+	var u: float = t - turn
+	return flat + Vector3(0.0, top - 0.5 * fall_g * u * u, 0.0)
+
+
+## Water ring scale, opacity (0–1) and drift at `t` seconds.
+func ring_scale(t: float) -> float:
+	return Motion.damp(ring_start, ring_size, ring_half_life, t)
+
+
+func ring_opacity(t: float) -> float:
+	return ring_alpha / 255.0 * clampf(1.0 - t / lifetime, 0.0, 1.0)
+
+
+func ring_offset(t: float) -> Vector3:
+	return Vector3(sin(angle), 0.0, cos(angle)) * ring_drift * t
 
 
 # --- presentation (`*_dw`) ------------------------------------------------------------
 
 func _model_id() -> String:
 	match kind:
-		Kind.DUST, Kind.TUMBLE_DUST:
-			return "ef_dust01"
-		Kind.SAND:
-			return "ef_sunahane01_00"
-		Kind.MIZUTAMA:
-			return "ef_koke_suiteki01_00"
-		Kind.YUKIDAMA:
-			return "ef_koke_yuki01_00"
-		Kind.YUKIHANE:
-			return "ef_yukihane01_00"
-		Kind.SIBUKI:
-			return "ef_sibuki01_00"
 		Kind.PETAL:
-			return PETAL_MODELS[clampi(int(spec[0]), 0, 3)]
+			return PETAL_MODELS[clampi(arg0 / 3, 0, 3)]
 		Kind.TURN_PRINT:
 			return "ef_turn_footprint"
-		Kind.KISHA_KEMURI:
-			return "ef_kisha_kemuri01"
-		Kind.STEAM, Kind.SOBA_YUGE:
-			return "ef_dust01"
 		Kind.HAMON:
 			return "ef_turi_hamon01_00"
-		Kind.KASAMIZU:
-			return ""
-		Kind.KASAMIZUTAMA:
-			return "ef_koke_suiteki01_00"
-		_:
+		Kind.BODY_PRINT:
 			return "ef_bodyprint01_00"
+	return ""
 
 
 func _frame_names() -> Array[String]:
 	match kind:
-		Kind.DUST, Kind.TUMBLE_DUST, Kind.STEAM, Kind.SOBA_YUGE:
-			return ["ef_dust01_0", "ef_dust01_1", "ef_dust01_2", "ef_dust01_3"]
-		Kind.KISHA_KEMURI:
-			return ["ef_kisha_kemuri01_0", "ef_kisha_kemuri01_1"]
-		Kind.SAND:
-			return _numbered("ef_sunahane01_%d_inta_ia8", 0, 3)
-		Kind.MIZUTAMA:
-			return _numbered("ef_koke_suiteki01_%d_int_i4", 0, 3)
-		Kind.YUKIDAMA:
-			return _numbered("ef_koke_yuki01_%d_inta_ia8", 0, 3)
-		Kind.YUKIHANE:
-			return _numbered("ef_yukihane01_%d_inta_ia8", 0, 3)
-		Kind.SIBUKI:
-			return _numbered("ef_sibuki01_%d_int_i4", 1, 4)
 		Kind.HAMON:
 			return ["ef_turi_hamon01_0"]
-		Kind.KASAMIZUTAMA:
-			return ["ef_koke_suiteki01_0_int_i4"]
 		Kind.PETAL:
 			## `mFM_obj_a_01_flower_pal[K * 9 + flower_pal_idx]` rows (pipeline `_pNN`).
-			var row: int = int(spec[1]) * 9 + FLOWER_PAL_IDX[clampi(Clock.term_idx(), 0, 17)]
+			var row: int = (arg0 % 3) * 9 + FLOWER_PAL_IDX[clampi(Clock.term_idx(), 0, 17)]
 			return ["%s_tex_p%02d" % [_model_id(), row]]
 	return []
 
 
-static func _numbered(pattern: String, from: int, to: int) -> Array[String]:
-	var out: Array[String] = []
-	for i: int in range(from, to + 1):
-		out.append(pattern % i)
-	return out
-
-
 func _attach() -> void:
 	var path := EFFECT_DIR % _model_id()
-	if not ResourceLoader.exists(path):
+	if _model_id() == "" or not ResourceLoader.exists(path):
 		return
 	var inst: Node = (load(path) as PackedScene).instantiate()
 	_holder = Node3D.new()
@@ -645,149 +394,55 @@ func _attach() -> void:
 		_frames.append(glb_tex)
 	_mat.set_shader_parameter(&"tex0", _frames[0])
 	_mat.set_shader_parameter(&"tex1", _frames[0])
+	_mat.set_shader_parameter(&"intensity_alpha", kind != Kind.PETAL)
+	_mat.set_shader_parameter(&"mirror_uv", kind == Kind.HAMON)
 
 
-func _draw() -> void:
+func _redraw() -> void:
+	if not is_inside_tree():
+		return
+	global_position = origin
 	if _holder == null:
 		return
-	global_position = pos_gx * GX
-	var s: Vector3 = scale_gx * GX / FieldCatalog.PIPELINE_SCALE
+	var ticks: float = age * 60.0
+	var s := Vector3.ONE * 0.01
 	var basis := Basis.IDENTITY
-	var billboard := false
 	var mode := 0
 	var prim := Color(1, 1, 1, 1)
 	var env := Color(0, 0, 0, 1)
-	var lod := 0.0
-	var f0 := 0
-	var f1 := 0
 	match kind:
-		Kind.DUST:
-			var c: int = clampi((18 - timer) >> 1, 0, 9)
-			f0 = DUST_TILES[c].x
-			f1 = DUST_TILES[c].y
-			var tint: Color = DUST_PRIM[arg1] if arg1 >= 0 and arg1 < 10 else Color.WHITE
-			prim = Color(tint, DUST_ALPHA[c] / 255.0)
-			lod = DUST_LOD[c] / 255.0
-			mode = 1
-			billboard = true
-		Kind.TUMBLE_DUST:
-			var counter: int = 30 - timer
-			var idx: int = clampi(counter >> 1, 0, 14)
-			f0 = TDUST_TILES[idx].x
-			f1 = TDUST_TILES[idx].y
-			s = Vector3.ONE * calc_adjust(counter, 0, 30, 0.005, offset.x) * GX / FieldCatalog.PIPELINE_SCALE
-			prim = Color(1, 1, 1, calc_adjust(counter, 8, 30, 255.0, 120.0) / 255.0)
-			lod = TDUST_LOD[idx] / 255.0
-			mode = 1
-			billboard = true
-		Kind.KISHA_KEMURI:
-			var kt: int = 80 - timer
-			s = Vector3.ONE * calc_adjust(kt, 0, 40, 0.003, 0.027) * GX / FieldCatalog.PIPELINE_SCALE
-			prim = Color(KEMURI_PRIM, int(calc_adjust(kt, 40, 80, 200.0, 4.0)) / 255.0)
-			f0 = 0
-			f1 = 1
-			lod = KEMURI_LOD
-			mode = 1
-			billboard = true
-		Kind.STEAM:
-			var sc: int = 30 - timer
-			var si: int = clampi(sc >> 1, 0, 14)
-			f0 = STEAM_TILES[si].x
-			f1 = STEAM_TILES[si].y
-			s = Vector3.ONE * calc_adjust(sc, 0, 30, 0.005, offset.x) * GX / FieldCatalog.PIPELINE_SCALE
-			prim = Color(1, 1, 1, 1)
-			lod = STEAM_LOD[si] / 255.0
-			mode = 1
-			billboard = true
-		Kind.SOBA_YUGE:
-			## `eSoba_Yuge_dw`: grows 0.001 → 0.005 (0.01 for the stew's warm puff, `arg1`)
-			## and thins 130 → 10 alpha (190 → 10) over its 44 ticks.
-			var yt: int = 44 - timer
-			var yi: int = clampi(yt >> 1, 0, YUGE_TILES.size() - 1)
-			f0 = YUGE_TILES[yi].x
-			f1 = YUGE_TILES[yi].y
-			var big: float = 0.005 if arg1 == 0 else 0.01
-			s = Vector3.ONE * calc_adjust(yt, 0, 44, 0.001, big) * GX / FieldCatalog.PIPELINE_SCALE
-			var tint: Color = Color.WHITE if arg1 == 0 else Color8(255, 200, 130)
-			prim = Color(tint, calc_adjust(yt, 0, 44, 130.0 if arg1 == 0 else 190.0, 10.0) / 255.0)
-			lod = YUGE_LOD[yi] / 255.0
-			mode = 1
-			billboard = true
-		Kind.SAND:
-			f0 = clampi((16 - timer) >> 1, 0, 7) >> 1
-			basis = Basis(Vector3.RIGHT, deg_to_rad(-45.0))
-			prim = Color8(20, 20, 20, 255)
-			env = Color8(205, 180, 140, 255)
-			mode = 3
-		Kind.MIZUTAMA:
-			f0 = clampi(int(spec[0]) >> 1, 0, 3)
-			s = Vector3.ONE * calc_adjust(timer, 0, 40, 0.004, 0.008) * GX / FieldCatalog.PIPELINE_SCALE
-			prim = Color8(200, 255, 255, 200)
-			billboard = true
-		Kind.YUKIDAMA:
-			f0 = clampi(int(spec[0]) >> 1, 0, 3)
-			s = Vector3.ONE * calc_adjust(timer, 10, 30, 0.0035, 0.007) * GX / FieldCatalog.PIPELINE_SCALE
-			prim = Color8(100, 160, 240, 255)
-			mode = 2
-			billboard = true
-		Kind.YUKIHANE:
-			f0 = clampi((16 - timer) >> 1, 0, 7) >> 1
-			basis = Basis(Vector3.RIGHT, deg_to_rad(-45.0))
-			prim = Color8(50, 80, 120, 230)
-			mode = 2
-		Kind.SIBUKI:
-			var sidx: int = clampi((12 - timer) >> 1, 0, 5)
-			if sidx < 2:
-				_holder.visible = false
-				return
-			_holder.visible = true
-			f0 = sidx - 2
-			basis = Basis(Vector3.RIGHT, deg_to_rad(-30.0))
-			prim = Color8(200, 255, 255, 155 if arg0 == 0 else 235)
-		Kind.KASAMIZUTAMA:
-			var row: int = clampi((20 - timer) >> 1, 0, KASAMIZUTAMA_SCALE.size() - 1)
-			s = Vector3.ONE * KASAMIZUTAMA_SCALE[row] * 0.005 * GX / FieldCatalog.PIPELINE_SCALE
-			billboard = true
-			## `ef_koke_suiteki01_00_modelT`'s own `SetPrimColor`.
-			prim = Color8(200, 255, 255, 200)
 		Kind.HAMON:
-			prim = Color(1, 1, 1, spec[0] / 255.0)
+			global_position = origin + ring_offset(age)
+			s = Vector3.ONE * ring_scale(age)
+			prim = Color(1, 1, 1, ring_opacity(age))
 			env = HAMON_ENV
 			mode = 5
 		Kind.PETAL:
-			global_position = (pos_gx + offset) * GX
-			basis = Basis.from_euler(Vector3(spec[2], 0.0, spec[3]), EULER_ORDER_ZXY)
-			prim = Color(1, 1, 1, calc_adjust(timer, 0, 20, 0.0, 255.0) / 255.0)
+			var rising: bool = age <= (launch.y / (launch.y * 0.05 * 60.0) if launch.y > 0.0 else 0.0)
+			var spin: float = (0x280 if rising else 0x662) * MLib.S16 * 60.0
+			var sway: float = _sway0 + 0xA00 * MLib.S16 * 60.0 * age
+			var side: float = 0.0 if rising else sin(sway) * 2.0 * GX
+			global_position = origin + petal_offset(age) + Vector3(side, 0.0, -side)
+			s = Vector3.ONE * 0.009
+			basis = Basis.from_euler(Vector3(_spin0.x + spin * age, 0.0, _spin0.y + spin * age), EULER_ORDER_ZXY)
+			prim = Color(1, 1, 1, calc_adjust((lifetime - age) * 60.0, 0, 20, 0.0, 255.0) / 255.0)
 			mode = 4
 		Kind.TURN_PRINT:
-			var counter2: int = 160 - timer
-			var sc: float = calc_adjust(counter2, 2, 8, 0.0054375003, 0.0072500003)
-			s = Vector3(sc, 0.0072500003, sc) * GX / FieldCatalog.PIPELINE_SCALE
+			var sc: float = calc_adjust(ticks, 2, 8, 0.0054375003, 0.0072500003)
+			s = Vector3(sc, 0.0072500003, sc)
 			basis = ground_basis * Basis(Vector3.UP, angle)
-			var a: float = calc_adjust(counter2, 118, 159, 150.0, 0.0) / 255.0
-			prim = Color8(70, 50, 50) if spec[3] == 1.0 else Color8(0, 50, 100)
-			prim.a = a
+			prim = Color8(70, 50, 50) if sandy else Color8(0, 50, 100)
+			prim.a = calc_adjust(ticks, 118, 159, 150.0, 0.0) / 255.0
 		Kind.BODY_PRINT:
-			var counter3: int = 800 - timer
-			var ba: float
-			if spec[3] == 1.0:
-				ba = calc_adjust(counter3, 360, 600, 150.0, 0.0)
-			else:
-				ba = calc_adjust(counter3, 500, 799, 150.0, 0.0)
+			## Widens 0.0005 a tick from 0.016 to 0.021.
+			var w: float = minf(0.016 + 0.0005 * ticks, 0.021)
+			s = Vector3(w, 0.016, w)
 			basis = ground_basis * Basis(Vector3.UP, angle)
-			prim = Color8(70, 50, 50) if spec[3] == 1.0 else Color8(0, 50, 100)
-			prim.a = ba / 255.0
-	_holder.basis = basis * Basis.from_scale(s)
-	_mat.set_shader_parameter(&"intensity_alpha", kind in [
-		Kind.DUST, Kind.TUMBLE_DUST, Kind.MIZUTAMA, Kind.SIBUKI, Kind.TURN_PRINT, Kind.BODY_PRINT,
-		Kind.KISHA_KEMURI, Kind.STEAM, Kind.HAMON, Kind.KASAMIZUTAMA, Kind.SOBA_YUGE,
-	])
+			prim = Color8(70, 50, 50) if sandy else Color8(0, 50, 100)
+			prim.a = (calc_adjust(ticks, 360, 600, 150.0, 0.0) if sandy else calc_adjust(ticks, 500, 799, 150.0, 0.0)) / 255.0
+	_holder.basis = basis * Basis.from_scale(s * GX / FieldCatalog.PIPELINE_SCALE)
 	_mat.set_shader_parameter(&"mode", mode)
-	_mat.set_shader_parameter(&"mirror_uv", kind == Kind.HAMON)
-	_mat.set_shader_parameter(&"billboard", billboard)
+	_mat.set_shader_parameter(&"billboard", false)
 	_mat.set_shader_parameter(&"prim_color", prim)
 	_mat.set_shader_parameter(&"env_color", env)
-	_mat.set_shader_parameter(&"lod_frac", lod)
-	if not _frames.is_empty():
-		_mat.set_shader_parameter(&"tex0", _frames[clampi(f0, 0, _frames.size() - 1)])
-		_mat.set_shader_parameter(&"tex1", _frames[clampi(f1, 0, _frames.size() - 1)])
+	_mat.set_shader_parameter(&"lod_frac", 0.0)

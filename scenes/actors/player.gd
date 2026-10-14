@@ -32,8 +32,9 @@ const SHRINE_STEP_FRAMES := 5.0
 const ANIM_CONFIRM := &"ply_1_confirm1"
 ## `cKF_SkeletonInfo_R_AnimationMove_ct_base(…, 8.0f, …)`.
 const MAIL_JUMP_FRAMES := 8
-const RELEASE_TICKS := 84
-const RELEASE_LOOK_TICKS := 60
+## `main_Release_creature`: 84 ticks of `WAIT1`, the head following for the first 60.
+const RELEASE_SECONDS := 84.0 / DecompTime.TICK_HZ
+const RELEASE_LOOK_SECONDS := 60.0 / DecompTime.TICK_HZ
 const ANIM_WALK := "ply_1_walk1"
 const ANIM_RUN := "ply_1_run1"
 const ANIM_DASH := "ply_1_dash1"
@@ -237,7 +238,6 @@ var _wade: Dictionary = {}
 var move_intent: Vector3 = Vector3.ZERO
 ## The snowball being pushed (`mPlayer_INDEX_PUSH_SNOWBALL`), or null.
 var _snowball: Node3D = null
-var _snowball_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _sun_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 ## Leaf clip → Animation of scaled joint_0 deltas (meters, model space): XZ from the origin,
 ## Y from the 1000-unit base height (`base_shape_trs` y). Filled once.
@@ -410,22 +410,17 @@ func is_pushing_snowball() -> bool:
 	return _snowball != null
 
 
-## `Player_actor_main_Push_snowball`: the ball steps each tick and hands back where the
+## `Player_actor_main_Push_snowball`: the ball moves each step and hands back where the
 ## player stands (`mPlib_SetParam_for_push_snowball`).
-func _tick_snowball_push(
+func _push_snowball(
 	delta: float, wish: Vector3, stick: float, dash: bool, input_dir: Vector2 = Vector2.ZERO, bg: Array = []
 ) -> void:
 	if not is_instance_valid(_snowball):
 		end_snowball_push()
 		return
-	_snowball_steps.add(delta)
-	var last: Dictionary = {}
-	while _snowball_steps.next():
-		last = _snowball.call("push_tick", wish, stick, dash, self)
-		if last.is_empty():
-			end_snowball_push()
-			return
+	var last: Dictionary = _snowball.call("push", delta, wish, stick, dash, self)
 	if last.is_empty():
+		end_snowball_push()
 		return
 	var aim: Vector3 = last["aim"]
 	var before: Vector3 = global_position
@@ -437,7 +432,7 @@ func _tick_snowball_push(
 	if bg.size() == 2 and TownSpace.is_outdoor_town() and _snowball_border(before, input_dir, bg):
 		return
 	if _anim != null:
-		_anim.speed_scale = clampf(float(last["speed"]) / 1.5, 0.2, 2.0)
+		_anim.speed_scale = clampf(float(last["speed"]) / (1.5 * Snowball.FRAME), 0.2, 2.0)
 
 
 func play_wait_anim() -> void:
@@ -551,7 +546,7 @@ func _physics_process(delta: float) -> void:
 	)
 	move_intent = wish * stick
 	if _snowball != null:
-		_tick_snowball_push(delta, wish, stick, sprint and not menu_open, input_dir, bg)
+		_push_snowball(delta, wish, stick, sprint and not menu_open, input_dir, bg)
 		if _snowball == null:
 			_update_animation(delta)
 		return
@@ -2485,20 +2480,18 @@ func _watch_release(target: Object, skeleton: Skeleton3D) -> void:
 	var look := PlayerHeadLook.new()
 	look.bind(skeleton, _anim)
 	_play_body_loop(StringName(ANIM_WAIT))
-	var steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
-	var ticks: int = 0
-	while ticks < RELEASE_TICKS and is_inside_tree():
+	var elapsed: float = 0.0
+	while elapsed < RELEASE_SECONDS and is_inside_tree():
 		await get_tree().physics_frame
-		steps.add(get_physics_process_delta_time())
-		while steps.next() and ticks < RELEASE_TICKS:
-			ticks += 1
-			var want := Vector2.ZERO
-			var at: Variant = _release_target_pos(target)
-			if ticks <= RELEASE_LOOK_TICKS and at != null:
-				want = PlayerHeadLook.want(global_position + Vector3(0.0, PlayerHeadLook.EYE_GX * FieldCatalog.GX_TO_METERS, 0.0),
-					_motor.facing, at as Vector3)
-			look.body_yaw = _motor.facing
-			look.step(want)
+		var delta: float = get_physics_process_delta_time()
+		elapsed += delta
+		var want := Vector2.ZERO
+		var at: Variant = _release_target_pos(target)
+		if elapsed <= RELEASE_LOOK_SECONDS and at != null:
+			want = PlayerHeadLook.want(global_position + Vector3(0.0, PlayerHeadLook.EYE_GX * FieldCatalog.GX_TO_METERS, 0.0),
+				_motor.facing, at as Vector3)
+		look.body_yaw = _motor.facing
+		look.step(want, delta)
 	look.angle = Vector2.ZERO
 	look.unbind()
 

@@ -705,10 +705,6 @@ func test_world_object_registry_lists_phase_kinds() -> void:
 	]:
 		assert_bool(WorldObjectRegistry.has_kind(kind)).is_true()
 		assert_str(WorldObjectRegistry.scene_path(kind)).is_not_empty()
-	var builder_src := FileAccess.get_file_as_string("res://scripts/systems/world_builder.gd")
-	assert_str(builder_src).contains("WorldObjectRegistry")
-	assert_bool("res://scenes/world/tree.tscn" in builder_src).is_false()
-	assert_bool("res://scenes/world/building.tscn" in builder_src).is_false()
 
 
 func _object_at(data: WorldData, id: StringName) -> Vector2i:

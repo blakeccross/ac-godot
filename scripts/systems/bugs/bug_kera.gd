@@ -15,6 +15,8 @@ const ACTIVE_RANGE := 400.0
 
 ## The unit it hides in (`ut_x/z`), set by `BugField.spawn`; else its spawn unit.
 var _dig_cell: Vector2i = Vector2i(-1, -1)
+## Ticks until the next change of pace (`s32_work0`).
+var _pace_left: float = 0.0
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -56,7 +58,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.target_speed = 1.5
 			a.speed_step = 0.3
 			a.rot.x = 0.0
-			a.s32_work[0] = 0
+			_pace_left = 0.0
 		LET_ESCAPE:
 			a.action_proc = _let_escape
 			a.life_time = 0
@@ -146,11 +148,12 @@ func _appear(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
-	a.rot.x = BugProgram.chase_angle(a.rot.x, 0.0, 0x1000 * MLib.S16)
-	a.s32_work[0] -= 1
-	if a.s32_work[0] <= 0:
+	a.rot.x = BugProgram.chase_angle(a.rot.x, 0.0, 0x1000 * MLib.S16, a.n)
+	## A new pace every 10 ticks.
+	_pace_left -= a.n
+	if _pace_left <= 0.0:
 		a.target_speed = (1.1 - a._rng.randf() * 0.2) * 1.5
-		a.s32_work[0] = 10
+		_pace_left += 10.0
 	if BugProgram.water_ahead(a, sense):
 		setup_action(a, DIVE)
 		return
@@ -179,7 +182,7 @@ func _dive(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _dug(a: BugActor, _sense: BugActor.Sense) -> void:
-	a.rot.x = BugProgram.chase_angle(a.rot.x, deg_to_rad(157.5), 0x300 * MLib.S16)
+	a.rot.x = BugProgram.chase_angle(a.rot.x, deg_to_rad(157.5), 0x300 * MLib.S16, a.n)
 	a.ongen = 0x45
 
 
@@ -188,7 +191,7 @@ func _dug(a: BugActor, _sense: BugActor.Sense) -> void:
 func _calc_direction(a: BugActor, sense: BugActor.Sense) -> void:
 	if BugProgram.wall_front(a, sense):
 		a.angle_y = wrapf(BugProgram.wall_normal(a) + PI * 0.5, -PI, PI)
-	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * MLib.S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * MLib.S16, a.n)
 
 
 func _on_ground(a: BugActor, sense: BugActor.Sense) -> bool:

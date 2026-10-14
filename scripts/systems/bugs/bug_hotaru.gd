@@ -99,30 +99,35 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _anime(a: BugActor) -> void:
-	## `aIHT_anime_proc` — the two-lobe glow crossfade.
-	if a.timer > 0:
-		a.timer -= 1
-		a.alpha0 = mini(a.alpha0 + 25, 255)
-		a.alpha1 = maxi(a.alpha1 - 25, 0)
+	## `aIHT_anime_proc` — the two-lobe glow crossfade: 25 a tick over 10 ticks, then the
+	## pulse moves on a step.
+	if a.timer > 0.0:
+		a.timer -= a.n
+		a.alpha0 = minf(a.alpha0 + 25.0 * a.n, 255.0)
+		a.alpha1 = maxf(a.alpha1 - 25.0 * a.n, 0.0)
 	else:
-		a.timer = 10
-		a.anime1 = PULSE[a.continue_timer]
-		a.alpha0 = 0
-		a.alpha1 = 255
-		a.continue_timer += 1
-		if a.continue_timer > 5:
-			a.continue_timer = 0
-		a.anime0 = PULSE[a.continue_timer]
+		a.timer += 10.0
+		var step: int = int(a.continue_timer)
+		a.anime1 = PULSE[step]
+		a.alpha0 = 0.0
+		a.alpha1 = 255.0
+		step = (step + 1) % PULSE.size()
+		a.continue_timer = step
+		a.anime0 = PULSE[step]
 
 
+## The bob: a sine on a phase that turns a few hundred s16 a tick, the height eased half
+## the way there each tick (the mover moves half `pos_speed` a tick).
 func _fuwafuwa(a: BugActor, hard: bool) -> void:
 	if not hard:
-		a.s32_work[2] += int((a._rng.randf() * float(0x600) + float(0x200)) * 0.5)
+		a.s32_work[2] += int((a._rng.randf() * float(0x600) + float(0x200)) * 0.5 * a.n)
 	else:
-		a.s32_work[2] += 0x400
+		a.s32_work[2] += roundi(0x400 * a.n)
 		a.speed = 1.5
+	a.s32_work[2] &= 0xFFFF
 	var ofs: float = sin(a.s32_work[2] * MLib.S16) * 10.0
-	a.pos_speed.y = (a.home.y + ofs) - a.pos.y
+	var closed: float = 1.0 - pow(0.5, a.n)
+	a.pos_speed.y = ((a.home.y + ofs) - a.pos.y) * closed / (0.5 * maxf(a.n, 0.0001))
 
 
 func _fly(a: BugActor, sense: BugActor.Sense) -> void:
@@ -150,7 +155,9 @@ func _fly(a: BugActor, sense: BugActor.Sense) -> void:
 			a.flag = 0
 	## `add_calc_short_angle2(world.angle.y, aIHT_TARGET_ANGLE, 1 − √0.9, 250, 0)` — the
 	## shape keeps its own rotation.
-	a.angle_y = MLib.short_angle2(a.angle_y, a.s32_work[1] * MLib.S16, 1.0 - sqrt(0.9), 250.0 * MLib.S16)
+	a.angle_y = MLib.short_angle2(
+		a.angle_y, a.s32_work[1] * MLib.S16, 1.0 - pow(sqrt(0.9), a.n), 250.0 * MLib.S16 * a.n
+	)
 
 
 ## `aIHT_BGcheck`: the first frame against a front wall shifts the target one unit
@@ -182,5 +189,7 @@ func _bg_check(a: BugActor, sense: BugActor.Sense) -> void:
 
 func _avoid(a: BugActor, _sense: BugActor.Sense) -> void:
 	_fuwafuwa(a, true)
-	a.gravity += 0.75
-	a.pos_speed.y += a.gravity
+	## Gravity grows 0.75 a tick and adds itself to the climb each tick.
+	var was: float = a.gravity
+	a.gravity += 0.75 * a.n
+	a.pos_speed.y += (was + a.gravity) * 0.5 * a.n

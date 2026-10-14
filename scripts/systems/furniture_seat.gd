@@ -3,12 +3,14 @@ extends RefCounted
 
 ## Sitting and lying down (`aMR_SitDownFurniture`, `aMR_JudgeGoToBed`). No button: walk into
 ## a chair from a side it accepts, or into the long side of a bed, holding the stick straight at
-## it for more than 14 ticks. Works in every room, not just the player's own.
+## it for a quarter second (more than 14 ticks). Works in every room, not just the player's own.
 
 enum Rest { NONE, SIT, LIE }
 
-## `sit_timer > 14` / `bed_timer > 14`.
-const HOLD_TICKS := 14
+## `sit_timer > 14` / `bed_timer > 14`: the 15th tick of holding.
+const HOLD_TIME := 15.0 / 60.0
+## Slack so 15 steps of `1 / 60` count as 15 ticks.
+const TIME_SLACK := 0.0001
 ## `aMR_3DStickNuetral` + `move_pR > 0.6`.
 const STICK_MIN := 0.6
 ## Straight-on tolerance: 15° to sit, 35° to lie down.
@@ -17,15 +19,14 @@ const BED_COS := 0.8192
 ## `Player_actor_request_main_standup`: the player steps 35 GX out of the seat.
 const STAND_STEP := 35.0 * FieldCatalog.GX_TO_METERS
 
-var sit_ticks: int = 0
-var bed_ticks: int = 0
-var _steps := FrameStepper.new()
+## Seconds the stick has been held straight at a seat or a bed.
+var sit_time: float = 0.0
+var bed_time: float = 0.0
 
 
 func reset() -> void:
-	sit_ticks = 0
-	bed_ticks = 0
-	_steps.reset()
+	sit_time = 0.0
+	bed_time = 0.0
 
 
 ## Advance `delta` seconds of held stick. Returns `{}` until a rest starts, then
@@ -37,21 +38,16 @@ func poll(
 	face: WorldGrid.Facing,
 	stick: Vector2
 ) -> Dictionary:
-	_steps.add(delta)
-	var result: Dictionary = {}
-	while _steps.next():
-		result = _tick(session, player_pos, face, stick)
-		if not result.is_empty():
-			reset()
-			return result
+	var result: Dictionary = _hold(delta, session, player_pos, face, stick)
+	if not result.is_empty():
+		reset()
 	return result
 
 
-func _tick(session: IndoorSession, player_pos: Vector3, face: WorldGrid.Facing, stick: Vector2) -> Dictionary:
+func _hold(delta: float, session: IndoorSession, player_pos: Vector3, face: WorldGrid.Facing, stick: Vector2) -> Dictionary:
 	var contact: Dictionary = FurnitureGrip.find_contact(session, player_pos, face)
 	if contact.is_empty() or stick.length() < STICK_MIN:
-		sit_ticks = 0
-		bed_ticks = 0
+		reset()
 		return {}
 	var toward: Vector2i = session.grid.step(Vector2i.ZERO, face)
 	var aim: float = stick.normalized().dot(Vector2(float(toward.x), float(toward.y)))
@@ -59,9 +55,9 @@ func _tick(session: IndoorSession, player_pos: Vector3, face: WorldGrid.Facing, 
 	var data: FurnitureData = contact["data"] as FurnitureData
 	var side: int = contact["side"] as int
 	var pivot: Vector2i = contact["pivot"] as Vector2i
-	sit_ticks = sit_ticks + 1 if (aim >= SIT_COS and can_sit_from(data, side)) else 0
-	bed_ticks = bed_ticks + 1 if (aim >= BED_COS and can_lie_from(session, entry, data, face)) else 0
-	if sit_ticks > HOLD_TICKS:
+	sit_time = sit_time + delta if (aim >= SIT_COS and can_sit_from(data, side)) else 0.0
+	bed_time = bed_time + delta if (aim >= BED_COS and can_lie_from(session, entry, data, face)) else 0.0
+	if sit_time >= HOLD_TIME - TIME_SLACK:
 		var seat: Vector3 = session.grid.cell_to_world(pivot)
 		seat.y = player_pos.y
 		return {
@@ -72,7 +68,7 @@ func _tick(session: IndoorSession, player_pos: Vector3, face: WorldGrid.Facing, 
 			"yaw_facing": ((int(face) + 2) % WorldGrid.FACING_COUNT) as WorldGrid.Facing,
 			"approach": player_pos,
 		}
-	if bed_ticks > HOLD_TICKS:
+	if bed_time >= HOLD_TIME - TIME_SLACK:
 		var bed: Vector3 = session.grid.cell_to_world(pivot)
 		bed.y = player_pos.y
 		var head: WorldGrid.Facing = head_direction(entry.facing, session.grid)
