@@ -249,6 +249,20 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
 - **Phase 0 done:** the conventions, testing and `AGENTS.md` rules, plus `Motion`.
 - **Phase 2 pilot done:** `ImpactStar` and `TreeFx` run on seconds and metres, with no `FrameStepper`.
 
+- **Converted to seconds:** statue glints, well coins, the title logo and furniture steam and clip sounds.
+- **Weather rebuilt as particles:** `weather_fx.tscn` holds `GPUParticles3D` emitters; snow and petals run a `shader_type particles` shader. It's verified in captures against the old pool.
+
+Lessons from the weather particles:
+
+- **Stay inside what the Compatibility renderer does.** Headless captures run there, and some players may too. It silently skips these:
+  - sub-emitters, including on collision;
+  - `emit_particle()`;
+  - heightfield collision;
+  - more than one draw pass.
+- **Use a per-surface flipbook instead of extra draw passes.** Several meshes can be merged into one `ArrayMesh`, with each surface's material gated on `INSTANCE_CUSTOM.y` (the particle's life phase).
+- **Put particles on the ground with an emission-points texture.** The script refills it a few times a second with ground-sampled points.
+- **Use a particle shader for motion a process material can't express.** Wrapping a box, wobbling and tumbling go in `shader_type particles`, with `disable_velocity` set and the motion integrated by hand.
+
 Lessons from the pilot, to apply to every later conversion:
 
 - **Prefer closed form over stepping.**
