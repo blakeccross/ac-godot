@@ -7,8 +7,8 @@ extends Node3D
 var _poses: Array[Node3D] = []
 var _pattern: Array[int] = []
 var _shown: int = -1
-var _steps := FrameStepper.new()
-var _index: int = 0
+## Seconds into the pose cycle, which steps once per 1/60 s (one entry per drawn frame).
+var _clock: float = 0.0
 var _scale: float = 1.0
 var _lift: float = 0.0
 
@@ -62,10 +62,8 @@ func _process(delta: float) -> void:
 	_billboard()
 	if _pattern.size() <= 1:
 		return
-	_steps.add(delta)
-	while _steps.next():
-		_index = (_index + 1) % _pattern.size()
-		_show(_pattern[_index])
+	_clock += delta
+	_show(_pattern[int(_clock * 60.0) % _pattern.size()])
 
 
 func shown_pose() -> int:

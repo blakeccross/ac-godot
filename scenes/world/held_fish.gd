@@ -28,8 +28,8 @@ const FLAP_SLOW_POSES: Array[int] = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0
 var _poses: Array[Node3D] = []
 var _pattern: Array[int] = []
 var _shown: int = -1
-var _steps := FrameStepper.new()
-var _index: int = 0
+## Seconds into the pose cycle, which steps once per 1/60 s (one entry per drawn frame).
+var _clock: float = 0.0
 var _scale: float = 1.0
 var _lift: float = 0.0
 ## Off for a fish thrown back (`aGYR_actor_draw` sets its own rotation).
@@ -103,11 +103,9 @@ func _process(delta: float) -> void:
 	_billboard()
 	if _pattern.size() <= 1:
 		return
-	## `aGYO_anime_frame` advances once per tick, not per monitor refresh.
-	_steps.add(delta)
-	while _steps.next():
-		_index = (_index + 1) % _pattern.size()
-		_show(_pattern[_index])
+	## `aGYO_anime_frame` walks one entry every 1/60 s, whatever the refresh rate.
+	_clock += delta
+	_show(_pattern[int(_clock * 60.0) % _pattern.size()])
 
 
 ## The pose index actually on screen. Tests read this rather than poking visibility.

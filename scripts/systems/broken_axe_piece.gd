@@ -3,38 +3,48 @@ extends Node3D
 
 ## `ef_break_axe`: the two halves of a worn-out axe (`ef_axe1` the head, `ef_axe2` the
 ## handle) thrown back over the player's shoulder at `AXE_BREAK1` frame 15. Each tumbles under
-## gravity (0.25 GX a tick), bounces off the ground at 0.6 with its spin halved, turns back off
-## a rise, sinks slowly in water, and fades over its last 30 ticks. GX at 60 Hz.
+## gravity, bounces off the ground at 0.6 with its spin halved, turns back off a rise, sinks
+## slowly in water, and fades over its last half-second. Runs on `delta` in metres: the flight
+## is exact within a frame and a bounce happens at the moment it meets the ground.
 
+const GX := FieldCatalog.GX_TO_METERS
 const VISUAL: Array[StringName] = [&"ef_axe1", &"ef_axe2"]
-const GRAVITY := 0.25
+## 0.25 GX/tick².
+const GRAVITY := 0.25 * GX * 3600.0
 const BOUNCE := 0.6
-const FADE := 30
+## Fades over its last 30 ticks.
+const FADE_TIME := 30.0 / 60.0
+## Ignores the ground for its first 5 ticks (it starts below the player's shoulder line).
+const GROUND_GRACE := 5.0 / 60.0
+## In water: speed × 0.8 and spin × √0.9 every tick.
+const WATER_DRAG := 13.388  ## −ln(0.8) · 60
+const WATER_SPIN_DRAG := 3.161  ## −ln(√0.9) · 60
 const SCALE := 0.01
-## Resting height over the ground by piece (`offset.y += 10 / 15`).
-const LIFT: Array[float] = [10.0, 15.0]
-## `tx / ty / tz` from the player, in the player's frame.
+## Resting height over the ground by piece (`offset.y += 10 / 15` GX).
+const LIFT: Array[float] = [10.0 * GX, 15.0 * GX]
+## `tx / ty / tz` from the player, in the player's frame (GX).
 const START: Array[Vector3] = [Vector3(-17.0, 34.0, 20.0), Vector3(17.0, 27.0, -4.0)]
 const S16 := TAU / 65536.0
 
 var which: int = 0
-var timer: int = 70
-var life: int = 70
-var pos_gx: Vector3 = Vector3.ZERO
+## Seconds since it was thrown, and how long it lasts (70–88 ticks).
+var age: float = 0.0
+var lifetime: float = 70.0 / 60.0
+var pos: Vector3 = Vector3.ZERO
+## m/s.
 var vel: Vector3 = Vector3.ZERO
 var yaw: float = 0.0
 var spin_x: float = 0.0
 var spin_z: float = 0.0
+## rad/s.
 var rate_x: float = 0.0
 var rate_z: float = 0.0
-## Ground under the piece (GX, `NAN` = none) and whether it is water; both overridable for tests.
-var ground_gx: Callable
+## Ground height under a point (metres, `NAN` = none) and whether it is water; both
+## overridable for tests.
+var ground_at: Callable
 var water_at: Callable
-var _prev_ground: float = NAN
-var _ground: float = NAN
 var _card: Node3D
 var _materials: Array[StandardMaterial3D] = []
-var _steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 
 
 ## `eSwing_Axe_init` with `arg1` 3: both pieces from the player standing at `at`.
@@ -44,24 +54,23 @@ static func spawn_pair(host: Node, at: Vector3, player_yaw: float, rng: RandomNu
 		return out
 	for i: int in 2:
 		var p := BrokenAxePiece.new()
-		p.setup(i, at / FieldCatalog.GX_TO_METERS, player_yaw, rng)
+		p.setup(i, at, player_yaw, rng)
 		host.add_child(p)
-		p.global_position = p.pos_gx * FieldCatalog.GX_TO_METERS
+		p.global_position = p.pos
 		out.append(p)
 	return out
 
 
 ## `eBreak_Axe_ct`.
-func setup(p_which: int, at_gx: Vector3, player_yaw: float, rng: RandomNumberGenerator) -> void:
+func setup(p_which: int, at: Vector3, player_yaw: float, rng: RandomNumberGenerator) -> void:
 	which = clampi(p_which, 0, 1)
-	life = rng.randi_range(0, 9) * 2 + 70
-	timer = life
+	lifetime = float(rng.randi_range(0, 9) * 2 + 70) / 60.0
 	var s: Vector3 = START[which]
 	var fwd := Vector3(sin(player_yaw), 0.0, cos(player_yaw))
 	var side := Vector3(cos(player_yaw), 0.0, -sin(player_yaw))
 	var along: float = s.z if which == 0 else s.x
 	var across: float = s.x if which == 0 else s.z
-	pos_gx = at_gx + fwd * along + side * across + Vector3(0.0, s.y, 0.0)
+	pos = at + (fwd * along + side * across + Vector3(0.0, s.y, 0.0)) * GX
 	var throw: float = player_yaw + PI
 	var speed_xz: float
 	var speed_y: float
@@ -73,25 +82,25 @@ func setup(p_which: int, at_gx: Vector3, player_yaw: float, rng: RandomNumberGen
 		throw += deg_to_rad(20.0 + rng.randf() * 20.0)
 		speed_xz = 0.75 + rng.randf() * 0.5
 		speed_y = 3.75 + rng.randf() * 1.5
-	vel = Vector3(speed_xz * sin(throw), speed_y, speed_xz * cos(throw))
+	## GX a tick → m/s.
+	vel = Vector3(speed_xz * sin(throw), speed_y, speed_xz * cos(throw)) * GX * 60.0
 	yaw = player_yaw + deg_to_rad(-77.0)
 	spin_x = deg_to_rad(-20.0)
 	spin_z = 0.0
-	rate_x = float(rng.randi() & 0xFFF) * S16
-	rate_z = float(rng.randi() & 0xFFF) * S16
+	rate_x = float(rng.randi() & 0xFFF) * S16 * 60.0
+	rate_z = float(rng.randi() & 0xFFF) * S16 * 60.0
 
 
-## `calc_adjust_proc(timer, 0, 30, 0, 255)`.
-static func alpha_at(t: int) -> float:
-	return clampf(float(t) / FADE, 0.0, 1.0)
+## Opaque until its last `FADE_TIME` (`calc_adjust_proc(timer, 0, 30, 0, 255)`).
+static func alpha_at(time_left: float) -> float:
+	return clampf(time_left / FADE_TIME, 0.0, 1.0)
 
 
 func _ready() -> void:
-	if not ground_gx.is_valid():
-		ground_gx = _field_ground
+	if not ground_at.is_valid():
+		ground_at = _field_ground
 	if not water_at.is_valid():
 		water_at = _field_water
-	_ground = _lifted(ground_gx.call(pos_gx))
 	_card = GeneratedVisual.instantiate_raw(VISUAL[which])
 	if _card != null:
 		add_child(_card)
@@ -105,45 +114,71 @@ func _ready() -> void:
 				own.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 				mi.set_surface_override_material(i, own)
 				_materials.append(own)
-	_draw()
+	_redraw()
 
 
 func _process(delta: float) -> void:
-	_steps.add(delta)
-	while _steps.next():
-		step()
-		timer -= 1
-		if timer <= 0:
-			queue_free()
-			return
-	_draw()
-
-
-## `eBreak_Axe_mv`, one tick.
-func step() -> void:
-	var water: bool = bool(water_at.call(pos_gx))
-	var before_y: float = pos_gx.y
-	_prev_ground = _ground
-	_ground = _lifted(ground_gx.call(pos_gx))
-	vel.y -= GRAVITY
-	pos_gx += vel
-	spin_x += rate_x
-	spin_z += rate_z
-	if timer > life - 5 or is_nan(_ground):
+	advance(delta)
+	if age >= lifetime:
+		queue_free()
 		return
-	if pos_gx.y < _ground and water:
-		vel *= 0.8
-		rate_x = lerpf(rate_x, 0.0, 1.0 - sqrt(0.9))
-		rate_z = lerpf(rate_z, 0.0, 1.0 - sqrt(0.9))
-	if pos_gx.y < _ground and before_y >= _ground and vel.y < 0.0 and not water:
-		pos_gx.y = _ground
-		vel = Vector3(vel.x * BOUNCE, -vel.y * BOUNCE, vel.z * BOUNCE)
+	_redraw()
+
+
+## `eBreak_Axe_mv` over `delta` seconds.
+func advance(delta: float) -> void:
+	var left: float = minf(delta, maxf(lifetime - age, 0.0))
+	## A bounce splits the frame; a few is plenty.
+	for _i: int in 4:
+		if left <= 0.0:
+			break
+		left -= _fly(left)
+	age += delta
+	spin_x += rate_x * delta
+	spin_z += rate_z * delta
+
+
+## Flies for up to `dt` seconds; returns how long it actually flew (less if it bounced).
+func _fly(dt: float) -> float:
+	var ground: float = _lifted(ground_at.call(pos))
+	var water: bool = bool(water_at.call(pos))
+	var checking: bool = age >= GROUND_GRACE and not is_nan(ground)
+	if checking and water and pos.y < ground:
+		## Sinking: speed and spin drain away.
+		var keep: float = exp(-WATER_DRAG * dt)
+		vel *= keep
+		rate_x *= exp(-WATER_SPIN_DRAG * dt)
+		rate_z *= exp(-WATER_SPIN_DRAG * dt)
+	var next: Vector3 = pos + vel * dt + Vector3(0.0, -0.5 * GRAVITY * dt * dt, 0.0)
+	if checking and not water and pos.y >= ground and next.y < ground:
+		## Meets the ground part-way through: move there, bounce, and report the time used.
+		var t: float = _time_to_height(pos.y - ground, vel.y, dt)
+		pos += vel * t + Vector3(0.0, -0.5 * GRAVITY * t * t, 0.0)
+		pos.y = ground
+		var vy: float = vel.y - GRAVITY * t
+		vel = Vector3(vel.x * BOUNCE, -vy * BOUNCE, vel.z * BOUNCE)
 		rate_x *= 0.5
 		rate_z *= 0.5
-	if not is_nan(_prev_ground) and pos_gx.y < _ground and pos_gx.y >= _prev_ground:
-		pos_gx -= vel
+		return maxf(t, 1e-4)
+	var ahead: float = _lifted(ground_at.call(next))
+	if checking and not water and not is_nan(ahead) and next.y < ahead and next.y >= ground:
+		## Ran into a rise: back off and turn round.
 		vel.x *= -BOUNCE
 		vel.z *= -BOUNCE
+		vel.y -= GRAVITY * dt
+		return dt
+	pos = next
+	vel.y -= GRAVITY * dt
+	return dt
+
+
+## When something `height` above the ground, moving up at `vy` under `GRAVITY`, comes down
+## to it, clamped to `dt`.
+func _time_to_height(height: float, vy: float, dt: float) -> float:
+	var disc: float = vy * vy + 2.0 * GRAVITY * height
+	if disc < 0.0:
+		return dt
+	return clampf((vy + sqrt(disc)) / GRAVITY, 0.0, dt)
 
 
 func _lifted(y: Variant) -> float:
@@ -151,27 +186,27 @@ func _lifted(y: Variant) -> float:
 	return NAN if is_nan(g) else g + LIFT[which]
 
 
-func _draw() -> void:
-	global_position = pos_gx * FieldCatalog.GX_TO_METERS
+func _redraw() -> void:
+	global_position = pos
 	basis = Basis(Vector3.UP, yaw) * Basis.from_euler(Vector3(spin_x, 0.0, spin_z))
 	if _card != null:
-		_card.scale = Vector3.ONE * SCALE * FieldCatalog.GX_TO_METERS / FieldCatalog.PIPELINE_SCALE
-	var a: float = alpha_at(timer)
+		_card.scale = Vector3.ONE * SCALE * GX / FieldCatalog.PIPELINE_SCALE
+	var a: float = alpha_at(lifetime - age)
 	for mat: StandardMaterial3D in _materials:
 		mat.albedo_color.a = a
 
 
-func _field_ground(at_gx: Vector3) -> float:
+func _field_ground(at: Vector3) -> float:
 	var world := World.find(get_tree()) if is_inside_tree() else null
 	if world == null or world.layout == null or world.grid == null:
 		return NAN
-	var y: float = FieldCollision.ground_y_at(world.layout, world.grid, at_gx * FieldCatalog.GX_TO_METERS)
-	return y / FieldCatalog.GX_TO_METERS if FieldCollision.has_floor(y) else NAN
+	var y: float = FieldCollision.ground_y_at(world.layout, world.grid, at)
+	return y if FieldCollision.has_floor(y) else NAN
 
 
-func _field_water(at_gx: Vector3) -> bool:
+func _field_water(at: Vector3) -> bool:
 	var world := World.find(get_tree()) if is_inside_tree() else null
 	if world == null or world.grid == null:
 		return false
-	var attr: int = FieldCollision.unit_attr_at(world.layout, world.grid, at_gx * FieldCatalog.GX_TO_METERS)
+	var attr: int = FieldCollision.unit_attr_at(world.layout, world.grid, at)
 	return attr >= 0 and FieldCatalog.is_water_attr(attr)
