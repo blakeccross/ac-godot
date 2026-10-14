@@ -1,24 +1,22 @@
 class_name PolicePresenter
 extends RefCounted
 
-## Furnishes the police box: Booker at his stand, the two window sunshine beams, and one
-## field card per lost-and-found item (`police_box_actable`, `POLICE_BOX_actor_data`,
-## `RSV_POLICE_ITEM_*`). Lost-and-found props are in the `"police_set"` group so
-## `refresh_public_set` rebuilds them.
+## Fills the police box for today. Booker, the clock and the two window sunshine beams are
+## authored in `police_box.tscn`; this adds the hulls for the blocking units, gives Booker
+## the room's grid, and lays out one field card per lost-and-found item
+## (`police_box_actable`, `RSV_POLICE_ITEM_*`). Lost-and-found props are in the
+## `"police_set"` group so `refresh_public_set` rebuilds them.
 
-const BOOKER_SCENE := preload("res://scenes/world/interiors/booker.tscn")
 const LOST_FOUND_SCENE := preload("res://scenes/world/lost_and_found_item.tscn")
-const SUNSHINE_SCENE := preload("res://scenes/world/interiors/police_sunshine.tscn")
 
 
 func present(root: Node3D, interior: IndoorSession) -> void:
 	if root == null or interior == null or interior.grid == null:
 		return
 	_furniture_collision(root, interior)
-	_booker(root, interior)
-	_clock(root, interior)
-	_sunshine(root, interior, "SunshineL", PoliceDisplay.SUNSHINE_L_GX, true)
-	_sunshine(root, interior, "SunshineR", PoliceDisplay.SUNSHINE_R_GX, false)
+	var booker: Node = root.get_node_or_null("Booker")
+	if booker != null and booker.has_method("bind_grid"):
+		booker.call("bind_grid", interior.grid)
 	_lost_and_found(root, interior)
 
 
@@ -29,51 +27,6 @@ func _furniture_collision(root: Node3D, interior: IndoorSession) -> void:
 	InteriorUnitCollision.add_hulls(
 		root, interior.grid, "PoliceFurnitureCol", PoliceDisplay.blocked_units()
 	)
-
-
-func _booker(root: Node3D, interior: IndoorSession) -> void:
-	var existing: Node3D = root.get_node_or_null("Booker") as Node3D
-	if existing != null:
-		## Refreshes after a claim must not snap him back to his stand.
-		if existing.has_meta("placed"):
-			return
-		existing.position = PoliceDisplay.gx_to_world(interior.grid, PoliceDisplay.BOOKER_STAND_GX)
-		existing.rotation.y = WorldGrid.yaw_for_facing(PoliceDisplay.BOOKER_FACING)
-		existing.set_meta("placed", true)
-		if existing.has_method("bind_grid"):
-			existing.call("bind_grid", interior.grid)
-		return
-	var booker: Node3D = BOOKER_SCENE.instantiate() as Node3D
-	booker.name = "Booker"
-	booker.position = PoliceDisplay.gx_to_world(interior.grid, PoliceDisplay.BOOKER_STAND_GX)
-	booker.rotation.y = WorldGrid.yaw_for_facing(PoliceDisplay.BOOKER_FACING)
-	booker.set_meta("placed", true)
-	root.add_child(booker)
-	if booker.has_method("bind_grid"):
-		booker.call("bind_grid", interior.grid)
-
-
-## `HOUSE_CLOCK` in the police box (`aHC_position_data`).
-func _clock(root: Node3D, interior: IndoorSession) -> void:
-	if root.get_node_or_null("PoliceClock") != null:
-		return
-	if FieldCatalog.mesh_paths(PoliceDisplay.CLOCK_VISUAL).is_empty():
-		return
-	var host := HouseClock.new()
-	host.name = "PoliceClock"
-	host.visual = PoliceDisplay.CLOCK_VISUAL
-	host.position = PoliceDisplay.gx_to_world(interior.grid, PoliceDisplay.CLOCK_GX)
-	root.add_child(host)
-
-
-func _sunshine(root: Node3D, interior: IndoorSession, node_name: String, gx: Vector3, left: bool) -> void:
-	var node: Node3D = root.get_node_or_null(node_name) as Node3D
-	if node == null:
-		node = SUNSHINE_SCENE.instantiate() as Node3D
-		node.name = node_name
-		root.add_child(node)
-	node.set("left", left)
-	node.position = PoliceDisplay.gx_to_world(interior.grid, PoliceDisplay.sunshine_anchor_gx(gx, left))
 
 
 func _lost_and_found(root: Node3D, interior: IndoorSession) -> void:
