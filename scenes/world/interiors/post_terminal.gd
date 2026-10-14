@@ -8,10 +8,6 @@ var _busy: bool = false
 func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group("post_set")
-	collision_layer = 1
-	collision_mask = 0
-	_ensure_collision()
-	_ensure_interact()
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
@@ -80,34 +76,3 @@ func _on_closed() -> void:
 		ui.event_fired.disconnect(_on_dialogue_event)
 	_busy = false
 	TalkCamera.end(get_tree())
-
-
-func _ensure_collision() -> void:
-	if get_node_or_null("CollisionShape3D") != null:
-		return
-	var half: Vector3 = PostDisplay.PTERMINAL_HALF_GX * FieldCatalog.GX_TO_METERS
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = half * 2.0
-	shape.shape = box
-	shape.position = Vector3(0.0, half.y, 0.0)
-	add_child(shape)
-
-
-func _ensure_interact() -> void:
-	if get_node_or_null("InteractVolume") != null:
-		return
-	var volume := Area3D.new()
-	volume.name = "InteractVolume"
-	volume.collision_layer = 8
-	volume.collision_mask = 0
-	volume.monitoring = false
-	volume.monitorable = true
-	volume.set_script(load("res://scenes/world/interact_volume.gd"))
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(2.0, 2.2, 2.0)
-	shape.shape = box
-	shape.position = Vector3(0.0, 1.0, 0.4)
-	volume.add_child(shape)
-	add_child(volume)
