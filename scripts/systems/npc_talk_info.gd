@@ -11,12 +11,12 @@ extends RefCounted
 ##   it comes back once `unlock_timer` runs out.
 ## - `unlock_timer` only counts down 1000 ticks per acre visit: wading into another acre
 ##   (`mFI_CheckPlayerWade(mFI_WADE_START)`) re-arms the window (`mNpc_TalkInfoMove`).
-## Ticks are decomp logic frames (`DecompTime.TICK_HZ`).
+## The timers here are seconds; the tables keep the decomp's ticks and convert where read.
 
 const SLOTS := TownResidents.ANIMAL_NUM_MAX + 1
-const TALK_TIMER := 1000
-const UNLOCK_WINDOW := 1000
-## `l_npc_temper[mNpc_FEEL_*]` — {unlock_timer, over_impatient_num, talk_num_max}. Indexed by
+const TALK_TIMER_SEC := 1000.0 / DecompTime.TICK_HZ
+const UNLOCK_WINDOW_SEC := 1000.0 / DecompTime.TICK_HZ
+## `l_npc_temper[mNpc_FEEL_*]` — {unlock_timer (ticks), over_impatient_num, talk_num_max}. Indexed by
 ## looks in the decomp (`mNpc_SetUnlockTimer(…, looks)` reads the feel table with a looks index).
 const TEMPER: Array = [
 	[4000, 12, 15],
@@ -29,15 +29,15 @@ const TEMPER: Array = [
 
 enum Patience { MILDLY_ANNOYED, ANNOYED, NORMAL }
 
-var _timer := PackedInt32Array()
+## Seconds left on `timer` / `unlock_timer`, and where the unlock window was armed.
+var _timer := PackedFloat64Array()
 var _talk_num := PackedInt32Array()
 var _quest_request := PackedByteArray()
-var _unlock := PackedInt32Array()
-var _reset := PackedInt32Array()
+var _unlock := PackedFloat64Array()
+var _reset := PackedFloat64Array()
 ## `mNpc_NpcList_c.quest_info`: a quest this villager offered but the player couldn't take
 ## (pockets full) or turned down; they offer the same kind again next time.
 var _client_quest: Array[Dictionary] = []
-var _tick_accum: float = 0.0
 
 
 func _init() -> void:
@@ -46,39 +46,33 @@ func _init() -> void:
 
 ## `mNpc_ClearTalkInfo`.
 func clear() -> void:
-	_timer = _zeros()
+	_timer = _seconds()
 	_talk_num = _zeros()
-	_unlock = _zeros()
-	_reset = _zeros()
+	_unlock = _seconds()
+	_reset = _seconds()
 	_quest_request.resize(SLOTS)
 	_quest_request.fill(1)
 	_client_quest.clear()
 	for i: int in SLOTS:
 		_client_quest.append(VillagerQuests.new_base())
-	_tick_accum = 0.0
 
 
+## `mNpc_TalkInfoMove` over `delta` seconds. The unlock timer runs only `UNLOCK_WINDOW_SEC`
+## past where the window was last armed; when it runs out, the villager forgets the talks.
 func advance(delta: float) -> void:
-	_tick_accum += delta * DecompTime.TICK_HZ
-	var n: int = int(_tick_accum)
-	if n <= 0:
+	if delta <= 0.0:
 		return
-	_tick_accum -= n
-	tick(n)
-
-
-## `mNpc_TalkInfoMove`, `n` times.
-func tick(n: int = 1) -> void:
 	for i: int in SLOTS:
-		for _t: int in n:
-			if _timer[i] > 0:
-				_timer[i] -= 1
-			if _unlock[i] > 0 and _unlock[i] > _reset[i] - UNLOCK_WINDOW:
-				_unlock[i] -= 1
-			if _unlock[i] == 0 and _reset[i] > 0:
-				_talk_num[i] = 0
-				_quest_request[i] = 1
-				_reset[i] = 0
+		_timer[i] = maxf(_timer[i] - delta, 0.0)
+		var floor_at: float = maxf(_reset[i] - UNLOCK_WINDOW_SEC, 0.0)
+		if _unlock[i] > floor_at:
+			_unlock[i] = maxf(_unlock[i] - delta, floor_at)
+		## (Summed frame times can leave it a hair above zero.)
+		if _unlock[i] <= 0.000001 and _reset[i] > 0.0:
+			_unlock[i] = 0.0
+			_talk_num[i] = 0
+			_quest_request[i] = 1
+			_reset[i] = 0.0
 
 
 ## `mFI_CheckPlayerWade(mFI_WADE_START)` branch of `mNpc_TalkInfoMove`.
@@ -91,7 +85,7 @@ func on_wade_start() -> void:
 func talk_end(slot: int, looks: int) -> void:
 	if not _valid(slot) or looks < 0 or looks >= TEMPER.size():
 		return
-	_timer[slot] = TALK_TIMER
+	_timer[slot] = TALK_TIMER_SEC
 	if _count_talk(slot, looks) and check_over_impatient(slot, looks):
 		_set_unlock(slot, looks)
 
@@ -152,8 +146,15 @@ func talk_num(slot: int) -> int:
 
 
 func _set_unlock(slot: int, looks: int) -> void:
-	_unlock[slot] = int(TEMPER[looks][0])
+	_unlock[slot] = float(TEMPER[looks][0]) / DecompTime.TICK_HZ
 	_reset[slot] = _unlock[slot]
+
+
+static func _seconds() -> PackedFloat64Array:
+	var arr := PackedFloat64Array()
+	arr.resize(SLOTS)
+	arr.fill(0.0)
+	return arr
 
 
 static func _zeros() -> PackedInt32Array:

@@ -282,12 +282,12 @@ func test_talk_info_patience_and_request_flag() -> void:
 	for i: int in 3:
 		info.talk_end(3, 0)
 	assert_int(info.patience(3, 0)).is_equal(NpcTalkInfo.Patience.ANNOYED)
-	## The unlock timer (4000) only runs 1000 ticks per acre; wading re-arms it.
-	info.tick(1500)
+	## The unlock timer (4000 ticks) only runs 1000 ticks per acre; wading re-arms it.
+	info.advance(1500.0 / 60.0)
 	assert_int(info.patience(3, 0)).is_equal(NpcTalkInfo.Patience.ANNOYED)
 	for _w: int in 4:
 		info.on_wade_start()
-		info.tick(1000)
+		info.advance(1000.0 / 60.0)
 	assert_int(info.patience(3, 0)).is_equal(NpcTalkInfo.Patience.NORMAL)
 	info.set_quest_request_off(3, 0)
 	assert_bool(info.quest_request(3)).is_false()

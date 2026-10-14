@@ -18,10 +18,10 @@ const SCALE := 0.049
 const SHADER := preload("res://shaders/pond_moon.gdshader")
 const DISC_TEX := "res://assets/generated/effects/ef_moon01_disc.png"
 const RIPPLE_TEX := "res://assets/generated/effects/ef_moon01_ripple.png"
-## s16 angle steps per 60 Hz frame (`effect_specific[0..2]`).
-const STEP_0 := 150
-const STEP_1 := -100
-const STEP_2 := 256
+## The three angles turn 150, −100 and 256 binangle a tick (`effect_specific[0..2]`).
+const RATE_0 := 150.0 * DecompTime.TICK_HZ
+const RATE_1 := -100.0 * DecompTime.TICK_HZ
+const RATE_2 := 256.0 * DecompTime.TICK_HZ
 
 ## The pool block's centre at its base height (`eNight13Moon_GetPoolBlockCenter`).
 var pond_center: Vector3 = Vector3.INF
@@ -29,10 +29,10 @@ var pond_center: Vector3 = Vector3.INF
 var visual_id: StringName = VISUAL
 
 var _model: Node3D = null
-var _a0: int = 0
-var _a1: int = 0
-var _a2: int = 0
-var _accum: float = 0.0
+## Binangles.
+var _a0: float = 0.0
+var _a1: float = 0.0
+var _a2: float = 0.0
 
 
 func _ready() -> void:
@@ -87,21 +87,14 @@ static func glide_x_gx(hour: int, minute: int, second: int) -> float:
 func _physics_process(delta: float) -> void:
 	if _model == null:
 		return
-	_accum += delta * 60.0
-	while _accum >= 1.0:
-		_accum -= 1.0
-		_a0 = _wrap(_a0 + STEP_0)
-		_a1 = _wrap(_a1 + STEP_1)
-		_a2 = _wrap(_a2 + STEP_2)
+	_a0 = fposmod(_a0 + RATE_0 * delta, 65536.0)
+	_a1 = fposmod(_a1 + RATE_1 * delta, 65536.0)
+	_a2 = fposmod(_a2 + RATE_2 * delta, 65536.0)
 	_place()
 
 
-static func _wrap(a: int) -> int:
-	return ((a + 0x8000) & 0xFFFF) - 0x8000
-
-
-static func _rad(a: int) -> float:
-	return float(a) * TAU / 65536.0
+static func _rad(a: float) -> float:
+	return a * TAU / 65536.0
 
 
 func _place() -> void:

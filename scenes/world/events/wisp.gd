@@ -19,23 +19,27 @@ const ALPHA_MOVING := 80
 const ALPHA_TALKING := 190
 const WANDER_RADIUS := 4
 const WANDER_PAUSE := Vector2(3.0, 7.0)
-## `aEGH_byebye`: spin speed builds by 60 a frame to 30000, the scale shrinks after 48
-## frames and the fade starts after 43.
+## His see-through-ness moves 1 a frame toward its target.
+const ALPHA_SPEED := 1.0 * DecompTime.FRAME_HZ
+## `aEGH_byebye`: the spin (binangle a frame) builds by 60 a frame to 30000; the scale
+## shrinks 0.004 a frame after 48 frames and the fade, 4 a frame, starts after 43.
 const SPIN_START := -1000.0
-const SPIN_STEP := 60.0
+const SPIN_ACCEL := 60.0 * DecompTime.FRAME_HZ
 const SPIN_MAX := 30000.0
-const SHRINK_DELAY := 48
-const FADE_DELAY := 43
-const FADE_STEP := 4
+const SHRINK_AFTER_SEC := 48.0 / DecompTime.FRAME_HZ
+const SHRINK_SPEED := 0.004 * DecompTime.FRAME_HZ
+const FADE_AFTER_SEC := 43.0 / DecompTime.FRAME_HZ
+const FADE_SPEED := 4.0 * DecompTime.FRAME_HZ
 
 var think_state: Think = Think.HIDDEN
 var state: Dictionary = {}
 var alpha: float = 0.0
 var _home_cell: Vector2i
 var _pause: float = 0.0
+## Spin speed, binangle a 30 fps frame.
 var _spin: float = SPIN_START
-var _frames: int = 0
-var _accum: float = 0.0
+## Seconds into the goodbye.
+var _leaving: float = 0.0
 
 
 func _init() -> void:
@@ -70,10 +74,9 @@ func _gx(m: float) -> float:
 
 
 func think(delta: float) -> void:
-	_accum += delta * DecompTime.FRAME_HZ
-	while _accum >= 1.0:
-		_accum -= 1.0
-		_frame()
+	_fade(delta)
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
 	if think_state == Think.LEAVING or talking:
 		return
 	if Clock.hour >= WispEvent.END_HOUR:
@@ -115,7 +118,7 @@ func _time_up() -> void:
 	if think_state == Think.FOUND and same_acre and can_call_out():
 		_say(WispTalk.Kind.TIME_UP)
 		think_state = Think.LEAVING
-		_frames = 0
+		_leaving = 0.0
 	elif think_state != Think.FOUND or not same_acre:
 		queue_free()
 
@@ -124,7 +127,7 @@ func talk_ended(script: BankTalk) -> void:
 	var t := script as WispTalk
 	if t != null and t.kind == WispTalk.Kind.NORMAL and bool(state.get("returned", false)):
 		think_state = Think.LEAVING
-		_frames = 0
+		_leaving = 0.0
 
 
 func _wander(delta: float) -> void:
@@ -143,25 +146,27 @@ func _wander(delta: float) -> void:
 			return
 
 
-## One 30 Hz frame of the see-through-ness and the goodbye spin.
-func _frame() -> void:
+## The see-through-ness and the goodbye spin, over `delta` seconds.
+func _fade(delta: float) -> void:
 	match think_state:
 		Think.HIDDEN, Think.CALLING, Think.WAITING:
 			alpha = 0.0
 		Think.FOUND:
 			var target: int = ALPHA_TALKING if talking else (ALPHA_MOVING if is_moving() else ALPHA_SEEN)
-			alpha = move_toward(alpha, target, 1.0)
+			alpha = move_toward(alpha, target, ALPHA_SPEED * delta)
 		Think.LEAVING:
 			if talking:
 				return
-			_frames += 1
-			_spin = minf(_spin + SPIN_STEP, SPIN_MAX)
-			rotation.y += deg_to_rad(_spin * 360.0 / 65536.0)
-			if _frames > SHRINK_DELAY:
-				scale.x = maxf(scale.x - 0.004, 0.0)
+			_leaving += delta
+			## Turns by the spin's average over the step, binangle a frame → radians.
+			var start: float = _spin
+			_spin = minf(_spin + SPIN_ACCEL * delta, SPIN_MAX)
+			rotation.y += MLib.s16_to_rad(0.5 * (start + _spin) * DecompTime.FRAME_HZ * delta)
+			if _leaving > SHRINK_AFTER_SEC:
+				scale.x = maxf(scale.x - SHRINK_SPEED * delta, 0.0)
 				scale.z = scale.x
-			if _frames > FADE_DELAY:
-				alpha = maxf(alpha - FADE_STEP, 0.0)
+			if _leaving > FADE_AFTER_SEC:
+				alpha = maxf(alpha - FADE_SPEED * delta, 0.0)
 				if alpha <= 0.0:
 					queue_free()
 	_apply_alpha()

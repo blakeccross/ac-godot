@@ -8,6 +8,9 @@ extends Node3D
 ## water, halfway between the pond and the player, at 315° ±34°: its 8×256 tile scrolls the
 ## 32-row streak through the strip (frames ~99–141 of 320), after a sparkle
 ## (`ef_takurami01_kira`) has run the same line at frame 76.
+##
+## Those frames are ticks (60ths of a second); stars keep their age in seconds and read the
+## timetable at `age * TICK_HZ`.
 
 const SET_LIFT_GX := 20.0
 const STAR_LIFE := 320
@@ -40,10 +43,9 @@ void fragment() {
 var pond_center: Vector3 = Vector3.INF
 var _shader: Shader
 var _rng := RandomNumberGenerator.new()
-var _frame: float = 0.0
-var _last_frame: int = -1
-var _count: int = 0
-var _next: int = 600
+## Seconds since the last star, and the wait before the next.
+var _since: float = 0.0
+var _next: float = 10.0
 var _stars: Array[Dictionary] = []
 
 
@@ -58,39 +60,31 @@ func _ready() -> void:
 	_next = next_interval(Clock.hour * 3600 + Clock.minute * 60, _rng)
 
 
-## `eShootingSet_GetFrame_MakeNextShooting`: 600 frames outside 18:00–21:00, down to 120 at
-## 19:30, plus or minus 60.
-static func next_interval(now_sec: int, rng: RandomNumberGenerator) -> int:
+## `eShootingSet_GetFrame_MakeNextShooting`, in seconds: 600 ticks outside 18:00–21:00, down
+## to 120 at 19:30, plus or minus 60.
+static func next_interval(now_sec: int, rng: RandomNumberGenerator) -> float:
 	var base: float = 600.0
 	if now_sec >= 64800 and now_sec < 70200:
 		base = lerpf(600.0, 120.0, float(now_sec - 64800) / 5400.0)
 	elif now_sec >= 70200 and now_sec < 75600:
 		base = lerpf(120.0, 600.0, float(now_sec - 70200) / 5400.0)
-	return int(base) + int(rng.randf() * 120.0 - 60.0)
+	return (base + rng.randf() * 120.0 - 60.0) / DecompTime.TICK_HZ
 
 
-## The streak's texel offset at a star's frame `t`: `-(t − 120) · 6` quarter texels.
-static func scroll_at(t: int) -> float:
-	return -float(t - 120) * 1.5
+## The streak's texel offset at a star's tick `t`: `-(t − 120) · 6` quarter texels.
+static func scroll_at(t: float) -> float:
+	return -(t - 120.0) * 1.5
 
 
 func _process(delta: float) -> void:
-	_frame += delta * DecompTime.TICK_HZ
-	var now: int = int(_frame)
-	while _last_frame < now:
-		_last_frame += 1
-		_tick()
-
-
-func _tick() -> void:
-	if _count >= _next:
-		_count = 0
+	_since += delta
+	if _since >= _next:
+		_since = 0.0
 		_next = next_interval(Clock.hour * 3600 + Clock.minute * 60, _rng)
 		if _looking_at_pond():
 			_launch()
-	_count += 1
 	for star: Dictionary in _stars.duplicate():
-		_tick_star(star)
+		_step_star(star, delta)
 
 
 func _set_position() -> Vector3:
@@ -135,19 +129,20 @@ func _launch(toward_player: bool = true) -> void:
 	var mats: Array[ShaderMaterial] = []
 	_shade(strip, mats)
 	_stars.append({
-		"t": 0, "node": root, "strip": strip, "mats": mats, "yaw": yaw, "len": length, "pos": pos,
-		"wobble": 0, "kira": null,
+		"age": 0.0, "node": root, "strip": strip, "mats": mats, "yaw": yaw, "len": length, "pos": pos,
+		"kira": null,
 	})
 
 
-func _tick_star(star: Dictionary) -> void:
-	var t: int = int(star["t"])
+func _step_star(star: Dictionary, delta: float) -> void:
+	var age: float = float(star["age"])
+	var t: float = age * DecompTime.TICK_HZ
 	if t >= STAR_LIFE:
 		(star["node"] as Node).queue_free()
 		_stars.erase(star)
 		return
-	star["wobble"] = int(star["wobble"]) + 256
-	var w: float = float(int(star["wobble"]) & 0xFFFF) / 65536.0 * TAU
+	## The stretch turns 256 binangle a tick.
+	var w: float = fposmod(256.0 * (t + 1.0), 65536.0) / 65536.0 * TAU
 	var s: float = STAR_SCALE * FieldCatalog.GX_TO_METERS / FieldCatalog.PIPELINE_SCALE
 	var strip := star["strip"] as Node3D
 	## `RotateY(−w) · scale(1.035, 1, 1) · RotateY(w) · RotateY(yaw) · scale(…, len)`.
@@ -155,17 +150,21 @@ func _tick_star(star: Dictionary) -> void:
 		* Basis(Vector3.UP, float(star["yaw"])) * Basis.from_scale(Vector3(s, s, s * float(star["len"]))))
 	for mat: ShaderMaterial in star["mats"]:
 		mat.set_shader_parameter("scroll", scroll_at(t))
-	if t == KIRA_AT:
-		star["kira"] = {"t": 0, "node": _visual(star["node"] as Node3D, &"ef_takurami01_kira")}
+	var before: float = t - delta * DecompTime.TICK_HZ if age > 0.0 else -1.0
+	if before < KIRA_AT and t >= KIRA_AT:
+		star["kira"] = {
+			"age": (t - KIRA_AT) / DecompTime.TICK_HZ,
+			"node": _visual(star["node"] as Node3D, &"ef_takurami01_kira"),
+		}
 	if star["kira"] != null:
-		_tick_kira(star)
-	star["t"] = t + 1
+		_step_kira(star, delta)
+	star["age"] = age + delta
 
 
 ## `eShootingKira_mv/dw`: a sparkle that grows, spins twice and runs 230 GX along the line.
-func _tick_kira(star: Dictionary) -> void:
+func _step_kira(star: Dictionary, delta: float) -> void:
 	var kira: Dictionary = star["kira"]
-	var c: int = int(kira["t"])
+	var c: float = float(kira["age"]) * DecompTime.TICK_HZ
 	var node := kira["node"] as Node3D
 	if c >= KIRA_LIFE:
 		node.queue_free()
@@ -173,22 +172,22 @@ func _tick_kira(star: Dictionary) -> void:
 		return
 	var m: float = float(KIRA_LIFE)
 	var scale: float
-	if c < int(m * 0.7):
-		scale = lerpf(0.0, 0.0065, float(c) / (m * 0.7))
-	elif c < int(m * 0.87):
-		scale = lerpf(0.0065, 0.00975, (float(c) - m * 0.7) / (m * 0.17))
+	if c < m * 0.7:
+		scale = lerpf(0.0, 0.0065, c / (m * 0.7))
+	elif c < m * 0.87:
+		scale = lerpf(0.0065, 0.00975, (c - m * 0.7) / (m * 0.17))
 	else:
-		scale = lerpf(0.00975, 0.0, clampf((float(c) - m * 0.7) / (m * 0.3), 0.0, 1.0))
+		scale = lerpf(0.00975, 0.0, clampf((c - m * 0.7) / (m * 0.3), 0.0, 1.0))
 	var run: float = KIRA_RUN_GX * float(star["len"]) * FieldCatalog.GX_TO_METERS
 	var yaw: float = float(star["yaw"])
 	var dir := Vector3(sin(yaw), 0.0, cos(yaw))
-	var at: Vector3 = (star["pos"] as Vector3) + dir * lerpf(-run, run, float(c) / m)
-	var spin: float = float(c) / m * 2.0 * TAU
+	var at: Vector3 = (star["pos"] as Vector3) + dir * lerpf(-run, run, c / m)
+	var spin: float = c / m * 2.0 * TAU
 	var cam: Camera3D = get_viewport().get_camera_3d() if is_inside_tree() else null
 	var face: Basis = cam.global_basis if cam != null else Basis.IDENTITY
 	var s: float = scale * FieldCatalog.GX_TO_METERS / FieldCatalog.PIPELINE_SCALE
 	node.global_transform = Transform3D(face * Basis(Vector3.BACK, spin) * Basis.from_scale(Vector3.ONE * s), at)
-	kira["t"] = c + 1
+	kira["age"] = float(kira["age"]) + delta
 
 
 func _visual(root: Node3D, visual: StringName) -> Node3D:

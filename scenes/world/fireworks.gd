@@ -8,6 +8,10 @@ extends Node3D
 ## spins and wobbles, and runs its prim/env colours through a morph table
 ## (`eEC_MorphCombine`), with a light flash at frame 10 and the bang at frame 72. Sets fire
 ## halfway between the pond and the player. In the show's last hour the bigger sets 5–8 play.
+##
+## The timetables are the decomp's, in ticks (60ths of a second); sets and shells keep their
+## age in seconds and read the tables at `age * TICK_HZ`, firing each entry as a step
+## crosses it.
 
 enum Shell { HOSHI, BOTAN1, BOTAN2, YANAGI }
 
@@ -72,7 +76,12 @@ const SET_BACK_GX := 40.0
 const SCATTER_GX := 125.0
 const BANG_FRAME := 72
 const FLASH_FRAME := 10
-const EASE := 0.10557281
+## `add_calc2(&scale, size, CALC_EASE(0.2), 5)` a tick.
+static var EASE_HALF_LIFE: float = Motion.half_life_from_fraction(0.10557281)
+const EASE_MAX_SPEED := 5.0 * DecompTime.TICK_HZ
+## The shell spins 0x100 and wobbles 0x300 binangle a tick.
+const SPIN_RATE := 0x100 * DecompTime.TICK_HZ
+const WOBBLE_RATE := 0x300 * DecompTime.TICK_HZ
 ## The disc is one quad with UVs 0–2 over a quarter texture, mirrored (`G_TX_MIRROR`); the
 ## texture is an intensity mask coloured by the prim/env combiner — IA8 (`b`) carries its
 ## own alpha, I4 (`h`, `y`) uses the intensity for both (`IIII`).
@@ -98,8 +107,9 @@ var finale: bool = false
 ## Keep looping (the show) or stop after one set (the countdown's single switch).
 var looping: bool = true
 
-var _frame: float = 0.0
-var _last_frame: int = -1
+## Seconds since the switch started, and the tick the next set launches on.
+var _time: float = 0.0
+var _next_launch: float = LAUNCH_AT
 var _sets: Array = []
 var _shells: Array = []
 var _rng := RandomNumberGenerator.new()
@@ -121,28 +131,31 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_frame += delta * DecompTime.TICK_HZ
-	var now: int = int(_frame)
-	while _last_frame < now:
-		_last_frame += 1
-		_tick(_last_frame)
+	_step(delta)
 	_update_light(delta)
 
 
-func _tick(frame: int) -> void:
-	var cycle_frame: int = frame % CYCLE
-	if cycle_frame == LAUNCH_AT and (looping or frame < CYCLE):
-		var idx: int = _rng.randi_range(0, 3) + (4 if finale else 0)
-		_sets.append({"set": idx, "t": 0})
-	for s: Dictionary in _sets.duplicate():
-		for entry: Array in SETS[int(s["set"])]:
-			if int(entry[0]) == int(s["t"]):
+func _step(delta: float) -> void:
+	_time += delta
+	var now: float = _time * DecompTime.TICK_HZ
+	## A set launches at tick 40 of every 300 (the first only, unless the show loops).
+	while _next_launch <= now + 0.0001:
+		if looping or _next_launch < CYCLE:
+			var idx: int = _rng.randi_range(0, 3) + (4 if finale else 0)
+			## Aged from its launch tick, so a long step still fires its early shells.
+			_sets.append({"set": idx, "age": (now - _next_launch) / DecompTime.TICK_HZ, "fired": -1.0})
+		_next_launch += CYCLE
+	for set_: Dictionary in _sets.duplicate():
+		var t: float = float(set_["age"]) * DecompTime.TICK_HZ
+		for entry: Array in SETS[int(set_["set"])]:
+			if float(entry[0]) > float(set_["fired"]) and float(entry[0]) <= t + 0.0001:
 				_fire(int(entry[1]))
-		s["t"] = int(s["t"]) + 1
-		if int(s["t"]) >= SET_LIFE:
-			_sets.erase(s)
+		set_["fired"] = t
+		set_["age"] = float(set_["age"]) + delta
+		if t >= SET_LIFE:
+			_sets.erase(set_)
 	for sh: Dictionary in _shells.duplicate():
-		_tick_shell(sh)
+		_step_shell(sh, delta)
 
 
 ## The pond acre's centre at its land level (`mFI_BkNum2BaseHeight`), not the pond floor.
@@ -173,7 +186,7 @@ func _fire(kind: int) -> void:
 	var pos: Vector3 = launch_position() + Vector3(_rng.randf_range(-scatter, scatter), 0.0, _rng.randf_range(-scatter, scatter))
 	var morphs: Array = data["morph"]
 	var sh: Dictionary = {
-		"kind": kind, "t": 0, "scale": 0.01, "spin": 0, "wobble": 0, "pos": pos,
+		"kind": kind, "age": 0.0, "scale": 0.01, "pos": pos,
 		"morph": morphs[_rng.randi_range(0, morphs.size() - 1)], "tone": _rng.randi_range(0, 1),
 	}
 	var root := Node3D.new()
@@ -216,32 +229,33 @@ func _apply_shader(node: Node, visual: StringName) -> void:
 		_apply_shader(child, visual)
 
 
-func _tick_shell(sh: Dictionary) -> void:
+func _step_shell(sh: Dictionary, delta: float) -> void:
 	var data: Dictionary = SHELLS[int(sh["kind"])]
-	var life: int = int(data["life"])
-	var t: int = int(sh["t"])
+	var life: float = float(data["life"])
+	var age: float = float(sh["age"])
+	var t: float = age * DecompTime.TICK_HZ
 	if t >= life:
 		(sh["node"] as Node).queue_free()
 		_shells.erase(sh)
 		return
-	sh["wobble"] = int(sh["wobble"]) + 0x300
-	sh["spin"] = int(sh["spin"]) + 0x100
-	## `add_calc2(&scale, size, CALC_EASE(0.2), 5)`.
-	var sc: float = float(sh["scale"])
-	sc += clampf((float(data["size"]) - sc) * EASE, -5.0, 5.0)
-	sh["scale"] = sc
-	if t == FLASH_FRAME:
+	## The flash and the bang go off on the step that reaches their tick.
+	var before: float = t - delta * DecompTime.TICK_HZ if age > 0.0 else -1.0
+	if before < FLASH_FRAME and t >= FLASH_FRAME:
 		var tones: Array = data["light"]
 		_flash(tones[mini(int(sh["tone"]), tones.size() - 1)], sh["pos"])
-	if t == BANG_FRAME and Audio != null:
+	if before < BANG_FRAME and t >= BANG_FRAME and Audio != null:
 		Audio.play_se(data["se"])
+	sh["scale"] = Motion.approach(
+		float(sh["scale"]), float(data["size"]), EASE_HALF_LIFE, EASE_MAX_SPEED, 0.0, delta
+	)
 	_draw_shell(sh, data, t, life)
-	sh["t"] = t + 1
+	sh["age"] = age + delta
 
 
-func _draw_shell(sh: Dictionary, data: Dictionary, t: int, life: int) -> void:
-	var spin: float = float(int(sh["spin"]) & 0xFFFF) / 65536.0 * TAU
-	var wobble: float = (sin(float(int(sh["wobble"]) & 0xFFFF) / 65536.0 * TAU) + 1.0) * 0.5 * 0.14 + 0.93
+func _draw_shell(sh: Dictionary, data: Dictionary, t: float, life: float) -> void:
+	var age: float = float(sh["age"])
+	var spin: float = fposmod(SPIN_RATE * age, 65536.0) / 65536.0 * TAU
+	var wobble: float = (sin(fposmod(WOBBLE_RATE * age, 65536.0) / 65536.0 * TAU) + 1.0) * 0.5 * 0.14 + 0.93
 	var v2: float = float(sh["scale"]) + adjust(t, 0, life - 1, 0.0, 0.01)
 	var s: float = v2 * FieldCatalog.GX_TO_METERS / FieldCatalog.PIPELINE_SCALE
 	var drift := Vector3(sin(spin) * 2.0, 0.0, sin(-spin) * 2.0) * FieldCatalog.GX_TO_METERS
@@ -275,26 +289,26 @@ func _set_params(node: Node, prim: Color, env: Color) -> void:
 		_set_params(child, prim, env)
 
 
-## `eEC_MorphCombine` (frames in the tables are halves: `<< 1`).
-static func morph(table: Array, t: int) -> PackedFloat32Array:
+## `eEC_MorphCombine` at tick `t` (frames in the tables are halves: `<< 1`).
+static func morph(table: Array, t: float) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	out.resize(9)
 	for i: int in 9:
 		var m: Array = table[i]
 		if bool(m[2]):
-			out[i] = adjust(t, int(m[0]) << 1, int(m[1]) << 1, float(m[3]), float(m[4]))
+			out[i] = adjust(t, float(int(m[0]) << 1), float(int(m[1]) << 1), float(m[3]), float(m[4]))
 		else:
 			out[i] = float(m[3])
 	return out
 
 
 ## `eEL_CalcAdjust`.
-static func adjust(t: int, start: int, end: int, from: float, to: float) -> float:
+static func adjust(t: float, start: float, end: float, from: float, to: float) -> float:
 	if t <= start:
 		return from
 	if t >= end:
 		return to
-	return lerpf(from, to, float(t - start) / float(end - start))
+	return lerpf(from, to, (t - start) / (end - start))
 
 
 ## `regist_effect_light(color, 20, 50)`: the town lights up in the burst's colour.
