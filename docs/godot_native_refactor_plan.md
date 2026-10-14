@@ -296,6 +296,16 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
 
 **Phase 2 is complete.**
 
+- **Phase 1 done.** The renames in the tables above, with these differences from them:
+  - `BugHitodama` is `WispSpirit`, not `Wisp`: `Wisp` is already the ghost whose spirits they are.
+  - `HouseGoki` (the book that counts them) is `HouseCockroaches`; the actor scene is `house_cockroach.tscn`.
+  - `alpha0..2` are three values, not one: `opacity`, `prev_frame_opacity` and `fade_out` (the firefly crossfades two glow frames and fades out). `anime1` is the firefly's previous glow frame, so it is `prev_anim_frame`, not `wing_time`.
+  - `bg_type` is `TerrainMode` after `aINS_BG_CHECK_TYPE_*`; `ut_x` / `ut_z` were unused and are gone.
+  - `BugData.Program`'s values are English too, `Ant` drops its `Bug` prefix, and `Bee` is split out of `Cicada` as a subclass.
+  - Every `s32_work` / `f32_work` slot is a named field on its behavior; two were write-only and are gone.
+  - Save version 3: `SaveService.RENAMED_KEYS` moves the old keys (`gyoei_term`, `farway`, `haniwa_*`, `_kabu`) to their new names on load.
+  - The full rename list is in [decomp-mapping.md](decomp-mapping.md#renamed-from-decomp-style-names). Item, catalog and event ids that come from the disc (`haniwa`, `kabu_peddler`) keep their names.
+
 Lessons from the weather particles:
 
 - **Stay inside what the Compatibility renderer does.** Headless captures run there, and some players may too. It silently skips these:
