@@ -266,6 +266,13 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
   - So do the town train's timetable, couplings, smoke and sounds; the train's braking starts exactly at the trigger point, so it stops at the same place at any frame rate.
   - The station arrival (Nook, the porter, `NpcPointMove`) and the window-light fade run on `delta` too.
   - The title demo still steps its recorded pad input once per tick. It replays into the player, so it converts with the player.
+- **Events done:**
+  - The tug-of-war is a one-second pull cycle, and a long step is split at the heave and the ease-off.
+  - The foot race's phases are timers in seconds.
+  - Thrown balls fly under exact gravity; a ball down on the ground rolls with a drag rate instead of halving every frame.
+- **Fish done:**
+  - `FishShadow`, its puffs and the rod session (`Fishing`) advance by `delta`, with speeds in m/s. The once-per-frame flags (`nibbled`, `bit`, the landing splash) now last one step.
+  - The swim pattern's body swing is tied to the sweep's progress, not to the ticks that pass.
 
 Lessons from the weather particles:
 
