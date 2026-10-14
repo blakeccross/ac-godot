@@ -954,19 +954,21 @@ func test_bobber_uses_the_pipeline_uki_over_its_placeholder() -> void:
 
 func test_bobber_tilt_eases_to_each_proc_target() -> void:
 	var script: GDScript = load("res://scenes/world/bobber.gd")
-	## `add_calc_short_angle2` takes the short way round and never overshoots.
-	var pitch: float = script.PITCH_FLAT
-	for _i in 200:
-		pitch = MLib.short_angle2(pitch, 0.0, script.SETTLE_FRACTION, script.SETTLE_MAX_STEP)
-	assert_float(pitch).is_equal_approx(0.0, 0.0001)
+	## It eases all the way there in a few seconds, the same at any frame rate.
+	var a: float = script.PITCH_FLAT
+	var b: float = script.PITCH_FLAT
+	for _i in 180:
+		a = script.tilt_toward(a, 0.0, script.SETTLE_HALF_LIFE, script.SETTLE_MAX_RATE, 1.0 / 60.0)
+	for _i in 30:
+		b = script.tilt_toward(b, 0.0, script.SETTLE_HALF_LIFE, script.SETTLE_MAX_RATE, 1.0 / 10.0)
+	assert_float(a).is_equal_approx(0.0, 0.0001)
+	assert_float(b).is_equal_approx(0.0, 0.0001)
 	## From upright to yanked-under is a quarter turn down, not three quarters up.
-	var first: float = MLib.short_angle2(
-		0.0, script.PITCH_PULLED, script.CAST_FRACTION, script.CAST_MAX_STEP
-	)
+	var first: float = script.tilt_toward(0.0, script.PITCH_PULLED, script.CAST_HALF_LIFE, script.CAST_MAX_RATE, 1.0 / 60.0)
 	assert_float(first).is_less(0.0)
-	## The step clamp bounds how fast the cast can flatten it.
-	var clamped: float = MLib.short_angle2(0.0, PI, script.CAST_FRACTION, script.CAST_MAX_STEP)
-	assert_float(absf(clamped)).is_less_equal(script.CAST_MAX_STEP + 0.0001)
+	## The rate cap bounds how fast the cast can flatten it.
+	var capped: float = script.tilt_toward(0.0, PI * 0.9, script.CAST_HALF_LIFE, script.CAST_MAX_RATE, 0.1)
+	assert_float(absf(capped)).is_less_equal(script.CAST_MAX_RATE * 0.1 + 0.0001)
 
 
 func test_show_off_turn_settles_facing_the_camera() -> void:
@@ -1110,17 +1112,16 @@ func test_a_bite_pulls_the_bobber_under_and_a_strike_yanks_it_up_and_round() -> 
 
 
 func test_the_bobber_turns_blue_under_water_and_white_above() -> void:
-	## `aUKI_color`: past 3 GX under, (100, 100, 128); `aUKI_chase_color` steps 26 / 26 / 21.
+	## `aUKI_color`: past 3 GX under, (100, 100, 128); `aUKI_chase_color` steps 26 / 26 / 21 a
+	## tick, so a sixtieth of a second in it has moved one step.
 	var script: GDScript = load("res://scenes/world/bobber.gd")
-	var rgb := Vector3i(255, 255, 255)
-	rgb = script.chase_color(rgb, true)
-	assert_that(rgb).is_equal(Vector3i(229, 229, 234))
-	for _i in 10:
-		rgb = script.chase_color(rgb, true)
-	assert_that(rgb).is_equal(Vector3i(100, 100, 128))
-	for _i in 10:
-		rgb = script.chase_color(rgb, false)
-	assert_that(rgb).is_equal(Vector3i(255, 255, 255))
+	var rgb := Vector3.ONE
+	rgb = script.chase_color(rgb, true, 1.0 / 60.0)
+	assert_vector(rgb * 255.0).is_equal_approx(Vector3(229, 229, 234), Vector3.ONE * 0.01)
+	rgb = script.chase_color(rgb, true, 0.5)
+	assert_vector(rgb * 255.0).is_equal_approx(Vector3(100, 100, 128), Vector3.ONE * 0.01)
+	rgb = script.chase_color(rgb, false, 0.5)
+	assert_vector(rgb).is_equal_approx(Vector3.ONE, Vector3.ONE * 0.0001)
 
 
 func test_an_empty_press_reels_in_after_twelve_ticks() -> void:

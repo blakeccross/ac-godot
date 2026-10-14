@@ -4,10 +4,21 @@ extends Node3D
 ## A fish let go from the pockets, flying into the water (`ac_gyo_release`). It arcs from
 ## the player's feet to the water point, noses over flat as it falls, and on reaching the
 ## surface leaves a ring (`TURI_HAMON` 3) and a fading shadow swimming on (`GYO_KAGE`) with
-## the splash SE 0x437.
+## the splash SE 0x437. Runs on `delta` in metres: the arc is closed form and it splashes at
+## the moment it reaches the surface.
 
 const SCENE_PATH := "res://scenes/world/fish_release.tscn"
 const SPLASH_SE := &"437"
+const GX := FieldCatalog.GX_TO_METERS
+## `CreatureRelease` speeds are GX per 30 fps frame moved half a frame a tick, under −0.25 a
+## tick: as m/s and m/s².
+const SPEED := GX * 30.0
+const GRAVITY := -CreatureRelease.GRAVITY * 60.0 * 30.0 * GX
+## Noses over 0x800 a tick; gone after 160 ticks.
+const TILT_RATE := CreatureRelease.TILT_STEP * 60.0
+const LIFETIME := CreatureRelease.LIFE / 60.0
+## Once over water it may not drift back out onto the bank after 3 ticks.
+const BANK_GRACE := 3.0 / 60.0
 
 ## `exist_flag`: cleared once it is in the water or gone (the player stops watching).
 var exist: bool = true
@@ -17,31 +28,35 @@ var is_water: Callable = Callable()
 var water_y: Callable = Callable()
 ## Where the fading shadow goes (`FishSchool`); null leaves none.
 var school: FishSchool = null
+## Seconds since the throw.
+var age: float = 0.0
 
-var _pos_gx: Vector3 = Vector3.ZERO
-var _vel_gx: Vector3 = Vector3.ZERO
+## Metres and m/s.
+var _pos: Vector3 = Vector3.ZERO
+var _vel: Vector3 = Vector3.ZERO
 var _yaw: float = 0.0
 var _tilt: float = 0.0
-var _ticks: int = 0
-var _been_in_water: bool = false
-var _revert_timer: int = 0
+var _wet_since: float = -1.0
 var _visual: HeldFish = null
-var _steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 
 
 ## Throw `p_fish` from `from` (metres) at the water point `water` (metres, y on the surface).
 static func throw(parent: Node, p_fish: FishData, from: Vector3, water: Vector3) -> FishRelease:
 	var node := (load(SCENE_PATH) as PackedScene).instantiate() as FishRelease
 	node.fish = p_fish
-	node._pos_gx = from / FieldCatalog.GX_TO_METERS
-	var water_gx: Vector3 = water / FieldCatalog.GX_TO_METERS
-	node._vel_gx = CreatureRelease.launch_velocity(node._pos_gx, water_gx)
-	node._yaw = atan2(water_gx.x - node._pos_gx.x, water_gx.z - node._pos_gx.z)
+	node.aim(from, water)
 	var world := World.find(parent.get_tree()) if parent.is_inside_tree() else null
 	if world != null:
 		node.bind_world(world)
 	parent.add_child(node)
 	return node
+
+
+## Start at `from` thrown toward `water` (both metres), `aGYR_ct`'s launch.
+func aim(from: Vector3, water: Vector3) -> void:
+	_pos = from
+	_vel = CreatureRelease.launch_velocity(from / GX, water / GX) * SPEED
+	_yaw = atan2(water.x - from.x, water.z - from.z)
 
 
 func bind_world(world: World) -> void:
@@ -64,51 +79,57 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	_steps.add(delta)
-	while exist and _steps.next():
-		tick()
+	if exist:
+		advance(delta)
 
 
-## One `aGYR_actor_move`.
-func tick() -> void:
-	var last: Vector3 = _pos_gx
-	var moved: Array[Vector3] = CreatureRelease.step(_pos_gx, _vel_gx)
-	_pos_gx = moved[0]
-	_vel_gx = moved[1]
-	var at: Vector3 = _pos_gx * FieldCatalog.GX_TO_METERS
-	var wet: bool = is_water.is_valid() and bool(is_water.call(at))
-	_revert_timer = maxi(_revert_timer - 1, 0)
-	## Once over water it may not drift back out onto the bank.
-	if wet:
-		if not _been_in_water:
-			_been_in_water = true
-			_revert_timer = 3
-	elif _been_in_water and _revert_timer <= 0:
-		_pos_gx.x = last.x
-		_pos_gx.z = last.z
-	_tilt = move_toward(_tilt, PI * 0.5, CreatureRelease.TILT_STEP)
-	_ticks += 1
-	if _ticks > CreatureRelease.LIFE:
-		_finish()
-		return
+## `aGYR_actor_move` over `delta` seconds.
+func advance(delta: float) -> void:
+	var dt: float = minf(delta, LIFETIME - age)
+	var next: Vector3 = _pos + _vel * dt + Vector3(0.0, -0.5 * GRAVITY * dt * dt, 0.0)
+	var wet: bool = is_water.is_valid() and bool(is_water.call(next))
+	if wet and _wet_since < 0.0:
+		_wet_since = age
+	elif not wet and _wet_since >= 0.0 and age - _wet_since >= BANK_GRACE:
+		next.x = _pos.x
+		next.z = _pos.z
 	if wet and water_y.is_valid():
-		var surface_gx: float = float(water_y.call(at)) / FieldCatalog.GX_TO_METERS
-		if surface_gx >= _pos_gx.y:
+		var surface: float = float(water_y.call(next))
+		if surface >= next.y:
+			## Reaches the surface part-way through the frame: splash there.
+			var t: float = _time_to(_pos.y - surface, _vel.y, dt)
+			_pos += _vel * t + Vector3(0.0, -0.5 * GRAVITY * t * t, 0.0)
+			_pos.y = surface
 			_enter_water()
 			return
+	_pos = next
+	_vel.y -= GRAVITY * dt
+	_tilt = move_toward(_tilt, PI * 0.5, TILT_RATE * dt)
+	age += delta
+	if age >= LIFETIME:
+		_finish()
+		return
 	_apply()
 
 
+## When something `height` above the surface, moving up at `vy`, comes down to it (≤ `dt`).
+static func _time_to(height: float, vy: float, dt: float) -> float:
+	var disc: float = vy * vy + 2.0 * GRAVITY * height
+	if disc < 0.0:
+		return dt
+	return clampf((vy + sqrt(disc)) / GRAVITY, 0.0, dt)
+
+
 func position_gx() -> Vector3:
-	return _pos_gx
+	return _pos / GX
 
 
 ## `aGYR_in_water_move`.
 func _enter_water() -> void:
 	Audio.play_se(SPLASH_SE, self)
-	StepFx.ripple(_pos_gx * FieldCatalog.GX_TO_METERS, 3)
+	StepFx.ripple(_pos, 3)
 	if school != null and fish != null:
-		school.add_puff_at(_pos_gx * FieldCatalog.GX_TO_METERS, _yaw, fish.size_class)
+		school.add_puff_at(_pos, _yaw, fish.size_class)
 	_finish()
 
 
@@ -120,7 +141,7 @@ func _finish() -> void:
 ## `aGYR_actor_draw`: no yaw of its own — tilted flat by `angle_xz` and stretched 1.2×
 ## across, shrinking past tick 140.
 func _apply() -> void:
-	global_position = _pos_gx * FieldCatalog.GX_TO_METERS
+	global_position = _pos
 	var basis := Basis(Vector3.RIGHT, -_tilt) * Basis(Vector3.BACK, _tilt)
-	var s: float = CreatureRelease.SCALE_RATIO * CreatureRelease.shrink(_ticks)
+	var s: float = CreatureRelease.SCALE_RATIO * CreatureRelease.shrink(int(age * 60.0))
 	global_basis = basis * Basis.from_scale(Vector3(CreatureRelease.WIDTH * s, s, s))
