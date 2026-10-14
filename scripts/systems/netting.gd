@@ -35,9 +35,10 @@ const PULL_TO_HAND_FRAME := 15.0
 ## `Player_actor_Movement_Pull_net`: turn toward the camera after this keyframe.
 const PULL_TURN_FRAME := 17.0
 const SHOW_YAW := 0.0
-## `Player_actor_MessageControl_Pull_net`: ticks until the report opens.
-const PULL_REPORT_TICKS := 50.0
-## `Player_actor_CorrectSomething_Putaway_net`.
+## `Player_actor_MessageControl_Pull_net`: the report opens 50 ticks in.
+const PULL_REPORT_SEC := 50.0 / DecompTime.TICK_HZ
+## `Player_actor_CorrectSomething_Putaway_net`: the insect keeps 0.89125 of its size each
+## tick until keyframe 17.
 const PUTAWAY_GONE_FRAME := 17.0
 const PUTAWAY_SHRINK := 0.89125
 

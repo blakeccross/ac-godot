@@ -29,10 +29,15 @@ static func s16_signed(value: int) -> int:
 ## `add_calc_short_angle2`: move a fraction of the shortest way to `target`, clamped to
 ## `max_step`. Once that fraction rounds away to nothing the original steps by exactly
 ## `min_step` instead, so a turn cannot stall short of where it is going; with `min_step == 0`
-## it stops there instead. Snaps to the target rather than overshooting it.
+## it stops there instead. Snaps to the target rather than overshooting it. Over `ticks`
+## ticks (60ths of a second) the fraction compounds and the step limits scale.
 static func short_angle2(
-	value: float, target: float, fraction: float, max_step: float, min_step: float = 0.0
+	value: float, target: float, fraction: float, max_step: float, min_step: float = 0.0,
+	ticks: float = 1.0
 ) -> float:
+	fraction = _compound(fraction, ticks)
+	max_step *= ticks
+	min_step *= ticks
 	var diff: float = wrapf(target - value, -PI, PI)
 	var step: float = diff * fraction
 	if absf(step) > min_step and not is_zero_approx(step):
@@ -53,9 +58,14 @@ static func short_angle2(
 ## `add_calc_short_angle3`: always turns the *positive* way — the target is lifted a full
 ## turn above the value when it sits below it — by `fraction` of that gap, clamped to
 ## [`min_step`, `max_step`], never past the target. (Dash skids spin one direction only.)
+## `ticks` scales it like `short_angle2`.
 static func short_angle3(
-	value: float, target: float, fraction: float, max_step: float, min_step: float
+	value: float, target: float, fraction: float, max_step: float, min_step: float,
+	ticks: float = 1.0
 ) -> float:
+	fraction = _compound(fraction, ticks)
+	max_step *= ticks
+	min_step *= ticks
 	var gap: float = fposmod(target - value, TAU)
 	if is_zero_approx(gap) or is_equal_approx(gap, TAU):
 		return target
@@ -64,3 +74,9 @@ static func short_angle3(
 		return target
 	return wrapf(value + step, -PI, PI)
 
+
+## The share of the gap closed by `ticks` ticks that each close `fraction` of it.
+static func _compound(fraction: float, ticks: float) -> float:
+	if ticks == 1.0:
+		return fraction
+	return 1.0 - pow(1.0 - clampf(fraction, 0.0, 1.0), maxf(ticks, 0.0))

@@ -27,11 +27,15 @@ const ANIM_WAIT := "ply_1_wait1"
 ## `mPlayer_ANIM_SAISEN1` / `OMAIRI_US1`: the New Year coin toss and prayer at the well.
 const ANIM_SAISEN := &"ply_1_saisen1"
 const ANIM_OMAIRI := &"ply_1_omairi_us1"
-const SHRINE_STEP_FRAMES := 5.0
+## The step onto the coin spot takes 5 frames at 30 fps; the purse rustles at keyframe 9 and
+## the coin flies at 33.
+const SHRINE_STEP_SEC := 5.0 / DecompTime.FRAME_HZ
+const SHRINE_RUSTLE_SEC := 9.0 / DecompTime.FRAME_HZ
+const SHRINE_THROW_SEC := 33.0 / DecompTime.FRAME_HZ
 ## `mPlayer_ANIM_CONFIRM1`: the mailbox hop and landing.
 const ANIM_CONFIRM := &"ply_1_confirm1"
-## `cKF_SkeletonInfo_R_AnimationMove_ct_base(…, 8.0f, …)`.
-const MAIL_JUMP_FRAMES := 8
+## `cKF_SkeletonInfo_R_AnimationMove_ct_base(…, 8.0f, …)`: 8 frames at 30 fps.
+const MAIL_JUMP_SEC := 8.0 / DecompTime.FRAME_HZ
 ## `main_Release_creature`: 84 ticks of `WAIT1`, the head following for the first 60.
 const RELEASE_SECONDS := 84.0 / DecompTime.TICK_HZ
 const RELEASE_LOOK_SECONDS := 60.0 / DecompTime.TICK_HZ
@@ -81,8 +85,8 @@ const ANIM_HATI3 := "ply_1_hati3"
 ## `SearchAnimation_Stung_bee`: the face swells on `HATI2` frame 21.
 const STUNG_SWELL_FRAME := 21.0
 ## `Movement_Stung_bee` turns to face the camera after 94 ticks; at 252 → `notice_bee`.
-const STUNG_TURN_TICKS := 94.0
-const STUNG_NOTICE_TICKS := 252.0
+const STUNG_TURN_SEC := 94.0 / DecompTime.TICK_HZ
+const STUNG_NOTICE_SEC := 252.0 / DecompTime.TICK_HZ
 ## `Player_actor_Notice_bee_demo_ct`: `0x17B4` in a lilac report window.
 const BEE_NOTICE_MSG := 0x17B4
 const BEE_NOTICE_COLOR := Color8(225, 165, 255)
@@ -151,10 +155,9 @@ var _demo_walk_goal: Vector3 = Vector3.ZERO
 var _demo_walk_speed: float = 0.0
 var _demo_walk_arrive: float = 0.0
 var _motor: PlayerLocomotion = PlayerLocomotion.new()
-## `Player_actor_SetPlayerAngle_forUki`'s clamps, and its own tick clock.
+## `Player_actor_SetPlayerAngle_forUki`'s clamps (per tick).
 const UKI_TURN_MAX := 13.73291015625 * PI / 180.0
 const UKI_TURN_MIN := 0.274658203125 * PI / 180.0
-var _uki_turn := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 ## `Player_actor_Movement_Base_Braking_common(actor, 0.32625002f)`.
 const RECOIL_BRAKE := 0.32625002
@@ -172,7 +175,6 @@ var _hold_anim: StringName = &""
 ## a bug or fish — villagers nearby clap (`aNPC_check_clap`).
 var catch_showing: bool = false
 var _radio := RadioExercise.new()
-var _radio_steps := FrameStepper.new()
 ## Doing a radio exercise (`mPlayer_INDEX_RADIO_EXERCISE`).
 var exercising: bool = false
 ## Inside `Stung_bee` / `Notice_bee` (`mPlib_Check_end_stung_bee` is its fall).
@@ -193,11 +195,10 @@ var _tool_stowed: bool = false
 ## `PUTIN_ITEM` / `TAKEOUT_ITEM` own the pose; `_update_animation` stays out of the way.
 var _tool_swap: bool = false
 var _step_time: float = 0.0
-## The net's ready / walk / swing / stop states (`NetSwing`), stepped once per tick while
-## active; the catch that follows a pull runs in `_run_net_catch`.
+## The net's ready / walk / swing / stop states (`NetSwing`), stepped every physics frame
+## while active; the catch that follows a pull runs in `_run_net_catch`.
 var _net := NetSwing.new()
-var _net_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
-## `player->net_pos` as of the last swing tick.
+## `player->net_pos` as of the last swing step.
 var _net_pos: Vector3 = Vector3.ZERO
 var _right_foot: bool = true
 var _door_entering: bool = false
@@ -209,10 +210,11 @@ var _door_yaw: float = 0.0
 var _door_move_elapsed: float = 0.0
 var _door_move_duration: float = StructureDoor.APPROACH_SEC
 var _door_clear_busy: bool = false
-## `model_world_position_correction` — decays toward 0 over `fixed_counter` game frames.
+## `model_world_position_correction` — decays toward 0 over `fixed_counter` game frames;
+## `_door_correction_start` is where it began.
 var _door_correction: Vector3 = Vector3.ZERO
+var _door_correction_start: Vector3 = Vector3.ZERO
 var _door_fixed_counter: float = 0.0
-var _door_steps := FrameStepper.new()
 var _door_root_clip: String = ""
 ## `mPlayer_INDEX_DEMO_GETOFF_TRAIN`: `cKF_ANIMATION_TRANS_Y` is on too — the body follows the
 ## clip's root height from `_door_base_y`, and the state ends itself when the clip does.
@@ -222,7 +224,6 @@ var _door_base_y: float = 0.0
 var _talk_face: Node3D = null
 ## `player->shake_tree_*`: trees this player has already shaken (little or button).
 var _tree_bump: TreeBump = TreeBump.new()
-var _talk_turn_steps := FrameStepper.new()
 ## Holding onto a piece of furniture (`mPlayer_INDEX_HOLD` and its push / pull / turn children).
 var _grip: FurnitureGrip = FurnitureGrip.new()
 var _gripping: bool = false
@@ -238,7 +239,6 @@ var _wade: Dictionary = {}
 var move_intent: Vector3 = Vector3.ZERO
 ## The snowball being pushed (`mPlayer_INDEX_PUSH_SNOWBALL`), or null.
 var _snowball: Node3D = null
-var _sun_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 ## Leaf clip → Animation of scaled joint_0 deltas (meters, model space): XZ from the origin,
 ## Y from the 1000-unit base height (`base_shape_trs` y). Filled once.
 static var _door_root_xz: Dictionary = {}
@@ -311,12 +311,10 @@ func left_hand_global() -> Vector3:
 ## `mDemo` TYPE_TALK `turn` — face `npc` until `end_talk_face` (`TalkCamera.end`).
 func begin_talk_face(npc: Node3D) -> void:
 	_talk_face = npc
-	_talk_turn_steps.reset()
 
 
 func end_talk_face() -> void:
 	_talk_face = null
-	_talk_turn_steps.reset()
 
 
 func is_talk_facing() -> bool:
@@ -1163,14 +1161,12 @@ func note_big_tree_shake(cell: Vector2i) -> void:
 	_tree_bump.note_big_shake(cell)
 
 
-## `Player_actor_Movement_Talk`: ease toward the NPC on a fixed 60 Hz tick.
+## `Player_actor_Movement_Talk`: ease toward the NPC.
 func _tick_talk_face(delta: float) -> void:
 	if not is_talk_facing():
 		return
-	_talk_turn_steps.add(delta)
-	while _talk_turn_steps.next():
-		var target: float = TalkCamera.face_yaw_toward(global_position, _talk_face.global_position)
-		_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, target)
+	var target: float = TalkCamera.face_yaw_toward(global_position, _talk_face.global_position)
+	_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, target, delta)
 
 
 ## After a room load, walk-in doors stay armed until the probe leaves every auto door.
@@ -1260,8 +1256,8 @@ func _begin_animation_move(
 	_door_from = global_position
 	_door_to = Vector3(target.x, global_position.y, target.z)
 	_door_correction = Vector3(_door_from.x - _door_to.x, 0.0, _door_from.z - _door_to.z)
+	_door_correction_start = _door_correction
 	_door_fixed_counter = counter
-	_door_steps.reset()
 	_door_yaw = face_yaw
 	_door_move_elapsed = 0.0
 	_door_move_duration = duration
@@ -1352,10 +1348,7 @@ func _tick_door_enter(delta: float) -> void:
 	_mesh.rotation.y = _door_yaw
 	velocity = Vector3.ZERO
 	if _door_animation_move:
-		## `AnimationMove_base` runs once per 60 Hz game frame (`fixed_counter` −= 0.5).
-		_door_steps.add(delta)
-		while _door_steps.next():
-			_decay_door_correction()
+		_decay_door_correction()
 		var root: Vector3 = _sample_door_root_xz()
 		var world_root := Vector3(
 			root.x * cos(_door_yaw) + root.z * sin(_door_yaw),
@@ -1377,17 +1370,16 @@ func _tick_door_enter(delta: float) -> void:
 	_snap_to_bg()
 
 
+## `cKF_SkeletonInfo_R_AnimationMove_base`'s XZ correction, at `_door_move_elapsed`. Each
+## tick the original keeps `(fc + 0.5) / (fc + 1)` of it and drops `fixed_counter` (fc) by
+## 0.5; the product telescopes, so it shrinks in a straight line to `1 / (1 + fc₀)` of the
+## start as the counter runs out (30 a second), then halves every tick after.
 func _decay_door_correction() -> void:
-	## Mirror `cKF_SkeletonInfo_R_AnimationMove_base` XZ correction decay.
-	var fc: float = _door_fixed_counter
-	var count: float = 1.0 + fc
-	if count > 0.5:
-		var w: float = 0.5 / count
-		_door_correction.x -= _door_correction.x * w
-		_door_correction.z -= _door_correction.z * w
-	else:
-		_door_correction = Vector3.ZERO
-	_door_fixed_counter = maxf(fc - 0.5, 0.0)
+	var fc0: float = maxf(_door_fixed_counter, 0.0)
+	var ticks: float = _door_move_elapsed * DecompTime.TICK_HZ
+	var fc: float = maxf(fc0 - 0.5 * ticks, 0.0)
+	var after: float = maxf(ticks - 2.0 * fc0, 0.0)
+	_door_correction = _door_correction_start * ((1.0 + fc) / (1.0 + fc0) * pow(0.5, after))
 
 
 func _sample_door_root_xz() -> Vector3:
@@ -1453,20 +1445,18 @@ func _group_open(group: String) -> bool:
 	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
 
 
-## `Player_actor_SetPlayerAngle_forUki`: one `add_calc_short_angle2(1−√½, 13.73°, 0.27°)`
-## a tick toward the bobber while the line is out.
+## `Player_actor_SetPlayerAngle_forUki`: `add_calc_short_angle2(1−√½, 13.73°, 0.27°)` a
+## tick toward the bobber while the line is out.
 func _face_bobber(delta: float) -> void:
 	if not Fishing.faces_bobber(self):
-		_uki_turn.reset()
 		return
 	var to_uki: Vector3 = Fishing.anchor() - global_position
-	_uki_turn.add(delta)
-	while _uki_turn.next():
-		if is_zero_approx(to_uki.x) and is_zero_approx(to_uki.z):
-			continue
-		_motor.facing = MLib.short_angle2(
-			_motor.facing, atan2(to_uki.x, to_uki.z), MLib.HALF_FRACTION, UKI_TURN_MAX, UKI_TURN_MIN
-		)
+	if is_zero_approx(to_uki.x) and is_zero_approx(to_uki.z):
+		return
+	_motor.facing = MLib.short_angle2(
+		_motor.facing, atan2(to_uki.x, to_uki.z), MLib.HALF_FRACTION, UKI_TURN_MAX, UKI_TURN_MIN,
+		delta * DecompTime.TICK_HZ
+	)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -2109,18 +2099,13 @@ func _play_show(beat: Fishing.ReelBeat) -> void:
 	## frame 42 whether or not the clip has finished — `GET_T2` is longer than that and plays
 	## on underneath the text.
 	var held: float = 0.0
-	var turn_steps := FrameStepper.new()
 	while held < beat.hold:
 		await get_tree().process_frame
 		var delta: float = get_process_delta_time()
 		held += delta
-		if not beat.face_camera:
-			continue
-		## `Player_actor_Movement_Notice_rod` turns once per mover frame, so the step is
-		## accumulated on a fixed tick rather than scaled by the frame we happen to get.
-		turn_steps.add(delta)
-		while turn_steps.next():
-			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW)
+		if beat.face_camera:
+			## `Player_actor_Movement_Notice_rod`.
+			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW, delta)
 	if beat.catch_msg == 0:
 		## Nothing to hold for, so the pose still has to outlast its own clip: dropping
 		## `_busy` early would let the idle animation cut it off mid-hold.
@@ -2160,15 +2145,14 @@ func _play_putaway(skeleton: Skeleton3D) -> void:
 ## `request_main_ready_net` from wait / walk / run, `request_main_slip_net` from a dash.
 func _begin_net() -> void:
 	var from_dash: bool = _motor.gait() == PlayerLocomotion.Gait.DASH
-	_net.begin(from_dash, _motor.speed_gx, _motor.facing)
-	_net_steps.reset()
+	_net.begin(from_dash, _motor.speed, _motor.facing)
 	if from_dash:
 		_net_events()
 	_play_net_clip()
 
 
-## One physics frame of the net states: whole ticks of `NetSwing`, then its speed and facing
-## handed back to the mover. Returns the planar velocity for `move_and_slide`.
+## One physics frame of the net states: a `NetSwing` step, then its speed and facing handed
+## back to the mover. Returns the planar velocity for `move_and_slide`.
 func _tick_net(delta: float, input_dir: Vector2, wish: Vector3, stick: float, menu_open: bool) -> Vector3:
 	## `kind != getkind`: the net left the hand (inventory swap, scene change) → back to wait.
 	var tool: ToolData = _equipped_tool()
@@ -2183,13 +2167,13 @@ func _tick_net(delta: float, input_dir: Vector2, wish: Vector3, stick: float, me
 	var has_dir: bool = not menu_open and stick > 0.0 and wish.length_squared() > 0.0001
 	var wish_yaw: float = atan2(wish.x, wish.z) if has_dir else _net.yaw
 	var axes: bool = has_dir and (scripted_input != null or _axes_active(input_dir))
-	_net_steps.add(delta)
-	while _net.is_active() and _net_steps.next():
+	if _net.is_active():
 		var probe: NetSwing.Probe = null
 		if _net.state == NetSwing.State.SWING:
 			probe = _net_probe()
 			_net_pos = probe.net_pos
 		_net.tick(
+			delta,
 			a_held,
 			stick if has_dir else 0.0,
 			wish_yaw,
@@ -2202,7 +2186,7 @@ func _tick_net(delta: float, input_dir: Vector2, wish: Vector3, stick: float, me
 		if _net.state_changed:
 			_play_net_clip()
 		_sync_net_clip()
-	_motor.speed_gx = _net.speed_gx
+	_motor.speed = _net.speed
 	_motor.facing = _net.yaw
 	if _net.state == NetSwing.State.PULL:
 		_run_net_catch()
@@ -2375,16 +2359,14 @@ func mail_jump(to: Vector3, yaw: float) -> void:
 	var from_yaw: float = _motor.facing
 	_motor.reset(from_yaw)
 	_play_body_once(ANIM_CONFIRM)
-	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 4.0)
-	var frame: int = 0
-	while frame < MAIL_JUMP_FRAMES and is_inside_tree():
-		await get_tree().physics_frame
-		steps.add(get_physics_process_delta_time())
-		while steps.next() and frame < MAIL_JUMP_FRAMES:
-			frame += 1
-		var k: float = float(frame) / float(MAIL_JUMP_FRAMES)
-		global_position = Vector3(lerpf(from.x, to.x, k), global_position.y, lerpf(from.z, to.z, k))
-		set_facing(lerp_angle(from_yaw, yaw, k))
+	var hop := create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+	hop.tween_method(
+		func(k: float) -> void:
+			global_position = Vector3(lerpf(from.x, to.x, k), global_position.y, lerpf(from.z, to.z, k))
+			set_facing(lerp_angle(from_yaw, yaw, k)),
+		0.0, 1.0, MAIL_JUMP_SEC
+	)
+	await hop.finished
 	_motor.reset(yaw)
 
 
@@ -2396,8 +2378,7 @@ func shrine_visit(to: Vector3, yaw: float, toss: bool, base_y: float) -> void:
 	var from: Vector3 = global_position
 	var from_yaw: float = _motor.facing
 	_motor.reset(from_yaw)
-	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 4.0)
-	var frame: float = 0.0
+	var elapsed: float = 0.0
 	if toss:
 		_play_body_once(ANIM_SAISEN)
 	else:
@@ -2406,16 +2387,14 @@ func shrine_visit(to: Vector3, yaw: float, toss: bool, base_y: float) -> void:
 	var thrown: bool = false
 	while is_inside_tree():
 		await get_tree().physics_frame
-		steps.add(get_physics_process_delta_time())
-		while steps.next():
-			frame += 1.0
-		var k: float = clampf(frame / SHRINE_STEP_FRAMES, 0.0, 1.0)
+		elapsed += get_physics_process_delta_time()
+		var k: float = clampf(elapsed / SHRINE_STEP_SEC, 0.0, 1.0)
 		global_position = Vector3(lerpf(from.x, to.x, k), global_position.y, lerpf(from.z, to.z, k))
 		set_facing(lerp_angle(from_yaw, yaw, k))
-		if toss and not rustled and frame >= 9.0:
+		if toss and not rustled and elapsed >= SHRINE_RUSTLE_SEC:
 			rustled = true
 			Audio.play_se(&"coin_gasagoso", self)
-		if toss and not thrown and frame >= 33.0:
+		if toss and not thrown and elapsed >= SHRINE_THROW_SEC:
 			thrown = true
 			var rng := RandomNumberGenerator.new()
 			rng.randomize()
@@ -2517,31 +2496,26 @@ static func _release_target_pos(target: Variant) -> Variant:
 func _net_pull(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay) -> void:
 	HeldTool.play(skeleton, Netting.TOOL_PULL, false)
 	_play_body_once(Netting.ANIM_PULL)
-	var frame: float = 1.0
-	var stopped: int = 0
-	var timer: float = 0.0
+	var elapsed: float = 0.0
 	var shown: bool = false
 	var reported: bool = false
-	var steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 	while true:
 		await get_tree().physics_frame
-		steps.add(get_physics_process_delta_time())
-		while steps.next():
-			if frame > Netting.PULL_TURN_FRAME:
-				_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Netting.SHOW_YAW)
-				_mesh.rotation.y = _motor.facing
-			if frame > Netting.PULL_TO_HAND_FRAME and not shown:
-				HeldCatch.bind_bug(skeleton, catch_.bug)
-				shown = true
-			stopped = _step_base2(frame, Netting.PULL_FRAMES, stopped)
-			frame = minf(frame + Netting.FRAME_SPEED, Netting.PULL_FRAMES)
-			timer = minf(timer + 1.0, Netting.PULL_REPORT_TICKS)
-			if timer >= Netting.PULL_REPORT_TICKS and not reported:
-				_net_say(ui, catch_.report_msg(), catch_.bug)
-				Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_CATCH))
-				reported = true
-			if stopped >= 2 and reported:
-				return
+		var delta: float = get_physics_process_delta_time()
+		var frame: float = _keyframe_at(elapsed)
+		if frame > Netting.PULL_TURN_FRAME:
+			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Netting.SHOW_YAW, delta)
+			_mesh.rotation.y = _motor.facing
+		if frame > Netting.PULL_TO_HAND_FRAME and not shown:
+			HeldCatch.bind_bug(skeleton, catch_.bug)
+			shown = true
+		elapsed += delta
+		if elapsed >= Netting.PULL_REPORT_SEC and not reported:
+			_net_say(ui, catch_.report_msg(), catch_.bug)
+			Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_CATCH))
+			reported = true
+		if _clip_ended(elapsed, Netting.PULL_FRAMES) and reported:
+			return
 
 
 ## `mPlayer_INDEX_DEMO_GET_GOLDEN_ITEM(2)`: the golden tool held up in the hand with
@@ -2549,7 +2523,7 @@ func _net_pull(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay)
 ## ("YESSSSS!!!!! I got the Golden Rod!", 0x306D–0x306F); then back to waiting with the
 ## equipped tool again. Tortimer's golden rod / net visit and the well spirit's axe end here.
 const GOLDEN_YATTA := &"ply_1_yatta1"
-const GOLDEN_REPORT_FRAMES := 42
+const GOLDEN_REPORT_SEC := 42.0 / DecompTime.FRAME_HZ
 const GOLDEN_WINDOW := Color8(185, 245, 80)
 const GOLDEN_MSG: Dictionary = {&"golden_net": 0x306D, &"golden_fishing_rod": 0x306E, &"golden_axe": 0x306F}
 ## `Player_actor_sound_Get_bgm_num_forDemoGetGoldenItem`: `BGM_ALL_INSECTS`, `BGM_ALL_FISH`,
@@ -2572,15 +2546,14 @@ func get_golden_item(item_id: StringName) -> void:
 	_play_body_once(GOLDEN_YATTA)
 	var jingle: StringName = BgmCatalog.id_for_num(int(GOLDEN_FANFARE.get(item_id, GOLDEN_FANFARE_OTHER)))
 	Audio.push_fanfare(jingle)
-	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 8.0)
-	var frames: int = 0
-	while frames < GOLDEN_REPORT_FRAMES and is_inside_tree():
+	var elapsed: float = 0.0
+	while elapsed < GOLDEN_REPORT_SEC and is_inside_tree():
 		await get_tree().physics_frame
-		steps.add(get_physics_process_delta_time())
-		while steps.next():
-			frames += 1
-			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Netting.SHOW_YAW)
-			_mesh.rotation.y = _motor.facing
+		var delta: float = get_physics_process_delta_time()
+		elapsed += delta
+		## The turn steps once per 30 fps frame here: half the rate of the tick-stepped turns.
+		_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Netting.SHOW_YAW, delta * 0.5)
+		_mesh.rotation.y = _motor.facing
 	var ui: DialogueOverlay = DialogueOverlay.find(get_tree()) if is_inside_tree() else null
 	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % int(GOLDEN_MSG.get(item_id, 0x3070))))
 	if ui != null and data != null:
@@ -2611,17 +2584,14 @@ func broken_axe() -> void:
 	_busy = true
 	HeldTool.unbind(HeldTool.find_skeleton(_mesh))
 	_play_body_once(AxeWear.ANIM_BREAK)
-	var steps := FrameStepper.new(DecompTime.FRAME_HZ, 8.0)
-	var frames: float = 0.0
+	var elapsed: float = 0.0
 	var waiting: bool = false
 	var thrown: bool = false
-	while frames < AxeWear.REPORT_DELAY_FRAMES and is_inside_tree():
+	while elapsed < AxeWear.REPORT_DELAY_FRAMES / DecompTime.FRAME_HZ and is_inside_tree():
 		await get_tree().physics_frame
-		steps.add(get_physics_process_delta_time())
-		while steps.next():
-			frames += 1.0
+		elapsed += get_physics_process_delta_time()
 		## `Player_actor_SetEffect_Broken_axe`: the halves fly at frame 15.
-		if not thrown and frames >= AxeWear.PIECES_FRAME:
+		if not thrown and elapsed >= AxeWear.PIECES_FRAME / DecompTime.FRAME_HZ:
 			thrown = true
 			var rng := RandomNumberGenerator.new()
 			rng.randomize()
@@ -2683,34 +2653,30 @@ func _net_putaway(skeleton: Skeleton3D) -> void:
 	HeldTool.play(skeleton, Netting.TOOL_PUTAWAY, false)
 	_play_body_once(Netting.ANIM_PUTAWAY)
 	PlayerSe.gasagoso(self)
-	var frame: float = 1.0
-	var stopped: int = 0
-	var scale: float = 1.0
-	var steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
-	while stopped < 2:
+	var elapsed: float = 0.0
+	## Shrinks until keyframe 17, then leaves the hand.
+	var shrink_sec: float = (Netting.PUTAWAY_GONE_FRAME - 1.0) / DecompTime.FRAME_HZ
+	while not _clip_ended(elapsed, Netting.PUTAWAY_FRAMES):
 		await get_tree().physics_frame
-		steps.add(get_physics_process_delta_time())
-		while stopped < 2 and steps.next():
-			if frame < Netting.PUTAWAY_GONE_FRAME:
-				scale *= Netting.PUTAWAY_SHRINK
-				var held: Node3D = HeldCatch.held_creature(skeleton)
-				if held != null:
-					held.scale = Vector3.ONE * scale
-			elif HeldCatch.is_held(skeleton):
-				HeldCatch.unbind(skeleton)
-			stopped = _step_base2(frame, Netting.PUTAWAY_FRAMES, stopped)
-			frame = minf(frame + Netting.FRAME_SPEED, Netting.PUTAWAY_FRAMES)
+		elapsed += get_physics_process_delta_time()
+		if elapsed < shrink_sec:
+			var held: Node3D = HeldCatch.held_creature(skeleton)
+			if held != null:
+				held.scale = Vector3.ONE * pow(Netting.PUTAWAY_SHRINK, elapsed * DecompTime.TICK_HZ)
+		elif HeldCatch.is_held(skeleton):
+			HeldCatch.unbind(skeleton)
 	HeldCatch.unbind(skeleton)
 
 
-## `CulcAnimation_Base2` end detection for a stop-mode clip at 0.5 keyframes a tick: 1 on
-## the tick the clip reaches `end_frame`, 2 (ended) on the tick after.
-func _step_base2(frame: float, end_frame: float, stopped: int) -> int:
-	if stopped > 0:
-		return 2
-	if frame + Netting.FRAME_SPEED >= end_frame:
-		return 1
-	return 0
+## The keyframe (1-based, 30 a second) a clip started `elapsed` seconds ago is showing.
+static func _keyframe_at(elapsed: float) -> float:
+	return 1.0 + elapsed * DecompTime.FRAME_HZ
+
+
+## `CulcAnimation_Base2` end detection for a stop-mode clip: it reports the end one tick
+## after the clip reaches `end_frame`.
+static func _clip_ended(elapsed: float, end_frame: float) -> bool:
+	return elapsed >= (end_frame - 1.0) / DecompTime.FRAME_HZ + DecompTime.TICK_SEC - 0.0001
 
 
 func _play_body_once(clip_name: StringName) -> void:
@@ -2936,7 +2902,6 @@ func run_stung_mosquito() -> void:
 		await get_tree().process_frame
 	_start_one_shot(ANIM_MOSQUITO2)
 	var turning := true
-	var steps := FrameStepper.new()
 	var ui := DialogueOverlay.find(get_tree())
 	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % MOSQUITO_NOTICE_MSG))
 	var prior_bgm: StringName = EventManager.demo_bgm
@@ -2951,10 +2916,10 @@ func run_stung_mosquito() -> void:
 		while ui.is_open():
 			await get_tree().process_frame
 			if turning:
-				steps.add(get_process_delta_time())
-				while steps.next():
-					_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW)
-					_mesh.rotation.y = _motor.facing
+				_motor.facing = PlayerLocomotion.ease_turn(
+					_motor.facing, Fishing.SHOW_YAW, get_process_delta_time()
+				)
+				_mesh.rotation.y = _motor.facing
 	else:
 		Game.post_notice("You got bitten by a mosquito!")
 	EventManager.demo_bgm = prior_bgm if prior_bgm != &"bee_stung" else &""
@@ -2967,19 +2932,18 @@ func run_stung_mosquito() -> void:
 	stung = false
 
 
-## `m_player_main_wait`: the C-stick is logged every tick while standing (the right stick,
-## or I / J / K / L), and a finished pattern starts that exercise.
+## `m_player_main_wait`: the C-stick is logged while standing (the right stick, or I / J /
+## K / L), and a finished pattern starts that exercise.
 func _poll_radio_exercise(delta: float) -> void:
 	if exercising:
 		return
-	_radio_steps.add(delta)
 	var standing: bool = _motor.gait() == PlayerLocomotion.Gait.WAIT
-	while _radio_steps.next():
-		_radio.log_command(RadioExercise.direction(_c_stick()) if standing and _radio_able() else -1)
-		var start: int = _radio.step(standing)
-		if start >= 0:
-			run_radio_exercise(start)
-			return
+	_radio.log_command(
+		RadioExercise.direction(_c_stick()) if standing and _radio_able() else -1, delta
+	)
+	var start: int = _radio.step(standing, delta)
+	if start >= 0:
+		run_radio_exercise(start)
 
 
 ## `Player_actor_Check_AbleRadioExercise`: empty hands, and either the aerobics event on the
@@ -3027,15 +2991,14 @@ func run_radio_exercise(cmd: int) -> void:
 		## cKF frames per tick → clip rate (the bake runs at 30 fps = 0.5 per tick).
 		_anim.speed_scale = RadioExercise.SPEED[cmd] / 0.5
 		var length: float = _clip_length(clip)
-		var steps := FrameStepper.new()
 		while _clip_running(clip):
 			await get_tree().process_frame
-			steps.add(get_process_delta_time())
+			var delta: float = get_process_delta_time()
 			var left_frames: float = (length - _anim.current_animation_position) * DecompTime.FRAME_HZ
-			while steps.next():
-				_radio.log_command(RadioExercise.direction(_c_stick()) if _radio_able() else -1)
-				if left_frames <= 24.0:
-					_radio.step(false)
+			_radio.log_command(RadioExercise.direction(_c_stick()) if _radio_able() else -1, delta)
+			## The next exercise can be queued in the last 24 keyframes.
+			if left_frames <= 24.0:
+				_radio.step(false, delta)
 		cmd = _radio.pending if _radio.pending >= 0 and _radio.pending_timer <= 0.0 else -1
 	_anim.speed_scale = 1.0
 	set_cutscene_driven(false)
@@ -3116,26 +3079,22 @@ func _struggle() -> void:
 	var target: float = STRUGGLE_SPEED_MIN
 	var speed: float = STRUGGLE_SPEED_MIN
 	var old_stick := Vector2.ZERO
-	var steps := FrameStepper.new()
-	var pressed := false
 	while presses < STRUGGLE_PRESSES:
 		await get_tree().process_frame
-		if Input.is_action_just_pressed("interact") and not _menu_open():
-			pressed = true
-		steps.add(get_process_delta_time())
-		while steps.next() and presses < STRUGGLE_PRESSES:
-			var stick: Vector2 = _read_stick() if scripted_input == null else scripted_input.move
-			var add: float = 1.0 if pressed else 0.0
-			pressed = false
-			add += absf(old_stick.length() - stick.length()) * 0.5
-			if old_stick.length() > 0.0 and stick.length() > 0.0:
-				## `s16` move-angle change × 0.00002.
-				add += absf(wrapf(stick.angle() - old_stick.angle(), -PI, PI)) * 65536.0 / TAU * 0.00002
-			add += struggle_assist
-			old_stick = stick
-			presses += add
-			target = clampf(target + add * 0.25 - STRUGGLE_SPEED_DECAY, STRUGGLE_SPEED_MIN, 1.0)
-			speed += (target - speed) * STRUGGLE_SPEED_EASE
+		var ticks: float = get_process_delta_time() * DecompTime.TICK_HZ
+		var stick: Vector2 = _read_stick() if scripted_input == null else scripted_input.move
+		var add: float = 1.0 if Input.is_action_just_pressed("interact") and not _menu_open() else 0.0
+		add += absf(old_stick.length() - stick.length()) * 0.5
+		if old_stick.length() > 0.0 and stick.length() > 0.0:
+			## `s16` move-angle change × 0.00002.
+			add += absf(wrapf(stick.angle() - old_stick.angle(), -PI, PI)) * 65536.0 / TAU * 0.00002
+		add += struggle_assist * ticks
+		old_stick = stick
+		presses += add
+		## Presses raise the target clip speed; it sags `STRUGGLE_SPEED_DECAY` a tick, and the
+		## speed eases `STRUGGLE_SPEED_EASE` of the way to it a tick.
+		target = clampf(target + add * 0.25 - STRUGGLE_SPEED_DECAY * ticks, STRUGGLE_SPEED_MIN, 1.0)
+		speed = lerpf(speed, target, 1.0 - pow(1.0 - STRUGGLE_SPEED_EASE, ticks))
 		if _anim != null:
 			_anim.speed_scale = speed
 	if _anim != null:
@@ -3196,16 +3155,15 @@ func run_stung_bee() -> void:
 	## `mBGMPsComp_make_ps_quiet` (and the chase music goes with it).
 	EventManager.demo_bgm = &"_quiet"
 	Audio.stop_bgm()
-	var ticks: float = 0.0
+	var elapsed: float = 0.0
 	var swelled := false
 	var clip: String = _start_one_shot(ANIM_HATI1)
 	var on_hati2: bool = clip.is_empty()
 	var hati2_t: float = 0.0
-	var turn_steps := FrameStepper.new()
-	while ticks <= STUNG_NOTICE_TICKS:
+	while elapsed <= STUNG_NOTICE_SEC:
 		await get_tree().process_frame
 		var delta: float = get_process_delta_time()
-		ticks += delta * DecompTime.TICK_HZ
+		elapsed += delta
 		if not on_hati2 and (_anim == null or not _anim.is_playing() or _anim.current_animation != clip):
 			on_hati2 = true
 			_start_one_shot(ANIM_HATI2)
@@ -3214,11 +3172,9 @@ func run_stung_bee() -> void:
 		if on_hati2 and not swelled and hati2_t >= STUNG_SWELL_FRAME / DecompTime.FRAME_HZ:
 			swelled = true
 			Game.sting_by_bee()
-		if ticks > STUNG_TURN_TICKS:
-			turn_steps.add(delta)
-			while turn_steps.next():
-				_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW + PI)
-				_mesh.rotation.y = _motor.facing
+		if elapsed > STUNG_TURN_SEC:
+			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW + PI, delta)
+			_mesh.rotation.y = _motor.facing
 	if not swelled:
 		Game.sting_by_bee()
 	await _notice_bee()
@@ -3348,10 +3304,9 @@ func _apply_face() -> void:
 	)
 
 
-## `Player_actor_Check_player_sunburn_for_main`, every tick out in town.
+## `Player_actor_Check_player_sunburn_for_main`, out in town.
 func _tick_sunburn(delta: float) -> void:
-	var ticks: int = _sun_steps.take(delta)
-	if ticks <= 0 or Game == null or Game.title_demo_active or not TownSpace.is_outdoor_town():
+	if delta <= 0.0 or Game == null or Game.title_demo_active or not TownSpace.is_outdoor_town():
 		return
 	var today: int = Clock.day_number()
 	Sunburn.change_day(Game.sunburn, today)
@@ -3360,8 +3315,7 @@ func _tick_sunburn(delta: float) -> void:
 	var exposed: bool = (
 		not Game.intro_station_active and Game.weather == &"clear" and _umbrella == null
 	)
-	for _i: int in ticks:
-		Sunburn.sun_tick(Game.sunburn, exposed, Clock.month, Clock.day, Clock.hour)
+	Sunburn.sun_tick(Game.sunburn, exposed, Clock.month, Clock.day, Clock.hour, delta)
 
 
 func _on_cloth_changed(_cloth_id: StringName) -> void:
@@ -3537,11 +3491,10 @@ var _pin_last: Vector3 = Vector3.INF
 var _pin_speed: float = 0.0
 
 
-## `Player_actor_Item_Movement_balloon_normal`, a frame at a time, then the sway is put on
-## the model hanging off the hand.
+## `Player_actor_Item_Movement_balloon_normal`, then the sway is put on the model hanging
+## off the hand.
 var _balloon: HeldBalloon = null
 var _balloon_hand: Vector3 = Vector3.INF
-var _balloon_steps := FrameStepper.new(DecompTime.FRAME_HZ, 8.0)
 
 
 func _tick_balloon(delta: float) -> void:
@@ -3554,16 +3507,13 @@ func _tick_balloon(delta: float) -> void:
 	var hand: Vector3 = attach.global_position
 	if _balloon_hand == Vector3.INF:
 		_balloon_hand = hand
-	_balloon_steps.add(delta)
-	var frames: int = 0
-	while _balloon_steps.next():
-		frames += 1
-	if frames > 0:
-		var moved: Vector3 = (hand - _balloon_hand) / FieldCatalog.GX_TO_METERS / float(frames)
+	if delta > 0.0:
+		## The hand's speed, GX a 30 fps frame.
+		var frames: float = delta * DecompTime.FRAME_HZ
+		var moved: Vector3 = (hand - _balloon_hand) / FieldCatalog.GX_TO_METERS / frames
 		var walking: bool = _motor.gait() == PlayerLocomotion.Gait.WALK or _motor.gait() == PlayerLocomotion.Gait.RUN
 		var speed_gx: float = Vector2(velocity.x, velocity.z).length() / FieldCatalog.GX_TO_METERS / DecompTime.FRAME_HZ
-		for _i: int in frames:
-			_balloon.step(moved, _motor.facing, walking, speed_gx)
+		_balloon.step(delta, moved, _motor.facing, walking, speed_gx)
 		_balloon_hand = hand
 	_balloon.apply(_motor.facing)
 

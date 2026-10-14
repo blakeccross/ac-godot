@@ -1,14 +1,22 @@
 class_name TestPlayerLocomotion
 extends GdUnitTestSuite
 
-## One decomp frame is 1/60 s; `tick` steps whole frames.
-const FRAME := DecompTime.TICK_SEC
-const GX := DecompTime.FRAME_HZ * PlayerLocomotion.UNIT_METERS
+## A physics step at 60 Hz.
+const FRAME := 1.0 / 60.0
 
 
 func _frames(motor: PlayerLocomotion, n: int, wish: Vector3, stick: float, dash := false) -> void:
-	for _i: int in n:
-		motor.tick(FRAME, wish, stick, dash, false)
+	_run(motor, n * FRAME, FRAME, wish, stick, dash)
+
+
+func _run(
+	motor: PlayerLocomotion, seconds: float, step: float, wish: Vector3, stick: float, dash := false
+) -> void:
+	var left: float = seconds
+	while left > 0.00001:
+		var dt: float = minf(step, left)
+		motor.tick(dt, wish, stick, dash, false)
+		left -= dt
 
 
 func test_stick_percent_is_raw_radius_above_dead_zone() -> void:
@@ -18,40 +26,59 @@ func test_stick_percent_is_raw_radius_above_dead_zone() -> void:
 	assert_float(PlayerLocomotion.stick_percent(1.4)).is_equal(1.0)
 
 
-func test_wait_then_walk_then_one_accel_step() -> void:
-	## Frame 1: WAIT sees the stick and requests WALK. Frame 2: walk accelerates 0.609.
+func test_wait_then_walk_then_accelerates() -> void:
+	## WAIT sees the stick and starts WALK; from then the walk speeds up at ACCEL m/s².
 	var motor := PlayerLocomotion.new()
 	_frames(motor, 1, Vector3.BACK, 1.0)
 	assert_that(motor.gait()).is_equal(PlayerLocomotion.Gait.WALK)
-	assert_float(motor.speed_gx).is_equal(0.0)
-	_frames(motor, 1, Vector3.BACK, 1.0)
-	assert_float(motor.speed_gx).is_equal_approx(PlayerLocomotion.ORIG_ACCEL, 0.0001)
+	assert_float(motor.speed).is_equal(0.0)
+	_run(motor, 0.1, FRAME, Vector3.BACK, 1.0)
+	assert_float(motor.speed).is_equal_approx(PlayerLocomotion.ACCEL * 0.1, 0.01)
 
 
 func test_full_stick_walk_settles_in_run_not_dash() -> void:
 	var motor := PlayerLocomotion.new()
-	_frames(motor, 60, Vector3.BACK, 1.0)
-	assert_float(motor.speed_gx).is_equal_approx(PlayerLocomotion.ORIG_WALK, 0.0001)
+	_run(motor, 1.0, FRAME, Vector3.BACK, 1.0)
+	assert_float(motor.speed).is_equal_approx(PlayerLocomotion.WALK_SPEED, 0.0001)
 	assert_that(motor.gait()).is_equal(PlayerLocomotion.Gait.RUN)
 
 
 func test_dash_button_reaches_dash() -> void:
 	var motor := PlayerLocomotion.new()
-	_frames(motor, 60, Vector3.BACK, 1.0, true)
-	assert_float(motor.speed_gx).is_equal_approx(PlayerLocomotion.ORIG_RUN, 0.0001)
+	_run(motor, 1.0, FRAME, Vector3.BACK, 1.0, true)
+	assert_float(motor.speed).is_equal_approx(PlayerLocomotion.RUN_SPEED, 0.0001)
 	assert_that(motor.gait()).is_equal(PlayerLocomotion.Gait.DASH)
 
 
 func test_release_brakes_in_walk_and_waits_only_at_zero() -> void:
 	var motor := PlayerLocomotion.new()
-	_frames(motor, 60, Vector3.BACK, 1.0)
-	var start: float = motor.speed_gx
-	_frames(motor, 1, Vector3.ZERO, 0.0)
-	assert_float(motor.speed_gx).is_equal_approx(start - PlayerLocomotion.ORIG_DECEL, 0.0001)
+	_run(motor, 1.0, FRAME, Vector3.BACK, 1.0)
+	var start: float = motor.speed
+	_run(motor, 0.1, FRAME, Vector3.ZERO, 0.0)
+	assert_float(motor.speed).is_equal_approx(start - PlayerLocomotion.DECEL * 0.1, 0.01)
 	assert_that(motor.gait()).is_not_equal(PlayerLocomotion.Gait.WAIT)
-	_frames(motor, 40, Vector3.ZERO, 0.0)
-	assert_float(motor.speed_gx).is_equal(0.0)
+	_run(motor, 1.0, FRAME, Vector3.ZERO, 0.0)
+	assert_float(motor.speed).is_equal(0.0)
 	assert_that(motor.gait()).is_equal(PlayerLocomotion.Gait.WAIT)
+
+
+func test_walk_and_stop_agree_at_60_and_15_hz() -> void:
+	## A start, cruise and stop land within a centimetre whatever the step; a sharp turn,
+	## which one 15 Hz step covers in full, within a few.
+	var fine := PlayerLocomotion.new()
+	var coarse := PlayerLocomotion.new()
+	for m: PlayerLocomotion in [fine, coarse]:
+		var step: float = FRAME if m == fine else 1.0 / 15.0
+		_run(m, 1.0, step, Vector3.BACK, 1.0)
+		_run(m, 1.0, step, Vector3.ZERO, 0.0)
+	assert_that(coarse.gait()).is_equal(PlayerLocomotion.Gait.WAIT)
+	assert_float(fine.position.distance_to(coarse.position)).is_less(0.01)
+	for m: PlayerLocomotion in [fine, coarse]:
+		var step: float = FRAME if m == fine else 1.0 / 15.0
+		_run(m, 1.0, step, Vector3.RIGHT, 1.0)
+		_run(m, 1.0, step, Vector3.BACK, 1.0)
+	assert_float(fine.position.distance_to(coarse.position)).is_less(0.08)
+	assert_float(absf(angle_difference(fine.facing, coarse.facing))).is_less(0.01)
 
 
 func test_run_drops_to_walk_below_gauge() -> void:
@@ -75,7 +102,7 @@ func test_clip_rate_formula_and_floor() -> void:
 
 func test_dash_lean_reaches_twenty_degrees() -> void:
 	var motor := PlayerLocomotion.new()
-	_frames(motor, 120, Vector3.BACK, 1.0, true)
+	_run(motor, 2.0, FRAME, Vector3.BACK, 1.0, true)
 	assert_float(motor.lean).is_equal_approx(deg_to_rad(20.0), 0.01)
 
 
@@ -105,16 +132,16 @@ func test_uphill_divides_target_speed() -> void:
 	var motor := PlayerLocomotion.new()
 	## Ground rising 0.5 m per metre along +Z (the stick direction).
 	motor.ground_sampler = func(p: Vector3) -> float: return p.z * 0.5
-	_frames(motor, 80, Vector3.BACK, 1.0)
-	assert_float(motor.speed_gx).is_equal_approx(PlayerLocomotion.ORIG_WALK / 1.25, 0.001)
+	_run(motor, 1.5, FRAME, Vector3.BACK, 1.0)
+	assert_float(motor.speed).is_equal_approx(PlayerLocomotion.WALK_SPEED / 1.25, 0.001)
 
 
 func test_locked_action_brakes() -> void:
 	var motor := PlayerLocomotion.new()
 	_frames(motor, 60, Vector3.BACK, 1.0)
-	var before: float = motor.speed_gx
+	var before: float = motor.speed
 	motor.tick(FRAME, Vector3.BACK, 1.0, true, true)
-	assert_float(motor.speed_gx).is_less(before)
+	assert_float(motor.speed).is_less(before)
 
 
 func test_full_stick_turn_mod() -> void:
@@ -148,10 +175,10 @@ func test_bad_luck_dash_trips_then_gets_up() -> void:
 	_frames(motor, 1, Vector3.BACK, 1.0, true)
 	assert_that(motor.gait()).is_equal(PlayerLocomotion.Gait.TUMBLE)
 	motor.tumble_roll = Callable()
-	## Brakes 0.175 / frame regardless of the stick; waits for the clip to end.
-	var before: float = motor.speed_gx
-	_frames(motor, 1, Vector3.BACK, 1.0, true)
-	assert_float(motor.speed_gx).is_equal_approx(before - PlayerLocomotion.ORIG_TUMBLE_BRAKE, 0.0001)
+	## Brakes at TUMBLE_BRAKE regardless of the stick; waits for the clip to end.
+	var before: float = motor.speed
+	_run(motor, 0.1, FRAME, Vector3.BACK, 1.0, true)
+	assert_float(motor.speed).is_equal_approx(before - PlayerLocomotion.TUMBLE_BRAKE * 0.1, 0.01)
 	_frames(motor, 60, Vector3.BACK, 1.0, true)
 	assert_that(motor.gait()).is_equal(PlayerLocomotion.Gait.TUMBLE)
 	motor.clip_done = true
@@ -172,3 +199,17 @@ func test_no_trip_without_bad_luck_or_on_slopes() -> void:
 	motor.flat_sampler = func(_p: Vector3) -> bool: return false
 	_frames(motor, 5, Vector3.BACK, 1.0, true)
 	assert_that(motor.gait()).is_equal(PlayerLocomotion.Gait.DASH)
+
+
+func test_bad_luck_dash_trips_about_once_in_ten_seconds() -> void:
+	## 1 in 600 a tick is a trip every ten seconds of flat-out dashing on average.
+	var trips := 0
+	for i: int in 200:
+		var motor := PlayerLocomotion.new()
+		_run(motor, 1.0, FRAME, Vector3.BACK, 1.0, true)
+		motor.bad_luck = true
+		_run(motor, 1.0, 0.05, Vector3.BACK, 1.0, true)
+		if motor.gait() == PlayerLocomotion.Gait.TUMBLE:
+			trips += 1
+	## Expect about 200 × (1 − e^−0.1) ≈ 19.
+	assert_int(trips).is_between(6, 40)
