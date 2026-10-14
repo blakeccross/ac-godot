@@ -11,7 +11,7 @@ const BLANCA_SCENE := preload("res://scenes/world/events/blanca.tscn")
 var grid: WorldGrid = WorldGrid.new()
 var layout: WorldData
 ## Live fish shadows for this field. Owned here like `grid`, read by `Fishing` through
-## `InteractionContext.world` and ticked by the `FishShadows` effects node.
+## `InteractionContext.world` and ticked by the `FishSpawner` effects node.
 var fish: FishSchool = FishSchool.new()
 ## Live insects for this field. Ticked by `BugSpawner`, which keeps a `Bug` scene for each.
 var bugs: BugField = BugField.new()

@@ -83,7 +83,7 @@ The dwell tables are authored in 30 Hz frames and every site that loads one into
 
 ## Behavior
 
-`Fishing` (session: the bobber's clock and the reel), `FishCatalog` (`data/creatures/*.tres`) and `FishSpawnScheduler` (see Spawning), `FishSize` (the per-size tables above), `FishShadow` (the action machine), `FishSchool` (two shadows, per-tick stepping, puffs, spawn and cull), `WaterBodies` (flood-filled water), `scenes/world/bobber.tscn` and `scenes/world/fish_shadows.gd` + `shaders/fish_shadow.gdshader`.
+`Fishing` (session: the bobber's clock and the reel), `FishCatalog` (`data/creatures/*.tres`) and `FishSpawnScheduler` (see Spawning), `FishSize` (the per-size tables above), `FishShadow` (the action machine), `FishSchool` (two shadows, per-tick stepping, puffs, spawn and cull), `WaterBodies` (flood-filled water), `scenes/world/bobber.tscn` and `FishSpawner` + `scenes/world/fish/fish.tscn` (`shaders/fish_shadow.gdshader`).
 
 All forty species are on the shelf, one `.tres` each, transcribed rather than invented. `gyoei_type[]` gives size, `search_area` and `bite_time` per type. `ac_gyoei_model.c_inc`'s `aGYO_displayList` pairs an `aGYO_TYPE_*` index with its `act_fNN_<romaji>` art — the only mapping between the two naming schemes. Availability comes from `ac_set_ovl_gyoei.c`, a four-level table: `r_month` / `s_month` / `p_month` (river, sea, pond) → month → month-half → one of four time-of-day slots → a list of `FISH_SPAWN(type, area, weight)`.
 
@@ -107,7 +107,7 @@ The catch report uses the game's own words: `Player_actor_Get_sakana_msg_num` ma
 
 ## Behaviour audit: shadows, bobber, rod (`ac_gyo_test.c`, `ac_uki_move.c_inc`, `m_player_main_*_rod`)
 
-The decomp runs everything below on the 60 Hz mover tick; tick counts are quoted as written. In Godot `fish_shadows.gd` steps by `delta`: each physics frame it builds the sense, ticks `FishSchool` (every shadow in turn, like `aGYO_actor_move`'s controller loop) and then `Fishing`.
+The decomp runs everything below on the 60 Hz mover tick; tick counts are quoted as written. In Godot `FishSpawner` steps by `delta`: each physics frame it builds the sense, ticks `FishSchool` (every shadow in turn, like `aGYO_actor_move`'s controller loop) and then `Fishing`.
 
 **Shadow movement.**
 

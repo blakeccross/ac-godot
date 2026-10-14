@@ -2051,8 +2051,8 @@ func _chase_position() -> Vector3:
 
 func _fish_pairs() -> Array:
 	var out: Array = []
-	var host: Node = get_tree().get_first_node_in_group("fish_shadows") if get_tree() != null else null
-	var school: FishSchool = host.call("school") as FishSchool if host != null else null
+	var spawner: FishSpawner = FishSpawner.find(get_tree())
+	var school: FishSchool = spawner.school() if spawner != null else null
 	if school == null:
 		return out
 	for shadow: FishShadow in school.shadows:
