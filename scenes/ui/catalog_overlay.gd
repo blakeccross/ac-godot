@@ -44,8 +44,13 @@ const ROOM_SAMPLE_SCALE := 0.54
 static var _room_mesh_cache: Dictionary = {}
 ## The preview ring (`clg_mwin2_model`'s `inv_mwin_3Dma_tex`): x -116..-48, y -28..40.
 const RING_RECT := Rect2(-116.0, 40.0, 68.0, 68.0)
-## `mCL_item_move`: 1.25 degrees a frame.
-const TURN_DEG := 1.25
+## `mCL_item_move`: 1.25 degrees a tick.
+const TURN_DEG_PER_SEC := 1.25 * DecompTime.TICK_HZ
+## A tab flip takes 40 ticks; the pages swap order halfway.
+const FLIP_SEC := 40.0 / DecompTime.TICK_HZ
+## The arrows' alpha rises over 17 ticks and falls over 18.
+const PULSE_SEC := 35.0 / DecompTime.TICK_HZ
+const PULSE_RISE_SEC := 17.0 / DecompTime.TICK_HZ
 ## `m_submenu_ovl.c` `texture_pos` step, in pattern texels a frame.
 const SCROLL_TEXELS := 0.3535
 const TAGS := ["Order", "Quit"]
@@ -61,20 +66,22 @@ var _order: Array[int] = []
 var _page_no: int = 0
 var _top: Array[int] = []
 var _row: Array[int] = []
-var _page_timer: int = 0
+## Seconds left on a tab flip; 0 when no page is turning.
+var _flip_left: float = 0.0
 ## `menu_info->position[1]` during a flip.
 var _flip: float = 0.0
 var _hand: int = Hand.LIST
 var _tab_row: int = 0
 var _tag_open: bool = false
 var _tag_index: int = 0
-var _counter: int = 0
+## Seconds into the arrows' pulse.
+var _pulse: float = 0.0
 var _alpha: float = 0.0
-var _accum: float = 0.0
 var _item: StringName = &""
 var _prev_item: StringName = &""
 var _turn: float = 0.0
-var _music_timer: int = 60
+## Seconds the music note has been bobbing for this item.
+var _music_time: float = 0.0
 var _font: Font = null
 var _tex: Dictionary = {}
 var _layer_scale: float = 3.0
@@ -178,13 +185,12 @@ func open(book: CatalogBook = null) -> void:
 		_top.append(0)
 		_row.append(0)
 	_page_no = 0
-	_page_timer = 0
+	_flip_left = 0.0
 	_flip = 0.0
 	_hand = Hand.LIST
 	_tab_row = 0
 	_tag_open = false
-	_counter = 0
-	_accum = 0.0
+	_pulse = 0.0
 	_prev_item = &""
 	_set_item()
 	_open = true
@@ -234,7 +240,7 @@ func show_page(page: int) -> void:
 	_page_no = page
 	_order.erase(page)
 	_order.push_front(page)
-	_page_timer = 0
+	_flip_left = 0.0
 	_flip = 0.0
 	_set_item(page)
 	_refresh()
@@ -252,7 +258,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var k := event as InputEventKey
 	get_viewport().set_input_as_handled()
-	if _page_timer > 0 or _slide.is_moving():
+	if _flipping() or _slide.is_moving():
 		return
 	if _tag_open:
 		_tag_input(k)
@@ -380,9 +386,9 @@ func _jump(delta: int) -> void:
 func _decide() -> void:
 	if _hand == Hand.TABS:
 		## `mTG_select_tag_decide_catalog_wchange`.
-		if _tab_row != front_page() and _page_timer == 0:
+		if _tab_row != front_page() and not _flipping():
 			_page_no = _tab_row
-			_page_timer = 40
+			_flip_left = FLIP_SEC
 			_top[_page_no] = 0
 			_row[_page_no] = 0
 			_prev_item = _item
@@ -401,36 +407,39 @@ func _decide() -> void:
 
 
 func _process(delta: float) -> void:
-	_accum += delta * DecompTime.TICK_HZ
-	var steps: int = 0
-	while _accum >= 1.0 and steps < 8:
-		_accum -= 1.0
-		steps += 1
-		_tick()
-	if steps > 0:
-		_refresh()
+	_animate(delta)
+	_refresh()
 
 
 ## `mCL_move_Play` + `mCL_catalog_ovl_move`.
-func _tick() -> void:
-	_counter = (_counter + 1) % 35
-	_alpha = (float(_counter) / 17.0) if _counter < 17 else (float(35 - _counter) / 18.0)
-	if _page_timer > 0:
-		_page_timer -= 1
-		_flip = 100.0 * sin(float(_page_timer) * 0.078539819)
-		if _page_timer == 20:
+func _animate(delta: float) -> void:
+	_pulse = fmod(_pulse + delta, PULSE_SEC)
+	_alpha = (
+		_pulse / PULSE_RISE_SEC if _pulse < PULSE_RISE_SEC
+		else (PULSE_SEC - _pulse) / (PULSE_SEC - PULSE_RISE_SEC)
+	)
+	if _flipping():
+		var before: float = _flip_left
+		_flip_left = maxf(_flip_left - delta, 0.0)
+		## A sine over the 40 ticks: π/40 a tick.
+		_flip = 100.0 * sin(_flip_left * DecompTime.TICK_HZ * 0.078539819)
+		if before > 0.5 * FLIP_SEC and _flip_left <= 0.5 * FLIP_SEC:
 			_order.erase(_page_no)
 			_order.push_front(_page_no)
-		elif _page_timer == 0:
+		if _flip_left <= 0.0:
 			_flip = 0.0
 			_prev_item = &""
 			_point_hand(true)
-	if _open and not _hand_node.visible and _page_timer == 0 and not _slide.is_moving():
+	if _open and not _hand_node.visible and not _flipping() and not _slide.is_moving():
 		_point_hand(false)
-	_turn = fmod(_turn + TURN_DEG, 360.0)
-	_music_timer -= 1
+	_turn = fmod(_turn + TURN_DEG_PER_SEC * delta, 360.0)
+	_music_time += delta
 	if _pivot != null:
 		_pivot.rotation_degrees.y = _turn
+
+
+func _flipping() -> bool:
+	return _flip_left > 0.0
 
 
 # --- Drawing ----------------------------------------------------------------------------
@@ -444,7 +453,7 @@ func _u(v: Vector2) -> Vector2:
 ## Which page each layer shows: the front node the front page, the back node the page
 ## being turned under or over it.
 func _back_page() -> int:
-	if _page_timer == 0:
+	if not _flipping():
 		return -1
 	return _order[1] if _order[0] == _page_no else _page_no
 
@@ -497,7 +506,7 @@ func _draw_page(canvas: Control, is_front: bool) -> void:
 	for i: int in ROWS:
 		_layer(canvas, "clg_slot%d_%s" % [i, "on" if i == _row[page] else "off"], rect)
 	## The item shown: the new one on the page being turned to, the old one on the other.
-	var item: StringName = _item if (page == _page_no or _page_timer == 0) else _prev_item
+	var item: StringName = _item if (page == _page_no or not _flipping()) else _prev_item
 	if ids.is_empty():
 		item = &""
 	var price: int = CatalogPages.price_of(item) if item != &"" else 0
@@ -564,8 +573,9 @@ func _draw_item(canvas: Control, item: StringName, origin: Vector2, is_front: bo
 		var music: Texture2D = _tex.get("clg_music")
 		if music == null:
 			return
-		## `mCL_item_move`: the note bobs and sways; `mCL_music_draw` rocks it.
-		var t: float = float(_music_timer)
+		## `mCL_item_move`: the note bobs and sways; `mCL_music_draw` rocks it. Its counter
+		## starts at 60 and drops one a tick.
+		var t: float = 60.0 - _music_time * DecompTime.TICK_HZ
 		var c := base + Vector2(sin(deg_to_rad(t * 3.0)) * 6.0, -90.0 + sin(deg_to_rad(t * 6.0)) * 6.0)
 		var sz := Vector2(80.0, 80.0) * 0.55
 		canvas.draw_set_transform(_u(c), deg_to_rad(cos(t * 0x222 * TAU / 65536.0) * 22.5), Vector2.ONE)
@@ -678,7 +688,7 @@ func _set_item(page: int = -1) -> void:
 	var i: int = _top[page] + _row[page]
 	_item = ids[i] as StringName if i >= 0 and i < ids.size() else &""
 	_turn = 0.0
-	_music_timer = 60
+	_music_time = 0.0
 	_cache_style(_item)
 	_build_preview(_item)
 
@@ -732,7 +742,7 @@ func _update_preview(front: int) -> void:
 	_preview.position = _u(Vector2(RING_RECT.position.x, RING_RECT.position.y + y))
 	_preview.size = RING_RECT.size
 	## The preview belongs to the page being turned to; hide it while the old page is on top.
-	_preview.visible = _preview.visible and _pivot.get_child_count() > 0 and (_page_timer == 0 or front == _page_no)
+	_preview.visible = _preview.visible and _pivot.get_child_count() > 0 and (not _flipping() or front == _page_no)
 
 
 # --- Hand and tag ------------------------------------------------------------------------
@@ -747,7 +757,7 @@ func _hand_tip() -> Vector2:
 func _point_hand(animate: bool) -> void:
 	if not _open:
 		return
-	_hand_node.visible = _page_timer == 0 and not _slide.is_moving()
+	_hand_node.visible = not _flipping() and not _slide.is_moving()
 	_hand_node.point_at(_screen.position + _hand_tip() * _screen.scale, animate)
 
 
@@ -757,7 +767,7 @@ func _update_tag() -> void:
 	var lines: Array = []
 	if _tag_open:
 		lines = TAGS
-	elif _hand == Hand.TABS and _page_timer == 0:
+	elif _hand == Hand.TABS and not _flipping():
 		lines = [CatalogPages.PAGE_NAMES[_tab_row]]
 	_tag.visible = not lines.is_empty()
 	if lines.is_empty():

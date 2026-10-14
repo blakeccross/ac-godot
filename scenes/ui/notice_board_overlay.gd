@@ -18,9 +18,11 @@ signal closed(posted: bool)
 const TEX_DIR := "res://assets/generated/ui/menu/%s.png"
 const PAGE_W := 320.0
 const MAX_STEPS := 3
-const STEP_PX := 74.0
-const EASE := 0.4
-const MIN_STEP := 2.5
+## `add_calc(…, 0.4, 74, 2.5)` a tick, as a half-life and speeds a second; a multi-page
+## move slides 74 a tick.
+const STEP_SPEED := 74.0 * DecompTime.TICK_HZ
+static var EASE_HALF_LIFE: float = Motion.half_life_from_fraction(0.4)
+const MIN_SPEED := 2.5 * DecompTime.TICK_HZ
 const KEYS_HIDDEN := -100.0
 const WRITE_LINES := 6
 const BODY_COLOR := Color8(30, 0, 0)
@@ -43,7 +45,6 @@ var _move_time: int = 0
 var _new_post: Dictionary = {}
 var _posted: bool = false
 var _open: bool = false
-var _accum: float = 0.0
 var _tex: Dictionary = {}
 var _font: Font = null
 var _slide: MenuSlide = null
@@ -127,67 +128,49 @@ func _on_slid_out() -> void:
 
 
 func _process(delta: float) -> void:
-	_accum += delta * DecompTime.TICK_HZ
-	var steps := 0
-	while _accum >= 1.0 and steps < 8:
-		_accum -= 1.0
-		steps += 1
-		_tick()
-	if steps > 0:
-		_canvas.queue_redraw()
+	_animate(delta)
+	_canvas.queue_redraw()
 
 
-## `add_calc`: ease `value` toward `target` by `fraction`, the step clamped to
-## [`min_step`, `max_step`]; returns what is left.
-static func add_calc(value: float, target: float, fraction: float, max_step: float, min_step: float) -> Vector2:
-	var diff: float = target - value
-	var step: float = clampf(diff * fraction, -max_step, max_step)
-	if absf(step) < min_step:
-		step = clampf(diff, -min_step, min_step)
-	value += step
-	return Vector2(value, target - value)
+static func _ease(value: float, target: float, delta: float) -> float:
+	return Motion.approach(value, target, EASE_HALF_LIFE, STEP_SPEED, MIN_SPEED, delta)
 
 
-func _tick() -> void:
+func _animate(delta: float) -> void:
 	match mode:
 		Mode.MOVE:
-			_tick_move()
+			_animate_move(delta)
 		Mode.TO_WRITE:
-			var p := add_calc(page_x, 0.0, EASE, STEP_PX, MIN_STEP)
-			var k := add_calc(keys_y, KEYS_HIDDEN, EASE, STEP_PX, MIN_STEP)
-			page_x = p.x
-			keys_y = k.x
-			if absf(p.y) < 0.1 and absf(k.y) < 0.1:
+			page_x = _ease(page_x, 0.0, delta)
+			keys_y = _ease(keys_y, KEYS_HIDDEN, delta)
+			if absf(page_x) < 0.1 and absf(keys_y - KEYS_HIDDEN) < 0.1:
 				page_x = 0.0
 				keys_y = KEYS_HIDDEN
 				disp_page = now_page
 				mode = Mode.WRITING
 				_open_writer()
 		Mode.TO_READ:
-			var p := add_calc(page_x, 0.0, EASE, STEP_PX, MIN_STEP)
-			var k := add_calc(keys_y, 0.0, EASE, STEP_PX, MIN_STEP)
-			page_x = p.x
-			keys_y = k.x
-			if absf(p.y) < 0.1 and absf(k.y) < 0.1:
+			page_x = _ease(page_x, 0.0, delta)
+			keys_y = _ease(keys_y, 0.0, delta)
+			if absf(page_x) < 0.1 and absf(keys_y) < 0.1:
 				page_x = 0.0
 				keys_y = 0.0
 				disp_page = now_page
 				mode = Mode.READ
 
 
-## `mNT_Play_page_move`: one page eases in; several slide 74 a frame each.
-func _tick_move() -> void:
+## `mNT_Play_page_move`: one page eases in; several slide 74 a tick each.
+func _animate_move(delta: float) -> void:
 	var done := false
 	var forward := page_x > 0.0
 	if _move_time == 1:
-		var p := add_calc(page_x, 0.0, EASE, STEP_PX, MIN_STEP)
-		page_x = p.x
-		done = absf(p.y) < 0.1
+		page_x = _ease(page_x, 0.0, delta)
+		done = absf(page_x) < 0.1
 	elif forward:
-		page_x -= STEP_PX
+		page_x -= STEP_SPEED * delta
 		done = page_x <= 0.0
 	else:
-		page_x += STEP_PX
+		page_x += STEP_SPEED * delta
 		done = page_x >= 0.0
 	if not done:
 		return

@@ -4,27 +4,29 @@ extends Node
 ## The submenus' shared slide (`m_submenu_ovl.c`): a menu opens from its start position
 ## (`mSM_set_new_start_data`, 300 units off one edge at speed 75) and glides in, slowing
 ## past 120 units out (`mSM_move_Move` → `mSM_move_menu`); on closing it speeds away
-## the other way, doubling every other frame up to 75, until it is 300 units out.
+## the other way, doubling every other tick up to 75, until it is 300 units out.
+##
+## Those moves take 14 ticks in and 13 out; here they are quadratic eases over the same
+## times (fast then slowing in, slowing then fast out), which trace the same path.
 ## Positions are the menu's `menu_info->position` in screen units, y up; the owner's
 ## CanvasLayer is offset by them (scaled like a 320x240 screen fitted to the viewport),
 ## so every layer the menu draws rides along.
 
 enum Dir { OUT_RIGHT, IN_RIGHT, OUT_LEFT, IN_LEFT, OUT_TOP, IN_TOP, OUT_BOTTOM, IN_BOTTOM }
 
-## `mSM_move_Move` `move_data`: {speed multiplier, where the multiplier starts, target,
-## direction}, for out (even) and in (odd) moves.
-const OUT_MOVE := [2.0, 0.0, 300.0, 1.0]
-const IN_MOVE := [0.5, 120.0, 0.0, -1.0]
-const START_SPEED := 75.0
+## How far off screen a menu starts and ends (`move_data` targets).
+const OFF_SCREEN := 300.0
+const IN_SEC := 14.0 / DecompTime.TICK_HZ
+const OUT_SEC := 13.0 / DecompTime.TICK_HZ
 
 signal moved(position: Vector2)
 
 var position := Vector2.ZERO
 
-var _speed := Vector2.ZERO
 var _dir: int = -1
-var _flag: bool = false
-var _accum: float = 0.0
+var _from := Vector2.ZERO
+var _to := Vector2.ZERO
+var _elapsed: float = 0.0
 var _done := Callable()
 var _layer: CanvasLayer = null
 
@@ -64,7 +66,6 @@ func is_moving() -> bool:
 ## Open: jump to the start position and glide in.
 func slide_in(dir: int) -> void:
 	position = start_for(dir)
-	_speed = Vector2(START_SPEED, START_SPEED)
 	_begin(dir, Callable())
 
 
@@ -84,50 +85,43 @@ func settle() -> void:
 
 func _begin(dir: int, done: Callable) -> void:
 	_dir = dir
-	_flag = false
 	_done = done
-	_accum = 0.0
+	_from = position
+	_to = Vector2.ZERO
+	if (dir & 1) == 0:
+		## An OUT move leaves along its axis, the way its direction points.
+		var sgn: float = -1.0 if (dir & 2) != 0 else 1.0
+		_to = position
+		_to[dir >> 2] = OFF_SCREEN * sgn
+	_elapsed = 0.0
 	_apply()
 	set_process(true)
 
 
 func _process(delta: float) -> void:
-	_accum += delta * DecompTime.TICK_HZ
-	var steps: int = 0
-	while _accum >= 1.0 and _dir >= 0 and steps < 8:
-		_accum -= 1.0
-		steps += 1
-		step()
+	step(delta)
 	_apply()
 	if _dir < 0:
 		set_process(false)
 
 
-## One decomp frame of `mSM_move_menu`; true when the move finished.
-func step() -> bool:
+## `mSM_move_menu` over `delta` seconds; true when the move finished.
+func step(delta: float) -> bool:
 	if _dir < 0:
 		return true
-	var axis: int = _dir >> 2
-	var data: Array = IN_MOVE if (_dir & 1) == 1 else OUT_MOVE
-	var sgn: float = -1.0 if (_dir & 2) != 0 else 1.0
-	var p0: float = float(data[1]) * sgn
-	var p1: float = float(data[2]) * sgn
-	var p2: float = float(data[3]) * sgn
-	var pos: float = position[axis]
-	var speed: float = _speed[axis]
-	if not _flag:
-		if p2 * (pos - p0) >= 0.0:
-			speed = clampf(speed * float(data[0]), 1.0, START_SPEED)
-		_flag = true
-	else:
-		_flag = false
-	pos += speed * p2 * 0.5
-	var finished: bool = p2 * (pos - p1) > 0.0
+	var going_in: bool = (_dir & 1) == 1
+	var duration: float = IN_SEC if going_in else OUT_SEC
+	_elapsed = minf(_elapsed + maxf(delta, 0.0), duration)
+	## Frame times summed in floats can fall a hair short of the duration.
+	if _elapsed > duration - 0.000001:
+		_elapsed = duration
+	position = Tween.interpolate_value(
+		_from, _to - _from, _elapsed, duration, Tween.TRANS_QUAD,
+		Tween.EASE_OUT if going_in else Tween.EASE_IN
+	)
+	var finished: bool = _elapsed >= duration
 	if finished:
-		_flag = false
-		pos = p1
-	position[axis] = float(int(pos))
-	_speed[axis] = speed
+		position = _to
 	if finished:
 		var done := _done
 		_dir = -1

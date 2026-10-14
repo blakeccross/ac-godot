@@ -33,11 +33,14 @@ const FONT_PX := 16
 const ARROW_POS := Vector2(98.0, 1.5)
 const SPAN := 11
 const PAGE_W := 320.0
-## `add_calc(…, 0.4, 37, 1.25)`; the key hints swap by sliding 100 down.
-const EASE := 0.4
-const EASE_MAX := 37.0
-const EASE_MIN := 1.25
+## `add_calc(…, 0.4, 37, 1.25)` once a 30 fps frame, as a half-life and speeds a second;
+## the key hints swap by sliding 100 down.
+static var EASE_HALF_LIFE: float = Motion.half_life_from_fraction(0.4, DecompTime.FRAME_HZ)
+const EASE_MAX_SPEED := 37.0 * DecompTime.FRAME_HZ
+const EASE_MIN_SPEED := 1.25 * DecompTime.FRAME_HZ
 const HINT_DROP := 100.0
+## `_1054`: the event arrows pulse once every two seconds.
+const BLINK_SEC := 2.0
 
 enum Mode { MONTHS, TURN, TO_DAY, DAY, TO_MONTHS, DIARY }
 
@@ -59,9 +62,9 @@ var _slide_x: float = 0.0
 var _turns: int = 0
 var _hint1: float = 0.0
 var _hint2: float = HINT_DROP
+## Seconds into the arrows' pulse.
 var _blink: float = 0.0
 var _side: int = 0
-var _accum: float = 0.0
 
 @onready var _root: Control = $Root
 @onready var _screen: Control = $Root/Screen
@@ -186,20 +189,17 @@ func day_type() -> int:
 
 
 func _process(delta: float) -> void:
-	_accum += delta * DecompTime.FRAME_HZ
-	while _accum >= 1.0:
-		_accum -= 1.0
-		_frame()
+	_animate(delta)
 	_side = int(Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D)) \
 		- int(Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_A))
 	_canvas.queue_redraw()
 
 
-func _frame() -> void:
+func _animate(delta: float) -> void:
 	match mode:
 		Mode.TURN:
-			_slide_x = AcreCamera.add_calc(_slide_x, 0.0, EASE, EASE_MAX, EASE_MIN) if _turns <= 1 \
-				else move_toward(_slide_x, 0.0, EASE_MAX)
+			_slide_x = _ease(_slide_x, 0.0, delta) if _turns <= 1 \
+				else move_toward(_slide_x, 0.0, EASE_MAX_SPEED * delta)
 			if absf(_slide_x) < 0.1:
 				_turns -= 1
 				if _turns <= 0:
@@ -212,8 +212,8 @@ func _frame() -> void:
 					Audio.play_se(&"5f")
 		Mode.TO_DAY, Mode.TO_MONTHS:
 			var to_day: bool = mode == Mode.TO_DAY
-			_hint1 = AcreCamera.add_calc(_hint1, HINT_DROP if to_day else 0.0, EASE, EASE_MAX, EASE_MIN)
-			_hint2 = AcreCamera.add_calc(_hint2, 0.0 if to_day else HINT_DROP, EASE, EASE_MAX, EASE_MIN)
+			_hint1 = _ease(_hint1, HINT_DROP if to_day else 0.0, delta)
+			_hint2 = _ease(_hint2, 0.0 if to_day else HINT_DROP, delta)
 			if is_equal_approx(_hint1, HINT_DROP if to_day else 0.0) and is_equal_approx(_hint2, 0.0 if to_day else HINT_DROP):
 				if to_day:
 					mode = Mode.DAY
@@ -221,8 +221,11 @@ func _frame() -> void:
 				else:
 					mode = Mode.MONTHS
 		Mode.DAY:
-			## `_1054`: the event arrows pulse once every two seconds.
-			_blink = fmod(_blink + 1.0, 60.0)
+			_blink = fmod(_blink + delta, BLINK_SEC)
+
+
+static func _ease(value: float, target: float, delta: float) -> float:
+	return Motion.approach(value, target, EASE_HALF_LIFE, EASE_MAX_SPEED, EASE_MIN_SPEED, delta)
 
 
 func _pick_cell(day: int) -> void:
@@ -403,7 +406,7 @@ func _draw_page(off: int, x: float) -> void:
 	if bool(ev[1]):
 		_blit("cal_sakana", at)
 	if events.size() > 1:
-		var pulse: float = clampf(1.0 - absf((_blink - 30.0) / 30.0), 0.0, 1.0)
+		var pulse: float = clampf(1.0 - absf(_blink / (0.5 * BLINK_SEC) - 1.0), 0.0, 1.0)
 		_blit("cal_yaji_b" if event_idx == events.size() - 1 else "cal_yaji_a", at + ARROW_POS,
 			Color(1.0, 1.0, 1.0, pulse))
 

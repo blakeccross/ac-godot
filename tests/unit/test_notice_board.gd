@@ -80,12 +80,12 @@ func test_overlay_turns_pages_and_jumps_to_the_first() -> void:
 	ui.turn(-1)
 	assert_int(ui.now_page).is_equal(2)
 	for _i: int in 60:
-		ui._tick()
+		ui._animate(1.0 / 60.0)
 	assert_int(ui.mode).is_equal(NoticeBoardOverlay.Mode.READ)
 	## Down: back to entry 1 in (at most three) steps.
 	ui.turn(-ui.now_page)
 	for _i: int in 120:
-		ui._tick()
+		ui._animate(1.0 / 60.0)
 	assert_int(ui.now_page).is_equal(0)
 	assert_int(ui.disp_page).is_equal(0)
 
@@ -114,7 +114,7 @@ func test_throwing_it_out_goes_back_to_the_latest_post() -> void:
 	ui._start_write()
 	ui._on_writer_closed()
 	for _i: int in 60:
-		ui._tick()
+		ui._animate(1.0 / 60.0)
 	assert_bool(ui.is_open()).is_true()
 	assert_int(ui.mode).is_equal(NoticeBoardOverlay.Mode.READ)
 	assert_int(ui.now_page).is_equal(3)

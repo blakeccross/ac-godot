@@ -215,10 +215,12 @@ func test_message_feel_order_sets_timed_mood() -> void:
 	var state := VillagerState.new()
 	state.set_feel(1, 3)
 	assert_int(state.mood).is_equal(VillagerState.Mood.HAPPY)
-	assert_int(state.feel_ticks).is_equal(3 * 3600)
+	assert_float(state.feel_time).is_equal(3.0 * 60.0)
 	state.set_feel(1, 20)
-	assert_int(state.feel_ticks).is_equal(10 * 3600)
-	state.tick_feel(10 * 3600)
+	assert_float(state.feel_time).is_equal(10.0 * 60.0)
+	state.tick_feel(9.0 * 60.0)
+	assert_int(state.mood).is_equal(VillagerState.Mood.HAPPY)
+	state.tick_feel(60.0)
 	assert_int(state.mood).is_equal(VillagerState.Mood.NORMAL)
 	state.set_feel(5, 2)
 	assert_int(state.mood).is_equal(VillagerState.Mood.NORMAL)
@@ -236,7 +238,7 @@ func test_runner_applies_feel_after_the_page() -> void:
 	var runner := DialogueRunner.new()
 	runner.start(data, DialogueContext.new(), state)
 	assert_int(state.mood).is_equal(VillagerState.Mood.SAD)
-	assert_int(state.feel_ticks).is_equal(2 * 3600)
+	assert_float(state.feel_time).is_equal(2.0 * 60.0)
 
 
 func test_runner_asks_the_manager_and_shows_its_menu() -> void:

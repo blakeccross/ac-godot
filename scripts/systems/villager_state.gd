@@ -12,14 +12,14 @@ const TALK_FIRST := Relationship.TALK_FIRST
 const TALK_REPEAT := Relationship.TALK_REPEAT
 ## `mNpc_FEEL_ALL_NUM`; orders at or above it are ignored.
 const FEEL_ALL_NUM := 9
-## `FRAMES_PER_MINUTE` in decomp logic ticks.
-const FEEL_TICKS_PER_MINUTE := 3600
+## A feel runs at most ten minutes (`FRAMES_PER_MINUTE` 3600 ticks a minute).
+const FEEL_MAX_SEC := 10.0 * 60.0
 
 var villager_id: StringName = &""
 var relationship: Relationship = Relationship.new()
 var mood: Mood = Mood.NORMAL
-## Ticks left on a message-set feel (`condition_info.feel_tim`, not saved). 0 = untimed.
-var feel_ticks: int = 0
+## Seconds left on a message-set feel (`condition_info.feel_tim`, not saved). 0 = untimed.
+var feel_time: float = 0.0
 var patience: Patience = Patience.NORMAL
 ## `Animal_c.is_home` — indoors (hidden outdoors / visible in NPC room).
 var is_home: bool = false
@@ -72,7 +72,7 @@ func set_feel(feel: int, minutes: int) -> void:
 	if feel <= 0 or feel >= FEEL_ALL_NUM:
 		if feel == 0:
 			mood = Mood.NORMAL
-			feel_ticks = 0
+			feel_time = 0.0
 		return
 	var next: Mood = Mood.ANGRY
 	match feel:
@@ -88,17 +88,17 @@ func set_feel(feel: int, minutes: int) -> void:
 			next = Mood.NORMAL
 	if next != mood:
 		mood = next
-		feel_ticks = 0 if next == Mood.NORMAL else minutes * FEEL_TICKS_PER_MINUTE
+		feel_time = 0.0 if next == Mood.NORMAL else minutes * 60.0
 	else:
-		feel_ticks = mini(feel_ticks + minutes * FEEL_TICKS_PER_MINUTE, 10 * FEEL_TICKS_PER_MINUTE)
+		feel_time = minf(feel_time + minutes * 60.0, FEEL_MAX_SEC)
 
 
 ## `aNPC_check_feel_tim`: a timed feel runs out back to normal.
-func tick_feel(ticks: int) -> void:
-	if feel_ticks <= 0:
+func tick_feel(delta: float) -> void:
+	if feel_time <= 0.0:
 		return
-	feel_ticks = maxi(feel_ticks - ticks, 0)
-	if feel_ticks == 0:
+	feel_time = maxf(feel_time - delta, 0.0)
+	if feel_time == 0.0:
 		mood = Mood.NORMAL
 
 

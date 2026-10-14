@@ -57,6 +57,11 @@ const ACRE_LABEL := {
 }
 
 ## Per acre: {label, residents: [{name, sex, layer, idx}]}.
+## The cursor's `add_calc(…, 0.7, 19, 1.8)` a tick, as a half-life and speeds a second.
+static var CURSOR_HALF_LIFE: float = Motion.half_life_from_fraction(0.7)
+const CURSOR_MAX_SPEED := 19.0 * DecompTime.TICK_HZ
+const CURSOR_MIN_SPEED := 1.8 * DecompTime.TICK_HZ
+
 var acres: Dictionary = {}
 var sel: Vector2i = Vector2i.ZERO
 var player_fg: Vector2i = Vector2i.ZERO
@@ -65,12 +70,12 @@ var color_set: int = 1
 var _open: bool = false
 var _cursor := Vector2.ZERO
 var _cursor_target := Vector2.ZERO
-var _cursor_frame: int = 0
+## Seconds into the cursor's pulse.
+var _cursor_time: float = 0.0
 var _layout: WorldData = null
 var _atlas: Texture2D = null
 var _tex: Dictionary = {}
 var _font: Font = null
-var _accum: float = 0.0
 ## `m_map_ovl.c`: in from the top, out to the top.
 var _slide: MenuSlide = null
 
@@ -124,7 +129,7 @@ func open(force: bool = false) -> void:
 	sel = player_fg
 	_cursor = Vector2(sel.x * BLOCK, -sel.y * BLOCK)
 	_cursor_target = _cursor
-	_cursor_frame = 0
+	_cursor_time = 0.0
 	acres = build_labels(_layout)
 	var types: PackedByteArray = TownMap.fg_acre_types(_layout)
 	_atlas = TownMap.compose_fg_texture(types) if TownMap.assets_ready() else null
@@ -276,19 +281,17 @@ func move_sel(step: Vector2i) -> void:
 
 
 func _process(delta: float) -> void:
-	_accum += delta * DecompTime.TICK_HZ
-	var steps := 0
-	while _accum >= 1.0 and steps < 8:
-		_accum -= 1.0
-		steps += 1
-		_cursor_frame = (_cursor_frame + 1) % TownMap.CURSOR_FRAMES
-		## `mMP_move_Wait`.
-		_cursor.x = NoticeBoardOverlay.add_calc(_cursor.x, _cursor_target.x, 0.7, 19.0, 1.8).x
-		_cursor.y = NoticeBoardOverlay.add_calc(_cursor.y, _cursor_target.y, 0.7, 19.0, 1.8).x
-		if _cursor.distance_to(_cursor_target) < 0.1:
-			_cursor = _cursor_target
-	if steps > 0:
-		_canvas.queue_redraw()
+	_cursor_time = fmod(_cursor_time + delta, TownMap.CURSOR_FRAMES / DecompTime.TICK_HZ)
+	## `mMP_move_Wait`: `add_calc(…, 0.7, 19, 1.8)` a tick.
+	_cursor.x = Motion.approach(
+		_cursor.x, _cursor_target.x, CURSOR_HALF_LIFE, CURSOR_MAX_SPEED, CURSOR_MIN_SPEED, delta
+	)
+	_cursor.y = Motion.approach(
+		_cursor.y, _cursor_target.y, CURSOR_HALF_LIFE, CURSOR_MAX_SPEED, CURSOR_MIN_SPEED, delta
+	)
+	if _cursor.distance_to(_cursor_target) < 0.1:
+		_cursor = _cursor_target
+	_canvas.queue_redraw()
 
 
 func _blocked_by_other_ui() -> bool:
@@ -351,8 +354,10 @@ func _draw_canvas() -> void:
 	_draw_label_icons(entry)
 	_draw_house_marks()
 	## `mMP_set_cursol_dl`.
-	var s: float = TownMap.cursor_scale(_cursor_frame)
-	_blit("mp_cursor", MARK_BOUNDS, _cursor + MAP_ORIGIN, s, Color(1.0, TownMap.cursor_green(_cursor_frame), 1.0))
+	## The pulse tables hold one entry a tick.
+	var frame: int = int(_cursor_time * DecompTime.TICK_HZ)
+	var s: float = TownMap.cursor_scale(frame)
+	_blit("mp_cursor", MARK_BOUNDS, _cursor + MAP_ORIGIN, s, Color(1.0, TownMap.cursor_green(frame), 1.0))
 	_draw_text(entry)
 
 

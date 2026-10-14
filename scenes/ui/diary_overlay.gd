@@ -25,7 +25,8 @@ const SHEET_2 := 194.0
 const SHEET_3 := 358.0
 ## The last line is in view with a little paper below it.
 const MAX_SCROLL := 344.0
-const SCROLL_STEP := 4.0
+## 4 units a tick.
+const SCROLL_SPEED := 4.0 * DecompTime.TICK_HZ
 ## `month_tex_adjust`: the caption ("Entry") slides left behind shorter month words.
 const MONTH_ADJUST: Array[float] = [-26, -16, -40, -52, -57, -52, -57, -32, 0, -23, -6, -6]
 
@@ -40,7 +41,6 @@ var _tex: Dictionary = {}
 var _font: Font = null
 var _slide: MenuSlide = null
 var _hold: int = 0
-var _accum: float = 0.0
 
 @onready var _root: Control = $Root
 @onready var _screen: Control = $Root/Screen
@@ -136,14 +136,11 @@ static func clip(text: String) -> String:
 func _process(delta: float) -> void:
 	if writing:
 		return
-	_accum += delta * DecompTime.TICK_HZ
 	var dir: int = int(Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_S)) \
 		- int(Input.is_key_pressed(KEY_UP) or Input.is_key_pressed(KEY_W))
-	while _accum >= 1.0:
-		_accum -= 1.0
-		if dir != 0:
-			scroll = clampf(scroll + dir * SCROLL_STEP, 0.0, MAX_SCROLL)
-			_canvas.queue_redraw()
+	if dir != 0:
+		scroll = clampf(scroll + dir * SCROLL_SPEED * delta, 0.0, MAX_SCROLL)
+		_canvas.queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:
