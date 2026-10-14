@@ -8,9 +8,9 @@ extends StaticBody3D
 const MODEL_PATH := "res://assets/generated/characters/other/hnw.glb"
 const ANIM_MOVE := "hnw_move"
 
-## `world_builder.gd::_apply_common` sets these from the placement (`player_haniwa`,
-## `player_haniwa_1`–`3`, one per `HOUSE0`–`3` plot).
-@export var occupant_id: StringName = &"player_haniwa"
+## `world_builder.gd::_apply_common` sets these from the placement (`player_gyroid`,
+## `player_gyroid_1`–`3`, one per `HOUSE0`–`3` plot).
+@export var occupant_id: StringName = &"player_gyroid"
 @export var footprint: Vector2i = Vector2i(1, 1)
 @export var grid_facing: WorldGrid.Facing = WorldGrid.Facing.SOUTH
 @export var occupy_grid: bool = true
@@ -32,7 +32,7 @@ var _frame: float = GyroidTalk.MOVE_FIRST_FRAME
 
 func _ready() -> void:
 	add_to_group("interactable")
-	add_to_group("haniwa")
+	add_to_group("gyroids")
 	house_idx = PlayerHouse.plot_of(String(name))
 	_yaw = GyroidTalk.look_yaw(house_idx, false, GyroidTalk.Action.WAIT, 0.0)
 	rotation.y = _yaw
@@ -161,7 +161,7 @@ func _talk(listener: Node3D) -> bool:
 		house != null and house.has_saved,
 		Game.first_job != null and Game.first_job.is_active(),
 		Game.relationships.friend_count() if Game.relationships != null else 0,
-		house.haniwa_bells if house != null and owned else 0
+		house.gyroid_bells if house != null and owned else 0
 	)
 	if ui == null:
 		Game.post_notice("The gyroid hums a tune.")
@@ -195,7 +195,7 @@ func _run_menus(msg: GyroidTalk.Msg, house: House) -> bool:
 		GyroidTalk.Msg.PROCEEDS:
 			## `aHNW_check_proceeds`: the income line names the amount, then the hand-over runs.
 			vars[GyroidTalk.VAR_START] = GyroidTalk.START_PROCEEDS
-			vars["free0"] = str(house.haniwa_bells)
+			vars["free0"] = str(house.gyroid_bells)
 			var result: Dictionary = GyroidStore.collect_proceeds(house, Game.inventory)
 			vars[GyroidTalk.VAR_HANDOVER] = "yes" if bool(result["ok"]) else "no"
 			vars["free1"] = str(int(result["bags"]))
@@ -265,8 +265,8 @@ func _run_menu(menu: String, house: House) -> void:
 	match menu:
 		GyroidTalk.MENU_ENTRUST, GyroidTalk.MENU_TAKE:
 			var inv_ui: Node = tree.get_first_node_in_group("inventory_ui")
-			if inv_ui != null and inv_ui.has_method("open_haniwa"):
-				inv_ui.call("open_haniwa", house, menu == GyroidTalk.MENU_ENTRUST)
+			if inv_ui != null and inv_ui.has_method("open_gyroid"):
+				inv_ui.call("open_gyroid", house, menu == GyroidTalk.MENU_ENTRUST)
 				if bool(inv_ui.call("is_open")):
 					await inv_ui.closed
 		GyroidTalk.MENU_MESSAGE:
@@ -277,7 +277,7 @@ func _run_menu(menu: String, house: House) -> void:
 					GyroidStore.message(house),
 					GyroidStore.MESSAGE_LINES,
 					GyroidStore.MESSAGE_LEN,
-					func(text: String) -> void: house.haniwa_message = text
+					func(text: String) -> void: house.gyroid_message = text
 				)
 				if bool(writer.call("is_open")):
 					await writer.closed

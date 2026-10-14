@@ -109,7 +109,7 @@ func test_sunday_spoils_turnips_in_houses_gyroids_and_housemates_pockets() -> vo
 	main.placements.append(fp)
 	var house: House = Game.interiors.player_house()
 	GyroidStore.ensure(house)
-	house.haniwa_items[0]["item"] = &"turnips_10"
+	house.gyroid_items[0]["item"] = &"turnips_10"
 	FieldItems.renew(true, Inventory.new())
 	var after := Inventory.new()
 	after.from_save(Game.roster.slots[1][PlayerRoster.KEY_INVENTORY])
@@ -118,4 +118,4 @@ func test_sunday_spoils_turnips_in_houses_gyroids_and_housemates_pockets() -> vo
 	assert_str(str(saved[0]["furniture_id"])).is_equal(String(StalkMarket.SPOILED))
 	assert_str(str(saved[1]["furniture_id"])).is_equal("apple")
 	assert_str(String(fp.furniture_id)).is_equal(String(StalkMarket.SPOILED))
-	assert_str(str(house.haniwa_items[0]["item"])).is_equal(String(StalkMarket.SPOILED))
+	assert_str(str(house.gyroid_items[0]["item"])).is_equal(String(StalkMarket.SPOILED))

@@ -183,7 +183,7 @@ func test_museum_letter_with_fossil_queues_farway_and_skips_the_desk() -> void:
 	Game.reset_session()
 	Game.inventory.clear()
 	Game.post.clear()
-	Game.farway.clear()
+	Game.travel_book.clear()
 
 	var w := _writer()
 	w.open({"id": String(PostUse.MUSEUM_RECIPIENT_ID), "name": PostUse.MUSEUM_RECIPIENT_NAME}, 0)
@@ -196,7 +196,7 @@ func test_museum_letter_with_fossil_queues_farway_and_skips_the_desk() -> void:
 
 	var msg: String = PostUse.send_mail_at(idx)
 	assert_str(msg).contains("Museum")
-	assert_int(Game.farway.in_transit_count()).is_equal(1)
+	assert_int(Game.travel_book.in_transit_count()).is_equal(1)
 	assert_int(Game.post.get_keep_mail_sum()).is_equal(0)
 	assert_int(Game.inventory.count_mail()).is_equal(0)
 

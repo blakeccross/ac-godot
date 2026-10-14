@@ -150,11 +150,11 @@ static func spoil_elsewhere() -> int:
 				priv[PlayerRoster.KEY_INVENTORY] = inv.to_save()
 				n += spoiled
 			n += spoil_saved_rooms(priv.get(PlayerRoster.KEY_ROOMS, {}))
-			n += spoil_haniwa(Game.roster.house_of(slot))
+			n += spoil_gyroid(Game.roster.house_of(slot))
 	if Game.interiors != null:
 		for room_id: StringName in [PlayerHouse.MAIN, PlayerHouse.UPPER, PlayerHouse.BASEMENT]:
 			n += spoil_room(Game.interiors.room(room_id))
-		n += spoil_haniwa(Game.interiors.player_house())
+		n += spoil_gyroid(Game.interiors.player_house())
 	return n
 
 
@@ -185,12 +185,12 @@ static func spoil_saved_rooms(rooms: Variant) -> int:
 	return n
 
 
-static func spoil_haniwa(house: House) -> int:
+static func spoil_gyroid(house: House) -> int:
 	var n: int = 0
 	if house == null:
 		return 0
 	GyroidStore.ensure(house)
-	for slot: Dictionary in house.haniwa_items:
+	for slot: Dictionary in house.gyroid_items:
 		if StalkMarket.bundle_size(StringName(str(slot.get("item", "")))) > 0:
 			slot["item"] = StalkMarket.SPOILED
 			n += 1

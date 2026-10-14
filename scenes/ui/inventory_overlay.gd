@@ -122,26 +122,26 @@ var _background_icon: TextureRect = null
 ## `m_tag_ovl` verb window (`sen_itemw_*`): frame + shadow + pointer, verbs stacked.
 var _tag_popup: Control = null
 ## `mSM_OVL_HANIWA` (`m_haniwa_ovl`): the house gyroid's 4-slot table beside the pockets.
-## `_haniwa_house` is set while the pockets were opened from the gyroid; `_haniwa_owner` is
+## `_gyroid_house` is set while the pockets were opened from the gyroid; `_gyroid_owner` is
 ## entrust mode (`mSM_IV_OPEN_HANIWA_ENTRUST`), else visitor take mode.
-var _haniwa_house: House = null
-var _haniwa_owner: bool = true
-var _focus_haniwa: bool = false
-var _haniwa_sel: int = 0
-var _haniwa_root: Control = null
-var _haniwa_buttons: Array[Button] = []
-var _haniwa_status: Label = null
-var _haniwa_tag_mode: bool = false
+var _gyroid_house: House = null
+var _gyroid_owner: bool = true
+var _focus_gyroid: bool = false
+var _gyroid_sel: int = 0
+var _gyroid_root: Control = null
+var _gyroid_buttons: Array[Button] = []
+var _gyroid_status: Label = null
+var _gyroid_tag_mode: bool = false
 ## Pocket slot being put in (hand held over an empty gyroid slot), −1 = setting terms on an
 ## item already there.
-var _haniwa_put_pocket: int = -1
+var _gyroid_put_pocket: int = -1
 ## `mTG_mv_priceSet`: digit cursor 0..4 over a 5-digit price.
 var _price_mode: bool = false
 var _price: int = 0
 var _price_digit: int = 4
 ## `mHW_set_interrupt_message`: a status line held for 120 frames.
-var _haniwa_interrupt: String = ""
-var _haniwa_interrupt_left: float = 0.0
+var _gyroid_interrupt: String = ""
+var _gyroid_interrupt_left: float = 0.0
 var _tag_shadow: TextureRect = null
 var _tag_frame: PanelContainer = null
 var _tag_rows: VBoxContainer = null
@@ -565,9 +565,9 @@ func _tag_anchor_control() -> Control:
 
 
 func _selected_slot_button() -> Button:
-	if _focus_haniwa:
-		if _haniwa_sel >= 0 and _haniwa_sel < _haniwa_buttons.size():
-			return _haniwa_buttons[_haniwa_sel]
+	if _focus_gyroid:
+		if _gyroid_sel >= 0 and _gyroid_sel < _gyroid_buttons.size():
+			return _gyroid_buttons[_gyroid_sel]
 		return null
 	if _focus_mail:
 		var mi: int = Game.inventory.selected_mail_index
@@ -1088,19 +1088,19 @@ func open() -> void:
 
 ## Open the pockets with the house gyroid's table (`mSM_OVL_HANIWA`). `owner`: the house's
 ## owner consigning items; else a visitor taking them.
-func open_haniwa(house: House, owner: bool) -> void:
+func open_gyroid(house: House, owner: bool) -> void:
 	if house == null:
 		return
 	GyroidStore.ensure(house)
 	open()
 	if not _open:
 		return
-	_haniwa_house = house
-	_haniwa_owner = owner
-	_focus_haniwa = false
-	_haniwa_sel = 0
-	_build_haniwa_table()
-	_set_haniwa_visible(true)
+	_gyroid_house = house
+	_gyroid_owner = owner
+	_focus_gyroid = false
+	_gyroid_sel = 0
+	_build_gyroid_table()
+	_set_gyroid_visible(true)
 	_refresh()
 
 
@@ -1108,12 +1108,12 @@ func close() -> void:
 	if not _open:
 		return
 	Audio.play_se(&"menu_exit")
-	_haniwa_house = null
-	_focus_haniwa = false
-	_haniwa_tag_mode = false
+	_gyroid_house = null
+	_focus_gyroid = false
+	_gyroid_tag_mode = false
 	_price_mode = false
-	_haniwa_interrupt = ""
-	_set_haniwa_visible(false)
+	_gyroid_interrupt = ""
+	_set_gyroid_visible(false)
 	closed.emit()
 	_open = false
 	_tag_mode = false
@@ -1191,11 +1191,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		var shift: bool = event is InputEventKey and (event as InputEventKey).shift_pressed
 		if shift:
 			_cycle_side_tab(-1)
-		elif _haniwa_house != null:
+		elif _gyroid_house != null:
 			## The gyroid table stands in for the letters while it's open.
-			_focus_haniwa = not _focus_haniwa
+			_focus_gyroid = not _focus_gyroid
 			_tag_mode = false
-			_haniwa_tag_mode = false
+			_gyroid_tag_mode = false
 			_refresh()
 			_update_hand_cursor(true)
 		else:
@@ -1228,7 +1228,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed("pause_menu") or event.is_action_pressed("ui_cancel"):
 		if _tag_mode:
-			_haniwa_tag_mode = false
+			_gyroid_tag_mode = false
 			_tag_mode = false
 			_pending_mail_discard = -1
 			_wallet_tag_mode = false
@@ -1264,8 +1264,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_quick_grab_drop()
 			get_viewport().set_input_as_handled()
 		return
-	if _focus_haniwa:
-		_haniwa_navigate(event)
+	if _focus_gyroid:
+		_gyroid_navigate(event)
 		return
 	if event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
 		if _focus_mail:
@@ -1290,10 +1290,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			var col: int = Game.inventory.selected_index % Inventory.COLUMNS
 			var row: int = Game.inventory.selected_index / Inventory.COLUMNS
-			if col == Inventory.COLUMNS - 1 and _haniwa_house != null:
+			if col == Inventory.COLUMNS - 1 and _gyroid_house != null:
 				## `mTG_move_cursol_between_table_haniwa`: off the pockets' right edge.
-				_focus_haniwa = true
-				_haniwa_sel = clampi(row, 0, HANIWA_ROWS - 1) * HANIWA_COLS
+				_focus_gyroid = true
+				_gyroid_sel = clampi(row, 0, GYROID_ROWS - 1) * GYROID_COLS
 			elif col == Inventory.COLUMNS - 1:
 				_focus_mail = true
 				Game.inventory.select_mail((row + MAIL_ROW_OFFSET) * Inventory.MAIL_COLUMNS)
@@ -1523,8 +1523,8 @@ func _click_event(event: InputEvent) -> bool:
 
 
 func _activate_cursor() -> void:
-	if _focus_haniwa:
-		_activate_haniwa_cursor()
+	if _focus_gyroid:
+		_activate_gyroid_cursor()
 		return
 	if _focus_player:
 		_activate_player_cursor()
@@ -1628,8 +1628,8 @@ func _activate_mail_cursor() -> void:
 
 
 func _run_tag(tag: String) -> void:
-	if _haniwa_tag_mode:
-		_run_haniwa_tag(tag)
+	if _gyroid_tag_mode:
+		_run_gyroid_tag(tag)
 		return
 	if _wallet_tag_mode:
 		_run_wallet_tag(tag)
@@ -2074,7 +2074,7 @@ func _refresh() -> void:
 	_refresh_side_tab_visuals()
 	_refresh_items(inv)
 	_refresh_mail(inv)
-	_refresh_haniwa()
+	_refresh_gyroid()
 	if _side_tab != SideTab.POCKETS:
 		_populate_encyclopedia(&"fish" if _side_tab == SideTab.FISH else &"insect")
 	if _tag_mode and _side_tab == SideTab.POCKETS and not _tag_choices.is_empty():
@@ -2099,7 +2099,7 @@ func _refresh_items(inv: Inventory) -> void:
 	for i: int in _slot_buttons.size():
 		var btn: Button = _slot_buttons[i]
 		var slot: InventorySlot = inv.slot_at(i)
-		var selected: bool = (not _focus_mail) and (not _focus_haniwa) and i == inv.selected_index
+		var selected: bool = (not _focus_mail) and (not _focus_gyroid) and i == inv.selected_index
 		var in_hand: bool = i == inv.hand_index
 		var marked: bool = inv.is_marked(i)
 		var style: StyleBox = style_item_selected if selected else (style_item_marked if marked else style_item)
@@ -2214,22 +2214,22 @@ func _refresh_mail_detail(inv: Inventory) -> void:
 
 ## --- house gyroid table (`m_haniwa_ovl`) -------------------------------------------------
 
-const HANIWA_COLS := 2
-const HANIWA_ROWS := 2
-const HANIWA_INTERRUPT_SEC := 120.0 / DecompTime.TICK_HZ
+const GYROID_COLS := 2
+const GYROID_ROWS := 2
+const GYROID_INTERRUPT_SEC := 120.0 / DecompTime.TICK_HZ
 
 
 ## Four slots over the letter column's rows 2-3 (level with pocket rows 0-1), styled like the
 ## pocket slots, plus the gyroid's status line above them. Built once, like the other
 ## supplementary chrome here.
-func _build_haniwa_table() -> void:
-	if _haniwa_root != null or _slot_buttons.is_empty() or _mail_buttons.size() < 8:
+func _build_gyroid_table() -> void:
+	if _gyroid_root != null or _slot_buttons.is_empty() or _mail_buttons.size() < 8:
 		return
 	var host: Control = _mail_buttons[0].get_parent() as Control
-	_haniwa_root = Control.new()
-	_haniwa_root.name = "HaniwaTable"
-	_haniwa_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	host.add_child(_haniwa_root)
+	_gyroid_root = Control.new()
+	_gyroid_root.name = "HaniwaTable"
+	_gyroid_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	host.add_child(_gyroid_root)
 	for i: int in GyroidStore.SLOTS:
 		var mail_btn: Button = _mail_buttons[MAIL_ROW_OFFSET * Inventory.MAIL_COLUMNS + i]
 		var btn: Button = _slot_buttons[0].duplicate() as Button
@@ -2237,59 +2237,59 @@ func _build_haniwa_table() -> void:
 		btn.unique_name_in_owner = false
 		btn.position = mail_btn.position
 		btn.size = mail_btn.size
-		btn.pressed.connect(_on_haniwa_pressed.bind(i))
-		_haniwa_root.add_child(btn)
-		_haniwa_buttons.append(btn)
+		btn.pressed.connect(_on_gyroid_pressed.bind(i))
+		_gyroid_root.add_child(btn)
+		_gyroid_buttons.append(btn)
 	var top: Button = _mail_buttons[0]
-	_haniwa_status = Label.new()
-	_haniwa_status.position = top.position - Vector2(10.0, 0.0)
-	_haniwa_status.size = Vector2(top.size.x * 2.0 + 30.0, top.size.y * 2.0)
-	_haniwa_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_haniwa_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_haniwa_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_font_label(_haniwa_status, 16, Color(0.35, 0.22, 0.12))
-	_haniwa_root.add_child(_haniwa_status)
+	_gyroid_status = Label.new()
+	_gyroid_status.position = top.position - Vector2(10.0, 0.0)
+	_gyroid_status.size = Vector2(top.size.x * 2.0 + 30.0, top.size.y * 2.0)
+	_gyroid_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_gyroid_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_gyroid_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_font_label(_gyroid_status, 16, Color(0.35, 0.22, 0.12))
+	_gyroid_root.add_child(_gyroid_status)
 
 
-func _set_haniwa_visible(on: bool) -> void:
-	if _haniwa_root != null:
-		_haniwa_root.visible = on
+func _set_gyroid_visible(on: bool) -> void:
+	if _gyroid_root != null:
+		_gyroid_root.visible = on
 	for btn: Button in _mail_buttons:
 		btn.visible = not on
 	if _letters_label != null:
 		_letters_label.visible = not on and _side_tab == SideTab.POCKETS
 
 
-func _on_haniwa_pressed(slot: int) -> void:
-	if not _open or _haniwa_house == null:
+func _on_gyroid_pressed(slot: int) -> void:
+	if not _open or _gyroid_house == null:
 		return
-	_focus_haniwa = true
+	_focus_gyroid = true
 	_focus_mail = false
-	_haniwa_sel = slot
-	_activate_haniwa_cursor()
+	_gyroid_sel = slot
+	_activate_gyroid_cursor()
 
 
-func _haniwa_navigate(event: InputEvent) -> void:
-	var col: int = _haniwa_sel % HANIWA_COLS
-	var row: int = _haniwa_sel / HANIWA_COLS
+func _gyroid_navigate(event: InputEvent) -> void:
+	var col: int = _gyroid_sel % GYROID_COLS
+	var row: int = _gyroid_sel / GYROID_COLS
 	if event.is_action_pressed("ui_left") or event.is_action_pressed("move_left"):
 		if col == 0:
 			## Back onto the pockets' right edge, same row.
-			_focus_haniwa = false
+			_focus_gyroid = false
 			Game.inventory.select(row * Inventory.COLUMNS + (Inventory.COLUMNS - 1))
 		else:
-			_haniwa_sel -= 1
+			_gyroid_sel -= 1
 	elif event.is_action_pressed("ui_right") or event.is_action_pressed("move_right"):
-		if col < HANIWA_COLS - 1:
-			_haniwa_sel += 1
+		if col < GYROID_COLS - 1:
+			_gyroid_sel += 1
 	elif event.is_action_pressed("ui_up") or event.is_action_pressed("move_forward"):
 		if row > 0:
-			_haniwa_sel -= HANIWA_COLS
+			_gyroid_sel -= GYROID_COLS
 	elif event.is_action_pressed("ui_down") or event.is_action_pressed("move_back"):
-		if row < HANIWA_ROWS - 1:
-			_haniwa_sel += HANIWA_COLS
+		if row < GYROID_ROWS - 1:
+			_gyroid_sel += GYROID_COLS
 	elif event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
-		_activate_haniwa_cursor()
+		_activate_gyroid_cursor()
 		get_viewport().set_input_as_handled()
 		return
 	else:
@@ -2301,103 +2301,103 @@ func _haniwa_navigate(event: InputEvent) -> void:
 
 
 ## `mTG_select_tag_decide_haniwa` + the hand dropping a pocket item on the table.
-func _activate_haniwa_cursor() -> void:
-	var house: House = _haniwa_house
+func _activate_gyroid_cursor() -> void:
+	var house: House = _gyroid_house
 	if house == null:
 		return
 	var inv: Inventory = Game.inventory
-	var empty: bool = GyroidStore.is_empty_slot(house, _haniwa_sel)
+	var empty: bool = GyroidStore.is_empty_slot(house, _gyroid_sel)
 	_tag_choices = PackedStringArray()
-	_haniwa_put_pocket = -1
-	if _haniwa_owner:
+	_gyroid_put_pocket = -1
+	if _gyroid_owner:
 		if inv.hand_index >= 0:
 			if not empty:
 				Audio.play_se(&"3")
 				return
 			## `mTG_haniwa_put_item`.
-			_haniwa_put_pocket = inv.hand_index
+			_gyroid_put_pocket = inv.hand_index
 			_tag_choices = PackedStringArray(["Free", "Set price", "Display only"])
 		elif not empty:
 			## `mTG_haniwa_item`.
 			_tag_choices = PackedStringArray(["Grab", "Free", "Set price", "Display only", "Quit"])
-	elif not empty and int(GyroidStore.item_at(house, _haniwa_sel)["exchange"]) != GyroidStore.Exchange.DISPLAY:
+	elif not empty and int(GyroidStore.item_at(house, _gyroid_sel)["exchange"]) != GyroidStore.Exchange.DISPLAY:
 		## `mTG_haniwa_get_item`.
 		_tag_choices = PackedStringArray(["Take it", "Quit"])
 	if _tag_choices.is_empty():
 		return
-	_haniwa_tag_mode = true
+	_gyroid_tag_mode = true
 	_tag_mode = true
 	_tag_index = 0
 	Audio.play_se(&"41c")
 	_refresh()
 
 
-func _run_haniwa_tag(tag: String) -> void:
-	var house: House = _haniwa_house
+func _run_gyroid_tag(tag: String) -> void:
+	var house: House = _gyroid_house
 	var inv: Inventory = Game.inventory
-	_haniwa_tag_mode = false
+	_gyroid_tag_mode = false
 	_tag_mode = false
 	match tag:
 		"Free":
-			_haniwa_set_terms(GyroidStore.Exchange.FREE, 0)
+			_gyroid_set_terms(GyroidStore.Exchange.FREE, 0)
 		"Display only":
-			_haniwa_set_terms(GyroidStore.Exchange.DISPLAY, 0)
+			_gyroid_set_terms(GyroidStore.Exchange.DISPLAY, 0)
 		"Set price":
 			## `mTG_priceset_proc`: starts from the item's current price.
 			_price_mode = true
 			_price_digit = 4
-			_price = int(GyroidStore.item_at(house, _haniwa_sel)["price"]) if _haniwa_put_pocket < 0 else 0
+			_price = int(GyroidStore.item_at(house, _gyroid_sel)["price"]) if _gyroid_put_pocket < 0 else 0
 			Audio.play_se(&"33")
 		"Grab":
-			if GyroidStore.take_back(house, _haniwa_sel, inv):
+			if GyroidStore.take_back(house, _gyroid_sel, inv):
 				Audio.play_se(&"60")
 			else:
-				_haniwa_say(GyroidStore.MSG_NO_ROOM)
+				_gyroid_say(GyroidStore.MSG_NO_ROOM)
 				Audio.play_se(&"3")
 		"Take it":
-			var paid: bool = int(GyroidStore.item_at(house, _haniwa_sel)["price"]) > 0
-			match GyroidStore.buy(house, _haniwa_sel, inv):
+			var paid: bool = int(GyroidStore.item_at(house, _gyroid_sel)["price"]) > 0
+			match GyroidStore.buy(house, _gyroid_sel, inv):
 				&"ok":
-					_haniwa_say(GyroidStore.MSG_THANKS)
+					_gyroid_say(GyroidStore.MSG_THANKS)
 					## `NA_SE_5F` for a gift, the till for a sale.
 					Audio.play_se(&"register" if paid else &"5f")
 				&"no_room":
-					_haniwa_say(GyroidStore.MSG_NO_ROOM)
+					_gyroid_say(GyroidStore.MSG_NO_ROOM)
 					Audio.play_se(&"3")
 				&"no_money":
-					_haniwa_say(GyroidStore.MSG_CANT_AFFORD)
+					_gyroid_say(GyroidStore.MSG_CANT_AFFORD)
 					Audio.play_se(&"3")
 	_refresh()
 	_update_hand_cursor(true)
 
 
 ## `mTG_set_trade_cond`: put the held pocket item in on these terms, or re-term an item.
-func _haniwa_set_terms(exchange: GyroidStore.Exchange, price: int) -> void:
-	var house: House = _haniwa_house
+func _gyroid_set_terms(exchange: GyroidStore.Exchange, price: int) -> void:
+	var house: House = _gyroid_house
 	var inv: Inventory = Game.inventory
-	if _haniwa_put_pocket >= 0:
-		if not GyroidStore.entrust(house, _haniwa_sel, inv, _haniwa_put_pocket, exchange, price):
+	if _gyroid_put_pocket >= 0:
+		if not GyroidStore.entrust(house, _gyroid_sel, inv, _gyroid_put_pocket, exchange, price):
 			return
 		_play_hand_clip("hnd_sasu", true)
 	else:
-		GyroidStore.set_terms(house, _haniwa_sel, exchange, price)
-	_haniwa_put_pocket = -1
+		GyroidStore.set_terms(house, _gyroid_sel, exchange, price)
+	_gyroid_put_pocket = -1
 	Audio.play_se(&"33")
-	_haniwa_say(GyroidStore.MSG_GOT_IT)
+	_gyroid_say(GyroidStore.MSG_GOT_IT)
 
 
 ## `mTG_mv_priceSet`: left/right pick a digit, up/down step it, A sets (0 = free), B backs out.
 func _handle_price_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel") or event.is_action_pressed("pause_menu"):
 		_price_mode = false
-		_haniwa_put_pocket = -1
+		_gyroid_put_pocket = -1
 		Audio.play_se(&"3")
 	elif event.is_action_pressed("interact") or event.is_action_pressed("ui_accept"):
 		_price_mode = false
 		if _price == 0:
-			_haniwa_set_terms(GyroidStore.Exchange.FREE, 0)
+			_gyroid_set_terms(GyroidStore.Exchange.FREE, 0)
 		else:
-			_haniwa_set_terms(GyroidStore.Exchange.SALE, _price)
+			_gyroid_set_terms(GyroidStore.Exchange.SALE, _price)
 	elif event.is_action_pressed("ui_up") or event.is_action_pressed("move_forward"):
 		var up: int = GyroidStore.step_price(_price, _price_digit, 1)
 		if up != _price:
@@ -2421,17 +2421,17 @@ func _handle_price_input(event: InputEvent) -> void:
 	_refresh()
 
 
-func _haniwa_say(text: String) -> void:
-	_haniwa_interrupt = text
-	_haniwa_interrupt_left = HANIWA_INTERRUPT_SEC
+func _gyroid_say(text: String) -> void:
+	_gyroid_interrupt = text
+	_gyroid_interrupt_left = GYROID_INTERRUPT_SEC
 
 
 func _process(delta: float) -> void:
-	if _haniwa_interrupt_left > 0.0:
-		_haniwa_interrupt_left -= delta
-		if _haniwa_interrupt_left <= 0.0:
-			_haniwa_interrupt = ""
-			_refresh_haniwa()
+	if _gyroid_interrupt_left > 0.0:
+		_gyroid_interrupt_left -= delta
+		if _gyroid_interrupt_left <= 0.0:
+			_gyroid_interrupt = ""
+			_refresh_gyroid()
 
 
 ## Price as five digits with the edited one bracketed, e.g. `0 1 [2] 0 0 Bells`.
@@ -2443,13 +2443,13 @@ func _price_text() -> String:
 	return " ".join(parts) + " Bells"
 
 
-func _refresh_haniwa() -> void:
-	if _haniwa_root == null or _haniwa_house == null:
+func _refresh_gyroid() -> void:
+	if _gyroid_root == null or _gyroid_house == null:
 		return
-	var house: House = _haniwa_house
-	for i: int in _haniwa_buttons.size():
-		var btn: Button = _haniwa_buttons[i]
-		var selected: bool = _focus_haniwa and i == _haniwa_sel
+	var house: House = _gyroid_house
+	for i: int in _gyroid_buttons.size():
+		var btn: Button = _gyroid_buttons[i]
+		var selected: bool = _focus_gyroid and i == _gyroid_sel
 		var style: StyleBox = style_item_selected if selected else style_item
 		for key: String in ["normal", "hover", "pressed", "disabled", "focus"]:
 			btn.add_theme_stylebox_override(key, style)
@@ -2467,12 +2467,12 @@ func _refresh_haniwa() -> void:
 			btn.text = data.display_name.substr(0, mini(5, data.display_name.length()))
 		btn.modulate = Color.WHITE
 	## `mHW_make_message`: interrupt line, else what the cursor / tag is on.
-	var line: String = _haniwa_interrupt
+	var line: String = _gyroid_interrupt
 	if line == "":
 		if _price_mode:
 			line = GyroidStore.MSG_HOW_MUCH + "\n" + _price_text()
-		elif _haniwa_tag_mode:
+		elif _gyroid_tag_mode:
 			line = GyroidStore.MSG_CHOOSE_ONE
 		else:
-			line = GyroidStore.status_line(house, _haniwa_sel if _focus_haniwa else -1, _haniwa_owner)
-	_haniwa_status.text = line
+			line = GyroidStore.status_line(house, _gyroid_sel if _focus_gyroid else -1, _gyroid_owner)
+	_gyroid_status.text = line

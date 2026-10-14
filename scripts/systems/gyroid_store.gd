@@ -46,17 +46,17 @@ static func empty_slot() -> Dictionary:
 static func ensure(house: House) -> void:
 	if house == null:
 		return
-	while house.haniwa_items.size() < SLOTS:
-		house.haniwa_items.append(empty_slot())
-	while house.haniwa_items.size() > SLOTS:
-		house.haniwa_items.pop_back()
+	while house.gyroid_items.size() < SLOTS:
+		house.gyroid_items.append(empty_slot())
+	while house.gyroid_items.size() > SLOTS:
+		house.gyroid_items.pop_back()
 
 
 static func item_at(house: House, slot: int) -> Dictionary:
 	ensure(house)
 	if house == null or slot < 0 or slot >= SLOTS:
 		return empty_slot()
-	return house.haniwa_items[slot]
+	return house.gyroid_items[slot]
 
 
 static func is_empty_slot(house: House, slot: int) -> bool:
@@ -87,7 +87,7 @@ static func default_message() -> String:
 static func message(house: House) -> String:
 	if house == null:
 		return ""
-	return house.haniwa_message if house.haniwa_message != "" else default_message()
+	return house.gyroid_message if house.gyroid_message != "" else default_message()
 
 
 ## Owner puts pocket item `pocket` into empty gyroid slot `slot` on the given terms
@@ -104,7 +104,7 @@ static func entrust(
 	if inv.hand_index == pocket:
 		inv.clear_hand()
 	var taken: InventoryItem = inv.remove_from_slot(pocket, pocket_slot.item.count)
-	house.haniwa_items[slot] = {
+	house.gyroid_items[slot] = {
 		"item": taken.item_id,
 		"count": taken.count,
 		"cond": int(taken.condition),
@@ -119,7 +119,7 @@ static func entrust(
 static func set_terms(house: House, slot: int, exchange: Exchange, price: int = 0) -> void:
 	if is_empty_slot(house, slot):
 		return
-	var rec: Dictionary = house.haniwa_items[slot]
+	var rec: Dictionary = house.gyroid_items[slot]
 	var p: int = clampi(price, 0, PRICE_MAX)
 	if exchange == Exchange.SALE and p == 0:
 		exchange = Exchange.FREE
@@ -137,11 +137,11 @@ static func step_price(price: int, digit: int, dir: int) -> int:
 static func take_back(house: House, slot: int, inv: Inventory) -> bool:
 	if inv == null or is_empty_slot(house, slot):
 		return false
-	var rec: Dictionary = house.haniwa_items[slot]
+	var rec: Dictionary = house.gyroid_items[slot]
 	var data: ItemData = ItemCatalog.get_item(StringName(rec["item"]))
 	if data == null or inv.add(data, int(rec["count"]), int(rec["cond"]) as InventoryItem.Condition) > 0:
 		return false
-	house.haniwa_items[slot] = empty_slot()
+	house.gyroid_items[slot] = empty_slot()
 	return true
 
 
@@ -162,7 +162,7 @@ static func spendable(inv: Inventory) -> int:
 static func buy(house: House, slot: int, inv: Inventory) -> StringName:
 	if inv == null or is_empty_slot(house, slot):
 		return &""
-	var rec: Dictionary = house.haniwa_items[slot]
+	var rec: Dictionary = house.gyroid_items[slot]
 	if int(rec["exchange"]) == Exchange.DISPLAY:
 		return &"display"
 	if not inv.has_space(1):
@@ -184,8 +184,8 @@ static func buy(house: House, slot: int, inv: Inventory) -> StringName:
 	var data: ItemData = ItemCatalog.get_item(StringName(rec["item"]))
 	if data != null:
 		inv.add(data, int(rec["count"]), int(rec["cond"]) as InventoryItem.Condition)
-	house.haniwa_bells += price
-	house.haniwa_items[slot] = empty_slot()
+	house.gyroid_bells += price
+	house.gyroid_items[slot] = empty_slot()
 	return &"ok"
 
 
@@ -196,10 +196,10 @@ static func buy(house: House, slot: int, inv: Inventory) -> StringName:
 static func collect_proceeds(house: House, inv: Inventory) -> Dictionary:
 	if house == null or inv == null:
 		return {"ok": false, "bags": 0}
-	var money: int = inv.wallet + house.haniwa_bells
+	var money: int = inv.wallet + house.gyroid_bells
 	if money < Inventory.WALLET_MAX:
 		inv.set_wallet(money)
-		house.haniwa_bells = 0
+		house.gyroid_bells = 0
 		return {"ok": true, "bags": 0}
 	var bags: int = (money - Inventory.WALLET_MAX) / PROCEEDS_BAG + 1
 	if inv.empty_slot_count() < bags:
@@ -210,7 +210,7 @@ static func collect_proceeds(house: House, inv: Inventory) -> Dictionary:
 			inv.add(bag, 1)
 		money -= PROCEEDS_BAG
 	inv.set_wallet(money)
-	house.haniwa_bells = 0
+	house.gyroid_bells = 0
 	return {"ok": true, "bags": 0}
 
 
@@ -219,7 +219,7 @@ static func collect_proceeds(house: House, inv: Inventory) -> Dictionary:
 static func status_line(house: House, slot: int, owner: bool) -> String:
 	if slot < 0 or is_empty_slot(house, slot):
 		return MSG_HOW_CAN_I_HELP if owner else MSG_MAY_I_HELP
-	var rec: Dictionary = house.haniwa_items[slot]
+	var rec: Dictionary = house.gyroid_items[slot]
 	match int(rec["exchange"]):
 		Exchange.FREE:
 			return MSG_FREE if owner else MSG_GIVE_AWAY

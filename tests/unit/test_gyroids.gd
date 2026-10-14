@@ -35,13 +35,13 @@ func _town() -> _GridWorld:
 
 
 func test_three_different_gyroids_in_three_acres() -> void:
-	if FurnitureCatalog.list(BuriedUse.HANIWA_BIRTH).is_empty():
+	if FurnitureCatalog.list(BuriedUse.GYROID_BIRTH).is_empty():
 		return
 	var world := _town()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5
 	var cells: Array[Vector2i] = BuriedUse.bury_gyroids(world, world.grid, rng)
-	assert_int(cells.size()).is_equal(BuriedUse.HANIWA_NUM)
+	assert_int(cells.size()).is_equal(BuriedUse.GYROID_NUM)
 	var blocks: Array = []
 	var items: Array = []
 	for cell: Vector2i in cells:
@@ -53,31 +53,31 @@ func test_three_different_gyroids_in_three_acres() -> void:
 		assert_int(blocks.count(b)).is_equal(1)
 	for it: Variant in items:
 		assert_int(items.count(it)).is_equal(1)
-		assert_bool(FurnitureCatalog.list(BuriedUse.HANIWA_BIRTH).has(StringName(str(it)))).is_true()
+		assert_bool(FurnitureCatalog.list(BuriedUse.GYROID_BIRTH).has(StringName(str(it)))).is_true()
 
 
 func test_renewal_buries_them_once() -> void:
-	if FurnitureCatalog.list(BuriedUse.HANIWA_BIRTH).is_empty():
+	if FurnitureCatalog.list(BuriedUse.GYROID_BIRTH).is_empty():
 		return
 	var world := _town()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2
-	Game.haniwa_scheduled = true
+	Game.gyroids_scheduled = true
 	BuriedUse.renew(world, world.grid, rng)
-	assert_bool(Game.haniwa_scheduled).is_false()
+	assert_bool(Game.gyroids_scheduled).is_false()
 	var gyroids := 0
-	var list: Array[StringName] = FurnitureCatalog.list(BuriedUse.HANIWA_BIRTH)
+	var list: Array[StringName] = FurnitureCatalog.list(BuriedUse.GYROID_BIRTH)
 	for key: Variant in Game.buried_deposits.keys():
 		var rec: Dictionary = BuriedUse.record(StringName(str(key)))
 		if list.has(StringName(str(rec.get(BuriedUse.KEY_ITEM, "")))):
 			gyroids += 1
-	assert_int(gyroids).is_equal(BuriedUse.HANIWA_NUM)
+	assert_int(gyroids).is_equal(BuriedUse.GYROID_NUM)
 
 
 func test_dance_counter() -> void:
-	assert_int(GyroidRhythm.haniwa_index(0x16C)).is_equal(0)
-	assert_int(GyroidRhythm.haniwa_index(0x16C + 126)).is_equal(126)
-	assert_int(GyroidRhythm.haniwa_index(0x16B)).is_equal(-1)
+	assert_int(GyroidRhythm.gyroid_index(0x16C)).is_equal(0)
+	assert_int(GyroidRhythm.gyroid_index(0x16C + 126)).is_equal(126)
+	assert_int(GyroidRhythm.gyroid_index(0x16B)).is_equal(-1)
 	## Two steps a beat at 120 BPM: four a second.
 	assert_float(GyroidRhythm.steps(1.0)).is_equal_approx(4.0, 0.0001)
 	assert_float(GyroidRhythm.counter(2.25, 0)).is_equal_approx(0.25, 0.0001)

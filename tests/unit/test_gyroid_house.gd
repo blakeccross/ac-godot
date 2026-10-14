@@ -30,16 +30,16 @@ func test_generated_town_puts_a_gyroid_two_units_south_of_every_house() -> void:
 	var data: WorldData = WorldGenerator.generate(4242)
 	## West anchors are the house ut; east anchors sit one cell west of it (`nw_off (-1, 0)`).
 	var expect: Dictionary = {
-		&"player_haniwa": _cell_of(data, &"player_house") + Vector2i(0, 2),
-		&"player_haniwa_1": _cell_of(data, &"player_house_1") + Vector2i(1, 2),
-		&"player_haniwa_2": _cell_of(data, &"player_house_2") + Vector2i(0, 2),
-		&"player_haniwa_3": _cell_of(data, &"player_house_3") + Vector2i(1, 2),
+		&"player_gyroid": _cell_of(data, &"player_house") + Vector2i(0, 2),
+		&"player_gyroid_1": _cell_of(data, &"player_house_1") + Vector2i(1, 2),
+		&"player_gyroid_2": _cell_of(data, &"player_house_2") + Vector2i(0, 2),
+		&"player_gyroid_3": _cell_of(data, &"player_house_3") + Vector2i(1, 2),
 	}
 	for id: StringName in expect:
 		assert_that(_cell_of(data, id)).is_equal(expect[id])
 	var kinds: int = 0
 	for o: ObjectPlacement in data.objects:
-		if o != null and o.kind == &"haniwa":
+		if o != null and o.kind == &"gyroid":
 			kinds += 1
 	assert_int(kinds).is_equal(4)
 
@@ -47,16 +47,16 @@ func test_generated_town_puts_a_gyroid_two_units_south_of_every_house() -> void:
 func test_gyroids_sit_on_the_house_row_like_the_fg_template() -> void:
 	## FG house acre: HOUSE0 ut (3,3) / HANIWA0 ut (3,5), HOUSE1 (12,3) / HANIWA1 (12,5).
 	var data: WorldData = WorldGenerator.generate(99)
-	var west: Vector2i = _cell_of(data, &"player_haniwa")
-	var east: Vector2i = _cell_of(data, &"player_haniwa_1")
+	var west: Vector2i = _cell_of(data, &"player_gyroid")
+	var east: Vector2i = _cell_of(data, &"player_gyroid_1")
 	assert_int(east.x - west.x).is_equal(9)
 	assert_int(east.y).is_equal(west.y)
-	assert_int(_cell_of(data, &"player_haniwa_2").y - west.y).is_equal(7)
+	assert_int(_cell_of(data, &"player_gyroid_2").y - west.y).is_equal(7)
 
 
 func test_house_idx_comes_from_the_placement_id() -> void:
-	assert_int(PlayerHouse.plot_of("player_haniwa")).is_equal(0)
-	assert_int(PlayerHouse.plot_of("player_haniwa_1")).is_equal(1)
+	assert_int(PlayerHouse.plot_of("player_gyroid")).is_equal(0)
+	assert_int(PlayerHouse.plot_of("player_gyroid_1")).is_equal(1)
 	assert_int(PlayerHouse.plot_of("player_mailbox_3")).is_equal(3)
 	assert_str(PlayerHouse.plot_building(0)).is_equal("player_house")
 	assert_str(PlayerHouse.plot_building(2)).is_equal("player_house_2")
@@ -241,7 +241,7 @@ func test_visitor_with_nothing_held_gets_the_apology() -> void:
 
 func test_scene_builds_and_offers_talk() -> void:
 	var node: Node = auto_free(load("res://scenes/world/gyroid.tscn").instantiate())
-	node.name = "player_haniwa_1"
+	node.name = "player_gyroid_1"
 	add_child(node)
 	assert_int(int(node.get("house_idx"))).is_equal(1)
 	var verbs: Array[Interaction] = node.call("get_interactions", InteractionContext.new())
@@ -291,9 +291,9 @@ func test_price_steps_by_digit_and_clamps() -> void:
 func test_visitor_pays_from_wallet_then_smallest_bags() -> void:
 	var inv: Inventory = Game.inventory
 	var house: House = _stocked_house()
-	house.haniwa_items[0] = {"item": &"apple", "count": 1, "cond": 0,
+	house.gyroid_items[0] = {"item": &"apple", "count": 1, "cond": 0,
 		"exchange": GyroidStore.Exchange.SALE, "price": 1500}
-	house.haniwa_items[1] = {"item": &"apple", "count": 1, "cond": 0,
+	house.gyroid_items[1] = {"item": &"apple", "count": 1, "cond": 0,
 		"exchange": GyroidStore.Exchange.DISPLAY, "price": 0}
 	inv.set_wallet(300)
 	assert_that(GyroidStore.buy(house, 0, inv)).is_equal(&"no_money")
@@ -306,7 +306,7 @@ func test_visitor_pays_from_wallet_then_smallest_bags() -> void:
 	assert_int(inv.count_of(&"money_100")).is_equal(0)
 	assert_int(inv.count_of(&"money_1000")).is_equal(0)
 	assert_int(inv.count_of(&"apple")).is_equal(1)
-	assert_int(house.haniwa_bells).is_equal(1500)
+	assert_int(house.gyroid_bells).is_equal(1500)
 	assert_that(GyroidStore.buy(house, 1, inv)).is_equal(&"display")
 
 
@@ -314,13 +314,13 @@ func test_proceeds_fill_the_wallet_then_overflow_into_bags() -> void:
 	var inv: Inventory = Game.inventory
 	var house: House = _stocked_house()
 	inv.set_wallet(1000)
-	house.haniwa_bells = 2000
+	house.gyroid_bells = 2000
 	assert_bool(bool(GyroidStore.collect_proceeds(house, inv)["ok"])).is_true()
 	assert_int(inv.wallet).is_equal(3000)
-	assert_int(house.haniwa_bells).is_equal(0)
+	assert_int(house.gyroid_bells).is_equal(0)
 	## 99 000 + 40 000 = 139 000: (139 000 − 99 999) / 30 000 + 1 = 2 bags → wallet 79 000.
 	inv.set_wallet(99000)
-	house.haniwa_bells = 40000
+	house.gyroid_bells = 40000
 	var got: Dictionary = GyroidStore.collect_proceeds(house, inv)
 	assert_bool(bool(got["ok"])).is_true()
 	assert_int(inv.count_of(&"money_30000")).is_equal(2)
@@ -330,26 +330,26 @@ func test_proceeds_fill_the_wallet_then_overflow_into_bags() -> void:
 		if inv.slot_at(i).is_empty():
 			inv.slot_at(i).set_stack(&"apple", 1, InventoryItem.Condition.NORMAL)
 	inv.set_wallet(99000)
-	house.haniwa_bells = 40000
+	house.gyroid_bells = 40000
 	got = GyroidStore.collect_proceeds(house, inv)
 	assert_bool(bool(got["ok"])).is_false()
 	assert_int(int(got["bags"])).is_equal(2)
-	assert_int(house.haniwa_bells).is_equal(40000)
+	assert_int(house.gyroid_bells).is_equal(40000)
 
 
 func test_gyroid_data_round_trips_with_the_house() -> void:
 	var house: House = _stocked_house()
-	house.haniwa_items[3] = {"item": &"apple", "count": 1, "cond": 0,
+	house.gyroid_items[3] = {"item": &"apple", "count": 1, "cond": 0,
 		"exchange": GyroidStore.Exchange.SALE, "price": 250}
-	house.haniwa_message = "Back soon!"
-	house.haniwa_bells = 777
+	house.gyroid_message = "Back soon!"
+	house.gyroid_bells = 777
 	house.door_original = 5
 	var back := House.new()
 	back.apply_snapshot(house.to_save())
 	assert_that(GyroidStore.item_at(back, 3)["item"]).is_equal(&"apple")
 	assert_int(int(GyroidStore.item_at(back, 3)["price"])).is_equal(250)
-	assert_str(back.haniwa_message).is_equal("Back soon!")
-	assert_int(back.haniwa_bells).is_equal(777)
+	assert_str(back.gyroid_message).is_equal("Back soon!")
+	assert_int(back.gyroid_bells).is_equal(777)
 	assert_int(back.door_original).is_equal(5)
 
 

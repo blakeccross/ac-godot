@@ -9,7 +9,7 @@ extends Node3D
 ##
 ## Output: `res://recordings/haniwa/menu_*.png`
 
-const OUT_DIR := "res://recordings/haniwa"
+const OUT_DIR := "res://recordings/gyroid"
 
 
 func _ready() -> void:
@@ -30,8 +30,8 @@ func _run() -> void:
 	Game.inventory.add(ItemCatalog.get_item(&"apple"), 1)
 	var player := Player.find(get_tree())
 	var gyroid: Node3D = null
-	for n: Node in get_tree().get_nodes_in_group("haniwa"):
-		if n.name == "player_haniwa":
+	for n: Node in get_tree().get_nodes_in_group("gyroids"):
+		if n.name == "player_gyroid":
 			gyroid = n as Node3D
 	player.global_position = gyroid.global_position + Vector3(0.0, 0.0, 2.0)
 	player.set_facing(PI)
@@ -108,7 +108,7 @@ func _run() -> void:
 	await _raw_key(KEY_ESCAPE)
 	await _raw_key(KEY_SPACE)      ## Save it
 	await _wait_for(func() -> bool: return ui.is_open())
-	print("MENU message=", house.haniwa_message.replace("\n", " | "))
+	print("MENU message=", house.gyroid_message.replace("\n", " | "))
 	## Leave the talk, then look at the door.
 	await _to_choice(ui)
 	await _key(&"ui_down")

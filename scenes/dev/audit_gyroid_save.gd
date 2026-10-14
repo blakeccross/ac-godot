@@ -1,7 +1,7 @@
 extends Node3D
 
 ## Live check of the house gyroid's Save flow in the real field: stands the player in front of
-## `player_haniwa` facing it, talks with real A presses (Save → That's right!), then logs the scripted
+## `player_gyroid` facing it, talks with real A presses (Save → That's right!), then logs the scripted
 ## walk to the door and screenshots each beat. The flow ends in `Game.return_to_title`, which
 ## SAVES — back up `user://save.json` before running this.
 ##
@@ -9,7 +9,7 @@ extends Node3D
 ##
 ## Output: `res://recordings/haniwa/save_*.png`
 
-const OUT_DIR := "res://recordings/haniwa"
+const OUT_DIR := "res://recordings/gyroid"
 
 var _shots: int = 0
 
@@ -31,8 +31,8 @@ func _run() -> void:
 		await get_tree().process_frame
 	var player := Player.find(get_tree())
 	var gyroid: Node3D = null
-	for n: Node in get_tree().get_nodes_in_group("haniwa"):
-		if n.name == "player_haniwa":
+	for n: Node in get_tree().get_nodes_in_group("gyroids"):
+		if n.name == "player_gyroid":
 			gyroid = n as Node3D
 	if player == null or gyroid == null:
 		print("AUDIT: missing player=", player, " gyroid=", gyroid)

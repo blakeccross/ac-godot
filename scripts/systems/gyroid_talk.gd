@@ -73,28 +73,28 @@ const GRAPH_MSGS: Array[int] = [
 	MSG_GUEST_NOTHING,
 ]
 ## Fired by the "That's right!" answer in `MSG_SAVE_CHECK` (`aHNW_save_check` CHOICE0).
-const EVENT_SAVE := "haniwa_save"
+const EVENT_SAVE := "gyroid_save"
 ## A choice that opens a submenu (`aHNW_menu_open_wait`): the talk ends, the menu runs, and
 ## the talk resumes at "Request processed." (`mMsg_ChangeMsgData(0x0927)`). `menu` is one of
 ## `MENU_*`.
-const EVENT_MENU := "haniwa_menu"
+const EVENT_MENU := "gyroid_menu"
 const MENU_ENTRUST := "entrust"
 const MENU_MESSAGE := "hboard"
 const MENU_DOOR := "design"
 const MENU_TAKE := "take"
 ## "Remove pattern" (`aHNW_roof_check` CHOICE1): `door_original = 0xFF`, SE 0x461.
-const EVENT_DOOR_REMOVE := "haniwa_door_remove"
+const EVENT_DOOR_REMOVE := "gyroid_door_remove"
 ## Dialogue vars the graph branches on.
-const VAR_START := "haniwa_start"
-const VAR_HANDOVER := "haniwa_handover"
-const VAR_HAS_ITEMS := "haniwa_has_items"
+const VAR_START := "gyroid_start"
+const VAR_HANDOVER := "gyroid_handover"
+const VAR_HAS_ITEMS := "gyroid_has_items"
 const START_MENU := "menu"
 const START_PROCEEDS := "proceeds"
 const START_RESUME := "resume"
 const START_GUEST := "guest"
 const START_GUEST_AFTER := "guest_after"
 
-const DIALOGUE_ID := &"haniwa_owner"
+const DIALOGUE_ID := &"gyroid_owner"
 ## `m_npc.c` row for `ACTOR_PROP_HANIWA*`: name string 0x213, `mPr_SEX_OTHER`, voice 2.
 const SPEAKER_NAME := "Gyroid"
 const SOUND_SPEC := 2

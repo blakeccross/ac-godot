@@ -308,7 +308,7 @@ static func is_owned_node(node_name: String) -> bool:
 
 
 ## House plot index (0..3, `HOUSE0`–`3`) of a per-plot placement id: `player_house`,
-## `player_mailbox`, `player_haniwa` → 0; `…_1`–`…_3` → 1–3.
+## `player_mailbox`, `player_gyroid` → 0; `…_1`–`…_3` → 1–3.
 static func plot_of(node_name: String) -> int:
 	var tail: String = node_name.get_slice("_", 2)
 	return clampi(tail.to_int(), 0, 3) if tail.is_valid_int() else 0

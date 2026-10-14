@@ -25,35 +25,35 @@ func test_fossil_catalog_registers_identified_items() -> void:
 
 func test_send_fossils_queues_and_returns_next_day() -> void:
 	Game.inventory.add(ItemCatalog.get_item(&"fossil"), 2)
-	var msg: String = Game.send_fossils_to_farway(2)
+	var msg: String = Game.send_fossils_to_museum(2)
 	assert_str(msg).contains("Farway")
 	assert_int(Game.inventory.count_of(&"fossil")).is_equal(0)
-	assert_int(Game.farway.in_transit_count()).is_equal(2)
+	assert_int(Game.travel_book.in_transit_count()).is_equal(2)
 	## Same day: nothing back yet.
-	assert_array(Game.farway.process_delivery(TravelBook.today_ordinal())).is_empty()
+	assert_array(Game.travel_book.process_delivery(TravelBook.today_ordinal())).is_empty()
 	## Next day: two identified-fossil letters.
-	var letters: Array = Game.farway.process_delivery(TravelBook.today_ordinal() + 1)
+	var letters: Array = Game.travel_book.process_delivery(TravelBook.today_ordinal() + 1)
 	assert_int(letters.size()).is_equal(2)
 	for letter: MailData in letters:
 		assert_bool(letter.has_enclosure()).is_true()
 		var fossil := FossilCatalog.get_item(letter.present_item_id)
 		assert_that(fossil).is_not_null()
-	assert_int(Game.farway.in_transit_count()).is_equal(0)
+	assert_int(Game.travel_book.in_transit_count()).is_equal(0)
 
 
 func test_intro_letter_sends_once() -> void:
-	Game.farway.request_intro_letter()
-	var first: Array = Game.farway.process_delivery(TravelBook.today_ordinal())
+	Game.travel_book.request_intro_letter()
+	var first: Array = Game.travel_book.process_delivery(TravelBook.today_ordinal())
 	assert_int(first.size()).is_equal(1)
 	assert_bool((first[0] as MailData).is_received()).is_true()
-	Game.farway.request_intro_letter()
-	assert_array(Game.farway.process_delivery(TravelBook.today_ordinal())).is_empty()
+	Game.travel_book.request_intro_letter()
+	assert_array(Game.travel_book.process_delivery(TravelBook.today_ordinal())).is_empty()
 
 
 func test_delivered_letter_lands_in_mailbox_and_enclosure_is_takeable() -> void:
 	Game.inventory.add(ItemCatalog.get_item(&"fossil"), 1)
-	Game.send_fossils_to_farway(1)
-	var letters: Array = Game.farway.process_delivery(TravelBook.today_ordinal() + 1)
+	Game.send_fossils_to_museum(1)
+	var letters: Array = Game.travel_book.process_delivery(TravelBook.today_ordinal() + 1)
 	var slot: int = Game.inventory.add_received_mail(letters[0])
 	assert_int(slot).is_greater_equal(0)
 	var mail: MailData = Game.inventory.mail_at(slot)
@@ -69,7 +69,7 @@ func test_delivered_letter_lands_in_mailbox_and_enclosure_is_takeable() -> void:
 
 func test_field_renew_delivers_mail_and_notifies() -> void:
 	Game.inventory.add(ItemCatalog.get_item(&"fossil"), 1)
-	Game.send_fossils_to_farway(1)
+	Game.send_fossils_to_museum(1)
 	## Roll the calendar forward a day and fire the 06:00 renew.
 	Clock.apply_snapshot({"year": Clock.year, "month": Clock.month, "day": Clock.day + 1, "hour": 6})
 	Game._on_field_renewed(1)

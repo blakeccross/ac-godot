@@ -7,7 +7,7 @@ extends RefCounted
 ## Owned catalog items that the disc lists don't name (authored furniture, the single
 ## stationery pad) go at the end of their page, so nothing the player owns goes missing.
 
-enum Page { FTR, WALL, CARPET, CLOTH, UMBRELLA, PAPER, HANIWA, FOSSIL, MUSIC }
+enum Page { FTR, WALL, CARPET, CLOTH, UMBRELLA, PAPER, GYROID, FOSSIL, MUSIC }
 
 const PAGE_KEYS: Array[String] = ["ftr", "wall", "carpet", "cloth", "umbrella", "paper", "haniwa", "fossil", "music"]
 ## `mTG_catalog_str`.
@@ -57,7 +57,7 @@ static func build(book: CatalogBook) -> CatalogPages:
 ## The item id for disc entry `index` of `page` (&"" when this port has no such item).
 static func entry_id(page: int, index: int, umbrellas: Dictionary = {}) -> StringName:
 	match page:
-		Page.FTR, Page.HANIWA, Page.FOSSIL:
+		Page.FTR, Page.GYROID, Page.FOSSIL:
 			return FurnitureCatalog.item_id(index)
 		Page.WALL:
 			return InteriorStyleCatalog.wall_style_id(index)
@@ -80,7 +80,7 @@ static func page_for(data: ItemData) -> int:
 	if data == null:
 		return -1
 	if data is FurnitureData:
-		return Page.HANIWA if (data as FurnitureData).kind == FurnitureData.Kind.GYROID else Page.FTR
+		return Page.GYROID if (data as FurnitureData).kind == FurnitureData.Kind.GYROID else Page.FTR
 	if data is ToolData:
 		return Page.UMBRELLA if (data as ToolData).is_stock_umbrella() else -1
 	if MinidiskCatalog.is_disc(data.id):

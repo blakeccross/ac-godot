@@ -1,7 +1,7 @@
 extends Node3D
 
 ## Builds a real generated town (seed 4242) through `WorldBuilder` and screenshots each house
-## plot's gyroid (`player_haniwa`, `player_haniwa_1`–`3`) beside its house and mailbox, from
+## plot's gyroid (`player_gyroid`, `player_gyroid_1`–`3`) beside its house and mailbox, from
 ## the actual placed node positions. The .tscn's ambient (`ambient_light_source = 2`, color
 ## `(0.31, 0.31, 0.59)`) intentionally mirrors `scenes/world/world.tscn`'s real
 ## WorldEnvironment — keep this in sync with world.tscn.
@@ -13,14 +13,14 @@ extends Node3D
 ##
 ## Output: `res://recordings/haniwa/*.png`
 
-const OUT_DIR := "res://recordings/haniwa"
+const OUT_DIR := "res://recordings/gyroid"
 const SEED := 4242
 const ISO := 0.70710678
 
 const PAIRS: Array[Dictionary] = [
-	{ "name": "plot0", "house": &"player_house", "mailbox": &"player_haniwa" },
-	{ "name": "plot1", "house": &"player_house_1", "mailbox": &"player_haniwa_1" },
-	{ "name": "plot2", "house": &"player_house_2", "mailbox": &"player_haniwa_2" },
+	{ "name": "plot0", "house": &"player_house", "mailbox": &"player_gyroid" },
+	{ "name": "plot1", "house": &"player_house_1", "mailbox": &"player_gyroid_1" },
+	{ "name": "plot2", "house": &"player_house_2", "mailbox": &"player_gyroid_2" },
 ]
 
 @onready var _camera: Camera3D = $Camera3D

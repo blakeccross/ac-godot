@@ -92,9 +92,9 @@ static func send_mail_at(index: int) -> String:
 	## the post office desk; the attached fossil (`mTG_present_proc`) is queued for
 	## identification and returns via the mailbox the next in-game day.
 	if letter.recipient_id == MUSEUM_RECIPIENT_ID:
-		if letter.present_item_id == &"" or Game.farway == null:
+		if letter.present_item_id == &"" or Game.travel_book == null:
 			return "Attach a fossil before mailing this to the Museum."
-		Game.farway.queue_fossil()
+		Game.travel_book.queue_fossil()
 		Game.inventory.remove_mail(index)
 		_refresh_mail_piles()
 		return "We'll send it to the Museum. Expect a reply tomorrow."

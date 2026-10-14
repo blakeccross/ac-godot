@@ -432,7 +432,7 @@ func test_stalk_market_schedule() -> void:
 
 ## `Kabu_get_price` is a plain read; `Kabu_manager` only runs on a date change / game start.
 func test_stalk_market_reads_do_not_reroll() -> void:
-	var market: StalkMarket = Game.shops.kabu
+	var market: StalkMarket = Game.shops.stalk_market
 	## 2001-01-07 is a Sunday: many reads leave the trend chain and the week alone.
 	_set_date(2001, 1, 7, 12)
 	market.clear()
@@ -462,7 +462,7 @@ func test_stalk_market_reads_do_not_reroll() -> void:
 func test_nook_buys_turnips_except_sundays() -> void:
 	var inv: Inventory = Game.inventory
 	inv.add(ItemCatalog.get_item(&"turnips_10"), 1)
-	var price: int = Game.shops.kabu.price_today()
+	var price: int = Game.shops.stalk_market.price_today()
 	var res: Dictionary = Game.shops.sell_result(ShopBook.NOOK_ID, &"turnips_10", inv, 1)
 	assert_int(int(res["paid"])).is_equal(price * 10)
 	## 2001-01-07 is a Sunday.
@@ -571,15 +571,15 @@ func test_store_dialogues_load() -> void:
 func test_shop_state_round_trips() -> void:
 	Game.shops.plus_sales(ShopBook.COMBINI_SUM)
 	Game.shops.set_visitor()
-	Game.shops.kabu.decide_schedule(2001, 1, 7)
-	var sunday: int = Game.shops.kabu.price_on(0)
+	Game.shops.stalk_market.decide_schedule(2001, 1, 7)
+	var sunday: int = Game.shops.stalk_market.price_on(0)
 	Game.inventory.add(ItemCatalog.get_item(&"wood_table"), 1)
 	var snap: Dictionary = Game.to_save()
 	Game.reset_session()
 	Game.apply_snapshot(snap)
 	assert_int(Game.shops.renewal_day()).is_equal(EventDates.ordinal(2001, 1, 12))
 	assert_bool(Game.shops.has_visitor()).is_true()
-	assert_int(Game.shops.kabu.price_on(0)).is_equal(sunday)
+	assert_int(Game.shops.stalk_market.price_on(0)).is_equal(sunday)
 	assert_bool(Game.catalog.has(&"wood_table")).is_true()
 
 
