@@ -82,9 +82,9 @@ static func populate_authored(room_root: Node3D, interior: IndoorSession) -> voi
 		return
 	InteriorShellBuilder.clear_shell_colliders(terrain)
 	for child: Node in furniture_root.get_children():
-		## Keep authored fixtures (shopkeepers, clerks, curator, clocks, light shafts);
-		## only the data-driven exhibits are rebuilt on re-populate.
-		if child.name in AUTHORED_FIXTURE_NAMES or child.is_in_group("authored_fixture"):
+		## Keep authored fixtures (anything the room's `.tscn` places, plus the named
+		## presenter-built ones); only the data-driven exhibits are rebuilt on re-populate.
+		if child.owner == room_root or child.name in AUTHORED_FIXTURE_NAMES or child.is_in_group("authored_fixture"):
 			continue
 		furniture_root.remove_child(child)
 		child.free()

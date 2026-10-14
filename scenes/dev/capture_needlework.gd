@@ -25,16 +25,12 @@ func _run() -> void:
 	var room: Room = InteriorCatalog.room_template(&"needlework")
 	var session := IndoorSession.new()
 	session.bind(room)
-	var host := Node3D.new()
-	add_child(host)
-	var shell := GeneratedVisual.attach_interior(
-		host, room.shell_ids, room.wall_id, room.floor_id,
-		AABB(session.grid.origin, Vector3(32, 3, 32))
-	)
+	## The room scene carries the shell and every fixture; the presenter adds hulls + beams.
+	var scene: Node3D = load("res://scenes/world/interiors/needlework.tscn").instantiate()
+	add_child(scene)
+	var shell: Node3D = scene.get_node("Shell/GeneratedVisual")
 	GeneratedVisual.layout_authored_interior(shell, room, session.grid, 3.0)
-	var furniture := Node3D.new()
-	furniture.name = "Furniture"
-	add_child(furniture)
+	var furniture: Node3D = scene.get_node("Furniture")
 	NeedleworkPresenter.new().present(furniture, session)
 	var terrain := Node3D.new()
 	terrain.name = "Terrain"
