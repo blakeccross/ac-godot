@@ -16,16 +16,18 @@ func test_fades_in_on_summer_midday_only() -> void:
 	var r := Rainbow.new()
 	r.reserve(7, 15)
 	## 8:00 is before the window.
-	r.tick(7, 15, 8 * 3600, true)
+	r.tick(7, 15, 8 * 3600, true, 1.0)
 	assert_float(r.opacity).is_equal(0.0)
-	for _i in 1800:
-		r.tick(7, 15, 10 * 3600, true)
+	## Thirty seconds to come in.
+	r.tick(7, 15, 10 * 3600, true, 29.0)
+	assert_float(r.opacity).is_less(1.0)
+	r.tick(7, 15, 10 * 3600, true, 1.0)
 	assert_float(r.opacity).is_equal_approx(1.0, 0.0001)
 	## Shown once: the reservation is spent, and it fades slowly after.
 	assert_bool(r.reserved).is_false()
-	r.tick(7, 15, 10 * 3600, true)
+	r.tick(7, 15, 10 * 3600, true, 1.0)
 	assert_bool(r.opacity < 1.0).is_true()
 	var winter := Rainbow.new()
 	winter.reserve(1, 15)
-	winter.tick(1, 15, 10 * 3600, false)
+	winter.tick(1, 15, 10 * 3600, false, 1.0)
 	assert_float(winter.opacity).is_equal(0.0)

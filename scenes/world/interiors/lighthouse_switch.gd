@@ -22,16 +22,18 @@ const PLAYER_EFFECT_FRAME := 2.0
 ## `sAdo_OngenTrgStart(SE_ECHO(NA_SE_78))` when the lever passes frame 20 going on.
 const LEVER_SE := &"78"
 const LEVER_SE_FRAME := 20.0
-## cKF clips sampled at 30 fps; the move tick is 60 Hz.
+## cKF clips sampled at 30 fps. Frame speeds below are keyframes a 60th of a second, as the
+## decomp writes them; a step advances them by the 60ths it covers.
 const CLIP_FPS := 30.0
-const TICK_HZ := 60.0
+const TICK_HZ := DecompTime.TICK_HZ
 const LEVER_SPEED := 0.5
 const POLE_FRAME_START := 1.0
 const POLE_FRAME_END := 100.0
 const POLE_SPEED_MAX := 0.5
-## `aLS_GetNowPoleAnimeSpeed` spin-up: two kicks 30 ticks apart, then a steady climb.
-const POLE_KICK_TICKS := 48
-const POLE_KICK_PERIOD := 30
+## `aLS_GetNowPoleAnimeSpeed` spin-up: two kicks 30 ticks apart, easing off between, then
+## from tick 48 a steady climb.
+const POLE_KICK_SEC := 48.0 / TICK_HZ
+const POLE_KICK_PERIOD_SEC := 30.0 / TICK_HZ
 const POLE_KICK_1 := 0.065
 const POLE_KICK_2 := 0.85 * 0.065
 const POLE_KICK_DECAY := 0.09
@@ -41,7 +43,8 @@ const POLE_COAST := 0.001
 const POLE_COAST_FLOOR := 0.1
 const POLE_SETTLE_BUMP := 0.07
 const POLE_SWING_BACK := 1.7
-const POLE_OFF_DELAY := 49
+## The lever drops 49 ticks after the swing back.
+const POLE_OFF_SEC := 49.0 / TICK_HZ
 ## `mEnv_ManagePointLight`: the lighthouse light eases on at 0.02; `RequestChangeLightOFF`
 ## drops it at 0.002 a tick.
 const LIGHT_ON_RATE := 0.02
@@ -60,16 +63,17 @@ var pole_state: PoleState = PoleState.STOPPING
 var pole_speed: float = 0.0
 var pole_frame: float = POLE_FRAME_START
 var pole_reverse: bool = false
-var pole_timer: int = 0
+## Seconds the drive has been running (the spin-up reads it).
+var pole_time: float = 0.0
 var pole_phase: int = 2
-var pole_off_timer: int = 0
+## Seconds until the lever drops; 0 when not waiting.
+var pole_off_left: float = 0.0
 ## `point_light_percent` for this room (0–1).
 var light: float = 0.0
 var light_on: bool = false
 ## When false the room ignores the clock (tests drive `tick()` / modes directly).
 @export var follow_clock: bool = true
 
-var _accum: float = 0.0
 @onready var _lever: Node3D = $Lever
 @onready var _pole: Node3D = $Pole
 @onready var _light: OmniLight3D = $RoomLight
@@ -111,34 +115,27 @@ func enter(mode: LighthouseBook.SwitchMode) -> void:
 	if on:
 		pole_state = PoleState.RUNNING
 		pole_speed = POLE_SPEED_MAX
-		pole_timer = POLE_KICK_TICKS
+		pole_time = POLE_KICK_SEC
 	else:
 		pole_state = PoleState.STOPPING
 		pole_speed = 0.0
-		pole_timer = 0
+		pole_time = 0.0
 	light_on = on
 	light = 1.0 if on else 0.0
 	_apply()
 
 
 func _physics_process(delta: float) -> void:
-	_accum += delta
-	var ticks: int = 0
-	while _accum >= 1.0 / TICK_HZ and ticks < 8:
-		_accum -= 1.0 / TICK_HZ
-		ticks += 1
-		tick(_mode())
-	if ticks >= 8:
-		_accum = 0.0
+	tick(_mode(), delta)
 	_apply()
 
 
-## One 60 Hz move (`Lighthouse_Switch_Actor_move` minus the player check).
-func tick(mode: LighthouseBook.SwitchMode) -> void:
+## `Lighthouse_Switch_Actor_move` (minus the player check) over `delta` seconds.
+func tick(mode: LighthouseBook.SwitchMode, delta: float) -> void:
 	_auto_switch(mode)
-	_pole_move()
-	_lever_move()
-	_light_move()
+	_pole_move(delta)
+	_lever_move(delta)
+	_light_move(delta)
 
 
 func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
@@ -186,11 +183,11 @@ func _auto_switch(mode: LighthouseBook.SwitchMode) -> void:
 				request_lever_on()
 
 
-func _lever_move() -> void:
+func _lever_move(delta: float) -> void:
 	if not lever_moving:
 		return
 	var before: float = lever_frame
-	lever_frame += LEVER_SPEED
+	lever_frame += LEVER_SPEED * delta * TICK_HZ
 	if lever_on and (before - LEVER_SE_FRAME) * (lever_frame - LEVER_SE_FRAME) <= 0.0 and before != lever_frame:
 		if Audio != null:
 			Audio.play_se(LEVER_SE, self)
@@ -201,50 +198,62 @@ func _lever_move() -> void:
 		if lever_on:
 			## `aLS_SwitchMove`: once the lever is home the drive starts and the light comes on.
 			pole_state = PoleState.RUNNING
-			pole_timer = 0
+			pole_time = -1.0
 			pole_speed = 0.0
 			pole_reverse = false
 			light_on = true
 
 
-func _pole_move() -> void:
+func _pole_move(delta: float) -> void:
 	if pole_state == PoleState.RUNNING:
-		if pole_timer < POLE_KICK_TICKS:
-			if pole_timer % POLE_KICK_PERIOD == 0:
-				pole_speed = POLE_KICK_1 if pole_timer < POLE_KICK_PERIOD else POLE_KICK_2
+		## The first step after the lever lands kicks (`pole_time` −1 marks it).
+		var before: float = pole_time
+		pole_time = maxf(pole_time, 0.0)
+		if pole_time < POLE_KICK_SEC:
+			if before < 0.0:
+				pole_speed = POLE_KICK_1
+			elif before < POLE_KICK_PERIOD_SEC and pole_time + delta >= POLE_KICK_PERIOD_SEC:
+				pole_speed = POLE_KICK_2
 			else:
-				pole_speed = _add_calc(pole_speed, 0.0, POLE_KICK_DECAY, POLE_KICK_DECAY * 0.065, 0.00001)
-			pole_timer += 1
+				pole_speed = _approach(
+					pole_speed, 0.0, POLE_KICK_DECAY, POLE_KICK_DECAY * 0.065, 0.00001, delta
+				)
+			pole_time += delta
 		else:
-			pole_speed += POLE_CLIMB
+			pole_speed += POLE_CLIMB * TICK_HZ * delta
 	else:
 		match pole_phase:
 			0:
-				pole_speed -= POLE_COAST
+				pole_speed -= POLE_COAST * TICK_HZ * delta
 				if pole_speed < POLE_COAST_FLOOR:
 					pole_phase = 1
 			1:
 				var goal: float = POLE_COAST_FLOOR + POLE_SETTLE_BUMP
-				pole_speed = _add_calc(pole_speed, goal, 0.4, 1.0, 0.001)
+				pole_speed = _approach(pole_speed, goal, 0.4, 1.0, 0.001, delta)
 				if absf(pole_speed - goal) < 0.001:
 					pole_phase = 2
 					pole_reverse = true
 					pole_speed = POLE_COAST_FLOOR * POLE_SWING_BACK
-					pole_off_timer = POLE_OFF_DELAY
+					pole_off_left = POLE_OFF_SEC
 			_:
-				pole_speed = _add_calc(pole_speed, 0.0, 0.4, 1.0, 0.001)
-				if pole_off_timer > 1:
-					pole_off_timer -= 1
-				elif pole_off_timer == 1:
-					pole_off_timer = 0
-					## `aLS_RequestSwitchOFF`.
-					lever_on = false
-					lever_clip = CLIP_OFF
-					lever_frame = 1.0
-					lever_moving = true
+				pole_speed = _approach(pole_speed, 0.0, 0.4, 1.0, 0.001, delta)
+				if pole_off_left > 0.0:
+					pole_off_left -= delta
+					if pole_off_left <= 0.0:
+						pole_off_left = 0.0
+						## `aLS_RequestSwitchOFF`.
+						lever_on = false
+						lever_clip = CLIP_OFF
+						lever_frame = 1.0
+						lever_moving = true
+	_turn_pole(delta)
+
+
+func _turn_pole(delta: float) -> void:
 	pole_speed = clampf(pole_speed, 0.0, POLE_SPEED_MAX)
 	if pole_speed > 0.0:
-		pole_frame += -pole_speed if pole_reverse else pole_speed
+		var step: float = pole_speed * TICK_HZ * delta
+		pole_frame += -step if pole_reverse else step
 		var span: float = POLE_FRAME_END - POLE_FRAME_START
 		while pole_frame > POLE_FRAME_END:
 			pole_frame -= span
@@ -252,11 +261,11 @@ func _pole_move() -> void:
 			pole_frame += span
 
 
-func _light_move() -> void:
+func _light_move(delta: float) -> void:
 	if light_on:
-		light = _add_calc(light, 1.0, LIGHT_ON_RATE, LIGHT_ON_RATE, LIGHT_ON_MIN)
+		light = _approach(light, 1.0, LIGHT_ON_RATE, LIGHT_ON_RATE, LIGHT_ON_MIN, delta)
 	else:
-		light = maxf(0.0, light - LIGHT_OFF_RATE)
+		light = maxf(0.0, light - LIGHT_OFF_RATE * TICK_HZ * delta)
 
 
 func _apply() -> void:
@@ -289,15 +298,14 @@ static func _clip_frames(anim: AnimationPlayer, clip: StringName) -> float:
 	return 1.0 + anim.get_animation(clip).length * CLIP_FPS
 
 
-## `add_calc(value, target, fraction, max_step, min_step)`.
-static func _add_calc(value: float, target: float, fraction: float, max_step: float, min_step: float) -> float:
-	var diff: float = target - value
-	if diff == 0.0:
-		return value
-	var mag: float = clampf(absf(diff * fraction), min_step, max_step)
-	if absf(diff) <= mag:
-		return target
-	return value + signf(diff) * mag
+## `add_calc(value, target, fraction, max_step, min_step)` a tick, over `delta` seconds.
+static func _approach(
+	value: float, target: float, fraction: float, max_step: float, min_step: float, delta: float
+) -> float:
+	return Motion.approach(
+		value, target, Motion.half_life_from_fraction(fraction), max_step * TICK_HZ,
+		min_step * TICK_HZ, delta
+	)
 
 
 static func _find_anim(n: Node) -> AnimationPlayer:

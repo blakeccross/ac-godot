@@ -10,7 +10,9 @@ extends RefCounted
 
 const RING_SIZE := 8
 ## `ring_buf_timer`: holding one direction re-logs it after 50 ticks.
-const HOLD_TICKS := 50
+const HOLD_SEC := 50.0 / DecompTime.TICK_HZ
+## How long a chaining exercise waits for its follow-up (6 ticks).
+const CHAIN_SEC := 6.0 / DecompTime.TICK_HZ
 ## `JW_JUTGamepad_getSubStickValue() > 0.6`.
 const STICK_MIN := 0.6
 
@@ -51,8 +53,8 @@ const SPEED: Array[float] = [
 
 var _ring: Array[int] = []
 var _index: int = 0
-var _hold: int = 0
-## `radio_exercise_continue_cmd_idx` / `radio_exercise_cmd_timer`.
+var _hold: float = 0.0
+## `radio_exercise_continue_cmd_idx` / `radio_exercise_cmd_timer` (seconds).
 var pending: int = -1
 var pending_timer: float = 0.0
 
@@ -93,10 +95,11 @@ func _at(ofs: int) -> int:
 	return _ring[(_index + ofs) % RING_SIZE]
 
 
-## `Player_actor_Set_RadioExerciseCommandRingBuffer`.
-func log_command(command: int) -> void:
-	if command >= 0 and _at(0) == command and _hold < HOLD_TICKS:
-		_hold += 1
+## `Player_actor_Set_RadioExerciseCommandRingBuffer`: `command` has been held for `delta`
+## seconds. A held direction is logged once, then again every `HOLD_SEC`.
+func log_command(command: int, delta: float = DecompTime.TICK_SEC) -> void:
+	if command >= 0 and _at(0) == command and _hold < HOLD_SEC:
+		_hold += delta
 		return
 	_index = (_index + RING_SIZE - 1) % RING_SIZE
 	_ring[_index] = command
@@ -118,14 +121,14 @@ func match_command(continue_idx: int = -1) -> Dictionary:
 				ok = false
 				break
 		if ok:
-			return {"cmd": i, "timer": 6.0 if CONTINUE[i] >= 0 else 0.0}
+			return {"cmd": i, "timer": CHAIN_SEC if CONTINUE[i] >= 0 else 0.0}
 	return {"cmd": -1, "timer": 0.0}
 
 
-## `Player_actor_CheckAndRequest_main_radio_exercise_all` for one tick: returns the exercise
-## to start now, or -1. `request` false only updates the pending choice.
-func step(request: bool = true) -> int:
-	pending_timer = maxf(pending_timer - 1.0, 0.0)
+## `Player_actor_CheckAndRequest_main_radio_exercise_all` over `delta` seconds: returns the
+## exercise to start now, or -1. `request` false only updates the pending choice.
+func step(request: bool = true, delta: float = DecompTime.TICK_SEC) -> int:
+	pending_timer = maxf(pending_timer - delta, 0.0)
 	var hit: Dictionary = match_command(pending)
 	var cmd: int = int(hit["cmd"])
 	if cmd >= 0:

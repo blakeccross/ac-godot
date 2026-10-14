@@ -16,8 +16,12 @@ signal closed(saved: bool)
 
 const TEX_DIR := "res://assets/generated/ui/mscore/%s.png"
 const END := 16
-const OPEN_WAIT := 10
-const PULSE_FRAMES := 18
+## The tune plays 9 ticks after the score opens; notes can be edited from tick 10.
+const OPEN_WAIT_SEC := 10.0 / DecompTime.TICK_HZ
+## The cursor and the OK sign pulse over 18 ticks.
+const PULSE_SEC := 18.0 / DecompTime.TICK_HZ
+## The OK sign grows or shrinks a quarter a tick.
+const SURE_SCALE_SPEED := 0.25 * DecompTime.TICK_HZ
 ## `note_moji` frame per step value and its letter / y offset.
 const NOTE_FRAME: Array[int] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 2]
 const NOTE_MOJI: Array[String] = ["g", "a", "b", "c", "d", "e", "f", "g", "a", "b", "c", "d", "e", "q", "z", "onpu8"]
@@ -43,12 +47,13 @@ var cursor: int = -1
 var _original: PackedByteArray = PackedByteArray()
 var _open: bool = false
 var _proc: int = Proc.PLAY
-var _wait_timer: int = 0
-var _anim_frame: int = 0
+## Seconds before the score takes input; the tune starts one tick before that.
+var _wait_left: float = 0.0
+## Seconds into the pulse.
+var _pulse: float = 0.0
 var _sure_idx: int = 0
 var _sure_scale: float = 0.0
 var _sure_dir: int = 0
-var _accum: float = 0.0
 var _tex: Dictionary = {}
 var _font: Font = null
 var _slide: MenuSlide = null
@@ -107,9 +112,8 @@ func open() -> void:
 	_original = notes.duplicate()
 	cursor = -1
 	_proc = Proc.PLAY
-	_wait_timer = OPEN_WAIT
-	_anim_frame = 0
-	_accum = 0.0
+	_wait_left = OPEN_WAIT_SEC
+	_pulse = 0.0
 	_open = true
 	_root.visible = true
 	_prompt.close()
@@ -137,38 +141,34 @@ func _on_slid_out() -> void:
 
 
 func _process(delta: float) -> void:
-	_accum += delta * DecompTime.TICK_HZ
-	var steps := 0
-	while _accum >= 1.0 and steps < 8:
-		_accum -= 1.0
-		steps += 1
-		_tick()
-	if steps > 0:
-		_canvas.queue_redraw()
+	_animate(delta)
+	_canvas.queue_redraw()
 
 
-func _tick() -> void:
+func _animate(delta: float) -> void:
 	if _slide.is_moving():
 		return
 	match _proc:
 		Proc.PLAY:
-			if _wait_timer > 0:
-				_wait_timer -= 1
-				if _wait_timer == 1:
+			if _wait_left > 0.0:
+				var before: float = _wait_left
+				_wait_left = maxf(_wait_left - delta, 0.0)
+				var cue: float = DecompTime.TICK_SEC
+				if before > cue and _wait_left <= cue:
 					Audio.play_melody(notes)
 				return
 			if cursor == -1:
 				cursor = 0
-			_anim_frame = (_anim_frame + 1) % PULSE_FRAMES
+			_pulse = fmod(_pulse + delta, PULSE_SEC)
 		Proc.OBEY:
 			if _sure_dir == 0:
-				_sure_scale = minf(_sure_scale + 0.25, 1.0)
+				_sure_scale = minf(_sure_scale + SURE_SCALE_SPEED * delta, 1.0)
 			elif _sure_dir == 1:
-				_sure_scale -= 0.25
+				_sure_scale -= SURE_SCALE_SPEED * delta
 				if _sure_scale < 0.0:
 					_sure_scale = 0.0
 					_proc = Proc.PLAY
-			_anim_frame = (_anim_frame + 1) % PULSE_FRAMES
+			_pulse = fmod(_pulse + delta, PULSE_SEC)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -185,7 +185,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		Proc.OBEY:
 			_obey_input(k)
 		Proc.PLAY:
-			if _wait_timer == 0 and Audio.melody_step() < 0:
+			if _wait_left <= 0.0 and Audio.melody_step() < 0:
 				_play_input(k)
 
 
@@ -232,7 +232,7 @@ func _play_input(k: InputEventKey) -> void:
 				if notes[cursor] != was:
 					Audio.play_se(TownTune.note_se(notes[cursor]))
 	if cursor != before:
-		_anim_frame = 0
+		_pulse = 0.0
 		if cursor != END:
 			Audio.play_se(TownTune.note_se(notes[cursor]))
 		else:
@@ -268,7 +268,7 @@ func _obey_input(k: InputEventKey) -> void:
 
 func _open_prompt() -> void:
 	_proc = Proc.WAIT
-	_anim_frame = 0
+	_pulse = 0.0
 	Audio.play_se(&"menu_exit")
 	_prompt.open(EditEndPrompt.Kind.MSCORE)
 
@@ -282,7 +282,7 @@ func _on_prompt_answer(idx: int) -> void:
 				Game.town_tune = notes.duplicate()
 			close(true)
 		1:
-			_anim_frame = 0
+			_pulse = 0.0
 			cursor = 0
 			_proc = Proc.PLAY
 		_:
@@ -317,7 +317,7 @@ func _draw_canvas() -> void:
 			20.0 + (0.0 if play_idx < 8 else -50.0))
 		_blit("ms_bou", MARK_BOUNDS, stick, Vector2.ONE, LETTER_OFF)
 	var playing: int = inst
-	var pulse: float = 1.0 + (1.0 - cos(float(_anim_frame) * PI / 9.0)) * 0.075
+	var pulse: float = 1.0 + (1.0 - cos(_pulse / PULSE_SEC * TAU)) * 0.075
 	for pass_no: int in 2:
 		var base := Vector2(-91.0, 64.0)
 		for i: int in TownTune.LENGTH:

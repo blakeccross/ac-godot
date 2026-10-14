@@ -33,7 +33,7 @@ func test_down_neutral_up_is_the_first_exercise() -> void:
 func test_holding_a_direction_logs_it_once() -> void:
 	var rx := RadioExercise.new()
 	for _i: int in 30:
-		rx.log_command(6)
+		rx.log_command(6, 0.02)
 	_feed(rx, [0, 3])
 	assert_int(rx.step()).is_equal(0)
 
@@ -41,12 +41,12 @@ func test_holding_a_direction_logs_it_once() -> void:
 func test_full_circle_and_its_chain() -> void:
 	var rx := RadioExercise.new()
 	_feed(rx, [1, 4, 3, 5, 2])
-	## The half circle chains (`continue_command_data`): it waits 6 ticks for the full circle.
-	assert_int(rx.step()).is_equal(-1)
+	## The half circle chains (`continue_command_data`): it waits a tenth of a second for the
+	## full circle.
+	assert_int(rx.step(true, 0.0)).is_equal(-1)
 	assert_int(rx.pending).is_equal(1)
-	for _i: int in 5:
-		rx.step()
-	assert_int(rx.step()).is_equal(1)
+	assert_int(rx.step(true, 0.05)).is_equal(-1)
+	assert_int(rx.step(true, 0.06)).is_equal(1)
 	var full := RadioExercise.new()
 	_feed(full, [6, 8, 2, 5, 3, 4, 1, 7])
 	assert_int(full.step()).is_equal(16)

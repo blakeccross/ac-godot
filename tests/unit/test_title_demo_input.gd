@@ -48,17 +48,21 @@ func test_deadzone_and_clamp() -> void:
 	assert_float(half.x).is_equal_approx(0.5, 0.0001)
 
 
-func test_even_ticks_use_one_sample_odd_ticks_blend_the_next() -> void:
+## A 60 Hz physics step.
+const T := 1.0 / 60.0
+
+
+func test_samples_play_at_30_hz_and_blend_between() -> void:
 	var input := TitleDemoInput.new()
 	## Sample 0 is idle, sample 1 is full right (X = 63 → 0x7E00).
 	input.setup(PackedInt32Array([0x0000, 0x7E00, 0x7E00]))
-	input.step()  # frame 0: f0 = f1 = 0 → idle
+	input.step(T)  # t = 0: sample 0 → idle
 	assert_vector(input.move).is_equal(Vector2.ZERO)
-	input.step()  # frame 1: f0 = 0, f1 = 1 → stick (0 + 63) / 2 = 31.5
+	input.step(T)  # halfway to sample 1 → stick (0 + 63) / 2 = 31.5
 	assert_float(input.move.x).is_equal_approx(31.5 / 61.0, 0.0001)
-	input.step()  # frame 2: f0 = 1 → stick 63, past `STICK_MAX`, clamps to magnitude 1
+	input.step(T)  # sample 1 → stick 63, past `STICK_MAX`, clamps to magnitude 1
 	assert_float(input.move.x).is_equal_approx(1.0, 0.0001)
-	assert_int(input.frame).is_equal(3)
+	assert_float(input.time).is_equal_approx(3.0 * T, 0.0001)
 
 
 func test_blend_stops_at_sample_limit() -> void:
@@ -69,43 +73,52 @@ func test_blend_stops_at_sample_limit() -> void:
 	samples[1799] = 0x0000
 	var input := TitleDemoInput.new()
 	input.setup(samples)
-	## frame 3599: f0 = 1799, f1 = 1800 (≥ 1800) → no blend, only sample 1799.
-	input.frame = 3599
-	input.step()
+	## Halfway between 1799 and 1800 (≥ 1800): no blend, only sample 1799.
+	input.time = 1799.5 / TitleDemoInput.SAMPLE_HZ
+	input.step(T)
 	assert_vector(input.move).is_equal(Vector2.ZERO)
 
 
 func test_a_trigger_is_a_rising_edge_that_latches_until_consumed() -> void:
 	var input := TitleDemoInput.new()
 	input.setup(PackedInt32Array([0x0001, 0x0001, 0x0000]))
-	input.step()  # frame 0: sample 0, A down → edge
+	input.step(T)  # sample 0, A down → edge
 	assert_bool(input.a_held).is_true()
 	assert_bool(input.consume_a_pressed()).is_true()
-	## Taken once: a second read in the same tick does not fire again.
+	## Taken once: a second read in the same step does not fire again.
 	assert_bool(input.consume_a_pressed()).is_false()
-	input.step()  # frame 1: still sample 0 → held, no new edge
+	input.step(T)  # still sample 0 → held, no new edge
 	assert_bool(input.a_held).is_true()
 	assert_bool(input.consume_a_pressed()).is_false()
-	input.step()  # frame 2: sample 1 (A) → still held
-	input.step()  # frame 3: sample 1
-	input.step()  # frame 4: sample 2 → released
+	input.step(T)  # sample 1 (A) → still held
+	input.step(T)
+	input.step(T)  # sample 2 → released
 	assert_bool(input.a_held).is_false()
 
 
 func test_an_unread_edge_survives_a_double_step() -> void:
-	## A jittery frame can step twice before the player's physics tick reads the edge.
 	var input := TitleDemoInput.new()
 	input.setup(PackedInt32Array([0x0001, 0x0001, 0x0001]))
-	input.step()  # edge
-	input.step()  # second step before anyone read it — must not swallow the press
+	input.step(T)  # edge
+	input.step(T)  # second step before anyone read it — must not swallow the press
 	assert_bool(input.consume_a_pressed()).is_true()
 	assert_bool(input.consume_a_pressed()).is_false()
+
+
+func test_a_tap_between_coarse_steps_still_presses() -> void:
+	## A held for one sample (1/30 s) is caught even when a step skips past it.
+	var input := TitleDemoInput.new()
+	input.setup(PackedInt32Array([0x0000, 0x0001, 0x0000, 0x0000]))
+	input.step(0.1)
+	input.step(0.1)
+	assert_bool(input.a_held).is_false()
+	assert_bool(input.consume_a_pressed()).is_true()
 
 
 func test_running_off_the_end_is_idle() -> void:
 	var input := TitleDemoInput.new()
 	input.setup(PackedInt32Array([0x7E01]))
-	input.frame = 10
-	input.step()
+	input.time = 10.0 / TitleDemoInput.SAMPLE_HZ
+	input.step(T)
 	assert_vector(input.move).is_equal(Vector2.ZERO)
 	assert_bool(input.a_held).is_false()

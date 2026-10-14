@@ -38,7 +38,7 @@ func test_editor_changes_steps_and_saves_on_yes() -> void:
 	Game.town_tune = TownTune.default_notes()
 	ui.open()
 	ui._slide.settle()
-	ui._wait_timer = 0
+	ui._wait_left = 0.0
 	Audio.stop_melody()
 	ui.cursor = 0
 	_key(ui, KEY_UP)
@@ -61,7 +61,7 @@ func test_throw_it_out_keeps_the_old_tune() -> void:
 	Game.town_tune = TownTune.default_notes()
 	ui.open()
 	ui._slide.settle()
-	ui._wait_timer = 0
+	ui._wait_left = 0.0
 	Audio.stop_melody()
 	ui.cursor = 3
 	_key(ui, KEY_UP)

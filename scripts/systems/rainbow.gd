@@ -4,13 +4,13 @@ extends RefCounted
 ## The waterfall rainbow (`m_kankyo.c` `mEnv_rainbow_power_calc`, drawn by `ac_fallS` /
 ## `ac_fallSESW` as `obj_fall*_rainbowT_model`). A day that turns fine after rain or snow
 ## reserves one (`mEnv_PreRainNowFine_Init`); on that date, in summer, from 9:00 to 15:00
-## it fades in over 1800 frames. Outside that it fades out over 108000 frames (30 min).
+## it fades in over 1800 ticks (30 s). Outside that it fades out over 108000 (30 min).
 ## Owned by `Game`; only the reservation is saved, like `Save_Get(rainbow_reserved)`.
 
 const TIME_START := 9 * 3600
 const TIME_END := 15 * 3600
-const FADE_IN := 1.0 / 1800.0
-const FADE_OUT := 1.0 / 108000.0
+const FADE_IN_SEC := 30.0
+const FADE_OUT_SEC := 30.0 * 60.0
 
 var reserved: bool = false
 var month: int = 0
@@ -39,16 +39,16 @@ func note_weather_change(previous: StringName, now: StringName, on_month: int, o
 		reserve(on_month, on_day)
 
 
-## One frame of `mEnv_rainbow_power_calc` (field scenes only; the caller checks).
-func tick(on_month: int, on_day: int, now_sec: int, summer: bool) -> void:
+## `mEnv_rainbow_power_calc` over `delta` seconds (field scenes only; the caller checks).
+func tick(on_month: int, on_day: int, now_sec: int, summer: bool, delta: float) -> void:
 	if reserved and on_month == month and on_day == day and now_sec >= TIME_START and now_sec < TIME_END and summer:
 		## `chase_f` lands exactly on the target and reports it.
-		opacity = minf(1.0, opacity + FADE_IN)
+		opacity = minf(1.0, opacity + delta / FADE_IN_SEC)
 		if opacity >= 1.0 - 0.000001:
 			opacity = 1.0
 			reserved = false
 	else:
-		opacity = maxf(0.0, opacity - FADE_OUT)
+		opacity = maxf(0.0, opacity - delta / FADE_OUT_SEC)
 
 
 func to_save() -> Dictionary:

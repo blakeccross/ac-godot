@@ -10,24 +10,37 @@ extends Node3D
 ## drops like fruit; a bump wobbles it. After 10 minutes snagged, 2000 frames drifting to
 ## the map edge, or at the station, it escapes upward with its present.
 ##
-## Positions are kept in decomp world units (GX, the whole map including the border acres).
+## Positions are kept in decomp world units (GX, the whole map including the border acres);
+## time is seconds. Its per-frame numbers (30 fps) are converted where they are written.
 
 enum Action { BIRTH, MOVING, WOOD_STOP, ESCAPE }
 
 const FRAME_HZ := DecompTime.FRAME_HZ
-## `aFSN_ESCAPE_TIMER`, the drifting grace period, the snag time.
-const ESCAPE_TIMER := 1554
-const DRIFT_FRAMES := 2000
-const SNAG_FRAMES := 18000
+## `aFSN_ESCAPE_TIMER` (1554 frames), the drifting grace period (2000), the snag time (18000
+## frames: ten minutes).
+const ESCAPE_SEC := 1554.0 / FRAME_HZ
+const DRIFT_SEC := 2000.0 / FRAME_HZ
+const SNAG_SEC := 18000.0 / FRAME_HZ
+## `timer = 10`: frames before it starts moving.
+const HOLD_SEC := 10.0 / FRAME_HZ
+## A bump wobbles it for 12 frames, flipping its tilt every 4.
+const WOBBLE_SEC := 12.0 / FRAME_HZ
 const HEIGHT_GX := 110.0
 const HEIGHT_MAX_GX := 300.0
 const BIRTH_HEIGHT_GX := 200.0
 const LEAVE_HEIGHT_GX := 500.0
-const BOB_STEP := 250
+## The bob turns 250 binangle a frame.
+const BOB_RATE := 250.0 * FRAME_HZ
 const BOB_GX := 10.0
-## `add_calc(…, 1 - sqrt(0.7), 0.5, 0)`.
-const EASE := 0.16333997
-const EASE_MAX_GX := 0.5
+## `add_calc(…, 1 - sqrt(0.7), 0.5, 0)` a frame, as a half-life and a top speed (GX a second).
+static var EASE_HALF_LIFE: float = Motion.half_life_from_fraction(0.16333997, FRAME_HZ)
+const EASE_MAX_SPEED := 0.5 * FRAME_HZ
+## Over a wall it climbs 0.05 GX a frame; back in the open it sinks 0.005.
+const CLIMB_SPEED := 0.05 * FRAME_HZ
+const SINK_SPEED := 0.005 * FRAME_HZ
+## Escaping, it rises faster by 0.5 GX a frame each frame, up to 5 GX a frame.
+const RISE_ACCEL := 0.5 * FRAME_HZ * FRAME_HZ
+const RISE_MAX := 5.0 * FRAME_HZ
 ## Map-edge box (GX) past which a drifting balloon gives up.
 const EDGE_MIN := 660.0
 const EDGE_MAX_X := 3820.0
@@ -82,17 +95,18 @@ var pos: Vector3 = Vector3.ZERO
 var heading: int = 0
 var type_idx: int = 0
 var y_offset: float = HEIGHT_GX
-var escape_timer: int = DRIFT_FRAMES
+## Seconds left drifting (or snagged) before it gives up.
+var escape_time: float = DRIFT_SEC
 var look_up: bool = false
 var tree: Node3D = null
-## Frames before it starts moving (`timer = 10`).
-var _hold: int = 10
-var _bob: int = 0
+var _hold: float = HOLD_SEC
+## The bob's phase, binangle.
+var _bob: float = 0.0
 var _turned: bool = false
 var _count: int = 0
+## Rising speed while escaping, GX a second.
 var _rise: float = 0.0
 var _wobble: float = 0.0
-var _frame_acc: float = 0.0
 var _rng := RandomNumberGenerator.new()
 var _world: World
 var _balloon: Node3D
@@ -192,52 +206,54 @@ func start_near(world: Vector3) -> void:
 		return
 	var gx: Vector3 = _to_gx(world)
 	pos = Vector3(gx.x, _ground(Vector2(gx.x, gx.z)) + HEIGHT_GX, gx.z)
-	escape_timer = DRIFT_FRAMES
-	_hold = 0
+	escape_time = DRIFT_SEC
+	_hold = 0.0
 	_place()
 
 
 func _process(delta: float) -> void:
-	_frame_acc += delta * FRAME_HZ
-	while _frame_acc >= 1.0:
-		_frame_acc -= 1.0
-		_step()
-		if not is_inside_tree():
-			return
-	_place()
+	_step(delta)
+	if is_inside_tree():
+		_place()
 
 
-func _step() -> void:
+func _step(delta: float) -> void:
 	match action:
 		Action.MOVING:
-			_moving()
+			_moving(delta)
 		Action.WOOD_STOP:
-			_wood_stop()
+			_wood_stop(delta)
 		Action.ESCAPE:
-			_escape()
-	if _hold > 0:
-		_hold -= 1
+			_escape(delta)
+	if not is_inside_tree() or is_queued_for_deletion():
+		return
+	if _hold > 0.0:
+		_hold = maxf(_hold - delta, 0.0)
 	elif action != Action.WOOD_STOP:
-		## `Actor_position_moveF`.
-		var speed: float = Wind.power() * 0.5 + 1.0 if action == Action.MOVING else 0.0
+		## `Actor_position_moveF`: 1–1.5 GX a frame downwind.
+		var speed: float = (Wind.power() * 0.5 + 1.0) * FRAME_HZ if action == Action.MOVING else 0.0
 		var yaw: float = float(heading & 0xFFFF) / 65536.0 * TAU
-		pos.x += sin(yaw) * speed
-		pos.z += cos(yaw) * speed
+		pos.x += sin(yaw) * speed * delta
+		pos.z += cos(yaw) * speed * delta
 
 
-func _moving() -> void:
-	if escape_timer > 0:
-		escape_timer -= 1
+func _ease(value: float, target: float, delta: float) -> float:
+	return Motion.approach(value, target, EASE_HALF_LIFE, EASE_MAX_SPEED, 0.0, delta)
+
+
+func _moving(delta: float) -> void:
+	if escape_time > 0.0:
+		escape_time = maxf(escape_time - delta, 0.0)
 	elif _out_of_town():
 		_start_escape(false)
 		return
-	_bob += BOB_STEP
-	var want: float = _ground(Vector2(pos.x, pos.z)) + y_offset + sin(float(_bob & 0xFFFF) / 65536.0 * TAU) * BOB_GX
-	pos.y += clampf((want - pos.y) * EASE, -EASE_MAX_GX, EASE_MAX_GX)
+	_bob = fmod(_bob + BOB_RATE * delta, 65536.0)
+	var want: float = _ground(Vector2(pos.x, pos.z)) + y_offset + sin(_bob / 65536.0 * TAU) * BOB_GX
+	pos.y = _ease(pos.y, want, delta)
 	if _hits_wall():
-		y_offset = minf(y_offset + 0.05, HEIGHT_MAX_GX)
+		y_offset = minf(y_offset + CLIMB_SPEED * delta, HEIGHT_MAX_GX)
 	elif y_offset > HEIGHT_GX:
-		y_offset -= 0.005
+		y_offset = maxf(y_offset - SINK_SPEED * delta, HEIGHT_GX)
 	var here: Node3D = _tree_at(Vector2(pos.x, pos.z))
 	if here != null:
 		var perch: Vector3 = _perch_gx(here)
@@ -262,24 +278,24 @@ func _moving() -> void:
 
 func _start_snag() -> void:
 	action = Action.WOOD_STOP
-	escape_timer = SNAG_FRAMES + ESCAPE_TIMER
+	escape_time = SNAG_SEC + ESCAPE_SEC
 	_count = 0
 	if tree != null and tree.has_signal("shaken"):
 		tree.connect("shaken", _on_tree_shaken)
 
 
-func _wood_stop() -> void:
-	escape_timer -= 1
-	if escape_timer <= ESCAPE_TIMER or tree == null or not is_instance_valid(tree):
+func _wood_stop(delta: float) -> void:
+	escape_time -= delta
+	if escape_time <= ESCAPE_SEC or tree == null or not is_instance_valid(tree):
 		_start_escape(false)
 		return
 	var perch: Vector3 = _perch_gx(tree)
 	if Vector2(pos.x - perch.x, pos.z - perch.z).length() > 2.0:
-		pos.x += clampf((perch.x - pos.x) * EASE, -EASE_MAX_GX, EASE_MAX_GX)
-		pos.y += clampf((perch.y - pos.y) * EASE, -EASE_MAX_GX, EASE_MAX_GX)
-		pos.z += clampf((perch.z - pos.z) * EASE, -EASE_MAX_GX, EASE_MAX_GX)
+		pos.x = _ease(pos.x, perch.x, delta)
+		pos.y = _ease(pos.y, perch.y, delta)
+		pos.z = _ease(pos.z, perch.z, delta)
 	if _wobble > 0.0:
-		_wobble -= 1.0
+		_wobble = maxf(_wobble - delta, 0.0)
 
 
 func _on_tree_shaken(big: bool) -> void:
@@ -288,7 +304,7 @@ func _on_tree_shaken(big: bool) -> void:
 	if big:
 		_start_escape(true)
 	else:
-		_wobble = 12.0
+		_wobble = WOBBLE_SEC
 		_count += 1
 
 
@@ -304,16 +320,18 @@ func _start_escape(shaken: bool) -> void:
 			tree.call("drop_present", ItemCatalog.get_item(true_present(_rng)))
 		_present.visible = false
 	else:
-		escape_timer = ESCAPE_TIMER
+		escape_time = ESCAPE_SEC
 		var p: Node3D = Player.find(get_tree()) as Node3D
 		if p != null and p.global_position.distance_to(global_position) < FieldCatalog.ACRE_METERS:
 			look_up = true
 
 
-func _escape() -> void:
+func _escape(delta: float) -> void:
 	## Rises, speeding up to 5 GX a frame, and is gone 500 GX over the ground.
-	_rise = minf(_rise + 0.5, 5.0)
-	pos.y += _rise
+	var start: float = _rise
+	_rise = minf(_rise + RISE_ACCEL * delta, RISE_MAX)
+	var ramp: float = (_rise - start) / RISE_ACCEL
+	pos.y += 0.5 * (start + _rise) * ramp + _rise * (delta - ramp)
 	if pos.y > _ground(Vector2(pos.x, pos.z)) + LEAVE_HEIGHT_GX:
 		gone.emit(look_up)
 		queue_free()
@@ -411,4 +429,6 @@ func _perch_gx(t: Node3D) -> Vector3:
 
 func _place() -> void:
 	global_position = _to_world(pos)
-	rotation.z = deg_to_rad(2.7) * (1.0 if int(_wobble) & 4 == 0 else -1.0) if _wobble > 0.0 else 0.0
+	## The tilt flips every 4 frames of the wobble.
+	var wobble_frame: int = int(_wobble * FRAME_HZ)
+	rotation.z = deg_to_rad(2.7) * (1.0 if wobble_frame & 4 == 0 else -1.0) if _wobble > 0.0 else 0.0

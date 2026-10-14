@@ -7,10 +7,10 @@ extends RefCounted
 ## rule rather than data lives here.
 
 const DEMO_COUNT := 5
-## `title_demo_move`: the demo ends (`mTD_game_end_init`) once this many ticks have run.
-const TOTAL_FRAMES := 3600
-## `mTD_tdemo_button_ok_check`: START is ignored from this tick on.
-const BUTTON_LOCKOUT_FRAME := 3530
+## `title_demo_move`: the demo ends (`mTD_game_end_init`) after 3600 ticks.
+const LENGTH_SEC := 3600.0 / DecompTime.TICK_HZ
+## `mTD_tdemo_button_ok_check`: START is ignored from tick 3530 on.
+const BUTTON_LOCKOUT_SEC := 3530.0 / DecompTime.TICK_HZ
 const DATA_PATH := "res://assets/generated/titledemo/demos.json"
 ## World XZ is measured from the outer map corner; the playable town starts one 640-GX
 ## border block in (`mFI` block 1).
@@ -222,14 +222,9 @@ static func allows_verb(verb: StringName) -> bool:
 	return SAFE_VERBS.has(verb)
 
 
-## Ticks elapsed for `seconds` of real time (the demo runs on the 60 Hz frame clock).
-static func ticks_for(seconds: float) -> int:
-	return int(floorf(seconds * DecompTime.TICK_HZ))
+static func button_ok(time: float) -> bool:
+	return time < BUTTON_LOCKOUT_SEC - 0.000001
 
 
-static func button_ok(frame: int) -> bool:
-	return frame < BUTTON_LOCKOUT_FRAME
-
-
-static func is_over(frame: int) -> bool:
-	return frame >= TOTAL_FRAMES
+static func is_over(time: float) -> bool:
+	return time >= LENGTH_SEC - 0.000001

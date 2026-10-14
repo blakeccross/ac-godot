@@ -12,11 +12,17 @@ signal event_fired(event: Dictionary)
 const APPEAR_FRAMES := 18.0
 ## `mChoice` appear/disappear duration.
 const CHOICE_APPEAR_FRAMES := 10.2
-## `mMsg_Main_Cursol_ControlCursol` runs once a frame: a glyph every other frame
-## (`mMsg_STATUS_FLAG_NOT_PAUSE_FRAME`), every frame with `mMsg_STATUS_FLAG_FAST_TEXT`,
-## which also drops PAUSE waits unless `SETCURSORJUST` holds the timing.
-## PAUSE counts 30 Hz frames (`mMsg_Get_CursolSetTimeCode` doubles it).
-const PAUSE_FRAME_MULT := 2
+## `mMsg_Main_Cursol_ControlCursol`: a glyph every other tick (`mMsg_STATUS_FLAG_NOT_PAUSE_FRAME`),
+## every tick with `mMsg_STATUS_FLAG_FAST_TEXT`, which also drops PAUSE waits unless
+## `SETCURSORJUST` holds the timing.
+const GLYPH_SEC := 2.0 / DecompTime.TICK_HZ
+const FAST_GLYPH_SEC := 1.0 / DecompTime.TICK_HZ
+## PAUSE counts 30 fps frames (`mMsg_Get_CursolSetTimeCode` doubles it into ticks).
+const PAUSE_UNIT_SEC := 1.0 / DecompTime.FRAME_HZ
+## Most typing events handled in one frame (a guard against a page that never waits).
+const MAX_EVENTS_PER_FRAME := 256
+## Waits shorter than this count as done (float error from summing frame times).
+const WAIT_EPSILON := 0.000001
 ## `mMsg_sound_sound_trg_sys`: SNDTRGSYS slots → system SE (3 and 4 are silent).
 const TRG_SYS_SE := [0x1050, 0x012e, 0x012f, 0x0130, 0x0131, 0x0427, 0x0428]
 
@@ -36,7 +42,6 @@ var _choice_anim_t: float = 0.0
 var _shown: String = ""
 var _visible_len: int = 0
 var _cursor: int = 0
-var _type_accum: float = 0.0
 var _fast_text: bool = false
 ## `ABLECANCEL`: A or B dumps the rest of this cursor run. Off until that code.
 var _cancelable: bool = false
@@ -45,12 +50,15 @@ var _sound_cut: bool = false
 ## Typewriter state for the page on screen.
 var _marks: Array[Dictionary] = []
 var _mark_i: int = 0
-var _pause_frames: int = 0
+## Seconds left on a PAUSE code.
+var _pause_left: float = 0.0
 var _just: bool = false
-var _odd_frame: bool = false
-## `auto` (MSGCLEAR carries on), `time_end` (frames), `quiet` (no page SE).
+## Seconds until the next glyph is laid in.
+var _glyph_wait: float = GLYPH_SEC
+## `auto` (MSGCLEAR carries on), `time_end` (ticks), `quiet` (no page SE).
 var _page: Dictionary = {}
-var _end_timer: int = -1
+## Seconds left on a `time_end` page once it is fully out; negative until then.
+var _end_left: float = -1.0
 var _choice_index: int = 0
 var _buttons: Array[Button] = []
 var _pending_choice: int = -1
@@ -117,12 +125,12 @@ func is_awaiting_input() -> bool:
 		return false
 	if bool(_page.get("auto", false)) or _page.has("time_end"):
 		return false
-	return _cursor >= _visible_len and _visible_len > 0 and _mark_i >= _marks.size() and _pause_frames == 0
+	return _cursor >= _visible_len and _visible_len > 0 and _mark_i >= _marks.size() and _pause_left <= 0.0
 
 
 ## `mMsg_Check_NowUtter`: text is still being laid in. Drives NPC mouth flap.
 func is_uttering() -> bool:
-	return _open and not _suspended and _phase == Phase.OPEN and _cursor < _visible_len and _pause_frames == 0
+	return _open and not _suspended and _phase == Phase.OPEN and _cursor < _visible_len and _pause_left <= 0.0
 
 
 func runner() -> DialogueRunner:
@@ -143,7 +151,7 @@ func fast_advance() -> void:
 	if _btn_wait:
 		_release_btn()
 		return
-	if _cursor < _visible_len or _mark_i < _marks.size() or _pause_frames > 0:
+	if _cursor < _visible_len or _mark_i < _marks.size() or _pause_left > 0.0:
 		_dump_page()
 		return
 	if _runner == null:
@@ -168,11 +176,11 @@ func _dump_page() -> void:
 	_cursor = maxi(_cursor, stop)
 	_voice_at = _cursor
 	_mark_i = stop_mark
-	_pause_frames = 0
+	_pause_left = 0.0
 	_chrome.set_body_visible_chars(_cursor)
 	if stop_mark < _marks.size():
 		## Land on the BTN: it takes over (mark shown, A writes on).
-		_type_tick()
+		_type(0.0)
 		return
 	_show_continue()
 
@@ -255,7 +263,6 @@ func _begin_open(speaker: String, sex: MessageWindowChrome.SpeakerSex) -> void:
 	_fast_text = false
 	_cancelable = false
 	_sound_cut = false
-	_type_accum = 0.0
 	_root.visible = true
 	_chrome.set_window_scale(0.0)
 	_chrome.set_choice_scale(0.0)
@@ -304,7 +311,6 @@ func _finish_close() -> void:
 	_shown = ""
 	_visible_len = 0
 	_cursor = 0
-	_type_accum = 0.0
 	_fast_text = false
 	_chrome.set_window_scale(1.0)
 	_chrome.set_continue_visible(false)
@@ -340,32 +346,63 @@ func _process(delta: float) -> void:
 		return
 	if _runner != null and _runner.waiting_choice:
 		return
-	_type_accum += delta * DecompTime.TICK_HZ
-	var guard: int = 0
-	while _type_accum >= 1.0 and guard < 8 and _open and _phase == Phase.OPEN:
-		_type_accum -= 1.0
-		guard += 1
-		_type_tick()
+	_type(delta)
 
 
-## One frame of `mMsg_Main_Cursol_ControlCursol` + the page end.
-func _type_tick() -> void:
-	if _runner != null and _runner.waiting_choice:
-		return
-	if _btn_wait:
-		return
-	var fast: bool = _fast_text and not _just
-	if _pause_frames > 0:
-		_pause_frames = 0 if fast else _pause_frames - 1
-		return
-	## Codes sitting before the next glyph (or after the last one).
+## `mMsg_Main_Cursol_ControlCursol` + the page end over `delta` seconds: each event (a code,
+## a glyph, the page turning) happens when its wait runs out, however the frame falls.
+func _type(delta: float) -> void:
+	var budget: float = delta
+	for _i: int in MAX_EVENTS_PER_FRAME:
+		if not _open or _phase != Phase.OPEN:
+			return
+		if _runner != null and _runner.waiting_choice:
+			return
+		if _btn_wait:
+			return
+		var fast: bool = _fast_text and not _just
+		if _pause_left > 0.0:
+			if fast:
+				_pause_left = 0.0
+			else:
+				var used: float = minf(_pause_left, budget)
+				_pause_left -= used
+				budget -= used
+				if _pause_left > WAIT_EPSILON:
+					return
+				_pause_left = 0.0
+		if not _type_marks(fast):
+			return
+		if _pause_left > 0.0:
+			continue
+		if _cursor < _visible_len:
+			## B mid-wait: the rest of it runs at the fast rate.
+			_glyph_wait = minf(_glyph_wait, FAST_GLYPH_SEC if fast else GLYPH_SEC)
+			if budget + WAIT_EPSILON < _glyph_wait:
+				_glyph_wait -= budget
+				return
+			budget = maxf(budget - _glyph_wait, 0.0)
+			_glyph_wait = FAST_GLYPH_SEC if fast else GLYPH_SEC
+			var prev: int = _cursor
+			_cursor += 1
+			_utter_range(prev, _cursor)
+			_chrome.set_body_visible_chars(_cursor)
+			continue
+		budget = _page_end(budget)
+		if budget < 0.0:
+			return
+
+
+## The codes sitting before the next glyph (or after the last one). False when one stops
+## the typing (a `{btn}`).
+func _type_marks(fast: bool) -> bool:
 	while _mark_i < _marks.size() and int(_marks[_mark_i]["at"]) <= _cursor:
 		var mark: Dictionary = _marks[_mark_i]
 		_mark_i += 1
 		match str(mark["kind"]):
 			"p":
 				if not fast:
-					_pause_frames = int(mark["value"]) * PAUSE_FRAME_MULT
+					_pause_left = int(mark["value"]) * PAUSE_UNIT_SEC
 			"se":
 				var slot: int = int(mark["value"])
 				if slot >= 0 and slot < TRG_SYS_SE.size() and slot != 3 and slot != 4:
@@ -388,41 +425,39 @@ func _type_tick() -> void:
 				_fast_text = false
 				_chrome_continue_shown = true
 				_chrome.set_continue_visible(true)
-				return
-		if _pause_frames > 0:
-			return
-	if _cursor < _visible_len:
-		_odd_frame = not _odd_frame
-		if not fast and _odd_frame:
-			return
-		var prev: int = _cursor
-		_cursor += 1
-		_utter_range(prev, _cursor)
-		_chrome.set_body_visible_chars(_cursor)
-		return
-	_page_end_tick()
+				return false
+		if _pause_left > 0.0:
+			return true
+	return true
 
 
 ## The page is fully out: MSGCLEAR pages go on by themselves, MSGTIMEEND ones after
 ## their timer (`mMsg_Main_Normal` `end_timer`), the rest wait for A with the mark.
-func _page_end_tick() -> void:
+## Returns the budget left once the page has turned, or −1 while it stays.
+func _page_end(budget: float) -> float:
 	if _runner == null:
 		if not _chrome_continue_shown:
 			_show_continue()
-		return
+		return -1.0
 	if _runner.waiting_choice or _runner.is_continue_blocked():
-		return
+		return -1.0
 	if bool(_page.get("auto", false)) or bool(_page.get("force_next", false)):
 		## `MSGCLEAR` and `FORCENEXT` both leave NORMAL without a button or the page SE.
 		_turn_page(false)
-	elif _page.has("time_end"):
-		if _end_timer < 0:
-			_end_timer = int(_page["time_end"])
-		_end_timer -= 1
-		if _end_timer <= 0:
-			_turn_page(false)
-	elif not _chrome_continue_shown:
+		return budget
+	if _page.has("time_end"):
+		if _end_left < 0.0:
+			_end_left = float(_page["time_end"]) / DecompTime.TICK_HZ
+		if budget + WAIT_EPSILON < _end_left:
+			_end_left -= budget
+			return -1.0
+		budget = maxf(budget - _end_left, 0.0)
+		_end_left = -1.0
+		_turn_page(false)
+		return budget
+	if not _chrome_continue_shown:
 		_show_continue()
+	return -1.0
 
 
 func _turn_page(with_se: bool) -> void:
@@ -558,7 +593,7 @@ func _is_b(event: InputEvent) -> bool:
 
 
 func _still_typing() -> bool:
-	return _cursor < _visible_len or _mark_i < _marks.size() or _pause_frames > 0
+	return _cursor < _visible_len or _mark_i < _marks.size() or _pause_left > 0.0
 
 
 ## A confirms a finished page. B (`chkTrigger(BUTTON_B)`) turns fast text on for the
@@ -609,15 +644,14 @@ func _on_line(text: String) -> void:
 	_marks = _chrome.body_marks()
 	_mark_i = 0
 	_btn_wait = false
-	_pause_frames = 0
-	_odd_frame = false
-	_end_timer = -1
+	_pause_left = 0.0
+	_glyph_wait = GLYPH_SEC
+	_end_left = -1.0
 	_page = _runner.current_record() if _runner != null else {}
 	_chrome_continue_shown = false
 	_cursor = 0
 	_voice_at = 0
 	_voice.reset_line()
-	_type_accum = 0.0
 	_fast_text = false
 	_chrome.set_body_visible_chars(0)
 	_chrome.set_continue_visible(false)

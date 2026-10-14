@@ -116,7 +116,6 @@ var rainbow: Rainbow = Rainbow.new()
 var notice_board: NoticeBoard = NoticeBoard.new()
 ## The Happy Room Academy's membership and marks (`m_mark_room`).
 var hra: HappyRoomAcademy = HappyRoomAcademy.new()
-var _rainbow_accum: float = 0.0
 var designs: DesignBook = DesignBook.new()
 var first_job: FirstJob = FirstJob.new()
 ## The town train (`m_train_control`), run for the whole session.
@@ -879,10 +878,9 @@ func _physics_process(delta: float) -> void:
 		npc_talk_info.advance(delta)
 		## `mEnv_rainbow_power_calc` runs in field (FG) scenes only.
 		if current_room_id == &"":
-			_rainbow_accum += delta * DecompTime.TICK_HZ
-			while _rainbow_accum >= 1.0:
-				_rainbow_accum -= 1.0
-				rainbow.tick(Clock.month, Clock.day, Clock.now_sec(), Clock.season() == Clock.Season.SUMMER)
+			rainbow.tick(
+				Clock.month, Clock.day, Clock.now_sec(), Clock.season() == Clock.Season.SUMMER, delta
+			)
 
 
 ## `mFI_CheckPlayerWade(mFI_WADE_START)`.

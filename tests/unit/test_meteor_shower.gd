@@ -6,12 +6,13 @@ extends GdUnitTestSuite
 func test_stars_come_fastest_at_half_past_seven() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 5
+	## Ten seconds ± one outside the show's peak, two ± one at 19:30.
 	for _i: int in 50:
-		assert_int(MeteorShower.next_interval(17 * 3600, rng)).is_between(540, 660)
-		assert_int(MeteorShower.next_interval(19 * 3600 + 1800, rng)).is_between(60, 180)
-		assert_int(MeteorShower.next_interval(21 * 3600, rng)).is_between(540, 660)
-	## Halfway up the ramp: 360 ± 60.
-	assert_int(MeteorShower.next_interval(18 * 3600 + 2700, rng)).is_between(300, 420)
+		assert_float(MeteorShower.next_interval(17 * 3600, rng)).is_between(9.0, 11.0)
+		assert_float(MeteorShower.next_interval(19 * 3600 + 1800, rng)).is_between(1.0, 3.0)
+		assert_float(MeteorShower.next_interval(21 * 3600, rng)).is_between(9.0, 11.0)
+	## Halfway up the ramp: six seconds ± one.
+	assert_float(MeteorShower.next_interval(18 * 3600 + 2700, rng)).is_between(5.0, 7.0)
 
 
 func test_streak_crosses_the_strip_around_frame_120() -> void:

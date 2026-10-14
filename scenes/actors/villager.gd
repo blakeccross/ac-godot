@@ -442,7 +442,7 @@ func _play_first_job_line(conv_id: StringName, who: String, player: Node3D) -> v
 func _physics_process(delta: float) -> void:
 	## `aNPC_check_feel_tim`.
 	if state != null:
-		state.tick_feel(roundi(delta * DecompTime.TICK_HZ))
+		state.tick_feel(delta)
 	if indoor_resident:
 		_tick_indoor(delta)
 		return
@@ -1585,7 +1585,7 @@ func _check_pitfall() -> void:
 	## `aNPC_think_pitfall_init_proc`: immovable, feel `PITFALL` until they are out.
 	if state != null:
 		state.mood = VillagerState.Mood.PITFALL
-		state.feel_ticks = 0
+		state.feel_time = 0.0
 	_motor.arrive()
 	velocity = Vector3.ZERO
 	_pit_clip = _pit_one_shot(ANIM_GURATUKU)

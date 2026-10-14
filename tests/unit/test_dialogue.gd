@@ -210,6 +210,10 @@ func test_message_sex_matches_looks() -> void:
 	assert_that(lazy.message_sex()).is_equal(0)
 
 
+## One 60th of a second: the decomp's cursor tick.
+const T := 1.0 / 60.0
+
+
 func _open_line(text: String, extra: Dictionary = {}) -> DialogueOverlay:
 	var overlay: DialogueOverlay = auto_free(load("res://scenes/ui/dialogue_overlay.tscn").instantiate())
 	add_child(overlay)
@@ -222,30 +226,42 @@ func _open_line(text: String, extra: Dictionary = {}) -> DialogueOverlay:
 	return overlay
 
 
-## `mMsg_Main_Cursol_ControlCursol`: a glyph every other frame; `{p:n}` holds the
-## cursor 2n frames before the glyph that follows it.
+## `mMsg_Main_Cursol_ControlCursol`: a glyph every 2/60 s; `{p:n}` holds the cursor n/30 s
+## before the glyph that follows it.
 func test_typewriter_steps_and_pauses_like_the_cursor() -> void:
 	var overlay := _open_line("Ab{p:3}cd")
 	for _i in 4:
-		overlay._type_tick()
+		overlay._type(T)
 	assert_int(overlay._cursor).is_equal(2)
 	for _i in 6:
-		overlay._type_tick()
+		overlay._type(T)
 	assert_int(overlay._cursor).is_equal(2)
 	for _i in 3:
-		overlay._type_tick()
+		overlay._type(T)
 	assert_int(overlay._cursor).is_equal(3)
+
+
+## The same line types out at the same pace in one long step or many short ones.
+func test_typewriter_pace_does_not_depend_on_the_frame_rate() -> void:
+	var fine := _open_line("Ab{p:3}cdef")
+	var coarse := _open_line("Ab{p:3}cdef")
+	for _i in 18:
+		fine._type(T)
+	for _i in 3:
+		coarse._type(6.0 * T)
+	assert_int(coarse._cursor).is_equal(fine._cursor)
+	assert_int(fine._cursor).is_equal(6)
 
 
 ## A page ended by a bare MSGCLEAR turns by itself; a BTN page waits for A.
 func test_auto_pages_turn_without_input() -> void:
 	var overlay := _open_line("Hi", {"auto": true, "next": "b"})
 	for _i in 10:
-		overlay._type_tick()
+		overlay._type(T)
 	assert_str(String(overlay.runner().node_id)).is_equal("b")
 	var waits := _open_line("Hi", {"next": "b"})
 	for _i in 10:
-		waits._type_tick()
+		waits._type(T)
 	assert_str(String(waits.runner().node_id)).is_equal("a")
 
 
@@ -253,14 +269,14 @@ func test_auto_pages_turn_without_input() -> void:
 func test_force_next_turns_without_input() -> void:
 	var overlay := _open_line("Hi", {"force_next": true, "next": "b"})
 	for _i in 10:
-		overlay._type_tick()
+		overlay._type(T)
 	assert_str(String(overlay.runner().node_id)).is_equal("b")
 
 
 ## A does not dump a line. B turns on fast text. `ABLECANCEL` lets A dump it.
 func test_a_waits_and_b_speeds_unless_cancelable() -> void:
 	var overlay := _open_line("Hello")
-	overlay._type_tick()
+	overlay._type(T)
 	var at: int = overlay._cursor
 	overlay._press_page(false)
 	assert_int(overlay._cursor).is_equal(at)
@@ -268,7 +284,7 @@ func test_a_waits_and_b_speeds_unless_cancelable() -> void:
 	overlay._press_page(true)
 	assert_bool(overlay._fast_text).is_true()
 	var sped := overlay._cursor
-	overlay._type_tick()
+	overlay._type(T)
 	assert_int(overlay._cursor).is_equal(sped + 1)
 	overlay._cancelable = true
 	overlay._press_page(false)
@@ -279,7 +295,7 @@ func test_a_waits_and_b_speeds_unless_cancelable() -> void:
 func test_voice_status_mark() -> void:
 	var overlay := _open_line("{vs:2}Hi")
 	for _i in 4:
-		overlay._type_tick()
+		overlay._type(T)
 	assert_int(int(overlay._voice.status)).is_equal(DialogueVoice.Status.SAD)
 
 
@@ -474,7 +490,7 @@ func _line(data: DialogueData, ctx: DialogueContext) -> String:
 func test_mid_page_btn_waits_then_writes_on() -> void:
 	var overlay := _open_line("Hm.{btn}OK", {"next": "b"})
 	for _i in 20:
-		overlay._type_tick()
+		overlay._type(T)
 	assert_int(overlay._cursor).is_equal(3)
 	assert_bool(overlay._btn_wait).is_true()
 	## A dump stops at the BTN too.
@@ -482,6 +498,6 @@ func test_mid_page_btn_waits_then_writes_on() -> void:
 	assert_int(overlay._cursor).is_equal(3)
 	overlay._release_btn()
 	for _i in 20:
-		overlay._type_tick()
+		overlay._type(T)
 	assert_int(overlay._cursor).is_equal(5)
 	assert_str(String(overlay.runner().node_id)).is_equal("a")

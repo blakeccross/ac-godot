@@ -10,6 +10,9 @@ extends Node
 ## may not, it keeps sweeping until it is back on frame 51 and stops there. The beam is not
 ## a light source: it is a translucent cone tinted `(255, 255, b)` whose alpha peaks each
 ## time the arm passes frame 51 and fades in and out with the lamp.
+##
+## The decomp ramps the beam a step a tick by how far the arm is from frame 51; summed, those
+## steps trace a fixed curve over the arm's frame, so here the beam is read off that curve.
 
 enum State { WAIT, LIGHTING, LIGHTOUT }
 
@@ -17,20 +20,21 @@ enum State { WAIT, LIGHTING, LIGHTOUT }
 const FRAME_START := 1.0
 const FRAME_END := 100.0
 const FRAME_REST := 51
-## cKF frames per 60 Hz tick while lit.
-const LIT_SPEED := 0.5
-## The pipeline samples cKF clips at 30 fps.
+## The pipeline samples cKF clips at 30 fps; lit, the arm turns at that rate (cKF speed
+## 0.5 a tick).
 const CLIP_FPS := 30.0
-const TICK_HZ := 60.0
-## `add_calc` fractions: `1 − √0.7` for the beam, `1 − √0.9` for the fade.
-const BEAM_DECAY := 1.0 - 0.8366600265340756
-const FADE_RATE := 1.0 - 0.9486832980505138
-const CALC_MAX := 50.0
-const CALC_MIN := 0.5
+const LIT_FRAMES_PER_SEC := 0.5 * DecompTime.TICK_HZ
+## `add_calc` a tick, fraction `1 − √0.7` for the beam and `1 − √0.9` for the fade, steps
+## held to 0.5–50: as half-lives and speeds a second.
+static var BEAM_HALF_LIFE: float = Motion.half_life_from_fraction(1.0 - 0.8366600265340756)
+static var FADE_HALF_LIFE: float = Motion.half_life_from_fraction(1.0 - 0.9486832980505138)
+const CALC_MAX_SPEED := 50.0 * DecompTime.TICK_HZ
+const CALC_MIN_SPEED := 0.5 * DecompTime.TICK_HZ
 ## Beam prim at the peak (frame 51).
 const PEAK_BLUE := 220.0
 const PEAK_ALPHA := 240.0
-## Per-tick beam ramps by distance from frame 51: [limit, blue step, alpha step].
+## Beam ramps by distance from frame 51: [limit, blue, alpha] per tick at 0.5 frames a
+## tick, so twice that per frame of distance.
 const RAMPS: Array = [[10, 4.5, 7.0], [30, 1.25, 2.25], [40, 4.0, 0.5]]
 const BEAM_SURFACE_SUFFIX := "_light_tex_txt"
 
@@ -46,7 +50,6 @@ var beam_blue: float = 0.0
 var beam_alpha: float = 0.0
 var fade: float = 0.0
 
-var _accum: float = 0.0
 var _anim: AnimationPlayer = null
 var _clip: StringName = &""
 var _beam: Array[StandardMaterial3D] = []
@@ -58,23 +61,17 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	_accum += delta
-	var ticks: int = 0
-	while _accum >= 1.0 / TICK_HZ and ticks < 8:
-		_accum -= 1.0 / TICK_HZ
-		ticks += 1
-		tick()
-	if ticks >= 8:
-		_accum = 0.0
+	tick(delta)
 	_apply()
 
 
-## One 60 Hz move tick (`aTOU_actor_move`).
-func tick() -> void:
+## `aTOU_actor_move` over `delta` seconds.
+func tick(delta: float) -> void:
 	if follow_clock and Game != null and Game.lighthouse != null and Clock != null:
 		lit = Game.lighthouse.lamp_on_now()
+	var before: float = frame
 	if state != State.WAIT:
-		frame += LIT_SPEED
+		frame += LIT_FRAMES_PER_SEC * delta
 		if frame > FRAME_END:
 			frame -= FRAME_END - FRAME_START
 	match state:
@@ -85,10 +82,16 @@ func tick() -> void:
 			if not lit:
 				state = State.LIGHTOUT
 		State.LIGHTOUT:
-			if int(frame) == FRAME_REST:
-				frame = float(FRAME_REST)
+			## Stops on the step that reaches frame 51 (`int(frame) == 51`).
+			var rest := float(FRAME_REST)
+			var reached: bool = (
+				int(frame) == FRAME_REST or (before < rest and frame >= rest)
+				or (frame < before and (before < rest or frame >= rest))
+			)
+			if reached:
+				frame = rest
 				state = State.WAIT
-	_color_ctrl()
+	_color_ctrl(delta)
 
 
 func is_sweeping() -> bool:
@@ -109,40 +112,36 @@ func clip_time() -> float:
 	return (frame - FRAME_START) / CLIP_FPS
 
 
-func _color_ctrl() -> void:
+func _color_ctrl(delta: float) -> void:
 	if state == State.WAIT:
-		beam_blue = _add_calc(beam_blue, 0.0, BEAM_DECAY)
-		beam_alpha = _add_calc(beam_alpha, 0.0, BEAM_DECAY)
-		fade = _add_calc(fade, 0.0, FADE_RATE)
+		beam_blue = _ease(beam_blue, 0.0, BEAM_HALF_LIFE, delta)
+		beam_alpha = _ease(beam_alpha, 0.0, BEAM_HALF_LIFE, delta)
+		fade = _ease(fade, 0.0, FADE_HALF_LIFE, delta)
 		return
-	var offset: int = int(frame) - FRAME_REST
-	var toward: float = 1.0 if offset < 0 else -1.0
-	var dist: int = absi(offset)
-	if dist == 0:
-		beam_blue = PEAK_BLUE
-		beam_alpha = PEAK_ALPHA
-	elif dist >= int(RAMPS[RAMPS.size() - 1][0]):
-		beam_blue = _add_calc(beam_blue, 0.0, BEAM_DECAY)
-		beam_alpha = _add_calc(beam_alpha, 0.0, BEAM_DECAY)
-	else:
-		for ramp: Array in RAMPS:
-			if dist < int(ramp[0]):
-				beam_blue += float(ramp[1]) * toward
-				beam_alpha += float(ramp[2]) * toward
-				break
-	fade = _add_calc(fade, 255.0, FADE_RATE)
+	var beam: Vector2 = beam_at(frame)
+	beam_blue = beam.x
+	beam_alpha = beam.y
+	fade = _ease(fade, 255.0, FADE_HALF_LIFE, delta)
 
 
-## `add_calc(value, target, fraction, max_step, min_step)`.
-static func _add_calc(value: float, target: float, fraction: float) -> float:
-	var diff: float = target - value
-	if diff == 0.0:
-		return value
-	var step: float = diff * fraction
-	var mag: float = clampf(absf(step), CALC_MIN, CALC_MAX)
-	if absf(diff) <= mag:
-		return target
-	return value + signf(diff) * mag
+## The beam's blue and alpha with the arm on `at`: the peak on frame 51, falling off by the
+## ramps on either side to nothing 40 frames away.
+static func beam_at(at: float) -> Vector2:
+	var dist: float = absf(float(int(at) - FRAME_REST))
+	var blue: float = PEAK_BLUE
+	var alpha: float = PEAK_ALPHA
+	var from: float = 0.0
+	for ramp: Array in RAMPS:
+		var span: float = clampf(dist - from, 0.0, float(ramp[0]) - from)
+		## Two ticks a frame.
+		blue -= 2.0 * float(ramp[1]) * span
+		alpha -= 2.0 * float(ramp[2]) * span
+		from = float(ramp[0])
+	return Vector2(maxf(blue, 0.0), maxf(alpha, 0.0))
+
+
+static func _ease(value: float, target: float, half_life: float, delta: float) -> float:
+	return Motion.approach(value, target, half_life, CALC_MAX_SPEED, CALC_MIN_SPEED, delta)
 
 
 func _apply() -> void:
