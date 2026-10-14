@@ -27,7 +27,7 @@ const LAMP_LIGHT_ON := Vector3(200.0, 200.0, 150.0)
 const LAMP_LIGHT_RATE_ON := Vector3(8.0, 8.0, 4.0) * DecompTime.TICK_HZ
 const LAMP_LIGHT_RATE_OFF := Vector3(1.0, 1.0, 0.5) * DecompTime.TICK_HZ
 ## `add_calc(&sun_percent, …, 1−√0.5, 0.1, 0.005)` a tick (`mEnv_ChangeDiffuseLight`).
-static var SUN_HALF_LIFE: float = Motion.half_life_from_fraction(MLib.HALF_FRACTION)
+static var SUN_HALF_LIFE: float = Motion.half_life_from_fraction(MathUtil.HALF_FRACTION)
 const SUN_MAX_SPEED := 0.1 * DecompTime.TICK_HZ
 const SUN_MIN_SPEED := 0.005 * DecompTime.TICK_HZ
 

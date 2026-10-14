@@ -1453,8 +1453,8 @@ func _face_bobber(delta: float) -> void:
 	var to_uki: Vector3 = Fishing.anchor() - global_position
 	if is_zero_approx(to_uki.x) and is_zero_approx(to_uki.z):
 		return
-	_motor.facing = MLib.short_angle2(
-		_motor.facing, atan2(to_uki.x, to_uki.z), MLib.HALF_FRACTION, UKI_TURN_MAX, UKI_TURN_MIN,
+	_motor.facing = MathUtil.short_angle2(
+		_motor.facing, atan2(to_uki.x, to_uki.z), MathUtil.HALF_FRACTION, UKI_TURN_MAX, UKI_TURN_MIN,
 		delta * DecompTime.TICK_HZ
 	)
 
@@ -1550,9 +1550,9 @@ func _tumble_events(before: float, now: float) -> void:
 	if before < 10.0 and now >= 10.0:
 		GameConfig.rumble(GameConfig.TUMBLE)
 	if before < 15.0 and now >= 15.0:
-		StepFx.tumble(bg, global_position, _motor.facing, attr, 1)
+		FootstepEffects.tumble(bg, global_position, _motor.facing, attr, 1)
 	if before < 17.0 and now >= 17.0:
-		StepFx.body_print(bg, global_position, _motor.facing, attr)
+		FootstepEffects.body_print(bg, global_position, _motor.facing, attr)
 
 
 func _unit_attr(bg: Array) -> int:
@@ -1639,14 +1639,14 @@ func _on_mode_entered(prev: PlayerLocomotion.Gait, next: PlayerLocomotion.Gait) 
 	match next:
 		PlayerLocomotion.Gait.TURN_DASH:
 			Audio.play_se(SE_SLIP, self)
-			StepFx.turn(bg, global_position, _motor.facing, attr, 0)
+			FootstepEffects.turn(bg, global_position, _motor.facing, attr, 0)
 		PlayerLocomotion.Gait.TUMBLE:
 			Audio.play_se(_tumble_se(attr), self)
-			StepFx.tumble(bg, global_position, _motor.facing, attr, 0)
+			FootstepEffects.tumble(bg, global_position, _motor.facing, attr, 0)
 	if prev == PlayerLocomotion.Gait.TURN_DASH:
 		var foot: Transform3D = _foot_anchor(true)
 		var at: Vector3 = foot.origin if foot.basis.determinant() != 0.0 else global_position
-		StepFx.turn_footprint(bg, at, _motor.facing, attr)
+		FootstepEffects.turn_footprint(bg, at, _motor.facing, attr)
 
 
 ## `sAdo_Get_KokeruLabel`: the footstep label for the unit, as its tumble twin.
@@ -1735,17 +1735,17 @@ func _step_effects(gait: PlayerLocomotion.Gait, bg: Array, attr: int, foot: Vect
 		var grid := bg[1] as WorldGrid
 		if randi() % 4 == 0:
 			var cell: Vector2i = grid.world_to_cell(global_position)
-			var flower: int = StepFx.flower_index(global_position)
+			var flower: int = FootstepEffects.flower_index(global_position)
 			var world := World.find(get_tree())
 			if PlantGrowth.trample_flower(world, grid, cell):
 				## `mFI_Wpos2UtCenterWpos`: petals burst from the unit centre.
 				var center: Vector3 = grid.cell_corner(cell) + Vector3(grid.cell_size, 0.0, grid.cell_size) * 0.5
 				center.y = global_position.y
-				StepFx.hanatiri(bg, center, flower)
+				FootstepEffects.hanatiri(bg, center, flower)
 				return
-		StepFx.dash_step(bg, foot, yaw, attr)
+		FootstepEffects.dash_step(bg, foot, yaw, attr)
 	else:
-		StepFx.walk_step(bg, foot, yaw, attr)
+		FootstepEffects.walk_step(bg, foot, yaw, attr)
 
 
 func _foot_anchor(right_foot: bool) -> Transform3D:
@@ -2217,7 +2217,7 @@ func _net_events() -> void:
 			&"hit":
 				PlayerSe.net_hit(self)
 			&"swing_fx":
-				StepFx.swing_net(_bg(), global_position, _net.yaw)
+				FootstepEffects.swing_net(_bg(), global_position, _net.yaw)
 			&"splash":
 				var splash_bg: Array = _bg()
 				var head: Vector3 = _net_pos
@@ -2225,12 +2225,12 @@ func _net_events() -> void:
 					var surface: float = FieldCollision.ground_y_at(splash_bg[0] as WorldData, splash_bg[1] as WorldGrid, head)
 					if FieldCollision.has_floor(surface):
 						head.y = surface
-				if StepFx.net_splash(splash_bg, head, _net.yaw):
+				if FootstepEffects.net_splash(splash_bg, head, _net.yaw):
 					Audio.play_se(&"ami_hit_water", self)
 			&"slip":
 				var bg: Array = _bg()
 				Audio.play_se(SE_SLIP, self)
-				StepFx.turn(bg, global_position, _net.yaw, _unit_attr(bg), 1)
+				FootstepEffects.turn(bg, global_position, _net.yaw, _unit_attr(bg), 1)
 			&"stop_net":
 				## `mPlib_Check_StopNet`: insects near the net panic, fish bolt.
 				var ctx: InteractionContext = _make_context()

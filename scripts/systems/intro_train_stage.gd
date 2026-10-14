@@ -100,11 +100,11 @@ const OPEN_D2_YAW := PI
 const OPEN_D2_YAW_CHASE := deg_to_rad(0.703125)
 ## `chase_angle` steps (per 1/30 s — `chase_angle` is frame-scaled, halved per 60 Hz tick).
 ## Turned at `step · 30` radians a second.
-const TALK_TURN_STEP := 0x400 * MLib.S16 ## `aNGD_talk_start_wait`
+const TALK_TURN_STEP := 0x400 * MathUtil.S16 ## `aNGD_talk_start_wait`
 const BODY_TURN_STEP := deg_to_rad(11.25) ## `aNGD_calc_body_angl`
 ## `aNPC_set_body_angle`: pitch goal `speed * 3640 / 3`, `chase_angle(…, 224)`.
-const BODY_LEAN_PER_SPEED := 3640.0 / 3.0 * MLib.S16
-const BODY_LEAN_STEP := 224.0 * MLib.S16
+const BODY_LEAN_PER_SPEED := 3640.0 / 3.0 * MathUtil.S16
+const BODY_LEAN_STEP := 224.0 * MathUtil.S16
 ## Decomp speeds are GX per 1/30 s; `chase_f(speed, max, accel · 0.5)` runs each 1/60 s.
 const PER_FRAME := DecompTime.FRAME_HZ
 const ACCEL_PER_SECOND := 0.5 * DecompTime.TICK_HZ * DecompTime.FRAME_HZ

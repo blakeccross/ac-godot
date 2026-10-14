@@ -2,8 +2,20 @@ extends Node
 
 ## Load/save split state to user://. Not a single Common_Get blob.
 
-## 2: the town and up to four residents (`PlayerRoster`); 1 was one flat resident.
-const SAVE_VERSION := 2
+## 3: keys named in plain English (`RENAMED_KEYS`); 2: the town and up to four residents
+## (`PlayerRoster`); 1 was one flat resident.
+const SAVE_VERSION := 3
+## Keys saves before version 3 wrote under the decomp's names, and what they are called now.
+## A key is renamed wherever it sits (town, a resident's slot, a house).
+const RENAMED_KEYS := {
+	"gyoei_term": "fish_season_term",
+	"farway": "travel_book",
+	"haniwa_scheduled": "gyroids_scheduled",
+	"haniwa_items": "gyroid_items",
+	"haniwa_message": "gyroid_message",
+	"haniwa_bells": "gyroid_bells",
+	"_kabu": "_stalk_market",
+}
 const DEFAULT_PATH := "user://save.json"
 ## The second town (the other Memory Card slot, `mCD` slot B).
 const SLOT_B_PATH := "user://save_b.json"
@@ -169,7 +181,30 @@ func _read(path: String) -> Dictionary:
 	if file == null:
 		return {}
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	return parsed as Dictionary if typeof(parsed) == TYPE_DICTIONARY else {}
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+	var data: Dictionary = parsed
+	if int(data.get("version", 1)) < 3:
+		migrate_keys(data)
+	return data
+
+
+## Renames `RENAMED_KEYS` throughout `data`, in place. The version is left alone: versions 1
+## and 2 also differ in how the roster is laid out, which `roster_of` still reads from it.
+static func migrate_keys(data: Variant) -> void:
+	if typeof(data) == TYPE_ARRAY:
+		for item: Variant in data:
+			migrate_keys(item)
+		return
+	if typeof(data) != TYPE_DICTIONARY:
+		return
+	var dict: Dictionary = data
+	for old: String in RENAMED_KEYS:
+		if dict.has(old) and not dict.has(RENAMED_KEYS[old]):
+			dict[RENAMED_KEYS[old]] = dict[old]
+			dict.erase(old)
+	for value: Variant in dict.values():
+		migrate_keys(value)
 
 
 ## Write the save with `roster` and `world` replaced (demolishing a house). The rest stays.

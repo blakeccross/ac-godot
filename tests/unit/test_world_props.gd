@@ -10,12 +10,12 @@ const PROP_KINDS: Array[StringName] = [&"prop", &"lotus", &"sign"]
 func test_wide_props_shift_west_and_span_two_units() -> void:
 	## `pos_table2` draws the `*0` unit at its left edge, so the mesh straddles the `*1`/`*0` seam.
 	for item: int in [
-		FgCatalog.ITEM_FENCE0,
-		FgCatalog.ITEM_MESSAGE_BOARD0,
-		FgCatalog.ITEM_MAP_BOARD0,
-		FgCatalog.ITEM_MUSIC_BOARD0,
+		FieldObjectCatalog.ITEM_FENCE0,
+		FieldObjectCatalog.ITEM_MESSAGE_BOARD0,
+		FieldObjectCatalog.ITEM_MAP_BOARD0,
+		FieldObjectCatalog.ITEM_MUSIC_BOARD0,
 	]:
-		var place: Dictionary = FgCatalog.placement_for_item(item)
+		var place: Dictionary = FieldObjectCatalog.placement_for_item(item)
 		assert_that(place["foot"]).is_equal(Vector2i(2, 1))
 		assert_that(place["cell_shift"]).is_equal(Vector2i(-1, 0))
 
@@ -23,25 +23,25 @@ func test_wide_props_shift_west_and_span_two_units() -> void:
 func test_second_half_of_a_wide_prop_places_nothing() -> void:
 	## FENCE1 / MESSAGE_BOARD1 / MAP_BOARD1 / MUSIC_BOARD1 are covered by the 2×1 footprint.
 	for item: int in [0x0006, 0x000B, 0x000D, 0x000F]:
-		assert_that(FgCatalog.placement_for_item(item).is_empty()).is_true()
+		assert_that(FieldObjectCatalog.placement_for_item(item).is_empty()).is_true()
 
 
 func test_board_kinds_and_visuals() -> void:
-	var notice: Dictionary = FgCatalog.placement_for_item(FgCatalog.ITEM_MESSAGE_BOARD0)
+	var notice: Dictionary = FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_MESSAGE_BOARD0)
 	assert_that(notice["kind"]).is_equal(&"sign")
 	assert_that(notice["visual"]).is_equal(&"obj_s_notice")
-	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_MAP_BOARD0)["visual"]).is_equal(&"obj_s_sightmap")
-	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_MUSIC_BOARD0)["visual"]).is_equal(&"obj_s_melody")
-	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_FENCE0)["visual"]).is_equal(&"obj_s_fenceL")
-	var short: Dictionary = FgCatalog.placement_for_item(FgCatalog.ITEM_WOOD_FENCE)
+	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_MAP_BOARD0)["visual"]).is_equal(&"obj_s_sightmap")
+	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_MUSIC_BOARD0)["visual"]).is_equal(&"obj_s_melody")
+	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_FENCE0)["visual"]).is_equal(&"obj_s_fenceL")
+	var short: Dictionary = FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_WOOD_FENCE)
 	assert_that(short["visual"]).is_equal(&"obj_s_fenceS")
 	assert_that(short.has("foot")).is_false()
 
 
 func test_lotus_placed_and_station_statue_is_not() -> void:
-	assert_that(FgCatalog.placement_for_item(FgCatalog.ITEM_LOTUS)["kind"]).is_equal(&"lotus")
+	assert_that(FieldObjectCatalog.placement_for_item(FieldObjectCatalog.ITEM_LOTUS)["kind"]).is_equal(&"lotus")
 	## The statue only exists after a loan payoff (`aDOU_set_check`); a new town has nothing there.
-	assert_that(FgCatalog.placement_for_item(0x5843).is_empty()).is_true()
+	assert_that(FieldObjectCatalog.placement_for_item(0x5843).is_empty()).is_true()
 
 
 func test_registry_knows_new_kinds() -> void:
@@ -67,7 +67,7 @@ func test_lotus_flower_window() -> void:
 
 
 func test_generated_towns_place_fixed_props() -> void:
-	if not FgCatalog.has_catalog():
+	if not FieldObjectCatalog.has_catalog():
 		return
 	var seen: Dictionary = {}
 	for seed: int in range(40):
@@ -84,7 +84,7 @@ func test_generated_towns_place_fixed_props() -> void:
 
 
 func test_wide_props_occupy_two_cells() -> void:
-	if not FgCatalog.has_catalog():
+	if not FieldObjectCatalog.has_catalog():
 		return
 	for seed: int in range(12):
 		var data: WorldData = WorldGenerator.generate(6000 + seed)

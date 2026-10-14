@@ -703,9 +703,9 @@ func _goods(cat: StringName) -> StringName:
 			var guest: StringName = context.guest if context != null else &""
 			var roll: int = _rand(100)
 			if guest == &"kamakura" and roll >= 90:
-				pool = FtrCatalog.named_list("ftr", "Kamakura")
+				pool = FurnitureCatalog.named_list("ftr", "Kamakura")
 			elif guest == &"camper" and roll >= 80:
-				pool = FtrCatalog.named_list("ftr", "Tent")
+				pool = FurnitureCatalog.named_list("ftr", "Tent")
 			if pool.is_empty():
 				pool = ShopGoods.furniture_pool()
 		&"carpet":

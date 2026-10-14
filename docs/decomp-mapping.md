@@ -23,7 +23,7 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | `m_npc`, `m_npc_schedule`, `m_npc_walk` | Looks-based daily tables; one NPC actor; new town picks `mNpc_LOOKS_NUM` starters (one personality each) from a shuffled starter pool; field roam picks shrine / other-home / alone / my-home acres | `VillagerData` + `VillagerPersonality` + `ScheduleData` + `Villager` scene; `VillagerSchedule` / `VillagerAI` / `VillagerWalk` (goal acres + walker cap) / `VillagerCatalog.pick_starters`; species GLB via `GeneratedVisual.attach_villager`. Catalog generated from NPC tables (`--kind villagers`). |
 | `m_npc` memories (`Anmmem_c`), `mNpc_AddFriendship` | Per-player friendship, last speak, letter; best friend at 80 | `Relationship` + `RelationshipBook` on `Game`; dialogue queries a snapshot |
 | `ac_field_draw` / `evw_anime` | Acre OPA land + XLU water; river dual UV scroll; ocean 300-frame wave cosine; wet-sand env | River: `GeneratedVisual` `river_water` on `grd_*_modelT`. Wet sand: `beach_wet.gdshader` env pulse. Ocean XLU: `ocean_water.gdshader` over the `beachB` underdraw, on marine **and** open-ocean acres. `--kind water` |
-| FG items (`TREE`, `ROCK_*`, `FLOWER_*`, `HOUSE0`, `SHOP0`, `MUSEUM`, `NEEDLEWORK_SHOP`, `SIGN00`–`SIGN20`) | Outdoor hosts + structure slots + villager plot reserves | `WorldObjectRegistry` + host scenes; `FgCatalog.placement_for_item` |
+| FG items (`TREE`, `ROCK_*`, `FLOWER_*`, `HOUSE0`, `SHOP0`, `MUSEUM`, `NEEDLEWORK_SHOP`, `SIGN00`–`SIGN20`) | Outdoor hosts + structure slots + villager plot reserves | `WorldObjectRegistry` + host scenes; `FieldObjectCatalog.placement_for_item` |
 | `m_bg`, `m_bg_item` | Terrain and placed items | `WorldData` cells + occupancy on `WorldGrid` |
 | `m_collision_bg` | Heightfield, plant caps, FTR footprints | `FieldCatalog` acre `.col.json` + `FieldCollision`; structure plus-offsets (`StructureOffset`); `WorldGrid` occupancy; outdoor hosts `HostCollision` |
 | `m_item`, name tables | Item definitions | `ItemData` / `ToolData` resources under `data/items/` |
@@ -44,7 +44,7 @@ Study the named headers/sources to learn **what should happen**. Implement that 
 | `request_proc_index_fromNotice_rod` 0x39 → `m_player_main_putaway_rod` | `PUTAWAY_T1` plus a `GASAGOSO` rustle once the report is dismissed, then back to the wait | `player.gd` `_play_putaway` on `ply_1_putaway_t1`. The rod holds its wait pose (`tol_sao_1` has no putaway clip); the rustle is not played, as nothing plays SFX yet |
 | `request_proc_index_fromNotice_rod` 0x53 → `release_creature` | Full pockets throw the fish back, since `setup_main_Notice_rod` already banked it | Not modelled: `ReelBeat.pockets_full` shows the line and the catch is put away regardless |
 | `Player_actor_Item_main_rod_cast` + `ready_rod` frame 10 | The bobber gets its cast command a third of the way through the swing, not when the swing ends | `Fishing.CAST_RELEASE_FRAME` via `Interaction.effect_frame`; `player.gd` `_play_action` splits the clip and `_finish_action` plays out the tail. Only the cast is frame-gated; every other verb still applies at the end of its clip |
-| `add_calc_short_angle2` (`m_lib.c`) | Ease a short angle toward a target by a fraction, clamped to `maxStep`, floored at `minStep` | `MLib.short_angle2`, shared by `bobber.gd`'s tilt (`minStep == 0`) and the show-off turn (`minStep == 50`) |
+| `add_calc_short_angle2` (`m_lib.c`) | Ease a short angle toward a target by a fraction, clamped to `maxStep`, floored at `minStep` | `MathUtil.short_angle2`, shared by `bobber.gd`'s tilt (`minStep == 0`) and the show-off turn (`minStep == 50`) |
 | `aUKI_actor_draw` proc tilt, `aUKI_rotate_calc` | Float lies flat on the cast, stands up when it settles, is yanked nose-down on a bite | `bobber.gd` `_tilt`; `add_calc_short_angle2` fractions and step clamps kept, stepped on a fixed 30 Hz tick |
 | `ac_set_ovl_gyoei.c` `r_month` / `s_month` / `p_month` → month → half → `aSOG_TIME_*` → `FISH_SPAWN` | Which fish can bite where, when, and how rare it is | `FishCatalog` over `data/creatures/*.tres`, filtered by `FishData.months` / `time_slots` / `waters` and weighted by `rarity_weight`. The half-month `gyoei_term` split and its transition ramp are dropped, so each fish keeps the highest weight it holds all year, and the `aSOG_SPAWN_AREA_*` sub-areas collapse into `WaterBodies.Kind` |
 | `gyoei_type[]` (`ac_gyoei_type.c_inc`) | Size class, `search_area` and `bite_time` for all 45 types | `FishData.size_class` / `search_area` / `bite_time` in each `.tres`; the five non-fish types past `aGYO_TYPE_NUM` have none |
@@ -91,3 +91,49 @@ Clone the decomp **outside** this repo. Phase 1 clock/inventory/schedule/lightin
 If a decomp symbol has no row, default to **omit** unless a current milestone needs the behavior.
 
 Asset formats and extraction: [asset_pipeline.md](asset_pipeline.md), [asset_pipeline_research.md](asset_pipeline_research.md).
+
+## Renamed from decomp-style names
+
+Classes, files and members that once carried decomp or romaji names (refactor plan § Phase 1). Search for the old name here, then for the new one in the code; the decomp symbol stays in the code's comments.
+
+| Old name | New name | Decomp source |
+| --- | --- | --- |
+| `BugSemi` (`bug_semi.gd`) | `Cicada` (`cicada.gd`), with `Bee` split out | `ac_ins_semi.c` |
+| `BugGoki` | `Cockroach` | `ac_ins_goki.c` |
+| `HouseGoki` (`scripts/systems/house_goki.gd`) | `HouseCockroaches` (`house_cockroaches.gd`) | `m_cockroach.c` |
+| `scenes/world/house_goki.tscn` / `.gd` | `scenes/world/house_cockroach.tscn` / `.gd` | `ac_house_goki.c` |
+| `BugDango` | `PillBug` | `ac_ins_dango.c` |
+| `BugBatta` | `Grasshopper` | `ac_ins_batta.c` |
+| `BugKera` | `MoleCricket` | `ac_ins_kera.c` |
+| `BugKa` | `Mosquito` | `ac_ins_ka.c` |
+| `BugChou` | `Butterfly` | `ac_ins_chou.c` |
+| `BugHotaru` | `Firefly` | `ac_ins_hotaru.c` |
+| `BugTonbo` | `Dragonfly` | `ac_ins_tonbo.c` |
+| `BugKabuto` | `Beetle` | `ac_ins_kabuto.c` |
+| `BugMino` | `Bagworm` | `ac_ins_mino.c` |
+| `BugTentou` | `Ladybug` | `ac_ins_tentou.c` |
+| `BugAmenbo` | `PondSkater` | `ac_ins_amenbo.c` |
+| `BugHitodama` | `WispSpirit` (`Wisp` is the ghost NPC) | `ac_ins_hitodama.c` |
+| `BugAnt` | `Ant` | `ac_ant.c` |
+| `BugProgram` | `BugBehavior` | `ac_insect_move.c_inc` |
+| `BugBg` | `BugTerrain` | `aINS_BGcheck` |
+| `BugData.Program.CHOU`, `BATTA`, `TONBO`, … | `BUTTERFLY`, `GRASSHOPPER`, `DRAGONFLY`, … | `aINS_program_type[]` |
+| `HaniwaStore`, `HaniwaTalk`, `scenes/world/haniwa.tscn` | `GyroidStore`, `GyroidTalk`, `scenes/world/gyroid.tscn` | `ac_haniwa.c` |
+| `KabuMarket`, `ShopBook.kabu` | `StalkMarket`, `ShopBook.stalk_market` | `m_kabu_manager.c` |
+| `Ongen` | `SoundEmitter` | `sAdo_Ongen*` |
+| `FtrCatalog` | `FurnitureCatalog` | `ftr` tables |
+| `FgCatalog` | `FieldObjectCatalog` | FG item tables |
+| `FarwayBook`, `Game.farway` | `TravelBook`, `Game.travel_book` | `mMsm_SendResultMail` |
+| `TreeFx` / `StepFx` / `FieldFx` | `TreeEffects` / `FootstepEffects` / `FieldEffects` | `ef_*` |
+| `MLib` | `MathUtil` | `m_lib.c` |
+| `Game.gyoei_term` / `gyoei_term_offset` | `Game.fish_season_term` / `fish_season_offset` | `Save_Get(gyoei_term)` |
+| `Game.haniwa_scheduled`, `House.haniwa_*` | `Game.gyroids_scheduled`, `House.gyroid_*` | `Save_Get(haniwa_scheduled)` |
+| `BugActor.anime0` / `anime1` | `anim_frame` / `prev_anim_frame` | `_1E0` / `_1E4` |
+| `BugActor.alpha0` / `alpha1` / `alpha2` | `opacity` / `prev_frame_opacity` / `fade_out` | `alpha0..2` |
+| `BugActor.bg_type` (int) | `BugActor.terrain_mode` (`TerrainMode`) | `aINS_BG_CHECK_TYPE_*` |
+| `BugActor.f_no_catch` / `f_bit2` / `f_bit4` | `catchable` (inverted) / `escaping` / `wall_check` | `insect_flags` bits 1 / 2 / 4 |
+| `ongen` / `trg_se` | `loop_sound` / `one_shot_sounds` | `sAdo_OngenPos` / `sAdo_OngenTrgStart` |
+| `BugActor.s32_work[n]` / `f32_work[n]` | named fields on each behavior (comments cite the slot) | `s32_work*` / `f32_work*` |
+
+Save keys renamed with them are migrated on load (`SaveService.RENAMED_KEYS`, save version 3).
+

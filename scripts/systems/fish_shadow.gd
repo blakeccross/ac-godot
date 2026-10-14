@@ -41,10 +41,10 @@ const SWIM_SIDESTEP_SPREAD := PI
 const SWIM_TURN_SPREAD := PI * 0.5
 ## `aGTT_chase_s_angle(gyo, swork3, 0x400)`: swim pattern 2's turn before it sets off, a tick,
 ## as radians a second.
-const SWIM_TURN_RATE := 0x400 * MLib.S16 * DecompTime.TICK_HZ
+const SWIM_TURN_RATE := 0x400 * MathUtil.S16 * DecompTime.TICK_HZ
 ## `aGTT_flow_direction`'s `angl_add_table`: 0x100 a tick, 0x400 when more than 90° off.
-const FLOW_TURN_SLOW := 0x100 * MLib.S16 * DecompTime.TICK_HZ
-const FLOW_TURN_FAST := 0x400 * MLib.S16 * DecompTime.TICK_HZ
+const FLOW_TURN_SLOW := 0x100 * MathUtil.S16 * DecompTime.TICK_HZ
+const FLOW_TURN_FAST := 0x400 * MathUtil.S16 * DecompTime.TICK_HZ
 ## `chase_f(&speed, 0, 0.02)` a tick while escaping, in m/s a second.
 static var ESCAPE_DECAY: float = FishSize.gx_per_frame_to_mps(FishSize.ESCAPE_DECAY_GX) * DecompTime.TICK_HZ
 ## `aGTT_escape`'s timer: 100 ticks.

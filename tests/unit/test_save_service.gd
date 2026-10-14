@@ -78,3 +78,30 @@ func test_save_and_load_plant_states() -> void:
 
 func test_missing_save_is_not_found() -> void:
 	assert_int(SaveService.load_game(PATH)).is_equal(ERR_FILE_NOT_FOUND)
+
+
+func test_a_version_2_save_with_the_old_key_names_still_loads() -> void:
+	Game.fish_season_term = 7
+	Game.fish_season_offset = 3
+	Game.gyroids_scheduled = true
+	Game.travel_book.queue_fossil()
+	Game.interiors.player_house().gyroid_message = "Back soon!"
+	assert_int(SaveService.save_game(PATH)).is_equal(OK)
+	## Write it back the way a version 2 build named things.
+	var file := FileAccess.open(PATH, FileAccess.READ)
+	var text: String = file.get_as_text()
+	file.close()
+	for old: String in SaveService.RENAMED_KEYS:
+		text = text.replace('"%s"' % SaveService.RENAMED_KEYS[old], '"%s"' % old)
+	text = text.replace('"version": %d' % SaveService.SAVE_VERSION, '"version": 2')
+	assert_str(text).contains('"gyoei_term"')
+	file = FileAccess.open(PATH, FileAccess.WRITE)
+	file.store_string(text)
+	file.close()
+	Game.reset_session()
+	assert_int(SaveService.load_game(PATH)).is_equal(OK)
+	assert_int(Game.fish_season_term).is_equal(7)
+	assert_int(Game.fish_season_offset).is_equal(3)
+	assert_bool(Game.gyroids_scheduled).is_true()
+	assert_int(Game.travel_book.in_transit_count()).is_equal(1)
+	assert_str(Game.interiors.player_house().gyroid_message).is_equal("Back soon!")

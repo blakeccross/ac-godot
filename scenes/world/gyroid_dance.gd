@@ -4,7 +4,7 @@ extends Node
 ## counter (`GyroidRhythm`); switched off, it holds still. Child of the furniture node, whose
 ## name is the placement id.
 
-var haniwa_idx: int = -1
+var gyroid_idx: int = -1
 var _anim: AnimationPlayer
 var _clip: StringName = &""
 var _seconds: float = 0.0
@@ -12,7 +12,7 @@ var _was_on: bool = false
 
 
 func setup(visual_root: Node, ftr_index: int) -> void:
-	haniwa_idx = GyroidRhythm.haniwa_index(ftr_index)
+	gyroid_idx = GyroidRhythm.gyroid_index(ftr_index)
 	_anim = VisualAnimation.find_animation_player(visual_root) if visual_root != null else null
 	if _anim == null:
 		return
@@ -23,7 +23,7 @@ func setup(visual_root: Node, ftr_index: int) -> void:
 
 
 func _process(delta: float) -> void:
-	if _anim == null or _clip == &"" or haniwa_idx < 0:
+	if _anim == null or _clip == &"" or gyroid_idx < 0:
 		return
 	var on: bool = _is_on()
 	if on and not _was_on:
@@ -33,7 +33,7 @@ func _process(delta: float) -> void:
 		_pose(0.0)
 		return
 	_seconds += delta
-	_pose(GyroidRhythm.counter(GyroidRhythm.steps(_seconds), haniwa_idx))
+	_pose(GyroidRhythm.counter(GyroidRhythm.steps(_seconds), gyroid_idx))
 
 
 func _is_on() -> bool:

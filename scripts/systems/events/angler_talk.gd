@@ -186,5 +186,5 @@ func _measured() -> Dictionary:
 func _pick_prize() -> StringName:
 	var label: String = ["A", "B", "C"][rng.randi_range(0, 2)]
 	var kind: String = "cloth" if rng.randf() > 0.5 else "ftr"
-	var id: StringName = FtrCatalog.pick_named(kind, label, rng)
+	var id: StringName = FurnitureCatalog.pick_named(kind, label, rng)
 	return id if id != &"" else &"apple"

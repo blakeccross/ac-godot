@@ -82,7 +82,7 @@ static func fill_menu(ctx: DialogueContext, already_talked: bool, balloon: Strin
 		return
 	var level: int = Game.shops.nook_level()
 	_set_free(ctx, 0, ShopMail.store_name(level))
-	_set_free(ctx, 1, str(Game.shops.kabu.price_today()))
+	_set_free(ctx, 1, str(Game.shops.stalk_market.price_today()))
 	ctx.set_var(VAR_AGAIN, "yes" if already_talked else "no")
 	ctx.set_var(VAR_BALLOON, "yes" if balloon != &"" else "no")
 	ctx.set_var(VAR_SUNDAY, "yes" if Clock.weekday() == 0 else "no")

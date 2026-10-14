@@ -57,12 +57,12 @@ const OUTLOOK_PAL_COUNT := 12
 @export var has_saved: bool = false
 ## `mHm_hs_c.haniwa` (`Haniwa_c`): the gyroid outside the house. Four held items, each
 ## `{ "item": StringName, "count": int, "cond": int (InventoryItem.Condition),
-## "exchange": int (HaniwaStore.Exchange), "price": int }` — an empty slot has item &"".
+## "exchange": int (GyroidStore.Exchange), "price": int }` — an empty slot has item &"".
 ## `haniwa_message` is shown to visitors (4 lines, `HANIWA_MESSAGE_LEN` 128); `haniwa_bells`
 ## is what visitors have paid and the owner has not collected yet.
-@export var haniwa_items: Array[Dictionary] = []
-@export var haniwa_message: String = ""
-@export var haniwa_bells: int = 0
+@export var gyroid_items: Array[Dictionary] = []
+@export var gyroid_message: String = ""
+@export var gyroid_bells: int = 0
 ## `door_original`: player design slot (0-7) shown on the front door, 0xFF = the house mark.
 @export var door_original: int = 0xFF
 
@@ -106,16 +106,16 @@ func to_save() -> Dictionary:
 		"goki_count": goki_count,
 		"goki_date": [goki_year, goki_month, goki_day],
 		"has_saved": has_saved,
-		"haniwa_items": _haniwa_items_to_save(),
-		"haniwa_message": haniwa_message,
-		"haniwa_bells": haniwa_bells,
+		"gyroid_items": _gyroid_items_to_save(),
+		"gyroid_message": gyroid_message,
+		"gyroid_bells": gyroid_bells,
 		"door_original": door_original,
 	}
 
 
-func _haniwa_items_to_save() -> Array:
+func _gyroid_items_to_save() -> Array:
 	var out: Array = []
-	for rec: Dictionary in haniwa_items:
+	for rec: Dictionary in gyroid_items:
 		var copy: Dictionary = rec.duplicate()
 		copy["item"] = String(rec.get("item", ""))
 		out.append(copy)
@@ -159,22 +159,22 @@ func apply_snapshot(data: Variant) -> void:
 	music_box = int(str(bag.get("music_box", music_box)))
 	goki_count = clampi(int(bag.get("goki_count", goki_count)), 0, 10)
 	has_saved = bool(bag.get("has_saved", has_saved))
-	var held: Variant = bag.get("haniwa_items", null)
+	var held: Variant = bag.get("gyroid_items", null)
 	if typeof(held) == TYPE_ARRAY:
-		haniwa_items.clear()
+		gyroid_items.clear()
 		for raw: Variant in held as Array:
 			if typeof(raw) != TYPE_DICTIONARY:
 				continue
 			var rec: Dictionary = raw as Dictionary
-			haniwa_items.append({
+			gyroid_items.append({
 				"item": StringName(str(rec.get("item", ""))),
 				"count": int(rec.get("count", 1)),
 				"cond": int(rec.get("cond", 0)),
 				"exchange": int(rec.get("exchange", 0)),
 				"price": int(rec.get("price", 0)),
 			})
-	haniwa_message = str(bag.get("haniwa_message", haniwa_message))
-	haniwa_bells = maxi(0, int(bag.get("haniwa_bells", haniwa_bells)))
+	gyroid_message = str(bag.get("gyroid_message", gyroid_message))
+	gyroid_bells = maxi(0, int(bag.get("gyroid_bells", gyroid_bells)))
 	door_original = int(bag.get("door_original", door_original))
 	var goki_date: Variant = bag.get("goki_date", [])
 	if typeof(goki_date) == TYPE_ARRAY and (goki_date as Array).size() >= 3:

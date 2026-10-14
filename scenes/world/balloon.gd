@@ -340,7 +340,7 @@ func _escape(delta: float) -> void:
 ## `mPr_DummyPresentToTruePresent`: 80% a piece from the rare (C) list, else a fruit from out of town.
 static func true_present(r: RandomNumberGenerator) -> StringName:
 	if r.randi_range(0, 4) != 0:
-		var ftr: StringName = FtrCatalog.pick_named("ftr", "C", r)
+		var ftr: StringName = FurnitureCatalog.pick_named("ftr", "C", r)
 		if ftr != &"":
 			return ftr
 	var own: StringName = Game.town_fruit if Game != null else &"apple"

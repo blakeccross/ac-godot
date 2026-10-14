@@ -120,11 +120,11 @@ static func renew(spoil: bool, inventory: Inventory = null, tree: SceneTree = nu
 	for key: Variant in Game.field_items.keys():
 		var rec: Dictionary = Game.field_items[key]
 		var id := StringName(str(rec.get("id", "")))
-		if id == KabuMarket.SPOILED:
+		if id == StalkMarket.SPOILED:
 			Game.field_items.erase(key)
 			_refresh_node(tree, StringName(str(key)))
-		elif spoil and KabuMarket.bundle_size(id) > 0:
-			rec["id"] = String(KabuMarket.SPOILED)
+		elif spoil and StalkMarket.bundle_size(id) > 0:
+			rec["id"] = String(StalkMarket.SPOILED)
 			_refresh_node(tree, StringName(str(key)))
 	if spoil and inventory != null:
 		spoil_pockets(inventory)
@@ -150,11 +150,11 @@ static func spoil_elsewhere() -> int:
 				priv[PlayerRoster.KEY_INVENTORY] = inv.to_save()
 				n += spoiled
 			n += spoil_saved_rooms(priv.get(PlayerRoster.KEY_ROOMS, {}))
-			n += spoil_haniwa(Game.roster.house_of(slot))
+			n += spoil_gyroid(Game.roster.house_of(slot))
 	if Game.interiors != null:
 		for room_id: StringName in [PlayerHouse.MAIN, PlayerHouse.UPPER, PlayerHouse.BASEMENT]:
 			n += spoil_room(Game.interiors.room(room_id))
-		n += spoil_haniwa(Game.interiors.player_house())
+		n += spoil_gyroid(Game.interiors.player_house())
 	return n
 
 
@@ -163,8 +163,8 @@ static func spoil_room(room: Room) -> int:
 	if room == null:
 		return 0
 	for entry: FurniturePlacement in room.placements:
-		if entry != null and KabuMarket.bundle_size(entry.furniture_id) > 0:
-			entry.furniture_id = KabuMarket.SPOILED
+		if entry != null and StalkMarket.bundle_size(entry.furniture_id) > 0:
+			entry.furniture_id = StalkMarket.SPOILED
 			n += 1
 	return n
 
@@ -179,20 +179,20 @@ static func spoil_saved_rooms(rooms: Variant) -> int:
 		if typeof(room) != TYPE_DICTIONARY:
 			continue
 		for item: Variant in (room as Dictionary).get("placements", []):
-			if typeof(item) == TYPE_DICTIONARY and KabuMarket.bundle_size(StringName(str((item as Dictionary).get("furniture_id", "")))) > 0:
-				(item as Dictionary)["furniture_id"] = String(KabuMarket.SPOILED)
+			if typeof(item) == TYPE_DICTIONARY and StalkMarket.bundle_size(StringName(str((item as Dictionary).get("furniture_id", "")))) > 0:
+				(item as Dictionary)["furniture_id"] = String(StalkMarket.SPOILED)
 				n += 1
 	return n
 
 
-static func spoil_haniwa(house: House) -> int:
+static func spoil_gyroid(house: House) -> int:
 	var n: int = 0
 	if house == null:
 		return 0
-	HaniwaStore.ensure(house)
-	for slot: Dictionary in house.haniwa_items:
-		if KabuMarket.bundle_size(StringName(str(slot.get("item", "")))) > 0:
-			slot["item"] = KabuMarket.SPOILED
+	GyroidStore.ensure(house)
+	for slot: Dictionary in house.gyroid_items:
+		if StalkMarket.bundle_size(StringName(str(slot.get("item", "")))) > 0:
+			slot["item"] = StalkMarket.SPOILED
 			n += 1
 	return n
 
@@ -201,8 +201,8 @@ static func spoil_pockets(inventory: Inventory) -> int:
 	var n: int = 0
 	for i: int in Inventory.POCKET_SLOTS:
 		var slot: InventorySlot = inventory.slot_at(i)
-		if slot != null and not slot.is_empty() and KabuMarket.bundle_size(slot.item.item_id) > 0:
-			slot.item.item_id = KabuMarket.SPOILED
+		if slot != null and not slot.is_empty() and StalkMarket.bundle_size(slot.item.item_id) > 0:
+			slot.item.item_id = StalkMarket.SPOILED
 			n += 1
 	if n > 0:
 		inventory.changed.emit()

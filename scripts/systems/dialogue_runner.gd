@@ -484,7 +484,7 @@ func _apply_event(event: Dictionary) -> void:
 			_donate_commit(event)
 		"farway_send":
 			if Game != null:
-				var msg: String = Game.send_fossils_to_farway(int(event.get("count", 1)))
+				var msg: String = Game.send_fossils_to_museum(int(event.get("count", 1)))
 				if msg != "":
 					Game.post_notice(msg)
 		"deposit_bells":

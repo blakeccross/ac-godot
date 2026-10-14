@@ -24,7 +24,7 @@ const HALVED := [121, 122, 123]
 
 
 ## The gyroid number (0–126) of furniture `ftr_index`, or -1.
-static func haniwa_index(ftr_index: int) -> int:
+static func gyroid_index(ftr_index: int) -> int:
 	var i: int = ftr_index - FIRST_FTR
 	return i if i >= 0 and i < COUNT else -1
 
@@ -35,11 +35,11 @@ static func steps(seconds: float, bpm: float = BPM) -> float:
 
 
 ## 0 → 1 position in the clip after `step_count` steps.
-static func counter(step_count: float, haniwa_idx: int) -> float:
+static func counter(step_count: float, gyroid_idx: int) -> float:
 	var c: float = fposmod(step_count, 1.0)
-	if TWICE.has(haniwa_idx):
+	if TWICE.has(gyroid_idx):
 		return (c - 0.5) * 2.0 if c >= 0.5 else c * 2.0
-	if HALVED.has(haniwa_idx):
+	if HALVED.has(gyroid_idx):
 		## `dynamic_work_s[0]` flips on every wrap.
 		var flip: int = int(floor(step_count)) % 2
 		return c * 0.5 + (0.5 if flip == 1 else 0.0)

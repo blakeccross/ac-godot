@@ -159,7 +159,7 @@ func test_gulliver_gives_a_keepsake_once_awake() -> void:
 	var step: Dictionary = g.next_step()
 	assert_int(int(step["msg"])).is_equal(GulliverTalk.MSG_BYE_FIRST)
 	assert_bool(bool(area["give"])).is_true()
-	if FtrCatalog.available():
+	if FurnitureCatalog.available():
 		assert_int(inv.count_of(g.gift)).is_equal(1)
 	## Afterwards he just chats.
 	var chat := GulliverTalk.new(GulliverTalk.Mode.WANDER, area, inv)
@@ -167,7 +167,7 @@ func test_gulliver_gives_a_keepsake_once_awake() -> void:
 
 
 func test_redd_stock_and_sale() -> void:
-	if not FtrCatalog.available():
+	if not FurnitureCatalog.available():
 		return
 	var area: Dictionary = {}
 	var rng := RandomNumberGenerator.new()
@@ -196,7 +196,7 @@ func test_redd_stock_and_sale() -> void:
 
 
 func test_saharah_prices_double_and_needs_a_carpet() -> void:
-	if not FtrCatalog.available():
+	if not FurnitureCatalog.available():
 		return
 	var area: Dictionary = {"used": 2}
 	var inv := Inventory.new()
@@ -219,7 +219,7 @@ func test_saharah_prices_double_and_needs_a_carpet() -> void:
 
 
 func test_wendell_gives_wallpaper_for_fish() -> void:
-	if not FtrCatalog.available():
+	if not FurnitureCatalog.available():
 		return
 	var area: Dictionary = {}
 	var inv := Inventory.new()
@@ -242,7 +242,7 @@ func test_wendell_gives_wallpaper_for_fish() -> void:
 
 
 func test_gracie_wash_results() -> void:
-	if not FtrCatalog.available():
+	if not FurnitureCatalog.available():
 		return
 	var area: Dictionary = {}
 	var inv := Inventory.new()
@@ -257,7 +257,7 @@ func test_gracie_wash_results() -> void:
 	r.result = 0
 	r.current_msg = r.start_msg()
 	assert_int(int(r.next_step()["msg"])).is_equal(GracieTalk.MSG_NOT_WEARING[12])
-	assert_bool(FtrCatalog.named_list("cloth", "Event").has(r.present)).is_true()
+	assert_bool(FurnitureCatalog.named_list("cloth", "Event").has(r.present)).is_true()
 	assert_int(inv.count_of(r.present)).is_equal(1)
 
 
@@ -411,7 +411,7 @@ func test_festival_terms_pick_countdown_and_groundhog_lines() -> void:
 
 
 func test_franklin_trades_his_knife_and_fork_for_a_present() -> void:
-	if not FtrCatalog.available():
+	if not FurnitureCatalog.available():
 		return
 	var area: Dictionary = {}
 	var inv := Inventory.new()
@@ -439,7 +439,7 @@ func test_franklin_trades_his_knife_and_fork_for_a_present() -> void:
 
 
 func test_trick_or_treat_candy_and_tricks() -> void:
-	if not FtrCatalog.available():
+	if not FurnitureCatalog.available():
 		return
 	var inv := Inventory.new()
 	inv.add(ItemCatalog.get_item(&"candy"), 1)
@@ -465,7 +465,7 @@ func test_trick_or_treat_candy_and_tricks() -> void:
 
 
 func test_jingle_wish_list_and_shirt_trick() -> void:
-	if not FtrCatalog.available():
+	if not FurnitureCatalog.available():
 		return
 	var area: Dictionary = {}
 	var inv := Inventory.new()
@@ -489,7 +489,7 @@ func test_jingle_wish_list_and_shirt_trick() -> void:
 	t3.picked(JingleTalk.MSG_CHECK_FINAL[JingleTalk.Wish.CLOTH], 0)
 	var t4: JingleTalk = talk.call(Vector2i(5, 1), &"shirt_000")
 	assert_int(t4.start_msg()).is_equal(JingleTalk.MSG_PRESENT)
-	assert_bool(FtrCatalog.named_list("cloth", "Christmas").has(t4.gift)).is_true()
+	assert_bool(FurnitureCatalog.named_list("cloth", "Christmas").has(t4.gift)).is_true()
 	## Same shirt: recognised. New shirt twice in a row: another present.
 	assert_int(talk.call(Vector2i(6, 1), &"shirt_000").start_msg()).is_between(JingleTalk.MSG_SAME_PLAYER, JingleTalk.MSG_SAME_PLAYER + 2)
 	assert_int(talk.call(Vector2i(7, 1), &"shirt_005").start_msg()).is_equal(JingleTalk.MSG_ALMOST)

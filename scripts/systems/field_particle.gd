@@ -19,15 +19,15 @@ const EFFECT_DIR := "res://assets/generated/effects/%s.glb"
 const FRAME_DIR := "res://assets/generated/textures/rel/%s.png"
 const DUST_FRAMES: Array[String] = ["ef_dust01_0", "ef_dust01_1", "ef_dust01_2", "ef_dust01_3"]
 const SMOKE_FRAMES: Array[String] = ["ef_kisha_kemuri01_0", "ef_kisha_kemuri01_1"]
-const KINDS: Array[FieldFx.Kind] = [
-	FieldFx.Kind.DUST, FieldFx.Kind.TUMBLE_DUST, FieldFx.Kind.STEAM, FieldFx.Kind.SOBA_YUGE,
-	FieldFx.Kind.KISHA_KEMURI, FieldFx.Kind.SAND, FieldFx.Kind.SIBUKI, FieldFx.Kind.YUKIHANE,
-	FieldFx.Kind.MIZUTAMA, FieldFx.Kind.YUKIDAMA, FieldFx.Kind.KASAMIZUTAMA,
+const KINDS: Array[FieldEffects.Kind] = [
+	FieldEffects.Kind.DUST, FieldEffects.Kind.TUMBLE_DUST, FieldEffects.Kind.STEAM, FieldEffects.Kind.SOBA_YUGE,
+	FieldEffects.Kind.KISHA_KEMURI, FieldEffects.Kind.SAND, FieldEffects.Kind.SIBUKI, FieldEffects.Kind.YUKIHANE,
+	FieldEffects.Kind.MIZUTAMA, FieldEffects.Kind.YUKIDAMA, FieldEffects.Kind.KASAMIZUTAMA,
 ]
 ## A drop lies where it lands for 14 ticks, playing its splat.
 const SPLAT_TIME := 14.0 / 60.0
 
-var kind: FieldFx.Kind = FieldFx.Kind.DUST
+var kind: FieldEffects.Kind = FieldEffects.Kind.DUST
 
 ## Atlas of frames per frame list, built once.
 static var _atlases: Dictionary = {}
@@ -70,14 +70,14 @@ class Style:
 	var land_time: float = -1.0
 
 
-static func handles(kind: FieldFx.Kind) -> bool:
+static func handles(kind: FieldEffects.Kind) -> bool:
 	return KINDS.has(kind)
 
 
 ## Spawns a particle of `kind` at `pos` (metres) facing `yaw`, under `host`. `ground`
 ## (metres → ground height in metres) is where drops land.
 static func spawn(
-	host: Node, kind: FieldFx.Kind, pos: Vector3, yaw: float, a0: int = 0, a1: int = 0,
+	host: Node, kind: FieldEffects.Kind, pos: Vector3, yaw: float, a0: int = 0, a1: int = 0,
 	ground: Callable = Callable()
 ) -> FieldParticle:
 	if host == null or not handles(kind):
@@ -95,29 +95,29 @@ static func spawn(
 ## The decomp's numbers for `kind` (`*_ct` / `*_mv` / `*_dw`). `at[0]` may be moved for
 ## kinds that start off the given point.
 static func style_for(
-	kind: FieldFx.Kind, yaw: float, a0: int, a1: int, at: Array[Vector3], ground: Callable = Callable()
+	kind: FieldEffects.Kind, yaw: float, a0: int, a1: int, at: Array[Vector3], ground: Callable = Callable()
 ) -> Style:
 	var s := Style.new()
 	match kind:
-		FieldFx.Kind.DUST:
+		FieldEffects.Kind.DUST:
 			_dust(s, yaw, a1, at)
-		FieldFx.Kind.TUMBLE_DUST:
+		FieldEffects.Kind.TUMBLE_DUST:
 			_tumble_dust(s, yaw, a1)
-		FieldFx.Kind.STEAM:
+		FieldEffects.Kind.STEAM:
 			_steam(s, yaw)
-		FieldFx.Kind.SOBA_YUGE:
+		FieldEffects.Kind.SOBA_YUGE:
 			_food_steam(s, a0, a1, at)
-		FieldFx.Kind.KISHA_KEMURI:
+		FieldEffects.Kind.KISHA_KEMURI:
 			_smoke(s, a0, a1, at)
-		FieldFx.Kind.SAND:
+		FieldEffects.Kind.SAND:
 			_sand(s, yaw, a0, at)
-		FieldFx.Kind.SIBUKI:
+		FieldEffects.Kind.SIBUKI:
 			_splash(s, a0, at)
-		FieldFx.Kind.YUKIHANE:
+		FieldEffects.Kind.YUKIHANE:
 			_snow_kick(s, at)
-		FieldFx.Kind.MIZUTAMA, FieldFx.Kind.YUKIDAMA:
+		FieldEffects.Kind.MIZUTAMA, FieldEffects.Kind.YUKIDAMA:
 			_drop(s, kind, yaw, a1, at, ground)
-		FieldFx.Kind.KASAMIZUTAMA:
+		FieldEffects.Kind.KASAMIZUTAMA:
 			_spray(s, yaw)
 	_even(s)
 	return s
@@ -268,15 +268,15 @@ static func _dust(s: Style, yaw: float, arg1: int, at: Array[Vector3]) -> void:
 	elif arg1 == 0 or arg1 == 9:
 		size = 0.007
 	s.lifetime = _ticks(18)
-	s.launch = _speed(FieldFx.rot_y(v, yaw))
-	s.accel = _accel(FieldFx.rot_y(a, yaw))
+	s.launch = _speed(FieldEffects.rot_y(v, yaw))
+	s.accel = _accel(FieldEffects.rot_y(a, yaw))
 	if arg1 == 0 or arg1 == 9:
 		s.drag = Vector3.ONE * _drag(sqrt(0.85))
 	s.size_from_to = Vector2(size, size)
-	s.tint = FieldFx.DUST_PRIM[arg1] if arg1 >= 0 and arg1 < FieldFx.DUST_PRIM.size() else Color.WHITE
-	_tiles(s, FieldFx.DUST_TILES, FieldFx.DUST_LOD)
+	s.tint = FieldEffects.DUST_PRIM[arg1] if arg1 >= 0 and arg1 < FieldEffects.DUST_PRIM.size() else Color.WHITE
+	_tiles(s, FieldEffects.DUST_TILES, FieldEffects.DUST_LOD)
 	s.alphas = PackedFloat32Array()
-	for alpha: int in FieldFx.DUST_ALPHA:
+	for alpha: int in FieldEffects.DUST_ALPHA:
 		s.alphas.append(alpha / 255.0)
 
 
@@ -300,15 +300,15 @@ static func _tumble_dust(s: Style, yaw: float, arg1: int) -> void:
 		life = 36
 	s.lifetime = _ticks(30)
 	s.hold = _ticks(life - 30)
-	s.launch = _speed(FieldFx.rot_y(Vector3(0.0, 0.5, z), yaw))
-	s.accel = _accel(FieldFx.rot_y(Vector3(0.0, 0.05, -0.05), yaw))
+	s.launch = _speed(FieldEffects.rot_y(Vector3(0.0, 0.5, z), yaw))
+	s.accel = _accel(FieldEffects.rot_y(Vector3(0.0, 0.05, -0.05), yaw))
 	s.accel_fade = Vector3(0.0, _drag(sqrt(0.8)), 0.0)
 	s.drag = Vector3(_drag(sqrt(0.8)), _drag(sqrt(0.95)), _drag(sqrt(0.8)))
 	s.size_from_to = Vector2(0.005, 0.02 if arg1 in [1, 5, 6] else 0.015)
 	s.size_window = Vector2(0.0, _ticks(30))
 	s.alpha_from_to = Vector2(1.0, 120.0 / 255.0)
 	s.alpha_window = Vector2(_ticks(8), _ticks(30))
-	_tiles(s, FieldFx.TDUST_TILES, FieldFx.TDUST_LOD)
+	_tiles(s, FieldEffects.TDUST_TILES, FieldEffects.TDUST_LOD)
 
 
 ## `eSteam_*`: the piston puffs out along its heading at 0.5–1.5 and 1.5–4.5 down, rising
@@ -321,7 +321,7 @@ static func _steam(s: Style, yaw: float) -> void:
 	s.drag = Vector3.ONE * _drag(sqrt(0.8))
 	s.size_from_to = Vector2(0.005, 0.02)
 	s.size_window = Vector2(0.0, _ticks(30))
-	_tiles(s, FieldFx.STEAM_TILES, FieldFx.STEAM_LOD)
+	_tiles(s, FieldEffects.STEAM_TILES, FieldEffects.STEAM_LOD)
 
 
 ## `eSoba_Yuge_*`: 1 GX up and `arg0` out on a random heading, rising slowly; grows and
@@ -337,7 +337,7 @@ static func _food_steam(s: Style, arg0: int, arg1: int, at: Array[Vector3]) -> v
 	s.alpha_from_to = Vector2((130.0 if arg1 == 0 else 190.0) / 255.0, 10.0 / 255.0)
 	s.alpha_window = Vector2(0.0, _ticks(44))
 	s.tint = Color.WHITE if arg1 == 0 else Color8(255, 200, 130)
-	_tiles(s, FieldFx.YUGE_TILES, FieldFx.YUGE_LOD)
+	_tiles(s, FieldEffects.YUGE_TILES, FieldEffects.YUGE_LOD)
 
 
 ## `eKishaK_*`: ±2.5 GX of jitter; climbs 2.2 GX a tick easing to 0.5 over the first 20,
@@ -346,7 +346,7 @@ static func _smoke(s: Style, arg0: int, arg1: int, at: Array[Vector3]) -> void:
 	at[0] += Vector3(randf() * 5.0 - 2.5, 0.0, randf() * 5.0 - 2.5) * GX
 	var drift := Vector3.ZERO
 	if arg0 == 1:
-		var angle: float = float(arg1) * MLib.S16
+		var angle: float = float(arg1) * MathUtil.S16
 		drift = Vector3(sin(angle) * 0.2, 0.0, cos(angle) * 0.2)
 	s.lifetime = _ticks(80)
 	s.launch = _speed(drift + Vector3(0.0, 0.5, 0.0))
@@ -356,12 +356,12 @@ static func _smoke(s: Style, arg0: int, arg1: int, at: Array[Vector3]) -> void:
 	s.size_window = Vector2(0.0, _ticks(40))
 	s.alpha_from_to = Vector2(200.0 / 255.0, 4.0 / 255.0)
 	s.alpha_window = Vector2(_ticks(40), _ticks(80))
-	s.tint = FieldFx.KEMURI_PRIM
+	s.tint = FieldEffects.KEMURI_PRIM
 	s.model = "ef_kisha_kemuri01"
 	s.frames = SMOKE_FRAMES
 	s.tile0 = PackedInt32Array([0])
 	s.tile1 = PackedInt32Array([1])
-	s.lods = PackedFloat32Array([FieldFx.KEMURI_LOD])
+	s.lods = PackedFloat32Array([FieldEffects.KEMURI_LOD])
 	s.alphas = PackedFloat32Array([1.0])
 
 
@@ -486,19 +486,19 @@ static func _ground_card(s: Style, model: String, frames: Array[String], tilt: f
 ## `eMizutama_ct` / `eYukidama_ct`: flicked up off the step (arg1 = speed set << 12 | the
 ## direction), it flies until it reaches the ground 3 GX above where it started, then lies
 ## there splatting for 14 ticks. 50 ticks at most.
-static func _drop(s: Style, kind: FieldFx.Kind, yaw: float, arg1: int, at: Array[Vector3], ground: Callable) -> void:
-	var water: bool = kind == FieldFx.Kind.MIZUTAMA
-	var speeds: Array[Vector4] = FieldFx.MIZU_SPEED if water else FieldFx.YUKI_SPEED
+static func _drop(s: Style, kind: FieldEffects.Kind, yaw: float, arg1: int, at: Array[Vector3], ground: Callable) -> void:
+	var water: bool = kind == FieldEffects.Kind.MIZUTAMA
+	var speeds: Array[Vector4] = FieldEffects.MIZU_SPEED if water else FieldEffects.YUKI_SPEED
 	var speed_set: int = clampi((arg1 >> 12) & 0xF, 0, speeds.size() - 1)
 	var dir_index: int = arg1 & 0x0FFF
 	var sp: Vector4 = speeds[speed_set]
 	var v := Vector3(0.0, sp.x + randf() * sp.y, sp.z)
 	var dir: float
 	if water:
-		dir = yaw + MLib.s16_to_rad(FieldFx.MIZU_ANGLE[clampi(dir_index, 0, FieldFx.MIZU_ANGLE.size() - 1)])
+		dir = yaw + MathUtil.s16_to_rad(FieldEffects.MIZU_ANGLE[clampi(dir_index, 0, FieldEffects.MIZU_ANGLE.size() - 1)])
 	else:
-		dir = yaw + deg_to_rad(FieldFx.YUKI_ANGLE_DEG[clampi(dir_index, 0, FieldFx.YUKI_ANGLE_DEG.size() - 1)])
-	v = FieldFx.rot_y(v, dir)
+		dir = yaw + deg_to_rad(FieldEffects.YUKI_ANGLE_DEG[clampi(dir_index, 0, FieldEffects.YUKI_ANGLE_DEG.size() - 1)])
+	v = FieldEffects.rot_y(v, dir)
 	v.x += sin(yaw) * sp.w
 	v.z += cos(yaw) * sp.w
 	at[0] += Vector3((randf() - 0.5) * 6.0, 0.0, (randf() - 0.5) * 6.0) * GX
@@ -557,7 +557,7 @@ static func _spray(s: Style, yaw: float) -> void:
 	s.tile0 = PackedInt32Array([0])
 	s.tile1 = s.tile0
 	s.lods = PackedFloat32Array([0.0])
-	s.sizes = PackedFloat32Array(FieldFx.KASAMIZUTAMA_SCALE)
+	s.sizes = PackedFloat32Array(FieldEffects.KASAMIZUTAMA_SCALE)
 	s.size_from_to = Vector2(0.005, 0.005)
 	s.mode = 0
 	s.tint = Color8(200, 255, 255, 200)

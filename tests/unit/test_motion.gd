@@ -32,8 +32,8 @@ func test_damp_angle_takes_the_short_way() -> void:
 
 
 func test_fraction_half_life_matches_the_tick_curve() -> void:
-	## `MLib.HALF_FRACTION` per tick closes half the gap every two ticks.
-	var half_life: float = Motion.half_life_from_fraction(MLib.HALF_FRACTION)
+	## `MathUtil.HALF_FRACTION` per tick closes half the gap every two ticks.
+	var half_life: float = Motion.half_life_from_fraction(MathUtil.HALF_FRACTION)
 	assert_float(half_life).is_equal_approx(2.0 * DecompTime.TICK_SEC, 0.00001)
 	## 45 ticks of the old per-tick `add_calc` land where one second-based `damp` does.
 	var ticked: float = 0.0

@@ -114,7 +114,7 @@ static func over(rec: Dictionary, ordinal: int, hour: int) -> bool:
 ## `mSP_SelectFishginPresent`: lottery or event furniture, whichever list comes up first
 ## with something not owned, else anything from them.
 static func present(owned: Array, rng: RandomNumberGenerator) -> StringName:
-	var lists: Array = [FtrCatalog.list("lottery"), FtrCatalog.list("event")]
+	var lists: Array = [FurnitureCatalog.list("lottery"), FurnitureCatalog.list("event")]
 	if rng.randf() < 0.5:
 		lists.reverse()
 	for pool: Array in lists:

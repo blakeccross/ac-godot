@@ -69,7 +69,7 @@ func test_grounded_insect_follows_ground_down_a_gentle_slope() -> void:
 func test_no_ground_sampler_means_no_collision() -> void:
 	## Program unit tests without a town keep their own flat-plane clamps.
 	var a := _hopper(Vector3(0.0, 5.0, 0.0))
-	a.bg_type = 2
+	a.terrain_mode = BugActor.TerrainMode.GROUND
 	a._bg_check(BugActor.Sense.new())
 	assert_float(a.pos.y).is_equal(5.0)
 	assert_bool(a.bg_on_ground).is_false()

@@ -55,7 +55,7 @@ const BAG_30000 := &"money_30000"
 ## `mSP_sack_amount` / `mSP_itemNo`: sacks count toward a short wallet, smallest first.
 const SACKS: Array[StringName] = [&"money_100", &"money_1000", &"money_10000", &"money_30000"]
 
-var kabu: KabuMarket = KabuMarket.new()
+var stalk_market: StalkMarket = StalkMarket.new()
 var _shops: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
 
@@ -66,7 +66,7 @@ func _init() -> void:
 
 func clear() -> void:
 	_shops.clear()
-	kabu.clear()
+	stalk_market.clear()
 
 
 func shop(shop_id: StringName) -> Dictionary:
@@ -145,7 +145,7 @@ static func buy_price(item: ItemData) -> int:
 static func sell_price(item: ItemData) -> int:
 	if item == null:
 		return 0
-	if KabuMarket.is_turnip(item.id):
+	if StalkMarket.is_turnip(item.id):
 		return 0
 	if item.id in FRUITS and item.id != town_fruit():
 		return FOREIGN_FRUIT_PRICE / SELL_RATIO
@@ -172,9 +172,9 @@ static func town_fruit() -> StringName:
 
 ## Nook's price for one turnip bundle today (0 on Sunday — Joan's day).
 func turnip_price(item_id: StringName) -> int:
-	if item_id == KabuMarket.SPOILED:
+	if item_id == StalkMarket.SPOILED:
 		return 0
-	return kabu.price_today() * KabuMarket.bundle_size(item_id)
+	return stalk_market.price_today() * StalkMarket.bundle_size(item_id)
 
 
 # --- Level, renovation, hours ------------------------------------------------------------
@@ -534,13 +534,13 @@ func sell_quote(item_id: StringName, inv: Inventory, count: int = -1) -> Diction
 	if not can_sell(data):
 		return {"code": Sell.REFUSED, "count": 0, "total": 0}
 	var n: int = have if count < 0 else mini(count, have)
-	if KabuMarket.is_turnip(item_id):
-		if item_id == KabuMarket.SPOILED:
+	if StalkMarket.is_turnip(item_id):
+		if item_id == StalkMarket.SPOILED:
 			return {"code": Sell.JUNK, "count": n, "total": 0, "unit": 0}
 		if Clock.weekday() == 0:
 			return {"code": Sell.SUNDAY_TURNIPS, "count": 0, "total": 0}
-		var unit_kabu: int = turnip_price(item_id)
-		return {"code": Sell.OK, "count": n, "total": unit_kabu * n, "unit": unit_kabu}
+		var unit_price: int = turnip_price(item_id)
+		return {"code": Sell.OK, "count": n, "total": unit_price * n, "unit": unit_price}
 	var unit: int = sell_price(data)
 	if unit <= 0:
 		return {"code": Sell.JUNK, "count": n, "total": 0, "unit": 0}
@@ -744,8 +744,8 @@ func to_save() -> Dictionary:
 	var out := {}
 	for key: Variant in _shops.keys():
 		out[str(key)] = (_shops[key] as Dictionary).duplicate(true)
-	if kabu.week_ordinal >= 0:
-		out["_kabu"] = kabu.to_save()
+	if stalk_market.week_ordinal >= 0:
+		out["_stalk_market"] = stalk_market.to_save()
 	return out
 
 
@@ -757,8 +757,8 @@ func apply_snapshot(data: Variant) -> void:
 		var row: Variant = (data as Dictionary)[key]
 		if typeof(row) != TYPE_DICTIONARY:
 			continue
-		if str(key) == "_kabu":
-			kabu.apply_snapshot(row)
+		if str(key) == "_stalk_market":
+			stalk_market.apply_snapshot(row)
 			continue
 		_shops[StringName(str(key))] = (row as Dictionary).duplicate(true)
 	## Saves from before the stored level: the building matches what sales earned.
@@ -767,7 +767,7 @@ func apply_snapshot(data: Variant) -> void:
 	for shop_id: StringName in SHOP_IDS:
 		ensure_today(shop_id)
 	## `m_start_data_init`: `Kabu_manager` at game start.
-	kabu.update(Clock.year, Clock.month, Clock.day)
+	stalk_market.update(Clock.year, Clock.month, Clock.day)
 
 
 # --- Internals -----------------------------------------------------------------------------

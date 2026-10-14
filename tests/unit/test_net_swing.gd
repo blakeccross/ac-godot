@@ -230,7 +230,7 @@ func test_release_during_skid_swings() -> void:
 func test_net_point_follows_the_hand() -> void:
 	## `Matrix_rotateXYZ(0, 3000, 0)` then 4000 model units down Z, ×0.01 → 40 GX.
 	var p: Vector3 = NetSwing.net_point(Transform3D.IDENTITY, NetSwing.NET_POS_GX)
-	var yaw: float = MLib.s16_to_rad(NetSwing.NET_YAW_S16)
+	var yaw: float = MathUtil.s16_to_rad(NetSwing.NET_YAW_S16)
 	var want := Vector3(sin(yaw), 0.0, cos(yaw)) * (40.0 * GX)
 	assert_vector(p).is_equal_approx(want, Vector3.ONE * 0.0001)
 	var moved := Transform3D(Basis(Vector3.UP, PI), Vector3(1.0, 2.0, 3.0))

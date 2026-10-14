@@ -124,7 +124,7 @@ func test_dash_reversal_skids_then_waits_facing_new_way() -> void:
 
 func test_short_angle3_turns_positive_way_only() -> void:
 	## Target just below the value → goes almost a full turn the positive way.
-	var v: float = MLib.short_angle3(0.1, 0.0, MLib.HALF_FRACTION, PI, 0.0)
+	var v: float = MathUtil.short_angle3(0.1, 0.0, MathUtil.HALF_FRACTION, PI, 0.0)
 	assert_float(v).is_greater(0.1)
 
 

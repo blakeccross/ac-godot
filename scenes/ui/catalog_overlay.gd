@@ -727,7 +727,7 @@ func _build_preview(item: StringName) -> void:
 		box = AABB(Vector3(-0.5, 0.0, -0.5), Vector3.ONE)
 	host.position = -Vector3(box.get_center().x, box.position.y, box.get_center().z)
 	var radius: float = maxf(box.size.length() * 0.5, 0.05)
-	var elev: float = float(0x900) * MLib.S16
+	var elev: float = float(0x900) * MathUtil.S16
 	var dist: float = radius / tan(deg_to_rad(_camera.fov * 0.5)) * 1.05
 	var look := Vector3(0.0, box.size.y * 0.5, 0.0)
 	_camera.position = look + Vector3(0.0, sin(elev), cos(elev)) * dist

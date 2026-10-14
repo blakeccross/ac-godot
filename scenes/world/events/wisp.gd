@@ -161,7 +161,7 @@ func _fade(delta: float) -> void:
 			## Turns by the spin's average over the step, binangle a frame → radians.
 			var start: float = _spin
 			_spin = minf(_spin + SPIN_ACCEL * delta, SPIN_MAX)
-			rotation.y += MLib.s16_to_rad(0.5 * (start + _spin) * DecompTime.FRAME_HZ * delta)
+			rotation.y += MathUtil.s16_to_rad(0.5 * (start + _spin) * DecompTime.FRAME_HZ * delta)
 			if _leaving > SHRINK_AFTER_SEC:
 				scale.x = maxf(scale.x - SHRINK_SPEED * delta, 0.0)
 				scale.z = scale.x

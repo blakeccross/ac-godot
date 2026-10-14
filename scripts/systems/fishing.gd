@@ -460,7 +460,7 @@ static func _land() -> void:
 	_splash_pending = true
 	_bank_range = BANK_RANGE_START_GX
 	## `aUKI_effect_hamon(…, 1)` as it settles on the surface.
-	StepFx.ripple(_anchor, 1)
+	FootstepEffects.ripple(_anchor, 1)
 	if _bobber != null and is_instance_valid(_bobber):
 		PlayerSe.bobber_splash(_bobber)
 	elif _actor != null and is_instance_valid(_actor):
@@ -481,7 +481,7 @@ static func _float(delta: float, school: FishSchool) -> void:
 				_nibbles += 1
 				_dip = DIP_SECONDS
 				## `aUKI_effect_hamon(…, 2)` and a short rumble on each touch.
-				StepFx.ripple(_anchor, 2)
+				FootstepEffects.ripple(_anchor, 2)
 				GameConfig.fish_touch(shadow.size)
 			if shadow.finished:
 				continue
@@ -530,7 +530,7 @@ static func _bite(delta: float, school: FishSchool) -> void:
 		return
 	## `aGTT_bite`: while it has the hook, now and then a small ring.
 	if randf() < 1.0 - exp(-BITE_RIPPLE_RATE * delta):
-		StepFx.ripple(_anchor, 0)
+		FootstepEffects.ripple(_anchor, 0)
 	_bob_on_line(delta)
 	if not _reeling:
 		return

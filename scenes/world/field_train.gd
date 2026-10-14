@@ -123,7 +123,7 @@ func _smoke(delta: float, speed: float) -> void:
 		return
 	var wait_ticks: int = int(12.0 / speed) if speed >= 1.0 else 12
 	_smoke_wait = maxf(_smoke_wait, 0.0) + float(wait_ticks + 1) / DecompTime.TICK_HZ
-	FieldFx.spawn(_effects(), FieldFx.Kind.KISHA_KEMURI, _loco_point(SMOKE_OFF_GX), 0.0)
+	FieldEffects.spawn(_effects(), FieldEffects.Kind.KISHA_KEMURI, _loco_point(SMOKE_OFF_GX), 0.0)
 
 
 ## `aTR0_steam_work`: piston steam on wheel frames 2–5 (x +15, angle 0xD000) and 13–16
@@ -132,7 +132,7 @@ func _steam() -> void:
 	for i: int in 2:
 		if _saved_frame >= STEAM_FRAMES[i].x and _saved_frame <= STEAM_FRAMES[i].y:
 			var at: Vector3 = _loco_point(Vector3(STEAM_X_GX[i], 21.0, 42.0))
-			FieldFx.spawn(_effects(), FieldFx.Kind.STEAM, at, float(STEAM_ANGLE[i]) * MLib.S16)
+			FieldEffects.spawn(_effects(), FieldEffects.Kind.STEAM, at, float(STEAM_ANGLE[i]) * MathUtil.S16)
 
 
 func _loco_point(offset_gx: Vector3) -> Vector3:

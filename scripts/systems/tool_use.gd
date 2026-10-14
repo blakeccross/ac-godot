@@ -132,7 +132,7 @@ static func apply_field(action: Interaction, ctx: InteractionContext) -> bool:
 	if tool.kind == ToolData.Kind.UMBRELLA:
 		var twirler := ctx.actor as Node3D
 		if twirler != null:
-			StepFx.umbrella_spray(twirler.global_position, facing_yaw(ctx))
+			FootstepEffects.umbrella_spray(twirler.global_position, facing_yaw(ctx))
 		return true
 	## `REFLECT_SCOOP` / `REFLECT_AXE` on the ball (`aBALL_STATE_PLAYER_HIT_*`).
 	var ball: FieldBall = ball_ahead(ctx)

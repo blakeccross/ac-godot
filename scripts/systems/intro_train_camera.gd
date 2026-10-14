@@ -8,7 +8,7 @@ extends RefCounted
 ## `camera_morph_counter`: 40 ticks from the aisle view onto Rover.
 const MORPH_TIME := 40.0 / DecompTime.TICK_HZ
 ## `camera_move += 0xE20` a tick: the sway's phase in radians a second.
-const SWAY_RATE := IntroTrainStage.CAMERA_SWAY_STEP * MLib.S16 * DecompTime.TICK_HZ
+const SWAY_RATE := IntroTrainStage.CAMERA_SWAY_STEP * MathUtil.S16 * DecompTime.TICK_HZ
 ## `chase_f(&eye_y, max, spd · 0.5)` and `obj_dist_ground` at 0.5 a tick, in GX a second.
 const LOOK_Y_RATE_PER_SPEED := 0.5 * DecompTime.TICK_HZ
 const GROUND_RATE := 0.5 * DecompTime.TICK_HZ

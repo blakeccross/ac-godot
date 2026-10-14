@@ -155,7 +155,7 @@ func _place_station_porter() -> void:
 			porter.say(PorterTalk.WELCOME_HOME)
 	if blanca_rides:
 		## `mSP_SelectRandomItem_New(…, mSP_KIND_CLOTH, mSP_LISTTYPE_ABC)`: her shirt for the trip.
-		var shirt := String(FtrCatalog.pick_named("cloth", ["A", "B", "C"][rng.randi_range(0, 2)], rng))
+		var shirt := String(FurnitureCatalog.pick_named("cloth", ["A", "B", "C"][rng.randi_range(0, 2)], rng))
 		Game.mask_cat["cloth"] = int(shirt.trim_prefix("shirt_")) if shirt.begins_with("shirt_") else -1
 		var blanca: EventNpc = BLANCA_SCENE.instantiate()
 		blanca.set("on_train", true)

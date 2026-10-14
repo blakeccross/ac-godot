@@ -112,12 +112,12 @@ func _puff_ripples(puff: FishSchool.Puff) -> void:
 	if puff.ripples == 0:
 		puff.ripples = 1
 		if puff.birth_ripple >= 0:
-			StepFx.ripple(on_water, puff.birth_ripple)
+			FootstepEffects.ripple(on_water, puff.birth_ripple)
 	if puff.ripples == 1 and puff.age >= KAGE_RIPPLE_SEC:
 		puff.ripples = 2
 		var arg: int = puff.kage_ripple()
 		if arg >= 0:
-			StepFx.ripple(on_water, arg)
+			FootstepEffects.ripple(on_water, arg)
 
 
 func _place(

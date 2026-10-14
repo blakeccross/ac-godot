@@ -37,8 +37,8 @@ const HOLD_TIME := 1.0
 const FADEOUT_TIME := 26.0 / 60.0
 ## `aAL_game_start_wait`: the pulse phase turns 32768/50 s16 a tick while positive and
 ## 32768/22 otherwise, so the dim half runs ~2.3× faster. In rad/s.
-const PULSE_RATE_POSITIVE := 655.0 * MLib.S16 * 60.0
-const PULSE_RATE_NONPOSITIVE := 1489.0 * MLib.S16 * 60.0
+const PULSE_RATE_POSITIVE := 655.0 * MathUtil.S16 * 60.0
+const PULSE_RATE_NONPOSITIVE := 1489.0 * MathUtil.S16 * 60.0
 const START_SE_ID := 0x44D
 
 var action: Action = Action.IN

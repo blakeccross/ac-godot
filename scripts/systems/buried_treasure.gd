@@ -30,7 +30,7 @@ static func pick_item(rng: RandomNumberGenerator) -> StringName:
 	var r: float = rng.randf()
 	if r < 1.0 / 3.0:
 		return PITFALL
-	return FtrCatalog.pick("lottery" if r < 2.0 / 3.0 else "event", rng)
+	return FurnitureCatalog.pick("lottery" if r < 2.0 / 3.0 else "event", rng)
 
 
 ## `mFI_SetTreasure`: a random acre with room, then a random unit in it. Returns the cell.

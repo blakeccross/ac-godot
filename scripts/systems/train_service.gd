@@ -25,7 +25,7 @@ const CHUFF_SE := &"3b"
 const CLACK_SE := &"3f"
 const RUN_LEVEL_SE := &"lev_10"
 
-## `distance2vol4KITEKI` (GX); the plain ongen curve is `Ongen.volume`.
+## `distance2vol4KITEKI` (GX); the plain ongen curve is `SoundEmitter.volume`.
 const KITEKI_BASE_VOLUME := 1.15
 const KITEKI_MIN := 320.0
 const KITEKI_MAX := 6400.0
@@ -144,7 +144,7 @@ func _trigger(mode: int, state: int, mic: Vector3, loco: Vector3) -> void:
 ## ticks (`speed` in GX per 1/30 s), the chuff 4 ticks in and the clack 10.
 func _level(delta: float, mode: int, mic: Vector3, loco: Vector3) -> void:
 	var distance: float = mic.distance_to(loco)
-	_panner.pan = Ongen.pan(mic, loco)
+	_panner.pan = SoundEmitter.pan(mic, loco)
 	if _status == 0:
 		return
 	_update_run(mode, distance)
@@ -183,15 +183,15 @@ func _sync_visual(delta: float, parked: bool, mode: int, mic: Vector3) -> void:
 
 
 func _update_run(mode: int, distance: float) -> void:
-	if mode == SCENE_SILENT or distance > Ongen.AREA:
+	if mode == SCENE_SILENT or distance > SoundEmitter.AREA:
 		_stop_run()
 		return
 	if _run_player.stream == null:
 		var stream: AudioStream = SeCatalog.stream_for(RUN_LEVEL_SE)
 		if stream == null:
 			return
-		_run_player.stream = Ongen.looped(stream)
-	_run_player.volume_db = linear_to_db(maxf(Ongen.volume(distance), 0.0001))
+		_run_player.stream = SoundEmitter.looped(stream)
+	_run_player.volume_db = linear_to_db(maxf(SoundEmitter.volume(distance), 0.0001))
 	if not _run_player.playing:
 		_run_player.play()
 
@@ -210,9 +210,9 @@ func _play_whistle(mode: int, ids: Dictionary, distance: float) -> void:
 
 ## `Na_OngenTrgStart` → `Sou_PosTrgStart` default branch.
 func _play_ongen(mode: int, id: StringName, distance: float) -> void:
-	if mode == SCENE_SILENT or distance > Ongen.AREA:
+	if mode == SCENE_SILENT or distance > SoundEmitter.AREA:
 		return
-	_play(id, Ongen.volume(distance))
+	_play(id, SoundEmitter.volume(distance))
 
 
 func _play(id: StringName, volume: float) -> void:
@@ -250,7 +250,7 @@ func _mic_gx() -> Vector3:
 		var player := Player.find(get_tree())
 		if player != null:
 			base = player.global_position
-	return TownSpace.world_to_gx(base) + Ongen.MIC_OFFSET_GX
+	return TownSpace.world_to_gx(base) + SoundEmitter.MIC_OFFSET_GX
 
 
 func _player_block() -> Vector2i:

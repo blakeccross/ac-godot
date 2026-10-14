@@ -530,11 +530,11 @@ func _emit_shake_fx(strong: bool, family: PlantData.Family, medium_cedar: bool, 
 	var host: Node = get_parent()
 	if host == null:
 		return
-	var crown: Vector3 = global_position + Vector3(0.0, TreeFx.CROWN_GX * FieldCatalog.GX_TO_METERS, 0.0)
+	var crown: Vector3 = global_position + Vector3(0.0, TreeEffects.CROWN_GX * FieldCatalog.GX_TO_METERS, 0.0)
 	if strong:
-		TreeFx.leaf(host, crown, family, medium_cedar)
+		TreeEffects.leaf(host, crown, family, medium_cedar)
 	if winter:
-		TreeFx.snow(host, crown, medium_cedar)
+		TreeEffects.snow(host, crown, medium_cedar)
 
 
 func _play_fall(ctx: InteractionContext) -> void:

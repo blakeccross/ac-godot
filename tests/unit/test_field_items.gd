@@ -108,14 +108,14 @@ func test_sunday_spoils_turnips_in_houses_gyroids_and_housemates_pockets() -> vo
 	fp.furniture_id = &"turnips_100"
 	main.placements.append(fp)
 	var house: House = Game.interiors.player_house()
-	HaniwaStore.ensure(house)
-	house.haniwa_items[0]["item"] = &"turnips_10"
+	GyroidStore.ensure(house)
+	house.gyroid_items[0]["item"] = &"turnips_10"
 	FieldItems.renew(true, Inventory.new())
 	var after := Inventory.new()
 	after.from_save(Game.roster.slots[1][PlayerRoster.KEY_INVENTORY])
-	assert_int(after.count_of(KabuMarket.SPOILED)).is_equal(1)
+	assert_int(after.count_of(StalkMarket.SPOILED)).is_equal(1)
 	var saved: Array = Game.roster.slots[1][PlayerRoster.KEY_ROOMS]["player_main"]["placements"]
-	assert_str(str(saved[0]["furniture_id"])).is_equal(String(KabuMarket.SPOILED))
+	assert_str(str(saved[0]["furniture_id"])).is_equal(String(StalkMarket.SPOILED))
 	assert_str(str(saved[1]["furniture_id"])).is_equal("apple")
-	assert_str(String(fp.furniture_id)).is_equal(String(KabuMarket.SPOILED))
-	assert_str(str(house.haniwa_items[0]["item"])).is_equal(String(KabuMarket.SPOILED))
+	assert_str(String(fp.furniture_id)).is_equal(String(StalkMarket.SPOILED))
+	assert_str(str(house.gyroid_items[0]["item"])).is_equal(String(StalkMarket.SPOILED))

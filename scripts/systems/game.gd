@@ -85,7 +85,7 @@ var fish_records: Array = []
 var treasure_buried_day: int = 0
 ## `Save_Get(haniwa_scheduled)`: fine weather after rain orders gyroids for the next growth
 ## (`mAGrw_OrderSetHaniwa`); `BuriedUse.renew` buries them and clears it.
-var haniwa_scheduled: bool = false
+var gyroids_scheduled: bool = false
 ## `HOLE_SHINE`: the hole the day's shine spot left (`bIT_common_bury_after`).
 var shine_hole: StringName = &""
 var treasure_checked_day: int = 0
@@ -101,7 +101,7 @@ var museum: MuseumBook = MuseumBook.new()
 var species_log: SpeciesLog = SpeciesLog.new()
 var police: PoliceBook = PoliceBook.new()
 var post: PostBook = PostBook.new()
-var farway: FarwayBook = FarwayBook.new()
+var travel_book: TravelBook = TravelBook.new()
 var redd: ReddBook = ReddBook.new()
 var lighthouse: LighthouseBook = LighthouseBook.new()
 ## Every catalog item the player has owned + Nook mail orders (`m_catalog_ovl`).
@@ -196,8 +196,8 @@ var insect_term_offset: int = 0
 ## `Save_Get(gyoei_term)` / `gyoei_term_transition_offset` — for fish: the *next* of the
 ## 24 half-month terms and how many days (0–5) before it starts its list ramps in
 ## (`aSOG_gyoei_chk_term_info`). Saved with the town.
-var gyoei_term: int = 0
-var gyoei_term_offset: int = 0
+var fish_season_term: int = 0
+var fish_season_offset: int = 0
 ## `mEnv_WEATHER_INTENSITY_*` (none/light/normal/heavy).
 var weather_intensity: int = int(Weather.Intensity.NONE)
 var dialogue_vars: Dictionary = {}
@@ -1250,8 +1250,8 @@ func reset_session() -> void:
 	interior_session = null
 	insect_term_month = 0
 	insect_term_offset = 0
-	gyoei_term = 0
-	gyoei_term_offset = 0
+	fish_season_term = 0
+	fish_season_offset = 0
 	current_room_id = &""
 	outdoor_return = DEFAULT_SPAWN
 	outdoor_return_yaw = 0.0
@@ -1279,7 +1279,7 @@ func reset_session() -> void:
 	calendar = CalendarBook.new_state()
 	fish_records.clear()
 	treasure_buried_day = 0
-	haniwa_scheduled = false
+	gyroids_scheduled = false
 	shine_hole = &""
 	treasure_checked_day = 0
 	treasure_due = false
@@ -1366,10 +1366,10 @@ func reset_session() -> void:
 	museum_donate_result = {}
 	shop_sell_pending = false
 	shop_sell_slots = []
-	if farway == null:
-		farway = FarwayBook.new()
+	if travel_book == null:
+		travel_book = TravelBook.new()
 	else:
-		farway.clear()
+		travel_book.clear()
 	if redd == null:
 		redd = ReddBook.new()
 	else:
@@ -1601,7 +1601,7 @@ func post_notice(text: String) -> void:
 
 func to_save() -> Dictionary:
 	## `mCkRh_SavePlayTime` runs whenever the game is saved.
-	HouseGoki.save_play_time(interiors.player_house())
+	HouseCockroaches.save_play_time(interiors.player_house())
 	return {
 		"player": {
 			"x": player_position.x,
@@ -1651,7 +1651,7 @@ func to_save() -> Dictionary:
 		"species_log": species_log.to_save(),
 		"police": police.to_save(),
 		"post": post.to_save(),
-		"farway": farway.to_save(),
+		"travel_book": travel_book.to_save(),
 		"redd": redd.to_save(),
 		"lighthouse": lighthouse.to_save(),
 		"catalog": catalog.to_save(),
@@ -1682,7 +1682,7 @@ func to_save() -> Dictionary:
 		"first_job": first_job.to_save() if first_job != null else {},
 		"weather": String(weather),
 		"weather_intensity": weather_intensity,
-		"gyoei_term": {"term": gyoei_term, "offset": gyoei_term_offset},
+		"fish_season_term": {"term": fish_season_term, "offset": fish_season_offset},
 		"dialogue_vars": dialogue_vars.duplicate(true),
 		"first_job_hint_count": first_job_hint_count,
 		"valentine_year": valentine_year,
@@ -1698,7 +1698,7 @@ func to_save() -> Dictionary:
 		"mask_cat": mask_cat.duplicate(true),
 		"met_blanca": met_blanca,
 		"mask_cat_scheduled": mask_cat_scheduled,
-		"haniwa_scheduled": haniwa_scheduled,
+		"gyroids_scheduled": gyroids_scheduled,
 		"shine_hole": String(shine_hole),
 		"treasure_checked_day": treasure_checked_day,
 		"quests": quests.to_save(),
@@ -1844,7 +1844,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	bee_swell = false
 	bee_chase = false
 	bee_greeted.clear()
-	HouseGoki.decide_family_count(interiors.player_house())
+	HouseCockroaches.decide_family_count(interiors.player_house())
 	shops.apply_snapshot(data.get("shops", {}))
 	if museum == null:
 		museum = MuseumBook.new()
@@ -1862,9 +1862,9 @@ func apply_snapshot(data: Dictionary) -> void:
 	if post == null:
 		post = PostBook.new()
 	post.apply_snapshot(data.get("post", {}))
-	if farway == null:
-		farway = FarwayBook.new()
-	farway.apply_snapshot(data.get("farway", {}))
+	if travel_book == null:
+		travel_book = TravelBook.new()
+	travel_book.apply_snapshot(data.get("travel_book", {}))
 	if redd == null:
 		redd = ReddBook.new()
 	redd.apply_snapshot(data.get("redd", {}))
@@ -1923,7 +1923,7 @@ func apply_snapshot(data: Dictionary) -> void:
 	mask_cat_scheduled = bool(data.get("mask_cat_scheduled", false))
 	if town_id == 0:
 		town_id = Travel.new_town_id()
-	haniwa_scheduled = bool(data.get("haniwa_scheduled", false))
+	gyroids_scheduled = bool(data.get("gyroids_scheduled", false))
 	shine_hole = StringName(str(data.get("shine_hole", "")))
 	treasure_checked_day = int(data.get("treasure_checked_day", 0))
 	fish_records.clear()
@@ -1979,9 +1979,9 @@ func apply_snapshot(data: Dictionary) -> void:
 	else:
 		weather_intensity = int(Weather.default_intensity_for(Weather.kind_from_name(weather)))
 	## `Save_Get(gyoei_term)`: the fish ramp's next term and its 0–5 day lead.
-	var fish_term: Dictionary = data.get("gyoei_term", {})
-	gyoei_term = clampi(int(fish_term.get("term", 0)), 0, 23)
-	gyoei_term_offset = clampi(int(fish_term.get("offset", 0)), 0, 5)
+	var fish_term: Dictionary = data.get("fish_season_term", {})
+	fish_season_term = clampi(int(fish_term.get("term", 0)), 0, 23)
+	fish_season_offset = clampi(int(fish_term.get("offset", 0)), 0, 5)
 	dialogue_vars.clear()
 	var vars_raw: Variant = data.get("dialogue_vars", {})
 	if typeof(vars_raw) == TYPE_DICTIONARY:
@@ -2179,7 +2179,7 @@ func _in_police_box() -> bool:
 
 ## `mTM_*` time step: `Kabu_manager` runs when the date changes (midnight, not 06:00).
 func _on_day_changed() -> void:
-	shops.kabu.update(Clock.year, Clock.month, Clock.day)
+	shops.stalk_market.update(Clock.year, Clock.month, Clock.day)
 
 
 ## `mMl_send_postoffice_mail`: a balance milestone's gift by mail, one per game start.
@@ -2262,7 +2262,7 @@ func _on_field_renewed(days: int) -> void:
 	_check_birthday_cards(vt_rng)
 	_check_mother_mail(vt_rng)
 	note_played_today()
-	HouseGoki.save_play_time(interiors.player_house())
+	HouseCockroaches.save_play_time(interiors.player_house())
 	refresh_shop_set()
 	## `mAGrw_RenewalFgItem` tops the lost and found up once per renewal, however many
 	## days were skipped.
@@ -2274,7 +2274,7 @@ func _on_field_renewed(days: int) -> void:
 		else:
 			police.force_set_keep_item()
 	refresh_police_set()
-	_deliver_farway_mail()
+	_deliver_travel_mail()
 	_deliver_shop_mail()
 	if redd != null:
 		redd.check_unlock()
@@ -2286,15 +2286,15 @@ func _on_field_renewed(days: int) -> void:
 	## with the next growth (`mEnv_PreRainNowFine_Init`).
 	rainbow.note_weather_change(previous_weather, weather, Clock.month, Clock.day)
 	if Rainbow.pre_rain_now_fine(previous_weather, weather):
-		haniwa_scheduled = true
+		gyroids_scheduled = true
 	update_notice_board()
 
 
 ## Farway Museum returns identified fossils (+ the one-time intro letter) each morning.
-func _deliver_farway_mail() -> void:
-	if farway == null or inventory == null:
+func _deliver_travel_mail() -> void:
+	if travel_book == null or inventory == null:
 		return
-	var letters: Array[MailData] = farway.process_delivery()
+	var letters: Array[MailData] = travel_book.process_delivery()
 	var delivered: int = 0
 	for letter: MailData in letters:
 		if inventory.add_received_mail(letter) >= 0:
@@ -2319,8 +2319,8 @@ func _deliver_shop_mail() -> void:
 
 
 ## Hand `count` dug fossils to the post office for the Farway Museum (`mMsm` mail-in).
-func send_fossils_to_farway(count: int = 1) -> String:
-	if farway == null or inventory == null:
+func send_fossils_to_museum(count: int = 1) -> String:
+	if travel_book == null or inventory == null:
 		return "Nothing to send."
 	var have: int = inventory.count_of(&"fossil")
 	var n: int = clampi(count, 0, have)
@@ -2328,7 +2328,7 @@ func send_fossils_to_farway(count: int = 1) -> String:
 		return "You have no fossils to send."
 	inventory.remove(&"fossil", n)
 	for _i: int in n:
-		farway.queue_fossil()
+		travel_book.queue_fossil()
 	return "We'll send %d to the Farway Museum. Expect a reply tomorrow." % n
 
 

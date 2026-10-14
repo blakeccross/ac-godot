@@ -40,7 +40,7 @@ static func roll(area: Dictionary, rng: RandomNumberGenerator, goods_power: int 
 	var items: Array = []
 	for i: int in ITEM_NUM:
 		var birth: String = "event" if rng.randf() * 100.0 <= event_chance else str(LIST_BIRTH[list])
-		items.append(String(FtrCatalog.pick(birth, rng, items)))
+		items.append(String(FurnitureCatalog.pick(birth, rng, items)))
 	area["items"] = items
 	area["used"] = 0
 	area["sold"] = []

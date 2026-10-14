@@ -103,7 +103,7 @@ static func is_card(id: StringName) -> bool:
 
 
 static func radio_id() -> StringName:
-	return FtrCatalog.item_id(RADIO_FTR)
+	return FurnitureCatalog.item_id(RADIO_FTR)
 
 
 ## `mSC_Radio_many_taisou_card`: unwrapped cards in the pockets.

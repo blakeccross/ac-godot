@@ -31,8 +31,8 @@ func test_a_page_per_month_survives_a_save() -> void:
 
 func test_the_notebooks_are_diaries() -> void:
 	var note := FurnitureData.new()
-	note.id = FtrCatalog.item_id(1087)
-	if FtrCatalog.available():
+	note.id = FurnitureCatalog.item_id(1087)
+	if FurnitureCatalog.available():
 		assert_bool(FurnitureUse.is_diary(note)).is_true()
 	var chair := FurnitureData.new()
 	chair.id = &"wood_chair"

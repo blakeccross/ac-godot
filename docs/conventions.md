@@ -59,7 +59,7 @@ var _speed_half_life := Motion.half_life_from_fraction(0.1)
 
 `DecompTime` (frame and tick rates, `frames_to_sec`) and `Motion.half_life_from_fraction` / `rate_from_chance` are **authoring helpers** for writing those constants. Animation GLBs are baked in seconds already (`tools/asset_pipeline/ckf.py` `FPS`), so clips play at the right speed with no conversion. A clip event that names a decomp frame becomes a method-call track or a time in seconds.
 
-Angles in the decomp are s16 (`0x10000` = a full turn). Convert them to radians when writing the constant (`MLib.s16_to_rad`); don't carry s16 values through gameplay code.
+Angles in the decomp are s16 (`0x10000` = a full turn). Convert them to radians when writing the constant (`MathUtil.s16_to_rad`); don't carry s16 values through gameplay code.
 
 ### No fixed-tick loops
 
@@ -69,7 +69,7 @@ Nothing in gameplay steps a fixed 60 Hz tick any more (`FrameStepper` was remove
 
 Names are plain English. Decomp symbols and romaji appear **only in comments**, as citations (`## ac_insect_semi.c`, `` `aISM_wait` ``):
 
-- **Classes, files and nodes:** `Cicada` not `BugSemi`, `Gyroid` not `Haniwa`, `StalkMarket` not `KabuMarket`.
+- **Classes, files and nodes:** `Cicada` not `Cicada`, `Gyroid` not `Haniwa`, `StalkMarket` not `StalkMarket`.
 - **Members:** say what they hold. `wing_time` not `anime1`, `catchable` not `f_no_catch`; no `s32_work[n]` scratch slots.
 - **Signals:** past-tense events, such as `caught`, `talk_finished` and `item_picked`.
 - **Dispatch:** state machines are an `enum State` with `_enter_state` / `_exit_state` (or child state nodes for large actors), not `action_proc` callables keyed by integer action codes.

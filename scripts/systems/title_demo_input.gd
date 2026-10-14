@@ -34,11 +34,11 @@ var _sample: int = -1
 
 
 static func stick_x(word: int) -> int:
-	return MLib.s16_signed(word & 0xFE00) / 512
+	return MathUtil.s16_signed(word & 0xFE00) / 512
 
 
 static func stick_y(word: int) -> int:
-	return MLib.s16_signed((word & 0x00FE) << 8) / 512
+	return MathUtil.s16_signed((word & 0x00FE) << 8) / 512
 
 
 static func a_bit(word: int) -> bool:

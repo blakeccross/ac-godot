@@ -25,8 +25,8 @@ const PIT_SE_TICK := 6.0
 const PIT_CLOSE_TICKS := 14.0
 const VISUAL_CRACK := &"BURIED_CRACK"
 ## `mAGrw_HANIWA_NUM`, and the furniture list they come from (`HANIWA_START`…`HANIWA_END`).
-const HANIWA_NUM := 3
-const HANIWA_BIRTH := "haniwa"
+const GYROID_NUM := 3
+const GYROID_BIRTH := "haniwa"
 const VISUAL_SHINE := &"SHINE_SPOT"
 
 
@@ -78,9 +78,9 @@ static func renew(world: Node, grid: WorldGrid, rng: RandomNumberGenerator = nul
 	_clear_shine(world, grid)
 	_top_up_fossils(world, grid, layout, roll)
 	_place_shine(world, grid, layout, roll)
-	if Game.haniwa_scheduled:
+	if Game.gyroids_scheduled:
 		bury_gyroids(world, grid, roll)
-		Game.haniwa_scheduled = false
+		Game.gyroids_scheduled = false
 
 
 static func restore(world: Node, grid: WorldGrid) -> void:
@@ -234,8 +234,8 @@ static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 		Game.shine_hole = HoleUse.persist_id(cell)
 	elif kind != KIND_ITEM and kind != KIND_PITFALL:
 		## First fossil triggers the Farway Museum's introductory letter (`mMsm` mail-in).
-		if Game.farway != null:
-			Game.farway.request_intro_letter()
+		if Game.travel_book != null:
+			Game.travel_book.request_intro_letter()
 	## Digging a buried spot leaves an open hole (`DIG_SCOOP` after get).
 	HoleUse.dig(ctx, cell, false)
 	last_find = {"item": item_id, "banked": banked, "cell": cell}
@@ -292,10 +292,10 @@ static func bury_gyroids(world: Node, grid: WorldGrid, rng: RandomNumberGenerato
 	var blocks: Array = by_block.keys()
 	blocks.sort()
 	var picked: Array[StringName] = []
-	for i: int in HANIWA_NUM:
+	for i: int in GYROID_NUM:
 		if blocks.is_empty():
 			break
-		var id: StringName = FtrCatalog.pick(HANIWA_BIRTH, rng, picked)
+		var id: StringName = FurnitureCatalog.pick(GYROID_BIRTH, rng, picked)
 		if id == &"":
 			break
 		picked.append(id)

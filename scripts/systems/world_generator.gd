@@ -385,16 +385,16 @@ static func _paint_cliff_acre(data: WorldData, origin: Vector2i, type: int, elev
 
 
 static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray) -> void:
-	## Acre-type fallbacks use the same actor_ct offsets as FG templates (`FgCatalog`).
+	## Acre-type fallbacks use the same actor_ct offsets as FG templates (`FieldObjectCatalog`).
 	var house_origin: Vector2i = _fg_origin(PLAYER_HOUSE_BLOCK.x, PLAYER_HOUSE_BLOCK.y)
-	_place_structure_item(data, house_origin, HOUSE0_UT, FgCatalog.ITEM_HOUSE0)
-	_place_structure_item(data, house_origin, HOUSE1_UT, FgCatalog.ITEM_HOUSE1)
-	_place_structure_item(data, house_origin, HOUSE2_UT, FgCatalog.ITEM_HOUSE2)
-	_place_structure_item(data, house_origin, HOUSE3_UT, FgCatalog.ITEM_HOUSE3)
+	_place_structure_item(data, house_origin, HOUSE0_UT, FieldObjectCatalog.ITEM_HOUSE0)
+	_place_structure_item(data, house_origin, HOUSE1_UT, FieldObjectCatalog.ITEM_HOUSE1)
+	_place_structure_item(data, house_origin, HOUSE2_UT, FieldObjectCatalog.ITEM_HOUSE2)
+	_place_structure_item(data, house_origin, HOUSE3_UT, FieldObjectCatalog.ITEM_HOUSE3)
 	var house_cell: Vector2i = _building_cell(data, &"player_house")
 	data.spawn_points = [_spawn(&"player", Vector2i(house_cell.x + 1, house_cell.y + 4), 0.0)]
 	## Mailboxes two units toward the acre centre on the house row (`ACTOR_PROP_MAILBOX0`–`3`,
-	## one per house plot). West plots (0/2, `FgCatalog._player_house_place`'s `west` parity)
+	## one per house plot). West plots (0/2, `FieldObjectCatalog._player_house_place`'s `west` parity)
 	## sit toward +X and face NORTH; east plots (1/3) toward −X and face WEST — the mesh has
 	## no mirrored variant, so this is a 90° rotation picked to read as a mirror image on
 	## screen (confirmed against the real 3/4 follow-camera angle) rather than a true flip.
@@ -406,11 +406,11 @@ static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray)
 	_place_house_mailbox(data, &"player_house_3", &"player_mailbox_3", false)
 	## Gyroids two units south of each house (`ACTOR_PROP_HANIWA0`–`3` at FG ut (3,5) / (12,5) /
 	## (3,12) / (12,12) in the house-acre templates). Every plot has one; only the player's
-	## plot's gyroid is owned (`haniwa.gd::has_owner`).
-	_place_house_haniwa(data, &"player_house", &"player_haniwa", true)
-	_place_house_haniwa(data, &"player_house_1", &"player_haniwa_1", false)
-	_place_house_haniwa(data, &"player_house_2", &"player_haniwa_2", true)
-	_place_house_haniwa(data, &"player_house_3", &"player_haniwa_3", false)
+	## plot's gyroid is owned (`gyroid.gd::has_owner`).
+	_place_house_gyroid(data, &"player_house", &"player_gyroid", true)
+	_place_house_gyroid(data, &"player_house_1", &"player_gyroid_1", false)
+	_place_house_gyroid(data, &"player_house_2", &"player_gyroid_2", true)
+	_place_house_gyroid(data, &"player_house_3", &"player_gyroid_3", false)
 	var unique_ut := Vector2i(7, 7)
 	for bz: int in range(1, 7):
 		for bx: int in range(1, 6):
@@ -418,24 +418,24 @@ static func _place_structure_buildings(data: WorldData, blocks: PackedByteArray)
 			var origin: Vector2i = _fg_origin(bx, bz)
 			match type:
 				TownFieldGenerator.T_TRACKS_SHOP:
-					_place_structure_item(data, origin, _shop0_unit(data, bx, bz), FgCatalog.ITEM_SHOP0)
+					_place_structure_item(data, origin, _shop0_unit(data, bx, bz), FieldObjectCatalog.ITEM_SHOP0)
 				TownFieldGenerator.T_TRACKS_STATION:
-					_place_structure_item(data, origin, STATION_UT, FgCatalog.ITEM_TRAIN_STATION)
+					_place_structure_item(data, origin, STATION_UT, FieldObjectCatalog.ITEM_TRAIN_STATION)
 					## `ac_douzou` stays hidden until a house reaches the statue (`Statue`).
 					data.objects.append(_object(&"statue", &"statue", origin + STATUE_UT, null, &"obj_s_douzou"))
 				TownFieldGenerator.T_TRACKS_POST:
-					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_POST_OFFICE)
+					_place_structure_item(data, origin, unique_ut, FieldObjectCatalog.ITEM_POST_OFFICE)
 				TownFieldGenerator.T_MUSEUM:
-					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_MUSEUM)
+					_place_structure_item(data, origin, unique_ut, FieldObjectCatalog.ITEM_MUSEUM)
 				TownFieldGenerator.T_POLICE:
-					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_POLICE_STATION)
+					_place_structure_item(data, origin, unique_ut, FieldObjectCatalog.ITEM_POLICE_STATION)
 				TownFieldGenerator.T_SHRINE:
-					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_WISHING_WELL)
+					_place_structure_item(data, origin, unique_ut, FieldObjectCatalog.ITEM_WISHING_WELL)
 				TownFieldGenerator.T_LIGHTHOUSE:
-					_place_structure_item(data, origin, unique_ut, FgCatalog.ITEM_LIGHTHOUSE)
+					_place_structure_item(data, origin, unique_ut, FieldObjectCatalog.ITEM_LIGHTHOUSE)
 				TownFieldGenerator.T_NEEDLEWORK:
 					_place_structure_item(
-						data, origin, _needlework_unit(data, bx, bz), FgCatalog.ITEM_NEEDLEWORK_SHOP
+						data, origin, _needlework_unit(data, bx, bz), FieldObjectCatalog.ITEM_NEEDLEWORK_SHOP
 					)
 				TownFieldGenerator.T_PORT:
 					_place_port_sign_fallback(data, origin, bx, bz)
@@ -457,14 +457,14 @@ static func _place_house_mailbox(
 	data.objects.append(_object(mailbox_id, &"mailbox", cell + offset, null, &"obj_s_post", facing))
 
 
-static func _place_house_haniwa(
-	data: WorldData, house_id: StringName, haniwa_id: StringName, west: bool
+static func _place_house_gyroid(
+	data: WorldData, house_id: StringName, gyroid_id: StringName, west: bool
 ) -> void:
 	## Same house ut as the mailbox: west anchors are the house ut, east anchors sit one cell
 	## west of it (`nw_off (-1, 0)`), so the east gyroid is one cell back east.
 	var cell: Vector2i = _building_cell(data, house_id)
 	var offset: Vector2i = Vector2i(0, 2) if west else Vector2i(1, 2)
-	data.objects.append(_object(haniwa_id, &"haniwa", cell + offset, null, &"", WorldGrid.Facing.SOUTH))
+	data.objects.append(_object(gyroid_id, &"gyroid", cell + offset, null, &"", WorldGrid.Facing.SOUTH))
 
 
 static func _place_waterfall(data: WorldData, blocks: PackedByteArray) -> void:
@@ -542,17 +542,17 @@ static func _waterfall_in_acre(data: WorldData, origin: Vector2i) -> bool:
 
 static func _waterfall_placement_from_fg(acre_visual: StringName, type: int) -> Dictionary:
 	## Same `0x580D`–`0x580F` unit `_place_from_fg_templates` would use for this BG.
-	if not FgCatalog.has_catalog():
+	if not FieldObjectCatalog.has_catalog():
 		return {}
-	var fg_id: int = FgCatalog.pick_fg_id(acre_visual, type, 0)
+	var fg_id: int = FieldObjectCatalog.pick_fg_id(acre_visual, type, 0)
 	if fg_id < 0:
 		return {}
-	var items: PackedInt32Array = FgCatalog.items(fg_id)
-	if items.size() != FgCatalog.ITEMS_PER_ACRE:
+	var items: PackedInt32Array = FieldObjectCatalog.items(fg_id)
+	if items.size() != FieldObjectCatalog.ITEMS_PER_ACRE:
 		return {}
 	for uz: int in UT:
 		for ux: int in UT:
-			var place: Dictionary = FgCatalog.placement_for_item(items[uz * UT + ux])
+			var place: Dictionary = FieldObjectCatalog.placement_for_item(items[uz * UT + ux])
 			if place.get("kind", &"") == &"waterfall":
 				return {"ut": Vector2i(ux, uz), "visual": place["visual"]}
 	return {}
@@ -610,7 +610,7 @@ static func _port_sign_unit(data: WorldData, bx: int, bz: int) -> Vector2i:
 
 static func _place_port_sign_fallback(data: WorldData, origin: Vector2i, bx: int, bz: int) -> void:
 	## FG templates place `PORT_SIGN` when the catalog exists; keep a unit-accurate fallback.
-	if FgCatalog.has_catalog():
+	if FieldObjectCatalog.has_catalog():
 		return
 	data.objects.append(
 		_sign(&"dock_sign", origin + _port_sign_unit(data, bx, bz), "Dock", &"DOCK_SIGN")
@@ -620,7 +620,7 @@ static func _place_port_sign_fallback(data: WorldData, origin: Vector2i, bx: int
 static func _place_structure_item(
 	data: WorldData, origin: Vector2i, ut: Vector2i, item_id: int
 ) -> void:
-	var place: Dictionary = FgCatalog.placement_for_item(item_id)
+	var place: Dictionary = FieldObjectCatalog.placement_for_item(item_id)
 	if place.is_empty():
 		return
 	_apply_fg_structure(data, origin + ut, place)
@@ -638,14 +638,14 @@ static func _place_fg_props(
 	rng.seed = (seed_value as int) ^ 0x9E3779B9
 	var reserves: Array[Vector2i] = []
 	var demo_fg: Dictionary = _title_demo_fg() if title_demo else {}
-	if FgCatalog.has_catalog():
+	if FieldObjectCatalog.has_catalog():
 		reserves = _place_from_fg_templates(data, blocks, rng, demo_fg, fixed_bg)
 	else:
 		_place_fg_props_scatter(data, blocks, rng)
 	## `mSDI_PullTree` / `mFI_PullTanukiPathTrees` before fruit/cedar (`mSDI_StartInitNew`).
 	_pull_border_trees(data)
 	_clear_house_path(data)
-	if FgCatalog.has_catalog():
+	if FieldObjectCatalog.has_catalog():
 		_change_tree_to_fruit(data, rng)
 		_change_tree_to_cedar(data, rng)
 		## Mainland FG templates have ~0 flowers (island acres only in fgdata). Keep a
@@ -686,7 +686,7 @@ static func _place_from_fg_templates(
 			var type: int = _block(blocks, bx, bz)
 			var origin: Vector2i = _fg_origin(bx, bz)
 			var visual := _acre_visual(data, bx, bz)
-			var normal_id: int = FgCatalog.pick_fg_id(visual, type, int(rng.randi()))
+			var normal_id: int = FieldObjectCatalog.pick_fg_id(visual, type, int(rng.randi()))
 			## (fg id, mode): 0 = everything, 1 = structures / signs / waterfalls only, 2 = props only. The title demo
 			## takes its props and homes from the fixed table but must keep the real templates'
 			## structures — they are what position and refine the post office, shop, lighthouse…
@@ -703,16 +703,16 @@ static func _place_from_fg_templates(
 				var mode: int = pass_entry.y
 				if fg_id < 0:
 					continue
-				var items: PackedInt32Array = FgCatalog.items(fg_id)
-				if items.size() != FgCatalog.ITEMS_PER_ACRE:
+				var items: PackedInt32Array = FieldObjectCatalog.items(fg_id)
+				if items.size() != FieldObjectCatalog.ITEMS_PER_ACRE:
 					continue
 				for uz: int in UT:
 					for ux: int in UT:
 						var item_id: int = items[uz * UT + ux]
-						if mode != 2 and (item_id == FgCatalog.RSV_BRIDGE0 or item_id == FgCatalog.RSV_BRIDGE1):
+						if mode != 2 and (item_id == FieldObjectCatalog.RSV_BRIDGE0 or item_id == FieldObjectCatalog.RSV_BRIDGE1):
 							var spot: Vector2i = origin + Vector2i(ux, uz)
-							data.bridge_spots.append(Vector3i(spot.x, spot.y, item_id - FgCatalog.RSV_BRIDGE0))
-						var place: Dictionary = FgCatalog.placement_for_item(item_id)
+							data.bridge_spots.append(Vector3i(spot.x, spot.y, item_id - FieldObjectCatalog.RSV_BRIDGE0))
+						var place: Dictionary = FieldObjectCatalog.placement_for_item(item_id)
 						if (
 							place.is_empty()
 							and mode != 1

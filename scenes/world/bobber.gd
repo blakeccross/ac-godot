@@ -27,7 +27,7 @@ const REST_PITCH := PI
 ## Per-proc tilt chases, from the `add_calc_short_angle2` calls (`1 - sqrt(k)` of the gap a
 ## tick, at most `max_step` short angles a tick): as half-lives and turn rates (rad/s).
 const CAST_HALF_LIFE := 0.4504  ## Motion.half_life_from_fraction(1 − √0.95)
-const CAST_MAX_RATE := 1024.0 * MLib.S16 * 60.0
+const CAST_MAX_RATE := 1024.0 * MathUtil.S16 * 60.0
 const SETTLE_HALF_LIFE := 0.1035  ## Motion.half_life_from_fraction(1 − √0.8)
 const SETTLE_MAX_RATE := PI * 0.25 * 60.0
 ## `aUKI_PROC_CAST` / `aUKI_PROC_WAIT` while `cast_timer` runs: the float lies flat.

@@ -110,16 +110,16 @@ func hand_result(item: StringName, _pocket: int = -1) -> Dictionary:
 static func decide_present(r: RandomNumberGenerator) -> StringName:
 	match r.randi_range(0, 11):
 		0:
-			return FtrCatalog.goods_id("carpet", 17)
+			return FurnitureCatalog.goods_id("carpet", 17)
 		1:
-			return FtrCatalog.goods_id("wall", 17)
-	var id: StringName = FtrCatalog.pick_named("ftr", "Halloween", r)
-	return id if id != &"" else FtrCatalog.goods_id("carpet", 17)
+			return FurnitureCatalog.goods_id("wall", 17)
+	var id: StringName = FurnitureCatalog.pick_named("ftr", "Halloween", r)
+	return id if id != &"" else FurnitureCatalog.goods_id("carpet", 17)
 
 
 ## `aEPK_get_trick_type`: swap a pocket item, else change the shirt.
 func _trick() -> Dictionary:
-	var keep: Array[StringName] = FtrCatalog.named_list("ftr", TRICK_KEEP_LIST)
+	var keep: Array[StringName] = FurnitureCatalog.named_list("ftr", TRICK_KEEP_LIST)
 	var slots: Array[int] = []
 	if inventory != null:
 		for i: int in Inventory.POCKET_SLOTS:
@@ -131,7 +131,7 @@ func _trick() -> Dictionary:
 				continue
 			slots.append(i)
 	if not slots.is_empty() and rng.randf() < 0.5:
-		var swap: StringName = FtrCatalog.pick_named("ftr", TRICK_KEEP_LIST, rng)
+		var swap: StringName = FurnitureCatalog.pick_named("ftr", TRICK_KEEP_LIST, rng)
 		if swap != &"":
 			var idx: int = slots[rng.randi_range(0, slots.size() - 1)]
 			var s: InventorySlot = inventory.slot_at(idx)
@@ -141,5 +141,5 @@ func _trick() -> Dictionary:
 			return msg(_m(JACK_TRICKED, NPC_TRICKED))
 	tricked_cloth = true
 	if Game != null:
-		Game.set_cloth(FtrCatalog.goods_id("cloth", TRICK_CLOTH))
+		Game.set_cloth(FurnitureCatalog.goods_id("cloth", TRICK_CLOTH))
 	return msg(_m(JACK_TRICKED, NPC_TRICKED))

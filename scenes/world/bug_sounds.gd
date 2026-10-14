@@ -2,10 +2,10 @@ class_name BugSounds
 extends Node
 
 ## Insects you can hear. Each program raises a held level SE (`sAdo_OngenPos`, the
-## actor's `ongen`) on the frames it sounds — cicadas and crickets crying, locusts whirring
+## actor's `loop_sound`) on the frames it sounds — cicadas and crickets crying, locusts whirring
 ## mid-leap, mosquitoes buzzing, beetles and bees flying off — and one-shots
-## (`sAdo_OngenTrgStart`, `trg_se`) such as a drowning splash or a cicada's escape. Level
-## sources play as `lev_*` loops at `Ongen.volume` from the field mic, the nearest
+## (`sAdo_OngenTrgStart`, `one_shot_sounds`) such as a drowning splash or a cicada's escape. Level
+## sources play as `lev_*` loops at `SoundEmitter.volume` from the field mic, the nearest
 ## `VOICES` of them; a loop stops once its actor stops calling. Not panned.
 
 const VOICES := 4
@@ -25,22 +25,22 @@ func _ready() -> void:
 
 
 ## The nearest `count` sounding actors as `[actor, distance_gx]`, nearest first, from the
-## mic at `mic_m` (metres). Sources past `Ongen.AREA` are dropped.
+## mic at `mic_m` (metres). Sources past `SoundEmitter.AREA` are dropped.
 static func pick(actors: Array, mic_m: Vector3, count: int = VOICES) -> Array:
 	var out: Array = []
 	for a: BugActor in actors:
-		if a == null or a.finished or a.ongen < 0:
+		if a == null or a.finished or a.loop_sound < 0:
 			continue
 		var d: float = a.position.distance_to(mic_m) / FieldCatalog.GX_TO_METERS
-		if d > Ongen.AREA:
+		if d > SoundEmitter.AREA:
 			continue
 		out.append([a, d])
 	out.sort_custom(func(x: Array, y: Array) -> bool: return float(x[1]) < float(y[1]))
 	return out.slice(0, count)
 
 
-static func se_id(ongen: int) -> StringName:
-	return StringName("lev_%x" % ongen)
+static func se_id(loop_sound: int) -> StringName:
+	return StringName("lev_%x" % loop_sound)
 
 
 func _process(_delta: float) -> void:
@@ -49,11 +49,11 @@ func _process(_delta: float) -> void:
 	if world == null or player == null or world.bugs == null or Game.current_room_id != &"" or Game.title_demo_active:
 		_silence()
 		return
-	var mic_m: Vector3 = player.global_position + Ongen.MIC_OFFSET_GX * FieldCatalog.GX_TO_METERS
+	var mic_m: Vector3 = player.global_position + SoundEmitter.MIC_OFFSET_GX * FieldCatalog.GX_TO_METERS
 	for a: BugActor in world.bugs.actors:
-		for id: StringName in a.trg_se:
+		for id: StringName in a.one_shot_sounds:
 			_trigger(id, a.position, mic_m)
-		a.trg_se.clear()
+		a.one_shot_sounds.clear()
 	for gone: Array in world.bugs.gone_se:
 		_trigger(gone[0], gone[1], mic_m)
 	world.bugs.gone_se.clear()
@@ -83,20 +83,20 @@ func _process(_delta: float) -> void:
 		_drive(p, src[0] as BugActor, float(src[1]), now)
 
 
-## `Na_OngenTrgStart`: a one-shot, silent past `Ongen.AREA`.
+## `Na_OngenTrgStart`: a one-shot, silent past `SoundEmitter.AREA`.
 func _trigger(id: StringName, at_m: Vector3, mic_m: Vector3) -> void:
-	var vol: float = Ongen.volume(at_m.distance_to(mic_m) / FieldCatalog.GX_TO_METERS)
+	var vol: float = SoundEmitter.volume(at_m.distance_to(mic_m) / FieldCatalog.GX_TO_METERS)
 	if vol > 0.0:
 		Audio.play_se(id, Audio, 1.0, linear_to_db(vol))
 
 
 func _drive(p: AudioStreamPlayer, a: BugActor, distance: float, now: float) -> void:
-	var id: StringName = se_id(a.ongen)
+	var id: StringName = se_id(a.loop_sound)
 	if p.get_meta(&"se", &"") != id:
 		p.stop()
-		p.stream = Ongen.looped(SeCatalog.stream_for(id))
+		p.stream = SoundEmitter.looped(SeCatalog.stream_for(id))
 		p.set_meta(&"se", id)
-	p.volume_db = linear_to_db(maxf(Ongen.volume(distance), 0.0001))
+	p.volume_db = linear_to_db(maxf(SoundEmitter.volume(distance), 0.0001))
 	p.set_meta(&"heard", now)
 	if p.stream != null and not p.playing:
 		p.play()

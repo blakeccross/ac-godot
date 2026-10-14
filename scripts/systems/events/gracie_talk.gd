@@ -69,7 +69,7 @@ func start_msg() -> int:
 				_first = msg_no(21 + rng.randi_range(0, 2))
 			elif area.has("gift"):
 				var mine := StringName(str(area["gift"]))
-				_first = msg_no(17 if FtrCatalog.named_list("cloth", "Event").has(mine) else 18)
+				_first = msg_no(17 if FurnitureCatalog.named_list("cloth", "Event").has(mine) else 18)
 			elif bool(area.get("complete", false)):
 				_first = msg_no(8)
 			else:
@@ -94,9 +94,9 @@ func _result() -> Dictionary:
 	var given: Array = area.get("gifted", [])
 	match result:
 		0:
-			present = FtrCatalog.pick_named("cloth", "Event", rng, given)
+			present = FurnitureCatalog.pick_named("cloth", "Event", rng, given)
 		1:
-			present = FtrCatalog.pick_named("cloth", "A", rng, given)
+			present = FurnitureCatalog.pick_named("cloth", "A", rng, given)
 	var n: int = msg_no(RESULT_MSG_IDX[clampi(result, 0, 2)])
 	if present == &"":
 		return msg(n)
