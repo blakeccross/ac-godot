@@ -61,9 +61,9 @@ var _speed_half_life := Motion.half_life_from_fraction(0.1)
 
 Angles in the decomp are s16 (`0x10000` = a full turn). Convert them to radians when writing the constant (`MLib.s16_to_rad`); don't carry s16 values through gameplay code.
 
-### Legacy tick code
+### No fixed-tick loops
 
-`FrameStepper` loops (`while steps.next(): _tick()`) and integer frame counters still drive much of the game. They are being replaced system by system (plan § Phase 2). Don't add new ones. When you touch a tick-driven system for other reasons, leave it as it is unless the change is that system's conversion; a half-converted system is worse than either.
+Nothing in gameplay steps a fixed 60 Hz tick any more (`FrameStepper` was removed when the player converted). Some systems still keep a countdown in decomp ticks because every table that sets it is written in ticks (bugs, NPC moods); they drop it by the ticks a step covers (`delta * DecompTime.TICK_HZ`). Don't add new fixed-tick loops or frame counters.
 
 ## Naming
 

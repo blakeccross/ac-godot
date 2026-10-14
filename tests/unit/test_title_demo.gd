@@ -45,12 +45,11 @@ func test_fourteen_fixed_villagers_with_real_catalog_entries() -> void:
 
 
 func test_start_lockout_and_end_thresholds() -> void:
-	assert_bool(TitleDemo.button_ok(3529)).is_true()
-	assert_bool(TitleDemo.button_ok(3530)).is_false()
-	assert_bool(TitleDemo.is_over(3599)).is_false()
-	assert_bool(TitleDemo.is_over(3600)).is_true()
-	assert_int(TitleDemo.ticks_for(1.0)).is_equal(60)
-	assert_int(TitleDemo.ticks_for(0.999)).is_equal(59)
+	## START locks out 70 ticks before the 60-second demo ends.
+	assert_bool(TitleDemo.button_ok(58.8)).is_true()
+	assert_bool(TitleDemo.button_ok(3530.0 / 60.0)).is_false()
+	assert_bool(TitleDemo.is_over(59.99)).is_false()
+	assert_bool(TitleDemo.is_over(60.0)).is_true()
 
 
 func test_gx_maps_through_the_border_block_into_the_town() -> void:

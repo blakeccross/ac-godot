@@ -107,7 +107,7 @@ The catch report uses the game's own words: `Player_actor_Get_sakana_msg_num` ma
 
 ## Behaviour audit: shadows, bobber, rod (`ac_gyo_test.c`, `ac_uki_move.c_inc`, `m_player_main_*_rod`)
 
-Everything below runs on the 60 Hz mover tick. `fish_shadows.gd` steps a `FrameStepper` and, each tick, builds the sense, ticks `FishSchool` (every shadow in turn, like `aGYO_actor_move`'s controller loop) and then `Fishing`.
+The decomp runs everything below on the 60 Hz mover tick; tick counts are quoted as written. In Godot `fish_shadows.gd` steps by `delta`: each physics frame it builds the sense, ticks `FishSchool` (every shadow in turn, like `aGYO_actor_move`'s controller loop) and then `Fishing`.
 
 **Shadow movement.**
 

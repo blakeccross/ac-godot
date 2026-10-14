@@ -5,9 +5,9 @@ extends RefCounted
 ## decomp number into seconds where a constant is written; gameplay itself runs on `delta`
 ## (`docs/conventions.md` § Time and units, `Motion`).
 ##
-## - A **tick** is one play-loop update (`game.frame_counter`), 1/60 s. Legacy systems still
-##   run `add_calc`, `timer--` and per-frame rolls once per tick through `FrameStepper`; new
-##   code converts them instead (`Motion.half_life_from_fraction`, `Motion.rate_from_chance`).
+## - A **tick** is one play-loop update (`game.frame_counter`), 1/60 s. Per-tick `add_calc`,
+##   `timer--` and rolls convert with `Motion.half_life_from_fraction` and
+##   `Motion.rate_from_chance`, or scale by the ticks a step covers (`MLib.short_angle2`).
 ## - A **frame** is the original 30 fps frame, 1/30 s. cKF keyframes and clip event frames,
 ##   `speed` in GX per frame (`Actor_position_move` adds `0.5 · speed` per tick) and most
 ##   `*_FRAMES` / morph counts are authored at this rate. Animation GLBs are already baked

@@ -2,9 +2,9 @@ class_name TitleDemoInput
 extends RefCounted
 
 ## Recorded attract-mode input (`m_titledemo.c` `set_player_demo_keydata` + `mPlib_SetData1_
-## controller_data_for_title_demo`). Samples were captured at 30 Hz; the game consumes one
-## frame per 60 Hz tick, so each sample covers two ticks and the stick is blended across the
-## odd tick.
+## controller_data_for_title_demo`). Samples were captured at 30 Hz and play back by time:
+## the stick is interpolated between the two samples either side of the playback time (the
+## original's odd-tick blend is the halfway point), the buttons read the sample in effect.
 ##
 ## Sample word (`pact0.c`): `XXXXXXXB YYYYYYYA` — 7-bit signed stick X in bits 15..9, B in
 ## bit 8, 7-bit signed stick Y in bits 7..1, A in bit 0. Sticks are N64 units (Y up); the
@@ -12,22 +12,25 @@ extends RefCounted
 
 const STICK_MIN := 9.899495
 const STICK_MAX := 61.0
+## Samples a second.
+const SAMPLE_HZ := 30.0
 ## `f1 < 1800`: the blend only reads a second sample below this index.
 const BLEND_LIMIT := 1800
 
 ## Raw `u16` samples (`assets/generated/titledemo/demos.json` → `demos[n].keys`).
 var keys: PackedInt32Array = PackedInt32Array()
-## Ticks consumed so far (`S_tdemo_frame`).
-var frame: int = 0
+## Seconds played so far (`S_tdemo_frame`, in seconds).
+var time: float = 0.0
 ## `Input.get_vector` convention: x right, y toward the camera (forward is negative).
 var move: Vector2 = Vector2.ZERO
 var a_held: bool = false
-## Rising edge of A (`trigger_btn_a`). Latched until `consume_a_pressed()`: the title steps this
-## from an accumulator, so a jittery frame can run two steps before the player's physics tick
-## reads it, and a one-step pulse would be overwritten and the press lost.
+## Rising edge of A (`trigger_btn_a`). Latched until `consume_a_pressed()`, so a press is not
+## lost if the playback steps twice before the player reads it.
 var a_pressed: bool = false
 var b_held: bool = false
 var b_pressed: bool = false
+## The last sample whose buttons were read.
+var _sample: int = -1
 
 
 static func stick_x(word: int) -> int:
@@ -58,7 +61,8 @@ static func stick_to_move(x: float, y: float) -> Vector2:
 
 func setup(samples: PackedInt32Array) -> void:
 	keys = samples
-	frame = 0
+	time = 0.0
+	_sample = -1
 	move = Vector2.ZERO
 	a_held = false
 	a_pressed = false
@@ -66,28 +70,28 @@ func setup(samples: PackedInt32Array) -> void:
 	b_pressed = false
 
 
-## One 60 Hz game tick (`title_demo_move`).
-func step() -> void:
-	var f0: int = frame / 2
-	var f1: int = f0 + (frame % 2)
+## Reads the input at the playback time, then plays on `delta` seconds (`title_demo_move`).
+## Every sample passed since the last read counts toward the button edges.
+func step(delta: float) -> void:
+	var at: float = time * SAMPLE_HZ
+	var f0: int = int(floorf(at + 0.000001))
+	var blend: float = at - float(f0)
 	var w0: int = _word(f0)
-	var sx: float
-	var sy: float
-	if f0 != f1 and f1 < BLEND_LIMIT:
-		var w1: int = _word(f1)
-		sx = (float(stick_x(w0)) + float(stick_x(w1))) / 2.0
-		sy = (float(stick_y(w0)) + float(stick_y(w1))) / 2.0
-	else:
-		sx = float(stick_x(w0))
-		sy = float(stick_y(w0))
+	var sx := float(stick_x(w0))
+	var sy := float(stick_y(w0))
+	if blend > 0.000001 and f0 + 1 < BLEND_LIMIT:
+		var w1: int = _word(f0 + 1)
+		sx = lerpf(sx, float(stick_x(w1)), blend)
+		sy = lerpf(sy, float(stick_y(w1)), blend)
 	move = stick_to_move(sx, sy)
-	var a_now: bool = a_bit(w0)
-	var b_now: bool = b_bit(w0)
-	a_pressed = a_pressed or (a_now and not a_held)
-	b_pressed = b_pressed or (b_now and not b_held)
-	a_held = a_now
-	b_held = b_now
-	frame += 1
+	for i: int in range(_sample + 1, f0 + 1):
+		var word: int = _word(i)
+		a_pressed = a_pressed or (a_bit(word) and not a_held)
+		b_pressed = b_pressed or (b_bit(word) and not b_held)
+		a_held = a_bit(word)
+		b_held = b_bit(word)
+	_sample = maxi(_sample, f0)
+	time += maxf(delta, 0.0)
 
 
 ## Take the latched A edge; a second reader cannot fire the action twice.

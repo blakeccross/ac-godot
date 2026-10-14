@@ -21,34 +21,6 @@ func test_pipeline_bakes_clips_at_frame_hz() -> void:
 	assert_float(float(m.get_string(1))).is_equal(DecompTime.FRAME_HZ)
 
 
-func test_stepper_runs_whole_ticks_at_any_render_rate() -> void:
-	for fps: float in [30.0, 60.0, 144.0, 240.0]:
-		var steps := FrameStepper.new()
-		var n: int = 0
-		for _i: int in int(fps):
-			steps.add(1.0 / fps)
-			while steps.next():
-				n += 1
-		assert_int(n).is_between(59, 60)
-
-
-func test_stepper_backlog_caps_banked_ticks() -> void:
-	var steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
-	assert_int(steps.take(1.0)).is_equal(8)
-	assert_float(steps.pending()).is_equal(0.0)
-
-
-func test_stepper_keeps_ticks_banked_when_gated() -> void:
-	var steps := FrameStepper.new()
-	steps.add(3.5 / 60.0)
-	var alive := false
-	while alive and steps.next():
-		pass
-	assert_float(steps.pending()).is_equal_approx(3.5, 1e-4)
-	steps.reset()
-	assert_float(steps.pending()).is_equal(0.0)
-
-
 func test_s16_angle_helpers() -> void:
 	assert_float(MLib.s16_to_rad(0x4000)).is_equal_approx(PI * 0.5, 1e-6)
 	assert_int(MLib.rad_to_s16(PI)).is_equal(0x8000)
