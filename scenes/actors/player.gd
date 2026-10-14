@@ -32,8 +32,9 @@ const SHRINE_STEP_FRAMES := 5.0
 const ANIM_CONFIRM := &"ply_1_confirm1"
 ## `cKF_SkeletonInfo_R_AnimationMove_ct_base(…, 8.0f, …)`.
 const MAIL_JUMP_FRAMES := 8
-const RELEASE_TICKS := 84
-const RELEASE_LOOK_TICKS := 60
+## `main_Release_creature`: 84 ticks of `WAIT1`, the head following for the first 60.
+const RELEASE_SECONDS := 84.0 / DecompTime.TICK_HZ
+const RELEASE_LOOK_SECONDS := 60.0 / DecompTime.TICK_HZ
 const ANIM_WALK := "ply_1_walk1"
 const ANIM_RUN := "ply_1_run1"
 const ANIM_DASH := "ply_1_dash1"
@@ -2479,20 +2480,18 @@ func _watch_release(target: Object, skeleton: Skeleton3D) -> void:
 	var look := PlayerHeadLook.new()
 	look.bind(skeleton, _anim)
 	_play_body_loop(StringName(ANIM_WAIT))
-	var steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
-	var ticks: int = 0
-	while ticks < RELEASE_TICKS and is_inside_tree():
+	var elapsed: float = 0.0
+	while elapsed < RELEASE_SECONDS and is_inside_tree():
 		await get_tree().physics_frame
-		steps.add(get_physics_process_delta_time())
-		while steps.next() and ticks < RELEASE_TICKS:
-			ticks += 1
-			var want := Vector2.ZERO
-			var at: Variant = _release_target_pos(target)
-			if ticks <= RELEASE_LOOK_TICKS and at != null:
-				want = PlayerHeadLook.want(global_position + Vector3(0.0, PlayerHeadLook.EYE_GX * FieldCatalog.GX_TO_METERS, 0.0),
-					_motor.facing, at as Vector3)
-			look.body_yaw = _motor.facing
-			look.step(want)
+		var delta: float = get_physics_process_delta_time()
+		elapsed += delta
+		var want := Vector2.ZERO
+		var at: Variant = _release_target_pos(target)
+		if elapsed <= RELEASE_LOOK_SECONDS and at != null:
+			want = PlayerHeadLook.want(global_position + Vector3(0.0, PlayerHeadLook.EYE_GX * FieldCatalog.GX_TO_METERS, 0.0),
+				_motor.facing, at as Vector3)
+		look.body_yaw = _motor.facing
+		look.step(want, delta)
 	look.angle = Vector2.ZERO
 	look.unbind()
 

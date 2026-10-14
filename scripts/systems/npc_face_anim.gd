@@ -3,8 +3,8 @@ extends RefCounted
 
 ## `aNPC_tex_anm_ctrl` — the eye/mouth texture-pattern machine. An AC face is not skinned:
 ## the head carries one eye quad and one mouth quad, and the draw swaps which of the eight
-## eye / six mouth textures each one samples. This reproduces the sequence tables and their
-## fractional counters from `ac_npc_anime.c_inc`; `NpcFace` does the texture binding.
+## eye / six mouth textures each one samples. This reproduces the sequence tables from
+## `ac_npc_anime.c_inc` with each entry's hold in seconds; `NpcFace` does the texture binding.
 ##
 ## Eye emotes past `normal` (`angry` / `sad` / `laugh` / `surprise` / `cry`) match the
 ## `eye_*_blink` tables. Mood wait poses (`wait_do1`, `wait_ai1`, `wait_ki1`, …) hold a
@@ -56,9 +56,9 @@ const EYE_BLINKS: Array = [
 	],
 ]
 const EYE_SEQ_COUNT := 3
-## `pattern_counter -= 0.5f` per drawn frame, so each table unit is two frames.
-const EYE_RATE := 0.5
-## `32 + RANDOM(16)` counter units between blink bursts.
+## `pattern_counter -= 0.5f` a tick, so each eye table unit is two ticks.
+const EYE_TICKS_PER_UNIT := 2.0
+## `32 + RANDOM(16)` counter units between blink bursts (1.1–1.6 s).
 const EYE_REST_MIN := 32
 const EYE_REST_SPAN := 16
 
@@ -102,20 +102,22 @@ const MOUTH_SEQ_COUNTS: Array = [
 	[4, 2, 6],
 	[4, 2, 6],
 ]
-## `pattern_counter -= 0.25f` per drawn frame, so each table unit is four frames.
-const MOUTH_RATE := 0.25
+## `pattern_counter -= 0.25f` a tick, so each mouth table unit is four ticks.
+const MOUTH_TICKS_PER_UNIT := 4.0
+## A long hitch is not replayed: the face moves on at most this much in one step.
+const MAX_STEP := 8.0 / DecompTime.TICK_HZ
 
 var eye_pattern: int = EYE_OPEN
 var mouth_pattern: int = MOUTH_SHUT
 var emote: Emote = Emote.NORMAL
 
 var _rng := RandomNumberGenerator.new()
-var _steps := FrameStepper.new()
 
 ## 0 = hold `_eye_hold` (mood wait poses); 1..6 = blink table index.
 var _eye_seq_type: int = 1
 var _eye_hold: int = EYE_OPEN
-var _eye_counter: float = 0.0
+## Seconds the current eye entry still holds.
+var _eye_left: float = 0.0
 var _eye_seq: int = 0
 var _eye_loops: int = 1
 
@@ -123,7 +125,7 @@ var _eye_loops: int = 1
 var _mouth_seq_type: int = 1
 var _mouth_hold: int = MOUTH_SHUT
 var _mouth_table: int = 0
-var _mouth_counter: float = 0.0
+var _mouth_left: float = 0.0
 var _mouth_seq: int = 0
 var _mouth_loops: int = 1
 var _mouth_active: bool = false
@@ -205,38 +207,44 @@ func set_emote(next: Emote, mouth_hold_override: int = -1) -> void:
 	if _eye_seq_type == 0:
 		eye_pattern = _eye_hold
 		_eye_seq = 0
-		_eye_counter = 0.0
+		_eye_left = 0.0
 		_eye_loops = 1
 	else:
+		_eye_left = 0.0
 		_start_eye_sequence(-1, 1 + _rng.randi_range(0, 2))
 
 
-## Advance by wall time. `uttering` is `mMsg_Check_NowUtter` — see `aNPC_check_kutipaku`.
-## Returns true when either pattern changed, so the caller can skip redundant rebinding.
+## A table entry of `units` holds while its counter runs down, plus the tick that moves on.
+static func hold_seconds(units: float, ticks_per_unit: float) -> float:
+	return (units * ticks_per_unit + 1.0) / DecompTime.TICK_HZ
+
+
+## Advance by `delta` seconds. `uttering` is `mMsg_Check_NowUtter` — see
+## `aNPC_check_kutipaku`. Returns true when either pattern changed, so the caller can skip
+## redundant rebinding.
 func tick(delta: float, uttering: bool) -> bool:
 	var before := Vector2i(eye_pattern, mouth_pattern)
-	## `aNPC_tex_anm_ctrl` runs once per tick; the tables count in 0.5 / 0.25 steps.
-	var frames: int = _steps.take(delta)
-	## The original runs these off the draw, so cap a long hitch rather than replaying it.
-	frames = mini(frames, 8)
-	for _i in frames:
-		_step_eye()
-		_step_mouth(uttering)
+	var step: float = clampf(delta, 0.0, MAX_STEP)
+	_step_eye(step)
+	_step_mouth(step, uttering)
 	return before != Vector2i(eye_pattern, mouth_pattern)
 
 
-func _step_eye() -> void:
+func _step_eye(delta: float) -> void:
 	if _eye_seq_type == 0:
 		eye_pattern = _eye_hold
 		return
-	if _eye_counter > 0.0:
-		_eye_counter -= EYE_RATE
-		return
+	_eye_left -= delta
+	while _eye_left <= 0.00001:
+		_next_eye()
+
+
+func _next_eye() -> void:
 	if _eye_seq != 0:
 		_eye_seq -= 1
 		var entry: Vector2i = _eye_blink_table()[_eye_seq]
 		eye_pattern = entry.x
-		_eye_counter = float(entry.y)
+		_eye_left += hold_seconds(entry.y, EYE_TICKS_PER_UNIT)
 		return
 	_eye_loops -= 1
 	if _eye_loops <= 0:
@@ -250,7 +258,7 @@ func _step_eye() -> void:
 func _start_eye_sequence(wait: int, loops: int) -> void:
 	var entry: Vector2i = _eye_blink_table()[0]
 	eye_pattern = entry.x
-	_eye_counter = float(entry.y) if wait < 0 else float(wait)
+	_eye_left += hold_seconds(entry.y if wait < 0 else wait, EYE_TICKS_PER_UNIT)
 	_eye_seq = EYE_SEQ_COUNT
 	_eye_loops = maxi(loops, 1)
 
@@ -260,7 +268,7 @@ func _eye_blink_table() -> Array:
 	return EYE_BLINKS[idx]
 
 
-func _step_mouth(uttering: bool) -> void:
+func _step_mouth(delta: float, uttering: bool) -> void:
 	if not uttering or _mouth_seq_type == 0:
 		## `aNPC_tex_anm_ctrl` parks the mouth at the stop pattern when not speaking.
 		_mouth_active = false
@@ -268,16 +276,20 @@ func _step_mouth(uttering: bool) -> void:
 		return
 	if not _mouth_active:
 		_mouth_active = true
+		_mouth_left = 0.0
 		_start_mouth_sequence(1 + _rng.randi_range(0, 2))
 		return
-	if _mouth_counter > 0.0:
-		_mouth_counter -= MOUTH_RATE
-		return
+	_mouth_left -= delta
+	while _mouth_left <= 0.00001:
+		_next_mouth()
+
+
+func _next_mouth() -> void:
 	if _mouth_seq != 0:
 		_mouth_seq -= 1
 		var entry: Vector2i = _mouth_variant()[_mouth_seq]
 		mouth_pattern = entry.x
-		_mouth_counter = float(entry.y)
+		_mouth_left += hold_seconds(entry.y, MOUTH_TICKS_PER_UNIT)
 		return
 	_mouth_loops -= 1
 	_start_mouth_sequence(_mouth_loops if _mouth_loops > 0 else 1 + _rng.randi_range(0, 2))
@@ -287,8 +299,9 @@ func _start_mouth_sequence(loops: int) -> void:
 	var variants: Array = MOUTH_TABLES[_mouth_seq_type]
 	_mouth_table = _rng.randi_range(0, variants.size() - 1)
 	mouth_pattern = _mouth_variant()[0].x
-	## `aNPC_tex_anm_ctrl_talk_seq` always passes `wait_time` 0, so the flap starts at once.
-	_mouth_counter = 0.0
+	## `aNPC_tex_anm_ctrl_talk_seq` always passes `wait_time` 0, so the flap starts at once:
+	## the first pattern shows for a single tick.
+	_mouth_left += hold_seconds(0.0, MOUTH_TICKS_PER_UNIT)
 	_mouth_seq = int(MOUTH_SEQ_COUNTS[_mouth_seq_type][_mouth_table])
 	_mouth_loops = maxi(loops, 1)
 

@@ -86,10 +86,10 @@ var _mesh_host: Node3D
 var _glow_host: Node3D
 var _active_visual: StringName = &""
 var _head_lift: float = 1.15
-## The clip-long feel effects (`NpcFeelMoods.KINDS`), stepped at 60 Hz.
+## The clip-long feel effects (`NpcFeelMoods.KINDS`).
 var _moods: NpcFeelMoods = null
-const MOOD_MAX_TICKS := 600
-var _mood_steps := FrameStepper.new()
+## A reaction nobody ends is let go after this long (600 ticks).
+const MOOD_MAX_TICKS := 600.0
 var _ongen_player: AudioStreamPlayer
 ## The skeleton bone the clip-long effects start from (`aNPC_set_feel_eff` runs on the
 ## last joint, at the top of the head). Unset, they start at the glyph point.
@@ -98,7 +98,6 @@ var feel_bone: int = -1
 ## Mood pose effects (`NpcManpu.MOOD_POSE_EFFECTS`), independent of the reaction glyphs.
 var _pose: String = ""
 var _pose_counter: float = 0.0
-var _pose_steps := FrameStepper.new()
 var _ambient: NpcFeelMoods = null
 
 
@@ -155,8 +154,8 @@ func play(kind: StringName) -> void:
 	if NpcFeelMoods.KINDS.has(kind):
 		_billboard()
 		_moods = NpcFeelMoods.new(self, kind, npc_yaw, view_diff_deg())
-		_mood_steps = FrameStepper.new()
-		_tick_moods(0.0)
+		## The effect's first tick runs as it is made.
+		_tick_moods(DecompTime.TICK_SEC)
 		return
 	match kind:
 		&"warau":
@@ -225,22 +224,20 @@ func _tick_pose(delta: float) -> void:
 	if _ambient == null:
 		_ambient = NpcFeelMoods.new(self, &"ambient", npc_yaw, view_diff_deg())
 	_ambient.origin = _feel_origin()
-	_pose_steps.add(delta)
-	while _pose_steps.next():
-		if not data.is_empty():
-			var top: float = float(data[1])
-			for at: Variant in data[2]:
-				var gap: float = float(at) - _pose_counter
-				if gap >= 0.0 and gap < 0.5:
-					_ambient._npc_yaw = npc_yaw
-					_ambient.pulse(data[0])
-			_pose_counter += 0.5
-			while _pose_counter > top:
-				_pose_counter -= top
-		_ambient.tick()
-		for id: StringName in _ambient.trg_se:
-			Audio.play_se(id, self)
-		_ambient.trg_se.clear()
+	if not data.is_empty():
+		## The pose's counter climbs 0.5 a tick to `top` and wraps; each `at` it passes fires.
+		var top: float = float(data[1])
+		var climb: float = 0.5 * delta * DecompTime.TICK_HZ
+		for at: Variant in data[2]:
+			var gap: float = fposmod(float(at) - _pose_counter, top)
+			if gap < climb:
+				_ambient._npc_yaw = npc_yaw
+				_ambient.pulse(data[0])
+		_pose_counter = fposmod(_pose_counter + climb, top)
+	_ambient.tick(delta)
+	for id: StringName in _ambient.trg_se:
+		Audio.play_se(id, self)
+	_ambient.trg_se.clear()
 
 
 func _feel_origin() -> Vector3:
@@ -269,20 +266,16 @@ func view_diff_deg() -> float:
 
 func _tick_moods(delta: float) -> void:
 	_moods.origin = _feel_origin()
-	_mood_steps.add(delta)
-	var first: bool = delta == 0.0
-	while first or _mood_steps.next():
-		first = false
-		## A caller that never says the clip ended (the intro's scripted NPCs) still gets
-		## its effect back after a long reaction.
-		if _moods.t >= MOOD_MAX_TICKS:
-			_moods.release()
-		if not _moods.tick():
-			clear()
-			return
-		for id: StringName in _moods.trg_se:
-			Audio.play_se(id, self)
-		_moods.trg_se.clear()
+	## A caller that never says the clip ended (the intro's scripted NPCs) still gets its
+	## effect back after a long reaction.
+	if _moods.t >= MOOD_MAX_TICKS:
+		_moods.release()
+	if not _moods.tick(delta):
+		clear()
+		return
+	for id: StringName in _moods.trg_se:
+		Audio.play_se(id, self)
+	_moods.trg_se.clear()
 	_hold_ongen(_moods.ongen)
 
 

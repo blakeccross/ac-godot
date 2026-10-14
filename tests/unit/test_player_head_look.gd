@@ -16,12 +16,17 @@ func test_bearing_and_elevation_are_clamped() -> void:
 
 func test_the_head_eases_toward_the_target() -> void:
 	var look := PlayerHeadLook.new()
-	look.step(Vector2(1.0, 0.0))
+	look.step(Vector2(1.0, 0.0), 1.0 / 60.0)
 	## 500 / 65536 of a turn at most a tick.
 	assert_float(look.angle.x).is_equal_approx(PlayerHeadLook.MAX_STEP, 1e-6)
 	for i: int in 60:
-		look.step(Vector2(1.0, 0.0))
+		look.step(Vector2(1.0, 0.0), 1.0 / 60.0)
 	assert_float(look.angle.x).is_equal_approx(1.0, 1e-3)
+	## The same second in four steps ends in the same place.
+	var coarse := PlayerHeadLook.new()
+	for i: int in 4:
+		coarse.step(Vector2(1.0, 0.0), 0.25)
+	assert_float(coarse.angle.x).is_equal_approx(1.0, 1e-3)
 
 
 func test_the_turn_is_about_the_vertical_whatever_the_joint_axes() -> void:
