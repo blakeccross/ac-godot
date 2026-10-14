@@ -11,22 +11,41 @@ func test_the_coin_arcs_up_and_sinks_at_the_water_line() -> void:
 	coin.setup(Vector3.ZERO, 0.0, rng)
 	var water: float = WellCoin.WATER_ABOVE_GROUND
 	var peak: float = -INF
-	var ticks: int = 0
-	while not coin.sunk() and ticks < WellCoin.FLY_TICKS:
-		coin.tick()
-		peak = maxf(peak, coin.height_gx())
-		ticks += 1
+	var t: float = 0.0
+	while not coin.sunk() and t < WellCoin.FLY_TIME:
+		coin.advance(1.0 / 60.0)
+		t += 1.0 / 60.0
+		if not coin.sunk():
+			peak = maxf(peak, coin.coin_position().y)
 	assert_bool(coin.sunk()).is_true()
-	## 5.5 up under 0.2 a tick: about 75 GX of climb from 11 up.
-	assert_float(peak).is_greater(80.0)
+	## 5.5 GX a tick up under 0.2: about 75 GX of climb from 11 up.
+	assert_float(peak / FieldCatalog.GX_TO_METERS).is_greater(80.0)
 	## About 55 ticks up and back down to where it left.
-	assert_int(ticks).is_between(50, 60)
-	assert_float(coin.height_gx()).is_equal_approx(water, 0.001)
-	assert_float(coin.alpha()).is_equal_approx(180.0 / 255.0, 0.01)
-	for i: int in 200:
-		coin.tick()
-	assert_float(coin.height_gx()).is_equal_approx(water - WellCoin.SINK_DEPTH, 0.001)
+	assert_float(coin.splash_time()).is_between(50.0 / 60.0, 60.0 / 60.0)
+	assert_float(coin.coin_position().y).is_equal_approx(water, 0.01)
+	assert_float(coin.alpha()).is_equal_approx(180.0 / 255.0, 0.02)
+	coin.advance(200.0 / 60.0)
+	assert_float(coin.coin_position().y).is_equal_approx(water - WellCoin.SINK_DEPTH, 0.001)
+	assert_bool(coin.advance(2.0)).is_false()
 	coin.free()
+
+
+func test_the_coin_splashes_at_the_same_moment_at_any_frame_rate() -> void:
+	var a := WellCoin.new()
+	var b := WellCoin.new()
+	for coin: WellCoin in [a, b]:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 3
+		coin.setup(Vector3.ZERO, 0.0, rng)
+	for _i: int in 72:
+		a.advance(1.0 / 60.0)
+	for _i: int in 12:
+		b.advance(1.0 / 10.0)
+	assert_bool(a.sunk() and b.sunk()).is_true()
+	assert_float(a.age).is_equal_approx(b.age, 0.0001)
+	assert_vector(a.coin_position()).is_equal_approx(b.coin_position(), Vector3.ONE * 0.0001)
+	a.free()
+	b.free()
 
 
 func test_the_wish_is_made_from_the_front_facing_the_well() -> void:
