@@ -1991,6 +1991,8 @@ func _spawn_pickup(item: ItemData, _lateral_offset: float = 0.0, wrapped: bool =
 		return false
 	var player := Player.find(tree)
 	var world := World.find(tree)
+	if world == null and player != null and Game.interior_session != null:
+		return _put_down_indoors(player, item, wrapped)
 	if player == null or world == null or not (world.grid is WorldGrid):
 		return false
 	var grid: WorldGrid = world.grid
@@ -2006,6 +2008,21 @@ func _spawn_pickup(item: ItemData, _lateral_offset: float = 0.0, wrapped: bool =
 	var start: Vector3 = player.global_position + Vector3(0.0, 50.0 * FieldCatalog.GX_TO_METERS, 0.0)
 	if pickup.has_method("begin_fall"):
 		pickup.call("begin_fall", start, land, 0.55)
+	return true
+
+
+## In your own house the item goes on the floor in front of you, or on the table there
+## (`RoomItems`); other rooms hold nothing put down.
+func _put_down_indoors(player: Player, item: ItemData, wrapped: bool) -> bool:
+	var session: IndoorSession = Game.interior_session
+	var facing: WorldGrid.Facing = WorldGrid.facing_from_player_yaw(player.facing_yaw())
+	var front: Vector2i = session.grid.step(session.grid.world_to_cell(player.global_position), facing)
+	var entry: FurniturePlacement = RoomItems.drop(session, front, item, wrapped)
+	if entry == null:
+		return false
+	var host: Node = get_tree().get_first_node_in_group("interior")
+	if host != null and host.has_method("spawn_placement"):
+		host.call("spawn_placement", entry)
 	return true
 
 

@@ -45,7 +45,8 @@ func capacity() -> int:
 
 func is_full() -> bool:
 	var cap: int = capacity()
-	return cap > 0 and room.placements.size() >= cap
+	## Things put down on the floor are not furniture (`RoomItems`).
+	return cap > 0 and room.placements.size() - RoomItems.count(room) >= cap
 
 
 func furniture_of(furniture_id: StringName) -> FurnitureData:
@@ -328,10 +329,19 @@ func _occupy(entry: FurniturePlacement) -> void:
 		return
 	var data: FurnitureData = furniture_of(entry.furniture_id)
 	if data == null:
+		if RoomItems.is_loose(entry):
+			grid.place(entry.id, entry.cell, Vector2i.ONE, WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM)
 		return
 	grid.place(
 		entry.id, entry.cell, entry.resolved_footprint(data), entry.facing, WorldGrid.PlaceKind.FURNITURE
 	)
+
+
+## Height (metres) a layer-1 placement at `cell` rests at: its table's collision top.
+func surface_y(cell: Vector2i) -> float:
+	var host: FurniturePlacement = _table_at(cell)
+	var data: FurnitureData = furniture_of(host.furniture_id) if host != null else null
+	return FurnitureData.surface_height(data.visual_id if data != null else &"")
 
 
 func _table_at(cell: Vector2i, ignore_id: StringName = &"") -> FurniturePlacement:

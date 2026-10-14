@@ -68,7 +68,8 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		return false
 	## Mushrooms, shells and dropped things come and go by cell (`MushroomUse`, `ShellUse`,
 	## `FieldItems`); everything else stays picked.
-	if not MushroomUse.picked(persist_id) and not ShellUse.picked(persist_id) and not FieldItems.picked(persist_id):
+	if not MushroomUse.picked(persist_id) and not ShellUse.picked(persist_id) and not FieldItems.picked(persist_id) \
+			and not RoomItems.picked(persist_id):
 		Game.mark_interactable_removed(persist_id)
 	var id: StringName = persist_id if persist_id != &"" else occupant_id
 	ctx.release_occupant(id)

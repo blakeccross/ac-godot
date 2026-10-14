@@ -434,12 +434,12 @@ func mark(house: House, main: Room, upper: Room, today: Vector3i, first_job: boo
 		var size: int = PlayerHouse.tier_of(house)
 		var result: Dictionary = score_floor(pieces_of(main), size,
 			wall_index(main.wall_id if main else &"", "wall_"), wall_index(main.floor_id if main else &"", "floor_"),
-			FULL)
+			FULL, RoomItems.count(main))
 		var points: int = int(result["points"])
 		var bits: int = int(result["bits"])
 		if size == 3 and upper != null:
 			var up: Dictionary = score_floor(pieces_of(upper), 1, wall_index(upper.wall_id, "wall_"),
-				wall_index(upper.floor_id, "floor_"), UPPER_MODE)
+				wall_index(upper.floor_id, "floor_"), UPPER_MODE, RoomItems.count(upper))
 			points += int(up["points"])
 			bits |= int(up["bits"])
 		mark_date = today

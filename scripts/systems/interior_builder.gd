@@ -131,6 +131,8 @@ static func add_furniture(root: Node3D, interior: IndoorSession, entry: Furnitur
 		return
 	var data: FurnitureData = interior.furniture_of(entry.furniture_id)
 	if data == null:
+		if RoomItems.is_loose(entry):
+			RoomItems.instance(root, interior, entry)
 		return
 	var footprint: Vector2i = entry.resolved_footprint(data)
 	var node: Node3D = FURNITURE_SCENE.instantiate() as Node3D
@@ -143,7 +145,7 @@ static func add_furniture(root: Node3D, interior: IndoorSession, entry: Furnitur
 	if data.visual_id != &"":
 		node.set("visual_id", data.visual_id)
 	var pos: Vector3 = interior.grid.furniture_world(entry.cell, footprint, entry.facing)
-	pos.y = 0.8 if entry.layer > 0 else 0.0
+	pos.y = interior.surface_y(entry.cell) if entry.layer > 0 else 0.0
 	node.position = pos
 	root.add_child(node)
 	if entry.cloth_index >= 0:

@@ -48,6 +48,7 @@ class ProfileTests(unittest.TestCase):
         row = parse_profile_body(body)
         assert row is not None
         self.assertEqual(row["rig"], 1)
+        self.assertEqual(row["height"], 40.0)
         closet = parse_profile_body("""
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 	40.0f, 0.01f, aFTR_SHAPE_TYPEA, mCoBG_FTR_TYPEA, 0, 0, 0, 0, NULL,""")
