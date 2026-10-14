@@ -2063,8 +2063,8 @@ func _fish_pairs() -> Array:
 
 func _bug_pairs() -> Array:
 	var out: Array = []
-	var host: Node = get_tree().get_first_node_in_group("bug_actors") if get_tree() != null else null
-	var field: BugField = host.call("field") as BugField if host != null else null
+	var spawner: BugSpawner = BugSpawner.find(get_tree())
+	var field: BugField = spawner.field() if spawner != null else null
 	if field == null:
 		return out
 	for bug: BugActor in field.actors:

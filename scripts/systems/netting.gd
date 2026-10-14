@@ -175,12 +175,40 @@ static func probe(
 		out.net_pos = at_hand + fwd * (NetSwing.NET_POS_GX * FieldCatalog.GX_TO_METERS)
 		start = at_hand + fwd * (NetSwing.NET_START_GX * FieldCatalog.GX_TO_METERS)
 		end = at_hand + fwd * (NetSwing.NET_END_GX * FieldCatalog.GX_TO_METERS)
-	var field: BugField = field_of(ctx)
-	if field != null:
-		out.candidates = field.net_candidates(player_pos)
+	out.candidates = bugs_in_reach(ctx, out.net_pos)
 	_bee_candidate(ctx, player_pos, out)
 	out.hit_actor = npc_on_line(ctx, start, end)
 	out.line_bits = line_bits(ctx, start, end)
+	return out
+
+
+## The insects whose catch spheres (`Bug.CatchArea`, sized to their registered range) the
+## net head's reach touches: the decomp's `reach + range` distance test, as an overlap.
+## Ordered as the field registers them (`item_net_catch_*_request_table`).
+static func bugs_in_reach(ctx: InteractionContext, net_pos: Vector3) -> Array[NetSwing.Candidate]:
+	var out: Array[NetSwing.Candidate] = []
+	if ctx == null or ctx.actor == null or not ctx.actor.is_inside_tree():
+		return out
+	var sphere := SphereShape3D.new()
+	sphere.radius = NetSwing.reach_gx() * FieldCatalog.GX_TO_METERS
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = sphere
+	query.transform = Transform3D(Basis.IDENTITY, net_pos)
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	query.collision_mask = PhysicsLayers.CREATURES
+	var hits: Array[Dictionary] = ctx.actor.get_world_3d().direct_space_state.intersect_shape(query, 64)
+	var bugs: Array[Bug] = []
+	for hit: Dictionary in hits:
+		var bug: Bug = Bug.of_area(hit.get("collider"))
+		if bug != null and bug.actor != null and not bugs.has(bug):
+			bugs.append(bug)
+	var field: BugField = field_of(ctx)
+	if field != null:
+		bugs.sort_custom(func(a: Bug, b: Bug) -> bool:
+			return field.actors.find(a.actor) < field.actors.find(b.actor))
+	for bug: Bug in bugs:
+		out.append(NetSwing.Candidate.new(bug.actor, bug.actor.position, bug.catch_range_gx))
 	return out
 
 

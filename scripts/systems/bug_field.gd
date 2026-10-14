@@ -92,16 +92,6 @@ func notify_stop_net(net_pos: Vector3) -> void:
 	_stop_net_pos = net_pos
 
 
-## `aINS_set_catch_range` for every live insect: the rows a swinging net tests this tick.
-func net_candidates(player_position: Vector3) -> Array[NetSwing.Candidate]:
-	var out: Array[NetSwing.Candidate] = []
-	for actor: BugActor in actors:
-		var row: NetSwing.Candidate = actor.net_candidate(player_position)
-		if row != null:
-			out.append(row)
-	return out
-
-
 ## Generic "player acted on this cell" — releases any bug settled there
 ## (`aINS_set_pl_act_tim` / dig-up / axe).
 func notify_player_action(cell: Vector2i) -> void:

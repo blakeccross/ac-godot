@@ -191,9 +191,9 @@ func _resolve_focus(root: Node, target: String) -> Variant:
 					break
 			return null
 		"bug":
-			for node: Node in root.find_children("*", "BugActorVisual", true, false):
-				var bug := node as BugActorVisual
-				if bug.visible and (String(bug.bug_id) == value or String(bug.bug_id).match(value)):
+			for node: Node in root.get_tree().get_nodes_in_group(Bug.GROUP):
+				var bug := node as Bug
+				if bug.model.visible and (String(bug.model.bug_id) == value or String(bug.model.bug_id).match(value)):
 					return bug.global_position
 			return null
 	return null
