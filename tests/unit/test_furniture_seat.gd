@@ -42,7 +42,7 @@ func _stand(cell: Vector2i) -> Vector3:
 func _walk_into(seat: FurnitureSeat, ticks: int, pos: Vector3, face: WorldGrid.Facing, stick: Vector2) -> Dictionary:
 	var result: Dictionary = {}
 	for _i: int in ticks:
-		result = seat.poll(TICK + 0.0001, _session, pos, face, stick)
+		result = seat.poll(TICK, _session, pos, face, stick)
 		if not result.is_empty():
 			return result
 	return result
@@ -52,7 +52,7 @@ func test_walking_into_the_front_of_a_chair_sits_after_the_hold() -> void:
 	_session.place(_chair, Vector2i(3, 3), WorldGrid.Facing.SOUTH)
 	var seat := FurnitureSeat.new()
 	var pos: Vector3 = _stand(Vector2i(3, 4))
-	var early: Dictionary = _walk_into(seat, FurnitureSeat.HOLD_TICKS, pos, WorldGrid.Facing.NORTH, Vector2(0.0, -1.0))
+	var early: Dictionary = _walk_into(seat, roundi(FurnitureSeat.HOLD_TIME * 60.0) - 1, pos, WorldGrid.Facing.NORTH, Vector2(0.0, -1.0))
 	assert_bool(early.is_empty()).is_true()
 	var hit: Dictionary = _walk_into(seat, 3, pos, WorldGrid.Facing.NORTH, Vector2(0.0, -1.0))
 	assert_bool(hit.is_empty()).is_false()
@@ -90,7 +90,7 @@ func test_the_hold_resets_when_the_stick_lets_go() -> void:
 	var pos: Vector3 = _stand(Vector2i(3, 4))
 	_walk_into(seat, 10, pos, WorldGrid.Facing.NORTH, Vector2(0.0, -1.0))
 	_walk_into(seat, 1, pos, WorldGrid.Facing.NORTH, Vector2.ZERO)
-	assert_int(seat.sit_ticks).is_equal(0)
+	assert_float(seat.sit_time).is_equal(0.0)
 
 
 func test_a_sofa_takes_a_seat_from_the_front() -> void:
