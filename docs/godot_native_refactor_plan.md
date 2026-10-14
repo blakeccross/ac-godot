@@ -273,6 +273,14 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
 - **Fish done:**
   - `FishShadow`, its puffs and the rod session (`Fishing`) advance by `delta`, with speeds in m/s. The once-per-frame flags (`nibbled`, `bit`, the landing splash) now last one step.
   - The swim pattern's body swing is tied to the sweep's progress, not to the ticks that pass.
+- **Faces done:**
+  - Blinks and mouth flaps hold each table entry for its time in seconds.
+  - The player's head look eases with `Motion.approach_angle`.
+  - The mood effects (`NpcFeelMoods`) advance by `delta`.
+- **Bugs done:** the insect framework and all 14 behaviors advance by `delta`.
+  - Each step sets `n`, the 60ths of a second it covers. Countdowns drop by `n` and per-tick steps scale by it (`chase_angle(…, a.n)`, `add_calc(…, ticks)`).
+  - Per-tick odds go through `BugProgram.chance`, and `game_frame % k` cadences through `beat`.
+  - Timers stay in ticks there, as in the mood effects, because every table that sets them is written in ticks. Countdowns that lived in the integer `s32_work` slots are now named float fields on the program.
 
 Lessons from the weather particles:
 
