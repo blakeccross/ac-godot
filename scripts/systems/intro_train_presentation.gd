@@ -23,16 +23,17 @@ const MOON_DIR := Vector3(0.0, -30.0, -40.0)
 ## while off (step 0.5·{2,2,1}). On in the tunnel; off once `sunlight_flag` is set.
 const LAMP_LIGHT_DIR := Vector3(0.0, 80.0, 0.0)
 const LAMP_LIGHT_ON := Vector3(200.0, 200.0, 150.0)
-const LAMP_LIGHT_STEP_ON := Vector3(8.0, 8.0, 4.0)
-const LAMP_LIGHT_STEP_OFF := Vector3(1.0, 1.0, 0.5)
-## `add_calc(&sun_percent, …, 1−√0.5, 0.1, 0.005)` once per decomp frame (`mEnv_ChangeDiffuseLight`).
-const _SUN_MAX_STEP := 0.1
-const _SUN_MIN_STEP := 0.005
+## Those steps a tick, as rates a second.
+const LAMP_LIGHT_RATE_ON := Vector3(8.0, 8.0, 4.0) * DecompTime.TICK_HZ
+const LAMP_LIGHT_RATE_OFF := Vector3(1.0, 1.0, 0.5) * DecompTime.TICK_HZ
+## `add_calc(&sun_percent, …, 1−√0.5, 0.1, 0.005)` a tick (`mEnv_ChangeDiffuseLight`).
+static var SUN_HALF_LIFE: float = Motion.half_life_from_fraction(MLib.HALF_FRACTION)
+const SUN_MAX_SPEED := 0.1 * DecompTime.TICK_HZ
+const SUN_MIN_SPEED := 0.005 * DecompTime.TICK_HZ
 
 ## 0 in tunnel → 1 after Rover finishes sitdown (`aNGD_sitdown` sets `sunlight_flag`).
 static var sun_percent: float = 0.0
 static var _sun_target: float = 0.0
-static var _sun_steps := FrameStepper.new(DecompTime.TICK_HZ, 4.0)
 ## `ef_lamp_light` diffuse colour (0–255 per channel); starts black (`Light_diffuse_ct`).
 static var lamp_light: Vector3 = Vector3.ZERO
 
@@ -40,7 +41,6 @@ static var lamp_light: Vector3 = Vector3.ZERO
 static func apply_tunnel(world_env: WorldEnvironment, train_car: Node) -> void:
 	sun_percent = 0.0
 	_sun_target = 0.0
-	_sun_steps.reset()
 	lamp_light = Vector3.ZERO
 	if train_car != null and train_car.has_method("apply_daylight"):
 		train_car.call("apply_daylight", false)
@@ -68,32 +68,17 @@ static func snap_daylight(world_env: WorldEnvironment, train_car: Node) -> void:
 ## Per-frame kankyo update: `sun_percent` add_calc + `ef_lamp_light` chase, then relight.
 ## Returns true while `sun_percent` is still moving.
 static func tick_sunlight(delta: float, world_env: WorldEnvironment, train_car: Node = null) -> bool:
-	_sun_steps.add(delta)
-	while _sun_steps.next():
-		_step_sun_percent()
-		_step_lamp_light()
+	sun_percent = Motion.approach(sun_percent, _sun_target, SUN_HALF_LIFE, SUN_MAX_SPEED, SUN_MIN_SPEED, delta)
+	_step_lamp_light(delta)
 	_apply_lighting(world_env, train_car)
 	return not is_equal_approx(sun_percent, _sun_target)
 
 
-static func _step_sun_percent() -> void:
-	var diff: float = _sun_target - sun_percent
-	if absf(diff) <= _SUN_MIN_STEP:
-		sun_percent = _sun_target
-		return
-	var step: float = diff * MLib.HALF_FRACTION
-	if absf(step) > _SUN_MAX_STEP:
-		step = _SUN_MAX_STEP * signf(step)
-	if absf(step) < _SUN_MIN_STEP:
-		step = _SUN_MIN_STEP * signf(step)
-	sun_percent += step
-
-
 ## `Ef_Lamp_Light_actor_move` / `eLL_get_light_sw_start_demo`: on until `sunlight_flag`.
-static func _step_lamp_light() -> void:
+static func _step_lamp_light(delta: float) -> void:
 	var on: bool = _sun_target < 1.0
 	var goal: Vector3 = LAMP_LIGHT_ON if on else Vector3.ZERO
-	var step: Vector3 = LAMP_LIGHT_STEP_ON if on else LAMP_LIGHT_STEP_OFF
+	var step: Vector3 = (LAMP_LIGHT_RATE_ON if on else LAMP_LIGHT_RATE_OFF) * delta
 	lamp_light = Vector3(
 		move_toward(lamp_light.x, goal.x, step.x),
 		move_toward(lamp_light.y, goal.y, step.y),
