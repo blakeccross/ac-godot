@@ -351,7 +351,7 @@ func test_locked_talk_look_uses_shadow_height() -> void:
 	)
 	cam.look_talk = false
 	for _i: int in 120:
-		cam.step_logic(Vector3(100.0, 14.0, 280.0))
+		cam.step_logic(1.0 / 60.0, Vector3(100.0, 14.0, 280.0))
 	assert_float(cam.current_look_gx().y).is_equal_approx(IntroTrainStage.OBJ_LOOK_Y_NORMAL_GX, 0.001)
 
 
@@ -386,15 +386,15 @@ func test_aisle_walk_turns_while_moving() -> void:
 	add_child(rover)
 	stage.bind(rover, null, null, null, null)
 	stage._set_action(IntroTrainStage.Action.MOVE_AISLE)
-	stage._logic_step()
-	assert_float(stage._speed_gx).is_equal_approx(IntroTrainStage.WALK_ACCEL2_GX * 0.5, 0.0001)
+	stage._logic_step(1.0 / 60.0)
+	assert_float(stage._speed).is_equal_approx(IntroTrainStage.WALK_ACCEL2_GX * 0.5 * IntroTrainStage.PER_FRAME, 0.0001)
 	assert_float(stage._yaw).is_equal_approx(IntroTrainStage.BODY_TURN_STEP * 0.5, 0.0001)
 	for _i: int in 600:
-		stage._logic_step()
+		stage._logic_step(1.0 / 60.0)
 		if stage.action != IntroTrainStage.Action.MOVE_AISLE:
 			break
 	assert_that(stage.action).is_equal(IntroTrainStage.Action.MOVE_DOOR)
-	assert_float(stage._speed_gx).is_equal_approx(IntroTrainStage.WALK_SPEED2_GX, 0.001)
+	assert_float(stage._speed).is_equal_approx(IntroTrainStage.WALK_SPEED2_GX * IntroTrainStage.PER_FRAME, 0.001)
 	assert_float(stage._lean).is_greater(0.0)
 	rover.queue_free()
 
@@ -409,10 +409,10 @@ func test_phone_tilt_starts_when_rover_nears_vestibule() -> void:
 	stage._pos_gx = Vector3(140.0, 0.0, 145.0)
 	stage._yaw = PI
 	stage._set_walk_spd(IntroTrainStage.WALK_SPEED2_GX, 0.15, 0.3)
-	stage._speed_gx = IntroTrainStage.WALK_SPEED2_GX
+	stage._speed = IntroTrainStage.WALK_SPEED2_GX * IntroTrainStage.PER_FRAME
 	assert_float(stage.phone_tilt_goal()).is_equal_approx(0.0, 0.001)
 	for _i: int in 40:
-		stage._logic_step()
+		stage._logic_step(1.0 / 60.0)
 		if stage._pos_gx.z < IntroTrainStage.CAMERA_TILT_Z_GX:
 			break
 	assert_that(stage._pos_gx.z < IntroTrainStage.CAMERA_TILT_Z_GX).is_true()
@@ -433,7 +433,7 @@ func test_return_approach_walks_from_deck_stop() -> void:
 	assert_vector(stage._pos_gx).is_equal_approx(
 		IntroTrainStage.ROVER_DOOR_GX, Vector3(0.001, 0.001, 0.001)
 	)
-	stage._logic_step()
+	stage._logic_step(1.0 / 60.0)
 	var look: Vector3 = stage.current_look_gx()
 	assert_float(look.x).is_equal_approx(IntroTrainStage.ROVER_AISLE_X_GX, 0.001)
 	assert_float(look.z).is_equal_approx(stage._pos_gx.z, 0.001)

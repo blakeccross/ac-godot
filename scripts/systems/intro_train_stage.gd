@@ -99,11 +99,15 @@ const ANIM_MORPH_BLEND := 10.0 / DecompTime.TICK_HZ
 const OPEN_D2_YAW := PI
 const OPEN_D2_YAW_CHASE := deg_to_rad(0.703125)
 ## `chase_angle` steps (per 1/30 s — `chase_angle` is frame-scaled, halved per 60 Hz tick).
+## Turned at `step · 30` radians a second.
 const TALK_TURN_STEP := 0x400 * MLib.S16 ## `aNGD_talk_start_wait`
 const BODY_TURN_STEP := deg_to_rad(11.25) ## `aNGD_calc_body_angl`
 ## `aNPC_set_body_angle`: pitch goal `speed * 3640 / 3`, `chase_angle(…, 224)`.
 const BODY_LEAN_PER_SPEED := 3640.0 / 3.0 * MLib.S16
 const BODY_LEAN_STEP := 224.0 * MLib.S16
+## Decomp speeds are GX per 1/30 s; `chase_f(speed, max, accel · 0.5)` runs each 1/60 s.
+const PER_FRAME := DecompTime.FRAME_HZ
+const ACCEL_PER_SECOND := 0.5 * DecompTime.TICK_HZ * DecompTime.FRAME_HZ
 
 var action: Action = Action.ENTER
 
@@ -115,14 +119,13 @@ var _cam: IntroTrainCamera
 var _stage_sync: Node
 var _pos_gx: Vector3 = ROVER_START_GX
 var _yaw: float = 0.0
-## `actor.speed` (GX per 1/30 s) and `movement.speed` max / accel / decel.
-var _speed_gx: float = 0.0
-var _max_speed_gx: float = 0.0
-var _accel_gx: float = 0.0
-var _decel_gx: float = 0.0
+## `actor.speed` and `movement.speed` max (GX a second) and accel / decel (GX a second²).
+var _speed: float = 0.0
+var _max_speed: float = 0.0
+var _accel: float = 0.0
+var _decel: float = 0.0
 ## `shape_info.rotation.x` forward lean (`aNPC_set_body_angle`).
 var _lean: float = 0.0
-var _logic_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _talk_emitted: bool = false
 var _clip: String = ""
 var _pending_clip: String = ""
@@ -472,52 +475,55 @@ func _set_action(next: Action) -> void:
 	_refresh_camera(0.0)
 
 
+## Takes the decomp's GX-per-1/30 s figures.
 func _set_walk_spd(max_speed: float, accel: float, decel: float) -> void:
-	_max_speed_gx = max_speed
-	_accel_gx = accel
-	_decel_gx = decel
+	_max_speed = max_speed * PER_FRAME
+	_accel = accel * ACCEL_PER_SECOND
+	_decel = decel * ACCEL_PER_SECOND
 
 
 ## `aNGD_set_stop_spd`: zero speed immediately.
 func _set_stop_spd() -> void:
-	_speed_gx = 0.0
-	_max_speed_gx = 0.0
-	_accel_gx = 0.0
-	_decel_gx = 0.0
+	_speed = 0.0
+	_max_speed = 0.0
+	_accel = 0.0
+	_decel = 0.0
 
 
-## One decomp frame (1/60 s): `move_before` (position) → `aNGD_*` proc → `move_after`
-## (body lean) → `aNGD_set_camera`.
-func _logic_step() -> void:
-	_step_position()
+## `delta` seconds of `move_before` (position) → `aNGD_*` proc → `move_after` (body lean) →
+## `aNGD_set_camera`.
+func _logic_step(delta: float) -> void:
+	_step_position(delta)
 	match action:
 		Action.APPROACH:
 			_step_approach()
 		Action.TALK:
-			_step_talk()
+			_step_talk(delta)
 		Action.MOVE_AISLE:
-			_step_move_aisle()
+			_step_move_aisle(delta)
 		Action.MOVE_DOOR:
-			_step_move_door()
+			_step_move_door(delta)
 		Action.RETURN_APPROACH:
 			_step_return_approach()
 		Action.OPEN_DOOR:
-			_step_open_door()
+			_step_open_door(delta)
 		_:
 			pass
-	_step_lean()
+	_step_lean(delta)
 	_apply_rover_pose()
 	if _cam != null:
-		_cam.step_logic(shadow_gx())
+		_cam.step_logic(delta, shadow_gx())
 
 
-## `aNPC_position_move`: `chase_f(speed, max, accel·0.5)` then `pos += 0.5·speed` along yaw.
-func _step_position() -> void:
-	var accel: float = _accel_gx if _speed_gx < _max_speed_gx else _decel_gx
-	_speed_gx = move_toward(_speed_gx, _max_speed_gx, accel * 0.5)
-	if _speed_gx == 0.0:
+## `aNPC_position_move`: speed eases to its max, and the actor moves along yaw at the
+## average speed over the step.
+func _step_position(delta: float) -> void:
+	var was: float = _speed
+	var accel: float = _accel if _speed < _max_speed else _decel
+	_speed = move_toward(_speed, _max_speed, accel * delta)
+	if _speed == 0.0 and was == 0.0:
 		return
-	var step: float = 0.5 * _speed_gx
+	var step: float = (was + _speed) * 0.5 * delta
 	_pos_gx.x += sin(_yaw) * step
 	_pos_gx.z += cos(_yaw) * step
 
@@ -529,19 +535,19 @@ func _step_approach() -> void:
 		_set_action(Action.TALK)
 
 
-func _step_talk() -> void:
+func _step_talk(delta: float) -> void:
 	## `chase_angle(&rotation.y, player_angle_y, 0x400)`.
-	_yaw = _chase_angle(_yaw, yaw_toward_player(_pos_gx), TALK_TURN_STEP * 0.5)
+	_yaw = rotate_toward(_yaw, yaw_toward_player(_pos_gx), TALK_TURN_STEP * PER_FRAME * delta)
 
 
-func _step_move_aisle() -> void:
-	_calc_body_angl(ROVER_AISLE_GX)
+func _step_move_aisle(delta: float) -> void:
+	_calc_body_angl(ROVER_AISLE_GX, delta)
 	if _pos_gx.x > ROVER_AISLE_GX.x:
 		_set_action(Action.MOVE_DOOR)
 
 
-func _step_move_door() -> void:
-	_calc_body_angl(ROVER_DOOR_GX)
+func _step_move_door(delta: float) -> void:
+	_calc_body_angl(ROVER_DOOR_GX, delta)
 	if _pos_gx.z < ROVER_DOOR_GX.z:
 		_set_action(Action.MOVE_DECK)
 		return
@@ -557,9 +563,9 @@ func _step_return_approach() -> void:
 		_set_action(Action.TALK)
 
 
-func _step_open_door() -> void:
+func _step_open_door(delta: float) -> void:
 	## `aNGD_open_door`: chase yaw to −180°; at open_d2 frame 22 clear phone tilt.
-	_yaw = _chase_angle(_yaw, OPEN_D2_YAW, OPEN_D2_YAW_CHASE * 0.5)
+	_yaw = rotate_toward(_yaw, OPEN_D2_YAW, OPEN_D2_YAW_CHASE * PER_FRAME * delta)
 	if (
 		_phone_tilt_reset_armed
 		and _rover_anim_frame() >= DOOR_OPEN_D2_FRAME
@@ -570,23 +576,17 @@ func _step_open_door() -> void:
 
 
 ## `aNGD_calc_body_angl`: chase yaw toward a GX point at 11.25° per 1/30 s.
-func _calc_body_angl(target_gx: Vector3) -> void:
+func _calc_body_angl(target_gx: Vector3, delta: float) -> void:
 	var to: Vector3 = target_gx - _pos_gx
 	if absf(to.x) < 0.0001 and absf(to.z) < 0.0001:
 		return
-	_yaw = _chase_angle(_yaw, atan2(to.x, to.z), BODY_TURN_STEP * 0.5)
+	_yaw = rotate_toward(_yaw, atan2(to.x, to.z), BODY_TURN_STEP * PER_FRAME * delta)
 
 
-## `aNPC_set_body_angle`: forward pitch proportional to speed.
-func _step_lean() -> void:
-	_lean = _chase_angle(_lean, _speed_gx * BODY_LEAN_PER_SPEED, BODY_LEAN_STEP * 0.5)
-
-
-static func _chase_angle(current: float, target: float, step: float) -> float:
-	var diff: float = wrapf(target - current, -PI, PI)
-	if absf(diff) <= step:
-		return target
-	return current + signf(diff) * step
+## `aNPC_set_body_angle`: forward pitch proportional to speed (in GX per 1/30 s).
+func _step_lean(delta: float) -> void:
+	var goal: float = _speed / PER_FRAME * BODY_LEAN_PER_SPEED
+	_lean = rotate_toward(_lean, goal, BODY_LEAN_STEP * PER_FRAME * delta)
 
 
 ## `draw.shadow_pos`: actor position + `joint_0` root-motion offset
@@ -832,9 +832,7 @@ func tick(delta: float) -> void:
 	if action == Action.KEITAI_TALK and not _keitai_talk_looping and not _anim_playing():
 		_keitai_talk_looping = true
 		_play_rover(ANIM_KEITAI_TALK2, true)
-	_logic_steps.add(delta)
-	while _logic_steps.next():
-		_logic_step()
+	_logic_step(delta)
 	_refresh_camera(delta)
 
 
