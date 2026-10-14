@@ -237,7 +237,6 @@ var _wade: Dictionary = {}
 var move_intent: Vector3 = Vector3.ZERO
 ## The snowball being pushed (`mPlayer_INDEX_PUSH_SNOWBALL`), or null.
 var _snowball: Node3D = null
-var _snowball_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 var _sun_steps := FrameStepper.new(DecompTime.TICK_HZ, 8.0)
 ## Leaf clip → Animation of scaled joint_0 deltas (meters, model space): XZ from the origin,
 ## Y from the 1000-unit base height (`base_shape_trs` y). Filled once.
@@ -410,22 +409,17 @@ func is_pushing_snowball() -> bool:
 	return _snowball != null
 
 
-## `Player_actor_main_Push_snowball`: the ball steps each tick and hands back where the
+## `Player_actor_main_Push_snowball`: the ball moves each step and hands back where the
 ## player stands (`mPlib_SetParam_for_push_snowball`).
-func _tick_snowball_push(
+func _push_snowball(
 	delta: float, wish: Vector3, stick: float, dash: bool, input_dir: Vector2 = Vector2.ZERO, bg: Array = []
 ) -> void:
 	if not is_instance_valid(_snowball):
 		end_snowball_push()
 		return
-	_snowball_steps.add(delta)
-	var last: Dictionary = {}
-	while _snowball_steps.next():
-		last = _snowball.call("push_tick", wish, stick, dash, self)
-		if last.is_empty():
-			end_snowball_push()
-			return
+	var last: Dictionary = _snowball.call("push", delta, wish, stick, dash, self)
 	if last.is_empty():
+		end_snowball_push()
 		return
 	var aim: Vector3 = last["aim"]
 	var before: Vector3 = global_position
@@ -437,7 +431,7 @@ func _tick_snowball_push(
 	if bg.size() == 2 and TownSpace.is_outdoor_town() and _snowball_border(before, input_dir, bg):
 		return
 	if _anim != null:
-		_anim.speed_scale = clampf(float(last["speed"]) / 1.5, 0.2, 2.0)
+		_anim.speed_scale = clampf(float(last["speed"]) / (1.5 * Snowball.FRAME), 0.2, 2.0)
 
 
 func play_wait_anim() -> void:
@@ -551,7 +545,7 @@ func _physics_process(delta: float) -> void:
 	)
 	move_intent = wish * stick
 	if _snowball != null:
-		_tick_snowball_push(delta, wish, stick, sprint and not menu_open, input_dir, bg)
+		_push_snowball(delta, wish, stick, sprint and not menu_open, input_dir, bg)
 		if _snowball == null:
 			_update_animation(delta)
 		return

@@ -100,3 +100,35 @@ func test_snowman_request_counts_in_the_residents_acre() -> void:
 	assert_bool(bool(q.contests[slot]["player"])).is_true()
 	q.note_snowman(Vector2i(2, 1), residents, false)
 	assert_bool(bool(q.contests[slot]["player"])).is_false()
+
+
+func _rolling_ball(x: float) -> Snowball:
+	var ball: Snowball = auto_free(load("res://scenes/world/snowball.tscn").instantiate()) as Snowball
+	ball.move_dist = 2000.0
+	add_child(ball)
+	## Well apart, so they don't run into each other.
+	ball.global_position = Vector3(x, 0.0, 0.0)
+	ball.vel = Vector2(0.0, 4.0 * Snowball.FRAME)
+	return ball
+
+
+func test_a_rolled_ball_slows_and_grows_the_same_at_any_frame_rate() -> void:
+	var a := _rolling_ball(-20.0)
+	var b := _rolling_ball(20.0)
+	for _i: int in 30:
+		a.advance(1.0 / 60.0)
+	for _i: int in 8:
+		b.advance(1.0 / 16.0)
+	## 0.5 s each way: braking at 0.1 − 0.05·n GX a frame per tick (n grows a little
+	## within a step, hence the slack).
+	assert_float(a.speed()).is_less(4.0 * Snowball.FRAME)
+	assert_float(b.speed()).is_equal_approx(a.speed(), 0.005)
+	assert_float(b.global_position.z).is_equal_approx(a.global_position.z, 0.005)
+	assert_float(a.move_dist).is_greater(2000.0)
+	assert_float(b.move_dist).is_equal_approx(a.move_dist, 0.05)
+
+
+func test_a_snowman_push_fades_about_as_add_calc0_did() -> void:
+	## A tick of `add_calc0(100, 1 − √0.7, 10)` takes off 10 (the cap); 20 eases by 16%.
+	assert_float(100.0 - Snowman.ease_off(100.0, 1.0 / 60.0)).is_equal_approx(10.0, 0.0001)
+	assert_float(Snowman.ease_off(20.0, 1.0 / 60.0)).is_equal_approx(20.0 * sqrt(0.7), 0.001)
