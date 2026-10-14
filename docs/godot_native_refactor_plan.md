@@ -82,11 +82,10 @@ Each phase leaves the game playable and the suite green. That means green at the
    - Decomp numbers are converted to seconds and metres **when authored**, with the source cited in a comment.
    - `FrameStepper` is banned in new code.
 2. Add a `## Naming` subsection: English names; decomp identifiers only in comments; a lookup table for the romaji names (see Phase 1).
-3. Add small helpers in `scripts/systems/motion.gd` (`class_name Motion`):
-   - `Motion.damp(current, target, half_life, delta)`: framerate-independent exponential smoothing, `lerp(current, target, 1.0 - exp(-ln2 * delta / half_life))`. This replaces `add_calc` / `chase_f` (`MLib.HALF_FRACTION` maps to a half-life of one tick, about 0.0167 s).
-   - `Motion.damp_angle(...)`, same for yaw.
-   - `Motion.chance(per_second, delta)`: `1.0 - pow(1.0 - p, delta)`. This replaces "roll `RANDOM` every frame".
-   - Conversion helpers for authoring only: `DecompTime.frames_to_sec`, already present. Keep `DecompTime` but mark it *authoring-only*.
+3. Add small helpers in `scripts/systems/motion.gd` (`class_name Motion`, done):
+   - `Motion.damp(current, target, half_life, delta)`, plus `damp_vec3` and `damp_angle`: framerate-independent exponential smoothing. These replace `add_calc` / `chase_f`.
+   - `Motion.happens(rate_per_second, delta, rng)`: a Poisson chance, `1 - exp(-rate * delta)`. This replaces "roll `RANDOM` every frame".
+   - Authoring helpers: `Motion.half_life_from_fraction` (`MLib.HALF_FRACTION` closes half the gap every two ticks, about 0.033 s) and `Motion.rate_from_chance`. `DecompTime` stays, marked *authoring-only*.
 4. Testing policy in `docs/testing.md`:
    - New tests drive with `delta` (for example 0.1 s steps) and assert **outcomes and tolerances** ("the bug has fled at least 3 m within 2 s", "it lands back on its tree"), not tick-exact values.
    - Golden captures (`tools/capture.sh`) are the visual regression net for motion.
@@ -152,11 +151,11 @@ Conversion recipes:
 | Decomp idiom | Godot replacement |
 | --- | --- |
 | `timer--` until 0 | `var time_left: float` −= `delta`, or a `Timer` node (`one_shot`, `timeout` signal), or `await create_timer` |
-| `add_calc(x, target, frac, max_step)` | `Motion.damp` with a half-life, then clamp the step with `move_toward(x, target, max_speed * delta)` |
+| `add_calc(x, target, frac, max_step)` | `Motion.damp` with `half_life_from_fraction(frac)`, then clamp the step with `move_toward(x, target, max_speed * delta)` |
 | `chase_angle(yaw, target, step)` | `rotate_toward(yaw, target, turn_speed * delta)` |
 | `speed` in GX/frame | metres per second (`gx * GX_TO_METERS * 30`), `position += velocity * delta` |
 | `gravity *= 1.1` per tick | `velocity.y -= gravity * delta`, with gravity in m/s² fitted to the same apex and flight time |
-| per-tick `RANDOM` rolls | `Motion.chance(rate, delta)`, or a `Timer` with randomized `wait_time` |
+| per-tick `RANDOM` rolls | `Motion.happens(rate_from_chance(p), delta, rng)`, or a `Timer` with randomized `wait_time` |
 | `game_frame % N` cadences | a repeating `Timer`, or an `AnimationPlayer` loop |
 | frame-numbered clip events | method-call or audio tracks on the clip (Phase 4) |
 | fade 255 → 0 by 15 a tick | `create_tween().tween_property(self, "opacity", 0.0, 0.28)` |

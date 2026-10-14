@@ -1,12 +1,13 @@
 class_name DecompTime
 extends RefCounted
 
-## The two clock rates decomp numbers are written in. Use these instead of local 60 / 30
-## constants so every port converts the same way.
+## The two clock rates decomp numbers are written in. **Authoring only:** use these to turn a
+## decomp number into seconds where a constant is written; gameplay itself runs on `delta`
+## (`docs/conventions.md` § Time and units, `Motion`).
 ##
-## - A **tick** is one play-loop update (`game.frame_counter`), 1/60 s. Per-frame steps —
-##   `add_calc`, brakes, `timer--`, `RANDOM(n)` rolls — run once per tick. Drive them with
-##   `FrameStepper`; don't rescale them by `delta`, the results are not equivalent.
+## - A **tick** is one play-loop update (`game.frame_counter`), 1/60 s. Legacy systems still
+##   run `add_calc`, `timer--` and per-frame rolls once per tick through `FrameStepper`; new
+##   code converts them instead (`Motion.half_life_from_fraction`, `Motion.rate_from_chance`).
 ## - A **frame** is the original 30 fps frame, 1/30 s. cKF keyframes and clip event frames,
 ##   `speed` in GX per frame (`Actor_position_move` adds `0.5 · speed` per tick) and most
 ##   `*_FRAMES` / morph counts are authored at this rate. Animation GLBs are already baked

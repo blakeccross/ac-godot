@@ -1,8 +1,10 @@
 class_name FrameStepper
 extends RefCounted
 
-## Fixed-rate stepper: turns render `delta` into whole decomp ticks so per-frame logic runs
-## the same number of times at any render FPS.
+## **Legacy.** Fixed-rate stepper: turns render `delta` into whole decomp ticks so per-frame
+## logic runs the same number of times at any render FPS. Don't use it in new code; gameplay
+## runs on `delta` (`Motion`, `Timer`, `Tween`). Existing uses go away system by system
+## (`docs/godot_native_refactor_plan.md` § Phase 2), and then this class does too.
 ##
 ##     var _steps := FrameStepper.new()
 ##     _steps.add(delta)
