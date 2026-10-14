@@ -17,6 +17,8 @@ const ANGL_ADD := [40.0, 56.0, 80.0, 104.0]
 const MOVE_TIM := [240, 360, 480, 600]
 
 var _placed: bool = false
+## Ticks before the turn flips (`s32_work2`).
+var _turn_left: float = 0.0
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -75,16 +77,14 @@ func _set_move_info(a: BugActor) -> void:
 	if a.s32_work[1] > 0:
 		add = -add
 	a.s32_work[1] = int(add)
-	a.s32_work[2] = MOVE_TIM[(frame >> 2) & 3]
+	_turn_left = float(MOVE_TIM[(frame >> 2) & 3])
 
 
 func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 	if not _placed:
 		_placed = true
 		_settle(a, sense)
-	a.anime0 += 0.5
-	if a.anime0 >= 2.0:
-		a.anime0 -= 2.0
+	a.anime0 = fmod(a.anime0 + 0.5 * a.n, 2.0)
 	if a.caught:
 		setup_action(a, LET_ESCAPE)
 		return
@@ -95,13 +95,14 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 		a.action_proc.call(a, sense)
 
 
+## The bob: a sine whose phase turns `dir` a tick, its rise a tick added to the climb.
 func _fuwafuwa(a: BugActor, hard: bool) -> void:
 	var dir: int = 0x400 if hard else (0x100 + a._rng.randi_range(0, 0x2FF))
 	var grav: float = 13.0 if hard else 10.0
 	var last: float = sin(a.s32_work[3] * MLib.S16) * 10.0
-	a.s32_work[3] = (a.s32_work[3] + dir) & 0xFFFF
+	a.s32_work[3] = (a.s32_work[3] + roundi(dir * a.n)) & 0xFFFF
 	var now: float = grav * sin(a.s32_work[3] * MLib.S16)
-	a.pos_speed.y = a.gravity + (now - last)
+	a.pos_speed.y = a.gravity + (now - last) / maxf(a.n, 0.0001)
 
 
 ## Hover height over the unit centre, or over the water surface.
@@ -131,13 +132,13 @@ func _fly(a: BugActor, sense: BugActor.Sense) -> void:
 		if absf(wrapf(a.angle_y - away, -PI, PI)) < deg_to_rad(22.5):
 			_set_move_info(a)
 	else:
-		a.s32_work[2] -= 1
-		if a.s32_work[2] < 0:
+		_turn_left -= a.n
+		if _turn_left < 0.0:
 			_set_move_info(a)
-	a.angle_y = wrapf(a.angle_y + a.s32_work[1] * MLib.S16, -PI, PI)
+	a.angle_y = wrapf(a.angle_y + a.s32_work[1] * MLib.S16 * a.n, -PI, PI)
 	a.rot.y = a.angle_y
 
 
 func _avoid(a: BugActor, _sense: BugActor.Sense) -> void:
 	_fuwafuwa(a, true)
-	a.gravity += 0.1
+	a.gravity += 0.1 * a.n

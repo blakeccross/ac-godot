@@ -18,6 +18,9 @@ const VIB_SCARE := 150.0
 const MAX_PATIENCE := 90.0
 
 var _placed: bool = false
+## Ticks of the shuffle's pause (`s32_work0`) and of holding each side (`s32_work2`).
+var _pause_left: float = 0.0
+var _hold_left: float = 0.0
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -100,29 +103,27 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	if _check_patience(a, sense):
 		setup_action(a, AVOID)
 		return
-	## `aIKB_wait` leg-shuffle: chase ±4.2° a few times, hold 30f, pause 20-40f.
-	if a.s32_work[0] == 0:
+	## `aIKB_wait` leg-shuffle: chase ±4.2° a few times, hold 30 ticks, pause 20–40.
+	if _pause_left <= 0.0:
 		## `angle_table[timer1 & 1]`: +175.78125°, −175.78125°.
 		var target: float = (PI - SWAY) if (a.s32_work[1] & 1) == 0 else (-PI + SWAY)
-		a.rot.y = BugProgram.chase_angle(a.rot.y, target, 128 * MLib.S16)
-		if a.s32_work[2] == 0:
+		a.rot.y = BugProgram.chase_angle(a.rot.y, target, 128 * MLib.S16, a.n)
+		if _hold_left <= 0.0:
 			if a.s32_work[1] == 0:
-				a.s32_work[0] = int((10.0 + a._rng.randf() * 10.0) * 2.0)
+				_pause_left = (10.0 + a._rng.randf() * 10.0) * 2.0
 				a.s32_work[1] = 3 + a._rng.randi_range(0, 1)
 			else:
 				a.s32_work[1] -= 1
-			a.s32_work[2] = 30
+			_hold_left += 30.0
 		else:
-			a.s32_work[2] -= 1
+			_hold_left -= a.n
 	else:
-		a.s32_work[0] -= 1
+		_pause_left -= a.n
 
 
 func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
-	a.anime0 += 0.5
-	if a.anime0 >= 2.0:
-		a.anime0 -= 2.0
-	a.gravity = minf(a.gravity * 1.1, 12.0)
+	a.anime0 = fmod(a.anime0 + 0.5 * a.n, 2.0)
+	a.gravity = minf(a.gravity * pow(1.1, a.n), 12.0)
 	a.ongen = 0x25
 	## `aIKB_avoid`: ground / wall collision switches on once it has flown off its home unit.
 	if a.bg_type != 2 and BugProgram.unit_of(sense, a.home) != BugProgram.unit_of(sense, a.pos):

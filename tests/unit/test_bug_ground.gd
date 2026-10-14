@@ -34,7 +34,7 @@ func test_waiting_grasshopper_stays_on_the_ground() -> void:
 	var s := _sense(func(_p: Vector3) -> float: return 0.0)
 	var a := _hopper(Vector3(100.0, 0.0, 100.0))
 	for _i: int in 900:
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		assert_float(a.pos.y).is_greater_equal(-0.001)
 	assert_bool(a.bg_on_ground).is_true()
 
@@ -47,7 +47,7 @@ func test_hops_never_end_a_frame_under_a_slope() -> void:
 	var a := _hopper(Vector3(100.0, 0.0, 100.0))
 	var lowest: float = 0.0
 	for _i: int in 2000:
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		lowest = minf(lowest, a.pos.y - float(slope.call(a.pos)))
 	assert_float(lowest).is_greater_equal(-0.001)
 
@@ -56,7 +56,7 @@ func test_grounded_insect_follows_ground_down_a_gentle_slope() -> void:
 	## `old_on_ground && old_ground_y > ground_y`: a step no larger than the XZ move sticks.
 	var s := _sense(func(p: Vector3) -> float: return -p.x * 0.2)
 	var a := _hopper(Vector3(0.0, 0.0, 0.0))
-	a.frame(s)
+	a.advance(DecompTime.TICK_SEC, s)
 	assert_bool(a.bg_on_ground).is_true()
 	a.pos = Vector3(2.0, 0.0, 0.0)  ## moved 2 GX; ground now 0.4 lower
 	a.last_pos = Vector3(0.0, 0.0, 0.0)

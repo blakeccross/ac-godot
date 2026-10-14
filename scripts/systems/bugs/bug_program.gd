@@ -8,6 +8,11 @@ extends RefCounted
 ##
 ## Angles: decomp uses s16 (0..65535, wrapping). We keep radians; `MLib.S16` converts a
 ## decomp step (`0x800` etc.) to radians. Distances are GX unless noted.
+##
+## Time: a program runs once per step of `a.n` ticks (60ths of a second). Countdowns drop by
+## `a.n`, per-tick steps are multiplied by it (`chase_f(x, goal, step * a.n)`,
+## `chase_angle(…, a.n)`), per-tick odds go through `chance`, and `game_frame % k` cadences
+## through `beat`.
 
 
 ## `aINS_INSECT_TYPE_*` for readability inside the overlays.
@@ -301,6 +306,34 @@ static func heading_from_player_facing(a: BugActor, spread_rad: float) -> bool:
 
 # ---- shared math (libultra / m_lib analogs) --------------------------------
 
+## The odds that a roll made once a tick with chance `p` comes up at least once in this step.
+static func chance(a: BugActor, p: float) -> bool:
+	if p <= 0.0:
+		return false
+	return a._rng.randf() < 1.0 - pow(1.0 - minf(p, 1.0), a.n)
+
+
+## True when a tick in this step had `game_frame % period == phase` — what a per-tick
+## `if (game_frame % period == phase)` sees, however many ticks the step covers.
+static func beat(a: BugActor, period: int, phase: int = 0) -> bool:
+	var from: int = a.prev_game_frame
+	var to: int = a.game_frame
+	if to <= from:
+		return posmod(to, period) == phase
+	if to - from >= period:
+		return true
+	for f: int in range(from + 1, to + 1):
+		if posmod(f, period) == phase:
+			return true
+	return false
+
+
+## True when a countdown that read `before` and now reads `after` passed `at` (it showed
+## `at` on one of its ticks).
+static func passed(before: float, after: float, at: float) -> bool:
+	return before >= at - 0.0001 and after < at - 0.0001
+
+
 ## `chase_f`: move `cur` toward `target` by at most `step` (>= 0).
 static func chase_f(cur: float, target: float, step: float) -> float:
 	if cur < target:
@@ -312,9 +345,9 @@ static func chase_f(cur: float, target: float, step: float) -> float:
 
 ## `chase_angle`: radian analog of the s16 `chase_angle` — shortest-arc chase.
 ## `chase_angle` scales its step by `game_GameFrame_2F` (frame × 0.5): `step × 30` per second
-## whatever the frame rate, so half a step per 60 Hz frame.
-static func chase_angle(cur: float, target: float, step: float) -> float:
-	step /= DecompTime.TICKS_PER_FRAME
+## whatever the frame rate, so half a step a tick, over `ticks` ticks.
+static func chase_angle(cur: float, target: float, step: float, ticks: float = 1.0) -> float:
+	step = step / DecompTime.TICKS_PER_FRAME * ticks
 	var diff: float = wrapf(target - cur, -PI, PI)
 	if absf(diff) <= step:
 		return wrapf(target, -PI, PI)
@@ -322,10 +355,14 @@ static func chase_angle(cur: float, target: float, step: float) -> float:
 
 
 ## `add_calc`: move `cur` by `fraction` of the gap, clamped to `max_step`, at least
-## `min_step`, never past `target` (not frame-scaled).
-static func add_calc(cur: float, target: float, fraction: float, max_step: float, min_step: float = 0.0) -> float:
+## `min_step`, never past `target` (not frame-scaled) — over `ticks` ticks, the fraction
+## compounds and the step limits scale.
+static func add_calc(cur: float, target: float, fraction: float, max_step: float, min_step: float = 0.0, ticks: float = 1.0) -> float:
 	if cur == target:
 		return cur
+	fraction = 1.0 - pow(1.0 - clampf(fraction, 0.0, 1.0), ticks)
+	max_step *= ticks
+	min_step *= ticks
 	var step: float = fraction * (target - cur)
 	if step <= -min_step or min_step <= step:
 		step = clampf(step, -max_step, max_step)

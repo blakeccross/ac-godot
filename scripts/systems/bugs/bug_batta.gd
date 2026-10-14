@@ -172,17 +172,17 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 		setup_action(a, AVOID)
 		return
 	## Ease shape yaw toward the target heading:
-	## `add_calc_short_angle2(rot.y, angle.y, CALC_EASE(0.5), 0x2000, 0)` (not frame-scaled).
-	a.rot.y = MLib.short_angle2(a.rot.y, a.angle_y, MLib.HALF_FRACTION, 0x2000 * MLib.S16)
+	## `add_calc_short_angle2(rot.y, angle.y, CALC_EASE(0.5), 0x2000, 0)` a tick.
+	a.rot.y = MLib.short_angle2(
+		a.rot.y, a.angle_y, 1.0 - pow(1.0 - MLib.HALF_FRACTION, a.n), 0x2000 * MLib.S16 * a.n
+	)
 	if a.type >= T_CRICKET and _on_ground(a, sense) and a.patience < 20.0:
 		if a.type == T_BELL_CRICKET:
-			a.anime0 += 1.0
-			if a.anime0 >= 2.0:
-				a.anime0 -= 2.0
+			a.anime0 = fmod(a.anime0 + a.n, 2.0)
 		if not a.caught:
 			a.ongen = CRY_SE[a.type - T_CRICKET]
-	if a.timer > 0:
-		a.timer -= 1
+	if a.timer > 0.0:
+		a.timer -= a.n
 		return
 	## `play->game_frame % 200`: every hopper shares the play clock — locusts jump unless the
 	## timer runs out in the first 20 frames of a 200-frame window, crickets only then.
@@ -204,9 +204,7 @@ func _jump(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
-	a.anime0 += (1.0 if a.type == T_BELL_CRICKET else 0.3)
-	if a.anime0 >= 2.0:
-		a.anime0 -= 2.0
+	a.anime0 = fmod(a.anime0 + (1.0 if a.type == T_BELL_CRICKET else 0.3) * a.n, 2.0)
 	if _in_water(a, sense):
 		setup_action(a, DROWN)
 		return
@@ -215,8 +213,8 @@ func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 	_set_fly_se(a)
 	if not _on_ground(a, sense):
 		return
-	if a.timer > 0:
-		a.timer -= 1
+	if a.timer > 0.0:
+		a.timer -= a.n
 		a.speed = 0.0
 		return
 	a.timer = 8
@@ -237,17 +235,15 @@ func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 
 
 func _let_escape(a: BugActor, sense: BugActor.Sense) -> void:
-	a.anime0 += (1.0 if a.type == T_BELL_CRICKET else 0.3)
-	if a.anime0 >= 2.0:
-		a.anime0 -= 2.0
+	a.anime0 = fmod(a.anime0 + (1.0 if a.type == T_BELL_CRICKET else 0.3) * a.n, 2.0)
 	if _in_water(a, sense):
 		setup_action(a, DROWN)
 		return
 	if not _on_ground(a, sense):
 		_set_fly_se(a)
 		return
-	if a.timer > 0:
-		a.timer -= 1
+	if a.timer > 0.0:
+		a.timer -= a.n
 		a.speed = 0.0
 		return
 	a.timer = 8

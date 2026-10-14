@@ -201,7 +201,7 @@ func _landing(a: BugActor, sense: BugActor.Sense) -> void:
 	if a.type == T_COMMON_BUTTERFLY or a.type == T_YELLOW_BUTTERFLY:
 		a.bg_height -= 3.0
 	var ang: float = BugProgram.angle_to(a.pos, target)
-	a.rot.y = BugProgram.chase_angle(a.rot.y, ang, 0x1000 * MLib.S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, ang, 0x1000 * MLib.S16, a.n)
 	a.angle_y = a.rot.y
 	if is_zero_approx(a.target_speed) or (
 		absf(a.pos.x - target.x) < 2.0 and absf(a.pos.z - target.z) < 2.0
@@ -218,8 +218,8 @@ func _hover(a: BugActor, sense: BugActor.Sense) -> void:
 			next = AVOID
 		setup_action(a, next)
 		return
-	a.timer -= 1
-	if a.timer <= 0:
+	a.timer -= a.n
+	if a.timer <= 0.0:
 		var next: int = REST
 		if a.action == REST:
 			next = FLY
@@ -244,16 +244,14 @@ func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
 
 func _let_escape(a: BugActor, _sense: BugActor.Sense) -> void:
 	_chou_fuwafuwa(a)
-	a.gravity += 0.1
+	a.gravity += 0.1 * a.n
 	_anime(a)
 
 
 # ---- helpers ------------------------------------------------------
 
 func _anime(a: BugActor) -> void:
-	a.anime0 += 0.2
-	if a.anime0 >= 2.0:
-		a.anime0 -= 2.0
+	a.anime0 = fmod(a.anime0 + 0.2 * a.n, 2.0)
 
 
 ## `aICH_jump_ctrl`: under `ground − base` (water surface over water) kick up 2–3 GX/frame,
@@ -264,7 +262,7 @@ func _jump_ctrl(a: BugActor, sense: BugActor.Sense, base: float) -> void:
 		h = _ground_y_gx(a, sense)
 	if a.pos.y < h - base:
 		a.pos_speed.y = 2.0 + a._rng.randf()
-	a.pos_speed.y = BugProgram.chase_f(a.pos_speed.y, a.max_velocity_y, 0.5 * a.gravity)
+	a.pos_speed.y = BugProgram.chase_f(a.pos_speed.y, a.max_velocity_y, 0.5 * a.gravity * a.n)
 
 
 func _ground_y_gx(a: BugActor, sense: BugActor.Sense) -> float:
@@ -286,7 +284,7 @@ func _loop_move_ctrl(a: BugActor, sense: BugActor.Sense) -> void:
 	var sq: float = sqrt(x * x + z * z)
 	var ang: float = BugProgram.atans(-z, -x)
 	var step: float = (0x800 if sq < 15.0 else 0x400) * MLib.S16
-	a.rot.y = BugProgram.chase_angle(a.rot.y, ang, step)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, ang, step, a.n)
 	a.angle_y = a.rot.y
 	if x * CHK_X[idx] < 0.0 or z * CHK_Z[idx] < 0.0:
 		if a.flag == 0:
@@ -352,14 +350,16 @@ func _rest_check(a: BugActor, sense: BugActor.Sense) -> void:
 			if BugBg.is_pansy0(sense.layout, BugProgram.unit_of(sense, a.pos)):
 				setup_action(a, LANDING)
 	else:
-		a.f32_work[3] = maxf(a.f32_work[3] - 0.5, 0.0)
+		a.f32_work[3] = maxf(a.f32_work[3] - 0.5 * a.n, 0.0)
 
 
+## The flutter: a 10 GX sine on a phase that turns 0x800 a tick, its rise a tick added to the
+## climb.
 func _chou_fuwafuwa(a: BugActor) -> void:
 	var save_ang: float = 10.0 * sin(a.flag * MLib.S16)
-	a.flag += 0x800
+	a.flag = (a.flag + roundi(0x800 * a.n)) & 0xFFFF
 	var cur_ang: float = 10.0 * sin(a.flag * MLib.S16)
-	a.pos_speed.y = a.gravity + (cur_ang - save_ang)
+	a.pos_speed.y = a.gravity + (cur_ang - save_ang) / maxf(a.n, 0.0001)
 
 
 ## `aICH_BGcheck`: a front wall retargets the patrol unit (tiger / purple anywhere, the
@@ -369,7 +369,7 @@ func _bg_wall_check(a: BugActor, sense: BugActor.Sense) -> void:
 		var type: int = 0 if (a.type == T_TIGER_BUTTERFLY or a.type == T_PURPLE_BUTTERFLY) else 1
 		if _flower_search_sub(a, sense, type):
 			a.f32_work[2] = 10.0
-	a.f32_work[2] = maxf(a.f32_work[2] - 1.0, 0.0)
+	a.f32_work[2] = maxf(a.f32_work[2] - a.n, 0.0)
 
 
 ## `aICH_avoid_player`: straight away from the player, swinging ±22.5° every 32 frames.
@@ -378,7 +378,7 @@ func _avoid_player(a: BugActor) -> void:
 		return
 	var away: float = wrapf(a.player_angle_y + PI, -PI, PI)
 	away += (0x1000 * MLib.S16) * (1.0 if (a.game_frame >> 5) & 1 else -1.0)
-	a.rot.y = BugProgram.chase_angle(a.rot.y, away, 0x600 * MLib.S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, away, 0x600 * MLib.S16, a.n)
 	a.angle_y = a.rot.y
 
 
@@ -391,7 +391,7 @@ func _avoid_move_ctrl(a: BugActor, sense: BugActor.Sense) -> void:
 		return
 	var c: Vector2 = BugProgram.acre_center(a, sense)
 	var ang: float = BugProgram.atans(c.y - a.pos.z, c.x - a.pos.x)
-	a.rot.y = BugProgram.chase_angle(a.rot.y, ang, 0x600 * MLib.S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, ang, 0x600 * MLib.S16, a.n)
 	a.angle_y = a.rot.y
 
 

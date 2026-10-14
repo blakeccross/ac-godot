@@ -213,7 +213,7 @@ func _water_check(a: BugActor, sense: BugActor.Sense) -> bool:
 func _calc_direction(a: BugActor, sense: BugActor.Sense) -> void:
 	if BugProgram.wall_front(a, sense):
 		a.angle_y = wrapf(BugProgram.wall_normal(a) + PI * 0.5, -PI, PI)
-	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * MLib.S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * MLib.S16, a.n)
 
 
 ## `aIDG_check_patience`: off the rock only — stopped net, dig, axe hit within 70 GX.

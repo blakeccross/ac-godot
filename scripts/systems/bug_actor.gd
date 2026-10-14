@@ -9,13 +9,16 @@ extends RefCounted
 ## behaviour lives in a `BugProgram` (`scripts/systems/bugs/`) reached via
 ## `action_proc` each frame — this file never branches on `type`.
 ##
-## Internally everything is GX and 30 Hz frames, exactly like the decomp.
-## `position` (metres) is a view for the visual / net / spawn.
+## Internally positions are GX and speeds GX per 30 fps frame, like the decomp; `position`
+## (metres) is a view for the visual / net / spawn. Time advances by `delta`: each step sets
+## `n`, the 60ths of a second it covers, and the framework and programs scale every per-tick
+## change, countdown and chance by it (`BugProgram.chance`, `beat`, the `* a.n` chases).
+## Timers stay in ticks because every table that sets them is written in ticks.
 
 const GX_M := FieldCatalog.GX_TO_METERS
 
-## `aINS_setupActor`: life_time 216000 frames (2 game-hours), alpha0 255, bg_range 12.
-const LIFE_TIME_FRAMES := 216000
+## `aINS_setupActor`: life_time 216000 ticks (2 game-hours), alpha0 255, bg_range 12.
+const LIFE_TIME_FRAMES := 216000.0
 const BG_RANGE_DEFAULT := 12.0
 ## `mCoBG_GroundCheck`: river / pond units put the surface 20 GX over the bed.
 const WATER_DEPTH_GX := 20.0
@@ -38,9 +41,9 @@ const CATCH_ME_GX: Array[float] = [
 	0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 	0.0,
 ]
-## `aINS_calc_alpha_time`: fade begins under 24 frames, ±11 / frame.
-const ALPHA_FADE_START := 24
-const ALPHA_STEP := 11
+## `aINS_calc_alpha_time`: fade begins under 24 ticks, ±11 a tick.
+const ALPHA_FADE_START := 24.0
+const ALPHA_STEP := 11.0
 ## `aINS_cull_check`: >600 GX and in another acre → despawn.
 const CULL_DIST_GX := 600.0
 ## `aINS_position_move`: these types never chase Y toward `max_velocity_y`
@@ -128,19 +131,20 @@ var pos_speed: Vector3 = Vector3.ZERO
 
 # ---- shared scratch (struct fields the overlays reuse) ----------------
 var patience: float = 0.0
-var life_time: int = LIFE_TIME_FRAMES
-var alpha_time: int = 0
-var timer: int = 0
-var continue_timer: int = 0
+## Ticks (60ths of a second) left, as the decomp's countdowns.
+var life_time: float = LIFE_TIME_FRAMES
+var alpha_time: float = 0.0
+var timer: float = 0.0
+var continue_timer: float = 0.0
 var flag: int = 0
 var s32_work: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
 var f32_work: PackedFloat32Array = PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
 var anime0: float = 0.0  ## `_1E0`
 var anime1: float = 0.0  ## `_1E4`
 var light_flag: int = 0
-var alpha0: int = 255
-var alpha1: int = 255
-var alpha2: int = 0
+var alpha0: float = 255.0
+var alpha1: float = 255.0
+var alpha2: float = 0.0
 var ut_x: int = -1
 var ut_z: int = -1
 var bg_type: int = 0
@@ -161,8 +165,12 @@ var player_angle_y: float = 0.0
 ## Player position (GX) and `shape_info.rotation.y` (facing) for the escape headings.
 var player_pos: Vector3 = Vector3.INF
 var player_yaw: float = 0.0
-## The play clock (`play->game_frame`) as of this frame, for inits that read it.
+## The play clock (`play->game_frame`, ticks) as of this step and the one before, for the
+## cadences (`game_frame % n`) the programs key off (`BugProgram.beat`).
 var game_frame: int = 0
+var prev_game_frame: int = 0
+## Ticks this step covers (`delta · 60`).
+var n: float = 1.0
 ## Cached `mFI_BkNum2WposXZ(block) + half an acre` of the spawn acre (see `BugProgram.acre_center`).
 var acre_center_gx: Vector2 = Vector2.INF
 ## Released (`aINS_MAKE_EXIST`) inits read the player's facing; a net release is created
@@ -196,7 +204,6 @@ var move_proc: Callable = Callable()
 
 var _prog: BugProgram = null
 var _rng: RandomNumberGenerator = null
-var _steps := FrameStepper.new()
 
 
 # ---- construction -------------------------------------------------------
@@ -219,7 +226,7 @@ static func create(
 	a.released = p_released
 	## `aINS_setupActor` defaults.
 	a.life_time = LIFE_TIME_FRAMES
-	a.alpha0 = 255
+	a.alpha0 = 255.0
 	a.f_bit4 = true
 	a.bg_range = BG_RANGE_DEFAULT
 	a._prog = BugProgram.create(p_bug.program if p_bug != null else BugData.Program.CHOU)
@@ -322,25 +329,18 @@ func net_candidate(player_position_m: Vector3) -> NetSwing.Candidate:
 	return NetSwing.Candidate.new(self, position, range_gx)
 
 
-# ---- fixed tick stepper -------------------------------------------------
+# ---- the step -------------------------------------------------------------
 
-func tick(delta: float, sense: Sense) -> void:
-	## Standalone / test driver. `BugField` calls `frame()` directly once per tick.
+## A long hitch is not replayed: one step covers at most this much.
+const MAX_STEP := 8.0 / DecompTime.TICK_HZ
+
+
+## `aINS_actor_move` for one slot over `delta` seconds (already gated on exist + not-culled).
+## `BugField` supplies `sense.game_frame`; driven on its own, the clock is kept here.
+func advance(delta: float, sense: Sense) -> void:
 	if finished:
 		return
-	_steps.add(delta)
-	var budget: int = 8
-	while budget > 0 and _steps.next():
-		budget -= 1
-		frame(sense)
-		if finished:
-			return
-
-
-func frame(sense: Sense) -> void:
-	## `aINS_actor_move` body for one slot (already gated on exist + not-culled).
-	if finished:
-		return
+	n = clampf(delta, 0.0, MAX_STEP) * DecompTime.TICK_HZ
 	if _init_waits_for_player and sense != null and sense.has_player():
 		## First frame of a released insect: rerun `*_actor_init` with the player's facing
 		## available, as the decomp does at construction. Nothing has moved yet.
@@ -375,7 +375,9 @@ func xyz_move_last() -> void:
 func _set_player_info(sense: Sense) -> void:
 	if sense == null:
 		return
-	game_frame = sense.game_frame
+	if sense.game_frame != game_frame:
+		prev_game_frame = game_frame
+		game_frame = sense.game_frame
 	if not sense.has_player():
 		has_player_info = false
 		player_distance_xz = 0.0
@@ -436,13 +438,13 @@ func _bg_check(sense: Sense) -> void:
 
 func _position_move() -> void:
 	last_pos = pos
-	speed = BugProgram.chase_f(speed, target_speed, speed_step * 0.5)
+	speed = BugProgram.chase_f(speed, target_speed, speed_step * 0.5 * n)
 	pos_speed.x = speed * sin(angle_y)
 	pos_speed.z = speed * cos(angle_y)
 	if not (type in LEVEL_Y_TYPES):
-		pos_speed.y = BugProgram.chase_f(pos_speed.y, max_velocity_y, gravity * 0.5)
-	## `Actor_position_move`: half the position speed per 60 Hz frame ("30fps -> 60fps").
-	pos += pos_speed * 0.5
+		pos_speed.y = BugProgram.chase_f(pos_speed.y, max_velocity_y, gravity * 0.5 * n)
+	## `Actor_position_move`: half the position speed a tick ("30fps -> 60fps").
+	pos += pos_speed * 0.5 * n
 
 
 # ---- aINS_calc_patience / stress -------------------------------------
@@ -481,13 +483,14 @@ func _stress_from(at_gx: Vector3, move_gx: float) -> float:
 var _last_player_gx: Vector3 = Vector3.INF
 
 
+## How far the player moved a tick, from what it moved over this step.
 func _player_frame_move_gx(sense: Sense) -> float:
 	var observed: float = 0.0
 	if _last_player_gx != Vector3.INF:
 		observed = Vector2(
 			sense.player_position.x / GX_M - _last_player_gx.x,
 			sense.player_position.z / GX_M - _last_player_gx.z
-		).length()
+		).length() / maxf(n, 0.0001)
 	if observed <= 0.0 and sense.player_move_gx > 0.0:
 		observed = sense.player_move_gx / DecompTime.TICKS_PER_FRAME
 	return observed
@@ -496,36 +499,39 @@ func _player_frame_move_gx(sense: Sense) -> float:
 func _calc_patience(sense: Sense) -> void:
 	var stress: float = _calc_stress(sense)
 	if is_zero_approx(stress):
-		patience = maxf(patience - PATIENCE_STEP, 0.0)
+		patience = maxf(patience - PATIENCE_STEP * n, 0.0)
 	else:
-		patience = minf(patience + stress * PATIENCE_STEP, PATIENCE_MAX)
+		patience = minf(patience + stress * PATIENCE_STEP * n, PATIENCE_MAX)
 	if sense.has_player():
 		_last_player_gx = sense.player_position / GX_M
 
 
 func _calc_life_time() -> void:
-	if life_time > 0:
-		life_time -= 1
-		if life_time <= 0:
-			life_time = 0
+	if life_time > 0.0:
+		life_time -= n
+		if life_time <= 0.0001:
+			life_time = 0.0
 			f_scared = true
 
 
 func _calc_alpha_time() -> void:
-	if life_time != 0 or alpha_time <= 0:
+	if life_time != 0.0 or alpha_time <= 0.0:
 		return
-	alpha_time -= 1
-	if alpha_time >= ALPHA_FADE_START:
+	var was: float = alpha_time
+	alpha_time -= n
+	## Fades by `ALPHA_STEP` for each tick under `ALPHA_FADE_START`.
+	var fading: float = clampf(ALPHA_FADE_START - alpha_time, 0.0, minf(n, was - alpha_time))
+	if fading <= 0.0:
 		return
 	if type == 27:  ## firefly fades its glow (alpha2) up
-		alpha2 = mini(alpha2 + ALPHA_STEP, 255)
-		if alpha2 >= 255:
-			alpha0 = 0
-			alpha1 = 0
+		alpha2 = minf(alpha2 + ALPHA_STEP * fading, 255.0)
+		if alpha2 >= 255.0:
+			alpha0 = 0.0
+			alpha1 = 0.0
 			f_destruct = true
 	else:
-		alpha0 = maxi(alpha0 - ALPHA_STEP, 0)
-		if alpha0 <= 0:
+		alpha0 = maxf(alpha0 - ALPHA_STEP * fading, 0.0)
+		if alpha0 <= 0.0:
 			f_destruct = true
 	if f_destruct:
 		finished = true

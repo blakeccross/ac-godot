@@ -24,6 +24,10 @@ const REF_ANGL := [
 ]
 
 
+## Ticks the walk pauses after bumping its square's edge (`s32_work2`).
+var _turn_delay: float = 0.0
+
+
 func actor_init(a: BugActor, released: bool) -> void:
 	a.bg_type = 2
 	match a.type:
@@ -100,7 +104,7 @@ func _avoid_maimai_init(a: BugActor) -> void:
 
 func _move_init(a: BugActor) -> void:
 	a.timer = int((90.0 + float(a.game_frame % 60)) * 2.0)
-	a.s32_work[2] = 0                ## turn delay
+	_turn_delay = 0.0
 	a.target_speed = 0.4
 	a.speed_step = 0.1
 	if a.type == T_SNAIL:
@@ -126,19 +130,19 @@ func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
 func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	if _check_patience(a, sense):
 		return
-	if a.timer <= 0:
+	if a.timer <= 0.0:
 		setup_action(a, MOVE)
 	else:
-		a.timer -= 1
+		a.timer -= a.n
 
 
 func _move(a: BugActor, sense: BugActor.Sense) -> void:
 	if _check_patience(a, sense):
 		return
-	if a.timer <= 0:
+	if a.timer <= 0.0:
 		setup_action(a, WAIT)
 		return
-	a.timer -= 1
+	a.timer -= a.n
 	var dx: float = a.pos.x - a.home.x
 	var dz: float = a.pos.z - a.home.z
 	var collision: int = 0
@@ -159,25 +163,23 @@ func _move(a: BugActor, sense: BugActor.Sense) -> void:
 	a.pos.y = BugProgram.center_y(sense, a.pos, a.home.y - FLOWER_Y) + FLOWER_Y
 	if collision != 0:
 		a.s32_work[1] = int(REF_ANGL[collision] / MLib.S16)
-		a.s32_work[2] = 10
+		_turn_delay = 10.0
 		a.speed_step = 0.0
 		a.speed = 0.0
 	elif BugProgram.angle_reached(a.angle_y, a.s32_work[1] * MLib.S16):
 		a.s32_work[1] = int(a.angle_y / MLib.S16) + int(a._rng.randf_range(-1.0, 1.0) * deg_to_rad(90.0) / MLib.S16)
 	var step: float = (0x180 if a.type == T_SNAIL else 0x600) * MLib.S16
-	a.angle_y = BugProgram.chase_angle(a.angle_y, a.s32_work[1] * MLib.S16, step)
+	a.angle_y = BugProgram.chase_angle(a.angle_y, a.s32_work[1] * MLib.S16, step, a.n)
 	a.rot.y = a.angle_y
-	if a.s32_work[2] == 0:
+	if _turn_delay <= 0.0:
 		a.speed_step = 0.1
 	else:
-		a.s32_work[2] -= 1
+		_turn_delay -= a.n
 
 
 func _avoid(a: BugActor, _sense: BugActor.Sense) -> void:
-	a.anime0 += 0.5
-	if a.anime0 >= 2.0:
-		a.anime0 -= 2.0
-	a.gravity = minf(a.gravity * 1.1, 12.0)
+	a.anime0 = fmod(a.anime0 + 0.5 * a.n, 2.0)
+	a.gravity = minf(a.gravity * pow(1.1, a.n), 12.0)
 	if a.type == T_LADYBUG or a.type == T_SPOTTED_LADYBUG or a.type == T_MANTIS:
 		a.ongen = 0x26
 
@@ -187,7 +189,7 @@ func _avoid_maimai(a: BugActor, sense: BugActor.Sense) -> void:
 	## the wall's facing); the shape follows at 0x800.
 	if BugProgram.wall_front(a, sense):
 		a.angle_y = wrapf(PI * 0.5 + BugProgram.wall_normal(a), -PI, PI)
-	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * MLib.S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, a.angle_y, 0x800 * MLib.S16, a.n)
 
 
 ## `aITT_check_patience`: the snail only leaves when its unit has no flower; the others

@@ -29,6 +29,9 @@ const SCOOP_SCARE := 30.0
 const VIB_SCARE := 150.0
 
 var _placed: bool = false
+## Ticks left of a run on the flower (`s32_work2`) and of a sway on the trunk.
+var _run_left: float = 0.0
+var _sway_left: float = 0.0
 
 
 func actor_init(a: BugActor, released: bool) -> void:
@@ -108,8 +111,8 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.target_speed = 0.0
 		MOVE_ON_FLOWER:
 			a.action_proc = _move_on_flower
-			if a.s32_work[2] == 0:
-				a.s32_work[2] = int(2.0 * (90.0 + a._rng.randf() * 210.0))
+			if _run_left <= 0.0:
+				_run_left = 2.0 * (90.0 + a._rng.randf() * 210.0)
 			a.target_speed = 0.4
 			a.speed_step = 0.1
 		WAIT_ON_TREE, WAIT_ON_ITEM:
@@ -119,7 +122,7 @@ func setup_action(a: BugActor, action: int) -> void:
 			a.action_proc = _move_on_tree
 			a.s32_work[0] = int(deg_to_rad(175.78125) / MLib.S16)
 			a.s32_work[1] = 3 + a._rng.randi_range(0, 1)
-			a.s32_work[2] = 30
+			_sway_left = 30.0
 
 
 func actor_move(a: BugActor, sense: BugActor.Sense) -> void:
@@ -140,11 +143,11 @@ func _wait_on_flower(a: BugActor, sense: BugActor.Sense) -> void:
 	if _check_patience(a, sense):
 		setup_action(a, AVOID)
 		return
-	a.timer -= 1
-	if a.timer <= 0:
+	a.timer -= a.n
+	if a.timer <= 0.0:
 		setup_action(a, MOVE_ON_FLOWER)
 	else:
-		a.angle_y = BugProgram.chase_angle(a.angle_y, a.s32_work[0] * MLib.S16, deg_to_rad(8.4375))
+		a.angle_y = BugProgram.chase_angle(a.angle_y, a.s32_work[0] * MLib.S16, deg_to_rad(8.4375), a.n)
 		a.rot.y = a.angle_y
 
 
@@ -152,8 +155,9 @@ func _move_on_flower(a: BugActor, sense: BugActor.Sense) -> void:
 	if _check_patience(a, sense):
 		setup_action(a, AVOID)
 		return
-	a.s32_work[2] -= 1
-	if a.s32_work[2] <= 0:
+	_run_left -= a.n
+	if _run_left <= 0.0:
+		_run_left = 0.0
 		a.ongen = 0xA8  ## `NA_SE_GOKI_MOVE`
 		a.timer = int(2.0 * (90.0 + a._rng.randf() * 90.0))
 		setup_action(a, WAIT_ON_FLOWER)
@@ -172,7 +176,7 @@ func _move_on_flower(a: BugActor, sense: BugActor.Sense) -> void:
 		a.timer = 10
 		setup_action(a, WAIT_ON_FLOWER)
 	else:
-		a.angle_y = BugProgram.chase_angle(a.angle_y, a.s32_work[0] * MLib.S16, deg_to_rad(8.4375))
+		a.angle_y = BugProgram.chase_angle(a.angle_y, a.s32_work[0] * MLib.S16, deg_to_rad(8.4375), a.n)
 		if BugProgram.angle_reached(a.angle_y, a.s32_work[0] * MLib.S16):
 			a.s32_work[0] = int((a.angle_y + a._rng.randf_range(-1.0, 1.0) * deg_to_rad(90.0)) / MLib.S16)
 		a.rot.y = a.angle_y
@@ -182,8 +186,8 @@ func _wait_on_tree(a: BugActor, sense: BugActor.Sense) -> void:
 	if _check_patience(a, sense):
 		setup_action(a, AVOID)
 		return
-	a.timer -= 1
-	if a.timer <= 0:
+	a.timer -= a.n
+	if a.timer <= 0.0:
 		setup_action(a, a.action + 1)
 
 
@@ -191,22 +195,20 @@ func _move_on_tree(a: BugActor, sense: BugActor.Sense) -> void:
 	if _check_patience(a, sense):
 		setup_action(a, AVOID)
 		return
-	a.rot.y = BugProgram.chase_angle(a.rot.y, a.s32_work[0] * MLib.S16, 128 * MLib.S16)
-	a.s32_work[2] -= 1
-	if a.s32_work[2] <= 0:
+	a.rot.y = BugProgram.chase_angle(a.rot.y, a.s32_work[0] * MLib.S16, 128 * MLib.S16, a.n)
+	_sway_left -= a.n
+	if _sway_left <= 0.0:
 		a.s32_work[1] -= 1
 		if a.s32_work[1] <= 0:
 			setup_action(a, a.action - 1)
 		else:
 			a.s32_work[0] = -a.s32_work[0]
-			a.s32_work[2] = 30
+			_sway_left += 30.0
 
 
 func _avoid(a: BugActor, sense: BugActor.Sense) -> void:
-	a.anime0 += 0.5
-	if a.anime0 >= 2.0:
-		a.anime0 -= 2.0
-	a.gravity = minf(a.gravity * 1.1, 12.0)
+	a.anime0 = fmod(a.anime0 + 0.5 * a.n, 2.0)
+	a.gravity = minf(a.gravity * pow(1.1, a.n), 12.0)
 	a.ongen = 0x26
 	## `aIGK_avoid`: ground / wall collision switches on once it has flown off its home unit.
 	if a.bg_type == 0 and BugProgram.unit_of(sense, a.home) != BugProgram.unit_of(sense, a.pos):

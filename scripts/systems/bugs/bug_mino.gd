@@ -58,8 +58,8 @@ func on_release(a: BugActor) -> void:
 
 func _position_move(a: BugActor) -> void:
 	a.last_pos = a.pos
-	a.speed = BugProgram.chase_f(a.speed, a.target_speed, a.speed_step * 0.5)
-	a.f32_work[0] += a.speed * 0.5           ## counter (along the thread, `world.angle.x`)
+	a.speed = BugProgram.chase_f(a.speed, a.target_speed, a.speed_step * 0.5 * a.n)
+	a.f32_work[0] += a.speed * 0.5 * a.n     ## counter (along the thread, `world.angle.x`)
 	a.pos.y = a.home.y + cos(THREAD_PITCH) * a.f32_work[0]
 	a.pos.z = a.f32_work[3] - sin(THREAD_PITCH) * a.f32_work[0]
 
@@ -247,12 +247,12 @@ func _wait(a: BugActor, sense: BugActor.Sense) -> void:
 	if _shaken(a, sense):
 		a.s32_work[0] = 0x80
 		a.s32_work[3] = -0x80
-	a.timer -= 1
-	if a.timer <= 0:
+	a.timer -= a.n
+	if a.timer <= 0.0:
 		if a.s32_work[3] == 0:
 			setup_action(a, DISAPPEAR)
 		else:
-			a.timer = 0
+			a.timer = 0.0
 	_shake_angle(a)
 	_twist(a)
 
@@ -291,12 +291,12 @@ func _let_escape(a: BugActor, sense: BugActor.Sense) -> void:
 # ---- helpers --------------------------------------------------
 
 func _twist(a: BugActor) -> void:
-	a.continue_timer += 0x100
+	a.continue_timer = fmod(a.continue_timer + 0x100 * a.n, 65536.0)
 	a.rot.z = sin(a.continue_timer * MLib.S16) * deg_to_rad(22.5)
 
 
 ## `aIMN_calc_shake_angl`: a damped pendulum hanging 50 GX under its pivot. The s16
-## yaw gains half the swing speed each frame; each time it crosses due south the target
+## yaw gains half the swing speed each tick; each time it crosses due south the target
 ## swing flips and halves, and under 16 it snaps still facing south. The body rides the
 ## arm: x = pivot − 50·sin(yaw), y = pivot + 50 + 50·cos(yaw).
 func _shake_angle(a: BugActor) -> void:
@@ -310,9 +310,9 @@ func _shake_angle(a: BugActor) -> void:
 			cur = 0
 			ang = -0x8000
 		a.s32_work[3] = tgt
-	cur = roundi(BugProgram.chase_angle(cur * MLib.S16, tgt * MLib.S16, 16 * MLib.S16) / MLib.S16)
+	cur = roundi(BugProgram.chase_angle(cur * MLib.S16, tgt * MLib.S16, 16 * MLib.S16, a.n) / MLib.S16)
 	a.s32_work[0] = cur
-	ang = _s16(ang + int(cur * 0.5))
+	ang = _s16(ang + roundi(cur * 0.5 * a.n))
 	a.rot.y = ang * MLib.S16
 	a.pos.x = a.f32_work[1] - SHAKE_ARM * sin(a.rot.y)
 	a.pos.y = a.f32_work[2] + SHAKE_ARM + SHAKE_ARM * cos(a.rot.y)
@@ -329,7 +329,7 @@ func _calc_direction(a: BugActor, sense: BugActor.Sense) -> void:
 	if sense != null and sense.grid != null and BugBg.wall_front(sense.grid, sense.layout, a.pos, probe_yaw, maxf(a.bg_range, 1.0)):
 		a.angle_y = wrapf(BugProgram.wall_normal(a) + PI * 0.5, -PI, PI)
 	var target: float = a.angle_y if a.type == T_BAGWORM else a.angle_y + PI
-	a.rot.y = BugProgram.chase_angle(a.rot.y, target, 0x800 * MLib.S16)
+	a.rot.y = BugProgram.chase_angle(a.rot.y, target, 0x800 * MLib.S16, a.n)
 
 
 ## `aIMN_check_cut_tree`: the home unit holds no tree any more, or a stump.

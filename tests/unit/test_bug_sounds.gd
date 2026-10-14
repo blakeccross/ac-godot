@@ -23,7 +23,7 @@ func _make(id: StringName, hab: BugData.Habitat, at: Vector3, released: bool = f
 func _heard(a: BugActor, frames: int, s: BugActor.Sense) -> Array[int]:
 	var out: Array[int] = []
 	for _i: int in frames:
-		a.frame(s)
+		a.advance(DecompTime.TICK_SEC, s)
 		if a.ongen >= 0 and not out.has(a.ongen):
 			out.append(a.ongen)
 		if a.finished:
@@ -49,7 +49,7 @@ func test_cicadas_hush_in_the_rain() -> void:
 func test_a_startled_cicada_shrieks_once() -> void:
 	var a := _make(&"robust_cicada", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
 	a.patience = 100.0
-	a.frame(BugActor.Sense.new())
+	a.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
 	assert_int(a.action).is_equal(BugSemi.AVOID)
 	assert_array(a.trg_se).contains_exactly([&"semi_escape"])
 
@@ -58,14 +58,14 @@ func test_bees_buzz_only_as_they_fly_off() -> void:
 	var a := _make(&"bee", BugData.Habitat.TREE, Vector3(9.0, 2.0, 13.0))
 	assert_array(_heard(a, 60, BugActor.Sense.new())).is_empty()
 	a.patience = 100.0
-	a.frame(BugActor.Sense.new())
+	a.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
 	assert_array(a.trg_se).is_empty()
 	assert_array(_heard(a, 5, BugActor.Sense.new())).contains_exactly([0x26])
 
 
 func test_a_mosquito_whines_until_it_bites() -> void:
 	var a := _make(&"mosquito", BugData.Habitat.FLYING, Vector3(4.0, 1.5, 4.0))
-	a.frame(BugActor.Sense.new())
+	a.advance(DecompTime.TICK_SEC, BugActor.Sense.new())
 	assert_int(a.ongen).is_equal(0xCF)
 	BugKa.new().setup_action(a, BugKa.ATTACK)
 	assert_array(a.trg_se).contains_exactly([&"6a"])
@@ -93,7 +93,7 @@ func test_a_field_keeps_the_splash_of_an_insect_it_drops() -> void:
 	var a := _make(&"grasshopper", BugData.Habitat.GROUND, Vector3(8.0, 0.0, 8.0))
 	BugBatta.new().setup_action(a, BugBatta.DROWN)
 	field.actors.append(a)
-	field._frame(BugActor.Sense.new())
+	field._step(DecompTime.TICK_SEC, BugActor.Sense.new())
 	assert_array(field.actors).is_empty()
 	assert_int(field.gone_se.size()).is_equal(1)
 	assert_str(String(field.gone_se[0][0])).is_equal("438")

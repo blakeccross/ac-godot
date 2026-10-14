@@ -2,9 +2,9 @@ class_name BugField
 extends RefCounted
 
 ## Live insects on the field — the `aINS_CTRL_ACTOR` analog with `aINS_ACTOR_NUM` (9)
-## slots. Owned by the world scene, not an autoload. Drives the shared 30 Hz frame
-## loop (`aINS_actor_move`) for every slot, then culls and runs one spawn attempt
-## per acre crossing (`aSOI_insect_set`, run by the set manager on a wade).
+## slots. Owned by the world scene, not an autoload. Advances every slot by `delta`
+## (`aINS_actor_move`), then culls and runs one spawn attempt per acre crossing
+## (`aSOI_insect_set`, run by the set manager on a wade).
 
 ## `aINS_ACTOR_NUM`
 const MAX_ACTORS := 9
@@ -37,27 +37,29 @@ var _grid: WorldGrid = null
 var _layout: WorldData = null
 var _tool_swing: float = 0.0
 ## `mPlib_Check_StopNet`: the net's position on the tick the player enters `STOP_NET` or
-## `PULL_NET`. Seen by exactly one insect frame, then cleared.
+## `PULL_NET`. Seen by exactly one insect step, then cleared.
 var _stop_net_pending: bool = false
 var _stop_net_pos: Vector3 = Vector3.ZERO
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _spawned_acre: Vector2i = Vector2i(-999, -999)
-var _steps := FrameStepper.new()
-var _game_frame: int = 0
+## `play->game_frame`: ticks since the field loaded, as a running clock.
+var _game_clock: float = 0.0
 var _field_action: Dictionary = {"kind": 0, "cell": Vector2i(-1, -1)}
 var _keep_pool: Array[BugSpawnEntry] = []
-## Set manager: the acre the current wade lands in and the frames left before its set runs
-## (−1 = idle); `_was_wading` catches the wade's first tick (`mFI_WADE_START`).
+## Set manager: the acre the current wade lands in and the seconds left before its set runs
+## (< 0 = idle); `_was_wading` catches the wade's first step (`mFI_WADE_START`).
 var _set_acre: Vector2i = Vector2i(-999, -999)
-var _set_wait: int = -1
+var _set_wait: float = -1.0
 var _was_wading: bool = false
 var _play_block: Vector2i = Vector2i(-999, -999)
 var _keep_month: int = -1
 var _keep_term: int = -1
 
 const TOOL_SWING_SECONDS := 0.25
-## `aSetMgr_WAIT_TIME`: frames between the wade starting and the set overlay running.
-const SET_WAIT_FRAMES := 5
+## `aSetMgr_WAIT_TIME`: 5 ticks between the wade starting and the set overlay running.
+const SET_WAIT := 5.0 / DecompTime.TICK_HZ
+## A long hitch is not replayed (`BugActor.MAX_STEP`).
+const MAX_STEP := BugActor.MAX_STEP
 
 
 var _bite_pending: bool = false
@@ -67,9 +69,8 @@ func configure(grid: WorldGrid, layout: WorldData) -> void:
 	_layout = layout
 	actors.clear()
 	_spawned_acre = Vector2i(-999, -999)
-	_set_wait = -1
+	_set_wait = -1.0
 	_was_wading = false
-	_steps.reset()
 
 
 func seed_rng(value: int) -> void:
@@ -138,7 +139,7 @@ func tick(delta: float, sense: BugActor.Sense) -> void:
 	var wading: bool = sense.wade_end != Vector3.INF
 	if wading and not _was_wading and _grid != null:
 		_set_acre = BugHabitats.acre_of_world_pos(_grid, sense.wade_end)
-		_set_wait = SET_WAIT_FRAMES
+		_set_wait = SET_WAIT
 	_was_wading = wading
 	## `play->block_table`: switched to the wade's landing acre as the wade starts
 	## (`mFI_SetBearActor`), else the acre the player stands in.
@@ -148,29 +149,28 @@ func tick(delta: float, sense: BugActor.Sense) -> void:
 		elif sense.has_player():
 			_play_block = BugHabitats.acre_of_world_pos(_grid, sense.player_position)
 
-	_steps.add(delta)
-	var budget: int = 8
-	while budget > 0 and _steps.next():
-		budget -= 1
-		## `aSetMgr_move_check_wait` → `aSetMgr_move_set`: `aSOI_insect_set` for that acre.
-		if _set_wait > 0:
-			_set_wait -= 1
-			if _set_wait == 0:
-				_set_wait = -1
-				_tick_spawn(_set_acre)
-		_frame(sense)
+	var step: float = clampf(delta, 0.0, MAX_STEP)
+	if step <= 0.0:
+		return
+	## `aSetMgr_move_check_wait` → `aSetMgr_move_set`: `aSOI_insect_set` for that acre.
+	if _set_wait >= 0.0:
+		_set_wait -= step
+		if _set_wait <= 0.0001:
+			_set_wait = -1.0
+			_tick_spawn(_set_acre)
+	_step(step, sense)
 
 
-func _frame(sense: BugActor.Sense) -> void:
-	_game_frame += 1
-	sense.game_frame = _game_frame
+func _step(delta: float, sense: BugActor.Sense) -> void:
+	_game_clock += delta * DecompTime.TICK_HZ
+	sense.game_frame = int(_game_clock + 0.0001)
 	sense.raining = Weather.is_raining()
 	sense.net_swing_active = _stop_net_pending
 	sense.net_swing_origin = _stop_net_pos if _stop_net_pending else Vector3.INF
 	_stop_net_pending = false
 	for actor: BugActor in actors:
 		if not actor.finished:
-			actor.frame(sense)
+			actor.advance(delta, sense)
 			if actor.flag == BugKa.BIT:
 				actor.flag = 0
 				_bite_pending = true
@@ -180,7 +180,7 @@ func _frame(sense: BugActor.Sense) -> void:
 		if not actor.finished:
 			kept.append(actor)
 		elif not actor.trg_se.is_empty():
-			## A drowning insect leaves this frame; its splash still has to sound.
+			## A drowning insect leaves this step; its splash still has to sound.
 			for id: StringName in actor.trg_se:
 				gone_se.append([id, actor.position])
 	actors = kept
