@@ -213,11 +213,11 @@ func swap_player_order(a: int, b: int) -> void:
 	player_order[b & 7] = t
 	var game: Node = Engine.get_main_loop().root.get_node_or_null("Game") if Engine.get_main_loop() is SceneTree else null
 	if game != null and game.get("designs") == self:
-		var worn: int = int(game.get("worn_design_slot"))
-		if worn == (a & 7):
-			game.set("worn_design_slot", b & 7)
-		elif worn == (b & 7):
-			game.set("worn_design_slot", a & 7)
+		var resident: PlayerState = game.get("resident")
+		if resident.worn_design_slot == (a & 7):
+			resident.worn_design_slot = b & 7
+		elif resident.worn_design_slot == (b & 7):
+			resident.worn_design_slot = a & 7
 	changed.emit()
 
 

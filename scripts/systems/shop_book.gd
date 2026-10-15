@@ -165,7 +165,7 @@ static func can_sell(item: ItemData) -> bool:
 
 
 static func town_fruit() -> StringName:
-	if Game != null and "town_fruit" in Game:
+	if Game != null and Game.town != null:
 		return Game.town.town_fruit
 	return &"apple"
 
