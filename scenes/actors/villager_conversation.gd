@@ -202,7 +202,7 @@ func _on_talk_closed() -> void:
 			ui.event_fired.disconnect(_on_talk_event)
 	_end_manpu()
 	## `aNPC_think_pitfall_main_proc`: a talk in the pit ends with `aNPC_ACT_REVIVE`.
-	if _villager._pit == _villager.Pit.STRUGGLE:
+	if _villager._pit == Villager.Pit.STRUGGLE:
 		_villager._begin_revive()
 	## `Common_Set(npc_chg_cloth, …)`: a shirt handed over in the talk goes on.
 	if _villager.state != null and _villager._cloth_key() != _villager._drawn_cloth:
