@@ -70,8 +70,8 @@ func _ask_for_face() -> void:
 	if _asked:
 		return
 	_asked = true
-	var kind: int = BlancaTalk.Kind.ASK_AGAIN if Game.met_blanca else BlancaTalk.Kind.ASK
-	Game.met_blanca = true
+	var kind: int = BlancaTalk.Kind.ASK_AGAIN if Game.resident.met_blanca else BlancaTalk.Kind.ASK
+	Game.resident.met_blanca = true
 	if not begin_talk(player_node(), BlancaTalk.new(kind, rng())):
 		done.emit()
 
@@ -100,7 +100,7 @@ func _open_editor() -> void:
 		return
 	editor.open_pattern(face, func(_saved: bool) -> void:
 		if MaskCat.is_drawn(face):
-			MaskCat.store(face, Game.player_name, EventDates.ordinal(Clock.year, Clock.month, Clock.day))
+			MaskCat.store(face, Game.resident.player_name, EventDates.ordinal(Clock.year, Clock.month, Clock.day))
 			show_face(face)
 			begin_talk(player_node(), BlancaTalk.new(BlancaTalk.Kind.THANKS, rng()))
 		else:

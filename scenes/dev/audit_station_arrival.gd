@@ -40,11 +40,11 @@ func _run() -> void:
 	Game.reset_session()
 	Clock.apply_snapshot({"year": 2001, "month": 7, "day": 15, "hour": 12, "minute": 0, "second": 0})
 	Clock.paused = false
-	Game.world_mode = WorldData.Mode.GENERATED
-	Game.world_seed = int(_args.get("seed", "12345"))
-	Game.grass_pattern = WorldGenerator.decide_grass_pattern(Game.world_seed)
-	Game.player_name = "Audit"
-	Game.town_name = "Testville"
+	Game.town.world_mode = WorldData.Mode.GENERATED
+	Game.town.world_seed = int(_args.get("seed", "12345"))
+	Game.town.grass_pattern = WorldGenerator.decide_grass_pattern(Game.town.world_seed)
+	Game.resident.player_name = "Audit"
+	Game.town.town_name = "Testville"
 	Game.intro_station_active = true
 	Game._grant_intro_start_items()
 	Game._set_phase(Game.Phase.INTRO)

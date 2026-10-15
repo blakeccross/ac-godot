@@ -171,7 +171,7 @@ static func is_precip(kind: Kind) -> bool:
 
 
 static func is_raining(name: StringName = &"") -> bool:
-	var key: StringName = name if name != &"" else Game.weather
+	var key: StringName = name if name != &"" else Game.town.weather
 	return key == &"rain"
 
 

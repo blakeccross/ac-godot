@@ -24,11 +24,11 @@ static func persist_id(slot: int) -> StringName:
 ## `snowman_start`: two balls, unless a snowman went up today (`SNOWMAN0/3/6` still at age 0)
 ## or since the last 6 AM (`mEv_snowman_born_check`).
 static func should_place_balls(now_minute: int) -> bool:
-	for e: Variant in Game.snowmen:
+	for e: Variant in Game.town.snowmen:
 		var d: Dictionary = e
 		if not d.is_empty() and int(d.get("age", 0)) == 0:
 			return false
-	return SnowmanRules.balls_allowed(Game.snowman_built_minute, now_minute)
+	return SnowmanRules.balls_allowed(Game.town.snowman_built_minute, now_minute)
 
 
 static func spawn_balls(mgr: EventManager) -> Array[Node3D]:
@@ -36,7 +36,7 @@ static func spawn_balls(mgr: EventManager) -> Array[Node3D]:
 	if mgr == null or mgr.world == null or not should_place_balls(Clock.absolute_minute()):
 		return out
 	for p: int in [SnowmanRules.PART_BODY, SnowmanRules.PART_HEAD]:
-		var state: Dictionary = Game.snowballs.get(p, {})
+		var state: Dictionary = Game.town.snowballs.get(p, {})
 		var cell := Vector2i(-1, -1)
 		if not state.is_empty():
 			var c: Array = state.get("cell", [])
@@ -47,7 +47,7 @@ static func spawn_balls(mgr: EventManager) -> Array[Node3D]:
 			if cell.x < 0:
 				continue
 			state = {"cell": [cell.x, cell.y], "dist": 0.0}
-			Game.snowballs[p] = state
+			Game.town.snowballs[p] = state
 		var ball: Node3D = spawn_ball(mgr.world, p, cell, float(state.get("dist", 0.0)))
 		if ball != null:
 			out.append(ball)
@@ -72,7 +72,7 @@ static func spawn_ball(world: Node, part: int, cell: Vector2i, dist: float) -> N
 
 ## A ball broke, sank or went into a snowman: a fresh one is placed next time.
 static func ball_gone(part: int) -> void:
-	Game.snowballs.erase(part)
+	Game.town.snowballs.erase(part)
 
 
 ## `aSMAN_snowman_hit_check`: body and head, both past a fifth of full size, at least one
@@ -120,7 +120,7 @@ static func try_combine(a: Node3D, b: Node3D) -> bool:
 	rng.randomize()
 	if res == SnowmanRules.Result.PERFECT:
 		send_present(rng)
-	Game.snowman_built_minute = Clock.absolute_minute()
+	Game.town.snowman_built_minute = Clock.absolute_minute()
 	Game.quests.note_snowman(body_cell / 16, Game.residents, true)
 	ball_gone(SnowmanRules.PART_BODY)
 	ball_gone(SnowmanRules.PART_HEAD)
@@ -131,10 +131,10 @@ static func _built(world: World, head: Node3D, body: Node3D, nh: float, nb: floa
 	var player := Player.find(world.get_tree()) if world != null else null
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	var slot: int = SnowmanRules.free_slot(Game.snowmen)
+	var slot: int = SnowmanRules.free_slot(Game.town.snowmen)
 	var at: Vector2i = fg_cell(world, cell)
 	if slot >= 0 and at.x >= 0:
-		Game.snowmen[slot] = {"head": nh, "body": nb, "score": res, "cell": [at.x, at.y], "age": 0}
+		Game.town.snowmen[slot] = {"head": nh, "body": nb, "score": res, "cell": [at.x, at.y], "age": 0}
 	var snowman: Node3D = spawn_snowman(world, slot if at.x >= 0 else -1, at if at.x >= 0 else cell, nh, nb, res)
 	if is_instance_valid(head):
 		head.queue_free()
@@ -187,21 +187,21 @@ static func spawn_snowman(world: Node, slot: int, cell: Vector2i, head: float, b
 
 ## The snowmen still standing, back on the field.
 static func restore(world: Node) -> void:
-	for i: int in Game.snowmen.size():
-		var e: Dictionary = Game.snowmen[i]
+	for i: int in Game.town.snowmen.size():
+		var e: Dictionary = Game.town.snowmen[i]
 		if e.is_empty():
 			continue
 		var c: Array = e.get("cell", [])
 		if c.size() != 2:
-			Game.snowmen[i] = {}
+			Game.town.snowmen[i] = {}
 			continue
 		spawn_snowman(world, i, Vector2i(int(c[0]), int(c[1])), float(e.get("head", 0.0)), float(e.get("body", 0.0)), int(e.get("score", 3)))
 
 
 ## `mSN_ClearSnowman` + `mQst_BackSnowman`: knocked down.
 static func knocked_down(slot: int, cell: Vector2i, world: Node) -> void:
-	if slot >= 0 and slot < Game.snowmen.size():
-		Game.snowmen[slot] = {}
+	if slot >= 0 and slot < Game.town.snowmen.size():
+		Game.town.snowmen[slot] = {}
 	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
 	if grid != null and slot >= 0:
 		grid.remove(persist_id(slot))
@@ -214,7 +214,7 @@ static func send_present(rng: RandomNumberGenerator) -> bool:
 	var gift: Dictionary = SnowmanRules.present(rng, collected)
 	var item: ItemData = ItemCatalog.get_item(gift["id"] as StringName)
 	var name: String = item.display_name if item != null else String(gift["id"])
-	var text: Dictionary = MailBank.letter(int(gift["mail"]), Game.player_name, {0: name})
+	var text: Dictionary = MailBank.letter(int(gift["mail"]), Game.resident.player_name, {0: name})
 	var mail := MailData.new()
 	mail.header = text["header"]
 	mail.body = text["body"]
@@ -223,6 +223,6 @@ static func send_present(rng: RandomNumberGenerator) -> bool:
 	mail.font = MailData.LetterFont.RECV_PRESENT
 	mail.sender_type = MailData.NameType.NPC
 	mail.recipient_type = MailData.NameType.PLAYER
-	mail.recipient_name = Game.player_name
+	mail.recipient_name = Game.resident.player_name
 	mail.paper_type = 12
 	return Game.post != null and Game.post.receipt_mail(mail)

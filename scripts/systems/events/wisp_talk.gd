@@ -125,4 +125,4 @@ static func _paint_roof(palette: int) -> void:
 ## `Save_Set(clear_grass, TRUE)`: the weeds go with the next growth.
 func finish() -> void:
 	if wish == Wish.WEEDS and Game != null:
-		Game.clear_grass = true
+		Game.town.clear_grass = true

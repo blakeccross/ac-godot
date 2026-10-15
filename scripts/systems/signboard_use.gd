@@ -7,7 +7,7 @@ extends RefCounted
 ## it goes back in the pockets (`aSIGN_erase_white_sign`). Visitors may not change it (12389).
 ## Not an autoload.
 ##
-## `Game.signboards`: `signboard_<x>_<z>` → `{design}` (the posted design's save, or `{}`).
+## `Game.town.signboards`: `signboard_<x>_<z>` → `{design}` (the posted design's save, or `{}`).
 ## The original draws the owner's live `my_org` slot; the port keeps a copy of what was posted.
 
 const ITEM_ID := &"signboard"
@@ -47,13 +47,13 @@ static func place(world: Node, cell: Vector2i) -> bool:
 	var pid: StringName = persist_id(cell)
 	if not grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.FURNITURE):
 		return false
-	Game.signboards[String(pid)] = {}
+	Game.town.signboards[String(pid)] = {}
 	_instance(world, grid, cell, pid)
 	return true
 
 
 static func design_of(pid: StringName) -> DesignPattern:
-	var rec: Variant = Game.signboards.get(String(pid), {})
+	var rec: Variant = Game.town.signboards.get(String(pid), {})
 	if typeof(rec) != TYPE_DICTIONARY:
 		return null
 	var raw: Variant = (rec as Dictionary).get("design", {})
@@ -63,14 +63,14 @@ static func design_of(pid: StringName) -> DesignPattern:
 
 
 static func post(pid: StringName, design: DesignPattern) -> void:
-	if not Game.signboards.has(String(pid)):
+	if not Game.town.signboards.has(String(pid)):
 		return
-	Game.signboards[String(pid)] = {"design": design.to_save() if design != null else {}}
+	Game.town.signboards[String(pid)] = {"design": design.to_save() if design != null else {}}
 
 
 ## Back into the pockets: the record and the grid cell are freed.
 static func take(world: Node, pid: StringName) -> void:
-	Game.signboards.erase(String(pid))
+	Game.town.signboards.erase(String(pid))
 	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
 	if grid != null:
 		grid.remove(pid)
@@ -79,11 +79,11 @@ static func take(world: Node, pid: StringName) -> void:
 static func restore(world: Node, grid: WorldGrid) -> void:
 	if grid == null:
 		return
-	for key: Variant in Game.signboards.keys():
+	for key: Variant in Game.town.signboards.keys():
 		var pid := StringName(str(key))
 		var cell: Vector2i = cell_from_persist(pid)
 		if not grid.is_in_bounds(cell) or (grid.is_occupied(cell) and grid.occupant_at(cell) != pid):
-			Game.signboards.erase(key)
+			Game.town.signboards.erase(key)
 			continue
 		if not grid.is_occupied(cell):
 			grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.FURNITURE)

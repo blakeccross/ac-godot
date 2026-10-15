@@ -61,7 +61,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				get_viewport().set_input_as_handled()
 			KEY_I:
 				Game.cycle_weather_debug()
-				Game.post_notice("Weather: %s" % String(Game.weather))
+				Game.post_notice("Weather: %s" % String(Game.town.weather))
 				get_viewport().set_input_as_handled()
 
 

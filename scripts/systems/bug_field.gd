@@ -204,7 +204,7 @@ func spawn(bug: BugData, habitat: BugData.Habitat, at: Vector3, released: bool =
 func seed_trees() -> void:
 	if _layout == null or _grid == null:
 		return
-	var raining: bool = Game.weather == &"rain"
+	var raining: bool = Game.town.weather == &"rain"
 	for site: BugHabitats.Site in BugHabitats.tree_sites(_layout, _grid):
 		if actors.size() >= MAX_FIELD_SPAWNS:
 			break
@@ -241,7 +241,7 @@ func _tick_spawn(acre: Vector2i) -> void:
 
 
 func _try_spawn_in_acre(acre: Vector2i) -> void:
-	var raining: bool = Game.weather == &"rain"
+	var raining: bool = Game.town.weather == &"rain"
 	## `aSOI_SPAWN_TYPE_SPIRIT`: a Wisp's spirit waits here, and nothing else comes out.
 	if WispEvent.spirit_in_acre(acre):
 		var spirit: BugData = BugCatalog.get_by_type(WispEvent.TYPE_SPIRIT)

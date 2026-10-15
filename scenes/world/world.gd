@@ -83,7 +83,7 @@ func _ready() -> void:
 	PlantGrowth.assign_special_trees(self)
 	PlantGrowth.set_xmas_trees(Clock.month, Clock.day, _field_rng(), self)
 	## First outdoor load seeds dig spots like `mAGrw_GROW_FIRST` deposit.
-	if Game.buried_deposits.is_empty():
+	if Game.town.buried_deposits.is_empty():
 		BuriedUse.renew(self, grid)
 	_sow_weeds()
 	if not Game.title_demo_active and not Game.intro_station_active:
@@ -148,15 +148,15 @@ func _place_station_porter() -> void:
 	var out: Dictionary = {}
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	var blanca_rides: bool = MaskCat.rides_train(Game.foreigner, Game.mask_cat_scheduled, rng.randf(), out)
-	Game.mask_cat_scheduled = bool(out.get("scheduled", Game.mask_cat_scheduled))
+	var blanca_rides: bool = MaskCat.rides_train(Game.foreigner, Game.resident.mask_cat_scheduled, rng.randf(), out)
+	Game.resident.mask_cat_scheduled = bool(out.get("scheduled", Game.resident.mask_cat_scheduled))
 	var welcome: Callable = func() -> void:
 		if not Game.foreigner:
 			porter.say(PorterTalk.WELCOME_HOME)
 	if blanca_rides:
 		## `mSP_SelectRandomItem_New(…, mSP_KIND_CLOTH, mSP_LISTTYPE_ABC)`: her shirt for the trip.
 		var shirt := String(FurnitureCatalog.pick_named("cloth", ["A", "B", "C"][rng.randi_range(0, 2)], rng))
-		Game.mask_cat["cloth"] = int(shirt.trim_prefix("shirt_")) if shirt.begins_with("shirt_") else -1
+		Game.town.mask_cat["cloth"] = int(shirt.trim_prefix("shirt_")) if shirt.begins_with("shirt_") else -1
 		var blanca: EventNpc = BLANCA_SCENE.instantiate()
 		blanca.set("on_train", true)
 		blanca.position = _platform(StationPorter.ARRIVE_GX + Vector3(-40.0, 0.0, 0.0))
@@ -210,7 +210,7 @@ func _on_hour_changed(_hour: int) -> void:
 	## `mBGMTime_signal_melody`: the town tune on the hour, outdoors, not in the title
 	## demo or the first arrival.
 	if not Game.title_demo_active and not Game.intro_station_active and Game.current_room_id == &"":
-		Audio.play_melody(Game.town_tune)
+		Audio.play_melody(Game.town.town_tune)
 
 
 func _on_weather_changed(_weather: StringName) -> void:
@@ -234,7 +234,7 @@ func _play_outdoor_bgm() -> void:
 	if not ev.is_empty():
 		Audio.play_bgm(ev["id"] as StringName, float(ev["db"]))
 		return
-	Audio.play_bgm(BgmCatalog.outdoor_id(Clock.hour, Game.weather))
+	Audio.play_bgm(BgmCatalog.outdoor_id(Clock.hour, Game.town.weather))
 
 
 ## `mbgm_event_data` for where the player stands now ({} = the field's own music).
@@ -251,10 +251,10 @@ func _event_bgm() -> Dictionary:
 func _spawn_player() -> void:
 	var player: Player = PLAYER_SCENE.instantiate() as Player
 	$Characters.add_child(player)
-	var pos := Game.player_position
+	var pos := Game.resident.player_position
 	if pos.is_equal_approx(Game.DEFAULT_SPAWN):
 		pos = _spawn.global_position
-	var yaw: float = Game.player_yaw
+	var yaw: float = Game.resident.player_yaw
 	## Off the train (`RIDE_OFF_DEMO`): a visitor, or a resident back from a trip.
 	if Game.arrive_by_train:
 		Game.arrive_by_train = false
@@ -305,7 +305,7 @@ func _play_door_emerge(player: Player) -> void:
 
 func _apply_time_of_day() -> void:
 	## `Global_kankyo_set` / `mEnv_SetBaseLight`: fine or rain palette + fog + dual lights.
-	var pal: Dictionary = Weather.outdoor_light_for(Game.weather)
+	var pal: Dictionary = Weather.outdoor_light_for(Game.town.weather)
 	if _lightning_flash:
 		pal = pal.duplicate()
 		pal["ambient"] = Color8(70, 70, 160)
@@ -384,9 +384,9 @@ func _sow_weeds() -> void:
 	if days <= 0:
 		return
 	## `mAGrw_ClearGrass`: a wish to the Wisp clears every weed, and none grow that once.
-	if Game.clear_grass:
+	if Game.town.clear_grass:
 		WeedUse.clear_all(self, grid)
-		Game.clear_grass = false
+		Game.town.clear_grass = false
 		return
 	var weed_rng := RandomNumberGenerator.new()
 	weed_rng.randomize()

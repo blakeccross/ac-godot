@@ -118,7 +118,7 @@ func open(p_owner: int = -1) -> void:
 	owner_slot = p_owner if Game != null and Game.roster != null and p_owner != Game.roster.current else -1
 	_today = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
 	if Game != null and owner_slot < 0:
-		CalendarBook.played_on(Game.calendar, _today)
+		CalendarBook.played_on(Game.resident.calendar, _today)
 	_pages.clear()
 	month_off = 0
 	mode = Mode.MONTHS
@@ -183,7 +183,7 @@ func _state() -> Dictionary:
 		var saved: Variant = Game.roster.slots[owner_slot].get("calendar", {})
 		return saved as Dictionary if typeof(saved) == TYPE_DICTIONARY and not (saved as Dictionary).is_empty() \
 			else CalendarBook.new_state()
-	return Game.calendar
+	return Game.resident.calendar
 
 
 ## The day's events, or [].
@@ -443,7 +443,7 @@ func _draw_event_name() -> void:
 	if events.is_empty() or _font == null:
 		return
 	var ev: Array = events[clampi(event_idx, 0, events.size() - 1)]
-	var town: String = Game.town_name if Game != null else ""
+	var town: String = Game.town.town_name if Game != null else ""
 	var px: int = roundi(FONT_PX * NAME_SCALE)
 	_canvas.draw_string(_font, NAME_POS + Vector2(0.0, _font.get_ascent(px)), CalendarBook.event_name(int(ev[0]), town),
 		HORIZONTAL_ALIGNMENT_LEFT, -1, px, NUMBER2_PRIM[day_type()])

@@ -30,25 +30,25 @@ func test_an_open_session_counts_as_a_reset() -> void:
 	Game.note_reset(SaveService.last_reset_code)
 	assert_bool(Game.reset_flag).is_false()
 	## Loaded and quit without saving.
-	SaveService.mark_session_open(Game.reset_count, PATH)
+	SaveService.mark_session_open(Game.resident.reset_count, PATH)
 	Game.reset_session()
 	assert_int(SaveService.load_game(PATH)).is_equal(OK)
 	Game.note_reset(SaveService.last_reset_code)
 	assert_bool(Game.reset_flag).is_true()
-	assert_int(Game.reset_count).is_equal(1)
+	assert_int(Game.resident.reset_count).is_equal(1)
 	## The raised count is in the file before any save.
-	SaveService.mark_session_open(Game.reset_count, PATH)
+	SaveService.mark_session_open(Game.resident.reset_count, PATH)
 	Game.reset_session()
 	SaveService.load_game(PATH)
-	assert_int(Game.reset_count).is_equal(1)
+	assert_int(Game.resident.reset_count).is_equal(1)
 	Game.note_reset(SaveService.last_reset_code)
-	assert_int(Game.reset_count).is_equal(2)
+	assert_int(Game.resident.reset_count).is_equal(2)
 	## A proper save clears it.
 	SaveService.save_game(PATH)
 	SaveService.load_game(PATH)
 	Game.note_reset(SaveService.last_reset_code)
 	assert_bool(Game.reset_flag).is_false()
-	assert_int(Game.reset_count).is_equal(2)
+	assert_int(Game.resident.reset_count).is_equal(2)
 
 
 ## The RTC ran while the game was off (`lbRTC_GetTime` at start); a clock behind the last save
@@ -65,6 +65,6 @@ func test_time_passes_while_away() -> void:
 	assert_int(renewed.size()).is_equal(1)
 	assert_int(renewed[0]).is_equal(2)
 	Game.resume_clock(-86400)
-	assert_bool(Game.cheated_flag).is_true()
+	assert_bool(Game.town.cheated_flag).is_true()
 	assert_int(Clock.day).is_equal(16)
 	Clock.reset_to_default()

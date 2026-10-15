@@ -29,7 +29,7 @@ static var _ends_msec: int = 0
 
 
 static func is_money_rock(id: StringName) -> bool:
-	return id != &"" and String(id) == Game.money_rock
+	return id != &"" and String(id) == Game.town.money_rock
 
 
 ## `mPr_GetMoneyPower`: the house's feng shui, moved by the day's fortune.
@@ -81,12 +81,12 @@ static func choose(rocks: Dictionary, rng: RandomNumberGenerator) -> StringName:
 ## day (`today`: `Clock.day_number`).
 static func renew(world: Node, rng: RandomNumberGenerator, today: int) -> void:
 	var rocks: Dictionary = field_rocks(world)
-	if Game.money_rock != "" and rocks.has(StringName(Game.money_rock)):
+	if Game.town.money_rock != "" and rocks.has(StringName(Game.town.money_rock)):
 		return
-	if Game.money_rock_day == today:
+	if Game.town.money_rock_day == today:
 		return
-	Game.money_rock = String(choose(rocks, rng))
-	Game.money_rock_day = today
+	Game.town.money_rock = String(choose(rocks, rng))
+	Game.town.money_rock_day = today
 
 
 ## Rocks on the field acres (blocks 1–5 × 1–6), by id.
@@ -140,8 +140,8 @@ static func window_open(now_msec: int = -1) -> bool:
 
 
 static func finish() -> void:
-	if _active_id != &"" and String(_active_id) == Game.money_rock:
-		Game.money_rock = ""
+	if _active_id != &"" and String(_active_id) == Game.town.money_rock:
+		Game.town.money_rock = ""
 	_active_id = &""
 	_hits = 0
 	_ends_msec = 0

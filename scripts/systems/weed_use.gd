@@ -32,11 +32,11 @@ static func cell_from_persist(id: StringName) -> Vector2i:
 
 
 static func is_weed(id: StringName) -> bool:
-	return Game.weeds.has(String(id))
+	return Game.town.weeds.has(String(id))
 
 
 static func count() -> int:
-	return Game.weeds.size()
+	return Game.town.weeds.size()
 
 
 ## `mAGrw_GetGrassMax`: renewals crossed since the last grow, each worth five.
@@ -60,7 +60,7 @@ static func can_grow(grid: WorldGrid, layout: WorldData, cell: Vector2i) -> bool
 
 ## `mAGrw_SetGrass`: sow `amount` weeds over the town; returns how many took root.
 static func grow(world: Node, grid: WorldGrid, layout: WorldData, amount: int, rng: RandomNumberGenerator) -> int:
-	if grid == null or amount <= 0 or Game.clear_grass:
+	if grid == null or amount <= 0 or Game.town.clear_grass:
 		return 0
 	## Candidate units, grouped by acre (16×16 units).
 	var by_acre: Dictionary = {}
@@ -101,7 +101,7 @@ static func grow(world: Node, grid: WorldGrid, layout: WorldData, amount: int, r
 static func restore(world: Node, grid: WorldGrid) -> void:
 	if grid == null:
 		return
-	for key: Variant in Game.weeds.keys():
+	for key: Variant in Game.town.weeds.keys():
 		var pid := StringName(str(key))
 		var cell: Vector2i = cell_from_persist(pid)
 		if not grid.is_in_bounds(cell):
@@ -111,7 +111,7 @@ static func restore(world: Node, grid: WorldGrid) -> void:
 		if not grid.is_occupied(cell):
 			if not grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT):
 				continue
-		_instance(world, grid, cell, pid, int(Game.weeds[key]))
+		_instance(world, grid, cell, pid, int(Game.town.weeds[key]))
 
 
 ## `Remove_grass` frame 17: the unit is empty again.
@@ -121,7 +121,7 @@ static func pull(host: Node, ctx: InteractionContext) -> bool:
 	var pid: StringName = host.get("persist_id") as StringName
 	if pid == &"" or not is_weed(pid):
 		return false
-	Game.weeds.erase(String(pid))
+	Game.town.weeds.erase(String(pid))
 	var grid: WorldGrid = ctx.world.get("grid") as WorldGrid if ctx != null and ctx.world != null else null
 	if grid != null:
 		grid.remove(pid)
@@ -132,11 +132,11 @@ static func pull(host: Node, ctx: InteractionContext) -> bool:
 
 ## `mAGrw_ClearGrass`: every weed gone at once.
 static func clear_all(world: Node, grid: WorldGrid) -> void:
-	for key: Variant in Game.weeds.keys():
+	for key: Variant in Game.town.weeds.keys():
 		var pid := StringName(str(key))
 		if grid != null:
 			grid.remove(pid)
-	Game.weeds.clear()
+	Game.town.weeds.clear()
 	if world != null and world.get_tree() != null:
 		for node: Node in world.get_tree().get_nodes_in_group("weed"):
 			node.queue_free()
@@ -146,7 +146,7 @@ static func _put(world: Node, grid: WorldGrid, cell: Vector2i, kind: int) -> boo
 	var pid: StringName = persist_id(cell)
 	if not grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT):
 		return false
-	Game.weeds[String(pid)] = kind
+	Game.town.weeds[String(pid)] = kind
 	_instance(world, grid, cell, pid, kind)
 	return true
 

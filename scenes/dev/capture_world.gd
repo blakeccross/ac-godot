@@ -67,9 +67,9 @@ func _capture_date(date: String) -> void:
 	var scene_path := str(_args.get("scene", ""))
 	if scene_path.is_empty() and not _args.has("room"):
 		var seed_value := int(_args.get("seed", "12345"))
-		Game.world_mode = WorldData.Mode.GENERATED
-		Game.world_seed = seed_value
-		Game.grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
+		Game.town.world_mode = WorldData.Mode.GENERATED
+		Game.town.world_seed = seed_value
+		Game.town.grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
 	Clock.apply_snapshot({
 		"year": int(ymd[0]), "month": int(ymd[1]), "day": int(ymd[2]),
 		"hour": int(hm[0]), "minute": int(hm[1]) if hm.size() > 1 else 0, "second": 0,

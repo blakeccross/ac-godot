@@ -677,8 +677,8 @@ func test_shop_hours_gate_entry() -> void:
 
 
 func test_enter_exit_restores_outdoor_pose() -> void:
-	Game.player_position = Vector3(4.0, 0.1, -2.0)
-	Game.player_yaw = 0.5
+	Game.resident.player_position = Vector3(4.0, 0.1, -2.0)
+	Game.resident.player_yaw = 0.5
 	assert_bool(Game.is_indoors()).is_false()
 	assert_that(InteriorCatalog.resolve_entry(&"player_house")).is_equal(&"player_main")
 	Game.current_room_id = &"player_main"
@@ -687,10 +687,10 @@ func test_enter_exit_restores_outdoor_pose() -> void:
 	assert_bool(Game.is_indoors()).is_true()
 	assert_bool(Game.is_decorating()).is_true()
 	Game.current_room_id = &""
-	Game.player_position = Game.outdoor_return
-	Game.player_yaw = Game.outdoor_return_yaw
-	assert_vector(Game.player_position).is_equal(Vector3(4.0, 0.1, -2.0))
-	assert_float(Game.player_yaw).is_equal(0.5)
+	Game.resident.player_position = Game.outdoor_return
+	Game.resident.player_yaw = Game.outdoor_return_yaw
+	assert_vector(Game.resident.player_position).is_equal(Vector3(4.0, 0.1, -2.0))
+	assert_float(Game.resident.player_yaw).is_equal(0.5)
 
 
 func test_indoor_exit_door_is_walk_warp_not_a_prompt() -> void:

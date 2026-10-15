@@ -25,22 +25,22 @@ func _apple() -> ItemData:
 
 ## Resident A in slot 0 on plot 0, resident B in slot 1 on plot 1, both saved.
 func _two_residents() -> void:
-	Game.player_name = "Ann"
-	Game.town_name = "Pine"
+	Game.resident.player_name = "Ann"
+	Game.town.town_name = "Pine"
 	Game.interiors.player_house().outdoor_building_id = &"player_house"
 	Game.inventory.add(_apple(), 2)
 	Game.mark_interactable_removed(&"town_thing")
 	assert_int(SaveService.save_game(PATH)).is_equal(OK)
 	Game.reset_session()
 	assert_int(SaveService.load_game(PATH, 1)).is_equal(OK)
-	Game.player_name = "Bob"
+	Game.resident.player_name = "Bob"
 	Game.interiors.player_house().outdoor_building_id = &"player_house_1"
 	Game.interiors.player_house().size_tier = House.SizeTier.MEDIUM
 	assert_int(SaveService.save_game(PATH)).is_equal(OK)
 
 
 func test_the_town_part_has_no_resident_in_it() -> void:
-	Game.player_name = "Ann"
+	Game.resident.player_name = "Ann"
 	Game.inventory.add(_apple(), 1)
 	var world: Dictionary = Game.to_save()
 	var priv: Dictionary = PlayerRoster.split(world)
@@ -57,13 +57,13 @@ func test_each_resident_keeps_their_own_things_and_shares_the_town() -> void:
 	## A newcomer started with nothing of Ann's but in Ann's town.
 	Game.reset_session()
 	assert_int(SaveService.load_game(PATH, 1)).is_equal(OK)
-	assert_str(Game.player_name).is_equal("Bob")
+	assert_str(Game.resident.player_name).is_equal("Bob")
 	assert_int(Game.inventory.count_of(&"apple")).is_equal(0)
 	assert_bool(Game.is_interactable_removed(&"town_thing")).is_true()
 	assert_str(String(PlayerHouse.owned_building_id())).is_equal("player_house_1")
 	Game.reset_session()
 	assert_int(SaveService.load_game(PATH, 0)).is_equal(OK)
-	assert_str(Game.player_name).is_equal("Ann")
+	assert_str(Game.resident.player_name).is_equal("Ann")
 	assert_int(Game.inventory.count_of(&"apple")).is_equal(2)
 	assert_str(String(PlayerHouse.owned_building_id())).is_equal("player_house")
 	assert_int(Game.roster.count()).is_equal(2)
@@ -89,7 +89,7 @@ func test_a_one_resident_save_from_before_is_resident_one() -> void:
 	assert_str(roster.name_of(0)).is_equal("Old")
 	assert_str(SaveService.read_town_name(PATH)).is_equal("Elm")
 	assert_int(SaveService.load_game(PATH)).is_equal(OK)
-	assert_str(Game.player_name).is_equal("Old")
+	assert_str(Game.resident.player_name).is_equal("Old")
 	assert_bool(Game.is_interactable_removed(&"x")).is_true()
 
 

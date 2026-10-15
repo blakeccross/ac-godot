@@ -288,7 +288,7 @@ func test_assign_special_trees_tops_up_bare_mature() -> void:
 	var bees := 0
 	var ftr := 0
 	var bells := 0
-	for key: Variant in Game.plant_states.keys():
+	for key: Variant in Game.town.plant_states.keys():
 		match PlantGrowth.shake_content(StringName(str(key))):
 			TreeUse.Content.BEES:
 				bees += 1
@@ -369,7 +369,7 @@ func test_december_lights_three_an_acre_then_down() -> void:
 			again += 1
 	assert_int(again).is_equal(3)
 	PlantGrowth.set_xmas_trees(12, 26, rng)
-	for key: Variant in Game.plant_states.keys():
+	for key: Variant in Game.town.plant_states.keys():
 		assert_bool(PlantGrowth.has_lights(PlantGrowth.record(StringName(str(key))))).is_false()
 
 

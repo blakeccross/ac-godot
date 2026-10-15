@@ -51,8 +51,8 @@ static func manager(villager: VillagerData, state: VillagerState, ctx: DialogueC
 	m.slot = slot
 	if guest:
 		m.as_guest()
-	m.hint_count_get = func() -> int: return Game.first_job_hint_count
-	m.hint_count_set = func(v: int) -> void: Game.first_job_hint_count = v
+	m.hint_count_get = func() -> int: return Game.resident.first_job_hint_count
+	m.hint_count_set = func(v: int) -> void: Game.resident.first_job_hint_count = v
 	m.show_letter = func(letter: Dictionary) -> void: _show_letter(villager, letter)
 	m.edit_catchphrase = func() -> void: _edit_catchphrase(villager, state)
 	m.edit_birthday = _edit_birthday
@@ -138,8 +138,8 @@ static func begin(villager: VillagerData, state: VillagerState) -> DialogueRunne
 
 static func substitute(line: String, villager: VillagerData) -> String:
 	var ctx := DialogueContext.new()
-	ctx.player_name = Game.player_name
-	ctx.town_name = Game.town_name
+	ctx.player_name = Game.resident.player_name
+	ctx.town_name = Game.town.town_name
 	if villager != null:
 		ctx.speaker_name = villager.display_name
 		ctx.catchphrase = villager.catchphrase

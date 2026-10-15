@@ -44,7 +44,7 @@ func test_wear_cloth_swaps_pockets() -> void:
 	var inv: Inventory = Game.inventory
 	var uniform: ItemData = ItemCatalog.get_item(FirstJob.UNIFORM_ID)
 	assert_that(uniform).is_not_null()
-	Game.cloth_id = FirstJob.DEFAULT_CLOTH_ID
+	Game.resident.cloth_id = FirstJob.DEFAULT_CLOTH_ID
 	inv.add(uniform, 1)
 	var idx: int = -1
 	for i: int in Inventory.POCKET_SLOTS:
@@ -54,7 +54,7 @@ func test_wear_cloth_swaps_pockets() -> void:
 			break
 	assert_int(idx).is_greater_equal(0)
 	assert_bool(Game.wear_cloth_from_slot(idx)).is_true()
-	assert_that(Game.cloth_id).is_equal(FirstJob.UNIFORM_ID)
+	assert_that(Game.resident.cloth_id).is_equal(FirstJob.UNIFORM_ID)
 	assert_int(inv.count_of(FirstJob.DEFAULT_CLOTH_ID)).is_equal(1)
 	assert_int(inv.count_of(FirstJob.UNIFORM_ID)).is_equal(0)
 
@@ -205,9 +205,9 @@ func test_furniture_advance_unlocks_map_and_letter() -> void:
 	Game.villagers.get_or_create(&"rosie")
 	assert_bool(job.setup_deliver_furniture(Game.inventory)).is_true()
 	job.try_deliver_to(job.recipient_id, Game.inventory)
-	assert_bool(Game.has_map).is_false()
+	assert_bool(Game.resident.has_map).is_false()
 	assert_bool(job.advance_after_finished(Game.inventory)).is_true()
-	assert_bool(Game.has_map).is_true()
+	assert_bool(Game.resident.has_map).is_true()
 	assert_that(job.kind).is_equal(FirstJob.Kind.SEND_LETTER)
 
 
@@ -234,15 +234,15 @@ func test_open_notice_and_finish_chain_tail() -> void:
 func test_save_roundtrip() -> void:
 	Game.first_job.begin_after_house()
 	Game.first_job.setup_change_cloth()
-	Game.cloth_id = FirstJob.UNIFORM_ID
-	Game.has_map = true
+	Game.resident.cloth_id = FirstJob.UNIFORM_ID
+	Game.resident.has_map = true
 	Game.first_job.recipient_id = &"filbert"
 	Game.first_job.used_ids = [&"filbert", &"rosie"]
 	var bag: Dictionary = Game.to_save()
 	Game.reset_session()
 	Game.apply_snapshot(bag)
-	assert_that(Game.cloth_id).is_equal(FirstJob.UNIFORM_ID)
-	assert_bool(Game.has_map).is_true()
+	assert_that(Game.resident.cloth_id).is_equal(FirstJob.UNIFORM_ID)
+	assert_bool(Game.resident.has_map).is_true()
 	assert_that(Game.first_job.kind).is_equal(FirstJob.Kind.CHANGE_CLOTH)
 	assert_int(Game.first_job.progress).is_equal(2)
 	assert_that(Game.first_job.recipient_id).is_equal(&"filbert")

@@ -75,7 +75,7 @@ static func fill(host: Node, ctx: InteractionContext) -> bool:
 static func restore(world: Node, grid: WorldGrid) -> void:
 	if world == null or grid == null:
 		return
-	for key: String in Game.hole_interactables:
+	for key: String in Game.town.hole_interactables:
 		var pid := StringName(key)
 		var cell: Vector2i = cell_from_persist(pid)
 		if not can_open(grid, cell):

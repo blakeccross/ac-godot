@@ -165,12 +165,12 @@ func test_visitors_get_no_card() -> void:
 
 
 func test_card_record_is_saved_with_the_player() -> void:
-	Game.radio_card = {"year": 2002, "month": 7, "day": 28, "days": 3}
+	Game.resident.radio_card = {"year": 2002, "month": 7, "day": 28, "days": 3}
 	var saved: Dictionary = Game.to_save()
 	Game.reset_session()
-	assert_int(int(Game.radio_card["days"])).is_equal(0)
+	assert_int(int(Game.resident.radio_card["days"])).is_equal(0)
 	Game.apply_snapshot(saved)
-	assert_int(int(Game.radio_card["days"])).is_equal(3)
+	assert_int(int(Game.resident.radio_card["days"])).is_equal(3)
 	assert_bool(PlayerRoster.PRIVATE_KEYS.has("radio_card")).is_true()
 
 

@@ -24,12 +24,6 @@ func refresh_seasonal_visual() -> void:
 	_apply_visual()
 
 
-func get_interactions(ctx: InteractionContext) -> Array[Interaction]:
-	if not ToolUse.has(ctx, ToolData.Kind.SHOVEL):
-		return []
-	return [Interaction.of(Interaction.DIG, "Dig", 12, &"ply_1_dig1", 21.0)]
-
-
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.DIG:
 		return false

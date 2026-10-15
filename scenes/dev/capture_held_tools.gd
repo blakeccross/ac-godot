@@ -21,8 +21,8 @@ func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
 	Clock.paused = true
 	Clock.hour = 12
-	Game.world_mode = WorldData.Mode.GENERATED
-	Game.world_seed = 4242
+	Game.town.world_mode = WorldData.Mode.GENERATED
+	Game.town.world_seed = 4242
 	add_child(load("res://scenes/world/world.tscn").instantiate())
 	for _i in 30:
 		await get_tree().process_frame

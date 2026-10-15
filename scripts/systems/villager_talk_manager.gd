@@ -277,7 +277,7 @@ func _clear_normal_info() -> void:
 func _normal_set_free_str() -> void:
 	if context == null:
 		return
-	var fruit: ItemData = ItemCatalog.get_item(Game.town_fruit if Game != null else &"apple")
+	var fruit: ItemData = ItemCatalog.get_item(Game.town.town_fruit if Game != null else &"apple")
 	_set_free(10, fruit.display_name if fruit != null else "")
 	_set_free(11, context.town_name)
 	_set_free(12, context.player_name)
@@ -689,7 +689,7 @@ func _goods(cat: StringName) -> StringName:
 	match cat:
 		&"diary":
 			var fruit_idx: int = _rand(4)
-			var town: int = maxi(ShopBook.FRUITS.find(Game.town_fruit if Game != null else &"apple"), 0)
+			var town: int = maxi(ShopBook.FRUITS.find(Game.town.town_fruit if Game != null else &"apple"), 0)
 			if fruit_idx == town:
 				fruit_idx += 1
 			return ShopBook.FRUITS[fruit_idx]
@@ -716,7 +716,7 @@ func _goods(cat: StringName) -> StringName:
 			pool = ShopGoods.category_pool(ItemData.Category.CLOTH)
 	var skip: Array[StringName] = [trade_items[0], trade_items[1]]
 	if cat == &"cloth" and Game != null:
-		skip.append(Game.cloth_id)
+		skip.append(Game.resident.cloth_id)
 	var live: Array[StringName] = []
 	for id: StringName in pool:
 		if id not in skip:
@@ -2063,7 +2063,7 @@ func _set_reward() -> void:
 		VillagerQuests.Reward.WORN_CLOTH:
 			if state != null and state.cloth_design >= 0:
 				## `RSV_CLOTH` (an Able design): some other shirt instead.
-				_target["reward_item"] = _decide_cloth(Game.cloth_id if Game != null else &"")
+				_target["reward_item"] = _decide_cloth(Game.resident.cloth_id if Game != null else &"")
 				_target["reward_kind"] = VillagerQuests.Reward.CLOTH
 			else:
 				_target["reward_item"] = cloth_at_start

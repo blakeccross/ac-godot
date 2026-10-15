@@ -35,7 +35,7 @@ func test_sanitize_rejects_bad_saves() -> void:
 func test_editor_changes_steps_and_saves_on_yes() -> void:
 	var ui: TownTuneOverlay = auto_free(load("res://scenes/ui/town_tune_overlay.tscn").instantiate())
 	add_child(ui)
-	Game.town_tune = TownTune.default_notes()
+	Game.town.town_tune = TownTune.default_notes()
 	ui.open()
 	ui._slide.settle()
 	ui._wait_left = 0.0
@@ -48,17 +48,17 @@ func test_editor_changes_steps_and_saves_on_yes() -> void:
 	_key(ui, KEY_DOWN)
 	assert_int(ui.notes[1]).is_equal(11)
 	## Not saved until the prompt says Yes.
-	assert_int(Game.town_tune[0]).is_equal(7)
+	assert_int(Game.town.town_tune[0]).is_equal(7)
 	ui._on_prompt_answer(0)
-	assert_int(Game.town_tune[0]).is_equal(8)
-	assert_int(Game.town_tune[1]).is_equal(11)
-	Game.town_tune = TownTune.default_notes()
+	assert_int(Game.town.town_tune[0]).is_equal(8)
+	assert_int(Game.town.town_tune[1]).is_equal(11)
+	Game.town.town_tune = TownTune.default_notes()
 
 
 func test_throw_it_out_keeps_the_old_tune() -> void:
 	var ui: TownTuneOverlay = auto_free(load("res://scenes/ui/town_tune_overlay.tscn").instantiate())
 	add_child(ui)
-	Game.town_tune = TownTune.default_notes()
+	Game.town.town_tune = TownTune.default_notes()
 	ui.open()
 	ui._slide.settle()
 	ui._wait_left = 0.0
@@ -66,7 +66,7 @@ func test_throw_it_out_keeps_the_old_tune() -> void:
 	ui.cursor = 3
 	_key(ui, KEY_UP)
 	ui._on_prompt_answer(2)
-	assert_array(Array(Game.town_tune)).is_equal(Array(TownTune.default_notes()))
+	assert_array(Array(Game.town.town_tune)).is_equal(Array(TownTune.default_notes()))
 
 
 func _key(ui: TownTuneOverlay, code: Key) -> void:

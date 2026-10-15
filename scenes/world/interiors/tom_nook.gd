@@ -198,7 +198,7 @@ func _begin_normal_talk(listener: Node3D) -> bool:
 	## House business first (`aNSC_set_talk_info_start_wait*`): a landed build, the statue, or
 	## an upgrade offer replaces the plain greeting.
 	var house: House = Game.interiors.player_house() if Game.interiors != null else null
-	var house_plan: Dictionary = NookHouseTalk.plan(house, Game.inventory, Game.num_statues) if clerk < 0 else {}
+	var house_plan: Dictionary = NookHouseTalk.plan(house, Game.inventory, Game.town.num_statues) if clerk < 0 else {}
 	var house_data: DialogueData = (
 		DialogueCatalog.conversation(NookHouseTalk.DIALOGUE_ID) if not house_plan.is_empty() else null
 	)
@@ -212,7 +212,7 @@ func _begin_normal_talk(listener: Node3D) -> bool:
 		data = house_data
 		NookHouseTalk.fill_context(talk_ctx, house_plan)
 		if house_plan.has("statues_built"):
-			Game.num_statues = int(house_plan["statues_built"])
+			Game.town.num_statues = int(house_plan["statues_built"])
 	elif clerk < 0 and AprilFools.pending(&"tom_nook"):
 		## `aNSC_set_talk_info_message_ctrl_aprilfool`: a trick before the counter.
 		data = AprilFools.conversation(&"tom_nook")
@@ -259,7 +259,7 @@ func _begin_first_job_talk(listener: Node3D) -> bool:
 
 	if not job.shop_greeted and job.kind == FirstJob.Kind.START:
 		job.shop_greeted = true
-		if job.wearing_uniform(Game.cloth_id):
+		if job.wearing_uniform(Game.resident.cloth_id):
 			_pending_after = &"start_plant_from_uniform"
 			return _play_job_line(JOB_ALREADY_UNIFORM, JOB_ALREADY_UNIFORM_FALLBACK, null, listener)
 		if not job.can_start_change_cloth(Game.inventory):
@@ -304,7 +304,7 @@ func _begin_first_job_talk(listener: Node3D) -> bool:
 		FirstJob.Kind.POST_NOTICE:
 			return _play_job_line(&"", JOB_NOTICE_HINT, null, listener)
 		FirstJob.Kind.START:
-			if job.wearing_uniform(Game.cloth_id):
+			if job.wearing_uniform(Game.resident.cloth_id):
 				_pending_after = &"start_plant_from_uniform"
 				return _play_job_line(JOB_ALREADY_UNIFORM, JOB_ALREADY_UNIFORM_FALLBACK, null, listener)
 			if not job.can_start_change_cloth(Game.inventory):
@@ -572,7 +572,7 @@ func _on_shop_event(event: Dictionary) -> void:
 	var try_on: StringName = res.get("try_on", &"") as StringName
 	if try_on != &"":
 		if _try_on_restore == &"":
-			_try_on_restore = Game.cloth_id
+			_try_on_restore = Game.resident.cloth_id
 		Game.set_cloth(try_on)
 	if bool(res.get("bought", false)):
 		Game.call_deferred("refresh_shop_set")
@@ -671,7 +671,7 @@ func _start_code_say() -> void:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	var res: Dictionary = NookShopTalk.redeem(code, Game.player_name, Game.town_name, rng)
+	var res: Dictionary = NookShopTalk.redeem(code, Game.resident.player_name, Game.town.town_name, rng)
 	var item: ItemData = ItemCatalog.get_item(res.get("item", &"") as StringName)
 	if str(res["result"]) == "good" and item != null:
 		Game.inventory.add(item, 1, InventoryItem.Condition.PRESENT)
@@ -690,7 +690,7 @@ func _start_code_hear() -> void:
 	if who.is_empty():
 		_play_code_result("cancel", null, {})
 		return
-	if town == Game.town_name:
+	if town == Game.town.town_name:
 		_play_code_result("same_town", null, {})
 		return
 	Game.request_storage_putin(&"code_gift")
@@ -766,7 +766,7 @@ func _apply_pending_after() -> void:
 			_play_job_line(JOB_UNIFORM_WAIT, JOB_UNIFORM_WAIT_FALLBACK, null, listener)
 		&"start_plant_from_uniform":
 			job.setup_change_cloth()
-			job.tick_cloth(Game.cloth_id)
+			job.tick_cloth(Game.resident.cloth_id)
 			if not job.advance_after_finished(Game.inventory):
 				_play_job_line(JOB_POCKETS_FULL, JOB_POCKETS_FULL_FALLBACK, null, listener)
 				return

@@ -10,20 +10,20 @@ const S := preload("res://scripts/systems/fish_spawn_scheduler.gd")
 func before_test() -> void:
 	Game.reset_session()
 	## An unrated session is rank 0; these rolls assume a middling town (`env_rate` 1.0).
-	Game.field_rank = EventCalendar.DEFAULT_FIELD_RANK
+	Game.town.field_rank = EventCalendar.DEFAULT_FIELD_RANK
 	Game.events.field_rank = EventCalendar.DEFAULT_FIELD_RANK
 	FishCatalog.reload()
 	FishSpawnScheduler.reload()
 	Clock.reset_to_default()
 	Clock.paused = true
 	Clock.year = 2001
-	Game.weather = &"clear"
+	Game.town.weather = &"clear"
 
 
 func after_test() -> void:
 	Clock.reset_to_default()
 	Clock.paused = false
-	Game.weather = &"clear"
+	Game.town.weather = &"clear"
 
 
 func _at(month: int, day: int, hour: int, minute: int = 0) -> void:
@@ -37,8 +37,8 @@ func _at(month: int, day: int, hour: int, minute: int = 0) -> void:
 ## Pin the saved term so the ramp is out of the way.
 func _settle() -> void:
 	var now_term: int = (Clock.month - 1) * 2 + (1 if Clock.day > 15 else 0)
-	Game.fish_season_term = 0 if now_term == 23 else now_term + 1
-	Game.fish_season_offset = 0
+	Game.town.fish_season_term = 0 if now_term == 23 else now_term + 1
+	Game.town.fish_season_offset = 0
 
 
 func _types(pool: Array) -> Array[int]:
@@ -202,8 +202,8 @@ func test_coelacanth_weighs_two_and_needs_rain_outside_the_day_slot() -> void:
 
 func test_next_term_ramps_in_before_it_starts() -> void:
 	## Saved: next is September first half (16), five days' lead → ramp from Aug 27.
-	Game.fish_season_term = 16
-	Game.fish_season_offset = 5
+	Game.town.fish_season_term = 16
+	Game.town.fish_season_offset = 5
 	_at(8, 26, 23, 59)
 	var info: Dictionary = S.chk_term_info(null)
 	assert_float(float(info["term0_rate"])).is_equal(1.0)
@@ -224,13 +224,13 @@ func test_next_term_ramps_in_before_it_starts() -> void:
 	info = S.chk_term_info(null)
 	assert_int(int(info["term0"])).is_equal(16)
 	assert_float(float(info["term0_rate"])).is_equal(1.0)
-	assert_int(Game.fish_season_term).is_equal(17)
-	assert_int(Game.fish_season_offset).is_between(0, 5)
+	assert_int(Game.town.fish_season_term).is_equal(17)
+	assert_int(Game.town.fish_season_offset).is_between(0, 5)
 
 
 func test_ramp_blends_the_current_list_down_and_the_next_one_up() -> void:
-	Game.fish_season_term = 16
-	Game.fish_season_offset = 5
+	Game.town.fish_season_term = 16
+	Game.town.fish_season_offset = 5
 	_at(8, 28, 12)  ## second ramp day: current 4/6, next 2/6
 	var pool: Array = S.make_range_data(0, false, null, 0)
 	## Crawfish is 20 in both halves, so the two shares sum back to 20.
@@ -241,8 +241,8 @@ func test_ramp_blends_the_current_list_down_and_the_next_one_up() -> void:
 
 
 func test_second_half_ramp_counts_back_from_the_fifteenth() -> void:
-	Game.fish_season_term = 17  ## Sep second half
-	Game.fish_season_offset = 0
+	Game.town.fish_season_term = 17  ## Sep second half
+	Game.town.fish_season_offset = 0
 	_at(9, 15, 12)
 	var info: Dictionary = S.chk_term_info(null)
 	assert_int(int(info["term0"])).is_equal(16)
@@ -253,28 +253,28 @@ func test_second_half_ramp_counts_back_from_the_fifteenth() -> void:
 
 
 func test_a_stale_saved_term_resets_without_a_ramp() -> void:
-	Game.fish_season_term = 5
-	Game.fish_season_offset = 3
+	Game.town.fish_season_term = 5
+	Game.town.fish_season_offset = 3
 	_at(9, 3, 12)
 	var info: Dictionary = S.chk_term_info(null)
 	assert_float(float(info["term0_rate"])).is_equal(1.0)
-	assert_int(Game.fish_season_term).is_equal(17)
+	assert_int(Game.town.fish_season_term).is_equal(17)
 
 
 func test_the_saved_term_survives_a_save() -> void:
-	Game.fish_season_term = 17
-	Game.fish_season_offset = 4
+	Game.town.fish_season_term = 17
+	Game.town.fish_season_offset = 4
 	var snap: Dictionary = Game.to_save()
 	Game.reset_session()
-	assert_int(Game.fish_season_term).is_equal(0)
+	assert_int(Game.town.fish_season_term).is_equal(0)
 	Game.apply_snapshot(snap)
-	assert_int(Game.fish_season_term).is_equal(17)
-	assert_int(Game.fish_season_offset).is_equal(4)
+	assert_int(Game.town.fish_season_term).is_equal(17)
+	assert_int(Game.town.fish_season_offset).is_equal(4)
 
 
 func test_december_ramps_into_january_across_the_year() -> void:
-	Game.fish_season_term = 0
-	Game.fish_season_offset = 2
+	Game.town.fish_season_term = 0
+	Game.town.fish_season_offset = 2
 	_at(12, 30, 12)  ## Jan 1 next year − 2 days = Dec 30
 	var info: Dictionary = S.chk_term_info(null)
 	assert_int(int(info["term0"])).is_equal(23)

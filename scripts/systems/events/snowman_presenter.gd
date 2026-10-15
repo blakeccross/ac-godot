@@ -19,4 +19,4 @@ func stop() -> void:
 			ball.set("discard", true)
 			ball.queue_free()
 	_balls.clear()
-	Game.snowballs.clear()
+	Game.town.snowballs.clear()

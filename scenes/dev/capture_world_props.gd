@@ -30,9 +30,9 @@ func _ready() -> void:
 
 func _run() -> void:
 	Game.reset_session()
-	Game.world_mode = WorldData.Mode.GENERATED
-	Game.world_seed = SEED
-	Game.grass_pattern = WorldGenerator.decide_grass_pattern(SEED)
+	Game.town.world_mode = WorldData.Mode.GENERATED
+	Game.town.world_seed = SEED
+	Game.town.grass_pattern = WorldGenerator.decide_grass_pattern(SEED)
 	Clock.apply_snapshot({"year": 2001, "month": 7, "day": 15, "hour": 12, "minute": 0})
 	var world: Node3D = WORLD.instantiate()
 	add_child(world)

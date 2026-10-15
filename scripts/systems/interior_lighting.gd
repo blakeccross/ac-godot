@@ -37,7 +37,7 @@ static func refresh_light(host: Node3D, world_env: WorldEnvironment, grid: World
 	if Game.interiors != null and Game.interiors.player_house() != null:
 		tier = int(Game.interiors.player_house().size_tier)
 	var lit: bool = InteriorLightModel.lamp_on(room, Clock.hour, _owner_home(room))
-	var rain: bool = Weather.is_precip(Weather.kind_from_name(Game.weather))
+	var rain: bool = Weather.is_precip(Weather.kind_from_name(Game.town.weather))
 	var light: Dictionary = InteriorLightModel.evaluate(room, Clock.now_sec(), rain, lit, tier)
 	var env: Environment = world_env.environment
 	env.background_mode = Environment.BG_COLOR

@@ -79,21 +79,21 @@ func test_lost_ball_means_a_new_one_next_time() -> void:
 	var ball := _ball()
 	ball.global_position = Vector3(3.0, 0.0, 4.0)
 	remove_child(ball)
-	assert_float(float(Game.ball["x"])).is_equal(3.0)
+	assert_float(float(Game.town.ball["x"])).is_equal(3.0)
 	add_child(ball)
 	ball.dead = true
 	remove_child(ball)
-	assert_bool(Game.ball.is_empty()).is_true()
+	assert_bool(Game.town.ball.is_empty()).is_true()
 	ball.free()
 
 
 func test_ball_is_saved() -> void:
-	Game.ball = {"x": 1.0, "y": 0.0, "z": 2.0, "type": 2}
+	Game.town.ball = {"x": 1.0, "y": 0.0, "z": 2.0, "type": 2}
 	var saved: Dictionary = Game.to_save()
 	Game.reset_session()
-	assert_bool(Game.ball.is_empty()).is_true()
+	assert_bool(Game.town.ball.is_empty()).is_true()
 	Game.apply_snapshot(saved)
-	assert_int(int(Game.ball["type"])).is_equal(2)
+	assert_int(int(Game.town.ball["type"])).is_equal(2)
 
 
 func test_the_ball_reaching_the_soccer_asker_finishes_the_contest() -> void:

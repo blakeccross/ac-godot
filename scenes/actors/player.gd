@@ -195,7 +195,7 @@ static func find(tree: SceneTree) -> Player:
 static func visual_path() -> String:
 	if (
 		Game != null
-		and Game.player_gender == IntroSequence.GENDER_FEMALE
+		and Game.resident.player_gender == IntroSequence.GENDER_FEMALE
 		and ResourceLoader.exists(PLAYER_GIRL_GLB)
 	):
 		return PLAYER_GIRL_GLB
@@ -221,7 +221,7 @@ func _ready() -> void:
 	_apply_worn_cloth()
 	## `Player_actor_Check_player_sunburn_for_ct`: a tan earned or faded shows on set-up.
 	if Game != null and not Game.title_demo_active:
-		Sunburn.on_setup(Game.sunburn, Clock.day_number())
+		Sunburn.on_setup(Game.resident.sunburn, Clock.day_number())
 	_apply_face()
 	Game.inventory.equipment_changed.connect(tools.on_equipment_changed)
 	tools.on_equipment_changed(Game.inventory.equipment_id)
@@ -581,7 +581,7 @@ func _tick_wade(delta: float) -> void:
 		scripted_input.consume_a_pressed()
 	var t: float = float(_wade["t"]) + delta * DecompTime.TICK_HZ
 	## `Player_actor_ChangeFace_for_Wade`: on tick 18 of the crossing the tan catches up.
-	if float(_wade["t"]) < 18.0 and t >= 18.0 and Sunburn.settle(Game.sunburn, Clock.day_number()):
+	if float(_wade["t"]) < 18.0 and t >= 18.0 and Sunburn.settle(Game.resident.sunburn, Clock.day_number()):
 		_apply_face()
 	_wade["t"] = t
 	var start: Vector3 = _wade["start"]
@@ -1236,7 +1236,7 @@ func _run_interact(hit: InteractionQuery) -> void:
 		## Door enter awaits the structure open clip before changing scene.
 		## Ground pickup awaits the pocket shrink (`Set_Item_Pickup` 20→40); that overlaps
 		## the clip tail, so subtract spent time from `_finish_action`.
-		await hit.host.interact(hit.action, ctx)
+		await hit.run(ctx)
 	else:
 		ToolUse.apply_field(hit.action, ctx)
 	var spent: float = float(Time.get_ticks_msec() - t0) / 1000.0
@@ -2179,8 +2179,8 @@ func _apply_face() -> void:
 	if Game == null or _mesh == null:
 		return
 	PlayerFace.apply(
-		_mesh, Game.player_gender == IntroSequence.GENDER_FEMALE, Game.player_face, Game.bee_swell,
-		int(Game.sunburn.get("rank", 0))
+		_mesh, Game.resident.player_gender == IntroSequence.GENDER_FEMALE, Game.resident.player_face, Game.bee_swell,
+		int(Game.resident.sunburn.get("rank", 0))
 	)
 
 
@@ -2189,13 +2189,13 @@ func _tick_sunburn(delta: float) -> void:
 	if delta <= 0.0 or Game == null or Game.title_demo_active or not TownSpace.is_outdoor_town():
 		return
 	var today: int = Clock.day_number()
-	Sunburn.change_day(Game.sunburn, today)
-	Sunburn.rankdown_interval(Game.sunburn, today)
-	Sunburn.check_rankdown(Game.sunburn, today)
+	Sunburn.change_day(Game.resident.sunburn, today)
+	Sunburn.rankdown_interval(Game.resident.sunburn, today)
+	Sunburn.check_rankdown(Game.resident.sunburn, today)
 	var exposed: bool = (
-		not Game.intro_station_active and Game.weather == &"clear" and tools.umbrella == null
+		not Game.intro_station_active and Game.town.weather == &"clear" and tools.umbrella == null
 	)
-	Sunburn.sun_tick(Game.sunburn, exposed, Clock.month, Clock.day, Clock.hour, delta)
+	Sunburn.sun_tick(Game.resident.sunburn, exposed, Clock.month, Clock.day, Clock.hour, delta)
 
 
 func _on_cloth_changed(_cloth_id: StringName) -> void:
@@ -2210,16 +2210,16 @@ func _apply_worn_cloth() -> void:
 	if Game == null or _mesh == null:
 		return
 	## Custom original design worn as a shirt (`cloth.idx >= CLOTH_NUM+1`).
-	if Game.worn_design_slot >= 0 and Game.designs != null:
-		var design: DesignPattern = Game.designs.resolved(Game.worn_design_slot)
+	if Game.resident.worn_design_slot >= 0 and Game.designs != null:
+		var design: DesignPattern = Game.designs.resolved(Game.resident.worn_design_slot)
 		if design != null:
 			VisualCloth.apply_design(_mesh, DesignTexture.build(design))
 			return
-	var data: ItemData = ItemCatalog.get_item(Game.cloth_id)
+	var data: ItemData = ItemCatalog.get_item(Game.resident.cloth_id)
 	var index: int = data.cloth_index if data != null else -1
-	if index < 0 and Game.cloth_id != &"":
+	if index < 0 and Game.resident.cloth_id != &"":
 		## Fallback: shirt_NNN id → index.
-		var raw := String(Game.cloth_id)
+		var raw := String(Game.resident.cloth_id)
 		if raw.begins_with("shirt_"):
 			index = int(raw.substr(6))
 	if index < 0:

@@ -37,7 +37,7 @@ const AREA_FLYING_NEAR_FLOWERS := BugHabitats.AREA_FLYING_NEAR_FLOWERS
 
 ## Town field rank (`mFAs_GetFieldRank`, `TownAssessment`).
 static func field_rank() -> int:
-	return Game.field_rank
+	return Game.town.field_rank
 
 
 static func env_rate() -> float:

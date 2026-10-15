@@ -72,9 +72,9 @@ static func cell_from_persist(id: StringName) -> Vector2i:
 
 
 static func record(persist_id: StringName) -> Dictionary:
-	if persist_id == &"" or Game.plant_states == null:
+	if persist_id == &"" or Game.town.plant_states == null:
 		return {}
-	var raw: Variant = Game.plant_states.get(String(persist_id), {})
+	var raw: Variant = Game.town.plant_states.get(String(persist_id), {})
 	if typeof(raw) != TYPE_DICTIONARY:
 		return {}
 	return (raw as Dictionary).duplicate()
@@ -87,7 +87,7 @@ static func has_record(persist_id: StringName) -> bool:
 static func clear(persist_id: StringName) -> void:
 	if persist_id == &"":
 		return
-	Game.plant_states.erase(String(persist_id))
+	Game.town.plant_states.erase(String(persist_id))
 
 
 static func growth_days(rec: Dictionary, plant: PlantData, now_renew: int = -1) -> int:
@@ -353,7 +353,7 @@ static func assign_special_trees(world: Node = null) -> void:
 	var bee_count := 0
 	var ftr_count := 0
 	var money_count := 0
-	for key: Variant in Game.plant_states.keys():
+	for key: Variant in Game.town.plant_states.keys():
 		var pid := StringName(str(key))
 		if Game.is_interactable_removed(pid) or Game.is_stump(pid):
 			continue
@@ -431,7 +431,7 @@ static func can_hold_lights(persist_id: StringName, rec: Dictionary, plant: Plan
 static func set_xmas_trees(month: int, day: int, rng: RandomNumberGenerator, world: Node = null) -> void:
 	var season: bool = xmas_season(month, day)
 	var by_acre: Dictionary = {}
-	for key: Variant in Game.plant_states.keys():
+	for key: Variant in Game.town.plant_states.keys():
 		var pid := StringName(str(key))
 		var rec: Dictionary = record(pid)
 		if rec.is_empty():
@@ -604,7 +604,7 @@ static func cull_dead_flowers(world: Node, grid: WorldGrid) -> void:
 	if world == null or grid == null:
 		return
 	var doomed: Array[StringName] = []
-	for key: Variant in Game.plant_states.keys():
+	for key: Variant in Game.town.plant_states.keys():
 		var pid := StringName(str(key))
 		var rec: Dictionary = record(pid)
 		var plant: PlantData = plant_data(StringName(str(rec.get(KEY_PLANT, ""))))
@@ -697,7 +697,7 @@ static func _is_flower_host(world: Node, pid: StringName) -> bool:
 static func restore(world: Node, grid: WorldGrid) -> void:
 	if world == null or grid == null:
 		return
-	for key: Variant in Game.plant_states.keys():
+	for key: Variant in Game.town.plant_states.keys():
 		var pid := StringName(str(key))
 		if Game.is_interactable_removed(pid) or Game.is_stump(pid):
 			continue
@@ -795,7 +795,7 @@ static func _terrain_ok(terrain: WorldGrid.Terrain, plant: PlantData) -> bool:
 
 
 static func _store(persist_id: StringName, rec: Dictionary) -> void:
-	Game.plant_states[String(persist_id)] = rec.duplicate()
+	Game.town.plant_states[String(persist_id)] = rec.duplicate()
 
 
 static func _instance(

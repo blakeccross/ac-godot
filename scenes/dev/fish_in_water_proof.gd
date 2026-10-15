@@ -16,8 +16,8 @@ func _run() -> void:
 	Clock.paused = true
 	Clock.month = 6
 	Clock.hour = 12
-	Game.world_mode = WorldData.Mode.GENERATED
-	Game.world_seed = 42
+	Game.town.world_mode = WorldData.Mode.GENERATED
+	Game.town.world_seed = 42
 
 	var world: World = load("res://scenes/world/world.tscn").instantiate() as World
 	add_child(world)

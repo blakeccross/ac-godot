@@ -529,7 +529,7 @@ static func letter_present(rank: int, rng: RandomNumberGenerator) -> StringName:
 		5:
 			return _pick(_carpet_or_wall(rng), rng)
 		6:
-			return Game.town_fruit if Game != null else &"apple"
+			return Game.town.town_fruit if Game != null else &"apple"
 		8:
 			return _pick(_rare(ItemData.Category.CLOTH), rng)
 		9:
@@ -618,7 +618,7 @@ static func errand_reward(used_num: int) -> Dictionary:
 ## so the fruit after the town's comes up twice as often, and the fifth only then.
 static func other_fruit(rng: RandomNumberGenerator) -> StringName:
 	var fruit_idx: int = rng.randi_range(0, 3)
-	var town: int = maxi(ShopBook.FRUITS.find(Game.town_fruit if Game != null else &"apple"), 0)
+	var town: int = maxi(ShopBook.FRUITS.find(Game.town.town_fruit if Game != null else &"apple"), 0)
 	if fruit_idx == town:
 		fruit_idx += 1
 	return ShopBook.FRUITS[mini(fruit_idx, ShopBook.FRUITS.size() - 1)]

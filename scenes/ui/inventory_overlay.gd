@@ -985,15 +985,15 @@ func _sync_portrait_equipment(force: bool = false) -> void:
 func _sync_portrait_cloth() -> void:
 	if _portrait_pivot == null or Game == null:
 		return
-	if Game.worn_design_slot >= 0 and Game.designs != null:
-		var design: DesignPattern = Game.designs.resolved(Game.worn_design_slot)
+	if Game.resident.worn_design_slot >= 0 and Game.designs != null:
+		var design: DesignPattern = Game.designs.resolved(Game.resident.worn_design_slot)
 		if design != null:
 			VisualCloth.apply_design(_portrait_pivot, DesignTexture.build(design))
 			return
-	var data: ItemData = ItemCatalog.get_item(Game.cloth_id)
+	var data: ItemData = ItemCatalog.get_item(Game.resident.cloth_id)
 	var index: int = data.cloth_index if data != null else -1
-	if index < 0 and Game.cloth_id != &"":
-		var raw := String(Game.cloth_id)
+	if index < 0 and Game.resident.cloth_id != &"":
+		var raw := String(Game.resident.cloth_id)
 		if raw.begins_with("shirt_"):
 			index = int(raw.substr(6))
 	if index < 0:
@@ -1686,7 +1686,7 @@ func _run_tag(tag: String) -> void:
 				Game.post_notice("Put away %s" % equipped.display_name)
 		"Wear":
 			if Game.wear_cloth_from_slot(idx):
-				var worn: ItemData = ItemCatalog.get_item(Game.cloth_id)
+				var worn: ItemData = ItemCatalog.get_item(Game.resident.cloth_id)
 				if worn != null:
 					Game.post_notice("Wearing %s" % worn.display_name)
 				if (
@@ -2069,9 +2069,9 @@ func _field_context() -> InteractionContext:
 func _refresh() -> void:
 	var inv: Inventory = Game.inventory
 	if _player_name != null:
-		_player_name.text = Game.player_name
+		_player_name.text = Game.resident.player_name
 	if _town_name != null:
-		_town_name.text = Game.town_name
+		_town_name.text = Game.town.town_name
 	_wallet.text = _format_bells(inv.wallet)
 	var eq: ItemData = ItemCatalog.get_item(inv.equipment_id)
 	_equip.text = "Held: %s" % (eq.display_name if eq != null else "—")

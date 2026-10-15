@@ -9,7 +9,7 @@ extends RefCounted
 ## good!" orders the bridge in his acre for the next day (`aESC_talk_select`); from 6:00 that
 ## day it stands (`bridge_make_in`, `BRIDGE_A0/A1`). Not an autoload.
 ##
-## `Game.bridge`: `{pending, exists, build, bx, bz, day, used, top, msg_no}` — `build` and
+## `Game.town.bridge`: `{pending, exists, build, bx, bz, day, used, top, msg_no}` — `build` and
 ## `day` are `EventDates.ordinal`s, `used` / `top` are `bridge_flags`.
 
 const SCENE := "res://scenes/world/second_bridge.tscn"
@@ -54,9 +54,9 @@ static func new_state() -> Dictionary:
 
 
 static func state() -> Dictionary:
-	if Game.bridge.is_empty():
-		Game.bridge = new_state()
-	return Game.bridge
+	if Game.town.bridge.is_empty():
+		Game.town.bridge = new_state()
+	return Game.town.bridge
 
 
 ## The river acres with a bridge spot, from the source down (`river_stream` +

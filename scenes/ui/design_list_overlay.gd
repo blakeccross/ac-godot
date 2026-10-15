@@ -191,7 +191,7 @@ func _wrap(i: int) -> int:
 func _wear_selected() -> void:
 	if Game == null:
 		return
-	Game.worn_design_slot = -1 if Game.worn_design_slot == _sel else _sel
+	Game.resident.worn_design_slot = -1 if Game.resident.worn_design_slot == _sel else _sel
 	Game.design_changed.emit()
 	Audio.play_se(&"cursol")
 	_refresh()
@@ -271,7 +271,7 @@ func _refresh() -> void:
 		_thumbs.append(ImageTexture.create_from_image(DesignTexture.image(dp)) if dp != null else null)
 	var d: DesignPattern = Game.designs.player[Game.designs.resolved_index(_sel)]
 	var label := d.name if d != null else ""
-	if _mode == ListMode.MANAGE and Game != null and Game.worn_design_slot == _sel and label != "":
+	if _mode == ListMode.MANAGE and Game != null and Game.resident.worn_design_slot == _sel and label != "":
 		label += "  (wearing)"
 	_name.text = label
 	_slots.queue_redraw()

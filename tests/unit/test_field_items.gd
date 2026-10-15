@@ -68,7 +68,7 @@ func test_picking_it_up_forgets_it() -> void:
 	var world := _world()
 	FieldItems.put(world, Vector2i(3, 4), &"apple")
 	assert_bool(FieldItems.picked(FieldItems.persist_id(Vector2i(3, 4)))).is_true()
-	assert_bool(Game.field_items.is_empty()).is_true()
+	assert_bool(Game.town.field_items.is_empty()).is_true()
 	assert_bool(Game.is_interactable_removed(FieldItems.persist_id(Vector2i(3, 4)))).is_false()
 
 

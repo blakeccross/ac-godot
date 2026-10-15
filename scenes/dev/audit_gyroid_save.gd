@@ -23,8 +23,8 @@ func _ready() -> void:
 func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
 	Clock.paused = true
-	Game.world_mode = WorldData.Mode.GENERATED
-	Game.world_seed = 4242
+	Game.town.world_mode = WorldData.Mode.GENERATED
+	Game.town.world_seed = 4242
 	var world: Node3D = load("res://scenes/world/world.tscn").instantiate() as Node3D
 	add_child(world)
 	for _i in 30:

@@ -45,20 +45,20 @@ func _apple() -> ItemData:
 ## Town A with Ann carrying two apples, town B with Zed.
 func _two_towns() -> void:
 	SaveService.current_path = B
-	Game.player_name = "Zed"
-	Game.town_name = "Elm"
+	Game.resident.player_name = "Zed"
+	Game.town.town_name = "Elm"
 	assert_int(SaveService.save_game()).is_equal(OK)
 	Game.reset_session()
 	SaveService.current_path = A
-	Game.player_name = "Ann"
-	Game.town_name = "Pine"
+	Game.resident.player_name = "Ann"
+	Game.town.town_name = "Pine"
 	Game.inventory.add(_apple(), 2)
 	assert_int(SaveService.save_game()).is_equal(OK)
 
 
 func test_porter_needs_another_town_to_go_to() -> void:
 	SaveService.current_path = A
-	Game.player_name = "Ann"
+	Game.resident.player_name = "Ann"
 	SaveService.save_game()
 	assert_str(Travel.departure_problem()).is_equal("no_town")
 	var talk := PorterTalk.new(false, true)
@@ -71,7 +71,7 @@ func test_porter_needs_another_town_to_go_to() -> void:
 func test_departing_takes_the_pockets_and_leaves_them_away_at_home() -> void:
 	_two_towns()
 	assert_str(Travel.departure_problem()).is_equal("")
-	var home_id: int = Game.town_id
+	var home_id: int = Game.town.town_id
 	assert_int(Travel.depart()).is_equal(OK)
 	var passport: Dictionary = Travel.read_passport()
 	assert_str(str(passport["player_name"])).is_equal("Ann")
@@ -98,8 +98,8 @@ func test_kk_welcomes_a_visitor_and_the_shop_counts_them() -> void:
 	assert_int(talk.result).is_equal(PlayerSelectTalk.Result.VISIT)
 	assert_int(SaveService.load_visitor(talk.passport)).is_equal(OK)
 	assert_bool(Game.foreigner).is_true()
-	assert_str(Game.player_name).is_equal("Ann")
-	assert_str(Game.town_name).is_equal("Elm")
+	assert_str(Game.resident.player_name).is_equal("Ann")
+	assert_str(Game.town.town_name).is_equal("Elm")
 	assert_int(Game.inventory.count_of(&"apple")).is_equal(2)
 	## No house of her own here; Zed's plot is still Zed's.
 	assert_str(String(PlayerHouse.owned_building_id())).is_equal("")
@@ -139,7 +139,7 @@ func test_back_home_with_what_she_carried() -> void:
 	assert_bool(Travel.has_passport()).is_false()
 	Game.reset_session()
 	assert_int(SaveService.load_game(A, 0)).is_equal(OK)
-	assert_str(Game.player_name).is_equal("Ann")
+	assert_str(Game.resident.player_name).is_equal("Ann")
 	assert_int(Game.inventory.count_of(&"apple")).is_equal(5)
 	assert_bool(Travel.is_away(Game.roster, 0)).is_false()
 

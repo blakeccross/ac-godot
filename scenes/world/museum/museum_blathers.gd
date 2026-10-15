@@ -150,12 +150,12 @@ func _greet_day_key() -> String:
 func _greeted_today() -> bool:
 	if Game == null:
 		return false
-	return str(Game.dialogue_vars.get("blathers_greet_day", "")) == _greet_day_key()
+	return str(Game.town.dialogue_vars.get("blathers_greet_day", "")) == _greet_day_key()
 
 
 func _mark_greeted() -> void:
 	if Game != null:
-		Game.dialogue_vars["blathers_greet_day"] = _greet_day_key()
+		Game.town.dialogue_vars["blathers_greet_day"] = _greet_day_key()
 
 
 ## Blathers opens the player's pockets to receive a donation (`mMmd` IV_OPEN). Each item

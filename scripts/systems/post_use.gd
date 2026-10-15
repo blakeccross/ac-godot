@@ -150,7 +150,7 @@ static func _deliver_to_villager(mail: MailData) -> void:
 	if slot != -1 and Game.quests.occured_contest_idx(VillagerQuests.CONTEST_LETTER) == slot:
 		var rng := RandomNumberGenerator.new()
 		rng.randomize()
-		Game.quests.receive_letter(slot, mail.body, mail.present_item_id, Game.player_name, rng)
+		Game.quests.receive_letter(slot, mail.body, mail.present_item_id, Game.resident.player_name, rng)
 		bond.send_reply = false
 
 
@@ -181,7 +181,7 @@ static func write_letter(to_id: StringName, body_index: int = 0) -> String:
 		to_name = String(to_id)
 	var body: String = BODY_PRESETS[clampi(body_index, 0, BODY_PRESETS.size() - 1)]
 	var mail: MailData = MailData.make_send(
-		to_id, to_name, body, Game.player_name, &"player"
+		to_id, to_name, body, Game.resident.player_name, &"player"
 	)
 	if Game.inventory.add_mail(mail) < 0:
 		return "Your letter slots are full."

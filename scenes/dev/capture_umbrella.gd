@@ -19,10 +19,10 @@ func _ready() -> void:
 func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
 	Clock.paused = true
-	Game.world_mode = WorldData.Mode.GENERATED
-	Game.world_seed = 4242
-	Game.weather = &"rain"
-	Game.weather_intensity = int(Weather.Intensity.NORMAL)
+	Game.town.world_mode = WorldData.Mode.GENERATED
+	Game.town.world_seed = 4242
+	Game.town.weather = &"rain"
+	Game.town.weather_intensity = int(Weather.Intensity.NORMAL)
 	add_child(load("res://scenes/world/world.tscn").instantiate())
 	for _i in 30:
 		await get_tree().process_frame

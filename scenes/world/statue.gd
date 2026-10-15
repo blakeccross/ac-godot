@@ -123,8 +123,8 @@ func refresh() -> void:
 		return
 	_model.name = "Figure"
 	add_child(_model)
-	var female: bool = Game.player_gender == IntroSequence.GENDER_FEMALE
-	_dress(_model, clampi(house.statue_rank, 0, 3), winter, female, Game.player_face)
+	var female: bool = Game.resident.player_gender == IntroSequence.GENDER_FEMALE
+	_dress(_model, clampi(house.statue_rank, 0, 3), winter, female, Game.resident.player_face)
 	HostCollision.apply_box(self, footprint, HostCollision.CELL, 2.0)
 
 
@@ -270,12 +270,12 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	var ui := DialogueOverlay.find(get_tree())
 	var data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % MSG_DOZOU))
 	if ui == null or data == null:
-		Game.post_notice("A statue of %s." % Game.player_name)
+		Game.post_notice("A statue of %s." % Game.resident.player_name)
 		return true
 	var ctx: DialogueContext = DialogueContext.from_game()
 	ctx.speaker_name = ""
 	ctx.voice_mode = DialogueVoice.Mode.CLICK
 	ctx.window_color = WINDOW_COLOR
-	ctx.frees = PackedStringArray([Game.player_name])
+	ctx.frees = PackedStringArray([Game.resident.player_name])
 	ui.play(data, ctx)
 	return true

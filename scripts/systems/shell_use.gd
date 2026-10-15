@@ -8,7 +8,7 @@ extends RefCounted
 ## (`mFI_DivideShell`). One in four is rare: a conch or white scallop (`mFI_GetShell`). A shell
 ## is an ordinary ground item; Nook pays a quarter of `mSP_ItemNo2ItemPrice`. Not an autoload.
 ##
-## `Game.shells`: `shell_<x>_<z>` → item id. Saved.
+## `Game.town.shells`: `shell_<x>_<z>` → item id. Saved.
 
 const FIRST_NUM := 20
 const MAX_PER_BLOCK := 4
@@ -73,7 +73,7 @@ static func free_cells(world: Node, grid: WorldGrid, block: Vector2i) -> Array[V
 
 static func count_in(block: Vector2i) -> int:
 	var n: int = 0
-	for key: Variant in Game.shells.keys():
+	for key: Variant in Game.town.shells.keys():
 		if TownSpace.block_of_cell(cell_from_persist(StringName(str(key)))) == block:
 			n += 1
 	return n
@@ -155,22 +155,22 @@ static func tick(world: Node, minute: int, player_block: Vector2i, rng: RandomNu
 static func restore(world: Node, grid: WorldGrid) -> void:
 	if grid == null:
 		return
-	for key: Variant in Game.shells.keys():
+	for key: Variant in Game.town.shells.keys():
 		var pid := StringName(str(key))
 		var cell: Vector2i = cell_from_persist(pid)
 		if not grid.is_in_bounds(cell) or (grid.is_occupied(cell) and grid.occupant_at(cell) != pid):
-			Game.shells.erase(key)
+			Game.town.shells.erase(key)
 			continue
 		if not grid.is_occupied(cell):
 			grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM)
-		_instance(world, grid, cell, pid, StringName(str(Game.shells[key])))
+		_instance(world, grid, cell, pid, StringName(str(Game.town.shells[key])))
 
 
 ## Picked up: the ground item is just gone (`item_pickup` calls this).
 static func picked(pid: StringName) -> bool:
-	if not Game.shells.has(String(pid)):
+	if not Game.town.shells.has(String(pid)):
 		return false
-	Game.shells.erase(String(pid))
+	Game.town.shells.erase(String(pid))
 	return true
 
 
@@ -178,7 +178,7 @@ static func _put(world: Node, grid: WorldGrid, cell: Vector2i, item_id: StringNa
 	var pid: StringName = persist_id(cell)
 	if not grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM):
 		return false
-	Game.shells[String(pid)] = String(item_id)
+	Game.town.shells[String(pid)] = String(item_id)
 	_instance(world, grid, cell, pid, item_id)
 	return true
 

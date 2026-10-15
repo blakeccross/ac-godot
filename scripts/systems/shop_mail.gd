@@ -30,7 +30,7 @@ static func _base(level: int) -> MailData:
 	mail.sender_name = store_name(level)
 	mail.sender_type = MailData.NameType.NPC
 	mail.recipient_type = MailData.NameType.PLAYER
-	mail.recipient_name = Game.player_name if Game != null else "Resident"
+	mail.recipient_name = Game.resident.player_name if Game != null else "Resident"
 	mail.font = MailData.LetterFont.RECV
 	mail.header = "Dear %s," % mail.recipient_name
 	mail.footer = "— Tom Nook, %s" % store_name(level)

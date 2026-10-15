@@ -22,10 +22,6 @@ func _ready() -> void:
 	GeneratedVisual.attach(self, visual_id)
 
 
-func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
-	return [Interaction.of(Interaction.PICK_UP, "Pull weed", 10, WeedUse.PULL_ANIM, WeedUse.PULL_FRAME)]
-
-
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.PICK_UP:
 		return false

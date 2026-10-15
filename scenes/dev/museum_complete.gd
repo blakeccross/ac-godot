@@ -82,7 +82,7 @@ func _bootstrap_session() -> void:
 	Clock.hour = 12
 	Clock.minute = 0
 	Game.museum.fill_complete()
-	Game.world_mode = WorldData.Mode.TEST
+	Game.town.world_mode = WorldData.Mode.TEST
 	Game.give_test_tools()
 	_give_sample_donations()
 	Game.current_room_id = &"museum_entrance"
@@ -137,7 +137,7 @@ func _spawn_or_move_player(room_node: Node3D) -> void:
 	var pos: Vector3 = (
 		spawn_marker.global_position if spawn_marker != null else Vector3(12.0, 0.1, 22.0)
 	)
-	var yaw: float = Game.player_yaw
+	var yaw: float = Game.resident.player_yaw
 	if Game.has_interior_spawn and grid != null:
 		pos = MuseumDisplay.gx_to_world(grid, Game.interior_spawn_gx)
 		pos.y = 0.1

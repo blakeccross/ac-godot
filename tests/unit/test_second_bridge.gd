@@ -61,7 +61,7 @@ func test_it_is_saved() -> void:
 	SecondBridge.order(Vector2i(2, 1), 300)
 	var saved: Dictionary = Game.to_save()
 	Game.reset_session()
-	assert_bool(Game.bridge.is_empty()).is_true()
+	assert_bool(Game.town.bridge.is_empty()).is_true()
 	Game.apply_snapshot(saved)
 	assert_bool(bool(SecondBridge.state()["pending"])).is_true()
 	assert_int(int(SecondBridge.state()["bx"])).is_equal(2)

@@ -22,7 +22,7 @@ const KEY := "museum_comp_mail"
 static func schedule() -> bool:
 	if Game == null or Game.museum == null or not Game.museum.is_complete():
 		return false
-	if Game.museum_comp_mail & SCHEDULED:
+	if Game.resident.museum_comp_mail & SCHEDULED:
 		return false
 	if Game.roster != null:
 		for slot: int in PlayerRoster.MAX:
@@ -35,7 +35,7 @@ static func schedule() -> bool:
 			var priv: Dictionary = Game.roster.slots[slot]
 			if slot != Game.roster.current and PlayerRoster.is_resident(priv):
 				priv[KEY] = int(priv.get(KEY, 0)) | SCHEDULED
-	Game.museum_comp_mail |= SCHEDULED
+	Game.resident.museum_comp_mail |= SCHEDULED
 	return true
 
 
@@ -43,12 +43,12 @@ static func schedule() -> bool:
 static func send() -> bool:
 	if Game == null or Game.foreigner or Game.inventory == null:
 		return false
-	if Game.museum_comp_mail & SCHEDULED == 0 or Game.museum_comp_mail & RECEIVED:
+	if Game.resident.museum_comp_mail & SCHEDULED == 0 or Game.resident.museum_comp_mail & RECEIVED:
 		return false
-	var mail: MailData = letter(Game.player_name, Game.town_name)
+	var mail: MailData = letter(Game.resident.player_name, Game.town.town_name)
 	if Game.inventory.add_received_mail(mail) < 0 and (Game.post == null or not Game.post.receipt_mail(mail)):
 		return false
-	Game.museum_comp_mail |= RECEIVED
+	Game.resident.museum_comp_mail |= RECEIVED
 	return true
 
 

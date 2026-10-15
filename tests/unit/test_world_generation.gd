@@ -645,10 +645,10 @@ func test_builder_skips_removed_pickup() -> void:
 
 
 func test_game_resolve_respects_mode() -> void:
-	Game.world_mode = WorldData.Mode.TEST
+	Game.town.world_mode = WorldData.Mode.TEST
 	assert_that(Game.resolve_world_data().mode).is_equal(WorldData.Mode.TEST)
-	Game.world_mode = WorldData.Mode.GENERATED
-	Game.world_seed = 12345
+	Game.town.world_mode = WorldData.Mode.GENERATED
+	Game.town.world_seed = 12345
 	var generated: WorldData = Game.resolve_world_data()
 	assert_that(generated.mode).is_equal(WorldData.Mode.GENERATED)
 	assert_str(generated.fingerprint()).is_equal(WorldGenerator.generate(12345).fingerprint())

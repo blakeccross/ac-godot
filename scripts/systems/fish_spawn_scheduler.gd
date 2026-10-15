@@ -179,13 +179,13 @@ static func is_fresh_water_attr(attr: int) -> bool:
 
 # ---- term ---------------------------------------------------------
 
-## `aSOG_gyoei_chk_term_info`. `Game.fish_season_term` is the *next* half-month (what
-## `aSOG_gyoei_renew_term_info` saves) and `Game.fish_season_offset` a 0–5 day lead. From
+## `aSOG_gyoei_chk_term_info`. `Game.town.fish_season_term` is the *next* half-month (what
+## `aSOG_gyoei_renew_term_info` saves) and `Game.town.fish_season_offset` a 0–5 day lead. From
 ## that many days before the next term starts, for five days, the next term's list fades
 ## in at 1/6 a day while the current one fades out. Returns
 ## `{term0, term1, term0_rate}`; `term0_rate` is 1.0 outside the ramp.
 static func chk_term_info(rng: RandomNumberGenerator) -> Dictionary:
-	var saved: int = Game.fish_season_term
+	var saved: int = Game.town.fish_season_term
 	var now_term: int = (Clock.month - 1) * 2 + (1 if Clock.day > 15 else 0)
 	var next_term: int = 0 if now_term == 23 else now_term + 1
 	var pure := {"term0": now_term, "term1": now_term, "term0_rate": 1.0}
@@ -200,7 +200,7 @@ static func chk_term_info(rng: RandomNumberGenerator) -> Dictionary:
 			year += 1
 	else:
 		day = 15
-	var start: int = _day_number(year, (saved >> 1) + 1, day) - Game.fish_season_offset
+	var start: int = _day_number(year, (saved >> 1) + 1, day) - Game.town.fish_season_offset
 	var today: int = _day_number(Clock.year, Clock.month, Clock.day)
 	## `lbRTC_IsOverRTC`: the clock is at or past that midnight (`lbRTC_IsOverTime` answers
 	## `lbRTC_OVER` on equality), so both boundaries fall on whole days.
@@ -214,8 +214,8 @@ static func chk_term_info(rng: RandomNumberGenerator) -> Dictionary:
 
 
 static func _renew_term(term: int, rng: RandomNumberGenerator) -> void:
-	Game.fish_season_term = term
-	Game.fish_season_offset = int((rng.randf() if rng != null else 0.0) * float(TRANSITION_DAYS + 1))
+	Game.town.fish_season_term = term
+	Game.town.fish_season_offset = int((rng.randf() if rng != null else 0.0) * float(TRANSITION_DAYS + 1))
 
 
 static func _day_number(year: int, month: int, day: int) -> int:

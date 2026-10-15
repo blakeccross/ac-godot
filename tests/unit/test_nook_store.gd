@@ -340,7 +340,7 @@ func test_foreign_fruit_sells_high() -> void:
 	cherry.category = ItemData.Category.FRUIT
 	cherry.sell_price = 100
 	assert_int(ShopBook.sell_price(cherry)).is_equal(500)
-	Game.town_fruit = &"cherry"
+	Game.town.town_fruit = &"cherry"
 	assert_int(ShopBook.sell_price(cherry)).is_equal(100)
 
 

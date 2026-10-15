@@ -341,7 +341,7 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
     - The lighthouse arm, the Christmas lights, the weathervane and the balloons: they follow wind, game state or a clock shared across the town, and already run on seconds since Phase 2.
   - **Asset pipeline fix:** `texbank.py` called a removed helper, so every cKF character and most interiors failed to convert. With that fixed, the suite runs against full assets: 1912 cases, with 8 tests failing on `main` as well.
 
-- **Phase 5 in part.** Components and typed calls are done. `Game`'s state and the `Interactable` component are not; see the notes on each.
+- **Phase 5 done.**
   - **Player components:** `player.gd` went from 3783 lines to 2326.
     - `Doors` takes door walks, the indoor exit, the train and demo walks.
     - `Furniture` takes grip, push, pull, turn and tap, sitting and lying, and B pick-up.
@@ -361,10 +361,17 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
     - The player group lookups outside villagers are `Player.find`.
     - A greeting reaches its partner as a typed `Villager`, and `FurnitureTalk` and the blob shadow check the player by type.
     - What remains (about 120 `has_method` and 160 `call`) is mostly the duck typing `conventions.md` keeps: interaction hosts, NPC hand-overs, talk speakers and villager player checks.
-  - **Not done: `Game` state as resources.**
-    - The `*Book` classes already carry each system's state and save themselves.
-    - `Game`'s remaining loose fields (identity, field flags, event bookkeeping) are read in about 1,000 places across scenes, systems and tests, and moving them changes every one for little gain until saving moves off JSON. The plan keeps JSON, so they stay for now.
-  - **Not done: the `Interactable` component.** Most of the 38 hosts work out their verbs from context (time, state, what the player holds), so a static `verbs` export would not cover them. Hosts are already found through the `InteractVolume` each scene authors, so `get_interactions` / `interact` stays the protocol.
+  - **`Game` state as resources:**
+    - The resident's own saved fields are `Game.resident`, a `PlayerState`: identity and outfit, fortune, pose, sunburn, diary, calendar and the yearly letters. These are the roster's `Private_c` keys.
+    - The town's are `Game.town`, a `TownState`: field contents, rating, weather, tune, fruit and event bookkeeping.
+    - Each writes, reads and resets its part of the save under the same keys (`write_save` / `read_save` / `reset`), so the JSON format, the migrations and the roster's split are unchanged.
+    - `Game` keeps the session flags and the per-system books, which already owned and saved their state. Fields keep their names (`Game.resident.player_name`), which made the move over about 1,000 call sites mechanical.
+    - Finished collections are now noted after the encyclopedia loads. Before, `CompleteTalk.start_set_info` ran against the previous session's encyclopedia and its bits were then overwritten.
+  - **The interactable component** is `InteractVolume`, the sensor every host scene already authored, not a new node.
+    - Verbs that depend only on the tool held are `InteractionVerb` resources authored on it in the scene: the weed, the e-Terminal, the buried mark and the rock.
+    - Hosts whose verbs depend on more (the hour, their own state) still supply them from `get_interactions`. Most do, which is why the verbs aren't all data.
+    - Either way the host's `interact` carries them out and may await. A host with no `interact` hears the volume's `activated` signal.
+    - `InteractionQuery` talks only to typed volumes (`offers` / `activate`). The host methods are found once, by the volume, which is the one place that duck typing remains.
 
 Lessons from the weather particles:
 

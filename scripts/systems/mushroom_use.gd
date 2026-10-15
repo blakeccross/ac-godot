@@ -64,13 +64,13 @@ static func _day(minute: int) -> int:
 ## `mMsr_FirstClearMushroom`, at the start of a play session: mushrooms whose quarter hours
 ## ran out while the game was off are gone; a new day readies the next crop.
 static func first_clear(world: Node, now_minute: int, rng: RandomNumberGenerator) -> void:
-	var last: int = Game.mushroom_minute if Game.mushroom_minute >= 0 else now_minute
+	var last: int = Game.town.mushroom_minute if Game.town.mushroom_minute >= 0 else now_minute
 	var n: int = quarters_between(now_minute, last)
 	if n > 0:
 		clear(world, n, Vector2i(-1, -1), rng)
 	if _day(last) != _day(now_minute):
-		Game.mushroom_active = true
-	Game.mushroom_minute = now_minute
+		Game.town.mushroom_active = true
+	Game.town.mushroom_minute = now_minute
 
 
 ## `mMsr_SetMushroom`, called while the player is out on the field.
@@ -78,20 +78,20 @@ static func tick(world: Node, now_minute: int, hour: int, minute: int, player_bl
 	if not in_season():
 		return
 	## Never set: as if last done yesterday.
-	var last: int = Game.mushroom_minute if Game.mushroom_minute >= 0 else now_minute - 1440
-	var new_day: bool = Game.mushroom_active or _day(last) != _day(now_minute)
+	var last: int = Game.town.mushroom_minute if Game.town.mushroom_minute >= 0 else now_minute - 1440
+	var new_day: bool = Game.town.mushroom_active or _day(last) != _day(now_minute)
 	var n: int = crop(hour, minute, new_day)
 	if n > 0 and n <= NUM:
 		grow(world, n, player_block, rng)
-		Game.mushroom_minute = now_minute
-		Game.mushroom_active = false
+		Game.town.mushroom_minute = now_minute
+		Game.town.mushroom_active = false
 		return
 	var gone: int = quarters_between(now_minute, last)
 	if gone > 0:
 		clear(world, gone, player_block, rng)
-		if not Game.mushroom_active and _day(last) != _day(now_minute):
-			Game.mushroom_active = true
-		Game.mushroom_minute = now_minute
+		if not Game.town.mushroom_active and _day(last) != _day(now_minute):
+			Game.town.mushroom_active = true
+		Game.town.mushroom_minute = now_minute
 
 
 ## Host trees per field acre: block → Array of tree cells with a free spot around them.
@@ -169,7 +169,7 @@ static func grow(world: Node, amount: int, player_block: Vector2i, rng: RandomNu
 ## acre. More than are left takes them all.
 static func clear(world: Node, amount: int, player_block: Vector2i, rng: RandomNumberGenerator) -> int:
 	var candidates: Array = []
-	for key: Variant in Game.mushrooms.keys():
+	for key: Variant in Game.town.mushrooms.keys():
 		var cell: Vector2i = cell_from_persist(StringName(str(key)))
 		if cell.x < 0 or TownSpace.block_of_cell(cell) == player_block:
 			continue
@@ -187,14 +187,14 @@ static func clear(world: Node, amount: int, player_block: Vector2i, rng: RandomN
 static func restore(world: Node, grid: WorldGrid) -> void:
 	if grid == null:
 		return
-	for key: Variant in Game.mushrooms.keys():
+	for key: Variant in Game.town.mushrooms.keys():
 		var pid := StringName(str(key))
 		var cell: Vector2i = cell_from_persist(pid)
 		if not grid.is_in_bounds(cell):
-			Game.mushrooms.erase(key)
+			Game.town.mushrooms.erase(key)
 			continue
 		if grid.is_occupied(cell) and grid.occupant_at(cell) != pid:
-			Game.mushrooms.erase(key)
+			Game.town.mushrooms.erase(key)
 			continue
 		if not grid.is_occupied(cell):
 			grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM)
@@ -203,9 +203,9 @@ static func restore(world: Node, grid: WorldGrid) -> void:
 
 ## Picked up: the ground item is just gone (`item_pickup` calls this).
 static func picked(pid: StringName) -> bool:
-	if not Game.mushrooms.has(String(pid)):
+	if not Game.town.mushrooms.has(String(pid)):
 		return false
-	Game.mushrooms.erase(String(pid))
+	Game.town.mushrooms.erase(String(pid))
 	return true
 
 
@@ -213,13 +213,13 @@ static func _put(world: Node, grid: WorldGrid, cell: Vector2i) -> bool:
 	var pid: StringName = persist_id(cell)
 	if not grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM):
 		return false
-	Game.mushrooms[String(pid)] = 1
+	Game.town.mushrooms[String(pid)] = 1
 	_instance(world, grid, cell, pid)
 	return true
 
 
 static func _remove(world: Node, pid: StringName) -> void:
-	Game.mushrooms.erase(String(pid))
+	Game.town.mushrooms.erase(String(pid))
 	var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
 	if grid != null:
 		grid.remove(pid)

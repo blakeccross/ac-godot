@@ -43,7 +43,7 @@ func check_unlock() -> void:
 func _seed_schedule() -> void:
 	if open_weekday >= 0:
 		return
-	var seed_src: int = hash("redd_%s" % (Game.town_name if Game != null else "town"))
+	var seed_src: int = hash("redd_%s" % (Game.town.town_name if Game != null else "town"))
 	open_weekday = int(abs(seed_src)) % 7
 
 
@@ -72,7 +72,7 @@ func _roll_stock(today: String) -> void:
 	_stock_day = today
 	_stock.clear()
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("redd_stock_%s_%s" % [Game.town_name if Game != null else "town", today])
+	rng.seed = hash("redd_stock_%s_%s" % [Game.town.town_name if Game != null else "town", today])
 	var used: Dictionary = {}
 	## Slot 0 is a coin-flip furniture piece; the rest are paintings.
 	if rng.randf() < 0.35:

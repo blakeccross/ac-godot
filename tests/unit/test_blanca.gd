@@ -34,7 +34,7 @@ func test_a_face_brings_her_to_town_until_ten_talks_or_a_week() -> void:
 	MaskCat.check_delete(1007)
 	assert_bool(MaskCat.check_birth()).is_false()
 	MaskCat.store(_drawn(), "Ann", 1000)
-	Game.mask_cat["talk_idx"] = MaskCat.TALK_MAX
+	Game.town.mask_cat["talk_idx"] = MaskCat.TALK_MAX
 	assert_bool(MaskCat.check_birth()).is_false()
 
 
@@ -46,7 +46,7 @@ func test_her_talks_count_up_once_a_day() -> void:
 	assert_int(MaskCat.town_msg(true, rng)).is_equal(0x31E8)
 	var again: int = MaskCat.town_msg(false, rng)
 	assert_int(again).is_between(0x31E9, 0x31EB)
-	assert_int(int(Game.mask_cat["talk_idx"])).is_equal(2)
+	assert_int(int(Game.town.mask_cat["talk_idx"])).is_equal(2)
 
 
 func test_she_rides_every_visit_and_every_other_trip_home() -> void:

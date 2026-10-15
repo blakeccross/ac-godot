@@ -92,7 +92,7 @@ func request_arrival_demo() -> void:
 ## `mTRC_go_process`: the field train runs in play and during the station arrival (not in the
 ## K.K. / Rover intro scenes), and in title demo 1 only.
 static func is_active() -> bool:
-	if Game.world_mode != WorldData.Mode.GENERATED:
+	if Game.town.world_mode != WorldData.Mode.GENERATED:
 		return false
 	if Game.title_demo_active:
 		return TitleDemo.has_parked_train(Game.title_demo_index)

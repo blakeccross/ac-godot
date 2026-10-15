@@ -37,7 +37,7 @@ func _world() -> _GridWorld:
 ## A hole where the day's shine spot was.
 func _shine_hole(ctx: InteractionContext, cell: Vector2i) -> void:
 	assert_bool(HoleUse.dig(ctx, cell, false)).is_true()
-	Game.shine_hole = HoleUse.persist_id(cell)
+	Game.town.shine_hole = HoleUse.persist_id(cell)
 
 
 func test_money_tree_odds() -> void:
@@ -54,13 +54,13 @@ func test_bag_in_shine_hole_grows_a_money_tree() -> void:
 	ctx.world = world
 	var cell := Vector2i(5, 5)
 	_shine_hole(ctx, cell)
-	Game.destiny_type = Game.Destiny.MONEY_LUCK
+	Game.resident.destiny_type = Game.Destiny.MONEY_LUCK
 	assert_bool(BuriedUse.bury(ctx, cell, &"money_1000")).is_true()
 	var pid: StringName = world.grid.occupant_at(cell)
 	assert_str(String(pid)).is_equal(String(PlantGrowth.persist_id(cell)))
 	assert_int(PlantGrowth.shake_content(pid)).is_equal(TreeUse.Content.MONEY_1000)
 	assert_bool(PlantGrowth.is_gold(pid)).is_false()
-	assert_str(String(Game.shine_hole)).is_equal("")
+	assert_str(String(Game.town.shine_hole)).is_equal("")
 
 
 func test_shovel_in_shine_hole_grows_the_golden_tree() -> void:
@@ -111,9 +111,9 @@ func test_spare_shovel_can_be_buried_not_the_one_in_hand() -> void:
 
 
 func test_shine_hole_saves() -> void:
-	Game.shine_hole = &"hole_3_4"
+	Game.town.shine_hole = &"hole_3_4"
 	var data: Dictionary = Game.to_save()
 	Game.reset_session()
-	assert_str(String(Game.shine_hole)).is_equal("")
+	assert_str(String(Game.town.shine_hole)).is_equal("")
 	Game.apply_snapshot(data)
-	assert_str(String(Game.shine_hole)).is_equal("hole_3_4")
+	assert_str(String(Game.town.shine_hole)).is_equal("hole_3_4")

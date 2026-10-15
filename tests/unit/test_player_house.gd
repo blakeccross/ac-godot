@@ -618,9 +618,9 @@ func test_incomplete_collection_never_congratulates() -> void:
 
 
 func test_completion_flags_survive_a_save() -> void:
-	Game.complete_flags = 0b1010
+	Game.resident.complete_flags = 0b1010
 	var snap: Dictionary = Game.to_save()
-	Game.complete_flags = 0
+	Game.resident.complete_flags = 0
 	Game.apply_snapshot(snap)
 	assert_bool(CompleteTalk.talked(CompleteTalk.FISH)).is_true()
 	assert_bool(CompleteTalk.talked(CompleteTalk.INSECT)).is_true()

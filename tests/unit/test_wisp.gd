@@ -6,11 +6,11 @@ var _saved_clear: bool = false
 
 
 func before_test() -> void:
-	_saved_clear = Game.clear_grass
+	_saved_clear = Game.town.clear_grass
 
 
 func after_test() -> void:
-	Game.clear_grass = _saved_clear
+	Game.town.clear_grass = _saved_clear
 
 
 func _rng(seed: int) -> RandomNumberGenerator:
@@ -117,11 +117,11 @@ func test_the_weeds_wish_clears_them_with_the_next_growth() -> void:
 	_advance_until(runner, func() -> bool: return false)
 	runner.resolve_action({})
 	_advance_until(runner, func() -> bool: return false)
-	Game.clear_grass = false
+	Game.town.clear_grass = false
 	runner.choose(0)
 	assert_int(talk.current_msg).is_between(0x2EF1, 0x2EF5)
 	var guard := 0
 	while not runner.done and guard < 40:
 		guard += 1
 		runner.advance()
-	assert_bool(Game.clear_grass).is_true()
+	assert_bool(Game.town.clear_grass).is_true()

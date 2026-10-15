@@ -115,8 +115,8 @@ func say(msg_no: int) -> void:
 func _context() -> DialogueContext:
 	var ctx := DialogueContext.new()
 	ctx.speaker_name = "Porter"
-	ctx.player_name = Game.player_name
-	ctx.town_name = Game.town_name
+	ctx.player_name = Game.resident.player_name
+	ctx.town_name = Game.town.town_name
 	return ctx
 
 

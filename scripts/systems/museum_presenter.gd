@@ -174,7 +174,7 @@ func present_fish(root: Node3D, interior: IndoorSession) -> void:
 	_spawn_fish_tanks(root, interior)
 	var book: MuseumBook = Game.museum
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("museum_fish_%s" % Game.town_name)
+	rng.seed = hash("museum_fish_%s" % Game.town.town_name)
 	for i: int in MuseumBook.FISH_NUM:
 		if not MuseumBook.is_donated(book.fish_info(i)):
 			continue
@@ -310,7 +310,7 @@ func _add_exhibit_collision(host: Node3D) -> void:
 func present_insects(root: Node3D, interior: IndoorSession) -> void:
 	var book: MuseumBook = Game.museum
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash("museum_insect_%s" % Game.town_name)
+	rng.seed = hash("museum_insect_%s" % Game.town.town_name)
 	for i: int in MuseumBook.INSECT_NUM:
 		if not MuseumBook.is_donated(book.insect_info(i)):
 			continue

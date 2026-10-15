@@ -34,7 +34,7 @@ func _world() -> _GridWorld:
 
 func _per_block() -> Dictionary:
 	var out: Dictionary = {}
-	for key: Variant in Game.shells.keys():
+	for key: Variant in Game.town.shells.keys():
 		var b: Vector2i = TownSpace.block_of_cell(ShellUse.cell_from_persist(StringName(str(key))))
 		out[b] = int(out.get(b, 0)) + 1
 	return out
@@ -53,8 +53,8 @@ func test_twenty_wash_up_at_most_four_an_acre_never_by_the_player() -> void:
 	for b: Variant in per:
 		assert_int(int(per[b])).is_equal(ShellUse.MAX_PER_BLOCK)
 		assert_int((b as Vector2i).y).is_equal(TownAssessment.FG_BLOCK_Z)
-	for key: Variant in Game.shells:
-		var id := StringName(str(Game.shells[key]))
+	for key: Variant in Game.town.shells:
+		var id := StringName(str(Game.town.shells[key]))
 		assert_bool(id in ShellUse.NORMAL or id in ShellUse.RARE).is_true()
 
 
@@ -76,18 +76,18 @@ func test_one_more_every_tenth_minute() -> void:
 	var none := Vector2i(-1, -1)
 	ShellUse.tick(world, 3, none, rng)
 	assert_int(Game.shells_owed).is_equal(0)
-	var before: int = Game.shells.size()
+	var before: int = Game.town.shells.size()
 	## Pick one up so there is room again.
-	var first: String = str(Game.shells.keys()[0])
+	var first: String = str(Game.town.shells.keys()[0])
 	world.grid.remove(StringName(first))
 	assert_bool(ShellUse.picked(StringName(first))).is_true()
 	ShellUse.tick(world, 10, none, rng)
-	assert_int(Game.shells.size()).is_equal(before)
+	assert_int(Game.town.shells.size()).is_equal(before)
 	## Same tenth minute: nothing more owed.
-	world.grid.remove(StringName(str(Game.shells.keys()[0])))
-	ShellUse.picked(StringName(str(Game.shells.keys()[0])))
+	world.grid.remove(StringName(str(Game.town.shells.keys()[0])))
+	ShellUse.picked(StringName(str(Game.town.shells.keys()[0])))
 	ShellUse.tick(world, 10, none, rng)
-	assert_int(Game.shells.size()).is_equal(before - 1)
+	assert_int(Game.town.shells.size()).is_equal(before - 1)
 
 
 func test_rare_one_in_four() -> void:
@@ -103,9 +103,9 @@ func test_rare_one_in_four() -> void:
 func test_prices_and_saves() -> void:
 	assert_int(ShopBook.sell_price(ItemCatalog.get_item(&"white_scallop"))).is_equal(450)
 	assert_int(ShopBook.sell_price(ItemCatalog.get_item(&"wentletrap"))).is_equal(20)
-	Game.shells["shell_20_90"] = "conch"
+	Game.town.shells["shell_20_90"] = "conch"
 	var data: Dictionary = Game.to_save()
 	Game.reset_session()
 	Game.apply_snapshot(data)
-	assert_str(str(Game.shells.get("shell_20_90", ""))).is_equal("conch")
+	assert_str(str(Game.town.shells.get("shell_20_90", ""))).is_equal("conch")
 	assert_int(Game.shells_owed).is_equal(ShellUse.FIRST_NUM)

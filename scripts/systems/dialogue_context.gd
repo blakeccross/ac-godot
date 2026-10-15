@@ -87,9 +87,9 @@ const SLOT_KEYS := [
 
 static func from_game(villager: VillagerData = null, state: VillagerState = null) -> DialogueContext:
 	var ctx := DialogueContext.new()
-	ctx.player_name = Game.player_name
-	ctx.player_female = Game.player_gender == IntroSequence.GENDER_FEMALE
-	ctx.town_name = Game.town_name
+	ctx.player_name = Game.resident.player_name
+	ctx.player_female = Game.resident.player_gender == IntroSequence.GENDER_FEMALE
+	ctx.town_name = Game.town.town_name
 	ctx.hour = Clock.hour
 	ctx.weekday = Clock.weekday()
 	ctx.month = Clock.month
@@ -98,9 +98,9 @@ static func from_game(villager: VillagerData = null, state: VillagerState = null
 	ctx.minute = Clock.minute
 	ctx.time_of_day = Clock.time_of_day()
 	ctx.season = Clock.season()
-	ctx.weather = Game.weather
+	ctx.weather = Game.town.weather
 	ctx.inventory = Game.inventory
-	ctx.vars = Game.dialogue_vars
+	ctx.vars = Game.town.dialogue_vars
 	if Game.inventory != null:
 		ctx.held_item = Game.inventory.equipment_id
 	ctx.bee_chase = Game.bee_chase

@@ -10,10 +10,6 @@ func _ready() -> void:
 	add_to_group("post_set")
 
 
-func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
-	return [Interaction.of(Interaction.TALK, "Use e-Reader Transfer Machine", 18)]
-
-
 func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.TALK or Game == null or _busy:
 		return false

@@ -34,9 +34,9 @@ func think(_delta: float) -> void:
 	var axe: ItemData = ItemCatalog.get_item(GOLDEN_AXE)
 	if axe != null and Game.inventory != null:
 		Game.inventory.add(axe, 1)
-	Game.golden_axe_got = true
-	Game.perfect_streak = 0
-	Game.perfect_streak_day = -1
+	Game.town.golden_axe_got = true
+	Game.town.perfect_streak = 0
+	Game.town.perfect_streak_day = -1
 	if not begin_talk(player_node(), Speech.new()):
 		_vanish()
 

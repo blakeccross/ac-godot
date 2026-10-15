@@ -50,7 +50,7 @@ func _tick(delta: float) -> void:
 	var stretch: float = (
 		PoliceDisplay.sunshine_left_x(now) if left else PoliceDisplay.sunshine_right_x(now)
 	)
-	var raining: bool = Game != null and (Game.weather == &"rain" or Game.weather == &"snow")
+	var raining: bool = Game != null and (Game.town.weather == &"rain" or Game.town.weather == &"snow")
 	var alpha: float = float(PoliceDisplay.sunshine_alpha(now, raining)) / 255.0 * _window_alpha
 	var show: bool = _window_alpha >= 0.0001 and stretch != 0.0 and not _culled()
 	_pivot.visible = show

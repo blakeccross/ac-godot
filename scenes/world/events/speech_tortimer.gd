@@ -40,7 +40,7 @@ static func talk_msg(sec: int, weather: StringName, rng: RandomNumberGenerator) 
 
 
 func make_talk() -> BankTalk:
-	return BankTalk.Fixed.new(talk_msg(Clock.now_sec(), Game.weather if Game != null else &"clear", rng()))
+	return BankTalk.Fixed.new(talk_msg(Clock.now_sec(), Game.town.weather if Game != null else &"clear", rng()))
 
 
 func think(delta: float) -> void:

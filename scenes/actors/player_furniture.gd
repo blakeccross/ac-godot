@@ -154,22 +154,15 @@ func _end_grip() -> void:
 ## A short A on a gripped piece is the ordinary use verb (open, switch, put a fish on it).
 func _tap_furniture(placement_id: StringName, side: int) -> void:
 	var interior: Interior = Interior.find(get_tree())
-	var host: Node = interior.furniture_node(placement_id) if interior != null else null
-	if host == null or not InteractionQuery.is_host(host):
+	var volume: InteractVolume = InteractVolume.of(interior.furniture_node(placement_id) if interior != null else null)
+	if volume == null:
 		return
 	var ctx: InteractionContext = _player._make_context()
 	ctx.contact_side = side
-	var offered: Array[Interaction] = []
-	var raw: Variant = host.get_interactions(ctx)
-	if raw is Array:
-		offered.assign(raw)
-	var action: Interaction = Interaction.primary(offered)
+	var action: Interaction = Interaction.primary(volume.offers(ctx))
 	if action == null:
 		return
-	var tapped := InteractionQuery.new()
-	tapped.host = host
-	tapped.action = action
-	await _player._run_interact(tapped)
+	await _player._run_interact(InteractionQuery.on(volume, action))
 
 
 ## `aMR_SitDownFurniture` / `aMR_JudgeGoToBed`: walking straight into a chair or a bed.

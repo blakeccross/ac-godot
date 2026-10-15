@@ -12,8 +12,8 @@ func _fx() -> Node3D:
 
 
 func _weather(kind: StringName, intensity: Weather.Intensity) -> void:
-	Game.weather = kind
-	Game.weather_intensity = intensity
+	Game.town.weather = kind
+	Game.town.weather_intensity = intensity
 	Game.weather_changed.emit(kind)
 
 

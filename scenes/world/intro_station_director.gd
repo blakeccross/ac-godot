@@ -472,7 +472,7 @@ func _on_nook_exit_started() -> void:
 	await get_tree().create_timer(Audio.fade_sec).timeout
 	if not is_instance_valid(self):
 		return
-	_play_bgm_chain([BGM_FIND_SHOP, BgmCatalog.outdoor_id(Clock.hour, Game.weather)])
+	_play_bgm_chain([BGM_FIND_SHOP, BgmCatalog.outdoor_id(Clock.hour, Game.town.weather)])
 
 
 func _on_porter_talk() -> void:
@@ -556,8 +556,8 @@ func _play_dialogue(id: StringName, speaker: String, fallback: StringName = &"")
 		return
 	var ctx := DialogueContext.new()
 	ctx.speaker_name = speaker
-	ctx.player_name = Game.player_name
-	ctx.town_name = Game.town_name
+	ctx.player_name = Game.resident.player_name
+	ctx.town_name = Game.town.town_name
 	_fill_shop_acre_frees(ctx)
 	if id == NOOK_HOUSE_TAKEN_DIALOGUE:
 		ctx.frees = PackedStringArray([_taken_owner])

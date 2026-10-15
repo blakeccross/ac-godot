@@ -30,7 +30,7 @@ func make_talk() -> BankTalk:
 	var world: World = World.find(get_tree())
 	if p != null and world != null:
 		t.block = EventManager.cell_to_block(world.grid.world_to_cell(p.global_position))
-	t.cloth = Game.cloth_id if Game != null else &""
+	t.cloth = Game.resident.cloth_id if Game != null else &""
 	return t
 
 

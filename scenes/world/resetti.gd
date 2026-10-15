@@ -100,8 +100,8 @@ static func spawn(parent: Node, player: Node3D) -> Node3D:
 	if packed == null or parent == null or player == null:
 		return null
 	var npc := packed.instantiate()
-	var v: Array = ResettiVisit.visit(Game.reset_count)
-	Game.reset_count = ResettiVisit.normalized(Game.reset_count)
+	var v: Array = ResettiVisit.visit(Game.resident.reset_count)
+	Game.resident.reset_count = ResettiVisit.normalized(Game.resident.reset_count)
 	npc.set("visit", v)
 	npc.set("species", v[0])
 	var yaw: float = player.call("facing_yaw") if player.has_method("facing_yaw") else 0.0

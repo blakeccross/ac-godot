@@ -8,7 +8,7 @@ extends RefCounted
 ## lying out spoil once a Sunday has come round, and spoiled ones are cleared away
 ## (`mAGrw_SpoilKabu` / `mAGrw_ClearSpoiledKabu`). Not an autoload.
 ##
-## `Game.field_items`: `fitem_<x>_<z>` → `{id, wrapped}`.
+## `Game.town.field_items`: `fitem_<x>_<z>` → `{id, wrapped}`.
 
 const PREFIX := "fitem_"
 const SCENE := "res://scenes/world/item_pickup.tscn"
@@ -35,11 +35,11 @@ static func cell_from_persist(id: StringName) -> Vector2i:
 
 
 static func is_field_item(pid: StringName) -> bool:
-	return Game.field_items.has(String(pid))
+	return Game.town.field_items.has(String(pid))
 
 
 static func item_at(cell: Vector2i) -> StringName:
-	var rec: Variant = Game.field_items.get(String(persist_id(cell)), {})
+	var rec: Variant = Game.town.field_items.get(String(persist_id(cell)), {})
 	return StringName(str((rec as Dictionary).get("id", ""))) if typeof(rec) == TYPE_DICTIONARY else &""
 
 
@@ -74,29 +74,29 @@ static func put(world: Node, cell: Vector2i, item_id: StringName, wrapped: bool 
 	var pid: StringName = persist_id(cell)
 	if not grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM):
 		return null
-	Game.field_items[String(pid)] = {"id": String(item_id), "wrapped": wrapped}
+	Game.town.field_items[String(pid)] = {"id": String(item_id), "wrapped": wrapped}
 	return _instance(world, grid, cell, pid)
 
 
 ## Picked up: the record goes and the unit is free (`item_pickup` calls this).
 static func picked(pid: StringName) -> bool:
-	if not Game.field_items.has(String(pid)):
+	if not Game.town.field_items.has(String(pid)):
 		return false
-	Game.field_items.erase(String(pid))
+	Game.town.field_items.erase(String(pid))
 	return true
 
 
 static func restore(world: Node, grid: WorldGrid) -> void:
 	if grid == null:
 		return
-	for key: Variant in Game.field_items.keys():
+	for key: Variant in Game.town.field_items.keys():
 		var pid := StringName(str(key))
 		var cell: Vector2i = cell_from_persist(pid)
-		var rec: Variant = Game.field_items[key]
+		var rec: Variant = Game.town.field_items[key]
 		if typeof(rec) != TYPE_DICTIONARY or not grid.is_in_bounds(cell) \
 				or (grid.is_occupied(cell) and grid.occupant_at(cell) != pid) \
 				or ItemCatalog.get_item(StringName(str((rec as Dictionary).get("id", "")))) == null:
-			Game.field_items.erase(key)
+			Game.town.field_items.erase(key)
 			continue
 		if not grid.is_occupied(cell):
 			grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.ITEM)
@@ -117,11 +117,11 @@ static func sunday_passed(year: int, month: int, day: int, days: int) -> bool:
 ## in everyone's pockets, houses and gyroids too (`mAGrw_SpoilAllPossession`). Live ground
 ## items follow.
 static func renew(spoil: bool, inventory: Inventory = null, tree: SceneTree = null) -> void:
-	for key: Variant in Game.field_items.keys():
-		var rec: Dictionary = Game.field_items[key]
+	for key: Variant in Game.town.field_items.keys():
+		var rec: Dictionary = Game.town.field_items[key]
 		var id := StringName(str(rec.get("id", "")))
 		if id == StalkMarket.SPOILED:
-			Game.field_items.erase(key)
+			Game.town.field_items.erase(key)
 			_refresh_node(tree, StringName(str(key)))
 		elif spoil and StalkMarket.bundle_size(id) > 0:
 			rec["id"] = String(StalkMarket.SPOILED)
@@ -215,21 +215,21 @@ static func _refresh_node(tree: SceneTree, pid: StringName) -> void:
 	for node: Node in tree.get_nodes_in_group(GROUP):
 		if node.get("persist_id") != pid:
 			continue
-		if not Game.field_items.has(String(pid)):
+		if not Game.town.field_items.has(String(pid)):
 			var world: Node = World.find(tree)
 			var grid: WorldGrid = world.get("grid") as WorldGrid if world != null else null
 			if grid != null:
 				grid.remove(pid)
 			node.queue_free()
 		elif node.has_method("set_item"):
-			node.call("set_item", ItemCatalog.get_item(StringName(str((Game.field_items[String(pid)] as Dictionary).get("id", "")))))
+			node.call("set_item", ItemCatalog.get_item(StringName(str((Game.town.field_items[String(pid)] as Dictionary).get("id", "")))))
 
 
 static func _instance(world: Node, grid: WorldGrid, cell: Vector2i, pid: StringName) -> Node3D:
 	if world == null:
 		return null
 	var objects: Node = world.get_node_or_null("Objects")
-	var rec: Dictionary = Game.field_items.get(String(pid), {})
+	var rec: Dictionary = Game.town.field_items.get(String(pid), {})
 	var item: ItemData = ItemCatalog.get_item(StringName(str(rec.get("id", ""))))
 	if objects == null or item == null or not ResourceLoader.exists(SCENE):
 		return null

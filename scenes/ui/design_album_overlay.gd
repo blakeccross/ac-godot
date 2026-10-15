@@ -160,7 +160,7 @@ func close(keep: bool = true) -> void:
 	DesignTexture.clear_cache()
 	## `mCO_move_Wait` → `change_flg`: the worn slot now holds a different design, so the
 	## player changes into it (`aNNW_TALK_CLOTH_CHANGE3`).
-	if Game.worn_design_slot >= 0 and _worn_pixels() != _worn_before:
+	if Game.resident.worn_design_slot >= 0 and _worn_pixels() != _worn_before:
 		Game.design_changed.emit()
 	_open = false
 	_slide.slide_out(MenuSlide.Dir.OUT_RIGHT, _on_slid_out)
@@ -289,9 +289,9 @@ func _rename_folder() -> void:
 
 
 func _worn_pixels() -> PackedByteArray:
-	if Game == null or Game.designs == null or Game.worn_design_slot < 0:
+	if Game == null or Game.designs == null or Game.resident.worn_design_slot < 0:
 		return PackedByteArray()
-	return Game.designs.resolved(Game.worn_design_slot).pixels.duplicate()
+	return Game.designs.resolved(Game.resident.worn_design_slot).pixels.duplicate()
 
 
 func _design_at(region: int, page: int, idx: int) -> DesignPattern:

@@ -79,14 +79,14 @@ static func decide_now() -> int:
 	var bd: Vector2i = VillagerTalkManager.birthday()
 	var friend: StringName = birthday_npc(Game.residents, Game.relationships)
 	var kind: int = decide(
-		Clock.month, Clock.day, Clock.year, bd, Game.celebrated_birthday_year, friend != &"",
+		Clock.month, Clock.day, Clock.year, bd, Game.resident.celebrated_birthday_year, friend != &"",
 		Game.reset_flag, Game.inventory.has_space(1),
 		CompleteTalk.collection_complete(CompleteTalk.FISH), has_trophy(TROPHY_ROD),
 		CompleteTalk.collection_complete(CompleteTalk.INSECT), has_trophy(TROPHY_NET)
 	)
 	if kind == Kind.BIRTHDAY:
-		Game.birthday_present_npc = friend
-		Game.celebrated_birthday_year = Clock.year
+		Game.resident.birthday_present_npc = friend
+		Game.resident.celebrated_birthday_year = Clock.year
 	return kind
 
 

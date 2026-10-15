@@ -32,16 +32,16 @@ func test_save_and_load_clock_and_inventory() -> void:
 
 
 func test_save_and_load_player_pose_and_removed_pickup() -> void:
-	Game.player_position = Vector3(2.0, 0.1, 1.5)
-	Game.player_yaw = 0.5
+	Game.resident.player_position = Vector3(2.0, 0.1, 1.5)
+	Game.resident.player_yaw = 0.5
 	Game.mark_interactable_removed(&"ground_apple")
 	Game.mark_stump(&"tree_1")
 	Game.mark_hole(&"hole_8_9")
 	assert_int(SaveService.save_game(PATH)).is_equal(OK)
 	Game.reset_session()
 	assert_int(SaveService.load_game(PATH)).is_equal(OK)
-	assert_vector(Game.player_position).is_equal_approx(Vector3(2.0, 0.1, 1.5), Vector3(0.001, 0.001, 0.001))
-	assert_float(Game.player_yaw).is_equal_approx(0.5, 0.001)
+	assert_vector(Game.resident.player_position).is_equal_approx(Vector3(2.0, 0.1, 1.5), Vector3(0.001, 0.001, 0.001))
+	assert_float(Game.resident.player_yaw).is_equal_approx(0.5, 0.001)
 	assert_bool(Game.is_interactable_removed(&"ground_apple")).is_true()
 	assert_bool(Game.is_stump(&"tree_1")).is_true()
 	assert_bool(Game.is_hole(&"hole_8_9")).is_true()
@@ -59,7 +59,7 @@ func test_save_and_load_villager_friendship() -> void:
 
 
 func test_save_and_load_plant_states() -> void:
-	Game.plant_states["plant_4_6"] = {
+	Game.town.plant_states["plant_4_6"] = {
 		"plant": "apple_tree",
 		"planted_renew": 12,
 		"last_watered_renew": 12,
@@ -70,7 +70,7 @@ func test_save_and_load_plant_states() -> void:
 	assert_int(SaveService.save_game(PATH)).is_equal(OK)
 	Game.reset_session()
 	assert_int(SaveService.load_game(PATH)).is_equal(OK)
-	var rec: Variant = Game.plant_states.get("plant_4_6", {})
+	var rec: Variant = Game.town.plant_states.get("plant_4_6", {})
 	assert_that(typeof(rec)).is_equal(TYPE_DICTIONARY)
 	assert_str(str((rec as Dictionary).get("plant", ""))).is_equal("apple_tree")
 	assert_int(int((rec as Dictionary).get("planted_renew", -1))).is_equal(12)
@@ -81,9 +81,9 @@ func test_missing_save_is_not_found() -> void:
 
 
 func test_a_version_2_save_with_the_old_key_names_still_loads() -> void:
-	Game.fish_season_term = 7
-	Game.fish_season_offset = 3
-	Game.gyroids_scheduled = true
+	Game.town.fish_season_term = 7
+	Game.town.fish_season_offset = 3
+	Game.town.gyroids_scheduled = true
 	Game.travel_book.queue_fossil()
 	Game.interiors.player_house().gyroid_message = "Back soon!"
 	assert_int(SaveService.save_game(PATH)).is_equal(OK)
@@ -100,8 +100,8 @@ func test_a_version_2_save_with_the_old_key_names_still_loads() -> void:
 	file.close()
 	Game.reset_session()
 	assert_int(SaveService.load_game(PATH)).is_equal(OK)
-	assert_int(Game.fish_season_term).is_equal(7)
-	assert_int(Game.fish_season_offset).is_equal(3)
-	assert_bool(Game.gyroids_scheduled).is_true()
+	assert_int(Game.town.fish_season_term).is_equal(7)
+	assert_int(Game.town.fish_season_offset).is_equal(3)
+	assert_bool(Game.town.gyroids_scheduled).is_true()
 	assert_int(Game.travel_book.in_transit_count()).is_equal(1)
 	assert_str(Game.interiors.player_house().gyroid_message).is_equal("Back soon!")
