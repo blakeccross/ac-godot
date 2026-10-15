@@ -22,6 +22,12 @@ const CLIP_STATES: Array[StringName] = [&"ClipA", &"ClipB"]
 const SPEED := &"parameters/Speed/scale"
 const GAIT := &"parameters/Body/Move/Gait/transition_request"
 const PLAYBACK := &"parameters/Body/playback"
+## The method the clip-event tracks call on this node.
+const EVENT_METHOD := &"_on_clip_event"
+
+## A frame marked with `add_clip_events` came up in `clip`. Not while a clip plays
+## backwards: a mark is where the action happens going forwards.
+signal clip_event(clip: StringName, event: StringName)
 
 ## Gait clip per `Move` input; written into this body's copy of the tree.
 @export var gait_clips: Dictionary = {&"walk": "ply_1_walk1", &"run": "ply_1_run1", &"dash": "ply_1_dash1"}
@@ -130,6 +136,28 @@ func seek(seconds: float, update: bool = false) -> void:
 		advance(0.0)
 
 
+## Write `marks` ({clip: [[frame, event], …]}, frames at `fps`) into the clips as
+## method-call tracks on this node, replacing any this body wrote before. The events then
+## fire on the clip's own clock: late if it is slowed, never if it is cut off or sought past.
+func add_clip_events(marks: Dictionary, fps: float) -> void:
+	if not is_bound():
+		return
+	var path: NodePath = get_node(root_node).get_path_to(self)
+	for clip: Variant in marks:
+		var anim: Animation = get_animation(StringName(clip))
+		if anim == null:
+			continue
+		var track: int = _event_track(anim)
+		if track < 0:
+			track = anim.add_track(Animation.TYPE_METHOD)
+		anim.track_set_path(track, path)
+		while anim.track_get_key_count(track) > 0:
+			anim.track_remove_key(track, 0)
+		for mark: Array in marks[clip]:
+			var at: float = clampf(float(mark[0]) / fps, 0.0, anim.length)
+			anim.track_insert_key(track, at, {"method": EVENT_METHOD, "args": [StringName(clip), mark[1]]})
+
+
 func is_playing() -> bool:
 	return is_bound() and _playing
 
@@ -161,6 +189,21 @@ func _travel(target: StringName, blend: float) -> void:
 	else:
 		playback.travel(target, true)
 	_state = target
+
+
+func _on_clip_event(clip: StringName, event: StringName) -> void:
+	if speed_scale >= 0.0:
+		clip_event.emit(clip, event)
+
+
+static func _event_track(anim: Animation) -> int:
+	for i: int in anim.get_track_count():
+		if anim.track_get_type(i) != Animation.TYPE_METHOD:
+			continue
+		for k: int in anim.track_get_key_count(i):
+			if anim.method_track_get_name(i, k) == EVENT_METHOD:
+				return i
+	return -1
 
 
 func _body() -> AnimationNodeStateMachine:

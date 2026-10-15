@@ -4,6 +4,7 @@
 animation = &"ply_1_wait1"
 
 [sub_resource type="AnimationNodeTimeSeek" id="AnimationNodeTimeSeek_khnsu"]
+explicit_elapse = false
 
 [sub_resource type="AnimationNodeBlendTree" id="AnimationNodeBlendTree_dy2uo"]
 nodes/Clip/node = SubResource("AnimationNodeAnimation_g36av")
@@ -16,6 +17,7 @@ node_connections = [&"output", 0, &"Seek", &"Seek", 0, &"Clip"]
 animation = &"ply_1_wait1"
 
 [sub_resource type="AnimationNodeTimeSeek" id="AnimationNodeTimeSeek_u0x68"]
+explicit_elapse = false
 
 [sub_resource type="AnimationNodeBlendTree" id="AnimationNodeBlendTree_cjk4p"]
 nodes/Clip/node = SubResource("AnimationNodeAnimation_2x17h")

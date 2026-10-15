@@ -128,3 +128,40 @@ func test_the_tree_poses_the_model_skeleton() -> void:
 		if not skeleton.get_bone_pose_rotation(i).is_equal_approx(poses[i]):
 			moved += 1
 	assert_int(moved).is_greater(4)
+
+
+func test_clip_events_fire_on_the_clips_own_frames() -> void:
+	var a := _animator()
+	if a == null:
+		return
+	a.callback_mode_method = AnimationMixer.ANIMATION_CALLBACK_MODE_METHOD_IMMEDIATE
+	var fired: Array = []
+	a.clip_event.connect(func(clip: StringName, event: StringName) -> void: fired.append([clip, event]))
+	a.add_clip_events({&"ply_1_pickup1": [[10.0, &"item_get"], [20.0, &"gasagoso"]]}, 30.0)
+	a.add_clip_events({&"ply_1_pickup1": [[10.0, &"item_get"], [20.0, &"gasagoso"]]}, 30.0)
+	a.get_animation(&"ply_1_pickup1").loop_mode = Animation.LOOP_NONE
+	a.play(&"ply_1_pickup1", 0.0)
+	_run(a, 9.0 / 30.0)
+	assert_array(fired).is_empty()
+	_run(a, 2.0 / 30.0)
+	## once, though the marks were written twice
+	assert_array(fired).is_equal([[&"ply_1_pickup1", &"item_get"]])
+	## sought past the second mark: it never fires
+	a.seek(25.0 / 30.0, true)
+	_run(a, 0.1)
+	assert_int(fired.size()).is_equal(1)
+
+
+func test_clip_events_hold_while_a_clip_runs_backwards() -> void:
+	var a := _animator()
+	if a == null:
+		return
+	a.callback_mode_method = AnimationMixer.ANIMATION_CALLBACK_MODE_METHOD_IMMEDIATE
+	var fired: Array = []
+	a.clip_event.connect(func(clip: StringName, event: StringName) -> void: fired.append(event))
+	a.add_clip_events({&"ply_1_putaway1": [[0.0, &"gasagoso"]]}, 30.0)
+	var clip: Animation = a.get_animation(&"ply_1_putaway1")
+	clip.loop_mode = Animation.LOOP_NONE
+	a.play_backwards(&"ply_1_putaway1", 0.0)
+	_run(a, clip.length + 0.1)
+	assert_array(fired).is_empty()
