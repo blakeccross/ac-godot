@@ -16,8 +16,6 @@ const ANIM_WALK := "npc_1_walk1"
 const ANIM_RUN := "npc_1_run1"
 const ANIM_SIT := "npc_1_sit1"
 const ANIM_FISH := "npc_1_fish1"
-## Cross-acre relocation: re-evaluate the next acre hop this often while travelling.
-const TRAVEL_REPLAN := 1.0
 ## `aNPC_calc_fatigue`: walk +1, run +2, wait -2 per decomp frame (60 Hz); clamp [0, 1600].
 ## `aNPC_check_fatigue` forces WAIT at 1600; `aNPC_act_wait` holds it until below 200.
 const FATIGUE_MAX := 1600.0
@@ -78,19 +76,14 @@ var _layer_present: int = 4
 ## The body tree once the model is bound (`_animator`), null without a model.
 var _body_anim: BodyAnimator
 var _clip: String = ""
-var _goal_stand: Vector3 = Vector3.ZERO
-var _goal_block: Vector2i = Vector2i.ZERO
-var _goal_kind: StringName = VillagerWalk.GOAL_MY_HOME
 ## Acre the visible actor is wandering right now (`aNPC` `range_center` block).
 var _wander_block: Vector2i = Vector2i.ZERO
 ## Entry point in the next acre while relocating toward `_goal_block` (INF = wandering).
 var _travel_stand: Vector3 = Vector3.INF
-var _travel_beat: float = 0.0
 ## `aNPC_condition_info.fatigue` — sustained walk/run forces a rest wait.
 var _fatigue: float = 0.0
 ## `aNPC_act_wait`: once fatigue hits the cap, hold the wait until it drains under 200.
 var _resting: bool = false
-var _stay_elapsed: float = 0.0
 ## After an avoid hop, wait before re-steering (decomp spends frames in ACT_TURN).
 var _avoid_cool: float = 0.0
 ## Seconds spent colliding with a structure during the current wander leg.
@@ -157,6 +150,7 @@ var event_away: bool = false
 @onready var _anim: AnimationPlayer = $Animation
 @onready var _animator: BodyAnimator = $Animator
 @export var mover: VillagerMover
+@export var brain: VillagerBrain
 @export var greeter: VillagerGreeter
 @export var conversation: VillagerConversation
 
@@ -168,8 +162,8 @@ func _ready() -> void:
 	_ensure_bound()
 	_tint_placeholder()
 	Clock.time_changed.connect(_sync_from_clock)
-	ai.action_changed.connect(_on_action_changed)
-	ai.schedule_changed.connect(_on_schedule_changed)
+	ai.action_changed.connect(brain.on_action_changed)
+	ai.schedule_changed.connect(brain.on_schedule_changed)
 	_motor.reset(global_position, rotation.y)
 	var table: ScheduleData = data.schedule_table() if data != null else null
 	var first: StringName = table.activity_now() if table != null else VillagerActivity.FIELD
@@ -220,7 +214,7 @@ func _ready() -> void:
 func _sync_from_clock() -> void:
 	if indoor_resident or event_away:
 		return
-	ai.sync(current_activity(), _hints())
+	ai.sync(current_activity(), brain.hints())
 	_apply_presence(ai.is_present())
 
 
@@ -230,8 +224,8 @@ func _exit_tree() -> void:
 	conversation.unbind_talk()
 	if Clock.time_changed.is_connected(_sync_from_clock):
 		Clock.time_changed.disconnect(_sync_from_clock)
-	if ai.action_changed.is_connected(_on_action_changed):
-		ai.action_changed.disconnect(_on_action_changed)
+	if ai.action_changed.is_connected(brain.on_action_changed):
+		ai.action_changed.disconnect(brain.on_action_changed)
 	if Game != null and Game.designs != null and Game.designs.changed.is_connected(_apply_design_wear):
 		Game.designs.changed.disconnect(_apply_design_wear)
 
@@ -319,7 +313,7 @@ func _player_in_home_acre() -> bool:
 
 func current_action() -> StringName:
 	_ensure_bound()
-	ai.sync(current_activity(), _hints())
+	ai.sync(current_activity(), brain.hints())
 	return ai.kind()
 
 
@@ -327,7 +321,7 @@ func get_interactions(_ctx: InteractionContext) -> Array[Interaction]:
 	if indoor_resident:
 		var who: String = data.display_name if data else "Villager"
 		return [Interaction.of(Interaction.TALK, "Talk to %s" % who, 20)]
-	ai.sync(current_activity(), _hints())
+	ai.sync(current_activity(), brain.hints())
 	if not ai.is_talkable():
 		return []
 	var who_out: String = data.display_name if data else "Villager"
@@ -338,7 +332,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.TALK:
 		return false
 	if not indoor_resident:
-		ai.sync(current_activity(), _hints())
+		ai.sync(current_activity(), brain.hints())
 		if not ai.is_talkable():
 			return false
 	_ensure_bound()
@@ -385,7 +379,7 @@ func _physics_process(delta: float) -> void:
 	if indoor_resident:
 		_tick_indoor(delta)
 		return
-	ai.sync(current_activity(), _hints())
+	ai.sync(current_activity(), brain.hints())
 	var present: bool = ai.is_present()
 	_apply_presence(present)
 	conversation.tick_face(delta)
@@ -537,49 +531,6 @@ func _ensure_bound() -> void:
 		state = Game.villagers.get_or_create(data.id)
 	elif state == null:
 		state = VillagerState.new()
-
-
-func _on_action_changed(kind: StringName) -> void:
-	if kind == ActivityKind.LEAVE_HOME:
-		_set_is_home(false)
-		if not visible:
-			## Appear at the door and let `_steer_ai`/`wants_move` walk the short
-			## `YARD_OFFSET` leg (`aNPC_act_leave_house_out_of_door`), instead of
-			## popping straight to the yard target. `reset()` re-anchors
-			## `_motor.home` to whatever position is passed — snapping to the
-			## unshifted `_motor.home` here (not `home + YARD_OFFSET`) also stops
-			## that anchor from drifting a little further from the house every
-			## time a villager leaves it.
-			global_position = _motor.home
-			_motor.reset(global_position, _motor.facing)
-	if kind == ActivityKind.TALK:
-		_motor.arrive()
-	if kind == ActivityKind.WANDER:
-		_motor.arrive()
-		_stay_elapsed = 0.0
-		_travel_stand = Vector3.INF
-		_travel_beat = TRAVEL_REPLAN
-		_wander_block = _current_block()
-	if kind == ActivityKind.WAKE or kind == ActivityKind.SLEEP:
-		_set_is_home(true)
-		if kind == ActivityKind.SLEEP and state != null:
-			state.mood = VillagerState.Mood.SLEEPY
-	if (
-		kind == ActivityKind.GO_HOME
-		or kind == ActivityKind.SLEEP
-		or kind == ActivityKind.WAKE
-	) and data != null:
-		VillagerWalk.release(data.id)
-
-
-func _on_schedule_changed(previous: StringName, now: StringName) -> void:
-	## `aNPC_sleep_schedule_chg_schedule`: whatever mood a villager went to sleep
-	## with — SLEEPY, or anything a talk/gift left them in — clears back to
-	## NORMAL the moment the schedule leaves SLEEP, whatever it heads into next
-	## (`IN_HOUSE` via `WAKE`, or straight back to `FIELD` via `LEAVE_HOME`).
-	## Moods aren't timed; sleep is what resets them.
-	if previous == VillagerActivity.SLEEP and now != VillagerActivity.SLEEP and state != null:
-		state.mood = VillagerState.Mood.NORMAL
 
 
 func _set_is_home(value: bool) -> void:
@@ -738,25 +689,6 @@ func _update_placeholder_anim(delta: float, planar: Vector3) -> void:
 	_placeholder_bob += delta * (8.0 if moving else 2.0)
 	var amp: float = 0.04 if moving else 0.0
 	_placeholder.position.y = 0.75 + sin(_placeholder_bob) * amp
-
-
-func _hints() -> Dictionary:
-	if ai.current == null:
-		_refresh_goal()
-	var field_actions: Array[StringName] = []
-	if data != null:
-		field_actions = data.field_activity_ids()
-	return {
-		"home": _motor.home,
-		"goal": _goal_stand,
-		"shop": _building_stand(&"acre_shop"),
-		"water": _water_stand(),
-		"sit": _furniture_stand(),
-		"shop_open": Clock.in_hour_window(9, 22),
-		"field_actions": field_actions,
-		"outdoors": visible and not ActivityKind.hides_actor(ai.kind()),
-		"is_home": state != null and state.is_home,
-	}
 
 
 func _current_block() -> Vector2i:
@@ -1283,7 +1215,7 @@ func _tick_chase() -> bool:
 			_chase_fish = false
 			_chase_left = VillagerOutdoor.CHASE_SECONDS
 		else:
-			var found: Dictionary = VillagerOutdoor.chase_target(global_position, _fish_pairs(), _bug_pairs())
+			var found: Dictionary = VillagerOutdoor.chase_target(global_position, brain.fish_pairs(), brain.bug_pairs())
 			if found.is_empty():
 				return false
 			_chase = found["target"]
@@ -1340,141 +1272,16 @@ func _chase_position() -> Vector3:
 		var shadow := _chase as FishShadow
 		return shadow.position if shadow != null and not shadow.finished else Vector3.INF
 	var bug := _chase as BugActor
-	for pair: Array in _bug_pairs():
+	for pair: Array in brain.bug_pairs():
 		if pair[0] == bug:
 			return pair[1]
 	return Vector3.INF
-
-
-func _fish_pairs() -> Array:
-	var out: Array = []
-	var spawner: FishSpawner = FishSpawner.find(get_tree())
-	var school: FishSchool = spawner.school() if spawner != null else null
-	if school == null:
-		return out
-	for shadow: FishShadow in school.shadows:
-		if shadow != null and not shadow.finished:
-			out.append([shadow, shadow.position])
-	return out
-
-
-func _bug_pairs() -> Array:
-	var out: Array = []
-	var spawner: BugSpawner = BugSpawner.find(get_tree())
-	var field: BugField = spawner.field() if spawner != null else null
-	if field == null:
-		return out
-	for bug: BugActor in field.actors:
-		if bug != null:
-			out.append([bug, bug.position])
-	return out
 
 
 func _looks() -> VillagerPersonality.Looks:
 	if data != null and data.personality != null:
 		return data.personality.looks
 	return VillagerPersonality.Looks.LAZY
-
-
-func _refresh_goal() -> void:
-	var looks: VillagerPersonality.Looks = _looks()
-	var now: int = Clock.now_sec()
-	var want_town: bool = VillagerWalk.can_town_walk(looks, now)
-	var who: StringName = data.id if data else &""
-	var claimed: bool = VillagerWalk.claim(who, want_town, _field_count())
-	if not claimed:
-		_goal_kind = VillagerWalk.GOAL_MY_HOME
-	else:
-		_goal_kind = VillagerWalk.pick_kind(looks, now)
-	var bg: Array = _bg()
-	var world_data: WorldData = bg[0] as WorldData if bg.size() == 2 else null
-	var home_block: Vector2i = VillagerWalk.block_from_cell(_home_cell())
-	var shrine: Vector2i = VillagerWalk.shrine_block(world_data)
-	var homes: Array[Vector2i] = VillagerWalk.house_blocks(world_data)
-	var occupied: Array[Vector2i] = _occupied_blocks()
-	_goal_block = VillagerWalk.resolve_block(
-		_goal_kind, home_block, shrine, homes, occupied
-	)
-	if world_data != null:
-		_goal_stand = VillagerWalk.stand_in_block(world_data, _goal_block)
-	else:
-		_goal_stand = _motor.home
-
-
-func _home_cell() -> Vector2i:
-	var bg: Array = _bg()
-	if bg.size() != 2:
-		return Vector2i.ZERO
-	return (bg[1] as WorldGrid).world_to_cell(_motor.home)
-
-
-func _occupied_blocks() -> Array[Vector2i]:
-	var out: Array[Vector2i] = []
-	if get_tree() == null:
-		return out
-	for node: Node in get_tree().get_nodes_in_group("villagers"):
-		if not (node is Node3D) or not (node as Node3D).visible:
-			continue
-		var block: Vector2i = VillagerWalk.block_from_cell(_home_cell_of(node as Node3D))
-		if not out.has(block):
-			out.append(block)
-	return out
-
-
-func _home_cell_of(node: Node3D) -> Vector2i:
-	var bg: Array = _bg()
-	if bg.size() != 2:
-		return Vector2i.ZERO
-	return (bg[1] as WorldGrid).world_to_cell(node.global_position)
-
-
-func _field_count() -> int:
-	if get_tree() == null:
-		return 1
-	var n: int = 0
-	for node: Node in get_tree().get_nodes_in_group("villagers"):
-		if node is Villager and (node as Villager).visible:
-			n += 1
-	return maxi(n, 1)
-
-
-func _building_stand(building_id: StringName) -> Vector3:
-	var bg: Array = _bg()
-	if bg.size() != 2:
-		return Vector3.INF
-	var world_data: WorldData = bg[0] as WorldData
-	var grid: WorldGrid = bg[1] as WorldGrid
-	for b: BuildingPlacement in world_data.buildings:
-		if b == null or b.id != building_id:
-			continue
-		var cell := Vector2i(b.cell.x + b.footprint.x / 2, b.cell.y + b.footprint.y)
-		return grid.cell_to_world(cell)
-	return Vector3.INF
-
-
-func _furniture_stand() -> Vector3:
-	var bg: Array = _bg()
-	if bg.size() != 2:
-		return _motor.home
-	var world_data: WorldData = bg[0] as WorldData
-	var grid: WorldGrid = bg[1] as WorldGrid
-	for o: ObjectPlacement in world_data.objects:
-		if o != null and o.kind == &"furniture":
-			return grid.cell_to_world(o.cell)
-	return _motor.home
-
-
-func _water_stand() -> Vector3:
-	var bg: Array = _bg()
-	if bg.size() != 2:
-		return Vector3.INF
-	var world_data: WorldData = bg[0] as WorldData
-	var grid: WorldGrid = bg[1] as WorldGrid
-	var from: Vector2i = grid.world_to_cell(_motor.home)
-	var stand: Vector2i = VillagerPlan.nearest_water_stand(world_data, from)
-	if stand == Vector2i(-1, -1):
-		return Vector3.INF
-	return grid.cell_to_world(stand)
 
 
 func _bg() -> Array:

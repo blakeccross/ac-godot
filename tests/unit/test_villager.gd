@@ -502,7 +502,7 @@ func test_leave_home_appears_at_door_and_does_not_drift_home() -> void:
 	villager.global_position = door
 	villager._motor.reset(door, 0.0)
 	villager.visible = false
-	villager._on_action_changed(ActivityKind.LEAVE_HOME)
+	villager.brain.on_action_changed(ActivityKind.LEAVE_HOME)
 	assert_vector(villager.global_position).is_equal(door)
 	assert_vector(villager._motor.home).is_equal(door)
 
@@ -533,15 +533,15 @@ func test_mood_clears_when_schedule_leaves_sleep() -> void:
 	var villager: Villager = auto_free(load("res://scenes/actors/villager.tscn").instantiate()) as Villager
 	villager._ensure_bound()
 	villager.state.mood = VillagerState.Mood.SLEEPY
-	villager._on_schedule_changed(VillagerActivity.SLEEP, VillagerActivity.IN_HOUSE)
+	villager.brain.on_schedule_changed(VillagerActivity.SLEEP, VillagerActivity.IN_HOUSE)
 	assert_that(villager.state.mood).is_equal(VillagerState.Mood.NORMAL)
 	## A HAPPY mood from a same-day talk clears too — sleep resets it, decomp-faithfully.
 	villager.state.mood = VillagerState.Mood.HAPPY
-	villager._on_schedule_changed(VillagerActivity.SLEEP, VillagerActivity.FIELD)
+	villager.brain.on_schedule_changed(VillagerActivity.SLEEP, VillagerActivity.FIELD)
 	assert_that(villager.state.mood).is_equal(VillagerState.Mood.NORMAL)
 	## Transitions that don't leave SLEEP must not touch mood.
 	villager.state.mood = VillagerState.Mood.ANGRY
-	villager._on_schedule_changed(VillagerActivity.FIELD, VillagerActivity.IN_HOUSE)
+	villager.brain.on_schedule_changed(VillagerActivity.FIELD, VillagerActivity.IN_HOUSE)
 	assert_that(villager.state.mood).is_equal(VillagerState.Mood.ANGRY)
 
 

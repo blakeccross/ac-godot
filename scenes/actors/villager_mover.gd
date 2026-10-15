@@ -215,8 +215,8 @@ func _roam_point() -> Vector3:
 		return VillagerWalk.wander_in_block(
 			bg[0] as WorldData, _villager._wander_block, _villager.global_position, null, bg[1] as WorldGrid
 		)
-	if _villager._goal_stand != Vector3.INF and _villager._goal_stand != Vector3.ZERO:
-		return _villager._goal_stand + _villager._motor.random_offset()
+	if _villager.brain.goal_stand != Vector3.INF and _villager.brain.goal_stand != Vector3.ZERO:
+		return _villager.brain.goal_stand + _villager._motor.random_offset()
 	return _villager._motor.home + _villager._motor.random_offset()
 
 
@@ -232,39 +232,39 @@ func tick_acre_travel(delta: float) -> void:
 		_villager._wander_block = here
 		_villager._motor.arrive()
 		_villager._travel_stand = Vector3.INF
-		_villager._travel_beat = Villager.TRAVEL_REPLAN
+		_villager.brain.travel_beat = VillagerBrain.TRAVEL_REPLAN
 		_relocate_time = 0.0
-	if here == _villager._goal_block or not VillagerWalk.is_fg_block(_villager._goal_block):
+	if here == _villager.brain.goal_block or not VillagerWalk.is_fg_block(_villager.brain.goal_block):
 		## Arrived (`aSNMgr_check_set_arrive`): linger, then `mNpcW` hands a new goal.
 		_villager._travel_stand = Vector3.INF
 		_relocate_time = 0.0
-		_villager._stay_elapsed += delta
-		if _villager._stay_elapsed >= ActivityKind.STAY_SECONDS:
-			_villager._stay_elapsed = 0.0
-			_villager._refresh_goal()
+		_villager.brain.stay_elapsed += delta
+		if _villager.brain.stay_elapsed >= ActivityKind.STAY_SECONDS:
+			_villager.brain.stay_elapsed = 0.0
+			_villager.brain.refresh_goal()
 		return
 	## Relocating. Bound the whole trip: if this acre won't yield to a goal-ward hop
 	## for a while, give up and let `_refresh_goal` pick a reachable goal.
 	_relocate_time += delta
 	if _relocate_time >= RELOCATE_GIVEUP:
 		_relocate_time = 0.0
-		_villager._stay_elapsed = 0.0
+		_villager.brain.stay_elapsed = 0.0
 		_villager._travel_stand = Vector3.INF
-		_villager._refresh_goal()
+		_villager.brain.refresh_goal()
 		return
-	_villager._travel_beat += delta
+	_villager.brain.travel_beat += delta
 	if _villager._travel_stand != Vector3.INF and not _reached(_villager._travel_stand):
-		_villager._stay_elapsed = 0.0
+		_villager.brain.stay_elapsed = 0.0
 		return
-	if _villager._travel_beat < Villager.TRAVEL_REPLAN:
+	if _villager.brain.travel_beat < VillagerBrain.TRAVEL_REPLAN:
 		return
-	_villager._travel_beat = 0.0
+	_villager.brain.travel_beat = 0.0
 	_plan_next_acre_step(here)
-	_villager._stay_elapsed = 0.0
+	_villager.brain.stay_elapsed = 0.0
 
 
 func _plan_next_acre_step(here: Vector2i) -> void:
-	var next: Vector2i = VillagerWalk.step_block_toward(here, _villager._goal_block)
+	var next: Vector2i = VillagerWalk.step_block_toward(here, _villager.brain.goal_block)
 	if next == here or not VillagerWalk.is_fg_block(next):
 		_villager._travel_stand = Vector3.INF
 		return

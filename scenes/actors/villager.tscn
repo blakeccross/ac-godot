@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scenes/actors/villager.gd" id="1"]
 [ext_resource type="Resource" path="res://data/villagers/filbert.tres" id="2"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scenes/actors/villager_mover.gd" id="6"]
 [ext_resource type="Script" path="res://scenes/actors/villager_conversation.gd" id="7"]
 [ext_resource type="Script" path="res://scenes/actors/villager_greeter.gd" id="8"]
+[ext_resource type="Script" path="res://scenes/actors/villager_brain.gd" id="9"]
 
 [sub_resource type="CylinderShape3D" id="CapsuleShape"]
 radius = 0.32
@@ -24,13 +25,14 @@ albedo_color = Color(0.85, 0.55, 0.4, 1)
 radius = 0.55
 height = 1.6
 
-[node name="Villager" type="CharacterBody3D" node_paths=PackedStringArray("mover", "conversation", "greeter")]
+[node name="Villager" type="CharacterBody3D" node_paths=PackedStringArray("mover", "conversation", "greeter", "brain")]
 collision_layer = 4
 collision_mask = 1
 floor_snap_length = 0.2
 safe_margin = 0.02
 floor_block_on_wall = false
 script = ExtResource("1")
+brain = NodePath("Brain")
 greeter = NodePath("Greeter")
 conversation = NodePath("Conversation")
 mover = NodePath("Mover")
@@ -85,3 +87,6 @@ script = ExtResource("7")
 
 [node name="Greeter" type="Node" parent="."]
 script = ExtResource("8")
+
+[node name="Brain" type="Node" parent="."]
+script = ExtResource("9")
