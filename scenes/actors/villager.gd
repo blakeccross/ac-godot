@@ -18,10 +18,6 @@ const ANIM_SIT := "npc_1_sit1"
 const ANIM_FISH := "npc_1_fish1"
 ## Cross-acre relocation: re-evaluate the next acre hop this often while travelling.
 const TRAVEL_REPLAN := 1.0
-## Enter a new acre this many units past the shared edge (`aNPC_think_in_block` ~120 GX).
-const ACRE_ENTRY_DEPTH := 2
-## Give up on a goal acre after this long stuck in one acre mid-relocation.
-const RELOCATE_GIVEUP := 14.0
 ## `aNPC_calc_fatigue`: walk +1, run +2, wait -2 per decomp frame (60 Hz); clamp [0, 1600].
 ## `aNPC_check_fatigue` forces WAIT at 1600; `aNPC_act_wait` holds it until below 200.
 const FATIGUE_MAX := 1600.0
@@ -90,8 +86,6 @@ var _wander_block: Vector2i = Vector2i.ZERO
 ## Entry point in the next acre while relocating toward `_goal_block` (INF = wandering).
 var _travel_stand: Vector3 = Vector3.INF
 var _travel_beat: float = 0.0
-## Time spent in one acre while still relocating toward `_goal_block`.
-var _relocate_time: float = 0.0
 ## `aNPC_condition_info.fatigue` — sustained walk/run forces a rest wait.
 var _fatigue: float = 0.0
 ## `aNPC_act_wait`: once fatigue hits the cap, hold the wait until it drains under 200.
@@ -169,6 +163,7 @@ var event_away: bool = false
 @onready var _volume: Area3D = $InteractionArea
 @onready var _anim: AnimationPlayer = $Animation
 @onready var _animator: BodyAnimator = $Animator
+@export var mover: VillagerMover
 
 
 func _ready() -> void:
@@ -490,7 +485,7 @@ func _physics_process(delta: float) -> void:
 	if _start_outdoor_act():
 		return
 	if not _spawn_unstuck:
-		_unstick_spawn()
+		mover.unstick_spawn()
 	var on_bg: bool = _snap_to_bg()
 	if on_bg:
 		velocity.y = 0.0
@@ -500,8 +495,8 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = 0.0
 	if ai.is_wandering():
-		_tick_acre_travel(delta)
-	_steer_ai()
+		mover.tick_acre_travel(delta)
+	mover.steer_ai()
 	var aim: Vector3 = _motor.steer if _motor.has_target else global_position
 	var planar: Vector3 = _motor.tick(delta, global_position, aim, ai.wants_move())
 	ai.consider_arrive(global_position)
@@ -519,7 +514,7 @@ func _physics_process(delta: float) -> void:
 		)
 		## `aNPC_circleRangeRevice`: clamp to the current acre's roam circle while
 		## wandering it — not while relocating across acres (`range_type` BLOCK).
-		if ai.is_wandering() and _travel_stand == Vector3.INF and _in_wander_block():
+		if ai.is_wandering() and _travel_stand == Vector3.INF and mover.in_wander_block():
 			global_position = VillagerWalk.circle_revise(
 				bg[0] as WorldData, _wander_block, global_position
 			)
@@ -530,9 +525,9 @@ func _physics_process(delta: float) -> void:
 	## Avoid only while moving (`speed != 0` in decomp interrupt).
 	var wall_flags: int = 0
 	if planar.length() > IDLE_SPEED and _motor.has_target:
-		wall_flags = _collision_flags(before, planar, delta)
+		wall_flags = mover.collision_flags(before, planar, delta)
 		if wall_flags != 0 and _avoid_cool <= 0.0:
-			_steer_around_wall(wall_flags)
+			mover.steer_around_wall(wall_flags)
 	## Stuck watchdog: time spent trying to walk (target, not idling) without covering
 	## ground. Survives the turn-in-place phases of an avoid hop, so a villager wedged
 	## on its own house eventually bails to a fresh rim (`decide_next` → move_next).
@@ -679,203 +674,6 @@ func _apply_presence(present: bool) -> void:
 		VillagerWalk.release(data.id)
 
 
-func _steer_ai() -> void:
-	if ai.is_wandering() and _tick_chase():
-		return
-	if ai.is_wandering() and _tick_fortune():
-		return
-	if ai.is_wandering():
-		if _travel_stand != Vector3.INF:
-			## Relocating: walk to the next acre's entry unit (walk row, no circle clamp).
-			_steer_to(_travel_stand)
-			return
-		## `aNPC_check_fatigue` in `chk_interrupt` interrupts a walk mid-stride, not just
-		## the next `decide_next`; drop the target so `_steer_wander` rolls a WAIT.
-		if (_resting or _is_sleepy()) and _motor.has_target and _motor.wait_left <= 0.0:
-			_motor.arrive()
-		## Boxed in against a structure for too long: abandon the rim dest and re-roll,
-		## like the decomp's `avoid_wall` → `turn_to_backward` → `decide_next` → WAIT.
-		if _wall_time > VillagerWalk.STUCK_SECONDS and _motor.has_target:
-			_motor.arrive()
-			_wall_time = 0.0
-		_steer_wander(true)
-		return
-	if ai.wants_move():
-		_steer_to(ai.destination())
-		return
-	_steer_wander(false)
-
-
-func _steer_wander(wandering: bool) -> void:
-	if not wandering:
-		if _agent != null and _nav_ready():
-			_agent.target_position = global_position
-		return
-	if not _motor.needs_new_target():
-		return
-	## `aNPC_think_wander_decide_next`: fatigue or a sleepy mood forces a rest wait.
-	var act: StringName = VillagerWalk.pick_act(_looks())
-	if _resting or _is_sleepy():
-		act = VillagerWalk.ACT_WAIT
-	if act == VillagerWalk.ACT_WAIT:
-		_motor.wait_in_place()
-		return
-	var dest: Vector3 = _roam_point()
-	var delta: Vector3 = dest - global_position
-	delta.y = 0.0
-	if delta.length() < VillagerWalk.MIN_STEP:
-		_motor.wait_in_place()
-		return
-	_avoid_cool = 0.0
-	_motor.set_target(dest, act, VillagerWalk.WANDER_ARRIVE, global_position, _motor.facing)
-	if _agent != null and _nav_ready():
-		_agent.target_position = dest
-
-
-func _steer_to(world_pos: Vector3) -> void:
-	if _motor.wait_left > 0.0:
-		return
-	var dest: Vector3 = _walkable_near(world_pos)
-	if _motor.has_target:
-		var to_goal: float = _motor.target.distance_to(dest)
-		var to_here: Vector3 = _motor.target - global_position
-		to_here.y = 0.0
-		if to_goal > 0.35 and to_here.length() > VillagerWalk.WANDER_ARRIVE:
-			return
-	_avoid_cool = 0.0
-	_motor.set_target(
-		dest, VillagerWalk.ACT_WALK, VillagerMotor.ARRIVE, global_position, _motor.facing
-	)
-	if _agent != null and _nav_ready():
-		_agent.target_position = dest
-
-
-func _nav_ready() -> bool:
-	if _agent == null or not is_inside_tree():
-		return false
-	var map: RID = _agent.get_navigation_map()
-	return NavigationServer3D.map_get_iteration_id(map) > 0
-
-
-func _walkable_near(world_pos: Vector3) -> Vector3:
-	var bg: Array = _bg()
-	if bg.size() != 2:
-		return world_pos
-	var pos: Vector3 = VillagerWalk.snap_standable(bg[0] as WorldData, world_pos)
-	pos.y = world_pos.y
-	return pos
-
-
-func _collision_flags(before: Vector3, planar: Vector3, delta: float) -> int:
-	## `aNPC_BGcheck` then `aNPC_forward_check` OR into `collision_flag`.
-	var flags: int = 0
-	var intended := Vector3(sin(_motor.facing), 0.0, cos(_motor.facing))
-	var speed_xz := Vector2(planar.x, planar.z).length()
-	if speed_xz > IDLE_SPEED and delta > 0.0:
-		var moved: Vector3 = global_position - before
-		moved.y = 0.0
-		var expected: float = speed_xz * delta
-		if moved.dot(intended) < expected * STUCK_FRAC:
-			## Front wall from BG revise — same as hit_wall FRONT|WALL (= 3).
-			flags = VillagerWalk.HIT_WALL | VillagerWalk.HIT_WALL_FRONT
-	if get_slide_collision_count() > 0 and _slide_is_front(planar):
-		flags = VillagerWalk.HIT_WALL | VillagerWalk.HIT_WALL_FRONT
-	## Lateral half-unit probes (`aNPC_forward_check`) — not a forward ray.
-	## Only against the roam circle while actually wandering it (`range_type` CIRCLE).
-	if (
-		ai.is_wandering()
-		and _travel_stand == Vector3.INF
-		and _in_wander_block()
-		and speed_xz > IDLE_SPEED
-	):
-		var bg: Array = _bg()
-		if bg.size() == 2:
-			flags |= VillagerWalk.forward_check_flags(
-				bg[0] as WorldData,
-				_wander_block,
-				before,
-				_motor.facing,
-				before.y,
-				bg[1] as WorldGrid
-			)
-	return flags
-
-
-func _slide_is_front(planar: Vector3) -> bool:
-	var move_dir := Vector3(sin(_motor.facing), 0.0, cos(_motor.facing))
-	if planar.length_squared() > 0.0001:
-		move_dir = Vector3(planar.x, 0.0, planar.z).normalized()
-	for i: int in get_slide_collision_count():
-		var col: KinematicCollision3D = get_slide_collision(i)
-		if col == null:
-			continue
-		var n: Vector3 = col.get_normal()
-		n.y = 0.0
-		if n.length_squared() < 0.0001:
-			continue
-		if move_dir.dot(n.normalized()) < -0.15:
-			return true
-	return false
-
-
-func _steer_around_wall(flags: int) -> void:
-	## `aNPC_avoid_obstacle`: a side hit (1/2) veers around it on the committed side
-	## (`aNPC_avoid_wall`, keeps `dst_pos`); a front hit (3) turns ~112.5° away and
-	## re-rolls the wander dest (`aNPC_turn_to_backward` → `decide_next` → WAIT/move_next).
-	## Don't stack a fresh hop while still turning into the last one.
-	if _motor.turn_only:
-		return
-	var bg: Array = _bg()
-	if bg.size() != 2:
-		_motor.pause()
-		return
-	var world_data: WorldData = bg[0] as WorldData
-	var grid: WorldGrid = bg[1] as WorldGrid
-	var here: Vector2i = VillagerWalk.block_from_cell(grid.world_to_cell(global_position))
-	if not VillagerWalk.is_fg_block(here):
-		here = _wander_block
-
-	if flags == VillagerWalk.HIT_WALL or flags == VillagerWalk.HIT_WALL_FRONT:
-		## Right rise → veer left (prefer_side 2, −angles); left rise → veer right (1).
-		var pref: int = 2 if flags == VillagerWalk.HIT_WALL else 1
-		var side: int = _motor.avoid_direction
-		if side != 1 and side != 2:
-			side = pref
-			_motor.avoid_tier = 0
-		var tier: int = _motor.avoid_tier
-		var around: Vector3 = VillagerWalk.avoid_around(
-			world_data, global_position, _motor.facing, here, side, tier
-		)
-		if (around - global_position).length() > 0.05:
-			## n == 0 keeps walking (`set_avoid_pos`); n > 0 is an `ACT_TURN` first.
-			_motor.set_avoid(around, side, tier > 0)
-			_motor.avoid_tier = mini(tier + 1, VillagerWalk.AVOID_TIERS - 1)
-			_avoid_cool = 0.35
-			return
-	## Front+wall, or a side veer that had nowhere to go → retreat and re-roll.
-	var retreat: Vector3 = VillagerWalk.retreat_hop(
-		world_data, global_position, _motor.facing, here
-	)
-	_motor.set_target(
-		retreat, VillagerWalk.ACT_WALK, VillagerMotor.ARRIVE, global_position, _motor.facing
-	)
-	_motor.avoid_tier = 0
-	_avoid_cool = 0.4
-
-
-func _roam_point() -> Vector3:
-	## `aNPC_think_wander_move_next`: a rim point on the circle around the *current*
-	## acre centre — never the goal acre (goal is reached by `_tick_acre_travel`).
-	var bg: Array = _bg()
-	if bg.size() == 2:
-		return VillagerWalk.wander_in_block(
-			bg[0] as WorldData, _wander_block, global_position, null, bg[1] as WorldGrid
-		)
-	if _goal_stand != Vector3.INF and _goal_stand != Vector3.ZERO:
-		return _goal_stand + _motor.random_offset()
-	return _motor.home + _motor.random_offset()
-
-
 func _hold_talk(delta: float) -> void:
 	var on_bg: bool = _snap_to_bg()
 	if on_bg:
@@ -891,7 +689,7 @@ func _hold_talk(delta: float) -> void:
 	_motor.turn_toward(delta, global_position, _talk_look)
 	if _model != null:
 		_model.rotation.y = _motor.facing
-	if _agent != null and _nav_ready():
+	if _agent != null and mover.nav_ready():
 		_agent.target_position = global_position
 	move_and_slide()
 	if on_bg:
@@ -1173,116 +971,11 @@ func _hints() -> Dictionary:
 	}
 
 
-func _tick_acre_travel(delta: float) -> void:
-	## `ac_set_npc_manager`: a culled walker steps one acre at a time toward its
-	## `goal_block`, skips acres already holding 3+ villagers, and once it arrives
-	## lingers before `mNpcW` hands it a fresh goal. The visible actor does the same
-	## walk for real — one path-checked hop per acre at the walk row — so it never
-	## straight-lines across town through a house or off a cliff.
-	var here: Vector2i = _current_block()
-	if here != _wander_block and VillagerWalk.is_fg_block(here):
-		## Crossed into a new acre — re-centre the wander circle, re-plan at once.
-		_wander_block = here
-		_motor.arrive()
-		_travel_stand = Vector3.INF
-		_travel_beat = TRAVEL_REPLAN
-		_relocate_time = 0.0
-	if here == _goal_block or not VillagerWalk.is_fg_block(_goal_block):
-		## Arrived (`aSNMgr_check_set_arrive`): linger, then `mNpcW` hands a new goal.
-		_travel_stand = Vector3.INF
-		_relocate_time = 0.0
-		_stay_elapsed += delta
-		if _stay_elapsed >= ActivityKind.STAY_SECONDS:
-			_stay_elapsed = 0.0
-			_refresh_goal()
-		return
-	## Relocating. Bound the whole trip: if this acre won't yield to a goal-ward hop
-	## for a while, give up and let `_refresh_goal` pick a reachable goal.
-	_relocate_time += delta
-	if _relocate_time >= RELOCATE_GIVEUP:
-		_relocate_time = 0.0
-		_stay_elapsed = 0.0
-		_travel_stand = Vector3.INF
-		_refresh_goal()
-		return
-	_travel_beat += delta
-	if _travel_stand != Vector3.INF and not _reached(_travel_stand):
-		_stay_elapsed = 0.0
-		return
-	if _travel_beat < TRAVEL_REPLAN:
-		return
-	_travel_beat = 0.0
-	_plan_next_acre_step(here)
-	_stay_elapsed = 0.0
-
-
-func _plan_next_acre_step(here: Vector2i) -> void:
-	var next: Vector2i = VillagerWalk.step_block_toward(here, _goal_block)
-	if next == here or not VillagerWalk.is_fg_block(next):
-		_travel_stand = Vector3.INF
-		return
-	if _villagers_in_block(next) >= 3:
-		## `aSNMgr_check_into_block_npc_sum` — STAY_IN_BLOCK, wander here instead.
-		_travel_stand = Vector3.INF
-		return
-	var bg: Array = _bg()
-	if bg.size() != 2:
-		_travel_stand = Vector3.INF
-		return
-	_travel_stand = VillagerWalk.acre_entry_stand(
-		bg[0] as WorldData, global_position, here, next, bg[1] as WorldGrid, ACRE_ENTRY_DEPTH
-	)
-
-
-func _unstick_spawn() -> void:
-	## `aNPC_field_schedule` leaves the house to open ground before wandering; our
-	## `_yard_cell` spawn can land in a pocket at the door. Lift out of it once.
-	var bg: Array = _bg()
-	if bg.size() != 2:
-		return
-	_spawn_unstuck = true
-	var block: Vector2i = _current_block()
-	var open: Vector3 = VillagerWalk.open_spawn_near(
-		bg[0] as WorldData, bg[1] as WorldGrid, global_position, block
-	)
-	if open != global_position:
-		global_position = open
-		_motor.reset(global_position, _motor.facing)
-		_wander_block = _current_block()
-
-
 func _current_block() -> Vector2i:
 	var bg: Array = _bg()
 	if bg.size() != 2:
 		return _wander_block
 	return VillagerWalk.block_from_cell((bg[1] as WorldGrid).world_to_cell(global_position))
-
-
-func _in_wander_block() -> bool:
-	var bg: Array = _bg()
-	if bg.size() != 2:
-		return true
-	return VillagerWalk.is_in_block(bg[0] as WorldData, _wander_block, global_position)
-
-
-func _reached(world_pos: Vector3) -> bool:
-	var to: Vector3 = world_pos - global_position
-	to.y = 0.0
-	return to.length() <= VillagerMotor.ARRIVE + 0.2
-
-
-func _villagers_in_block(block: Vector2i) -> int:
-	var bg: Array = _bg()
-	if get_tree() == null or bg.size() != 2:
-		return 0
-	var grid: WorldGrid = bg[1] as WorldGrid
-	var n: int = 0
-	for node: Node in get_tree().get_nodes_in_group("villagers"):
-		if node == self or not (node is Node3D) or not (node as Node3D).visible:
-			continue
-		if VillagerWalk.block_from_cell(grid.world_to_cell((node as Node3D).global_position)) == block:
-			n += 1
-	return n
 
 
 func _is_sleepy() -> bool:

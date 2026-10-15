@@ -1,10 +1,11 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scenes/actors/villager.gd" id="1"]
 [ext_resource type="Resource" path="res://data/villagers/filbert.tres" id="2"]
 [ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="3"]
 [ext_resource type="Script" path="res://scenes/actors/body_animator.gd" id="4"]
 [ext_resource type="AnimationNodeBlendTree" path="res://scenes/actors/body_animation.tres" id="5"]
+[ext_resource type="Script" path="res://scenes/actors/villager_mover.gd" id="6"]
 
 [sub_resource type="CylinderShape3D" id="CapsuleShape"]
 radius = 0.32
@@ -21,13 +22,14 @@ albedo_color = Color(0.85, 0.55, 0.4, 1)
 radius = 0.55
 height = 1.6
 
-[node name="Villager" type="CharacterBody3D"]
+[node name="Villager" type="CharacterBody3D" node_paths=PackedStringArray("mover")]
 collision_layer = 4
 collision_mask = 1
 floor_snap_length = 0.2
 safe_margin = 0.02
 floor_block_on_wall = false
 script = ExtResource("1")
+mover = NodePath("Mover")
 data = ExtResource("2")
 
 [node name="Model" type="Node3D" parent="."]
@@ -70,3 +72,6 @@ gait_clips = {
 &"run": "npc_1_run1",
 &"walk": "npc_1_walk1"
 }
+
+[node name="Mover" type="Node" parent="."]
+script = ExtResource("6")
