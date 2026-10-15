@@ -58,7 +58,7 @@ func _run() -> void:
 	print("start   chair ", chair_entry.cell)
 	await _shot("0_start")
 
-	print("grip    ", player._try_grip())
+	print("grip    ", player.furniture.try_grip())
 	Input.action_press("interact")
 	await _frames(20)
 	await _shot("1_gripped")
@@ -92,7 +92,7 @@ func _run() -> void:
 
 	Input.action_release("interact")
 	await _frames(4)
-	print("released gripping=", player._gripping, " busy=", player._busy)
+	print("released gripping=", player.furniture.gripping, " busy=", player._busy)
 
 	## B picks it up.
 	player.set_facing(WorldGrid.yaw_for_facing(WorldGrid.Facing.NORTH))
@@ -111,7 +111,7 @@ func _run() -> void:
 	await _frames(4)
 	Input.action_press("move_forward")
 	await _frames(70)
-	print("sit     rest=", (player._rest).get("phase"), " pos cell ", session.grid.world_to_cell(player.global_position))
+	print("sit     rest=", (player.furniture.rest).get("phase"), " pos cell ", session.grid.world_to_cell(player.global_position))
 	await _shot("6_seated")
 	Input.action_release("move_forward")
 	await _frames(20)
@@ -119,7 +119,7 @@ func _run() -> void:
 	await _frames(70)
 	Input.action_release("move_back")
 	await _frames(30)
-	print("stand   rest empty=", (player._rest).is_empty(), " busy=", player._busy, " cell ", session.grid.world_to_cell(player.global_position))
+	print("stand   rest empty=", (player.furniture.rest).is_empty(), " busy=", player._busy, " cell ", session.grid.world_to_cell(player.global_position))
 	await _shot("7_stood")
 	## Tap a dresser: the conversation opens, "Take it out" moves the apple to the pockets.
 	## The chair picked up above is still the selected pocket item; A would place it.
@@ -134,7 +134,7 @@ func _run() -> void:
 	var apples_before: int = Game.inventory.count_of(&"apple")
 	var probe_hit: InteractionQuery = player._resolve_interact()
 	print("tap     probe host=", probe_hit.host if probe_hit else null, " action=", probe_hit.action.id if probe_hit and probe_hit.action else null, " held=", Game.held_furniture())
-	print("tap     grip=", player._try_grip())
+	print("tap     grip=", player.furniture.try_grip())
 	Input.action_press("interact")
 	await _frames(5)
 	Input.action_release("interact")
@@ -162,7 +162,7 @@ func _run() -> void:
 	player.global_position = session.grid.cell_to_world(Vector2i(8, 7)) + Vector3(0, 0.1, 0)
 	player.set_facing(atan2(-1.0, 0.0))
 	await _frames(4)
-	print("east    grip=", player._try_grip())
+	print("east    grip=", player.furniture.try_grip())
 	Input.action_press("interact")
 	Input.action_press("move_left")
 	await _frames(40)

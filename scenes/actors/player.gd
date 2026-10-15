@@ -112,14 +112,6 @@ const STRUGGLE_SPEED_EASE := 0.10875
 const ANIM_MOSQUITO1 := "ply_1_mosquito1"
 const ANIM_MOSQUITO2 := "ply_1_mosquito2"
 const MOSQUITO_NOTICE_MSG := 0x3063
-## Any stick past this gets you up (`Player_actor_GetController_move_percentX/Y`).
-const REST_STAND_STICK := 0.1
-## `furniture_push` / `furniture_pull` cKF at half speed: 24 frames of 30 Hz.
-const FURNITURE_MOVE_SEC := 0.8
-## `aMR_FtrRotate`: 5.6°/tick ellipse over 90° — a little under half a second.
-const FURNITURE_TURN_SEC := 0.45
-## `Player_actor_Movement_Hold`: the player settles onto the contact point.
-const GRIP_SETTLE_RATE := 14.0
 ## `m_player_main_putin_item` / `takeout_item` / `return_outdoor*` timers are game ticks (60 Hz).
 ## `morph_counter` 9.0 falls 0.5 per tick and `cKF_SkeletonInfo_R_play` holds the clip's first
 ## frame the whole time, so the pose morph is 18 ticks before the clip itself starts moving.
@@ -147,6 +139,7 @@ const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 @onready var _placeholder: MeshInstance3D = $MeshPivot/PlaceholderMesh
 @onready var _probe: Area3D = $MeshPivot/InteractProbe
 @onready var _look: Marker3D = $CameraLook
+@onready var furniture: PlayerFurniture = $Furniture
 @onready var _animator: BodyAnimator = $Animator
 
 ## Title demo: a recorded stick + A replace live input (`mEv_IsTitleDemo` swaps the controller
@@ -234,14 +227,6 @@ var _door_base_y: float = 0.0
 var _talk_face: Node3D = null
 ## `player->shake_tree_*`: trees this player has already shaken (little or button).
 var _tree_bump: TreeBump = TreeBump.new()
-## Holding onto a piece of furniture (`mPlayer_INDEX_HOLD` and its push / pull / turn children).
-var _grip: FurnitureGrip = FurnitureGrip.new()
-var _gripping: bool = false
-var _grip_nice: Vector3 = Vector3.ZERO
-var _grip_move: Dictionary = {}
-## Sitting in a chair or lying in a bed: `{ kind, id, pos, yaw_facing, approach, phase, t, dur, from, to }`.
-var _seat: FurnitureSeat = FurnitureSeat.new()
-var _rest: Dictionary = {}
 ## Crossing into the next acre (`mPlayer_INDEX_WADE`): `{start, end, t}` (world metres,
 ## ticks); empty when not wading. See `AcreWade`.
 var _wade: Dictionary = {}
@@ -393,7 +378,7 @@ func is_busy() -> bool:
 
 ## `mPlib_request_main_push_snowball_type1`: the ball leads, the player keeps behind it.
 func begin_snowball_push(ball: Node3D) -> bool:
-	if _busy or _gripping or _snowball != null or not _wade.is_empty() or _menu_open():
+	if _busy or furniture.gripping or _snowball != null or not _wade.is_empty() or _menu_open():
 		return false
 	_snowball = ball
 	if ball is PhysicsBody3D:
@@ -505,15 +490,15 @@ func _physics_process(delta: float) -> void:
 		_tick_wade(delta)
 		return
 
-	if _gripping:
-		_tick_grip(delta)
-	elif not _rest.is_empty():
-		_tick_rest(delta)
+	if furniture.gripping:
+		furniture.tick_grip(delta)
+	elif not furniture.rest.is_empty():
+		furniture.tick_rest(delta)
 	elif not _busy and scripted_input == null and not _net.is_active():
-		_poll_furniture_pickup()
+		furniture.poll_furniture_pickup()
 		_poll_pitfall()
 		_poll_radio_exercise(delta)
-		_poll_rest(delta)
+		furniture.poll_rest(delta)
 	var bg: Array = _bg()
 	var on_bg: bool = _snap_to_bg()
 	if on_bg:
@@ -761,94 +746,6 @@ func wade_state() -> Dictionary:
 	return _wade
 
 
-## `aMR_ManageMoveBottun`: A against a piece in your own house grips it. Anything else —
-## nothing there, a piece in the pockets to place, another room — falls through to the normal verb.
-func _try_grip() -> bool:
-	if _busy or _gripping or _door_entering or not Game.is_decorating() or Game.held_furniture() != null:
-		return false
-	var session: IndoorSession = Game.interior_session
-	if session == null:
-		return false
-	var contact: Dictionary = _grip.press(
-		session, global_position, WorldGrid.facing_from_player_yaw(_motor.facing)
-	)
-	if contact.is_empty():
-		return false
-	_gripping = true
-	_busy = true
-	_grip_move = {}
-	_grip_nice = contact["nice_pos"] as Vector3
-	_motor.reset(WorldGrid.yaw_for_furniture(_grip.facing))
-	_mesh.rotation.y = _motor.facing
-	_play_grip_clip(ANIM_HOLD_WAIT1, true)
-	return true
-
-
-func _grip_stick() -> Vector2:
-	if _menu_open():
-		return Vector2.ZERO
-	var input_dir: Vector2 = _read_stick()
-	var wish: Vector3 = _camera_wish(input_dir)
-	return Vector2(wish.x, wish.z) * clampf(input_dir.length(), 0.0, 1.0)
-
-
-func _tick_grip(delta: float) -> void:
-	if Game.interior_session == null:
-		_end_grip()
-		return
-	var held: bool = Input.is_action_pressed("interact") and not _menu_open()
-	var events: Array[Dictionary] = _grip.advance(
-		delta, Game.interior_session, held, _grip_stick(), global_position
-	)
-	if not _grip_move.is_empty():
-		_advance_grip_move(delta)
-	elif _gripping:
-		var pos: Vector3 = global_position
-		global_position = pos.lerp(Vector3(_grip_nice.x, pos.y, _grip_nice.z), clampf(delta * GRIP_SETTLE_RATE, 0.0, 1.0))
-	for event: Dictionary in events:
-		if not _gripping:
-			break
-		_on_grip_event(event)
-	velocity = Vector3.ZERO
-
-
-func _on_grip_event(event: Dictionary) -> void:
-	match str(event.get("op", "")):
-		"tap":
-			var side: int = int(event.get("side", -1))
-			var tapped_id: StringName = event.get("id", &"") as StringName
-			_end_grip()
-			_tap_furniture(tapped_id, side)
-		"release":
-			_end_grip()
-		"move":
-			_notify_moved(event)
-			var pushing: bool = event.get("kind") == &"push"
-			_grip_move = {
-				"t": 0.0,
-				"dur": FURNITURE_MOVE_SEC,
-				"from": event["player_from"] as Vector3,
-				"to": event["player_to"] as Vector3,
-			}
-			_grip_nice = event["player_to"] as Vector3
-			_play_grip_clip(ANIM_PUSH1 if pushing else ANIM_PULL1, false)
-			_sync_furniture(FURNITURE_MOVE_SEC)
-		"rotate":
-			_notify_moved(event)
-			_grip_move = {"t": 0.0, "dur": FURNITURE_TURN_SEC, "from": global_position, "to": global_position}
-			_play_grip_clip(ANIM_LTURN1 if bool(event.get("ccw", true)) else ANIM_RTURN1, false)
-			_sync_furniture(FURNITURE_TURN_SEC)
-		"bubu":
-			## `aMR_SetBubu`: the puff of a piece that will not budge. Just the held pose for now.
-			pass
-
-
-func _notify_moved(event: Dictionary) -> void:
-	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
-	if host != null and host.has_method("on_furniture_moved"):
-		host.call("on_furniture_moved", event.get("vacated", []))
-
-
 ## `mPlayer_INDEX_SHOCK` (`aMR_RequestPlayerBikkuri`): the first roach of the session makes the
 ## player jump — a beat, then `gaaan1`, facing north.
 func request_surprise() -> void:
@@ -866,56 +763,6 @@ func request_surprise() -> void:
 	play_wait_idle()
 
 
-func _advance_grip_move(delta: float) -> void:
-	var dur: float = maxf(float(_grip_move["dur"]), 0.001)
-	var t: float = minf(float(_grip_move["t"]) + delta, dur)
-	_grip_move["t"] = t
-	var k: float = smoothstep(0.0, 1.0, t / dur)
-	var from: Vector3 = _grip_move["from"] as Vector3
-	var to: Vector3 = _grip_move["to"] as Vector3
-	global_position = Vector3(lerpf(from.x, to.x, k), global_position.y, lerpf(from.z, to.z, k))
-	if t >= dur:
-		_grip_move = {}
-		_grip.finish_busy()
-		_play_grip_clip(ANIM_HOLD_WAIT1, true)
-
-
-func _sync_furniture(duration: float) -> void:
-	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
-	if host != null and host.has_method("sync_placements"):
-		host.call("sync_placements", duration)
-
-
-func _end_grip() -> void:
-	_gripping = false
-	_grip_move = {}
-	_grip.reset()
-	_busy = false
-	_gait = PlayerLocomotion.Gait.WAIT
-	play_wait_idle()
-
-
-## A short A on a gripped piece is the ordinary use verb (open, switch, put a fish on it).
-func _tap_furniture(placement_id: StringName, side: int) -> void:
-	var interior: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
-	var host: Node = interior.call("furniture_node", placement_id) if interior != null else null
-	if host == null or not InteractionQuery.is_host(host):
-		return
-	var ctx: InteractionContext = _make_context()
-	ctx.contact_side = side
-	var offered: Array[Interaction] = []
-	var raw: Variant = host.get_interactions(ctx)
-	if raw is Array:
-		offered.assign(raw)
-	var action: Interaction = Interaction.primary(offered)
-	if action == null:
-		return
-	var tapped := InteractionQuery.new()
-	tapped.host = host
-	tapped.action = action
-	await _run_interact(tapped)
-
-
 func _play_grip_clip(leaf: String, loop: bool) -> void:
 	if _anim == null:
 		return
@@ -927,213 +774,6 @@ func _play_grip_clip(leaf: String, loop: bool) -> void:
 		animation.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
 	_anim.speed_scale = 1.0
 	_anim.play(clip, 0.12)
-
-
-## `aMR_SitDownFurniture` / `aMR_JudgeGoToBed`: walking straight into a chair or a bed.
-func _poll_rest(delta: float) -> void:
-	if _menu_open() or Game.interior_session == null or not Game.is_indoors():
-		_seat.reset()
-		return
-	var hit: Dictionary = _seat.poll(
-		delta,
-		Game.interior_session,
-		global_position,
-		WorldGrid.facing_from_player_yaw(_motor.facing),
-		_grip_stick()
-	)
-	if not hit.is_empty():
-		_begin_rest(hit)
-
-
-func _begin_rest(hit: Dictionary) -> void:
-	var lying: bool = int(hit["kind"]) == FurnitureSeat.Rest.LIE
-	var leaf: String = ANIM_SITDOWN1
-	if lying:
-		leaf = ANIM_INBED_L1 if bool(hit.get("from_left", true)) else ANIM_INBED_R1
-	_rest = hit.duplicate()
-	_rest["phase"] = &"in"
-	_rest["t"] = 0.0
-	_rest["dur"] = _clip_seconds(leaf, 0.8)
-	_rest["from"] = global_position
-	_rest["to"] = hit["pos"] as Vector3
-	_busy = true
-	var yaw: float = WorldGrid.yaw_for_furniture(hit["yaw_facing"] as WorldGrid.Facing)
-	_motor.reset(yaw)
-	_mesh.rotation.y = yaw
-	_play_grip_clip(leaf, false)
-
-
-func _tick_rest(delta: float) -> void:
-	velocity = Vector3.ZERO
-	var lying: bool = int(_rest["kind"]) == FurnitureSeat.Rest.LIE
-	var phase: StringName = _rest["phase"] as StringName
-	if phase == &"wait":
-		var stick: Vector2 = _grip_stick()
-		if not lying:
-			if stick.length() > REST_STAND_STICK:
-				_begin_stand(false)
-			return
-		## `wait_bed.flags`: the stick has to come back before the next roll.
-		if stick.length() <= 0.5:
-			_rest["armed"] = true
-			return
-		if not bool(_rest.get("armed", false)):
-			return
-		var act: Dictionary = FurnitureSeat.bed_action(Game.interior_session, _rest, global_position, stick)
-		match int(act["action"]):
-			FurnitureSeat.BedAction.ROLL:
-				_begin_roll(act["side"] as WorldGrid.Facing)
-			FurnitureSeat.BedAction.OUT:
-				_begin_stand(true, act["side"] as WorldGrid.Facing)
-		return
-	if phase == &"roll":
-		if _clip_running(str(_rest.get("clip", ""))):
-			return
-		## `settle_main_Roll_bed` (`AnimationMove_dt`): the clip's sideways travel becomes the
-		## player's position, and the bed wait picks up from there without a blend.
-		var before: Vector3 = _root_joint_position()
-		var wait := _resolve_clip(ANIM_BED_WAIT1)
-		if _anim != null and not wait.is_empty():
-			_ensure_loop(wait)
-			_anim.play(wait, 0.0)
-			_anim.seek(0.0, true)
-		var after: Vector3 = _root_joint_position()
-		if before != Vector3.INF and after != Vector3.INF:
-			global_position += Vector3(before.x - after.x, 0.0, before.z - after.z)
-		_rest["pos"] = global_position
-		_rest["phase"] = &"wait"
-		_rest["armed"] = false
-		return
-	var t: float = minf(float(_rest["t"]) + delta, float(_rest["dur"]))
-	_rest["t"] = t
-	var k: float = smoothstep(0.0, 1.0, t / maxf(float(_rest["dur"]), 0.001))
-	var from: Vector3 = _rest["from"] as Vector3
-	var to: Vector3 = _rest["to"] as Vector3
-	global_position = Vector3(lerpf(from.x, to.x, k), global_position.y, lerpf(from.z, to.z, k))
-	if t < float(_rest["dur"]):
-		return
-	if phase == &"in":
-		_rest["phase"] = &"wait"
-		_play_grip_clip(ANIM_BED_WAIT1 if lying else ANIM_SITDOWN_WAIT1, true)
-	else:
-		_end_rest()
-
-
-func _begin_stand(lying: bool, side: int = -1) -> void:
-	var session: IndoorSession = Game.interior_session
-	if session == null:
-		_end_rest()
-		return
-	var seat_pos: Vector3 = _rest["pos"] as Vector3
-	var spot: Dictionary
-	var exit_left: bool = bool(_rest.get("from_left", true))
-	if lying and side >= 0:
-		## Out on the side the stick pushed: `OUTBED_L1` undoes `INBED_L1`, whose approach is
-		## the side a quarter-turn back from the pillow.
-		var grid: WorldGrid = session.grid
-		var exit_cell: Vector2i = grid.step(grid.world_to_cell(global_position), side as WorldGrid.Facing)
-		spot = FurnitureSeat.bed_exit_spot(session, grid.cell_to_world(exit_cell))
-		exit_left = grid.rotate_facing(_rest.get("head", WorldGrid.Facing.SOUTH) as WorldGrid.Facing, -1) == side
-	elif lying:
-		spot = FurnitureSeat.bed_exit_spot(session, _rest["approach"] as Vector3)
-	else:
-		spot = FurnitureSeat.stand_spot(session, seat_pos, _rest["yaw_facing"] as WorldGrid.Facing)
-	if spot.is_empty():
-		return
-	var leaf: String = ANIM_STANDUP1
-	if lying:
-		leaf = ANIM_OUTBED_L1 if exit_left else ANIM_OUTBED_R1
-	_rest["phase"] = &"out"
-	_rest["t"] = 0.0
-	_rest["dur"] = _clip_seconds(leaf, 0.8)
-	_rest["from"] = global_position
-	_rest["to"] = spot["pos"] as Vector3
-	_play_grip_clip(leaf, false)
-
-
-## `Roll_bed`: `NEGAERI_L1` / `R1`, whichever carries the body toward `side` (the original
-## picks it from the facing and stick quadrant; the clip's own root travel says the same).
-func _begin_roll(side: WorldGrid.Facing) -> void:
-	var session: IndoorSession = Game.interior_session
-	if session == null:
-		return
-	var step: Vector2i = session.grid.step(Vector2i.ZERO, side)
-	var want := Vector3(float(step.x), 0.0, float(step.y))
-	var leaf: String = ANIM_NEGAERI_R1
-	var travel: Vector3 = _clip_root_travel(ANIM_NEGAERI_R1)
-	if travel != Vector3.ZERO and travel.dot(want) < 0.0:
-		leaf = ANIM_NEGAERI_L1
-	var clip: String = _start_one_shot(leaf, 0.0)
-	Audio.play_se(&"bed_negaeri", self)
-	_rest["phase"] = &"roll"
-	_rest["clip"] = clip
-	_rest["armed"] = false
-
-
-## World-space XZ the clip's joint_0 travels from first to last key, turned by the facing.
-func _clip_root_travel(leaf: String) -> Vector3:
-	var clip: String = _resolve_clip(leaf)
-	if clip.is_empty() or _anim == null:
-		return Vector3.ZERO
-	var res: Animation = _anim.get_animation(clip)
-	var track: int = _find_joint0_position_track(res) if res != null else -1
-	if track < 0 or res.track_get_key_count(track) < 2:
-		return Vector3.ZERO
-	var a: Vector3 = res.track_get_key_value(track, 0) as Vector3
-	var b: Vector3 = res.track_get_key_value(track, res.track_get_key_count(track) - 1) as Vector3
-	var d := Vector3(b.x - a.x, 0.0, b.z - a.z)
-	return d.rotated(Vector3.UP, _motor.facing)
-
-
-func _end_rest() -> void:
-	_rest = {}
-	_seat.reset()
-	_busy = false
-	_gait = PlayerLocomotion.Gait.WAIT
-	play_wait_idle()
-
-
-func _clip_seconds(leaf: String, fallback: float) -> float:
-	var clip: String = _resolve_clip(leaf)
-	if _anim == null or clip.is_empty():
-		return fallback
-	var animation: Animation = _anim.get_animation(clip)
-	return animation.length if animation != null and animation.length > 0.0 else fallback
-
-
-## Shut the dresser / wardrobe / closet again once the last message has closed.
-func play_storage_close(storage_type: int) -> void:
-	var leaf: StringName = FurnitureStorage.CLOSE_CLIPS.get(storage_type, &"") as StringName
-	if leaf == &"" or _anim == null:
-		return
-	var clip: String = _resolve_clip(String(leaf))
-	if clip.is_empty():
-		return
-	var animation: Animation = _anim.get_animation(clip)
-	if animation != null:
-		animation.loop_mode = Animation.LOOP_NONE
-	_anim.speed_scale = 1.0
-	_anim.play(clip, 0.08)
-	await _anim.animation_finished
-
-
-## `Player_actor_CheckAndRequest_main_pickup_all`: B facing a piece in your own house picks it up.
-func _poll_furniture_pickup() -> void:
-	if not Input.is_action_just_pressed("sprint") or _menu_open() or _door_entering:
-		return
-	if not Game.is_decorating() or Game.interior_session == null:
-		return
-	var id: StringName = FurnitureGrip.find_pickup(
-		Game.interior_session, global_position, WorldGrid.facing_from_player_yaw(_motor.facing)
-	)
-	if id == &"":
-		return
-	_busy = true
-	var tail: float = await _play_action(&"ply_1_pickup1", 20.0)
-	Game.pick_up_furniture(id)
-	await _finish_action(tail)
-	_busy = false
-	_gait = PlayerLocomotion.Gait.WAIT
 
 
 ## `Player_actor_check_little_shake_tree`: walking up to a tree shakes it a little.
@@ -1471,7 +1111,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if scripted_input != null or _busy or _menu_open() or is_demo_walking() or _net.is_active():
 		return
 	if event.is_action_pressed("interact"):
-		if _try_grip():
+		if furniture.try_grip():
 			get_viewport().set_input_as_handled()
 			return
 		_try_interact()

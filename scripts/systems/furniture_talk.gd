@@ -67,9 +67,8 @@ static func _storage_put_in(entry: FurniturePlacement, inv: Inventory) -> void:
 static func _close_furniture(ctx: InteractionContext, data: FurnitureData) -> void:
 	if data.is_music_player() or ctx == null or ctx.actor == null:
 		return
-	var actor: Node = ctx.actor
-	if actor.has_method("play_storage_close"):
-		await actor.call("play_storage_close", int(data.storage_type))
+	if ctx.actor is Player:
+		await (ctx.actor as Player).furniture.play_storage_close(int(data.storage_type))
 
 
 ## --- music player -----------------------------------------------------------------------
