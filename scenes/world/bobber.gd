@@ -16,7 +16,7 @@ const DIP_DEPTH := 0.075
 ## `aUKI_color`: more than 3 GX under the surface the float is tinted (100, 100, 128), and
 ## back above it returns to white. `aUKI_chase_color` moves each channel by half its step
 ## a tick (the int of 52 * 0.5 and 43 * 0.5): per second, out of 255.
-const UNDERWATER_GX := 3.0
+const UNDERWATER := 0.15  ## 3 GX
 const UNDERWATER_RGB := Vector3(100, 100, 128) / 255.0
 const COLOR_RATE := Vector3(26, 26, 21) * 60.0 / 255.0
 
@@ -103,7 +103,7 @@ func _tilt(delta: float, height: float) -> void:
 			max_rate = SETTLE_MAX_RATE
 	if drawn:
 		_pitch = tilt_toward(_pitch, target, half_life, max_rate, delta)
-	_rgb = chase_color(_rgb, height < -UNDERWATER_GX * FieldCatalog.GX_TO_METERS, delta)
+	_rgb = chase_color(_rgb, height < -UNDERWATER, delta)
 	## Every proc but an unstruck bite turns the float to face the rod (`uki_angle.y`) and
 	## then tips it; an unstruck bite leaves it standing with neither.
 	var to_rod: Vector3 = _origin() - global_position if is_inside_tree() else Vector3.ZERO

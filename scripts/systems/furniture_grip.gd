@@ -26,7 +26,7 @@ const STICK_NEUTRAL := 0.086
 ## How near the player must be to the face of a piece to grip it (metres).
 const CONTACT_DIST := 1.6
 ## `aMR_SearchPickupFurniture`: units in front within 56 GX.
-const PICKUP_REACH := 56.0 * FieldCatalog.GX_TO_METERS
+const PICKUP_REACH := 2.8  ## 56 GX
 
 var phase: Phase = Phase.IDLE
 var placement_id: StringName = &""

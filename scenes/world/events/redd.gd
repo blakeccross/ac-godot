@@ -6,7 +6,7 @@ extends EventNpc
 ## is not out at all once the stock is gone, or after the player has been inside
 ## (`broker.hide_npc`).
 
-const ENTER_DIST := 60.0 * FieldCatalog.GX_TO_METERS
+const ENTER_DIST := 3.0  ## 60 GX
 
 enum Act { WAIT, TURN, ENTER, HIDDEN }
 

@@ -14,9 +14,9 @@ const VISUAL := &"act_m_house_goki"
 const MPS := 1.5
 const TIMER_HZ := 0.5 * DecompTime.TICK_HZ
 ## `aHG_check_dead`: the player treads on it inside 9 GX while moving.
-const STEP_KILL := 9.0 * FieldCatalog.GX_TO_METERS
+const STEP_KILL := 0.45  ## 9 GX
 ## `aHG_player_check`: a moving player within 60 GX scares it.
-const SCARE := 60.0 * FieldCatalog.GX_TO_METERS
+const SCARE := 3.0  ## 60 GX
 const RADIUS := 0.4
 ## `position_speed.y = 17`, `gravity = -2` (rising) / `-7` (falling): the position moves
 ## `0.5 · vy` per frame and `vy` chases by `0.5 · gravity` per frame.

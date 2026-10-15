@@ -348,7 +348,7 @@ func test_npc_on_line_uses_the_villager_pipe() -> void:
 	var end := Vector3(0.0, 0.5, 2.75)
 	assert_object(Netting.npc_on_line(ctx, start, end)).is_same(villager)
 	## Beyond the 20 GX pipe radius, sideways.
-	villager.global_position = Vector3(Netting.NPC_PIPE_RADIUS_GX * FieldCatalog.GX_TO_METERS + 0.2, 0.0, 2.0)
+	villager.global_position = Vector3(Netting.NPC_PIPE_RADIUS + 0.2, 0.0, 2.0)
 	assert_object(Netting.npc_on_line(ctx, start, end)).is_null()
 	## A hidden (indoor) villager never registers.
 	villager.global_position = Vector3(0.0, 0.0, 2.0)

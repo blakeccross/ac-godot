@@ -33,7 +33,7 @@ const CAM_FOV := 40.0
 const CAM_NEAR_GX := 100.0
 const CAM_FAR_GX := 400.0
 ## Decomp near=100 GX → 5 m literally; that clips KK's front (body → sliver). ~1 GX.
-const CAM_NEAR_METERS := 2.0 * FieldCatalog.GX_TO_METERS
+const CAM_NEAR_METERS := 0.1  ## 2 GX
 const CAM_FAR_METERS := CAM_FAR_GX * FieldCatalog.GX_TO_METERS
 
 ## FG ut (2, 1) center — `player_select_actable` + `mFI_UNIT_BASE_SIZE` 40.

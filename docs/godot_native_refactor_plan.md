@@ -373,6 +373,14 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
     - Either way the host's `interact` carries them out and may await. A host with no `interact` hears the volume's `activated` signal.
     - `InteractionQuery` talks only to typed volumes (`offers` / `activate`). The host methods are found once, by the volume, which is the one place that duck typing remains.
 
+- **Phase 6 in part.** The constants are converted. The decomp math stays in GX until each system is next touched.
+  - 22 `_GX` constants that were only ever multiplied by `GX_TO_METERS` are metre values, and so are 22 constants written as a literal times it. The decomp figure stays in a comment (`const STAND_STEP := 1.75  ## 35 GX`).
+  - Speed and acceleration constants keep their derivation from per-frame GX (`17.0 * GX_TO_METERS * 0.5 * TICK_HZ`), as Phase 2's lessons ask.
+  - What remains, about 220 uses of `GX_TO_METERS`, is mostly conversion at the edges:
+    - Systems that compute in decomp units against tables written in them: insects and their behaviors, fish shadows, the ball, the glyphs, the train, bees.
+    - The table loaders (`gx_to_world` and the like).
+  - 146 scalar `_GX` constants feed that math. Converting it means rewriting each system's formulas in metres, so it is left for when each system is next changed, as this phase says. Making `GX_TO_METERS` private to the loaders waits on that.
+
 Lessons from the weather particles:
 
 - **Stay inside what the Compatibility renderer does.** Headless captures run there, and some players may too. It silently skips these:

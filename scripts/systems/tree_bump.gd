@@ -12,7 +12,7 @@ extends RefCounted
 ## Target must be inside ±45° of the player's facing (`min_angle = 45°`).
 const CONE := deg_to_rad(45.0)
 ## `dy > 10.0` GX between the unit-centre ground and the player's feet.
-const MAX_DY := 10.0 * FieldCatalog.GX_TO_METERS
+const MAX_DY := 0.5  ## 10 GX
 ## `*shake_timer_p = 16.0f` / `84.0f` (little / button shake), in 60 Hz frames.
 const LITTLE_TICKS := 16.0
 const BIG_TICKS := 84.0

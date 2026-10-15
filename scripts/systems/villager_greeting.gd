@@ -11,10 +11,10 @@ extends RefCounted
 ## Sisters trend lives here) — then both turn, close in, bow by looks and, if their clothes
 ## changed, change on the spot.
 
-const PAIR_RANGE := 80.0 * FieldCatalog.GX_TO_METERS
-const PAIR_HEIGHT := 40.0 * FieldCatalog.GX_TO_METERS
+const PAIR_RANGE := 4.0  ## 80 GX
+const PAIR_HEIGHT := 2.0  ## 40 GX
 ## `aNPC_act_greeting_turn`: stand still when this close.
-const APPROACH_NEAR := 50.0 * FieldCatalog.GX_TO_METERS
+const APPROACH_NEAR := 2.5  ## 50 GX
 ## `demo_move_timer = 80` frames.
 const APPROACH_SECONDS := 80.0 / DecompTime.TICK_HZ
 ## `palActorIgnoreTimer = 10 * FRAMES_PER_SECOND` after a greeting.

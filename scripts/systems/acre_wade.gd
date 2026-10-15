@@ -28,7 +28,7 @@ const DURATION := TICKS / DecompTime.TICK_HZ
 const ACCEL := 1.1999999
 const BRAKE := 34.8
 ## `Player_actor_Search_exist_npc_inCircle_forWade` (not in the title demo).
-const NPC_CLEAR_GX := 36.0
+const NPC_CLEAR := 1.8  ## 36 GX
 ## `Player_actor_CheckCondition_forWadeSnowball`: pushing a ball, the body must be within 5°
 ## of straight across.
 const SNOWBALL_ANGLE_RANGE := 5.0

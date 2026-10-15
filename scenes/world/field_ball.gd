@@ -18,7 +18,7 @@ const VISUALS: Array[StringName] = [&"act_ball_b", &"act_ball_d", &"act_ball_s"]
 ## `aBALL_CoInfoData` pipe radius.
 const RADIUS_GX := 13.0
 ## `ac_ball` works in GX per 30 fps frame: one of those, in m/s.
-const FRAME := FieldCatalog.GX_TO_METERS * 30.0
+const FRAME := 1.5  ## 1 GX a 30 fps frame, in m/s
 ## Kicks top out at 11 GX a frame.
 const MAX_KICK := 11.0 * FRAME
 ## 0.3 GX a frame per frame down, capped at 20; rolling brakes 0.06 a frame per frame.

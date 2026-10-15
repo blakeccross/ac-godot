@@ -18,10 +18,10 @@ const SCENE := "res://scenes/world/bobber.tscn"
 ## `m_player_main_ready_rod`: the bobber lands a fixed 100 GX straight ahead of the player's
 ## facing. You aim by turning — there is no charge-up and no variable-length cast, so this
 ## is the whole of the cast's reach.
-const CAST_METERS := 100.0 * FieldCatalog.GX_TO_METERS
+const CAST_METERS := 5.0  ## 100 GX
 ## The same routine probes the landing spot and four corners at ±10 GX, and only casts if
 ## every one of them is water. Otherwise the swing goes out over land (`air_rod`).
-const CAST_PROBE_METERS := 10.0 * FieldCatalog.GX_TO_METERS
+const CAST_PROBE_METERS := 0.5  ## 10 GX
 ## `aUKI_set_proc_cast`: `frame_timer = 50` mover frames, not doubled like the authored
 ## 30 Hz dwell values, so 50 is already at 60 Hz. The parabola is built to reach the landing
 ## point in exactly that span and `aUKI_cast` ends it the moment the bobber touches water.

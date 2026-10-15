@@ -19,7 +19,7 @@ const SAND_TINT := Color(70.0 / 255.0, 50.0 / 255.0, 50.0 / 255.0)
 const SNOW_TINT := Color(0.0, 50.0 / 255.0, 100.0 / 255.0)
 
 ## `effect->position.y = 2.0f + GetShadowBgY(...)` — 2 GX clear of the acre plane.
-const GROUND_LIFT := 2.0 * FieldCatalog.GX_TO_METERS
+const GROUND_LIFT := 0.1  ## 2 GX
 ## The `eFootPrint_area_offset_data` probe triangle, in meters.
 const SLOPE_PROBES: Array[Vector2] = [
 	Vector2(2.0 * FieldCatalog.GX_TO_METERS, -2.0 * FieldCatalog.GX_TO_METERS),

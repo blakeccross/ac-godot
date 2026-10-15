@@ -5,7 +5,7 @@ extends RefCounted
 ## Anchors and active/relax windows come from `ac_museum_insect`; motion is a lighter
 ## museum-idle version of field `BugActor` programs so wings still flap on schedule.
 
-const BEETLE_HEIGHT_GX := 35.0
+const BEETLE_HEIGHT := 1.75  ## 35 GX
 
 var bug: BugData = null
 var type_index: int = -1
@@ -76,7 +76,7 @@ static func _anchor_gx(bug: BugData) -> Vector3:
 static func _start_height(bug: BugData) -> float:
 	match bug.program:
 		BugData.Program.BEETLE, BugData.Program.CICADA:
-			return BEETLE_HEIGHT_GX * FieldCatalog.GX_TO_METERS
+			return BEETLE_HEIGHT
 		BugData.Program.BAGWORM:
 			return 5.0 * FieldCatalog.GX_TO_METERS
 		BugData.Program.BUTTERFLY, BugData.Program.DRAGONFLY, BugData.Program.FIREFLY:

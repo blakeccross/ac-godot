@@ -18,9 +18,9 @@ const MAX_SPEED := MAX_STEP * DecompTime.TICK_HZ
 const YAW_LIMIT := deg_to_rad(60.0)
 const PITCH_LIMIT := deg_to_rad(30.0)
 ## Too close to bother (`dist_xz >= 18`).
-const NEAR_GX := 18.0
+const NEAR := 0.9  ## 18 GX
 ## `actorx->eye.position`: about the player's eye height.
-const EYE_GX := 33.0
+const EYE := 1.65  ## 33 GX
 
 ## `head_angle.x` (follows the target's bearing) and `.y` (its elevation), radians.
 var angle := Vector2.ZERO
@@ -67,7 +67,7 @@ func unbind() -> void:
 static func want(eye: Vector3, body_yaw: float, target: Vector3) -> Vector2:
 	var d: Vector3 = target - eye
 	var xz: float = Vector2(d.x, d.z).length()
-	if xz < NEAR_GX * FieldCatalog.GX_TO_METERS:
+	if xz < NEAR:
 		return Vector2.ZERO
 	var yaw: float = wrapf(atan2(d.x, d.z) - body_yaw, -PI, PI)
 	var pitch: float = atan2(d.y, xz)
