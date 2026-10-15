@@ -36,7 +36,7 @@ const OFFERING := 50
 const NEW_YEAR_WINDOW := Color8(255, 60, 40)
 ## `aHTC_inori` / `aHTC_saisen`: the player stands 20 GX across and 85 out from the well's
 ## anchor unit — the middle of its front, 65 GX out from the centre — facing it.
-const VISIT_STAND_GX := 65.0
+const VISIT_STAND := 3.25  ## 65 GX
 
 
 ## The one in `tree`, or null.
@@ -119,7 +119,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 ## Where the player stands to make a New Year's wish, and the way they face.
 func visit_stand() -> Array:
 	var fwd := Vector3(sin(global_rotation.y), 0.0, cos(global_rotation.y))
-	var stand: Vector3 = global_position + fwd * VISIT_STAND_GX * FieldCatalog.GX_TO_METERS
+	var stand: Vector3 = global_position + fwd * VISIT_STAND
 	return [stand, atan2(-fwd.x, -fwd.z)]
 
 

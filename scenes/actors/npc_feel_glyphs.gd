@@ -20,13 +20,13 @@ const WARAU_CYCLES := 2
 const SHOCK_VISUAL := &"ef_shock01_00"
 const SHOCK_MATRIX_SCALE := 0.019
 const SHOCK_LIFE_FRAMES := 14
-const SHOCK_Y_GX := 4.0
+const SHOCK_Y := 0.2  ## 4 GX
 
 const HA_VISUAL := &"ef_ha01_00"
 const HA_MATRIX_SCALE := 0.0067
 const HA_LIFE_FRAMES := 56
-const HA_Y_GX := 12.0
-const HA_X_GX := 16.0
+const HA_Y := 0.6  ## 12 GX
+const HA_X := 0.8  ## 16 GX
 
 ## Lightbulb bolt (`ef_hirameki_den`) + brief glow (`ef_hirameki_hikari`).
 const HIRAMEKI_DEN_VISUAL := &"ef_hirameki01_den"
@@ -35,7 +35,7 @@ const HIRAMEKI_DEN_MATRIX_SCALE := 0.007
 const HIRAMEKI_HIKARI_MATRIX_SCALE := 0.014
 const HIRAMEKI_LIFE_FRAMES := 72
 const HIRAMEKI_HIKARI_FRAMES := 12
-const HIRAMEKI_Y_GX := 24.0
+const HIRAMEKI_Y := 1.2  ## 24 GX
 
 ## `eGM_*` / `eKT_*`: the question and exclamation marks pop in through this squash table
 ## (two ticks a row, rows past the sixth 1:1), hold to tick 64 and fade by 72.
@@ -162,18 +162,18 @@ func play(kind: StringName) -> void:
 			_show_warau_frame(0)
 		&"shock":
 			_set_visual(SHOCK_VISUAL, SHOCK_MATRIX_SCALE)
-			_mesh_host.position = Vector3(0.0, SHOCK_Y_GX * FieldCatalog.GX_TO_METERS, 0.0)
+			_mesh_host.position = Vector3(0.0, SHOCK_Y, 0.0)
 			_tint_mesh(Color(1.0, 1.0, 0.0))
 		&"ha":
 			_set_visual(HA_VISUAL, HA_MATRIX_SCALE)
 			_mesh_host.position = Vector3(
-				HA_X_GX * FieldCatalog.GX_TO_METERS,
-				HA_Y_GX * FieldCatalog.GX_TO_METERS,
+				HA_X,
+				HA_Y,
 				0.0
 			)
 		&"hirameki":
 			_set_visual(HIRAMEKI_DEN_VISUAL, HIRAMEKI_DEN_MATRIX_SCALE)
-			_mesh_host.position = Vector3(0.0, HIRAMEKI_Y_GX * FieldCatalog.GX_TO_METERS, 0.0)
+			_mesh_host.position = Vector3(0.0, HIRAMEKI_Y, 0.0)
 			_tint_mesh(Color(1.0, 1.0, 0.39))
 			_set_glow_visual(HIRAMEKI_HIKARI_VISUAL, HIRAMEKI_HIKARI_MATRIX_SCALE)
 			_glow_host.position = _mesh_host.position

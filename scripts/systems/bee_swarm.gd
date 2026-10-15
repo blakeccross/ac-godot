@@ -10,8 +10,8 @@ extends Node3D
 enum Phase { APPEAR, FLY, ATTACK, DISAPPEAR }
 
 ## Attack when XZ distance under 30 GX (`aBEE_ACT_ATTACK`).
-const ATTACK_GX := 30.0
-const CHASE_HEIGHT_GX := 50.0
+const ATTACK_REACH := 1.5  ## 30 GX
+const CHASE_HEIGHT := 2.5  ## 50 GX
 const APPEAR_SEC := 0.45
 ## `BGM_BEE_CHASE` (`mBGMPsComp_make_ps_happening` from the shake's `shock`).
 const CHASE_BGM := &"bee_chase"
@@ -20,7 +20,7 @@ const ATTACK_END_TICKS := 162.0
 ## `aBEE_fly_init`: frames before the net can take it.
 const CATCH_DELAY_FRAMES := 60
 ## `Set_Item_net_catch_request_force_proc` / `_table_proc` reaches.
-const FORCE_CATCH_GX := 40.0
+const FORCE_CATCH := 2.0  ## 40 GX
 const NET_RANGE_GX := 24.0
 const BEE_ID := &"bee"
 const MODEL := "res://assets/generated/environment/act_bee.glb"
@@ -142,7 +142,7 @@ func _chase(delta: float) -> void:
 		_elapsed = 0.0
 		return
 	var target: Vector3 = _player.global_position
-	target.y += CHASE_HEIGHT_GX * FieldCatalog.GX_TO_METERS
+	target.y += CHASE_HEIGHT
 	var to: Vector3 = target - global_position
 	var dist_xz: float = Vector2(to.x, to.z).length()
 	var speed: float = 4.5
@@ -151,7 +151,7 @@ func _chase(delta: float) -> void:
 		_shape(atan2(to.x, to.z), delta)
 	## Buzz sway.
 	global_position.y += sin(Time.get_ticks_msec() * 0.02) * 0.02
-	if attackable and dist_xz <= ATTACK_GX * FieldCatalog.GX_TO_METERS:
+	if attackable and dist_xz <= ATTACK_REACH:
 		_sting()
 
 
@@ -162,7 +162,7 @@ func _hover(delta: float) -> void:
 		_elapsed = 0.0
 		return
 	var target: Vector3 = player.global_position
-	target.y += CHASE_HEIGHT_GX * FieldCatalog.GX_TO_METERS
+	target.y += CHASE_HEIGHT
 	global_position = global_position.lerp(target, clampf(delta * 3.0, 0.0, 1.0))
 	global_position.y += sin(Time.get_ticks_msec() * 0.02) * 0.02
 

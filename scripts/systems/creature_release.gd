@@ -10,7 +10,7 @@ extends RefCounted
 const SEARCH_GX := 120.0
 const SEARCH_DIVIDE := 12
 ## Each step's four corners at ±12 GX must be water too, so the fish lands clear of the bank.
-const CORNER_GX := 12.0
+const CORNER := 0.6  ## 12 GX
 ## `mPlib_request_main_release_creature_insect_from_submenu`: 7 GX ahead, 13 GX up.
 const BUG_AHEAD_GX := 7.0
 const BUG_UP_GX := 13.0
@@ -36,7 +36,7 @@ const TILT_STEP := 0x800 * TAU / 65536.0
 static func search_water(is_water: Callable, from: Vector3, yaw: float) -> Variant:
 	var step: float = SEARCH_GX / float(SEARCH_DIVIDE) * FieldCatalog.GX_TO_METERS
 	var dir := Vector3(sin(yaw), 0.0, cos(yaw))
-	var corner: float = CORNER_GX * FieldCatalog.GX_TO_METERS
+	var corner: float = CORNER
 	var corners: Array[Vector3] = [
 		Vector3(corner, 0.0, corner), Vector3(corner, 0.0, -corner),
 		Vector3(-corner, 0.0, -corner), Vector3(-corner, 0.0, corner),

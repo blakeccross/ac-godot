@@ -72,7 +72,7 @@ const SHELLS: Dictionary = {
 }
 ## `eHanabiSet_SearchNicePos` / `eHanabiSet_mv`, in GX.
 const SET_LIFT_GX := 20.0
-const SET_BACK_GX := 40.0
+const SET_BACK := 2.0  ## 40 GX
 const SCATTER_GX := 125.0
 const BANG_FRAME := 72
 const FLASH_FRAME := 10
@@ -176,7 +176,7 @@ func launch_position() -> Vector3:
 	if player != null:
 		at = (center + player.global_position) * 0.5
 	at.y = center.y + SET_LIFT_GX * FieldCatalog.GX_TO_METERS
-	at.z -= SET_BACK_GX * FieldCatalog.GX_TO_METERS
+	at.z -= SET_BACK
 	return at
 
 

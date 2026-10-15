@@ -554,7 +554,7 @@ func _can_land(pos_gx: Vector3, dir: AcreWade.Dir, bg: Array) -> bool:
 	if grid.is_occupied(grid.world_to_cell(probe)):
 		return false
 	if scripted_input == null:
-		var clear: float = AcreWade.NPC_CLEAR_GX * FieldCatalog.GX_TO_METERS
+		var clear: float = AcreWade.NPC_CLEAR
 		for npc: Node in get_tree().get_nodes_in_group("villagers"):
 			if npc is Node3D and (npc as Node3D).global_position.distance_to(probe) < clear:
 				return false
@@ -1419,7 +1419,7 @@ func _watch_release(target: Object, skeleton: Skeleton3D) -> void:
 		var want := Vector2.ZERO
 		var at: Variant = _release_target_pos(target)
 		if elapsed <= RELEASE_LOOK_SECONDS and at != null:
-			want = PlayerHeadLook.want(global_position + Vector3(0.0, PlayerHeadLook.EYE_GX * FieldCatalog.GX_TO_METERS, 0.0),
+			want = PlayerHeadLook.want(global_position + Vector3(0.0, PlayerHeadLook.EYE, 0.0),
 				_motor.facing, at as Vector3)
 		look.body_yaw = _motor.facing
 		look.step(want, delta)
@@ -1895,7 +1895,7 @@ func _poll_pitfall() -> void:
 	if not grid.is_in_bounds(cell) or not BuriedUse.is_pitfall(grid.occupant_at(cell)):
 		return
 	var center: Vector3 = grid.cell_corner(cell) + Vector3(grid.cell_size, 0.0, grid.cell_size) * 0.5
-	var reach: float = BuriedUse.PITFALL_REACH_GX * FieldCatalog.GX_TO_METERS
+	var reach: float = BuriedUse.PITFALL_REACH
 	if Vector2(center.x - global_position.x, center.z - global_position.z).length() > reach:
 		return
 	center.y = global_position.y

@@ -19,7 +19,7 @@ const KIND_ITEM := &"item"
 const KIND_PITFALL := &"pitfall"
 const PITFALL_ITEM := &"pitfall"
 ## `Player_actor_check_pitfall`: within 19 GX of the unit centre.
-const PITFALL_REACH_GX := 19.0
+const PITFALL_REACH := 0.95  ## 19 GX
 const PIT_OPEN_TICKS := 26.0
 const PIT_SE_TICK := 6.0
 const PIT_CLOSE_TICKS := 14.0

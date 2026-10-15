@@ -59,11 +59,11 @@ const FANFARE_COMPLETE := 0x4B
 const INSECT_RECORD_NUM := 40
 
 ## `aNPC_CoInfoData`: the villager collision pipe the net's triangle is tested against.
-const NPC_PIPE_RADIUS_GX := 20.0
-const NPC_PIPE_HEIGHT_GX := 30.0
+const NPC_PIPE_RADIUS := 1.0  ## 20 GX
+const NPC_PIPE_HEIGHT := 1.5  ## 30 GX
 ## `Player_actor_SetPosition_OBJtoLine_forItem`: the triangle's third corner sits this far
 ## above the net's end.
-const NET_TRI_RISE_GX := 10.0
+const NET_TRI_RISE := 0.5  ## 10 GX
 
 
 ## One catch, from the pull to the put-away.
@@ -221,7 +221,7 @@ static func _bee_candidate(ctx: InteractionContext, player_pos: Vector3, out: Ne
 	if swarm == null or not swarm.netable():
 		return
 	var to: Vector3 = swarm.global_position - player_pos
-	if Vector2(to.x, to.z).length() < BeeSwarm.FORCE_CATCH_GX * FieldCatalog.GX_TO_METERS:
+	if Vector2(to.x, to.z).length() < BeeSwarm.FORCE_CATCH:
 		out.forced = swarm
 	out.candidates.append(NetSwing.Candidate.new(swarm, swarm.global_position, BeeSwarm.NET_RANGE_GX))
 
@@ -231,9 +231,9 @@ static func _bee_candidate(ctx: InteractionContext, player_pos: Vector3, out: Ne
 static func npc_on_line(ctx: InteractionContext, start: Vector3, end: Vector3) -> Node3D:
 	if ctx == null or ctx.actor == null or not ctx.actor.is_inside_tree():
 		return null
-	var radius: float = NPC_PIPE_RADIUS_GX * FieldCatalog.GX_TO_METERS
-	var height: float = NPC_PIPE_HEIGHT_GX * FieldCatalog.GX_TO_METERS
-	var rise: float = NET_TRI_RISE_GX * FieldCatalog.GX_TO_METERS
+	var radius: float = NPC_PIPE_RADIUS
+	var height: float = NPC_PIPE_HEIGHT
+	var rise: float = NET_TRI_RISE
 	for node: Node in ctx.actor.get_tree().get_nodes_in_group("villagers"):
 		var villager := node as Node3D
 		if villager == null or not villager.visible:

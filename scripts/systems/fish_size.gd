@@ -92,7 +92,7 @@ const SWEEP_DEG_PER_FRAME := 2.5
 const SCARE_DASH_GX := 110.0
 const SCARE_TOOL_GX := 150.0
 ## `aGTT_Get_water_surface_position_y`: the shadow rides 8 GX under the surface.
-const DEPTH_GX := 8.0
+const DEPTH := 0.4  ## 8 GX
 
 ## `aGYO_prim_f`: the 20-entry LOD ramp that cross-fades the two shadow tiles. Reused here
 ## as the body-flex curve, since the pair of tiles it blends *is* the tail sway.
@@ -204,7 +204,7 @@ static func wait_seconds(jitter01: float) -> float:
 
 
 static func depth() -> float:
-	return DEPTH_GX * GX
+	return DEPTH
 
 
 static func gx_per_frame_to_mps(gx_per_frame: float) -> float:

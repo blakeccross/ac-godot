@@ -16,8 +16,8 @@ const BEE_SPAWN_DELAY := 5.0 / DecompTime.FRAME_HZ
 ## EffectBG sets `frame_control.speed = 0.5` on a 60 Hz actor tick (= 30 anim fps).
 ## Pipeline / player clips already sample at 30 fps, so Godot dt is frames / 30 — not / 15.
 ## `eYoung_Tree_dw`: cedar / palm saplings roll about a point above the trunk base.
-const YOUNG_PIVOT_PALM_GX := 5.0
-const YOUNG_PIVOT_CEDAR_GX := 15.0
+const YOUNG_PIVOT_PALM := 0.25  ## 5 GX
+const YOUNG_PIVOT_CEDAR := 0.75  ## 15 GX
 
 const XMAS_TREE_LIGHTS := &"obj_x_tree5_light"
 const XMAS_CEDAR_LIGHTS := &"obj_x_ceder5_light"
@@ -500,9 +500,9 @@ func _apply_young(tick: float, pivot: Node3D) -> void:
 	var basis := Basis(axis.normalized(), roll)
 	var about := Vector3.ZERO
 	if _family() == PlantData.Family.PALM:
-		about.y = YOUNG_PIVOT_PALM_GX * FieldCatalog.GX_TO_METERS
+		about.y = YOUNG_PIVOT_PALM
 	elif _family() == PlantData.Family.CEDAR:
-		about.y = YOUNG_PIVOT_CEDAR_GX * FieldCatalog.GX_TO_METERS
+		about.y = YOUNG_PIVOT_CEDAR
 	pivot.transform = Transform3D(basis, about - basis * about)
 
 
