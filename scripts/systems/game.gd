@@ -600,9 +600,9 @@ func request_museum_donation() -> void:
 	museum_donate_result = {}
 	if get_tree() == null:
 		return
-	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui")
-	if inv_ui != null and inv_ui.has_method("open"):
-		inv_ui.call("open")
+	var inv_ui: InventoryOverlay = InventoryOverlay.find(get_tree())
+	if inv_ui != null:
+		inv_ui.open()
 
 
 ## The player picked an item in the donate-select pockets. Books the outcome and tells
@@ -632,9 +632,9 @@ func request_shop_sell() -> void:
 	shop_sell_slots = []
 	if get_tree() == null:
 		return
-	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui")
-	if inv_ui != null and inv_ui.has_method("open"):
-		inv_ui.call("open")
+	var inv_ui: InventoryOverlay = InventoryOverlay.find(get_tree())
+	if inv_ui != null:
+		inv_ui.open()
 
 
 func take_shop_sell(slots: Array[int]) -> void:
@@ -658,9 +658,9 @@ func cancel_shop_sell() -> void:
 func request_storage_putin(filter: StringName = &"any") -> void:
 	storage_putin_pending = true
 	storage_putin_filter = filter
-	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui") if get_tree() != null else null
-	if inv_ui != null and inv_ui.has_method("open"):
-		inv_ui.call("open")
+	var inv_ui: InventoryOverlay = InventoryOverlay.find(get_tree())
+	if inv_ui != null:
+		inv_ui.open()
 	else:
 		cancel_storage_putin()
 
@@ -968,9 +968,9 @@ func request_quest_handover(pocket: int, mode: String = "quest") -> void:
 	quest_handover_pending = true
 	quest_handover_pocket = pocket
 	quest_handover_mode = mode
-	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui") if get_tree() != null else null
-	if inv_ui != null and inv_ui.has_method("open"):
-		inv_ui.call("open")
+	var inv_ui: InventoryOverlay = InventoryOverlay.find(get_tree())
+	if inv_ui != null:
+		inv_ui.open()
 	else:
 		cancel_quest_handover()
 
@@ -2134,10 +2134,10 @@ func _museum_complete_stage() -> Node:
 func open_catalog() -> CatalogOverlay:
 	if get_tree() == null:
 		return null
-	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui")
-	if inv_ui != null and inv_ui.has_method("close"):
-		inv_ui.call("close")
-	var ui := get_tree().get_first_node_in_group("catalog_ui") as CatalogOverlay
+	var inv_ui: InventoryOverlay = InventoryOverlay.find(get_tree())
+	if inv_ui != null:
+		inv_ui.close()
+	var ui: CatalogOverlay = CatalogOverlay.find(get_tree()) as CatalogOverlay
 	if ui == null:
 		return null
 	ui.open(catalog)
@@ -2148,26 +2148,24 @@ func close_shop() -> void:
 	if get_tree() == null:
 		return
 	var ui: Node = get_tree().get_first_node_in_group("shop_ui")
-	if ui != null and ui.has_method("close"):
-		ui.call("close")
+	if ui != null:
+		ui.close()
 
 
 func refresh_shop_set() -> void:
 	if get_tree() == null:
 		return
-	var host: Node = get_tree().get_first_node_in_group("interior")
-	if host != null and host.has_method("refresh_shop_set"):
-		host.call("refresh_shop_set")
+	var host: Interior = Interior.find(get_tree())
+	if host != null:
+		host.refresh_shop_set()
 
 
 func refresh_police_set() -> void:
 	if get_tree() == null:
 		return
-	var host: Node = get_tree().get_first_node_in_group("interior")
-	if host != null and host.has_method("refresh_public_set"):
-		host.call("refresh_public_set")
-	elif host != null and host.has_method("refresh_shop_set"):
-		host.call("refresh_shop_set")
+	var host: Interior = Interior.find(get_tree())
+	if host != null:
+		host.refresh_public_set()
 
 
 func _in_police_box() -> bool:
@@ -2496,9 +2494,9 @@ func try_place_furniture(actor: Node3D) -> bool:
 		post_notice("Can't place that here.")
 		return false
 	inventory.remove(data.id, 1)
-	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() else null
-	if host != null and host.has_method("spawn_placement"):
-		host.call("spawn_placement", entry)
+	var host: Interior = Interior.find(get_tree())
+	if host != null:
+		host.spawn_placement(entry)
 	post_notice("Placed %s." % data.display_name)
 	return true
 
@@ -2522,9 +2520,9 @@ func pick_up_furniture(placement_id: StringName) -> bool:
 		return false
 	inventory.add(data, 1)
 	_select_item(data.id)
-	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() else null
-	if host != null and host.has_method("despawn_placement"):
-		host.call("despawn_placement", placement_id)
+	var host: Interior = Interior.find(get_tree())
+	if host != null:
+		host.despawn_placement(placement_id)
 	post_notice("Picked up %s." % data.display_name)
 	return true
 
@@ -2534,9 +2532,9 @@ func rotate_furniture(placement_id: StringName) -> bool:
 		return false
 	if not interior_session.rotate(placement_id, 1):
 		return false
-	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() else null
-	if host != null and host.has_method("refresh_placement"):
-		host.call("refresh_placement", placement_id)
+	var host: Interior = Interior.find(get_tree())
+	if host != null:
+		host.refresh_placement(placement_id)
 	return true
 
 
@@ -2636,9 +2634,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			push_warning("Esc ignored: '%s' reports it is open." % group)
 			return
 	## Ask first; `PauseOverlay` saves and returns to the title on Yes.
-	var pause_ui: Node = get_tree().get_first_node_in_group("pause_ui") if get_tree() != null else null
-	if pause_ui != null and pause_ui.has_method("open"):
-		pause_ui.call("open")
+	var pause_ui: PauseOverlay = PauseOverlay.find(get_tree())
+	if pause_ui != null:
+		pause_ui.open()
 	else:
 		return_to_title()
 	get_viewport().set_input_as_handled()
@@ -2655,7 +2653,7 @@ func _group_is_open(group: String) -> bool:
 	if get_tree() == null:
 		return false
 	var ui: Node = get_tree().get_first_node_in_group(group)
-	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
+	return ui != null and bool(ui.is_open())
 
 
 func _change_scene(path: String) -> void:

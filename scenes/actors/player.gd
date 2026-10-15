@@ -983,8 +983,8 @@ func _update_footprints(delta: float, bg: Array) -> void:
 		yaw = _motor.facing
 		foot = FootprintMarks.foot_position(global_position, yaw, _right_foot)
 	_step_effects(gait, bg, attr, foot, yaw)
-	var marks: Node = get_tree().get_first_node_in_group("footprints")
-	if marks == null or not marks.has_method("spawn"):
+	var marks: Footprints = Footprints.find(get_tree())
+	if marks == null:
 		return
 	var snow: bool
 	if attr >= 0:
@@ -998,7 +998,7 @@ func _update_footprints(delta: float, bg: Array) -> void:
 	var xform: Transform3D = FootprintMarks.mark_transform(data, grid, foot, yaw)
 	if xform.basis.determinant() == 0.0:
 		return
-	marks.call("spawn", xform, snow)
+	marks.spawn(xform, snow)
 
 
 ## `Player_actor_SetEffect_Walk` / `_Dash`: `WALK_ASIMOTO` on walk + run foot plants,

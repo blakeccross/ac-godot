@@ -117,9 +117,9 @@ func _on_grip_event(event: Dictionary) -> void:
 
 
 func _notify_moved(event: Dictionary) -> void:
-	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
-	if host != null and host.has_method("on_furniture_moved"):
-		host.call("on_furniture_moved", event.get("vacated", []))
+	var host: Interior = Interior.find(get_tree())
+	if host != null:
+		host.on_furniture_moved(event.get("vacated", []))
 
 
 func _advance_grip_move(delta: float) -> void:
@@ -137,9 +137,9 @@ func _advance_grip_move(delta: float) -> void:
 
 
 func _sync_furniture(duration: float) -> void:
-	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
-	if host != null and host.has_method("sync_placements"):
-		host.call("sync_placements", duration)
+	var host: Interior = Interior.find(get_tree())
+	if host != null:
+		host.sync_placements(duration)
 
 
 func _end_grip() -> void:
@@ -153,8 +153,8 @@ func _end_grip() -> void:
 
 ## A short A on a gripped piece is the ordinary use verb (open, switch, put a fish on it).
 func _tap_furniture(placement_id: StringName, side: int) -> void:
-	var interior: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
-	var host: Node = interior.call("furniture_node", placement_id) if interior != null else null
+	var interior: Interior = Interior.find(get_tree())
+	var host: Node = interior.furniture_node(placement_id) if interior != null else null
 	if host == null or not InteractionQuery.is_host(host):
 		return
 	var ctx: InteractionContext = _player._make_context()

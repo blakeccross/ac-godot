@@ -1,9 +1,12 @@
+class_name InventoryOverlay
 extends CanvasLayer
 
 ## Pocket submenu. Scene-first layout + textures in `inventory_overlay.tscn`.
 ## Runtime fills missing chrome via `InventoryChrome` and wires pocket/mail buttons.
 ## Top-left circle shows a live 3D player preview (`mIV_set_player`).
 ## Selection cursor is skinned `hnd.glb` (`m_hand_ovl` / `hnd_sasu`).
+
+const GROUP := &"inventory_ui"
 
 ## `aMBX_pl_close` waits for this to play the mailbox's closing beat.
 signal closed
@@ -149,9 +152,14 @@ var _tag_arrow: TextureRect = null
 var _ui_font: Font = null
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> InventoryOverlay:
+	return tree.get_first_node_in_group(GROUP) as InventoryOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 20
-	add_to_group("inventory_ui")
+	add_to_group(GROUP)
 	_slide = MenuSlide.attach(self)
 	_load_ui_font()
 	_wire_slot_buttons()
@@ -270,13 +278,13 @@ func _on_side_tab_gui(event: InputEvent, tab: Panel) -> void:
 	var page: int = _tab_home.get(tab, {}).get("page", SideTab.POCKETS)
 	if page < 0:
 		Audio.play_se(&"cursol")
-		var list_ui: Node = get_tree().get_first_node_in_group("design_list_ui") if get_tree() != null else null
-		if list_ui != null and list_ui.has_method("open"):
+		var list_ui: DesignListOverlay = DesignListOverlay.find(get_tree())
+		if list_ui != null:
 			## `mSM_OVL_NEEDLEWORK` / `mNW_OPEN_INV`: the book opens over the right half of
 			## the pockets, which stay up with the letters hidden (`mIV_set_mail_dl`
 			## skips them while the needlework menu is next).
-			list_ui.call("open", "manage", Callable(), true)
-			if list_ui.is_open() and list_ui.has_signal("closed"):
+			list_ui.open("manage", Callable(), true)
+			if list_ui.is_open():
 				_set_design_book_open(true)
 				list_ui.closed.connect(_set_design_book_open.bind(false), CONNECT_ONE_SHOT)
 		else:
@@ -1171,8 +1179,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if shop != null and shop.has_method("is_open") and bool(shop.call("is_open")):
 			get_viewport().set_input_as_handled()
 			return
-		var map_ui: Node = get_tree().get_first_node_in_group("map_ui") if get_tree() != null else null
-		if map_ui != null and map_ui.has_method("is_open") and bool(map_ui.call("is_open")):
+		var map_ui: MapOverlay = MapOverlay.find(get_tree())
+		if map_ui != null and bool(map_ui.is_open()):
 			get_viewport().set_input_as_handled()
 			return
 		var console: Node = get_tree().get_first_node_in_group("debug_console_ui") if get_tree() != null else null
@@ -1853,11 +1861,11 @@ func _run_mail_tag(tag: String) -> void:
 func _read_letter(mail: MailData) -> void:
 	if mail == null or mail.is_empty():
 		return
-	var reader: Node = get_tree().get_first_node_in_group("letter_reader_ui")
-	if reader == null or not reader.has_method("open"):
+	var reader: LetterReaderOverlay = LetterReaderOverlay.find(get_tree())
+	if reader == null:
 		Game.post_notice(mail.body if mail.body.strip_edges() != "" else mail.header)
 		return
-	reader.call("open", mail)
+	reader.open(mail)
 
 
 func _take_letter_enclosure(idx: int) -> void:
@@ -1919,10 +1927,10 @@ func _present_on_mail(idx: int) -> void:
 ## (`m_board_ovl.c` / `m_address_ovl.c`). With no stationery items in the port, the
 ## paper is picked first.
 func _open_write_letter() -> void:
-	var picker: Node = get_tree().get_first_node_in_group("letter_paper_picker_ui")
-	if picker == null or not picker.has_method("open"):
+	var picker: LetterPaperPickerOverlay = LetterPaperPickerOverlay.find(get_tree())
+	if picker == null:
 		return
-	picker.call("open")
+	picker.open()
 
 
 func _drop_selected() -> void:
@@ -2020,9 +2028,9 @@ func _put_down_indoors(player: Player, item: ItemData, wrapped: bool) -> bool:
 	var entry: FurniturePlacement = RoomItems.drop(session, front, item, wrapped)
 	if entry == null:
 		return false
-	var host: Node = get_tree().get_first_node_in_group("interior")
-	if host != null and host.has_method("spawn_placement"):
-		host.call("spawn_placement", entry)
+	var host: Interior = Interior.find(get_tree())
+	if host != null:
+		host.spawn_placement(entry)
 	return true
 
 
@@ -2053,7 +2061,7 @@ func _field_context() -> InteractionContext:
 	ctx.inventory = Game.inventory
 	var tree := get_tree()
 	if tree != null:
-		ctx.actor = tree.get_first_node_in_group("player") as Node3D
+		ctx.actor = Player.find(tree)
 		ctx.world = World.find(tree)
 	return ctx
 

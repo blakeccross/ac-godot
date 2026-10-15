@@ -556,9 +556,9 @@ func _on_goodbye_closed() -> void:
 
 
 func _leave_shop() -> void:
-	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
-	if host != null and host.has_method("leave_through_exit"):
-		host.call("leave_through_exit")
+	var host: Interior = Interior.find(get_tree())
+	if host != null:
+		host.leave_through_exit()
 	elif Game != null:
 		Game.exit_interior()
 
@@ -624,7 +624,7 @@ func _start_sell() -> void:
 	var ui := DialogueOverlay.find(get_tree())
 	if data == null or ui == null:
 		return
-	var listener: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var listener: Node3D = Player.find(get_tree())
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = clerk_name()
 	NookShopTalk.fill_sell(talk_ctx, NookShopTalk.sell_selection(Game.shop_sell_slots))
@@ -649,7 +649,7 @@ func _start_order() -> void:
 	var ui := DialogueOverlay.find(get_tree())
 	if data == null or ui == null:
 		return
-	var listener: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var listener: Node3D = Player.find(get_tree())
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = clerk_name()
 	NookShopTalk.fill_order(talk_ctx, item_id)
@@ -710,11 +710,11 @@ func _start_code_hear() -> void:
 
 
 func _ask_text(kind: StringName) -> String:
-	var entry: Node = get_tree().get_first_node_in_group("name_entry_ui")
-	if entry == null or not entry.has_method("open"):
+	var entry: NameEntryOverlay = NameEntryOverlay.find(get_tree())
+	if entry == null:
 		return ""
 	var box: Array[String] = [""]
-	entry.call("open", "", func(text: String) -> void: box[0] = text, kind)
+	entry.open("", func(text: String) -> void: box[0] = text, kind)
 	await entry.closed
 	## The callback runs right after `closed`.
 	await get_tree().process_frame
@@ -726,7 +726,7 @@ func _play_code_result(result: String, item: ItemData, frees: Dictionary) -> voi
 	var ui := DialogueOverlay.find(get_tree())
 	if data == null or ui == null:
 		return
-	var listener: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var listener: Node3D = Player.find(get_tree())
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = clerk_name()
 	talk_ctx.set_var(NookShopTalk.VAR_CODE_RESULT, result)
@@ -752,7 +752,7 @@ func _apply_pending_after() -> void:
 		return
 	var job: FirstJob = Game.first_job
 	var listener: Node3D = (
-		get_tree().get_first_node_in_group("player") as Node3D if get_tree() != null else null
+		Player.find(get_tree()) if get_tree() != null else null
 	)
 	match op:
 		&"after_arrive":

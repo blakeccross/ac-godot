@@ -172,9 +172,9 @@ func _on_goodbye_closed() -> void:
 
 
 func _leave_shop() -> void:
-	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
-	if host != null and host.has_method("leave_through_exit"):
-		host.call("leave_through_exit")
+	var host: Interior = Interior.find(get_tree())
+	if host != null:
+		host.leave_through_exit()
 	elif Game != null:
 		Game.exit_interior()
 
@@ -751,7 +751,7 @@ func _grp(g: String) -> Node:
 
 
 func _player_node() -> Node3D:
-	return get_tree().get_first_node_in_group("player") as Node3D if get_tree() != null else null
+	return Player.find(get_tree()) if get_tree() != null else null
 
 
 func _say_line(text: String) -> void:

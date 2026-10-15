@@ -693,11 +693,11 @@ func _begin_demand_payment() -> void:
 	if not Game.intro_payment_resolved.is_connected(_on_payment_resolved):
 		Game.intro_payment_resolved.connect(_on_payment_resolved)
 	Game.intro_payment_pending = true
-	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui")
-	if inv_ui == null or not inv_ui.has_method("open"):
+	var inv_ui: InventoryOverlay = InventoryOverlay.find(get_tree())
+	if inv_ui == null:
 		Game.notify_intro_payment_made()
 		return
-	inv_ui.call("open")
+	inv_ui.open()
 
 
 func _on_payment_resolved(paid: bool) -> void:

@@ -1,7 +1,10 @@
+class_name PauseOverlay
 extends CanvasLayer
 
 ## Esc confirm: "Exit to the title screen?" Saves (via `Game.return_to_title`) on Yes.
 ## Pauses the tree while open, like the pockets.
+
+const GROUP := &"pause_ui"
 
 @onready var _root: Control = %Root
 @onready var _yes: Button = %YesButton
@@ -10,9 +13,14 @@ extends CanvasLayer
 var _open: bool = false
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> PauseOverlay:
+	return tree.get_first_node_in_group(GROUP) as PauseOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 30
-	add_to_group("pause_ui")
+	add_to_group(GROUP)
 	_root.visible = false
 	_yes.pressed.connect(_confirm)
 	_no.pressed.connect(close)

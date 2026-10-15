@@ -74,9 +74,9 @@ static func _edit_catchphrase(villager: VillagerData, state: VillagerState) -> v
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree == null or state == null:
 		return
-	var board := tree.get_first_node_in_group("letter_writer_ui")
+	var board: LetterWriterOverlay = LetterWriterOverlay.find(tree)
 	var ui := DialogueOverlay.find(tree)
-	if board == null or not board.has_method("open_board") or bool(board.call("is_open")):
+	if board == null or bool(board.is_open()):
 		return
 	if ui != null:
 		ui.set_suspended(true)
@@ -95,13 +95,13 @@ static func _edit_birthday() -> void:
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree == null:
 		return
-	var picker := tree.get_first_node_in_group("birthday_ui")
+	var picker: BirthdayOverlay = BirthdayOverlay.find(tree)
 	var ui := DialogueOverlay.find(tree)
-	if picker == null or bool(picker.call("is_open")):
+	if picker == null or bool(picker.is_open()):
 		return
 	if ui != null:
 		ui.set_suspended(true)
-	picker.call("open")
+	picker.open()
 	var resume := func() -> void:
 		if ui != null and is_instance_valid(ui):
 			ui.set_suspended(false)
@@ -113,7 +113,7 @@ static func _show_letter(villager: VillagerData, letter: Dictionary) -> void:
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree == null:
 		return
-	var reader := tree.get_first_node_in_group("letter_reader_ui") as LetterReaderOverlay
+	var reader: LetterReaderOverlay = LetterReaderOverlay.find(tree) as LetterReaderOverlay
 	if reader == null or reader.is_open():
 		return
 	var mail := MailData.new()

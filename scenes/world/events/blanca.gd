@@ -93,12 +93,12 @@ func talk_ended(script: BankTalk) -> void:
 
 ## `aNM2_draw_menu_open_wait` → the design editor on her face; `aNM2_msg_win_open_wait` decides.
 func _open_editor() -> void:
-	var editor: Node = get_tree().get_first_node_in_group("design_ui")
+	var editor: DesignEditorOverlay = DesignEditorOverlay.find(get_tree())
 	var face: DesignPattern = MaskCat.blank_face()
-	if editor == null or not editor.has_method("open_pattern"):
+	if editor == null:
 		done.emit()
 		return
-	editor.call("open_pattern", face, func(_saved: bool) -> void:
+	editor.open_pattern(face, func(_saved: bool) -> void:
 		if MaskCat.is_drawn(face):
 			MaskCat.store(face, Game.player_name, EventDates.ordinal(Clock.year, Clock.month, Clock.day))
 			show_face(face)

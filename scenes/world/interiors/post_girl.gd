@@ -187,8 +187,8 @@ func _on_talk_closed() -> void:
 ## `aPG_deposit_menu_close_wait`: the ABD opens; once it closes she reads out the balance
 ## (0x2DE2 + draw type, `{free3}`). Without the terminal the authored menu stands in.
 func _open_bank() -> void:
-	var bank: Node = get_tree().get_first_node_in_group("bank_ui")
-	if bank == null or not bank.has_method("open"):
+	var bank: BankOverlay = BankOverlay.find(get_tree())
+	if bank == null:
 		_open_followup(PostUse.bank_menu_conversation(_species))
 		return
 	bank.connect("closed", func(_committed: bool) -> void:
@@ -196,7 +196,7 @@ func _open_bank() -> void:
 			StringName("msg_%d" % (PostUse.BANK_AFTER_MSG + PostDisplay.draw_type(_species))))
 		if after != null:
 			_open_followup(after), CONNECT_ONE_SHOT)
-	bank.call("open")
+	bank.open()
 
 
 func _open_followup(data: DialogueData) -> void:
@@ -208,7 +208,7 @@ func _open_followup(data: DialogueData) -> void:
 	var talk_ctx: DialogueContext = DialogueContext.from_game()
 	talk_ctx.speaker_name = PostDisplay.post_girl_name(_species)
 	PostUse.fill_bank_frees(talk_ctx)
-	_start_talk_session(get_tree().get_first_node_in_group("player") as Node3D)
+	_start_talk_session(Player.find(get_tree()))
 	_bind_talk_end(ui)
 	ui.play(data, talk_ctx)
 

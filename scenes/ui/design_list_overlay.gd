@@ -1,3 +1,4 @@
+class_name DesignListOverlay
 extends CanvasLayer
 
 ## The 8-slot design list (`mSM_OVL_NEEDLEWORK` / `m_needlework_ovl.c`). Shows the
@@ -16,6 +17,8 @@ extends CanvasLayer
 ## `design_ui.py` (scrolling cloth, rim, slot wells, frame), the eight designs in its
 ## 2x4 `mb1-8` wells, the pulsing green mark on a picked-up slot (`sav_mark_winT`)
 ## and the pointing hand.
+
+const GROUP := &"design_list_ui"
 
 signal closed
 
@@ -47,10 +50,15 @@ var _slide: MenuSlide = null
 var _slide_left: bool = false
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> DesignListOverlay:
+	return tree.get_first_node_in_group(GROUP) as DesignListOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 26
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_to_group("design_list_ui")
+	add_to_group(GROUP)
 	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_slots.draw.connect(_draw_slots)
@@ -213,11 +221,11 @@ func _activate() -> void:
 				Audio.play_se(&"cursol")
 			elif _held == _sel:
 				## drop on itself → open the editor on this slot
-				var editor: Node = get_tree().get_first_node_in_group("design_ui")
+				var editor: DesignEditorOverlay = DesignEditorOverlay.find(get_tree())
 				_held = -1
-				if editor != null and editor.has_method("open"):
+				if editor != null:
 					close(-1)
-					editor.call("open", _sel)
+					editor.open(_sel)
 					return
 			else:
 				Game.designs.swap_player_order(_held, _sel)

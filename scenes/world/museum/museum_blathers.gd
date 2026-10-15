@@ -166,8 +166,8 @@ func _open_donate_pockets() -> void:
 		return
 	if not Game.museum_donate_resolved.is_connected(_on_donate_resolved):
 		Game.museum_donate_resolved.connect(_on_donate_resolved)
-	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui") if get_tree() != null else null
-	if inv_ui == null or not inv_ui.has_method("open"):
+	var inv_ui: InventoryOverlay = InventoryOverlay.find(get_tree())
+	if inv_ui == null:
 		_play_donate_conversation(&"")
 		return
 	Game.request_museum_donation()

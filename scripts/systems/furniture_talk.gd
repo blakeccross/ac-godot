@@ -143,9 +143,9 @@ static func _music_box(session: IndoorSession, entry: FurniturePlacement, house:
 
 
 static func refresh_room_bgm() -> void:
-	var host: Node = Game.get_tree().get_first_node_in_group("interior") if Game.get_tree() != null else null
-	if host != null and host.has_method("refresh_bgm"):
-		host.call("refresh_bgm")
+	var host: Interior = Interior.find(Game.get_tree())
+	if host != null:
+		host.refresh_bgm()
 
 
 ## --- plumbing ---------------------------------------------------------------------------

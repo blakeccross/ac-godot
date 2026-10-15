@@ -264,14 +264,14 @@ func _run_menu(menu: String, house: House) -> void:
 		return
 	match menu:
 		GyroidTalk.MENU_ENTRUST, GyroidTalk.MENU_TAKE:
-			var inv_ui: Node = tree.get_first_node_in_group("inventory_ui")
-			if inv_ui != null and inv_ui.has_method("open_gyroid"):
-				inv_ui.call("open_gyroid", house, menu == GyroidTalk.MENU_ENTRUST)
-				if bool(inv_ui.call("is_open")):
+			var inv_ui: InventoryOverlay = InventoryOverlay.find(tree)
+			if inv_ui != null:
+				inv_ui.open_gyroid(house, menu == GyroidTalk.MENU_ENTRUST)
+				if bool(inv_ui.is_open()):
 					await inv_ui.closed
 		GyroidTalk.MENU_MESSAGE:
-			var writer: Node = tree.get_first_node_in_group("letter_writer_ui")
-			if writer != null and writer.has_method("open_board"):
+			var writer: LetterWriterOverlay = LetterWriterOverlay.find(tree)
+			if writer != null:
 				writer.call(
 					"open_board",
 					GyroidStore.message(house),
@@ -279,15 +279,15 @@ func _run_menu(menu: String, house: House) -> void:
 					GyroidStore.MESSAGE_LEN,
 					func(text: String) -> void: house.gyroid_message = text
 				)
-				if bool(writer.call("is_open")):
+				if bool(writer.is_open()):
 					await writer.closed
 		GyroidTalk.MENU_DOOR:
 			## `mNW_OPEN_DESIGN` → `door_original = mNW_get_image_no(slot)`, SE 0x461.
-			var list_ui: Node = tree.get_first_node_in_group("design_list_ui")
-			if list_ui != null and list_ui.has_method("open") and Game.designs != null:
+			var list_ui: DesignListOverlay = DesignListOverlay.find(tree)
+			if list_ui != null and Game.designs != null:
 				var picked: Array[int] = [-1]
-				list_ui.call("open", "pick_trade", func(slot: int) -> void: picked[0] = slot)
-				if bool(list_ui.call("is_open")):
+				list_ui.open("pick_trade", func(slot: int) -> void: picked[0] = slot)
+				if bool(list_ui.is_open()):
 					await list_ui.closed
 					## The list emits `closed` before it hands over the pick.
 					await tree.process_frame
@@ -359,7 +359,7 @@ func _house_node() -> Node:
 func _player() -> Node3D:
 	if get_tree() == null:
 		return null
-	return get_tree().get_first_node_in_group("player") as Node3D
+	return Player.find(get_tree())
 
 
 func _attach_model() -> void:

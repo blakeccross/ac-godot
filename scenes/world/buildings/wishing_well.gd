@@ -1,9 +1,12 @@
+class_name WishingWell
 extends StaticBody3D
 
 ## The wishing well (`ac_shrine`). Speak to it from the front (within 22.5° of where it faces,
 ## `aSHR_talk_check`) for `WishingWellTalk`: the town's rating, or a quest item thrown in.
 ## A town perfect for fifteen days running calls up the well's spirit with the golden axe
 ## (`aSHR_make_hem` → `ac_npc_hem`).
+
+const GROUP := &"wishing_well"
 
 ## `aSHR_set_talk_info`: no name, a terracotta window.
 const WINDOW_COLOR := Color8(205, 80, 40)
@@ -36,9 +39,14 @@ const NEW_YEAR_WINDOW := Color8(255, 60, 40)
 const VISIT_STAND_GX := 65.0
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> WishingWell:
+	return tree.get_first_node_in_group(GROUP) as WishingWell if tree != null else null
+
+
 func _ready() -> void:
 	add_to_group("interactable")
-	add_to_group("wishing_well")
+	add_to_group(GROUP)
 	GeneratedVisual.attach(self, visual_id)
 	HostCollision.apply_building(self, visual_id, footprint, HostCollision.CELL)
 

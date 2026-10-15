@@ -1,3 +1,4 @@
+class_name LetterPaperPickerOverlay
 extends CanvasLayer
 
 ## Stationery picker — the first step of writing a letter. The original writes on the
@@ -7,6 +8,8 @@ extends CanvasLayer
 ## address book's message window. An approved simplification, not a missing feature.
 ##
 ## Left / right flip a paper, up / down eight; A (Space / Enter) takes it; B / Esc backs out.
+
+const GROUP := &"letter_paper_picker_ui"
 
 const PAPER_COUNT := LetterChrome.PAPER_COUNT
 const TITLE := "Which stationery?"
@@ -25,10 +28,15 @@ var _mes: Texture2D = null
 @onready var _title: Control = $Root/Screen/Title
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> LetterPaperPickerOverlay:
+	return tree.get_first_node_in_group(GROUP) as LetterPaperPickerOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 27
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_to_group("letter_paper_picker_ui")
+	add_to_group(GROUP)
 	_root.visible = false
 	_title.draw.connect(_draw_title)
 	_root.resized.connect(_fit_screen)
@@ -99,13 +107,13 @@ func _confirm() -> void:
 	var paper_type := _sel
 	Audio.play_se(&"cursol")
 	close()
-	var writer: Node = get_tree().get_first_node_in_group("letter_writer_ui")
+	var writer: LetterWriterOverlay = LetterWriterOverlay.find(get_tree())
 	if writer == null:
 		return
-	if _recipient.is_empty() and writer.has_method("open_letter"):
-		writer.call("open_letter", paper_type)
-	elif writer.has_method("open"):
-		writer.call("open", _recipient, paper_type)
+	if _recipient.is_empty():
+		writer.open_letter(paper_type)
+	else:
+		writer.open(_recipient, paper_type)
 
 
 func _refresh() -> void:

@@ -43,7 +43,7 @@ func _area() -> Dictionary:
 
 
 func _place_wares() -> void:
-	var interior: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
+	var interior: Interior = Interior.find(get_tree())
 	var grid: WorldGrid = interior.get("grid") as WorldGrid if interior != null and "grid" in interior else null
 	var items: Array[StringName] = ReddStock.items(_area())
 	for i: int in mini(items.size(), WARE_UNITS.size()):
@@ -120,9 +120,9 @@ func _check_goodbye() -> bool:
 
 ## `aEBR2_exit_wait`: out of the tent once the window has gone.
 func _leave() -> void:
-	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
-	if host != null and host.has_method("leave_through_exit"):
-		host.call("leave_through_exit")
+	var host: Interior = Interior.find(get_tree())
+	if host != null:
+		host.leave_through_exit()
 	elif Game != null:
 		Game.exit_interior()
 

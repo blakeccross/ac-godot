@@ -10,6 +10,8 @@ extends CanvasLayer
 ## It opens from the calendar (`CalendarOverlay`, `m_calendar_ovl.c`) on a diary in the
 ## player's room, on the month of the day picked there.
 
+const GROUP := &"diary_ui"
+
 signal closed
 
 const TEX_DIR := "res://assets/generated/ui/menu/%s.png"
@@ -47,9 +49,14 @@ var _hold: int = 0
 @onready var _canvas: Control = $Root/Screen/Canvas
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> DiaryOverlay:
+	return tree.get_first_node_in_group(GROUP) as DiaryOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 21
-	add_to_group("diary_ui")
+	add_to_group(GROUP)
 	_root.visible = false
 	_font = LetterBoard.load_font()
 	var names: Array[String] = ["dia_w1", "dia_w2", "dia_w3", "dia_moji"]
@@ -172,8 +179,8 @@ func _turn(step: int) -> void:
 
 ## A: the keyboard writes on this month's page.
 func _write() -> void:
-	var writer: Node = get_tree().get_first_node_in_group("letter_writer_ui") if get_tree() != null else null
-	if writer == null or not writer.has_method("open_board"):
+	var writer: LetterWriterOverlay = LetterWriterOverlay.find(get_tree())
+	if writer == null:
 		return
 	writing = true
 	scroll = 0.0
@@ -183,9 +190,9 @@ func _write() -> void:
 			scroll = clampf(offset, 0.0, MAX_SCROLL)
 			_canvas.queue_redraw(),
 	}
-	writer.call("open_board", entry(month, owner_slot), LINES, ENTRY_SIZE, _on_written, 0, style)
-	if writer.has_signal("closed") and not writer.is_connected("closed", _on_writer_closed):
-		writer.connect("closed", _on_writer_closed, CONNECT_ONE_SHOT)
+	writer.open_board(entry(month, owner_slot), LINES, ENTRY_SIZE, _on_written, 0, style)
+	if not writer.closed.is_connected(_on_writer_closed):
+		writer.closed.connect(_on_writer_closed, CONNECT_ONE_SHOT)
 	_canvas.queue_redraw()
 
 

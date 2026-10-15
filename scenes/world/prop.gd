@@ -52,17 +52,17 @@ func interact(action: Interaction, _ctx: InteractionContext) -> bool:
 	if action == null or action.id != Interaction.READ:
 		return false
 	if is_tune_board():
-		var tune_ui: Node = get_tree().get_first_node_in_group("town_tune_ui")
-		if tune_ui == null or not tune_ui.has_method("open"):
+		var tune_ui: TownTuneOverlay = TownTuneOverlay.find(get_tree())
+		if tune_ui == null:
 			return false
-		tune_ui.call("open")
+		tune_ui.open()
 		return true
 	if not is_map_board():
 		return false
-	var map_ui: Node = get_tree().get_first_node_in_group("map_ui")
-	if map_ui == null or not map_ui.has_method("open"):
+	var map_ui: MapOverlay = MapOverlay.find(get_tree())
+	if map_ui == null:
 		return false
-	map_ui.call("open", true)
+	map_ui.open(true)
 	return true
 
 

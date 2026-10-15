@@ -12,6 +12,8 @@ extends CanvasLayer
 ## Pieces are baked by `menu_ui.py` into `ui/mscore/`: the window in place, the frogs,
 ## letters, stick and prompt at the origin.
 
+const GROUP := &"town_tune_ui"
+
 signal closed(saved: bool)
 
 const TEX_DIR := "res://assets/generated/ui/mscore/%s.png"
@@ -64,9 +66,14 @@ var _slide: MenuSlide = null
 @onready var _prompt: EditEndPrompt = $Root/Screen/Prompt
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> TownTuneOverlay:
+	return tree.get_first_node_in_group(GROUP) as TownTuneOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 21
-	add_to_group("town_tune_ui")
+	add_to_group(GROUP)
 	add_to_group("shop_ui")
 	_root.visible = false
 	_font = LetterBoard.load_font()

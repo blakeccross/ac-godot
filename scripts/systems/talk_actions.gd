@@ -39,8 +39,8 @@ static func _edit_text(spec: Dictionary, ui: DialogueOverlay) -> String:
 	var tree: SceneTree = ui.get_tree() if ui != null else null
 	if tree == null:
 		return ""
-	var board := tree.get_first_node_in_group("letter_writer_ui")
-	if board == null or not board.has_method("open_board") or bool(board.call("is_open")):
+	var board: LetterWriterOverlay = LetterWriterOverlay.find(tree)
+	if board == null or bool(board.is_open()):
 		return ""
 	var box: Array = [""]
 	board.call(

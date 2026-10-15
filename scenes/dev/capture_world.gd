@@ -184,7 +184,7 @@ func _resolve_focus(root: Node, target: String) -> Variant:
 						return (node as Node3D).global_position
 			## Everyone is still at home: walk the player over to the first house so it
 			## spawns them (`aSNMgr_set_npc_regular`); the wait loop looks again.
-			var player := root.get_tree().get_first_node_in_group("player") as Node3D
+			var player: Node3D = Player.find(root.get_tree())
 			for node: Node in root.get_tree().get_nodes_in_group("villagers"):
 				if player != null and node is Node3D:
 					player.global_position = (node as Node3D).global_position + Vector3(0, 0, 8)

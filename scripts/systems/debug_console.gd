@@ -200,7 +200,7 @@ func execute(raw: String) -> String:
 			## The New Year's visit at the wishing well, coin and all (no question asked).
 			var ws_tree := Engine.get_main_loop() as SceneTree
 			var ws_player := Player.find(ws_tree)
-			var ws_well := ws_tree.get_first_node_in_group("wishing_well") as Node3D if ws_tree != null else null
+			var ws_well: WishingWell = WishingWell.find(ws_tree)
 			if ws_player == null or ws_well == null:
 				return "No well."
 			if not args.is_empty() and args[0] == "queue":
@@ -214,7 +214,7 @@ func execute(raw: String) -> String:
 						ws_v.set("_sq_let_in", true)
 						return "Queued behind slot %d." % int(ws_v.get("slot"))
 				return "Nobody at the front."
-			var ws_stand: Array = ws_well.call("visit_stand")
+			var ws_stand: Array = ws_well.visit_stand()
 			var ws_at: Vector3 = ws_stand[0]
 			ws_player.global_position = ws_at
 			ws_player.shrine_visit(ws_at, float(ws_stand[1]), true, ws_well.global_position.y)
@@ -318,15 +318,15 @@ func execute(raw: String) -> String:
 		"map":
 			## Open the town map (`mSM_OVL_MAP`) as the sight-map board does.
 			var map_tree := Engine.get_main_loop() as SceneTree
-			var map_ui: Node = map_tree.get_first_node_in_group("map_ui") if map_tree != null else null
+			var map_ui: MapOverlay = MapOverlay.find(map_tree)
 			if map_ui == null:
 				return "No map UI in this scene."
-			map_ui.call("open", true)
+			map_ui.open(true)
 			return "Map open."
 		"catalog":
 			## Open the catalog, optionally on page 0-8 (1 wallpaper, 2 carpet).
 			var clg_tree := Engine.get_main_loop() as SceneTree
-			var clg: Node = clg_tree.get_first_node_in_group("catalog_ui") if clg_tree != null else null
+			var clg: CatalogOverlay = CatalogOverlay.find(clg_tree)
 			if clg == null:
 				return "No catalog UI in this scene."
 			if args.size() >= 2 and String(args[1]).to_lower() == "fill" and Game.catalog != null:
@@ -336,25 +336,25 @@ func execute(raw: String) -> String:
 						var goods: StringName = FurnitureCatalog.goods_id(kind, i)
 						if goods != &"":
 							Game.catalog.record(goods)
-			clg.call("open")
+			clg.open()
 			if not args.is_empty() and String(args[0]).is_valid_int():
-				clg.call("show_page", int(args[0]))
+				clg.show_page(int(args[0]))
 			return "Catalog open."
 		"abd":
 			## Open the post office bank terminal (`mSM_OVL_BANK`).
 			var abd_tree := Engine.get_main_loop() as SceneTree
-			var abd: Node = abd_tree.get_first_node_in_group("bank_ui") if abd_tree != null else null
+			var abd: BankOverlay = BankOverlay.find(abd_tree)
 			if abd == null:
 				return "No bank UI in this scene."
-			abd.call("open")
+			abd.open()
 			return "Bank terminal open."
 		"board":
 			## Open the community board's posts (`mSM_OVL_NOTICE`).
 			var tree := Engine.get_main_loop() as SceneTree
-			var ui: Node = tree.get_first_node_in_group("notice_ui") if tree != null else null
+			var ui: NoticeBoardOverlay = NoticeBoardOverlay.find(tree)
 			if ui == null:
 				return "No notice board UI in this scene."
-			ui.call("open")
+			ui.open()
 			return "%d posts on the board." % Game.notice_board.count()
 		"sting":
 			## Bee sting: `sting` plays it, `sting off` / `sting on` sets the swollen face,
@@ -475,10 +475,10 @@ func execute(raw: String) -> String:
 			## `calendar tortimer 2026-9-14` mark a day.
 			var ca_tree := Engine.get_main_loop() as SceneTree
 			if args.size() > 1 and String(args[0]) == "day":
-				var ca_day_ui: Node = ca_tree.get_first_node_in_group("calendar_ui") if ca_tree != null else null
+				var ca_day_ui: CalendarOverlay = CalendarOverlay.find(ca_tree)
 				if ca_day_ui == null:
 					return "No calendar here."
-				ca_day_ui.call("open_on_day", int(args[1]))
+				ca_day_ui.open_on_day(int(args[1]))
 				return "Calendar on day %s." % args[1]
 			if args.size() > 1:
 				var ca_d: PackedStringArray = String(args[1]).split("-")
@@ -491,10 +491,10 @@ func execute(raw: String) -> String:
 				if not (Game.calendar[ca_key] as Array).has(ca_n):
 					(Game.calendar[ca_key] as Array).append(ca_n)
 				return "Marked %s as %s." % [args[1], ca_key]
-			var ca_ui: Node = ca_tree.get_first_node_in_group("calendar_ui") if ca_tree != null else null
+			var ca_ui: CalendarOverlay = CalendarOverlay.find(ca_tree)
 			if ca_ui == null:
 				return "No calendar here."
-			ca_ui.call("open")
+			ca_ui.open()
 			return "Calendar."
 		"mom":
 			## Mom writes now: today's dated letter if there is one, else an everyday letter
@@ -516,9 +516,9 @@ func execute(raw: String) -> String:
 			if mm_mail == null or not Game.deliver_to_mailbox(mm_mail):
 				return "Mom couldn't write (no mail bank or the mailbox is full)."
 			var mm_tree := Engine.get_main_loop() as SceneTree
-			var mm_reader: Node = mm_tree.get_first_node_in_group("letter_reader_ui") if mm_tree != null else null
+			var mm_reader: LetterReaderOverlay = LetterReaderOverlay.find(mm_tree)
 			if mm_reader != null:
-				mm_reader.call("open", mm_mail)
+				mm_reader.open(mm_mail)
 			return "Letter 0x%X from Mom in the mailbox%s." % [int(mm_pick["msg"]),
 				(" with %s" % mm_mail.present_item_id) if mm_mail.present_item_id != &"" else ""]
 		"birthday":
@@ -548,22 +548,22 @@ func execute(raw: String) -> String:
 				var bd_npc: Node3D = load("res://scenes/world/present_npc.gd").spawn(
 					bd_world.get_node("Characters"), bd_kind, bd_player.global_position, bd_yaw)
 				return "Present visit." if bd_npc != null else "Nobody to send."
-			var bd_ui: Node = bd_tree.get_first_node_in_group("birthday_ui") if bd_tree != null else null
+			var bd_ui: BirthdayOverlay = BirthdayOverlay.find(bd_tree)
 			if bd_ui == null:
 				return "No birthday screen here."
-			bd_ui.call("open")
+			bd_ui.open()
 			return "Birthday: pick a date."
 		"diary":
 			## Open the diary on a month (`diary 4`), or write a line into one first
 			## (`diary 4 Went fishing all day.`).
 			var di_tree := Engine.get_main_loop() as SceneTree
-			var di_ui: Node = di_tree.get_first_node_in_group("diary_ui") if di_tree != null else null
+			var di_ui: DiaryOverlay = DiaryOverlay.find(di_tree)
 			if di_ui == null:
 				return "No diary screen here."
 			var di_month: int = clampi(int(args[0]), 1, 12) if not args.is_empty() and String(args[0]).is_valid_int() else Clock.month
 			if args.size() > 1:
 				Game.diary[di_month] = DiaryOverlay.clip(" ".join(args.slice(1)))
-			di_ui.call("open", di_month)
+			di_ui.open(di_month)
 			return "Diary: month %d." % di_month
 		"tan":
 			## Set the sunburn rank 0–8 (`mPr_sunburn_c`) and repaint the face.
@@ -633,7 +633,7 @@ func execute(raw: String) -> String:
 			## Put up a signboard in front of the player, showing design slot N if given.
 			var sb_tree := Engine.get_main_loop() as SceneTree
 			var sb_world := World.find(sb_tree) if sb_tree != null else null
-			var sb_player: Node3D = sb_tree.get_first_node_in_group("player") as Node3D if sb_tree != null else null
+			var sb_player: Node3D = Player.find(sb_tree) if sb_tree != null else null
 			if sb_world == null or sb_player == null:
 				return "Signboards need the outdoor field."
 			var sb_ctx := InteractionContext.new()
@@ -741,10 +741,10 @@ func _cmd_tune(args: PackedStringArray) -> String:
 	match sub:
 		"open":
 			var tree := Engine.get_main_loop() as SceneTree
-			var ui: Node = tree.get_first_node_in_group("town_tune_ui") if tree != null else null
+			var ui: TownTuneOverlay = TownTuneOverlay.find(tree)
 			if ui == null:
 				return "No tune editor in this scene."
-			ui.call("open")
+			ui.open()
 			return "Tune editor open."
 		"reset":
 			Game.town_tune = TownTune.default_notes()
@@ -911,7 +911,7 @@ func _cmd_lighthouse(args: PackedStringArray) -> String:
 ## `balloon` launches a present balloon now; `balloon near` starts it just upwind of you.
 func _cmd_balloon(args: PackedStringArray) -> String:
 	var tree: SceneTree = Game.get_tree()
-	var sky := tree.get_first_node_in_group("balloon_sky") as BalloonSky
+	var sky: BalloonSky = BalloonSky.find(tree)
 	if sky == null:
 		return "Balloons need the outdoor field."
 	if sky.balloon != null:

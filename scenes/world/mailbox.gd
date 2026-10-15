@@ -113,11 +113,10 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	if inv == null or inv.received_mail_count() <= 0:
 		Game.post_notice("The mailbox is empty.")
 	else:
-		var ui: Node = get_tree().get_first_node_in_group("inventory_ui") if get_tree() != null else null
-		if ui != null and ui.has_method("open_letters"):
-			ui.call("open_letters")
-			if ui.has_signal("closed"):
-				await ui.closed
+		var ui: InventoryOverlay = InventoryOverlay.find(get_tree())
+		if ui != null:
+			ui.open_letters()
+			await ui.closed
 		else:
 			Game.post_notice("You have %d letter(s). Check your Letters page." % inv.received_mail_count())
 	if not is_instance_valid(self):
