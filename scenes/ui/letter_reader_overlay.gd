@@ -6,6 +6,8 @@ extends CanvasLayer
 ## at the board's own offsets, in the paper's ink colour. The board drops in from the
 ## top (`mSM_MOVE_IN_TOP`) and closes on A / B / Start like `mBD_move_Wait`.
 
+const GROUP := &"letter_reader_ui"
+
 signal closed(mail: MailData)
 
 ## The board's slide (`m_submenu_ovl.c` row 12: `{0, 300, 0, 75}`): from 300 units up,
@@ -24,10 +26,15 @@ var _mail: MailData = null
 var _tween: Tween = null
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> LetterReaderOverlay:
+	return tree.get_first_node_in_group(GROUP) as LetterReaderOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 27
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_to_group("letter_reader_ui")
+	add_to_group(GROUP)
 	visible = false
 	set_process_unhandled_input(false)
 

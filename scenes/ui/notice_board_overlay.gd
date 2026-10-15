@@ -13,6 +13,8 @@ extends CanvasLayer
 ## characters) and "Is this OK?" (`mEE_TYPE_NOTICE`) posts it, rewrites, or throws it out
 ## (the page slides back to the latest post). Posting finishes Nook's first-job chore.
 
+const GROUP := &"notice_ui"
+
 signal closed(posted: bool)
 
 const TEX_DIR := "res://assets/generated/ui/menu/%s.png"
@@ -54,9 +56,14 @@ var _slide: MenuSlide = null
 @onready var _canvas: Control = $Root/Screen/Canvas
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> NoticeBoardOverlay:
+	return tree.get_first_node_in_group(GROUP) as NoticeBoardOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 21
-	add_to_group("notice_ui")
+	add_to_group(GROUP)
 	add_to_group("shop_ui")
 	_root.visible = false
 	_font = LetterBoard.load_font()
@@ -240,14 +247,14 @@ func _start_write() -> void:
 
 
 func _open_writer() -> void:
-	var writer: Node = get_tree().get_first_node_in_group("letter_writer_ui") if get_tree() != null else null
-	if writer == null or not writer.has_method("open_board"):
+	var writer: LetterWriterOverlay = LetterWriterOverlay.find(get_tree())
+	if writer == null:
 		_back_to_read()
 		return
 	var style := {"text": BODY_ORIGIN, "color": BODY_COLOR, "frame": false, "prompt": EditEndPrompt.Kind.NOTICE}
-	writer.call("open_board", "", WRITE_LINES, NoticeBoard.BODY_LEN, _on_written, 0, style)
-	if writer.has_signal("closed") and not writer.is_connected("closed", _on_writer_closed):
-		writer.connect("closed", _on_writer_closed, CONNECT_ONE_SHOT)
+	writer.open_board("", WRITE_LINES, NoticeBoard.BODY_LEN, _on_written, 0, style)
+	if not writer.closed.is_connected(_on_writer_closed):
+		writer.closed.connect(_on_writer_closed, CONNECT_ONE_SHOT)
 
 
 ## Yes on "Is this OK?": the post goes up and the board slides away.

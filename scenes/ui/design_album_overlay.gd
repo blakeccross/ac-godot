@@ -272,15 +272,15 @@ static func swap(a: Array, b: Array) -> void:
 
 
 func _rename_folder() -> void:
-	var name_ui: Node = get_tree().get_first_node_in_group("name_entry_ui")
-	if name_ui == null or not name_ui.has_method("open"):
+	var name_ui: NameEntryOverlay = NameEntryOverlay.find(get_tree())
+	if name_ui == null:
 		return
 	var page := _page
 	## The name entry sits above this layer; hide the album until it's done.
 	_root.visible = false
 	_hand.visible = false
 	set_process_unhandled_input(false)
-	name_ui.call("open", Game.designs.album_names[page].strip_edges(), func(text: String) -> void:
+	name_ui.open(Game.designs.album_names[page].strip_edges(), func(text: String) -> void:
 		Game.designs.set_folder_name(page, text)
 		_root.visible = _open
 		_hand.visible = _open

@@ -140,9 +140,9 @@ static func _hop(node: Node3D) -> void:
 
 
 static func pid_node(placement_id: StringName) -> Node3D:
-	var host: Node = Game.get_tree().get_first_node_in_group("interior") if Game.get_tree() != null else null
-	if host != null and host.has_method("furniture_node"):
-		return host.call("furniture_node", placement_id) as Node3D
+	var host: Interior = Interior.find(Game.get_tree())
+	if host != null:
+		return host.furniture_node(placement_id) as Node3D
 	return null
 
 

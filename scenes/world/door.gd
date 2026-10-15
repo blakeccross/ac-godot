@@ -158,9 +158,9 @@ func _play_indoor_link_enter() -> void:
 	var to: Vector3 = target - player.global_position
 	to.y = 0.0
 	var yaw: float = atan2(to.x, to.z) if to.length_squared() > 0.0001 else 0.0
-	player.begin_door_enter(target, yaw, true)
-	await player.await_door_enter()
-	player.end_door_enter()
+	player.doors.begin_door_enter(target, yaw, true)
+	await player.doors.await_door_enter()
+	player.doors.end_door_enter()
 
 
 ## Outdoor leave through Exit sensor: INTO_S1 past the door (`EXIT_DOOR` walk).
@@ -179,7 +179,7 @@ func _play_indoor_exit_through_sensor() -> void:
 	var along := Vector3(sin(yaw), 0.0, cos(yaw))
 	var target: Vector3 = sensor + along * (StructureDoor.INTO_GX * FieldCatalog.GX_TO_METERS)
 	target.y = player.global_position.y
-	await player.run_indoor_exit(target, yaw)
+	await player.doors.run_indoor_exit(target, yaw)
 
 
 func _enter_target() -> StringName:

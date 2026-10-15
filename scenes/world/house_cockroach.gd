@@ -252,7 +252,7 @@ func _turn_along_wall() -> bool:
 
 func _player() -> Node3D:
 	var tree: SceneTree = get_tree()
-	return tree.get_first_node_in_group("player") as Node3D if tree != null else null
+	return Player.find(tree) if tree != null else null
 
 
 func _player_distance() -> float:

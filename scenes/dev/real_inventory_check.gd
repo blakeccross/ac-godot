@@ -21,11 +21,11 @@ func _run() -> void:
 	for _i in 30:
 		await get_tree().process_frame
 
-	var overlay: Node = get_tree().get_first_node_in_group("inventory_ui")
+	var overlay: InventoryOverlay = InventoryOverlay.find(get_tree())
 	if overlay == null:
 		print("real_inventory_check: no live InventoryOverlay found in the HUD")
 		return
-	overlay.call("open")
+	overlay.open()
 	await get_tree().create_timer(0.6).timeout
 
 	var player_name: Label = overlay.get_node("%PlayerName") as Label
@@ -37,13 +37,13 @@ func _run() -> void:
 	img.save_png("user://real_inventory_check.png")
 	print("real_inventory_check: wrote screenshot")
 
-	overlay.call("_show_page", 0) # SideTab.FISH
+	overlay._show_page(0) # SideTab.FISH
 	await get_tree().create_timer(0.4).timeout
 	img = get_viewport().get_texture().get_image()
 	img.save_png("user://real_inventory_check_fish.png")
 	print("real_inventory_check: wrote fish screenshot")
 
-	overlay.call("_show_page", 2) # SideTab.BUG
+	overlay._show_page(2) # SideTab.BUG
 	await get_tree().create_timer(0.4).timeout
 	img = get_viewport().get_texture().get_image()
 	img.save_png("user://real_inventory_check_bug.png")

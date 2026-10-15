@@ -65,12 +65,9 @@ const ANIM_INTO_S1 := "ply_1_into_s1"
 const ANIM_GO_OUT_S1 := "ply_1_go_out_s1"
 ## `mPlayer_ANIM_GO_OUT_O1` — non-demo outdoor emerge (`Player_actor_setup_main_Outdoor`).
 const ANIM_GO_OUT_O1 := "ply_1_go_out_o1"
-## `mPlayer_ANIM_PUTAWAY1` — pocket put-away (`putin_item` forward, `takeout_item` reversed).
-const ANIM_PUTAWAY1 := "ply_1_putaway1"
 ## `mPlayer_INDEX_HOLD` / `PUSH` / `PULL` / `ROTATE_FURNITURE` clips (`FurnitureGrip`).
 const ANIM_HOLD_WAIT1 := "ply_1_hold_wait1"
 const ANIM_PUSH1 := "ply_1_push1"
-const ANIM_PUSH_YUKI1 := "ply_1_push_yuki1"
 const ANIM_PULL1 := "ply_1_pull1"
 const ANIM_LTURN1 := "ply_1_Lturn1"
 const ANIM_RTURN1 := "ply_1_Rturn1"
@@ -112,34 +109,6 @@ const STRUGGLE_SPEED_EASE := 0.10875
 const ANIM_MOSQUITO1 := "ply_1_mosquito1"
 const ANIM_MOSQUITO2 := "ply_1_mosquito2"
 const MOSQUITO_NOTICE_MSG := 0x3063
-## Any stick past this gets you up (`Player_actor_GetController_move_percentX/Y`).
-const REST_STAND_STICK := 0.1
-## `furniture_push` / `furniture_pull` cKF at half speed: 24 frames of 30 Hz.
-const FURNITURE_MOVE_SEC := 0.8
-## `aMR_FtrRotate`: 5.6°/tick ellipse over 90° — a little under half a second.
-const FURNITURE_TURN_SEC := 0.45
-## `Player_actor_Movement_Hold`: the player settles onto the contact point.
-const GRIP_SETTLE_RATE := 14.0
-## `m_player_main_putin_item` / `takeout_item` / `return_outdoor*` timers are game ticks (60 Hz).
-## `morph_counter` 9.0 falls 0.5 per tick and `cKF_SkeletonInfo_R_play` holds the clip's first
-## frame the whole time, so the pose morph is 18 ticks before the clip itself starts moving.
-const TOOL_MORPH_SEC := 18.0 * DecompTime.TICK_SEC
-## Put-away: `item_scale` = 1 − t / 18 (ticks), so the tool is gone as the morph ends. The state
-## then runs the clip and `Player_actor_CulcAnimation_Base2` needs two more ticks to report
-## it stopped (STOPPED, then speed already 0).
-const PUTIN_SCALE_TICKS := 18.0
-const PUTIN_STOP_TICKS := 2.0
-## Take-out: reverse clip after the morph; at tick 36 the item's own hold pose morphs in
-## (`InitAnimation_Base1`, morph 9 → 18 ticks) while `item_scale` grows 0 → 1 to tick 54, which
-## is also when the state ends.
-const TAKEOUT_SCALE_START_TICKS := 36.0
-const TAKEOUT_END_TICKS := 54.0
-## `RETURN_OUTDOOR` / `RETURN_OUTDOOR2` bracket the take-out, 3 ticks each.
-const RETURN_OUTDOOR_TICKS := 3.0
-## `extra_data == 2` exits (houses, post office, Able Sisters) start O1 at frame 25 — the
-## walk-out is already done, so only the turn-and-close-door shows. `extra_data == 3`
-## exits (Nook, museum, police, …) start at frame 1 and walk out in full.
-const GO_OUT_O1_DOOR_ONLY_START_SEC := 24.0 / DecompTime.FRAME_HZ  ## cKF frame 25 (frame 1 is t = 0)
 ## `mPlayer_ANIM_OUTTRAIN1` — station caboose step-off (`mPlayer_INDEX_DEMO_GETOFF_TRAIN`).
 const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 
@@ -148,6 +117,22 @@ const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 @onready var _probe: Area3D = $MeshPivot/InteractProbe
 @onready var _look: Marker3D = $CameraLook
 @onready var _animator: BodyAnimator = $Animator
+
+## The player's components, child nodes declared in `player.tscn` (set before any child's
+## `_ready`). Each owns one kind of action and reads this node's motor, body animation and
+## busy flag directly.
+@export var doors: PlayerDoors
+@export var furniture: PlayerFurniture
+@export var tools: PlayerTools
+@export var net: PlayerNet
+@export var fishing: PlayerFishing
+@export var snowball: PlayerSnowball
+
+## The catch is up in the show-off pose (`PlayerFishing`). Villagers ask for it by name
+## so their tests can use stand-ins.
+var catch_showing: bool:
+	get:
+		return fishing != null and fishing.catch_showing
 
 ## Title demo: a recorded stick + A replace live input (`mEv_IsTitleDemo` swaps the controller
 ## in `m_player_controller.c_inc`). Null during normal play.
@@ -158,15 +143,7 @@ var unable_wade: bool = false
 ## `mCoBG_ChangeBlockBgCheckMode(1)` (intro house pick): walls one unit further in on the
 ## player-house acre, and the wade border with them.
 var intro_block_bg_check: bool = false
-## `mPlib_request_main_demo_walk_type1`: walk to a world point with the stick ignored (the house
-## gyroid's "Save" walk to the door). Inactive when `_demo_walk_speed` is 0.
-var _demo_walk_goal: Vector3 = Vector3.ZERO
-var _demo_walk_speed: float = 0.0
-var _demo_walk_arrive: float = 0.0
 var _motor: PlayerLocomotion = PlayerLocomotion.new()
-## `Player_actor_SetPlayerAngle_forUki`'s clamps (per tick).
-const UKI_TURN_MAX := 13.73291015625 * PI / 180.0
-const UKI_TURN_MIN := 0.274658203125 * PI / 180.0
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 ## `Player_actor_Movement_Base_Braking_common(actor, 0.32625002f)`.
 const RECOIL_BRAKE := 0.32625002
@@ -180,10 +157,6 @@ var _focus: Node = null
 var _anim: BodyAnimator
 var _gait: PlayerLocomotion.Gait = PlayerLocomotion.Gait.WAIT
 var _placeholder_bob: float = 0.0
-var _hold_anim: StringName = &""
-## `mPlib_check_player_actor_main_index_catch_insect` / `_catch_fish`: pulling in and showing
-## a bug or fish — villagers nearby clap (`aNPC_check_clap`).
-var catch_showing: bool = false
 var _radio := RadioExercise.new()
 ## Doing a radio exercise (`mPlayer_INDEX_RADIO_EXERCISE`).
 var exercising: bool = false
@@ -193,55 +166,12 @@ var stung: bool = false
 var in_pitfall: bool = false
 ## Scripted struggle (tests, captures): added to the press count every tick.
 var struggle_assist: float = 0.0
-## The umbrella in hand (`player->umbrella_actor`).
-var _umbrella: HeldUmbrella = null
-## The item's carry pose layered on the arms (`BOY_part_data` / anim1).
-var _carry: ToolCarry = null
-var _tool_hold_anim: StringName = &""
-var _tool_use_anim: StringName = &""
-## Tool is put away (door enter) or not yet taken back out (door emerge). `item_kind` is −1 in
-## interiors too — `Player_actor_CheckScene_AbleOutItem` only allows the outdoor field.
-var _tool_stowed: bool = false
-## `PUTIN_ITEM` / `TAKEOUT_ITEM` own the pose; `_update_animation` stays out of the way.
-var _tool_swap: bool = false
 var _step_time: float = 0.0
-## The net's ready / walk / swing / stop states (`NetSwing`), stepped every physics frame
-## while active; the catch that follows a pull runs in `_run_net_catch`.
-var _net := NetSwing.new()
-## `player->net_pos` as of the last swing step.
-var _net_pos: Vector3 = Vector3.ZERO
 var _right_foot: bool = true
-var _door_entering: bool = false
-## `cKF_SkeletonInfo_R_AnimationMove` for INDEX_DOOR. False for INDEX_OUTDOOR (mesh root motion).
-var _door_animation_move: bool = false
-var _door_from: Vector3 = Vector3.ZERO
-var _door_to: Vector3 = Vector3.ZERO
-var _door_yaw: float = 0.0
-var _door_move_elapsed: float = 0.0
-var _door_move_duration: float = StructureDoor.APPROACH_SEC
-var _door_clear_busy: bool = false
-## `model_world_position_correction` — decays toward 0 over `fixed_counter` game frames;
-## `_door_correction_start` is where it began.
-var _door_correction: Vector3 = Vector3.ZERO
-var _door_correction_start: Vector3 = Vector3.ZERO
-var _door_fixed_counter: float = 0.0
-var _door_root_clip: String = ""
-## `mPlayer_INDEX_DEMO_GETOFF_TRAIN`: `cKF_ANIMATION_TRANS_Y` is on too — the body follows the
-## clip's root height from `_door_base_y`, and the state ends itself when the clip does.
-var _door_getoff: bool = false
-var _door_base_y: float = 0.0
 ## `Player_actor_Movement_Talk` — ease yaw toward the NPC while the talk demo runs.
 var _talk_face: Node3D = null
 ## `player->shake_tree_*`: trees this player has already shaken (little or button).
 var _tree_bump: TreeBump = TreeBump.new()
-## Holding onto a piece of furniture (`mPlayer_INDEX_HOLD` and its push / pull / turn children).
-var _grip: FurnitureGrip = FurnitureGrip.new()
-var _gripping: bool = false
-var _grip_nice: Vector3 = Vector3.ZERO
-var _grip_move: Dictionary = {}
-## Sitting in a chair or lying in a bed: `{ kind, id, pos, yaw_facing, approach, phase, t, dur, from, to }`.
-var _seat: FurnitureSeat = FurnitureSeat.new()
-var _rest: Dictionary = {}
 ## Crossing into the next acre (`mPlayer_INDEX_WADE`): `{start, end, t}` (world metres,
 ## ticks); empty when not wading. See `AcreWade`.
 var _wade: Dictionary = {}
@@ -249,9 +179,6 @@ var _wade: Dictionary = {}
 var move_intent: Vector3 = Vector3.ZERO
 ## The snowball being pushed (`mPlayer_INDEX_PUSH_SNOWBALL`), or null.
 var _snowball: Node3D = null
-## Leaf clip → Animation of scaled joint_0 deltas (meters, model space): XZ from the origin,
-## Y from the 1000-unit base height (`base_shape_trs` y). Filled once.
-static var _door_root_xz: Dictionary = {}
 
 
 signal wade_cancelled
@@ -296,13 +223,13 @@ func _ready() -> void:
 	if Game != null and not Game.title_demo_active:
 		Sunburn.on_setup(Game.sunburn, Clock.day_number())
 	_apply_face()
-	Game.inventory.equipment_changed.connect(_on_equipment_changed)
-	_on_equipment_changed(Game.inventory.equipment_id)
+	Game.inventory.equipment_changed.connect(tools.on_equipment_changed)
+	tools.on_equipment_changed(Game.inventory.equipment_id)
 
 
 func _exit_tree() -> void:
-	if Game.inventory.equipment_changed.is_connected(_on_equipment_changed):
-		Game.inventory.equipment_changed.disconnect(_on_equipment_changed)
+	if Game.inventory.equipment_changed.is_connected(tools.on_equipment_changed):
+		Game.inventory.equipment_changed.disconnect(tools.on_equipment_changed)
 
 
 func facing_yaw() -> float:
@@ -363,8 +290,8 @@ func set_busy(locked: bool) -> void:
 	_busy = locked
 	## Don't steal door-emerge ownership while GO_OUT is running — otherwise
 	## `end_door_leave` cannot hand off, and external locks keep clearing the flag.
-	if not _door_entering:
-		_door_clear_busy = false
+	if not doors.door_entering:
+		doors.door_clear_busy = false
 
 
 func set_facing(yaw: float) -> void:
@@ -377,8 +304,8 @@ func set_facing(yaw: float) -> void:
 ## player visibly sliding as the 0.6 s wipe goes black. Kill the speed outright.
 func stop_for_door() -> void:
 	_busy = true
-	if not _door_entering:
-		_door_clear_busy = false
+	if not doors.door_entering:
+		doors.door_clear_busy = false
 	_motor.reset(_motor.facing)
 	velocity = Vector3.ZERO
 	## `_update_animation` only re-picks a clip when the current one has stopped
@@ -391,58 +318,6 @@ func is_busy() -> bool:
 	return _busy
 
 
-## `mPlib_request_main_push_snowball_type1`: the ball leads, the player keeps behind it.
-func begin_snowball_push(ball: Node3D) -> bool:
-	if _busy or _gripping or _snowball != null or not _wade.is_empty() or _menu_open():
-		return false
-	_snowball = ball
-	if ball is PhysicsBody3D:
-		add_collision_exception_with(ball)
-	_play_grip_clip(ANIM_PUSH_YUKI1, true)
-	return true
-
-
-## `mPlib_request_main_push_snowball_end_type1`.
-func end_snowball_push() -> void:
-	var ball: Node3D = _snowball
-	_snowball = null
-	if is_instance_valid(ball):
-		if ball is PhysicsBody3D:
-			remove_collision_exception_with(ball)
-		if ball.has_method("end_push"):
-			ball.call("end_push")
-	velocity = Vector3.ZERO
-
-
-func is_pushing_snowball() -> bool:
-	return _snowball != null
-
-
-## `Player_actor_main_Push_snowball`: the ball moves each step and hands back where the
-## player stands (`mPlib_SetParam_for_push_snowball`).
-func _push_snowball(
-	delta: float, wish: Vector3, stick: float, dash: bool, input_dir: Vector2 = Vector2.ZERO, bg: Array = []
-) -> void:
-	if not is_instance_valid(_snowball):
-		end_snowball_push()
-		return
-	var last: Dictionary = _snowball.call("push", delta, wish, stick, dash, self)
-	if last.is_empty():
-		end_snowball_push()
-		return
-	var aim: Vector3 = last["aim"]
-	var before: Vector3 = global_position
-	global_position = Vector3(aim.x, global_position.y, aim.z)
-	_snap_to_bg()
-	set_facing(float(last["yaw"]))
-	_motor.body_yaw = _motor.facing
-	velocity = Vector3.ZERO
-	if bg.size() == 2 and TownSpace.is_outdoor_town() and _snowball_border(before, input_dir, bg):
-		return
-	if _anim != null:
-		_anim.speed_scale = clampf(float(last["speed"]) / (1.5 * Snowball.FRAME), 0.2, 2.0)
-
-
 func play_wait_anim() -> void:
 	play_wait_idle()
 
@@ -453,7 +328,7 @@ func animation_player() -> BodyAnimator:
 
 ## Idle while input-locked (talk / intro). Safe to call during `_busy`.
 func play_wait_idle() -> void:
-	if _anim == null or _door_entering:
+	if _anim == null or doors.door_entering:
 		return
 	var clip := _resolve_clip(ANIM_WAIT)
 	if clip.is_empty():
@@ -486,14 +361,14 @@ func _physics_process(delta: float) -> void:
 	_tick_sunburn(delta)
 	if _mesh != null:
 		_mesh.rotation.x = _motor.lean
-	if _umbrella != null:
-		_umbrella.tick(delta)
-	_tick_pinwheel(delta)
-	_tick_balloon(delta)
-	if _carry != null:
-		_carry.advance(delta)
-	if _door_entering:
-		_tick_door_enter(delta)
+	if tools.umbrella != null:
+		tools.umbrella.tick(delta)
+	tools.tick_pinwheel(delta)
+	tools.tick_balloon(delta)
+	if tools.carry != null:
+		tools.carry.advance(delta)
+	if doors.door_entering:
+		doors.tick_door_enter(delta)
 		return
 	if _cutscene_driven:
 		velocity = Vector3.ZERO
@@ -505,15 +380,15 @@ func _physics_process(delta: float) -> void:
 		_tick_wade(delta)
 		return
 
-	if _gripping:
-		_tick_grip(delta)
-	elif not _rest.is_empty():
-		_tick_rest(delta)
-	elif not _busy and scripted_input == null and not _net.is_active():
-		_poll_furniture_pickup()
+	if furniture.gripping:
+		furniture.tick_grip(delta)
+	elif not furniture.rest.is_empty():
+		furniture.tick_rest(delta)
+	elif not _busy and scripted_input == null and not net.is_active():
+		furniture.poll_furniture_pickup()
 		_poll_pitfall()
 		_poll_radio_exercise(delta)
-		_poll_rest(delta)
+		furniture.poll_rest(delta)
 	var bg: Array = _bg()
 	var on_bg: bool = _snap_to_bg()
 	if on_bg:
@@ -528,11 +403,11 @@ func _physics_process(delta: float) -> void:
 	var stick := 0.0
 	var input_dir := Vector2.ZERO
 	var menu_open: bool = _menu_open()
-	if _demo_walk_speed > 0.0 and not _busy and not menu_open:
-		var to_goal := Vector3(_demo_walk_goal.x - global_position.x, 0.0, _demo_walk_goal.z - global_position.z)
-		if to_goal.length() > _demo_walk_arrive:
+	if doors.demo_walk_speed > 0.0 and not _busy and not menu_open:
+		var to_goal := Vector3(doors.demo_walk_goal.x - global_position.x, 0.0, doors.demo_walk_goal.z - global_position.z)
+		if to_goal.length() > doors.demo_walk_arrive:
 			wish = to_goal.normalized()
-			stick = clampf(_demo_walk_speed / PlayerLocomotion.WALK_SPEED, 0.0, 1.0)
+			stick = clampf(doors.demo_walk_speed / PlayerLocomotion.WALK_SPEED, 0.0, 1.0)
 	elif not _busy and not menu_open:
 		if scripted_input != null:
 			input_dir = scripted_input.move
@@ -550,11 +425,11 @@ func _physics_process(delta: float) -> void:
 		stick = 0.0
 		input_dir = Vector2.ZERO
 	var sprint: bool = (
-		scripted_input == null and not is_demo_walking() and Input.is_action_pressed("sprint")
+		scripted_input == null and not doors.is_demo_walking() and Input.is_action_pressed("sprint")
 	)
 	move_intent = wish * stick
 	if _snowball != null:
-		_push_snowball(delta, wish, stick, sprint and not menu_open, input_dir, bg)
+		snowball.push_snowball(delta, wish, stick, sprint and not menu_open, input_dir, bg)
 		if _snowball == null:
 			_update_animation(delta)
 		return
@@ -563,14 +438,14 @@ func _physics_process(delta: float) -> void:
 	_motor.bad_luck = scripted_input == null and Game.destiny() == Game.Destiny.BAD_LUCK
 	## Recorded title-demo input and demo walks (`Player_actor_Movement_Demo_walk` steers
 	## without the stick) count as held axes whenever they ask to move.
-	if scripted_input != null or is_demo_walking():
+	if scripted_input != null or doors.is_demo_walking():
 		_motor.axes_active = stick > 0.0
 	else:
 		_motor.axes_active = _axes_active(input_dir)
 	_feed_clip_state()
 	var planar: Vector3
-	if _net.is_active():
-		planar = _tick_net(delta, input_dir, wish, stick, menu_open)
+	if net.is_active():
+		planar = net.tick_net(delta, input_dir, wish, stick, menu_open)
 	else:
 		planar = _motor.tick(
 			delta, wish, stick, sprint and not menu_open, _busy or menu_open or rod_locked
@@ -578,7 +453,7 @@ func _physics_process(delta: float) -> void:
 	planar += _tick_recoil(delta)
 	velocity.x = planar.x
 	velocity.z = planar.z
-	_face_bobber(delta)
+	fishing.face_bobber(delta)
 	_tick_talk_face(delta)
 	_mesh.rotation.y = _motor.body_yaw
 	_mesh.rotation.x = _motor.lean
@@ -599,7 +474,7 @@ func _physics_process(delta: float) -> void:
 	_update_footprints(delta, bg)
 	_update_focus()
 	_tick_tree_bump(delta)
-	_clear_auto_enter_block()
+	doors.clear_auto_enter_block()
 	_try_auto_enter()
 
 
@@ -636,7 +511,7 @@ func _acre_border(before: Vector3, input_dir: Vector2, bg: Array) -> void:
 	var pos_gx: Vector3 = TownSpace.world_to_gx(global_position)
 	## `Player_actor_request_proc_index_fromDemo_walk` → `Set_ScrollDemo_forDemo_wade`; the
 	## demo walk picks up again after the 36-tick wade (`fromDemo_wade`).
-	if is_demo_walking():
+	if doors.is_demo_walking():
 		if _motor.planar_speed > 0.0:
 			var block: Vector2i = TownSpace.block_of(pos_gx)
 			var demo_dir: AcreWade.Dir = AcreWade.demo_direction(
@@ -686,38 +561,6 @@ func _can_land(pos_gx: Vector3, dir: AcreWade.Dir, bg: Array) -> bool:
 	return true
 
 
-## `aSMAN_player_push_scroll_request`: pushing, the player is walled in the acre too
-## (`mCoBG_UniqueWallCheck`). At the wall with the stick across and the body within 5°,
-## the player and the ball wade together (`WADE_SNOWBALL`); otherwise the push lets go.
-func _snowball_border(before: Vector3, input_dir: Vector2, bg: Array) -> bool:
-	var old_gx: Vector3 = TownSpace.world_to_gx(before)
-	var now_gx: Vector3 = TownSpace.world_to_gx(global_position)
-	var held: Vector3 = AcreWade.confine(old_gx, now_gx)
-	if held.x == now_gx.x and held.z == now_gx.z:
-		return false
-	var back: Vector3 = TownSpace.gx_to_world(held)
-	global_position.x = back.x
-	global_position.z = back.z
-	_snap_to_bg()
-	var pos_gx: Vector3 = TownSpace.world_to_gx(global_position)
-	var dir: AcreWade.Dir = AcreWade.direction(
-		pos_gx, _motor.facing, Vector2(input_dir.x, -input_dir.y),
-		func(d: AcreWade.Dir) -> bool: return _can_land(pos_gx, d, bg),
-		0.0, unable_wade, AcreWade.SNOWBALL_ANGLE_RANGE,
-	)
-	if dir == AcreWade.Dir.NONE or unable_wade:
-		end_snowball_push()
-		return true
-	var ball: Node3D = _snowball
-	var ofs: Vector3 = ball.global_position - global_position
-	_begin_wade(pos_gx, dir)
-	_wade["ball"] = ball
-	_wade["ball_ofs"] = ofs
-	## Still leaning on it through the scroll (`Wade_snowball` keeps the push pose).
-	_play_grip_clip(ANIM_PUSH_YUKI1, true)
-	return true
-
-
 func _begin_wade(pos_gx: Vector3, dir: AcreWade.Dir) -> void:
 	var end: Vector3 = TownSpace.gx_to_world(AcreWade.end_pos(pos_gx, dir))
 	end.y = global_position.y
@@ -761,94 +604,6 @@ func wade_state() -> Dictionary:
 	return _wade
 
 
-## `aMR_ManageMoveBottun`: A against a piece in your own house grips it. Anything else —
-## nothing there, a piece in the pockets to place, another room — falls through to the normal verb.
-func _try_grip() -> bool:
-	if _busy or _gripping or _door_entering or not Game.is_decorating() or Game.held_furniture() != null:
-		return false
-	var session: IndoorSession = Game.interior_session
-	if session == null:
-		return false
-	var contact: Dictionary = _grip.press(
-		session, global_position, WorldGrid.facing_from_player_yaw(_motor.facing)
-	)
-	if contact.is_empty():
-		return false
-	_gripping = true
-	_busy = true
-	_grip_move = {}
-	_grip_nice = contact["nice_pos"] as Vector3
-	_motor.reset(WorldGrid.yaw_for_furniture(_grip.facing))
-	_mesh.rotation.y = _motor.facing
-	_play_grip_clip(ANIM_HOLD_WAIT1, true)
-	return true
-
-
-func _grip_stick() -> Vector2:
-	if _menu_open():
-		return Vector2.ZERO
-	var input_dir: Vector2 = _read_stick()
-	var wish: Vector3 = _camera_wish(input_dir)
-	return Vector2(wish.x, wish.z) * clampf(input_dir.length(), 0.0, 1.0)
-
-
-func _tick_grip(delta: float) -> void:
-	if Game.interior_session == null:
-		_end_grip()
-		return
-	var held: bool = Input.is_action_pressed("interact") and not _menu_open()
-	var events: Array[Dictionary] = _grip.advance(
-		delta, Game.interior_session, held, _grip_stick(), global_position
-	)
-	if not _grip_move.is_empty():
-		_advance_grip_move(delta)
-	elif _gripping:
-		var pos: Vector3 = global_position
-		global_position = pos.lerp(Vector3(_grip_nice.x, pos.y, _grip_nice.z), clampf(delta * GRIP_SETTLE_RATE, 0.0, 1.0))
-	for event: Dictionary in events:
-		if not _gripping:
-			break
-		_on_grip_event(event)
-	velocity = Vector3.ZERO
-
-
-func _on_grip_event(event: Dictionary) -> void:
-	match str(event.get("op", "")):
-		"tap":
-			var side: int = int(event.get("side", -1))
-			var tapped_id: StringName = event.get("id", &"") as StringName
-			_end_grip()
-			_tap_furniture(tapped_id, side)
-		"release":
-			_end_grip()
-		"move":
-			_notify_moved(event)
-			var pushing: bool = event.get("kind") == &"push"
-			_grip_move = {
-				"t": 0.0,
-				"dur": FURNITURE_MOVE_SEC,
-				"from": event["player_from"] as Vector3,
-				"to": event["player_to"] as Vector3,
-			}
-			_grip_nice = event["player_to"] as Vector3
-			_play_grip_clip(ANIM_PUSH1 if pushing else ANIM_PULL1, false)
-			_sync_furniture(FURNITURE_MOVE_SEC)
-		"rotate":
-			_notify_moved(event)
-			_grip_move = {"t": 0.0, "dur": FURNITURE_TURN_SEC, "from": global_position, "to": global_position}
-			_play_grip_clip(ANIM_LTURN1 if bool(event.get("ccw", true)) else ANIM_RTURN1, false)
-			_sync_furniture(FURNITURE_TURN_SEC)
-		"bubu":
-			## `aMR_SetBubu`: the puff of a piece that will not budge. Just the held pose for now.
-			pass
-
-
-func _notify_moved(event: Dictionary) -> void:
-	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
-	if host != null and host.has_method("on_furniture_moved"):
-		host.call("on_furniture_moved", event.get("vacated", []))
-
-
 ## `mPlayer_INDEX_SHOCK` (`aMR_RequestPlayerBikkuri`): the first roach of the session makes the
 ## player jump — a beat, then `gaaan1`, facing north.
 func request_surprise() -> void:
@@ -866,56 +621,6 @@ func request_surprise() -> void:
 	play_wait_idle()
 
 
-func _advance_grip_move(delta: float) -> void:
-	var dur: float = maxf(float(_grip_move["dur"]), 0.001)
-	var t: float = minf(float(_grip_move["t"]) + delta, dur)
-	_grip_move["t"] = t
-	var k: float = smoothstep(0.0, 1.0, t / dur)
-	var from: Vector3 = _grip_move["from"] as Vector3
-	var to: Vector3 = _grip_move["to"] as Vector3
-	global_position = Vector3(lerpf(from.x, to.x, k), global_position.y, lerpf(from.z, to.z, k))
-	if t >= dur:
-		_grip_move = {}
-		_grip.finish_busy()
-		_play_grip_clip(ANIM_HOLD_WAIT1, true)
-
-
-func _sync_furniture(duration: float) -> void:
-	var host: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
-	if host != null and host.has_method("sync_placements"):
-		host.call("sync_placements", duration)
-
-
-func _end_grip() -> void:
-	_gripping = false
-	_grip_move = {}
-	_grip.reset()
-	_busy = false
-	_gait = PlayerLocomotion.Gait.WAIT
-	play_wait_idle()
-
-
-## A short A on a gripped piece is the ordinary use verb (open, switch, put a fish on it).
-func _tap_furniture(placement_id: StringName, side: int) -> void:
-	var interior: Node = get_tree().get_first_node_in_group("interior") if get_tree() != null else null
-	var host: Node = interior.call("furniture_node", placement_id) if interior != null else null
-	if host == null or not InteractionQuery.is_host(host):
-		return
-	var ctx: InteractionContext = _make_context()
-	ctx.contact_side = side
-	var offered: Array[Interaction] = []
-	var raw: Variant = host.get_interactions(ctx)
-	if raw is Array:
-		offered.assign(raw)
-	var action: Interaction = Interaction.primary(offered)
-	if action == null:
-		return
-	var tapped := InteractionQuery.new()
-	tapped.host = host
-	tapped.action = action
-	await _run_interact(tapped)
-
-
 func _play_grip_clip(leaf: String, loop: bool) -> void:
 	if _anim == null:
 		return
@@ -927,213 +632,6 @@ func _play_grip_clip(leaf: String, loop: bool) -> void:
 		animation.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
 	_anim.speed_scale = 1.0
 	_anim.play(clip, 0.12)
-
-
-## `aMR_SitDownFurniture` / `aMR_JudgeGoToBed`: walking straight into a chair or a bed.
-func _poll_rest(delta: float) -> void:
-	if _menu_open() or Game.interior_session == null or not Game.is_indoors():
-		_seat.reset()
-		return
-	var hit: Dictionary = _seat.poll(
-		delta,
-		Game.interior_session,
-		global_position,
-		WorldGrid.facing_from_player_yaw(_motor.facing),
-		_grip_stick()
-	)
-	if not hit.is_empty():
-		_begin_rest(hit)
-
-
-func _begin_rest(hit: Dictionary) -> void:
-	var lying: bool = int(hit["kind"]) == FurnitureSeat.Rest.LIE
-	var leaf: String = ANIM_SITDOWN1
-	if lying:
-		leaf = ANIM_INBED_L1 if bool(hit.get("from_left", true)) else ANIM_INBED_R1
-	_rest = hit.duplicate()
-	_rest["phase"] = &"in"
-	_rest["t"] = 0.0
-	_rest["dur"] = _clip_seconds(leaf, 0.8)
-	_rest["from"] = global_position
-	_rest["to"] = hit["pos"] as Vector3
-	_busy = true
-	var yaw: float = WorldGrid.yaw_for_furniture(hit["yaw_facing"] as WorldGrid.Facing)
-	_motor.reset(yaw)
-	_mesh.rotation.y = yaw
-	_play_grip_clip(leaf, false)
-
-
-func _tick_rest(delta: float) -> void:
-	velocity = Vector3.ZERO
-	var lying: bool = int(_rest["kind"]) == FurnitureSeat.Rest.LIE
-	var phase: StringName = _rest["phase"] as StringName
-	if phase == &"wait":
-		var stick: Vector2 = _grip_stick()
-		if not lying:
-			if stick.length() > REST_STAND_STICK:
-				_begin_stand(false)
-			return
-		## `wait_bed.flags`: the stick has to come back before the next roll.
-		if stick.length() <= 0.5:
-			_rest["armed"] = true
-			return
-		if not bool(_rest.get("armed", false)):
-			return
-		var act: Dictionary = FurnitureSeat.bed_action(Game.interior_session, _rest, global_position, stick)
-		match int(act["action"]):
-			FurnitureSeat.BedAction.ROLL:
-				_begin_roll(act["side"] as WorldGrid.Facing)
-			FurnitureSeat.BedAction.OUT:
-				_begin_stand(true, act["side"] as WorldGrid.Facing)
-		return
-	if phase == &"roll":
-		if _clip_running(str(_rest.get("clip", ""))):
-			return
-		## `settle_main_Roll_bed` (`AnimationMove_dt`): the clip's sideways travel becomes the
-		## player's position, and the bed wait picks up from there without a blend.
-		var before: Vector3 = _root_joint_position()
-		var wait := _resolve_clip(ANIM_BED_WAIT1)
-		if _anim != null and not wait.is_empty():
-			_ensure_loop(wait)
-			_anim.play(wait, 0.0)
-			_anim.seek(0.0, true)
-		var after: Vector3 = _root_joint_position()
-		if before != Vector3.INF and after != Vector3.INF:
-			global_position += Vector3(before.x - after.x, 0.0, before.z - after.z)
-		_rest["pos"] = global_position
-		_rest["phase"] = &"wait"
-		_rest["armed"] = false
-		return
-	var t: float = minf(float(_rest["t"]) + delta, float(_rest["dur"]))
-	_rest["t"] = t
-	var k: float = smoothstep(0.0, 1.0, t / maxf(float(_rest["dur"]), 0.001))
-	var from: Vector3 = _rest["from"] as Vector3
-	var to: Vector3 = _rest["to"] as Vector3
-	global_position = Vector3(lerpf(from.x, to.x, k), global_position.y, lerpf(from.z, to.z, k))
-	if t < float(_rest["dur"]):
-		return
-	if phase == &"in":
-		_rest["phase"] = &"wait"
-		_play_grip_clip(ANIM_BED_WAIT1 if lying else ANIM_SITDOWN_WAIT1, true)
-	else:
-		_end_rest()
-
-
-func _begin_stand(lying: bool, side: int = -1) -> void:
-	var session: IndoorSession = Game.interior_session
-	if session == null:
-		_end_rest()
-		return
-	var seat_pos: Vector3 = _rest["pos"] as Vector3
-	var spot: Dictionary
-	var exit_left: bool = bool(_rest.get("from_left", true))
-	if lying and side >= 0:
-		## Out on the side the stick pushed: `OUTBED_L1` undoes `INBED_L1`, whose approach is
-		## the side a quarter-turn back from the pillow.
-		var grid: WorldGrid = session.grid
-		var exit_cell: Vector2i = grid.step(grid.world_to_cell(global_position), side as WorldGrid.Facing)
-		spot = FurnitureSeat.bed_exit_spot(session, grid.cell_to_world(exit_cell))
-		exit_left = grid.rotate_facing(_rest.get("head", WorldGrid.Facing.SOUTH) as WorldGrid.Facing, -1) == side
-	elif lying:
-		spot = FurnitureSeat.bed_exit_spot(session, _rest["approach"] as Vector3)
-	else:
-		spot = FurnitureSeat.stand_spot(session, seat_pos, _rest["yaw_facing"] as WorldGrid.Facing)
-	if spot.is_empty():
-		return
-	var leaf: String = ANIM_STANDUP1
-	if lying:
-		leaf = ANIM_OUTBED_L1 if exit_left else ANIM_OUTBED_R1
-	_rest["phase"] = &"out"
-	_rest["t"] = 0.0
-	_rest["dur"] = _clip_seconds(leaf, 0.8)
-	_rest["from"] = global_position
-	_rest["to"] = spot["pos"] as Vector3
-	_play_grip_clip(leaf, false)
-
-
-## `Roll_bed`: `NEGAERI_L1` / `R1`, whichever carries the body toward `side` (the original
-## picks it from the facing and stick quadrant; the clip's own root travel says the same).
-func _begin_roll(side: WorldGrid.Facing) -> void:
-	var session: IndoorSession = Game.interior_session
-	if session == null:
-		return
-	var step: Vector2i = session.grid.step(Vector2i.ZERO, side)
-	var want := Vector3(float(step.x), 0.0, float(step.y))
-	var leaf: String = ANIM_NEGAERI_R1
-	var travel: Vector3 = _clip_root_travel(ANIM_NEGAERI_R1)
-	if travel != Vector3.ZERO and travel.dot(want) < 0.0:
-		leaf = ANIM_NEGAERI_L1
-	var clip: String = _start_one_shot(leaf, 0.0)
-	Audio.play_se(&"bed_negaeri", self)
-	_rest["phase"] = &"roll"
-	_rest["clip"] = clip
-	_rest["armed"] = false
-
-
-## World-space XZ the clip's joint_0 travels from first to last key, turned by the facing.
-func _clip_root_travel(leaf: String) -> Vector3:
-	var clip: String = _resolve_clip(leaf)
-	if clip.is_empty() or _anim == null:
-		return Vector3.ZERO
-	var res: Animation = _anim.get_animation(clip)
-	var track: int = _find_joint0_position_track(res) if res != null else -1
-	if track < 0 or res.track_get_key_count(track) < 2:
-		return Vector3.ZERO
-	var a: Vector3 = res.track_get_key_value(track, 0) as Vector3
-	var b: Vector3 = res.track_get_key_value(track, res.track_get_key_count(track) - 1) as Vector3
-	var d := Vector3(b.x - a.x, 0.0, b.z - a.z)
-	return d.rotated(Vector3.UP, _motor.facing)
-
-
-func _end_rest() -> void:
-	_rest = {}
-	_seat.reset()
-	_busy = false
-	_gait = PlayerLocomotion.Gait.WAIT
-	play_wait_idle()
-
-
-func _clip_seconds(leaf: String, fallback: float) -> float:
-	var clip: String = _resolve_clip(leaf)
-	if _anim == null or clip.is_empty():
-		return fallback
-	var animation: Animation = _anim.get_animation(clip)
-	return animation.length if animation != null and animation.length > 0.0 else fallback
-
-
-## Shut the dresser / wardrobe / closet again once the last message has closed.
-func play_storage_close(storage_type: int) -> void:
-	var leaf: StringName = FurnitureStorage.CLOSE_CLIPS.get(storage_type, &"") as StringName
-	if leaf == &"" or _anim == null:
-		return
-	var clip: String = _resolve_clip(String(leaf))
-	if clip.is_empty():
-		return
-	var animation: Animation = _anim.get_animation(clip)
-	if animation != null:
-		animation.loop_mode = Animation.LOOP_NONE
-	_anim.speed_scale = 1.0
-	_anim.play(clip, 0.08)
-	await _anim.animation_finished
-
-
-## `Player_actor_CheckAndRequest_main_pickup_all`: B facing a piece in your own house picks it up.
-func _poll_furniture_pickup() -> void:
-	if not Input.is_action_just_pressed("sprint") or _menu_open() or _door_entering:
-		return
-	if not Game.is_decorating() or Game.interior_session == null:
-		return
-	var id: StringName = FurnitureGrip.find_pickup(
-		Game.interior_session, global_position, WorldGrid.facing_from_player_yaw(_motor.facing)
-	)
-	if id == &"":
-		return
-	_busy = true
-	var tail: float = await _play_action(&"ply_1_pickup1", 20.0)
-	Game.pick_up_furniture(id)
-	await _finish_action(tail)
-	_busy = false
-	_gait = PlayerLocomotion.Gait.WAIT
 
 
 ## `Player_actor_check_little_shake_tree`: walking up to a tree shakes it a little.
@@ -1177,231 +675,6 @@ func _tick_talk_face(delta: float) -> void:
 	_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, target, delta)
 
 
-## After a room load, walk-in doors stay armed until the probe leaves every auto door.
-func _clear_auto_enter_block() -> void:
-	if not Game.block_auto_enter_doors:
-		return
-	## Keep blocked while still on an indoor EXIT_DOOR strip after a room load.
-	if _on_indoor_exit_cell():
-		return
-	var hit: InteractionQuery = _resolve_interact()
-	if hit == null or hit.host == null:
-		Game.block_auto_enter_doors = false
-		return
-	if hit.host.get("auto_enter") != true:
-		Game.block_auto_enter_doors = false
-
-
-func _on_indoor_exit_cell() -> bool:
-	if not Game.is_indoors():
-		return false
-	var session: IndoorSession = Game.interior_session
-	if session == null or session.room == null or session.grid == null:
-		return false
-	if session.room.kind == Room.Kind.MUSEUM:
-		return false
-	return session.room.is_exit_cell(session.grid.world_to_cell(global_position))
-
-
-## `mPlayer_INDEX_DOOR`: OPEN1 / INTO_S1 with `cKF_SkeletonInfo_R_AnimationMove_base`.
-## World XZ = door stand + decaying (start−stand) + scaled joint_0 delta; mesh root stays bind.
-func begin_door_enter(target: Vector3, face_yaw: float, walk_in: bool = false) -> void:
-	var leaf := ANIM_INTO_S1 if walk_in else ANIM_OPEN1
-	_begin_animation_move(
-		target,
-		face_yaw,
-		leaf,
-		StructureDoor.ANIM_MOVE_COUNTER,
-		StructureDoor.INTO_SEC if walk_in else StructureDoor.OPEN1_SEC,
-	)
-
-
-## `mPlayer_INDEX_DEMO_GETOFF_TRAIN`: OUTTRAIN1 with AnimationMove. Decomp passes the
-## current ride pose as correctpos — root motion alone steps onto the platform.
-func begin_demo_getoff_train(stand: Vector3, face_yaw: float) -> void:
-	_begin_animation_move(
-		stand,
-		face_yaw,
-		ANIM_OUTTRAIN1,
-		StructureDoor.ANIM_MOVE_COUNTER_GETOFF,
-		StructureDoor.OUTTRAIN_SEC,
-	)
-	_door_getoff = true
-	_door_base_y = stand.y
-	global_position.y = stand.y
-
-
-## Walk to `goal` at `speed` (m/s), stopping within `arrive` (m); repeat calls move the goal
-## (`mPlib_Set_goal_player_demo_walk`). Held until `end_demo_walk`.
-func begin_demo_walk(goal: Vector3, speed: float, arrive: float) -> void:
-	_demo_walk_goal = goal
-	_demo_walk_speed = maxf(speed, 0.0)
-	_demo_walk_arrive = maxf(arrive, 0.0)
-
-
-func end_demo_walk() -> void:
-	_demo_walk_speed = 0.0
-
-
-func is_demo_walking() -> bool:
-	return _demo_walk_speed > 0.0
-
-
-func is_door_entering() -> bool:
-	return _door_entering
-
-
-func _begin_animation_move(
-	target: Vector3,
-	face_yaw: float,
-	clip_leaf: String,
-	counter: float,
-	duration: float,
-) -> void:
-	_door_entering = true
-	_door_animation_move = true
-	_door_clear_busy = false
-	_door_from = global_position
-	_door_to = Vector3(target.x, global_position.y, target.z)
-	_door_correction = Vector3(_door_from.x - _door_to.x, 0.0, _door_from.z - _door_to.z)
-	_door_correction_start = _door_correction
-	_door_fixed_counter = counter
-	_door_yaw = face_yaw
-	_door_move_elapsed = 0.0
-	_door_move_duration = duration
-	_motor.reset(face_yaw)
-	_mesh.rotation.y = face_yaw
-	velocity = Vector3.ZERO
-	var clip := _resolve_clip(clip_leaf)
-	_door_root_clip = clip_leaf if _door_root_xz.has(clip_leaf) else ""
-	if _anim == null or clip.is_empty():
-		return
-	_anim.speed_scale = 1.0
-	_anim.play(clip, 0.08)
-
-
-func end_door_enter() -> void:
-	## A failed enter (`Game.try_enter_interior`) stays outdoors — the tool comes back out.
-	if _tool_stowed and not Game.is_indoors():
-		take_out_tool()
-	_door_entering = false
-	_door_animation_move = false
-	_door_getoff = false
-	_door_root_clip = ""
-
-
-func await_door_enter() -> void:
-	## Used when the structure has no door cKF (museum / police). Wait out INTO_S1 / OPEN1.
-	if _anim != null and _anim.is_playing():
-		await _anim.animation_finished
-	elif get_tree() != null:
-		await get_tree().create_timer(maxf(_door_move_duration, StructureDoor.INTO_SEC)).timeout
-
-
-## `mPlayer_INDEX_OUTDOOR`: actor stays on the exit stand; GO_OUT `joint_0` walks the mesh
-## from behind to bind (`Set_force_shadow_position_fromAnimePosition` only).
-func begin_door_leave(stand: Vector3, _target: Vector3, face_yaw: float, full_walk: bool = false) -> void:
-	_busy = true
-	_door_entering = true
-	_door_animation_move = false
-	_door_clear_busy = true
-	global_position = Vector3(stand.x, global_position.y, stand.z)
-	_door_from = global_position
-	_door_to = global_position
-	_door_correction = Vector3.ZERO
-	_door_yaw = face_yaw
-	_door_move_elapsed = 0.0
-	_door_move_duration = StructureDoor.LEAVE_SEC
-	_door_root_clip = ""
-	_motor.reset(face_yaw)
-	_mesh.rotation.y = face_yaw
-	velocity = Vector3.ZERO
-	var clip := _resolve_clip(ANIM_GO_OUT_O1)
-	if _anim == null or clip.is_empty():
-		return
-	_anim.speed_scale = 1.0
-	## No morph (`InitAnimation_Base2` morph 0.0) so the first shown frame is the clip's own.
-	_anim.play(clip, 0.0)
-	if not full_walk:
-		_anim.seek(GO_OUT_O1_DOOR_ONLY_START_SEC, true)
-	## Pose the first frame now so un-hiding the model never shows the idle pose.
-	_anim.advance(0.0)
-	visible = true
-
-
-func end_door_leave() -> void:
-	_door_entering = false
-	_door_animation_move = false
-	if _door_clear_busy:
-		_busy = false
-	_door_clear_busy = false
-
-
-## Indoor `EXIT_DOOR`: INTO_S1 while walking south through the exit cell.
-func run_indoor_exit(target: Vector3, face_yaw: float) -> void:
-	_busy = true
-	_door_clear_busy = true
-	begin_door_enter(target, face_yaw, true)
-	_door_clear_busy = true
-	if _anim != null and _anim.is_playing():
-		await _anim.animation_finished
-	else:
-		await get_tree().create_timer(_door_move_duration).timeout
-	end_door_leave()
-
-
-func _tick_door_enter(delta: float) -> void:
-	_door_move_elapsed += delta
-	_motor.reset(_door_yaw)
-	_mesh.rotation.y = _door_yaw
-	velocity = Vector3.ZERO
-	if _door_animation_move:
-		_decay_door_correction()
-		var root: Vector3 = _sample_door_root_xz()
-		var world_root := Vector3(
-			root.x * cos(_door_yaw) + root.z * sin(_door_yaw),
-			0.0,
-			-root.x * sin(_door_yaw) + root.z * cos(_door_yaw),
-		)
-		global_position = Vector3(
-			_door_to.x + _door_correction.x + world_root.x,
-			_door_base_y + root.y if _door_getoff else global_position.y,
-			_door_to.z + _door_correction.z + world_root.z,
-		)
-	if _door_getoff:
-		## `Player_actor_request_proc_index_fromDemo_getoff_train`: the clip's end hands over
-		## to `demo_wait` (the caller keeps the player busy).
-		if _door_move_elapsed >= _door_move_duration:
-			end_door_enter()
-			play_wait_idle()
-		return
-	_snap_to_bg()
-
-
-## `cKF_SkeletonInfo_R_AnimationMove_base`'s XZ correction, at `_door_move_elapsed`. Each
-## tick the original keeps `(fc + 0.5) / (fc + 1)` of it and drops `fixed_counter` (fc) by
-## 0.5; the product telescopes, so it shrinks in a straight line to `1 / (1 + fc₀)` of the
-## start as the counter runs out (30 a second), then halves every tick after.
-func _decay_door_correction() -> void:
-	var fc0: float = maxf(_door_fixed_counter, 0.0)
-	var ticks: float = _door_move_elapsed * DecompTime.TICK_HZ
-	var fc: float = maxf(fc0 - 0.5 * ticks, 0.0)
-	var after: float = maxf(ticks - 2.0 * fc0, 0.0)
-	_door_correction = _door_correction_start * ((1.0 + fc) / (1.0 + fc0) * pow(0.5, after))
-
-
-func _sample_door_root_xz() -> Vector3:
-	if _door_root_clip.is_empty() or not _door_root_xz.has(_door_root_clip):
-		return Vector3.ZERO
-	var root_anim: Animation = _door_root_xz[_door_root_clip] as Animation
-	if root_anim == null or root_anim.get_track_count() < 1:
-		return Vector3.ZERO
-	var t: float = 0.0
-	if _anim != null:
-		t = clampf(_anim.current_animation_position, 0.0, root_anim.length)
-	return root_anim.position_track_interpolate(0, t)
-
-
 func _bg() -> Array:
 	if get_tree() == null:
 		return []
@@ -1422,7 +695,7 @@ func _snap_to_bg() -> bool:
 	if bg.is_empty():
 		return false
 	var y: float = FieldCollision.ground_y_at(
-		bg[0] as WorldData, bg[1] as WorldGrid, global_position, 0.0, not _door_entering
+		bg[0] as WorldData, bg[1] as WorldGrid, global_position, 0.0, not doors.door_entering
 	)
 	if not FieldCollision.has_floor(y):
 		return false
@@ -1453,25 +726,11 @@ func _group_open(group: String) -> bool:
 	return ui != null and ui.has_method("is_open") and bool(ui.call("is_open"))
 
 
-## `Player_actor_SetPlayerAngle_forUki`: `add_calc_short_angle2(1−√½, 13.73°, 0.27°)` a
-## tick toward the bobber while the line is out.
-func _face_bobber(delta: float) -> void:
-	if not Fishing.faces_bobber(self):
-		return
-	var to_uki: Vector3 = Fishing.anchor() - global_position
-	if is_zero_approx(to_uki.x) and is_zero_approx(to_uki.z):
-		return
-	_motor.facing = MathUtil.short_angle2(
-		_motor.facing, atan2(to_uki.x, to_uki.z), MathUtil.HALF_FRACTION, UKI_TURN_MAX, UKI_TURN_MIN,
-		delta * DecompTime.TICK_HZ
-	)
-
-
 func _unhandled_input(event: InputEvent) -> void:
-	if scripted_input != null or _busy or _menu_open() or is_demo_walking() or _net.is_active():
+	if scripted_input != null or _busy or _menu_open() or doors.is_demo_walking() or net.is_active():
 		return
 	if event.is_action_pressed("interact"):
-		if _try_grip():
+		if furniture.try_grip():
 			get_viewport().set_input_as_handled()
 			return
 		_try_interact()
@@ -1600,7 +859,7 @@ func _note_wall_contact(before: Vector3, planar: Vector3, delta: float) -> void:
 
 
 func _update_animation(delta: float) -> void:
-	if _tool_swap or _net.is_active():
+	if tools.tool_swap or net.is_active():
 		return
 	var next: PlayerLocomotion.Gait = _motor.gait()
 	if _anim == null:
@@ -1612,7 +871,7 @@ func _update_animation(delta: float) -> void:
 	if _busy:
 		## After door emerge / while dialogue locks input, keep wait looping —
 		## otherwise we freeze on the last GO_OUT frame.
-		if not _door_entering and not _cutscene_driven and not _anim.is_playing():
+		if not doors.door_entering and not _cutscene_driven and not _anim.is_playing():
 			play_wait_idle()
 		return
 	var one_shot: bool = next in [
@@ -1724,8 +983,8 @@ func _update_footprints(delta: float, bg: Array) -> void:
 		yaw = _motor.facing
 		foot = FootprintMarks.foot_position(global_position, yaw, _right_foot)
 	_step_effects(gait, bg, attr, foot, yaw)
-	var marks: Node = get_tree().get_first_node_in_group("footprints")
-	if marks == null or not marks.has_method("spawn"):
+	var marks: Footprints = Footprints.find(get_tree())
+	if marks == null:
 		return
 	var snow: bool
 	if attr >= 0:
@@ -1739,7 +998,7 @@ func _update_footprints(delta: float, bg: Array) -> void:
 	var xform: Transform3D = FootprintMarks.mark_transform(data, grid, foot, yaw)
 	if xform.basis.determinant() == 0.0:
 		return
-	marks.call("spawn", xform, snow)
+	marks.spawn(xform, snow)
 
 
 ## `Player_actor_SetEffect_Walk` / `_Dash`: `WALK_ASIMOTO` on walk + run foot plants,
@@ -1809,7 +1068,7 @@ func _clip_for(gait: PlayerLocomotion.Gait) -> String:
 
 
 func _tumble_clip(getup: bool) -> String:
-	return ToolUse.tumble_clip(_equipped_tool(), getup)
+	return ToolUse.tumble_clip(tools.equipped_tool(), getup)
 
 
 func _resolve_clip(suffix: String) -> String:
@@ -1932,7 +1191,7 @@ func _face_cell(ctx: InteractionContext, cell: Vector2i) -> void:
 func _try_interact() -> void:
 	if _motor.gait() in [PlayerLocomotion.Gait.TUMBLE, PlayerLocomotion.Gait.TUMBLE_GETUP]:
 		return
-	if _net.state != NetSwing.State.NONE:
+	if net.net_swing.state != NetSwing.State.NONE:
 		return
 	if Game.held_furniture() != null and Game.try_place_furniture(self):
 		return
@@ -1944,14 +1203,14 @@ func _try_interact() -> void:
 	if scripted_input != null and not TitleDemo.allows_verb(hit.action.id):
 		return
 	if hit.host == null and hit.action.id == Interaction.SWING_NET:
-		_begin_net()
+		net.begin_net()
 		return
 	await _run_interact(hit)
 
 
 func _try_auto_enter() -> void:
 	## Museum walk-in (`aMsm_check_player`): no A press while open.
-	if scripted_input != null or _busy or _door_entering or _menu_open() or _net.is_active():
+	if scripted_input != null or _busy or doors.door_entering or _menu_open() or net.is_active():
 		return
 	var hit: InteractionQuery = _resolve_interact()
 	if hit == null or hit.host == null or hit.action == null:
@@ -1984,7 +1243,7 @@ func _run_interact(hit: InteractionQuery) -> void:
 	if Fishing.take_cut_swing():
 		tail = 0.0
 	await _finish_action(maxf(0.0, tail - spent))
-	await _play_reel()
+	await fishing.play_reel()
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()
@@ -2020,11 +1279,11 @@ func _play_action(clip_name: StringName, effect_frame: float = -1.0) -> float:
 	if res0 != null:
 		res0.loop_mode = Animation.LOOP_NONE
 	_anim.speed_scale = 1.0
-	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_use_anim, false)
+	HeldTool.play(HeldTool.find_skeleton(_mesh), tools.tool_use_anim, false)
 	_anim.play(clip, 0.08)
 	if effect_frame < 0.0:
 		await _anim.animation_finished
-		HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)
+		HeldTool.play(HeldTool.find_skeleton(_mesh), tools.tool_hold_anim, true)
 		return 0.0
 	## The pipeline samples `cKF_ba_r_*` at 30 fps, so a decomp frame number is that frame
 	## over 30 in clip time. Timed rather than signalled: the tail has to be waited out after
@@ -2042,328 +1301,7 @@ func _finish_action(tail: float) -> void:
 	if tail <= 0.0:
 		return
 	await get_tree().create_timer(tail).timeout
-	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)
-
-
-## The rod's reel-in runs after the action, not through `player_anim`: the hook has to
-## resolve on the button frame or the bite window is spent animating. `Fishing` picks the
-## beats from what came up on the line.
-func _play_reel() -> void:
-	await _wait_for_line()
-	var beats: Array = Fishing.take_reel_beats()
-	for beat: Fishing.ReelBeat in beats:
-		## `FLY_ROD` → `NOTICE_ROD` → `PUTAWAY_ROD`: a fish is coming out of the water.
-		if beat.fish != null:
-			catch_showing = true
-	for beat: Fishing.ReelBeat in beats:
-		if beat.face_camera or beat.hold > 0.0:
-			await _play_show(beat)
-		else:
-			await _play_clip(beat.player_anim, beat.tool_anim, beat.start_frame)
-	catch_showing = false
-
-
-## Between A and the line coming up. `relax_rod` holds its pose until the bobber reports
-## `aUKI_STATUS_VIB`, and from then `vib_rod` loops `TURI_HIKI1` against the fish for as long
-## as the fight lasts (`FIGHT_FRAMES`); an empty line just waits out the bobber's 12 ticks.
-func _wait_for_line() -> void:
-	## The longest fight is 156 ticks; anything past this means nothing is ticking the line.
-	var budget: float = 5.0
-	var pulling: bool = false
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	while Fishing.is_reeling() and budget > 0.0:
-		if not pulling and Fishing.state() == Fishing.State.BITE:
-			pulling = true
-			var clip := _resolve_clip(String(Fishing.REEL_PULL))
-			if _anim != null and not clip.is_empty():
-				var res: Animation = _anim.get_animation(clip)
-				if res != null:
-					res.loop_mode = Animation.LOOP_LINEAR
-				_anim.speed_scale = 1.0
-				_anim.play(clip, 0.08)
-			HeldTool.play(skeleton, Fishing.ROD_PULL, true)
-		await get_tree().process_frame
-		budget -= get_process_delta_time()
-	if Fishing.is_reeling():
-		Fishing.cancel(Fishing.school_of(_make_context()))
-	if pulling:
-		HeldTool.play(skeleton, _tool_hold_anim, true)
-
-
-## `m_player_main_notice_rod`: hold the catch up and turn square-on to the camera, then put
-## the catch report on screen and keep the pose until the player dismisses it. The facing is
-## restored afterwards because the original threads it through `notice_rod` into
-## `putaway_rod`, which turns the player back the way they were fishing.
-func _play_show(beat: Fishing.ReelBeat) -> void:
-	if beat.player_anim == &"":
-		return
-	var entry_yaw: float = _motor.facing
-	var clip := _resolve_clip(String(beat.player_anim))
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	HeldTool.play(skeleton, beat.tool_anim, false)
-	HeldCatch.bind(skeleton, beat.fish)
-	var length: float = 0.0
-	if _anim != null and not clip.is_empty():
-		_anim.speed_scale = 1.0
-		_anim.play(clip, 0.08)
-		var res: Animation = _anim.get_animation(clip)
-		if res != null:
-			length = res.length
-	## `main_notice->timer` counts independently of the animation, so the report opens on
-	## frame 42 whether or not the clip has finished — `GET_T2` is longer than that and plays
-	## on underneath the text.
-	var held: float = 0.0
-	while held < beat.hold:
-		await get_tree().process_frame
-		var delta: float = get_process_delta_time()
-		held += delta
-		if beat.face_camera:
-			## `Player_actor_Movement_Notice_rod`.
-			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Fishing.SHOW_YAW, delta)
-	if beat.catch_msg == 0:
-		## Nothing to hold for, so the pose still has to outlast its own clip: dropping
-		## `_busy` early would let the idle animation cut it off mid-hold.
-		if held < length:
-			await get_tree().create_timer(length - held).timeout
-	else:
-		await _report_catch(beat.catch_msg, beat.pockets_full, beat.fish, beat.completes_record)
-	_motor.facing = entry_yaw
-	await _play_putaway(skeleton)
-
-
-## `Player_actor_request_proc_index_fromNotice_rod` hands the dismissed report to
-## `putaway_rod`, which plays `PUTAWAY_T1` with a `GASAGOSO` rustle and then falls back to the
-## wait. The catch is in the pocket well before this: `setup_main_Notice_rod` banks it with
-## `Player_actor_putin_item` before the text ever opens, so this is the visible half of a move
-## already made — which is also why a full pocket takes the other branch and throws it back.
-func _play_putaway(skeleton: Skeleton3D) -> void:
-	## The rod has no putaway clip of its own — `tol_sao_1` carries six and none is one — so it
-	## holds the wait pose while the player's hands do the work.
-	HeldTool.play(skeleton, _tool_hold_anim, true)
-	var clip := _resolve_clip(String(Fishing.PUTAWAY))
-	if _anim == null or clip.is_empty():
-		HeldCatch.unbind(skeleton)
-		return
-	_anim.speed_scale = 1.0
-	_anim.play(clip, 0.08)
-	## Timed off the clip rather than waited on `animation_finished`, which never arrives if
-	## anything else drives the player in the meantime — and then the catch is never released.
-	var res: Animation = _anim.get_animation(clip)
-	if res != null and res.length > 0.0:
-		await get_tree().create_timer(res.length).timeout
-	## Released at the end, not the start: the fish rides the hand down and goes as the pose
-	## closes, rather than blinking out from under a hand still holding it up.
-	HeldCatch.unbind(skeleton)
-
-
-## `request_main_ready_net` from wait / walk / run, `request_main_slip_net` from a dash.
-func _begin_net() -> void:
-	var from_dash: bool = _motor.gait() == PlayerLocomotion.Gait.DASH
-	_net.begin(from_dash, _motor.speed, _motor.facing)
-	if from_dash:
-		_net_events()
-	_play_net_clip()
-
-
-## One physics frame of the net states: a `NetSwing` step, then its speed and facing handed
-## back to the mover. Returns the planar velocity for `move_and_slide`.
-func _tick_net(delta: float, input_dir: Vector2, wish: Vector3, stick: float, menu_open: bool) -> Vector3:
-	## `kind != getkind`: the net left the hand (inventory swap, scene change) → back to wait.
-	var tool: ToolData = _equipped_tool()
-	if tool == null or tool.field_verb != Interaction.SWING_NET:
-		_end_net()
-		return _motor.forward() * _motor.planar_speed
-	var a_held: bool = false
-	if scripted_input != null:
-		a_held = scripted_input.a_held
-	elif not menu_open:
-		a_held = Input.is_action_pressed("interact")
-	var has_dir: bool = not menu_open and stick > 0.0 and wish.length_squared() > 0.0001
-	var wish_yaw: float = atan2(wish.x, wish.z) if has_dir else _net.yaw
-	var axes: bool = has_dir and (scripted_input != null or _axes_active(input_dir))
-	if _net.is_active():
-		var probe: NetSwing.Probe = null
-		if _net.state == NetSwing.State.SWING:
-			probe = _net_probe()
-			_net_pos = probe.net_pos
-		_net.tick(
-			delta,
-			a_held,
-			stick if has_dir else 0.0,
-			wish_yaw,
-			axes,
-			probe,
-			_motor.over_speed_normalize(global_position),
-			_motor.wall_ratio
-		)
-		_net_events()
-		if _net.state_changed:
-			_play_net_clip()
-		_sync_net_clip()
-	_motor.speed = _net.speed
-	_motor.facing = _net.yaw
-	if _net.state == NetSwing.State.PULL:
-		_run_net_catch()
-	elif _net.state == NetSwing.State.NONE:
-		_end_net()
-	return _motor.forward() * _motor.planar_speed
-
-
-func _net_probe() -> NetSwing.Probe:
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	var hand := Transform3D.IDENTITY
-	var has_hand: bool = false
-	if skeleton != null:
-		var idx: int = skeleton.find_bone(HeldTool.HAND_BONE)
-		if idx >= 0:
-			hand = skeleton.global_transform * skeleton.get_bone_global_pose(idx)
-			has_hand = true
-	return Netting.probe(_make_context(), global_position, _net.yaw, hand, has_hand)
-
-
-func _net_events() -> void:
-	for event: StringName in _net.events:
-		match event:
-			&"furi":
-				PlayerSe.net_furi(self)
-			&"get":
-				PlayerSe.net_get(self)
-			&"hit":
-				PlayerSe.net_hit(self)
-			&"swing_fx":
-				FootstepEffects.swing_net(_bg(), global_position, _net.yaw)
-			&"splash":
-				var splash_bg: Array = _bg()
-				var head: Vector3 = _net_pos
-				if splash_bg.size() == 2:
-					var surface: float = FieldCollision.ground_y_at(splash_bg[0] as WorldData, splash_bg[1] as WorldGrid, head)
-					if FieldCollision.has_floor(surface):
-						head.y = surface
-				if FootstepEffects.net_splash(splash_bg, head, _net.yaw):
-					Audio.play_se(&"ami_hit_water", self)
-			&"slip":
-				var bg: Array = _bg()
-				Audio.play_se(SE_SLIP, self)
-				FootstepEffects.turn(bg, global_position, _net.yaw, _unit_attr(bg), 1)
-			&"stop_net":
-				## `mPlib_Check_StopNet`: insects near the net panic, fish bolt.
-				var ctx: InteractionContext = _make_context()
-				var field: BugField = Netting.field_of(ctx)
-				if field != null:
-					field.notify_stop_net(_net_pos)
-				var school: FishSchool = Fishing.school_of(ctx)
-				if school != null:
-					school.notify_tool_swing()
-				## `Player_actor_CheckAndSet_UZAI_forNpc`: a villager the net struck.
-				var npc := _net.hit_actor as Villager
-				if npc != null and is_instance_valid(npc):
-					npc.register_net_hit()
-
-
-func _play_net_clip() -> void:
-	_net.state_changed = false
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	var body: StringName = &""
-	var tool_clip: StringName = &""
-	var loop: bool = true
-	match _net.state:
-		NetSwing.State.READY:
-			body = NetSwing.ANIM_READY
-			tool_clip = NetSwing.TOOL_READY
-		NetSwing.State.READY_WALK:
-			body = NetSwing.ANIM_READY_WALK
-			tool_clip = NetSwing.TOOL_READY
-		NetSwing.State.SLIP:
-			body = NetSwing.ANIM_SLIP
-			tool_clip = NetSwing.TOOL_READY
-			loop = false
-		NetSwing.State.SWING:
-			body = NetSwing.ANIM_SWING
-			tool_clip = NetSwing.TOOL_SWING
-			loop = false
-		NetSwing.State.STOP:
-			## `setup_main_Stop_net`: the body holds its last pose; only the net moves.
-			HeldTool.play(skeleton, NetSwing.TOOL_STOP, false)
-			if _anim != null:
-				_anim.speed_scale = 0.0
-			return
-		_:
-			return
-	HeldTool.play(skeleton, tool_clip, loop)
-	if _anim == null:
-		return
-	var clip := _resolve_clip(String(body))
-	if clip.is_empty():
-		return
-	var res: Animation = _anim.get_animation(clip)
-	if res != null:
-		res.loop_mode = Animation.LOOP_LINEAR if loop else Animation.LOOP_NONE
-	_anim.speed_scale = _net.frame_speed / NetSwing.FRAME_SPEED
-	_anim.play(clip, MORPH_5)
-	_gait = PlayerLocomotion.Gait.WAIT
-
-
-## Keeps the clip on `NetSwing`'s keyframe: the swing can step back half a keyframe when the
-## net strikes something, which a free-running clip would not.
-func _sync_net_clip() -> void:
-	if _anim == null:
-		return
-	match _net.state:
-		NetSwing.State.READY_WALK:
-			_anim.speed_scale = _net.frame_speed / NetSwing.FRAME_SPEED
-		NetSwing.State.SWING:
-			_anim.speed_scale = 0.0
-			if _anim.current_animation != "":
-				_anim.seek((_net.frame - 1.0) / DecompTime.FRAME_HZ, true)
-
-
-## Back to the wait (`request_main_wait_all`).
-func _end_net() -> void:
-	_net.cancel()
-	_motor.reset(_net.yaw)
-	_motor.mode_changed = true
-	if _anim != null:
-		_anim.speed_scale = 1.0
-	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)
-
-
-## `pull_net` → `notice_net` → `putaway_net`, from the tick the swing came back full.
-func _run_net_catch() -> void:
-	var caught: Object = _net.caught
-	_net.cancel()
-	_busy = true
-	var ctx: InteractionContext = _make_context()
-	var field: BugField = Netting.field_of(ctx)
-	var catch_: Netting.Catch = Netting.begin_catch(caught)
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	## `PULL_NET` / `NOTICE_NET` / `PUTAWAY_NET`: showing off a bug.
-	catch_showing = catch_ != null
-	if catch_ != null:
-		var ui: DialogueOverlay = DialogueOverlay.find(get_tree())
-		await _net_pull(catch_, skeleton, ui)
-		## `setup_main_Notice_net`.
-		Netting.bank(catch_, Game.inventory)
-		_motor.facing = Netting.SHOW_YAW
-		_mesh.rotation.y = Netting.SHOW_YAW
-		await _net_notice(catch_, skeleton, ui)
-		## `settle_main_Notice_net`.
-		Audio.pop_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_COMPLETE if catch_.completes_record else Netting.FANFARE_CATCH))
-		if catch_.banked:
-			await _net_putaway(skeleton)
-		else:
-			## `release_creature`: let it go from the hand, then stand and watch it go.
-			var freed: BugActor = Netting.release(catch_, field, left_hand_global())
-			HeldCatch.unbind(skeleton)
-			await _watch_release(freed, skeleton)
-	_motor.reset(_motor.facing)
-	_motor.mode_changed = true
-	if _anim != null:
-		_anim.speed_scale = 1.0
-	HeldTool.play(skeleton, _tool_hold_anim, true)
-	catch_showing = false
-	_busy = false
-	_gait = PlayerLocomotion.Gait.WAIT
-	_update_focus()
+	HeldTool.play(HeldTool.find_skeleton(_mesh), tools.tool_hold_anim, true)
 
 
 ## `Player_actor_setup_main_Mail_jump`: `CONFIRM1` while sliding onto `to` and turning to
@@ -2504,34 +1442,6 @@ static func _release_target_pos(target: Variant) -> Variant:
 	return null
 
 
-## `main_Pull_net`: `GET_M1` plays out; the insect shows in the left hand past keyframe 15,
-## the player turns to the camera past 17, and the report opens 50 ticks in. The pull hands
-## on once the clip has ended and the report is up.
-func _net_pull(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay) -> void:
-	HeldTool.play(skeleton, Netting.TOOL_PULL, false)
-	_play_body_once(Netting.ANIM_PULL)
-	var elapsed: float = 0.0
-	var shown: bool = false
-	var reported: bool = false
-	while true:
-		await get_tree().physics_frame
-		var delta: float = get_physics_process_delta_time()
-		var frame: float = _keyframe_at(elapsed)
-		if frame > Netting.PULL_TURN_FRAME:
-			_motor.facing = PlayerLocomotion.ease_turn(_motor.facing, Netting.SHOW_YAW, delta)
-			_mesh.rotation.y = _motor.facing
-		if frame > Netting.PULL_TO_HAND_FRAME and not shown:
-			HeldCatch.bind_bug(skeleton, catch_.bug)
-			shown = true
-		elapsed += delta
-		if elapsed >= Netting.PULL_REPORT_SEC and not reported:
-			_net_say(ui, catch_.report_msg(), catch_.bug)
-			Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_CATCH))
-			reported = true
-		if _clip_ended(elapsed, Netting.PULL_FRAMES) and reported:
-			return
-
-
 ## `mPlayer_INDEX_DEMO_GET_GOLDEN_ITEM(2)`: the golden tool held up in the hand with
 ## `YATTA1`, turning to face the camera, and 42 frames in the player's own green report
 ## ("YESSSSS!!!!! I got the Golden Rod!", 0x306D–0x306F); then back to waiting with the
@@ -2581,7 +1491,7 @@ func get_golden_item(item_id: StringName) -> void:
 		return
 	_motor.reset(_motor.facing)
 	_motor.mode_changed = true
-	_bind_equipped_tool(not _tool_hidden())
+	tools.bind_equipped_tool(not tools.tool_hidden())
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()
@@ -2625,7 +1535,7 @@ func broken_axe() -> void:
 		return
 	_motor.reset(_motor.facing)
 	_motor.mode_changed = true
-	_bind_equipped_tool(not _tool_hidden())
+	tools.bind_equipped_tool(not tools.tool_hidden())
 	_busy = false
 	_gait = PlayerLocomotion.Gait.WAIT
 	_update_focus()
@@ -2642,55 +1552,6 @@ func _play_body_loop(clip_name: StringName) -> void:
 		res.loop_mode = Animation.LOOP_LINEAR
 	_anim.speed_scale = 1.0
 	_anim.play(clip, MORPH_5)
-
-
-## `main_Notice_net`'s message states: the collection-complete follow-up with `YATTA2`, or the
-## pockets-full swap question, then wait for the report to close.
-func _net_notice(catch_: Netting.Catch, skeleton: Skeleton3D, ui: DialogueOverlay) -> void:
-	await _net_wait_closed(ui)
-	if catch_.completes_record:
-		HeldTool.play(skeleton, Netting.TOOL_YATTA, false)
-		_play_body_once(Netting.ANIM_YATTA)
-		Audio.pop_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_CATCH))
-		Audio.push_fanfare(BgmCatalog.id_for_num(Netting.FANFARE_COMPLETE))
-		_net_say(ui, Netting.LAST_GET_CONTINUE_MSG, catch_.bug)
-		await _net_wait_closed(ui)
-	if not catch_.banked and catch_.bug != null:
-		## 0xA4D: "Swap" trades a pocket for it (`mSM_IV_OPEN_EXCHANGE`), else it goes.
-		if await _ask_swap(Netting.POCKETS_FULL_MSG) and await exchange_into_pockets(catch_.bug.id):
-			catch_.banked = true
-
-
-## `main_Putaway_net`: `PUTAWAY_M1` with `GASAGOSO`; the insect shrinks each tick until
-## keyframe 17 and is gone from the hand there.
-func _net_putaway(skeleton: Skeleton3D) -> void:
-	HeldTool.play(skeleton, Netting.TOOL_PUTAWAY, false)
-	_play_body_once(Netting.ANIM_PUTAWAY)
-	PlayerSe.gasagoso(self)
-	var elapsed: float = 0.0
-	## Shrinks until keyframe 17, then leaves the hand.
-	var shrink_sec: float = (Netting.PUTAWAY_GONE_FRAME - 1.0) / DecompTime.FRAME_HZ
-	while not _clip_ended(elapsed, Netting.PUTAWAY_FRAMES):
-		await get_tree().physics_frame
-		elapsed += get_physics_process_delta_time()
-		if elapsed < shrink_sec:
-			var held: Node3D = HeldCatch.held_creature(skeleton)
-			if held != null:
-				held.scale = Vector3.ONE * pow(Netting.PUTAWAY_SHRINK, elapsed * DecompTime.TICK_HZ)
-		elif HeldCatch.is_held(skeleton):
-			HeldCatch.unbind(skeleton)
-	HeldCatch.unbind(skeleton)
-
-
-## The keyframe (1-based, 30 a second) a clip started `elapsed` seconds ago is showing.
-static func _keyframe_at(elapsed: float) -> float:
-	return 1.0 + elapsed * DecompTime.FRAME_HZ
-
-
-## `CulcAnimation_Base2` end detection for a stop-mode clip: it reports the end one tick
-## after the clip reaches `end_frame`.
-static func _clip_ended(elapsed: float, end_frame: float) -> bool:
-	return elapsed >= (end_frame - 1.0) / DecompTime.FRAME_HZ + DecompTime.TICK_SEC - 0.0001
 
 
 func _play_body_once(clip_name: StringName) -> void:
@@ -2906,7 +1767,7 @@ func _dig_swap_or_bury(item_id: StringName, swap: bool, cell: Vector2i, ctx: Int
 ## (`MOSQUITO2`) turning to the camera under the "Yow!" report and the bee-stung jingle.
 ## Not while busy or in a demo (`Player_actor_Check_is_demo_mode`).
 func run_stung_mosquito() -> void:
-	if _busy or stung or in_pitfall or _door_entering or Game.title_demo_active:
+	if _busy or stung or in_pitfall or doors.door_entering or Game.title_demo_active:
 		return
 	stung = true
 	_busy = true
@@ -3255,7 +2116,7 @@ func _play_clip(clip_name: StringName, tool_clip: StringName, start_frame: float
 	if start_frame > 0.0:
 		_anim.seek(start_frame / DecompTime.FRAME_HZ, true)
 	await _anim.animation_finished
-	HeldTool.play(HeldTool.find_skeleton(_mesh), _tool_hold_anim, true)
+	HeldTool.play(HeldTool.find_skeleton(_mesh), tools.tool_hold_anim, true)
 
 
 func _try_load_generated_visual() -> void:
@@ -3279,14 +2140,14 @@ func _try_load_generated_visual() -> void:
 		_animator.bind(body_player)
 		_anim = _animator
 		## Carry overlay lands after the body's own mix (anim1 on the part-table joints).
-		if not _anim.mixer_applied.is_connected(_apply_carry_pose):
-			_anim.mixer_applied.connect(_apply_carry_pose)
+		if not _anim.mixer_applied.is_connected(tools.apply_carry_pose):
+			_anim.mixer_applied.connect(tools.apply_carry_pose)
 		_anim.add_clip_events(_clip_marks(), DecompTime.FRAME_HZ)
 		if not _anim.clip_event.is_connected(_on_clip_event):
 			_anim.clip_event.connect(_on_clip_event)
 		## INDEX_DOOR / getoff: capture joint_0 XZ into AnimationMove, strip so the mesh stays on the body.
 		## INDEX_OUTDOOR GO_OUT keeps joint_0 (starts behind stand, ends at bind — no snap).
-		_capture_door_root_xz(body_player)
+		doors.capture_door_root_xz(body_player)
 		VisualAnimation.strip_named_joint_tracks(
 			body_player,
 			"joint_0",
@@ -3332,7 +2193,7 @@ func _tick_sunburn(delta: float) -> void:
 	Sunburn.rankdown_interval(Game.sunburn, today)
 	Sunburn.check_rankdown(Game.sunburn, today)
 	var exposed: bool = (
-		not Game.intro_station_active and Game.weather == &"clear" and _umbrella == null
+		not Game.intro_station_active and Game.weather == &"clear" and tools.umbrella == null
 	)
 	Sunburn.sun_tick(Game.sunburn, exposed, Clock.month, Clock.day, Clock.hour, delta)
 
@@ -3366,48 +2227,6 @@ func _apply_worn_cloth() -> void:
 	VisualCloth.apply_cloth(_mesh, index)
 
 
-func _capture_door_root_xz(anim_player: AnimationPlayer) -> void:
-	## Bake scaled joint_0 XZ deltas once before stripping (`base_model_translation` XZ = 0).
-	var scale: float = FieldCatalog.actor_uniform_scale()
-	for leaf: String in [ANIM_OPEN1, ANIM_INTO_S1, ANIM_OUTTRAIN1]:
-		if _door_root_xz.has(leaf):
-			continue
-		var clip_name := _resolve_clip_in(anim_player, leaf)
-		if clip_name.is_empty():
-			continue
-		var src: Animation = anim_player.get_animation(clip_name)
-		if src == null:
-			continue
-		var track_i: int = _find_joint0_position_track(src)
-		if track_i < 0:
-			continue
-		var baked := Animation.new()
-		baked.length = src.length
-		var out_track: int = baked.add_track(Animation.TYPE_POSITION_3D)
-		baked.track_set_path(out_track, NodePath("."))
-		var key_count: int = src.track_get_key_count(track_i)
-		for key_i: int in range(key_count):
-			var t: float = src.track_get_key_time(track_i, key_i)
-			var pos: Vector3 = src.track_get_key_value(track_i, key_i) as Vector3
-			## `scale * (cur_joint - base_model_translation)`; base XZ is 0, base Y 1000.
-			baked.position_track_insert_key(
-				out_track, t, Vector3(pos.x * scale, (pos.y - 1.0) * scale, pos.z * scale)
-			)
-		_door_root_xz[leaf] = baked
-
-
-func _find_joint0_position_track(animation: Animation) -> int:
-	var needle := ":joint_0"
-	for track_i: int in range(animation.get_track_count()):
-		var path := String(animation.track_get_path(track_i))
-		if not (path.contains(":joint_0:") or path.ends_with(needle)):
-			continue
-		var ttype: int = animation.track_get_type(track_i)
-		if ttype == Animation.TYPE_POSITION_3D or ttype == Animation.TYPE_VALUE:
-			return track_i
-	return -1
-
-
 func _resolve_clip_in(anim_player: AnimationPlayer, suffix: String) -> String:
 	if anim_player == null or suffix.is_empty():
 		return ""
@@ -3417,302 +2236,6 @@ func _resolve_clip_in(anim_player: AnimationPlayer, suffix: String) -> String:
 		if anim_name == suffix or anim_name.ends_with("/" + suffix) or anim_name.ends_with(suffix):
 			return anim_name
 	return ""
-
-
-func _on_equipment_changed(_item_id: StringName) -> void:
-	var tool: ToolData = _equipped_tool()
-	var to_umbrella: bool = tool != null and tool.is_umbrella()
-	## An umbrella opens out of / folds into the hand (`TAKEOUT_ITEM` / `PUTIN_ITEM` with
-	## `UMB_OPEN1` / `UMB_CLOSE1`) rather than just appearing.
-	if (to_umbrella or _umbrella != null) and not _tool_hidden() and not _busy and is_inside_tree() \
-			and _anim != null:
-		_swap_umbrella(to_umbrella)
-		return
-	_bind_equipped_tool(not _tool_hidden())
-	if not _busy:
-		_replay_gait_clip()
-
-
-## `setup_main_Putin_item` (umbrella: `UMB_CLOSE1`, the tool folds shut over 30 frames) then
-## `setup_main_Takeout_item` (umbrella: `UMB_OPEN1`, it opens from nothing).
-func _swap_umbrella(to_umbrella: bool) -> void:
-	var was_busy: bool = _busy
-	_busy = true
-	_tool_swap = true
-	if _umbrella != null:
-		await _fold_umbrella()
-	if to_umbrella:
-		await _open_umbrella()
-	else:
-		_bind_equipped_tool(not _tool_hidden())
-	_tool_swap = false
-	_busy = was_busy
-	if not _busy:
-		_replay_gait_clip()
-
-
-func _fold_umbrella() -> void:
-	if _umbrella == null:
-		return
-	_umbrella.set_action(HeldUmbrella.Action.PUTAWAY)
-	var length: float = _play_umbrella_clip("ply_1_umb_close1")
-	var waited: float = 0.0
-	while is_inside_tree() and waited < maxf(length, 1.0) and not _umbrella.is_closed():
-		await get_tree().process_frame
-		waited += get_process_delta_time()
-	_umbrella = null
-	HeldTool.unbind(HeldTool.find_skeleton(_mesh))
-
-
-func _open_umbrella() -> void:
-	_bind_equipped_tool(true, HeldUmbrella.Action.TAKEOUT_BEFORE)
-	var length: float = _play_umbrella_clip("ply_1_umb_open1")
-	if length > 0.0 and is_inside_tree():
-		await get_tree().create_timer(length).timeout
-
-
-## Full-body umbrella clip once (`cKF_FRAMECONTROL_STOP`); returns its length.
-func _play_umbrella_clip(leaf: String) -> float:
-	var clip := _resolve_clip(leaf)
-	if _anim == null or clip.is_empty():
-		return 0.0
-	_anim.speed_scale = 1.0
-	_anim.play(clip, 0.08)
-	var res: Animation = _anim.get_animation(clip)
-	return res.length if res != null else 0.0
-
-
-## `mPlib_check_player_open_umbrella`: an umbrella is out and fully open.
-func is_umbrella_open() -> bool:
-	return _umbrella != null and _umbrella.opened_fully and not _tool_hidden()
-
-
-## `Player_actor_InitAnimation_Base1` with a part table: while standing / walking / running the
-## carried item's clip drives the table's arm joints over the body clip. Every other state
-## (swings, digs, take-out, the umbrella's own clips) plays one clip on the whole body.
-func _apply_carry_pose() -> void:
-	if _carry == null or _tool_swap or _anim == null or not ToolCarry.rides_on(String(_anim.current_animation)):
-		return
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	if skeleton != null:
-		_carry.apply(skeleton)
-
-
-func _tool_hidden() -> bool:
-	return _tool_stowed or Game.is_indoors()
-
-
-## `Player_actor_Item_windmill_CulcRotationSpeed`: the pinwheel turns as fast as the player
-## carries it through the air (8 × GX moved a frame) plus the wind (10 × its power), easing
-## toward that like `add_calc`.
-var _pin_last: Vector3 = Vector3.INF
-var _pin_speed: float = 0.0
-
-
-## `Player_actor_Item_Movement_balloon_normal`, then the sway is put on the model hanging
-## off the hand.
-var _balloon: HeldBalloon = null
-var _balloon_hand: Vector3 = Vector3.INF
-
-
-func _tick_balloon(delta: float) -> void:
-	if _balloon == null or _tool_hidden():
-		return
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	var attach := skeleton.get_node_or_null(HeldTool.ATTACH_NAME) as Node3D if skeleton != null else null
-	if attach == null:
-		return
-	var hand: Vector3 = attach.global_position
-	if _balloon_hand == Vector3.INF:
-		_balloon_hand = hand
-	if delta > 0.0:
-		## The hand's speed, GX a 30 fps frame.
-		var frames: float = delta * DecompTime.FRAME_HZ
-		var moved: Vector3 = (hand - _balloon_hand) / FieldCatalog.GX_TO_METERS / frames
-		var walking: bool = _motor.gait() == PlayerLocomotion.Gait.WALK or _motor.gait() == PlayerLocomotion.Gait.RUN
-		var speed_gx: float = Vector2(velocity.x, velocity.z).length() / FieldCatalog.GX_TO_METERS / DecompTime.FRAME_HZ
-		_balloon.step(delta, moved, _motor.facing, walking, speed_gx)
-		_balloon_hand = hand
-	_balloon.apply(_motor.facing)
-
-
-func _tick_pinwheel(delta: float) -> void:
-	var tool: ToolData = _equipped_tool()
-	if tool == null or not tool.is_pinwheel() or _tool_hidden():
-		_pin_last = Vector3.INF
-		return
-	var anim: AnimationPlayer = HeldTool.animation_player(HeldTool.find_skeleton(_mesh))
-	if anim == null:
-		return
-	var frames: float = maxf(delta * DecompTime.FRAME_HZ, 0.0001)
-	var moved: float = 0.0 if _pin_last == Vector3.INF else global_position.distance_to(_pin_last)
-	_pin_last = global_position
-	var target: float = HeldPinwheel.target_speed(moved / FieldCatalog.GX_TO_METERS / frames, Wind.power())
-	_pin_speed = HeldPinwheel.ease_speed(_pin_speed, target, frames)
-	anim.speed_scale = _pin_speed
-
-
-func _bind_equipped_tool(
-	show_tool: bool, umbrella_start: HeldUmbrella.Action = HeldUmbrella.Action.OPEN_NOW
-) -> void:
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	HeldTool.unbind(skeleton)
-	_umbrella = null
-	_balloon = null
-	_carry = null
-	_hold_anim = &""
-	_tool_hold_anim = &""
-	_tool_use_anim = &""
-	var tool: ToolData = _equipped_tool()
-	if show_tool and tool != null and tool.visual_id != &"":
-		var attach: Node3D = HeldTool.bind(skeleton, tool.visual_id)
-		_carry = ToolCarry.build(_anim, skeleton, tool)
-		if tool.is_balloon() and attach != null and attach.get_child_count() > 0:
-			_balloon = HeldBalloon.new()
-			_balloon.setup(attach.get_child(0) as Node3D)
-			_balloon_hand = Vector3.INF
-		if tool.is_umbrella() and attach != null and attach.get_child_count() > 0:
-			_umbrella = HeldUmbrella.new()
-			_umbrella.setup(attach.get_child(0) as Node3D, umbrella_start)
-			HeldUmbrella.paint_canopy(attach.get_child(0) as Node3D, HeldUmbrella.design_texture(tool))
-		_hold_anim = tool.hold_anim
-		_tool_hold_anim = tool.visual_hold_anim
-		_tool_use_anim = tool.visual_use_anim
-		HeldTool.play(skeleton, _tool_hold_anim, true)
-
-
-## `Player_actor_CheckAndRequest_ItemInOut`: a door request while a tool is out is swapped for
-## `PUTIN_ITEM` (`PUTAWAY1` forward, the tool shrinking into the hand over 18 ticks), and the
-## door sequence only starts once it ends. The equipped item itself is untouched.
-func put_away_tool_for_door() -> void:
-	if _tool_hidden() or _equipped_tool() == null:
-		return
-	var was_busy: bool = _busy
-	_busy = true
-	_tool_swap = true
-	if not _door_entering:
-		_door_clear_busy = false
-	if _umbrella != null:
-		## `setup_main_Putin_item`: an umbrella folds (`UMB_CLOSE1`) instead of `PUTAWAY1`.
-		await _fold_umbrella()
-		_tool_stowed = true
-		_bind_equipped_tool(false)
-		_tool_swap = false
-		_busy = was_busy
-		return
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	var length: float = _play_tool_swap_clip(false)
-	var total: float = TOOL_MORPH_SEC + length + PUTIN_STOP_TICKS * DecompTime.TICK_SEC
-	var elapsed: float = 0.0
-	while elapsed < total:
-		await get_tree().process_frame
-		elapsed += get_process_delta_time()
-		if elapsed < TOOL_MORPH_SEC and _anim != null:
-			_anim.seek(0.0, true)
-		var scale_t: float = clampf(elapsed / (PUTIN_SCALE_TICKS * DecompTime.TICK_SEC), 0.0, 1.0)
-		HeldTool.set_scale(skeleton, 1.0 - scale_t)
-	_tool_stowed = true
-	_bind_equipped_tool(false)
-	_tool_swap = false
-	## The door sequence (`begin_door_enter`) takes over from here and locks movement itself.
-	_busy = was_busy
-
-
-## Outdoor spawn from a door: `OUTDOOR` has `ABLE_ITEM_NONE`, so nothing is in hand until
-## `take_out_tool`.
-func stow_tool_for_door_exit() -> void:
-	if _equipped_tool() == null:
-		return
-	_tool_stowed = true
-	_bind_equipped_tool(false)
-
-
-## `RETURN_OUTDOOR` (3 ticks) → `TAKEOUT_ITEM` → `RETURN_OUTDOOR2` (3 ticks). Take-out plays
-## `PUTAWAY1` reversed with nothing in hand, then from tick 36 blends to the tool's hold pose
-## while it grows 0 → 1, ending at tick 54.
-func take_out_tool() -> void:
-	if not _tool_stowed:
-		return
-	var was_busy: bool = _busy
-	_busy = true
-	_tool_swap = true
-	if not _door_entering:
-		_door_clear_busy = false
-	await get_tree().create_timer(RETURN_OUTDOOR_TICKS * DecompTime.TICK_SEC).timeout
-	_tool_stowed = false
-	var held: ToolData = _equipped_tool()
-	if held != null and held.is_umbrella() and not Game.is_indoors():
-		## `setup_main_Takeout_item`: an umbrella opens out (`UMB_OPEN1`), no grow-in.
-		await _open_umbrella()
-		await get_tree().create_timer(RETURN_OUTDOOR_TICKS * DecompTime.TICK_SEC).timeout
-		_tool_swap = false
-		_busy = was_busy
-		if not _busy:
-			_replay_gait_clip()
-		return
-	_bind_equipped_tool(not Game.is_indoors())
-	var skeleton: Skeleton3D = HeldTool.find_skeleton(_mesh)
-	HeldTool.set_scale(skeleton, 0.0)
-	var length: float = _play_tool_swap_clip(true)
-	var grow_start: float = TAKEOUT_SCALE_START_TICKS * DecompTime.TICK_SEC
-	var end: float = TAKEOUT_END_TICKS * DecompTime.TICK_SEC
-	var elapsed: float = 0.0
-	var posed: bool = false
-	while elapsed < end:
-		await get_tree().process_frame
-		elapsed += get_process_delta_time()
-		if not posed and elapsed < TOOL_MORPH_SEC and _anim != null:
-			## Reverse clip: the morph holds its *last* frame.
-			_anim.seek(length, true)
-		if elapsed < grow_start:
-			continue
-		if not posed:
-			posed = true
-			_blend_to_hold_pose()
-		elif elapsed < grow_start + TOOL_MORPH_SEC and _anim != null:
-			_anim.seek(0.0, true)
-		HeldTool.set_scale(skeleton, clampf((elapsed - grow_start) / (end - grow_start), 0.0, 1.0))
-	HeldTool.set_scale(skeleton, 1.0)
-	await get_tree().create_timer(RETURN_OUTDOOR_TICKS * DecompTime.TICK_SEC).timeout
-	_tool_swap = false
-	_busy = was_busy
-	if not _busy and (_anim == null or not _anim.is_playing()):
-		_replay_gait_clip()
-
-
-## Plays `PUTAWAY1` (reversed for take-out) plus its GASAGOSO rustle; returns its length.
-func _play_tool_swap_clip(reverse: bool) -> float:
-	var clip := _resolve_clip(ANIM_PUTAWAY1)
-	if _anim == null or clip.is_empty():
-		return 0.0
-	_anim.speed_scale = 1.0
-	if reverse:
-		_anim.play_backwards(clip, TOOL_MORPH_SEC)
-	else:
-		_anim.play(clip, TOOL_MORPH_SEC)
-	if reverse:
-		## The take-out rustles as it starts, which is the clip's end.
-		PlayerSe.play_opening(self, StringName(clip))
-	var res: Animation = _anim.get_animation(clip)
-	return res.length if res != null else 0.0
-
-
-func _blend_to_hold_pose() -> void:
-	if _anim == null:
-		return
-	var clip := _resolve_clip(ANIM_WAIT)
-	if clip.is_empty():
-		return
-	_ensure_loop(clip)
-	_gait = PlayerLocomotion.Gait.WAIT
-	_anim.speed_scale = 1.0
-	_anim.play(clip, TOOL_MORPH_SEC)
-
-
-func _equipped_tool() -> ToolData:
-	if Game.inventory == null or Game.inventory.equipment_id == &"":
-		return null
-	return ItemCatalog.get_item(Game.inventory.equipment_id) as ToolData
 
 
 func _replay_gait_clip() -> void:

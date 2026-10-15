@@ -1,3 +1,4 @@
+class_name LetterWriterOverlay
 extends CanvasLayer
 
 ## The letter composition board (`m_board_ovl.c` WRITE mode) over the pad keyboard
@@ -18,6 +19,8 @@ extends CanvasLayer
 ##
 ## Keys: typing goes straight onto the paper; Enter starts a new line (the C-stick's
 ## down at the end of the text); the rest is `KeyboardPanel`'s mapping.
+
+const GROUP := &"letter_writer_ui"
 
 signal closed
 
@@ -70,10 +73,15 @@ var _choosing_address: bool = false
 var _slide: MenuSlide = null
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> LetterWriterOverlay:
+	return tree.get_first_node_in_group(GROUP) as LetterWriterOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 27
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_to_group("letter_writer_ui")
+	add_to_group(GROUP)
 	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_marks.draw.connect(_draw_marks)
@@ -142,13 +150,13 @@ func open_letter(paper_type: int) -> void:
 		return
 	open({"name": ""}, paper_type)
 	_choosing_address = true
-	var address: Node = get_tree().get_first_node_in_group("letter_address_ui")
-	if address == null or not address.has_method("open"):
+	var address: LetterAddressOverlay = LetterAddressOverlay.find(get_tree())
+	if address == null:
 		_choosing_address = false
 		return
 	## `mBD_set_point`: `ofs_x = header width before the name + 36 - 96`.
 	var anchor := _board.text_width(_board.header) + 36.0 - 96.0
-	address.call("open", _on_address_picked, anchor)
+	address.open(_on_address_picked, anchor)
 
 
 func _on_address_picked(recipient: Dictionary) -> void:

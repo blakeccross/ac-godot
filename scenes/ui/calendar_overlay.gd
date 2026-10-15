@@ -10,6 +10,8 @@ extends CanvasLayer
 ## Tortimer a red one (`CalendarBook`); the event plate names the picked day's event, with a
 ## fish badge when the player took part.
 
+const GROUP := &"calendar_ui"
+
 signal closed
 
 const TEX_DIR := "res://assets/generated/ui/menu/%s.png"
@@ -71,9 +73,14 @@ var _side: int = 0
 @onready var _canvas: Control = $Root/Screen/Canvas
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> CalendarOverlay:
+	return tree.get_first_node_in_group(GROUP) as CalendarOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 21
-	add_to_group("calendar_ui")
+	add_to_group(GROUP)
 	_root.visible = false
 	_font = LetterBoard.load_font()
 	_canvas.draw.connect(_draw_canvas)
@@ -318,15 +325,14 @@ func _move(step: int) -> void:
 
 ## A on a day: the diary opens on its month (`mSM_OVL_DIARY`); the calendar waits.
 func _open_diary() -> void:
-	var diary: Node = get_tree().get_first_node_in_group("diary_ui") if get_tree() != null else null
-	if diary == null or not diary.has_method("open"):
+	var diary: DiaryOverlay = DiaryOverlay.find(get_tree())
+	if diary == null:
 		return
 	Audio.play_se(&"5f")
 	mode = Mode.DIARY
 	_root.visible = false
-	diary.call("open", month_at(Clock.year, Clock.month, month_off).y, owner_slot)
-	if diary.has_signal("closed"):
-		diary.connect("closed", _on_diary_closed, CONNECT_ONE_SHOT)
+	diary.open(month_at(Clock.year, Clock.month, month_off).y, owner_slot)
+	diary.closed.connect(_on_diary_closed, CONNECT_ONE_SHOT)
 
 
 func _on_diary_closed() -> void:

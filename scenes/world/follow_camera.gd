@@ -1,8 +1,11 @@
+class_name FollowCamera
 extends Camera3D
 
 ## 3/4 follow camera. `Init_Camera2`: 20° FOV, distance 620, equal Y/Z (~45°).
 ## 620 original units × (2 m / 40) = 31 m.
 ## Talk uses `CAMERA2_PROCESS_TALK` framing (closer, flatter pitch).
+
+const GROUP := &"follow_camera"
 
 const ORIG_DISTANCE := 620.0
 const FOLLOW_DISTANCE := ORIG_DISTANCE * PlayerLocomotion.UNIT_METERS
@@ -39,8 +42,13 @@ var _acre_pitch: float = 0.0
 var _acre_wade: Dictionary = {}
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> FollowCamera:
+	return tree.get_first_node_in_group(GROUP) as FollowCamera if tree != null else null
+
+
 func _ready() -> void:
-	add_to_group("follow_camera")
+	add_to_group(GROUP)
 	## After CharacterBody3D `move_and_slide` so look-at matches this tick.
 	process_physics_priority = 100
 	fov = 20.0

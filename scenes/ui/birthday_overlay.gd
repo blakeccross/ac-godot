@@ -8,6 +8,8 @@ extends CanvasLayer
 ## the month's end goes back to 1, below 1 to the month's last day, and a month change
 ## pulls the day into range. Closing saves the date (`Private.birthday`).
 
+const GROUP := &"birthday_ui"
+
 signal closed
 
 const TEX_DIR := "res://assets/generated/ui/menu/%s.png"
@@ -39,10 +41,15 @@ var _slide: MenuSlide = null
 @onready var _canvas: Control = $Root/Screen/Canvas
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> BirthdayOverlay:
+	return tree.get_first_node_in_group(GROUP) as BirthdayOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 28
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_to_group("birthday_ui")
+	add_to_group(GROUP)
 	_root.visible = false
 	_font = LetterBoard.load_font()
 	var names: Array[String] = ["br_win"]

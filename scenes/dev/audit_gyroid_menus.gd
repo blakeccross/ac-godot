@@ -38,7 +38,7 @@ func _run() -> void:
 	for _i in 10:
 		await get_tree().physics_frame
 	var ui := DialogueOverlay.find(get_tree())
-	var inv_ui: Node = get_tree().get_first_node_in_group("inventory_ui")
+	var inv_ui: InventoryOverlay = InventoryOverlay.find(get_tree())
 	var house: House = Game.interiors.player_house()
 
 	## 1. Store an item.
@@ -46,8 +46,8 @@ func _run() -> void:
 	await _to_choice(ui)
 	await _key(&"ui_down")
 	await _key(&"interact")
-	await _wait_for(func() -> bool: return bool(inv_ui.call("is_open")))
-	print("MENU inventory open=", inv_ui.call("is_open"))
+	await _wait_for(func() -> bool: return bool(inv_ui.is_open()))
+	print("MENU inventory open=", inv_ui.is_open())
 	## Hand the apple (pocket 0) over the first gyroid slot: pick it, move right ×5.
 	await _key(&"inventory_quick_grab")
 	for _i in Inventory.COLUMNS:
@@ -78,8 +78,8 @@ func _run() -> void:
 	await _key(&"interact")        ## About the door
 	await _to_choice(ui)
 	await _key(&"interact")        ## Post pattern
-	var list_ui: Node = get_tree().get_first_node_in_group("design_list_ui")
-	await _wait_for(func() -> bool: return bool(list_ui.call("is_open")))
+	var list_ui: DesignListOverlay = DesignListOverlay.find(get_tree())
+	await _wait_for(func() -> bool: return bool(list_ui.is_open()))
 	await _shot("menu_design_list")
 	## The design list reads raw keys.
 	await _raw_key(KEY_RIGHT)
@@ -95,8 +95,8 @@ func _run() -> void:
 	await _to_choice(ui)
 	await _key(&"ui_down")
 	await _key(&"interact")        ## Set message
-	var writer: Node = get_tree().get_first_node_in_group("letter_writer_ui")
-	await _wait_for(func() -> bool: return bool(writer.call("is_open")))
+	var writer: LetterWriterOverlay = LetterWriterOverlay.find(get_tree())
+	await _wait_for(func() -> bool: return bool(writer.is_open()))
 	await _shot("menu_message")
 	for c in "Hi":
 		var ev := InputEventKey.new()

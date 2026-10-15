@@ -111,9 +111,9 @@ func _talk() -> void:
 
 
 func _open_designs() -> void:
-	var list: Node = get_tree().get_first_node_in_group("design_list_ui")
-	if list != null and list.has_method("open"):
-		list.call("open", "pick_trade", Callable(self, "_on_design_picked"))
+	var list: DesignListOverlay = DesignListOverlay.find(get_tree())
+	if list != null:
+		list.open("pick_trade", Callable(self, "_on_design_picked"))
 
 
 func _on_design_picked(slot: int) -> void:

@@ -1,3 +1,4 @@
+class_name LetterAddressOverlay
 extends CanvasLayer
 
 ## Address book (`m_address_ovl.c`), opened over the letter board once the paper is on
@@ -15,6 +16,8 @@ extends CanvasLayer
 ## `open(on_pick, anchor_x)`: `on_pick(recipient: Dictionary)` receives the pick (or {}
 ## when cancelled); `anchor_x` is the board's `ofs_x` (header width before the name
 ## - 60). Without a callback, picking opens the paper picker like the old flow.
+
+const GROUP := &"letter_address_ui"
 
 const MAX_ENTRIES := 8
 const TITLE := "Choose an addressee."
@@ -50,10 +53,15 @@ var _tex: Dictionary = {}
 @onready var _screen: Control = $Root/Screen
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> LetterAddressOverlay:
+	return tree.get_first_node_in_group(GROUP) as LetterAddressOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 28
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_to_group("letter_address_ui")
+	add_to_group(GROUP)
 	_root.visible = false
 	_screen.draw.connect(_draw_book)
 	_root.resized.connect(_fit_screen)
@@ -174,9 +182,9 @@ func _confirm() -> void:
 	if _on_pick.is_valid():
 		_on_pick.call(recipient)
 		return
-	var picker: Node = get_tree().get_first_node_in_group("letter_paper_picker_ui")
-	if picker != null and picker.has_method("open"):
-		picker.call("open", recipient)
+	var picker: LetterPaperPickerOverlay = LetterPaperPickerOverlay.find(get_tree())
+	if picker != null:
+		picker.open(recipient)
 
 
 func _draw_book() -> void:

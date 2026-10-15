@@ -264,14 +264,14 @@ func _run_menu(menu: String, house: House) -> void:
 		return
 	match menu:
 		GyroidTalk.MENU_ENTRUST, GyroidTalk.MENU_TAKE:
-			var inv_ui: Node = tree.get_first_node_in_group("inventory_ui")
-			if inv_ui != null and inv_ui.has_method("open_gyroid"):
-				inv_ui.call("open_gyroid", house, menu == GyroidTalk.MENU_ENTRUST)
-				if bool(inv_ui.call("is_open")):
+			var inv_ui: InventoryOverlay = InventoryOverlay.find(tree)
+			if inv_ui != null:
+				inv_ui.open_gyroid(house, menu == GyroidTalk.MENU_ENTRUST)
+				if bool(inv_ui.is_open()):
 					await inv_ui.closed
 		GyroidTalk.MENU_MESSAGE:
-			var writer: Node = tree.get_first_node_in_group("letter_writer_ui")
-			if writer != null and writer.has_method("open_board"):
+			var writer: LetterWriterOverlay = LetterWriterOverlay.find(tree)
+			if writer != null:
 				writer.call(
 					"open_board",
 					GyroidStore.message(house),
@@ -279,15 +279,15 @@ func _run_menu(menu: String, house: House) -> void:
 					GyroidStore.MESSAGE_LEN,
 					func(text: String) -> void: house.gyroid_message = text
 				)
-				if bool(writer.call("is_open")):
+				if bool(writer.is_open()):
 					await writer.closed
 		GyroidTalk.MENU_DOOR:
 			## `mNW_OPEN_DESIGN` → `door_original = mNW_get_image_no(slot)`, SE 0x461.
-			var list_ui: Node = tree.get_first_node_in_group("design_list_ui")
-			if list_ui != null and list_ui.has_method("open") and Game.designs != null:
+			var list_ui: DesignListOverlay = DesignListOverlay.find(tree)
+			if list_ui != null and Game.designs != null:
 				var picked: Array[int] = [-1]
-				list_ui.call("open", "pick_trade", func(slot: int) -> void: picked[0] = slot)
-				if bool(list_ui.call("is_open")):
+				list_ui.open("pick_trade", func(slot: int) -> void: picked[0] = slot)
+				if bool(list_ui.is_open()):
 					await list_ui.closed
 					## The list emits `closed` before it hands over the pick.
 					await tree.process_frame
@@ -324,14 +324,14 @@ func _save_walk() -> void:
 			var stage: int = GyroidTalk.door_stage(house_idx, offset)
 			var goal_gx: Vector2 = GyroidTalk.door_goal_gx(house_idx, stage)
 			var goal := global_position + Vector3(goal_gx.x * gx, 0.0, goal_gx.y * gx)
-			player.begin_demo_walk(goal, speed, arrive)
+			player.doors.begin_demo_walk(goal, speed, arrive)
 			var near: float = Vector2(player.global_position.x - goal.x, player.global_position.z - goal.z).length()
 			if stage == 1 and near < arrive * 2.0:
 				break
 			await get_tree().physics_frame
 			frames += get_physics_process_delta_time() * DecompTime.TICK_HZ
 		if is_instance_valid(player):
-			player.end_demo_walk()
+			player.doors.end_demo_walk()
 	var house: Node3D = _house_node() as Node3D
 	if house != null:
 		await StructureDoor.play_enter(house)
@@ -339,7 +339,7 @@ func _save_walk() -> void:
 	## `return_to_title` saves where the player stands, which is now halfway through the
 	## door. Continue from the porch instead, facing out (`rewrite_out_data`'s stand).
 	if house != null and is_instance_valid(player):
-		player.end_door_enter()
+		player.doors.end_door_enter()
 		var stand: Vector3 = StructureDoor.exit_stand(house)
 		player.global_position = stand
 		player.set_facing(StructureDoor.leave_yaw(house, stand))
@@ -359,7 +359,7 @@ func _house_node() -> Node:
 func _player() -> Node3D:
 	if get_tree() == null:
 		return null
-	return get_tree().get_first_node_in_group("player") as Node3D
+	return Player.find(get_tree())
 
 
 func _attach_model() -> void:

@@ -14,6 +14,8 @@ extends CanvasLayer
 ## right). A (Space / Enter) opens "Order / Quit" on a name or turns to a tab's page;
 ## B (Esc / Backspace) backs out. Closing emits `closed` with the ordered item, or &"".
 
+const GROUP := &"catalog_ui"
+
 signal closed(item_id: StringName)
 
 const TEX_DIR := "res://assets/generated/ui/catalog/%s.png"
@@ -108,10 +110,15 @@ var _slide: MenuSlide = null
 @onready var _camera: Camera3D = $Root/PreviewViewport/World/Camera
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> CatalogOverlay:
+	return tree.get_first_node_in_group(GROUP) as CatalogOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 21
 	add_to_group("shop_ui")
-	add_to_group("catalog_ui")
+	add_to_group(GROUP)
 	_root.visible = false
 	_hand_node.visible = false
 	_font = LetterBoard.load_font()

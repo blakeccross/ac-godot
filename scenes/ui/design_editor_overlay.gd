@@ -1,3 +1,4 @@
+class_name DesignEditorOverlay
 extends CanvasLayer
 
 ## The pixel design editor (`m_design_ovl.c` / `mSM_OVL_DESIGN`). Edits one of the
@@ -20,6 +21,8 @@ extends CanvasLayer
 ##
 ## Controls are keyboard + mouse; the decomp C-stick / D-pad / C-button bindings map to
 ## arrows, `[` `]`, `Tab`, `Z`, `,` `.` and number keys.
+
+const GROUP := &"design_ui"
 
 signal closed
 
@@ -132,10 +135,15 @@ var _tex_cache: Dictionary = {}
 var _slide: MenuSlide = null
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> DesignEditorOverlay:
+	return tree.get_first_node_in_group(GROUP) as DesignEditorOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 26
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_to_group("design_ui")
+	add_to_group(GROUP)
 	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_chrome.draw.connect(_draw_chrome)

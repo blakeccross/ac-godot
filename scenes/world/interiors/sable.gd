@@ -119,7 +119,7 @@ func _advance_story() -> void:
 	_story_index += 1
 	var speaker := NeedleworkTalk.story_speaker(now)
 	var mabel: Node3D = _mabel()
-	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
+	var player: Node3D = Player.find(get_tree())
 	if speaker == "Mabel" and mabel != null:
 		if mabel.has_method("chime_in"):
 			mabel.call("chime_in", self)

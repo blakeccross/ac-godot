@@ -527,7 +527,7 @@ func _begin_get_off() -> void:
 	_getoff_t = 0.0
 	_getoff_from_gx = _player_gx()
 	if _player is Player:
-		(_player as Player).begin_demo_getoff_train(_player.global_position, RIDE_YAW)
+		(_player as Player).doors.begin_demo_getoff_train(_player.global_position, RIDE_YAW)
 	else:
 		_play_clip(_player_anim, "ply_1_outtrain1", false)
 
@@ -536,7 +536,7 @@ func _begin_get_off() -> void:
 ## the Porter's current action has ended, he force-talks (`0x07DD`).
 func _get_off(delta: float) -> void:
 	if _player is Player:
-		if (_player as Player).is_door_entering():
+		if (_player as Player).doors.is_door_entering():
 			return
 	else:
 		_getoff_t = minf(1.0, _getoff_t + delta / GETOFF_DURATION)
@@ -737,7 +737,7 @@ func _demo_walk_to(goal_gx: Vector3, speed_gx: float) -> void:
 		return
 	var gx: float = FieldCatalog.GX_TO_METERS
 	var goal: Vector3 = _gx_to_world(goal_gx)
-	(_player as Player).begin_demo_walk(
+	(_player as Player).doors.begin_demo_walk(
 		goal, speed_gx * DecompTime.FRAME_HZ * gx, demo_walk_arrive_gx(speed_gx) * gx
 	)
 
@@ -748,7 +748,7 @@ static func demo_walk_arrive_gx(speed_gx: float) -> float:
 
 func _end_demo_walk() -> void:
 	if _player is Player:
-		(_player as Player).end_demo_walk()
+		(_player as Player).doors.end_demo_walk()
 
 
 ## `mPlib_request_main_demo_wait_type1` / `wait_type3` mid-walk: stop dead, idle.

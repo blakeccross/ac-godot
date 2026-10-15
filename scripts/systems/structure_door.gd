@@ -76,7 +76,7 @@ static func play_enter(host: Node) -> void:
 	var player := _find_player(host)
 	## `Player_actor_CheckAndRequest_ItemInOut`: the door request waits on `PUTIN_ITEM`.
 	if player != null and is_instance_valid(player):
-		await player.put_away_tool_for_door()
+		await player.tools.put_away_tool_for_door()
 	var visual_id: StringName = _visual_id(root) if root != null else &""
 	var look: Vector3 = approach_position(root) if root != null else Vector3.ZERO
 	if root != null:
@@ -84,7 +84,7 @@ static func play_enter(host: Node) -> void:
 	if root != null and player != null:
 		var target: Vector3 = look
 		var yaw: float = enter_yaw(root, player.global_position)
-		player.begin_door_enter(target, yaw, uses_walk_in(visual_id))
+		player.doors.begin_door_enter(target, yaw, uses_walk_in(visual_id))
 	var played: bool = await _play(host, true)
 	## Museum / police have no door cKF. Decomp `goto_other_scene`s as soon as the
 	## door label matches — wipe overlaps INTO_S1. Waiting the full clip walks the
@@ -96,7 +96,7 @@ static func play_enter(host: Node) -> void:
 			if tree != null:
 				await tree.create_timer(APPROACH_SEC).timeout
 		else:
-			await player.await_door_enter()
+			await player.doors.await_door_enter()
 	## House / post / tailor door clips (50 frames, ~1.67 s) finish before the
 	## player's own OPEN1 walk (65 frames, ~2.17 s) reaches the approach stand.
 	## Ending `_door_entering` mid-walk hands the player back to normal collision
@@ -121,7 +121,7 @@ static func play_enter(host: Node) -> void:
 static func end_enter(host: Node) -> void:
 	var player := _find_player(host)
 	if player != null and is_instance_valid(player):
-		player.end_door_enter()
+		player.doors.end_door_enter()
 	var tree: SceneTree = host.get_tree() if host != null else null
 	if tree != null:
 		_DoorCamera.end(tree)
@@ -142,7 +142,7 @@ static func play_emerge(host: Node) -> void:
 		## Body stays on `rewrite_out_data` stand; GO_OUT joint_0 carries the mesh.
 		## `door_data.extra_data`: 2 (houses / post / Able) = door-close only,
 		## 3 (Nook / police / …) = full walk-out. Same split as the enter walk-in.
-		player.begin_door_leave(stand, stand, out_yaw, uses_walk_in(visual_id))
+		player.doors.begin_door_leave(stand, stand, out_yaw, uses_walk_in(visual_id))
 	## `Camera2_request_main_door` (OUTDOOR, flags&1 == 0, morph 0): the door camera
 	## centres on the *player* actor, not the enter approach stand — so it stays put
 	## (use the player's real Y; `exit_stand` Y is only the structure base).
@@ -154,9 +154,9 @@ static func play_emerge(host: Node) -> void:
 	var played: bool = await _play(host, false)
 	## Museum / police have no leave cKF — hold on player GO_OUT.
 	if not played and player != null and is_instance_valid(player):
-		await player.await_door_enter()
+		await player.doors.await_door_enter()
 	if player != null and is_instance_valid(player):
-		player.end_door_leave()
+		player.doors.end_door_leave()
 	_DoorCamera.end(host.get_tree() if host != null else null)
 	## `Player_actor_request_proc_index_fromOutdoor`: a debt paid / the chores done → cheer.
 	if player != null and is_instance_valid(player) and Game.complete_payment != &"" and player.has_method("run_complete_payment"):
@@ -172,9 +172,9 @@ static func play_arrive(player: Player) -> void:
 	var yaw: float = player.facing_yaw()
 	## AnimationMove target is the spawn stand; `into_s1` joint_0 carries the body past the sensor.
 	var from: Vector3 = player.global_position
-	player.begin_door_enter(from, yaw, true)
-	await player.await_door_enter()
-	player.end_door_enter()
+	player.doors.begin_door_enter(from, yaw, true)
+	await player.doors.await_door_enter()
+	player.doors.end_door_enter()
 
 
 static func play_leave(host: Node) -> void:

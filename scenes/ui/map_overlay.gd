@@ -1,3 +1,4 @@
+class_name MapOverlay
 extends CanvasLayer
 
 ## Town map submenu (`m_map_ovl.c`), drawn like `mMP_set_dl` in 320x240 screen units from
@@ -9,6 +10,8 @@ extends CanvasLayer
 ##
 ## ←↑→↓ (C-stick) move the cursor one acre, easing there (`add_calc` 0.7, 19, 1.8) before
 ## the next move; Escape / the map key close it. Opens from the top, closes to the top.
+
+const GROUP := &"map_ui"
 
 const TEX_DIR := "res://assets/generated/ui/map_screen/%s.png"
 const SCREEN_BOUNDS := Rect2(-160.0, 120.0, 320.0, 240.0)
@@ -84,9 +87,14 @@ var _slide: MenuSlide = null
 @onready var _canvas: Control = $Root/Screen/Canvas
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> MapOverlay:
+	return tree.get_first_node_in_group(GROUP) as MapOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 21
-	add_to_group("map_ui")
+	add_to_group(GROUP)
 	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_font = LetterBoard.load_font()

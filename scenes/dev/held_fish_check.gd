@@ -127,7 +127,7 @@ func _shoot_on_player(id: StringName) -> void:
 	outcome.fish = FishCatalog.get_fish(id)
 	outcome.catch_msg = outcome.fish.catch_msg
 	var beats: Array[Fishing.ReelBeat] = Fishing.reel_beats(outcome)
-	player._play_show(beats[beats.size() - 1])
+	player.fishing._play_show(beats[beats.size() - 1])
 	for _i in 8:
 		await get_tree().process_frame
 

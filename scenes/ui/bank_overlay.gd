@@ -7,6 +7,8 @@ extends CanvasLayer
 ## the way cash is moving. Keys: ←/→ digit, ↑ deposit, ↓ withdraw, Space / Enter on OK or
 ## Escape (START) settles, Backspace (B) leaves unchanged. Rules live in `BankTerminal`.
 
+const GROUP := &"bank_ui"
+
 signal closed(committed: bool)
 
 const TEX_DIR := "res://assets/generated/ui/menu/%s.png"
@@ -31,9 +33,14 @@ var _slide: MenuSlide = null
 @onready var _canvas: Control = $Root/Screen/Canvas
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> BankOverlay:
+	return tree.get_first_node_in_group(GROUP) as BankOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 21
-	add_to_group("bank_ui")
+	add_to_group(GROUP)
 	add_to_group("shop_ui")
 	_root.visible = false
 	_font = LetterBoard.load_font()

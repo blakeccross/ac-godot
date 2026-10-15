@@ -355,6 +355,6 @@ static func _mail_pick_conversation(
 static func _refresh_mail_piles() -> void:
 	if Game == null or Game.get_tree() == null:
 		return
-	var interior: Node = Game.get_tree().get_first_node_in_group("interior")
-	if interior != null and interior.has_method("refresh_public_set"):
-		interior.call("refresh_public_set")
+	var interior: Interior = Interior.find(Game.get_tree())
+	if interior != null:
+		interior.refresh_public_set()

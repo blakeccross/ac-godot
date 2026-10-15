@@ -1,3 +1,4 @@
+class_name Footprints
 extends MultiMeshInstance3D
 
 ## Footprint pool for the acre. One MultiMesh, one draw call, ring buffer of prints —
@@ -7,6 +8,8 @@ extends MultiMeshInstance3D
 ## Rules and geometry live in `FootprintMarks`. This node only writes instance
 ## transforms and advances the shader clock.
 
+const GROUP := &"footprints"
+
 const SHADER := preload("res://shaders/footprint.gdshader")
 const POOL_SIZE := 96
 
@@ -15,8 +18,13 @@ var _next: int = 0
 var _now: float = 0.0
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> Footprints:
+	return tree.get_first_node_in_group(GROUP) as Footprints if tree != null else null
+
+
 func _ready() -> void:
-	add_to_group("footprints")
+	add_to_group(GROUP)
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var plane := PlaneMesh.new()
 	plane.size = FootprintMarks.MARK_SIZE

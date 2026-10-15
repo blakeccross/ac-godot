@@ -1,3 +1,4 @@
+class_name NameEntryOverlay
 extends CanvasLayer
 
 ## Text entry window (`m_ledit_ovl.c`) over the pad keyboard (`KeyboardPanel`). Opened
@@ -11,6 +12,8 @@ extends CanvasLayer
 ##
 ## `open(initial, callback, kind)` — callback receives the final name string (unchanged
 ## `initial` if cancelled).
+
+const GROUP := &"name_entry_ui"
 
 signal closed
 
@@ -49,10 +52,15 @@ var _font: Font = null
 var _slide: MenuSlide = null
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> NameEntryOverlay:
+	return tree.get_first_node_in_group(GROUP) as NameEntryOverlay if tree != null else null
+
+
 func _ready() -> void:
 	layer = 27
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	add_to_group("name_entry_ui")
+	add_to_group(GROUP)
 	_slide = MenuSlide.attach(self)
 	_root.visible = false
 	_text_view.draw.connect(_draw_text)

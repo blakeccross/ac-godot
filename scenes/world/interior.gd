@@ -1,7 +1,11 @@
+class_name Interior
 extends Node3D
 
 ## Indoor field. Same `WorldGrid` as outdoor; layout comes from `IndoorSession`.
 ## Prefer authored room scenes from `InteriorCatalog.scene_path` when present.
+
+
+const GROUP := &"interior"
 
 const PLAYER_SCENE := preload("res://scenes/actors/player.tscn")
 const VILLAGER_SCENE := preload("res://scenes/actors/villager.tscn")
@@ -19,8 +23,14 @@ var _shop_bgm: StringName = &""
 @onready var _world_env: WorldEnvironment = $WorldEnvironment
 
 
+
+## The room the player is in, or null outdoors.
+static func find(tree: SceneTree) -> Interior:
+	return tree.get_first_node_in_group(GROUP) as Interior if tree != null else null
+
+
 func _ready() -> void:
-	add_to_group("interior")
+	add_to_group(GROUP)
 	Game.notify_world_ready()
 	var room: Room = Game.interiors.room(Game.current_room_id)
 	if room == null:
@@ -89,7 +99,7 @@ func _physics_process(_delta: float) -> void:
 	var player := Player.find(get_tree())
 	if player == null or not (player is Node3D):
 		return
-	if player.is_busy() or player.is_door_entering():
+	if player.is_busy() or player.doors.is_door_entering():
 		return
 	var cell: Vector2i = grid.world_to_cell((player as Node3D).global_position)
 	if not session.room.is_exit_cell(cell):

@@ -170,7 +170,7 @@ func test_show_off_pose_waits_for_the_catch_report() -> void:
 		Fishing.SHOW_HOLD_SECONDS,
 		FishCatalog.get_fish(&"crucian_carp").catch_msg
 	)
-	player._play_show(beat)
+	player.fishing._play_show(beat)
 
 	var opened: bool = false
 	for _i in 180:
@@ -416,7 +416,7 @@ func test_player_turns_to_the_camera_for_the_show_off_pose() -> void:
 	var beat := Fishing.ReelBeat.new(
 		Fishing.REEL_SHOW, Fishing.ROD_LAND, true, Fishing.SHOW_HOLD_SECONDS
 	)
-	player._play_show(beat)
+	player.fishing._play_show(beat)
 
 	var away: float = absf(angle_difference(entry, Fishing.SHOW_YAW))
 	var turned: bool = false
@@ -717,7 +717,7 @@ func test_the_pose_holds_the_fish_until_the_report_closes() -> void:
 		0,
 		FishCatalog.get_fish(&"crucian_carp")
 	)
-	player._play_show(beat)
+	player.fishing._play_show(beat)
 
 	var held: bool = false
 	for _i in 60:
@@ -764,7 +764,7 @@ func test_the_catch_is_put_away_once_the_report_is_done() -> void:
 		0,
 		FishCatalog.get_fish(&"crucian_carp")
 	)
-	player._play_show(beat)
+	player.fishing._play_show(beat)
 
 	## The fish rides the hand down rather than blinking out as the pose breaks, so it should
 	## still be in hand on the frame the putaway starts.
@@ -864,7 +864,7 @@ func test_the_player_cannot_walk_off_and_turns_to_the_bobber() -> void:
 	var moved: Vector3 = player.global_position - start
 	assert_float(Vector2(moved.x, moved.z).length()).is_less(0.01)
 	## First tick is clamped to 13.73°; it ends up looking at the bobber (yaw +90°).
-	assert_float(absf(yaws[0])).is_less_equal(Player.UKI_TURN_MAX * 2.0 + 0.0001)
+	assert_float(absf(yaws[0])).is_less_equal(PlayerFishing.UKI_TURN_MAX * 2.0 + 0.0001)
 	assert_float(yaws[-1]).is_equal_approx(PI * 0.5, 0.02)
 	Fishing.reset()
 

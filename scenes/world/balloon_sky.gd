@@ -8,6 +8,8 @@ extends Node3D
 ## resets the chance to a tenth of what it missed by. A balloon that got away near the player
 ## (`Balloon_look_up`) adds 25% to the next roll. Also drives the town's wind.
 
+const GROUP := &"balloon_sky"
+
 const BALLOON_SCRIPT := preload("res://scenes/world/balloon.gd")
 const START_CHANCE := 0.05
 const LOOK_UP_BONUS := 0.25
@@ -23,8 +25,13 @@ var _rng := RandomNumberGenerator.new()
 var balloon: Balloon
 
 
+## The one in `tree`, or null.
+static func find(tree: SceneTree) -> BalloonSky:
+	return tree.get_first_node_in_group(GROUP) as BalloonSky if tree != null else null
+
+
 func _ready() -> void:
-	add_to_group("balloon_sky")
+	add_to_group(GROUP)
 	_rng.randomize()
 
 

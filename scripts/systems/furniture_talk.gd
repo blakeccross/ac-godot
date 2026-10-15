@@ -67,9 +67,8 @@ static func _storage_put_in(entry: FurniturePlacement, inv: Inventory) -> void:
 static func _close_furniture(ctx: InteractionContext, data: FurnitureData) -> void:
 	if data.is_music_player() or ctx == null or ctx.actor == null:
 		return
-	var actor: Node = ctx.actor
-	if actor.has_method("play_storage_close"):
-		await actor.call("play_storage_close", int(data.storage_type))
+	if ctx.actor is Player:
+		await (ctx.actor as Player).furniture.play_storage_close(int(data.storage_type))
 
 
 ## --- music player -----------------------------------------------------------------------
@@ -144,9 +143,9 @@ static func _music_box(session: IndoorSession, entry: FurniturePlacement, house:
 
 
 static func refresh_room_bgm() -> void:
-	var host: Node = Game.get_tree().get_first_node_in_group("interior") if Game.get_tree() != null else null
-	if host != null and host.has_method("refresh_bgm"):
-		host.call("refresh_bgm")
+	var host: Interior = Interior.find(Game.get_tree())
+	if host != null:
+		host.refresh_bgm()
 
 
 ## --- plumbing ---------------------------------------------------------------------------

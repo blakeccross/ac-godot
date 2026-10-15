@@ -341,6 +341,31 @@ This is pure moves. Do it in one PR per feature using the editor's move, so UIDs
     - The lighthouse arm, the Christmas lights, the weathervane and the balloons: they follow wind, game state or a clock shared across the town, and already run on seconds since Phase 2.
   - **Asset pipeline fix:** `texbank.py` called a removed helper, so every cKF character and most interiors failed to convert. With that fixed, the suite runs against full assets: 1912 cases, with 8 tests failing on `main` as well.
 
+- **Phase 5 in part.** Components and typed calls are done. `Game`'s state and the `Interactable` component are not; see the notes on each.
+  - **Player components:** `player.gd` went from 3783 lines to 2326.
+    - `Doors` takes door walks, the indoor exit, the train and demo walks.
+    - `Furniture` takes grip, push, pull, turn and tap, sitting and lying, and B pick-up.
+    - `Tools` takes the held item: binding it, swapping it round doors, the umbrella, the balloon and the pinwheel. The carry pose is part of it.
+    - `Net` takes the net swing and its catch, `Fishing` the rod after a cast, and `Snowball` rolling a snowball.
+    - Talk-facing stays on `Player`: talk cameras call it on villagers and the player alike.
+  - **Villager components:** `villager.gd` went from 2206 lines to 1310.
+    - `Mover` takes steering and acre travel, and `Conversation` a villager in talk (`VillagerTalk` was already taken by the dialogue logic).
+    - `Greeter` takes road greetings and `Brain` schedule and goal picking.
+    - Reactions, moods and the pitfall stay on `Villager`.
+  - **How components work:**
+    - Each is a child node declared in the actor's `.tscn` and held as a node export, so it is set before any child's `_ready`.
+    - It finds its actor on first use, so scenes built in tests without a tree work. The rule is in [conventions.md](conventions.md#components).
+    - Outside code goes through the component (`player.doors.*`, `player.tools.*`).
+  - **Typed calls:**
+    - `Interior` and the 21 one-per-scene overlays and props have a class name and `find(tree)`. Their callers call methods and connect signals directly instead of `has_method` / `.call("…")` / `connect("closed", …)`.
+    - The player group lookups outside villagers are `Player.find`.
+    - A greeting reaches its partner as a typed `Villager`, and `FurnitureTalk` and the blob shadow check the player by type.
+    - What remains (about 120 `has_method` and 160 `call`) is mostly the duck typing `conventions.md` keeps: interaction hosts, NPC hand-overs, talk speakers and villager player checks.
+  - **Not done: `Game` state as resources.**
+    - The `*Book` classes already carry each system's state and save themselves.
+    - `Game`'s remaining loose fields (identity, field flags, event bookkeeping) are read in about 1,000 places across scenes, systems and tests, and moving them changes every one for little gain until saving moves off JSON. The plan keeps JSON, so they stay for now.
+  - **Not done: the `Interactable` component.** Most of the 38 hosts work out their verbs from context (time, state, what the player holds), so a static `verbs` export would not cover them. Hosts are already found through the `InteractVolume` each scene authors, so `get_interactions` / `interact` stays the protocol.
+
 Lessons from the weather particles:
 
 - **Stay inside what the Compatibility renderer does.** Headless captures run there, and some players may too. It silently skips these:
