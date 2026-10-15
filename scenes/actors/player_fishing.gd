@@ -14,11 +14,13 @@ const UKI_TURN_MIN := 0.274658203125 * PI / 180.0
 ## a bug or fish — villagers nearby clap (`aNPC_check_clap`).
 var catch_showing: bool = false
 
-var _player: Player
-
-
-func _enter_tree() -> void:
-	_player = get_parent() as Player
+## The Player this belongs to (the parent), found on first use: tests build scenes
+## without adding them to the tree.
+var _player: Player:
+	get:
+		if _player == null:
+			_player = get_parent() as Player
+		return _player
 
 
 ## `Player_actor_SetPlayerAngle_forUki`: `add_calc_short_angle2(1−√½, 13.73°, 0.27°)` a

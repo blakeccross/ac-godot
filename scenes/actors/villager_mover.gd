@@ -14,11 +14,13 @@ const RELOCATE_GIVEUP := 14.0
 ## Time spent in one acre while still relocating toward `_goal_block`.
 var _relocate_time: float = 0.0
 
-var _villager: Villager
-
-
-func _enter_tree() -> void:
-	_villager = get_parent() as Villager
+## The Villager this belongs to (the parent), found on first use: tests build scenes
+## without adding them to the tree.
+var _villager: Villager:
+	get:
+		if _villager == null:
+			_villager = get_parent() as Villager
+		return _villager
 
 
 func steer_ai() -> void:

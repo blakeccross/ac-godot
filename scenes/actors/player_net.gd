@@ -13,11 +13,13 @@ var net_swing := NetSwing.new()
 ## `player->net_pos` as of the last swing step.
 var _net_pos: Vector3 = Vector3.ZERO
 
-var _player: Player
-
-
-func _enter_tree() -> void:
-	_player = get_parent() as Player
+## The Player this belongs to (the parent), found on first use: tests build scenes
+## without adding them to the tree.
+var _player: Player:
+	get:
+		if _player == null:
+			_player = get_parent() as Player
+		return _player
 
 
 ## A swing is under way (ready, walk, swing or stop).

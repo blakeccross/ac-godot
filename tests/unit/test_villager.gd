@@ -1541,12 +1541,12 @@ func test_talk_line_reaction_plays_clip_and_glyph() -> void:
 	await get_tree().process_frame
 	if villager.animation_player() == null:
 		return
-	villager.cue_manpu("muka1")
+	villager.conversation.cue_manpu("muka1")
 	assert_str(villager._manpu_clip).contains("muka1")
 	assert_str(String(villager._feel._kind)).is_equal("muka")
 	## the body tree plays it, not the model's own AnimationPlayer
 	await get_tree().process_frame
 	assert_str(villager.animation_player().current_animation).contains("muka1")
 	assert_bool(villager.animation_player().is_playing()).is_true()
-	villager.cue_manpu("reset")
+	villager.conversation.cue_manpu("reset")
 	assert_str(villager._manpu_clip).is_empty()

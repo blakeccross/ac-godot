@@ -25,11 +25,13 @@ var _grip_move: Dictionary = {}
 var _seat: FurnitureSeat = FurnitureSeat.new()
 var rest: Dictionary = {}
 
-var _player: Player
-
-
-func _enter_tree() -> void:
-	_player = get_parent() as Player
+## The Player this belongs to (the parent), found on first use: tests build scenes
+## without adding them to the tree.
+var _player: Player:
+	get:
+		if _player == null:
+			_player = get_parent() as Player
+		return _player
 
 
 ## `aMR_ManageMoveBottun`: A against a piece in your own house grips it. Anything else —

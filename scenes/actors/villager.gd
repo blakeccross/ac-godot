@@ -109,7 +109,6 @@ var _uzai_mood_left: float = 0.0
 var _talk_look: Vector3 = Vector3.ZERO
 var _face: NpcFace = NpcFace.new()
 var _head_look: NpcHeadLook = NpcHeadLook.new()
-var _face_mood: int = -1
 var _pit: Pit = Pit.NONE
 var _pit_cell := Vector2i(-1, -1)
 var _pit_center := Vector3.ZERO
@@ -164,6 +163,7 @@ var event_away: bool = false
 @onready var _anim: AnimationPlayer = $Animation
 @onready var _animator: BodyAnimator = $Animator
 @export var mover: VillagerMover
+@export var conversation: VillagerConversation
 
 
 func _ready() -> void:
@@ -207,7 +207,7 @@ func _ready() -> void:
 			_feel.set_head_lift(FEEL_HEAD_LIFT)
 		var skeletons: Array[Node] = vis.find_children("*", "Skeleton3D", true, false)
 		_feel.bind_feel_joint(skeletons[0] as Skeleton3D if not skeletons.is_empty() else null)
-		_sync_face_mood(true)
+		conversation.sync_face_mood(true)
 		_apply_design_wear()
 		if Game != null and Game.designs != null and not Game.designs.changed.is_connected(_apply_design_wear):
 			Game.designs.changed.connect(_apply_design_wear)
@@ -232,7 +232,7 @@ func _sync_from_clock() -> void:
 func _exit_tree() -> void:
 	if data != null:
 		VillagerWalk.release(data.id)
-	_unbind_talk()
+	conversation.unbind_talk()
 	if Clock.time_changed.is_connected(_sync_from_clock):
 		Clock.time_changed.disconnect(_sync_from_clock)
 	if ai.action_changed.is_connected(_on_action_changed):
@@ -352,7 +352,7 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 	else:
 		_talk_look = global_position
 	## First-job delivery / open handoff before normal greetings.
-	if await _try_first_job_talk(ctx):
+	if await conversation.try_first_job_talk(ctx):
 		return true
 	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
 	talk_ctx.guest = guest
@@ -361,17 +361,17 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		if ui.is_open():
 			ui.close()
 		ai.begin_talk()
-		_bind_talk_end(ui)
+		conversation.bind_talk_end(ui)
 		## Decomp `Camera2_request_main_talk(play, player, npc)` — speaker = player.
 		var player: Node3D = ctx.actor as Node3D if ctx != null else null
 		if player != null:
 			TalkCamera.begin(player, self, get_tree())
 		_talk_manager = VillagerTalk.manager(data, state, talk_ctx)
-		_sing_town_tune(talk_ctx)
+		conversation.sing_town_tune(talk_ctx)
 		ui.play(VillagerTalk.conversation(data, state, talk_ctx), talk_ctx, state, Callable(), _talk_manager)
 		var runner: DialogueRunner = ui.runner()
 		if runner != null and _talk_manager != null:
-			runner.action_requested.connect(_on_talk_action.bind(ui, player))
+			runner.action_requested.connect(conversation.on_talk_action.bind(ui, player))
 	else:
 		_face_towards(_talk_look)
 		var line: String = VillagerTalk.greeting(data, state)
@@ -379,64 +379,8 @@ func interact(action: Interaction, ctx: InteractionContext) -> bool:
 		Game.post_notice("%s: %s" % [who, line])
 	if state != null:
 		state.record_talk(VillagerTalk.day_key())
-	_note_first_job_talk()
+	conversation.note_first_job_talk()
 	return true
-
-
-func _try_first_job_talk(ctx: InteractionContext) -> bool:
-	if Game == null or Game.first_job == null or not Game.first_job.is_active():
-		return false
-	if data == null or data.id == &"":
-		return false
-	var job: FirstJob = Game.first_job
-	var who: String = data.display_name if data else "Villager"
-	var player: Node3D = ctx.actor as Node3D if ctx != null else null
-	if job.can_deliver_to(data.id, Game.inventory):
-		var delivered_id: StringName = job.item_id
-		if player != null:
-			await HandOver.player_gives_to_npc(player, self, delivered_id)
-		if not job.try_deliver_to(data.id, Game.inventory):
-			return false
-		if Game.relationships != null:
-			Game.relationships.record_gift(
-				data.id,
-				delivered_id if delivered_id != &"" else &"delivery",
-				VillagerTalk.day_key()
-			)
-		_play_first_job_line(&"nook_job_deliver_ok", who, player)
-		Game.set_interact_prompt("Talk to Tom Nook")
-		if state != null:
-			state.record_talk(VillagerTalk.day_key())
-		return true
-	## The "ask around for work" chore finishes in the quest talk ("Need any help?",
-	## `aQMgr_talk_quest_finish_firstjob_open_quest`).
-	return false
-
-
-func _note_first_job_talk() -> void:
-	if Game == null or Game.first_job == null or data == null:
-		return
-	Game.first_job.note_villager_talked(data.id)
-	if Game.first_job.kind == FirstJob.Kind.INTRODUCTIONS and Game.first_job.chore_finished():
-		Game.set_interact_prompt("Talk to Tom Nook")
-
-
-func _play_first_job_line(conv_id: StringName, who: String, player: Node3D) -> void:
-	var talk_data: DialogueData = DialogueCatalog.conversation(conv_id)
-	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
-	talk_ctx.speaker_name = who
-	var ui := DialogueOverlay.find(get_tree())
-	if ui != null and talk_data != null:
-		if ui.is_open():
-			ui.close()
-		ai.begin_talk()
-		_bind_talk_end(ui)
-		if player != null:
-			TalkCamera.begin(player, self, get_tree())
-		_sing_town_tune(talk_ctx)
-		ui.play(talk_data, talk_ctx, state)
-	else:
-		Game.post_notice("%s: Thanks!" % who)
 
 
 func _physics_process(delta: float) -> void:
@@ -449,7 +393,7 @@ func _physics_process(delta: float) -> void:
 	ai.sync(current_activity(), _hints())
 	var present: bool = ai.is_present()
 	_apply_presence(present)
-	_tick_face(delta)
+	conversation.tick_face(delta)
 	_tick_head_look(delta)
 	if not present:
 		velocity = Vector3.ZERO
@@ -464,7 +408,7 @@ func _physics_process(delta: float) -> void:
 			velocity = Vector3.ZERO
 			ai.step(delta)
 			return
-		_hold_talk(delta)
+		conversation.hold_talk(delta)
 		return
 	if _pit != Pit.NONE:
 		_tick_pit(delta)
@@ -552,10 +496,10 @@ func _physics_process(delta: float) -> void:
 func _tick_indoor(delta: float) -> void:
 	## Indoor resident: always present, stand, head-look, talkable (`ac_npc2` wander wait).
 	_apply_presence(true)
-	_tick_face(delta)
+	conversation.tick_face(delta)
 	_tick_head_look(delta)
 	if ai.is_talking():
-		_hold_talk(delta)
+		conversation.hold_talk(delta)
 		return
 	velocity = Vector3.ZERO
 	if not is_on_floor():
@@ -672,157 +616,6 @@ func _apply_presence(present: bool) -> void:
 		_agent.avoidance_enabled = false
 	if not present and data != null:
 		VillagerWalk.release(data.id)
-
-
-func _hold_talk(delta: float) -> void:
-	var on_bg: bool = _snap_to_bg()
-	if on_bg:
-		velocity.y = 0.0
-		motion_mode = MOTION_MODE_FLOATING
-	elif not is_on_floor():
-		velocity.y -= _gravity * delta
-	else:
-		velocity.y = 0.0
-	velocity.x = 0.0
-	velocity.z = 0.0
-	_refresh_talk_look()
-	_motor.turn_toward(delta, global_position, _talk_look)
-	if _model != null:
-		_model.rotation.y = _motor.facing
-	if _agent != null and mover.nav_ready():
-		_agent.target_position = global_position
-	move_and_slide()
-	if on_bg:
-		_snap_to_bg()
-	_update_animation(delta, Vector3.ZERO)
-	ai.step(delta)
-
-
-func _tick_face(delta: float) -> void:
-	_sync_face_mood(false)
-	_face.tick(delta, _dialogue_uttering())
-
-
-func _sync_face_mood(force: bool) -> void:
-	_ensure_bound()
-	var mood: int = int(state.mood) if state != null else int(VillagerState.Mood.NORMAL)
-	if not force and mood == _face_mood:
-		return
-	_face_mood = mood
-	_face.set_from_mood(mood)
-
-
-func _dialogue_uttering() -> bool:
-	if not ai.is_talking() or get_tree() == null:
-		return false
-	return DialogueOverlay.uttering_in(get_tree())
-
-
-## `mMld_ActorMakeMelody` as a talk starts: the town tune in this villager's voice.
-func _sing_town_tune(talk_ctx: DialogueContext) -> void:
-	if Game != null and talk_ctx != null:
-		Audio.play_melody(Game.town_tune, DialogueVoice.melody_voice(talk_ctx.sound_spec))
-
-
-func _bind_talk_end(ui: DialogueOverlay) -> void:
-	if ui == null:
-		return
-	if ui.closed.is_connected(_on_talk_closed):
-		ui.closed.disconnect(_on_talk_closed)
-	ui.closed.connect(_on_talk_closed, CONNECT_ONE_SHOT)
-	if not ui.event_fired.is_connected(_on_talk_event):
-		ui.event_fired.connect(_on_talk_event)
-
-
-func _unbind_talk() -> void:
-	if get_tree() != null:
-		var ui := DialogueOverlay.find(get_tree())
-		if ui != null and ui.closed.is_connected(_on_talk_closed):
-			ui.closed.disconnect(_on_talk_closed)
-		if ui != null and ui.event_fired.is_connected(_on_talk_event):
-			ui.event_fired.disconnect(_on_talk_event)
-	_end_manpu()
-	if ai.is_talking():
-		TalkCamera.end(get_tree())
-		ai.end_talk()
-
-
-## The quest talk wants the pockets opened or an item passed across
-## (`aQMgr_TALK_SUB_STATE_HAND_ITEM_WAIT`, `aQMgr_talk_common_set_npc_takeout_*`).
-func _on_talk_action(action: Dictionary, ui: DialogueOverlay, player: Node3D) -> void:
-	await TalkActions.handle(action, ui, self, player)
-
-
-func _on_talk_event(event: Dictionary) -> void:
-	if not ai.is_talking() or str(event.get("op", "")) != "manpu":
-		return
-	cue_manpu(str(event.get("name", event.get("code", ""))))
-
-
-## `aNPC_check_manpu_demoCode`: a talk line's reaction clip, its face and its feel glyph.
-func cue_manpu(key: String) -> void:
-	if NpcManpu.is_reset(key):
-		_end_manpu()
-		_play_clip(ANIM_WAIT, true)
-		return
-	_face.set_emote(NpcManpu.emote_for(key), NpcManpu.mouth_hold_for(key))
-	var clip: String = NpcManpu.clip_for(key)
-	if _resolve_clip(clip).is_empty():
-		return
-	if _feel != null and not _manpu_clip.is_empty():
-		_feel.release()
-	_play_clip(clip, false)
-	_manpu_clip = _clip
-	_manpu_follow = ""
-	if _feel != null:
-		var cam := get_viewport().get_camera_3d()
-		if cam != null:
-			var to_cam: Vector3 = cam.global_position - global_position
-			_feel.faces_camera = Vector3(sin(_motor.facing), 0.0, cos(_motor.facing)).dot(to_cam) >= 0.0
-		_feel.npc_yaw = _motor.facing
-		_feel.play_for_manpu(key)
-
-
-func _end_manpu() -> void:
-	_manpu_clip = ""
-	_manpu_follow = ""
-	if _feel != null:
-		_feel.release()
-	_sync_face_mood(true)
-
-
-func _on_talk_closed() -> void:
-	if _fortune_calling:
-		_fortune_calling = false
-		_fortune_cool = VillagerFortune.CALL_COOLDOWN_SEC
-	TalkCamera.end(get_tree())
-	ai.end_talk()
-	if get_tree() != null:
-		var ui := DialogueOverlay.find(get_tree())
-		if ui != null and ui.event_fired.is_connected(_on_talk_event):
-			ui.event_fired.disconnect(_on_talk_event)
-	_end_manpu()
-	## `aNPC_think_pitfall_main_proc`: a talk in the pit ends with `aNPC_ACT_REVIVE`.
-	if _pit == Pit.STRUGGLE:
-		_begin_revive()
-	## `Common_Set(npc_chg_cloth, …)`: a shirt handed over in the talk goes on.
-	if state != null and _cloth_key() != _drawn_cloth:
-		_apply_design_wear()
-		_drawn_cloth = _cloth_key()
-	if Game != null and Game.first_job != null and Game.first_job.kind == FirstJob.Kind.OPEN and Game.first_job.chore_finished():
-		Game.set_interact_prompt("Talk to Tom Nook")
-	## `mNpc_TalkEndMove` (from `aQMgr_move_talk` when the talk demo ends).
-	if _talk_manager != null and Game != null and data != null:
-		Game.npc_talk_info.talk_end(_talk_manager.slot, _talk_manager.looks)
-	_talk_manager = null
-
-
-func _refresh_talk_look() -> void:
-	if get_tree() == null:
-		return
-	var player: Node = get_tree().get_first_node_in_group("player")
-	if player is Node3D:
-		_talk_look = (player as Node3D).global_position
 
 
 func _face_towards(world_pos: Vector3) -> void:
@@ -1138,11 +931,11 @@ func _play_annoyance_scold() -> void:
 	if ui.is_open():
 		ui.close()
 	ai.begin_talk()
-	_bind_talk_end(ui)
+	conversation.bind_talk_end(ui)
 	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
 	if player != null:
 		TalkCamera.begin(player, self, get_tree())
-	_sing_town_tune(talk_ctx)
+	conversation.sing_town_tune(talk_ctx)
 	ui.play(talk_data, talk_ctx, state)
 
 
@@ -1162,7 +955,7 @@ func take_soccer_ball() -> bool:
 	Game.quests.next_soccer(slot, Game.player_name)
 	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
 	ai.begin_talk()
-	_bind_talk_end(ui)
+	conversation.bind_talk_end(ui)
 	var player: Node3D = get_tree().get_first_node_in_group("player") as Node3D
 	if player != null:
 		TalkCamera.begin(player, self, get_tree())
@@ -1225,7 +1018,7 @@ func _fortune_call(player: Node3D, looks: int) -> void:
 	_fortune_cool = VillagerFortune.CALL_COOLDOWN_SEC
 	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
 	ai.begin_talk()
-	_bind_talk_end(ui)
+	conversation.bind_talk_end(ui)
 	TalkCamera.begin(player, self, get_tree())
 	ui.play(talk_data, talk_ctx, state)
 

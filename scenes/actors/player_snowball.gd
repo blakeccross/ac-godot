@@ -7,11 +7,13 @@ extends Node
 
 const ANIM_PUSH_YUKI1 := "ply_1_push_yuki1"
 
-var _player: Player
-
-
-func _enter_tree() -> void:
-	_player = get_parent() as Player
+## The Player this belongs to (the parent), found on first use: tests build scenes
+## without adding them to the tree.
+var _player: Player:
+	get:
+		if _player == null:
+			_player = get_parent() as Player
+		return _player
 
 
 ## `mPlib_request_main_push_snowball_type1`: the ball leads, the player keeps behind it.

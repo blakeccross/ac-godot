@@ -48,11 +48,13 @@ var _pin_speed: float = 0.0
 var _balloon: HeldBalloon = null
 var _balloon_hand: Vector3 = Vector3.INF
 
-var _player: Player
-
-
-func _enter_tree() -> void:
-	_player = get_parent() as Player
+## The Player this belongs to (the parent), found on first use: tests build scenes
+## without adding them to the tree.
+var _player: Player:
+	get:
+		if _player == null:
+			_player = get_parent() as Player
+		return _player
 
 
 func on_equipment_changed(_item_id: StringName) -> void:

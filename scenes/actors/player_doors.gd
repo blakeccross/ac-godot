@@ -40,11 +40,13 @@ var _door_base_y: float = 0.0
 ## Y from the 1000-unit base height (`base_shape_trs` y). Filled once.
 static var _door_root_xz: Dictionary = {}
 
-var _player: Player
-
-
-func _enter_tree() -> void:
-	_player = get_parent() as Player
+## The Player this belongs to (the parent), found on first use: tests build scenes
+## without adding them to the tree.
+var _player: Player:
+	get:
+		if _player == null:
+			_player = get_parent() as Player
+		return _player
 
 
 ## After a room load, walk-in doors stay armed until the probe leaves every auto door.
