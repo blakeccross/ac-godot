@@ -6,7 +6,7 @@ extends GdUnitTestSuite
 
 func test_precip_dims_blob_alpha() -> void:
 	var base: float = 0.4
-	var kind: Weather.Kind = Weather.kind_from_name(Game.weather)
+	var kind: Weather.Kind = Weather.kind_from_name(Game.town.weather)
 	var scaled: float = ActorBlobShadow.precip_alpha(base)
 	if Weather.is_precip(kind):
 		assert_float(scaled).is_equal_approx(base * Weather.PRECIP_LIGHT_SCALE, 0.0001)

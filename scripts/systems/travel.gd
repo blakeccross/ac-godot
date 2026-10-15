@@ -85,7 +85,7 @@ static func departure_problem() -> String:
 	if other == "" or not SaveService.has_save(other):
 		return "no_town"
 	var passport: Dictionary = read_passport()
-	if not passport.is_empty() and str(passport.get("player_name", "")) != Game.player_name:
+	if not passport.is_empty() and str(passport.get("player_name", "")) != Game.resident.player_name:
 		return "passport_taken"
 	return ""
 
@@ -106,10 +106,10 @@ static func depart() -> Error:
 		return err
 	return write_passport({
 		"home_path": SaveService.current_path,
-		"home_town": Game.town_name,
-		"home_town_id": Game.town_id,
+		"home_town": Game.town.town_name,
+		"home_town_id": Game.town.town_id,
 		"resident": Game.roster.current,
-		"player_name": Game.player_name,
+		"player_name": Game.resident.player_name,
 		"private": priv,
 		"visited": [],
 	})
@@ -124,8 +124,8 @@ static func leave_as_visitor() -> Error:
 		return err
 	passport["private"] = SaveService.last_private.duplicate(true)
 	var visited: Array = passport.get("visited", [])
-	if not visited.has(Game.town_id):
-		visited.append(Game.town_id)
+	if not visited.has(Game.town.town_id):
+		visited.append(Game.town.town_id)
 	passport["visited"] = visited
 	return write_passport(passport)
 

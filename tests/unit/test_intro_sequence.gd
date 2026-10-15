@@ -92,10 +92,10 @@ func test_identity_applied_to_game() -> void:
 	assert_int(int(identity["player_face"])).is_equal(IntroSequence.FEMALE_FACES[4])
 	Game.reset_session()
 	Game._apply_identity(identity)
-	assert_str(Game.player_name).is_equal("Blake")
-	assert_str(Game.town_name).is_equal("Cedar")
-	assert_that(Game.player_gender).is_equal(IntroSequence.GENDER_FEMALE)
-	assert_int(Game.player_face).is_equal(IntroSequence.FEMALE_FACES[4])
+	assert_str(Game.resident.player_name).is_equal("Blake")
+	assert_str(Game.town.town_name).is_equal("Cedar")
+	assert_that(Game.resident.player_gender).is_equal(IntroSequence.GENDER_FEMALE)
+	assert_int(Game.resident.player_face).is_equal(IntroSequence.FEMALE_FACES[4])
 
 
 func test_rover_intro_dialogue_loads() -> void:
@@ -155,14 +155,14 @@ func test_prompt_events_pause_runner() -> void:
 
 
 func test_save_roundtrip_includes_identity() -> void:
-	Game.player_name = "Blake"
-	Game.town_name = "Cedar"
-	Game.player_gender = IntroSequence.GENDER_FEMALE
-	Game.player_face = 3
+	Game.resident.player_name = "Blake"
+	Game.town.town_name = "Cedar"
+	Game.resident.player_gender = IntroSequence.GENDER_FEMALE
+	Game.resident.player_face = 3
 	var snap: Dictionary = Game.to_save()
 	Game.reset_session()
 	Game.apply_snapshot(snap)
-	assert_str(Game.player_name).is_equal("Blake")
-	assert_str(Game.town_name).is_equal("Cedar")
-	assert_that(Game.player_gender).is_equal(IntroSequence.GENDER_FEMALE)
-	assert_int(Game.player_face).is_equal(3)
+	assert_str(Game.resident.player_name).is_equal("Blake")
+	assert_str(Game.town.town_name).is_equal("Cedar")
+	assert_that(Game.resident.player_gender).is_equal(IntroSequence.GENDER_FEMALE)
+	assert_int(Game.resident.player_face).is_equal(3)

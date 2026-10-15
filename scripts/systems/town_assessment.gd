@@ -140,7 +140,7 @@ static func next_streak(rank: int, streak: int, streak_day: int, today: int) -> 
 	return Vector2i(streak, streak_day)
 
 
-## Counts from the live field: trees and flowers by their hosts, weeds from `Game.weeds`,
+## Counts from the live field: trees and flowers by their hosts, weeds from `Game.town.weeds`,
 ## trash from ground items outside the dump acre.
 static func survey(world: Node) -> Array:
 	var acres: Array = []
@@ -183,7 +183,7 @@ static func survey(world: Node) -> Array:
 			var acre := by_block.get(block) as AcreTally
 			if acre != null:
 				acre.dust += 1
-	for key: Variant in Game.weeds:
+	for key: Variant in Game.town.weeds:
 		var acre := by_block.get(TownSpace.block_of_cell(WeedUse.cell_from_persist(StringName(str(key))))) as AcreTally
 		if acre != null:
 			acre.weeds += 1

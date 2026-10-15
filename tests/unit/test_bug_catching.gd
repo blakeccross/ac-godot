@@ -404,20 +404,20 @@ func test_candy_on_the_ground_draws_ants_in_dry_weather() -> void:
 	var acre: Vector2i = BugHabitats.acre_of_world_pos(grid, grid.cell_to_world(Vector2i(8, 8)))
 	var candy := BugSpawnScheduler.AREA_ON_CANDY
 	assert_bool(BugHabitats.has_spawn_area(candy, layout, grid, acre, _no_cell, false)).is_false()
-	Game.field_items[String(FieldItems.persist_id(Vector2i(8, 8)))] = {"id": "candy", "wrapped": false}
+	Game.town.field_items[String(FieldItems.persist_id(Vector2i(8, 8)))] = {"id": "candy", "wrapped": false}
 	var sites: Array[BugHabitats.Site] = BugHabitats.sites_for_spawn_area(candy, layout, grid, acre, _no_cell, false)
 	assert_int(sites.size()).is_equal(1)
 	assert_that(sites[0].cell).is_equal(Vector2i(8, 8))
 	assert_int(BugData.habitat_from_spawn_area(candy)).is_equal(BugData.Habitat.GROUND)
 	## Not in the rain or snow, and a spoiled turnip is trash, not candy.
 	assert_bool(BugHabitats.has_spawn_area(candy, layout, grid, acre, _no_cell, true)).is_false()
-	Game.weather = &"snow"
+	Game.town.weather = &"snow"
 	assert_bool(BugHabitats.has_spawn_area(candy, layout, grid, acre, _no_cell, false)).is_false()
-	Game.weather = &"clear"
+	Game.town.weather = &"clear"
 	assert_bool(BugHabitats.has_spawn_area(BugSpawnScheduler.AREA_ON_TRASH, layout, grid, acre, _no_cell, false)).is_false()
 	## Nor right at the acre's edge.
-	Game.field_items.clear()
-	Game.field_items[String(FieldItems.persist_id(Vector2i(0, 0)))] = {"id": "candy", "wrapped": false}
+	Game.town.field_items.clear()
+	Game.town.field_items[String(FieldItems.persist_id(Vector2i(0, 0)))] = {"id": "candy", "wrapped": false}
 	assert_bool(BugHabitats.has_spawn_area(candy, layout, grid, acre, _no_cell, false)).is_false()
 
 
@@ -428,7 +428,7 @@ func test_bait_brings_only_ants_and_roaches_and_rocks_do_not() -> void:
 	var acre: Vector2i = BugHabitats.acre_of_world_pos(grid, grid.cell_to_world(Vector2i(8, 8)))
 	Clock.month = 7
 	Clock.hour = 12
-	Game.weather = &"clear"
+	Game.town.weather = &"clear"
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
 	var pool: Array[BugSpawnEntry] = BugSpawnScheduler.build_pool(rng)
@@ -440,7 +440,7 @@ func test_bait_brings_only_ants_and_roaches_and_rocks_do_not() -> void:
 			seen[e.type_index] = true
 	assert_bool(seen.has(38)).is_false()
 	assert_int(seen.size()).is_greater(1)
-	Game.field_items[String(FieldItems.persist_id(Vector2i(8, 8)))] = {"id": "spoiled_turnips", "wrapped": false}
+	Game.town.field_items[String(FieldItems.persist_id(Vector2i(8, 8)))] = {"id": "spoiled_turnips", "wrapped": false}
 	for _i: int in 30:
 		var e: BugSpawnEntry = BugSpawnScheduler.decide(pool, layout, grid, acre, false, _no_cell, rng)
 		assert_object(e).is_not_null()
@@ -591,7 +591,7 @@ func test_candy_on_the_ground_limits_the_pool_to_ants() -> void:
 	## weight, and rocks no longer read as bait (their area is UNDER_ROCK, 10).
 	var world: Array = _open_layout()
 	_place(world[0], &"rock", Vector2i(5, 5))
-	Game.weather = &"clear"
+	Game.town.weather = &"clear"
 	var pool: Array[BugSpawnEntry] = [_entry(36, 10, 5.0)]
 	for a: Dictionary in BugSpawnScheduler.ADDITIONS:
 		pool.append(_entry(int(a["type_index"]), int(a["spawn_area"]), float(a["weight"])))
@@ -605,7 +605,7 @@ func test_candy_on_the_ground_limits_the_pool_to_ants() -> void:
 	assert_float(info[1].weight).is_equal(1.0)   ## ant on candy
 	assert_float(info[2].weight).is_equal(0.0)   ## ant on trash (no turnip)
 	assert_float(info[3].weight).is_equal(0.0)
-	Game.weather = &"snow"
+	Game.town.weather = &"snow"
 	info = BugSpawnScheduler.limit(pool, world[0], world[1], Vector2i(-1, -1), false)
 	assert_float(info[0].weight).is_equal(5.0)   ## candy ignored in snow
 	assert_float(info[1].weight).is_equal(0.0)
@@ -617,12 +617,12 @@ func test_get_idx_rolls_against_100_below_100_total() -> void:
 	rng.seed = 11
 	var hits: int = 0
 	## Field rank 3 (`env_rate` 1.0) so the weight is the whole chance.
-	var rank: int = Game.field_rank
-	Game.field_rank = 3
+	var rank: int = Game.town.field_rank
+	Game.town.field_rank = 3
 	for _i: int in 2000:
 		if BugSpawnScheduler.get_idx(info, false, rng) == 0:
 			hits += 1
-	Game.field_rank = rank
+	Game.town.field_rank = rank
 	assert_int(hits).is_between(120, 280)   ## ~10 %
 	for _i: int in 50:
 		assert_int(BugSpawnScheduler.get_idx(info, true, rng)).is_equal(0)

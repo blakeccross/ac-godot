@@ -40,7 +40,7 @@ var hour: int = 12
 var item: StringName = &""
 var size: int = 0
 var prize: StringName = &""
-## The tourney records a new top goes into (`mEv_fishRecord_set`); `Game.fish_records`.
+## The tourney records a new top goes into (`mEv_fishRecord_set`); `Game.town.fish_records`.
 var records: Array = []
 var _offered_back: bool = false
 
@@ -51,7 +51,7 @@ func _init(p_area: Dictionary, p_inventory: Inventory = null, p_rng: RandomNumbe
 	rng = p_rng if p_rng != null else RandomNumberGenerator.new()
 	hour = p_hour
 	if Game != null:
-		records = Game.fish_records
+		records = Game.town.fish_records
 
 
 ## `mFR_fish_rndsize`, in inches.

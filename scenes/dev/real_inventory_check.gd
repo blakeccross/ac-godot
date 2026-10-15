@@ -13,8 +13,8 @@ func _ready() -> void:
 
 func _run() -> void:
 	Clock.paused = true
-	Game.world_mode = WorldData.Mode.GENERATED
-	Game.world_seed = 42
+	Game.town.world_mode = WorldData.Mode.GENERATED
+	Game.town.world_seed = 42
 
 	var world: Node3D = load("res://scenes/world/world.tscn").instantiate() as Node3D
 	add_child(world)

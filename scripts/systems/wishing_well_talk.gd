@@ -88,7 +88,7 @@ func _how_are_things() -> int:
 	if (
 		rank == TownAssessment.RANK_PERFECT
 		and Game.perfect_town_long_enough()
-		and not Game.golden_axe_got
+		and not Game.town.golden_axe_got
 		and inventory != null and inventory.has_space(1)
 		and not (Game.first_job != null and Game.first_job.is_active())
 		and condition != TownAssessment.Condition.DUST_OVER

@@ -5,7 +5,7 @@ extends RefCounted
 ## collection, and doing so is what puts the fish weathervane / insect plaque on the player's
 ## house (`mPr_*CompleteTalk`, `ac_quest_talk_greeting.c`, `ac_my_house.c` joints 1/3/5).
 ##
-## `Game.complete_flags` mirrors `Private_c.complete_fish_insect_flags`: per collection a pair
+## `Game.resident.complete_flags` mirrors `Private_c.complete_fish_insect_flags`: per collection a pair
 ## of bits — *complete at start* (`base`) and *villager has commented* (`talk`).
 
 const FISH := 0
@@ -46,20 +46,20 @@ static func collection_complete(type: int) -> bool:
 static func start_set_info() -> void:
 	for type: int in [FISH, INSECT]:
 		if collection_complete(type):
-			Game.complete_flags |= 1 << _bit_base(type)
+			Game.resident.complete_flags |= 1 << _bit_base(type)
 
 
 ## `mPr_GetTalkPermission` gated on the collection being complete.
 static func permission(type: int) -> bool:
 	if not collection_complete(type):
 		return false
-	var flags: int = Game.complete_flags
+	var flags: int = Game.resident.complete_flags
 	return ((flags >> _bit_base(type)) & 1) == 0 or ((flags >> _bit_talk(type)) & 1) == 0
 
 
 ## `mPr_CheckFishCompleteTalk` / `..._InsectCompleteTalk` — drives the house decorations.
 static func talked(type: int) -> bool:
-	return ((Game.complete_flags >> _bit_talk(type)) & 1) == 1
+	return ((Game.resident.complete_flags >> _bit_talk(type)) & 1) == 1
 
 
 static func _villager_told(state: VillagerState, type: int) -> bool:
@@ -67,7 +67,7 @@ static func _villager_told(state: VillagerState, type: int) -> bool:
 
 
 static func _mark(state: VillagerState, type: int) -> void:
-	Game.complete_flags |= 1 << _bit_talk(type)
+	Game.resident.complete_flags |= 1 << _bit_talk(type)
 	if state == null:
 		return
 	if type == FISH:

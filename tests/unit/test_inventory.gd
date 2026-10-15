@@ -189,7 +189,7 @@ func test_inventory_overlay_player_slot_wears_held_cloth() -> void:
 	overlay.set("_focus_player", true)
 	overlay.call("_activate_player_cursor")
 	assert_int(Game.inventory.hand_index).is_equal(-1)
-	assert_that(Game.cloth_id).is_equal(cloth.id)
+	assert_that(Game.resident.cloth_id).is_equal(cloth.id)
 
 
 func test_drop_slot() -> void:

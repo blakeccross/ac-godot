@@ -11,7 +11,7 @@ extends Node3D
 ## it away (`aBALL_status_check`). Speeds are m/s on `delta`; the decomp's per-frame figures
 ## sit in the comments.
 ##
-## `Game.ball`: `{x, y, z, type}` (metres), empty when a fresh ball is due.
+## `Game.town.ball`: `{x, y, z, type}` (metres), empty when a fresh ball is due.
 
 const GROUP := &"field_ball"
 const VISUALS: Array[StringName] = [&"act_ball_b", &"act_ball_d", &"act_ball_s"]
@@ -98,9 +98,9 @@ func _exit_tree() -> void:
 	if Game == null:
 		return
 	if dead or in_hole:
-		Game.ball = {}
+		Game.town.ball = {}
 	else:
-		Game.ball = {"x": global_position.x, "y": global_position.y, "z": global_position.z, "type": type}
+		Game.town.ball = {"x": global_position.x, "y": global_position.y, "z": global_position.z, "type": type}
 
 
 func _world() -> World:
@@ -140,7 +140,7 @@ func advance(delta: float) -> void:
 	_check_hole()
 	_spin(delta)
 	if Game != null and (speed > 0.0 or not on_ground):
-		Game.ball = {"x": global_position.x, "y": global_position.y, "z": global_position.z, "type": type}
+		Game.town.ball = {"x": global_position.x, "y": global_position.y, "z": global_position.z, "type": type}
 
 
 ## `aBALL_OBJcheck` against the player and the villagers.

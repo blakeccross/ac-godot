@@ -223,8 +223,8 @@ func test_mail_bank_goodbye_letter() -> void:
 
 func test_world_rebuilds_houses_from_the_roster() -> void:
 	Game.reset_session()
-	Game.world_mode = WorldData.Mode.GENERATED
-	Game.world_seed = 12345
+	Game.town.world_mode = WorldData.Mode.GENERATED
+	Game.town.world_seed = 12345
 	var first: WorldData = Game.resolve_world_data()
 	var roster: TownResidents = Game.residents
 	assert_int(roster.animal_num()).is_equal(6)

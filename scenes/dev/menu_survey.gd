@@ -19,8 +19,8 @@ func _ready() -> void:
 	bg.color = Color(0.3, 0.55, 0.25)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
-	Game.player_name = "Nintendo"
-	Game.town_name = "Villager"
+	Game.resident.player_name = "Nintendo"
+	Game.town.town_name = "Villager"
 	Game.inventory.set_wallet(12345)
 	Game.inventory.add(ItemCatalog.get_item(&"apple"), 3)
 	for shot: Array in SHOTS:

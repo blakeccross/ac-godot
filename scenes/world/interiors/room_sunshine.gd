@@ -43,7 +43,7 @@ func _tick(delta: float) -> void:
 	else:
 		_window_alpha = move_toward(_window_alpha, target, PoliceDisplay.WINDOW_LIGHT_RATE * delta)
 	var stretch: float = WindowSunshine.stretch(now, left)
-	var raining: bool = Game != null and (Game.weather == &"rain" or Game.weather == &"snow")
+	var raining: bool = Game != null and (Game.town.weather == &"rain" or Game.town.weather == &"snow")
 	var alpha: float = float(PoliceDisplay.sunshine_alpha(now, raining)) / 255.0 * _window_alpha
 	var show: bool = _window_alpha >= 0.0001 and stretch != 0.0
 	_pivot.visible = show

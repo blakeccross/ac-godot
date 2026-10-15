@@ -92,7 +92,7 @@ func _exit_tree() -> void:
 		return
 	var state: Dictionary = save_state()
 	if not state.is_empty():
-		Game.snowballs[part] = state
+		Game.town.snowballs[part] = state
 
 
 func normalized() -> float:

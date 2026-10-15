@@ -38,11 +38,11 @@ func test_five_a_day_on_free_grass() -> void:
 	assert_int(WeedUse.amount_for(2)).is_equal(10)
 	assert_int(WeedUse.grow(world, world.grid, null, WeedUse.amount_for(2), rng)).is_equal(10)
 	assert_int(WeedUse.count()).is_equal(10)
-	for key: Variant in Game.weeds:
+	for key: Variant in Game.town.weeds:
 		var cell: Vector2i = WeedUse.cell_from_persist(StringName(str(key)))
 		assert_str(String(world.grid.occupant_at(cell))).is_equal(str(key))
 	## A wish that cleared the town keeps them away.
-	Game.clear_grass = true
+	Game.town.clear_grass = true
 	assert_int(WeedUse.grow(world, world.grid, null, 5, rng)).is_equal(0)
 
 
@@ -64,10 +64,10 @@ func test_pulling_frees_the_unit() -> void:
 
 func test_days_wait_for_the_field_and_survive_a_save() -> void:
 	Game._on_field_renewed(3)
-	Game.weeds["weed_4_5"] = 2
+	Game.town.weeds["weed_4_5"] = 2
 	var saved: Dictionary = Game.to_save()
 	Game.reset_session()
 	Game.apply_snapshot(saved)
-	assert_int(int(Game.weeds["weed_4_5"])).is_equal(2)
+	assert_int(int(Game.town.weeds["weed_4_5"])).is_equal(2)
 	assert_int(Game.take_weed_days()).is_equal(3)
 	assert_int(Game.take_weed_days()).is_equal(0)

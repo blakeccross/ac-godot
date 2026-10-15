@@ -131,8 +131,8 @@ func leave_through_exit() -> void:
 func _sync_rain_se() -> void:
 	var room_id: StringName = session.room.id if session != null and session.room != null else &""
 	Audio.sync_rain_syslev(
-		Weather.kind_from_name(Game.weather),
-		int(Game.weather_intensity),
+		Weather.kind_from_name(Game.town.weather),
+		int(Game.town.weather_intensity),
 		true,
 		room_id == PlayerHouse.BASEMENT
 	)
@@ -337,7 +337,7 @@ func _spawn_player() -> void:
 	var player: Player = PLAYER_SCENE.instantiate() as Player
 	$Characters.add_child(player)
 	var pos: Vector3 = _spawn.global_position
-	var yaw: float = Game.player_yaw
+	var yaw: float = Game.resident.player_yaw
 	if Game.has_interior_spawn and session != null and session.grid != null:
 		pos = MuseumDisplay.gx_to_world(session.grid, Game.interior_spawn_gx)
 		pos.y = 0.1
@@ -348,8 +348,8 @@ func _spawn_player() -> void:
 		pos.y = 0.1
 		yaw = WorldGrid.yaw_for_facing(WorldGrid.Facing.NORTH)
 		Game.spawn_at_room_door = false
-	elif not Game.player_position.is_equal_approx(Game.DEFAULT_SPAWN):
-		pos = Game.player_position
+	elif not Game.resident.player_position.is_equal_approx(Game.DEFAULT_SPAWN):
+		pos = Game.resident.player_position
 	player.apply_spawn(pos, yaw)
 	if not InteriorLighting.pins_follow_camera(session.room if session != null else null):
 		if _camera.has_method("set_target"):

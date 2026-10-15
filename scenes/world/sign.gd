@@ -78,7 +78,7 @@ func _needs_first_job_notice() -> bool:
 func _post_first_job_notice() -> bool:
 	## `mNT_finish_notice_first_job` on confirmed write.
 	var body: String = "Hello, town! — %s" % (
-		Game.player_name if Game != null and Game.player_name != "" else "a new neighbor"
+		Game.resident.player_name if Game != null and Game.resident.player_name != "" else "a new neighbor"
 	)
 	message = body
 	Game.first_job.mark_notice_posted()

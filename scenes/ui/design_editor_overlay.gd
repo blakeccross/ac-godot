@@ -742,7 +742,7 @@ func _resolve_prompt(idx: int) -> void:
 			if Game != null and Game.designs != null:
 				Game.designs.changed.emit()
 			DesignTexture.clear_cache()
-			if Game != null and Game.worn_design_slot == _slot:
+			if Game != null and Game.resident.worn_design_slot == _slot:
 				Game.design_changed.emit()
 			Audio.play_se(&"cursol")
 			close()

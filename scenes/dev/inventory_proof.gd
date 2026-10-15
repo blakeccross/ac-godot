@@ -17,8 +17,8 @@ func _ready() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	Game.player_name = "Nintendo"
-	Game.town_name = "Villager"
+	Game.resident.player_name = "Nintendo"
+	Game.town.town_name = "Villager"
 	Game.inventory.set_wallet(99289)
 	Game.inventory.add(ItemCatalog.get_item(&"fishing_rod"))
 	Game.inventory.add(ItemCatalog.get_item(&"net"))

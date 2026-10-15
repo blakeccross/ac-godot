@@ -20,22 +20,22 @@ func test_reset_session_clears_pockets_and_world_deltas() -> void:
 	var apple: ItemData = load("res://data/items/apple.tres")
 	Game.inventory.add(apple, 1)
 	Game.villagers.get_or_create(&"filbert").friendship = 8
-	Game.plant_states["plant_4_6"] = {"plant": "apple_tree", "planted_renew": 10}
-	Game.player_position = Vector3(3, 0.1, -2)
-	Game.player_yaw = 1.2
+	Game.town.plant_states["plant_4_6"] = {"plant": "apple_tree", "planted_renew": 10}
+	Game.resident.player_position = Vector3(3, 0.1, -2)
+	Game.resident.player_yaw = 1.2
 	Game.mark_interactable_removed(&"ground_apple")
 	Game.mark_stump(&"tree_1")
 	Game.mark_hole(&"hole_8_9")
 	Game.reset_session()
 	assert_int(Game.inventory.count_of_occupied()).is_equal(0)
 	assert_bool(Game.villagers.has_id(&"filbert")).is_false()
-	assert_vector(Game.player_position).is_equal(Game.DEFAULT_SPAWN)
-	assert_float(Game.player_yaw).is_equal(0.0)
+	assert_vector(Game.resident.player_position).is_equal(Game.DEFAULT_SPAWN)
+	assert_float(Game.resident.player_yaw).is_equal(0.0)
 	assert_bool(Game.is_interactable_removed(&"ground_apple")).is_false()
 	assert_bool(Game.is_stump(&"tree_1")).is_false()
 	assert_bool(Game.is_hole(&"hole_8_9")).is_false()
-	assert_int(Game.plant_states.size()).is_equal(0)
-	assert_that(Game.world_mode).is_equal(WorldData.Mode.TEST)
+	assert_int(Game.town.plant_states.size()).is_equal(0)
+	assert_that(Game.town.world_mode).is_equal(WorldData.Mode.TEST)
 	assert_int(Game.shops.to_save().size()).is_equal(0)
 
 
@@ -59,35 +59,35 @@ func test_test_world_gets_starter_tools() -> void:
 	Game.notify_world_ready()
 	assert_int(Game.inventory.count_of(&"axe")).is_equal(1)
 	Game.reset_session()
-	Game.world_mode = WorldData.Mode.GENERATED
+	Game.town.world_mode = WorldData.Mode.GENERATED
 	Game.notify_world_ready()
 	assert_int(Game.inventory.count_of_occupied()).is_equal(0)
 
 
 func test_world_snapshot_round_trip() -> void:
-	Game.player_position = Vector3(4.5, 0.1, -3.25)
-	Game.player_yaw = 0.75
+	Game.resident.player_position = Vector3(4.5, 0.1, -3.25)
+	Game.resident.player_yaw = 0.75
 	Game.mark_interactable_removed(&"ground_apple")
 	Game.mark_stump(&"tree_1")
 	Game.mark_hole(&"hole_8_9")
-	Game.plant_states["plant_4_6"] = {"plant": "apple_tree", "planted_renew": 10}
-	Game.world_mode = WorldData.Mode.GENERATED
-	Game.world_seed = 12345
-	Game.grass_pattern = WorldData.GrassPattern.SQUARE
+	Game.town.plant_states["plant_4_6"] = {"plant": "apple_tree", "planted_renew": 10}
+	Game.town.world_mode = WorldData.Mode.GENERATED
+	Game.town.world_seed = 12345
+	Game.town.grass_pattern = WorldData.GrassPattern.SQUARE
 	Game.shops.ensure_today(ShopBook.NOOK_ID)
 	var shop_left: int = Game.shops.goods(ShopBook.NOOK_ID).size()
 	var snap: Dictionary = Game.to_save()
 	Game.reset_session()
 	Game.apply_snapshot(snap)
-	assert_vector(Game.player_position).is_equal(Vector3(4.5, 0.1, -3.25))
-	assert_float(Game.player_yaw).is_equal(0.75)
+	assert_vector(Game.resident.player_position).is_equal(Vector3(4.5, 0.1, -3.25))
+	assert_float(Game.resident.player_yaw).is_equal(0.75)
 	assert_bool(Game.is_interactable_removed(&"ground_apple")).is_true()
 	assert_bool(Game.is_stump(&"tree_1")).is_true()
 	assert_bool(Game.is_hole(&"hole_8_9")).is_true()
-	assert_str(str(Game.plant_states.get("plant_4_6", {}).get("plant", ""))).is_equal("apple_tree")
-	assert_that(Game.world_mode).is_equal(WorldData.Mode.GENERATED)
-	assert_int(Game.world_seed).is_equal(12345)
-	assert_int(Game.grass_pattern).is_equal(WorldData.GrassPattern.SQUARE)
+	assert_str(str(Game.town.plant_states.get("plant_4_6", {}).get("plant", ""))).is_equal("apple_tree")
+	assert_that(Game.town.world_mode).is_equal(WorldData.Mode.GENERATED)
+	assert_int(Game.town.world_seed).is_equal(12345)
+	assert_int(Game.town.grass_pattern).is_equal(WorldData.GrassPattern.SQUARE)
 	assert_int(Game.shops.goods(ShopBook.NOOK_ID).size()).is_equal(shop_left)
 
 

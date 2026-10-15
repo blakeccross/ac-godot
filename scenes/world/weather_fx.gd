@@ -139,8 +139,8 @@ func _on_weather_changed(_weather: StringName) -> void:
 
 
 func _sync_from_game() -> void:
-	_kind = Weather.kind_from_name(Game.weather)
-	_intensity = Game.weather_intensity as Weather.Intensity
+	_kind = Weather.kind_from_name(Game.town.weather)
+	_intensity = Game.town.weather_intensity as Weather.Intensity
 	var on: bool = _kind != Weather.Kind.CLEAR and _intensity != Weather.Intensity.NONE
 	_emit(_rain, on and _kind == Weather.Kind.RAIN, RAIN_SHARE)
 	_emit(_splash, on and _kind == Weather.Kind.RAIN, RAIN_SHARE)

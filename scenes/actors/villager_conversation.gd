@@ -120,7 +120,7 @@ func _dialogue_uttering() -> bool:
 ## `mMld_ActorMakeMelody` as a talk starts: the town tune in this villager's voice.
 func sing_town_tune(talk_ctx: DialogueContext) -> void:
 	if Game != null and talk_ctx != null:
-		Audio.play_melody(Game.town_tune, DialogueVoice.melody_voice(talk_ctx.sound_spec))
+		Audio.play_melody(Game.town.town_tune, DialogueVoice.melody_voice(talk_ctx.sound_spec))
 
 
 func bind_talk_end(ui: DialogueOverlay) -> void:

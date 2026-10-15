@@ -80,7 +80,7 @@ func _identified_letter() -> MailData:
 	mail.sender_name = SENDER_NAME
 	mail.sender_type = MailData.NameType.NPC
 	mail.recipient_type = MailData.NameType.PLAYER
-	mail.recipient_name = Game.player_name if Game != null else "Resident"
+	mail.recipient_name = Game.resident.player_name if Game != null else "Resident"
 	mail.font = MailData.LetterFont.RECV_PRESENT
 	mail.present_item_id = StringName(str(row.get("id", "")))
 	mail.header = "Dear %s," % mail.recipient_name
@@ -98,7 +98,7 @@ func _intro_letter() -> MailData:
 	mail.sender_name = SENDER_NAME
 	mail.sender_type = MailData.NameType.NPC
 	mail.recipient_type = MailData.NameType.PLAYER
-	mail.recipient_name = Game.player_name if Game != null else "Resident"
+	mail.recipient_name = Game.resident.player_name if Game != null else "Resident"
 	mail.font = MailData.LetterFont.RECV
 	mail.header = "Dear %s," % mail.recipient_name
 	mail.body = (

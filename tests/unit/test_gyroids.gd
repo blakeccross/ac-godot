@@ -62,12 +62,12 @@ func test_renewal_buries_them_once() -> void:
 	var world := _town()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 2
-	Game.gyroids_scheduled = true
+	Game.town.gyroids_scheduled = true
 	BuriedUse.renew(world, world.grid, rng)
-	assert_bool(Game.gyroids_scheduled).is_false()
+	assert_bool(Game.town.gyroids_scheduled).is_false()
 	var gyroids := 0
 	var list: Array[StringName] = FurnitureCatalog.list(BuriedUse.GYROID_BIRTH)
-	for key: Variant in Game.buried_deposits.keys():
+	for key: Variant in Game.town.buried_deposits.keys():
 		var rec: Dictionary = BuriedUse.record(StringName(str(key)))
 		if list.has(StringName(str(rec.get(BuriedUse.KEY_ITEM, "")))):
 			gyroids += 1

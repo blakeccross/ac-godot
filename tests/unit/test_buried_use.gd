@@ -33,7 +33,7 @@ func test_renew_places_fossils_and_shine() -> void:
 	BuriedUse.renew(world, world.grid, rng)
 	var fossils := 0
 	var shines := 0
-	for key: Variant in Game.buried_deposits.keys():
+	for key: Variant in Game.town.buried_deposits.keys():
 		var kind: StringName = BuriedUse.kind_of(StringName(str(key)))
 		if kind == BuriedUse.KIND_FOSSIL:
 			fossils += 1
@@ -54,7 +54,7 @@ func test_renew_replaces_shine_keeps_fossil_cap() -> void:
 	rng.seed = 7
 	BuriedUse.renew(world, world.grid, rng)
 	var first_shine := ""
-	for key: Variant in Game.buried_deposits.keys():
+	for key: Variant in Game.town.buried_deposits.keys():
 		if BuriedUse.kind_of(StringName(str(key))) == BuriedUse.KIND_SHINE:
 			first_shine = str(key)
 	assert_str(first_shine).is_not_equal("")
@@ -63,7 +63,7 @@ func test_renew_replaces_shine_keeps_fossil_cap() -> void:
 	var fossils := 0
 	var shines := 0
 	var shine_key := ""
-	for key: Variant in Game.buried_deposits.keys():
+	for key: Variant in Game.town.buried_deposits.keys():
 		var pid := StringName(str(key))
 		if BuriedUse.kind_of(pid) == BuriedUse.KIND_FOSSIL:
 			fossils += 1

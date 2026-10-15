@@ -343,7 +343,7 @@ static func true_present(r: RandomNumberGenerator) -> StringName:
 		var ftr: StringName = FurnitureCatalog.pick_named("ftr", "C", r)
 		if ftr != &"":
 			return ftr
-	var own: StringName = Game.town_fruit if Game != null else &"apple"
+	var own: StringName = Game.town.town_fruit if Game != null else &"apple"
 	var others: Array[StringName] = []
 	for f: StringName in ShopBook.FRUITS:
 		if f != own:

@@ -146,7 +146,7 @@ func _on_ready_for_talk() -> void:
 	if Game.player_select_mode and _begin_player_select():
 		return
 	var ctx := DialogueContext.new()
-	ctx.vars = Game.dialogue_vars
+	ctx.vars = Game.town.dialogue_vars
 	ctx.speaker_name = "K.K."
 	_dialogue.play(data, ctx)
 

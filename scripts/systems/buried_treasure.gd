@@ -87,9 +87,9 @@ static func senders(residents: TownResidents, book: RelationshipBook) -> Array[V
 ## buried cell, or (-1, -1).
 static func check(world: Node, rng: RandomNumberGenerator, force: bool = false) -> Vector2i:
 	var today: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
-	if not force and not due(today, Clock.hour, Game.treasure_buried_day, Game.treasure_checked_day):
+	if not force and not due(today, Clock.hour, Game.town.treasure_buried_day, Game.town.treasure_checked_day):
 		return Vector2i(-1, -1)
-	Game.treasure_checked_day = today
+	Game.town.treasure_checked_day = today
 	var who: Array[VillagerData] = senders(Game.residents, Game.relationships)
 	if force and who.is_empty():
 		for id: StringName in Game.residents.resident_ids():
@@ -106,7 +106,7 @@ static func check(world: Node, rng: RandomNumberGenerator, force: bool = false) 
 	var looks: int = int(sender.personality.looks) if sender.personality != null else 0
 	Game.notice_board.write(NoticeBoard._post(
 		post_text(looks, rng.randi_range(0, 2), sender.display_name, item, VillagerWalk.block_from_cell(cell),
-			Game.town_name),
+			Game.town.town_name),
 		Clock.year, Clock.month, Clock.day, Clock.hour, Clock.minute))
-	Game.treasure_buried_day = today
+	Game.town.treasure_buried_day = today
 	return cell

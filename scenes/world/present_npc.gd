@@ -22,7 +22,7 @@ var _umb_carry: ToolCarry
 
 func _ready() -> void:
 	super._ready()
-	if villager != null and Game.weather == &"rain":
+	if villager != null and Game.town.weather == &"rain":
 		_open_umbrella()
 
 
@@ -126,7 +126,7 @@ static func spawn(parent: Node, kind: int, stand: Vector3, yaw: float) -> Node3D
 	var npc := packed.instantiate()
 	var who: VillagerData = null
 	if kind == PresentVisit.Kind.BIRTHDAY:
-		who = VillagerCatalog.get_villager(Game.birthday_present_npc)
+		who = VillagerCatalog.get_villager(Game.resident.birthday_present_npc)
 		if who == null:
 			return null
 	npc.call("assign", kind, who)

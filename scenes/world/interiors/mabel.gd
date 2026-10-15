@@ -501,8 +501,8 @@ func _run_act(act: String) -> void:
 
 
 func _player_name() -> String:
-	if Game != null and Game.player_name != "":
-		return Game.player_name
+	if Game != null and Game.resident.player_name != "":
+		return Game.resident.player_name
 	return "friend"
 
 
@@ -551,7 +551,7 @@ func _on_name_entered(text: String) -> void:
 		d.clamp_name()
 	Game.designs.changed.emit()
 	DesignTexture.clear_cache()
-	if Game.worn_design_slot == _edit_slot:
+	if Game.resident.worn_design_slot == _edit_slot:
 		Game.design_changed.emit()
 	_edit_slot = -1
 	_rom_menu(NeedleworkTalk.MSG_DESIGN_NAMED, NeedleworkTalk.TEXT_DESIGN_NAMED % text)
@@ -663,8 +663,8 @@ func _on_trade_slot_chosen(player_slot: int) -> void:
 	DesignTexture.clear_cache()
 	_say_line(NeedleworkTalk.trade_result_line(act))
 	## `org_idx == Now_Private->cloth.idx` → `aNNW_TALK_CLOTH_CHANGE` (not for display).
-	if act != "display" and Game.worn_design_slot >= 0 \
-			and Game.designs.resolved_index(Game.worn_design_slot) == affected:
+	if act != "display" and Game.resident.worn_design_slot >= 0 \
+			and Game.designs.resolved_index(Game.resident.worn_design_slot) == affected:
 		Game.design_changed.emit()
 
 

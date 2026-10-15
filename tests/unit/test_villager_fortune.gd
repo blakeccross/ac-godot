@@ -12,14 +12,14 @@ var _saved_goods: int
 
 
 func before_test() -> void:
-	_saved_type = Game.destiny_type
-	_saved_date = Game.destiny_date
+	_saved_type = Game.resident.destiny_type
+	_saved_date = Game.resident.destiny_date
 	_saved_goods = Game.goods_power
 
 
 func after_test() -> void:
-	Game.destiny_type = _saved_type
-	Game.destiny_date = _saved_date
+	Game.resident.destiny_type = _saved_type
+	Game.resident.destiny_date = _saved_date
 	Game.goods_power = _saved_goods
 
 

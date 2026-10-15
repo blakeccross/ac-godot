@@ -119,8 +119,8 @@ func _start_show(song: int) -> void:
 	EventManager.demo_bgm = &"_quiet"
 	Audio.stop_bgm()
 	if Game != null:
-		_saved_weather = Game.weather
-		_saved_intensity = Game.weather_intensity
+		_saved_weather = Game.town.weather
+		_saved_intensity = Game.town.weather_intensity
 		Game.set_weather(&"clear", int(Weather.Intensity.NONE))
 	var id: StringName = BgmCatalog.id_for_num(192 + song)
 	var stream: AudioStream = BgmCatalog.stream_for(id) if id != &"" else null

@@ -46,13 +46,13 @@ func test_snowmen_melt_over_three_winter_days() -> void:
 	assert_bool(SnowmanRules.melt(e, 1, true)).is_false()
 	assert_bool(SnowmanRules.melt({"age": 0}, 1, false)).is_false()
 	assert_bool(SnowmanRules.melt({"age": 0}, 3, true)).is_false()
-	Game.snowmen = [{"head": 0.5, "body": 0.6, "score": 0, "cell": [3, 3], "age": 1}, {}, {}]
+	Game.town.snowmen = [{"head": 0.5, "body": 0.6, "score": 0, "cell": [3, 3], "age": 1}, {}, {}]
 	Game.melt_snowmen(1)
 	## Season depends on the clock; either way the second day keeps it only in winter.
 	if Clock.season() == Clock.Season.WINTER:
-		assert_int(int((Game.snowmen[0] as Dictionary)["age"])).is_equal(2)
+		assert_int(int((Game.town.snowmen[0] as Dictionary)["age"])).is_equal(2)
 	else:
-		assert_bool((Game.snowmen[0] as Dictionary).is_empty()).is_true()
+		assert_bool((Game.town.snowmen[0] as Dictionary).is_empty()).is_true()
 
 
 func test_no_new_balls_until_six_the_next_morning() -> void:
@@ -67,10 +67,10 @@ func test_no_new_balls_until_six_the_next_morning() -> void:
 	assert_bool(SnowmanRules.balls_allowed(built, day + 5 * 60)).is_false()
 	assert_bool(SnowmanRules.balls_allowed(built, day + 6 * 60)).is_true()
 	assert_bool(SnowmanRules.balls_allowed(-1, day)).is_true()
-	Game.snowman_built_minute = -1
-	Game.snowmen = [{}, {"age": 0}, {}]
+	Game.town.snowman_built_minute = -1
+	Game.town.snowmen = [{}, {"age": 0}, {}]
 	assert_bool(SnowmanUse.should_place_balls(day)).is_false()
-	Game.snowmen = [{}, {"age": 1}, {}]
+	Game.town.snowmen = [{}, {"age": 1}, {}]
 	assert_bool(SnowmanUse.should_place_balls(day)).is_true()
 
 

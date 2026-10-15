@@ -21,9 +21,9 @@ func test_pages_are_capped_like_the_original() -> void:
 
 
 func test_a_page_per_month_survives_a_save() -> void:
-	Game.diary[4] = "Caught a coelacanth."
+	Game.resident.diary[4] = "Caught a coelacanth."
 	var snap: Dictionary = JSON.parse_string(JSON.stringify(Game.to_save()))
-	Game.diary.clear()
+	Game.resident.diary.clear()
 	Game.apply_snapshot(snap)
 	assert_str(DiaryOverlay.entry(4)).is_equal("Caught a coelacanth.")
 	assert_str(DiaryOverlay.entry(5)).is_equal("")
@@ -47,7 +47,7 @@ func test_a_notebook_on_the_floor_is_not_read() -> void:
 
 func test_a_housemates_diary_reads_from_their_saved_pages() -> void:
 	Game.roster.current = 0
-	Game.diary[4] = "Mine."
+	Game.resident.diary[4] = "Mine."
 	Game.roster.slots[1] = {"player_name": "Ann", "diary": {"4": "Ann's page."}}
 	assert_str(DiaryOverlay.entry(4, 1)).is_equal("Ann's page.")
 	assert_str(DiaryOverlay.entry(4, 0)).is_equal("Mine.")

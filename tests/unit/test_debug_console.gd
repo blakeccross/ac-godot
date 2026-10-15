@@ -19,8 +19,8 @@ func test_weather_command_sets_session() -> void:
 	var console := DebugConsole.new()
 	var msg: String = console.execute("weather rain heavy")
 	assert_str(msg).contains("rain")
-	assert_that(Game.weather).is_equal(&"rain")
-	assert_int(Game.weather_intensity).is_equal(int(Weather.Intensity.HEAVY))
+	assert_that(Game.town.weather).is_equal(&"rain")
+	assert_int(Game.town.weather_intensity).is_equal(int(Weather.Intensity.HEAVY))
 
 
 func test_season_command_jumps_to_boundary() -> void:
@@ -74,7 +74,7 @@ func test_bells_sets_wallet() -> void:
 func test_slash_prefix_stripped() -> void:
 	var console := DebugConsole.new()
 	console.execute("/weather snow")
-	assert_that(Game.weather).is_equal(&"snow")
+	assert_that(Game.town.weather).is_equal(&"snow")
 
 
 func test_autocomplete_commands() -> void:

@@ -192,7 +192,7 @@ func open(recipient: Dictionary, paper_type: int) -> void:
 	_board.header = "Dear "
 	_board.header_name = str(_recipient.get("name", "Friend"))
 	_board.header_after = ","
-	_board.footer = Game.player_name if Game != null else ""
+	_board.footer = Game.resident.player_name if Game != null else ""
 	_keyboard.mode = KeyboardPanel.InputMode.LETTER
 	_keyboard.caps = false
 	_keyboard.refresh()
@@ -330,7 +330,7 @@ func _save() -> void:
 		StringName(str(_recipient.get("id", ""))),
 		str(_recipient.get("name", "")),
 		body,
-		Game.player_name,
+		Game.resident.player_name,
 		&"player"
 	)
 	mail.paper_type = _paper_type

@@ -77,8 +77,8 @@ func test_umbrella_twirl_sprays_only_in_rain() -> void:
 	## 20 behind the twirler.
 	var host := Node3D.new()
 	add_child(host)
-	var was: StringName = Game.weather
-	Game.weather = &"rain"
+	var was: StringName = Game.town.weather
+	Game.town.weather = &"rain"
 	var spray: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.KASAMIZU, Vector3.ZERO, 0.0)
 	assert_float(spray.lifetime).is_equal_approx(24.0 / 60.0, 0.0001)
 	assert_vector(spray.origin / FieldCatalog.GX_TO_METERS).is_equal_approx(Vector3(0.0, 45.0, -20.0), Vector3.ONE * 0.001)
@@ -91,11 +91,11 @@ func test_umbrella_twirl_sprays_only_in_rain() -> void:
 	assert_float(drop.lifetime).is_equal_approx(20.0 / 60.0, 0.0001)
 	assert_float(drop.accel.y).is_equal_approx(-0.105 * FieldCatalog.GX_TO_METERS * 3600.0, 0.0001)
 	assert_float(drop.launch.length()).is_equal_approx(2.5 * FieldCatalog.GX_TO_METERS * 60.0, 0.0001)
-	Game.weather = &"clear"
+	Game.town.weather = &"clear"
 	var dry: FieldEffects = FieldEffects.spawn(host, FieldEffects.Kind.KASAMIZU, Vector3.ZERO, 0.0)
 	var before: int = host.get_child_count()
 	for i: int in 12:
 		dry.emit_drop()
 	assert_int(host.get_child_count()).is_equal(before)
-	Game.weather = was
+	Game.town.weather = was
 	host.queue_free()

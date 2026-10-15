@@ -30,7 +30,7 @@ func setup() -> void:
 	var had: int = int(a.get("size", 0))
 	AnglerTalk.roll_npc_record(a, Clock.hour, anglers, rng())
 	if Game != null and int(a.get("size", 0)) > had and not bool(a.get("top_player", false)):
-		FishRecord.set_record(Game.fish_records, str(a.get("top", "")), false, int(a["size"]),
+		FishRecord.set_record(Game.town.fish_records, str(a.get("top", "")), false, int(a["size"]),
 			EventDates.ordinal(Clock.year, Clock.month, Clock.day), Clock.hour * 60 + Clock.minute)
 
 

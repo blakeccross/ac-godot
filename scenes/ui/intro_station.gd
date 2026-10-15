@@ -315,8 +315,8 @@ func _play_dialogue(id: StringName, speaker: String, fallback: StringName = &"")
 	_last_dialogue_id = id
 	var ctx := DialogueContext.new()
 	ctx.speaker_name = speaker
-	ctx.player_name = Game.player_name
-	ctx.town_name = Game.town_name
+	ctx.player_name = Game.resident.player_name
+	ctx.town_name = Game.town.town_name
 	_dialogue.play(data, ctx)
 
 
@@ -341,9 +341,9 @@ func _finish_to_game() -> void:
 	## world + first job, not back through another station arrival.
 	Game.debug_finish_station_arrival(
 		{
-			"player_name": Game.player_name,
-			"town_name": Game.town_name,
-			"player_gender": Game.player_gender,
-			"player_face": Game.player_face,
+			"player_name": Game.resident.player_name,
+			"town_name": Game.town.town_name,
+			"player_gender": Game.resident.player_gender,
+			"player_face": Game.resident.player_face,
 		}
 	)

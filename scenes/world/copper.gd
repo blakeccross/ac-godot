@@ -135,7 +135,7 @@ func _think(player: Node3D) -> void:
 		_set_mode(Mode.TURN)
 		return
 	var hour: int = Clock.hour if Clock != null else 12
-	var raining: bool = Game != null and Game.weather == &"rain"
+	var raining: bool = Game != null and Game.town.weather == &"rain"
 	if not raining and hour == 6:
 		if not _player_in_front(player) and _rng.randf() < SPECIAL_CHANCE:
 			_set_mode(Mode.TAISOU)

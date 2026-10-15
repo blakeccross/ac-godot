@@ -53,7 +53,7 @@ func think(_delta: float) -> void:
 				think_state = Think.SPEAK
 		Think.SPEAK:
 			if can_call_out():
-				var msg: int = speech_msg(Game.weather if Game != null else &"clear", rng())
+				var msg: int = speech_msg(Game.town.weather if Game != null else &"clear", rng())
 				if not begin_talk(player_node(), BankTalk.Fixed.new(msg), false):
 					_retire()
 		Think.RETIRE:

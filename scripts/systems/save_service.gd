@@ -128,7 +128,7 @@ func read_roster(path: String = "") -> PlayerRoster:
 	return roster_of(data) if not data.is_empty() else PlayerRoster.new()
 
 
-## The town's id in a save (`Game.town_id`), or 0.
+## The town's id in a save (`Game.town.town_id`), or 0.
 func read_town_id(path: String = "") -> int:
 	path = _path(path)
 	var data: Dictionary = _read(path)

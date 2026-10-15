@@ -73,7 +73,7 @@ func test_line_cap_refuses_to_wrap_past_six_lines() -> void:
 
 
 func test_save_creates_mail_with_body_paper_and_auto_header_footer() -> void:
-	Game.player_name = "Nintendo"
+	Game.resident.player_name = "Nintendo"
 	Game.inventory.clear()
 	var w := _writer()
 	w.open({"id": "filbert", "name": "Filbert"}, 12)
@@ -114,7 +114,7 @@ func test_keep_editing_returns_to_editor_with_draft_intact() -> void:
 
 func test_present_attaches_hand_item_and_clears_the_pocket_slot() -> void:
 	Game.inventory.clear()
-	Game.player_name = "Nintendo"
+	Game.resident.player_name = "Nintendo"
 	var w := _writer()
 	w.open({"id": "filbert", "name": "Filbert"}, 0)
 	w.call("_resolve_prompt", 0)
@@ -138,7 +138,7 @@ func test_present_attaches_hand_item_and_clears_the_pocket_slot() -> void:
 ## takes the gift back out instead of attaching another one.
 func test_present_tag_offered_both_ways_and_take_back_returns_item_to_pockets() -> void:
 	Game.inventory.clear()
-	Game.player_name = "Nintendo"
+	Game.resident.player_name = "Nintendo"
 	var w := _writer()
 	w.open({"id": "filbert", "name": "Filbert"}, 0)
 	w.call("_resolve_prompt", 0)

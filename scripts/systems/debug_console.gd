@@ -386,12 +386,12 @@ func execute(raw: String) -> String:
 			if tw_world == null:
 				return "The assessment needs the outdoor field."
 			if not args.is_empty() and String(args[0]).to_lower() == "perfect":
-				Game.perfect_streak = TownAssessment.PERFECT_STREAK_MAX
-				Game.perfect_streak_day = Clock.day_number()
+				Game.town.perfect_streak = TownAssessment.PERFECT_STREAK_MAX
+				Game.town.perfect_streak_day = Clock.day_number()
 			var r: Dictionary = Game.rate_town(tw_world)
 			return "Rank %d (score %d: %d perfect, %d good acres); condition %d at %s; trees %d, flowers %d, weeds %d, trash %d; streak %d." % [
 				int(r["rank"]), int(r["score"]), int(r["perfect"]), int(r["good"]), int(r["condition"]),
-				r["block"], int(r["trees"]), int(r["flowers"]), int(r["weeds"]), int(r["dust"]), Game.perfect_streak,
+				r["block"], int(r["trees"]), int(r["flowers"]), int(r["weeds"]), int(r["dust"]), Game.town.perfect_streak,
 			]
 		"moneyrock":
 			## Where today's money rock is (`moneyrock new` picks another now).
@@ -400,15 +400,15 @@ func execute(raw: String) -> String:
 			if mr_world == null:
 				return "The money rock needs the outdoor field."
 			if not args.is_empty() and String(args[0]).to_lower() == "new":
-				Game.money_rock = ""
-				Game.money_rock_day = -1
+				Game.town.money_rock = ""
+				Game.town.money_rock_day = -1
 				var mr_rng := RandomNumberGenerator.new()
 				mr_rng.randomize()
 				MoneyRock.renew(mr_world, mr_rng, Clock.day_number())
-			if Game.money_rock == "":
+			if Game.town.money_rock == "":
 				return "No money rock today."
 			var mr_rocks: Dictionary = MoneyRock.field_rocks(mr_world)
-			return "Money rock: %s in acre %s." % [Game.money_rock, mr_rocks.get(StringName(Game.money_rock), "?")]
+			return "Money rock: %s in acre %s." % [Game.town.money_rock, mr_rocks.get(StringName(Game.town.money_rock), "?")]
 		"fengshui":
 			## The house's feng shui now (`mHsRm_GetHuusuiRoom`) and Nook's tier odds from it.
 			Game.refresh_feng_shui()
@@ -486,10 +486,10 @@ func execute(raw: String) -> String:
 					return "Date as Y-M-D."
 				var ca_n: int = EventDates.ordinal(int(ca_d[0]), int(ca_d[1]), int(ca_d[2]))
 				var ca_today: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
-				CalendarBook.trim(Game.calendar, ca_today)
+				CalendarBook.trim(Game.resident.calendar, ca_today)
 				var ca_key: String = "events" if String(args[0]) == "tortimer" else "played"
-				if not (Game.calendar[ca_key] as Array).has(ca_n):
-					(Game.calendar[ca_key] as Array).append(ca_n)
+				if not (Game.resident.calendar[ca_key] as Array).has(ca_n):
+					(Game.resident.calendar[ca_key] as Array).append(ca_n)
 				return "Marked %s as %s." % [args[1], ca_key]
 			var ca_ui: CalendarOverlay = CalendarOverlay.find(ca_tree)
 			if ca_ui == null:
@@ -508,11 +508,11 @@ func execute(raw: String) -> String:
 				var mm_idx: int = mm_no - MotherMail.MSG_NORMAL
 				mm_pick = {"msg": mm_no, "present": MotherMail.normal_present(mm_idx, mm_rng) if mm_idx >= 0 and mm_idx < MotherMail.NORMAL_COUNT else &""}
 			elif mm_pick.is_empty():
-				var mm_left: Array[int] = MotherMail.normal_left(Game.mother_mail)
+				var mm_left: Array[int] = MotherMail.normal_left(Game.resident.mother_mail)
 				var mm_n: int = mm_left[mm_rng.randi_range(0, mm_left.size() - 1)] if not mm_left.is_empty() else 0
 				mm_pick = {"msg": MotherMail.MSG_NORMAL + mm_n, "present": MotherMail.normal_present(mm_n, mm_rng)}
 			var mm_mail: MailData = MotherMail.letter(int(mm_pick["msg"]), StringName(mm_pick["present"]),
-				MotherMail.paper(Clock.month, Clock.day, VillagerTalkManager.birthday()), Game.player_name)
+				MotherMail.paper(Clock.month, Clock.day, VillagerTalkManager.birthday()), Game.resident.player_name)
 			if mm_mail == null or not Game.deliver_to_mailbox(mm_mail):
 				return "Mom couldn't write (no mail bank or the mailbox is full)."
 			var mm_tree := Engine.get_main_loop() as SceneTree
@@ -530,16 +530,16 @@ func execute(raw: String) -> String:
 				var bd_rng := RandomNumberGenerator.new()
 				bd_rng.randomize()
 				var bd_sent: int = PresentVisit.send_cards(Game.residents, Game.relationships, &"",
-					Game.player_name, bd_rng, Game.deliver_to_mailbox)
+					Game.resident.player_name, bd_rng, Game.deliver_to_mailbox)
 				return "%d birthday card(s) sent." % bd_sent
 			if bd_sub == "visit":
 				var bd_kind: int = PresentVisit.Kind.BIRTHDAY
 				if args.size() > 1:
 					bd_kind = PresentVisit.Kind.GOLDEN_NET if String(args[1]) == "net" else PresentVisit.Kind.GOLDEN_ROD
 				else:
-					Game.birthday_present_npc = PresentVisit.birthday_npc(Game.residents, Game.relationships)
-					if Game.birthday_present_npc == &"" and not Game.residents.resident_ids().is_empty():
-						Game.birthday_present_npc = Game.residents.resident_ids()[0]
+					Game.resident.birthday_present_npc = PresentVisit.birthday_npc(Game.residents, Game.relationships)
+					if Game.resident.birthday_present_npc == &"" and not Game.residents.resident_ids().is_empty():
+						Game.resident.birthday_present_npc = Game.residents.resident_ids()[0]
 				var bd_player := Player.find(bd_tree) as Node3D if bd_tree != null else null
 				var bd_world: Node = World.find(bd_tree) if bd_tree != null else null
 				if bd_player == null or bd_world == null:
@@ -562,18 +562,18 @@ func execute(raw: String) -> String:
 				return "No diary screen here."
 			var di_month: int = clampi(int(args[0]), 1, 12) if not args.is_empty() and String(args[0]).is_valid_int() else Clock.month
 			if args.size() > 1:
-				Game.diary[di_month] = DiaryOverlay.clip(" ".join(args.slice(1)))
+				Game.resident.diary[di_month] = DiaryOverlay.clip(" ".join(args.slice(1)))
 			di_ui.open(di_month)
 			return "Diary: month %d." % di_month
 		"tan":
 			## Set the sunburn rank 0–8 (`mPr_sunburn_c`) and repaint the face.
 			if args.is_empty() or not String(args[0]).is_valid_int():
-				return "Tan rank %d (hold %d days)." % [int(Game.sunburn.get("rank", 0)), int(Game.sunburn.get("hold", 0))]
-			Game.sunburn["rank"] = clampi(int(args[0]), 0, Sunburn.MAX_RANK)
-			Game.sunburn["changed"] = Clock.day_number()
-			Game.sunburn["hold"] = Sunburn.HOLD_DAYS if int(Game.sunburn["rank"]) > 0 else 0
+				return "Tan rank %d (hold %d days)." % [int(Game.resident.sunburn.get("rank", 0)), int(Game.resident.sunburn.get("hold", 0))]
+			Game.resident.sunburn["rank"] = clampi(int(args[0]), 0, Sunburn.MAX_RANK)
+			Game.resident.sunburn["changed"] = Clock.day_number()
+			Game.resident.sunburn["hold"] = Sunburn.HOLD_DAYS if int(Game.resident.sunburn["rank"]) > 0 else 0
 			Game.face_changed.emit()
-			return "Tan rank %d." % int(Game.sunburn["rank"])
+			return "Tan rank %d." % int(Game.resident.sunburn["rank"])
 		"snowballs":
 			## The body and head balls a few units ahead of the player, at size 0–1
 			## (`snowballs 0.5`; default 0.4, big enough to push).
@@ -610,9 +610,9 @@ func execute(raw: String) -> String:
 			var sm_cell: Vector2i = SnowmanUse.fg_cell(sm_world, sm_world.grid.world_to_cell(sm_player.global_position + sm_fwd * 4.0))
 			if sm_cell.x < 0:
 				return "No room for a snowman there."
-			var sm_slot: int = SnowmanRules.free_slot(Game.snowmen)
+			var sm_slot: int = SnowmanRules.free_slot(Game.town.snowmen)
 			if sm_slot >= 0:
-				Game.snowmen[sm_slot] = {"head": 0.6, "body": 0.7, "score": sm_score, "cell": [sm_cell.x, sm_cell.y], "age": 0}
+				Game.town.snowmen[sm_slot] = {"head": 0.6, "body": 0.7, "score": sm_score, "cell": [sm_cell.x, sm_cell.y], "age": 0}
 			SnowmanUse.spawn_snowman(sm_world, sm_slot, sm_cell, 0.6, 0.7, sm_score)
 			return "Snowman (score %d) in slot %d." % [sm_score, sm_slot]
 		"mushrooms":
@@ -624,11 +624,11 @@ func execute(raw: String) -> String:
 			var ms_rng := RandomNumberGenerator.new()
 			ms_rng.randomize()
 			if not args.is_empty() and String(args[0]).to_lower() == "clear":
-				MushroomUse.clear(ms_world, Game.mushrooms.size(), Vector2i(-1, -1), ms_rng)
+				MushroomUse.clear(ms_world, Game.town.mushrooms.size(), Vector2i(-1, -1), ms_rng)
 				return "Mushrooms cleared."
 			var ms_n: int = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else MushroomUse.NUM
 			var ms_set: int = MushroomUse.grow(ms_world, ms_n, Vector2i(-1, -1), ms_rng)
-			return "%d mushrooms set (%d in town)." % [ms_set, Game.mushrooms.size()]
+			return "%d mushrooms set (%d in town)." % [ms_set, Game.town.mushrooms.size()]
 		"signboard":
 			## Put up a signboard in front of the player, showing design slot N if given.
 			var sb_tree := Engine.get_main_loop() as SceneTree
@@ -668,7 +668,7 @@ func execute(raw: String) -> String:
 			for b: Vector2i in ShellUse.beach_blocks():
 				sh_free.append("%d,%d:%d" % [b.x, b.y, ShellUse.free_cells(sh_world, sh_world.grid, b).size()])
 			var sh_set: int = ShellUse.wash_up(sh_world, sh_n, Vector2i(-1, -1), sh_rng)
-			return "%d shells set (%d on the beach; free %s)." % [sh_set, Game.shells.size(), " ".join(sh_free)]
+			return "%d shells set (%d on the beach; free %s)." % [sh_set, Game.town.shells.size(), " ".join(sh_free)]
 		"weeds":
 			## Sow N weeds now (`mAGrw_SetGrass`), or `weeds clear`.
 			var wd_tree := Engine.get_main_loop() as SceneTree
@@ -690,10 +690,10 @@ func execute(raw: String) -> String:
 			var rs_world := World.find(rs_tree) if rs_tree != null else null
 			if rs_player == null or rs_world == null:
 				return "Resetti needs the outdoor field."
-			Game.reset_count = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else Game.reset_count + 1
+			Game.resident.reset_count = int(args[0]) if not args.is_empty() and String(args[0]).is_valid_int() else Game.resident.reset_count + 1
 			Game.reset_flag = true
 			load("res://scenes/world/resetti.gd").spawn(rs_world.get_node("Characters"), rs_player)
-			return "Reset #%d." % Game.reset_count
+			return "Reset #%d." % Game.resident.reset_count
 		"exercise":
 			## Play radio exercise move 0-17 (`mPlayer_RADIO_EXERCISE_CMD*`).
 			var ex_tree := Engine.get_main_loop() as SceneTree
@@ -747,9 +747,9 @@ func _cmd_tune(args: PackedStringArray) -> String:
 			ui.open()
 			return "Tune editor open."
 		"reset":
-			Game.town_tune = TownTune.default_notes()
+			Game.town.town_tune = TownTune.default_notes()
 			return "Town tune reset to the default."
-	Audio.play_melody(Game.town_tune)
+	Audio.play_melody(Game.town.town_tune)
 	return "Playing the town tune."
 
 
@@ -984,7 +984,7 @@ func _cmd_fortune(args: PackedStringArray) -> String:
 
 func _cmd_weather(args: PackedStringArray) -> String:
 	if args.is_empty():
-		return "Weather: %s (intensity %d)" % [String(Game.weather), Game.weather_intensity]
+		return "Weather: %s (intensity %d)" % [String(Game.town.weather), Game.town.weather_intensity]
 	var kind: String = String(args[0]).to_lower()
 	if kind not in WEATHER_KINDS:
 		return "Unknown weather '%s'. Use clear, rain, snow, or sakura." % kind
@@ -994,7 +994,7 @@ func _cmd_weather(args: PackedStringArray) -> String:
 		if intensity < 0:
 			return "Unknown intensity '%s'. Use none, light, normal, or heavy." % String(args[1])
 	Game.set_weather(StringName(kind), intensity)
-	return "Weather set to %s (intensity %d)." % [String(Game.weather), Game.weather_intensity]
+	return "Weather set to %s (intensity %d)." % [String(Game.town.weather), Game.town.weather_intensity]
 
 
 func _cmd_season(args: PackedStringArray) -> String:

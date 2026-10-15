@@ -47,9 +47,9 @@ static func cell_from_persist(id: StringName) -> Vector2i:
 
 
 static func record(persist_id: StringName) -> Dictionary:
-	if persist_id == &"" or Game.buried_deposits == null:
+	if persist_id == &"" or Game.town.buried_deposits == null:
 		return {}
-	var raw: Variant = Game.buried_deposits.get(String(persist_id), {})
+	var raw: Variant = Game.town.buried_deposits.get(String(persist_id), {})
 	if typeof(raw) != TYPE_DICTIONARY:
 		return {}
 	return (raw as Dictionary).duplicate()
@@ -78,16 +78,16 @@ static func renew(world: Node, grid: WorldGrid, rng: RandomNumberGenerator = nul
 	_clear_shine(world, grid)
 	_top_up_fossils(world, grid, layout, roll)
 	_place_shine(world, grid, layout, roll)
-	if Game.gyroids_scheduled:
+	if Game.town.gyroids_scheduled:
 		bury_gyroids(world, grid, roll)
-		Game.gyroids_scheduled = false
+		Game.town.gyroids_scheduled = false
 
 
 static func restore(world: Node, grid: WorldGrid) -> void:
 	if world == null or grid == null:
 		return
 	var layout: WorldData = _layout(world)
-	for key: Variant in Game.buried_deposits.keys():
+	for key: Variant in Game.town.buried_deposits.keys():
 		var pid := StringName(str(key))
 		var rec: Dictionary = record(pid)
 		if rec.is_empty():
@@ -113,10 +113,10 @@ static func bury(ctx: InteractionContext, cell: Vector2i, item_id: StringName) -
 	var hole: StringName = grid.occupant_at(cell)
 	if not Game.is_hole(hole):
 		return false
-	if hole == Game.shine_hole:
+	if hole == Game.town.shine_hole:
 		var planted: bool = _plant_in_shine_hole(ctx, cell, item_id)
 		if planted:
-			Game.shine_hole = &""
+			Game.town.shine_hole = &""
 			return true
 	var host: Node = _host_for(ctx.world if ctx != null else null, hole)
 	if host != null:
@@ -124,8 +124,8 @@ static func bury(ctx: InteractionContext, cell: Vector2i, item_id: StringName) -
 	else:
 		Game.clear_hole(hole)
 		grid.remove(hole)
-	if hole == Game.shine_hole:
-		Game.shine_hole = &""
+	if hole == Game.town.shine_hole:
+		Game.town.shine_hole = &""
 	var kind: StringName = KIND_PITFALL if item_id == PITFALL_ITEM else KIND_ITEM
 	return _deposit(ctx.world if ctx != null else null, grid, _layout(ctx.world if ctx != null else null), cell, kind, item_id, true)
 
@@ -140,7 +140,7 @@ static func _plant_in_shine_hole(ctx: InteractionContext, cell: Vector2i, item_i
 	if money.has(item_id):
 		var rng := RandomNumberGenerator.new()
 		rng.randomize()
-		var luck: bool = Game.destiny_type == Game.Destiny.MONEY_LUCK
+		var luck: bool = Game.resident.destiny_type == Game.Destiny.MONEY_LUCK
 		var content: TreeUse.Content = TreeUse.Content.NONE
 		if PlantGrowth.money_tree_takes(rng.randf(), Game.money_power, luck):
 			content = money[item_id]
@@ -231,7 +231,7 @@ static func dig(ctx: InteractionContext, cell: Vector2i) -> bool:
 		PlayerSe.buried_dig(ctx.actor)
 	if kind == KIND_SHINE:
 		## `HOLE_SHINE`: what goes back into this hole can grow (`bIT_common_bury_after`).
-		Game.shine_hole = HoleUse.persist_id(cell)
+		Game.town.shine_hole = HoleUse.persist_id(cell)
 	elif kind != KIND_ITEM and kind != KIND_PITFALL:
 		## First fossil triggers the Farway Museum's introductory letter (`mMsm` mail-in).
 		if Game.travel_book != null:
@@ -315,7 +315,7 @@ static func _top_up_fossils(
 	world: Node, grid: WorldGrid, layout: WorldData, rng: RandomNumberGenerator
 ) -> void:
 	var have := 0
-	for key: Variant in Game.buried_deposits.keys():
+	for key: Variant in Game.town.buried_deposits.keys():
 		if kind_of(StringName(str(key))) == KIND_FOSSIL:
 			have += 1
 	var need: int = FOSSIL_MAX - have
@@ -340,7 +340,7 @@ static func _place_shine(
 static func _clear_shine(world: Node, grid: WorldGrid) -> void:
 	## Prior shine clears on renew (`mAGrw_ClearShineGround`).
 	var doomed: Array[StringName] = []
-	for key: Variant in Game.buried_deposits.keys():
+	for key: Variant in Game.town.buried_deposits.keys():
 		var pid := StringName(str(key))
 		if kind_of(pid) == KIND_SHINE:
 			doomed.append(pid)
@@ -367,7 +367,7 @@ static func _deposit(
 	var pid: StringName = persist_id(cell)
 	if not grid.place(pid, cell, Vector2i(1, 1), WorldGrid.Facing.SOUTH, WorldGrid.PlaceKind.PLANT):
 		return false
-	Game.buried_deposits[String(pid)] = {
+	Game.town.buried_deposits[String(pid)] = {
 		KEY_KIND: String(kind),
 		KEY_ITEM: String(item_id),
 		KEY_CELL_X: cell.x,
@@ -378,7 +378,7 @@ static func _deposit(
 
 
 static func _remove(world: Node, grid: WorldGrid, pid: StringName, cell: Vector2i) -> void:
-	Game.buried_deposits.erase(String(pid))
+	Game.town.buried_deposits.erase(String(pid))
 	if grid != null:
 		grid.remove(pid)
 	if world == null or world.get_tree() == null:

@@ -9,7 +9,7 @@ extends RefCounted
 ## weekly visitor slot on days Gulliver isn't due (`mMC_check_birth`) until she has been talked
 ## to ten times or a week has passed (`mMC_check_delete`).
 ##
-## `Game.mask_cat`: `{design, creator, cloth, talk_idx, day}`.
+## `Game.town.mask_cat`: `{design, creator, cloth, talk_idx, day}`.
 
 const TALK_MAX := 10
 const KEEP_DAYS := 7
@@ -22,7 +22,7 @@ const MSG_TOWN_AGAIN := 0x31E5
 
 
 static func state() -> Dictionary:
-	return Game.mask_cat if Game != null else {}
+	return Game.town.mask_cat if Game != null else {}
 
 
 ## `mDE_maskcat_init`: the face she arrives with.

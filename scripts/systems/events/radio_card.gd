@@ -8,7 +8,7 @@ extends BankTalk
 ## remembered and replaced; two cards, or one from an earlier year, are taken away. From
 ## August 19 there's no new card unless one is under way (`mSC_Radio_limit_check`).
 ##
-## `Game.radio_card`: `{year, month, day, days}` — the last stamp's date and the stamps on
+## `Game.resident.radio_card`: `{year, month, day, days}` — the last stamp's date and the stamps on
 ## the card less one (`mPr_day_day_c`).
 
 const CARD_PREFIX := "exercise_card_"
@@ -207,7 +207,7 @@ func start_msg() -> int:
 	var marked: bool = _calendar_marked()
 	record[CALENDAR_KEY] = EventDates.ordinal(year, month, day)
 	if Game != null:
-		CalendarBook.event_on(Game.calendar, EventDates.ordinal(year, month, day))
+		CalendarBook.event_on(Game.resident.calendar, EventDates.ordinal(year, month, day))
 	if foreigner:
 		return MSG_FOREIGNER
 	var time: int = time_check(card, year, month, day)

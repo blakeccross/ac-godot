@@ -237,7 +237,7 @@ func test_fruit_contest_takes_the_fruit_and_stays_done() -> void:
 	m.choose(0)
 	var c: Dictionary = Game.quests.contests[3]
 	assert_int(int(c["type"])).is_equal(Q.Type.CONTEST)
-	assert_that(c["requested"]).is_not_equal(Game.town_fruit)
+	assert_that(c["requested"]).is_not_equal(Game.town.town_fruit)
 	assert_that(c["owner"]).is_equal(_id(3))
 	## A second fruit contest can't start while this one runs.
 	assert_int(Game.quests.occured_contest_idx(Q.CONTEST_FRUIT)).is_equal(3)

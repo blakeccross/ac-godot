@@ -43,4 +43,4 @@ func test_it_is_saved() -> void:
 	var saved: Dictionary = Game.to_save()
 	Game.reset_session()
 	Game.apply_snapshot(saved)
-	assert_int(Game.museum_comp_mail).is_equal(MuseumCompMail.SCHEDULED)
+	assert_int(Game.resident.museum_comp_mail).is_equal(MuseumCompMail.SCHEDULED)

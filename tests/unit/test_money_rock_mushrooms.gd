@@ -53,7 +53,7 @@ func test_money_rock_pays_more_as_the_hits_go_on() -> void:
 	assert_float(MoneyRock.window_frames(0, false)).is_equal_approx(386.0, 0.01)
 	assert_float(MoneyRock.window_frames(100, true)).is_equal_approx(386.0, 0.01)
 	assert_float(MoneyRock.window_frames(-50, false)).is_equal_approx(356.0, 0.01)
-	Game.money_rock = "rock_4"
+	Game.town.money_rock = "rock_4"
 	assert_object(MoneyRock.hit(&"rock_3", 0)).is_null()
 	var bags: Array[StringName] = []
 	for i: int in 8:
@@ -63,7 +63,7 @@ func test_money_rock_pays_more_as_the_hits_go_on() -> void:
 	assert_str(String(bags[7])).is_equal("money_10000")
 	## After the window it is an ordinary rock until a new one is picked.
 	assert_object(MoneyRock.hit(&"rock_4", 60000)).is_null()
-	assert_str(Game.money_rock).is_equal("")
+	assert_str(Game.town.money_rock).is_equal("")
 
 
 func test_money_rock_choice_and_drop_spot() -> void:
@@ -102,25 +102,25 @@ func test_mushrooms_grow_under_trees_then_go() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
 	var day: int = 100 * 1440
-	Game.mushroom_minute = day - 1440 + 600
+	Game.town.mushroom_minute = day - 1440 + 600
 	MushroomUse.tick(world, day + 8 * 60, 8, 0, Vector2i(1, 3), rng)
 	## Acre (1,1) shares the player's column, so only the tree in (2,2) can take them; it has
 	## five spots.
-	assert_int(Game.mushrooms.size()).is_equal(5)
-	for key: Variant in Game.mushrooms:
+	assert_int(Game.town.mushrooms.size()).is_equal(5)
+	for key: Variant in Game.town.mushrooms:
 		var cell: Vector2i = MushroomUse.cell_from_persist(StringName(str(key)))
 		assert_that(TownSpace.block_of_cell(cell)).is_equal(Vector2i(2, 2))
-	assert_bool(Game.mushroom_active).is_false()
+	assert_bool(Game.town.mushroom_active).is_false()
 	## Same quarter: nothing changes. Half an hour on: two have gone.
 	MushroomUse.tick(world, day + 8 * 60 + 10, 8, 10, Vector2i(1, 3), rng)
-	assert_int(Game.mushrooms.size()).is_equal(5)
+	assert_int(Game.town.mushrooms.size()).is_equal(5)
 	MushroomUse.tick(world, day + 8 * 60 + 30, 8, 30, Vector2i(1, 3), rng)
-	assert_int(Game.mushrooms.size()).is_equal(3)
+	assert_int(Game.town.mushrooms.size()).is_equal(3)
 	## Standing in that acre keeps them.
 	MushroomUse.tick(world, day + 10 * 60, 10, 0, Vector2i(2, 2), rng)
-	assert_int(Game.mushrooms.size()).is_equal(3)
+	assert_int(Game.town.mushrooms.size()).is_equal(3)
 	## Next morning they are long gone and a new crop may come.
 	MushroomUse.first_clear(world, day + 1440 + 7 * 60, rng)
-	assert_int(Game.mushrooms.size()).is_equal(0)
-	assert_bool(Game.mushroom_active).is_true()
+	assert_int(Game.town.mushrooms.size()).is_equal(0)
+	assert_bool(Game.town.mushroom_active).is_true()
 	Game.events.unforce(MushroomUse.SEASON_EVENT)

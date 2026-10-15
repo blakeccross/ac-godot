@@ -83,7 +83,7 @@ static func resolve_spawn_area(
 
 
 ## `aSOI_chk_live_area_data[area].chk_live_area_proc`: can this acre host `spawn_area`
-## under the current weather? `weather` is `Game.weather` (`&"rain"`, `&"snow"`, …);
+## under the current weather? `weather` is `Game.town.weather` (`&"rain"`, `&"snow"`, …);
 ## when empty it is read from `Game`.
 static func has_spawn_area(
 	spawn_area: int,
@@ -218,7 +218,7 @@ static func _weather(raining: bool, weather: StringName) -> StringName:
 		return &"rain"
 	if weather != &"":
 		return weather
-	var w: StringName = Game.weather if Game != null else &"clear"
+	var w: StringName = Game.town.weather if Game != null else &"clear"
 	## A caller that says "not raining" wins over a rainy session.
 	return &"clear" if w == &"rain" else w
 
@@ -332,14 +332,14 @@ static func _fg_cells(layout: WorldData) -> Dictionary:
 				for dz: int in maxi(obj.footprint.y, 1):
 					out[obj.cell + Vector2i(dx, dz)] = true
 	if Game != null:
-		for key: Variant in Game.plant_states.keys():
+		for key: Variant in Game.town.plant_states.keys():
 			var pid := StringName(str(key))
 			if Game.is_interactable_removed(pid):
 				continue
 			var cell: Vector2i = _record_cell(pid)
 			if cell.x >= 0:
 				out[cell] = true
-		for key: String in Game.hole_interactables:
+		for key: String in Game.town.hole_interactables:
 			var parts: PackedStringArray = key.split("_")
 			if parts.size() >= 3 and parts[1].is_valid_int() and parts[2].is_valid_int():
 				out[Vector2i(int(parts[1]), int(parts[2]))] = true
@@ -488,8 +488,8 @@ static func _item_sites(
 	## And the saved drops (`FieldItems`), whether or not their pickups are loaded yet; a
 	## wrapped present is not bait.
 	if Game != null:
-		for pid: Variant in Game.field_items:
-			var rec: Variant = Game.field_items[pid]
+		for pid: Variant in Game.town.field_items:
+			var rec: Variant = Game.town.field_items[pid]
 			if not (rec is Dictionary) or StringName(str(rec.get("id", ""))) != item_id or bool(rec.get("wrapped", false)):
 				continue
 			var cell: Vector2i = FieldItems.cell_from_persist(StringName(str(pid)))
@@ -549,7 +549,7 @@ static func _plant_record_ids(kind: PlantData.Kind) -> Array[StringName]:
 	var out: Array[StringName] = []
 	if Game == null:
 		return out
-	for key: Variant in Game.plant_states.keys():
+	for key: Variant in Game.town.plant_states.keys():
 		var pid := StringName(str(key))
 		if Game.is_interactable_removed(pid) or Game.is_stump(pid):
 			continue

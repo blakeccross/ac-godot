@@ -1,6 +1,6 @@
 extends Node3D
 
-## Outdoor flower. Growth is derived from `Game.plant_states`; this scene presents it.
+## Outdoor flower. Growth is derived from `Game.town.plant_states`; this scene presents it.
 
 @export var occupant_id: StringName = &""
 @export var footprint: Vector2i = Vector2i(1, 1)

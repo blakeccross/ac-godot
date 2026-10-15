@@ -166,7 +166,7 @@ static func can_sell(item: ItemData) -> bool:
 
 static func town_fruit() -> StringName:
 	if Game != null and "town_fruit" in Game:
-		return Game.town_fruit
+		return Game.town.town_fruit
 	return &"apple"
 
 
@@ -818,7 +818,7 @@ static func _string_names(raw: Variant) -> Array[StringName]:
 
 
 func _day_seed(shop_id: StringName) -> int:
-	var seed_value: int = Game.world_seed if Game != null else 1
+	var seed_value: int = Game.town.world_seed if Game != null else 1
 	return hash([seed_value, Clock.year, Clock.month, Clock.day, String(shop_id)])
 
 

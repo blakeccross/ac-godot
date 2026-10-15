@@ -65,11 +65,11 @@ func make_talk() -> BankTalk:
 		return BankTalk.Fixed.new(base + rng().randi_range(0, 2))
 	var record: Dictionary = Game.events.area(&"soncho_record") if Game != null and Game.events != null else {}
 	if morning():
-		var card := RadioCard.new(Game.inventory if Game != null else null, Game.radio_card if Game != null else {}, record, rng())
+		var card := RadioCard.new(Game.inventory if Game != null else null, Game.resident.radio_card if Game != null else {}, record, rng())
 		card.foreigner = Game != null and Game.foreigner
 		return card
 	var t := TortimerHoliday.new(holiday, record, Game.inventory if Game != null else null, rng())
-	t.female = Game != null and String(Game.player_gender) == "female"
+	t.female = Game != null and String(Game.resident.player_gender) == "female"
 	return t
 
 

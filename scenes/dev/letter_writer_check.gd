@@ -12,7 +12,7 @@ func _ready() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
-	Game.player_name = "Nintendo"
+	Game.resident.player_name = "Nintendo"
 	Game.villagers.get_or_create(&"filbert").record_talk("day1")
 
 	var address: CanvasLayer = load("res://scenes/ui/letter_address_overlay.tscn").instantiate()

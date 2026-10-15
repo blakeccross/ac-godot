@@ -128,7 +128,7 @@ func is_open() -> bool:
 func open(force: bool = false) -> void:
 	if _open:
 		return
-	if not force and Game != null and not Game.has_map:
+	if not force and Game != null and not Game.resident.has_map:
 		Game.post_notice("You don't have a town map yet.")
 		return
 	color_set = 0 if force else 1
@@ -189,8 +189,8 @@ static func build_labels(data: WorldData) -> Dictionary:
 			var has_player: bool = owned != &"" and Game != null
 			for i: int in PLAYER_NUM:
 				if i == 0 and has_player:
-					players.append({"name": Game.player_name,
-						"sex": 1 if Game.player_gender == IntroSequence.GENDER_FEMALE else 0, "layer": 0, "idx": 0})
+					players.append({"name": Game.resident.player_name,
+						"sex": 1 if Game.resident.player_gender == IntroSequence.GENDER_FEMALE else 0, "layer": 0, "idx": 0})
 				else:
 					players.append({"name": FREE_NAME, "sex": -1, "layer": 0, "idx": 0})
 			out[fg] = {"label": MapLabel.PLAYER, "residents": players}
@@ -410,7 +410,7 @@ func _draw_text(entry: Dictionary) -> void:
 		return
 	var name_pos := Vector2(-136.0 + 24.0 + 160.0, 120.0 - (102.0 - 29.0))
 	_canvas.draw_string(_font, name_pos + Vector2(0, _font.get_ascent(FONT_PX)),
-		Game.town_name if Game != null else "Town", HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX, LAND_COLOR[color_set])
+		Game.town.town_name if Game != null else "Town", HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_PX, LAND_COLOR[color_set])
 	if entry.is_empty():
 		return
 	var px := int(round(FONT_PX * 0.75))

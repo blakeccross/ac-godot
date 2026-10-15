@@ -28,7 +28,7 @@ func setup() -> void:
 func make_talk() -> BankTalk:
 	var record: Dictionary = Game.events.area(&"soncho_record") if Game != null and Game.events != null else {}
 	var t := TortimerHoliday.new(holiday, record, Game.inventory if Game != null else null, rng())
-	t.female = Game != null and String(Game.player_gender) == "female"
+	t.female = Game != null and String(Game.resident.player_gender) == "female"
 	return t
 
 

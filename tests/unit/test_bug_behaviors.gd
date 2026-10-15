@@ -779,11 +779,11 @@ func test_stress_fallback_speed_counts_per_tick() -> void:
 # ---- ANT (the swarm on food, `ac_ant`) -----------------------------------
 
 func test_ants_swarm_on_food_and_fade_once_it_is_gone() -> void:
-	Game.field_items.clear()
+	Game.town.field_items.clear()
 	var grid := WorldGrid.new()
 	grid.configure_from_world(WorldGenerator.authored_test_town())
 	var cell := Vector2i(8, 8)
-	Game.field_items[String(FieldItems.persist_id(cell))] = {"id": "candy", "wrapped": false}
+	Game.town.field_items[String(FieldItems.persist_id(cell))] = {"id": "candy", "wrapped": false}
 	var a := _make(&"ant", BugData.Habitat.GROUND, grid.cell_to_world(cell))
 	assert_bool(a.is_swarm()).is_true()
 	assert_float(a.net_catch_range_gx(Vector3.ZERO)).is_equal(24.0)
@@ -794,7 +794,7 @@ func test_ants_swarm_on_food_and_fade_once_it_is_gone() -> void:
 	assert_bool(a.finished).is_false()
 	assert_int(a.action).is_equal(Ant.WAIT)
 	assert_vector(a.position).is_equal(at)
-	Game.field_items.clear()
+	Game.town.field_items.clear()
 	a.advance(DecompTime.TICK_SEC, s)
 	assert_int(a.action).is_equal(Ant.DISAPPEAR)
 	assert_bool(a.catchable).is_false()

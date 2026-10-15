@@ -67,15 +67,15 @@ static func restore(world: Node, layout: WorldData, grid: WorldGrid) -> Node3D:
 	rng.randomize()
 	var pos: Vector3
 	var type: int
-	if Game.ball.is_empty():
+	if Game.town.ball.is_empty():
 		var cell: Vector2i = pick_cell(layout, grid, rng)
 		if cell.x < 0:
 			return null
 		pos = grid.cell_to_world(cell)
 		type = rng.randi_range(0, FieldBall.VISUALS.size() - 1)
 	else:
-		pos = Vector3(float(Game.ball.get("x", 0.0)), float(Game.ball.get("y", 0.0)), float(Game.ball.get("z", 0.0)))
-		type = int(Game.ball.get("type", 0))
+		pos = Vector3(float(Game.town.ball.get("x", 0.0)), float(Game.town.ball.get("y", 0.0)), float(Game.town.ball.get("z", 0.0)))
+		type = int(Game.town.ball.get("type", 0))
 	var ball: Node3D = (load(SCENE) as PackedScene).instantiate() as Node3D
 	ball.set("type", type)
 	var parent: Node = world.get_node_or_null("Objects")
@@ -84,5 +84,5 @@ static func restore(world: Node, layout: WorldData, grid: WorldGrid) -> Node3D:
 	parent.add_child(ball)
 	ball.global_position = pos
 	ball.call("_snap_ground")
-	Game.ball = {"x": ball.global_position.x, "y": ball.global_position.y, "z": ball.global_position.z, "type": type}
+	Game.town.ball = {"x": ball.global_position.x, "y": ball.global_position.y, "z": ball.global_position.z, "type": type}
 	return ball

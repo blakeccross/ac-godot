@@ -33,7 +33,7 @@ func test_missed_rolls_raise_the_chance_and_a_launch_resets_it() -> void:
 func test_present_is_rare_furniture_or_foreign_fruit() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 9
-	var own: StringName = Game.town_fruit
+	var own: StringName = Game.town.town_fruit
 	for _i: int in 40:
 		var id: StringName = Balloon.true_present(rng)
 		assert_str(String(id)).is_not_empty()

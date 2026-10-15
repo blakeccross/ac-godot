@@ -27,7 +27,7 @@ func _init(p_kind: int, p_rng: RandomNumberGenerator, p_first_today: bool = fals
 
 func prepare() -> void:
 	set_free(0, str(MaskCat.state().get("creator", "")))
-	set_free(1, Game.town_name if Game != null else "")
+	set_free(1, Game.town.town_name if Game != null else "")
 
 
 func start_msg() -> int:

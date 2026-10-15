@@ -11,7 +11,7 @@ const INTRO_SCENE := "res://scenes/ui/intro_train.tscn"
 const INTRO_STATION_SCENE := "res://scenes/ui/intro_station.tscn"
 const WORLD_SCENE := "res://scenes/world/world.tscn"
 const INTERIOR_SCENE := "res://scenes/world/interior.tscn"
-const DEFAULT_SPAWN := Vector3(0.0, 0.1, 6.0)
+const DEFAULT_SPAWN := PlayerState.DEFAULT_SPAWN
 const TEST_BELLS := 2000
 const TEST_TOOL_IDS: Array[StringName] = [
 	&"shovel",
@@ -37,10 +37,14 @@ signal design_changed
 ## The player's face texture changed (`mPlib_change_player_face`): bee swelling.
 signal face_changed
 
-const DEFAULT_PLAYER_NAME := "Player"
-const DEFAULT_TOWN_NAME := "Town"
-const DEFAULT_PLAYER_GENDER := &"male"
+const DEFAULT_PLAYER_NAME := PlayerState.DEFAULT_PLAYER_NAME
+const DEFAULT_TOWN_NAME := TownState.DEFAULT_TOWN_NAME
+const DEFAULT_PLAYER_GENDER := PlayerState.DEFAULT_PLAYER_GENDER
 
+## The playing resident's saved state (`Private_c`) and the town's (`PlayerState`,
+## `TownState`).
+var resident: PlayerState = PlayerState.new()
+var town: TownState = TownState.new()
 var inventory: Inventory = Inventory.new()
 var villagers: VillagerRoster = VillagerRoster.new()
 ## `animals[]` slots + move-in / move-out bookkeeping (`m_npc.c`).
@@ -58,37 +62,11 @@ var quest_handover_pending: bool = false
 var quest_handover_pocket: int = -1
 var quest_handover_mode: String = "quest"
 signal quest_handover_resolved(item_id: StringName, pocket: int)
-## `Private_c.hint_count`: first-job hints villagers still owe (bit 7 = all given).
-var first_job_hint_count: int = 0
-## Year the Valentine's letters went out (`event_save_common.valentines_day_date`).
-var valentine_year: int = 0
-## `Private_c.celebrated_birthday_year` / `birthday_present_npc`: the year the birthday
-## visit came, and who brought it (left out of that year's cards).
-var celebrated_birthday_year: int = 0
-var birthday_present_npc: StringName = &""
-## `EventDates.ordinal` of the last birthday-card check (the last play date).
-var birthday_card_day: int = 0
-## Mom's letters (`mPr_mother_mail_info_c`): the last day checked and which went out. Saved.
-var mother_mail: Dictionary = MotherMail.new_state()
 ## `Common_Get(complete_payment_type)`: a paid-off loan or the end of Nook's chores, cheered
 ## the next time the player walks out of a door (`m_player_main_complete_payment`).
 const PAYMENT_HOUSE := &"house"
 const PAYMENT_ARBEIT := &"arbeit"
 var complete_payment: StringName = &""
-## Tortimer's exercise card (`mPr_day_day_c radiocard`): last stamp date and stamps. Saved.
-var radio_card: Dictionary = RadioCard.new_state()
-## The calendar's played days and Tortimer days (`mCD_player_calendar_c`). Saved.
-var calendar: Dictionary = CalendarBook.new_state()
-## The fishing tourney's records (`Save_Get(fishRecord)`), `FishRecord`. Saved.
-var fish_records: Array = []
-## `treasure_buried_time` / `treasure_checked_time` as ordinals (0 never). Saved.
-var treasure_buried_day: int = 0
-## `Save_Get(haniwa_scheduled)`: fine weather after rain orders gyroids for the next growth
-## (`mAGrw_OrderSetHaniwa`); `BuriedUse.renew` buries them and clears it.
-var gyroids_scheduled: bool = false
-## `HOLE_SHINE`: the hole the day's shine spot left (`bIT_common_bury_after`).
-var shine_hole: StringName = &""
-var treasure_checked_day: int = 0
 ## The last board check wrote no seasonal notice, so a villager may bury treasure.
 var treasure_due: bool = false
 var relationships: RelationshipBook = RelationshipBook.new()
@@ -106,8 +84,6 @@ var redd: ReddBook = ReddBook.new()
 var lighthouse: LighthouseBook = LighthouseBook.new()
 ## Every catalog item the player has owned + Nook mail orders (`m_catalog_ovl`).
 var catalog: CatalogBook = CatalogBook.new()
-## `Save_Get(fruit)`: the town's native fruit. Other fruit sells to Nook at the foreign price.
-var town_fruit: StringName = &"apple"
 ## Holidays, weekly visitors and the special-NPC schedule (`m_event`); see `EventCalendar`.
 var events: EventCalendar = EventCalendar.new()
 ## The waterfall rainbow after rain (`mEnv_rainbow_*`).
@@ -140,32 +116,11 @@ var play_door_arrive: bool = false
 ## you outside the police box). Session-only.
 var last_room_id: StringName = &""
 var interior_session: IndoorSession
-var player_name: String = DEFAULT_PLAYER_NAME
-var town_name: String = DEFAULT_TOWN_NAME
-var player_gender: StringName = DEFAULT_PLAYER_GENDER
-var player_face: int = 0
-## Worn shirt (`Private_c.cloth.item`). Default `ITM_CLOTH001`.
-var cloth_id: StringName = FirstJob.DEFAULT_CLOTH_ID
 ## `Private_c.destiny` (`mPr_DESTINY_*`): the day's fortune from Katrina (`ac_ev_gypsy`) or
 ## the New Year shrine (`ac_ev_miko`); both reset it at the next calendar day.
-enum Destiny { NORMAL, POPULAR, UNPOPULAR, BAD_LUCK, MONEY_LUCK, GOODS_LUCK }
-var destiny_type: int = Destiny.NORMAL
-var destiny_date: Vector3i = Vector3i.ZERO
-## Worn original design display slot (`cloth.idx >= CLOTH_NUM+1`). -1 = normal shirt.
-var worn_design_slot: int = -1
+const Destiny := PlayerState.Destiny
 ## A 06:00 lost-and-found top-up that came due while the player was in the police box.
 var _police_topup_pending: bool = false
-## Town map unlocked after first-job furniture delivery (`Common.map_flag`).
-var has_map: bool = false
-## `Save_Get(num_statues)` — how many Nook house statues the town has built (0..3, gold →
-## jade); the next one takes the following rank.
-var num_statues: int = 0
-## `mPr_FLAG_POSTOFFICE_GIFT0..3`: balance milestones already rewarded (`BankTerminal.GIFTS`).
-var bank_gift_flags: int = 0
-## `Save_Get(melody)`: the town tune (`TownTune`), set at the tune board.
-var town_tune: PackedByteArray = TownTune.default_notes()
-## `Private_c.complete_fish_insect_flags` — see `CompleteTalk`.
-var complete_flags: int = 0
 ## `goki_shocked_flag`: the first roach of a session startles the player, once.
 var goki_shocked: bool = false
 ## `player_bee_swell_flag`: stung by bees — the swollen face lasts until the game is reset
@@ -176,15 +131,8 @@ var bee_chase: bool = false
 ## `npclist[].conversation_flags.beesting`, inverted: villagers who have greeted the player
 ## since the sting and so no longer remark on the face.
 var bee_greeted: Dictionary = {}
-## `Private_c.reset_count`: sessions ended without saving (saved).
-var reset_count: int = 0
 ## `Common_Get(reset_flag)`: this session follows one of those — Mr. Resetti is waiting.
 var reset_flag: bool = false
-## `Save.cheated_flag` / `npc_force_go_home`: the clock was found earlier than the last save
-## (`aNPS2_game_start_wait`). Saved; it bars the birthday surprise.
-var cheated_flag: bool = false
-## Session weather (`mEnv_WEATHER_*`). Rolled by `Weather` on `field_renewed`.
-var weather: StringName = &"clear"
 ## False until `sync_events` has adopted the clock for this session.
 var _events_ready: bool = false
 
@@ -193,111 +141,34 @@ var _events_ready: bool = false
 ## cross-month blend starts (`aSOI_ins_chk_term_info`). Session-scoped.
 var insect_term_month: int = 0
 var insect_term_offset: int = 0
-## `Save_Get(gyoei_term)` / `gyoei_term_transition_offset` — for fish: the *next* of the
-## 24 half-month terms and how many days (0–5) before it starts its list ramps in
-## (`aSOG_gyoei_chk_term_info`). Saved with the town.
-var fish_season_term: int = 0
-var fish_season_offset: int = 0
-## `mEnv_WEATHER_INTENSITY_*` (none/light/normal/heavy).
-var weather_intensity: int = int(Weather.Intensity.NONE)
-var dialogue_vars: Dictionary = {}
 var phase: Phase = Phase.TITLE
-var player_position: Vector3 = DEFAULT_SPAWN
-var player_yaw: float = 0.0
-var removed_interactables: Array[String] = []
-var stump_interactables: Array[String] = []
-var hole_interactables: Array[String] = []
-## Weeds in the field (`GRASS_A`–`GRASS_C`): `weed_<x>_<z>` → variant 0–2. Saved.
-var weeds: Dictionary = {}
-## `Save.clear_grass`: a wish has cleared the town of weeds; none grow back (saved).
-var clear_grass: bool = false
-## Renewals not yet sown with weeds (crossed indoors or while the game was off). Saved.
-var weed_days_pending: int = 0
-## `mFAs_GetFieldRank`: the town's rating 0–6 from the last assessment.
-var field_rank: int = 0
-## `Save.good_field`: days in a row at rank 6 and the day last counted (−1 none). Saved.
-var perfect_streak: int = 0
-var perfect_streak_day: int = -1
-## `Save.dust_flag`: trash pushed the rating to nothing; it stays there until it is all gone.
-var dust_flag: bool = false
-## `mSC_TROPHY_GOLDEN_AXE`: the wishing well has given the golden axe. Saved.
-var golden_axe_got: bool = false
-## `mPlib_Check_golden_item_get_demo_end(SHOVEL)`: the golden shovel's fanfare has played.
-var golden_shovel_shown: bool = false
-## `mPr_FLAG_MUSEUM_COMP_HANDBILL_*`: the museum-complete letter (`MuseumCompMail`). Saved.
-var museum_comp_mail: int = 0
 ## `mFI_GetDigStatus`'s `old_pos`: where the golden shovel last dug (session only).
 var golden_last_dig: Vector2i = Vector2i(-1, -1)
 ## `unk_nook_present_count`: presents Nook has handed over for codes this session.
 var nook_code_gifts: int = 0
-## `allgrow_ss_pos_info.stone_pos`: the rock that pays out Bells ("" none or spent). Saved.
-var money_rock: String = ""
-## The day the money rock was last picked (−1 never), so a spent one waits for tomorrow. Saved.
-var money_rock_day: int = -1
-## `ITM_FOOD_MUSHROOM` on the field: `mushroom_<x>_<z>` → 1. Saved.
-var mushrooms: Dictionary = {}
-## `Save.mushroom_time`: when mushrooms were last set or cleared (`Clock.absolute_minute`, −1
-## never) and `active`: a new day has started, so the 8 AM crop may grow. Saved.
-var mushroom_minute: int = -1
-var mushroom_active: bool = false
 ## `mMsr_FirstClearMushroom` has run for this play session (not saved).
 var mushrooms_session_cleared: bool = false
-## Signboards the residents put up (`SignboardUse`): `signboard_<x>_<z>` → `{design}`. Saved.
-var signboards: Dictionary = {}
-## The second bridge Tortimer builds (`SecondBridge`, `Save_Get(bridge)`). Saved.
-var bridge: Dictionary = {}
-## Things lying on the field (`FieldItems`): `fitem_<x>_<z>` → {id, wrapped}. Saved.
-var field_items: Dictionary = {}
-## Sea shells on the beach (`ShellUse`): `shell_<x>_<z>` → item id. Saved.
-var shells: Dictionary = {}
 ## Shells still to wash up: twenty when a session starts (`mFI_SetFirstSetShell`).
 var shells_owed: int = ShellUse.FIRST_NUM
 var shell_minute_counted: bool = false
-## `Save.snowmen`: three slots, each {} or {head, body (sizes 0–1), score, cell [x, z], age}.
-var snowmen: Array = [{}, {}, {}]
-## `Save.snowman_year…hour` as `Clock.absolute_minute` (−1 never): no new balls until 6 AM.
-var snowman_built_minute: int = -1
 ## `Common.snowman_msg_id` (`mSN_decide_msg`): rolled each play session, not saved.
 var snowman_msg_id: int = 0
-## The snowman-season balls (`mEv` common place / area): part → {cell [x, z], dist}. Saved.
-var snowballs: Dictionary = {}
-## The town's ball (`Common_Get(ball_pos)` / `ball_type`), `BallUse`. Saved.
-var ball: Dictionary = {}
-## `Private.sunburn`: {rank 0–8, changed (day number of the last change), hold (days)}.
-var sunburn: Dictionary = {"rank": 0, "changed": -1, "hold": 0}
-## The diary (`mCD_keep_diary_c`): month 1–12 → that month's page. Saved.
-var diary: Dictionary = {}
 ## `Common.money_power` / `goods_power`: the house's feng shui (`FengShui`), recomputed on
 ## the way out to the field. Not saved.
 var money_power: int = 0
 var goods_power: int = 0
 const GOODS_POWER_MIN := -30
 const GOODS_POWER_MAX := 50
-var plant_states: Dictionary = {}
-## Buried dig spots: persist_id → {kind, item_id, cell_x, cell_z} (`mFI` deposit / shine).
-var buried_deposits: Dictionary = {}
 var interact_prompt: String = ""
-var world_mode: WorldData.Mode = WorldData.Mode.TEST
-var world_seed: int = WorldGenerator.DEFAULT_SEED
-## Town grass motif (`bg_tex_idx`): 0 triangle, 1 square, 2 circle.
-var grass_pattern: int = WorldData.GrassPattern.TRIANGLE
 ## Station arrival (`ac_intro_demo`) runs inside the generated world, not a test acre.
 ## K.K.'s scene runs the player select of an existing town (`ac_npc_p_sel2`) rather than the
 ## first-time opening (`ac_npc_p_sel`).
 var player_select_mode: bool = false
-## This town's identity, so a passport knows its home (`mLd_CheckThisLand`). Random per town.
-var town_id: int = 0
 ## Playing as a visitor from another town (`mPr_FOREIGNER`): no house here, and the only way
 ## out is Porter at the station, who saves the town and the passport.
 var foreigner: bool = false
 ## Come in on the train (a visitor, or a traveller back home): start on the platform.
 var arrive_by_train: bool = false
-## Blanca's face and painter in this town (`Save_Get(mask_cat)`, `MaskCat`).
-var mask_cat: Dictionary = {}
-## The resident has met Blanca on a train before (`mPr_FLAG_1`: 0x33F3, not 0x33F2).
-var met_blanca: bool = false
-## `mPr_FLAG_MASK_CAT_SCHEDULED`: she rode the last trip home, so not this one.
-var mask_cat_scheduled: bool = false
 ## The roster slot a newcomer to an existing town takes (`aNPS2_TALK_START_TYPE3`), or -1
 ## for a brand-new town.
 var joining_slot: int = -1
@@ -378,17 +249,17 @@ func start_new_game(
 ) -> void:
 	reset_session()
 	_apply_identity(identity)
-	world_mode = mode
-	world_seed = seed_value
-	if world_mode == WorldData.Mode.GENERATED:
-		grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
+	town.world_mode = mode
+	town.world_seed = seed_value
+	if town.world_mode == WorldData.Mode.GENERATED:
+		town.grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
 	else:
-		grass_pattern = WorldData.GrassPattern.TRIANGLE
+		town.grass_pattern = WorldData.GrassPattern.TRIANGLE
 	if identity.is_empty() or not Clock.rtc_override:
 		Clock.rtc_override = false
 		Clock.sync_from_os()
 	apply_weather_roll(Weather.roll())
-	if world_mode == WorldData.Mode.TEST:
+	if town.world_mode == WorldData.Mode.TEST:
 		give_test_tools()
 	_change_scene(WORLD_SCENE)
 
@@ -428,12 +299,12 @@ func begin_title_demo(index: int) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	var who: Dictionary = TitleDemo.random_identity(rng)
-	player_gender = who["gender"] as StringName
-	player_face = int(who["face"])
-	cloth_id = who["cloth"] as StringName
-	world_mode = WorldData.Mode.GENERATED
-	world_seed = WorldGenerator.DEFAULT_SEED
-	grass_pattern = rng.randi_range(0, WorldData.GRASS_PATTERN_COUNT - 1)
+	resident.player_gender = who["gender"] as StringName
+	resident.player_face = int(who["face"])
+	resident.cloth_id = who["cloth"] as StringName
+	town.world_mode = WorldData.Mode.GENERATED
+	town.world_seed = WorldGenerator.DEFAULT_SEED
+	town.grass_pattern = rng.randi_range(0, WorldData.GRASS_PATTERN_COUNT - 1)
 	set_weather(moment["weather"] as StringName)
 	var tool_id: StringName = TitleDemo.tool_item_id(index)
 	if tool_id != &"":
@@ -445,12 +316,12 @@ func begin_title_demo(index: int) -> void:
 				if slot != null and not slot.is_empty() and slot.item.item_id == tool_id:
 					inventory.equip_slot(i)
 					break
-	var town := WorldData.new()
-	town.columns = WorldGenerator.FG_X * WorldGenerator.UT
-	town.rows = WorldGenerator.FG_Z * WorldGenerator.UT
-	town.cell_size = 2.0
-	player_position = TitleDemo.gx_to_world(town, TitleDemo.spawn_gx(index))
-	player_yaw = TitleDemo.spawn_yaw(index)
+	var layout := WorldData.new()
+	layout.columns = WorldGenerator.FG_X * WorldGenerator.UT
+	layout.rows = WorldGenerator.FG_Z * WorldGenerator.UT
+	layout.cell_size = 2.0
+	resident.player_position = TitleDemo.gx_to_world(layout, TitleDemo.spawn_gx(index))
+	resident.player_yaw = TitleDemo.spawn_yaw(index)
 
 
 func _begin_station_arrival(seed_value: int, identity: Dictionary, sync_clock: bool) -> void:
@@ -466,9 +337,9 @@ func _begin_station_arrival(seed_value: int, identity: Dictionary, sync_clock: b
 	intro_station_resume_debt = false
 	intro_station_house_id = &""
 	intro_pending_house_id = &""
-	world_mode = WorldData.Mode.GENERATED
-	world_seed = seed_value
-	grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
+	town.world_mode = WorldData.Mode.GENERATED
+	town.world_seed = seed_value
+	town.grass_pattern = WorldGenerator.decide_grass_pattern(seed_value)
 	apply_weather_roll(Weather.roll())
 	_grant_intro_start_items()
 	intro_payment_pending = false
@@ -501,7 +372,7 @@ func start_return() -> void:
 		abort_intro_sequence()
 		return
 	resume_clock(SaveService.last_elapsed)
-	SaveService.mark_session_open(reset_count)
+	SaveService.mark_session_open(resident.reset_count)
 	_arrive_by_train()
 
 
@@ -532,9 +403,9 @@ func _begin_resident_arrival(identity: Dictionary) -> void:
 		_begin_station_arrival(seed_value, identity, false)
 		return
 	resume_clock(SaveService.last_elapsed)
-	var town: String = town_name
+	var kept_name: String = town.town_name
 	_apply_identity(identity)
-	town_name = town
+	town.town_name = kept_name
 	intro_station_active = true
 	intro_station_can_pick_house = false
 	intro_station_resume_debt = false
@@ -775,30 +646,30 @@ func abort_intro_sequence() -> void:
 func _apply_identity(identity: Dictionary) -> void:
 	if identity.is_empty():
 		return
-	player_name = str(identity.get("player_name", DEFAULT_PLAYER_NAME))
-	if player_name.strip_edges().is_empty():
-		player_name = DEFAULT_PLAYER_NAME
-	town_name = str(identity.get("town_name", DEFAULT_TOWN_NAME))
-	if town_name.strip_edges().is_empty():
-		town_name = DEFAULT_TOWN_NAME
-	player_gender = IntroSequence.normalize_gender(
+	resident.player_name = str(identity.get("player_name", DEFAULT_PLAYER_NAME))
+	if resident.player_name.strip_edges().is_empty():
+		resident.player_name = DEFAULT_PLAYER_NAME
+	town.town_name = str(identity.get("town_name", DEFAULT_TOWN_NAME))
+	if town.town_name.strip_edges().is_empty():
+		town.town_name = DEFAULT_TOWN_NAME
+	resident.player_gender = IntroSequence.normalize_gender(
 		identity.get("player_gender", DEFAULT_PLAYER_GENDER)
 	)
-	player_face = clampi(
+	resident.player_face = clampi(
 		int(identity.get("player_face", 0)), 0, IntroSequence.FACE_TYPE_NUM - 1
 	)
 
 
 func resolve_world_data() -> WorldData:
 	var data: WorldData
-	if world_mode == WorldData.Mode.GENERATED:
-		data = WorldGenerator.generate(world_seed, title_demo_active)
+	if town.world_mode == WorldData.Mode.GENERATED:
+		data = WorldGenerator.generate(town.world_seed, title_demo_active)
 		if not title_demo_active:
 			_resolve_residents(data)
 	else:
 		data = WorldGenerator.authored_test_town()
-	data.grass_pattern = grass_pattern
-	FieldCatalog.set_grass_pattern(grass_pattern)
+	data.grass_pattern = town.grass_pattern
+	FieldCatalog.set_grass_pattern(town.grass_pattern)
 	return data
 
 
@@ -820,7 +691,7 @@ func _resolve_residents(data: WorldData) -> void:
 			villagers.get_or_create(id).wear_present_cloth()
 		## `mNpc_Remail`.
 		VillagerLetters.send_replies(
-			residents, relationships, Clock.day_number(), player_name, rng, _deliver_villager_mail
+			residents, relationships, Clock.day_number(), resident.player_name, rng, _deliver_villager_mail
 		)
 		_check_valentines(rng)
 	WorldGenerator.apply_residents(data, residents)
@@ -833,7 +704,7 @@ func _residents_context(data: WorldData, rng: RandomNumberGenerator) -> Dictiona
 		"minute": Clock.absolute_minute(),
 		"met": func(id: StringName) -> bool: return player_met(id),
 		"letters": func(_id: StringName) -> int: return 0,
-		"field_rank": field_rank,
+		"field_rank": town.field_rank,
 		"reserves": data.reserve_cells,
 		"on_goodbye": func(id: StringName, looks: int) -> void: _villager_moved_out(id, looks, rng),
 	}
@@ -852,13 +723,13 @@ func _villager_moved_out(villager_id: StringName, looks: int, rng: RandomNumberG
 	var name: String = villager.display_name if villager != null else String(villager_id)
 	if looks >= 0 and looks < TownResidents.LOOKS_NUM and MailBank.has_bank():
 		var mail_no: int = 0x20E + looks * 3 + rng.randi_range(0, 2)
-		var text: Dictionary = MailBank.letter(mail_no, player_name, {0: player_name, 1: name, 3: town_name})
+		var text: Dictionary = MailBank.letter(mail_no, resident.player_name, {0: resident.player_name, 1: name, 3: town.town_name})
 		var mail := MailData.new()
 		mail.sender_id = villager_id
 		mail.sender_name = name
 		mail.sender_type = MailData.NameType.NPC
 		mail.recipient_type = MailData.NameType.PLAYER
-		mail.recipient_name = player_name
+		mail.recipient_name = resident.player_name
 		mail.font = MailData.LetterFont.RECV
 		mail.header = str(text["header"])
 		mail.body = str(text["body"])
@@ -890,11 +761,11 @@ func notify_wade_start() -> void:
 
 ## `vt_wt_mail_check`: Valentine's letters once, on February 14th.
 func _check_valentines(rng: RandomNumberGenerator) -> void:
-	if Clock.month != 2 or Clock.day != 14 or valentine_year == Clock.year:
+	if Clock.month != 2 or Clock.day != 14 or resident.valentine_year == Clock.year:
 		return
-	valentine_year = Clock.year
+	resident.valentine_year = Clock.year
 	VillagerLetters.send_valentines(
-		residents, relationships, player_gender == &"female", player_name, rng,
+		residents, relationships, resident.player_gender == &"female", resident.player_name, rng,
 		func(mail: MailData) -> bool: return inventory.add_received_mail(mail) >= 0
 	)
 
@@ -904,18 +775,18 @@ func _check_valentines(rng: RandomNumberGenerator) -> void:
 ## is picked now, so their card doesn't come as well.
 func _check_birthday_cards(rng: RandomNumberGenerator) -> void:
 	var today: int = EventDates.ordinal(Clock.year, Clock.month, Clock.day)
-	var last: int = birthday_card_day
-	birthday_card_day = today
+	var last: int = resident.birthday_card_day
+	resident.birthday_card_day = today
 	var bd: Vector2i = VillagerTalkManager.birthday()
 	if not PresentVisit.birthday_passed(bd, last, today):
 		return
-	if celebrated_birthday_year != Clock.year:
-		birthday_present_npc = (
+	if resident.celebrated_birthday_year != Clock.year:
+		resident.birthday_present_npc = (
 			PresentVisit.birthday_npc(residents, relationships)
 			if bd == Vector2i(Clock.month, Clock.day) else &""
 		)
 	var sent: int = PresentVisit.send_cards(
-		residents, relationships, birthday_present_npc, player_name, rng,
+		residents, relationships, resident.birthday_present_npc, resident.player_name, rng,
 		func(mail: MailData) -> bool: return inventory.add_received_mail(mail) >= 0 or post.receipt_mail(mail)
 	)
 	if sent > 0:
@@ -924,7 +795,7 @@ func _check_birthday_cards(rng: RandomNumberGenerator) -> void:
 
 ## `mCD_calendar_wellcome_on`: today goes on the calendar.
 func note_played_today() -> void:
-	CalendarBook.played_on(calendar, EventDates.ordinal(Clock.year, Clock.month, Clock.day))
+	CalendarBook.played_on(resident.calendar, EventDates.ordinal(Clock.year, Clock.month, Clock.day))
 
 
 ## `mPO_business_proc`: the 9:00 and 17:00 rounds, and the first one of a session
@@ -936,7 +807,7 @@ func _deliver_post(session_start: bool) -> void:
 
 
 func _post_to_resident(mail: MailData) -> bool:
-	if mail.recipient_name == player_name:
+	if mail.recipient_name == resident.player_name:
 		return inventory.add_received_mail(mail) >= 0
 	for slot: int in PlayerRoster.MAX:
 		if slot != roster.current and roster.name_of(slot) == mail.recipient_name:
@@ -949,8 +820,8 @@ func _post_to_resident(mail: MailData) -> bool:
 func _check_mother_mail(rng: RandomNumberGenerator) -> void:
 	var holiday: StringName = MotherMail.holiday(Clock.year, Clock.month, Clock.day)
 	var sent: int = MotherMail.check(
-		mother_mail, EventDates.ordinal(Clock.year, Clock.month, Clock.day), VillagerTalkManager.birthday(),
-		holiday, player_name, rng,
+		resident.mother_mail, EventDates.ordinal(Clock.year, Clock.month, Clock.day), VillagerTalkManager.birthday(),
+		holiday, resident.player_name, rng,
 		func(mail: MailData) -> bool: return inventory.add_received_mail(mail) >= 0 or post.receipt_mail(mail)
 	)
 	if sent >= 0:
@@ -1051,7 +922,7 @@ func continue_game(slot: int = -1) -> void:
 		return
 	note_reset(SaveService.last_reset_code)
 	resume_clock(SaveService.last_elapsed)
-	SaveService.mark_session_open(reset_count)
+	SaveService.mark_session_open(resident.reset_count)
 	## `mMl_start_send_mail` / `mNtc_set_auto_nwrite_data` at game start.
 	send_postoffice_gift()
 	update_notice_board()
@@ -1075,7 +946,7 @@ func return_to_title() -> void:
 
 
 func notify_world_ready() -> void:
-	if world_mode == WorldData.Mode.TEST:
+	if town.world_mode == WorldData.Mode.TEST:
 		give_test_tools()
 	if intro_station_active:
 		_set_phase(Phase.INTRO)
@@ -1094,7 +965,7 @@ func notify_title_ready() -> void:
 ## The real-time clock ran on while the game was off; a clock set back marks the save.
 func resume_clock(elapsed: int) -> void:
 	if not Clock.resume_after(elapsed):
-		cheated_flag = true
+		town.cheated_flag = true
 
 
 ## `mFAs_GetFieldRank_Condition` / `mFAs_SetFieldRank`: rate the town now, keep the rank and
@@ -1108,28 +979,28 @@ func rate_town(world: Node, rng: RandomNumberGenerator = null, at_well: bool = f
 	var result: Dictionary = TownAssessment.evaluate(TownAssessment.survey(world), roll)
 	## `dust_flag`: once trash sank the town, any trash left keeps it at nothing.
 	if int(result["dust"]) >= TownAssessment.DUST_OVER_NUM:
-		dust_flag = true
-	elif dust_flag:
+		town.dust_flag = true
+	elif town.dust_flag:
 		if int(result["dust"]) > 0:
 			result["rank"] = 0
 			result["condition"] = TownAssessment.Condition.DUST_OVER
 		else:
-			dust_flag = false
-	field_rank = int(result["rank"])
+			town.dust_flag = false
+	town.field_rank = int(result["rank"])
 	if events != null:
-		events.field_rank = field_rank
+		events.field_rank = town.field_rank
 	if at_well and int(result["condition"]) != TownAssessment.Condition.NO_CASE:
-		perfect_streak = 0
-		perfect_streak_day = -1
-	var next: Vector2i = TownAssessment.next_streak(field_rank, perfect_streak, perfect_streak_day, Clock.day_number())
-	perfect_streak = next.x
-	perfect_streak_day = next.y
+		town.perfect_streak = 0
+		town.perfect_streak_day = -1
+	var next: Vector2i = TownAssessment.next_streak(town.field_rank, town.perfect_streak, town.perfect_streak_day, Clock.day_number())
+	town.perfect_streak = next.x
+	town.perfect_streak_day = next.y
 	return result
 
 
 ## `mFAs_CheckGoodField`: fifteen perfect days in a row.
 func perfect_town_long_enough() -> bool:
-	return perfect_streak >= TownAssessment.PERFECT_STREAK_MAX
+	return town.perfect_streak >= TownAssessment.PERFECT_STREAK_MAX
 
 
 ## `mPr_GetGoodsPower`: the house's feng shui moved by the day's fortune (goods luck +30,
@@ -1155,18 +1026,18 @@ func refresh_feng_shui() -> void:
 ## winter ends. The field drops the ones that melted when it next loads.
 func melt_snowmen(days: int) -> void:
 	var winter: bool = Clock.season() == Clock.Season.WINTER
-	for i: int in snowmen.size():
-		var e: Dictionary = snowmen[i]
+	for i: int in town.snowmen.size():
+		var e: Dictionary = town.snowmen[i]
 		if e.is_empty():
 			continue
 		if not SnowmanRules.melt(e, days, winter):
-			snowmen[i] = {}
+			town.snowmen[i] = {}
 
 
 ## The renewals waiting for weeds, handed to the field once (`World` sows them).
 func take_weed_days() -> int:
-	var days: int = weed_days_pending
-	weed_days_pending = 0
+	var days: int = town.weed_days_pending
+	town.weed_days_pending = 0
 	return days
 
 
@@ -1175,7 +1046,7 @@ func take_weed_days() -> int:
 func note_reset(reset_code: int) -> void:
 	reset_flag = reset_code != 0
 	if reset_flag:
-		reset_count += 1
+		resident.reset_count += 1
 
 
 ## `Stung_bee` frame 21 of `HATI2`: the face swells (`mPlib_change_player_face`) and, on the
@@ -1202,29 +1073,25 @@ func note_bee_greeting(villager_id: StringName) -> void:
 
 ## `mDemo_Copy_change_player_destiny`: record the fortune and the day it was received.
 func set_destiny(kind: int) -> void:
-	destiny_type = kind
-	destiny_date = Vector3i(Clock.year, Clock.month, Clock.day)
+	resident.destiny_type = kind
+	resident.destiny_date = Vector3i(Clock.year, Clock.month, Clock.day)
 
 
 ## `Game_play_Reset_destiny`: a fortune only lasts the calendar day it was received.
 func destiny() -> int:
-	if destiny_type != Destiny.NORMAL and destiny_date != Vector3i(Clock.year, Clock.month, Clock.day):
-		destiny_type = Destiny.NORMAL
-	return destiny_type
+	if resident.destiny_type != Destiny.NORMAL and resident.destiny_date != Vector3i(Clock.year, Clock.month, Clock.day):
+		resident.destiny_type = Destiny.NORMAL
+	return resident.destiny_type
 
 
 func reset_session() -> void:
+	town.reset()
+	resident.reset()
 	roster = PlayerRoster.new()
-	town_id = Travel.new_town_id()
-	mask_cat = {}
-	met_blanca = false
-	mask_cat_scheduled = false
 	foreigner = false
 	arrive_by_train = false
 	visiting_slot = -1
 	_own_house_stash = {}
-	destiny_type = Destiny.NORMAL
-	destiny_date = Vector3i.ZERO
 	inventory.clear()
 	if train != null:
 		train.reset()
@@ -1250,8 +1117,6 @@ func reset_session() -> void:
 	interior_session = null
 	insect_term_month = 0
 	insect_term_offset = 0
-	fish_season_term = 0
-	fish_season_offset = 0
 	current_room_id = &""
 	outdoor_return = DEFAULT_SPAWN
 	outdoor_return_yaw = 0.0
@@ -1268,79 +1133,22 @@ func reset_session() -> void:
 	npc_talk_info.clear()
 	quests.clear()
 	quest_handover_pending = false
-	first_job_hint_count = 0
-	valentine_year = 0
-	celebrated_birthday_year = 0
-	birthday_present_npc = &""
-	birthday_card_day = 0
-	mother_mail = MotherMail.new_state()
-	radio_card = RadioCard.new_state()
 	complete_payment = &""
-	calendar = CalendarBook.new_state()
-	fish_records.clear()
-	treasure_buried_day = 0
-	gyroids_scheduled = false
-	shine_hole = &""
-	treasure_checked_day = 0
 	treasure_due = false
 	VillagerWalk.reset()
 	VillagerOutdoor.reset()
 	Fishing.reset()
-	player_position = DEFAULT_SPAWN
-	player_yaw = 0.0
-	removed_interactables.clear()
-	stump_interactables.clear()
-	hole_interactables.clear()
-	weeds.clear()
-	clear_grass = false
-	weed_days_pending = 0
-	field_rank = 0
-	perfect_streak = 0
-	perfect_streak_day = -1
-	dust_flag = false
-	golden_axe_got = false
-	golden_shovel_shown = false
-	museum_comp_mail = 0
 	golden_last_dig = Vector2i(-1, -1)
 	nook_code_gifts = 0
-	money_rock = ""
-	money_rock_day = -1
 	MoneyRock.reset()
 	mushrooms_session_cleared = false
-	mushrooms.clear()
-	shells.clear()
 	shells_owed = ShellUse.FIRST_NUM
 	shell_minute_counted = false
-	signboards.clear()
-	field_items.clear()
-	bridge = {}
-	mushroom_minute = -1
-	mushroom_active = false
-	snowmen = [{}, {}, {}]
-	snowman_built_minute = -1
 	snowman_msg_id = randi_range(0, 2)
-	ball = {}
-	snowballs.clear()
-	sunburn = {"rank": 0, "changed": -1, "hold": 0}
 	Sunburn.reset_session()
-	diary.clear()
 	money_power = 0
 	goods_power = 0
-	plant_states.clear()
-	buried_deposits.clear()
-	player_name = DEFAULT_PLAYER_NAME
-	town_name = DEFAULT_TOWN_NAME
-	player_gender = DEFAULT_PLAYER_GENDER
-	player_face = 0
-	cloth_id = FirstJob.DEFAULT_CLOTH_ID
-	has_map = false
-	num_statues = 0
-	reset_count = 0
 	reset_flag = false
-	cheated_flag = false
-	bank_gift_flags = 0
-	town_tune = TownTune.default_notes()
-	complete_flags = 0
 	goki_shocked = false
 	bee_swell = false
 	bee_chase = false
@@ -1349,12 +1157,6 @@ func reset_session() -> void:
 		first_job = FirstJob.new()
 	else:
 		first_job.clear()
-	weather = &"clear"
-	weather_intensity = int(Weather.Intensity.NONE)
-	dialogue_vars.clear()
-	world_mode = WorldData.Mode.TEST
-	world_seed = WorldGenerator.DEFAULT_SEED
-	grass_pattern = WorldData.GrassPattern.TRIANGLE
 	intro_station_active = false
 	intro_station_can_pick_house = false
 	intro_station_resume_debt = false
@@ -1386,19 +1188,15 @@ func reset_session() -> void:
 	notice_board = NoticeBoard.new()
 	notice_board.seed(Clock.year, Clock.month, Clock.day, Clock.hour, Clock.minute)
 	hra = HappyRoomAcademy.new()
-	town_fruit = &"apple"
 	events.clear()
-	events.field_rank = field_rank
+	events.field_rank = town.field_rank
 	_events_ready = false
 	if designs == null:
 		designs = DesignBook.new()
 	else:
 		designs.clear()
-	worn_design_slot = -1
 	_police_topup_pending = false
 	set_interact_prompt("")
-
-
 ## `mEv_GetEventWeather`: fireworks, the meteor shower and the like force clear skies; Dec 24
 ## forces heavy snow. No-op when no event overrides the weather.
 func apply_event_weather() -> void:
@@ -1417,7 +1215,7 @@ func sync_events() -> void:
 	var first: bool = not _events_ready
 	_events_ready = true
 	if first and events.town_seed == 0:
-		events.assign_town(world_seed)
+		events.assign_town(town.world_seed)
 	events.sync(EventCalendar.date_from_clock())
 	_deliver_post(first)
 	if first:
@@ -1440,22 +1238,22 @@ func set_weather(next: StringName, intensity: int = -1) -> void:
 	var next_intensity: int = intensity
 	if next_intensity < 0:
 		next_intensity = int(Weather.default_intensity_for(Weather.kind_from_name(next)))
-	if weather == next and weather_intensity == next_intensity:
+	if town.weather == next and town.weather_intensity == next_intensity:
 		return
-	weather = next
-	weather_intensity = next_intensity
-	weather_changed.emit(weather)
+	town.weather = next
+	town.weather_intensity = next_intensity
+	weather_changed.emit(town.weather)
 
 
 func set_cloth(next: StringName) -> void:
 	## Worn shirt (`Private_c.cloth`). Empty → default starter cloth.
 	var id: StringName = next if next != &"" else FirstJob.DEFAULT_CLOTH_ID
-	if cloth_id == id:
+	if resident.cloth_id == id:
 		return
-	cloth_id = id
+	resident.cloth_id = id
 	if first_job != null:
-		first_job.tick_cloth(cloth_id)
-	cloth_changed.emit(cloth_id)
+		first_job.tick_cloth(resident.cloth_id)
+	cloth_changed.emit(resident.cloth_id)
 
 
 func wear_cloth_from_slot(index: int) -> bool:
@@ -1470,7 +1268,7 @@ func wear_cloth_from_slot(index: int) -> bool:
 	var data: ItemData = ItemCatalog.get_item(slot.item.item_id)
 	if data == null or data.category != ItemData.Category.CLOTH:
 		return false
-	var previous: StringName = cloth_id
+	var previous: StringName = resident.cloth_id
 	var wearing: StringName = slot.item.item_id
 	inventory.remove_from_slot(index, 1)
 	if previous != &"" and previous != wearing:
@@ -1483,9 +1281,9 @@ func wear_cloth_from_slot(index: int) -> bool:
 
 func unlock_map() -> void:
 	## First-job furniture end hands `ITM_TOWN_MAP` (`Common.map_flag`).
-	if has_map:
+	if resident.has_map:
 		return
-	has_map = true
+	resident.has_map = true
 	set_interact_prompt("Press Map to open the town map")
 
 
@@ -1506,7 +1304,7 @@ func apply_weather_roll(result: Dictionary) -> void:
 
 func cycle_weather_debug() -> void:
 	## HUD debug: clear → rain → snow → sakura.
-	var next: StringName = Weather.next_in_cycle(weather)
+	var next: StringName = Weather.next_in_cycle(town.weather)
 	set_weather(next)
 
 
@@ -1529,63 +1327,63 @@ func capture_player_from_tree() -> void:
 	var player := Player.find(get_tree())
 	if player == null:
 		return
-	player_position = player.global_position
-	player_yaw = player.facing_yaw()
+	resident.player_position = player.global_position
+	resident.player_yaw = player.facing_yaw()
 
 
 func is_interactable_removed(persist_id: StringName) -> bool:
 	if persist_id == &"":
 		return false
-	return removed_interactables.has(String(persist_id))
+	return town.removed_interactables.has(String(persist_id))
 
 
 func mark_interactable_removed(persist_id: StringName) -> void:
 	if persist_id == &"":
 		return
 	var key := String(persist_id)
-	if not removed_interactables.has(key):
-		removed_interactables.append(key)
+	if not town.removed_interactables.has(key):
+		town.removed_interactables.append(key)
 	clear_stump(persist_id)
 
 
 func is_stump(persist_id: StringName) -> bool:
 	if persist_id == &"":
 		return false
-	return stump_interactables.has(String(persist_id))
+	return town.stump_interactables.has(String(persist_id))
 
 
 func mark_stump(persist_id: StringName) -> void:
 	if persist_id == &"" or is_interactable_removed(persist_id):
 		return
 	var key := String(persist_id)
-	if not stump_interactables.has(key):
-		stump_interactables.append(key)
+	if not town.stump_interactables.has(key):
+		town.stump_interactables.append(key)
 
 
 func clear_stump(persist_id: StringName) -> void:
 	if persist_id == &"":
 		return
-	stump_interactables.erase(String(persist_id))
+	town.stump_interactables.erase(String(persist_id))
 
 
 func is_hole(persist_id: StringName) -> bool:
 	if persist_id == &"":
 		return false
-	return hole_interactables.has(String(persist_id))
+	return town.hole_interactables.has(String(persist_id))
 
 
 func mark_hole(persist_id: StringName) -> void:
 	if persist_id == &"":
 		return
 	var key := String(persist_id)
-	if not hole_interactables.has(key):
-		hole_interactables.append(key)
+	if not town.hole_interactables.has(key):
+		town.hole_interactables.append(key)
 
 
 func clear_hole(persist_id: StringName) -> void:
 	if persist_id == &"":
 		return
-	hole_interactables.erase(String(persist_id))
+	town.hole_interactables.erase(String(persist_id))
 
 
 func set_interact_prompt(text: String) -> void:
@@ -1602,46 +1400,7 @@ func post_notice(text: String) -> void:
 func to_save() -> Dictionary:
 	## `mCkRh_SavePlayTime` runs whenever the game is saved.
 	HouseCockroaches.save_play_time(interiors.player_house())
-	return {
-		"player": {
-			"x": player_position.x,
-			"y": player_position.y,
-			"z": player_position.z,
-			"yaw": player_yaw,
-		},
-		"removed_interactables": removed_interactables.duplicate(),
-		"stump_interactables": stump_interactables.duplicate(),
-		"hole_interactables": hole_interactables.duplicate(),
-		"weeds": weeds.duplicate(),
-		"clear_grass": clear_grass,
-		"weed_days_pending": weed_days_pending,
-		"field_rank": field_rank,
-		"perfect_streak": perfect_streak,
-		"perfect_streak_day": perfect_streak_day,
-		"dust_flag": dust_flag,
-		"golden_axe_got": golden_axe_got,
-		"golden_shovel_shown": golden_shovel_shown,
-		"museum_comp_mail": museum_comp_mail,
-		"money_rock": money_rock,
-		"money_rock_day": money_rock_day,
-		"mushrooms": mushrooms.duplicate(),
-		"shells": shells.duplicate(),
-		"signboards": signboards.duplicate(true),
-		"field_items": field_items.duplicate(true),
-		"bridge": bridge.duplicate(true),
-		"mushroom_minute": mushroom_minute,
-		"mushroom_active": mushroom_active,
-		"snowmen": snowmen.duplicate(true),
-		"snowman_built_minute": snowman_built_minute,
-		"snowballs": snowballs.duplicate(true),
-		"ball": ball.duplicate(),
-		"sunburn": sunburn.duplicate(),
-		"diary": diary.duplicate(),
-		"plants": plant_states.duplicate(true),
-		"buried": buried_deposits.duplicate(true),
-		"world_mode": int(world_mode),
-		"world_seed": world_seed,
-		"grass_pattern": grass_pattern,
+	var out := {
 		"villagers": villagers.to_save(),
 		"residents": residents.to_save(),
 		"relationships": relationships.to_save(),
@@ -1655,10 +1414,8 @@ func to_save() -> Dictionary:
 		"redd": redd.to_save(),
 		"lighthouse": lighthouse.to_save(),
 		"catalog": catalog.to_save(),
-		"town_fruit": String(town_fruit),
 		"events": events.to_save(),
 		"designs": designs.to_save(),
-		"worn_design_slot": worn_design_slot,
 		"current_room_id": String(current_room_id),
 		"outdoor_return": {
 			"x": outdoor_return.x,
@@ -1666,180 +1423,29 @@ func to_save() -> Dictionary:
 			"z": outdoor_return.z,
 			"yaw": outdoor_return_yaw,
 		},
-		"player_name": player_name,
-		"town_name": town_name,
-		"player_gender": String(player_gender),
-		"player_face": player_face,
-		"cloth_id": String(cloth_id),
-		"destiny": {"type": int(destiny_type), "y": destiny_date.x, "m": destiny_date.y, "d": destiny_date.z},
-		"has_map": has_map,
-		"num_statues": num_statues,
-		"reset_count": reset_count,
-		"cheated_flag": cheated_flag,
-		"bank_gift_flags": bank_gift_flags,
-		"town_tune": Array(town_tune),
-		"complete_flags": complete_flags,
 		"first_job": first_job.to_save() if first_job != null else {},
-		"weather": String(weather),
-		"weather_intensity": weather_intensity,
-		"fish_season_term": {"term": fish_season_term, "offset": fish_season_offset},
-		"dialogue_vars": dialogue_vars.duplicate(true),
-		"first_job_hint_count": first_job_hint_count,
-		"valentine_year": valentine_year,
-		"celebrated_birthday_year": celebrated_birthday_year,
-		"birthday_present_npc": String(birthday_present_npc),
-		"birthday_card_day": birthday_card_day,
-		"mother_mail": mother_mail.duplicate(),
-		"radio_card": radio_card.duplicate(),
-		"calendar": calendar.duplicate(true),
-		"fish_records": fish_records.duplicate(true),
-		"treasure_buried_day": treasure_buried_day,
-		"town_id": town_id,
-		"mask_cat": mask_cat.duplicate(true),
-		"met_blanca": met_blanca,
-		"mask_cat_scheduled": mask_cat_scheduled,
-		"gyroids_scheduled": gyroids_scheduled,
-		"shine_hole": String(shine_hole),
-		"treasure_checked_day": treasure_checked_day,
 		"quests": quests.to_save(),
 		"rainbow": rainbow.to_save(),
 		"notice_board": notice_board.to_save(),
 		"hra": hra.to_save(),
 	}
+	resident.write_save(out)
+	town.write_save(out)
+	return out
 
 
 func apply_snapshot(data: Dictionary) -> void:
-	var pose: Variant = data.get("player", {})
-	if typeof(pose) == TYPE_DICTIONARY:
-		var p: Dictionary = pose
-		player_position = Vector3(
-			float(p.get("x", DEFAULT_SPAWN.x)),
-			float(p.get("y", DEFAULT_SPAWN.y)),
-			float(p.get("z", DEFAULT_SPAWN.z))
-		)
-		player_yaw = float(p.get("yaw", 0.0))
-	else:
-		player_position = DEFAULT_SPAWN
-		player_yaw = 0.0
-	removed_interactables.clear()
-	var removed: Variant = data.get("removed_interactables", [])
-	if typeof(removed) == TYPE_ARRAY:
-		for entry: Variant in removed:
-			removed_interactables.append(str(entry))
-	stump_interactables.clear()
-	var stumps: Variant = data.get("stump_interactables", [])
-	if typeof(stumps) == TYPE_ARRAY:
-		for entry: Variant in stumps:
-			var key := str(entry)
-			if not removed_interactables.has(key):
-				stump_interactables.append(key)
-	weeds.clear()
-	var saved_weeds: Variant = data.get("weeds", {})
-	if typeof(saved_weeds) == TYPE_DICTIONARY:
-		for key: Variant in saved_weeds:
-			weeds[str(key)] = clampi(int(saved_weeds[key]), 0, 2)
-	clear_grass = bool(data.get("clear_grass", false))
-	weed_days_pending = maxi(int(data.get("weed_days_pending", 0)), 0)
-	field_rank = clampi(int(data.get("field_rank", 0)), 0, TownAssessment.RANK_PERFECT)
-	perfect_streak = clampi(int(data.get("perfect_streak", 0)), 0, TownAssessment.PERFECT_STREAK_MAX)
-	perfect_streak_day = int(data.get("perfect_streak_day", -1))
-	dust_flag = bool(data.get("dust_flag", false))
-	golden_axe_got = bool(data.get("golden_axe_got", false))
-	golden_shovel_shown = bool(data.get("golden_shovel_shown", false))
-	museum_comp_mail = int(data.get("museum_comp_mail", 0))
-	money_rock = str(data.get("money_rock", ""))
-	money_rock_day = int(data.get("money_rock_day", -1))
-	signboards.clear()
-	var saved_signs: Variant = data.get("signboards", {})
-	if typeof(saved_signs) == TYPE_DICTIONARY:
-		signboards = (saved_signs as Dictionary).duplicate(true)
-	bridge = {}
-	var saved_bridge: Variant = data.get("bridge", {})
-	if typeof(saved_bridge) == TYPE_DICTIONARY and not (saved_bridge as Dictionary).is_empty():
-		bridge = SecondBridge.new_state()
-		bridge.merge(saved_bridge as Dictionary, true)
-	field_items.clear()
-	var saved_items: Variant = data.get("field_items", {})
-	if typeof(saved_items) == TYPE_DICTIONARY:
-		field_items = (saved_items as Dictionary).duplicate(true)
-	shells.clear()
-	var saved_shells: Variant = data.get("shells", {})
-	if typeof(saved_shells) == TYPE_DICTIONARY:
-		for key: Variant in saved_shells:
-			shells[str(key)] = str(saved_shells[key])
+	town.read_save(data)
+	resident.read_save(data)
 	shells_owed = ShellUse.FIRST_NUM
 	shell_minute_counted = false
 	mushrooms_session_cleared = false
-	mushrooms.clear()
-	var saved_mushrooms: Variant = data.get("mushrooms", {})
-	if typeof(saved_mushrooms) == TYPE_DICTIONARY:
-		for key: Variant in saved_mushrooms:
-			mushrooms[str(key)] = 1
-	mushroom_minute = int(data.get("mushroom_minute", -1))
-	mushroom_active = bool(data.get("mushroom_active", false))
-	snowmen = [{}, {}, {}]
-	var saved_snowmen: Variant = data.get("snowmen", [])
-	if typeof(saved_snowmen) == TYPE_ARRAY:
-		for i: int in mini((saved_snowmen as Array).size(), SnowmanRules.SAVE_COUNT):
-			var e: Variant = saved_snowmen[i]
-			if typeof(e) == TYPE_DICTIONARY and not (e as Dictionary).is_empty():
-				snowmen[i] = (e as Dictionary).duplicate(true)
-	snowman_built_minute = int(data.get("snowman_built_minute", -1))
-	ball = (data.get("ball", {}) as Dictionary).duplicate() if typeof(data.get("ball", {})) == TYPE_DICTIONARY else {}
-	snowballs.clear()
-	var saved_balls: Variant = data.get("snowballs", {})
-	if typeof(saved_balls) == TYPE_DICTIONARY:
-		for key: Variant in saved_balls:
-			if typeof(saved_balls[key]) == TYPE_DICTIONARY:
-				snowballs[int(key)] = (saved_balls[key] as Dictionary).duplicate(true)
 	snowman_msg_id = randi_range(0, 2)
-	var saved_tan: Variant = data.get("sunburn", {})
-	sunburn = {"rank": 0, "changed": -1, "hold": 0}
-	if typeof(saved_tan) == TYPE_DICTIONARY:
-		sunburn["rank"] = clampi(int((saved_tan as Dictionary).get("rank", 0)), 0, Sunburn.MAX_RANK)
-		sunburn["changed"] = int((saved_tan as Dictionary).get("changed", -1))
-		sunburn["hold"] = clampi(int((saved_tan as Dictionary).get("hold", 0)), 0, Sunburn.HOLD_DAYS)
 	Sunburn.reset_session()
-	diary.clear()
-	var saved_diary: Variant = data.get("diary", {})
-	if typeof(saved_diary) == TYPE_DICTIONARY:
-		for key: Variant in saved_diary:
-			var m: int = int(key)
-			if m >= 1 and m <= 12:
-				diary[m] = DiaryOverlay.clip(str(saved_diary[key]))
-	hole_interactables.clear()
-	var holes: Variant = data.get("hole_interactables", [])
-	if typeof(holes) == TYPE_ARRAY:
-		for entry: Variant in holes:
-			hole_interactables.append(str(entry))
-	plant_states.clear()
-	var plants: Variant = data.get("plants", {})
-	if typeof(plants) == TYPE_DICTIONARY:
-		for key: Variant in (plants as Dictionary).keys():
-			var rec: Variant = plants[key]
-			if typeof(rec) == TYPE_DICTIONARY:
-				plant_states[str(key)] = (rec as Dictionary).duplicate()
-	buried_deposits.clear()
-	var buried: Variant = data.get("buried", {})
-	if typeof(buried) == TYPE_DICTIONARY:
-		for key: Variant in (buried as Dictionary).keys():
-			var rec: Variant = buried[key]
-			if typeof(rec) == TYPE_DICTIONARY:
-				buried_deposits[str(key)] = (rec as Dictionary).duplicate()
-	world_mode = int(data.get("world_mode", WorldData.Mode.TEST)) as WorldData.Mode
-	world_seed = int(data.get("world_seed", WorldGenerator.DEFAULT_SEED))
-	if data.has("grass_pattern"):
-		grass_pattern = WorldData.clamp_grass_pattern(int(data["grass_pattern"]))
-	elif world_mode == WorldData.Mode.GENERATED:
-		grass_pattern = WorldGenerator.decide_grass_pattern(world_seed)
-	else:
-		grass_pattern = WorldData.GrassPattern.TRIANGLE
 	relationships.apply_snapshot(data.get("relationships", {}))
 	interiors.apply_snapshot(data.get("interiors", {}))
-	## `m_start_data_init.c`: a house ordered on an earlier day is built when the game starts,
-	## and finished collections are noted for the villagers' congratulations.
+	## `m_start_data_init.c`: a house ordered on an earlier day is built when the game starts.
 	check_rehouse_order()
-	CompleteTalk.start_set_info()
 	goki_shocked = false
 	bee_swell = false
 	bee_chase = false
@@ -1852,6 +1458,9 @@ func apply_snapshot(data: Dictionary) -> void:
 	if species_log == null:
 		species_log = SpeciesLog.new()
 	species_log.apply_snapshot(data.get("species_log", {}))
+	## `mPr_StartSetCompleteTalkInfo` (`m_start_data_init`): finished collections are noted for
+	## the villagers' congratulations once the encyclopedia is loaded.
+	CompleteTalk.start_set_info()
 	if police == null:
 		police = PoliceBook.new()
 	if data.has("police"):
@@ -1875,14 +1484,12 @@ func apply_snapshot(data: Dictionary) -> void:
 		catalog = CatalogBook.new()
 	catalog.apply_snapshot(data.get("catalog", {}))
 	catalog.record_inventory(inventory)
-	town_fruit = StringName(str(data.get("town_fruit", "apple")))
 	events.apply_snapshot(data.get("events", {}))
-	events.field_rank = field_rank
+	events.field_rank = town.field_rank
 	_events_ready = false
 	if designs == null:
 		designs = DesignBook.new()
 	designs.apply_snapshot(data.get("designs", {}))
-	worn_design_slot = int(data.get("worn_design_slot", -1))
 	current_room_id = StringName(str(data.get("current_room_id", "")))
 	var outdoor: Variant = data.get("outdoor_return", {})
 	if typeof(outdoor) == TYPE_DICTIONARY:
@@ -1911,83 +1518,9 @@ func apply_snapshot(data: Dictionary) -> void:
 		notice_board.apply_snapshot(data["notice_board"])
 	else:
 		notice_board.seed(Clock.year, Clock.month, Clock.day, Clock.hour, Clock.minute)
-	first_job_hint_count = clampi(int(data.get("first_job_hint_count", 0)), 0, 0xFF)
-	valentine_year = int(data.get("valentine_year", 0))
-	celebrated_birthday_year = int(data.get("celebrated_birthday_year", 0))
-	birthday_present_npc = StringName(str(data.get("birthday_present_npc", "")))
-	birthday_card_day = int(data.get("birthday_card_day", 0))
-	treasure_buried_day = int(data.get("treasure_buried_day", 0))
-	town_id = int(data.get("town_id", 0))
-	mask_cat = (data.get("mask_cat", {}) as Dictionary).duplicate(true) if typeof(data.get("mask_cat")) == TYPE_DICTIONARY else {}
-	met_blanca = bool(data.get("met_blanca", false))
-	mask_cat_scheduled = bool(data.get("mask_cat_scheduled", false))
-	if town_id == 0:
-		town_id = Travel.new_town_id()
-	gyroids_scheduled = bool(data.get("gyroids_scheduled", false))
-	shine_hole = StringName(str(data.get("shine_hole", "")))
-	treasure_checked_day = int(data.get("treasure_checked_day", 0))
-	fish_records.clear()
-	var saved_fish: Variant = data.get("fish_records", [])
-	if typeof(saved_fish) == TYPE_ARRAY:
-		for r: Variant in saved_fish:
-			if typeof(r) == TYPE_DICTIONARY:
-				var rec: Dictionary = r
-				fish_records.append({"name": str(rec.get("name", "")), "player": bool(rec.get("player", false)),
-					"size": int(rec.get("size", 0)), "ordinal": int(rec.get("ordinal", 0)),
-					"minute": int(rec.get("minute", 0)), "settled": bool(rec.get("settled", false))})
-	calendar = CalendarBook.new_state()
-	var saved_cal: Variant = data.get("calendar", {})
-	if typeof(saved_cal) == TYPE_DICTIONARY:
-		for key: String in ["played", "events"]:
-			var days: Array = []
-			for n: Variant in (saved_cal as Dictionary).get(key, []):
-				days.append(int(n))
-			calendar[key] = days
-	radio_card = RadioCard.from_save(data.get("radio_card", {}))
-	mother_mail = MotherMail.new_state()
-	var saved_mom: Variant = data.get("mother_mail", {})
-	if typeof(saved_mom) == TYPE_DICTIONARY:
-		for key: String in ["date", "normal", "monthly"]:
-			mother_mail[key] = int((saved_mom as Dictionary).get(key, 0))
-	player_name = str(data.get("player_name", DEFAULT_PLAYER_NAME))
-	town_name = str(data.get("town_name", DEFAULT_TOWN_NAME))
-	player_gender = IntroSequence.normalize_gender(data.get("player_gender", DEFAULT_PLAYER_GENDER))
-	player_face = clampi(int(data.get("player_face", 0)), 0, IntroSequence.FACE_TYPE_NUM - 1)
-	cloth_id = StringName(str(data.get("cloth_id", FirstJob.DEFAULT_CLOTH_ID)))
-	var fortune: Dictionary = data.get("destiny", {})
-	destiny_type = clampi(int(fortune.get("type", 0)), 0, Destiny.GOODS_LUCK)
-	destiny_date = Vector3i(int(fortune.get("y", 0)), int(fortune.get("m", 0)), int(fortune.get("d", 0)))
-	if cloth_id == &"":
-		cloth_id = FirstJob.DEFAULT_CLOTH_ID
-	has_map = bool(data.get("has_map", false))
-	num_statues = clampi(int(data.get("num_statues", 0)), 0, 3)
-	reset_count = maxi(int(data.get("reset_count", 0)), 0)
-	cheated_flag = bool(data.get("cheated_flag", false))
-	bank_gift_flags = int(data.get("bank_gift_flags", 0)) & 0xF
-	town_tune = TownTune.sanitize(data.get("town_tune", null))
-	complete_flags = int(data.get("complete_flags", 0)) & 0xF
 	if first_job == null:
 		first_job = FirstJob.new()
 	first_job.from_save(data.get("first_job", {}))
-	weather = StringName(str(data.get("weather", "clear")))
-	if data.has("weather_intensity"):
-		weather_intensity = int(data["weather_intensity"])
-	elif data.has("weather_packed"):
-		var unpacked: Dictionary = Weather.unpack(int(data["weather_packed"]))
-		weather = Weather.kind_name(unpacked["kind"] as Weather.Kind)
-		weather_intensity = int(unpacked["intensity"])
-	else:
-		weather_intensity = int(Weather.default_intensity_for(Weather.kind_from_name(weather)))
-	## `Save_Get(gyoei_term)`: the fish ramp's next term and its 0–5 day lead.
-	var fish_term: Dictionary = data.get("fish_season_term", {})
-	fish_season_term = clampi(int(fish_term.get("term", 0)), 0, 23)
-	fish_season_offset = clampi(int(fish_term.get("offset", 0)), 0, 5)
-	dialogue_vars.clear()
-	var vars_raw: Variant = data.get("dialogue_vars", {})
-	if typeof(vars_raw) == TYPE_DICTIONARY:
-		dialogue_vars = (vars_raw as Dictionary).duplicate(true)
-
-
 ## `mHm_CheckRehouseOrder` for the player's house; rebuilds the live rooms when a build lands.
 func check_rehouse_order() -> bool:
 	var record: House = interiors.player_house()
@@ -2024,13 +1557,13 @@ func try_enter_interior(
 	if not is_indoors():
 		capture_player_from_tree()
 		## `rewrite_out_data`: emerge outside the structure, not on the enter stand / roof.
-		var host: Node3D = StructureDoor.find_near(self, player_position)
+		var host: Node3D = StructureDoor.find_near(self, resident.player_position)
 		if host != null:
 			outdoor_return = StructureDoor.exit_stand(host)
 			outdoor_return_yaw = StructureDoor.leave_yaw(host, outdoor_return)
 		else:
-			outdoor_return = player_position
-			outdoor_return_yaw = player_yaw
+			outdoor_return = resident.player_position
+			outdoor_return_yaw = resident.player_yaw
 	close_shop()
 	current_room_id = room_id
 	## `ac_shop_design` → `mSP_SetNewVisitor`: a visitor from another town shopped here.
@@ -2184,11 +1717,11 @@ func _on_day_changed() -> void:
 func send_postoffice_gift() -> void:
 	if inventory == null:
 		return
-	var gift: Dictionary = BankTerminal.due_gift(inventory.savings, bank_gift_flags)
+	var gift: Dictionary = BankTerminal.due_gift(inventory.savings, resident.bank_gift_flags)
 	if gift.is_empty():
 		return
-	if inventory.add_received_mail(BankTerminal.gift_letter(gift, town_name, player_name)) >= 0:
-		bank_gift_flags |= int(gift["flag"])
+	if inventory.add_received_mail(BankTerminal.gift_letter(gift, town.town_name, resident.player_name)) >= 0:
+		resident.bank_gift_flags |= int(gift["flag"])
 
 
 ## `mMkRm_MarkRoom` at game start: the HRA's welcome, grade or tip, into the mailbox.
@@ -2202,7 +1735,7 @@ func mark_room() -> void:
 	rng.randomize()
 	var busy: bool = first_job != null and first_job.is_active()
 	var letter: MailData = hra.mark(house, interiors.room(PlayerHouse.MAIN), interiors.room(PlayerHouse.UPPER),
-		Vector3i(Clock.year, Clock.month, Clock.day), busy, player_name, rng)
+		Vector3i(Clock.year, Clock.month, Clock.day), busy, resident.player_name, rng)
 	if letter != null:
 		inventory.add_received_mail(letter)
 
@@ -2213,11 +1746,11 @@ func update_notice_board() -> void:
 	rng.randomize()
 	var names: Array = fishing_names()
 	var written: int = notice_board.auto_write(Clock.year, Clock.month, Clock.day, Clock.hour,
-		NoticeBoard.common_free(town_name, shops.nook_level() if shops != null else 0),
-		func(ordinal: int) -> Dictionary: return FishRecord.holder(fish_records, ordinal, names, rng))
+		NoticeBoard.common_free(town.town_name, shops.nook_level() if shops != null else 0),
+		func(ordinal: int) -> Dictionary: return FishRecord.holder(town.fish_records, ordinal, names, rng))
 	## `mFR_fishmail`: right after the board.
-	var sent: int = FishRecord.send_mail(fish_records, EventDates.ordinal(Clock.year, Clock.month, Clock.day),
-		Clock.hour, names, catalog.owned_ids() if catalog != null else [], player_name, rng,
+	var sent: int = FishRecord.send_mail(town.fish_records, EventDates.ordinal(Clock.year, Clock.month, Clock.day),
+		Clock.hour, names, catalog.owned_ids() if catalog != null else [], resident.player_name, rng,
 		func(mail: MailData) -> bool: return inventory.add_received_mail(mail) >= 0 or post.receipt_mail(mail))
 	if sent > 0:
 		post_notice("You've got mail!")
@@ -2248,7 +1781,7 @@ func fishing_names() -> Array:
 
 func _on_field_renewed(days: int) -> void:
 	shops.renew(days)
-	weed_days_pending += maxi(days, 0)
+	town.weed_days_pending += maxi(days, 0)
 	melt_snowmen(days)
 	## `mAGrw_ClearSpoiledKabu` / `mAGrw_SpoilKabu` / `mAGrw_SpoilAllPossession`.
 	FieldItems.renew(FieldItems.sunday_passed(Clock.year, Clock.month, Clock.day, days), inventory, get_tree())
@@ -2277,14 +1810,14 @@ func _on_field_renewed(days: int) -> void:
 	if redd != null:
 		redd.check_unlock()
 	## One roll for the current date after renew (`mEnv_DecideWeather` / `aWeather_ChangeWeatherTime0`).
-	var previous_weather: StringName = weather
+	var previous_weather: StringName = town.weather
 	apply_weather_roll(Weather.roll())
 	apply_event_weather()
 	## Fine after rain or snow: a rainbow over the falls today and gyroids in the ground
 	## with the next growth (`mEnv_PreRainNowFine_Init`).
-	rainbow.note_weather_change(previous_weather, weather, Clock.month, Clock.day)
-	if Rainbow.pre_rain_now_fine(previous_weather, weather):
-		gyroids_scheduled = true
+	rainbow.note_weather_change(previous_weather, town.weather, Clock.month, Clock.day)
+	if Rainbow.pre_rain_now_fine(previous_weather, town.weather):
+		town.gyroids_scheduled = true
 	update_notice_board()
 
 
@@ -2354,8 +1887,8 @@ func exit_interior() -> bool:
 	has_interior_spawn = false
 	play_door_arrive = false
 	block_auto_enter_doors = true
-	player_position = outdoor_return
-	player_yaw = outdoor_return_yaw
+	resident.player_position = outdoor_return
+	resident.player_yaw = outdoor_return_yaw
 	## Authored museum harness has no outdoor world — return to title.
 	if _museum_complete_stage() != null:
 		emerge_from_door = false

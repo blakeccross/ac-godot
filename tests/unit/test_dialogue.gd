@@ -137,7 +137,7 @@ func test_choices_and_events_and_variables() -> void:
 	var ctx := DialogueContext.new()
 	ctx.player_name = "Blake"
 	ctx.inventory = inv
-	ctx.vars = Game.dialogue_vars
+	ctx.vars = Game.town.dialogue_vars
 	var state := VillagerState.new()
 	var runner := DialogueRunner.new()
 	runner.start(data, ctx, state)
@@ -145,7 +145,7 @@ func test_choices_and_events_and_variables() -> void:
 	assert_int(runner.choices.size()).is_equal(2)
 	runner.choose(0)
 	assert_str(runner.line).is_equal("Here you go, Blake.")
-	assert_int(int(Game.dialogue_vars.get("said_yes", 0))).is_equal(1)
+	assert_int(int(Game.town.dialogue_vars.get("said_yes", 0))).is_equal(1)
 	assert_int(state.friendship).is_equal(5)
 	assert_int(inv.count_of(&"apple")).is_equal(0)
 	runner.advance()
@@ -185,18 +185,18 @@ func test_catalog_loads_authored_json() -> void:
 
 
 func test_save_round_trip_dialogue_vars_and_weather() -> void:
-	Game.player_name = "Blake"
-	Game.town_name = "Cedar"
+	Game.resident.player_name = "Blake"
+	Game.town.town_name = "Cedar"
 	Game.set_weather(&"rain")
-	Game.dialogue_vars["met_tom"] = 1
+	Game.town.dialogue_vars["met_tom"] = 1
 	var path := "user://test_dialogue_save.json"
 	assert_int(SaveService.save_game(path)).is_equal(OK)
 	Game.reset_session()
 	assert_int(SaveService.load_game(path)).is_equal(OK)
-	assert_str(Game.player_name).is_equal("Blake")
-	assert_str(Game.town_name).is_equal("Cedar")
-	assert_that(Game.weather).is_equal(&"rain")
-	assert_int(int(Game.dialogue_vars.get("met_tom", 0))).is_equal(1)
+	assert_str(Game.resident.player_name).is_equal("Blake")
+	assert_str(Game.town.town_name).is_equal("Cedar")
+	assert_that(Game.town.weather).is_equal(&"rain")
+	assert_int(int(Game.town.dialogue_vars.get("met_tom", 0))).is_equal(1)
 	SaveService.delete_save(path)
 
 

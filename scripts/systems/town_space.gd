@@ -39,7 +39,7 @@ static func block_base(block: Vector2i) -> Vector2:
 
 ## The player is outdoors in a generated town (the only place with decomp field blocks).
 static func is_outdoor_town() -> bool:
-	return Game.world_mode == WorldData.Mode.GENERATED and Game.current_room_id == &""
+	return Game.town.world_mode == WorldData.Mode.GENERATED and Game.current_room_id == &""
 
 
 static func _origin() -> Vector3:

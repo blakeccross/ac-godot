@@ -129,7 +129,7 @@ static func entry(m: int, slot: int = -1) -> String:
 			return ""
 		## Saved keys come back as strings.
 		return str((book as Dictionary).get(m, (book as Dictionary).get(str(m), "")))
-	return str(Game.diary.get(m, ""))
+	return str(Game.resident.diary.get(m, ""))
 
 
 ## Up to 31 lines and 992 characters, as the editor hands them back.
@@ -201,9 +201,9 @@ func _on_written(text: String) -> void:
 		return
 	var kept: String = clip(text)
 	if kept.strip_edges() == "":
-		Game.diary.erase(month)
+		Game.resident.diary.erase(month)
 	else:
-		Game.diary[month] = kept
+		Game.resident.diary[month] = kept
 
 
 func _on_writer_closed() -> void:

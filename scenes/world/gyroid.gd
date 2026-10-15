@@ -236,7 +236,7 @@ func _play(data: DialogueData, vars: Dictionary, house: House) -> Array[Dictiona
 	talk_ctx.mail_text = GyroidStore.message(house)
 	var frees := PackedStringArray()
 	frees.resize(3)
-	frees[2] = Game.player_name
+	frees[2] = Game.resident.player_name
 	for key: String in vars:
 		if key.begins_with("free"):
 			frees[int(key.substr(4))] = str(vars[key])

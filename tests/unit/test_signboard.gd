@@ -47,7 +47,7 @@ func test_put_up_post_and_take_down() -> void:
 	assert_int(SignboardUse.design_of(pid).palette).is_equal(3)
 	SignboardUse.take(world, pid)
 	assert_bool(world.grid.is_occupied(cell)).is_false()
-	assert_bool(Game.signboards.has(String(pid))).is_false()
+	assert_bool(Game.town.signboards.has(String(pid))).is_false()
 
 
 func test_visitors_are_told_hands_off() -> void:

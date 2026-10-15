@@ -64,21 +64,21 @@ func test_pack_unpack_round_trip() -> void:
 
 func test_game_apply_roll_updates_session() -> void:
 	Game.apply_weather_roll({"kind": Weather.Kind.RAIN, "intensity": Weather.Intensity.LIGHT})
-	assert_that(Game.weather).is_equal(&"rain")
-	assert_int(Game.weather_intensity).is_equal(int(Weather.Intensity.LIGHT))
+	assert_that(Game.town.weather).is_equal(&"rain")
+	assert_int(Game.town.weather_intensity).is_equal(int(Weather.Intensity.LIGHT))
 	assert_bool(Weather.is_raining()).is_true()
 
 
 func test_cycle_debug_walks_kinds() -> void:
 	Game.set_weather(&"clear")
 	Game.cycle_weather_debug()
-	assert_that(Game.weather).is_equal(&"rain")
+	assert_that(Game.town.weather).is_equal(&"rain")
 	Game.cycle_weather_debug()
-	assert_that(Game.weather).is_equal(&"snow")
+	assert_that(Game.town.weather).is_equal(&"snow")
 	Game.cycle_weather_debug()
-	assert_that(Game.weather).is_equal(&"sakura")
+	assert_that(Game.town.weather).is_equal(&"sakura")
 	Game.cycle_weather_debug()
-	assert_that(Game.weather).is_equal(&"clear")
+	assert_that(Game.town.weather).is_equal(&"clear")
 
 
 func test_field_renew_rerolls_weather() -> void:
@@ -89,10 +89,10 @@ func test_field_renew_rerolls_weather() -> void:
 	Clock.advance_minutes(20)
 	## July term allows rain/thunder; seeded roll should leave clear or precip — just ensure it set something valid.
 	assert_bool(
-		Game.weather == &"clear"
-		or Game.weather == &"rain"
-		or Game.weather == &"snow"
-		or Game.weather == &"sakura"
+		Game.town.weather == &"clear"
+		or Game.town.weather == &"rain"
+		or Game.town.weather == &"snow"
+		or Game.town.weather == &"sakura"
 	).is_true()
 
 
@@ -112,5 +112,5 @@ func test_save_round_trip_includes_intensity() -> void:
 	assert_int(int(snap.get("weather_intensity", -1))).is_equal(int(Weather.Intensity.HEAVY))
 	Game.reset_session()
 	Game.apply_snapshot(snap)
-	assert_that(Game.weather).is_equal(&"snow")
-	assert_int(Game.weather_intensity).is_equal(int(Weather.Intensity.HEAVY))
+	assert_that(Game.town.weather).is_equal(&"snow")
+	assert_int(Game.town.weather_intensity).is_equal(int(Weather.Intensity.HEAVY))

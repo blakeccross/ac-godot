@@ -207,7 +207,7 @@ func _ready() -> void:
 		_drawn_cloth = _cloth_key()
 		_drawn_umb = state.umbrella_design if state != null else -1
 		## `aNPC_check_force_use_umbrella`: out in the rain from the start, umbrella up.
-		if state != null and not state.is_home and Game != null and Game.weather == &"rain":
+		if state != null and not state.is_home and Game != null and Game.town.weather == &"rain":
 			_take_out_umbrella(true)
 
 
@@ -879,7 +879,7 @@ func take_soccer_ball() -> bool:
 	var talk_data: DialogueData = DialogueCatalog.conversation(StringName("msg_%d" % (SOCCER_CALL_MSG + looks)))
 	if ui == null or talk_data == null or ui.is_open():
 		return false
-	Game.quests.next_soccer(slot, Game.player_name)
+	Game.quests.next_soccer(slot, Game.resident.player_name)
 	var talk_ctx: DialogueContext = DialogueContext.from_game(data, state)
 	ai.begin_talk()
 	conversation.bind_talk_end(ui)
@@ -911,7 +911,7 @@ func _tick_fortune() -> bool:
 		(bg[1] as WorldGrid).world_to_cell(player.global_position)
 	) == _current_block()
 	var looks: int = int(data.personality.looks) if data.personality != null else 0
-	var step: int = VillagerFortune.step(destiny, looks, Game.player_gender, same_block, dist_gx)
+	var step: int = VillagerFortune.step(destiny, looks, Game.resident.player_gender, same_block, dist_gx)
 	match step:
 		VillagerFortune.Step.NONE:
 			return false
@@ -960,7 +960,7 @@ func _start_outdoor_act() -> bool:
 	## `aNPC_chk_talk_start`: a partner found this frame comes first.
 	if _pal != null:
 		return greeter.begin_greeting()
-	var raining: bool = Game.weather == &"rain"
+	var raining: bool = Game.town.weather == &"rain"
 	if raining and _umbrella == null:
 		var now: float = Time.get_ticks_msec() / 1000.0
 		if VillagerOutdoor.claim_umbrella(self, now, _outdoor_rng):

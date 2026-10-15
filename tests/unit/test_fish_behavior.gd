@@ -134,8 +134,8 @@ func test_scheduler_ramps_into_the_next_half_month() -> void:
 	Clock.month = 8
 	Clock.day = 31
 	Clock.hour = 12
-	Game.fish_season_term = (9 - 1) * 2      ## saved: Sep first half is next
-	Game.fish_season_offset = 1
+	Game.town.fish_season_term = (9 - 1) * 2      ## saved: Sep first half is next
+	Game.town.fish_season_offset = 1
 	var info: Dictionary = FishSpawnScheduler.chk_term_info(null)
 	assert_int(int(info["term0"])).is_equal(15)          ## Aug second half
 	assert_int(int(info["term1"])).is_equal(16)          ## Sep first half
