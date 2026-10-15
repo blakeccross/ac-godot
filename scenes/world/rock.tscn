@@ -1,7 +1,8 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/rock.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/data/interaction_verb.gd" id="3"]
 
 [sub_resource type="SphereMesh" id="RockMesh"]
 radius = 0.45
@@ -12,6 +13,26 @@ radius = 0.45
 
 [sub_resource type="BoxShape3D" id="InteractShape"]
 size = Vector3(1.2, 1.0, 1.2)
+
+[sub_resource type="Resource" id="InteractionVerb_0"]
+script = ExtResource("3")
+id = &"air_axe"
+prompt = "Hit rock"
+priority = 8
+player_anim = &"ply_1_axe_hane1"
+effect_frame = 15.0
+any_tool = false
+tool = 4
+
+[sub_resource type="Resource" id="InteractionVerb_1"]
+script = ExtResource("3")
+id = &"dig"
+prompt = "Hit rock"
+priority = 8
+player_anim = &"ply_1_not_dig1"
+effect_frame = 13.0
+any_tool = false
+tool = 1
 
 [node name="Rock" type="StaticBody3D"]
 collision_layer = 1
@@ -32,6 +53,7 @@ collision_mask = 0
 monitoring = false
 monitorable = true
 script = ExtResource("2")
+verbs = Array[ExtResource("3")]([SubResource("InteractionVerb_0"), SubResource("InteractionVerb_1")])
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="InteractVolume"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0)

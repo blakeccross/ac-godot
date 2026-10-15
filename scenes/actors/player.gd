@@ -1236,7 +1236,7 @@ func _run_interact(hit: InteractionQuery) -> void:
 		## Door enter awaits the structure open clip before changing scene.
 		## Ground pickup awaits the pocket shrink (`Set_Item_Pickup` 20→40); that overlaps
 		## the clip tail, so subtract spent time from `_finish_action`.
-		await hit.host.interact(hit.action, ctx)
+		await hit.run(ctx)
 	else:
 		ToolUse.apply_field(hit.action, ctx)
 	var spent: float = float(Time.get_ticks_msec() - t0) / 1000.0

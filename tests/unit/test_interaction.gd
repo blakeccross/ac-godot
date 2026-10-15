@@ -1,7 +1,8 @@
 class_name TestInteraction
 extends GdUnitTestSuite
 
-## Interaction is a verb payload. Hosts duck-type get_interactions / interact.
+## Interaction is a verb payload. Hosts speak through their InteractVolume: verbs authored on it
+## or from get_interactions, carried out by interact.
 ## The player must not switch on Tree vs Villager vs Furniture.
 
 
@@ -64,16 +65,35 @@ func test_primary_empty_is_null() -> void:
 	assert_object(Interaction.primary(actions)).is_null()
 
 
-func test_host_from_walks_ancestors() -> void:
+func test_a_volume_binds_the_nearest_host_up_its_ancestors() -> void:
 	var host := auto_free(_StubHost.new()) as _StubHost
 	var mid := Node.new()
-	var volume := Area3D.new()
+	var volume := InteractVolume.new()
 	host.add_child(mid)
 	mid.add_child(volume)
-	assert_object(InteractionQuery.host_from(volume)).is_same(host)
-	assert_bool(InteractionQuery.is_host(host)).is_true()
-	assert_bool(InteractionQuery.is_host(volume)).is_false()
-	assert_bool(InteractionQuery.is_host(auto_free(InteractVolume.new()))).is_false()
+	assert_object(volume.host).is_same(host)
+	assert_int(volume.offers(InteractionContext.new()).size()).is_equal(1)
+	assert_object(InteractVolume.of(host)).is_null()  ## not a direct child
+	assert_object(InteractVolume.of(mid)).is_same(volume)
+
+
+func test_authored_verbs_follow_the_tool_and_fall_back_to_activated() -> void:
+	var holder := auto_free(Node3D.new()) as Node3D
+	var volume := InteractVolume.new()
+	var dig := InteractionVerb.new()
+	dig.id = Interaction.DIG
+	dig.prompt = "Dig"
+	dig.any_tool = false
+	dig.tool = ToolData.Kind.SHOVEL
+	volume.verbs = [dig]
+	holder.add_child(volume)
+	## no tool out: nothing on offer
+	assert_int(volume.offers(InteractionContext.new()).size()).is_equal(0)
+	## a host with no interact hears activated
+	var heard: Array = []
+	volume.activated.connect(func(action: Interaction, _ctx: InteractionContext) -> void: heard.append(action.id))
+	assert_bool(await volume.activate(dig.to_interaction(), InteractionContext.new())).is_true()
+	assert_array(heard).contains_exactly([Interaction.DIG])
 
 
 func test_best_in_areas_picks_closer_host_not_higher_priority() -> void:
@@ -86,8 +106,8 @@ func test_best_in_areas_picks_closer_host_not_higher_priority() -> void:
 	item.prompt = "Pick up"
 	item.priority = 15
 	item.position = Vector3(1, 0, 0)
-	var talk_area := Area3D.new()
-	var item_area := Area3D.new()
+	var talk_area := InteractVolume.new()
+	var item_area := InteractVolume.new()
 	talker.add_child(talk_area)
 	item.add_child(item_area)
 	add_child(talker)
@@ -203,9 +223,9 @@ func test_rock_dig_requires_shovel() -> void:
 	var rock: Node = auto_free(load("res://scenes/world/rock.tscn").instantiate())
 	var empty := InteractionContext.new()
 	empty.inventory = Inventory.new()
-	assert_int(rock.get_interactions(empty).size()).is_equal(0)
+	assert_int(InteractVolume.of(rock).offers(empty).size()).is_equal(0)
 	var ctx := _ctx_with_tool(&"shovel")
-	var action: Interaction = Interaction.primary(rock.get_interactions(ctx))
+	var action: Interaction = Interaction.primary(InteractVolume.of(rock).offers(ctx))
 	assert_that(action).is_not_null()
 	assert_str(String(action.id)).is_equal(String(Interaction.DIG))
 	assert_bool(rock.interact(action, ctx)).is_true()
@@ -326,10 +346,9 @@ func test_building_exposes_verbs_on_child_door() -> void:
 	var building: Node = auto_free(load("res://scenes/world/building.tscn").instantiate())
 	add_child(building)
 	var door: Node = building.get_node("Door")
-	assert_bool(InteractionQuery.is_host(door)).is_true()
-	assert_bool(InteractionQuery.is_host(building)).is_false()
-	var vol: Node = door.get_node("InteractVolume")
-	assert_object(InteractionQuery.host_from(vol)).is_same(door)
+	var vol: InteractVolume = door.get_node("InteractVolume") as InteractVolume
+	assert_object(vol.host).is_same(door)
+	assert_object(InteractVolume.of(building)).is_null()
 	var action: Interaction = Interaction.primary(door.get_interactions(InteractionContext.new()))
 	assert_str(String(action.id)).is_equal(String(Interaction.ENTER))
 	assert_bool(door.interact(action, InteractionContext.new())).is_true()
@@ -383,8 +402,9 @@ func test_villager_offers_no_talk_while_sleeping() -> void:
 
 func _assert_verb(scene_path: String, verb: StringName, ctx: InteractionContext) -> void:
 	var host: Node = auto_free(load(scene_path).instantiate())
-	assert_bool(InteractionQuery.is_host(host)).is_true()
-	var action: Interaction = Interaction.primary(host.get_interactions(ctx))
+	var volume: InteractVolume = InteractVolume.of(host)
+	assert_object(volume).is_not_null()
+	var action: Interaction = Interaction.primary(volume.offers(ctx))
 	assert_that(action).is_not_null()
 	assert_str(String(action.id)).is_equal(String(verb))
 	assert_bool(host.interact(action, ctx)).is_true()

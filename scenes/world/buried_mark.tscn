@@ -1,10 +1,21 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/buried_mark.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/data/interaction_verb.gd" id="3"]
 
 [sub_resource type="BoxShape3D" id="InteractShape"]
 size = Vector3(1.2, 0.6, 1.2)
+
+[sub_resource type="Resource" id="InteractionVerb_0"]
+script = ExtResource("3")
+id = &"dig"
+prompt = "Dig"
+priority = 12
+player_anim = &"ply_1_dig1"
+effect_frame = 21.0
+any_tool = false
+tool = 1
 
 [node name="BuriedMark" type="Node3D"]
 script = ExtResource("1")
@@ -15,6 +26,7 @@ collision_mask = 0
 monitoring = false
 monitorable = true
 script = ExtResource("2")
+verbs = Array[ExtResource("3")]([SubResource("InteractionVerb_0")])
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="InteractVolume"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)

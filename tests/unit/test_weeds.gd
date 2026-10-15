@@ -55,7 +55,7 @@ func test_pulling_frees_the_unit() -> void:
 	var pid: StringName = weed.get("persist_id")
 	var ctx := InteractionContext.new()
 	ctx.world = world
-	var action: Interaction = Interaction.primary(weed.get_interactions(ctx))
+	var action: Interaction = Interaction.primary(InteractVolume.of(weed).offers(ctx))
 	assert_str(String(action.player_anim)).is_equal(String(WeedUse.PULL_ANIM))
 	assert_bool(weed.interact(action, ctx)).is_true()
 	assert_bool(WeedUse.is_weed(pid)).is_false()

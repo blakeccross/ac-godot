@@ -1,10 +1,19 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scenes/world/weed.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/world/interact_volume.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/data/interaction_verb.gd" id="3"]
 
 [sub_resource type="BoxShape3D" id="InteractShape"]
 size = Vector3(0.9, 0.8, 0.9)
+
+[sub_resource type="Resource" id="InteractionVerb_0"]
+script = ExtResource("3")
+id = &"pick_up"
+prompt = "Pull weed"
+priority = 10
+player_anim = &"ply_1_zassou1"
+effect_frame = 17.0
 
 [node name="Weed" type="Node3D"]
 script = ExtResource("1")
@@ -14,6 +23,7 @@ collision_layer = 8
 collision_mask = 0
 monitoring = false
 script = ExtResource("2")
+verbs = Array[ExtResource("3")]([SubResource("InteractionVerb_0")])
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="InteractVolume"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
