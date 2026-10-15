@@ -110,3 +110,21 @@ func test_backwards_runs_from_the_end_to_the_start() -> void:
 	assert_float(a.current_animation_position).is_equal_approx(clip.length, 0.002)
 	_run(a, clip.length + 0.1)
 	assert_bool(a.is_playing()).is_false()
+
+
+func test_the_tree_poses_the_model_skeleton() -> void:
+	var a := _animator()
+	if a == null:
+		return
+	var skeleton: Skeleton3D = a.get_parent().find_children("*", "Skeleton3D", true, false)[0]
+	a.play_gait(&"walk", 1.0, 0.0)
+	a.advance(0.0)
+	var poses: Array[Quaternion] = []
+	for i: int in skeleton.get_bone_count():
+		poses.append(skeleton.get_bone_pose_rotation(i))
+	_run(a, 0.25)
+	var moved: int = 0
+	for i: int in skeleton.get_bone_count():
+		if not skeleton.get_bone_pose_rotation(i).is_equal_approx(poses[i]):
+			moved += 1
+	assert_int(moved).is_greater(4)

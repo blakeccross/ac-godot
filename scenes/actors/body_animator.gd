@@ -11,7 +11,8 @@ extends AnimationTree
 ## - `ClipA` / `ClipB` each play one named clip through a `TimeSeek`. A new clip goes to
 ##   whichever is idle, so it crossfades out of the one playing (`morph` frames).
 ##
-## The model's `AnimationPlayer` only holds the libraries; it never plays. The methods
+## The model's `AnimationPlayer` only holds the libraries (the tree reads them, so
+## `get_animation` / `has_animation` work as on the player); it never plays. The methods
 ## mirror the `AnimationPlayer` calls callers already make (`play`, `seek`,
 ## `is_playing`, `current_animation`, `animation_finished`), so one-shot actions read
 ## the same as before.
@@ -75,18 +76,6 @@ func bind(player: AnimationPlayer) -> void:
 
 func is_bound() -> bool:
 	return _player != null and is_instance_valid(_player)
-
-
-func get_animation(clip: StringName) -> Animation:
-	return _player.get_animation(clip) if is_bound() and _player.has_animation(clip) else null
-
-
-func has_animation(clip: StringName) -> bool:
-	return is_bound() and _player.has_animation(clip)
-
-
-func get_animation_list() -> PackedStringArray:
-	return _player.get_animation_list() if is_bound() else PackedStringArray()
 
 
 ## `AnimationPlayer.play`: start `clip`, fading over `blend` seconds (0 cuts). Calling it
@@ -160,8 +149,9 @@ func _start_clip(clip: StringName, blend: float, at: float) -> void:
 func _travel(target: StringName, blend: float) -> void:
 	var body: AnimationNodeStateMachine = (tree_root as AnimationNodeBlendTree).get_node(&"Body")
 	var playback: AnimationNodeStateMachinePlayback = get(PLAYBACK)
-	if _state != &"" and body.has_transition(_state, target):
-		body.get_transition(body.find_transition(_state, target)).xfade_time = maxf(blend, 0.0)
+	for i: int in body.get_transition_count():
+		if body.get_transition_from(i) == _state and body.get_transition_to(i) == target:
+			body.get_transition(i).xfade_time = maxf(blend, 0.0)
 	if _state == &"" or blend <= 0.0:
 		playback.start(target, true)
 	else:

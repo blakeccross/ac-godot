@@ -105,7 +105,7 @@ func think(delta: float) -> void:
 		_speed = minf(_speed + 0.61, 2.25)
 	else:
 		_speed = maxf(_speed - 0.07 * frames, 0.0)
-	var ap: AnimationPlayer = _player.animation_player() if _player != null else null
+	var ap: BodyAnimator = _player.animation_player() if _player != null else null
 	if ap != null:
 		ap.speed_scale = _speed
 		if not ap.is_playing():
@@ -119,7 +119,7 @@ func think(delta: float) -> void:
 
 
 func _play_wash_clip() -> void:
-	var ap: AnimationPlayer = _player.animation_player() if _player != null else null
+	var ap: BodyAnimator = _player.animation_player() if _player != null else null
 	if ap == null:
 		return
 	for anim_name: String in ap.get_animation_list():
@@ -137,7 +137,7 @@ func _finish_wash(result: int) -> void:
 	_result = result
 	_complete = true
 	if _player != null and is_instance_valid(_player):
-		var ap: AnimationPlayer = _player.animation_player()
+		var ap: BodyAnimator = _player.animation_player()
 		if ap != null:
 			ap.speed_scale = 1.0
 		_player.set_cutscene_driven(false)

@@ -27,7 +27,7 @@ var angle := Vector2.ZERO
 ## The body's facing the bearing is measured from.
 var body_yaw: float = 0.0
 var _skeleton: Skeleton3D
-var _anim: AnimationPlayer
+var _anim: AnimationMixer
 var _idx: int = -1
 ## The animation's own head pose, and what was last written over it — a pose still equal to
 ## that at mix time was not touched by the animation this frame.
@@ -35,7 +35,7 @@ var _base := Quaternion.IDENTITY
 var _written := Quaternion.IDENTITY
 
 
-func bind(skeleton: Skeleton3D, anim: AnimationPlayer) -> void:
+func bind(skeleton: Skeleton3D, anim: AnimationMixer) -> void:
 	unbind()
 	_skeleton = skeleton
 	_anim = anim

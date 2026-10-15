@@ -103,7 +103,7 @@ static func play_enter(host: Node) -> void:
 	## — structure `StructureOffset` roofs back in play — while still under the
 	## eave, which snaps them onto the roof. Finish the player's own clip first.
 	if played and player != null and is_instance_valid(player):
-		var player_anim: AnimationPlayer = player.animation_player()
+		var player_anim: BodyAnimator = player.animation_player()
 		if player_anim != null and player_anim.is_playing():
 			await player_anim.animation_finished
 	## Never call `end_door_enter` / `DoorCamera.end` here on success, for ANY

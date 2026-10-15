@@ -47,6 +47,12 @@ const ANIM_RUN_SLIP := "ply_1_run_slip1"
 ## cKF morph −5 / −12 at 60 Hz (`-5.0f` on walk/run/dash/wait, `-12.0f` skid → wait).
 const MORPH_5 := 10.0 / DecompTime.TICK_HZ
 const MORPH_12 := 24.0 / DecompTime.TICK_HZ
+## `BodyAnimator` gait per moving gait.
+const GAIT_STATES := {
+	PlayerLocomotion.Gait.WALK: &"walk",
+	PlayerLocomotion.Gait.RUN: &"run",
+	PlayerLocomotion.Gait.DASH: &"dash",
+}
 ## `Player_actor_sound_slip` (`0x4129`).
 const SE_SLIP := &"4129"
 ## `mPlayer_ANIM_OPEN1` — door enter demo (`mPlayer_INDEX_DOOR`, type 0).
@@ -139,6 +145,7 @@ const ANIM_OUTTRAIN1 := "ply_1_outtrain1"
 @onready var _placeholder: MeshInstance3D = $MeshPivot/PlaceholderMesh
 @onready var _probe: Area3D = $MeshPivot/InteractProbe
 @onready var _look: Marker3D = $CameraLook
+@onready var _animator: BodyAnimator = $Animator
 
 ## Title demo: a recorded stick + A replace live input (`mEv_IsTitleDemo` swaps the controller
 ## in `m_player_controller.c_inc`). Null during normal play.
@@ -167,7 +174,8 @@ var _busy: bool = false
 ## Station intro ride / guided walk — stage owns XZ/Y; skip snap + move_and_slide.
 var _cutscene_driven: bool = false
 var _focus: Node = null
-var _anim: AnimationPlayer
+## The body tree once the model is bound (`_animator`), null without a model.
+var _anim: BodyAnimator
 var _gait: PlayerLocomotion.Gait = PlayerLocomotion.Gait.WAIT
 var _placeholder_bob: float = 0.0
 var _hold_anim: StringName = &""
@@ -437,7 +445,7 @@ func play_wait_anim() -> void:
 	play_wait_idle()
 
 
-func animation_player() -> AnimationPlayer:
+func animation_player() -> BodyAnimator:
 	return _anim
 
 
@@ -1610,25 +1618,22 @@ func _update_animation(delta: float) -> void:
 	if clip.is_empty():
 		return
 	_on_mode_entered(prev, next)
+	var blend: float = MORPH_12 if prev == PlayerLocomotion.Gait.TURN_DASH else MORPH_5
+	## Walk ↔ run ↔ dash keep the current keyframe (`frame = current_frame`), which the
+	## tree's synced gait transition does; wait → walk and every other start restart at
+	## frame 1.
+	if GAIT_STATES.has(next) and clip == _anim.gait_clips.get(GAIT_STATES[next], ""):
+		_ensure_loop(clip)
+		_anim.play_gait(GAIT_STATES[next], _anim_speed(next), blend)
+		return
 	if one_shot:
 		var once: Animation = _anim.get_animation(clip)
 		if once != null:
 			once.loop_mode = Animation.LOOP_NONE
 	else:
 		_ensure_loop(clip)
-	## Walk ↔ run ↔ dash keep the current keyframe (`frame = current_frame`); wait → walk
-	## and every other start restart at frame 1.
-	var gaits: Array = [
-		PlayerLocomotion.Gait.WALK, PlayerLocomotion.Gait.RUN, PlayerLocomotion.Gait.DASH
-	]
-	var carry: bool = prev in gaits and next in gaits and _anim.is_playing()
-	var phase: float = _anim.current_animation_position if carry else 0.0
-	var blend: float = MORPH_12 if prev == PlayerLocomotion.Gait.TURN_DASH else MORPH_5
 	_anim.speed_scale = _anim_speed(next)
 	_anim.play(clip, blend)
-	if carry:
-		var length: float = _anim.get_animation(clip).length
-		_anim.seek(fmod(phase, maxf(length, 0.001)), true)
 
 
 ## Mode entry side effects: skid SE + `TURN_ASIMOTO`, tumble SE + `TUMBLE` (arg 0), and the
@@ -3261,15 +3266,18 @@ func _try_load_generated_visual() -> void:
 	_mesh.add_child(body)
 	_scale_visual(body)
 	_apply_preview_materials(body)
-	_anim = _find_animation_player(body)
-	if _anim != null:
+	var body_player: AnimationPlayer = _find_animation_player(body)
+	if body_player != null:
+		_animator.bind(body_player)
+		_anim = _animator
 		## Carry overlay lands after the body's own mix (anim1 on the part-table joints).
-		_anim.mixer_applied.connect(_apply_carry_pose)
+		if not _anim.mixer_applied.is_connected(_apply_carry_pose):
+			_anim.mixer_applied.connect(_apply_carry_pose)
 		## INDEX_DOOR / getoff: capture joint_0 XZ into AnimationMove, strip so the mesh stays on the body.
 		## INDEX_OUTDOOR GO_OUT keeps joint_0 (starts behind stand, ends at bind — no snap).
-		_capture_door_root_xz(_anim)
+		_capture_door_root_xz(body_player)
 		VisualAnimation.strip_named_joint_tracks(
-			_anim,
+			body_player,
 			"joint_0",
 			PackedStringArray(
 				[
